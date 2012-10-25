@@ -581,8 +581,8 @@ cpsw_encap(struct cpsw_softc *sc, struct mbuf *m0)
 	bd.next = 0;
 	bd.bufptr = seg->ds_addr;
 	bd.bufoff = 0;
-	bd.buflen = (seg->ds_len < 64 ? 64 : seg->ds_len);
-	bd.pktlen = (seg->ds_len < 64 ? 64 : seg->ds_len);
+	bd.buflen = seg->ds_len;
+	bd.pktlen = seg->ds_len;
 	/* Set OWNERSHIP, SOP, EOP */
 	bd.flags = (7<<13);
 
@@ -595,6 +595,49 @@ cpsw_encap(struct cpsw_softc *sc, struct mbuf *m0)
 		cpsw_cpdma_txbd_paddr(idx));
 
 	sc->txbd_queue_size++;
+
+	return (0);
+}
+
+/*
+ * Pad the packet to the minimum length for Ethernet.
+ * (CPSW hardware doesn't do this for us.)
+ */
+static int
+cpsw_pad(struct mbuf *m)
+{
+	int padlen = ETHER_MIN_LEN - m->m_pkthdr.len;
+	struct mbuf *last, *n;
+
+	if (padlen <= 0)
+		return (0);
+
+	/* If there's only the packet-header and we can pad there, use it. */
+	if (m->m_pkthdr.len == m->m_len && M_WRITABLE(m) &&
+	    M_TRAILINGSPACE(m) >= padlen) {
+		last = m;
+	} else {
+		/*
+		 * Walk packet chain to find last mbuf. We will either
+		 * pad there, or append a new mbuf and pad it.
+		 */
+		for (last = m; last->m_next != NULL; last = last->m_next)
+			;
+		if (!(M_WRITABLE(last) && M_TRAILINGSPACE(last) >= padlen)) {
+			/* Allocate new empty mbuf, pad it. Compact later. */
+			MGET(n, M_DONTWAIT, MT_DATA);
+			if (n == NULL)
+				return (ENOBUFS);
+			n->m_len = 0;
+			last->m_next = n;
+			last = n;
+		}
+	}
+
+	/* Now zero the pad area. */
+	memset(mtod(last, caddr_t) + last->m_len, 0, padlen);
+	last->m_len += padlen;
+	m->m_pkthdr.len += padlen;
 
 	return (0);
 }
@@ -615,6 +658,7 @@ cpsw_start_locked(struct ifnet *ifp)
 	struct cpsw_softc *sc = ifp->if_softc;
 	struct mbuf *m0, *mtmp;
 	uint32_t queued = 0;
+	int error;
 
 	CPSW_TX_LOCK_ASSERT(sc);
 
@@ -627,6 +671,11 @@ cpsw_start_locked(struct ifnet *ifp)
 		IF_DEQUEUE(&ifp->if_snd, m0);
 		if (m0 == NULL)
 			break;
+
+		if ((error = cpsw_pad(m0))) {
+			m_freem(m0);
+			continue;
+		}
 
 		mtmp = m_defrag(m0, M_NOWAIT);
 		if (mtmp)
