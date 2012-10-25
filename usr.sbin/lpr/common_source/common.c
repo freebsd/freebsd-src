@@ -70,8 +70,6 @@ __FBSDID("$FreeBSD$");
 char	line[BUFSIZ];
 const char	*progname;		/* program name */
 
-extern uid_t	uid, euid;
-
 static int compar(const void *_p1, const void *_p2);
 
 /*

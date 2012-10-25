@@ -69,8 +69,6 @@ static int	all = 0;		/* eliminate all files (root only) */
 static int	cur_daemon;		/* daemon's pid */
 static char	current[7+MAXHOSTNAMELEN];  /* active control file name */
 
-extern uid_t	uid, euid;		/* real and effective user id's */
-
 static	void	alarmhandler(int _signo);
 static	void	do_unlink(char *_file);
 static int	 isowner(char *_owner, char *_file, const char *_cfhost);
