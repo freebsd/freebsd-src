@@ -728,7 +728,6 @@ ours:
 		ip = mtod(m, struct ip *);
 		/* Get the header length of the reassembled packet */
 		hlen = ip->ip_hl << 2;
-		ip_len = ntohs(ip->ip_len);
 	}
 
 #ifdef IPSEC
