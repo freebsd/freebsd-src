@@ -69,8 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/ti/cpsw/if_cpswreg.h>
-#include <arm/ti/cpsw/if_cpswvar.h>
+#include "if_cpswreg.h"
+#include "if_cpswvar.h"
  
 #include <arm/ti/ti_scm.h>
 
