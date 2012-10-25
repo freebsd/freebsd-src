@@ -278,8 +278,16 @@ init_param2(long physpages)
 		maxusers = physpages / (2 * 1024 * 1024 / PAGE_SIZE);
 		if (maxusers < 32)
 			maxusers = 32;
-		if (maxusers > 384)
-			maxusers = 384;
+		/*
+		 * Clips maxusers to 384 on machines with <= 4GB RAM or 32bit.
+		 * Scales it down 6x for large memory machines.
+		 */
+		if (maxusers > 384) {
+			if (sizeof(void *) <= 4)
+			    maxusers = 384;
+			else
+			    maxusers = 384 + ((maxusers - 384) / 6);
+		}
 	}
 
 	/*
