@@ -159,7 +159,9 @@ again:
 		/* next_hop may be set by ipfw_chk */
 		if (args.next_hop == NULL && args.next_hop6 == NULL)
 			break; /* pass */
-#if !defined(IPFIREWALL_FORWARD) || (!defined(INET6) && !defined(INET))
+		if (V_pfilforward == 0)
+			break;
+#if (!defined(INET6) && !defined(INET))
 		ret = EACCES;
 #else
 	    {
@@ -210,7 +212,7 @@ again:
 #endif
 		m_tag_prepend(*m0, fwd_tag);
 	    }
-#endif /* IPFIREWALL_FORWARD */
+#endif /* INET || INET6 */
 		break;
 
 	case IP_FW_DENY:

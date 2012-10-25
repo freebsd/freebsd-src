@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/route.h>
 #include <net/pf_mtag.h>
+#include <net/pfil.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -2534,12 +2535,7 @@ ipfw_init(void)
 		"(+ipv6) "
 #endif
 		"initialized, divert %s, nat %s, "
-		"rule-based forwarding "
-#ifdef IPFIREWALL_FORWARD
-		"enabled, "
-#else
-		"disabled, "
-#endif
+		"rule-based forwarding turned %s, "
 		"default to %s, logging ",
 #ifdef IPDIVERT
 		"enabled",
@@ -2551,6 +2547,7 @@ ipfw_init(void)
 #else
 		"loadable",
 #endif
+		V_pfilforward ? "on": "off",
 		default_to_accept ? "accept" : "deny");
 
 	/*

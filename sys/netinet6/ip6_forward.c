@@ -108,9 +108,7 @@ ip6_forward(struct mbuf *m, int srcrt)
 #ifdef SCTP
 	int sw_csum;
 #endif
-#ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag;
-#endif
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
 #ifdef IPSEC
@@ -359,9 +357,7 @@ again:
 	dst->sin6_len = sizeof(struct sockaddr_in6);
 	dst->sin6_family = AF_INET6;
 	dst->sin6_addr = ip6->ip6_dst;
-#ifdef IPFIREWALL_FORWARD
 again2:
-#endif
 	rin6.ro_rt = in6_rtalloc1((struct sockaddr *)dst, 0, 0, M_GETFIB(m));
 	if (rin6.ro_rt != NULL)
 		RT_UNLOCK(rin6.ro_rt);
@@ -596,7 +592,8 @@ skip_routing:
 			goto again;	/* Redo the routing table lookup. */
 	}
 
-#ifdef IPFIREWALL_FORWARD
+	if (V_pfilforward == 0)
+		goto pass;
 	/* See if local, if yes, send it to netisr. */
 	if (m->m_flags & M_FASTFWD_OURS) {
 		if (m->m_pkthdr.rcvif == NULL)
@@ -622,7 +619,6 @@ skip_routing:
 		m_tag_delete(m, fwd_tag);
 		goto again2;
 	}
-#endif /* IPFIREWALL_FORWARD */
 
 pass:
 	error = nd6_output(rt->rt_ifp, origifp, m, dst, rt);

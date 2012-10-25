@@ -509,7 +509,9 @@ tooshort:
 	dchg = (odst.s_addr != ip->ip_dst.s_addr);
 	ifp = m->m_pkthdr.rcvif;
 
-#ifdef IPFIREWALL_FORWARD
+	if (V_pfilforward == 0)
+		goto passin;
+
 	if (m->m_flags & M_FASTFWD_OURS) {
 		m->m_flags &= ~M_FASTFWD_OURS;
 		goto ours;
@@ -523,7 +525,6 @@ tooshort:
 		ip_forward(m, dchg);
 		return;
 	}
-#endif /* IPFIREWALL_FORWARD */
 
 passin:
 

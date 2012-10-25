@@ -167,9 +167,7 @@ ip_fastforward(struct mbuf *m)
 	uint16_t sum, ip_len, ip_off;
 	int error = 0;
 	int hlen, mtu;
-#ifdef IPFIREWALL_FORWARD
-	struct m_tag *fwd_tag;
-#endif
+	struct m_tag *fwd_tag = NULL;
 
 	/*
 	 * Are we active and forwarding packets?
@@ -372,14 +370,13 @@ ip_fastforward(struct mbuf *m)
 		 * Go on with new destination address
 		 */
 	}
-#ifdef IPFIREWALL_FORWARD
+
 	if (m->m_flags & M_FASTFWD_OURS) {
 		/*
 		 * ipfw changed it for a local address on this host.
 		 */
 		goto forwardlocal;
 	}
-#endif /* IPFIREWALL_FORWARD */
 
 passin:
 	/*
@@ -449,20 +446,13 @@ passin:
 	/*
 	 * Destination address changed?
 	 */
-#ifndef IPFIREWALL_FORWARD
-	if (odest.s_addr != dest.s_addr) {
-#else
-	fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
+	if (V_pfilforward != 0)
+		fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
 	if (odest.s_addr != dest.s_addr || fwd_tag != NULL) {
-#endif /* IPFIREWALL_FORWARD */
 		/*
 		 * Is it now for a local address on this host?
 		 */
-#ifndef IPFIREWALL_FORWARD
-		if (in_localip(dest)) {
-#else
 		if (m->m_flags & M_FASTFWD_OURS || in_localip(dest)) {
-#endif /* IPFIREWALL_FORWARD */
 forwardlocal:
 			/*
 			 * Return packet for processing by ip_input().
@@ -475,13 +465,11 @@ forwardlocal:
 		/*
 		 * Redo route lookup with new destination address
 		 */
-#ifdef IPFIREWALL_FORWARD
 		if (fwd_tag) {
 			dest.s_addr = ((struct sockaddr_in *)
 				    (fwd_tag + 1))->sin_addr.s_addr;
 			m_tag_delete(m, fwd_tag);
 		}
-#endif /* IPFIREWALL_FORWARD */
 		RTFREE(ro.ro_rt);
 		if ((dst = ip_findroute(&ro, dest, m)) == NULL)
 			return NULL;	/* icmp unreach already sent */

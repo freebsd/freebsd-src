@@ -37,6 +37,7 @@
 #include <sys/rmlock.h>
 #include <sys/socket.h>
 #include <sys/socketvar.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/condvar.h>
 #include <sys/lock.h>
@@ -64,6 +65,11 @@ VNET_DEFINE(struct pfilheadhead, pfil_head_list);
 VNET_DEFINE(struct rmlock, pfil_lock);
 #define	V_pfil_lock	VNET(pfil_lock)
 
+VNET_DEFINE(int, pfilforward) = 0;
+SYSCTL_NODE(_net, OID_AUTO, pfil, CTLFLAG_RW, 0, "Packer filter interface");
+SYSCTL_VNET_INT(_net_pfil, OID_AUTO, forward, CTLFLAG_RW,
+    &VNET_NAME(pfilforward), 0,
+    "Enable forwarding performed by packet filters");
 /*
  * pfil_run_hooks() runs the specified packet filter hooks.
  */

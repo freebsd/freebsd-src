@@ -129,9 +129,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	struct route iproute;
 	struct rtentry *rte;	/* cache for ro->ro_rt */
 	struct in_addr odst;
-#ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag = NULL;
-#endif
 #ifdef IPSEC
 	int no_route_but_check_spd = 0;
 #endif
@@ -218,11 +216,7 @@ again:
 		ro->ro_lle = NULL;
 		rte = NULL;
 	}
-#ifdef IPFIREWALL_FORWARD
 	if (rte == NULL && fwd_tag == NULL) {
-#else
-	if (rte == NULL) {
-#endif
 		bzero(dst, sizeof(*dst));
 		dst->sin_family = AF_INET;
 		dst->sin_len = sizeof(*dst);
@@ -543,7 +537,9 @@ sendit:
 		}
 	}
 
-#ifdef IPFIREWALL_FORWARD
+	if (V_pfilforward == 0)
+		goto passout;
+
 	/* See if local, if yes, send it to netisr with IP_FASTFWD_OURS. */
 	if (m->m_flags & M_FASTFWD_OURS) {
 		if (m->m_pkthdr.rcvif == NULL)
@@ -574,7 +570,6 @@ sendit:
 			ifa_free(&ia->ia_ifa);
 		goto again;
 	}
-#endif /* IPFIREWALL_FORWARD */
 
 passout:
 	/* 127/8 must not appear on wire - RFC1122. */
