@@ -1165,8 +1165,6 @@ smbfs_findopenLM2(struct smbfs_fctx *ctx, struct smbnode *dnp,
 		ctx->f_name = malloc(SMB_MAXFNAMELEN * 2, M_SMBFSDATA, M_WAITOK);
 	} else
 		ctx->f_name = malloc(SMB_MAXFNAMELEN, M_SMBFSDATA, M_WAITOK);
-	if (ctx->f_name == NULL)
-		return ENOMEM;
 	ctx->f_infolevel = SMB_DIALECT(SSTOVC(ctx->f_ssp)) < SMB_DIALECT_NTLM0_12 ?
 	    SMB_INFO_STANDARD : SMB_FIND_FILE_DIRECTORY_INFO;
 	ctx->f_attrmask = attr;
@@ -1311,10 +1309,7 @@ smbfs_findopen(struct smbnode *dnp, const char *wildcard, int wclen, int attr,
 	struct smbfs_fctx *ctx;
 	int error;
 
-	ctx = malloc(sizeof(*ctx), M_SMBFSDATA, M_WAITOK);
-	if (ctx == NULL)
-		return ENOMEM;
-	bzero(ctx, sizeof(*ctx));
+	ctx = malloc(sizeof(*ctx), M_SMBFSDATA, M_WAITOK | M_ZERO);
 	ctx->f_ssp = dnp->n_mount->sm_share;
 	ctx->f_dnp = dnp;
 	ctx->f_flags = SMBFS_RDD_FINDFIRST;
