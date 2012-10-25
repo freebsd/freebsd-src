@@ -18,6 +18,7 @@ mips/mips/dump_machdep.c		standard
 mips/mips/elf_machdep.c			standard
 mips/mips/exception.S			standard
 mips/mips/fp.S				standard
+mips/mips/freebsd32_machdep.c		optional	compat_freebsd32
 mips/mips/gdb_machdep.c			standard
 mips/mips/in_cksum.c			optional	inet
 mips/mips/libkern_machdep.c		standard
@@ -63,14 +64,6 @@ libkern/lshrdi3.c			standard
 libkern/memchr.c			optional	fdt
 libkern/memmove.c			standard
 libkern/ucmpdi2.c			optional	mips | mipsel
-
-# Compat32 stuff
-compat/freebsd32/freebsd32_ioctl.c	optional	compat_freebsd32
-compat/freebsd32/freebsd32_misc.c	optional	compat_freebsd32
-compat/freebsd32/freebsd32_syscalls.c	optional	compat_freebsd32
-compat/freebsd32/freebsd32_sysent.c	optional	compat_freebsd32
-kern/imgact_elf32.c			optional	compat_freebsd32
-mips/mips/freebsd32_machdep.c		optional	compat_freebsd32
 
 # cfe support
 dev/cfe/cfe_api.c			optional	cfe
