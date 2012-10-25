@@ -13,7 +13,7 @@ CFLAGS+= -I${.CURDIR}
 #	$NetBSD: Makefile,v 1.56 2012/05/30 21:54:23 sjg Exp $
 #	@(#)Makefile	5.2 (Berkeley) 12/28/90
 
-#	$Id: Makefile.in,v 1.170 2012/08/31 06:46:22 sjg Exp $
+#	$Id: Makefile.in,v 1.174 2012/10/10 18:46:24 sjg Exp $
 
 PROG?=	${.CURDIR:T}
 SRCS=	arch.c buf.c compat.c cond.c dir.c for.c hash.c job.c main.c \
@@ -33,7 +33,7 @@ srcdir= ${SRCTOP}/contrib/bmake
 CC?= gcc
 
 # Base version on src date
-MAKE_VERSION= 20120831
+MAKE_VERSION= 20121010
 DEFAULT_SYS_PATH = .../share/mk:/usr/share/mk
 
 CPPFLAGS+= 
@@ -113,14 +113,18 @@ EXTRACT_MAN=no
 
 MAN=${PROG}.1
 .if (${PROG} != "make")
-${MAN}:	make.1
-	@echo making ${PROG}.1
-	@sed -e 's/^.Nx/NetBSD/' -e '/^.Nm/s/make/${PROG}/' -e '/^.Sh HISTORY/,$$d' ${srcdir}/make.1 > $@
-	@(echo ".Sh HISTORY"; \
-	echo ".Nm"; \
+my.history: ${MAKEFILE}
+	@(echo ".Nm"; \
 	echo "is derived from NetBSD"; \
 	echo ".Xr make 1 ."; \
-	echo It uses autoconf to facilitate portability to other platforms.) >> $@
+	echo "It uses autoconf to facilitate portability to other platforms."; \
+	echo ".Pp") > $@
+
+${MAN}:	make.1 my.history
+	@echo making ${PROG}.1
+	@sed -e 's/^.Nx/NetBSD/' -e '/^.Nm/s/make/${PROG}/' \
+	-e '/^.Sh HISTORY/rmy.history' \
+	-e '/^.Sh HISTORY/,$$s,^.Nm,make,' ${srcdir}/make.1 > $@
 
 .endif
 
