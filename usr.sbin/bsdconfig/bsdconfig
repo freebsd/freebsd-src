@@ -189,7 +189,7 @@ dialog_menu_main()
 		--ok-label \"\$msg_ok\"                 \
 		--cancel-label \"\$msg_exit_bsdconfig\" \
 		--help-button                           \
-		${USE_XDIALOG:+--help \"\$( f_include_help BSDCONFIG )\"} \
+		${USE_XDIALOG:+--help \"\"}             \
 		--menu \"\$prompt\" $size $menu_list    \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
