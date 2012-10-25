@@ -1,3 +1,27 @@
+2012-10-10  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): 20121010
+	  o protect syntax that only bmake parses correctly.
+	  o remove auto setting of FORCE_MACHINE, use configure's
+	    --with-force-machine=whatever if that is desired.
+	
+2012-10-08  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in: do not lose history from make.1 when generating bmake.1
+
+2012-10-07  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): 20121007
+	  Merge with NetBSD make, pick up
+	  o compat.c: ignore empty commands - same as jobs mode.
+	  o make.1: document meta chars that cause use of shell
+
+2012-09-11  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): bump version to 20120911
+	* bsd.after-import.mk: include Makefile.inc early and allow it to
+	  override PROG
+
 2012-08-31  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile.in (MAKE_VERSION): bump version to 20120831
