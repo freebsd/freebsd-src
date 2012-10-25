@@ -80,8 +80,6 @@ u_char	family = PF_UNSPEC;
 u_char	family = PF_INET;
 #endif
 
-extern uid_t	uid, euid;
-
 /*
  * Create a TCP connection to host "rhost" at port "rport".
  * If rport == 0, then use the printer service port.
