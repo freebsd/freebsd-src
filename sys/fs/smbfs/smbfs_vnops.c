@@ -452,7 +452,8 @@ smbfs_write(ap)
 	struct vnode *vp = ap->a_vp;
 	struct uio *uio = ap->a_uio;
 
-	SMBVDEBUG("%d,ofs=%d,sz=%d\n",vp->v_type, (int)uio->uio_offset, uio->uio_resid);
+	SMBVDEBUG("%d,ofs=%d,sz=%zd\n",vp->v_type, (int)uio->uio_offset, 
+	    uio->uio_resid);
 	if (vp->v_type != VREG)
 		return (EPERM);
 	return smbfs_writevnode(vp, uio, ap->a_cred,ap->a_ioflag);
