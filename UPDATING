@@ -24,6 +24,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20121025:
+	The IPFIREWALL_FORWARD kernel option has been removed. Its
+	functionality now can be turned on using the net.pfil.forward
+	sysctl variable.
+
 20121023:
 	The ZERO_COPY_SOCKET kernel option has been removed and
 	split into SOCKET_SEND_COW and SOCKET_RECV_PFLIP.
