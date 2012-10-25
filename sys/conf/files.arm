@@ -65,10 +65,6 @@ dev/kbd/kbd.c			optional	sc
 dev/syscons/scgfbrndr.c		optional	sc
 dev/syscons/scterm-teken.c	optional	sc
 dev/syscons/scvtb.c		optional	sc
-geom/geom_bsd.c			optional	geom_bsd
-geom/geom_bsd_enc.c		optional	geom_bsd
-geom/geom_mbr.c			optional	geom_mbr
-geom/geom_mbr_enc.c		optional	geom_mbr
 libkern/arm/divsi3.S		standard
 libkern/arm/ffs.S		standard
 libkern/arm/muldi3.c		standard
