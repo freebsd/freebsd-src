@@ -904,7 +904,7 @@ found:
 		 * Make sure that fragments have a data length
 		 * that's a non-zero multiple of 8 bytes.
 		 */
-		if (ntohs(ip->ip_len) == 0 || (ntohs(ip->ip_len & 0x7) != 0)) {
+		if (ip->ip_len == htons(0) || (ntohs(ip->ip_len) & 0x7) != 0) {
 			IPSTAT_INC(ips_toosmall); /* XXX */
 			goto dropfrag;
 		}
