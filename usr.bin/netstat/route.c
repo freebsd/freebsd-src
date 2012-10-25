@@ -1104,10 +1104,8 @@ ipx_phost(struct sockaddr *sa)
 	struct sockaddr_ipx work;
 	static union ipx_net ipx_zeronet;
 	char *p;
-	struct ipx_addr in;
 
 	work = *sipx;
-	in = work.sipx_addr;
 
 	work.sipx_addr.x_port = 0;
 	work.sipx_addr.x_net = ipx_zeronet;
