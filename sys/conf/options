@@ -398,7 +398,6 @@ IPFILTER_LOG		opt_ipfilter.h
 IPFILTER_LOOKUP		opt_ipfilter.h
 IPFIREWALL		opt_ipfw.h
 IPFIREWALL_DEFAULT_TO_ACCEPT	opt_ipfw.h
-IPFIREWALL_FORWARD	opt_ipfw.h
 IPFIREWALL_NAT		opt_ipfw.h
 IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h

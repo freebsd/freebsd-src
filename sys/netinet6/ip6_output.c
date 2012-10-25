@@ -257,9 +257,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	int segleft_org = 0;
 	struct secpolicy *sp = NULL;
 #endif /* IPSEC */
-#ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag;
-#endif
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	if (ip6 == NULL) {
@@ -915,7 +913,8 @@ again:
 			goto again;	/* Redo the routing table lookup. */
 	}
 
-#ifdef IPFIREWALL_FORWARD
+	if (V_pfilforward == 0)
+		goto passout;
 	/* See if local, if yes, send it to netisr. */
 	if (m->m_flags & M_FASTFWD_OURS) {
 		if (m->m_pkthdr.rcvif == NULL)
@@ -941,7 +940,6 @@ again:
 		m_tag_delete(m, fwd_tag);
 		goto again;
 	}
-#endif /* IPFIREWALL_FORWARD */
 
 passout:
 	/*

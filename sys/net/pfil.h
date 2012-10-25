@@ -38,11 +38,14 @@
 #include <sys/_mutex.h>
 #include <sys/lock.h>
 #include <sys/rmlock.h>
+#include <net/vnet.h>
 
 struct mbuf;
 struct ifnet;
 struct inpcb;
 
+VNET_DECLARE(int, pfilforward);
+#define	V_pfilforward		VNET(pfilforward)
 /*
  * The packet filter hooks are designed for anything to call them to
  * possibly intercept the packet.

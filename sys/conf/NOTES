@@ -897,12 +897,6 @@ device		lagg
 # IPDIVERT enables the divert IP sockets, used by ``ipfw divert''.  It
 # depends on IPFIREWALL if compiled into the kernel.
 #
-# IPFIREWALL_FORWARD enables changing of the packet destination either
-# to do some sort of policy routing or transparent proxying.  Used by
-# ``ipfw forward''. All  redirections apply to locally generated
-# packets too.  Because of this great care is required when
-# crafting the ruleset.
-#
 # IPFIREWALL_NAT adds support for in kernel nat in ipfw, and it requires
 # LIBALIAS.
 #
@@ -923,7 +917,6 @@ options 	IPFIREWALL		#firewall
 options 	IPFIREWALL_VERBOSE	#enable logging to syslogd(8)
 options 	IPFIREWALL_VERBOSE_LIMIT=100	#limit verbosity
 options 	IPFIREWALL_DEFAULT_TO_ACCEPT	#allow everything by default
-options 	IPFIREWALL_FORWARD	#packet destination changes
 options 	IPFIREWALL_NAT		#ipfw kernel nat support
 options 	IPDIVERT		#divert sockets
 options 	IPFILTER		#ipfilter support

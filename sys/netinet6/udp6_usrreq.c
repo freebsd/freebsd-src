@@ -92,6 +92,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_types.h>
+#include <net/pfil.h>
 #include <net/route.h>
 
 #include <netinet/in.h>
@@ -182,9 +183,7 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	int off = *offp;
 	int plen, ulen;
 	struct sockaddr_in6 fromsa;
-#ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag;
-#endif
 	uint16_t uh_sum;
 
 	ifp = m->m_pkthdr.rcvif;
@@ -393,12 +392,12 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 	/*
 	 * Locate pcb for datagram.
 	 */
-#ifdef IPFIREWALL_FORWARD
+
 	/*
 	 * Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain.
 	 */
-	fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
-	if (fwd_tag != NULL) {
+	if (V_pfilforward != 0 &&
+	    (fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL)) != NULL) {
 		struct sockaddr_in6 *next_hop6;
 
 		next_hop6 = (struct sockaddr_in6 *)(fwd_tag + 1);
@@ -425,7 +424,6 @@ udp6_input(struct mbuf **mp, int *offp, int proto)
 		/* Remove the tag from the packet. We don't need it anymore. */
 		m_tag_delete(m, fwd_tag);
 	} else
-#endif /* IPFIREWALL_FORWARD */
 		inp = in6_pcblookup_mbuf(&V_udbinfo, &ip6->ip6_src,
 		    uh->uh_sport, &ip6->ip6_dst, uh->uh_dport,
 		    INPLOOKUP_WILDCARD | INPLOOKUP_RLOCKPCB,
