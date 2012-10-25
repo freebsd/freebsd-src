@@ -628,7 +628,8 @@ ip6_input(struct mbuf *m)
 	ip6 = mtod(m, struct ip6_hdr *);
 	srcrt = !IN6_ARE_ADDR_EQUAL(&odst, &ip6->ip6_dst);
 
-#ifdef IPFIREWALL_FORWARD
+	if (V_pfilforward == 0)
+		goto passin;
 	if (m->m_flags & M_FASTFWD_OURS) {
 		m->m_flags &= ~M_FASTFWD_OURS;
 		ours = 1;
@@ -644,7 +645,6 @@ ip6_input(struct mbuf *m)
 		ip6_forward(m, 1);
 		goto out;
 	}
-#endif /* IPFIREWALL_FORWARD */
 
 passin:
 	/*

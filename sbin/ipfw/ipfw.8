@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 16, 2012
+.Dd October 25, 2012
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -777,8 +777,11 @@ use with transparent proxy servers.
 .Pp
 To enable
 .Cm fwd
-a custom kernel needs to be compiled with the option
-.Cd "options IPFIREWALL_FORWARD" .
+the
+.Xr sysctl 8
+variable
+.Va net.pfil.forward
+should be set to 1.
 .It Cm nat Ar nat_nr | tablearg
 Pass packet to a
 nat instance
