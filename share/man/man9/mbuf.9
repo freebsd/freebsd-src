@@ -331,10 +331,9 @@ The system defines an advisory macro
 .Dv MINCLSIZE ,
 which is the smallest amount of data to put into an
 .Vt mbuf cluster .
-It is equal to the sum of
-.Dv MLEN
-and
-.Dv MHLEN .
+It is equal to
+.Dv MHLEN
+plus one.
 It is typically preferable to store data into the data region of an
 .Vt mbuf ,
 if size permits, as opposed to allocating a separate
