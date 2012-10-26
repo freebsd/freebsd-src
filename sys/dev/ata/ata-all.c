@@ -1492,6 +1492,8 @@ ata_cam_begin_transaction(device_t dev, union ccb *ccb)
 		request->u.ata.lba |= ((uint64_t)ccb->ataio.cmd.lba_high << 16) |
 				      ((uint64_t)ccb->ataio.cmd.lba_mid << 8) |
 				       (uint64_t)ccb->ataio.cmd.lba_low;
+		if (ccb->ataio.cmd.flags & CAM_ATAIO_NEEDRESULT)
+			request->flags |= ATA_R_NEEDRESULT;
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE &&
 		    ccb->ataio.cmd.flags & CAM_ATAIO_DMA)
 			request->flags |= ATA_R_DMA;
