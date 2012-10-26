@@ -64,16 +64,16 @@
  * Pmap stuff
  */
 struct	pv_entry;
+struct	pv_chunk;
 
 struct md_page {
-	int			pv_list_count;
 	TAILQ_HEAD(,pv_entry)	pv_list;
 	vm_memattr_t		memattr;
 };
 
 struct pmap {
 	struct mtx		pm_mtx;
-	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
+	TAILQ_HEAD(,pv_chunk)	pm_pvchunk;	/* list of mappings in pmap */
 	uint32_t		pm_rid[IA64_VM_MINKERN_REGION];
 	struct pmap_statistics	pm_stats;	/* pmap statistics */
 };
@@ -101,11 +101,24 @@ extern struct pmap	kernel_pmap_store;
  * mappings of that page.  An entry is a pv_entry_t, the list is pv_list.
  */
 typedef struct pv_entry {
-	pmap_t		pv_pmap;	/* pmap where mapping lies */
 	vm_offset_t	pv_va;		/* virtual address for mapping */
 	TAILQ_ENTRY(pv_entry)	pv_list;
-	TAILQ_ENTRY(pv_entry)	pv_plist;
 } *pv_entry_t;
+
+/*
+ * pv_entries are allocated in chunks per-process.  This avoids the
+ * need to track per-pmap assignments.
+ */
+#define	_NPCM	6
+#define	_NPCPV	337
+struct pv_chunk {
+	pmap_t			pc_pmap;
+	TAILQ_ENTRY(pv_chunk)	pc_list;
+	u_long			pc_map[_NPCM];	/* bitmap; 1 = free */
+	TAILQ_ENTRY(pv_chunk)	pc_lru;
+	u_long			pc_spare[2];
+	struct pv_entry		pc_pventry[_NPCPV];
+};
 
 #ifdef	_KERNEL
 
