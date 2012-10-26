@@ -210,7 +210,7 @@ int	inp_setmoptions(struct inpcb *, struct sockopt *);
 int	ip_ctloutput(struct socket *, struct sockopt *sopt);
 void	ip_drain(void);
 int	ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
-	    u_long if_hwassist_flags, int sw_csum);
+	    u_long if_hwassist_flags);
 void	ip_forward(struct mbuf *m, int srcrt);
 void	ip_init(void);
 #ifdef VIMAGE

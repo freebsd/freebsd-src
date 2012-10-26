@@ -125,7 +125,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	struct sockaddr_in *dst;
 	struct in_ifaddr *ia;
 	int isbroadcast;
-	uint16_t ip_len, ip_off, sw_csum;
+	uint16_t ip_len, ip_off;
 	struct route iproute;
 	struct rtentry *rte;	/* cache for ro->ro_rt */
 	struct in_addr odst;
@@ -583,18 +583,16 @@ passout:
 	}
 
 	m->m_pkthdr.csum_flags |= CSUM_IP;
-	sw_csum = m->m_pkthdr.csum_flags & ~ifp->if_hwassist;
-	if (sw_csum & CSUM_DELAY_DATA) {
+	if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA & ~ifp->if_hwassist) {
 		in_delayed_cksum(m);
-		sw_csum &= ~CSUM_DELAY_DATA;
+		m->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
 #ifdef SCTP
-	if (sw_csum & CSUM_SCTP) {
+	if (m->m_pkthdr.csum_flags & CSUM_SCTP & ~ifp->if_hwassist) {
 		sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
-		sw_csum &= ~CSUM_SCTP;
+		m->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 	}
 #endif
-	m->m_pkthdr.csum_flags &= ifp->if_hwassist;
 
 	/*
 	 * If small enough for interface, or the interface will take
@@ -604,8 +602,10 @@ passout:
 	    (m->m_pkthdr.csum_flags & ifp->if_hwassist & CSUM_TSO) != 0 ||
 	    ((ip_off & IP_DF) == 0 && (ifp->if_hwassist & CSUM_FRAGMENT))) {
 		ip->ip_sum = 0;
-		if (sw_csum & CSUM_DELAY_IP)
+		if (m->m_pkthdr.csum_flags & CSUM_IP & ~ifp->if_hwassist) {
 			ip->ip_sum = in_cksum(m, hlen);
+			m->m_pkthdr.csum_flags &= ~CSUM_IP;
+		}
 
 		/*
 		 * Record statistics for this interface address.
@@ -646,7 +646,7 @@ passout:
 	 * Too large for interface; fragment if possible. If successful,
 	 * on return, m will point to a list of packets to be sent.
 	 */
-	error = ip_fragment(ip, &m, mtu, ifp->if_hwassist, sw_csum);
+	error = ip_fragment(ip, &m, mtu, ifp->if_hwassist);
 	if (error)
 		goto bad;
 	for (; m; m = m0) {
@@ -691,11 +691,10 @@ bad:
  * chain of fragments that should be freed by the caller.
  *
  * if_hwassist_flags is the hw offload capabilities (see if_data.ifi_hwassist)
- * sw_csum contains the delayed checksums flags (e.g., CSUM_DELAY_IP).
  */
 int
 ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
-    u_long if_hwassist_flags, int sw_csum)
+    u_long if_hwassist_flags)
 {
 	int error = 0;
 	int hlen = ip->ip_hl << 2;
@@ -833,8 +832,10 @@ smart_frag_failure:
 		m->m_pkthdr.csum_flags = m0->m_pkthdr.csum_flags;
 		mhip->ip_off = htons(mhip->ip_off);
 		mhip->ip_sum = 0;
-		if (sw_csum & CSUM_DELAY_IP)
+		if (m->m_pkthdr.csum_flags & CSUM_IP & ~if_hwassist_flags) {
 			mhip->ip_sum = in_cksum(m, mhlen);
+			m->m_pkthdr.csum_flags &= ~CSUM_IP;
+		}
 		*mnext = m;
 		mnext = &m->m_nextpkt;
 	}
@@ -853,8 +854,10 @@ smart_frag_failure:
 	ip->ip_len = htons((u_short)m0->m_pkthdr.len);
 	ip->ip_off = htons(ip_off | IP_MF);
 	ip->ip_sum = 0;
-	if (sw_csum & CSUM_DELAY_IP)
+	if (m0->m_pkthdr.csum_flags & CSUM_IP & ~if_hwassist_flags) {
 		ip->ip_sum = in_cksum(m0, hlen);
+		m0->m_pkthdr.csum_flags &= ~CSUM_IP;
+	}
 
 done:
 	*m_frag = m0;

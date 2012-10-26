@@ -3379,8 +3379,8 @@ bridge_fragment(struct ifnet *ifp, struct mbuf *m, struct ether_header *eh,
 		goto out;
 	ip = mtod(m, struct ip *);
 
-	error = ip_fragment(ip, &m, ifp->if_mtu, ifp->if_hwassist,
-		    CSUM_DELAY_IP);
+	m->m_pkthdr.csum_flags |= CSUM_IP;
+	error = ip_fragment(ip, &m, ifp->if_mtu, ifp->if_hwassist);
 	if (error)
 		goto out;
 
