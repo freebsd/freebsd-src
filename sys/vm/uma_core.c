@@ -158,7 +158,7 @@ static struct callout uma_callout;
  * a special allocation function just for zones.
  */
 struct uma_zctor_args {
-	char *name;
+	const char *name;
 	size_t size;
 	uma_ctor ctor;
 	uma_dtor dtor;
@@ -1828,7 +1828,7 @@ uma_set_align(int align)
 
 /* See uma.h */
 uma_zone_t
-uma_zcreate(char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
+uma_zcreate(const char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
 		uma_init uminit, uma_fini fini, int align, u_int32_t flags)
 
 {
