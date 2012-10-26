@@ -99,6 +99,7 @@ vmm_mem_alloc(size_t size)
 	
 	if ((m->flags & PG_ZERO) == 0)
 		pagezero((void *)PHYS_TO_DMAP(pa));
+	m->valid = VM_PAGE_BITS_ALL;
 
 	update_pages_allocated(1);
 
