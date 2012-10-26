@@ -205,10 +205,7 @@ f_dialog_menu_netdev()
 		s/lo$d//g
 		s/ppp$d//g
 		s/sl$d//g
-		s/lp$d//g
-		s/fwe$d//g
 		s/faith$d//g
-		s/plip$d//g
 
 		# Convert all colons back into spaces
 		y/:/ /
