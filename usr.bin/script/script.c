@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2010, 2012  David E. O'Brien
  * Copyright (c) 1980, 1992, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -44,6 +45,7 @@ static const char sccsid[] = "@(#)script.c	8.1 (Berkeley) 6/6/93";
 #include <sys/time.h>
 #include <sys/uio.h>
 #include <sys/endian.h>
+#include <dev/filemon/filemon.h>
 
 #include <err.h>
 #include <errno.h>
@@ -70,7 +72,8 @@ static FILE *fscript;
 static int master, slave;
 static int child;
 static const char *fname;
-static int qflg, ttyflg;
+static char *fmfname;
+static int fflg, qflg, ttyflg;
 static int usesleep, rawout;
 
 static struct termios tt;
@@ -90,27 +93,32 @@ main(int argc, char *argv[])
 	int cc;
 	struct termios rtt, stt;
 	struct winsize win;
-	int aflg, kflg, pflg, ch, n;
 	struct timeval tv, *tvp;
 	time_t tvec, start;
 	char obuf[BUFSIZ];
 	char ibuf[BUFSIZ];
 	fd_set rfd;
-	int flushtime = 30;
-	int readstdin;
-	int k;
+	int aflg, kflg, pflg, ch, k, n;
+	int flushtime, readstdin;
+	int fm_fd, fm_log;
 
 	aflg = kflg = pflg = 0;
 	usesleep = 1;
 	rawout = 0;
+	flushtime = 30;
+	fm_fd = -1;	/* Shut up stupid "may be used uninitialized" GCC
+			   warning. (not needed w/clang) */
 
-	while ((ch = getopt(argc, argv, "adkpqrt:")) != -1)
+	while ((ch = getopt(argc, argv, "adfkpqrt:")) != -1)
 		switch(ch) {
 		case 'a':
 			aflg = 1;
 			break;
 		case 'd':
 			usesleep = 0;
+			break;
+		case 'f':
+			fflg = 1;
 			break;
 		case 'k':
 			kflg = 1;
@@ -146,6 +154,23 @@ main(int argc, char *argv[])
 	if ((fscript = fopen(fname, pflg ? "r" : aflg ? "a" : "w")) == NULL)
 		err(1, "%s", fname);
 
+	if (fflg) {
+		asprintf(&fmfname, "%s.filemon", fname);
+		if (!fmfname)
+			err(1, "%s.filemon", fname);
+		if ((fm_fd = open("/dev/filemon", O_RDWR)) == -1)
+			err(1, "open(\"/dev/filemon\", O_RDWR)");
+		if ((fm_log = open(fmfname, O_WRONLY | O_CREAT | O_TRUNC,
+		    S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)) == -1)
+			err(1, "open(%s)", fmfname);
+		if (ioctl(fm_fd, FILEMON_SET_FD, &fm_log) < 0)
+			err(1, "Cannot set filemon log file descriptor");
+
+		/* Set up these two fd's to close on exec. */
+		(void)fcntl(fm_fd, F_SETFD, FD_CLOEXEC);
+		(void)fcntl(fm_log, F_SETFD, FD_CLOEXEC);
+	}
+
 	if (pflg)
 		playback(fscript);
 
@@ -169,7 +194,7 @@ main(int argc, char *argv[])
 		(void)printf("Script started, output file is %s\n", fname);
 		if (!rawout) {
 			(void)fprintf(fscript, "Script started on %s",
-				      ctime(&tvec));
+			    ctime(&tvec));
 			if (argv[0]) {
 				fprintf(fscript, "command: ");
 				for (k = 0 ; argv[k] ; ++k)
@@ -179,6 +204,10 @@ main(int argc, char *argv[])
 			}
 		}
 		fflush(fscript);
+		if (fflg) {
+			(void)printf("Filemon started, output file is %s\n",
+			    fmfname);
+		}
 	}
 	if (ttyflg) {
 		rtt = tt;
@@ -195,6 +224,9 @@ main(int argc, char *argv[])
 	if (child == 0)
 		doshell(argv);
 	close(slave);
+
+	if (fflg && ioctl(fm_fd, FILEMON_SET_PID, &child) < 0)
+		err(1, "Cannot set filemon PID");
 
 	start = tvec = time(0);
 	readstdin = 1;
@@ -260,7 +292,7 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-	    "usage: script [-adkpqr] [-t time] [file [command ...]]\n");
+	    "usage: script [-adfkpqr] [-t time] [file [command ...]]\n");
 	exit(1);
 }
 
@@ -291,6 +323,7 @@ doshell(char **av)
 
 	(void)close(master);
 	(void)fclose(fscript);
+	free(fmfname);
 	login_tty(slave);
 	setenv("SCRIPT", fname, 1);
 	if (av[0]) {
@@ -323,8 +356,12 @@ done(int eno)
 	if (!qflg) {
 		if (!rawout)
 			(void)fprintf(fscript,"\nScript done on %s",
-				      ctime(&tvec));
+			    ctime(&tvec));
 		(void)printf("\nScript done, output file is %s\n", fname);
+		if (fflg) {
+			(void)printf("Filemon done, output file is %s\n",
+			    fmfname);
+		}
 	}
 	(void)fclose(fscript);
 	(void)close(master);
