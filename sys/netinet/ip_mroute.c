@@ -2404,7 +2404,8 @@ pim_register_prepare(struct ip *ip, struct mbuf *m)
 	ip->ip_sum = in_cksum(mb_copy, ip->ip_hl << 2);
     } else {
 	/* Fragment the packet */
-	if (ip_fragment(ip, &mb_copy, mtu, 0, CSUM_DELAY_IP) != 0) {
+	mb_copy->m_pkthdr.csum_flags |= CSUM_IP;
+	if (ip_fragment(ip, &mb_copy, mtu, 0) != 0) {
 	    m_freem(mb_copy);
 	    return NULL;
 	}

@@ -542,10 +542,8 @@ passout:
 			 * We have to fragment the packet
 			 */
 			m->m_pkthdr.csum_flags |= CSUM_IP;
-			if (ip_fragment(ip, &m, mtu, ifp->if_hwassist,
-					(~ifp->if_hwassist & CSUM_DELAY_IP))) {
+			if (ip_fragment(ip, &m, mtu, ifp->if_hwassist))
 				goto drop;
-			}
 			KASSERT(m != NULL, ("null mbuf and no error"));
 			/*
 			 * Send off the fragments via outgoing interface
