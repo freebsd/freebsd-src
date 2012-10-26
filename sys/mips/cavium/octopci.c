@@ -104,7 +104,9 @@ static uint64_t	octopci_cs_addr(unsigned, unsigned, unsigned, unsigned);
 static void
 octopci_identify(driver_t *drv, device_t parent)
 {
-	/* XXX Check sysinfo flag.  */
+	/* Check whether we are a PCI host.  */
+	if ((cvmx_sysinfo_get()->bootloader_config_flags & CVMX_BOOTINFO_CFG_FLAG_PCI_HOST) == 0)
+		return;
 
 	BUS_ADD_CHILD(parent, 0, "pcib", 0);
 	if (octeon_has_feature(OCTEON_FEATURE_PCIE))
