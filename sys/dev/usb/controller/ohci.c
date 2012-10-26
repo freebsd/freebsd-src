@@ -81,9 +81,8 @@ __FBSDID("$FreeBSD$");
 static int ohcidebug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, ohci, CTLFLAG_RW, 0, "USB ohci");
-SYSCTL_INT(_hw_usb_ohci, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_ohci, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
     &ohcidebug, 0, "ohci debug level");
-
 TUNABLE_INT("hw.usb.ohci.debug", &ohcidebug);
 
 static void ohci_dumpregs(ohci_softc_t *);
