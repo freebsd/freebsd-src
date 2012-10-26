@@ -584,6 +584,7 @@ struct proc {
 					   after fork. */
 	uint64_t	p_prev_runtime;	/* (c) Resource usage accounting. */
 	struct racct	*p_racct;	/* (b) Resource accounting. */
+	u_char		p_throttled;	/* (c) Flag for racct pcpu throttling */
 	/*
 	 * An orphan is the child that has beed re-parented to the
 	 * debugger as a result of attaching to it.  Need to keep
