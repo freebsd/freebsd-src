@@ -100,6 +100,9 @@ void
 userret(struct thread *td, struct trapframe *frame)
 {
 	struct proc *p = td->td_proc;
+#ifdef	RACCT
+	int sig;
+#endif
 
 	CTR3(KTR_SYSC, "userret: thread %p (pid %d, %s)", td, p->p_pid,
             td->td_name);
@@ -162,6 +165,16 @@ userret(struct thread *td, struct trapframe *frame)
 	    ("%s: Returning on td %p (pid %d, %s) with vnet %p set in %s",
 	    __func__, td, p->p_pid, td->td_name, curvnet,
 	    (td->td_vnet_lpush != NULL) ? td->td_vnet_lpush : "N/A"));
+#endif
+#ifdef	RACCT
+	PROC_LOCK(p);
+	while (p->p_throttled == 1) {
+		sig = msleep(p->p_racct, &p->p_mtx, PCATCH | PBDRY, "racct",
+		    hz);
+		if ((sig == EINTR) || (sig == ERESTART))
+			break;
+	}
+	PROC_UNLOCK(p);
 #endif
 }
 
