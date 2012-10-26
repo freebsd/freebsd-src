@@ -136,6 +136,12 @@ filemon_dtr(void *data)
 	}
 }
 
+#if __FreeBSD_version < 900041
+#define FGET_WRITE(a1, a2, a3) fget_write((a1), (a2), (a3))
+#else
+#define FGET_WRITE(a1, a2, a3) fget_write((a1), (a2), CAP_WRITE | CAP_SEEK, (a3))
+#endif
+
 static int
 filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
     struct thread *td)
@@ -148,11 +154,6 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 	switch (cmd) {
 	/* Set the output file descriptor. */
 	case FILEMON_SET_FD:
-#if __FreeBSD_version < 900041
-#define FGET_WRITE(a1, a2, a3) fget_write((a1), (a2), (a3))
-#else
-#define FGET_WRITE(a1, a2, a3) fget_write((a1), (a2), CAP_WRITE | CAP_SEEK, (a3))
-#endif
 		if ((error = FGET_WRITE(td, *(int *)data, &filemon->fp)) == 0)
 			/* Write the file header. */
 			filemon_comment(filemon);
@@ -160,7 +161,7 @@ filemon_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag __unused,
 
 	/* Set the monitored process ID. */
 	case FILEMON_SET_PID:
-		filemon->pid = *((pid_t *) data);
+		filemon->pid = *((pid_t *)data);
 		break;
 
 	default:
