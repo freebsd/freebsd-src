@@ -272,7 +272,7 @@ f_dialog_infobox_size()
 	#
 	# Set height based on number of rows in prompt
 	#
-	height=$( echo "$prompt" | f_number_of_lines )
+	height=$( echo -n "$prompt" | f_number_of_lines )
 	height=$(( $height + 2 ))
 
 	#
