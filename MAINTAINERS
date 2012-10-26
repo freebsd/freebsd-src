@@ -125,17 +125,7 @@ usr.sbin/bluetooth	emax	Pre-commit review preferred.
 gnu/usr.bin/send-pr	bugmaster	Pre-commit review requested.
 ncurses		rafan	Heads-up appreciated, try not to break it.
 isci(4)		jimharris	Pre-commit review requested.
-
-Following are the entries from the Makefiles, and a few other sources.
-Please remove stale entries from both their origin, and this file.
-
-Please also consider removing the lines from the files listed below and
-stating your preferences here instead.
-
-List below generated with:
-$ cd /usr/src; find */* -type f|xargs egrep 'MAINTAINER[ <tab>]*='
-
-sys/modules/3dfx/Makefile:MAINTAINER=	cokane@FreeBSD.org
-sys/modules/urio/Makefile:MAINTAINER=	Iwasa Kazmi <kzmi@ca2.so-net.ne.jp>
-tools/tools/sysdoc/Makefile:MAINTAINER=	trhodes@FreeBSD.org
-usr.sbin/zic/Makefile:MAINTAINER=	wollman@FreeBSD.org
+3dfx		cokane		Pre-commit review preferred.
+cmx		daniel@roe.ch	Pre-commit review preferred.
+filemon		obrien		Pre-commit review preferred.
+sysdoc		trhodes		Pre-commit review preferred.
