@@ -21,7 +21,11 @@ CLEANFILES+=	${BINS}
 tests: bins
 	kldstat | grep filemon
 	${MAKE} test
+	@echo "Without filemon(4) active:"
 	./timed-forkb
+	@echo "With filemon(4) active:"
+	script -f typescript-timed-forkb ./timed-forkb
+	ls -l typescript-timed-forkb.filemon
 	@echo "filemon(4) tests passed."
 
 # Cannot use .OBJDIR -- 'filemontest' expects 'test_script.sh' in .
@@ -40,7 +44,11 @@ test: filemontest clean-test
 	    grep -q -v '\.[0-9][0-9][0-9][0-9][0-9][0-9]$$' || echo "Time stamp format OK"
 .endfor
 
+CLEANFILES+=	typescript-timed-forkb typescript-timed-forkb.filemon
+
 clean-test:
 	cd ${.CURDIR} ; rm -f filemon_log.*
+
+clean-tests: clean-test
 
 .include <bsd.prog.mk>
