@@ -37,6 +37,8 @@ f_include $BSDCFG_SHARE/mustberoot.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="070.usermgmt"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
+USERMGMT_HELPFILE=$BSDCFG_LIBE/$APP_DIR/include/usermgmt.hlp
+
 ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 [ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
 
@@ -69,6 +71,14 @@ dialog_menu_main()
 	        	\"\$hline\"            \
 	        	$menu_list             )
 
+	if [ "$USE_XDIALOG" ]; then
+		# need to bump the width for the buttons
+		local height menu_height
+		height="${size%%[$IFS]*}" # first word
+		menu_height="${size##*[$IFS]}" # last word
+		size="$height 40 $menu_height"
+	fi
+
 	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
 		--clear --title \"\$DIALOG_TITLE\" \
@@ -76,6 +86,8 @@ dialog_menu_main()
 		--hline \"\$hline\"                \
 		--ok-label \"\$msg_ok\"            \
 		--cancel-label \"\$msg_cancel\"    \
+		--help-button                      \
+		${USE_XDIALOG:+--help \"\"}        \
 		--menu \"\" $size $menu_list       \
 		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
 	)
@@ -116,7 +128,13 @@ while :; do
 	mtag=$( f_dialog_menutag )
 	f_dprintf "retval=$retval mtag=[$mtag]"
 
-	[ $retval -eq 0 ] || f_die
+	if [ $retval -eq 2 ]; then
+		# The Help button was pressed
+		f_show_help "$USERMGMT_HELPFILE"
+		continue
+	elif [ $retval -ne $SUCCESS ]; then
+		f_die
+	fi
 
 	case "$mtag" in
 	X) # Exit
