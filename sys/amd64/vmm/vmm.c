@@ -640,14 +640,27 @@ restore_guest_fpustate(struct vcpu *vcpu)
 
 	/* flush host state to the pcb */
 	fpuexit(curthread);
+
+	/* restore guest FPU state */
 	fpu_stop_emulating();
 	fpurestore(vcpu->guestfpu);
+
+	/*
+	 * The FPU is now "dirty" with the guest's state so turn on emulation
+	 * to trap any access to the FPU by the host.
+	 */
+	fpu_start_emulating();
 }
 
 static void
 save_guest_fpustate(struct vcpu *vcpu)
 {
 
+	if ((rcr0() & CR0_TS) == 0)
+		panic("fpu emulation not enabled in host!");
+
+	/* save guest FPU state */
+	fpu_stop_emulating();
 	fpusave(vcpu->guestfpu);
 	fpu_start_emulating();
 }
