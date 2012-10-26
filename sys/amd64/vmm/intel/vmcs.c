@@ -367,7 +367,15 @@ vmcs_set_defaults(struct vmcs *vmcs,
 		goto done;
 
 	/* Load the control registers */
-	cr0 = rcr0();
+
+	/*
+	 * We always want CR0.TS to be set when the processor does a VM exit.
+	 *
+	 * With emulation turned on unconditionally after a VM exit, we are
+	 * able to trap inadvertent use of the FPU until the guest FPU state
+	 * has been safely squirreled away.
+	 */
+	cr0 = rcr0() | CR0_TS;
 	if ((error = vmwrite(VMCS_HOST_CR0, cr0)) != 0)
 		goto done;
 	
