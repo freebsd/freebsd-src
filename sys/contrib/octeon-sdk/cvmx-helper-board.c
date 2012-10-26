@@ -586,6 +586,11 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
 		return -1;
 	    }
 #endif
+#if defined(OCTEON_VENDOR_RADISYS)
+	case CVMX_BOARD_TYPE_CUST_RADISYS_RSYS4GBE:
+	    /* No MII.  */
+	    return -1;
+#endif
     }
 
     /* Some unknown board. Somebody forgot to update this function... */
