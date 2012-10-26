@@ -1067,6 +1067,10 @@ ath_tx_calc_duration(struct ath_softc *sc, struct ath_buf *bf)
 			 * Include the size of next fragment so NAV is
 			 * updated properly.  The last fragment uses only
 			 * the ACK duration
+			 *
+			 * XXX TODO: ensure that the rate lookup for each
+			 * fragment is the same as the rate used by the
+			 * first fragment!
 			 */
 			dur += ath_hal_computetxtime(ah, rt,
 					bf->bf_m->m_nextpkt->m_pkthdr.len,
