@@ -36,7 +36,8 @@ f_include $BSDCFG_SHARE/sysrc.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="130.security"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
-f_include_help SECURELEVEL $BSDCFG_LIBE/$APP_DIR/include/securelevel.hlp
+
+SECURELEVEL_HELPFILE=$BSDCFG_LIBE/$APP_DIR/include/securelevel.hlp
 
 ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 [ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
@@ -119,7 +120,7 @@ while :; do
 
 	if [ $retval -eq 2 ]; then
 		# The Help button was pressed
-		f_show_msg "%s" "$( f_include_help SECURELEVEL )"
+		f_show_help "$SECURELEVEL_HELPFILE"
 		continue
 	elif [ $retval -ne 0 ]; then
 		f_die

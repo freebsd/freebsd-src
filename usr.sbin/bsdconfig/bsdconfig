@@ -37,8 +37,9 @@ f_include $BSDCFG_SHARE/strings.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
 f_include_lang $BSDCFG_LIBE/include/messages.subr
-f_include_help BSDCONFIG $BSDCFG_LIBE/include/bsdconfig.hlp
-f_include_help USAGE     $BSDCFG_LIBE/include/usage.hlp
+
+BSDCONFIG_HELPFILE=$BSDCFG_LIBE/include/bsdconfig.hlp
+USAGE_HELPFILE=$BSDCFG_LIBE/include/usage.hlp
 
 ############################################################ FUNCTIONS
 
@@ -302,7 +303,7 @@ while :; do
 
 	if [ $retval -eq 2 ]; then
 		# The Help button was pressed
-		f_show_msg "%s" "$( f_include_help BSDCONFIG )"
+		f_show_help "$BSDCONFIG_HELPFILE"
 		continue
 	elif [ $retval -ne 0 ]; then
 		f_die
@@ -314,7 +315,7 @@ while :; do
 	   ;;
 
 	1) # Usage
-	   f_show_msg "%s" "$( f_include_help USAGE )"
+	   f_show_help "$USAGE_HELPFILE"
 	   continue
 	   ;;
 
