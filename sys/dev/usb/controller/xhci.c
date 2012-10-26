@@ -88,12 +88,11 @@ static int xhcidebug;
 static int xhciroute;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, xhci, CTLFLAG_RW, 0, "USB XHCI");
-SYSCTL_INT(_hw_usb_xhci, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_xhci, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
     &xhcidebug, 0, "Debug level");
-SYSCTL_INT(_hw_usb_xhci, OID_AUTO, xhci_port_route, CTLFLAG_RW,
-    &xhciroute, 0, "Routing bitmap for switching EHCI ports to XHCI controller");
-
 TUNABLE_INT("hw.usb.xhci.debug", &xhcidebug);
+SYSCTL_INT(_hw_usb_xhci, OID_AUTO, xhci_port_route, CTLFLAG_RW | CTLFLAG_TUN,
+    &xhciroute, 0, "Routing bitmap for switching EHCI ports to XHCI controller");
 TUNABLE_INT("hw.usb.xhci.xhci_port_route", &xhciroute);
 #endif
 
