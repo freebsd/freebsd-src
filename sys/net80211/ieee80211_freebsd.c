@@ -152,7 +152,9 @@ wlan_clone_destroy(struct ifnet *ifp)
 void
 ieee80211_vap_destroy(struct ieee80211vap *vap)
 {
+	CURVNET_SET(vap->iv_ifp->if_vnet);
 	if_clone_destroyif(wlan_cloner, vap->iv_ifp);
+	CURVNET_RESTORE();
 }
 
 int
