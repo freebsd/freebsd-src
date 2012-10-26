@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 #include "dbgport.h"
 #include "mem.h"
 #include "mevent.h"
+#include "mptbl.h"
 #include "pci_emul.h"
 #include "xmsr.h"
 #include "instruction_emul.h"
@@ -99,9 +100,6 @@ static const int BSP = 0;
 
 static int cpumask;
 
-static void *oem_tbl_start;
-static int oem_tbl_size;
-
 static void vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip);
 
 struct vm_exit vmexit[VM_MAXCPU];
@@ -144,7 +142,6 @@ usage(int code)
 		"       -z: guest hz (default is %d)\n"
 		"       -s: <slot,driver,configinfo> PCI slot config\n"
 		"       -S: <slot,driver,configinfo> legacy PCI slot config\n"
-		"	-n: <slot,name> PCI slot naming\n"
 		"       -m: lowmem in MB\n"
 		"       -M: highmem in MB\n"
 		"       -x: mux vcpus to 1 hcpu\n"
@@ -166,13 +163,6 @@ paddr_guest2host(uintptr_t gaddr)
 		return ((void *)(himem_addr + gaddr - 4*GB));
 	} else
 		return (NULL);
-}
-
-void
-fbsdrun_add_oemtbl(void *tbl, int tblsz)
-{
-	oem_tbl_start = tbl;
-	oem_tbl_size = tblsz;
 }
 
 int
@@ -615,9 +605,6 @@ main(int argc, char *argv[])
 		case 'S':
 			pci_parse_slot(optarg, 1);
 			break;
-		case 'n':
-			pci_parse_name(optarg);
-			break;
                 case 'm':
 			lomem_sz = strtoul(optarg, NULL, 0) * MB;
 			break;
@@ -731,7 +718,7 @@ main(int argc, char *argv[])
 	/*
 	 * build the guest tables, MP etc.
 	 */
-	vm_build_tables(ctx, guest_ncpus, ioapic, oem_tbl_start, oem_tbl_size);
+	mptable_build(ctx, guest_ncpus, ioapic);
 
 	/*
 	 * Add CPU 0

@@ -168,7 +168,6 @@ int	pci_lintr_request(struct pci_devinst *pi, int ivec);
 int	pci_msi_enabled(struct pci_devinst *pi);
 int	pci_msix_enabled(struct pci_devinst *pi);
 int	pci_msi_msgnum(struct pci_devinst *pi);
-void	pci_parse_name(char *opt);
 void	pci_parse_slot(char *opt, int legacy);
 void	pci_populate_msicap(struct msicap *cap, int msgs, int nextptr);
 

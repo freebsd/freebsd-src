@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 NetApp, Inc.
+ * Copyright (c) 2012 NetApp, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,108 +30,153 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/mman.h>
+#include <sys/errno.h>
+#include <x86/mptable.h>
 
 #include <stdio.h>
 #include <string.h>
-#include <machine/vmm.h>
-#include <machine/vmm_dev.h>
 
-#include "vmmapi.h"
-#include "mptable.h"
+#include "fbsdrun.h"
+#include "mptbl.h"
 
-#define LAPIC_PADDR		(0xFEE00000)
-#define LAPIC_VERSION 		(16)
+#define MPTABLE_BASE		0xF0000
 
-#define IOAPIC_PADDR		(0xFEC00000)
-#define IOAPIC_VERSION		(0x11)
+#define LAPIC_PADDR		0xFEE00000
+#define LAPIC_VERSION 		16
 
-extern int errno;
+#define IOAPIC_PADDR		0xFEC00000
+#define IOAPIC_VERSION		0x11
+
+#define MP_SPECREV		4
+#define MPFP_SIG		"_MP_"
+
+/* Configuration header defines */
+#define MPCH_SIG		"PCMP"
+#define MPCH_OEMID		"BHyVe   "
+#define MPCH_OEMID_LEN          8
+#define MPCH_PRODID             "Hypervisor  "
+#define MPCH_PRODID_LEN         12
+
+/* Processor entry defines */
+#define MPEP_SIG_FAMILY		6	/* XXX bhyve should supply this */
+#define MPEP_SIG_MODEL		26
+#define MPEP_SIG_STEPPING	5
+#define MPEP_SIG		\
+	((MPEP_SIG_FAMILY << 8) | \
+	 (MPEP_SIG_MODEL << 4)	| \
+	 (MPEP_SIG_STEPPING))
+
+#define MPEP_FEATURES           (0xBFEBFBFF) /* XXX Intel i7 */
+
+/* Define processor entry struct since <x86/mptable.h> gets it wrong */
+typedef struct BPROCENTRY {
+	u_char		type;
+	u_char		apic_id;
+	u_char		apic_version;
+	u_char		cpu_flags;
+	uint32_t	cpu_signature;
+	uint32_t	feature_flags;
+	uint32_t	reserved1;
+	uint32_t	reserved2;
+}      *bproc_entry_ptr;
+CTASSERT(sizeof(struct BPROCENTRY) == 20);
+
+/* Bus entry defines */
+#define MPE_NUM_BUSES		2
+#define MPE_BUSNAME_LEN		6
+#define MPE_BUSNAME_ISA		"ISA   "
+#define MPE_BUSNAME_PCI		"PCI   "
+
+static void *oem_tbl_start;
+static int oem_tbl_size;
 
 static uint8_t
-mp_compute_checksum(void *base, size_t len)
+mpt_compute_checksum(void *base, size_t len)
 {
-	uint8_t	*bytes = base;
-	uint8_t	 sum = 0;
-	for(; len > 0; len--) {
+	uint8_t	*bytes;
+	uint8_t	sum;
+
+	for(bytes = base, sum = 0; len > 0; len--) {
 		sum += *bytes++;
 	}
-	return 256 - sum;
+
+	return (256 - sum);
 }
 
 static void
-mp_build_mpfp(struct mp_floating_pointer *mpfp, vm_paddr_t mpfp_gpa)
+mpt_build_mpfp(mpfps_t mpfp, vm_paddr_t gpa)
 {
+
 	memset(mpfp, 0, sizeof(*mpfp));
-	memcpy(mpfp->signature, MPFP_SIGNATURE, MPFP_SIGNATURE_LEN);
-	mpfp->mptable_paddr = mpfp_gpa + sizeof(*mpfp);
-	mpfp->specrev = MP_SPECREV;
-	mpfp->feature2 = 0;
-	mpfp->checksum = mp_compute_checksum(mpfp, sizeof(*mpfp));
+	memcpy(mpfp->signature, MPFP_SIG, 4);
+	mpfp->pap = gpa + sizeof(*mpfp);
+	mpfp->length = 1;
+	mpfp->spec_rev = MP_SPECREV;
+	mpfp->checksum = mpt_compute_checksum(mpfp, sizeof(*mpfp));
 }
 
 static void
-mp_build_mpch(struct mp_config_hdr *mpch)
+mpt_build_mpch(mpcth_t mpch)
 {
+
 	memset(mpch, 0, sizeof(*mpch));
-	mpch->specrev = MP_SPECREV;
-	memcpy(mpch->signature, MPCH_SIGNATURE, MPCH_SIGNATURE_LEN);
-	memcpy(mpch->oemid, MPCH_OEMID, MPCH_OEMID_LEN);
-	memcpy(mpch->prodid, MPCH_PRODID, MPCH_PRODID_LEN);
-	mpch->lapic_paddr = LAPIC_PADDR;
-
-
+	memcpy(mpch->signature, MPCH_SIG, 4);
+	mpch->spec_rev = MP_SPECREV;
+	memcpy(mpch->oem_id, MPCH_OEMID, MPCH_OEMID_LEN);
+	memcpy(mpch->product_id, MPCH_PRODID, MPCH_PRODID_LEN);
+	mpch->apic_address = LAPIC_PADDR;
 }
 
 static void
-mp_build_proc_entries(struct mpe_proc *mpep, int num_proc)
+mpt_build_proc_entries(bproc_entry_ptr mpep, int ncpu)
 {
 	int i;
 
-	for (i = 0; i < num_proc; i++) {
+	for (i = 0; i < ncpu; i++) {
 		memset(mpep, 0, sizeof(*mpep));
-		mpep->entry_type = MP_ENTRY_PROC;
-		mpep->lapic_id = i; // XXX
-		mpep->lapic_version = LAPIC_VERSION;
-		mpep->proc_flags = (i == 0)?MPEP_FLAGS_BSP:0;
-		mpep->proc_flags |= MPEP_FLAGS_EN;
-		mpep->proc_signature = MPEP_SIGNATURE;
+		mpep->type = MPCT_ENTRY_PROCESSOR;
+		mpep->apic_id = i; // XXX
+		mpep->apic_version = LAPIC_VERSION;
+		mpep->cpu_flags = PROCENTRY_FLAG_EN;
+		if (i == 0)
+			mpep->cpu_flags |= PROCENTRY_FLAG_BP;
+		mpep->cpu_signature = MPEP_SIG;
 		mpep->feature_flags = MPEP_FEATURES;
 		mpep++;
 	}
-	
 }
 
 static void
-mp_build_bus_entries(struct mpe_bus *mpeb)
+mpt_build_bus_entries(bus_entry_ptr mpeb)
 {
+
 	memset(mpeb, 0, sizeof(*mpeb));
-	mpeb->entry_type = MP_ENTRY_BUS;
-	mpeb->busid = MPE_BUSID_ISA;
-	memcpy(mpeb->busname, MPE_BUSNAME_ISA, MPE_BUSNAME_LEN);
+	mpeb->type = MPCT_ENTRY_BUS;
+	mpeb->bus_id = ISA;
+	memcpy(mpeb->bus_type, MPE_BUSNAME_ISA, MPE_BUSNAME_LEN);
 	mpeb++;
 
 	memset(mpeb, 0, sizeof(*mpeb));
-	mpeb->entry_type = MP_ENTRY_BUS;
-	mpeb->busid = MPE_BUSID_PCI;
-	memcpy(mpeb->busname, MPE_BUSNAME_PCI, MPE_BUSNAME_LEN);
-
+	mpeb->type = MPCT_ENTRY_BUS;
+	mpeb->bus_id = PCI;
+	memcpy(mpeb->bus_type, MPE_BUSNAME_PCI, MPE_BUSNAME_LEN);
 }
 
 static void
-mp_build_ioapic_entries(struct mpe_ioapic *mpei, int id)
+mpt_build_ioapic_entries(io_apic_entry_ptr mpei, int id)
 {
+
 	memset(mpei, 0, sizeof(*mpei));
-	mpei->entry_type = MP_ENTRY_IOAPIC;
-	mpei->ioapic_id = id;
-	mpei->ioapic_version = IOAPIC_VERSION;
-	mpei->ioapic_flags = MPE_IOAPIC_FLAG_EN;
-	mpei->ioapic_paddr = IOAPIC_PADDR;
+	mpei->type = MPCT_ENTRY_IOAPIC;
+	mpei->apic_id = id;
+	mpei->apic_version = IOAPIC_VERSION;
+	mpei->apic_flags = IOAPICENTRY_FLAG_EN;
+	mpei->apic_address = IOAPIC_PADDR;
 }
 
 #ifdef notyet
 static void
-mp_build_ioint_entries(struct mpe_ioint *mpeii, int num_pins, int id)
+mpt_build_ioint_entries(struct mpe_ioint *mpeii, int num_pins, int id)
 {
 	int pin;
 
@@ -150,8 +195,8 @@ mp_build_ioint_entries(struct mpe_ioint *mpeii, int num_pins, int id)
 		mpeii->dst_apic_id = id;
 
 		/*
-		 * All default configs route IRQs from bus 0 to the first 16 pins
-		 * of the first I/O APIC with an APIC ID of 2.
+		 * All default configs route IRQs from bus 0 to the first 16
+		 * pins of the first I/O APIC with an APIC ID of 2.
 		 */
 		mpeii->dst_apic_intin = pin;
 		switch (pin) {
@@ -187,7 +232,6 @@ mp_build_ioint_entries(struct mpe_ioint *mpeii, int num_pins, int id)
 	memcpy(dest, src, bytes); 		\
 	str[bytes] = 0;
 
-
 static void
 mptable_dump(struct mp_floating_pointer *mpfp, struct mp_config_hdr *mpch)
 {
@@ -208,15 +252,15 @@ mptable_dump(struct mp_floating_pointer *mpfp, struct mp_config_hdr *mpch)
 
 	printf(" MP Floating Pointer :\n");
 	COPYSTR(str, mpfp->signature, 4);
-	printf("    signature: 	%s\n", str);
-	printf("    mpch paddr: %x\n", mpfp->mptable_paddr);
-	printf("    length: 	%x\n", mpfp->length);
-	printf("    specrec: 	%x\n", mpfp->specrev);
-	printf("    checksum: 	%x\n", mpfp->checksum);
-	printf("    feature1: 	%x\n", mpfp->feature1);
-	printf("    feature2: 	%x\n", mpfp->feature2);
-	printf("    feature3: 	%x\n", mpfp->feature3);
-	printf("    feature4: 	%x\n", mpfp->feature4);
+	printf("\tsignature:\t%s\n", str);
+	printf("\tmpch paddr:\t%x\n", mpfp->mptable_paddr);
+	printf("\tlength:\t%x\n", mpfp->length);
+	printf("\tspecrec:\t%x\n", mpfp->specrev);
+	printf("\tchecksum:\t%x\n", mpfp->checksum);
+	printf("\tfeature1:\t%x\n", mpfp->feature1);
+	printf("\tfeature2:\t%x\n", mpfp->feature2);
+	printf("\tfeature3:\t%x\n", mpfp->feature3);
+	printf("\tfeature4:\t%x\n", mpfp->feature4);
 
 	printf(" MP Configuration Header :\n");
 	COPYSTR(str, mpch->signature, 4);
@@ -283,60 +327,72 @@ mptable_dump(struct mp_floating_pointer *mpfp, struct mp_config_hdr *mpch)
 }
 #endif
 
-int
-vm_build_mptable(struct vmctx *ctx, vm_paddr_t gpa, int len, int ncpu,
-		 int ioapic, void *oemp, int oemsz)
+void
+mptable_add_oemtbl(void *tbl, int tblsz)
 {
-	struct mp_config_hdr	*mpch;
-	char 			*mapaddr;
+
+	oem_tbl_start = tbl;
+	oem_tbl_size = tblsz;
+}
+
+int
+mptable_build(struct vmctx *ctx, int ncpu, int ioapic)
+{
+	mpcth_t			mpch;
+	bus_entry_ptr		mpeb;
+	io_apic_entry_ptr	mpei;
+	bproc_entry_ptr		mpep;
+	mpfps_t			mpfp;
+	char 			*curraddr;
 	char 			*startaddr;
-	int 	 		 error;
 
-	mapaddr = vm_map_memory(ctx, gpa, len);
-	if (mapaddr == MAP_FAILED) {
-		printf("%s\n", strerror(errno));
-		goto err;
+	if (paddr_guest2host(0) == NULL) {
+		printf("mptable requires mapped mem\n");
+		return (ENOMEM);
 	}
-	startaddr = mapaddr;
 
-	mp_build_mpfp((struct mp_floating_pointer*) mapaddr, gpa);
-	mapaddr += sizeof(struct mp_floating_pointer);
+	startaddr = curraddr = paddr_guest2host(MPTABLE_BASE);
 
-	mpch = (struct mp_config_hdr*)mapaddr;
-	mp_build_mpch(mpch);
-	mapaddr += sizeof(struct mp_config_hdr);
+	mpfp = (mpfps_t)curraddr;
+	mpt_build_mpfp(mpfp, MPTABLE_BASE);
+	curraddr += sizeof(*mpfp);
 
-	mp_build_proc_entries((struct mpe_proc*) mapaddr, ncpu);
-	mapaddr += (sizeof(struct mpe_proc)*ncpu);
-	mpch->nr_entries += ncpu;
+	mpch = (mpcth_t)curraddr;
+	mpt_build_mpch(mpch);
+	curraddr += sizeof(*mpch);
 
-	mp_build_bus_entries((struct mpe_bus*)mapaddr);
-	mapaddr += (sizeof(struct mpe_bus)*MPE_NUM_BUSES);
-	mpch->nr_entries += MPE_NUM_BUSES;
+	mpep = (bproc_entry_ptr)curraddr;
+	mpt_build_proc_entries(mpep, ncpu);
+	curraddr += sizeof(*mpep) * ncpu;
+	mpch->entry_count += ncpu;
+
+	mpeb = (bus_entry_ptr) curraddr;
+	mpt_build_bus_entries(mpeb);
+	curraddr += sizeof(*mpeb) * MPE_NUM_BUSES;
+	mpch->entry_count += MPE_NUM_BUSES;
 
 	if (ioapic) {
-		mp_build_ioapic_entries((struct mpe_ioapic*)mapaddr, ncpu + 1);
-		mapaddr += sizeof(struct mpe_ioapic);
-		mpch->nr_entries++;
+		mpei = (io_apic_entry_ptr)curraddr;
+		mpt_build_ioapic_entries(mpei, ncpu + 1);
+		curraddr += sizeof(*mpei);
+		mpch->entry_count++;
 	}
 
 #ifdef notyet
-	mp_build_ioint_entries((struct mpe_ioint*)mapaddr, MPEII_MAX_IRQ,
+	mpt_build_ioint_entries((struct mpe_ioint*)curraddr, MPEII_MAX_IRQ,
 				ncpu + 1);
-	mapaddr += sizeof(struct mpe_ioint)*MPEII_MAX_IRQ;
-	mpch->nr_entries += MPEII_MAX_IRQ;
-
+	curraddr += sizeof(struct mpe_ioint) * MPEII_MAX_IRQ;
+	mpch->entry_count += MPEII_MAX_IRQ;
 #endif
-	if (oemp) {
-		mpch->oem_ptr = mapaddr - startaddr + gpa;
-		mpch->oem_sz = oemsz;
-		memcpy(mapaddr, oemp, oemsz);
+
+	if (oem_tbl_start) {
+		mpch->oem_table_pointer = curraddr - startaddr + MPTABLE_BASE;
+		mpch->oem_table_size = oem_tbl_size;
+		memcpy(curraddr, oem_tbl_start, oem_tbl_size);
 	}
-	mpch->length = (mapaddr) - ((char*) mpch);
-	mpch->checksum = mp_compute_checksum(mpch, sizeof(*mpch));
 
+	mpch->base_table_length = curraddr - (char *)mpch;
+	mpch->checksum = mpt_compute_checksum(mpch, sizeof(*mpch));
 
-	// mptable_dump((struct mp_floating_pointer*)startaddr, mpch);
-err:
-	return (error);
+	return (0);
 }

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 NetApp, Inc.
+ * Copyright (c) 2012 NetApp, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,28 +26,10 @@
  * $FreeBSD$
  */
 
-#ifndef	_FBSDRUN_H_
-#define	_FBSDRUN_H_
+#ifndef _MPTBL_H_
+#define _MPTBL_H_
 
-#ifndef CTASSERT		/* Allow lint to override */
-#define	CTASSERT(x)		_CTASSERT(x, __LINE__)
-#define	_CTASSERT(x, y)		__CTASSERT(x, y)
-#define	__CTASSERT(x, y)	typedef char __assert ## y[(x) ? 1 : -1]
-#endif
+int	mptable_build(struct vmctx *ctx, int ncpu, int ioapic);
+void	mptable_add_oemtbl(void *tbl, int tblsz);
 
-struct vmctx;
-extern int guest_hz;
-extern int guest_tslice;
-extern int guest_ncpus;
-extern char *vmname;
-
-extern u_long lomem_sz, himem_sz;
-
-void *paddr_guest2host(uintptr_t);
-
-void fbsdrun_addcpu(struct vmctx *ctx, int cpu, uint64_t rip);
-int  fbsdrun_muxed(void);
-int  fbsdrun_vmexit_on_hlt(void);
-int  fbsdrun_vmexit_on_pause(void);
-int  fbsdrun_disable_x2apic(void);
-#endif
+#endif /* _MPTBL_H_ */

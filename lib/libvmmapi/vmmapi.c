@@ -47,10 +47,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm_dev.h>
 
 #include "vmmapi.h"
-#include "mptable.h"
-
-#define BIOS_ROM_BASE		(0xf0000)
-#define BIOS_ROM_SIZE		(0x10000)
 
 struct vmctx {
 	int	fd;
@@ -326,15 +322,6 @@ vm_inject_event2(struct vmctx *ctx, int vcpu, enum vm_event_type type,
 {
 
 	return (vm_inject_event_real(ctx, vcpu, type, vector, error_code, 1));
-}
-
-int
-vm_build_tables(struct vmctx *ctxt, int ncpu, int ioapic,
-		void *oemtbl, int oemtblsz)
-{
-
-	return (vm_build_mptable(ctxt, BIOS_ROM_BASE, BIOS_ROM_SIZE, ncpu,
-				 ioapic, oemtbl, oemtblsz));
 }
 
 int

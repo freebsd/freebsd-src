@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "fbsdrun.h"
 #include "inout.h"
 #include "mem.h"
+#include "mptbl.h"
 #include "pci_emul.h"
 #include "ioapic.h"
 
@@ -69,10 +70,6 @@ static struct slotinfo {
 	char	*si_name;
 	char	*si_param;
 	struct pci_devinst *si_devi;
-	int	si_titled;
-	int	si_pslot;
-	char	si_prefix;
-	char	si_suffix;
 	int	si_legacy;
 } pci_slotinfo[MAXSLOTS][MAXFUNCS];
 
@@ -86,37 +83,6 @@ static struct lirqinfo {
 	int	li_acount;
 	struct pci_devinst *li_owner;	/* XXX should be a list */
 } lirq[NLIRQ];
-
-/*
- * NetApp specific:
- * struct used to build an in-core OEM table to supply device names
- * to driver instances
- */
-static struct mptable_pci_devnames {
-#define MPT_HDR_BASE	0
-#define MPT_HDR_NAME	2
-	uint16_t  md_hdrtype;
-	uint16_t  md_entries;
-	uint16_t  md_cksum;
-	uint16_t  md_pad;
-#define MPT_NTAP_SIG	\
-	((uint32_t)(('P' << 24) | ('A' << 16) | ('T' << 8) | 'N'))
-	uint32_t  md_sig;
-	uint32_t  md_rsvd;
-	struct mptable_pci_slotinfo {
-		uint16_t mds_type;
-		uint16_t mds_phys_slot;
-		uint8_t  mds_bus;
-		uint8_t  mds_slot;
-		uint8_t  mds_func;
-		uint8_t  mds_pad;
-		uint16_t mds_vid;
-		uint16_t mds_did;
-		uint8_t  mds_suffix[4];
-		uint8_t  mds_prefix[4];
-		uint32_t mds_rsvd[3];
-	} md_slotinfo[MAXSLOTS * MAXFUNCS];
-} pci_devnames;
 
 SET_DECLARE(pci_devemu_set, struct pci_devemu);
 
@@ -134,7 +100,6 @@ static uint64_t pci_emul_membase64;
 #define	PCI_EMUL_MEMLIMIT64	0xFD00000000UL
 
 static int pci_emul_devices;
-static int devname_elems;
 
 /*
  * I/O access
@@ -198,169 +163,6 @@ pci_parse_slot(char *opt, int legacy)
 		pci_slotinfo[snum][fnum].si_name = emul;
 		pci_slotinfo[snum][fnum].si_param = config;
 		pci_slotinfo[snum][fnum].si_legacy = legacy;
-	}
-}
-
-/*
- *
- * PCI MPTable names are of the form:
- *
- *  <slot>[:<func>],[prefix]<digit><suffix>
- *
- *  .. with <prefix> an alphabetic char, <digit> a 1 or 2-digit string,
- * and <suffix> a single char.
- *
- *  Examples:
- *    1,e0c
- *    4:0,e0P
- *    4:1,e0M
- *    6,43a
- *    7,0f
- *    10,1
- *    2,12a
- *
- *  Note that this is NetApp-specific, but is ignored on other o/s's.
- */
-static void
-pci_parse_name_usage(char *aopt)
-{
-	printf("Invalid PCI slot name field \"%s\"\n", aopt);
-}
-
-void
-pci_parse_name(char *opt)
-{
-	char csnum[4];
-	char *namestr;
-	char *slotend, *funcend, *funcstart;
-	char prefix, suffix;
-	int i;
-	int pslot;
-	int snum, fnum;
-
-	pslot = -1;
-	prefix = suffix = 0;
-
-	slotend = strchr(opt, ':');
-	if (slotend != NULL) {
-		funcstart = slotend + 1;
-		funcend = strchr(funcstart, ',');
-	} else {
-		slotend = strchr(opt, ',');
-		funcstart = funcend = NULL;
-	}
-
-	/*
-	 * A comma must be present, and can't be the first character
-	 * or no slot would be present. Also, the slot number can't be
-	 * more than 2 characters.
-	 */
-	if (slotend == NULL || slotend == opt || (slotend - opt > 2)) {
-		pci_parse_name_usage(opt);
-		return;
-	}
-
-	for (i = 0; i < (slotend - opt); i++) {
-		csnum[i] = opt[i];
-	}
-	csnum[i] = '\0';
-	
-	snum = atoi(csnum);
-	if (snum < 0 || snum >= MAXSLOTS) {
-		pci_parse_name_usage(opt);
-		return;
-	}
-
-	/*
-	 * Parse the function number (if provided)
-	 *
-	 * A comma must be present and can't be the first character.
-	 * The function cannot be greater than a single character and
-	 * must be between '0' and '7' inclusive.
-	 */
-	if (funcstart != NULL) {
-		if (funcend == NULL || funcend != funcstart + 1 ||
-		    *funcstart < '0' || *funcstart > '7') {
-			pci_parse_name_usage(opt);
-			return;
-		}
-		fnum = *funcstart - '0';
-	} else {
-		fnum = 0;
-	}
-
-	namestr = funcend ? funcend + 1 : slotend + 1;
-
-	if (strlen(namestr) > 3) {
-		pci_parse_name_usage(opt);
-		return;
-	}
-
-	if (isalpha(*namestr)) {
-		prefix = *namestr++;
-	}
-
-	if (!isdigit(*namestr)) {
-		pci_parse_name_usage(opt);
-	} else {
-		pslot = *namestr++ - '0';
-		if (isnumber(*namestr)) {
-			pslot = 10*pslot + *namestr++ - '0';
-			
-		}
-		if (isalpha(*namestr) && *(namestr + 1) == 0) {
-			suffix = *namestr;
-			pci_slotinfo[snum][fnum].si_titled = 1;
-			pci_slotinfo[snum][fnum].si_pslot = pslot;
-			pci_slotinfo[snum][fnum].si_prefix = prefix;
-			pci_slotinfo[snum][fnum].si_suffix = suffix;
-		} else {
-			pci_parse_name_usage(opt);
-		}
-	}
-}
-
-static void
-pci_add_mptable_name(struct slotinfo *si)
-{
-	struct mptable_pci_slotinfo *ms;
-
-	/*
-	 * If naming information has been supplied for this slot, populate
-	 * the next available mptable OEM entry
-	 */
-	if (si->si_titled) {
-		ms = &pci_devnames.md_slotinfo[devname_elems];
-
-		ms->mds_type = MPT_HDR_NAME;
-		ms->mds_phys_slot = si->si_pslot;
-		ms->mds_bus = si->si_devi->pi_bus;
-		ms->mds_slot = si->si_devi->pi_slot;
-		ms->mds_func = si->si_devi->pi_func;
-		ms->mds_vid = pci_get_cfgdata16(si->si_devi, PCIR_VENDOR);
-		ms->mds_did = pci_get_cfgdata16(si->si_devi, PCIR_DEVICE);
-		ms->mds_suffix[0] = si->si_suffix;
-		ms->mds_prefix[0] = si->si_prefix;
-		
-		devname_elems++;
-	}
-}
-
-static void
-pci_finish_mptable_names(void)
-{
-	int size;
-
-	if (devname_elems) {
-		pci_devnames.md_hdrtype = MPT_HDR_BASE;
-		pci_devnames.md_entries = devname_elems;
-		pci_devnames.md_cksum = 0; /* XXX */
-		pci_devnames.md_sig = MPT_NTAP_SIG;
-
-		size = (uintptr_t)&pci_devnames.md_slotinfo[devname_elems] -
-			(uintptr_t)&pci_devnames;
-
-		fbsdrun_add_oemtbl(&pci_devnames, size);
 	}
 }
 
@@ -835,12 +637,10 @@ init_pci(struct vmctx *ctx)
 				if (pde != NULL) {
 					pci_emul_init(ctx, pde, slot, func,
 						      si->si_param);
-					pci_add_mptable_name(si);
 				}
 			}
 		}
 	}
-	pci_finish_mptable_names();
 
 	/*
 	 * Allow ISA IRQs 5,10,11,12, and 15 to be available for

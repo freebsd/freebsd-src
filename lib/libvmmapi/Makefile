@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 LIB=	vmmapi
-SRCS=	vmmapi.c vmmapi_freebsd.c mptable.c
+SRCS=	vmmapi.c vmmapi_freebsd.c
 INCS=	vmmapi.h
 
 WARNS?=	2
