@@ -366,7 +366,7 @@ vendor EICON		0x0734	Eicon Networks
 vendor SYNTECH		0x0745	Syntech Information
 vendor DIGITALSTREAM	0x074e	Digital Stream
 vendor AUREAL		0x0755	Aureal Semiconductor
-vendor MIDIMAN		0x0763	Midiman
+vendor MAUDIO		0x0763	M-Audio
 vendor CYBERPOWER	0x0764	Cyber Power Systems, Inc.
 vendor SURECOM		0x0769	Surecom Technology
 vendor HIDGLOBAL	0x076b	HID Global
@@ -2887,7 +2887,9 @@ product MICROTEK V6UL		0x80ac	ScanMaker V6UL
 product MICROTUNE BT_DONGLE	0x1000	Bluetooth USB dongle
 
 /* Midiman products */
-product MIDIMAN MIDISPORT2X2	0x1001	Midisport 2x2
+product MAUDIO MIDISPORT2X2	0x1001	Midisport 2x2
+product MAUDIO FASTTRACKULTRA	0x2080	Fast Track Ultra
+product MAUDIO FASTTRACKULTRA8R	0x2081	Fast Track Ultra 8R
 
 /* MindsAtWork products */
 product MINDSATWORK WALLET	0x0001	Digital Wallet
