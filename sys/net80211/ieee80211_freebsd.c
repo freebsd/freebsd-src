@@ -159,7 +159,9 @@ wlan_clone_destroy(struct ifnet *ifp)
 	ic->ic_vap_delete(vap);
 }
 
+#if __FreeBSD_version < 1000020
 IFC_SIMPLE_DECLARE(wlan, 0);
+#endif
 
 void
 ieee80211_vap_destroy(struct ieee80211vap *vap)
