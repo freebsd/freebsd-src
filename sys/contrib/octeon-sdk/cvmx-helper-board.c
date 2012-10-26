@@ -1296,6 +1296,14 @@ int __cvmx_helper_board_interface_probe(int interface, int supported_ports)
 	        return 12;
 	    break;
 #endif
+#if defined(OCTEON_VENDOR_RADISYS)
+	case CVMX_BOARD_TYPE_CUST_RADISYS_RSYS4GBE:
+	    if (interface == 0)
+		    return 13;
+	    if (interface == 1)
+		    return 8;
+	    return 0;
+#endif
     }
 #ifdef CVMX_BUILD_FOR_UBOOT
     if (CVMX_HELPER_INTERFACE_MODE_SPI == cvmx_helper_interface_get_mode(interface) && getenv("disable_spi"))
