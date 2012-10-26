@@ -1015,6 +1015,48 @@ f_dialog_msgbox()
 		--msgbox \"\$msg_text\" $size
 }
 
+############################################################ TEXTBOX FUNCTIONS
+
+# f_dialog_textbox $file
+#
+# Display the contents of $file (or an error if $file does not exist, etc.) in
+# a dialog(1) textbox (which has a scrollable region for the text). The textbox
+# remains until the user presses ENTER or ESC, acknowledging the modal dialog.
+#
+# If the user presses ENTER, the exit status is zero (success), otherwise if
+# the user presses ESC the exit status is 255.
+#
+f_dialog_textbox()
+{
+	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
+
+	local file="$1"
+	local contents retval size
+
+	contents=$( cat "$file" 2>&1 )
+	retval=$?
+
+	size=$( f_dialog_buttonbox_size \
+	        	"$DIALOG_TITLE"     \
+	        	"$DIALOG_BACKTITLE" \
+	        	"$contents"         )
+
+	if [ $retval -eq $SUCCESS ]; then
+		eval $DIALOG \
+			--title \"\$DIALOG_TITLE\"         \
+			--backtitle \"\$DIALOG_BACKTITLE\" \
+			--exit-label \"\$msg_ok\"          \
+			--no-cancel                        \
+			--textbox \"\$file\" $size
+	else
+		eval $DIALOG \
+			--title \"\$DIALOG_TITLE\"         \
+			--backtitle \"\$DIALOG_BACKTITLE\" \
+			--ok-label \"\$msg_ok\"            \
+			--msgbox \"\$msg_text\" $size
+	fi
+}
+
 ############################################################ YESNO FUNCTIONS
 
 # f_dialog_yesno $msg_text ...
