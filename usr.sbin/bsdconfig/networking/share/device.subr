@@ -42,6 +42,8 @@ f_include $BSDCFG_SHARE/networking/routing.subr
 BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="120.networking"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
+TCP_HELPFILE=$BSDCFG_LIBE/$APP_DIR/include/tcp.hlp
+
 ############################################################ GLOBALS
 
 #
@@ -342,6 +344,8 @@ f_dialog_menu_netdev_edit()
 			--hline \"\$hline\"                \
 			--ok-label \"\$msg_ok\"            \
 			--cancel-label \"\$msg_cancel\"    \
+			--help-button                      \
+			${USE_XDIALOG:+--help \"\"}        \
 			--menu \"\$prompt\" $size          \
 			$menu_list                         \
 			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
@@ -351,8 +355,14 @@ f_dialog_menu_netdev_edit()
 		setvar DIALOG_MENU_$$ "$dialog_menu"
 		local tag="$( f_dialog_menutag )"
 
-		# Return if "Cancel" was chosen (-1) or ESC was pressed (255)
-		[ $retval -eq $SUCCESS ] || return $retval
+		if [ $retval -eq 2 ]; then
+			# The Help button was pressed
+			f_show_help "$TCP_HELPFILE"
+			continue
+		elif [ $retval -ne $SUCCESS ]; then
+			# "Cancel" was chosen (-1) or ESC was pressed (255)
+			return $retval
+		fi
 
 		#
 		# Call the below ``modifier functions'' whose job it is to take
