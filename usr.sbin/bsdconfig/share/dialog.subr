@@ -1053,7 +1053,7 @@ f_dialog_textbox()
 			--title \"\$DIALOG_TITLE\"         \
 			--backtitle \"\$DIALOG_BACKTITLE\" \
 			--ok-label \"\$msg_ok\"            \
-			--msgbox \"\$msg_text\" $size
+			--msgbox \"\$contents\" $size
 	fi
 }
 
