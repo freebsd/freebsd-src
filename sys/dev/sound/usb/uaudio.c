@@ -618,7 +618,8 @@ uaudio_probe(device_t dev)
 	/* lookup non-standard device */
 
 	if (uaa->info.bInterfaceClass != UICLASS_AUDIO) {
-		if (usb_test_quirk(uaa, UQ_AU_VENDOR_CLASS) == 0)
+		if (uaa->info.bInterfaceClass != UICLASS_VENDOR ||
+		    usb_test_quirk(uaa, UQ_AU_VENDOR_CLASS) == 0)
 			return (ENXIO);
 	}
 
