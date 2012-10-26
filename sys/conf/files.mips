@@ -49,12 +49,9 @@ kern/link_elf_obj.c			standard
 kern/subr_dummy_vdso_tc.c		standard
 
 # gcc/clang runtime
-libkern/ashldi3.c			standard
-libkern/ashrdi3.c			standard
 libkern/ffsl.c				standard
 libkern/fls.c				standard
 libkern/flsl.c				standard
-libkern/lshrdi3.c			standard
 libkern/memchr.c			optional	fdt
 libkern/memmove.c			standard
 libkern/ucmpdi2.c			optional	mips | mipsel
