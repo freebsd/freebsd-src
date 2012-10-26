@@ -243,7 +243,7 @@ f_dialog_menu_netdev()
 				}
 			' )
 			printf "'%s%s' '%s'\n" \
-				"$ifn" "${active:+*}" "$(f_device_desc "$ifn")"
+				$ifn "${active:+*}" "$( f_device_desc $ifn )"
 		done
 	)
 	if [ ! "$interfaces" ]; then
