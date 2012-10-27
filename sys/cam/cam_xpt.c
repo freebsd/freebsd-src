@@ -2468,9 +2468,6 @@ xpt_action(union ccb *start_ccb)
 	CAM_DEBUG(start_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("xpt_action\n"));
 
 	start_ccb->ccb_h.status = CAM_REQ_INPROG;
-	/* Compatibility for RL-unaware code. */
-	if (CAM_PRIORITY_TO_RL(start_ccb->ccb_h.pinfo.priority) == 0)
-	    start_ccb->ccb_h.pinfo.priority += CAM_PRIORITY_NORMAL - 1;
 	(*(start_ccb->ccb_h.path->bus->xport->action))(start_ccb);
 }
 
