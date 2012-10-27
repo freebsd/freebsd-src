@@ -32,5 +32,5 @@ SUBDIR+=	spkrtest
 .if ${MK_SYSINSTALL} != "no"
 SUBDIR+=	sade
 .endif
-SUBDIR+=	vmmctl
+SUBDIR+=	bhyvectl
 SUBDIR+=	zzz
