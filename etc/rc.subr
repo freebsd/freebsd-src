@@ -261,8 +261,8 @@ _find_processes()
 
 	_pref=
 	if [ $_interpreter != "." ]; then	# an interpreted script
-		_script=${_chroot}${_chroot:+"/"}$_procname
-		if [ -r $_script ]; then
+		_script="${_chroot}${_chroot:+/}$_procname"
+		if [ -r "$_script" ]; then
 			read _interp < $_script	# read interpreter name
 			case "$_interp" in
 			\#!*)
@@ -705,7 +705,7 @@ run_rc_command()
 				return 1
 			fi
 
-			if [ ! -x ${_chroot}${_chroot:+"/"}${command} ]; then
+			if [ ! -x "${_chroot}${_chroot:+/}${command}" ]; then
 				warn "run_rc_command: cannot run $command"
 				return 1
 			fi
