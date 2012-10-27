@@ -49,6 +49,8 @@ GDB_DBGPORT(bvm, bvm_dbg_probe, bvm_dbg_init, bvm_dbg_term,
 #define	BVM_DBG_PORT	0x224
 static int bvm_dbg_port = BVM_DBG_PORT;
 
+#define BVM_DBG_SIG	('B' << 8 | 'V')
+
 static int
 bvm_dbg_probe(void)
 {
@@ -56,17 +58,21 @@ bvm_dbg_probe(void)
 
 	disabled = 0;
 	resource_int_value("bvmdbg", 0, "disabled", &disabled);
-	if (disabled)
-		return (-1);
 
-	if (resource_int_value("bvmdbg", 0, "port", &port) == 0)
-		bvm_dbg_port = port;
+	if (!disabled) {
+		if (resource_int_value("bvmdbg", 0, "port", &port) == 0)
+			bvm_dbg_port = port;
 
-	/*
-	 * Return a higher priority than 0 to override other
-	 * gdb dbgport providers that may be present (e.g. uart)
-	 */
-	return (1);
+		if (inw(bvm_dbg_port) == BVM_DBG_SIG) {
+			/*
+			 * Return a higher priority than 0 to override other
+			 * gdb dbgport providers that may be present (e.g. uart)
+			 */
+			return (1);
+		}
+	}
+
+	return (-1);
 }
 
 static void
