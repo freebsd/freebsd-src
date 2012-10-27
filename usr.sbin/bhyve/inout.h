@@ -62,4 +62,6 @@ int	emulate_inout(struct vmctx *, int vcpu, int in, int port, int bytes,
 		      uint32_t *eax, int strict);
 int	register_inout(struct inout_port *iop);
 
+void	init_bvmcons(void);
+
 #endif	/* _INOUT_H_ */
