@@ -1510,7 +1510,7 @@ dasysctlinit(void *context, int pending)
 	 * Add some addressing info.
 	 */
 	memset(&cts, 0, sizeof (cts));
-	xpt_setup_ccb(&cts.ccb_h, periph->path, /*priority*/1);
+	xpt_setup_ccb(&cts.ccb_h, periph->path, CAM_PRIORITY_NONE);
 	cts.ccb_h.func_code = XPT_GET_TRAN_SETTINGS;
 	cts.type = CTS_TYPE_CURRENT_SETTINGS;
 	cam_periph_lock(periph);

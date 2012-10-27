@@ -240,7 +240,7 @@ cfcs_init(void)
 		goto bailout;
 	}
 
-	xpt_setup_ccb(&csa.ccb_h, softc->path, /*priority*/ 5);
+	xpt_setup_ccb(&csa.ccb_h, softc->path, CAM_PRIORITY_NONE);
 	csa.ccb_h.func_code = XPT_SASYNC_CB;
 	csa.event_enable = AC_LOST_DEVICE;
 	csa.callback = cfcs_async;
