@@ -563,20 +563,24 @@ vm_loop(struct vmctx *ctx, int vcpu, uint64_t rip)
 int
 main(int argc, char *argv[])
 {
-	int c, error, gdb_port, inject_bkpt, tmp, err, ioapic;
+	int c, error, gdb_port, inject_bkpt, tmp, err, ioapic, bvmcons;
 	struct vmctx *ctx;
 	uint64_t rip;
 
+	bvmcons = 0;
 	inject_bkpt = 0;
 	progname = basename(argv[0]);
 	gdb_port = DEFAULT_GDB_PORT;
 	guest_ncpus = 1;
 	ioapic = 0;
 
-	while ((c = getopt(argc, argv, "aehBHIPxp:g:c:z:s:S:n:m:M:")) != -1) {
+	while ((c = getopt(argc, argv, "abehBHIPxp:g:c:z:s:S:n:m:M:")) != -1) {
 		switch (c) {
 		case 'a':
 			disable_x2apic = 1;
+			break;
+		case 'b':
+			bvmcons = 1;
 			break;
 		case 'B':
 			inject_bkpt = 1;
@@ -706,6 +710,9 @@ main(int argc, char *argv[])
 
 	if (gdb_port != 0)
 		init_dbgport(gdb_port);
+
+	if (bvmcons)
+		init_bvmcons();
 
 	error = vm_get_register(ctx, BSP, VM_REG_GUEST_RIP, &rip);
 	assert(error == 0);

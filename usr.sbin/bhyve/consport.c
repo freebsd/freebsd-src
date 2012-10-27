@@ -124,4 +124,17 @@ console_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 
 	return (0);
 }
-INOUT_PORT(console, BVM_CONSOLE_PORT, IOPORT_F_INOUT, console_handler);
+
+static struct inout_port consport = {
+	"bvmcons",
+	BVM_CONSOLE_PORT,
+	IOPORT_F_INOUT,
+	console_handler
+};
+
+void
+init_bvmcons(void)
+{
+
+	register_inout(&consport);
+}
