@@ -559,7 +559,7 @@ enc_runcmd(struct enc_softc *enc, char *cdb, int cdbl, char *dptr, int *dlenp)
 		cdbl = IOCDBLEN;
 	}
 
-	ccb = cam_periph_getccb(enc->periph, 1);
+	ccb = cam_periph_getccb(enc->periph, CAM_PRIORITY_NORMAL);
 	if (enc->enc_type == ENC_SEMB_SES || enc->enc_type == ENC_SEMB_SAFT) {
 		tdlen = min(dlen, 1020);
 		tdlen = (tdlen + 3) & ~3;
