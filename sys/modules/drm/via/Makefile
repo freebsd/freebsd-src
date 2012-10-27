@@ -10,7 +10,8 @@ SRCS	+= device_if.h bus_if.h pci_if.h opt_drm.h
 DRM_DEBUG_OPT= "\#define DRM_DEBUG 1"
 .endif
 
-.if !defined(DRM_NOLINUX)
+.if !defined(DRM_NOLINUX) && \
+     (${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64")
 DRM_LINUX_OPT= "\#define DRM_LINUX 1"
 .endif
 
