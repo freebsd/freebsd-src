@@ -10513,7 +10513,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_CPQ_VALID_CNT  <<  8) |
 	    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_MGMQ_VALID_CNT);
 
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709)
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709)
 		val = val |
 		    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RV2PCSQ_VALID_CNT_XI <<
 		     24);
