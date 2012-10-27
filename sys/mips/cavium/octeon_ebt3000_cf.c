@@ -280,6 +280,7 @@ static void cf_outb_8(int port, uint8_t val)
 	if (bus_type == CF_8) {
 		volatile uint8_t *task_file = (volatile uint8_t *)base_addr;
 		task_file[port] = val;
+		return;
 	}
 
 	/*
