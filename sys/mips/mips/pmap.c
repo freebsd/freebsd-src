@@ -1440,7 +1440,6 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 					*pte = PTE_G;
 				else
 					*pte = 0;
-				pmap_invalidate_page(pmap, va);
 				m = PHYS_TO_VM_PAGE(TLBLO_PTE_TO_PA(oldpte));
 				if (pte_test(&oldpte, PTE_D))
 					vm_page_dirty(m);
