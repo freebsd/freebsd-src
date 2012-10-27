@@ -435,7 +435,7 @@ options 	KTRACE_REQUEST_POOL=101
 #
 # KTR is a kernel tracing facility imported from BSD/OS.  It is
 # enabled with the KTR option.  KTR_ENTRIES defines the number of
-# entries in the circular trace buffer; it must be a power of two.
+# entries in the circular trace buffer; it may be an arbitrary number.
 # KTR_COMPILE defines the mask of events to compile into the kernel as
 # defined by the KTR_* constants in <sys/ktr.h>.  KTR_MASK defines the
 # initial value of the ktr_mask variable which determines at runtime
