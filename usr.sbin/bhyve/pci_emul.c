@@ -821,7 +821,11 @@ pci_emul_cfgdata(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 
 	assert(bytes == 1 || bytes == 2 || bytes == 4);
 	
-	pi = pci_slotinfo[cfgslot][cfgfunc].si_devi;
+	if (cfgbus == 0)
+		pi = pci_slotinfo[cfgslot][cfgfunc].si_devi;
+	else
+		pi = NULL;
+
 	coff = cfgoff + (port - CONF1_DATA_PORT);
 
 #if 0
