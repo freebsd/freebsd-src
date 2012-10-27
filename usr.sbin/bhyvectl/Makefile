@@ -2,8 +2,8 @@
 # $FreeBSD$
 #
 
-PROG=	vmmctl
-SRCS=	vmmctl.c
+PROG=	bhyvectl
+SRCS=	bhyvectl.c
 
 NO_MAN=
 
