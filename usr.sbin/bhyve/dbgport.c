@@ -44,36 +44,11 @@ __FBSDID("$FreeBSD$");
 #include "dbgport.h"
 
 #define	BVM_DBG_PORT	0x224
+#define	BVM_DBG_SIG	('B' << 8 | 'V')
 
 static int listen_fd, conn_fd;
 
 static struct sockaddr_in sin;
-
-void
-init_dbgport(int sport)
-{
-	conn_fd = -1;
-
-	if ((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-		perror("socket");
-		exit(1);
-	}
-
-	sin.sin_len = sizeof(sin);
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = htonl(INADDR_ANY);
-	sin.sin_port = htons(sport);
-
-	if (bind(listen_fd, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-		perror("bind");
-		exit(1);
-	}
-
-	if (listen(listen_fd, 1) < 0) {
-		perror("listen");
-		exit(1);
-	}
-}
 
 static int
 dbg_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
@@ -81,6 +56,11 @@ dbg_handler(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 {
 	char ch;
 	int nwritten, nread, printonce;
+
+	if (bytes == 2 && in) {
+		*eax = BVM_DBG_SIG;
+		return (0);
+	}
 
 	if (bytes != 4)
 		return (-1);
@@ -122,4 +102,37 @@ again:
 	return (0);
 }
 
-INOUT_PORT(dbg, BVM_DBG_PORT, IOPORT_F_INOUT, dbg_handler);
+static struct inout_port dbgport = {
+	"bvmdbg",
+	BVM_DBG_PORT,
+	IOPORT_F_INOUT,
+	dbg_handler
+};
+
+void
+init_dbgport(int sport)
+{
+	conn_fd = -1;
+
+	if ((listen_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+		perror("socket");
+		exit(1);
+	}
+
+	sin.sin_len = sizeof(sin);
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = htonl(INADDR_ANY);
+	sin.sin_port = htons(sport);
+
+	if (bind(listen_fd, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
+		perror("bind");
+		exit(1);
+	}
+
+	if (listen(listen_fd, 1) < 0) {
+		perror("listen");
+		exit(1);
+	}
+
+	register_inout(&dbgport);
+}
