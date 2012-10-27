@@ -53,7 +53,7 @@ bsdinstall hostname || error
 
 export DISTRIBUTIONS="base.txz kernel.txz"
 if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
-	DISTMENU=`awk '!/^(kernel|base)/{print $4,$5,$6}' $BSDINSTALL_DISTDIR/MANIFEST`
+	DISTMENU=`awk -F'\t' '!/^(kernel|base)/{print $4,$5,$6}' $BSDINSTALL_DISTDIR/MANIFEST`
 
 	exec 3>&1
 	EXTRA_DISTS=$( eval dialog \
