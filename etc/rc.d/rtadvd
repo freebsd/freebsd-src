@@ -51,10 +51,6 @@ rtadvd_precmd()
 		;;
 	esac
 
-	for iface in ${command_args}; do
-		ifconfig ${iface} inet6 -accept_rtadv
-	done
-
 	# Enable Router Renumbering, unicast case
 	# (use correct src/dst addr)
 	# rtadvd -R "in ipsec ah/transport/fec0:0:0:1::1-fec0:0:0:10::1/require" ${ipv6_network_interfaces}
