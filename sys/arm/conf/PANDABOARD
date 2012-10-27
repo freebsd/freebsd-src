@@ -54,7 +54,7 @@ options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
 #options 	BOOTP_NFSROOT
 #options 	BOOTP_COMPAT
 #options 	BOOTP
-options 	BOOTP_NFSV3
+#options 	BOOTP_NFSV3
 #options 	BOOTP_WIRED_TO=ue0
 options 	MSDOSFS			#MSDOS Filesystem
 #options 	CD9660			#ISO 9660 Filesystem
