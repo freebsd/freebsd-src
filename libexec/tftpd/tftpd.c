@@ -371,7 +371,10 @@ main(int argc, char *argv[])
 		}
 		chdir("/");
 		setgroups(1, &nobody->pw_gid);
-		setuid(nobody->pw_uid);
+		if (setuid(nobody->pw_uid) != 0) {
+			tftp_log(LOG_ERR, "setuid failed");
+			exit(1);
+		}
 	}
 
 	len = sizeof(me_sock);

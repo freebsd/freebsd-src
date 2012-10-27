@@ -249,7 +249,8 @@ makemsg(char *fname)
 		setegid(getgid());
 	       	if (freopen(fname, "r", stdin) == NULL)
 			err(1, "can't read %s", fname);
-		setegid(egid);
+		if (setegid(egid) != 0)
+			err(1, "setegid failed");
 	}
 	cnt = 0;
 	while (fgets(lbuf, sizeof(lbuf), stdin)) {
