@@ -3228,6 +3228,7 @@ resume:
 						PMAP_UNLOCK(pmap);
 						goto resume;
 					}
+					sched_pin();
 				}
 				if (!pmap_demote_pde(pmap,
 				    &pmap->pm_pdir[pdirindex], sva)) {
