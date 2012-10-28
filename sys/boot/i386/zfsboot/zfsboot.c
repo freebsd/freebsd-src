@@ -176,6 +176,8 @@ zfs_read(spa_t *spa, const dnode_phys_t *dnode, off_t *offp, void *start, size_t
  * Current ZFS pool
  */
 static spa_t *spa;
+static spa_t *primary_spa;
+static vdev_t *primary_vdev;
 
 /*
  * A wrapper for dskread that doesn't have to worry about whether the
@@ -526,13 +528,16 @@ main(void)
      * first pool we found, if any.
      */
     if (!spa) {
-	spa = STAILQ_FIRST(&zfs_pools);
+	spa = spa_get_primary();
 	if (!spa) {
 	    printf("%s: No ZFS pools located, can't boot\n", BOOTPROG);
 	    for (;;)
 		;
 	}
     }
+
+    primary_spa = spa;
+    primary_vdev = spa_get_primary_vdev(spa);
 
     if (zfs_spa_init(spa) != 0 || zfs_mount(spa, 0, &zfsmount) != 0) {
 	printf("%s: failed to mount default pool %s\n",
@@ -702,6 +707,11 @@ load(void)
     zfsargs.size = sizeof(zfsargs);
     zfsargs.pool = zfsmount.spa->spa_guid;
     zfsargs.root = zfsmount.rootobj;
+    zfsargs.primary_pool = primary_spa->spa_guid;
+    if (primary_vdev != NULL)
+	zfsargs.primary_vdev = primary_vdev->v_guid;
+    else
+	printf("failed to detect primary vdev\n");
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
 	   bootdev,
 	   KARGS_FLAGS_ZFS | KARGS_FLAGS_EXTARG,
