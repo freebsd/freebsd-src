@@ -427,7 +427,6 @@ buf_deallocate(struct buf *bp)
 {
 	if (bioops.io_deallocate)
 		(*bioops.io_deallocate)(bp);
-	BUF_LOCKFREE(bp);
 }
 
 static __inline int
