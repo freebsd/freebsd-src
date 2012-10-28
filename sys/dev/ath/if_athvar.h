@@ -173,6 +173,8 @@ struct ath_node {
 	u_int8_t	an_mgmtrix;	/* min h/w rate index */
 	u_int8_t	an_mcastrix;	/* mcast h/w rate index */
 	uint32_t	an_is_powersave;	/* node is sleeping */
+	uint32_t	an_stack_psq;		/* net80211 psq isn't empty */
+	uint32_t	an_tim_set;		/* TIM has been set */
 	struct ath_buf	*an_ff_buf[WME_NUM_AC]; /* ff staging area */
 	struct ath_tid	an_tid[IEEE80211_TID_SIZE];	/* per-TID state */
 	char		an_name[32];	/* eg "wlan0_a1" */
@@ -432,6 +434,7 @@ struct ath_vap {
 				enum ieee80211_state, int);
 	void		(*av_bmiss)(struct ieee80211vap *);
 	void		(*av_node_ps)(struct ieee80211_node *, int);
+	int		(*av_set_tim)(struct ieee80211_node *, int);
 };
 #define	ATH_VAP(vap)	((struct ath_vap *)(vap))
 

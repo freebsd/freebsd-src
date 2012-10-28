@@ -2219,6 +2219,13 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	ifp->if_opackets++;
 	sc->sc_stats.ast_tx_raw++;
 
+	/*
+	 * Update the TIM - if there's anything queued to the
+	 * software queue and power save is enabled, we should
+	 * set the TIM.
+	 */
+	ath_tx_update_tim(sc, ni, 1);
+
 	ATH_PCU_LOCK(sc);
 	sc->sc_txstart_cnt--;
 	ATH_PCU_UNLOCK(sc);
@@ -5292,11 +5299,10 @@ ath_addba_response_timeout(struct ieee80211_node *ni,
 	ATH_TXQ_UNLOCK(sc->sc_ac2q[atid->ac]);
 }
 
-#if 0
 /*
  * Check if a node is asleep or not.
  */
-static int
+int
 ath_tx_node_is_asleep(struct ath_softc *sc, struct ath_node *an)
 {
 
@@ -5304,7 +5310,6 @@ ath_tx_node_is_asleep(struct ath_softc *sc, struct ath_node *an)
 
 	return (an->an_is_powersave);
 }
-#endif
 
 /*
  * Mark a node as currently "in powersaving."

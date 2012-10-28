@@ -201,6 +201,7 @@ static void	ath_announce(struct ath_softc *);
 
 static void	ath_dfs_tasklet(void *, int);
 static void	ath_node_powersave(struct ieee80211_node *, int);
+static int	ath_node_set_tim(struct ieee80211_node *, int);
 
 #ifdef IEEE80211_SUPPORT_TDMA
 #include <dev/ath/if_ath_tdma.h>
@@ -1151,6 +1152,9 @@ ath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
 
 	avp->av_node_ps = vap->iv_node_ps;
 	vap->iv_node_ps = ath_node_powersave;
+
+	avp->av_set_tim = vap->iv_set_tim;
+	vap->iv_set_tim = ath_node_set_tim;
 
 	/* Set default parameters */
 
@@ -2558,6 +2562,12 @@ ath_start(struct ifnet *ifp)
 				ieee80211_free_node(ni);
 			continue;
 		}
+
+		/*
+		 * Check here if the node is in power save state.
+		 */
+		ath_tx_update_tim(sc, ni, 1);
+
 		if (next != NULL) {
 			/*
 			 * Beware of state changing between frags.
@@ -3536,6 +3546,24 @@ ath_tx_default_comp(struct ath_softc *sc, struct ath_buf *bf, int fail)
 		    SEQNO(bf->bf_state.bfs_seqno));
 
 	/*
+	 * Check if the node software queue is empty; if so
+	 * then clear the TIM.
+	 *
+	 * This needs to be done before the buffer is freed as
+	 * otherwise the node reference will have been released
+	 * and the node may not actually exist any longer.
+	 *
+	 * XXX I don't like this belonging here, but it's cleaner
+	 * to do it here right now then all the other places
+	 * where ath_tx_default_comp() is called.
+	 *
+	 * XXX TODO: during drain, ensure that the callback is
+	 * being called so we get a chance to update the TIM.
+	 */
+	if (bf->bf_node)
+		ath_tx_update_tim(sc, bf->bf_node, 0);
+
+	/*
 	 * Do any tx complete callback.  Note this must
 	 * be done before releasing the node reference.
 	 * This will free the mbuf, release the net80211
@@ -3559,6 +3587,7 @@ ath_tx_update_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
 		return;
 
 	an = ATH_NODE(ni);
+	ATH_NODE_UNLOCK_ASSERT(an);
 
 	if ((ts->ts_status & HAL_TXERR_FILT) == 0) {
 		ATH_NODE_LOCK(an);
@@ -3754,6 +3783,8 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 		 * Update statistics and call completion
 		 */
 		ath_tx_process_buf_completion(sc, txq, ts, bf);
+
+		/* XXX at this point, bf and ni may be totally invalid */
 	}
 #ifdef IEEE80211_SUPPORT_SUPERG
 	/*
@@ -5397,6 +5428,219 @@ ath_node_powersave(struct ieee80211_node *ni, int enable)
 	avp->av_node_ps(ni, enable);
 }
 
+/*
+ * Notification from net80211 that the powersave queue state has
+ * changed.
+ *
+ * Since the software queue also may have some frames:
+ *
+ * + if the node software queue has frames and the TID state
+ *   is 0, we set the TIM;
+ * + if the node and the stack are both empty, we clear the TIM bit.
+ * + If the stack tries to set the bit, always set it.
+ * + If the stack tries to clear the bit, only clear it if the
+ *   software queue in question is also cleared.
+ *
+ * TODO: this is called during node teardown; so let's ensure this
+ * is all correctly handled and that the TIM bit is cleared.
+ * It may be that the node flush is called _AFTER_ the net80211
+ * stack clears the TIM.
+ *
+ * Here is the racy part.  Since it's possible >1 concurrent,
+ * overlapping TXes will appear complete with a TX completion in
+ * another thread, it's possible that the concurrent TIM calls will
+ * clash.  We can't hold the node lock here because setting the
+ * TIM grabs the net80211 comlock and this may cause a LOR.
+ * The solution is either to totally serialise _everything_ at
+ * this point (ie, all TX, completion and any reset/flush go into
+ * one taskqueue) or a new "ath TIM lock" needs to be created that
+ * just wraps the driver state change and this call to avp->av_set_tim().
+ *
+ * The same race exists in the net80211 power save queue handling
+ * as well.  Since multiple transmitting threads may queue frames
+ * into the driver, as well as ps-poll and the driver transmitting
+ * frames (and thus clearing the psq), it's quite possible that
+ * a packet entering the PSQ and a ps-poll being handled will
+ * race, causing the TIM to be cleared and not re-set.
+ */
+static int
+ath_node_set_tim(struct ieee80211_node *ni, int enable)
+{
+	struct ieee80211com *ic = ni->ni_ic;
+	struct ath_softc *sc = ic->ic_ifp->if_softc;
+	struct ath_node *an = ATH_NODE(ni);
+	struct ath_vap *avp = ATH_VAP(ni->ni_vap);
+	int changed = 0;
+
+	ATH_NODE_UNLOCK_ASSERT(an);
+
+	/*
+	 * For now, just track and then update the TIM.
+	 */
+	ATH_NODE_LOCK(an);
+	an->an_stack_psq = enable;
+
+	/*
+	 * This will get called for all operating modes,
+	 * even if avp->av_set_tim is unset.
+	 * It's currently set for hostap/ibss modes; but
+	 * the same infrastructure is used for both STA
+	 * and AP/IBSS node power save.
+	 */
+	if (avp->av_set_tim == NULL) {
+		ATH_NODE_UNLOCK(an);
+		return (0);
+	}
+
+	/*
+	 * If setting the bit, always set it here.
+	 * If clearing the bit, only clear it if the
+	 * software queue is also empty.
+	 *
+	 * If the node has left power save, just clear the TIM
+	 * bit regardless of the state of the power save queue.
+	 *
+	 * XXX TODO: although atomics are used, it's quite possible
+	 * that a race will occur between this and setting/clearing
+	 * in another thread.  TX completion will occur always in
+	 * one thread, however setting/clearing the TIM bit can come
+	 * from a variety of different process contexts!
+	 */
+	if (enable && an->an_tim_set == 1) {
+		DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
+		    "%s: an=%p, enable=%d, tim_set=1, ignoring\n",
+		    __func__, an, enable);
+		ATH_NODE_UNLOCK(an);
+	} else if (enable) {
+		DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
+		    "%s: an=%p, enable=%d, enabling TIM\n",
+		    __func__, an, enable);
+		an->an_tim_set = 1;
+		ATH_NODE_UNLOCK(an);
+		changed = avp->av_set_tim(ni, enable);
+	} else if (atomic_load_acq_int(&an->an_swq_depth) == 0) {
+		/* disable */
+		DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
+		    "%s: an=%p, enable=%d, an_swq_depth == 0, disabling\n",
+		    __func__, an, enable);
+		an->an_tim_set = 0;
+		ATH_NODE_UNLOCK(an);
+		changed = avp->av_set_tim(ni, enable);
+	} else if (! an->an_is_powersave) {
+		/*
+		 * disable regardless; the node isn't in powersave now
+		 */
+		DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
+		    "%s: an=%p, enable=%d, an_pwrsave=0, disabling\n",
+		    __func__, an, enable);
+		an->an_tim_set = 0;
+		ATH_NODE_UNLOCK(an);
+		changed = avp->av_set_tim(ni, enable);
+	} else {
+		/*
+		 * psq disable, node is currently in powersave, node
+		 * software queue isn't empty, so don't clear the TIM bit
+		 * for now.
+		 */
+		ATH_NODE_UNLOCK(an);
+		DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
+		    "%s: enable=%d, an_swq_depth > 0, ignoring\n",
+		    __func__, enable);
+		changed = 0;
+	}
+
+	return (changed);
+}
+
+/*
+ * Set or update the TIM from the software queue.
+ *
+ * Check the software queue depth before attempting to do lock
+ * anything; that avoids trying to obtain the lock.  Then,
+ * re-check afterwards to ensure nothing has changed in the
+ * meantime.
+ *
+ * set:   This is designed to be called from the TX path, after
+ *        a frame has been queued; to see if the swq > 0.
+ *
+ * clear: This is designed to be called from the buffer completion point
+ *        (right now it's ath_tx_default_comp()) where the state of
+ *        a software queue has changed.
+ *
+ * It makes sense to place it at buffer free / completion rather
+ * than after each software queue operation, as there's no real
+ * point in churning the TIM bit as the last frames in the software
+ * queue are transmitted.  If they fail and we retry them, we'd
+ * just be setting the TIM bit again anyway.
+ */
+void
+ath_tx_update_tim(struct ath_softc *sc, struct ieee80211_node *ni,
+     int enable)
+{
+	struct ath_node *an;
+	struct ath_vap *avp;
+
+	/* Don't do this for broadcast/etc frames */
+	if (ni == NULL)
+		return;
+
+	an = ATH_NODE(ni);
+	avp = ATH_VAP(ni->ni_vap);
+
+	/*
+	 * And for operating modes without the TIM handler set, let's
+	 * just skip those.
+	 */
+	if (avp->av_set_tim == NULL)
+		return;
+
+	ATH_NODE_UNLOCK_ASSERT(an);
+
+	if (enable) {
+		/*
+		 * Don't bother grabbing the lock unless the queue is not
+		 * empty.
+		 */
+		if (atomic_load_acq_int(&an->an_swq_depth) == 0)
+			return;
+
+		ATH_NODE_LOCK(an);
+		if (an->an_is_powersave &&
+		    an->an_tim_set == 0 &&
+		    atomic_load_acq_int(&an->an_swq_depth) != 0) {
+			DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
+			    "%s: an=%p, swq_depth>0, tim_set=0, set!\n",
+			    __func__, an);
+			an->an_tim_set = 1;
+			ATH_NODE_UNLOCK(an);
+			(void) avp->av_set_tim(ni, 1);
+		} else {
+			ATH_NODE_UNLOCK(an);
+		}
+	} else {
+		/*
+		 * Don't bother grabbing the lock unless the queue is empty.
+		 */
+		if (atomic_load_acq_int(&an->an_swq_depth) != 0)
+			return;
+
+		ATH_NODE_LOCK(an);
+		if (an->an_is_powersave &&
+		    an->an_stack_psq == 0 &&
+		    an->an_tim_set == 1 &&
+		    atomic_load_acq_int(&an->an_swq_depth) == 0) {
+			DPRINTF(sc, ATH_DEBUG_NODE_PWRSAVE,
+			    "%s: an=%p, swq_depth=0, tim_set=1, psq_set=0,"
+			    " clear!\n",
+			    __func__, an);
+			an->an_tim_set = 0;
+			ATH_NODE_UNLOCK(an);
+			(void) avp->av_set_tim(ni, 0);
+		} else {
+			ATH_NODE_UNLOCK(an);
+		}
+	}
+}
 
 MODULE_VERSION(if_ath, 1);
 MODULE_DEPEND(if_ath, wlan, 1, 1, 1);          /* 802.11 media layer */
