@@ -911,8 +911,8 @@ m_cat(struct mbuf *m, struct mbuf *n)
 	while (m->m_next)
 		m = m->m_next;
 	while (n) {
-		if (m->m_flags & M_EXT ||
-		    m->m_data + m->m_len + n->m_len >= &m->m_dat[MLEN]) {
+		if (!M_WRITABLE(m) ||
+		    M_TRAILINGSPACE(m) < n->m_len) {
 			/* just join the two chains */
 			m->m_next = n;
 			return;
@@ -1584,7 +1584,7 @@ again:
 		n = m->m_next;
 		if (n == NULL)
 			break;
-		if ((m->m_flags & M_RDONLY) == 0 &&
+		if (M_WRITABLE(m) &&
 		    n->m_len < M_TRAILINGSPACE(m)) {
 			bcopy(mtod(n, void *), mtod(m, char *) + m->m_len,
 				n->m_len);
