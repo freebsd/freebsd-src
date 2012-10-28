@@ -539,7 +539,13 @@ tcp_timer_rexmt(void * xtp)
 	}
 	INP_INFO_RUNLOCK(&V_tcbinfo);
 	headlocked = 0;
-	if (tp->t_rxtshift == 1) {
+	if (tp->t_state == TCPS_SYN_SENT) {
+		/*
+		 * If the SYN was retransmitted, indicate CWND to be
+		 * limited to 1 segment in cc_conn_init().
+		 */
+		tp->snd_cwnd = 1;
+	} else if (tp->t_rxtshift == 1) {
 		/*
 		 * first retransmit; record ssthresh and cwnd so they can
 		 * be recovered if this turns out to be a "bad" retransmit.
