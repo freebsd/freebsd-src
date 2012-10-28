@@ -176,7 +176,7 @@ struct uaudio_chan {
 	struct mtx *pcm_mtx;		/* lock protecting this structure */
 	struct uaudio_softc *priv_sc;
 	struct pcm_channel *pcm_ch;
-	struct usb_xfer *xfer[UAUDIO_NCHANBUFS];
+	struct usb_xfer *xfer[UAUDIO_NCHANBUFS + 1];
 	union uaudio_asf1d p_asf1d;
 	union uaudio_sed p_sed;
 	const usb_endpoint_descriptor_audio_t *p_ed1;
@@ -206,6 +206,12 @@ struct uaudio_chan {
 	uint8_t	iface_index;
 	uint8_t	iface_alt_index;
 	uint8_t channels;
+
+	uint8_t last_sync_time;
+	uint8_t last_sync_state;
+#define	UAUDIO_SYNC_NONE 0
+#define	UAUDIO_SYNC_MORE 1
+#define	UAUDIO_SYNC_LESS 2
 };
 
 #define	UMIDI_CABLES_MAX   16		/* units */
@@ -386,7 +392,9 @@ static device_attach_t uaudio_attach;
 static device_detach_t uaudio_detach;
 
 static usb_callback_t uaudio_chan_play_callback;
+static usb_callback_t uaudio_chan_play_sync_callback;
 static usb_callback_t uaudio_chan_record_callback;
+static usb_callback_t uaudio_chan_record_sync_callback;
 static usb_callback_t uaudio_mixer_write_cfg_callback;
 static usb_callback_t umidi_bulk_read_callback;
 static usb_callback_t umidi_bulk_write_callback;
@@ -482,7 +490,7 @@ static void	uaudio_chan_dump_ep_desc(
 #endif
 
 static const struct usb_config
-	uaudio_cfg_record[UAUDIO_NCHANBUFS] = {
+	uaudio_cfg_record[UAUDIO_NCHANBUFS + 1] = {
 	[0] = {
 		.type = UE_ISOCHRONOUS,
 		.endpoint = UE_ADDR_ANY,
@@ -501,11 +509,21 @@ static const struct usb_config
 		.frames = UAUDIO_NFRAMES,
 		.flags = {.short_xfer_ok = 1,},
 		.callback = &uaudio_chan_record_callback,
+	},
+
+	[2] = {
+		.type = UE_ISOCHRONOUS,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_OUT,
+		.bufsize = 0,	/* use "wMaxPacketSize * frames" */
+		.frames = 1,
+		.flags = {.no_pipe_ok = 1,.short_xfer_ok = 1,},
+		.callback = &uaudio_chan_record_sync_callback,
 	},
 };
 
 static const struct usb_config
-	uaudio_cfg_play[UAUDIO_NCHANBUFS] = {
+	uaudio_cfg_play[UAUDIO_NCHANBUFS + 1] = {
 	[0] = {
 		.type = UE_ISOCHRONOUS,
 		.endpoint = UE_ADDR_ANY,
@@ -524,6 +542,16 @@ static const struct usb_config
 		.frames = UAUDIO_NFRAMES,
 		.flags = {.short_xfer_ok = 1,},
 		.callback = &uaudio_chan_play_callback,
+	},
+
+	[2] = {
+		.type = UE_ISOCHRONOUS,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_IN,
+		.bufsize = 0,	/* use "wMaxPacketSize * frames" */
+		.frames = 1,
+		.flags = {.no_pipe_ok = 1,.short_xfer_ok = 1,},
+		.callback = &uaudio_chan_play_sync_callback,
 	},
 };
 
@@ -845,9 +873,9 @@ uaudio_detach(device_t dev)
 	 * any.
 	 */
 	if (sc->sc_play_chan.valid)
-		usbd_transfer_unsetup(sc->sc_play_chan.xfer, UAUDIO_NCHANBUFS);
+		usbd_transfer_unsetup(sc->sc_play_chan.xfer, UAUDIO_NCHANBUFS + 1);
 	if (sc->sc_rec_chan.valid)
-		usbd_transfer_unsetup(sc->sc_rec_chan.xfer, UAUDIO_NCHANBUFS);
+		usbd_transfer_unsetup(sc->sc_rec_chan.xfer, UAUDIO_NCHANBUFS + 1);
 
 	if (bus_generic_detach(dev) != 0) {
 		DPRINTF("detach failed!\n");
@@ -1396,10 +1424,96 @@ done:
 }
 
 static void
+uaudio_chan_play_sync_callback(struct usb_xfer *xfer, usb_error_t error)
+{
+	struct uaudio_chan *ch = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
+	uint8_t buf[4];
+	uint64_t temp;
+	int len;
+	int actlen;
+	int nframes;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, &nframes);
+
+	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_TRANSFERRED:
+
+		DPRINTFN(6, "transferred %d bytes\n", actlen);
+
+		if (nframes == 0)
+			break;
+		len = usbd_xfer_frame_len(xfer, 0);
+		if (len == 0)
+			break;
+		if (len > sizeof(buf))
+			len = sizeof(buf);
+
+		memset(buf, 0, sizeof(buf));
+
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_out(pc, 0, buf, len);
+
+		temp = UGETDW(buf);
+
+		DPRINTF("Value = 0x%08x\n", (int)temp);
+
+		/* auto-detect SYNC format */
+
+		if (len == 4)
+			temp &= 0x0fffffff;
+
+		/* check for no data */
+
+		if (temp == 0)
+			break;
+
+		/* correctly scale value */
+
+		temp = (temp * 125ULL) - 64;
+
+		/* auto adjust */
+
+		while (temp < (ch->sample_rate - (ch->sample_rate / 4)))
+			temp *= 2;
+
+		while (temp > (ch->sample_rate + (ch->sample_rate / 2)))
+			temp /= 2;
+
+		/* bias */
+
+		temp += (ch->sample_rate + 1999) / 2000;
+
+		/* compare */
+
+		DPRINTF("Comparing %d < %d\n",
+		    (int)temp, (int)ch->sample_rate);
+
+		if (temp == ch->sample_rate)
+			ch->last_sync_state = UAUDIO_SYNC_NONE;
+		else if (temp > ch->sample_rate)
+			ch->last_sync_state = UAUDIO_SYNC_MORE;
+		else
+			ch->last_sync_state = UAUDIO_SYNC_LESS;
+		break;
+
+	case USB_ST_SETUP:
+		usbd_xfer_set_frames(xfer, 1);
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_framelen(xfer));
+		usbd_transfer_submit(xfer);
+		break;
+
+	default:			/* Error */
+		break;
+	}
+}
+
+static void
 uaudio_chan_play_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct uaudio_chan *ch = usbd_xfer_softc(xfer);
 	struct usb_page_cache *pc;
+	uint32_t mfl;
 	uint32_t total;
 	uint32_t blockcount;
 	uint32_t n;
@@ -1423,12 +1537,18 @@ tr_transferred:
 		}
 		chn_intr(ch->pcm_ch);
 
+		/* start SYNC transfer, if any */
+		if ((ch->last_sync_time++ & 7) == 0)
+			usbd_transfer_start(ch->xfer[UAUDIO_NCHANBUFS]);
+
 	case USB_ST_SETUP:
-		if (ch->bytes_per_frame[1] > usbd_xfer_max_framelen(xfer)) {
+		mfl = usbd_xfer_max_framelen(xfer);
+
+		if (ch->bytes_per_frame[1] > mfl) {
 			DPRINTF("bytes per transfer, %d, "
 			    "exceeds maximum, %d!\n",
 			    ch->bytes_per_frame[1],
-			    usbd_xfer_max_framelen(xfer));
+			    mfl);
 			break;
 		}
 
@@ -1442,15 +1562,37 @@ tr_transferred:
 
 		/* setup frame lengths */
 		for (n = 0; n != blockcount; n++) {
+			uint32_t frame_len;
+
 			ch->sample_curr += ch->sample_rem;
 			if (ch->sample_curr >= ch->frames_per_second) {
 				ch->sample_curr -= ch->frames_per_second;
-				usbd_xfer_set_frame_len(xfer, n, ch->bytes_per_frame[1]);
-				total += ch->bytes_per_frame[1];
+				frame_len = ch->bytes_per_frame[1];
 			} else {
-				usbd_xfer_set_frame_len(xfer, n, ch->bytes_per_frame[0]);
-				total += ch->bytes_per_frame[0];
+				frame_len = ch->bytes_per_frame[0];
 			}
+
+			if (n == (blockcount - 1)) {
+				switch (ch->last_sync_state) {
+				case UAUDIO_SYNC_MORE:
+					DPRINTFN(6, "sending one sample more\n");
+					if ((frame_len + ch->sample_size) <= mfl)
+						frame_len += ch->sample_size;
+					ch->last_sync_state = UAUDIO_SYNC_NONE;
+					break;
+				case UAUDIO_SYNC_LESS:
+					DPRINTFN(6, "sending one sample less\n");
+					if (frame_len >= ch->sample_size)
+						frame_len -= ch->sample_size;
+					ch->last_sync_state = UAUDIO_SYNC_NONE;
+					break;
+				default:
+					break;
+				}
+			}
+
+			usbd_xfer_set_frame_len(xfer, n, frame_len);
+			total += frame_len;
 		}
 
 		DPRINTFN(6, "transfer %d bytes\n", total);
@@ -1484,6 +1626,12 @@ tr_transferred:
 		}
 		goto tr_transferred;
 	}
+}
+
+static void
+uaudio_chan_record_sync_callback(struct usb_xfer *xfer, usb_error_t error)
+{
+	/* TODO */
 }
 
 static void
@@ -1697,7 +1845,7 @@ uaudio_chan_init(struct uaudio_softc *sc, struct snd_dbuf *b,
 		}
 	}
 	if (usbd_transfer_setup(sc->sc_udev, &iface_index, ch->xfer,
-	    ch->usb_cfg, UAUDIO_NCHANBUFS, ch, ch->pcm_mtx)) {
+	    ch->usb_cfg, UAUDIO_NCHANBUFS + 1, ch, ch->pcm_mtx)) {
 		DPRINTF("could not allocate USB transfers!\n");
 		goto error;
 	}
@@ -1767,7 +1915,7 @@ uaudio_chan_free(struct uaudio_chan *ch)
 		free(ch->buf, M_DEVBUF);
 		ch->buf = NULL;
 	}
-	usbd_transfer_unsetup(ch->xfer, UAUDIO_NCHANBUFS);
+	usbd_transfer_unsetup(ch->xfer, UAUDIO_NCHANBUFS + 1);
 
 	ch->valid = 0;
 
@@ -1868,12 +2016,8 @@ uaudio_chan_start(struct uaudio_chan *ch)
 #if (UAUDIO_NCHANBUFS != 2)
 #error "please update code"
 #endif
-	if (ch->xfer[0]) {
-		usbd_transfer_start(ch->xfer[0]);
-	}
-	if (ch->xfer[1]) {
-		usbd_transfer_start(ch->xfer[1]);
-	}
+	usbd_transfer_start(ch->xfer[0]);
+	usbd_transfer_start(ch->xfer[1]);
 	return (0);
 }
 
