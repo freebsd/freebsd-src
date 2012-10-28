@@ -391,7 +391,7 @@ static void
 syncache_timeout(struct syncache *sc, struct syncache_head *sch, int docallout)
 {
 	sc->sc_rxttime = ticks +
-		TCPTV_RTOBASE * (tcp_backoff[sc->sc_rxmits]);
+		TCPTV_RTOBASE * (tcp_syn_backoff[sc->sc_rxmits]);
 	sc->sc_rxmits++;
 	if (TSTMP_LT(sc->sc_rxttime, sch->sch_nextc)) {
 		sch->sch_nextc = sc->sc_rxttime;
