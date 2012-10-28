@@ -105,21 +105,6 @@ typedef struct pv_entry {
 	TAILQ_ENTRY(pv_entry)	pv_list;
 } *pv_entry_t;
 
-/*
- * pv_entries are allocated in chunks per-process.  This avoids the
- * need to track per-pmap assignments.
- */
-#define	_NPCM	6
-#define	_NPCPV	337
-struct pv_chunk {
-	pmap_t			pc_pmap;
-	TAILQ_ENTRY(pv_chunk)	pc_list;
-	u_long			pc_map[_NPCM];	/* bitmap; 1 = free */
-	TAILQ_ENTRY(pv_chunk)	pc_lru;
-	u_long			pc_spare[2];
-	struct pv_entry		pc_pventry[_NPCPV];
-};
-
 #ifdef	_KERNEL
 
 extern vm_paddr_t phys_avail[];
