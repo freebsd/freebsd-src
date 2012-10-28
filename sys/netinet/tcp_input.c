@@ -1714,7 +1714,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			 * Pull snd_wl1 up to prevent seq wrap relative to
 			 * th_seq.
 			 */
-			tp->snd_wl1 = th->th_seq;
+			tp->snd_wl1 = th->th_seq + tlen;
 			/*
 			 * Pull rcv_up up to prevent seq wrap relative to
 			 * rcv_nxt.
@@ -2327,7 +2327,6 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		if (tlen == 0 && (thflags & TH_FIN) == 0)
 			(void) tcp_reass(tp, (struct tcphdr *)0, 0,
 			    (struct mbuf *)0);
-		tp->snd_wl1 = th->th_seq - 1;
 		/* FALLTHROUGH */
 
 	/*
@@ -2638,12 +2637,10 @@ process_ACK:
 
 		SOCKBUF_LOCK(&so->so_snd);
 		if (acked > so->so_snd.sb_cc) {
-			tp->snd_wnd -= so->so_snd.sb_cc;
 			sbdrop_locked(&so->so_snd, (int)so->so_snd.sb_cc);
 			ourfinisacked = 1;
 		} else {
 			sbdrop_locked(&so->so_snd, acked);
-			tp->snd_wnd -= acked;
 			ourfinisacked = 0;
 		}
 		/* NB: sowwakeup_locked() does an implicit unlock. */
@@ -2733,24 +2730,56 @@ step6:
 	INP_WLOCK_ASSERT(tp->t_inpcb);
 
 	/*
-	 * Update window information.
-	 * Don't look at window if no ACK: TAC's send garbage on first SYN.
+	 * Window update acceptance logic.  We have to be careful not
+	 * to accept window updates from old segments in the presence
+	 * of reordering or duplication.
+	 *
+	 * A window update is valid when:
+	 *  - the segment ACK's new data.
+	 *  - the segment carries new data and its ACK is current.
+	 *  - the segment matches the current SEQ and ACK but increases
+	 *    the window.  This is the escape from persist mode, if there
+	 *    data to be sent.
+	 *
+	 * XXXAO: The presence of new SACK information would allow to
+	 * accept window updates during retransmits.  We don't have an
+	 * easy way to test for that the moment.
+	 *
+	 * NB: The other side isn't allowed to shrink the window when
+	 * not sending or acking new data.  This behavior is strongly
+	 * discouraged by RFC793, section 3.7, page 42 anyways.
+	 *
+	 * XXXAO: tiwin >= minmss to avoid jitter?
 	 */
-	if ((thflags & TH_ACK) &&
-	    (SEQ_LT(tp->snd_wl1, th->th_seq) ||
-	    (tp->snd_wl1 == th->th_seq && (SEQ_LT(tp->snd_wl2, th->th_ack) ||
-	     (tp->snd_wl2 == th->th_ack && tiwin > tp->snd_wnd))))) {
-		/* keep track of pure window updates */
-		if (tlen == 0 &&
-		    tp->snd_wl2 == th->th_ack && tiwin > tp->snd_wnd)
+        if ((thflags & TH_ACK) && tiwin != tp->snd_wnd &&
+	    (SEQ_GT(th->th_ack, tp->snd_wl2) ||
+	     (th->th_ack == tp->snd_wl2 &&
+	      (SEQ_GT(th->th_seq + tlen, tp->snd_wl1) ||
+	      (th->th_seq == tp->snd_wl1 && tlen == 0 && tiwin > tp->snd_wnd))))) {
+#if 0
+		char *s;
+		if ((s = tcp_log_addrs(&tp->t_inpcb->inp_inc, th, NULL, NULL))) {
+			log(LOG_DEBUG, "%s; %s: window update %lu -> %lu\n",
+			    s, __func__, tp->snd_wnd, tiwin);
+			free(s, M_TCPLOG);
+		}
+#endif
+		/* Keep track of pure window updates. */
+		if (th->th_seq == tp->snd_wl1 && tlen == 0 &&
+		    tiwin > tp->snd_wnd)
 			TCPSTAT_INC(tcps_rcvwinupd);
+		/*
+		 * When the new window is larger, nudge output
+		 * as we may be able to send more data.
+		 */
+		if (tiwin > tp->snd_wnd)
+			needoutput = 1;
 		tp->snd_wnd = tiwin;
-		tp->snd_wl1 = th->th_seq;
-		tp->snd_wl2 = th->th_ack;
 		if (tp->snd_wnd > tp->max_sndwnd)
 			tp->max_sndwnd = tp->snd_wnd;
-		needoutput = 1;
 	}
+	if (SEQ_GT(th->th_ack, tp->snd_wl2))
+		tp->snd_wl2 = th->th_ack;
 
 	/*
 	 * Process segments with URG.
@@ -2870,6 +2899,8 @@ dodata:							/* XXX */
 			thflags = tcp_reass(tp, th, &tlen, m);
 			tp->t_flags |= TF_ACKNOW;
 		}
+		if (SEQ_GT(th->th_seq, tp->snd_wl1))
+			tp->snd_wl1 = th->th_seq + tlen;
 		if (tlen > 0 && (tp->t_flags & TF_SACK_PERMIT))
 			tcp_update_sack_list(tp, save_start, save_start + tlen);
 #if 0
