@@ -76,9 +76,9 @@ dev/fdt/fdt_mips.c			optional	fdt
 crypto/blowfish/bf_enc.c		optional	crypto | ipsec 
 crypto/des/des_enc.c			optional	crypto | ipsec
 
-# AP common nvram interface
+# AP common nvram interface MIPS specific, but maybe should be more generic
 dev/nvram2env/nvram2env.c		optional	nvram2env
 
-# hwpmc goo
+# hwpmc support
 dev/hwpmc/hwpmc_mips.c			optional	hwpmc
 dev/hwpmc/hwpmc_mips24k.c		optional	hwpmc
