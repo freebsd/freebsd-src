@@ -13342,8 +13342,13 @@ softdep_deallocate_dependencies(bp)
 
 	if ((bp->b_ioflags & BIO_ERROR) == 0)
 		panic("softdep_deallocate_dependencies: dangling deps");
-	softdep_error(bp->b_vp->v_mount->mnt_stat.f_mntonname, bp->b_error);
-	panic("softdep_deallocate_dependencies: unrecovered I/O error");
+	if (bp->b_vp != NULL && bp->b_vp->v_mount != NULL)
+		softdep_error(bp->b_vp->v_mount->mnt_stat.f_mntonname, bp->b_error);
+	else
+		printf("softdep_deallocate_dependencies: "
+		    "got error %d while accessing filesystem\n", bp->b_error);
+	if (bp->b_error != ENXIO)
+		panic("softdep_deallocate_dependencies: unrecovered I/O error");
 }
 
 /*
