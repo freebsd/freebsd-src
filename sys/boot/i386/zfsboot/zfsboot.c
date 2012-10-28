@@ -345,7 +345,7 @@ copy_dsk(struct dsk *dsk)
 }
 
 static void
-probe_drive(struct dsk *dsk, spa_t **spap)
+probe_drive(struct dsk *dsk)
 {
 #ifdef GPT
     struct gpt_hdr hdr;
@@ -359,9 +359,10 @@ probe_drive(struct dsk *dsk, spa_t **spap)
 
     /*
      * If we find a vdev on the whole disk, stop here. Otherwise dig
-     * out the MBR and probe each slice in turn for a vdev.
+     * out the partition table and probe each slice/partition
+     * in turn for a vdev.
      */
-    if (vdev_probe(vdev_read, dsk, spap) == 0)
+    if (vdev_probe(vdev_read, dsk, NULL) == 0)
 	return;
 
     sec = dmadat->secbuf;
@@ -399,13 +400,7 @@ probe_drive(struct dsk *dsk, spa_t **spap)
 	    if (memcmp(&ent->ent_type, &freebsd_zfs_uuid,
 		     sizeof(uuid_t)) == 0) {
 		dsk->start = ent->ent_lba_start;
-		if (vdev_probe(vdev_read, dsk, spap) == 0) {
-		    /*
-		     * We record the first pool we find (we will try
-		     * to boot from that one).
-		     */
-		    spap = NULL;
-
+		if (vdev_probe(vdev_read, dsk, NULL) == 0) {
 		    /*
 		     * This slice had a vdev. We need a new dsk
 		     * structure now since the vdev now owns this one.
@@ -428,13 +423,7 @@ trymbr:
 	if (!dp[i].dp_typ)
 	    continue;
 	dsk->start = dp[i].dp_start;
-	if (vdev_probe(vdev_read, dsk, spap) == 0) {
-	    /*
-	     * We record the first pool we find (we will try to boot
-	     * from that one.
-	     */
-	    spap = 0;
-
+	if (vdev_probe(vdev_read, dsk, NULL) == 0) {
 	    /*
 	     * This slice had a vdev. We need a new dsk structure now
 	     * since the vdev now owns this one.
@@ -493,7 +482,7 @@ main(void)
      * Probe the boot drive first - we will try to boot from whatever
      * pool we find on that drive.
      */
-    probe_drive(dsk, &spa);
+    probe_drive(dsk);
 
     /*
      * Probe the rest of the drives that the bios knows about. This
@@ -520,20 +509,17 @@ main(void)
 	dsk->part = 0;
 	dsk->start = 0;
 	dsk->init = 0;
-	probe_drive(dsk, NULL);
+	probe_drive(dsk);
     }
 
     /*
-     * If we didn't find a pool on the boot drive, default to the
-     * first pool we found, if any.
+     * The first discovered pool, if any, is the pool.
      */
+    spa = spa_get_primary();
     if (!spa) {
-	spa = spa_get_primary();
-	if (!spa) {
-	    printf("%s: No ZFS pools located, can't boot\n", BOOTPROG);
-	    for (;;)
-		;
-	}
+	printf("%s: No ZFS pools located, can't boot\n", BOOTPROG);
+	for (;;)
+	    ;
     }
 
     primary_spa = spa;
