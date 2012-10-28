@@ -585,7 +585,7 @@ tcp_timer_rexmt(void * xtp)
 	 * unknown-to-them TCP options.
 	 */
 	if ((tp->t_state == TCPS_SYN_SENT) && (tp->t_rxtshift == 3))
-		tp->t_flags &= ~(TF_REQ_SCALE|TF_REQ_TSTMP);
+		tp->t_flags &= ~(TF_REQ_SCALE|TF_REQ_TSTMP|TF_SACK_PERMIT);
 	/*
 	 * If we backed off this far, our srtt estimate is probably bogus.
 	 * Clobber it so we'll take the next rtt measurement as our srtt;
