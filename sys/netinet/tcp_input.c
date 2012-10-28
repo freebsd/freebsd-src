@@ -3322,10 +3322,8 @@ tcp_xmit_timer(struct tcpcb *tp, int rtt)
 /*
  * Determine a reasonable value for maxseg size.
  * If the route is known, check route for mtu.
- * If none, use an mss that can be handled on the outgoing
- * interface without forcing IP to fragment; if bigger than
- * an mbuf cluster (MCLBYTES), round down to nearest multiple of MCLBYTES
- * to utilize large mbufs.  If no route is found, route has no mtu,
+ * If none, use an mss that can be handled on the outgoing interface
+ * without forcing IP to fragment.  If no route is found, route has no mtu,
  * or the destination isn't local, use a default, hopefully conservative
  * size (usually 512 or the default IP max size, but no more than the mtu
  * of the interface), as we can't discover anything about intervening
@@ -3506,13 +3504,6 @@ tcp_mss_update(struct tcpcb *tp, int offer, int mtuoffer,
 	     (tp->t_flags & TF_RCVD_TSTMP) == TF_RCVD_TSTMP))
 		mss -= TCPOLEN_TSTAMP_APPA;
 
-#if	(MCLBYTES & (MCLBYTES - 1)) == 0
-	if (mss > MCLBYTES)
-		mss &= ~(MCLBYTES-1);
-#else
-	if (mss > MCLBYTES)
-		mss = mss / MCLBYTES * MCLBYTES;
-#endif
 	tp->t_maxseg = mss;
 }
 
