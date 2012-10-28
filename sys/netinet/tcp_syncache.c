@@ -123,6 +123,7 @@ struct syncache *syncache_lookup(struct in_conninfo *, struct syncache_head **);
 static int	 syncache_respond(struct syncache *);
 static struct	 socket *syncache_socket(struct syncache *, struct socket *,
 		    struct mbuf *m);
+static int	 syncache_sysctl_count(SYSCTL_HANDLER_ARGS);
 static void	 syncache_timeout(struct syncache *sc, struct syncache_head *sch,
 		    int docallout);
 static void	 syncache_timer(void *);
@@ -158,8 +159,8 @@ SYSCTL_VNET_UINT(_net_inet_tcp_syncache, OID_AUTO, cachelimit, CTLFLAG_RDTUN,
     &VNET_NAME(tcp_syncache.cache_limit), 0,
     "Overall entry limit for syncache");
 
-SYSCTL_VNET_UINT(_net_inet_tcp_syncache, OID_AUTO, count, CTLFLAG_RD,
-    &VNET_NAME(tcp_syncache.cache_count), 0,
+SYSCTL_VNET_PROC(_net_inet_tcp_syncache, OID_AUTO, count, (CTLTYPE_UINT|CTLFLAG_RD),
+    NULL, 0, &syncache_sysctl_count, "IU",
     "Current number of entries in syncache");
 
 SYSCTL_VNET_UINT(_net_inet_tcp_syncache, OID_AUTO, hashsize, CTLFLAG_RDTUN,
@@ -225,7 +226,6 @@ syncache_init(void)
 {
 	int i;
 
-	V_tcp_syncache.cache_count = 0;
 	V_tcp_syncache.hashsize = TCP_SYNCACHE_HASHSIZE;
 	V_tcp_syncache.bucket_limit = TCP_SYNCACHE_BUCKETLIMIT;
 	V_tcp_syncache.rexmt_limit = SYNCACHE_MAXREXMTS;
@@ -269,6 +269,7 @@ syncache_init(void)
 	V_tcp_syncache.zone = uma_zcreate("syncache", sizeof(struct syncache),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	uma_zone_set_max(V_tcp_syncache.zone, V_tcp_syncache.cache_limit);
+	V_tcp_syncache.cache_limit = uma_zone_get_max(V_tcp_syncache.zone);
 }
 
 #ifdef VIMAGE
@@ -296,14 +297,23 @@ syncache_destroy(void)
 		mtx_destroy(&sch->sch_mtx);
 	}
 
-	KASSERT(V_tcp_syncache.cache_count == 0, ("%s: cache_count %d not 0",
-	    __func__, V_tcp_syncache.cache_count));
+	KASSERT(uma_zone_get_cur(V_tcp_syncache.zone) == 0,
+	    ("%s: cache_count not 0", __func__));
 
 	/* Free the allocated global resources. */
 	uma_zdestroy(V_tcp_syncache.zone);
 	free(V_tcp_syncache.hashbase, M_SYNCACHE);
 }
 #endif
+
+static int
+syncache_sysctl_count(SYSCTL_HANDLER_ARGS)
+{
+	int count;
+
+	count = uma_zone_get_cur(V_tcp_syncache.zone);
+	return (sysctl_handle_int(oidp, &count, sizeof(count), req));
+}
 
 /*
  * Inserts a syncache entry into the specified bucket row.
@@ -347,7 +357,6 @@ syncache_insert(struct syncache *sc, struct syncache_head *sch)
 
 	SCH_UNLOCK(sch);
 
-	V_tcp_syncache.cache_count++;
 	TCPSTAT_INC(tcps_sc_added);
 }
 
@@ -373,7 +382,6 @@ syncache_drop(struct syncache *sc, struct syncache_head *sch)
 #endif
 
 	syncache_free(sc);
-	V_tcp_syncache.cache_count--;
 }
 
 /*
@@ -958,7 +966,6 @@ syncache_expand(struct in_conninfo *inc, struct tcpopt *to, struct tcphdr *th,
 			tod->tod_syncache_removed(tod, sc->sc_todctx);
 		}
 #endif
-		V_tcp_syncache.cache_count--;
 		SCH_UNLOCK(sch);
 	}
 
