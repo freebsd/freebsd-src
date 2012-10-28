@@ -281,6 +281,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: devid 0x%x\n", __func__, devid);
 
+	CURVNET_SET(vnet0);
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
 	if (ifp == NULL) {
 		device_printf(sc->sc_dev, "can not if_alloc()\n");
@@ -292,6 +293,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	/* set these up early for if_printf use */
 	if_initname(ifp, device_get_name(sc->sc_dev),
 		device_get_unit(sc->sc_dev));
+	CURVNET_RESTORE();
 
 	ah = ath_hal_attach(devid, sc, sc->sc_st, sc->sc_sh,
 	    sc->sc_eepromdata, &status);
@@ -887,8 +889,11 @@ bad2:
 bad:
 	if (ah)
 		ath_hal_detach(ah);
-	if (ifp != NULL)
+	if (ifp != NULL) {
+		CURVNET_SET(ifp->if_vnet);
 		if_free(ifp);
+		CURVNET_RESTORE();
+	}
 	sc->sc_invalid = 1;
 	return error;
 }
@@ -930,7 +935,10 @@ ath_detach(struct ath_softc *sc)
 	ath_rxdma_teardown(sc);
 	ath_tx_cleanup(sc);
 	ath_hal_detach(sc->sc_ah);	/* NB: sets chip in full sleep */
+
+	CURVNET_SET(ifp->if_vnet);
 	if_free(ifp);
+	CURVNET_RESTORE();
 
 	return 0;
 }
