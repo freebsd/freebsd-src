@@ -1895,7 +1895,7 @@ again:
 				continue;
 
 			size = vmspace_resident_count(vm);
-			if (limit >= 0 && size >= limit) {
+			if (size >= limit) {
 				vm_pageout_map_deactivate_pages(
 				    &vm->vm_map, limit);
 			}
