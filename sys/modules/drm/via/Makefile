@@ -22,6 +22,6 @@ opt_drm.h:
 
 .include <bsd.kmod.mk>
 
-CWARNFLAGS.via_dma.c=		${NO_WUNUSED_VALUE}
-CWARNFLAGS.via_dmablit.c=	${NO_WUNUSED_VALUE}
+CWARNFLAGS.via_dma.c=		-Wno-unused-value
+CWARNFLAGS.via_dmablit.c=	-Wno-unused-value
 CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}
