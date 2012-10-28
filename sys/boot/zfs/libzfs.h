@@ -53,6 +53,8 @@ struct zfs_boot_args
     uint32_t		reserved;
     uint64_t		pool;
     uint64_t		root;
+    uint64_t		primary_pool;
+    uint64_t		primary_vdev;
 };
 
 int	zfs_parsedev(struct zfs_devdesc *dev, const char *devspec,
