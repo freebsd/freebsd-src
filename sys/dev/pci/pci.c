@@ -1587,8 +1587,8 @@ pci_get_max_read_req(device_t dev)
 
 	if (pci_find_cap(dev, PCIY_EXPRESS, &cap) != 0)
 		return (0);
-	val = pci_read_config(dev, cap + PCIR_EXPRESS_DEVICE_CTL, 2);
-	val &= PCIM_EXP_CTL_MAX_READ_REQUEST;
+	val = pci_read_config(dev, cap + PCIER_DEVICE_CTL, 2);
+	val &= PCIEM_CTL_MAX_READ_REQUEST;
 	val >>= 12;
 	return (1 << (val + 7));
 }
@@ -1606,10 +1606,10 @@ pci_set_max_read_req(device_t dev, int size)
 	if (size > 4096)
 		size = 4096;
 	size = (1 << (fls(size) - 1));
-	val = pci_read_config(dev, cap + PCIR_EXPRESS_DEVICE_CTL, 2);
-	val &= ~PCIM_EXP_CTL_MAX_READ_REQUEST;
+	val = pci_read_config(dev, cap + PCIER_DEVICE_CTL, 2);
+	val &= ~PCIEM_CTL_MAX_READ_REQUEST;
 	val |= (fls(size) - 8) << 12;
-	pci_write_config(dev, cap + PCIR_EXPRESS_DEVICE_CTL, val, 2);
+	pci_write_config(dev, cap + PCIER_DEVICE_CTL, val, 2);
 	return (size);
 }
 
