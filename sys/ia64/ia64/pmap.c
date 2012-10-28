@@ -140,6 +140,29 @@ extern uint64_t ia64_gateway_page[];
 #define	pmap_set_wired(lpte)		(lpte)->pte |= PTE_WIRED
 
 /*
+ * Individual PV entries are stored in per-pmap chunks.  This saves
+ * space by eliminating the need to record the pmap within every PV
+ * entry.
+ */
+#if PAGE_SIZE == 8192
+#define	_NPCM	6
+#define	_NPCPV	337
+#define	_NPCS	2
+#elif PAGE_SIZE == 16384
+#define	_NPCM	11
+#define	_NPCPV	677
+#define	_NPCS	1
+#endif
+struct pv_chunk {
+	pmap_t			pc_pmap;
+	TAILQ_ENTRY(pv_chunk)	pc_list;
+	u_long			pc_map[_NPCM];	/* bitmap; 1 = free */
+	TAILQ_ENTRY(pv_chunk)	pc_lru;
+	u_long			pc_spare[_NPCS];
+	struct pv_entry		pc_pventry[_NPCPV];
+};
+
+/*
  * The VHPT bucket head structure.
  */
 struct ia64_bucket {
@@ -693,8 +716,6 @@ pmap_growkernel(vm_offset_t addr)
  ***************************************************/
 
 CTASSERT(sizeof(struct pv_chunk) == PAGE_SIZE);
-CTASSERT(_NPCM == 6);
-CTASSERT(_NPCPV == 337);
 
 static __inline struct pv_chunk *
 pv_to_chunk(pv_entry_t pv)
@@ -705,13 +726,23 @@ pv_to_chunk(pv_entry_t pv)
 
 #define PV_PMAP(pv) (pv_to_chunk(pv)->pc_pmap)
 
-#define	PC_FREE0_4	0xfffffffffffffffful
-#define	PC_FREE5	0x000000000001fffful
+#define	PC_FREE_FULL	0xfffffffffffffffful
+#define	PC_FREE_PARTIAL	\
+	((1UL << (_NPCPV - sizeof(u_long) * 8 * (_NPCM - 1))) - 1)
 
+#if PAGE_SIZE == 8192
 static const u_long pc_freemask[_NPCM] = {
-	PC_FREE0_4, PC_FREE0_4, PC_FREE0_4,
-	PC_FREE0_4, PC_FREE0_4, PC_FREE5
+	PC_FREE_FULL, PC_FREE_FULL, PC_FREE_FULL,
+	PC_FREE_FULL, PC_FREE_FULL, PC_FREE_PARTIAL
 };
+#elif PAGE_SIZE == 16384
+static const u_long pc_freemask[_NPCM] = {
+	PC_FREE_FULL, PC_FREE_FULL, PC_FREE_FULL,
+	PC_FREE_FULL, PC_FREE_FULL, PC_FREE_FULL,
+	PC_FREE_FULL, PC_FREE_FULL, PC_FREE_FULL,
+	PC_FREE_FULL, PC_FREE_PARTIAL
+};
+#endif
 
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
