@@ -447,6 +447,16 @@ tcp_timer_persist(void *xtp)
 		tp = tcp_drop(tp, ETIMEDOUT);
 		goto out;
 	}
+	/*
+	 * If the user has closed the socket then drop a persisting
+	 * connection after a much reduced timeout.
+	 */
+	if (tp->t_state > TCPS_CLOSE_WAIT &&
+	    (ticks - tp->t_rcvtime) >= TCPTV_PERSMAX) {
+		TCPSTAT_INC(tcps_persistdrop);
+		tp = tcp_drop(tp, ETIMEDOUT);
+		goto out;
+	}
 	tcp_setpersist(tp);
 	tp->t_flags |= TF_FORCEDATA;
 	(void) tcp_output(tp);
