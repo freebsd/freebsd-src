@@ -852,11 +852,12 @@ syncache_socket(struct syncache *sc, struct socket *lso, struct mbuf *m)
 	tcp_mss(tp, sc->sc_peer_mss);
 
 	/*
-	 * If the SYN,ACK was retransmitted, reset cwnd to 1 segment.
+	 * If the SYN,ACK was retransmitted, indicate that CWND to be
+	 * limited to one segment in cc_conn_init().
 	 * NB: sc_rxmits counts all SYN,ACK transmits, not just retransmits.
 	 */
 	if (sc->sc_rxmits > 1)
-		tp->snd_cwnd = tp->t_maxseg;
+		tp->snd_cwnd = 1;
 
 #ifdef TCP_OFFLOAD
 	/*

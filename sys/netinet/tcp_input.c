@@ -345,10 +345,16 @@ cc_conn_init(struct tcpcb *tp)
 	/*
 	 * Set the initial slow-start flight size.
 	 *
-	 * RFC3390 says only do this if SYN or SYN/ACK didn't got lost.
-	 * XXX: We currently check only in syncache_socket for that.
+	 * RFC5681 Section 3.1 specifies the default conservative values.
+	 * RFC3390 specifies slightly more aggressive values.
+	 *
+	 * If a SYN or SYN/ACK was lost and retransmitted, we have to
+	 * reduce the initial CWND to one segment as congestion is likely
+	 * requiring us to be cautious.
 	 */
-	if (V_tcp_do_rfc3390)
+	if (tp->snd_cwnd == 1)
+		tp->snd_cwnd = tp->t_maxseg;		/* SYN(-ACK) lost */
+	else if (V_tcp_do_rfc3390)
 		tp->snd_cwnd = min(4 * tp->t_maxseg,
 		    max(2 * tp->t_maxseg, 4380));
 	else {
