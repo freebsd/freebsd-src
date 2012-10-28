@@ -655,7 +655,8 @@ interpret:
 		setsugid(p);
 
 #ifdef KTRACE
-		if (priv_check_cred(oldcred, PRIV_DEBUG_DIFFCRED, 0))
+		if (p->p_tracecred != NULL &&
+		    priv_check_cred(p->p_tracecred, PRIV_DEBUG_DIFFCRED, 0))
 			ktrprocexec(p, &tracecred, &tracevp);
 #endif
 		/*
