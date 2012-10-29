@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #define HTTP_MOVED_TEMP		302
 #define HTTP_SEE_OTHER		303
 #define HTTP_NOT_MODIFIED	304
+#define HTTP_USE_PROXY		305
 #define HTTP_TEMP_REDIRECT	307
 #define HTTP_PERM_REDIRECT	308
 #define HTTP_NEED_AUTH		401
@@ -105,6 +106,7 @@ __FBSDID("$FreeBSD$");
 #define HTTP_REDIRECT(xyz) ((xyz) == HTTP_MOVED_PERM \
 			    || (xyz) == HTTP_MOVED_TEMP \
 			    || (xyz) == HTTP_TEMP_REDIRECT \
+			    || (xyz) == HTTP_USE_PROXY \
 			    || (xyz) == HTTP_SEE_OTHER)
 
 #define HTTP_ERROR(xyz) ((xyz) > 400 && (xyz) < 599)
@@ -1682,6 +1684,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 		case HTTP_MOVED_PERM:
 		case HTTP_MOVED_TEMP:
 		case HTTP_SEE_OTHER:
+		case HTTP_USE_PROXY:
 			/*
 			 * Not so fine, but we still have to read the
 			 * headers to get the new location.
@@ -1763,7 +1766,8 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 				 */
 				if (noredirect &&
 				    conn->err != HTTP_MOVED_PERM &&
-				    conn->err != HTTP_PERM_REDIRECT) {
+				    conn->err != HTTP_PERM_REDIRECT &&
+				    conn->err != HTTP_USE_PROXY) {
 					n = 1;
 					break;
                                 }
