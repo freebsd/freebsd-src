@@ -51,12 +51,16 @@
 #define SDHCI_QUIRK_BROKEN_TIMINGS			(1<<8)
 /* Controller needs lowered frequency */
 #define	SDHCI_QUIRK_LOWER_FREQUENCY			(1<<9)
-
+/* Data timeout is invalid, should use SD clock */
+#define	SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK		(1<<10)
+/* Timeout value is invalid, should be overriden */
+#define	SDHCI_QUIRK_BROKEN_TIMEOUT_VAL			(1<<11)
+/* SDHCI_CAPABILITIES is invalid */
+#define	SDHCI_QUIRK_MISSING_CAPS			(1<<12)
 
 /*
  * Controller registers
  */
-
 #define SDHCI_DMA_ADDRESS	0x00
 
 #define SDHCI_BLOCK_SIZE	0x04
@@ -130,7 +134,11 @@
 #define SDHCI_WAKE_UP_CONTROL	0x2B
 
 #define SDHCI_CLOCK_CONTROL	0x2C
+#define  SDHCI_DIVIDER_MASK	0xff
+#define  SDHCI_DIVIDER_MASK_LEN	8
 #define  SDHCI_DIVIDER_SHIFT	8
+#define  SDHCI_DIVIDER_HI_MASK	3
+#define  SDHCI_DIVIDER_HI_SHIFT	6
 #define  SDHCI_CLOCK_CARD_EN	0x0004
 #define  SDHCI_CLOCK_INT_STABLE	0x0002
 #define  SDHCI_CLOCK_INT_EN	0x0001
@@ -204,9 +212,13 @@
 #define  SDHCI_VENDOR_VER_SHIFT	8
 #define  SDHCI_SPEC_VER_MASK	0x00FF
 #define  SDHCI_SPEC_VER_SHIFT	0
+#define	SDHCI_SPEC_100		0
+#define	SDHCI_SPEC_200		1
+#define	SDHCI_SPEC_300		2
 
 struct sdhci_slot {
 	u_int		quirks;		/* Chip specific quirks */
+	u_int		caps;		/* Override SDHCI_CAPABILITIES */
 	device_t	bus;		/* Bus device */
 	device_t	dev;		/* Slot device */
 	u_char		num;		/* Slot number */

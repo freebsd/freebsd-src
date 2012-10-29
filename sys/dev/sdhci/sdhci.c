@@ -221,6 +221,7 @@ sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock)
 {
 	uint32_t res;
 	uint16_t clk;
+	uint16_t div;
 	int timeout;
 
 	if (clock == slot->clock)
@@ -232,17 +233,39 @@ sdhci_set_clock(struct sdhci_slot *slot, uint32_t clock)
 	/* If no clock requested - left it so. */
 	if (clock == 0)
 		return;
-	/* Looking for highest freq <= clock. */
-	res = slot->max_clk;
-	for (clk = 1; clk < 256; clk <<= 1) {
-		if (res <= clock)
-			break;
-		res >>= 1;
+	if (slot->version < SDHCI_SPEC_300) {
+		/* Looking for highest freq <= clock. */
+		res = slot->max_clk;
+		for (div = 1; div < 256; div <<= 1) {
+			if (res <= clock)
+				break;
+			res >>= 1;
+		}
+		/* Divider 1:1 is 0x00, 2:1 is 0x01, 256:1 is 0x80 ... */
+		div >>= 1;
 	}
-	/* Divider 1:1 is 0x00, 2:1 is 0x01, 256:1 is 0x80 ... */
-	clk >>= 1;
+	else {
+		/* Version 3.0 divisors are multiples of two up to 1023*2 */
+		if (clock > slot->max_clk)
+			div = 2;
+		else {
+			for (div = 2; div < 1023*2; div += 2) {
+				if ((slot->max_clk / div) <= clock) 
+					break;
+			}
+		}
+		div >>= 1;
+	}
+
+	if (bootverbose || sdhci_debug)
+		slot_printf(slot, "Divider %d for freq %d (max %d)\n", 
+			div, clock, slot->max_clk);
+
 	/* Now we have got divider, set it. */
-	clk <<= SDHCI_DIVIDER_SHIFT;
+	clk = (div & SDHCI_DIVIDER_MASK) << SDHCI_DIVIDER_SHIFT;
+	clk |= ((div >> SDHCI_DIVIDER_MASK_LEN) & SDHCI_DIVIDER_HI_MASK)
+		<< SDHCI_DIVIDER_HI_SHIFT;
+
 	WR2(slot, SDHCI_CLOCK_CONTROL, clk);
 	/* Enable clock. */
 	clk |= SDHCI_CLOCK_INT_EN;
@@ -488,7 +511,10 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 	sdhci_init(slot);
 	slot->version = (RD2(slot, SDHCI_HOST_VERSION) 
 		>> SDHCI_SPEC_VER_SHIFT) & SDHCI_SPEC_VER_MASK;
-	caps = RD4(slot, SDHCI_CAPABILITIES);
+	if (slot->quirks & SDHCI_QUIRK_MISSING_CAPS)
+		caps = slot->caps;
+	else
+		caps = RD4(slot, SDHCI_CAPABILITIES);
 	/* Calculate base clock frequency. */
 	slot->max_clk =
 		(caps & SDHCI_CLOCK_BASE_MASK) >> SDHCI_CLOCK_BASE_SHIFT;
@@ -499,14 +525,19 @@ sdhci_init_slot(device_t dev, struct sdhci_slot *slot, int num)
 	}
 	slot->max_clk *= 1000000;
 	/* Calculate timeout clock frequency. */
-	slot->timeout_clk =
-		(caps & SDHCI_TIMEOUT_CLK_MASK) >> SDHCI_TIMEOUT_CLK_SHIFT;
+	if (slot->quirks & SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK) {
+		slot->timeout_clk = slot->max_clk / 1000;
+	} else {
+		slot->timeout_clk =
+			(caps & SDHCI_TIMEOUT_CLK_MASK) >> SDHCI_TIMEOUT_CLK_SHIFT;
+		if (caps & SDHCI_TIMEOUT_CLK_UNIT)
+			slot->timeout_clk *= 1000;
+	}
+
 	if (slot->timeout_clk == 0) {
 		device_printf(dev, "Hardware doesn't specify timeout clock "
 		    "frequency.\n");
 	}
-	if (caps & SDHCI_TIMEOUT_CLK_UNIT)
-		slot->timeout_clk *= 1000;
 
 	slot->host.f_min = slot->max_clk / 256;
 	slot->host.f_max = slot->max_clk;
@@ -815,6 +846,8 @@ sdhci_start_data(struct sdhci_slot *slot, struct mmc_data *data)
 		slot_printf(slot, "Timeout too large!\n");
 		div = 0xE;
 	}
+	if (slot->quirks & SDHCI_QUIRK_BROKEN_TIMEOUT_VAL)
+		div = 0xE;
 	WR1(slot, SDHCI_TIMEOUT_CONTROL, div);
 
 	if (data == NULL)
