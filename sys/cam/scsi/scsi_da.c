@@ -2673,6 +2673,7 @@ dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector,
 	struct da_softc *softc;
 	struct disk_params *dp;
 	u_int lbppbe, lalba;
+	int error;
 
 	softc = (struct da_softc *)periph->softc;
 
@@ -2779,10 +2780,9 @@ dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector,
 	else
 		softc->disk->d_flags &= ~DISKFLAG_CANDELETE;
 
-/* Currently as of 6/13/2012, panics if DIAGNOSTIC is set */
-#ifndef	DIAGNOSTIC
-	disk_resize(softc->disk);
-#endif
+	error = disk_resize(softc->disk, M_NOWAIT);
+	if (error != 0)
+		xpt_print(periph->path, "disk_resize(9) failed, error = %d\n", error);
 }
 
 static void
