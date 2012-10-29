@@ -61,7 +61,7 @@ options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
-#options 	ROOTDEVNAME=\"ufs:/dev/da0s1a\"
+#options         ROOTDEVNAME=\"ufs:mmcsd0s2\"
 
 options 	PREEMPTION
 
@@ -79,6 +79,10 @@ device		pty
 # device		kbdmux
 # options         SC_DFLT_FONT    # compile font in
 # makeoptions     SC_DFLT_FONT=cp437
+
+device		sdhci
+device		mmc
+device		mmcsd
 
 options 	KDB
 options 	DDB			#Enable the kernel debugger
