@@ -691,10 +691,11 @@ uhid_probe(device_t dev)
 	 */
 	if ((uaa->info.bInterfaceClass == UICLASS_HID) &&
 	    (uaa->info.bInterfaceSubClass == UISUBCLASS_BOOT) &&
-	    ((uaa->info.bInterfaceProtocol == UIPROTO_BOOT_KEYBOARD) ||
-	     (uaa->info.bInterfaceProtocol == UIPROTO_MOUSE))) {
+	    (((uaa->info.bInterfaceProtocol == UIPROTO_BOOT_KEYBOARD) &&
+	      !usb_test_quirk(uaa, UQ_KBD_IGNORE)) ||
+	     ((uaa->info.bInterfaceProtocol == UIPROTO_MOUSE) &&
+	      !usb_test_quirk(uaa, UQ_UMS_IGNORE))))
 		return (ENXIO);
-	}
 
 	return (BUS_PROBE_GENERIC);
 }
