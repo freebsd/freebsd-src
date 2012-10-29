@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/apicreg.h>
 
 #include <machine/vmm.h>
+#include "vmm_host.h"
 #include "vmm_mem.h"
 #include "vmm_util.h"
 #include <machine/vmm_dev.h>
@@ -196,6 +197,7 @@ vmm_init(void)
 {
 	int error;
 
+	vmm_host_state_init();
 	vmm_ipi_init();
 
 	error = vmm_mem_init();

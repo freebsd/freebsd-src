@@ -66,6 +66,7 @@
 #define	CR4_PCE	0x00000100	/* Performance monitoring counter enable */
 #define	CR4_FXSR 0x00000200	/* Fast FPU save/restore used by OS */
 #define	CR4_XMM	0x00000400	/* enable SIMD/MMX2 to use except 16 */
+#define	CR4_VMXE 0x00002000	/* enable VMX operation (Intel-specific) */
 #define	CR4_XSAVE 0x00040000	/* XSETBV/XGETBV */
 
 /*

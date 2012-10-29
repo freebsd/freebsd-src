@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/apicreg.h>
 
 #include <machine/vmm.h>
+#include "vmm_host.h"
 #include "vmm_lapic.h"
 #include "vmm_msr.h"
 #include "vmm_ktr.h"
@@ -63,8 +64,6 @@ __FBSDID("$FreeBSD$");
 #include "x86.h"
 #include "vmx_controls.h"
 #include "vmm_instruction_emul.h"
-
-#define	CR4_VMXE	(1UL << 13)
 
 #define	PINBASED_CTLS_ONE_SETTING					\
 	(PINBASED_EXTINT_EXITING	|				\
@@ -117,8 +116,6 @@ __FBSDID("$FreeBSD$");
 #define	UNHANDLED	0
 
 MALLOC_DEFINE(M_VMX, "vmx", "vmx");
-
-extern  struct pcpu __pcpu[];
 
 int vmxon_enabled[MAXCPU];
 static char vmxon_region[MAXCPU][PAGE_SIZE] __aligned(PAGE_SIZE);
@@ -836,15 +833,15 @@ vmx_set_pcpu_defaults(struct vmx *vmx, int vcpu)
 
 	vmm_stat_incr(vmx->vm, vcpu, VCPU_MIGRATIONS, 1);
 
-	error = vmwrite(VMCS_HOST_TR_BASE, (u_long)PCPU_GET(tssp));
+	error = vmwrite(VMCS_HOST_TR_BASE, vmm_get_host_trbase());
 	if (error != 0)
 		goto done;
 
-	error = vmwrite(VMCS_HOST_GDTR_BASE, (u_long)&gdt[NGDT * curcpu]);
+	error = vmwrite(VMCS_HOST_GDTR_BASE, vmm_get_host_gdtrbase());
 	if (error != 0)
 		goto done;
 
-	error = vmwrite(VMCS_HOST_GS_BASE, (u_long)&__pcpu[curcpu]);
+	error = vmwrite(VMCS_HOST_GS_BASE, vmm_get_host_gsbase());
 	if (error != 0)
 		goto done;
 
