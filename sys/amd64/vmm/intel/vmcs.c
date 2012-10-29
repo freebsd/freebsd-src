@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pmap.h>
 
 #include <machine/vmm.h>
+#include "vmm_host.h"
 #include "vmcs.h"
 #include "vmx_cpufunc.h"
 #include "ept.h"
@@ -314,12 +315,12 @@ vmcs_set_defaults(struct vmcs *vmcs,
 {
 	int error, codesel, datasel, tsssel;
 	u_long cr0, cr4, efer;
-	uint64_t eptp, pat;
+	uint64_t eptp, pat, fsbase, idtrbase;
 	uint32_t exc_bitmap;
 
-	codesel = GSEL(GCODE_SEL, SEL_KPL);
-	datasel = GSEL(GDATA_SEL, SEL_KPL);
-	tsssel = GSEL(GPROC0_SEL, SEL_KPL);
+	codesel = vmm_get_host_codesel();
+	datasel = vmm_get_host_datasel();
+	tsssel = vmm_get_host_tsssel();
 
 	/*
 	 * Make sure we have a "current" VMCS to work with.
@@ -357,29 +358,22 @@ vmcs_set_defaults(struct vmcs *vmcs,
 	/* Host state */
 
 	/* Initialize host IA32_PAT MSR */
-	pat = rdmsr(MSR_PAT);
+	pat = vmm_get_host_pat();
 	if ((error = vmwrite(VMCS_HOST_IA32_PAT, pat)) != 0)
 		goto done;
 
 	/* Load the IA32_EFER MSR */
-	efer = rdmsr(MSR_EFER);
+	efer = vmm_get_host_efer();
 	if ((error = vmwrite(VMCS_HOST_IA32_EFER, efer)) != 0)
 		goto done;
 
 	/* Load the control registers */
 
-	/*
-	 * We always want CR0.TS to be set when the processor does a VM exit.
-	 *
-	 * With emulation turned on unconditionally after a VM exit, we are
-	 * able to trap inadvertent use of the FPU until the guest FPU state
-	 * has been safely squirreled away.
-	 */
-	cr0 = rcr0() | CR0_TS;
+	cr0 = vmm_get_host_cr0();
 	if ((error = vmwrite(VMCS_HOST_CR0, cr0)) != 0)
 		goto done;
 	
-	cr4 = rcr4();
+	cr4 = vmm_get_host_cr4() | CR4_VMXE;
 	if ((error = vmwrite(VMCS_HOST_CR4, cr4)) != 0)
 		goto done;
 
@@ -411,10 +405,12 @@ vmcs_set_defaults(struct vmcs *vmcs,
 	 * Note that we exclude %gs, tss and gdtr here because their base
 	 * address is pcpu specific.
 	 */
-	if ((error = vmwrite(VMCS_HOST_FS_BASE, 0)) != 0)
+	fsbase = vmm_get_host_fsbase();
+	if ((error = vmwrite(VMCS_HOST_FS_BASE, fsbase)) != 0)
 		goto done;
 
-	if ((error = vmwrite(VMCS_HOST_IDTR_BASE, r_idt.rd_base)) != 0)
+	idtrbase = vmm_get_host_idtrbase();
+	if ((error = vmwrite(VMCS_HOST_IDTR_BASE, idtrbase)) != 0)
 		goto done;
 
 	/* instruction pointer */
