@@ -3981,9 +3981,9 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			}
 			if ((nofragment_flag) && (port == 0)) {
 				ip->ip_off = htons(IP_DF);
-			} else
+			} else {
 				ip->ip_off = htons(0);
-
+			}
 			/* FreeBSD has a function for ip_id's */
 			ip->ip_id = ip_newid();
 
