@@ -1620,8 +1620,10 @@ killpg1(td, sig, pgid, all)
 {
 	register struct proc *p;
 	struct pgrp *pgrp;
-	int nfound = 0;
+	int err;
+	int ret;
 
+	ret = ESRCH;
 	if (all) {
 		/*
 		 * broadcast
@@ -1634,11 +1636,14 @@ killpg1(td, sig, pgid, all)
 				PROC_UNLOCK(p);
 				continue;
 			}
-			if (p_cansignal(td, p, sig) == 0) {
-				nfound++;
+			err = p_cansignal(td, p, sig);
+			if (err == 0) {
 				if (sig)
 					psignal(p, sig);
+				ret = err;
 			}
+			else if (ret == ESRCH)
+				ret = err;
 			PROC_UNLOCK(p);
 		}
 		sx_sunlock(&allproc_lock);
@@ -1665,16 +1670,19 @@ killpg1(td, sig, pgid, all)
 				PROC_UNLOCK(p);
 				continue;
 			}
-			if (p_cansignal(td, p, sig) == 0) {
-				nfound++;
+			err = p_cansignal(td, p, sig);
+			if (err == 0) {
 				if (sig)
 					psignal(p, sig);
+				ret = err;
 			}
+			else if (ret == ESRCH)
+				ret = err;
 			PROC_UNLOCK(p);
 		}
 		PGRP_UNLOCK(pgrp);
 	}
-	return (nfound ? 0 : ESRCH);
+	return (ret);
 }
 
 #ifndef _SYS_SYSPROTO_H_
