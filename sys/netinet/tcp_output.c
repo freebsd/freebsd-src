@@ -547,13 +547,13 @@ after_sack_rexmit:
 	/*
 	 * Sending of standalone window updates.
 	 *
-	 * Window updates important when we close our window due to a full
-	 * socket buffer and are opening it again after the application
+	 * Window updates are important when we close our window due to a
+	 * full socket buffer and are opening it again after the application
 	 * reads data from it.  Once the window has opened again and the
 	 * remote end starts to send again the ACK clock takes over and
 	 * provides the most current window information.
 	 *
-	 * We must avoid to the silly window syndrome whereas every read
+	 * We must avoid the silly window syndrome whereas every read
 	 * from the receive buffer, no matter how small, causes a window
 	 * update to be sent.  We also should avoid sending a flurry of
 	 * window updates when the socket buffer had queued a lot of data
