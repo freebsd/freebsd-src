@@ -308,7 +308,6 @@ vm_page_startup(vm_offset_t vaddr)
 		TAILQ_INIT(&vm_page_queues[i].pl);
 	vm_page_queues[PQ_INACTIVE].cnt = &cnt.v_inactive_count;
 	vm_page_queues[PQ_ACTIVE].cnt = &cnt.v_active_count;
-	vm_page_queues[PQ_HOLD].cnt = &cnt.v_active_count;
 
 	/*
 	 * Allocate memory for use when boot strapping the kernel memory
@@ -540,7 +539,7 @@ vm_page_unhold(vm_page_t mem)
 	vm_page_lock_assert(mem, MA_OWNED);
 	--mem->hold_count;
 	KASSERT(mem->hold_count >= 0, ("vm_page_unhold: hold count < 0!!!"));
-	if (mem->hold_count == 0 && mem->queue == PQ_HOLD)
+	if (mem->hold_count == 0 && (mem->flags & PG_UNHOLDFREE) != 0)
 		vm_page_free_toq(mem);
 }
 
@@ -2042,9 +2041,9 @@ vm_page_free_toq(vm_page_t m)
 		panic("vm_page_free: freeing wired page %p", m);
 	if (m->hold_count != 0) {
 		m->flags &= ~PG_ZERO;
-		vm_page_lock_queues();
-		vm_page_enqueue(PQ_HOLD, m);
-		vm_page_unlock_queues();
+		KASSERT((m->flags & PG_UNHOLDFREE) == 0,
+		    ("vm_page_free: freeing PG_UNHOLDFREE page %p", m));
+		m->flags |= PG_UNHOLDFREE;
 	} else {
 		/*
 		 * Restore the default memory attribute to the page.
