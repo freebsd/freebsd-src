@@ -512,14 +512,19 @@ octeon_process_app_desc_ver_6(void)
 					octeon_bootinfo->board_rev_major,
 					octeon_bootinfo->board_rev_minor,
 					octeon_bootinfo->eclock_hz);
-	memcpy(cvmx_sysinfo_get()->mac_addr_base, octeon_bootinfo->mac_addr_base, 6);
+	memcpy(cvmx_sysinfo_get()->mac_addr_base,
+	       octeon_bootinfo->mac_addr_base, 6);
 	cvmx_sysinfo_get()->mac_addr_count = octeon_bootinfo->mac_addr_count;
 	cvmx_sysinfo_get()->compact_flash_common_base_addr = 
 		octeon_bootinfo->compact_flash_common_base_addr;
 	cvmx_sysinfo_get()->compact_flash_attribute_base_addr = 
 		octeon_bootinfo->compact_flash_attribute_base_addr;
 	cvmx_sysinfo_get()->core_mask = octeon_bootinfo->core_mask;
-	cvmx_sysinfo_get()->led_display_base_addr = octeon_bootinfo->led_display_base_addr;
+	cvmx_sysinfo_get()->led_display_base_addr =
+		octeon_bootinfo->led_display_base_addr;
+	memcpy(cvmx_sysinfo_get()->board_serial_number,
+	       octeon_bootinfo->board_serial_number,
+	       sizeof cvmx_sysinfo_get()->board_serial_number);
 }
 
 static void
@@ -588,5 +593,6 @@ octeon_boot_params_init(register_t ptr)
 #endif
 	strcpy(cpu_model, octeon_model_get_string(cvmx_get_proc_id()));
 	printf("Model: %s\n", cpu_model);
+	printf("Serial number: %s\n", cvmx_sysinfo_get()->board_serial_number);
 }
 /* impEND: This stuff should move back into the Cavium SDK */
