@@ -58,6 +58,7 @@ mips/cavium/octeon_gpio.c			optional gpio
 contrib/octeon-sdk/cvmx-cmd-queue.c		standard
 contrib/octeon-sdk/cvmx-bootmem.c		standard
 contrib/octeon-sdk/cvmx-clock.c			standard
+contrib/octeon-sdk/cvmx-ebt3000.c		standard
 contrib/octeon-sdk/cvmx-fpa.c			standard
 contrib/octeon-sdk/cvmx-helper.c		standard
 contrib/octeon-sdk/cvmx-helper-board.c		standard
