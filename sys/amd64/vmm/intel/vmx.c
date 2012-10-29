@@ -1685,7 +1685,7 @@ vmx_inject(void *arg, int vcpu, int type, int vector, uint32_t code,
 	 * If there is already an exception pending to be delivered to the
 	 * vcpu then just return.
 	 */
-	error = vmcs_getreg(vmcs, VMCS_ENTRY_INTR_INFO, &info);
+	error = vmcs_getreg(vmcs, VMCS_IDENT(VMCS_ENTRY_INTR_INFO), &info);
 	if (error)
 		return (error);
 
