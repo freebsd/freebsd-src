@@ -54,7 +54,6 @@
 
 #if defined(__mips_n64)
 #define	oct_write64(a, v)	(*(volatile uint64_t *)(a) = (uint64_t)(v))
-#define	oct_write8_x8(a, v)	(*(volatile uint8_t *)(a) = (uint8_t)(v))
 
 #define	OCT_READ(n, t)							\
 static inline t oct_read ## n(uintptr_t a)				\
@@ -63,9 +62,6 @@ static inline t oct_read ## n(uintptr_t a)				\
 	return (*p);							\
 }
 
-OCT_READ(8, uint8_t);
-OCT_READ(16, uint16_t);
-OCT_READ(32, uint32_t);
 OCT_READ(64, uint64_t);
 
 #elif defined(__mips_n32) || defined(__mips_o32)
@@ -79,17 +75,6 @@ static inline void oct_write64 (uint64_t csr_addr, uint64_t val64)
             ".set pop\n"
             :
 	    : "r"(val64), "r"(csr_addr));
-}
-
-static inline void oct_write8_x8 (uint64_t csr_addr, uint8_t val8)
-{
-    __asm __volatile (
-	    ".set push\n"
-            ".set mips64\n"
-            "sb    %0, 0(%1)\n"
-            ".set pop\n"
-            :
-	    : "r"(val8), "r"(csr_addr));
 }
 
 #define	OCT_READ(n, t, insn)						\
@@ -107,9 +92,6 @@ static inline t oct_read ## n(uint64_t a)				\
     return ((t)tmp);							\
 }
 
-OCT_READ(8, uint8_t, "lb");
-OCT_READ(16, uint16_t, "lh");
-OCT_READ(32, uint32_t, "lw");
 OCT_READ(64, uint64_t, "ld");
 #else
 
@@ -158,66 +140,6 @@ static inline void oct_write64 (uint64_t csr_addr, uint64_t val64)
 	intr_restore(sr);
 }
 
-static inline void oct_write8_x8 (uint64_t csr_addr, uint8_t val8)
-{
-	uint32_t csr_addrh = csr_addr >> 32;
-	uint32_t csr_addrl = csr_addr;
-	uint32_t tmp1;
-	uint32_t tmp2;
-	register_t sr;
-
-	sr = intr_disable();
-
-	__asm __volatile (
-	    ".set push\n"
-            ".set mips64\n"
-	    ".set noreorder\n"
-	    ".set noat\n"
-	    "dsll   %0, %3, 32\n"
-	    "dsll   %1, %4, 32\n"
-	    "dsrl   %1, %1, 32\n"
-	    "or     %0, %0, %1\n"
-	    "sb     %2, 0(%0)\n"
-            ".set pop\n"
-	    : "=&r" (tmp1), "=&r" (tmp2)
-	    : "r" (val8), "r" (csr_addrh), "r" (csr_addrl));
-
-	intr_restore(sr);
-}
-
-#define	OCT_READ(n, t, insn)						\
-static inline t oct_read ## n(uint64_t csr_addr)			\
-{									\
-	uint32_t csr_addrh = csr_addr >> 32;				\
-	uint32_t csr_addrl = csr_addr;					\
-	uint32_t tmp1, tmp2;						\
-	register_t sr;							\
-									\
-	sr = intr_disable();						\
-									\
-	__asm __volatile (						\
-	    ".set push\n"						\
-            ".set mips64\n"						\
-	    ".set noreorder\n"						\
-	    ".set noat\n"						\
-	    "dsll   %1, %2, 32\n"					\
-	    "dsll   %0, %3, 32\n"					\
-	    "dsrl   %0, %0, 32\n"					\
-	    "or     %1, %1, %0\n"					\
-	    "lb     %1, 0(%1)\n"					\
-	    ".set pop\n"						\
-	    : "=&r" (tmp1), "=&r" (tmp2)				\
-	    : "r" (csr_addrh), "r" (csr_addrl));			\
-									\
-	intr_restore(sr);						\
-									\
-	return ((t)tmp2);						\
-}
-
-OCT_READ(8, uint8_t, "lb");
-OCT_READ(16, uint16_t, "lh");
-OCT_READ(32, uint32_t, "lw");
-
 static inline uint64_t oct_read64 (uint64_t csr_addr)
 {
 	uint32_t csr_addrh = csr_addr >> 32;
@@ -253,49 +175,16 @@ static inline uint64_t oct_read64 (uint64_t csr_addr)
 
 #endif
 
-#define	oct_write64_int64(a, v)	(oct_write64(a, (int64_t)(v)))
-
-/*
- * Most write bus transactions are actually 64-bit on Octeon.
- */
-static inline void oct_write8 (uint64_t csr_addr, uint8_t val8)
-{
-    oct_write64(csr_addr, (uint64_t) val8);
-}
-
-static inline void oct_write16 (uint64_t csr_addr, uint16_t val16)
-{
-    oct_write64(csr_addr, (uint64_t) val16);
-}
-
-static inline void oct_write32 (uint64_t csr_addr, uint32_t val32)
-{
-    oct_write64(csr_addr, (uint64_t) val32);
-}
-
-#define	oct_readint32(a)	((int32_t)oct_read32((a)))
-
 /*
  * octeon_machdep.c
  *
  * Direct to Board Support level.
  */
-extern void octeon_led_write_char(int char_position, char val);
-extern void octeon_led_write_hexchar(int char_position, char hexval);
-extern void octeon_led_write_hex(uint32_t wl);
-extern void octeon_led_write_string(const char *str);
 extern void octeon_reset(void);
-extern void octeon_led_write_char0(char val);
-extern void octeon_led_run_wheel(int *pos, int led_position);
 extern void octeon_debug_symbol(void);
 extern void octeon_ciu_reset(void);
 extern int octeon_is_simulation(void);
 #endif	/* LOCORE */
-
-/*
- * EBT3000 LED Unit
- */
-#define  OCTEON_CHAR_LED_BASE_ADDR	(0x1d020000 | (0x1ffffffffull << 31))
 
 /*
  * Default FLASH device (physical) base address

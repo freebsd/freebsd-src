@@ -326,14 +326,9 @@ static int cf_cmd_read (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 	uint8_t  *ptr_8;
 	int error;
 
-//#define OCTEON_VISUAL_CF_0 1
-#ifdef OCTEON_VISUAL_CF_0
-        octeon_led_write_char(0, 'R');
-#endif
 	ptr_8  = (uint8_t*)buf;
 	ptr_16 = (uint16_t*)buf;
 	lba = start_sector; 
-
 
 	while (nr_sectors--) {
 		error = cf_send_cmd(lba, CMD_READ_SECTOR);
@@ -366,9 +361,6 @@ static int cf_cmd_read (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 
 		lba++;
 	}
-#ifdef OCTEON_VISUAL_CF_0
-        octeon_led_write_char(0, ' ');
-#endif
 	return (0);
 }
 
@@ -387,10 +379,6 @@ static int cf_cmd_write (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 	uint8_t  *ptr_8;
 	int error;
 	
-//#define OCTEON_VISUAL_CF_1 1
-#ifdef OCTEON_VISUAL_CF_1
-        octeon_led_write_char(1, 'W');
-#endif
 	lba = start_sector;
 	ptr_8  = (uint8_t*)buf;
 	ptr_16 = (uint16_t*)buf;
@@ -425,9 +413,6 @@ static int cf_cmd_write (uint32_t nr_sectors, uint32_t start_sector, void *buf)
 
 		lba++;
 	}
-#ifdef OCTEON_VISUAL_CF_1
-        octeon_led_write_char(1, ' ');
-#endif
 	return (0);
 }
 
@@ -543,13 +528,6 @@ static int cf_wait_busy (void)
 {
 	uint8_t status;
 
-//#define OCTEON_VISUAL_CF_2 1
-#ifdef OCTEON_VISUAL_CF_2
-        static int where0 = 0;
-
-        octeon_led_run_wheel(&where0, 2);
-#endif
-
 	switch (bus_type)
 	{
 	case CF_8:
@@ -585,9 +563,6 @@ static int cf_wait_busy (void)
 		return (ENXIO);
 	}
 
-#ifdef OCTEON_VISUAL_CF_2
-        octeon_led_write_char(2, ' ');
-#endif
 	return (0);
 }
 
