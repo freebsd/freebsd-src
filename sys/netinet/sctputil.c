@@ -6821,7 +6821,7 @@ sctp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *ignored)
 	switch (iph->ip_v) {
 #ifdef INET
 	case IPVERSION:
-		iph->ip_len = ntohs(htons(iph->ip_len) - sizeof(struct udphdr));
+		iph->ip_len = htons(ntohs(iph->ip_len) - sizeof(struct udphdr));
 		sctp_input_with_port(m, off, port);
 		break;
 #endif
