@@ -63,7 +63,6 @@ static const char group_line_format[] = "%s:%s:%ju:";
 int
 gr_init(const char *dir, const char *group)
 {
-	struct stat st;
 
 	if (dir == NULL) {
 		strcpy(group_dir, _PATH_ETC);
@@ -89,14 +88,6 @@ gr_init(const char *dir, const char *group)
 			return (-1);
 		}
 		strcpy(group_file, group);
-	}
-
-	if (stat(group_file, &st) == -1)
-		return (-1);
-
-	if (S_ISDIR(st.st_mode)) {
-		errno = EISDIR;
-		return (-1);
 	}
 
 	initialized = 1;
