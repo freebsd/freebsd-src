@@ -145,8 +145,8 @@ struct vm_page {
 	u_short cow;			/* page cow mapping count (P) */
 	u_int wire_count;		/* wired down maps refs (P) */
 	uint8_t aflags;			/* access is atomic */
-	uint8_t flags;			/* see below, often immutable after alloc */
-	u_short oflags;			/* page flags (O) */
+	uint8_t oflags;			/* page VPO_* flags (O) */
+	uint16_t flags;			/* page PG_* flags (P) */
 	u_char	act_count;		/* page usage count (O) */
 	u_char	busy;			/* page busy count (O) */
 	/* NOTE that these must support one bit per DEV_BSIZE in a page!!! */
@@ -169,17 +169,16 @@ struct vm_page {
  * 	 mappings, and such pages are also not on any PQ queue.
  *
  */
-#define	VPO_BUSY	0x0001	/* page is in transit */
-#define	VPO_WANTED	0x0002	/* someone is waiting for page */
-#define	VPO_UNMANAGED	0x0004		/* No PV management for page */
-#define	VPO_SWAPINPROG	0x0200	/* swap I/O in progress on page */
-#define	VPO_NOSYNC	0x0400	/* do not collect for syncer */
+#define	VPO_BUSY	0x01		/* page is in transit */
+#define	VPO_WANTED	0x02		/* someone is waiting for page */
+#define	VPO_UNMANAGED	0x04		/* no PV management for page */
+#define	VPO_SWAPINPROG	0x08		/* swap I/O in progress on page */
+#define	VPO_NOSYNC	0x10		/* do not collect for syncer */
 
 #define	PQ_NONE		255
 #define	PQ_INACTIVE	0
 #define	PQ_ACTIVE	1
-#define	PQ_HOLD		2
-#define	PQ_COUNT	3
+#define	PQ_COUNT	2
 
 struct vpgqueues {
 	struct pglist pl;
@@ -263,14 +262,15 @@ extern struct vpglocks pa_lock[];
  * Page flags.  If changed at any other time than page allocation or
  * freeing, the modification must be protected by the vm_page lock.
  */
-#define	PG_CACHED	0x01		/* page is cached */
-#define	PG_FREE		0x02		/* page is free */
-#define	PG_FICTITIOUS	0x04		/* physical page doesn't exist */
-#define	PG_ZERO		0x08		/* page is zeroed */
-#define	PG_MARKER	0x10		/* special queue marker page */
-#define	PG_SLAB		0x20		/* object pointer is actually a slab */
-#define	PG_WINATCFLS	0x40		/* flush dirty page on inactive q */
-#define	PG_NODUMP	0x80		/* don't include this page in a dump */
+#define	PG_CACHED	0x0001		/* page is cached */
+#define	PG_FREE		0x0002		/* page is free */
+#define	PG_FICTITIOUS	0x0004		/* physical page doesn't exist */
+#define	PG_ZERO		0x0008		/* page is zeroed */
+#define	PG_MARKER	0x0010		/* special queue marker page */
+#define	PG_SLAB		0x0020		/* object pointer is actually a slab */
+#define	PG_WINATCFLS	0x0040		/* flush dirty page on inactive q */
+#define	PG_NODUMP	0x0080		/* don't include this page in a dump */
+#define	PG_UNHOLDFREE	0x0100		/* delayed free of a held page */
 
 /*
  * Misc constants.
