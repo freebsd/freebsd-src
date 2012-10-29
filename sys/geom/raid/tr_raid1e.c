@@ -802,7 +802,8 @@ nextdisk:
 			}
 		}
 		remain -= length;
-		addr += length;
+		if (bp->bio_cmd != BIO_DELETE)
+			addr += length;
 		start = 0;
 	}
 	for (cbp = bioq_first(&queue); cbp != NULL;
@@ -858,10 +859,8 @@ g_raid_tr_iostart_raid1e(struct g_raid_tr_object *tr, struct bio *bp)
 		g_raid_tr_iostart_raid1e_read(tr, bp);
 		break;
 	case BIO_WRITE:
-		g_raid_tr_iostart_raid1e_write(tr, bp);
-		break;
 	case BIO_DELETE:
-		g_raid_iodone(bp, EIO);
+		g_raid_tr_iostart_raid1e_write(tr, bp);
 		break;
 	case BIO_FLUSH:
 		g_raid_tr_flush_common(tr, bp);
@@ -1119,7 +1118,7 @@ rebuild_round_done:
 		G_RAID_LOGREQ(2, bp, "REMAP done %d.", bp->bio_error);
 		g_raid_unlock_range(sd->sd_volume, virtual, bp->bio_length);
 	}
-	if (pbp->bio_cmd != BIO_READ) {
+	if (pbp->bio_cmd == BIO_WRITE) {
 		if (pbp->bio_inbed == 1 || pbp->bio_error != 0)
 			pbp->bio_error = bp->bio_error;
 		if (bp->bio_error != 0) {
