@@ -151,11 +151,13 @@ static __inline void
 sched_pin(void)
 {
 	curthread->td_pinned++;
+	__compiler_membar();
 }
 
 static __inline void
 sched_unpin(void)
 {
+	__compiler_membar();
 	curthread->td_pinned--;
 }
 
