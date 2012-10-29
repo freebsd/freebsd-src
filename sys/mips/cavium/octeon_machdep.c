@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
 #include <sys/signalvar.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/time.h>
@@ -365,6 +366,46 @@ octeon_get_timecount(struct timecounter *tc)
 {
 	return ((unsigned)octeon_get_ticks());
 }
+
+static int
+sysctl_machdep_led_display(SYSCTL_HANDLER_ARGS)
+{
+	size_t buflen;
+	char buf[9];
+	int error;
+
+	if (req->newptr == NULL)
+		return (EINVAL);
+
+	if (cvmx_sysinfo_get()->led_display_base_addr == 0)
+		return (ENODEV);
+
+	/*
+	 * Revision 1.x of the EBT3000 only supports 4 characters, but
+	 * other devices support 8.
+	 */
+	if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_EBT3000 &&
+	    cvmx_sysinfo_get()->board_rev_major == 1)
+		buflen = 4;
+	else
+		buflen = 8;
+
+	if (req->newlen > buflen)
+		return (E2BIG);
+
+	error = SYSCTL_IN(req, buf, req->newlen);
+	if (error != 0)
+		return (error);
+
+	buf[req->newlen] = '\0';
+	ebt3000_str_write(buf);
+
+	return (0);
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, led_display, CTLTYPE_STRING | CTLFLAG_WR,
+    NULL, 0, sysctl_machdep_led_display, "A",
+    "String to display on LED display");
 
 /**
  * version of printf that works better in exception context.
