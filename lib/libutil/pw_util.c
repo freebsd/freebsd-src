@@ -96,6 +96,7 @@ pw_init(const char *dir, const char *master)
 #if 0
 	struct rlimit rlim;
 #endif
+	struct stat st;
 
 	if (dir == NULL) {
 		strcpy(passwd_dir, _PATH_ETC);
@@ -121,6 +122,14 @@ pw_init(const char *dir, const char *master)
 			return (-1);
 		}
 		strcpy(masterpasswd, master);
+	}
+
+	if (stat(masterpasswd, &st) == -1)
+		return (-1);
+
+	if (S_ISDIR(st.st_mode)) {
+		errno = EISDIR;
+		return (-1);
 	}
 
 	/*
