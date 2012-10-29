@@ -1118,10 +1118,10 @@ rebuild_round_done:
 		G_RAID_LOGREQ(2, bp, "REMAP done %d.", bp->bio_error);
 		g_raid_unlock_range(sd->sd_volume, virtual, bp->bio_length);
 	}
-	if (pbp->bio_cmd == BIO_WRITE) {
+	if (pbp->bio_cmd != BIO_READ) {
 		if (pbp->bio_inbed == 1 || pbp->bio_error != 0)
 			pbp->bio_error = bp->bio_error;
-		if (bp->bio_error != 0) {
+		if (pbp->bio_cmd == BIO_WRITE && bp->bio_error != 0) {
 			G_RAID_LOGREQ(0, bp, "Write failed: failing subdisk.");
 			g_raid_tr_raid1e_fail_disk(sd->sd_softc, sd, sd->sd_disk);
 		}
