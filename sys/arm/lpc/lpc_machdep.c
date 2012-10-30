@@ -542,11 +542,6 @@ initarm(struct arm_boot_params *abp)
 	 */
 	physmap_init();
 
-	/*
-	 * Set initial values of GPIO output ports
-	 */
-	platform_gpio_init();
-
 	/* Do basic tuning, hz etc */
 	init_param2(physmem);
 	kdb_init();
@@ -569,6 +564,11 @@ initarm_lastaddr(void)
 void
 initarm_gpio_init(void)
 {
+
+	/*
+	 * Set initial values of GPIO output ports
+	 */
+	platform_gpio_init();
 }
 
 void
