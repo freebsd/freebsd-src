@@ -61,6 +61,7 @@ contrib/octeon-sdk/cvmx-clock.c			standard
 contrib/octeon-sdk/cvmx-ebt3000.c		standard
 contrib/octeon-sdk/cvmx-fpa.c			standard
 contrib/octeon-sdk/cvmx-helper.c		standard
+contrib/octeon-sdk/cvmx-helper-cfg.c		standard
 contrib/octeon-sdk/cvmx-helper-board.c		standard
 contrib/octeon-sdk/cvmx-helper-cfg.c		standard
 contrib/octeon-sdk/cvmx-helper-errata.c		standard
@@ -89,6 +90,7 @@ contrib/octeon-sdk/cvmx-sysinfo.c		standard
 contrib/octeon-sdk/cvmx-thunder.c		standard
 contrib/octeon-sdk/cvmx-twsi.c			standard
 contrib/octeon-sdk/cvmx-warn.c			standard
+contrib/octeon-sdk/octeon-feature.c		standard
 contrib/octeon-sdk/octeon-model.c		standard
 
 # HWPMC 
