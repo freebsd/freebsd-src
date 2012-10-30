@@ -523,7 +523,6 @@ SOCKET_SEND_COW		opt_zero.h
 SOCKET_RECV_PFLIP	opt_zero.h
 TI_SF_BUF_JUMBO		opt_ti.h
 TI_JUMBO_HDRSPLIT	opt_ti.h
-BCE_JUMBO_HDRSPLIT	opt_bce.h
 
 # XXX Conflict: # of devices vs network protocol (Native ATM).
 # This makes "atm.h" unusable.
