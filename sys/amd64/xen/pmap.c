@@ -1211,7 +1211,7 @@ setup_xen_pagezone(void *dummy __unused)
 {
 
 	xen_pagezone = uma_zcreate("XEN PAGEZONE", PAGE_SIZE, NULL, NULL,
-	    xen_pagezone_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM);
+	    xen_pagezone_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
 	ptmb_mappedalloc = xen_pagezone_alloc;
 	ptmb_mappedfree = xen_pagezone_free;
 }
