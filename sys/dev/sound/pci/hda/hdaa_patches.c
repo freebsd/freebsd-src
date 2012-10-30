@@ -139,7 +139,7 @@ hdac_pin_patch(struct hdaa_widget *w)
 
 	config = orig = w->wclass.pin.config;
 	id = hdaa_codec_id(w->devinfo);
-	subid = hdaa_subvendor_id(w->devinfo);
+	subid = hdaa_card_id(w->devinfo);
 
 	/* XXX: Old patches require complete review.
 	 * Now they may create more problem then solve due to
@@ -392,7 +392,7 @@ hdaa_patch(struct hdaa_devinfo *devinfo)
 	int i;
 
 	id = hdaa_codec_id(devinfo);
-	subid = hdaa_subvendor_id(devinfo);
+	subid = hdaa_card_id(devinfo);
 
 	/*
 	 * Quirks
@@ -594,7 +594,7 @@ hdaa_patch_direct(struct hdaa_devinfo *devinfo)
 	uint32_t id, subid, val;
 
 	id = hdaa_codec_id(devinfo);
-	subid = hdaa_subvendor_id(devinfo);
+	subid = hdaa_card_id(devinfo);
 
 	switch (id) {
 	case HDA_CODEC_VT1708S_0:

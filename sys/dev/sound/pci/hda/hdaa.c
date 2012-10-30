@@ -6243,6 +6243,10 @@ hdaa_attach(device_t dev)
 	devinfo->endnode = devinfo->startnode + devinfo->nodecnt;
 
 	HDA_BOOTVERBOSE(
+		device_printf(dev, "Subsystem ID: 0x%08x\n",
+		    hda_get_subsystem_id(dev));
+	);
+	HDA_BOOTHVERBOSE(
 		device_printf(dev,
 		    "Audio Function Group at nid=%d: %d subnodes %d-%d\n",
 		    nid, devinfo->nodecnt,
