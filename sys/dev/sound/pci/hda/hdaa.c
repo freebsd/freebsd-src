@@ -400,7 +400,7 @@ hdaa_presence_handler(struct hdaa_widget *w)
 	struct hdaa_devinfo *devinfo = w->devinfo;
 	struct hdaa_audio_as *as;
 	uint32_t res;
-	int connected;
+	int connected, old;
 
 	if (w->enable == 0 || w->type !=
 	    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
@@ -414,19 +414,22 @@ hdaa_presence_handler(struct hdaa_widget *w)
 	connected = (res & HDA_CMD_GET_PIN_SENSE_PRESENCE_DETECT) != 0;
 	if (devinfo->quirks & HDAA_QUIRK_SENSEINV)
 		connected = !connected;
-	if (connected == w->wclass.pin.connected)
+	old = w->wclass.pin.connected;
+	if (connected == old)
 		return;
 	w->wclass.pin.connected = connected;
 	HDA_BOOTVERBOSE(
-		device_printf(devinfo->dev,
-		    "Pin sense: nid=%d sence=0x%08x (%sconnected)\n",
-		    w->nid, res, !w->wclass.pin.connected ? "dis" : "");
+		if (connected || old != 2) {
+			device_printf(devinfo->dev,
+			    "Pin sense: nid=%d sence=0x%08x (%sconnected)\n",
+			    w->nid, res, !connected ? "dis" : "");
+		}
 	);
 
 	as = &devinfo->as[w->bindas];
 	if (as->hpredir >= 0 && as->pins[15] == w->nid)
 		hdaa_hpredir_handler(w);
-	if (as->dir == HDAA_CTL_IN)
+	if (as->dir == HDAA_CTL_IN && old != 2)
 		hdaa_autorecsrc_handler(as, w);
 }
 
@@ -1151,6 +1154,7 @@ hdaa_widget_parse(struct hdaa_widget *w)
 		    HDA_CMD_GET_PARAMETER(0, w->nid, HDA_PARAM_PIN_CAP));
 		w->wclass.pin.ctrl = hda_command(dev,
 		    HDA_CMD_GET_PIN_WIDGET_CTRL(0, nid));
+		w->wclass.pin.connected = 2;
 		if (HDA_PARAM_PIN_CAP_EAPD_CAP(w->wclass.pin.cap)) {
 			w->param.eapdbtl = hda_command(dev,
 			    HDA_CMD_GET_EAPD_BTL_ENABLE(0, nid));
@@ -1238,10 +1242,6 @@ hdaa_widget_postprocess(struct hdaa_widget *w)
 		}
 		strlcat(w->name, HDA_CONNS[conn], sizeof(w->name));
 		strlcat(w->name, ")", sizeof(w->name));
-
-		if (HDA_PARAM_PIN_CAP_PRESENCE_DETECT_CAP(w->wclass.pin.cap) == 0 ||
-		    (HDA_CONFIG_DEFAULTCONF_MISC(w->wclass.pin.config) & 1) != 0)
-			w->wclass.pin.connected = 2;
 	}
 }
 
