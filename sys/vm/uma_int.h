@@ -289,7 +289,7 @@ typedef struct uma_slab_refcnt * uma_slabrefcnt_t;
  *
  */
 struct uma_zone {
-	char		*uz_name;	/* Text name of the zone */
+	const char	*uz_name;	/* Text name of the zone */
 	struct mtx	*uz_lock;	/* Lock for the zone (keg's lock) */
 	uma_keg_t	uz_keg;		/* Our underlying Keg */
 
