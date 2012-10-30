@@ -308,7 +308,7 @@ mmu_map_inspect_va(struct pmap *pm, void *addr, uintptr_t va)
 
 	return true;
 }
-extern uint64_t xenstack; /* The stack Xen gives us at boot */
+
 void
 mmu_map_hold_va(struct pmap *pm, void *addr, uintptr_t va)
 {
