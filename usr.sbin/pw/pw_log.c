@@ -51,7 +51,7 @@ pw_log(struct userconf * cnf, int mode, int which, char const * fmt,...)
 			time_t          now = time(NULL);
 			struct tm      *t = localtime(&now);
 			char            nfmt[256];
-			char           *name;
+			const char     *name;
 
 			if ((name = getenv("LOGNAME")) == NULL && (name = getenv("USER")) == NULL)
 				name = "unknown";
