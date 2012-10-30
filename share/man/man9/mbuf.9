@@ -706,7 +706,7 @@ It does not allocate any
 .Vt mbuf clusters ,
 so
 .Fa len
-must be less than
+must be less than or equal to
 .Dv MHLEN .
 .\"
 .It Fn m_pulldown mbuf offset len offsetp
