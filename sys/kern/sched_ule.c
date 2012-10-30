@@ -910,10 +910,8 @@ sched_balance_pair(struct tdq *high, struct tdq *low)
 		 * reschedule with the new workload.
 		 */
 		cpu = TDQ_ID(low);
-		sched_pin();
 		if (cpu != PCPU_GET(cpuid))
 			ipi_cpu(cpu, IPI_PREEMPT);
-		sched_unpin();
 	}
 	tdq_unlock_pair(high, low);
 	return (moved);
