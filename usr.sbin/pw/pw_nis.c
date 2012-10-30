@@ -33,40 +33,62 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <sys/types.h>
+#include <err.h>
+#include <pwd.h>
+#include <libutil.h>
 
 #include "pw.h"
 
 static int
-pw_nisupdate(const char * path, struct passwd * pwd, char const * user, int mode)
+pw_nisupdate(const char * path, struct passwd * pwd, char const * user)
 {
-	char            pfx[32];
-	char            pwbuf[PWBUFSZ];
-	int             l = sprintf(pfx, "%s:", user);
+	int pfd, tfd;
+	struct passwd *pw = NULL;
+	struct passwd *old_pw = NULL;
 
-	/*
-	 * Update the passwd file first
-	 */
-	if (pwd == NULL)
-		*pwbuf = '\0';
-	else
-		fmtpwentry(pwbuf, pwd, PWF_MASTER);
-	return fileupdate(path, 0600, pwbuf, pfx, l, mode) != 0;
+	if (pwd != NULL)
+		pw = pw_dup(pwd);
+
+	if (user != NULL)
+		old_pw = GETPWNAM(user);
+
+	if (pw_init(NULL, path))
+		err(1,"pw_init()");
+	if ((pfd = pw_lock()) == -1) {
+		pw_fini();
+		err(1, "pw_lock()");
+	}
+	if ((tfd = pw_tmp(-1)) == -1) {
+		pw_fini();
+		err(1, "pw_tmp()");
+	}
+	if (pw_copy(pfd, tfd, pw, old_pw) == -1) {
+		pw_fini();
+		err(1, "pw_copy()");
+	}
+	if (rename(pw_tempname(), path) == -1)
+		err(1, "rename()");
+
+	free(pw);
+	pw_fini();
+
+	return (0);
 }
 
 int
 addnispwent(const char *path, struct passwd * pwd)
 {
-	return pw_nisupdate(path, pwd, pwd->pw_name, UPD_CREATE);
+	return pw_nisupdate(path, pwd, NULL);
 }
 
 int
 chgnispwent(const char *path, char const * login, struct passwd * pwd)
 {
-	return pw_nisupdate(path, pwd, login, UPD_REPLACE);
+	return pw_nisupdate(path, pwd, login);
 }
 
 int
 delnispwent(const char *path, const char *login)
 {
-	return pw_nisupdate(path, NULL, login, UPD_DELETE);
+	return pw_nisupdate(path, NULL, login);
 }
