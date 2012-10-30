@@ -54,7 +54,6 @@
  */
 void octeon_debug_symbol(void);
 void octeon_ciu_reset(void);
-int octeon_is_simulation(void);
 #endif	/* LOCORE */
 
 #endif /* !OCTEON_PCMAP_REGS_H__ */
