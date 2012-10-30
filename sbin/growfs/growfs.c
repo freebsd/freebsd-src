@@ -1498,6 +1498,7 @@ main(int argc, char **argv)
 	}
 
 	sblock.fs_size = dbtofsb(&osblock, size / DEV_BSIZE);
+	sblock.fs_providersize = dbtofsb(&osblock, mediasize / DEV_BSIZE);
 
 	/*
 	 * Are we really growing?
