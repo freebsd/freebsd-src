@@ -4248,7 +4248,7 @@ pmc_capture_user_callchain(int cpu, int ring, struct trapframe *tf)
 	    ("[pmc,%d] cpu %d didn't find a sample to collect", __LINE__,
 		cpu));
 
-	KASSERT(td->td_pinned > 0,
+	KASSERT(td->td_pinned == 1,
 	    ("[pmc,%d] invalid td_pinned value", __LINE__));
 	sched_unpin();	/* Can migrate safely now. */
 

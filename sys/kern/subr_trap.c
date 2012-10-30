@@ -145,6 +145,11 @@ userret(struct thread *td, struct trapframe *frame)
 
 	/*
 	 * Check for misbehavior.
+	 *
+	 * In case there is a callchain tracing ongoing because of
+	 * hwpmc(4), skip the scheduler pinning check.
+	 * hwpmc(4) subsystem, infact, will collect callchain informations
+	 * at ast() checkpoint, which is past userret().
 	 */
 	WITNESS_WARN(WARN_PANIC, NULL, "userret: returning");
 	KASSERT(td->td_critnest == 0,
@@ -155,7 +160,7 @@ userret(struct thread *td, struct trapframe *frame)
 	    ("userret: Returning with pagefaults disabled"));
 	KASSERT((td->td_pflags & TDP_NOSLEEPING) == 0,
 	    ("userret: Returning with sleep disabled"));
-	KASSERT(td->td_pinned == 0,
+	KASSERT(td->td_pinned == 0 || (td->td_pflags & TDP_CALLCHAIN) != 0,
 	    ("userret: Returning with with pinned thread"));
 	KASSERT(td->td_vp_reserv == 0,
 	    ("userret: Returning while holding vnode reservation"));
