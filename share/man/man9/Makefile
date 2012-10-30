@@ -614,7 +614,8 @@ MLINKS+=devstat.9 devicestat.9 \
 MLINKS+=disk.9 disk_alloc.9 \
 	disk.9 disk_create.9 \
 	disk.9 disk_destroy.9 \
-	disk.9 disk_gone.9
+	disk.9 disk_gone.9 \
+	disk.9 disk_resize.9
 MLINKS+=domain.9 DOMAIN_SET.9 \
 	domain.9 domain_add.9 \
 	domain.9 pfctlinput.9 \
