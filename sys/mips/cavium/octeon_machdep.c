@@ -211,7 +211,7 @@ octeon_memory_init(void)
 
 	phys_end = round_page(MIPS_KSEG0_TO_PHYS((vm_offset_t)&end));
 
-	if (octeon_is_simulation()) {
+	if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM) {
 		/* Simulator we limit to 96 meg */
 		phys_avail[0] = phys_end;
 		phys_avail[1] = 96 << 20;
@@ -517,17 +517,6 @@ typedef struct {
 cvmx_bootinfo_t *octeon_bootinfo;
 
 static octeon_boot_descriptor_t *app_desc_ptr;
-
-int
-octeon_is_simulation(void)
-{
-	switch (cvmx_sysinfo_get()->board_type) {
-	case CVMX_BOARD_TYPE_SIM:
-		return 1;
-	default:
-		return 0;
-	}
-}
 
 static void
 octeon_process_app_desc_ver_6(void)
