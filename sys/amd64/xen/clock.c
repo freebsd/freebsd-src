@@ -160,7 +160,7 @@ SYSCTL_INT(_machdep, OID_AUTO, xen_disable_rtc_set,
     __asm__ __volatile__("rdtsc" : "=A" (val))
 
 #else /* !__amd64__ */
-#define do_div(n,base) do {} while(0); /* XXX: TODO */
+#define do_div(n,base) (n) = (n)/(base) /* XXX: TODO - assembler optimise */
 #define NS_PER_TICK (1000000000ULL/hz)
 #endif /* !__amd64__ */
 
@@ -516,7 +516,7 @@ startrtclock()
 
 	/* initialize xen values */
 	__get_time_values_from_xen();
-	processed_system_time = per_cpu(shadow_time, 0).system_timestamp;
+	processed_system_time = per_cpu(shadow_time, smp_processor_id()).system_timestamp;
 
 	__cpu_khz = 1000000ULL << 32;
 	info = &HYPERVISOR_shared_info->vcpu_info[0].time;
