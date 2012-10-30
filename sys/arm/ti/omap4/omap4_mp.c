@@ -75,7 +75,7 @@ platform_mp_start_ap(void)
 	cpu_idcache_wbinv_all();
 	cpu_l2cache_wbinv_all();
 	ti_smc0(0x200, 0xfffffdff, MODIFY_AUX_CORE_0);
-	ti_smc0(pmap_kextract(mpentry), 0, WRITE_AUX_CORE_1);
+	ti_smc0(pmap_kextract((vm_offset_t)mpentry), 0, WRITE_AUX_CORE_1);
 	armv7_sev();
 	bus_space_unmap(fdtbus_bs_tag, scu_addr, 0x1000);
 }
