@@ -130,9 +130,6 @@ static const struct octeon_feature_description octeon_feature_descriptions[] = {
 	{ 0,					NULL }
 };
 
-uint64_t ciu_get_en_reg_addr_new(int corenum, int intx, int enx, int ciu_ip);
-void ciu_dump_interrutps_enabled(int core_num, int intx, int enx, int ciu_ip);
-
 static uint64_t octeon_get_ticks(void);
 static unsigned octeon_get_timecount(struct timecounter *tc);
 
