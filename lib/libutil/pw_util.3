@@ -74,7 +74,6 @@
 .Ft int
 .Fn pw_tmp "int mfd"
 .Sh DESCRIPTION
-.Pp
 The
 .Fn pw_copy
 function reads a password file from
@@ -104,7 +103,7 @@ are not
 .Dv NULL
 then the record corresponding to
 .Fa pw
-will be replace by the record corresponding to
+will be replaced by the record corresponding to
 .Fa oldpw .
 .It
 If
@@ -171,7 +170,7 @@ function destroy the temporary file created by
 if any,
 kills any running instance of
 .Ev EDITOR
-excuted by
+executed by
 .Fn pw_edit
 if any,
 and closes the lock created by
