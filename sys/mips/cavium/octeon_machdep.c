@@ -76,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <contrib/octeon-sdk/cvmx.h>
 #include <contrib/octeon-sdk/cvmx-bootmem.h>
 #include <contrib/octeon-sdk/cvmx-ebt3000.h>
+#include <contrib/octeon-sdk/cvmx-helper-cfg.h>
 #include <contrib/octeon-sdk/cvmx-interrupt.h>
 #include <contrib/octeon-sdk/cvmx-version.h>
 
@@ -597,6 +598,10 @@ octeon_boot_params_init(register_t ptr)
 	if (cvmx_sysinfo_get()->phy_mem_desc_addr == (uint64_t)0)
 		panic("Your boot loader did not supply a memory descriptor.");
 	cvmx_bootmem_init(cvmx_sysinfo_get()->phy_mem_desc_addr);
+
+	octeon_feature_init();
+
+	__cvmx_helper_cfg_init();
 
         printf("Boot Descriptor Ver: %u -> %u/%u",
                app_desc_ptr->desc_version, octeon_bootinfo->major_version,
