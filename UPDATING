@@ -1595,7 +1595,7 @@ COMMON ITEMS:
 	<reboot>
 
 
-	To upgrade in-place from 8.x-stable to current
+	To upgrade in-place from stable to current
 	----------------------------------------------
 	<make sure you have good level 0 dumps>
 	make buildworld					[9]
