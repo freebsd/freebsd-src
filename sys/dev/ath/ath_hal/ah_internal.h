@@ -136,6 +136,41 @@ struct ath_hal_rf *ath_hal_rfprobe(struct ath_hal *ah, HAL_STATUS *ecode);
 #define	AH_MAXCHAN	96
 #endif
 
+#define	HAL_NF_CAL_HIST_LEN_FULL	5
+#define	HAL_NF_CAL_HIST_LEN_SMALL	1
+#define	HAL_NUM_NF_READINGS		6	/* 3 chains * (ctl + ext) */
+#define	HAL_NF_LOAD_DELAY		1000
+
+/*
+ * PER_CHAN doesn't work for now, as it looks like the device layer
+ * has to pre-populate the per-channel list with nominal values.
+ */
+//#define	ATH_NF_PER_CHAN		1
+
+typedef struct {
+    u_int8_t    curr_index;
+    int8_t      invalidNFcount; /* TO DO: REMOVE THIS! */
+    int16_t     priv_nf[HAL_NUM_NF_READINGS];
+} HAL_NFCAL_BASE;
+
+typedef struct {
+    HAL_NFCAL_BASE base;
+    int16_t     nf_cal_buffer[HAL_NF_CAL_HIST_LEN_FULL][HAL_NUM_NF_READINGS];
+} HAL_NFCAL_HIST_FULL;
+
+typedef struct {
+    HAL_NFCAL_BASE base;
+    int16_t     nf_cal_buffer[HAL_NF_CAL_HIST_LEN_SMALL][HAL_NUM_NF_READINGS];
+} HAL_NFCAL_HIST_SMALL;
+
+#ifdef	ATH_NF_PER_CHAN
+typedef HAL_NFCAL_HIST_FULL HAL_CHAN_NFCAL_HIST;
+#define	AH_HOME_CHAN_NFCAL_HIST(ah, ichan) (ichan ? &ichan->nf_cal_hist: NULL)
+#else
+typedef HAL_NFCAL_HIST_SMALL HAL_CHAN_NFCAL_HIST;
+#define	AH_HOME_CHAN_NFCAL_HIST(ah, ichan) (&AH_PRIVATE(ah)->nf_cal_hist)
+#endif	/* ATH_NF_PER_CHAN */
+
 /*
  * Internal per-channel state.  These are found
  * using ic_devdata in the ieee80211_channel.
@@ -157,6 +192,12 @@ typedef struct {
 	int16_t		noiseFloorExt[AH_MAX_CHAINS];
 #endif	/* AH_SUPPORT_AR5416 */
 	uint16_t	mainSpur;	/* cached spur value for this channel */
+
+	/*XXX TODO: make these part of privFlags */
+	uint8_t  paprd_done:1,           /* 1: PAPRD DONE, 0: PAPRD Cal not done */
+	       paprd_table_write_done:1; /* 1: DONE, 0: Cal data write not done */
+	int		one_time_cals_done;
+	HAL_CHAN_NFCAL_HIST nf_cal_hist;
 } HAL_CHANNEL_INTERNAL;
 
 /* channel requires noise floor check */
@@ -253,13 +294,21 @@ typedef struct {
 	uint8_t		halTxStreams;
 	uint8_t		halRxStreams;
 	HAL_MFP_OPT_T	halMfpSupport;
+
+	/* AR9300 HAL porting capabilities */
+	int		hal_paprd_enabled;
+	int		hal_pcie_lcr_offset;
+	int		hal_pcie_lcr_extsync_en;
 	int		halNumTxMaps;
 	int		halTxDescLen;
 	int		halTxStatusLen;
 	int		halRxStatusLen;
 	int		halRxHpFifoDepth;
 	int		halRxLpFifoDepth;
+	uint32_t	halRegCap;		/* XXX needed? */
 	int		halNumMRRetries;
+	int		hal_ani_poll_interval;
+	int		hal_channel_switch_time_usec;
 } HAL_CAPABILITIES;
 
 struct regDomain;
@@ -364,6 +413,10 @@ struct ath_hal_private {
 	 */
 	uint32_t	ah_fatalState[6];	/* AR_ISR+shadow regs */
 	int		ah_rxornIsFatal;	/* how to treat HAL_INT_RXORN */
+
+#ifndef	ATH_NF_PER_CHAN
+	HAL_NFCAL_HIST_FULL	nf_cal_hist;
+#endif	/* ! ATH_NF_PER_CHAN */
 };
 
 #define	AH_PRIVATE(_ah)	((struct ath_hal_private *)(_ah))
@@ -524,6 +577,14 @@ isBigEndian(void)
 	OS_REG_WRITE(_a, _r, OS_REG_READ(_a, _r) &~ (_f))
 #define OS_REG_IS_BIT_SET(_a, _r, _f) \
 	    ((OS_REG_READ(_a, _r) & (_f)) != 0)
+#define	OS_REG_RMW_FIELD_ALT(_a, _r, _f, _v) \
+	    OS_REG_WRITE(_a, _r, \
+	    (OS_REG_READ(_a, _r) &~(_f<<_f##_S)) | \
+	    (((_v) << _f##_S) & (_f<<_f##_S)))
+#define	OS_REG_READ_FIELD(_a, _r, _f) \
+	    (((OS_REG_READ(_a, _r) & _f) >> _f##_S))
+#define	OS_REG_READ_FIELD_ALT(_a, _r, _f) \
+	    ((OS_REG_READ(_a, _r) >> (_f##_S))&(_f))
 
 /* Analog register writes may require a delay between each one (eg Merlin?) */
 #define	OS_A_REG_RMW_FIELD(_a, _r, _f, _v) \
@@ -731,6 +792,17 @@ enum {
 		 | HAL_MAC_HANG_SIG2
 		 | HAL_MAC_HANG_UNKNOWN,
 };
+
+/* Merge these with above */
+typedef enum hal_hw_hangs {
+    HAL_DFS_BB_HANG_WAR          = 0x1,
+    HAL_RIFS_BB_HANG_WAR         = 0x2,
+    HAL_RX_STUCK_LOW_BB_HANG_WAR = 0x4,
+    HAL_MAC_HANG_WAR             = 0x8,
+    HAL_PHYRESTART_CLR_WAR       = 0x10,
+    HAL_MAC_HANG_DETECTED        = 0x40000000,
+    HAL_BB_HANG_DETECTED         = 0x80000000
+} hal_hw_hangs_t;
 
 /*
  * Device revision information.
