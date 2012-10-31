@@ -124,7 +124,9 @@ static inline void
 ath_tx_kick(struct ath_softc *sc)
 {
 
-	taskqueue_enqueue(sc->sc_tq, &sc->sc_txsndtask);
+	ATH_TX_LOCK(sc);
+	ath_start(sc->sc_ifp);
+	ATH_TX_UNLOCK(sc);
 }
 
 #endif
