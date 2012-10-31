@@ -75,7 +75,7 @@ smbfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred)
 {
 	struct dirent de;
 	struct componentname cn;
-	struct smb_cred scred;
+	struct smb_cred *scred;
 	struct smbfs_fctx *ctx;
 	struct vnode *newvp;
 	struct smbnode *np = VTOSMB(vp);
@@ -84,11 +84,14 @@ smbfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred)
 
 	np = VTOSMB(vp);
 	SMBVDEBUG("dirname='%s'\n", np->n_name);
-	smb_makescred(&scred, uio->uio_td, cred);
+	scred = smbfs_malloc_scred();
+	smb_makescred(scred, uio->uio_td, cred);
 	offset = uio->uio_offset / DE_SIZE;	/* offset in the directory */
 	limit = uio->uio_resid / DE_SIZE;
-	if (uio->uio_resid < DE_SIZE || uio->uio_offset < 0)
-		return EINVAL;
+	if (uio->uio_resid < DE_SIZE || uio->uio_offset < 0) {
+		error = EINVAL;
+		goto out;
+	}
 	while (limit && offset < 2) {
 		limit--;
 		bzero((caddr_t)&de, DE_SIZE);
@@ -104,40 +107,43 @@ smbfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred)
 		de.d_type = DT_DIR;
 		error = uiomove(&de, DE_SIZE, uio);
 		if (error)
-			return error;
+			goto out;
 		offset++;
 		uio->uio_offset += DE_SIZE;
 	}
-	if (limit == 0)
-		return 0;
+	if (limit == 0) {
+		error = 0;
+		goto out;
+	}
 	if (offset != np->n_dirofs || np->n_dirseq == NULL) {
 		SMBVDEBUG("Reopening search %ld:%ld\n", offset, np->n_dirofs);
 		if (np->n_dirseq) {
-			smbfs_findclose(np->n_dirseq, &scred);
+			smbfs_findclose(np->n_dirseq, scred);
 			np->n_dirseq = NULL;
 		}
 		np->n_dirofs = 2;
 		error = smbfs_findopen(np, "*", 1,
 		    SMB_FA_SYSTEM | SMB_FA_HIDDEN | SMB_FA_DIR,
-		    &scred, &ctx);
+		    scred, &ctx);
 		if (error) {
 			SMBVDEBUG("can not open search, error = %d", error);
-			return error;
+			goto out;
 		}
 		np->n_dirseq = ctx;
 	} else
 		ctx = np->n_dirseq;
 	while (np->n_dirofs < offset) {
-		error = smbfs_findnext(ctx, offset - np->n_dirofs++, &scred);
+		error = smbfs_findnext(ctx, offset - np->n_dirofs++, scred);
 		if (error) {
-			smbfs_findclose(np->n_dirseq, &scred);
+			smbfs_findclose(np->n_dirseq, scred);
 			np->n_dirseq = NULL;
-			return error == ENOENT ? 0 : error;
+			error = ENOENT ? 0 : error;
+			goto out;
 		}
 	}
 	error = 0;
 	for (; limit; limit--, offset++) {
-		error = smbfs_findnext(ctx, limit, &scred);
+		error = smbfs_findnext(ctx, limit, scred);
 		if (error)
 			break;
 		np->n_dirofs++;
@@ -165,6 +171,8 @@ smbfs_readvdir(struct vnode *vp, struct uio *uio, struct ucred *cred)
 	if (error == ENOENT)
 		error = 0;
 	uio->uio_offset = offset * DE_SIZE;
+out:
+	smbfs_free_scred(scred);
 	return error;
 }
 
@@ -175,7 +183,7 @@ smbfs_readvnode(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 	struct smbnode *np = VTOSMB(vp);
 	struct thread *td;
 	struct vattr vattr;
-	struct smb_cred scred;
+	struct smb_cred *scred;
 	int error, lks;
 
 	/*
@@ -223,8 +231,11 @@ smbfs_readvnode(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 			np->n_mtime.tv_sec = vattr.va_mtime.tv_sec;
 		}
 	}
-	smb_makescred(&scred, td, cred);
-	return smb_read(smp->sm_share, np->n_fid, uiop, &scred);
+	scred = smbfs_malloc_scred();
+	smb_makescred(scred, td, cred);
+	error = smb_read(smp->sm_share, np->n_fid, uiop, scred);
+	smbfs_free_scred(scred);
+	return (error);
 }
 
 int
@@ -233,7 +244,7 @@ smbfs_writevnode(struct vnode *vp, struct uio *uiop,
 {
 	struct smbmount *smp = VTOSMBFS(vp);
 	struct smbnode *np = VTOSMB(vp);
-	struct smb_cred scred;
+	struct smb_cred *scred;
 	struct thread *td;
 	int error = 0;
 
@@ -272,9 +283,11 @@ smbfs_writevnode(struct vnode *vp, struct uio *uiop,
 
 	if (vn_rlimit_fsize(vp, uiop, td))
 		return (EFBIG);
-
-	smb_makescred(&scred, td, cred);
-	error = smb_write(smp->sm_share, np->n_fid, uiop, &scred);
+	
+	scred = smbfs_malloc_scred();
+	smb_makescred(scred, td, cred);
+	error = smb_write(smp->sm_share, np->n_fid, uiop, scred);
+	smbfs_free_scred(scred);
 	SMBVDEBUG("after: ofs=%jd,resid=%zd\n", (intmax_t)uiop->uio_offset, 
 	    uiop->uio_resid);
 	if (!error) {
@@ -294,17 +307,19 @@ smbfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td
 {
 	struct smbmount *smp = VFSTOSMBFS(vp->v_mount);
 	struct smbnode *np = VTOSMB(vp);
-	struct uio uio, *uiop = &uio;
+	struct uio *uiop;
 	struct iovec io;
-	struct smb_cred scred;
+	struct smb_cred *scred;
 	int error = 0;
 
+	uiop = malloc(sizeof(struct uio), M_SMBFSDATA, M_WAITOK);
 	uiop->uio_iov = &io;
 	uiop->uio_iovcnt = 1;
 	uiop->uio_segflg = UIO_SYSSPACE;
 	uiop->uio_td = td;
 
-	smb_makescred(&scred, td, cr);
+	scred = smbfs_malloc_scred();
+	smb_makescred(scred, td, cr);
 
 	if (bp->b_iocmd == BIO_READ) {
 	    io.iov_len = uiop->uio_resid = bp->b_bcount;
@@ -313,7 +328,7 @@ smbfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td
 	    switch (vp->v_type) {
 	      case VREG:
 		uiop->uio_offset = ((off_t)bp->b_blkno) * DEV_BSIZE;
-		error = smb_read(smp->sm_share, np->n_fid, uiop, &scred);
+		error = smb_read(smp->sm_share, np->n_fid, uiop, scred);
 		if (error)
 			break;
 		if (uiop->uio_resid) {
@@ -340,7 +355,7 @@ smbfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td
 		uiop->uio_offset = ((off_t)bp->b_blkno) * DEV_BSIZE + bp->b_dirtyoff;
 		io.iov_base = (char *)bp->b_data + bp->b_dirtyoff;
 		uiop->uio_rw = UIO_WRITE;
-		error = smb_write(smp->sm_share, np->n_fid, uiop, &scred);
+		error = smb_write(smp->sm_share, np->n_fid, uiop, scred);
 
 		/*
 		 * For an interrupted write, the buffer is still valid
@@ -380,11 +395,15 @@ smbfs_doio(struct vnode *vp, struct buf *bp, struct ucred *cr, struct thread *td
 	    } else {
 		bp->b_resid = 0;
 		bufdone(bp);
+		free(uiop, M_SMBFSDATA);
+		smbfs_free_scred(scred);
 		return 0;
 	    }
 	}
 	bp->b_resid = uiop->uio_resid;
 	bufdone(bp);
+	free(uiop, M_SMBFSDATA);
+	smbfs_free_scred(scred);
 	return error;
 }
 
@@ -415,7 +434,7 @@ smbfs_getpages(ap)
 	struct ucred *cred;
 	struct smbmount *smp;
 	struct smbnode *np;
-	struct smb_cred scred;
+	struct smb_cred *scred;
 	vm_object_t object;
 	vm_page_t *pages, m;
 
@@ -455,7 +474,8 @@ smbfs_getpages(ap)
 	}
 	VM_OBJECT_UNLOCK(object);
 
-	smb_makescred(&scred, td, cred);
+	scred = smbfs_malloc_scred();
+	smb_makescred(scred, td, cred);
 
 	bp = getpbuf(&smbfs_pbuf_freecnt);
 
@@ -474,7 +494,8 @@ smbfs_getpages(ap)
 	uio.uio_rw = UIO_READ;
 	uio.uio_td = td;
 
-	error = smb_read(smp->sm_share, np->n_fid, &uio, &scred);
+	error = smb_read(smp->sm_share, np->n_fid, &uio, scred);
+	smbfs_free_scred(scred);
 	pmap_qremove(kva, npages);
 
 	relpbuf(bp, &smbfs_pbuf_freecnt);
@@ -570,7 +591,7 @@ smbfs_putpages(ap)
 	int *rtvals;
 	struct smbmount *smp;
 	struct smbnode *np;
-	struct smb_cred scred;
+	struct smb_cred *scred;
 	vm_page_t *pages;
 
 	td = curthread;			/* XXX */
@@ -606,8 +627,10 @@ smbfs_putpages(ap)
 	SMBVDEBUG("ofs=%jd,resid=%zd\n", (intmax_t)uio.uio_offset, 
 	    uio.uio_resid);
 
-	smb_makescred(&scred, td, cred);
-	error = smb_write(smp->sm_share, np->n_fid, &uio, &scred);
+	scred = smbfs_malloc_scred();
+	smb_makescred(scred, td, cred);
+	error = smb_write(smp->sm_share, np->n_fid, &uio, scred);
+	smbfs_free_scred(scred);
 /*	VOP_CLOSE(vp, FWRITE, cred, td);*/
 	SMBVDEBUG("paged write done: %d\n", error);
 
