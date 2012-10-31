@@ -674,14 +674,44 @@ pmap_pinit(pmap_t pmap)
 void
 pmap_release(pmap_t pmap)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
-__inline pt_entry_t *
+pt_entry_t *
 vtopte(uintptr_t va)
 {
-	KASSERT(0, ("XXX: REVIEW\n"));
-	u_int64_t mask = ((1ul << (NPTEPGSHIFT + NPDEPGSHIFT + NPDPEPGSHIFT + NPML4EPGSHIFT)) - 1);
+	KASSERT(tsz != 0, ("tsz != 0"));
+	char tbuf[tsz]; /* Safe to do this on the stack since tsz is
+			 * effectively const.
+			 */
+
+	const u_int64_t mask = ((1ul << (NPTEPGSHIFT + NPDEPGSHIFT
+		+ NPDPEPGSHIFT + NPML4EPGSHIFT)) - 1);
+
+	pd_entry_t *pte; /* PTE address to return */
+
+
+	mmu_map_t tptr = tbuf;
+
+	struct mmu_map_mbackend mb = {
+		ptmb_mappedalloc,
+		ptmb_mappedfree,
+		ptmb_ptov,
+		ptmb_vtop
+	};
+	mmu_map_t_init(tptr, &mb);
+
+	if (!mmu_map_inspect_va(kernel_pmap, tptr, va)) {
+		panic("pte queried for unmapped kernel va");
+	}
+
+	pte = mmu_map_pt(tptr); /* Read out PT from mmu state */
+	/* add VA offset */
+	pte += ((va >> PAGE_SHIFT) & mask);
+
+	mmu_map_release_va(kernel_pmap, tptr, va);
+	mmu_map_t_fini(tptr);
+
 
 	return (PTmap + ((va >> PAGE_SHIFT) & mask));
 }
@@ -692,7 +722,7 @@ void pmap_lazyfix_action(void);
 void
 pmap_lazyfix_action(void)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 #endif /* SMP */
 
@@ -728,10 +758,26 @@ pmap_qenter(vm_offset_t sva, vm_page_t *ma, int count)
 
 }
 
+/*
+ * This routine tears out page mappings from the
+ * kernel -- it is meant only for temporary mappings.
+ * Note: SMP coherent.  Uses a ranged shootdown IPI.
+ */
 void
 pmap_qremove(vm_offset_t sva, int count)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(count > 0, ("count > 0"));
+	KASSERT(sva == trunc_page(sva),
+		("sva not page aligned"));
+
+	vm_offset_t va;
+
+	va = sva;
+	while (count-- > 0) {
+		pmap_kremove(va);
+		va += PAGE_SIZE;
+	}
+	// XXX: TODO: pmap_invalidate_range(kernel_pmap, sva, va);
 }
 
 /*
@@ -770,19 +816,19 @@ void
 pmap_enter_object(pmap_t pmap, vm_offset_t start, vm_offset_t end,
     vm_page_t m_start, vm_prot_t prot)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 void
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 void *
 pmap_kenter_temporary(vm_paddr_t pa, int i)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 	return NULL;
 }
 
@@ -791,32 +837,32 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 		    vm_object_t object, vm_pindex_t pindex,
 		    vm_size_t size)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 void
 pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 void
 pmap_remove_all(vm_page_t m)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 vm_paddr_t 
 pmap_extract(pmap_t pmap, vm_offset_t va)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 	return 0;
 }
 
 vm_page_t
 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 	return 0;
 }
 
@@ -883,6 +929,7 @@ void
 pmap_kenter_ma(vm_offset_t va, vm_paddr_t ma)
 {
 
+	KASSERT(tsz != 0, ("tsz != 0"));
 	char tbuf[tsz]; /* Safe to do this on the stack since tsz is
 			 * effectively const.
 			 */
@@ -973,26 +1020,26 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 void
 pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 void
 pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 void
 pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, 
 	  vm_size_t len, vm_offset_t src_addr)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 void
 pmap_copy_page(vm_page_t src, vm_page_t dst)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 void
@@ -1009,104 +1056,104 @@ pmap_zero_page(vm_page_t m)
 void
 pmap_zero_page_area(vm_page_t m, int off, int size)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 void
 pmap_zero_page_idle(vm_page_t m)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 void
 pmap_activate(struct thread *td)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 void
 pmap_remove_pages(pmap_t pmap)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 void
 pmap_page_set_memattr(vm_page_t m, vm_memattr_t ma)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 boolean_t
 pmap_page_is_mapped(vm_page_t m)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 	return 0;
 }
 
 boolean_t
 pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 	return 0;
 }
 
 int
 pmap_page_wired_mappings(vm_page_t m)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 	return -1;
 }
 
 boolean_t
 pmap_is_modified(vm_page_t m)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 	return 0;
 }
 
 boolean_t
 pmap_is_referenced(vm_page_t m)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 	return 0;
 }
 
 boolean_t
 pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 	return 0;
 }
 
 void
 pmap_clear_modify(vm_page_t m)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 void
 pmap_clear_reference(vm_page_t m)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 void
 pmap_remove_write(vm_page_t m)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 int
 pmap_ts_referenced(vm_page_t m)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 	return -1;
 }
 
 void
 pmap_sync_icache(pmap_t pm, vm_offset_t va, vm_size_t sz)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 /*
@@ -1136,39 +1183,39 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
 void
 pmap_suspend()
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 void
 pmap_resume()
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 int
 pmap_mincore(pmap_t pmap, vm_offset_t addr, vm_paddr_t *locked_pa)
 {	
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 	return -1;
 }
 
 void *
 pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 {
-  	KASSERT(0, ("XXX: TODO\n"));
+  	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 	return NULL;
 }
 
 void
 pmap_unmapdev(vm_offset_t va, vm_size_t size)
 {
-	KASSERT(0, ("XXX: TODO\n"));
+	KASSERT(0, ("XXX: %s: TODO\n", __func__));
 }
 
 int
 pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 {
-		KASSERT(0, ("XXX: TODO\n"));
+		KASSERT(0, ("XXX: %s: TODO\n", __func__));
 		return -1;
 }
 
@@ -1202,6 +1249,18 @@ xen_pagezone_init(void *mem, int size, int flags)
 	return (0);
 }
 
+static void
+xen_pagezone_fini(void *mem, int size)
+{
+	uintptr_t va;
+
+	va = (uintptr_t)mem;
+
+	/* Xen requires the page table hierarchy to be R/O. */
+	pmap_xen_setpages_rw(va, atop(size));
+	return;
+}
+
 /*
  * Replace the custom mmu_alloc(), backed by vallocpages(), with an
  * uma backed allocator, as soon as it is possible.
@@ -1211,7 +1270,7 @@ setup_xen_pagezone(void *dummy __unused)
 {
 
 	xen_pagezone = uma_zcreate("XEN PAGEZONE", PAGE_SIZE, NULL, NULL,
-	    xen_pagezone_init, NULL, UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
+	     xen_pagezone_init, xen_pagezone_fini, UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
 	ptmb_mappedalloc = xen_pagezone_alloc;
 	ptmb_mappedfree = xen_pagezone_free;
 }
