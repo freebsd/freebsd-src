@@ -187,13 +187,8 @@ struct vpgqueues {
 
 extern struct vpgqueues vm_page_queues[PQ_COUNT];
 
-struct vpglocks {
-	struct mtx	data;
-	char		pad[CACHE_LINE_SIZE - sizeof(struct mtx)];
-} __aligned(CACHE_LINE_SIZE);
-
-extern struct vpglocks vm_page_queue_free_lock;
-extern struct vpglocks pa_lock[];
+extern struct mtx_padalign vm_page_queue_free_mtx;
+extern struct mtx_padalign pa_lock[];
 
 #if defined(__arm__)
 #define	PDRSHIFT	PDR_SHIFT
@@ -202,7 +197,7 @@ extern struct vpglocks pa_lock[];
 #endif
 
 #define	pa_index(pa)	((pa) >> PDRSHIFT)
-#define	PA_LOCKPTR(pa)	&pa_lock[pa_index((pa)) % PA_LOCK_COUNT].data
+#define	PA_LOCKPTR(pa)	((struct mtx *)(&pa_lock[pa_index(pa) % PA_LOCK_COUNT]))
 #define	PA_LOCKOBJPTR(pa)	((struct lock_object *)PA_LOCKPTR((pa)))
 #define	PA_LOCK(pa)	mtx_lock(PA_LOCKPTR(pa))
 #define	PA_TRYLOCK(pa)	mtx_trylock(PA_LOCKPTR(pa))
@@ -234,8 +229,6 @@ extern struct vpglocks pa_lock[];
 #define	vm_page_trylock(m)	mtx_trylock(vm_page_lockptr((m)))
 #define	vm_page_lock_assert(m, a)	mtx_assert(vm_page_lockptr((m)), (a))
 #endif
-
-#define	vm_page_queue_free_mtx	vm_page_queue_free_lock.data
 
 /*
  * The vm_page's aflags are updated using atomic operations.  To set or clear
@@ -327,9 +320,8 @@ vm_page_t vm_phys_paddr_to_vm_page(vm_paddr_t pa);
 
 vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 
-extern struct vpglocks vm_page_queue_lock;
+extern struct mtx_padalign vm_page_queue_mtx;
 
-#define	vm_page_queue_mtx	vm_page_queue_lock.data
 #define vm_page_lock_queues()   mtx_lock(&vm_page_queue_mtx)
 #define vm_page_unlock_queues() mtx_unlock(&vm_page_queue_mtx)
 
