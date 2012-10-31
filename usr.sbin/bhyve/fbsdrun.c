@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <signal.h>
 #include <pthread.h>
+#include <pthread_np.h>
 
 #include <machine/vmm.h>
 #include <vmmapi.h>
@@ -196,10 +197,16 @@ fbsdrun_muxed(void)
 static void *
 fbsdrun_start_thread(void *param)
 {
+	char tname[MAXCOMLEN + 1];
+	struct mt_vmm_info *mtp;
 	int vcpu;
-	struct mt_vmm_info *mtp = param;
 
+	mtp = param;
 	vcpu = mtp->mt_vcpu;
+
+	snprintf(tname, sizeof(tname), "%s vcpu %d", vmname, vcpu);
+	pthread_set_name_np(mtp->mt_thr, tname);
+
 	vm_loop(mtp->mt_ctx, vcpu, vmexit[vcpu].rip);
 
 	/* not reached */
