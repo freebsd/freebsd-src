@@ -531,6 +531,8 @@ struct ath_softc {
 	char			sc_pcu_mtx_name[32];
 	struct mtx		sc_rx_mtx;	/* RX access mutex */
 	char			sc_rx_mtx_name[32];
+	struct mtx		sc_tx_mtx;	/* TX access mutex */
+	char			sc_tx_mtx_name[32];
 	struct taskqueue	*sc_tq;		/* private task queue */
 	struct ath_hal		*sc_ah;		/* Atheros HAL */
 	struct ath_ratectrl	*sc_rc;		/* tx rate control support */
@@ -663,7 +665,6 @@ struct ath_softc {
 	struct ath_txq		*sc_ac2q[5];	/* WME AC -> h/w q map */ 
 	struct task		sc_txtask;	/* tx int processing */
 	struct task		sc_txqtask;	/* tx proc processing */
-	struct task		sc_txsndtask;	/* tx send processing */
 
 	struct ath_descdma	sc_txcompdma;	/* TX EDMA completion */
 	struct mtx		sc_txcomplock;	/* TX EDMA completion lock */
@@ -777,6 +778,28 @@ struct ath_softc {
 #define	ATH_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define	ATH_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
 #define	ATH_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_NOTOWNED)
+
+/*
+ * The TX lock is non-reentrant and serialises the TX send operations.
+ * (ath_start(), ath_raw_xmit().)  It doesn't yet serialise the TX
+ * completion operations; thus it can't be used (yet!) to protect
+ * hardware / software TXQ operations.
+ */
+#define	ATH_TX_LOCK_INIT(_sc) do {\
+	snprintf((_sc)->sc_tx_mtx_name,				\
+	    sizeof((_sc)->sc_tx_mtx_name),				\
+	    "%s TX lock",						\
+	    device_get_nameunit((_sc)->sc_dev));			\
+	mtx_init(&(_sc)->sc_tx_mtx, (_sc)->sc_tx_mtx_name,		\
+		 NULL, MTX_DEF);					\
+	} while (0)
+#define	ATH_TX_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_tx_mtx)
+#define	ATH_TX_LOCK(_sc)		mtx_lock(&(_sc)->sc_tx_mtx)
+#define	ATH_TX_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_tx_mtx)
+#define	ATH_TX_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_tx_mtx,	\
+		MA_OWNED)
+#define	ATH_TX_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_tx_mtx,	\
+		MA_NOTOWNED)
 
 /*
  * The PCU lock is non-recursive and should be treated as a spinlock.
