@@ -424,7 +424,6 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	TASK_INIT(&sc->sc_resettask,0, ath_reset_proc, sc);
 	TASK_INIT(&sc->sc_txqtask,0, ath_txq_sched_tasklet, sc);
 	TASK_INIT(&sc->sc_fataltask,0, ath_fatal_proc, sc);
-	TASK_INIT(&sc->sc_txsndtask, 0, ath_start_task, sc);
 
 	/*
 	 * Allocate hardware transmit queues: one queue for
@@ -2447,7 +2446,9 @@ ath_start_queue(struct ifnet *ifp)
 {
 	struct ath_softc *sc = ifp->if_softc;
 
+	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_queue: start");
 	ath_tx_kick(sc);
+	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_queue: finished");
 }
 
 void
@@ -2455,6 +2456,8 @@ ath_start_task(void *arg, int npending)
 {
 	struct ath_softc *sc = (struct ath_softc *) arg;
 	struct ifnet *ifp = sc->sc_ifp;
+
+	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_task: start");
 
 	/* XXX is it ok to hold the ATH_LOCK here? */
 	ATH_PCU_LOCK(sc);
@@ -2466,6 +2469,7 @@ ath_start_task(void *arg, int npending)
 		sc->sc_stats.ast_tx_qstop++;
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		IF_UNLOCK(&ifp->if_snd);
+		ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_task: OACTIVE, finish");
 		return;
 	}
 	sc->sc_txstart_cnt++;
@@ -2476,6 +2480,7 @@ ath_start_task(void *arg, int npending)
 	ATH_PCU_LOCK(sc);
 	sc->sc_txstart_cnt--;
 	ATH_PCU_UNLOCK(sc);
+	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start_task: finished");
 }
 
 void
@@ -2486,9 +2491,12 @@ ath_start(struct ifnet *ifp)
 	struct ath_buf *bf;
 	struct mbuf *m, *next;
 	ath_bufhead frags;
+	int npkts = 0;
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid)
 		return;
+
+	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start: called");
 
 	for (;;) {
 		ATH_TXBUF_LOCK(sc);
@@ -2517,6 +2525,7 @@ ath_start(struct ifnet *ifp)
 			break;
 		}
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
+		npkts ++;
 		/*
 		 * Check for fragmentation.  If this frame
 		 * has been broken up verify we have enough
@@ -2590,6 +2599,7 @@ ath_start(struct ifnet *ifp)
 
 		sc->sc_wd_timer = 5;
 	}
+	ATH_KTR(sc, ATH_KTR_TX, 1, "ath_start: finished; npkts=%d", npkts);
 }
 
 static int
