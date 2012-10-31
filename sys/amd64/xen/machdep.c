@@ -301,6 +301,55 @@ void xen_set_hypercall_page(vm_paddr_t);
 extern char hypercall_page[]; /* locore.s */
 extern uint64_t xenstack; /* start of Xen provided stack */
 
+/*
+ * Modify the cmd_line by converting ',' to NULLs so that it is in a  format 
+ * suitable for the static env vars.
+ * XXX: nicked from, unify with i386/xen_machdep.c
+ */
+static char *
+xen_setbootenv(char *cmd_line)
+{
+	char *cmd_line_next;
+    
+        /* Skip leading spaces */
+        for (; *cmd_line == ' '; cmd_line++);
+
+	printk("xen_setbootenv(): cmd_line='%s'\n", cmd_line);
+
+	for (cmd_line_next = cmd_line; strsep(&cmd_line_next, ",") != NULL;);
+	return cmd_line;
+}
+
+static struct 
+{
+	const char	*ev;
+	int		mask;
+} howto_names[] = {
+	{"boot_askname",	RB_ASKNAME},
+	{"boot_single",	RB_SINGLE},
+	{"boot_nosync",	RB_NOSYNC},
+	{"boot_halt",	RB_ASKNAME},
+	{"boot_serial",	RB_SERIAL},
+	{"boot_cdrom",	RB_CDROM},
+	{"boot_gdb",	RB_GDB},
+	{"boot_gdb_pause",	RB_RESERVED1},
+	{"boot_verbose",	RB_VERBOSE},
+	{"boot_multicons",	RB_MULTIPLE},
+	{NULL,	0}
+};
+
+static int 
+xen_boothowto(char *envp)
+{
+	int i, howto = 0;
+
+	/* get equivalents from the environment */
+	for (i = 0; howto_names[i].ev != NULL; i++)
+		if (getenv(howto_names[i].ev) != NULL)
+			howto |= howto_names[i].mask;
+	return howto;
+}
+
 /* 
  * Setup early kernel environment, based on start_info passed to us by
  * xen
@@ -389,12 +438,14 @@ initxen(struct start_info *si)
 	if (kmdp == NULL)
 		kmdp = preload_search_by_type("elf64 kernel");
 
-#ifdef notyet
-	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
-#endif /* notyet */
+	if (envmode == 1)
+		kern_envp = static_env;
+	else if ((caddr_t)xen_start_info->cmd_line)
+	        kern_envp = xen_setbootenv((caddr_t)xen_start_info->cmd_line);
 
-#ifdef DDB
+	boothowto |= xen_boothowto(kern_envp);
+
+#ifdef DDB /* XXX: */
 	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
 	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
 #endif
