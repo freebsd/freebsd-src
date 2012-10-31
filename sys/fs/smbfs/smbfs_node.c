@@ -349,25 +349,27 @@ smbfs_inactive(ap)
 	struct ucred *cred = td->td_ucred;
 	struct vnode *vp = ap->a_vp;
 	struct smbnode *np = VTOSMB(vp);
-	struct smb_cred scred;
+	struct smb_cred *scred;
 	struct vattr va;
 
 	SMBVDEBUG("%s: %d\n", VTOSMB(vp)->n_name, vrefcnt(vp));
 	if ((np->n_flag & NOPEN) != 0) {
-		smb_makescred(&scred, td, cred);
+		scred = smbfs_malloc_scred();
+		smb_makescred(scred, td, cred);
 		smbfs_vinvalbuf(vp, td);
 		if (vp->v_type == VREG) {
 			VOP_GETATTR(vp, &va, cred);
 			smbfs_smb_close(np->n_mount->sm_share, np->n_fid,
-			    &np->n_mtime, &scred);
+			    &np->n_mtime, scred);
 		} else if (vp->v_type == VDIR) {
 			if (np->n_dirseq != NULL) {
-				smbfs_findclose(np->n_dirseq, &scred);
+				smbfs_findclose(np->n_dirseq, scred);
 				np->n_dirseq = NULL;
 			}
 		}
 		np->n_flag &= ~NOPEN;
 		smbfs_attr_cacheremove(vp);
+		smbfs_free_scred(scred);
 	}
 	if (np->n_flag & NGONE)
 		vrecycle(vp);
