@@ -87,16 +87,19 @@ smbfs_smb_lockandx(struct smbnode *np, int op, u_int32_t pid, off_t start, off_t
 	struct smb_cred *scred)
 {
 	struct smb_share *ssp = np->n_mount->sm_share;
-	struct smb_rq rq, *rqp = &rq;
+	struct smb_rq *rqp;
 	struct mbchain *mbp;
 	u_char ltype = 0;
 	int error;
 
 	if (op == SMB_LOCK_SHARED)
 		ltype |= SMB_LOCKING_ANDX_SHARED_LOCK;
+	rqp = malloc(sizeof(struct smb_rq), M_SMBFSDATA, M_WAITOK);
 	error = smb_rq_init(rqp, SSTOCP(ssp), SMB_COM_LOCKING_ANDX, scred);
-	if (error)
+	if (error) {
+		free(rqp, M_SMBFSDATA);
 		return error;
+	}
 	smb_rq_getrequest(rqp, &mbp);
 	smb_rq_wstart(rqp);
 	mb_put_uint8(mbp, 0xff);	/* secondary command */
@@ -116,6 +119,7 @@ smbfs_smb_lockandx(struct smbnode *np, int op, u_int32_t pid, off_t start, off_t
 	smb_rq_bend(rqp);
 	error = smb_rq_simple(rqp);
 	smb_rq_done(rqp);
+	free(rqp, M_SMBFSDATA);
 	return error;
 }
 
@@ -179,20 +183,24 @@ int
 smbfs_smb_statfs(struct smb_share *ssp, struct statfs *sbp,
 	struct smb_cred *scred)
 {
-	struct smb_rq rq, *rqp = &rq;
+	struct smb_rq *rqp;
 	struct mdchain *mdp;
 	u_int16_t units, bpu, bsize, funits;
 	int error;
 
+	rqp = malloc(sizeof(struct smb_rq), M_SMBFSDATA, M_WAITOK);
 	error = smb_rq_init(rqp, SSTOCP(ssp), SMB_COM_QUERY_INFORMATION_DISK, scred);
-	if (error)
+	if (error) {
+		free(rqp, M_SMBFSDATA);
 		return error;
+	}
 	smb_rq_wstart(rqp);
 	smb_rq_wend(rqp);
 	smb_rq_bstart(rqp);
 	smb_rq_bend(rqp);
 	error = smb_rq_simple(rqp);
 	if (error) {
+		free(rqp, M_SMBFSDATA);
 		smb_rq_done(rqp);
 		return error;
 	}
@@ -208,6 +216,7 @@ smbfs_smb_statfs(struct smb_share *ssp, struct statfs *sbp,
 	sbp->f_files = 0xffff;		/* total file nodes in filesystem */
 	sbp->f_ffree = 0xffff;		/* free file nodes in fs */
 	smb_rq_done(rqp);
+	free(rqp, M_SMBFSDATA);
 	return 0;
 }
 
@@ -244,16 +253,19 @@ static int
 smb_smb_flush(struct smbnode *np, struct smb_cred *scred)
 {
 	struct smb_share *ssp = np->n_mount->sm_share;
-	struct smb_rq rq, *rqp = &rq;
+	struct smb_rq *rqp;
 	struct mbchain *mbp;
 	int error;
 
 	if ((np->n_flag & NOPEN) == 0 || !SMBTOV(np) ||
 	    SMBTOV(np)->v_type != VREG)
 		return 0; /* not a regular open file */
+	rqp = malloc(sizeof(struct smb_rq), M_SMBFSDATA, M_WAITOK);
 	error = smb_rq_init(rqp, SSTOCP(ssp), SMB_COM_FLUSH, scred);
-	if (error)
+	if (error) {
+		free(rqp, M_SMBFSDATA);
 		return (error);
+	}
 	smb_rq_getrequest(rqp, &mbp);
 	smb_rq_wstart(rqp);
 	mb_put_mem(mbp, (caddr_t)&np->n_fid, 2, MB_MSYSTEM);
@@ -262,6 +274,7 @@ smb_smb_flush(struct smbnode *np, struct smb_cred *scred)
 	smb_rq_bend(rqp);
 	error = smb_rq_simple(rqp);
 	smb_rq_done(rqp);
+	free(rqp, M_SMBFSDATA);
 	if (!error)
 		np->n_flag &= ~NFLUSHWIRE;
 	return (error);
@@ -279,7 +292,7 @@ int
 smbfs_smb_setfsize(struct smbnode *np, int newsize, struct smb_cred *scred)
 {
 	struct smb_share *ssp = np->n_mount->sm_share;
-	struct smb_rq rq, *rqp = &rq;
+	struct smb_rq *rqp;
 	struct mbchain *mbp;
 	int error;
 
@@ -288,9 +301,12 @@ smbfs_smb_setfsize(struct smbnode *np, int newsize, struct smb_cred *scred)
 		return (0);
 	}
 
+	rqp = malloc(sizeof(struct smb_rq), M_SMBFSDATA, M_WAITOK);
 	error = smb_rq_init(rqp, SSTOCP(ssp), SMB_COM_WRITE, scred);
-	if (error)
+	if (error) {
+		free(rqp, M_SMBFSDATA);
 		return error;
+	}
 	smb_rq_getrequest(rqp, &mbp);
 	smb_rq_wstart(rqp);
 	mb_put_mem(mbp, (caddr_t)&np->n_fid, 2, MB_MSYSTEM);
@@ -304,6 +320,7 @@ smbfs_smb_setfsize(struct smbnode *np, int newsize, struct smb_cred *scred)
 	smb_rq_bend(rqp);
 	error = smb_rq_simple(rqp);
 	smb_rq_done(rqp);
+	free(rqp, M_SMBFSDATA);
 	return error;
 }
 
@@ -311,7 +328,7 @@ int
 smbfs_smb_query_info(struct smbnode *np, const char *name, int len,
 		     struct smbfattr *fap, struct smb_cred *scred)
 {
-	struct smb_rq rq, *rqp = &rq;
+	struct smb_rq *rqp;
 	struct smb_share *ssp = np->n_mount->sm_share;
 	struct mbchain *mbp;
 	struct mdchain *mdp;
@@ -320,9 +337,12 @@ smbfs_smb_query_info(struct smbnode *np, const char *name, int len,
 	u_int16_t wattr;
 	u_int32_t lint;
 
+	rqp = malloc(sizeof(struct smb_rq), M_SMBFSDATA, M_WAITOK);
 	error = smb_rq_init(rqp, SSTOCP(ssp), SMB_COM_QUERY_INFORMATION, scred);
-	if (error)
+	if (error) {
+		free(rqp, M_SMBFSDATA);
 		return error;
+	}
 	smb_rq_getrequest(rqp, &mbp);
 	smb_rq_wstart(rqp);
 	smb_rq_wend(rqp);
@@ -357,6 +377,7 @@ smbfs_smb_query_info(struct smbnode *np, const char *name, int len,
 		fap->fa_size = lint;
 	} while(0);
 	smb_rq_done(rqp);
+	free(rqp, M_SMBFSDATA);
 	return error;
 }
 
@@ -367,15 +388,18 @@ int
 smbfs_smb_setpattr(struct smbnode *np, u_int16_t attr, struct timespec *mtime,
 	struct smb_cred *scred)
 {
-	struct smb_rq rq, *rqp = &rq;
+	struct smb_rq *rqp;
 	struct smb_share *ssp = np->n_mount->sm_share;
 	struct mbchain *mbp;
 	u_long time;
 	int error, svtz;
 
+	rqp = malloc(sizeof(struct smb_rq), M_SMBFSDATA, M_WAITOK);
 	error = smb_rq_init(rqp, SSTOCP(ssp), SMB_COM_SET_INFORMATION, scred);
-	if (error)
+	if (error) {
+		free(rqp, M_SMBFSDATA);
 		return error;
+	}
 	svtz = SSTOVC(ssp)->vc_sopt.sv_tz;
 	smb_rq_getrequest(rqp, &mbp);
 	smb_rq_wstart(rqp);
@@ -407,6 +431,7 @@ smbfs_smb_setpattr(struct smbnode *np, u_int16_t attr, struct timespec *mtime,
 		}
 	} while(0);
 	smb_rq_done(rqp);
+	free(rqp, M_SMBFSDATA);
 	return error;
 }
 
@@ -523,15 +548,18 @@ int
 smbfs_smb_setftime(struct smbnode *np, struct timespec *mtime,
 	struct timespec *atime, struct smb_cred *scred)
 {
-	struct smb_rq rq, *rqp = &rq;
+	struct smb_rq *rqp;
 	struct smb_share *ssp = np->n_mount->sm_share;
 	struct mbchain *mbp;
 	u_int16_t date, time;
 	int error, tzoff;
 
+	rqp = malloc(sizeof(struct smb_rq), M_SMBFSDATA, M_WAITOK);
 	error = smb_rq_init(rqp, SSTOCP(ssp), SMB_COM_SET_INFORMATION2, scred);
-	if (error)
+	if (error) {
+		free(rqp, M_SMBFSDATA);
 		return error;
+	}
 	tzoff = SSTOVC(ssp)->vc_sopt.sv_tz;
 	smb_rq_getrequest(rqp, &mbp);
 	smb_rq_wstart(rqp);
@@ -556,6 +584,7 @@ smbfs_smb_setftime(struct smbnode *np, struct timespec *mtime,
 	error = smb_rq_simple(rqp);
 	SMBSDEBUG("%d\n", error);
 	smb_rq_done(rqp);
+	free(rqp, M_SMBFSDATA);
 	return error;
 }
 
@@ -611,7 +640,7 @@ smbfs_smb_setfattrNT(struct smbnode *np, u_int16_t attr, struct timespec *mtime,
 int
 smbfs_smb_open(struct smbnode *np, int accmode, struct smb_cred *scred)
 {
-	struct smb_rq rq, *rqp = &rq;
+	struct smb_rq *rqp;
 	struct smb_share *ssp = np->n_mount->sm_share;
 	struct mbchain *mbp;
 	struct mdchain *mdp;
@@ -619,9 +648,12 @@ smbfs_smb_open(struct smbnode *np, int accmode, struct smb_cred *scred)
 	u_int16_t fid, wattr, grantedmode;
 	int error;
 
+	rqp = malloc(sizeof(struct smb_rq), M_SMBFSDATA, M_WAITOK);
 	error = smb_rq_init(rqp, SSTOCP(ssp), SMB_COM_OPEN, scred);
-	if (error)
+	if (error) {
+		free(rqp, M_SMBFSDATA);
 		return error;
+	}
 	smb_rq_getrequest(rqp, &mbp);
 	smb_rq_wstart(rqp);
 	mb_put_uint16le(mbp, accmode);
@@ -652,6 +684,7 @@ smbfs_smb_open(struct smbnode *np, int accmode, struct smb_cred *scred)
 		 */
 	} while(0);
 	smb_rq_done(rqp);
+	free(rqp, M_SMBFSDATA);
 	if (error)
 		return error;
 	np->n_fid = fid;
@@ -664,14 +697,17 @@ int
 smbfs_smb_close(struct smb_share *ssp, u_int16_t fid, struct timespec *mtime,
 	struct smb_cred *scred)
 {
-	struct smb_rq rq, *rqp = &rq;
+	struct smb_rq *rqp;
 	struct mbchain *mbp;
 	u_long time;
 	int error;
 
+	rqp = malloc(sizeof(struct smb_rq), M_SMBFSDATA, M_WAITOK);
 	error = smb_rq_init(rqp, SSTOCP(ssp), SMB_COM_CLOSE, scred);
-	if (error)
+	if (error) {
+		free(rqp, M_SMBFSDATA);
 		return error;
+	}
 	smb_rq_getrequest(rqp, &mbp);
 	smb_rq_wstart(rqp);
 	mb_put_mem(mbp, (caddr_t)&fid, sizeof(fid), MB_MSYSTEM);
@@ -685,6 +721,7 @@ smbfs_smb_close(struct smb_share *ssp, u_int16_t fid, struct timespec *mtime,
 	smb_rq_bend(rqp);
 	error = smb_rq_simple(rqp);
 	smb_rq_done(rqp);
+	free(rqp, M_SMBFSDATA);
 	return error;
 }
 
@@ -692,7 +729,7 @@ int
 smbfs_smb_create(struct smbnode *dnp, const char *name, int nmlen,
 	struct smb_cred *scred)
 {
-	struct smb_rq rq, *rqp = &rq;
+	struct smb_rq *rqp;
 	struct smb_share *ssp = dnp->n_mount->sm_share;
 	struct mbchain *mbp;
 	struct mdchain *mdp;
@@ -702,9 +739,12 @@ smbfs_smb_create(struct smbnode *dnp, const char *name, int nmlen,
 	u_long tm;
 	int error;
 
+	rqp = malloc(sizeof(struct smb_rq), M_SMBFSDATA, M_WAITOK);
 	error = smb_rq_init(rqp, SSTOCP(ssp), SMB_COM_CREATE, scred);
-	if (error)
+	if (error) {
+		free(rqp, M_SMBFSDATA);
 		return error;
+	}
 	smb_rq_getrequest(rqp, &mbp);
 	smb_rq_wstart(rqp);
 	mb_put_uint16le(mbp, SMB_FA_ARCHIVE);		/* attributes  */
@@ -731,20 +771,24 @@ smbfs_smb_create(struct smbnode *dnp, const char *name, int nmlen,
 	if (error)
 		return error;
 	smbfs_smb_close(ssp, fid, &ctime, scred);
+	free(rqp, M_SMBFSDATA);
 	return error;
 }
 
 int
 smbfs_smb_delete(struct smbnode *np, struct smb_cred *scred)
 {
-	struct smb_rq rq, *rqp = &rq;
+	struct smb_rq *rqp;
 	struct smb_share *ssp = np->n_mount->sm_share;
 	struct mbchain *mbp;
 	int error;
 
+	rqp = malloc(sizeof(struct smb_rq), M_SMBFSDATA, M_WAITOK);
 	error = smb_rq_init(rqp, SSTOCP(ssp), SMB_COM_DELETE, scred);
-	if (error)
+	if (error) {
+		free(rqp, M_SMBFSDATA);
 		return error;
+	}
 	smb_rq_getrequest(rqp, &mbp);
 	smb_rq_wstart(rqp);
 	mb_put_uint16le(mbp, SMB_FA_SYSTEM | SMB_FA_HIDDEN);
@@ -757,6 +801,7 @@ smbfs_smb_delete(struct smbnode *np, struct smb_cred *scred)
 		error = smb_rq_simple(rqp);
 	}
 	smb_rq_done(rqp);
+	free(rqp, M_SMBFSDATA);
 	return error;
 }
 
@@ -764,14 +809,17 @@ int
 smbfs_smb_rename(struct smbnode *src, struct smbnode *tdnp,
 	const char *tname, int tnmlen, struct smb_cred *scred)
 {
-	struct smb_rq rq, *rqp = &rq;
+	struct smb_rq *rqp;
 	struct smb_share *ssp = src->n_mount->sm_share;
 	struct mbchain *mbp;
 	int error;
 
+	rqp = malloc(sizeof(struct smb_rq), M_SMBFSDATA, M_WAITOK);
 	error = smb_rq_init(rqp, SSTOCP(ssp), SMB_COM_RENAME, scred);
-	if (error)
+	if (error) {
+		free(rqp, M_SMBFSDATA);
 		return error;
+	}
 	smb_rq_getrequest(rqp, &mbp);
 	smb_rq_wstart(rqp);
 	mb_put_uint16le(mbp, SMB_FA_SYSTEM | SMB_FA_HIDDEN);
@@ -790,6 +838,7 @@ smbfs_smb_rename(struct smbnode *src, struct smbnode *tdnp,
 		error = smb_rq_simple(rqp);
 	} while(0);
 	smb_rq_done(rqp);
+	free(rqp, M_SMBFSDATA);
 	return error;
 }
 
@@ -797,14 +846,17 @@ int
 smbfs_smb_move(struct smbnode *src, struct smbnode *tdnp,
 	const char *tname, int tnmlen, u_int16_t flags, struct smb_cred *scred)
 {
-	struct smb_rq rq, *rqp = &rq;
+	struct smb_rq *rqp;
 	struct smb_share *ssp = src->n_mount->sm_share;
 	struct mbchain *mbp;
 	int error;
 
+	rqp = malloc(sizeof(struct smb_rq), M_SMBFSDATA, M_WAITOK);
 	error = smb_rq_init(rqp, SSTOCP(ssp), SMB_COM_MOVE, scred);
-	if (error)
+	if (error) {
+		free(rqp, M_SMBFSDATA);
 		return error;
+	}
 	smb_rq_getrequest(rqp, &mbp);
 	smb_rq_wstart(rqp);
 	mb_put_uint16le(mbp, SMB_TID_UNKNOWN);
@@ -825,6 +877,7 @@ smbfs_smb_move(struct smbnode *src, struct smbnode *tdnp,
 		error = smb_rq_simple(rqp);
 	} while(0);
 	smb_rq_done(rqp);
+	free(rqp, M_SMBFSDATA);
 	return error;
 }
 
@@ -832,14 +885,17 @@ int
 smbfs_smb_mkdir(struct smbnode *dnp, const char *name, int len,
 	struct smb_cred *scred)
 {
-	struct smb_rq rq, *rqp = &rq;
+	struct smb_rq *rqp;
 	struct smb_share *ssp = dnp->n_mount->sm_share;
 	struct mbchain *mbp;
 	int error;
 
+	rqp = malloc(sizeof(struct smb_rq), M_SMBFSDATA, M_WAITOK);
 	error = smb_rq_init(rqp, SSTOCP(ssp), SMB_COM_CREATE_DIRECTORY, scred);
-	if (error)
+	if (error) {
+		free(rqp, M_SMBFSDATA);
 		return error;
+	}
 	smb_rq_getrequest(rqp, &mbp);
 	smb_rq_wstart(rqp);
 	smb_rq_wend(rqp);
@@ -851,20 +907,24 @@ smbfs_smb_mkdir(struct smbnode *dnp, const char *name, int len,
 		error = smb_rq_simple(rqp);
 	}
 	smb_rq_done(rqp);
+	free(rqp, M_SMBFSDATA);
 	return error;
 }
 
 int
 smbfs_smb_rmdir(struct smbnode *np, struct smb_cred *scred)
 {
-	struct smb_rq rq, *rqp = &rq;
+	struct smb_rq *rqp;
 	struct smb_share *ssp = np->n_mount->sm_share;
 	struct mbchain *mbp;
 	int error;
 
+	rqp = malloc(sizeof(struct smb_rq), M_SMBFSDATA, M_WAITOK);
 	error = smb_rq_init(rqp, SSTOCP(ssp), SMB_COM_DELETE_DIRECTORY, scred);
-	if (error)
+	if (error) {
+		free(rqp, M_SMBFSDATA);
 		return error;
+	}
 	smb_rq_getrequest(rqp, &mbp);
 	smb_rq_wstart(rqp);
 	smb_rq_wend(rqp);
@@ -876,6 +936,7 @@ smbfs_smb_rmdir(struct smbnode *np, struct smb_cred *scred)
 		error = smb_rq_simple(rqp);
 	}
 	smb_rq_done(rqp);
+	free(rqp, M_SMBFSDATA);
 	return error;
 }
 
@@ -1139,13 +1200,16 @@ smbfs_smb_trans2find2(struct smbfs_fctx *ctx)
 static int
 smbfs_smb_findclose2(struct smbfs_fctx *ctx)
 {
-	struct smb_rq rq, *rqp = &rq;
+	struct smb_rq *rqp;
 	struct mbchain *mbp;
 	int error;
 
+	rqp = malloc(sizeof(struct smb_rq), M_SMBFSDATA, M_WAITOK);
 	error = smb_rq_init(rqp, SSTOCP(ctx->f_ssp), SMB_COM_FIND_CLOSE2, ctx->f_scred);
-	if (error)
+	if (error) {
+		free(rqp, M_SMBFSDATA);
 		return error;
+	}
 	smb_rq_getrequest(rqp, &mbp);
 	smb_rq_wstart(rqp);
 	mb_put_mem(mbp, (caddr_t)&ctx->f_Sid, 2, MB_MSYSTEM);
@@ -1154,6 +1218,7 @@ smbfs_smb_findclose2(struct smbfs_fctx *ctx)
 	smb_rq_bend(rqp);
 	error = smb_rq_simple(rqp);
 	smb_rq_done(rqp);
+	free(rqp, M_SMBFSDATA);
 	return error;
 }
 

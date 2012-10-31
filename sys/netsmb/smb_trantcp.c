@@ -192,8 +192,8 @@ bad:
 static int
 nbssn_rq_request(struct nbpcb *nbp, struct thread *td)
 {
-	struct mbchain mb, *mbp = &mb;
-	struct mdchain md, *mdp = &md;
+	struct mbchain *mbp;
+	struct mdchain *mdp;
 	struct mbuf *m0;
 	struct timeval tv;
 	struct sockaddr_in sin;
@@ -201,9 +201,14 @@ nbssn_rq_request(struct nbpcb *nbp, struct thread *td)
 	u_int8_t rpcode;
 	int error, rplen;
 
+	mbp = malloc(sizeof(struct mbchain), M_NBDATA, M_WAITOK);
+	mdp = malloc(sizeof(struct mbchain), M_NBDATA, M_WAITOK);
 	error = mb_init(mbp);
-	if (error)
+	if (error) {
+		free(mbp, M_NBDATA);
+		free(mdp, M_NBDATA);
 		return error;
+	}
 	mb_put_uint32le(mbp, 0);
 	nb_put_name(mbp, nbp->nbp_paddr);
 	nb_put_name(mbp, nbp->nbp_laddr);
@@ -214,19 +219,26 @@ nbssn_rq_request(struct nbpcb *nbp, struct thread *td)
 	}
 	mb_detach(mbp);
 	mb_done(mbp);
-	if (error)
+	free(mbp, M_NBDATA);
+	if (error) {
+		free(mdp, M_NBDATA);
 		return error;
+	}
 	TIMESPEC_TO_TIMEVAL(&tv, &nbp->nbp_timo);
 	error = selsocket(nbp->nbp_tso, POLLIN, &tv, td);
 	if (error == EWOULDBLOCK) {	/* Timeout */
 		NBDEBUG("initial request timeout\n");
+		free(mdp, M_NBDATA);
 		return ETIMEDOUT;
 	}
-	if (error)			/* restart or interrupt */
+	if (error) {			/* restart or interrupt */
+		free(mdp, M_NBDATA);
 		return error;
+	}
 	error = nbssn_recv(nbp, &m0, &rplen, &rpcode, td);
 	if (error) {
 		NBDEBUG("recv() error %d\n", error);
+		free(mdp, M_NBDATA);
 		return error;
 	}
 	/*
@@ -264,6 +276,7 @@ nbssn_rq_request(struct nbpcb *nbp, struct thread *td)
 	} while(0);
 	if (m0)
 		md_done(mdp);
+	free(mdp, M_NBDATA);
 	return error;
 }
 
