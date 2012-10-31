@@ -315,6 +315,10 @@ __xencons_tx_flush(void)
 			HYPERVISOR_console_io(CONSOLEIO_write, sz, &wbuf[WBUF_MASK(wc)]);
 			wc += sz;
 		} else {
+#define remove_after_debug
+#ifdef remove_after_debug
+			HYPERVISOR_console_io(CONSOLEIO_write, sz, &wbuf[WBUF_MASK(wc)]);
+#endif
 			sent = xencons_ring_send(&wbuf[WBUF_MASK(wc)], sz);
 			if (sent == 0) 
 				break;
