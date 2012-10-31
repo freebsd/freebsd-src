@@ -534,13 +534,16 @@ initxen(struct start_info *si)
 	PCPU_SET(rsp0, (vm_offset_t) thread0.td_pcb & ~0xFul /* 16 byte aligned */);
 	PCPU_SET(curpcb, thread0.td_pcb);
 
+        HYPERVISOR_stack_switch(GSEL(GDATA_SEL, SEL_KPL), 
+		(unsigned long) PCPU_GET(rsp0)); /* Tell xen about the kernel stack */
+
 	/* setup user mode selector glue */
 	_ucodesel = GSEL(GUCODE_SEL, SEL_UPL);
 	_udatasel = GSEL(GUDATA_SEL, SEL_UPL);
 	_ufssel = GSEL(GUFS32_SEL, SEL_UPL);
 	_ugssel = GSEL(GUGS32_SEL, SEL_UPL);
 
-	return (u_int64_t) thread0.td_pcb;
+	return (u_int64_t) thread0.td_pcb  & ~0xFul /* 16 byte aligned */;
 }
 
 /*
