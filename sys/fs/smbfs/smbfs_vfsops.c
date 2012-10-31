@@ -58,8 +58,6 @@ SYSCTL_NODE(_vfs, OID_AUTO, smbfs, CTLFLAG_RW, 0, "SMB/CIFS filesystem");
 SYSCTL_INT(_vfs_smbfs, OID_AUTO, version, CTLFLAG_RD, &smbfs_version, 0, "");
 SYSCTL_INT(_vfs_smbfs, OID_AUTO, debuglevel, CTLFLAG_RW, &smbfs_debuglevel, 0, "");
 
-static MALLOC_DEFINE(M_SMBFSHASH, "smbfs_hash", "SMBFS hash table");
-
 static vfs_init_t       smbfs_init;
 static vfs_uninit_t     smbfs_uninit;
 static vfs_cmount_t     smbfs_cmount;
@@ -170,10 +168,6 @@ smbfs_mount(struct mount *mp)
 
 	smp = malloc(sizeof(*smp), M_SMBFSDATA, M_WAITOK | M_ZERO);
         mp->mnt_data = smp;
-	smp->sm_hash = hashinit(desiredvnodes, M_SMBFSHASH, &smp->sm_hashlen);
-	if (smp->sm_hash == NULL)
-		goto bad;
-	sx_init(&smp->sm_hashlock, "smbfsh");
 	smp->sm_share = ssp;
 	smp->sm_root = NULL;
 	if (1 != vfs_scanopt(mp->mnt_optnew,
@@ -243,12 +237,6 @@ smbfs_mount(struct mount *mp)
 	smbfs_free_scred(scred);
 	return error;
 bad:
-        if (smp) {
-		if (smp->sm_hash)
-			free(smp->sm_hash, M_SMBFSHASH);
-		sx_destroy(&smp->sm_hashlock);
-		free(smp, M_SMBFSDATA);
-	}
 	if (ssp)
 		smb_share_put(ssp, scred);
 	smbfs_free_scred(scred);
@@ -291,10 +279,6 @@ smbfs_unmount(struct mount *mp, int mntflags)
 		goto out;
 	smb_share_put(smp->sm_share, scred);
 	mp->mnt_data = NULL;
-
-	if (smp->sm_hash)
-		free(smp->sm_hash, M_SMBFSHASH);
-	sx_destroy(&smp->sm_hashlock);
 	free(smp, M_SMBFSDATA);
 	MNT_ILOCK(mp);
 	mp->mnt_flag &= ~MNT_LOCAL;
