@@ -116,10 +116,10 @@ __FBSDID("$FreeBSD$");
  */
 
 struct vpgqueues vm_page_queues[PQ_COUNT];
-struct vpglocks vm_page_queue_lock;
-struct vpglocks vm_page_queue_free_lock;
+struct mtx_padalign vm_page_queue_mtx;
+struct mtx_padalign vm_page_queue_free_mtx;
 
-struct vpglocks	pa_lock[PA_LOCK_COUNT];
+struct mtx_padalign pa_lock[PA_LOCK_COUNT];
 
 vm_page_t vm_page_array;
 long vm_page_array_size;
@@ -298,7 +298,7 @@ vm_page_startup(vm_offset_t vaddr)
 	    MTX_RECURSE);
 	mtx_init(&vm_page_queue_free_mtx, "vm page free queue", NULL, MTX_DEF);
 	for (i = 0; i < PA_LOCK_COUNT; i++)
-		mtx_init(&pa_lock[i].data, "vm page", NULL, MTX_DEF);
+		mtx_init(&pa_lock[i], "vm page", NULL, MTX_DEF);
 
 	/*
 	 * Initialize the queue headers for the hold queue, the active queue,
