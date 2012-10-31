@@ -213,7 +213,8 @@ fbsdrun_addcpu(struct vmctx *ctx, int vcpu, uint64_t rip)
 	int error;
 
 	if (cpumask & (1 << vcpu)) {
-		printf("addcpu: attempting to add existing cpu %d\n", vcpu);
+		fprintf(stderr, "addcpu: attempting to add existing cpu %d\n",
+		    vcpu);
 		exit(1);
 	}
 
@@ -325,7 +326,8 @@ vmexit_inout(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 static int
 vmexit_rdmsr(struct vmctx *ctx, struct vm_exit *vme, int *pvcpu)
 {
-	printf("vm exit rdmsr 0x%x, cpu %d\n", vme->u.msr.code, *pvcpu);
+	fprintf(stderr, "vm exit rdmsr 0x%x, cpu %d\n", vme->u.msr.code,
+	    *pvcpu);
 	return (VMEXIT_ABORT);
 }
 
@@ -366,13 +368,14 @@ static int
 vmexit_vmx(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 {
 
-	printf("vm exit[%d]\n", *pvcpu);
-	printf("\treason\t\tVMX\n");
-	printf("\trip\t\t0x%016lx\n", vmexit->rip);
-	printf("\tinst_length\t%d\n", vmexit->inst_length);
-	printf("\terror\t\t%d\n", vmexit->u.vmx.error);
-	printf("\texit_reason\t%u\n", vmexit->u.vmx.exit_reason);
-	printf("\tqualification\t0x%016lx\n", vmexit->u.vmx.exit_qualification);
+	fprintf(stderr, "vm exit[%d]\n", *pvcpu);
+	fprintf(stderr, "\treason\t\tVMX\n");
+	fprintf(stderr, "\trip\t\t0x%016lx\n", vmexit->rip);
+	fprintf(stderr, "\tinst_length\t%d\n", vmexit->inst_length);
+	fprintf(stderr, "\terror\t\t%d\n", vmexit->u.vmx.error);
+	fprintf(stderr, "\texit_reason\t%u\n", vmexit->u.vmx.exit_reason);
+	fprintf(stderr, "\tqualification\t0x%016lx\n",
+	    vmexit->u.vmx.exit_qualification);
 
 	return (VMEXIT_ABORT);
 }
@@ -445,11 +448,12 @@ vmexit_paging(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 
 	if (err) {
 		if (err == EINVAL) {
-			printf("Failed to emulate instruction at 0x%lx\n", 
-			       vmexit->rip);
+			fprintf(stderr,
+			    "Failed to emulate instruction at 0x%lx\n", 
+			    vmexit->rip);
 		} else if (err == ESRCH) {
-			printf("Unhandled memory access to 0x%lx\n",
-			       vmexit->u.paging.gpa);
+			fprintf(stderr, "Unhandled memory access to 0x%lx\n",
+			    vmexit->u.paging.gpa);
 		}
 
 		return (VMEXIT_ABORT);
@@ -643,6 +647,12 @@ main(int argc, char *argv[])
 	if (guest_ncpus <= 1)
 		guest_vcpu_mux = 0;
 
+	if (guest_ncpus > VM_MAXCPU) {
+		fprintf(stderr, "%d vCPUs requested, max %d\n",
+		    guest_ncpus, VM_MAXCPU);
+		exit(1);
+	}
+
 	/* vmexit on hlt if guest is muxed */
 	if (guest_vcpu_mux) {
 		guest_vmexit_on_hlt = 1;
@@ -660,7 +670,7 @@ main(int argc, char *argv[])
 	if (fbsdrun_vmexit_on_hlt()) {
 		err = vm_get_capability(ctx, BSP, VM_CAP_HALT_EXIT, &tmp);
 		if (err < 0) {
-			printf("VM exit on HLT not supported\n");
+			fprintf(stderr, "VM exit on HLT not supported\n");
 			exit(1);
 		}
 		vm_set_capability(ctx, BSP, VM_CAP_HALT_EXIT, 1);
@@ -673,7 +683,8 @@ main(int argc, char *argv[])
 		 */
 		err = vm_get_capability(ctx, BSP, VM_CAP_PAUSE_EXIT, &tmp);
 		if (err < 0) {
-			printf("SMP mux requested, no pause support\n");
+			fprintf(stderr,
+			    "SMP mux requested, no pause support\n");
 			exit(1);
 		}
 		vm_set_capability(ctx, BSP, VM_CAP_PAUSE_EXIT, 1);
@@ -686,7 +697,7 @@ main(int argc, char *argv[])
 		err = vm_set_x2apic_state(ctx, BSP, X2APIC_ENABLED);
 
 	if (err) {
-		printf("Unable to set x2apic state (%d)\n", err);
+		fprintf(stderr, "Unable to set x2apic state (%d)\n", err);
 		exit(1);
 	}
 
