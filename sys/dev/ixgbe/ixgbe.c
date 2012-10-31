@@ -4688,7 +4688,7 @@ ixgbe_rxeof(struct ix_queue *que, int count)
 				/* first desc of a non-ps chain */
 				sendmp->m_flags |= M_PKTHDR;
 				sendmp->m_pkthdr.len = mp->m_len;
-				if (staterr & IXGBE_RXD_STAT_VP) {
+                                if (vtag) {
 					sendmp->m_pkthdr.ether_vtag = vtag;
 					sendmp->m_flags |= M_VLANTAG;
 				}
