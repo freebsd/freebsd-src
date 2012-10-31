@@ -390,7 +390,12 @@ nvme_qpair_submit_cmd(struct nvme_qpair *qpair, struct nvme_tracker *tr)
 	req->cmd.cid = tr->cid;
 	qpair->act_tr[tr->cid] = tr;
 
+#if __FreeBSD_version >= 800030
+	callout_reset_curcpu(&tr->timer, NVME_TIMEOUT_IN_SEC * hz,
+	    nvme_timeout, tr);
+#else
 	callout_reset(&tr->timer, NVME_TIMEOUT_IN_SEC * hz, nvme_timeout, tr);
+#endif
 
 	/* Copy the command from the tracker to the submission queue. */
 	memcpy(&qpair->cmd[qpair->sq_tail], &req->cmd, sizeof(req->cmd));
