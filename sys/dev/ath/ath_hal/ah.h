@@ -119,7 +119,6 @@ typedef enum {
 	HAL_CAP_NUM_GPIO_PINS	= 36,	/* number of GPIO pins */
 
 	HAL_CAP_CST		= 38,	/* hardware supports carrier sense timeout */
-
 	HAL_CAP_RIFS_RX		= 39,
 	HAL_CAP_RIFS_TX		= 40,
 	HAL_CAP_FORCE_PPM	= 41,
@@ -156,7 +155,6 @@ typedef enum {
 	HAL_CAP_RXFIFODEPTH	= 80,	/* Receive hardware FIFO depth */
 	HAL_CAP_RXBUFSIZE	= 81,	/* Receive Buffer Length */
 	HAL_CAP_NUM_MR_RETRIES	= 82,	/* limit on multirate retries */
-
 	HAL_CAP_OL_PWRCTRL	= 84,	/* Open loop TX power control */
 
 	HAL_CAP_BB_PANIC_WATCHDOG	= 92,
@@ -229,6 +227,11 @@ typedef enum {
 
 #define	HAL_NUM_TX_QUEUES	10		/* max possible # of queues */
 
+/*
+ * Receive queue types.  These are used to tag
+ * each transmit queue in the hardware and to identify a set
+ * of transmit queues for operations such as start/stop dma.
+ */
 typedef enum {
 	HAL_RX_QUEUE_HP = 0,			/* high priority recv queue */
 	HAL_RX_QUEUE_LP = 1,			/* low priority recv queue */
@@ -417,6 +420,23 @@ typedef enum {
 } HAL_POWER_MODE;
 
 /*
+ * Enterprise mode flags
+ */
+#define	AH_ENT_DUAL_BAND_DISABLE	0x00000001
+#define	AH_ENT_CHAIN2_DISABLE		0x00000002
+#define	AH_ENT_5MHZ_DISABLE		0x00000004
+#define	AH_ENT_10MHZ_DISABLE		0x00000008
+#define	AH_ENT_49GHZ_DISABLE		0x00000010
+#define	AH_ENT_LOOPBACK_DISABLE		0x00000020
+#define	AH_ENT_TPC_PERF_DISABLE		0x00000040
+#define	AH_ENT_MIN_PKT_SIZE_DISABLE	0x00000080
+#define	AH_ENT_SPECTRAL_PRECISION	0x00000300
+#define	AH_ENT_SPECTRAL_PRECISION_S	8
+#define	AH_ENT_RTSCTS_DELIM_WAR		0x00010000
+
+#define AH_FIRST_DESC_NDELIMS 60
+
+/*
  * NOTE WELL:
  * These are mapped to take advantage of the common locations for many of
  * the bits on all of the currently supported MAC chips. This is to make
@@ -455,7 +475,7 @@ typedef enum {
 	HAL_INT_TSFOOR	= 0x04000000,	/* Non-common mapping */
 	HAL_INT_TBTT	= 0x08000000,	/* Non-common mapping */
 	/* Atheros ref driver has a generic timer interrupt now..*/
-	HAL_INT_GENTIMER	= 0x08000000,   /* Non-common mapping */
+	HAL_INT_GENTIMER	= 0x08000000,	/* Non-common mapping */
 	HAL_INT_CST	= 0x10000000,	/* Non-common mapping */
 	HAL_INT_GTT	= 0x20000000,	/* Non-common mapping */
 	HAL_INT_FATAL	= 0x40000000,	/* Non-common mapping */
@@ -507,6 +527,33 @@ typedef enum {
 	HAL_INT_THRESHOLD
 } HAL_INT_MITIGATION;
 
+/* XXX this is duplicate information! */
+typedef struct {
+	u_int32_t	cyclecnt_diff;		/* delta cycle count */
+	u_int32_t	rxclr_cnt;		/* rx clear count */
+	u_int32_t	txframecnt_diff;	/* delta tx frame count */
+	u_int32_t	rxframecnt_diff;	/* delta rx frame count */
+	u_int32_t	listen_time;		/* listen time in msec - time for which ch is free */
+	u_int32_t	ofdmphyerr_cnt;		/* OFDM err count since last reset */
+	u_int32_t	cckphyerr_cnt;		/* CCK err count since last reset */
+	u_int32_t	ofdmphyerrcnt_diff;	/* delta OFDM Phy Error Count */
+	HAL_BOOL	valid;			/* if the stats are valid*/
+} HAL_ANISTATS;
+
+typedef struct {
+	u_int8_t	txctl_offset;
+	u_int8_t	txctl_numwords;
+	u_int8_t	txstatus_offset;
+	u_int8_t	txstatus_numwords;
+
+	u_int8_t	rxctl_offset;
+	u_int8_t	rxctl_numwords;
+	u_int8_t	rxstatus_offset;
+	u_int8_t	rxstatus_numwords;
+
+	u_int8_t	macRevision;
+} HAL_DESC_INFO;
+
 typedef enum {
 	HAL_GPIO_OUTPUT_MUX_AS_OUTPUT		= 0,
 	HAL_GPIO_OUTPUT_MUX_PCIE_ATTENTION_LED	= 1,
@@ -544,6 +591,17 @@ typedef struct {
 	uint32_t	fcs_bad;
 	uint32_t	beacons;
 } HAL_MIB_STATS;
+
+/*
+ * These bits represent what's in ah_currentRDext.
+ */
+typedef enum {
+	REG_EXT_FCC_MIDBAND		= 0,
+	REG_EXT_JAPAN_MIDBAND		= 1,
+	REG_EXT_FCC_DFS_HT40		= 2,
+	REG_EXT_JAPAN_NONDFS_HT40	= 3,
+	REG_EXT_JAPAN_DFS_HT40		= 4
+} REG_EXT_BITMAP;
 
 enum {
 	HAL_MODE_11A	= 0x001,		/* 11a channels */
@@ -613,7 +671,7 @@ typedef struct {
 #define	HAL_RATESERIES_2040		0x0002	/* use ext channel for series */
 #define	HAL_RATESERIES_HALFGI		0x0004	/* use half-gi for series */
 #define	HAL_RATESERIES_STBC		0x0008	/* use STBC for series */
-	u_int	tx_power_cap;
+	u_int	tx_power_cap;		/* in 1/2 dBm units XXX TODO */
 } HAL_11N_RATE_SERIES;
 
 typedef enum {
@@ -636,6 +694,11 @@ typedef enum {
 	HAL_RX_CLEAR_CTL_LOW	= 0x1,	/* force control channel to appear busy */
 	HAL_RX_CLEAR_EXT_LOW	= 0x2,	/* force extension channel to appear busy */
 } HAL_HT_RXCLEAR;
+
+typedef enum {
+	HAL_FREQ_BAND_5GHZ	= 0,
+	HAL_FREQ_BAND_2GHZ	= 1,
+} HAL_FREQ_BAND;
 
 /*
  * Antenna switch control.  By default antenna selection
@@ -664,6 +727,18 @@ typedef struct {
 	uint8_t		kv_mic[8];		/* TKIP MIC key */
 	uint8_t		kv_txmic[8];		/* TKIP TX MIC key (optional) */
 } HAL_KEYVAL;
+
+/*
+ * This is the TX descriptor field which marks the key padding requirement.
+ * The naming is unfortunately unclear.
+ */
+#define AH_KEYTYPE_MASK     0x0F
+typedef enum {
+    HAL_KEY_TYPE_CLEAR,
+    HAL_KEY_TYPE_WEP,
+    HAL_KEY_TYPE_AES,
+    HAL_KEY_TYPE_TKIP,
+} HAL_KEY_TYPE;
 
 typedef enum {
 	HAL_CIPHER_WEP		= 0,
@@ -694,8 +769,10 @@ typedef struct {
 	uint32_t	bs_nextdtim;		/* next DTIM in TU */
 	uint32_t	bs_intval;		/* beacon interval+flags */
 #define	HAL_BEACON_PERIOD	0x0000ffff	/* beacon interval period */
+#define	HAL_BEACON_PERIOD_TU8	0x0007ffff	/* beacon interval, tu/8 */
 #define	HAL_BEACON_ENA		0x00800000	/* beacon xmit enable */
 #define	HAL_BEACON_RESET_TSF	0x01000000	/* clear TSF */
+#define	HAL_TSFOOR_THRESHOLD	0x00004240	/* TSF OOR thresh (16k uS) */
 	uint32_t	bs_dtimperiod;
 	uint16_t	bs_cfpperiod;		/* CFP period in TU */
 	uint16_t	bs_cfpmaxduration;	/* max CFP duration in TU */
@@ -703,6 +780,7 @@ typedef struct {
 	uint16_t	bs_timoffset;		/* byte offset to TIM bitmap */
 	uint16_t	bs_bmissthreshold;	/* beacon miss threshold */
 	uint32_t	bs_sleepduration;	/* max sleep duration */
+	uint32_t	bs_tsfoor_threshold;	/* TSF out of range threshold */
 } HAL_BEACON_STATE;
 
 /*
@@ -732,6 +810,7 @@ typedef struct {
 } HAL_NODE_STATS;
 
 #define	HAL_RSSI_EP_MULTIPLIER	(1<<7)	/* pow2 to optimize out * and / */
+
 
 struct ath_desc;
 struct ath_tx_status;
@@ -790,6 +869,8 @@ typedef enum {
 	HAL_ANI_MRC_CCK = 8,
 } HAL_ANI_CMD;
 
+#define	HAL_ANI_ALL		0xffffffff
+
 /*
  * This is the layout of the ANI INTMIT capability.
  *
@@ -805,7 +886,6 @@ typedef enum {
 	HAL_CAP_INTMIT_SPUR_IMMUNITY_LEVEL = 6
 } HAL_CAP_INTMIT_CMD;
 
-/* DFS defines */
 typedef struct {
 	int32_t		pe_firpwr;	/* FIR pwr out threshold */
 	int32_t		pe_rrssi;	/* Radar rssi thresh */
@@ -845,10 +925,10 @@ typedef enum {
 	HAL_DFS_MKK4_DOMAIN	= 3,	/* Japan dfs domain */
 } HAL_DFS_DOMAIN;
 
+
 /*
  * MFP decryption options for initializing the MAC.
  */
-
 typedef enum {
 	HAL_MFP_QOSDATA = 0,	/* Decrypt MFP frames like QoS data frames. All chips before Merlin. */
 	HAL_MFP_PASSTHRU,	/* Don't decrypt MFP frames at all. Passthrough */
@@ -901,6 +981,20 @@ struct hal_dfs_event {
 	uint32_t	re_flags;	/* Flags (see above) */
 };
 typedef struct hal_dfs_event HAL_DFS_EVENT;
+
+/*
+ * Generic Timer domain
+ */
+typedef enum {
+	HAL_GEN_TIMER_TSF = 0,
+	HAL_GEN_TIMER_TSF2,
+	HAL_GEN_TIMER_TSF_ANY
+} HAL_GEN_TIMER_DOMAIN;
+
+typedef enum {
+	HAL_RESET_NONE = 0x0,
+	HAL_RESET_BBPANIC = 0x1,
+} HAL_RESET_TYPE;
 
 /*
  * BT Co-existence definitions
@@ -1035,6 +1129,34 @@ typedef struct {
 	HAL_BOOL	bt_hold_rxclear;
 } HAL_BT_COEX_CONFIG;
 
+struct hal_bb_panic_info {
+	u_int32_t	status;
+	u_int32_t	tsf;
+	u_int32_t	phy_panic_wd_ctl1;
+	u_int32_t	phy_panic_wd_ctl2;
+	u_int32_t	phy_gen_ctrl;
+	u_int32_t	rxc_pcnt;
+	u_int32_t	rxf_pcnt;
+	u_int32_t	txf_pcnt;
+	u_int32_t	cycles;
+	u_int32_t	wd;
+	u_int32_t	det;
+	u_int32_t	rdar;
+	u_int32_t	r_odfm;
+	u_int32_t	r_cck;
+	u_int32_t	t_odfm;
+	u_int32_t	t_cck;
+	u_int32_t	agc;
+	u_int32_t	src;
+};
+
+/* Serialize Register Access Mode */
+typedef enum {
+	SER_REG_MODE_OFF	= 0,
+	SER_REG_MODE_ON		= 1,
+	SER_REG_MODE_AUTO	= 2,
+} SER_REG_MODE;
+
 typedef struct
 {
 	int ah_debug;			/* only used if AH_DEBUG is defined */
@@ -1046,6 +1168,44 @@ typedef struct
 	int ah_additional_swba_backoff;	/* in TU's */
 	int ah_force_full_reset;	/* force full chip reset rather then warm reset */
 	int ah_serialise_reg_war;	/* force serialisation of register IO */
+
+	/* XXX these don't belong here, they're just for the ar9300  HAL port effort */
+	int ath_hal_desc_tpc;		/* Per-packet TPC */
+	int ath_hal_sta_update_tx_pwr_enable;	/* GreenTX */
+	int ath_hal_sta_update_tx_pwr_enable_S1;	/* GreenTX */
+	int ath_hal_sta_update_tx_pwr_enable_S2;	/* GreenTX */
+	int ath_hal_sta_update_tx_pwr_enable_S3;	/* GreenTX */
+
+	/* I'm not sure what the default values for these should be */
+	int ath_hal_pll_pwr_save;
+	int ath_hal_pcie_power_save_enable;
+	int ath_hal_intr_mitigation_rx;
+	int ath_hal_intr_mitigation_tx;
+
+	int ath_hal_pcie_clock_req;
+#define	AR_PCIE_PLL_PWRSAVE_CONTROL	(1<<0)
+#define	AR_PCIE_PLL_PWRSAVE_ON_D3	(1<<1)
+#define	AR_PCIE_PLL_PWRSAVE_ON_D0	(1<<2)
+
+	int ath_hal_pcie_waen;
+	int ath_hal_pcie_ser_des_write;
+
+	/* these are important for correct AR9300 behaviour */
+	int ath_hal_ht_enable;		/* needs to be enabled for AR9300 HT */
+	int ath_hal_diversity_control;
+	int ath_hal_antenna_switch_swap;
+	int ath_hal_ext_lna_ctl_gpio;
+	int ath_hal_spur_mode;
+	int ath_hal_6mb_ack;		/* should set this to 1 for 11a/11na? */
+	int ath_hal_enable_msi;		/* enable MSI interrupts (needed?) */
+	int ath_hal_beacon_filter_interval;	/* ok to be 0 for now? */
+
+	/* For now, set this to 0 - net80211 needs to know about hardware MFP support */
+	int ath_hal_mfp_support;
+
+	int ath_hal_enable_ani;	/* should set this.. */
+	int ath_hal_cwm_ignore_ext_cca;
+	int ath_hal_show_bb_panic;
 } HAL_OPS_CONFIG;
 
 /*
@@ -1298,12 +1458,23 @@ struct ath_hal {
 	void	  __ahdecl(*ah_set11nRateScenario)(struct ath_hal *,
 	    			struct ath_desc *, u_int, u_int,
 				HAL_11N_RATE_SERIES [], u_int, u_int);
+
+	/*
+	 * The next 4 (set11ntxdesc -> set11naggrlast) are specific
+	 * to the EDMA HAL.  Descriptors are chained together by
+	 * using filltxdesc (not ChainTxDesc) and then setting the
+	 * aggregate flags appropriately using first/middle/last.
+	 */
+	void	  __ahdecl(*ah_set11nTxDesc)(struct ath_hal *,
+				void *, u_int, HAL_PKT_TYPE, u_int, u_int,
+				u_int);
 	void	  __ahdecl(*ah_set11nAggrFirst)(struct ath_hal *,
 				struct ath_desc *, u_int);
 	void	  __ahdecl(*ah_set11nAggrMiddle)(struct ath_hal *,
 	    			struct ath_desc *, u_int);
 	void	  __ahdecl(*ah_set11nAggrLast)(struct ath_hal *,
 				struct ath_desc *);
+
 	void	  __ahdecl(*ah_clr11nAggr)(struct ath_hal *,
 	    			struct ath_desc *);
 	void	  __ahdecl(*ah_set11nBurstDuration)(struct ath_hal *,
