@@ -47,7 +47,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.4.8";
+char ixgbe_driver_version[] = "2.4.11";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -181,6 +181,9 @@ static __inline void ixgbe_rx_discard(struct rx_ring *, int);
 static __inline void ixgbe_rx_input(struct rx_ring *, struct ifnet *,
 		    struct mbuf *, u32);
 
+static void	ixgbe_enable_rx_drop(struct adapter *);
+static void	ixgbe_disable_rx_drop(struct adapter *);
+
 /* Support for pluggable optic modules */
 static bool	ixgbe_sfp_probe(struct adapter *);
 static void	ixgbe_setup_optics(struct adapter *);
@@ -291,6 +294,20 @@ TUNABLE_INT("hw.ixgbe.txd", &ixgbe_txd);
 /* Number of RX descriptors per ring */
 static int ixgbe_rxd = PERFORM_RXD;
 TUNABLE_INT("hw.ixgbe.rxd", &ixgbe_rxd);
+
+/*
+** HW RSC control: 
+**  this feature only works with
+**  IPv4, and only on 82599 and later.
+**  Also this will cause IP forwarding to
+**  fail and that can't be controlled by
+**  the stack as LRO can. For all these
+**  reasons I've deemed it best to leave
+**  this off and not bother with a tuneable
+**  interface, this would need to be compiled
+**  to enable.
+*/
+static bool ixgbe_rsc_enable = FALSE;
 
 /* Keep running tab on them for sanity check */
 static int ixgbe_total_ports;
@@ -1667,7 +1684,7 @@ ixgbe_media_status(struct ifnet * ifp, struct ifmediareq * ifmr)
 			ifmr->ifm_active |= IFM_100_TX | IFM_FDX;
 			break;
 		case IXGBE_LINK_SPEED_1GB_FULL:
-			ifmr->ifm_active |= IFM_1000_T | IFM_FDX;
+			ifmr->ifm_active |= adapter->optics | IFM_FDX;
 			break;
 		case IXGBE_LINK_SPEED_10GB_FULL:
 			ifmr->ifm_active |= adapter->optics | IFM_FDX;
@@ -2035,7 +2052,6 @@ ixgbe_local_timer(void *arg)
 
 	/*
 	** Check the TX queues status
-	**      - central locked handling of OACTIVE
 	**      - watchdog only if all queues show hung
 	*/          
 	for (int i = 0; i < adapter->num_queues; i++, que++, txr++) {
@@ -2207,6 +2223,11 @@ ixgbe_setup_optics(struct adapter *adapter)
 
 	if (layer & IXGBE_PHYSICAL_LAYER_1000BASE_T) {
 		adapter->optics = IFM_1000_T;
+		return;
+	}
+
+	if (layer & IXGBE_PHYSICAL_LAYER_1000BASE_SX) {
+		adapter->optics = IFM_1000_SX;
 		return;
 	}
 
@@ -2617,13 +2638,11 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 
 	ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_TSO | IFCAP_VLAN_HWCSUM;
 	ifp->if_capabilities |= IFCAP_JUMBO_MTU;
+	ifp->if_capabilities |= IFCAP_LRO;
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING
 			     |  IFCAP_VLAN_HWTSO
 			     |  IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
-
-	/* Don't enable LRO by default */
-	ifp->if_capabilities |= IFCAP_LRO;
 
 	/*
 	** Don't turn this on by default, if vlans are
@@ -3899,6 +3918,10 @@ ixgbe_rsc_count(union ixgbe_adv_rx_desc *rx)
  *  for an RX ring, this is toggled by the LRO capability
  *  even though it is transparent to the stack.
  *
+ *  NOTE: since this HW feature only works with IPV4 and 
+ *        our testing has shown soft LRO to be as effective
+ *        I have decided to disable this by default.
+ *
  **********************************************************************/
 static void
 ixgbe_setup_hw_rsc(struct rx_ring *rxr)
@@ -3906,6 +3929,13 @@ ixgbe_setup_hw_rsc(struct rx_ring *rxr)
 	struct	adapter 	*adapter = rxr->adapter;
 	struct	ixgbe_hw	*hw = &adapter->hw;
 	u32			rscctrl, rdrxctl;
+
+	/* If turning LRO/RSC off we need to disable it */
+	if ((adapter->ifp->if_capenable & IFCAP_LRO) == 0) {
+		rscctrl = IXGBE_READ_REG(hw, IXGBE_RSCCTL(rxr->me));
+		rscctrl &= ~IXGBE_RSCCTL_RSCEN;
+		return;
+	}
 
 	rdrxctl = IXGBE_READ_REG(hw, IXGBE_RDRXCTL);
 	rdrxctl &= ~IXGBE_RDRXCTL_RSCFRSTSIZE;
@@ -4108,12 +4138,8 @@ skip_head:
 
 	/*
 	** Now set up the LRO interface:
-	** 82598 uses software LRO, the
-	** 82599 and X540 use a hardware assist.
 	*/
-	if ((adapter->hw.mac.type != ixgbe_mac_82598EB) &&
-	    (ifp->if_capenable & IFCAP_RXCSUM) &&
-	    (ifp->if_capenable & IFCAP_LRO))
+	if (ixgbe_rsc_enable)
 		ixgbe_setup_hw_rsc(rxr);
 	else if (ifp->if_capenable & IFCAP_LRO) {
 		int err = tcp_lro_init(lro);
@@ -5737,10 +5763,14 @@ ixgbe_set_flowcntl(SYSCTL_HANDLER_ARGS)
 		case ixgbe_fc_tx_pause:
 		case ixgbe_fc_full:
 			adapter->hw.fc.requested_mode = adapter->fc;
+			if (adapter->num_queues > 1)
+				ixgbe_disable_rx_drop(adapter);
 			break;
 		case ixgbe_fc_none:
 		default:
 			adapter->hw.fc.requested_mode = ixgbe_fc_none;
+			if (adapter->num_queues > 1)
+				ixgbe_enable_rx_drop(adapter);
 	}
 	/* Don't autoneg if forcing a value */
 	adapter->hw.fc.disable_fc_autoneg = TRUE;
@@ -5836,4 +5866,35 @@ ixgbe_set_thermal_test(SYSCTL_HANDLER_ARGS)
 	}
 
 	return (0);
+}
+
+/*
+** Enable the hardware to drop packets when the buffer is
+** full. This is useful when multiqueue,so that no single
+** queue being full stalls the entire RX engine. We only
+** enable this when Multiqueue AND when Flow Control is 
+** disabled.
+*/
+static void
+ixgbe_enable_rx_drop(struct adapter *adapter)
+{
+        struct ixgbe_hw *hw = &adapter->hw;
+
+	for (int i = 0; i < adapter->num_queues; i++) {
+        	u32 srrctl = IXGBE_READ_REG(hw, IXGBE_SRRCTL(i));
+        	srrctl |= IXGBE_SRRCTL_DROP_EN;
+        	IXGBE_WRITE_REG(hw, IXGBE_SRRCTL(i), srrctl);
+	}
+}
+
+static void
+ixgbe_disable_rx_drop(struct adapter *adapter)
+{
+        struct ixgbe_hw *hw = &adapter->hw;
+
+	for (int i = 0; i < adapter->num_queues; i++) {
+        	u32 srrctl = IXGBE_READ_REG(hw, IXGBE_SRRCTL(i));
+        	srrctl &= ~IXGBE_SRRCTL_DROP_EN;
+        	IXGBE_WRITE_REG(hw, IXGBE_SRRCTL(i), srrctl);
+	}
 }
