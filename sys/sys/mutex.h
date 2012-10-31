@@ -79,7 +79,8 @@
  *
  * NOTE: Functions prepended with `_' (underscore) are exported to other parts
  *	 of the kernel via macros, thus allowing us to use the cpp LOCK_FILE
- *	 and LOCK_LINE. These functions should not be called directly by any
+ *	 and LOCK_LINE or for hiding the lock cookie crunching to the
+ *	 consumers. These functions should not be called directly by any
  *	 code using the API. Their macros cover their functionality.
  *	 Functions with a `_' suffix are the entrypoint for the common
  *	 KPI covering both compat shims and fast path case.  These can be
@@ -89,28 +90,32 @@
  * [See below for descriptions]
  *
  */
-void	mtx_init(struct mtx *m, const char *name, const char *type, int opts);
-void	mtx_destroy(struct mtx *m);
+void	_mtx_init(volatile uintptr_t *c, const char *name, const char *type,
+	    int opts);
+void	_mtx_destroy(volatile uintptr_t *c);
 void	mtx_sysinit(void *arg);
-int	mtx_trylock_flags_(struct mtx *m, int opts, const char *file,
+int	_mtx_trylock_flags_(volatile uintptr_t *c, int opts, const char *file,
 	    int line);
 void	mutex_init(void);
-void	_mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts,
+void	__mtx_lock_sleep(volatile uintptr_t *c, uintptr_t tid, int opts,
 	    const char *file, int line);
-void	_mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line);
+void	__mtx_unlock_sleep(volatile uintptr_t *c, int opts, const char *file,
+	    int line);
 #ifdef SMP
-void	_mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts,
+void	_mtx_lock_spin_cookie(volatile uintptr_t *c, uintptr_t tid, int opts,
 	    const char *file, int line);
 #endif
-void	_mtx_unlock_spin(struct mtx *m, int opts, const char *file, int line);
-void	_mtx_lock_flags(struct mtx *m, int opts, const char *file, int line);
-void	_mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line);
-void	_mtx_lock_spin_flags(struct mtx *m, int opts, const char *file,
+void	__mtx_lock_flags(volatile uintptr_t *c, int opts, const char *file,
+	    int line);
+void	__mtx_unlock_flags(volatile uintptr_t *c, int opts, const char *file,
+	    int line);
+void	__mtx_lock_spin_flags(volatile uintptr_t *c, int opts, const char *file,
 	     int line);
-void	_mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file,
-	     int line);
+void	__mtx_unlock_spin_flags(volatile uintptr_t *c, int opts,
+	    const char *file, int line);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
-void	_mtx_assert(const struct mtx *m, int what, const char *file, int line);
+void	__mtx_assert(const volatile uintptr_t *c, int what, const char *file,
+	    int line);
 #endif
 void	thread_lock_flags_(struct thread *, int, const char *, int);
 
@@ -120,6 +125,38 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 	thread_lock_flags_((tdp), (opt), __FILE__, __LINE__)
 #define	thread_unlock(tdp)						\
        mtx_unlock_spin((tdp)->td_lock)
+
+/*
+ * Top-level macros to provide lock cookie once the actual mtx is passed.
+ * They will also prevent passing a malformed object to the mtx KPI by
+ * failing compilation.
+ */
+#define	mtx_init(m, n, t, o)						\
+	_mtx_init(&(m)->mtx_lock, n, t, o)
+#define	mtx_destroy(m)							\
+	_mtx_destroy(&(m)->mtx_lock)
+#define	mtx_trylock_flags_(m, o, f, l)					\
+	_mtx_trylock_flags_(&(m)->mtx_lock, o, f, l)
+#define	_mtx_lock_sleep(m, t, o, f, l)					\
+	__mtx_lock_sleep(&(m)->mtx_lock, t, o, f, l)
+#define	_mtx_unlock_sleep(m, o, f, l)					\
+	__mtx_unlock_sleep(&(m)->mtx_lock, o, f, l)
+#ifdef SMP
+#define	_mtx_lock_spin(m, t, o, f, l)					\
+	_mtx_lock_spin_cookie(&(m)->mtx_lock, t, o, f, l)
+#endif
+#define	_mtx_lock_flags(m, o, f, l)					\
+	__mtx_lock_flags(&(m)->mtx_lock, o, f, l)
+#define	_mtx_unlock_flags(m, o, f, l)					\
+	__mtx_unlock_flags(&(m)->mtx_lock, o, f, l)
+#define	_mtx_lock_spin_flags(m, o, f, l)				\
+	__mtx_lock_spin_flags(&(m)->mtx_lock, o, f, l)
+#define	_mtx_unlock_spin_flags(m, o, f, l)				\
+	__mtx_unlock_spin_flags(&(m)->mtx_lock, o, f, l)
+#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
+#define	_mtx_assert(m, w, f, l)						\
+	__mtx_assert(&(m)->mtx_lock, w, f, l)
+#endif
 
 #define	mtx_recurse	lock_object.lo_data
 
@@ -395,7 +432,7 @@ do {									\
 } while (0)
 
 struct mtx_args {
-	struct mtx	*ma_mtx;
+	void		*ma_mtx;
 	const char 	*ma_desc;
 	int		 ma_opts;
 };
@@ -409,7 +446,7 @@ struct mtx_args {
 	SYSINIT(name##_mtx_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    mtx_sysinit, &name##_args);					\
 	SYSUNINIT(name##_mtx_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
-	    mtx_destroy, (mtx))
+	    _mtx_destroy, __DEVOLATILE(void *, &(mtx)->mtx_lock))
 
 /*
  * The INVARIANTS-enabled mtx_assert() functionality.
