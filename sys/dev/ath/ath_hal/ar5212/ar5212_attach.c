@@ -786,7 +786,29 @@ ar5212FillCapabilityInfo(struct ath_hal *ah)
 	else
 		pCap->halHigh2GhzChan = 2732;
 
-	pCap->halLow5GhzChan = 4915;
+	/*
+	 * For AR5111 version < 4, the lowest centre frequency supported is
+	 * 5130MHz.  For AR5111 version 4, the 4.9GHz channels are supported
+	 * but only in 10MHz increments.
+	 *
+	 * In addition, the programming method is wrong - it uses the IEEE
+	 * channel number to calculate the frequency, rather than the
+	 * channel centre.  Since half/quarter rates re-use some of the
+	 * 5GHz channel IEEE numbers, this will result in a badly programmed
+	 * synth.
+	 *
+	 * Until the relevant support is written, just limit lower frequency
+	 * support for AR5111 so things aren't incorrectly programmed.
+	 *
+	 * XXX It's also possible this code doesn't correctly limit the
+	 * centre frequencies of potential channels; this is very important
+	 * for half/quarter rate!
+	 */
+	if (AH_RADIO_MAJOR(ah) == AR_RAD5111_SREV_MAJOR) {
+		pCap->halLow5GhzChan = 5120; /* XXX lowest centre = 5130MHz */
+	} else {
+		pCap->halLow5GhzChan = 4915;
+	}
 	pCap->halHigh5GhzChan = 6100;
 
 	pCap->halCipherCkipSupport = AH_FALSE;
