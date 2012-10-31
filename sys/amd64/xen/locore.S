@@ -64,7 +64,8 @@
 	ELFNOTE(Xen, XEN_ELFNOTE_L1_MFN_VALID,   .long,  PG_V, PG_V)
 	ELFNOTE(Xen, XEN_ELFNOTE_LOADER,         .asciz, "generic")
 	ELFNOTE(Xen, XEN_ELFNOTE_SUSPEND_CANCEL, .long,  0)
-/* XXX: TODO: dump-core notes */
+	ELFNOTE(Xen, XEN_ELFNOTE_BSD_SYMTAB,	 .asciz, "yes")
+	/* XXX: TODO: dump-core notes */
 
 /* For conf/ldscript.amd64 */
 
