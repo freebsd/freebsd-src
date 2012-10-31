@@ -255,6 +255,7 @@ ASSYM(PMC_FN_USER_CALLCHAIN, PMC_FN_USER_CALLCHAIN);
 #include <xen/hypervisor.h>
 ASSYM(HYPERVISOR_VIRT_START, __HYPERVISOR_VIRT_START);
 ASSYM(EVTCHN_UPCALL_MASK, offsetof(struct vcpu_info, evtchn_upcall_mask));
+ASSYM(VCPU_RCR2, offsetof(struct vcpu_info, arch.cr2));
 #include <xen/interface/xen.h>
 ASSYM(__HYPERVISOR_iret, __HYPERVISOR_iret);
 #endif

@@ -140,6 +140,14 @@
 	movl	$(a), TF_TRAPNO(%rsp) 	; \
 	movq	$0, TF_ADDR(%rsp)
 
+/* Fetch page fault address (%cr2) from hypervisor */
+#define SETUP_TF_ADDR 			/* Clobbers %rsi %rdi */  \
+	movq 	PCPU(CPUID), %rsi	; \
+	shlq	$6, %rsi		/* cpuid * sizeof(struct vcpu_info) */ 	   ; \
+	addq	HYPERVISOR_shared_info, %rsi 	/* shared_info.vcpu_info[cpuid] */ ; \
+	movq	VCPU_RCR2(%rsi), %rdi	     ; \
+	movq	%rdi, TF_ADDR(%rsp)
+
 #define CALLTRAP \
 	cld			; \
 	movq	%rsp, %rdi	; \
@@ -397,7 +405,8 @@ IDTVEC(pf)			/* Page-Fault */
 	SAVE_SEGMENT_REGS	;
 	SAVE_GENERAL_REGS	;
 	DO_STI_MAYBE		;
-	CALLTRAP		;
+	SETUP_TF_ADDR		; /* Fault Address - clobbers %rsi %rdi */
+	CALLTRAP		; /* %rsi is ignored */
 	DO_AST_MAYBE		;
 	RESTORE_GENERAL_REGS	;
 	RESTORE_SEGMENT_REGS	;
