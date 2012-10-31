@@ -622,6 +622,8 @@ static void cf_identify (driver_t *drv, device_t parent)
 		return;
 
 	phys_base = cvmx_sysinfo_get()->compact_flash_common_base_addr;
+	if (phys_base == 0)
+		return;
 	base_addr = cvmx_phys_to_ptr(phys_base);
 
         for (bus_region = 0; bus_region < 8; bus_region++)
