@@ -36,6 +36,9 @@
 .Sh SYNOPSIS
 .Cd options KDB
 .Cd options DDB
+
+.Cd options TEXTDUMP_VERBOSE
+.Cd options TEXTDUMP_PREFERRED
 .Sh DESCRIPTION
 The
 .Nm
@@ -115,7 +118,11 @@ or by setting the
 .Dv debug.ddb.textdump.pending
 sysctl to 1 using
 .Xr sysctl 8 ,
-it is possible to request that the next dump be a textdump.
+it is possible to request that the next dump be a textdump.  One can
+also directly trigger a textdump in
+.Xr ddb 4
+by running the command 
+.Ic textdump dump .
 .Pp
 If at the
 .Xr ddb 4
@@ -125,10 +132,30 @@ command line, the commands
 and
 .Ic textdump unset
 may be used to set, query, and clear the textdump pending flag.
+The command
+.Ic textdump dump
+can be used to immediately trigger a textdump.
 .Pp
 As with regular kernel dumps, a dump partition must be automatically or
 manually configured using
 .Xr dumpon 8 .
+.Pp
+Additional kernel
+.Xr config 8
+options:
+.Bl -tag -width TEXTDUMP_PREFERRED
+.It Cd TEXTDUMP_PREFERRED 
+sets textdumps to be the default manner of doing dumps.  This means there
+will be no need to
+.Xr sysctl 8
+or use the
+.Cr textdump set
+.Xr ddb 8
+commands.
+.It Cd TEXTDUMP_VERBOSE
+will have the textdump facility be more verbose about each file it is emitting
+as well as other diagnostics useful to debug the textdump facility itself.
+.El
 .Sh EXAMPLES
 In the following example, the script
 .Dv kdb.enter.panic
