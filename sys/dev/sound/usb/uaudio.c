@@ -167,6 +167,7 @@ struct uaudio_mixer_node {
 #define	MAX_SELECTOR_INPUT_PIN 256
 	uint8_t	slctrtype[MAX_SELECTOR_INPUT_PIN];
 	uint8_t	class;
+	uint8_t val_default;
 
 	uint8_t desc[64];
 
@@ -282,7 +283,6 @@ struct uaudio_softc {
 	struct uaudio_chan sc_play_chan;
 	struct umidi_chan sc_midi_chan;
 	struct uaudio_search_result sc_mixer_clocks;
-	struct sysctl_ctx_list sc_sysctl_ctx;
 
 	struct mtx *sc_mixer_lock;
 	struct usb_device *sc_udev;
@@ -412,6 +412,7 @@ static int uaudio_mixer_sysctl_handler(SYSCTL_HANDLER_ARGS);
 static void uaudio_mixer_ctl_free(struct uaudio_softc *);
 static void uaudio_mixer_register_sysctl(struct uaudio_softc *, device_t);
 static void uaudio_mixer_reload_all(struct uaudio_softc *);
+static void uaudio_mixer_controls_create_ftu(struct uaudio_softc *);
 
 /* ==== USB audio v1.0 ==== */
 
@@ -714,8 +715,6 @@ uaudio_attach(device_t dev)
 	if (usb_test_quirk(uaa, UQ_AU_VENDOR_CLASS))
 		sc->sc_uq_au_vendor_class = 1;
 
-	sysctl_ctx_init(&sc->sc_sysctl_ctx);
-
 	umidi_init(dev);
 
 	device_set_usb_desc(dev);
@@ -731,6 +730,15 @@ uaudio_attach(device_t dev)
 	DPRINTF("audio rev %d.%02x\n",
 	    sc->sc_audio_rev >> 8,
 	    sc->sc_audio_rev & 0xff);
+
+	if (sc->sc_mixer_count == 0) {
+		if (uaa->info.idVendor == USB_VENDOR_MAUDIO &&
+		    (uaa->info.idProduct == USB_PRODUCT_MAUDIO_FASTTRACKULTRA ||
+		    uaa->info.idProduct == USB_PRODUCT_MAUDIO_FASTTRACKULTRA8R)) {
+			DPRINTF("Generating mixer descriptors\n");
+			uaudio_mixer_controls_create_ftu(sc);
+		}
+	}
 
 	DPRINTF("%d mixer controls\n",
 	    sc->sc_mixer_count);
@@ -895,10 +903,6 @@ static int
 uaudio_detach(device_t dev)
 {
 	struct uaudio_softc *sc = device_get_softc(dev);
-
-	/* free all sysctls */
-
-	sysctl_ctx_free(&sc->sc_sysctl_ctx);
 
 	/*
 	 * Stop USB transfers early so that any audio applications
@@ -2147,7 +2151,7 @@ uaudio_mixer_register_sysctl(struct uaudio_softc *sc, device_t dev)
 	int chan;
 	int n;
 
-	mixer_tree = SYSCTL_ADD_NODE(&sc->sc_sysctl_ctx,
+	mixer_tree = SYSCTL_ADD_NODE(device_get_sysctl_ctx(dev),
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO, "mixer",
 	    CTLFLAG_RD, NULL, "");
 
@@ -2167,34 +2171,185 @@ uaudio_mixer_register_sysctl(struct uaudio_softc *sc, device_t dev)
 				    pmc->name, n);
 			}
 
-			control_tree = SYSCTL_ADD_NODE(&sc->sc_sysctl_ctx,
+			control_tree = SYSCTL_ADD_NODE(device_get_sysctl_ctx(dev),
 			    SYSCTL_CHILDREN(mixer_tree), OID_AUTO, buf,
-			    CTLFLAG_RD, NULL, "");
+			    CTLFLAG_RD, NULL, "Mixer control nodes");
 
 			if (control_tree == NULL)
 				continue;
 
-			SYSCTL_ADD_PROC(&sc->sc_sysctl_ctx,
+			SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
 			    SYSCTL_CHILDREN(control_tree),
 			    OID_AUTO, "val", CTLTYPE_INT | CTLFLAG_RW, sc,
 			    pmc->wValue[chan],
 			    uaudio_mixer_sysctl_handler, "I", "Current value");
 
-			SYSCTL_ADD_INT(&sc->sc_sysctl_ctx,
+			SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 			    SYSCTL_CHILDREN(control_tree),
 			    OID_AUTO, "min", CTLFLAG_RD, 0, pmc->minval,
 			    "Minimum value");
 
-			SYSCTL_ADD_INT(&sc->sc_sysctl_ctx,
+			SYSCTL_ADD_INT(device_get_sysctl_ctx(dev),
 			    SYSCTL_CHILDREN(control_tree),
 			    OID_AUTO, "max", CTLFLAG_RD, 0, pmc->maxval,
 			    "Maximum value");
 
-			SYSCTL_ADD_STRING(&sc->sc_sysctl_ctx,
+			SYSCTL_ADD_STRING(device_get_sysctl_ctx(dev),
 			    SYSCTL_CHILDREN(control_tree),
 			    OID_AUTO, "desc", CTLFLAG_RD, pmc->desc, 0,
 			    "Description");
 		}
+	}
+}
+
+/* M-Audio FastTrack Ultra Mixer Description */
+/* Origin: Linux USB Audio driver */
+static void
+uaudio_mixer_controls_create_ftu(struct uaudio_softc *sc)
+{
+	struct uaudio_mixer_node mix;
+	int chx;
+	int chy;
+
+	memset(&mix, 0, sizeof(mix));
+	mix.wIndex = MAKE_WORD(6, sc->sc_mixer_iface_no);
+	mix.wValue[0] = MAKE_WORD(8, 0);
+	mix.class = UAC_OUTPUT;
+	mix.type = MIX_UNSIGNED_16;
+	mix.ctl = SOUND_MIXER_NRDEVICES;
+	mix.name = "effect";
+	mix.minval = 0;
+	mix.maxval = 7;
+	mix.mul = 7;
+	mix.nchan = 1;
+	mix.update[0] = 1;
+	strlcpy(mix.desc, "Room1,2,3,Hall1,2,Plate,Delay,Echo", sizeof(mix.desc));
+	uaudio_mixer_add_ctl_sub(sc, &mix);
+
+	memset(&mix, 0, sizeof(mix));
+	mix.wIndex = MAKE_WORD(5, sc->sc_mixer_iface_no);
+
+	for (chx = 0; chx != 8; chx++) {
+		for (chy = 0; chy != 8; chy++) {
+
+			mix.wValue[0] = MAKE_WORD(chx + 1, chy + 1);
+			mix.type = MIX_SIGNED_16;
+			mix.ctl = SOUND_MIXER_NRDEVICES;
+			mix.name = "mix_rec";
+			mix.nchan = 1;
+			mix.update[0] = 1;
+			mix.val_default = 0;
+			snprintf(mix.desc, sizeof(mix.desc),
+			    "AIn%d - Out%d Record Volume", chy + 1, chx + 1);
+
+			uaudio_mixer_add_ctl(sc, &mix);
+
+			mix.wValue[0] = MAKE_WORD(chx + 1, chy + 1 + 8);
+			mix.type = MIX_SIGNED_16;
+			mix.ctl = SOUND_MIXER_NRDEVICES;
+			mix.name = "mix_play";
+			mix.nchan = 1;
+			mix.update[0] = 1;
+			mix.val_default = (chx == chy) ? 1 : 0;
+			snprintf(mix.desc, sizeof(mix.desc),
+			    "DIn%d - Out%d Playback Volume", chy + 1, chx + 1);
+
+			uaudio_mixer_add_ctl(sc, &mix);
+		}
+	}
+
+	memset(&mix, 0, sizeof(mix));
+	mix.wIndex = MAKE_WORD(6, sc->sc_mixer_iface_no);
+	mix.wValue[0] = MAKE_WORD(2, 0);
+	mix.class = UAC_OUTPUT;
+	mix.type = MIX_SIGNED_8;
+	mix.ctl = SOUND_MIXER_NRDEVICES;
+	mix.name = "effect_vol";
+	mix.nchan = 1;
+	mix.update[0] = 1;
+	mix.minval = 0;
+	mix.maxval = 0x7f;
+	mix.mul = 0x7f;
+	mix.nchan = 1;
+	mix.update[0] = 1;
+	strlcpy(mix.desc, "Effect Volume", sizeof(mix.desc));
+	uaudio_mixer_add_ctl_sub(sc, &mix);
+
+	memset(&mix, 0, sizeof(mix));
+	mix.wIndex = MAKE_WORD(6, sc->sc_mixer_iface_no);
+	mix.wValue[0] = MAKE_WORD(3, 0);
+	mix.class = UAC_OUTPUT;
+	mix.type = MIX_SIGNED_16;
+	mix.ctl = SOUND_MIXER_NRDEVICES;
+	mix.name = "effect_dur";
+	mix.nchan = 1;
+	mix.update[0] = 1;
+	mix.minval = 0;
+	mix.maxval = 0x7f00;
+	mix.mul = 0x7f00;
+	mix.nchan = 1;
+	mix.update[0] = 1;
+	strlcpy(mix.desc, "Effect Duration", sizeof(mix.desc));
+	uaudio_mixer_add_ctl_sub(sc, &mix);
+
+	memset(&mix, 0, sizeof(mix));
+	mix.wIndex = MAKE_WORD(6, sc->sc_mixer_iface_no);
+	mix.wValue[0] = MAKE_WORD(4, 0);
+	mix.class = UAC_OUTPUT;
+	mix.type = MIX_SIGNED_8;
+	mix.ctl = SOUND_MIXER_NRDEVICES;
+	mix.name = "effect_fb";
+	mix.nchan = 1;
+	mix.update[0] = 1;
+	mix.minval = 0;
+	mix.maxval = 0x7f;
+	mix.mul = 0x7f;
+	mix.nchan = 1;
+	mix.update[0] = 1;
+	strlcpy(mix.desc, "Effect Feedback Volume", sizeof(mix.desc));
+	uaudio_mixer_add_ctl_sub(sc, &mix);
+
+	memset(&mix, 0, sizeof(mix));
+	mix.wIndex = MAKE_WORD(7, sc->sc_mixer_iface_no);
+	for (chy = 0; chy != 4; chy++) {
+
+		mix.wValue[0] = MAKE_WORD(7, chy + 1);
+		mix.type = MIX_SIGNED_16;
+		mix.ctl = SOUND_MIXER_NRDEVICES;
+		mix.name = "effect_ret";
+		mix.nchan = 1;
+		mix.update[0] = 1;
+		snprintf(mix.desc, sizeof(mix.desc),
+		    "Effect Return %d Volume", chy + 1);
+
+		uaudio_mixer_add_ctl(sc, &mix);
+	}
+
+	memset(&mix, 0, sizeof(mix));
+	mix.wIndex = MAKE_WORD(5, sc->sc_mixer_iface_no);
+
+	for (chy = 0; chy != 8; chy++) {
+		mix.wValue[0] = MAKE_WORD(9, chy + 1);
+		mix.type = MIX_SIGNED_16;
+		mix.ctl = SOUND_MIXER_NRDEVICES;
+		mix.name = "effect_send";
+		mix.nchan = 1;
+		mix.update[0] = 1;
+		snprintf(mix.desc, sizeof(mix.desc),
+		    "Effect Send AIn%d Volume", chy + 1);
+
+		uaudio_mixer_add_ctl(sc, &mix);
+
+		mix.wValue[0] = MAKE_WORD(9, chy + 1);
+		mix.type = MIX_SIGNED_16;
+		mix.ctl = SOUND_MIXER_NRDEVICES;
+		mix.name = "effect_send";
+		mix.nchan = 1;
+		mix.update[0] = 1;
+		snprintf(mix.desc, sizeof(mix.desc),
+		    "Effect Send DIn%d Volume", chy + 1 + 8);
+
+		uaudio_mixer_add_ctl(sc, &mix);
 	}
 }
 
@@ -2209,6 +2364,9 @@ uaudio_mixer_reload_all(struct uaudio_softc *sc)
 
 	mtx_lock(sc->sc_mixer_lock);
 	for (pmc = sc->sc_mixer_root; pmc != NULL; pmc = pmc->next) {
+		/* use reset defaults for non-oss controlled settings */
+		if (pmc->ctl == SOUND_MIXER_NRDEVICES)
+			continue;
 		for (chan = 0; chan < pmc->nchan; chan++)
 			pmc->update[chan / 8] |= (1 << (chan % 8));
 	}
@@ -2221,12 +2379,28 @@ uaudio_mixer_add_ctl_sub(struct uaudio_softc *sc, struct uaudio_mixer_node *mc)
 {
 	struct uaudio_mixer_node *p_mc_new =
 	    malloc(sizeof(*p_mc_new), M_USBDEV, M_WAITOK);
+	int ch;
 
 	if (p_mc_new != NULL) {
 		memcpy(p_mc_new, mc, sizeof(*p_mc_new));
 		p_mc_new->next = sc->sc_mixer_root;
 		sc->sc_mixer_root = p_mc_new;
 		sc->sc_mixer_count++;
+
+		/* set default value for all channels */
+		for (ch = 0; ch < p_mc_new->nchan; ch++) {
+			switch (p_mc_new->val_default) {
+			case 1:
+				p_mc_new->wData[ch] = (p_mc_new->maxval + p_mc_new->minval) / 2;
+				break;
+			case 2:
+				p_mc_new->wData[ch] = p_mc_new->maxval;
+				break;
+			default:
+				p_mc_new->wData[ch] = p_mc_new->minval;
+				break;
+			}
+		}
 	} else {
 		DPRINTF("out of memory\n");
 	}
