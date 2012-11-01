@@ -451,6 +451,12 @@ int cvmx_helper_board_get_mii_address(int ipd_port)
                 return ipd_port+1;
             else
                 return -1;
+        case CVMX_BOARD_TYPE_EBT5600:
+	    /* Board has 1 management port */
+            if (ipd_port == CVMX_HELPER_BOARD_MGMT_IPD_PORT)
+                return 0;
+	    /* Board has 1 XAUI port connected to a switch.  */
+	    return -1;
         case CVMX_BOARD_TYPE_EBB5600:
             {
                 static unsigned char qlm_switch_addr = 0;
@@ -990,6 +996,7 @@ cvmx_helper_link_info_t __cvmx_helper_board_link_get(int ipd_port)
             }
             /* Fall through to the generic code below */
             break;
+        case CVMX_BOARD_TYPE_EBT5600:
         case CVMX_BOARD_TYPE_EBH5600:
         case CVMX_BOARD_TYPE_EBH5601:
         case CVMX_BOARD_TYPE_EBH5610:
@@ -1288,6 +1295,11 @@ int __cvmx_helper_board_interface_probe(int interface, int supported_ports)
             if (cvmx_helper_interface_get_mode(interface) == CVMX_HELPER_INTERFACE_MODE_PICMG)
                 return 0;
 #endif
+	    break;
+        case CVMX_BOARD_TYPE_EBT5600:
+	    /* Disable loopback.  */
+	    if (interface == 3)
+		return 0;
 	    break;
         case CVMX_BOARD_TYPE_EBT5810:
             return 1;  /* Two ports on each SPI: 1 hooked to MAC, 1 loopback
