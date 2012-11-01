@@ -745,26 +745,20 @@ uaudio_attach(device_t dev)
 
 	if (sc->sc_play_chan.valid) {
 		device_printf(dev, "Play: %d Hz, %d ch, %s format, "
-		    "2x%d samples buffer.\n",
+		    "2x8ms buffer.\n",
 		    sc->sc_play_chan.sample_rate,
 		    sc->sc_play_chan.channels,
-		    sc->sc_play_chan.p_fmt->description,
-		    (sc->sc_play_chan.bytes_per_frame[0] *
-		    sc->sc_play_chan.intr_frames) /
-		    sc->sc_play_chan.sample_size);
+		    sc->sc_play_chan.p_fmt->description);
 	} else {
 		device_printf(dev, "No playback.\n");
 	}
 
 	if (sc->sc_rec_chan.valid) {
 		device_printf(dev, "Record: %d Hz, %d ch, %s format, "
-		    "2x%d samples buffer.\n",
+		    "2x8ms buffer.\n",
 		    sc->sc_rec_chan.sample_rate,
 		    sc->sc_rec_chan.channels,
-		    sc->sc_rec_chan.p_fmt->description,
-		    (sc->sc_rec_chan.bytes_per_frame[0] *
-		    sc->sc_rec_chan.intr_frames) /
-		    sc->sc_rec_chan.sample_size);
+		    sc->sc_rec_chan.p_fmt->description);
 	} else {
 		device_printf(dev, "No recording.\n");
 	}
