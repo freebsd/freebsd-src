@@ -594,7 +594,7 @@ vm_pageout_launder(int queue, int tries, vm_paddr_t low, vm_paddr_t high)
 			continue;
 		}
 		vm_page_test_dirty(m);
-		if (m->dirty == 0)
+		if (m->dirty == 0 && object->ref_count != 0)
 			pmap_remove_all(m);
 		if (m->dirty != 0) {
 			vm_page_unlock(m);
@@ -1059,31 +1059,16 @@ vm_pageout_scan(int pass)
 		}
 
 		/*
-		 * If the upper level VM system does not believe that the page
-		 * is fully dirty, but it is mapped for write access, then we
-		 * consult the pmap to see if the page's dirty status should
-		 * be updated.
+		 * If the page appears to be clean at the machine-independent
+		 * layer, then remove all of its mappings from the pmap in
+		 * anticipation of placing it onto the cache queue.  If,
+		 * however, any of the page's mappings allow write access,
+		 * then the page may still be modified until the last of those
+		 * mappings are removed.
 		 */
-		if (m->dirty != VM_PAGE_BITS_ALL &&
-		    pmap_page_is_write_mapped(m)) {
-			/*
-			 * Avoid a race condition: Unless write access is
-			 * removed from the page, another processor could
-			 * modify it before all access is removed by the call
-			 * to vm_page_cache() below.  If vm_page_cache() finds
-			 * that the page has been modified when it removes all
-			 * access, it panics because it cannot cache dirty
-			 * pages.  In principle, we could eliminate just write
-			 * access here rather than all access.  In the expected
-			 * case, when there are no last instant modifications
-			 * to the page, removing all access will be cheaper
-			 * overall.
-			 */
-			if (pmap_is_modified(m))
-				vm_page_dirty(m);
-			else if (m->dirty == 0)
-				pmap_remove_all(m);
-		}
+		vm_page_test_dirty(m);
+		if (m->dirty == 0 && object->ref_count != 0)
+			pmap_remove_all(m);
 
 		if (m->valid == 0) {
 			/*

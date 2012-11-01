@@ -2277,9 +2277,9 @@ vm_page_cache(vm_page_t m)
 	if ((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) || m->busy ||
 	    m->hold_count || m->wire_count)
 		panic("vm_page_cache: attempting to cache busy page");
-	pmap_remove_all(m);
-	if (m->dirty != 0)
-		panic("vm_page_cache: page %p is dirty", m);
+	KASSERT(!pmap_page_is_mapped(m),
+	    ("vm_page_cache: page %p is mapped", m));
+	KASSERT(m->dirty == 0, ("vm_page_cache: page %p is dirty", m));
 	if (m->valid == 0 || object->type == OBJT_DEFAULT ||
 	    (object->type == OBJT_SWAP &&
 	    !vm_pager_has_page(object, m->pindex, NULL, NULL))) {
