@@ -5103,10 +5103,6 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 				return (error);
 			}
 		}
-		if (m->m_flags & M_LASTFRAG)
-			csum_flags |= BGE_TXBDFLAG_IP_FRAG_END;
-		else if (m->m_flags & M_FRAG)
-			csum_flags |= BGE_TXBDFLAG_IP_FRAG;
 	}
 
 	if ((m->m_pkthdr.csum_flags & CSUM_TSO) == 0) {
@@ -5226,29 +5222,6 @@ bge_start_locked(struct ifnet *ifp)
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
 			break;
-
-		/*
-		 * XXX
-		 * The code inside the if() block is never reached since we
-		 * must mark CSUM_IP_FRAGS in our if_hwassist to start getting
-		 * requests to checksum TCP/UDP in a fragmented packet.
-		 *
-		 * XXX
-		 * safety overkill.  If this is a fragmented packet chain
-		 * with delayed TCP/UDP checksums, then only encapsulate
-		 * it if we have enough descriptors to handle the entire
-		 * chain at once.
-		 * (paranoia -- may not actually be needed)
-		 */
-		if (m_head->m_flags & M_FIRSTFRAG &&
-		    m_head->m_pkthdr.csum_flags & (CSUM_DELAY_DATA)) {
-			if ((BGE_TX_RING_CNT - sc->bge_txcnt) <
-			    m_head->m_pkthdr.csum_data + 16) {
-				IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-				break;
-			}
-		}
 
 		/*
 		 * Pack the data into the transmit ring. If we
