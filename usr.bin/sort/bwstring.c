@@ -69,7 +69,7 @@ initialise_months(void)
 					continue;
 				if (debug_sort)
 					printf("month[%d]=%s\n", i, tmp);
-				len = strlen(tmp);
+				len = strlen((char*)tmp);
 				if (len < 1)
 					continue;
 				while (isblank(*tmp))
@@ -95,13 +95,13 @@ initialise_months(void)
 					continue;
 				if (debug_sort)
 					printf("month[%d]=%s\n", i, tmp);
-				len = strlen(tmp);
+				len = strlen((char*)tmp);
 				if (len < 1)
 					continue;
 				while (isblank(*tmp))
 					++tmp;
 				m = sort_malloc(SIZEOF_WCHAR_STRING(len + 1));
-				if (mbstowcs(m, tmp, len) == ((size_t) -1))
+				if (mbstowcs(m, (char*)tmp, len) == ((size_t) -1))
 					continue;
 				m[len] = L'\0';
 				for (unsigned int j = 0; j < len; j++)
@@ -421,7 +421,7 @@ bwsnocpy(struct bwstring *dst, const struct bwstring *src, size_t offset,
  * The output is ended either with '\n' (nl == true)
  * or '\0' (nl == false).
  */
-int
+size_t
 bwsfwrite(struct bwstring *bws, FILE *f, bool zero_ended)
 {
 
@@ -442,11 +442,11 @@ bwsfwrite(struct bwstring *bws, FILE *f, bool zero_ended)
 
 	} else {
 		wchar_t eols;
-		int printed = 0;
+		size_t printed = 0;
 
 		eols = zero_ended ? btowc('\0') : btowc('\n');
 
-		while (printed < (int) BWSLEN(bws)) {
+		while (printed < BWSLEN(bws)) {
 			const wchar_t *s = bws->data.wstr + printed;
 
 			if (*s == L'\0') {
@@ -479,7 +479,7 @@ bwsfwrite(struct bwstring *bws, FILE *f, bool zero_ended)
 struct bwstring *
 bwsfgetln(FILE *f, size_t *len, bool zero_ended, struct reader_buffer *rb)
 {
-	wchar_t eols;
+	wint_t eols;
 
 	eols = zero_ended ? btowc('\0') : btowc('\n');
 
@@ -494,7 +494,7 @@ bwsfgetln(FILE *f, size_t *len, bool zero_ended, struct reader_buffer *rb)
 			return (NULL);
 		}
 		if (*len > 0) {
-			if (ret[*len - 1] == eols)
+			if (ret[*len - 1] == (wchar_t)eols)
 				--(*len);
 		}
 		return (bwssbdup(ret, *len));
@@ -513,11 +513,9 @@ bwsfgetln(FILE *f, size_t *len, bool zero_ended, struct reader_buffer *rb)
 			if (ret[*len - 1] == '\n')
 				--(*len);
 		}
-		return (bwscsbdup(ret, *len));
+		return (bwscsbdup((unsigned char*)ret, *len));
 
 	} else {
-		wchar_t c = 0;
-
 		*len = 0;
 
 		if (feof(f))
@@ -532,6 +530,8 @@ bwsfgetln(FILE *f, size_t *len, bool zero_ended, struct reader_buffer *rb)
 
 		if (MB_CUR_MAX == 1)
 			while (!feof(f)) {
+				int c;
+
 				c = fgetc(f);
 
 				if (c == EOF) {
@@ -553,6 +553,8 @@ bwsfgetln(FILE *f, size_t *len, bool zero_ended, struct reader_buffer *rb)
 			}
 		else
 			while (!feof(f)) {
+				wint_t c = 0;
+
 				c = fgetwc(f);
 
 				if (c == WEOF) {
@@ -750,7 +752,7 @@ bwscoll(const struct bwstring *bws1, const struct bwstring *bws2, size_t offset)
 						} else if (s2[i] == 0)
 							return (+1);
 
-						res = strcoll(s1 + i, s2 + i);
+						res = strcoll((const char*)(s1 + i), (const char*)(s2 + i));
 						if (res)
 							return (res);
 
@@ -872,7 +874,7 @@ bwstod(struct bwstring *s0, bool *empty)
 			return (0);
 		}
 
-		ret = strtod(s, &ep);
+		ret = strtod((char*)s, &ep);
 		if ((unsigned char*) ep == s) {
 			*empty = true;
 			return (0);
@@ -923,11 +925,11 @@ bws_month_score(const struct bwstring *s0)
 		while (isblank(*s) && s < end)
 			++s;
 
-		len = strlen(s);
+		len = strlen((const char*)s);
 
 		for (int i = 11; i >= 0; --i) {
 			if (cmonths[i] &&
-			    (s == (unsigned char*)strstr(s, cmonths[i])))
+			    (s == (unsigned char*)strstr((const char*)s, (char*)(cmonths[i]))))
 				return (i);
 		}
 
