@@ -36,7 +36,6 @@
 .Sh SYNOPSIS
 .Cd options KDB
 .Cd options DDB
-
 .Cd options TEXTDUMP_VERBOSE
 .Cd options TEXTDUMP_PREFERRED
 .Sh DESCRIPTION
@@ -121,7 +120,7 @@ sysctl to 1 using
 it is possible to request that the next dump be a textdump.  One can
 also directly trigger a textdump in
 .Xr ddb 4
-by running the command 
+by running the command
 .Ic textdump dump .
 .Pp
 If at the
@@ -144,7 +143,7 @@ Additional kernel
 .Xr config 8
 options:
 .Bl -tag -width TEXTDUMP_PREFERRED
-.It Cd TEXTDUMP_PREFERRED 
+.It Cd TEXTDUMP_PREFERRED
 sets textdumps to be the default manner of doing dumps.  This means there
 will be no need to
 .Xr sysctl 8
