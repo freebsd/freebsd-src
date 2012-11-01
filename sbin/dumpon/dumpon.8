@@ -41,6 +41,8 @@
 .Nm
 .Op Fl v
 .Cm off
+.Nm
+.Fl l
 .Sh DESCRIPTION
 The
 .Nm
@@ -70,6 +72,13 @@ total amount of physical memory as reported by the
 .Va hw.physmem
 .Xr sysctl 8
 variable.
+.Pp
+The
+.Fl l
+flag causes
+.Nm
+to print the current dump device or _PATH_DEVNULL ("/dev/null") if no device is
+configured.
 .Pp
 The
 .Fl v
