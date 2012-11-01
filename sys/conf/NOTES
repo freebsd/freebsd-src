@@ -389,6 +389,16 @@ options 	GDB
 options 	SYSCTL_DEBUG
 
 #
+# Enable textdump by default, this disables kernel core dumps.
+#
+options		TEXTDUMP_PREFERRED
+
+#
+# Enable extra debug messages while performing textdumps.
+#
+options		TEXTDUMP_VERBOSE
+
+#
 # NO_SYSCTL_DESCR omits the sysctl node descriptions to save space in the
 # resulting kernel.
 options		NO_SYSCTL_DESCR
