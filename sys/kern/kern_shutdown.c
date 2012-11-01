@@ -712,18 +712,28 @@ kthread_shutdown(void *arg, int howto)
 		printf("done\n");
 }
 
+static char dumpdevname[sizeof(((struct cdev*)NULL)->si_name)];
+SYSCTL_STRING(_kern_shutdown, OID_AUTO, dumpdevname, CTLFLAG_RD,
+    dumpdevname, 0, "Device for kernel dumps");
+
 /* Registration of dumpers */
 int
-set_dumper(struct dumperinfo *di)
+set_dumper(struct dumperinfo *di, const char *devname)
 {
 
 	if (di == NULL) {
 		bzero(&dumper, sizeof dumper);
+		dumpdevname[0] = '\0';
 		return (0);
 	}
 	if (dumper.dumper != NULL)
 		return (EBUSY);
 	dumper = *di;
+	strlcpy(dumpdevname, devname, sizeof(dumpdevname));
+	if (strlen(dumpdevname) != strlen(devname)) {
+		printf("set_dumper: device name truncated from '%s' -> '%s'\n",
+			devname, dumpdevname);
+	}
 	return (0);
 }
 
