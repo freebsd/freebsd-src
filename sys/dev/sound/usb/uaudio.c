@@ -2250,7 +2250,7 @@ uaudio_mixer_controls_create_ftu(struct uaudio_softc *sc)
 			mix.name = "mix_play";
 			mix.nchan = 1;
 			mix.update[0] = 1;
-			mix.val_default = (chx == chy) ? 1 : 0;
+			mix.val_default = (chx == chy) ? 2 : 0;
 			snprintf(mix.desc, sizeof(mix.desc),
 			    "DIn%d - Out%d Playback Volume", chy + 1, chx + 1);
 
@@ -2391,12 +2391,15 @@ uaudio_mixer_add_ctl_sub(struct uaudio_softc *sc, struct uaudio_mixer_node *mc)
 		for (ch = 0; ch < p_mc_new->nchan; ch++) {
 			switch (p_mc_new->val_default) {
 			case 1:
+				/* 50% */
 				p_mc_new->wData[ch] = (p_mc_new->maxval + p_mc_new->minval) / 2;
 				break;
 			case 2:
+				/* 100% */
 				p_mc_new->wData[ch] = p_mc_new->maxval;
 				break;
 			default:
+				/* 0% */
 				p_mc_new->wData[ch] = p_mc_new->minval;
 				break;
 			}
