@@ -153,7 +153,7 @@ static STAILQ_HEAD(, bus_dmamap) bounce_map_callbacklist;
 static TAILQ_HEAD(,bus_dmamap) dmamap_freelist = 
 	TAILQ_HEAD_INITIALIZER(dmamap_freelist);
 
-#define BUSDMA_STATIC_MAPS	500
+#define BUSDMA_STATIC_MAPS	128
 static struct bus_dmamap map_pool[BUSDMA_STATIC_MAPS];
 
 static struct mtx busdma_mtx;
