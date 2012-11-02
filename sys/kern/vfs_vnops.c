@@ -302,7 +302,7 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 		fp->f_flag |= FHASLOCK;
 	}
 	if (fmode & FWRITE) {
-		vp->v_writecount++;
+		VOP_ADD_WRITECOUNT(vp, 1);
 		CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d",
 		    __func__, vp, vp->v_writecount);
 	}
@@ -355,7 +355,7 @@ vn_close(vp, flags, file_cred, td)
 	if (flags & FWRITE) {
 		VNASSERT(vp->v_writecount > 0, vp, 
 		    ("vn_close: negative writecount"));
-		vp->v_writecount--;
+		VOP_ADD_WRITECOUNT(vp, -1);
 		CTR3(KTR_VFS, "%s: vp %p v_writecount decreased to %d",
 		    __func__, vp, vp->v_writecount);
 	}
