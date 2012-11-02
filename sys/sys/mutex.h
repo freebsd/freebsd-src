@@ -129,7 +129,7 @@ void	thread_lock_flags_(struct thread *, int, const char *, int);
 /*
  * Top-level macros to provide lock cookie once the actual mtx is passed.
  * They will also prevent passing a malformed object to the mtx KPI by
- * failing compilation.
+ * failing compilation as the mtx_lock reserved member will not be found.
  */
 #define	mtx_init(m, n, t, o)						\
 	_mtx_init(&(m)->mtx_lock, n, t, o)
