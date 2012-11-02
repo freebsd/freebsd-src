@@ -180,6 +180,7 @@ extern int dot_symbols;
   %{v:-V} \
   %{assert*} %{R*} %{rpath*} %{defsym*} \
   %{shared:-Bshareable %{h*} %{soname*}} \
+  %{!static:--enable-new-dtags}	\
   %{!shared: \
     %{!static: \
       %{rdynamic: -export-dynamic} \
