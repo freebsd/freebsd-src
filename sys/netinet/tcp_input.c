@@ -75,7 +75,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #include <net/if.h>
-#include <net/pfil.h>
 #include <net/route.h>
 #include <net/vnet.h>
 
@@ -781,7 +780,7 @@ findpcb:
 	/*
 	 * Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain.
 	 */
-	if (V_pfilforward != 0)
+	if (m->m_flags & M_IP_NEXTHOP)
 		fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
 
 #ifdef INET6
@@ -810,6 +809,7 @@ findpcb:
 		}
 		/* Remove the tag from the packet.  We don't need it anymore. */
 		m_tag_delete(m, fwd_tag);
+		m->m_flags &= ~M_IP_NEXTHOP;
 	} else if (isipv6) {
 		inp = in6_pcblookup_mbuf(&V_tcbinfo, &ip6->ip6_src,
 		    th->th_sport, &ip6->ip6_dst, th->th_dport,
@@ -846,6 +846,7 @@ findpcb:
 		}
 		/* Remove the tag from the packet.  We don't need it anymore. */
 		m_tag_delete(m, fwd_tag);
+		m->m_flags &= ~M_IP_NEXTHOP;
 	} else
 		inp = in_pcblookup_mbuf(&V_tcbinfo, ip->ip_src,
 		    th->th_sport, ip->ip_dst, th->th_dport,
