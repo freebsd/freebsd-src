@@ -201,7 +201,8 @@ Print the AS number in BGP packets in ASDOT notation rather than ASPLAIN
 notation.
 .TP
 .B \-B
-Set the operating system capture buffer size to \fIbuffer_size\fP.
+Set the operating system capture buffer size to \fIbuffer_size\fP, in
+units of KiB (1024 bytes).
 .TP
 .B \-c
 Exit after receiving \fIcount\fP packets.
@@ -276,7 +277,7 @@ The default is \fBdes-cbc\fP.
 The ability to decrypt packets is only present if \fItcpdump\fP was compiled
 with cryptography enabled.
 .IP
-\fIsecret\fP is the ASCII text for ESP secret key. 
+\fIsecret\fP is the ASCII text for ESP secret key.
 If preceded by 0x, then a hex value will be read.
 .IP
 The option assumes RFC2406 ESP, not RFC1827 ESP.
@@ -288,7 +289,7 @@ you make it visible to others, via
 and other occasions.
 .IP
 In addition to the above syntax, the syntax \fIfile name\fP may be used
-to have tcpdump read the provided file in. The file is opened upon 
+to have tcpdump read the provided file in. The file is opened upon
 receiving the first ESP packet, so any special permissions that tcpdump
 may have been given should already have been given up.
 .TP
@@ -393,9 +394,37 @@ Make stdout line buffered.
 Useful if you want to see the data
 while capturing it.
 E.g.,
-.br
-``tcpdump\ \ \-l\ \ |\ \ tee dat'' or
-``tcpdump\ \ \-l \ \ > dat\ \ &\ \ tail\ \ \-f\ \ dat''.
+.IP
+.RS
+.RS
+.nf
+\fBtcpdump \-l | tee dat\fP
+.fi
+.RE
+.RE
+.IP
+or
+.IP
+.RS
+.RS
+.nf
+\fBtcpdump \-l > dat & tail \-f dat\fP
+.fi
+.RE
+.RE
+.IP
+Note that on Windows,``line buffered'' means ``unbuffered'', so that
+WinDump will write each character individually if
+.B \-l
+is specified.
+.IP
+.B \-U
+is similar to
+.B \-l
+in its behavior, but it will cause output to be ``packet-buffered'', so
+that the output is written to stdout at the end of each packet rather
+than at the end of each line; this is buffered on all platforms,
+including Windows.
 .TP
 .B \-L
 List the known data link types for the interface, in the specified mode,
@@ -512,11 +541,20 @@ on each dump line.
 Print undecoded NFS handles.
 .TP
 .B \-U
-Make output saved via the
+If the
 .B \-w
-option ``packet-buffered''; i.e., as each packet is saved, it will be
-written to the output file, rather than being written only when the
-output buffer fills.
+option is not specified, make the printed packet output
+``packet-buffered''; i.e., as the description of the contents of each
+packet is printed, it will be written to the standard output, rather
+than, when not writing to a terminal, being written only when the output
+buffer fills.
+.IP
+If the
+.B \-w
+option is specified, make the saved raw packet output
+``packet-buffered''; i.e., as each packet is saved, it will be written
+to the output file, rather than being written only when the output
+buffer fills.
 .IP
 The
 .B \-U
@@ -558,21 +596,28 @@ Write the raw packets to \fIfile\fR rather than parsing and printing
 them out.
 They can later be printed with the \-r option.
 Standard output is used if \fIfile\fR is ``-''.
+.IP
+This output will be buffered if written to a file or pipe, so a program
+reading from the file or pipe may not see packets for an arbitrary
+amount of time after they are received.  Use the
+.B \-U
+flag to cause packets to be written as soon as they are received.
+.IP
 See
 .BR pcap-savefile (5)
 for a description of the file format.
 .TP
 .B \-W
-Used in conjunction with the 
-.B \-C 
+Used in conjunction with the
+.B \-C
 option, this will limit the number
 of files created to the specified number, and begin overwriting files
-from the beginning, thus creating a 'rotating' buffer. 
+from the beginning, thus creating a 'rotating' buffer.
 In addition, it will name
 the files with enough leading 0s to support the maximum number of
 files, allowing them to sort correctly.
 .IP
-Used in conjunction with the 
+Used in conjunction with the
 .B \-G
 option, this will limit the number of rotated dump files that get
 created, exiting with status 0 when reaching the limit. If used with
@@ -582,7 +627,7 @@ as well, the behavior will result in cyclical files per timeslice.
 .B \-x
 When parsing and printing,
 in addition to printing the headers of each packet, print the data of
-each packet (minus its link level header) in hex. 
+each packet (minus its link level header) in hex.
 The smaller of the entire packet or
 .I snaplen
 bytes will be printed.  Note that this is the entire link-layer
@@ -1181,7 +1226,7 @@ tcp-push, tcp-act, tcp-urg.
 .PP
 This can be demonstrated as:
 .RS
-.B 
+.B
      tcpdump -i xl0 'tcp[tcpflags] & tcp-push != 0'
 .RE
 .PP
