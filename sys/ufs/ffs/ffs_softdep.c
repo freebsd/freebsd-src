@@ -8579,7 +8579,7 @@ cancel_mkdir_dotdot(ip, dirrem, jremref)
 
 	if (inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, 0,
 	    &inodedep) == 0)
-		panic("cancel_mkdir_dotdot: Lost inodedep");
+		return (jremref);
 	dap = inodedep->id_mkdiradd;
 	if (dap == NULL || (dap->da_state & MKDIR_PARENT) == 0)
 		return (jremref);
