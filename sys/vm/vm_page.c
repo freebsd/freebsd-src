@@ -345,13 +345,17 @@ vm_page_startup(vm_offset_t vaddr)
 	    new_end + vm_page_dump_size, VM_PROT_READ | VM_PROT_WRITE);
 	bzero((void *)vm_page_dump, vm_page_dump_size);
 #endif
-#if defined(__amd64__) && !defined(XEN)
+#if defined(__amd64__)
 	/*
 	 * Request that the physical pages underlying the message buffer be
 	 * included in a crash dump.  Since the message buffer is accessed
 	 * through the direct map, they are not automatically included.
 	 */
+#if defined(XEN)
+	pa = VTOP(msgbufp->msg_ptr);
+#else /* native */
 	pa = DMAP_TO_PHYS((vm_offset_t)msgbufp->msg_ptr);
+#endif
 	last_pa = pa + round_page(msgbufsize);
 	while (pa < last_pa) {
 		dump_add_page(pa);
@@ -395,7 +399,7 @@ vm_page_startup(vm_offset_t vaddr)
 	 */
 	new_end = vm_reserv_startup(&vaddr, new_end, high_water);
 #endif
-#if defined(__amd64__) || defined(__mips__)
+#if defined(__amd64__) && !defined(XEN) || defined(__mips__) 
 	/*
 	 * pmap_map on amd64 and mips can come out of the direct-map, not kvm
 	 * like i386, so the pages must be tracked for a crashdump to include
