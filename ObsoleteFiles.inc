@@ -43,6 +43,9 @@ OLD_FILES+=usr/share/man/man9/VFS_LOCK_GIANT.9.gz
 OLD_FILES+=usr/share/man/man9/VFS_UNLOCK_GIANT.9.gz
 # 20121004: remove incomplete unwind.h
 OLD_FILES+=usr/include/clang/3.2/unwind.h
+# 20120910: NetBSD compat shims removed
+OLD_FILES+=usr/include/cam/scsi/scsi_low_pisa.h
+OLD_FILES+=usr/include/sys/device_port.h
 # 20120908: pf cleanup
 OLD_FILES+=usr/include/net/if_pflow.h
 # 20120816: new clang import which bumps version from 3.1 to 3.2
@@ -91,13 +94,19 @@ OLD_FILES+=usr/include/openssl/ui_locl.h
 OLD_FILES+=usr/share/openssl/man/man3/CRYPTO_set_id_callback.3.gz
 # 20120621: remove old man page
 OLD_FILES+=usr/share/man/man8/vnconfig.8.gz
+# 20120619: TOE support updated
+OLD_FILES+=usr/include/netinet/toedev.h
 # 20120613: auth.conf removed
 OLD_FILES+=etc/auth.conf
 OLD_FILES+=usr/share/examples/etc/auth.conf
 OLD_FILES+=usr/share/man/man3/auth.3.gz
+OLD_FILES+=usr/share/man/man3/auth_getval.3.gz
 OLD_FILES+=usr/share/man/man5/auth.conf.5.gz
 # 20120530: kde pam lives now in ports
 OLD_FILES+=etc/pam.d/kde
+# 20120521: byacc import
+OLD_FILES+=usr/bin/yyfix
+OLD_FILES+=usr/share/man/man1/yyfix.1.gz
 # 20120505: new clang import installed a redundant internal header
 OLD_FILES+=usr/include/clang/3.1/stdalign.h
 # 20120428: MD2 removed from libmd
