@@ -257,6 +257,7 @@ FreeBSD 5.2           |      |                 |                       |
  |                 Mac OS X  |                 |                       |
  |                   10.8    |                 |                       |
  |                    |   NetBSD 6.0           |                       |
+ |                    |      |             OpenBSD 5.2                 |
  |                    |      |                 |                       |
 FreeBSD 10 -current   |  NetBSD -current  OpenBSD -current             |
  |                    |      |                 |                       |
@@ -552,6 +553,7 @@ FreeBSD 8.3		2012-04-18 [FBD]
 OpenBSD 5.1		2012-05-01 [OBD]
 Mac OS X 10.8		2012-07-25 [APL]
 NetBSD 6.0		2012-10-17 [NBD]
+OpenBSD 5.2		2012-11-01 [OBD]
 
 Bibliography
 ------------------------
