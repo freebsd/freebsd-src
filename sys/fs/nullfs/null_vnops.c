@@ -329,6 +329,26 @@ null_bypass(struct vop_generic_args *ap)
 	return (error);
 }
 
+static int
+null_add_writecount(struct vop_add_writecount_args *ap)
+{
+	struct vnode *lvp, *vp;
+	int error;
+
+	vp = ap->a_vp;
+	lvp = NULLVPTOLOWERVP(vp);
+	KASSERT(vp->v_writecount + ap->a_inc >= 0, ("wrong writecount inc"));
+	if (vp->v_writecount > 0 && vp->v_writecount + ap->a_inc == 0)
+		error = VOP_ADD_WRITECOUNT(lvp, -1);
+	else if (vp->v_writecount == 0 && vp->v_writecount + ap->a_inc > 0)
+		error = VOP_ADD_WRITECOUNT(lvp, 1);
+	else
+		error = 0;
+	if (error == 0)
+		vp->v_writecount += ap->a_inc;
+	return (error);
+}
+
 /*
  * We have to carry on the locking protocol on the null layer vnodes
  * as we progress through the tree. We also have to enforce read-only
@@ -826,4 +846,5 @@ struct vop_vector null_vnodeops = {
 	.vop_unlock =		null_unlock,
 	.vop_vptocnp =		null_vptocnp,
 	.vop_vptofh =		null_vptofh,
+	.vop_add_writecount =	null_add_writecount,
 };
