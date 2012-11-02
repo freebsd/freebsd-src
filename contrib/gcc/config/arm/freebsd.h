@@ -50,6 +50,7 @@
       %{rdynamic:-export-dynamic}					\
       %{!dynamic-linker:-dynamic-linker %(fbsd_dynamic_linker) }}	\
     %{static:-Bstatic}}							\
+  %{!static:--hash-style=both}						\
   %{symbolic:-Bsymbolic}						\
   -X %{mbig-endian:-EB} %{mlittle-endian:-EL}"
 
