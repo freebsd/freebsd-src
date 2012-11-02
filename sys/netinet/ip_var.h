@@ -163,6 +163,7 @@ void	kmod_ipstat_dec(int statnum);
  * mbuf flag used by ip_fastfwd
  */
 #define	M_FASTFWD_OURS		M_PROTO1	/* changed dst to local */
+#define	M_IP_NEXTHOP		M_PROTO2	/* explicit ip nexthop */
 
 #ifdef __NO_STRICT_ALIGNMENT
 #define IP_HDR_ALIGNED_P(ip)	1
