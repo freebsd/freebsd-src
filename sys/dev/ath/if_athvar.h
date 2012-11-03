@@ -1225,6 +1225,8 @@ void	ath_intr(void *);
 #define	ath_hal_setuptxstatusring(_ah, _tsstart, _tspstart, _size) \
 	((*(_ah)->ah_setupTxStatusRing)((_ah), (_tsstart), (_tspstart), \
 		(_size)))
+#define	ath_hal_gettxrawtxdesc(_ah, _txstatus) \
+	((*(_ah)->ah_getTxRawTxDesc)((_ah), (_txstatus)))
 
 #define	ath_hal_setupfirsttxdesc(_ah, _ds, _aggrlen, _flags, _txpower, \
 		_txr0, _txtr0, _antm, _rcr, _rcd) \
@@ -1243,8 +1245,8 @@ void	ath_intr(void *);
 	(_series), (_ns), (_flags)))
 
 #define	ath_hal_set11n_aggr_first(_ah, _ds, _len, _num) \
-	((*(_ah)->ah_set11nAggrFirst)((_ah), (_ds), (_len)))
-#define	ath_hal_set11naggrmiddle(_ah, _ds, _num) \
+	((*(_ah)->ah_set11nAggrFirst)((_ah), (_ds), (_len), (_num)))
+#define	ath_hal_set11n_aggr_middle(_ah, _ds, _num) \
 	((*(_ah)->ah_set11nAggrMiddle)((_ah), (_ds), (_num)))
 #define	ath_hal_set11n_aggr_last(_ah, _ds) \
 	((*(_ah)->ah_set11nAggrLast)((_ah), (_ds)))
