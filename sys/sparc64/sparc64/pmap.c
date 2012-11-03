@@ -129,12 +129,7 @@ vm_offset_t vm_max_kernel_address;
  */
 struct pmap kernel_pmap_store;
 
-/*
- * Isolate the global TTE list lock from data and other locks to prevent
- * false sharing within the cache (see also the declaration of struct
- * tte_list_lock).
- */
-struct tte_list_lock tte_list_global __aligned(CACHE_LINE_SIZE);
+struct rwlock_padalign tte_list_global_lock;
 
 /*
  * Allocate physical memory for use in pmap_bootstrap.
