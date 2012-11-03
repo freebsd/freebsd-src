@@ -358,12 +358,10 @@ fuse_vnop_create(struct vop_create_args *ap)
 
 	err = fdisp_wait_answ(fdip);
 
-	if (err == ENOSYS) {
-		debug_printf("create: got ENOSYS from daemon\n");
-		fsess_set_notimpl(mp, FUSE_CREATE);
-		fdisp_destroy(fdip);
-	} else if (err) {
-		debug_printf("create: darn, got err=%d from daemon\n", err);
+	if (err) {
+		if (err == ENOSYS)
+			fsess_set_notimpl(mp, FUSE_CREATE);
+		debug_printf("create: got err=%d from daemon\n", err);
 		goto out;
 	}
 bringup:
