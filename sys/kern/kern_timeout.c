@@ -102,7 +102,7 @@ int callwheelsize, callwheelmask;
 
 /*
  * The callout cpu exec entities represent informations necessary for
- * describing the state of callouts currently running on the CPU and the ones  
+ * describing the state of callouts currently running on the CPU and the ones
  * necessary for migrating callouts to the new callout cpu. In particular,
  * the first entry of the array cc_exec_entity holds informations for callout
  * running in SWI thread context, while the second one holds informations
@@ -133,7 +133,7 @@ struct callout_cpu {
 	struct cc_mig_ent	cc_migrating_entity;
 	struct callout		*cc_callout;
 	struct callout_tailq	*cc_callwheel;
-	struct callout_tailq	cc_expireq;		  
+	struct callout_tailq	cc_expireq;
 	struct callout_list	cc_callfree;
 	struct bintime 		cc_firstevent;
 	struct bintime 		cc_lastscan;
@@ -180,7 +180,7 @@ struct callout_cpu cc_cpu;
 }
 
 #define	TIME_T_MAX							\
-	(sizeof(time_t) == (sizeof(int64_t)) ? INT64_MAX : INT32_MAX)		
+	(sizeof(time_t) == (sizeof(int64_t)) ? INT64_MAX : INT32_MAX)
 
 static int timeout_cpu;
 void (*callout_new_inserted)(int cpu, struct bintime bt) = NULL;
@@ -214,7 +214,7 @@ static void
 cc_cme_cleanup(struct callout_cpu *cc, int direct)
 {
 	
-	cc->cc_exec_entity[direct].cc_curr = NULL;	
+	cc->cc_exec_entity[direct].cc_curr = NULL;
 	cc->cc_exec_entity[direct].cc_next = NULL;
 	cc->cc_exec_entity[direct].cc_cancel = 0;
 	cc->cc_exec_entity[direct].cc_waiting = 0;
@@ -242,7 +242,7 @@ cc_cme_migrating(struct callout_cpu *cc, int direct)
 }
 
 /*
- * kern_timeout_callwheel_alloc() - kernel low level callwheel initialization 
+ * kern_timeout_callwheel_alloc() - kernel low level callwheel initialization
  *
  *	This code is called very early in the kernel initialization sequence,
  *	and may be called more then once.
@@ -258,7 +258,7 @@ kern_timeout_callwheel_alloc(caddr_t v)
 	 * Calculate callout wheel size
 	 */
 	callwheelsize = 1;
-	while (callwheelsize < ncallout) 
+	while (callwheelsize < ncallout)
 		callwheelsize <<= 1;
 	callwheelmask = callwheelsize - 1;
 
@@ -281,7 +281,7 @@ callout_cpu_init(struct callout_cpu *cc)
 		TAILQ_INIT(&cc->cc_callwheel[i]);
 	}
 	TAILQ_INIT(&cc->cc_expireq);
-	for (i = 0; i < 2; i++) 
+	for (i = 0; i < 2; i++)
 		cc_cme_cleanup(cc, i);
 	if (cc->cc_callout == NULL)
 		return;
@@ -371,7 +371,7 @@ start_softclock(void *dummy)
 SYSINIT(start_softclock, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softclock, NULL);
 
 static inline int
-callout_hash(struct bintime *bt) 
+callout_hash(struct bintime *bt)
 {
 
 	return (int) ((bt->sec<<10)+(bt->frac>>54));
@@ -392,7 +392,7 @@ callout_process(struct bintime *now)
 	struct callout_cpu *cc;
 	struct callout_tailq *sc;
 	int cpu, depth_dir, first, future, mpcalls_dir, last, lockcalls_dir,
-	    need_softclock; 
+	    need_softclock;
 
 	need_softclock = 0;
 	depth_dir = 0;
@@ -403,17 +403,17 @@ callout_process(struct bintime *now)
 	cpu = curcpu;
 	first = callout_hash(&cc->cc_lastscan);
 	last = callout_hash(now);
-	/* 
+	/*
 	 * Check if we wrapped around the entire wheel from the last scan.
 	 * In case, we need to scan entirely the wheel for pending callouts.
 	 */
-	last = (last - first >= callwheelsize) ? (first - 1) & callwheelmask : 
+	last = (last - first >= callwheelsize) ? (first - 1) & callwheelmask :
 	    last & callwheelmask;
 	first &= callwheelmask;
 	for (;;) {	
 		sc = &cc->cc_callwheel[first];
 		tmp = TAILQ_FIRST(sc);
-		while (tmp != NULL) {	
+		while (tmp != NULL) {
 			next = tmp->c_time;
 			bintime_sub(&next, &tmp->c_precision);
 			if (bintime_cmp(&next, now, <=)) {
@@ -424,11 +424,11 @@ callout_process(struct bintime *now)
 				if (tmp->c_flags & CALLOUT_DIRECT) {
 					++depth_dir;
 					TAILQ_REMOVE(sc, tmp, c_links.tqe);
-					tmp = softclock_call_cc(tmp, cc, 
+					tmp = softclock_call_cc(tmp, cc,
 					    &mpcalls_dir, &lockcalls_dir,
 					     NULL, 1);
 				} else {
-					TAILQ_INSERT_TAIL(&cc->cc_expireq, 
+					TAILQ_INSERT_TAIL(&cc->cc_expireq,
 					    tmp, c_staiter);
 					TAILQ_REMOVE(sc, tmp, c_links.tqe);
 					tmp->c_flags |= CALLOUT_PROCESSED;
@@ -444,67 +444,67 @@ callout_process(struct bintime *now)
 		first = (first + 1) & callwheelmask;
 	}
 	cc->cc_exec_next_dir = NULL;
-	future = (last + hz / 4) & callwheelmask; 
+	future = (last + hz / 4) & callwheelmask;
 	max.sec = min.sec = TIME_T_MAX;
 	max.frac = min.frac = UINT64_MAX;
-	/* 
+	/*
 	 * Look for the first bucket in the future that contains some event,
-	 * up to some point,  so that we can look for aggregation. 
-	 */ 
-	for (;;) { 
+	 * up to some point,  so that we can look for aggregation.
+	 */
+	for (;;) {
 		sc = &cc->cc_callwheel[last];
 		TAILQ_FOREACH(tmp, sc, c_links.tqe) {
-			tmp_max = tmp_min = tmp->c_time; 
+			tmp_max = tmp_min = tmp->c_time;
 			if (bintime_isset(&tmp->c_precision)) {
 				bintime_add(&tmp_max, &tmp->c_precision);
 				bintime_sub(&tmp_min, &tmp->c_precision);
 			}
 			/*
-			 * This is the fist event we're going to process or 
-			 * event maximal time is less than present minimal. 
+			 * This is the fist event we're going to process or
+			 * event maximal time is less than present minimal.
 			 * In both cases, take it.
 			 */
 			 if (bintime_cmp(&tmp_max, &min, <)) {
 				max = tmp_max;
 				min = tmp_min;
-				continue;	
+				continue;
 			}
 			/*
-			 * Event minimal time is bigger than present maximal  
-		 	 * time, so it cannot be aggregated.
+			 * Event minimal time is bigger than present maximal
+			 * time, so it cannot be aggregated.
 			 */
 			if (bintime_cmp(&tmp_min, &max, >))
 				continue;
 			/*
-			 * If neither of the two previous happened, just take 
+			 * If neither of the two previous happened, just take
 			 * the intersection of events.
 			 */	
 			min = (bintime_cmp(&tmp_min, &min, >)) ? tmp_min : min;
 			max = (bintime_cmp(&tmp_max, &max, >)) ? tmp_max : max;
 		}		
-		if (last == future || max.sec != TIME_T_MAX) 
+		if (last == future || max.sec != TIME_T_MAX)
 			break;
 		last = (last + 1) & callwheelmask;
 	}
-	if (max.sec == TIME_T_MAX) { 
+	if (max.sec == TIME_T_MAX) {
 		next = *now;
 		bintime_addx(&next, (uint64_t)1 << (64 - 2));
 	} else {
 		/*
-		 * Now that we found something to aggregate, schedule an  
+		 * Now that we found something to aggregate, schedule an
 		 * interrupt in the middle of the previously calculated range.
-	 	 */
+		 */
 		if (bintime_cmp(&max, &min, !=)) {
 			bintime_add(&max, &min);
 			next = max;
 			next.frac >>= 1;
-			if (next.sec & 1)	
+			if (next.sec & 1)
 				next.frac |= ((uint64_t)1 << 63);
 			next.sec >>= 1;
 		} else 
 			next = max;
 	}
-	if (callout_new_inserted != NULL) 
+	if (callout_new_inserted != NULL)
 		(*callout_new_inserted)(cpu, next);
 	cc->cc_firstevent = next;
 	cc->cc_lastscan = *now;
@@ -548,16 +548,16 @@ callout_lock(struct callout *c)
 }
 
 static void
-callout_cc_add(struct callout *c, struct callout_cpu *cc, 
-    struct bintime to_bintime, void (*func)(void *), void *arg, int cpu, 
+callout_cc_add(struct callout *c, struct callout_cpu *cc,
+    struct bintime to_bintime, void (*func)(void *), void *arg, int cpu,
     int flags)
 {
 	struct bintime bt;
 	uint64_t r_val;
-	int bucket, r_shift;	
+	int bucket, r_shift;
 	
 	CC_LOCK_ASSERT(cc);
-	if (bintime_cmp(&to_bintime, &cc->cc_lastscan, <)) 
+	if (bintime_cmp(&to_bintime, &cc->cc_lastscan, <))
 		to_bintime = cc->cc_lastscan;
 	c->c_arg = arg;
 	c->c_flags |= (CALLOUT_ACTIVE | CALLOUT_PENDING);
@@ -567,16 +567,16 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	c->c_func = func;
 	c->c_time = to_bintime;
 	bintime_clear(&c->c_precision);
-	if (flags & C_PRECISION) {  
+	if (flags & C_PRECISION) {
 		r_shift = ((flags >> 2) & PRECISION_RANGE);
 		r_val = (r_shift != 0) ? (uint64_t)1 << (64 - r_shift) : 0;
-		/* 
+		/*
 		 * Round as far as precision specified is coarse (up to 8ms).
 		 * In order to play safe, round to to half of the interval and
 		 * set half precision.
-		 */	
+		 */
 		if (r_shift < 6) {
-			r_val = (r_shift != 0) ? r_val >> 2 : 
+			r_val = (r_shift != 0) ? r_val >> 2 :
 			    ((uint64_t)1 << (64 - 1)) - 1;
 			/*
 			 * Round only if c_time is not a multiple of the
@@ -590,21 +590,21 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 			}
 		}
 		c->c_precision.frac = r_val;
-		CTR6(KTR_CALLOUT, "rounding %d.%08x%08x to %d.%08x%08x", 
-		    to_bintime.sec, (u_int) (to_bintime.frac >> 32), 
-		    (u_int) (to_bintime.frac & 0xffffffff), c->c_time.sec, 
-		    (u_int) (c->c_time.frac >> 32), 
+		CTR6(KTR_CALLOUT, "rounding %d.%08x%08x to %d.%08x%08x",
+		    to_bintime.sec, (u_int) (to_bintime.frac >> 32),
+		    (u_int) (to_bintime.frac & 0xffffffff), c->c_time.sec,
+		    (u_int) (c->c_time.frac >> 32),
 		    (u_int) (c->c_time.frac & 0xffffffff)); 
 	} 
 	bucket = get_bucket(&c->c_time);
-	TAILQ_INSERT_TAIL(&cc->cc_callwheel[bucket], c, c_links.tqe); 
+	TAILQ_INSERT_TAIL(&cc->cc_callwheel[bucket], c, c_links.tqe);
 	/*
-	 * Inform the eventtimers(4) subsystem there's a new callout 
+	 * Inform the eventtimers(4) subsystem there's a new callout
 	 * that has been inserted, but only if really required.
 	 */
 	bt = c->c_time;
-	bintime_add(&bt, &c->c_precision); 
-	if (callout_new_inserted != NULL && 
+	bintime_add(&bt, &c->c_precision);
+	if (callout_new_inserted != NULL &&
 	    (bintime_cmp(&bt, &cc->cc_firstevent, <) ||
 	    !bintime_isset(&cc->cc_firstevent))) {
 		cc->cc_firstevent = c->c_time;
@@ -616,9 +616,9 @@ static void
 callout_cc_del(struct callout *c, struct callout_cpu *cc, int direct)
 {
 	
-	if (cc->cc_exec_next_dir == c) 
+	if (cc->cc_exec_next_dir == c)
 		cc->cc_exec_next_dir = TAILQ_NEXT(c, c_links.tqe);
-	else if (cc->cc_exec_next == c) 
+	else if (cc->cc_exec_next == c)
 		cc->cc_exec_next = TAILQ_NEXT(c, c_staiter);
 	if (c->c_flags & CALLOUT_LOCAL_ALLOC) {
 		c->c_func = NULL;
@@ -649,7 +649,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
 	static timeout_t *lastfunc;
 #endif
 
-	if (direct) 
+	if (direct)
 		cc->cc_exec_next_dir = TAILQ_NEXT(c, c_links.tqe);
 	else 
 		cc->cc_exec_next = TAILQ_NEXT(c, c_staiter);
@@ -672,13 +672,13 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
 		 * The callout may have been cancelled
 		 * while we switched locks.
 		 */
-		if (cc->cc_exec_entity[direct].cc_cancel) { 
+		if (cc->cc_exec_entity[direct].cc_cancel) {
 			class->lc_unlock(c_lock);
 			goto skip;
 		}
 		/* The callout cannot be stopped now. */
 		cc->cc_exec_entity[direct].cc_cancel = 1;
-		/* 
+		/*
 		 * In case we're processing a direct callout we
 		 * can't hold giant because holding a sleep mutex
 		 * from hardware interrupt context is not allowed.
@@ -741,7 +741,7 @@ skip:
 		SLIST_INSERT_HEAD(&cc->cc_callfree, c, c_links.sle);
 	}
 	cc->cc_exec_entity[direct].cc_curr = NULL;
-	if (cc->cc_exec_entity[direct].cc_waiting) { 
+	if (cc->cc_exec_entity[direct].cc_waiting) {
 		/*
 		 * There is someone waiting for the
 		 * callout to complete.
@@ -801,7 +801,7 @@ nextc:
 }
 
 /*
- * The callout mechanism is based on the work of Adam M. Costello and 
+ * The callout mechanism is based on the work of Adam M. Costello and
  * George Varghese, published in a technical report entitled "Redesigning
  * the BSD Callout and Timer Facilities" and modified slightly for inclusion
  * in FreeBSD by Justin T. Gibbs.  The original work on the data structures
@@ -857,7 +857,7 @@ softclock(void *arg)
  *	Initialize a handle so that using it with untimeout is benign.
  *
  *	See AT&T BCI Driver Reference Manual for specification.  This
- *	implementation differs from that one in that although an 
+ *	implementation differs from that one in that although an
  *	identification value is returned from timeout, the original
  *	arguments to timeout as well as the identifier are used to
  *	identify entries for untimeout.
@@ -932,7 +932,7 @@ callout_handle_init(struct callout_handle *handle)
  * callout_deactivate() - marks the callout as having been serviced
  */
 int 
-_callout_reset_on(struct callout *c, struct bintime *bt, int to_ticks, 
+_callout_reset_on(struct callout *c, struct bintime *bt, int to_ticks,
     void (*ftn)(void *), void *arg, int cpu, int flags)
 {
 	struct bintime now, to_bt;
@@ -940,7 +940,7 @@ _callout_reset_on(struct callout *c, struct bintime *bt, int to_ticks,
 	int bucket, cancelled, direct;
 
 	cancelled = 0;
-	if (bt == NULL) {	
+	if (bt == NULL) {
 		FREQ2BT(hz,&to_bt);
 		getbinuptime(&now);
 		bintime_mul(&to_bt,to_ticks);
@@ -955,17 +955,17 @@ _callout_reset_on(struct callout *c, struct bintime *bt, int to_ticks,
 		cpu = c->c_cpu;
 	direct = c->c_flags & CALLOUT_DIRECT;
 	cc = callout_lock(c);
-	if (cc->cc_exec_entity[direct].cc_curr == c) {	
+	if (cc->cc_exec_entity[direct].cc_curr == c) {
 		/*
 		 * We're being asked to reschedule a callout which is
 		 * currently in progress.  If there is a lock then we
 		 * can cancel the callout if it has not really started.
 		 */
-		if (c->c_lock != NULL && 
-		    !cc->cc_exec_entity[direct].cc_cancel) 
-			cancelled = 
+		if (c->c_lock != NULL &&
+		    !cc->cc_exec_entity[direct].cc_cancel)
+			cancelled =
 			    cc->cc_exec_entity[direct].cc_cancel = 1;
-		if (cc->cc_exec_entity[direct].cc_waiting) { 
+		if (cc->cc_exec_entity[direct].cc_waiting) {
 			/*
 			 * Someone has called callout_drain to kill this
 			 * callout.  Don't reschedule.
@@ -978,9 +978,9 @@ _callout_reset_on(struct callout *c, struct bintime *bt, int to_ticks,
 		}
 	}
 	if (c->c_flags & CALLOUT_PENDING) {
-		if ((c->c_flags & CALLOUT_PROCESSED) == 0) {	
-			if (cc->cc_exec_next_dir == c) 
-				cc->cc_exec_next_dir = TAILQ_NEXT(c, 
+		if ((c->c_flags & CALLOUT_PROCESSED) == 0) {
+			if (cc->cc_exec_next_dir == c)
+				cc->cc_exec_next_dir = TAILQ_NEXT(c,
 				    c_links.tqe);
 			bucket = get_bucket(&c->c_time);
 			TAILQ_REMOVE(&cc->cc_callwheel[bucket], c,
@@ -988,7 +988,7 @@ _callout_reset_on(struct callout *c, struct bintime *bt, int to_ticks,
 		} else {
 			if (cc->cc_exec_next == c)
 				cc->cc_exec_next = TAILQ_NEXT(c, c_staiter);
-			TAILQ_REMOVE(&cc->cc_expireq, c, c_staiter);  
+			TAILQ_REMOVE(&cc->cc_expireq, c, c_staiter);
 		}
 		cancelled = 1;
 		c->c_flags &= ~(CALLOUT_ACTIVE | CALLOUT_PENDING);
@@ -1003,14 +1003,14 @@ _callout_reset_on(struct callout *c, struct bintime *bt, int to_ticks,
 	if (c->c_cpu != cpu) {
 		if (cc->cc_exec_entity[direct].cc_curr == c) {
 			cc->cc_exec_entity[direct].ce_migration_cpu = cpu;
-			cc->cc_exec_entity[direct].ce_migration_time 
+			cc->cc_exec_entity[direct].ce_migration_time
 			    = to_bt;
 			cc->cc_exec_entity[direct].ce_migration_func = ftn;
 			cc->cc_exec_entity[direct].ce_migration_arg = arg;
 			c->c_flags |= CALLOUT_DFRMIGRATION;
 			CTR6(KTR_CALLOUT,
 		    "migration of %p func %p arg %p in %d.%08x to %u deferred",
-			    c, c->c_func, c->c_arg, (int)(to_bt.sec), 
+			    c, c->c_func, c->c_arg, (int)(to_bt.sec),
 			    (u_int)(to_bt.frac >> 32), cpu);
 			CC_UNLOCK(cc);
 			return (cancelled);
@@ -1021,7 +1021,7 @@ _callout_reset_on(struct callout *c, struct bintime *bt, int to_ticks,
 
 	callout_cc_add(c, cc, to_bt, ftn, arg, cpu, flags);
 	CTR6(KTR_CALLOUT, "%sscheduled %p func %p arg %p in %d.%08x",
-	    cancelled ? "re" : "", c, c->c_func, c->c_arg, (int)(to_bt.sec), 
+	    cancelled ? "re" : "", c, c->c_func, c->c_arg, (int)(to_bt.sec),
 	    (u_int)(to_bt.frac >> 32));
 	CC_UNLOCK(cc);
 
@@ -1156,7 +1156,7 @@ again:
 				CC_UNLOCK(cc);
 				sleepq_add(
 				    &cc->cc_exec_entity[direct].cc_waiting,
-			    	    &cc->cc_lock.lock_object, "codrain",
+				    &cc->cc_lock.lock_object, "codrain",
 				    SLEEPQ_SLEEP, 0);
 				sleepq_wait(
 				    &cc->cc_exec_entity[direct].cc_waiting,
@@ -1168,8 +1168,8 @@ again:
 				PICKUP_GIANT();
 				CC_LOCK(cc);
 			}
-		} else if (use_lock && 
-			    !cc->cc_exec_entity[direct].cc_cancel) { 
+		} else if (use_lock &&
+			    !cc->cc_exec_entity[direct].cc_cancel) {
 			/*
 			 * The current callout is waiting for its
 			 * lock which we hold.  Cancel the callout
@@ -1209,7 +1209,7 @@ again:
 		TAILQ_REMOVE(&cc->cc_callwheel[bucket], c,
 		    c_links.tqe);
 	} else
-		TAILQ_REMOVE(&cc->cc_expireq, c, c_staiter); 
+		TAILQ_REMOVE(&cc->cc_expireq, c, c_staiter);
 	callout_cc_del(c, cc, direct);
 
 	CC_UNLOCK(cc);
