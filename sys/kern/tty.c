@@ -1381,6 +1381,16 @@ tty_flush(struct tty *tp, int flags)
 	}
 }
 
+void
+tty_set_winsize(struct tty *tp, const struct winsize *wsz)
+{
+
+	if (memcmp(&tp->t_winsize, wsz, sizeof(*wsz)) == 0)
+		return;
+	tp->t_winsize = *wsz;
+	tty_signal_pgrp(tp, SIGWINCH);
+}
+
 static int
 tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
     struct thread *td)
@@ -1689,10 +1699,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 		return (0);
 	case TIOCSWINSZ:
 		/* Set window size. */
-		if (bcmp(&tp->t_winsize, data, sizeof(struct winsize)) == 0)
-			return (0);
-		tp->t_winsize = *(struct winsize*)data;
-		tty_signal_pgrp(tp, SIGWINCH);
+		tty_set_winsize(tp, data);
 		return (0);
 	case TIOCEXCL:
 		tp->t_flags |= TF_EXCLUDE;
