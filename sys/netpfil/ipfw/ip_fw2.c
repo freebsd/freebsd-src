@@ -2535,7 +2535,6 @@ ipfw_init(void)
 		"(+ipv6) "
 #endif
 		"initialized, divert %s, nat %s, "
-		"rule-based forwarding turned %s, "
 		"default to %s, logging ",
 #ifdef IPDIVERT
 		"enabled",
@@ -2547,7 +2546,6 @@ ipfw_init(void)
 #else
 		"loadable",
 #endif
-		V_pfilforward ? "on": "off",
 		default_to_accept ? "accept" : "deny");
 
 	/*

@@ -446,7 +446,7 @@ passin:
 	/*
 	 * Destination address changed?
 	 */
-	if (V_pfilforward != 0)
+	if (m->m_flags & M_IP_NEXTHOP)
 		fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
 	if (odest.s_addr != dest.s_addr || fwd_tag != NULL) {
 		/*
@@ -469,6 +469,7 @@ forwardlocal:
 			dest.s_addr = ((struct sockaddr_in *)
 				    (fwd_tag + 1))->sin_addr.s_addr;
 			m_tag_delete(m, fwd_tag);
+			m->m_flags &= ~M_IP_NEXTHOP;
 		}
 		RTFREE(ro.ro_rt);
 		if ((dst = ip_findroute(&ro, dest, m)) == NULL)

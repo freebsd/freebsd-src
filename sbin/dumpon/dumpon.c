@@ -64,7 +64,7 @@ usage(void)
 	fprintf(stderr, "%s\n%s\n%s\n",
 	    "usage: dumpon [-v] special_file",
 	    "       dumpon [-v] off",
-	    "       dumpon -l");
+	    "       dumpon [-v] -l");
 	exit(EX_USAGE);
 }
 
