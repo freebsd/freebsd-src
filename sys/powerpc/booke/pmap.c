@@ -111,9 +111,10 @@ extern unsigned char _end[];
 extern uint32_t *bootinfo;
 
 #ifdef SMP
-extern uint32_t bp_kernload;
+extern uint32_t bp_ntlb1s;
 #endif
 
+vm_paddr_t ccsrbar_pa;
 vm_paddr_t kernload;
 vm_offset_t kernstart;
 vm_size_t kernsize;
@@ -962,10 +963,6 @@ mmu_booke_bootstrap(mmu_t mmu, vm_offset_t start, vm_offset_t kernelend)
 
 	debugf("mmu_booke_bootstrap: entered\n");
 
-#ifdef SMP
-	bp_kernload = kernload;
-#endif
-
 	/* Initialize invalidation mutex */
 	mtx_init(&tlbivax_mutex, "tlbivax", NULL, MTX_SPIN);
 
@@ -1279,7 +1276,7 @@ pmap_bootstrap_ap(volatile uint32_t *trcp __unused)
 	 * have the snapshot of its contents in the s/w tlb1[] table, so use
 	 * these values directly to (re)program AP's TLB1 hardware.
 	 */
-	for (i = 0; i < tlb1_idx; i ++) {
+	for (i = bp_ntlb1s; i < tlb1_idx; i++) {
 		/* Skip invalid entries */
 		if (!(tlb1[i].mas1 & MAS1_VALID))
 			continue;
@@ -2601,6 +2598,18 @@ mmu_booke_mapdev(mmu_t mmu, vm_paddr_t pa, vm_size_t size)
 	uintptr_t va;
 	vm_size_t sz;
 
+	/*
+	 * CCSR is premapped. Note that (pa + size - 1) is there to make sure
+	 * we don't wrap around. Devices on the local bus typically extend all
+	 * the way up to and including 0xffffffff. In that case (pa + size)
+	 * would be 0. This creates a false positive (i.e. we think it's
+	 * within the CCSR) and not create a mapping.
+	 */
+	if (pa >= ccsrbar_pa && (pa + size - 1) < (ccsrbar_pa + CCSRBAR_SIZE)) {
+		va = CCSRBAR_VA + (pa - ccsrbar_pa);
+		return ((void *)va);
+	}
+
 	va = (pa >= 0x80000000) ? pa : (0xe2000000 + pa);
 	res = (void *)va;
 
@@ -3011,6 +3020,8 @@ tlb1_init(vm_offset_t ccsrbar)
 	uint32_t tsz;
 	u_int i;
 
+	ccsrbar_pa = ccsrbar;
+
 	if (bootinfo != NULL && bootinfo[0] != 1) {
 		tlb1_idx = *((uint16_t *)(bootinfo + 8));
 	} else
@@ -3041,6 +3052,10 @@ tlb1_init(vm_offset_t ccsrbar)
 
 	/* Map in CCSRBAR. */
 	tlb1_set_entry(CCSRBAR_VA, ccsrbar, CCSRBAR_SIZE, _TLB_ENTRY_IO);
+
+#ifdef SMP
+	bp_ntlb1s = tlb1_idx;
+#endif
 
 	/* Purge the remaining entries */
 	for (i = tlb1_idx; i < TLB1_ENTRIES; i++)
