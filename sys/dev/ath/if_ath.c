@@ -701,6 +701,13 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 */
 	sc->sc_mrrprot = 0;	/* XXX should be a capability */
 
+	/*
+	 * Query the enterprise mode information the HAL.
+	 */
+	if (ath_hal_getcapability(ah, HAL_CAP_ENTERPRISE_MODE, 0,
+	    &sc->sc_ent_cfg) == HAL_OK)
+		sc->sc_use_ent = 1;
+
 #ifdef	ATH_ENABLE_11N
 	/*
 	 * Query HT capabilities
