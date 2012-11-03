@@ -538,7 +538,11 @@ struct ath_softc {
 	struct ath_ratectrl	*sc_rc;		/* tx rate control support */
 	struct ath_tx99		*sc_tx99;	/* tx99 adjunct state */
 	void			(*sc_setdefantenna)(struct ath_softc *, u_int);
-	unsigned int		sc_invalid  : 1,/* disable hardware accesses */
+
+	/*
+	 * First set of flags.
+	 */
+	uint32_t		sc_invalid  : 1,/* disable hardware accesses */
 				sc_mrretry  : 1,/* multi-rate retry support */
 				sc_mrrprot  : 1,/* MRR + protection support */
 				sc_softled  : 1,/* enable LED gpio status */
@@ -570,6 +574,17 @@ struct ath_softc {
 				sc_rxslink  : 1,/* do self-linked final descriptor */
 				sc_rxtsf32  : 1,/* RX dec TSF is 32 bits */
 				sc_isedma   : 1;/* supports EDMA */
+
+	/*
+	 * Second set of flags.
+	 */
+	u_int32_t		sc_use_ent  : 1;
+
+	/*
+	 * Enterprise mode configuration for AR9380 and later chipsets.
+	 */
+	uint32_t		sc_ent_cfg;
+
 	uint32_t		sc_eerd;	/* regdomain from EEPROM */
 	uint32_t		sc_eecc;	/* country code from EEPROM */
 						/* rate tables */
