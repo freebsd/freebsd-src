@@ -332,14 +332,18 @@ ehci_init(ehci_softc_t *sc)
 	sc->sc_noport = EHCI_HCS_N_PORTS(sparams);
 	sc->sc_bus.usbrev = USB_REV_2_0;
 
-	/* Reset the controller */
-	DPRINTF("%s: resetting\n", device_get_nameunit(sc->sc_bus.bdev));
+	if (!(sc->sc_flags & EHCI_SCFLG_DONTRESET)) {
+		/* Reset the controller */
+		DPRINTF("%s: resetting\n",
+		    device_get_nameunit(sc->sc_bus.bdev));
 
-	err = ehci_hcreset(sc);
-	if (err) {
-		device_printf(sc->sc_bus.bdev, "reset timeout\n");
-		return (err);
+		err = ehci_hcreset(sc);
+		if (err) {
+			device_printf(sc->sc_bus.bdev, "reset timeout\n");
+			return (err);
+		}
 	}
+
 	/*
 	 * use current frame-list-size selection 0: 1024*4 bytes 1:  512*4
 	 * bytes 2:  256*4 bytes 3:      unknown
