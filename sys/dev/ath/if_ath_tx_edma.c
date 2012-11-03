@@ -134,6 +134,7 @@ static void
 ath_edma_tx_fifo_fill(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_buf *bf;
+	int i = 0;
 
 	ATH_TXQ_LOCK_ASSERT(txq);
 
@@ -143,9 +144,15 @@ ath_edma_tx_fifo_fill(struct ath_softc *sc, struct ath_txq *txq)
 		if (txq->axq_fifo_depth >= HAL_TXFIFO_DEPTH)
 			break;
 		ath_hal_puttxbuf(sc->sc_ah, txq->axq_qnum, bf->bf_daddr);
+#ifdef	ATH_DEBUG
+		if (sc->sc_debug & ATH_DEBUG_XMIT_DESC)
+			ath_printtxbuf(sc, bf, txq->axq_qnum, i, 0);
+#endif
 		txq->axq_fifo_depth++;
+		i++;
 	}
-	ath_hal_txstart(sc->sc_ah, txq->axq_qnum);
+	if (i > 0)
+		ath_hal_txstart(sc->sc_ah, txq->axq_qnum);
 }
 
 /*
@@ -208,13 +215,12 @@ ath_edma_xmit_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 	/* Push and update frame stats */
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
 
-#ifdef	ATH_DEBUG
-	if (sc->sc_debug & ATH_DEBUG_XMIT_DESC)
-		ath_printtxbuf(sc, bf, txq->axq_qnum, 0, 0);
-#endif	/* ATH_DEBUG */
-
 	/* Only schedule to the FIFO if there's space */
 	if (txq->axq_fifo_depth < HAL_TXFIFO_DEPTH) {
+#ifdef	ATH_DEBUG
+		if (sc->sc_debug & ATH_DEBUG_XMIT_DESC)
+			ath_printtxbuf(sc, bf, txq->axq_qnum, 0, 0);
+#endif	/* ATH_DEBUG */
 		ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
 		txq->axq_fifo_depth++;
 		ath_hal_txstart(ah, txq->axq_qnum);
@@ -428,16 +434,29 @@ ath_edma_tx_proc(void *arg, int npending)
 	struct ath_buf *bf;
 	struct ieee80211_node *ni;
 	int nacked = 0;
+	int idx;
+
+#ifdef	ATH_DEBUG
+	/* XXX */
+	uint32_t txstatus[32];
+#endif
 
 	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: called, npending=%d\n",
 	    __func__, npending);
 
-	for (;;) {
+	for (idx = 0; ; idx++) {
 		bzero(&ts, sizeof(ts));
 
 		ATH_TXSTATUS_LOCK(sc);
 		status = ath_hal_txprocdesc(ah, NULL, (void *) &ts);
+		ath_hal_gettxrawtxdesc(ah, txstatus);
 		ATH_TXSTATUS_UNLOCK(sc);
+
+#ifdef	ATH_DEBUG
+		if (sc->sc_debug & ATH_DEBUG_TX_PROC)
+			ath_printtxstatbuf(sc, NULL, txstatus, ts.ts_queue_id,
+			    idx, (status == HAL_OK));
+#endif
 
 		if (status == HAL_EINPROGRESS)
 			break;
@@ -481,6 +500,8 @@ ath_edma_tx_proc(void *arg, int npending)
 		DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: qcuid=%d, bf=%p\n",
 		    __func__,
 		    ts.ts_queue_id, bf);
+
+		/* XXX TODO: actually output debugging info about this */
 
 #if 0
 		/* XXX assert the buffer/descriptor matches the status descid */
