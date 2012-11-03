@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sysexits.h>
 #include <unistd.h>
 
@@ -280,7 +281,7 @@ parseargs(int argc, char *argv[])
 			if (a == 0)
 				timeout = WD_TO_NEVER;
 			else
-				timeout = 1.0 + log(a * 1e9) / log(2.0);
+				timeout = flsll(a * 1e9);
 			if (debugging)
 				printf("Timeout is 2^%d nanoseconds\n",
 				    timeout);
