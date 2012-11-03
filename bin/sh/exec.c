@@ -78,7 +78,6 @@ __FBSDID("$FreeBSD$");
 
 
 #define CMDTABLESIZE 31		/* should be prime */
-#define ARB 1			/* actual size determined at run time */
 
 
 
@@ -88,7 +87,7 @@ struct tblentry {
 	int special;		/* flag for special builtin commands */
 	short cmdtype;		/* index identifying command */
 	char rehash;		/* if set, cd done since entry created */
-	char cmdname[ARB];	/* name of command */
+	char cmdname[];		/* name of command */
 };
 
 
@@ -563,7 +562,7 @@ cmdlookup(const char *name, int add)
 	}
 	if (add && cmdp == NULL) {
 		INTOFF;
-		cmdp = *pp = ckmalloc(sizeof (struct tblentry) - ARB
+		cmdp = *pp = ckmalloc(sizeof (struct tblentry)
 					+ strlen(name) + 1);
 		cmdp->next = NULL;
 		cmdp->cmdtype = CMDUNKNOWN;
