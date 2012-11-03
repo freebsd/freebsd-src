@@ -110,6 +110,10 @@ static int md_malloc_wait;
 SYSCTL_INT(_vm, OID_AUTO, md_malloc_wait, CTLFLAG_RW, &md_malloc_wait, 0,
     "Allow malloc to wait for memory allocations");
 
+#if defined(MD_ROOT) && !defined(MD_ROOT_FSTYPE)
+#define	MD_ROOT_FSTYPE	"ufs"
+#endif
+
 #if defined(MD_ROOT) && defined(MD_ROOT_SIZE)
 /*
  * Preloaded image gets put here.
@@ -1328,7 +1332,7 @@ md_preloaded(u_char *image, size_t length)
 	sc->start = mdstart_preload;
 #ifdef MD_ROOT
 	if (sc->unit == 0)
-		rootdevnames[0] = "ufs:/dev/md0";
+		rootdevnames[0] = MD_ROOT_FSTYPE ":/dev/md0";
 #endif
 	mdinit(sc);
 }
