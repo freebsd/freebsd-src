@@ -452,7 +452,7 @@ DB_SHOW_COMMAND(irqs, db_show_irqs)
  * allocate CPUs round-robin.
  */
 
-static cpuset_t intr_cpus;
+static cpuset_t intr_cpus = CPUSET_T_INITIALIZER(0x1);
 static int current_cpu;
 
 /*
@@ -564,12 +564,5 @@ intr_next_cpu(void)
 {
 
 	return (PCPU_GET(apic_id));
-}
-
-/* Use an empty stub for compatibility. */
-void
-intr_add_cpu(u_int cpu __unused)
-{
-
 }
 #endif

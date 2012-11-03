@@ -3,8 +3,7 @@
 NO_OBJ=
 
 FILESDIR=	${LIBEXECDIR}/bsdconfig/include
-FILES=		common.subr dialog.subr messages.subr mustberoot.subr \
-		strings.subr sysrc.subr
+FILES=		bsdconfig.hlp messages.subr usage.hlp
 
 beforeinstall:
 	mkdir -p ${DESTDIR}${FILESDIR}

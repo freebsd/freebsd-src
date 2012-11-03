@@ -5,21 +5,20 @@
 #
 # $Id: execsnoop 3 2007-08-01 10:50:08Z brendan $
 #
-# USAGE:	execsnoop [-a|-A|-ehjsvZ] [-c command]
+# USAGE:	execsnoop [-a|-A|-ehsvJ] [-c command]
 #
 #		execsnoop	# default output
 #
 #		-a		# print all data
 #		-A		# dump all data, space delimited
 #		-e		# safe output - parseable
-#		-j		# print project ID
 #		-s		# print start time, us
 #		-v		# print start time, string
-#		-Z		# print zonename
+#		-J		# print jail ID
 #		-c command	# command name to snoop
 #	eg,
 #		execsnoop -v		# human readable timestamps
-#		execsnoop -Z		# print zonename
+#		execsnoop -J		# print jail ID
 #		execsnoop -c ls		# snoop ls commands only
 #
 # The parseable output ensures that the ARGS field doesn't contain
@@ -31,8 +30,7 @@
 #		PPID		Parent Process ID
 #		COMM		command name for the process
 #		ARGS		argument listing for the process
-#		ZONE		zonename
-#		PROJ		project ID
+#		JAIL ID		Jail ID	
 #		TIME		timestamp for the command, us
 #		STRTIME		timestamp for the command, string
 #
@@ -72,34 +70,32 @@
 
 ### default variables
 opt_dump=0; opt_cmd=0; opt_time=0; opt_timestr=0; filter=0; command=.
-opt_zone=0; opt_safe=0; opt_proj=0
+opt_jailid=0; opt_safe=0
 
 ### process options
-while getopts aAc:ehjsvZ name
+while getopts aAc:ehsvJ name
 do
 	case $name in
-	a)	opt_time=1; opt_timestr=1; opt_zone=1; opt_proj=1 ;;
+	a)	opt_time=1; opt_timestr=1; opt_jailid=1 ;;
 	A)	opt_dump=1 ;;
 	c)	opt_cmd=1; command=$OPTARG ;;
 	e)	opt_safe=1 ;;
-	j)	opt_proj=1 ;;
 	s)	opt_time=1 ;;
 	v)	opt_timestr=1 ;;
-	Z)	opt_zone=1 ;;
+	J)	opt_jailid=1 ;;
 	h|?)	cat <<-END >&2
-		USAGE: execsnoop [-a|-A|-ehjsvZ] [-c command]
+		USAGE: execsnoop [-a|-A|-ehjsvJ] [-c command]
 		       execsnoop                # default output
 		                -a              # print all data
 		                -A              # dump all data, space delimited
 		                -e              # safe output, parseable
-		                -j              # print project ID
 		                -s              # print start time, us
 		                -v              # print start time, string
-		                -Z              # print zonename
+		                -J              # print jail ID 
 		                -c command      # command name to snoop
 		  eg,
 		        execsnoop -v            # human readable timestamps
-		        execsnoop -Z		# print zonename
+		        execsnoop -J		# print jail ID 
 		        execsnoop -c ls         # snoop ls commands only
 		END
 		exit 1
@@ -108,7 +104,7 @@ done
 
 ### option logic
 if [ $opt_dump -eq 1 ]; then
-	opt_time=0; opt_timestr=0; opt_zone=0; opt_proj=0
+	opt_time=0; opt_timestr=0; opt_jailid=0
 fi
 if [ $opt_cmd -eq 1 ]; then
 	filter=1
@@ -126,9 +122,8 @@ fi
  inline int OPT_cmd 	= '$opt_cmd';
  inline int OPT_time 	= '$opt_time';
  inline int OPT_timestr	= '$opt_timestr';
- inline int OPT_zone 	= '$opt_zone';
+ inline int OPT_jailid  = '$opt_jailid';
  inline int OPT_safe 	= '$opt_safe';
- inline int OPT_proj 	= '$opt_proj';
  inline int FILTER 	= '$filter';
  inline string COMMAND 	= "'$command'";
  
@@ -143,12 +138,11 @@ fi
 	/* print optional headers */
  	OPT_time    ? printf("%-14s ", "TIME") : 1;
  	OPT_timestr ? printf("%-20s ", "STRTIME") : 1;
- 	OPT_zone    ? printf("%-10s ", "ZONE") : 1;
- 	OPT_proj    ? printf("%5s ", "PROJ") : 1;
+ 	OPT_jailid    ? printf("%-10s ", "JAIL ID") : 1;
 
 	/* print main headers */
-	OPT_dump    ? printf("%s %s %s %s %s %s %s %s\n",
-	    "TIME", "ZONE", "PROJ", "UID", "PID", "PPID", "COMM", "ARGS") :
+	OPT_dump    ? printf("%s %s %s %s %s %s %s\n",
+	    "TIME", "JAIL ID", "UID", "PID", "PPID", "COMM", "ARGS") :
 	    printf("%5s %6s %6s %s\n", "UID", "PID", "PPID", "ARGS");
  }
 
@@ -161,12 +155,11 @@ fi
 	/* print optional fields */
  	OPT_time ? printf("%-14d ", timestamp/1000) : 1;
 	OPT_timestr ? printf("%-20Y ", walltimestamp) : 1;
- 	OPT_zone ? printf("%-10s ", zonename) : 1;
- 	OPT_proj ? printf("%5d ", curpsinfo->pr_projid) : 1;
+	OPT_jailid ? printf("%-10d ", curpsinfo->pr_jailid) : 1;
 
 	/* print main data */
-	OPT_dump ? printf("%d %s %d %d %d %d %s ", timestamp/1000,
-	    zonename, curpsinfo->pr_projid, uid, pid, ppid, execname) :
+	OPT_dump ? printf("%d %d %d %d %d %s ", timestamp/1000,
+	    curpsinfo->pr_jailid, uid, pid, ppid, execname) :
 	    printf("%5d %6d %6d ", uid, pid, ppid);
 	OPT_safe ? printf("%S\n", curpsinfo->pr_psargs) :
 	    printf("%s\n", curpsinfo->pr_psargs);

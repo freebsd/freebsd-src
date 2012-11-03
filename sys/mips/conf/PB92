@@ -106,8 +106,6 @@ options		USB_HOST_ALIGN=32
 #device		da
 
 # Read MSDOS formatted disks
-options		GEOM_PART_BSD
-options		GEOM_PART_MBR
 # options		MSDOSFS
 
 # GPIO Bus

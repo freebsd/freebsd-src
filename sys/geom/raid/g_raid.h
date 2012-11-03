@@ -33,6 +33,9 @@
 #include <sys/kobj.h>
 #include <sys/bio.h>
 #include <sys/time.h>
+#ifdef _KERNEL
+#include <sys/sysctl.h>
+#endif
 
 #define	G_RAID_CLASS_NAME	"RAID"
 
@@ -51,6 +54,7 @@ struct g_raid_tr_object;
 #ifdef _KERNEL
 extern u_int g_raid_aggressive_spare;
 extern u_int g_raid_debug;
+extern int g_raid_enable;
 extern int g_raid_read_err_thresh;
 extern u_int g_raid_start_timeout;
 extern struct g_class g_raid_class;
@@ -149,6 +153,7 @@ struct g_raid_disk {
 	struct g_consumer	*d_consumer;	/* GEOM disk consumer. */
 	void			*d_md_data;	/* Disk's metadata storage. */
 	struct g_kerneldump	 d_kd;		/* Kernel dumping method/args. */
+	int			 d_candelete;	/* BIO_DELETE supported. */
 	uint64_t		 d_flags;	/* Additional flags. */
 	u_int			 d_state;	/* Disk state. */
 	u_int			 d_load;	/* Disk average load. */
@@ -322,11 +327,14 @@ struct g_raid_softc {
 };
 #define	sc_name	sc_geom->name
 
+SYSCTL_DECL(_kern_geom_raid);
+
 /*
  * KOBJ parent class of metadata processing modules.
  */
 struct g_raid_md_class {
 	KOBJ_CLASS_FIELDS;
+	int		 mdc_enable;
 	int		 mdc_priority;
 	LIST_ENTRY(g_raid_md_class) mdc_list;
 };
@@ -342,20 +350,29 @@ struct g_raid_md_object {
 
 int g_raid_md_modevent(module_t, int, void *);
 
-#define	G_RAID_MD_DECLARE(name)					\
-    static moduledata_t name##_mod = {				\
-	#name,							\
+#define	G_RAID_MD_DECLARE(name, label)				\
+    static moduledata_t g_raid_md_##name##_mod = {		\
+	"g_raid_md_" __XSTRING(name),				\
 	g_raid_md_modevent,					\
-	&name##_class						\
+	&g_raid_md_##name##_class				\
     };								\
-    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_SECOND);	\
-    MODULE_DEPEND(name, geom_raid, 0, 0, 0)
+    DECLARE_MODULE(g_raid_md_##name, g_raid_md_##name##_mod,	\
+	SI_SUB_DRIVERS, SI_ORDER_SECOND);			\
+    MODULE_DEPEND(g_raid_md_##name, geom_raid, 0, 0, 0);	\
+    SYSCTL_NODE(_kern_geom_raid, OID_AUTO, name, CTLFLAG_RD,	\
+	NULL, label " metadata module");			\
+    SYSCTL_INT(_kern_geom_raid_##name, OID_AUTO, enable,	\
+	CTLFLAG_RW, &g_raid_md_##name##_class.mdc_enable, 0,	\
+	"Enable " label " metadata format taste");		\
+    TUNABLE_INT("kern.geom.raid." __XSTRING(name) ".enable",	\
+	&g_raid_md_##name##_class.mdc_enable)
 
 /*
  * KOBJ parent class of data transformation modules.
  */
 struct g_raid_tr_class {
 	KOBJ_CLASS_FIELDS;
+	int		 trc_enable;
 	int		 trc_priority;
 	LIST_ENTRY(g_raid_tr_class) trc_list;
 };
@@ -371,14 +388,22 @@ struct g_raid_tr_object {
 
 int g_raid_tr_modevent(module_t, int, void *);
 
-#define	G_RAID_TR_DECLARE(name)					\
-    static moduledata_t name##_mod = {				\
-	#name,							\
+#define	G_RAID_TR_DECLARE(name, label)				\
+    static moduledata_t g_raid_tr_##name##_mod = {		\
+	"g_raid_tr_" __XSTRING(name),				\
 	g_raid_tr_modevent,					\
-	&name##_class						\
+	&g_raid_tr_##name##_class				\
     };								\
-    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);	\
-    MODULE_DEPEND(name, geom_raid, 0, 0, 0)
+    DECLARE_MODULE(g_raid_tr_##name, g_raid_tr_##name##_mod,	\
+	SI_SUB_DRIVERS, SI_ORDER_FIRST);			\
+    MODULE_DEPEND(g_raid_tr_##name, geom_raid, 0, 0, 0);	\
+    SYSCTL_NODE(_kern_geom_raid, OID_AUTO, name, CTLFLAG_RD,	\
+	NULL, label " transformation module");			\
+    SYSCTL_INT(_kern_geom_raid_##name, OID_AUTO, enable,	\
+	CTLFLAG_RW, &g_raid_tr_##name##_class.trc_enable, 0,	\
+	"Enable " label " transformation module taste");	\
+    TUNABLE_INT("kern.geom.raid." __XSTRING(name) ".enable",	\
+	&g_raid_tr_##name##_class.trc_enable)
 
 const char * g_raid_volume_level2str(int level, int qual);
 int g_raid_volume_str2level(const char *str, int *level, int *qual);
@@ -394,6 +419,7 @@ struct g_raid_volume * g_raid_create_volume(struct g_raid_softc *sc,
     const char *name, int id);
 struct g_raid_disk * g_raid_create_disk(struct g_raid_softc *sc);
 const char * g_raid_get_diskname(struct g_raid_disk *disk);
+void g_raid_get_disk_info(struct g_raid_disk *disk);
 
 int g_raid_start_volume(struct g_raid_volume *vol);
 

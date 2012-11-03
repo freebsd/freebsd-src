@@ -590,19 +590,26 @@ g_multipath_destroy_geom(struct gctl_req *req, struct g_class *mp,
 static int
 g_multipath_rotate(struct g_geom *gp)
 {
-	struct g_consumer *lcp;
+	struct g_consumer *lcp, *first_good_cp = NULL;
 	struct g_multipath_softc *sc = gp->softc;
+	int active_cp_seen = 0;
 
 	g_topology_assert();
 	if (sc == NULL)
 		return (ENXIO);
 	LIST_FOREACH(lcp, &gp->consumer, consumer) {
 		if ((lcp->index & MP_BAD) == 0) {
-			if (sc->sc_active != lcp)
+			if (first_good_cp == NULL)
+				first_good_cp = lcp;
+			if (active_cp_seen)
 				break;
 		}
+		if (sc->sc_active == lcp)
+			active_cp_seen = 1;
 	}
-	if (lcp) {
+	if (lcp == NULL)
+		lcp = first_good_cp;
+	if (lcp && lcp != sc->sc_active) {
 		sc->sc_active = lcp;
 		if (sc->sc_active_active != 1)
 			printf("GEOM_MULTIPATH: %s is now active path in %s\n",

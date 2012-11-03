@@ -1,5 +1,5 @@
 /*
- *  $Id: inputstr.c,v 1.69 2011/01/16 21:52:35 tom Exp $
+ *  $Id: inputstr.c,v 1.70 2011/10/20 23:42:49 tom Exp $
  *
  *  inputstr.c -- functions for input/display of a string
  *
@@ -261,7 +261,6 @@ dlg_count_wcbytes(const char *string, size_t len)
 	load_cache(&cache, string);
 	if (!same_cache1(&cache, string, len)) {
 	    while (len != 0) {
-		int part = 0;
 		size_t code = 0;
 		const char *src = cache.string;
 		mbstate_t state;
@@ -274,7 +273,6 @@ dlg_count_wcbytes(const char *string, size_t len)
 		if ((int) code >= 0) {
 		    break;
 		}
-		++part;
 		--len;
 	    }
 	    cache.i_len = len;
@@ -700,7 +698,7 @@ dlg_show_string(WINDOW *win,
 
 	compute_edit_offset(string, chr_offset, x_last, &input_x, &scrollamt);
 
-	wattrset(win, attr);
+	(void) wattrset(win, attr);
 	(void) wmove(win, y_base, x_base);
 	for (i = scrollamt, k = 0; i < limit && k < x_last; ++i) {
 	    int check = cols[i + 1] - cols[scrollamt];

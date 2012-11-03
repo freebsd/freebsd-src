@@ -57,12 +57,6 @@ int drm_open_helper(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 		return ENOMEM;
 	}
 
-	retcode = devfs_set_cdevpriv(priv, drm_close);
-	if (retcode != 0) {
-		free(priv, DRM_MEM_FILES);
-		return retcode;
-	}
-
 	DRM_LOCK(dev);
 	priv->dev		= dev;
 	priv->uid		= p->td_ucred->cr_svuid;
@@ -83,7 +77,6 @@ int drm_open_helper(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 		/* shared code returns -errno */
 		retcode = -dev->driver->open(dev, priv);
 		if (retcode != 0) {
-			devfs_clear_cdevpriv();
 			free(priv, DRM_MEM_FILES);
 			DRM_UNLOCK(dev);
 			return retcode;
@@ -96,7 +89,12 @@ int drm_open_helper(struct cdev *kdev, int flags, int fmt, DRM_STRUCTPROC *p,
 	TAILQ_INSERT_TAIL(&dev->files, priv, link);
 	DRM_UNLOCK(dev);
 	kdev->si_drv1 = dev;
-	return 0;
+
+	retcode = devfs_set_cdevpriv(priv, drm_close);
+	if (retcode != 0)
+		drm_close(priv);
+
+	return (retcode);
 }
 
 static bool

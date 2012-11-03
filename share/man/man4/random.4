@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 19, 2006
+.Dd September 7, 2012
 .Dt RANDOM 4
 .Os
 .Sh NAME
@@ -142,7 +142,7 @@ if you wish to use them for entropy harvesting.
 The other variables are explained in the paper describing the
 .Em Yarrow
 algorithm at
-.Pa http://www.counterpane.com/yarrow.html .
+.Pa http://www.schneier.com/yarrow.html .
 .Pp
 These variables are all limited
 in terms of the values they may contain:
@@ -315,11 +315,16 @@ and is an implementation of the
 .Em Yarrow
 algorithm by Bruce Schneier,
 .Em et al .
-The only hardware implementation
-currently is for the
+The only hardware implementations
+currently are for the
 .Tn VIA C3 Nehemiah
 (stepping 3 or greater)
-CPU.
+CPU
+and the
+.Tn Intel
+.Dq Bull Mountain
+.Em RdRand
+instruction and underlying random number generator (RNG).
 More will be added in the future.
 .Pp
 The author gratefully acknowledges

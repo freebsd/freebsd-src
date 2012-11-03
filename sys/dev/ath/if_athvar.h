@@ -35,6 +35,8 @@
 #ifndef _DEV_ATH_ATHVAR_H
 #define _DEV_ATH_ATHVAR_H
 
+#include <machine/atomic.h>
+
 #include <dev/ath/ath_hal/ah.h>
 #include <dev/ath/ath_hal/ah_desc.h>
 #include <net80211/ieee80211_radiotap.h>
@@ -99,13 +101,19 @@ struct ath_buf;
  * Note that TID 16 (WME_NUM_TID+1) is for handling non-QoS frames.
  */
 struct ath_tid {
-	TAILQ_HEAD(,ath_buf) axq_q;		/* pending buffers */
+	TAILQ_HEAD(,ath_buf)	tid_q;		/* pending buffers */
 	u_int			axq_depth;	/* SW queue depth */
 	char			axq_name[48];	/* lock name */
 	struct ath_node		*an;		/* pointer to parent */
 	int			tid;		/* tid */
 	int			ac;		/* which AC gets this trafic */
 	int			hwq_depth;	/* how many buffers are on HW */
+
+	struct {
+		TAILQ_HEAD(,ath_buf)	tid_q;		/* filtered queue */
+		u_int			axq_depth;	/* SW queue depth */
+		char			axq_name[48];	/* lock name */
+	} filtq;
 
 	/*
 	 * Entry on the ath_txq; when there's traffic
@@ -114,9 +122,16 @@ struct ath_tid {
 	TAILQ_ENTRY(ath_tid)	axq_qelem;
 	int			sched;
 	int			paused;	/* >0 if the TID has been paused */
+
+	/*
+	 * These are flags - perhaps later collapse
+	 * down to a single uint32_t ?
+	 */
 	int			addba_tx_pending;	/* TX ADDBA pending */
 	int			bar_wait;	/* waiting for BAR */
 	int			bar_tx;		/* BAR TXed */
+	int			isfiltered;	/* is this node currently filtered */
+	int			clrdmask;	/* has clrdmask been set */
 
 	/*
 	 * Is the TID being cleaned up after a transition
@@ -157,10 +172,15 @@ struct ath_node {
 	struct ieee80211_node an_node;	/* base class */
 	u_int8_t	an_mgmtrix;	/* min h/w rate index */
 	u_int8_t	an_mcastrix;	/* mcast h/w rate index */
+	uint32_t	an_is_powersave;	/* node is sleeping */
+	uint32_t	an_stack_psq;		/* net80211 psq isn't empty */
+	uint32_t	an_tim_set;		/* TIM has been set */
 	struct ath_buf	*an_ff_buf[WME_NUM_AC]; /* ff staging area */
 	struct ath_tid	an_tid[IEEE80211_TID_SIZE];	/* per-TID state */
 	char		an_name[32];	/* eg "wlan0_a1" */
 	struct mtx	an_mtx;		/* protecting the ath_node state */
+	uint32_t	an_swq_depth;	/* how many SWQ packets for this
+					   node */
 	/* variable-length rate control state follows */
 };
 #define	ATH_NODE(ni)	((struct ath_node *)(ni))
@@ -191,6 +211,7 @@ struct ath_buf {
 	int			bf_nseg;
 	HAL_STATUS		bf_rxstatus;
 	uint16_t		bf_flags;	/* status flags (below) */
+	uint16_t		bf_descid;	/* 16 bit descriptor ID */
 	struct ath_desc		*bf_desc;	/* virtual addr of desc */
 	struct ath_desc_status	bf_status;	/* tx/rx status */
 	bus_addr_t		bf_daddr;	/* physical addr of desc */
@@ -304,6 +325,7 @@ struct ath_txq {
 #define	ATH_TXQ_PUTPENDING	0x0001		/* ath_hal_puttxbuf pending */
 	u_int			axq_depth;	/* queue depth (stat only) */
 	u_int			axq_aggr_depth;	/* how many aggregates are queued */
+	u_int			axq_fifo_depth;	/* depth of FIFO frames */
 	u_int			axq_intrcnt;	/* interrupt count */
 	u_int32_t		*axq_link;	/* link ptr in last TX desc */
 	TAILQ_HEAD(axq_q_s, ath_buf)	axq_q;		/* transmit queue */
@@ -317,6 +339,8 @@ struct ath_txq {
 #define	ATH_NODE_LOCK(_an)		mtx_lock(&(_an)->an_mtx)
 #define	ATH_NODE_UNLOCK(_an)		mtx_unlock(&(_an)->an_mtx)
 #define	ATH_NODE_LOCK_ASSERT(_an)	mtx_assert(&(_an)->an_mtx, MA_OWNED)
+#define	ATH_NODE_UNLOCK_ASSERT(_an)	mtx_assert(&(_an)->an_mtx,	\
+					    MA_NOTOWNED)
 
 #define	ATH_TXQ_LOCK_INIT(_sc, _tq) do { \
 	snprintf((_tq)->axq_name, sizeof((_tq)->axq_name), "%s_txq%u", \
@@ -326,12 +350,20 @@ struct ath_txq {
 #define	ATH_TXQ_LOCK_DESTROY(_tq)	mtx_destroy(&(_tq)->axq_lock)
 #define	ATH_TXQ_LOCK(_tq)		mtx_lock(&(_tq)->axq_lock)
 #define	ATH_TXQ_UNLOCK(_tq)		mtx_unlock(&(_tq)->axq_lock)
-#define	ATH_TXQ_LOCK_ASSERT(_tq)	mtx_assert(&(_tq)->axq_lock, MA_OWNED)
+#define	ATH_TXQ_LOCK_ASSERT(_tq)	\
+	    mtx_assert(&(_tq)->axq_lock, MA_OWNED)
+#define	ATH_TXQ_UNLOCK_ASSERT(_tq)	\
+	    mtx_assert(&(_tq)->axq_lock, MA_NOTOWNED)
 #define	ATH_TXQ_IS_LOCKED(_tq)		mtx_owned(&(_tq)->axq_lock)
 
 #define	ATH_TID_LOCK_ASSERT(_sc, _tid)	\
 	    ATH_TXQ_LOCK_ASSERT((_sc)->sc_ac2q[(_tid)->ac])
+#define	ATH_TID_UNLOCK_ASSERT(_sc, _tid)	\
+	    ATH_TXQ_UNLOCK_ASSERT((_sc)->sc_ac2q[(_tid)->ac])
 
+/*
+ * These are for the hardware queue.
+ */
 #define ATH_TXQ_INSERT_HEAD(_tq, _elm, _field) do { \
 	TAILQ_INSERT_HEAD(&(_tq)->axq_q, (_elm), _field); \
 	(_tq)->axq_depth++; \
@@ -344,7 +376,50 @@ struct ath_txq {
 	TAILQ_REMOVE(&(_tq)->axq_q, _elm, _field); \
 	(_tq)->axq_depth--; \
 } while (0)
+#define	ATH_TXQ_FIRST(_tq)		TAILQ_FIRST(&(_tq)->axq_q)
 #define	ATH_TXQ_LAST(_tq, _field)	TAILQ_LAST(&(_tq)->axq_q, _field)
+
+/*
+ * These are for the TID software queue.
+ */
+#define ATH_TID_INSERT_HEAD(_tq, _elm, _field) do { \
+	TAILQ_INSERT_HEAD(&(_tq)->tid_q, (_elm), _field); \
+	(_tq)->axq_depth++; \
+	atomic_add_rel_32( &((_tq)->an)->an_swq_depth, 1); \
+} while (0)
+#define ATH_TID_INSERT_TAIL(_tq, _elm, _field) do { \
+	TAILQ_INSERT_TAIL(&(_tq)->tid_q, (_elm), _field); \
+	(_tq)->axq_depth++; \
+	atomic_add_rel_32( &((_tq)->an)->an_swq_depth, 1); \
+} while (0)
+#define ATH_TID_REMOVE(_tq, _elm, _field) do { \
+	TAILQ_REMOVE(&(_tq)->tid_q, _elm, _field); \
+	(_tq)->axq_depth--; \
+	atomic_subtract_rel_32( &((_tq)->an)->an_swq_depth, 1); \
+} while (0)
+#define	ATH_TID_FIRST(_tq)		TAILQ_FIRST(&(_tq)->tid_q)
+#define	ATH_TID_LAST(_tq, _field)	TAILQ_LAST(&(_tq)->tid_q, _field)
+
+/*
+ * These are for the TID filtered frame queue
+ */
+#define ATH_TID_FILT_INSERT_HEAD(_tq, _elm, _field) do { \
+	TAILQ_INSERT_HEAD(&(_tq)->filtq.tid_q, (_elm), _field); \
+	(_tq)->axq_depth++; \
+	atomic_add_rel_32( &((_tq)->an)->an_swq_depth, 1); \
+} while (0)
+#define ATH_TID_FILT_INSERT_TAIL(_tq, _elm, _field) do { \
+	TAILQ_INSERT_TAIL(&(_tq)->filtq.tid_q, (_elm), _field); \
+	(_tq)->axq_depth++; \
+	atomic_add_rel_32( &((_tq)->an)->an_swq_depth, 1); \
+} while (0)
+#define ATH_TID_FILT_REMOVE(_tq, _elm, _field) do { \
+	TAILQ_REMOVE(&(_tq)->filtq.tid_q, _elm, _field); \
+	(_tq)->axq_depth--; \
+	atomic_subtract_rel_32( &((_tq)->an)->an_swq_depth, 1); \
+} while (0)
+#define	ATH_TID_FILT_FIRST(_tq)		TAILQ_FIRST(&(_tq)->filtq.tid_q)
+#define	ATH_TID_FILT_LAST(_tq, _field)	TAILQ_LAST(&(_tq)->filtq.tid_q,_field)
 
 struct ath_vap {
 	struct ieee80211vap av_vap;	/* base class */
@@ -358,6 +433,8 @@ struct ath_vap {
 	int		(*av_newstate)(struct ieee80211vap *,
 				enum ieee80211_state, int);
 	void		(*av_bmiss)(struct ieee80211vap *);
+	void		(*av_node_ps)(struct ieee80211_node *, int);
+	int		(*av_set_tim)(struct ieee80211_node *, int);
 };
 #define	ATH_VAP(vap)	((struct ath_vap *)(vap))
 
@@ -414,11 +491,8 @@ struct ath_tx_methods {
 			    struct ath_txq *txq);
 	void		(*xmit_handoff)(struct ath_softc *sc,
 			    struct ath_txq *txq, struct ath_buf *bf);
-
-	void		(*xmit_drainq)(struct ath_softc *sc,
-			    struct ath_txq *txq);
-	int		(*xmit_processq)(struct ath_softc *sc,
-			    struct ath_txq *txq, int dosched);
+	void		(*xmit_drain)(struct ath_softc *sc,
+			    ATH_RESET_TYPE reset_type);
 };
 
 struct ath_softc {
@@ -427,6 +501,7 @@ struct ath_softc {
 	struct ath_tx_aggr_stats	sc_aggr_stats;
 	struct ath_intr_stats	sc_intr_stats;
 	uint64_t		sc_debug;
+	uint64_t		sc_ktrdebug;
 	int			sc_nvaps;	/* # vaps */
 	int			sc_nstavaps;	/* # station vaps */
 	int			sc_nmeshvaps;	/* # mbss vaps */
@@ -456,6 +531,8 @@ struct ath_softc {
 	char			sc_pcu_mtx_name[32];
 	struct mtx		sc_rx_mtx;	/* RX access mutex */
 	char			sc_rx_mtx_name[32];
+	struct mtx		sc_tx_mtx;	/* TX access mutex */
+	char			sc_tx_mtx_name[32];
 	struct taskqueue	*sc_tq;		/* private task queue */
 	struct ath_hal		*sc_ah;		/* Atheros HAL */
 	struct ath_ratectrl	*sc_rc;		/* tx rate control support */
@@ -574,6 +651,7 @@ struct ath_softc {
 	u_int			sc_monpass;	/* frames to pass in mon.mode */
 
 	struct ath_descdma	sc_txdma;	/* TX descriptors */
+	uint16_t		sc_txbuf_descid;
 	ath_bufhead		sc_txbuf;	/* transmit buffer */
 	int			sc_txbuf_cnt;	/* how many buffers avail */
 	struct ath_descdma	sc_txdma_mgmt;	/* mgmt TX descriptors */
@@ -700,6 +778,28 @@ struct ath_softc {
 #define	ATH_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define	ATH_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
 #define	ATH_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_NOTOWNED)
+
+/*
+ * The TX lock is non-reentrant and serialises the TX send operations.
+ * (ath_start(), ath_raw_xmit().)  It doesn't yet serialise the TX
+ * completion operations; thus it can't be used (yet!) to protect
+ * hardware / software TXQ operations.
+ */
+#define	ATH_TX_LOCK_INIT(_sc) do {\
+	snprintf((_sc)->sc_tx_mtx_name,				\
+	    sizeof((_sc)->sc_tx_mtx_name),				\
+	    "%s TX lock",						\
+	    device_get_nameunit((_sc)->sc_dev));			\
+	mtx_init(&(_sc)->sc_tx_mtx, (_sc)->sc_tx_mtx_name,		\
+		 NULL, MTX_DEF);					\
+	} while (0)
+#define	ATH_TX_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_tx_mtx)
+#define	ATH_TX_LOCK(_sc)		mtx_lock(&(_sc)->sc_tx_mtx)
+#define	ATH_TX_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_tx_mtx)
+#define	ATH_TX_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_tx_mtx,	\
+		MA_OWNED)
+#define	ATH_TX_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_tx_mtx,	\
+		MA_NOTOWNED)
 
 /*
  * The PCU lock is non-recursive and should be treated as a spinlock.
@@ -1181,6 +1281,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_enableDfs)((_ah), (_param)))
 #define	ath_hal_getdfsthresh(_ah, _param) \
 	((*(_ah)->ah_getDfsThresh)((_ah), (_param)))
+#define	ath_hal_getdfsdefaultthresh(_ah, _param) \
+	((*(_ah)->ah_getDfsDefaultThresh)((_ah), (_param)))
 #define	ath_hal_procradarevent(_ah, _rxs, _fulltsf, _buf, _event) \
 	((*(_ah)->ah_procRadarEvent)((_ah), (_rxs), (_fulltsf), \
 	(_buf), (_event)))

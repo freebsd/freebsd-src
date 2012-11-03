@@ -129,7 +129,8 @@ struct cc_exec {
  */
 struct callout_cpu {
 	struct cc_exec 		cc_exec_entity[2];
-	struct mtx		cc_lock;
+	struct mtx_padalign	cc_lock;
+	struct cc_mig_ent	cc_migrating_entity;
 	struct callout		*cc_callout;
 	struct callout_tailq	*cc_callwheel;
 	struct callout_tailq	cc_expireq;		  

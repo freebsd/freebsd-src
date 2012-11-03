@@ -58,8 +58,7 @@ extern struct sctp_cc_functions sctp_cc_functions[];
 extern struct sctp_ss_functions sctp_ss_functions[];
 
 void
-sctp_sblog(struct sockbuf *sb,
-    struct sctp_tcb *stcb, int from, int incr)
+sctp_sblog(struct sockbuf *sb, struct sctp_tcb *stcb, int from, int incr)
 {
 	struct sctp_cwnd_log sctp_clog;
 
@@ -102,7 +101,6 @@ sctp_log_closing(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int16_t loc)
 	    sctp_clog.x.misc.log3,
 	    sctp_clog.x.misc.log4);
 }
-
 
 void
 rto_logging(struct sctp_nets *net, int from)
@@ -198,8 +196,7 @@ sctp_log_map(uint32_t map, uint32_t cum, uint32_t high, int from)
 }
 
 void
-sctp_log_fr(uint32_t biggest_tsn, uint32_t biggest_new_tsn, uint32_t tsn,
-    int from)
+sctp_log_fr(uint32_t biggest_tsn, uint32_t biggest_new_tsn, uint32_t tsn, int from)
 {
 	struct sctp_cwnd_log sctp_clog;
 
@@ -242,8 +239,7 @@ sctp_log_mb(struct mbuf *m, int from)
 }
 
 void
-sctp_log_strm_del(struct sctp_queued_to_read *control, struct sctp_queued_to_read *poschk,
-    int from)
+sctp_log_strm_del(struct sctp_queued_to_read *control, struct sctp_queued_to_read *poschk, int from)
 {
 	struct sctp_cwnd_log sctp_clog;
 
@@ -686,7 +682,7 @@ sctp_auditing(int from, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			}
 			if (lnet->flight_size != tot_out) {
 				SCTP_PRINTF("net:%p flight was %d corrected to %d\n",
-				    lnet, lnet->flight_size,
+				    (void *)lnet, lnet->flight_size,
 				    tot_out);
 				lnet->flight_size = tot_out;
 			}
@@ -1434,7 +1430,7 @@ sctp_timeout_handler(void *t)
 	if (tmr->self != (void *)tmr) {
 		/*
 		 * SCTP_PRINTF("Stale SCTP timer fired (%p), ignoring...\n",
-		 * tmr);
+		 * (void *)tmr);
 		 */
 		CURVNET_RESTORE();
 		return;
@@ -2112,7 +2108,7 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	}
 	if ((to_ticks <= 0) || (tmr == NULL)) {
 		SCTPDBG(SCTP_DEBUG_TIMER1, "%s: %d:software error to_ticks:%d tmr:%p not set ??\n",
-		    __FUNCTION__, t_type, to_ticks, tmr);
+		    __FUNCTION__, t_type, to_ticks, (void *)tmr);
 		return;
 	}
 	if (SCTP_OS_TIMER_PENDING(&tmr->timer)) {
@@ -2384,8 +2380,8 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	}
 	timevalsub(&now, old);
 	/* store the current RTT in us */
-	net->rtt = (uint64_t) 10000000 *(uint64_t) now.tv_sec +
-	         (uint64_t) now.tv_usec;
+	net->rtt = (uint64_t) 1000000 *(uint64_t) now.tv_sec +
+	        (uint64_t) now.tv_usec;
 
 	/* computer rtt in ms */
 	rtt = net->rtt / 1000;
@@ -4215,7 +4211,6 @@ sctp_print_address(struct sockaddr *sa)
 #ifdef INET6
 	char ip6buf[INET6_ADDRSTRLEN];
 
-	ip6buf[0] = 0;
 #endif
 
 	switch (sa->sa_family) {
@@ -6826,7 +6821,7 @@ sctp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *ignored)
 	switch (iph->ip_v) {
 #ifdef INET
 	case IPVERSION:
-		iph->ip_len -= sizeof(struct udphdr);
+		iph->ip_len = htons(ntohs(iph->ip_len) - sizeof(struct udphdr));
 		sctp_input_with_port(m, off, port);
 		break;
 #endif

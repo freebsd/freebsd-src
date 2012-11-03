@@ -17,12 +17,12 @@ namespace clang {
 
 namespace frontend {
   /// IncludeDirGroup - Identifiers the group a include entry belongs to, which
-  /// represents its relative positive in the search list.  A #include of a ""
+  /// represents its relative positive in the search list.  A \#include of a ""
   /// path starts at the -iquote group, then searches the Angled group, then
   /// searches the system group, etc.
   enum IncludeDirGroup {
-    Quoted = 0,     ///< '#include ""' paths, added by'gcc -iquote'.
-    Angled,         ///< Paths for '#include <>' added by '-I'.
+    Quoted = 0,     ///< '\#include ""' paths, added by 'gcc -iquote'.
+    Angled,         ///< Paths for '\#include <>' added by '-I'.
     IndexHeaderMap, ///< Like Angled, but marks header maps used when
                        ///  building frameworks.
     System,         ///< Like Angled, but marks system directories.
@@ -69,12 +69,27 @@ public:
         IsInternal(isInternal), ImplicitExternC(implicitExternC) {}
   };
 
+  struct SystemHeaderPrefix {
+    /// A prefix to be matched against paths in \#include directives.
+    std::string Prefix;
+
+    /// True if paths beginning with this prefix should be treated as system
+    /// headers.
+    bool IsSystemHeader;
+
+    SystemHeaderPrefix(StringRef Prefix, bool IsSystemHeader)
+      : Prefix(Prefix), IsSystemHeader(IsSystemHeader) {}
+  };
+
   /// If non-empty, the directory to use as a "virtual system root" for include
   /// paths.
   std::string Sysroot;
 
   /// User specified include entries.
   std::vector<Entry> UserEntries;
+
+  /// User-specified system header prefixes.
+  std::vector<SystemHeaderPrefix> SystemHeaderPrefixes;
 
   /// The directory which holds the compiler resource files (builtin includes,
   /// etc.).
@@ -116,6 +131,13 @@ public:
                bool IsInternal = false, bool ImplicitExternC = false) {
     UserEntries.push_back(Entry(Path, Group, IsUserSupplied, IsFramework,
                                 IgnoreSysRoot, IsInternal, ImplicitExternC));
+  }
+
+  /// AddSystemHeaderPrefix - Override whether \#include directives naming a
+  /// path starting with \arg Prefix should be considered as naming a system
+  /// header.
+  void AddSystemHeaderPrefix(StringRef Prefix, bool IsSystemHeader) {
+    SystemHeaderPrefixes.push_back(SystemHeaderPrefix(Prefix, IsSystemHeader));
   }
 };
 

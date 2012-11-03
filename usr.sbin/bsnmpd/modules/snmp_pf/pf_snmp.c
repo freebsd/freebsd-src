@@ -586,11 +586,8 @@ pf_iftable(struct snmp_context __unused *ctx, struct snmp_value *val,
 			val->v.uint32 =
 			    (time(NULL) - e->pfi.pfik_tzero) * 100;
 			break;
-		case LEAF_pfInterfacesIfRefsState:
-			val->v.uint32 = e->pfi.pfik_states;
-			break;
 		case LEAF_pfInterfacesIfRefsRule:
-			val->v.uint32 = e->pfi.pfik_rules;
+			val->v.uint32 = e->pfi.pfik_rulerefs;
 			break;
 		case LEAF_pfInterfacesIf4BytesInPass:
 			val->v.counter64 =

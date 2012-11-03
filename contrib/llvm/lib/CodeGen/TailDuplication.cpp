@@ -20,12 +20,15 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/MachineSSAUpdater.h"
+#include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/DenseSet.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/Statistic.h"
@@ -57,8 +60,10 @@ namespace {
   /// TailDuplicatePass - Perform tail duplication.
   class TailDuplicatePass : public MachineFunctionPass {
     const TargetInstrInfo *TII;
+    const TargetRegisterInfo *TRI;
     MachineModuleInfo *MMI;
     MachineRegisterInfo *MRI;
+    OwningPtr<RegScavenger> RS;
     bool PreRegAlloc;
 
     // SSAUpdateVRs - A list of virtual registers for which to update SSA form.
@@ -124,9 +129,13 @@ INITIALIZE_PASS(TailDuplicatePass, "tailduplication", "Tail Duplication",
 
 bool TailDuplicatePass::runOnMachineFunction(MachineFunction &MF) {
   TII = MF.getTarget().getInstrInfo();
+  TRI = MF.getTarget().getRegisterInfo();
   MRI = &MF.getRegInfo();
   MMI = getAnalysisIfAvailable<MachineModuleInfo>();
   PreRegAlloc = MRI->isSSA();
+  RS.reset();
+  if (MRI->tracksLiveness() && TRI->trackLivenessAfterRegAlloc(MF))
+    RS.reset(new RegScavenger());
 
   bool MadeChange = false;
   while (TailDuplicateBlocks(MF))
@@ -272,8 +281,8 @@ TailDuplicatePass::TailDuplicateAndUpdate(MachineBasicBlock *MBB,
       continue;
     unsigned Dst = Copy->getOperand(0).getReg();
     unsigned Src = Copy->getOperand(1).getReg();
-    MachineRegisterInfo::use_iterator UI = MRI->use_begin(Src);
-    if (++UI == MRI->use_end()) {
+    if (MRI->hasOneNonDBGUse(Src) &&
+        MRI->constrainRegClass(Src, MRI->getRegClass(Dst))) {
       // Copy is the only use. Do trivial copy propagation here.
       MRI->replaceRegWith(Dst, Src);
       Copy->eraseFromParent();
@@ -429,8 +438,10 @@ void TailDuplicatePass::DuplicateInstruction(MachineInstr *MI,
         AddSSAUpdateEntry(Reg, NewReg, PredBB);
     } else {
       DenseMap<unsigned, unsigned>::iterator VI = LocalVRMap.find(Reg);
-      if (VI != LocalVRMap.end())
+      if (VI != LocalVRMap.end()) {
         MO.setReg(VI->second);
+        MRI->constrainRegClass(VI->second, MRI->getRegClass(Reg));
+      }
     }
   }
   PredBB->insert(PredBB->instr_end(), NewMI);
@@ -774,6 +785,23 @@ TailDuplicatePass::TailDuplicate(MachineBasicBlock *TailBB,
 
     // Remove PredBB's unconditional branch.
     TII->RemoveBranch(*PredBB);
+
+    if (RS && !TailBB->livein_empty()) {
+      // Update PredBB livein.
+      RS->enterBasicBlock(PredBB);
+      if (!PredBB->empty())
+        RS->forward(prior(PredBB->end()));
+      BitVector RegsLiveAtExit(TRI->getNumRegs());
+      RS->getRegsUsed(RegsLiveAtExit, false);
+      for (MachineBasicBlock::livein_iterator I = TailBB->livein_begin(),
+             E = TailBB->livein_end(); I != E; ++I) {
+        if (!RegsLiveAtExit[*I])
+          // If a register is previously livein to the tail but it's not live
+          // at the end of predecessor BB, then it should be added to its
+          // livein list.
+          PredBB->addLiveIn(*I);
+      }
+    }
 
     // Clone the contents of TailBB into PredBB.
     DenseMap<unsigned, unsigned> LocalVRMap;

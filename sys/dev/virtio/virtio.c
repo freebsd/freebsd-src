@@ -58,6 +58,7 @@ static struct virtio_ident {
 	{ VIRTIO_ID_ENTROPY,	"Entropy"	},
 	{ VIRTIO_ID_BALLOON,	"Balloon"	},
 	{ VIRTIO_ID_IOMEMORY,	"IOMemory"	},
+	{ VIRTIO_ID_SCSI,	"SCSI"		},
 	{ VIRTIO_ID_9P,		"9P Transport"	},
 
 	{ 0, NULL }

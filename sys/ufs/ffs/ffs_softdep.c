@@ -1338,14 +1338,12 @@ softdep_flush(void)
 	struct thread *td;
 	int remaining;
 	int progress;
-	int vfslocked;
 
 	td = curthread;
 	td->td_pflags |= TDP_NORUNNINGBUF;
 
 	for (;;) {	
 		kproc_suspend_check(softdepproc);
-		vfslocked = VFS_LOCK_GIANT((struct mount *)NULL);
 		ACQUIRE_LOCK(&lk);
 		/*
 		 * If requested, try removing inode or removal dependencies.
@@ -1361,7 +1359,6 @@ softdep_flush(void)
 			wakeup_one(&proc_waiting);
 		}
 		FREE_LOCK(&lk);
-		VFS_UNLOCK_GIANT(vfslocked);
 		remaining = progress = 0;
 		mtx_lock(&mountlist_mtx);
 		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp)  {
@@ -1370,11 +1367,9 @@ softdep_flush(void)
 				continue;
 			if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK))
 				continue;
-			vfslocked = VFS_LOCK_GIANT(mp);
 			progress += softdep_process_worklist(mp, 0);
 			ump = VFSTOUFS(mp);
 			remaining += ump->softdep_on_worklist;
-			VFS_UNLOCK_GIANT(vfslocked);
 			mtx_lock(&mountlist_mtx);
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			vfs_unbusy(mp);
@@ -4456,8 +4451,8 @@ softdep_setup_mkdir(dp, ip)
 		KASSERT(jaddref != NULL,
 		    ("softdep_setup_mkdir: No addref structure present."));
 		KASSERT(jaddref->ja_parent == dp->i_number, 
-		    ("softdep_setup_mkdir: bad parent %d",
-		    jaddref->ja_parent));
+		    ("softdep_setup_mkdir: bad parent %ju",
+		    (uintmax_t)jaddref->ja_parent));
 		TAILQ_INSERT_BEFORE(&jaddref->ja_ref, &dotaddref->ja_ref,
 		    if_deps);
 	}
@@ -8584,7 +8579,7 @@ cancel_mkdir_dotdot(ip, dirrem, jremref)
 
 	if (inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, 0,
 	    &inodedep) == 0)
-		panic("cancel_mkdir_dotdot: Lost inodedep");
+		return (jremref);
 	dap = inodedep->id_mkdiradd;
 	if (dap == NULL || (dap->da_state & MKDIR_PARENT) == 0)
 		return (jremref);
@@ -8761,8 +8756,8 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 	if ((dap->da_state & ATTACHED) == 0)
 		panic("newdirrem: not ATTACHED");
 	if (dap->da_newinum != ip->i_number)
-		panic("newdirrem: inum %d should be %d",
-		    ip->i_number, dap->da_newinum);
+		panic("newdirrem: inum %ju should be %ju",
+		    (uintmax_t)ip->i_number, (uintmax_t)dap->da_newinum);
 	/*
 	 * If we are deleting a changed name that never made it to disk,
 	 * then return the dirrem describing the previous inode (which
@@ -9635,9 +9630,10 @@ initiate_write_filepage(pagedep, bp)
 			ep = (struct direct *)
 			    ((char *)bp->b_data + dap->da_offset);
 			if (ep->d_ino != dap->da_newinum)
-				panic("%s: dir inum %d != new %d",
+				panic("%s: dir inum %ju != new %ju",
 				    "initiate_write_filepage",
-				    ep->d_ino, dap->da_newinum);
+				    (uintmax_t)ep->d_ino,
+				    (uintmax_t)dap->da_newinum);
 			if (dap->da_state & DIRCHG)
 				ep->d_ino = dap->da_previous->dm_oldinum;
 			else
@@ -10194,10 +10190,11 @@ softdep_setup_inofree(mp, bp, ino, wkhd)
 	cgp = (struct cg *)bp->b_data;
 	inosused = cg_inosused(cgp);
 	if (isset(inosused, ino % fs->fs_ipg))
-		panic("softdep_setup_inofree: inode %d not freed.", ino);
+		panic("softdep_setup_inofree: inode %ju not freed.",
+		    (uintmax_t)ino);
 	if (inodedep_lookup(mp, ino, 0, &inodedep))
-		panic("softdep_setup_inofree: ino %d has existing inodedep %p",
-		    ino, inodedep);
+		panic("softdep_setup_inofree: ino %ju has existing inodedep %p",
+		    (uintmax_t)ino, inodedep);
 	if (wkhd) {
 		LIST_FOREACH_SAFE(wk, wkhd, wk_list, wkn) {
 			if (wk->wk_type != D_JADDREF)
@@ -10423,8 +10420,8 @@ initiate_write_bmsafemap(bmsafemap, bp)
 				jaddref->ja_state |= UNDONE;
 				stat_jaddref++;
 			} else if ((bp->b_xflags & BX_BKGRDMARKER) == 0)
-				panic("initiate_write_bmsafemap: inode %d "
-				    "marked free", jaddref->ja_ino);
+				panic("initiate_write_bmsafemap: inode %ju "
+				    "marked free", (uintmax_t)jaddref->ja_ino);
 		}
 	}
 	/*
@@ -12498,7 +12495,8 @@ retry:
 		if (dap == LIST_FIRST(diraddhdp)) {
 			inodedep_lookup(UFSTOVFS(ump), inum, 0, &inodedep);
 			panic("flush_pagedep_deps: failed to flush " 
-			    "inodedep %p ino %d dap %p", inodedep, inum, dap);
+			    "inodedep %p ino %ju dap %p",
+			    inodedep, (uintmax_t)inum, dap);
 		}
 	}
 	if (error)
@@ -13344,8 +13342,13 @@ softdep_deallocate_dependencies(bp)
 
 	if ((bp->b_ioflags & BIO_ERROR) == 0)
 		panic("softdep_deallocate_dependencies: dangling deps");
-	softdep_error(bp->b_vp->v_mount->mnt_stat.f_mntonname, bp->b_error);
-	panic("softdep_deallocate_dependencies: unrecovered I/O error");
+	if (bp->b_vp != NULL && bp->b_vp->v_mount != NULL)
+		softdep_error(bp->b_vp->v_mount->mnt_stat.f_mntonname, bp->b_error);
+	else
+		printf("softdep_deallocate_dependencies: "
+		    "got error %d while accessing filesystem\n", bp->b_error);
+	if (bp->b_error != ENXIO)
+		panic("softdep_deallocate_dependencies: unrecovered I/O error");
 }
 
 /*

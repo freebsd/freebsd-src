@@ -459,7 +459,7 @@ nwfs_getpages(ap)
 		}
 
 		if (i != ap->a_reqpage)
-			vm_page_readahead_finish(m, error);
+			vm_page_readahead_finish(m);
 	}
 	VM_OBJECT_UNLOCK(object);
 	return 0;

@@ -59,7 +59,7 @@ ENTRY(sbrk)
 	addl	%eax,4(%esp)
 	mov	$SYS_break,%eax
 	KERNCALL
-	jb	err
+	jb	HIDENAME(cerror)
 	PIC_PROLOGUE
 	movl	PIC_GOT(HIDENAME(curbrk)),%edx
 	movl	(%edx),%eax
@@ -67,9 +67,6 @@ ENTRY(sbrk)
 	PIC_EPILOGUE
 back:
 	ret
-err:
-	PIC_PROLOGUE
-	jmp	PIC_PLT(HIDENAME(cerror))
 
 #else /* !PIC */
 
@@ -80,13 +77,11 @@ err:
 	addl	%eax,4(%esp)
 	mov	$SYS_break,%eax
 	KERNCALL
-	jb	err
+	jb	HIDENAME(cerror)
 	movl	HIDENAME(curbrk),%eax
 	addl	%ecx,HIDENAME(curbrk)
 back:
 	ret
-err:
-	jmp	HIDENAME(cerror)
 #endif /* PIC */
 END(sbrk)
 

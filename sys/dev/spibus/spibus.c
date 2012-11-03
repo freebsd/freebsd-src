@@ -158,9 +158,6 @@ spibus_hinted_child(device_t bus, const char *dname, int dunit)
 static int
 spibus_transfer_impl(device_t dev, device_t child, struct spi_command *cmd)
 {
-	/* Maybe set flags too? spi mode? */
-	spibus_get_cs(dev, &cmd->cs);
-
 	return (SPIBUS_TRANSFER(device_get_parent(dev), child, cmd));
 }
 

@@ -1,4 +1,4 @@
-#	$OpenBSD: sshd_config,v 1.84 2011/05/23 03:30:07 djm Exp $
+#	$OpenBSD: sshd_config,v 1.87 2012/07/10 02:19:15 djm Exp $
 #	$FreeBSD$
 
 # This is the sshd server system-wide configuration file.  See
@@ -13,8 +13,6 @@
 
 # Note that some of FreeBSD's defaults differ from OpenBSD's, and
 # FreeBSD has a few additional options.
-
-#VersionAddendum FreeBSD-20111001
 
 #Port 22
 #AddressFamily any
@@ -54,6 +52,8 @@
 # The default is to check both .ssh/authorized_keys and .ssh/authorized_keys2
 # but this is overridden so installations will only check .ssh/authorized_keys
 AuthorizedKeysFile	.ssh/authorized_keys
+
+#AuthorizedPrincipalsFile none
 
 # For this to work you will also need host keys in /etc/ssh/ssh_known_hosts
 #RhostsRSAAuthentication no
@@ -103,7 +103,7 @@ AuthorizedKeysFile	.ssh/authorized_keys
 #PrintLastLog yes
 #TCPKeepAlive yes
 #UseLogin no
-#UsePrivilegeSeparation yes
+#UsePrivilegeSeparation sandbox
 #PermitUserEnvironment no
 #Compression delayed
 #ClientAliveInterval 0
@@ -113,6 +113,7 @@ AuthorizedKeysFile	.ssh/authorized_keys
 #MaxStartups 10
 #PermitTunnel no
 #ChrootDirectory none
+#VersionAddendum FreeBSD-20120901
 
 # no default banner path
 #Banner none

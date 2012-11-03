@@ -110,8 +110,6 @@ struct uftdi_softc {
 	uint8_t	sc_hdrlen;
 	uint8_t	sc_msr;
 	uint8_t	sc_lsr;
-
-	uint8_t	sc_name[16];
 };
 
 struct uftdi_param_config {
@@ -127,10 +125,12 @@ struct uftdi_param_config {
 static device_probe_t uftdi_probe;
 static device_attach_t uftdi_attach;
 static device_detach_t uftdi_detach;
+static void uftdi_free_softc(struct uftdi_softc *);
 
 static usb_callback_t uftdi_write_callback;
 static usb_callback_t uftdi_read_callback;
 
+static void	uftdi_free(struct ucom_softc *);
 static void	uftdi_cfg_open(struct ucom_softc *);
 static void	uftdi_cfg_set_dtr(struct ucom_softc *, uint8_t);
 static void	uftdi_cfg_set_rts(struct ucom_softc *, uint8_t);
@@ -182,6 +182,7 @@ static const struct ucom_callback uftdi_callback = {
 	.ucom_start_write = &uftdi_start_write,
 	.ucom_stop_write = &uftdi_stop_write,
 	.ucom_poll = &uftdi_poll,
+	.ucom_free = &uftdi_free,
 };
 
 static device_method_t uftdi_methods[] = {
@@ -189,7 +190,6 @@ static device_method_t uftdi_methods[] = {
 	DEVMETHOD(device_probe, uftdi_probe),
 	DEVMETHOD(device_attach, uftdi_attach),
 	DEVMETHOD(device_detach, uftdi_detach),
-
 	DEVMETHOD_END
 };
 
@@ -434,6 +434,7 @@ static const STRUCT_USB_HOST_ID uftdi_devs[] = {
 	UFTDI_DEV(FTDI, SEMC_DSS20, UFTDI_TYPE_8U232AM),
 	UFTDI_DEV(FTDI, SERIAL_2232C, UFTDI_TYPE_8U232AM),
 	UFTDI_DEV(FTDI, SERIAL_2232D, UFTDI_TYPE_8U232AM),
+	UFTDI_DEV(FTDI, SERIAL_232RL, UFTDI_TYPE_AUTO),
 	UFTDI_DEV(FTDI, SERIAL_4232H, UFTDI_TYPE_8U232AM),
 	UFTDI_DEV(FTDI, SERIAL_8U100AX, UFTDI_TYPE_SIO),
 	UFTDI_DEV(FTDI, SERIAL_8U232AM, UFTDI_TYPE_8U232AM),
@@ -885,9 +886,7 @@ uftdi_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "uftdi", NULL, MTX_DEF);
-
-	snprintf(sc->sc_name, sizeof(sc->sc_name),
-	    "%s", device_get_nameunit(dev));
+	ucom_ref(&sc->sc_super_ucom);
 
 	DPRINTF("\n");
 
@@ -960,9 +959,29 @@ uftdi_detach(device_t dev)
 
 	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UFTDI_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	uftdi_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(uftdi);
+
+static void
+uftdi_free_softc(struct uftdi_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+uftdi_free(struct ucom_softc *ucom)
+{
+	uftdi_free_softc(ucom->sc_parent);
 }
 
 static void

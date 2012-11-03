@@ -674,7 +674,8 @@ loop:
 	VI_LOCK(devvp);
 	fs->fs_snapinum[snaploc] = ip->i_number;
 	if (ip->i_nextsnap.tqe_prev != 0)
-		panic("ffs_snapshot: %d already on list", ip->i_number);
+		panic("ffs_snapshot: %ju already on list",
+		    (uintmax_t)ip->i_number);
 	TAILQ_INSERT_TAIL(&sn->sn_head, ip, i_nextsnap);
 	devvp->v_vflag |= VV_COPYONWRITE;
 	VI_UNLOCK(devvp);
@@ -1571,8 +1572,8 @@ ffs_snapgone(ip)
 	if (xp != NULL)
 		vrele(ITOV(ip));
 	else if (snapdebug)
-		printf("ffs_snapgone: lost snapshot vnode %d\n",
-		    ip->i_number);
+		printf("ffs_snapgone: lost snapshot vnode %ju\n",
+		    (uintmax_t)ip->i_number);
 	/*
 	 * Delete snapshot inode from superblock. Keep list dense.
 	 */
@@ -1834,9 +1835,10 @@ retry:
 		if (size == fs->fs_bsize) {
 #ifdef DEBUG
 			if (snapdebug)
-				printf("%s %d lbn %jd from inum %d\n",
-				    "Grabonremove: snapino", ip->i_number,
-				    (intmax_t)lbn, inum);
+				printf("%s %ju lbn %jd from inum %ju\n",
+				    "Grabonremove: snapino",
+				    (uintmax_t)ip->i_number,
+				    (intmax_t)lbn, (uintmax_t)inum);
 #endif
 			/*
 			 * If journaling is tracking this write we must add
@@ -1878,9 +1880,9 @@ retry:
 			break;
 #ifdef DEBUG
 		if (snapdebug)
-			printf("%s%d lbn %jd %s %d size %ld to blkno %jd\n",
-			    "Copyonremove: snapino ", ip->i_number,
-			    (intmax_t)lbn, "for inum", inum, size,
+			printf("%s%ju lbn %jd %s %ju size %ld to blkno %jd\n",
+			    "Copyonremove: snapino ", (uintmax_t)ip->i_number,
+			    (intmax_t)lbn, "for inum", (uintmax_t)inum, size,
 			    (intmax_t)cbp->b_blkno);
 #endif
 		/*
@@ -2021,8 +2023,8 @@ ffs_snapshot_mount(mp)
 		 */
 		VI_LOCK(devvp);
 		if (ip->i_nextsnap.tqe_prev != 0)
-			panic("ffs_snapshot_mount: %d already on list",
-			    ip->i_number);
+			panic("ffs_snapshot_mount: %ju already on list",
+			    (uintmax_t)ip->i_number);
 		else
 			TAILQ_INSERT_TAIL(&sn->sn_head, ip, i_nextsnap);
 		vp->v_vflag |= VV_SYSTEM;
@@ -2366,12 +2368,13 @@ ffs_copyonwrite(devvp, bp)
 			break;
 #ifdef DEBUG
 		if (snapdebug) {
-			printf("Copyonwrite: snapino %d lbn %jd for ",
-			    ip->i_number, (intmax_t)lbn);
+			printf("Copyonwrite: snapino %ju lbn %jd for ",
+			    (uintmax_t)ip->i_number, (intmax_t)lbn);
 			if (bp->b_vp == devvp)
 				printf("fs metadata");
 			else
-				printf("inum %d", VTOI(bp->b_vp)->i_number);
+				printf("inum %ju",
+				    (uintmax_t)VTOI(bp->b_vp)->i_number);
 			printf(" lblkno %jd to blkno %jd\n",
 			    (intmax_t)bp->b_lblkno, (intmax_t)cbp->b_blkno);
 		}

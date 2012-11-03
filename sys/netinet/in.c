@@ -573,7 +573,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	}
 	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
 	IF_ADDR_WUNLOCK(ifp);
-	ifa_free(&ia->ia_ifa);				/* if_addrhead */
+	ifa_free(&ia->ia_ifa);		      /* if_addrhead */
 
 	IN_IFADDR_WLOCK();
 	TAILQ_REMOVE(&V_in_ifaddrhead, ia, ia_link);

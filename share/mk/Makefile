@@ -3,7 +3,8 @@
 
 FILES=	bsd.README
 FILES+=	bsd.arch.inc.mk
-FILES+=	bsd.compat.mk bsd.cpu.mk bsd.dep.mk bsd.doc.mk bsd.dtrace.mk
+FILES+=	bsd.compat.mk bsd.compiler.mk bsd.cpu.mk
+FILES+=	bsd.dep.mk bsd.doc.mk bsd.dtrace.mk
 FILES+=	bsd.endian.mk
 FILES+=	bsd.files.mk bsd.crunchgen.mk bsd.incs.mk bsd.info.mk bsd.init.mk
 FILES+=	bsd.kmod.mk

@@ -30,7 +30,7 @@
 .\"
 .\" ng_atm(4) man page
 .\"
-.Dd June 24, 2003
+.Dd November 2, 2012
 .Dt NG_ATM 4
 .Os
 .Sh NAME
@@ -151,23 +151,23 @@ headers.
 .Sh CONTROL MESSAGES
 This node type supports the generic messages plus the following:
 .Bl -tag -width 4n
-.It Dv NGM_ATM_GET_IFNAME
+.It Dv NGM_ATM_GET_IFNAME Pq Ic getifname
 Return the name of the interface as a
 .Dv NUL Ns
 -terminated string.
 This is normally the same name as that of the node.
-.It Dv NGM_ATM_GET_CONFIG
+.It Dv NGM_ATM_GET_CONFIG Pq Ic getconfig
 Returns a structure defining the configuration of the interface:
 .Bd -literal
-struct ng_atm_config {
+struct ngm_atm_config {
 	uint32_t	pcr;		/* peak cell rate */
-	uint32_t	maxvpi;		/* maximum vpi */
-	uint32_t	maxvci;		/* maximum vci */
+	uint32_t	vpi_bits;	/* number of active VPI bits */
+	uint32_t	vci_bits;	/* number of active VCI bits */
 	uint32_t	max_vpcs;	/* maximum number of VPCs */
 	uint32_t	max_vccs;	/* maximum number of VCCs */
 };
 .Ed
-.It Dv NGM_ATM_GET_VCCS
+.It Dv NGM_ATM_GET_VCCS Pq Ic getvccs
 Returns the table of open VCCs from the driver.
 This table consists of
 a header and a variable sized array of entries, one for each open VCC:
@@ -190,7 +190,7 @@ struct atmio_tparam {
 	uint32_t	pcr;	/* 24bit: Peak Cell Rate */
 	uint32_t	scr;	/* 24bit: VBR Sustainable Cell Rate */
 	uint32_t	mbs;	/* 24bit: VBR Maximum burst size */
-	uint32_t	mcr;	/* 24bit: MCR */
+	uint32_t	mcr;	/* 24bit: ABR/VBR/UBR+MCR MCR */
 	uint32_t	icr;	/* 24bit: ABR ICR */
 	uint32_t	tbe;	/* 24bit: ABR TBE (1...2^24-1) */
 	uint8_t		nrm;	/*  3bit: ABR Nrm */
@@ -264,23 +264,23 @@ all traffic types however):
 .It Dv ATMIO_TRAFFIC_ABR
 .It Dv ATMIO_TRAFFIC_VBR
 .El
-.It Dv NGM_ATM_CPCS_INIT
+.It Dv NGM_ATM_CPCS_INIT Pq Ic cpcsinit
 Initialize a VCC for sending and receiving.
 The argument is a structure:
 .Bd -literal
-struct ng_atm_cpcs_init {
+struct ngm_atm_cpcs_init {
 	char		name[NG_HOOKSIZ];
-	uint32_t	flags;		/* flags. (if_natmio.h) */
+	uint32_t	flags;		/* flags. (if_atm.h) */
 	uint16_t	vci;		/* VCI to open */
 	uint16_t	vpi;		/* VPI to open */
 	uint16_t	rmtu;		/* receive maximum PDU */
 	uint16_t	tmtu;		/* transmit maximum PDU */
-	uint8_t		aal;		/* AAL type (if_natmio.h) */
-	uint8_t		traffic;	/* traffic type (if_natmio.h) */
+	uint8_t		aal;		/* AAL type (if_atm.h) */
+	uint8_t		traffic;	/* traffic type (if_atm.h) */
 	uint32_t	pcr;		/* Peak cell rate */
-	uint32_t	scr;		/* Sustainable cell rate */
-	uint32_t	mbs;		/* Maximum burst size */
-	uint32_t	mcr;		/* Minimum cell rate */
+	uint32_t	scr;		/* VBR: Sustainable cell rate */
+	uint32_t	mbs;		/* VBR: Maximum burst rate */
+	uint32_t	mcr;		/* UBR+: Minimum cell rate */
 	uint32_t	icr;		/* ABR: Initial cell rate */
 	uint32_t	tbe;		/* ABR: Transmit buffer exposure */
 	uint8_t		nrm;		/* ABR: Nrm */
@@ -316,12 +316,23 @@ The
 field
 contains the flags (see above) and the other fields describe the
 type of traffic.
-.It Dv NGM_ATM_CPCS_TERM
+.It Dv NGM_ATM_CPCS_TERM Pq Ic cpcsterm
 Stop sending and receiving on the indicated hook.
 The argument is a
 .Bd -literal
-struct ng_atm_cpcs_term {
+struct ngm_atm_cpcs_term {
 	char		name[NG_HOOKSIZ];
+};
+.Ed
+.It Dv NGM_ATM_GET_STATS Pq Ic getstats
+This command returns a message, containing node statistics. The
+structure of the message is:
+.Bd -literal
+struct ngm_atm_stats {
+	uint64_t        in_packets;
+	uint64_t        in_errors;
+	uint64_t        out_packets;
+	uint64_t        out_errors;
 };
 .Ed
 .El
@@ -333,35 +344,14 @@ They are
 received by the peer node with a cookie of
 .Dv NG_ATM_COOKIE .
 .Bl -tag -width 4n
-.It Dv NGM_ATM_CARRIER_CHANGE
-The carrier state of the ATM physical interface has changed.
-The message has the following structure:
-.Bd -literal
-struct ng_atm_carrier_change {
-	uint32_t	node;
-	uint32_t	state;
-};
-.Ed
-.Pp
-The
-.Va node
-field
-is the node ID of the ATM node.
-This can be used by the managing entity
-(for example
-.Xr ilmid 8 )
-to manage several interfaces at the same time through the same node.
-The
-.Va state
-field is 1 if the carrier was detected, and 0 if it was lost.
-.It Dv NGM_ATM_VCC_CHANGE
+.It Dv NGM_ATM_VCC_CHANGE Pq Ic vcc_change
 A permanent VCC has been added, deleted or changed.
 This is used by
 .Xr ilmid 8
 to generate the appropriate ILMI traps.
 The structure of the message is:
 .Bd -literal
-struct ng_atm_vcc_change {
+struct ngm_atm_vcc_change {
 	uint32_t	node;
 	uint16_t	vci;
 	uint8_t		vpi;

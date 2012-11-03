@@ -1063,6 +1063,8 @@ acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context)
     ACPI_SERIAL_BEGIN(cpu);
     acpi_cpu_set_cx_lowest(sc);
     ACPI_SERIAL_END(cpu);
+
+    acpi_UserNotify("PROCESSOR", sc->cpu_handle, notify);
 }
 
 static int

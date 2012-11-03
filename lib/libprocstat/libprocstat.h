@@ -144,6 +144,7 @@ struct sockstat {
 
 STAILQ_HEAD(filestat_list, filestat);
 
+__BEGIN_DECLS
 void	procstat_close(struct procstat *procstat);
 void	procstat_freeprocs(struct procstat *procstat, struct kinfo_proc *p);
 void	procstat_freefiles(struct procstat *procstat,
@@ -164,5 +165,6 @@ int	procstat_get_vnode_info(struct procstat *procstat, struct filestat *fst,
     struct vnstat *vn, char *errbuf);
 struct procstat	*procstat_open_sysctl(void);
 struct procstat	*procstat_open_kvm(const char *nlistf, const char *memf);
+__END_DECLS
 
 #endif	/* !_LIBPROCSTAT_H_ */

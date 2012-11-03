@@ -48,6 +48,26 @@ LiveInterval::iterator LiveInterval::find(SlotIndex Pos) {
   return I;
 }
 
+VNInfo *LiveInterval::createDeadDef(SlotIndex Def,
+                                    VNInfo::Allocator &VNInfoAllocator) {
+  assert(!Def.isDead() && "Cannot define a value at the dead slot");
+  iterator I = find(Def);
+  if (I == end()) {
+    VNInfo *VNI = getNextValue(Def, VNInfoAllocator);
+    ranges.push_back(LiveRange(Def, Def.getDeadSlot(), VNI));
+    return VNI;
+  }
+  if (SlotIndex::isSameInstr(Def, I->start)) {
+    assert(I->start == Def && "Cannot insert def, already live");
+    assert(I->valno->def == Def && "Inconsistent existing value def");
+    return I->valno;
+  }
+  assert(SlotIndex::isEarlierInstr(Def, I->start) && "Already live at def");
+  VNInfo *VNI = getNextValue(Def, VNInfoAllocator);
+  ranges.insert(I, LiveRange(Def, Def.getDeadSlot(), VNI));
+  return VNI;
+}
+
 /// killedInRange - Return true if the interval has kills in [Start,End).
 bool LiveInterval::killedInRange(SlotIndex Start, SlotIndex End) const {
   Ranges::const_iterator r =
@@ -140,7 +160,7 @@ void LiveInterval::markValNoForDeletion(VNInfo *ValNo) {
       valnos.pop_back();
     } while (!valnos.empty() && valnos.back()->isUnused());
   } else {
-    ValNo->setIsUnused(true);
+    ValNo->markUnused();
   }
 }
 
@@ -176,16 +196,16 @@ void LiveInterval::extendIntervalEndTo(Ranges::iterator I, SlotIndex NewEnd) {
   // If NewEnd was in the middle of an interval, make sure to get its endpoint.
   I->end = std::max(NewEnd, prior(MergeTo)->end);
 
-  // Erase any dead ranges.
-  ranges.erase(llvm::next(I), MergeTo);
-
   // If the newly formed range now touches the range after it and if they have
   // the same value number, merge the two ranges into one range.
-  Ranges::iterator Next = llvm::next(I);
-  if (Next != ranges.end() && Next->start <= I->end && Next->valno == ValNo) {
-    I->end = Next->end;
-    ranges.erase(Next);
+  if (MergeTo != ranges.end() && MergeTo->start <= I->end &&
+      MergeTo->valno == ValNo) {
+    I->end = MergeTo->end;
+    ++MergeTo;
   }
+
+  // Erase any dead ranges.
+  ranges.erase(llvm::next(I), MergeTo);
 }
 
 
@@ -353,18 +373,6 @@ void LiveInterval::removeValNo(VNInfo *ValNo) {
   markValNoForDeletion(ValNo);
 }
 
-/// findDefinedVNInfo - Find the VNInfo defined by the specified
-/// index (register interval).
-VNInfo *LiveInterval::findDefinedVNInfoForRegInt(SlotIndex Idx) const {
-  for (LiveInterval::const_vni_iterator i = vni_begin(), e = vni_end();
-       i != e; ++i) {
-    if ((*i)->def == Idx)
-      return *i;
-  }
-
-  return 0;
-}
-
 /// join - Join two live intervals (this, and other) together.  This applies
 /// mappings to the value numbers in the LHS/RHS intervals as specified.  If
 /// the intervals are not joinable, this aborts.
@@ -373,6 +381,8 @@ void LiveInterval::join(LiveInterval &Other,
                         const int *RHSValNoAssignments,
                         SmallVector<VNInfo*, 16> &NewVNInfo,
                         MachineRegisterInfo *MRI) {
+  verify();
+
   // Determine if any of our live range values are mapped.  This is uncommon, so
   // we want to avoid the interval scan if not.
   bool MustMapCurValNos = false;
@@ -440,16 +450,148 @@ void LiveInterval::join(LiveInterval &Other,
     valnos.resize(NumNewVals);  // shrinkify
 
   // Okay, now insert the RHS live ranges into the LHS.
-  iterator InsertPos = begin();
   unsigned RangeNo = 0;
   for (iterator I = Other.begin(), E = Other.end(); I != E; ++I, ++RangeNo) {
     // Map the valno in the other live range to the current live range.
     I->valno = NewVNInfo[OtherAssignments[RangeNo]];
     assert(I->valno && "Adding a dead range?");
-    InsertPos = addRangeFrom(*I, InsertPos);
+  }
+  mergeIntervalRanges(Other);
+
+  verify();
+}
+
+/// \brief Helper function for merging in another LiveInterval's ranges.
+///
+/// This is a helper routine implementing an efficient merge of another
+/// LiveIntervals ranges into the current interval.
+///
+/// \param LHSValNo If non-NULL, set as the new value number for every range
+///                 from RHS which is merged into the LHS.
+/// \param RHSValNo If non-NULL, then only ranges in RHS whose original value
+///                 number maches this value number will be merged into LHS.
+void LiveInterval::mergeIntervalRanges(const LiveInterval &RHS,
+                                       VNInfo *LHSValNo,
+                                       const VNInfo *RHSValNo) {
+  if (RHS.empty())
+    return;
+
+  // Ensure we're starting with a valid range. Note that we don't verify RHS
+  // because it may have had its value numbers adjusted in preparation for
+  // merging.
+  verify();
+
+  // The strategy for merging these efficiently is as follows:
+  //
+  // 1) Find the beginning of the impacted ranges in the LHS.
+  // 2) Create a new, merged sub-squence of ranges merging from the position in
+  //    #1 until either LHS or RHS is exhausted. Any part of LHS between RHS
+  //    entries being merged will be copied into this new range.
+  // 3) Replace the relevant section in LHS with these newly merged ranges.
+  // 4) Append any remaning ranges from RHS if LHS is exhausted in #2.
+  //
+  // We don't follow the typical in-place merge strategy for sorted ranges of
+  // appending the new ranges to the back and then using std::inplace_merge
+  // because one step of the merge can both mutate the original elements and
+  // remove elements from the original. Essentially, because the merge includes
+  // collapsing overlapping ranges, a more complex approach is required.
+
+  // We do an initial binary search to optimize for a common pattern: a large
+  // LHS, and a very small RHS.
+  const_iterator RI = RHS.begin(), RE = RHS.end();
+  iterator LE = end(), LI = std::upper_bound(begin(), LE, *RI);
+
+  // Merge into NewRanges until one of the ranges is exhausted.
+  SmallVector<LiveRange, 4> NewRanges;
+
+  // Keep track of where to begin the replacement.
+  iterator ReplaceI = LI;
+
+  // If there are preceding ranges in the LHS, put the last one into NewRanges
+  // so we can optionally extend it. Adjust the replacement point accordingly.
+  if (LI != begin()) {
+    ReplaceI = llvm::prior(LI);
+    NewRanges.push_back(*ReplaceI);
   }
 
-  ComputeJoinedWeight(Other);
+  // Now loop over the mergable portions of both LHS and RHS, merging into
+  // NewRanges.
+  while (LI != LE && RI != RE) {
+    // Skip incoming ranges with the wrong value.
+    if (RHSValNo && RI->valno != RHSValNo) {
+      ++RI;
+      continue;
+    }
+
+    // Select the first range. We pick the earliest start point, and then the
+    // largest range.
+    LiveRange R = *LI;
+    if (*RI < R) {
+      R = *RI;
+      ++RI;
+      if (LHSValNo)
+        R.valno = LHSValNo;
+    } else {
+      ++LI;
+    }
+
+    if (NewRanges.empty()) {
+      NewRanges.push_back(R);
+      continue;
+    }
+
+    LiveRange &LastR = NewRanges.back();
+    if (R.valno == LastR.valno) {
+      // Try to merge this range into the last one.
+      if (R.start <= LastR.end) {
+        LastR.end = std::max(LastR.end, R.end);
+        continue;
+      }
+    } else {
+      // We can't merge ranges across a value number.
+      assert(R.start >= LastR.end &&
+             "Cannot overlap two LiveRanges with differing ValID's");
+    }
+
+    // If all else fails, just append the range.
+    NewRanges.push_back(R);
+  }
+  assert(RI == RE || LI == LE);
+
+  // Check for being able to merge into the trailing sequence of ranges on the LHS.
+  if (!NewRanges.empty())
+    for (; LI != LE && (LI->valno == NewRanges.back().valno &&
+                        LI->start <= NewRanges.back().end);
+         ++LI)
+      NewRanges.back().end = std::max(NewRanges.back().end, LI->end);
+
+  // Replace the ranges in the LHS with the newly merged ones. It would be
+  // really nice if there were a move-supporting 'replace' directly in
+  // SmallVector, but as there is not, we pay the price of copies to avoid
+  // wasted memory allocations.
+  SmallVectorImpl<LiveRange>::iterator NRI = NewRanges.begin(),
+                                       NRE = NewRanges.end();
+  for (; ReplaceI != LI && NRI != NRE; ++ReplaceI, ++NRI)
+    *ReplaceI = *NRI;
+  if (NRI == NRE)
+    ranges.erase(ReplaceI, LI);
+  else
+    ranges.insert(LI, NRI, NRE);
+
+  // And finally insert any trailing end of RHS (if we have one).
+  for (; RI != RE; ++RI) {
+    LiveRange R = *RI;
+    if (LHSValNo)
+      R.valno = LHSValNo;
+    if (!ranges.empty() &&
+        ranges.back().valno == R.valno && R.start <= ranges.back().end)
+      ranges.back().end = std::max(ranges.back().end, R.end);
+    else
+      ranges.push_back(R);
+  }
+
+  // Ensure we finished with a valid new sequence of ranges.
+  verify();
 }
 
 /// MergeRangesInAsValue - Merge all of the intervals in RHS into this live
@@ -458,37 +600,19 @@ void LiveInterval::join(LiveInterval &Other,
 /// the overlapping LiveRanges have the specified value number.
 void LiveInterval::MergeRangesInAsValue(const LiveInterval &RHS,
                                         VNInfo *LHSValNo) {
-  // TODO: Make this more efficient.
-  iterator InsertPos = begin();
-  for (const_iterator I = RHS.begin(), E = RHS.end(); I != E; ++I) {
-    // Map the valno in the other live range to the current live range.
-    LiveRange Tmp = *I;
-    Tmp.valno = LHSValNo;
-    InsertPos = addRangeFrom(Tmp, InsertPos);
-  }
+  mergeIntervalRanges(RHS, LHSValNo);
 }
-
 
 /// MergeValueInAsValue - Merge all of the live ranges of a specific val#
 /// in RHS into this live interval as the specified value number.
 /// The LiveRanges in RHS are allowed to overlap with LiveRanges in the
 /// current interval, it will replace the value numbers of the overlaped
 /// live ranges with the specified value number.
-void LiveInterval::MergeValueInAsValue(
-                                    const LiveInterval &RHS,
-                                    const VNInfo *RHSValNo, VNInfo *LHSValNo) {
-  // TODO: Make this more efficient.
-  iterator InsertPos = begin();
-  for (const_iterator I = RHS.begin(), E = RHS.end(); I != E; ++I) {
-    if (I->valno != RHSValNo)
-      continue;
-    // Map the valno in the other live range to the current live range.
-    LiveRange Tmp = *I;
-    Tmp.valno = LHSValNo;
-    InsertPos = addRangeFrom(Tmp, InsertPos);
-  }
+void LiveInterval::MergeValueInAsValue(const LiveInterval &RHS,
+                                       const VNInfo *RHSValNo,
+                                       VNInfo *LHSValNo) {
+  mergeIntervalRanges(RHS, LHSValNo, RHSValNo);
 }
-
 
 /// MergeValueNumberInto - This method is called when two value nubmers
 /// are found to be equivalent.  This eliminates V1, replacing all
@@ -543,9 +667,6 @@ VNInfo* LiveInterval::MergeValueNumberInto(VNInfo *V1, VNInfo *V2) {
     }
   }
 
-  // Merge the relevant flags.
-  V2->mergeFlags(V1);
-
   // Now that V1 is dead, remove it.
   markValNoForDeletion(V1);
 
@@ -569,6 +690,8 @@ void LiveInterval::Copy(const LiveInterval &RHS,
     const LiveRange &LR = RHS.ranges[i];
     addRange(LiveRange(LR.start, LR.end, getValNumInfo(LR.valno->id)));
   }
+
+  verify();
 }
 
 unsigned LiveInterval::getSize() const {
@@ -576,29 +699,6 @@ unsigned LiveInterval::getSize() const {
   for (const_iterator I = begin(), E = end(); I != E; ++I)
     Sum += I->start.distance(I->end);
   return Sum;
-}
-
-/// ComputeJoinedWeight - Set the weight of a live interval Joined
-/// after Other has been merged into it.
-void LiveInterval::ComputeJoinedWeight(const LiveInterval &Other) {
-  // If either of these intervals was spilled, the weight is the
-  // weight of the non-spilled interval.  This can only happen with
-  // iterative coalescers.
-
-  if (Other.weight != HUGE_VALF) {
-    weight += Other.weight;
-  }
-  else if (weight == HUGE_VALF &&
-      !TargetRegisterInfo::isPhysicalRegister(reg)) {
-    // Remove this assert if you have an iterative coalescer
-    assert(0 && "Joining to spilled interval");
-    weight = Other.weight;
-  }
-  else {
-    // Otherwise the weight stays the same
-    // Remove this assert if you have an iterative coalescer
-    assert(0 && "Joining from spilled interval");
-  }
 }
 
 raw_ostream& llvm::operator<<(raw_ostream& os, const LiveRange &LR) {
@@ -609,15 +709,10 @@ void LiveRange::dump() const {
   dbgs() << *this << "\n";
 }
 
-void LiveInterval::print(raw_ostream &OS, const TargetRegisterInfo *TRI) const {
-  OS << PrintReg(reg, TRI);
-  if (weight != 0)
-    OS << ',' << weight;
-
+void LiveInterval::print(raw_ostream &OS) const {
   if (empty())
-    OS << " EMPTY";
+    OS << "EMPTY";
   else {
-    OS << " = ";
     for (LiveInterval::Ranges::const_iterator I = ranges.begin(),
            E = ranges.end(); I != E; ++I) {
       OS << *I;
@@ -639,9 +734,7 @@ void LiveInterval::print(raw_ostream &OS, const TargetRegisterInfo *TRI) const {
       } else {
         OS << vni->def;
         if (vni->isPHIDef())
-          OS << "-phidef";
-        if (vni->hasPHIKill())
-          OS << "-phikill";
+          OS << "-phi";
       }
     }
   }
@@ -650,6 +743,23 @@ void LiveInterval::print(raw_ostream &OS, const TargetRegisterInfo *TRI) const {
 void LiveInterval::dump() const {
   dbgs() << *this << "\n";
 }
+
+#ifndef NDEBUG
+void LiveInterval::verify() const {
+  for (const_iterator I = begin(), E = end(); I != E; ++I) {
+    assert(I->start.isValid());
+    assert(I->end.isValid());
+    assert(I->start < I->end);
+    assert(I->valno != 0);
+    assert(I->valno == valnos[I->valno->id]);
+    if (llvm::next(I) != E) {
+      assert(I->end <= llvm::next(I)->start);
+      if (I->end == llvm::next(I)->start)
+        assert(I->valno != llvm::next(I)->valno);
+    }
+  }
+}
+#endif
 
 
 void LiveRange::print(raw_ostream &os) const {
@@ -712,13 +822,13 @@ void ConnectedVNInfoEqClasses::Distribute(LiveInterval *LIV[],
     MachineOperand &MO = RI.getOperand();
     MachineInstr *MI = MO.getParent();
     ++RI;
-    if (MO.isUse() && MO.isUndef())
-      continue;
     // DBG_VALUE instructions should have been eliminated earlier.
-    SlotIndex Idx = LIS.getInstructionIndex(MI);
-    Idx = Idx.getRegSlot(MO.isUse());
-    const VNInfo *VNI = LI.getVNInfoAt(Idx);
-    assert(VNI && "Interval not live at use.");
+    LiveRangeQuery LRQ(LI, LIS.getInstructionIndex(MI));
+    const VNInfo *VNI = MO.readsReg() ? LRQ.valueIn() : LRQ.valueDefined();
+    // In the case of an <undef> use that isn't tied to any def, VNI will be
+    // NULL. If the use is tied to a def, VNI will be the defined value.
+    if (!VNI)
+      continue;
     MO.setReg(LIV[getEqClass(VNI)]->reg);
   }
 

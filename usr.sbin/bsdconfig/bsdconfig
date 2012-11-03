@@ -29,12 +29,17 @@
 #
 ############################################################ INCLUDES
 
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/strings.subr
+
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
-. $BSDCFG_LIBE/include/common.subr || exit 1
-f_include $BSDCFG_LIBE/include/dialog.subr
-f_include $BSDCFG_LIBE/include/mustberoot.subr
-f_include $BSDCFG_LIBE/include/strings.subr
 f_include_lang $BSDCFG_LIBE/include/messages.subr
+
+BSDCONFIG_HELPFILE=$BSDCFG_LIBE/include/bsdconfig.hlp
+USAGE_HELPFILE=$BSDCFG_LIBE/include/usage.hlp
 
 ############################################################ FUNCTIONS
 
@@ -138,12 +143,13 @@ dialog_menu_main()
 	local menu_list size
 
 	menu_list="
-		'X' '$msg_exit' '$msg_exit_bsdconfig'
+		'X' '$msg_exit'  '$msg_exit_bsdconfig'
+		'1' '$msg_usage' '$msg_quick_start_how_to_use_this_menu_system'
 	" # END-QUOTE
 
 	local sanitize_awk="{ gsub(/'/, \"'\\\\''\"); print }"
 
-	local menuitem menu_title menu_help menu_selection index=1
+	local menuitem menu_title menu_help menu_selection index=2
 	for menuitem in $( ls -d [0-9][0-9][0-9].* ); do
 		[ $index -lt ${#DIALOG_MENU_TAGS} ] || break
 		tag=$( f_substr "$DIALOG_MENU_TAGS" $index 1 )
@@ -175,15 +181,22 @@ dialog_menu_main()
 	        	\"\"         \
 	        	$menu_list   )
 
-	eval $DIALOG \
+	local dialog_menu
+	dialog_menu=$( eval $DIALOG \
 		--clear                                 \
 		--title \"\$title\"                     \
 		--backtitle \"\$btitle\"                \
 		--item-help                             \
 		--ok-label \"\$msg_ok\"                 \
 		--cancel-label \"\$msg_exit_bsdconfig\" \
+		--help-button                           \
+		${USE_XDIALOG:+--help \"\"}             \
 		--menu \"\$prompt\" $size $menu_list    \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	setvar DIALOG_MENU_$$ "$dialog_menu"
+	return $retval
 }
 
 ############################################################ MAIN
@@ -279,8 +292,6 @@ if [ "$1" ]; then
 	exec $cmd ${USE_XDIALOG:+-X} "$@" || exit 1
 fi
 
-[ -f "$HOME/.bsdconfigrc" ] || f_dialog_msgbox "$msg_help_text"
-
 #
 # Launch application main menu
 #
@@ -290,11 +301,22 @@ while :; do
 	mtag=$( f_dialog_menutag )
 	f_dprintf "retval=$retval mtag=[$mtag]"
 
-	[ $retval -eq 0 ] || f_die
+	if [ $retval -eq 2 ]; then
+		# The Help button was pressed
+		f_show_help "$BSDCONFIG_HELPFILE"
+		continue
+	elif [ $retval -ne 0 ]; then
+		f_die
+	fi
 
 	case "$mtag" in
 	X) # Exit
 	   break
+	   ;;
+
+	1) # Usage
+	   f_show_help "$USAGE_HELPFILE"
+	   continue
 	   ;;
 
 	*) # Dynamically loaded menuitem

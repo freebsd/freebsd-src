@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
  * Common sanity checks for cv_wait* functions.
  */
 #define	CV_ASSERT(cvp, lock, td) do {					\
-	KASSERT((td) != NULL, ("%s: curthread NULL", __func__));	\
+	KASSERT((td) != NULL, ("%s: td NULL", __func__));		\
 	KASSERT(TD_IS_RUNNING(td), ("%s: not TDS_RUNNING", __func__));	\
 	KASSERT((cvp) != NULL, ("%s: cvp NULL", __func__));		\
 	KASSERT((lock) != NULL, ("%s: lock NULL", __func__));		\

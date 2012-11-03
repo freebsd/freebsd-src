@@ -17,10 +17,11 @@
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/ExprCXX.h"
+#include "clang/AST/CXXInheritance.h"
 #include "clang/Analysis/Analyses/LiveVariables.h"
 #include "clang/Analysis/AnalysisContext.h"
 #include "clang/Basic/TargetInfo.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/ObjCMessage.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/MemRegion.h"
@@ -40,23 +41,49 @@ using llvm::Optional;
 namespace {
 class BindingKey {
 public:
-  enum Kind { Direct = 0x0, Default = 0x1 };
+  enum Kind { Default = 0x0, Direct = 0x1 };
 private:
-  llvm ::PointerIntPair<const MemRegion*, 1> P;
-  uint64_t Offset;
+  enum { Symbolic = 0x2 };
 
+  llvm::PointerIntPair<const MemRegion *, 2> P;
+  uint64_t Data;
+
+  explicit BindingKey(const MemRegion *r, const MemRegion *Base, Kind k)
+    : P(r, k | Symbolic), Data(reinterpret_cast<uintptr_t>(Base)) {
+    assert(r && Base && "Must have known regions.");
+    assert(getConcreteOffsetRegion() == Base && "Failed to store base region");
+  }
   explicit BindingKey(const MemRegion *r, uint64_t offset, Kind k)
-    : P(r, (unsigned) k), Offset(offset) {}
+    : P(r, k), Data(offset) {
+    assert(r && "Must have known regions.");
+    assert(getOffset() == offset && "Failed to store offset");
+    assert((r == r->getBaseRegion() || isa<ObjCIvarRegion>(r)) && "Not a base");
+  }
 public:
 
-  bool isDirect() const { return P.getInt() == Direct; }
+  bool isDirect() const { return P.getInt() & Direct; }
+  bool hasSymbolicOffset() const { return P.getInt() & Symbolic; }
 
   const MemRegion *getRegion() const { return P.getPointer(); }
-  uint64_t getOffset() const { return Offset; }
+  uint64_t getOffset() const {
+    assert(!hasSymbolicOffset());
+    return Data;
+  }
+
+  const MemRegion *getConcreteOffsetRegion() const {
+    assert(hasSymbolicOffset());
+    return reinterpret_cast<const MemRegion *>(static_cast<uintptr_t>(Data));
+  }
+
+  const MemRegion *getBaseRegion() const {
+    if (hasSymbolicOffset())
+      return getConcreteOffsetRegion()->getBaseRegion();
+    return getRegion()->getBaseRegion();
+  }
 
   void Profile(llvm::FoldingSetNodeID& ID) const {
     ID.AddPointer(P.getOpaqueValue());
-    ID.AddInteger(Offset);
+    ID.AddInteger(Data);
   }
 
   static BindingKey Make(const MemRegion *R, Kind k);
@@ -66,48 +93,48 @@ public:
       return true;
     if (P.getOpaqueValue() > X.P.getOpaqueValue())
       return false;
-    return Offset < X.Offset;
+    return Data < X.Data;
   }
 
   bool operator==(const BindingKey &X) const {
     return P.getOpaqueValue() == X.P.getOpaqueValue() &&
-           Offset == X.Offset;
+           Data == X.Data;
   }
 
-  bool isValid() const {
-    return getRegion() != NULL;
-  }
+  LLVM_ATTRIBUTE_USED void dump() const;
 };
 } // end anonymous namespace
 
 BindingKey BindingKey::Make(const MemRegion *R, Kind k) {
-  if (const ElementRegion *ER = dyn_cast<ElementRegion>(R)) {
-    const RegionRawOffset &O = ER->getAsArrayOffset();
+  const RegionOffset &RO = R->getAsOffset();
+  if (RO.hasSymbolicOffset())
+    return BindingKey(R, RO.getRegion(), k);
 
-    // FIXME: There are some ElementRegions for which we cannot compute
-    // raw offsets yet, including regions with symbolic offsets. These will be
-    // ignored by the store.
-    return BindingKey(O.getRegion(), O.getOffset().getQuantity(), k);
-  }
-
-  return BindingKey(R, 0, k);
+  return BindingKey(RO.getRegion(), RO.getOffset(), k);
 }
 
 namespace llvm {
   static inline
   raw_ostream &operator<<(raw_ostream &os, BindingKey K) {
-    os << '(' << K.getRegion() << ',' << K.getOffset()
-       << ',' << (K.isDirect() ? "direct" : "default")
+    os << '(' << K.getRegion();
+    if (!K.hasSymbolicOffset())
+      os << ',' << K.getOffset();
+    os << ',' << (K.isDirect() ? "direct" : "default")
        << ')';
     return os;
   }
 } // end llvm namespace
 
+void BindingKey::dump() const {
+  llvm::errs() << *this;
+}
+
 //===----------------------------------------------------------------------===//
 // Actual Store type.
 //===----------------------------------------------------------------------===//
 
-typedef llvm::ImmutableMap<BindingKey, SVal> RegionBindings;
+typedef llvm::ImmutableMap<BindingKey, SVal> ClusterBindings;
+typedef llvm::ImmutableMap<const MemRegion *, ClusterBindings> RegionBindings;
 
 //===----------------------------------------------------------------------===//
 // Fine-grained control of RegionStoreManager.
@@ -138,75 +165,15 @@ public:
 
 namespace {
 
-class RegionStoreSubRegionMap : public SubRegionMap {
-public:
-  typedef llvm::ImmutableSet<const MemRegion*> Set;
-  typedef llvm::DenseMap<const MemRegion*, Set> Map;
-private:
-  Set::Factory F;
-  Map M;
-public:
-  bool add(const MemRegion* Parent, const MemRegion* SubRegion) {
-    Map::iterator I = M.find(Parent);
-
-    if (I == M.end()) {
-      M.insert(std::make_pair(Parent, F.add(F.getEmptySet(), SubRegion)));
-      return true;
-    }
-
-    I->second = F.add(I->second, SubRegion);
-    return false;
-  }
-
-  void process(SmallVectorImpl<const SubRegion*> &WL, const SubRegion *R);
-
-  ~RegionStoreSubRegionMap() {}
-
-  const Set *getSubRegions(const MemRegion *Parent) const {
-    Map::const_iterator I = M.find(Parent);
-    return I == M.end() ? NULL : &I->second;
-  }
-
-  bool iterSubRegions(const MemRegion* Parent, Visitor& V) const {
-    Map::const_iterator I = M.find(Parent);
-
-    if (I == M.end())
-      return true;
-
-    Set S = I->second;
-    for (Set::iterator SI=S.begin(),SE=S.end(); SI != SE; ++SI) {
-      if (!V.Visit(Parent, *SI))
-        return false;
-    }
-
-    return true;
-  }
-};
-
-void
-RegionStoreSubRegionMap::process(SmallVectorImpl<const SubRegion*> &WL,
-                                 const SubRegion *R) {
-  const MemRegion *superR = R->getSuperRegion();
-  if (add(superR, R))
-    if (const SubRegion *sr = dyn_cast<SubRegion>(superR))
-      WL.push_back(sr);
-}
-
 class RegionStoreManager : public StoreManager {
   const RegionStoreFeatures Features;
   RegionBindings::Factory RBFactory;
+  ClusterBindings::Factory CBFactory;
 
 public:
   RegionStoreManager(ProgramStateManager& mgr, const RegionStoreFeatures &f)
-    : StoreManager(mgr),
-      Features(f),
-      RBFactory(mgr.getAllocator()) {}
-
-  SubRegionMap *getSubRegionMap(Store store) {
-    return getRegionStoreSubRegionMap(store);
-  }
-
-  RegionStoreSubRegionMap *getRegionStoreSubRegionMap(Store store);
+    : StoreManager(mgr), Features(f),
+      RBFactory(mgr.getAllocator()), CBFactory(mgr.getAllocator()) {}
 
   Optional<SVal> getDirectBinding(RegionBindings B, const MemRegion *R);
   /// getDefaultBinding - Returns an SVal* representing an optional default
@@ -257,13 +224,15 @@ public:
                              const Expr *E, unsigned Count,
                              const LocationContext *LCtx,
                              InvalidatedSymbols &IS,
-                             const CallOrObjCMessage *Call,
+                             const CallEvent *Call,
                              InvalidatedRegions *Invalidated);
+
+  bool scanReachableSymbols(Store S, const MemRegion *R,
+                            ScanReachableSymbols &Callbacks);
 
 public:   // Made public for helper classes.
 
-  void RemoveSubRegionBindings(RegionBindings &B, const MemRegion *R,
-                               RegionStoreSubRegionMap &M);
+  RegionBindings removeSubRegionBindings(RegionBindings B, const SubRegion *R);
 
   RegionBindings addBinding(RegionBindings B, BindingKey K, SVal V);
 
@@ -281,6 +250,8 @@ public:   // Made public for helper classes.
     return removeBinding(removeBinding(B, R, BindingKey::Direct), R,
                         BindingKey::Default);
   }
+
+  RegionBindings removeCluster(RegionBindings B, const MemRegion *R);
 
 public: // Part of public interface to class.
 
@@ -307,10 +278,14 @@ public: // Part of public interface to class.
   /// BindStruct - Bind a compound value to a structure.
   StoreRef BindStruct(Store store, const TypedValueRegion* R, SVal V);
 
+  /// BindVector - Bind a compound value to a vector.
+  StoreRef BindVector(Store store, const TypedValueRegion* R, SVal V);
+
   StoreRef BindArray(Store store, const TypedValueRegion* R, SVal V);
 
-  /// KillStruct - Set the entire struct to unknown.
-  StoreRef KillStruct(Store store, const TypedRegion* R, SVal DefaultVal);
+  /// Clears out all bindings in the given region and assigns a new value
+  /// as a Default binding.
+  StoreRef BindAggregate(Store store, const TypedRegion *R, SVal DefaultVal);
 
   StoreRef Remove(Store store, Loc LV);
 
@@ -377,10 +352,8 @@ public: // Part of public interface to class.
   /// Get the state and region whose binding this region R corresponds to.
   std::pair<Store, const MemRegion*>
   GetLazyBinding(RegionBindings B, const MemRegion *R,
-                 const MemRegion *originalRegion);
-
-  StoreRef CopyLazyBindings(nonloc::LazyCompoundVal V, Store store,
-                            const TypedRegion *R);
+                 const MemRegion *originalRegion,
+                 bool includeSuffix = false);
 
   //===------------------------------------------------------------------===//
   // State pruning.
@@ -390,11 +363,7 @@ public: // Part of public interface to class.
   ///  It returns a new Store with these values removed.
   StoreRef removeDeadBindings(Store store, const StackFrameContext *LCtx,
                               SymbolReaper& SymReaper);
-
-  StoreRef enterStackFrame(ProgramStateRef state,
-                           const LocationContext *callerCtx,
-                           const StackFrameContext *calleeCtx);
-
+  
   //===------------------------------------------------------------------===//
   // Region "extents".
   //===------------------------------------------------------------------===//
@@ -416,14 +385,18 @@ public: // Part of public interface to class.
 
   void iterBindings(Store store, BindingsHandler& f) {
     RegionBindings B = GetRegionBindings(store);
-    for (RegionBindings::iterator I=B.begin(), E=B.end(); I!=E; ++I) {
-      const BindingKey &K = I.getKey();
-      if (!K.isDirect())
-        continue;
-      if (const SubRegion *R = dyn_cast<SubRegion>(I.getKey().getRegion())) {
-        // FIXME: Possibly incorporate the offset?
-        if (!f.HandleBinding(*this, store, R, I.getData()))
-          return;
+    for (RegionBindings::iterator I = B.begin(), E = B.end(); I != E; ++I) {
+      const ClusterBindings &Cluster = I.getData();
+      for (ClusterBindings::iterator CI = Cluster.begin(), CE = Cluster.end();
+           CI != CE; ++CI) {
+        const BindingKey &K = CI.getKey();
+        if (!K.isDirect())
+          continue;
+        if (const SubRegion *R = dyn_cast<SubRegion>(K.getRegion())) {
+          // FIXME: Possibly incorporate the offset?
+          if (!f.HandleBinding(*this, store, R, CI.getData()))
+            return;
+        }
       }
     }
   }
@@ -448,28 +421,6 @@ ento::CreateFieldsOnlyRegionStoreManager(ProgramStateManager &StMgr) {
 }
 
 
-RegionStoreSubRegionMap*
-RegionStoreManager::getRegionStoreSubRegionMap(Store store) {
-  RegionBindings B = GetRegionBindings(store);
-  RegionStoreSubRegionMap *M = new RegionStoreSubRegionMap();
-
-  SmallVector<const SubRegion*, 10> WL;
-
-  for (RegionBindings::iterator I=B.begin(), E=B.end(); I!=E; ++I)
-    if (const SubRegion *R = dyn_cast<SubRegion>(I.getKey().getRegion()))
-      M->process(WL, R);
-
-  // We also need to record in the subregion map "intermediate" regions that
-  // don't have direct bindings but are super regions of those that do.
-  while (!WL.empty()) {
-    const SubRegion *R = WL.back();
-    WL.pop_back();
-    M->process(WL, R);
-  }
-
-  return M;
-}
-
 //===----------------------------------------------------------------------===//
 // Region Cluster analysis.
 //===----------------------------------------------------------------------===//
@@ -478,14 +429,11 @@ namespace {
 template <typename DERIVED>
 class ClusterAnalysis  {
 protected:
-  typedef BumpVector<BindingKey> RegionCluster;
-  typedef llvm::DenseMap<const MemRegion *, RegionCluster *> ClusterMap;
-  llvm::DenseMap<const RegionCluster*, unsigned> Visited;
-  typedef SmallVector<std::pair<const MemRegion *, RegionCluster*>, 10>
-    WorkList;
+  typedef llvm::DenseMap<const MemRegion *, const ClusterBindings *> ClusterMap;
+  typedef SmallVector<const MemRegion *, 10> WorkList;
 
-  BumpVectorContext BVC;
-  ClusterMap ClusterM;
+  llvm::SmallPtrSet<const ClusterBindings *, 16> Visited;
+
   WorkList WL;
 
   RegionStoreManager &RM;
@@ -496,6 +444,10 @@ protected:
   
   const bool includeGlobals;
 
+  const ClusterBindings *getCluster(const MemRegion *R) {
+    return B.lookup(R);
+  }
+
 public:
   ClusterAnalysis(RegionStoreManager &rm, ProgramStateManager &StateMgr,
                   RegionBindings b, const bool includeGlobals)
@@ -505,57 +457,34 @@ public:
 
   RegionBindings getRegionBindings() const { return B; }
 
-  RegionCluster &AddToCluster(BindingKey K) {
-    const MemRegion *R = K.getRegion();
-    const MemRegion *baseR = R->getBaseRegion();
-    RegionCluster &C = getCluster(baseR);
-    C.push_back(K, BVC);
-    static_cast<DERIVED*>(this)->VisitAddedToCluster(baseR, C);
-    return C;
-  }
-
   bool isVisited(const MemRegion *R) {
-    return (bool) Visited[&getCluster(R->getBaseRegion())];
-  }
-
-  RegionCluster& getCluster(const MemRegion *R) {
-    RegionCluster *&CRef = ClusterM[R];
-    if (!CRef) {
-      void *Mem = BVC.getAllocator().template Allocate<RegionCluster>();
-      CRef = new (Mem) RegionCluster(BVC, 10);
-    }
-    return *CRef;
+    return Visited.count(getCluster(R));
   }
 
   void GenerateClusters() {
-      // Scan the entire set of bindings and make the region clusters.
+    // Scan the entire set of bindings and record the region clusters.
     for (RegionBindings::iterator RI = B.begin(), RE = B.end(); RI != RE; ++RI){
-      RegionCluster &C = AddToCluster(RI.getKey());
-      if (const MemRegion *R = RI.getData().getAsRegion()) {
-        // Generate a cluster, but don't add the region to the cluster
-        // if there aren't any bindings.
-        getCluster(R->getBaseRegion());
-      }
-      if (includeGlobals) {
-        const MemRegion *R = RI.getKey().getRegion();
-        if (isa<NonStaticGlobalSpaceRegion>(R->getMemorySpace()))
-          AddToWorkList(R, C);
-      }
+      const MemRegion *Base = RI.getKey();
+
+      const ClusterBindings &Cluster = RI.getData();
+      assert(!Cluster.isEmpty() && "Empty clusters should be removed");
+      static_cast<DERIVED*>(this)->VisitAddedToCluster(Base, Cluster);
+
+      if (includeGlobals)
+        if (isa<NonStaticGlobalSpaceRegion>(Base->getMemorySpace()))
+          AddToWorkList(Base, &Cluster);
     }
   }
 
-  bool AddToWorkList(const MemRegion *R, RegionCluster &C) {
-    if (unsigned &visited = Visited[&C])
-      return false;
-    else
-      visited = 1;
+  bool AddToWorkList(const MemRegion *R, const ClusterBindings *C) {
+    if (C) {
+      if (Visited.count(C))
+        return false;
+      Visited.insert(C);
+    }
 
-    WL.push_back(std::make_pair(R, &C));
+    WL.push_back(R);
     return true;
-  }
-
-  bool AddToWorkList(BindingKey K) {
-    return AddToWorkList(K.getRegion());
   }
 
   bool AddToWorkList(const MemRegion *R) {
@@ -565,22 +494,20 @@ public:
 
   void RunWorkList() {
     while (!WL.empty()) {
-      const MemRegion *baseR;
-      RegionCluster *C;
-      llvm::tie(baseR, C) = WL.back();
-      WL.pop_back();
+      const MemRegion *baseR = WL.pop_back_val();
 
-        // First visit the cluster.
-      static_cast<DERIVED*>(this)->VisitCluster(baseR, C->begin(), C->end());
+      // First visit the cluster.
+      if (const ClusterBindings *Cluster = getCluster(baseR))
+        static_cast<DERIVED*>(this)->VisitCluster(baseR, *Cluster);
 
-        // Next, visit the base region.
+      // Next, visit the base region.
       static_cast<DERIVED*>(this)->VisitBaseRegion(baseR);
     }
   }
 
 public:
-  void VisitAddedToCluster(const MemRegion *baseR, RegionCluster &C) {}
-  void VisitCluster(const MemRegion *baseR, BindingKey *I, BindingKey *E) {}
+  void VisitAddedToCluster(const MemRegion *baseR, const ClusterBindings &C) {}
+  void VisitCluster(const MemRegion *baseR, const ClusterBindings &C) {}
   void VisitBaseRegion(const MemRegion *baseR) {}
 };
 }
@@ -589,16 +516,99 @@ public:
 // Binding invalidation.
 //===----------------------------------------------------------------------===//
 
-void RegionStoreManager::RemoveSubRegionBindings(RegionBindings &B,
-                                                 const MemRegion *R,
-                                                 RegionStoreSubRegionMap &M) {
+bool RegionStoreManager::scanReachableSymbols(Store S, const MemRegion *R,
+                                              ScanReachableSymbols &Callbacks) {
+  assert(R == R->getBaseRegion() && "Should only be called for base regions");
+  RegionBindings B = GetRegionBindings(S);
+  const ClusterBindings *Cluster = B.lookup(R);
 
-  if (const RegionStoreSubRegionMap::Set *S = M.getSubRegions(R))
-    for (RegionStoreSubRegionMap::Set::iterator I = S->begin(), E = S->end();
-         I != E; ++I)
-      RemoveSubRegionBindings(B, *I, M);
+  if (!Cluster)
+    return true;
 
-  B = removeBinding(B, R);
+  for (ClusterBindings::iterator RI = Cluster->begin(), RE = Cluster->end();
+       RI != RE; ++RI) {
+    if (!Callbacks.scan(RI.getData()))
+      return false;
+  }
+
+  return true;
+}
+
+RegionBindings RegionStoreManager::removeSubRegionBindings(RegionBindings B,
+                                                           const SubRegion *R) {
+  BindingKey SRKey = BindingKey::Make(R, BindingKey::Default);
+  const MemRegion *ClusterHead = SRKey.getBaseRegion();
+  if (R == ClusterHead) {
+    // We can remove an entire cluster's bindings all in one go.
+    return RBFactory.remove(B, R);
+  }
+
+  if (SRKey.hasSymbolicOffset()) {
+    const SubRegion *Base = cast<SubRegion>(SRKey.getConcreteOffsetRegion());
+    B = removeSubRegionBindings(B, Base);
+    return addBinding(B, Base, BindingKey::Default, UnknownVal());
+  }
+
+  // This assumes the region being invalidated is char-aligned. This isn't
+  // true for bitfields, but since bitfields have no subregions they shouldn't
+  // be using this function anyway.
+  uint64_t Length = UINT64_MAX;
+
+  SVal Extent = R->getExtent(svalBuilder);
+  if (nonloc::ConcreteInt *ExtentCI = dyn_cast<nonloc::ConcreteInt>(&Extent)) {
+    const llvm::APSInt &ExtentInt = ExtentCI->getValue();
+    assert(ExtentInt.isNonNegative() || ExtentInt.isUnsigned());
+    // Extents are in bytes but region offsets are in bits. Be careful!
+    Length = ExtentInt.getLimitedValue() * Ctx.getCharWidth();
+  }
+
+  const ClusterBindings *Cluster = B.lookup(ClusterHead);
+  if (!Cluster)
+    return B;
+
+  ClusterBindings Result = *Cluster;
+
+  // It is safe to iterate over the bindings as they are being changed
+  // because they are in an ImmutableMap.
+  for (ClusterBindings::iterator I = Cluster->begin(), E = Cluster->end();
+       I != E; ++I) {
+    BindingKey NextKey = I.getKey();
+    if (NextKey.getRegion() == SRKey.getRegion()) {
+      if (NextKey.getOffset() > SRKey.getOffset() &&
+          NextKey.getOffset() - SRKey.getOffset() < Length) {
+        // Case 1: The next binding is inside the region we're invalidating.
+        // Remove it.
+        Result = CBFactory.remove(Result, NextKey);
+      } else if (NextKey.getOffset() == SRKey.getOffset()) {
+        // Case 2: The next binding is at the same offset as the region we're
+        // invalidating. In this case, we need to leave default bindings alone,
+        // since they may be providing a default value for a regions beyond what
+        // we're invalidating.
+        // FIXME: This is probably incorrect; consider invalidating an outer
+        // struct whose first field is bound to a LazyCompoundVal.
+        if (NextKey.isDirect())
+          Result = CBFactory.remove(Result, NextKey);
+      }
+    } else if (NextKey.hasSymbolicOffset()) {
+      const MemRegion *Base = NextKey.getConcreteOffsetRegion();
+      if (R->isSubRegionOf(Base)) {
+        // Case 3: The next key is symbolic and we just changed something within
+        // its concrete region. We don't know if the binding is still valid, so
+        // we'll be conservative and remove it.
+        if (NextKey.isDirect())
+          Result = CBFactory.remove(Result, NextKey);
+      } else if (const SubRegion *BaseSR = dyn_cast<SubRegion>(Base)) {
+        // Case 4: The next key is symbolic, but we changed a known
+        // super-region. In this case the binding is certainly no longer valid.
+        if (R == Base || BaseSR->isSubRegionOf(R))
+          Result = CBFactory.remove(Result, NextKey);
+      }
+    }
+  }
+
+  if (Result.isEmpty())
+    return RBFactory.remove(B, ClusterHead);
+  return RBFactory.add(B, ClusterHead, Result);
 }
 
 namespace {
@@ -621,7 +631,7 @@ public:
     : ClusterAnalysis<invalidateRegionsWorker>(rm, stateMgr, b, includeGlobals),
       Ex(ex), Count(count), LCtx(lctx), IS(is), Regions(r) {}
 
-  void VisitCluster(const MemRegion *baseR, BindingKey *I, BindingKey *E);
+  void VisitCluster(const MemRegion *baseR, const ClusterBindings &C);
   void VisitBaseRegion(const MemRegion *baseR);
 
 private:
@@ -646,26 +656,31 @@ void invalidateRegionsWorker::VisitBinding(SVal V) {
     const MemRegion *LazyR = LCS->getRegion();
     RegionBindings B = RegionStoreManager::GetRegionBindings(LCS->getStore());
 
+    // FIXME: This should not have to walk all bindings in the old store.
     for (RegionBindings::iterator RI = B.begin(), RE = B.end(); RI != RE; ++RI){
-      const SubRegion *baseR = dyn_cast<SubRegion>(RI.getKey().getRegion());
-      if (baseR && baseR->isSubRegionOf(LazyR))
-        VisitBinding(RI.getData());
+      const ClusterBindings &Cluster = RI.getData();
+      for (ClusterBindings::iterator CI = Cluster.begin(), CE = Cluster.end();
+           CI != CE; ++CI) {
+        BindingKey K = CI.getKey();
+        if (const SubRegion *BaseR = dyn_cast<SubRegion>(K.getRegion())) {
+          if (BaseR == LazyR)
+            VisitBinding(CI.getData());
+          else if (K.hasSymbolicOffset() && BaseR->isSubRegionOf(LazyR))
+            VisitBinding(CI.getData());
+        }
+      }
     }
 
     return;
   }
 }
 
-void invalidateRegionsWorker::VisitCluster(const MemRegion *baseR,
-                                           BindingKey *I, BindingKey *E) {
-  for ( ; I != E; ++I) {
-    // Get the old binding.  Is it a region?  If so, add it to the worklist.
-    const BindingKey &K = *I;
-    if (const SVal *V = RM.lookup(B, K))
-      VisitBinding(*V);
+void invalidateRegionsWorker::VisitCluster(const MemRegion *BaseR,
+                                           const ClusterBindings &C) {
+  for (ClusterBindings::iterator I = C.begin(), E = C.end(); I != E; ++I)
+    VisitBinding(I.getData());
 
-    B = RM.removeBinding(B, K);
-  }
+  B = RM.removeCluster(B, BaseR);
 }
 
 void invalidateRegionsWorker::VisitBaseRegion(const MemRegion *baseR) {
@@ -681,8 +696,22 @@ void invalidateRegionsWorker::VisitBaseRegion(const MemRegion *baseR) {
          BI != BE; ++BI) {
       const VarRegion *VR = *BI;
       const VarDecl *VD = VR->getDecl();
-      if (VD->getAttr<BlocksAttr>() || !VD->hasLocalStorage())
+      if (VD->getAttr<BlocksAttr>() || !VD->hasLocalStorage()) {
         AddToWorkList(VR);
+      }
+      else if (Loc::isLocType(VR->getValueType())) {
+        // Map the current bindings to a Store to retrieve the value
+        // of the binding.  If that binding itself is a region, we should
+        // invalidate that region.  This is because a block may capture
+        // a pointer value, but the thing pointed by that pointer may
+        // get invalidated.
+        Store store = B.getRootWithoutRetain();
+        SVal V = RM.getBinding(store, loc::MemRegionVal(VR));
+        if (const Loc *L = dyn_cast<Loc>(&V)) {
+          if (const MemRegion *LR = L->getAsRegion())
+            AddToWorkList(LR);
+        }
+      }
     }
     return;
   }
@@ -771,7 +800,7 @@ StoreRef RegionStoreManager::invalidateRegions(Store store,
                                                const Expr *Ex, unsigned Count,
                                                const LocationContext *LCtx,
                                                InvalidatedSymbols &IS,
-                                               const CallOrObjCMessage *Call,
+                                               const CallEvent *Call,
                                               InvalidatedRegions *Invalidated) {
   invalidateRegionsWorker W(*this, StateMgr,
                             RegionStoreManager::GetRegionBindings(store),
@@ -868,10 +897,22 @@ SVal RegionStoreManager::ArrayToPointer(Loc Array) {
   return loc::MemRegionVal(MRMgr.getElementRegion(T, ZeroIdx, ArrayR, Ctx));
 }
 
+// This mirrors Type::getCXXRecordDeclForPointerType(), but there doesn't
+// appear to be another need for this in the rest of the codebase.
+static const CXXRecordDecl *GetCXXRecordDeclForReferenceType(QualType Ty) {
+  if (const ReferenceType *RT = Ty->getAs<ReferenceType>())
+    if (const RecordType *RCT = RT->getPointeeType()->getAs<RecordType>())
+      return dyn_cast<CXXRecordDecl>(RCT->getDecl());
+  return 0;
+}
+
 SVal RegionStoreManager::evalDerivedToBase(SVal derived, QualType baseType) {
   const CXXRecordDecl *baseDecl;
+  
   if (baseType->isPointerType())
     baseDecl = baseType->getCXXRecordDeclForPointerType();
+  else if (baseType->isReferenceType())
+    baseDecl = GetCXXRecordDeclForReferenceType(baseType);
   else
     baseDecl = baseType->getAsCXXRecordDecl();
 
@@ -894,7 +935,7 @@ SVal RegionStoreManager::evalDynamicCast(SVal base, QualType derivedType,
   loc::MemRegionVal *baseRegVal = dyn_cast<loc::MemRegionVal>(&base);
   if (!baseRegVal)
     return UnknownVal();
-  const MemRegion *BaseRegion = baseRegVal->stripCasts();
+  const MemRegion *BaseRegion = baseRegVal->stripCasts(/*StripBases=*/false);
 
   // Assume the derived class is a pointer or a reference to a CXX record.
   derivedType = derivedType->getPointeeType();
@@ -917,23 +958,20 @@ SVal RegionStoreManager::evalDynamicCast(SVal base, QualType derivedType,
     if (SRDecl == DerivedDecl)
       return loc::MemRegionVal(TSR);
 
-    // If the region type is a subclass of the derived type.
-    if (!derivedType->isVoidType() && SRDecl->isDerivedFrom(DerivedDecl)) {
-      // This occurs in two cases.
-      // 1) We are processing an upcast.
-      // 2) We are processing a downcast but we jumped directly from the
-      // ancestor to a child of the cast value, so conjure the
-      // appropriate region to represent value (the intermediate node).
-      return loc::MemRegionVal(MRMgr.getCXXBaseObjectRegion(DerivedDecl,
-                                                            BaseRegion));
-    }
-
-    // If super region is not a parent of derived class, the cast definitely
-    // fails.
-    if (!derivedType->isVoidType() &&
-        DerivedDecl->isProvablyNotDerivedFrom(SRDecl)) {
-      Failed = true;
-      return UnknownVal();
+    if (!derivedType->isVoidType()) {
+      // Static upcasts are marked as DerivedToBase casts by Sema, so this will
+      // only happen when multiple or virtual inheritance is involved.
+      CXXBasePaths Paths(/*FindAmbiguities=*/false, /*RecordPaths=*/true,
+                         /*DetectVirtual=*/false);
+      if (SRDecl->isDerivedFrom(DerivedDecl, Paths)) {
+        SVal Result = loc::MemRegionVal(TSR);
+        const CXXBasePath &Path = *Paths.begin();
+        for (CXXBasePath::const_iterator I = Path.begin(), E = Path.end();
+             I != E; ++I) {
+          Result = evalDerivedToBase(Result, I->Base->getType());
+        }
+        return Result;
+      }
     }
 
     if (const CXXBaseObjectRegion *R = dyn_cast<CXXBaseObjectRegion>(TSR))
@@ -1036,8 +1074,12 @@ SVal RegionStoreManager::getBinding(Store store, Loc L, QualType T) {
   if (RTy->isUnionType())
     return UnknownVal();
 
-  if (RTy->isArrayType())
-    return getBindingForArray(store, R);
+  if (RTy->isArrayType()) {
+    if (RTy->isConstantArrayType())
+      return getBindingForArray(store, R);
+    else
+      return UnknownVal();
+  }
 
   // FIXME: handle Vector types.
   if (RTy->isVectorType())
@@ -1099,7 +1141,8 @@ SVal RegionStoreManager::getBinding(Store store, Loc L, QualType T) {
 
 std::pair<Store, const MemRegion *>
 RegionStoreManager::GetLazyBinding(RegionBindings B, const MemRegion *R,
-                                   const MemRegion *originalRegion) {
+                                   const MemRegion *originalRegion,
+                                   bool includeSuffix) {
   
   if (originalRegion != R) {
     if (Optional<SVal> OV = getDefaultBinding(B, R)) {
@@ -1121,9 +1164,13 @@ RegionStoreManager::GetLazyBinding(RegionBindings B, const MemRegion *R,
     const std::pair<Store, const MemRegion *> &X =
       GetLazyBinding(B, FR->getSuperRegion(), originalRegion);
 
-    if (X.second)
-      return std::make_pair(X.first,
-                            MRMgr.getFieldRegionWithSuper(FR, X.second));
+    if (X.second) {
+      if (includeSuffix)
+        return std::make_pair(X.first,
+                              MRMgr.getFieldRegionWithSuper(FR, X.second));
+      return X;
+    }
+        
   }
   // C++ base object region is another kind of region that we should blast
   // through to look for lazy compound value. It is like a field region.
@@ -1132,9 +1179,13 @@ RegionStoreManager::GetLazyBinding(RegionBindings B, const MemRegion *R,
     const std::pair<Store, const MemRegion *> &X =
       GetLazyBinding(B, baseReg->getSuperRegion(), originalRegion);
     
-    if (X.second)
-      return std::make_pair(X.first,
-                     MRMgr.getCXXBaseObjectRegionWithSuper(baseReg, X.second));
+    if (X.second) {
+      if (includeSuffix)
+        return std::make_pair(X.first,
+                              MRMgr.getCXXBaseObjectRegionWithSuper(baseReg,
+                                                                    X.second));
+      return X;
+    }
   }
 
   // The NULL MemRegion indicates an non-existent lazy binding. A NULL Store is
@@ -1143,7 +1194,11 @@ RegionStoreManager::GetLazyBinding(RegionBindings B, const MemRegion *R,
 }
 
 SVal RegionStoreManager::getBindingForElement(Store store,
-                                         const ElementRegion* R) {
+                                              const ElementRegion* R) {
+  // We do not currently model bindings of the CompoundLiteralregion.
+  if (isa<CompoundLiteralRegion>(R->getBaseRegion()))
+    return UnknownVal();
+
   // Check if the region has a binding.
   RegionBindings B = GetRegionBindings(store);
   if (const Optional<SVal> &V = getDirectBinding(B, R))
@@ -1274,7 +1329,16 @@ SVal RegionStoreManager::getBindingForFieldOrElementCommon(Store store,
   // At this point we have already checked in either getBindingForElement or
   // getBindingForField if 'R' has a direct binding.
   RegionBindings B = GetRegionBindings(store);
+
+  // Lazy binding?
+  Store lazyBindingStore = NULL;
+  const MemRegion *lazyBindingRegion = NULL;
+  llvm::tie(lazyBindingStore, lazyBindingRegion) = GetLazyBinding(B, R, R,
+                                                                  true);
   
+  if (lazyBindingRegion)
+    return getLazyBinding(lazyBindingRegion, lazyBindingStore);
+
   // Record whether or not we see a symbolic index.  That can completely
   // be out of scope of our lookup.
   bool hasSymbolicIndex = false;
@@ -1298,14 +1362,6 @@ SVal RegionStoreManager::getBindingForFieldOrElementCommon(Store store,
     }
     break;
   }
-
-  // Lazy binding?
-  Store lazyBindingStore = NULL;
-  const MemRegion *lazyBindingRegion = NULL;
-  llvm::tie(lazyBindingStore, lazyBindingRegion) = GetLazyBinding(B, R, R);
-
-  if (lazyBindingRegion)
-    return getLazyBinding(lazyBindingRegion, lazyBindingStore);
 
   if (R->hasStackNonParametersStorage()) {
     if (isa<ElementRegion>(R)) {
@@ -1410,15 +1466,49 @@ SVal RegionStoreManager::getBindingForLazySymbol(const TypedValueRegion *R) {
   return svalBuilder.getRegionValueSymbolVal(R);
 }
 
+static bool mayHaveLazyBinding(QualType Ty) {
+  return Ty->isArrayType() || Ty->isStructureOrClassType();
+}
+
 SVal RegionStoreManager::getBindingForStruct(Store store, 
                                         const TypedValueRegion* R) {
-  assert(R->getValueType()->isStructureOrClassType());
+  const RecordDecl *RD = R->getValueType()->castAs<RecordType>()->getDecl();
+  if (RD->field_empty())
+    return UnknownVal();
+
+  // If we already have a lazy binding, don't create a new one,
+  // unless the first field might have a lazy binding of its own.
+  // (Right now we can't tell the difference.)
+  QualType FirstFieldType = RD->field_begin()->getType();
+  if (!mayHaveLazyBinding(FirstFieldType)) {
+    RegionBindings B = GetRegionBindings(store);
+    BindingKey K = BindingKey::Make(R, BindingKey::Default);
+    if (const nonloc::LazyCompoundVal *V =
+          dyn_cast_or_null<nonloc::LazyCompoundVal>(lookup(B, K))) {
+      return *V;
+    }
+  }
+
   return svalBuilder.makeLazyCompoundVal(StoreRef(store, *this), R);
 }
 
-SVal RegionStoreManager::getBindingForArray(Store store, 
+SVal RegionStoreManager::getBindingForArray(Store store,
                                        const TypedValueRegion * R) {
-  assert(Ctx.getAsConstantArrayType(R->getValueType()));
+  const ConstantArrayType *Ty = Ctx.getAsConstantArrayType(R->getValueType());
+  assert(Ty && "Only constant array types can have compound bindings.");
+  
+  // If we already have a lazy binding, don't create a new one,
+  // unless the first element might have a lazy binding of its own.
+  // (Right now we can't tell the difference.)
+  if (!mayHaveLazyBinding(Ty->getElementType())) {
+    RegionBindings B = GetRegionBindings(store);
+    BindingKey K = BindingKey::Make(R, BindingKey::Default);
+    if (const nonloc::LazyCompoundVal *V =
+        dyn_cast_or_null<nonloc::LazyCompoundVal>(lookup(B, K))) {
+      return *V;
+    }
+  }
+
   return svalBuilder.makeLazyCompoundVal(StoreRef(store, *this), R);
 }
 
@@ -1426,16 +1516,23 @@ bool RegionStoreManager::includedInBindings(Store store,
                                             const MemRegion *region) const {
   RegionBindings B = GetRegionBindings(store);
   region = region->getBaseRegion();
-  
-  for (RegionBindings::iterator it = B.begin(), ei = B.end(); it != ei; ++it) {
-    const BindingKey &K = it.getKey();
-    if (region == K.getRegion())
-      return true;
-    const SVal &D = it.getData();
-    if (const MemRegion *r = D.getAsRegion())
-      if (r == region)
-        return true;
+
+  // Quick path: if the base is the head of a cluster, the region is live.
+  if (B.lookup(region))
+    return true;
+
+  // Slow path: if the region is the VALUE of any binding, it is live.
+  for (RegionBindings::iterator RI = B.begin(), RE = B.end(); RI != RE; ++RI) {
+    const ClusterBindings &Cluster = RI.getData();
+    for (ClusterBindings::iterator CI = Cluster.begin(), CE = Cluster.end();
+         CI != CE; ++CI) {
+      const SVal &D = CI.getData();
+      if (const MemRegion *R = D.getAsRegion())
+        if (R->getBaseRegion() == region)
+          return true;
+    }
   }
+
   return false;
 }
 
@@ -1461,24 +1558,15 @@ StoreRef RegionStoreManager::Bind(Store store, Loc L, SVal V) {
   const MemRegion *R = cast<loc::MemRegionVal>(L).getRegion();
 
   // Check if the region is a struct region.
-  if (const TypedValueRegion* TR = dyn_cast<TypedValueRegion>(R))
-    if (TR->getValueType()->isStructureOrClassType())
+  if (const TypedValueRegion* TR = dyn_cast<TypedValueRegion>(R)) {
+    QualType Ty = TR->getValueType();
+    if (Ty->isStructureOrClassType())
       return BindStruct(store, TR, V);
-
-  if (const ElementRegion *ER = dyn_cast<ElementRegion>(R)) {
-    if (ER->getIndex().isZeroConstant()) {
-      if (const TypedValueRegion *superR =
-            dyn_cast<TypedValueRegion>(ER->getSuperRegion())) {
-        QualType superTy = superR->getValueType();
-        // For now, just invalidate the fields of the struct/union/class.
-        // This is for test rdar_test_7185607 in misc-ps-region-store.m.
-        // FIXME: Precisely handle the fields of the record.
-        if (superTy->isStructureOrClassType())
-          return KillStruct(store, superR, UnknownVal());
-      }
-    }
+    if (Ty->isVectorType())
+      return BindVector(store, TR, V);
   }
-  else if (const SymbolicRegion *SR = dyn_cast<SymbolicRegion>(R)) {
+
+  if (const SymbolicRegion *SR = dyn_cast<SymbolicRegion>(R)) {
     // Binding directly to a symbolic region should be treated as binding
     // to element 0.
     QualType T = SR->getSymbol()->getType(Ctx);
@@ -1492,10 +1580,13 @@ StoreRef RegionStoreManager::Bind(Store store, Loc L, SVal V) {
     R = GetElementZeroRegion(SR, T);
   }
 
+  // Clear out bindings that may overlap with this binding.
+
   // Perform the binding.
   RegionBindings B = GetRegionBindings(store);
-  return StoreRef(addBinding(B, R, BindingKey::Direct,
-                             V).getRootWithoutRetain(), *this);
+  B = removeSubRegionBindings(B, cast<SubRegion>(R));
+  BindingKey Key = BindingKey::Make(R, BindingKey::Direct);
+  return StoreRef(addBinding(B, Key, V).getRootWithoutRetain(), *this);
 }
 
 StoreRef RegionStoreManager::BindDecl(Store store, const VarRegion *VR,
@@ -1566,12 +1657,12 @@ StoreRef RegionStoreManager::BindArray(Store store, const TypedValueRegion* R,
     nonloc::LazyCompoundVal LCV =
       cast<nonloc::LazyCompoundVal>(svalBuilder.
                                 makeLazyCompoundVal(StoreRef(store, *this), S));
-    return CopyLazyBindings(LCV, store, R);
+    return BindAggregate(store, R, LCV);
   }
 
   // Handle lazy compound values.
-  if (nonloc::LazyCompoundVal *LCV = dyn_cast<nonloc::LazyCompoundVal>(&Init))
-    return CopyLazyBindings(*LCV, store, R);
+  if (isa<nonloc::LazyCompoundVal>(Init))
+    return BindAggregate(store, R, Init);
 
   // Remaining case: explicit compound values.
 
@@ -1607,6 +1698,46 @@ StoreRef RegionStoreManager::BindArray(Store store, const TypedValueRegion* R,
   return newStore;
 }
 
+StoreRef RegionStoreManager::BindVector(Store store, const TypedValueRegion* R,
+                                        SVal V) {
+  QualType T = R->getValueType();
+  assert(T->isVectorType());
+  const VectorType *VT = T->getAs<VectorType>(); // Use getAs for typedefs.
+ 
+  // Handle lazy compound values and symbolic values.
+  if (isa<nonloc::LazyCompoundVal>(V) || isa<nonloc::SymbolVal>(V))
+    return BindAggregate(store, R, V);
+  
+  // We may get non-CompoundVal accidentally due to imprecise cast logic or
+  // that we are binding symbolic struct value. Kill the field values, and if
+  // the value is symbolic go and bind it as a "default" binding.
+  if (!isa<nonloc::CompoundVal>(V)) {
+    return BindAggregate(store, R, UnknownVal());
+  }
+
+  QualType ElemType = VT->getElementType();
+  nonloc::CompoundVal& CV = cast<nonloc::CompoundVal>(V);
+  nonloc::CompoundVal::iterator VI = CV.begin(), VE = CV.end();
+  unsigned index = 0, numElements = VT->getNumElements();
+  StoreRef newStore(store, *this);
+  
+  for ( ; index != numElements ; ++index) {
+    if (VI == VE)
+      break;
+    
+    NonLoc Idx = svalBuilder.makeArrayIndex(index);
+    const ElementRegion *ER = MRMgr.getElementRegion(ElemType, Idx, R, Ctx);
+    
+    if (ElemType->isArrayType())
+      newStore = BindArray(newStore.getStore(), ER, *VI);
+    else if (ElemType->isStructureOrClassType())
+      newStore = BindStruct(newStore.getStore(), ER, *VI);
+    else
+      newStore = Bind(newStore.getStore(), svalBuilder.makeLoc(ER), *VI);
+  }
+  return newStore;
+}
+
 StoreRef RegionStoreManager::BindStruct(Store store, const TypedValueRegion* R,
                                         SVal V) {
 
@@ -1622,17 +1753,15 @@ StoreRef RegionStoreManager::BindStruct(Store store, const TypedValueRegion* R,
   if (!RD->isCompleteDefinition())
     return StoreRef(store, *this);
 
-  // Handle lazy compound values.
-  if (const nonloc::LazyCompoundVal *LCV=dyn_cast<nonloc::LazyCompoundVal>(&V))
-    return CopyLazyBindings(*LCV, store, R);
+  // Handle lazy compound values and symbolic values.
+  if (isa<nonloc::LazyCompoundVal>(V) || isa<nonloc::SymbolVal>(V))
+    return BindAggregate(store, R, V);
 
   // We may get non-CompoundVal accidentally due to imprecise cast logic or
   // that we are binding symbolic struct value. Kill the field values, and if
   // the value is symbolic go and bind it as a "default" binding.
-  if (V.isUnknown() || !isa<nonloc::CompoundVal>(V)) {
-    SVal SV = isa<nonloc::SymbolVal>(V) ? V : UnknownVal();
-    return KillStruct(store, R, SV);
-  }
+  if (V.isUnknown() || !isa<nonloc::CompoundVal>(V))
+    return BindAggregate(store, R, UnknownVal());
 
   nonloc::CompoundVal& CV = cast<nonloc::CompoundVal>(V);
   nonloc::CompoundVal::iterator VI = CV.begin(), VE = CV.end();
@@ -1646,10 +1775,10 @@ StoreRef RegionStoreManager::BindStruct(Store store, const TypedValueRegion* R,
       break;
 
     // Skip any unnamed bitfields to stay in sync with the initializers.
-    if ((*FI)->isUnnamedBitfield())
+    if (FI->isUnnamedBitfield())
       continue;
 
-    QualType FTy = (*FI)->getType();
+    QualType FTy = FI->getType();
     const FieldRegion* FR = MRMgr.getFieldRegion(*FI, R);
 
     if (FTy->isArrayType())
@@ -1671,58 +1800,16 @@ StoreRef RegionStoreManager::BindStruct(Store store, const TypedValueRegion* R,
   return newStore;
 }
 
-StoreRef RegionStoreManager::KillStruct(Store store, const TypedRegion* R,
-                                     SVal DefaultVal) {
-  BindingKey key = BindingKey::Make(R, BindingKey::Default);
-  
-  // The BindingKey may be "invalid" if we cannot handle the region binding
-  // explicitly.  One example is something like array[index], where index
-  // is a symbolic value.  In such cases, we want to invalidate the entire
-  // array, as the index assignment could have been to any element.  In
-  // the case of nested symbolic indices, we need to march up the region
-  // hierarchy untile we reach a region whose binding we can reason about.
-  const SubRegion *subReg = R;
-
-  while (!key.isValid()) {
-    if (const SubRegion *tmp = dyn_cast<SubRegion>(subReg->getSuperRegion())) {
-      subReg = tmp;
-      key = BindingKey::Make(tmp, BindingKey::Default);
-    }
-    else
-      break;
-  }                                 
-
-  // Remove the old bindings, using 'subReg' as the root of all regions
-  // we will invalidate.
-  RegionBindings B = GetRegionBindings(store);
-  OwningPtr<RegionStoreSubRegionMap>
-    SubRegions(getRegionStoreSubRegionMap(store));
-  RemoveSubRegionBindings(B, subReg, *SubRegions);
-
-  // Set the default value of the struct region to "unknown".
-  if (!key.isValid())
-    return StoreRef(B.getRootWithoutRetain(), *this);
-  
-  return StoreRef(addBinding(B, key, DefaultVal).getRootWithoutRetain(), *this);
-}
-
-StoreRef RegionStoreManager::CopyLazyBindings(nonloc::LazyCompoundVal V,
-                                              Store store,
-                                              const TypedRegion *R) {
-
-  // Nuke the old bindings stemming from R.
+StoreRef RegionStoreManager::BindAggregate(Store store, const TypedRegion *R,
+                                           SVal Val) {
+  // Remove the old bindings, using 'R' as the root of all regions
+  // we will invalidate. Then add the new binding.
   RegionBindings B = GetRegionBindings(store);
 
-  OwningPtr<RegionStoreSubRegionMap>
-    SubRegions(getRegionStoreSubRegionMap(store));
+  B = removeSubRegionBindings(B, R);
+  B = addBinding(B, R, BindingKey::Default, Val);
 
-  // B and DVM are updated after the call to RemoveSubRegionBindings.
-  RemoveSubRegionBindings(B, R, *SubRegions.get());
-
-  // Now copy the bindings.  This amounts to just binding 'V' to 'R'.  This
-  // results in a zero-copy algorithm.
-  return StoreRef(addBinding(B, R, BindingKey::Default,
-                             V).getRootWithoutRetain(), *this);
+  return StoreRef(B.getRootWithoutRetain(), *this);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1732,9 +1819,14 @@ StoreRef RegionStoreManager::CopyLazyBindings(nonloc::LazyCompoundVal V,
 
 RegionBindings RegionStoreManager::addBinding(RegionBindings B, BindingKey K,
                                               SVal V) {
-  if (!K.isValid())
-    return B;
-  return RBFactory.add(B, K, V);
+  const MemRegion *Base = K.getBaseRegion();
+  
+  const ClusterBindings *ExistingCluster = B.lookup(Base);
+  ClusterBindings Cluster = (ExistingCluster ? *ExistingCluster
+                                             : CBFactory.getEmptyMap());
+
+  ClusterBindings NewCluster = CBFactory.add(Cluster, K, V);
+  return RBFactory.add(B, Base, NewCluster);
 }
 
 RegionBindings RegionStoreManager::addBinding(RegionBindings B,
@@ -1744,9 +1836,11 @@ RegionBindings RegionStoreManager::addBinding(RegionBindings B,
 }
 
 const SVal *RegionStoreManager::lookup(RegionBindings B, BindingKey K) {
-  if (!K.isValid())
-    return NULL;
-  return B.lookup(K);
+  const ClusterBindings *Cluster = B.lookup(K.getBaseRegion());
+  if (!Cluster)
+    return 0;
+
+  return Cluster->lookup(K);
 }
 
 const SVal *RegionStoreManager::lookup(RegionBindings B,
@@ -1757,15 +1851,26 @@ const SVal *RegionStoreManager::lookup(RegionBindings B,
 
 RegionBindings RegionStoreManager::removeBinding(RegionBindings B,
                                                  BindingKey K) {
-  if (!K.isValid())
+  const MemRegion *Base = K.getBaseRegion();
+  const ClusterBindings *Cluster = B.lookup(Base);
+  if (!Cluster)
     return B;
-  return RBFactory.remove(B, K);
+
+  ClusterBindings NewCluster = CBFactory.remove(*Cluster, K);
+  if (NewCluster.isEmpty())
+    return RBFactory.remove(B, Base);
+  return RBFactory.add(B, Base, NewCluster);
 }
 
 RegionBindings RegionStoreManager::removeBinding(RegionBindings B,
                                                  const MemRegion *R,
                                                 BindingKey::Kind k){
   return removeBinding(B, BindingKey::Make(R, k));
+}
+
+RegionBindings RegionStoreManager::removeCluster(RegionBindings B,
+                                                 const MemRegion *Base) {
+  return RBFactory.remove(B, Base);
 }
 
 //===----------------------------------------------------------------------===//
@@ -1789,8 +1894,8 @@ public:
       SymReaper(symReaper), CurrentLCtx(LCtx) {}
 
   // Called by ClusterAnalysis.
-  void VisitAddedToCluster(const MemRegion *baseR, RegionCluster &C);
-  void VisitCluster(const MemRegion *baseR, BindingKey *I, BindingKey *E);
+  void VisitAddedToCluster(const MemRegion *baseR, const ClusterBindings &C);
+  void VisitCluster(const MemRegion *baseR, const ClusterBindings &C);
 
   void VisitBindingKey(BindingKey K);
   bool UpdatePostponed();
@@ -1799,18 +1904,18 @@ public:
 }
 
 void removeDeadBindingsWorker::VisitAddedToCluster(const MemRegion *baseR,
-                                                   RegionCluster &C) {
+                                                   const ClusterBindings &C) {
 
   if (const VarRegion *VR = dyn_cast<VarRegion>(baseR)) {
     if (SymReaper.isLive(VR))
-      AddToWorkList(baseR, C);
+      AddToWorkList(baseR, &C);
 
     return;
   }
 
   if (const SymbolicRegion *SR = dyn_cast<SymbolicRegion>(baseR)) {
     if (SymReaper.isLive(SR->getSymbol()))
-      AddToWorkList(SR, C);
+      AddToWorkList(SR, &C);
     else
       Postponed.push_back(SR);
 
@@ -1818,7 +1923,7 @@ void removeDeadBindingsWorker::VisitAddedToCluster(const MemRegion *baseR,
   }
 
   if (isa<NonStaticGlobalSpaceRegion>(baseR)) {
-    AddToWorkList(baseR, C);
+    AddToWorkList(baseR, &C);
     return;
   }
 
@@ -1828,34 +1933,57 @@ void removeDeadBindingsWorker::VisitAddedToCluster(const MemRegion *baseR,
       cast<StackArgumentsSpaceRegion>(TR->getSuperRegion());
     const StackFrameContext *RegCtx = StackReg->getStackFrame();
     if (RegCtx == CurrentLCtx || RegCtx->isParentOf(CurrentLCtx))
-      AddToWorkList(TR, C);
+      AddToWorkList(TR, &C);
   }
 }
 
 void removeDeadBindingsWorker::VisitCluster(const MemRegion *baseR,
-                                            BindingKey *I, BindingKey *E) {
-  for ( ; I != E; ++I)
-    VisitBindingKey(*I);
+                                            const ClusterBindings &C) {
+  for (ClusterBindings::iterator I = C.begin(), E = C.end(); I != E; ++I) {
+    VisitBindingKey(I.getKey());
+    VisitBinding(I.getData());
+  }
 }
 
 void removeDeadBindingsWorker::VisitBinding(SVal V) {
   // Is it a LazyCompoundVal?  All referenced regions are live as well.
   if (const nonloc::LazyCompoundVal *LCS =
-      dyn_cast<nonloc::LazyCompoundVal>(&V)) {
+        dyn_cast<nonloc::LazyCompoundVal>(&V)) {
 
     const MemRegion *LazyR = LCS->getRegion();
     RegionBindings B = RegionStoreManager::GetRegionBindings(LCS->getStore());
+
+    // FIXME: This should not have to walk all bindings in the old store.
     for (RegionBindings::iterator RI = B.begin(), RE = B.end(); RI != RE; ++RI){
-      const SubRegion *baseR = dyn_cast<SubRegion>(RI.getKey().getRegion());
-      if (baseR && baseR->isSubRegionOf(LazyR))
-        VisitBinding(RI.getData());
+      const ClusterBindings &Cluster = RI.getData();
+      for (ClusterBindings::iterator CI = Cluster.begin(), CE = Cluster.end();
+           CI != CE; ++CI) {
+        BindingKey K = CI.getKey();
+        if (const SubRegion *BaseR = dyn_cast<SubRegion>(K.getRegion())) {
+          if (BaseR == LazyR)
+            VisitBinding(CI.getData());
+          else if (K.hasSymbolicOffset() && BaseR->isSubRegionOf(LazyR))
+            VisitBinding(CI.getData());
+        }
+      }
     }
+
     return;
   }
 
   // If V is a region, then add it to the worklist.
-  if (const MemRegion *R = V.getAsRegion())
+  if (const MemRegion *R = V.getAsRegion()) {
     AddToWorkList(R);
+    
+    // All regions captured by a block are also live.
+    if (const BlockDataRegion *BR = dyn_cast<BlockDataRegion>(R)) {
+      BlockDataRegion::referenced_vars_iterator I = BR->referenced_vars_begin(),
+                                                E = BR->referenced_vars_end();
+        for ( ; I != E; ++I)
+          AddToWorkList(I.getCapturedRegion());
+    }
+  }
+    
 
   // Update the set of live symbols.
   for (SymExpr::symbol_iterator SI = V.symbol_begin(), SE = V.symbol_end();
@@ -1874,26 +2002,7 @@ void removeDeadBindingsWorker::VisitBindingKey(BindingKey K) {
     // should continue to track that symbol.
     if (const SymbolicRegion *SymR = dyn_cast<SymbolicRegion>(R))
       SymReaper.markLive(SymR->getSymbol());
-
-    // For BlockDataRegions, enqueue the VarRegions for variables marked
-    // with __block (passed-by-reference).
-    // via BlockDeclRefExprs.
-    if (const BlockDataRegion *BD = dyn_cast<BlockDataRegion>(R)) {
-      for (BlockDataRegion::referenced_vars_iterator
-           RI = BD->referenced_vars_begin(), RE = BD->referenced_vars_end();
-           RI != RE; ++RI) {
-        if ((*RI)->getDecl()->getAttr<BlocksAttr>())
-          AddToWorkList(*RI);
-      }
-
-      // No possible data bindings on a BlockDataRegion.
-      return;
-    }
   }
-
-  // Visit the data binding for K.
-  if (const SVal *V = RM.lookup(B, K))
-    VisitBinding(*V);
 }
 
 bool removeDeadBindingsWorker::UpdatePostponed() {
@@ -1933,66 +2042,30 @@ StoreRef RegionStoreManager::removeDeadBindings(Store store,
   // as live.  We now remove all the regions that are dead from the store
   // as well as update DSymbols with the set symbols that are now dead.
   for (RegionBindings::iterator I = B.begin(), E = B.end(); I != E; ++I) {
-    const BindingKey &K = I.getKey();
+    const MemRegion *Base = I.getKey();
 
     // If the cluster has been visited, we know the region has been marked.
-    if (W.isVisited(K.getRegion()))
+    if (W.isVisited(Base))
       continue;
 
     // Remove the dead entry.
-    B = removeBinding(B, K);
+    B = removeCluster(B, Base);
 
-    // Mark all non-live symbols that this binding references as dead.
-    if (const SymbolicRegion* SymR = dyn_cast<SymbolicRegion>(K.getRegion()))
+    if (const SymbolicRegion *SymR = dyn_cast<SymbolicRegion>(Base))
       SymReaper.maybeDead(SymR->getSymbol());
 
-    SVal X = I.getData();
-    SymExpr::symbol_iterator SI = X.symbol_begin(), SE = X.symbol_end();
-    for (; SI != SE; ++SI)
-      SymReaper.maybeDead(*SI);
+    // Mark all non-live symbols that this binding references as dead.
+    const ClusterBindings &Cluster = I.getData();
+    for (ClusterBindings::iterator CI = Cluster.begin(), CE = Cluster.end();
+         CI != CE; ++CI) {
+      SVal X = CI.getData();
+      SymExpr::symbol_iterator SI = X.symbol_begin(), SE = X.symbol_end();
+      for (; SI != SE; ++SI)
+        SymReaper.maybeDead(*SI);
+    }
   }
 
   return StoreRef(B.getRootWithoutRetain(), *this);
-}
-
-
-StoreRef RegionStoreManager::enterStackFrame(ProgramStateRef state,
-                                             const LocationContext *callerCtx,
-                                             const StackFrameContext *calleeCtx)
-{
-  FunctionDecl const *FD = cast<FunctionDecl>(calleeCtx->getDecl());
-  FunctionDecl::param_const_iterator PI = FD->param_begin(), 
-                                     PE = FD->param_end();
-  StoreRef store = StoreRef(state->getStore(), *this);
-
-  if (CallExpr const *CE = dyn_cast<CallExpr>(calleeCtx->getCallSite())) {
-    CallExpr::const_arg_iterator AI = CE->arg_begin(), AE = CE->arg_end();
-
-    // Copy the arg expression value to the arg variables.  We check that
-    // PI != PE because the actual number of arguments may be different than
-    // the function declaration.
-    for (; AI != AE && PI != PE; ++AI, ++PI) {
-      SVal ArgVal = state->getSVal(*AI, callerCtx);
-      store = Bind(store.getStore(),
-                   svalBuilder.makeLoc(MRMgr.getVarRegion(*PI, calleeCtx)),
-                   ArgVal);
-    }
-  } else if (const CXXConstructExpr *CE =
-               dyn_cast<CXXConstructExpr>(calleeCtx->getCallSite())) {
-    CXXConstructExpr::const_arg_iterator AI = CE->arg_begin(),
-      AE = CE->arg_end();
-
-    // Copy the arg expression value to the arg variables.
-    for (; AI != AE; ++AI, ++PI) {
-      SVal ArgVal = state->getSVal(*AI, callerCtx);
-      store = Bind(store.getStore(),
-                   svalBuilder.makeLoc(MRMgr.getVarRegion(*PI, calleeCtx)),
-                   ArgVal);
-    }
-  } else
-    assert(isa<CXXDestructorDecl>(calleeCtx->getDecl()));
-
-  return store;
 }
 
 //===----------------------------------------------------------------------===//
@@ -2002,8 +2075,16 @@ StoreRef RegionStoreManager::enterStackFrame(ProgramStateRef state,
 void RegionStoreManager::print(Store store, raw_ostream &OS,
                                const char* nl, const char *sep) {
   RegionBindings B = GetRegionBindings(store);
-  OS << "Store (direct and default bindings):" << nl;
+  OS << "Store (direct and default bindings), "
+     << (void*) B.getRootWithoutRetain()
+     << " :" << nl;
 
-  for (RegionBindings::iterator I = B.begin(), E = B.end(); I != E; ++I)
-    OS << ' ' << I.getKey() << " : " << I.getData() << nl;
+  for (RegionBindings::iterator I = B.begin(), E = B.end(); I != E; ++I) {
+    const ClusterBindings &Cluster = I.getData();
+    for (ClusterBindings::iterator CI = Cluster.begin(), CE = Cluster.end();
+         CI != CE; ++CI) {
+      OS << ' ' << CI.getKey() << " : " << CI.getData() << nl;
+    }
+    OS << nl;
+  }
 }

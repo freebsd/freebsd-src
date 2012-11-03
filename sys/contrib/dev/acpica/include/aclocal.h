@@ -305,7 +305,7 @@ ACPI_STATUS (*ACPI_INTERNAL_METHOD) (
 
 
 /*
- * Bitmapped ACPI types.  Used internally only
+ * Bitmapped ACPI types. Used internally only
  */
 #define ACPI_BTYPE_ANY                  0x00000000
 #define ACPI_BTYPE_INTEGER              0x00000001
@@ -689,7 +689,7 @@ typedef struct acpi_pscope_state
 
 
 /*
- * Thread state - one per thread across multiple walk states.  Multiple walk
+ * Thread state - one per thread across multiple walk states. Multiple walk
  * states are created when there are nested control methods executing.
  */
 typedef struct acpi_thread_state
@@ -857,15 +857,18 @@ typedef union acpi_parse_value
     char                            AmlOpName[16])  /* Op name (debug only) */
 
 
-#define ACPI_DASM_BUFFER                0x00
-#define ACPI_DASM_RESOURCE              0x01
-#define ACPI_DASM_STRING                0x02
-#define ACPI_DASM_UNICODE               0x03
-#define ACPI_DASM_EISAID                0x04
-#define ACPI_DASM_MATCHOP               0x05
-#define ACPI_DASM_LNOT_PREFIX           0x06
-#define ACPI_DASM_LNOT_SUFFIX           0x07
-#define ACPI_DASM_IGNORE                0x08
+/* Flags for DisasmFlags field  above */
+
+#define ACPI_DASM_BUFFER                0x00        /* Buffer is a simple data buffer */
+#define ACPI_DASM_RESOURCE              0x01        /* Buffer is a Resource Descriptor */
+#define ACPI_DASM_STRING                0x02        /* Buffer is a ASCII string */
+#define ACPI_DASM_UNICODE               0x03        /* Buffer is a Unicode string */
+#define ACPI_DASM_PLD_METHOD            0x04        /* Buffer is a _PLD method bit-packed buffer */
+#define ACPI_DASM_EISAID                0x05        /* Integer is an EISAID */
+#define ACPI_DASM_MATCHOP               0x06        /* Parent opcode is a Match() operator */
+#define ACPI_DASM_LNOT_PREFIX           0x07        /* Start of a LNotEqual (etc.) pair of opcodes */
+#define ACPI_DASM_LNOT_SUFFIX           0x08        /* End  of a LNotEqual (etc.) pair of opcodes */
+#define ACPI_DASM_IGNORE                0x09        /* Not used at this time */
 
 /*
  * Generic operation (for example:  If, While, Store)
@@ -1105,6 +1108,7 @@ typedef struct acpi_bit_register_info
 #define ACPI_OSI_WIN_VISTA_SP1          0x09
 #define ACPI_OSI_WIN_VISTA_SP2          0x0A
 #define ACPI_OSI_WIN_7                  0x0B
+#define ACPI_OSI_WIN_8                  0x0C
 
 #define ACPI_ALWAYS_ILLEGAL             0x00
 
@@ -1237,6 +1241,7 @@ typedef struct acpi_external_file
 
 typedef struct acpi_db_method_info
 {
+    ACPI_HANDLE                     Method;
     ACPI_HANDLE                     MainThreadGate;
     ACPI_HANDLE                     ThreadCompleteGate;
     ACPI_HANDLE                     InfoGate;

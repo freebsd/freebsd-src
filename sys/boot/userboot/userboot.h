@@ -38,7 +38,7 @@
 #define	USERBOOT_EXIT_QUIT      1
 #define	USERBOOT_EXIT_REBOOT    2
 
-struct loader_callbacks_v1 {
+struct loader_callbacks {
 	/*
 	 * Console i/o
 	 */

@@ -1493,7 +1493,7 @@ ip_mdq(struct mbuf *m, struct ifnet *ifp, struct mfc *rt, vifi_t xmt_vif)
 {
     struct ip  *ip = mtod(m, struct ip *);
     vifi_t vifi;
-    int plen = ip->ip_len;
+    int plen = ntohs(ip->ip_len);
 
     VIF_LOCK_ASSERT();
 
@@ -2398,15 +2398,14 @@ pim_register_prepare(struct ip *ip, struct mbuf *m)
     /* Compute the MTU after the PIM Register encapsulation */
     mtu = 0xffff - sizeof(pim_encap_iphdr) - sizeof(pim_encap_pimhdr);
 
-    if (ip->ip_len <= mtu) {
+    if (ntohs(ip->ip_len) <= mtu) {
 	/* Turn the IP header into a valid one */
-	ip->ip_len = htons(ip->ip_len);
-	ip->ip_off = htons(ip->ip_off);
 	ip->ip_sum = 0;
 	ip->ip_sum = in_cksum(mb_copy, ip->ip_hl << 2);
     } else {
 	/* Fragment the packet */
-	if (ip_fragment(ip, &mb_copy, mtu, 0, CSUM_DELAY_IP) != 0) {
+	mb_copy->m_pkthdr.csum_flags |= CSUM_IP;
+	if (ip_fragment(ip, &mb_copy, mtu, 0) != 0) {
 	    m_freem(mb_copy);
 	    return NULL;
 	}
@@ -2506,7 +2505,8 @@ pim_register_send_rp(struct ip *ip, struct vif *vifp, struct mbuf *mb_copy,
     ip_outer = mtod(mb_first, struct ip *);
     *ip_outer = pim_encap_iphdr;
     ip_outer->ip_id = ip_newid();
-    ip_outer->ip_len = len + sizeof(pim_encap_iphdr) + sizeof(pim_encap_pimhdr);
+    ip_outer->ip_len = htons(len + sizeof(pim_encap_iphdr) +
+	sizeof(pim_encap_pimhdr));
     ip_outer->ip_src = V_viftable[vifi].v_lcl_addr;
     ip_outer->ip_dst = rt->mfc_rp;
     /*
@@ -2514,8 +2514,8 @@ pim_register_send_rp(struct ip *ip, struct vif *vifp, struct mbuf *mb_copy,
      * IP_DF bit.
      */
     ip_outer->ip_tos = ip->ip_tos;
-    if (ntohs(ip->ip_off) & IP_DF)
-	ip_outer->ip_off |= IP_DF;
+    if (ip->ip_off & htons(IP_DF))
+	ip_outer->ip_off |= htons(IP_DF);
     pimhdr = (struct pim_encap_pimhdr *)((caddr_t)ip_outer
 					 + sizeof(pim_encap_iphdr));
     *pimhdr = pim_encap_pimhdr;
@@ -2568,7 +2568,7 @@ pim_input(struct mbuf *m, int off)
     struct ip *ip = mtod(m, struct ip *);
     struct pim *pim;
     int minlen;
-    int datalen = ip->ip_len;
+    int datalen = ntohs(ip->ip_len);
     int ip_tos;
     int iphlen = off;
 

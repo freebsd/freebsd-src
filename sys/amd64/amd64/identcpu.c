@@ -213,8 +213,8 @@ printcpuinfo(void)
 	if (cpu_vendor_id == CPU_VENDOR_INTEL ||
 	    cpu_vendor_id == CPU_VENDOR_AMD ||
 	    cpu_vendor_id == CPU_VENDOR_CENTAUR) {
-		printf("  Family = %x", CPUID_TO_FAMILY(cpu_id));
-		printf("  Model = %x", CPUID_TO_MODEL(cpu_id));
+		printf("  Family = 0x%x", CPUID_TO_FAMILY(cpu_id));
+		printf("  Model = 0x%x", CPUID_TO_MODEL(cpu_id));
 		printf("  Stepping = %u", cpu_id & CPUID_STEPPING);
 
 		/*
@@ -384,6 +384,18 @@ printcpuinfo(void)
 				);
 			}
 
+			if (cpu_stdext_feature != 0) {
+				printf("\n  Standard Extended Features=0x%b",
+				    cpu_stdext_feature,
+				       "\020"
+				       "\001GSFSBASE"
+				       "\002TSCADJ"
+				       "\010SMEP"
+				       "\012ENHMOVSB"
+				       "\013INVPCID"
+				       );
+			}
+
 			if (via_feature_rng != 0 || via_feature_xcrypt != 0)
 				print_via_padlock_info();
 
@@ -499,6 +511,11 @@ identify_cpu(void)
 			do_cpuid(0, regs);
 			cpu_high = regs[0];
 		}
+	}
+
+	if (cpu_high >= 7) {
+		cpuid_count(7, 0, regs);
+		cpu_stdext_feature = regs[1];
 	}
 
 	if (cpu_vendor_id == CPU_VENDOR_INTEL ||

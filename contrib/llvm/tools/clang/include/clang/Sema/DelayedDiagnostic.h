@@ -21,7 +21,7 @@
 #ifndef LLVM_CLANG_SEMA_DELAYED_DIAGNOSTIC_H
 #define LLVM_CLANG_SEMA_DELAYED_DIAGNOSTIC_H
 
-#include "clang/AST/DeclCXX.h"
+#include "clang/Sema/Sema.h"
 
 namespace clang {
 namespace sema {
@@ -40,17 +40,17 @@ public:
 
   bool isMemberAccess() const { return IsMember; }
 
-  AccessedEntity(ASTContext &Context,
+  AccessedEntity(PartialDiagnostic::StorageAllocator &Allocator,
                  MemberNonce _,
                  CXXRecordDecl *NamingClass,
                  DeclAccessPair FoundDecl,
                  QualType BaseObjectType)
     : Access(FoundDecl.getAccess()), IsMember(true),
       Target(FoundDecl.getDecl()), NamingClass(NamingClass),
-      BaseObjectType(BaseObjectType), Diag(0, Context.getDiagAllocator()) {
+      BaseObjectType(BaseObjectType), Diag(0, Allocator) {
   }
 
-  AccessedEntity(ASTContext &Context,
+  AccessedEntity(PartialDiagnostic::StorageAllocator &Allocator,
                  BaseNonce _,
                  CXXRecordDecl *BaseClass,
                  CXXRecordDecl *DerivedClass,
@@ -58,7 +58,7 @@ public:
     : Access(Access), IsMember(false),
       Target(BaseClass),
       NamingClass(DerivedClass),
-      Diag(0, Context.getDiagAllocator()) {
+      Diag(0, Allocator) {
   }
 
   bool isQuiet() const { return Diag.getDiagID() == 0; }
@@ -214,7 +214,63 @@ private:
   };
 };
 
+/// DelayedDiagnosticPool - A collection of diagnostics which were
+/// delayed.
+class DelayedDiagnosticPool {
+  const DelayedDiagnosticPool *Parent;
+  llvm::SmallVector<DelayedDiagnostic, 4> Diagnostics;
+
+  // Do not implement.
+  DelayedDiagnosticPool(const DelayedDiagnosticPool &other);
+  DelayedDiagnosticPool &operator=(const DelayedDiagnosticPool &other);
+public:
+  DelayedDiagnosticPool(const DelayedDiagnosticPool *parent) : Parent(parent) {}
+  ~DelayedDiagnosticPool() {
+    for (llvm::SmallVectorImpl<DelayedDiagnostic>::iterator
+           i = Diagnostics.begin(), e = Diagnostics.end(); i != e; ++i)
+      i->Destroy();
+  }
+
+  const DelayedDiagnosticPool *getParent() const { return Parent; }
+
+  /// Does this pool, or any of its ancestors, contain any diagnostics?
+  bool empty() const {
+    return (Diagnostics.empty() && (Parent == NULL || Parent->empty()));
+  }
+
+  /// Add a diagnostic to this pool.
+  void add(const DelayedDiagnostic &diag) {
+    Diagnostics.push_back(diag);
+  }
+
+  /// Steal the diagnostics from the given pool.
+  void steal(DelayedDiagnosticPool &pool) {
+    if (pool.Diagnostics.empty()) return;
+
+    if (Diagnostics.empty()) {
+      Diagnostics = llvm_move(pool.Diagnostics);
+    } else {
+      Diagnostics.append(pool.pool_begin(), pool.pool_end());
+    }
+    pool.Diagnostics.clear();
+  }
+
+  typedef llvm::SmallVectorImpl<DelayedDiagnostic>::const_iterator
+    pool_iterator;
+  pool_iterator pool_begin() const { return Diagnostics.begin(); }
+  pool_iterator pool_end() const { return Diagnostics.end(); }
+  bool pool_empty() const { return Diagnostics.empty(); }
+};
+
 }
+
+/// Add a diagnostic to the current delay pool.
+inline void Sema::DelayedDiagnostics::add(const sema::DelayedDiagnostic &diag) {
+  assert(shouldDelayDiagnostics() && "trying to delay without pool");
+  CurPool->add(diag);
+}
+
+
 }
 
 #endif

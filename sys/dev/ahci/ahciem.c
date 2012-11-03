@@ -87,7 +87,7 @@ ahci_em_attach(device_t dev)
 	if (!(enc->r_memc = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &rid, RF_ACTIVE)))
 		return (ENXIO);
-	enc->capsem = ATA_INL(enc->r_memc, 0);;
+	enc->capsem = ATA_INL(enc->r_memc, 0);
 	rid = 1;
 	if (!(enc->r_memt = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &rid, RF_ACTIVE))) {
@@ -380,6 +380,8 @@ ahci_em_emulate_ses_on_led(device_t dev, union ccb *ccb)
 	    ccb->ataio.cmd.sector_count >= 16) {
 		bzero(buf, ccb->ataio.dxfer_len);
 		buf[0] = 64;		/* Valid bytes. */
+		buf[2] = 0x30;		/* NAA Locally Assigned. */
+		strncpy(&buf[3], device_get_nameunit(dev), 7);
 		strncpy(&buf[10], "AHCI    ", SID_VENDOR_SIZE);
 		strncpy(&buf[18], "SGPIO Enclosure ", SID_PRODUCT_SIZE);
 		strncpy(&buf[34], "1.00", SID_REVISION_SIZE);

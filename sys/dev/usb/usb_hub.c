@@ -77,9 +77,8 @@
 static int uhub_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uhub, CTLFLAG_RW, 0, "USB HUB");
-SYSCTL_INT(_hw_usb_uhub, OID_AUTO, debug, CTLFLAG_RW, &uhub_debug, 0,
+SYSCTL_INT(_hw_usb_uhub, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN, &uhub_debug, 0,
     "Debug level");
-
 TUNABLE_INT("hw.usb.uhub.debug", &uhub_debug);
 #endif
 
@@ -103,7 +102,6 @@ struct uhub_softc {
 	struct usb_xfer *sc_xfer[UHUB_N_TRANSFER];	/* interrupt xfer */
 	uint8_t	sc_flags;
 #define	UHUB_FLAG_DID_EXPLORE 0x01
-	char	sc_name[32];
 };
 
 #define	UHUB_PROTO(sc) ((sc)->sc_udev->ddesc.bDeviceProtocol)
@@ -161,7 +159,7 @@ static device_method_t uhub_methods[] = {
 	DEVMETHOD(bus_child_location_str, uhub_child_location_string),
 	DEVMETHOD(bus_child_pnpinfo_str, uhub_child_pnpinfo_string),
 	DEVMETHOD(bus_driver_added, uhub_driver_added),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t uhub_driver = {
@@ -415,7 +413,7 @@ repeat:
 		/* wait for maximum device power up time */
 
 		usb_pause_mtx(NULL, 
-		    USB_MS_TO_TICKS(USB_PORT_POWERUP_DELAY));
+		    USB_MS_TO_TICKS(usb_port_powerup_delay));
 
 		/* reset port, which implies enabling it */
 
@@ -518,7 +516,10 @@ repeat:
 	 *
 	 * NOTE: This part is currently FreeBSD specific.
 	 */
-	if (sc->sc_st.port_status & UPS_PORT_MODE_DEVICE)
+	if (udev->parent_hub != NULL) {
+		/* inherit mode from the parent HUB */
+		mode = udev->parent_hub->flags.usb_mode;
+	} else if (sc->sc_st.port_status & UPS_PORT_MODE_DEVICE)
 		mode = USB_MODE_DEVICE;
 	else
 		mode = USB_MODE_HOST;
@@ -924,9 +925,6 @@ uhub_attach(device_t dev)
 
 	mtx_init(&sc->sc_mtx, "USB HUB mutex", NULL, MTX_DEF);
 
-	snprintf(sc->sc_name, sizeof(sc->sc_name), "%s",
-	    device_get_nameunit(dev));
-
 	device_set_usb_desc(dev);
 
 	DPRINTFN(2, "depth=%d selfpowered=%d, parent=%p, "
@@ -979,7 +977,7 @@ uhub_attach(device_t dev)
 
 		/* get power delay */
 		pwrdly = ((hubdesc20.bPwrOn2PwrGood * UHD_PWRON_FACTOR) +
-		    USB_EXTRA_POWER_UP_TIME);
+		    usb_extra_power_up_time);
 
 		/* get complete HUB descriptor */
 		if (nports >= 8) {
@@ -1024,7 +1022,7 @@ uhub_attach(device_t dev)
 
 		/* get power delay */
 		pwrdly = ((hubdesc30.bPwrOn2PwrGood * UHD_PWRON_FACTOR) +
-		    USB_EXTRA_POWER_UP_TIME);
+		    usb_extra_power_up_time);
 
 		/* get complete HUB descriptor */
 		if (nports >= 8) {
@@ -1053,7 +1051,7 @@ uhub_attach(device_t dev)
 		/* default number of ports */
 		nports = 1;
 		/* default power delay */
-		pwrdly = ((10 * UHD_PWRON_FACTOR) + USB_EXTRA_POWER_UP_TIME);
+		pwrdly = ((10 * UHD_PWRON_FACTOR) + usb_extra_power_up_time);
 		break;
 	}
 	if (nports == 0) {
@@ -1757,9 +1755,11 @@ usbd_fs_isoc_schedule_alloc_slot(struct usb_xfer *isoc_xfer, uint16_t isoc_time)
 			data_len += len;
 		}
 
-		/* check double buffered transfers */
-
-		TAILQ_FOREACH(pipe_xfer, &xfer->endpoint->endpoint_q.head,
+		/*
+		 * Check double buffered transfers. Only stream ID
+		 * equal to zero is valid here!
+		 */
+		TAILQ_FOREACH(pipe_xfer, &xfer->endpoint->endpoint_q[0].head,
 		    wait_entry) {
 
 			/* skip self, if any */
@@ -2261,7 +2261,7 @@ usb_dev_resume_peer(struct usb_device *udev)
 	}
 
 	/* resume settle time */
-	usb_pause_mtx(NULL, USB_MS_TO_TICKS(USB_PORT_RESUME_DELAY));
+	usb_pause_mtx(NULL, USB_MS_TO_TICKS(usb_port_resume_delay));
 
 	if (bus->methods->device_resume != NULL) {
 		/* resume USB device on the USB controller */
@@ -2414,7 +2414,7 @@ repeat:
 			    NULL, udev->port_no, UHF_PORT_SUSPEND);
 
 			/* resume settle time */
-			usb_pause_mtx(NULL, USB_MS_TO_TICKS(USB_PORT_RESUME_DELAY));
+			usb_pause_mtx(NULL, USB_MS_TO_TICKS(usb_port_resume_delay));
 		}
 		DPRINTF("Suspend was cancelled!\n");
 		return;

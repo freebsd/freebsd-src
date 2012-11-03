@@ -117,8 +117,9 @@ namespace llvm {
       }
     }
 
-    bool operator==(const SDep &Other) const {
-      if (Dep != Other.Dep || Latency != Other.Latency) return false;
+    /// Return true if the specified SDep is equivalent except for latency.
+    bool overlaps(const SDep &Other) const {
+      if (Dep != Other.Dep) return false;
       switch (Dep.getInt()) {
       case Data:
       case Anti:
@@ -131,6 +132,10 @@ namespace llvm {
                Contents.Order.isArtificial == Other.Contents.Order.isArtificial;
       }
       llvm_unreachable("Invalid dependency kind!");
+    }
+
+    bool operator==(const SDep &Other) const {
+      return overlaps(Other) && Latency == Other.Latency;
     }
 
     bool operator!=(const SDep &Other) const {
@@ -272,6 +277,9 @@ namespace llvm {
     unsigned Depth;                     // Node depth.
     unsigned Height;                    // Node height.
   public:
+    unsigned TopReadyCycle; // Cycle relative to start when node is ready.
+    unsigned BotReadyCycle; // Cycle relative to end when node is ready.
+
     const TargetRegisterClass *CopyDstRC; // Is a special copy node if not null.
     const TargetRegisterClass *CopySrcRC;
 
@@ -287,7 +295,7 @@ namespace llvm {
         isScheduleHigh(false), isScheduleLow(false), isCloned(false),
         SchedulingPref(Sched::None),
         isDepthCurrent(false), isHeightCurrent(false), Depth(0), Height(0),
-        CopyDstRC(NULL), CopySrcRC(NULL) {}
+        TopReadyCycle(0), BotReadyCycle(0), CopyDstRC(NULL), CopySrcRC(NULL) {}
 
     /// SUnit - Construct an SUnit for post-regalloc scheduling to represent
     /// a MachineInstr.
@@ -301,7 +309,7 @@ namespace llvm {
         isScheduleHigh(false), isScheduleLow(false), isCloned(false),
         SchedulingPref(Sched::None),
         isDepthCurrent(false), isHeightCurrent(false), Depth(0), Height(0),
-        CopyDstRC(NULL), CopySrcRC(NULL) {}
+        TopReadyCycle(0), BotReadyCycle(0), CopyDstRC(NULL), CopySrcRC(NULL) {}
 
     /// SUnit - Construct a placeholder SUnit.
     SUnit()
@@ -314,7 +322,7 @@ namespace llvm {
         isScheduleHigh(false), isScheduleLow(false), isCloned(false),
         SchedulingPref(Sched::None),
         isDepthCurrent(false), isHeightCurrent(false), Depth(0), Height(0),
-        CopyDstRC(NULL), CopySrcRC(NULL) {}
+        TopReadyCycle(0), BotReadyCycle(0), CopyDstRC(NULL), CopySrcRC(NULL) {}
 
     /// setNode - Assign the representative SDNode for this SUnit.
     /// This may be used during pre-regalloc scheduling.
@@ -551,12 +559,6 @@ namespace llvm {
     /// ComputeLatency - Compute node latency.
     ///
     virtual void computeLatency(SUnit *SU) = 0;
-
-    /// ComputeOperandLatency - Override dependence edge latency using
-    /// operand use/def information
-    ///
-    virtual void computeOperandLatency(SUnit *, SUnit *,
-                                       SDep&) const { }
 
     /// ForceUnitLatencies - Return true if all scheduling edges should be given
     /// a latency value of one.  The default is to return false; schedulers may

@@ -235,6 +235,8 @@ CGBitFieldInfo CGBitFieldInfo::MakeInfo(CodeGenTypes &Types,
                                uint64_t FieldSize,
                                uint64_t ContainingTypeSizeInBits,
                                unsigned ContainingTypeAlign) {
+  assert(ContainingTypeAlign && "Expected alignment to be specified");
+
   llvm::Type *Ty = Types.ConvertTypeForMem(FD->getType());
   CharUnits TypeSizeInBytes =
     CharUnits::fromQuantity(Types.getTargetData().getTypeAllocSize(Ty));
@@ -714,14 +716,18 @@ CGRecordLayoutBuilder::LayoutNonVirtualBases(const CXXRecordDecl *RD,
     }
 
   // Otherwise, add a vtable / vf-table if the layout says to do so.
-  } else if (Types.getContext().getTargetInfo().getCXXABI() == CXXABI_Microsoft
-               ? Layout.getVFPtrOffset() != CharUnits::fromQuantity(-1)
-               : RD->isDynamicClass()) {
+  } else if (Layout.hasOwnVFPtr()) {
     llvm::Type *FunctionType =
       llvm::FunctionType::get(llvm::Type::getInt32Ty(Types.getLLVMContext()),
                               /*isVarArg=*/true);
     llvm::Type *VTableTy = FunctionType->getPointerTo();
-    
+
+    if (getTypeAlignment(VTableTy) > Alignment) {
+      // FIXME: Should we allow this to happen in Sema?
+      assert(!Packed && "Alignment is wrong even with packed struct!");
+      return false;
+    }
+
     assert(NextFieldOffset.isZero() &&
            "VTable pointer must come first!");
     AppendField(CharUnits::Zero(), VTableTy->getPointerTo());
@@ -814,7 +820,7 @@ bool CGRecordLayoutBuilder::LayoutFields(const RecordDecl *D) {
     if (IsMsStruct) {
       // Zero-length bitfields following non-bitfield members are
       // ignored:
-      const FieldDecl *FD =  (*Field);
+      const FieldDecl *FD = *Field;
       if (Types.getContext().ZeroBitfieldFollowsNonBitfield(FD, LastFD)) {
         --FieldNo;
         continue;

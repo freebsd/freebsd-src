@@ -28,14 +28,14 @@
 #
 ############################################################ INCLUDES
 
-BSDCFG_LIBE="/usr/libexec/bsdconfig"
-. $BSDCFG_LIBE/include/common.subr || exit 1
-f_include $BSDCFG_LIBE/include/dialog.subr
-f_include $BSDCFG_LIBE/include/mustberoot.subr
-f_include $BSDCFG_LIBE/include/sysrc.subr
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+f_include $BSDCFG_SHARE/startup/rcconf.subr
 
-APP_DIR="140.startup"
-f_include $BSDCFG_LIBE/$APP_DIR/include/rcconf.subr
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="140.startup"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
 ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
@@ -54,7 +54,7 @@ RCCONF_MENU_LIST=
 # Options
 #
 # Inherit SHOW_DESC value if set, otherwise default to 1
-( : ${SHOW_DESC?} ) > /dev/null 2>&1 || SHOW_DESC=1
+[ "${SHOW_DESC+set}" ] || SHOW_DESC=1
 # Selectively inherit SHOW_* value (in order of preference)
 if [ "$SHOW_DEFAULT_VALUE" ]; then
 	SHOW_DEFAULT_VALUE=1
@@ -175,7 +175,8 @@ dialog_menu_main()
 	        	\"\$hline\"            \
 	        	$RCCONF_MENU_LIST      )
 
-	eval $DIALOG \
+	local dialog_menu
+	dialog_menu=$( eval $DIALOG \
 		--clear --title \"\$DIALOG_TITLE\" \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -186,7 +187,11 @@ dialog_menu_main()
 		${SHOW_DESC:+--item-help}          \
 		--menu \"\$prompt\" $size          \
 		$RCCONF_MENU_LIST                  \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	setvar DIALOG_MENU_$$ "$dialog_menu"
+	return $retval
 }
 
 # dialog_menu_delete $var1 [$var2 ...]
@@ -240,7 +245,8 @@ dialog_menu_delete()
 	local defaultno="defaultno"
 	[ "$USE_XDIALOG" ] && defaultno="default-no"
 
-	eval $DIALOG \
+	local dialog_menu
+	dialog_menu=$( eval $DIALOG \
 		--clear --title \"\$DIALOG_TITLE\" \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -249,7 +255,11 @@ dialog_menu_delete()
 		--cancel-label \"\$msg_cancel\"    \
 		--menu \"\$prompt\" $size          \
 		$menu_list                         \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	setvar DIALOG_MENU_$$ "$dialog_menu"
+	return $retval
 }
 
 ############################################################ MAIN
@@ -338,7 +348,7 @@ while :; do
 		var="${mtag# }"
 
 		# Toggle the state-variable and loop back to menu
-		if ( eval : \${_${var}_delete?} ) > /dev/null 2>&1; then
+		if eval [ \"\${_${var}_delete+set}\" ]; then
 			unset _${var}_delete
 		else
 			setvar _${var}_delete 1

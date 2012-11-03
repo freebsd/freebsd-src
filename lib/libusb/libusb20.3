@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 14, 2010
+.Dd August 13, 2012
 .Dt LIBUSB20 3
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@ USB access library (libusb -lusb)
 .Fn libusb20_tr_close "struct libusb20_transfer *xfer"
 .Ft int
 .Fn libusb20_tr_open "struct libusb20_transfer *xfer" "uint32_t max_buf_size" "uint32_t max_frame_count" "uint8_t ep_no"
+.Fn libusb20_tr_open_stream "struct libusb20_transfer *xfer" "uint32_t max_buf_size" "uint32_t max_frame_count" "uint8_t ep_no" "uint16_t stream_id"
 .Ft struct libusb20_transfer*
 .Fn libusb20_tr_get_pointer "struct libusb20_device *pdev"  "uint16_t tr_index"
 .Ft uint16_t
@@ -281,6 +282,16 @@ The actual number of frames setup is found by calling
 This function returns zero upon success.
 .
 Non-zero return values indicate a LIBUSB20_ERROR value.
+.
+.Pp
+.
+.Fn libusb20_tr_open_stream
+is identical to
+.Fn libusb20_tr_open
+except that a stream ID can be specified for BULK endpoints having
+such a feature.
+.Fn libusb20_tr_open
+can be used to open stream ID zero.
 .
 .Pp
 .

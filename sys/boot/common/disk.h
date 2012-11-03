@@ -45,6 +45,11 @@
  * 	d_slice = MBR slice number (typically 1..4)
  * 	d_partition = disklabel partition (typically 0..7)
  *
+ * BSD disklabel partition on the true dedicated disk:
+ *
+ * 	d_slice = -1
+ * 	d_partition = disklabel partition (typically 0..7)
+ *
  * GPT partition:
  *
  * 	d_slice = GPT partition number (typically 1..N)
@@ -88,8 +93,10 @@ struct disk_devdesc
  * Parse disk metadata and initialise dev->d_offset.
  */
 extern int disk_open(struct disk_devdesc *dev, off_t mediasize,
-    u_int sectorsize);
+    u_int sectorsize, u_int flags);
+#define	DISK_F_NOCACHE	0x0001		/* Do not use metadata caching */
 extern int disk_close(struct disk_devdesc *dev);
+extern void disk_cleanup(const struct devsw *d_dev);
 
 /*
  * Print information about slices on a disk.

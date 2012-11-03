@@ -68,12 +68,37 @@ static struct fl_buf_info fl_buf_info[FL_BUF_SIZES];
 #define FL_BUF_TYPE(x)	(fl_buf_info[x].type)
 #define FL_BUF_ZONE(x)	(fl_buf_info[x].zone)
 
-enum {
-	FL_PKTSHIFT = 2
-};
+/*
+ * Ethernet frames are DMA'd at this byte offset into the freelist buffer.
+ * 0-7 are valid values.
+ */
+static int fl_pktshift = 2;
+TUNABLE_INT("hw.cxgbe.fl_pktshift", &fl_pktshift);
 
-static int fl_pad = CACHE_LINE_SIZE;
-static int spg_len = 64;
+/*
+ * Pad ethernet payload up to this boundary.
+ * -1: driver should figure out a good value.
+ *  Any power of 2, from 32 to 4096 (both inclusive) is a valid value.
+ */
+static int fl_pad = -1;
+TUNABLE_INT("hw.cxgbe.fl_pad", &fl_pad);
+
+/*
+ * Status page length.
+ * -1: driver should figure out a good value.
+ *  64 or 128 are the only other valid values.
+ */
+static int spg_len = -1;
+TUNABLE_INT("hw.cxgbe.spg_len", &spg_len);
+
+/*
+ * Congestion drops.
+ * -1: no congestion feedback (not recommended).
+ *  0: backpressure the channel instead of dropping packets right away.
+ *  1: no backpressure, drop packets for the congested queue immediately.
+ */
+static int cong_drop = 0;
+TUNABLE_INT("hw.cxgbe.cong_drop", &cong_drop);
 
 /* Used to track coalesced tx work request */
 struct txpkts {
@@ -95,7 +120,7 @@ static struct mbuf *get_fl_payload(struct adapter *, struct sge_fl *, uint32_t,
     int *);
 static int t4_eth_rx(struct sge_iq *, const struct rss_header *, struct mbuf *);
 static inline void init_iq(struct sge_iq *, struct adapter *, int, int, int,
-    int, char *);
+    int);
 static inline void init_fl(struct sge_fl *, int, int, char *);
 static inline void init_eq(struct sge_eq *, int, int, uint8_t, uint16_t,
     char *);
@@ -160,7 +185,7 @@ static void write_eqflush_wr(struct sge_eq *);
 static __be64 get_flit(bus_dma_segment_t *, int, int);
 static int handle_sge_egr_update(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
-static int handle_fw_rpl(struct sge_iq *, const struct rss_header *,
+static int handle_fw_msg(struct sge_iq *, const struct rss_header *,
     struct mbuf *);
 
 static int sysctl_uint16(SYSCTL_HANDLER_ARGS);
@@ -170,7 +195,8 @@ extern u_int cpu_clflush_line_size;
 #endif
 
 /*
- * Called on MOD_LOAD and fills up fl_buf_info[].
+ * Called on MOD_LOAD.  Fills up fl_buf_info[] and validates/calculates the SGE
+ * tunables.
  */
 void
 t4_sge_modload(void)
@@ -191,10 +217,49 @@ t4_sge_modload(void)
 		FL_BUF_ZONE(i) = m_getzone(bufsize[i]);
 	}
 
+	if (fl_pktshift < 0 || fl_pktshift > 7) {
+		printf("Invalid hw.cxgbe.fl_pktshift value (%d),"
+		    " using 2 instead.\n", fl_pktshift);
+		fl_pktshift = 2;
+	}
+
+	if (fl_pad < 32 || fl_pad > 4096 || !powerof2(fl_pad)) {
+		int pad;
+
 #if defined(__i386__) || defined(__amd64__)
-	fl_pad = max(cpu_clflush_line_size, 32);
-	spg_len = cpu_clflush_line_size > 64 ? 128 : 64;
+		pad = max(cpu_clflush_line_size, 32);
+#else
+		pad = max(CACHE_LINE_SIZE, 32);
 #endif
+		pad = min(pad, 4096);
+
+		if (fl_pad != -1) {
+			printf("Invalid hw.cxgbe.fl_pad value (%d),"
+			    " using %d instead.\n", fl_pad, pad);
+		}
+		fl_pad = pad;
+	}
+
+	if (spg_len != 64 && spg_len != 128) {
+		int len;
+
+#if defined(__i386__) || defined(__amd64__)
+		len = cpu_clflush_line_size > 64 ? 128 : 64;
+#else
+		len = 64;
+#endif
+		if (spg_len != -1) {
+			printf("Invalid hw.cxgbe.spg_len value (%d),"
+			    " using %d instead.\n", spg_len, len);
+		}
+		spg_len = len;
+	}
+
+	if (cong_drop < -1 || cong_drop > 1) {
+		printf("Invalid hw.cxgbe.cong_drop value (%d),"
+		    " using 0 instead.\n", cong_drop);
+		cong_drop = 0;
+	}
 }
 
 /**
@@ -215,7 +280,7 @@ t4_sge_init(struct adapter *sc)
 	ctrl_mask = V_PKTSHIFT(M_PKTSHIFT) | F_RXPKTCPLMODE |
 	    V_INGPADBOUNDARY(M_INGPADBOUNDARY) |
 	    F_EGRSTATUSPAGESIZE;
-	ctrl_val = V_PKTSHIFT(FL_PKTSHIFT) | F_RXPKTCPLMODE |
+	ctrl_val = V_PKTSHIFT(fl_pktshift) | F_RXPKTCPLMODE |
 	    V_INGPADBOUNDARY(ilog2(fl_pad) - 5) |
 	    V_EGRSTATUSPAGESIZE(spg_len == 128);
 
@@ -254,6 +319,12 @@ t4_sge_init(struct adapter *sc)
 		t4_write_reg(sc, A_SGE_TIMER_VALUE_4_AND_5,
 		    V_TIMERVALUE4(us_to_core_ticks(sc, intr_timer[4])) |
 		    V_TIMERVALUE5(us_to_core_ticks(sc, intr_timer[5])));
+
+		if (cong_drop == 0) {
+			t4_set_reg_field(sc, A_TP_PARA_REG3, F_TUNNELCNGDROP0 |
+			    F_TUNNELCNGDROP1 | F_TUNNELCNGDROP2 |
+			    F_TUNNELCNGDROP3, 0);
+		}
 	}
 
 	v = t4_read_reg(sc, A_SGE_CONTROL);
@@ -296,10 +367,12 @@ t4_sge_init(struct adapter *sc)
 	sc->sge.timer_val[4] = G_TIMERVALUE4(v) / core_ticks_per_usec(sc);
 	sc->sge.timer_val[5] = G_TIMERVALUE5(v) / core_ticks_per_usec(sc);
 
-	t4_register_cpl_handler(sc, CPL_FW4_MSG, handle_fw_rpl);
-	t4_register_cpl_handler(sc, CPL_FW6_MSG, handle_fw_rpl);
+	t4_register_cpl_handler(sc, CPL_FW4_MSG, handle_fw_msg);
+	t4_register_cpl_handler(sc, CPL_FW6_MSG, handle_fw_msg);
 	t4_register_cpl_handler(sc, CPL_SGE_EGR_UPDATE, handle_sge_egr_update);
 	t4_register_cpl_handler(sc, CPL_RX_PKT, t4_eth_rx);
+
+	t4_register_fw_msg_handler(sc, FW6_TYPE_CMD_RPL, t4_handle_fw_rpl);
 
 	return (rc);
 }
@@ -350,22 +423,14 @@ t4_setup_adapter_queues(struct adapter *sc)
 	 * Firmware event queue
 	 */
 	rc = alloc_fwq(sc);
-	if (rc != 0) {
-		device_printf(sc->dev,
-		    "failed to create firmware event queue: %d\n", rc);
+	if (rc != 0)
 		return (rc);
-	}
 
 	/*
 	 * Management queue.  This is just a control queue that uses the fwq as
 	 * its associated iq.
 	 */
 	rc = alloc_mgmtq(sc);
-	if (rc != 0) {
-		device_printf(sc->dev,
-		    "failed to create management queue: %d\n", rc);
-		return (rc);
-	}
 
 	return (rc);
 }
@@ -477,6 +542,18 @@ port_intr_iq(struct port_info *pi, int idx)
 	return (iq);
 }
 
+static inline int
+mtu_to_bufsize(int mtu)
+{
+	int bufsize;
+
+	/* large enough for a frame even when VLAN extraction is disabled */
+	bufsize = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + mtu;
+	bufsize = roundup(bufsize + fl_pktshift, fl_pad);
+
+	return (bufsize);
+}
+
 int
 t4_setup_port_queues(struct port_info *pi)
 {
@@ -493,6 +570,7 @@ t4_setup_port_queues(struct port_info *pi)
 	struct adapter *sc = pi->adapter;
 	struct sysctl_oid *oid = device_get_sysctl_tree(pi->dev);
 	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
+	int bufsize = mtu_to_bufsize(pi->ifp->if_mtu);
 
 	oid = SYSCTL_ADD_NODE(&pi->ctx, children, OID_AUTO, "rxq", CTLFLAG_RD,
 	    NULL, "rx queues");
@@ -515,14 +593,12 @@ t4_setup_port_queues(struct port_info *pi)
 	 */
 	for_each_rxq(pi, i, rxq) {
 
-		snprintf(name, sizeof(name), "%s rxq%d-iq",
-		    device_get_nameunit(pi->dev), i);
 		init_iq(&rxq->iq, sc, pi->tmr_idx, pi->pktc_idx, pi->qsize_rxq,
-		    RX_IQ_ESIZE, name);
+		    RX_IQ_ESIZE);
 
 		snprintf(name, sizeof(name), "%s rxq%d-fl",
 		    device_get_nameunit(pi->dev), i);
-		init_fl(&rxq->fl, pi->qsize_rxq / 8, pi->ifp->if_mtu, name);
+		init_fl(&rxq->fl, pi->qsize_rxq / 8, bufsize, name);
 
 		if (sc->flags & INTR_DIRECT
 #ifdef TCP_OFFLOAD
@@ -540,14 +616,12 @@ t4_setup_port_queues(struct port_info *pi)
 #ifdef TCP_OFFLOAD
 	for_each_ofld_rxq(pi, i, ofld_rxq) {
 
-		snprintf(name, sizeof(name), "%s ofld_rxq%d-iq",
-		    device_get_nameunit(pi->dev), i);
 		init_iq(&ofld_rxq->iq, sc, pi->tmr_idx, pi->pktc_idx,
-		    pi->qsize_rxq, RX_IQ_ESIZE, name);
+		    pi->qsize_rxq, RX_IQ_ESIZE);
 
 		snprintf(name, sizeof(name), "%s ofld_rxq%d-fl",
 		    device_get_nameunit(pi->dev), i);
-		init_fl(&ofld_rxq->fl, pi->qsize_rxq / 8, MJUM16BYTES, name);
+		init_fl(&ofld_rxq->fl, pi->qsize_rxq / 8, OFLD_BUF_SIZE, name);
 
 		if (sc->flags & INTR_DIRECT ||
 		    (sc->intr_count > 1 && pi->nofldrxq > pi->nrxq)) {
@@ -942,13 +1016,6 @@ service_iq(struct sge_iq *iq, int budget)
 	return (0);
 }
 
-
-#ifdef T4_PKT_TIMESTAMP
-#define RX_COPY_THRESHOLD (MINCLSIZE - 8)
-#else
-#define RX_COPY_THRESHOLD MINCLSIZE
-#endif
-
 static struct mbuf *
 get_fl_payload(struct adapter *sc, struct sge_fl *fl, uint32_t len_newbuf,
     int *fl_bufs_used)
@@ -1050,9 +1117,9 @@ t4_eth_rx(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m0)
 	KASSERT(m0 != NULL, ("%s: no payload with opcode %02x", __func__,
 	    rss->opcode));
 
-	m0->m_pkthdr.len -= FL_PKTSHIFT;
-	m0->m_len -= FL_PKTSHIFT;
-	m0->m_data += FL_PKTSHIFT;
+	m0->m_pkthdr.len -= fl_pktshift;
+	m0->m_len -= fl_pktshift;
+	m0->m_data += fl_pktshift;
 
 	m0->m_pkthdr.rcvif = ifp;
 	m0->m_flags |= M_FLOWID;
@@ -1386,11 +1453,8 @@ t4_update_fl_bufsize(struct ifnet *ifp)
 	struct port_info *pi = ifp->if_softc;
 	struct sge_rxq *rxq;
 	struct sge_fl *fl;
-	int i, bufsize;
+	int i, bufsize = mtu_to_bufsize(ifp->if_mtu);
 
-	/* large enough for a frame even when VLAN extraction is disabled */
-	bufsize = ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN + ifp->if_mtu;
-	bufsize = roundup(bufsize + FL_PKTSHIFT, fl_pad);
 	for_each_rxq(pi, i, rxq) {
 		fl = &rxq->fl;
 
@@ -1408,7 +1472,7 @@ can_resume_tx(struct sge_eq *eq)
 
 static inline void
 init_iq(struct sge_iq *iq, struct adapter *sc, int tmr_idx, int pktc_idx,
-    int qsize, int esize, char *name)
+    int qsize, int esize)
 {
 	KASSERT(tmr_idx >= 0 && tmr_idx < SGE_NTIMERS,
 	    ("%s: bad tmr_idx %d", __func__, tmr_idx));
@@ -1425,7 +1489,6 @@ init_iq(struct sge_iq *iq, struct adapter *sc, int tmr_idx, int pktc_idx,
 	}
 	iq->qsize = roundup(qsize, 16);		/* See FW_IQ_CMD/iqsize */
 	iq->esize = max(esize, 16);		/* See FW_IQ_CMD/iqesize */
-	strlcpy(iq->lockname, name, sizeof(iq->lockname));
 }
 
 static inline void
@@ -1723,12 +1786,10 @@ alloc_fwq(struct adapter *sc)
 {
 	int rc, intr_idx;
 	struct sge_iq *fwq = &sc->sge.fwq;
-	char name[16];
 	struct sysctl_oid *oid = device_get_sysctl_tree(sc->dev);
 	struct sysctl_oid_list *children = SYSCTL_CHILDREN(oid);
 
-	snprintf(name, sizeof(name), "%s fwq", device_get_nameunit(sc->dev));
-	init_iq(fwq, sc, 0, 0, FW_IQ_QSIZE, FW_IQ_ESIZE, name);
+	init_iq(fwq, sc, 0, 0, FW_IQ_QSIZE, FW_IQ_ESIZE);
 	fwq->flags |= IQ_INTR;	/* always */
 	intr_idx = sc->intr_count > 1 ? 1 : 0;
 	rc = alloc_iq_fl(sc->port[0], fwq, NULL, intr_idx, -1);
@@ -1793,6 +1854,18 @@ free_mgmtq(struct adapter *sc)
 	return free_wrq(sc, &sc->sge.mgmtq);
 }
 
+static inline int
+tnl_cong(struct port_info *pi)
+{
+
+	if (cong_drop == -1)
+		return (-1);
+	else if (cong_drop == 1)
+		return (0);
+	else
+		return (1 << pi->tx_chan);
+}
+
 static int
 alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx,
     struct sysctl_oid *oid)
@@ -1801,7 +1874,7 @@ alloc_rxq(struct port_info *pi, struct sge_rxq *rxq, int intr_idx, int idx,
 	struct sysctl_oid_list *children;
 	char name[16];
 
-	rc = alloc_iq_fl(pi, &rxq->iq, &rxq->fl, intr_idx, 1 << pi->tx_chan);
+	rc = alloc_iq_fl(pi, &rxq->iq, &rxq->fl, intr_idx, tnl_cong(pi));
 	if (rc != 0)
 		return (rc);
 
@@ -3433,17 +3506,15 @@ handle_sge_egr_update(struct sge_iq *iq, const struct rss_header *rss,
 }
 
 static int
-handle_fw_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
+handle_fw_msg(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 {
+	struct adapter *sc = iq->adapter;
 	const struct cpl_fw6_msg *cpl = (const void *)(rss + 1);
 
 	KASSERT(m == NULL, ("%s: payload with opcode %02x", __func__,
 	    rss->opcode));
 
-	if (cpl->type == FW6_TYPE_CMD_RPL)
-		t4_handle_fw_rpl(iq->adapter, cpl->data);
-
-	return (0);
+	return (sc->fw_msg_handler[cpl->type](sc, &cpl->data[0]));
 }
 
 static int

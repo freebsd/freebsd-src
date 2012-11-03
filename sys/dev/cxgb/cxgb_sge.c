@@ -2473,6 +2473,10 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 		goto err;
 	}
 
+	snprintf(q->rspq.lockbuf, RSPQ_NAME_LEN, "t3 rspq lock %d:%d",
+	    device_get_unit(sc->dev), irq_vec_idx);
+	MTX_INIT(&q->rspq.lock, q->rspq.lockbuf, NULL, MTX_DEF);
+
 	for (i = 0; i < ntxq; ++i) {
 		size_t sz = i == TXQ_CTRL ? 0 : sizeof(struct tx_sw_desc);
 
@@ -2590,11 +2594,7 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 			goto err_unlock;
 		}
 	}
-	
-	snprintf(q->rspq.lockbuf, RSPQ_NAME_LEN, "t3 rspq lock %d:%d",
-	    device_get_unit(sc->dev), irq_vec_idx);
-	MTX_INIT(&q->rspq.lock, q->rspq.lockbuf, NULL, MTX_DEF);
-	
+
 	mtx_unlock_spin(&sc->sge.reg_lock);
 	t3_update_qset_coalesce(q, p);
 

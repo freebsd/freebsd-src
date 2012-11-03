@@ -400,7 +400,7 @@ hdaa_presence_handler(struct hdaa_widget *w)
 	struct hdaa_devinfo *devinfo = w->devinfo;
 	struct hdaa_audio_as *as;
 	uint32_t res;
-	int connected;
+	int connected, old;
 
 	if (w->enable == 0 || w->type !=
 	    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
@@ -414,19 +414,22 @@ hdaa_presence_handler(struct hdaa_widget *w)
 	connected = (res & HDA_CMD_GET_PIN_SENSE_PRESENCE_DETECT) != 0;
 	if (devinfo->quirks & HDAA_QUIRK_SENSEINV)
 		connected = !connected;
-	if (connected == w->wclass.pin.connected)
+	old = w->wclass.pin.connected;
+	if (connected == old)
 		return;
 	w->wclass.pin.connected = connected;
 	HDA_BOOTVERBOSE(
-		device_printf(devinfo->dev,
-		    "Pin sense: nid=%d sence=0x%08x (%sconnected)\n",
-		    w->nid, res, !w->wclass.pin.connected ? "dis" : "");
+		if (connected || old != 2) {
+			device_printf(devinfo->dev,
+			    "Pin sense: nid=%d sence=0x%08x (%sconnected)\n",
+			    w->nid, res, !connected ? "dis" : "");
+		}
 	);
 
 	as = &devinfo->as[w->bindas];
 	if (as->hpredir >= 0 && as->pins[15] == w->nid)
 		hdaa_hpredir_handler(w);
-	if (as->dir == HDAA_CTL_IN)
+	if (as->dir == HDAA_CTL_IN && old != 2)
 		hdaa_autorecsrc_handler(as, w);
 }
 
@@ -627,7 +630,7 @@ hdaa_sense_init(struct hdaa_devinfo *devinfo)
 			    (HDA_CONFIG_DEFAULTCONF_MISC(w->wclass.pin.config) & 1) != 0) {
 				device_printf(devinfo->dev,
 				    "No presence detection support at nid %d\n",
-				    as[i].pins[15]);
+				    w->nid);
 			} else {
 				if (w->unsol < 0)
 					poll = 1;
@@ -636,7 +639,7 @@ hdaa_sense_init(struct hdaa_devinfo *devinfo)
 					    "Headphones redirection for "
 					    "association %d nid=%d using %s.\n",
 					    w->bindas, w->nid,
-					    (poll != 0) ? "polling" :
+					    (w->unsol < 0) ? "polling" :
 					    "unsolicited responses");
 				);
 			};
@@ -1148,9 +1151,10 @@ hdaa_widget_parse(struct hdaa_widget *w)
 		    w->wclass.pin.config = hda_command(dev,
 			HDA_CMD_GET_CONFIGURATION_DEFAULT(0, w->nid));
 		w->wclass.pin.cap = hda_command(dev,
-		    HDA_CMD_GET_PARAMETER(0, w->nid, HDA_PARAM_PIN_CAP));;
+		    HDA_CMD_GET_PARAMETER(0, w->nid, HDA_PARAM_PIN_CAP));
 		w->wclass.pin.ctrl = hda_command(dev,
 		    HDA_CMD_GET_PIN_WIDGET_CTRL(0, nid));
+		w->wclass.pin.connected = 2;
 		if (HDA_PARAM_PIN_CAP_EAPD_CAP(w->wclass.pin.cap)) {
 			w->param.eapdbtl = hda_command(dev,
 			    HDA_CMD_GET_EAPD_BTL_ENABLE(0, nid));
@@ -1238,10 +1242,6 @@ hdaa_widget_postprocess(struct hdaa_widget *w)
 		}
 		strlcat(w->name, HDA_CONNS[conn], sizeof(w->name));
 		strlcat(w->name, ")", sizeof(w->name));
-
-		if (HDA_PARAM_PIN_CAP_PRESENCE_DETECT_CAP(w->wclass.pin.cap) == 0 ||
-		    (HDA_CONFIG_DEFAULTCONF_MISC(w->wclass.pin.config) & 1) != 0)
-			w->wclass.pin.connected = 2;
 	}
 }
 
@@ -2127,11 +2127,14 @@ hdaa_audio_ctl_dev_volume(struct hdaa_pcm_devinfo *pdevinfo, unsigned dev)
 		w = hdaa_widget_get(devinfo, i);
 		if (w == NULL || w->enable == 0)
 			continue;
-		if (w->bindas < 0 && pdevinfo->index != 0)
-			continue;
-		if (w->bindas != pdevinfo->playas &&
-		    w->bindas != pdevinfo->recas)
-			continue;
+		if (w->bindas < 0) {
+			if (pdevinfo->index != 0)
+				continue;
+		} else {
+			if (w->bindas != pdevinfo->playas &&
+			    w->bindas != pdevinfo->recas)
+				continue;
+		}
 		if (dev == SOUND_MIXER_RECLEV &&
 		    w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_INPUT) {
 			hdaa_audio_ctl_dest_volume(pdevinfo, dev,
@@ -3068,8 +3071,7 @@ hdaa_audio_trace_adc(struct hdaa_devinfo *devinfo, int as, int seq, nid_t nid,
 		if ((only == 0 || only == w->nid) && (w->nid >= min) &&
 		    (onlylength == 0 || onlylength == depth)) {
 			m = w->nid;
-			if (length != NULL)
-				*length = depth;
+			*length = depth;
 		}
 		break;
 	case HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX:
@@ -3092,12 +3094,12 @@ hdaa_audio_trace_adc(struct hdaa_devinfo *devinfo, int as, int seq, nid_t nid,
 				    j, mixed, min, only, depth + 1,
 				    length, onlylength)) != 0) {
 					if (m == 0 || ret < m ||
-					    (ret == m && length != NULL &&
-					     *length < lm)) {
+					    (ret == m && *length < lm)) {
 						m = ret;
 						im = i;
 						lm = *length;
-					}
+					} else
+						*length = lm;
 					if (only)
 						break;
 				}
@@ -6241,6 +6243,10 @@ hdaa_attach(device_t dev)
 	devinfo->endnode = devinfo->startnode + devinfo->nodecnt;
 
 	HDA_BOOTVERBOSE(
+		device_printf(dev, "Subsystem ID: 0x%08x\n",
+		    hda_get_subsystem_id(dev));
+	);
+	HDA_BOOTHVERBOSE(
 		device_printf(dev,
 		    "Audio Function Group at nid=%d: %d subnodes %d-%d\n",
 		    nid, devinfo->nodecnt,

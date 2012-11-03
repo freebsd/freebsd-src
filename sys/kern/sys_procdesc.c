@@ -333,6 +333,7 @@ procdesc_reap(struct proc *p)
 
 	pd = p->p_procdesc;
 	pd->pd_proc = NULL;
+	p->p_procdesc = NULL;
 	procdesc_free(pd);
 }
 
@@ -358,14 +359,20 @@ procdesc_close(struct file *fp, struct thread *td)
 	pd->pd_flags |= PDF_CLOSED;
 	PROCDESC_UNLOCK(pd);
 	p = pd->pd_proc;
-	PROC_LOCK(p);
-	if (p->p_state == PRS_ZOMBIE) {
+	if (p == NULL) {
+		/*
+		 * This is the case where process' exit status was already
+		 * collected and procdesc_reap() was already called.
+		 */
+		sx_xunlock(&proctree_lock);
+	} else if (p->p_state == PRS_ZOMBIE) {
 		/*
 		 * If the process is already dead and just awaiting reaping,
 		 * do that now.  This will release the process's reference to
 		 * the process descriptor when it calls back into
 		 * procdesc_reap().
 		 */
+		PROC_LOCK(p);
 		PROC_SLOCK(p);
 		proc_reap(curthread, p, NULL, 0, NULL);
 	} else {
@@ -376,6 +383,7 @@ procdesc_close(struct file *fp, struct thread *td)
 		 * process from its descriptor so that its exit status will
 		 * be reported normally.
 		 */
+		PROC_LOCK(p);
 		pd->pd_proc = NULL;
 		p->p_procdesc = NULL;
 		procdesc_free(pd);

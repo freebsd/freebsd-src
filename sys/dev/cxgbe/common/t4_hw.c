@@ -3885,6 +3885,36 @@ int t4_fwaddrspace_write(struct adapter *adap, unsigned int mbox, u32 addr, u32 
 }
 
 /**
+ *	t4_i2c_rd - read a byte from an i2c addressable device
+ *	@adap: the adapter
+ *	@mbox: mailbox to use for the FW command
+ *	@port_id: the port id
+ *	@dev_addr: the i2c device address
+ *	@offset: the byte offset to read from
+ *	@valp: where to store the value
+ */
+int t4_i2c_rd(struct adapter *adap, unsigned int mbox, unsigned int port_id,
+	       u8 dev_addr, u8 offset, u8 *valp)
+{
+	int ret;
+	struct fw_ldst_cmd c;
+
+	memset(&c, 0, sizeof(c));
+	c.op_to_addrspace = htonl(V_FW_CMD_OP(FW_LDST_CMD) | F_FW_CMD_REQUEST |
+		F_FW_CMD_READ |
+		V_FW_LDST_CMD_ADDRSPACE(FW_LDST_ADDRSPC_FUNC_I2C));
+	c.cycles_to_len16 = htonl(FW_LEN16(c));
+	c.u.i2c.pid_pkd = V_FW_LDST_CMD_PID(port_id);
+	c.u.i2c.base = dev_addr;
+	c.u.i2c.boffset = offset;
+
+	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
+	if (ret == 0)
+		*valp = c.u.i2c.data;
+	return ret;
+}
+
+/**
  *	t4_mdio_rd - read a PHY register through MDIO
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command

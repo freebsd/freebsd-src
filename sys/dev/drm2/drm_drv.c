@@ -36,17 +36,18 @@ __FBSDID("$FreeBSD$");
  * open/close, and ioctl dispatch.
  */
 
-
 #include <sys/limits.h>
+#include <sys/sysent.h>
 #include <dev/drm2/drmP.h>
 #include <dev/drm2/drm.h>
 #include <dev/drm2/drm_sarea.h>
 #include <dev/drm2/drm_mode.h>
 
 #ifdef DRM_DEBUG_DEFAULT_ON
-int drm_debug_flag = 1;
+int drm_debug_flag = (DRM_DEBUGBITS_DEBUG | DRM_DEBUGBITS_KMS |
+    DRM_DEBUGBITS_FAILED_IOCTL);
 #else
-int drm_debug_flag = 2;
+int drm_debug_flag = 0;
 #endif
 int drm_notyet_flag = 0;
 
@@ -802,6 +803,8 @@ void drm_close(void *data)
 	DRM_UNLOCK(dev);
 }
 
+extern drm_ioctl_desc_t drm_compat_ioctls[];
+
 /* drm_ioctl is called whenever a process performs an ioctl on /dev/drm.
  */
 int drm_ioctl(struct cdev *kdev, u_long cmd, caddr_t data, int flags, 
@@ -846,7 +849,22 @@ int drm_ioctl(struct cdev *kdev, u_long cmd, caddr_t data, int flags,
 		return EINVAL;
 	}
 
-	ioctl = &drm_ioctls[nr];
+#ifdef COMPAT_FREEBSD32
+	/*
+	 * Called whenever a 32-bit process running under a 64-bit
+	 * kernel performs an ioctl on /dev/drm.
+	 */
+	if (SV_CURPROC_FLAG(SV_ILP32) && drm_compat_ioctls[nr].func != NULL)
+		/*
+		 * Assume that ioctls without an explicit compat
+		 * routine will just work.  This may not always be a
+		 * good assumption, but it's better than always
+		 * failing.
+		 */
+		ioctl = &drm_compat_ioctls[nr];
+	else
+#endif
+		ioctl = &drm_ioctls[nr];
 	/* It's not a core DRM ioctl, try driver-specific. */
 	if (ioctl->func == NULL && nr >= DRM_COMMAND_BASE) {
 		/* The array entries begin at DRM_COMMAND_BASE ioctl nr */
@@ -856,7 +874,14 @@ int drm_ioctl(struct cdev *kdev, u_long cmd, caddr_t data, int flags,
 			    nr, dev->driver->max_ioctl);
 			return EINVAL;
 		}
-		ioctl = &dev->driver->ioctls[nr];
+#ifdef COMPAT_FREEBSD32
+		if (SV_CURPROC_FLAG(SV_ILP32) &&
+		    nr < *dev->driver->compat_ioctls_nr &&
+		    dev->driver->compat_ioctls[nr].func != NULL)
+			ioctl = &dev->driver->compat_ioctls[nr];
+		else
+#endif
+			ioctl = &dev->driver->ioctls[nr];
 		is_driver_ioctl = 1;
 	}
 	func = ioctl->func;

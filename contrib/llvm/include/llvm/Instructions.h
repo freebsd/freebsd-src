@@ -20,6 +20,8 @@
 #include "llvm/DerivedTypes.h"
 #include "llvm/Attributes.h"
 #include "llvm/CallingConv.h"
+#include "llvm/Support/IntegersSubset.h"
+#include "llvm/Support/IntegersSubsetMapping.h"
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -699,7 +701,7 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(AtomicRMWInst, Value)
 // checkGEPType - Simple wrapper function to give a better assertion failure
 // message on bad indexes for a gep instruction.
 //
-static inline Type *checkGEPType(Type *Ty) {
+inline Type *checkGEPType(Type *Ty) {
   assert(Ty && "Invalid GetElementPtrInst indices for type!");
   return Ty;
 }
@@ -1265,6 +1267,11 @@ public:
   /// removeAttribute - removes the attribute from the list of attributes.
   void removeAttribute(unsigned i, Attributes attr);
 
+  /// \brief Return true if this call has the given attribute.
+  bool hasFnAttr(Attributes N) const {
+    return paramHasAttr(~0, N);
+  }
+
   /// @brief Determine whether the call or the callee has the given attribute.
   bool paramHasAttr(unsigned i, Attributes attr) const;
 
@@ -1274,7 +1281,7 @@ public:
   }
 
   /// @brief Return true if the call should not be inlined.
-  bool isNoInline() const { return paramHasAttr(~0, Attribute::NoInline); }
+  bool isNoInline() const { return hasFnAttr(Attribute::NoInline); }
   void setIsNoInline(bool Value = true) {
     if (Value) addAttribute(~0, Attribute::NoInline);
     else removeAttribute(~0, Attribute::NoInline);
@@ -1282,7 +1289,7 @@ public:
 
   /// @brief Return true if the call can return twice
   bool canReturnTwice() const {
-    return paramHasAttr(~0, Attribute::ReturnsTwice);
+    return hasFnAttr(Attribute::ReturnsTwice);
   }
   void setCanReturnTwice(bool Value = true) {
     if (Value) addAttribute(~0, Attribute::ReturnsTwice);
@@ -1291,7 +1298,7 @@ public:
 
   /// @brief Determine if the call does not access memory.
   bool doesNotAccessMemory() const {
-    return paramHasAttr(~0, Attribute::ReadNone);
+    return hasFnAttr(Attribute::ReadNone);
   }
   void setDoesNotAccessMemory(bool NotAccessMemory = true) {
     if (NotAccessMemory) addAttribute(~0, Attribute::ReadNone);
@@ -1300,7 +1307,7 @@ public:
 
   /// @brief Determine if the call does not access or only reads memory.
   bool onlyReadsMemory() const {
-    return doesNotAccessMemory() || paramHasAttr(~0, Attribute::ReadOnly);
+    return doesNotAccessMemory() || hasFnAttr(Attribute::ReadOnly);
   }
   void setOnlyReadsMemory(bool OnlyReadsMemory = true) {
     if (OnlyReadsMemory) addAttribute(~0, Attribute::ReadOnly);
@@ -1308,14 +1315,14 @@ public:
   }
 
   /// @brief Determine if the call cannot return.
-  bool doesNotReturn() const { return paramHasAttr(~0, Attribute::NoReturn); }
+  bool doesNotReturn() const { return hasFnAttr(Attribute::NoReturn); }
   void setDoesNotReturn(bool DoesNotReturn = true) {
     if (DoesNotReturn) addAttribute(~0, Attribute::NoReturn);
     else removeAttribute(~0, Attribute::NoReturn);
   }
 
   /// @brief Determine if the call cannot unwind.
-  bool doesNotThrow() const { return paramHasAttr(~0, Attribute::NoUnwind); }
+  bool doesNotThrow() const { return hasFnAttr(Attribute::NoUnwind); }
   void setDoesNotThrow(bool DoesNotThrow = true) {
     if (DoesNotThrow) addAttribute(~0, Attribute::NoUnwind);
     else removeAttribute(~0, Attribute::NoUnwind);
@@ -2237,7 +2244,7 @@ public:
   /// getNumClauses - Get the number of clauses for this landing pad.
   unsigned getNumClauses() const { return getNumOperands() - 1; }
 
-  /// reserveClauses - Grow the size of the operand list to accomodate the new
+  /// reserveClauses - Grow the size of the operand list to accommodate the new
   /// number of clauses.
   void reserveClauses(unsigned Size) { growOperands(Size); }
 
@@ -2440,10 +2447,31 @@ DEFINE_TRANSPARENT_OPERAND_ACCESSORS(BranchInst, Value)
 class SwitchInst : public TerminatorInst {
   void *operator new(size_t, unsigned);  // DO NOT IMPLEMENT
   unsigned ReservedSpace;
+  // Operands format:
   // Operand[0]    = Value to switch on
   // Operand[1]    = Default basic block destination
   // Operand[2n  ] = Value to match
   // Operand[2n+1] = BasicBlock to go to on match
+  
+  // Store case values separately from operands list. We needn't User-Use
+  // concept here, since it is just a case value, it will always constant,
+  // and case value couldn't reused with another instructions/values.
+  // Additionally:
+  // It allows us to use custom type for case values that is not inherited
+  // from Value. Since case value is a complex type that implements
+  // the subset of integers, we needn't extract sub-constants within
+  // slow getAggregateElement method.
+  // For case values we will use std::list to by two reasons:
+  // 1. It allows to add/remove cases without whole collection reallocation.
+  // 2. In most of cases we needn't random access.
+  // Currently case values are also stored in Operands List, but it will moved
+  // out in future commits.
+  typedef std::list<IntegersSubset> Subsets;
+  typedef Subsets::iterator SubsetsIt;
+  typedef Subsets::const_iterator SubsetsConstIt;
+  
+  Subsets TheSubsets;
+  
   SwitchInst(const SwitchInst &SI);
   void init(Value *Value, BasicBlock *Default, unsigned NumReserved);
   void growOperands();
@@ -2468,121 +2496,25 @@ protected:
   virtual SwitchInst *clone_impl() const;
 public:
   
+  // FIXME: Currently there are a lot of unclean template parameters,
+  // we need to make refactoring in future.
+  // All these parameters are used to implement both iterator and const_iterator
+  // without code duplication.
+  // SwitchInstTy may be "const SwitchInst" or "SwitchInst"
+  // ConstantIntTy may be "const ConstantInt" or "ConstantInt"
+  // SubsetsItTy may be SubsetsConstIt or SubsetsIt
+  // BasicBlockTy may be "const BasicBlock" or "BasicBlock"
+  template <class SwitchInstTy, class ConstantIntTy,
+            class SubsetsItTy, class BasicBlockTy> 
+    class CaseIteratorT;
+
+  typedef CaseIteratorT<const SwitchInst, const ConstantInt,
+                        SubsetsConstIt, const BasicBlock> ConstCaseIt;
+  class CaseIt;
+  
   // -2
   static const unsigned DefaultPseudoIndex = static_cast<unsigned>(~0L-1);
   
-  template <class SwitchInstTy, class ConstantIntTy, class BasicBlockTy> 
-  class CaseIteratorT {
-  protected:
-    
-    SwitchInstTy *SI;
-    unsigned Index;
-    
-  public:
-    
-    typedef CaseIteratorT<SwitchInstTy, ConstantIntTy, BasicBlockTy> Self;
-    
-    /// Initializes case iterator for given SwitchInst and for given
-    /// case number.    
-    CaseIteratorT(SwitchInstTy *SI, unsigned CaseNum) {
-      this->SI = SI;
-      Index = CaseNum;
-    }
-    
-    /// Initializes case iterator for given SwitchInst and for given
-    /// TerminatorInst's successor index.
-    static Self fromSuccessorIndex(SwitchInstTy *SI, unsigned SuccessorIndex) {
-      assert(SuccessorIndex < SI->getNumSuccessors() &&
-             "Successor index # out of range!");    
-      return SuccessorIndex != 0 ? 
-             Self(SI, SuccessorIndex - 1) :
-             Self(SI, DefaultPseudoIndex);       
-    }
-    
-    /// Resolves case value for current case.
-    ConstantIntTy *getCaseValue() {
-      assert(Index < SI->getNumCases() && "Index out the number of cases.");
-      return reinterpret_cast<ConstantIntTy*>(SI->getOperand(2 + Index*2));
-    }
-    
-    /// Resolves successor for current case.
-    BasicBlockTy *getCaseSuccessor() {
-      assert((Index < SI->getNumCases() ||
-              Index == DefaultPseudoIndex) &&
-             "Index out the number of cases.");
-      return SI->getSuccessor(getSuccessorIndex());      
-    }
-    
-    /// Returns number of current case.
-    unsigned getCaseIndex() const { return Index; }
-    
-    /// Returns TerminatorInst's successor index for current case successor.
-    unsigned getSuccessorIndex() const {
-      assert((Index == DefaultPseudoIndex || Index < SI->getNumCases()) &&
-             "Index out the number of cases.");
-      return Index != DefaultPseudoIndex ? Index + 1 : 0;
-    }
-    
-    Self operator++() {
-      // Check index correctness after increment.
-      // Note: Index == getNumCases() means end().      
-      assert(Index+1 <= SI->getNumCases() && "Index out the number of cases.");
-      ++Index;
-      return *this;
-    }
-    Self operator++(int) {
-      Self tmp = *this;
-      ++(*this);
-      return tmp;
-    }
-    Self operator--() { 
-      // Check index correctness after decrement.
-      // Note: Index == getNumCases() means end().
-      // Also allow "-1" iterator here. That will became valid after ++.
-      assert((Index == 0 || Index-1 <= SI->getNumCases()) &&
-             "Index out the number of cases.");
-      --Index;
-      return *this;
-    }
-    Self operator--(int) {
-      Self tmp = *this;
-      --(*this);
-      return tmp;
-    }
-    bool operator==(const Self& RHS) const {
-      assert(RHS.SI == SI && "Incompatible operators.");
-      return RHS.Index == Index;
-    }
-    bool operator!=(const Self& RHS) const {
-      assert(RHS.SI == SI && "Incompatible operators.");
-      return RHS.Index != Index;
-    }
-  };
-  
-  typedef CaseIteratorT<const SwitchInst, const ConstantInt, const BasicBlock>
-    ConstCaseIt;
-
-  class CaseIt : public CaseIteratorT<SwitchInst, ConstantInt, BasicBlock> {
-    
-    typedef CaseIteratorT<SwitchInst, ConstantInt, BasicBlock> ParentTy;
-  
-  public:
-    
-    CaseIt(const ParentTy& Src) : ParentTy(Src) {}
-    CaseIt(SwitchInst *SI, unsigned CaseNum) : ParentTy(SI, CaseNum) {}
-
-    /// Sets the new value for current case.    
-    void setValue(ConstantInt *V) {
-      assert(Index < SI->getNumCases() && "Index out the number of cases.");
-      SI->setOperand(2 + Index*2, reinterpret_cast<Value*>(V));
-    }
-    
-    /// Sets the new successor for current case.
-    void setSuccessor(BasicBlock *S) {
-      SI->setSuccessor(getSuccessorIndex(), S);      
-    }
-  };
-
   static SwitchInst *Create(Value *Value, BasicBlock *Default,
                             unsigned NumCases, Instruction *InsertBefore = 0) {
     return new SwitchInst(Value, Default, NumCases, InsertBefore);
@@ -2618,23 +2550,23 @@ public:
   /// Returns a read/write iterator that points to the first
   /// case in SwitchInst.
   CaseIt case_begin() {
-    return CaseIt(this, 0);
+    return CaseIt(this, 0, TheSubsets.begin());
   }
   /// Returns a read-only iterator that points to the first
   /// case in the SwitchInst.
   ConstCaseIt case_begin() const {
-    return ConstCaseIt(this, 0);
+    return ConstCaseIt(this, 0, TheSubsets.begin());
   }
   
   /// Returns a read/write iterator that points one past the last
   /// in the SwitchInst.
   CaseIt case_end() {
-    return CaseIt(this, getNumCases());
+    return CaseIt(this, getNumCases(), TheSubsets.end());
   }
   /// Returns a read-only iterator that points one past the last
   /// in the SwitchInst.
   ConstCaseIt case_end() const {
-    return ConstCaseIt(this, getNumCases());
+    return ConstCaseIt(this, getNumCases(), TheSubsets.end());
   }
   /// Returns an iterator that points to the default case.
   /// Note: this iterator allows to resolve successor only. Attempt
@@ -2642,10 +2574,10 @@ public:
   /// Also note, that increment and decrement also causes an assertion and
   /// makes iterator invalid. 
   CaseIt case_default() {
-    return CaseIt(this, DefaultPseudoIndex);
+    return CaseIt(this, DefaultPseudoIndex, TheSubsets.end());
   }
   ConstCaseIt case_default() const {
-    return ConstCaseIt(this, DefaultPseudoIndex);
+    return ConstCaseIt(this, DefaultPseudoIndex, TheSubsets.end());
   }
   
   /// findCaseValue - Search all of the case values for the specified constant.
@@ -2654,13 +2586,13 @@ public:
   /// that it is handled by the default handler.
   CaseIt findCaseValue(const ConstantInt *C) {
     for (CaseIt i = case_begin(), e = case_end(); i != e; ++i)
-      if (i.getCaseValue() == C)
+      if (i.getCaseValueEx().isSatisfies(IntItem::fromConstantInt(C)))
         return i;
     return case_default();
   }
   ConstCaseIt findCaseValue(const ConstantInt *C) const {
     for (ConstCaseIt i = case_begin(), e = case_end(); i != e; ++i)
-      if (i.getCaseValue() == C)
+      if (i.getCaseValueEx().isSatisfies(IntItem::fromConstantInt(C)))
         return i;
     return case_default();
   }    
@@ -2681,10 +2613,17 @@ public:
   }
 
   /// addCase - Add an entry to the switch instruction...
+  /// @Deprecated
   /// Note:
   /// This action invalidates case_end(). Old case_end() iterator will
   /// point to the added case.
   void addCase(ConstantInt *OnVal, BasicBlock *Dest);
+  
+  /// addCase - Add an entry to the switch instruction.
+  /// Note:
+  /// This action invalidates case_end(). Old case_end() iterator will
+  /// point to the added case.
+  void addCase(IntegersSubset& OnVal, BasicBlock *Dest);
 
   /// removeCase - This method removes the specified case and its successor
   /// from the switch instruction. Note that this operation may reorder the
@@ -2692,7 +2631,7 @@ public:
   /// Note:
   /// This action invalidates iterators for all cases following the one removed,
   /// including the case_end() iterator.
-  void removeCase(CaseIt i);
+  void removeCase(CaseIt& i);
 
   unsigned getNumSuccessors() const { return getNumOperands()/2; }
   BasicBlock *getSuccessor(unsigned idx) const {
@@ -2703,8 +2642,193 @@ public:
     assert(idx < getNumSuccessors() && "Successor # out of range for switch!");
     setOperand(idx*2+1, (Value*)NewSucc);
   }
+  
+  uint16_t hash() const {
+    uint32_t NumberOfCases = (uint32_t)getNumCases();
+    uint16_t Hash = (0xFFFF & NumberOfCases) ^ (NumberOfCases >> 16);
+    for (ConstCaseIt i = case_begin(), e = case_end();
+         i != e; ++i) {
+      uint32_t NumItems = (uint32_t)i.getCaseValueEx().getNumItems(); 
+      Hash = (Hash << 1) ^ (0xFFFF & NumItems) ^ (NumItems >> 16);
+    }
+    return Hash;
+  }  
+  
+  // Case iterators definition.
+
+  template <class SwitchInstTy, class ConstantIntTy,
+            class SubsetsItTy, class BasicBlockTy> 
+  class CaseIteratorT {
+  protected:
+    
+    SwitchInstTy *SI;
+    unsigned long Index;
+    SubsetsItTy SubsetIt;
+    
+    /// Initializes case iterator for given SwitchInst and for given
+    /// case number.    
+    friend class SwitchInst;
+    CaseIteratorT(SwitchInstTy *SI, unsigned SuccessorIndex,
+                  SubsetsItTy CaseValueIt) {
+      this->SI = SI;
+      Index = SuccessorIndex;
+      this->SubsetIt = CaseValueIt;
+    }
+    
+  public:
+    typedef typename SubsetsItTy::reference IntegersSubsetRef;
+    typedef CaseIteratorT<SwitchInstTy, ConstantIntTy,
+                          SubsetsItTy, BasicBlockTy> Self;
+    
+    CaseIteratorT(SwitchInstTy *SI, unsigned CaseNum) {
+          this->SI = SI;
+          Index = CaseNum;
+          SubsetIt = SI->TheSubsets.begin();
+          std::advance(SubsetIt, CaseNum);
+        }
+        
+    
+    /// Initializes case iterator for given SwitchInst and for given
+    /// TerminatorInst's successor index.
+    static Self fromSuccessorIndex(SwitchInstTy *SI, unsigned SuccessorIndex) {
+      assert(SuccessorIndex < SI->getNumSuccessors() &&
+             "Successor index # out of range!");    
+      return SuccessorIndex != 0 ? 
+             Self(SI, SuccessorIndex - 1) :
+             Self(SI, DefaultPseudoIndex);       
+    }
+    
+    /// Resolves case value for current case.
+    /// @Deprecated
+    ConstantIntTy *getCaseValue() {
+      assert(Index < SI->getNumCases() && "Index out the number of cases.");
+      IntegersSubsetRef CaseRanges = *SubsetIt;
+      
+      // FIXME: Currently we work with ConstantInt based cases.
+      // So return CaseValue as ConstantInt.
+      return CaseRanges.getSingleNumber(0).toConstantInt();
+    }
+
+    /// Resolves case value for current case.
+    IntegersSubsetRef getCaseValueEx() {
+      assert(Index < SI->getNumCases() && "Index out the number of cases.");
+      return *SubsetIt;
+    }
+    
+    /// Resolves successor for current case.
+    BasicBlockTy *getCaseSuccessor() {
+      assert((Index < SI->getNumCases() ||
+              Index == DefaultPseudoIndex) &&
+             "Index out the number of cases.");
+      return SI->getSuccessor(getSuccessorIndex());      
+    }
+    
+    /// Returns number of current case.
+    unsigned getCaseIndex() const { return Index; }
+    
+    /// Returns TerminatorInst's successor index for current case successor.
+    unsigned getSuccessorIndex() const {
+      assert((Index == DefaultPseudoIndex || Index < SI->getNumCases()) &&
+             "Index out the number of cases.");
+      return Index != DefaultPseudoIndex ? Index + 1 : 0;
+    }
+    
+    Self operator++() {
+      // Check index correctness after increment.
+      // Note: Index == getNumCases() means end().
+      assert(Index+1 <= SI->getNumCases() && "Index out the number of cases.");
+      ++Index;
+      if (Index == 0)
+        SubsetIt = SI->TheSubsets.begin();
+      else
+        ++SubsetIt;
+      return *this;
+    }
+    Self operator++(int) {
+      Self tmp = *this;
+      ++(*this);
+      return tmp;
+    }
+    Self operator--() { 
+      // Check index correctness after decrement.
+      // Note: Index == getNumCases() means end().
+      // Also allow "-1" iterator here. That will became valid after ++.
+      unsigned NumCases = SI->getNumCases();
+      assert((Index == 0 || Index-1 <= NumCases) &&
+             "Index out the number of cases.");
+      --Index;
+      if (Index == NumCases) {
+        SubsetIt = SI->TheSubsets.end();
+        return *this;
+      }
+        
+      if (Index != -1UL)
+        --SubsetIt;
+      
+      return *this;
+    }
+    Self operator--(int) {
+      Self tmp = *this;
+      --(*this);
+      return tmp;
+    }
+    bool operator==(const Self& RHS) const {
+      assert(RHS.SI == SI && "Incompatible operators.");
+      return RHS.Index == Index;
+    }
+    bool operator!=(const Self& RHS) const {
+      assert(RHS.SI == SI && "Incompatible operators.");
+      return RHS.Index != Index;
+    }
+  };
+
+  class CaseIt : public CaseIteratorT<SwitchInst, ConstantInt,
+                                      SubsetsIt, BasicBlock> {
+    typedef CaseIteratorT<SwitchInst, ConstantInt, SubsetsIt, BasicBlock>
+      ParentTy;
+    
+  protected:
+    friend class SwitchInst;
+    CaseIt(SwitchInst *SI, unsigned CaseNum, SubsetsIt SubsetIt) :
+      ParentTy(SI, CaseNum, SubsetIt) {}
+    
+    void updateCaseValueOperand(IntegersSubset& V) {
+      SI->setOperand(2 + Index*2, reinterpret_cast<Value*>((Constant*)V));      
+    }
+  
+  public:
+
+    CaseIt(SwitchInst *SI, unsigned CaseNum) : ParentTy(SI, CaseNum) {}    
+    
+    CaseIt(const ParentTy& Src) : ParentTy(Src) {}
+
+    /// Sets the new value for current case.    
+    /// @Deprecated.
+    void setValue(ConstantInt *V) {
+      assert(Index < SI->getNumCases() && "Index out the number of cases.");
+      IntegersSubsetToBB Mapping;
+      // FIXME: Currently we work with ConstantInt based cases.
+      // So inititalize IntItem container directly from ConstantInt.
+      Mapping.add(IntItem::fromConstantInt(V));
+      *SubsetIt = Mapping.getCase();
+      updateCaseValueOperand(*SubsetIt);
+    }
+    
+    /// Sets the new value for current case.
+    void setValueEx(IntegersSubset& V) {
+      assert(Index < SI->getNumCases() && "Index out the number of cases.");
+      *SubsetIt = V;
+      updateCaseValueOperand(*SubsetIt);   
+    }
+    
+    /// Sets the new successor for current case.
+    void setSuccessor(BasicBlock *S) {
+      SI->setSuccessor(getSuccessorIndex(), S);      
+    }
+  };
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
+
   static inline bool classof(const SwitchInst *) { return true; }
   static inline bool classof(const Instruction *I) {
     return I->getOpcode() == Instruction::Switch;
@@ -2905,6 +3029,11 @@ public:
   /// removeAttribute - removes the attribute from the list of attributes.
   void removeAttribute(unsigned i, Attributes attr);
 
+  /// \brief Return true if this call has the given attribute.
+  bool hasFnAttr(Attributes N) const {
+    return paramHasAttr(~0, N);
+  }
+
   /// @brief Determine whether the call or the callee has the given attribute.
   bool paramHasAttr(unsigned i, Attributes attr) const;
 
@@ -2914,7 +3043,7 @@ public:
   }
 
   /// @brief Return true if the call should not be inlined.
-  bool isNoInline() const { return paramHasAttr(~0, Attribute::NoInline); }
+  bool isNoInline() const { return hasFnAttr(Attribute::NoInline); }
   void setIsNoInline(bool Value = true) {
     if (Value) addAttribute(~0, Attribute::NoInline);
     else removeAttribute(~0, Attribute::NoInline);
@@ -2922,7 +3051,7 @@ public:
 
   /// @brief Determine if the call does not access memory.
   bool doesNotAccessMemory() const {
-    return paramHasAttr(~0, Attribute::ReadNone);
+    return hasFnAttr(Attribute::ReadNone);
   }
   void setDoesNotAccessMemory(bool NotAccessMemory = true) {
     if (NotAccessMemory) addAttribute(~0, Attribute::ReadNone);
@@ -2931,7 +3060,7 @@ public:
 
   /// @brief Determine if the call does not access or only reads memory.
   bool onlyReadsMemory() const {
-    return doesNotAccessMemory() || paramHasAttr(~0, Attribute::ReadOnly);
+    return doesNotAccessMemory() || hasFnAttr(Attribute::ReadOnly);
   }
   void setOnlyReadsMemory(bool OnlyReadsMemory = true) {
     if (OnlyReadsMemory) addAttribute(~0, Attribute::ReadOnly);
@@ -2939,14 +3068,14 @@ public:
   }
 
   /// @brief Determine if the call cannot return.
-  bool doesNotReturn() const { return paramHasAttr(~0, Attribute::NoReturn); }
+  bool doesNotReturn() const { return hasFnAttr(Attribute::NoReturn); }
   void setDoesNotReturn(bool DoesNotReturn = true) {
     if (DoesNotReturn) addAttribute(~0, Attribute::NoReturn);
     else removeAttribute(~0, Attribute::NoReturn);
   }
 
   /// @brief Determine if the call cannot unwind.
-  bool doesNotThrow() const { return paramHasAttr(~0, Attribute::NoUnwind); }
+  bool doesNotThrow() const { return hasFnAttr(Attribute::NoUnwind); }
   void setDoesNotThrow(bool DoesNotThrow = true) {
     if (DoesNotThrow) addAttribute(~0, Attribute::NoUnwind);
     else removeAttribute(~0, Attribute::NoUnwind);

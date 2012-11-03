@@ -456,8 +456,7 @@ ARMLoadStoreOpt::MergeLDR_STR(MachineBasicBlock &MBB, unsigned SIndex,
   DebugLoc dl = Loc->getDebugLoc();
   const MachineOperand &PMO = Loc->getOperand(0);
   unsigned PReg = PMO.getReg();
-  unsigned PRegNum = PMO.isUndef() ? UINT_MAX
-    : getARMRegisterNumbering(PReg);
+  unsigned PRegNum = PMO.isUndef() ? UINT_MAX : TRI->getEncodingValue(PReg);
   unsigned Count = 1;
   unsigned Limit = ~0U;
 
@@ -483,8 +482,7 @@ ARMLoadStoreOpt::MergeLDR_STR(MachineBasicBlock &MBB, unsigned SIndex,
     int NewOffset = MemOps[i].Offset;
     const MachineOperand &MO = MemOps[i].MBBI->getOperand(0);
     unsigned Reg = MO.getReg();
-    unsigned RegNum = MO.isUndef() ? UINT_MAX
-      : getARMRegisterNumbering(Reg);
+    unsigned RegNum = MO.isUndef() ? UINT_MAX : TRI->getEncodingValue(Reg);
     // Register numbers must be in ascending order. For VFP / NEON load and
     // store multiples, the registers must also be consecutive and within the
     // limit on the number of registers per instruction.
@@ -1177,8 +1175,6 @@ bool ARMLoadStoreOpt::FixInvalidRegPairOp(MachineBasicBlock &MBB,
                       BaseReg, false, BaseUndef, false, OffUndef,
                       Pred, PredReg, TII, isT2);
         NewBBI = llvm::prior(MBBI);
-        if (isT2 && NewOpc == ARM::t2LDRi8 && OffImm+4 >= 0)
-          NewOpc = ARM::t2LDRi12;
         InsertLDR_STR(MBB, MBBI, OffImm, isLd, dl, NewOpc,
                       EvenReg, EvenDeadKill, false,
                       BaseReg, BaseKill, BaseUndef, OffKill, OffUndef,
@@ -1326,7 +1322,7 @@ bool ARMLoadStoreOpt::LoadStoreMultipleOpti(MachineBasicBlock &MBB) {
         // First advance to the instruction just before the start of the chain.
         AdvanceRS(MBB, MemOps);
         // Find a scratch register.
-        unsigned Scratch = RS->FindUnusedReg(ARM::GPRRegisterClass);
+        unsigned Scratch = RS->FindUnusedReg(&ARM::GPRRegClass);
         // Process the load / store instructions.
         RS->forward(prior(MBBI));
 
@@ -1739,7 +1735,7 @@ bool ARMPreAllocLoadStoreOpt::RescheduleOps(MachineBasicBlock *MBB,
           Ops.pop_back();
 
           const MCInstrDesc &MCID = TII->get(NewOpc);
-          const TargetRegisterClass *TRC = TII->getRegClass(MCID, 0, TRI);
+          const TargetRegisterClass *TRC = TII->getRegClass(MCID, 0, TRI, *MF);
           MRI->constrainRegClass(EvenReg, TRC);
           MRI->constrainRegClass(OddReg, TRC);
 

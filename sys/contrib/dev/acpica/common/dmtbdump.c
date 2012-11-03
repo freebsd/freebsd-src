@@ -52,10 +52,78 @@
         ACPI_MODULE_NAME    ("dmtbdump")
 
 
+/* Local prototypes */
+
 static void
 AcpiDmValidateFadtLength (
     UINT32                  Revision,
     UINT32                  Length);
+
+static void
+AcpiDmDumpBuffer (
+    void                    *Table,
+    UINT32                  BufferOffset,
+    UINT32                  Length,
+    UINT32                  AbsoluteOffset,
+    char                    *Header);
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpBuffer
+ *
+ * PARAMETERS:  Table               - ACPI Table or subtable
+ *              BufferOffset        - Offset of buffer from Table above
+ *              Length              - Length of the buffer
+ *              AbsoluteOffset      - Offset of buffer in the main ACPI table
+ *              Header              - Name of the buffer field (printed on the
+ *                                    first line only.)
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of an arbitrary length data buffer (in the
+ *              disassembler output format.)
+ *
+ ******************************************************************************/
+
+static void
+AcpiDmDumpBuffer (
+    void                    *Table,
+    UINT32                  BufferOffset,
+    UINT32                  Length,
+    UINT32                  AbsoluteOffset,
+    char                    *Header)
+{
+    UINT8                   *Buffer;
+    UINT32                  i;
+
+
+    if (!Length)
+    {
+        return;
+    }
+
+    Buffer = ACPI_CAST_PTR (UINT8, Table) + BufferOffset;
+    i = 0;
+
+    while (i < Length)
+    {
+        if (!(i % 16))
+        {
+            AcpiOsPrintf ("\n");
+            AcpiDmLineHeader (AbsoluteOffset,
+                ((Length - i) > 16) ? 16 : (Length - i), Header);
+            Header = NULL;
+        }
+
+        AcpiOsPrintf ("%.02X ", *Buffer);
+        i++;
+        Buffer++;
+        AbsoluteOffset++;
+    }
+
+    AcpiOsPrintf ("\n");
+}
 
 
 /*******************************************************************************
@@ -529,6 +597,208 @@ AcpiDmDumpCpep (
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiDmDumpCsrt
+ *
+ * PARAMETERS:  Table               - A CSRT table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a CSRT. This table type consists
+ *              of an open-ended number of subtables.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpCsrt (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    ACPI_CSRT_GROUP         *SubTable;
+    ACPI_CSRT_DESCRIPTOR    *SubSubTable;
+    UINT32                  Length = Table->Length;
+    UINT32                  Offset = sizeof (ACPI_TABLE_CSRT);
+    UINT32                  SubOffset;
+    UINT32                  SubSubOffset;
+    UINT32                  InfoLength;
+
+
+    /* The main table only contains the ACPI header, thus already handled */
+
+    /* Sub-tables (Resource Groups) */
+
+    SubTable = ACPI_ADD_PTR (ACPI_CSRT_GROUP, Table, Offset);
+    while (Offset < Table->Length)
+    {
+        AcpiOsPrintf ("\n");
+        Status = AcpiDmDumpTable (Length, Offset, SubTable,
+                    SubTable->Length, AcpiDmTableInfoCsrt0);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        SubOffset = sizeof (ACPI_CSRT_GROUP);
+
+        /* Shared resource group info buffer */
+
+        AcpiDmDumpBuffer (SubTable, SubOffset, SubTable->InfoLength,
+            Offset+SubOffset, "Shared Data");
+        SubOffset += SubTable->InfoLength;
+
+        /* Sub-Sub-tables (Resource Descriptors) */
+
+        SubSubTable = ACPI_ADD_PTR (ACPI_CSRT_DESCRIPTOR, Table,
+            Offset + SubOffset);
+
+        while ((SubOffset < SubTable->Length) &&
+              ((Offset + SubOffset) < Table->Length))
+        {
+            AcpiOsPrintf ("\n");
+            Status = AcpiDmDumpTable (Length, Offset + SubOffset, SubSubTable,
+                        SubSubTable->Length, AcpiDmTableInfoCsrt1);
+            if (ACPI_FAILURE (Status))
+            {
+                return;
+            }
+
+            SubSubOffset = sizeof (ACPI_CSRT_DESCRIPTOR);
+
+            /* Resource-specific info buffer */
+
+            InfoLength = SubSubTable->Length - SubSubOffset;
+
+            AcpiDmDumpBuffer (SubSubTable, SubSubOffset, InfoLength,
+                Offset + SubOffset + SubSubOffset, "ResourceInfo");
+            SubSubOffset += InfoLength;
+
+            /* Point to next sub-sub-table */
+
+            SubOffset += SubSubTable->Length;
+            SubSubTable = ACPI_ADD_PTR (ACPI_CSRT_DESCRIPTOR, SubSubTable,
+                        SubSubTable->Length);
+        }
+
+        /* Point to next sub-table */
+
+        Offset += SubTable->Length;
+        SubTable = ACPI_ADD_PTR (ACPI_CSRT_GROUP, SubTable,
+                    SubTable->Length);
+    }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmDumpDbg2
+ *
+ * PARAMETERS:  Table               - A DBG2 table
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Format the contents of a DBG2. This table type consists
+ *              of an open-ended number of subtables.
+ *
+ ******************************************************************************/
+
+void
+AcpiDmDumpDbg2 (
+    ACPI_TABLE_HEADER       *Table)
+{
+    ACPI_STATUS             Status;
+    ACPI_DBG2_DEVICE        *SubTable;
+    UINT32                  Length = Table->Length;
+    UINT32                  Offset = sizeof (ACPI_TABLE_DBG2);
+    UINT32                  i;
+    UINT32                  ArrayOffset;
+    UINT32                  AbsoluteOffset;
+    UINT8                   *Array;
+
+
+    /* Main table */
+
+    Status = AcpiDmDumpTable (Length, 0, Table, 0, AcpiDmTableInfoDbg2);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    /* Sub-tables */
+
+    SubTable = ACPI_ADD_PTR (ACPI_DBG2_DEVICE, Table, Offset);
+    while (Offset < Table->Length)
+    {
+        AcpiOsPrintf ("\n");
+        Status = AcpiDmDumpTable (Length, Offset, SubTable,
+                    SubTable->Length, AcpiDmTableInfoDbg2Device);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        /* Dump the BaseAddress array */
+
+        for (i = 0; i < SubTable->RegisterCount; i++)
+        {
+            ArrayOffset = SubTable->BaseAddressOffset +
+                (sizeof (ACPI_GENERIC_ADDRESS) * i);
+            AbsoluteOffset = Offset + ArrayOffset;
+            Array = (UINT8 *) SubTable + ArrayOffset;
+
+            Status = AcpiDmDumpTable (Length, AbsoluteOffset, Array,
+                        SubTable->Length, AcpiDmTableInfoDbg2Addr);
+            if (ACPI_FAILURE (Status))
+            {
+                return;
+            }
+        }
+
+        /* Dump the AddressSize array */
+
+        for (i = 0; i < SubTable->RegisterCount; i++)
+        {
+            ArrayOffset = SubTable->AddressSizeOffset +
+                (sizeof (UINT32) * i);
+            AbsoluteOffset = Offset + ArrayOffset;
+            Array = (UINT8 *) SubTable + ArrayOffset;
+
+            Status = AcpiDmDumpTable (Length, AbsoluteOffset, Array,
+                        SubTable->Length, AcpiDmTableInfoDbg2Size);
+            if (ACPI_FAILURE (Status))
+            {
+                return;
+            }
+        }
+
+        /* Dump the Namestring (required) */
+
+        AcpiOsPrintf ("\n");
+        ArrayOffset = SubTable->NamepathOffset;
+        AbsoluteOffset = Offset + ArrayOffset;
+        Array = (UINT8 *) SubTable + ArrayOffset;
+
+        Status = AcpiDmDumpTable (Length, AbsoluteOffset, Array,
+                    SubTable->Length, AcpiDmTableInfoDbg2Name);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
+        /* Dump the OemData (optional) */
+
+        AcpiDmDumpBuffer (SubTable, SubTable->OemDataOffset, SubTable->OemDataLength,
+            Offset + SubTable->OemDataOffset, "OEM Data");
+
+        /* Point to next sub-table */
+
+        Offset += SubTable->Length;
+        SubTable = ACPI_ADD_PTR (ACPI_DBG2_DEVICE, SubTable,
+                    SubTable->Length);
+    }
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiDmDumpDmar
  *
  * PARAMETERS:  Table               - A DMAR table
@@ -539,6 +809,7 @@ AcpiDmDumpCpep (
  *              of an open-ended number of subtables.
  *
  ******************************************************************************/
+
 
 void
 AcpiDmDumpDmar (
@@ -1340,8 +1611,8 @@ AcpiDmDumpMpst (
     ACPI_MPST_DATA_HDR      *SubTable1;
     ACPI_MPST_POWER_DATA    *SubTable2;
     UINT16                  SubtableCount;
-    UINT8                   PowerStateCount;
-    UINT8                   ComponentCount;
+    UINT32                  PowerStateCount;
+    UINT32                  ComponentCount;
 
 
     /* Main table */

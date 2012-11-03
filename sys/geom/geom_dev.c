@@ -208,15 +208,11 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		}
 	}
 
-	if (pp->flags & G_PF_CANDELETE)
-		dev->si_flags |= SI_CANDELETE;
 	dev->si_iosize_max = MAXPHYS;
 	gp->softc = dev;
 	dev->si_drv1 = gp;
 	dev->si_drv2 = cp;
 	if (adev != NULL) {
-		if (pp->flags & G_PF_CANDELETE)
-			adev->si_flags |= SI_CANDELETE;
 		adev->si_iosize_max = MAXPHYS;
 		adev->si_drv1 = gp;
 		adev->si_drv2 = cp;
@@ -363,7 +359,7 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 	case DIOCSKERNELDUMP:
 		u = *((u_int *)data);
 		if (!u) {
-			set_dumper(NULL);
+			set_dumper(NULL, NULL);
 			error = 0;
 			break;
 		}
@@ -372,7 +368,7 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		i = sizeof kd;
 		error = g_io_getattr("GEOM::kerneldump", cp, &i, &kd);
 		if (!error) {
-			error = set_dumper(&kd.di);
+			error = set_dumper(&kd.di, devtoname(dev));
 			if (!error)
 				dev->si_flags |= SI_DUMPDEV;
 		}
@@ -530,7 +526,7 @@ g_dev_orphan(struct g_consumer *cp)
 
 	/* Reset any dump-area set on this device */
 	if (dev->si_flags & SI_DUMPDEV)
-		set_dumper(NULL);
+		set_dumper(NULL, NULL);
 
 	/* Destroy the struct cdev *so we get no more requests */
 	destroy_dev(dev);

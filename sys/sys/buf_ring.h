@@ -48,7 +48,6 @@ struct buf_ring {
 	int              	br_prod_mask;
 	uint64_t		br_drops;
 	uint64_t		br_prod_bufs;
-	uint64_t		br_prod_bytes;
 	/*
 	 * Pad out to next L2 cache line
 	 */
@@ -74,7 +73,7 @@ struct buf_ring {
  *
  */
 static __inline int
-buf_ring_enqueue_bytes(struct buf_ring *br, void *buf, int nbytes)
+buf_ring_enqueue(struct buf_ring *br, void *buf)
 {
 	uint32_t prod_head, prod_next;
 	uint32_t cons_tail;
@@ -95,6 +94,7 @@ buf_ring_enqueue_bytes(struct buf_ring *br, void *buf, int nbytes)
 		prod_next = (prod_head + 1) & br->br_prod_mask;
 		
 		if (prod_next == cons_tail) {
+			br->br_drops++;
 			critical_exit();
 			return (ENOBUFS);
 		}
@@ -117,17 +117,9 @@ buf_ring_enqueue_bytes(struct buf_ring *br, void *buf, int nbytes)
 	while (br->br_prod_tail != prod_head)
 		cpu_spinwait();
 	br->br_prod_bufs++;
-	br->br_prod_bytes += nbytes;
 	br->br_prod_tail = prod_next;
 	critical_exit();
 	return (0);
-}
-
-static __inline int
-buf_ring_enqueue(struct buf_ring *br, void *buf)
-{
-
-	return (buf_ring_enqueue_bytes(br, buf, 0));
 }
 
 /*

@@ -35,9 +35,9 @@ static const char rcsid[] =
 
 static	void	usage(void),
 		run_reboot_jobs(cron_db *),
-		cron_tick(cron_db *),
-		cron_sync(void),
-		cron_sleep(cron_db *),
+		cron_tick(cron_db *, int),
+		cron_sync(int),
+		cron_sleep(cron_db *, int),
 		cron_clean(cron_db *),
 #ifdef USE_SIGCHLD
 		sigchld_handler(int),
@@ -45,22 +45,28 @@ static	void	usage(void),
 		sighup_handler(int),
 		parse_args(int c, char *v[]);
 
+static int	run_at_secres(cron_db *);
+
 static time_t	last_time = 0;
 static int	dst_enabled = 0;
 struct pidfh *pfh;
 
 static void
 usage() {
+#if DEBUGGING
     char **dflags;
+#endif
 
 	fprintf(stderr, "usage: cron [-j jitter] [-J rootjitter] "
 			"[-m mailto] [-s] [-o] [-x debugflag[,...]]\n");
+#if DEBUGGING
 	fprintf(stderr, "\ndebugflags: ");
 
         for(dflags = DebugFlagNames; *dflags; dflags++) {
 		fprintf(stderr, "%s ", *dflags);
 	}
         fprintf(stderr, "\n");
+#endif
 
 	exit(ERROR_EXIT);
 }
@@ -94,6 +100,9 @@ main(argc, argv)
 	char	*argv[];
 {
 	cron_db	database;
+	int runnum;
+	int secres1, secres2;
+	struct tm *tm;
 
 	ProgramName = argv[0];
 
@@ -143,23 +152,47 @@ main(argc, argv)
 	database.tail = NULL;
 	database.mtime = (time_t) 0;
 	load_database(&database);
+	secres1 = secres2 = run_at_secres(&database);
 	run_reboot_jobs(&database);
-	cron_sync();
+	cron_sync(secres1);
+	runnum = 0;
 	while (TRUE) {
 # if DEBUGGING
 	    /* if (!(DebugFlags & DTEST)) */
 # endif /*DEBUGGING*/
-			cron_sleep(&database);
+			cron_sleep(&database, secres1);
 
-		load_database(&database);
+		if (secres1 == 0 || runnum % 60 == 0) {
+			load_database(&database);
+			secres2 = run_at_secres(&database);
+			if (secres2 != secres1) {
+				secres1 = secres2;
+				if (secres1 != 0) {
+					runnum = 0;
+				} else {
+					/*
+					 * Going from 1 sec to 60 sec res. If we
+					 * are already at minute's boundary, so
+					 * let it run, otherwise schedule for the
+					 * next minute.
+					 */
+					tm = localtime(&TargetTime);
+					if (tm->tm_sec > 0)  {
+						cron_sync(secres2);
+						continue;
+					}
+				}
+			}
+		}
 
 		/* do this iteration
 		 */
-		cron_tick(&database);
+		cron_tick(&database, secres1);
 
-		/* sleep 1 minute
+		/* sleep 1 or 60 seconds
 		 */
-		TargetTime += 60;
+		TargetTime += (secres1 != 0) ? 1 : 60;
+		runnum += 1;
 	}
 }
 
@@ -183,29 +216,29 @@ run_reboot_jobs(db)
 
 
 static void
-cron_tick(db)
-	cron_db	*db;
+cron_tick(cron_db *db, int secres)
 {
 	static struct tm	lasttm;
 	static time_t	diff = 0, /* time difference in seconds from the last offset change */
 		difflimit = 0; /* end point for the time zone correction */
 	struct tm	otztm; /* time in the old time zone */
-	int		otzminute, otzhour, otzdom, otzmonth, otzdow;
+	int		otzsecond, otzminute, otzhour, otzdom, otzmonth, otzdow;
  	register struct tm	*tm = localtime(&TargetTime);
-	register int		minute, hour, dom, month, dow;
+	register int		second, minute, hour, dom, month, dow;
 	register user		*u;
 	register entry		*e;
 
 	/* make 0-based values out of these so we can use them as indicies
 	 */
+	second = (secres == 0) ? 0 : tm->tm_sec -FIRST_SECOND;
 	minute = tm->tm_min -FIRST_MINUTE;
 	hour = tm->tm_hour -FIRST_HOUR;
 	dom = tm->tm_mday -FIRST_DOM;
 	month = tm->tm_mon +1 /* 0..11 -> 1..12 */ -FIRST_MONTH;
 	dow = tm->tm_wday -FIRST_DOW;
 
-	Debug(DSCH, ("[%d] tick(%d,%d,%d,%d,%d)\n",
-		getpid(), minute, hour, dom, month, dow))
+	Debug(DSCH, ("[%d] tick(%d,%d,%d,%d,%d,%d)\n",
+		getpid(), second, minute, hour, dom, month, dow))
 
 	if (dst_enabled && last_time != 0 
 	&& TargetTime > last_time /* exclude stepping back */
@@ -258,6 +291,7 @@ cron_tick(db)
 
 			/* make 0-based values out of these so we can use them as indicies
 			 */
+			otzsecond = (secres == 0) ? 0 : otztm.tm_sec -FIRST_SECOND;
 			otzminute = otztm.tm_min -FIRST_MINUTE;
 			otzhour = otztm.tm_hour -FIRST_HOUR;
 			otzdom = otztm.tm_mday -FIRST_DOM;
@@ -279,7 +313,8 @@ cron_tick(db)
 					  e->uid, e->gid, e->cmd))
 
 			if ( diff != 0 && (e->flags & (RUN_AT|NOT_UNTIL)) ) {
-				if (bit_test(e->minute, otzminute)
+				if (bit_test(e->second, otzsecond)
+				 && bit_test(e->minute, otzminute)
 				 && bit_test(e->hour, otzhour)
 				 && bit_test(e->month, otzmonth)
 				 && ( ((e->flags & DOM_STAR) || (e->flags & DOW_STAR))
@@ -298,7 +333,8 @@ cron_tick(db)
 					continue;
 			}
 
-			if (bit_test(e->minute, minute)
+			if (bit_test(e->second, second)
+			 && bit_test(e->minute, minute)
 			 && bit_test(e->hour, hour)
 			 && bit_test(e->month, month)
 			 && ( ((e->flags & DOM_STAR) || (e->flags & DOW_STAR))
@@ -328,37 +364,73 @@ cron_tick(db)
  * that's something sysadmin's know to expect what with crashing computers..
  */
 static void
-cron_sync() {
- 	register struct tm	*tm;
+cron_sync(int secres) {
+ 	struct tm *tm;
 
 	TargetTime = time((time_t*)0);
-	tm = localtime(&TargetTime);
-	TargetTime += (60 - tm->tm_sec);
+	if (secres != 0) {
+		TargetTime += 1;
+	} else {
+		tm = localtime(&TargetTime);
+		TargetTime += (60 - tm->tm_sec);
+	}
 }
 
+static int
+timespec_subtract(struct timespec *result, struct timespec *x,
+    struct timespec *y)
+{
+	time_t nsec;
+
+	/* Perform the carry for the later subtraction by updating y. */
+	if (x->tv_nsec < y->tv_nsec) {
+		nsec = (y->tv_nsec - x->tv_nsec) / 10000000 + 1;
+		y->tv_nsec -= 1000000000 * nsec;
+		y->tv_sec += nsec;
+	}
+	if (x->tv_nsec - y->tv_nsec > 1000000000) {
+		nsec = (x->tv_nsec - y->tv_nsec) / 1000000000;
+		y->tv_nsec += 1000000000 * nsec;
+		y->tv_sec -= nsec;
+	}
+     
+	/* tv_nsec is certainly positive. */
+	result->tv_sec = x->tv_sec - y->tv_sec;
+	result->tv_nsec = x->tv_nsec - y->tv_nsec;
+     
+	/* Return True if result is negative. */
+	return (x->tv_sec < y->tv_sec);
+}
 
 static void
-cron_sleep(db)
-	cron_db	*db;
+cron_sleep(cron_db *db, int secres)
 {
-	int	seconds_to_wait = 0;
+	int seconds_to_wait;
+	int rval;
+	struct timespec ctime, ttime, stime, remtime;
 
 	/*
 	 * Loop until we reach the top of the next minute, sleep when possible.
 	 */
 
 	for (;;) {
-		seconds_to_wait = (int) (TargetTime - time((time_t*)0));
+		clock_gettime(CLOCK_REALTIME, &ctime);
+		ttime.tv_sec = TargetTime;
+		ttime.tv_nsec = 0;
+		timespec_subtract(&stime, &ttime, &ctime);
 
 		/*
 		 * If the seconds_to_wait value is insane, jump the cron
 		 */
 
-		if (seconds_to_wait < -600 || seconds_to_wait > 600) {
+		if (stime.tv_sec < -600 || stime.tv_sec > 600) {
 			cron_clean(db);
-			cron_sync();
+			cron_sync(secres);
 			continue;
 		}
+
+		seconds_to_wait = (stime.tv_nsec > 0) ? stime.tv_sec + 1 :
+		    stime.tv_sec;
 
 		Debug(DSCH, ("[%d] TargetTime=%ld, sec-to-wait=%d\n",
 			getpid(), (long)TargetTime, seconds_to_wait))
@@ -368,13 +440,19 @@ cron_sleep(db)
 		 * to run, break
 		 */
 
-		if (seconds_to_wait <= 0)
+		if (stime.tv_sec < 0)
 			break;
 		if (job_runqueue() == 0) {
 			Debug(DSCH, ("[%d] sleeping for %d seconds\n",
 				getpid(), seconds_to_wait))
 
-			sleep(seconds_to_wait);
+			for (;;) {
+				rval = nanosleep(&stime, &remtime);
+				if (rval == 0 || errno != EINTR)
+					break;
+				stime.tv_sec = remtime.tv_sec;
+				stime.tv_nsec = remtime.tv_nsec;
+			}
 		}
 	}
 }
@@ -480,3 +558,17 @@ parse_args(argc, argv)
 	}
 }
 
+static int
+run_at_secres(cron_db *db)
+{
+	user *u;
+	entry *e;
+
+	for (u = db->head;  u != NULL;  u = u->next) {
+		for (e = u->crontab;  e != NULL;  e = e->next) {
+			if ((e->flags & SEC_RES) != 0)
+				return 1;
+		}
+	}
+	return 0;
+}

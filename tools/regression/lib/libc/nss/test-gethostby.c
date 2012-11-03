@@ -565,7 +565,7 @@ hostent_read_snapshot_addr(char *addr, unsigned char *result, size_t len)
 static int
 hostent_read_snapshot_func(struct hostent *ht, char *line)
 {
-	StringList *sl1, *sl2;;
+	StringList *sl1, *sl2;
 	char *s, *ps, *ts;
 	int i, rv;
 

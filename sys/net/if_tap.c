@@ -79,8 +79,8 @@
 #define CDEV_NAME	"tap"
 #define TAPDEBUG	if (tapdebug) printf
 
-#define TAP		"tap"
-#define VMNET		"vmnet"
+static const char tapname[] = "tap";
+static const char vmnetname[] = "vmnet";
 #define TAPMAXUNIT	0x7fff
 #define VMNET_DEV_MASK	CLONE_FLAG0
 
@@ -99,11 +99,10 @@ static void		tapifinit(void *);
 
 static int		tap_clone_create(struct if_clone *, int, caddr_t);
 static void		tap_clone_destroy(struct ifnet *);
+static struct if_clone *tap_cloner;
 static int		vmnet_clone_create(struct if_clone *, int, caddr_t);
 static void		vmnet_clone_destroy(struct ifnet *);
-
-IFC_SIMPLE_DECLARE(tap, 0);
-IFC_SIMPLE_DECLARE(vmnet, 0);
+static struct if_clone *vmnet_cloner;
 
 /* character device */
 static d_open_t		tapopen;
@@ -183,18 +182,12 @@ tap_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
 	struct cdev *dev;
 	int i;
-	int extra;
 
-	if (strcmp(ifc->ifc_name, VMNET) == 0)
-		extra = VMNET_DEV_MASK;
-	else
-		extra = 0;
-
-	/* find any existing device, or allocate new unit number */
-	i = clone_create(&tapclones, &tap_cdevsw, &unit, &dev, extra);
+	/* Find any existing device, or allocate new unit number. */
+	i = clone_create(&tapclones, &tap_cdevsw, &unit, &dev, 0);
 	if (i) {
-		dev = make_dev(&tap_cdevsw, unit | extra,
-		     UID_ROOT, GID_WHEEL, 0600, "%s%d", ifc->ifc_name, unit);
+		dev = make_dev(&tap_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
+		    "%s%d", tapname, unit);
 	}
 
 	tapcreate(dev);
@@ -205,7 +198,18 @@ tap_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 static int
 vmnet_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
-	return tap_clone_create(ifc, unit, params);
+	struct cdev *dev;
+	int i;
+
+	/* Find any existing device, or allocate new unit number. */
+	i = clone_create(&tapclones, &tap_cdevsw, &unit, &dev, VMNET_DEV_MASK);
+	if (i) {
+		dev = make_dev(&tap_cdevsw, unit | VMNET_DEV_MASK, UID_ROOT,
+		    GID_WHEEL, 0600, "%s%d", tapname, unit);
+	}
+
+	tapcreate(dev);
+	return (0);
 }
 
 static void
@@ -213,14 +217,10 @@ tap_destroy(struct tap_softc *tp)
 {
 	struct ifnet *ifp = tp->tap_ifp;
 
-	/* Unlocked read. */
-	KASSERT(!(tp->tap_flags & TAP_OPEN),
-		("%s flags is out of sync", ifp->if_xname));
-
 	CURVNET_SET(ifp->if_vnet);
+	destroy_dev(tp->tap_dev);
 	seldrain(&tp->tap_rsel);
 	knlist_destroy(&tp->tap_rsel.si_note);
-	destroy_dev(tp->tap_dev);
 	ether_ifdetach(ifp);
 	if_free(ifp);
 
@@ -274,8 +274,10 @@ tapmodevent(module_t mod, int type, void *data)
 			mtx_destroy(&tapmtx);
 			return (ENOMEM);
 		}
-		if_clone_attach(&tap_cloner);
-		if_clone_attach(&vmnet_cloner);
+		tap_cloner = if_clone_simple(tapname, tap_clone_create,
+		    tap_clone_destroy, 0);
+		vmnet_cloner = if_clone_simple(vmnetname, vmnet_clone_create,
+		    vmnet_clone_destroy, 0);
 		return (0);
 
 	case MOD_UNLOAD:
@@ -297,8 +299,8 @@ tapmodevent(module_t mod, int type, void *data)
 		mtx_unlock(&tapmtx);
 
 		EVENTHANDLER_DEREGISTER(dev_clone, eh_tag);
-		if_clone_detach(&tap_cloner);
-		if_clone_detach(&vmnet_cloner);
+		if_clone_detach(tap_cloner);
+		if_clone_detach(vmnet_cloner);
 		drain_dev_clone_events();
 
 		mtx_lock(&tapmtx);
@@ -352,13 +354,13 @@ tapclone(void *arg, struct ucred *cred, char *name, int namelen, struct cdev **d
 	extra = 0;
 
 	/* We're interested in only tap/vmnet devices. */
-	if (strcmp(name, TAP) == 0) {
+	if (strcmp(name, tapname) == 0) {
 		unit = -1;
-	} else if (strcmp(name, VMNET) == 0) {
+	} else if (strcmp(name, vmnetname) == 0) {
 		unit = -1;
 		extra = VMNET_DEV_MASK;
-	} else if (dev_stdclone(name, NULL, TAP, &unit) != 1) {
-		if (dev_stdclone(name, NULL, VMNET, &unit) != 1) {
+	} else if (dev_stdclone(name, NULL, tapname, &unit) != 1) {
+		if (dev_stdclone(name, NULL, vmnetname, &unit) != 1) {
 			return;
 		} else {
 			extra = VMNET_DEV_MASK;
@@ -404,7 +406,7 @@ tapcreate(struct cdev *dev)
 	unsigned short		 macaddr_hi;
 	uint32_t		 macaddr_mid;
 	int			 unit;
-	char			*name = NULL;
+	const char		*name = NULL;
 	u_char			eaddr[6];
 
 	dev->si_flags &= ~SI_CHEAPCLONE;
@@ -420,10 +422,10 @@ tapcreate(struct cdev *dev)
 
 	/* select device: tap or vmnet */
 	if (unit & VMNET_DEV_MASK) {
-		name = VMNET;
+		name = vmnetname;
 		tp->tap_flags |= TAP_VMNET;
 	} else
-		name = TAP;
+		name = tapname;
 
 	unit &= TAPMAXUNIT;
 
@@ -933,7 +935,7 @@ tapwrite(struct cdev *dev, struct uio *uio, int flag)
 	struct ifnet		*ifp = tp->tap_ifp;
 	struct mbuf		*m;
 
-	TAPDEBUG("%s writting, minor = %#x\n", 
+	TAPDEBUG("%s writing, minor = %#x\n", 
 		ifp->if_xname, dev2unit(dev));
 
 	if (uio->uio_resid == 0)

@@ -45,6 +45,7 @@ SRCS=	BackendUtil.cpp \
 
 TGHDRS=	AttrList \
 	Attrs \
+	CommentNodes \
 	DeclNodes \
 	DiagnosticCommonKinds \
 	DiagnosticFrontendKinds \

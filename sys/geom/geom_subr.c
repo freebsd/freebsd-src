@@ -686,12 +686,19 @@ g_resize_provider(struct g_provider *pp, off_t size)
 	g_post_event(g_resize_provider_event, hh, M_WAITOK, NULL);
 }
 
+#ifndef	_PATH_DEV
+#define	_PATH_DEV	"/dev/"
+#endif
+
 struct g_provider *
 g_provider_by_name(char const *arg)
 {
 	struct g_class *cp;
 	struct g_geom *gp;
 	struct g_provider *pp;
+
+	if (strncmp(arg, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+		arg += sizeof(_PATH_DEV) - 1;
 
 	LIST_FOREACH(cp, &g_classes, class) {
 		LIST_FOREACH(gp, &cp->geom, geom) {
@@ -701,6 +708,7 @@ g_provider_by_name(char const *arg)
 			}
 		}
 	}
+
 	return (NULL);
 }
 
@@ -1261,7 +1269,6 @@ provider_flags_to_string(struct g_provider *pp, char *str, size_t size)
 		strlcpy(str, "NONE", size);
 		return (str);
 	}
-	ADDFLAG(pp, G_PF_CANDELETE, "G_PF_CANDELETE");
 	ADDFLAG(pp, G_PF_WITHER, "G_PF_WITHER");
 	ADDFLAG(pp, G_PF_ORPHAN, "G_PF_ORPHAN");
 	return (str);

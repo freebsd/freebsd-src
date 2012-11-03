@@ -87,8 +87,8 @@ ar9285AniSetup(struct ath_hal *ah)
                 .coarseHigh             = { -14, -14, -14, -14, -12 },
                 .coarseLow              = { -64, -64, -64, -64, -70 },
                 .firpwr                 = { -78, -78, -78, -78, -80 },
-                .maxSpurImmunityLevel   = 2,
-                .cycPwrThr1             = { 2, 4, 6 },
+                .maxSpurImmunityLevel   = 7,
+                .cycPwrThr1             = { 2, 4, 6, 8, 10, 12, 14, 16 },
                 .maxFirstepLevel        = 2,    /* levels 0..2 */
                 .firstep                = { 0, 4, 8 },
                 .ofdmTrigHigh           = 500,
@@ -503,6 +503,9 @@ ar9285FillCapabilityInfo(struct ath_hal *ah)
 	/* AR9285 has 2 antennas but is a 1x1 stream device */
 	pCap->halTxStreams = 1;
 	pCap->halRxStreams = 1;
+
+	if (ar9285_check_div_comb(ah))
+		pCap->halAntDivCombSupport = AH_TRUE;
 
 	pCap->halCSTSupport = AH_TRUE;
 	pCap->halRifsRxSupport = AH_TRUE;

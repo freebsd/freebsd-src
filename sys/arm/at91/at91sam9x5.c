@@ -125,30 +125,6 @@ static const struct cpu_devs at91_devs[] =
 	{ 0, 0, 0, 0, 0 }
 };
 
-static uint32_t
-at91_pll_outa(int freq)
-{
-
-	switch (freq / 10000000) {
-		case 747 ... 801: return ((1 << 29) | (0 << 14));
-		case 697 ... 746: return ((1 << 29) | (1 << 14));
-		case 647 ... 696: return ((1 << 29) | (2 << 14));
-		case 597 ... 646: return ((1 << 29) | (3 << 14));
-		case 547 ... 596: return ((1 << 29) | (1 << 14));
-		case 497 ... 546: return ((1 << 29) | (2 << 14));
-		case 447 ... 496: return ((1 << 29) | (3 << 14));
-		case 397 ... 446: return ((1 << 29) | (4 << 14));
-		default: return (1 << 29);
-	}
-}
-
-static uint32_t
-at91_pll_outb(int freq)
-{
-
-	return (0);
-}
-
 static void
 at91_clock_init(void)
 {
@@ -174,7 +150,7 @@ at91_clock_init(void)
 	clk->pll_mul_mask  = SAM9X25_PLL_A_MUL_MASK;
 	clk->pll_div_shift = SAM9X25_PLL_A_DIV_SHIFT;
 	clk->pll_div_mask  = SAM9X25_PLL_A_DIV_MASK;
-	clk->set_outb      = at91_pll_outa;
+	clk->set_outb      = at91_pmc_800mhz_plla_outb;
 	at91_pmc_clock_deref(clk);
 
 	clk = at91_pmc_clock_ref("pllb");
@@ -186,7 +162,7 @@ at91_clock_init(void)
 	clk->pll_mul_mask  = SAM9X25_PLL_B_MUL_MASK;
 	clk->pll_div_shift = SAM9X25_PLL_B_DIV_SHIFT;
 	clk->pll_div_mask  = SAM9X25_PLL_B_DIV_MASK;
-	clk->set_outb      = at91_pll_outb;
+	clk->set_outb      = at91_pmc_800mhz_pllb_outb;
 	at91_pmc_clock_deref(clk);
 }
 

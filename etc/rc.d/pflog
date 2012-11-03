@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: pflog
-# REQUIRE: FILESYSTEMS netif cleanvar
+# REQUIRE: FILESYSTEMS netif FILESYSTEMS
 # KEYWORD: nojail
 
 . /etc/rc.subr

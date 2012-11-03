@@ -1331,12 +1331,9 @@ static void
 nd6_dad_timer(struct dadq *dp)
 {
 	CURVNET_SET(dp->dad_vnet);
-	int s;
 	struct ifaddr *ifa = dp->dad_ifa;
 	struct in6_ifaddr *ia = (struct in6_ifaddr *)ifa;
 	char ip6buf[INET6_ADDRSTRLEN];
-
-	s = splnet();		/* XXX */
 
 	/* Sanity check */
 	if (ia == NULL) {
@@ -1424,7 +1421,6 @@ nd6_dad_timer(struct dadq *dp)
 	}
 
 done:
-	splx(s);
 	CURVNET_RESTORE();
 }
 

@@ -1478,7 +1478,7 @@ xnb_mbufc2pkt_1cluster(char *buffer, size_t buflen) {
 	safe_m_freem(&mbuf);
 }
 
-/** xnb_mbufc2pkt on a a two-mbuf chain with short data regions */
+/** xnb_mbufc2pkt on a two-mbuf chain with short data regions */
 static void
 xnb_mbufc2pkt_2short(char *buffer, size_t buflen) {
 	struct xnb_pkt pkt;
@@ -1521,7 +1521,7 @@ xnb_mbufc2pkt_2short(char *buffer, size_t buflen) {
 	safe_m_freem(&mbufc2);
 }
 
-/** xnb_mbufc2pkt on a a mbuf chain with >1 mbuf cluster */
+/** xnb_mbufc2pkt on a mbuf chain with >1 mbuf cluster */
 static void
 xnb_mbufc2pkt_long(char *buffer, size_t buflen) {
 	struct xnb_pkt pkt;
@@ -1560,7 +1560,7 @@ xnb_mbufc2pkt_long(char *buffer, size_t buflen) {
 	safe_m_freem(&mbufc);
 }
 
-/** xnb_mbufc2pkt on a a mbuf chain with >1 mbuf cluster and extra info */
+/** xnb_mbufc2pkt on a mbuf chain with >1 mbuf cluster and extra info */
 static void
 xnb_mbufc2pkt_extra(char *buffer, size_t buflen) {
 	struct xnb_pkt pkt;

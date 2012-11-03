@@ -33,6 +33,7 @@
 #include <sys/module.h>
 #include <sys/errno.h>
 #include "opt_compat.h"
+#include "opt_nfs.h"
 
 static int
 dtraceall_modevent(module_t mod __unused, int type, void *data __unused)
@@ -68,7 +69,9 @@ MODULE_DEPEND(dtraceall, dtrace, 1, 1, 1);
 MODULE_DEPEND(dtraceall, dtio, 1, 1, 1);
 MODULE_DEPEND(dtraceall, dtmalloc, 1, 1, 1);
 MODULE_DEPEND(dtraceall, dtnfscl, 1, 1, 1);
+#if defined(NFSCLIENT)
 MODULE_DEPEND(dtraceall, dtnfsclient, 1, 1, 1);
+#endif
 #if defined(__amd64__) || defined(__i386__)
 MODULE_DEPEND(dtraceall, fbt, 1, 1, 1);
 MODULE_DEPEND(dtraceall, fasttrap, 1, 1, 1);

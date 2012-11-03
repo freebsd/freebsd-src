@@ -141,7 +141,7 @@ def ProcA9      : SubtargetFeature<"a9", "ARMProcFamily", "CortexA9",
                                     FeatureAvoidPartialCPSR]>;
 
 class ProcNoItin<string Name, list<SubtargetFeature> Features>
- : Processor<Name, GenericItineraries, Features>;
+ : Processor<Name, NoItineraries, Features>;
 
 // V4 Processors.
 def : ProcNoItin<"generic",         []>;
@@ -204,13 +204,13 @@ def : Processor<"arm1156t2f-s",     ARMV6Itineraries, [HasV6T2Ops, FeatureVFP2,
                                                        FeatureDSPThumb2]>;
 
 // V7a Processors.
-def : Processor<"cortex-a8",        CortexA8Itineraries,
+def : ProcessorModel<"cortex-a8",   CortexA8Model,
                                     [ProcA8, HasV7Ops, FeatureNEON, FeatureDB,
                                      FeatureDSPThumb2, FeatureHasRAS]>;
-def : Processor<"cortex-a9",        CortexA9Itineraries,
+def : ProcessorModel<"cortex-a9",   CortexA9Model,
                                     [ProcA9, HasV7Ops, FeatureNEON, FeatureDB,
                                      FeatureDSPThumb2, FeatureHasRAS]>;
-def : Processor<"cortex-a9-mp",     CortexA9Itineraries,
+def : ProcessorModel<"cortex-a9-mp", CortexA9Model,
                                     [ProcA9, HasV7Ops, FeatureNEON, FeatureDB,
                                      FeatureDSPThumb2, FeatureMP,
                                      FeatureHasRAS]>;
@@ -224,7 +224,7 @@ def : ProcNoItin<"cortex-m3",       [HasV7Ops,
 def : ProcNoItin<"cortex-m4",       [HasV7Ops,
                                      FeatureThumb2, FeatureNoARM, FeatureDB,
                                      FeatureHWDiv, FeatureDSPThumb2,
-                                     FeatureT2XtPk, FeatureVFP2,
+                                     FeatureT2XtPk, FeatureVFP4,
                                      FeatureVFPOnlySP, FeatureMClass]>;
 
 //===----------------------------------------------------------------------===//

@@ -375,11 +375,16 @@ let Defs = [EAX, ECX, EDX, FP0, FP1, FP2, FP3, FP4, FP5, FP6, ST0,
             MM0, MM1, MM2, MM3, MM4, MM5, MM6, MM7,
             XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
             XMM8, XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, XMM15, EFLAGS],
-    Uses = [ESP] in
+    Uses = [ESP] in {
 def TLS_addr32 : I<0, Pseudo, (outs), (ins i32mem:$sym),
                   "# TLS_addr32",
                   [(X86tlsaddr tls32addr:$sym)]>,
                   Requires<[In32BitMode]>;
+def TLS_base_addr32 : I<0, Pseudo, (outs), (ins i32mem:$sym),
+                  "# TLS_base_addr32",
+                  [(X86tlsbaseaddr tls32baseaddr:$sym)]>,
+                  Requires<[In32BitMode]>;
+}
 
 // All calls clobber the non-callee saved registers. RSP is marked as
 // a use to prevent stack-pointer assignments that appear immediately
@@ -389,11 +394,16 @@ let Defs = [RAX, RCX, RDX, RSI, RDI, R8, R9, R10, R11,
             MM0, MM1, MM2, MM3, MM4, MM5, MM6, MM7,
             XMM0, XMM1, XMM2, XMM3, XMM4, XMM5, XMM6, XMM7,
             XMM8, XMM9, XMM10, XMM11, XMM12, XMM13, XMM14, XMM15, EFLAGS],
-    Uses = [RSP] in
+    Uses = [RSP] in {
 def TLS_addr64 : I<0, Pseudo, (outs), (ins i64mem:$sym),
                    "# TLS_addr64",
                   [(X86tlsaddr tls64addr:$sym)]>,
                   Requires<[In64BitMode]>;
+def TLS_base_addr64 : I<0, Pseudo, (outs), (ins i64mem:$sym),
+                   "# TLS_base_addr64",
+                  [(X86tlsbaseaddr tls64baseaddr:$sym)]>,
+                  Requires<[In64BitMode]>;
+}
 
 // Darwin TLS Support
 // For i386, the address of the thunk is passed on the stack, on return the
@@ -443,6 +453,11 @@ def CMOV_GR16 : I<0, Pseudo,
                     "#CMOV_GR16* PSEUDO!",
                     [(set GR16:$dst,
                       (X86cmov GR16:$src1, GR16:$src2, imm:$cond, EFLAGS))]>;
+} // Predicates = [NoCMov]
+
+// fcmov doesn't handle all possible EFLAGS, provide a fallback if there is no
+// SSE1.
+let Predicates = [FPStackf32] in
 def CMOV_RFP32 : I<0, Pseudo,
                     (outs RFP32:$dst),
                     (ins RFP32:$src1, RFP32:$src2, i8imm:$cond),
@@ -450,6 +465,9 @@ def CMOV_RFP32 : I<0, Pseudo,
                     [(set RFP32:$dst,
                       (X86cmov RFP32:$src1, RFP32:$src2, imm:$cond,
                                                   EFLAGS))]>;
+// fcmov doesn't handle all possible EFLAGS, provide a fallback if there is no
+// SSE2.
+let Predicates = [FPStackf64] in
 def CMOV_RFP64 : I<0, Pseudo,
                     (outs RFP64:$dst),
                     (ins RFP64:$src1, RFP64:$src2, i8imm:$cond),
@@ -464,7 +482,6 @@ def CMOV_RFP80 : I<0, Pseudo,
                     [(set RFP80:$dst,
                       (X86cmov RFP80:$src1, RFP80:$src2, imm:$cond,
                                                   EFLAGS))]>;
-} // Predicates = [NoCMov]
 } // UsesCustomInserter = 1, Uses = [EFLAGS]
 
 
@@ -1008,8 +1025,8 @@ def : Pat<(X86call (i64 texternalsym:$dst)),
           (CALL64pcrel32 texternalsym:$dst)>;
 
 // tailcall stuff
-def : Pat<(X86tcret GR32_TC:$dst, imm:$off),
-          (TCRETURNri GR32_TC:$dst, imm:$off)>,
+def : Pat<(X86tcret ptr_rc_tailcall:$dst, imm:$off),
+          (TCRETURNri ptr_rc_tailcall:$dst, imm:$off)>,
           Requires<[In32BitMode]>;
 
 // FIXME: This is disabled for 32-bit PIC mode because the global base
@@ -1622,6 +1639,12 @@ def : Pat<(sub GR16:$src1, i16immSExt8:$src2),
           (SUB16ri8 GR16:$src1, i16immSExt8:$src2)>;
 def : Pat<(sub GR32:$src1, i32immSExt8:$src2),
           (SUB32ri8 GR32:$src1, i32immSExt8:$src2)>;
+
+// sub 0, reg
+def : Pat<(X86sub_flag 0, GR8 :$src), (NEG8r  GR8 :$src)>;
+def : Pat<(X86sub_flag 0, GR16:$src), (NEG16r GR16:$src)>;
+def : Pat<(X86sub_flag 0, GR32:$src), (NEG32r GR32:$src)>;
+def : Pat<(X86sub_flag 0, GR64:$src), (NEG64r GR64:$src)>;
 
 // mul reg, reg
 def : Pat<(mul GR16:$src1, GR16:$src2),

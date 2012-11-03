@@ -52,6 +52,10 @@ static MALLOC_DEFINE(M_RAID, "raid_data", "GEOM_RAID Data");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, raid, CTLFLAG_RW, 0, "GEOM_RAID stuff");
+int g_raid_enable = 1;
+TUNABLE_INT("kern.geom.raid.enable", &g_raid_enable);
+SYSCTL_INT(_kern_geom_raid, OID_AUTO, enable, CTLFLAG_RW,
+    &g_raid_enable, 0, "Enable on-disk metadata taste");
 u_int g_raid_aggressive_spare = 0;
 TUNABLE_INT("kern.geom.raid.aggressive_spare", &g_raid_aggressive_spare);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, aggressive_spare, CTLFLAG_RW,
@@ -104,8 +108,9 @@ LIST_HEAD(, g_raid_tr_class) g_raid_tr_classes =
 LIST_HEAD(, g_raid_volume) g_raid_volumes =
     LIST_HEAD_INITIALIZER(g_raid_volumes);
 
-static eventhandler_tag g_raid_pre_sync = NULL;
+static eventhandler_tag g_raid_post_sync = NULL;
 static int g_raid_started = 0;
+static int g_raid_shutdown = 0;
 
 static int g_raid_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
@@ -218,6 +223,8 @@ g_raid_subdisk_event2str(int event)
 	switch (event) {
 	case G_RAID_SUBDISK_E_NEW:
 		return ("NEW");
+	case G_RAID_SUBDISK_E_FAILED:
+		return ("FAILED");
 	case G_RAID_SUBDISK_E_DISCONNECTED:
 		return ("DISCONNECTED");
 	default:
@@ -489,6 +496,34 @@ g_raid_get_diskname(struct g_raid_disk *disk)
 	if (disk->d_consumer == NULL || disk->d_consumer->provider == NULL)
 		return ("[unknown]");
 	return (disk->d_consumer->provider->name);
+}
+
+void
+g_raid_get_disk_info(struct g_raid_disk *disk)
+{
+	struct g_consumer *cp = disk->d_consumer;
+	int error, len;
+
+	/* Read kernel dumping information. */
+	disk->d_kd.offset = 0;
+	disk->d_kd.length = OFF_MAX;
+	len = sizeof(disk->d_kd);
+	error = g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
+	if (error)
+		disk->d_kd.di.dumper = NULL;
+	if (disk->d_kd.di.dumper == NULL)
+		G_RAID_DEBUG1(2, disk->d_softc,
+		    "Dumping not supported by %s: %d.", 
+		    cp->provider->name, error);
+
+	/* Read BIO_DELETE support. */
+	error = g_getattr("GEOM::candelete", cp, &disk->d_candelete);
+	if (error)
+		disk->d_candelete = 0;
+	if (!disk->d_candelete)
+		G_RAID_DEBUG1(2, disk->d_softc,
+		    "BIO_DELETE not supported by %s: %d.", 
+		    cp->provider->name, error);
 }
 
 void
@@ -875,7 +910,7 @@ g_raid_orphan(struct g_consumer *cp)
 	    G_RAID_EVENT_DISK);
 }
 
-static int
+static void
 g_raid_clean(struct g_raid_volume *vol, int acw)
 {
 	struct g_raid_softc *sc;
@@ -886,22 +921,21 @@ g_raid_clean(struct g_raid_volume *vol, int acw)
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
 //	if ((sc->sc_flags & G_RAID_DEVICE_FLAG_NOFAILSYNC) != 0)
-//		return (0);
+//		return;
 	if (!vol->v_dirty)
-		return (0);
+		return;
 	if (vol->v_writes > 0)
-		return (0);
+		return;
 	if (acw > 0 || (acw == -1 &&
 	    vol->v_provider != NULL && vol->v_provider->acw > 0)) {
 		timeout = g_raid_clean_time - (time_uptime - vol->v_last_write);
-		if (timeout > 0)
-			return (timeout);
+		if (!g_raid_shutdown && timeout > 0)
+			return;
 	}
 	vol->v_dirty = 0;
 	G_RAID_DEBUG1(1, sc, "Volume %s marked as clean.",
 	    vol->v_name);
 	g_raid_write_metadata(sc, vol, NULL, NULL);
-	return (0);
 }
 
 static void
@@ -1046,6 +1080,31 @@ g_raid_kerneldump(struct g_raid_softc *sc, struct bio *bp)
 }
 
 static void
+g_raid_candelete(struct g_raid_softc *sc, struct bio *bp)
+{
+	struct g_provider *pp;
+	struct g_raid_volume *vol;
+	struct g_raid_subdisk *sd;
+	int *val;
+	int i;
+
+	val = (int *)bp->bio_data;
+	pp = bp->bio_to;
+	vol = pp->private;
+	*val = 0;
+	for (i = 0; i < vol->v_disks_count; i++) {
+		sd = &vol->v_subdisks[i];
+		if (sd->sd_state == G_RAID_SUBDISK_S_NONE)
+			continue;
+		if (sd->sd_disk->d_candelete) {
+			*val = 1;
+			break;
+		}
+	}
+	g_io_deliver(bp, 0);
+}
+
+static void
 g_raid_start(struct bio *bp)
 {
 	struct g_raid_softc *sc;
@@ -1067,7 +1126,9 @@ g_raid_start(struct bio *bp)
 	case BIO_FLUSH:
 		break;
 	case BIO_GETATTR:
-		if (!strcmp(bp->bio_attribute, "GEOM::kerneldump"))
+		if (!strcmp(bp->bio_attribute, "GEOM::candelete"))
+			g_raid_candelete(sc, bp);
+		else if (!strcmp(bp->bio_attribute, "GEOM::kerneldump"))
 			g_raid_kerneldump(sc, bp);
 		else
 			g_io_deliver(bp, EOPNOTSUPP);
@@ -1514,8 +1575,7 @@ process:
 				g_raid_disk_done_request(bp);
 		} else if (rv == EWOULDBLOCK) {
 			TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
-				if (vol->v_writes == 0 && vol->v_dirty)
-					g_raid_clean(vol, -1);
+				g_raid_clean(vol, -1);
 				if (bioq_first(&vol->v_inflight) == NULL &&
 				    vol->v_tr) {
 					t.tv_sec = g_raid_idle_threshold / 1000000;
@@ -1777,7 +1837,7 @@ g_raid_access(struct g_provider *pp, int acr, int acw, int ace)
 		error = ENXIO;
 		goto out;
 	}
-	if (dcw == 0 && vol->v_dirty)
+	if (dcw == 0)
 		g_raid_clean(vol, dcw);
 	vol->v_provider_open += acr + acw + ace;
 	/* Handle delayed node destruction. */
@@ -1920,6 +1980,8 @@ int g_raid_start_volume(struct g_raid_volume *vol)
 
 	G_RAID_DEBUG1(2, vol->v_softc, "Starting volume %s.", vol->v_name);
 	LIST_FOREACH(class, &g_raid_tr_classes, trc_list) {
+		if (!class->trc_enable)
+			continue;
 		G_RAID_DEBUG1(2, vol->v_softc,
 		    "Tasting volume %s for %s transformation.",
 		    vol->v_name, class->name);
@@ -2142,6 +2204,8 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	g_topology_assert();
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
+	if (!g_raid_enable)
+		return (NULL);
 	G_RAID_DEBUG(2, "Tasting provider %s.", pp->name);
 
 	gp = g_new_geomf(mp, "raid:taste");
@@ -2154,6 +2218,8 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	geom = NULL;
 	LIST_FOREACH(class, &g_raid_md_classes, mdc_list) {
+		if (!class->mdc_enable)
+			continue;
 		G_RAID_DEBUG(2, "Tasting provider %s for %s metadata.",
 		    pp->name, class->name);
 		obj = (void *)kobj_create((kobj_class_t)class, M_RAID,
@@ -2367,21 +2433,25 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 }
 
 static void
-g_raid_shutdown_pre_sync(void *arg, int howto)
+g_raid_shutdown_post_sync(void *arg, int howto)
 {
 	struct g_class *mp;
 	struct g_geom *gp, *gp2;
 	struct g_raid_softc *sc;
+	struct g_raid_volume *vol;
 	int error;
 
 	mp = arg;
 	DROP_GIANT();
 	g_topology_lock();
+	g_raid_shutdown = 1;
 	LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
 		if ((sc = gp->softc) == NULL)
 			continue;
 		g_topology_unlock();
 		sx_xlock(&sc->sc_lock);
+		TAILQ_FOREACH(vol, &sc->sc_volumes, v_next)
+			g_raid_clean(vol, -1);
 		g_cancel_event(sc);
 		error = g_raid_destroy(sc, G_RAID_DESTROY_DELAYED);
 		if (error != 0)
@@ -2396,9 +2466,9 @@ static void
 g_raid_init(struct g_class *mp)
 {
 
-	g_raid_pre_sync = EVENTHANDLER_REGISTER(shutdown_pre_sync,
-	    g_raid_shutdown_pre_sync, mp, SHUTDOWN_PRI_FIRST);
-	if (g_raid_pre_sync == NULL)
+	g_raid_post_sync = EVENTHANDLER_REGISTER(shutdown_post_sync,
+	    g_raid_shutdown_post_sync, mp, SHUTDOWN_PRI_FIRST);
+	if (g_raid_post_sync == NULL)
 		G_RAID_DEBUG(0, "Warning! Cannot register shutdown event.");
 	g_raid_started = 1;
 }
@@ -2407,8 +2477,8 @@ static void
 g_raid_fini(struct g_class *mp)
 {
 
-	if (g_raid_pre_sync != NULL)
-		EVENTHANDLER_DEREGISTER(shutdown_pre_sync, g_raid_pre_sync);
+	if (g_raid_post_sync != NULL)
+		EVENTHANDLER_DEREGISTER(shutdown_post_sync, g_raid_post_sync);
 	g_raid_started = 0;
 }
 

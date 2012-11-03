@@ -435,7 +435,7 @@ c_initialize(void)
 
 }
 
-const char rpcgen_table_dcl[] = "struct rpcgen_table {\n\
+static const char rpcgen_table_dcl[] = "struct rpcgen_table {\n\
 	char	*(*proc)(); \n\
 	xdrproc_t	xdr_arg; \n\
 	unsigned	len_arg; \n\

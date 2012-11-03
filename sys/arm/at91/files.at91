@@ -38,6 +38,7 @@ arm/at91/at91sam9x5.c		optional	at91sam9x5
 # All the boards we support
 #
 arm/at91/board_bwct.c		optional	at91_board_bwct
+arm/at91/board_eb9200.c		optional	at91_board_eb9200
 arm/at91/board_ethernut5.c	optional	at91_board_ethernut5
 arm/at91/board_hl200.c		optional	at91_board_hl200
 arm/at91/board_hl201.c		optional	at91_board_hl201

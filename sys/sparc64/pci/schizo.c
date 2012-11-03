@@ -1214,8 +1214,6 @@ schizo_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 		membar(Sync);
 }
 
-#define	VIS_BLOCKSIZE	64
-
 static void
 ichip_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 {

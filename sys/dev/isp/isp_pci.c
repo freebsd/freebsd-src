@@ -1268,8 +1268,7 @@ isp_pci_rd_reg_1080(ispsoftc_t *isp, int regoff)
 {
 	uint32_t rv, oc = 0;
 
-	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK ||
-	    (regoff & _BLK_REG_MASK) == (SXP_BLOCK|SXP_BANK1_SELECT)) {
+	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK) {
 		uint32_t tc;
 		/*
 		 * We will assume that someone has paused the RISC processor.
@@ -1301,8 +1300,7 @@ isp_pci_wr_reg_1080(ispsoftc_t *isp, int regoff, uint32_t val)
 {
 	int oc = 0;
 
-	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK ||
-	    (regoff & _BLK_REG_MASK) == (SXP_BLOCK|SXP_BANK1_SELECT)) {
+	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK) {
 		uint32_t tc;
 		/*
 		 * We will assume that someone has paused the RISC processor.
@@ -1525,8 +1523,8 @@ static int
 isp_pci_mbxdma(ispsoftc_t *isp)
 {
 	caddr_t base;
-	uint32_t len;
-	int i, error, ns, cmap = 0;
+	uint32_t len, nsegs;
+	int i, error, cmap = 0;
 	bus_size_t slim;	/* segment size */
 	bus_addr_t llim;	/* low limit of unavailable dma */
 	bus_addr_t hlim;	/* high limit of unavailable dma */
@@ -1567,6 +1565,11 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 		return (1);
 	}
 
+	if (isp->isp_osinfo.sixtyfourbit) {
+		nsegs = ISP_NSEG64_MAX;
+	} else {
+		nsegs = ISP_NSEG_MAX;
+	}
 #ifdef	ISP_TARGET_MODE
 	/*
 	 * XXX: We don't really support 64 bit target mode for parallel scsi yet
@@ -1579,7 +1582,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	}
 #endif
 
-	if (isp_dma_tag_create(BUS_DMA_ROOTARG(ISP_PCD(isp)), 1, slim, llim, hlim, NULL, NULL, BUS_SPACE_MAXSIZE, ISP_NSEGS, slim, 0, &isp->isp_osinfo.dmat)) {
+	if (isp_dma_tag_create(BUS_DMA_ROOTARG(ISP_PCD(isp)), 1, slim, llim, hlim, NULL, NULL, BUS_SPACE_MAXSIZE, nsegs, slim, 0, &isp->isp_osinfo.dmat)) {
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		ISP_LOCK(isp);
 		isp_prt(isp, ISP_LOGERR, "could not create master dma tag");
@@ -1630,13 +1633,12 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	if (isp->isp_type >= ISP_HA_FC_2300) {
 		len += (N_XCMDS * XCMD_SIZE);
 	}
-	ns = (len / PAGE_SIZE) + 1;
 
 	/*
 	 * Create a tag for the control spaces. We don't always need this
 	 * to be 32 bits, but we do this for simplicity and speed's sake.
 	 */
-	if (isp_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, slim, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, len, ns, slim, 0, &isp->isp_osinfo.cdmat)) {
+	if (isp_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, slim, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, len, 1, slim, 0, &isp->isp_osinfo.cdmat)) {
 		isp_prt(isp, ISP_LOGERR, "cannot create a dma tag for control spaces");
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		free(isp->isp_xflist, M_DEVBUF);
@@ -1690,18 +1692,20 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 				bus_dma_tag_destroy(fc->tdmat);
 				goto bad;
 			}
-			for (i = 0; i < INITIAL_NEXUS_COUNT; i++) {
-				struct isp_nexus *n = malloc(sizeof (struct isp_nexus), M_DEVBUF, M_NOWAIT | M_ZERO);
-				if (n == NULL) {
-					while (fc->nexus_free_list) {
-						n = fc->nexus_free_list;
-						fc->nexus_free_list = n->next;
-						free(n, M_DEVBUF);
+			if (isp->isp_type >= ISP_HA_FC_2300) {
+				for (i = 0; i < INITIAL_NEXUS_COUNT; i++) {
+					struct isp_nexus *n = malloc(sizeof (struct isp_nexus), M_DEVBUF, M_NOWAIT | M_ZERO);
+					if (n == NULL) {
+						while (fc->nexus_free_list) {
+							n = fc->nexus_free_list;
+							fc->nexus_free_list = n->next;
+							free(n, M_DEVBUF);
+						}
+						goto bad;
 					}
-					goto bad;
+					n->next = fc->nexus_free_list;
+					fc->nexus_free_list = n;
 				}
-				n->next = fc->nexus_free_list;
-				fc->nexus_free_list = n;
 			}
 		}
 	}

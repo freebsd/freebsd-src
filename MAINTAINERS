@@ -3,7 +3,7 @@ $FreeBSD$
 Please note that the content of this file is strictly advisory.
 No locks listed here are valid.  The only strict review requirements
 are granted by core.  These are documented in head/LOCKS and enforced
-by CVSROOT/approvers.
+by svnadmin/conf/approvers.
 
 The source tree is a community effort.  However, some folks go to the
 trouble of looking after particular areas of the tree.  In return for
@@ -21,7 +21,6 @@ It is not a registry of 'turf' or private property.
 subsystem	login	notes
 -----------------------------
 kqueue		jmg	Pre-commit review requested.
-mergemaster	dougb	Prefers to pre-approve commits
 libc/posix1e	rwatson	Pre-commit review requested.
 POSIX.1e ACLs	rwatson	Pre-commit review requested.
 UFS EAs		rwatson	Pre-commit review requested.
@@ -75,8 +74,6 @@ drm		rnoland	Just keep me informed of changes, try not to break it.
 unifdef(1)	fanf	Pre-commit review requested.
 ntp         	roberto	Pre-commit review requested.
 inetd		dwmalone	Recommends pre-commit review.
-nwfs		bp	In case of functional changes pre-commit review
-			requested.
 contrib/smbfs	bp	Open for in-tree committs. In case of functional
 			changes pre-commit review requested.
 contrib/pf	mlaier	Pre-commit review requested.
@@ -101,8 +98,6 @@ nfs		alfred	Will be happy to review code, but not mandatory.
 rpc.lockd	alfred	Will be happy to review code, but not mandatory.
 truss		alfred	Will be happy to review code, but not mandatory.
 rpc		alfred	Pre-commit review requested.
-xfs		kan@FreeBSD.org,rodrigc@FreeBSD.org,cattelan@xfs.org
-			Pre-commit review preferred.
 pkg_install	portmgr	Pre-commit review or approval from portmgr@ requested.
 linux emul	emulation	Please discuss changes here.
 bs{diff,patch}	cperciva	Pre-commit review requested.
@@ -125,16 +120,7 @@ lib/libc/stdtime	edwin   Heads-up appreciated, since parts of this code
 				is maintained by a third party source.
 sbin/routed	bms	Pre-commit review; notify vendor at rhyolite.com
 isci(4)		jimharris	Pre-commit review requested.
-
-Following are the entries from the Makefiles, and a few other sources.
-Please remove stale entries from both their origin, and this file.
-
-Please also consider removing the lines from the files listed below and
-stating your preferences here instead.
-
-List below generated with:
-$ cd /usr/src; find */* -type f|xargs egrep 'MAINTAINER[ <tab>]*='
-
-sys/modules/3dfx/Makefile:MAINTAINER=	cokane@FreeBSD.org
-sys/modules/urio/Makefile:MAINTAINER=	Iwasa Kazmi <kzmi@ca2.so-net.ne.jp>
-tools/tools/sysdoc/Makefile:MAINTAINER=	trhodes@FreeBSD.org
+3dfx		cokane		Pre-commit review preferred.
+cmx		daniel@roe.ch	Pre-commit review preferred.
+filemon		obrien		Pre-commit review preferred.
+sysdoc		trhodes		Pre-commit review preferred.

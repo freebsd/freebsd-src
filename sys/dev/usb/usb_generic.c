@@ -127,9 +127,8 @@ struct usb_fifo_methods usb_ugen_methods = {
 static int ugen_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, ugen, CTLFLAG_RW, 0, "USB generic");
-SYSCTL_INT(_hw_usb_ugen, OID_AUTO, debug, CTLFLAG_RW, &ugen_debug,
+SYSCTL_INT(_hw_usb_ugen, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN, &ugen_debug,
     0, "Debug level");
-
 TUNABLE_INT("hw.usb.ugen.debug", &ugen_debug);
 #endif
 
@@ -253,6 +252,7 @@ ugen_open_pipe_write(struct usb_fifo *f)
 
 	usb_config[0].type = ed->bmAttributes & UE_XFERTYPE;
 	usb_config[0].endpoint = ed->bEndpointAddress & UE_ADDR;
+	usb_config[0].stream_id = 0;	/* XXX support more stream ID's */
 	usb_config[0].direction = UE_DIR_TX;
 	usb_config[0].interval = USB_DEFAULT_INTERVAL;
 	usb_config[0].flags.proxy_buffer = 1;
@@ -321,6 +321,7 @@ ugen_open_pipe_read(struct usb_fifo *f)
 
 	usb_config[0].type = ed->bmAttributes & UE_XFERTYPE;
 	usb_config[0].endpoint = ed->bEndpointAddress & UE_ADDR;
+	usb_config[0].stream_id = 0;	/* XXX support more stream ID's */
 	usb_config[0].direction = UE_DIR_RX;
 	usb_config[0].interval = USB_DEFAULT_INTERVAL;
 	usb_config[0].flags.proxy_buffer = 1;
@@ -1391,6 +1392,7 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		struct usb_fs_start *pstart;
 		struct usb_fs_stop *pstop;
 		struct usb_fs_open *popen;
+		struct usb_fs_open_stream *popen_stream;
 		struct usb_fs_close *pclose;
 		struct usb_fs_clear_stall_sync *pstall;
 		void   *addr;
@@ -1455,6 +1457,7 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		break;
 
 	case USB_FS_OPEN:
+	case USB_FS_OPEN_STREAM:
 		if (u.popen->ep_index >= f->fs_ep_max) {
 			error = EINVAL;
 			break;
@@ -1506,6 +1509,8 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 		usb_config[0].frames = u.popen->max_frames;
 		usb_config[0].bufsize = u.popen->max_bufsize;
 		usb_config[0].usb_mode = USB_MODE_DUAL;	/* both modes */
+		if (cmd == USB_FS_OPEN_STREAM)
+			usb_config[0].stream_id = u.popen_stream->stream_id;
 
 		if (usb_config[0].type == UE_CONTROL) {
 			if (f->udev->flags.usb_mode != USB_MODE_HOST) {

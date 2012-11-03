@@ -271,10 +271,9 @@ cbq_add_altq(struct pf_altq *a)
 		return (ENODEV);
 
 	/* allocate and initialize cbq_state_t */
-	cbqp = malloc(sizeof(cbq_state_t), M_DEVBUF, M_WAITOK);
+	cbqp = malloc(sizeof(cbq_state_t), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (cbqp == NULL)
 		return (ENOMEM);
-	bzero(cbqp, sizeof(cbq_state_t));
 	CALLOUT_INIT(&cbqp->cbq_callout);
 	cbqp->cbq_qlen = 0;
 	cbqp->ifnp.ifq_ = &ifp->if_snd;	    /* keep the ifq */
