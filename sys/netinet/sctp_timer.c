@@ -90,7 +90,7 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	if (net) {
 		net->error_count++;
 		SCTPDBG(SCTP_DEBUG_TIMER4, "Error count for %p now %d thresh:%d\n",
-		    net, net->error_count,
+		    (void *)net, net->error_count,
 		    net->failure_threshold);
 		if (net->error_count > net->failure_threshold) {
 			/* We had a threshold failure */
@@ -138,7 +138,7 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		stcb->asoc.overall_error_count++;
 	}
 	SCTPDBG(SCTP_DEBUG_TIMER4, "Overall error count for %p now %d thresh:%u state:%x\n",
-	    &stcb->asoc, stcb->asoc.overall_error_count,
+	    (void *)&stcb->asoc, stcb->asoc.overall_error_count,
 	    (uint32_t) threshold,
 	    ((net == NULL) ? (uint32_t) 0 : (uint32_t) net->dest_state));
 	/*
@@ -439,7 +439,7 @@ sctp_recover_sent_list(struct sctp_tcb *stcb)
 	TAILQ_FOREACH_SAFE(chk, &asoc->sent_queue, sctp_next, nchk) {
 		if (SCTP_TSN_GE(asoc->last_acked_seq, chk->rec.data.TSN_seq)) {
 			SCTP_PRINTF("Found chk:%p tsn:%x <= last_acked_seq:%x\n",
-			    chk, chk->rec.data.TSN_seq, asoc->last_acked_seq);
+			    (void *)chk, chk->rec.data.TSN_seq, asoc->last_acked_seq);
 			TAILQ_REMOVE(&asoc->sent_queue, chk, sctp_next);
 			if (chk->pr_sctp_on) {
 				if (asoc->pr_sctp_cnt != 0)
@@ -460,7 +460,7 @@ sctp_recover_sent_list(struct sctp_tcb *stcb)
 	}
 	SCTP_PRINTF("after recover order is as follows\n");
 	TAILQ_FOREACH(chk, &asoc->sent_queue, sctp_next) {
-		SCTP_PRINTF("chk:%p TSN:%x\n", chk, chk->rec.data.TSN_seq);
+		SCTP_PRINTF("chk:%p TSN:%x\n", (void *)chk, chk->rec.data.TSN_seq);
 	}
 }
 
@@ -767,7 +767,7 @@ start_again:
 	if (audit_tf) {
 		SCTPDBG(SCTP_DEBUG_TIMER4,
 		    "Audit total flight due to negative value net:%p\n",
-		    net);
+		    (void *)net);
 		stcb->asoc.total_flight = 0;
 		stcb->asoc.total_flight_count = 0;
 		/* Clear all networks flight size */
@@ -775,7 +775,7 @@ start_again:
 			lnets->flight_size = 0;
 			SCTPDBG(SCTP_DEBUG_TIMER4,
 			    "Net:%p c-f cwnd:%d ssthresh:%d\n",
-			    lnets, lnets->cwnd, lnets->ssthresh);
+			    (void *)lnets, lnets->cwnd, lnets->ssthresh);
 		}
 		TAILQ_FOREACH(chk, &stcb->asoc.sent_queue, sctp_next) {
 			if (chk->sent < SCTP_DATAGRAM_RESEND) {

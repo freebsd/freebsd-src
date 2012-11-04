@@ -366,7 +366,7 @@ vendor EICON		0x0734	Eicon Networks
 vendor SYNTECH		0x0745	Syntech Information
 vendor DIGITALSTREAM	0x074e	Digital Stream
 vendor AUREAL		0x0755	Aureal Semiconductor
-vendor MIDIMAN		0x0763	Midiman
+vendor MAUDIO		0x0763	M-Audio
 vendor CYBERPOWER	0x0764	Cyber Power Systems, Inc.
 vendor SURECOM		0x0769	Surecom Technology
 vendor HIDGLOBAL	0x076b	HID Global
@@ -407,6 +407,7 @@ vendor ALLIEDCABLE	0x07e6	Allied Cable
 vendor STSN		0x07ef	STSN
 vendor CENTURY		0x07f7	Century Corp
 vendor NEWLINK		0x07ff	NEWlink
+vendor MAGTEK		0x0801	Mag-Tek
 vendor ZOOM		0x0803	Zoom Telephonics
 vendor PCS		0x0810	Personal Communication Systems
 vendor ALPHASMART	0x081e	AlphaSmart, Inc.
@@ -1077,6 +1078,7 @@ product APPLE IPOD_TOUCH	0x1291	iPod Touch
 product APPLE IPHONE_3G		0x1292	iPhone 3G
 product APPLE IPHONE_3GS	0x1294	iPhone 3GS
 product APPLE IPHONE_4		0x1297	iPhone 4
+product APPLE IPHONE_5		0x12a8  iPhone 5
 product APPLE IPAD		0x129a	iPad
 product APPLE ETHERNET		0x1402	Ethernet A1277
 
@@ -1587,6 +1589,9 @@ product ELV USBI2C		0xe00f	USB-I2C interface
 /* EMS products */
 product EMS DUAL_SHOOTER	0x0003	PSX gun controller converter
 
+/* Emtec products */
+product EMTEC RUF2PS 		0x2240 Flash Drive
+
 /* Encore products */
 product ENCORE RT3070_1		0x1480	RT3070
 product ENCORE RT3070_2		0x14a1	RT3070
@@ -1669,6 +1674,7 @@ product FALCOM SAMBA		0x0005	FTDI compatible adapter
 /* FEIYA products */
 product FEIYA DUMMY		0x0000	Dummy product
 product FEIYA 5IN1		0x1132	5-in-1 Card Reader
+product FEIYA ELANGO		0x6200	MicroSDHC Card Reader
 product FEIYA AC110		0x6300	AC-110 Card Reader
 
 /* Festo */
@@ -2493,6 +2499,9 @@ product LUWEN EASYDISK		0x0005	EasyDisc
 /* Macally products */
 product MACALLY MOUSE1		0x0101	mouse
 
+/* Mag-Tek products */
+product MAGTEK USBSWIPE		0x0002	USB Mag Stripe Swipe Reader
+
 /* Marvell Technology Group, Ltd. products */
 product MARVELL SHEEVAPLUG	0x9e8f	SheevaPlug serial interface
 
@@ -2878,7 +2887,9 @@ product MICROTEK V6UL		0x80ac	ScanMaker V6UL
 product MICROTUNE BT_DONGLE	0x1000	Bluetooth USB dongle
 
 /* Midiman products */
-product MIDIMAN MIDISPORT2X2	0x1001	Midisport 2x2
+product MAUDIO MIDISPORT2X2	0x1001	Midisport 2x2
+product MAUDIO FASTTRACKULTRA	0x2080	Fast Track Ultra
+product MAUDIO FASTTRACKULTRA8R	0x2081	Fast Track Ultra 8R
 
 /* MindsAtWork products */
 product MINDSATWORK WALLET	0x0001	Digital Wallet
@@ -3446,6 +3457,7 @@ product RALINK RT3071		0x3071	RT3071
 product RALINK RT3072		0x3072	RT3072
 product RALINK RT3370		0x3370	RT3370
 product RALINK RT3572		0x3572	RT3572
+product RALINK RT5370		0x5370	RT5370
 product RALINK RT8070		0x8070	RT8070
 product RALINK RT2570_3		0x9020	RT2500USB Wireless Adapter
 product RALINK RT2573_2		0x9021	RT2501USB Wireless Adapter
@@ -3961,6 +3973,7 @@ product SUNPLUS USBMOUSE	0x0007	USB Optical Mouse
 
 /* Super Top products */
 product	SUPERTOP IDE		0x6600	USB-IDE
+product	SUPERTOP FLASHDRIVE	0x121c	extrememory Snippy
 
 /* Syntech products */
 product SYNTECH CPT8001C	0x0001	CPT-8001C Barcode scanner
@@ -4163,6 +4176,7 @@ product WAVESENSE JAZZ		0xaaaa	Jazz blood glucose meter
 /* WCH products */
 product WCH CH341SER		0x5523	CH341/CH340 USB-Serial Bridge
 product WCH2 DUMMY		0x0000	Dummy product
+product WCH2 CH341SER_2		0x5523	CH341/CH340 USB-Serial Bridge
 product WCH2 CH341SER		0x7523	CH341/CH340 USB-Serial Bridge
 product WCH2 U2M		0X752d	CH345 USB2.0-MIDI
 

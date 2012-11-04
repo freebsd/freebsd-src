@@ -628,14 +628,14 @@ ip6_input(struct mbuf *m)
 	ip6 = mtod(m, struct ip6_hdr *);
 	srcrt = !IN6_ARE_ADDR_EQUAL(&odst, &ip6->ip6_dst);
 
-#ifdef IPFIREWALL_FORWARD
 	if (m->m_flags & M_FASTFWD_OURS) {
 		m->m_flags &= ~M_FASTFWD_OURS;
 		ours = 1;
 		deliverifp = m->m_pkthdr.rcvif;
 		goto hbhcheck;
 	}
-	if (m_tag_find(m, PACKET_TAG_IPFORWARD, NULL) != NULL) {
+	if ((m->m_flags & M_IP6_NEXTHOP) &&
+	    m_tag_find(m, PACKET_TAG_IPFORWARD, NULL) != NULL) {
 		/*
 		 * Directly ship the packet on.  This allows forwarding
 		 * packets originally destined to us to some other directly
@@ -644,7 +644,6 @@ ip6_input(struct mbuf *m)
 		ip6_forward(m, 1);
 		goto out;
 	}
-#endif /* IPFIREWALL_FORWARD */
 
 passin:
 	/*

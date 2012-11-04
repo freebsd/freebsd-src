@@ -204,10 +204,9 @@ rio_alloc(int weight, struct redparams *params, int flags, int pkttime)
 	int	 w, i;
 	int	 npkts_per_sec;
 
-	rp = malloc(sizeof(rio_t), M_DEVBUF, M_WAITOK);
+	rp = malloc(sizeof(rio_t), M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (rp == NULL)
 		return (NULL);
-	bzero(rp, sizeof(rio_t));
 
 	rp->rio_flags = flags;
 	if (pkttime == 0)

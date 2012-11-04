@@ -2245,8 +2245,16 @@ ieee80211_iterate_nodes(struct ieee80211_node_table *nt,
 	size_t size;
 	int i;
 	uint16_t max_aid;
+	struct ieee80211vap *vap;
 
-	max_aid = TAILQ_FIRST(&nt->nt_ic->ic_vaps)->iv_max_aid;
+	/* Overdoing it default */
+	max_aid = IEEE80211_AID_MAX;
+
+	/* Handle the case of there being no vaps just yet */
+	vap = TAILQ_FIRST(&nt->nt_ic->ic_vaps);
+	if (vap != NULL)
+		max_aid = vap->iv_max_aid;
+
 	size = max_aid * sizeof(struct ieee80211_node *);
 	ni_arr = (struct ieee80211_node **) malloc(size, M_80211_NODE,
 	    M_NOWAIT | M_ZERO);

@@ -314,6 +314,7 @@ struct tx_ring {
 	char			mtx_name[16];
 #if __FreeBSD_version >= 800000
 	struct buf_ring		*br;
+	struct task		txq_task;
 #endif
 #ifdef IXGBE_FDIR
 	u16			atr_sample;

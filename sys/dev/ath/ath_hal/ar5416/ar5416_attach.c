@@ -47,8 +47,8 @@ ar5416AniSetup(struct ath_hal *ah)
 		.coarseHigh		= { -14, -14, -14, -14, -12 },
 		.coarseLow		= { -64, -64, -64, -64, -70 },
 		.firpwr			= { -78, -78, -78, -78, -80 },
-		.maxSpurImmunityLevel	= 2,
-		.cycPwrThr1		= { 2, 4, 6 },
+		.maxSpurImmunityLevel	= 7,
+		.cycPwrThr1		= { 2, 4, 6, 8, 10, 12, 14, 16 },
 		.maxFirstepLevel	= 2,	/* levels 0..2 */
 		.firstep		= { 0, 4, 8 },
 		.ofdmTrigHigh		= 500,
@@ -911,9 +911,9 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	else
 		pCap->halKeyCacheSize = AR5416_KEYTABLE_SIZE;
 
-	/* XXX not needed */
-	pCap->halChanHalfRate = AH_FALSE;	/* XXX ? */
-	pCap->halChanQuarterRate = AH_FALSE;	/* XXX ? */
+	/* XXX Which chips? */
+	pCap->halChanHalfRate = AH_TRUE;
+	pCap->halChanQuarterRate = AH_TRUE;
 
 	pCap->halTstampPrecision = 32;
 	pCap->halHwPhyCounterSupport = AH_TRUE;

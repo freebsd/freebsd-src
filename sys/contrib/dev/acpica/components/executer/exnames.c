@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exnames - interpreter/scanner name load/execute
@@ -73,7 +72,7 @@ AcpiExNameSegment (
  *                                    (-1)==root,  0==none
  *              NumNameSegs         - count of 4-character name segments
  *
- * RETURN:      A pointer to the allocated string segment.  This segment must
+ * RETURN:      A pointer to the allocated string segment. This segment must
  *              be deleted by the caller.
  *
  * DESCRIPTION: Allocate a buffer for a name string. Ensure allocated name
@@ -484,5 +483,3 @@ AcpiExGetNameString (
 
     return_ACPI_STATUS (Status);
 }
-
-

@@ -299,11 +299,6 @@ ixv_attach(device_t dev)
 
 	INIT_DEBUGOUT("ixv_attach: begin");
 
-	if (resource_disabled("ixgbe", device_get_unit(dev))) {
-		device_printf(dev, "Disabled by device hint\n");
-		return (ENXIO);
-	}
-
 	/* Allocate, clear, and link in our adapter structure */
 	adapter = device_get_softc(dev);
 	adapter->dev = adapter->osdep.dev = dev;
@@ -641,7 +636,9 @@ ixv_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 			break;
 		}
 		enqueued++;
-		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
+		ifp->if_obytes += next->m_pkthdr.len;
+		if (next->m_flags & M_MCAST)
+			ifp->if_omcasts++;
 		/* Send a copy of the frame to the BPF listener */
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)

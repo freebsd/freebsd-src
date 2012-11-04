@@ -92,8 +92,7 @@ enum mem_type {
 
 #ifdef _KERNEL
 
-#define vtophys(va)	pmap_extract(pmap_kernel(), (vm_offset_t)(va))
-#define pmap_kextract(va)	pmap_extract(pmap_kernel(), (vm_offset_t)(va))
+#define vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
 #endif
 
@@ -123,13 +122,6 @@ struct	md_page {
 	vm_offset_t pv_kva;		/* first kernel VA mapping */
 	TAILQ_HEAD(,pv_entry)	pv_list;
 };
-
-#define	VM_MDPAGE_INIT(pg)						\
-do {									\
-	TAILQ_INIT(&pg->pv_list);					\
-	mtx_init(&(pg)->md_page.pvh_mtx, "MDPAGE Mutex", NULL, MTX_DEV);\
-	(pg)->mdpage.pvh_attrs = 0;					\
-} while (/*CONSTCOND*/0)
 
 struct l1_ttable;
 struct l2_dtable;
@@ -235,6 +227,7 @@ void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa);
 void	*pmap_kenter_temp(vm_paddr_t pa, int i);
 void 	pmap_kenter_user(vm_offset_t va, vm_paddr_t pa);
+vm_paddr_t pmap_kextract(vm_offset_t va);
 void	pmap_kremove(vm_offset_t);
 void	*pmap_mapdev(vm_offset_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
@@ -622,8 +615,6 @@ void	pmap_use_minicache(vm_offset_t, vm_size_t);
 #define	PVF_UNMAN	0x80		/* mapping is unmanaged */
 
 void vector_page_setprot(int);
-
-void pmap_update(pmap_t);
 
 /*
  * This structure is used by machine-dependent code to describe

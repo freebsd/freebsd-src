@@ -1050,8 +1050,7 @@ sys_mlock(td, uap)
 		return (ENOMEM);
 	proc = td->td_proc;
 	PROC_LOCK(proc);
-	nsize = ptoa(npages +
-	    pmap_wired_count(vm_map_pmap(&proc->p_vmspace->vm_map)));
+	nsize = ptoa(npages + vmspace_wired_count(proc->p_vmspace));
 	if (nsize > lim_cur(proc, RLIMIT_MEMLOCK)) {
 		PROC_UNLOCK(proc);
 		return (ENOMEM);
@@ -1072,7 +1071,7 @@ sys_mlock(td, uap)
 	if (error != KERN_SUCCESS) {
 		PROC_LOCK(proc);
 		racct_set(proc, RACCT_MEMLOCK,
-		    ptoa(pmap_wired_count(vm_map_pmap(&proc->p_vmspace->vm_map))));
+		    ptoa(vmspace_wired_count(proc->p_vmspace)));
 		PROC_UNLOCK(proc);
 	}
 #endif
@@ -1148,7 +1147,7 @@ sys_mlockall(td, uap)
 	if (error != KERN_SUCCESS) {
 		PROC_LOCK(td->td_proc);
 		racct_set(td->td_proc, RACCT_MEMLOCK,
-		    ptoa(pmap_wired_count(vm_map_pmap(&td->td_proc->p_vmspace->vm_map))));
+		    ptoa(vmspace_wired_count(td->td_proc->p_vmspace)));
 		PROC_UNLOCK(td->td_proc);
 	}
 #endif
@@ -1257,7 +1256,7 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 	vm_offset_t foff;
 	struct mount *mp;
 	struct ucred *cred;
-	int error, flags, locktype, vfslocked;
+	int error, flags, locktype;
 
 	mp = vp->v_mount;
 	cred = td->td_ucred;
@@ -1265,11 +1264,8 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 		locktype = LK_EXCLUSIVE;
 	else
 		locktype = LK_SHARED;
-	vfslocked = VFS_LOCK_GIANT(mp);
-	if ((error = vget(vp, locktype, td)) != 0) {
-		VFS_UNLOCK_GIANT(vfslocked);
+	if ((error = vget(vp, locktype, td)) != 0)
 		return (error);
-	}
 	foff = *foffp;
 	flags = *flagsp;
 	obj = vp->v_object;
@@ -1289,10 +1285,8 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 			 * underlying fs.
 			 */
 			error = vget(vp, locktype, td);
-			if (error != 0) {
-				VFS_UNLOCK_GIANT(vfslocked);
+			if (error != 0)
 				return (error);
-			}
 		}
 		if (locktype == LK_EXCLUSIVE) {
 			*writecounted = TRUE;
@@ -1345,7 +1339,6 @@ mark_atime:
 
 done:
 	vput(vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 

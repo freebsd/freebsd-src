@@ -774,7 +774,7 @@ AcpiInstallGpeBlock (
     Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
     if (ACPI_FAILURE (Status))
     {
-        return (Status);
+        return_ACPI_STATUS (Status);
     }
 
     Node = AcpiNsValidateHandle (GpeDevice);
@@ -867,7 +867,7 @@ AcpiRemoveGpeBlock (
     Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
     if (ACPI_FAILURE (Status))
     {
-        return (Status);
+        return_ACPI_STATUS (Status);
     }
 
     Node = AcpiNsValidateHandle (GpeDevice);

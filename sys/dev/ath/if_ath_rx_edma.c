@@ -421,13 +421,15 @@ ath_edma_recv_proc_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 	if (ngood)
 		sc->sc_lastrx = tsf;
 
-	CTR2(ATH_KTR_INTR, "ath edma rx proc: npkts=%d, ngood=%d",
+	ATH_KTR(sc, ATH_KTR_INTERRUPTS, 2,
+	    "ath edma rx proc: npkts=%d, ngood=%d",
 	    npkts, ngood);
 
 	/* Handle resched and kickpcu appropriately */
 	ATH_PCU_LOCK(sc);
 	if (dosched && sc->sc_kickpcu) {
-		CTR0(ATH_KTR_ERR, "ath_edma_recv_proc_queue(): kickpcu");
+		ATH_KTR(sc, ATH_KTR_ERROR, 0,
+		    "ath_edma_recv_proc_queue(): kickpcu");
 		device_printf(sc->sc_dev,
 		    "%s: handled npkts %d ngood %d\n",
 		    __func__, npkts, ngood);

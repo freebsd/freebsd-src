@@ -135,12 +135,13 @@ adv_isa_probe(device_t dev)
 		if ((port_index > max_port_index)
 		 || (iobase != adv_isa_ioports[port_index])) {
 			if (bootverbose)
-			    printf("adv%d: Invalid baseport of 0x%lx specified. "
-				"Nearest valid baseport is 0x%x.  Failing "
-				"probe.\n", device_get_unit(dev), iobase,
-				(port_index <= max_port_index) ?
-					adv_isa_ioports[port_index] :
-					adv_isa_ioports[max_port_index]);
+				device_printf(dev,
+				    "Invalid baseport of 0x%lx specified. "
+				    "Nearest valid baseport is 0x%x.  Failing "
+				    "probe.\n", iobase,
+				    (port_index <= max_port_index) ?
+				    adv_isa_ioports[port_index] :
+				    adv_isa_ioports[max_port_index]);
 			return ENXIO;
 		}
 		max_port_index = port_index;
@@ -169,8 +170,7 @@ adv_isa_probe(device_t dev)
 		if (iores == NULL)
 			continue;
 
-		if (adv_find_signature(rman_get_bustag(iores),
-				       rman_get_bushandle(iores)) == 0) {
+		if (adv_find_signature(iores) == 0) {
 			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
 			continue;
 		}
@@ -179,8 +179,7 @@ adv_isa_probe(device_t dev)
 		 * Got one.  Now allocate our softc
 		 * and see if we can initialize the card.
 		 */
-		adv = adv_alloc(dev, rman_get_bustag(iores),
-				rman_get_bushandle(iores));
+		adv = adv_alloc(dev, iores, 0);
 		if (adv == NULL) {
 			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
 			break;
@@ -238,13 +237,13 @@ adv_isa_probe(device_t dev)
 				/* nsegments	*/ ~0,
 				/* maxsegsz	*/ maxsegsz,
 				/* flags	*/ 0,
-				/* lockfunc	*/ busdma_lock_mutex,
-				/* lockarg	*/ &Giant,
+				/* lockfunc	*/ NULL,
+				/* lockarg	*/ NULL,
 				&adv->parent_dmat); 
 
 		if (error != 0) {
-			printf("%s: Could not allocate DMA tag - error %d\n",
-			       adv_name(adv), error); 
+			device_printf(dev,
+			    "Could not allocate DMA tag - error %d\n", error);
 			adv_free(adv); 
 			bus_release_resource(dev, SYS_RES_IOPORT, 0, iores);
 			break;
@@ -335,8 +334,11 @@ adv_isa_probe(device_t dev)
 		irqres = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 						RF_ACTIVE);
 		if (irqres == NULL ||
-		    bus_setup_intr(dev, irqres, INTR_TYPE_CAM|INTR_ENTROPY,
-		        NULL, adv_intr, adv, &ih)) {
+		    bus_setup_intr(dev, irqres, INTR_TYPE_CAM|INTR_ENTROPY|
+		    INTR_MPSAFE, NULL, adv_intr, adv, &ih) != 0) {
+			if (irqres != NULL)
+				bus_release_resource(dev, SYS_RES_IRQ, rid,
+				    irqres);
 			bus_dmamap_unload(overrun_dmat, overrun_dmamap);
 			bus_dmamem_free(overrun_dmat, overrun_buf,
 			    overrun_dmamap);

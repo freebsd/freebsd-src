@@ -49,14 +49,17 @@ struct g_class zfs_vdev_class = {
 
 DECLARE_GEOM_CLASS(zfs_vdev_class, zfs_vdev);
 
-/*
- * Don't send BIO_FLUSH.
- */
+SYSCTL_DECL(_vfs_zfs_vdev);
+/* Don't send BIO_FLUSH. */
 static int vdev_geom_bio_flush_disable = 0;
 TUNABLE_INT("vfs.zfs.vdev.bio_flush_disable", &vdev_geom_bio_flush_disable);
-SYSCTL_DECL(_vfs_zfs_vdev);
 SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, bio_flush_disable, CTLFLAG_RW,
     &vdev_geom_bio_flush_disable, 0, "Disable BIO_FLUSH");
+/* Don't send BIO_DELETE. */
+static int vdev_geom_bio_delete_disable = 0;
+TUNABLE_INT("vfs.zfs.vdev.bio_delete_disable", &vdev_geom_bio_delete_disable);
+SYSCTL_INT(_vfs_zfs_vdev, OID_AUTO, bio_delete_disable, CTLFLAG_RW,
+    &vdev_geom_bio_delete_disable, 0, "Disable BIO_DELETE");
 
 static void
 vdev_geom_orphan(struct g_consumer *cp)
@@ -175,17 +178,11 @@ vdev_geom_detach(void *arg, int flag __unused)
 static uint64_t
 nvlist_get_guid(nvlist_t *list)
 {
-	nvpair_t *elem = NULL;
 	uint64_t value;
 
-	while ((elem = nvlist_next_nvpair(list, elem)) != NULL) {
-		if (nvpair_type(elem) == DATA_TYPE_UINT64 &&
-		    strcmp(nvpair_name(elem), "guid") == 0) {
-			VERIFY(nvpair_value_uint64(elem, &value) == 0);
-			return (value);
-		}
-	}
-	return (0);
+	value = 0;
+	nvlist_lookup_uint64(list, ZPOOL_CONFIG_GUID, &value);
+	return (value);
 }
 
 static int
@@ -223,8 +220,16 @@ vdev_geom_io(struct g_consumer *cp, int cmd, void *data, off_t offset, off_t siz
 	return (error);
 }
 
-static uint64_t
-vdev_geom_read_guid(struct g_consumer *cp)
+static void
+vdev_geom_taste_orphan(struct g_consumer *cp)
+{
+
+	KASSERT(1 == 0, ("%s called while tasting %s.", __func__,
+	    cp->provider->name));
+}
+
+static int
+vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 {
 	struct g_provider *pp;
 	vdev_label_t *label;
@@ -232,13 +237,13 @@ vdev_geom_read_guid(struct g_consumer *cp)
 	size_t buflen;
 	uint64_t psize;
 	off_t offset, size;
-	uint64_t guid;
+	uint64_t guid, state, txg;
 	int error, l, len;
 
 	g_topology_assert_not();
 
 	pp = cp->provider;
-	ZFS_LOG(1, "Reading guid from %s...", pp->name);
+	ZFS_LOG(1, "Reading config from %s...", pp->name);
 
 	psize = pp->mediasize;
 	psize = P2ALIGN(psize, (uint64_t)sizeof(vdev_label_t));
@@ -250,8 +255,8 @@ vdev_geom_read_guid(struct g_consumer *cp)
 	label = kmem_alloc(size, KM_SLEEP);
 	buflen = sizeof(label->vl_vdev_phys.vp_nvlist);
 
+	*config = NULL;
 	for (l = 0; l < VDEV_LABELS; l++) {
-		nvlist_t *config = NULL;
 
 		offset = vdev_label_offset(psize, l, 0);
 		if ((offset % pp->sectorsize) != 0)
@@ -261,27 +266,151 @@ vdev_geom_read_guid(struct g_consumer *cp)
 			continue;
 		buf = label->vl_vdev_phys.vp_nvlist;
 
-		if (nvlist_unpack(buf, buflen, &config, 0) != 0)
+		if (nvlist_unpack(buf, buflen, config, 0) != 0)
 			continue;
 
-		guid = nvlist_get_guid(config);
-		nvlist_free(config);
-		if (guid != 0)
-			break;
+		if (nvlist_lookup_uint64(*config, ZPOOL_CONFIG_POOL_STATE,
+		    &state) != 0 || state == POOL_STATE_DESTROYED ||
+		    state > POOL_STATE_L2CACHE) {
+			nvlist_free(*config);
+			*config = NULL;
+			continue;
+		}
+
+		if (state != POOL_STATE_SPARE && state != POOL_STATE_L2CACHE &&
+		    (nvlist_lookup_uint64(*config, ZPOOL_CONFIG_POOL_TXG,
+		    &txg) != 0 || txg == 0)) {
+			nvlist_free(*config);
+			*config = NULL;
+			continue;
+		}
+
+		break;
 	}
 
 	kmem_free(label, size);
-	if (guid != 0)
-		ZFS_LOG(1, "guid for %s is %ju", pp->name, (uintmax_t)guid);
-	return (guid);
+	return (*config == NULL ? ENOENT : 0);
+}
+
+static int
+vdev_geom_check_config(nvlist_t *config, const char *name, uint64_t *best_txg)
+{
+	uint64_t vdev_guid;
+	uint64_t txg;
+	char *pname;
+
+	if (nvlist_lookup_string(config, ZPOOL_CONFIG_POOL_NAME, &pname) != 0 ||
+	    strcmp(pname, name) != 0)
+		return (ENOENT);
+
+	ZFS_LOG(1, "found pool: %s", pname);
+
+	txg = 0;
+	nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_TXG, &txg);
+	if (txg <= *best_txg)
+		return (ENOENT);
+	*best_txg = txg;
+	ZFS_LOG(1, "txg: %ju", (uintmax_t)*best_txg);
+
+	return (0);
+}
+
+static int
+vdev_geom_attach_taster(struct g_consumer *cp, struct g_provider *pp)
+{
+	int error;
+
+	if (pp->flags & G_PF_WITHER)
+		return (EINVAL);
+	if (pp->sectorsize > VDEV_PAD_SIZE || !ISP2(pp->sectorsize))
+		return (EINVAL);
+	g_attach(cp, pp);
+	error = g_access(cp, 1, 0, 0);
+	if (error != 0)
+		g_detach(cp);
+	return (error);
 }
 
 static void
-vdev_geom_taste_orphan(struct g_consumer *cp)
+vdev_geom_detach_taster(struct g_consumer *cp)
 {
+	g_access(cp, -1, 0, 0);
+	g_detach(cp);
+}
 
-	KASSERT(1 == 0, ("%s called while tasting %s.", __func__,
-	    cp->provider->name));
+int
+vdev_geom_read_pool_label(const char *name, nvlist_t **config)
+{
+	struct g_class *mp;
+	struct g_geom *gp, *zgp;
+	struct g_provider *pp;
+	struct g_consumer *zcp;
+	nvlist_t *vdev_cfg;
+	uint64_t best_txg;
+	int error;
+
+	DROP_GIANT();
+	g_topology_lock();
+
+	zgp = g_new_geomf(&zfs_vdev_class, "zfs::vdev::taste");
+	/* This orphan function should be never called. */
+	zgp->orphan = vdev_geom_taste_orphan;
+	zcp = g_new_consumer(zgp);
+
+	best_txg = 0;
+	*config = NULL;
+	LIST_FOREACH(mp, &g_classes, class) {
+		if (mp == &zfs_vdev_class)
+			continue;
+		LIST_FOREACH(gp, &mp->geom, geom) {
+			if (gp->flags & G_GEOM_WITHER)
+				continue;
+			LIST_FOREACH(pp, &gp->provider, provider) {
+				if (pp->flags & G_PF_WITHER)
+					continue;
+				if (vdev_geom_attach_taster(zcp, pp) != 0)
+					continue;
+				g_topology_unlock();
+				error = vdev_geom_read_config(zcp, &vdev_cfg);
+				g_topology_lock();
+				vdev_geom_detach_taster(zcp);
+				if (error)
+					continue;
+				ZFS_LOG(1, "successfully read vdev config");
+
+				error = vdev_geom_check_config(vdev_cfg, name,
+				    &best_txg);
+				if (error != 0) {
+					nvlist_free(vdev_cfg);
+					continue;
+				}
+				nvlist_free(*config);
+				*config = vdev_cfg;
+			}
+		}
+	}
+
+	g_destroy_consumer(zcp);
+	g_destroy_geom(zgp);
+	g_topology_unlock();
+	PICKUP_GIANT();
+	return (*config == NULL ? ENOENT : 0);
+}
+
+static uint64_t
+vdev_geom_read_guid(struct g_consumer *cp)
+{
+	nvlist_t *config;
+	uint64_t guid;
+
+	g_topology_assert_not();
+
+	guid = 0;
+	if (vdev_geom_read_config(cp, &config) == 0) {
+		guid = nvlist_get_guid(config);
+		nvlist_free(config);
+	}
+	return (guid);
 }
 
 static struct g_consumer *
@@ -308,18 +437,12 @@ vdev_geom_attach_by_guid(uint64_t guid)
 			if (gp->flags & G_GEOM_WITHER)
 				continue;
 			LIST_FOREACH(pp, &gp->provider, provider) {
-				if (pp->flags & G_PF_WITHER)
+				if (vdev_geom_attach_taster(zcp, pp) != 0)
 					continue;
-				g_attach(zcp, pp);
-				if (g_access(zcp, 1, 0, 0) != 0) {
-					g_detach(zcp);
-					continue;
-				}
 				g_topology_unlock();
 				pguid = vdev_geom_read_guid(zcp);
 				g_topology_lock();
-				g_access(zcp, -1, 0, 0);
-				g_detach(zcp);
+				vdev_geom_detach_taster(zcp);
 				if (pguid != guid)
 					continue;
 				cp = vdev_geom_attach(pp);
@@ -499,8 +622,8 @@ vdev_geom_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	*ashift = highbit(MAX(pp->sectorsize, SPA_MINBLOCKSIZE)) - 1;
 
 	/*
-	 * Clear the nowritecache bit, so that on a vdev_reopen() we will
-	 * try again.
+	 * Clear the nowritecache settings, so that on a vdev_reopen()
+	 * we will try again.
 	 */
 	vd->vdev_nowritecache = B_FALSE;
 
@@ -546,6 +669,15 @@ vdev_geom_io_intr(struct bio *bp)
 		 */
 		vd->vdev_nowritecache = B_TRUE;
 	}
+	if (bp->bio_cmd == BIO_DELETE && bp->bio_error == ENOTSUP) {
+		/*
+		 * If we get ENOTSUP, we know that no future
+		 * attempts will ever succeed.  In this case we
+		 * set a persistent bit so that we don't bother
+		 * with the ioctl in the future.
+		 */
+		vd->vdev_notrim = B_TRUE;
+	}
 	if (zio->io_error == EIO && !vd->vdev_remove_wanted) {
 		/*
 		 * If provider's error is set we assume it is being
@@ -588,17 +720,21 @@ vdev_geom_io_start(zio_t *zio)
 		}
 
 		switch (zio->io_cmd) {
-
 		case DKIOCFLUSHWRITECACHE:
-
 			if (zfs_nocacheflush || vdev_geom_bio_flush_disable)
 				break;
-
 			if (vd->vdev_nowritecache) {
 				zio->io_error = ENOTSUP;
 				break;
 			}
-
+			goto sendreq;
+		case DKIOCTRIM:
+			if (vdev_geom_bio_delete_disable)
+				break;
+			if (vd->vdev_notrim) {
+				zio->io_error = ENOTSUP;
+				break;
+			}
 			goto sendreq;
 		default:
 			zio->io_error = ENOTSUP;
@@ -623,11 +759,21 @@ sendreq:
 		bp->bio_length = zio->io_size;
 		break;
 	case ZIO_TYPE_IOCTL:
-		bp->bio_cmd = BIO_FLUSH;
-		bp->bio_flags |= BIO_ORDERED;
-		bp->bio_data = NULL;
-		bp->bio_offset = cp->provider->mediasize;
-		bp->bio_length = 0;
+		switch (zio->io_cmd) {
+		case DKIOCFLUSHWRITECACHE:
+			bp->bio_cmd = BIO_FLUSH;
+			bp->bio_flags |= BIO_ORDERED;
+			bp->bio_data = NULL;
+			bp->bio_offset = cp->provider->mediasize;
+			bp->bio_length = 0;
+			break;
+		case DKIOCTRIM:
+			bp->bio_cmd = BIO_DELETE;
+			bp->bio_data = NULL;
+			bp->bio_offset = zio->io_offset;
+			bp->bio_length = zio->io_size;
+			break;
+		}
 		break;
 	}
 	bp->bio_done = vdev_geom_io_intr;

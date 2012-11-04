@@ -69,8 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
-#include <arm/ti/cpsw/if_cpswreg.h>
-#include <arm/ti/cpsw/if_cpswvar.h>
+#include "if_cpswreg.h"
+#include "if_cpswvar.h"
  
 #include <arm/ti/ti_scm.h>
 
@@ -93,7 +93,7 @@ static void cpsw_init(void *arg);
 static void cpsw_init_locked(void *arg);
 static void cpsw_start(struct ifnet *ifp);
 static void cpsw_start_locked(struct ifnet *ifp);
-static void cpsw_stop(struct cpsw_softc *sc);
+static void cpsw_stop_locked(struct cpsw_softc *sc);
 static int cpsw_ioctl(struct ifnet *ifp, u_long command, caddr_t data);
 static int cpsw_allocate_dma(struct cpsw_softc *sc);
 static int cpsw_free_dma(struct cpsw_softc *sc);
@@ -397,7 +397,7 @@ cpsw_shutdown(device_t dev)
 
 	CPSW_GLOBAL_LOCK(sc);
 
-	cpsw_stop(sc);
+	cpsw_stop_locked(sc);
 
 	CPSW_GLOBAL_UNLOCK(sc);
 
@@ -522,12 +522,7 @@ cpsw_new_rxbuf(struct cpsw_softc *sc, uint32_t i, uint32_t next)
 	int error;
 	int nsegs;
 
-	if (sc->rx_mbuf[i]) {
-		bus_dmamap_sync(sc->mbuf_dtag, sc->rx_dmamap[i], BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(sc->mbuf_dtag, sc->rx_dmamap[i]);
-	}
-
-	sc->rx_mbuf[i] = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	sc->rx_mbuf[i] = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (sc->rx_mbuf[i] == NULL)
 		return (ENOBUFS);
 
@@ -586,19 +581,63 @@ cpsw_encap(struct cpsw_softc *sc, struct mbuf *m0)
 	bd.next = 0;
 	bd.bufptr = seg->ds_addr;
 	bd.bufoff = 0;
-	bd.buflen = (seg->ds_len < 64 ? 64 : seg->ds_len);
-	bd.pktlen = (seg->ds_len < 64 ? 64 : seg->ds_len);
+	bd.buflen = seg->ds_len;
+	bd.pktlen = seg->ds_len;
 	/* Set OWNERSHIP, SOP, EOP */
 	bd.flags = (7<<13);
 
 	/* Write descriptor */
 	cpsw_cpdma_write_txbd(idx, &bd);
+	sc->tx_mbuf[idx] = m0;
 
 	/* Previous descriptor should point to us */
 	cpsw_cpdma_write_txbd_next(((idx-1<0)?(CPSW_MAX_TX_BUFFERS-1):(idx-1)),
 		cpsw_cpdma_txbd_paddr(idx));
 
 	sc->txbd_queue_size++;
+
+	return (0);
+}
+
+/*
+ * Pad the packet to the minimum length for Ethernet.
+ * (CPSW hardware doesn't do this for us.)
+ */
+static int
+cpsw_pad(struct mbuf *m)
+{
+	int padlen = ETHER_MIN_LEN - m->m_pkthdr.len;
+	struct mbuf *last, *n;
+
+	if (padlen <= 0)
+		return (0);
+
+	/* If there's only the packet-header and we can pad there, use it. */
+	if (m->m_pkthdr.len == m->m_len && M_WRITABLE(m) &&
+	    M_TRAILINGSPACE(m) >= padlen) {
+		last = m;
+	} else {
+		/*
+		 * Walk packet chain to find last mbuf. We will either
+		 * pad there, or append a new mbuf and pad it.
+		 */
+		for (last = m; last->m_next != NULL; last = last->m_next)
+			;
+		if (!(M_WRITABLE(last) && M_TRAILINGSPACE(last) >= padlen)) {
+			/* Allocate new empty mbuf, pad it. Compact later. */
+			MGET(n, M_DONTWAIT, MT_DATA);
+			if (n == NULL)
+				return (ENOBUFS);
+			n->m_len = 0;
+			last->m_next = n;
+			last = n;
+		}
+	}
+
+	/* Now zero the pad area. */
+	memset(mtod(last, caddr_t) + last->m_len, 0, padlen);
+	last->m_len += padlen;
+	m->m_pkthdr.len += padlen;
 
 	return (0);
 }
@@ -619,6 +658,7 @@ cpsw_start_locked(struct ifnet *ifp)
 	struct cpsw_softc *sc = ifp->if_softc;
 	struct mbuf *m0, *mtmp;
 	uint32_t queued = 0;
+	int error;
 
 	CPSW_TX_LOCK_ASSERT(sc);
 
@@ -632,7 +672,12 @@ cpsw_start_locked(struct ifnet *ifp)
 		if (m0 == NULL)
 			break;
 
-		mtmp = m_defrag(m0, M_DONTWAIT);
+		if ((error = cpsw_pad(m0))) {
+			m_freem(m0);
+			continue;
+		}
+
+		mtmp = m_defrag(m0, M_NOWAIT);
 		if (mtmp)
 			m0 = mtmp;
 
@@ -656,9 +701,11 @@ cpsw_start_locked(struct ifnet *ifp)
 }
 
 static void
-cpsw_stop(struct cpsw_softc *sc)
+cpsw_stop_locked(struct cpsw_softc *sc)
 {
 	struct ifnet *ifp;
+
+	CPSW_GLOBAL_LOCK_ASSERT(sc);
 
 	ifp = sc->ifp;
 
@@ -708,12 +755,10 @@ cpsw_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			}
 		}
 		else if (ifp->if_drv_flags & IFF_DRV_RUNNING)
-			cpsw_stop(sc);
+			cpsw_stop_locked(sc);
 
 		sc->cpsw_if_flags = ifp->if_flags;
 		CPSW_GLOBAL_UNLOCK(sc);
-		break;
-		printf("%s: SIOCSIFFLAGS\n",__func__);
 		break;
 	case SIOCADDMULTI:
 		printf("%s: SIOCADDMULTI\n",__func__);
@@ -724,12 +769,10 @@ cpsw_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFCAP:
 		printf("%s: SIOCSIFCAP\n",__func__);
 		break;
-	case SIOCGIFMEDIA: /* fall through */
-		printf("%s: SIOCGIFMEDIA\n",__func__);
+	case SIOCGIFMEDIA:
 		error = ifmedia_ioctl(ifp, ifr, &sc->mii->mii_media, command);
 		break;
 	case SIOCSIFMEDIA:
-		printf("%s: SIOCSIFMEDIA\n",__func__);
 		error = ifmedia_ioctl(ifp, ifr, &sc->mii->mii_media, command);
 		break;
 	default:
@@ -806,11 +849,12 @@ cpsw_intr_rx_locked(void *arg)
 		cpsw_write_4(CPSW_CPDMA_RX_CP(0), cpsw_cpdma_rxbd_paddr(i));
 
 		bus_dmamap_sync(sc->mbuf_dtag, sc->rx_dmamap[i], BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(sc->mbuf_dtag, sc->rx_dmamap[i]);
 
 		/* Fill mbuf */
-		sc->rx_mbuf[i]->m_hdr.mh_data +=2;
-		sc->rx_mbuf[i]->m_len = bd.pktlen-2;
-		sc->rx_mbuf[i]->m_pkthdr.len = bd.pktlen-2;
+		sc->rx_mbuf[i]->m_hdr.mh_data += bd.bufoff;
+		sc->rx_mbuf[i]->m_hdr.mh_len = bd.pktlen - 4;
+		sc->rx_mbuf[i]->m_pkthdr.len = bd.pktlen - 4;
 		sc->rx_mbuf[i]->m_flags |= M_PKTHDR;
 		sc->rx_mbuf[i]->m_pkthdr.rcvif = ifp;
 
@@ -826,6 +870,7 @@ cpsw_intr_rx_locked(void *arg)
 		/* Handover packet */
 		CPSW_RX_UNLOCK(sc);
 		(*ifp->if_input)(ifp, sc->rx_mbuf[i]);
+		sc->rx_mbuf[i] = NULL;
 		CPSW_RX_LOCK(sc);
 
 		/* Allocate new buffer for current descriptor */
@@ -892,6 +937,7 @@ cpsw_intr_tx_locked(void *arg)
 	    BUS_DMASYNC_POSTWRITE);
 	bus_dmamap_unload(sc->mbuf_dtag, sc->tx_dmamap[sc->txbd_head]);
 	m_freem(sc->tx_mbuf[sc->txbd_head]);
+	sc->tx_mbuf[sc->txbd_head] = NULL;
 
 	cpsw_write_4(CPSW_CPDMA_TX_CP(0), cpsw_cpdma_txbd_paddr(sc->txbd_head));
 
@@ -952,7 +998,7 @@ cpsw_watchdog(struct cpsw_softc *sc)
 	ifp->if_oerrors++;
 	if_printf(ifp, "watchdog timeout\n");
 
-	cpsw_stop(sc);
+	cpsw_stop_locked(sc);
 	cpsw_init_locked(sc);
 
 	CPSW_GLOBAL_UNLOCK(sc);

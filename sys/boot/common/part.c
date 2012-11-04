@@ -661,8 +661,8 @@ ptable_open(void *dev, off_t sectors, uint16_t sectorsize,
 	for (i = has_ext = 0; i < NDOSPART; i++) {
 		if (dp[i].dp_typ == 0)
 			continue;
-		start = le32toh(dp[i].dp_start);
-		end = le32toh(dp[i].dp_size);
+		start = le32dec(&(dp[i].dp_start));
+		end = le32dec(&(dp[i].dp_size));
 		if (start == 0 || end == 0)
 			continue;
 #if 0	/* Some BIOSes return an incorrect number of sectors */

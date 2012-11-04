@@ -202,7 +202,7 @@ static struct td_sched td_sched0;
  */
 static int sched_interact = SCHED_INTERACT_THRESH;
 static int realstathz = 127;
-static int tickincr = 8 << SCHED_TICK_SHIFT;;
+static int tickincr = 8 << SCHED_TICK_SHIFT;
 static int sched_slice = 12;
 #ifdef PREEMPTION
 #ifdef FULL_PREEMPTION
@@ -223,8 +223,12 @@ static int sched_idlespinthresh = -1;
  * locking in sched_pickcpu();
  */
 struct tdq {
-	/* Ordered to improve efficiency of cpu_search() and switch(). */
-	struct mtx	tdq_lock;		/* run queue lock. */
+	/* 
+	 * Ordered to improve efficiency of cpu_search() and switch().
+	 * tdq_lock is padded to avoid false sharing with tdq_load and
+	 * tdq_cpu_idle.
+	 */
+	struct mtx_padalign tdq_lock;		/* run queue lock. */
 	struct cpu_group *tdq_cg;		/* Pointer to cpu topology. */
 	volatile int	tdq_load;		/* Aggregate load. */
 	volatile int	tdq_cpu_idle;		/* cpu_idle() is active. */
@@ -287,7 +291,7 @@ static struct tdq	tdq_cpu;
 #define	TDQ_LOCK(t)		mtx_lock_spin(TDQ_LOCKPTR((t)))
 #define	TDQ_LOCK_FLAGS(t, f)	mtx_lock_spin_flags(TDQ_LOCKPTR((t)), (f))
 #define	TDQ_UNLOCK(t)		mtx_unlock_spin(TDQ_LOCKPTR((t)))
-#define	TDQ_LOCKPTR(t)		(&(t)->tdq_lock)
+#define	TDQ_LOCKPTR(t)		((struct mtx *)(&(t)->tdq_lock))
 
 static void sched_priority(struct thread *);
 static void sched_thread_priority(struct thread *, u_char);
@@ -905,10 +909,8 @@ sched_balance_pair(struct tdq *high, struct tdq *low)
 		 * reschedule with the new workload.
 		 */
 		cpu = TDQ_ID(low);
-		sched_pin();
 		if (cpu != PCPU_GET(cpuid))
 			ipi_cpu(cpu, IPI_PREEMPT);
-		sched_unpin();
 	}
 	tdq_unlock_pair(high, low);
 	return (moved);
@@ -1639,7 +1641,7 @@ sched_thread_priority(struct thread *td, u_char prio)
 	    "prio:%d", td->td_priority, "new prio:%d", prio,
 	    KTR_ATTR_LINKED, sched_tdname(curthread));
 	SDT_PROBE3(sched, , , change_pri, td, td->td_proc, prio);
-	if (td != curthread && prio > td->td_priority) {
+	if (td != curthread && prio < td->td_priority) {
 		KTR_POINT3(KTR_SCHED, "thread", sched_tdname(curthread),
 		    "lend prio", "prio:%d", td->td_priority, "new prio:%d",
 		    prio, KTR_ATTR_LINKED, sched_tdname(td));

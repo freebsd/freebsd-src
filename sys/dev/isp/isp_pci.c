@@ -1268,8 +1268,7 @@ isp_pci_rd_reg_1080(ispsoftc_t *isp, int regoff)
 {
 	uint32_t rv, oc = 0;
 
-	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK ||
-	    (regoff & _BLK_REG_MASK) == (SXP_BLOCK|SXP_BANK1_SELECT)) {
+	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK) {
 		uint32_t tc;
 		/*
 		 * We will assume that someone has paused the RISC processor.
@@ -1301,8 +1300,7 @@ isp_pci_wr_reg_1080(ispsoftc_t *isp, int regoff, uint32_t val)
 {
 	int oc = 0;
 
-	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK ||
-	    (regoff & _BLK_REG_MASK) == (SXP_BLOCK|SXP_BANK1_SELECT)) {
+	if ((regoff & _BLK_REG_MASK) == SXP_BLOCK) {
 		uint32_t tc;
 		/*
 		 * We will assume that someone has paused the RISC processor.
@@ -1449,7 +1447,7 @@ static int
 isp_pci_mbxdma(ispsoftc_t *isp)
 {
 	uint32_t len, nsegs;
-	int i, error, ns, cmap = 0;
+	int i, error, cmap = 0;
 	bus_size_t slim;	/* segment size */
 	bus_addr_t llim;	/* low limit of unavailable dma */
 	bus_addr_t hlim;	/* high limit of unavailable dma */
@@ -1559,14 +1557,13 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	if (isp->isp_type >= ISP_HA_FC_2300) {
 		len += (N_XCMDS * XCMD_SIZE);
 	}
-	ns = (len / PAGE_SIZE) + 1;
 
 	/*
 	 * Create a tag for the control spaces. We don't always need this
 	 * to be 32 bits, but we do this for simplicity and speed's sake.
 	 */
 	error = busdma_tag_derive(isp->isp_osinfo.dmat, QENTRY_LEN, slim,
-	    BUS_SPACE_MAXADDR_32BIT, len, ns, slim, 0, &isp->isp_osinfo.cdmat);
+	    BUS_SPACE_MAXADDR_32BIT, len, 1, slim, 0, &isp->isp_osinfo.cdmat);
 	if (error) {
 		isp_prt(isp, ISP_LOGERR, "cannot create a dma tag for control spaces");
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);

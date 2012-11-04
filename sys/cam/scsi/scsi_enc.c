@@ -559,7 +559,7 @@ enc_runcmd(struct enc_softc *enc, char *cdb, int cdbl, char *dptr, int *dlenp)
 		cdbl = IOCDBLEN;
 	}
 
-	ccb = cam_periph_getccb(enc->periph, 1);
+	ccb = cam_periph_getccb(enc->periph, CAM_PRIORITY_NORMAL);
 	if (enc->enc_type == ENC_SEMB_SES || enc->enc_type == ENC_SEMB_SAFT) {
 		tdlen = min(dlen, 1020);
 		tdlen = (tdlen + 3) & ~3;
@@ -627,7 +627,7 @@ enc_log(struct enc_softc *enc, const char *fmt, ...)
 /*
  * Is this a device that supports enclosure services?
  *
- * It's a a pretty simple ruleset- if it is device type
+ * It's a pretty simple ruleset- if it is device type
  * 0x0D (13), it's an ENCLOSURE device.
  */
 
@@ -879,11 +879,6 @@ enc_ctor(struct cam_periph *periph, void *arg)
 	char *tname;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("enc_ctor: periph was NULL!!\n");
-		goto out;
-	}
-
 	if (cgd == NULL) {
 		printf("enc_ctor: no getdev CCB, can't register device\n");
 		goto out;

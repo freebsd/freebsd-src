@@ -687,4 +687,3 @@ AcpiDmEmitExternals (
 
     AcpiOsPrintf ("\n");
 }
-

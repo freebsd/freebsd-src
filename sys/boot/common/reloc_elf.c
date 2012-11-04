@@ -193,6 +193,31 @@ __elfN(reloc)(struct elf_file *ef, symaddr_fn *symaddr, const void *reldata,
 	}
 
 	return (0);
+#elif defined(__powerpc__)
+	Elf_Size w;
+	const Elf_Rela *rela;
+
+	switch (reltype) {
+	case ELF_RELOC_RELA:
+		rela = reldata;
+		if (relbase + rela->r_offset >= dataaddr &&
+		    relbase + rela->r_offset < dataaddr + len) {
+			switch (ELF_R_TYPE(rela->r_info)) {
+			case R_PPC_RELATIVE:
+				w = relbase + rela->r_addend;
+				bcopy(&w, (u_char *)data + (relbase +
+				      rela->r_offset - dataaddr), sizeof(w));
+				break;
+			default:
+				printf("\nunhandled relocation type %u\n",
+				       (u_int)ELF_R_TYPE(rela->r_info));
+				return (EFTYPE);
+			}
+		}
+		break;
+	}
+
+	return (0);
 #else
 	return (EOPNOTSUPP);
 #endif

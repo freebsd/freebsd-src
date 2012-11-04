@@ -463,12 +463,10 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 	char *pop;
 	struct vnode *vp;
 	int error, flg, tmp;
-	int vfslocked;
 	u_int old, new;
 	uint64_t bsize;
 	off_t foffset;
 
-	vfslocked = 0;
 	error = 0;
 	flg = F_POSIX;
 	p = td->td_proc;
@@ -637,7 +635,6 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		fhold(fp);
 		FILEDESC_SUNLOCK(fdp);
 		vp = fp->f_vnode;
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		switch (flp->l_type) {
 		case F_RDLCK:
 			if ((fp->f_flag & FREAD) == 0) {
@@ -681,8 +678,6 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			error = EINVAL;
 			break;
 		}
-		VFS_UNLOCK_GIANT(vfslocked);
-		vfslocked = 0;
 		if (error != 0 || flp->l_type == F_UNLCK ||
 		    flp->l_type == F_UNLCKSYS) {
 			fdrop(fp, td);
@@ -712,11 +707,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			flp->l_start = 0;
 			flp->l_len = 0;
 			flp->l_type = F_UNLCK;
-			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 			(void) VOP_ADVLOCK(vp, (caddr_t)p->p_leader,
 			    F_UNLCK, flp, F_POSIX);
-			VFS_UNLOCK_GIANT(vfslocked);
-			vfslocked = 0;
 		} else
 			FILEDESC_SUNLOCK(fdp);
 		fdrop(fp, td);
@@ -759,11 +751,8 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		fhold(fp);
 		FILEDESC_SUNLOCK(fdp);
 		vp = fp->f_vnode;
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_GETLK, flp,
 		    F_POSIX);
-		VFS_UNLOCK_GIANT(vfslocked);
-		vfslocked = 0;
 		fdrop(fp, td);
 		break;
 
@@ -786,7 +775,6 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		FILEDESC_SUNLOCK(fdp);
 		if (arg != 0) {
 			vp = fp->f_vnode;
-			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 			error = vn_lock(vp, LK_SHARED);
 			if (error != 0)
 				goto readahead_vnlock_fail;
@@ -797,9 +785,7 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 				new = old = fp->f_flag;
 				new |= FRDAHEAD;
 			} while (!atomic_cmpset_rel_int(&fp->f_flag, old, new));
-readahead_vnlock_fail:
-			VFS_UNLOCK_GIANT(vfslocked);
-			vfslocked = 0;
+		readahead_vnlock_fail:;
 		} else {
 			do {
 				new = old = fp->f_flag;
@@ -813,7 +799,6 @@ readahead_vnlock_fail:
 		error = EINVAL;
 		break;
 	}
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
@@ -1404,13 +1389,9 @@ sys_fpathconf(struct thread *td, struct fpathconf_args *uap)
 	}
 	vp = fp->f_vnode;
 	if (vp != NULL) {
-		int vfslocked;
-
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vn_lock(vp, LK_SHARED | LK_RETRY);
 		error = VOP_PATHCONF(vp, uap->name, td->td_retval);
 		VOP_UNLOCK(vp, 0);
-		VFS_UNLOCK_GIANT(vfslocked);
 	} else if (fp->f_type == DTYPE_PIPE || fp->f_type == DTYPE_SOCKET) {
 		if (uap->name != _PC_PIPE_BUF) {
 			error = EINVAL;
@@ -1831,7 +1812,7 @@ void
 fdfree(struct thread *td)
 {
 	struct filedesc *fdp;
-	int i, locked;
+	int i;
 	struct filedesc_to_leader *fdtol;
 	struct file *fp;
 	struct vnode *cdir, *jdir, *rdir, *vp;
@@ -1868,11 +1849,9 @@ fdfree(struct thread *td)
 				lf.l_len = 0;
 				lf.l_type = F_UNLCK;
 				vp = fp->f_vnode;
-				locked = VFS_LOCK_GIANT(vp->v_mount);
 				(void) VOP_ADVLOCK(vp,
 				    (caddr_t)td->td_proc->p_leader, F_UNLCK,
 				    &lf, F_POSIX);
-				VFS_UNLOCK_GIANT(locked);
 				FILEDESC_XLOCK(fdp);
 				fdrop(fp, td);
 			}
@@ -1950,21 +1929,12 @@ fdfree(struct thread *td)
 	fdp->fd_jdir = NULL;
 	FILEDESC_XUNLOCK(fdp);
 
-	if (cdir) {
-		locked = VFS_LOCK_GIANT(cdir->v_mount);
+	if (cdir)
 		vrele(cdir);
-		VFS_UNLOCK_GIANT(locked);
-	}
-	if (rdir) {
-		locked = VFS_LOCK_GIANT(rdir->v_mount);
+	if (rdir)
 		vrele(rdir);
-		VFS_UNLOCK_GIANT(locked);
-	}
-	if (jdir) {
-		locked = VFS_LOCK_GIANT(jdir->v_mount);
+	if (jdir)
 		vrele(jdir);
-		VFS_UNLOCK_GIANT(locked);
-	}
 
 	fddrop(fdp);
 }
@@ -2163,10 +2133,7 @@ closef(struct file *fp, struct thread *td)
 	 */
 	(void)cap_funwrap(fp, 0, &fp_object);
 	if (fp_object->f_type == DTYPE_VNODE && td != NULL) {
-		int vfslocked;
-
 		vp = fp_object->f_vnode;
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		if ((td->td_proc->p_leader->p_flag & P_ADVLOCK) != 0) {
 			lf.l_whence = SEEK_SET;
 			lf.l_start = 0;
@@ -2209,7 +2176,6 @@ closef(struct file *fp, struct thread *td)
 			}
 			FILEDESC_XUNLOCK(fdp);
 		}
-		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	return (fdrop(fp, td));
 }
@@ -2593,7 +2559,6 @@ sys_flock(struct thread *td, struct flock_args *uap)
 	struct file *fp;
 	struct vnode *vp;
 	struct flock lf;
-	int vfslocked;
 	int error;
 
 	if ((error = fget(td, uap->fd, CAP_FLOCK, &fp)) != 0)
@@ -2604,7 +2569,6 @@ sys_flock(struct thread *td, struct flock_args *uap)
 	}
 
 	vp = fp->f_vnode;
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	lf.l_whence = SEEK_SET;
 	lf.l_start = 0;
 	lf.l_len = 0;
@@ -2627,7 +2591,6 @@ sys_flock(struct thread *td, struct flock_args *uap)
 	    (uap->how & LOCK_NB) ? F_FLOCK : F_FLOCK | F_WAIT);
 done2:
 	fdrop(fp, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 /*
@@ -2883,7 +2846,6 @@ export_vnode_for_osysctl(struct vnode *vp, int type,
 {
 	int error;
 	char *fullpath, *freepath;
-	int vfslocked;
 
 	bzero(kif, sizeof(*kif));
 	kif->kf_structsize = sizeof(*kif);
@@ -2909,9 +2871,7 @@ export_vnode_for_osysctl(struct vnode *vp, int type,
 	fullpath = "-";
 	FILEDESC_SUNLOCK(fdp);
 	vn_fullpath(curthread, vp, &fullpath, &freepath);
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vrele(vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	strlcpy(kif->kf_path, fullpath, sizeof(kif->kf_path));
 	if (freepath != NULL)
 		free(freepath, M_TEMP);
@@ -2936,7 +2896,6 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 	struct file *fp;
 	struct proc *p;
 	struct tty *tp;
-	int vfslocked;
 
 	name = (int *)arg1;
 	if ((p = pfind((pid_t)name[0])) == NULL)
@@ -3103,9 +3062,7 @@ sysctl_kern_proc_ofiledesc(SYSCTL_HANDLER_ARGS)
 			fullpath = "-";
 			FILEDESC_SUNLOCK(fdp);
 			vn_fullpath(curthread, vp, &fullpath, &freepath);
-			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 			vrele(vp);
-			VFS_UNLOCK_GIANT(vfslocked);
 			strlcpy(kif->kf_path, fullpath,
 			    sizeof(kif->kf_path));
 			if (freepath != NULL)
@@ -3181,7 +3138,7 @@ export_fd_for_sysctl(void *data, int type, int fd, int fflags, int refcnt,
 	};
 #define	NFFLAGS	(sizeof(fflags_table) / sizeof(*fflags_table))
 	struct vnode *vp;
-	int error, vfslocked;
+	int error;
 	unsigned int i;
 
 	bzero(kif, sizeof(*kif));
@@ -3190,9 +3147,7 @@ export_fd_for_sysctl(void *data, int type, int fd, int fflags, int refcnt,
 	case KF_TYPE_VNODE:
 		vp = (struct vnode *)data;
 		error = fill_vnode_info(vp, kif);
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vrele(vp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		break;
 	case KF_TYPE_SOCKET:
 		error = fill_socket_info((struct socket *)data, kif);
@@ -3477,7 +3432,7 @@ fill_vnode_info(struct vnode *vp, struct kinfo_file *kif)
 {
 	struct vattr va;
 	char *fullpath, *freepath;
-	int error, vfslocked;
+	int error;
 
 	if (vp == NULL)
 		return (1);
@@ -3496,11 +3451,9 @@ fill_vnode_info(struct vnode *vp, struct kinfo_file *kif)
 	 */
 	va.va_fsid = VNOVAL;
 	va.va_rdev = NODEV;
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	error = VOP_GETATTR(vp, &va, curthread->td_ucred);
 	VOP_UNLOCK(vp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
 	if (error != 0)
 		return (error);
 	if (va.va_fsid != VNOVAL)

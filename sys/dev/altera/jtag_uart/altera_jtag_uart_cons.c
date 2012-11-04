@@ -82,7 +82,7 @@ static cn_ungrab_t	aju_cnungrab;
 
 /*
  * I/O routines lifted from Deimos.  This is not only MIPS-specific, but also
- * BERI-specific, as we're hard coding the the address at which we expect to
+ * BERI-specific, as we're hard coding the address at which we expect to
  * find the Altera JTAG UART and using it unconditionally.  We use these
  * low-level routines so that we can perform console I/O long before newbus
  * has initialised and devices have attached.  The TTY layer of the driver

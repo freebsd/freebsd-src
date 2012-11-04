@@ -658,8 +658,10 @@ ata_siiprb_end_transaction(struct ata_request *request)
 	}
     }
 
-    /* on control commands read back registers to the request struct */
-    if (request->flags & ATA_R_CONTROL) {
+    /* Read back registers to the request struct. */
+    if ((request->flags & ATA_R_ATAPI) == 0 &&
+	((request->status & ATA_S_ERROR) ||
+	 (request->flags & (ATA_R_CONTROL | ATA_R_NEEDRESULT)))) {
 	request->u.ata.count = prb->fis[12] | ((u_int16_t)prb->fis[13] << 8);
 	request->u.ata.lba = prb->fis[4] | ((u_int64_t)prb->fis[5] << 8) |
 			     ((u_int64_t)prb->fis[6] << 16);

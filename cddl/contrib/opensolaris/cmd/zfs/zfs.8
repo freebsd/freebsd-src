@@ -23,10 +23,11 @@
 .\" Copyright (c) 2012, Joyent, Inc. All rights reserved.
 .\" Copyright (c) 2011, Pawel Jakub Dawidek <pjd@FreeBSD.org>
 .\" Copyright (c) 2012, Glen Barber <gjb@FreeBSD.org>
+.\" Copyright (c) 2012, Bryan Drewery <bdrewery@FreeBSD.org>
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 12, 2012
+.Dd September 5, 2012
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -136,17 +137,21 @@
 .Fl a | Ar filesystem
 .Nm
 .Cm userspace
-.Op Fl niHp
+.Op Fl Hinp
 .Op Fl o Ar field Ns Op , Ns Ar ...
-.Op Fl sS Ar field
+.Op Fl s Ar field
+.Ar ...
+.Op Fl S Ar field
 .Ar ...
 .Op Fl t Ar type Ns Op , Ns Ar ...
 .Ar filesystem Ns | Ns Ar snapshot
 .Nm
 .Cm groupspace
-.Op Fl niHp
+.Op Fl Hinp
 .Op Fl o Ar field Ns Op , Ns Ar ...
-.Op Fl sS Ar field
+.Op Fl s Ar field
+.Ar ...
+.Op Fl S Ar field
 .Ar ...
 .Op Fl t Ar type Ns Op , Ns Ar ...
 .Ar filesystem Ns | Ns Ar snapshot
@@ -169,7 +174,7 @@
 .Fl a | Ar filesystem Ns | Ns Ar mountpoint
 .Nm
 .Cm send
-.Op Fl DnPpRrv
+.Op Fl DnPpRv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Nm
@@ -251,10 +256,10 @@
 .Op Ar snapshot Ns | Ns Ar filesystem
 .Nm
 .Cm jail
-.Ar jailid filesystem
+.Ar jailid Ns | Ns Ar jailname filesystem
 .Nm
 .Cm unjail
-.Ar jailid filesystem
+.Ar jailid Ns | Ns Ar jailname filesystem
 .Sh DESCRIPTION
 The
 .Nm
@@ -1083,7 +1088,7 @@ bit is respected for the file system. The default value is
 .It Sy sharesmb Ns = Ns Cm on | off | Ar opts
 The
 .Sy sharesmb
-property has currently no effect o
+property currently has no effect on
 .Fx .
 .It Sy sharenfs Ns = Ns Cm on | off | Ar opts
 Controls whether the file system is shared via
@@ -1986,9 +1991,11 @@ Upgrade the specified file system.
 .It Xo
 .Nm
 .Cm userspace
-.Op Fl niHp
+.Op Fl Hinp
 .Op Fl o Ar field Ns Op , Ns Ar ...
-.Op Fl sS Ar field
+.Op Fl s Ar field
+.Ar ...
+.Op Fl S Ar field
 .Ar ...
 .Op Fl t Ar type Ns Op , Ns Ar ...
 .Ar filesystem Ns | Ns Ar snapshot
@@ -2006,9 +2013,9 @@ Print numeric ID instead of user/group name.
 .It Fl H
 Do not print headers, use tab-delimited output.
 .It Fl p
-Use exact (parseable) numeric output.
+Use exact (parsable) numeric output.
 .It Fl o Ar field Ns Op , Ns Ar ...
-Display only the specified fields from the following set,
+Display only the specified fields from the following set:
 .Sy type,name,used,quota .
 The default is to display all fields.
 .It Fl s Ar field
@@ -2023,7 +2030,7 @@ another. The default is
 Sort by this field in reverse order. See
 .Fl s .
 .It Fl t Ar type Ns Op , Ns Ar ...
-Print only the specified types from the following set,
+Print only the specified types from the following set:
 .Sy all,posixuser,smbuser,posixgroup,smbgroup .
 .Pp
 The default is
@@ -2031,15 +2038,17 @@ The default is
 .Pp
 The default can be changed to include group types.
 .It Fl i
-Translate SID to POSIX ID. This flag has currently no effect on
+Translate SID to POSIX ID. This flag currently has no effect on
 .Fx .
 .El
 .It Xo
 .Nm
 .Cm groupspace
-.Op Fl niHp
+.Op Fl Hinp
 .Op Fl o Ar field Ns Op , Ns Ar ...
-.Op Fl sS Ar field
+.Op Fl s Ar field
+.Ar ...
+.Op Fl S Ar field
 .Ar ...
 .Op Fl t Ar type Ns Op , Ns Ar ...
 .Ar filesystem Ns | Ns Ar snapshot
@@ -2187,7 +2196,7 @@ file system shared on the system.
 .It Xo
 .Nm
 .Cm send
-.Op Fl DnPpRrv
+.Op Fl DnPpRv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Xc
@@ -2260,13 +2269,6 @@ be used regardless of the dataset's
 property, but performance will be much better if the filesystem uses a
 dedup-capable checksum (eg.
 .Sy sha256 ) .
-.It Fl r
-Recursively send all descendant snapshots.  This is similar to the
-.Fl R
-flag, but information about deleted and renamed datasets is not included, and
-property information is only included if the
-.Fl p
-flag is specified.
 .It Fl p
 Include the dataset's properties in the stream. This flag is implicit when
 .Fl R

@@ -1,0 +1,104 @@
+if [ ! "$_STRINGS_SUBR" ]; then _STRINGS_SUBR=1
+#
+# Copyright (c) 2006-2012 Devin Teske
+# All Rights Reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+
+# f_substr "$string" $start [ $length ]
+#
+# Simple wrapper to awk(1)'s `substr' function.
+#
+f_substr()
+{
+	local string="$1" start="${2:-0}" len="${3:-0}"
+	echo "$string" | awk "{ print substr(\$0, $start, $len) }"
+}
+
+# f_longest_line_length
+#
+# Simple wrapper to an awk(1) script to print the length of the longest line of
+# input (read from stdin). Supports the newline escape-sequence `\n' for
+# splitting a single line into multiple lines.
+#
+f_longest_line_length_awk='
+BEGIN { longest = 0 }
+{
+	if (split($0, lines, /\\n/) > 1)
+	{
+		for (n in lines)
+		{
+			len = length(lines[n])
+			longest = ( len > longest ? len : longest )
+		}
+	}
+	else
+	{
+		len = length($0)
+		longest = ( len > longest ? len : longest )
+	}
+}
+END { print longest }
+'
+f_longest_line_length()
+{
+	awk "$f_longest_line_length_awk"
+}
+
+# f_number_of_lines
+#
+# Simple wrapper to an awk(1) script to print the number of lines read from
+# stdin. Supports newline escape-sequence `\n' for splitting a single line into
+# multiple lines.
+#
+f_number_of_lines_awk='
+BEGIN { num_lines = 0 }
+{
+	num_lines += split(" "$0, unused, /\\n/)
+}
+END { print num_lines }
+'
+f_number_of_lines()
+{
+	awk "$f_number_of_lines_awk"
+}
+
+# f_isinteger $arg
+#
+# Returns true if argument is a positive/negative whole integer.
+#
+f_isinteger()
+{
+	local arg="$1"
+
+	# Prevent division-by-zero
+	[ "$arg" = "0" ] && return $SUCCESS
+
+	# Attempt to perform arithmetic divison (an operation which will exit
+	# with error unless arg is a valid positive/negative whole integer).
+	#
+	( : $((0/$arg)) ) > /dev/null 2>&1
+}
+
+fi # ! $_STRINGS_SUBR

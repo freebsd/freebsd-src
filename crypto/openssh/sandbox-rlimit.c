@@ -64,9 +64,11 @@ ssh_sandbox_child(struct ssh_sandbox *box)
 
 	rl_zero.rlim_cur = rl_zero.rlim_max = 0;
 
+#ifndef SANDBOX_SKIP_RLIMIT_FSIZE
 	if (setrlimit(RLIMIT_FSIZE, &rl_zero) == -1)
 		fatal("%s: setrlimit(RLIMIT_FSIZE, { 0, 0 }): %s",
 			__func__, strerror(errno));
+#endif
 	if (setrlimit(RLIMIT_NOFILE, &rl_zero) == -1)
 		fatal("%s: setrlimit(RLIMIT_NOFILE, { 0, 0 }): %s",
 			__func__, strerror(errno));

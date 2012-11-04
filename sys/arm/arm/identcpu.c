@@ -321,9 +321,11 @@ const struct cpuidtab cpuids[] = {
 	  generic_steppings },
 	{ CPU_ID_ARM_88SV581X_V7, CPU_CLASS_MARVELL,	"Sheeva 88SV581x",
 	  generic_steppings },
-	{ CPU_ID_MV88SV584X,	CPU_CLASS_MARVELL,	"Sheeva 88SV584x",
+	{ CPU_ID_MV88SV584X_V6,	CPU_CLASS_MARVELL,	"Sheeva 88SV584x",
 	  generic_steppings },
-	{ CPU_ID_ARM_88SV584X,	CPU_CLASS_MARVELL,	"Sheeva 88SV584x",
+	{ CPU_ID_ARM_88SV584X_V6, CPU_CLASS_MARVELL,	"Sheeva 88SV584x",
+	  generic_steppings },
+	{ CPU_ID_MV88SV584X_V7,	CPU_CLASS_MARVELL,	"Sheeva 88SV584x",
 	  generic_steppings },
 
 	{ 0, CPU_CLASS_NONE, NULL, NULL }

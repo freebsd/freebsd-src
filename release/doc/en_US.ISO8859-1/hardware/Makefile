@@ -16,9 +16,9 @@ INSTALL_ONLY_COMPRESSED?=
 JADEFLAGS+=	-V %generate-article-toc%
 
 # SGML content
-SRCS+=	article.sgml
+SRCS+=	article.xml
 SRCS+=	${DEV-AUTODIR}/catalog-auto
-SRCS+=	${DEV-AUTODIR}/dev-auto.sgml
+SRCS+=	${DEV-AUTODIR}/dev-auto.xml
 
 CATALOGS+=	-c ${DEV-AUTODIR}/catalog-auto
 

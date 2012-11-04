@@ -1,6 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/18/93
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 MAN=	aac.4 \
 	acpi.4 \
 	${_acpi_asus.4} \
@@ -58,6 +60,7 @@ MAN=	aac.4 \
 	atkbd.4 \
 	atkbdc.4 \
 	${_atp.4} \
+	${_atf_test_case.4} \
 	${_atrtc.4} \
 	${_attimer.4} \
 	audit.4 \
@@ -91,7 +94,6 @@ MAN=	aac.4 \
 	ciss.4 \
 	cm.4 \
 	cmx.4 \
-	coda.4 \
 	${_coretemp.4} \
 	${_cpuctl.4} \
 	cpufreq.4 \
@@ -152,9 +154,7 @@ MAN=	aac.4 \
 	gpib.4 \
 	gre.4 \
 	h_ertt.4 \
-	harp.4 \
 	hatm.4 \
-	hfa.4 \
 	hifn.4 \
 	hme.4 \
 	hpet.4 \
@@ -168,7 +168,6 @@ MAN=	aac.4 \
 	icmp.4 \
 	icmp6.4 \
 	ida.4 \
-	idt.4 \
 	ifmib.4 \
 	igb.4 \
 	igmp.4 \
@@ -335,7 +334,9 @@ MAN=	aac.4 \
 	nmdm.4 \
 	nsp.4 \
 	null.4 \
+	${_nvd.4} \
 	${_nve.4} \
+	${_nvme.4} \
 	${_nvram.4} \
 	${_nvram2env.4} \
 	${_nxge.4} \
@@ -354,6 +355,9 @@ MAN=	aac.4 \
 	pcii.4 \
 	pcm.4 \
 	pcn.4 \
+	${_pf.4} \
+	${_pflog.4} \
+	${_pfsync.4} \
 	pim.4 \
 	polling.4 \
 	ppbus.4 \
@@ -524,6 +528,7 @@ MAN=	aac.4 \
 	${_virtio.4} \
 	${_virtio_balloon.4} \
 	${_virtio_blk.4} \
+	${_virtio_scsi.4} \
 	vkbd.4 \
 	vlan.4 \
 	vpo.4 \
@@ -610,7 +615,6 @@ MLINKS+=hme.4 if_hme.4
 MLINKS+=hpet.4 acpi_hpet.4
 MLINKS+=${_hptrr.4} ${_rr232x.4}
 MLINKS+=${_attimer.4} ${_i8254.4}
-MLINKS+=idt.4 if_idt.4
 MLINKS+=igb.4 if_igb.4
 MLINKS+=ip.4 rawip.4
 MLINKS+=ipfirewall.4 ipaccounting.4 \
@@ -753,12 +757,15 @@ _linux.4=	linux.4
 _ndis.4=	ndis.4
 _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
+_nvd.4=		nvd.4
 _nve.4=		nve.4
+_nvme.4=	nvme.4
 _nvram.4=	nvram.4
 _nxge.4=	nxge.4
 _virtio.4=	virtio.4
 _virtio_balloon.4=virtio_balloon.4
 _virtio_blk.4=	virtio_blk.4
+_virtio_scsi.4= virtio_scsi.4
 _vtnet.4=	vtnet.4
 _vxge.4=	vxge.4
 _padlock.4=	padlock.4
@@ -793,6 +800,18 @@ _nvram2env.4=	nvram2env.4
 
 .if exists(${.CURDIR}/man4.${MACHINE_CPUARCH})
 SUBDIR=	man4.${MACHINE_CPUARCH}
+.endif
+
+.if ${MK_ATF} != "no"
+ATF=            ${.CURDIR}/../../../contrib/atf
+.PATH:          ${ATF}/doc
+_atf_test_case.4=	atf-test-case.4
+.endif
+
+.if ${MK_PF} != "no"
+_pf.4=		pf.4
+_pflog.4=	pflog.4
+_pfsync.4=	pfsync.4
 .endif
 
 .include <bsd.prog.mk>

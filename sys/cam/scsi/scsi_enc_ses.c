@@ -886,6 +886,7 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	struct device_match_result  *device_match;
 	struct device_match_pattern *device_pattern;
 	ses_path_iter_args_t	    *args;
+	struct cam_sim		    *sim;
 
 	args = (ses_path_iter_args_t *)arg;
 	match_pattern.type = DEV_MATCH_DEVICE;
@@ -898,9 +899,10 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	       device_pattern->data.devid_pat.id_len);
 
 	memset(&cdm, 0, sizeof(cdm));
-	if (xpt_create_path(&cdm.ccb_h.path, /*periph*/NULL, CAM_XPT_PATH_ID,
-			    CAM_TARGET_WILDCARD,
-			    CAM_LUN_WILDCARD) != CAM_REQ_CMP)
+	if (xpt_create_path_unlocked(&cdm.ccb_h.path, /*periph*/NULL,
+				     CAM_XPT_PATH_ID,
+				     CAM_TARGET_WILDCARD,
+				     CAM_LUN_WILDCARD) != CAM_REQ_CMP)
 		return;
 
 	cdm.ccb_h.func_code = XPT_DEV_MATCH;
@@ -910,8 +912,11 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	cdm.match_buf_len   = sizeof(match_result);
 	cdm.matches         = &match_result;
 
+	sim = xpt_path_sim(cdm.ccb_h.path);
+	CAM_SIM_LOCK(sim);
 	xpt_action((union ccb *)&cdm);
 	xpt_free_path(cdm.ccb_h.path);
+	CAM_SIM_UNLOCK(sim);
 
 	if ((cdm.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP
 	 || (cdm.status != CAM_DEV_MATCH_LAST
@@ -920,14 +925,18 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 		return;
 
 	device_match = &match_result.result.device_result;
-	if (xpt_create_path(&cdm.ccb_h.path, /*periph*/NULL,
-			    device_match->path_id,
-			    device_match->target_id,
-			    device_match->target_lun) != CAM_REQ_CMP)
+	if (xpt_create_path_unlocked(&cdm.ccb_h.path, /*periph*/NULL,
+				     device_match->path_id,
+				     device_match->target_id,
+				     device_match->target_lun) != CAM_REQ_CMP)
 		return;
 
 	args->callback(enc, elem, cdm.ccb_h.path, args->callback_arg);
+
+	sim = xpt_path_sim(cdm.ccb_h.path);
+	CAM_SIM_LOCK(sim);
 	xpt_free_path(cdm.ccb_h.path);
+	CAM_SIM_UNLOCK(sim);
 }
 
 /**
@@ -999,7 +1008,7 @@ ses_setphyspath_callback(enc_softc_t *enc, enc_element_t *elm,
 
 	args = (ses_setphyspath_callback_args_t *)arg;
 	old_physpath = malloc(MAXPATHLEN, M_SCSIENC, M_WAITOK|M_ZERO);
-
+	cam_periph_lock(enc->periph);
 	xpt_setup_ccb(&cdai.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
 	cdai.buftype = CDAI_TYPE_PHYS_PATH;
@@ -1024,6 +1033,7 @@ ses_setphyspath_callback(enc_softc_t *enc, enc_element_t *elm,
 		if (cdai.ccb_h.status == CAM_REQ_CMP)
 			args->num_set++;
 	}
+	cam_periph_unlock(enc->periph);
 	free(old_physpath, M_SCSIENC);
 }
 
@@ -1063,9 +1073,11 @@ ses_set_physpath(enc_softc_t *enc, enc_element_t *elm,
 		ret = ENOMEM;
 		goto out;
 	}
+	cam_periph_lock(enc->periph);
 	xpt_action((union ccb *)&cdai);
 	if ((cdai.ccb_h.status & CAM_DEV_QFRZN) != 0)
 		cam_release_devq(cdai.ccb_h.path, 0, 0, 0, FALSE);
+	cam_periph_unlock(enc->periph);
 	if (cdai.ccb_h.status != CAM_REQ_CMP)
 		goto out;
 
@@ -1311,7 +1323,7 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	enc_cache = &enc->enc_daemon_cache;
 	ses_cache = enc_cache->private;
 	buf = *bufp;
-	err = -1;;
+	err = -1;
 
 	if (error != 0) {
 		err = error;

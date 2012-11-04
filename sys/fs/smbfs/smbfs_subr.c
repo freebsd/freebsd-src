@@ -46,6 +46,7 @@
 #include <fs/smbfs/smbfs_subr.h>
 
 MALLOC_DEFINE(M_SMBFSDATA, "smbfs_data", "SMBFS private data");
+MALLOC_DEFINE(M_SMBFSCRED, "smbfs_cred", "SMBFS cred data");
 
 void
 smb_time_local2server(struct timespec *tsp, int tzoff, u_long *seconds)
@@ -221,4 +222,16 @@ smbfs_fname_tolocal(struct smb_vc *vcp, char *name, int *nmlen, int caseopt)
 		}
 	}
 	return error;
+}
+
+void *
+smbfs_malloc_scred(void)
+{
+	return (malloc(sizeof(struct smb_cred), M_SMBFSCRED, M_WAITOK));
+}
+
+void
+smbfs_free_scred(void *scred)
+{
+	free(scred, M_SMBFSCRED);
 }

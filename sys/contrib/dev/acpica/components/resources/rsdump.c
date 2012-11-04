@@ -943,4 +943,3 @@ AcpiRsDumpWordList (
 }
 
 #endif
-

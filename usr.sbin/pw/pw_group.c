@@ -34,6 +34,8 @@ static const char rcsid[] =
 #include <termios.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <grp.h>
+#include <libutil.h>
 
 #include "pw.h"
 #include "bitmap.h"
@@ -403,10 +405,9 @@ static int
 print_group(struct group * grp, int pretty)
 {
 	if (!pretty) {
-		int		buflen = 0;
 		char           *buf = NULL;
 
-		fmtgrent(&buf, &buflen, grp);
+		buf = gr_make(grp);
 		fputs(buf, stdout);
 		free(buf);
 	} else {

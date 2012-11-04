@@ -338,12 +338,10 @@ udp_input(struct mbuf *m, int off)
 	struct udphdr *uh;
 	struct ifnet *ifp;
 	struct inpcb *inp;
-	int len;
+	uint16_t len, ip_len;
 	struct ip save_ip;
 	struct sockaddr_in udp_in;
-#ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag;
-#endif
 
 	ifp = m->m_pkthdr.rcvif;
 	UDPSTAT_INC(udps_ipackets);
@@ -354,7 +352,7 @@ udp_input(struct mbuf *m, int off)
 	 * check the checksum with options still present.
 	 */
 	if (iphlen > sizeof (struct ip)) {
-		ip_stripoptions(m, (struct mbuf *)0);
+		ip_stripoptions(m);
 		iphlen = sizeof(struct ip);
 	}
 
@@ -392,13 +390,13 @@ udp_input(struct mbuf *m, int off)
 	 * reflect UDP length, drop.
 	 */
 	len = ntohs((u_short)uh->uh_ulen);
-	if (ip->ip_len != len) {
-		if (len > ip->ip_len || len < sizeof(struct udphdr)) {
+	ip_len = ntohs(ip->ip_len) - iphlen;
+	if (ip_len != len) {
+		if (len > ip_len || len < sizeof(struct udphdr)) {
 			UDPSTAT_INC(udps_badlen);
 			goto badunlocked;
 		}
-		m_adj(m, len - ip->ip_len);
-		/* ip->ip_len = len; */
+		m_adj(m, len - ip_len);
 	}
 
 	/*
@@ -546,12 +544,12 @@ udp_input(struct mbuf *m, int off)
 	/*
 	 * Locate pcb for datagram.
 	 */
-#ifdef IPFIREWALL_FORWARD
+
 	/*
 	 * Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain.
 	 */
-	fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
-	if (fwd_tag != NULL) {
+	if ((m->m_flags & M_IP_NEXTHOP) &&
+	    (fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL)) != NULL) {
 		struct sockaddr_in *next_hop;
 
 		next_hop = (struct sockaddr_in *)(fwd_tag + 1);
@@ -576,8 +574,8 @@ udp_input(struct mbuf *m, int off)
 		}
 		/* Remove the tag from the packet. We don't need it anymore. */
 		m_tag_delete(m, fwd_tag);
+		m->m_flags &= ~M_IP_NEXTHOP;
 	} else
-#endif /* IPFIREWALL_FORWARD */
 		inp = in_pcblookup_mbuf(&V_udbinfo, ip->ip_src, uh->uh_sport,
 		    ip->ip_dst, uh->uh_dport, INPLOOKUP_WILDCARD |
 		    INPLOOKUP_RLOCKPCB, ifp, m);
@@ -601,7 +599,6 @@ udp_input(struct mbuf *m, int off)
 		if (badport_bandlim(BANDLIM_ICMP_UNREACH) < 0)
 			goto badunlocked;
 		*ip = save_ip;
-		ip->ip_len += iphlen;
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_PORT, 0, 0);
 		return;
 	}
@@ -1206,7 +1203,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		struct ip *ip;
 
 		ip = (struct ip *)&ui->ui_i;
-		ip->ip_off |= IP_DF;
+		ip->ip_off |= htons(IP_DF);
 	}
 
 	ipflags = 0;
@@ -1233,7 +1230,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		m->m_pkthdr.csum_data = offsetof(struct udphdr, uh_sum);
 	} else
 		ui->ui_sum = 0;
-	((struct ip *)ui)->ip_len = sizeof (struct udpiphdr) + len;
+	((struct ip *)ui)->ip_len = htons(sizeof(struct udpiphdr) + len);
 	((struct ip *)ui)->ip_ttl = inp->inp_ip_ttl;	/* XXX */
 	((struct ip *)ui)->ip_tos = tos;		/* XXX */
 	UDPSTAT_INC(udps_opackets);
@@ -1383,7 +1380,7 @@ udp4_espdecap(struct inpcb *inp, struct mbuf *m, int off)
 	m_adj(m, skip);
 
 	ip = mtod(m, struct ip *);
-	ip->ip_len -= skip;
+	ip->ip_len = htons(ntohs(ip->ip_len) - skip);
 	ip->ip_p = IPPROTO_ESP;
 
 	/*

@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 30, 2012
+.Dd September 29, 2012
 .Dt CARP 4
 .Os
 .Sh NAME
@@ -287,6 +287,19 @@ notify 0 {
 	action "/root/carpcontrol.sh $subsystem $type";
 };
 .Ed
+.Pp
+To see
+.Nm
+packets decoded in
+.Xr tcpdump 8
+output, one needs to specify
+.Fl T Ar carp
+option, otherwise
+.Xr tcpdump 8
+tries to interpret them as VRRP packets:
+.Bd -literal -offset indent
+tcpdump -npi vlan0 -T carp
+.Ed
 .Sh SEE ALSO
 .Xr inet 4 ,
 .Xr pfsync 4 ,
@@ -294,6 +307,7 @@ notify 0 {
 .Xr devd.conf 5 ,
 .Xr ifconfig 8 ,
 .Xr sysctl 8
+.Xr tcpdump 8
 .Sh HISTORY
 The
 .Nm

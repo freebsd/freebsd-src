@@ -123,11 +123,21 @@
 /*
  * System reset
  */
+#if defined(SOC_MV_ARMADAXP)
+#define RSTOUTn_MASK		0x60
+#define SYSTEM_SOFT_RESET	0x64
+#define WD_RSTOUTn_MASK		0x4
+#define WD_GLOBAL_MASK		0x00000100
+#define WD_CPU0_MASK		0x00000001
+#define SOFT_RST_OUT_EN		0x00000001
+#define SYS_SOFT_RST		0x00000001
+#else
 #define RSTOUTn_MASK		0x8
 #define WD_RST_OUT_EN		0x00000002
 #define SOFT_RST_OUT_EN		0x00000004
 #define SYSTEM_SOFT_RESET	0xc
 #define SYS_SOFT_RST		0x00000001
+#endif
 
 /*
  * Power Control
@@ -334,6 +344,9 @@
 #define SAMPLE_AT_RESET_HI	0x18
 #elif defined(SOC_MV_FREY)
 #define SAMPLE_AT_RESET		0x100
+#elif defined(SOC_MV_ARMADAXP)
+#define SAMPLE_AT_RESET_LO	0x30
+#define SAMPLE_AT_RESET_HI	0x34
 #endif
 
 /*

@@ -1,0 +1,388 @@
+:
+# NAME:
+#	boot-strap
+#
+# SYNOPSIS:
+#	boot-strap [--"configure_arg" ... ][-s "srcdir"][-m "mksrc"]\\
+#		["prefix" ["bmakesrc" ["mksrc"]]]
+#
+# DESCRIPTION:
+#	This script is used to configure/build bmake it builds for
+#	each OS in a subdir to keep the src clean. 
+#	On successful completion it echos commands to put the new
+#	bmake binary into the /configs tree (if it exists)
+#	(http://www.crufty.net/FreeWare/configs.html), $prefix/bin
+#	and a suitable ~/*bin directory.
+#
+#	Options:
+#
+#	-c "rc"
+#		Pick up settings from "rc".  
+#		We look for '.bmake-boot-strap.rc' before processing
+#		options.
+#
+#	--share "share_dir"
+#		Where to put man pages and mk files.
+#		If $prefix ends in $HOST_TARGET, and $prefix/../share
+#		exits, the default will be that rather than $prefix/share.
+#
+#	--mksrc "mksrc"
+#		Indicate where the mk files can be found.
+#		Default is ./mk or ../mk, set to 'none' to force
+#		building without "mksrc" but in that case a sys.mk
+#		needs to exist in the default syspath ($share_dir/mk)
+#
+#	Possibly useful configure_args:
+#
+#	--without-meta
+#		disable use of meta mode.
+#
+#	--without-filemon
+#		disable use of filemon(9) which is currently only
+#		available for NetBSD and FreeBSD.
+#
+#	--with-filemon="path/to/filemon.h"
+#		enables use of filemon(9) by meta mode.
+#		
+#	--with-machine="machine"
+#		set "machine" to override that determined by
+#		machine.sh
+#	
+#	--with-force-machine="machine"
+#		force "machine" even if uname(3) provides a value.
+#
+#	--with-machine_arch="machine_arch"
+#		set "machine_arch" to override that determined by
+#		machine.sh
+#
+#	--with-default-sys-path="syspath"
+#		set an explicit default "syspath" which is where bmake
+#		will look for sys.mk and friends.
+#
+# AUTHOR:
+#	Simon J. Gerraty <sjg@crufty.net>
+
+# RCSid:
+#	$Id: boot-strap,v 1.39 2012/03/26 17:08:22 sjg Exp $
+#
+#	@(#) Copyright (c) 2001 Simon J. Gerraty
+#
+#	This file is provided in the hope that it will
+#	be of use.  There is absolutely NO WARRANTY.
+#	Permission to copy, redistribute or otherwise
+#	use this file is hereby granted provided that 
+#	the above copyright notice and this notice are
+#	left intact. 
+#      
+#	Please send copies of changes and bug-fixes to:
+#	sjg@crufty.net
+#
+
+Mydir=`dirname $0`
+. "$Mydir/os.sh"
+case "$Mydir" in
+/*) ;;
+*) Mydir=`cd "$Mydir" && 'pwd'`;;
+esac
+
+
+Usage() {
+	[ "$1" ] && echo "ERROR: $@" >&2
+	echo "Usage:" >&2
+	echo "$0 [--<configure_arg> ...][-s <srcdir>][-m <mksrc>][<prefix> [[<srcdir>] [<mksrc>]]]" >&2
+	exit 1
+}
+
+Error() {
+	echo "ERROR: $@" >&2
+	exit 1
+}
+
+source_rc() {
+	rc="$1"; shift
+	for d in ${*:-""}
+	do
+		r="${d:+$d/}$rc"
+		[ -f "$r" -a -s "$r" ] || continue
+		echo "NOTE: reading $r"
+		. "$r"
+		break
+	done
+}
+
+CONFIGURE_ARGS=
+MAKESYSPATH=
+# pick a useful default prefix (for me at least ;-)
+for prefix in /opt/$HOST_TARGET "$HOME/$HOST_TARGET" /usr/pkg /usr/local ""
+do
+	[ -d "${prefix:-.}" ] && break
+done
+srcdir=
+mksrc=
+objdir=
+quiet=:
+
+source_rc .bmake-boot-strap.rc . "$Mydir/.." "$HOME"
+
+get_optarg() {
+	expr "x$1" : "x[^=]*=\\(.*\\)"
+}
+
+while :
+do
+	case "$1" in
+	--) shift; break;;
+	--prefix) prefix="$2"; shift;;
+	--prefix=*) prefix=`get_optarg "$1"`;;
+	--src=*) srcdir=`get_optarg "$1"`;;
+	--with-mksrc=*|--mksrc=*) mksrc=`get_optarg "$1"`;;
+	--share=*) share_dir=`get_optarg "$1"`;;
+	--share) share_dir="$2"; shift;;
+	--with-default-sys-path=*)
+	    CONFIGURE_ARGS="$1"
+	    MAKESYSPATH=`get_optarg "$1"`;;
+	--with-default-sys-path)
+	    CONFIGURE_ARGS="$1 $2"
+	    MAKESYSPATH="$2"; shift;;
+	-s|--src) srcdir="$2"; shift;;
+	-m|--mksrc) mksrc="$2"; shift;;
+	-o|--objdir) objdir="$2"; shift;;
+	-q) quiet=;;
+	-c) source_rc "$2"; shift;;
+	--*) CONFIGURE_ARGS="$CONFIGURE_ARGS $1";;
+	*=*) eval "$1"; export `expr "x$1" : "x\\(.[^=]*\\)=.*"`;;
+	*) break;;
+	esac
+        shift
+done
+
+AddConfigure() {
+	case " $CONFIGURE_ARGS " in
+	*" $1"*) ;;
+	*) CONFIGURE_ARGS="$CONFIGURE_ARGS $1$2";;
+	esac
+}
+
+GetDir() {
+	match="$1"
+	shift
+	fmatch="$1"
+	shift
+	for dir in $*
+	do
+		[ -d "$dir" ] || continue
+		case "/$dir/" in
+		*$match*) ;;
+		*) continue;;
+		esac
+		case "$fmatch" in
+		.) ;;
+		*) [ -s $dir/$fmatch ] || continue;;
+		esac
+		case "$dir/" in
+		*./*) cd "$dir" && 'pwd';;
+		/*) echo $dir;;
+		*) cd "$dir" && 'pwd';;
+		esac
+		break
+	done
+}
+
+FindHereOrAbove() {
+    (
+	_t=-s
+	while :
+	do
+		case "$1" in
+		-C) cd "$2"; shift; shift;;
+		-?) _t=$1; shift;;
+		*) break;;
+		esac
+	done
+	case "$1" in	
+	/*)	# we shouldn't be here
+		[ $_t "$1" ] && echo "$1"
+		return
+		;;
+	.../*) want=`echo "$1" | sed 's,^.../*,,'`;;
+	*) want="$1";;
+	esac
+	here=`'pwd'`
+	while :
+	do
+		if [ $_t "./$want" ]; then
+			echo "$here/$want"
+			return
+		fi
+		cd ..
+		here=`'pwd'`
+		case "$here" in
+		/) return;;
+		esac
+	done
+    )
+}
+
+# is $1 missing from $2 (or PATH) ?
+no_path() {
+	eval "__p=\$${2:-PATH}"
+	case ":$__p:" in *:"$1":*) return 1;; *) return 0;; esac
+}
+
+# if $1 exists and is not in path, append it
+add_path () {
+	case "$1" in
+	-?) t=$1; shift;;
+	*) t=-d;;
+	esac
+	case "$2,$1" in
+	MAKESYSPATH,.../*) ;;
+	*) [ $t ${1:-.} ] || return;;
+	esac
+	no_path $* && eval ${2:-PATH}="$__p${__p:+:}$1"
+}
+
+
+srcdir=`GetDir /bmake make-bootstrap.sh.in "$srcdir" "$2" "$Mydir" ./bmake* "$Mydir"/../bmake*`
+[ -d "${srcdir:-/dev/null}" ] || Usage
+case "$mksrc" in
+none|-) # we don't want it
+	mksrc=
+	;;
+.../*)	# find here or above
+	mksrc=`FindHereOrAbove -C "$Mydir" -s "$mksrc/sys.mk"`
+	# that found a file
+	mksrc=`dirname $mksrc`
+	;;
+*)	# guess we want mksrc...
+	mksrc=`GetDir /mk sys.mk "$mksrc" "$3" ./mk* "$srcdir"/mk* "$srcdir"/../mk*`
+	[ -d "${mksrc:-/dev/null}" ] || Usage "Use '-m none' to build without mksrc"
+	;;
+esac
+
+# Ok, get to work...
+objdir="${objdir:-$OS}"
+[ -d "$objdir" ] || mkdir -p "$objdir"
+[ -d "$objdir" ] || mkdir "$objdir"
+cd "$objdir" || exit 1
+# make it absolute
+objdir=`'pwd'`
+
+ShareDir() {
+	case "/$1" in
+	/) [ -d /share ] || return;;
+	*/$HOST_TARGET)
+		if [ -d "$1/../share" ]; then
+			echo `dirname "$1"`/share
+			return
+		fi
+		;;
+	esac
+	echo $1/share
+}
+
+# make it easy to force prefix to use $HOST_TARGET
+: looking at "$prefix"
+case "$prefix" in
+*/host?target) prefix=`echo "$prefix" | sed "s,host.target,${HOST_TARGET},"`;;
+esac
+
+share_dir="${share_dir:-`ShareDir $prefix`}"
+
+AddConfigure --prefix= "$prefix"
+case "$CONFIGURE_ARGS" in
+*--with-*-sys-path*) ;; # skip
+*) [ "$share_dir" ] && AddConfigure --with-default-sys-path= "$share_dir/mk";;
+esac
+if [ "$mksrc" ]; then
+        AddConfigure --with-mksrc= "$mksrc"
+        # not all cc's support this
+        CFLAGS_MF= CFLAGS_MD=
+        export CFLAGS_MF CFLAGS_MD
+fi
+
+$srcdir/configure $CONFIGURE_ARGS || exit 1
+chmod 755 make-bootstrap.sh || exit 1
+./make-bootstrap.sh || exit 1
+if [ -z "$MAKESYSPATH" ]; then
+       add_path "${share_dir:-...}/mk" MAKESYSPATH
+       case "$HOST_TARGET" in
+       netbsd*) add_path /usr/share/mk MAKESYSPATH;;
+       esac
+fi
+if [ -s "${mksrc:-/dev/null}/install-mk" ]; then
+        sh "${mksrc}/install-mk" "$objdir/mk"
+        case "$MAKESYSPATH" in
+        .../mk*) ;;
+        *) MAKESYSPATH=".../mk:${MAKESYSPATH}";;
+        esac
+fi
+# make sure test below uses the same diff that configure did
+TOOL_DIFF=`type diff | sed 's,[()],,g;s,^[^/][^/]*,,;q'`
+export MAKESYSPATH TOOL_DIFF
+if [ "$mksrc" ]; then
+        $objdir/bmake test || exit 1
+else
+        # assume nothing
+        $objdir/bmake -r -m / test || exit 1
+fi
+# If -q given, we don't want all the install instructions
+$quiet exit 0
+
+make_version=`./bmake -r -m / -f ./Makefile -V MAKE_VERSION | ( read one two; echo $one )`
+bmake_version=bmake-$make_version
+
+if [ -s /usr/share/tmac/andoc.tmac ]; then
+	# this should be ok
+	man_subdir=man1
+	man_src=$srcdir/bmake.1
+else
+	# guess not
+	man_subdir=cat1
+	man_src=$srcdir/bmake.cat1
+fi
+
+install_prefix() {
+    (
+	bin_dir=
+	share_dir=
+	man_dir=
+	mk_dir=
+	while :
+	do
+		case "$1" in
+		*=*) eval "$1"; shift;;
+		*) break;;
+		esac
+	done
+	bin_dir=${bin_dir:-$1/bin}
+	share_dir=${share_dir:-`ShareDir "$1"`}
+	man_dir=${man_dir:-$share_dir/man}
+	mk_dir=${mk_dir:-$share_dir/mk}
+	echo
+	echo Commands to install into $1/
+	echo
+	echo mkdir -p $bin_dir
+	echo cp $objdir/bmake $bin_dir/$bmake_version
+	echo rm -f $bin_dir/bmake
+	echo ln -s $bmake_version $bin_dir/bmake
+	echo mkdir -p $man_dir/$man_subdir
+	echo cp $man_src $man_dir/$man_subdir/bmake.1
+	if [ "$mksrc" ]; then
+		ev=`env | grep '_MK='`
+		echo $ev sh $mksrc/install-mk $mk_dir
+	fi
+    )
+}
+
+case "$prefix/" in
+"$HOME"/*) ;;
+*)	CONFIGS=${CONFIGS:-/configs}
+	[ -d $CONFIGS ] &&
+	install_prefix mksrc= "$CONFIGS/$OS/$OSMAJOR.X/$MACHINE_ARCH$prefix"
+	# I like to keep a copy here...
+	install_prefix share_dir="$HOME/share" "$HOME/$HOST_TARGET"
+	;;
+esac
+
+install_prefix "$prefix"

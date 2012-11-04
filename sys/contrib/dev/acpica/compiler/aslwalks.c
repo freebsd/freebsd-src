@@ -566,7 +566,7 @@ AnMethodAnalysisWalkEnd (
         /*
          * If there is a peer node after the return statement, then this
          * node is unreachable code -- i.e., it won't be executed because of
-         * the preceeding Return() statement.
+         * the preceding Return() statement.
          */
         if (Op->Asl.Next)
         {

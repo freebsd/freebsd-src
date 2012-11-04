@@ -1026,34 +1026,31 @@ snmp_input_consume(struct port_input *pi)
 	pi->length -= pi->consumed;
 }
 
-struct credmsg {
-	struct cmsghdr hdr;
-	struct cmsgcred cred;
-};
+static void
+check_priv_dgram(struct port_input *pi, struct sockcred *cred)
+{
+
+	/* process explicitly sends credentials */
+	if (cred)
+		pi->priv = (cred->sc_euid == 0);
+	else
+		pi->priv = 0;
+}
 
 static void
-check_priv(struct port_input *pi, struct msghdr *msg)
+check_priv_stream(struct port_input *pi)
 {
-	struct credmsg *cmsg;
 	struct xucred ucred;
 	socklen_t ucredlen;
 
-	pi->priv = 0;
-
-	if (msg->msg_controllen == sizeof(*cmsg)) {
-		/* process explicitly sends credentials */
-
-		cmsg = (struct credmsg *)msg->msg_control;
-		pi->priv = (cmsg->cred.cmcred_euid == 0);
-		return;
-	}
-
-	/* ok, obtain the accept time credentials */
+	/* obtain the accept time credentials */
 	ucredlen = sizeof(ucred);
 
 	if (getsockopt(pi->fd, 0, LOCAL_PEERCRED, &ucred, &ucredlen) == 0 &&
 	    ucredlen >= sizeof(ucred) && ucred.cr_version == XUCRED_VERSION)
 		pi->priv = (ucred.cr_uid == 0);
+	else
+		pi->priv = 0;
 }
 
 /*
@@ -1065,7 +1062,6 @@ recv_stream(struct port_input *pi)
 	struct msghdr msg;
 	struct iovec iov[1];
 	ssize_t len;
-	struct credmsg cmsg;
 
 	if (pi->buf == NULL) {
 		/* no buffer yet - allocate one */
@@ -1084,17 +1080,8 @@ recv_stream(struct port_input *pi)
 	msg.msg_namelen = pi->peerlen;
 	msg.msg_iov = iov;
 	msg.msg_iovlen = 1;
-	if (pi->cred) {
-		msg.msg_control = &cmsg;
-		msg.msg_controllen = sizeof(cmsg);
-
-		cmsg.hdr.cmsg_len = sizeof(cmsg);
-		cmsg.hdr.cmsg_level = SOL_SOCKET;
-		cmsg.hdr.cmsg_type = SCM_CREDS;
-	} else {
-		msg.msg_control = NULL;
-		msg.msg_controllen = 0;
-	}
+	msg.msg_control = NULL;
+	msg.msg_controllen = 0;
 	msg.msg_flags = 0;
 
 	iov[0].iov_base = pi->buf + pi->length;
@@ -1109,7 +1096,7 @@ recv_stream(struct port_input *pi)
 	pi->length += len;
 
 	if (pi->cred)
-		check_priv(pi, &msg);
+		check_priv_stream(pi);
 
 	return (0);
 }
@@ -1119,13 +1106,16 @@ recv_stream(struct port_input *pi)
  * Each receive should return one datagram.
  */
 static int
-recv_dgram(struct port_input *pi)
+recv_dgram(struct port_input *pi, struct in_addr *laddr)
 {
 	u_char embuf[1000];
+	char cbuf[CMSG_SPACE(SOCKCREDSIZE(CMGROUP_MAX)) +
+	    CMSG_SPACE(sizeof(struct in_addr))];
 	struct msghdr msg;
 	struct iovec iov[1];
 	ssize_t len;
-	struct credmsg cmsg;
+	struct cmsghdr *cmsg;
+	struct sockcred *cred = NULL;
 
 	if (pi->buf == NULL) {
 		/* no buffer yet - allocate one */
@@ -1145,17 +1135,9 @@ recv_dgram(struct port_input *pi)
 	msg.msg_namelen = pi->peerlen;
 	msg.msg_iov = iov;
 	msg.msg_iovlen = 1;
-	if (pi->cred) {
-		msg.msg_control = &cmsg;
-		msg.msg_controllen = sizeof(cmsg);
-
-		cmsg.hdr.cmsg_len = sizeof(cmsg);
-		cmsg.hdr.cmsg_level = SOL_SOCKET;
-		cmsg.hdr.cmsg_type = SCM_CREDS;
-	} else {
-		msg.msg_control = NULL;
-		msg.msg_controllen = 0;
-	}
+	memset(cbuf, 0, sizeof(cbuf));
+	msg.msg_control = cbuf;
+	msg.msg_controllen = sizeof(cbuf);
 	msg.msg_flags = 0;
 
 	iov[0].iov_base = pi->buf;
@@ -1176,8 +1158,18 @@ recv_dgram(struct port_input *pi)
 
 	pi->length = (size_t)len;
 
+	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
+	    cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+		if (cmsg->cmsg_level == IPPROTO_IP &&
+		    cmsg->cmsg_type == IP_RECVDSTADDR)
+			memcpy(laddr, CMSG_DATA(cmsg), sizeof(struct in_addr));
+		if (cmsg->cmsg_level == SOL_SOCKET &&
+		    cmsg->cmsg_type == SCM_CREDS)
+			cred = (struct sockcred *)CMSG_DATA(cmsg);
+	}
+
 	if (pi->cred)
-		check_priv(pi, &msg);
+		check_priv_dgram(pi, cred);
 
 	return (0);
 }
@@ -1199,12 +1191,35 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 #ifdef USE_TCPWRAPPERS
 	char client[16];
 #endif
+	struct msghdr msg;
+	struct iovec iov[1];
+	char cbuf[CMSG_SPACE(sizeof(struct in_addr))];
+	struct cmsghdr *cmsgp;
 
 	/* get input depending on the transport */
 	if (pi->stream) {
+		msg.msg_control = NULL;
+		msg.msg_controllen = 0;
+
 		ret = recv_stream(pi);
 	} else {
-		ret = recv_dgram(pi);
+		struct in_addr *laddr;
+
+		memset(cbuf, 0, CMSG_SPACE(sizeof(struct in_addr)));
+		msg.msg_control = cbuf;
+		msg.msg_controllen = CMSG_SPACE(sizeof(struct in_addr));
+		cmsgp = CMSG_FIRSTHDR(&msg);
+		cmsgp->cmsg_len = CMSG_LEN(sizeof(struct in_addr));
+		cmsgp->cmsg_level = IPPROTO_IP;
+		cmsgp->cmsg_type = IP_SENDSRCADDR;
+		laddr = (struct in_addr *)CMSG_DATA(cmsgp);
+		
+		ret = recv_dgram(pi, laddr);
+
+		if (laddr->s_addr == 0) {
+			msg.msg_control = NULL;
+			msg.msg_controllen = 0;
+		}
 	}
 
 	if (ret == -1)
@@ -1349,11 +1364,19 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 	    sndbuf, &sndlen, "SNMP", ierr, vi, NULL);
 
 	if (ferr == SNMPD_INPUT_OK) {
-		slen = sendto(pi->fd, sndbuf, sndlen, 0, pi->peer, pi->peerlen);
+		msg.msg_name = pi->peer;
+		msg.msg_namelen = pi->peerlen;
+		msg.msg_iov = iov;
+		msg.msg_iovlen = 1;
+		msg.msg_flags = 0;
+		iov[0].iov_base = sndbuf;
+		iov[0].iov_len = sndlen;
+
+		slen = sendmsg(pi->fd, &msg, 0);
 		if (slen == -1)
-			syslog(LOG_ERR, "sendto: %m");
+			syslog(LOG_ERR, "sendmsg: %m");
 		else if ((size_t)slen != sndlen)
-			syslog(LOG_ERR, "sendto: short write %zu/%zu",
+			syslog(LOG_ERR, "sendmsg: short write %zu/%zu",
 			    sndlen, (size_t)slen);
 	}
 	snmp_pdu_free(&pdu);

@@ -1178,10 +1178,8 @@ ng_ccatm_log(const char *fmt, ...)
 static int
 ng_ccatm_mod_event(module_t mod, int event, void *data)
 {
-	int s;
 	int error = 0;
 
-	s = splnet();
 	switch (event) {
 
 	  case MOD_LOAD:
@@ -1194,6 +1192,5 @@ ng_ccatm_mod_event(module_t mod, int event, void *data)
 		error = EOPNOTSUPP;
 		break;
 	}
-	splx(s);
 	return (error);
 }

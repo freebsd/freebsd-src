@@ -545,19 +545,39 @@ after_sack_rexmit:
 	}
 
 	/*
-	 * Compare available window to amount of window
-	 * known to peer (as advertised window less
-	 * next expected input).  If the difference is at least two
-	 * max size segments, or at least 50% of the maximum possible
-	 * window, then want to send a window update to peer.
-	 * Skip this if the connection is in T/TCP half-open state.
-	 * Don't send pure window updates when the peer has closed
-	 * the connection and won't ever send more data.
+	 * Sending of standalone window updates.
+	 *
+	 * Window updates are important when we close our window due to a
+	 * full socket buffer and are opening it again after the application
+	 * reads data from it.  Once the window has opened again and the
+	 * remote end starts to send again the ACK clock takes over and
+	 * provides the most current window information.
+	 *
+	 * We must avoid the silly window syndrome whereas every read
+	 * from the receive buffer, no matter how small, causes a window
+	 * update to be sent.  We also should avoid sending a flurry of
+	 * window updates when the socket buffer had queued a lot of data
+	 * and the application is doing small reads.
+	 *
+	 * Prevent a flurry of pointless window updates by only sending
+	 * an update when we can increase the advertized window by more
+	 * than 1/4th of the socket buffer capacity.  When the buffer is
+	 * getting full or is very small be more aggressive and send an
+	 * update whenever we can increase by two mss sized segments.
+	 * In all other situations the ACK's to new incoming data will
+	 * carry further window increases.
+	 *
+	 * Don't send an independent window update if a delayed
+	 * ACK is pending (it will get piggy-backed on it) or the
+	 * remote side already has done a half-close and won't send
+	 * more data.  Skip this if the connection is in T/TCP
+	 * half-open state.
 	 */
 	if (recwin > 0 && !(tp->t_flags & TF_NEEDSYN) &&
+	    !(tp->t_flags & TF_DELACK) &&
 	    !TCPS_HAVERCVDFIN(tp->t_state)) {
 		/*
-		 * "adv" is the amount we can increase the window,
+		 * "adv" is the amount we could increase the window,
 		 * taking into account that we are limited by
 		 * TCP_MAXWIN << tp->rcv_scale.
 		 */
@@ -577,9 +597,11 @@ after_sack_rexmit:
 		 */
 		if (oldwin >> tp->rcv_scale == (adv + oldwin) >> tp->rcv_scale)
 			goto dontupdate;
-		if (adv >= (long) (2 * tp->t_maxseg))
-			goto send;
-		if (2 * adv >= (long) so->so_rcv.sb_hiwat)
+
+		if (adv >= (long)(2 * tp->t_maxseg) &&
+		    (adv >= (long)(so->so_rcv.sb_hiwat / 4) ||
+		     recwin <= (long)(so->so_rcv.sb_hiwat / 8) ||
+		     so->so_rcv.sb_hiwat <= 8 * tp->t_maxseg))
 			goto send;
 	}
 dontupdate:
@@ -1239,7 +1261,7 @@ timer:
 	struct route ro;
 
 	bzero(&ro, sizeof(ro));
-	ip->ip_len = m->m_pkthdr.len;
+	ip->ip_len = htons(m->m_pkthdr.len);
 #ifdef INET6
 	if (tp->t_inpcb->inp_vflag & INP_IPV6PROTO)
 		ip->ip_ttl = in6_selecthlim(tp->t_inpcb, NULL);
@@ -1253,7 +1275,7 @@ timer:
 	 * NB: Don't set DF on small MTU/MSS to have a safe fallback.
 	 */
 	if (V_path_mtu_discovery && tp->t_maxopd > V_tcp_minmss)
-		ip->ip_off |= IP_DF;
+		ip->ip_off |= htons(IP_DF);
 
 	error = ip_output(m, tp->t_inpcb->inp_options, &ro,
 	    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0), 0,

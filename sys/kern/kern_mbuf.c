@@ -244,7 +244,7 @@ static void	mb_reclaim(void *);
 static void	mbuf_init(void *);
 static void    *mbuf_jumbo_alloc(uma_zone_t, int, uint8_t *, int);
 
-/* Ensure that MSIZE doesn't break dtom() - it must be a power of 2 */
+/* Ensure that MSIZE must be a power of 2. */
 CTASSERT((((MSIZE - 1) ^ MSIZE) + 1) >> 1 == MSIZE);
 
 /*

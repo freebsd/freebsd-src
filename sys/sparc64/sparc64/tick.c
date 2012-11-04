@@ -245,14 +245,16 @@ tick_process(struct trapframe *tf)
 	struct trapframe *oldframe;
 	struct thread *td;
 
+	td = curthread;
+	td->td_intr_nesting_level++;
 	critical_enter();
 	if (tick_et.et_active) {
-		td = curthread;
 		oldframe = td->td_intr_frame;
 		td->td_intr_frame = tf;
 		tick_et.et_event_cb(&tick_et, tick_et.et_arg);
 		td->td_intr_frame = oldframe;
 	}
+	td->td_intr_nesting_level--;
 	critical_exit();
 }
 

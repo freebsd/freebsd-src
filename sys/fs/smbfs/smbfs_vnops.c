@@ -153,7 +153,7 @@ smbfs_open(ap)
 {
 	struct vnode *vp = ap->a_vp;
 	struct smbnode *np = VTOSMB(vp);
-	struct smb_cred scred;
+	struct smb_cred *scred;
 	struct vattr vattr;
 	int mode = ap->a_mode;
 	int error, accmode;
@@ -197,14 +197,15 @@ smbfs_open(ap)
 	accmode = SMB_SM_DENYNONE|SMB_AM_OPENREAD;
 	if ((vp->v_mount->mnt_flag & MNT_RDONLY) == 0)
 		accmode = SMB_SM_DENYNONE|SMB_AM_OPENRW;
-	smb_makescred(&scred, ap->a_td, ap->a_cred);
-	error = smbfs_smb_open(np, accmode, &scred);
+	scred = smbfs_malloc_scred();
+	smb_makescred(scred, ap->a_td, ap->a_cred);
+	error = smbfs_smb_open(np, accmode, scred);
 	if (error) {
 		if (mode & FWRITE)
 			return EACCES;
 		else if ((vp->v_mount->mnt_flag & MNT_RDONLY) == 0) {
 			accmode = SMB_SM_DENYNONE|SMB_AM_OPENREAD;
-			error = smbfs_smb_open(np, accmode, &scred);
+			error = smbfs_smb_open(np, accmode, scred);
 		}
 	}
 	if (error == 0) {
@@ -212,6 +213,7 @@ smbfs_open(ap)
 		vnode_create_vobject(ap->a_vp, vattr.va_size, ap->a_td);
 	}
 	smbfs_attr_cacheremove(vp);
+	smbfs_free_scred(scred);
 	return error;
 }
 
@@ -228,12 +230,14 @@ smbfs_close(ap)
 	struct vnode *vp = ap->a_vp;
 	struct thread *td = ap->a_td;
 	struct smbnode *np = VTOSMB(vp);
-	struct smb_cred scred;
+	struct smb_cred *scred;
 
 	if (vp->v_type == VDIR && (np->n_flag & NOPEN) != 0 &&
 	    np->n_dirseq != NULL) {
-		smb_makescred(&scred, td, ap->a_cred);
-		smbfs_findclose(np->n_dirseq, &scred);
+		scred = smbfs_malloc_scred();
+		smb_makescred(scred, td, ap->a_cred);
+		smbfs_findclose(np->n_dirseq, scred);
+		smbfs_free_scred(scred);
 		np->n_dirseq = NULL;
 	}
 	return 0;
@@ -254,7 +258,7 @@ smbfs_getattr(ap)
 	struct smbnode *np = VTOSMB(vp);
 	struct vattr *va=ap->a_vap;
 	struct smbfattr fattr;
-	struct smb_cred scred;
+	struct smb_cred *scred;
 	u_quad_t oldsize;
 	int error;
 
@@ -263,17 +267,20 @@ smbfs_getattr(ap)
 	if (!error)
 		return 0;
 	SMBVDEBUG("not in the cache\n");
-	smb_makescred(&scred, curthread, ap->a_cred);
+	scred = smbfs_malloc_scred();
+	smb_makescred(scred, curthread, ap->a_cred);
 	oldsize = np->n_size;
-	error = smbfs_smb_lookup(np, NULL, 0, &fattr, &scred);
+	error = smbfs_smb_lookup(np, NULL, 0, &fattr, scred);
 	if (error) {
 		SMBVDEBUG("error %d\n", error);
+		smbfs_free_scred(scred);
 		return error;
 	}
 	smbfs_attr_cacheenter(vp, &fattr);
 	smbfs_attr_cachelookup(vp, va);
 	if (np->n_flag & NOPEN)
 		np->n_size = oldsize;
+		smbfs_free_scred(scred);
 	return 0;
 }
 
@@ -289,7 +296,7 @@ smbfs_setattr(ap)
 	struct smbnode *np = VTOSMB(vp);
 	struct vattr *vap = ap->a_vap;
 	struct timespec *mtime, *atime;
-	struct smb_cred scred;
+	struct smb_cred *scred;
 	struct smb_share *ssp = np->n_mount->sm_share;
 	struct smb_vc *vcp = SSTOVC(ssp);
 	struct thread *td = curthread;
@@ -308,18 +315,23 @@ smbfs_setattr(ap)
 	     vap->va_atime.tv_sec != VNOVAL || vap->va_mtime.tv_sec != VNOVAL ||
 	     vap->va_mode != (mode_t)VNOVAL) && isreadonly)
 		return EROFS;
-	smb_makescred(&scred, td, ap->a_cred);
+	scred = smbfs_malloc_scred();
+	smb_makescred(scred, td, ap->a_cred);
 	if (vap->va_size != VNOVAL) {
  		switch (vp->v_type) {
  		    case VDIR:
- 			return EISDIR;
+ 			error = EISDIR;
+			goto out;
  		    case VREG:
 			break;
  		    default:
-			return EINVAL;
+			error = EINVAL;
+			goto out;
   		};
-		if (isreadonly)
-			return EROFS;
+		if (isreadonly) {
+			error = EROFS;
+			goto out;
+		}
 		doclose = 0;
 		vnode_pager_setsize(vp, (u_long)vap->va_size);
  		tsize = np->n_size;
@@ -327,18 +339,18 @@ smbfs_setattr(ap)
 		if ((np->n_flag & NOPEN) == 0) {
 			error = smbfs_smb_open(np,
 					       SMB_SM_DENYNONE|SMB_AM_OPENRW,
-					       &scred);
+					       scred);
 			if (error == 0)
 				doclose = 1;
 		}
 		if (error == 0)
-			error = smbfs_smb_setfsize(np, vap->va_size, &scred);
+			error = smbfs_smb_setfsize(np, vap->va_size, scred);
 		if (doclose)
-			smbfs_smb_close(ssp, np->n_fid, NULL, &scred);
+			smbfs_smb_close(ssp, np->n_fid, NULL, scred);
 		if (error) {
 			np->n_size = tsize;
 			vnode_pager_setsize(vp, (u_long)tsize);
-			return error;
+			goto out;
 		}
   	}
 	if (vap->va_mode != (mode_t)VNOVAL) {
@@ -348,9 +360,9 @@ smbfs_setattr(ap)
 		else
 			np->n_dosattr |= SMB_FA_RDONLY;
 		if (np->n_dosattr != old_n_dosattr) {
-			error = smbfs_smb_setpattr(np, np->n_dosattr, NULL, &scred);
+			error = smbfs_smb_setpattr(np, np->n_dosattr, NULL, scred);
 			if (error)
-				return error;
+				goto out;
 		}
 	}
 	mtime = atime = NULL;
@@ -381,25 +393,25 @@ smbfs_setattr(ap)
 				    NULL);
 				if (!error) {
 /*					error = smbfs_smb_setfattrNT(np, 0,
-					    mtime, atime, &scred);
+					    mtime, atime, scred);
 					VOP_GETATTR(vp, &vattr, ap->a_cred); */
 					if (mtime)
 						np->n_mtime = *mtime;
 					VOP_CLOSE(vp, FWRITE, ap->a_cred, td);
 				}
 			} else if ((vcp->vc_sopt.sv_caps & SMB_CAP_NT_SMBS)) {
-				error = smbfs_smb_setptime2(np, mtime, atime, 0, &scred);
-/*				error = smbfs_smb_setpattrNT(np, 0, mtime, atime, &scred);*/
+				error = smbfs_smb_setptime2(np, mtime, atime, 0, scred);
+/*				error = smbfs_smb_setpattrNT(np, 0, mtime, atime, scred);*/
 			} else if (SMB_DIALECT(vcp) >= SMB_DIALECT_LANMAN2_0) {
-				error = smbfs_smb_setptime2(np, mtime, atime, 0, &scred);
+				error = smbfs_smb_setptime2(np, mtime, atime, 0, scred);
 			} else {
-				error = smbfs_smb_setpattr(np, 0, mtime, &scred);
+				error = smbfs_smb_setpattr(np, 0, mtime, scred);
 			}
 		} else {
 			if (vcp->vc_sopt.sv_caps & SMB_CAP_NT_SMBS) {
-				error = smbfs_smb_setfattrNT(np, 0, mtime, atime, &scred);
+				error = smbfs_smb_setfattrNT(np, 0, mtime, atime, scred);
 			} else if (SMB_DIALECT(vcp) >= SMB_DIALECT_LANMAN1_0) {
-				error = smbfs_smb_setftime(np, mtime, atime, &scred);
+				error = smbfs_smb_setftime(np, mtime, atime, scred);
 			} else {
 				/*
 				 * I have no idea how to handle this for core
@@ -417,6 +429,8 @@ smbfs_setattr(ap)
 	smbfs_attr_cacheremove(vp);	/* invalidate cache */
 	VOP_GETATTR(vp, vap, ap->a_cred);
 	np->n_mtime.tv_sec = vap->va_mtime.tv_sec;
+out:
+	smbfs_free_scred(scred);
 	return error;
 }
 /*
@@ -452,7 +466,8 @@ smbfs_write(ap)
 	struct vnode *vp = ap->a_vp;
 	struct uio *uio = ap->a_uio;
 
-	SMBVDEBUG("%d,ofs=%d,sz=%d\n",vp->v_type, (int)uio->uio_offset, uio->uio_resid);
+	SMBVDEBUG("%d,ofs=%jd,sz=%zd\n",vp->v_type, (intmax_t)uio->uio_offset, 
+	    uio->uio_resid);
 	if (vp->v_type != VREG)
 		return (EPERM);
 	return smbfs_writevnode(vp, uio, ap->a_cred,ap->a_ioflag);
@@ -481,7 +496,7 @@ smbfs_create(ap)
 	struct vnode *vp;
 	struct vattr vattr;
 	struct smbfattr fattr;
-	struct smb_cred scred;
+	struct smb_cred *scred;
 	char *name = cnp->cn_nameptr;
 	int nmlen = cnp->cn_namelen;
 	int error;
@@ -493,20 +508,23 @@ smbfs_create(ap)
 		return EOPNOTSUPP;
 	if ((error = VOP_GETATTR(dvp, &vattr, cnp->cn_cred)))
 		return error;
-	smb_makescred(&scred, cnp->cn_thread, cnp->cn_cred);
+	scred = smbfs_malloc_scred();
+	smb_makescred(scred, cnp->cn_thread, cnp->cn_cred);
 	
-	error = smbfs_smb_create(dnp, name, nmlen, &scred);
+	error = smbfs_smb_create(dnp, name, nmlen, scred);
 	if (error)
-		return error;
-	error = smbfs_smb_lookup(dnp, name, nmlen, &fattr, &scred);
+		goto out;
+	error = smbfs_smb_lookup(dnp, name, nmlen, &fattr, scred);
 	if (error)
-		return error;
+		goto out;
 	error = smbfs_nget(VTOVFS(dvp), dvp, name, nmlen, &fattr, &vp);
 	if (error)
-		return error;
+		goto out;
 	*vpp = vp;
 	if (cnp->cn_flags & MAKEENTRY)
 		cache_enter(dvp, vp, cnp);
+out:
+	smbfs_free_scred(scred);
 	return error;
 }
 
@@ -523,16 +541,18 @@ smbfs_remove(ap)
 /*	struct vnode *dvp = ap->a_dvp;*/
 	struct componentname *cnp = ap->a_cnp;
 	struct smbnode *np = VTOSMB(vp);
-	struct smb_cred scred;
+	struct smb_cred *scred;
 	int error;
 
 	if (vp->v_type == VDIR || (np->n_flag & NOPEN) != 0 || vrefcnt(vp) != 1)
 		return EPERM;
-	smb_makescred(&scred, cnp->cn_thread, cnp->cn_cred);
-	error = smbfs_smb_delete(np, &scred);
+	scred = smbfs_malloc_scred();
+	smb_makescred(scred, cnp->cn_thread, cnp->cn_cred);
+	error = smbfs_smb_delete(np, scred);
 	if (error == 0)
 		np->n_flag |= NGONE;
 	cache_purge(vp);
+	smbfs_free_scred(scred);
 	return error;
 }
 
@@ -556,19 +576,19 @@ smbfs_rename(ap)
 	struct vnode *tdvp = ap->a_tdvp;
 	struct componentname *tcnp = ap->a_tcnp;
 /*	struct componentname *fcnp = ap->a_fcnp;*/
-	struct smb_cred scred;
+	struct smb_cred *scred;
 	u_int16_t flags = 6;
 	int error=0;
 
 	/* Check for cross-device rename */
 	if ((fvp->v_mount != tdvp->v_mount) ||
 	    (tvp && (fvp->v_mount != tvp->v_mount))) {
-		error = EXDEV;
+		return EXDEV;
 		goto out;
 	}
 
 	if (tvp && vrefcnt(tvp) > 1) {
-		error = EBUSY;
+		return EBUSY;
 		goto out;
 	}
 	flags = 0x10;			/* verify all writes */
@@ -577,17 +597,17 @@ smbfs_rename(ap)
 	} else if (fvp->v_type == VREG) {
 		flags |= 1;
 	} else {
-		error = EINVAL;
-		goto out;
+		return EINVAL;
 	}
-	smb_makescred(&scred, tcnp->cn_thread, tcnp->cn_cred);
+	scred = smbfs_malloc_scred();
+	smb_makescred(scred, tcnp->cn_thread, tcnp->cn_cred);
 	/*
 	 * It seems that Samba doesn't implement SMB_COM_MOVE call...
 	 */
 #ifdef notnow
 	if (SMB_DIALECT(SSTOCN(smp->sm_share)) >= SMB_DIALECT_LANMAN1_0) {
 		error = smbfs_smb_move(VTOSMB(fvp), VTOSMB(tdvp),
-		    tcnp->cn_nameptr, tcnp->cn_namelen, flags, &scred);
+		    tcnp->cn_nameptr, tcnp->cn_namelen, flags, scred);
 	} else
 #endif
 	{
@@ -595,13 +615,13 @@ smbfs_rename(ap)
 		 * We have to do the work atomicaly
 		 */
 		if (tvp && tvp != fvp) {
-			error = smbfs_smb_delete(VTOSMB(tvp), &scred);
+			error = smbfs_smb_delete(VTOSMB(tvp), scred);
 			if (error)
 				goto out_cacherem;
 			VTOSMB(fvp)->n_flag |= NGONE;
 		}
 		error = smbfs_smb_rename(VTOSMB(fvp), VTOSMB(tdvp),
-		    tcnp->cn_nameptr, tcnp->cn_namelen, &scred);
+		    tcnp->cn_nameptr, tcnp->cn_namelen, scred);
 	}
 
 	if (fvp->v_type == VDIR) {
@@ -614,6 +634,7 @@ out_cacherem:
 	smbfs_attr_cacheremove(fdvp);
 	smbfs_attr_cacheremove(tdvp);
 out:
+	smbfs_free_scred(scred);
 	if (tdvp == tvp)
 		vrele(tdvp);
 	else
@@ -684,7 +705,7 @@ smbfs_mkdir(ap)
 	struct componentname *cnp = ap->a_cnp;
 	struct smbnode *dnp = VTOSMB(dvp);
 	struct vattr vattr;
-	struct smb_cred scred;
+	struct smb_cred *scred;
 	struct smbfattr fattr;
 	char *name = cnp->cn_nameptr;
 	int len = cnp->cn_namelen;
@@ -695,17 +716,20 @@ smbfs_mkdir(ap)
 	}	
 	if ((name[0] == '.') && ((len == 1) || ((len == 2) && (name[1] == '.'))))
 		return EEXIST;
-	smb_makescred(&scred, cnp->cn_thread, cnp->cn_cred);
-	error = smbfs_smb_mkdir(dnp, name, len, &scred);
+	scred = smbfs_malloc_scred();
+	smb_makescred(scred, cnp->cn_thread, cnp->cn_cred);
+	error = smbfs_smb_mkdir(dnp, name, len, scred);
 	if (error)
-		return error;
-	error = smbfs_smb_lookup(dnp, name, len, &fattr, &scred);
+		goto out;
+	error = smbfs_smb_lookup(dnp, name, len, &fattr, scred);
 	if (error)
-		return error;
+		goto out;
 	error = smbfs_nget(VTOVFS(dvp), dvp, name, len, &fattr, &vp);
 	if (error)
-		return error;
+		goto out;
 	*ap->a_vpp = vp;
+out:
+	smbfs_free_scred(scred);
 	return 0;
 }
 
@@ -726,20 +750,22 @@ smbfs_rmdir(ap)
 /*	struct smbmount *smp = VTOSMBFS(vp);*/
 	struct smbnode *dnp = VTOSMB(dvp);
 	struct smbnode *np = VTOSMB(vp);
-	struct smb_cred scred;
+	struct smb_cred *scred;
 	int error;
 
 	if (dvp == vp)
 		return EINVAL;
 
-	smb_makescred(&scred, cnp->cn_thread, cnp->cn_cred);
-	error = smbfs_smb_rmdir(np, &scred);
+	scred = smbfs_malloc_scred();
+	smb_makescred(scred, cnp->cn_thread, cnp->cn_cred);
+	error = smbfs_smb_rmdir(np, scred);
 	if (error == 0)
 		np->n_flag |= NGONE;
 	dnp->n_flag |= NMODIFIED;
 	smbfs_attr_cacheremove(dvp);
 /*	cache_purge(dvp);*/
 	cache_purge(vp);
+	smbfs_free_scred(scred);
 	return error;
 }
 
@@ -935,7 +961,7 @@ smbfs_advlock(ap)
 	caddr_t id = (caddr_t)1 /* ap->a_id */;
 /*	int flags = ap->a_flags;*/
 	struct thread *td = curthread;
-	struct smb_cred scred;
+	struct smb_cred *scred;
 	u_quad_t size;
 	off_t start, end, oadd;
 	int error, lkop;
@@ -985,7 +1011,8 @@ smbfs_advlock(ap)
 			return EOVERFLOW;
 		end = start + oadd;
 	}
-	smb_makescred(&scred, td, td->td_ucred);
+	scred = smbfs_malloc_scred();
+	smb_makescred(scred, td, td->td_ucred);
 	switch (ap->a_op) {
 	    case F_SETLK:
 		switch (fl->l_type) {
@@ -999,13 +1026,14 @@ smbfs_advlock(ap)
 			lkop = SMB_LOCK_RELEASE;
 			break;
 		    default:
+			smbfs_free_scred(scred);
 			return EINVAL;
 		}
 		error = lf_advlock(ap, &vp->v_lockf, size);
 		if (error)
 			break;
 		lkop = SMB_LOCK_EXCL;
-		error = smbfs_smb_lock(np, lkop, id, start, end, &scred);
+		error = smbfs_smb_lock(np, lkop, id, start, end, scred);
 		if (error) {
 			int oldtype = fl->l_type;
 			fl->l_type = F_UNLCK;
@@ -1016,14 +1044,16 @@ smbfs_advlock(ap)
 		break;
 	    case F_UNLCK:
 		lf_advlock(ap, &vp->v_lockf, size);
-		error = smbfs_smb_lock(np, SMB_LOCK_RELEASE, id, start, end, &scred);
+		error = smbfs_smb_lock(np, SMB_LOCK_RELEASE, id, start, end, scred);
 		break;
 	    case F_GETLK:
 		error = lf_advlock(ap, &vp->v_lockf, size);
 		break;
 	    default:
+		smbfs_free_scred(scred);
 		return EINVAL;
 	}
+	smbfs_free_scred(scred);
 	return error;
 }
 
@@ -1090,7 +1120,7 @@ smbfs_lookup(ap)
 	struct mount *mp = dvp->v_mount;
 	struct smbnode *dnp;
 	struct smbfattr fattr, *fap;
-	struct smb_cred scred;
+	struct smb_cred *scred;
 	char *name = cnp->cn_nameptr;
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
@@ -1181,20 +1211,21 @@ smbfs_lookup(ap)
 	 */
 	error = 0;
 	*vpp = NULLVP;
-	smb_makescred(&scred, td, cnp->cn_cred);
+	scred = smbfs_malloc_scred();
+	smb_makescred(scred, td, cnp->cn_cred);
 	fap = &fattr;
 	if (flags & ISDOTDOT) {
 		error = smbfs_smb_lookup(VTOSMB(dnp->n_parent), NULL, 0, fap,
-		    &scred);
+		    scred);
 		SMBVDEBUG("result of dotdot lookup: %d\n", error);
 	} else {
 		fap = &fattr;
-		error = smbfs_smb_lookup(dnp, name, nmlen, fap, &scred);
+		error = smbfs_smb_lookup(dnp, name, nmlen, fap, scred);
 /*		if (cnp->cn_namelen == 1 && cnp->cn_nameptr[0] == '.')*/
 		SMBVDEBUG("result of smbfs_smb_lookup: %d\n", error);
 	}
 	if (error && error != ENOENT)
-		return error;
+		goto out;
 	if (error) {			/* entry not found */
 		/*
 		 * Handle RENAME or CREATE case...
@@ -1202,11 +1233,13 @@ smbfs_lookup(ap)
 		if ((nameiop == CREATE || nameiop == RENAME) && islastcn) {
 			error = VOP_ACCESS(dvp, VWRITE, cnp->cn_cred, td);
 			if (error)
-				return error;
+				goto out;
 			cnp->cn_flags |= SAVENAME;
-			return (EJUSTRETURN);
+			error = EJUSTRETURN;
+			goto out;
 		}
-		return ENOENT;
+		error = ENOENT;
+		goto out;
 	}/* else {
 		SMBVDEBUG("Found entry %s with id=%d\n", fap->entryName, fap->dirEntNum);
 	}*/
@@ -1216,38 +1249,40 @@ smbfs_lookup(ap)
 	if (nameiop == DELETE && islastcn) { 	/* delete last component */
 		error = VOP_ACCESS(dvp, VWRITE, cnp->cn_cred, td);
 		if (error)
-			return error;
+			goto out;
 		if (isdot) {
 			VREF(dvp);
 			*vpp = dvp;
-			return 0;
+			goto out;
 		}
 		error = smbfs_nget(mp, dvp, name, nmlen, fap, &vp);
 		if (error)
-			return error;
+			goto out;
 		*vpp = vp;
 		cnp->cn_flags |= SAVENAME;
-		return 0;
+		goto out;
 	}
 	if (nameiop == RENAME && islastcn) {
 		error = VOP_ACCESS(dvp, VWRITE, cnp->cn_cred, td);
 		if (error)
-			return error;
-		if (isdot)
-			return EISDIR;
+			goto out;
+		if (isdot) {
+			error = EISDIR;
+			goto out;
+		}
 		error = smbfs_nget(mp, dvp, name, nmlen, fap, &vp);
 		if (error)
-			return error;
+			goto out;
 		*vpp = vp;
 		cnp->cn_flags |= SAVENAME;
-		return 0;
+		goto out;
 	}
 	if (flags & ISDOTDOT) {
 		VOP_UNLOCK(dvp, 0);
 		error = smbfs_nget(mp, dvp, name, nmlen, NULL, &vp);
 		vn_lock(dvp, LK_EXCLUSIVE | LK_RETRY);
 		if (error)
-			return error;
+			goto out;
 		*vpp = vp;
 	} else if (isdot) {
 		vref(dvp);
@@ -1255,7 +1290,7 @@ smbfs_lookup(ap)
 	} else {
 		error = smbfs_nget(mp, dvp, name, nmlen, fap, &vp);
 		if (error)
-			return error;
+			goto out;
 		*vpp = vp;
 		SMBVDEBUG("lookup: getnewvp!\n");
 	}
@@ -1263,5 +1298,7 @@ smbfs_lookup(ap)
 /*		VTOSMB(*vpp)->n_ctime = VTOSMB(*vpp)->n_vattr.va_ctime.tv_sec;*/
 		cache_enter(dvp, *vpp, cnp);
 	}
-	return 0;
+out:
+	smbfs_free_scred(scred);
+	return (error);
 }

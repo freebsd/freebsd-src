@@ -1,4 +1,4 @@
-/* $OpenBSD: mac.c,v 1.16 2011/08/02 01:22:11 djm Exp $ */
+/* $OpenBSD: mac.c,v 1.18 2012/06/28 05:07:45 dtucker Exp $ */
 /*
  * Copyright (c) 2001 Markus Friedl.  All rights reserved.
  *
@@ -44,6 +44,8 @@
 
 #include "umac.h"
 
+#include "openbsd-compat/openssl-compat.h"
+
 #define SSH_EVP		1	/* OpenSSL EVP-based MAC */
 #define SSH_UMAC	2	/* UMAC (not integrated with OpenSSL) */
 
@@ -59,9 +61,7 @@ struct {
 	{ "hmac-sha1-96",		SSH_EVP, EVP_sha1, 96, -1, -1 },
 #ifdef HAVE_EVP_SHA256
 	{ "hmac-sha2-256",		SSH_EVP, EVP_sha256, 0, -1, -1 },
-	{ "hmac-sha2-256-96",		SSH_EVP, EVP_sha256, 96, -1, -1 },
 	{ "hmac-sha2-512",		SSH_EVP, EVP_sha512, 0, -1, -1 },
-	{ "hmac-sha2-512-96",		SSH_EVP, EVP_sha512, 96, -1, -1 },
 #endif
 	{ "hmac-md5",			SSH_EVP, EVP_md5, 0, -1, -1 },
 	{ "hmac-md5-96",		SSH_EVP, EVP_md5, 96, -1, -1 },
@@ -116,6 +116,7 @@ mac_init(Mac *mac)
 	case SSH_EVP:
 		if (mac->evp_md == NULL)
 			return -1;
+		HMAC_CTX_init(&mac->evp_ctx);
 		HMAC_Init(&mac->evp_ctx, mac->key, mac->key_len, mac->evp_md);
 		return 0;
 	case SSH_UMAC:

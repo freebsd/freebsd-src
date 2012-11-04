@@ -4055,10 +4055,12 @@ key_cmpsaidx(
 		/*
 		 * If NAT-T is enabled, check ports for tunnel mode.
 		 * Do not check ports if they are set to zero in the SPD.
-		 * Also do not do it for transport mode, as there is no
-		 * port information available in the SP.
+		 * Also do not do it for native transport mode, as there
+		 * is no port information available in the SP.
 		 */
-		if (saidx1->mode == IPSEC_MODE_TUNNEL &&
+		if ((saidx1->mode == IPSEC_MODE_TUNNEL ||
+		     (saidx1->mode == IPSEC_MODE_TRANSPORT &&
+		      saidx1->proto == IPPROTO_ESP)) &&
 		    saidx1->src.sa.sa_family == AF_INET &&
 		    saidx1->dst.sa.sa_family == AF_INET &&
 		    ((const struct sockaddr_in *)(&saidx1->src))->sin_port &&
@@ -6910,15 +6912,11 @@ key_freereg(struct socket *so)
 static int
 key_expire(struct secasvar *sav)
 {
-	int s;
 	int satype;
 	struct mbuf *result = NULL, *m;
 	int len;
 	int error = -1;
 	struct sadb_lifetime *lt;
-
-	/* XXX: Why do we lock ? */
-	s = splnet();	/*called from softclock()*/
 
 	IPSEC_ASSERT (sav != NULL, ("null sav"));
 	IPSEC_ASSERT (sav->sah != NULL, ("null sa header"));
@@ -7021,13 +7019,11 @@ key_expire(struct secasvar *sav)
 	mtod(result, struct sadb_msg *)->sadb_msg_len =
 	    PFKEY_UNIT64(result->m_pkthdr.len);
 
-	splx(s);
 	return key_sendup_mbuf(NULL, result, KEY_SENDUP_REGISTERED);
 
  fail:
 	if (result)
 		m_freem(result);
-	splx(s);
 	return error;
 }
 

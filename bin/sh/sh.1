@@ -487,8 +487,9 @@ and backslash
 The backslash inside double quotes is historically weird.
 It remains literal unless it precedes the following characters,
 which it serves to quote:
+.Pp
 .Bl -column "XXX" "XXX" "XXX" "XXX" "XXX" -offset center -compact
-.It Li $ Ta Li ` Ta Li \&" Ta Li \e\  Ta Li \en
+.It Li $ Ta Li ` Ta Li \&" Ta Li \e Ta Li \en
 .El
 .It Backslash
 A backslash preserves the literal meaning of the following
@@ -648,8 +649,8 @@ The following redirection is often called a
 .Dq here-document .
 .Bd -unfilled -offset indent
 .Oo Ar n Oc Ns Li << Ar delimiter
-.D1 Ar here-doc-text
-.D1 ...
+.Ar here-doc-text
+.Ar ...
 .Ar delimiter
 .Ed
 .Pp
