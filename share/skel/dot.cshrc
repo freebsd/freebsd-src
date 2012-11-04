@@ -26,7 +26,7 @@ if ($?prompt) then
 	if ($uid == 0) then
 		set user = root
 	endif
-	set prompt = "%n@%m:%/ %# "
+	set prompt = "%n@%m:%~ %# "
 	set promptchars = "%#"
 
 	set filec
