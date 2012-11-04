@@ -2984,7 +2984,7 @@ cxgb_extension_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data,
 		break;
 	}
 	case CHELSIO_SET_FILTER: {
-		struct ch_filter *f = (struct ch_filter *)data;;
+		struct ch_filter *f = (struct ch_filter *)data;
 		struct filter_info *p;
 		unsigned int nfilters = sc->params.mc5.nfilters;
 

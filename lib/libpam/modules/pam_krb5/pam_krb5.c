@@ -633,7 +633,7 @@ pam_sm_acct_mgmt(pam_handle_t *pamh, int flags __unused,
 	if (krbret != 0) {
 		PAM_LOG("Error krb5_cc_get_principal(): %s",
 		    krb5_get_err_text(pam_context, krbret));
-		retval = PAM_PERM_DENIED;;
+		retval = PAM_PERM_DENIED;
 		goto cleanup;
 	}
 

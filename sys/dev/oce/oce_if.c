@@ -256,7 +256,7 @@ oce_attach(device_t dev)
 
 	rc = oce_hw_start(sc);
 	if (rc)
-		goto lro_free;;
+		goto lro_free;
 
 
 	sc->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
