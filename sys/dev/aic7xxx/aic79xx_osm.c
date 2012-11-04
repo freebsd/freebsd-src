@@ -222,6 +222,7 @@ ahd_attach(struct ahd_softc *ahd)
 	count = 0;
 	devq = NULL;
 	sim = NULL;
+	path = NULL;
 
 	/*
 	 * Create a thread to perform all recovery.
@@ -601,8 +602,8 @@ ahd_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	}
 #ifdef AHD_TARGET_MODE
-	case XPT_NOTIFY_ACK:
-	case XPT_IMMED_NOTIFY:
+	case XPT_NOTIFY_ACKNOWLEDGE:
+	case XPT_IMMEDIATE_NOTIFY:
 	{
 		struct	   ahd_tmode_tstate *tstate;
 		struct	   ahd_tmode_lstate *lstate;
@@ -1189,7 +1190,7 @@ ahd_abort_ccb(struct ahd_softc *ahd, struct cam_sim *sim, union ccb *ccb)
 	switch (abort_ccb->ccb_h.func_code) {
 #ifdef AHD_TARGET_MODE
 	case XPT_ACCEPT_TARGET_IO:
-	case XPT_IMMED_NOTIFY:
+	case XPT_IMMEDIATE_NOTIFY:
 	case XPT_CONT_TARGET_IO:
 	{
 		struct ahd_tmode_tstate *tstate;
@@ -1207,7 +1208,7 @@ ahd_abort_ccb(struct ahd_softc *ahd, struct cam_sim *sim, union ccb *ccb)
 
 		if (abort_ccb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO)
 			list = &lstate->accept_tios;
-		else if (abort_ccb->ccb_h.func_code == XPT_IMMED_NOTIFY)
+		else if (abort_ccb->ccb_h.func_code == XPT_IMMEDIATE_NOTIFY)
 			list = &lstate->immed_notifies;
 		else
 			list = NULL;

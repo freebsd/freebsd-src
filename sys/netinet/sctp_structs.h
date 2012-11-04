@@ -77,8 +77,8 @@ TAILQ_HEAD(sctpnetlisthead, sctp_nets);
 struct sctp_stream_reset_list {
 	TAILQ_ENTRY(sctp_stream_reset_list) next_resp;
 	uint32_t tsn;
-	int number_entries;
-	struct sctp_stream_reset_out_request req;
+	uint32_t number_entries;
+	uint16_t list_of_streams[];
 };
 
 TAILQ_HEAD(sctp_resethead, sctp_stream_reset_list);

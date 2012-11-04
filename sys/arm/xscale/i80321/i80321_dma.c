@@ -115,13 +115,13 @@ i80321_dma_attach(device_t dev)
 	mtx_init(&softc->mtx, "DMA engine mtx", NULL, MTX_SPIN);
 	softc->sc_st = sc->sc_st;
 	if (bus_space_subregion(softc->sc_st, sc->sc_sh, unit == 0 ?
-	    VERDE_DMA_BASE0 : VERDE_DMA_BASE1, VERDE_DMA_SIZE, 
+	    VERDE_DMA_BASE0 : VERDE_DMA_BASE1, VERDE_DMA_SIZE,
 	    &softc->sc_dma_sh) != 0)
 		panic("%s: unable to subregion DMA registers",
 		    device_get_name(dev));
 	if (bus_dma_tag_create(NULL, sizeof(i80321_dmadesc_t),
-	    0, BUS_SPACE_MAXADDR,  BUS_SPACE_MAXADDR, NULL, NULL, 
-	    DMA_RING_SIZE * sizeof(i80321_dmadesc_t), 1, 
+	    0, BUS_SPACE_MAXADDR,  BUS_SPACE_MAXADDR, NULL, NULL,
+	    DMA_RING_SIZE * sizeof(i80321_dmadesc_t), 1,
 	    sizeof(i80321_dmadesc_t), BUS_DMA_ALLOCNOW, busdma_lock_mutex,
 	    &Giant, &softc->dmatag))
 		panic("Couldn't create a dma tag");
@@ -131,7 +131,7 @@ i80321_dma_attach(device_t dev)
 		panic("Couldn't alloc dma memory");
 	for (int i = 0; i < DMA_RING_SIZE; i++) {
 		if (i > 0)
-			if (bus_dmamap_create(softc->dmatag, 0, 
+			if (bus_dmamap_create(softc->dmatag, 0,
 			    &softc->dmaring[i].map))
 				panic("Couldn't alloc dmamap");
 		softc->dmaring[i].desc = &dmadescs[i];	
@@ -213,11 +213,11 @@ dma_memcpy(void *dst, void *src, int len, int flags)
 		desc->local_addr = (vm_paddr_t)dst;
 		desc->count = len;
 		desc->descr_ctrl = 1 << 6; /* Local memory to local memory. */
-		bus_dmamap_sync(sc->dmatag, 
-		    sc->dmaring[0].map, 
+		bus_dmamap_sync(sc->dmatag,
+		    sc->dmaring[0].map,
 		    BUS_DMASYNC_PREWRITE);
 	} else {
-		if (!virt_addr_is_valid(dst, len, 1, !(flags & DST_IS_USER)) || 
+		if (!virt_addr_is_valid(dst, len, 1, !(flags & DST_IS_USER)) ||
 		    !virt_addr_is_valid(src, len, 0, !(flags & SRC_IS_USER))) {
 			mtx_lock_spin(&sc->mtx);
 			sc->flags &= ~BUSY;
@@ -275,8 +275,8 @@ dma_memcpy(void *dst, void *src, int len, int flags)
 				if (tmplen <= 0 && descnb > 0) {
 					sc->dmaring[descnb - 1].desc->next_desc
 					    = 0;
-					bus_dmamap_sync(sc->dmatag, 
-					    sc->dmaring[descnb - 1].map, 
+					bus_dmamap_sync(sc->dmatag,
+					    sc->dmaring[descnb - 1].map,
 					    BUS_DMASYNC_PREWRITE);
 				}
 				continue;
@@ -301,8 +301,8 @@ dma_memcpy(void *dst, void *src, int len, int flags)
 			if (tmplen > 0) {
 				desc->next_desc = sc->dmaring[descnb + 1].
 				    phys_addr;
-				bus_dmamap_sync(sc->dmatag, 
-				    sc->dmaring[descnb].map, 
+				bus_dmamap_sync(sc->dmatag,
+				    sc->dmaring[descnb].map,
 				    BUS_DMASYNC_PREWRITE);
 				desc = sc->dmaring[descnb + 1].desc;
 				descnb++;

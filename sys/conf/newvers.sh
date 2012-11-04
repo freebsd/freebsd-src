@@ -88,9 +88,11 @@ v=`cat version` u=${USER:-root} d=`pwd` h=${HOSTNAME:-`hostname`} t=`date`
 i=`${MAKE:-make} -V KERN_IDENT`
 
 for dir in /bin /usr/bin /usr/local/bin; do
-	if [ -x "${dir}/svnversion" ] ; then
+	if [ -x "${dir}/svnversion" ] && [ -z ${svnversion} ] ; then
 		svnversion=${dir}/svnversion
-		break
+	fi
+	if [ -x "${dir}/p4" ] && [ -z ${p4_cmd} ] ; then
+		p4_cmd=${dir}/p4
 	fi
 done
 if [ -d "${SYSDIR}/../.git" ] ; then
@@ -132,10 +134,27 @@ if [ -n "$git_cmd" ] ; then
 	fi
 fi
 
+if [ -n "$p4_cmd" ] ; then
+	p4version=`cd ${SYSDIR} && $p4_cmd changes -m1 "./...#have" 2>&1 | \
+		awk '{ print $2 }'`
+	case "$p4version" in
+	[0-9]*)
+		p4version=" ${p4version}"
+		p4opened=`cd ${SYSDIR} && $p4_cmd opened ./... 2>&1`
+		case "$p4opened" in
+		File*) ;;
+		//*)	p4version="${p4version}+edit" ;;
+		esac
+		;;
+	*)	unset p4version ;;
+	esac
+fi
+	
+
 cat << EOF > vers.c
 $COPYRIGHT
-#define SCCSSTR "@(#)${VERSION} #${v}${svn}${git}: ${t}"
-#define VERSTR "${VERSION} #${v}${svn}${git}: ${t}\\n    ${u}@${h}:${d}\\n"
+#define SCCSSTR "@(#)${VERSION} #${v}${svn}${git}${p4version}: ${t}"
+#define VERSTR "${VERSION} #${v}${svn}${git}${p4version}: ${t}\\n    ${u}@${h}:${d}\\n"
 #define RELSTR "${RELEASE}"
 
 char sccs[sizeof(SCCSSTR) > 128 ? sizeof(SCCSSTR) : 128] = SCCSSTR;

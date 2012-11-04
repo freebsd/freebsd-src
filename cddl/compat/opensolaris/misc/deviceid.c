@@ -45,7 +45,7 @@ devid_str_decode(char *devidstr, ddi_devid_t *retdevid, char **retminor_name)
 		return (EINVAL);
 	}
 	*retminor_name = strdup("");
-	if (*retminor_name == NULL);
+	if (*retminor_name == NULL)
 		return (ENOMEM);
 	return (0);
 }

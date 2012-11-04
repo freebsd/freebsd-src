@@ -47,6 +47,8 @@ struct aic_tinfo {
 
 struct aic_scb {
 	union ccb	*ccb;
+	SLIST_ENTRY(aic_scb) link;
+	struct callout	timer;
 	u_int8_t	flags;
 	u_int8_t	tag;
 	u_int8_t	target;
@@ -70,14 +72,14 @@ enum { AIC6260, AIC6360, AIC6370, GM82C700 };
 
 struct aic_softc {
 	device_t		dev;
-	int			unit;
-	bus_space_tag_t		tag;
-	bus_space_handle_t	bsh;
+	struct mtx		lock;
+	struct resource		*res;
 	bus_dma_tag_t		dmat;
 
 	struct cam_sim		*sim;
 	struct cam_path		*path;
 	TAILQ_HEAD(,ccb_hdr)	pending_ccbs, nexus_ccbs;
+	SLIST_HEAD(,aic_scb)	free_scbs;
 	struct aic_scb		*nexus;
 
 	u_int32_t		flags;
@@ -127,32 +129,28 @@ struct aic_softc {
 #define	AIC_SYNC_OFFSET		8
 
 #define	aic_inb(aic, port) \
-	bus_space_read_1((aic)->tag, (aic)->bsh, (port))
+	bus_read_1((aic)->res, (port))
 
 #define	aic_outb(aic, port, value) \
-	bus_space_write_1((aic)->tag, (aic)->bsh, (port), (value))
+	bus_write_1((aic)->res, (port), (value))
 
 #define	aic_insb(aic, port, addr, count) \
-	bus_space_read_multi_1((aic)->tag, (aic)->bsh, (port), (addr), (count))
+	bus_read_multi_1((aic)->res, (port), (addr), (count))
 
 #define	aic_outsb(aic, port, addr, count) \
-	bus_space_write_multi_1((aic)->tag, (aic)->bsh, (port), (addr), (count))
+	bus_write_multi_1((aic)->res, (port), (addr), (count))
 
 #define	aic_insw(aic, port, addr, count) \
-	bus_space_read_multi_2((aic)->tag, (aic)->bsh, (port), \
-		(u_int16_t *)(addr), (count))
+	bus_read_multi_2((aic)->res, (port), (u_int16_t *)(addr), (count))
 
 #define	aic_outsw(aic, port, addr, count) \
-	bus_space_write_multi_2((aic)->tag, (aic)->bsh, (port), \
-		(u_int16_t *)(addr), (count))
+	bus_write_multi_2((aic)->res, (port), (u_int16_t *)(addr), (count))
 
 #define	aic_insl(aic, port, addr, count) \
-	bus_space_read_multi_4((aic)->tag, (aic)->bsh, (port), \
-		(u_int32_t *)(addr), (count))
+	bus_read_multi_4((aic)->res, (port), (u_int32_t *)(addr), (count))
 
 #define	aic_outsl(aic, port, addr, count) \
-	bus_space_write_multi_4((aic)->tag, (aic)->bsh, (port), \
-		(u_int32_t *)(addr), (count))
+	bus_write_multi_4((aic)->res, (port), (u_int32_t *)(addr), (count))
 
 extern int aic_probe(struct aic_softc *);
 extern int aic_attach(struct aic_softc *);

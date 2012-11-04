@@ -330,6 +330,8 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF) const {
       BuildMI(MBB, MBBI, dl, TII.get(PPC::MFLR), PPC::R0);
 
     if (HasFP)
+      // FIXME: On PPC32 SVR4, FPOffset is negative and access to negative
+      // offsets of R1 is not allowed.
       BuildMI(MBB, MBBI, dl, TII.get(PPC::STW))
         .addReg(PPC::R31)
         .addImm(FPOffset)
@@ -366,9 +368,9 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF) const {
       BuildMI(MBB, MBBI, dl, TII.get(PPC::SUBFIC) ,PPC::R0)
         .addReg(PPC::R0, RegState::Kill)
         .addImm(NegFrameSize);
-      BuildMI(MBB, MBBI, dl, TII.get(PPC::STWUX))
+      BuildMI(MBB, MBBI, dl, TII.get(PPC::STWUX), PPC::R1)
         .addReg(PPC::R1, RegState::Kill)
-        .addReg(PPC::R1, RegState::Define)
+        .addReg(PPC::R1)
         .addReg(PPC::R0);
     } else if (isInt<16>(NegFrameSize)) {
       BuildMI(MBB, MBBI, dl, TII.get(PPC::STWU), PPC::R1)
@@ -381,9 +383,9 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF) const {
       BuildMI(MBB, MBBI, dl, TII.get(PPC::ORI), PPC::R0)
         .addReg(PPC::R0, RegState::Kill)
         .addImm(NegFrameSize & 0xFFFF);
-      BuildMI(MBB, MBBI, dl, TII.get(PPC::STWUX))
+      BuildMI(MBB, MBBI, dl, TII.get(PPC::STWUX), PPC::R1)
         .addReg(PPC::R1, RegState::Kill)
-        .addReg(PPC::R1, RegState::Define)
+        .addReg(PPC::R1)
         .addReg(PPC::R0);
     }
   } else {    // PPC64.
@@ -399,9 +401,9 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF) const {
       BuildMI(MBB, MBBI, dl, TII.get(PPC::SUBFIC8), PPC::X0)
         .addReg(PPC::X0)
         .addImm(NegFrameSize);
-      BuildMI(MBB, MBBI, dl, TII.get(PPC::STDUX))
+      BuildMI(MBB, MBBI, dl, TII.get(PPC::STDUX), PPC::X1)
         .addReg(PPC::X1, RegState::Kill)
-        .addReg(PPC::X1, RegState::Define)
+        .addReg(PPC::X1)
         .addReg(PPC::X0);
     } else if (isInt<16>(NegFrameSize)) {
       BuildMI(MBB, MBBI, dl, TII.get(PPC::STDU), PPC::X1)
@@ -414,9 +416,9 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF) const {
       BuildMI(MBB, MBBI, dl, TII.get(PPC::ORI8), PPC::X0)
         .addReg(PPC::X0, RegState::Kill)
         .addImm(NegFrameSize & 0xFFFF);
-      BuildMI(MBB, MBBI, dl, TII.get(PPC::STDUX))
+      BuildMI(MBB, MBBI, dl, TII.get(PPC::STDUX), PPC::X1)
         .addReg(PPC::X1, RegState::Kill)
-        .addReg(PPC::X1, RegState::Define)
+        .addReg(PPC::X1)
         .addReg(PPC::X0);
     }
   }
@@ -492,7 +494,7 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF) const {
 
       // This is a bit of a hack: CR2LT, CR2GT, CR2EQ and CR2UN are just
       // subregisters of CR2. We just need to emit a move of CR2.
-      if (PPC::CRBITRCRegisterClass->contains(Reg))
+      if (PPC::CRBITRCRegClass.contains(Reg))
         continue;
 
       MachineLocation CSDst(MachineLocation::VirtualFP, Offset);
@@ -817,7 +819,7 @@ void PPCFrameLowering::processFunctionBeforeFrameFinalized(MachineFunction &MF)
 
   for (unsigned i = 0, e = CSI.size(); i != e; ++i) {
     unsigned Reg = CSI[i].getReg();
-    if (PPC::GPRCRegisterClass->contains(Reg)) {
+    if (PPC::GPRCRegClass.contains(Reg)) {
       HasGPSaveArea = true;
 
       GPRegs.push_back(CSI[i]);
@@ -825,7 +827,7 @@ void PPCFrameLowering::processFunctionBeforeFrameFinalized(MachineFunction &MF)
       if (Reg < MinGPR) {
         MinGPR = Reg;
       }
-    } else if (PPC::G8RCRegisterClass->contains(Reg)) {
+    } else if (PPC::G8RCRegClass.contains(Reg)) {
       HasG8SaveArea = true;
 
       G8Regs.push_back(CSI[i]);
@@ -833,7 +835,7 @@ void PPCFrameLowering::processFunctionBeforeFrameFinalized(MachineFunction &MF)
       if (Reg < MinG8R) {
         MinG8R = Reg;
       }
-    } else if (PPC::F8RCRegisterClass->contains(Reg)) {
+    } else if (PPC::F8RCRegClass.contains(Reg)) {
       HasFPSaveArea = true;
 
       FPRegs.push_back(CSI[i]);
@@ -842,12 +844,12 @@ void PPCFrameLowering::processFunctionBeforeFrameFinalized(MachineFunction &MF)
         MinFPR = Reg;
       }
 // FIXME SVR4: Disable CR save area for now.
-    } else if (PPC::CRBITRCRegisterClass->contains(Reg)
-               || PPC::CRRCRegisterClass->contains(Reg)) {
+    } else if (PPC::CRBITRCRegClass.contains(Reg) ||
+               PPC::CRRCRegClass.contains(Reg)) {
 //      HasCRSaveArea = true;
-    } else if (PPC::VRSAVERCRegisterClass->contains(Reg)) {
+    } else if (PPC::VRSAVERCRegClass.contains(Reg)) {
       HasVRSAVESaveArea = true;
-    } else if (PPC::VRRCRegisterClass->contains(Reg)) {
+    } else if (PPC::VRRCRegClass.contains(Reg)) {
       HasVRSaveArea = true;
 
       VRegs.push_back(CSI[i]);
@@ -932,8 +934,8 @@ void PPCFrameLowering::processFunctionBeforeFrameFinalized(MachineFunction &MF)
     for (unsigned i = 0, e = CSI.size(); i != e; ++i) {
       unsigned Reg = CSI[i].getReg();
 
-      if (PPC::CRBITRCRegisterClass->contains(Reg) ||
-          PPC::CRRCRegisterClass->contains(Reg)) {
+      if (PPC::CRBITRCRegClass.contains(Reg) ||
+          PPC::CRRCRegClass.contains(Reg)) {
         int FI = CSI[i].getFrameIdx();
 
         FFI->setObjectOffset(FI, LowerBound + FFI->getObjectOffset(FI));
@@ -950,7 +952,7 @@ void PPCFrameLowering::processFunctionBeforeFrameFinalized(MachineFunction &MF)
     for (unsigned i = 0, e = CSI.size(); i != e; ++i) {
       unsigned Reg = CSI[i].getReg();
 
-      if (PPC::VRSAVERCRegisterClass->contains(Reg)) {
+      if (PPC::VRSAVERCRegClass.contains(Reg)) {
         int FI = CSI[i].getFrameIdx();
 
         FFI->setObjectOffset(FI, LowerBound + FFI->getObjectOffset(FI));

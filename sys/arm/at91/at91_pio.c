@@ -143,9 +143,10 @@ at91_pio_attach(device_t dev)
 	if (err)
 		goto out;
 
-	device_printf(dev, "ABSR: %#x OSR: %#x PSR:%#x ODSR: %#x\n",
-	    RD4(sc, PIO_ABSR), RD4(sc, PIO_OSR), RD4(sc, PIO_PSR),
-	    RD4(sc, PIO_ODSR));
+        if (bootverbose)
+		device_printf(dev, "ABSR: %#x OSR: %#x PSR:%#x ODSR: %#x\n",
+		    RD4(sc, PIO_ABSR), RD4(sc, PIO_OSR), RD4(sc, PIO_PSR),
+		    RD4(sc, PIO_ODSR));
 	AT91_PIO_LOCK_INIT(sc);
 
 	/*

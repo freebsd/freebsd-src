@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2012
+.Dd October 26, 2012
 .Dt RCTL 8
 .Os
 .Sh NAME
@@ -68,6 +68,10 @@ to the RCTL database.
 .It Fl l Ar filter
 Display rules applicable to the process defined by
 .Ar filter .
+Note that this is different from showing the rules when called without
+any options, as it shows not just the rules with subject equal to that
+of process, but also rules for the user, jail, and login class applicable
+to the process.
 .It Fl r Ar filter
 Remove rules matching
 .Ar filter
@@ -90,7 +94,8 @@ Subject defines the kind of entity the rule applies to.
 It can be either process, user, login class, or jail.
 .Pp
 Subject ID identifies the subject.
-It can be user name, numerical user ID, login class name, or jail name.
+It can be a process ID, user name, numerical user ID, login class name,
+or jail name.
 .Pp
 Resource identifies the resource the rule controls.
 .Pp
@@ -141,6 +146,7 @@ A filter that matches all defined rules for maxproc resource would be
 .It nshm Ta "number of SysV shared memory segments"
 .It shmsize Ta "SysV shared memory size, in bytes"
 .It wallclock Ta "wallclock time, in seconds"
+.It pcpu Ta "%CPU, in percents of a single CPU core"
 .El
 .Sh ACTIONS
 .Bl -column -offset 3n "pseudoterminals"
@@ -179,9 +185,7 @@ Display resource usage information for jail named "www".
 .Pp
 Display all the rules applicable to process with PID 512.
 .Sh SEE ALSO
-.Xr rctl.conf 5 ,
-.Xr jailstat 8 ,
-.Xr userstat 8
+.Xr rctl.conf 5
 .Sh HISTORY
 The
 .Nm

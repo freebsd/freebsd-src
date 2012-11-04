@@ -238,7 +238,8 @@ enum dwarf_form
     DW_FORM_ref4 = 0x13,
     DW_FORM_ref8 = 0x14,
     DW_FORM_ref_udata = 0x15,
-    DW_FORM_indirect = 0x16
+    DW_FORM_indirect = 0x16,
+    DW_FORM_flag_present = 0x19
   };
 
 /* Attribute names and codes.  */

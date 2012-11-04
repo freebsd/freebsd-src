@@ -600,6 +600,8 @@ void	cvtstat(struct stat *st, struct ostat *ost);
 void	cvtnstat(struct stat *sb, struct nstat *nsb);
 int	getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	    struct vnode **vpp);
+void	getnewvnode_reserve(u_int count);
+void	getnewvnode_drop_reserve(void);
 int	insmntque1(struct vnode *vp, struct mount *mp,
 	    void (*dtr)(struct vnode *, void *), void *dtr_arg);
 int	insmntque(struct vnode *vp, struct mount *mp);
@@ -654,6 +656,8 @@ int	_vn_lock(struct vnode *vp, int flags, char *file, int line);
 int	vn_open(struct nameidata *ndp, int *flagp, int cmode, struct file *fp);
 int	vn_open_cred(struct nameidata *ndp, int *flagp, int cmode,
 	    u_int vn_open_flags, struct ucred *cred, struct file *fp);
+int	vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
+	    struct thread *td, struct file *fp);
 void	vn_pages_remove(struct vnode *vp, vm_pindex_t start, vm_pindex_t end);
 int	vn_pollrecord(struct vnode *vp, struct thread *p, int events);
 int	vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base,

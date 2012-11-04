@@ -94,6 +94,7 @@ struct td_sched {
 	fixpt_t		ts_pctcpu;	/* (j) %cpu during p_swtime. */
 	int		ts_cpticks;	/* (j) Ticks of cpu time. */
 	int		ts_slptime;	/* (j) Seconds !RUNNING. */
+	int		ts_slice;	/* Remaining part of time slice. */
 	int		ts_flags;
 	struct runq	*ts_runq;	/* runq the thread is currently on */
 #ifdef KTR
@@ -104,6 +105,7 @@ struct td_sched {
 /* flags kept in td_flags */
 #define TDF_DIDRUN	TDF_SCHED0	/* thread actually ran. */
 #define TDF_BOUND	TDF_SCHED1	/* Bound to one CPU. */
+#define	TDF_SLICEEND	TDF_SCHED2	/* Thread time slice is over. */
 
 /* flags kept in ts_flags */
 #define	TSF_AFFINITY	0x0001		/* Has a non-"full" CPU set. */
@@ -117,9 +119,9 @@ struct td_sched {
 static struct td_sched td_sched0;
 struct mtx sched_lock;
 
+static int	realstathz = 127; /* stathz is sometimes 0 and run off of hz. */
 static int	sched_tdcnt;	/* Total runnable threads in the system. */
-static int	sched_quantum;	/* Roundrobin scheduling quantum in ticks. */
-#define	SCHED_QUANTUM	(hz / 10)	/* Default sched quantum */
+static int	sched_slice = 12; /* Thread run time before rescheduling. */
 
 static void	setup_runqs(void);
 static void	schedcpu(void);
@@ -144,6 +146,10 @@ static struct kproc_desc sched_kp = {
 SYSINIT(schedcpu, SI_SUB_RUN_SCHEDULER, SI_ORDER_FIRST, kproc_start,
     &sched_kp);
 SYSINIT(sched_setup, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, sched_setup, NULL);
+
+static void sched_initticks(void *dummy);
+SYSINIT(sched_initticks, SI_SUB_CLOCKS, SI_ORDER_THIRD, sched_initticks,
+    NULL);
 
 /*
  * Global run queue.
@@ -182,16 +188,18 @@ setup_runqs(void)
 static int
 sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 {
-	int error, new_val;
+	int error, new_val, period;
 
-	new_val = sched_quantum * tick;
+	period = 1000000 / realstathz;
+	new_val = period * sched_slice;
 	error = sysctl_handle_int(oidp, &new_val, 0, req);
-        if (error != 0 || req->newptr == NULL)
+	if (error != 0 || req->newptr == NULL)
 		return (error);
-	if (new_val < tick)
+	if (new_val <= 0)
 		return (EINVAL);
-	sched_quantum = new_val / tick;
-	hogticks = 2 * sched_quantum;
+	sched_slice = imax(1, (new_val + period / 2) / period);
+	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
+	    realstathz);
 	return (0);
 }
 
@@ -199,11 +207,11 @@ SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RD, 0, "Scheduler");
 
 SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, "4BSD", 0,
     "Scheduler name");
-
 SYSCTL_PROC(_kern_sched, OID_AUTO, quantum, CTLTYPE_INT | CTLFLAG_RW,
-    0, sizeof sched_quantum, sysctl_kern_quantum, "I",
-    "Roundrobin scheduling quantum in microseconds");
-
+    NULL, 0, sysctl_kern_quantum, "I",
+    "Quantum for timeshare threads in microseconds");
+SYSCTL_INT(_kern_sched, OID_AUTO, slice, CTLFLAG_RW, &sched_slice, 0,
+    "Quantum for timeshare threads in stathz ticks");
 #ifdef SMP
 /* Enable forwarding of wakeups to all other cpus */
 static SYSCTL_NODE(_kern_sched, OID_AUTO, ipiwakeup, CTLFLAG_RD, NULL,
@@ -471,9 +479,8 @@ schedcpu(void)
 	struct thread *td;
 	struct proc *p;
 	struct td_sched *ts;
-	int awake, realstathz;
+	int awake;
 
-	realstathz = stathz ? stathz : hz;
 	sx_slock(&allproc_lock);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		PROC_LOCK(p);
@@ -643,14 +650,24 @@ resetpriority_thread(struct thread *td)
 static void
 sched_setup(void *dummy)
 {
-	setup_runqs();
 
-	if (sched_quantum == 0)
-		sched_quantum = SCHED_QUANTUM;
-	hogticks = 2 * sched_quantum;
+	setup_runqs();
 
 	/* Account for thread0. */
 	sched_load_add();
+}
+
+/*
+ * This routine determines time constants after stathz and hz are setup.
+ */
+static void
+sched_initticks(void *dummy)
+{
+
+	realstathz = stathz ? stathz : hz;
+	sched_slice = realstathz / 10;	/* ~100ms */
+	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
+	    realstathz);
 }
 
 /* External interfaces start here */
@@ -670,6 +687,7 @@ schedinit(void)
 	proc0.p_sched = NULL; /* XXX */
 	thread0.td_sched = &td_sched0;
 	thread0.td_lock = &sched_lock;
+	td_sched0.ts_slice = sched_slice;
 	mtx_init(&sched_lock, "sched lock", NULL, MTX_SPIN | MTX_RECURSE);
 }
 
@@ -686,9 +704,9 @@ sched_runnable(void)
 int
 sched_rr_interval(void)
 {
-	if (sched_quantum == 0)
-		sched_quantum = SCHED_QUANTUM;
-	return (sched_quantum);
+
+	/* Convert sched_slice from stathz to hz. */
+	return (imax(1, (sched_slice * hz + realstathz / 2) / realstathz));
 }
 
 /*
@@ -723,11 +741,12 @@ sched_clock(struct thread *td)
 
 	/*
 	 * Force a context switch if the current thread has used up a full
-	 * quantum (default quantum is 100ms).
+	 * time slice (default is 100ms).
 	 */
-	if (!TD_IS_IDLETHREAD(td) &&
-	    ticks - PCPU_GET(switchticks) >= sched_quantum)
-		td->td_flags |= TDF_NEEDRESCHED;
+	if (!TD_IS_IDLETHREAD(td) && --ts->ts_slice <= 0) {
+		ts->ts_slice = sched_slice;
+		td->td_flags |= TDF_NEEDRESCHED | TDF_SLICEEND;
+	}
 
 	stat = DPCPU_PTR(idlestat);
 	stat->oldidlecalls = stat->idlecalls;
@@ -781,6 +800,7 @@ sched_fork_thread(struct thread *td, struct thread *childtd)
 	ts = childtd->td_sched;
 	bzero(ts, sizeof(*ts));
 	ts->ts_flags |= (td->td_sched->ts_flags & TSF_AFFINITY);
+	ts->ts_slice = 1;
 }
 
 void
@@ -941,6 +961,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	struct mtx *tmtx;
 	struct td_sched *ts;
 	struct proc *p;
+	int preempted;
 
 	tmtx = NULL;
 	ts = td->td_sched;
@@ -962,8 +983,8 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		sched_load_rem();
 
 	td->td_lastcpu = td->td_oncpu;
-	if (!(flags & SW_PREEMPT))
-		td->td_flags &= ~TDF_NEEDRESCHED;
+	preempted = !(td->td_flags & TDF_SLICEEND);
+	td->td_flags &= ~(TDF_NEEDRESCHED | TDF_SLICEEND);
 	td->td_owepreempt = 0;
 	td->td_oncpu = NOCPU;
 
@@ -981,7 +1002,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	} else {
 		if (TD_IS_RUNNING(td)) {
 			/* Put us back on the run queue. */
-			sched_add(td, (flags & SW_PREEMPT) ?
+			sched_add(td, preempted ?
 			    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
 			    SRQ_OURSELF|SRQ_YIELDING);
 		}
@@ -1077,6 +1098,7 @@ sched_wakeup(struct thread *td)
 	}
 	td->td_slptick = 0;
 	ts->ts_slptime = 0;
+	ts->ts_slice = sched_slice;
 	sched_add(td, SRQ_BORING);
 }
 
@@ -1563,6 +1585,40 @@ sched_pctcpu(struct thread *td)
 	return (ts->ts_pctcpu);
 }
 
+#ifdef	RACCT
+/*
+ * Calculates the contribution to the thread cpu usage for the latest
+ * (unfinished) second.
+ */
+fixpt_t
+sched_pctcpu_delta(struct thread *td)
+{
+	struct td_sched *ts;
+	fixpt_t delta;
+	int realstathz;
+
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	ts = td->td_sched;
+	delta = 0;
+	realstathz = stathz ? stathz : hz;
+	if (ts->ts_cpticks != 0) {
+#if	(FSHIFT >= CCPU_SHIFT)
+		delta = (realstathz == 100)
+		    ? ((fixpt_t) ts->ts_cpticks) <<
+		    (FSHIFT - CCPU_SHIFT) :
+		    100 * (((fixpt_t) ts->ts_cpticks)
+		    << (FSHIFT - CCPU_SHIFT)) / realstathz;
+#else
+		delta = ((FSCALE - ccpu) *
+		    (ts->ts_cpticks *
+		    FSCALE / realstathz)) >> FSHIFT;
+#endif
+	}
+
+	return (delta);
+}
+#endif
+
 void
 sched_tick(int cnt)
 {
@@ -1576,6 +1632,7 @@ sched_idletd(void *dummy)
 {
 	struct pcpuidlestat *stat;
 
+	THREAD_NO_SLEEPING();
 	stat = DPCPU_PTR(idlestat);
 	for (;;) {
 		mtx_assert(&Giant, MA_NOTOWNED);

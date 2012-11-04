@@ -272,6 +272,7 @@ struct thread {
 	struct osd	td_osd;		/* (k) Object specific data. */
 	struct vm_map_entry *td_map_def_user; /* (k) Deferred entries. */
 	pid_t		td_dbg_forked;	/* (c) Child pid for debugger. */
+	u_int		td_vp_reserv;	/* (k) Count of reserved vnodes. */
 #define	td_endzero td_sigmask
 
 /* Copied during fork1() or create_thread(). */
@@ -583,6 +584,7 @@ struct proc {
 					   after fork. */
 	uint64_t	p_prev_runtime;	/* (c) Resource usage accounting. */
 	struct racct	*p_racct;	/* (b) Resource accounting. */
+	u_char		p_throttled;	/* (c) Flag for racct pcpu throttling */
 	/*
 	 * An orphan is the child that has beed re-parented to the
 	 * debugger as a result of attaching to it.  Need to keep
@@ -627,7 +629,6 @@ struct proc {
 #define	P_SIGEVENT	0x200000 /* Process pending signals changed. */
 #define	P_SINGLE_BOUNDARY 0x400000 /* Threads should suspend at user boundary. */
 #define	P_HWPMC		0x800000 /* Process is using HWPMCs */
-
 #define	P_JAILED	0x1000000 /* Process is in jail. */
 #define	P_ORPHAN	0x2000000 /* Orphaned. */
 #define	P_INEXEC	0x4000000 /* Process is in execve(). */
@@ -697,11 +698,12 @@ MALLOC_DECLARE(M_SUBPROC);
 #define	FIRST_THREAD_IN_PROC(p)	TAILQ_FIRST(&(p)->p_threads)
 
 /*
- * We use process IDs <= PID_MAX; PID_MAX + 1 must also fit in a pid_t,
- * as it is used to represent "no process group".
+ * We use process IDs <= pid_max <= PID_MAX; PID_MAX + 1 must also fit
+ * in a pid_t, as it is used to represent "no process group".
  */
 #define	PID_MAX		99999
 #define	NO_PID		100000
+extern pid_t pid_max;
 
 #define	SESS_LEADER(p)	((p)->p_session->s_leader == (p))
 

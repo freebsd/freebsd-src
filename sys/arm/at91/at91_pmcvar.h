@@ -28,7 +28,7 @@
 #ifndef ARM_AT91_AT91_PMCVAR_H
 #define ARM_AT91_AT91_PMCVAR_H
 
-struct at91_pmc_clock 
+struct at91_pmc_clock
 {
 	char		*name;
 	uint32_t	hz;
@@ -55,11 +55,13 @@ struct at91_pmc_clock
 	uint32_t	(*set_outb)(int);
 };
 
-struct at91_pmc_clock * at91_pmc_clock_add(const char *name, uint32_t irq,
+struct at91_pmc_clock *at91_pmc_clock_add(const char *name, uint32_t irq,
     struct at91_pmc_clock *parent);
 struct at91_pmc_clock *at91_pmc_clock_ref(const char *name);
 void at91_pmc_clock_deref(struct at91_pmc_clock *);
 void at91_pmc_clock_enable(struct at91_pmc_clock *);
 void at91_pmc_clock_disable(struct at91_pmc_clock *);
 
+uint32_t at91_pmc_800mhz_plla_outb(int freq);
+uint32_t at91_pmc_800mhz_pllb_outb(int freq);
 #endif /* ARM_AT91_AT91_PMCVAR_H */

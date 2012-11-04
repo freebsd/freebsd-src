@@ -392,7 +392,6 @@ g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length
 	sbuf_finish(sb);
 	pp = g_new_providerf(gp, sbuf_data(sb));
 	pp2 = LIST_FIRST(&gp->consumer)->provider;
-	pp->flags = pp2->flags & G_PF_CANDELETE;
 	pp->stripesize = pp2->stripesize;
 	pp->stripeoffset = pp2->stripeoffset + offset;
 	if (pp->stripesize > 0)
@@ -465,6 +464,7 @@ g_slice_spoiled(struct g_consumer *cp)
 	g_topology_assert();
 	gp = cp->geom;
 	g_trace(G_T_TOPOLOGY, "g_slice_spoiled(%p/%s)", cp, gp->name);
+	cp->flags |= G_CF_ORPHAN;
 	gsp = gp->softc;
 	gp->softc = NULL;
 	g_slice_free(gsp);
@@ -522,10 +522,8 @@ g_slice_orphan(struct g_consumer *cp)
 
 	g_trace(G_T_TOPOLOGY, "g_slice_orphan(%p/%s)", cp, cp->provider->name);
 	g_topology_assert();
-	KASSERT(cp->provider->error != 0,
-	    ("g_slice_orphan with error == 0"));
 
 	/* XXX: Not good enough we leak the softc and its suballocations */
 	g_slice_free(cp->geom->softc);
-	g_wither_geom(cp->geom, cp->provider->error);
+	g_wither_geom(cp->geom, ENXIO);
 }

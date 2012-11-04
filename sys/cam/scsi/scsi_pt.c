@@ -255,11 +255,6 @@ ptctor(struct cam_periph *periph, void *arg)
 	struct ccb_pathinq cpi;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("ptregister: periph was NULL!!\n");
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	if (cgd == NULL) {
 		printf("ptregister: no getdev CCB, can't register device\n");
 		return(CAM_REQ_CMP_ERR);
@@ -425,12 +420,14 @@ ptstart(struct cam_periph *periph, union ccb *start_ccb)
 
 	softc = (struct pt_softc *)periph->softc;
 
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("ptstart\n"));
+
 	/*
 	 * See if there is a buf with work for us to do..
 	 */
 	bp = bioq_first(&softc->bio_queue);
 	if (periph->immediate_priority <= periph->pinfo.priority) {
-		CAM_DEBUG_PRINT(CAM_DEBUG_SUBTRACE,
+		CAM_DEBUG(periph->path, CAM_DEBUG_SUBTRACE,
 				("queuing for immediate ccb\n"));
 		start_ccb->ccb_h.ccb_state = PT_CCB_WAITING;
 		SLIST_INSERT_HEAD(&periph->ccb_list, &start_ccb->ccb_h,
@@ -483,6 +480,9 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 	struct ccb_scsiio *csio;
 
 	softc = (struct pt_softc *)periph->softc;
+
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("ptdone\n"));
+
 	csio = &done_ccb->csio;
 	switch (csio->ccb_h.ccb_state) {
 	case PT_CCB_BUFFER_IO:

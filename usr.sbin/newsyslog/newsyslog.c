@@ -145,7 +145,7 @@ struct compress_types {
 	const char *path;	/* Path to compression program */
 };
 
-const struct compress_types compress_type[COMPRESS_TYPES] = {
+static const struct compress_types compress_type[COMPRESS_TYPES] = {
 	{ "", "", "" },					/* no compression */
 	{ "Z", COMPRESS_SUFFIX_GZ, _PATH_GZIP },	/* gzip compression */
 	{ "J", COMPRESS_SUFFIX_BZ2, _PATH_BZIP2 },	/* bzip2 compression */
@@ -206,42 +206,44 @@ typedef enum {
 }	fk_entry;
 
 STAILQ_HEAD(cflist, conf_entry);
-SLIST_HEAD(swlisthead, sigwork_entry) swhead = SLIST_HEAD_INITIALIZER(swhead);
-SLIST_HEAD(zwlisthead, zipwork_entry) zwhead = SLIST_HEAD_INITIALIZER(zwhead);
+static SLIST_HEAD(swlisthead, sigwork_entry) swhead =
+    SLIST_HEAD_INITIALIZER(swhead);
+static SLIST_HEAD(zwlisthead, zipwork_entry) zwhead =
+    SLIST_HEAD_INITIALIZER(zwhead);
 STAILQ_HEAD(ilist, include_entry);
 
 int dbg_at_times;		/* -D Show details of 'trim_at' code */
 
-int archtodir = 0;		/* Archive old logfiles to other directory */
-int createlogs;			/* Create (non-GLOB) logfiles which do not */
+static int archtodir = 0;	/* Archive old logfiles to other directory */
+static int createlogs;		/* Create (non-GLOB) logfiles which do not */
 				/*    already exist.  1=='for entries with */
 				/*    C flag', 2=='for all entries'. */
 int verbose = 0;		/* Print out what's going on */
-int needroot = 1;		/* Root privs are necessary */
+static int needroot = 1;	/* Root privs are necessary */
 int noaction = 0;		/* Don't do anything, just show it */
-int norotate = 0;		/* Don't rotate */
-int nosignal;			/* Do not send any signals */
-int enforcepid = 0;		/* If PID file does not exist or empty, do nothing */
-int force = 0;			/* Force the trim no matter what */
-int rotatereq = 0;		/* -R = Always rotate the file(s) as given */
+static int norotate = 0;	/* Don't rotate */
+static int nosignal;		/* Do not send any signals */
+static int enforcepid = 0;	/* If PID file does not exist or empty, do nothing */
+static int force = 0;		/* Force the trim no matter what */
+static int rotatereq = 0;	/* -R = Always rotate the file(s) as given */
 				/*    on the command (this also requires   */
 				/*    that a list of files *are* given on  */
 				/*    the run command). */
-char *requestor;		/* The name given on a -R request */
-char *timefnamefmt = NULL;	/* Use time based filenames instead of .0 etc */
-char *archdirname;		/* Directory path to old logfiles archive */
-char *destdir = NULL;		/* Directory to treat at root for logs */
-const char *conf;		/* Configuration file to use */
+static char *requestor;		/* The name given on a -R request */
+static char *timefnamefmt = NULL;/* Use time based filenames instead of .0 */
+static char *archdirname;	/* Directory path to old logfiles archive */
+static char *destdir = NULL;	/* Directory to treat at root for logs */
+static const char *conf;	/* Configuration file to use */
 
 struct ptime_data *dbg_timenow;	/* A "timenow" value set via -D option */
-struct ptime_data *timenow;	/* The time to use for checking at-fields */
+static struct ptime_data *timenow; /* The time to use for checking at-fields */
 
 #define	DAYTIME_LEN	16
-char daytime[DAYTIME_LEN];	/* The current time in human readable form,
-				 * used for rotation-tracking messages. */
-char hostname[MAXHOSTNAMELEN];	/* hostname */
+static char daytime[DAYTIME_LEN];/* The current time in human readable form,
+				  * used for rotation-tracking messages. */
+static char hostname[MAXHOSTNAMELEN]; /* hostname */
 
-const char *path_syslogpid = _PATH_SYSLOGPID;
+static const char *path_syslogpid = _PATH_SYSLOGPID;
 
 static struct cflist *get_worklist(char **files);
 static void parse_file(FILE *cf, struct cflist *work_p, struct cflist *glob_p,
@@ -1972,7 +1974,8 @@ do_zipwork(struct zipwork_entry *zwork)
 	else
 		pgm_name++;
 
-	if (zwork->zw_swork != NULL && zwork->zw_swork->sw_pidok <= 0) {
+	if (zwork->zw_swork != NULL && zwork->zw_swork->run_cmd == 0 &&
+	    zwork->zw_swork->sw_pidok <= 0) {
 		warnx(
 		    "log %s not compressed because daemon(s) not notified",
 		    zwork->zw_fname);

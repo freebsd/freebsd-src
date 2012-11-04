@@ -325,6 +325,7 @@ gather_inet(int proto)
 			}
 			inp = &xtp->xt_inp;
 			so = &xtp->xt_socket;
+			protoname = xtp->xt_tp.t_flags & TF_TOE ? "toe" : "tcp";
 			break;
 		case IPPROTO_UDP:
 		case IPPROTO_DIVERT:
@@ -732,7 +733,7 @@ static void
 usage(void)
 {
 	fprintf(stderr,
-	    "Usage: sockstat [-46cLlu] [-p ports] [-P protocols]\n");
+	    "Usage: sockstat [-46cLlu] [-j jid] [-p ports] [-P protocols]\n");
 	exit(1);
 }
 

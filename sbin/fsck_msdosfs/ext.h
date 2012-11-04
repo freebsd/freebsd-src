@@ -133,7 +133,7 @@ void finishlf(void);
 /*
  * Return the type of a reserved cluster as text
  */
-char *rsrvdcltype(cl_t);
+const char *rsrvdcltype(cl_t);
 
 /*
  * Clear a cluster chain in a FAT

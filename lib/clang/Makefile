@@ -54,6 +54,7 @@ SUBDIR=	libclanganalysis \
 	libllvmmipsasmparser \
 	libllvmmipscodegen \
 	libllvmmipsdesc \
+	libllvmmipsdisassembler \
 	libllvmmipsinfo \
 	libllvmmipsinstprinter \
 	libllvmpowerpccodegen \

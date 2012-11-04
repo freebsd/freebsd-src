@@ -304,7 +304,7 @@ ata_avila_release_resource(device_t dev, device_t child, int type, int rid,
 }
 
 static int
-ata_avila_setup_intr(device_t dev, device_t child, struct resource *irq, 
+ata_avila_setup_intr(device_t dev, device_t child, struct resource *irq,
 		   int flags, driver_filter_t *filt,
 		   driver_intr_t *function, void *argument, void **cookiep)
 {

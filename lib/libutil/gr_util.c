@@ -63,6 +63,7 @@ static const char group_line_format[] = "%s:%s:%ju:";
 int
 gr_init(const char *dir, const char *group)
 {
+
 	if (dir == NULL) {
 		strcpy(group_dir, _PATH_ETC);
 	} else {
@@ -88,6 +89,7 @@ gr_init(const char *dir, const char *group)
 		}
 		strcpy(group_file, group);
 	}
+
 	initialized = 1;
 	return (0);
 }

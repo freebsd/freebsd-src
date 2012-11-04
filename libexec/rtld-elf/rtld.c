@@ -80,8 +80,9 @@ typedef void * (*path_enum_proc) (const char *path, size_t len, void *arg);
 static const char *basename(const char *);
 static void die(void) __dead2;
 static void digest_dynamic1(Obj_Entry *, int, const Elf_Dyn **,
-    const Elf_Dyn **);
-static void digest_dynamic2(Obj_Entry *, const Elf_Dyn *, const Elf_Dyn *);
+    const Elf_Dyn **, const Elf_Dyn **);
+static void digest_dynamic2(Obj_Entry *, const Elf_Dyn *, const Elf_Dyn *,
+    const Elf_Dyn *);
 static void digest_dynamic(Obj_Entry *, int);
 static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, const char *);
 static Obj_Entry *dlcheck(void *);
@@ -94,7 +95,7 @@ static void errmsg_restore(char *);
 static char *errmsg_save(void);
 static void *fill_search_info(const char *, size_t, void *);
 static char *find_library(const char *, const Obj_Entry *);
-static const char *gethints(void);
+static const char *gethints(bool);
 static void init_dag(Obj_Entry *);
 static void init_rtld(caddr_t, Elf_Auxinfo **);
 static void initlist_add_neededs(Needed_Entry *, Objlist *);
@@ -117,6 +118,10 @@ static void objlist_push_head(Objlist *, Obj_Entry *);
 static void objlist_push_tail(Objlist *, Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
 static void *path_enumerate(const char *, path_enum_proc, void *);
+static int relocate_object_dag(Obj_Entry *root, bool bind_now,
+    Obj_Entry *rtldobj, int flags, RtldLockState *lockstate);
+static int relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
+    int flags, RtldLockState *lockstate);
 static int relocate_objects(Obj_Entry *, bool, Obj_Entry *, int,
     RtldLockState *);
 static int resolve_objects_ifunc(Obj_Entry *first, bool bind_now,
@@ -229,6 +234,8 @@ size_t tls_static_space;	/* Static TLS space allocated */
 int tls_dtv_generation = 1;	/* Used to detect when dtv size changes  */
 int tls_max_index = 1;		/* Largest module index allocated */
 
+bool ld_library_path_rpath = false;
+
 /*
  * Fill in a DoneList with an allocation large enough to hold all of
  * the currently-loaded objects.  Keep this as a macro since it calls
@@ -319,6 +326,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     Obj_Entry **preload_tail;
     Objlist initlist;
     RtldLockState lockstate;
+    char *library_path_rpath;
     int mib[2];
     size_t len;
 
@@ -390,7 +398,7 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
         if (unsetenv(LD_ "PRELOAD") || unsetenv(LD_ "LIBMAP") ||
 	    unsetenv(LD_ "LIBRARY_PATH") || unsetenv(LD_ "LIBMAP_DISABLE") ||
 	    unsetenv(LD_ "DEBUG") || unsetenv(LD_ "ELF_HINTS_PATH") ||
-	    unsetenv(LD_ "LOADFLTR")) {
+	    unsetenv(LD_ "LOADFLTR") || unsetenv(LD_ "LIBRARY_PATH_RPATH")) {
 		_rtld_error("environment corrupt; aborting");
 		die();
 	}
@@ -402,6 +410,15 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     ld_preload = getenv(LD_ "PRELOAD");
     ld_elf_hints_path = getenv(LD_ "ELF_HINTS_PATH");
     ld_loadfltr = getenv(LD_ "LOADFLTR") != NULL;
+    library_path_rpath = getenv(LD_ "LIBRARY_PATH_RPATH");
+    if (library_path_rpath != NULL) {
+	    if (library_path_rpath[0] == 'y' ||
+		library_path_rpath[0] == 'Y' ||
+		library_path_rpath[0] == '1')
+		    ld_library_path_rpath = true;
+	    else
+		    ld_library_path_rpath = false;
+    }
     dangerous_ld_env = libmap_disable || (libmap_override != NULL) ||
 	(ld_library_path != NULL) || (ld_preload != NULL) ||
 	(ld_elf_hints_path != NULL) || ld_loadfltr;
@@ -824,7 +841,7 @@ die(void)
  */
 static void
 digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
-    const Elf_Dyn **dyn_soname)
+    const Elf_Dyn **dyn_soname, const Elf_Dyn **dyn_runpath)
 {
     const Elf_Dyn *dynp;
     Needed_Entry **needed_tail = &obj->needed;
@@ -839,6 +856,7 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 
     *dyn_rpath = NULL;
     *dyn_soname = NULL;
+    *dyn_runpath = NULL;
 
     obj->bind_now = false;
     for (dynp = obj->dynamic;  dynp->d_tag != DT_NULL;  dynp++) {
@@ -1005,7 +1023,6 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 	    break;
 
 	case DT_RPATH:
-	case DT_RUNPATH:	/* XXX: process separately */
 	    /*
 	     * We have to wait until later to process this, because we
 	     * might not have gotten the address of the string table yet.
@@ -1015,6 +1032,10 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 
 	case DT_SONAME:
 	    *dyn_soname = dynp;
+	    break;
+
+	case DT_RUNPATH:
+	    *dyn_runpath = dynp;
 	    break;
 
 	case DT_INIT:
@@ -1110,6 +1131,8 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 		    obj->z_nodelete = true;
 		if (dynp->d_un.d_val & DF_1_LOADFLTR)
 		    obj->z_loadfltr = true;
+		if (dynp->d_un.d_val & DF_1_NODEFLIB)
+		    obj->z_nodeflib = true;
 	    break;
 
 	default:
@@ -1149,7 +1172,7 @@ digest_dynamic1(Obj_Entry *obj, int early, const Elf_Dyn **dyn_rpath,
 
 static void
 digest_dynamic2(Obj_Entry *obj, const Elf_Dyn *dyn_rpath,
-    const Elf_Dyn *dyn_soname)
+    const Elf_Dyn *dyn_soname, const Elf_Dyn *dyn_runpath)
 {
 
     if (obj->z_origin && obj->origin_path == NULL) {
@@ -1158,7 +1181,12 @@ digest_dynamic2(Obj_Entry *obj, const Elf_Dyn *dyn_rpath,
 	    die();
     }
 
-    if (dyn_rpath != NULL) {
+    if (dyn_runpath != NULL) {
+	obj->runpath = (char *)obj->strtab + dyn_runpath->d_un.d_val;
+	if (obj->z_origin)
+	    obj->runpath = origin_subst(obj->runpath, obj->origin_path);
+    }
+    else if (dyn_rpath != NULL) {
 	obj->rpath = (char *)obj->strtab + dyn_rpath->d_un.d_val;
 	if (obj->z_origin)
 	    obj->rpath = origin_subst(obj->rpath, obj->origin_path);
@@ -1173,9 +1201,10 @@ digest_dynamic(Obj_Entry *obj, int early)
 {
 	const Elf_Dyn *dyn_rpath;
 	const Elf_Dyn *dyn_soname;
+	const Elf_Dyn *dyn_runpath;
 
-	digest_dynamic1(obj, early, &dyn_rpath, &dyn_soname);
-	digest_dynamic2(obj, dyn_rpath, dyn_soname);
+	digest_dynamic1(obj, early, &dyn_rpath, &dyn_soname, &dyn_runpath);
+	digest_dynamic2(obj, dyn_rpath, dyn_soname, dyn_runpath);
 }
 
 /*
@@ -1385,43 +1414,71 @@ gnu_hash(const char *s)
  * loaded shared object, whose library search path will be searched.
  *
  * The search order is:
+ *   DT_RPATH in the referencing file _unless_ DT_RUNPATH is present (1)
+ *   DT_RPATH of the main object if DSO without defined DT_RUNPATH (1)
  *   LD_LIBRARY_PATH
- *   rpath in the referencing file
- *   ldconfig hints
- *   /lib:/usr/lib
+ *   DT_RUNPATH in the referencing file
+ *   ldconfig hints (if -z nodefaultlib, filter out default library directories
+ *	 from list)
+ *   /lib:/usr/lib _unless_ the referencing file is linked with -z nodefaultlib
+ *
+ * (1) Handled in digest_dynamic2 - rpath left NULL if runpath defined.
  */
 static char *
 find_library(const char *xname, const Obj_Entry *refobj)
 {
     char *pathname;
     char *name;
+    bool nodeflib, objgiven;
 
+    objgiven = refobj != NULL;
     if (strchr(xname, '/') != NULL) {	/* Hard coded pathname */
 	if (xname[0] != '/' && !trust) {
 	    _rtld_error("Absolute pathname required for shared object \"%s\"",
 	      xname);
 	    return NULL;
 	}
-	if (refobj != NULL && refobj->z_origin)
+	if (objgiven && refobj->z_origin)
 	    return origin_subst(xname, refobj->origin_path);
 	else
 	    return xstrdup(xname);
     }
 
-    if (libmap_disable || (refobj == NULL) ||
+    if (libmap_disable || !objgiven ||
 	(name = lm_find(refobj->path, xname)) == NULL)
 	name = (char *)xname;
 
     dbg(" Searching for \"%s\"", name);
 
-    if ((pathname = search_library_path(name, ld_library_path)) != NULL ||
-      (refobj != NULL &&
-      (pathname = search_library_path(name, refobj->rpath)) != NULL) ||
-      (pathname = search_library_path(name, gethints())) != NULL ||
-      (pathname = search_library_path(name, STANDARD_LIBRARY_PATH)) != NULL)
-	return pathname;
+    /*
+     * If refobj->rpath != NULL, then refobj->runpath is NULL.  Fall
+     * back to pre-conforming behaviour if user requested so with
+     * LD_LIBRARY_PATH_RPATH environment variable and ignore -z
+     * nodeflib.
+     */
+    if (objgiven && refobj->rpath != NULL && ld_library_path_rpath) {
+	if ((pathname = search_library_path(name, ld_library_path)) != NULL ||
+	  (refobj != NULL &&
+	  (pathname = search_library_path(name, refobj->rpath)) != NULL) ||
+          (pathname = search_library_path(name, gethints(false))) != NULL ||
+	  (pathname = search_library_path(name, STANDARD_LIBRARY_PATH)) != NULL)
+	    return (pathname);
+    } else {
+	nodeflib = objgiven ? refobj->z_nodeflib : false;
+	if ((objgiven &&
+	  (pathname = search_library_path(name, refobj->rpath)) != NULL) ||
+	  (objgiven && refobj->runpath == NULL && refobj != obj_main &&
+	  (pathname = search_library_path(name, obj_main->rpath)) != NULL) ||
+	  (pathname = search_library_path(name, ld_library_path)) != NULL ||
+	  (objgiven &&
+	  (pathname = search_library_path(name, refobj->runpath)) != NULL) ||
+	  (pathname = search_library_path(name, gethints(nodeflib))) != NULL ||
+	  (objgiven && !nodeflib &&
+	  (pathname = search_library_path(name, STANDARD_LIBRARY_PATH)) != NULL))
+	    return (pathname);
+    }
 
-    if(refobj != NULL && refobj->path != NULL) {
+    if (objgiven && refobj->path != NULL) {
 	_rtld_error("Shared object \"%s\" not found, required by \"%s\"",
 	  name, basename(refobj->path));
     } else {
@@ -1516,41 +1573,142 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
 
 /*
  * Return the search path from the ldconfig hints file, reading it if
- * necessary.  Returns NULL if there are problems with the hints file,
+ * necessary.  If nostdlib is true, then the default search paths are
+ * not added to result.
+ *
+ * Returns NULL if there are problems with the hints file,
  * or if the search path there is empty.
  */
 static const char *
-gethints(void)
+gethints(bool nostdlib)
 {
-    static char *hints;
-
-    if (hints == NULL) {
-	int fd;
+	static char *hints, *filtered_path;
 	struct elfhints_hdr hdr;
+	struct fill_search_info_args sargs, hargs;
+	struct dl_serinfo smeta, hmeta, *SLPinfo, *hintinfo;
+	struct dl_serpath *SLPpath, *hintpath;
 	char *p;
+	unsigned int SLPndx, hintndx, fndx, fcount;
+	int fd;
+	size_t flen;
+	bool skip;
 
-	/* Keep from trying again in case the hints file is bad. */
-	hints = "";
+	/* First call, read the hints file */
+	if (hints == NULL) {
+		/* Keep from trying again in case the hints file is bad. */
+		hints = "";
 
-	if ((fd = open(ld_elf_hints_path, O_RDONLY)) == -1)
-	    return NULL;
-	if (read(fd, &hdr, sizeof hdr) != sizeof hdr ||
-	  hdr.magic != ELFHINTS_MAGIC ||
-	  hdr.version != 1) {
-	    close(fd);
-	    return NULL;
+		if ((fd = open(ld_elf_hints_path, O_RDONLY)) == -1)
+			return (NULL);
+		if (read(fd, &hdr, sizeof hdr) != sizeof hdr ||
+		    hdr.magic != ELFHINTS_MAGIC ||
+		    hdr.version != 1) {
+			close(fd);
+			return (NULL);
+		}
+		p = xmalloc(hdr.dirlistlen + 1);
+		if (lseek(fd, hdr.strtab + hdr.dirlist, SEEK_SET) == -1 ||
+		    read(fd, p, hdr.dirlistlen + 1) !=
+		    (ssize_t)hdr.dirlistlen + 1) {
+			free(p);
+			close(fd);
+			return (NULL);
+		}
+		hints = p;
+		close(fd);
 	}
-	p = xmalloc(hdr.dirlistlen + 1);
-	if (lseek(fd, hdr.strtab + hdr.dirlist, SEEK_SET) == -1 ||
-	  read(fd, p, hdr.dirlistlen + 1) != (ssize_t)hdr.dirlistlen + 1) {
-	    free(p);
-	    close(fd);
-	    return NULL;
+
+	/*
+	 * If caller agreed to receive list which includes the default
+	 * paths, we are done. Otherwise, if we still did not
+	 * calculated filtered result, do it now.
+	 */
+	if (!nostdlib)
+		return (hints[0] != '\0' ? hints : NULL);
+	if (filtered_path != NULL)
+		goto filt_ret;
+
+	/*
+	 * Obtain the list of all configured search paths, and the
+	 * list of the default paths.
+	 *
+	 * First estimate the size of the results.
+	 */
+	smeta.dls_size = __offsetof(struct dl_serinfo, dls_serpath);
+	smeta.dls_cnt = 0;
+	hmeta.dls_size = __offsetof(struct dl_serinfo, dls_serpath);
+	hmeta.dls_cnt = 0;
+
+	sargs.request = RTLD_DI_SERINFOSIZE;
+	sargs.serinfo = &smeta;
+	hargs.request = RTLD_DI_SERINFOSIZE;
+	hargs.serinfo = &hmeta;
+
+	path_enumerate(STANDARD_LIBRARY_PATH, fill_search_info, &sargs);
+	path_enumerate(p, fill_search_info, &hargs);
+
+	SLPinfo = xmalloc(smeta.dls_size);
+	hintinfo = xmalloc(hmeta.dls_size);
+
+	/*
+	 * Next fetch both sets of paths.
+	 */
+	sargs.request = RTLD_DI_SERINFO;
+	sargs.serinfo = SLPinfo;
+	sargs.serpath = &SLPinfo->dls_serpath[0];
+	sargs.strspace = (char *)&SLPinfo->dls_serpath[smeta.dls_cnt];
+
+	hargs.request = RTLD_DI_SERINFO;
+	hargs.serinfo = hintinfo;
+	hargs.serpath = &hintinfo->dls_serpath[0];
+	hargs.strspace = (char *)&hintinfo->dls_serpath[hmeta.dls_cnt];
+
+	path_enumerate(STANDARD_LIBRARY_PATH, fill_search_info, &sargs);
+	path_enumerate(p, fill_search_info, &hargs);
+
+	/*
+	 * Now calculate the difference between two sets, by excluding
+	 * standard paths from the full set.
+	 */
+	fndx = 0;
+	fcount = 0;
+	filtered_path = xmalloc(hdr.dirlistlen + 1);
+	hintpath = &hintinfo->dls_serpath[0];
+	for (hintndx = 0; hintndx < hmeta.dls_cnt; hintndx++, hintpath++) {
+		skip = false;
+		SLPpath = &SLPinfo->dls_serpath[0];
+		/*
+		 * Check each standard path against current.
+		 */
+		for (SLPndx = 0; SLPndx < smeta.dls_cnt; SLPndx++, SLPpath++) {
+			/* matched, skip the path */
+			if (!strcmp(hintpath->dls_name, SLPpath->dls_name)) {
+				skip = true;
+				break;
+			}
+		}
+		if (skip)
+			continue;
+		/*
+		 * Not matched against any standard path, add the path
+		 * to result. Separate consequtive paths with ':'.
+		 */
+		if (fcount > 0) {
+			filtered_path[fndx] = ':';
+			fndx++;
+		}
+		fcount++;
+		flen = strlen(hintpath->dls_name);
+		strncpy((filtered_path + fndx),	hintpath->dls_name, flen);
+		fndx += flen;
 	}
-	hints = p;
-	close(fd);
-    }
-    return hints[0] != '\0' ? hints : NULL;
+	filtered_path[fndx] = '\0';
+
+	free(SLPinfo);
+	free(hintinfo);
+
+filt_ret:
+	return (filtered_path[0] != '\0' ? filtered_path : NULL);
 }
 
 static void
@@ -1585,6 +1743,26 @@ init_dag(Obj_Entry *root)
     root->dag_inited = true;
 }
 
+static void
+process_nodelete(Obj_Entry *root)
+{
+	const Objlist_Entry *elm;
+
+	/*
+	 * Walk over object DAG and process every dependent object that
+	 * is marked as DF_1_NODELETE. They need to grow their own DAG,
+	 * which then should have its reference upped separately.
+	 */
+	STAILQ_FOREACH(elm, &root->dagmembers, link) {
+		if (elm->obj != NULL && elm->obj->z_nodelete &&
+		    !elm->obj->ref_nodel) {
+			dbg("obj %s nodelete", elm->obj->path);
+			init_dag(elm->obj);
+			ref_dag(elm->obj);
+			elm->obj->ref_nodel = true;
+		}
+	}
+}
 /*
  * Initialize the dynamic linker.  The argument is the address at which
  * the dynamic linker has been mapped into memory.  The primary task of
@@ -1596,6 +1774,7 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
     Obj_Entry objtmp;	/* Temporary rtld object */
     const Elf_Dyn *dyn_rpath;
     const Elf_Dyn *dyn_soname;
+    const Elf_Dyn *dyn_runpath;
 
     /*
      * Conjure up an Obj_Entry structure for the dynamic linker.
@@ -1612,7 +1791,7 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
 #endif
     if (RTLD_IS_DYNAMIC()) {
 	objtmp.dynamic = rtld_dynamic(&objtmp);
-	digest_dynamic1(&objtmp, 1, &dyn_rpath, &dyn_soname);
+	digest_dynamic1(&objtmp, 1, &dyn_rpath, &dyn_soname, &dyn_runpath);
 	assert(objtmp.needed == NULL);
 #if !defined(__mips__)
 	/* MIPS has a bogus DT_TEXTREL. */
@@ -1638,7 +1817,7 @@ init_rtld(caddr_t mapbase, Elf_Auxinfo **aux_info)
     if (aux_info[AT_OSRELDATE] != NULL)
 	    osreldate = aux_info[AT_OSRELDATE]->a_un.a_val;
 
-    digest_dynamic2(&obj_rtld, dyn_rpath, dyn_soname);
+    digest_dynamic2(&obj_rtld, dyn_rpath, dyn_soname, dyn_runpath);
 
     /* Replace the path with a dynamically allocated copy. */
     obj_rtld.path = xstrdup(PATH_RTLD);
@@ -1773,12 +1952,6 @@ process_needed(Obj_Entry *obj, Needed_Entry *needed, int flags)
 	  flags & ~RTLD_LO_NOLOAD);
 	if (obj1 == NULL && !ld_tracing && (flags & RTLD_LO_FILTEES) == 0)
 	    return (-1);
-	if (obj1 != NULL && obj1->z_nodelete && !obj1->ref_nodel) {
-	    dbg("obj %s nodelete", obj1->path);
-	    init_dag(obj1);
-	    ref_dag(obj1);
-	    obj1->ref_nodel = true;
-	}
     }
     return (0);
 }
@@ -2217,52 +2390,70 @@ objlist_remove(Objlist *list, Obj_Entry *obj)
 }
 
 /*
- * Relocate newly-loaded shared objects.  The argument is a pointer to
- * the Obj_Entry for the first such object.  All objects from the first
- * to the end of the list of objects are relocated.  Returns 0 on success,
- * or -1 on failure.
+ * Relocate dag rooted in the specified object.
+ * Returns 0 on success, or -1 on failure.
  */
+
 static int
-relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
+relocate_object_dag(Obj_Entry *root, bool bind_now, Obj_Entry *rtldobj,
     int flags, RtldLockState *lockstate)
 {
-    Obj_Entry *obj;
+	Objlist_Entry *elm;
+	int error;
 
-    for (obj = first;  obj != NULL;  obj = obj->next) {
+	error = 0;
+	STAILQ_FOREACH(elm, &root->dagmembers, link) {
+		error = relocate_object(elm->obj, bind_now, rtldobj, flags,
+		    lockstate);
+		if (error == -1)
+			break;
+	}
+	return (error);
+}
+
+/*
+ * Relocate single object.
+ * Returns 0 on success, or -1 on failure.
+ */
+static int
+relocate_object(Obj_Entry *obj, bool bind_now, Obj_Entry *rtldobj,
+    int flags, RtldLockState *lockstate)
+{
+
 	if (obj->relocated)
-	    continue;
+		return (0);
 	obj->relocated = true;
 	if (obj != rtldobj)
-	    dbg("relocating \"%s\"", obj->path);
+		dbg("relocating \"%s\"", obj->path);
 
 	if (obj->symtab == NULL || obj->strtab == NULL ||
-	  !(obj->valid_hash_sysv || obj->valid_hash_gnu)) {
-	    _rtld_error("%s: Shared object has no run-time symbol table",
-	      obj->path);
-	    return -1;
+	    !(obj->valid_hash_sysv || obj->valid_hash_gnu)) {
+		_rtld_error("%s: Shared object has no run-time symbol table",
+			    obj->path);
+		return (-1);
 	}
 
 	if (obj->textrel) {
-	    /* There are relocations to the write-protected text segment. */
-	    if (mprotect(obj->mapbase, obj->textsize,
-	      PROT_READ|PROT_WRITE|PROT_EXEC) == -1) {
-		_rtld_error("%s: Cannot write-enable text segment: %s",
-		  obj->path, rtld_strerror(errno));
-		return -1;
-	    }
+		/* There are relocations to the write-protected text segment. */
+		if (mprotect(obj->mapbase, obj->textsize,
+		    PROT_READ|PROT_WRITE|PROT_EXEC) == -1) {
+			_rtld_error("%s: Cannot write-enable text segment: %s",
+			    obj->path, rtld_strerror(errno));
+			return (-1);
+		}
 	}
 
 	/* Process the non-PLT relocations. */
 	if (reloc_non_plt(obj, rtldobj, flags, lockstate))
-		return -1;
+		return (-1);
 
 	if (obj->textrel) {	/* Re-protected the text segment. */
-	    if (mprotect(obj->mapbase, obj->textsize,
-	      PROT_READ|PROT_EXEC) == -1) {
-		_rtld_error("%s: Cannot write-protect text segment: %s",
-		  obj->path, rtld_strerror(errno));
-		return -1;
-	    }
+		if (mprotect(obj->mapbase, obj->textsize,
+		    PROT_READ|PROT_EXEC) == -1) {
+			_rtld_error("%s: Cannot write-protect text segment: %s",
+			    obj->path, rtld_strerror(errno));
+			return (-1);
+		}
 	}
 
 
@@ -2271,18 +2462,19 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
 
 	/* Process the PLT relocations. */
 	if (reloc_plt(obj) == -1)
-	    return -1;
+		return (-1);
 	/* Relocate the jump slots if we are doing immediate binding. */
 	if (obj->bind_now || bind_now)
-	    if (reloc_jmpslots(obj, flags, lockstate) == -1)
-		return -1;
+		if (reloc_jmpslots(obj, flags, lockstate) == -1)
+			return (-1);
 
 	if (obj->relro_size > 0) {
-	    if (mprotect(obj->relro_page, obj->relro_size, PROT_READ) == -1) {
-		_rtld_error("%s: Cannot enforce relro protection: %s",
-		  obj->path, rtld_strerror(errno));
-		return -1;
-	    }
+		if (mprotect(obj->relro_page, obj->relro_size,
+		    PROT_READ) == -1) {
+			_rtld_error("%s: Cannot enforce relro protection: %s",
+			    obj->path, rtld_strerror(errno));
+			return (-1);
+		}
 	}
 
 	/*
@@ -2292,9 +2484,30 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
 	 */
 	obj->magic = RTLD_MAGIC;
 	obj->version = RTLD_VERSION;
-    }
 
-    return (0);
+	return (0);
+}
+
+/*
+ * Relocate newly-loaded shared objects.  The argument is a pointer to
+ * the Obj_Entry for the first such object.  All objects from the first
+ * to the end of the list of objects are relocated.  Returns 0 on success,
+ * or -1 on failure.
+ */
+static int
+relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
+    int flags, RtldLockState *lockstate)
+{
+	Obj_Entry *obj;
+	int error;
+
+	for (error = 0, obj = first;  obj != NULL;  obj = obj->next) {
+		error = relocate_object(obj, bind_now, rtldobj, flags,
+		    lockstate);
+		if (error == -1)
+			break;
+	}
+	return (error);
 }
 
 /*
@@ -2614,10 +2827,10 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 		result = rtld_verify_versions(&obj->dagmembers);
 	    if (result != -1 && ld_tracing)
 		goto trace;
-	    if (result == -1 || (relocate_objects(obj,
-	     (mode & RTLD_MODEMASK) == RTLD_NOW, &obj_rtld,
+	    if (result == -1 || relocate_object_dag(obj,
+	      (mode & RTLD_MODEMASK) == RTLD_NOW, &obj_rtld,
 	      (lo_flags & RTLD_LO_EARLY) ? SYMLOOK_EARLY : 0,
-	      lockstate)) == -1) {
+	      lockstate) == -1) {
 		dlopen_cleanup(obj);
 		obj = NULL;
 	    } else if (lo_flags & RTLD_LO_EARLY) {
@@ -2634,8 +2847,15 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 		/* Make list of init functions to call. */
 		initlist_add_objects(obj, &obj->next, &initlist);
 	    }
+	    /*
+	     * Process all no_delete objects here, given them own
+	     * DAGs to prevent their dependencies from being unloaded.
+	     * This has to be done after we have loaded all of the
+	     * dependencies, so that we do not miss any.
+	     */
+	    if (obj != NULL)
+		process_nodelete(obj);
 	} else {
-
 	    /*
 	     * Bump the reference counts for objects on this DAG.  If
 	     * this is the first dlopen() call for the object that was
@@ -3026,14 +3246,6 @@ dl_iterate_phdr(__dl_iterate_hdr_callback callback, void *param)
     return (error);
 }
 
-struct fill_search_info_args {
-    int		 request;
-    unsigned int flags;
-    Dl_serinfo  *serinfo;
-    Dl_serpath  *serpath;
-    char	*strspace;
-};
-
 static void *
 fill_search_info(const char *dir, size_t dirlen, void *param)
 {
@@ -3043,7 +3255,7 @@ fill_search_info(const char *dir, size_t dirlen, void *param)
 
     if (arg->request == RTLD_DI_SERINFOSIZE) {
 	arg->serinfo->dls_cnt ++;
-	arg->serinfo->dls_size += sizeof(Dl_serpath) + dirlen + 1;
+	arg->serinfo->dls_size += sizeof(struct dl_serpath) + dirlen + 1;
     } else {
 	struct dl_serpath *s_entry;
 
@@ -3073,10 +3285,12 @@ do_search_info(const Obj_Entry *obj, int request, struct dl_serinfo *info)
     _info.dls_size = __offsetof(struct dl_serinfo, dls_serpath);
     _info.dls_cnt  = 0;
 
-    path_enumerate(ld_library_path, fill_search_info, &args);
     path_enumerate(obj->rpath, fill_search_info, &args);
-    path_enumerate(gethints(), fill_search_info, &args);
-    path_enumerate(STANDARD_LIBRARY_PATH, fill_search_info, &args);
+    path_enumerate(ld_library_path, fill_search_info, &args);
+    path_enumerate(obj->runpath, fill_search_info, &args);
+    path_enumerate(gethints(obj->z_nodeflib), fill_search_info, &args);
+    if (!obj->z_nodeflib)
+      path_enumerate(STANDARD_LIBRARY_PATH, fill_search_info, &args);
 
 
     if (request == RTLD_DI_SERINFOSIZE) {
@@ -3095,20 +3309,26 @@ do_search_info(const Obj_Entry *obj, int request, struct dl_serinfo *info)
     args.serpath  = &info->dls_serpath[0];
     args.strspace = (char *)&info->dls_serpath[_info.dls_cnt];
 
+    args.flags = LA_SER_RUNPATH;
+    if (path_enumerate(obj->rpath, fill_search_info, &args) != NULL)
+	return (-1);
+
     args.flags = LA_SER_LIBPATH;
     if (path_enumerate(ld_library_path, fill_search_info, &args) != NULL)
 	return (-1);
 
     args.flags = LA_SER_RUNPATH;
-    if (path_enumerate(obj->rpath, fill_search_info, &args) != NULL)
+    if (path_enumerate(obj->runpath, fill_search_info, &args) != NULL)
 	return (-1);
 
     args.flags = LA_SER_CONFIG;
-    if (path_enumerate(gethints(), fill_search_info, &args) != NULL)
+    if (path_enumerate(gethints(obj->z_nodeflib), fill_search_info, &args)
+      != NULL)
 	return (-1);
 
     args.flags = LA_SER_DEFAULT;
-    if (path_enumerate(STANDARD_LIBRARY_PATH, fill_search_info, &args) != NULL)
+    if (!obj->z_nodeflib &&
+      path_enumerate(STANDARD_LIBRARY_PATH, fill_search_info, &args) != NULL)
 	return (-1);
     return (0);
 }

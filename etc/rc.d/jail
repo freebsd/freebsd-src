@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: jail
-# REQUIRE: LOGIN cleanvar
+# REQUIRE: LOGIN FILESYSTEMS
 # BEFORE: securelevel
 # KEYWORD: nojail shutdown
 
@@ -115,6 +115,8 @@ init_variables()
 	[ -z "${_flags}" ] && _flags="-l -U root"
 	eval _consolelog=\"\${jail_${_j}_consolelog:-${jail_consolelog}}\"
 	[ -z "${_consolelog}" ] && _consolelog="/var/log/jail_${_j}_console.log"
+	eval _parameters=\"\${jail_${_j}_parameters:-${jail_parameters}}\"
+	[ -z "${_parameters}" ] && _parameters=""
 	eval _fib=\"\${jail_${_j}_fib:-${jail_fib}}\"
 
 	# Debugging aid
@@ -193,6 +195,7 @@ init_variables()
 
 	debug "$_j flags: $_flags"
 	debug "$_j consolelog: $_consolelog"
+	debug "$_j parameters: $_parameters"
 
 	if [ -z "${_hostname}" ]; then
 		err 3 "$name: No hostname has been defined for ${_j}"
@@ -484,9 +487,19 @@ jail_handle_ips_option()
 		esac
 
 		# Append address to list of addresses for the jail command.
-		case "${_addrl}" in
-		"")	_addrl="${_addr}" ;;
-		*)	_addrl="${_addrl},${_addr}" ;;
+		case "${_type}" in
+		inet)
+			case "${_addrl}" in
+			"")	_addrl="${_addr}" ;;
+			*)	_addrl="${_addrl},${_addr}" ;;
+			esac
+			;;
+		inet6)
+			case "${_addr6l}" in
+			"")	_addr6l="${_addr}" ;;
+			*)	_addr6l="${_addr6l},${_addr}" ;;
+			esac
+			;;
 		esac
 
 		# Configure interface alias if requested by a given interface
@@ -576,6 +589,7 @@ jail_start()
 			continue;
 		fi
 		_addrl=""
+		_addr6l=""
 		jail_ips "add"
 		if [ -n "${_fib}" ]; then
 			_setfib="setfib -F '${_fib}'"
@@ -641,8 +655,8 @@ jail_start()
 			i=$((i + 1))
 		done
 
-		eval ${_setfib} jail ${_flags} -i ${_rootdir} ${_hostname} \
-			\"${_addrl}\" ${_exec_start} > ${_tmp_jail} 2>&1 \
+		eval ${_setfib} jail -n ${_jail} ${_flags} -i -c path=${_rootdir} host.hostname=${_hostname} \
+			ip4.addr=\"${_addrl}\" ip6.addr=\"${_addr6l}\" ${_parameters} command=${_exec_start} > ${_tmp_jail} 2>&1 \
 			</dev/null
 
 		if [ "$?" -eq 0 ] ; then

@@ -57,7 +57,7 @@ system for extending the manual set to support additional paths and locales.
 is intended to be used by the local administrator to set additional policy.
 .Pp
 Currently supported configuration variables include:
-.Bl -tag -offset indent
+.Bl -tag -width 12n -offset indent
 .It MANCONFIG
 Overrides the default location to import additional manual configuration files.
 Defaults to
@@ -70,7 +70,8 @@ Indicates support is available for the given locale.
 .Pp
 For pages in a given language, overriding the default toolset for
 display is supported via the following definitions:
-.Bl -tag -offset indent -compact
+.Pp
+.Bl -tag -width 12n -offset indent -compact
 .It EQN Ns _ Ns Va LANG
 .It NROFF Ns _ Ns Va LANG
 .It PIC Ns _ Ns Va LANG
@@ -87,7 +88,7 @@ section for how to use these variables.
 The parser used for this utility is very basic and only supports comment
 characters (#) at the beginning of a line.
 .Sh FILES
-.Bl -tag -compact
+.Bl -tag -width "Pa /usr/local/etc/man.d/*.conf" -compact
 .It Pa /etc/man.conf
 System configuration file.
 .It Pa /usr/local/etc/man.d/*.conf

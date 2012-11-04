@@ -157,6 +157,10 @@ static void remove_802_11(pcap_t *);
 
 #endif /* BIOCGDLTLIST */
 
+#if defined(sun) && defined(LIFNAMSIZ) && defined(lifr_zoneid)
+#include <zone.h>
+#endif
+
 /*
  * We include the OS's <net/bpf.h>, not our "pcap/bpf.h", so we probably
  * don't get DLT_DOCSIS defined.
@@ -1454,8 +1458,16 @@ check_setif_failure(pcap_t *p, int error)
  * Default capture buffer size.
  * 32K isn't very much for modern machines with fast networks; we
  * pick .5M, as that's the maximum on at least some systems with BPF.
+ *
+ * However, on AIX 3.5, the larger buffer sized caused unrecoverable
+ * read failures under stress, so we leave it as 32K; yet another
+ * place where AIX's BPF is broken.
  */
+#ifdef _AIX
+#define DEFAULT_BUFSIZE	32768
+#else
 #define DEFAULT_BUFSIZE	524288
+#endif
 
 static int
 pcap_activate_bpf(pcap_t *p)
@@ -1463,6 +1475,7 @@ pcap_activate_bpf(pcap_t *p)
 	int status = 0;
 	int fd;
 #ifdef LIFNAMSIZ
+	char *zonesep;
 	struct lifreq ifr;
 	char *ifrname = ifr.lifr_name;
 	const size_t ifnamsiz = sizeof(ifr.lifr_name);
@@ -1525,6 +1538,29 @@ pcap_activate_bpf(pcap_t *p)
 		status = PCAP_ERROR;
 		goto bad;
 	}
+
+#if defined(LIFNAMSIZ) && defined(ZONENAME_MAX) && defined(lifr_zoneid)
+	/*
+	 * Check if the given source network device has a '/' separated
+	 * zonename prefix string. The zonename prefixed source device
+	 * can be used by libpcap consumers to capture network traffic
+	 * in non-global zones from the global zone on Solaris 11 and
+	 * above. If the zonename prefix is present then we strip the
+	 * prefix and pass the zone ID as part of lifr_zoneid.
+	 */
+	if ((zonesep = strchr(p->opt.source, '/')) != NULL) {
+		char zonename[ZONENAME_MAX];
+		int  znamelen;
+		char *lnamep;
+
+		znamelen = zonesep - p->opt.source;
+		(void) strlcpy(zonename, p->opt.source, znamelen + 1);
+		lnamep = strdup(zonesep + 1);
+		ifr.lifr_zoneid = getzoneidbyname(zonename);
+		free(p->opt.source);
+		p->opt.source = lnamep;
+	}
+#endif
 
 	p->md.device = strdup(p->opt.source);
 	if (p->md.device == NULL) {

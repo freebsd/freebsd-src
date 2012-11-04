@@ -82,6 +82,7 @@ __ElfType(Auxinfo);
 #define	AT_NCPUS	19	/* Number of CPUs. */
 #define	AT_PAGESIZES	20	/* Pagesizes. */
 #define	AT_PAGESIZESLEN	21	/* Number of pagesizes. */
+#define	AT_TIMEKEEP	22	/* Pointer to timehands. */
 #define	AT_STACKPROT	23	/* Initial stack protection. */
 
 #define AT_COUNT        24      /* Count of defined aux entry types. */
@@ -99,8 +100,8 @@ __ElfType(Auxinfo);
 #define	ELF_TARG_MACH	EM_ARM
 #define	ELF_TARG_VER	1
 
-/* 
- * Magic number for the elf trampoline, chosen wisely to be an immediate 
+/*
+ * Magic number for the elf trampoline, chosen wisely to be an immediate
  * value.
  */
 #define MAGIC_TRAMP_NUMBER	0x5c000003

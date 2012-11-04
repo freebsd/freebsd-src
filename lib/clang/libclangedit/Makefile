@@ -9,6 +9,7 @@ SRCS=	Commit.cpp \
 
 TGHDRS=	AttrList \
 	Attrs \
+	CommentNodes \
 	DeclNodes \
 	StmtNodes \
 	DiagnosticCommonKinds

@@ -176,12 +176,59 @@ extern u_int cputype;
 #define cpu_faultstatus()	cpufuncs.cf_faultstatus()
 #define cpu_faultaddress()	cpufuncs.cf_faultaddress()
 
+#ifndef SMP
+
 #define	cpu_tlb_flushID()	cpufuncs.cf_tlb_flushID()
 #define	cpu_tlb_flushID_SE(e)	cpufuncs.cf_tlb_flushID_SE(e)
 #define	cpu_tlb_flushI()	cpufuncs.cf_tlb_flushI()
 #define	cpu_tlb_flushI_SE(e)	cpufuncs.cf_tlb_flushI_SE(e)
 #define	cpu_tlb_flushD()	cpufuncs.cf_tlb_flushD()
 #define	cpu_tlb_flushD_SE(e)	cpufuncs.cf_tlb_flushD_SE(e)
+
+#else
+void tlb_broadcast(int);
+
+#ifdef CPU_CORTEXA
+#define TLB_BROADCAST	/* No need to explicitely send an IPI */
+#else
+#define TLB_BROADCAST	tlb_broadcast(7)
+#endif
+
+#define	cpu_tlb_flushID() do { \
+	cpufuncs.cf_tlb_flushID(); \
+	TLB_BROADCAST; \
+} while(0)
+
+#define	cpu_tlb_flushID_SE(e) do { \
+	cpufuncs.cf_tlb_flushID_SE(e); \
+	TLB_BROADCAST; \
+} while(0)
+
+
+#define	cpu_tlb_flushI() do { \
+	cpufuncs.cf_tlb_flushI(); \
+	TLB_BROADCAST; \
+} while(0)
+
+
+#define	cpu_tlb_flushI_SE(e) do { \
+	cpufuncs.cf_tlb_flushI_SE(e); \
+	TLB_BROADCAST; \
+} while(0)
+
+
+#define	cpu_tlb_flushD() do { \
+	cpufuncs.cf_tlb_flushD(); \
+	TLB_BROADCAST; \
+} while(0)
+
+
+#define	cpu_tlb_flushD_SE(e) do { \
+	cpufuncs.cf_tlb_flushD_SE(e); \
+	TLB_BROADCAST; \
+} while(0)
+
+#endif
 
 #define	cpu_icache_sync_all()	cpufuncs.cf_icache_sync_all()
 #define	cpu_icache_sync_range(a, s) cpufuncs.cf_icache_sync_range((a), (s))
@@ -222,10 +269,12 @@ int	cpufunc_null_fixup	(void *);
 int	early_abort_fixup	(void *);
 int	late_abort_fixup	(void *);
 u_int	cpufunc_id		(void);
+u_int	cpufunc_cpuid		(void);
 u_int	cpufunc_control		(u_int clear, u_int bic);
 void	cpufunc_domains		(u_int domains);
 u_int	cpufunc_faultstatus	(void);
 u_int	cpufunc_faultaddress	(void);
+u_int	cpu_pfr			(int);
 
 #ifdef CPU_ARM3
 u_int	arm3_control		(u_int clear, u_int bic);
@@ -315,7 +364,7 @@ void	sa11x0_drain_readbuf	(void);
 
 void	sa11x0_context_switch	(void);
 void	sa11x0_cpu_sleep	(int mode);
- 
+
 void	sa11x0_setup		(char *string);
 #endif
 
@@ -413,8 +462,9 @@ void	sheeva_l2cache_wb_range		(vm_offset_t, vm_size_t);
 void	sheeva_l2cache_wbinv_all	(void);
 #endif
 
-#ifdef CPU_ARM11
+#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
 void	arm11_setttb		(u_int);
+void	arm11_sleep		(int);
 
 void	arm11_tlb_flushID_SE	(u_int);
 void	arm11_tlb_flushI_SE	(u_int);
@@ -428,6 +478,58 @@ void	arm11_tlb_flushD	(void);
 void	arm11_tlb_flushD_SE	(u_int va);
 
 void	arm11_drain_writebuf	(void);
+
+void	pj4b_setttb			(u_int);
+
+void	pj4b_icache_sync_range		(vm_offset_t, vm_size_t);
+
+void	pj4b_dcache_wbinv_range		(vm_offset_t, vm_size_t);
+void	pj4b_dcache_inv_range		(vm_offset_t, vm_size_t);
+void	pj4b_dcache_wb_range		(vm_offset_t, vm_size_t);
+
+void	pj4b_idcache_wbinv_range	(vm_offset_t, vm_size_t);
+
+void	pj4b_drain_readbuf		(void);
+void	pj4b_flush_brnchtgt_all		(void);
+void	pj4b_flush_brnchtgt_va		(u_int);
+void	pj4b_sleep			(int);
+
+void	armv6_icache_sync_all		(void);
+void	armv6_icache_sync_range		(vm_offset_t, vm_size_t);
+
+void	armv6_dcache_wbinv_all		(void);
+void	armv6_dcache_wbinv_range	(vm_offset_t, vm_size_t);
+void	armv6_dcache_inv_range		(vm_offset_t, vm_size_t);
+void	armv6_dcache_wb_range		(vm_offset_t, vm_size_t);
+
+void	armv6_idcache_wbinv_all		(void);
+void	armv6_idcache_wbinv_range	(vm_offset_t, vm_size_t);
+
+void	armv7_setttb			(u_int);
+void	armv7_tlb_flushID		(void);
+void	armv7_tlb_flushID_SE		(u_int);
+void	armv7_icache_sync_range		(vm_offset_t, vm_size_t);
+void	armv7_idcache_wbinv_range	(vm_offset_t, vm_size_t);
+void	armv7_dcache_wbinv_all		(void);
+void	armv7_idcache_wbinv_all		(void);
+void	armv7_dcache_wbinv_range	(vm_offset_t, vm_size_t);
+void	armv7_dcache_inv_range		(vm_offset_t, vm_size_t);
+void	armv7_dcache_wb_range		(vm_offset_t, vm_size_t);
+void	armv7_cpu_sleep			(int);
+void	armv7_setup			(char *string);
+void	armv7_context_switch		(void);
+void	armv7_drain_writebuf		(void);
+void	armv7_sev			(void);
+u_int	armv7_auxctrl			(u_int, u_int);
+void	pj4bv7_setup			(char *string);
+void	pj4bv6_setup			(char *string);
+void	pj4b_config			(void);
+
+int	get_core_id			(void);
+
+void	armadaxp_idcache_wbinv_all	(void);
+
+void 	cortexa_setup			(char *);
 #endif
 
 #if defined(CPU_ARM9E) || defined (CPU_ARM10)
@@ -445,7 +547,7 @@ void	armv5_ec_idcache_wbinv_all(void);
 void	armv5_ec_idcache_wbinv_range(vm_offset_t, vm_size_t);
 #endif
 
-#if defined (CPU_ARM10) || defined (CPU_ARM11)
+#if defined (CPU_ARM10)
 void	armv5_setttb(u_int);
 
 void	armv5_icache_sync_all(void);
@@ -471,7 +573,7 @@ extern unsigned armv5_dcache_index_inc;
   defined(CPU_FA526) || defined(CPU_FA626TE) ||				\
   defined(CPU_XSCALE_PXA2X0) || defined(CPU_XSCALE_IXP425) ||		\
   defined(CPU_XSCALE_80219) || defined(CPU_XSCALE_81342)
-  
+
 void	armv4_tlb_flushID	(void);
 void	armv4_tlb_flushI	(void);
 void	armv4_tlb_flushD	(void);
@@ -526,7 +628,7 @@ void	xscale_cache_flushD_rng	(vm_offset_t start, vm_size_t end);
 void	xscale_context_switch	(void);
 
 void	xscale_setup		(char *string);
-#endif	/* CPU_XSCALE_80200 || CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425 
+#endif	/* CPU_XSCALE_80200 || CPU_XSCALE_80321 || CPU_XSCALE_PXA2X0 || CPU_XSCALE_IXP425
 	   CPU_XSCALE_80219 */
 
 #ifdef	CPU_XSCALE_81342
@@ -628,13 +730,17 @@ extern int	arm_picache_ways;
 
 extern int	arm_pdcache_size;	/* and unified */
 extern int	arm_pdcache_line_size;
-extern int	arm_pdcache_ways; 
+extern int	arm_pdcache_ways;
 
 extern int	arm_pcache_type;
 extern int	arm_pcache_unified;
 
 extern int	arm_dcache_align;
 extern int	arm_dcache_align_mask;
+
+extern u_int	arm_cache_level;
+extern u_int	arm_cache_loc;
+extern u_int	arm_cache_type[14];
 
 #endif	/* _KERNEL */
 #endif	/* _MACHINE_CPUFUNC_H_ */

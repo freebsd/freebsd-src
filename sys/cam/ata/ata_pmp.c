@@ -367,11 +367,6 @@ pmpregister(struct cam_periph *periph, void *arg)
 	struct ccb_getdev *cgd;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("pmpregister: periph was NULL!!\n");
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	if (cgd == NULL) {
 		printf("pmpregister: no getdev CCB, can't register device\n");
 		return(CAM_REQ_CMP_ERR);
@@ -429,7 +424,9 @@ pmpstart(struct cam_periph *periph, union ccb *start_ccb)
 
 	softc = (struct pmp_softc *)periph->softc;
 	ataio = &start_ccb->ataio;
-	
+
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("pmpstart\n"));
+
 	if (softc->restart) {
 		softc->restart = 0;
 		softc->state = min(softc->state, PMP_STATE_PRECONFIG);
@@ -560,7 +557,7 @@ pmpdone(struct cam_periph *periph, union ccb *done_ccb)
 	softc = (struct pmp_softc *)periph->softc;
 	ataio = &done_ccb->ataio;
 
-	CAM_DEBUG(done_ccb->ccb_h.path, CAM_DEBUG_TRACE, ("pmpdone\n"));
+	CAM_DEBUG(periph->path, CAM_DEBUG_TRACE, ("pmpdone\n"));
 
 	priority = done_ccb->ccb_h.pinfo.priority;
 

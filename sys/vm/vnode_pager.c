@@ -68,6 +68,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/atomic.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
@@ -271,12 +272,12 @@ vnode_pager_dealloc(object)
 	ASSERT_VOP_ELOCKED(vp, "vnode_pager_dealloc");
 	if (object->un_pager.vnp.writemappings > 0) {
 		object->un_pager.vnp.writemappings = 0;
-		vp->v_writecount--;
+		VOP_ADD_WRITECOUNT(vp, -1);
 		CTR3(KTR_VFS, "%s: vp %p v_writecount decreased to %d",
 		    __func__, vp, vp->v_writecount);
 	}
 	vp->v_object = NULL;
-	vp->v_vflag &= ~VV_TEXT;
+	VOP_UNSET_TEXT(vp);
 	VM_OBJECT_UNLOCK(object);
 	while (refs-- > 0)
 		vunref(vp);
@@ -297,7 +298,6 @@ vnode_pager_haspage(object, pindex, before, after)
 	int poff;
 	int bsize;
 	int pagesperblock, blocksperpage;
-	int vfslocked;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	/*
@@ -323,9 +323,7 @@ vnode_pager_haspage(object, pindex, before, after)
 		reqblock = pindex * blocksperpage;
 	}
 	VM_OBJECT_UNLOCK(object);
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	err = VOP_BMAP(vp, reqblock, NULL, &bn, after, before);
-	VFS_UNLOCK_GIANT(vfslocked);
 	VM_OBJECT_LOCK(object);
 	if (err)
 		return TRUE;
@@ -440,7 +438,7 @@ vnode_pager_setsize(vp, nsize)
 			 */
 			vm_page_clear_dirty(m, base, PAGE_SIZE - base);
 		} else if ((nsize & PAGE_MASK) &&
-		    __predict_false(object->cache != NULL)) {
+		    vm_page_is_cached(object, OFF_TO_IDX(nsize))) {
 			vm_page_cache_free(object, OFF_TO_IDX(nsize),
 			    nobjsize);
 		}
@@ -669,15 +667,12 @@ vnode_pager_getpages(object, m, count, reqpage)
 	int rtval;
 	struct vnode *vp;
 	int bytes = count * PAGE_SIZE;
-	int vfslocked;
 
 	vp = object->handle;
 	VM_OBJECT_UNLOCK(object);
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	rtval = VOP_GETPAGES(vp, m, bytes, reqpage, 0);
 	KASSERT(rtval != EOPNOTSUPP,
 	    ("vnode_pager: FS getpages not implemented\n"));
-	VFS_UNLOCK_GIANT(vfslocked);
 	VM_OBJECT_LOCK(object);
 	return rtval;
 }
@@ -985,37 +980,8 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			    mt));
 		}
 		
-		if (i != reqpage) {
-
-			/*
-			 * whether or not to leave the page activated is up in
-			 * the air, but we should put the page on a page queue
-			 * somewhere. (it already is in the object). Result:
-			 * It appears that empirical results show that
-			 * deactivating pages is best.
-			 */
-
-			/*
-			 * just in case someone was asking for this page we
-			 * now tell them that it is ok to use
-			 */
-			if (!error) {
-				if (mt->oflags & VPO_WANTED) {
-					vm_page_lock(mt);
-					vm_page_activate(mt);
-					vm_page_unlock(mt);
-				} else {
-					vm_page_lock(mt);
-					vm_page_deactivate(mt);
-					vm_page_unlock(mt);
-				}
-				vm_page_wakeup(mt);
-			} else {
-				vm_page_lock(mt);
-				vm_page_free(mt);
-				vm_page_unlock(mt);
-			}
-		}
+		if (i != reqpage)
+			vm_page_readahead_finish(mt);
 	}
 	VM_OBJECT_UNLOCK(object);
 	if (error) {
@@ -1146,7 +1112,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 				m = ma[ncount - 1];
 				KASSERT(m->busy > 0,
 		("vnode_pager_generic_putpages: page %p is not busy", m));
-				KASSERT((m->aflags & PGA_WRITEABLE) == 0,
+				KASSERT(!pmap_page_is_write_mapped(m),
 		("vnode_pager_generic_putpages: page %p is not read-only", m));
 				vm_page_clear_dirty(m, pgoff, PAGE_SIZE -
 				    pgoff);
@@ -1246,12 +1212,12 @@ vnode_pager_update_writecount(vm_object_t object, vm_offset_t start,
 	vp = object->handle;
 	if (old_wm == 0 && object->un_pager.vnp.writemappings != 0) {
 		ASSERT_VOP_ELOCKED(vp, "v_writecount inc");
-		vp->v_writecount++;
+		VOP_ADD_WRITECOUNT(vp, 1);
 		CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d",
 		    __func__, vp, vp->v_writecount);
 	} else if (old_wm != 0 && object->un_pager.vnp.writemappings == 0) {
 		ASSERT_VOP_ELOCKED(vp, "v_writecount dec");
-		vp->v_writecount--;
+		VOP_ADD_WRITECOUNT(vp, -1);
 		CTR3(KTR_VFS, "%s: vp %p v_writecount decreased to %d",
 		    __func__, vp, vp->v_writecount);
 	}
@@ -1265,7 +1231,6 @@ vnode_pager_release_writecount(vm_object_t object, vm_offset_t start,
 	struct vnode *vp;
 	struct mount *mp;
 	vm_offset_t inc;
-	int vfslocked;
 
 	VM_OBJECT_LOCK(object);
 
@@ -1292,7 +1257,6 @@ vnode_pager_release_writecount(vm_object_t object, vm_offset_t start,
 	vp = object->handle;
 	vhold(vp);
 	VM_OBJECT_UNLOCK(object);
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	mp = NULL;
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
@@ -1308,5 +1272,4 @@ vnode_pager_release_writecount(vm_object_t object, vm_offset_t start,
 	vdrop(vp);
 	if (mp != NULL)
 		vn_finished_write(mp);
-	VFS_UNLOCK_GIANT(vfslocked);
 }

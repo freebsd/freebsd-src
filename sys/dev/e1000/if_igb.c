@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2011, Intel Corporation 
+  Copyright (c) 2001-2012, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -100,7 +100,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 2.3.1";
+char igb_driver_version[] = "version - 2.3.5";
 
 
 /*********************************************************************
@@ -150,6 +150,14 @@ static igb_vendor_info_t igb_vendor_info_array[] =
 	{ 0x8086, E1000_DEV_ID_I350_SERDES,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_I350_SGMII,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	{ 0x8086, E1000_DEV_ID_I350_VF,		PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_I210_COPPER,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_I210_COPPER_IT,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_I210_COPPER_OEM1,
+						PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_I210_FIBER,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_I210_SERDES,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_I210_SGMII,	PCI_ANY_ID, PCI_ANY_ID, 0},
+	{ 0x8086, E1000_DEV_ID_I211_COPPER,	PCI_ANY_ID, PCI_ANY_ID, 0},
 	/* required last entry */
 	{ 0, 0, 0, 0, 0}
 };
@@ -269,6 +277,7 @@ static void	igb_set_sysctl_value(struct adapter *, const char *,
 		    const char *, int *, int);
 static int	igb_set_flowcntl(SYSCTL_HANDLER_ARGS);
 static int	igb_sysctl_dmac(SYSCTL_HANDLER_ARGS);
+static int	igb_sysctl_eee(SYSCTL_HANDLER_ARGS);
 
 #ifdef DEVICE_POLLING
 static poll_handler_t igb_poll;
@@ -578,11 +587,13 @@ igb_attach(device_t dev)
 		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 		    OID_AUTO, "dmac", CTLTYPE_INT|CTLFLAG_RW,
 		    adapter, 0, igb_sysctl_dmac, "I", "DMA Coalesce");
-		igb_set_sysctl_value(adapter, "eee_disabled",
-		    "enable Energy Efficient Ethernet",
-		    &adapter->hw.dev_spec._82575.eee_disable,
-		    TRUE);
-		e1000_set_eee_i350(&adapter->hw);
+		SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		    OID_AUTO, "eee_disabled", CTLTYPE_INT|CTLFLAG_RW,
+		    adapter, 0, igb_sysctl_eee, "I",
+		    "Disable Energy Efficient Ethernet");
+		if (adapter->hw.phy.media_type == e1000_media_type_copper)
+			e1000_set_eee_i350(&adapter->hw);
 	}
 
 	/*
@@ -593,7 +604,9 @@ igb_attach(device_t dev)
 	e1000_reset_hw(&adapter->hw);
 
 	/* Make sure we have a good EEPROM before we read from it */
-	if (e1000_validate_nvm_checksum(&adapter->hw) < 0) {
+	if (((adapter->hw.mac.type != e1000_i210) &&
+	    (adapter->hw.mac.type != e1000_i211)) &&
+	    (e1000_validate_nvm_checksum(&adapter->hw) < 0)) {
 		/*
 		** Some PCI-E parts fail the first check due to
 		** the link being in sleep state, call it again,
@@ -924,7 +937,8 @@ igb_start(struct ifnet *ifp)
 	return;
 }
 
-#else
+#else /* __FreeBSD_version >= 800000 */
+
 /*
 ** Multiqueue Transmit driver
 **
@@ -936,20 +950,26 @@ igb_mq_start(struct ifnet *ifp, struct mbuf *m)
 	struct igb_queue	*que;
 	struct tx_ring		*txr;
 	int 			i, err = 0;
-	bool			moveable = TRUE;
 
 	/* Which queue to use */
-	if ((m->m_flags & M_FLOWID) != 0) {
+	if ((m->m_flags & M_FLOWID) != 0)
 		i = m->m_pkthdr.flowid % adapter->num_queues;
-		moveable = FALSE;
-	} else
+	else
 		i = curcpu % adapter->num_queues;
 
 	txr = &adapter->tx_rings[i];
 	que = &adapter->queues[i];
 	if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
 	    IGB_TX_TRYLOCK(txr)) {
-		err = igb_mq_start_locked(ifp, txr, m);
+		struct mbuf *pm = NULL;
+		/*
+		** Try to queue first to avoid
+		** out-of-order delivery, but 
+		** settle for it if that fails
+		*/
+		if (m && drbr_enqueue(ifp, txr->br, m))
+			pm = m;
+		err = igb_mq_start_locked(ifp, txr, pm);
 		IGB_TX_UNLOCK(txr);
 	} else {
 		err = drbr_enqueue(ifp, txr->br, m);
@@ -969,7 +989,7 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 	IGB_TX_LOCK_ASSERT(txr);
 
 	if (((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) ||
-	    (txr->queue_status == IGB_QUEUE_DEPLETED) ||
+	    (txr->queue_status & IGB_QUEUE_DEPLETED) ||
 	    adapter->link_active == 0) {
 		if (m != NULL)
 			err = drbr_enqueue(ifp, txr->br, m);
@@ -994,7 +1014,9 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 			break;
 		}
 		enq++;
-		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
+		ifp->if_obytes += next->m_pkthdr.len;
+		if (next->m_flags & M_MCAST)
+			ifp->if_omcasts++;
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			break;
@@ -1342,8 +1364,8 @@ igb_init_locked(struct adapter *adapter)
 	}
 
 	/* Set Energy Efficient Ethernet */
-
-	e1000_set_eee_i350(&adapter->hw);
+	if (adapter->hw.phy.media_type == e1000_media_type_copper)
+		e1000_set_eee_i350(&adapter->hw);
 }
 
 static void
@@ -1482,12 +1504,6 @@ igb_irq_fast(void *arg)
 }
 
 #ifdef DEVICE_POLLING
-/*********************************************************************
- *
- *  Legacy polling routine : if using this code you MUST be sure that
- *  multiqueue is not defined, ie, set igb_num_queues to 1.
- *
- *********************************************************************/
 #if __FreeBSD_version >= 800000
 #define POLL_RETURN_COUNT(a) (a)
 static int
@@ -1498,8 +1514,8 @@ static void
 igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct adapter		*adapter = ifp->if_softc;
-	struct igb_queue	*que = adapter->queues;
-	struct tx_ring		*txr = adapter->tx_rings;
+	struct igb_queue	*que;
+	struct tx_ring		*txr;
 	u32			reg_icr, rx_done = 0;
 	u32			loop = IGB_MAX_LOOP;
 	bool			more;
@@ -1521,20 +1537,26 @@ igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	}
 	IGB_CORE_UNLOCK(adapter);
 
-	igb_rxeof(que, count, &rx_done);
+	for (int i = 0; i < adapter->num_queues; i++) {
+		que = &adapter->queues[i];
+		txr = que->txr;
 
-	IGB_TX_LOCK(txr);
-	do {
-		more = igb_txeof(txr);
-	} while (loop-- && more);
+		igb_rxeof(que, count, &rx_done);
+
+		IGB_TX_LOCK(txr);
+		do {
+			more = igb_txeof(txr);
+		} while (loop-- && more);
 #if __FreeBSD_version >= 800000
-	if (!drbr_empty(ifp, txr->br))
-		igb_mq_start_locked(ifp, txr, NULL);
+		if (!drbr_empty(ifp, txr->br))
+			igb_mq_start_locked(ifp, txr, NULL);
 #else
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		igb_start_locked(txr, ifp);
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			igb_start_locked(txr, ifp);
 #endif
-	IGB_TX_UNLOCK(txr);
+		IGB_TX_UNLOCK(txr);
+	}
+
 	return POLL_RETURN_COUNT(rx_done);
 }
 #endif /* DEVICE_POLLING */
@@ -2510,7 +2532,6 @@ igb_allocate_msix(struct adapter *adapter)
 				"Bound queue %d to cpu %d\n",
 				i,igb_last_bind_cpu);
 			igb_last_bind_cpu = CPU_NEXT(igb_last_bind_cpu);
-			igb_last_bind_cpu = igb_last_bind_cpu % mp_ncpus;
 		}
 #if __FreeBSD_version >= 800000
 		TASK_INIT(&que->txr->txq_task, 0, igb_deferred_mq_start,
@@ -2566,6 +2587,8 @@ igb_configure_queues(struct adapter *adapter)
 	switch (adapter->hw.mac.type) {
 	case e1000_82580:
 	case e1000_i350:
+	case e1000_i210:
+	case e1000_i211:
 	case e1000_vfadapt:
 	case e1000_vfadapt_i350:
 		/* RX entries */
@@ -2764,7 +2787,7 @@ static int
 igb_setup_msix(struct adapter *adapter)
 {
 	device_t dev = adapter->dev;
-	int rid, want, queues, msgs;
+	int rid, want, queues, msgs, maxqueues;
 
 	/* tuneable override */
 	if (igb_enable_msix == 0)
@@ -2795,16 +2818,29 @@ igb_setup_msix(struct adapter *adapter)
 	/* Manual override */
 	if (igb_num_queues != 0)
 		queues = igb_num_queues;
-	if (queues > 8)  /* max queues */
-		queues = 8;
 
-	/* Can have max of 4 queues on 82575 */
-	if ((adapter->hw.mac.type == e1000_82575) && (queues > 4))
-		queues = 4;
-
-	/* Limit the VF devices to one queue */
-	if (adapter->vf_ifp)
-		queues = 1;
+	/* Sanity check based on HW */
+	switch (adapter->hw.mac.type) {
+		case e1000_82575:
+			maxqueues = 4;
+			break;
+		case e1000_82576:
+		case e1000_82580:
+		case e1000_i350:
+			maxqueues = 8;
+			break;
+		case e1000_i210:
+			maxqueues = 4;
+			break;
+		case e1000_i211:
+			maxqueues = 2;
+			break;
+		default:  /* VF interfaces */
+			maxqueues = 1;
+			break;
+	}
+	if (queues > maxqueues)
+		queues = maxqueues;
 
 	/*
 	** One vector (RX/TX pair) per queue
@@ -2875,6 +2911,9 @@ igb_reset(struct adapter *adapter)
 		pba = E1000_READ_REG(hw, E1000_RXPBS);
 		pba = e1000_rxpbs_adjust_82580(pba);
 		break;
+	case e1000_i210:
+	case e1000_i211:
+		pba = E1000_PBA_34K;
 	default:
 		break;
 	}
@@ -2942,7 +2981,9 @@ igb_reset(struct adapter *adapter)
 		device_printf(dev, "Hardware Initialization Failed\n");
 
 	/* Setup DMA Coalescing */
-	if (hw->mac.type == e1000_i350) {
+	if ((hw->mac.type > e1000_82580) &&
+	    (hw->mac.type != e1000_i211)) {
+		u32 dmac;
 		u32 reg = ~E1000_DMACR_DMAC_EN;
 
 		if (adapter->dmac == 0) { /* Disabling it */
@@ -2950,26 +2991,36 @@ igb_reset(struct adapter *adapter)
 			goto reset_out;
 		}
 
-		hwm = (pba - 4) << 10;
-		reg = (((pba-6) << E1000_DMACR_DMACTHR_SHIFT)
-		    & E1000_DMACR_DMACTHR_MASK);
+		/* Set starting thresholds */
+		E1000_WRITE_REG(hw, E1000_DMCTXTH, 0);
+		E1000_WRITE_REG(hw, E1000_DMCRTRH, 0);
 
+		hwm = 64 * pba - adapter->max_frame_size / 16;
+		if (hwm < 64 * (pba - 6))
+			hwm = 64 * (pba - 6);
+		reg = E1000_READ_REG(hw, E1000_FCRTC);
+		reg &= ~E1000_FCRTC_RTH_COAL_MASK;
+		reg |= ((hwm << E1000_FCRTC_RTH_COAL_SHIFT)
+		    & E1000_FCRTC_RTH_COAL_MASK);
+		E1000_WRITE_REG(hw, E1000_FCRTC, reg);
+
+
+		dmac = pba - adapter->max_frame_size / 512;
+		if (dmac < pba - 10)
+			dmac = pba - 10;
+		reg = E1000_READ_REG(hw, E1000_DMACR);
+		reg &= ~E1000_DMACR_DMACTHR_MASK;
+		reg = ((dmac << E1000_DMACR_DMACTHR_SHIFT)
+		    & E1000_DMACR_DMACTHR_MASK);
 		/* transition to L0x or L1 if available..*/
 		reg |= (E1000_DMACR_DMAC_EN | E1000_DMACR_DMAC_LX_MASK);
-
 		/* timer = value in adapter->dmac in 32usec intervals */
 		reg |= (adapter->dmac >> 5);
 		E1000_WRITE_REG(hw, E1000_DMACR, reg);
 
-		/* No lower threshold */
-		E1000_WRITE_REG(hw, E1000_DMCRTRH, 0);
-
-		/* set hwm to PBA -  2 * max frame size */
-		E1000_WRITE_REG(hw, E1000_FCRTC, hwm);
-
 		/* Set the interval before transition */
 		reg = E1000_READ_REG(hw, E1000_DMCTLX);
-		reg |= 0x800000FF; /* 255 usec */
+		reg |= 0x80000004;
 		E1000_WRITE_REG(hw, E1000_DMCTLX, reg);
 
 		/* free space in tx packet buffer to wake from DMA coal */
@@ -2978,9 +3029,15 @@ igb_reset(struct adapter *adapter)
 
 		/* make low power state decision controlled by DMA coal */
 		reg = E1000_READ_REG(hw, E1000_PCIEMISC);
-		E1000_WRITE_REG(hw, E1000_PCIEMISC,
-		    reg | E1000_PCIEMISC_LX_DECISION);
+		reg &= ~E1000_PCIEMISC_LX_DECISION;
+		E1000_WRITE_REG(hw, E1000_PCIEMISC, reg);
 		device_printf(dev, "DMA Coalescing enabled\n");
+
+	} else if (hw->mac.type == e1000_82580) {
+		u32 reg = E1000_READ_REG(hw, E1000_PCIEMISC);
+		E1000_WRITE_REG(hw, E1000_DMACR, 0);
+		E1000_WRITE_REG(hw, E1000_PCIEMISC,
+		    reg & ~E1000_PCIEMISC_LX_DECISION);
 	}
 
 reset_out:
@@ -4704,7 +4761,7 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 		/* Make sure all segments of a bad packet are discarded */
 		if (((staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) != 0) ||
 		    (rxr->discard)) {
-			ifp->if_ierrors++;
+			adapter->dropped_pkts++;
 			++rxr->rx_discarded;
 			if (!eop) /* Catch subsequent segs */
 				rxr->discard = TRUE;
@@ -4846,7 +4903,7 @@ next_desc:
 	}
 
 	if (done != NULL)
-		*done = rxdone;
+		*done += rxdone;
 
 	IGB_RX_UNLOCK(rxr);
 	return ((staterr & E1000_RXD_STAT_DD) ? TRUE : FALSE);
@@ -5941,4 +5998,26 @@ igb_sysctl_dmac(SYSCTL_HANDLER_ARGS)
 	/* Reinit the interface */
 	igb_init(adapter);
 	return (error);
+}
+
+/*
+** Manage Energy Efficient Ethernet:
+** Control values:
+**     0/1 - enabled/disabled
+*/
+static int
+igb_sysctl_eee(SYSCTL_HANDLER_ARGS)
+{
+	struct adapter	*adapter = (struct adapter *) arg1;
+	int		error, value;
+
+	value = adapter->hw.dev_spec._82575.eee_disable;
+	error = sysctl_handle_int(oidp, &value, 0, req);
+	if (error || req->newptr == NULL)
+		return (error);
+	IGB_CORE_LOCK(adapter);
+	adapter->hw.dev_spec._82575.eee_disable = (value != 0);
+	igb_init_locked(adapter);
+	IGB_CORE_UNLOCK(adapter);
+	return (0);
 }

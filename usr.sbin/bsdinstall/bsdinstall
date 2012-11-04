@@ -32,13 +32,8 @@
 : ${BSDINSTALL_DISTDIR="/usr/freebsd-dist"}; export BSDINSTALL_DISTDIR
 : ${BSDINSTALL_CHROOT="/mnt"}; export BSDINSTALL_CHROOT
 
-VERB=$1; shift
+VERB=${1:-auto}; shift
 
-if [ -z $VERB ]; then
-	VERB=auto
-fi
-
-test -d "$BSDINSTALL_TMPETC" || mkdir "$BSDINSTALL_TMPETC"
-echo Running installation step: $VERB $@ >> "$BSDINSTALL_LOG"
-exec /usr/libexec/bsdinstall/$VERB $@ 2>>"$BSDINSTALL_LOG"
-
+[ -d "$BSDINSTALL_TMPETC" ] || mkdir -p "$BSDINSTALL_TMPETC"
+echo "Running installation step: $VERB $@" >> "$BSDINSTALL_LOG"
+exec "/usr/libexec/bsdinstall/$VERB" "$@" 2>> "$BSDINSTALL_LOG"

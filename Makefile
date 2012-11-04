@@ -92,7 +92,7 @@ TGTS=	all all-man buildenv buildenvvars buildkernel buildworld \
 	delete-old delete-old-dirs delete-old-files delete-old-libs \
 	depend distribute distributekernel distributekernel.debug \
 	distributeworld distrib-dirs distribution doxygen \
-	everything hierarchy install installcheck installkernel \
+	everything hier hierarchy install installcheck installkernel \
 	installkernel.debug packagekernel packageworld \
 	reinstallkernel reinstallkernel.debug \
 	installworld kernel-toolchain libraries lint maninstall \
@@ -124,9 +124,9 @@ _MAKEOBJDIRPREFIX!= /usr/bin/env -i PATH=${PATH} ${MAKE} \
 .error MAKEOBJDIRPREFIX can only be set in environment, not as a global\
 	(in make.conf(5)) or command-line variable.
 .endif
-MAKEPATH=	${MAKEOBJDIRPREFIX}${.CURDIR}/${MAKE:T}.${MACHINE}
+MAKEPATH=	${MAKEOBJDIRPREFIX}${.CURDIR}/make.${MACHINE}
 BINMAKE= \
-	`if [ -x ${MAKEPATH}/${MAKE:T} ]; then echo ${MAKEPATH}/${MAKE:T}; else echo ${MAKE}; fi` \
+	`if [ -x ${MAKEPATH}/make ]; then echo ${MAKEPATH}/make; else echo ${MAKE}; fi` \
 	-m ${.CURDIR}/share/mk
 _MAKE=	PATH=${PATH} ${BINMAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=${_TARGET_ARCH}
 
@@ -135,7 +135,7 @@ _MAKE=	PATH=${PATH} ${BINMAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=${
 _TARGET_ARCH=	${TARGET:S/pc98/i386/}
 .elif !defined(TARGET) && defined(TARGET_ARCH) && \
     ${TARGET_ARCH} != ${MACHINE_ARCH}
-_TARGET=		${TARGET_ARCH:C/mips(n32|64)?(el)?/mips/:C/armeb/arm/}
+_TARGET=		${TARGET_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/}
 .endif
 # Legacy names, for another transition period mips:mips(n32|64)?eb -> mips:mips\1
 .if defined(TARGET) && defined(TARGET_ARCH) && \
@@ -216,7 +216,7 @@ ${TGTS}:
 .MAIN:	all
 
 STARTTIME!= LC_ALL=C date
-CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0s; echo
+CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0s ; echo
 .if !empty(CHECK_TIME)
 .error check your date/time: ${STARTTIME}
 .endif
@@ -280,12 +280,14 @@ kernel: buildkernel installkernel
 # for building the world.
 #
 upgrade_checks:
+.if !defined(.PARSEDIR)
 	@if ! (cd ${.CURDIR}/tools/build/make_check && \
 	    PATH=${PATH} ${BINMAKE} obj >/dev/null 2>&1 && \
 	    PATH=${PATH} ${BINMAKE} >/dev/null 2>&1); \
 	then \
-	    (cd ${.CURDIR} && ${MAKE} ${MAKE:T}); \
+	    (cd ${.CURDIR} && ${MAKE} make); \
 	fi
+.endif
 
 #
 # Upgrade make(1) to the current version using the installed
@@ -303,20 +305,9 @@ MMAKE=		${MMAKEENV} ${MAKE} \
 make: .PHONY
 	@echo
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Building an up-to-date ${MAKE:T}(1)"
+	@echo ">>> Building an up-to-date make(1)"
 	@echo "--------------------------------------------------------------"
-	${_+_}@cd ${.CURDIR}/usr.bin/${MAKE:T}; \
-		${MMAKE} obj && \
-		${MMAKE} depend && \
-		${MMAKE} all && \
-		${MMAKE} install DESTDIR=${MAKEPATH} BINDIR=
-
-bmake: .PHONY
-	@echo
-	@echo "--------------------------------------------------------------"
-	@echo ">>> Building an up-to-date bmake(1)"
-	@echo "--------------------------------------------------------------"
-	${_+_}@cd ${.CURDIR}/external/bsd/bmake/usr.bin/bmake; \
+	${_+_}@cd ${.CURDIR}/usr.bin/make; \
 		${MMAKE} obj && \
 		${MMAKE} depend && \
 		${MMAKE} all && \
@@ -340,7 +331,7 @@ kernel-toolchains:
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
 TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64
-TARGET_ARCHES_arm?=	arm armeb
+TARGET_ARCHES_arm?=	arm armeb armv6 armv6eb
 TARGET_ARCHES_mips?=	mipsel mips mips64el mips64 mipsn32
 TARGET_ARCHES_powerpc?=	powerpc powerpc64
 TARGET_ARCHES_pc98?=	i386
@@ -452,3 +443,6 @@ universe_epilogue:
 	fi
 .endif
 .endif
+
+buildLINT:
+	${MAKE} -C ${.CURDIR}/sys/${_TARGET}/conf LINT

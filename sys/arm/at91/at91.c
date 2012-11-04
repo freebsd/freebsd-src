@@ -54,8 +54,6 @@ static void at91_eoi(void *);
 
 extern const struct pmap_devmap at91_devmap[];
 
-uint32_t at91_chip_id;
-
 uint32_t at91_master_clock;
 
 static int
@@ -74,7 +72,7 @@ at91_bs_map(void *t, bus_addr_t bpa, bus_size_t size, int flags,
 	endpa = round_page(bpa + size);
 
 	*bshp = (vm_offset_t)pmap_mapdev(pa, endpa - pa);
-		       
+
 	return (0);
 }
 
@@ -100,7 +98,7 @@ at91_bs_subregion(void *t, bus_space_handle_t bsh, bus_size_t offset,
 }
 
 static void
-at91_barrier(void *t, bus_space_handle_t bsh, bus_size_t size, bus_size_t b, 
+at91_barrier(void *t, bus_space_handle_t bsh, bus_size_t size, bus_size_t b,
     int a)
 {
 }
@@ -244,15 +242,29 @@ at91_identify(driver_t *drv, device_t parent)
 	BUS_ADD_CHILD(parent, 0, "atmelarm", 0);
 }
 
+static void
+at91_cpu_add_builtin_children(device_t dev, const struct cpu_devs *walker)
+{
+	int i;
+
+	for (i = 1; walker->name; i++, walker++) {
+		at91_add_child(dev, i, walker->name, walker->unit,
+		    walker->mem_base, walker->mem_len, walker->irq0,
+		    walker->irq1, walker->irq2);
+	}
+}
+
 static int
 at91_attach(device_t dev)
 {
 	struct at91_softc *sc = device_get_softc(dev);
 	const struct pmap_devmap *pdevmap;
+	int i;
 
 	at91_softc = sc;
 	sc->sc_st = &at91_bs_tag;
 	sc->sc_sh = AT91_BASE;
+	sc->sc_aic_sh = AT91_BASE + AT91_SYS_BASE;
 	sc->dev = dev;
 
 	sc->sc_irq_rman.rm_type = RMAN_ARRAY;
@@ -271,11 +283,34 @@ at91_attach(device_t dev)
 			panic("at91_attach: failed to set up memory rman");
 	}
 
+	/*
+	 * Setup the interrupt table.
+	 */
+	if (soc_info.soc_data == NULL || soc_info.soc_data->soc_irq_prio == NULL)
+		panic("Interrupt priority table missing\n");
+	for (i = 0; i < 32; i++) {
+		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SVR +
+		    i * 4, i);
+		/* Priority. */
+		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SMR + i * 4,
+		    soc_info.soc_data->soc_irq_prio[i]);
+		if (i < 8)
+			bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_EOICR,
+			    1);
+	}
 
-	/* Our device list will be added automatically by the cpu device
-	 * e.g. at91rm9200.c when it is identified. To ensure that the
-	 * CPU and PMC are attached first any other "identified" devices 
-	 * call BUS_ADD_CHILD(9) with an "order" of at least 2. */
+	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SPU, 32);
+	/* No debug. */
+	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_DCR, 0);
+	/* Disable and clear all interrupts. */
+	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IDCR, 0xffffffff);
+	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_ICCR, 0xffffffff);
+
+        /*
+         * Add this device's children...
+         */
+	at91_cpu_add_builtin_children(dev, soc_info.soc_data->soc_children);
+	soc_info.soc_data->soc_clock_init();
 
 	bus_generic_probe(dev);
 	bus_generic_attach(dev);
@@ -359,21 +394,18 @@ at91_release_resource(device_t dev, device_t child, int type,
 
 static int
 at91_setup_intr(device_t dev, device_t child,
-    struct resource *ires, int flags, driver_filter_t *filt, 
-    driver_intr_t *intr, void *arg, void **cookiep)    
+    struct resource *ires, int flags, driver_filter_t *filt,
+    driver_intr_t *intr, void *arg, void **cookiep)
 {
-	struct at91_softc *sc = device_get_softc(dev);
 	int error;
 
-	if (rman_get_start(ires) == sc->sc_irq_system && filt == NULL)
+	if (rman_get_start(ires) == AT91_IRQ_SYSTEM && filt == NULL)
 		panic("All system interrupt ISRs must be FILTER");
 	error = BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags,
 	    filt, intr, arg, cookiep);
 	if (error)
 		return (error);
 
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IECR,
-	    1 << rman_get_start(ires));
 	return (0);
 }
 
@@ -383,7 +415,7 @@ at91_teardown_intr(device_t dev, device_t child, struct resource *res,
 {
 	struct at91_softc *sc = device_get_softc(dev);
 
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IDCR, 
+	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IDCR,
 	    1 << rman_get_start(res));
 	return (BUS_TEARDOWN_INTR(device_get_parent(dev), child, res, cookie));
 }
@@ -399,7 +431,7 @@ at91_activate_resource(device_t bus, device_t child, int type, int rid,
 	if (type == SYS_RES_MEMORY) {
 		error = bus_space_map(rman_get_bustag(r),
 		    rman_get_bushandle(r), rman_get_size(r), 0, &p);
-		if (error) 
+		if (error)
 			return (error);
 		rman_set_bushandle(r, p);
 	}
@@ -434,7 +466,7 @@ void
 arm_mask_irq(uintptr_t nb)
 {
 	
-	bus_space_write_4(at91_softc->sc_st, 
+	bus_space_write_4(at91_softc->sc_st,
 	    at91_softc->sc_aic_sh, IC_IDCR, 1 << nb);
 }
 
@@ -460,7 +492,7 @@ void
 arm_unmask_irq(uintptr_t nb)
 {
 	
-	bus_space_write_4(at91_softc->sc_st, 
+	bus_space_write_4(at91_softc->sc_st,
 	at91_softc->sc_aic_sh, IC_IECR, 1 << nb);
 	bus_space_write_4(at91_softc->sc_st, at91_softc->sc_aic_sh,
 	    IC_EOICR, 0);
@@ -471,6 +503,41 @@ at91_eoi(void *unused)
 {
 	bus_space_write_4(at91_softc->sc_st, at91_softc->sc_aic_sh,
 	    IC_EOICR, 0);
+}
+
+void
+at91_add_child(device_t dev, int prio, const char *name, int unit,
+    bus_addr_t addr, bus_size_t size, int irq0, int irq1, int irq2)
+{
+	device_t kid;
+	struct at91_ivar *ivar;
+
+	kid = device_add_child_ordered(dev, prio, name, unit);
+	if (kid == NULL) {
+	    printf("Can't add child %s%d ordered\n", name, unit);
+	    return;
+	}
+	ivar = malloc(sizeof(*ivar), M_DEVBUF, M_NOWAIT | M_ZERO);
+	if (ivar == NULL) {
+		device_delete_child(dev, kid);
+		printf("Can't add alloc ivar\n");
+		return;
+	}
+	device_set_ivars(kid, ivar);
+	resource_list_init(&ivar->resources);
+	if (irq0 != -1) {
+		bus_set_resource(kid, SYS_RES_IRQ, 0, irq0, 1);
+		if (irq0 != AT91_IRQ_SYSTEM)
+			at91_pmc_clock_add(device_get_nameunit(kid), irq0, 0);
+	}
+	if (irq1 != 0)
+		bus_set_resource(kid, SYS_RES_IRQ, 1, irq1, 1);
+	if (irq2 != 0)
+		bus_set_resource(kid, SYS_RES_IRQ, 2, irq2, 1);
+	if (addr != 0 && addr < AT91_BASE) 
+		addr += AT91_BASE;
+	if (addr != 0)
+		bus_set_resource(kid, SYS_RES_MEMORY, 0, addr, size);
 }
 
 static device_method_t at91_methods[] = {

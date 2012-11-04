@@ -15,14 +15,14 @@ INSTALL_ONLY_COMPRESSED?=
 JADEFLAGS+=	-V %generate-article-toc%
 
 # SGML content
-SRCS+=	article.sgml
-SRCS+=	../../../en_US.ISO8859-1/hardware/alpha/proc-alpha.sgml
+SRCS+=	article.xml
+SRCS+=	../../../en_US.ISO8859-1/hardware/alpha/proc-alpha.xml
 SRCS+=	../common/hw.ent
-SRCS+=	../common/artheader.sgml
-SRCS+=	../common/dev.sgml
+SRCS+=	../common/artheader.xml
+SRCS+=	../common/dev.xml
 SRCS+=	${DEV-AUTODIR}/catalog-auto
-SRCS+=	${DEV-AUTODIR}/dev-auto.sgml
-SRCS+= ../../share/sgml/dev-auto-ru.sgml
+SRCS+=	${DEV-AUTODIR}/dev-auto.xml
+SRCS+= ../../share/xml/dev-auto-ru.xml
 
 .include "${RELN_ROOT}/share/mk/doc.relnotes.mk"
 .include "${DOC_PREFIX}/share/mk/doc.project.mk"

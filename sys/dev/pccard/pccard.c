@@ -473,6 +473,8 @@ pccard_function_init(struct pccard_function *pf, int entry)
 	struct resource_list *rl = &devi->resources;
 	struct resource_list_entry *rle;
 	struct resource *r = 0;
+	struct pccard_ce_iospace *ios;
+	struct pccard_ce_memspace *mems;
 	device_t bus;
 	u_long start, end, len;
 	int i, rid, spaces;
@@ -501,44 +503,50 @@ pccard_function_init(struct pccard_function *pf, int entry)
 			continue;
 		spaces = 0;
 		for (i = 0; i < cfe->num_iospace; i++) {
-			start = cfe->iospace[i].start;
+			ios = cfe->iospace + i;
+			start = ios->start;
 			if (start)
-				end = start + cfe->iospace[i].length - 1;
+				end = start + ios->length - 1;
 			else
 				end = ~0UL;
 			DEVPRINTF((bus, "I/O rid %d start %#lx end %#lx\n",
 			    i, start, end));
 			rid = i;
-			len = cfe->iospace[i].length;
+			len = ios->length;
 			r = bus_alloc_resource(bus, SYS_RES_IOPORT, &rid,
 			    start, end, len, rman_make_alignment_flags(len));
-			if (r == NULL)
+			if (r == NULL) {
+				DEVPRINTF((bus, "I/O rid %d failed\n", i));
 				goto not_this_one;
+			}
 			rle = resource_list_add(rl, SYS_RES_IOPORT,
-			    rid, rman_get_start(r), rman_get_end(r),
-			    cfe->iospace[i].length);
+			    rid, rman_get_start(r), rman_get_end(r), len);
 			if (rle == NULL)
 				panic("Cannot add resource rid %d IOPORT", rid);
 			rle->res = r;
 			spaces++;
 		}
 		for (i = 0; i < cfe->num_memspace; i++) {
-			start = cfe->memspace[i].hostaddr;
+			mems = cfe->memspace + i;
+			start = mems->cardaddr + mems->hostaddr;
 			if (start)
-				end = start + cfe->memspace[i].length - 1;
+				end = start + mems->length - 1;
 			else
 				end = ~0UL;
-			DEVPRINTF((bus, "Memory rid %d start %#lx end %#lx\n",
-			    i, start, end));
+			DEVPRINTF((bus, "Memory rid %d start %#lx end %#lx\ncardaddr %#lx hostaddr %#lx length %#lx\n",
+			    i, start, end, mems->cardaddr, mems->hostaddr,
+			    mems->length));
 			rid = i;
-			len = cfe->memspace[i].length;
+			len = mems->length;
 			r = bus_alloc_resource(bus, SYS_RES_MEMORY, &rid,
 			    start, end, len, rman_make_alignment_flags(len));
-			if (r == NULL)
-				goto not_this_one;
+			if (r == NULL) {
+				DEVPRINTF((bus, "Memory rid %d failed\n", i));
+//				goto not_this_one;
+				continue;
+			}
 			rle = resource_list_add(rl, SYS_RES_MEMORY,
-			    rid, rman_get_start(r), rman_get_end(r),
-			    cfe->memspace[i].length);
+			    rid, rman_get_start(r), rman_get_end(r), len);
 			if (rle == NULL)
 				panic("Cannot add resource rid %d MEM", rid);
 			rle->res = r;
@@ -552,8 +560,10 @@ pccard_function_init(struct pccard_function *pf, int entry)
 			rid = 0;
 			r = bus_alloc_resource_any(bus, SYS_RES_IRQ, &rid,
 			    RF_SHAREABLE);
-			if (r == NULL)
+			if (r == NULL) {
+				DEVPRINTF((bus, "IRQ rid %d failed\n", rid));
 				goto not_this_one;
+			}
 			rle = resource_list_add(rl, SYS_RES_IRQ, rid,
 			    rman_get_start(r), rman_get_end(r), 1);
 			if (rle == NULL)

@@ -47,12 +47,7 @@ ENTRY(exect)
 	pushq	%r8
 	popfq
 	KERNCALL
-#ifdef PIC
-	movq	PIC_GOT(HIDENAME(cerror)),%rdx
-	jmp	*%rdx
-#else
 	jmp	HIDENAME(cerror)
-#endif
 END(exect)
 
 	.section .note.GNU-stack,"",%progbits

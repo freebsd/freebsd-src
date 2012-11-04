@@ -324,6 +324,7 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 	DBG_FUNC("initcg")
 	static caddr_t iobuf;
 	long blkno, start;
+	ino_t ino;
 	ufs2_daddr_t i, cbase, dmax;
 	struct ufs1_dinode *dp1;
 	struct csum *cs;
@@ -392,8 +393,8 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 	}
 	acg.cg_cs.cs_nifree += sblock.fs_ipg;
 	if (cylno == 0)
-		for (i = 0; i < ROOTINO; i++) {
-			setbit(cg_inosused(&acg), i);
+		for (ino = 0; ino < ROOTINO; ino++) {
+			setbit(cg_inosused(&acg), ino);
 			acg.cg_cs.cs_nifree--;
 		}
 	/*
@@ -803,7 +804,6 @@ updcsloc(time_t modtime, int fsi, int fso, unsigned int Nflag)
 	DBG_FUNC("updcsloc")
 	struct csum *cs;
 	int ocscg, ncscg;
-	int blocks;
 	ufs2_daddr_t d;
 	int lcs = 0;
 	int block;
@@ -820,8 +820,6 @@ updcsloc(time_t modtime, int fsi, int fso, unsigned int Nflag)
 	}
 	ocscg = dtog(&osblock, osblock.fs_csaddr);
 	cs = fscs + ocscg;
-	blocks = 1 + howmany(sblock.fs_cssize, sblock.fs_bsize) -
-	    howmany(osblock.fs_cssize, osblock.fs_bsize);
 
 	/*
 	 * Read original cylinder group from disk, and make a copy.
@@ -1500,6 +1498,7 @@ main(int argc, char **argv)
 	}
 
 	sblock.fs_size = dbtofsb(&osblock, size / DEV_BSIZE);
+	sblock.fs_providersize = dbtofsb(&osblock, mediasize / DEV_BSIZE);
 
 	/*
 	 * Are we really growing?

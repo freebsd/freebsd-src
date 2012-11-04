@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 14, 2010
+.Dd August 13, 2012
 .Dt LIBUSB20 3
 .Os
 .Sh NAME
@@ -48,6 +48,7 @@ USB access library (libusb -lusb)
 .Fn libusb20_tr_close "struct libusb20_transfer *xfer"
 .Ft int
 .Fn libusb20_tr_open "struct libusb20_transfer *xfer" "uint32_t max_buf_size" "uint32_t max_frame_count" "uint8_t ep_no"
+.Fn libusb20_tr_open_stream "struct libusb20_transfer *xfer" "uint32_t max_buf_size" "uint32_t max_frame_count" "uint8_t ep_no" "uint16_t stream_id"
 .Ft struct libusb20_transfer*
 .Fn libusb20_tr_get_pointer "struct libusb20_device *pdev"  "uint16_t tr_index"
 .Ft uint16_t
@@ -284,6 +285,16 @@ Non-zero return values indicate a LIBUSB20_ERROR value.
 .
 .Pp
 .
+.Fn libusb20_tr_open_stream
+is identical to
+.Fn libusb20_tr_open
+except that a stream ID can be specified for BULK endpoints having
+such a feature.
+.Fn libusb20_tr_open
+can be used to open stream ID zero.
+.
+.Pp
+.
 .Fn libusb20_tr_get_pointer
 will return a pointer to the allocated USB transfer according to the
 .Fa pdev
@@ -401,7 +412,7 @@ The callback type is defined by libusb20_tr_callback_t.
 .
 .Fn libusb20_tr_set_flags
 is used to set various USB flags for the given USB transfer.
-.Bl -tag
+.Bl -tag -width "LIBUSB20_TRANSFER_SINGLE_SHORT_NOT_OK"
 .It LIBUSB20_TRANSFER_SINGLE_SHORT_NOT_OK
 Report a short frame as error.
 .It LIBUSB20_TRANSFER_MULTI_SHORT_NOT_OK
@@ -709,13 +720,14 @@ This function returns zero if the device is still connected else a LIBUSB20_ERRO
 sets the power mode of the USB device.
 .
 Valid power modes:
-.Bl -tag
+.Bl -tag -width "LIBUSB20_POWER_OFF"
 .It LIBUSB20_POWER_OFF
 .It LIBUSB20_POWER_ON
 .It LIBUSB20_POWER_SAVE
 .It LIBUSB20_POWER_SUSPEND
 .It LIBUSB20_POWER_RESUME
 .El
+.Pp
 .
 This function returns zero on success else a LIBUSB20_ERROR value is
 returned.
@@ -793,7 +805,7 @@ Valid bus numbers start at zero.
 returns the current operation mode of the USB entity.
 .
 Valid return values are:
-.Bl -tag
+.Bl -tag -width "LIBUSB20_MODE_DEVICE"
 .It LIBUSB20_MODE_HOST
 .It LIBUSB20_MODE_DEVICE
 .El
@@ -803,7 +815,7 @@ Valid return values are:
 .Fn libusb20_dev_get_speed
 returns the current speed of the given USB device.
 .
-.Bl -tag
+.Bl -tag -width "LIBUSB20_SPEED_VARIABLE"
 .It LIBUSB20_SPEED_UNKNOWN
 .It LIBUSB20_SPEED_LOW
 .It LIBUSB20_SPEED_FULL

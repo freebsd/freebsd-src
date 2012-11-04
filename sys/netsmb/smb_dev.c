@@ -157,22 +157,24 @@ nsmb_dev_close(struct cdev *dev, int flag, int fmt, struct thread *td)
 	struct smb_dev *sdp;
 	struct smb_vc *vcp;
 	struct smb_share *ssp;
-	struct smb_cred scred;
+	struct smb_cred *scred;
 	int s;
 
+	scred = malloc(sizeof(struct smb_cred), M_NSMBDEV, M_WAITOK);
 	SMB_CHECKMINOR(dev);
 	s = splimp();
 	if ((sdp->sd_flags & NSMBFL_OPEN) == 0) {
 		splx(s);
+		free(scred, M_NSMBDEV);
 		return EBADF;
 	}
-	smb_makescred(&scred, td, NULL);
+	smb_makescred(scred, td, NULL);
 	ssp = sdp->sd_share;
 	if (ssp != NULL)
-		smb_share_rele(ssp, &scred);
+		smb_share_rele(ssp, scred);
 	vcp = sdp->sd_vc;
 	if (vcp != NULL)
-		smb_vc_rele(vcp, &scred);
+		smb_vc_rele(vcp, scred);
 /*
 	smb_flushq(&sdp->sd_rqlist);
 	smb_flushq(&sdp->sd_rplist);
@@ -181,6 +183,7 @@ nsmb_dev_close(struct cdev *dev, int flag, int fmt, struct thread *td)
 	free(sdp, M_NSMBDEV);
 	destroy_dev_sched(dev);
 	splx(s);
+	free(scred, M_NSMBDEV);
 	return 0;
 }
 
@@ -191,20 +194,23 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 	struct smb_dev *sdp;
 	struct smb_vc *vcp;
 	struct smb_share *ssp;
-	struct smb_cred scred;
+	struct smb_cred *scred;
 	int error = 0;
 
 	SMB_CHECKMINOR(dev);
 	if ((sdp->sd_flags & NSMBFL_OPEN) == 0)
 		return EBADF;
 
-	smb_makescred(&scred, td, NULL);
+	scred = malloc(sizeof(struct smb_cred), M_NSMBDEV, M_WAITOK);
+	smb_makescred(scred, td, NULL);
 	switch (cmd) {
 	    case SMBIOC_OPENSESSION:
-		if (sdp->sd_vc)
-			return EISCONN;
+		if (sdp->sd_vc) {
+			error = EISCONN;
+			goto out;
+		}
 		error = smb_usr_opensession((struct smbioc_ossn*)data,
-		    &scred, &vcp);
+		    scred, &vcp);
 		if (error)
 			break;
 		sdp->sd_vc = vcp;
@@ -212,12 +218,16 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 		sdp->sd_level = SMBL_VC;
 		break;
 	    case SMBIOC_OPENSHARE:
-		if (sdp->sd_share)
-			return EISCONN;
-		if (sdp->sd_vc == NULL)
-			return ENOTCONN;
+		if (sdp->sd_share) {
+			error = EISCONN;
+			goto out;
+		}
+		if (sdp->sd_vc == NULL) {
+			error = ENOTCONN;
+			goto out;
+		}
 		error = smb_usr_openshare(sdp->sd_vc,
-		    (struct smbioc_oshare*)data, &scred, &ssp);
+		    (struct smbioc_oshare*)data, scred, &ssp);
 		if (error)
 			break;
 		sdp->sd_share = ssp;
@@ -225,16 +235,20 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 		sdp->sd_level = SMBL_SHARE;
 		break;
 	    case SMBIOC_REQUEST:
-		if (sdp->sd_share == NULL)
-			return ENOTCONN;
+		if (sdp->sd_share == NULL) {
+			error = ENOTCONN;
+			goto out;
+		}
 		error = smb_usr_simplerequest(sdp->sd_share,
-		    (struct smbioc_rq*)data, &scred);
+		    (struct smbioc_rq*)data, scred);
 		break;
 	    case SMBIOC_T2RQ:
-		if (sdp->sd_share == NULL)
-			return ENOTCONN;
+		if (sdp->sd_share == NULL) {
+			error = ENOTCONN;
+			goto out;
+		}
 		error = smb_usr_t2request(sdp->sd_share,
-		    (struct smbioc_t2rq*)data, &scred);
+		    (struct smbioc_t2rq*)data, scred);
 		break;
 	    case SMBIOC_SETFLAGS: {
 		struct smbioc_flags *fl = (struct smbioc_flags*)data;
@@ -243,9 +257,11 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 		if (fl->ioc_level == SMBL_VC) {
 			if (fl->ioc_mask & SMBV_PERMANENT) {
 				on = fl->ioc_flags & SMBV_PERMANENT;
-				if ((vcp = sdp->sd_vc) == NULL)
-					return ENOTCONN;
-				error = smb_vc_get(vcp, LK_EXCLUSIVE, &scred);
+				if ((vcp = sdp->sd_vc) == NULL) {
+					error = ENOTCONN;
+					goto out;
+				}
+				error = smb_vc_get(vcp, LK_EXCLUSIVE, scred);
 				if (error)
 					break;
 				if (on && (vcp->obj.co_flags & SMBV_PERMANENT) == 0) {
@@ -253,17 +269,19 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 					smb_vc_ref(vcp);
 				} else if (!on && (vcp->obj.co_flags & SMBV_PERMANENT)) {
 					vcp->obj.co_flags &= ~SMBV_PERMANENT;
-					smb_vc_rele(vcp, &scred);
+					smb_vc_rele(vcp, scred);
 				}
-				smb_vc_put(vcp, &scred);
+				smb_vc_put(vcp, scred);
 			} else
 				error = EINVAL;
 		} else if (fl->ioc_level == SMBL_SHARE) {
 			if (fl->ioc_mask & SMBS_PERMANENT) {
 				on = fl->ioc_flags & SMBS_PERMANENT;
-				if ((ssp = sdp->sd_share) == NULL)
-					return ENOTCONN;
-				error = smb_share_get(ssp, LK_EXCLUSIVE, &scred);
+				if ((ssp = sdp->sd_share) == NULL) {
+					error = ENOTCONN;
+					goto out;
+				}
+				error = smb_share_get(ssp, LK_EXCLUSIVE, scred);
 				if (error)
 					break;
 				if (on && (ssp->obj.co_flags & SMBS_PERMANENT) == 0) {
@@ -271,9 +289,9 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 					smb_share_ref(ssp);
 				} else if (!on && (ssp->obj.co_flags & SMBS_PERMANENT)) {
 					ssp->obj.co_flags &= ~SMBS_PERMANENT;
-					smb_share_rele(ssp, &scred);
+					smb_share_rele(ssp, scred);
 				}
-				smb_share_put(ssp, &scred);
+				smb_share_put(ssp, scred);
 			} else
 				error = EINVAL;
 			break;
@@ -282,11 +300,13 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 		break;
 	    }
 	    case SMBIOC_LOOKUP:
-		if (sdp->sd_vc || sdp->sd_share)
-			return EISCONN;
+		if (sdp->sd_vc || sdp->sd_share) {
+			error = EISCONN;
+			goto out;
+		}
 		vcp = NULL;
 		ssp = NULL;
-		error = smb_usr_lookup((struct smbioc_lookup*)data, &scred, &vcp, &ssp);
+		error = smb_usr_lookup((struct smbioc_lookup*)data, scred, &vcp, &ssp);
 		if (error)
 			break;
 		if (vcp) {
@@ -305,8 +325,10 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 		struct uio auio;
 		struct iovec iov;
 	
-		if ((ssp = sdp->sd_share) == NULL)
-			return ENOTCONN;
+		if ((ssp = sdp->sd_share) == NULL) {
+			error = ENOTCONN;
+			goto out;
+	 	}
 		iov.iov_base = rwrq->ioc_base;
 		iov.iov_len = rwrq->ioc_cnt;
 		auio.uio_iov = &iov;
@@ -317,15 +339,17 @@ nsmb_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thre
 		auio.uio_rw = (cmd == SMBIOC_READ) ? UIO_READ : UIO_WRITE;
 		auio.uio_td = td;
 		if (cmd == SMBIOC_READ)
-			error = smb_read(ssp, rwrq->ioc_fh, &auio, &scred);
+			error = smb_read(ssp, rwrq->ioc_fh, &auio, scred);
 		else
-			error = smb_write(ssp, rwrq->ioc_fh, &auio, &scred);
+			error = smb_write(ssp, rwrq->ioc_fh, &auio, scred);
 		rwrq->ioc_cnt -= auio.uio_resid;
 		break;
 	    }
 	    default:
 		error = ENODEV;
 	}
+out:
+	free(scred, M_NSMBDEV);
 	return error;
 }
 
@@ -375,7 +399,7 @@ nsmb_getfp(struct filedesc* fdp, int fd, int flag)
 	struct file* fp;
 
 	FILEDESC_SLOCK(fdp);
-	if (((u_int)fd) >= fdp->fd_nfiles ||
+	if (fd < 0 || fd >= fdp->fd_nfiles ||
 	    (fp = fdp->fd_ofiles[fd]) == NULL ||
 	    (fp->f_flag & flag) == 0) {
 		FILEDESC_SUNLOCK(fdp);

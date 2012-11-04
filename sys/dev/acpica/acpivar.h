@@ -71,8 +71,6 @@ struct acpi_softc {
     int			acpi_verbose;
     int			acpi_handle_reboot;
 
-    bus_dma_tag_t	acpi_waketag;
-    bus_dmamap_t	acpi_wakemap;
     vm_offset_t		acpi_wakeaddr;
     vm_paddr_t		acpi_wakephys;
 
@@ -215,11 +213,6 @@ extern int	acpi_quirks;
 #define ACPI_Q_BROKEN		(1 << 0)
 #define ACPI_Q_TIMER		(1 << 1)
 #define ACPI_Q_MADT_IRQ0	(1 << 2)
-
-/*
- * Sleep flags.  See actypes.h for available flags.
- */
-extern int	acpi_sleep_flags;
 
 /*
  * Note that the low ivar values are reserved to provide

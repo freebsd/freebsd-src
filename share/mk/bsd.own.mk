@@ -254,6 +254,7 @@ WITHOUT_${var}=
     INFO \
     IPFILTER \
     IPX \
+    KDUMP \
     KERBEROS \
     LIB32 \
     LIBPTHREAD \
@@ -305,6 +306,7 @@ __DEFAULT_YES_OPTIONS = \
     APM \
     ASSERT_DEBUG \
     AT \
+    ATF \
     ATM \
     AUDIT \
     AUTHPF \
@@ -357,6 +359,7 @@ __DEFAULT_YES_OPTIONS = \
     IPFW \
     IPX \
     JAIL \
+    KDUMP \
     KERBEROS \
     KERNEL_SYMBOLS \
     KVM \
@@ -372,7 +375,6 @@ __DEFAULT_YES_OPTIONS = \
     MAILWRAPPER \
     MAKE \
     MAN \
-    NCP \
     NDIS \
     NETCAT \
     NETGRAPH \
@@ -385,6 +387,7 @@ __DEFAULT_YES_OPTIONS = \
     OPENSSL \
     PAM \
     PF \
+    PKGBOOTSTRAP \
     PKGTOOLS \
     PMC \
     PORTSNAP \
@@ -415,13 +418,14 @@ __DEFAULT_YES_OPTIONS = \
 
 __DEFAULT_NO_OPTIONS = \
     AUTO_OBJ \
+    BMAKE \
     BSD_GREP \
-    BSD_SORT \
     BIND_IDN \
     BIND_LARGE_FILE \
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
+    BSDCONFIG \
     CLANG_EXTRAS \
     CLANG_IS_CC \
     CTF \
@@ -429,7 +433,6 @@ __DEFAULT_NO_OPTIONS = \
     ICONV \
     IDEA \
     INSTALL_AS_USER \
-    LIBCPLUSPLUS \
     META_MODE \
     NAND \
     OFED \
@@ -551,10 +554,6 @@ MK_CLANG:=	no
 MK_GROFF:=	no
 .endif
 
-.if ${MK_IPX} == "no"
-MK_NCP:=	no
-.endif
-
 .if ${MK_MAIL} == "no"
 MK_MAILWRAPPER:= no
 MK_SENDMAIL:=	no
@@ -652,9 +651,36 @@ MK_${vv:H}:=	${MK_${vv:T}}
 .endif
 .endfor
 
+#
+# MK_* options that default to "yes" if the compiler is a C++11 compiler.
+#
+.include <bsd.compiler.mk>
+.for var in \
+    LIBCPLUSPLUS
+.if defined(WITH_${var}) && defined(WITHOUT_${var})
+.error WITH_${var} and WITHOUT_${var} can't both be set.
+.endif
+.if defined(MK_${var})
+.error MK_${var} can't be set by a user.
+.endif
+.if ${COMPILER_FEATURES:Mc++11}
+.if defined(WITHOUT_${var})
+MK_${var}:=	no
+.else
+MK_${var}:=	yes
+.endif
+.else
+.if defined(WITH_${var})
+MK_${var}:=	yes
+.else
+MK_${var}:=	no
+.endif
+.endif
+.endfor
+
 .if ${MK_CTF} != "no"
 CTFCONVERT_CMD=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.elif ${MAKE_VERSION} >= 5201111300
+.elif defined(MAKE_VERSION) && ${MAKE_VERSION} >= 5201111300
 CTFCONVERT_CMD=
 .else
 CTFCONVERT_CMD=	@:

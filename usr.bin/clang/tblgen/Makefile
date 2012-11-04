@@ -11,6 +11,7 @@ SRCS=	AsmMatcherEmitter.cpp \
 	CodeGenDAGPatterns.cpp \
 	CodeGenInstruction.cpp \
 	CodeGenRegisters.cpp \
+	CodeGenSchedule.cpp \
 	CodeGenTarget.cpp \
 	DAGISelEmitter.cpp \
 	DAGISelMatcher.cpp \
@@ -27,7 +28,6 @@ SRCS=	AsmMatcherEmitter.cpp \
 	PseudoLoweringEmitter.cpp \
 	RegisterInfoEmitter.cpp \
 	SetTheory.cpp \
-	StringMatcher.cpp \
 	SubtargetEmitter.cpp \
 	TGValueTypes.cpp \
 	TableGen.cpp \
@@ -36,6 +36,7 @@ SRCS=	AsmMatcherEmitter.cpp \
 	X86RecognizableInstr.cpp
 LLVM_REQUIRES_EH=
 
-LIBDEPS=llvmtablegen llvmsupport
+LIBDEPS=llvmtablegen \
+	llvmsupport
 
 .include "../clang.prog.mk"

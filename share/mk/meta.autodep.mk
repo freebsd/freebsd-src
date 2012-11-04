@@ -235,11 +235,13 @@ META_FILES = ${.MAKE.META.FILES:T:N.depend*:N*o.meta:O:u} \
 .export GENDIRDEPS_FILTER
 .endif
 
+_makesyspath:= ${_PARSEDIR}
 ${_DEPENDFILE}: ${_depend} ${.PARSEDIR}/gendirdeps.mk  ${META2DEPS} $${.MAKE.META.CREATED}
 	@echo Checking $@: ${.OODATE:T:[1..8]}
 	@(cd . && \
 	SKIP_GENDIRDEPS='${SKIP_GENDIRDEPS:O:u}' \
 	DPADD='${FORCE_DPADD:O:u}' ${_gendirdeps_mutex} \
+	MAKESYSPATH=${_makesyspath} \
 	${.MAKE} -f gendirdeps.mk RELDIR=${RELDIR} _DEPENDFILE=${_DEPENDFILE} \
 	META_FILES='${META_XTRAS:T:O:u} ${META_FILES:T:O:u:${META_FILE_FILTER:ts:}}')
 	@test -s $@ && touch $@; :

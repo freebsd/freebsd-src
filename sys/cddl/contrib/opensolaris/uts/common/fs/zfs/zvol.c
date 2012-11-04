@@ -177,15 +177,9 @@ zvol_size_changed(zvol_state_t *zv)
 	pp = zv->zv_provider;
 	if (pp == NULL)
 		return;
-	if (zv->zv_volsize == pp->mediasize)
-		return;
-	/*
-	 * Changing provider size is not really supported by GEOM, but it
-	 * should be safe when provider is closed.
-	 */
-	if (zv->zv_total_opens > 0)
-		return;
-	pp->mediasize = zv->zv_volsize;
+	g_topology_lock();
+	g_resize_provider(pp, zv->zv_volsize);
+	g_topology_unlock();
 #endif	/* !sun */
 }
 
@@ -481,6 +475,7 @@ zvol_create_minor(const char *name)
 	zvol_state_t *zv;
 	objset_t *os;
 	dmu_object_info_t doi;
+	uint64_t volsize;
 	int error;
 
 	ZFS_LOG(1, "Creating ZVOL %s...", name);
@@ -541,9 +536,20 @@ zvol_create_minor(const char *name)
 	zv = zs->zss_data = kmem_zalloc(sizeof (zvol_state_t), KM_SLEEP);
 #else	/* !sun */
 
+	error = zap_lookup(os, ZVOL_ZAP_OBJ, "size", 8, 1, &volsize);
+	if (error) {
+		ASSERT(error == 0);
+		dmu_objset_disown(os, zvol_tag);
+		mutex_exit(&spa_namespace_lock);
+		return (error);
+	}
+
 	DROP_GIANT();
 	g_topology_lock();
 	zv = zvol_geom_create(name);
+	zv->zv_volsize = volsize;
+	zv->zv_provider->mediasize = zv->zv_volsize;
+
 #endif	/* !sun */
 
 	(void) strlcpy(zv->zv_name, name, MAXPATHLEN);
@@ -677,8 +683,18 @@ zvol_last_close(zvol_state_t *zv)
 {
 	zil_close(zv->zv_zilog);
 	zv->zv_zilog = NULL;
+
 	dmu_buf_rele(zv->zv_dbuf, zvol_tag);
 	zv->zv_dbuf = NULL;
+
+	/*
+	 * Evict cached data
+	 */
+	if (dsl_dataset_is_dirty(dmu_objset_ds(zv->zv_objset)) &&
+	    !(zv->zv_flags & ZVOL_RDONLY))
+		txg_wait_synced(dmu_objset_pool(zv->zv_objset), 0);
+	(void) dmu_objset_evict_dbufs(zv->zv_objset);
+
 	dmu_objset_disown(zv->zv_objset, zvol_tag);
 	zv->zv_objset = NULL;
 }
@@ -874,27 +890,36 @@ zvol_open(struct g_provider *pp, int flag, int count)
 {
 	zvol_state_t *zv;
 	int err = 0;
+	boolean_t locked = B_FALSE;
 
-	if (MUTEX_HELD(&spa_namespace_lock)) {
-		/*
-		 * If the spa_namespace_lock is being held, it means that ZFS
-		 * is trying to open ZVOL as its VDEV. This is not supported.
-		 */
-		return (EOPNOTSUPP);
+	/*
+	 * Protect against recursively entering spa_namespace_lock
+	 * when spa_open() is used for a pool on a (local) ZVOL(s).
+	 * This is needed since we replaced upstream zfsdev_state_lock
+	 * with spa_namespace_lock in the ZVOL code.
+	 * We are using the same trick as spa_open().
+	 * Note that calls in zvol_first_open which need to resolve
+	 * pool name to a spa object will enter spa_open()
+	 * recursively, but that function already has all the
+	 * necessary protection.
+	 */
+	if (!MUTEX_HELD(&spa_namespace_lock)) {
+		mutex_enter(&spa_namespace_lock);
+		locked = B_TRUE;
 	}
-
-	mutex_enter(&spa_namespace_lock);
 
 	zv = pp->private;
 	if (zv == NULL) {
-		mutex_exit(&spa_namespace_lock);
+		if (locked)
+			mutex_exit(&spa_namespace_lock);
 		return (ENXIO);
 	}
 
 	if (zv->zv_total_opens == 0)
 		err = zvol_first_open(zv);
 	if (err) {
-		mutex_exit(&spa_namespace_lock);
+		if (locked)
+			mutex_exit(&spa_namespace_lock);
 		return (err);
 	}
 	if ((flag & FWRITE) && (zv->zv_flags & ZVOL_RDONLY)) {
@@ -916,13 +941,15 @@ zvol_open(struct g_provider *pp, int flag, int count)
 #endif
 
 	zv->zv_total_opens += count;
-	mutex_exit(&spa_namespace_lock);
+	if (locked)
+		mutex_exit(&spa_namespace_lock);
 
 	return (err);
 out:
 	if (zv->zv_total_opens == 0)
 		zvol_last_close(zv);
-	mutex_exit(&spa_namespace_lock);
+	if (locked)
+		mutex_exit(&spa_namespace_lock);
 	return (err);
 }
 
@@ -932,12 +959,18 @@ zvol_close(struct g_provider *pp, int flag, int count)
 {
 	zvol_state_t *zv;
 	int error = 0;
+	boolean_t locked = B_FALSE;
 
-	mutex_enter(&spa_namespace_lock);
+	/* See comment in zvol_open(). */
+	if (!MUTEX_HELD(&spa_namespace_lock)) {
+		mutex_enter(&spa_namespace_lock);
+		locked = B_TRUE;
+	}
 
 	zv = pp->private;
 	if (zv == NULL) {
-		mutex_exit(&spa_namespace_lock);
+		if (locked)
+			mutex_exit(&spa_namespace_lock);
 		return (ENXIO);
 	}
 
@@ -960,7 +993,8 @@ zvol_close(struct g_provider *pp, int flag, int count)
 	if (zv->zv_total_opens == 0)
 		zvol_last_close(zv);
 
-	mutex_exit(&spa_namespace_lock);
+	if (locked)
+		mutex_exit(&spa_namespace_lock);
 	return (error);
 }
 

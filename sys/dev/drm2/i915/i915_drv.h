@@ -889,7 +889,7 @@ struct drm_i915_gem_object {
 	int pending_flip;
 };
 
-#define	to_intel_bo(x) member2struct(drm_i915_gem_object, base, (x))
+#define	to_intel_bo(x) __containerof(x, struct drm_i915_gem_object, base)
 
 /**
  * Request queue structure.
@@ -1034,6 +1034,12 @@ int i915_sysctl_init(struct drm_device *dev, struct sysctl_ctx_list *ctx,
 void i915_sysctl_cleanup(struct drm_device *dev);
 
 				/* i915_dma.c */
+int i915_batchbuffer(struct drm_device *dev, void *data,
+    struct drm_file *file_priv);
+int i915_cmdbuffer(struct drm_device *dev, void *data,
+    struct drm_file *file_priv);
+int i915_getparam(struct drm_device *dev, void *data,
+    struct drm_file *file_priv);
 extern void i915_kernel_lost_context(struct drm_device * dev);
 extern int i915_driver_load(struct drm_device *, unsigned long flags);
 extern int i915_driver_unload(struct drm_device *);

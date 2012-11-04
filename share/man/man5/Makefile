@@ -6,6 +6,7 @@
 #MISSING: dump.5 plot.5
 MAN=	acct.5 \
 	ar.5 \
+	${_atf_formats.5} \
 	a.out.5 \
 	bluetooth.device.conf.5 \
 	bluetooth.hosts.5 \
@@ -68,8 +69,7 @@ MAN=	acct.5 \
 	stab.5 \
 	style.Makefile.5 \
 	sysctl.conf.5 \
-	tmpfs.5 \
-	xfs.5
+	tmpfs.5
 
 MLINKS=	dir.5 dirent.5
 MLINKS+=fs.5 inode.5
@@ -81,12 +81,23 @@ MLINKS+=quota.user.5 quota.group.5
 MLINKS+=rc.conf.5 rc.conf.local.5
 MLINKS+=resolver.5 resolv.conf.5
 
+.if ${MK_ATF} != "no"
+ATF=			${.CURDIR}/../../../contrib/atf
+.PATH:			${ATF}/doc
+_atf_formats.5=		atf-formats.5
+.endif
+
 .if ${MK_HESIOD} != "no"
 MAN+=	hesiod.conf.5 
 .endif
 
 .if ${MK_NAND} != "no"
 MAN+=	nandfs.5
+.endif
+
+.if ${MK_PF} != "no"
+MAN+=	pf.conf.5 \
+	pf.os.5
 .endif
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"

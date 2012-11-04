@@ -91,7 +91,7 @@ const char *nlsstr[] = { "",
       "[--heapsort] [--mergesort] [--radixsort] [--qsort] "
       "[--mmap] "
 #if defined(SORT_THREADS)
-      "[--nthreads thread_no] "
+      "[--parallel thread_no] "
 #endif
       "[--human-numeric-sort] "
       "[--version-sort] [--random-sort [--random-source file]] "
@@ -117,7 +117,7 @@ static bool print_symbols_on_debug;
 /*
  * Arguments from file (when file0-from option is used:
  */
-static int argc_from_file0 = -1;
+static size_t argc_from_file0 = (size_t)-1;
 static char **argv_from_file0;
 
 /*
@@ -132,7 +132,7 @@ enum
 	VERSION_OPT,
 	DEBUG_OPT,
 #if defined(SORT_THREADS)
-	NTHREADS_OPT,
+	PARALLEL_OPT,
 #endif
 	RANDOMSOURCE_OPT,
 	COMPRESSPROGRAM_OPT,
@@ -146,7 +146,7 @@ enum
 #define	NUMBER_OF_MUTUALLY_EXCLUSIVE_FLAGS 6
 static const char mutually_exclusive_flags[NUMBER_OF_MUTUALLY_EXCLUSIVE_FLAGS] = { 'M', 'n', 'g', 'R', 'h', 'V' };
 
-struct option long_options[] = {
+static struct option long_options[] = {
 				{ "batch-size", required_argument, NULL, BS_OPT },
 				{ "buffer-size", required_argument, NULL, 'S' },
 				{ "check", optional_argument, NULL, 'c' },
@@ -171,7 +171,7 @@ struct option long_options[] = {
 				{ "numeric-sort", no_argument, NULL, 'n' },
 				{ "output", required_argument, NULL, 'o' },
 #if defined(SORT_THREADS)
-				{ "nthreads", required_argument, NULL, NTHREADS_OPT },
+				{ "parallel", required_argument, NULL, PARALLEL_OPT },
 #endif
 				{ "qsort", no_argument, NULL, QSORT_OPT },
 				{ "radixsort", no_argument, NULL, RADIXSORT_OPT },
@@ -244,9 +244,9 @@ read_fns_from_file0(const char *fn)
 			char *line = read_file0_line(&f0r);
 
 			if (line && *line) {
+				if (argc_from_file0 == (size_t)-1)
+					argc_from_file0 = 0;
 				++argc_from_file0;
-				if (argc_from_file0 < 1)
-					argc_from_file0 = 1;
 				argv_from_file0 = sort_realloc(argv_from_file0,
 				    argc_from_file0 * sizeof(char *));
 				if (argv_from_file0 == NULL)
@@ -1119,7 +1119,7 @@ main(int argc, char **argv)
 				}
 				break;
 #if defined(SORT_THREADS)
-			case NTHREADS_OPT:
+			case PARALLEL_OPT:
 				nthreads = (size_t)(atoi(optarg));
 				if (nthreads < 1)
 					nthreads = 1;
@@ -1221,7 +1221,7 @@ main(int argc, char **argv)
 		ks->sm.func = get_sort_func(&(ks->sm));
 	}
 
-	if (argc_from_file0 >= 0) {
+	if (argv_from_file0) {
 		argc = argc_from_file0;
 		argv = argv_from_file0;
 	}

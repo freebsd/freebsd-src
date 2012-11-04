@@ -1,0 +1,139 @@
+#!/bin/sh
+#-
+# Copyright (c) 2012 Devin Teske
+# All Rights Reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="110.mouse"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
+[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+
+############################################################ FUNCTIONS
+
+# dialog_menu_main
+#
+# Display the dialog(1)-based application main menu.
+#
+dialog_menu_main()
+{
+	local menu_list size
+	local hline=""
+	local prompt="$msg_menu_text"
+
+	menu_list="
+		'X $msg_exit'    '$msg_exit_this_menu'
+		'2 $msg_enable'  '$msg_test_and_run_the_mouse_daemon'
+		'3 $msg_type'    '$msg_select_mouse_protocol_type'
+		'4 $msg_port'    '$msg_select_mouse_port'
+		'5 $msg_flags'   '$msg_set_additional_flags'
+		'6 $msg_disable' '$msg_disable_the_mouse_daemon'
+	" # END-QUOTE
+
+	size=$( eval f_dialog_menu_size \
+	        	\"\$DIALOG_TITLE\"     \
+	        	\"\$DIALOG_BACKTITLE\" \
+	                \"\$prompt\"           \
+	        	\"\$hline\"            \
+	        	$menu_list             )
+
+	local dialog_menu
+	dialog_menu=$( eval $DIALOG \
+		--clear --title \"\$DIALOG_TITLE\" \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--menu \"\$prompt\" $size          \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	setvar DIALOG_MENU_$$ "$dialog_menu"
+	return $retval
+}
+
+############################################################ MAIN
+
+# Incorporate rc-file if it exists
+[ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
+
+#
+# Process command-line arguments
+#
+while getopts hSX flag; do
+	case "$flag" in
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+#
+# Initialize
+#
+f_dialog_init
+f_dialog_title "$msg_please_configure_your_mouse"
+f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
+f_mustberoot_init
+
+#
+# Launch application main menu
+#
+while :; do
+	dialog_menu_main
+	retval=$?
+	mtag=$( f_dialog_menutag )
+
+	[ $retval -eq 0 ] || f_die
+
+	case "$mtag" in
+	"X $msg_exit") break ;;
+	"2 $msg_enable") # Test and run the mouse daemon
+		$BSDCFG_LIBE/$APP_DIR/enable ${USE_XDIALOG:+-X} ;;
+	"3 $msg_type") # Select mouse protocol type
+		$BSDCFG_LIBE/$APP_DIR/type ${USE_XDIALOG:+-X} ;;
+	"4 $msg_port") # Select mouse port
+		$BSDCFG_LIBE/$APP_DIR/port ${USE_XDIALOG:+-X} ;;
+	"5 $msg_flags") # Set additional flags
+		$BSDCFG_LIBE/$APP_DIR/flags ${USE_XDIALOG:+-X} ;;
+	"6 $msg_disable") # Disable the mouse daemon
+		$BSDCFG_LIBE/$APP_DIR/disable ${USE_XDIALOG:+-X} ;;
+	esac
+
+done
+
+exit $SUCCESS
+
+################################################################################
+# END
+################################################################################

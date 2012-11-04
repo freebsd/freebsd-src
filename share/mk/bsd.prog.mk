@@ -130,7 +130,11 @@ _EXTRADEPEND:
 .else
 	echo ${PROG}: ${LIBC} ${DPADD} >> ${DEPENDFILE}
 .if defined(PROG_CXX)
+.if !empty(CXXFLAGS:M-stdlib=libc++)
+	echo ${PROG}: ${LIBCPLUSPLUS} >> ${DEPENDFILE}
+.else
 	echo ${PROG}: ${LIBSTDCPLUSPLUS} >> ${DEPENDFILE}
+.endif
 .endif
 .endif
 .endif
@@ -245,7 +249,7 @@ stage_files.prog: ${PROG}
 .endif
 .if !empty(SYMLINKS)
 all:   stage_symlinks
-stage_symlinks.prog: ${SYMLINKS}
+STAGE_SYMLINKS.prog= ${SYMLINKS}
 .endif
 
 .endif

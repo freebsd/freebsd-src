@@ -382,6 +382,10 @@
 #define SATA_FISDW5			0x384	/* FIS DW5 */
 #define SATA_FISDW6			0x388	/* FIS DW6 */
 
+#define SATA_PHYM9_GEN2			0x398
+#define SATA_PHYM9_GEN1			0x39c
+#define SATA_PHYCFG_OFS			0x3a0	/* 65nm SoCs only */
+
 #define MVS_MAX_PORTS			8
 #define MVS_MAX_SLOTS			32
 
@@ -537,6 +541,7 @@ struct mvs_channel {
 #define MVS_Q_GENIIE	4
 #define MVS_Q_SOC	8
 #define MVS_Q_CT	16
+#define MVS_Q_SOC65	32
 	int			pm_level;	/* power management level */
 
 	struct mvs_slot		slot[MVS_MAX_SLOTS];

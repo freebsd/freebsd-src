@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 12, 2002
+.Dd June 25, 2012
 .Dt STRFMON 3
 .Os
 .Sh NAME
@@ -36,6 +36,8 @@
 .In monetary.h
 .Ft ssize_t
 .Fn strfmon "char * restrict s" "size_t maxsize" "const char * restrict format" "..."
+.Ft ssize_t
+.Fn strfmon_l "char * restrict s" "size_t maxsize" "locale_t loc" "const char * restrict format" "..."
 .Sh DESCRIPTION
 The
 .Fn strfmon
@@ -46,6 +48,12 @@ as controlled by the string pointed to by
 No more than
 .Fa maxsize
 bytes are placed into the array.
+.Pp
+The
+.Fn strfmon_l
+function does the same as
+.Fn strfmon
+but takes an explicit locale rather than using the current locale.
 .Pp
 The format string is composed of zero or more directives:
 ordinary characters (not
@@ -129,6 +137,11 @@ the contents of the array are indeterminate,
 and
 .Va errno
 is set to indicate the error.
+.Pp
+The
+.Fn strfmon_l
+function returns the same values as
+.Fn strfmon .
 .Sh ERRORS
 The
 .Fn strfmon
@@ -149,6 +162,10 @@ The
 function
 conforms to
 .St -p1003.1-2001 .
+The
+.Fn strfmon_l
+function conforms to
+.St -p1003.1-2008 .
 .Sh AUTHORS
 .An -nosplit
 The

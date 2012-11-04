@@ -50,12 +50,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
 #include <vm/pmap.h>
 
-#include <machine/md_var.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/rman.h>
@@ -234,7 +234,7 @@ agp_generic_attach(device_t dev)
 	 * Work out an upper bound for agp memory allocation. This
 	 * uses a heurisitc table from the Linux driver.
 	 */
-	memsize = ptoa(Maxmem) >> 20;
+	memsize = ptoa(realmem) >> 20;
 	for (i = 0; i < agp_max_size; i++) {
 		if (memsize <= agp_max[i][0])
 			break;

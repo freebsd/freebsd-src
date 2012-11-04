@@ -45,6 +45,7 @@ SRCS=		dt_aggregate.c \
 		gmatch.c
 
 DSRCS=		errno.d			\
+		io.d			\
 		psinfo.d		\
 		signal.d		\
 		unistd.d

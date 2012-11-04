@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslfiles - file I/O suppoert
@@ -71,7 +70,7 @@ FlParseInputPathname (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Dump the error log and abort the compiler.  Used for serious
+ * DESCRIPTION: Dump the error log and abort the compiler. Used for serious
  *              I/O errors
  *
  ******************************************************************************/
@@ -198,7 +197,7 @@ FlGetFileSize (
  *              Buffer              - Where to place the data
  *              Length              - Amount to read
  *
- * RETURN:      Status.  AE_ERROR indicates EOF.
+ * RETURN:      Status. AE_ERROR indicates EOF.
  *
  * DESCRIPTION: Read data from an open file.
  *              NOTE: Aborts compiler on any error.
@@ -346,7 +345,7 @@ FlSeekFile (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Close an open file.  Aborts compiler on error
+ * DESCRIPTION: Close an open file. Aborts compiler on error
  *
  ******************************************************************************/
 
@@ -370,6 +369,42 @@ FlCloseFile (
     }
 
     Gbl_Files[FileId].Handle = NULL;
+    return;
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    FlDeleteFile
+ *
+ * PARAMETERS:  FileId              - Index into file info array
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Delete a file.
+ *
+ ******************************************************************************/
+
+void
+FlDeleteFile (
+    UINT32                  FileId)
+{
+    ASL_FILE_INFO           *Info = &Gbl_Files[FileId];
+
+
+    if (!Info->Filename)
+    {
+        return;
+    }
+
+    if (remove (Info->Filename))
+    {
+        printf ("%s (%s file) ",
+            Info->Filename, Info->Description);
+        perror ("Could not delete");
+    }
+
+    Info->Filename = NULL;
     return;
 }
 
@@ -754,7 +789,7 @@ FlOpenInputFile (
 
     /* Open the input ASL file, text mode */
 
-    FlOpenFile (ASL_FILE_INPUT, InputFilename, "r");
+    FlOpenFile (ASL_FILE_INPUT, InputFilename, "rt");
     AslCompilerin = Gbl_Files[ASL_FILE_INPUT].Handle;
 
     return (AE_OK);
@@ -769,7 +804,7 @@ FlOpenInputFile (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Create the output filename (*.AML) and open the file.  The file
+ * DESCRIPTION: Create the output filename (*.AML) and open the file. The file
  *              is created in the same directory as the parent input file.
  *
  ******************************************************************************/
@@ -838,7 +873,7 @@ FlOpenMiscOutputFiles (
 
         /* Open the hex file, text mode */
 
-        FlOpenFile (ASL_FILE_HEX_OUTPUT, Filename, "w+");
+        FlOpenFile (ASL_FILE_HEX_OUTPUT, Filename, "w+t");
 
         AslCompilerSignon (ASL_FILE_HEX_OUTPUT);
         AslCompilerFileHeader (ASL_FILE_HEX_OUTPUT);
@@ -889,7 +924,7 @@ FlOpenMiscOutputFiles (
 
         /* Open the listing file, text mode */
 
-        FlOpenFile (ASL_FILE_LISTING_OUTPUT, Filename, "w+");
+        FlOpenFile (ASL_FILE_LISTING_OUTPUT, Filename, "w+t");
 
         AslCompilerSignon (ASL_FILE_LISTING_OUTPUT);
         AslCompilerFileHeader (ASL_FILE_LISTING_OUTPUT);
@@ -907,7 +942,7 @@ FlOpenMiscOutputFiles (
             return (AE_ERROR);
         }
 
-        FlOpenFile (ASL_FILE_PREPROCESSOR, Filename, "w+b");
+        FlOpenFile (ASL_FILE_PREPROCESSOR, Filename, "w+t");
     }
 
     /* All done for data table compiler */
@@ -952,7 +987,7 @@ FlOpenMiscOutputFiles (
 
         /* Open the assembly code source file, text mode */
 
-        FlOpenFile (ASL_FILE_ASM_SOURCE_OUTPUT, Filename, "w+");
+        FlOpenFile (ASL_FILE_ASM_SOURCE_OUTPUT, Filename, "w+t");
 
         AslCompilerSignon (ASL_FILE_ASM_SOURCE_OUTPUT);
         AslCompilerFileHeader (ASL_FILE_ASM_SOURCE_OUTPUT);
@@ -972,7 +1007,7 @@ FlOpenMiscOutputFiles (
 
         /* Open the C code source file, text mode */
 
-        FlOpenFile (ASL_FILE_C_SOURCE_OUTPUT, Filename, "w+");
+        FlOpenFile (ASL_FILE_C_SOURCE_OUTPUT, Filename, "w+t");
 
         FlPrintFile (ASL_FILE_C_SOURCE_OUTPUT, "/*\n");
         AslCompilerSignon (ASL_FILE_C_SOURCE_OUTPUT);
@@ -993,7 +1028,7 @@ FlOpenMiscOutputFiles (
 
         /* Open the assembly include file, text mode */
 
-        FlOpenFile (ASL_FILE_ASM_INCLUDE_OUTPUT, Filename, "w+");
+        FlOpenFile (ASL_FILE_ASM_INCLUDE_OUTPUT, Filename, "w+t");
 
         AslCompilerSignon (ASL_FILE_ASM_INCLUDE_OUTPUT);
         AslCompilerFileHeader (ASL_FILE_ASM_INCLUDE_OUTPUT);
@@ -1013,7 +1048,7 @@ FlOpenMiscOutputFiles (
 
         /* Open the C include file, text mode */
 
-        FlOpenFile (ASL_FILE_C_INCLUDE_OUTPUT, Filename, "w+");
+        FlOpenFile (ASL_FILE_C_INCLUDE_OUTPUT, Filename, "w+t");
 
         FlPrintFile (ASL_FILE_C_INCLUDE_OUTPUT, "/*\n");
         AslCompilerSignon (ASL_FILE_C_INCLUDE_OUTPUT);
@@ -1034,7 +1069,7 @@ FlOpenMiscOutputFiles (
 
         /* Open the namespace file, text mode */
 
-        FlOpenFile (ASL_FILE_NAMESPACE_OUTPUT, Filename, "w+");
+        FlOpenFile (ASL_FILE_NAMESPACE_OUTPUT, Filename, "w+t");
 
         AslCompilerSignon (ASL_FILE_NAMESPACE_OUTPUT);
         AslCompilerFileHeader (ASL_FILE_NAMESPACE_OUTPUT);
@@ -1110,5 +1145,3 @@ FlParseInputPathname (
     return (AE_OK);
 }
 #endif
-
-

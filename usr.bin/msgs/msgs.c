@@ -105,47 +105,47 @@ __FBSDID("$FreeBSD$");
 
 typedef	char	bool;
 
-FILE	*msgsrc;
-FILE	*newmsg;
-const char *sep = "-";
-char	inbuf[BUFSIZ];
-char	fname[MAXPATHLEN];
-char	cmdbuf[MAXPATHLEN + MAXPATHLEN];
-char	subj[128];
-char	from[128];
-char	date[128];
-char	*ptr;
-char	*in;
-bool	local;
-bool	ruptible;
-bool	totty;
-bool	seenfrom;
-bool	seensubj;
-bool	blankline;
-bool	printing = NO;
-bool	mailing = NO;
-bool	quitit = NO;
-bool	sending = NO;
-bool	intrpflg = NO;
-uid_t	uid;
-int	msg;
-int	prevmsg;
-int	lct;
-int	nlines;
-int	Lpp = 0;
-time_t	t;
-time_t	keep;
+static FILE	*msgsrc;
+static FILE	*newmsg;
+static const char *sep = "-";
+static char	inbuf[BUFSIZ];
+static char	fname[MAXPATHLEN];
+static char	cmdbuf[MAXPATHLEN + MAXPATHLEN];
+static char	subj[128];
+static char	from[128];
+static char	date[128];
+static char	*ptr;
+static char	*in;
+static bool	local;
+static bool	ruptible;
+static bool	totty;
+static bool	seenfrom;
+static bool	seensubj;
+static bool	blankline;
+static bool	printing = NO;
+static bool	mailing = NO;
+static bool	quitit = NO;
+static bool	sending = NO;
+static bool	intrpflg = NO;
+static uid_t	uid;
+static int	msg;
+static int	prevmsg;
+static int	lct;
+static int	nlines;
+static int	Lpp = 0;
+static time_t	t;
+static time_t	keep;
 
 /* option initialization */
-bool	hdrs = NO;
-bool	qopt = NO;
-bool	hush = NO;
-bool	send_msg = NO;
-bool	locomode = NO;
-bool	use_pager = NO;
-bool	clean = NO;
-bool	lastcmd = NO;
-jmp_buf	tstpbuf;
+static bool	hdrs = NO;
+static bool	qopt = NO;
+static bool	hush = NO;
+static bool	send_msg = NO;
+static bool	locomode = NO;
+static bool	use_pager = NO;
+static bool	clean = NO;
+static bool	lastcmd = NO;
+static jmp_buf	tstpbuf;
 
 static void	ask(const char *);
 static void	gfrsub(FILE *);
@@ -155,7 +155,7 @@ static char	*nxtfld(char *);
 static void	onsusp(int);
 static void	onintr(int);
 static void	prmesg(int);
-static void usage(void);
+static void	usage(void);
 
 int
 main(int argc, char *argv[])
@@ -175,7 +175,8 @@ main(int argc, char *argv[])
 	setlocale(LC_ALL, "");
 
 	time(&t);
-	setuid(uid = getuid());
+	if (setuid(uid = getuid()) != 0)
+		err(1, "setuid failed");
 	ruptible = (signal(SIGINT, SIG_IGN) == SIG_DFL);
 	if (ruptible)
 		signal(SIGINT, SIG_DFL);

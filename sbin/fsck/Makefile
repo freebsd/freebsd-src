@@ -3,7 +3,6 @@
 
 PROG=	fsck
 SRCS=	fsck.c fsutil.c preen.c
-WARNS?=	2
 MAN=	fsck.8
 
 .include <bsd.prog.mk>

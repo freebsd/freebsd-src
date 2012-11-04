@@ -356,5 +356,3 @@ AcpiPsGetChild (
     return (Child);
 }
 #endif
-
-

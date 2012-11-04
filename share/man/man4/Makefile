@@ -1,9 +1,12 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/18/93
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 MAN=	aac.4 \
 	acpi.4 \
 	${_acpi_asus.4} \
+	${_acpi_asus_wmi.4} \
 	${_acpi_dock.4} \
 	${_acpi_fujitsu.4} \
 	${_acpi_hp.4} \
@@ -31,13 +34,18 @@ MAN=	aac.4 \
 	alc.4 \
 	ale.4 \
 	alpm.4 \
+	altera_avgen.4 \
+	altera_jtag_uart.4 \
+	altera_sdcard.4 \
 	altq.4 \
 	amdpm.4 \
 	${_amdsbwd.4} \
 	${_amdsmb.4} \
 	${_amdtemp.4} \
+	${_bxe.4} \
 	amr.4 \
 	an.4 \
+	${_aout.4} \
 	${_apic.4} \
 	arcmsr.4 \
 	${_asmc.4} \
@@ -52,6 +60,7 @@ MAN=	aac.4 \
 	atkbd.4 \
 	atkbdc.4 \
 	${_atp.4} \
+	${_atf_test_case.4} \
 	${_atrtc.4} \
 	${_attimer.4} \
 	audit.4 \
@@ -85,7 +94,6 @@ MAN=	aac.4 \
 	ciss.4 \
 	cm.4 \
 	cmx.4 \
-	coda.4 \
 	${_coretemp.4} \
 	${_cpuctl.4} \
 	cpufreq.4 \
@@ -116,6 +124,7 @@ MAN=	aac.4 \
 	enc.4 \
 	epair.4 \
 	esp.4 \
+	est.4 \
 	et.4 \
 	eventtimers.4 \
 	exca.4 \
@@ -145,9 +154,7 @@ MAN=	aac.4 \
 	gpib.4 \
 	gre.4 \
 	h_ertt.4 \
-	harp.4 \
 	hatm.4 \
-	hfa.4 \
 	hifn.4 \
 	hme.4 \
 	hpet.4 \
@@ -161,7 +168,6 @@ MAN=	aac.4 \
 	icmp.4 \
 	icmp6.4 \
 	ida.4 \
-	idt.4 \
 	ifmib.4 \
 	igb.4 \
 	igmp.4 \
@@ -185,6 +191,7 @@ MAN=	aac.4 \
 	ipwfw.4 \
 	isci.4 \
 	iscsi_initiator.4 \
+	isf.4 \
 	isp.4 \
 	ispfw.4 \
 	iwi.4 \
@@ -327,7 +334,9 @@ MAN=	aac.4 \
 	nmdm.4 \
 	nsp.4 \
 	null.4 \
+	${_nvd.4} \
 	${_nve.4} \
+	${_nvme.4} \
 	${_nvram.4} \
 	${_nvram2env.4} \
 	${_nxge.4} \
@@ -346,6 +355,9 @@ MAN=	aac.4 \
 	pcii.4 \
 	pcm.4 \
 	pcn.4 \
+	${_pf.4} \
+	${_pflog.4} \
+	${_pfsync.4} \
 	pim.4 \
 	polling.4 \
 	ppbus.4 \
@@ -449,6 +461,7 @@ MAN=	aac.4 \
 	targ.4 \
 	tcp.4 \
 	tdfx.4 \
+	terasic_mtl.4 \
 	termios.4 \
 	textdump.4 \
 	ti.4 \
@@ -506,6 +519,7 @@ MAN=	aac.4 \
 	utopia.4 \
 	uvisor.4 \
 	uvscom.4 \
+	vale.4 \
 	vga.4 \
 	vge.4 \
 	viapm.4 \
@@ -514,6 +528,7 @@ MAN=	aac.4 \
 	${_virtio.4} \
 	${_virtio_balloon.4} \
 	${_virtio_blk.4} \
+	${_virtio_scsi.4} \
 	vkbd.4 \
 	vlan.4 \
 	vpo.4 \
@@ -546,8 +561,12 @@ MAN=	aac.4 \
 MLINKS=	ae.4 if_ae.4
 MLINKS+=age.4 if_age.4
 MLINKS+=agp.4 agpgart.4
+MLINKS+=alc.4 if_alc.4
 MLINKS+=ale.4 if_ale.4
+MLINKS+=altera_sdcard.4 altera_sdcardc.4
 MLINKS+=altq.4 ALTQ.4
+MLINKS+=ath.4 if_ath.4
+MLINKS+=ath_pci.4 if_ath_pci.4
 MLINKS+=an.4 if_an.4
 MLINKS+=aue.4 if_aue.4
 MLINKS+=axe.4 if_axe.4
@@ -557,9 +576,14 @@ MLINKS+=bge.4 if_bge.4
 MLINKS+=bktr.4 brooktree.4
 MLINKS+=bridge.4 if_bridge.4
 MLINKS+=bwi.4 if_bwi.4
+MLINKS+=bwn.4 if_bwn.4
+MLINKS+=${_bxe.4} ${_if_bxe.4}
 MLINKS+=cas.4 if_cas.4
+MLINKS+=cdce.4 if_cdce.4
 MLINKS+=crypto.4 cryptodev.4
 MLINKS+=cue.4 if_cue.4
+MLINKS+=cxgb.4 if_cxgb.4
+MLINKS+=cxgbe.4 if_cxgbe.4
 MLINKS+=dc.4 if_dc.4
 MLINKS+=de.4 if_de.4
 MLINKS+=disc.4 if_disc.4
@@ -591,7 +615,6 @@ MLINKS+=hme.4 if_hme.4
 MLINKS+=hpet.4 acpi_hpet.4
 MLINKS+=${_hptrr.4} ${_rr232x.4}
 MLINKS+=${_attimer.4} ${_i8254.4}
-MLINKS+=idt.4 if_idt.4
 MLINKS+=igb.4 if_igb.4
 MLINKS+=ip.4 rawip.4
 MLINKS+=ipfirewall.4 ipaccounting.4 \
@@ -605,14 +628,19 @@ MLINKS+=ixgbe.4 if_ixgbe.4
 MLINKS+=jme.4 if_jme.4
 MLINKS+=kue.4 if_kue.4
 MLINKS+=lagg.4 trunk.4
+MLINKS+=lagg.4 if_lagg.4
 MLINKS+=le.4 if_le.4
 MLINKS+=lge.4 if_lge.4
+MLINKS+=lmc.4 if_lmc.4
 MLINKS+=lo.4 loop.4
 MLINKS+=lp.4 plip.4
 MLINKS+=malo.4 if_malo.4
 MLINKS+=md.4 vn.4
 MLINKS+=mem.4 kmem.4
 MLINKS+=mn.4 if_mn.4
+MLINKS+=mos.4 if_mos.4
+MLINKS+=msk.4 if_msk.4
+MLINKS+=mwl.4 if_mwl.4
 MLINKS+=mxge.4 if_mxge.4
 MLINKS+=my.4 if_my.4
 MLINKS+=${_ndis.4} ${_if_ndis.4}
@@ -632,11 +660,13 @@ MLINKS+=re.4 if_re.4
 MLINKS+=rl.4 if_rl.4
 MLINKS+=rue.4 if_rue.4
 MLINKS+=rum.4 if_rum.4
+MLINKS+=run.4 if_run.4
 MLINKS+=scsi.4 CAM.4 \
 	scsi.4 cam.4 \
 	scsi.4 scbus.4 \
 	scsi.4 SCSI.4
 MLINKS+=sf.4 if_sf.4
+MLINKS+=sge.4 if_sge.4
 MLINKS+=sis.4 if_sis.4
 MLINKS+=sk.4 if_sk.4
 MLINKS+=smp.4 SMP.4
@@ -668,6 +698,7 @@ MLINKS+=vge.4 if_vge.4
 MLINKS+=vlan.4 if_vlan.4
 MLINKS+=vpo.4 imm.4
 MLINKS+=vr.4 if_vr.4
+MLINKS+=vte.4 if_vte.4
 MLINKS+=${_vtnet.4} ${_if_vtnet.4}
 MLINKS+=${_vxge.4} ${_if_vxge.4}
 MLINKS+=watchdog.4 SW_WATCHDOG.4
@@ -680,6 +711,7 @@ MLINKS+=zyd.4 if_zyd.4
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
 _acpi_asus.4=	acpi_asus.4
+_acpi_asus_wmi.4=	acpi_asus_wmi.4
 _acpi_dock.4=	acpi_dock.4
 _acpi_fujitsu.4=acpi_fujitsu.4
 _acpi_hp.4=	acpi_hp.4
@@ -689,6 +721,7 @@ _acpi_sony.4=	acpi_sony.4
 _acpi_toshiba.4=acpi_toshiba.4
 _acpi_wmi.4=	acpi_wmi.4
 _aesni.4=	aesni.4
+_aout.4=	aout.4
 _apic.4=	apic.4
 _atrtc.4=	atrtc.4
 _attimer.4=	attimer.4
@@ -698,6 +731,7 @@ _amdsmb.4=	amdsmb.4
 _amdtemp.4=	amdtemp.4
 _asmc.4=	asmc.4
 _atp.4=		atp.4
+_bxe.4=		bxe.4
 _coretemp.4=	coretemp.4
 _cpuctl.4=	cpuctl.4
 _dpms.4=	dpms.4
@@ -707,6 +741,7 @@ _hptmv.4=	hptmv.4
 _hptrr.4=	hptrr.4
 _i8254.4=	i8254.4
 _ichwd.4=	ichwd.4
+_if_bxe.4=	if_bxe.4
 _if_ndis.4=	if_ndis.4
 _if_nfe.4=	if_nfe.4
 _if_nve.4=	if_nve.4
@@ -722,12 +757,15 @@ _linux.4=	linux.4
 _ndis.4=	ndis.4
 _nfe.4=		nfe.4
 _nfsmb.4=	nfsmb.4
+_nvd.4=		nvd.4
 _nve.4=		nve.4
+_nvme.4=	nvme.4
 _nvram.4=	nvram.4
 _nxge.4=	nxge.4
 _virtio.4=	virtio.4
 _virtio_balloon.4=virtio_balloon.4
 _virtio_blk.4=	virtio_blk.4
+_virtio_scsi.4= virtio_scsi.4
 _vtnet.4=	vtnet.4
 _vxge.4=	vxge.4
 _padlock.4=	padlock.4
@@ -748,6 +786,9 @@ MLINKS+=lindev.4 full.4
 .if ${MACHINE_CPUARCH} == "amd64"
 _qlxgb.4=	qlxgb.4
 _sfxge.4=	sfxge.4
+
+MLINKS+=qlxgb.4 if_qlxgb.4
+MLINKS+=sfxge.4 if_sfxge.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"
@@ -759,6 +800,18 @@ _nvram2env.4=	nvram2env.4
 
 .if exists(${.CURDIR}/man4.${MACHINE_CPUARCH})
 SUBDIR=	man4.${MACHINE_CPUARCH}
+.endif
+
+.if ${MK_ATF} != "no"
+ATF=            ${.CURDIR}/../../../contrib/atf
+.PATH:          ${ATF}/doc
+_atf_test_case.4=	atf-test-case.4
+.endif
+
+.if ${MK_PF} != "no"
+_pf.4=		pf.4
+_pflog.4=	pflog.4
+_pfsync.4=	pfsync.4
 .endif
 
 .include <bsd.prog.mk>

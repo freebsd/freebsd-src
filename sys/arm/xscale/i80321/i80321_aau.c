@@ -111,14 +111,14 @@ i80321_aau_attach(device_t dev)
 
 	mtx_init(&softc->mtx, "AAU mtx", NULL, MTX_SPIN);
 	softc->sc_st = sc->sc_st;
-	if (bus_space_subregion(softc->sc_st, sc->sc_sh, VERDE_AAU_BASE, 
+	if (bus_space_subregion(softc->sc_st, sc->sc_sh, VERDE_AAU_BASE,
 	    VERDE_AAU_SIZE, &softc->sc_aau_sh) != 0)
 		panic("%s: unable to subregion AAU registers",
 		    device_get_name(dev));
 	if (bus_dma_tag_create(NULL, sizeof(i80321_aaudesc_t), 0,
-	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, 
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
 	    AAU_RING_SIZE * sizeof(i80321_aaudesc_t),
-	    1, sizeof(i80321_aaudesc_t), BUS_DMA_ALLOCNOW, busdma_lock_mutex, 
+	    1, sizeof(i80321_aaudesc_t), BUS_DMA_ALLOCNOW, busdma_lock_mutex,
 	    &Giant, &softc->dmatag))
 		panic("Couldn't create a dma tag");
 	if (bus_dmamem_alloc(softc->dmatag, (void **)&aaudescs,
@@ -186,7 +186,7 @@ aau_bzero(void *dst, int len, int flags)
 		desc->next_desc = 0;
 		desc->count = len;
 		desc->descr_ctrl = 2 << 1 | 1 << 31; /* Fill, enable dest write */
-		bus_dmamap_sync(sc->dmatag, sc->aauring[0].map, 
+		bus_dmamap_sync(sc->dmatag, sc->aauring[0].map,
 		    BUS_DMASYNC_PREWRITE);
 	} else {
 		test_virt_addr(dst, len);
@@ -218,8 +218,8 @@ aau_bzero(void *dst, int len, int flags)
 				if (tmplen <= 0 && descnb > 0) {
 					sc->aauring[descnb - 1].desc->next_desc
 					    = 0;
-					bus_dmamap_sync(sc->dmatag, 
-					    sc->aauring[descnb - 1].map, 
+					bus_dmamap_sync(sc->dmatag,
+					    sc->aauring[descnb - 1].map,
 					    BUS_DMASYNC_PREWRITE);
 				}
 				continue;
@@ -241,15 +241,15 @@ aau_bzero(void *dst, int len, int flags)
 			if (tmplen > 0) {
 				desc->next_desc = sc->aauring[descnb + 1].
 				    phys_addr;
-				bus_dmamap_sync(sc->dmatag, 
-				    sc->aauring[descnb].map, 
+				bus_dmamap_sync(sc->dmatag,
+				    sc->aauring[descnb].map,
 				    BUS_DMASYNC_PREWRITE);
 				desc = sc->aauring[descnb + 1].desc;
 				descnb++;
 			} else {
 				desc->next_desc = 0;
-				bus_dmamap_sync(sc->dmatag, 
-				    sc->aauring[descnb].map, 
+				bus_dmamap_sync(sc->dmatag,
+				    sc->aauring[descnb].map,
 				    BUS_DMASYNC_PREWRITE);
 			}
 									

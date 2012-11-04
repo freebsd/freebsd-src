@@ -42,6 +42,7 @@
 #include <sys/arc.h>
 #include <sys/zil.h>
 #include <sys/dsl_scan.h>
+#include <sys/trim_map.h>
 
 SYSCTL_DECL(_vfs_zfs);
 SYSCTL_NODE(_vfs_zfs, OID_AUTO, vdev, CTLFLAG_RW, 0, "ZFS VDEV");
@@ -597,9 +598,9 @@ vdev_free(vdev_t *vd)
 		metaslab_group_destroy(vd->vdev_mg);
 	}
 
-	ASSERT3U(vd->vdev_stat.vs_space, ==, 0);
-	ASSERT3U(vd->vdev_stat.vs_dspace, ==, 0);
-	ASSERT3U(vd->vdev_stat.vs_alloc, ==, 0);
+	ASSERT0(vd->vdev_stat.vs_space);
+	ASSERT0(vd->vdev_stat.vs_dspace);
+	ASSERT0(vd->vdev_stat.vs_alloc);
 
 	/*
 	 * Remove this vdev from its parent's child list.
@@ -1195,6 +1196,11 @@ vdev_open(vdev_t *vd)
 	if (vd->vdev_ishole || vd->vdev_ops == &vdev_missing_ops)
 		return (0);
 
+	if (vd->vdev_ops->vdev_op_leaf) {
+		vd->vdev_notrim = B_FALSE;
+		trim_map_create(vd);
+	}
+
 	for (int c = 0; c < vd->vdev_children; c++) {
 		if (vd->vdev_child[c]->vdev_state != VDEV_STATE_HEALTHY) {
 			vdev_set_state(vd, B_TRUE, VDEV_STATE_DEGRADED,
@@ -1328,8 +1334,9 @@ vdev_validate(vdev_t *vd, boolean_t strict)
 	if (vd->vdev_ops->vdev_op_leaf && vdev_readable(vd)) {
 		uint64_t aux_guid = 0;
 		nvlist_t *nvl;
+		uint64_t txg = strict ? spa->spa_config_txg : -1ULL;
 
-		if ((label = vdev_label_read_config(vd)) == NULL) {
+		if ((label = vdev_label_read_config(vd, txg)) == NULL) {
 			vdev_set_state(vd, B_TRUE, VDEV_STATE_CANT_OPEN,
 			    VDEV_AUX_BAD_LABEL);
 			return (0);
@@ -1438,6 +1445,9 @@ vdev_close(vdev_t *vd)
 
 	vdev_cache_purge(vd);
 
+	if (vd->vdev_ops->vdev_op_leaf)
+		trim_map_destroy(vd);
+
 	/*
 	 * We record the previous state before we close it, so that if we are
 	 * doing a reopen(), we don't generate FMA ereports if we notice that
@@ -1511,7 +1521,7 @@ vdev_reopen(vdev_t *vd)
 		    !l2arc_vdev_present(vd))
 			l2arc_add_vdev(spa, vd);
 	} else {
-		(void) vdev_validate(vd, B_TRUE);
+		(void) vdev_validate(vd, spa_last_synced_txg(spa));
 	}
 
 	/*
@@ -1805,7 +1815,7 @@ vdev_dtl_sync(vdev_t *vd, uint64_t txg)
 	if (vd->vdev_detached) {
 		if (smo->smo_object != 0) {
 			int err = dmu_object_free(mos, smo->smo_object, tx);
-			ASSERT3U(err, ==, 0);
+			ASSERT0(err);
 			smo->smo_object = 0;
 		}
 		dmu_tx_commit(tx);
@@ -1970,14 +1980,14 @@ vdev_validate_aux(vdev_t *vd)
 	if (!vdev_readable(vd))
 		return (0);
 
-	if ((label = vdev_label_read_config(vd)) == NULL) {
+	if ((label = vdev_label_read_config(vd, -1ULL)) == NULL) {
 		vdev_set_state(vd, B_TRUE, VDEV_STATE_CANT_OPEN,
 		    VDEV_AUX_CORRUPT_DATA);
 		return (-1);
 	}
 
 	if (nvlist_lookup_uint64(label, ZPOOL_CONFIG_VERSION, &version) != 0 ||
-	    version > SPA_VERSION ||
+	    !SPA_VERSION_IS_SUPPORTED(version) ||
 	    nvlist_lookup_uint64(label, ZPOOL_CONFIG_GUID, &guid) != 0 ||
 	    guid != vd->vdev_guid ||
 	    nvlist_lookup_uint64(label, ZPOOL_CONFIG_POOL_STATE, &state) != 0) {
@@ -2005,7 +2015,7 @@ vdev_remove(vdev_t *vd, uint64_t txg)
 	tx = dmu_tx_create_assigned(spa_get_dsl(spa), txg);
 
 	if (vd->vdev_dtl_smo.smo_object) {
-		ASSERT3U(vd->vdev_dtl_smo.smo_alloc, ==, 0);
+		ASSERT0(vd->vdev_dtl_smo.smo_alloc);
 		(void) dmu_object_free(mos, vd->vdev_dtl_smo.smo_object, tx);
 		vd->vdev_dtl_smo.smo_object = 0;
 	}
@@ -2017,7 +2027,7 @@ vdev_remove(vdev_t *vd, uint64_t txg)
 			if (msp == NULL || msp->ms_smo.smo_object == 0)
 				continue;
 
-			ASSERT3U(msp->ms_smo.smo_alloc, ==, 0);
+			ASSERT0(msp->ms_smo.smo_alloc);
 			(void) dmu_object_free(mos, msp->ms_smo.smo_object, tx);
 			msp->ms_smo.smo_object = 0;
 		}
@@ -2295,7 +2305,7 @@ top:
 				(void) spa_vdev_state_exit(spa, vd, 0);
 				goto top;
 			}
-			ASSERT3U(tvd->vdev_stat.vs_alloc, ==, 0);
+			ASSERT0(tvd->vdev_stat.vs_alloc);
 		}
 
 		/*

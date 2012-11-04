@@ -85,6 +85,11 @@ struct drm_file;
 #endif
 #include <machine/sysarch.h>
 #include <sys/endian.h>
+#if _BYTE_ORDER == _BIG_ENDIAN
+#define __BIG_ENDIAN 1
+#else
+#define __LITTLE_ENDIAN 1
+#endif
 #include <sys/mman.h>
 #include <sys/rman.h>
 #include <sys/memrange.h>

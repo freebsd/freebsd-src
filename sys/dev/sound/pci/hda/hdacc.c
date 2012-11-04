@@ -422,7 +422,7 @@ hdacc_attach(device_t dev)
 	startnode = HDA_PARAM_SUB_NODE_COUNT_START(subnode);
 	endnode = startnode + codec->fgcnt;
 
-	HDA_BOOTVERBOSE(
+	HDA_BOOTHVERBOSE(
 		device_printf(dev,
 		    "Root Node at nid=0: %d subnodes %d-%d\n",
 		    HDA_PARAM_SUB_NODE_COUNT_TOTAL(subnode),
@@ -506,6 +506,10 @@ hdacc_probe_nomatch(device_t dev, device_t child)
 	    fg->type == HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE_AUDIO ? "Audio" :
 	    (fg->type == HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE_MODEM ? "Modem" :
 	    "Unknown"), fg->nid, device_get_nameunit(dev));
+	HDA_BOOTVERBOSE(
+		device_printf(dev, "Subsystem ID: 0x%08x\n",
+		    hda_get_subsystem_id(dev));
+	);
 	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Power down FG nid=%d to the D3 state...\n",
 		    fg->nid);

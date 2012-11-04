@@ -5,16 +5,19 @@
 # $FreeBSD$
 #
 CRUNCH_PROGS_sbin+=	dmesg sysctl init reboot
-CRUNCH_PROGS_bin+=	ls cat dd df cp hostname kill mkdir sleep ps ln rm hostname
+CRUNCH_PROGS_bin+=	ls cat dd df cp hostname kill mkdir sleep ps
+CRUNCH_PROGS_bin+=	ln rm hostname kenv
 CRUNCH_PROGS_usr.bin+=	true false hexdump tail nc w head uname tset
 CRUNCH_PROGS_usr.sbin+=	gpioctl
 CRUNCH_ALIAS_w=		uptime
 CRUNCH_ALIAS_tset=	reset
 
-CRUNCH_PROGS_usr.bin+=	vmstat systat
+CRUNCH_PROGS_usr.bin+=	vmstat
+#CRUNCH_PROGS_user.bin+=	systat
 CRUNCH_LIBS+=		-ldevstat -lncursesw -lncurses -lmemstat -lkvm
 
-CRUNCH_PROGS_usr.bin+=	tar cpio
+# CRUNCH_PROGS_usr.bin+=	tar
+CRUNCH_PROGS_usr.bin+=	cpio
 # XXX SSL ?
 CRUNCH_LIBS+=		-larchive -lbz2 -lz -llzma -lbsdxml -lssl -lcrypto
 
@@ -36,11 +39,11 @@ CRUNCH_PROGS_sbin+=	mount umount
 
 # grep
 # grep doesn't yet work -adrian
-CRUNCH_PROGS_usr.bin+=	grep 
+#CRUNCH_PROGS_usr.bin+=	grep
 
 # less/more
-CRUNCH_PROGS_usr.bin+=	less
-CRUNCH_ALIAS_less=	more
+#CRUNCH_PROGS_usr.bin+=	less
+#CRUNCH_ALIAS_less=	more
 
 # passwd
 CRUNCH_PROGS_usr.bin+=	passwd
@@ -50,6 +53,5 @@ CRUNCH_SHLIBS+= -lpam -lbsm
 
 # gzip/gunzip
 CRUNCH_PROGS_usr.bin+=	gzip
-CRUNCH_ALIAS_gunzip=	gzip
-CRUNCH_ALIAS_gzcat=	gzip
+CRUNCH_ALIAS_gzip=	gunzip gzcat zcat
 CRUNCH_LIBS+=		-lz -llzma -lbz2

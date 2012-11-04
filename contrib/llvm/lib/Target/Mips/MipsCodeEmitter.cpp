@@ -145,8 +145,8 @@ bool MipsCodeEmitter::runOnMachineFunction(MachineFunction &MF) {
     for (MachineFunction::iterator MBB = MF.begin(), E = MF.end();
         MBB != E; ++MBB){
       MCE.StartMachineBasicBlock(MBB);
-      for (MachineBasicBlock::iterator I = MBB->begin(), E = MBB->end();
-          I != E; ++I)
+      for (MachineBasicBlock::instr_iterator I = MBB->instr_begin(),
+           E = MBB->instr_end(); I != E; ++I)
         emitInstruction(*I);
     }
   } while (MCE.finishFunction(MF));
@@ -258,7 +258,7 @@ void MipsCodeEmitter::emitGlobalAddressUnaligned(const GlobalValue *GV,
 void MipsCodeEmitter::
 emitExternalSymbolAddress(const char *ES, unsigned Reloc) const {
   MCE.addRelocation(MachineRelocation::getExtSym(MCE.getCurrentPCOffset(),
-                                                 Reloc, ES, 0, 0, false));
+                                                 Reloc, ES, 0, 0));
 }
 
 void MipsCodeEmitter::emitConstPoolAddress(unsigned CPI, unsigned Reloc) const {

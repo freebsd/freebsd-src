@@ -294,7 +294,7 @@ AcpiNsDumpOneObject (
         {
         case ACPI_TYPE_PROCESSOR:
 
-            AcpiOsPrintf ("ID %X Len %.4X Addr %p\n",
+            AcpiOsPrintf ("ID %02X Len %02X Addr %p\n",
                 ObjDesc->Processor.ProcId, ObjDesc->Processor.Length,
                 ACPI_CAST_PTR (void, ObjDesc->Processor.Address));
             break;
@@ -736,7 +736,7 @@ AcpiNsDumpEntry (
  *
  * PARAMETERS:  SearchBase          - Root of subtree to be dumped, or
  *                                    NS_ALL to dump the entire namespace
- *              MaxDepth            - Maximum depth of dump.  Use INT_MAX
+ *              MaxDepth            - Maximum depth of dump. Use INT_MAX
  *                                    for an effectively unlimited depth.
  *
  * RETURN:      None
@@ -780,4 +780,3 @@ AcpiNsDumpTables (
 }
 #endif
 #endif
-

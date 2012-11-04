@@ -350,10 +350,10 @@ str2flags(struct flag *tflags, char *sflags)
 	unsigned int i;
 	char *f;
 
-	for (f = strtok(sflags, ","); f != NULL; f = strtok(NULL, ",")) {
-		/* Support magic 'none' flag which just reset all flags. */
-		if (strcmp(f, "none") == 0)
-			return (0);
+	/* 'none' or '0' means no flags */
+	if (strcmp(sflags, "none") == 0 || strcmp(sflags, "0") == 0)
+		return (0);
+	for (f = strtok(sflags, ",|"); f != NULL; f = strtok(NULL, ",|")) {
 		for (i = 0; tflags[i].f_str != NULL; i++) {
 			if (strcmp(tflags[i].f_str, f) == 0)
 				break;

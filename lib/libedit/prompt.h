@@ -47,11 +47,13 @@ typedef char * (*el_pfunc_t)(EditLine*);
 typedef struct el_prompt_t {
 	el_pfunc_t	p_func;	/* Function to return the prompt	*/
 	coord_t		p_pos;	/* position in the line after prompt	*/
+	char		p_ignore;	/* character to start/end literal 
+*/
 } el_prompt_t;
 
 protected void	prompt_print(EditLine *, int);
-protected int	prompt_set(EditLine *, el_pfunc_t, int);
-protected int	prompt_get(EditLine *, el_pfunc_t *, int);
+protected int	prompt_set(EditLine *, el_pfunc_t, char, int);
+protected int	prompt_get(EditLine *, el_pfunc_t *, char *, int);
 protected int	prompt_init(EditLine *);
 protected void	prompt_end(EditLine *);
 

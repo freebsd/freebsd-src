@@ -665,7 +665,7 @@ sysctl_sctp_check(SYSCTL_HANDLER_ARGS)
 #ifdef SCTP_DEBUG
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_debug_on), SCTPCTL_DEBUG_MIN, SCTPCTL_DEBUG_MAX);
 #endif
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_output_unlocked), SCTPCTL_OUTPUT_UNLOCKED_MIN, SCTPCTL_OUTPUT_UNLOCKED_MAX);
 #endif
 	}
@@ -1125,7 +1125,7 @@ SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, debug, CTLTYPE_UINT | CTLFLAG_RW,
 #endif
 
 
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, output_unlocked, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_output_unlocked), 0, sysctl_sctp_check, "IU",
     SCTPCTL_OUTPUT_UNLOCKED_DESC);

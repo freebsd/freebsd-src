@@ -21,10 +21,10 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/BitVector.h"
 #include "clang/AST/Stmt.h"
 #include "clang/Analysis/Support/BumpVector.h"
 #include "clang/Basic/SourceLocation.h"
+#include <bitset>
 #include <cassert>
 #include <iterator>
 
@@ -277,6 +277,7 @@ class CFGBlock {
     typedef std::reverse_iterator<ImplTy::const_iterator> const_iterator;
     typedef ImplTy::iterator                              reverse_iterator;
     typedef ImplTy::const_iterator                       const_reverse_iterator;
+    typedef ImplTy::const_reference                       const_reference;
 
     void push_back(CFGElement e, BumpVectorContext &C) { Impl.push_back(e, C); }
     reverse_iterator insert(reverse_iterator I, size_t Cnt, CFGElement E,
@@ -284,8 +285,8 @@ class CFGBlock {
       return Impl.insert(I, Cnt, E, C);
     }
 
-    CFGElement front() const { return Impl.back(); }
-    CFGElement back() const { return Impl.front(); }
+    const_reference front() const { return Impl.back(); }
+    const_reference back() const { return Impl.front(); }
 
     iterator begin() { return Impl.rbegin(); }
     iterator end() { return Impl.rend(); }
@@ -558,7 +559,7 @@ public:
   //===--------------------------------------------------------------------===//
 
   class BuildOptions {
-    llvm::BitVector alwaysAddMask;
+    std::bitset<Stmt::lastStmtConstant> alwaysAddMask;
   public:
     typedef llvm::DenseMap<const Stmt *, const CFGBlock*> ForcedBlkExprs;
     ForcedBlkExprs **forcedBlkExprs;
@@ -583,8 +584,7 @@ public:
     }
 
     BuildOptions()
-    : alwaysAddMask(Stmt::lastStmtConstant, false)
-      ,forcedBlkExprs(0), PruneTriviallyFalseEdges(true)
+    : forcedBlkExprs(0), PruneTriviallyFalseEdges(true)
       ,AddEHEdges(false)
       ,AddInitializers(false)
       ,AddImplicitDtors(false) {}

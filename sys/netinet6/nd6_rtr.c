@@ -68,11 +68,11 @@ __FBSDID("$FreeBSD$");
 
 static int rtpref(struct nd_defrouter *);
 static struct nd_defrouter *defrtrlist_update(struct nd_defrouter *);
-static int prelist_update __P((struct nd_prefixctl *, struct nd_defrouter *,
-    struct mbuf *, int));
-static struct in6_ifaddr *in6_ifadd(struct nd_prefixctl *,	int);
-static struct nd_pfxrouter *pfxrtr_lookup __P((struct nd_prefix *,
-	struct nd_defrouter *));
+static int prelist_update(struct nd_prefixctl *, struct nd_defrouter *,
+    struct mbuf *, int);
+static struct in6_ifaddr *in6_ifadd(struct nd_prefixctl *, int);
+static struct nd_pfxrouter *pfxrtr_lookup(struct nd_prefix *,
+	struct nd_defrouter *);
 static void pfxrtr_add(struct nd_prefix *, struct nd_defrouter *);
 static void pfxrtr_del(struct nd_pfxrouter *);
 static struct nd_pfxrouter *find_pfxlist_reachable_router
@@ -81,8 +81,8 @@ static void defrouter_delreq(struct nd_defrouter *);
 static void nd6_rtmsg(int, struct rtentry *);
 
 static int in6_init_prefix_ltimes(struct nd_prefix *);
-static void in6_init_address_ltimes __P((struct nd_prefix *,
-	struct in6_addrlifetime *));
+static void in6_init_address_ltimes(struct nd_prefix *,
+	struct in6_addrlifetime *);
 
 static int nd6_prefix_onlink(struct nd_prefix *);
 static int nd6_prefix_offlink(struct nd_prefix *);
@@ -473,7 +473,6 @@ defrouter_addreq(struct nd_defrouter *new)
 {
 	struct sockaddr_in6 def, mask, gate;
 	struct rtentry *newrt = NULL;
-	int s;
 	int error;
 
 	bzero(&def, sizeof(def));
@@ -485,7 +484,6 @@ defrouter_addreq(struct nd_defrouter *new)
 	def.sin6_family = gate.sin6_family = AF_INET6;
 	gate.sin6_addr = new->rtaddr;
 
-	s = splnet();
 	error = in6_rtrequest(RTM_ADD, (struct sockaddr *)&def,
 	    (struct sockaddr *)&gate, (struct sockaddr *)&mask,
 	    RTF_GATEWAY, &newrt, RT_DEFAULT_FIB);
@@ -495,7 +493,6 @@ defrouter_addreq(struct nd_defrouter *new)
 	}
 	if (error == 0)
 		new->installed = 1;
-	splx(s);
 	return;
 }
 
@@ -624,7 +621,6 @@ defrtrlist_del(struct nd_defrouter *dr)
 void
 defrouter_select(void)
 {
-	int s = splnet();
 	struct nd_defrouter *dr, *selected_dr = NULL, *installed_dr = NULL;
 	struct llentry *ln = NULL;
 
@@ -632,10 +628,8 @@ defrouter_select(void)
 	 * Let's handle easy case (3) first:
 	 * If default router list is empty, there's nothing to be done.
 	 */
-	if (TAILQ_EMPTY(&V_nd_defrouter)) {
-		splx(s);
+	if (TAILQ_EMPTY(&V_nd_defrouter))
 		return;
-	}
 
 	/*
 	 * Search for a (probably) reachable router from the list.
@@ -699,7 +693,6 @@ defrouter_select(void)
 		defrouter_addreq(selected_dr);
 	}
 
-	splx(s);
 	return;
 }
 
@@ -734,7 +727,6 @@ static struct nd_defrouter *
 defrtrlist_update(struct nd_defrouter *new)
 {
 	struct nd_defrouter *dr, *n;
-	int s = splnet();
 
 	if ((dr = defrouter_lookup(&new->rtaddr, new->ifp)) != NULL) {
 		/* entry exists */
@@ -754,10 +746,8 @@ defrtrlist_update(struct nd_defrouter *new)
 			 * to sort the entries. Also make sure the selected
 			 * router is still installed in the kernel.
 			 */
-			if (dr->installed && rtpref(new) == oldpref) {
-				splx(s);
+			if (dr->installed && rtpref(new) == oldpref)
 				return (dr);
-			}
 
 			/*
 			 * preferred router may be changed, so relocate
@@ -772,21 +762,16 @@ defrtrlist_update(struct nd_defrouter *new)
 			n = dr;
 			goto insert;
 		}
-		splx(s);
 		return (dr);
 	}
 
 	/* entry does not exist */
-	if (new->rtlifetime == 0) {
-		splx(s);
+	if (new->rtlifetime == 0)
 		return (NULL);
-	}
 
 	n = (struct nd_defrouter *)malloc(sizeof(*n), M_IP6NDP, M_NOWAIT);
-	if (n == NULL) {
-		splx(s);
+	if (n == NULL)
 		return (NULL);
-	}
 	bzero(n, sizeof(*n));
 	*n = *new;
 
@@ -809,8 +794,6 @@ insert:
 		TAILQ_INSERT_TAIL(&V_nd_defrouter, n, dr_entry);
 
 	defrouter_select();
-
-	splx(s);
 
 	return (n);
 }
@@ -874,7 +857,7 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
 {
 	struct nd_prefix *new = NULL;
 	int error = 0;
-	int i, s;
+	int i;
 	char ip6buf[INET6_ADDRSTRLEN];
 
 	new = (struct nd_prefix *)malloc(sizeof(*new), M_IP6NDP, M_NOWAIT);
@@ -903,10 +886,8 @@ nd6_prelist_add(struct nd_prefixctl *pr, struct nd_defrouter *dr,
 		new->ndpr_prefix.sin6_addr.s6_addr32[i] &=
 		    new->ndpr_mask.s6_addr32[i];
 
-	s = splnet();
 	/* link ndpr_entry to nd_prefix list */
 	LIST_INSERT_HEAD(&V_nd_prefix, new, ndpr_entry);
-	splx(s);
 
 	/* ND_OPT_PI_FLAG_ONLINK processing */
 	if (new->ndpr_raf_onlink) {
@@ -931,7 +912,7 @@ void
 prelist_remove(struct nd_prefix *pr)
 {
 	struct nd_pfxrouter *pfr, *next;
-	int e, s;
+	int e;
 	char ip6buf[INET6_ADDRSTRLEN];
 
 	/* make sure to invalidate the prefix until it is really freed. */
@@ -956,8 +937,6 @@ prelist_remove(struct nd_prefix *pr)
 	if (pr->ndpr_refcnt > 0)
 		return;		/* notice here? */
 
-	s = splnet();
-
 	/* unlink ndpr_entry from nd_prefix list */
 	LIST_REMOVE(pr, ndpr_entry);
 
@@ -965,8 +944,6 @@ prelist_remove(struct nd_prefix *pr)
 	LIST_FOREACH_SAFE(pfr, &pr->ndpr_advrtrs, pfr_entry, next) {
 		free(pfr, M_IP6NDP);
 	}
-	splx(s);
-
 	free(pr, M_IP6NDP);
 
 	pfxlist_onlink_check();
@@ -984,7 +961,6 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 	struct ifaddr *ifa;
 	struct ifnet *ifp = new->ndpr_ifp;
 	struct nd_prefix *pr;
-	int s = splnet();
 	int error = 0;
 	int newprefix = 0;
 	int auth;
@@ -1309,7 +1285,6 @@ prelist_update(struct nd_prefixctl *new, struct nd_defrouter *dr,
 	}
 
  end:
-	splx(s);
 	return error;
 }
 
@@ -2112,13 +2087,10 @@ rt6_flush(struct in6_addr *gateway, struct ifnet *ifp)
 {
 	struct radix_node_head *rnh;
 	u_int fibnum;
-	int s = splnet();
 
 	/* We'll care only link-local addresses */
-	if (!IN6_IS_ADDR_LINKLOCAL(gateway)) {
-		splx(s);
+	if (!IN6_IS_ADDR_LINKLOCAL(gateway))
 		return;
-	}
 
 	/* XXX Do we really need to walk any but the default FIB? */
 	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
@@ -2130,7 +2102,6 @@ rt6_flush(struct in6_addr *gateway, struct ifnet *ifp)
 		rnh->rnh_walktree(rnh, rt6_deleteroute, (void *)gateway);
 		RADIX_NODE_HEAD_UNLOCK(rnh);
 	}
-	splx(s);
 }
 
 static int

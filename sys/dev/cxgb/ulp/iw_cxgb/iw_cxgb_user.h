@@ -47,10 +47,18 @@ struct iwch_create_cq_req {
 	uint64_t user_rptr_addr;
 };
 
+struct iwch_create_cq_resp_v0 {
+        __u64 key;
+        __u32 cqid;
+        __u32 size_log2;
+};
+
 struct iwch_create_cq_resp {
 	uint64_t key;
 	uint32_t cqid;
 	uint32_t size_log2;
+	__u32 memsize;
+	__u32 reserved;
 };
 
 struct iwch_create_qp_resp {

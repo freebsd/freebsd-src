@@ -28,6 +28,7 @@ options 	SCHED_ULE		# ULE scheduler
 options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
+options 	TCP_OFFLOAD		# TCP offload
 options 	SCTP			# Stream Control Transmission Protocol
 options 	FFS			# Berkeley Fast Filesystem
 options 	SOFTUPDATES		# Enable FFS soft updates support
@@ -147,10 +148,12 @@ device		ciss		# Compaq Smart RAID 5*
 device		dpt		# DPT Smartcache III, IV - See NOTES for options
 device		hptmv		# Highpoint RocketRAID 182x
 device		hptrr		# Highpoint RocketRAID 17xx, 22xx, 23xx, 25xx
+device		hpt27xx		# Highpoint RocketRAID 27xx
 device		iir		# Intel Integrated RAID
 device		ips		# IBM (Adaptec) ServeRAID
 device		mly		# Mylex AcceleRAID/eXtremeRAID
 device		twa		# 3ware 9000 series PATA/SATA RAID
+device		tws		# LSI 3ware 9750 SATA+SAS 6Gb/s RAID controller
 
 # RAID controllers
 device		aac		# Adaptec FSA RAID
@@ -161,7 +164,6 @@ device		mlx		# Mylex DAC960 family
 #XXX pointer/int warnings
 #device		pst		# Promise Supertrak SX6000
 device		twe		# 3ware ATA RAID
-device		tws		# LSI 3ware 9750 SATA+SAS 6Gb/s RAID controller
 
 # atkbdc0 controls both the keyboard and the PS/2 mouse
 device		atkbdc		# AT keyboard controller
@@ -269,10 +271,12 @@ device		wlan_ccmp	# 802.11 CCMP support
 device		wlan_tkip	# 802.11 TKIP support
 device		wlan_amrr	# AMRR transmit rate control algorithm
 device		an		# Aironet 4500/4800 802.11 wireless NICs.
-device		ath		# Atheros NIC's
+device		ath		# Atheros NICs
 device		ath_pci		# Atheros pci/cardbus glue
 device		ath_hal		# pci/cardbus chip support
 options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+options 	AH_AR5416_INTERRUPT_MITIGATION	# AR5416 interrupt mitigation
+options 	ATH_ENABLE_11N	# Enable 802.11n support for AR5416 and later
 device		ath_rate_sample	# SampleRate tx rate control for ath
 #device		bwi		# Broadcom BCM430x/BCM431x wireless NICs.
 #device		bwn		# Broadcom BCM43xx wireless NICs.
@@ -288,6 +292,8 @@ device		wpi		# Intel 3945ABG wireless NICs.
 # Pseudo devices.
 device		loop		# Network loopback
 device		random		# Entropy device
+options 	PADLOCK_RNG	# VIA Padlock RNG
+options 	RDRAND_RNG	# Intel Bull Mountain RNG
 device		ether		# Ethernet support
 device		vlan		# 802.1Q VLAN support
 device		tun		# Packet tunnel.

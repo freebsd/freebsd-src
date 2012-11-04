@@ -68,6 +68,11 @@ struct pmap {
 	struct	pmap_statistics pm_stats;
 };
 
+struct tte_list_lock {
+	struct rwlock lock;
+	char padding[CACHE_LINE_SIZE - sizeof(struct rwlock)];
+};
+
 #define	PMAP_LOCK(pmap)		mtx_lock(&(pmap)->pm_mtx)
 #define	PMAP_LOCK_ASSERT(pmap, type)					\
 				mtx_assert(&(pmap)->pm_mtx, (type))
@@ -80,6 +85,7 @@ struct pmap {
 #define	PMAP_UNLOCK(pmap)	mtx_unlock(&(pmap)->pm_mtx)
 
 #define	pmap_page_get_memattr(m)	VM_MEMATTR_DEFAULT
+#define	pmap_page_is_write_mapped(m)	(((m)->aflags & PGA_WRITEABLE) != 0)
 #define	pmap_page_set_memattr(m, ma)	(void)0
 
 void	pmap_bootstrap(u_int cpu_impl);
@@ -102,7 +108,8 @@ void	pmap_set_kctx(void);
 
 extern	struct pmap kernel_pmap_store;
 #define	kernel_pmap	(&kernel_pmap_store)
-extern	struct rwlock tte_list_global_lock;
+extern	struct tte_list_lock tte_list_global;
+#define	tte_list_global_lock	tte_list_global.lock
 extern	vm_paddr_t phys_avail[];
 extern	vm_offset_t virtual_avail;
 extern	vm_offset_t virtual_end;

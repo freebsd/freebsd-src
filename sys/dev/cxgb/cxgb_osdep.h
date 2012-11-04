@@ -67,27 +67,6 @@ struct t3_mbuf_hdr {
 } while (0)
 #endif
 
-#define m_get_priority(m) ((uintptr_t)(m)->m_pkthdr.rcvif)
-#define m_set_priority(m, pri) ((m)->m_pkthdr.rcvif = (struct ifnet *)((uintptr_t)pri))
-#define m_set_sgl(m, sgl) ((m)->m_pkthdr.header = (sgl))
-#define m_get_sgl(m) ((bus_dma_segment_t *)(m)->m_pkthdr.header)
-#define m_set_sgllen(m, len) ((m)->m_pkthdr.ether_vtag = len)
-#define m_get_sgllen(m) ((m)->m_pkthdr.ether_vtag)
-
-/*
- * XXX FIXME
- */
-#define m_set_toep(m, a) ((m)->m_pkthdr.header = (a))
-#define m_get_toep(m) ((m)->m_pkthdr.header)
-#define m_set_handler(m, handler) ((m)->m_pkthdr.header = (handler))
-
-#define m_set_socket(m, a) ((m)->m_pkthdr.header = (a))
-#define m_get_socket(m) ((m)->m_pkthdr.header)
-
-#define	KTR_CXGB	KTR_SPARE2
-
-#define MT_DONTFREE  128
-
 #if __FreeBSD_version < 800054
 #if defined (__GNUC__)
   #if #cpu(i386) || defined __i386 || defined i386 || defined __i386__ || #cpu(x86_64) || defined __x86_64__
@@ -122,13 +101,6 @@ struct t3_mbuf_hdr {
 #endif
 
 #define CXGB_TX_CLEANUP_THRESHOLD        32
-
-
-#ifdef DEBUG_PRINT
-#define DPRINTF printf
-#else 
-#define DPRINTF(...)
-#endif
 
 #define TX_MAX_SIZE                (1 << 16)    /* 64KB                          */
 #define TX_MAX_SEGS                      36     /* maximum supported by card     */
@@ -199,7 +171,6 @@ static const int debug_flags = DBG_RX;
 #define test_and_clear_bit(bit, p) atomic_cmpset_int((p), ((*(p)) | (1<<bit)), ((*(p)) & ~(1<<bit)))
 
 #define max_t(type, a, b) (type)max((a), (b))
-#define net_device ifnet
 #define cpu_to_be32            htobe32
 
 /* Standard PHY definitions */
@@ -244,11 +215,11 @@ static const int debug_flags = DBG_RX;
 #define PCI_VPD_DATA	PCIR_VPD_DATA
 
 #define PCI_CAP_ID_EXP		PCIY_EXPRESS
-#define PCI_EXP_DEVCTL		PCIR_EXPRESS_DEVICE_CTL
-#define PCI_EXP_DEVCTL_PAYLOAD	PCIM_EXP_CTL_MAX_PAYLOAD
-#define PCI_EXP_DEVCTL_READRQ	PCIM_EXP_CTL_MAX_READ_REQUEST
-#define PCI_EXP_LNKCTL		PCIR_EXPRESS_LINK_CTL
-#define PCI_EXP_LNKSTA		PCIR_EXPRESS_LINK_STA
+#define PCI_EXP_DEVCTL		PCIER_DEVICE_CTL
+#define PCI_EXP_DEVCTL_PAYLOAD	PCIEM_CTL_MAX_PAYLOAD
+#define PCI_EXP_DEVCTL_READRQ	PCIEM_CTL_MAX_READ_REQUEST
+#define PCI_EXP_LNKCTL		PCIER_LINK_CTL
+#define PCI_EXP_LNKSTA		PCIER_LINK_STA
 
 /*
  * Linux compatibility macros

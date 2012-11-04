@@ -1,4 +1,4 @@
-/* $Id: openbsd-compat.h,v 1.51 2010/10/07 10:25:29 djm Exp $ */
+/* $Id: openbsd-compat.h,v 1.52 2011/09/23 01:16:11 djm Exp $ */
 
 /*
  * Copyright (c) 1999-2003 Damien Miller.  All rights reserved.
@@ -116,7 +116,7 @@ char *inet_ntoa(struct in_addr in);
 #endif
 
 #ifndef HAVE_INET_NTOP
-const char *inet_ntop(int af, const void *src, char *dst, size_t size);
+const char *inet_ntop(int af, const void *src, char *dst, socklen_t size);
 #endif
 
 #ifndef HAVE_INET_ATON

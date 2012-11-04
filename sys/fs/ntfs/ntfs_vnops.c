@@ -67,7 +67,6 @@
 #include <sys/unistd.h> /* for pathconf(2) constants */
 
 static vop_read_t	ntfs_read;
-static vop_write_t	ntfs_write;
 static vop_getattr_t	ntfs_getattr;
 static vop_inactive_t	ntfs_inactive;
 static vop_reclaim_t	ntfs_reclaim;
@@ -78,7 +77,6 @@ static vop_open_t	ntfs_open;
 static vop_close_t	ntfs_close;
 static vop_readdir_t	ntfs_readdir;
 static vop_cachedlookup_t	ntfs_lookup;
-static vop_fsync_t	ntfs_fsync;
 static vop_pathconf_t	ntfs_pathconf;
 static vop_vptofh_t	ntfs_vptofh;
 
@@ -129,7 +127,9 @@ ntfs_read(ap)
 	int resid, off, toread;
 	int error;
 
-	dprintf(("ntfs_read: ino: %d, off: %d resid: %d, segflg: %d\n",ip->i_number,(u_int32_t)uio->uio_offset,uio->uio_resid,uio->uio_segflg));
+	dprintf(("ntfs_read: ino: %ju, off: %jd resid: %d, segflg: %d\n",
+	    (uintmax_t)ip->i_number, (intmax_t)uio->uio_offset,
+	    uio->uio_resid, uio->uio_segflg));
 
 	dprintf(("ntfs_read: filesize: %d",(u_int32_t)fp->f_size));
 
@@ -181,7 +181,8 @@ ntfs_getattr(ap)
 	register struct ntnode *ip = FTONT(fp);
 	register struct vattr *vap = ap->a_vap;
 
-	dprintf(("ntfs_getattr: %d, flags: %d\n",ip->i_number,ip->i_flag));
+	dprintf(("ntfs_getattr: %ju, flags: %d\n",
+	    (uintmax_t)ip->i_number, ip->i_flag));
 
 	vap->va_fsid = dev2udev(ip->i_dev);
 	vap->va_fileid = ip->i_number;
@@ -216,8 +217,8 @@ ntfs_inactive(ap)
 	register struct ntnode *ip = VTONT(ap->a_vp);
 #endif
 
-	dprintf(("ntfs_inactive: vnode: %p, ntnode: %d\n", ap->a_vp,
-	    ip->i_number));
+	dprintf(("ntfs_inactive: vnode: %p, ntnode: %ju\n", ap->a_vp,
+	    (uintmax_t)ip->i_number));
 
 	/* XXX since we don't support any filesystem changes
 	 * right now, nothing more needs to be done
@@ -239,7 +240,8 @@ ntfs_reclaim(ap)
 	register struct ntnode *ip = FTONT(fp);
 	int error;
 
-	dprintf(("ntfs_reclaim: vnode: %p, ntnode: %d\n", vp, ip->i_number));
+	dprintf(("ntfs_reclaim: vnode: %p, ntnode: %ju\n",
+	    vp, (uintmax_t)ip->i_number));
 
 	/*
 	 * Destroy the vm object and flush associated pages.
@@ -272,6 +274,7 @@ ntfs_strategy(ap)
 	register struct fnode *fp = VTOF(vp);
 	register struct ntnode *ip = FTONT(fp);
 	struct ntfsmount *ntmp = ip->i_mp;
+	u_int32_t toread;
 	int error;
 
 	dprintf(("ntfs_strategy: offset: %d, blkno: %d, lblkno: %d\n",
@@ -281,97 +284,31 @@ ntfs_strategy(ap)
 	dprintf(("strategy: bcount: %d flags: 0x%x\n", 
 		(u_int32_t)bp->b_bcount,bp->b_flags));
 
-	if (bp->b_iocmd == BIO_READ) {
-		u_int32_t toread;
+	KASSERT(bp->b_iocmd == BIO_READ, ("Invalid buffer\n"));
 
-		if (ntfs_cntob(bp->b_blkno) >= fp->f_size) {
-			clrbuf(bp);
-			error = 0;
-		} else {
-			toread = MIN(bp->b_bcount,
-				 fp->f_size-ntfs_cntob(bp->b_blkno));
-			dprintf(("ntfs_strategy: toread: %d, fsize: %d\n",
-				toread,(u_int32_t)fp->f_size));
-
-			error = ntfs_readattr(ntmp, ip, fp->f_attrtype,
-				fp->f_attrname, ntfs_cntob(bp->b_blkno),
-				toread, bp->b_data, NULL);
-
-			if (error) {
-				printf("ntfs_strategy: ntfs_readattr failed\n");
-				bp->b_error = error;
-				bp->b_ioflags |= BIO_ERROR;
-			}
-
-			bzero(bp->b_data + toread, bp->b_bcount - toread);
-		}
+	if (ntfs_cntob(bp->b_blkno) >= fp->f_size) {
+		clrbuf(bp);
+		error = 0;
 	} else {
-		size_t tmp;
-		u_int32_t towrite;
+		toread = MIN(bp->b_bcount,
+			 fp->f_size-ntfs_cntob(bp->b_blkno));
+		dprintf(("ntfs_strategy: toread: %d, fsize: %d\n",
+			toread,(u_int32_t)fp->f_size));
 
-		if (ntfs_cntob(bp->b_blkno) + bp->b_bcount >= fp->f_size) {
-			printf("ntfs_strategy: CAN'T EXTEND FILE\n");
-			bp->b_error = error = EFBIG;
+		error = ntfs_readattr(ntmp, ip, fp->f_attrtype,
+			fp->f_attrname, ntfs_cntob(bp->b_blkno),
+			toread, bp->b_data, NULL);
+
+		if (error) {
+			printf("ntfs_strategy: ntfs_readattr failed\n");
+			bp->b_error = error;
 			bp->b_ioflags |= BIO_ERROR;
-		} else {
-			towrite = MIN(bp->b_bcount,
-				fp->f_size-ntfs_cntob(bp->b_blkno));
-			dprintf(("ntfs_strategy: towrite: %d, fsize: %d\n",
-				towrite,(u_int32_t)fp->f_size));
-
-			error = ntfs_writeattr_plain(ntmp, ip, fp->f_attrtype,	
-				fp->f_attrname, ntfs_cntob(bp->b_blkno),towrite,
-				bp->b_data, &tmp, NULL);
-
-			if (error) {
-				printf("ntfs_strategy: ntfs_writeattr fail\n");
-				bp->b_error = error;
-				bp->b_ioflags |= BIO_ERROR;
-			}
 		}
+
+		bzero(bp->b_data + toread, bp->b_bcount - toread);
 	}
 	bufdone(bp);
 	return (0);
-}
-
-static int
-ntfs_write(ap)
-	struct vop_write_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int  a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-	register struct vnode *vp = ap->a_vp;
-	register struct fnode *fp = VTOF(vp);
-	register struct ntnode *ip = FTONT(fp);
-	struct uio *uio = ap->a_uio;
-	struct ntfsmount *ntmp = ip->i_mp;
-	u_int64_t towrite;
-	size_t written;
-	int error;
-
-	dprintf(("ntfs_write: ino: %d, off: %d resid: %d, segflg: %d\n",ip->i_number,(u_int32_t)uio->uio_offset,uio->uio_resid,uio->uio_segflg));
-	dprintf(("ntfs_write: filesize: %d",(u_int32_t)fp->f_size));
-
-	if (uio->uio_resid + uio->uio_offset > fp->f_size) {
-		printf("ntfs_write: CAN'T WRITE BEYOND END OF FILE\n");
-		return (EFBIG);
-	}
-
-	towrite = MIN(uio->uio_resid, fp->f_size - uio->uio_offset);
-
-	dprintf((", towrite: %d\n",(u_int32_t)towrite));
-
-	error = ntfs_writeattr_plain(ntmp, ip, fp->f_attrtype,
-		fp->f_attrname, uio->uio_offset, towrite, NULL, &written, uio);
-#ifdef NTFS_DEBUG
-	if (error)
-		printf("ntfs_write: ntfs_writeattr failed: %d\n", error);
-#endif
-
-	return (error);
 }
 
 int
@@ -390,7 +327,7 @@ ntfs_access(ap)
 	dprintf(("ntfs_access: %d\n",ip->i_number));
 
 	/*
-	 * Disallow write attempts on read-only filesystems;
+	 * Disallow write attempts as we assume read-only filesystems;
 	 * unless the file is a socket, fifo, or a block or
 	 * character device resident on the filesystem.
 	 */
@@ -399,8 +336,8 @@ ntfs_access(ap)
 		case VDIR:
 		case VLNK:
 		case VREG:
-			if (vp->v_mount->mnt_flag & MNT_RDONLY)
-				return (EROFS);
+			return (EROFS);
+		default:
 			break;
 		}
 	}
@@ -630,7 +567,6 @@ ntfs_lookup(ap)
 		return (error);
 
 	if ((cnp->cn_flags & ISLASTCN) &&
-	    (dvp->v_mount->mnt_flag & MNT_RDONLY) &&
 	    (cnp->cn_nameiop == DELETE || cnp->cn_nameiop == RENAME))
 		return (EROFS);
 
@@ -668,32 +604,14 @@ ntfs_lookup(ap)
 			return (error);
 		}
 
-		dprintf(("ntfs_lookup: found ino: %d\n", 
-			VTONT(*ap->a_vpp)->i_number));
+		dprintf(("ntfs_lookup: found ino: %ju\n",
+		    (uintmax_t)VTONT(*ap->a_vpp)->i_number));
 	}
 
 	if (cnp->cn_flags & MAKEENTRY)
 		cache_enter(dvp, *ap->a_vpp, cnp);
 
 	return (error);
-}
-
-/*
- * Flush the blocks of a file to disk.
- *
- * This function is worthless for vnodes that represent directories. Maybe we
- * could just do a sync if they try an fsync on a directory file.
- */
-static int
-ntfs_fsync(ap)
-	struct vop_fsync_args /* {
-		struct vnode *a_vp;
-		struct ucred *a_cred;
-		int a_waitfor;
-		struct thread *a_td;
-	} */ *ap;
-{
-	return (0);
 }
 
 /*
@@ -756,7 +674,6 @@ struct vop_vector ntfs_vnodeops = {
 	.vop_bmap =		ntfs_bmap,
 	.vop_cachedlookup =	ntfs_lookup,
 	.vop_close =		ntfs_close,
-	.vop_fsync =		ntfs_fsync,
 	.vop_getattr =		ntfs_getattr,
 	.vop_inactive =		ntfs_inactive,
 	.vop_lookup =		vfs_cache_lookup,
@@ -766,6 +683,5 @@ struct vop_vector ntfs_vnodeops = {
 	.vop_readdir =		ntfs_readdir,
 	.vop_reclaim =		ntfs_reclaim,
 	.vop_strategy =		ntfs_strategy,
-	.vop_write =		ntfs_write,
 	.vop_vptofh =		ntfs_vptofh,
 };

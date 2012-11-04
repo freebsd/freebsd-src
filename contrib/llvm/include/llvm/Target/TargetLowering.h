@@ -25,6 +25,7 @@
 #include "llvm/CallingConv.h"
 #include "llvm/InlineAsm.h"
 #include "llvm/Attributes.h"
+#include "llvm/Support/CallSite.h"
 #include "llvm/CodeGen/SelectionDAGNodes.h"
 #include "llvm/CodeGen/RuntimeLibcalls.h"
 #include "llvm/Support/DebugLoc.h"
@@ -50,6 +51,7 @@ namespace llvm {
   template<typename T> class SmallVectorImpl;
   class TargetData;
   class TargetRegisterClass;
+  class TargetLibraryInfo;
   class TargetLoweringObjectFile;
   class Value;
 
@@ -149,6 +151,12 @@ public:
   /// isJumpExpensive() - Return true if Flow Control is an expensive operation
   /// that should be avoided.
   bool isJumpExpensive() const { return JumpIsExpensive; }
+
+  /// isPredictableSelectExpensive - Return true if selects are only cheaper
+  /// than branches if the branch is unlikely to be predicted right.
+  bool isPredictableSelectExpensive() const {
+    return predictableSelectIsExpensive;
+  }
 
   /// getSetCCResultType - Return the ValueType of the result of SETCC
   /// operations.  Also used to obtain the target's preferred type for
@@ -358,7 +366,9 @@ public:
   /// for it.
   LegalizeAction getOperationAction(unsigned Op, EVT VT) const {
     if (VT.isExtended()) return Expand;
-    assert(Op < array_lengthof(OpActions[0]) && "Table isn't big enough!");
+    // If a target-specific SDNode requires legalization, require the target
+    // to provide custom legalization for it.
+    if (Op > array_lengthof(OpActions[0])) return Custom;
     unsigned I = (unsigned) VT.getSimpleVT().SimpleTy;
     return (LegalizeAction)OpActions[I][Op];
   }
@@ -668,6 +678,12 @@ public:
   /// to implement llvm.longjmp.
   bool usesUnderscoreLongJmp() const {
     return UseUnderscoreLongJmp;
+  }
+
+  /// supportJumpTables - return whether the target can generate code for
+  /// jump tables.
+  bool supportJumpTables() const {
+    return SupportJumpTables;
   }
 
   /// getStackPointerRegisterToSaveRestore - If a physical register, this
@@ -984,6 +1000,12 @@ protected:
     UseUnderscoreLongJmp = Val;
   }
 
+  /// setSupportJumpTables - Indicate whether the target can generate code for
+  /// jump tables.
+  void setSupportJumpTables(bool Val) {
+    SupportJumpTables = Val;
+  }
+
   /// setStackPointerRegisterToSaveRestore - If set to a physical register, this
   /// specifies the register that llvm.savestack/llvm.restorestack should save
   /// and restore.
@@ -1169,7 +1191,7 @@ protected:
     ShouldFoldAtomicFences = fold;
   }
 
-  /// setInsertFencesForAtomic - Set if the the DAG builder should
+  /// setInsertFencesForAtomic - Set if the DAG builder should
   /// automatically insert fences and reduce the order of atomic memory
   /// operations to Monotonic.
   void setInsertFencesForAtomic(bool fence) {
@@ -1197,11 +1219,6 @@ public:
     llvm_unreachable("Not Implemented");
   }
 
-  /// LowerCallTo - This function lowers an abstract call to a function into an
-  /// actual call.  This returns a pair of operands.  The first element is the
-  /// return value for the function (if RetTy is not VoidTy).  The second
-  /// element is the outgoing token chain. It calls LowerCall to do the actual
-  /// lowering.
   struct ArgListEntry {
     SDValue Node;
     Type* Ty;
@@ -1217,13 +1234,72 @@ public:
       isSRet(false), isNest(false), isByVal(false), Alignment(0) { }
   };
   typedef std::vector<ArgListEntry> ArgListTy;
-  std::pair<SDValue, SDValue>
-  LowerCallTo(SDValue Chain, Type *RetTy, bool RetSExt, bool RetZExt,
-              bool isVarArg, bool isInreg, unsigned NumFixedArgs,
-              CallingConv::ID CallConv, bool isTailCall,
-              bool doesNotRet, bool isReturnValueUsed,
-              SDValue Callee, ArgListTy &Args,
-              SelectionDAG &DAG, DebugLoc dl) const;
+
+  /// CallLoweringInfo - This structure contains all information that is
+  /// necessary for lowering calls. It is passed to TLI::LowerCallTo when the
+  /// SelectionDAG builder needs to lower a call, and targets will see this
+  /// struct in their LowerCall implementation.
+  struct CallLoweringInfo {
+    SDValue Chain;
+    Type *RetTy;
+    bool RetSExt           : 1;
+    bool RetZExt           : 1;
+    bool IsVarArg          : 1;
+    bool IsInReg           : 1;
+    bool DoesNotReturn     : 1;
+    bool IsReturnValueUsed : 1;
+
+    // IsTailCall should be modified by implementations of
+    // TargetLowering::LowerCall that perform tail call conversions.
+    bool IsTailCall;
+
+    unsigned NumFixedArgs;
+    CallingConv::ID CallConv;
+    SDValue Callee;
+    ArgListTy &Args;
+    SelectionDAG &DAG;
+    DebugLoc DL;
+    ImmutableCallSite *CS;
+    SmallVector<ISD::OutputArg, 32> Outs;
+    SmallVector<SDValue, 32> OutVals;
+    SmallVector<ISD::InputArg, 32> Ins;
+
+
+    /// CallLoweringInfo - Constructs a call lowering context based on the
+    /// ImmutableCallSite \p cs.
+    CallLoweringInfo(SDValue chain, Type *retTy,
+                     FunctionType *FTy, bool isTailCall, SDValue callee,
+                     ArgListTy &args, SelectionDAG &dag, DebugLoc dl,
+                     ImmutableCallSite &cs)
+    : Chain(chain), RetTy(retTy), RetSExt(cs.paramHasAttr(0, Attribute::SExt)),
+      RetZExt(cs.paramHasAttr(0, Attribute::ZExt)), IsVarArg(FTy->isVarArg()),
+      IsInReg(cs.paramHasAttr(0, Attribute::InReg)),
+      DoesNotReturn(cs.doesNotReturn()),
+      IsReturnValueUsed(!cs.getInstruction()->use_empty()),
+      IsTailCall(isTailCall), NumFixedArgs(FTy->getNumParams()),
+      CallConv(cs.getCallingConv()), Callee(callee), Args(args), DAG(dag),
+      DL(dl), CS(&cs) {}
+
+    /// CallLoweringInfo - Constructs a call lowering context based on the
+    /// provided call information.
+    CallLoweringInfo(SDValue chain, Type *retTy, bool retSExt, bool retZExt,
+                     bool isVarArg, bool isInReg, unsigned numFixedArgs,
+                     CallingConv::ID callConv, bool isTailCall,
+                     bool doesNotReturn, bool isReturnValueUsed, SDValue callee,
+                     ArgListTy &args, SelectionDAG &dag, DebugLoc dl)
+    : Chain(chain), RetTy(retTy), RetSExt(retSExt), RetZExt(retZExt),
+      IsVarArg(isVarArg), IsInReg(isInReg), DoesNotReturn(doesNotReturn),
+      IsReturnValueUsed(isReturnValueUsed), IsTailCall(isTailCall),
+      NumFixedArgs(numFixedArgs), CallConv(callConv), Callee(callee),
+      Args(args), DAG(dag), DL(dl), CS(NULL) {}
+  };
+
+  /// LowerCallTo - This function lowers an abstract call to a function into an
+  /// actual call.  This returns a pair of operands.  The first element is the
+  /// return value for the function (if RetTy is not VoidTy).  The second
+  /// element is the outgoing token chain. It calls LowerCall to do the actual
+  /// lowering.
+  std::pair<SDValue, SDValue> LowerCallTo(CallLoweringInfo &CLI) const;
 
   /// LowerCall - This hook must be implemented to lower calls into the
   /// the specified DAG. The outgoing arguments to the call are described
@@ -1232,13 +1308,7 @@ public:
   /// InVals array with legal-type return values from the call, and return
   /// the resulting token chain value.
   virtual SDValue
-    LowerCall(SDValue /*Chain*/, SDValue /*Callee*/,
-              CallingConv::ID /*CallConv*/, bool /*isVarArg*/,
-              bool /*doesNotRet*/, bool &/*isTailCall*/,
-              const SmallVectorImpl<ISD::OutputArg> &/*Outs*/,
-              const SmallVectorImpl<SDValue> &/*OutVals*/,
-              const SmallVectorImpl<ISD::InputArg> &/*Ins*/,
-              DebugLoc /*dl*/, SelectionDAG &/*DAG*/,
+    LowerCall(CallLoweringInfo &/*CLI*/,
               SmallVectorImpl<SDValue> &/*InVals*/) const {
     llvm_unreachable("Not Implemented");
   }
@@ -1251,7 +1321,7 @@ public:
   /// registers.  If false is returned, an sret-demotion is performed.
   ///
   virtual bool CanLowerReturn(CallingConv::ID /*CallConv*/,
-			      MachineFunction &/*MF*/, bool /*isVarArg*/,
+                              MachineFunction &/*MF*/, bool /*isVarArg*/,
                const SmallVectorImpl<ISD::OutputArg> &/*Outs*/,
                LLVMContext &/*Context*/) const
   {
@@ -1346,7 +1416,8 @@ public:
 
   /// createFastISel - This method returns a target specific FastISel object,
   /// or null if the target does not support "fast" ISel.
-  virtual FastISel *createFastISel(FunctionLoweringInfo &) const {
+  virtual FastISel *createFastISel(FunctionLoweringInfo &,
+                                   const TargetLibraryInfo *) const {
     return 0;
   }
 
@@ -1602,6 +1673,14 @@ public:
     return false;
   }
 
+  /// isFMAFasterThanMulAndAdd - Return true if an FMA operation is faster than
+  /// a pair of mul and add instructions. fmuladd intrinsics will be expanded to
+  /// FMAs when this method returns true (and FMAs are legal), otherwise fmuladd
+  /// is expanded to mul + add.
+  virtual bool isFMAFasterThanMulAndAdd(EVT) const {
+    return false;
+  }
+
   /// isNarrowingProfitable - Return true if it's profitable to narrow
   /// operations of type VT1 to VT2. e.g. on x86, it's profitable to narrow
   /// from i32 to i8 but not from i32 to i16.
@@ -1665,13 +1744,6 @@ private:
   const TargetData *TD;
   const TargetLoweringObjectFile &TLOF;
 
-  /// We are in the process of implementing a new TypeLegalization action
-  /// which is the promotion of vector elements. This feature is under
-  /// development. Until this feature is complete, it is only enabled using a
-  /// flag. We pass this flag using a member because of circular dep issues.
-  /// This member will be removed with the flag once we complete the transition.
-  bool mayPromoteElements;
-
   /// PointerTy - The type to use for pointers, usually i32 or i64.
   ///
   MVT PointerTy;
@@ -1707,6 +1779,10 @@ private:
   /// UseUnderscoreLongJmp - This target prefers to use _longjmp to implement
   /// llvm.longjmp.  Defaults to false.
   bool UseUnderscoreLongJmp;
+
+  /// SupportJumpTables - Whether the target can generate code for jumptables.
+  /// If it's not true, then each jumptable must be lowered into if-then-else's.
+  bool SupportJumpTables;
 
   /// BooleanContents - Information about the contents of the high-bits in
   /// boolean values held in a type wider than i1.  See getBooleanContents.
@@ -1875,9 +1951,8 @@ private:
     if (NumElts == 1)
       return LegalizeKind(TypeScalarizeVector, EltVT);
 
-    // If we allow the promotion of vector elements using a flag,
-    // then try to widen vector elements until a legal type is found.
-    if (mayPromoteElements && EltVT.isInteger()) {
+    // Try to widen vector elements until a legal type is found.
+    if (EltVT.isInteger()) {
       // Vectors with a number of elements that is not a power of two are always
       // widened, for example <3 x float> -> <4 x float>.
       if (!VT.isPow2VectorType()) {
@@ -2028,14 +2103,14 @@ protected:
   /// optimization.
   bool benefitFromCodePlacementOpt;
 
+  /// predictableSelectIsExpensive - Tells the code generator that select is
+  /// more expensive than a branch if the branch is usually predicted right.
+  bool predictableSelectIsExpensive;
+
 private:
   /// isLegalRC - Return true if the value types that can be represented by the
   /// specified register class are all legal.
   bool isLegalRC(const TargetRegisterClass *RC) const;
-
-  /// hasLegalSuperRegRegClasses - Return true if the specified register class
-  /// has one or more super-reg register classes that are legal.
-  bool hasLegalSuperRegRegClasses(const TargetRegisterClass *RC) const;
 };
 
 /// GetReturnInfo - Given an LLVM IR type and return type attributes,
@@ -2043,8 +2118,7 @@ private:
 /// the offsets, if the return value is being lowered to memory.
 void GetReturnInfo(Type* ReturnType, Attributes attr,
                    SmallVectorImpl<ISD::OutputArg> &Outs,
-                   const TargetLowering &TLI,
-                   SmallVectorImpl<uint64_t> *Offsets = 0);
+                   const TargetLowering &TLI);
 
 } // end llvm namespace
 

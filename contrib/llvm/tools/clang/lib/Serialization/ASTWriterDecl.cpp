@@ -151,7 +151,8 @@ void ASTDeclWriter::VisitDecl(Decl *D) {
   Record.push_back(D->isInvalidDecl());
   Record.push_back(D->hasAttrs());
   if (D->hasAttrs())
-    Writer.WriteAttributes(D->getAttrs(), Record);
+    Writer.WriteAttributes(ArrayRef<const Attr*>(D->getAttrs().begin(),
+                                                 D->getAttrs().size()), Record);
   Record.push_back(D->isImplicit());
   Record.push_back(D->isUsed(false));
   Record.push_back(D->isReferenced());
@@ -417,6 +418,7 @@ void ASTDeclWriter::VisitObjCMethodDecl(ObjCMethodDecl *D) {
   Record.push_back(D->isVariadic());
   Record.push_back(D->isSynthesized());
   Record.push_back(D->isDefined());
+  Record.push_back(D->IsOverriding);
 
   Record.push_back(D->IsRedeclaration);
   Record.push_back(D->HasRedeclaration);
@@ -559,7 +561,6 @@ void ASTDeclWriter::VisitObjCCategoryDecl(ObjCCategoryDecl *D) {
          PL = D->protocol_loc_begin(), PLEnd = D->protocol_loc_end();
        PL != PLEnd; ++PL)
     Writer.AddSourceLocation(*PL, Record);
-  Record.push_back(D->hasSynthBitfield());
   Code = serialization::DECL_OBJC_CATEGORY;
 }
 
@@ -607,7 +608,6 @@ void ASTDeclWriter::VisitObjCImplementationDecl(ObjCImplementationDecl *D) {
   Writer.AddSourceLocation(D->getIvarRBraceLoc(), Record);
   Writer.AddCXXCtorInitializers(D->IvarInitializers, D->NumIvarInitializers,
                                 Record);
-  Record.push_back(D->hasSynthBitfield());
   Code = serialization::DECL_OBJC_IMPLEMENTATION;
 }
 
@@ -625,11 +625,13 @@ void ASTDeclWriter::VisitObjCPropertyImplDecl(ObjCPropertyImplDecl *D) {
 void ASTDeclWriter::VisitFieldDecl(FieldDecl *D) {
   VisitDeclaratorDecl(D);
   Record.push_back(D->isMutable());
-  Record.push_back(D->getBitWidth()? 1 : D->hasInClassInitializer() ? 2 : 0);
-  if (D->getBitWidth())
-    Writer.AddStmt(D->getBitWidth());
-  else if (D->hasInClassInitializer())
-    Writer.AddStmt(D->getInClassInitializer());
+  if (D->InitializerOrBitWidth.getInt() != ICIS_NoInit ||
+      D->InitializerOrBitWidth.getPointer()) {
+    Record.push_back(D->InitializerOrBitWidth.getInt() + 1);
+    Writer.AddStmt(D->InitializerOrBitWidth.getPointer());
+  } else {
+    Record.push_back(0);
+  }
   if (!D->getDeclName())
     Writer.AddDeclRef(Context.getInstantiatedFromUnnamedFieldDecl(D), Record);
 
@@ -1054,7 +1056,7 @@ void ASTDeclWriter::VisitClassTemplateDecl(ClassTemplateDecl *D) {
   VisitRedeclarableTemplateDecl(D);
 
   if (D->isFirstDeclaration()) {
-    typedef llvm::FoldingSet<ClassTemplateSpecializationDecl> CTSDSetTy;
+    typedef llvm::FoldingSetVector<ClassTemplateSpecializationDecl> CTSDSetTy;
     CTSDSetTy &CTSDSet = D->getSpecializations();
     Record.push_back(CTSDSet.size());
     for (CTSDSetTy::iterator I=CTSDSet.begin(), E = CTSDSet.end(); I!=E; ++I) {
@@ -1062,7 +1064,8 @@ void ASTDeclWriter::VisitClassTemplateDecl(ClassTemplateDecl *D) {
       Writer.AddDeclRef(&*I, Record);
     }
 
-    typedef llvm::FoldingSet<ClassTemplatePartialSpecializationDecl> CTPSDSetTy;
+    typedef llvm::FoldingSetVector<ClassTemplatePartialSpecializationDecl>
+      CTPSDSetTy;
     CTPSDSetTy &CTPSDSet = D->getPartialSpecializations();
     Record.push_back(CTPSDSet.size());
     for (CTPSDSetTy::iterator I=CTPSDSet.begin(), E=CTPSDSet.end(); I!=E; ++I) {
@@ -1146,7 +1149,7 @@ void ASTDeclWriter::VisitFunctionTemplateDecl(FunctionTemplateDecl *D) {
 
     // Write the function specialization declarations.
     Record.push_back(D->getSpecializations().size());
-    for (llvm::FoldingSet<FunctionTemplateSpecializationInfo>::iterator
+    for (llvm::FoldingSetVector<FunctionTemplateSpecializationInfo>::iterator
            I = D->getSpecializations().begin(),
            E = D->getSpecializations().end()   ; I != E; ++I) {
       assert(I->Function->isCanonicalDecl() &&
@@ -1217,6 +1220,7 @@ void ASTDeclWriter::VisitTypeAliasTemplateDecl(TypeAliasTemplateDecl *D) {
 void ASTDeclWriter::VisitStaticAssertDecl(StaticAssertDecl *D) {
   VisitDecl(D);
   Writer.AddStmt(D->getAssertExpr());
+  Record.push_back(D->isFailed());
   Writer.AddStmt(D->getMessage());
   Writer.AddSourceLocation(D->getRParenLoc(), Record);
   Code = serialization::DECL_STATIC_ASSERT;

@@ -36,13 +36,44 @@ modules-${target}:
 .endif
 .endfor
 
-# Handle out of tree ports 
+# Handle ports (as defined by the user) that build kernel modules
 .if !defined(NO_MODULES) && defined(PORTS_MODULES)
-PORTSMODULESENV=SYSDIR=${SYSDIR}
-.for __target in all install reinstall clean
+#
+# The ports tree needs some environment variables defined to match the new kernel
+#
+# Ports search for some dependencies in PATH, so add the location of the installed files
+LOCALBASE?=	/usr/local
+# SRC_BASE is how the ports tree refers to the location of the base source files
+.if !defined(SRC_BASE)
+SRC_BASE!=	realpath "${SYSDIR:H}/"
+.endif
+# OSVERSION is used by some ports to determine build options
+.if !defined(OSRELDATE)
+# Definition copied from src/Makefile.inc1
+OSRELDATE!=	awk '/^\#define[[:space:]]*__FreeBSD_version/ { print $$3 }' \
+		    ${MAKEOBJDIRPREFIX}${SRC_BASE}/include/osreldate.h
+.endif
+# Keep the related ports builds in the obj directory so that they are only rebuilt once per kernel build
+WRKDIRPREFIX?=	${MAKEOBJDIRPREFIX}${SRC_BASE}/sys/${KERNCONF}
+PORTSMODULESENV=\
+	PATH=${PATH}:${LOCALBASE}/bin:${LOCALBASE}/sbin \
+	SRC_BASE=${SRC_BASE} \
+	OSVERSION=${OSRELDATE} \
+	WRKDIRPREFIX=${WRKDIRPREFIX}
+
+# The WRKDIR needs to be cleaned before building, and trying to change the target
+# with a :C pattern below results in install -> instclean
+all:
+.for __i in ${PORTS_MODULES}
+	@${ECHO} "===> Ports module ${__i} (all)"
+	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B clean all
+.endfor
+
+.for __target in install reinstall clean
 ${__target}: ports-${__target}
 ports-${__target}:
 .for __i in ${PORTS_MODULES}
+	@${ECHO} "===> Ports module ${__i} (${__target})"
 	cd $${PORTSDIR:-/usr/ports}/${__i}; ${PORTSMODULESENV} ${MAKE} -B ${__target:C/install/deinstall reinstall/:C/reinstall/deinstall reinstall/}
 .endfor
 .endfor
@@ -90,7 +121,7 @@ gdbinit:
 .endif
 .endif
 
-${FULLKERNEL}: ${SYSTEM_DEP} vers.o
+${FULLKERNEL}: ${SYSTEM_DEP} vers.o ${MFS_IMAGE}
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
@@ -102,7 +133,7 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 .endif
 	${SYSTEM_LD_TAIL}
 .if defined(MFS_IMAGE)
-	@sh ${S}/tools/embed_mfs.sh ${FULLKERNEL} ${MFS_IMAGE}
+	sh ${S}/tools/embed_mfs.sh ${FULLKERNEL} ${MFS_IMAGE}
 .endif
 
 .if !exists(${.OBJDIR}/.depend)
@@ -123,7 +154,7 @@ ${mfile:T:S/.m$/.h/}: ${mfile}
 kernel-clean:
 	rm -f *.o *.so *.So *.ko *.s eddep errs \
 	    ${FULLKERNEL} ${KERNEL_KO} ${KERNEL_KO}.symbols \
-	    linterrs makelinks tags vers.c \
+	    linterrs tags vers.c \
 	    vnode_if.c vnode_if.h vnode_if_newproto.h vnode_if_typedef.h \
 	    ${MFILES:T:S/.m$/.c/} ${MFILES:T:S/.m$/.h/} \
 	    ${CLEAN}
@@ -166,13 +197,13 @@ SRCS=	assym.s vnode_if.h ${BEFORE_DEPEND} ${CFILES} \
 	${MFILES:T:S/.m$/.h/}
 .depend: .PRECIOUS ${SRCS}
 	rm -f .newdep
-	${MAKE} -V '$${CFILES_NOZFS}' -V '$${SYSTEM_CFILES}' -V '$${GEN_CFILES}' | \
+	${MAKE} -V CFILES_NOZFS -V SYSTEM_CFILES -V GEN_CFILES | \
 	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${CFLAGS}
-	${MAKE} -V '$${CFILES_ZFS}' | \
+	${MAKE} -V CFILES_ZFS | \
 	    MKDEP_CPP="${CC} -E" CC="${CC}" xargs mkdep -a -f .newdep ${ZFS_CFLAGS}
-	${MAKE} -V '$${SFILES_NOZFS}' | \
+	${MAKE} -V SFILES_NOZFS | \
 	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ASM_CFLAGS}
-	${MAKE} -V '$${SFILES_ZFS}' | \
+	${MAKE} -V SFILES_ZFS | \
 	    MKDEP_CPP="${CC} -E" xargs mkdep -a -f .newdep ${ZFS_ASM_CFLAGS}
 	rm -f .depend
 	mv .newdep .depend
@@ -206,14 +237,6 @@ ${_ILINKS}:
 kernel-cleandepend:
 	rm -f .depend ${_ILINKS}
 
-links:
-	egrep '#if' ${CFILES} | sed -f $S/conf/defines | \
-	    sed -e 's/:.*//' -e 's/\.c/.o/' | sort -u > dontlink
-	${MAKE} -V '$${CFILES}' | tr -s ' ' '\12' | sed 's/\.c/.o/' | \
-	    sort -u | comm -23 - dontlink | \
-	    sed 's,../.*/\(.*.o\),rm -f \1;ln -s ../GENERIC/\1 \1,' > makelinks
-	sh makelinks; rm -f dontlink
-
 kernel-tags:
 	@[ -f .depend ] || { echo "you must make depend first"; exit 1; }
 	sh $S/conf/systags.sh
@@ -239,8 +262,7 @@ kernel-install:
 .endif
 	mkdir -p ${DESTDIR}${KODIR}
 	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}
-.if defined(DEBUG) && !defined(INSTALL_NODEBUG) && \
-    (defined(MK_KERNEL_SYMBOLS) && ${MK_KERNEL_SYMBOLS} != "no")
+.if defined(DEBUG) && !defined(INSTALL_NODEBUG) && ${MK_KERNEL_SYMBOLS} != "no"
 	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.symbols ${DESTDIR}${KODIR}
 .endif
 .if defined(KERNEL_EXTRA_INSTALL)
@@ -252,8 +274,7 @@ kernel-install:
 kernel-reinstall:
 	@-chflags -R noschg ${DESTDIR}${KODIR}
 	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO} ${DESTDIR}${KODIR}
-.if defined(DEBUG) && !defined(INSTALL_NODEBUG) && \
-    (defined(MK_KERNEL_SYMBOLS) && ${MK_KERNEL_SYMBOLS} != "no")
+.if defined(DEBUG) && !defined(INSTALL_NODEBUG) && ${MK_KERNEL_SYMBOLS} != "no"
 	${INSTALL} -p -m 555 -o ${KMODOWN} -g ${KMODGRP} ${KERNEL_KO}.symbols ${DESTDIR}${KODIR}
 .endif
 

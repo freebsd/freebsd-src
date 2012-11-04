@@ -68,6 +68,14 @@
 
 #include <openssl/crypto.h>
 
+#ifndef OPENSSL_NO_SCTP
+# ifndef OPENSSL_SYS_VMS
+# include <stdint.h>
+# else
+# include <inttypes.h>
+# endif
+#endif
+
 #ifdef  __cplusplus
 extern "C" {
 #endif
@@ -95,6 +103,10 @@ extern "C" {
 #define BIO_TYPE_BIO		(19|0x0400)		/* (half a) BIO pair */
 #define BIO_TYPE_LINEBUFFER	(20|0x0200)		/* filter */
 #define BIO_TYPE_DGRAM		(21|0x0400|0x0100)
+#ifndef OPENSSL_NO_SCTP
+#define BIO_TYPE_DGRAM_SCTP	(24|0x0400|0x0100)
+#endif
+#define BIO_TYPE_ASN1 		(22|0x0200)		/* filter */
 #define BIO_TYPE_COMP 		(23|0x0200)		/* filter */
 
 #define BIO_TYPE_DESCRIPTOR	0x0100	/* socket, fd, connect or accept */
@@ -145,6 +157,7 @@ extern "C" {
 /* #endif */
 
 #define BIO_CTRL_DGRAM_QUERY_MTU          40 /* as kernel for current MTU */
+#define BIO_CTRL_DGRAM_GET_FALLBACK_MTU   47
 #define BIO_CTRL_DGRAM_GET_MTU            41 /* get cached value for MTU */
 #define BIO_CTRL_DGRAM_SET_MTU            42 /* set cached value for
 					      * MTU. want to use this
@@ -160,7 +173,22 @@ extern "C" {
 #define BIO_CTRL_DGRAM_SET_PEER           44 /* Destination for the data */
 
 #define BIO_CTRL_DGRAM_SET_NEXT_TIMEOUT   45 /* Next DTLS handshake timeout to
-											  * adjust socket timeouts */
+                                              * adjust socket timeouts */
+
+#ifndef OPENSSL_NO_SCTP
+/* SCTP stuff */
+#define BIO_CTRL_DGRAM_SCTP_SET_IN_HANDSHAKE	50
+#define BIO_CTRL_DGRAM_SCTP_ADD_AUTH_KEY		51
+#define BIO_CTRL_DGRAM_SCTP_NEXT_AUTH_KEY		52
+#define BIO_CTRL_DGRAM_SCTP_AUTH_CCS_RCVD		53
+#define BIO_CTRL_DGRAM_SCTP_GET_SNDINFO		60
+#define BIO_CTRL_DGRAM_SCTP_SET_SNDINFO		61
+#define BIO_CTRL_DGRAM_SCTP_GET_RCVINFO		62
+#define BIO_CTRL_DGRAM_SCTP_SET_RCVINFO		63
+#define BIO_CTRL_DGRAM_SCTP_GET_PRINFO			64
+#define BIO_CTRL_DGRAM_SCTP_SET_PRINFO			65
+#define BIO_CTRL_DGRAM_SCTP_SAVE_SHUTDOWN		70
+#endif
 
 /* modifiers */
 #define BIO_FP_READ		0x02
@@ -265,7 +293,6 @@ int BIO_method_type(const BIO *b);
 
 typedef void bio_info_cb(struct bio_st *, int, const char *, int, long, long);
 
-#ifndef OPENSSL_SYS_WIN16
 typedef struct bio_method_st
 	{
 	int type;
@@ -279,21 +306,6 @@ typedef struct bio_method_st
 	int (*destroy)(BIO *);
         long (*callback_ctrl)(BIO *, int, bio_info_cb *);
 	} BIO_METHOD;
-#else
-typedef struct bio_method_st
-	{
-	int type;
-	const char *name;
-	int (_far *bwrite)();
-	int (_far *bread)();
-	int (_far *bputs)();
-	int (_far *bgets)();
-	long (_far *ctrl)();
-	int (_far *create)();
-	int (_far *destroy)();
-	long (_far *callback_ctrl)();
-	} BIO_METHOD;
-#endif
 
 struct bio_st
 	{
@@ -321,6 +333,15 @@ DECLARE_STACK_OF(BIO)
 
 typedef struct bio_f_buffer_ctx_struct
 	{
+	/* Buffers are setup like this:
+	 *
+	 * <---------------------- size ----------------------->
+	 * +---------------------------------------------------+
+	 * | consumed | remaining          | free space        |
+	 * +---------------------------------------------------+
+	 * <-- off --><------- len ------->
+	 */
+
 	/* BIO *bio; */ /* this is now in the BIO struct */
 	int ibuf_size;	/* how big is the input buffer */
 	int obuf_size;	/* how big is the output buffer */
@@ -333,6 +354,37 @@ typedef struct bio_f_buffer_ctx_struct
 	int obuf_len;		/* how many bytes are in it */
 	int obuf_off;		/* write/read offset */
 	} BIO_F_BUFFER_CTX;
+
+/* Prefix and suffix callback in ASN1 BIO */
+typedef int asn1_ps_func(BIO *b, unsigned char **pbuf, int *plen, void *parg);
+
+#ifndef OPENSSL_NO_SCTP
+/* SCTP parameter structs */
+struct bio_dgram_sctp_sndinfo
+	{
+	uint16_t snd_sid;
+	uint16_t snd_flags;
+	uint32_t snd_ppid;
+	uint32_t snd_context;
+	};
+
+struct bio_dgram_sctp_rcvinfo
+	{
+	uint16_t rcv_sid;
+	uint16_t rcv_ssn;
+	uint16_t rcv_flags;
+	uint32_t rcv_ppid;
+	uint32_t rcv_tsn;
+	uint32_t rcv_cumtsn;
+	uint32_t rcv_context;
+	};
+
+struct bio_dgram_sctp_prinfo
+	{
+	uint16_t pr_policy;
+	uint32_t pr_value;
+	};
+#endif
 
 /* connect BIO stuff */
 #define BIO_CONN_S_BEFORE		1
@@ -396,6 +448,13 @@ typedef struct bio_f_buffer_ctx_struct
 #define BIO_C_RESET_READ_REQUEST		147
 #define BIO_C_SET_MD_CTX			148
 
+#define BIO_C_SET_PREFIX			149
+#define BIO_C_GET_PREFIX			150
+#define BIO_C_SET_SUFFIX			151
+#define BIO_C_GET_SUFFIX			152
+
+#define BIO_C_SET_EX_ARG			153
+#define BIO_C_GET_EX_ARG			154
 
 #define BIO_set_app_data(s,arg)		BIO_set_ex_data(s,0,arg)
 #define BIO_get_app_data(s)		BIO_get_ex_data(s,0)
@@ -559,22 +618,21 @@ int BIO_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
 unsigned long BIO_number_read(BIO *bio);
 unsigned long BIO_number_written(BIO *bio);
 
+/* For BIO_f_asn1() */
+int BIO_asn1_set_prefix(BIO *b, asn1_ps_func *prefix,
+					asn1_ps_func *prefix_free);
+int BIO_asn1_get_prefix(BIO *b, asn1_ps_func **pprefix,
+					asn1_ps_func **pprefix_free);
+int BIO_asn1_set_suffix(BIO *b, asn1_ps_func *suffix,
+					asn1_ps_func *suffix_free);
+int BIO_asn1_get_suffix(BIO *b, asn1_ps_func **psuffix,
+					asn1_ps_func **psuffix_free);
+
 # ifndef OPENSSL_NO_FP_API
-#  if defined(OPENSSL_SYS_WIN16) && defined(_WINDLL)
-BIO_METHOD *BIO_s_file_internal(void);
-BIO *BIO_new_file_internal(char *filename, char *mode);
-BIO *BIO_new_fp_internal(FILE *stream, int close_flag);
-#    define BIO_s_file	BIO_s_file_internal
-#    define BIO_new_file	BIO_new_file_internal
-#    define BIO_new_fp	BIO_new_fp_internal
-#  else /* FP_API */
 BIO_METHOD *BIO_s_file(void );
 BIO *BIO_new_file(const char *filename, const char *mode);
 BIO *BIO_new_fp(FILE *stream, int close_flag);
-#    define BIO_s_file_internal		BIO_s_file
-#    define BIO_new_file_internal	BIO_new_file
-#    define BIO_new_fp_internal		BIO_s_file
-#  endif /* FP_API */
+# define BIO_s_file_internal	BIO_s_file
 # endif
 BIO *	BIO_new(BIO_METHOD *type);
 int	BIO_set(BIO *a,BIO_METHOD *type);
@@ -603,13 +661,8 @@ int BIO_nread(BIO *bio, char **buf, int num);
 int BIO_nwrite0(BIO *bio, char **buf);
 int BIO_nwrite(BIO *bio, char **buf, int num);
 
-#ifndef OPENSSL_SYS_WIN16
 long BIO_debug_callback(BIO *bio,int cmd,const char *argp,int argi,
 	long argl,long ret);
-#else
-long _far _loadds BIO_debug_callback(BIO *bio,int cmd,const char *argp,int argi,
-	long argl,long ret);
-#endif
 
 BIO_METHOD *BIO_s_mem(void);
 BIO *BIO_new_mem_buf(void *buf, int len);
@@ -630,6 +683,9 @@ BIO_METHOD *BIO_f_linebuffer(void);
 BIO_METHOD *BIO_f_nbio_test(void);
 #ifndef OPENSSL_NO_DGRAM
 BIO_METHOD *BIO_s_datagram(void);
+#ifndef OPENSSL_NO_SCTP
+BIO_METHOD *BIO_s_datagram_sctp(void);
+#endif
 #endif
 
 /* BIO_METHOD *BIO_f_ber(void); */
@@ -672,6 +728,15 @@ int BIO_set_tcp_ndelay(int sock,int turn_on);
 
 BIO *BIO_new_socket(int sock, int close_flag);
 BIO *BIO_new_dgram(int fd, int close_flag);
+#ifndef OPENSSL_NO_SCTP
+BIO *BIO_new_dgram_sctp(int fd, int close_flag);
+int BIO_dgram_is_sctp(BIO *bio);
+int BIO_dgram_sctp_notification_cb(BIO *b,
+                                   void (*handle_notifications)(BIO *bio, void *context, void *buf),
+                                   void *context);
+int BIO_dgram_sctp_wait_for_dry(BIO *b);
+int BIO_dgram_sctp_msg_waiting(BIO *b);
+#endif
 BIO *BIO_new_fd(int fd, int close_flag);
 BIO *BIO_new_connect(char *host_port);
 BIO *BIO_new_accept(char *host_port);
@@ -736,6 +801,7 @@ void ERR_load_BIO_strings(void);
 #define BIO_F_BUFFER_CTRL				 114
 #define BIO_F_CONN_CTRL					 127
 #define BIO_F_CONN_STATE				 115
+#define BIO_F_DGRAM_SCTP_READ				 132
 #define BIO_F_FILE_CTRL					 116
 #define BIO_F_FILE_READ					 130
 #define BIO_F_LINEBUFFER_CTRL				 129

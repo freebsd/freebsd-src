@@ -442,7 +442,7 @@ protocols other than TCP, UDP and ICMP may not be suitable to use with IPsec.
 .Ar policy
 is expressed in one of the following three formats:
 .Pp
-.Bl -tag -compact
+.Bl -tag -width 2n -compact
 .It Fl P Ar direction Li discard
 .It Fl P Ar direction Li none
 .It Xo Fl P Ar direction Li ipsec
@@ -553,7 +553,9 @@ For
 example, if an IP header was followed by an AH header followed by an
 ESP header followed by an upper layer protocol header, the rule would
 be:
+.Pp
 .Dl esp/transport//require ah/transport//require ;
+.Pp
 The rule order is very important.
 .Pp
 Note that

@@ -3448,6 +3448,11 @@ g_raid3_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 				    (sc->sc_mediasize / (sc->sc_ndisks - 1))));
 			}
 			sbuf_printf(sb, "</Synchronized>\n");
+			if (disk->d_sync.ds_offset > 0) {
+				sbuf_printf(sb, "%s<BytesSynced>%jd"
+				    "</BytesSynced>\n", indent,
+				    (intmax_t)disk->d_sync.ds_offset);
+			}
 		}
 		sbuf_printf(sb, "%s<SyncID>%u</SyncID>\n", indent,
 		    disk->d_sync.ds_syncid);

@@ -54,7 +54,7 @@ realpath(const char * __restrict path, char * __restrict resolved)
 	char *p, *q, *s;
 	size_t left_len, resolved_len;
 	unsigned symlinks;
-	int m, serrno, slen;
+	int m, slen;
 	char left[PATH_MAX], next_token[PATH_MAX], symlink[PATH_MAX];
 
 	if (path == NULL) {
@@ -65,7 +65,6 @@ realpath(const char * __restrict path, char * __restrict resolved)
 		errno = ENOENT;
 		return (NULL);
 	}
-	serrno = errno;
 	if (resolved == NULL) {
 		resolved = malloc(PATH_MAX);
 		if (resolved == NULL)
@@ -182,8 +181,6 @@ realpath(const char * __restrict path, char * __restrict resolved)
 			return (NULL);
 		}
 		if (lstat(resolved, &sb) != 0) {
-			if (errno != ENOENT || p != NULL)
-				errno = ENOTDIR;
 			if (m)
 				free(resolved);
 			return (NULL);

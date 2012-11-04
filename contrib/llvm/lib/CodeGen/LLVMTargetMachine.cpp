@@ -13,6 +13,7 @@
 
 #include "llvm/Transforms/Scalar.h"
 #include "llvm/PassManager.h"
+#include "llvm/Assembly/PrintModulePass.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/MachineFunctionAnalysis.h"
@@ -78,40 +79,15 @@ LLVMTargetMachine::LLVMTargetMachine(const Target &T, StringRef Triple,
          "and that InitializeAllTargetMCs() is being invoked!");
 }
 
-/// Turn exception handling constructs into something the code generators can
-/// handle.
-static void addPassesToHandleExceptions(TargetMachine *TM,
-                                        PassManagerBase &PM) {
-  switch (TM->getMCAsmInfo()->getExceptionHandlingType()) {
-  case ExceptionHandling::SjLj:
-    // SjLj piggy-backs on dwarf for this bit. The cleanups done apply to both
-    // Dwarf EH prepare needs to be run after SjLj prepare. Otherwise,
-    // catch info can get misplaced when a selector ends up more than one block
-    // removed from the parent invoke(s). This could happen when a landing
-    // pad is shared by multiple invokes and is also a target of a normal
-    // edge from elsewhere.
-    PM.add(createSjLjEHPreparePass(TM->getTargetLowering()));
-    // FALLTHROUGH
-  case ExceptionHandling::DwarfCFI:
-  case ExceptionHandling::ARM:
-  case ExceptionHandling::Win64:
-    PM.add(createDwarfEHPass(TM));
-    break;
-  case ExceptionHandling::None:
-    PM.add(createLowerInvokePass(TM->getTargetLowering()));
-
-    // The lower invoke pass may create unreachable code. Remove it.
-    PM.add(createUnreachableBlockEliminationPass());
-    break;
-  }
-}
-
 /// addPassesToX helper drives creation and initialization of TargetPassConfig.
 static MCContext *addPassesToGenerateCode(LLVMTargetMachine *TM,
                                           PassManagerBase &PM,
-                                          bool DisableVerify) {
+                                          bool DisableVerify,
+                                          AnalysisID StartAfter,
+                                          AnalysisID StopAfter) {
   // Targets may override createPassConfig to provide a target-specific sublass.
   TargetPassConfig *PassConfig = TM->createPassConfig(PM);
+  PassConfig->setStartStopPasses(StartAfter, StopAfter);
 
   // Set PassConfig options provided by TargetMachine.
   PassConfig->setDisableVerify(DisableVerify);
@@ -120,7 +96,7 @@ static MCContext *addPassesToGenerateCode(LLVMTargetMachine *TM,
 
   PassConfig->addIRPasses();
 
-  addPassesToHandleExceptions(TM, PM);
+  PassConfig->addPassesToHandleExceptions();
 
   PassConfig->addISelPrepare();
 
@@ -155,16 +131,30 @@ static MCContext *addPassesToGenerateCode(LLVMTargetMachine *TM,
 bool LLVMTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
                                             formatted_raw_ostream &Out,
                                             CodeGenFileType FileType,
-                                            bool DisableVerify) {
+                                            bool DisableVerify,
+                                            AnalysisID StartAfter,
+                                            AnalysisID StopAfter) {
   // Add common CodeGen passes.
-  MCContext *Context = addPassesToGenerateCode(this, PM, DisableVerify);
+  MCContext *Context = addPassesToGenerateCode(this, PM, DisableVerify,
+                                               StartAfter, StopAfter);
   if (!Context)
     return true;
+
+  if (StopAfter) {
+    // FIXME: The intent is that this should eventually write out a YAML file,
+    // containing the LLVM IR, the machine-level IR (when stopping after a
+    // machine-level pass), and whatever other information is needed to
+    // deserialize the code and resume compilation.  For now, just write the
+    // LLVM IR.
+    PM.add(createPrintModulePass(&Out));
+    return false;
+  }
 
   if (hasMCSaveTempLabels())
     Context->setAllowTemporaryLabels(false);
 
   const MCAsmInfo &MAI = *getMCAsmInfo();
+  const MCRegisterInfo &MRI = *getRegisterInfo();
   const MCSubtargetInfo &STI = getSubtarget<MCSubtargetInfo>();
   OwningPtr<MCStreamer> AsmStreamer;
 
@@ -180,8 +170,9 @@ bool LLVMTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
     MCAsmBackend *MAB = 0;
     if (ShowMCEncoding) {
       const MCSubtargetInfo &STI = getSubtarget<MCSubtargetInfo>();
-      MCE = getTarget().createMCCodeEmitter(*getInstrInfo(), STI, *Context);
-      MAB = getTarget().createMCAsmBackend(getTargetTriple());
+      MCE = getTarget().createMCCodeEmitter(*getInstrInfo(), MRI, STI,
+                                            *Context);
+      MAB = getTarget().createMCAsmBackend(getTargetTriple(), TargetCPU);
     }
 
     MCStreamer *S = getTarget().createAsmStreamer(*Context, Out,
@@ -198,9 +189,9 @@ bool LLVMTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
   case CGFT_ObjectFile: {
     // Create the code emitter for the target if it exists.  If not, .o file
     // emission fails.
-    MCCodeEmitter *MCE = getTarget().createMCCodeEmitter(*getInstrInfo(), STI,
-                                                         *Context);
-    MCAsmBackend *MAB = getTarget().createMCAsmBackend(getTargetTriple());
+    MCCodeEmitter *MCE = getTarget().createMCCodeEmitter(*getInstrInfo(), MRI,
+                                                         STI, *Context);
+    MCAsmBackend *MAB = getTarget().createMCAsmBackend(getTargetTriple(), TargetCPU);
     if (MCE == 0 || MAB == 0)
       return true;
 
@@ -242,7 +233,7 @@ bool LLVMTargetMachine::addPassesToEmitMachineCode(PassManagerBase &PM,
                                                    JITCodeEmitter &JCE,
                                                    bool DisableVerify) {
   // Add common CodeGen passes.
-  MCContext *Context = addPassesToGenerateCode(this, PM, DisableVerify);
+  MCContext *Context = addPassesToGenerateCode(this, PM, DisableVerify, 0, 0);
   if (!Context)
     return true;
 
@@ -262,7 +253,7 @@ bool LLVMTargetMachine::addPassesToEmitMC(PassManagerBase &PM,
                                           raw_ostream &Out,
                                           bool DisableVerify) {
   // Add common CodeGen passes.
-  Ctx = addPassesToGenerateCode(this, PM, DisableVerify);
+  Ctx = addPassesToGenerateCode(this, PM, DisableVerify, 0, 0);
   if (!Ctx)
     return true;
 
@@ -271,10 +262,11 @@ bool LLVMTargetMachine::addPassesToEmitMC(PassManagerBase &PM,
 
   // Create the code emitter for the target if it exists.  If not, .o file
   // emission fails.
+  const MCRegisterInfo &MRI = *getRegisterInfo();
   const MCSubtargetInfo &STI = getSubtarget<MCSubtargetInfo>();
-  MCCodeEmitter *MCE = getTarget().createMCCodeEmitter(*getInstrInfo(),STI,
-                                                       *Ctx);
-  MCAsmBackend *MAB = getTarget().createMCAsmBackend(getTargetTriple());
+  MCCodeEmitter *MCE = getTarget().createMCCodeEmitter(*getInstrInfo(), MRI,
+                                                       STI, *Ctx);
+  MCAsmBackend *MAB = getTarget().createMCAsmBackend(getTargetTriple(), TargetCPU);
   if (MCE == 0 || MAB == 0)
     return true;
 

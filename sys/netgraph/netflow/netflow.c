@@ -98,9 +98,9 @@ MALLOC_DEFINE(M_NETFLOW_HASH, "netflow_hash", "NetFlow hash");
 static int export_add(item_p, struct flow_entry *);
 static int export_send(priv_p, fib_export_p, item_p, int);
 
-static int hash_insert(priv_p, struct flow_hash_entry *, struct flow_rec *, int, uint8_t);
+static int hash_insert(priv_p, struct flow_hash_entry *, struct flow_rec *, int, uint8_t, uint8_t);
 #ifdef INET6
-static int hash6_insert(priv_p, struct flow_hash_entry *, struct flow6_rec *, int, uint8_t);
+static int hash6_insert(priv_p, struct flow_hash_entry *, struct flow6_rec *, int, uint8_t, uint8_t);
 #endif
 
 static __inline void expire_flow(priv_p, fib_export_p, struct flow_entry *, int);
@@ -325,9 +325,9 @@ ng_netflow_copyinfo(priv_p priv, struct ng_netflow_info *i)
  * as this was done in previous version. Need to test & profile
  * to be sure.
  */
-static __inline int
+static int
 hash_insert(priv_p priv, struct flow_hash_entry *hsh, struct flow_rec *r,
-	int plen, uint8_t tcp_flags)
+	int plen, uint8_t flags, uint8_t tcp_flags)
 {
 	struct flow_entry *fle;
 	struct sockaddr_in sin;
@@ -358,44 +358,48 @@ hash_insert(priv_p priv, struct flow_hash_entry *hsh, struct flow_rec *r,
 	 * First we do route table lookup on destination address. So we can
 	 * fill in out_ifx, dst_mask, nexthop, and dst_as in future releases.
 	 */
-	bzero(&sin, sizeof(sin));
-	sin.sin_len = sizeof(struct sockaddr_in);
-	sin.sin_family = AF_INET;
-	sin.sin_addr = fle->f.r.r_dst;
-	rt = rtalloc1_fib((struct sockaddr *)&sin, 0, 0, r->fib);
-	if (rt != NULL) {
-		fle->f.fle_o_ifx = rt->rt_ifp->if_index;
+	if ((flags & NG_NETFLOW_CONF_NODSTLOOKUP) == 0) {
+		bzero(&sin, sizeof(sin));
+		sin.sin_len = sizeof(struct sockaddr_in);
+		sin.sin_family = AF_INET;
+		sin.sin_addr = fle->f.r.r_dst;
+		rt = rtalloc1_fib((struct sockaddr *)&sin, 0, 0, r->fib);
+		if (rt != NULL) {
+			fle->f.fle_o_ifx = rt->rt_ifp->if_index;
 
-		if (rt->rt_flags & RTF_GATEWAY &&
-		    rt->rt_gateway->sa_family == AF_INET)
-			fle->f.next_hop =
-			    ((struct sockaddr_in *)(rt->rt_gateway))->sin_addr;
+			if (rt->rt_flags & RTF_GATEWAY &&
+			    rt->rt_gateway->sa_family == AF_INET)
+				fle->f.next_hop =
+				    ((struct sockaddr_in *)(rt->rt_gateway))->sin_addr;
 
-		if (rt_mask(rt))
-			fle->f.dst_mask = bitcount32(((struct sockaddr_in *)
-			    rt_mask(rt))->sin_addr.s_addr);
-		else if (rt->rt_flags & RTF_HOST)
-			/* Give up. We can't determine mask :( */
-			fle->f.dst_mask = 32;
+			if (rt_mask(rt))
+				fle->f.dst_mask = bitcount32(((struct sockaddr_in *)
+				    rt_mask(rt))->sin_addr.s_addr);
+			else if (rt->rt_flags & RTF_HOST)
+				/* Give up. We can't determine mask :( */
+				fle->f.dst_mask = 32;
 
-		RTFREE_LOCKED(rt);
+			RTFREE_LOCKED(rt);
+		}
 	}
 
 	/* Do route lookup on source address, to fill in src_mask. */
-	bzero(&sin, sizeof(sin));
-	sin.sin_len = sizeof(struct sockaddr_in);
-	sin.sin_family = AF_INET;
-	sin.sin_addr = fle->f.r.r_src;
-	rt = rtalloc1_fib((struct sockaddr *)&sin, 0, 0, r->fib);
-	if (rt != NULL) {
-		if (rt_mask(rt))
-			fle->f.src_mask = bitcount32(((struct sockaddr_in *)
-			    rt_mask(rt))->sin_addr.s_addr);
-		else if (rt->rt_flags & RTF_HOST)
-			/* Give up. We can't determine mask :( */
-			fle->f.src_mask = 32;
+	if ((flags & NG_NETFLOW_CONF_NOSRCLOOKUP) == 0) {
+		bzero(&sin, sizeof(sin));
+		sin.sin_len = sizeof(struct sockaddr_in);
+		sin.sin_family = AF_INET;
+		sin.sin_addr = fle->f.r.r_src;
+		rt = rtalloc1_fib((struct sockaddr *)&sin, 0, 0, r->fib);
+		if (rt != NULL) {
+			if (rt_mask(rt))
+				fle->f.src_mask = bitcount32(((struct sockaddr_in *)
+				    rt_mask(rt))->sin_addr.s_addr);
+			else if (rt->rt_flags & RTF_HOST)
+				/* Give up. We can't determine mask :( */
+				fle->f.src_mask = 32;
 
-		RTFREE_LOCKED(rt);
+			RTFREE_LOCKED(rt);
+		}
 	}
 
 	/* Push new flow at the and of hash. */
@@ -410,10 +414,10 @@ hash_insert(priv_p priv, struct flow_hash_entry *hsh, struct flow_rec *r,
 				bitcount32((x).__u6_addr.__u6_addr32[1]) + \
 				bitcount32((x).__u6_addr.__u6_addr32[2]) + \
 				bitcount32((x).__u6_addr.__u6_addr32[3])
-/* XXX: Do we need inline here ? */
-static __inline int
+#define RT_MASK6(x)	(ipv6_masklen(((struct sockaddr_in6 *)rt_mask(x))->sin6_addr))
+static int
 hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
-	int plen, uint8_t tcp_flags)
+	int plen, uint8_t flags, uint8_t tcp_flags)
 {
 	struct flow6_entry *fle6;
 	struct sockaddr_in6 *src, *dst;
@@ -445,49 +449,55 @@ hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
 	 * First we do route table lookup on destination address. So we can
 	 * fill in out_ifx, dst_mask, nexthop, and dst_as in future releases.
 	 */
-	bzero(&rin6, sizeof(struct route_in6));
-	dst = (struct sockaddr_in6 *)&rin6.ro_dst;
-	dst->sin6_len = sizeof(struct sockaddr_in6);
-	dst->sin6_family = AF_INET6;
-	dst->sin6_addr = r->dst.r_dst6;
+	if ((flags & NG_NETFLOW_CONF_NODSTLOOKUP) == 0)
+	{
+		bzero(&rin6, sizeof(struct route_in6));
+		dst = (struct sockaddr_in6 *)&rin6.ro_dst;
+		dst->sin6_len = sizeof(struct sockaddr_in6);
+		dst->sin6_family = AF_INET6;
+		dst->sin6_addr = r->dst.r_dst6;
 
-	rin6.ro_rt = rtalloc1_fib((struct sockaddr *)dst, 0, 0, r->fib);
+		rin6.ro_rt = rtalloc1_fib((struct sockaddr *)dst, 0, 0, r->fib);
 
-	if (rin6.ro_rt != NULL) {
-		rt = rin6.ro_rt;
-		fle6->f.fle_o_ifx = rt->rt_ifp->if_index;
+		if (rin6.ro_rt != NULL) {
+			rt = rin6.ro_rt;
+			fle6->f.fle_o_ifx = rt->rt_ifp->if_index;
 
-		if (rt->rt_flags & RTF_GATEWAY &&
-		    rt->rt_gateway->sa_family == AF_INET6)
-			fle6->f.n.next_hop6 =
-			    ((struct sockaddr_in6 *)(rt->rt_gateway))->sin6_addr;
+			if (rt->rt_flags & RTF_GATEWAY &&
+			    rt->rt_gateway->sa_family == AF_INET6)
+				fle6->f.n.next_hop6 =
+				    ((struct sockaddr_in6 *)(rt->rt_gateway))->sin6_addr;
 
-		if (rt_mask(rt))
-			fle6->f.dst_mask = ipv6_masklen(((struct sockaddr_in6 *)rt_mask(rt))->sin6_addr);
-		else 
-			fle6->f.dst_mask = 128;
+			if (rt_mask(rt))
+				fle6->f.dst_mask = RT_MASK6(rt);
+			else
+				fle6->f.dst_mask = 128;
 
-		RTFREE_LOCKED(rt);
+			RTFREE_LOCKED(rt);
+		}
 	}
 
-	/* Do route lookup on source address, to fill in src_mask. */
-	bzero(&rin6, sizeof(struct route_in6));
-	src = (struct sockaddr_in6 *)&rin6.ro_dst;
-	src->sin6_len = sizeof(struct sockaddr_in6);
-	src->sin6_family = AF_INET6;
-	src->sin6_addr = r->src.r_src6;
+	if ((flags & NG_NETFLOW_CONF_NODSTLOOKUP) == 0)
+	{
+		/* Do route lookup on source address, to fill in src_mask. */
+		bzero(&rin6, sizeof(struct route_in6));
+		src = (struct sockaddr_in6 *)&rin6.ro_dst;
+		src->sin6_len = sizeof(struct sockaddr_in6);
+		src->sin6_family = AF_INET6;
+		src->sin6_addr = r->src.r_src6;
 
-	rin6.ro_rt = rtalloc1_fib((struct sockaddr *)src, 0, 0, r->fib);
+		rin6.ro_rt = rtalloc1_fib((struct sockaddr *)src, 0, 0, r->fib);
 
-	if (rin6.ro_rt != NULL) {
-		rt = rin6.ro_rt;
+		if (rin6.ro_rt != NULL) {
+			rt = rin6.ro_rt;
 
-		if (rt_mask(rt))
-			fle6->f.src_mask = ipv6_masklen(((struct sockaddr_in6 *)rt_mask(rt))->sin6_addr);
-		else 
-			fle6->f.src_mask = 128;
+			if (rt_mask(rt))
+				fle6->f.src_mask = RT_MASK6(rt);
+			else
+				fle6->f.src_mask = 128;
 
-		RTFREE_LOCKED(rt);
+			RTFREE_LOCKED(rt);
+		}
 	}
 
 	/* Push new flow at the and of hash. */
@@ -495,6 +505,8 @@ hash6_insert(priv_p priv, struct flow_hash_entry *hsh6, struct flow6_rec *r,
 
 	return (0);
 }
+#undef ipv6_masklen
+#undef RT_MASK6
 #endif
 
 
@@ -651,7 +663,7 @@ ng_netflow_cache_flush(priv_p priv)
 /* Insert packet from into flow cache. */
 int
 ng_netflow_flow_add(priv_p priv, fib_export_p fe, struct ip *ip, caddr_t upper_ptr, uint8_t upper_proto, 
-		uint8_t is_frag, unsigned int src_if_index)
+		uint8_t flags, unsigned int src_if_index)
 {
 	register struct flow_entry	*fle, *fle1;
 	struct flow_hash_entry	*hsh;
@@ -770,7 +782,7 @@ ng_netflow_flow_add(priv_p priv, fib_export_p fe, struct ip *ip, caddr_t upper_p
 			}
 		}
 	} else				/* A new flow entry. */
-		error = hash_insert(priv, hsh, &r, plen, tcp_flags);
+		error = hash_insert(priv, hsh, &r, plen, flags, tcp_flags);
 
 	mtx_unlock(&hsh->mtx);
 
@@ -781,7 +793,7 @@ ng_netflow_flow_add(priv_p priv, fib_export_p fe, struct ip *ip, caddr_t upper_p
 /* Insert IPv6 packet from into flow cache. */
 int
 ng_netflow_flow6_add(priv_p priv, fib_export_p fe, struct ip6_hdr *ip6, caddr_t upper_ptr, uint8_t upper_proto, 
-		uint8_t is_frag, unsigned int src_if_index)
+		uint8_t flags, unsigned int src_if_index)
 {
 	register struct flow_entry	*fle = NULL, *fle1;
 	register struct flow6_entry	*fle6;
@@ -811,7 +823,7 @@ ng_netflow_flow6_add(priv_p priv, fib_export_p fe, struct ip6_hdr *ip6, caddr_t 
 #if 0
 	r.r_tos = ip->ip_tos;
 #endif
-	if (is_frag == 0) {
+	if ((flags & NG_NETFLOW_IS_FRAG) == 0) {
 		switch(upper_proto) {
 		case IPPROTO_TCP:
 		{
@@ -896,7 +908,7 @@ ng_netflow_flow6_add(priv_p priv, fib_export_p fe, struct ip6_hdr *ip6, caddr_t 
 			}
 		}
 	} else				/* A new flow entry. */
-		error = hash6_insert(priv, hsh, &r, plen, tcp_flags);
+		error = hash6_insert(priv, hsh, &r, plen, flags, tcp_flags);
 
 	mtx_unlock(&hsh->mtx);
 

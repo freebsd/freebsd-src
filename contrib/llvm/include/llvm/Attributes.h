@@ -16,6 +16,7 @@
 #define LLVM_ATTRIBUTES_H
 
 #include "llvm/Support/MathExtras.h"
+#include "llvm/ADT/ArrayRef.h"
 #include <cassert>
 #include <string>
 
@@ -45,14 +46,9 @@ class Attributes {
   Attributes() : Bits(0) { }
   explicit Attributes(uint64_t Val) : Bits(Val) { }
   /*implicit*/ Attributes(Attribute::AttrConst Val) : Bits(Val.v) { }
-  Attributes(const Attributes &Attrs) : Bits(Attrs.Bits) { }
   // This is a "safe bool() operator".
   operator const void *() const { return Bits ? this : 0; }
   bool isEmptyOrSingleton() const { return (Bits & (Bits - 1)) == 0; }
-  Attributes &operator = (const Attributes &Attrs) {
-    Bits = Attrs.Bits;
-    return *this;
-  }
   bool operator == (const Attributes &Attrs) const {
     return Bits == Attrs.Bits;
   }
@@ -138,6 +134,9 @@ DECLARE_LLVM_ATTRIBUTE(NonLazyBind,1U<<31) ///< Function is called early and/or
                                             /// often, so lazy binding isn't
                                             /// worthwhile.
 DECLARE_LLVM_ATTRIBUTE(AddressSafety,1ULL<<32) ///< Address safety checking is on.
+DECLARE_LLVM_ATTRIBUTE(IANSDialect,1ULL<<33) ///< Inline asm non-standard dialect.
+                                           /// When not set, ATT dialect assumed.
+                                           /// When set implies the Intel dialect.
 
 #undef DECLARE_LLVM_ATTRIBUTE
 
@@ -163,14 +162,16 @@ const AttrConst FunctionOnly = {NoReturn_i | NoUnwind_i | ReadNone_i |
   ReadOnly_i | NoInline_i | AlwaysInline_i | OptimizeForSize_i |
   StackProtect_i | StackProtectReq_i | NoRedZone_i | NoImplicitFloat_i |
   Naked_i | InlineHint_i | StackAlignment_i |
-  UWTable_i | NonLazyBind_i | ReturnsTwice_i | AddressSafety_i};
+  UWTable_i | NonLazyBind_i | ReturnsTwice_i | AddressSafety_i |
+  IANSDialect_i};
 
 /// @brief Parameter attributes that do not apply to vararg call arguments.
 const AttrConst VarArgsIncompatible = {StructRet_i};
 
 /// @brief Attributes that are mutually incompatible.
-const AttrConst MutuallyIncompatible[4] = {
-  {ByVal_i | InReg_i | Nest_i | StructRet_i},
+const AttrConst MutuallyIncompatible[5] = {
+  {ByVal_i | Nest_i | StructRet_i},
+  {ByVal_i | Nest_i | InReg_i },
   {ZExt_i  | SExt_i},
   {ReadNone_i | ReadOnly_i},
   {NoInline_i | AlwaysInline_i}
@@ -222,6 +223,50 @@ inline unsigned getStackAlignmentFromAttrs(Attributes A) {
   return 1U << ((StackAlign.Raw() >> 26) - 1);
 }
 
+/// This returns an integer containing an encoding of all the
+/// LLVM attributes found in the given attribute bitset.  Any
+/// change to this encoding is a breaking change to bitcode
+/// compatibility.
+inline uint64_t encodeLLVMAttributesForBitcode(Attributes Attrs) {
+  // FIXME: It doesn't make sense to store the alignment information as an
+  // expanded out value, we should store it as a log2 value.  However, we can't
+  // just change that here without breaking bitcode compatibility.  If this ever
+  // becomes a problem in practice, we should introduce new tag numbers in the
+  // bitcode file and have those tags use a more efficiently encoded alignment
+  // field.
+
+  // Store the alignment in the bitcode as a 16-bit raw value instead of a
+  // 5-bit log2 encoded value. Shift the bits above the alignment up by
+  // 11 bits.
+
+  uint64_t EncodedAttrs = Attrs.Raw() & 0xffff;
+  if (Attrs & Attribute::Alignment)
+    EncodedAttrs |= (1ull << 16) <<
+      (((Attrs & Attribute::Alignment).Raw()-1) >> 16);
+  EncodedAttrs |= (Attrs.Raw() & (0xfffull << 21)) << 11;
+
+  return EncodedAttrs;
+}
+
+/// This returns an attribute bitset containing the LLVM attributes
+/// that have been decoded from the given integer.  This function
+/// must stay in sync with 'encodeLLVMAttributesForBitcode'.
+inline Attributes decodeLLVMAttributesForBitcode(uint64_t EncodedAttrs) {
+  // The alignment is stored as a 16-bit raw value from bits 31--16.
+  // We shift the bits above 31 down by 11 bits.
+
+  unsigned Alignment = (EncodedAttrs & (0xffffull << 16)) >> 16;
+  assert((!Alignment || isPowerOf2_32(Alignment)) &&
+         "Alignment must be a power of two.");
+
+  Attributes Attrs(EncodedAttrs & 0xffff);
+  if (Alignment)
+    Attrs |= Attribute::constructAlignmentFromInt(Alignment);
+  Attrs |= Attributes((EncodedAttrs & (0xfffull << 32)) >> 11);
+
+  return Attrs;
+}
+
 
 /// The set of Attributes set in Attributes is converted to a
 /// string of equivalent mnemonics. This is, presumably, for writing out
@@ -268,16 +313,8 @@ public:
   // Attribute List Construction and Mutation
   //===--------------------------------------------------------------------===//
 
-  /// get - Return a Attributes list with the specified parameter in it.
-  static AttrListPtr get(const AttributeWithIndex *Attr, unsigned NumAttrs);
-
-  /// get - Return a Attribute list with the parameters specified by the
-  /// consecutive random access iterator range.
-  template <typename Iter>
-  static AttrListPtr get(const Iter &I, const Iter &E) {
-    if (I == E) return AttrListPtr();  // Empty list.
-    return get(&*I, static_cast<unsigned>(E-I));
-  }
+  /// get - Return a Attributes list with the specified parameters in it.
+  static AttrListPtr get(ArrayRef<AttributeWithIndex> Attrs);
 
   /// addAttr - Add the specified attribute at the specified index to this
   /// attribute list.  Since attribute lists are immutable, this

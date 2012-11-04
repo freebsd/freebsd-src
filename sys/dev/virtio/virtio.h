@@ -31,8 +31,6 @@
 #ifndef _VIRTIO_H_
 #define _VIRTIO_H_
 
-#include <sys/types.h>
-
 struct vq_alloc_info;
 
 /* VirtIO device IDs. */
@@ -42,6 +40,7 @@ struct vq_alloc_info;
 #define VIRTIO_ID_ENTROPY	0x04
 #define VIRTIO_ID_BALLOON	0x05
 #define VIRTIO_ID_IOMEMORY	0x06
+#define VIRTIO_ID_SCSI		0x08
 #define VIRTIO_ID_9P		0x09
 
 /* Status byte for guest to report progress. */
@@ -93,6 +92,10 @@ struct vq_alloc_info;
  */
 #define VIRTIO_IVAR_DEVTYPE		1
 #define VIRTIO_IVAR_FEATURE_DESC	2
+#define VIRTIO_IVAR_VENDOR		3
+#define VIRTIO_IVAR_DEVICE		4
+#define VIRTIO_IVAR_SUBVENDOR		5
+#define VIRTIO_IVAR_SUBDEVICE		6
 
 struct virtio_feature_desc {
 	uint64_t	 vfd_val;
@@ -100,15 +103,14 @@ struct virtio_feature_desc {
 };
 
 const char *virtio_device_name(uint16_t devid);
-int	 virtio_get_device_type(device_t dev);
-void	 virtio_set_feature_desc(device_t dev,
-	     struct virtio_feature_desc *feature_desc);
 void	 virtio_describe(device_t dev, const char *msg,
 	     uint64_t features, struct virtio_feature_desc *feature_desc);
 
 /*
  * VirtIO Bus Methods.
  */
+void	 virtio_read_ivar(device_t dev, int ivar, uintptr_t *val);
+void	 virtio_write_ivar(device_t dev, int ivar, uintptr_t val);
 uint64_t virtio_negotiate_features(device_t dev, uint64_t child_features);
 int	 virtio_alloc_virtqueues(device_t dev, int flags, int nvqs,
 	     struct vq_alloc_info *info);
@@ -149,5 +151,35 @@ __CONCAT(virtio_write_dev_config_,size)(device_t dev,			\
 VIRTIO_RDWR_DEVICE_CONFIG(1, uint8_t);
 VIRTIO_RDWR_DEVICE_CONFIG(2, uint16_t);
 VIRTIO_RDWR_DEVICE_CONFIG(4, uint32_t);
+
+#undef VIRTIO_RDWR_DEVICE_CONFIG
+
+#define VIRTIO_READ_IVAR(name, ivar)					\
+static inline int							\
+__CONCAT(virtio_get_,name)(device_t dev)				\
+{									\
+	uintptr_t val;							\
+	virtio_read_ivar(dev, ivar, &val);				\
+	return ((int) val);						\
+}
+
+VIRTIO_READ_IVAR(device_type,	VIRTIO_IVAR_DEVTYPE);
+VIRTIO_READ_IVAR(vendor,	VIRTIO_IVAR_VENDOR);
+VIRTIO_READ_IVAR(device,	VIRTIO_IVAR_DEVICE);
+VIRTIO_READ_IVAR(subvendor,	VIRTIO_IVAR_SUBVENDOR);
+VIRTIO_READ_IVAR(subdevice,	VIRTIO_IVAR_SUBDEVICE);
+
+#undef VIRTIO_READ_IVAR
+
+#define VIRTIO_WRITE_IVAR(name, ivar)					\
+static inline void							\
+__CONCAT(virtio_set_,name)(device_t dev, void *val)			\
+{									\
+	virtio_write_ivar(dev, ivar, (uintptr_t) val);			\
+}
+
+VIRTIO_WRITE_IVAR(feature_desc,	VIRTIO_IVAR_FEATURE_DESC);
+
+#undef VIRTIO_WRITE_IVAR
 
 #endif /* _VIRTIO_H_ */

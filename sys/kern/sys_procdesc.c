@@ -333,12 +333,13 @@ procdesc_reap(struct proc *p)
 
 	pd = p->p_procdesc;
 	pd->pd_proc = NULL;
+	p->p_procdesc = NULL;
 	procdesc_free(pd);
 }
 
 /*
  * procdesc_close() - last close on a process descriptor.  If the process is
- * still running, terminate with SIGKILL (unless PD_DAEMON is set) and let
+ * still running, terminate with SIGKILL (unless PDF_DAEMON is set) and let
  * init(8) clean up the mess; if not, we have to clean up the zombie ourselves.
  */
 static int
@@ -358,14 +359,20 @@ procdesc_close(struct file *fp, struct thread *td)
 	pd->pd_flags |= PDF_CLOSED;
 	PROCDESC_UNLOCK(pd);
 	p = pd->pd_proc;
-	PROC_LOCK(p);
-	if (p->p_state == PRS_ZOMBIE) {
+	if (p == NULL) {
+		/*
+		 * This is the case where process' exit status was already
+		 * collected and procdesc_reap() was already called.
+		 */
+		sx_xunlock(&proctree_lock);
+	} else if (p->p_state == PRS_ZOMBIE) {
 		/*
 		 * If the process is already dead and just awaiting reaping,
 		 * do that now.  This will release the process's reference to
 		 * the process descriptor when it calls back into
 		 * procdesc_reap().
 		 */
+		PROC_LOCK(p);
 		PROC_SLOCK(p);
 		proc_reap(curthread, p, NULL, 0, NULL);
 	} else {
@@ -376,6 +383,7 @@ procdesc_close(struct file *fp, struct thread *td)
 		 * process from its descriptor so that its exit status will
 		 * be reported normally.
 		 */
+		PROC_LOCK(p);
 		pd->pd_proc = NULL;
 		p->p_procdesc = NULL;
 		procdesc_free(pd);
@@ -386,7 +394,7 @@ procdesc_close(struct file *fp, struct thread *td)
 		 */
 		p->p_sigparent = SIGCHLD;
 		proc_reparent(p, initproc);
-		if ((pd->pd_flags & PD_DAEMON) == 0)
+		if ((pd->pd_flags & PDF_DAEMON) == 0)
 			kern_psignal(p, SIGKILL);
 		PROC_UNLOCK(p);
 		sx_xunlock(&proctree_lock);

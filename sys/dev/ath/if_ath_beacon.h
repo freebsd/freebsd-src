@@ -33,7 +33,7 @@
 
 extern	int ath_bstuck_threshold;
 
-extern	int ath_beaconq_setup(struct ath_hal *ah);
+extern	int ath_beaconq_setup(struct ath_softc *sc);
 extern	int ath_beaconq_config(struct ath_softc *sc);
 extern	void ath_beacon_config(struct ath_softc *sc,
 	    struct ieee80211vap *vap);

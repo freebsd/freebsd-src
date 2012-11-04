@@ -44,6 +44,8 @@
 .In string.h
 .Ft size_t
 .Fn strxfrm "char * restrict dst" "const char * restrict src" "size_t n"
+.Ft size_t
+.Fn strxfrm_l "char * restrict dst" "const char *restrict src" "size_t n" "locale_t loc"
 .Sh DESCRIPTION
 The
 .Fn strxfrm
@@ -73,10 +75,16 @@ after
 is equal to comparing
 two original strings with
 .Fn strcoll .
+.Pp
+.Fn strxfrm_l
+does the same, however takes an explicit locale rather than the global
+locale.
 .Sh RETURN VALUES
 Upon successful completion,
 .Fn strxfrm
-returns the length of the transformed string not including
+and
+.Fn strxfrm_l
+return the length of the transformed string not including
 the terminating null character.
 If this value is
 .Fa n
@@ -94,3 +102,7 @@ The
 function
 conforms to
 .St -isoC .
+The
+.Fn strxfrm_l
+function conforms to
+.St -p1003.1-2008 .

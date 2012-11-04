@@ -101,6 +101,9 @@
 #ifndef ETHERTYPE_AARP
 #define ETHERTYPE_AARP		0x80f3
 #endif
+#ifndef	ETHERTYPE_TIPC
+#define	ETHERTYPE_TIPC		0x88ca
+#endif
 #ifndef	ETHERTYPE_8021Q
 #define	ETHERTYPE_8021Q		0x8100
 #endif

@@ -196,7 +196,7 @@ SHA-512
 .Pp
 Other crypt formats may be easily added.
 An example salt would be:
-.Bl -tag -offset indent
+.Bl -tag -width 6n -offset indent
 .It Cm "$4$thesalt$rest"
 .El
 .Ss "Traditional" crypt:
@@ -238,12 +238,6 @@ The
 .Fn crypt_set_format
 function sets the default encoding format according to the supplied
 .Fa string .
-.Pp
-The global default format can be set using the
-.Pa /etc/auth.conf
-file using the
-.Va crypt_default
-property.
 .Sh RETURN VALUES
 The
 .Fn crypt
@@ -260,9 +254,7 @@ Otherwise, a value of 0 is returned.
 .Sh SEE ALSO
 .Xr login 1 ,
 .Xr passwd 1 ,
-.Xr auth_getval 3 ,
 .Xr getpass 3 ,
-.Xr auth.conf 5 ,
 .Xr passwd 5
 .Sh HISTORY
 A rotor-based

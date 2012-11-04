@@ -53,6 +53,7 @@
         ACPI_MODULE_NAME    ("utmisc")
 
 
+#if defined ACPI_ASL_COMPILER || defined ACPI_EXEC_APP
 /*******************************************************************************
  *
  * FUNCTION:    UtConvertBackslashes
@@ -86,86 +87,7 @@ UtConvertBackslashes (
         Pathname++;
     }
 }
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiUtValidateException
- *
- * PARAMETERS:  Status       - The ACPI_STATUS code to be formatted
- *
- * RETURN:      A string containing the exception text. NULL if exception is
- *              not valid.
- *
- * DESCRIPTION: This function validates and translates an ACPI exception into
- *              an ASCII string.
- *
- ******************************************************************************/
-
-const char *
-AcpiUtValidateException (
-    ACPI_STATUS             Status)
-{
-    UINT32                  SubStatus;
-    const char              *Exception = NULL;
-
-
-    ACPI_FUNCTION_ENTRY ();
-
-
-    /*
-     * Status is composed of two parts, a "type" and an actual code
-     */
-    SubStatus = (Status & ~AE_CODE_MASK);
-
-    switch (Status & AE_CODE_MASK)
-    {
-    case AE_CODE_ENVIRONMENTAL:
-
-        if (SubStatus <= AE_CODE_ENV_MAX)
-        {
-            Exception = AcpiGbl_ExceptionNames_Env [SubStatus];
-        }
-        break;
-
-    case AE_CODE_PROGRAMMER:
-
-        if (SubStatus <= AE_CODE_PGM_MAX)
-        {
-            Exception = AcpiGbl_ExceptionNames_Pgm [SubStatus];
-        }
-        break;
-
-    case AE_CODE_ACPI_TABLES:
-
-        if (SubStatus <= AE_CODE_TBL_MAX)
-        {
-            Exception = AcpiGbl_ExceptionNames_Tbl [SubStatus];
-        }
-        break;
-
-    case AE_CODE_AML:
-
-        if (SubStatus <= AE_CODE_AML_MAX)
-        {
-            Exception = AcpiGbl_ExceptionNames_Aml [SubStatus];
-        }
-        break;
-
-    case AE_CODE_CONTROL:
-
-        if (SubStatus <= AE_CODE_CTRL_MAX)
-        {
-            Exception = AcpiGbl_ExceptionNames_Ctrl [SubStatus];
-        }
-        break;
-
-    default:
-        break;
-    }
-
-    return (ACPI_CAST_PTR (const char, Exception));
-}
+#endif
 
 
 /*******************************************************************************
@@ -359,7 +281,7 @@ Exit:
  *              control method or unloading a table. Either way, we would
  *              ignore any error anyway.
  *
- * DESCRIPTION: Release a table or method owner ID.  Valid IDs are 1 - 255
+ * DESCRIPTION: Release a table or method owner ID. Valid IDs are 1 - 255
  *
  ******************************************************************************/
 
@@ -690,8 +612,8 @@ AcpiUtDwordByteSwap (
  * RETURN:      None
  *
  * DESCRIPTION: Set the global integer bit width based upon the revision
- *              of the DSDT.  For Revision 1 and 0, Integers are 32 bits.
- *              For Revision 2 and above, Integers are 64 bits.  Yes, this
+ *              of the DSDT. For Revision 1 and 0, Integers are 32 bits.
+ *              For Revision 2 and above, Integers are 64 bits. Yes, this
  *              makes a difference.
  *
  ******************************************************************************/
@@ -846,7 +768,7 @@ AcpiUtValidAcpiChar (
  *
  * RETURN:      TRUE if the name is valid, FALSE otherwise
  *
- * DESCRIPTION: Check for a valid ACPI name.  Each character must be one of:
+ * DESCRIPTION: Check for a valid ACPI name. Each character must be one of:
  *              1) Upper case alpha
  *              2) numeric
  *              3) underscore
@@ -903,10 +825,13 @@ AcpiUtRepairName (
 {
     UINT32                  i;
     BOOLEAN                 FoundBadChar = FALSE;
+    UINT32                  OriginalName;
 
 
     ACPI_FUNCTION_NAME (UtRepairName);
 
+
+    ACPI_MOVE_NAME (&OriginalName, Name);
 
     /* Check each character in the name */
 
@@ -933,12 +858,14 @@ AcpiUtRepairName (
         if (!AcpiGbl_EnableInterpreterSlack)
         {
             ACPI_WARNING ((AE_INFO,
-                "Found bad character(s) in name, repaired: [%4.4s]\n", Name));
+                "Invalid character(s) in name (0x%.8X), repaired: [%4.4s]",
+                OriginalName, Name));
         }
         else
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_INFO,
-                "Found bad character(s) in name, repaired: [%4.4s]\n", Name));
+                "Invalid character(s) in name (0x%.8X), repaired: [%4.4s]",
+                OriginalName, Name));
         }
     }
 }
@@ -1245,10 +1172,10 @@ AcpiUtWalkPackageTree (
 
         /*
          * Check for:
-         * 1) An uninitialized package element.  It is completely
+         * 1) An uninitialized package element. It is completely
          *    legal to declare a package and leave it uninitialized
          * 2) Not an internal object - can be a namespace node instead
-         * 3) Any type other than a package.  Packages are handled in else
+         * 3) Any type other than a package. Packages are handled in else
          *    case below.
          */
         if ((!ThisSourceObj) ||
@@ -1267,7 +1194,7 @@ AcpiUtWalkPackageTree (
             {
                 /*
                  * We've handled all of the objects at this level,  This means
-                 * that we have just completed a package.  That package may
+                 * that we have just completed a package. That package may
                  * have contained one or more packages itself.
                  *
                  * Delete this state and pop the previous state (package).
@@ -1330,5 +1257,3 @@ AcpiUtWalkPackageTree (
 
     return_ACPI_STATUS (AE_AML_INTERNAL);
 }
-
-

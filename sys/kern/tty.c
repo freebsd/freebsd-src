@@ -219,8 +219,14 @@ ttydev_leave(struct tty *tp)
 static int
 ttydev_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
-	struct tty *tp = dev->si_drv1;
+	struct tty *tp;
 	int error = 0;
+
+	while ((tp = dev->si_drv1) == NULL) {
+		error = tsleep(&dev->si_drv1, PCATCH, "ttdrv1", 1);
+		if (error != EWOULDBLOCK)
+			return (error);
+	}
 
 	tty_lock(tp);
 	if (tty_gone(tp)) {
@@ -355,7 +361,7 @@ tty_is_ctty(struct tty *tp, struct proc *p)
 	return (p->p_session == tp->t_session && p->p_flag & P_CONTROLT);
 }
 
-static int
+int
 tty_wait_background(struct tty *tp, struct thread *td, int sig)
 {
 	struct proc *p = td->td_proc;
@@ -427,13 +433,6 @@ ttydev_read(struct cdev *dev, struct uio *uio, int ioflag)
 	error = ttydev_enter(tp);
 	if (error)
 		goto done;
-
-	error = tty_wait_background(tp, curthread, SIGTTIN);
-	if (error) {
-		tty_unlock(tp);
-		goto done;
-	}
-
 	error = ttydisc_read(tp, uio, ioflag);
 	tty_unlock(tp);
 
@@ -738,9 +737,14 @@ static struct cdevsw ttydev_cdevsw = {
 static int
 ttyil_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 {
-	struct tty *tp = dev->si_drv1;
+	struct tty *tp;
 	int error = 0;
 
+	while ((tp = dev->si_drv1) == NULL) {
+		error = tsleep(&dev->si_drv1, PCATCH, "ttdrv1", 1);
+		if (error != EWOULDBLOCK)
+			return (error);
+	}
 	tty_lock(tp);
 	if (tty_gone(tp))
 		error = ENODEV;
@@ -1203,6 +1207,7 @@ tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
 	dev = make_dev_cred(&ttydev_cdevsw, 0, cred,
 	    uid, gid, mode, "%s%s", prefix, name);
 	dev->si_drv1 = tp;
+	wakeup(&dev->si_drv1);
 	tp->t_dev = dev;
 
 	/* Slave call-in devices. */
@@ -1211,12 +1216,14 @@ tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
 		    uid, gid, mode, "%s%s.init", prefix, name);
 		dev_depends(tp->t_dev, dev);
 		dev->si_drv1 = tp;
+		wakeup(&dev->si_drv1);
 		dev->si_drv2 = &tp->t_termios_init_in;
 
 		dev = make_dev_cred(&ttyil_cdevsw, TTYUNIT_LOCK, cred,
 		    uid, gid, mode, "%s%s.lock", prefix, name);
 		dev_depends(tp->t_dev, dev);
 		dev->si_drv1 = tp;
+		wakeup(&dev->si_drv1);
 		dev->si_drv2 = &tp->t_termios_lock_in;
 	}
 
@@ -1226,6 +1233,7 @@ tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
 		    UID_UUCP, GID_DIALER, 0660, "cua%s", name);
 		dev_depends(tp->t_dev, dev);
 		dev->si_drv1 = tp;
+		wakeup(&dev->si_drv1);
 
 		/* Slave call-out devices. */
 		if (tp->t_flags & TF_INITLOCK) {
@@ -1234,6 +1242,7 @@ tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
 			    UID_UUCP, GID_DIALER, 0660, "cua%s.init", name);
 			dev_depends(tp->t_dev, dev);
 			dev->si_drv1 = tp;
+			wakeup(&dev->si_drv1);
 			dev->si_drv2 = &tp->t_termios_init_out;
 
 			dev = make_dev_cred(&ttyil_cdevsw,
@@ -1241,6 +1250,7 @@ tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
 			    UID_UUCP, GID_DIALER, 0660, "cua%s.lock", name);
 			dev_depends(tp->t_dev, dev);
 			dev->si_drv1 = tp;
+			wakeup(&dev->si_drv1);
 			dev->si_drv2 = &tp->t_termios_lock_out;
 		}
 	}
@@ -1817,9 +1827,6 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 {
 	struct tty *tp;
 	struct file *fp;
-#ifdef CAPABILITIES
-	struct file *fp_cap;
-#endif
 	struct cdev *dev;
 	struct cdevsw *cdp;
 	struct filedesc *fdp;
@@ -1838,10 +1845,9 @@ ttyhook_register(struct tty **rtp, struct proc *p, int fd,
 	}
 
 #ifdef CAPABILITIES
-	fp_cap = fp;
-	error = cap_funwrap(fp_cap, CAP_TTYHOOK, &fp);
+	error = cap_funwrap(fp, CAP_TTYHOOK, &fp);
 	if (error)
-		return (error);
+		goto done1;
 #endif
 
 	/*

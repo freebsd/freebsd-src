@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 6, 2012
+.Dd September 13, 2012
 .Dt GRAID 8
 .Os
 .Sh NAME
@@ -85,7 +85,7 @@ utility is used to manage software RAID configurations, supported by the
 GEOM RAID class.
 GEOM RAID class uses on-disk metadata to provide access to software-RAID
 volumes defined by different RAID BIOSes.
-Depending on RAID BIOS type and it's metadata format, different subsets of
+Depending on RAID BIOS type and its metadata format, different subsets of
 configurations and features are supported.
 To allow booting from RAID volume, the metadata format should match the
 RAID BIOS type and its capabilities.
@@ -293,6 +293,8 @@ Mark volume as clean when idle for the specified number of seconds.
 Debug level of the
 .Nm RAID
 GEOM class.
+.It Va kern.geom.raid.enable : No 1
+Enable on-disk metadata taste.
 .It Va kern.geom.raid.idle_threshold : No 1000000
 Time in microseconds to consider a volume idle for rebuild purposes.
 .It Va kern.geom.raid.name_format : No 0
@@ -302,6 +304,8 @@ Number of read errors equated to disk failure.
 Write errors are always considered as disk failures.
 .It Va kern.geom.raid.start_timeout : No 30
 Time to wait for missing array components on startup.
+.It Va kern.geom.raid. Ns Ar X Ns Va .enable : No 1
+Enable taste for specific metadata or transformation module.
 .El
 .Sh EXIT STATUS
 Exit status is 0 on success, and non-zero if the command fails.

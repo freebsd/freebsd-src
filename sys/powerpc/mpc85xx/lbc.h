@@ -105,10 +105,15 @@ struct lbc_bank {
 
 struct lbc_softc {
 	device_t		sc_dev;
-	struct resource		*sc_res;
+
+	struct resource		*sc_mres;
 	bus_space_handle_t	sc_bsh;
 	bus_space_tag_t		sc_bst;
-	int			sc_rid;
+	int			sc_mrid;
+
+	int			sc_irid;
+	struct resource		*sc_ires;
+	void			*sc_icookie;
 
 	struct rman		sc_rman;
 
@@ -117,6 +122,8 @@ struct lbc_softc {
 
 	struct lbc_memrange	sc_range[LBC_DEV_MAX];
 	struct lbc_bank		sc_banks[LBC_DEV_MAX];
+
+	uint32_t		sc_ltesr;
 };
 
 struct lbc_devinfo {

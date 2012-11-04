@@ -194,7 +194,7 @@ struct tcpcb {
 	int	t_rttlow;		/* smallest observerved RTT */
 	u_int32_t	rfbuf_ts;	/* recv buffer autoscaling timestamp */
 	int	rfbuf_cnt;		/* recv buffer autoscaling byte count */
-	struct toe_usrreqs *t_tu;	/* offload operations vector */
+	struct toedev	*tod;		/* toedev handling this connection */
 	int	t_sndrexmitpack;	/* retransmit packets sent */
 	int	t_rcvoopack;		/* out-of-order packets received */
 	void	*t_toe;			/* TOE pcb pointer */
@@ -611,6 +611,7 @@ VNET_DECLARE(int, tcp_mssdflt);	/* XXX */
 VNET_DECLARE(int, tcp_minmss);
 VNET_DECLARE(int, tcp_delack_enabled);
 VNET_DECLARE(int, tcp_do_rfc3390);
+VNET_DECLARE(int, tcp_do_initcwnd10);
 VNET_DECLARE(int, tcp_sendspace);
 VNET_DECLARE(int, tcp_recvspace);
 VNET_DECLARE(int, path_mtu_discovery);
@@ -623,6 +624,7 @@ VNET_DECLARE(int, tcp_abc_l_var);
 #define	V_tcp_minmss		VNET(tcp_minmss)
 #define	V_tcp_delack_enabled	VNET(tcp_delack_enabled)
 #define	V_tcp_do_rfc3390	VNET(tcp_do_rfc3390)
+#define	V_tcp_do_initcwnd10	VNET(tcp_do_initcwnd10)
 #define	V_tcp_sendspace		VNET(tcp_sendspace)
 #define	V_tcp_recvspace		VNET(tcp_recvspace)
 #define	V_path_mtu_discovery	VNET(path_mtu_discovery)

@@ -447,7 +447,7 @@ pr_header(time_t *nowp, int nusers)
 	/*
 	 * Print how long system has been up.
 	 */
-	if (clock_gettime(CLOCK_MONOTONIC, &tp) != -1) {
+	if (clock_gettime(CLOCK_UPTIME, &tp) != -1) {
 		uptime = tp.tv_sec;
 		if (uptime > 60)
 			uptime += 30;

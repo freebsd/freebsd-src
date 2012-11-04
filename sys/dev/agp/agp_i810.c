@@ -67,6 +67,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pci_private.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
@@ -700,7 +701,7 @@ static const struct agp_i810_match {
 		.driver = &agp_i810_sb_driver
 	},
 	{
-		.devid = 0x01088086,
+		.devid = 0x010a8086,
 		.name = "SandyBridge server IG",
 		.driver = &agp_i810_sb_driver
 	},

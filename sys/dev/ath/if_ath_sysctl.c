@@ -357,10 +357,11 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
 		if (ATH_TXQ_SETUP(sc, i)) {
-			printf("HW TXQ %d: axq_depth=%d, axq_aggr_depth=%d\n",
+			printf("HW TXQ %d: axq_depth=%d, axq_aggr_depth=%d, axq_fifo_depth=%d\n",
 			    i,
 			    sc->sc_txq[i].axq_depth,
-			    sc->sc_txq[i].axq_aggr_depth);
+			    sc->sc_txq[i].axq_aggr_depth,
+			    sc->sc_txq[i].axq_fifo_depth);
 		}
 	}
 
@@ -374,7 +375,20 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 		t++;
 	}
 	ATH_TXBUF_UNLOCK(sc);
-	printf("Total TX buffers: %d; Total TX buffers busy: %d\n",
+	printf("Total TX buffers: %d; Total TX buffers busy: %d (%d)\n",
+	    t, i, sc->sc_txbuf_cnt);
+
+	i = t = 0;
+	ATH_TXBUF_LOCK(sc);
+	TAILQ_FOREACH(bf, &sc->sc_txbuf_mgmt, bf_list) {
+		if (bf->bf_flags & ATH_BUF_BUSY) {
+			printf("Busy: %d\n", t);
+			i++;
+		}
+		t++;
+	}
+	ATH_TXBUF_UNLOCK(sc);
+	printf("Total mgmt TX buffers: %d; Total mgmt TX buffers busy: %d\n",
 	    t, i);
 
 	return 0;
@@ -504,6 +518,9 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"debug", CTLFLAG_RW, &sc->sc_debug,
 		"control debugging printfs");
+	SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"ktrdebug", CTLFLAG_RW, &sc->sc_ktrdebug,
+		"control debugging KTR");
 #endif
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"slottime", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
@@ -607,12 +624,11 @@ ath_sysctlattach(struct ath_softc *sc)
 		"tid_hwq_hi", CTLFLAG_RW, &sc->sc_tid_hwq_hi, 0,
 		"");
 
-#if 0
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"txq_data_minfree", CTLFLAG_RW, &sc->sc_txq_data_minfree,
 		0, "Minimum free buffers before adding a data frame"
 		" to the TX queue");
-#endif
+
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"txq_mcastq_maxdepth", CTLFLAG_RW,
 		&sc->sc_txq_mcastq_maxdepth, 0,
@@ -922,6 +938,10 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_mcastq_overflow",
 	    CTLFLAG_RD, &sc->sc_stats.ast_tx_mcastq_overflow, 0,
 	    "Number of multicast frames exceeding maximum mcast queue depth");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_keymiss", CTLFLAG_RD,
+	    &sc->sc_stats.ast_rx_keymiss, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_swfiltered", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_swfiltered, 0, "");
 	
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);

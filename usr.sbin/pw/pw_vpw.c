@@ -170,13 +170,6 @@ vgetpwnam(const char * nam)
   return vnextpwent(nam, -1, 1);
 }
 
-int vpwdb(char *arg, ...)
-{
-  arg=arg;
-  return 0;
-}
-
-
 
 static FILE * grp_fp = NULL;
 
@@ -221,7 +214,7 @@ vnextgrent(char const * nam, gid_t gid, int doclose)
 			int i, quickout = 0;
 			int mno = 0;
 			char * q, * p;
-			char * sep = ":\n";
+			const char * sep = ":\n";
 
 			if ((p = strchr(grtmp, '\n')) == NULL) {
 				int l;
@@ -305,12 +298,5 @@ struct group *
 vgetgrnam(const char * nam)
 {
   return vnextgrent(nam, -1, 1);
-}
-
-int
-vgrdb(char *arg, ...)
-{
-  arg=arg;
-  return 0;
 }
 

@@ -79,7 +79,6 @@
 #define	BAW_WITHIN(_start, _bawsz, _seqno)	\
 	    ((((_seqno) - (_start)) & 4095) < (_bawsz))
 
-extern void ath_txq_restart_dma(struct ath_softc *sc, struct ath_txq *txq);
 extern void ath_freetx(struct mbuf *m);
 extern void ath_tx_node_flush(struct ath_softc *sc, struct ath_node *an);
 extern void ath_tx_txq_drain(struct ath_softc *sc, struct ath_txq *txq);
@@ -109,8 +108,6 @@ extern void ath_tx_addto_baw(struct ath_softc *sc, struct ath_node *an,
     struct ath_tid *tid, struct ath_buf *bf);
 extern struct ieee80211_tx_ampdu * ath_tx_get_tx_tid(struct ath_node *an,
     int tid);
-extern int ath_tx_tid_seqno_assign(struct ath_softc *sc,
-    struct ieee80211_node *ni, struct ath_buf *bf, struct mbuf *m0);
 
 /* TX addba handling */
 extern	int ath_addba_request(struct ieee80211_node *ni,
@@ -125,5 +122,28 @@ extern	void ath_bar_response(struct ieee80211_node *ni,
      struct ieee80211_tx_ampdu *tap, int status);
 extern	void ath_addba_response_timeout(struct ieee80211_node *ni,
     struct ieee80211_tx_ampdu *tap);
+
+/*
+ * AP mode power save handling (of stations)
+ */
+extern	void ath_tx_node_sleep(struct ath_softc *sc, struct ath_node *an);
+extern	void ath_tx_node_wakeup(struct ath_softc *sc, struct ath_node *an);
+extern	int ath_tx_node_is_asleep(struct ath_softc *sc, struct ath_node *an);
+
+/*
+ * Setup path
+ */
+#define	ath_txdma_setup(_sc)			\
+	(_sc)->sc_tx.xmit_setup(_sc)
+#define	ath_txdma_teardown(_sc)			\
+	(_sc)->sc_tx.xmit_teardown(_sc)
+#define	ath_txq_restart_dma(_sc, _txq)		\
+	(_sc)->sc_tx.xmit_dma_restart((_sc), (_txq))
+#define	ath_tx_handoff(_sc, _txq, _bf)		\
+	(_sc)->sc_tx.xmit_handoff((_sc), (_txq), (_bf))
+#define	ath_draintxq(_sc, _rtype)		\
+	(_sc)->sc_tx.xmit_drain((_sc), (_rtype))
+
+extern	void ath_xmit_setup_legacy(struct ath_softc *sc);
 
 #endif

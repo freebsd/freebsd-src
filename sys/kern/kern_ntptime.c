@@ -832,8 +832,15 @@ hardpps(tsp, nsec)
 	 * discarded. otherwise, if so enabled, the time offset is
 	 * updated. We can tolerate a modest loss of data here without
 	 * much degrading time accuracy.
-	 */
-	if (u_nsec > (pps_jitter << PPS_POPCORN)) {
+	 *
+	 * The measurements being checked here were made with the system
+	 * timecounter, so the popcorn threshold is not allowed to fall below
+	 * the number of nanoseconds in two ticks of the timecounter.  For a
+	 * timecounter running faster than 1 GHz the lower bound is 2ns, just
+	 * to avoid a nonsensical threshold of zero.
+	*/
+	if (u_nsec > lmax(pps_jitter << PPS_POPCORN, 
+	    2 * (NANOSECOND / (long)qmin(NANOSECOND, tc_getfrequency())))) {
 		time_status |= STA_PPSJITTER;
 		pps_jitcnt++;
 	} else if (time_status & STA_PPSTIME) {

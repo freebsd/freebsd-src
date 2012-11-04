@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
@@ -1648,7 +1649,8 @@ vop_setextattr {
 	struct inode *ip;
 	struct fs *fs;
 	uint32_t ealength, ul;
-	int ealen, olen, eapad1, eapad2, error, i, easize;
+	ssize_t ealen;
+	int olen, eapad1, eapad2, error, i, easize;
 	u_char *eae, *p;
 
 	ip = VTOI(ap->a_vp);
@@ -1667,6 +1669,10 @@ vop_setextattr {
 	if (ap->a_vp->v_mount->mnt_flag & MNT_RDONLY)
 		return (EROFS);
 
+	ealen = ap->a_uio->uio_resid;
+	if (ealen < 0 || ealen > lblktosize(fs, NXADDR))
+		return (EINVAL);
+
 	error = extattr_check_cred(ap->a_vp, ap->a_attrnamespace,
 	    ap->a_cred, ap->a_td, VWRITE);
 	if (error) {
@@ -1684,7 +1690,6 @@ vop_setextattr {
 	if (error)
 		return (error);
 
-	ealen = ap->a_uio->uio_resid;
 	ealength = sizeof(uint32_t) + 3 + strlen(ap->a_name);
 	eapad1 = 8 - (ealength % 8);
 	if (eapad1 == 8)
@@ -1712,7 +1717,7 @@ vop_setextattr {
 			easize += (ealength - ul);
 		}
 	}
-	if (easize > NXADDR * fs->fs_bsize) {
+	if (easize > lblktosize(fs, NXADDR)) {
 		free(eae, M_TEMP);
 		ffs_close_ea(ap->a_vp, 0, ap->a_cred, ap->a_td);
 		if (ip->i_ea_area != NULL && ip->i_ea_error == 0)

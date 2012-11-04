@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 18, 2004
+.Dd October 30, 2012
 .Dt DISK 9
 .Os
 .Sh NAME
@@ -43,6 +43,8 @@
 .Fn disk_gone "struct disk *disk"
 .Ft void
 .Fn disk_destroy "struct disk *disk"
+.Ft int
+.Fn disk_resize "struct disk *disk" "int flags"
 .Sh DESCRIPTION
 The disk storage API permits kernel device drivers providing access to
 disk-like storage devices to advertise the device to other kernel
@@ -67,6 +69,13 @@ function,
 fill in the fields and call
 .Fn disk_create
 when the device is ready to service requests.
+.Fn disk_resize
+can be called by the driver after modifying
+.Va d_mediasize
+to notify GEOM about the disk capacity change.
+The
+.Fa flags
+field should be set to either M_WAITOK, or M_NOWAIT.
 .Fn disk_gone
 orphans all of the providers associated with the drive, setting an error
 condition of ENXIO in each one.
@@ -145,6 +154,16 @@ Optional: if configured with
 .Xr dumpon 8 ,
 this function is invoked from a very restricted system state after a
 kernel panic to record a copy of the system RAM to the disk.
+.It Vt "disk_getattr_t *" Va d_getattr
+Optional: if this method is provided, it gives the disk driver the
+opportunity to override the default GEOM response to BIO_GETATTR requests.
+This function should return -1 if the attribute is not handled, 0 if the
+attribute is handled, or an errno to be passed to g_io_deliver().
+.It Vt "disk_gone_t *" Va d_gone
+Optional: if this method is provided, it will be called after disk_gone()
+is called, once GEOM has finished its cleanup process.
+Once this callback is called, it is safe for the disk driver to free all of
+its resources, as it will not be receiving further calls from GEOM.
 .El
 .Ss Mandatory Media Properties
 The following fields identify the size and granularity of the disk device.
@@ -180,7 +199,23 @@ Please see
 .Pa src/sys/geom/notes
 for details.
 .It Vt char Va d_ident[DISK_IDENT_SIZE]
-This field can and should be used to store disk's serial number.
+This field can and should be used to store disk's serial number if the
+d_getattr method described above isn't implemented, or if it does not
+support the GEOM::ident attribute.
+.It Vt char Va d_descr[DISK_IDENT_SIZE]
+This field can be used to store the disk vendor and product description.
+.It Vt uint16_t Va d_hba_vendor
+This field can be used to store the PCI vendor ID for the HBA connected to
+the disk.
+.It Vt uint16_t Va d_hba_device
+This field can be used to store the PCI device ID for the HBA connected to
+the disk.
+.It Vt uint16_t Va d_hba_subvendor
+This field can be used to store the PCI subvendor ID for the HBA connected to
+the disk.
+.It Vt uint16_t Va d_hba_subdevice
+This field can be used to store the PCI subdevice ID for the HBA connected to
+the disk.
 .El
 .Ss Driver Private Data
 This field may be used by the device driver to store a pointer to

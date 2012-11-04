@@ -8,7 +8,6 @@ DIRDEPS = \
 	include \
 	include/rpc \
 	include/rpcsvc \
-	lib/${CSU_DIR} \
 
 
 .include <dirdeps.mk>

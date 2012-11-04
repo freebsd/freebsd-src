@@ -509,8 +509,6 @@ static struct cmd inet6_cmds[] = {
 	DEF_CMD("-ifdisabled",	-ND6_IFF_IFDISABLED,	setnd6flags),
 	DEF_CMD("nud",		ND6_IFF_PERFORMNUD,	setnd6flags),
 	DEF_CMD("-nud",		-ND6_IFF_PERFORMNUD,	setnd6flags),
-	DEF_CMD("prefer_source",ND6_IFF_PREFER_SOURCE,	setnd6flags),
-	DEF_CMD("-prefer_source",-ND6_IFF_PREFER_SOURCE,setnd6flags),
 	DEF_CMD("auto_linklocal",ND6_IFF_AUTO_LINKLOCAL,setnd6flags),
 	DEF_CMD("-auto_linklocal",-ND6_IFF_AUTO_LINKLOCAL,setnd6flags),
 	DEF_CMD_ARG("pltime",        			setip6pltime),

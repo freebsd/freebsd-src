@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 2, 2011
+.Dd Nov 2, 2012
 .Dt NG_NETFLOW 4
 .Os
 .Sh NAME
@@ -100,25 +100,36 @@ node.
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width indent
-.It Dv NGM_NETFLOW_INFO
+.It Dv NGM_NETFLOW_INFO Pq Ic info
 Returns some node statistics and the current timeout values in a
 .Vt "struct ng_netflow_info" .
-.It Dv NGM_NETFLOW_IFINFO
+.It Dv NGM_NETFLOW_IFINFO Pq Ic ifinfo
 Returns information about the
 .Va iface Ns Ar N
 hook.
 The hook number is passed as an argument.
-.It Dv NGM_NETFLOW_SETDLT
+.It Dv NGM_NETFLOW_SETDLT Pq Ic setdlt
 Sets data link type on the
 .Va iface Ns Ar N
 hook.
-Currently, supported types are raw IP datagrams and Ethernet.
+Currently, supported types are
+.Cm DLT_RAW
+(raw IP datagrams) and
+.Cm DLT_EN10MB
+(Ethernet).
+DLT_ definitions can be found in
+.In net/bpf.h
+header.
+Currently used values are 1 for
+.Cm DLT_EN10MB
+and 12 for
+.Cm DLT_RAW .
 This message type uses
 .Vt "struct ng_netflow_setdlt"
 as an argument:
 .Bd -literal -offset 4n
 struct ng_netflow_setdlt {
-	uint16_t iface;		/* which iface to operate on */
+	uint16_t iface;		/* which iface dlt change */
 	uint8_t  dlt;		/* DLT_XXX from bpf.h */
 };
 .Ed
@@ -127,7 +138,7 @@ The requested
 .Va iface Ns Ar N
 hook must already be connected, otherwise message send operation will
 return an error.
-.It Dv NGM_NETFLOW_SETIFINDEX
+.It Dv NGM_NETFLOW_SETIFINDEX Pq Ic setifindex
 In some cases,
 .Nm
 may be unable to determine the input interface index of a packet.
@@ -147,7 +158,7 @@ This message requires
 as an argument:
 .Bd -literal -offset 4n
 struct ng_netflow_setifindex {
-	uint16_t iface;		/* which iface to operate on */
+	uint16_t iface;		/* which iface index change */
 	uint16_t index;		/* new index */
 };
 .Ed
@@ -156,65 +167,83 @@ The requested
 .Va iface Ns Ar N
 hook must already be connected, otherwise the message
 send operation will return an error.
-.It Dv NGM_NETFLOW_SETTIMEOUTS
+.It Dv NGM_NETFLOW_SETTIMEOUTS Pq Ic settimeouts
 Sets values in seconds for NetFlow active/inactive timeouts.
 This message requires
 .Vt "struct ng_netflow_settimeouts"
 as an argument:
 .Bd -literal -offset 4n
 struct ng_netflow_settimeouts {
-	uint32_t	inactive_timeout;
-	uint32_t	active_timeout;
+	uint32_t inactive_timeout;	/* flow inactive timeout */
+	uint32_t active_timeout;	/* flow active timeout */
 };
 .Ed
-.It Dv NGM_NETFLOW_SETCONFIG
+.It Dv NGM_NETFLOW_SETCONFIG Pq Ic setconfig
 Sets configuration for the specified interface.
 This message requires
 .Vt "struct ng_netflow_setconfig"
 as an argument:
 .Bd -literal -offset 4n
 struct ng_netflow_setconfig {
-	uint16_t iface;
-	uint32_t conf;
+	uint16_t iface;		/* which iface config change */
+	uint32_t conf;		/* new config */
 #define NG_NETFLOW_CONF_INGRESS		1
 #define NG_NETFLOW_CONF_EGRESS		2
 #define NG_NETFLOW_CONF_ONCE		4
 #define NG_NETFLOW_CONF_THISONCE	8
+#define NG_NETFLOW_CONF_NOSRCLOOKUP	16
+#define NG_NETFLOW_CONF_NODSTLOOKUP	32
 };
 .Ed
 .Pp
 Configuration is a bitmask of several options. Option NG_NETFLOW_CONF_INGRESS
 enabled by default enables ingress NetFlow generation (for data coming from
-ifaceX hook). Option NG_NETFLOW_CONF_EGRESS enables egress NetFlow (for data
-coming from outX hook). Option NG_NETFLOW_CONF_ONCE defines that packet should
-be accounted only once if it several times passes via netflow node. Option
-NG_NETFLOW_CONF_THISONCE defines that packet should be accounted only once
-if it several times passes via exactly this netflow node. Last two options are
-important to avoid duplicate accounting when both ingress and egress NetFlow
-are enabled.
-.It Dv NGM_NETFLOW_SETTEMPLATE
+ifaceX hook).
+Option
+.Va NG_NETFLOW_CONF_EGRESS
+enables egress NetFlow (for data coming from outX hook).
+Option
+.Va NG_NETFLOW_CONF_ONCE
+defines that packet should be accounted only once if it several times passes
+via netflow node.
+Option
+.Va NG_NETFLOW_CONF_THISONCE
+defines that packet should be accounted only once if it several times passes
+via exactly this netflow node.
+These two options are important to avoid duplicate accounting when both ingress
+and egress NetFlow are enabled.
+Option
+.Va NG_NETFLOW_CONF_NOSRCLOOKUP
+skips radix lookup on flow source address used to fill in network mask.
+Option
+.Va NG_NETFLOW_CONF_NODSTLOOKUP
+skips radix lookup on destination (which fills egress interface id, destination
+mask and gateway).
+If one doesn't need data provided by lookups, he/she can disable them, to reduce
+load on routers.
+.It Dv NGM_NETFLOW_SETTEMPLATE Pq Ic settemplate
 Sets various timeouts to announce data flow templates
 (NetFlow v9-specific). This message requires
 .Vt "struct ng_netflow_settemplate"
 as an argument:
 .Bd -literal -offset 4n
 struct ng_netflow_settemplate {
-	uint16_t time;
-	uint16_t packets;
+	uint16_t time;		/* max time between announce */
+	uint16_t packets;	/* max packets between announce */
 };
 .Ed
 .Pp
 Value of time field represents time in seconds to re-announce data templates.
 Value of packets field represents maximum packets count between
 re-announcing data templates.
-.It Dv NGM_NETFLOW_SETMTU
+.It Dv NGM_NETFLOW_SETMTU Pq Ic setmtu
 Sets export interface MTU to build packets of specified size (NetFlow v9-specific).
 This message requires
 .Vt "struct ng_netflow_setmtu"
 as an argument:
 .Bd -literal -offset 4n
-struct ng_netflow_settemtu {
-	uint16_t mtu;
+struct ng_netflow_setemtu {
+	uint16_t mtu;		/* MTU for packet */
 };
 .Ed
 .Pp
@@ -228,32 +257,15 @@ not directly from
 See also
 .Sx BUGS
 section.
-.El
-.Sh ASCII CONTROL MESSAGES
-Most binary control messages have an
-.Tn ASCII
-equivalent.
-The supported
-.Tn ASCII
-commands are:
-.Pp
-.Bl -tag -width ".Dv NGM_NETFLOW_SETTIMEOUTS" -compact
-.It Dv NGM_NETFLOW_INFO
-.Qq Li info
-.It Dv NGM_NETFLOW_IFINFO
-.Qq Li "ifinfo %u"
-.It Dv NGM_NETFLOW_SETDLT
-.Qq Li "setdlt { iface = %u dlt = %u }"
-.It Dv NGM_NETFLOW_SETIFINDEX
-.Qq Li "setifindex { iface = %u index = %u }"
-.It Dv NGM_NETFLOW_SETTIMEOUTS
-.Qq Li "settimeouts { inactive = %u active = %u }"
-.It Dv NGM_NETFLOW_SETCONFIG
-.Qq Li "setconfig { iface = %u conf = %u }"
-.It Dv NGM_NETFLOW_SETTEMPLATE
-.Qq Li "settemplate { time = %u packets = %u }"
-.It Dv NGM_NETFLOW_SETMTU
-.Qq Li "setmtu { mtu = %u }"
+.It Dv NGM_NETFLOW_V9INFO Pq Ic v9info
+Returns some NetFlow v9 related values in a
+.Bd -literal -offset 4n
+struct ng_netflow_v9info {
+    uint16_t        templ_packets;  /* v9 template packets */
+    uint16_t        templ_time;     /* v9 template time */
+    uint16_t        mtu;            /* v9 MTU */
+};
+.Ed
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a

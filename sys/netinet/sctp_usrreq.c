@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_pcb.h>
 #include <netinet/sctp_header.h>
 #include <netinet/sctp_var.h>
-#if defined(INET6)
+#ifdef INET6
 #endif
 #include <netinet/sctp_sysctl.h>
 #include <netinet/sctp_output.h>
@@ -180,7 +180,7 @@ sctp_notify_mbuf(struct sctp_inpcb *inp,
 		SCTP_TCB_UNLOCK(stcb);
 		return;
 	}
-	totsz = ip->ip_len;
+	totsz = ntohs(ip->ip_len);
 
 	nxtsz = ntohs(icmph->icmp_nextmtu);
 	if (nxtsz == 0) {
@@ -224,7 +224,7 @@ sctp_notify(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     struct sctp_nets *net)
 {
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
 
 #endif
@@ -283,7 +283,7 @@ sctp_notify(struct sctp_inpcb *inp,
 		 * with no TCB
 		 */
 		sctp_abort_notification(stcb, 1, 0, NULL, SCTP_SO_NOT_LOCKED);
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		so = SCTP_INP_SO(inp);
 		atomic_add_int(&stcb->asoc.refcnt, 1);
 		SCTP_TCB_UNLOCK(stcb);
@@ -292,7 +292,7 @@ sctp_notify(struct sctp_inpcb *inp,
 		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 #endif
 		(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_USRREQ + SCTP_LOC_2);
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		SCTP_SOCKET_UNLOCK(so, 1);
 		/* SCTP_TCB_UNLOCK(stcb); MT: I think this is not needed. */
 #endif
@@ -345,8 +345,8 @@ sctp_ctlinput(cmd, sa, vip)
 		 * 'from' holds our local endpoint address. Thus we reverse
 		 * the to and the from in the lookup.
 		 */
-		stcb = sctp_findassociation_addr_sa((struct sockaddr *)&from,
-		    (struct sockaddr *)&to,
+		stcb = sctp_findassociation_addr_sa((struct sockaddr *)&to,
+		    (struct sockaddr *)&from,
 		    &inp, &net, 1, vrf_id);
 		if (stcb != NULL && inp && (inp->sctp_socket != NULL)) {
 			if (cmd != PRC_MSGSIZE) {
@@ -397,8 +397,8 @@ sctp_getcred(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return (error);
 
-	stcb = sctp_findassociation_addr_sa(sintosa(&addrs[0]),
-	    sintosa(&addrs[1]),
+	stcb = sctp_findassociation_addr_sa(sintosa(&addrs[1]),
+	    sintosa(&addrs[0]),
 	    &inp, &net, 1, vrf_id);
 	if (stcb == NULL || inp == NULL || inp->sctp_socket == NULL) {
 		if ((inp != NULL) && (stcb == NULL)) {
@@ -5258,7 +5258,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 	case SCTP_BINDX_ADD_ADDR:
 		{
 			struct sctp_getaddresses *addrs;
-			size_t sz;
 			struct thread *td;
 
 			td = (struct thread *)p;
@@ -5266,8 +5265,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			    optsize);
 #ifdef INET
 			if (addrs->addr->sa_family == AF_INET) {
-				sz = sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in);
-				if (optsize < sz) {
+				if (optsize < sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in)) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 					error = EINVAL;
 					break;
@@ -5280,8 +5278,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 #endif
 #ifdef INET6
 			if (addrs->addr->sa_family == AF_INET6) {
-				sz = sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in6);
-				if (optsize < sz) {
+				if (optsize < sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in6)) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 					error = EINVAL;
 					break;
@@ -5305,7 +5302,6 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 	case SCTP_BINDX_REM_ADDR:
 		{
 			struct sctp_getaddresses *addrs;
-			size_t sz;
 			struct thread *td;
 
 			td = (struct thread *)p;
@@ -5313,8 +5309,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			SCTP_CHECK_AND_CAST(addrs, optval, struct sctp_getaddresses, optsize);
 #ifdef INET
 			if (addrs->addr->sa_family == AF_INET) {
-				sz = sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in);
-				if (optsize < sz) {
+				if (optsize < sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in)) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 					error = EINVAL;
 					break;
@@ -5327,8 +5322,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 #endif
 #ifdef INET6
 			if (addrs->addr->sa_family == AF_INET6) {
-				sz = sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in6);
-				if (optsize < sz) {
+				if (optsize < sizeof(struct sctp_getaddresses) - sizeof(struct sockaddr) + sizeof(struct sockaddr_in6)) {
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 					error = EINVAL;
 					break;
@@ -5842,7 +5836,7 @@ sctp_ctloutput(struct socket *so, struct sockopt *sopt)
 		if (INP_CHECK_SOCKAF(so, AF_INET6))
 			error = ip6_ctloutput(so, sopt);
 #endif				/* INET6 */
-#if defined(INET) && defined (INET6)
+#if defined(INET) && defined(INET6)
 		else
 #endif
 #ifdef INET
@@ -6476,7 +6470,6 @@ sctp_peeraddr(struct socket *so, struct sockaddr **addr)
 	return (0);
 }
 
-#ifdef INET
 struct pr_usrreqs sctp_usrreqs = {
 	.pru_abort = sctp_abort,
 	.pru_accept = sctp_accept,
@@ -6498,5 +6491,4 @@ struct pr_usrreqs sctp_usrreqs = {
 	.pru_soreceive = sctp_soreceive
 };
 
-#endif
 #endif

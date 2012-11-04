@@ -3,12 +3,12 @@
 DOC_PREFIX?= ${RELN_ROOT}/../../../doc
 
 # Find the RELNOTESng document catalogs
-EXTRA_CATALOGS+= ${RELN_ROOT}/${LANGCODE}/share/sgml/catalog
-EXTRA_CATALOGS+= ${RELN_ROOT}/share/sgml/catalog
+EXTRA_CATALOGS+= ${RELN_ROOT}/${LANGCODE}/share/xml/catalog
+EXTRA_CATALOGS+= ${RELN_ROOT}/share/xml/catalog
 
 # Use the appropriate architecture-dependent RELNOTESng stylesheet
-DSLHTML?=	${RELN_ROOT}/share/sgml/default.dsl
-DSLPRINT?=	${RELN_ROOT}/share/sgml/default.dsl
+DSLHTML?=	${RELN_ROOT}/share/xml/default.dsl
+DSLPRINT?=	${RELN_ROOT}/share/xml/default.dsl
 
 #
 # Automatic device list generation:
@@ -22,8 +22,8 @@ MAN4DIR?=	${RELN_ROOT}/../../share/man/man4
 .endif
 MAN4PAGES?=	${MAN4DIR}/*.4 ${MAN4DIR}/man4.*/*.4
 ARCHLIST?=	${RELN_ROOT}/share/misc/dev.archlist.txt
-DEV-AUTODIR=	${RELN_ROOT:S/${.CURDIR}/${.OBJDIR}/}/share/sgml
-CLEANFILES+=	${DEV-AUTODIR}/dev-auto.sgml ${DEV-AUTODIR}/catalog-auto
+DEV-AUTODIR=	${RELN_ROOT:S/${.CURDIR}/${.OBJDIR}/}/share/xml
+CLEANFILES+=	${DEV-AUTODIR}/dev-auto.xml ${DEV-AUTODIR}/catalog-auto
 
 MAN2HWNOTES_CMD=${RELN_ROOT}/share/misc/man2hwnotes.pl
 .if defined(HWNOTES_MI)
@@ -33,7 +33,7 @@ MAN2HWNOTES_FLAGS=	-c
 .endif
 
 # Dependency that the article makefiles can use to pull in
-# dev-auto.sgml.
-${DEV-AUTODIR}/catalog-auto ${DEV-AUTODIR}/dev-auto.sgml: ${MAN4PAGES} \
+# dev-auto.xml.
+${DEV-AUTODIR}/catalog-auto ${DEV-AUTODIR}/dev-auto.xml: ${MAN4PAGES} \
 	${ARCHLIST} ${MAN2HWNOTES_CMD}
-	cd ${RELN_ROOT}/share/sgml && make MAN2HWNOTES_FLAGS=${MAN2HWNOTES_FLAGS} dev-auto.sgml
+	cd ${RELN_ROOT}/share/xml && make MAN2HWNOTES_FLAGS=${MAN2HWNOTES_FLAGS} dev-auto.xml

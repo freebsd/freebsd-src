@@ -622,7 +622,7 @@ AcpiNsExternalizeName (
                         ((NumSegments > 0) ? (NumSegments - 1) : 0) + 1;
 
     /*
-     * Check to see if we're still in bounds.  If not, there's a problem
+     * Check to see if we're still in bounds. If not, there's a problem
      * with InternalName (invalid format).
      */
     if (RequiredLength > InternalNameLength)
@@ -655,10 +655,13 @@ AcpiNsExternalizeName (
                 (*ConvertedName)[j++] = '.';
             }
 
-            (*ConvertedName)[j++] = InternalName[NamesIndex++];
-            (*ConvertedName)[j++] = InternalName[NamesIndex++];
-            (*ConvertedName)[j++] = InternalName[NamesIndex++];
-            (*ConvertedName)[j++] = InternalName[NamesIndex++];
+            /* Copy and validate the 4-char name segment */
+
+            ACPI_MOVE_NAME (&(*ConvertedName)[j], &InternalName[NamesIndex]);
+            AcpiUtRepairName (&(*ConvertedName)[j]);
+
+            j += ACPI_NAME_SIZE;
+            NamesIndex += ACPI_NAME_SIZE;
         }
     }
 
@@ -797,7 +800,7 @@ AcpiNsOpensScope (
  *                            \ (backslash) and ^ (carat) prefixes, and the
  *                            . (period) to separate segments are supported.
  *              PrefixNode   - Root of subtree to be searched, or NS_ALL for the
- *                            root of the name space.  If Name is fully
+ *                            root of the name space. If Name is fully
  *                            qualified (first INT8 is '\'), the passed value
  *                            of Scope will not be accessed.
  *              Flags       - Used to indicate whether to perform upsearch or
@@ -805,7 +808,7 @@ AcpiNsOpensScope (
  *              ReturnNode  - Where the Node is returned
  *
  * DESCRIPTION: Look up a name relative to a given scope and return the
- *              corresponding Node.  NOTE: Scope can be null.
+ *              corresponding Node. NOTE: Scope can be null.
  *
  * MUTEX:       Locks namespace
  *
