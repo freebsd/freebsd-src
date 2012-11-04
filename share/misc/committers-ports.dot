@@ -94,6 +94,7 @@ flz [label="Florent Thoumie\nflz@FreeBSD.org\n2005/03/01"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2006/12/05"]
 gahr [label="Pietro Cerutti\ngahr@FreeBSD.org\n2008/02/20"]
 garga [label="Renato Botelho\ngarga@FreeBSD.org\n2005/07/11"]
+gblach [label="Grzegorz Blach\ngblach@FreeBSD.org\n2012/11/03"]
 gerald [label="Gerald Pfeifer\ngerald@FreeBSD.org\n2002/04/03"]
 gjb [label="Glen Barber\ngjb@FreeBSD.org\n2012/06/19"]
 glarkin [label="Greg Larkin\nglarkin@FreeBSD.org\n2008/07/17"]
@@ -255,6 +256,7 @@ clsung -> tabthorpe
 crees -> gjb
 crees -> jgh
 crees -> madpilot
+crees -> gblach
 
 culot -> jase
 
@@ -476,6 +478,7 @@ tabthorpe -> madpilot
 tabthorpe -> pgj
 tabthorpe -> rene
 tabthorpe -> zi
+tabthorpe -> gblach
 
 thierry -> jadawin
 
