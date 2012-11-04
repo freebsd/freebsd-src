@@ -5661,7 +5661,7 @@ zfs_freebsd_close(ap)
 	} */ *ap;
 {
 
-	return (zfs_close(ap->a_vp, ap->a_fflag, 0, 0, ap->a_cred, NULL));
+	return (zfs_close(ap->a_vp, ap->a_fflag, 1, 0, ap->a_cred, NULL));
 }
 
 static int
