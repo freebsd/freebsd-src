@@ -1970,10 +1970,6 @@ zfs_umount(vfs_t *vfsp, int fflag)
 			    zfsvfs->z_ctldir->v_count > 1)
 				return (EBUSY);
 		}
-	} else {
-		MNT_ILOCK(vfsp);
-		vfsp->mnt_kern_flag |= MNTK_UNMOUNTF;
-		MNT_IUNLOCK(vfsp);
 	}
 
 	VERIFY(zfsvfs_teardown(zfsvfs, B_TRUE) == 0);
