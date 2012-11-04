@@ -2893,6 +2893,8 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VV_ISTTY", sizeof(buf));
 	if (vp->v_vflag & VV_NOSYNC)
 		strlcat(buf, "|VV_NOSYNC", sizeof(buf));
+	if (vp->v_vflag & VV_ETERNALDEV)
+		strlcat(buf, "|VV_ETERNALDEV", sizeof(buf));
 	if (vp->v_vflag & VV_CACHEDLABEL)
 		strlcat(buf, "|VV_CACHEDLABEL", sizeof(buf));
 	if (vp->v_vflag & VV_TEXT)
@@ -2909,9 +2911,11 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VV_DELETED", sizeof(buf));
 	if (vp->v_vflag & VV_MD)
 		strlcat(buf, "|VV_MD", sizeof(buf));
-	flags = vp->v_vflag & ~(VV_ROOT | VV_ISTTY | VV_NOSYNC |
+	if (vp->v_vflag & VV_FORCEINSMQ)
+		strlcat(buf, "|VV_FORCEINSMQ", sizeof(buf));
+	flags = vp->v_vflag & ~(VV_ROOT | VV_ISTTY | VV_NOSYNC | VV_ETERNALDEV |
 	    VV_CACHEDLABEL | VV_TEXT | VV_COPYONWRITE | VV_SYSTEM | VV_PROCDEP |
-	    VV_NOKNOTE | VV_DELETED | VV_MD);
+	    VV_NOKNOTE | VV_DELETED | VV_MD | VV_FORCEINSMQ);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VV(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
@@ -2924,12 +2928,14 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VI_DOOMED", sizeof(buf));
 	if (vp->v_iflag & VI_FREE)
 		strlcat(buf, "|VI_FREE", sizeof(buf));
+	if (vp->v_iflag & VI_ACTIVE)
+		strlcat(buf, "|VI_ACTIVE", sizeof(buf));
 	if (vp->v_iflag & VI_DOINGINACT)
 		strlcat(buf, "|VI_DOINGINACT", sizeof(buf));
 	if (vp->v_iflag & VI_OWEINACT)
 		strlcat(buf, "|VI_OWEINACT", sizeof(buf));
 	flags = vp->v_iflag & ~(VI_MOUNT | VI_AGE | VI_DOOMED | VI_FREE |
-	    VI_DOINGINACT | VI_OWEINACT);
+	    VI_ACTIVE | VI_DOINGINACT | VI_OWEINACT);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VI(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
