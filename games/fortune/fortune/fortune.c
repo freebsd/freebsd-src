@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <locale.h>
 #include <regex.h>
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -62,9 +63,8 @@ __FBSDID("$FreeBSD$");
 #include "strfile.h"
 #include "pathnames.h"
 
-#define	TRUE	1
-#define	FALSE	0
-#define	bool	short
+#define	TRUE	true
+#define	FALSE	false
 
 #define	MINW	6		/* minimum wait if desired */
 #define	CPERS	20		/* # of chars for each sec */
