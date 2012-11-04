@@ -1744,15 +1744,7 @@ zfs_vnode_lock(vnode_t *vp, int flags)
 
 	ASSERT(vp != NULL);
 
-	/*
-	 * Check if the file system wasn't forcibly unmounted in the meantime.
-	 */
 	error = vn_lock(vp, flags);
-	if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0) {
-		VOP_UNLOCK(vp, 0);
-		error = ENOENT;
-	}
-
 	return (error);
 }
 
