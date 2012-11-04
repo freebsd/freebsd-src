@@ -22,17 +22,8 @@ NIL=
 
 SMAKE=	MAKEFLAGS= ${MAKE} -C ${.CURDIR}
 
-.if !make(shell*)
-# check that make -V '${VARIABLE}' works
-V_expn != V_OK=ok ${SMAKE} -r -f /dev/null -V '$${V_OK}'
-.endif
-
 all:
-	@echo '0..16'
-	@test "${V_expn}" != "" || \
-		{ echo ${MAKE} -V '$${VARIABLE}': no output; \
-		${MAKE} -C ${.CURDIR} failure; }
-	@echo "ok 0 - make -V # handles substitution"
+	@echo '1..16'
 	@${SMAKE} C_check || { cd ${.CURDIR} ; ${MAKE} failure ; }
 	@echo "ok 1 - C_check # Test of -C flag existence detected no regression."
 	@echo 1:${DATA1} 2:${DATA2} 3:${DATA3} 4:${DATA4} 5:${DATA5} | \
@@ -65,9 +56,7 @@ all:
 	@echo "ok 14 shell # Test shell detected no regression."
 	@${SMAKE} shell_1 || ${SMAKE} failure
 	@echo "ok 15 shell_1 # Test shell_1 detected no regression."
-.if defined(.PARSEDIR)
-	@echo "skipped 16 shell_2 # bmake handles shell errors differently"
-.else
+.if !defined(.PARSEDIR)
 	@${SMAKE} shell_2 || ${SMAKE} failure
 	@echo "ok 16 shell_2 # Test shell_2 detected no regression."
 .endif
@@ -105,17 +94,34 @@ lhs_expn:
 # to determine its value; that was not always the case.
 .undef notdef
 notdef:
-.if defined(notdef) && ${notdef:U}
+.if defined(notdef) && ${notdef:M/}
 .endif
 .endif
 
 .if make(modifiers)
-# See if make(1) supports the C modifier.
+.if defined(.PARSEDIR)
+# check if bmake can expand plain variables
+.MAKE.EXPAND_VARIABLES= yes
+x!= ${SMAKE} -V .CURDIR:H
 modifiers:
+.if ${.CURDIR:H} != "$x"
+	@false
+.endif
+.else
+# See if make(1) supports the C modifier.
+modifiers: dollarV
 	@if ${SMAKE} -V .CURDIR:C/.// 2>&1 >/dev/null | \
 	    grep -q "Unknown modifier 'C'"; then \
 		false; \
 	fi
+
+# check that make -V '${VAR}' works
+V_expn != V_OK=ok ${SMAKE} -r -f /dev/null -V '$${V_OK}'
+dollarV:
+.if ${V_expn} == ""
+	@false
+.endif
+.endif
 .endif
 
 .if make(arith_expr)

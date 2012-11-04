@@ -86,7 +86,7 @@ struct if_data {
 	u_char	ifi_hdrlen;		/* media header length */
 	u_char	ifi_link_state;		/* current link state */
 	u_char	ifi_vhid;		/* carp vhid */
-	u_char	ifi_spare_char2;	/* spare byte */
+	u_char	ifi_baudrate_pf;	/* baudrate power factor */
 	u_char	ifi_datalen;		/* length of this data struct */
 	u_long	ifi_mtu;		/* maximum transmission unit */
 	u_long	ifi_metric;		/* routing metric (external only) */
@@ -153,7 +153,6 @@ struct if_data {
 #define	IFF_STATICARP	0x80000		/* (n) static ARP */
 #define	IFF_DYING	0x200000	/* (n) interface is winding down */
 #define	IFF_RENAMING	0x400000	/* (n) interface is being renamed */
-
 /*
  * Old names for driver flags so that user space tools can continue to use
  * the old (portable) names.
@@ -180,7 +179,7 @@ struct if_data {
  * Some convenience macros used for setting ifi_baudrate.
  * XXX 1000 vs. 1024? --thorpej@netbsd.org
  */
-#define	IF_Kbps(x)	((x) * 1000)		/* kilobits/sec. */
+#define	IF_Kbps(x)	((uintmax_t)(x) * 1000)	/* kilobits/sec. */
 #define	IF_Mbps(x)	(IF_Kbps((x) * 1000))	/* megabits/sec. */
 #define	IF_Gbps(x)	(IF_Mbps((x) * 1000))	/* gigabits/sec. */
 

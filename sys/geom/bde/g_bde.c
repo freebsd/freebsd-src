@@ -77,19 +77,15 @@ g_bde_orphan(struct g_consumer *cp)
 	struct g_geom *gp;
 	struct g_provider *pp;
 	struct g_bde_softc *sc;
-	int error;
 
 	g_trace(G_T_TOPOLOGY, "g_bde_orphan(%p/%s)", cp, cp->provider->name);
 	g_topology_assert();
-	KASSERT(cp->provider->error != 0,
-		("g_bde_orphan with error == 0"));
 
 	gp = cp->geom;
 	sc = gp->softc;
 	gp->flags |= G_GEOM_WITHER;
-	error = cp->provider->error;
 	LIST_FOREACH(pp, &gp->provider, provider)
-		g_orphan_provider(pp, error);
+		g_orphan_provider(pp, ENXIO);
 	bzero(sc, sizeof(struct g_bde_softc));	/* destroy evidence */
 	return;
 }
@@ -189,14 +185,6 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 		kproc_create(g_bde_worker, gp, &sc->thread, 0, 0,
 			"g_bde %s", gp->name);
 		pp = g_new_providerf(gp, gp->name);
-#if 0
-		/*
-		 * XXX: Disable this for now.  Appearantly UFS no longer
-		 * XXX: issues BIO_DELETE requests correctly, with the obvious
-		 * XXX: outcome that userdata is trashed.
-		 */
-		pp->flags |= G_PF_CANDELETE;
-#endif
 		pp->stripesize = kp->zone_cont;
 		pp->stripeoffset = 0;
 		pp->mediasize = sc->mediasize;

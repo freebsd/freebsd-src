@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/pcpu.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 
@@ -72,6 +73,7 @@ u_int	cpu_vendor_id;		/* CPU vendor ID */
 u_int	cpu_fxsr;		/* SSE enabled */
 u_int	cpu_mxcsr_mask;		/* Valid bits in mxcsr */
 u_int	cpu_clflush_line_size = 32;
+u_int	cpu_stdext_feature;
 u_int	cpu_max_ext_state_size;
 
 SYSCTL_UINT(_hw, OID_AUTO, via_feature_rng, CTLFLAG_RD,
@@ -91,11 +93,17 @@ init_amd(void)
 	 *
 	 * http://support.amd.com/us/Processor_TechDocs/41322_10h_Rev_Gd.pdf
 	 * http://support.amd.com/us/Processor_TechDocs/44739_12h_Rev_Gd.pdf
+	 *
+	 * Hypervisors do not provide access to the errata MSR,
+	 * causing #GP exception on attempt to apply the errata.  The
+	 * MSR write shall be done on host and persist globally
+	 * anyway, so do not try to do it when under virtualization.
 	 */
 	switch (CPUID_TO_FAMILY(cpu_id)) {
 	case 0x10:
 	case 0x12:
-		wrmsr(0xc0011029, rdmsr(0xc0011029) | 1);
+		if ((cpu_feature2 & CPUID2_HV) == 0)
+			wrmsr(0xc0011029, rdmsr(0xc0011029) | 1);
 		break;
 	}
 }
@@ -146,11 +154,25 @@ void
 initializecpu(void)
 {
 	uint64_t msr;
+	uint32_t cr4;
 
+	cr4 = rcr4();
 	if ((cpu_feature & CPUID_XMM) && (cpu_feature & CPUID_FXSR)) {
-		load_cr4(rcr4() | CR4_FXSR | CR4_XMM);
+		cr4 |= CR4_FXSR | CR4_XMM;
 		cpu_fxsr = hw_instruction_sse = 1;
 	}
+	if (cpu_stdext_feature & CPUID_STDEXT_FSGSBASE)
+		cr4 |= CR4_FSGSBASE;
+
+	/*
+	 * Postpone enabling the SMEP on the boot CPU until the page
+	 * tables are switched from the boot loader identity mapping
+	 * to the kernel tables.  The boot loader enables the U bit in
+	 * its tables.
+	 */
+	if (!IS_BSP() && (cpu_stdext_feature & CPUID_STDEXT_SMEP))
+		cr4 |= CR4_SMEP;
+	load_cr4(cr4);
 	if ((amd_feature & AMDID_NX) != 0) {
 		msr = rdmsr(MSR_EFER) | EFER_NXE;
 		wrmsr(MSR_EFER, msr);

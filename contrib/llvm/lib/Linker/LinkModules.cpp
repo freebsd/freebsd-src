@@ -16,6 +16,7 @@
 #include "llvm/DerivedTypes.h"
 #include "llvm/Instructions.h"
 #include "llvm/Module.h"
+#include "llvm/TypeFinder.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/Optional.h"
 #include "llvm/ADT/SetVector.h"
@@ -25,6 +26,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 #include "llvm/Transforms/Utils/ValueMapper.h"
+#include "llvm-c/Linker.h"
 #include <cctype>
 using namespace llvm;
 
@@ -594,13 +596,13 @@ void ModuleLinker::computeTypeMapping() {
   // At this point, the destination module may have a type "%foo = { i32 }" for
   // example.  When the source module got loaded into the same LLVMContext, if
   // it had the same type, it would have been renamed to "%foo.42 = { i32 }".
-  std::vector<StructType*> SrcStructTypes;
-  SrcM->findUsedStructTypes(SrcStructTypes);
+  TypeFinder SrcStructTypes;
+  SrcStructTypes.run(*SrcM, true);
   SmallPtrSet<StructType*, 32> SrcStructTypesSet(SrcStructTypes.begin(),
                                                  SrcStructTypes.end());
 
-  std::vector<StructType*> DstStructTypes;
-  DstM->findUsedStructTypes(DstStructTypes);
+  TypeFinder DstStructTypes;
+  DstStructTypes.run(*DstM, true);
   SmallPtrSet<StructType*, 32> DstStructTypesSet(DstStructTypes.begin(),
                                                  DstStructTypes.end());
 
@@ -683,7 +685,7 @@ bool ModuleLinker::linkAppendingVarProto(GlobalVariable *DstGV,
   GlobalVariable *NG =
     new GlobalVariable(*DstGV->getParent(), NewType, SrcGV->isConstant(),
                        DstGV->getLinkage(), /*init*/0, /*name*/"", DstGV,
-                       DstGV->isThreadLocal(),
+                       DstGV->getThreadLocalMode(),
                        DstGV->getType()->getAddressSpace());
   
   // Propagate alignment, visibility and section info.
@@ -758,7 +760,7 @@ bool ModuleLinker::linkGlobalProto(GlobalVariable *SGV) {
     new GlobalVariable(*DstM, TypeMap.get(SGV->getType()->getElementType()),
                        SGV->isConstant(), SGV->getLinkage(), /*init*/0,
                        SGV->getName(), /*insertbefore*/0,
-                       SGV->isThreadLocal(),
+                       SGV->getThreadLocalMode(),
                        SGV->getType()->getAddressSpace());
   // Propagate alignment, visibility and section info.
   copyGVAttributes(NewDGV, SGV);
@@ -1334,4 +1336,18 @@ bool Linker::LinkModules(Module *Dest, Module *Src, unsigned Mode,
   }
 
   return false;
+}
+
+//===----------------------------------------------------------------------===//
+// C API.
+//===----------------------------------------------------------------------===//
+
+LLVMBool LLVMLinkModules(LLVMModuleRef Dest, LLVMModuleRef Src,
+                         LLVMLinkerMode Mode, char **OutMessages) {
+  std::string Messages;
+  LLVMBool Result = Linker::LinkModules(unwrap(Dest), unwrap(Src),
+                                        Mode, OutMessages? &Messages : 0);
+  if (OutMessages)
+    *OutMessages = strdup(Messages.c_str());
+  return Result;
 }

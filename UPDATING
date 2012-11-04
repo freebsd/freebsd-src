@@ -24,6 +24,121 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20121102:
+	The IPFIREWALL_FORWARD kernel option has been removed. Its
+	functionality now turned on by default.
+
+20121023:
+	The ZERO_COPY_SOCKET kernel option has been removed and
+	split into SOCKET_SEND_COW and SOCKET_RECV_PFLIP.
+	NB: SOCKET_SEND_COW uses the VM page based copy-on-write
+	mechanism which is not safe and may result in kernel crashes.
+	NB: The SOCKET_RECV_PFLIP mechanism is useless as no current
+	driver supports disposeable external page sized mbuf storage.
+	Proper replacements for both zero-copy mechanisms are under
+	consideration and will eventually lead to complete removal
+	of the two kernel options.
+
+20121023:
+	The IPv4 network stack has been converted to network byte
+	order. The following modules need to be recompiled together
+	with kernel: carp(4), divert(4), gif(4), siftr(4), gre(4),
+	pf(4), ipfw(4), ng_ipfw(4), stf(4).
+
+20121022:
+	Support for non-MPSAFE filesystems was removed from VFS. The
+	VFS_VERSION was bumped, all filesystem modules shall be
+	recompiled.
+
+20121018:
+	All the non-MPSAFE filesystems have been disconnected from
+	the build. The full list includes: codafs, hpfs, ntfs, nwfs,
+	portalfs, smbfs, xfs.
+
+20121016:
+	The interface cloning API and ABI has changed. The following
+	modules need to be recompiled together with kernel:
+	ipfw(4), pfsync(4), pflog(4), usb(4), wlan(4), stf(4),
+	vlan(4), disc(4), edsc(4), if_bridge(4), gif(4), tap(4),
+	faith(4), epair(4), enc(4), tun(4), if_lagg(4), gre(4).
+
+20121015:
+	The sdhci driver was split in two parts: sdhci (generic SD Host
+	Controller logic) and sdhci_pci (actual hardware driver).
+	No kernel config modifications are required, but if you
+	load sdhc as a module you must switch to sdhci_pci instead.
+
+20121014:
+	Import the FUSE kernel and userland support into base system.
+
+20121013:
+	The GNU sort(1) program has been removed since the BSD-licensed
+	sort(1) has been the default for quite some time and no serious
+	problems have been reported.  The corresponding WITH_GNU_SORT
+	knob has also gone.
+
+20121006:
+	The pfil(9) API/ABI for AF_INET family has been changed. Packet
+	filtering modules: pf(4), ipfw(4), ipfilter(4) need to be recompiled
+	with new kernel.
+
+20121001:
+	The net80211(4) ABI has been changed to allow for improved driver
+	PS-POLL and power-save support.  All wireless drivers need to be
+	recompiled to work with the new kernel.
+
+20120913:
+	The random(4) support for the VIA hardware random number
+	generator (`PADLOCK') is no longer enabled unconditionally.
+	Add the PADLOCK_RNG option in the custom kernel config if
+	needed.  The GENERIC kernels on i386 and amd64 do include the
+	option, so the change only affects the custom kernel
+	configurations.
+
+20120908:
+	The pf(4) packet filter ABI has been changed. pfctl(8) and
+	snmp_pf module need to be recompiled to work with new kernel.
+
+20120828:
+	A new ZFS feature flag "com.delphix:empty_bpobj" has been merged
+	to -HEAD. Pools that have empty_bpobj in active state can not be
+	imported read-write with ZFS implementations that do not support
+	this feature. For more information read the zpool-features(5)
+	manual page.
+
+20120727:
+	The sparc64 ZFS loader has been changed to no longer try to auto-
+	detect ZFS providers based on diskN aliases but now requires these
+	to be explicitly listed in the OFW boot-device environment variable. 
+
+20120712:
+	The OpenSSL has been upgraded to 1.0.1c.  Any binaries requiring
+	libcrypto.so.6 or libssl.so.6 must be recompiled.  Also, there are
+	configuration changes.  Make sure to merge /etc/ssl/openssl.cnf.
+
+20120712:
+	The following sysctls and tunables have been renamed for consistency
+	with other variables:
+	  kern.cam.da.da_send_ordered   -> kern.cam.da.send_ordered
+	  kern.cam.ada.ada_send_ordered -> kern.cam.ada.send_ordered
+
+20120628:
+	The sort utility has been replaced with BSD sort.  For now, GNU sort
+	is also available as "gnusort" or the default can be set back to
+	GNU sort by setting WITH_GNU_SORT.  In this case, BSD sort will be
+	installed as "bsdsort".
+
+20120611:
+	A new version of ZFS (pool version 5000) has been merged to -HEAD.
+	Starting with this version the old system of ZFS pool versioning
+	is superseded by "feature flags". This concept enables forward
+	compatibility against certain future changes in functionality of ZFS
+	pools. The first read-only compatible "feature flag" for ZFS pools
+	is named "com.delphix:async_destroy". For more information
+	read the new zpool-features(5) manual page.
+	Please refer to the "ZFS notes" section of this file for information
+	on upgrading boot ZFS pools.
+
 20120417:
 	The malloc(3) implementation embedded in libc now uses sources imported
 	as contrib/jemalloc.  The most disruptive API change is to
@@ -1479,7 +1594,7 @@ COMMON ITEMS:
 	<reboot>
 
 
-	To upgrade in-place from 8.x-stable to current
+	To upgrade in-place from stable to current
 	----------------------------------------------
 	<make sure you have good level 0 dumps>
 	make buildworld					[9]

@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/syslog.h>
 #include <sys/socket.h>
+#include <sys/sglist.h>
 
 #include <net/bpf.h>	
 #include <net/ethernet.h>
@@ -77,6 +78,10 @@ __FBSDID("$FreeBSD$");
 
 int	txq_fills = 0;
 int	multiq_tx_enable = 1;
+
+#ifdef TCP_OFFLOAD
+CTASSERT(NUM_CPL_HANDLERS >= NUM_CPL_CMDS);
+#endif
 
 extern struct sysctl_oid_list sysctl__hw_cxgb_children;
 int cxgb_txq_buf_ring_size = TX_ETH_Q_SIZE;
@@ -471,10 +476,17 @@ static int
 get_imm_packet(adapter_t *sc, const struct rsp_desc *resp, struct mbuf *m)
 {
 
-	m->m_len = m->m_pkthdr.len = IMMED_PKT_SIZE;
+	if (resp->rss_hdr.opcode == CPL_RX_DATA) {
+		const struct cpl_rx_data *cpl = (const void *)&resp->imm_data[0];
+		m->m_len = sizeof(*cpl) + ntohs(cpl->len);
+	} else if (resp->rss_hdr.opcode == CPL_RX_PKT) {
+		const struct cpl_rx_pkt *cpl = (const void *)&resp->imm_data[0];
+		m->m_len = sizeof(*cpl) + ntohs(cpl->len);
+	} else
+		m->m_len = IMMED_PKT_SIZE;
 	m->m_ext.ext_buf = NULL;
 	m->m_ext.ext_type = 0;
-	memcpy(mtod(m, uint8_t *), resp->imm_data, IMMED_PKT_SIZE); 
+	memcpy(mtod(m, uint8_t *), resp->imm_data, m->m_len); 
 	return (0);	
 }
 
@@ -703,7 +715,8 @@ refill_fl(adapter_t *sc, struct sge_fl *q, int n)
 	cb_arg.error = 0;
 	while (n--) {
 		/*
-		 * We only allocate a cluster, mbuf allocation happens after rx
+		 * We allocate an uninitialized mbuf + cluster, mbuf is
+		 * initialized after rx.
 		 */
 		if (q->zone == zone_pack) {
 			if ((m = m_getcl(M_NOWAIT, MT_NOINIT, M_PKTHDR)) == NULL)
@@ -1170,57 +1183,6 @@ calc_tx_descs(const struct mbuf *m, int nsegs)
 	return flits_to_desc(flits);
 }
 
-static unsigned int
-busdma_map_mbufs(struct mbuf **m, struct sge_txq *txq,
-    struct tx_sw_desc *txsd, bus_dma_segment_t *segs, int *nsegs)
-{
-	struct mbuf *m0;
-	int err, pktlen, pass = 0;
-	bus_dma_tag_t tag = txq->entry_tag;
-
-retry:
-	err = 0;
-	m0 = *m;
-	pktlen = m0->m_pkthdr.len;
-#if defined(__i386__) || defined(__amd64__)
-	if (busdma_map_sg_collapse(tag, txsd->map, m, segs, nsegs) == 0) {
-		goto done;
-	} else
-#endif
-		err = bus_dmamap_load_mbuf_sg(tag, txsd->map, m0, segs, nsegs, 0);
-
-	if (err == 0) {
-		goto done;
-	}
-	if (err == EFBIG && pass == 0) {
-		pass = 1;
-		/* Too many segments, try to defrag */
-		m0 = m_defrag(m0, M_DONTWAIT);
-		if (m0 == NULL) {
-			m_freem(*m);
-			*m = NULL;
-			return (ENOBUFS);
-		}
-		*m = m0;
-		goto retry;
-	} else if (err == ENOMEM) {
-		return (err);
-	} if (err) {
-		if (cxgb_debug)
-			printf("map failure err=%d pktlen=%d\n", err, pktlen);
-		m_freem(m0);
-		*m = NULL;
-		return (err);
-	}
-done:
-#if !defined(__i386__) && !defined(__amd64__)
-	bus_dmamap_sync(tag, txsd->map, BUS_DMASYNC_PREWRITE);
-#endif	
-	txsd->flags |= TX_SW_DESC_MAPPED;
-
-	return (0);
-}
-
 /**
  *	make_sgl - populate a scatter/gather list for a packet
  *	@sgp: the SGL to populate
@@ -1328,10 +1290,10 @@ write_wr_hdr_sgl(unsigned int ndesc, struct tx_desc *txd, struct txq_state *txqs
 	
 	if (__predict_true(ndesc == 1)) {
 		set_wr_hdr(wrp, htonl(F_WR_SOP | F_WR_EOP | V_WR_DATATYPE(1) |
-			V_WR_SGLSFLT(flits)) | wr_hi,
-		    htonl(V_WR_LEN(flits + sgl_flits) |
-			V_WR_GEN(txqs->gen)) | wr_lo);
-		/* XXX gen? */
+		    V_WR_SGLSFLT(flits)) | wr_hi,
+		    htonl(V_WR_LEN(flits + sgl_flits) | V_WR_GEN(txqs->gen)) |
+		    wr_lo);
+
 		wr_gen2(txd, txqs->gen);
 		
 	} else {
@@ -1470,7 +1432,8 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 			cntrl |= V_TXPKT_OPCODE(CPL_TX_PKT);
 			if (__predict_false(!(cflags & CSUM_IP)))
 				cntrl |= F_TXPKT_IPCSUM_DIS;
-			if (__predict_false(!(cflags & (CSUM_TCP | CSUM_UDP))))
+			if (__predict_false(!(cflags & (CSUM_TCP | CSUM_UDP |
+			    CSUM_UDP_IPV6 | CSUM_TCP_IPV6))))
 				cntrl |= F_TXPKT_L4CSUM_DIS;
 
 			hflit[0] = htonl(cntrl);
@@ -1585,7 +1548,8 @@ t3_encap(struct sge_qset *qs, struct mbuf **m)
 		cntrl |= V_TXPKT_OPCODE(CPL_TX_PKT);
 		if (__predict_false(!(m0->m_pkthdr.csum_flags & CSUM_IP)))
 			cntrl |= F_TXPKT_IPCSUM_DIS;
-		if (__predict_false(!(m0->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))))
+		if (__predict_false(!(m0->m_pkthdr.csum_flags & (CSUM_TCP |
+		    CSUM_UDP | CSUM_UDP_IPV6 | CSUM_TCP_IPV6))))
 			cntrl |= F_TXPKT_L4CSUM_DIS;
 		cpl->cntrl = htonl(cntrl);
 		cpl->len = htonl(mlen | 0x80000000);
@@ -1813,34 +1777,23 @@ cxgb_qflush(struct ifnet *ifp)
  *	its entirety.
  */
 static __inline void
-write_imm(struct tx_desc *d, struct mbuf *m,
+write_imm(struct tx_desc *d, caddr_t src,
 	  unsigned int len, unsigned int gen)
 {
-	struct work_request_hdr *from = mtod(m, struct work_request_hdr *);
+	struct work_request_hdr *from = (struct work_request_hdr *)src;
 	struct work_request_hdr *to = (struct work_request_hdr *)d;
 	uint32_t wr_hi, wr_lo;
 
-	if (len > WR_LEN)
-		panic("len too big %d\n", len);
-	if (len < sizeof(*from))
-		panic("len too small %d", len);
+	KASSERT(len <= WR_LEN && len >= sizeof(*from),
+	    ("%s: invalid len %d", __func__, len));
 	
 	memcpy(&to[1], &from[1], len - sizeof(*from));
 	wr_hi = from->wrh_hi | htonl(F_WR_SOP | F_WR_EOP |
-					V_WR_BCNTLFLT(len & 7));
-	wr_lo = from->wrh_lo | htonl(V_WR_GEN(gen) |
-					V_WR_LEN((len + 7) / 8));
+	    V_WR_BCNTLFLT(len & 7));
+	wr_lo = from->wrh_lo | htonl(V_WR_GEN(gen) | V_WR_LEN((len + 7) / 8));
 	set_wr_hdr(to, wr_hi, wr_lo);
 	wmb();
 	wr_gen2(d, gen);
-
-	/*
-	 * This check is a hack we should really fix the logic so
-	 * that this can't happen
-	 */
-	if (m->m_type != MT_DONTFREE)
-		m_freem(m);
-	
 }
 
 /**
@@ -1908,12 +1861,6 @@ reclaim_completed_tx_imm(struct sge_txq *q)
 	q->cleaned += reclaim;
 }
 
-static __inline int
-immediate(const struct mbuf *m)
-{
-	return m->m_len <= WR_LEN  && m->m_pkthdr.len <= WR_LEN ;
-}
-
 /**
  *	ctrl_xmit - send a packet through an SGE control Tx queue
  *	@adap: the adapter
@@ -1931,11 +1878,8 @@ ctrl_xmit(adapter_t *adap, struct sge_qset *qs, struct mbuf *m)
 	struct work_request_hdr *wrp = mtod(m, struct work_request_hdr *);
 	struct sge_txq *q = &qs->txq[TXQ_CTRL];
 	
-	if (__predict_false(!immediate(m))) {
-		m_freem(m);
-		return 0;
-	}
-	
+	KASSERT(m->m_len <= WR_LEN, ("%s: bad tx data", __func__));
+
 	wrp->wrh_hi |= htonl(F_WR_SOP | F_WR_EOP);
 	wrp->wrh_lo = htonl(V_WR_TID(q->token));
 
@@ -1950,7 +1894,7 @@ again:	reclaim_completed_tx_imm(q);
 		}
 		goto again;
 	}
-	write_imm(&q->desc[q->pidx], m, m->m_len, q->gen);
+	write_imm(&q->desc[q->pidx], m->m_data, m->m_len, q->gen);
 	
 	q->in_use++;
 	if (++q->pidx >= q->size) {
@@ -1960,7 +1904,9 @@ again:	reclaim_completed_tx_imm(q);
 	TXQ_UNLOCK(qs);
 	wmb();
 	t3_write_reg(adap, A_SG_KDOORBELL,
-		     F_SELEGRCNTX | V_EGRCNTX(q->cntxt_id));
+	    F_SELEGRCNTX | V_EGRCNTX(q->cntxt_id));
+
+	m_free(m);
 	return (0);
 }
 
@@ -1985,7 +1931,8 @@ again:	reclaim_completed_tx_imm(q);
 	while (q->in_use < q->size &&
 	       (m = mbufq_dequeue(&q->sendq)) != NULL) {
 
-		write_imm(&q->desc[q->pidx], m, m->m_len, q->gen);
+		write_imm(&q->desc[q->pidx], m->m_data, m->m_len, q->gen);
+		m_free(m);
 
 		if (++q->pidx >= q->size) {
 			q->pidx = 0;
@@ -2239,6 +2186,7 @@ is_new_response(const struct rsp_desc *r,
 /* How long to delay the next interrupt in case of memory shortage, in 0.1us. */
 #define NOMEM_INTR_DELAY 2500
 
+#ifdef TCP_OFFLOAD
 /**
  *	write_ofld_wr - write an offload work request
  *	@adap: the adapter
@@ -2252,68 +2200,63 @@ is_new_response(const struct rsp_desc *r,
  *	data already carry the work request with most fields populated.
  */
 static void
-write_ofld_wr(adapter_t *adap, struct mbuf *m,
-    struct sge_txq *q, unsigned int pidx,
-    unsigned int gen, unsigned int ndesc,
-    bus_dma_segment_t *segs, unsigned int nsegs)
+write_ofld_wr(adapter_t *adap, struct mbuf *m, struct sge_txq *q,
+    unsigned int pidx, unsigned int gen, unsigned int ndesc)
 {
 	unsigned int sgl_flits, flits;
+	int i, idx, nsegs, wrlen;
 	struct work_request_hdr *from;
-	struct sg_ent *sgp, sgl[TX_MAX_SEGS / 2 + 1];
+	struct sg_ent *sgp, t3sgl[TX_MAX_SEGS / 2 + 1];
 	struct tx_desc *d = &q->desc[pidx];
 	struct txq_state txqs;
-	
-	if (immediate(m) && nsegs == 0) {
-		write_imm(d, m, m->m_len, gen);
+	struct sglist_seg *segs;
+	struct ofld_hdr *oh = mtod(m, struct ofld_hdr *);
+	struct sglist *sgl;
+
+	from = (void *)(oh + 1);	/* Start of WR within mbuf */
+	wrlen = m->m_len - sizeof(*oh);
+
+	if (!(oh->flags & F_HDR_SGL)) {
+		write_imm(d, (caddr_t)from, wrlen, gen);
+
+		/*
+		 * mbuf with "real" immediate tx data will be enqueue_wr'd by
+		 * t3_push_frames and freed in wr_ack.  Others, like those sent
+		 * down by close_conn, t3_send_reset, etc. should be freed here.
+		 */
+		if (!(oh->flags & F_HDR_DF))
+			m_free(m);
 		return;
 	}
 
-	/* Only TX_DATA builds SGLs */
-	from = mtod(m, struct work_request_hdr *);
-	memcpy(&d->flit[1], &from[1], m->m_len - sizeof(*from));
+	memcpy(&d->flit[1], &from[1], wrlen - sizeof(*from));
 
-	flits = m->m_len / 8;
-	sgp = (ndesc == 1) ? (struct sg_ent *)&d->flit[flits] : sgl;
+	sgl = oh->sgl;
+	flits = wrlen / 8;
+	sgp = (ndesc == 1) ? (struct sg_ent *)&d->flit[flits] : t3sgl;
 
-	make_sgl(sgp, segs, nsegs);
+	nsegs = sgl->sg_nseg;
+	segs = sgl->sg_segs;
+	for (idx = 0, i = 0; i < nsegs; i++) {
+		KASSERT(segs[i].ss_len, ("%s: 0 len in sgl", __func__));
+		if (i && idx == 0) 
+			++sgp;
+		sgp->len[idx] = htobe32(segs[i].ss_len);
+		sgp->addr[idx] = htobe64(segs[i].ss_paddr);
+		idx ^= 1;
+	}
+	if (idx) {
+		sgp->len[idx] = 0;
+		sgp->addr[idx] = 0;
+	}
+
 	sgl_flits = sgl_len(nsegs);
-
 	txqs.gen = gen;
 	txqs.pidx = pidx;
 	txqs.compl = 0;
 
-	write_wr_hdr_sgl(ndesc, d, &txqs, q, sgl, flits, sgl_flits,
+	write_wr_hdr_sgl(ndesc, d, &txqs, q, t3sgl, flits, sgl_flits,
 	    from->wrh_hi, from->wrh_lo);
-}
-
-/**
- *	calc_tx_descs_ofld - calculate # of Tx descriptors for an offload packet
- *	@m: the packet
- *
- * 	Returns the number of Tx descriptors needed for the given offload
- * 	packet.  These packets are already fully constructed.
- */
-static __inline unsigned int
-calc_tx_descs_ofld(struct mbuf *m, unsigned int nsegs)
-{
-	unsigned int flits, cnt = 0;
-	int ndescs;
-
-	if (m->m_len <= WR_LEN && nsegs == 0)
-		return (1);                 /* packet fits as immediate data */
-
-	/*
-	 * This needs to be re-visited for TOE
-	 */
-
-	cnt = nsegs;
-		
-	/* headers */
-	flits = m->m_len / 8;
-
-	ndescs = flits_to_desc(flits + sgl_len(cnt));
-
-	return (ndescs);
 }
 
 /**
@@ -2327,28 +2270,19 @@ calc_tx_descs_ofld(struct mbuf *m, unsigned int nsegs)
 static int
 ofld_xmit(adapter_t *adap, struct sge_qset *qs, struct mbuf *m)
 {
-	int ret, nsegs;
+	int ret;
 	unsigned int ndesc;
 	unsigned int pidx, gen;
 	struct sge_txq *q = &qs->txq[TXQ_OFLD];
-	bus_dma_segment_t segs[TX_MAX_SEGS], *vsegs;
-	struct tx_sw_desc *stx;
+	struct ofld_hdr *oh = mtod(m, struct ofld_hdr *);
 
-	nsegs = m_get_sgllen(m);
-	vsegs = m_get_sgl(m);
-	ndesc = calc_tx_descs_ofld(m, nsegs);
-	busdma_map_sgl(vsegs, segs, nsegs);
+	ndesc = G_HDR_NDESC(oh->flags);
 
-	stx = &q->sdesc[q->pidx];
-	
 	TXQ_LOCK(qs);
 again:	reclaim_completed_tx(qs, 16, TXQ_OFLD);
 	ret = check_desc_avail(adap, q, m, ndesc, TXQ_OFLD);
 	if (__predict_false(ret)) {
 		if (ret == 1) {
-			printf("no ofld desc avail\n");
-			
-			m_set_priority(m, ndesc);     /* save for restart */
 			TXQ_UNLOCK(qs);
 			return (EINTR);
 		}
@@ -2363,16 +2297,11 @@ again:	reclaim_completed_tx(qs, 16, TXQ_OFLD);
 		q->pidx -= q->size;
 		q->gen ^= 1;
 	}
-#ifdef T3_TRACE
-	T3_TRACE5(adap->tb[q->cntxt_id & 7],
-		  "ofld_xmit: ndesc %u, pidx %u, len %u, main %u, frags %u",
-		  ndesc, pidx, skb->len, skb->len - skb->data_len,
-		  skb_shinfo(skb)->nr_frags);
-#endif
+
+	write_ofld_wr(adap, m, q, pidx, gen, ndesc);
+	check_ring_tx_db(adap, q, 1);
 	TXQ_UNLOCK(qs);
 
-	write_ofld_wr(adap, m, q, pidx, gen, ndesc, segs, nsegs);
-	check_ring_tx_db(adap, q, 1);
 	return (0);
 }
 
@@ -2389,16 +2318,15 @@ restart_offloadq(void *data, int npending)
 	struct sge_qset *qs = data;
 	struct sge_txq *q = &qs->txq[TXQ_OFLD];
 	adapter_t *adap = qs->port->adapter;
-	bus_dma_segment_t segs[TX_MAX_SEGS];
-	struct tx_sw_desc *stx = &q->sdesc[q->pidx];
-	int nsegs, cleaned;
+	int cleaned;
 		
 	TXQ_LOCK(qs);
 again:	cleaned = reclaim_completed_tx(qs, 16, TXQ_OFLD);
 
 	while ((m = mbufq_peek(&q->sendq)) != NULL) {
 		unsigned int gen, pidx;
-		unsigned int ndesc = m_get_priority(m);
+		struct ofld_hdr *oh = mtod(m, struct ofld_hdr *);
+		unsigned int ndesc = G_HDR_NDESC(oh->flags);
 
 		if (__predict_false(q->size - q->in_use < ndesc)) {
 			setbit(&qs->txq_stopped, TXQ_OFLD);
@@ -2419,9 +2347,8 @@ again:	cleaned = reclaim_completed_tx(qs, 16, TXQ_OFLD);
 		}
 		
 		(void)mbufq_dequeue(&q->sendq);
-		busdma_map_mbufs(&m, q, stx, segs, &nsegs);
 		TXQ_UNLOCK(qs);
-		write_ofld_wr(adap, m, q, pidx, gen, ndesc, segs, nsegs);
+		write_ofld_wr(adap, m, q, pidx, gen, ndesc);
 		TXQ_LOCK(qs);
 	}
 #if USE_GTS
@@ -2435,34 +2362,7 @@ again:	cleaned = reclaim_completed_tx(qs, 16, TXQ_OFLD);
 }
 
 /**
- *	queue_set - return the queue set a packet should use
- *	@m: the packet
- *
- *	Maps a packet to the SGE queue set it should use.  The desired queue
- *	set is carried in bits 1-3 in the packet's priority.
- */
-static __inline int
-queue_set(const struct mbuf *m)
-{
-	return m_get_priority(m) >> 1;
-}
-
-/**
- *	is_ctrl_pkt - return whether an offload packet is a control packet
- *	@m: the packet
- *
- *	Determines whether an offload packet should use an OFLD or a CTRL
- *	Tx queue.  This is indicated by bit 0 in the packet's priority.
- */
-static __inline int
-is_ctrl_pkt(const struct mbuf *m)
-{
-	return m_get_priority(m) & 1;
-}
-
-/**
  *	t3_offload_tx - send an offload packet
- *	@tdev: the offload device to send to
  *	@m: the packet
  *
  *	Sends an offload packet.  We use the packet priority to select the
@@ -2470,77 +2370,35 @@ is_ctrl_pkt(const struct mbuf *m)
  *	should be sent as regular or control, bits 1-3 select the queue set.
  */
 int
-t3_offload_tx(struct t3cdev *tdev, struct mbuf *m)
+t3_offload_tx(struct adapter *sc, struct mbuf *m)
 {
-	adapter_t *adap = tdev2adap(tdev);
-	struct sge_qset *qs = &adap->sge.qs[queue_set(m)];
+	struct ofld_hdr *oh = mtod(m, struct ofld_hdr *);
+	struct sge_qset *qs = &sc->sge.qs[G_HDR_QSET(oh->flags)];
 
-	if (__predict_false(is_ctrl_pkt(m))) 
-		return ctrl_xmit(adap, qs, m);
-
-	return ofld_xmit(adap, qs, m);
+	if (oh->flags & F_HDR_CTRL) {
+		m_adj(m, sizeof (*oh));	/* trim ofld_hdr off */
+		return (ctrl_xmit(sc, qs, m));
+	} else
+		return (ofld_xmit(sc, qs, m));
 }
-
-/**
- *	deliver_partial_bundle - deliver a (partial) bundle of Rx offload pkts
- *	@tdev: the offload device that will be receiving the packets
- *	@q: the SGE response queue that assembled the bundle
- *	@m: the partial bundle
- *	@n: the number of packets in the bundle
- *
- *	Delivers a (partial) bundle of Rx offload packets to an offload device.
- */
-static __inline void
-deliver_partial_bundle(struct t3cdev *tdev,
-			struct sge_rspq *q,
-			struct mbuf *mbufs[], int n)
-{
-	if (n) {
-		q->offload_bundles++;
-		cxgb_ofld_recv(tdev, mbufs, n);
-	}
-}
-
-static __inline int
-rx_offload(struct t3cdev *tdev, struct sge_rspq *rq,
-    struct mbuf *m, struct mbuf *rx_gather[],
-    unsigned int gather_idx)
-{
-	
-	rq->offload_pkts++;
-	m->m_pkthdr.header = mtod(m, void *);
-	rx_gather[gather_idx++] = m;
-	if (gather_idx == RX_BUNDLE_SIZE) {
-		cxgb_ofld_recv(tdev, rx_gather, RX_BUNDLE_SIZE);
-		gather_idx = 0;
-		rq->offload_bundles++;
-	}
-	return (gather_idx);
-}
+#endif
 
 static void
 restart_tx(struct sge_qset *qs)
 {
 	struct adapter *sc = qs->port->adapter;
-	
-	
+
 	if (isset(&qs->txq_stopped, TXQ_OFLD) &&
 	    should_restart_tx(&qs->txq[TXQ_OFLD]) &&
 	    test_and_clear_bit(TXQ_OFLD, &qs->txq_stopped)) {
 		qs->txq[TXQ_OFLD].restarts++;
-		DPRINTF("restarting TXQ_OFLD\n");
 		taskqueue_enqueue(sc->tq, &qs->txq[TXQ_OFLD].qresume_task);
 	}
-	DPRINTF("stopped=0x%x restart=%d processed=%d cleaned=%d in_use=%d\n",
-	    qs->txq_stopped, should_restart_tx(&qs->txq[TXQ_CTRL]),
-	    qs->txq[TXQ_CTRL].processed, qs->txq[TXQ_CTRL].cleaned,
-	    qs->txq[TXQ_CTRL].in_use);
-	
+
 	if (isset(&qs->txq_stopped, TXQ_CTRL) &&
 	    should_restart_tx(&qs->txq[TXQ_CTRL]) &&
 	    test_and_clear_bit(TXQ_CTRL, &qs->txq_stopped)) {
 		qs->txq[TXQ_CTRL].restarts++;
-		DPRINTF("restarting TXQ_CTRL\n");
 		taskqueue_enqueue(sc->tq, &qs->txq[TXQ_CTRL].qresume_task);
 	}
 }
@@ -2569,6 +2427,7 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 
 	MTX_INIT(&q->lock, q->namebuf, NULL, MTX_DEF);
 	q->port = pi;
+	q->adap = sc;
 
 	if ((q->txq[TXQ_ETH].txq_mr = buf_ring_alloc(cxgb_txq_buf_ring_size,
 	    M_DEVBUF, M_WAITOK, &q->lock)) == NULL) {
@@ -2614,6 +2473,10 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 		goto err;
 	}
 
+	snprintf(q->rspq.lockbuf, RSPQ_NAME_LEN, "t3 rspq lock %d:%d",
+	    device_get_unit(sc->dev), irq_vec_idx);
+	MTX_INIT(&q->rspq.lock, q->rspq.lockbuf, NULL, MTX_DEF);
+
 	for (i = 0; i < ntxq; ++i) {
 		size_t sz = i == TXQ_CTRL ? 0 : sizeof(struct tx_sw_desc);
 
@@ -2630,8 +2493,10 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 		q->txq[i].gen = 1;
 		q->txq[i].size = p->txq_size[i];
 	}
-	
+
+#ifdef TCP_OFFLOAD
 	TASK_INIT(&q->txq[TXQ_OFLD].qresume_task, 0, restart_offloadq, q);
+#endif
 	TASK_INIT(&q->txq[TXQ_CTRL].qresume_task, 0, restart_ctrlq, q);
 	TASK_INIT(&q->txq[TXQ_ETH].qreclaim_task, 0, sge_txq_reclaim_handler, q);
 	TASK_INIT(&q->txq[TXQ_OFLD].qreclaim_task, 0, sge_txq_reclaim_handler, q);
@@ -2729,15 +2594,10 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 			goto err_unlock;
 		}
 	}
-	
-	snprintf(q->rspq.lockbuf, RSPQ_NAME_LEN, "t3 rspq lock %d:%d",
-	    device_get_unit(sc->dev), irq_vec_idx);
-	MTX_INIT(&q->rspq.lock, q->rspq.lockbuf, NULL, MTX_DEF);
-	
+
 	mtx_unlock_spin(&sc->sge.reg_lock);
 	t3_update_qset_coalesce(q, p);
-	q->port = pi;
-	
+
 	refill_fl(sc, &q->fl[0], q->fl[0].size);
 	refill_fl(sc, &q->fl[1], q->fl[1].size);
 	refill_rspq(sc, &q->rspq, q->rspq.size - 1);
@@ -2762,22 +2622,12 @@ err:
  * will also be taken into account here.
  */
 void
-t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad)
+t3_rx_eth(struct adapter *adap, struct mbuf *m, int ethpad)
 {
 	struct cpl_rx_pkt *cpl = (struct cpl_rx_pkt *)(mtod(m, uint8_t *) + ethpad);
 	struct port_info *pi = &adap->port[adap->rxpkt_map[cpl->iff]];
 	struct ifnet *ifp = pi->ifp;
 	
-	DPRINTF("rx_eth m=%p m->m_data=%p p->iff=%d\n", m, mtod(m, uint8_t *), cpl->iff);
-
-	if ((ifp->if_capenable & IFCAP_RXCSUM) && !cpl->fragment &&
-	    cpl->csum_valid && cpl->csum == 0xffff) {
-		m->m_pkthdr.csum_flags = (CSUM_IP_CHECKED|CSUM_IP_VALID);
-		rspq_to_qset(rq)->port_stats[SGE_PSTAT_RX_CSUM_GOOD]++;
-		m->m_pkthdr.csum_flags = (CSUM_IP_CHECKED|CSUM_IP_VALID|CSUM_DATA_VALID|CSUM_PSEUDO_HDR);
-		m->m_pkthdr.csum_data = 0xffff;
-	}
-
 	if (cpl->vlan_valid) {
 		m->m_pkthdr.ether_vtag = ntohs(cpl->vlan);
 		m->m_flags |= M_VLANTAG;
@@ -2791,6 +2641,30 @@ t3_rx_eth(struct adapter *adap, struct sge_rspq *rq, struct mbuf *m, int ethpad)
 	m->m_pkthdr.len -= (sizeof(*cpl) + ethpad);
 	m->m_len -= (sizeof(*cpl) + ethpad);
 	m->m_data += (sizeof(*cpl) + ethpad);
+
+	if (!cpl->fragment && cpl->csum_valid && cpl->csum == 0xffff) {
+		struct ether_header *eh = mtod(m, void *);
+		uint16_t eh_type;
+
+		if (eh->ether_type == htons(ETHERTYPE_VLAN)) {
+			struct ether_vlan_header *evh = mtod(m, void *);
+
+			eh_type = evh->evl_proto;
+		} else
+			eh_type = eh->ether_type;
+
+		if (ifp->if_capenable & IFCAP_RXCSUM &&
+		    eh_type == htons(ETHERTYPE_IP)) {
+			m->m_pkthdr.csum_flags = (CSUM_IP_CHECKED |
+			    CSUM_IP_VALID | CSUM_DATA_VALID | CSUM_PSEUDO_HDR);
+			m->m_pkthdr.csum_data = 0xffff;
+		} else if (ifp->if_capenable & IFCAP_RXCSUM_IPV6 &&
+		    eh_type == htons(ETHERTYPE_IPV6)) {
+			m->m_pkthdr.csum_flags = (CSUM_DATA_VALID_IPV6 |
+			    CSUM_PSEUDO_HDR);
+			m->m_pkthdr.csum_data = 0xffff;
+		}
+	}
 }
 
 /**
@@ -2967,8 +2841,6 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 	int skip_lro;
 	struct lro_ctrl *lro_ctrl = &qs->lro.ctrl;
 #endif
-	struct mbuf *offload_mbufs[RX_BUNDLE_SIZE];
-	int ngathered = 0;
 	struct t3_mbuf_hdr *mh = &rspq->rspq_mh;
 #ifdef DEBUG	
 	static int last_holdoff = 0;
@@ -2982,10 +2854,10 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 	while (__predict_true(budget_left && is_new_response(r, rspq))) {
 		int eth, eop = 0, ethpad = 0;
 		uint32_t flags = ntohl(r->flags);
-		uint32_t rss_csum = *(const uint32_t *)r;
 		uint32_t rss_hash = be32toh(r->rss_hdr.rss_hash_val);
+		uint8_t opcode = r->rss_hdr.opcode;
 		
-		eth = (r->rss_hdr.opcode == CPL_RX_PKT);
+		eth = (opcode == CPL_RX_PKT);
 		
 		if (__predict_false(flags & F_RSPD_ASYNC_NOTIF)) {
 			struct mbuf *m;
@@ -3005,27 +2877,27 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
                         memcpy(mtod(m, char *), r, AN_PKT_SIZE);
 			m->m_len = m->m_pkthdr.len = AN_PKT_SIZE;
                         *mtod(m, char *) = CPL_ASYNC_NOTIF;
-			rss_csum = htonl(CPL_ASYNC_NOTIF << 24);
+			opcode = CPL_ASYNC_NOTIF;
 			eop = 1;
                         rspq->async_notif++;
 			goto skip;
 		} else if  (flags & F_RSPD_IMM_DATA_VALID) {
-			struct mbuf *m = NULL;
+			struct mbuf *m = m_gethdr(M_DONTWAIT, MT_DATA);
 
-			DPRINTF("IMM DATA VALID opcode=0x%x rspq->cidx=%d\n",
-			    r->rss_hdr.opcode, rspq->cidx);
-			if (mh->mh_head == NULL)
-				mh->mh_head = m_gethdr(M_DONTWAIT, MT_DATA);
-                        else 
-				m = m_gethdr(M_DONTWAIT, MT_DATA);
-
-			if (mh->mh_head == NULL &&  m == NULL) {	
+			if (m == NULL) {	
 		no_mem:
 				rspq->next_holdoff = NOMEM_INTR_DELAY;
 				budget_left--;
 				break;
 			}
-			get_imm_packet(adap, r, mh->mh_head);
+			if (mh->mh_head == NULL)
+				mh->mh_head = m;
+                        else 
+				mh->mh_tail->m_next = m;
+			mh->mh_tail = m;
+
+			get_imm_packet(adap, r, m);
+			mh->mh_head->m_pkthdr.len += m->m_len;
 			eop = 1;
 			rspq->imm_data++;
 		} else if (r->len_cq) {
@@ -3048,34 +2920,18 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			handle_rsp_cntrl_info(qs, flags);
 		}
 
-		r++;
-		if (__predict_false(++rspq->cidx == rspq->size)) {
-			rspq->cidx = 0;
-			rspq->gen ^= 1;
-			r = rspq->desc;
-		}
-
-		if (++rspq->credits >= 64) {
-			refill_rspq(adap, rspq, rspq->credits);
-			rspq->credits = 0;
-		}
 		if (!eth && eop) {
-			mh->mh_head->m_pkthdr.csum_data = rss_csum;
-			/*
-			 * XXX size mismatch
-			 */
-			m_set_priority(mh->mh_head, rss_hash);
-
-			
-			ngathered = rx_offload(&adap->tdev, rspq,
-			    mh->mh_head, offload_mbufs, ngathered);
+			rspq->offload_pkts++;
+#ifdef TCP_OFFLOAD
+			adap->cpl_handler[opcode](qs, r, mh->mh_head);
+#else
+			m_freem(mh->mh_head);
+#endif
 			mh->mh_head = NULL;
-			DPRINTF("received offload packet\n");
-			
 		} else if (eth && eop) {
 			struct mbuf *m = mh->mh_head;
 
-			t3_rx_eth(adap, rspq, m, ethpad);
+			t3_rx_eth(adap, m, ethpad);
 
 			/*
 			 * The T304 sends incoming packets on any qset.  If LRO
@@ -3106,12 +2962,22 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 			mh->mh_head = NULL;
 
 		}
+
+		r++;
+		if (__predict_false(++rspq->cidx == rspq->size)) {
+			rspq->cidx = 0;
+			rspq->gen ^= 1;
+			r = rspq->desc;
+		}
+
+		if (++rspq->credits >= 64) {
+			refill_rspq(adap, rspq, rspq->credits);
+			rspq->credits = 0;
+		}
 		__refill_fl_lt(adap, &qs->fl[0], 32);
 		__refill_fl_lt(adap, &qs->fl[1], 32);
 		--budget_left;
 	}
-
-	deliver_partial_bundle(&adap->tdev, rspq, offload_mbufs, ngathered);
 
 #if defined(INET6) || defined(INET)
 	/* Flush LRO */

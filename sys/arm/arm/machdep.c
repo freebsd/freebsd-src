@@ -44,6 +44,7 @@
 
 #include "opt_compat.h"
 #include "opt_ddb.h"
+#include "opt_timer.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -80,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_pager.h>
 
 #include <machine/armreg.h>
+#include <machine/atags.h>
 #include <machine/cpu.h>
 #include <machine/machdep.h>
 #include <machine/md_var.h>
@@ -92,6 +94,10 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmparam.h>
 #include <machine/sysarch.h>
 
+struct pcpu __pcpu[MAXCPU];
+struct pcpu *pcpup = &__pcpu[0];
+
+static struct trapframe proc0_tf;
 uint32_t cpu_reset_address = 0;
 int cold = 1;
 vm_offset_t vector_page;
@@ -106,6 +112,20 @@ int _min_bzero_size = 0;
 extern int *end;
 #ifdef DDB
 extern vm_offset_t ksym_start, ksym_end;
+#endif
+
+#if defined(LINUX_BOOT_ABI)
+#define LBABI_MAX_BANKS	10
+
+uint32_t board_id;
+struct arm_lbabi_tag *atag_list;
+uint32_t revision;
+uint64_t serial;
+char linux_command_line[LBABI_MAX_COMMAND_LINE + 1];
+char atags[LBABI_MAX_COMMAND_LINE * 2];
+uint32_t memstart[LBABI_MAX_BANKS];
+uint32_t memsize[LBABI_MAX_BANKS];
+uint32_t membanks;
 #endif
 
 void
@@ -139,14 +159,14 @@ sendsig(catcher, ksi, mask)
 	/* Allocate and validate space for the signal handler context. */
 	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !(onstack) &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
-		fp = (struct sigframe *)(td->td_sigstk.ss_sp + 
+		fp = (struct sigframe *)(td->td_sigstk.ss_sp +
 		    td->td_sigstk.ss_size);
 #if defined(COMPAT_43)
 		td->td_sigstk.ss_flags |= SS_ONSTACK;
 #endif
 	} else
 		fp = (struct sigframe *)td->td_frame->tf_usr_sp;
-		 
+
 	/* make room on the stack */
 	fp--;
 	
@@ -156,7 +176,7 @@ sendsig(catcher, ksi, mask)
 	get_mcontext(td, &frame.sf_uc.uc_mcontext, 0);
 	frame.sf_si = ksi->ksi_info;
 	frame.sf_uc.uc_sigmask = *mask;
-	frame.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK ) 
+	frame.sf_uc.uc_stack.ss_flags = (td->td_pflags & TDP_ALTSTACK )
 	    ? ((onstack) ? SS_ONSTACK : 0) : SS_DISABLE;
 	frame.sf_uc.uc_stack = td->td_sigstk;
 	mtx_unlock(&psp->ps_mtx);
@@ -261,8 +281,10 @@ static void
 cpu_startup(void *dummy)
 {
 	struct pcb *pcb = thread0.td_pcb;
+#ifdef ARM_TP_ADDRESS
 #ifndef ARM_CACHE_LOCK_ENABLE
 	vm_page_t m;
+#endif
 #endif
 
 	cpu_setup("");
@@ -305,6 +327,7 @@ cpu_startup(void *dummy)
 	vector_page_setprot(VM_PROT_READ);
 	pmap_set_pcb_pagedir(pmap_kernel(), pcb);
 	pmap_postinit();
+#ifdef ARM_TP_ADDRESS
 #ifdef ARM_CACHE_LOCK_ENABLE
 	pmap_kenter_user(ARM_TP_ADDRESS, ARM_TP_ADDRESS);
 	arm_lock_cache_line(ARM_TP_ADDRESS);
@@ -314,6 +337,7 @@ cpu_startup(void *dummy)
 #endif
 	*(uint32_t *)ARM_RAS_START = 0;
 	*(uint32_t *)ARM_RAS_END = 0xffffffff;
+#endif
 }
 
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
@@ -341,7 +365,20 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 void
 cpu_idle(int busy)
 {
+	
+#ifndef NO_EVENTTIMERS
+	if (!busy) {
+		critical_enter();
+		cpu_idleclock();
+	}
+#endif
 	cpu_sleep(0);
+#ifndef NO_EVENTTIMERS
+	if (!busy) {
+		cpu_activeclock();
+		critical_exit();
+	}
+#endif
 }
 
 int
@@ -449,7 +486,7 @@ ptrace_single_step(struct thread *td)
 	 ("Didn't clear single step"));
 	p = td->td_proc;
 	PROC_UNLOCK(p);
-	error = ptrace_read_int(td, td->td_frame->tf_pc + 4, 
+	error = ptrace_read_int(td, td->td_frame->tf_pc + 4,
 	    &td->td_md.md_ptrace_instr);
 	if (error)
 		goto out;
@@ -661,10 +698,51 @@ makectx(struct trapframe *tf, struct pcb *pcb)
 }
 
 /*
+ * Make a standard dump_avail array.  Can't make the phys_avail
+ * since we need to do that after we call pmap_bootstrap, but this
+ * is needed before pmap_boostrap.
+ *
+ * ARM_USE_SMALL_ALLOC uses dump_avail, so it must be filled before
+ * calling pmap_bootstrap.
+ */
+void
+arm_dump_avail_init(vm_offset_t ramsize, size_t max)
+{
+#ifdef LINUX_BOOT_ABI
+	/*
+	 * Linux boot loader passes us the actual banks of memory, so use them
+	 * to construct the dump_avail array.
+	 */
+	if (membanks > 0) 
+	{
+		int i, j;
+
+		if (max < (membanks + 1) * 2)
+			panic("dump_avail[%d] too small for %d banks\n",
+			    max, membanks);
+		for (j = 0, i = 0; i < membanks; i++) {
+			dump_avail[j++] = round_page(memstart[i]);
+			dump_avail[j++] = trunc_page(memstart[i] + memsize[i]);
+		}
+		dump_avail[j++] = 0;
+		dump_avail[j++] = 0;
+		return;
+	}
+#endif
+	if (max < 4)
+		panic("dump_avail too small\n");
+
+	dump_avail[0] = round_page(PHYSADDR);
+	dump_avail[1] = trunc_page(PHYSADDR + ramsize);
+	dump_avail[2] = 0;
+	dump_avail[3] = 0;
+}
+
+/*
  * Fake up a boot descriptor table
  */
 vm_offset_t
-fake_preload_metadata(void)
+fake_preload_metadata(struct arm_boot_params *abp __unused)
 {
 #ifdef DDB
 	vm_offset_t zstart = 0, zend = 0;
@@ -709,3 +787,177 @@ fake_preload_metadata(void)
 
 	return (lastaddr);
 }
+
+void
+pcpu0_init(void)
+{
+#if ARM_ARCH_6 || ARM_ARCH_7A || defined(CPU_MV_PJ4B)
+	set_pcpu(pcpup);
+#endif
+	pcpu_init(pcpup, 0, sizeof(struct pcpu));
+	PCPU_SET(curthread, &thread0);
+#ifdef ARM_VFP_SUPPORT
+	PCPU_SET(cpu, 0);
+#endif
+}
+
+#if defined(LINUX_BOOT_ABI)
+vm_offset_t
+linux_parse_boot_param(struct arm_boot_params *abp)
+{
+	struct arm_lbabi_tag *walker;
+
+	/*
+	 * Linux boot ABI: r0 = 0, r1 is the board type (!= 0) and r2
+	 * is atags or dtb pointer.  If all of these aren't satisfied,
+	 * then punt.
+	 */
+	if (!(abp->abp_r0 == 0 && abp->abp_r1 != 0 && abp->abp_r2 != 0))
+		return 0;
+
+	board_id = abp->abp_r1;
+	walker = (struct arm_lbabi_tag *)
+	    (abp->abp_r2 + KERNVIRTADDR - KERNPHYSADDR);
+
+	/* xxx - Need to also look for binary device tree */
+	if (ATAG_TAG(walker) != ATAG_CORE)
+		return 0;
+
+	atag_list = walker;
+	while (ATAG_TAG(walker) != ATAG_NONE) {
+		switch (ATAG_TAG(walker)) {
+		case ATAG_CORE:
+			break;
+		case ATAG_MEM:
+			if (membanks < LBABI_MAX_BANKS) {
+				memstart[membanks] = walker->u.tag_mem.start;
+				memsize[membanks] = walker->u.tag_mem.size;
+			}
+			membanks++;
+			break;
+		case ATAG_INITRD2:
+			break;
+		case ATAG_SERIAL:
+			serial = walker->u.tag_sn.low |
+			    ((uint64_t)walker->u.tag_sn.high << 32);
+			break;
+		case ATAG_REVISION:
+			revision = walker->u.tag_rev.rev;
+			break;
+		case ATAG_CMDLINE:
+			/* XXX open question: Parse this for boothowto? */
+			bcopy(walker->u.tag_cmd.command, linux_command_line,
+			      ATAG_SIZE(walker));
+			break;
+		default:
+			break;
+		}
+		walker = ATAG_NEXT(walker);
+	}
+
+	/* Save a copy for later */
+	bcopy(atag_list, atags,
+	    (char *)walker - (char *)atag_list + ATAG_SIZE(walker));
+
+	return fake_preload_metadata(abp);
+}
+#endif
+
+#if defined(FREEBSD_BOOT_LOADER)
+vm_offset_t
+freebsd_parse_boot_param(struct arm_boot_params *abp)
+{
+	vm_offset_t lastaddr = 0;
+	void *mdp;
+	void *kmdp;
+
+	/*
+	 * Mask metadata pointer: it is supposed to be on page boundary. If
+	 * the first argument (mdp) doesn't point to a valid address the
+	 * bootloader must have passed us something else than the metadata
+	 * ptr, so we give up.  Also give up if we cannot find metadta section
+	 * the loader creates that we get all this data out of.
+	 */
+
+	if ((mdp = (void *)(abp->abp_r0 & ~PAGE_MASK)) == NULL)
+		return 0;
+	preload_metadata = mdp;
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp == NULL)
+		return 0;
+
+	boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
+	kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
+	lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND, vm_offset_t);
+#ifdef DDB
+	ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
+	ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
+#endif
+	preload_addr_relocate = KERNVIRTADDR - KERNPHYSADDR;
+	return lastaddr;
+}
+#endif
+
+vm_offset_t
+default_parse_boot_param(struct arm_boot_params *abp)
+{
+	vm_offset_t lastaddr;
+
+#if defined(LINUX_BOOT_ABI)
+	if ((lastaddr = linux_parse_boot_param(abp)) != 0)
+		return lastaddr;
+#endif
+#if defined(FREEBSD_BOOT_LOADER)
+	if ((lastaddr = freebsd_parse_boot_param(abp)) != 0)
+		return lastaddr;
+#endif
+	/* Fall back to hardcoded metadata. */
+	lastaddr = fake_preload_metadata(abp);
+
+	return lastaddr;
+}
+
+/*
+ * Stub version of the boot parameter parsing routine.  We are
+ * called early in initarm, before even VM has been initialized.
+ * This routine needs to preserve any data that the boot loader
+ * has passed in before the kernel starts to grow past the end
+ * of the BSS, traditionally the place boot-loaders put this data.
+ *
+ * Since this is called so early, things that depend on the vm system
+ * being setup (including access to some SoC's serial ports), about
+ * all that can be done in this routine is to copy the arguments.
+ *
+ * This is the default boot parameter parsing routine.  Individual
+ * kernels/boards can override this weak function with one of their
+ * own.  We just fake metadata...
+ */
+__weak_reference(default_parse_boot_param, parse_boot_param);
+
+/*
+ * Initialize proc0
+ */
+void
+init_proc0(vm_offset_t kstack)
+{
+	proc_linkup0(&proc0, &thread0);
+	thread0.td_kstack = kstack;
+	thread0.td_pcb = (struct pcb *)
+		(thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
+	thread0.td_pcb->pcb_flags = 0;
+	thread0.td_frame = &proc0_tf;
+	pcpup->pc_curpcb = thread0.td_pcb;
+}
+
+void
+set_stackptrs(int cpu)
+{
+
+	set_stackptr(PSR_IRQ32_MODE,
+	    irqstack.pv_va + ((IRQ_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
+	set_stackptr(PSR_ABT32_MODE,
+	    abtstack.pv_va + ((ABT_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
+	set_stackptr(PSR_UND32_MODE,
+	    undstack.pv_va + ((UND_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
+}
+

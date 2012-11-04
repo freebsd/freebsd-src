@@ -1,0 +1,111 @@
+# $FreeBSD$
+
+#
+# Altera JTAG UARTs configured for console, debugging, and data putput on the
+# Terasic DE-4.
+#
+hint.altera_jtag_uart.0.at="nexus0"
+hint.altera_jtag_uart.0.maddr=0x7f000000
+hint.altera_jtag_uart.0.msize=0x40
+hint.altera_jtag_uart.0.irq=0
+
+hint.altera_jtag_uart.1.at="nexus0"
+hint.altera_jtag_uart.1.maddr=0x7f001000
+hint.altera_jtag_uart.1.msize=0x40
+
+hint.altera_jtag_uart.2.at="nexus0"
+hint.altera_jtag_uart.2.maddr=0x7f002000
+hint.altera_jtag_uart.2.msize=0x40
+
+#
+# On-board DE4 and tPad SD Card IP core
+#
+hint.altera_sdcardc.0.at="nexus0"
+hint.altera_sdcardc.0.maddr=0x7f008000
+hint.altera_sdcardc.0.msize=0x400
+
+#
+# On-board DE4 8-element LED
+#
+hint.terasic_de4led.0.at="nexus0"
+hint.terasic_de4led.0.maddr=0x7f006000
+hint.terasic_de4led.0.msize=1
+hint.terasic_de4led.0.de4led_0_cmd="f9"
+
+#
+# Terasic Multi-touch LCD (MTL), an optional feature in DE-4 configurations.
+#
+hint.terasic_mtl.0.at="nexus0"
+hint.terasic_mtl.0.reg_maddr=0x70400000
+hint.terasic_mtl.0.reg_msize=0x1000
+hint.terasic_mtl.0.pixel_maddr=0x70000000
+hint.terasic_mtl.0.pixel_msize=0x177000
+hint.terasic_mtl.0.text_maddr=0x70177000
+hint.terasic_mtl.0.text_msize=0x2000
+
+#
+# BERI Hardware Version ROM
+#
+hint.altera_avgen.0.at="nexus0"
+hint.altera_avgen.0.maddr=0x7F00A000
+hint.altera_avgen.0.msize=20
+hint.altera_avgen.0.width=4
+hint.altera_avgen.0.fileio="rw"
+hint.altera_avgen.0.devname="berirom"
+
+#
+# Expose the DE4 flash via an Avalon "generic" device.
+# This is incompatible with the isf(4) driver.
+#
+#hint.altera_avgen.0.at="nexus0"
+#hint.altera_avgen.0.maddr=0x74000000
+#hint.altera_avgen.0.msize=0x4000000
+#hint.altera_avgen.0.width=2
+#hint.altera_avgen.0.fileio="rw"
+#hint.altera_avgen.0.mmapio="rwx"
+#hint.altera_avgen.0.devname="de4flash"
+
+#
+# Expose the DE4 buttons and switches via an Avalon "generic" device.
+# 
+hint.altera_avgen.0.at="nexus0"
+hint.altera_avgen.0.maddr=0x7f009000
+hint.altera_avgen.0.msize=2
+hint.altera_avgen.0.width=1
+hint.altera_avgen.0.fileio="r"
+hint.altera_avgen.0.devname="de4bsw"
+
+#
+# General Intel StrataFlash driver
+#
+hint.isf.0.at="nexus0"
+hint.isf.0.maddr=0x74000000
+hint.isf.0.msize=0x2000000
+hint.isf.1.at="nexus0"
+hint.isf.1.maddr=0x76000000
+hint.isf.1.msize=0x2000000
+
+# Reserved configuration blocks.  Don't touch.
+hint.map.0.at="isf0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x00020000
+hint.map.0.name="config"
+hint.map.0.readonly=1
+
+# Hardwired location of bitfile
+hint.map.1.at="isf0"
+hint.map.1.start=0x00020000
+hint.map.1.end=0x01820000
+hint.map.1.name="fpga"
+
+# Kernel on first chip
+hint.map.2.at="isf0"
+hint.map.2.start=0x01820000
+hint.map.2.end=0x02000000
+hint.map.2.name="reserved"
+
+# The second chip
+hint.map.3.at="isf1"
+hint.map.3.start=0x00000000
+hint.map.3.end=0x02000000
+hint.map.3.name="kernel"

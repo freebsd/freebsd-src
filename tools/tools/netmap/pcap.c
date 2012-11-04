@@ -38,7 +38,7 @@
 
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
-char *version = "$Id$";
+const char *version = "$Id$";
 int verbose = 0;
 
 /* debug support */
@@ -49,7 +49,7 @@ int verbose = 0;
         __FUNCTION__, __LINE__, ##__VA_ARGS__);		\
 	} while (0)
 
-inline void prefetch (const void *x)
+static inline void prefetch (const void *x)
 {
 	__asm volatile("prefetcht0 %0" :: "m" (*(const unsigned long *)x));
 }
@@ -135,12 +135,11 @@ typedef enum {
 	PCAP_D_OUT
 } pcap_direction_t;
  
+struct bpf_program;
 
 
 typedef void (*pcap_handler)(u_char *user,
 		const struct pcap_pkthdr *h, const u_char *bytes);
-
-char errbuf[PCAP_ERRBUF_SIZE];
 
 pcap_t *pcap_open_live(const char *device, int snaplen,
                int promisc, int to_ms, char *errbuf);
@@ -155,6 +154,24 @@ char *pcap_lookupdev(char *errbuf);
 int pcap_inject(pcap_t *p, const void *buf, size_t size);
 int pcap_fileno(pcap_t *p);
 const char *pcap_lib_version(void);
+void	pcap_freealldevs(pcap_if_t *);
+pcap_t	*pcap_create(const char *, char *);
+int	pcap_activate(pcap_t *);
+int	pcap_can_set_rfmon(pcap_t *);
+int	pcap_set_snaplen(pcap_t *, int);
+int	pcap_snapshot(pcap_t *);
+int	pcap_lookupnet(const char *, uint32_t *, uint32_t *, char *);
+int	pcap_set_promisc(pcap_t *, int);
+int	pcap_set_timeout(pcap_t *, int);
+int	pcap_compile(pcap_t *, struct bpf_program *, const char *, int,
+	    uint32_t);
+int	pcap_setfilter(pcap_t *, struct bpf_program *);
+int	pcap_datalink(pcap_t *);
+const char *pcap_datalink_val_to_name(int);
+const char *pcap_datalink_val_to_description(int);
+int	pcap_stats(pcap_t *, struct pcap_stat *);
+int	pcap_loop(pcap_t *, int, pcap_handler, u_char *);
+char	*pcap_geterr(pcap_t *);
 
 
 struct eproto {
@@ -201,7 +218,7 @@ struct my_ring {
 
 
 static int
-do_ioctl(struct my_ring *me, int what)
+do_ioctl(struct my_ring *me, unsigned long what)
 {
 	struct ifreq ifr;
 	int error;
@@ -221,7 +238,7 @@ do_ioctl(struct my_ring *me, int what)
 	}
 	error = ioctl(me->fd, what, &ifr);
 	if (error) {
-		D("ioctl 0x%x error %d", what, error);
+		D("ioctl 0x%lx error %d", what, error);
 		return error;
 	}
 	switch (what) {
@@ -739,7 +756,8 @@ pcap_loop(pcap_t *p, int cnt, pcap_handler callback, u_char *user)
 #endif /* __PIC__ */
 
 #ifndef __PIC__
-void do_send(u_char *user, const struct pcap_pkthdr *h, const u_char *buf)
+static void
+do_send(u_char *user, const struct pcap_pkthdr *h, const u_char *buf)
 {
 	pcap_inject((pcap_t *)user, buf, h->caplen);
 }

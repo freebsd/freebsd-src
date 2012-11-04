@@ -155,7 +155,7 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
        *  @brief  Default constructor creates no elements.
        */
       map()
-      : _M_t(_Compare(), allocator_type()) { }
+      : _M_t() { }
 
       // for some reason this was made a separate function
       /**
@@ -186,7 +186,7 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
        */
       template <typename _InputIterator>
         map(_InputIterator __first, _InputIterator __last)
-	: _M_t(_Compare(), allocator_type())
+	: _M_t()
         { _M_t._M_insert_unique(__first, __last); }
 
       /**

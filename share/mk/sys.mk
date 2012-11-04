@@ -13,7 +13,7 @@ unix		?=	We run FreeBSD, not UNIX.
 # and/or endian.  This is called MACHINE_CPU in NetBSD, but that's used
 # for something different in FreeBSD.
 #
-MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
+MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc64/powerpc/}
 .endif
 
 # Set any local definitions first. Place this early, but it needs
@@ -327,6 +327,9 @@ SHELL=	${__MAKE_SHELL}
 # Default executable format
 # XXX hint for bsd.port.mk
 OBJFORMAT?=	elf
+
+# Tell bmake to expand -V VAR by default
+.MAKE.EXPAND_VARIABLES= yes
 
 .if !defined(.PARSEDIR)
 # We are not bmake, which is more aggressive about searching .PATH

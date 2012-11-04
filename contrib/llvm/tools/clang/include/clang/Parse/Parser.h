@@ -23,14 +23,20 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/PrettyStackTrace.h"
+#include "llvm/Support/SaveAndRestore.h"
 #include <stack>
 
 namespace clang {
   class PragmaHandler;
   class Scope;
+  class BalancedDelimiterTracker;
   class DeclGroupRef;
   class DiagnosticBuilder;
   class Parser;
+  class ParsingDeclRAIIObject;
+  class ParsingDeclSpec;
+  class ParsingDeclarator;
+  class ParsingFieldDeclarator;
   class PragmaUnusedHandler;
   class ColonProtectionRAIIObject;
   class InMessageExpressionRAIIObject;
@@ -79,7 +85,9 @@ class Parser : public CodeCompletionHandler {
   friend class ColonProtectionRAIIObject;
   friend class InMessageExpressionRAIIObject;
   friend class PoisonSEHIdentifiersRAIIObject;
+  friend class ObjCDeclContextSwitch;
   friend class ParenBraceBracketBalancer;
+  friend class BalancedDelimiterTracker;
 
   Preprocessor &PP;
 
@@ -94,7 +102,7 @@ class Parser : public CodeCompletionHandler {
   SourceLocation PrevTokLocation;
 
   unsigned short ParenCount, BracketCount, BraceCount;
-
+  
   /// Actions - These are the callbacks we invoke as we parse various constructs
   /// in the file.
   Sema &Actions;
@@ -165,6 +173,7 @@ class Parser : public CodeCompletionHandler {
   OwningPtr<PragmaHandler> RedefineExtnameHandler;
   OwningPtr<PragmaHandler> FPContractHandler;
   OwningPtr<PragmaHandler> OpenCLExtensionHandler;
+  OwningPtr<CommentHandler> CommentSemaHandler;
 
   /// Whether the '>' token acts as an operator or not. This will be
   /// true except when we are parsing an expression within a C++
@@ -197,6 +206,13 @@ class Parser : public CodeCompletionHandler {
 
   IdentifierInfo *getSEHExceptKeyword();
 
+  /// True if we are within an Objective-C container while parsing C-like decls.
+  ///
+  /// This is necessary because Sema thinks we have left the container
+  /// to parse the C-like decls, meaning Actions.getObjCDeclContext() will
+  /// be NULL.
+  bool ParsingInObjCContainer;
+
   bool SkipFunctionBodies;
 
 public:
@@ -207,6 +223,7 @@ public:
   const TargetInfo &getTargetInfo() const { return PP.getTargetInfo(); }
   Preprocessor &getPreprocessor() const { return PP; }
   Sema &getActions() const { return Actions; }
+  AttributeFactory &getAttrFactory() { return AttrFactory; }
 
   const Token &getCurToken() const { return Tok; }
   Scope *getCurScope() const { return Actions.getCurScope(); }
@@ -434,78 +451,6 @@ private:
     return PP.LookAhead(0);
   }
 
-  /// \brief RAII class that helps handle the parsing of an open/close delimiter
-  /// pair, such as braces { ... } or parentheses ( ... ).
-  class BalancedDelimiterTracker {
-    Parser& P;
-    tok::TokenKind Kind, Close;
-    SourceLocation (Parser::*Consumer)();
-    SourceLocation LOpen, LClose;
-
-    unsigned short &getDepth() {
-      switch (Kind) {
-      case tok::l_brace: return P.BraceCount;
-      case tok::l_square: return P.BracketCount;
-      case tok::l_paren: return P.ParenCount;
-      default: llvm_unreachable("Wrong token kind");
-      }
-    }
-    
-    enum { MaxDepth = 512 };
-    
-    bool diagnoseOverflow();
-    bool diagnoseMissingClose();
-    
-  public:
-    BalancedDelimiterTracker(Parser& p, tok::TokenKind k) : P(p), Kind(k) {
-      switch (Kind) {
-      default: llvm_unreachable("Unexpected balanced token");
-      case tok::l_brace:
-        Close = tok::r_brace; 
-        Consumer = &Parser::ConsumeBrace;
-        break;
-      case tok::l_paren:
-        Close = tok::r_paren; 
-        Consumer = &Parser::ConsumeParen;
-        break;
-        
-      case tok::l_square:
-        Close = tok::r_square; 
-        Consumer = &Parser::ConsumeBracket;
-        break;
-      }      
-    }
-
-    SourceLocation getOpenLocation() const { return LOpen; }
-    SourceLocation getCloseLocation() const { return LClose; }
-    SourceRange getRange() const { return SourceRange(LOpen, LClose); }
-
-    bool consumeOpen() {
-      if (!P.Tok.is(Kind))
-        return true;
-      
-      if (getDepth() < MaxDepth) {
-        LOpen = (P.*Consumer)();
-        return false;
-      }
-      
-      return diagnoseOverflow();
-    }
-    
-    bool expectAndConsume(unsigned DiagID,
-                          const char *Msg = "",
-                          tok::TokenKind SkipToTok = tok::unknown);
-    bool consumeClose() {
-      if (P.Tok.is(Close)) {
-        LClose = (P.*Consumer)();
-        return false;
-      } 
-
-      return diagnoseMissingClose();
-    }
-    void skipToEnd();
-  };
-
   /// getTypeAnnotation - Read a parsed type out of an annotation token.
   static ParsedType getTypeAnnotation(Token &Tok) {
     return ParsedType::getFromOpaquePtr(Tok.getAnnotationValue());
@@ -621,9 +566,11 @@ private:
   class ObjCDeclContextSwitch {
     Parser &P;
     Decl *DC;
+    SaveAndRestore<bool> WithinObjCContainer;
   public:
-    explicit ObjCDeclContextSwitch(Parser &p) : P(p),
-               DC(p.getObjCDeclContext()) {
+    explicit ObjCDeclContextSwitch(Parser &p)
+      : P(p), DC(p.getObjCDeclContext()),
+        WithinObjCContainer(P.ParsingInObjCContainer, DC != 0) {
       if (DC)
         P.Actions.ActOnObjCTemporaryExitContainerContext(cast<DeclContext>(DC));
     }
@@ -649,6 +596,17 @@ private:
   /// or, if there's just some closing-delimiter noise (e.g., ')' or ']') prior
   /// to the semicolon, consumes that extra token.
   bool ExpectAndConsumeSemi(unsigned DiagID);
+
+  /// \brief The kind of extra semi diagnostic to emit.
+  enum ExtraSemiKind {
+    OutsideFunction = 0,
+    InsideStruct = 1,
+    InstanceVariableList = 2,
+    AfterMemberFunctionDefinition = 3
+  };
+
+  /// \brief Consume any extra semi-colons until the end of the line.
+  void ConsumeExtraSemi(ExtraSemiKind Kind, unsigned TST = TST_unspecified);
 
   //===--------------------------------------------------------------------===//
   // Scope manipulation
@@ -715,6 +673,9 @@ private:
 public:
   DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID);
   DiagnosticBuilder Diag(const Token &Tok, unsigned DiagID);
+  DiagnosticBuilder Diag(unsigned DiagID) {
+    return Diag(Tok, DiagID);
+  }
 
 private:
   void SuggestParentheses(SourceLocation Loc, unsigned DK,
@@ -951,120 +912,7 @@ private:
     return *ClassStack.top();
   }
 
-  /// \brief RAII object used to inform the actions that we're
-  /// currently parsing a declaration.  This is active when parsing a
-  /// variable's initializer, but not when parsing the body of a
-  /// class or function definition.
-  class ParsingDeclRAIIObject {
-    Sema &Actions;
-    Sema::ParsingDeclState State;
-    bool Popped;
-
-  public:
-    ParsingDeclRAIIObject(Parser &P) : Actions(P.Actions) {
-      push();
-    }
-
-    ParsingDeclRAIIObject(Parser &P, ParsingDeclRAIIObject *Other)
-        : Actions(P.Actions) {
-      if (Other) steal(*Other);
-      else push();
-    }
-
-    /// Creates a RAII object which steals the state from a different
-    /// object instead of pushing.
-    ParsingDeclRAIIObject(ParsingDeclRAIIObject &Other)
-        : Actions(Other.Actions) {
-      steal(Other);
-    }
-
-    ~ParsingDeclRAIIObject() {
-      abort();
-    }
-
-    /// Resets the RAII object for a new declaration.
-    void reset() {
-      abort();
-      push();
-    }
-
-    /// Signals that the context was completed without an appropriate
-    /// declaration being parsed.
-    void abort() {
-      pop(0);
-    }
-
-    void complete(Decl *D) {
-      assert(!Popped && "ParsingDeclaration has already been popped!");
-      pop(D);
-    }
-
-  private:
-    void steal(ParsingDeclRAIIObject &Other) {
-      State = Other.State;
-      Popped = Other.Popped;
-      Other.Popped = true;
-    }
-
-    void push() {
-      State = Actions.PushParsingDeclaration();
-      Popped = false;
-    }
-
-    void pop(Decl *D) {
-      if (!Popped) {
-        Actions.PopParsingDeclaration(State, D);
-        Popped = true;
-      }
-    }
-  };
-
-  /// A class for parsing a DeclSpec.
-  class ParsingDeclSpec : public DeclSpec {
-    ParsingDeclRAIIObject ParsingRAII;
-
-  public:
-    ParsingDeclSpec(Parser &P) : DeclSpec(P.AttrFactory), ParsingRAII(P) {}
-    ParsingDeclSpec(Parser &P, ParsingDeclRAIIObject *RAII)
-      : DeclSpec(P.AttrFactory), ParsingRAII(P, RAII) {}
-
-    void complete(Decl *D) {
-      ParsingRAII.complete(D);
-    }
-
-    void abort() {
-      ParsingRAII.abort();
-    }
-  };
-
-  /// A class for parsing a declarator.
-  class ParsingDeclarator : public Declarator {
-    ParsingDeclRAIIObject ParsingRAII;
-
-  public:
-    ParsingDeclarator(Parser &P, const ParsingDeclSpec &DS, TheContext C)
-      : Declarator(DS, C), ParsingRAII(P) {
-    }
-
-    const ParsingDeclSpec &getDeclSpec() const {
-      return static_cast<const ParsingDeclSpec&>(Declarator::getDeclSpec());
-    }
-
-    ParsingDeclSpec &getMutableDeclSpec() const {
-      return const_cast<ParsingDeclSpec&>(getDeclSpec());
-    }
-
-    void clear() {
-      Declarator::clear();
-      ParsingRAII.reset();
-    }
-
-    void complete(Decl *D) {
-      ParsingRAII.complete(D);
-    }
-  };
-
-  /// \brief RAII object used to
+  /// \brief RAII object used to manage the parsing of a class definition.
   class ParsingClassDefinition {
     Parser &P;
     bool Popped;
@@ -1183,7 +1031,7 @@ private:
   void ParseLexedMethodDef(LexedMethod &LM);
   void ParseLexedMemberInitializers(ParsingClass &Class);
   void ParseLexedMemberInitializer(LateParsedMemberInitializer &MI);
-  Decl *ParseLexedObjCMethodDefs(LexedMethod &LM);
+  void ParseLexedObjCMethodDefs(LexedMethod &LM, bool parseMethod);
   bool ConsumeAndStoreFunctionPrologue(CachedTokens &Toks);
   bool ConsumeAndStoreUntil(tok::TokenKind T1,
                             CachedTokens &Toks,
@@ -1209,10 +1057,13 @@ private:
                                           ParsingDeclSpec *DS = 0);
   bool isDeclarationAfterDeclarator();
   bool isStartOfFunctionDefinition(const ParsingDeclarator &Declarator);
-  DeclGroupPtrTy ParseDeclarationOrFunctionDefinition(ParsedAttributes &attrs,
+  DeclGroupPtrTy ParseDeclarationOrFunctionDefinition(
+                                                  ParsedAttributesWithRange &attrs,
+                                                  ParsingDeclSpec *DS = 0,
                                                   AccessSpecifier AS = AS_none);
-  DeclGroupPtrTy ParseDeclarationOrFunctionDefinition(ParsingDeclSpec &DS,
-                                                  AccessSpecifier AS = AS_none);
+  DeclGroupPtrTy ParseDeclOrFunctionDefInternal(ParsedAttributesWithRange &attrs,
+                                                ParsingDeclSpec &DS,
+                                                AccessSpecifier AS);
 
   Decl *ParseFunctionDefinition(ParsingDeclarator &D,
                  const ParsedTemplateInfo &TemplateInfo = ParsedTemplateInfo(),
@@ -1245,11 +1096,12 @@ private:
   struct ObjCImplParsingDataRAII {
     Parser &P;
     Decl *Dcl;
+    bool HasCFunction;
     typedef SmallVector<LexedMethod*, 8> LateParsedObjCMethodContainer;
     LateParsedObjCMethodContainer LateParsedObjCMethods;
 
     ObjCImplParsingDataRAII(Parser &parser, Decl *D)
-      : P(parser), Dcl(D) {
+      : P(parser), Dcl(D), HasCFunction(false) {
       P.CurParsedObjCImpl = this;
       Finished = false;
     }
@@ -1262,6 +1114,7 @@ private:
     bool Finished;
   };
   ObjCImplParsingDataRAII *CurParsedObjCImpl;
+  void StashAwayMethodOrFunctionBodyTokens(Decl *MDecl);
 
   DeclGroupPtrTy ParseObjCAtImplementationDeclaration(SourceLocation AtLoc);
   DeclGroupPtrTy ParseObjCAtEndDeclaration(SourceRange atEnd);
@@ -1380,6 +1233,8 @@ private:
   // C++ Expressions
   ExprResult ParseCXXIdExpression(bool isAddressOfOperand = false);
 
+  bool areTokensAdjacent(const Token &A, const Token &B);
+
   void CheckForTemplateAndDigraph(Token &Next, ParsedType ObjectTypePtr,
                                   bool EnteringContext, IdentifierInfo &II,
                                   CXXScopeSpec &SS);
@@ -1452,8 +1307,6 @@ private:
   // C++ 5.2.3: Explicit type conversion (functional notation)
   ExprResult ParseCXXTypeConstructExpression(const DeclSpec &DS);
 
-  bool isCXXSimpleTypeSpecifier() const;
-
   /// ParseCXXSimpleTypeSpecifier - [C++ 7.1.5.2] Simple type specifiers.
   /// This should only be called when the current token is known to be part of
   /// simple-type-specifier.
@@ -1508,6 +1361,7 @@ private:
   ExprResult ParseObjCBooleanLiteral(SourceLocation AtLoc, bool ArgValue);
   ExprResult ParseObjCArrayLiteral(SourceLocation AtLoc);
   ExprResult ParseObjCDictionaryLiteral(SourceLocation AtLoc);
+  ExprResult ParseObjCBoxedExpr(SourceLocation AtLoc);
   ExprResult ParseObjCEncodeExpression(SourceLocation AtLoc);
   ExprResult ParseObjCSelectorExpression(SourceLocation AtLoc);
   ExprResult ParseObjCProtocolExpression(SourceLocation AtLoc);
@@ -1639,7 +1493,7 @@ private:
   enum DeclSpecContext {
     DSC_normal, // normal context
     DSC_class,  // class context, enables 'friend'
-    DSC_type_specifier, // C++ type-specifier-seq
+    DSC_type_specifier, // C++ type-specifier-seq or C specifier-qualifier-list
     DSC_trailing, // C++11 trailing-type-specifier in a trailing return type
     DSC_top_level // top-level/namespace declaration context
   };
@@ -1659,7 +1513,7 @@ private:
   DeclGroupPtrTy ParseSimpleDeclaration(StmtVector &Stmts,
                                         unsigned Context,
                                         SourceLocation &DeclEnd,
-                                        ParsedAttributes &attrs,
+                                        ParsedAttributesWithRange &attrs,
                                         bool RequireSemi,
                                         ForRangeInit *FRI = 0);
   bool MightBeDeclarator(unsigned Context);
@@ -1705,7 +1559,7 @@ private:
                             Decl *TagDecl);
 
   struct FieldCallback {
-    virtual Decl *invoke(FieldDeclarator &Field) = 0;
+    virtual void invoke(ParsingFieldDeclarator &Field) = 0;
     virtual ~FieldCallback() {}
 
   private:
@@ -1713,7 +1567,7 @@ private:
   };
   struct ObjCPropertyCallback;
 
-  void ParseStructDeclaration(DeclSpec &DS, FieldCallback &Callback);
+  void ParseStructDeclaration(ParsingDeclSpec &DS, FieldCallback &Callback);
 
   bool isDeclarationSpecifier(bool DisambiguatingWithExpression = false);
   bool isTypeSpecifierQualifier();
@@ -1789,11 +1643,11 @@ private:
   /// isCXXFunctionDeclarator - Disambiguates between a function declarator or
   /// a constructor-style initializer, when parsing declaration statements.
   /// Returns true for function declarator and false for constructor-style
-  /// initializer. If 'warnIfAmbiguous' is true a warning will be emitted to
-  /// indicate that the parens were disambiguated as function declarator.
+  /// initializer. Sets 'IsAmbiguous' to true to indicate that this declaration 
+  /// might be a constructor-style initializer.
   /// If during the disambiguation process a parsing error is encountered,
   /// the function returns true to let the declaration parsing code handle it.
-  bool isCXXFunctionDeclarator(bool warnIfAmbiguous);
+  bool isCXXFunctionDeclarator(bool *IsAmbiguous = 0);
 
   /// isCXXConditionDeclaration - Disambiguates between a declaration or an
   /// expression for a condition of a if/switch/while/for statement.
@@ -1850,7 +1704,8 @@ private:
   /// BracedCastResult.
   /// Doesn't consume tokens.
   TPResult
-  isCXXDeclarationSpecifier(TPResult BracedCastResult = TPResult::False());
+  isCXXDeclarationSpecifier(TPResult BracedCastResult = TPResult::False(),
+                            bool *HasMissingTypename = 0);
 
   // "Tentative parsing" functions, used for disambiguation. If a parsing error
   // is encountered they will return TPResult::Error().
@@ -1859,13 +1714,13 @@ private:
   // that more tentative parsing is necessary for disambiguation.
   // They all consume tokens, so backtracking should be used after calling them.
 
-  TPResult TryParseDeclarationSpecifier();
+  TPResult TryParseDeclarationSpecifier(bool *HasMissingTypename = 0);
   TPResult TryParseSimpleDeclaration(bool AllowForRangeDecl);
   TPResult TryParseTypeofSpecifier();
   TPResult TryParseProtocolQualifiers();
   TPResult TryParseInitDeclaratorList();
   TPResult TryParseDeclarator(bool mayBeAbstract, bool mayHaveIdentifier=true);
-  TPResult TryParseParameterDeclarationClause();
+  TPResult TryParseParameterDeclarationClause(bool *InvalidAsDeclaration = 0);
   TPResult TryParseFunctionDeclarator();
   TPResult TryParseBracketDeclarator();
 
@@ -1874,7 +1729,7 @@ private:
                              = Declarator::TypeNameContext,
                            AccessSpecifier AS = AS_none,
                            Decl **OwnedType = 0);
-  void ParseBlockId();
+  void ParseBlockId(SourceLocation CaretLoc);
 
   // Check for the start of a C++11 attribute-specifier-seq in a context where
   // an attribute is not allowed.
@@ -1953,8 +1808,16 @@ private:
   }
   void ParseMicrosoftAttributes(ParsedAttributes &attrs,
                                 SourceLocation *endLoc = 0);
-  void ParseMicrosoftDeclSpec(ParsedAttributes &attrs);
+  void ParseMicrosoftDeclSpec(ParsedAttributes &Attrs);
+  bool IsSimpleMicrosoftDeclSpec(IdentifierInfo *Ident);
+  void ParseComplexMicrosoftDeclSpec(IdentifierInfo *Ident, 
+                                     SourceLocation Loc,
+                                     ParsedAttributes &Attrs);
+  void ParseMicrosoftDeclSpecWithSingleArg(IdentifierInfo *AttrName, 
+                                           SourceLocation AttrNameLoc, 
+                                           ParsedAttributes &Attrs);
   void ParseMicrosoftTypeAttributes(ParsedAttributes &attrs);
+  void ParseMicrosoftInheritanceClassAttributes(ParsedAttributes &attrs);
   void ParseBorlandTypeAttributes(ParsedAttributes &attrs);
   void ParseOpenCLAttributes(ParsedAttributes &attrs);
   void ParseOpenCLQualifiers(DeclSpec &DS);
@@ -1971,6 +1834,10 @@ private:
                                   ParsedAttributes &Attrs,
                                   SourceLocation *EndLoc);
 
+  void ParseTypeTagForDatatypeAttribute(IdentifierInfo &AttrName,
+                                        SourceLocation AttrNameLoc,
+                                        ParsedAttributes &Attrs,
+                                        SourceLocation *EndLoc);
 
   void ParseTypeofSpecifier(DeclSpec &DS);
   SourceLocation ParseDecltypeSpecifier(DeclSpec &DS);
@@ -2040,6 +1907,7 @@ private:
   void ParseFunctionDeclarator(Declarator &D,
                                ParsedAttributes &attrs,
                                BalancedDelimiterTracker &Tracker,
+                               bool IsAmbiguous,
                                bool RequiresArg = false);
   bool isFunctionDeclaratorIdentifierList();
   void ParseFunctionDeclaratorIdentifierList(
@@ -2100,6 +1968,7 @@ private:
 
   //===--------------------------------------------------------------------===//
   // C++ 9: classes [class] and C structs/unions.
+  bool isValidAfterTypeSpecifier(bool CouldBeBitfield);
   void ParseClassSpecifier(tok::TokenKind TagTokKind, SourceLocation TagLoc,
                            DeclSpec &DS, const ParsedTemplateInfo &TemplateInfo,
                            AccessSpecifier AS, bool EnteringContext,

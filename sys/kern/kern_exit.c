@@ -135,7 +135,6 @@ exit1(struct thread *td, int rv)
 	struct vnode *vtmp;
 	struct vnode *ttyvp = NULL;
 	struct plimit *plim;
-	int locked;
 
 	mtx_assert(&Giant, MA_NOTOWNED);
 
@@ -157,8 +156,8 @@ exit1(struct thread *td, int rv)
 	PROC_LOCK(p);
 	while (p->p_flag & P_HADTHREADS) {
 		/*
-		 * First check if some other thread got here before us..
-		 * if so, act apropriatly, (exit or suspend);
+		 * First check if some other thread got here before us.
+		 * If so, act appropriately: exit or suspend.
 		 */
 		thread_suspend_check(0);
 
@@ -179,7 +178,7 @@ exit1(struct thread *td, int rv)
 		 * re-check all suspension request, the thread should
 		 * either be suspended there or exit.
 		 */
-		if (! thread_single(SINGLE_EXIT))
+		if (!thread_single(SINGLE_EXIT))
 			break;
 
 		/*
@@ -198,6 +197,14 @@ exit1(struct thread *td, int rv)
 	 * via PIOCCONT.
 	 */
 	_STOPEVENT(p, S_EXIT, rv);
+
+	/*
+	 * Ignore any pending request to stop due to a stop signal.
+	 * Once P_WEXIT is set, future requests will be ignored as
+	 * well.
+	 */
+	p->p_flag &= ~P_STOPPED_SIG;
+	KASSERT(!P_SHOULDSTOP(p), ("exiting process is stopped"));
 
 	/*
 	 * Note that we are exiting and do another wakeup of anyone in
@@ -375,9 +382,7 @@ exit1(struct thread *td, int rv)
 	 */
 	if ((vtmp = p->p_textvp) != NULL) {
 		p->p_textvp = NULL;
-		locked = VFS_LOCK_GIANT(vtmp->v_mount);
 		vrele(vtmp);
-		VFS_UNLOCK_GIANT(locked);
 	}
 
 	/*

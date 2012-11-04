@@ -32,7 +32,7 @@
 .\"     @(#)ip.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd November 14, 2011
+.Dd October 12, 2012
 .Dt IP 4
 .Os
 .Sh NAME
@@ -165,16 +165,14 @@ The
 .Vt cmsghdr
 fields have the following values:
 .Bd -literal
-cmsg_len = sizeof(struct in_addr)
+cmsg_len = CMSG_LEN(sizeof(struct in_addr))
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVDSTADDR
 .Ed
 .Pp
 The source address to be used for outgoing
 .Tn UDP
-datagrams on a socket that is not bound to a specific
-.Tn IP
-address can be specified as ancillary data with a type code of
+datagrams on a socket can be specified as ancillary data with a type code of
 .Dv IP_SENDSRCADDR .
 The msg_control field in the msghdr structure should point to a buffer
 that contains a
@@ -184,10 +182,24 @@ structure followed by the
 address.
 The cmsghdr fields should have the following values:
 .Bd -literal
-cmsg_len = sizeof(struct in_addr)
+cmsg_len = CMSG_LEN(sizeof(struct in_addr))
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_SENDSRCADDR
 .Ed
+.Pp
+The socket should be either bound to
+.Dv INADDR_ANY
+and a local port, and the address supplied with
+.Dv IP_SENDSRCADDR
+should't be
+.Dv INADDR_ANY ,
+or the socket should be bound to a local address and the address supplied with
+.Dv IP_SENDSRCADDR
+should be
+.Dv INADDR_ANY .
+In the latter case bound address is overriden via generic source address
+selection logic, which would choose IP address of interface closest to
+destination.
 .Pp
 For convenience,
 .Dv IP_SENDSRCADDR
@@ -227,7 +239,7 @@ configured with the broadcast address 192.168.2.255:
 .Bd -literal
 char msg[512];
 struct sockaddr_in sin;
-u_char onesbcast = 1;	/* 0 = disable (default), 1 = enable */
+int onesbcast = 1;	/* 0 = disable (default), 1 = enable */
 
 setsockopt(s, IPPROTO_IP, IP_ONESBCAST, &onesbcast, sizeof(onesbcast));
 sin.sin_addr.s_addr = inet_addr("192.168.2.255");
@@ -279,9 +291,32 @@ that contains a cmsghdr structure followed by the
 .Tn TTL .
 The cmsghdr fields have the following values:
 .Bd -literal
-cmsg_len = sizeof(u_char)
+cmsg_len = CMSG_LEN(sizeof(u_char))
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVTTL
+.Ed
+.\"
+.Pp
+If the
+.Dv IP_RECVTOS
+option is enabled on a
+.Dv SOCK_DGRAM
+socket, the
+.Xr recvmsg 2
+call will return the
+.Tn IP
+.Tn TOS
+(type of service) field for a
+.Tn UDP
+datagram.
+The msg_control field in the msghdr structure points to a buffer
+that contains a cmsghdr structure followed by the
+.Tn TOS .
+The cmsghdr fields have the following values:
+.Bd -literal
+cmsg_len = CMSG_LEN(sizeof(u_char))
+cmsg_level = IPPROTO_IP
+cmsg_type = IP_RECVTOS
 .Ed
 .\"
 .Pp
@@ -307,7 +342,7 @@ The
 .Vt cmsghdr
 fields have the following values:
 .Bd -literal
-cmsg_len = sizeof(struct sockaddr_dl)
+cmsg_len = CMSG_LEN(sizeof(struct sockaddr_dl))
 cmsg_level = IPPROTO_IP
 cmsg_type = IP_RECVIF
 .Ed
@@ -726,7 +761,11 @@ unless the
 option has been set.
 Incoming packets are received with
 .Tn IP
-header and options intact.
+header and options intact, except for
+.Va ip_len
+and
+.Va ip_off
+fields converted to host byte order.
 .Pp
 .Dv IP_HDRINCL
 indicates the complete IP header is included with the data

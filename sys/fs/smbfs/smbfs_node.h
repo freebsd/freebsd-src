@@ -63,6 +63,12 @@ struct smbnode {
 	LIST_ENTRY(smbnode)	n_hash;
 };
 
+struct smbcmp {
+	struct vnode * 		n_parent;
+	int 			n_nmlen;
+	const char *		n_name;
+};
+
 #define VTOSMB(vp)	((struct smbnode *)(vp)->v_data)
 #define SMBTOV(np)	((struct vnode *)(np)->n_vnode)
 

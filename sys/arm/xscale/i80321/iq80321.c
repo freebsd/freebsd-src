@@ -324,7 +324,7 @@ arm_unmask_irq(uintptr_t nb)
 
 void
 cpu_reset()
-{       
+{
 	(void) disable_interrupts(I32_bit|F32_bit);
 	*(__volatile uint32_t *)(IQ80321_80321_VBASE + VERDE_ATU_BASE +
 	    ATU_PCSR) = PCSR_RIB | PCSR_RPB;
@@ -351,7 +351,7 @@ iq80321_alloc_resource(device_t dev, device_t child, int type, int *rid,
 
 static int
 iq80321_setup_intr(device_t dev, device_t child,
-    struct resource *ires, int flags, driver_filter_t *filt, 
+    struct resource *ires, int flags, driver_filter_t *filt,
     driver_intr_t *intr, void *arg, void **cookiep)
 {
 	int error;

@@ -362,6 +362,8 @@ nlm_print_processor_info(void)
 		revstr = "A2"; break;
 	case 3:
 		revstr = "B0"; break;
+	case 4:
+		revstr = "B1"; break;
 	default:
 		revstr = "??"; break;
 	}

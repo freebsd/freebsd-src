@@ -10,3 +10,5 @@ struct spi_command {
 	void	*rx_data;
 	uint32_t rx_data_sz;
 };
+
+#define	SPI_CHIP_SELECT_HIGH	0x1		/* Chip select high (else low) */

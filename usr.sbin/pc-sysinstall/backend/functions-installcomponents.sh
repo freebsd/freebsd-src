@@ -71,8 +71,16 @@ copy_component()
         fetch_file "${FTPPATH}/${COMPFILEDIR}/${SUBDIR}/${CFILE}" "${FSMNT}/${COMPTMPDIR}/${CFILE}" "0"
         RESULT="$?"
        ;;
-
-      sftp) ;;
+    local)
+        get_value_from_cfg localPath
+        if [ -z "$VAL" ]; then
+          exit_err "Install medium was set to local, but no localPath was provided!"
+        fi
+        LOCALPATH=$VAL
+        cp ${LOCALPATH}/${COMPFILEDIR}/${SUBDIR}/${CFILE} \
+		  ${FSMNT}/${COMPTMPDIR} >>${LOGOUT} 2>>${LOGOUT}
+	RESULT="$?"
+       ;;
     esac
 
     if [ "${RESULT}" != "0" ]

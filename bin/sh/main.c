@@ -266,14 +266,7 @@ read_profile(char *name)
 void
 readcmdfile(const char *name)
 {
-	int fd;
-
-	INTOFF;
-	if ((fd = open(name, O_RDONLY)) >= 0)
-		setinputfd(fd, 1);
-	else
-		error("cannot open %s: %s", name, strerror(errno));
-	INTON;
+	setinputfile(name, 1);
 	cmdloop(0);
 	popfile();
 }

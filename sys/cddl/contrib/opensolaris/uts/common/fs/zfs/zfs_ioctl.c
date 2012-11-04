@@ -18,6 +18,7 @@
  *
  * CDDL HEADER END
  */
+
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011-2012 Pawel Jakub Dawidek <pawel@dawidek.net>.
@@ -765,7 +766,26 @@ zfs_secpolicy_rename_perms(const char *from, const char *to, cred_t *cr)
 static int
 zfs_secpolicy_rename(zfs_cmd_t *zc, cred_t *cr)
 {
-	return (zfs_secpolicy_rename_perms(zc->zc_name, zc->zc_value, cr));
+	char *at = NULL;
+	int error;
+
+	if ((zc->zc_cookie & 1) != 0) {
+		/*
+		 * This is recursive rename, so the starting snapshot might
+		 * not exist. Check file system or volume permission instead.
+		 */
+		at = strchr(zc->zc_name, '@');
+		if (at == NULL)
+			return (EINVAL);
+		*at = '\0';
+	}
+
+	error = zfs_secpolicy_rename_perms(zc->zc_name, zc->zc_value, cr);
+
+	if (at != NULL)
+		*at = '@';
+
+	return (error);
 }
 
 static int
@@ -1157,6 +1177,8 @@ getzfsvfs(const char *dsname, zfsvfs_t **zfvp)
 /*
  * Find a zfsvfs_t for a mounted filesystem, or create our own, in which
  * case its z_vfs will be NULL, and it will be opened as the owner.
+ * If 'writer' is set, the z_teardown_lock will be held for RW_WRITER,
+ * which prevents all vnode ops from running.
  */
 static int
 zfsvfs_hold(const char *name, void *tag, zfsvfs_t **zfvp, boolean_t writer)
@@ -1220,7 +1242,7 @@ zfs_ioc_pool_create(zfs_cmd_t *zc)
 
 		(void) nvlist_lookup_uint64(props,
 		    zpool_prop_to_name(ZPOOL_PROP_VERSION), &version);
-		if (version < SPA_VERSION_INITIAL || version > SPA_VERSION) {
+		if (!SPA_VERSION_IS_SUPPORTED(version)) {
 			error = EINVAL;
 			goto pool_props_bad;
 		}
@@ -1344,6 +1366,15 @@ zfs_ioc_pool_configs(zfs_cmd_t *zc)
 	return (error);
 }
 
+/*
+ * inputs:
+ * zc_name		name of the pool
+ *
+ * outputs:
+ * zc_cookie		real errno
+ * zc_nvlist_dst	config nvlist
+ * zc_nvlist_dst_size	size of config nvlist
+ */
 static int
 zfs_ioc_pool_stats(zfs_cmd_t *zc)
 {
@@ -1445,7 +1476,8 @@ zfs_ioc_pool_upgrade(zfs_cmd_t *zc)
 	if ((error = spa_open(zc->zc_name, &spa, FTAG)) != 0)
 		return (error);
 
-	if (zc->zc_cookie < spa_version(spa) || zc->zc_cookie > SPA_VERSION) {
+	if (zc->zc_cookie < spa_version(spa) ||
+	    !SPA_VERSION_IS_SUPPORTED(zc->zc_cookie)) {
 		spa_close(spa, FTAG);
 		return (EINVAL);
 	}
@@ -1804,7 +1836,7 @@ zfs_ioc_objset_stats_impl(zfs_cmd_t *zc, objset_t *os)
 			error = zvol_get_stats(os, nv);
 			if (error == EIO)
 				return (error);
-			VERIFY3S(error, ==, 0);
+			VERIFY0(error);
 		}
 		error = put_nvlist(zc, nv);
 		nvlist_free(nv);
@@ -4136,7 +4168,17 @@ zfs_ioc_pool_reopen(zfs_cmd_t *zc)
 		return (error);
 
 	spa_vdev_state_enter(spa, SCL_NONE);
+
+	/*
+	 * If a resilver is already in progress then set the
+	 * spa_scrub_reopen flag to B_TRUE so that we don't restart
+	 * the scan as a side effect of the reopen. Otherwise, let
+	 * vdev_open() decided if a resilver is required.
+	 */
+	spa->spa_scrub_reopen = dsl_scan_resilvering(spa->spa_dsl_pool);
 	vdev_reopen(spa->spa_root_vdev);
+	spa->spa_scrub_reopen = B_FALSE;
+
 	(void) spa_vdev_state_exit(spa, NULL, 0);
 	spa_close(spa, FTAG);
 	return (0);
@@ -5452,7 +5494,7 @@ zfs_modevent(module_t mod, int type, void *unused __unused)
 		tsd_create(&zfs_fsyncer_key, NULL);
 		tsd_create(&rrw_tsd_key, NULL);
 
-		printf("ZFS storage pool version " SPA_VERSION_STRING "\n");
+		printf("ZFS storage pool version: features support (" SPA_VERSION_STRING ")\n");
 		root_mount_rel(zfs_root_token);
 
 		zfsdev_init();

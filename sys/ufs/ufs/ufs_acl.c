@@ -182,8 +182,8 @@ ufs_getacl_nfs4_internal(struct vnode *vp, struct acl *aclp, struct thread *td)
 		 * are unsafe.
 		 */
 		printf("ufs_getacl_nfs4(): Loaded invalid ACL ("
-		    "%d bytes), inumber %d on %s\n", len,
-		    ip->i_number, ip->i_fs->fs_fsmnt);
+		    "%d bytes), inumber %ju on %s\n", len,
+		    (uintmax_t)ip->i_number, ip->i_fs->fs_fsmnt);
 
 		return (EPERM);
 	}
@@ -191,8 +191,8 @@ ufs_getacl_nfs4_internal(struct vnode *vp, struct acl *aclp, struct thread *td)
 	error = acl_nfs4_check(aclp, vp->v_type == VDIR);
 	if (error) {
 		printf("ufs_getacl_nfs4(): Loaded invalid ACL "
-		    "(failed acl_nfs4_check), inumber %d on %s\n",
-		    ip->i_number, ip->i_fs->fs_fsmnt);
+		    "(failed acl_nfs4_check), inumber %ju on %s\n",
+		    (uintmax_t)ip->i_number, ip->i_fs->fs_fsmnt);
 
 		return (EPERM);
 	}
@@ -259,8 +259,8 @@ ufs_get_oldacl(acl_type_t type, struct oldacl *old, struct vnode *vp,
 		 * DAC protections are unsafe.
 		 */
 		printf("ufs_get_oldacl(): Loaded invalid ACL "
-		    "(len = %d), inumber %d on %s\n", len,
-		    ip->i_number, ip->i_fs->fs_fsmnt);
+		    "(len = %d), inumber %ju on %s\n", len,
+		    (uintmax_t)ip->i_number, ip->i_fs->fs_fsmnt);
 		return (EPERM);
 	}
 

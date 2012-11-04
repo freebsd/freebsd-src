@@ -49,6 +49,7 @@
 #include <sys/spa.h>
 #include <sys/zap.h>
 #include <sys/sa.h>
+#include <sys/sa_impl.h>
 #include <sys/varargs.h>
 #include <sys/policy.h>
 #include <sys/atomic.h>
@@ -59,7 +60,6 @@
 #include <sys/dnlc.h>
 #include <sys/dmu_objset.h>
 #include <sys/spa_boot.h>
-#include <sys/sa.h>
 #include <sys/jail.h>
 #include "zfs_comutil.h"
 
@@ -550,7 +550,6 @@ static int
 zfs_space_delta_cb(dmu_object_type_t bonustype, void *data,
     uint64_t *userp, uint64_t *groupp)
 {
-	znode_phys_t *znp = data;
 	int error = 0;
 
 	/*
@@ -569,20 +568,18 @@ zfs_space_delta_cb(dmu_object_type_t bonustype, void *data,
 		return (EEXIST);
 
 	if (bonustype == DMU_OT_ZNODE) {
+		znode_phys_t *znp = data;
 		*userp = znp->zp_uid;
 		*groupp = znp->zp_gid;
 	} else {
 		int hdrsize;
+		sa_hdr_phys_t *sap = data;
+		sa_hdr_phys_t sa = *sap;
+		boolean_t swap = B_FALSE;
 
 		ASSERT(bonustype == DMU_OT_SA);
-		hdrsize = sa_hdrsize(data);
 
-		if (hdrsize != 0) {
-			*userp = *((uint64_t *)((uintptr_t)data + hdrsize +
-			    SA_UID_OFFSET));
-			*groupp = *((uint64_t *)((uintptr_t)data + hdrsize +
-			    SA_GID_OFFSET));
-		} else {
+		if (sa.sa_magic == 0) {
 			/*
 			 * This should only happen for newly created
 			 * files that haven't had the znode data filled
@@ -590,6 +587,25 @@ zfs_space_delta_cb(dmu_object_type_t bonustype, void *data,
 			 */
 			*userp = 0;
 			*groupp = 0;
+			return (0);
+		}
+		if (sa.sa_magic == BSWAP_32(SA_MAGIC)) {
+			sa.sa_magic = SA_MAGIC;
+			sa.sa_layout_info = BSWAP_16(sa.sa_layout_info);
+			swap = B_TRUE;
+		} else {
+			VERIFY3U(sa.sa_magic, ==, SA_MAGIC);
+		}
+
+		hdrsize = sa_hdrsize(&sa);
+		VERIFY3U(hdrsize, >=, sizeof (sa_hdr_phys_t));
+		*userp = *((uint64_t *)((uintptr_t)data + hdrsize +
+		    SA_UID_OFFSET));
+		*groupp = *((uint64_t *)((uintptr_t)data + hdrsize +
+		    SA_GID_OFFSET));
+		if (swap) {
+			*userp = BSWAP_64(*userp);
+			*groupp = BSWAP_64(*groupp);
 		}
 	}
 	return (error);
@@ -1523,6 +1539,25 @@ out:
 }
 #endif	/* OPENSOLARIS_MOUNTROOT */
 
+static int
+getpoolname(const char *osname, char *poolname)
+{
+	char *p;
+
+	p = strchr(osname, '/');
+	if (p == NULL) {
+		if (strlen(osname) >= MAXNAMELEN)
+			return (ENAMETOOLONG);
+		(void) strcpy(poolname, osname);
+	} else {
+		if (p - osname >= MAXNAMELEN)
+			return (ENAMETOOLONG);
+		(void) strncpy(poolname, osname, p - osname);
+		poolname[p - osname] = '\0';
+	}
+	return (0);
+}
+
 /*ARGSUSED*/
 static int
 zfs_mount(vfs_t *vfsp)
@@ -1616,6 +1651,29 @@ zfs_mount(vfs_t *vfsp)
 		goto out;
 	}
 
+	/* Initial root mount: try hard to import the requested root pool. */
+	if ((vfsp->vfs_flag & MNT_ROOTFS) != 0 &&
+	    (vfsp->vfs_flag & MNT_UPDATE) == 0) {
+		char pname[MAXNAMELEN];
+		spa_t *spa;
+		int prefer_cache;
+
+		error = getpoolname(osname, pname);
+		if (error)
+			goto out;
+
+		prefer_cache = 1;
+		TUNABLE_INT_FETCH("vfs.zfs.rootpool.prefer_cached_config",
+		    &prefer_cache);
+		mutex_enter(&spa_namespace_lock);
+		spa = spa_lookup(pname);
+		mutex_exit(&spa_namespace_lock);
+		if (!prefer_cache || spa == NULL) {
+			error = spa_import_rootpool(pname);
+			if (error)
+				goto out;
+		}
+	}
 	DROP_GIANT();
 	error = zfs_domount(vfsp, osname);
 	PICKUP_GIANT();
@@ -1839,9 +1897,9 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 	/*
 	 * Evict cached data
 	 */
-	if (dmu_objset_is_dirty_anywhere(zfsvfs->z_os))
-		if (!(zfsvfs->z_vfs->vfs_flag & VFS_RDONLY))
-			txg_wait_synced(dmu_objset_pool(zfsvfs->z_os), 0);
+	if (dsl_dataset_is_dirty(dmu_objset_ds(zfsvfs->z_os)) &&
+	    !(zfsvfs->z_vfs->vfs_flag & VFS_RDONLY))
+		txg_wait_synced(dmu_objset_pool(zfsvfs->z_os), 0);
 	(void) dmu_objset_evict_dbufs(zfsvfs->z_os);
 
 	return (0);
@@ -2278,7 +2336,7 @@ void
 zfs_init(void)
 {
 
-	printf("ZFS filesystem version " ZPL_VERSION_STRING "\n");
+	printf("ZFS filesystem version: " ZPL_VERSION_STRING "\n");
 
 	/*
 	 * Initialize .zfs directory structures
@@ -2362,7 +2420,7 @@ zfs_set_version(zfsvfs_t *zfsvfs, uint64_t newvers)
 
 		error = zap_add(os, MASTER_NODE_OBJ,
 		    ZFS_SA_ATTRS, 8, 1, &sa_obj, tx);
-		ASSERT3U(error, ==, 0);
+		ASSERT0(error);
 
 		VERIFY(0 == sa_set_sa_object(os, sa_obj));
 		sa_register_update_callback(os, zfs_sa_upgrade);

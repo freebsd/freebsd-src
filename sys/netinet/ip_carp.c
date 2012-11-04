@@ -771,10 +771,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		MGETHDR(m, M_NOWAIT, MT_HEADER);
 		if (m == NULL) {
 			CARPSTATS_INC(carps_onomem);
-			/* XXX maybe less ? */
-			callout_reset(&sc->sc_ad_tmo, tvtohz(&tv),
-			    carp_send_ad, sc);
-			return;
+			goto resched;
 		}
 		len = sizeof(*ip) + sizeof(ch);
 		m->m_pkthdr.len = len;
@@ -786,9 +783,9 @@ carp_send_ad_locked(struct carp_softc *sc)
 		ip->ip_v = IPVERSION;
 		ip->ip_hl = sizeof(*ip) >> 2;
 		ip->ip_tos = IPTOS_LOWDELAY;
-		ip->ip_len = len;
+		ip->ip_len = htons(len);
 		ip->ip_id = ip_newid();
-		ip->ip_off = IP_DF;
+		ip->ip_off = htons(IP_DF);
 		ip->ip_ttl = CARP_DFLTTL;
 		ip->ip_p = IPPROTO_CARP;
 		ip->ip_sum = 0;
@@ -807,7 +804,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		ch_ptr = (struct carp_header *)(&ip[1]);
 		bcopy(&ch, ch_ptr, sizeof(ch));
 		if (carp_prepare_ad(m, sc, ch_ptr))
-			return;
+			goto resched;
 
 		m->m_data += sizeof(*ip);
 		ch_ptr->carp_cksum = carp_cksum(m, len - sizeof(*ip));
@@ -842,10 +839,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 		MGETHDR(m, M_NOWAIT, MT_HEADER);
 		if (m == NULL) {
 			CARPSTATS_INC(carps_onomem);
-			/* XXX maybe less ? */
-			callout_reset(&sc->sc_ad_tmo, tvtohz(&tv),
-			    carp_send_ad, sc);
-			return;
+			goto resched;
 		}
 		len = sizeof(*ip6) + sizeof(ch);
 		m->m_pkthdr.len = len;
@@ -877,13 +871,13 @@ carp_send_ad_locked(struct carp_softc *sc)
 		if (in6_setscope(&ip6->ip6_dst, sc->sc_carpdev, NULL) != 0) {
 			m_freem(m);
 			CARP_DEBUG("%s: in6_setscope failed\n", __func__);
-			return;
+			goto resched;
 		}
 
 		ch_ptr = (struct carp_header *)(&ip6[1]);
 		bcopy(&ch, ch_ptr, sizeof(ch));
 		if (carp_prepare_ad(m, sc, ch_ptr))
-			return;
+			goto resched;
 
 		m->m_data += sizeof(*ip6);
 		ch_ptr->carp_cksum = carp_cksum(m, len - sizeof(*ip6));
@@ -913,6 +907,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 	}
 #endif /* INET6 */
 
+resched:
 	callout_reset(&sc->sc_ad_tmo, tvtohz(&tv), carp_send_ad, sc);
 }
 
@@ -1027,23 +1022,31 @@ carp_send_na(struct carp_softc *sc)
 	}
 }
 
+/*
+ * Returns ifa in case it's a carp address and it is MASTER, or if the address
+ * matches and is not a carp address.  Returns NULL otherwise.
+ */
 struct ifaddr *
 carp_iamatch6(struct ifnet *ifp, struct in6_addr *taddr)
 {
 	struct ifaddr *ifa;
 
+	ifa = NULL;
 	IF_ADDR_RLOCK(ifp);
-	IFNET_FOREACH_IFA(ifp, ifa)
-		if (ifa->ifa_addr->sa_family == AF_INET6 &&
-		    ifa->ifa_carp->sc_state == MASTER &&
-		    IN6_ARE_ADDR_EQUAL(taddr, IFA_IN6(ifa))) {
+	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+		if (ifa->ifa_addr->sa_family != AF_INET6)
+			continue;
+		if (!IN6_ARE_ADDR_EQUAL(taddr, IFA_IN6(ifa)))
+			continue;
+		if (ifa->ifa_carp && ifa->ifa_carp->sc_state != MASTER)
+			ifa = NULL;
+		else
 			ifa_ref(ifa);
-			IF_ADDR_RUNLOCK(ifp);
-			return (ifa);
-		}
+		break;
+	}
 	IF_ADDR_RUNLOCK(ifp);
 
-	return (NULL);
+	return (ifa);
 }
 
 caddr_t

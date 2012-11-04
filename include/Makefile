@@ -34,17 +34,17 @@ LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdint.h syslog.h \
 	ucontext.h
 
 LDIRS=	bsm cam geom net net80211 netatalk netgraph netinet netinet6 \
-	netipsec ${_netipx} netnatm ${_netncp} netsmb \
+	netipsec ${_netipx} netnatm \
 	nfs nfsclient nfsserver \
 	sys vm
 
 LSUBDIRS=	cam/ata cam/scsi \
 	dev/acpica dev/an dev/bktr dev/ciss dev/filemon dev/firewire dev/hwpmc \
-	dev/ic dev/iicbus ${_dev_ieee488} dev/io dev/lmc dev/mfi dev/ofw \
-	dev/pbio ${_dev_powermac_nvram} dev/ppbus dev/smbus \
+	dev/ic dev/iicbus ${_dev_ieee488} dev/io dev/lmc dev/mfi dev/nvme \
+	dev/ofw dev/pbio ${_dev_powermac_nvram} dev/ppbus dev/smbus \
 	dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
-	fs/devfs fs/fdescfs fs/msdosfs fs/nandfs fs/nfs fs/ntfs fs/nullfs \
-	${_fs_nwfs} fs/portalfs fs/procfs fs/smbfs fs/udf fs/unionfs \
+	fs/devfs fs/fdescfs fs/msdosfs fs/nandfs fs/nfs fs/nullfs \
+	fs/procfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
 	geom/mirror geom/mountver geom/multipath geom/nop \
 	geom/raid geom/raid3 geom/shsec geom/stripe geom/virstor \
@@ -76,15 +76,9 @@ INCS+=	iconv.h
 LSUBSUBDIRS+=	netgraph/bluetooth/include
 .endif
 
-# XXX unconditionally needed by <netsmb/netbios.h>
 #.if ${MK_IPX} != "no"
 _netipx=	netipx
 #.endif
-
-.if ${MK_NCP} != "no"
-_netncp=	netncp
-_fs_nwfs=	fs/nwfs
-.endif
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
@@ -216,9 +210,6 @@ copies:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/netinet
 .endif
-	cd ${.CURDIR}/../sys/contrib/pf/net; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
-	    ${DESTDIR}${INCLUDEDIR}/net
 	cd ${.CURDIR}/../sys/crypto; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 rijndael/rijndael.h \
 	    ${DESTDIR}${INCLUDEDIR}/crypto
@@ -302,11 +293,6 @@ symlinks:
 		    ${DESTDIR}${INCLUDEDIR}/netinet; \
 	done
 .endif
-	cd ${.CURDIR}/../sys/contrib/pf/net; \
-	for h in *.h; do \
-		ln -fs ../../../sys/contrib/pf/net/$$h \
-		    ${DESTDIR}${INCLUDEDIR}/net; \
-	done
 	cd ${.CURDIR}/../sys/crypto; \
 	for h in rijndael/rijndael.h; do \
 		ln -fs ../../../sys/crypto/$$h \

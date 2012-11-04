@@ -872,16 +872,14 @@ vfs_mountroot_readconf(struct thread *td, struct sbuf *sb)
 	struct nameidata nd;
 	off_t ofs;
 	ssize_t resid;
-	int error, flags, len, vfslocked;
+	int error, flags, len;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE,
-	    "/.mount.conf", td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, "/.mount.conf", td);
 	flags = FREAD;
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error)
 		return (error);
 
-	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	ofs = 0;
 	len = sizeof(buf) - 1;
@@ -900,7 +898,6 @@ vfs_mountroot_readconf(struct thread *td, struct sbuf *sb)
 
 	VOP_UNLOCK(nd.ni_vp, 0);
 	vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 

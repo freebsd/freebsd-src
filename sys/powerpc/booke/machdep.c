@@ -473,7 +473,24 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 void
 cpu_flush_dcache(void *ptr, size_t len)
 {
-	/* TBD */
+	register_t addr, off;
+
+	/*
+	 * Align the address to a cacheline and adjust the length
+	 * accordingly. Then round the length to a multiple of the
+	 * cacheline for easy looping.
+	 */
+	addr = (uintptr_t)ptr;
+	off = addr & (cacheline_size - 1);
+	addr -= off;
+	len = (len + off + cacheline_size - 1) & ~(cacheline_size - 1);
+
+	while (len > 0) {
+		__asm __volatile ("dcbf 0,%0" :: "r"(addr));
+		__asm __volatile ("sync");
+		addr += cacheline_size;
+		len -= cacheline_size;
+	}
 }
 
 void

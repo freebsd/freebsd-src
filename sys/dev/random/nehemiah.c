@@ -28,6 +28,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_cpu.h"
+
+#ifdef PADLOCK_RNG
+
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/lock.h>
@@ -203,3 +207,5 @@ random_nehemiah_read(void *buf, int c)
 	mtx_unlock(&random_nehemiah_mtx);
 	return (c);
 }
+
+#endif

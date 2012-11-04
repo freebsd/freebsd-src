@@ -99,10 +99,12 @@ struct uark_softc {
 static device_probe_t uark_probe;
 static device_attach_t uark_attach;
 static device_detach_t uark_detach;
+static void uark_free_softc(struct uark_softc *);
 
 static usb_callback_t uark_bulk_write_callback;
 static usb_callback_t uark_bulk_read_callback;
 
+static void	uark_free(struct ucom_softc *);
 static void	uark_start_read(struct ucom_softc *);
 static void	uark_stop_read(struct ucom_softc *);
 static void	uark_start_write(struct ucom_softc *);
@@ -147,6 +149,7 @@ static const struct ucom_callback uark_callback = {
 	.ucom_start_write = &uark_start_write,
 	.ucom_stop_write = &uark_stop_write,
 	.ucom_poll = &uark_poll,
+	.ucom_free = &uark_free,
 };
 
 static device_method_t uark_methods[] = {
@@ -154,7 +157,7 @@ static device_method_t uark_methods[] = {
 	DEVMETHOD(device_probe, uark_probe),
 	DEVMETHOD(device_attach, uark_attach),
 	DEVMETHOD(device_detach, uark_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t uark_devclass;
@@ -201,6 +204,7 @@ uark_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "uark", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	sc->sc_udev = uaa->device;
 
@@ -242,9 +246,29 @@ uark_detach(device_t dev)
 
 	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UARK_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	uark_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(uark);
+
+static void
+uark_free_softc(struct uark_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+uark_free(struct ucom_softc *ucom)
+{
+	uark_free_softc(ucom->sc_parent);
 }
 
 static void

@@ -1,4 +1,4 @@
-.TH LESSKEY 1 "Version 444: 09 Jun 2011"
+.TH LESSKEY 1 "Version 451: 21 Jul 2012"
 .SH NAME
 lesskey \- specify key bindings for less
 .SH SYNOPSIS
@@ -162,6 +162,7 @@ default command keys used by less:
 	w		back-window 
 	\ee\e40		forw-screen-force
 	F		forw-forever 
+	\eeF		forw-until-hilite
 	R		repaint-flush 
 	r		repaint 
 	^R		repaint 
@@ -355,7 +356,7 @@ which start with a NUL character (0).
 This NUL character should be represented as \e340 in a lesskey file.
 
 .SH COPYRIGHT
-Copyright (C) 2000-2011  Mark Nudelman
+Copyright (C) 2000-2012  Mark Nudelman
 .PP
 lesskey is part of the GNU project and is free software;
 you can redistribute it and/or modify it
@@ -375,7 +376,6 @@ Suite 330, Boston, MA  02111-1307, USA.
 
 .SH AUTHOR
 .PP
-Mark Nudelman <markn@greenwoodsoftware.com>
+Mark Nudelman <bug-less@gnu.org>
 .br
-Send bug reports or comments to the above address or to bug-less@gnu.org.
-
+Send bug reports or comments to bug-less@gnu.org.

@@ -1442,7 +1442,7 @@ igmp_input(struct mbuf *m, int off)
 
 	ip = mtod(m, struct ip *);
 	iphlen = off;
-	igmplen = ip->ip_len;
+	igmplen = ntohs(ip->ip_len) - off;
 
 	/*
 	 * Validate lengths.
@@ -2225,7 +2225,7 @@ igmp_v1v2_queue_report(struct in_multi *inm, const int type)
 
 	ip = mtod(m, struct ip *);
 	ip->ip_tos = 0;
-	ip->ip_len = sizeof(struct ip) + sizeof(struct igmp);
+	ip->ip_len = htons(sizeof(struct ip) + sizeof(struct igmp));
 	ip->ip_off = 0;
 	ip->ip_p = IPPROTO_IGMP;
 	ip->ip_src.s_addr = INADDR_ANY;
@@ -2285,13 +2285,11 @@ igmp_change_state(struct in_multi *inm)
 	 */
 	KASSERT(inm->inm_ifma != NULL, ("%s: no ifma", __func__));
 	ifp = inm->inm_ifma->ifma_ifp;
-	if (ifp != NULL) {
-		/*
-		 * Sanity check that netinet's notion of ifp is the
-		 * same as net's.
-		 */
-		KASSERT(inm->inm_ifp == ifp, ("%s: bad ifp", __func__));
-	}
+	/*
+	 * Sanity check that netinet's notion of ifp is the
+	 * same as net's.
+	 */
+	KASSERT(inm->inm_ifp == ifp, ("%s: bad ifp", __func__));
 
 	IGMP_LOCK();
 
@@ -3524,8 +3522,8 @@ igmp_v3_encap_report(struct ifnet *ifp, struct mbuf *m)
 
 	ip = mtod(m, struct ip *);
 	ip->ip_tos = IPTOS_PREC_INTERNETCONTROL;
-	ip->ip_len = hdrlen + igmpreclen;
-	ip->ip_off = IP_DF;
+	ip->ip_len = htons(hdrlen + igmpreclen);
+	ip->ip_off = htons(IP_DF);
 	ip->ip_p = IPPROTO_IGMP;
 	ip->ip_sum = 0;
 

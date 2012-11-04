@@ -289,6 +289,7 @@ static void	em_handle_link(void *context, int pending);
 static void	em_set_sysctl_value(struct adapter *, const char *,
 		    const char *, int *, int);
 static int	em_set_flowcntl(SYSCTL_HANDLER_ARGS);
+static int	em_sysctl_eee(SYSCTL_HANDLER_ARGS);
 
 static __inline void em_rx_discard(struct rx_ring *, int);
 
@@ -389,7 +390,7 @@ SYSCTL_INT(_hw_em, OID_AUTO, rx_process_limit, CTLFLAG_RDTUN,
     "at a time, -1 means unlimited");
 
 /* Energy efficient ethernet - default to OFF */
-static int eee_setting = 0;
+static int eee_setting = 1;
 TUNABLE_INT("hw.em.eee_setting", &eee_setting);
 SYSCTL_INT(_hw_em, OID_AUTO, eee_setting, CTLFLAG_RDTUN, &eee_setting, 0,
     "Enable Energy Efficient Ethernet");
@@ -636,9 +637,12 @@ em_attach(device_t dev)
 		    " due to SOL/IDER session.\n");
 
 	/* Sysctl for setting Energy Efficient Ethernet */
-	em_set_sysctl_value(adapter, "eee_control",
-	    "enable Energy Efficient Ethernet",
-	    &hw->dev_spec.ich8lan.eee_disable, eee_setting);
+	hw->dev_spec.ich8lan.eee_disable = eee_setting;
+	SYSCTL_ADD_PROC(device_get_sysctl_ctx(dev),
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+	    OID_AUTO, "eee_control", CTLTYPE_INT|CTLFLAG_RW,
+	    adapter, 0, em_sysctl_eee, "I",
+	    "Disable Energy Efficient Ethernet");
 
 	/*
 	** Start from a known state, this is
@@ -918,7 +922,9 @@ em_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
                         break;
 		}
 		enq++;
-		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
+		ifp->if_obytes += next->m_pkthdr.len;
+		if (next->m_flags & M_MCAST)
+			ifp->if_omcasts++;
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
                         break;
@@ -1566,6 +1572,8 @@ em_msix_rx(void *arg)
 	bool		more;
 
 	++rxr->rx_irq;
+	if (!(adapter->ifp->if_drv_flags & IFF_DRV_RUNNING))
+		return;
 	more = em_rxeof(rxr, adapter->rx_process_limit, NULL);
 	if (more)
 		taskqueue_enqueue(rxr->tq, &rxr->rx_task);
@@ -4430,7 +4438,7 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 
 		if ((cur->errors & E1000_RXD_ERR_FRAME_ERR_MASK) ||
 		    (rxr->discard == TRUE)) {
-			ifp->if_ierrors++;
+			adapter->dropped_pkts++;
 			++rxr->rx_discarded;
 			if (!eop) /* Catch subsequent segs */
 				rxr->discard = TRUE;
@@ -5107,13 +5115,13 @@ em_disable_aspm(struct adapter *adapter)
 	}
 	if (pci_find_cap(dev, PCIY_EXPRESS, &base) != 0)
 		return;
-	reg = base + PCIR_EXPRESS_LINK_CAP;
+	reg = base + PCIER_LINK_CAP;
 	link_cap = pci_read_config(dev, reg, 2);
-	if ((link_cap & PCIM_LINK_CAP_ASPM) == 0)
+	if ((link_cap & PCIEM_LINK_CAP_ASPM) == 0)
 		return;
-	reg = base + PCIR_EXPRESS_LINK_CTL;
+	reg = base + PCIER_LINK_CTL;
 	link_ctrl = pci_read_config(dev, reg, 2);
-	link_ctrl &= 0xFFFC; /* turn off bit 1 and 2 */
+	link_ctrl &= ~PCIEM_LINK_CTL_ASPMC;
 	pci_write_config(dev, reg, link_ctrl, 2);
 	return;
 }
@@ -5695,6 +5703,27 @@ em_set_flowcntl(SYSCTL_HANDLER_ARGS)
         return (error);
 }
 
+/*
+** Manage Energy Efficient Ethernet:
+** Control values:
+**     0/1 - enabled/disabled
+*/
+static int
+em_sysctl_eee(SYSCTL_HANDLER_ARGS)
+{
+       struct adapter *adapter = (struct adapter *) arg1;
+       int             error, value;
+
+       value = adapter->hw.dev_spec.ich8lan.eee_disable;
+       error = sysctl_handle_int(oidp, &value, 0, req);
+       if (error || req->newptr == NULL)
+               return (error);
+       EM_CORE_LOCK(adapter);
+       adapter->hw.dev_spec.ich8lan.eee_disable = (value != 0);
+       em_init_locked(adapter);
+       EM_CORE_UNLOCK(adapter);
+       return (0);
+}
 
 static int
 em_sysctl_debug_info(SYSCTL_HANDLER_ARGS)

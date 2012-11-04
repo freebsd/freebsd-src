@@ -66,9 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/vnode.h>
-#ifdef SW_WATCHDOG
 #include <sys/watchdog.h>
-#endif
 
 #include <ddb/ddb.h>
 
@@ -334,9 +332,7 @@ kern_reboot(int howto)
 
 		waittime = 0;
 
-#ifdef SW_WATCHDOG
 		wdog_kern_pat(WD_LASTVAL);
-#endif
 		sys_sync(curthread, NULL);
 
 		/*
@@ -362,9 +358,8 @@ kern_reboot(int howto)
 			if (nbusy < pbusy)
 				iter = 0;
 			pbusy = nbusy;
-#ifdef SW_WATCHDOG
+
 			wdog_kern_pat(WD_LASTVAL);
-#endif
 			sys_sync(curthread, NULL);
 
 #ifdef PREEMPTION
@@ -717,18 +712,29 @@ kthread_shutdown(void *arg, int howto)
 		printf("done\n");
 }
 
+static char dumpdevname[sizeof(((struct cdev*)NULL)->si_name)];
+SYSCTL_STRING(_kern_shutdown, OID_AUTO, dumpdevname, CTLFLAG_RD,
+    dumpdevname, 0, "Device for kernel dumps");
+
 /* Registration of dumpers */
 int
-set_dumper(struct dumperinfo *di)
+set_dumper(struct dumperinfo *di, const char *devname)
 {
+	size_t wantcopy;
 
 	if (di == NULL) {
 		bzero(&dumper, sizeof dumper);
+		dumpdevname[0] = '\0';
 		return (0);
 	}
 	if (dumper.dumper != NULL)
 		return (EBUSY);
 	dumper = *di;
+	wantcopy = strlcpy(dumpdevname, devname, sizeof(dumpdevname));
+	if (wantcopy >= sizeof(dumpdevname)) {
+		printf("set_dumper: device name truncated from '%s' -> '%s'\n",
+			devname, dumpdevname);
+	}
 	return (0);
 }
 

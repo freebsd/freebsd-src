@@ -61,6 +61,8 @@ KDB_TRACE	opt_kdb.h
 KDB_UNATTENDED	opt_kdb.h
 KLD_DEBUG	opt_kld.h
 SYSCTL_DEBUG	opt_sysctl.h
+TEXTDUMP_PREFERRED	opt_ddb.h
+TEXTDUMP_VERBOSE	opt_ddb.h
 
 # Miscellaneous options.
 ADAPTIVE_LOCKMGRS
@@ -68,7 +70,6 @@ ALQ
 AUDIT		opt_global.h
 CAPABILITIES	opt_capsicum.h
 CAPABILITY_MODE	opt_capsicum.h
-CODA_COMPAT_5	opt_coda.h
 COMPAT_43	opt_compat.h
 COMPAT_43TTY	opt_compat.h
 COMPAT_FREEBSD4	opt_compat.h
@@ -138,6 +139,7 @@ MAC_STATIC	opt_mac.h
 MAC_STUB	opt_dontuse.h
 MAC_TEST	opt_dontuse.h
 MD_ROOT		opt_md.h
+MD_ROOT_FSTYPE	opt_md.h
 MD_ROOT_SIZE	opt_md.h
 MFI_DEBUG	opt_mfi.h
 MFI_DECODE_LOG	opt_mfi.h
@@ -189,7 +191,6 @@ SW_WATCHDOG	opt_watchdog.h
 TURNSTILE_PROFILING
 UMTX_PROFILING
 VFS_AIO
-VFS_ALLOW_NONMPSAFE
 VERBOSE_SYSINIT	opt_global.h
 WLCACHE		opt_wavelan.h
 WLDEBUG		opt_wavelan.h
@@ -207,21 +208,16 @@ INCLUDE_CONFIG_FILE	opt_config.h
 # dependencies.  Unusability is enforced by hiding the defines for the
 # options in a never-included header.
 CD9660		opt_dontuse.h
-CODA		opt_dontuse.h
 EXT2FS		opt_dontuse.h
 FDESCFS		opt_dontuse.h
 FFS		opt_dontuse.h
-HPFS		opt_dontuse.h
+FUSE		opt_dontuse.h
 MSDOSFS		opt_dontuse.h
 NANDFS		opt_dontuse.h
-NTFS		opt_dontuse.h
 NULLFS		opt_dontuse.h
-NWFS		opt_dontuse.h
-PORTALFS	opt_dontuse.h
 PROCFS		opt_dontuse.h
 PSEUDOFS	opt_dontuse.h
 REISERFS	opt_dontuse.h
-SMBFS		opt_dontuse.h
 TMPFS		opt_dontuse.h
 UDF		opt_dontuse.h
 UNIONFS		opt_dontuse.h
@@ -250,7 +246,6 @@ NFSD		opt_nfs.h
 # filesystems and libiconv bridge
 CD9660_ICONV	opt_dontuse.h
 MSDOSFS_ICONV	opt_dontuse.h
-NTFS_ICONV	opt_dontuse.h
 UDF_ICONV	opt_dontuse.h
 
 # If you are following the conditions in the copyright,
@@ -288,9 +283,6 @@ UFS_GJOURNAL	opt_ufs.h
 # they won't make any difference yet).
 NFS_ROOT	opt_nfsroot.h
 
-# SMB/CIFS requester
-NETSMB		opt_netsmb.h
-
 # Options used only in subr_param.c.
 HZ		opt_param.h
 MAXFILES	opt_param.h
@@ -306,6 +298,7 @@ MAXSSIZ		opt_param.h
 # Generic SCSI options.
 CAM_MAX_HIGHPOWER	opt_cam.h
 CAMDEBUG		opt_cam.h
+CAM_DEBUG_COMPILE	opt_cam.h
 CAM_DEBUG_DELAY		opt_cam.h
 CAM_DEBUG_BUS		opt_cam.h
 CAM_DEBUG_TARGET	opt_cam.h
@@ -408,7 +401,6 @@ IPFILTER_LOG		opt_ipfilter.h
 IPFILTER_LOOKUP		opt_ipfilter.h
 IPFIREWALL		opt_ipfw.h
 IPFIREWALL_DEFAULT_TO_ACCEPT	opt_ipfw.h
-IPFIREWALL_FORWARD	opt_ipfw.h
 IPFIREWALL_NAT		opt_ipfw.h
 IPFIREWALL_VERBOSE	opt_ipfw.h
 IPFIREWALL_VERBOSE_LIMIT	opt_ipfw.h
@@ -425,15 +417,15 @@ LIBMCHAIN
 MBUF_PROFILING
 MBUF_STRESS_TEST
 MROUTING		opt_mrouting.h
-NCP
 NETATALK		opt_atalk.h
 NFSLOCKD
 PCBGROUP		opt_pcbgroup.h
+PF_DEFAULT_TO_DROP	opt_pf.h
 RADIX_MPATH		opt_mpath.h
 ROUTETABLES		opt_route.h
 SLIP_IFF_OPTS		opt_slip.h
 TCPDEBUG
-TCP_OFFLOAD_DISABLE	opt_inet.h #Disable code to dispatch tcp offloading
+TCP_OFFLOAD		opt_inet.h # Enable code to dispatch TCP offloading
 TCP_SIGNATURE		opt_inet.h
 VLAN_ARRAY		opt_vlan.h
 XBONEHACK
@@ -530,10 +522,10 @@ NGATM_CCATM		opt_netgraph.h
 # DRM options
 DRM_DEBUG		opt_drm.h
 
-ZERO_COPY_SOCKETS	opt_zero.h
+SOCKET_SEND_COW		opt_zero.h
+SOCKET_RECV_PFLIP	opt_zero.h
 TI_SF_BUF_JUMBO		opt_ti.h
 TI_JUMBO_HDRSPLIT	opt_ti.h
-BCE_JUMBO_HDRSPLIT	opt_bce.h
 
 # XXX Conflict: # of devices vs network protocol (Native ATM).
 # This makes "atm.h" unusable.
@@ -782,6 +774,7 @@ ATH_TX99_DIAG		opt_ath.h
 ATH_ENABLE_11N		opt_ath.h
 ATH_ENABLE_DFS		opt_ath.h
 ATH_EEPROM_FIRMWARE	opt_ath.h
+ATH_ENABLE_RADIOTAP_VENDOR_EXT	opt_ath.h
 
 # options for the Atheros hal
 AH_SUPPORT_AR5416	opt_ah.h
@@ -835,9 +828,6 @@ HWPMC_MIPS_BACKTRACE 	opt_hwpmc_hooks.h
 
 # XBOX options for FreeBSD/i386, but some files are MI
 XBOX			opt_xbox.h
-
-# XFS
-XFS
 
 ZFS			opt_dontuse.h
 
@@ -904,11 +894,3 @@ RACCT		opt_global.h
 
 # Resource Limits
 RCTL		opt_global.h
-
-# At least one of the AR71XX ubiquiti boards has a Redboot configuration
-# that "lies" about the amount of RAM it has. Until a cleaner method is
-# defined, this option will suffice in overriding what Redboot says.
-AR71XX_REALMEM		opt_ar71xx.h
-AR71XX_ENV_UBOOT	opt_ar71xx.h
-AR71XX_ENV_REDBOOT	opt_ar71xx.h
-AR71XX_ATH_EEPROM	opt_ar71xx.h

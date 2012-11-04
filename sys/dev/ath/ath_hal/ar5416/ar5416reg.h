@@ -123,6 +123,12 @@
 #define	AR_RTC_DERIVED_CLK_PERIOD_S	1
 #endif	/* AH_SUPPORT_AR9130 */
 
+/* AR_USEC: 0x801c */
+#define	AR5416_USEC_TX_LAT	0x007FC000	/* tx latency to start of SIGNAL (usec) */
+#define	AR5416_USEC_TX_LAT_S	14		/* tx latency to start of SIGNAL (usec) */
+#define	AR5416_USEC_RX_LAT	0x1F800000	/* rx latency to start of SIGNAL (usec) */
+#define	AR5416_USEC_RX_LAT_S	23		/* rx latency to start of SIGNAL (usec) */
+
 #define	AR_RESET_TSF		0x8020
 
 /*

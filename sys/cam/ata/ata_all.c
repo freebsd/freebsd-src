@@ -171,8 +171,8 @@ ata_op_string(struct ata_cmd *cmd)
 	case 0xf2: return ("SECURITY_UNLOCK");
 	case 0xf3: return ("SECURITY_ERASE_PREPARE");
 	case 0xf4: return ("SECURITY_ERASE_UNIT");
-	case 0xf5: return ("SECURITY_FREE_LOCK");
-	case 0xf6: return ("SECURITY DISABLE PASSWORD");
+	case 0xf5: return ("SECURITY_FREEZE_LOCK");
+	case 0xf6: return ("SECURITY_DISABLE_PASSWORD");
 	case 0xf8: return ("READ_NATIVE_MAX_ADDRESS");
 	case 0xf9: return ("SET_MAX_ADDRESS");
 	}
@@ -359,7 +359,7 @@ ata_28bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint8_t features,
 	ataio->cmd.lba_low = lba;
 	ataio->cmd.lba_mid = lba >> 8;
 	ataio->cmd.lba_high = lba >> 16;
-	ataio->cmd.device = 0x40 | ((lba >> 24) & 0x0f);
+	ataio->cmd.device = ATA_DEV_LBA | ((lba >> 24) & 0x0f);
 	ataio->cmd.sector_count = sector_count;
 }
 
@@ -384,7 +384,7 @@ ata_48bit_cmd(struct ccb_ataio *ataio, uint8_t cmd, uint16_t features,
 	ataio->cmd.lba_low = lba;
 	ataio->cmd.lba_mid = lba >> 8;
 	ataio->cmd.lba_high = lba >> 16;
-	ataio->cmd.device = 0x40;
+	ataio->cmd.device = ATA_DEV_LBA;
 	ataio->cmd.lba_low_exp = lba >> 24;
 	ataio->cmd.lba_mid_exp = lba >> 32;
 	ataio->cmd.lba_high_exp = lba >> 40;
@@ -404,7 +404,7 @@ ata_ncq_cmd(struct ccb_ataio *ataio, uint8_t cmd,
 	ataio->cmd.lba_low = lba;
 	ataio->cmd.lba_mid = lba >> 8;
 	ataio->cmd.lba_high = lba >> 16;
-	ataio->cmd.device = 0x40;
+	ataio->cmd.device = ATA_DEV_LBA;
 	ataio->cmd.lba_low_exp = lba >> 24;
 	ataio->cmd.lba_mid_exp = lba >> 32;
 	ataio->cmd.lba_high_exp = lba >> 40;

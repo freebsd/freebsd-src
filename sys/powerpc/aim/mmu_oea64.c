@@ -96,11 +96,6 @@ __FBSDID("$FreeBSD$");
 /*
  * Manages physical address maps.
  *
- * In addition to hardware address maps, this module is called upon to
- * provide software-use-only maps which may or may not be stored in the
- * same form as hardware maps.  These pseudo-maps are used to store
- * intermediate results from copy operations to and from address spaces.
- *
  * Since the information managed by this module is also stored by the
  * logical address mapping module, this module may throw away valid virtual
  * to physical mappings at almost any time.  However, invalidations of
@@ -305,7 +300,7 @@ void moea64_init(mmu_t);
 boolean_t moea64_is_modified(mmu_t, vm_page_t);
 boolean_t moea64_is_prefaultable(mmu_t, pmap_t, vm_offset_t);
 boolean_t moea64_is_referenced(mmu_t, vm_page_t);
-boolean_t moea64_ts_referenced(mmu_t, vm_page_t);
+int moea64_ts_referenced(mmu_t, vm_page_t);
 vm_offset_t moea64_map(mmu_t, vm_offset_t *, vm_paddr_t, vm_paddr_t, int);
 boolean_t moea64_page_exists_quick(mmu_t, pmap_t, vm_page_t);
 int moea64_page_wired_mappings(mmu_t, vm_page_t);
@@ -1570,7 +1565,7 @@ moea64_remove_write(mmu_t mmu, vm_page_t m)
  *	should be tested and standardized at some point in the future for
  *	optimal aging of shared pages.
  */
-boolean_t
+int
 moea64_ts_referenced(mmu_t mmu, vm_page_t m)
 {
 

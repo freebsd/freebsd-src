@@ -1,3 +1,28 @@
+	--- 9.8.3-P4 released ---
+
+3383.	[security]	A certain combination of records in the RBT could
+                        cause named to hang while populating the additional
+                        section of a response. [RT #31090]
+
+	--- 9.8.3-P3 released ---
+
+3364.	[security]	Named could die on specially crafted record.
+			[RT #30416]
+
+	--- 9.8.3-P2 released ---
+
+3346.	[security]	Bad-cache data could be used before it was
+			initialized, causing an assert. [RT #30025]
+
+3342.	[bug]		Change #3314 broke saving of stub zones to disk
+			resulting in excessive cpu usage in some cases.
+			[RT #29952]
+
+	--- 9.8.3-P1 released ---
+
+3331.	[security]	dns_rdataslab_fromrdataset could produce bad
+			rdataslabs. [RT #29644]
+			
 	--- 9.8.3 released ---
 
 3318.	[tuning]	Reduce the amount of work performed while holding a

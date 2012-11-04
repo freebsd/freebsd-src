@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslcompiler.h - common include file for iASL
@@ -594,6 +593,11 @@ TrSetNodeFlags (
     UINT32                  Flags);
 
 ACPI_PARSE_OBJECT *
+TrSetNodeAmlLength (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  Length);
+
+ACPI_PARSE_OBJECT *
 TrLinkPeerNodes (
     UINT32                  NumPeers,
     ...);
@@ -654,6 +658,10 @@ FlPrintFile (
     UINT32                  FileId,
     char                    *Format,
     ...);
+
+void
+FlDeleteFile (
+    UINT32                  FileId);
 
 void
 FlSetLineNumber (
@@ -773,6 +781,10 @@ UtSetParseOpName (
 char *
 UtGetStringBuffer (
     UINT32                  Length);
+
+void
+UtExpandLineBuffers (
+    void);
 
 ACPI_STATUS
 UtInternalizeName (
@@ -1115,4 +1127,3 @@ DtCreateTemplates (
     char                    *Signature);
 
 #endif /*  __ASLCOMPILER_H */
-

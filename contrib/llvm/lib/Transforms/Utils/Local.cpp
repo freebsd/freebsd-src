@@ -14,31 +14,31 @@
 
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Constants.h"
+#include "llvm/DIBuilder.h"
+#include "llvm/DebugInfo.h"
+#include "llvm/DerivedTypes.h"
 #include "llvm/GlobalAlias.h"
 #include "llvm/GlobalVariable.h"
-#include "llvm/DerivedTypes.h"
+#include "llvm/IRBuilder.h"
 #include "llvm/Instructions.h"
-#include "llvm/Intrinsics.h"
 #include "llvm/IntrinsicInst.h"
+#include "llvm/Intrinsics.h"
 #include "llvm/Metadata.h"
 #include "llvm/Operator.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/Analysis/DebugInfo.h"
-#include "llvm/Analysis/DIBuilder.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/MemoryBuiltins.h"
 #include "llvm/Analysis/ProfileInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
-#include "llvm/Target/TargetData.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
-#include "llvm/Support/IRBuilder.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/ValueHandle.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Target/TargetData.h"
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -169,16 +169,21 @@ bool llvm::ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions) {
       // Otherwise, we can fold this switch into a conditional branch
       // instruction if it has only one non-default destination.
       SwitchInst::CaseIt FirstCase = SI->case_begin();
-      Value *Cond = Builder.CreateICmpEQ(SI->getCondition(),
-          FirstCase.getCaseValue(), "cond");
+      IntegersSubset& Case = FirstCase.getCaseValueEx();
+      if (Case.isSingleNumber()) {
+        // FIXME: Currently work with ConstantInt based numbers.
+        Value *Cond = Builder.CreateICmpEQ(SI->getCondition(),
+             Case.getSingleNumber(0).toConstantInt(),
+            "cond");
 
-      // Insert the new branch.
-      Builder.CreateCondBr(Cond, FirstCase.getCaseSuccessor(),
-                           SI->getDefaultDest());
+        // Insert the new branch.
+        Builder.CreateCondBr(Cond, FirstCase.getCaseSuccessor(),
+                             SI->getDefaultDest());
 
-      // Delete the old switch.
-      SI->eraseFromParent();
-      return true;
+        // Delete the old switch.
+        SI->eraseFromParent();
+        return true;
+      }
     }
     return false;
   }
@@ -260,7 +265,7 @@ bool llvm::isInstructionTriviallyDead(Instruction *I) {
       return isa<UndefValue>(II->getArgOperand(1));
   }
 
-  if (extractMallocCall(I)) return true;
+  if (isAllocLikeFn(I)) return true;
 
   if (CallInst *CI = isFreeCall(I))
     if (Constant *C = dyn_cast<Constant>(CI->getArgOperand(0)))
@@ -700,7 +705,7 @@ bool llvm::EliminateDuplicatePHINodes(BasicBlock *BB) {
         CollisionMap[PN] = Old;
         break;
       }
-      // Procede to the next PHI in the list.
+      // Proceed to the next PHI in the list.
       OtherPN = I->second;
     }
   }

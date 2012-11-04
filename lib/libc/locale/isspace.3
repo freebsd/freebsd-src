@@ -32,7 +32,7 @@
 .\"     @(#)isspace.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd July 17, 2005
+.Dd July 30, 2012
 .Dt ISSPACE 3
 .Os
 .Sh NAME
@@ -44,6 +44,8 @@
 .In ctype.h
 .Ft int
 .Fn isspace "int c"
+.Ft int
+.Fn isspace_l "int c" "locale_t loc"
 .Sh DESCRIPTION
 The
 .Fn isspace
@@ -60,11 +62,19 @@ The value of the argument must be representable as an
 .Vt "unsigned char"
 or the value of
 .Dv EOF .
+.Pp
+The
+.Fn isspace_l
+function takes an explicit locale argument, whereas the
+.Fn isspace
+function uses the current global or per-thread locale.
 .Sh RETURN VALUES
 The
 .Fn isspace
-function returns zero if the character tests false and
-returns non-zero if the character tests true.
+and
+.Fn isspace_l
+functions return zero if the character tests false and
+return non-zero if the character tests true.
 .Sh COMPATIBILITY
 The
 .Bx 4.4
@@ -85,3 +95,7 @@ The
 .Fn isspace
 function conforms to
 .St -isoC .
+The
+.Fn isspace_l
+function conforms to
+.St -p1003.1-2008 .

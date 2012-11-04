@@ -41,7 +41,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 21, 2012
+.Dd June 27, 2012
 .Dt MDCONFIG 8
 .Os
 .Sh NAME
@@ -62,6 +62,11 @@
 .Nm
 .Fl d
 .Fl u Ar unit
+.Op Fl o Oo Cm no Oc Ns Ar force
+.Nm
+.Fl r
+.Fl u Ar unit
+.Fl s Ar size
 .Op Fl o Oo Cm no Oc Ns Ar force
 .Nm
 .Fl l
@@ -85,6 +90,8 @@ This will configure and attach a memory disk with the
 parameters specified and attach it to the system.
 .It Fl d
 Detach a memory disk from the system and release all resources.
+.It Fl r
+Resize a memory disk.
 .It Fl t Ar type
 Select the type of the memory disk.
 .Bl -tag -width "malloc"
@@ -148,7 +155,7 @@ and
 .Fl t Ar swap
 options are implied if not specified.
 .It Fl S Ar sectorsize
-Sectorsize to use for malloc backed device.
+Sectorsize to use for the memory disk, in bytes.
 .It Fl x Ar sectors/track
 See the description of the
 .Fl y

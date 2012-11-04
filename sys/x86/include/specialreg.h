@@ -52,6 +52,8 @@
 #define	CR0_NW  0x20000000	/* Not Write-through */
 #define	CR0_CD  0x40000000	/* Cache Disable */
 
+#define	CR3_PCID_SAVE 0x8000000000000000
+
 /*
  * Bits in PPro special registers
  */
@@ -66,7 +68,10 @@
 #define	CR4_PCE	0x00000100	/* Performance monitoring counter enable */
 #define	CR4_FXSR 0x00000200	/* Fast FPU save/restore used by OS */
 #define	CR4_XMM	0x00000400	/* enable SIMD/MMX2 to use except 16 */
+#define	CR4_FSGSBASE 0x00010000	/* Enable FS/GS BASE accessing instructions */
+#define	CR4_PCIDE 0x00020000	/* Enable Context ID */
 #define	CR4_XSAVE 0x00040000	/* XSETBV/XGETBV */
+#define	CR4_SMEP 0x00100000	/* Supervisor-Mode Execution Prevention */
 
 /*
  * Bits in AMD64 special registers.  EFER is 64 bits wide.
@@ -247,6 +252,11 @@
 #define	CPUID_TYPE_CORE		2
 
 /*
+ * CPUID instruction 0xd Processor Extended State Enumeration Sub-leaf 1
+ */
+#define	CPUID_EXTSTATE_XSAVEOPT	0x00000001
+
+/*
  * AMD extended function 8000_0007h edx info
  */
 #define	AMDPM_TS		0x00000001
@@ -266,6 +276,12 @@
 #define	AMDID_CMP_CORES		0x000000ff
 #define	AMDID_COREID_SIZE	0x0000f000
 #define	AMDID_COREID_SIZE_SHIFT	12
+
+#define	CPUID_STDEXT_FSGSBASE	0x00000001
+#define	CPUID_STDEXT_TSC_ADJUST	0x00000002
+#define	CPUID_STDEXT_SMEP	0x00000080
+#define	CPUID_STDEXT_ENH_MOVSB	0x00000200
+#define	CPUID_STDEXT_INVPCID	0x00000400
 
 /*
  * CPUID manufacturers identifiers

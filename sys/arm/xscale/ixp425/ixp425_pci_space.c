@@ -443,7 +443,7 @@ ixp425_pci_mem_bs_alloc(void *t, bus_addr_t rstart, bus_addr_t rend,
 	panic("ixp425_mem_bs_alloc(): not implemented\n");
 }
 
-void    
+void
 ixp425_pci_mem_bs_free(void *t, bus_space_handle_t bsh, bus_size_t size)
 {
 	panic("ixp425_mem_bs_free(): not implemented\n");

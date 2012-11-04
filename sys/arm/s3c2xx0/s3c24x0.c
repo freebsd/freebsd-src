@@ -220,7 +220,6 @@ s3c24x0_setup_intr(device_t dev, device_t child,
 			/* Enable the external interrupt pin */
 			s3c24x0_enable_ext_intr(irq - S3C24X0_EXTIRQ_MIN);
 		}
-		arm_unmask_irq(irq);
 	}
 	return (0);
 }
@@ -283,7 +282,7 @@ s3c24x0_config_intr(device_t dev, int irq, enum intr_trigger trig,
 	    s3c2xx0_softc->sc_gpio_ioh, reg, value);
 
 	return (0);
-} 
+}
 
 static struct resource *
 s3c24x0_alloc_resource(device_t bus, device_t child, int type, int *rid,
@@ -356,7 +355,7 @@ s3c24x0_alloc_resource(device_t bus, device_t child, int type, int *rid,
 				rman_release_resource(res);
 				return (NULL);
 			}
-		} 
+		}
 		break;
 	}
 
@@ -751,19 +750,19 @@ arm_mask_irq(uintptr_t irq)
 		mask = bus_space_read_4(&s3c2xx0_bs_tag,
 		    s3c2xx0_softc->sc_intctl_ioh, INTCTL_INTMSK);
 		mask |= (1 << irq);
-		bus_space_write_4(&s3c2xx0_bs_tag, 
+		bus_space_write_4(&s3c2xx0_bs_tag,
 		    s3c2xx0_softc->sc_intctl_ioh, INTCTL_INTMSK, mask);
 	} else if (irq < S3C24X0_EXTIRQ_MIN) {
 		mask = bus_space_read_4(&s3c2xx0_bs_tag,
 		    s3c2xx0_softc->sc_intctl_ioh, INTCTL_INTSUBMSK);
 		mask |= (1 << (irq - S3C24X0_SUBIRQ_MIN));
-		bus_space_write_4(&s3c2xx0_bs_tag, 
+		bus_space_write_4(&s3c2xx0_bs_tag,
 		    s3c2xx0_softc->sc_intctl_ioh, INTCTL_INTSUBMSK, mask);
 	} else {
 		mask = bus_space_read_4(&s3c2xx0_bs_tag,
 		    s3c2xx0_softc->sc_gpio_ioh, GPIO_EINTMASK);
 		mask |= (1 << (irq - S3C24X0_EXTIRQ_MIN));
-		bus_space_write_4(&s3c2xx0_bs_tag, 
+		bus_space_write_4(&s3c2xx0_bs_tag,
 		    s3c2xx0_softc->sc_intctl_ioh, GPIO_EINTMASK, mask);
 	}
 }
@@ -787,13 +786,13 @@ arm_unmask_irq(uintptr_t irq)
 		mask = bus_space_read_4(&s3c2xx0_bs_tag,
 		    s3c2xx0_softc->sc_intctl_ioh, INTCTL_INTSUBMSK);
 		mask &= ~(1 << (irq - S3C24X0_SUBIRQ_MIN));
-		bus_space_write_4(&s3c2xx0_bs_tag, 
+		bus_space_write_4(&s3c2xx0_bs_tag,
 		    s3c2xx0_softc->sc_intctl_ioh, INTCTL_INTSUBMSK, mask);
 	} else {
 		mask = bus_space_read_4(&s3c2xx0_bs_tag,
 		    s3c2xx0_softc->sc_gpio_ioh, GPIO_EINTMASK);
 		mask &= ~(1 << (irq - S3C24X0_EXTIRQ_MIN));
-		bus_space_write_4(&s3c2xx0_bs_tag, 
+		bus_space_write_4(&s3c2xx0_bs_tag,
 		    s3c2xx0_softc->sc_intctl_ioh, GPIO_EINTMASK, mask);
 	}
 }

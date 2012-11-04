@@ -109,10 +109,12 @@ fetch_tcp(void)
              ptr = (struct xinpgen *)(void *)((char *)ptr + ptr->xig_len)) {
 		tp = (struct xtcpcb *)ptr;
 		if (tp->xt_inp.inp_gencnt > xinpgen->xig_gen ||
-		    (tp->xt_inp.inp_vflag & INP_IPV4) == 0)
+		    (tp->xt_inp.inp_vflag & (INP_IPV4|INP_IPV6)) == 0)
 			continue;
 
-		tcp_total++;
+		if (tp->xt_inp.inp_vflag & INP_IPV4)
+			tcp_total++;
+
 		if (tp->xt_tp.t_state == TCPS_ESTABLISHED ||
 		    tp->xt_tp.t_state == TCPS_CLOSE_WAIT)
 			tcp_count++;

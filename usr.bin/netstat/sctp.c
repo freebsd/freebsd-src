@@ -107,6 +107,7 @@ struct xraddr_entry {
  * If numeric_addr has been supplied, give
  * numeric value, otherwise try for symbolic name.
  */
+#ifdef INET
 static char *
 inetname(struct in_addr *inp)
 {
@@ -146,6 +147,7 @@ inetname(struct in_addr *inp)
 	}
 	return (line);
 }
+#endif
 
 #ifdef INET6
 static char ntop_buf[INET6_ADDRSTRLEN];
@@ -197,9 +199,11 @@ sctp_print_address(union sctp_sockstore *address, int port, int num_port)
 	int width;
 
 	switch (address->sa.sa_family) {
+#ifdef INET
 	case AF_INET:
 		sprintf(line, "%.*s.", Wflag ? 39 : 16, inetname(&address->sin.sin_addr));
 		break;
+#endif
 #ifdef INET6
 	case AF_INET6:
 		sprintf(line, "%.*s.", Wflag ? 39 : 16, inet6name(&address->sin6.sin6_addr));

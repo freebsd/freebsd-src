@@ -86,8 +86,8 @@ ar9287AniSetup(struct ath_hal *ah)
                 .coarseHigh             = { -14, -14, -14, -14, -12 },
                 .coarseLow              = { -64, -64, -64, -64, -70 },
                 .firpwr                 = { -78, -78, -78, -78, -80 },
-                .maxSpurImmunityLevel   = 2,
-                .cycPwrThr1             = { 2, 4, 6 },
+                .maxSpurImmunityLevel   = 7,
+                .cycPwrThr1             = { 2, 4, 6, 8, 10, 12, 14, 16 },
                 .maxFirstepLevel        = 2,    /* levels 0..2 */
                 .firstep                = { 0, 4, 8 },
                 .ofdmTrigHigh           = 500,
@@ -136,6 +136,13 @@ ar9287Attach(uint16_t devid, HAL_SOFTC sc,
 	ah = &ahp->ah_priv.h;
 
 	ar5416InitState(AH5416(ah), devid, sc, st, sh, status);
+
+	if (eepromdata != AH_NULL) {
+		AH_PRIVATE(ah)->ah_eepromRead = ath_hal_EepromDataRead;
+		AH_PRIVATE(ah)->ah_eepromWrite = NULL;
+		ah->ah_eepromdata = eepromdata;
+	}
+
 
 	/* XXX override with 9280 specific state */
 	/* override 5416 methods for our needs */

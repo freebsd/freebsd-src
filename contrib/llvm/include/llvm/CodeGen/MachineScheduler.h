@@ -19,7 +19,7 @@
 //                     createCustomMachineSched);
 //
 // Inside <Target>PassConfig:
-//   enablePass(MachineSchedulerID);
+//   enablePass(&MachineSchedulerID);
 //   MachineSchedRegistry::setDefault(createCustomMachineSched);
 //
 //===----------------------------------------------------------------------===//
@@ -35,6 +35,7 @@ class AliasAnalysis;
 class LiveIntervals;
 class MachineDominatorTree;
 class MachineLoopInfo;
+class RegisterClassInfo;
 class ScheduleDAGInstrs;
 
 /// MachineSchedContext provides enough context from the MachineScheduler pass
@@ -47,7 +48,10 @@ struct MachineSchedContext {
   AliasAnalysis *AA;
   LiveIntervals *LIS;
 
-  MachineSchedContext(): MF(0), MLI(0), MDT(0), PassConfig(0), AA(0), LIS(0) {}
+  RegisterClassInfo *RegClassInfo;
+
+  MachineSchedContext();
+  virtual ~MachineSchedContext();
 };
 
 /// MachineSchedRegistry provides a selection of available machine instruction
@@ -80,6 +84,9 @@ public:
   }
   static void setDefault(ScheduleDAGCtor C) {
     Registry.setDefault((MachinePassCtor)C);
+  }
+  static void setDefault(StringRef Name) {
+    Registry.setDefault(Name);
   }
   static void setListener(MachinePassRegistryListener *L) {
     Registry.setListener(L);

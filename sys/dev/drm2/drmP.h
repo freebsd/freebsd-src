@@ -105,6 +105,7 @@ struct drm_file;
 #include <dev/drm2/drm_mm.h>
 #include <dev/drm2/drm_hashtab.h>
 
+#include "opt_compat.h"
 #include "opt_drm.h"
 #ifdef DRM_DEBUG
 #undef DRM_DEBUG
@@ -250,7 +251,7 @@ enum {
 #define	msecs_to_jiffies(x)	(((int64_t)(x)) * hz / 1000)
 #define	time_after(a,b)		((long)(b) - (long)(a) < 0)
 #define	time_after_eq(a,b)	((long)(b) - (long)(a) <= 0)
-#define drm_msleep(x, msg)	pause((msg), ((int64_t)(x)) * 1000 / hz)
+#define drm_msleep(x, msg)	pause((msg), ((int64_t)(x)) * hz / 1000)
 
 typedef vm_paddr_t dma_addr_t;
 typedef uint64_t u64;
@@ -760,6 +761,10 @@ struct drm_driver_info {
 	int	(*device_is_agp) (struct drm_device * dev);
 
 	drm_ioctl_desc_t *ioctls;
+#ifdef COMPAT_FREEBSD32
+	drm_ioctl_desc_t *compat_ioctls;
+	int	*compat_ioctls_nr;
+#endif
 	int	max_ioctl;
 
 	int	buf_priv_size;

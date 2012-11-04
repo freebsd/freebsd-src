@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/sysent.h>
 #include <sys/taskqueue.h>
 
 #include <machine/bus.h>
@@ -105,6 +106,8 @@ static void	mfi_add_sys_pd_complete(struct mfi_command *);
 static struct mfi_command * mfi_bio_command(struct mfi_softc *);
 static void	mfi_bio_complete(struct mfi_command *);
 static struct mfi_command *mfi_build_ldio(struct mfi_softc *,struct bio*);
+static int mfi_build_syspd_cdb(struct mfi_pass_frame *pass, uint32_t block_count,
+		   uint64_t lba, uint8_t byte2, int readop);
 static struct mfi_command *mfi_build_syspdio(struct mfi_softc *,struct bio*);
 static int	mfi_send_frame(struct mfi_softc *, struct mfi_command *);
 static int	mfi_abort(struct mfi_softc *, struct mfi_command *);
@@ -1981,13 +1984,78 @@ mfi_bio_command(struct mfi_softc *sc)
 	    mfi_enqueue_bio(sc, bio);
 	return cm;
 }
+
+static int
+mfi_build_syspd_cdb(struct mfi_pass_frame *pass, uint32_t block_count,
+    uint64_t lba, uint8_t byte2, int readop)
+{
+	int cdb_len;
+
+	if (((lba & 0x1fffff) == lba)
+         && ((block_count & 0xff) == block_count)
+         && (byte2 == 0)) {
+		/* We can fit in a 6 byte cdb */
+		struct scsi_rw_6 *scsi_cmd;
+
+		scsi_cmd = (struct scsi_rw_6 *)&pass->cdb;
+		scsi_cmd->opcode = readop ? READ_6 : WRITE_6;
+		scsi_ulto3b(lba, scsi_cmd->addr);
+		scsi_cmd->length = block_count & 0xff;
+		scsi_cmd->control = 0;
+		cdb_len = sizeof(*scsi_cmd);
+	} else if (((block_count & 0xffff) == block_count) && ((lba & 0xffffffff) == lba)) {
+		/* Need a 10 byte CDB */
+		struct scsi_rw_10 *scsi_cmd;
+
+		scsi_cmd = (struct scsi_rw_10 *)&pass->cdb;
+		scsi_cmd->opcode = readop ? READ_10 : WRITE_10;
+		scsi_cmd->byte2 = byte2;
+		scsi_ulto4b(lba, scsi_cmd->addr);
+		scsi_cmd->reserved = 0;
+		scsi_ulto2b(block_count, scsi_cmd->length);
+		scsi_cmd->control = 0;
+		cdb_len = sizeof(*scsi_cmd);
+	} else if (((block_count & 0xffffffff) == block_count) &&
+	    ((lba & 0xffffffff) == lba)) {
+		/* Block count is too big for 10 byte CDB use a 12 byte CDB */
+		struct scsi_rw_12 *scsi_cmd;
+
+		scsi_cmd = (struct scsi_rw_12 *)&pass->cdb;
+		scsi_cmd->opcode = readop ? READ_12 : WRITE_12;
+		scsi_cmd->byte2 = byte2;
+		scsi_ulto4b(lba, scsi_cmd->addr);
+		scsi_cmd->reserved = 0;
+		scsi_ulto4b(block_count, scsi_cmd->length);
+		scsi_cmd->control = 0;
+		cdb_len = sizeof(*scsi_cmd);
+	} else {
+		/*
+		 * 16 byte CDB.  We'll only get here if the LBA is larger
+		 * than 2^32
+		 */
+		struct scsi_rw_16 *scsi_cmd;
+
+		scsi_cmd = (struct scsi_rw_16 *)&pass->cdb;
+		scsi_cmd->opcode = readop ? READ_16 : WRITE_16;
+		scsi_cmd->byte2 = byte2;
+		scsi_u64to8b(lba, scsi_cmd->addr);
+		scsi_cmd->reserved = 0;
+		scsi_ulto4b(block_count, scsi_cmd->length);
+		scsi_cmd->control = 0;
+		cdb_len = sizeof(*scsi_cmd);
+	}
+
+	return cdb_len;
+}
+
 static struct mfi_command *
 mfi_build_syspdio(struct mfi_softc *sc, struct bio *bio)
 {
 	struct mfi_command *cm;
 	struct mfi_pass_frame *pass;
-	int flags = 0, blkcount = 0;
-	uint32_t context = 0;
+	int flags = 0;
+	uint8_t cdb_len;
+	uint32_t block_count, context = 0;
 
 	if ((cm = mfi_dequeue_free(sc)) == NULL)
 	    return (NULL);
@@ -2001,35 +2069,29 @@ mfi_build_syspdio(struct mfi_softc *sc, struct bio *bio)
 	pass->header.cmd = MFI_CMD_PD_SCSI_IO;
 	switch (bio->bio_cmd & 0x03) {
 	case BIO_READ:
-#define SCSI_READ 0x28
-		pass->cdb[0] = SCSI_READ;
 		flags = MFI_CMD_DATAIN;
 		break;
 	case BIO_WRITE:
-#define SCSI_WRITE 0x2a
-		pass->cdb[0] = SCSI_WRITE;
 		flags = MFI_CMD_DATAOUT;
 		break;
 	default:
-		panic("Invalid bio command");
+		/* TODO: what about BIO_DELETE??? */
+		panic("Unsupported bio command");
 	}
 
 	/* Cheat with the sector length to avoid a non-constant division */
-	blkcount = (bio->bio_bcount + MFI_SECTOR_LEN - 1) / MFI_SECTOR_LEN;
+	block_count = (bio->bio_bcount + MFI_SECTOR_LEN - 1) / MFI_SECTOR_LEN;
 	/* Fill the LBA and Transfer length in CDB */
-	pass->cdb[2] = (bio->bio_pblkno & 0xff000000) >> 24;
-	pass->cdb[3] = (bio->bio_pblkno & 0x00ff0000) >> 16;
-	pass->cdb[4] = (bio->bio_pblkno & 0x0000ff00) >> 8;
-	pass->cdb[5] = bio->bio_pblkno & 0x000000ff;
-	pass->cdb[7] = (blkcount & 0xff00) >> 8;
-	pass->cdb[8] = (blkcount & 0x00ff);
+	cdb_len = mfi_build_syspd_cdb(pass, block_count, bio->bio_pblkno, 0,
+	    flags == MFI_CMD_DATAIN);
+
 	pass->header.target_id = (uintptr_t)bio->bio_driver1;
 	pass->header.timeout = 0;
 	pass->header.flags = 0;
 	pass->header.scsi_status = 0;
 	pass->header.sense_len = MFI_SENSE_LEN;
 	pass->header.data_len = bio->bio_bcount;
-	pass->header.cdb_len = 10;
+	pass->header.cdb_len = cdb_len;
 	pass->sense_addr_lo = (uint32_t)cm->cm_sense_busaddr;
 	pass->sense_addr_hi = (uint32_t)((uint64_t)cm->cm_sense_busaddr >> 32);
 	cm->cm_complete = mfi_bio_complete;
@@ -2047,7 +2109,8 @@ mfi_build_ldio(struct mfi_softc *sc, struct bio *bio)
 {
 	struct mfi_io_frame *io;
 	struct mfi_command *cm;
-	int flags, blkcount;
+	int flags;
+	uint32_t blkcount;
 	uint32_t context = 0;
 
 	if ((cm = mfi_dequeue_free(sc)) == NULL)
@@ -2068,7 +2131,8 @@ mfi_build_ldio(struct mfi_softc *sc, struct bio *bio)
 		flags = MFI_CMD_DATAOUT;
 		break;
 	default:
-		panic("Invalid bio command");
+		/* TODO: what about BIO_DELETE??? */
+		panic("Unsupported bio command");
 	}
 
 	/* Cheat with the sector length to avoid a non-constant division */
@@ -2459,7 +2523,7 @@ mfi_dump_syspd_blocks(struct mfi_softc *sc, int id, uint64_t lba, void *virt,
 	struct mfi_command *cm;
 	struct mfi_pass_frame *pass;
 	int error;
-	int blkcount = 0;
+	uint32_t blkcount;
 
 	if ((cm = mfi_dequeue_free(sc)) == NULL)
 		return (EBUSY);
@@ -2467,21 +2531,14 @@ mfi_dump_syspd_blocks(struct mfi_softc *sc, int id, uint64_t lba, void *virt,
 	pass = &cm->cm_frame->pass;
 	bzero(pass->cdb, 16);
 	pass->header.cmd = MFI_CMD_PD_SCSI_IO;
-	pass->cdb[0] = SCSI_WRITE;
-	pass->cdb[2] = (lba & 0xff000000) >> 24;
-	pass->cdb[3] = (lba & 0x00ff0000) >> 16;
-	pass->cdb[4] = (lba & 0x0000ff00) >> 8;
-	pass->cdb[5] = (lba & 0x000000ff);
 	blkcount = (len + MFI_SECTOR_LEN - 1) / MFI_SECTOR_LEN;
-	pass->cdb[7] = (blkcount & 0xff00) >> 8;
-	pass->cdb[8] = (blkcount & 0x00ff);
 	pass->header.target_id = id;
 	pass->header.timeout = 0;
 	pass->header.flags = 0;
 	pass->header.scsi_status = 0;
 	pass->header.sense_len = MFI_SENSE_LEN;
 	pass->header.data_len = len;
-	pass->header.cdb_len = 10;
+	pass->header.cdb_len = mfi_build_syspd_cdb(pass, blkcount, lba, 0, 0);
 	pass->sense_addr_lo = (uint32_t)cm->cm_sense_busaddr;
 	pass->sense_addr_hi = (uint32_t)((uint64_t)cm->cm_sense_busaddr >> 32);
 	cm->cm_data = virt;
@@ -2549,6 +2606,7 @@ mfi_config_lock(struct mfi_softc *sc, uint32_t opcode)
 	case MFI_DCMD_LD_DELETE:
 	case MFI_DCMD_CFG_ADD:
 	case MFI_DCMD_CFG_CLEAR:
+	case MFI_DCMD_CFG_FOREIGN_IMPORT:
 		sx_xlock(&sc->mfi_config_lock);
 		return (1);
 	default:
@@ -2832,10 +2890,9 @@ mfi_user_command(struct mfi_softc *sc, struct mfi_ioc_passthru *ioc)
 
 
 	if (ioc->buf_size > 0) {
-		ioc_buf = malloc(ioc->buf_size, M_MFIBUF, M_WAITOK);
-		if (ioc_buf == NULL) {
+		if (ioc->buf_size > 1024 * 1024)
 			return (ENOMEM);
-		}
+		ioc_buf = malloc(ioc->buf_size, M_MFIBUF, M_WAITOK);
 		error = copyin(ioc->buf, ioc_buf, ioc->buf_size);
 		if (error) {
 			device_printf(sc->mfi_dev, "failed to copyin\n");
@@ -3244,6 +3301,10 @@ out:
 		}
 #ifdef COMPAT_FREEBSD32
 	case MFIIO_PASSTHRU32:
+		if (!SV_CURPROC_FLAG(SV_ILP32)) {
+			error = ENOTTY;
+			break;
+		}
 		iop_swab.ioc_frame	= iop32->ioc_frame;
 		iop_swab.buf_size	= iop32->buf_size;
 		iop_swab.buf		= PTRIN(iop32->buf);
@@ -3259,7 +3320,7 @@ out:
 		break;
 	default:
 		device_printf(sc->mfi_dev, "IOCTL 0x%lx not handled\n", cmd);
-		error = ENOENT;
+		error = ENOTTY;
 		break;
 	}
 

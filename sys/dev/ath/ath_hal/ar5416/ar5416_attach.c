@@ -47,8 +47,8 @@ ar5416AniSetup(struct ath_hal *ah)
 		.coarseHigh		= { -14, -14, -14, -14, -12 },
 		.coarseLow		= { -64, -64, -64, -64, -70 },
 		.firpwr			= { -78, -78, -78, -78, -80 },
-		.maxSpurImmunityLevel	= 2,
-		.cycPwrThr1		= { 2, 4, 6 },
+		.maxSpurImmunityLevel	= 7,
+		.cycPwrThr1		= { 2, 4, 6, 8, 10, 12, 14, 16 },
 		.maxFirstepLevel	= 2,	/* levels 0..2 */
 		.firstep		= { 0, 4, 8 },
 		.ofdmTrigHigh		= 500,
@@ -156,6 +156,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	/* DFS Functions */
 	ah->ah_enableDfs		= ar5416EnableDfs;
 	ah->ah_getDfsThresh		= ar5416GetDfsThresh;
+	ah->ah_getDfsDefaultThresh	= ar5416GetDfsDefaultThresh;
 	ah->ah_procRadarEvent		= ar5416ProcessRadarEvent;
 	ah->ah_isFastClockEnabled	= ar5416IsFastClockEnabled;
 
@@ -892,6 +893,8 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halTurboGSupport = pCap->halWirelessModes & HAL_MODE_108G;
 
 	pCap->halPSPollBroken = AH_TRUE;	/* XXX fixed in later revs? */
+	pCap->halNumMRRetries = 4;		/* Hardware supports 4 MRR */
+	pCap->halNumTxMaps = 1;			/* Single TX ptr per descr */
 	pCap->halVEOLSupport = AH_TRUE;
 	pCap->halBssIdMaskSupport = AH_TRUE;
 	pCap->halMcastKeySrchSupport = AH_TRUE;	/* Works on AR5416 and later */
@@ -908,9 +911,9 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	else
 		pCap->halKeyCacheSize = AR5416_KEYTABLE_SIZE;
 
-	/* XXX not needed */
-	pCap->halChanHalfRate = AH_FALSE;	/* XXX ? */
-	pCap->halChanQuarterRate = AH_FALSE;	/* XXX ? */
+	/* XXX Which chips? */
+	pCap->halChanHalfRate = AH_TRUE;
+	pCap->halChanQuarterRate = AH_TRUE;
 
 	pCap->halTstampPrecision = 32;
 	pCap->halHwPhyCounterSupport = AH_TRUE;

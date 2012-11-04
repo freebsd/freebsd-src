@@ -64,8 +64,28 @@ enum {
 	ATH_DEBUG_SW_TX_RETRIES	= 0x040000000ULL,	/* software TX retries */
 	ATH_DEBUG_FATAL		= 0x080000000ULL,	/* fatal errors */
 	ATH_DEBUG_SW_TX_BAR	= 0x100000000ULL,	/* BAR TX */
+	ATH_DEBUG_EDMA_RX	= 0x200000000ULL,	/* RX EDMA state */
+	ATH_DEBUG_SW_TX_FILT	= 0x400000000ULL,	/* SW TX FF */
+	ATH_DEBUG_NODE_PWRSAVE	= 0x800000000ULL,	/* node powersave */
+
 	ATH_DEBUG_ANY		= 0xffffffffffffffffULL
 };
+
+enum {
+	ATH_KTR_RXPROC		= 0x00000001,
+	ATH_KTR_TXPROC		= 0x00000002,
+	ATH_KTR_TXCOMP		= 0x00000004,
+	ATH_KTR_SWQ		= 0x00000008,
+	ATH_KTR_INTERRUPTS	= 0x00000010,
+	ATH_KTR_ERROR		= 0x00000020,
+	ATH_KTR_NODE		= 0x00000040,
+	ATH_KTR_TX		= 0x00000080,
+};
+
+#define	ATH_KTR(_sc, _km, _kf, ...)	do {	\
+	if (sc->sc_ktrdebug & (_km))		\
+		CTR##_kf(KTR_DEV, __VA_ARGS__);	\
+	} while (0)
 
 extern uint64_t ath_debug;
 
@@ -85,7 +105,11 @@ extern	void ath_printrxbuf(struct ath_softc *, const struct ath_buf *bf,
 	u_int ix, int);
 extern	void ath_printtxbuf(struct ath_softc *, const struct ath_buf *bf,
 	u_int qnum, u_int ix, int done);
+extern	void ath_printtxstatbuf(struct ath_softc *sc, const struct ath_buf *bf,
+	const uint32_t *ds, u_int qnum, u_int ix, int done);
 #else	/* ATH_DEBUG */
+#define	ATH_KTR(_sc, _km, _kf, ...)	do { } while (0)
+
 #define	IFF_DUMPPKTS(sc, m) \
 	((sc->sc_ifp->if_flags & (IFF_DEBUG|IFF_LINK2)) == (IFF_DEBUG|IFF_LINK2))
 #define	DPRINTF(sc, m, fmt, ...) do {				\

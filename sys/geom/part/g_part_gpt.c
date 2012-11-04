@@ -341,9 +341,6 @@ gpt_update_bootcamp(struct g_part_table *basetable)
 
  disable:
 	table->bootcamp = 0;
-	bzero(table->mbr + DOSPARTOFF, DOSPARTSIZE * NDOSPART);
-	gpt_write_mbr_entry(table->mbr, 0, 0xee, 1ull,
-	    MIN(table->lba[GPT_ELT_SECHDR], UINT32_MAX));
 }
 
 static struct gpt_hdr *
@@ -589,10 +586,6 @@ g_part_gpt_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 	codesz = MIN(codesz, gpp->gpp_codesize);
 	if (codesz > 0)
 		bcopy(gpp->gpp_codeptr, table->mbr, codesz);
-
-	/* Mark the PMBR active since some BIOS require it. */
-	if (!table->bootcamp)
-		table->mbr[DOSPARTOFF] = 0x80;		/* status */
 	return (0);
 }
 
@@ -601,7 +594,6 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 {
 	struct g_provider *pp;
 	struct g_part_gpt_table *table;
-	quad_t last;
 	size_t tblsz;
 
 	/* We don't nest, which means that our depth should be 0. */
@@ -616,11 +608,6 @@ g_part_gpt_create(struct g_part_table *basetable, struct g_part_parms *gpp)
 	    pp->mediasize < (3 + 2 * tblsz + basetable->gpt_entries) *
 	    pp->sectorsize)
 		return (ENOSPC);
-
-	last = (pp->mediasize / pp->sectorsize) - 1;
-
-	le16enc(table->mbr + DOSMAGICOFFSET, DOSMAGIC);
-	gpt_write_mbr_entry(table->mbr, 0, 0xee, 1, MIN(last, UINT32_MAX));
 
 	/* Allocate space for the header */
 	table->hdr = g_malloc(sizeof(struct gpt_hdr), M_WAITOK | M_ZERO);
@@ -1046,6 +1033,16 @@ g_part_gpt_write(struct g_part_table *basetable, struct g_consumer *cp)
 	/* Reconstruct the MBR from the GPT if under Boot Camp. */
 	if (table->bootcamp)
 		gpt_update_bootcamp(basetable);
+
+	/* Update partition entries in the PMBR if Boot Camp disabled. */
+	if (!table->bootcamp) {
+		bzero(table->mbr + DOSPARTOFF, DOSPARTSIZE * NDOSPART);
+		gpt_write_mbr_entry(table->mbr, 0, 0xee, 1,
+		    MIN(pp->mediasize / pp->sectorsize - 1, UINT32_MAX));
+		/* Mark the PMBR active since some BIOS require it. */
+		table->mbr[DOSPARTOFF] = 0x80;
+	}
+	le16enc(table->mbr + DOSMAGICOFFSET, DOSMAGIC);
 
 	/* Write the PMBR */
 	buf = g_malloc(pp->sectorsize, M_WAITOK | M_ZERO);

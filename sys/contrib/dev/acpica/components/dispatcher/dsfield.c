@@ -152,8 +152,8 @@ AcpiDsCreateExternalRegion (
  *              CreateBitFieldOp,
  *              CreateByteFieldOp,
  *              CreateWordFieldOp,
- *              CreateDWordFieldOp,
- *              CreateQWordFieldOp,
+ *              CreateDwordFieldOp,
+ *              CreateQwordFieldOp,
  *              CreateFieldOp       (all of which define a field in a buffer)
  *
  ******************************************************************************/
@@ -305,7 +305,7 @@ Cleanup:
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Process all named fields in a field declaration.  Names are
+ * DESCRIPTION: Process all named fields in a field declaration. Names are
  *              entered into the namespace.
  *
  ******************************************************************************/
@@ -828,5 +828,3 @@ AcpiDsCreateIndexField (
     Status = AcpiDsGetFieldNames (&Info, WalkState, Arg->Common.Next);
     return_ACPI_STATUS (Status);
 }
-
-

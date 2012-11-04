@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <pthread.h>
 
@@ -78,6 +79,9 @@ static struct arc4_stream rs;
 static pid_t arc4_stir_pid;
 static int arc4_count;
 
+extern int __sysctl(int *name, u_int namelen, void *oldp, size_t *oldlenp,
+    void *newp, size_t newlen);
+
 static inline u_int8_t arc4_getbyte(void);
 static void arc4_stir(void);
 
@@ -109,6 +113,28 @@ arc4_addrandom(u_char *dat, int datlen)
 	rs.j = rs.i;
 }
 
+static size_t
+arc4_sysctl(u_char *buf, size_t size)
+{
+	int mib[2];
+	size_t len, done;
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_ARND;
+	done = 0;
+
+	do {
+		len = size;
+		if (__sysctl(mib, 2, buf, &len, NULL, 0) == -1)
+			return (done);
+		done += len;
+		buf += len;
+		size -= len;
+	} while (size > 0);
+
+	return (done);
+}
+
 static void
 arc4_stir(void)
 {
@@ -123,12 +149,16 @@ arc4_stir(void)
 		arc4_init();
 		rs_initialized = 1;
 	}
-	fd = _open(RANDOMDEV, O_RDONLY, 0);
 	done = 0;
-	if (fd >= 0) {
-		if (_read(fd, &rdat, KEYSIZE) == KEYSIZE)
-			done = 1;
-		(void)_close(fd);
+	if (arc4_sysctl((u_char *)&rdat, KEYSIZE) == KEYSIZE)
+		done = 1;
+	if (!done) {
+		fd = _open(RANDOMDEV, O_RDONLY | O_CLOEXEC, 0);
+		if (fd >= 0) {
+			if (_read(fd, &rdat, KEYSIZE) == KEYSIZE)
+				done = 1;
+			(void)_close(fd);
+		}
 	}
 	if (!done) {
 		(void)gettimeofday(&rdat.tv, NULL);

@@ -104,38 +104,25 @@ __FBSDID("$FreeBSD$");
  */
 #define KERNEL_PT_MAX	78
 
-/* Define various stack sizes in pages */
-#define IRQ_STACK_SIZE	1
-#define ABT_STACK_SIZE	1
-#define UND_STACK_SIZE	1
-
 extern unsigned char kernbase[];
 extern unsigned char _etext[];
 extern unsigned char _edata[];
 extern unsigned char __bss_start[];
 extern unsigned char _end[];
 
-#ifdef DDB
-extern vm_offset_t ksym_start, ksym_end;
-#endif
-
 extern u_int data_abort_handler_address;
 extern u_int prefetch_abort_handler_address;
 extern u_int undefined_handler_address;
 
 extern vm_offset_t pmap_bootstrap_lastaddr;
-extern int *end;
 
 struct pv_addr kernel_pt_table[KERNEL_PT_MAX];
-struct pcpu __pcpu;
-struct pcpu *pcpup = &__pcpu;
 
 /* Physical and virtual addresses for some global pages */
-
 vm_paddr_t phys_avail[10];
 vm_paddr_t dump_avail[4];
-vm_offset_t physical_pages;
 vm_offset_t pmap_bootstrap_lastaddr;
+vm_paddr_t pmap_pa;
 
 const struct pmap_devmap *pmap_devmap_bootstrap_table;
 struct pv_addr systempage;
@@ -144,8 +131,6 @@ struct pv_addr irqstack;
 struct pv_addr undstack;
 struct pv_addr abtstack;
 struct pv_addr kernelstack;
-
-static struct trapframe proc0_tf;
 
 static struct mem_region availmem_regions[FDT_MEM_REGIONS];
 static int availmem_regions_sz;
@@ -287,7 +272,7 @@ physmap_init(void)
 		    availmem_regions[i].mr_start + availmem_regions[i].mr_size,
 		    availmem_regions[i].mr_size);
 
-		/* 
+		/*
 		 * We should not map the page at PA 0x0000000, the VM can't
 		 * handle it, as pmap_extract() == 0 means failure.
 		 */
@@ -306,52 +291,29 @@ physmap_init(void)
 }
 
 void *
-initarm(void *mdp, void *unused __unused)
+initarm(struct arm_boot_params *abp)
 {
 	struct pv_addr kernel_l1pt;
 	struct pv_addr dpcpu;
 	vm_offset_t dtbp, freemempos, l2_start, lastaddr;
 	uint32_t memsize, l2size;
+	char *env;
 	void *kmdp;
 	u_int l1pagetable;
 	int i = 0, j = 0, err_devmap = 0;
 
-	kmdp = NULL;
-	lastaddr = 0;
+	lastaddr = parse_boot_param(abp);
 	memsize = 0;
-	dtbp = (vm_offset_t)NULL;
-
 	set_cpufuncs();
 
 	/*
-	 * Mask metadata pointer: it is supposed to be on page boundary. If
-	 * the first argument (mdp) doesn't point to a valid address the
-	 * bootloader must have passed us something else than the metadata
-	 * ptr... In this case we want to fall back to some built-in settings.
+	 * Find the dtb passed in by the boot loader.
 	 */
-	mdp = (void *)((uint32_t)mdp & ~PAGE_MASK);
-
-	/* Parse metadata and fetch parameters */
-	if (mdp != NULL) {
-		preload_metadata = mdp;
-		kmdp = preload_search_by_type("elf kernel");
-		if (kmdp != NULL) {
-			boothowto = MD_FETCH(kmdp, MODINFOMD_HOWTO, int);
-			kern_envp = MD_FETCH(kmdp, MODINFOMD_ENVP, char *);
-			dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
-			lastaddr = MD_FETCH(kmdp, MODINFOMD_KERNEND,
-			    vm_offset_t);
-#ifdef DDB
-			ksym_start = MD_FETCH(kmdp, MODINFOMD_SSYM, uintptr_t);
-			ksym_end = MD_FETCH(kmdp, MODINFOMD_ESYM, uintptr_t);
-#endif
-		}
-
-		preload_addr_relocate = KERNVIRTADDR - KERNPHYSADDR;
-	} else {
-		/* Fall back to hardcoded metadata. */
-		lastaddr = fake_preload_metadata();
-	}
+	kmdp = preload_search_by_type("elf kernel");
+	if (kmdp != NULL)
+		dtbp = MD_FETCH(kmdp, MODINFOMD_DTBP, vm_offset_t);
+	else
+		dtbp = (vm_offset_t)NULL;
 
 #if defined(FDT_DTB_STATIC)
 	/*
@@ -373,14 +335,10 @@ initarm(void *mdp, void *unused __unused)
 	    &memsize) != 0)
 		while(1);
 
-	if (fdt_immr_addr(MV_BASE) != 0)
-		while (1);
-
 	/* Platform-specific initialisation */
-	pmap_bootstrap_lastaddr = fdt_immr_va - ARM_NOCACHE_KVA_SIZE;
+	pmap_bootstrap_lastaddr = initarm_lastaddr();
 
-	pcpu_init(pcpup, 0, sizeof(struct pcpu));
-	PCPU_SET(curthread, &thread0);
+	pcpu0_init();
 
 	/* Calculate number of L2 tables needed for mapping vm_page_array */
 	l2size = (memsize / PAGE_SIZE) * sizeof(struct vm_page);
@@ -438,10 +396,10 @@ initarm(void *mdp, void *unused __unused)
 	dpcpu_init((void *)dpcpu.pv_va, 0);
 
 	/* Allocate stacks for all modes */
-	valloc_pages(irqstack, IRQ_STACK_SIZE);
-	valloc_pages(abtstack, ABT_STACK_SIZE);
-	valloc_pages(undstack, UND_STACK_SIZE);
-	valloc_pages(kernelstack, KSTACK_PAGES);
+	valloc_pages(irqstack, (IRQ_STACK_SIZE * MAXCPU));
+	valloc_pages(abtstack, (ABT_STACK_SIZE * MAXCPU));
+	valloc_pages(undstack, (UND_STACK_SIZE * MAXCPU));
+	valloc_pages(kernelstack, (KSTACK_PAGES * MAXCPU));
 
 	init_param1();
 
@@ -468,7 +426,7 @@ initarm(void *mdp, void *unused __unused)
 		    &kernel_pt_table[i]);
 
 	pmap_curmaxkvaddr = l2_start + (l2size - 1) * L1_S_SIZE;
-	
+
 	/* Map kernel code and data */
 	pmap_map_chunk(l1pagetable, KERNVIRTADDR, KERNPHYSADDR,
 	   (((uint32_t)(lastaddr) - KERNVIRTADDR) + PAGE_MASK) & ~PAGE_MASK,
@@ -493,7 +451,7 @@ initarm(void *mdp, void *unused __unused)
 	pmap_link_l2pt(l1pagetable, ARM_VECTORS_HIGH,
 	    &kernel_pt_table[l2size - 1]);
 	pmap_map_entry(l1pagetable, ARM_VECTORS_HIGH, systempage.pv_pa,
-	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
+	    VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE, PTE_CACHE);
 
 	/* Map pmap_devmap[] entries */
 	err_devmap = platform_devmap_init();
@@ -501,6 +459,7 @@ initarm(void *mdp, void *unused __unused)
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) |
 	    DOMAIN_CLIENT);
+	pmap_pa = kernel_l1pt.pv_pa;
 	setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2));
@@ -511,34 +470,28 @@ initarm(void *mdp, void *unused __unused)
 	 */
 	OF_interpret("perform-fixup", 0);
 
-	/*
-	 * Re-initialise MPP. It is important to call this prior to using
-	 * console as the physical connection can be routed via MPP.
-	 */
-	if (platform_mpp_init() != 0)
-		while (1);
+	initarm_gpio_init();
 
 	cninit();
 
 	physmem = memsize / PAGE_SIZE;
 
 	debugf("initarm: console initialized\n");
-	debugf(" arg1 mdp = 0x%08x\n", (uint32_t)mdp);
+	debugf(" arg1 kmdp = 0x%08x\n", (uint32_t)kmdp);
 	debugf(" boothowto = 0x%08x\n", boothowto);
-	printf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
+	debugf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
 	print_kernel_section_addr();
 	print_kenv();
 
+	env = getenv("kernelname");
+	if (env != NULL)
+		strlcpy(kernelname, env, sizeof(kernelname));
+
 	if (err_devmap != 0)
 		printf("WARNING: could not fully configure devmap, error=%d\n",
-                    err_devmap);
+		    err_devmap);
 
-	/*
-	 * Re-initialise decode windows
-	 */
-	if (soc_decode_win() != 0)
-		printf("WARNING: could not re-initialise decode windows! "
-		    "Running with existing settings...\n");
+	initarm_late_init();
 
 	/*
 	 * Pages were allocated during the secondary bootstrap for the
@@ -549,12 +502,8 @@ initarm(void *mdp, void *unused __unused)
 	 * of the stack memory.
 	 */
 	cpu_control(CPU_CONTROL_MMU_ENABLE, CPU_CONTROL_MMU_ENABLE);
-	set_stackptr(PSR_IRQ32_MODE,
-	    irqstack.pv_va + IRQ_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_ABT32_MODE,
-	    abtstack.pv_va + ABT_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_UND32_MODE,
-	    undstack.pv_va + UND_STACK_SIZE * PAGE_SIZE);
+
+	set_stackptrs(0);
 
 	/*
 	 * We must now clean the cache again....
@@ -574,22 +523,10 @@ initarm(void *mdp, void *unused __unused)
 	undefined_handler_address = (u_int)undefinedinstruction_bounce;
 	undefined_init();
 
-	proc_linkup0(&proc0, &thread0);
-	thread0.td_kstack = kernelstack.pv_va;
-	thread0.td_kstack_pages = KSTACK_PAGES;
-	thread0.td_pcb = (struct pcb *)
-	    (thread0.td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
-	thread0.td_pcb->pcb_flags = 0;
-	thread0.td_frame = &proc0_tf;
-	pcpup->pc_curpcb = thread0.td_pcb;
+	init_proc0(kernelstack.pv_va);
 
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
-
-	dump_avail[0] = 0;
-	dump_avail[1] = memsize;
-	dump_avail[2] = 0;
-	dump_avail[3] = 0;
-
+	arm_dump_avail_init(memsize, sizeof(dump_avail) / sizeof(dump_avail[0]));
 	pmap_bootstrap(freemempos, pmap_bootstrap_lastaddr, &kernel_l1pt);
 	msgbufp = (void *)msgbufpv.pv_va;
 	msgbufinit(msgbufp, msgbufsize);
@@ -603,11 +540,12 @@ initarm(void *mdp, void *unused __unused)
 	/* Do basic tuning, hz etc */
 	init_param2(physmem);
 	kdb_init();
+
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
 }
 
-#define MPP_PIN_MAX		50
+#define MPP_PIN_MAX		68
 #define MPP_PIN_CELLS		2
 #define MPP_PINS_PER_REG	8
 #define MPP_SEL(pin,func)	(((func) & 0xf) <<		\
@@ -644,7 +582,11 @@ platform_mpp_init(void)
 		return (ENXIO);
 
 	if ((node = fdt_find_compatible(node, "mrvl,mpp", 0)) == 0)
-		return (ENXIO);
+		/*
+		 * No MPP node. Fall back to how MPP got set by the
+		 * first-stage loader and try to continue booting.
+		 */
+		return (0);
 moveon:
 	/*
 	 * Process 'reg' prop.
@@ -737,10 +679,87 @@ moveon:
 	return (0);
 }
 
-#define FDT_DEVMAP_MAX	(MV_WIN_CPU_MAX + 1)
+vm_offset_t
+initarm_lastaddr(void)
+{
+
+	if (fdt_immr_addr(MV_BASE) != 0)
+		while (1);
+
+	/* Platform-specific initialisation */
+	return (fdt_immr_va - ARM_NOCACHE_KVA_SIZE);
+}
+
+void
+initarm_gpio_init(void)
+{
+
+	/*
+	 * Re-initialise MPP. It is important to call this prior to using
+	 * console as the physical connection can be routed via MPP.
+	 */
+	if (platform_mpp_init() != 0)
+		while (1);
+}
+
+void
+initarm_late_init(void)
+{
+	/*
+	 * Re-initialise decode windows
+	 */
+#if !defined(SOC_MV_FREY)
+	if (soc_decode_win() != 0)
+		printf("WARNING: could not re-initialise decode windows! "
+		    "Running with existing settings...\n");
+#else
+	/* Disable watchdog and timers */
+	write_cpu_ctrl(CPU_TIMERS_BASE + CPU_TIMER_CONTROL, 0);
+#endif
+}
+
+#define FDT_DEVMAP_MAX	(MV_WIN_CPU_MAX + 2)
 static struct pmap_devmap fdt_devmap[FDT_DEVMAP_MAX] = {
 	{ 0, 0, 0, 0, 0, }
 };
+
+static int
+platform_sram_devmap(struct pmap_devmap *map)
+{
+#if !defined(SOC_MV_ARMADAXP)
+	phandle_t child, root;
+	u_long base, size;
+	/*
+	 * SRAM range.
+	 */
+	if ((child = OF_finddevice("/sram")) != 0)
+		if (fdt_is_compatible(child, "mrvl,cesa-sram") ||
+		    fdt_is_compatible(child, "mrvl,scratchpad"))
+			goto moveon;
+
+	if ((root = OF_finddevice("/")) == 0)
+		return (ENXIO);
+
+	if ((child = fdt_find_compatible(root, "mrvl,cesa-sram", 0)) == 0 &&
+	    (child = fdt_find_compatible(root, "mrvl,scratchpad", 0)) == 0)
+			goto out;
+
+moveon:
+	if (fdt_regsize(child, &base, &size) != 0)
+		return (EINVAL);
+
+	map->pd_va = MV_CESA_SRAM_BASE; /* XXX */
+	map->pd_pa = base;
+	map->pd_size = size;
+	map->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
+	map->pd_cache = PTE_NOCACHE;
+
+	return (0);
+out:
+#endif
+	return (ENOENT);
+
+}
 
 /*
  * XXX: When device entry in devmap has pd_size smaller than section size,
@@ -773,27 +792,33 @@ platform_devmap_init(void)
 	i++;
 
 	/*
+	 * SRAM range.
+	 */
+	if (i < FDT_DEVMAP_MAX)
+		if (platform_sram_devmap(&fdt_devmap[i]) == 0)
+			i++;
+
+	/*
+	 * PCI range(s).
 	 * PCI range(s) and localbus.
 	 */
 	if ((root = OF_finddevice("/")) == -1)
 		return (ENXIO);
-
 	for (child = OF_child(root); child != 0; child = OF_peer(child)) {
-		if (fdt_is_type(child, "pci")) {
+		if (fdt_is_type(child, "pci") || fdt_is_type(child, "pciep")) {
 			/*
 			 * Check space: each PCI node will consume 2 devmap
 			 * entries.
 			 */
-			if (i + 1 >= FDT_DEVMAP_MAX) {
+			if (i + 1 >= FDT_DEVMAP_MAX)
 				return (ENOMEM);
-			}
 
 			/*
 			 * XXX this should account for PCI and multiple ranges
 			 * of a given kind.
 			 */
-			if (fdt_pci_devmap(child, &fdt_devmap[i],
-			    MV_PCIE_IO_BASE, MV_PCIE_MEM_BASE) != 0)
+			if (fdt_pci_devmap(child, &fdt_devmap[i], MV_PCI_VA_IO_BASE,
+				    MV_PCI_VA_MEM_BASE) != 0)
 				return (ENXIO);
 			i += 2;
 		}
@@ -860,3 +885,62 @@ bus_dma_get_range_nb(void)
 
 	return (0);
 }
+
+#if defined(CPU_MV_PJ4B)
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(cp15, db_show_cp15)
+{
+	u_int reg;
+
+	__asm __volatile("mrc p15, 0, %0, c0, c0, 0" : "=r" (reg));
+	db_printf("Cpu ID: 0x%08x\n", reg);
+	__asm __volatile("mrc p15, 0, %0, c0, c0, 1" : "=r" (reg));
+	db_printf("Current Cache Lvl ID: 0x%08x\n",reg);
+
+	__asm __volatile("mrc p15, 0, %0, c1, c0, 0" : "=r" (reg));
+	db_printf("Ctrl: 0x%08x\n",reg);
+	__asm __volatile("mrc p15, 0, %0, c1, c0, 1" : "=r" (reg));
+	db_printf("Aux Ctrl: 0x%08x\n",reg);
+
+	__asm __volatile("mrc p15, 0, %0, c0, c1, 0" : "=r" (reg));
+	db_printf("Processor Feat 0: 0x%08x\n", reg);
+	__asm __volatile("mrc p15, 0, %0, c0, c1, 1" : "=r" (reg));
+	db_printf("Processor Feat 1: 0x%08x\n", reg);
+	__asm __volatile("mrc p15, 0, %0, c0, c1, 2" : "=r" (reg));
+	db_printf("Debug Feat 0: 0x%08x\n", reg);
+	__asm __volatile("mrc p15, 0, %0, c0, c1, 3" : "=r" (reg));
+	db_printf("Auxiliary Feat 0: 0x%08x\n", reg);
+	__asm __volatile("mrc p15, 0, %0, c0, c1, 4" : "=r" (reg));
+	db_printf("Memory Model Feat 0: 0x%08x\n", reg);
+	__asm __volatile("mrc p15, 0, %0, c0, c1, 5" : "=r" (reg));
+	db_printf("Memory Model Feat 1: 0x%08x\n", reg);
+	__asm __volatile("mrc p15, 0, %0, c0, c1, 6" : "=r" (reg));
+	db_printf("Memory Model Feat 2: 0x%08x\n", reg);
+	__asm __volatile("mrc p15, 0, %0, c0, c1, 7" : "=r" (reg));
+	db_printf("Memory Model Feat 3: 0x%08x\n", reg);
+
+	__asm __volatile("mrc p15, 1, %0, c15, c2, 0" : "=r" (reg));
+	db_printf("Aux Func Modes Ctrl 0: 0x%08x\n",reg);
+	__asm __volatile("mrc p15, 1, %0, c15, c2, 1" : "=r" (reg));
+	db_printf("Aux Func Modes Ctrl 1: 0x%08x\n",reg);
+
+	__asm __volatile("mrc p15, 1, %0, c15, c12, 0" : "=r" (reg));
+	db_printf("CPU ID code extension: 0x%08x\n",reg);
+}
+
+DB_SHOW_COMMAND(vtop, db_show_vtop)
+{
+	u_int reg;
+
+	if (have_addr) {
+		__asm __volatile("mcr p15, 0, %0, c7, c8, 0" : : "r" (addr));
+		__asm __volatile("mrc p15, 0, %0, c7, c4, 0" : "=r" (reg));
+		db_printf("Physical address reg: 0x%08x\n",reg);
+	} else
+		db_printf("show vtop <virt_addr>\n");
+}
+#endif /* DDB */
+#endif /* CPU_MV_PJ4B */
+

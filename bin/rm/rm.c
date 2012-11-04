@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <fts.h>
 #include <grp.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -301,10 +302,16 @@ rm_tree(char **argv)
 				if (fflag)
 					continue;
 				/* FALLTHROUGH */
-			default:
+
+			case FTS_F:
+			case FTS_NSOK:
 				if (Pflag)
-					if (!rm_overwrite(p->fts_accpath, NULL))
+					if (!rm_overwrite(p->fts_accpath, p->fts_info ==
+					    FTS_NSOK ? NULL : p->fts_statp))
 						continue;
+				/* FALLTHROUGH */
+
+			default:
 				rval = unlink(p->fts_accpath);
 				if (rval == 0 || (fflag && errno == ENOENT)) {
 					if (rval == 0 && vflag)
@@ -408,7 +415,7 @@ rm_file(char **argv)
 int
 rm_overwrite(char *file, struct stat *sbp)
 {
-	struct stat sb;
+	struct stat sb, sb2;
 	struct statfs fsb;
 	off_t len;
 	int bsize, fd, wlen;
@@ -423,12 +430,19 @@ rm_overwrite(char *file, struct stat *sbp)
 	if (!S_ISREG(sbp->st_mode))
 		return (1);
 	if (sbp->st_nlink > 1 && !fflag) {
-		warnx("%s (inode %u): not overwritten due to multiple links",
-		    file, sbp->st_ino);
+		warnx("%s (inode %ju): not overwritten due to multiple links",
+		    file, (uintmax_t)sbp->st_ino);
 		return (0);
 	}
-	if ((fd = open(file, O_WRONLY, 0)) == -1)
+	if ((fd = open(file, O_WRONLY|O_NONBLOCK|O_NOFOLLOW, 0)) == -1)
 		goto err;
+	if (fstat(fd, &sb2))
+		goto err;
+	if (sb2.st_dev != sbp->st_dev || sb2.st_ino != sbp->st_ino ||
+	    !S_ISREG(sb2.st_mode)) {
+		errno = EPERM;
+		goto err;
+	}
 	if (fstatfs(fd, &fsb) == -1)
 		goto err;
 	bsize = MAX(fsb.f_iosize, 1024);

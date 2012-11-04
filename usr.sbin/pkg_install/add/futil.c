@@ -31,7 +31,7 @@ __FBSDID("$FreeBSD$");
  */
 
 int
-make_hierarchy(char *dir)
+make_hierarchy(char *dir, Boolean set_perm)
 {
     char *cp1, *cp2;
 
@@ -55,7 +55,8 @@ make_hierarchy(char *dir)
 		    *cp2 = '/';
 		return FAIL;
 	    }
-	    apply_perms(NULL, dir);
+	    if (set_perm)
+		apply_perms(NULL, dir);
 	}
 	/* Put it back */
 	if (cp2) {

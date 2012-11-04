@@ -18,9 +18,11 @@
  *
  * CDDL HEADER END
  */
+
 /*
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
  * Portions Copyright 2011 iXsystems, Inc
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -427,10 +429,9 @@ sa_add_layout_entry(objset_t *os, sa_attr_type_t *attrs, int attr_count,
 		char attr_name[8];
 
 		if (sa->sa_layout_attr_obj == 0) {
-			sa->sa_layout_attr_obj = zap_create(os,
-			    DMU_OT_SA_ATTR_LAYOUTS, DMU_OT_NONE, 0, tx);
-			VERIFY(zap_add(os, sa->sa_master_obj, SA_LAYOUTS, 8, 1,
-			    &sa->sa_layout_attr_obj, tx) == 0);
+			sa->sa_layout_attr_obj = zap_create_link(os,
+			    DMU_OT_SA_ATTR_LAYOUTS,
+			    sa->sa_master_obj, SA_LAYOUTS, tx);
 		}
 
 		(void) snprintf(attr_name, sizeof (attr_name),
@@ -577,7 +578,7 @@ sa_find_sizes(sa_os_t *sa, sa_bulk_attr_t *attr_desc, int attr_count,
 	for (i = 0; i != attr_count; i++) {
 		boolean_t is_var_sz;
 
-		*total += attr_desc[i].sa_length;
+		*total += P2ROUNDUP(attr_desc[i].sa_length, 8);
 		if (done)
 			goto next;
 
@@ -712,6 +713,8 @@ sa_build_layouts(sa_handle_t *hdl, sa_bulk_attr_t *attr_desc, int attr_count,
 		length = SA_REGISTERED_LEN(sa, attrs[i]);
 		if (length == 0)
 			length = attr_desc[i].sa_length;
+		else
+			VERIFY(length == attr_desc[i].sa_length);
 
 		if (buf_space < length) {  /* switch to spill buffer */
 			VERIFY(bonustype == DMU_OT_SA);
@@ -741,6 +744,7 @@ sa_build_layouts(sa_handle_t *hdl, sa_bulk_attr_t *attr_desc, int attr_count,
 		if (sa->sa_attr_table[attrs[i]].sa_length == 0) {
 			sahdr->sa_lengths[len_idx++] = length;
 		}
+		VERIFY((uintptr_t)data_start % 8 == 0);
 		data_start = (void *)P2ROUNDUP(((uintptr_t)data_start +
 		    length), 8);
 		buf_space -= P2ROUNDUP(length, 8);
@@ -1552,10 +1556,9 @@ sa_attr_register_sync(sa_handle_t *hdl, dmu_tx_t *tx)
 	}
 
 	if (sa->sa_reg_attr_obj == 0) {
-		sa->sa_reg_attr_obj = zap_create(hdl->sa_os,
-		    DMU_OT_SA_ATTR_REGISTRATION, DMU_OT_NONE, 0, tx);
-		VERIFY(zap_add(hdl->sa_os, sa->sa_master_obj,
-		    SA_REGISTRY, 8, 1, &sa->sa_reg_attr_obj, tx) == 0);
+		sa->sa_reg_attr_obj = zap_create_link(hdl->sa_os,
+		    DMU_OT_SA_ATTR_REGISTRATION,
+		    sa->sa_master_obj, SA_REGISTRY, tx);
 	}
 	for (i = 0; i != sa->sa_num_attrs; i++) {
 		if (sa->sa_attr_table[i].sa_registered)
@@ -1604,8 +1607,11 @@ sa_replace_all_by_template(sa_handle_t *hdl, sa_bulk_attr_t *attr_desc,
 }
 
 /*
- * add/remove/replace a single attribute and then rewrite the entire set
+ * Add/remove a single attribute or replace a variable-sized attribute value
+ * with a value of a different size, and then rewrite the entire set
  * of attributes.
+ * Same-length attribute value replacement (including fixed-length attributes)
+ * is handled more efficiently by the upper layers.
  */
 static int
 sa_modify_attrs(sa_handle_t *hdl, sa_attr_type_t newattr,
@@ -1687,18 +1693,19 @@ sa_modify_attrs(sa_handle_t *hdl, sa_attr_type_t newattr,
 
 			attr = idx_tab->sa_layout->lot_attrs[i];
 			if (attr == newattr) {
-				if (action == SA_REMOVE) {
-					j++;
-					continue;
+				/* duplicate attributes are not allowed */
+				ASSERT(action == SA_REPLACE ||
+				    action == SA_REMOVE);
+				/* must be variable-sized to be replaced here */
+				if (action == SA_REPLACE) {
+					ASSERT(SA_REGISTERED_LEN(sa, attr) == 0);
+					SA_ADD_BULK_ATTR(attr_desc, j, attr,
+					    locator, datastart, buflen);
 				}
-				ASSERT(SA_REGISTERED_LEN(sa, attr) == 0);
-				ASSERT(action == SA_REPLACE);
-				SA_ADD_BULK_ATTR(attr_desc, j, attr,
-				    locator, datastart, buflen);
 			} else {
 				length = SA_REGISTERED_LEN(sa, attr);
 				if (length == 0) {
-					length = hdr->sa_lengths[length_idx++];
+					length = hdr->sa_lengths[length_idx];
 				}
 
 				SA_ADD_BULK_ATTR(attr_desc, j, attr,
@@ -1706,6 +1713,8 @@ sa_modify_attrs(sa_handle_t *hdl, sa_attr_type_t newattr,
 				    (TOC_OFF(idx_tab->sa_idx_tab[attr]) +
 				    (uintptr_t)old_data[k]), length);
 			}
+			if (SA_REGISTERED_LEN(sa, attr) == 0)
+				length_idx++;
 		}
 		if (k == 0 && hdl->sa_spill) {
 			hdr = SA_GET_HDR(hdl, SA_SPILL);
@@ -1723,6 +1732,7 @@ sa_modify_attrs(sa_handle_t *hdl, sa_attr_type_t newattr,
 		SA_ADD_BULK_ATTR(attr_desc, j, newattr, locator,
 		    datastart, buflen);
 	}
+	ASSERT3U(j, ==, attr_count);
 
 	error = sa_build_layouts(hdl, attr_desc, attr_count, tx);
 

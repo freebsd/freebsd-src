@@ -63,6 +63,8 @@ void __startC(void);
 #define cpu_idcache_wbinv_all	armv5_ec_idcache_wbinv_all
 #elif defined(CPU_ARM10)
 #define cpu_idcache_wbinv_all	arm10_idcache_wbinv_all
+#elif defined(CPU_ARM11)
+#define cpu_idcache_wbinv_all	armv6_idcache_wbinv_all
 #elif defined(CPU_SA110) || defined(CPU_SA1110) || defined(CPU_SA1100) || \
     defined(CPU_IXP12X0)
 #define cpu_idcache_wbinv_all	sa1_cache_purgeID
@@ -72,15 +74,25 @@ void __startC(void);
 #define cpu_idcache_wbinv_all	xscale_cache_purgeID
 #elif defined(CPU_XSCALE_81342)
 #define cpu_idcache_wbinv_all	xscalec3_cache_purgeID
+#elif defined(CPU_MV_PJ4B)
+#if !defined(SOC_MV_ARMADAXP)
+#define cpu_idcache_wbinv_all	armv6_idcache_wbinv_all
+#else
+#define cpu_idcache_wbinv_all()	armadaxp_idcache_wbinv_all
 #endif
+#endif /* CPU_MV_PJ4B */
 #ifdef CPU_XSCALE_81342
 #define cpu_l2cache_wbinv_all	xscalec3_l2cache_purge
 #elif defined(SOC_MV_KIRKWOOD) || defined(SOC_MV_DISCOVERY)
 #define cpu_l2cache_wbinv_all	sheeva_l2cache_wbinv_all
+#elif defined(CPU_CORTEXA)
+#define cpu_idcache_wbinv_all	armv7_idcache_wbinv_all
+#define cpu_l2cache_wbinv_all()
 #else
 #define cpu_l2cache_wbinv_all()	
 #endif
 
+static void armadaxp_idcache_wbinv_all(void);
 
 int     arm_picache_size;
 int     arm_picache_line_size;
@@ -95,6 +107,10 @@ int     arm_pcache_unified;
 
 int     arm_dcache_align;
 int     arm_dcache_align_mask;
+
+u_int	arm_cache_level;
+u_int	arm_cache_type[14];
+u_int	arm_cache_loc;
 
 /* Additional cache information local to this file.  Log2 of some of the
       above numbers.  */
@@ -202,7 +218,7 @@ _startC(void)
 			 "orr %0, %0, %1\n"
 			 "mrc p15, 0, %1, c1, c0, 0\n"
 			 "bic %1, %1, #1\n" /* Disable MMU */
-			 "orr %1, %1, #(4 | 8)\n" /* Add DC enable, 
+			 "orr %1, %1, #(4 | 8)\n" /* Add DC enable,
 						     WBUF enable */
 			 "orr %1, %1, #0x1000\n" /* Add IC enable */
 			 "orr %1, %1, #(0x800)\n" /* BPRD enable */
@@ -221,8 +237,6 @@ _startC(void)
 	if ((cpufunc_id() & 0x0000f000) == 0x00009000)
 		arm9_setup();
 #endif
-	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
 #endif
 	__start();
 }
@@ -230,68 +244,102 @@ _startC(void)
 static void
 get_cachetype_cp15()
 {
-	u_int ctype, isize, dsize;
+	u_int ctype, isize, dsize, cpuid;
+	u_int clevel, csize, i, sel;
 	u_int multiplier;
+	u_char type;
 
 	__asm __volatile("mrc p15, 0, %0, c0, c0, 1"
-	    : "=r" (ctype));
-	
+		: "=r" (ctype));
+
+	cpuid = cpufunc_id();
 	/*
 	 * ...and thus spake the ARM ARM:
 	 *
- 	 * If an <opcode2> value corresponding to an unimplemented or
+	 * If an <opcode2> value corresponding to an unimplemented or
 	 * reserved ID register is encountered, the System Control
 	 * processor returns the value of the main ID register.
 	 */
-	if (ctype == cpufunc_id())
+	if (ctype == cpuid)
 		goto out;
-	
-	if ((ctype & CPU_CT_S) == 0)
-		arm_pcache_unified = 1;
 
-	/*
-	 * If you want to know how this code works, go read the ARM ARM.
-	 */
-	
-	arm_pcache_type = CPU_CT_CTYPE(ctype);
-        if (arm_pcache_unified == 0) {
-		isize = CPU_CT_ISIZE(ctype);
-	    	multiplier = (isize & CPU_CT_xSIZE_M) ? 3 : 2;
-		arm_picache_line_size = 1U << (CPU_CT_xSIZE_LEN(isize) + 3);
-		if (CPU_CT_xSIZE_ASSOC(isize) == 0) {
-			if (isize & CPU_CT_xSIZE_M)
-				arm_picache_line_size = 0; /* not present */
-			else
-				arm_picache_ways = 1;
-		} else {
-			arm_picache_ways = multiplier <<
-			    (CPU_CT_xSIZE_ASSOC(isize) - 1);
+	if (CPU_CT_FORMAT(ctype) == CPU_CT_ARMV7) {
+		__asm __volatile("mrc p15, 1, %0, c0, c0, 1"
+		    : "=r" (clevel));
+		arm_cache_level = clevel;
+		arm_cache_loc = CPU_CLIDR_LOC(arm_cache_level) + 1;
+		i = 0;
+		while ((type = (clevel & 0x7)) && i < 7) {
+			if (type == CACHE_DCACHE || type == CACHE_UNI_CACHE ||
+			    type == CACHE_SEP_CACHE) {
+				sel = i << 1;
+				__asm __volatile("mcr p15, 2, %0, c0, c0, 0"
+				    : : "r" (sel));
+				__asm __volatile("mrc p15, 1, %0, c0, c0, 0"
+				    : "=r" (csize));
+				arm_cache_type[sel] = csize;
+			}
+			if (type == CACHE_ICACHE || type == CACHE_SEP_CACHE) {
+				sel = (i << 1) | 1;
+				__asm __volatile("mcr p15, 2, %0, c0, c0, 0"
+				    : : "r" (sel));
+				__asm __volatile("mrc p15, 1, %0, c0, c0, 0"
+				    : "=r" (csize));
+				arm_cache_type[sel] = csize;
+			}
+			i++;
+			clevel >>= 3;
 		}
-		arm_picache_size = multiplier << (CPU_CT_xSIZE_SIZE(isize) + 8);
-	}
-	
-	dsize = CPU_CT_DSIZE(ctype);
-	multiplier = (dsize & CPU_CT_xSIZE_M) ? 3 : 2;
-	arm_pdcache_line_size = 1U << (CPU_CT_xSIZE_LEN(dsize) + 3);
-	if (CPU_CT_xSIZE_ASSOC(dsize) == 0) {
-		if (dsize & CPU_CT_xSIZE_M)
-			arm_pdcache_line_size = 0; /* not present */
-		else
-			arm_pdcache_ways = 1;
 	} else {
-		arm_pdcache_ways = multiplier <<
-		    (CPU_CT_xSIZE_ASSOC(dsize) - 1);
+		if ((ctype & CPU_CT_S) == 0)
+			arm_pcache_unified = 1;
+
+		/*
+		 * If you want to know how this code works, go read the ARM ARM.
+		 */
+
+		arm_pcache_type = CPU_CT_CTYPE(ctype);
+
+		if (arm_pcache_unified == 0) {
+			isize = CPU_CT_ISIZE(ctype);
+			multiplier = (isize & CPU_CT_xSIZE_M) ? 3 : 2;
+			arm_picache_line_size = 1U << (CPU_CT_xSIZE_LEN(isize) + 3);
+			if (CPU_CT_xSIZE_ASSOC(isize) == 0) {
+				if (isize & CPU_CT_xSIZE_M)
+					arm_picache_line_size = 0; /* not present */
+				else
+					arm_picache_ways = 1;
+			} else {
+				arm_picache_ways = multiplier <<
+				    (CPU_CT_xSIZE_ASSOC(isize) - 1);
+			}
+			arm_picache_size = multiplier << (CPU_CT_xSIZE_SIZE(isize) + 8);
+		}
+
+		dsize = CPU_CT_DSIZE(ctype);
+		multiplier = (dsize & CPU_CT_xSIZE_M) ? 3 : 2;
+		arm_pdcache_line_size = 1U << (CPU_CT_xSIZE_LEN(dsize) + 3);
+		if (CPU_CT_xSIZE_ASSOC(dsize) == 0) {
+			if (dsize & CPU_CT_xSIZE_M)
+				arm_pdcache_line_size = 0; /* not present */
+			else
+				arm_pdcache_ways = 1;
+		} else {
+			arm_pdcache_ways = multiplier <<
+			    (CPU_CT_xSIZE_ASSOC(dsize) - 1);
+		}
+		arm_pdcache_size = multiplier << (CPU_CT_xSIZE_SIZE(dsize) + 8);
+
+		arm_dcache_align = arm_pdcache_line_size;
+
+		arm_dcache_l2_assoc = CPU_CT_xSIZE_ASSOC(dsize) + multiplier - 2;
+		arm_dcache_l2_linesize = CPU_CT_xSIZE_LEN(dsize) + 3;
+		arm_dcache_l2_nsets = 6 + CPU_CT_xSIZE_SIZE(dsize) -
+		    CPU_CT_xSIZE_ASSOC(dsize) - CPU_CT_xSIZE_LEN(dsize);
+
+	out:
+		arm_dcache_align_mask = arm_dcache_align - 1;
 	}
-	arm_pdcache_size = multiplier << (CPU_CT_xSIZE_SIZE(dsize) + 8);
-	
-	arm_dcache_align = arm_pdcache_line_size;
-	
-	arm_dcache_l2_assoc = CPU_CT_xSIZE_ASSOC(dsize) + multiplier - 2;
-	arm_dcache_l2_linesize = CPU_CT_xSIZE_LEN(dsize) + 3;
-	arm_dcache_l2_nsets = 6 + CPU_CT_xSIZE_SIZE(dsize) -
-	    CPU_CT_xSIZE_ASSOC(dsize) - CPU_CT_xSIZE_LEN(dsize);
- out:
-	arm_dcache_align_mask = arm_dcache_align - 1;
 }
 
 static void
@@ -306,7 +354,18 @@ arm9_setup(void)
 	arm9_dcache_index_max = 0U - arm9_dcache_index_inc;
 }
 
+static void
+armadaxp_idcache_wbinv_all(void)
+{
+	uint32_t feat;
 
+	__asm __volatile("mrc p15, 0, %0, c0, c1, 0" : "=r" (feat));
+	if (feat & ARM_PFR0_THUMBEE_MASK)
+		armv7_idcache_wbinv_all();
+	else
+		armv6_idcache_wbinv_all();
+
+}
 #ifdef KZIP
 static  unsigned char *orig_input, *i_input, *i_output;
 
@@ -397,7 +456,7 @@ inflate_kernel(void *kernel, void *startaddr)
 #endif
 
 void *
-load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end, 
+load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
     int d)
 {
 	Elf32_Ehdr *eh;
@@ -436,7 +495,7 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 					if (phdr[j].p_type == PT_LOAD &&
 					    shdr[i].sh_offset >=
 					    phdr[j].p_offset &&
-					    (shdr[i].sh_offset + 
+					    (shdr[i].sh_offset +
 					     shdr[i].sh_size <=
 					     phdr[j].p_offset +
 					     phdr[j].p_filesz)) {
@@ -445,7 +504,7 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 						j = eh->e_phnum;
 					}
 				}
-				if (shdr[i].sh_offset != 0 && 
+				if (shdr[i].sh_offset != 0 &&
 				    shdr[i].sh_size != 0) {
 					symtabindex = i;
 					symstrindex = shdr[i].sh_link;
@@ -457,7 +516,7 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 			ssym = lastaddr;
 			if (d) {
 				memcpy((void *)func_end, (void *)(
-				    shdr[symtabindex].sh_offset + kstart), 
+				    shdr[symtabindex].sh_offset + kstart),
 				    shdr[symtabindex].sh_size);
 				memcpy((void *)(func_end +
 				    shdr[symtabindex].sh_size),
@@ -469,7 +528,7 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 				    sizeof(shdr[symtabindex].sh_size));
 				lastaddr += sizeof(shdr[symstrindex].sh_size);
 				lastaddr += shdr[symstrindex].sh_size;
-				lastaddr = roundup(lastaddr, 
+				lastaddr = roundup(lastaddr,
 				    sizeof(shdr[symstrindex].sh_size));
 			}
 			
@@ -488,13 +547,13 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 		    (void*)(kstart + phdr[i].p_offset), phdr[i].p_filesz);
 		/* Clean space from oversized segments, eg: bss. */
 		if (phdr[i].p_filesz < phdr[i].p_memsz)
-			bzero((void *)(phdr[i].p_vaddr - KERNVIRTADDR + 
+			bzero((void *)(phdr[i].p_vaddr - KERNVIRTADDR +
 			    curaddr + phdr[i].p_filesz), phdr[i].p_memsz -
 			    phdr[i].p_filesz);
 	}
 	/* Now grab the symbol tables. */
 	if (symtabindex >= 0 && symstrindex >= 0) {
-		*(Elf_Size *)lastaddr = 
+		*(Elf_Size *)lastaddr =
 		    shdr[symtabindex].sh_size;
 		lastaddr += sizeof(shdr[symtabindex].sh_size);
 		memcpy((void*)lastaddr,
@@ -511,7 +570,7 @@ load_kernel(unsigned int kstart, unsigned int curaddr,unsigned int func_end,
 			    shdr[symtabindex].sh_size),
 		    shdr[symstrindex].sh_size);
 		lastaddr += shdr[symstrindex].sh_size;
-		lastaddr = roundup(lastaddr, 
+		lastaddr = roundup(lastaddr,
    		    sizeof(shdr[symstrindex].sh_size));
 		*(Elf_Addr *)curaddr = MAGIC_TRAMP_NUMBER;
 		*((Elf_Addr *)curaddr + 1) = ssym - curaddr + KERNVIRTADDR;
@@ -572,10 +631,10 @@ setup_pagetables(unsigned int pt_addr, vm_paddr_t physstart, vm_paddr_t physend,
 			 "sub pc, pc, #4\n" :
 			 "=r" (tmp) : "r" (pd), "r" (domain));
 	
-	/* 
+	/*
 	 * XXX: This is the most stupid workaround I've ever wrote.
 	 * For some reason, the KB9202 won't boot the kernel unless
-	 * we access an address which is not in the 
+	 * we access an address which is not in the
 	 * 0x20000000 - 0x20ffffff range. I hope I'll understand
 	 * what's going on later.
 	 */
@@ -596,7 +655,7 @@ __start(void)
 	curaddr = (void*)((unsigned int)curaddr & 0xfff00000);
 #ifdef KZIP
 	if (*kernel == 0x1f && kernel[1] == 0x8b) {
-		pt_addr = (((int)&_end + KERNSIZE + 0x100) & 
+		pt_addr = (((int)&_end + KERNSIZE + 0x100) &
 		    ~(L1_TABLE_SIZE - 1)) + L1_TABLE_SIZE;
 		
 #ifdef CPU_ARM9
@@ -609,7 +668,7 @@ __start(void)
 		/* Gzipped kernel */
 		dst = inflate_kernel(kernel, &_end);
 		kernel = (char *)&_end;
-		altdst = 4 + load_kernel((unsigned int)kernel, 
+		altdst = 4 + load_kernel((unsigned int)kernel,
 		    (unsigned int)curaddr,
 		    (unsigned int)&func_end + 800 , 0);
 		if (altdst > dst)
@@ -627,8 +686,8 @@ __start(void)
 		  :"=r" (pt_addr));
 	} else
 #endif
-		dst = 4 + load_kernel((unsigned int)&kernel_start, 
-	    (unsigned int)curaddr, 
+		dst = 4 + load_kernel((unsigned int)&kernel_start,
+	    (unsigned int)curaddr,
 	    (unsigned int)&func_end, 0);
 	dst = (void *)(((vm_offset_t)dst & ~3));
 	pt_addr = ((unsigned int)dst &~(L1_TABLE_SIZE - 1)) + L1_TABLE_SIZE;
@@ -637,8 +696,8 @@ __start(void)
 	sp = pt_addr + L1_TABLE_SIZE + 8192;
 	sp = sp &~3;
 	dst = (void *)(sp + 4);
-	memcpy((void *)dst, (void *)&load_kernel, (unsigned int)&func_end - 
+	memcpy((void *)dst, (void *)&load_kernel, (unsigned int)&func_end -
 	    (unsigned int)&load_kernel + 800);
-	do_call(dst, kernel, dst + (unsigned int)(&func_end) - 
+	do_call(dst, kernel, dst + (unsigned int)(&func_end) -
 	    (unsigned int)(&load_kernel) + 800, sp);
 }

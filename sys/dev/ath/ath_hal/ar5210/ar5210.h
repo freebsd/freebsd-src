@@ -171,7 +171,8 @@ extern	HAL_BOOL ar5210SetupXTxDesc(struct ath_hal *, struct ath_desc *,
 		u_int txRate2, u_int txRetries2,
 		u_int txRate3, u_int txRetries3);
 extern	HAL_BOOL ar5210FillTxDesc(struct ath_hal *, struct ath_desc *,
-		u_int segLen, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
+		HAL_DMA_ADDR *bufAddrList, uint32_t *segLenList,
+		u_int descId, u_int qcuId, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
 		const struct ath_desc *ds0);
 extern	HAL_STATUS ar5210ProcTxDesc(struct ath_hal *,
 		struct ath_desc *, struct ath_tx_status *);
@@ -179,9 +180,15 @@ extern  void ar5210GetTxIntrQueue(struct ath_hal *ah, uint32_t *);
 extern  void ar5210IntrReqTxDesc(struct ath_hal *ah, struct ath_desc *);
 extern	HAL_BOOL ar5210GetTxCompletionRates(struct ath_hal *ah,
 		const struct ath_desc *, int *rates, int *tries);
+extern	void ar5210SetTxDescLink(struct ath_hal *ah, void *ds,
+		uint32_t link);
+extern	void ar5210GetTxDescLink(struct ath_hal *ah, void *ds,
+		uint32_t *link);
+extern	void ar5210GetTxDescLinkPtr(struct ath_hal *ah, void *ds,
+		uint32_t **linkptr);
 
-extern	uint32_t ar5210GetRxDP(struct ath_hal *);
-extern	void ar5210SetRxDP(struct ath_hal *, uint32_t rxdp);
+extern	uint32_t ar5210GetRxDP(struct ath_hal *, HAL_RX_QUEUE);
+extern	void ar5210SetRxDP(struct ath_hal *, uint32_t rxdp, HAL_RX_QUEUE);
 extern	void ar5210EnableReceive(struct ath_hal *);
 extern	HAL_BOOL ar5210StopDmaReceive(struct ath_hal *);
 extern	void ar5210StartPcuReceive(struct ath_hal *);

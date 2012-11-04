@@ -56,10 +56,6 @@
 #ifndef JEMALLOC_TLS_MODEL
 #  define JEMALLOC_TLS_MODEL	/* Default. */
 #endif
-#ifdef __clang__
-#  undef JEMALLOC_TLS_MODEL
-#  define JEMALLOC_TLS_MODEL	/* clang does not support tls_model yet. */
-#endif
 
 #define	STATIC_PAGE_SHIFT	PAGE_SHIFT
 #define	LG_SIZEOF_INT		2

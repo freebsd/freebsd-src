@@ -42,8 +42,8 @@
 		.set STACK,EXEC+SECSIZE*4	# Stack address
 		.set GPT_ADDR,STACK		# GPT header address
 		.set GPT_SIG,0
-		.set GPT_SIG_0,0x20494645
-		.set GPT_SIG_1,0x54524150
+		.set GPT_SIG_0,0x20494645	# "EFI "
+		.set GPT_SIG_1,0x54524150	# "PART"
 		.set GPT_MYLBA,24
 		.set GPT_PART_LBA,72
 		.set GPT_NPART,80
@@ -52,6 +52,8 @@
 		.set PART_TYPE,0
 		.set PART_START_LBA,32
 		.set PART_END_LBA,40
+		.set DPBUF,PART_ADDR+SECSIZE
+		.set DPBUF_SEC,0x10		# Number of sectors
 
 		.set NHRDRV,0x475		# Number of hard drives
 
@@ -91,15 +93,32 @@ main:	 	cmpb $0x80,%dl			# Drive valid?
 		jb main.2			# Yes
 main.1: 	movb $0x80,%dl			# Assume drive 0x80
 #
-# Load the primary GPT header from LBA 1 and verify signature.
+# Load the GPT header and verify signature.  Try LBA 1 for the primary one and
+# the last LBA for the backup if it is broken.
 #
-main.2:		movw $GPT_ADDR,%bx
+main.2:		call getdrvparams		# Read drive parameters
+		movb $1,%dh			# %dh := 1 (reading primary)
+main.2a:	movw $GPT_ADDR,%bx
 		movw $lba,%si
-		call read
+		call read			# Read header and check GPT sig
 		cmpl $GPT_SIG_0,GPT_ADDR+GPT_SIG
-		jnz err_pt
+		jnz main.2b
 		cmpl $GPT_SIG_1,GPT_ADDR+GPT_SIG+4
-		jnz err_pt
+		jnz main.2b
+		jmp load_part
+main.2b:	cmpb $1,%dh			# Reading primary?
+		jne err_pt			# If no - invalid table found
+#
+# Try alternative LBAs from the last sector for the GPT header.
+#
+main.3:		movb $0,%dh			# %dh := 0 (reading backup)
+		movw $DPBUF+DPBUF_SEC,%si	# %si = last sector + 1
+		movw $lba,%di			# %di = $lba
+main.3a:	decl (%si)			# 0x0(%si) = last sec (0-31)
+		movw $2,%cx
+		rep
+		movsw				# $lastsec--, copy it to $lba
+		jmp main.2a			# Read the next sector
 #
 # Load a partition table sector from disk and look for a FreeBSD boot
 # partition.
@@ -170,6 +189,16 @@ read:		pushl 0x4(%si)			# Set the LBA
 		int $0x13			# Call the BIOS
 		add $0x10,%sp			# Restore stack
 		jc err_rd			# If error
+		ret
+#
+# Check the number of LBAs on the drive index %dx.  Trashes %ax and %si.
+#
+getdrvparams:
+		movw $DPBUF,%si			# Set the address of result buf
+		movw $0x001e,(%si)		# len
+		movw $0x4800,%ax		# BIOS: Read Drive Parameters
+		int $0x13			# Call the BIOS
+		jc err_rd			# "I/O error" if error
 		ret
 #
 # Various error message entry points.

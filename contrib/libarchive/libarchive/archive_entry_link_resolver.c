@@ -362,7 +362,7 @@ insert_entry(struct archive_entry_linkresolver *res,
 	if (res->number_entries > res->number_buckets * 2)
 		grow_hash(res);
 
-	hash = archive_entry_dev(entry) ^ archive_entry_ino64(entry);
+	hash = (size_t)(archive_entry_dev(entry) ^ archive_entry_ino64(entry));
 	bucket = hash & (res->number_buckets - 1);
 
 	/* If we could allocate the entry, record it. */

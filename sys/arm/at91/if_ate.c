@@ -569,8 +569,6 @@ ate_activate(device_t dev)
 
 	/*
 	 * DMA tag and map for the TX descriptors.
-	 * XXX Old EMAC (not EMACB) doesn't really need DMA'able
-	 * memory. We could just malloc it. gja XXX
 	 */
 	if (bus_dma_tag_create(bus_get_dma_tag(dev), sizeof(eth_tx_desc_t),
 	    0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
@@ -606,11 +604,10 @@ ate_activate(device_t dev)
 	if (sc->is_emacb) {
 		/* Write the descriptor queue address. */
 		WR4(sc, ETHB_TBQP, sc->tx_desc_phys);
-	}
 
-	/* EMACB: Enable transceiver input clock */
-	if (sc->is_emacb)
+		/* EMACB: Enable transceiver input clock */
 		WR4(sc, ETHB_UIO, RD4(sc, ETHB_UIO) | ETHB_UIO_CLKE);
+	}
 
 	return (0);
 
@@ -676,7 +673,7 @@ ate_deactivate(struct ate_softc *sc)
 	}
 
 	if (sc->is_emacb)
-	    WR4(sc, ETHB_UIO, RD4(sc, ETHB_UIO) & ~ETHB_UIO_CLKE);
+		WR4(sc, ETHB_UIO, RD4(sc, ETHB_UIO) & ~ETHB_UIO_CLKE);
 }
 
 /*
@@ -849,12 +846,11 @@ ate_intr(void *xsc)
 		return;
 
 	if (status & ETH_ISR_RCOM) {
-
-	    bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
+		bus_dmamap_sync(sc->rx_desc_tag, sc->rx_desc_map,
 		    BUS_DMASYNC_POSTREAD);
 
-	    rxdhead = &sc->rx_descs[sc->rxhead];
-	    while (rxdhead->addr & ETH_CPU_OWNER) {
+		rxdhead = &sc->rx_descs[sc->rxhead];
+		while (rxdhead->addr & ETH_CPU_OWNER) {
 			if (!sc->is_emacb) {
 				/*
 				 * Simulate SAM9 FIRST/LAST bits for RM9200.
@@ -933,7 +929,8 @@ ate_intr(void *xsc)
 
 						/* XXX Performance robbing copy. Could
 						 * recieve directly to mbufs if not an
-						 * RM9200. XXX  */
+						 * RM9200. And even then we could likely
+						 * copy just the protocol headers. XXX  */
 						m_append(mb, count, sc->rx_buf[sc->rxhead]);
 						remain -= count;
 				}
@@ -1014,6 +1011,9 @@ ate_intr(void *xsc)
 		BARRIER(sc, ETH_CTL, 4, BUS_SPACE_BARRIER_WRITE);
 		WR4(sc, ETH_CTL, reg | ETH_CTL_RE);
 	}
+
+	/* XXX need to work around SAM9260 errata 43.2.4.1:
+	 * disable the mac, reset tx buffer, enable mac on TUND */
 }
 
 /*
@@ -1269,7 +1269,7 @@ atestop(struct ate_softc *sc)
 
 	/* Turn off transeiver input clock */
 	if (sc->is_emacb)
-	    WR4(sc, ETHB_UIO, RD4(sc, ETHB_UIO) & ~ETHB_UIO_CLKE);
+		WR4(sc, ETHB_UIO, RD4(sc, ETHB_UIO) & ~ETHB_UIO_CLKE);
 
 	/*
 	 * XXX we should power down the EMAC if it isn't in use, after

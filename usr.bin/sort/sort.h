@@ -41,8 +41,6 @@
 
 #define	VERSION	"2.3-FreeBSD"
 
-#define	UNUSED_ARG(A) do { A=A; } while(0)
-
 #ifdef WITHOUT_NLS
 #define	getstr(n)	 nlsstr[n]
 #else
@@ -79,7 +77,7 @@ extern MD5_CTX md5_ctx;
  */
 struct sort_opts
 {
-	wchar_t		field_sep;
+	wint_t		field_sep;
 	int		sort_method;
 	bool		cflag;
 	bool		csilentflag;

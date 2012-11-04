@@ -823,6 +823,8 @@ init_secondary(void)
  * We tell the I/O APIC code about all the CPUs we want to receive
  * interrupts.  If we don't want certain CPUs to receive IRQs we
  * can simply not tell the I/O APIC code about them in this function.
+ * We also do not tell it about the BSP since it tells itself about
+ * the BSP internally to work with UP kernels and on UP machines.
  */
 static void
 set_interrupt_apic_ids(void)
@@ -832,6 +834,8 @@ set_interrupt_apic_ids(void)
 	for (i = 0; i < MAXCPU; i++) {
 		apic_id = cpu_apic_ids[i];
 		if (apic_id == -1)
+			continue;
+		if (cpu_info[apic_id].cpu_bsp)
 			continue;
 		if (cpu_info[apic_id].cpu_disabled)
 			continue;
@@ -1081,56 +1085,7 @@ start_ap(int apic_id)
 	/* used as a watchpoint to signal AP startup */
 	cpus = mp_naps;
 
-	/*
-	 * first we do an INIT/RESET IPI this INIT IPI might be run, reseting
-	 * and running the target CPU. OR this INIT IPI might be latched (P5
-	 * bug), CPU waiting for STARTUP IPI. OR this INIT IPI might be
-	 * ignored.
-	 */
-
-	/* do an INIT IPI: assert RESET */
-	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
-	    APIC_LEVEL_ASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_INIT, apic_id);
-
-	/* wait for pending status end */
-	lapic_ipi_wait(-1);
-
-	/* do an INIT IPI: deassert RESET */
-	lapic_ipi_raw(APIC_DEST_ALLESELF | APIC_TRIGMOD_LEVEL |
-	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_INIT, 0);
-
-	/* wait for pending status end */
-	DELAY(10000);		/* wait ~10mS */
-	lapic_ipi_wait(-1);
-
-	/*
-	 * next we do a STARTUP IPI: the previous INIT IPI might still be
-	 * latched, (P5 bug) this 1st STARTUP would then terminate
-	 * immediately, and the previously started INIT IPI would continue. OR
-	 * the previous INIT IPI has already run. and this STARTUP IPI will
-	 * run. OR the previous INIT IPI was ignored. and this STARTUP IPI
-	 * will run.
-	 */
-
-	/* do a STARTUP IPI */
-	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
-	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
-	    vector, apic_id);
-	lapic_ipi_wait(-1);
-	DELAY(200);		/* wait ~200uS */
-
-	/*
-	 * finally we do a 2nd STARTUP IPI: this 2nd STARTUP IPI should run IF
-	 * the previous STARTUP IPI was cancelled by a latched INIT IPI. OR
-	 * this STARTUP IPI will be ignored, as only ONE STARTUP IPI is
-	 * recognized after hardware RESET or INIT IPI.
-	 */
-
-	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
-	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
-	    vector, apic_id);
-	lapic_ipi_wait(-1);
-	DELAY(200);		/* wait ~200uS */
+	ipi_startup(apic_id, vector);
 
 	/* Wait up to 5 seconds for it to start. */
 	for (ms = 0; ms < 5000; ms++) {
@@ -1176,6 +1131,51 @@ SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_range, CTLFLAG_RW,
 SYSCTL_INT(_debug_xhits, OID_AUTO, ipi_masked_range_size, CTLFLAG_RW,
     &ipi_masked_range_size, 0, "");
 #endif /* COUNT_XINVLTLB_HITS */
+
+/*
+ * Init and startup IPI.
+ */
+void
+ipi_startup(int apic_id, int vector)
+{
+
+	/*
+	 * first we do an INIT IPI: this INIT IPI might be run, resetting
+	 * and running the target CPU. OR this INIT IPI might be latched (P5
+	 * bug), CPU waiting for STARTUP IPI. OR this INIT IPI might be
+	 * ignored.
+	 */
+	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
+	    APIC_LEVEL_ASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_INIT, apic_id);
+	lapic_ipi_wait(-1);
+	DELAY(10000);		/* wait ~10mS */
+
+	/*
+	 * next we do a STARTUP IPI: the previous INIT IPI might still be
+	 * latched, (P5 bug) this 1st STARTUP would then terminate
+	 * immediately, and the previously started INIT IPI would continue. OR
+	 * the previous INIT IPI has already run. and this STARTUP IPI will
+	 * run. OR the previous INIT IPI was ignored. and this STARTUP IPI
+	 * will run.
+	 */
+	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
+	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
+	    vector, apic_id);
+	lapic_ipi_wait(-1);
+	DELAY(200);		/* wait ~200uS */
+
+	/*
+	 * finally we do a 2nd STARTUP IPI: this 2nd STARTUP IPI should run IF
+	 * the previous STARTUP IPI was cancelled by a latched INIT IPI. OR
+	 * this STARTUP IPI will be ignored, as only ONE STARTUP IPI is
+	 * recognized after hardware RESET or INIT IPI.
+	 */
+	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
+	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
+	    vector, apic_id);
+	lapic_ipi_wait(-1);
+	DELAY(200);		/* wait ~200uS */
+}
 
 /*
  * Send an IPI to specified CPU handling the bitmap logic.
@@ -1512,14 +1512,16 @@ cpususpend_handler(void)
 
 	cpu = PCPU_GET(cpuid);
 
-	if (suspendctx(susppcbs[cpu])) {
+	if (savectx(susppcbs[cpu])) {
 		wbinvd();
-		CPU_SET_ATOMIC(cpu, &stopped_cpus);
+		CPU_SET_ATOMIC(cpu, &suspended_cpus);
 	} else {
 		pmap_init_pat();
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
-		susppcbs[cpu]->pcb_eip = 0;
+
+		/* Indicate that we are resumed */
+		CPU_CLR_ATOMIC(cpu, &suspended_cpus);
 	}
 
 	/* Wait for resume */
@@ -1527,7 +1529,6 @@ cpususpend_handler(void)
 		ia32_pause();
 
 	CPU_CLR_ATOMIC(cpu, &started_cpus);
-	CPU_CLR_ATOMIC(cpu, &stopped_cpus);
 
 	/* Resume MCA and local APIC */
 	mca_resume();

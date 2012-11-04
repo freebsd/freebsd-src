@@ -97,7 +97,7 @@ find_sched_type(int type, char *name)
 	struct dn_alg *d;
 
 	SLIST_FOREACH(d, &dn_cfg.schedlist, next) {
-		if (d->type == type || (name && !strcmp(d->name, name)))
+		if (d->type == type || (name && !strcasecmp(d->name, name)))
 			return d;
 	}
 	return NULL; /* not found */

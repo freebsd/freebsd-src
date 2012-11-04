@@ -1,4 +1,4 @@
-/* $Id: mkpar.c,v 1.11 2010/06/09 08:53:17 tom Exp $ */
+/* $Id: mkpar.c,v 1.12 2012/05/26 00:42:18 tom Exp $ */
 
 #include "defs.h"
 
@@ -180,7 +180,7 @@ unused_rules(void)
     int i;
     action *p;
 
-    rules_used = (Value_t *) MALLOC((unsigned)nrules * sizeof(Value_t));
+    rules_used = TMALLOC(Value_t, nrules);
     NO_SPACE(rules_used);
 
     for (i = 0; i < nrules; ++i)

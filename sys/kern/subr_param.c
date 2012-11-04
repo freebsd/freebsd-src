@@ -41,12 +41,13 @@ __FBSDID("$FreeBSD$");
 #include "opt_msgbuf.h"
 #include "opt_maxusers.h"
 
-#include <sys/limits.h>
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
+#include <sys/limits.h>
 #include <sys/msgbuf.h>
+#include <sys/sysctl.h>
+#include <sys/proc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -92,6 +93,7 @@ int	ncallout;			/* maximum # of timer events */
 int	nbuf;
 int	ngroups_max;			/* max # groups per process */
 int	nswbuf;
+pid_t	pid_max = PID_MAX;
 long	maxswzone;			/* max swmeta KVA storage */
 long	maxbcache;			/* max buffer cache KVA storage */
 long	maxpipekva;			/* Limit on pipe KVA */
@@ -117,17 +119,17 @@ SYSCTL_LONG(_kern, OID_AUTO, maxswzone, CTLFLAG_RDTUN, &maxswzone, 0,
     "Maximum memory for swap metadata");
 SYSCTL_LONG(_kern, OID_AUTO, maxbcache, CTLFLAG_RDTUN, &maxbcache, 0,
     "Maximum value of vfs.maxbufspace");
-SYSCTL_ULONG(_kern, OID_AUTO, maxtsiz, CTLFLAG_RDTUN, &maxtsiz, 0,
+SYSCTL_ULONG(_kern, OID_AUTO, maxtsiz, CTLFLAG_RW | CTLFLAG_TUN, &maxtsiz, 0,
     "Maximum text size");
-SYSCTL_ULONG(_kern, OID_AUTO, dfldsiz, CTLFLAG_RDTUN, &dfldsiz, 0,
+SYSCTL_ULONG(_kern, OID_AUTO, dfldsiz, CTLFLAG_RW | CTLFLAG_TUN, &dfldsiz, 0,
     "Initial data size limit");
-SYSCTL_ULONG(_kern, OID_AUTO, maxdsiz, CTLFLAG_RDTUN, &maxdsiz, 0,
+SYSCTL_ULONG(_kern, OID_AUTO, maxdsiz, CTLFLAG_RW | CTLFLAG_TUN, &maxdsiz, 0,
     "Maximum data size");
-SYSCTL_ULONG(_kern, OID_AUTO, dflssiz, CTLFLAG_RDTUN, &dflssiz, 0,
+SYSCTL_ULONG(_kern, OID_AUTO, dflssiz, CTLFLAG_RW | CTLFLAG_TUN, &dflssiz, 0,
     "Initial stack size limit");
-SYSCTL_ULONG(_kern, OID_AUTO, maxssiz, CTLFLAG_RDTUN, &maxssiz, 0,
+SYSCTL_ULONG(_kern, OID_AUTO, maxssiz, CTLFLAG_RW | CTLFLAG_TUN, &maxssiz, 0,
     "Maximum stack size");
-SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RDTUN, &sgrowsiz, 0,
+SYSCTL_ULONG(_kern, OID_AUTO, sgrowsiz, CTLFLAG_RW | CTLFLAG_TUN, &sgrowsiz, 0,
     "Amount to grow stack on a stack fault");
 SYSCTL_PROC(_kern, OID_AUTO, vm_guest, CTLFLAG_RD | CTLTYPE_STRING,
     NULL, 0, sysctl_kern_vm_guest, "A",
@@ -250,6 +252,16 @@ init_param1(void)
 	TUNABLE_INT_FETCH("kern.ngroups", &ngroups_max);
 	if (ngroups_max < NGROUPS_MAX)
 		ngroups_max = NGROUPS_MAX;
+
+	/*
+	 * Only allow to lower the maximal pid.
+	 * Prevent setting up a non-bootable system if pid_max is too low.
+	 */
+	TUNABLE_INT_FETCH("kern.pid_max", &pid_max);
+	if (pid_max > PID_MAX)
+		pid_max = PID_MAX;
+	else if (pid_max < 300)
+		pid_max = 300;
 }
 
 /*
@@ -266,8 +278,16 @@ init_param2(long physpages)
 		maxusers = physpages / (2 * 1024 * 1024 / PAGE_SIZE);
 		if (maxusers < 32)
 			maxusers = 32;
-		if (maxusers > 384)
-			maxusers = 384;
+		/*
+		 * Clips maxusers to 384 on machines with <= 4GB RAM or 32bit.
+		 * Scales it down 6x for large memory machines.
+		 */
+		if (maxusers > 384) {
+			if (sizeof(void *) <= 4)
+			    maxusers = 384;
+			else
+			    maxusers = 384 + ((maxusers - 384) / 6);
+		}
 	}
 
 	/*

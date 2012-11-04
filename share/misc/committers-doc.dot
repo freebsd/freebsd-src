@@ -15,7 +15,7 @@ digraph doc {
 #   foo [label="Foo Bar\nfoo@FreeBSD.org\n????/??/??"]
 #
 # ????/??/?? is the date when the commit bit was obtained, usually the one you
-# can find looking at CVS logs for the access (or avail) file under CVSROOT.
+# can find looking at svn logs for the svnadmin/access file.
 # Use YYYY/MM/DD format.
 #
 # For returned commit bits, the node definition will follow this example:
@@ -23,7 +23,7 @@ digraph doc {
 #   foo [label="Foo Bar\nfoo@FreeBSD.org\n????/??/??\n????/??/??"]
 #
 # The first date is the same as for an active committer, the second date is
-# the date when the commit bit has been returned. Again, check CVS logs.
+# the date when the commit bit has been returned. Again, check svn logs.
 
 node [color=grey62, style=filled, bgcolor=black];
 
@@ -58,6 +58,8 @@ brueffer [label="Christian Brueffer\nbrueffer@FreeBSD.org\n2003/01/13"]
 chinsan [label="Chinsan Huang\nchinsan@FreeBSD.org\n2006/09/20"]
 danger [label="Daniel Gerzo\ndanger@FreeBSD.org\n2006/08/20"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2004/09/14"]
+eadler [label="Eitan Adler\neadler@FreeBSD.org\n2012/10/15"]
+ebrandi [label="Edson Brandi\nebrandi@FreeBSD.org\n2012/09/13"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2007/02/02"]
 ganbold [label="Ganbold Tsagaankhuu\nganbold@FreeBSD.org\n2008/02/26"]
 gavin [label="Gavin Atkinson\ngavin@FreeBSD.org\n2011/07/18"]
@@ -82,6 +84,7 @@ simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2003/07/20"]
 taras [label="Taras Korenko\ntaras@FreeBSD.org\n2010/06/25"]
 trhodes [label="Tom Rhodes\ntrhodes@FreeBSD.org\n2002/03/25"]
 wblock [label="Warren Block\nwblock@FreeBSD.org\n2011/09/12"]
+zeising [label="Niclas Zeising\nzeising@FreeBSD.org\n2012/07/03"]
 
 # Here are the mentor/mentee relationships.
 # Group together all the mentees for a particular mentor.
@@ -89,6 +92,7 @@ wblock [label="Warren Block\nwblock@FreeBSD.org\n2011/09/12"]
 
 bcr -> gavin
 bcr -> wblock
+bcr -> eadler
 
 blackend -> ale
 
@@ -109,6 +113,7 @@ gabor -> pgj
 gabor -> manolis
 gabor -> taras
 gabor -> issyl0
+gabor -> ebrandi
 
 gjb -> wblock
 
@@ -122,6 +127,9 @@ jkois -> miwi
 jkois -> bcr
 jkois -> gavin
 jkois -> gjb
+jkois -> eadler
+
+joel -> zeising
 
 keramida -> blackend
 keramida -> danger

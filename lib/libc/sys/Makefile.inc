@@ -15,6 +15,10 @@
 #
 .sinclude "${.CURDIR}/${LIBC_ARCH}/sys/Makefile.inc"
 
+SRCS+= clock_gettime.c gettimeofday.c __vdso_gettimeofday.c
+NOASM+=  clock_gettime.o gettimeofday.o
+PSEUDO+= _clock_gettime.o _gettimeofday.o
+
 # Sources common to both syscall interfaces:
 SRCS+=	stack_protector.c stack_protector_compat.c __error.c
 .if !defined(WITHOUT_SYSCALL_COMPAT)

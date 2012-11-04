@@ -92,7 +92,7 @@ AcpiEvUpdateGpeEnableMask (
         return_ACPI_STATUS (AE_NOT_EXIST);
     }
 
-    RegisterBit = AcpiHwGetGpeRegisterBit (GpeEventInfo, GpeRegisterInfo);
+    RegisterBit = AcpiHwGetGpeRegisterBit (GpeEventInfo);
 
     /* Clear the run bit up front */
 
@@ -431,6 +431,13 @@ AcpiEvGpeDetect (
             if (!(GpeRegisterInfo->EnableForRun |
                   GpeRegisterInfo->EnableForWake))
             {
+                ACPI_DEBUG_PRINT ((ACPI_DB_INTERRUPTS,
+                    "Ignore disabled registers for GPE%02X-GPE%02X: "
+                    "RunEnable=%02X, WakeEnable=%02X\n",
+                    GpeRegisterInfo->BaseGpeNumber,
+                    GpeRegisterInfo->BaseGpeNumber + (ACPI_GPE_REGISTER_WIDTH - 1),
+                    GpeRegisterInfo->EnableForRun,
+                    GpeRegisterInfo->EnableForWake));
                 continue;
             }
 
@@ -451,8 +458,13 @@ AcpiEvGpeDetect (
             }
 
             ACPI_DEBUG_PRINT ((ACPI_DB_INTERRUPTS,
-                "Read GPE Register at GPE%02X: Status=%02X, Enable=%02X\n",
-                GpeRegisterInfo->BaseGpeNumber, StatusReg, EnableReg));
+                "Read registers for GPE%02X-GPE%02X: Status=%02X, Enable=%02X, "
+                "RunEnable=%02X, WakeEnable=%02X\n",
+                GpeRegisterInfo->BaseGpeNumber,
+                GpeRegisterInfo->BaseGpeNumber + (ACPI_GPE_REGISTER_WIDTH - 1),
+                StatusReg, EnableReg,
+                GpeRegisterInfo->EnableForRun,
+                GpeRegisterInfo->EnableForWake));
 
             /* Check if there is anything active at all in this register */
 
@@ -518,6 +530,7 @@ AcpiEvAsynchExecuteGpeMethod (
     ACPI_STATUS             Status;
     ACPI_GPE_EVENT_INFO     *LocalGpeEventInfo;
     ACPI_EVALUATE_INFO      *Info;
+    ACPI_GPE_NOTIFY_INFO    *Notify;
 
 
     ACPI_FUNCTION_TRACE (EvAsynchExecuteGpeMethod);
@@ -573,10 +586,18 @@ AcpiEvAsynchExecuteGpeMethod (
          * completes. The notify handlers are NOT invoked synchronously
          * from this thread -- because handlers may in turn run other
          * control methods.
+         *
+         * June 2012: Expand implicit notify mechanism to support
+         * notifies on multiple device objects.
          */
-        Status = AcpiEvQueueNotifyRequest (
-                    LocalGpeEventInfo->Dispatch.DeviceNode,
-                    ACPI_NOTIFY_DEVICE_WAKE);
+        Notify = LocalGpeEventInfo->Dispatch.NotifyList;
+        while (ACPI_SUCCESS (Status) && Notify)
+        {
+            Status = AcpiEvQueueNotifyRequest (Notify->DeviceNode,
+                        ACPI_NOTIFY_DEVICE_WAKE);
+
+            Notify = Notify->Next;
+        }
         break;
 
     case ACPI_GPE_DISPATCH_METHOD:

@@ -56,14 +56,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_enc.h>
 #include <cam/scsi/scsi_enc_internal.h>
 
-#include <opt_enc.h>
-
 MALLOC_DEFINE(M_SCSIENC, "SCSI ENC", "SCSI ENC buffers");
 
 /* Enclosure type independent driver */
-
-#define	SEN_ID		"UNISYS           SUN_SEN"
-#define	SEN_ID_LEN	24
 
 static	d_open_t	enc_open;
 static	d_close_t	enc_close;
@@ -114,6 +109,16 @@ enc_init(void)
 }
 
 static void
+enc_devgonecb(void *arg)
+{
+	struct cam_periph *periph;
+
+	periph = (struct cam_periph *)arg;
+
+	cam_periph_release(periph);
+}
+
+static void
 enc_oninvalidate(struct cam_periph *periph)
 {
 	struct enc_softc *enc;
@@ -141,6 +146,8 @@ enc_oninvalidate(struct cam_periph *periph)
 	}
 	callout_drain(&enc->status_updater);
 
+	destroy_dev_sched_cb(enc->enc_dev, enc_devgonecb, periph);
+
 	xpt_print(periph->path, "lost device\n");
 }
 
@@ -152,9 +159,7 @@ enc_dtor(struct cam_periph *periph)
 	enc = periph->softc;
 
 	xpt_print(periph->path, "removing device entry\n");
-	cam_periph_unlock(periph);
-	destroy_dev(enc->enc_dev);
-	cam_periph_lock(periph);
+
 
 	/* If the sub-driver has a cleanup routine, call it */
 	if (enc->enc_vec.softc_cleanup != NULL)
@@ -554,7 +559,7 @@ enc_runcmd(struct enc_softc *enc, char *cdb, int cdbl, char *dptr, int *dlenp)
 		cdbl = IOCDBLEN;
 	}
 
-	ccb = cam_periph_getccb(enc->periph, 1);
+	ccb = cam_periph_getccb(enc->periph, CAM_PRIORITY_NORMAL);
 	if (enc->enc_type == ENC_SEMB_SES || enc->enc_type == ENC_SEMB_SAFT) {
 		tdlen = min(dlen, 1020);
 		tdlen = (tdlen + 3) & ~3;
@@ -622,9 +627,8 @@ enc_log(struct enc_softc *enc, const char *fmt, ...)
 /*
  * Is this a device that supports enclosure services?
  *
- * It's a a pretty simple ruleset- if it is device type 0x0D (13), it's
- * an ENC device. If it happens to be an old UNISYS SEN device, we can
- * handle that too.
+ * It's a pretty simple ruleset- if it is device type
+ * 0x0D (13), it's an ENCLOSURE device.
  */
 
 #define	SAFTE_START	44
@@ -651,13 +655,9 @@ enc_type(struct ccb_getdev *cgd)
 	iqd = (unsigned char *)&cgd->inq_data;
 	buflen = min(sizeof(cgd->inq_data),
 	    SID_ADDITIONAL_LENGTH(&cgd->inq_data));
-	if (buflen < 8+SEN_ID_LEN)
-		return (ENC_NONE);
 
 	if ((iqd[0] & 0x1f) == T_ENCLOSURE) {
-		if (STRNCMP(&iqd[8], SEN_ID, SEN_ID_LEN) == 0) {
-			return (ENC_SEN);
-		} else if ((iqd[2] & 0x7) > 2) {
+		if ((iqd[2] & 0x7) > 2) {
 			return (ENC_SES);
 		} else {
 			return (ENC_SES_SCSI2);
@@ -879,11 +879,6 @@ enc_ctor(struct cam_periph *periph, void *arg)
 	char *tname;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("enc_ctor: periph was NULL!!\n");
-		goto out;
-	}
-
 	if (cgd == NULL) {
 		printf("enc_ctor: no getdev CCB, can't register device\n");
 		goto out;
@@ -912,7 +907,6 @@ enc_ctor(struct cam_periph *periph, void *arg)
 	case ENC_SEMB_SAFT:
 		err = safte_softc_init(enc);
 		break;
-	case ENC_SEN:
 	case ENC_NONE:
 	default:
 		ENC_FREE(enc);
@@ -951,9 +945,19 @@ enc_ctor(struct cam_periph *periph, void *arg)
 			goto out;
 		}
 	}
+
+	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
+		xpt_print(periph->path, "%s: lost periph during "
+			  "registration!\n", __func__);
+		cam_periph_lock(periph);
+
+		return (CAM_REQ_CMP_ERR);
+	}
+
 	enc->enc_dev = make_dev(&enc_cdevsw, periph->unit_number,
 	    UID_ROOT, GID_OPERATOR, 0600, "%s%d",
 	    periph->periph_name, periph->unit_number);
+
 	cam_periph_lock(periph);
 	enc->enc_dev->si_drv1 = periph;
 
@@ -978,9 +982,6 @@ enc_ctor(struct cam_periph *periph, void *arg)
 		break;
         case ENC_SES_PASSTHROUGH:
 		tname = "ENC Passthrough Device";
-		break;
-        case ENC_SEN:
-		tname = "UNISYS SEN Device (NOT HANDLED YET)";
 		break;
         case ENC_SAFT:
 		tname = "SAF-TE Compliant Device";

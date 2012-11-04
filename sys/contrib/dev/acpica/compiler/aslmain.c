@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslmain - compiler main and utilities
@@ -48,6 +47,7 @@
 #include <contrib/dev/acpica/compiler/aslcompiler.h>
 #include <contrib/dev/acpica/include/acapps.h>
 #include <contrib/dev/acpica/include/acdisasm.h>
+#include <signal.h>
 
 #ifdef _DEBUG
 #include <crtdbg.h>
@@ -63,12 +63,16 @@ Options (
     void);
 
 static void
-HelpMessage (
+FilenameHelp (
     void);
 
 static void
 Usage (
     void);
+
+static void ACPI_SYSTEM_XFACE
+AslSignalHandler (
+    int                     Sig);
 
 static void
 AslInitialize (
@@ -96,7 +100,7 @@ AslDoResponseFile (
 
 
 #define ASL_TOKEN_SEPARATORS    " \t\n"
-#define ASL_SUPPORTED_OPTIONS   "@:2b|c|d^D:e:fgh^i|I:l^mno|p:P^r:s|t|T:G^v|w|x:z"
+#define ASL_SUPPORTED_OPTIONS   "@:2b|c|d^D:e:fgh^i|I:l^m:no|p:P^r:s|t|T:G^v^w|x:z"
 
 
 /*******************************************************************************
@@ -119,6 +123,8 @@ Options (
     printf ("\nGlobal:\n");
     ACPI_OPTION ("-@ <file>",       "Specify command file");
     ACPI_OPTION ("-I <dir>",        "Specify additional include directory");
+    ACPI_OPTION ("-T <sig>|ALL|*",  "Create table template file for ACPI <Sig>");
+    ACPI_OPTION ("-v",              "Display compiler version");
 
     printf ("\nPreprocessor:\n");
     ACPI_OPTION ("-D <symbol>",     "Define symbol for preprocessor use");
@@ -136,10 +142,10 @@ Options (
     ACPI_OPTION ("-w1 -w2 -w3",     "Set warning reporting level");
     ACPI_OPTION ("-we",             "Report warnings as errors");
 
-    printf ("\nAML Output Files:\n");
-    ACPI_OPTION ("-sa -sc",         "Create AML in assembler or C source file (*.asm or *.c)");
+    printf ("\nAML and Data Output Files:\n");
+    ACPI_OPTION ("-sa -sc",         "Create assembler or C source file (*.asm or *.c)");
     ACPI_OPTION ("-ia -ic",         "Create assembler or C include file (*.inc or *.h)");
-    ACPI_OPTION ("-ta -tc -ts",     "Create AML in assembler, C, or ASL hex table (*.hex)");
+    ACPI_OPTION ("-ta -tc -ts",     "Create assembler, C, or ASL hex table (*.hex)");
 
     printf ("\nAML Code Generation:\n");
     ACPI_OPTION ("-oa",             "Disable all optimizations (compatibility mode)");
@@ -156,63 +162,61 @@ Options (
 
     printf ("\nACPI Data Tables:\n");
     ACPI_OPTION ("-G",              "Compile custom table containing generic operators");
-    ACPI_OPTION ("-T <sig>|ALL|*",  "Create table template file(s) for <Sig>");
     ACPI_OPTION ("-vt",             "Create verbose templates (full disassembly)");
 
     printf ("\nAML Disassembler:\n");
     ACPI_OPTION ("-d  [file]",      "Disassemble or decode binary ACPI table to file (*.dsl)");
     ACPI_OPTION ("-da [f1,f2]",     "Disassemble multiple tables from single namespace");
+    ACPI_OPTION ("-db",             "Do not translate Buffers to Resource Templates");
     ACPI_OPTION ("-dc [file]",      "Disassemble AML and immediately compile it");
     ACPI_OPTION ("",                "(Obtain DSDT from current system if no input file)");
     ACPI_OPTION ("-e  [f1,f2]",     "Include ACPI table(s) for external symbol resolution");
-    ACPI_OPTION ("-m",              "Do not translate Buffers to Resource Templates");
     ACPI_OPTION ("-2",              "Emit ACPI 2.0 compatible ASL code");
     ACPI_OPTION ("-g",              "Get ACPI tables and write to files (*.dat)");
+    ACPI_OPTION ("-vt",             "Dump binary table data in hex format within output file");
 
     printf ("\nHelp:\n");
-    ACPI_OPTION ("-h",              "Additional help and compiler debug options");
+    ACPI_OPTION ("-h",              "This message");
     ACPI_OPTION ("-hc",             "Display operators allowed in constant expressions");
+    ACPI_OPTION ("-hf",             "Display help for output filename generation");
     ACPI_OPTION ("-hr",             "Display ACPI reserved method names");
     ACPI_OPTION ("-ht",             "Display currently supported ACPI table names");
+
+    printf ("\nDebug Options:\n");
+    ACPI_OPTION ("-bf -bt",         "Create debug file (full or parse tree only) (*.txt)");
+    ACPI_OPTION ("-f",              "Ignore errors, force creation of AML output file(s)");
+    ACPI_OPTION ("-n",              "Parse only, no output generation");
+    ACPI_OPTION ("-ot",             "Display compile times and statistics");
+    ACPI_OPTION ("-x <level>",      "Set debug level for trace output");
+    ACPI_OPTION ("-z",              "Do not insert new compiler ID for DataTables");
 }
 
 
 /*******************************************************************************
  *
- * FUNCTION:    HelpMessage
+ * FUNCTION:    FilenameHelp
  *
  * PARAMETERS:  None
  *
  * RETURN:      None
  *
- * DESCRIPTION: Display help message
+ * DESCRIPTION: Display help message for output filename generation
  *
  ******************************************************************************/
 
 static void
-HelpMessage (
+FilenameHelp (
     void)
 {
 
     printf ("\nAML output filename generation:\n");
     printf ("  Output filenames are generated by appending an extension to a common\n");
-    printf ("  filename prefix.  The filename prefix is obtained via one of the\n");
+    printf ("  filename prefix. The filename prefix is obtained via one of the\n");
     printf ("  following methods (in priority order):\n");
     printf ("    1) The -p option specifies the prefix\n");
     printf ("    2) The prefix of the AMLFileName in the ASL Definition Block\n");
     printf ("    3) The prefix of the input filename\n");
     printf ("\n");
-
-    Options ();
-
-    printf ("\nCompiler/Disassembler Debug Options:\n");
-    ACPI_OPTION ("-bb -bp -bt",     "Create compiler debug/trace file (*.txt)");
-    ACPI_OPTION ("",                "Types: Parse/Tree/Both");
-    ACPI_OPTION ("-f",              "Ignore errors, force creation of AML output file(s)");
-    ACPI_OPTION ("-n",              "Parse only, no output generation");
-    ACPI_OPTION ("-ot",             "Display compile times");
-    ACPI_OPTION ("-x <level>",      "Set debug level for trace output");
-    ACPI_OPTION ("-z",              "Do not insert new compiler ID for DataTables");
 }
 
 
@@ -239,6 +243,49 @@ Usage (
 }
 
 
+/******************************************************************************
+ *
+ * FUNCTION:    AslSignalHandler
+ *
+ * PARAMETERS:  Sig                 - Signal that invoked this handler
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Control-C handler. Delete any intermediate files and any
+ *              output files that may be left in an indeterminate state.
+ *
+ *****************************************************************************/
+
+static void ACPI_SYSTEM_XFACE
+AslSignalHandler (
+    int                     Sig)
+{
+    UINT32                  i;
+
+
+    signal (Sig, SIG_IGN);
+    printf ("Aborting\n\n");
+
+    /* Close all open files */
+
+    Gbl_Files[ASL_FILE_PREPROCESSOR].Handle = NULL; /* the .i file is same as source file */
+
+    for (i = ASL_FILE_INPUT; i < ASL_MAX_FILE_TYPE; i++)
+    {
+        FlCloseFile (i);
+    }
+
+    /* Delete any output files */
+
+    for (i = ASL_FILE_AML_OUTPUT; i < ASL_MAX_FILE_TYPE; i++)
+    {
+        FlDeleteFile (i);
+    }
+
+    exit (0);
+}
+
+
 /*******************************************************************************
  *
  * FUNCTION:    AslInitialize
@@ -262,7 +309,6 @@ AslInitialize (
     _CrtSetDbgFlag (_CRTDBG_CHECK_ALWAYS_DF | _CrtSetDbgFlag(0));
 #endif
 
-    AcpiDbgLevel = 0;
 
     for (i = 0; i < ASL_NUM_FILES; i++)
     {
@@ -275,6 +321,11 @@ AslInitialize (
 
     Gbl_Files[ASL_FILE_STDERR].Handle   = stderr;
     Gbl_Files[ASL_FILE_STDERR].Filename = "STDERR";
+
+    /* Allocate the line buffer(s) */
+
+    Gbl_LineBufferSize /= 2;
+    UtExpandLineBuffers ();
 }
 
 
@@ -338,7 +389,7 @@ AslDoResponseFile (
     {
         printf ("Could not open command file %s, %s\n",
             Filename, strerror (errno));
-        return -1;
+        return (-1);
     }
 
     /* Must save the current GetOpt globals */
@@ -430,13 +481,7 @@ AslDoOptions (
     case 'b':   /* Debug output options */
         switch (AcpiGbl_Optarg[0])
         {
-        case 'b':
-            AslCompilerdebug = 1; /* same as yydebug */
-            DtParserdebug = 1;
-            PrParserdebug = 1;
-            break;
-
-        case 'p':
+        case 'f':
             AslCompilerdebug = 1; /* same as yydebug */
             DtParserdebug = 1;
             PrParserdebug = 1;
@@ -480,6 +525,10 @@ AslDoOptions (
         case 'a':
             Gbl_DoCompile = FALSE;
             Gbl_DisassembleAll = TRUE;
+            break;
+
+        case 'b':   /* Do not convert buffers to resource descriptors */
+            AcpiGbl_NoResourceDisassembly = TRUE;
             break;
 
         case 'c':
@@ -530,11 +579,15 @@ AslDoOptions (
         switch (AcpiGbl_Optarg[0])
         {
         case '^':
-            HelpMessage ();
+            Usage ();
             exit (0);
 
         case 'c':
             UtDisplayConstantOpcodes ();
+            exit (0);
+
+        case 'f':
+            FilenameHelp ();
             exit (0);
 
         case 'r':
@@ -616,8 +669,13 @@ AslDoOptions (
         break;
 
 
-    case 'm':   /* Do not convert buffers to resource descriptors */
-        AcpiGbl_NoResourceDisassembly = TRUE;
+    case 'm':   /* Set line buffer size */
+        Gbl_LineBufferSize = (UINT32) strtoul (AcpiGbl_Optarg, NULL, 0) * 1024;
+        if (Gbl_LineBufferSize < ASL_DEFAULT_LINE_BUFFER_SIZE)
+        {
+            Gbl_LineBufferSize = ASL_DEFAULT_LINE_BUFFER_SIZE;
+        }
+        printf ("Line Buffer Size: %u\n", Gbl_LineBufferSize);
         break;
 
 
@@ -755,9 +813,13 @@ AslDoOptions (
         break;
 
 
-    case 'v':   /* Verbosity settings */
+    case 'v':   /* Version and verbosity settings */
         switch (AcpiGbl_Optarg[0])
         {
+        case '^':
+            printf (ACPI_COMMON_SIGNON (ASL_COMPILER_NAME));
+            exit (0);
+
         case 'a':
             /* Disable All error/warning messages */
 
@@ -945,7 +1007,10 @@ main (
     int                     Index2;
 
 
+    signal (SIGINT, AslSignalHandler);
+
     AcpiGbl_ExternalFileList = NULL;
+    AcpiDbgLevel = 0;
 
 #ifdef _DEBUG
     _CrtSetDbgFlag (_CRTDBG_CHECK_ALWAYS_DF | _CRTDBG_LEAK_CHECK_DF |
@@ -954,9 +1019,10 @@ main (
 
     /* Init and command line */
 
+    Index1 = Index2 = AslCommandLine (argc, argv);
+
     AslInitialize ();
     PrInitializePreprocessor ();
-    Index1 = Index2 = AslCommandLine (argc, argv);
 
     /* Options that have no additional parameters or pathnames */
 
@@ -1004,5 +1070,3 @@ main (
 
     return (0);
 }
-
-

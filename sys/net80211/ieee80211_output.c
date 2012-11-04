@@ -1313,9 +1313,9 @@ ieee80211_encap(struct ieee80211vap *vap, struct ieee80211_node *ni,
 		if (ic->ic_wme.wme_wmeChanParams.cap_wmeParams[ac].wmep_noackPolicy)
 			qos[0] |= IEEE80211_QOS_ACKPOLICY_NOACK;
 #ifdef IEEE80211_SUPPORT_MESH
-		if (vap->iv_opmode == IEEE80211_M_MBSS) {
-			qos[1] |= IEEE80211_QOS_MC;
-		} else
+		if (vap->iv_opmode == IEEE80211_M_MBSS)
+			qos[1] = IEEE80211_QOS_MC;
+		else
 #endif
 			qos[1] = 0;
 		wh->i_fc[0] |= IEEE80211_FC0_SUBTYPE_QOS;

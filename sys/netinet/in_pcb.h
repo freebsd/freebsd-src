@@ -509,6 +509,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_DONTFRAG		0x00000800 /* don't fragment packet */
 #define	INP_BINDANY		0x00001000 /* allow bind to any address */
 #define	INP_INHASHLIST		0x00002000 /* in_pcbinshash() has been called */
+#define	INP_RECVTOS		0x00004000 /* receive incoming IP TOS */
 #define	IN6P_IPV6_V6ONLY	0x00008000 /* restrict AF_INET6 socket for v6 */
 #define	IN6P_PKTINFO		0x00010000 /* receive IP6 dst and I/F */
 #define	IN6P_HOPLIMIT		0x00020000 /* receive hoplimit */
@@ -528,7 +529,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	IN6P_MTU		0x80000000 /* receive path MTU */
 
 #define	INP_CONTROLOPTS		(INP_RECVOPTS|INP_RECVRETOPTS|INP_RECVDSTADDR|\
-				 INP_RECVIF|INP_RECVTTL|\
+				 INP_RECVIF|INP_RECVTTL|INP_RECVTOS|\
 				 IN6P_PKTINFO|IN6P_HOPLIMIT|IN6P_HOPOPTS|\
 				 IN6P_DSTOPTS|IN6P_RTHDR|IN6P_RTHDRDSTOPTS|\
 				 IN6P_TCLASS|IN6P_AUTOFLOWLABEL|IN6P_RFC2292|\
@@ -541,6 +542,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_RT_VALID		0x00000002 /* cached rtentry is valid */
 #define	INP_PCBGROUPWILD	0x00000004 /* in pcbgroup wildcard list */
 #define	INP_REUSEPORT		0x00000008 /* SO_REUSEPORT option is set */
+#define	INP_FREED		0x00000010 /* inp itself is not valid */
 
 /*
  * Flags passed to in_pcblookup*() functions.

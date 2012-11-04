@@ -74,6 +74,10 @@ namespace ISD {
   /// ISD::SCALAR_TO_VECTOR node or a BUILD_VECTOR node where only the low
   /// element is not an undef.
   bool isScalarToVector(const SDNode *N);
+
+  /// allOperandsUndef - Return true if the node has at least one operand
+  /// and all operands of the specified node are ISD::UNDEF.
+  bool allOperandsUndef(const SDNode *N);
 }  // end llvm:ISD namespace
 
 //===----------------------------------------------------------------------===//
@@ -142,7 +146,8 @@ public:
   inline bool isMachineOpcode() const;
   inline unsigned getMachineOpcode() const;
   inline const DebugLoc getDebugLoc() const;
-
+  inline void dump() const;
+  inline void dumpr() const;
 
   /// reachesChainWithoutSideEffects - Return true if this operand (which must
   /// be a chain) reaches the specified operand without crossing any
@@ -802,7 +807,12 @@ inline bool SDValue::hasOneUse() const {
 inline const DebugLoc SDValue::getDebugLoc() const {
   return Node->getDebugLoc();
 }
-
+inline void SDValue::dump() const {
+  return Node->dump();
+}
+inline void SDValue::dumpr() const {
+  return Node->dumpr();
+}
 // Define inline functions from the SDUse class.
 
 inline void SDUse::set(const SDValue &V) {
@@ -1336,6 +1346,29 @@ public:
   static bool classof(const SDNode *N) {
     return N->getOpcode() == ISD::ConstantPool ||
            N->getOpcode() == ISD::TargetConstantPool;
+  }
+};
+
+/// Completely target-dependent object reference.
+class TargetIndexSDNode : public SDNode {
+  unsigned char TargetFlags;
+  int Index;
+  int64_t Offset;
+  friend class SelectionDAG;
+public:
+
+  TargetIndexSDNode(int Idx, EVT VT, int64_t Ofs, unsigned char TF)
+    : SDNode(ISD::TargetIndex, DebugLoc(), getSDVTList(VT)),
+      TargetFlags(TF), Index(Idx), Offset(Ofs) {}
+public:
+
+  unsigned char getTargetFlags() const { return TargetFlags; }
+  int getIndex() const { return Index; }
+  int64_t getOffset() const { return Offset; }
+
+  static bool classof(const TargetIndexSDNode*) { return true; }
+  static bool classof(const SDNode *N) {
+    return N->getOpcode() == ISD::TargetIndex;
   }
 };
 

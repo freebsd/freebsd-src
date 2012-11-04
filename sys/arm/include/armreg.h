@@ -93,6 +93,7 @@
 #define CPU_ID_ARCH_V5TE	0x00050000
 #define CPU_ID_ARCH_V5TEJ	0x00060000
 #define CPU_ID_ARCH_V6		0x00070000
+#define CPU_ID_CPUID_SCHEME	0x000f0000
 #define CPU_ID_VARIANT_MASK	0x00f00000
 
 /* Next three nybbles are part number */
@@ -145,12 +146,37 @@
 #define CPU_ID_ARM1026EJS	0x4106a260
 #define CPU_ID_ARM1136JS	0x4107b360
 #define CPU_ID_ARM1136JSR1	0x4117b360
+#define CPU_ID_CORTEXA8R1	0x411fc080
+#define CPU_ID_CORTEXA8R2	0x412fc080
+#define CPU_ID_CORTEXA8R3	0x413fc080
+#define CPU_ID_CORTEXA9R1	0x411fc090
+#define CPU_ID_CORTEXA9R2	0x412fc090
 #define CPU_ID_SA110		0x4401a100
 #define CPU_ID_SA1100		0x4401a110
 #define	CPU_ID_TI925T		0x54029250
 #define CPU_ID_MV88FR131	0x56251310 /* Marvell Feroceon 88FR131 Core */
+#define CPU_ID_MV88FR331	0x56153310 /* Marvell Feroceon 88FR331 Core */
 #define CPU_ID_MV88FR571_VD	0x56155710 /* Marvell Feroceon 88FR571-VD Core (ID from datasheet) */
-#define	CPU_ID_MV88FR571_41	0x41159260 /* Marvell Feroceon 88FR571-VD Core (actual ID from CPU reg) */
+
+/*
+ * LokiPlus core has also ID set to 0x41159260 and this define cause execution of unsupported
+ * L2-cache instructions so need to disable it. 0x41159260 is a generic ARM926E-S ID.
+ */
+#ifdef SOC_MV_LOKIPLUS
+#define CPU_ID_MV88FR571_41	0x00000000
+#else
+#define CPU_ID_MV88FR571_41	0x41159260 /* Marvell Feroceon 88FR571-VD Core (actual ID from CPU reg) */
+#endif
+
+#define CPU_ID_MV88SV581X_V6		0x560F5810 /* Marvell Sheeva 88SV581x v6 Core */
+#define CPU_ID_MV88SV581X_V7		0x561F5810 /* Marvell Sheeva 88SV581x v7 Core */
+#define CPU_ID_MV88SV584X_V6		0x561F5840 /* Marvell Sheeva 88SV584x v6 Core */
+#define CPU_ID_MV88SV584X_V7		0x562F5840 /* Marvell Sheeva 88SV584x v7 Core */
+/* Marvell's CPUIDs with ARM ID in implementor field */
+#define CPU_ID_ARM_88SV581X_V6		0x410fb760 /* Marvell Sheeva 88SV581x v6 Core */
+#define CPU_ID_ARM_88SV581X_V7		0x413FC080 /* Marvell Sheeva 88SV581x v7 Core */
+#define CPU_ID_ARM_88SV584X_V6		0x410FB020 /* Marvell Sheeva 88SV584x v6 Core */
+
 #define	CPU_ID_FA526		0x66015260
 #define	CPU_ID_FA626TE		0x66056260
 #define CPU_ID_SA1110		0x6901b110
@@ -190,6 +216,20 @@
 #define ARM3_CTL_CACHE_ON	0x00000001
 #define ARM3_CTL_SHARED		0x00000002
 #define ARM3_CTL_MONITOR	0x00000004
+
+/* CPUID registers */
+#define ARM_PFR0_ARM_ISA_MASK	0x0000000f
+
+#define ARM_PFR0_THUMB_MASK	0x000000f0
+#define ARM_PFR0_THUMB		0x10
+#define ARM_PFR0_THUMB2		0x30
+
+#define ARM_PFR0_JAZELLE_MASK	0x00000f00
+#define ARM_PFR0_THUMBEE_MASK	0x0000f000
+
+#define ARM_PFR1_ARMV4_MASK	0x0000000f
+#define ARM_PFR1_SEC_EXT_MASK	0x000000f0
+#define ARM_PFR1_MICROCTRL_MASK	0x00000f00
 
 /*
  * Post-ARM3 CP15 registers:
@@ -244,6 +284,7 @@
 #define CPU_CONTROL_VECRELOC	0x00002000 /* V: Vector relocation */
 #define CPU_CONTROL_ROUNDROBIN	0x00004000 /* RR: Predictable replacement */
 #define CPU_CONTROL_V4COMPAT	0x00008000 /* L4: ARMv4 compat LDR R15 etc */
+#define CPU_CONTROL_V6_EXTPAGE	0x00800000 /* XP: ARMv6 extended page tables */
 #define CPU_CONTROL_L2_ENABLE	0x04000000 /* L2 Cache enabled */
 
 #define CPU_CONTROL_IDC_ENABLE	CPU_CONTROL_DC_ENABLE
@@ -260,23 +301,24 @@
 /* Xscale Core 3 only */
 #define XSCALE_AUXCTL_LLR	0x00000400 /* Enable L2 for LLR Cache */
 
-/* Marvell Feroceon Extra Features Register (CP15 register 1, opcode2 0) */
-#define FC_DCACHE_REPL_LOCK	0x80000000 /* Replace DCache Lock */
-#define FC_DCACHE_STREAM_EN	0x20000000 /* DCache Streaming Switch */
-#define FC_WR_ALLOC_EN		0x10000000 /* Enable Write Allocate */
-#define FC_L2_PREF_DIS		0x01000000 /* L2 Cache Prefetch Disable */
-#define FC_L2_INV_EVICT_LINE	0x00800000 /* L2 Invalidates Uncorrectable Error Line Eviction */
-#define FC_L2CACHE_EN		0x00400000 /* L2 enable */
-#define FC_ICACHE_REPL_LOCK	0x00080000 /* Replace ICache Lock */
-#define FC_GLOB_HIST_REG_EN	0x00040000 /* Branch Global History Register Enable */
-#define FC_BRANCH_TARG_BUF_DIS	0x00020000 /* Branch Target Buffer Disable */
-#define FC_L1_PAR_ERR_EN	0x00010000 /* L1 Parity Error Enable */
+/* Marvell Extra Features Register (CP15 register 1, opcode2 0) */
+#define MV_DC_REPLACE_LOCK	0x80000000 /* Replace DCache Lock */
+#define MV_DC_STREAM_ENABLE	0x20000000 /* DCache Streaming Switch */
+#define MV_WA_ENABLE		0x10000000 /* Enable Write Allocate */
+#define MV_L2_PREFETCH_DISABLE	0x01000000 /* L2 Cache Prefetch Disable */
+#define MV_L2_INV_EVICT_ERR	0x00800000 /* L2 Invalidates Uncorrectable Error Line Eviction */
+#define MV_L2_ENABLE		0x00400000 /* L2 Cache enable */
+#define MV_IC_REPLACE_LOCK	0x00080000 /* Replace ICache Lock */
+#define MV_BGH_ENABLE		0x00040000 /* Branch Global History Register Enable */
+#define MV_BTB_DISABLE		0x00020000 /* Branch Target Buffer Disable */
+#define MV_L1_PARERR_ENABLE	0x00010000 /* L1 Parity Error Enable */
 
 /* Cache type register definitions */
 #define	CPU_CT_ISIZE(x)		((x) & 0xfff)		/* I$ info */
 #define	CPU_CT_DSIZE(x)		(((x) >> 12) & 0xfff)	/* D$ info */
 #define	CPU_CT_S		(1U << 24)		/* split cache */
 #define	CPU_CT_CTYPE(x)		(((x) >> 25) & 0xf)	/* cache type */
+#define	CPU_CT_FORMAT(x)	((x) >> 29)
 
 #define	CPU_CT_CTYPE_WT		0	/* write-through */
 #define	CPU_CT_CTYPE_WB1	1	/* write-back, clean w/ read */
@@ -288,6 +330,27 @@
 #define	CPU_CT_xSIZE_M		(1U << 2)		/* multiplier */
 #define	CPU_CT_xSIZE_ASSOC(x)	(((x) >> 3) & 0x7)	/* associativity */
 #define	CPU_CT_xSIZE_SIZE(x)	(((x) >> 6) & 0x7)	/* size */
+
+#define	CPU_CT_ARMV7		0x4
+/* ARM v7 Cache type definitions */
+#define	CPUV7_CT_CTYPE_WT	(1 << 31)
+#define	CPUV7_CT_CTYPE_WB	(1 << 30)
+#define	CPUV7_CT_CTYPE_RA	(1 << 29)
+#define	CPUV7_CT_CTYPE_WA	(1 << 28)
+
+#define	CPUV7_CT_xSIZE_LEN(x)	((x) & 0x7)		/* line size */
+#define	CPUV7_CT_xSIZE_ASSOC(x)	(((x) >> 3) & 0x3ff)	/* associativity */
+#define	CPUV7_CT_xSIZE_SET(x)	(((x) >> 13) & 0x7fff)	/* num sets */
+
+#define	CPU_CLIDR_CTYPE(reg,x)	(((reg) >> ((x) * 3)) & 0x7)
+#define	CPU_CLIDR_LOUIS(reg)	(((reg) >> 21) & 0x7)
+#define	CPU_CLIDR_LOC(reg)	(((reg) >> 24) & 0x7)
+#define	CPU_CLIDR_LOUU(reg)	(((reg) >> 27) & 0x7)
+
+#define	CACHE_ICACHE		1
+#define	CACHE_DCACHE		2
+#define	CACHE_SEP_CACHE		3
+#define	CACHE_UNI_CACHE		4
 
 /* Fault status register definitions */
 
@@ -327,7 +390,7 @@
 /*
  * ARM Instructions
  *
- *       3 3 2 2 2                              
+ *       3 3 2 2 2
  *       1 0 9 8 7                                                     0
  *      +-------+-------------------------------------------------------+
  *      | cond  |              instruction dependant                    |

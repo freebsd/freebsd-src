@@ -176,7 +176,7 @@ AcpiDbDumpParserDescriptor (
  *
  * FUNCTION:    AcpiDbDecodeAndDisplayObject
  *
- * PARAMETERS:  Target          - String with object to be displayed.  Names
+ * PARAMETERS:  Target          - String with object to be displayed. Names
  *                                and hex pointers are supported.
  *              OutputType      - Byte, Word, Dword, or Qword (B|W|D|Q)
  *
@@ -270,7 +270,7 @@ AcpiDbDecodeAndDisplayObject (
                 return;
             }
 
-            AcpiUtDumpBuffer (ObjPtr, sizeof (ACPI_OPERAND_OBJECT), Display,
+            AcpiUtDebugDumpBuffer (ObjPtr, sizeof (ACPI_OPERAND_OBJECT), Display,
                 ACPI_UINT32_MAX);
             AcpiExDumpObjectDescriptor (ObjPtr, 1);
             break;
@@ -287,7 +287,7 @@ AcpiDbDecodeAndDisplayObject (
                 return;
             }
 
-            AcpiUtDumpBuffer (ObjPtr, sizeof (ACPI_PARSE_OBJECT), Display,
+            AcpiUtDebugDumpBuffer (ObjPtr, sizeof (ACPI_PARSE_OBJECT), Display,
                 ACPI_UINT32_MAX);
             AcpiDbDumpParserDescriptor ((ACPI_PARSE_OBJECT *) ObjPtr);
             break;
@@ -305,7 +305,7 @@ AcpiDbDecodeAndDisplayObject (
 
             /* Just dump some memory */
 
-            AcpiUtDumpBuffer (ObjPtr, Size, Display, ACPI_UINT32_MAX);
+            AcpiUtDebugDumpBuffer (ObjPtr, Size, Display, ACPI_UINT32_MAX);
             break;
         }
 
@@ -342,7 +342,7 @@ DumpNode:
         return;
     }
 
-    AcpiUtDumpBuffer ((void *) Node, sizeof (ACPI_NAMESPACE_NODE),
+    AcpiUtDebugDumpBuffer ((void *) Node, sizeof (ACPI_NAMESPACE_NODE),
         Display, ACPI_UINT32_MAX);
     AcpiExDumpNamespaceNode (Node, 1);
 
@@ -357,7 +357,7 @@ DumpNode:
             return;
         }
 
-        AcpiUtDumpBuffer ((void *) ObjDesc, sizeof (ACPI_OPERAND_OBJECT),
+        AcpiUtDebugDumpBuffer ((void *) ObjDesc, sizeof (ACPI_OPERAND_OBJECT),
             Display, ACPI_UINT32_MAX);
         AcpiExDumpObjectDescriptor (ObjDesc, 1);
     }
@@ -643,7 +643,7 @@ AcpiDbDisplayCallingTree (
  *
  * FUNCTION:    AcpiDbDisplayObjectType
  *
- * PARAMETERS:  ObjectArg       - User entered NS node handle
+ * PARAMETERS:  Name            - User entered NS node handle or name
  *
  * RETURN:      None
  *
@@ -653,17 +653,21 @@ AcpiDbDisplayCallingTree (
 
 void
 AcpiDbDisplayObjectType (
-    char                    *ObjectArg)
+    char                    *Name)
 {
-    ACPI_HANDLE             Handle;
+    ACPI_NAMESPACE_NODE     *Node;
     ACPI_DEVICE_INFO        *Info;
     ACPI_STATUS             Status;
     UINT32                  i;
 
 
-    Handle = ACPI_TO_POINTER (ACPI_STRTOUL (ObjectArg, NULL, 16));
+    Node = AcpiDbConvertToNode (Name);
+    if (!Node)
+    {
+        return;
+    }
 
-    Status = AcpiGetObjectInfo (Handle, &Info);
+    Status = AcpiGetObjectInfo (ACPI_CAST_PTR (ACPI_HANDLE, Node), &Info);
     if (ACPI_FAILURE (Status))
     {
         AcpiOsPrintf ("Could not get object info, %s\n",
@@ -671,18 +675,25 @@ AcpiDbDisplayObjectType (
         return;
     }
 
-    AcpiOsPrintf ("ADR: %8.8X%8.8X, STA: %8.8X, Flags: %X\n",
-        ACPI_FORMAT_UINT64 (Info->Address),
-        Info->CurrentStatus, Info->Flags);
-
-    AcpiOsPrintf ("S1D-%2.2X S2D-%2.2X S3D-%2.2X S4D-%2.2X\n",
-        Info->HighestDstates[0], Info->HighestDstates[1],
-        Info->HighestDstates[2], Info->HighestDstates[3]);
-
-    AcpiOsPrintf ("S0W-%2.2X S1W-%2.2X S2W-%2.2X S3W-%2.2X S4W-%2.2X\n",
-        Info->LowestDstates[0], Info->LowestDstates[1],
-        Info->LowestDstates[2], Info->LowestDstates[3],
-        Info->LowestDstates[4]);
+    if (Info->Valid & ACPI_VALID_ADR)
+    {
+        AcpiOsPrintf ("ADR: %8.8X%8.8X, STA: %8.8X, Flags: %X\n",
+            ACPI_FORMAT_UINT64 (Info->Address),
+            Info->CurrentStatus, Info->Flags);
+    }
+    if (Info->Valid & ACPI_VALID_SXDS)
+    {
+        AcpiOsPrintf ("S1D-%2.2X S2D-%2.2X S3D-%2.2X S4D-%2.2X\n",
+            Info->HighestDstates[0], Info->HighestDstates[1],
+            Info->HighestDstates[2], Info->HighestDstates[3]);
+    }
+    if (Info->Valid & ACPI_VALID_SXWS)
+    {
+        AcpiOsPrintf ("S0W-%2.2X S1W-%2.2X S2W-%2.2X S3W-%2.2X S4W-%2.2X\n",
+            Info->LowestDstates[0], Info->LowestDstates[1],
+            Info->LowestDstates[2], Info->LowestDstates[3],
+            Info->LowestDstates[4]);
+    }
 
     if (Info->Valid & ACPI_VALID_HID)
     {
@@ -691,6 +702,10 @@ AcpiDbDisplayObjectType (
     if (Info->Valid & ACPI_VALID_UID)
     {
         AcpiOsPrintf ("UID: %s\n", Info->UniqueId.String);
+    }
+    if (Info->Valid & ACPI_VALID_SUB)
+    {
+        AcpiOsPrintf ("SUB: %s\n", Info->SubsystemId.String);
     }
     if (Info->Valid & ACPI_VALID_CID)
     {
@@ -792,10 +807,12 @@ AcpiDbDisplayGpes (
     ACPI_GPE_EVENT_INFO     *GpeEventInfo;
     ACPI_GPE_REGISTER_INFO  *GpeRegisterInfo;
     char                    *GpeType;
+    ACPI_GPE_NOTIFY_INFO    *Notify;
     UINT32                  GpeIndex;
     UINT32                  Block = 0;
     UINT32                  i;
     UINT32                  j;
+    UINT32                  Count;
     char                    Buffer[80];
     ACPI_BUFFER             RetBuf;
     ACPI_STATUS             Status;
@@ -916,7 +933,14 @@ AcpiDbDisplayGpes (
                         AcpiOsPrintf ("Handler");
                         break;
                     case ACPI_GPE_DISPATCH_NOTIFY:
-                        AcpiOsPrintf ("Notify");
+                        Count = 0;
+                        Notify = GpeEventInfo->Dispatch.NotifyList;
+                        while (Notify)
+                        {
+                            Count++;
+                            Notify = Notify->Next;
+                        }
+                        AcpiOsPrintf ("Implicit Notify on %u devices", Count);
                         break;
                     default:
                         AcpiOsPrintf ("UNKNOWN: %X",

@@ -117,12 +117,16 @@ static int
 nexus_setup_intr(device_t dev, device_t child, struct resource *res, int flags,
     driver_filter_t *filt, driver_intr_t *intr, void *arg, void **cookiep)
 {
+	int irq;
 
 	if ((rman_get_flags(res) & RF_SHAREABLE) == 0)
 		flags |= INTR_EXCL;
 
-	arm_setup_irqhandler(device_get_nameunit(child), 
-	    filt, intr, arg, rman_get_start(res), flags, cookiep);
+	for (irq = rman_get_start(res); irq <= rman_get_end(res); irq++) {
+		arm_setup_irqhandler(device_get_nameunit(child),
+		    filt, intr, arg, irq, flags, cookiep);
+		arm_unmask_irq(irq);
+	}
 	return (0);
 }
 

@@ -129,7 +129,7 @@ _create_workqueue_common(char *name, int cpus)
 	wq = kmalloc(sizeof(*wq), M_WAITOK);
 	wq->taskqueue = taskqueue_create((name), M_WAITOK,
 	    taskqueue_thread_enqueue,  &wq->taskqueue);
-	taskqueue_start_threads(&wq->taskqueue, cpus, PWAIT, (name));
+	taskqueue_start_threads(&wq->taskqueue, cpus, PWAIT, "%s", name);
 
 	return (wq);
 }

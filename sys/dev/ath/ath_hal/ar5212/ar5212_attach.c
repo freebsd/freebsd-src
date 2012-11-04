@@ -71,6 +71,9 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_getTxIntrQueue		= ar5212GetTxIntrQueue,
 	.ah_reqTxIntrDesc 		= ar5212IntrReqTxDesc,
 	.ah_getTxCompletionRates	= ar5212GetTxCompletionRates,
+	.ah_setTxDescLink		= ar5212SetTxDescLink,
+	.ah_getTxDescLink		= ar5212GetTxDescLink,
+	.ah_getTxDescLinkPtr		= ar5212GetTxDescLinkPtr,
 
 	/* RX Functions */
 	.ah_getRxDP			= ar5212GetRxDP,
@@ -134,6 +137,7 @@ static const struct ath_hal_private ar5212hal = {{
 	/* DFS Functions */
 	.ah_enableDfs			= ar5212EnableDfs,
 	.ah_getDfsThresh		= ar5212GetDfsThresh,
+	.ah_getDfsDefaultThresh		= ar5212GetDfsDefaultThresh,
 	.ah_procRadarEvent		= ar5212ProcessRadarEvent,
 	.ah_isFastClockEnabled		= ar5212IsFastClockEnabled,
 	.ah_get11nExtBusy		= ar5212Get11nExtBusy,
@@ -782,7 +786,29 @@ ar5212FillCapabilityInfo(struct ath_hal *ah)
 	else
 		pCap->halHigh2GhzChan = 2732;
 
-	pCap->halLow5GhzChan = 4915;
+	/*
+	 * For AR5111 version < 4, the lowest centre frequency supported is
+	 * 5130MHz.  For AR5111 version 4, the 4.9GHz channels are supported
+	 * but only in 10MHz increments.
+	 *
+	 * In addition, the programming method is wrong - it uses the IEEE
+	 * channel number to calculate the frequency, rather than the
+	 * channel centre.  Since half/quarter rates re-use some of the
+	 * 5GHz channel IEEE numbers, this will result in a badly programmed
+	 * synth.
+	 *
+	 * Until the relevant support is written, just limit lower frequency
+	 * support for AR5111 so things aren't incorrectly programmed.
+	 *
+	 * XXX It's also possible this code doesn't correctly limit the
+	 * centre frequencies of potential channels; this is very important
+	 * for half/quarter rate!
+	 */
+	if (AH_RADIO_MAJOR(ah) == AR_RAD5111_SREV_MAJOR) {
+		pCap->halLow5GhzChan = 5120; /* XXX lowest centre = 5130MHz */
+	} else {
+		pCap->halLow5GhzChan = 4915;
+	}
 	pCap->halHigh5GhzChan = 6100;
 
 	pCap->halCipherCkipSupport = AH_FALSE;
@@ -821,6 +847,8 @@ ar5212FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halTurboGSupport = pCap->halWirelessModes & HAL_MODE_108G;
 
 	pCap->halPSPollBroken = AH_TRUE;	/* XXX fixed in later revs? */
+	pCap->halNumMRRetries = 4;		/* Hardware supports 4 MRR */
+	pCap->halNumTxMaps = 1;			/* Single TX ptr per descr */
 	pCap->halVEOLSupport = AH_TRUE;
 	pCap->halBssIdMaskSupport = AH_TRUE;
 	pCap->halMcastKeySrchSupport = AH_TRUE;

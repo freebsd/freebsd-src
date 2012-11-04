@@ -139,11 +139,6 @@ static void	amr_setup_ccb(void *arg, bus_dma_segment_t *segs, int nsegments, int
 static void	amr_abort_load(struct amr_command *ac);
 
 /*
- * Status monitoring
- */
-static void	amr_periodic(void *data);
-
-/*
  * Interface-specific shims
  */
 static int	amr_quartz_submit_command(struct amr_command *ac);
@@ -348,11 +343,6 @@ amr_startup(void *arg)
     /* interrupts will be enabled before we do anything more */
     sc->amr_state |= AMR_STATE_INTEN;
 
-    /*
-     * Start the timeout routine.
-     */
-/*    sc->amr_timeout = timeout(amr_periodic, sc, hz);*/
-
     return;
 }
 
@@ -391,9 +381,6 @@ amr_free(struct amr_softc *sc)
     if (sc->amr_pass != NULL)
 	device_delete_child(sc->amr_dev, sc->amr_pass);
 
-    /* cancel status timeout */
-    untimeout(amr_periodic, sc, sc->amr_timeout);
-    
     /* throw away any command buffers */
     while ((acc = TAILQ_FIRST(&sc->amr_cmd_clusters)) != NULL) {
 	TAILQ_REMOVE(&sc->amr_cmd_clusters, acc, acc_link);
@@ -546,13 +533,19 @@ shutdown_out:
  * The amr(4) firmware relies on this feature.  In fact, it assumes
  * the buffer is always a power of 2 up to a max of 64k.  There is
  * also at least one case where it assumes a buffer less than 16k is
- * greater than 16k.  Force a minimum buffer size of 32k and round
- * sizes between 32k and 64k up to 64k as a workaround.
+ * greater than 16k.  However, forcing all buffers to a size of 32k
+ * causes stalls in the firmware.  Force each command smaller than
+ * 64k up to the next power of two except that commands between 8k
+ * and 16k are rounded up to 32k instead of 16k.
  */
 static unsigned long
 amr_ioctl_buffer_length(unsigned long len)
 {
 
+    if (len <= 4 * 1024)
+	return (4 * 1024);
+    if (len <= 8 * 1024)
+	return (8 * 1024);
     if (len <= 32 * 1024)
 	return (32 * 1024);
     if (len <= 64 * 1024)
@@ -859,11 +852,8 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
 
     /* handle inbound data buffer */
     real_length = amr_ioctl_buffer_length(au_length);
+    dp = malloc(real_length, M_AMR, M_WAITOK|M_ZERO);
     if (au_length != 0 && au_cmd[0] != 0x06) {
-	if ((dp = malloc(real_length, M_AMR, M_WAITOK|M_ZERO)) == NULL) {
-	    error = ENOMEM;
-	    goto out;
-	}
 	if ((error = copyin(au_buffer, dp, au_length)) != 0) {
 	    free(dp, M_AMR);
 	    return (error);
@@ -933,8 +923,7 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, struct threa
 	error = copyout(dp, au_buffer, au_length);
     }
     debug(2, "copyout %ld bytes from %p -> %p", au_length, dp, au_buffer);
-    if (dp != NULL)
-	debug(2, "%p status 0x%x", dp, ac->ac_status);
+    debug(2, "%p status 0x%x", dp, ac->ac_status);
     *au_statusp = ac->ac_status;
 
 out:
@@ -955,31 +944,6 @@ out:
 #endif
 
     return(error);
-}
-
-/********************************************************************************
- ********************************************************************************
-                                                                Status Monitoring
- ********************************************************************************
- ********************************************************************************/
-
-/********************************************************************************
- * Perform a periodic check of the controller status
- */
-static void
-amr_periodic(void *data)
-{
-    struct amr_softc	*sc = (struct amr_softc *)data;
-
-    debug_called(2);
-
-    /* XXX perform periodic status checks here */
-
-    /* compensate for missed interrupts */
-    amr_done(sc);
-
-    /* reschedule */
-    sc->amr_timeout = timeout(amr_periodic, sc, hz);
 }
 
 /********************************************************************************

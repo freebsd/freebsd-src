@@ -32,7 +32,7 @@
 .\"	from: @(#)sh.1	8.6 (Berkeley) 5/4/95
 .\" $FreeBSD$
 .\"
-.Dd November 5, 2011
+.Dd July 15, 2012
 .Dt SH 1
 .Os
 .Sh NAME
@@ -487,8 +487,9 @@ and backslash
 The backslash inside double quotes is historically weird.
 It remains literal unless it precedes the following characters,
 which it serves to quote:
+.Pp
 .Bl -column "XXX" "XXX" "XXX" "XXX" "XXX" -offset center -compact
-.It Li $ Ta Li ` Ta Li \&" Ta Li \e\  Ta Li \en
+.It Li $ Ta Li ` Ta Li \&" Ta Li \e Ta Li \en
 .El
 .It Backslash
 A backslash preserves the literal meaning of the following
@@ -648,8 +649,8 @@ The following redirection is often called a
 .Dq here-document .
 .Bd -unfilled -offset indent
 .Oo Ar n Oc Ns Li << Ar delimiter
-.D1 Ar here-doc-text
-.D1 ...
+.Ar here-doc-text
+.Ar ...
 .Ar delimiter
 .Ed
 .Pp
@@ -1164,6 +1165,20 @@ Assignments are expanded differently from other words:
 tilde expansion is also performed after the equals sign and after any colon
 and usernames are also terminated by colons,
 and field splitting and pathname expansion are not performed.
+.Pp
+This special expansion applies not only to assignments that form a simple
+command by themselves or precede a command word,
+but also to words passed to the
+.Ic export ,
+.Ic local
+or
+.Ic readonly
+built-in commands that have this form.
+For this, the builtin's name must be literal
+(not the result of an expansion)
+and may optionally be preceded by one or more literal instances of
+.Ic command
+without options.
 .Ss Positional Parameters
 A positional parameter is a parameter denoted by a number greater than zero.
 The shell sets these initially to the values of its command line

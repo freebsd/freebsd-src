@@ -138,6 +138,7 @@ namespace CodeGen {
     union {
       unsigned char PointerAlignInBytes;
       unsigned char PointerSizeInBytes;
+      unsigned char SizeSizeInBytes;     // sizeof(size_t)
     };
   };
 
@@ -350,6 +351,8 @@ class CodeGenModule : public CodeGenTypeCache {
   struct {
     int GlobalUniqueCount;
   } Block;
+  
+  GlobalDecl initializedGlobalDecl;
 
   /// @}
 public:
@@ -471,6 +474,10 @@ public:
   /// GlobalValue.
   void setGlobalVisibility(llvm::GlobalValue *GV, const NamedDecl *D) const;
 
+  /// setTLSMode - Set the TLS mode for the given LLVM GlobalVariable
+  /// for the thread-local variable declaration D.
+  void setTLSMode(llvm::GlobalVariable *GV, const VarDecl &D) const;
+
   /// TypeVisibilityKind - The kind of global variable that is passed to 
   /// setTypeVisibility
   enum TypeVisibilityKind {
@@ -515,6 +522,12 @@ public:
   llvm::GlobalVariable *
   CreateOrReplaceCXXRuntimeVariable(StringRef Name, llvm::Type *Ty,
                                     llvm::GlobalValue::LinkageTypes Linkage);
+
+  /// GetGlobalVarAddressSpace - Return the address space of the underlying
+  /// global variable for D, as determined by its declaration.  Normally this
+  /// is the same as the address space of D's type, but in CUDA, address spaces
+  /// are associated with declarations, not types.
+  unsigned GetGlobalVarAddressSpace(const VarDecl *D, unsigned AddrSpace);
 
   /// GetAddrOfGlobalVar - Return the llvm::Constant for the address of the
   /// given global variable.  If Ty is non-null and if the global doesn't exist,
@@ -580,7 +593,7 @@ public:
 
   /// getUniqueBlockCount - Fetches the global unique block count.
   int getUniqueBlockCount() { return ++Block.GlobalUniqueCount; }
-
+  
   /// getBlockDescriptorType - Fetches the type of a generic block
   /// descriptor.
   llvm::Type *getBlockDescriptorType();

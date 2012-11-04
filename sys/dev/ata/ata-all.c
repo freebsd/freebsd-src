@@ -172,6 +172,15 @@ ata_attach(device_t dev)
     TASK_INIT(&ch->conntask, 0, ata_conn_event, dev);
 #ifdef ATA_CAM
 	for (i = 0; i < 16; i++) {
+		ch->user[i].revision = 0;
+		snprintf(buf, sizeof(buf), "dev%d.sata_rev", i);
+		if (resource_int_value(device_get_name(dev),
+		    device_get_unit(dev), buf, &mode) != 0 &&
+		    resource_int_value(device_get_name(dev),
+		    device_get_unit(dev), "sata_rev", &mode) != 0)
+			mode = -1;
+		if (mode >= 0)
+			ch->user[i].revision = mode;
 		ch->user[i].mode = 0;
 		snprintf(buf, sizeof(buf), "dev%d.mode", i);
 		if (resource_string_value(device_get_name(dev),
@@ -1483,6 +1492,8 @@ ata_cam_begin_transaction(device_t dev, union ccb *ccb)
 		request->u.ata.lba |= ((uint64_t)ccb->ataio.cmd.lba_high << 16) |
 				      ((uint64_t)ccb->ataio.cmd.lba_mid << 8) |
 				       (uint64_t)ccb->ataio.cmd.lba_low;
+		if (ccb->ataio.cmd.flags & CAM_ATAIO_NEEDRESULT)
+			request->flags |= ATA_R_NEEDRESULT;
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE &&
 		    ccb->ataio.cmd.flags & CAM_ATAIO_DMA)
 			request->flags |= ATA_R_DMA;
@@ -1490,6 +1501,14 @@ ata_cam_begin_transaction(device_t dev, union ccb *ccb)
 			request->flags |= ATA_R_READ;
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
 			request->flags |= ATA_R_WRITE;
+		if (ccb->ataio.cmd.command == ATA_READ_MUL ||
+		    ccb->ataio.cmd.command == ATA_READ_MUL48 ||
+		    ccb->ataio.cmd.command == ATA_WRITE_MUL ||
+		    ccb->ataio.cmd.command == ATA_WRITE_MUL48) {
+			request->transfersize = min(request->bytecount,
+			    ch->curr[ccb->ccb_h.target_id].bytecount);
+		} else
+			request->transfersize = min(request->bytecount, 512);
 	} else {
 		request->data = ccb->csio.data_ptr;
 		request->bytecount = ccb->csio.dxfer_len;
@@ -1506,9 +1525,9 @@ ata_cam_begin_transaction(device_t dev, union ccb *ccb)
 			request->flags |= ATA_R_READ;
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
 			request->flags |= ATA_R_WRITE;
+		request->transfersize = min(request->bytecount,
+		    ch->curr[ccb->ccb_h.target_id].bytecount);
 	}
-	request->transfersize = min(request->bytecount,
-	    ch->curr[ccb->ccb_h.target_id].bytecount);
 	request->retries = 0;
 	request->timeout = (ccb->ccb_h.timeout + 999) / 1000;
 	callout_init_mtx(&request->callout, &ch->state_mtx, CALLOUT_RETURNUNLOCKED);
@@ -1532,7 +1551,7 @@ ata_cam_request_sense(device_t dev, struct ata_request *request)
 
 	ch->requestsense = 1;
 
-	bzero(request, sizeof(&request));
+	bzero(request, sizeof(*request));
 	request->dev = NULL;
 	request->parent = dev;
 	request->unit = ccb->ccb_h.target_id;
@@ -1787,7 +1806,7 @@ ataaction(struct cam_sim *sim, union ccb *ccb)
 			d = &ch->curr[ccb->ccb_h.target_id];
 		else
 			d = &ch->user[ccb->ccb_h.target_id];
-		cts->protocol = PROTO_ATA;
+		cts->protocol = PROTO_UNSPECIFIED;
 		cts->protocol_version = PROTO_VERSION_UNSPECIFIED;
 		if (ch->flags & ATA_SATA) {
 			cts->transport = XPORT_SATA;

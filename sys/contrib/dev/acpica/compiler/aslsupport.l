@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslsupport.l - Flex/lex scanner C support routines.
@@ -92,19 +91,23 @@ static void
 AslDoLineDirective (
     void)
 {
-    char                    c;
+    int                     c;
     char                    *Token;
     UINT32                  LineNumber;
     char                    *Filename;
+    UINT32                  i;
 
 
     /* Eat the entire line that contains the #line directive */
 
-    while ((c = (char) input()) != '\n' && c != EOF)
+    Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
+
+    while ((c = input()) != '\n' && c != EOF)
     {
-        AslInsertLineBuffer (c);
+        *Gbl_LineBufPtr = c;
+        Gbl_LineBufPtr++;
     }
-    AslInsertLineBuffer (0);
+    *Gbl_LineBufPtr = 0;
 
     /* First argument is the actual line number */
 
@@ -114,10 +117,23 @@ AslDoLineDirective (
         goto ResetAndExit;
     }
 
-    /* Convert line number. Subtract one to handle _this_ line */
+    /* First argument is the line number */
 
     LineNumber = (UINT32) UtDoConstant (Token);
-    FlSetLineNumber (LineNumber - 1);
+
+    /* Emit the appropriate number of newlines */
+
+    Gbl_CurrentColumn = 0;
+    if (LineNumber > Gbl_CurrentLineNumber)
+    {
+        for (i = 0; i < (LineNumber - Gbl_CurrentLineNumber); i++)
+        {
+            FlWriteFile (ASL_FILE_SOURCE_OUTPUT, "\n", 1);
+            Gbl_CurrentColumn++;
+        }
+    }
+
+    FlSetLineNumber (LineNumber);
 
     /* Second argument is the optional filename (in double quotes) */
 
@@ -132,7 +148,12 @@ AslDoLineDirective (
     /* Third argument is not supported at this time */
 
 ResetAndExit:
-    AslResetCurrentLineBuffer ();
+
+    /* Reset globals for a new line */
+
+    Gbl_CurrentLineOffset += Gbl_CurrentColumn;
+    Gbl_CurrentColumn = 0;
+    Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
 }
 
 
@@ -145,8 +166,8 @@ ResetAndExit:
  * RETURN:      0 if a node was popped, -1 otherwise
  *
  * DESCRIPTION: Pop the top of the input file stack and point the parser to
- *              the saved parse buffer contained in the fnode.  Also, set the
- *              global line counters to the saved values.  This function is
+ *              the saved parse buffer contained in the fnode. Also, set the
+ *              global line counters to the saved values. This function is
  *              called when an include file reaches EOF.
  *
  ******************************************************************************/
@@ -201,7 +222,7 @@ AslPopInputFileStack (
  * RETURN:      None
  *
  * DESCRIPTION: Push the InputFile onto the file stack, and point the parser
- *              to this file.  Called when an include file is successfully
+ *              to this file. Called when an include file is successfully
  *              opened.
  *
  ******************************************************************************/
@@ -303,7 +324,7 @@ AslInsertLineBuffer (
 
     Gbl_InputByteCount++;
 
-    /* Handle tabs.  Convert to spaces */
+    /* Handle tabs. Convert to spaces */
 
     if (SourceChar == '\t')
     {
@@ -321,14 +342,14 @@ AslInsertLineBuffer (
         *Gbl_LineBufPtr = (UINT8) SourceChar;
         Gbl_LineBufPtr++;
 
-        if (Gbl_LineBufPtr > (Gbl_CurrentLineBuffer + (ASL_LINE_BUFFER_SIZE - 1)))
+        if (Gbl_LineBufPtr > (Gbl_CurrentLineBuffer + (Gbl_LineBufferSize - 1)))
         {
 #if 0
             /*
              * Warning if we have split a long source line.
              * <Probably overkill>
              */
-            sprintf (MsgBuffer, "Max %u", ASL_LINE_BUFFER_SIZE);
+            sprintf (MsgBuffer, "Max %u", Gbl_LineBufferSize);
             AslCommonError (ASL_WARNING, ASL_MSG_LONG_LINE,
                             Gbl_CurrentLineNumber, Gbl_LogicalLineNumber,
                             Gbl_CurrentLineOffset, Gbl_CurrentColumn,
@@ -408,8 +429,8 @@ static char
 AslDoComment (
     void)
 {
-    char                c;
-    char                c1 = 0;
+    int                 c;
+    int                 c1 = 0;
 
 
     AslInsertLineBuffer ('/');
@@ -419,7 +440,7 @@ loop:
 
     /* Eat chars until end-of-comment */
 
-    while ((c = (char) input()) != '*' && c != EOF)
+    while ((c = input()) != '*' && c != EOF)
     {
         AslInsertLineBuffer (c);
         c1 = c;
@@ -446,7 +467,7 @@ loop:
 
     AslInsertLineBuffer (c);
 
-    if ((c1 = (char) input()) != '/' && c1 != EOF)
+    if ((c1 = input()) != '/' && c1 != EOF)
     {
         unput(c1);
         goto loop;
@@ -489,13 +510,13 @@ static char
 AslDoCommentType2 (
     void)
 {
-    char                c;
+    int                 c;
 
 
     AslInsertLineBuffer ('/');
     AslInsertLineBuffer ('/');
 
-    while ((c = (char) input()) != '\n' && c != EOF)
+    while ((c = input()) != '\n' && c != EOF)
     {
         AslInsertLineBuffer (c);
     }
@@ -531,7 +552,7 @@ AslDoStringLiteral (
     char                *StringBuffer = MsgBuffer;
     char                *EndBuffer = MsgBuffer + ASL_MSG_BUFFER_SIZE;
     char                *CleanString;
-    char                StringChar;
+    int                 StringChar;
     UINT32              State = ASL_NORMAL_CHAR;
     UINT32              i = 0;
     UINT8               Digit;
@@ -544,7 +565,7 @@ AslDoStringLiteral (
      * source line buffer.
      */
     AslInsertLineBuffer ('\"');
-    while ((StringChar = (char) input()) != EOF)
+    while ((StringChar = input()) != EOF)
     {
         AslInsertLineBuffer (StringChar);
 
@@ -558,7 +579,7 @@ DoCharacter:
             {
             case '\\':
                 /*
-                 * Special handling for backslash-escape sequence.  We will
+                 * Special handling for backslash-escape sequence. We will
                  * toss the backslash and translate the escape char(s).
                  */
                 State = ASL_ESCAPE_SEQUENCE;
@@ -647,7 +668,7 @@ DoCharacter:
                 (i > 2))
             {
                 /*
-                 * Reached end of the constant.  Convert the assembled ASCII
+                 * Reached end of the constant. Convert the assembled ASCII
                  * string and resume processing of the next character
                  */
                 ConvertBuffer[i] = 0;
@@ -692,7 +713,7 @@ DoCharacter:
                 (i > 1))
             {
                 /*
-                 * Reached end of the constant.  Convert the assembled ASCII
+                 * Reached end of the constant. Convert the assembled ASCII
                  * string and resume processing of the next character
                  */
                 ConvertBuffer[i] = 0;

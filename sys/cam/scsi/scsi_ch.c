@@ -324,11 +324,6 @@ chregister(struct cam_periph *periph, void *arg)
 	struct ccb_pathinq cpi;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("chregister: periph was NULL!!\n");
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	if (cgd == NULL) {
 		printf("chregister: no getdev CCB, can't register device\n");
 		return(CAM_REQ_CMP_ERR);
@@ -433,16 +428,10 @@ static int
 chclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct	cam_periph *periph;
-	struct	ch_softc *softc;
-	int	error;
-
-	error = 0;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return(ENXIO);
-
-	softc = (struct ch_softc *)periph->softc;
 
 	cam_periph_release(periph);
 

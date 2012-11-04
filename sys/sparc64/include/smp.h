@@ -109,7 +109,6 @@ extern	cpu_ipi_single_t *cpu_ipi_single;
 
 void	mp_init(u_int cpu_impl);
 
-extern	struct mtx ipi_mtx;
 extern	struct ipi_cache_args ipi_cache_args;
 extern	struct ipi_rd_args ipi_rd_args;
 extern	struct ipi_tlb_args ipi_tlb_args;
@@ -169,7 +168,7 @@ ipi_dcache_page_inval(void *func, vm_paddr_t pa)
 		return (NULL);
 	sched_pin();
 	ica = &ipi_cache_args;
-	mtx_lock_spin(&ipi_mtx);
+	mtx_lock_spin(&smp_ipi_mtx);
 	ica->ica_mask = all_cpus;
 	CPU_CLR(PCPU_GET(cpuid), &ica->ica_mask);
 	ica->ica_pa = pa;
@@ -186,7 +185,7 @@ ipi_icache_page_inval(void *func, vm_paddr_t pa)
 		return (NULL);
 	sched_pin();
 	ica = &ipi_cache_args;
-	mtx_lock_spin(&ipi_mtx);
+	mtx_lock_spin(&smp_ipi_mtx);
 	ica->ica_mask = all_cpus;
 	CPU_CLR(PCPU_GET(cpuid), &ica->ica_mask);
 	ica->ica_pa = pa;
@@ -203,7 +202,6 @@ ipi_rd(u_int cpu, void *func, u_long *val)
 		return (NULL);
 	sched_pin();
 	ira = &ipi_rd_args;
-	mtx_lock_spin(&ipi_mtx);
 	CPU_SETOF(cpu, &ira->ira_mask);
 	ira->ira_val = val;
 	cpu_ipi_single(cpu, 0, (u_long)func, (u_long)ira);
@@ -227,7 +225,7 @@ ipi_tlb_context_demap(struct pmap *pm)
 		return (NULL);
 	}
 	ita = &ipi_tlb_args;
-	mtx_lock_spin(&ipi_mtx);
+	mtx_lock_spin(&smp_ipi_mtx);
 	ita->ita_mask = cpus;
 	ita->ita_pmap = pm;
 	cpu_ipi_selected(cpus, 0, (u_long)tl_ipi_tlb_context_demap,
@@ -252,7 +250,7 @@ ipi_tlb_page_demap(struct pmap *pm, vm_offset_t va)
 		return (NULL);
 	}
 	ita = &ipi_tlb_args;
-	mtx_lock_spin(&ipi_mtx);
+	mtx_lock_spin(&smp_ipi_mtx);
 	ita->ita_mask = cpus;
 	ita->ita_pmap = pm;
 	ita->ita_va = va;
@@ -277,7 +275,7 @@ ipi_tlb_range_demap(struct pmap *pm, vm_offset_t start, vm_offset_t end)
 		return (NULL);
 	}
 	ita = &ipi_tlb_args;
-	mtx_lock_spin(&ipi_mtx);
+	mtx_lock_spin(&smp_ipi_mtx);
 	ita->ita_mask = cpus;
 	ita->ita_pmap = pm;
 	ita->ita_start = start;
@@ -295,7 +293,19 @@ ipi_wait(void *cookie)
 	if ((mask = cookie) != NULL) {
 		while (!CPU_EMPTY(mask))
 			;
-		mtx_unlock_spin(&ipi_mtx);
+		mtx_unlock_spin(&smp_ipi_mtx);
+		sched_unpin();
+	}
+}
+
+static __inline void
+ipi_wait_unlocked(void *cookie)
+{
+	volatile cpuset_t *mask;
+
+	if ((mask = cookie) != NULL) {
+		while (!CPU_EMPTY(mask))
+			;
 		sched_unpin();
 	}
 }
@@ -352,7 +362,13 @@ ipi_tlb_range_demap(struct pmap *pm __unused, vm_offset_t start __unused,
 }
 
 static __inline void
-ipi_wait(void *cookie)
+ipi_wait(void *cookie __unused)
+{
+
+}
+
+static __inline void
+ipi_wait_unlocked(void *cookie __unused)
 {
 
 }

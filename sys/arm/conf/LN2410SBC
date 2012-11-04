@@ -11,13 +11,12 @@
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
-# device lines is also present in the ../../conf/NOTES and NOTES files. 
-# If you are in doubt as to the purpose or necessity of a line, check first 
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
 # in NOTES.
 #
 # $FreeBSD$
 
-machine		arm
 ident		LN2410SBC
 
 include 	"../s3c2xx0/std.ln2410sbc"
@@ -41,7 +40,7 @@ options 	FFS			#Berkeley Fast Filesystem
 #options 	UFS_DIRHASH		#Improve performance on big directories
 #options 	MD_ROOT			#MD is a potential root device
 #options 	MD_ROOT_SIZE=4096	# 4MB ram disk
-options		ROOTDEVNAME=\"ufs:da0s1\"
+options 	ROOTDEVNAME=\"ufs:da0s1\"
 
 #options 	BOOTP
 #options 	BOOTP_NFSROOT	# NFS mount root filesystem using BOOTP info

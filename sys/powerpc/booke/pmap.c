@@ -286,7 +286,7 @@ static void		mmu_booke_init(mmu_t);
 static boolean_t	mmu_booke_is_modified(mmu_t, vm_page_t);
 static boolean_t	mmu_booke_is_prefaultable(mmu_t, pmap_t, vm_offset_t);
 static boolean_t	mmu_booke_is_referenced(mmu_t, vm_page_t);
-static boolean_t	mmu_booke_ts_referenced(mmu_t, vm_page_t);
+static int		mmu_booke_ts_referenced(mmu_t, vm_page_t);
 static vm_offset_t	mmu_booke_map(mmu_t, vm_offset_t *, vm_paddr_t, vm_paddr_t,
     int);
 static int		mmu_booke_mincore(mmu_t, pmap_t, vm_offset_t,
@@ -3041,6 +3041,10 @@ tlb1_init(vm_offset_t ccsrbar)
 
 	/* Map in CCSRBAR. */
 	tlb1_set_entry(CCSRBAR_VA, ccsrbar, CCSRBAR_SIZE, _TLB_ENTRY_IO);
+
+	/* Purge the remaining entries */
+	for (i = tlb1_idx; i < TLB1_ENTRIES; i++)
+		tlb1_write_entry(i);
 
 	/* Setup TLB miss defaults */
 	set_mas4_defaults();

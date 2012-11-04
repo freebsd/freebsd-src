@@ -66,11 +66,11 @@ options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 #options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
 
 # required for netbooting
-options 	BOOTP_NFSROOT
 options 	BOOTP
+options 	BOOTP_COMPAT
+options 	BOOTP_NFSROOT
 options 	BOOTP_NFSV3
 options 	BOOTP_WIRED_TO=ate0
-options 	BOOTP_COMPAT
 
 # alternatively, boot from a MMC/SD memory card
 #options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0a\"
@@ -103,7 +103,7 @@ device		bpf		# Berkeley packet filter
 
 # Ethernet
 device		mii		# Minimal MII support
-device		ate		# Atmel AT91 Ethernet friver
+device		ate		# Atmel AT91 Ethernet driver
 
 # I2C
 device		at91_twi	# Atmel AT91 Two-wire Interface
@@ -117,11 +117,11 @@ options 	AT91_MCI_HAS_4WIRE
 device		mmc		# MMC/SD bus
 device		mmcsd		# MMC/SD memory card
 
-# DataFlash - totally b0rken drivers
-#device		at91_spi	# Atmel AT91 Serial Peripheral Interface
-#device		spibus		# SPI bus
-#device		at45d		# Atmel AT45D
-#device		geom_map	# GEOM partition mapping
+# DataFlash
+device		at91_spi	# Atmel AT91 Serial Peripheral Interface
+device		spibus		# SPI bus
+device		at45d		# Atmel AT45D
+device		geom_map	# GEOM partition mapping
 
 # Pseudo devices.
 device		loop		# Network loopback
@@ -150,7 +150,7 @@ options 	ALT_BREAK_TO_DEBUGGER
 
 # USB support
 #options 	USB_DEBUG	# enable debug msgs
-device		ohci		# OHCI PCI->USB interface
+device		ohci		# OHCI USB interface
 device		usb		# USB Bus (required)
 #device		umass		# Disks/Mass storage - Requires scbus and da
 

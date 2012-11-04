@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 23, 2012
+.Dd September 15, 2012
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -429,7 +429,7 @@ See the
 .Sx "Hierarchical Jails"
 section for more information.
 .It Va children.cur
-The number of descendents of this jail, including its own child jails
+The number of descendants of this jail, including its own child jails
 and any jails created under them.
 .It Va enforce_statfs
 This determines which information processes in a jail are able to get
@@ -1225,3 +1225,11 @@ directory that is moved out of the jail's chroot, then the process may gain
 access to the file space outside of the jail.
 It is recommended that directories always be copied, rather than moved, out
 of a jail.
+.Pp
+In addition, there are several ways in which an unprivileged user
+outside the jail can cooperate with a privileged user inside the jail
+and thereby obtain elevated privileges in the host environment.
+Most of these attacks can be mitigated by ensuring that the jail root
+is not accessible to unprivileged users in the host environment.
+Regardless, as a general rule, untrusted users with privileged access
+to a jail should not be given access to the host environment.

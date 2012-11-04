@@ -96,7 +96,7 @@ COMMON_SRCS+=	e_acosl.c e_asinl.c e_atan2l.c e_fmodl.c \
 	e_hypotl.c e_remainderl.c e_sqrtl.c \
 	invtrig.c k_cosl.c k_sinl.c k_tanl.c \
 	s_atanl.c s_cbrtl.c s_ceill.c s_cosl.c s_cprojl.c \
-	s_csqrtl.c s_exp2l.c s_floorl.c s_fmal.c \
+	s_csqrtl.c s_exp2l.c s_expl.c s_floorl.c s_fmal.c \
 	s_frexpl.c s_logbl.c s_nanl.c s_nextafterl.c s_nexttoward.c \
 	s_remquol.c s_rintl.c s_scalbnl.c \
 	s_sinl.c s_tanl.c s_truncl.c w_cabsl.c

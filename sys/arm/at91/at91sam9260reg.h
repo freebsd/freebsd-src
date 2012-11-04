@@ -34,9 +34,9 @@
 #define SAM9260_PLL_A_MIN_OUT_FREQ	 80000000 /*  80 Mhz */
 #define SAM9260_PLL_A_MAX_OUT_FREQ	240000000 /* 240 Mhz */
 #define SAM9260_PLL_A_MUL_SHIFT 16
-#define SAM9260_PLL_A_MUL_MASK 0x3FF 
+#define SAM9260_PLL_A_MUL_MASK 0x3FF
 #define SAM9260_PLL_A_DIV_SHIFT 0
-#define SAM9260_PLL_A_DIV_MASK 0xFF 
+#define SAM9260_PLL_A_DIV_MASK 0xFF
 
 #define SAM9260_PLL_B_MIN_IN_FREQ	  1000000 /*   1 Mhz */
 #define SAM9260_PLL_B_MAX_IN_FREQ	  5000000 /*   5 Mhz */
@@ -45,9 +45,9 @@
 #define SAM9260_PLL_B_MUL_SHIFT 16
 #define SAM9260_PLL_B_MUL_MASK 0x3FF
 #define SAM9260_PLL_B_DIV_SHIFT 0
-#define SAM9260_PLL_B_DIV_MASK 0xFF 
+#define SAM9260_PLL_B_DIV_MASK 0xFF
 
-/* 
+/*
  * Memory map, from datasheet :
  * 0x00000000 - 0x0ffffffff : Internal Memories
  * 0x10000000 - 0x1ffffffff : Chip Select 0
@@ -71,9 +71,6 @@
 #define AT91_CHIPSELECT_6 0x70000000
 #define AT91_CHIPSELECT_7 0x80000000
 
-
-#define AT91SAM9260_BASE	0xd0000000
-                                 
 
 #define AT91SAM9260_EMAC_BASE 0xffc4000
 #define AT91SAM9260_EMAC_SIZE 0x4000
@@ -156,7 +153,7 @@
 #define AT91RM92_PMC_SIZE	0x100
 /* IRQs : */
 /*
- * 0: AIC 
+ * 0: AIC
  * 1: System peripheral (System timer, RTC, DBGU)
  * 2: PIO Controller A
  * 3: PIO Controller B

@@ -33,7 +33,7 @@
 .\"
 .\"     @(#)sort.1	8.1 (Berkeley) 6/6/93
 .\"
-.Dd May 25, 2012
+.Dd July 3, 2012
 .Dt SORT 1
 .Os
 .Sh NAME
@@ -313,8 +313,8 @@ without arguments.
 When called with argument
 .Fl d
 it must decompress standard input to standard output.
-If PROGRAM fails, 
-.Nm 
+If PROGRAM fails,
+.Nm
 must exit with error.
 An example of PROGRAM that can be used here is bzip2.
 .It Fl Fl random-source Ns = Ns Ar filename
@@ -329,7 +329,7 @@ is used.
 .It Fl Fl debug
 Print some extra information about the sorting process to the
 standard output.
-%%THREADS%%.It Fl Fl nthreads
+%%THREADS%%.It Fl Fl parallel
 %%THREADS%%Set the maximum number of execution threads.
 %%THREADS%%Default number equals to the number of CPUs.
 .It Fl Fl files0-from Ns = Ns Ar filename

@@ -166,16 +166,13 @@ __FBSDID("$FreeBSD$");
 static int umass_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, umass, CTLFLAG_RW, 0, "USB umass");
-SYSCTL_INT(_hw_usb_umass, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_umass, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
     &umass_debug, 0, "umass debug level");
-
 TUNABLE_INT("hw.usb.umass.debug", &umass_debug);
 #else
 #define	DIF(...) do { } while (0)
 #define	DPRINTF(...) do { } while (0)
 #endif
-
-#define	UMASS_GONE ((struct umass_softc *)1)
 
 #define	UMASS_BULK_SIZE (1 << 17)
 #define	UMASS_CBI_DIAGNOSTIC_CMDLEN 12	/* bytes */
@@ -2109,7 +2106,7 @@ umass_cam_detach_sim(struct umass_softc *sc)
 	if (sc->sc_sim != NULL) {
 		if (xpt_bus_deregister(cam_sim_path(sc->sc_sim))) {
 			/* accessing the softc is not possible after this */
-			sc->sc_sim->softc = UMASS_GONE;
+			sc->sc_sim->softc = NULL;
 			cam_sim_free(sc->sc_sim, /* free_devq */ TRUE);
 		} else {
 			panic("%s: CAM layer is busy\n",
@@ -2128,62 +2125,10 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 {
 	struct umass_softc *sc = (struct umass_softc *)sim->softc;
 
-	if (sc == UMASS_GONE ||
-	    (sc != NULL && !usbd_device_attached(sc->sc_udev))) {
+	if (sc == NULL) {
 		ccb->ccb_h.status = CAM_SEL_TIMEOUT;
 		xpt_done(ccb);
 		return;
-	}
-	/*
-	 * Verify, depending on the operation to perform, that we either got
-	 * a valid sc, because an existing target was referenced, or
-	 * otherwise the SIM is addressed.
-	 *
-	 * This avoids bombing out at a printf and does give the CAM layer some
-	 * sensible feedback on errors.
-	 */
-	switch (ccb->ccb_h.func_code) {
-	case XPT_SCSI_IO:
-	case XPT_RESET_DEV:
-	case XPT_GET_TRAN_SETTINGS:
-	case XPT_SET_TRAN_SETTINGS:
-	case XPT_CALC_GEOMETRY:
-		/* the opcodes requiring a target. These should never occur. */
-		if (sc == NULL) {
-			DPRINTF(sc, UDMASS_GEN, "%s:%d:%d:%d:func_code 0x%04x: "
-			    "Invalid target (target needed)\n",
-			    DEVNAME_SIM, cam_sim_path(sc->sc_sim),
-			    ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
-			    ccb->ccb_h.func_code);
-
-			ccb->ccb_h.status = CAM_TID_INVALID;
-			xpt_done(ccb);
-			goto done;
-		}
-		break;
-	case XPT_PATH_INQ:
-	case XPT_NOOP:
-		/*
-		 * The opcodes sometimes aimed at a target (sc is valid),
-		 * sometimes aimed at the SIM (sc is invalid and target is
-		 * CAM_TARGET_WILDCARD)
-		 */
-		if ((sc == NULL) &&
-		    (ccb->ccb_h.target_id != CAM_TARGET_WILDCARD)) {
-			DPRINTF(sc, UDMASS_SCSI, "%s:%d:%d:%d:func_code 0x%04x: "
-			    "Invalid target (no wildcard)\n",
-			    DEVNAME_SIM, cam_sim_path(sc->sc_sim),
-			    ccb->ccb_h.target_id, ccb->ccb_h.target_lun,
-			    ccb->ccb_h.func_code);
-
-			ccb->ccb_h.status = CAM_TID_INVALID;
-			xpt_done(ccb);
-			goto done;
-		}
-		break;
-	default:
-		/* XXX Hm, we should check the input parameters */
-		break;
 	}
 
 	/* Perform the requested action */
@@ -2448,7 +2393,7 @@ umass_cam_poll(struct cam_sim *sim)
 {
 	struct umass_softc *sc = (struct umass_softc *)sim->softc;
 
-	if (sc == UMASS_GONE)
+	if (sc == NULL)
 		return;
 
 	DPRINTF(sc, UDMASS_SCSI, "CAM poll\n");

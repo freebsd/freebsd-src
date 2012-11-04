@@ -128,10 +128,13 @@ typedef struct pr_file_node
 /*
  * Globals
  */
-PR_EXTERN char                  XXXEvalBuffer[ASL_LINE_BUFFER_SIZE];
-PR_EXTERN char                  Gbl_MainTokenBuffer[ASL_LINE_BUFFER_SIZE];
-PR_EXTERN char                  Gbl_MacroTokenBuffer[ASL_LINE_BUFFER_SIZE];
-PR_EXTERN char                  Gbl_ExpressionTokenBuffer[ASL_LINE_BUFFER_SIZE];
+#if 0 /* TBD for macros */
+PR_EXTERN char                  PR_INIT_GLOBAL (*XXXEvalBuffer, NULL); /* [ASL_LINE_BUFFER_SIZE]; */
+#endif
+
+PR_EXTERN char                  PR_INIT_GLOBAL (*Gbl_MainTokenBuffer, NULL); /* [ASL_LINE_BUFFER_SIZE]; */
+PR_EXTERN char                  PR_INIT_GLOBAL (*Gbl_MacroTokenBuffer, NULL); /* [ASL_LINE_BUFFER_SIZE]; */
+PR_EXTERN char                  PR_INIT_GLOBAL (*Gbl_ExpressionTokenBuffer, NULL); /* [ASL_LINE_BUFFER_SIZE]; */
 
 PR_EXTERN PR_FILE_NODE          *Gbl_InputFileList;
 PR_EXTERN PR_DEFINE_INFO        PR_INIT_GLOBAL (*Gbl_DefineList, NULL);

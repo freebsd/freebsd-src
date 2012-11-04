@@ -118,9 +118,6 @@ need_report(void)
 }
 #endif
 
-/* External function to parse a date/time string */
-time_t get_date(time_t, const char *);
-
 static void		 long_help(void);
 static void		 only_mode(struct bsdtar *, const char *opt,
 			     const char *valid);
@@ -140,7 +137,6 @@ main(int argc, char **argv)
 	char			 option_o;
 	char			 possible_help_request;
 	char			 buff[16];
-	time_t			 now;
 
 	/*
 	 * Use a pointer for consistency, but stack-allocated storage
@@ -192,8 +188,6 @@ main(int argc, char **argv)
 			lafe_progname = *argv;
 	}
 
-	time(&now);
-
 #if HAVE_SETLOCALE
 	if (setlocale(LC_ALL, "") == NULL)
 		lafe_warnc(0, "Failed to set default locale");
@@ -241,11 +235,14 @@ main(int argc, char **argv)
 	 * Enable Mac OS "copyfile()" extension by default.
 	 * This has no effect on other platforms.
 	 */
-	bsdtar->enable_copyfile = 1;
+	bsdtar->readdisk_flags |= ARCHIVE_READDISK_MAC_COPYFILE;
 #ifdef COPYFILE_DISABLE_VAR
 	if (getenv(COPYFILE_DISABLE_VAR))
-		bsdtar->enable_copyfile = 0;
+		bsdtar->readdisk_flags &= ~ARCHIVE_READDISK_MAC_COPYFILE;
 #endif
+	bsdtar->matching = archive_match_new();
+	if (bsdtar->matching == NULL)
+		lafe_errc(1, errno, "Out of memory");
 
 	bsdtar->argv = argv;
 	bsdtar->argc = argc;
@@ -287,10 +284,11 @@ main(int argc, char **argv)
 			bsdtar->option_chroot = 1;
 			break;
 		case OPTION_DISABLE_COPYFILE: /* Mac OS X */
-			bsdtar->enable_copyfile = 0;
+			bsdtar->readdisk_flags &= ~ARCHIVE_READDISK_MAC_COPYFILE;
 			break;
 		case OPTION_EXCLUDE: /* GNU tar */
-			if (lafe_exclude(&bsdtar->matching, bsdtar->argument))
+			if (archive_match_exclude_pattern(
+			    bsdtar->matching, bsdtar->argument) != ARCHIVE_OK)
 				lafe_errc(1, 0,
 				    "Couldn't exclude %s\n", bsdtar->argument);
 			break;
@@ -341,7 +339,8 @@ main(int argc, char **argv)
 			 * no one else needs this to filter entries
 			 * when transforming archives.
 			 */
-			if (lafe_include(&bsdtar->matching, bsdtar->argument))
+			if (archive_match_include_pattern(bsdtar->matching,
+			    bsdtar->argument) != ARCHIVE_OK)
 				lafe_errc(1, 0,
 				    "Failed to add %s to inclusion list",
 				    bsdtar->argument);
@@ -395,39 +394,35 @@ main(int argc, char **argv)
 		 * TODO: Add corresponding "older" options to reverse these.
 		 */
 		case OPTION_NEWER_CTIME: /* GNU tar */
-			bsdtar->newer_ctime_filter = 1;
-			bsdtar->newer_ctime_sec = get_date(now, bsdtar->argument);
+			if (archive_match_include_date(bsdtar->matching,
+			    ARCHIVE_MATCH_CTIME | ARCHIVE_MATCH_NEWER,
+			    bsdtar->argument) != ARCHIVE_OK)
+				lafe_errc(1, 0, "Error : %s",
+				    archive_error_string(bsdtar->matching));
 			break;
 		case OPTION_NEWER_CTIME_THAN:
-			{
-				struct stat st;
-				if (stat(bsdtar->argument, &st) != 0)
-					lafe_errc(1, 0,
-					    "Can't open file %s", bsdtar->argument);
-				bsdtar->newer_ctime_filter = 1;
-				bsdtar->newer_ctime_sec = st.st_ctime;
-				bsdtar->newer_ctime_nsec =
-				    ARCHIVE_STAT_CTIME_NANOS(&st);
-			}
+			if (archive_match_include_file_time(bsdtar->matching,
+			    ARCHIVE_MATCH_CTIME | ARCHIVE_MATCH_NEWER,
+			    bsdtar->argument) != ARCHIVE_OK)
+				lafe_errc(1, 0, "Error : %s",
+				    archive_error_string(bsdtar->matching));
 			break;
 		case OPTION_NEWER_MTIME: /* GNU tar */
-			bsdtar->newer_mtime_filter = 1;
-			bsdtar->newer_mtime_sec = get_date(now, bsdtar->argument);
+			if (archive_match_include_date(bsdtar->matching,
+			    ARCHIVE_MATCH_MTIME | ARCHIVE_MATCH_NEWER,
+			    bsdtar->argument) != ARCHIVE_OK)
+				lafe_errc(1, 0, "Error : %s",
+				    archive_error_string(bsdtar->matching));
 			break;
 		case OPTION_NEWER_MTIME_THAN:
-			{
-				struct stat st;
-				if (stat(bsdtar->argument, &st) != 0)
-					lafe_errc(1, 0,
-					    "Can't open file %s", bsdtar->argument);
-				bsdtar->newer_mtime_filter = 1;
-				bsdtar->newer_mtime_sec = st.st_mtime;
-				bsdtar->newer_mtime_nsec =
-				    ARCHIVE_STAT_MTIME_NANOS(&st);
-			}
+			if (archive_match_include_file_time(bsdtar->matching,
+			    ARCHIVE_MATCH_MTIME | ARCHIVE_MATCH_NEWER,
+			    bsdtar->argument) != ARCHIVE_OK)
+				lafe_errc(1, 0, "Error : %s",
+				    archive_error_string(bsdtar->matching));
 			break;
 		case OPTION_NODUMP: /* star */
-			bsdtar->option_honor_nodump = 1;
+			bsdtar->readdisk_flags |= ARCHIVE_READDISK_HONOR_NODUMP;
 			break;
 		case OPTION_NO_SAME_OWNER: /* GNU tar */
 			bsdtar->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
@@ -454,7 +449,8 @@ main(int argc, char **argv)
 			option_o = 1; /* Record it and resolve it later. */
 			break;
 		case OPTION_ONE_FILE_SYSTEM: /* GNU tar */
-			bsdtar->option_dont_traverse_mounts = 1;
+			bsdtar->readdisk_flags |=
+			    ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS;
 			break;
 		case OPTION_OPTIONS:
 			bsdtar->option_options = bsdtar->argument;
@@ -559,10 +555,11 @@ main(int argc, char **argv)
 			bsdtar->option_interactive = 1;
 			break;
 		case 'X': /* GNU tar */
-			if (lafe_exclude_from_file(&bsdtar->matching, bsdtar->argument))
-				lafe_errc(1, 0,
-				    "failed to process exclusions from file %s",
-				    bsdtar->argument);
+			if (archive_match_exclude_pattern_from_file(
+			    bsdtar->matching, bsdtar->argument, 0)
+			    != ARCHIVE_OK)
+				lafe_errc(1, 0, "Error : %s",
+				    archive_error_string(bsdtar->matching));
 			break;
 		case 'x': /* SUSv2 */
 			set_mode(bsdtar, opt);
@@ -612,11 +609,11 @@ main(int argc, char **argv)
 		    "Must specify one of -c, -r, -t, -u, -x");
 
 	/* Check boolean options only permitted in certain modes. */
-	if (bsdtar->option_dont_traverse_mounts)
+	if (bsdtar->readdisk_flags & ARCHIVE_READDISK_NO_TRAVERSE_MOUNTS)
 		only_mode(bsdtar, "--one-file-system", "cru");
 	if (bsdtar->option_fast_read)
 		only_mode(bsdtar, "--fast-read", "xt");
-	if (bsdtar->option_honor_nodump)
+	if (bsdtar->readdisk_flags & ARCHIVE_READDISK_HONOR_NODUMP)
 		only_mode(bsdtar, "--nodump", "cru");
 	if (option_o > 0) {
 		switch (bsdtar->mode) {
@@ -684,7 +681,7 @@ main(int argc, char **argv)
 		break;
 	}
 
-	lafe_cleanup_exclusions(&bsdtar->matching);
+	archive_match_free(bsdtar->matching);
 #if HAVE_REGEX_H
 	cleanup_substitution(bsdtar);
 #endif

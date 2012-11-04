@@ -48,6 +48,9 @@ Options:
                   (default: /usr/ports/)
   -s server    -- Server from which to fetch updates.
                   (default: portsnap.FreeBSD.org)
+  --interactive -- interactive: override auto-detection of calling process
+                  (use this when calling portsnap from an interactive, non-
+                  terminal application AND NEVER ELSE).
   path         -- Extract only parts of the tree starting with the given
                   string.  (extract command only)
 Commands:
@@ -84,6 +87,7 @@ init_params() {
 	SERVERNAME=""
 	REFUSE=""
 	LOCALDESC=""
+	INTERACTIVE=""
 }
 
 # Parse the command line
@@ -102,6 +106,9 @@ parse_cmdline() {
 			NDEBUG=" "
 			XARGST="-t"
 			DDSTATS=".."
+			;;
+		--interactive)
+			INTERACTIVE="YES"
 			;;
 		-f)
 			if [ $# -eq 1 ]; then usage; fi
@@ -228,6 +235,13 @@ default_params() {
 			eval ${X}=${__}
 		fi
 	done
+	if [ -z "${INTERACTIVE}" ]; then
+		if [ -t 0 ]; then
+			INTERACTIVE="YES"
+		else
+			INTERACTIVE="NO"
+		fi
+	fi
 }
 
 # Perform sanity checks and set some final parameters
@@ -573,7 +587,7 @@ fetch_metadata_sanity() {
 
 # Take a list of ${oldhash}|${newhash} and output a list of needed patches
 fetch_make_patchlist() {
-	IFS='|'
+	local IFS='|'
 	echo "" 1>${QUIETREDIR}
 	grep -vE "^([0-9a-f]{64})\|\1$" |
 		while read X Y; do
@@ -582,7 +596,6 @@ fetch_make_patchlist() {
 			echo "${X}|${Y}"
 		done
 	echo "" 1>${QUIETREDIR}
-	IFS=
 }
 
 # Print user-friendly progress statistics
@@ -697,7 +710,7 @@ fetch_update() {
 
 # Attempt to apply metadata patches
 	echo -n "Applying metadata patches... "
-	IFS='|'
+	local oldifs="$IFS" IFS='|'
 	while read X Y; do
 		if [ ! -f "${X}-${Y}.gz" ]; then continue; fi
 		gunzip -c < ${X}-${Y}.gz > diff
@@ -711,7 +724,7 @@ fetch_update() {
 		fi
 		rm -f diff OLD NEW ${X}-${Y}.gz ptmp
 	done < patchlist 2>${QUIETREDIR}
-	IFS=
+	IFS="$oldifs"
 	echo "done."
 
 # Update metadata without patches
@@ -778,7 +791,7 @@ fetch_update() {
 # Attempt to apply ports patches
 	PATCHCNT=`wc -l patchlist`
 	echo "Applying patches... "
-	IFS='|'
+	local oldifs="$IFS" IFS='|'
 	I=0
 	while read X Y; do
 		I=$(($I + 1))
@@ -796,7 +809,7 @@ fetch_update() {
 		fi
 		rm -f diff OLD NEW ${X}-${Y}
 	done < patchlist 2>${QUIETREDIR}
-	IFS=
+	IFS="$oldifs"
 	echo "done."
 
 # Update ports without patches
@@ -898,7 +911,7 @@ extract_metadata() {
 
 # Do the actual work involved in "extract"
 extract_run() {
-	local IFS='|'
+	local oldifs="$IFS" IFS='|'
 	mkdir -p ${PORTSDIR} || return 1
 
 	if !
@@ -933,6 +946,8 @@ extract_run() {
 	if [ ! -z "${EXTRACTPATH}" ]; then
 		return 0;
 	fi
+
+	IFS="$oldifs"
 
 	extract_metadata
 	extract_indices
@@ -1023,10 +1038,10 @@ get_params() {
 # Fetch command.  Make sure that we're being called
 # interactively, then run fetch_check_params and fetch_run
 cmd_fetch() {
-	if [ ! -t 0 ]; then
+	if [ "${INTERACTIVE}" != "YES" ]; then
 		echo -n "`basename $0` fetch should not "
 		echo "be run non-interactively."
-		echo "Run `basename $0` cron instead."
+		echo "Run `basename $0` cron instead"
 		exit 1
 	fi
 	fetch_check_params
@@ -1069,7 +1084,7 @@ cmd_update() {
 # whether stdin is a terminal; then run 'update' or
 # 'extract' depending on whether ${PORTSDIR} exists.
 cmd_alfred() {
-	if [ -t 0 ]; then
+	if [ "${INTERACTIVE}" = "YES" ]; then
 		cmd_fetch
 	else
 		cmd_cron

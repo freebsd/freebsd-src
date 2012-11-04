@@ -117,6 +117,8 @@ struct exportlist {
 	char		*ex_indexfile;
 	int		ex_numsecflavors;
 	int		ex_secflavors[MAXSECFLAVORS];
+	int		ex_defnumsecflavors;
+	int		ex_defsecflavors[MAXSECFLAVORS];
 };
 /* ex_flag bits */
 #define	EX_LINKED	0x1
@@ -136,6 +138,8 @@ struct grouplist {
 	int gr_type;
 	union grouptypes gr_ptr;
 	struct grouplist *gr_next;
+	int gr_numsecflavors;
+	int gr_secflavors[MAXSECFLAVORS];
 };
 /* Group types */
 #define	GT_NULL		0x0
@@ -163,12 +167,13 @@ struct fhreturn {
 /* Global defs */
 char	*add_expdir(struct dirlist **, char *, int);
 void	add_dlist(struct dirlist **, struct dirlist *,
-				struct grouplist *, int);
+				struct grouplist *, int, struct exportlist *);
 void	add_mlist(char *, char *);
 int	check_dirpath(char *);
 int	check_options(struct dirlist *);
 int	checkmask(struct sockaddr *sa);
-int	chk_host(struct dirlist *, struct sockaddr *, int *, int *);
+int	chk_host(struct dirlist *, struct sockaddr *, int *, int *, int *,
+				 int **);
 static int	create_service(struct netconfig *nconf);
 static void	complete_service(struct netconfig *nconf, char *port_str);
 static void	clearout_service(void);
@@ -241,6 +246,7 @@ static int	mallocd_svcport = 0;
 static int	*sock_fd;
 static int	sock_fdcnt;
 static int	sock_fdpos;
+static int	suspend_nfsd = 0;
 
 int opt_flags;
 static int have_v6 = 1;
@@ -306,7 +312,7 @@ main(int argc, char **argv)
 	else
 		close(s);
 
-	while ((c = getopt(argc, argv, "2deh:lnop:r")) != -1)
+	while ((c = getopt(argc, argv, "2deh:lnop:rS")) != -1)
 		switch (c) {
 		case '2':
 			force_v2 = 1;
@@ -357,6 +363,9 @@ main(int argc, char **argv)
 				free(hosts);
 				out_of_mem();
 			}
+			break;
+		case 'S':
+			suspend_nfsd = 1;
 			break;
 		default:
 			usage();
@@ -916,7 +925,7 @@ usage(void)
 {
 	fprintf(stderr,
 		"usage: mountd [-2] [-d] [-e] [-l] [-n] [-p <port>] [-r] "
-		"[-h <bindip>] [export_file ...]\n");
+		"[-S] [-h <bindip>] [export_file ...]\n");
 	exit(1);
 }
 
@@ -938,6 +947,7 @@ mntsrv(struct svc_req *rqstp, SVCXPRT *transp)
 	char rpcpath[MNTPATHLEN + 1], dirpath[MAXPATHLEN];
 	int bad = 0, defset, hostset;
 	sigset_t sighup_mask;
+	int numsecflavors, *secflavorsp;
 
 	sigemptyset(&sighup_mask);
 	sigaddset(&sighup_mask, SIGHUP);
@@ -1000,9 +1010,11 @@ mntsrv(struct svc_req *rqstp, SVCXPRT *transp)
 		sigprocmask(SIG_BLOCK, &sighup_mask, NULL);
 		ep = ex_search(&fsb.f_fsid);
 		hostset = defset = 0;
-		if (ep && (chk_host(ep->ex_defdir, saddr, &defset, &hostset) ||
+		if (ep && (chk_host(ep->ex_defdir, saddr, &defset, &hostset,
+		    &numsecflavors, &secflavorsp) ||
 		    ((dp = dirp_search(ep->ex_dirl, dirpath)) &&
-		      chk_host(dp, saddr, &defset, &hostset)) ||
+		      chk_host(dp, saddr, &defset, &hostset, &numsecflavors,
+		       &secflavorsp)) ||
 		    (defset && scan_tree(ep->ex_defdir, saddr) == 0 &&
 		     scan_tree(ep->ex_dirl, saddr) == 0))) {
 			if (bad) {
@@ -1012,10 +1024,15 @@ mntsrv(struct svc_req *rqstp, SVCXPRT *transp)
 				sigprocmask(SIG_UNBLOCK, &sighup_mask, NULL);
 				return;
 			}
-			if (hostset & DP_HOSTSET)
+			if (hostset & DP_HOSTSET) {
 				fhr.fhr_flag = hostset;
-			else
+				fhr.fhr_numsecflavors = numsecflavors;
+				fhr.fhr_secflavors = secflavorsp;
+			} else {
 				fhr.fhr_flag = defset;
+				fhr.fhr_numsecflavors = ep->ex_defnumsecflavors;
+				fhr.fhr_secflavors = ep->ex_defsecflavors;
+			}
 			fhr.fhr_vers = rqstp->rq_vers;
 			/* Get the file handle */
 			memset(&fhr.fhr_fh, 0, sizeof(nfsfh_t));
@@ -1028,8 +1045,6 @@ mntsrv(struct svc_req *rqstp, SVCXPRT *transp)
 				sigprocmask(SIG_UNBLOCK, &sighup_mask, NULL);
 				return;
 			}
-			fhr.fhr_numsecflavors = ep->ex_numsecflavors;
-			fhr.fhr_secflavors = ep->ex_secflavors;
 			if (!svc_sendreply(transp, (xdrproc_t)xdr_fhs,
 			    (caddr_t)&fhr))
 				syslog(LOG_ERR, "can't send reply");
@@ -1648,6 +1663,8 @@ get_exportlist(void)
 	int done;
 	struct nfsex_args eargs;
 
+	if (suspend_nfsd != 0)
+		(void)nfssvc(NFSSVC_SUSPENDNFSD, NULL);
 	v4root_dirpath[0] = '\0';
 	bzero(&export, sizeof(export));
 	export.ex_flags = MNT_DELEXPORT;
@@ -1776,6 +1793,9 @@ get_exportlist(void)
 	 */
 	if (run_v4server > 0 && has_publicfh == 0)
 		(void) nfssvc(NFSSVC_NOPUBLICFH, NULL);
+
+	/* Resume the nfsd. If they weren't suspended, this is harmless. */
+	(void)nfssvc(NFSSVC_RESUMENFSD, NULL);
 }
 
 /*
@@ -1881,11 +1901,21 @@ hang_dirp(struct dirlist *dp, struct grouplist *grp, struct exportlist *ep,
 			ep->ex_defdir = dp;
 		if (grp == (struct grouplist *)NULL) {
 			ep->ex_defdir->dp_flag |= DP_DEFSET;
+			/* Save the default security flavors list. */
+			ep->ex_defnumsecflavors = ep->ex_numsecflavors;
+			if (ep->ex_numsecflavors > 0)
+				memcpy(ep->ex_defsecflavors, ep->ex_secflavors,
+				    sizeof(ep->ex_secflavors));
 		} else while (grp) {
 			hp = get_ht();
 			hp->ht_grp = grp;
 			hp->ht_next = ep->ex_defdir->dp_hosts;
 			ep->ex_defdir->dp_hosts = hp;
+			/* Save the security flavors list for this host set. */
+			grp->gr_numsecflavors = ep->ex_numsecflavors;
+			if (ep->ex_numsecflavors > 0)
+				memcpy(grp->gr_secflavors, ep->ex_secflavors,
+				    sizeof(ep->ex_secflavors));
 			grp = grp->gr_next;
 		}
 	} else {
@@ -1895,7 +1925,7 @@ hang_dirp(struct dirlist *dp, struct grouplist *grp, struct exportlist *ep,
 		 */
 		while (dp) {
 			dp2 = dp->dp_left;
-			add_dlist(&ep->ex_dirl, dp, grp, flags);
+			add_dlist(&ep->ex_dirl, dp, grp, flags, ep);
 			dp = dp2;
 		}
 	}
@@ -1907,7 +1937,7 @@ hang_dirp(struct dirlist *dp, struct grouplist *grp, struct exportlist *ep,
  */
 void
 add_dlist(struct dirlist **dpp, struct dirlist *newdp, struct grouplist *grp,
-	int flags)
+	int flags, struct exportlist *ep)
 {
 	struct dirlist *dp;
 	struct hostlist *hp;
@@ -1917,10 +1947,10 @@ add_dlist(struct dirlist **dpp, struct dirlist *newdp, struct grouplist *grp,
 	if (dp) {
 		cmp = strcmp(dp->dp_dirp, newdp->dp_dirp);
 		if (cmp > 0) {
-			add_dlist(&dp->dp_left, newdp, grp, flags);
+			add_dlist(&dp->dp_left, newdp, grp, flags, ep);
 			return;
 		} else if (cmp < 0) {
-			add_dlist(&dp->dp_right, newdp, grp, flags);
+			add_dlist(&dp->dp_right, newdp, grp, flags, ep);
 			return;
 		} else
 			free((caddr_t)newdp);
@@ -1939,10 +1969,20 @@ add_dlist(struct dirlist **dpp, struct dirlist *newdp, struct grouplist *grp,
 			hp->ht_grp = grp;
 			hp->ht_next = dp->dp_hosts;
 			dp->dp_hosts = hp;
+			/* Save the security flavors list for this host set. */
+			grp->gr_numsecflavors = ep->ex_numsecflavors;
+			if (ep->ex_numsecflavors > 0)
+				memcpy(grp->gr_secflavors, ep->ex_secflavors,
+				    sizeof(ep->ex_secflavors));
 			grp = grp->gr_next;
 		} while (grp);
 	} else {
 		dp->dp_flag |= DP_DEFSET;
+		/* Save the default security flavors list. */
+		ep->ex_defnumsecflavors = ep->ex_numsecflavors;
+		if (ep->ex_numsecflavors > 0)
+			memcpy(ep->ex_defsecflavors, ep->ex_secflavors,
+			    sizeof(ep->ex_secflavors));
 	}
 }
 
@@ -1971,7 +2011,7 @@ dirp_search(struct dirlist *dp, char *dirp)
  */
 int
 chk_host(struct dirlist *dp, struct sockaddr *saddr, int *defsetp,
-	int *hostsetp)
+	int *hostsetp, int *numsecflavors, int **secflavorsp)
 {
 	struct hostlist *hp;
 	struct grouplist *grp;
@@ -1990,6 +2030,12 @@ chk_host(struct dirlist *dp, struct sockaddr *saddr, int *defsetp,
 					if (!sacmp(ai->ai_addr, saddr, NULL)) {
 						*hostsetp =
 						    (hp->ht_flag | DP_HOSTSET);
+						if (numsecflavors != NULL) {
+							*numsecflavors =
+							    grp->gr_numsecflavors;
+							*secflavorsp =
+							    grp->gr_secflavors;
+						}
 						return (1);
 					}
 				}
@@ -2000,6 +2046,12 @@ chk_host(struct dirlist *dp, struct sockaddr *saddr, int *defsetp,
 				    (struct sockaddr *)
 				    &grp->gr_ptr.gt_net.nt_mask)) {
 					*hostsetp = (hp->ht_flag | DP_HOSTSET);
+					if (numsecflavors != NULL) {
+						*numsecflavors =
+						    grp->gr_numsecflavors;
+						*secflavorsp =
+						    grp->gr_secflavors;
+					}
 					return (1);
 				}
 				break;
@@ -2021,7 +2073,7 @@ scan_tree(struct dirlist *dp, struct sockaddr *saddr)
 	if (dp) {
 		if (scan_tree(dp->dp_left, saddr))
 			return (1);
-		if (chk_host(dp, saddr, &defset, &hostset))
+		if (chk_host(dp, saddr, &defset, &hostset, NULL, NULL))
 			return (1);
 		if (scan_tree(dp->dp_right, saddr))
 			return (1);
@@ -2461,11 +2513,11 @@ do_mount(struct exportlist *ep, struct grouplist *grp, int exflags,
 				}
 				if (errno == EPERM) {
 					if (debug)
-						warnx("can't change attributes for %s",
-						    dirp);
+						warnx("can't change attributes for %s: %s",
+						    dirp, errmsg);
 					syslog(LOG_ERR,
-					   "can't change attributes for %s",
-					    dirp);
+					   "can't change attributes for %s: %s",
+					    dirp, errmsg);
 					ret = 1;
 					goto error_exit;
 				}
