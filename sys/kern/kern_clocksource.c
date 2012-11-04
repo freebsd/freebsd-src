@@ -72,7 +72,8 @@ static int		round_freq(struct eventtimer *et, int freq);
 static void		getnextcpuevent(struct bintime *event, int idle);
 static void		getnextevent(struct bintime *event);
 static int		handleevents(struct bintime *now, int fake);
-static void		cpu_new_callout(int cpu, struct bintime bt);
+static void		cpu_new_callout(int cpu, struct bintime bt,
+			    struct bintime bt_opt);
 
 static struct mtx	et_hw_mtx;
 
@@ -135,6 +136,7 @@ struct pcpu_state {
 	struct bintime	nextstat;	/* Next statclock() event. */
 	struct bintime	nextprof;	/* Next profclock() event. */
 	struct bintime	nextcall;	/* Next callout event. */
+	struct bintime  nextcallopt;	/* Next optional callout event. */
 #ifdef KDTRACE_HOOKS
 	struct bintime	nextcyc;	/* Next OpenSolaris cyclics event. */
 #endif
@@ -238,9 +240,10 @@ handleevents(struct bintime *now, int fake)
 		}
 	} else
 		state->nextprof = state->nextstat;
-	if (bintime_cmp(now, &state->nextcall, >=) &&
-		(state->nextcall.sec != -1)) {
+	if (bintime_cmp(now, &state->nextcallopt, >=) &&
+		(state->nextcallopt.sec != -1)) {
 		state->nextcall.sec = -1;
+		state->nextcallopt.sec = -1;
 		callout_process(now);
 	}
 
@@ -283,7 +286,7 @@ getnextcpuevent(struct bintime *event, int idle)
 	*event = state->nexthard;
 	if (idle || (!activetick && !profiling &&
 	    (timer->et_flags & ET_FLAGS_PERCPU) == 0)) {
-		hardfreq = idle ? 4 : (stathz / 2);
+		hardfreq = idle ? 2 : (stathz / 2);
 		if (curcpu == CPU_FIRST() && tc_min_ticktock_freq > hardfreq)
 			hardfreq = tc_min_ticktock_freq;
 		if (hz > hardfreq) {
@@ -637,6 +640,7 @@ cpu_initclocks_bsp(void)
 		state->nextcyc.sec = -1;
 #endif
 		state->nextcall.sec = -1;
+		state->nextcallopt.sec = -1;
 	}
 	callout_new_inserted = cpu_new_callout;
 	periodic = want_periodic;
@@ -863,7 +867,7 @@ clocksource_cyc_set(const struct bintime *t)
 #endif
 
 static void
-cpu_new_callout(int cpu, struct bintime bt)
+cpu_new_callout(int cpu, struct bintime bt, struct bintime bt_opt)
 {
 	struct bintime now;
 	struct pcpu_state *state;
@@ -881,6 +885,7 @@ cpu_new_callout(int cpu, struct bintime bt)
 	 * with respect to race conditions between interrupts execution 
 	 * and scheduling. 
 	 */
+	state->nextcallopt = bt_opt;
 	if (state->nextcall.sec != -1 &&
 	    bintime_cmp(&bt, &state->nextcall, >=)) {
 		ET_HW_UNLOCK(state);

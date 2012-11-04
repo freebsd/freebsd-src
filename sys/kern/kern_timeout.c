@@ -182,7 +182,8 @@ struct callout_cpu cc_cpu;
 	(sizeof(time_t) == (sizeof(int64_t)) ? INT64_MAX : INT32_MAX)
 
 static int timeout_cpu;
-void (*callout_new_inserted)(int cpu, struct bintime bt) = NULL;
+void (*callout_new_inserted)(int cpu, struct bintime bt,
+    struct bintime bt_opt) = NULL;
 static struct callout *
 softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
     int *lockcalls, int *gcalls, int direct);
@@ -369,11 +370,14 @@ start_softclock(void *dummy)
 
 SYSINIT(start_softclock, SI_SUB_SOFTINTR, SI_ORDER_FIRST, start_softclock, NULL);
 
+#define	CC_HASH_SHIFT	10
+
 static inline int
 callout_hash(struct bintime *bt)
 {
 
-	return (int) ((bt->sec<<10)+(bt->frac>>54));
+	return (int) ((bt->sec << CC_HASH_SHIFT) +
+	    (bt->frac >> (64 - CC_HASH_SHIFT)));
 } 
 
 static inline int
@@ -386,7 +390,7 @@ get_bucket(struct bintime *bt)
 void
 callout_process(struct bintime *now)
 {
-	struct bintime max, min, next, tmp_max, tmp_min;
+	struct bintime max, min, next, next_opt, tmp_max, tmp_min;
 	struct callout *tmp;
 	struct callout_cpu *cc;
 	struct callout_tailq *sc;
@@ -443,7 +447,7 @@ callout_process(struct bintime *now)
 		first = (first + 1) & callwheelmask;
 	}
 	cc->cc_exec_next_dir = NULL;
-	future = (last + hz / 4) & callwheelmask;
+	future = (last + (3 << CC_HASH_SHIFT) / 4) & callwheelmask;
 	max.sec = min.sec = TIME_T_MAX;
 	max.frac = min.frac = UINT64_MAX;
 	/*
@@ -486,8 +490,9 @@ callout_process(struct bintime *now)
 		last = (last + 1) & callwheelmask;
 	}
 	if (max.sec == TIME_T_MAX) {
-		next = *now;
-		bintime_addx(&next, (uint64_t)1 << (64 - 2));
+		next = next_opt = *now;
+		bintime_addx(&next, (uint64_t)3 << (64 - 2));
+		bintime_addx(&next_opt, (uint64_t)3 << (64 - 3));
 	} else {
 		/*
 		 * Now that we found something to aggregate, schedule an
@@ -502,9 +507,10 @@ callout_process(struct bintime *now)
 			next.sec >>= 1;
 		} else 
 			next = max;
+		next_opt = min;
 	}
 	if (callout_new_inserted != NULL)
-		(*callout_new_inserted)(cpu, next);
+		(*callout_new_inserted)(cpu, next, next_opt);
 	cc->cc_firstevent = next;
 	cc->cc_lastscan = *now;
 #ifdef CALLOUT_PROFILING
@@ -607,7 +613,9 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	    (bintime_cmp(&bt, &cc->cc_firstevent, <) ||
 	    !bintime_isset(&cc->cc_firstevent))) {
 		cc->cc_firstevent = c->c_time;
-		(*callout_new_inserted)(cpu, c->c_time);
+		bt = c->c_time;
+		bintime_sub(&bt, &c->c_precision);
+		(*callout_new_inserted)(cpu, c->c_time, bt);
 	}
 }
 
