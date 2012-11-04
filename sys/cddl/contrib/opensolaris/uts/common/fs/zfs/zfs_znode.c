@@ -633,12 +633,11 @@ static void
 zfs_vnode_forget(vnode_t *vp)
 {
 
-	VOP_UNLOCK(vp, 0);
-	VI_LOCK(vp);
-	vp->v_usecount--;
-	vp->v_iflag |= VI_DOOMED;
+	/* copied from insmntque_stddtr */
 	vp->v_data = NULL;
-	vdropl(vp);
+	vp->v_op = &dead_vnodeops;
+	vgone(vp);
+	vput(vp);
 }
 
 /*
