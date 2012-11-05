@@ -76,7 +76,15 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+#ifdef WITH_SSL
+#include <openssl/md5.h>
+#define MD5Init(c) MD5_Init(c)
+#define MD5Update(c, data, len) MD5_Update(c, data, len)
+#define MD5Final(md, c) MD5_Final(md, c)
+#else
 #include <md5.h>
+#endif
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
@@ -1793,7 +1801,9 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 					DEBUG(fprintf(stderr, "failed to parse new URL\n"));
 					goto ouch;
 				}
-				if (!*new->user && !*new->pwd) {
+
+				/* Only copy credentials if the host matches */
+				if (!strcmp(new->host, url->host) && !*new->user && !*new->pwd) {
 					strcpy(new->user, url->user);
 					strcpy(new->pwd, url->pwd);
 				}
