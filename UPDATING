@@ -29,7 +29,7 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	This means that the world and kernel will be compiled with clang
 	and that clang will be installed as /usr/bin/cc, /usr/bin/c++,
 	and /usr/bin/cpp.  To disable this behavior and revert to building
-	with gcc, compiler with WITHOUT_CLANG_IS_CC.
+	with gcc, compile with WITHOUT_CLANG_IS_CC.
 
 20121102:
 	The IPFIREWALL_FORWARD kernel option has been removed. Its
