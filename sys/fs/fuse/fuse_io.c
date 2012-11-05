@@ -122,7 +122,7 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 	struct fuse_filehandle *fufh;
 	int err, directio;
 
-	MPASS(vp->v_type == VREG);
+	MPASS(vp->v_type == VREG || vp->v_type == VDIR);
 
 	err = fuse_filehandle_getrw(vp,
 	    (uio->uio_rw == UIO_READ) ? FUFH_RDONLY : FUFH_WRONLY, &fufh);
@@ -612,7 +612,7 @@ fuse_io_strategy(struct vnode *vp, struct buf *bp)
 
 	const int biosize = fuse_iosize(vp);
 
-	MPASS(vp->v_type == VREG);
+	MPASS(vp->v_type == VREG || vp->v_type == VDIR);
 	MPASS(bp->b_iocmd == BIO_READ || bp->b_iocmd == BIO_WRITE);
 	FS_DEBUG("inode=%ju offset=%jd resid=%ld\n",
 	    (uintmax_t)VTOI(vp), (intmax_t)(((off_t)bp->b_blkno) * biosize),
