@@ -3949,6 +3949,7 @@ product STELERA E1012		0x1012	3G modem
 /* STMicroelectronics products */
 product STMICRO BIOCPU		0x2016	Biometric Coprocessor
 product STMICRO COMMUNICATOR	0x7554	USB Communicator
+product STMICRO ST72682		0xfada  USB 2.0 Flash drive controller
 
 /* STSN products */
 product STSN STSN0001		0x0001	Internet Access Device
