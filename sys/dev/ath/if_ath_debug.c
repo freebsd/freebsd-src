@@ -143,17 +143,18 @@ ath_printtxbuf_edma(struct ath_softc *sc, const struct ath_buf *first_bf,
 	const struct ath_desc_txedma *eds;
 	int i, n;
 
-	/*
-	 * Assume the TX map size is 4 for now and only walk
-	 * the appropriate number of segments.
-	 */
-	n = (bf->bf_nseg / 4) + 1;
-
 	printf("Q%u[%3u] (nseg=%d)", qnum, ix, bf->bf_nseg);
 	while (bf != NULL) {
 		/*
 		 * XXX For now, assume the txmap size is 4.
 		 */
+
+		/*
+		 * Assume the TX map size is 4 for now and only walk
+		 * the appropriate number of segments.
+		 */
+		n = ((bf->bf_nseg - 1) / 4) + 1;
+
 		for (i = 0, ds = (const char *) bf->bf_desc;
 		    i < n;
 		    i ++, ds += sc->sc_tx_desclen) {
