@@ -142,9 +142,8 @@ main(int a, char **v)
 				    "%s: Enclosure Status OK", v[dev]);
 			}
 			if (stat & SES_ENCSTAT_INFO) {
-				syslog(LOG_INFO,
-				    "%s: Enclosure Status Has Information",
-				    v[dev]);
+				syslog(LOG_NOTICE,
+				    "%s: Enclosure Has Information", v[dev]);
 			}
 			if (stat & SES_ENCSTAT_NONCRITICAL) {
 				syslog(LOG_WARNING,
