@@ -376,11 +376,11 @@ _sleepq_set_timeout(void *wchan, struct bintime *bt, int timo, int flags)
 	MPASS(td->td_sleepqueue == NULL);
 	MPASS(wchan != NULL);
 	if (bt == NULL) 
-		callout_reset_flags_on(&td->td_slpcallout, timo, 
-		    sleepq_timeout, td, PCPU_GET(cpuid), flags);
+		callout_reset_flags_on(&td->td_slpcallout, timo,
+		    sleepq_timeout, td, PCPU_GET(cpuid), flags | C_DIRECT_EXEC);
 	else
-		callout_reset_bt_on(&td->td_slpcallout, bt, 
-		    sleepq_timeout, td, PCPU_GET(cpuid), flags); 
+		callout_reset_bt_on(&td->td_slpcallout, bt,
+		    sleepq_timeout, td, PCPU_GET(cpuid), flags | C_DIRECT_EXEC);
 }
 
 /*
