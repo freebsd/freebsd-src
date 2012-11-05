@@ -948,10 +948,11 @@ _callout_reset_on(struct callout *c, struct bintime *bt, int to_ticks,
 
 	cancelled = 0;
 	if (bt == NULL) {
-		FREQ2BT(hz,&to_bt);
+		FREQ2BT(hz, &to_bt);
 		getbinuptime(&now);
-		bintime_mul(&to_bt,to_ticks);
-		bintime_add(&to_bt,&now);
+		if (to_ticks > 0)
+			bintime_mul(&to_bt, to_ticks);
+		bintime_add(&to_bt, &now);
 	} else 
 		to_bt = *bt;
 	/*
