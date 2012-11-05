@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 5, 2012
+.Dd May 11, 2012
 .Dt TUNING 7
 .Os
 .Sh NAME
@@ -803,22 +803,24 @@ To change loader tunables, you must set their values in
 .Xr loader.conf 5
 and reboot the system.
 .Pp
-.Va kern.maxbikesheds
+.Va kern.maxusers
 controls the scaling of a number of static system tables, including defaults
 for the maximum number of open files, sizing of network memory resources, etc.
-.Va kern.maxbikesheds
+As of
+.Fx 4.5 ,
+.Va kern.maxusers
 is automatically sized at boot based on the amount of memory available in
 the system, and may be determined at run-time by inspecting the value of the
 read-only
-.Va kern.maxbikesheds
+.Va kern.maxusers
 sysctl.
 Some sites will require larger or smaller values of
-.Va kern.maxbikesheds
+.Va kern.maxusers
 and may set it as a loader tunable; values of 64, 128, and 256 are not
 uncommon.
 We do not recommend going above 256 unless you need a huge number
 of file descriptors; many of the tunable values set to their defaults by
-.Va kern.maxbikesheds
+.Va kern.maxusers
 may be individually overridden at boot-time or run-time as described
 elsewhere in this document.
 Systems older than
@@ -895,7 +897,7 @@ sysctl controls the number of file system buffers
 is allowed to use to perform its work.
 This parameter nominally scales
 with
-.Va kern.maxbikesheds
+.Va kern.maxusers
 so you should not need to modify this parameter except under extreme
 circumstances.
 See the
