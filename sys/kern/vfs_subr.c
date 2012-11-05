@@ -2507,6 +2507,9 @@ vinactive(struct vnode *vp, struct thread *td)
 	 * Before moving off the active list, we must be sure that any
 	 * modified pages are on the vnode's dirty list since these will
 	 * no longer be checked once the vnode is on the inactive list.
+	 * Because the vnode vm object keeps a hold reference on the vnode
+	 * if there is at least one resident non-cached page, the vnode
+	 * cannot leave the active list without the page cleanup done.
 	 */
 	obj = vp->v_object;
 	if (obj != NULL && (obj->flags & OBJ_MIGHTBEDIRTY) != 0) {
