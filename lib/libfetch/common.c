@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998-2004 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 1998-2011 Dag-Erling SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -209,10 +209,13 @@ conn_t *
 fetch_reopen(int sd)
 {
 	conn_t *conn;
+	int opt = 1;
 
 	/* allocate and fill connection structure */
 	if ((conn = calloc(1, sizeof(*conn))) == NULL)
 		return (NULL);
+	fcntl(sd, F_SETFD, FD_CLOEXEC);
+	setsockopt(sd, SOL_SOCKET, SO_NOSIGPIPE, &opt, sizeof opt);
 	conn->sd = sd;
 	++conn->ref;
 	return (conn);
@@ -403,6 +406,33 @@ fetch_ssl_read(SSL *ssl, char *buf, size_t len)
 }
 #endif
 
+/*
+ * Cache some data that was read from a socket but cannot be immediately
+ * returned because of an interrupted system call.
+ */
+static int
+fetch_cache_data(conn_t *conn, char *src, size_t nbytes)
+{
+	char *tmp;
+
+	if (conn->cache.size < nbytes) {
+		tmp = realloc(conn->cache.buf, nbytes);
+		if (tmp == NULL) {
+			fetch_syserr();
+			return (-1);
+		}
+		conn->cache.buf = tmp;
+		conn->cache.size = nbytes;
+	}
+
+	memcpy(conn->cache.buf, src, nbytes);
+	conn->cache.len = nbytes;
+	conn->cache.pos = 0;
+
+	return (0);
+}
+
+
 static ssize_t
 fetch_socket_read(int sd, char *buf, size_t len)
 {
@@ -427,15 +457,32 @@ fetch_read(conn_t *conn, char *buf, size_t len)
 	struct timeval now, timeout, delta;
 	fd_set readfds;
 	ssize_t rlen, total;
-	int r;
+	char *start;
 
-	if (fetchTimeout) {
-		FD_ZERO(&readfds);
+	if (fetchTimeout > 0) {
 		gettimeofday(&timeout, NULL);
 		timeout.tv_sec += fetchTimeout;
 	}
 
 	total = 0;
+	start = buf;
+
+	if (conn->cache.len > 0) {
+		/*
+		 * The last invocation of fetch_read was interrupted by a
+		 * signal after some data had been read from the socket. Copy
+		 * the cached data into the supplied buffer before trying to
+		 * read from the socket again.
+		 */
+		total = (conn->cache.len < len) ? conn->cache.len : len;
+		memcpy(buf, conn->cache.buf, total);
+
+		conn->cache.len -= total;
+		conn->cache.pos += total;
+		len -= total;
+		buf += total;
+	}
+
 	while (len > 0) {
 		/*
 		 * The socket is non-blocking.  Instead of the canonical
@@ -471,28 +518,32 @@ fetch_read(conn_t *conn, char *buf, size_t len)
 			total += rlen;
 			continue;
 		} else if (rlen == FETCH_READ_ERROR) {
+			if (errno == EINTR)
+				fetch_cache_data(conn, start, total);
 			return (-1);
 		}
 		// assert(rlen == FETCH_READ_WAIT);
-		while (fetchTimeout && !FD_ISSET(conn->sd, &readfds)) {
+		FD_ZERO(&readfds);
+		while (!FD_ISSET(conn->sd, &readfds)) {
 			FD_SET(conn->sd, &readfds);
-			gettimeofday(&now, NULL);
-			delta.tv_sec = timeout.tv_sec - now.tv_sec;
-			delta.tv_usec = timeout.tv_usec - now.tv_usec;
-			if (delta.tv_usec < 0) {
-				delta.tv_usec += 1000000;
-				delta.tv_sec--;
-			}
-			if (delta.tv_sec < 0) {
-				errno = ETIMEDOUT;
-				fetch_syserr();
-				return (-1);
+			if (fetchTimeout > 0) {
+				gettimeofday(&now, NULL);
+				if (!timercmp(&timeout, &now, >)) {
+					errno = ETIMEDOUT;
+					fetch_syserr();
+					return (-1);
+				}
+				timersub(&timeout, &now, &delta);
 			}
 			errno = 0;
-			r = select(conn->sd + 1, &readfds, NULL, NULL, &delta);
-			if (r == -1) {
-				if (errno == EINTR && fetchRestartCalls)
-					continue;
+			if (select(conn->sd + 1, &readfds, NULL, NULL,
+				fetchTimeout > 0 ? &delta : NULL) < 0) {
+				if (errno == EINTR) {
+					if (fetchRestartCalls)
+						continue;
+					/* Save anything that was read. */
+					fetch_cache_data(conn, start, total);
+				}
 				fetch_syserr();
 				return (-1);
 			}
@@ -676,6 +727,7 @@ fetch_close(conn_t *conn)
 	if (--conn->ref > 0)
 		return (0);
 	ret = close(conn->sd);
+	free(conn->cache.buf);
 	free(conn->buf);
 	free(conn);
 	return (ret);
