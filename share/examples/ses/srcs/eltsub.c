@@ -71,7 +71,7 @@ geteltnm(int type)
 		sprintf(rbuf, "Audible alarm");
 		break;
 	case ELMTYP_ESCC:
-		sprintf(rbuf, "Enclosure Eervices Controller Electronics");
+		sprintf(rbuf, "Enclosure Services Controller Electronics");
 		break;
 	case ELMTYP_SCC:
 		sprintf(rbuf, "SCC Controller Electronics");
