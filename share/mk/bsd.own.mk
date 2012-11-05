@@ -426,7 +426,6 @@ __DEFAULT_NO_OPTIONS = \
     BIND_XML \
     BSDCONFIG \
     CLANG_EXTRAS \
-    CLANG_IS_CC \
     CTF \
     HESIOD \
     ICONV \
@@ -454,6 +453,12 @@ __T=${MACHINE_ARCH}
 __DEFAULT_YES_OPTIONS+=CLANG
 .else
 __DEFAULT_NO_OPTIONS+=CLANG
+.endif
+# Clang the default system compiler only on x86.
+.if ${__T} == "amd64" || ${__T} == "i386"
+__DEFAULT_YES_OPTIONS+=CLANG_IS_CC
+.else
+__DEFAULT_NO_OPTIONS+=CLANG_IS_CC
 .endif
 # FDT is needed only for arm, mips and powerpc
 .if ${__T:Marm*} || ${__T:Mpowerpc*} || ${__T:Mmips*}
