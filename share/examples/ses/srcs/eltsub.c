@@ -180,7 +180,11 @@ stat2ascii(int eletype __unused, u_char *cstat)
 	static char ebuf[256], *scode;
 
 	scode = scode2ascii(cstat[0]);
-	sprintf(ebuf, "status: %s (0x%02x 0x%02x 0x%02x 0x%02x)",
-	    scode, cstat[0], cstat[1], cstat[2], cstat[3]);
+	sprintf(ebuf, "status: %s%s%s%s (0x%02x 0x%02x 0x%02x 0x%02x)",
+	    scode,
+	    (cstat[0] & 0x40) ? ", Prd.Fail" : "",
+	    (cstat[0] & 0x20) ? ", Disabled" : "",
+	    (cstat[0] & 0x10) ? ", Swapped" : "",
+	    cstat[0], cstat[1], cstat[2], cstat[3]);
 	return (ebuf);
 }
