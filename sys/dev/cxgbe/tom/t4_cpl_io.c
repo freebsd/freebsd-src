@@ -982,7 +982,6 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct sge_wrq *ofld_txq = toep->ofld_txq;
 	struct inpcb *inp;
 	struct tcpcb *tp;
-	struct socket *so;
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
 #endif
@@ -1008,7 +1007,6 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	INP_WLOCK(inp);
 
 	tp = intotcpcb(inp);
-	so = inp->inp_socket;
 
 	CTR6(KTR_CXGBE,
 	    "%s: tid %d (%s), toep_flags 0x%x, inp_flags 0x%x, status %d",
@@ -1026,10 +1024,16 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 	toep->flags |= TPF_ABORT_SHUTDOWN;
 
-	so_error_set(so, abort_status_to_errno(tp, cpl->status));
-	tp = tcp_close(tp);
-	if (tp == NULL)
-		INP_WLOCK(inp);	/* re-acquire */
+	if ((inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) == 0) {
+		struct socket *so = inp->inp_socket;
+
+		if (so != NULL)
+			so_error_set(so, abort_status_to_errno(tp,
+			    cpl->status));
+		tp = tcp_close(tp);
+		if (tp == NULL)
+			INP_WLOCK(inp);	/* re-acquire */
+	}
 
 	final_cpl_received(toep);
 done:
