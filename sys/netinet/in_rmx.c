@@ -58,6 +58,8 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
 #include <netinet/ip_var.h>
 
 extern int	in_inithead(void **head, int off);
@@ -340,6 +342,13 @@ in_rtqdrain(void)
 	VNET_LIST_RUNLOCK_NOSLEEP();
 }
 
+void
+in_setmatchfunc(struct radix_node_head *rnh, int val)
+{
+
+	rnh->rnh_matchaddr = (val != 0) ? rn_match : in_matroute;
+}
+
 static int _in_rt_was_here;
 /*
  * Initialize our routing tree.
@@ -365,7 +374,7 @@ in_inithead(void **head, int off)
 
 	rnh = *head;
 	rnh->rnh_addaddr = in_addroute;
-	rnh->rnh_matchaddr = in_matroute;
+	in_setmatchfunc(rnh, V_drop_redirect);
 	rnh->rnh_close = in_clsroute;
 	if (_in_rt_was_here == 0 ) {
 		callout_init(&V_rtq_timer, CALLOUT_MPSAFE);
