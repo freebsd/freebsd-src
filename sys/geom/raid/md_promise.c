@@ -1217,7 +1217,7 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	char arg[16];
-	const char *verb, *volname, *levelname, *diskname;
+	const char *nodename, *verb, *volname, *levelname, *diskname;
 	char *tmp;
 	int *nargs, *force;
 	off_t size, sectorsize, strip;
@@ -1478,8 +1478,12 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 	}
 	if (strcmp(verb, "delete") == 0) {
 
+		nodename = gctl_get_asciiparam(req, "arg0");
+		if (nodename != NULL && strcasecmp(sc->sc_name, nodename) != 0)
+			nodename = NULL;
+
 		/* Full node destruction. */
-		if (*nargs == 1) {
+		if (*nargs == 1 && nodename != NULL) {
 			/* Check if some volume is still open. */
 			force = gctl_get_paraml(req, "force", sizeof(*force));
 			if (force != NULL && *force == 0 &&
@@ -1497,11 +1501,12 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 		}
 
 		/* Destroy specified volume. If it was last - all node. */
-		if (*nargs != 2) {
+		if (*nargs > 2) {
 			gctl_error(req, "Invalid number of arguments.");
 			return (-1);
 		}
-		volname = gctl_get_asciiparam(req, "arg1");
+		volname = gctl_get_asciiparam(req,
+		    nodename != NULL ? "arg1" : "arg0");
 		if (volname == NULL) {
 			gctl_error(req, "No volume name.");
 			return (-2);
@@ -1510,6 +1515,14 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 		/* Search for volume. */
 		TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
 			if (strcmp(vol->v_name, volname) == 0)
+				break;
+			pp = vol->v_provider;
+			if (pp == NULL)
+				continue;
+			if (strcmp(pp->name, volname) == 0)
+				break;
+			if (strncmp(pp->name, "raid/", 5) == 0 &&
+			    strcmp(pp->name + 5, volname) == 0)
 				break;
 		}
 		if (vol == NULL) {
