@@ -14,7 +14,7 @@ COMPILER_TYPE:=	gcc
 .  elif ${_COMPILER_VERSION:Mclang}
 COMPILER_TYPE:=	clang
 .  else
-.error Unable to determing compiler type for ${CC}
+.error Unable to determine compiler type for ${CC}
 .  endif
 .  undef _COMPILER_VERSION
 . endif
