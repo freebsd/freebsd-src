@@ -444,7 +444,7 @@ create menuset_y        1   allot
 	\ dealing with variable-length strings easier.
 	\ 
 	\ menuset_use_name is true or false
-	\ $affix should be use appropriated w/respect to menuset_use_name
+	\ $affix should be used appropriately w/respect to menuset_use_name
 	\ 
 
 	\ ... menu_init ...
