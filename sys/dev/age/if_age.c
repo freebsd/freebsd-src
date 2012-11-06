@@ -1495,7 +1495,7 @@ age_encap(struct age_softc *sc, struct mbuf **m_head)
 	struct tcphdr *tcp;
 	bus_dma_segment_t txsegs[AGE_MAXTXSEGS];
 	bus_dmamap_t map;
-	uint32_t cflags, ip_off, poff, vtag;
+	uint32_t cflags, hdrlen, ip_off, poff, vtag;
 	int error, i, nsegs, prod, si;
 
 	AGE_LOCK_ASSERT(sc);
@@ -1562,8 +1562,12 @@ age_encap(struct age_softc *sc, struct mbuf **m_head)
 				*m_head = NULL;
 				return (ENOBUFS);
 			}
-			ip = (struct ip *)(mtod(m, char *) + ip_off);
 			tcp = (struct tcphdr *)(mtod(m, char *) + poff);
+			m = m_pullup(m, poff + (tcp->th_off << 2));
+			if (m == NULL) {
+				*m_head = NULL;
+				return (ENOBUFS);
+			}
 			/*
 			 * L1 requires IP/TCP header size and offset as
 			 * well as TCP pseudo checksum which complicates
@@ -1578,14 +1582,11 @@ age_encap(struct age_softc *sc, struct mbuf **m_head)
 			 * Reset IP checksum and recompute TCP pseudo
 			 * checksum as NDIS specification said.
 			 */
+			ip = (struct ip *)(mtod(m, char *) + ip_off);
+			tcp = (struct tcphdr *)(mtod(m, char *) + poff);
 			ip->ip_sum = 0;
-			if (poff + (tcp->th_off << 2) == m->m_pkthdr.len)
-				tcp->th_sum = in_pseudo(ip->ip_src.s_addr,
-				    ip->ip_dst.s_addr,
-				    htons((tcp->th_off << 2) + IPPROTO_TCP));
-			else
-				tcp->th_sum = in_pseudo(ip->ip_src.s_addr,
-				    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
+			tcp->th_sum = in_pseudo(ip->ip_src.s_addr,
+			    ip->ip_dst.s_addr, htons(IPPROTO_TCP));
 		}
 		*m_head = m;
 	}
@@ -1627,23 +1628,48 @@ age_encap(struct age_softc *sc, struct mbuf **m_head)
 	}
 
 	m = *m_head;
+	/* Configure VLAN hardware tag insertion. */
+	if ((m->m_flags & M_VLANTAG) != 0) {
+		vtag = AGE_TX_VLAN_TAG(m->m_pkthdr.ether_vtag);
+		vtag = ((vtag << AGE_TD_VLAN_SHIFT) & AGE_TD_VLAN_MASK);
+		cflags |= AGE_TD_INSERT_VLAN_TAG;
+	}
+
+	desc = NULL;
+	i = 0;
 	if ((m->m_pkthdr.csum_flags & CSUM_TSO) != 0) {
-		/* Configure TSO. */
-		if (poff + (tcp->th_off << 2) == m->m_pkthdr.len) {
-			/* Not TSO but IP/TCP checksum offload. */
-			cflags |= AGE_TD_IPCSUM | AGE_TD_TCPCSUM;
-			/* Clear TSO in order not to set AGE_TD_TSO_HDR. */
-			m->m_pkthdr.csum_flags &= ~CSUM_TSO;
-		} else {
-			/* Request TSO and set MSS. */
-			cflags |= AGE_TD_TSO_IPV4;
-			cflags |= AGE_TD_IPCSUM | AGE_TD_TCPCSUM;
-			cflags |= ((uint32_t)m->m_pkthdr.tso_segsz <<
-			    AGE_TD_TSO_MSS_SHIFT);
-		}
+		/* Request TSO and set MSS. */
+		cflags |= AGE_TD_TSO_IPV4;
+		cflags |= AGE_TD_IPCSUM | AGE_TD_TCPCSUM;
+		cflags |= ((uint32_t)m->m_pkthdr.tso_segsz <<
+		    AGE_TD_TSO_MSS_SHIFT);
 		/* Set IP/TCP header size. */
 		cflags |= ip->ip_hl << AGE_TD_IPHDR_LEN_SHIFT;
 		cflags |= tcp->th_off << AGE_TD_TSO_TCPHDR_LEN_SHIFT;
+		/*
+		 * L1 requires the first buffer should only hold IP/TCP
+		 * header data. TCP payload should be handled in other
+		 * descriptors.
+		 */
+		hdrlen = poff + (tcp->th_off << 2);
+		desc = &sc->age_rdata.age_tx_ring[prod];
+		desc->addr = htole64(txsegs[0].ds_addr);
+		desc->len = htole32(AGE_TX_BYTES(hdrlen) | vtag);
+		desc->flags = htole32(cflags);
+		sc->age_cdata.age_tx_cnt++;
+		AGE_DESC_INC(prod, AGE_TX_RING_CNT);
+		if (m->m_len - hdrlen > 0) {
+			/* Handle remaining payload of the 1st fragment. */
+			desc = &sc->age_rdata.age_tx_ring[prod];
+			desc->addr = htole64(txsegs[0].ds_addr + hdrlen);
+			desc->len = htole32(AGE_TX_BYTES(m->m_len - hdrlen) |
+			    vtag);
+			desc->flags = htole32(cflags);
+			sc->age_cdata.age_tx_cnt++;
+			AGE_DESC_INC(prod, AGE_TX_RING_CNT);
+		}
+		/* Handle remaining fragments. */
+		i = 1;
 	} else if ((m->m_pkthdr.csum_flags & AGE_CSUM_FEATURES) != 0) {
 		/* Configure Tx IP/TCP/UDP checksum offload. */
 		cflags |= AGE_TD_CSUM;
@@ -1657,16 +1683,7 @@ age_encap(struct age_softc *sc, struct mbuf **m_head)
 		cflags |= ((poff + m->m_pkthdr.csum_data) <<
 		    AGE_TD_CSUM_XSUMOFFSET_SHIFT);
 	}
-
-	/* Configure VLAN hardware tag insertion. */
-	if ((m->m_flags & M_VLANTAG) != 0) {
-		vtag = AGE_TX_VLAN_TAG(m->m_pkthdr.ether_vtag);
-		vtag = ((vtag << AGE_TD_VLAN_SHIFT) & AGE_TD_VLAN_MASK);
-		cflags |= AGE_TD_INSERT_VLAN_TAG;
-	}
-
-	desc = NULL;
-	for (i = 0; i < nsegs; i++) {
+	for (; i < nsegs; i++) {
 		desc = &sc->age_rdata.age_tx_ring[prod];
 		desc->addr = htole64(txsegs[i].ds_addr);
 		desc->len = htole32(AGE_TX_BYTES(txsegs[i].ds_len) | vtag);
