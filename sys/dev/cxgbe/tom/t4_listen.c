@@ -1202,6 +1202,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 		if (m)
 			m->m_pkthdr.rcvif = ifp;
 
+		remove_tid(sc, synqe->tid);
 		release_synqe(synqe);	/* about to exit function */
 		free(wr, M_CXGBE);
 		REJECT_PASS_ACCEPT();
