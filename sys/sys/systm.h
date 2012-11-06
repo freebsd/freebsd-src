@@ -344,10 +344,10 @@ int	_sleep(void *chan, struct lock_object *lock, int pri, const char *wmesg,
 	    int timo, struct bintime *bt, int flags) __nonnull(1);
 #define	msleep(chan, mtx, pri, wmesg, timo)				\
 	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg), (timo),	\
-	    NULL, 0) 
+	    NULL, 0)
 #define	msleep_flags(chan, mtx, pri, wmesg, timo, flags)		\
 	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg), (timo), 	\
-	    NULL, (flags)) 
+	    NULL, (flags))
 #define	msleep_bt(chan, mtx, pri, wmesg, bt, flags)			\
 	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg) 0, (bt),	\
 	    (flags))

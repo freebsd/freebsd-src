@@ -53,7 +53,7 @@ struct callout {
 	} c_links;
 	TAILQ_ENTRY(callout) c_staiter;
 	struct bintime c_time;			/* ticks to the event */
-	struct bintime c_precision;		/* delta allowed wrt opt */		
+	struct bintime c_precision;		/* delta allowed wrt opt */
 	void	*c_arg;				/* function argument */
 	void	(*c_func)(void *);		/* function to call */
 	struct lock_object *c_lock;		/* lock to handle */
