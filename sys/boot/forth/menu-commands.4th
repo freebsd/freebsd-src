@@ -26,6 +26,8 @@
 
 marker task-menu-commands.4th
 
+include /boot/menusets.4th
+
 variable kernel_state
 variable root_state
 
@@ -222,4 +224,11 @@ variable root_state
 	evaluate                  \ sets $kernel to full kernel-path
 
 	TRUE \ loop menu again
+;
+
+: goto_menu ( N M -- N TRUE )
+	menu-unset
+	menuset-loadsetnum ( n m -- n )
+	menu-redraw
+	TRUE \ Loop menu again
 ;
