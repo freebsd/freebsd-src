@@ -493,6 +493,10 @@ create init_text8 255 allot
 	\ Initialize "Reboot" menu state variable (prevents double-entry)
 	false menurebootadded !
 
+	menu_start
+	1- menuidx !    \ Initialize the starting index for the menu
+	0 menurow !     \ Initialize the starting position for the menu
+
 	49 \ Iterator start (loop range 49 to 56; ASCII '1' to '8')
 	begin
 		\ If the "Options:" separator, print it.
@@ -841,6 +845,8 @@ create init_text8 255 allot
 			exit ( pedantic; never reached )
 		then
 
+		dup menureboot @ = if 0 reboot then
+
 		\ Evaluate the decimal ASCII value against known menu item
 		\ key associations and act accordingly
 
@@ -932,8 +938,7 @@ create init_text8 255 allot
 			            \ continue if less than 57
 		until
 		drop \ loop iterator
-
-		menureboot @ = if 0 reboot then
+		drop \ key pressed
 
 	again	\ Non-operational key was pressed; repeat
 ;
@@ -1003,6 +1008,18 @@ create init_text8 255 allot
 
 		s" 0 init_stateN !"	\ used by menu-create
 		-rot 2dup 12 + c! rot	\ replace 'N'
+		evaluate
+
+		s" 0 toggle_stateN !"	\ used by toggle_menuitem
+		-rot 2dup 14 + c! rot	\ replace 'N'
+		evaluate
+
+		s" 0 cycle_stateN !"	\ used by cycle_menuitem
+		-rot 2dup 13 + c! rot	\ replace 'N'
+		evaluate
+
+		s" 0 init_textN c!"	\ used by toggle_menuitem
+		-rot 2dup 11 + c! rot	\ replace 'N'
 		evaluate
 
 		1+ dup 56 >	\ increment, continue if less than 57
