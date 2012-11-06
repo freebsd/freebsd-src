@@ -471,6 +471,25 @@ cb_getmem(void *arg, uint64_t *ret_lowmem, uint64_t *ret_highmem)
 	*ret_highmem = highmem;
 }
 
+static const char *
+cb_getenv(void *arg, int num)
+{
+	int max;
+
+	static const char * var[] = {
+		"smbios.bios.vendor=BHYVE",
+		"boot_serial=1",
+		NULL
+	};
+
+	max = sizeof(var) / sizeof(var[0]);
+
+	if (num < max)
+		return (var[num]);
+	else
+		return (NULL);
+}
+
 static struct loader_callbacks_v1 cb = {
 	.getc = cb_getc,
 	.putc = cb_putc,
@@ -497,6 +516,8 @@ static struct loader_callbacks_v1 cb = {
 	.delay = cb_delay,
 	.exit = cb_exit,
 	.getmem = cb_getmem,
+
+	.getenv = cb_getenv,
 };
 
 static void
@@ -600,5 +621,5 @@ main(int argc, char** argv)
 	if (disk_image) {
 		disk_fd = open(disk_image, O_RDONLY);
 	}
-	func(&cb, NULL, USERBOOT_VERSION_1, disk_fd >= 0);
+	func(&cb, NULL, USERBOOT_VERSION_3, disk_fd >= 0);
 }
