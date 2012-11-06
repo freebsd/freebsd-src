@@ -524,7 +524,7 @@ create menuset_y        1   allot
 	s" set var=options" evaluate
 	menuset-loadmenuvar
 
-	\ ... menu_options ...
+	\ ... menu_optionstext ...
 	s" set var=optionstext" evaluate
 	menuset-loadmenuvar
 
