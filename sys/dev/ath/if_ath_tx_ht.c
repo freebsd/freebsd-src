@@ -349,6 +349,14 @@ ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
 	 */
 	ndelim += ATH_AGGR_ENCRYPTDELIM;
 
+	/*
+	 * For AR9380, there's a minimum number of delimeters
+	 * required when doing RTS.
+	 */
+	if (sc->sc_use_ent && (sc->sc_ent_cfg & AH_ENT_RTSCTS_DELIM_WAR)
+	    && ndelim < AH_FIRST_DESC_NDELIMS)
+		ndelim = AH_FIRST_DESC_NDELIMS;
+
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 	    "%s: pktlen=%d, ndelim=%d, mpdudensity=%d\n",
 	    __func__, pktlen, ndelim, mpdudensity);
@@ -542,12 +550,13 @@ ath_rateseries_print(struct ath_softc *sc, HAL_11N_RATE_SERIES *series)
 	int i;
 	for (i = 0; i < ATH_RC_NUM; i++) {
 		device_printf(sc->sc_dev ,"series %d: rate %x; tries %d; "
-		    "pktDuration %d; chSel %d; rateFlags %x\n",
+		    "pktDuration %d; chSel %d; txpowcap %d, rateFlags %x\n",
 		    i,
 		    series[i].Rate,
 		    series[i].Tries,
 		    series[i].PktDuration,
 		    series[i].ChSel,
+		    series[i].tx_power_cap,
 		    series[i].RateFlags);
 	}
 }
@@ -577,7 +586,6 @@ ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni,
 	ath_rateseries_setup(sc, ni, bf, series);
 
 #if 0
-	printf("pktlen: %d; flags 0x%x\n", pktlen, flags);
 	ath_rateseries_print(sc, series);
 #endif
 

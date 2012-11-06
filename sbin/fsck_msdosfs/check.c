@@ -68,6 +68,7 @@ checkfilesys(const char *fname)
 
 	if (dosfs < 0) {
 		perr("Can't open `%s'", fname);
+		printf("\n");
 		return 8;
 	}
 

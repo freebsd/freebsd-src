@@ -119,7 +119,7 @@ static const struct vr_type {
 	u_int16_t		vr_did;
 	int			vr_quirks;
 	const char		*vr_name;
-} const vr_devs[] = {
+} vr_devs[] = {
 	{ VIA_VENDORID, VIA_DEVICEID_RHINE,
 	    VR_Q_NEEDALIGN,
 	    "VIA VT3043 Rhine I 10/100BaseTX" },
@@ -200,7 +200,7 @@ static const struct vr_tx_threshold_table {
 	int tx_cfg;
 	int bcr_cfg;
 	int value;
-} const vr_tx_threshold_tables[] = {
+} vr_tx_threshold_tables[] = {
 	{ VR_TXTHRESH_64BYTES, VR_BCR1_TXTHRESH64BYTES,	64 },
 	{ VR_TXTHRESH_128BYTES, VR_BCR1_TXTHRESH128BYTES, 128 },
 	{ VR_TXTHRESH_256BYTES, VR_BCR1_TXTHRESH256BYTES, 256 },

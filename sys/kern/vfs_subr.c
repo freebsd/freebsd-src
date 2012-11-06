@@ -2507,6 +2507,9 @@ vinactive(struct vnode *vp, struct thread *td)
 	 * Before moving off the active list, we must be sure that any
 	 * modified pages are on the vnode's dirty list since these will
 	 * no longer be checked once the vnode is on the inactive list.
+	 * Because the vnode vm object keeps a hold reference on the vnode
+	 * if there is at least one resident non-cached page, the vnode
+	 * cannot leave the active list without the page cleanup done.
 	 */
 	obj = vp->v_object;
 	if (obj != NULL && (obj->flags & OBJ_MIGHTBEDIRTY) != 0) {
@@ -2893,6 +2896,8 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VV_ISTTY", sizeof(buf));
 	if (vp->v_vflag & VV_NOSYNC)
 		strlcat(buf, "|VV_NOSYNC", sizeof(buf));
+	if (vp->v_vflag & VV_ETERNALDEV)
+		strlcat(buf, "|VV_ETERNALDEV", sizeof(buf));
 	if (vp->v_vflag & VV_CACHEDLABEL)
 		strlcat(buf, "|VV_CACHEDLABEL", sizeof(buf));
 	if (vp->v_vflag & VV_TEXT)
@@ -2909,9 +2914,11 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VV_DELETED", sizeof(buf));
 	if (vp->v_vflag & VV_MD)
 		strlcat(buf, "|VV_MD", sizeof(buf));
-	flags = vp->v_vflag & ~(VV_ROOT | VV_ISTTY | VV_NOSYNC |
+	if (vp->v_vflag & VV_FORCEINSMQ)
+		strlcat(buf, "|VV_FORCEINSMQ", sizeof(buf));
+	flags = vp->v_vflag & ~(VV_ROOT | VV_ISTTY | VV_NOSYNC | VV_ETERNALDEV |
 	    VV_CACHEDLABEL | VV_TEXT | VV_COPYONWRITE | VV_SYSTEM | VV_PROCDEP |
-	    VV_NOKNOTE | VV_DELETED | VV_MD);
+	    VV_NOKNOTE | VV_DELETED | VV_MD | VV_FORCEINSMQ);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VV(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
@@ -2924,12 +2931,14 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VI_DOOMED", sizeof(buf));
 	if (vp->v_iflag & VI_FREE)
 		strlcat(buf, "|VI_FREE", sizeof(buf));
+	if (vp->v_iflag & VI_ACTIVE)
+		strlcat(buf, "|VI_ACTIVE", sizeof(buf));
 	if (vp->v_iflag & VI_DOINGINACT)
 		strlcat(buf, "|VI_DOINGINACT", sizeof(buf));
 	if (vp->v_iflag & VI_OWEINACT)
 		strlcat(buf, "|VI_OWEINACT", sizeof(buf));
 	flags = vp->v_iflag & ~(VI_MOUNT | VI_AGE | VI_DOOMED | VI_FREE |
-	    VI_DOINGINACT | VI_OWEINACT);
+	    VI_ACTIVE | VI_DOINGINACT | VI_OWEINACT);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VI(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
@@ -3033,11 +3042,11 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_FLAG(MNT_SYNCHRONOUS);
 	MNT_FLAG(MNT_NOEXEC);
 	MNT_FLAG(MNT_NOSUID);
+	MNT_FLAG(MNT_NFS4ACLS);
 	MNT_FLAG(MNT_UNION);
 	MNT_FLAG(MNT_ASYNC);
 	MNT_FLAG(MNT_SUIDDIR);
 	MNT_FLAG(MNT_SOFTDEP);
-	MNT_FLAG(MNT_SUJ);
 	MNT_FLAG(MNT_NOSYMFOLLOW);
 	MNT_FLAG(MNT_GJOURNAL);
 	MNT_FLAG(MNT_MULTILABEL);
@@ -3045,7 +3054,7 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_FLAG(MNT_NOATIME);
 	MNT_FLAG(MNT_NOCLUSTERR);
 	MNT_FLAG(MNT_NOCLUSTERW);
-	MNT_FLAG(MNT_NFS4ACLS);
+	MNT_FLAG(MNT_SUJ);
 	MNT_FLAG(MNT_EXRDONLY);
 	MNT_FLAG(MNT_EXPORTED);
 	MNT_FLAG(MNT_DEFEXPORTED);
@@ -3090,6 +3099,11 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_KERN_FLAG(MNTK_REFEXPIRE);
 	MNT_KERN_FLAG(MNTK_EXTENDED_SHARED);
 	MNT_KERN_FLAG(MNTK_SHARED_WRITES);
+	MNT_KERN_FLAG(MNTK_NO_IOPF);
+	MNT_KERN_FLAG(MNTK_VGONE_UPPER);
+	MNT_KERN_FLAG(MNTK_VGONE_WAITER);
+	MNT_KERN_FLAG(MNTK_LOOKUP_EXCL_DOTDOT);
+	MNT_KERN_FLAG(MNTK_MARKER);
 	MNT_KERN_FLAG(MNTK_NOASYNC);
 	MNT_KERN_FLAG(MNTK_UNMOUNT);
 	MNT_KERN_FLAG(MNTK_MWAIT);
