@@ -1666,7 +1666,7 @@ seltdwait(struct thread *td, struct bintime *bt, int timo)
 	if (bt == NULL && timo > 0) 
 		error = cv_timedwait_sig(&stp->st_wait, &stp->st_mtx, timo);
 	else if (bt != NULL)
-		error = cv_timedwait_bt_sig(&stp->st_wait, &stp->st_mtx,
+		error = cv_timedwait_sig_bt(&stp->st_wait, &stp->st_mtx,
 		    bt, 0);
 	else	
 		error = cv_wait_sig(&stp->st_wait, &stp->st_mtx);
