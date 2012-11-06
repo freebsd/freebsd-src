@@ -68,9 +68,10 @@ void
 loader_main(struct loader_callbacks_v1 *cb, void *arg, int version, int ndisks)
 {
 	static char malloc[1024*1024];
+	const char *var;
 	int i;
 
-        if (version != USERBOOT_VERSION_1)
+        if (version != USERBOOT_VERSION_3)
                 abort();
 
 	callbacks = cb;
@@ -104,6 +105,17 @@ loader_main(struct loader_callbacks_v1 *cb, void *arg, int version, int ndisks)
 #endif
 
 	setenv("LINES", "24", 1);	/* optional */
+
+	/*
+	 * Set custom environment variables
+	 */
+	i = 0;
+	while (1) {
+		var = CALLBACK(getenv, i++);
+		if (var == NULL)
+			break;
+		putenv(var);
+	}
 
 	archsw.arch_autoload = userboot_autoload;
 	archsw.arch_getdev = userboot_getdev;
