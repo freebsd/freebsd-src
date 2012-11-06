@@ -381,6 +381,10 @@ ru.koi8-r.win.kbd:es:Ruso koi8-r (winkeys)
 ru.koi8-r.win.kbd:uk:Úœ”¶ ”ÿÀ¡ koi8-r (winkeys)
 
 spanish.dvorak.kbd:en:Spanish Dvorak
+spanish.dvorak.kbd:de:Spanisch Dvorak
+spanish.dvorak.kbd:fr:Espagnol Dvorak
+spanish.dvorak.kbd:pt:Espanhol Dvorak
+spanish.dvorak.kbd:es:EspaÒol Dvorak
 
 spanish.iso.kbd:en:Spanish ISO-8859-1
 spanish.iso.kbd:de:Spanisch ISO-8859-1
