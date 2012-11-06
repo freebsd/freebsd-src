@@ -25,14 +25,16 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2009
+.Dd November 6, 2012
 .Dt SLEEP 9
 .Os
 .Sh NAME
 .Nm msleep ,
+.Nm msleep_bt ,
 .Nm msleep_spin ,
 .Nm pause ,
 .Nm tsleep ,
+.Nm tsleep_bt ,
 .Nm wakeup
 .Nd wait for events
 .Sh SYNOPSIS
@@ -42,11 +44,17 @@
 .Ft int
 .Fn msleep "void *chan" "struct mtx *mtx" "int priority" "const char *wmesg" "int timo"
 .Ft int
+.Fn msleep_bt "void *chan" "struct mtx *mtx" "int priority" \
+"const char *wmesg" "struct bintime *bt" "int flags"
+.Ft int
 .Fn msleep_spin "void *chan" "struct mtx *mtx" "const char *wmesg" "int timo"
 .Ft void
 .Fn pause "const char *wmesg" "int timo"
 .Ft int
 .Fn tsleep "void *chan" "int priority" "const char *wmesg" "int timo"
+.Ft int
+.Fn tsleep_bt "void *chan" "int priority" "const char *wmesg" \
+"struct bintime *bt" "int flags"
 .Ft void
 .Fn wakeup "void *chan"
 .Ft void
@@ -145,6 +153,26 @@ seconds.
 If the timeout expires,
 then the sleep function will return
 .Er EWOULDBLOCK .
+.Pp
+.Fn msleep_bt
+and
+.Fn tsleep_bt
+functions take
+.Fa bt
+argument instead of
+.Fa timo .
+It allows to specify wakeup time with higher resolution as absolute time
+since boot in form of
+.Vt struct bintime * ,
+as returned by
+.Fn binuptime
+function.
+.Pp
+The parameter
+.Fa flags
+allows to specify additional
+.Xr callout 9
+flags, such as precision.
 .Pp
 Several of the sleep functions including
 .Fn msleep ,
