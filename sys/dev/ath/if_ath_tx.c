@@ -323,13 +323,17 @@ ath_tx_dmasetup(struct ath_softc *sc, struct ath_buf *bf, struct mbuf *m0)
 }
 
 /*
- * Chain together segments+descriptors for a non-11n frame.
+ * Chain together segments+descriptors for a frame - 11n or otherwise.
+ *
+ * For aggregates, this is called on each frame in the aggregate.
  */
 static void
-ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
+ath_tx_chaindesclist(struct ath_softc *sc, struct ath_desc *ds0,
+    struct ath_buf *bf, int is_aggr, int is_first_subframe,
+    int is_last_subframe)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	char *ds, *ds0;
+	char *ds;
 	int i, bp, dsp;
 	HAL_DMA_ADDR bufAddrList[4];
 	uint32_t segLenList[4];
@@ -361,7 +365,7 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 	 * For EDMA and later chips ensure the TX map is fully populated
 	 * before advancing to the next descriptor.
 	 */
-	ds0 = ds = (char *) bf->bf_desc;
+	ds = (char *) bf->bf_desc;
 	bp = dsp = 0;
 	bzero(bufAddrList, sizeof(bufAddrList));
 	bzero(segLenList, sizeof(segLenList));
@@ -406,10 +410,38 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 			, (struct ath_desc *) ds0	/* first descriptor */
 		);
 
-		/* Make sure the 11n aggregate fields are cleared */
+		/*
+		 * Make sure the 11n aggregate fields are cleared.
+		 *
+		 * XXX TODO: this doesn't need to be called for
+		 * aggregate frames; as it'll be called on all
+		 * sub-frames.  Since the descriptors are in
+		 * non-cacheable memory, this leads to some
+		 * rather slow writes on MIPS/ARM platforms.
+		 */
 		if (ath_tx_is_11n(sc))
 			ath_hal_clr11n_aggr(sc->sc_ah, (struct ath_desc *) ds);
 
+		/*
+		 * If 11n is enabled, set it up as if it's an aggregate
+		 * frame.
+		 */
+		if (is_last_subframe) {
+			ath_hal_set11n_aggr_last(sc->sc_ah,
+			    (struct ath_desc *) ds);
+		} else if (is_aggr) {
+			/*
+			 * This clears the aggrlen field; so
+			 * the caller needs to call set_aggr_first()!
+			 *
+			 * XXX TODO: don't call this for the first
+			 * descriptor in the first frame in an
+			 * aggregate!
+			 */
+			ath_hal_set11n_aggr_middle(sc->sc_ah,
+			    (struct ath_desc *) ds,
+			    bf->bf_state.bfs_ndelim);
+		}
 		isFirstDesc = 0;
 #ifdef	ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_XMIT)
@@ -430,73 +462,6 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 		bzero(segLenList, sizeof(segLenList));
 	}
 	bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap, BUS_DMASYNC_PREWRITE);
-}
-
-/*
- * Fill in the descriptor list for a aggregate subframe.
- *
- * The subframe is returned with the ds_link field in the last subframe
- * pointing to 0.
- */
-static void
-ath_tx_chaindesclist_subframe(struct ath_softc *sc, struct ath_buf *bf)
-{
-	struct ath_hal *ah = sc->sc_ah;
-	struct ath_desc *ds, *ds0;
-	int i;
-	HAL_DMA_ADDR bufAddrList[4];
-	uint32_t segLenList[4];
-
-	/*
-	 * XXX There's txdma and txdma_mgmt; the descriptor
-	 * sizes must match.
-	 */
-	struct ath_descdma *dd = &sc->sc_txdma;
-
-	ds0 = ds = bf->bf_desc;
-
-	/*
-	 * There's no need to call ath_hal_setupfirsttxdesc here;
-	 * That's only going to occur for the first frame in an aggregate.
-	 */
-	for (i = 0; i < bf->bf_nseg; i++, ds++) {
-		bzero(bufAddrList, sizeof(bufAddrList));
-		bzero(segLenList, sizeof(segLenList));
-		if (i == bf->bf_nseg - 1)
-			ath_hal_settxdesclink(ah, ds, 0);
-		else
-			ath_hal_settxdesclink(ah, ds,
-			    bf->bf_daddr + dd->dd_descsize * (i + 1));
-
-		bufAddrList[0] = bf->bf_segs[i].ds_addr;
-		segLenList[0] = bf->bf_segs[i].ds_len;
-
-		/*
-		 * This performs the setup for an aggregate frame.
-		 * This includes enabling the aggregate flags if needed.
-		 */
-		ath_hal_chaintxdesc(ah, ds,
-		    bufAddrList,
-		    segLenList,
-		    bf->bf_state.bfs_pktlen,
-		    bf->bf_state.bfs_hdrlen,
-		    HAL_PKT_TYPE_AMPDU,	/* forces aggregate bits to be set */
-		    bf->bf_state.bfs_keyix,
-		    0,			/* cipher, calculated from keyix */
-		    bf->bf_state.bfs_ndelim,
-		    i == 0,		/* first segment */
-		    i == bf->bf_nseg - 1,	/* last segment */
-		    bf->bf_next == NULL		/* last sub-frame in aggr */
-		);
-
-		DPRINTF(sc, ATH_DEBUG_XMIT,
-			"%s: %d: %08x %08x %08x %08x %08x %08x\n",
-			__func__, i, ds->ds_link, ds->ds_data,
-			ds->ds_ctl0, ds->ds_ctl1, ds->ds_hw[0], ds->ds_hw[1]);
-		bf->bf_lastds = ds;
-		bus_dmamap_sync(sc->sc_dmat, bf->bf_dmamap,
-		    BUS_DMASYNC_PREWRITE);
-	}
 }
 
 /*
@@ -553,13 +518,15 @@ static void
 ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 {
 	struct ath_buf *bf, *bf_prev = NULL;
+	struct ath_desc *ds0 = bf_first->bf_desc;
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: nframes=%d, al=%d\n",
 	    __func__, bf_first->bf_state.bfs_nframes,
 	    bf_first->bf_state.bfs_al);
 
 	/*
-	 * Setup all descriptors of all subframes.
+	 * Setup all descriptors of all subframes - this will
+	 * call ath_hal_set11naggrmiddle() on every frame.
 	 */
 	bf = bf_first;
 	while (bf != NULL) {
@@ -568,8 +535,55 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 		    __func__, bf, bf->bf_nseg, bf->bf_state.bfs_pktlen,
 		    SEQNO(bf->bf_state.bfs_seqno));
 
-		/* Sub-frame setup */
-		ath_tx_chaindesclist_subframe(sc, bf);
+		/*
+		 * Setup the initial fields for the first descriptor - all
+		 * the non-11n specific stuff.
+		 */
+		ath_hal_setuptxdesc(sc->sc_ah, bf->bf_desc
+			, bf->bf_state.bfs_pktlen	/* packet length */
+			, bf->bf_state.bfs_hdrlen	/* header length */
+			, bf->bf_state.bfs_atype	/* Atheros packet type */
+			, bf->bf_state.bfs_txpower	/* txpower */
+			, bf->bf_state.bfs_txrate0
+			, bf->bf_state.bfs_try0		/* series 0 rate/tries */
+			, bf->bf_state.bfs_keyix	/* key cache index */
+			, bf->bf_state.bfs_txantenna	/* antenna mode */
+			, bf->bf_state.bfs_txflags | HAL_TXDESC_INTREQ	/* flags */
+			, bf->bf_state.bfs_ctsrate	/* rts/cts rate */
+			, bf->bf_state.bfs_ctsduration	/* rts/cts duration */
+		);
+
+		/*
+		 * First descriptor? Setup the rate control and initial
+		 * aggregate header information.
+		 */
+		if (bf == bf_first) {
+			/*
+			 * setup first desc with rate and aggr info
+			 */
+			ath_tx_set_ratectrl(sc, bf->bf_node, bf);
+		}
+
+		/*
+		 * Setup the descriptors for a multi-descriptor frame.
+		 * This is both aggregate and non-aggregate aware.
+		 */
+		ath_tx_chaindesclist(sc, ds0, bf,
+		    1, /* is_aggr */
+		    !! (bf == bf_first), /* is_first_subframe */
+		    !! (bf->bf_next == NULL) /* is_last_subframe */
+		    );
+
+		if (bf == bf_first) {
+			/*
+			 * Initialise the first 11n aggregate with the
+			 * aggregate length and aggregate enable bits.
+			 */
+			ath_hal_set11n_aggr_first(sc->sc_ah,
+			    ds0,
+			    bf->bf_state.bfs_al,
+			    bf->bf_state.bfs_ndelim);
+		}
 
 		/*
 		 * Link the last descriptor of the previous frame
@@ -585,23 +599,6 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 	}
 
 	/*
-	 * Setup first descriptor of first frame.
-	 * chaintxdesc() overwrites the descriptor entries;
-	 * setupfirsttxdesc() merges in things.
-	 * Otherwise various fields aren't set correctly (eg flags).
-	 */
-	ath_hal_setupfirsttxdesc(sc->sc_ah,
-	    bf_first->bf_desc,
-	    bf_first->bf_state.bfs_al,
-	    bf_first->bf_state.bfs_txflags | HAL_TXDESC_INTREQ,
-	    bf_first->bf_state.bfs_txpower,
-	    bf_first->bf_state.bfs_txrate0,
-	    bf_first->bf_state.bfs_try0,
-	    bf_first->bf_state.bfs_txantenna,
-	    bf_first->bf_state.bfs_ctsrate,
-	    bf_first->bf_state.bfs_ctsduration);
-
-	/*
 	 * Set the first descriptor bf_lastds field to point to
 	 * the last descriptor in the last subframe, that's where
 	 * the status update will occur.
@@ -613,21 +610,6 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 	 * the aggregate list.
 	 */
 	bf_first->bf_last = bf_prev;
-
-	/*
-	 * setup first desc with rate and aggr info
-	 */
-	ath_tx_set_ratectrl(sc, bf_first->bf_node, bf_first);
-
-	/*
-	 * Setup the last descriptor in the list.
-	 *
-	 * bf_first->bf_lastds already points to it; the rate
-	 * control information needs to be squirreled away here
-	 * as well ans clearing the moreaggr/paddelim fields.
-	 */
-	ath_hal_setuplasttxdesc(sc->sc_ah, bf_first->bf_lastds,
-	    bf_first->bf_desc);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: end\n", __func__);
 }
@@ -1272,7 +1254,7 @@ ath_tx_setds(struct ath_softc *sc, struct ath_buf *bf)
 
 	/* Set rate control and descriptor chain for this frame */
 	ath_tx_set_ratectrl(sc, bf->bf_node, bf);
-	ath_tx_chaindesclist(sc, bf);
+	ath_tx_chaindesclist(sc, ds, bf, 0, 0, 0);
 }
 
 /*
