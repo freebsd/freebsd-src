@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 1, 2012
+.Dd November 6, 2012
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -43,6 +43,8 @@
 .Nm callout_drain ,
 .Nm callout_reset ,
 .Nm callout_reset_on ,
+.Nm callout_reset_flags_on ,
+.Nm callout_reset_bt_on ,
 .Nm callout_reset_curcpu ,
 .Nm callout_schedule ,
 .Nm callout_schedule_on ,
@@ -81,6 +83,12 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
 .Ft int
 .Fn callout_reset_on "struct callout *c" "int ticks" "timeout_t *func" \
 "void *arg" "int cpu"
+.Ft int
+.Fn callout_reset_flags_on "struct callout *c" "int ticks" "timeout_t *func" \
+"void *arg" "int cpu" "int flags"
+.Ft int
+.Fn callout_reset_bt_on "struct callout *c" "struct bintime *bt" \
+"timeout_t *func" "void *arg" "int cpu" "int flags"
 .Ft int
 .Fn callout_reset_curcpu "struct callout *c" "int ticks" "timeout_t *func" \
 "void *arg"
@@ -325,6 +333,34 @@ are equivalent to
 and
 .Fn callout_schedule
 but take an extra parameter specifying the target CPU for the callout.
+.Pp
+The function
+.Fn callout_reset_flags_on
+is equivalent to
+.Fn callout_reset_on
+but takes an extra parameter
+.Fa flags .
+The following
+.Fa flags
+may be specified:
+.Bl -tag -width ".Dv C_DIRECT_EXEC"
+.It Dv C_DIRECT_EXEC
+Run handler directly from hardware interrupt context instead of softclock swi.
+It is faster, but puts more constraints on handlers.
+Handlers may use only spin mutexes for locking, and they must be fast because
+they run with absolute priority.
+.El
+.Pp
+The function
+.Fn callout_reset_bt_on
+allows to get higher time resolution taking absolute time since boot
+in form of struct bintime *, as returned by
+.Fn binuptime
+or
+.Fn getbinuptime
+functions, instead of relative ticks count.
+If specified time is in past, it will be silently converted to present
+to run handler as soon as possible.
 .Pp
 The functions
 .Fn callout_reset_curcpu
