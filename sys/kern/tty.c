@@ -114,7 +114,7 @@ tty_watermarks(struct tty *tp)
 	/* Set low watermark at 10% (when 90% is available). */
 	tp->t_inlow = (ttyinq_getallocatedsize(&tp->t_inq) * 9) / 10;
 
-	/* Provide an ouput buffer for 0.2 seconds of data. */
+	/* Provide an output buffer for 0.2 seconds of data. */
 	bs = MIN(tp->t_termios.c_ospeed / 5, TTYBUF_MAX);
 	ttyoutq_setsize(&tp->t_outq, tp, bs);
 
