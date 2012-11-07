@@ -311,6 +311,13 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 			if (chk->rec.data.stream_number >= newcnt) {
 				TAILQ_REMOVE(&asoc->send_queue, chk, sctp_next);
 				asoc->send_queue_cnt--;
+				if (asoc->strmout[chk->rec.data.stream_number].chunks_on_queues > 0) {
+					asoc->strmout[chk->rec.data.stream_number].chunks_on_queues--;
+#ifdef INVARIANTS
+				} else {
+					panic("No chunks on the queues for sid %u.", chk->rec.data.stream_number);
+#endif
+				}
 				if (chk->data != NULL) {
 					sctp_free_bufspace(stcb, asoc, chk, 1);
 					sctp_ulp_notify(SCTP_NOTIFY_UNSENT_DG_FAIL, stcb,
