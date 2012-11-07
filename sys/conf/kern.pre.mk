@@ -102,7 +102,10 @@ CLANG_NO_IAS= -no-integrated-as
 .endif
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
-CFLAGS+=	-DGPROF -falign-functions=16
+CFLAGS+=	-DGPROF
+.if ${COMPILER_TYPE} != "clang"
+CFLAGS+=	-falign-functions=16
+.endif
 .if ${PROFLEVEL} >= 2
 CFLAGS+=	-DGPROF4 -DGUPROF
 PROF=	-pg -mprofiler-epilogue
