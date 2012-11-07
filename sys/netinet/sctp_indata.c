@@ -3963,7 +3963,15 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 					tp1->whoTo->cwnd -= tp1->book_size;
 					tp1->rec.data.chunk_was_revoked = 0;
 				}
-				tp1->sent = SCTP_DATAGRAM_ACKED;
+				if (tp1->sent != SCTP_DATAGRAM_NR_MARKED) {
+					if (asoc->strmout[tp1->rec.data.stream_number].chunks_on_queues > 0) {
+						asoc->strmout[tp1->rec.data.stream_number].chunks_on_queues--;
+#ifdef INVARIANTS
+					} else {
+						panic("No chunks on the queues for sid %u.", tp1->rec.data.stream_number);
+#endif
+					}
+				}
 				TAILQ_REMOVE(&asoc->sent_queue, tp1, sctp_next);
 				if (tp1->data) {
 					/* sa_ignore NO_NULL_CHK */
@@ -4699,10 +4707,14 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 		if (SCTP_TSN_GT(tp1->rec.data.TSN_seq, cum_ack)) {
 			break;
 		}
-		if (tp1->sent == SCTP_DATAGRAM_UNSENT) {
-			/* no more sent on list */
-			SCTP_PRINTF("Warning, tp1->sent == %d and its now acked?\n",
-			    tp1->sent);
+		if (tp1->sent != SCTP_DATAGRAM_NR_MARKED) {
+			if (asoc->strmout[tp1->rec.data.stream_number].chunks_on_queues > 0) {
+				asoc->strmout[tp1->rec.data.stream_number].chunks_on_queues--;
+#ifdef INVARIANTS
+			} else {
+				panic("No chunks on the queues for sid %u.", tp1->rec.data.stream_number);
+#endif
+			}
 		}
 		TAILQ_REMOVE(&asoc->sent_queue, tp1, sctp_next);
 		if (tp1->pr_sctp_on) {
