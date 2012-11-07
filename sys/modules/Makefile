@@ -788,10 +788,15 @@ _exca=		exca
 _nvram=		powermac_nvram
 _pccard=	pccard
 _sound=		sound
+_cyclic=	cyclic
+_dtrace=	dtrace
+_opensolaris=	opensolaris
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc64"
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
+_cyclic=	cyclic
+_dtrace=	dtrace
 _opensolaris=	opensolaris
 .endif
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
