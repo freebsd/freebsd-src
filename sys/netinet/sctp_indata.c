@@ -2975,9 +2975,10 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 					 * All chunks NOT UNSENT fall through here and are marked
 					 * (leave PR-SCTP ones that are to skip alone though)
 					 */
-					if (tp1->sent != SCTP_FORWARD_TSN_SKIP)
+					if ((tp1->sent != SCTP_FORWARD_TSN_SKIP) &&
+					    (tp1->sent != SCTP_DATAGRAM_NR_MARKED)) {
 						tp1->sent = SCTP_DATAGRAM_MARKED;
-
+					}
 					if (tp1->rec.data.chunk_was_revoked) {
 						/* deflate the cwnd */
 						tp1->whoTo->cwnd -= tp1->book_size;
@@ -3607,7 +3608,8 @@ sctp_try_advance_peer_ack_point(struct sctp_tcb *stcb,
 			break;
 		}
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_TRY_ADVANCE) {
-			if (tp1->sent == SCTP_FORWARD_TSN_SKIP) {
+			if ((tp1->sent == SCTP_FORWARD_TSN_SKIP) ||
+			    (tp1->sent == SCTP_DATAGRAM_NR_MARKED)) {
 				sctp_misc_ints(SCTP_FWD_TSN_CHECK,
 				    asoc->advanced_peer_ack_point,
 				    tp1->rec.data.TSN_seq, 0, 0);
