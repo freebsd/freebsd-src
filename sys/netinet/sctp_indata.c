@@ -2985,6 +2985,7 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 					}
 					/* NR Sack code here */
 					if (nr_sacking) {
+						tp1->sent = SCTP_DATAGRAM_NR_MARKED;
 						if (tp1->data) {
 							/*
 							 * sa_ignore
@@ -3600,7 +3601,8 @@ sctp_try_advance_peer_ack_point(struct sctp_tcb *stcb,
 	}
 	TAILQ_FOREACH_SAFE(tp1, &asoc->sent_queue, sctp_next, tp2) {
 		if (tp1->sent != SCTP_FORWARD_TSN_SKIP &&
-		    tp1->sent != SCTP_DATAGRAM_RESEND) {
+		    tp1->sent != SCTP_DATAGRAM_RESEND &&
+		    tp1->sent != SCTP_DATAGRAM_NR_MARKED) {
 			/* no chance to advance, out of here */
 			break;
 		}
@@ -3653,7 +3655,8 @@ sctp_try_advance_peer_ack_point(struct sctp_tcb *stcb,
 		 * the chunk, advance our peer ack point and we can check
 		 * the next chunk.
 		 */
-		if (tp1->sent == SCTP_FORWARD_TSN_SKIP) {
+		if ((tp1->sent == SCTP_FORWARD_TSN_SKIP) ||
+		    (tp1->sent == SCTP_DATAGRAM_NR_MARKED)) {
 			/* advance PeerAckPoint goes forward */
 			if (SCTP_TSN_GT(tp1->rec.data.TSN_seq, asoc->advanced_peer_ack_point)) {
 				asoc->advanced_peer_ack_point = tp1->rec.data.TSN_seq;
