@@ -32,7 +32,9 @@ SHLIB_MAJOR=	1
 
 # libatf-c++ depends on the C version of the ATF library to build.
 DPADD=		${LIBATFC}
-LDADD=		-L${.OBJDIR}/../libatf-c -latf-c
+LDADD=		-latf-c
+
+LDFLAGS+=	-L${.OBJDIR}/../libatf-c
 
 .PATH:		${ATF}
 .PATH:		${ATF}/atf-c++
