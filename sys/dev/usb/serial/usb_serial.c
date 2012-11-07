@@ -425,16 +425,13 @@ ucom_attach_tty(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 	if ((ucom_cons_softc == NULL) && 
 	    (ssc->sc_unit == ucom_cons_unit) &&
 	    (sc->sc_subunit == ucom_cons_subunit)) {
-		struct termios t;
 
-		DPRINTF("unit %d subunit %d is console", ssc->sc_unit, sc->sc_subunit);
+		DPRINTF("unit %d subunit %d is console",
+		    ssc->sc_unit, sc->sc_subunit);
 
 		ucom_cons_softc = sc;
 
-		memset(&t, 0, sizeof(t));
-		t.c_ispeed = ucom_cons_baud;
-		t.c_ospeed = t.c_ispeed;
-		t.c_cflag = CS8;
+		tty_init_console(tp, ucom_cons_baud);
 
 		UCOM_MTX_LOCK(ucom_cons_softc);
 		ucom_cons_rx_low = 0;
@@ -443,7 +440,7 @@ ucom_attach_tty(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 		ucom_cons_tx_high = 0;
 		sc->sc_flag |= UCOM_FLAG_CONSOLE;
 		ucom_open(ucom_cons_softc->sc_tty);
-		ucom_param(ucom_cons_softc->sc_tty, &t);
+		ucom_param(ucom_cons_softc->sc_tty, &tp->t_termios_init_in);
 		UCOM_MTX_UNLOCK(ucom_cons_softc);
 	}
 
@@ -1186,17 +1183,22 @@ ucom_param(struct tty *tp, struct termios *t)
 	if (!(sc->sc_flag & UCOM_FLAG_HL_READY)) {
 
 		/* XXX the TTY layer should call "open()" first! */
-
+		/*
+		 * Not quite: Its ordering is partly backwards, but
+		 * some parameters must be set early in ttydev_open(),
+		 * possibly before calling ttydevsw_open().
+		 */
 		error = ucom_open(tp);
-		if (error) {
+		if (error)
 			goto done;
-		}
+
 		opened = 1;
 	}
 	DPRINTF("sc = %p\n", sc);
 
 	/* Check requested parameters. */
 	if (t->c_ispeed && (t->c_ispeed != t->c_ospeed)) {
+		/* XXX c_ospeed == 0 is perfectly valid. */
 		DPRINTF("mismatch ispeed and ospeed\n");
 		error = EINVAL;
 		goto done;
