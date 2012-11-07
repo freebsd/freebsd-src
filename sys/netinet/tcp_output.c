@@ -127,7 +127,7 @@ static void inline	hhook_run_tcp_est_out(struct tcpcb *tp,
 static void inline	cc_after_idle(struct tcpcb *tp);
 
 /*
- * Wrapper for the TCP established ouput helper hook.
+ * Wrapper for the TCP established output helper hook.
  */
 static void inline
 hhook_run_tcp_est_out(struct tcpcb *tp, struct tcphdr *th,
