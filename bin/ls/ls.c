@@ -192,17 +192,9 @@ main(int argc, char *argv[])
 			f_longform = 0;
 			f_stream = 0;
 			break;
-		case 'B':
-			f_nonprint = 0;
-			f_octal = 1;
-			f_octal_escape = 0;
-			break;
 		case 'C':
 			f_sortacross = f_longform = f_singlecol = 0;
 			break;
-                case 'D':
-                        f_timeformat = optarg;
-                        break;
 		case 'l':
 			f_longform = 1;
 			f_singlecol = 0;
@@ -229,16 +221,43 @@ main(int argc, char *argv[])
 			f_accesstime = 0;
 			f_statustime = 0;
 			break;
-		case 'F':
+		case 'a':
+			fts_options |= FTS_SEEDOT;
+			/* FALLTHROUGH */
+		case 'A':
+			f_listdot = 1;
+			break;
+		/* The -t and -S options override each other. */
+		case 'S':
+			f_sizesort = 1;
+			f_timesort = 0;
+			break;
+		case 't':
+			f_timesort = 1;
+			f_sizesort = 0;
+			break;
+                /* Other flags.  Please keep alphabetic. */
+		case 'B':
+			f_nonprint = 0;
+			f_octal = 1;
+			f_octal_escape = 0;
+			break;
+                case 'D':
+                        f_timeformat = optarg;
+                        break;
+                case 'F':
 			f_type = 1;
 			f_slash = 0;
+			break;
+		case 'G':
+			setenv("CLICOLOR", "", 1);
 			break;
 		case 'H':
 			fts_options |= FTS_COMFOLLOW;
 			f_nofollow = 0;
 			break;
-		case 'G':
-			setenv("CLICOLOR", "", 1);
+		case 'I':
+			f_noautodot = 1;
 			break;
 		case 'L':
 			fts_options &= ~FTS_PHYSICAL;
@@ -254,14 +273,19 @@ main(int argc, char *argv[])
 		case 'R':
 			f_recursive = 1;
 			break;
-		case 'a':
-			fts_options |= FTS_SEEDOT;
-			/* FALLTHROUGH */
-		case 'A':
-			f_listdot = 1;
+		case 'T':
+			f_sectime = 1;
 			break;
-		case 'I':
-			f_noautodot = 1;
+		case 'W':
+			f_whiteout = 1;
+			break;
+		case 'Z':
+			f_label = 1;
+			break;
+		case 'b':
+			f_nonprint = 0;
+			f_octal = 0;
+			f_octal_escape = 1;
 			break;
 		/* The -d option turns off the -R option. */
 		case 'd':
@@ -309,33 +333,10 @@ main(int argc, char *argv[])
 		case 's':
 			f_size = 1;
 			break;
-		case 'T':
-			f_sectime = 1;
-			break;
-		/* The -t and -S options override each other. */
-		case 't':
-			f_timesort = 1;
-			f_sizesort = 0;
-			break;
-		case 'S':
-			f_sizesort = 1;
-			f_timesort = 0;
-			break;
-		case 'W':
-			f_whiteout = 1;
-			break;
-		case 'b':
-			f_nonprint = 0;
-			f_octal = 0;
-			f_octal_escape = 1;
-			break;
 		case 'w':
 			f_nonprint = 0;
 			f_octal = 0;
 			f_octal_escape = 0;
-			break;
-		case 'Z':
-			f_label = 1;
 			break;
 		default:
 		case '?':
