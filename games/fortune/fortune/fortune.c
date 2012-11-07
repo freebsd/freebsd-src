@@ -107,6 +107,7 @@ bool	Offend		= FALSE;	/* offensive fortunes only */
 bool	All_forts	= FALSE;	/* any fortune allowed */
 bool	Equal_probs	= FALSE;	/* scatter un-allocted prob equally */
 bool	Match		= FALSE;	/* dump fortunes matching a pattern */
+static bool	WriteToDisk = false;	/* use files on disk to save state */
 #ifdef DEBUG
 bool	Debug = FALSE;			/* print debug messages */
 #endif
@@ -170,9 +171,10 @@ static regex_t Re_pat;
 int
 main(int argc, char *argv[])
 {
-#ifdef OK_TO_WRITE_DISK
 	int	fd;
-#endif /* OK_TO_WRITE_DISK */
+
+	if (getenv("FORTUNE_SAVESTATE") != NULL)
+		WriteToDisk = true;
 
 	(void) setlocale(LC_ALL, "");
 
@@ -190,26 +192,22 @@ main(int argc, char *argv[])
 
 	display(Fortfile);
 
-#ifdef OK_TO_WRITE_DISK
-	if ((fd = creat(Fortfile->posfile, 0666)) < 0) {
-		perror(Fortfile->posfile);
-		exit(1);
+	if (WriteToDisk) {
+		if ((fd = creat(Fortfile->posfile, 0666)) < 0) {
+			perror(Fortfile->posfile);
+			exit(1);
+		}
+		/*
+		 * if we can, we exclusive lock, but since it isn't very
+		 * important, we just punt if we don't have easy locking
+		 * available.
+		 */
+		flock(fd, LOCK_EX);
+		write(fd, (char *) &Fortfile->pos, sizeof Fortfile->pos);
+		if (!Fortfile->was_pos_file)
+		chmod(Fortfile->path, 0666);
+		flock(fd, LOCK_UN);
 	}
-#ifdef LOCK_EX
-	/*
-	 * if we can, we exclusive lock, but since it isn't very
-	 * important, we just punt if we don't have easy locking
-	 * available.
-	 */
-	(void) flock(fd, LOCK_EX);
-#endif /* LOCK_EX */
-	write(fd, (char *) &Fortfile->pos, sizeof Fortfile->pos);
-	if (!Fortfile->was_pos_file)
-		(void) chmod(Fortfile->path, 0666);
-#ifdef LOCK_EX
-	(void) flock(fd, LOCK_UN);
-#endif /* LOCK_EX */
-#endif /* OK_TO_WRITE_DISK */
 	if (Wait) {
 		if (Fort_len == 0)
 			(void) fortlen();
@@ -587,9 +585,8 @@ over:
 		fp->next = *head;
 		*head = fp;
 	}
-#ifdef OK_TO_WRITE_DISK
-	fp->was_pos_file = (access(fp->posfile, W_OK) >= 0);
-#endif /* OK_TO_WRITE_DISK */
+	if (WriteToDisk)
+		fp->was_pos_file = (access(fp->posfile, W_OK) >= 0);
 
 	return (TRUE);
 }
@@ -691,10 +688,9 @@ all_forts(FILEDESC *fp, char *offensive)
 		obscene->name = ++sp;
 	obscene->datfile = datfile;
 	obscene->posfile = posfile;
-	obscene->read_tbl = FALSE;
-#ifdef OK_TO_WRITE_DISK
-	obscene->was_pos_file = (access(obscene->posfile, W_OK) >= 0);
-#endif /* OK_TO_WRITE_DISK */
+	obscene->read_tbl = false;
+	if (WriteToDisk)
+		obscene->was_pos_file = (access(obscene->posfile, W_OK) >= 0);
 }
 
 /*
@@ -824,12 +820,13 @@ is_fortfile(const char *file, char **datp, char **posp, int check_for_offend)
 	else
 		free(datfile);
 	if (posp != NULL) {
-#ifdef OK_TO_WRITE_DISK
-		*posp = copy(file, (unsigned int) (strlen(file) + 4)); /* +4 for ".dat" */
-		(void) strcat(*posp, ".pos");
-#else
-		*posp = NULL;
-#endif /* OK_TO_WRITE_DISK */
+		if (WriteToDisk) {
+			*posp = copy(file, (unsigned int) (strlen(file) + 4)); /* +4 for ".dat" */
+			strcat(*posp, ".pos");
+		}
+		else {
+			*posp = NULL;
+		}
 	}
 	DPRINTF(2, (stderr, "TRUE\n"));
 
@@ -1110,23 +1107,21 @@ open_dat(FILEDESC *fp)
 void
 get_pos(FILEDESC *fp)
 {
-#ifdef OK_TO_WRITE_DISK
 	int	fd;
-#endif /* OK_TO_WRITE_DISK */
 
 	assert(fp->read_tbl);
 	if (fp->pos == POS_UNKNOWN) {
-#ifdef OK_TO_WRITE_DISK
-		if ((fd = open(fp->posfile, O_RDONLY)) < 0 ||
-		    read(fd, &fp->pos, sizeof fp->pos) != sizeof fp->pos)
+		if (WriteToDisk) {
+			if ((fd = open(fp->posfile, O_RDONLY)) < 0 ||
+			    read(fd, &fp->pos, sizeof fp->pos) != sizeof fp->pos)
+				fp->pos = arc4random_uniform(fp->tbl.str_numstr);
+			else if (fp->pos >= fp->tbl.str_numstr)
+				fp->pos %= fp->tbl.str_numstr;
+			if (fd >= 0)
+				close(fd);
+		}
+		else
 			fp->pos = arc4random_uniform(fp->tbl.str_numstr);
-		else if (fp->pos >= fp->tbl.str_numstr)
-			fp->pos %= fp->tbl.str_numstr;
-		if (fd >= 0)
-			(void) close(fd);
-#else
-		fp->pos = arc4random_uniform(fp->tbl.str_numstr);
-#endif /* OK_TO_WRITE_DISK */
 	}
 	if (++(fp->pos) >= fp->tbl.str_numstr)
 		fp->pos -= fp->tbl.str_numstr;
