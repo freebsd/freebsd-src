@@ -117,7 +117,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
 
-#ifdef	ATH_DEBUG
+#ifdef	ATH_DEBUG_ALQ
 #include <dev/ath/if_ath_alq.h>
 #endif
 
@@ -888,7 +888,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	/*
 	 * Setup the ALQ logging if required
 	 */
-#ifdef	ATH_DEBUG
+#ifdef	ATH_DEBUG_ALQ
 	if_ath_alq_init(&sc->sc_alq, device_get_nameunit(sc->sc_dev));
 #endif
 
@@ -952,7 +952,7 @@ ath_detach(struct ath_softc *sc)
 #endif
 	ath_rate_detach(sc->sc_rc);
 
-#ifdef	ATH_DEBUG
+#ifdef	ATH_DEBUG_ALQ
 	if_ath_alq_tidyup(&sc->sc_alq);
 #endif
 
