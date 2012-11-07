@@ -1545,6 +1545,16 @@ pfsync_sendout(int schedswi)
 			KASSERT(st->sync_state == q,
 				("%s: st->sync_state == q",
 					__func__));
+			if (st->timeout == PFTM_UNLINKED) {
+				/*
+				 * This happens if pfsync was once
+				 * stopped, and then re-enabled
+				 * after long time. Theoretically
+				 * may happen at usual runtime, too.
+				 */
+				pf_release_state(st);
+				continue;
+			}
 			/*
 			 * XXXGL: some of write methods do unlocked reads
 			 * of state data :(
