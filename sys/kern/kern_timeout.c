@@ -394,8 +394,8 @@ callout_process(struct bintime *now)
 	struct callout *tmp;
 	struct callout_cpu *cc;
 	struct callout_tailq *sc;
-	int cpu, depth_dir, first, future, mpcalls_dir, last, lockcalls_dir,
-	    need_softclock;
+	int cpu, depth_dir, firstb, mpcalls_dir, lastb, nowb, lockcalls_dir,
+	    need_softclock, exit_allowed, exit_wanted;
 
 	need_softclock = 0;
 	depth_dir = 0;
@@ -404,23 +404,49 @@ callout_process(struct bintime *now)
 	cc = CC_SELF();
 	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
 	cpu = curcpu;
-	first = callout_hash(&cc->cc_lastscan);
-	last = callout_hash(now);
+
+	/* Compute the buckets of the last scan and present times. */
+	firstb = callout_hash(&cc->cc_lastscan);
+	nowb = callout_hash(now);
+
+	/* Compute the last bucket and minimum time of the bucket after it. */
+	next = next_opt = *now;
+	bintime_addx(&next, (uint64_t)3 << (64 - 2));		/* 0.75s */
+	next.frac &= (0xffffffffffffffffLLU << (64 - CC_HASH_SHIFT));
+	bintime_addx(&next_opt, (uint64_t)3 << (64 - 3));	/* 0.37s */
+	lastb = callout_hash(&next) - 1;
+
 	/*
 	 * Check if we wrapped around the entire wheel from the last scan.
 	 * In case, we need to scan entirely the wheel for pending callouts.
 	 */
-	last = (last - first >= callwheelsize) ? (first - 1) & callwheelmask :
-	    last & callwheelmask;
-	first &= callwheelmask;
-	for (;;) {	
-		sc = &cc->cc_callwheel[first];
+	if (lastb - firstb >= callwheelsize)
+		lastb = firstb - 1;
+	if (nowb - firstb >= callwheelsize)
+		nowb = firstb - 1;
+	nowb &= callwheelmask;
+	lastb &= callwheelmask;
+	firstb &= callwheelmask;
+
+	/* Iterate callwheel from firstb to nowb and then up to lastb. */
+	min.sec = TIME_T_MAX;
+	min.frac = UINT64_MAX;
+	max = next;
+	exit_allowed = 0;
+	for (;;) {
+		exit_wanted = 0;
+		sc = &cc->cc_callwheel[firstb];
 		tmp = TAILQ_FIRST(sc);
 		while (tmp != NULL) {
-			next = tmp->c_time;
-			bintime_sub(&next, &tmp->c_precision);
-			if (bintime_cmp(&next, now, <=)) {
-				/* 
+			/* Compute allowed time range for the event */
+			tmp_max = tmp_min = tmp->c_time;
+			if (bintime_isset(&tmp->c_precision)) {
+				bintime_add(&tmp_max, &tmp->c_precision);
+				bintime_sub(&tmp_min, &tmp->c_precision);
+			}
+			/* Run the callout if present time within allowed. */
+			if (bintime_cmp(&tmp_min, now, <=)) {
+				/*
 				 * Consumer told us the callout may be run
 				 * directly from hardware interrupt context.
 				 */
@@ -429,7 +455,7 @@ callout_process(struct bintime *now)
 					TAILQ_REMOVE(sc, tmp, c_links.tqe);
 					tmp = softclock_call_cc(tmp, cc,
 					    &mpcalls_dir, &lockcalls_dir,
-					     NULL, 1);
+					    NULL, 1);
 				} else {
 					TAILQ_INSERT_TAIL(&cc->cc_expireq,
 					    tmp, c_staiter);
@@ -438,62 +464,54 @@ callout_process(struct bintime *now)
 					need_softclock = 1;
 					tmp = TAILQ_NEXT(tmp, c_links.tqe);
 				}
-			}	
-			else
-				tmp = TAILQ_NEXT(tmp, c_links.tqe);
-		}	
-		if (first == last)
-			break;
-		first = (first + 1) & callwheelmask;
-	}
-	cc->cc_exec_next_dir = NULL;
-	future = (last + (3 << CC_HASH_SHIFT) / 4) & callwheelmask;
-	max.sec = min.sec = TIME_T_MAX;
-	max.frac = min.frac = UINT64_MAX;
-	/*
-	 * Look for the first bucket in the future that contains some event,
-	 * up to some point,  so that we can look for aggregation.
-	 */
-	for (;;) {
-		sc = &cc->cc_callwheel[last];
-		TAILQ_FOREACH(tmp, sc, c_links.tqe) {
-			tmp_max = tmp_min = tmp->c_time;
-			if (bintime_isset(&tmp->c_precision)) {
-				bintime_add(&tmp_max, &tmp->c_precision);
-				bintime_sub(&tmp_min, &tmp->c_precision);
+				continue;
 			}
+			/* Skip events from distant future. */
+			if (bintime_cmp(&tmp_min, &next, >=))
+				goto next;
 			/*
 			 * This is the fist event we're going to process or
 			 * event maximal time is less than present minimal.
 			 * In both cases, take it.
 			 */
-			 if (bintime_cmp(&tmp_max, &min, <)) {
+			if (bintime_cmp(&tmp_max, &min, <)) {
 				max = tmp_max;
 				min = tmp_min;
-				continue;
+				goto next;
 			}
 			/*
 			 * Event minimal time is bigger than present maximal
 			 * time, so it cannot be aggregated.
 			 */
-			if (bintime_cmp(&tmp_min, &max, >))
-				continue;
+			if (bintime_cmp(&tmp_min, &max, >)) {
+				exit_wanted = 1;
+				goto next;
+			}
 			/*
 			 * If neither of the two previous happened, just take
 			 * the intersection of events.
-			 */	
+			 */
 			min = (bintime_cmp(&tmp_min, &min, >)) ? tmp_min : min;
-			max = (bintime_cmp(&tmp_max, &max, >)) ? tmp_max : max;
-		}		
-		if (last == future || max.sec != TIME_T_MAX)
+			max = (bintime_cmp(&tmp_max, &max, <)) ? tmp_max : max;
+next:
+			tmp = TAILQ_NEXT(tmp, c_links.tqe);
+		}
+		/* Stop if we looked far enough into the future. */
+		if (firstb == lastb)
 			break;
-		last = (last + 1) & callwheelmask;
+		/*
+		 * Stop if we looked after present time and found
+		 * some event we can't execute at now.
+		 */
+		if (firstb == nowb)
+			exit_allowed = 1;
+		if (exit_allowed && exit_wanted)
+			break;
+		/* Proceed with the next bucket. */
+		firstb = (firstb + 1) & callwheelmask;
 	}
-	if (max.sec == TIME_T_MAX) {
-		next = next_opt = *now;
-		bintime_addx(&next, (uint64_t)3 << (64 - 2));
-		bintime_addx(&next_opt, (uint64_t)3 << (64 - 3));
-	} else {
+	cc->cc_exec_next_dir = NULL;
+	if (min.sec != TIME_T_MAX) {
 		/*
 		 * Now that we found something to aggregate, schedule an
 		 * interrupt in the middle of the previously calculated range.
@@ -505,7 +523,7 @@ callout_process(struct bintime *now)
 			if (next.sec & 1)
 				next.frac |= ((uint64_t)1 << 63);
 			next.sec >>= 1;
-		} else 
+		} else
 			next = max;
 		next_opt = min;
 	}
@@ -523,9 +541,8 @@ callout_process(struct bintime *now)
 	 * swi_sched acquires the thread lock, so we don't want to call it
 	 * with cc_lock held; incorrect locking order.
 	 */
-	if (need_softclock) {
+	if (need_softclock)
 		swi_sched(cc->cc_cookie, 0);
-	}
 }
 
 static struct callout_cpu *
