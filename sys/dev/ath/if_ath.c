@@ -117,6 +117,15 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
 
+#ifdef	ATH_DEBUG
+#include <dev/ath/if_ath_alq.h>
+#endif
+
+/*
+ * Only enable this if you're working on PS-POLL support.
+ */
+#undef	ATH_SW_PSQ
+
 /*
  * ATH_BCBUF determines the number of vap's that can transmit
  * beacons and also (currently) the number of vap's that can
@@ -877,6 +886,13 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 #endif	/* ATH_ENABLE_RADIOTAP_VENDOR_EXT */
 
 	/*
+	 * Setup the ALQ logging if required
+	 */
+#ifdef	ATH_DEBUG
+	if_ath_alq_init(&sc->sc_alq, device_get_nameunit(sc->sc_dev));
+#endif
+
+	/*
 	 * Setup dynamic sysctl's now that country code and
 	 * regdomain are available from the hal.
 	 */
@@ -935,6 +951,10 @@ ath_detach(struct ath_softc *sc)
 		sc->sc_tx99->detach(sc->sc_tx99);
 #endif
 	ath_rate_detach(sc->sc_rc);
+
+#ifdef	ATH_DEBUG
+	if_ath_alq_tidyup(&sc->sc_alq);
+#endif
 
 	ath_dfs_detach(sc);
 	ath_desc_free(sc);
@@ -5424,6 +5444,7 @@ ath_dfs_tasklet(void *p, int npending)
 static void
 ath_node_powersave(struct ieee80211_node *ni, int enable)
 {
+#ifdef	ATH_SW_PSQ
 	struct ath_node *an = ATH_NODE(ni);
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
@@ -5443,6 +5464,12 @@ ath_node_powersave(struct ieee80211_node *ni, int enable)
 
 	/* Update net80211 state */
 	avp->av_node_ps(ni, enable);
+#else
+	struct ath_vap *avp = ATH_VAP(ni->ni_vap);
+
+	/* Update net80211 state */
+	avp->av_node_ps(ni, enable);
+#endif/* ATH_SW_PSQ */
 }
 
 /*
@@ -5483,6 +5510,7 @@ ath_node_powersave(struct ieee80211_node *ni, int enable)
 static int
 ath_node_set_tim(struct ieee80211_node *ni, int enable)
 {
+#ifdef	ATH_SW_PSQ
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 	struct ath_node *an = ATH_NODE(ni);
@@ -5567,6 +5595,11 @@ ath_node_set_tim(struct ieee80211_node *ni, int enable)
 	}
 
 	return (changed);
+#else
+	struct ath_vap *avp = ATH_VAP(ni->ni_vap);
+
+	return (avp->av_set_tim(ni, enable));
+#endif /* ATH_SW_PSQ */
 }
 
 /*
@@ -5594,6 +5627,7 @@ void
 ath_tx_update_tim(struct ath_softc *sc, struct ieee80211_node *ni,
      int enable)
 {
+#ifdef	ATH_SW_PSQ
 	struct ath_node *an;
 	struct ath_vap *avp;
 
@@ -5657,6 +5691,9 @@ ath_tx_update_tim(struct ath_softc *sc, struct ieee80211_node *ni,
 			ATH_NODE_UNLOCK(an);
 		}
 	}
+#else
+	return;
+#endif	/* ATH_SW_PSQ */
 }
 
 MODULE_VERSION(if_ath, 1);
