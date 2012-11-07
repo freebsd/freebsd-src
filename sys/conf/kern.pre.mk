@@ -108,9 +108,12 @@ CFLAGS+=	-falign-functions=16
 .endif
 .if ${PROFLEVEL} >= 2
 CFLAGS+=	-DGPROF4 -DGUPROF
-PROF=	-pg -mprofiler-epilogue
+PROF=		-pg
+.if ${COMPILER_TYPE} != "clang"
+PROF+=		-mprofiler-epilogue
+.endif
 .else
-PROF=	-pg
+PROF=		-pg
 .endif
 .endif
 DEFINED_PROF=	${PROF}
