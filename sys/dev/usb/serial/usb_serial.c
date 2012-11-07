@@ -788,15 +788,20 @@ ucom_inwakeup(struct tty *tp)
 {
 	struct ucom_softc *sc = tty_softc(tp);
 	uint16_t pos;
+	int locked;
 
 	if (sc == NULL)
 		return;
 
-	tty_lock(tp);
+	locked = mtx_owned(sc->sc_mtx);
+
+	if (locked == 0)
+		tty_lock(tp);
 
 	if (ttydisc_can_bypass(tp) != 0 || 
 	    (sc->sc_flag & UCOM_FLAG_HL_READY) == 0) {
-		tty_unlock(tp);
+		if (locked == 0)
+			tty_unlock(tp);
 		return;
 	}
 
@@ -821,7 +826,8 @@ ucom_inwakeup(struct tty *tp)
 	    (sc->sc_flag & UCOM_FLAG_RTS_IFLOW))
 		ucom_rts(sc, 0);
 
-	tty_unlock(tp);
+	if (locked == 0)
+		tty_unlock(tp);
 }
 
 static int
