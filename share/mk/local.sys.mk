@@ -140,16 +140,18 @@ STAGE_INCSDIR= ${STAGE_OBJTOP}${INCSDIR:U/include}
 CFLAGS_LAST+= -nostdinc
 .endif
 CFLAGS_LAST+= -isystem ${STAGE_OBJTOP}/usr/include -isystem ${STAGE_OBJTOP}/include
-LDFLAGS+= -B${STAGE_LIBDIR} -L${STAGE_LIBDIR}
+LDFLAGS_LAST+= -B${STAGE_LIBDIR} -L${STAGE_LIBDIR}
+CXXFLAGS_LAST+= -isystem ${STAGE_OBJTOP}/usr/include/c++/${GCCVER:U4.2}
 .else
 # if ld suppored sysroot, this would suffice
 CFLAGS_LAST+= --sysroot=${STAGE_OBJTOP} -isystem ${STAGE_OBJTOP}/include
 .endif
 .endif
-
+.if ${USE_META:Uyes} == "yes"
 .include "meta.sys.mk"
+.endif
 
-# most dirs can be satisfied with one Makefile.depend ?
+# most dirs can be satisfied with one Makefile.depend
 .undef .MAKE.DEPENDFILE
 .MAKE.DEPENDFILE_PREFERENCE = \
 	${.MAKE.DEPENDFILE_PREFIX} \
