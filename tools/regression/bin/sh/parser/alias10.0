@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+alias echo='echo'
+alias echo='echo'
+[ "`eval echo b`" = b ]
