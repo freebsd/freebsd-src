@@ -283,16 +283,6 @@ fuse_vnode_open(struct vnode *vp, int32_t fuse_open_flags, struct thread *td)
 }
 
 int
-fuse_isvalid_attr(struct vnode *vp)
-{
-	struct fuse_vnode_data *fvdat = VTOFUD(vp);
-	struct timespec uptsp;
-
-	nanouptime(&uptsp);
-	return fuse_timespec_cmp(&uptsp, &fvdat->cached_attrs_valid, <=);
-}
-
-int
 fuse_vnode_savesize(struct vnode *vp, struct ucred *cred)
 {
 	struct fuse_vnode_data *fvdat = VTOFUD(vp);
@@ -337,8 +327,6 @@ fuse_vnode_savesize(struct vnode *vp, struct ucred *cred)
 	if (err == 0)
 		fvdat->flag &= ~FN_SIZECHANGE;
 
-	fuse_invalidate_attr(vp);
-
 	return err;
 }
 
@@ -350,8 +338,7 @@ fuse_vnode_refreshsize(struct vnode *vp, struct ucred *cred)
 	struct vattr va;
 
 	if ((fvdat->flag & FN_SIZECHANGE) != 0 ||
-	    (fuse_refresh_size == 0 && fvdat->filesize != 0) ||
-	    fuse_isvalid_attr(vp))
+	    (fuse_refresh_size == 0 && fvdat->filesize != 0))
 		return;
 
 	VOP_GETATTR(vp, &va, cred);
@@ -378,7 +365,5 @@ fuse_vnode_setsize(struct vnode *vp, struct ucred *cred, off_t newsize)
 		err = vtruncbuf(vp, cred, newsize, fuse_iosize(vp));
 	}
 	vnode_pager_setsize(vp, newsize);
-	fuse_invalidate_attr(vp);
-
 	return err;
 }
