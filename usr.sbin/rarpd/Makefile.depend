@@ -11,6 +11,7 @@ DIRDEPS = \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
+	lib/libutil \
 
 
 .include <dirdeps.mk>

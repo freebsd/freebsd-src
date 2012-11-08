@@ -49,10 +49,10 @@ trgt.o: xm.h
 trgt.po: nm.h
 trgt.po: tm.h
 trgt.po: xm.h
-trgt_i386.o: nm.h
-trgt_i386.o: tm.h
-trgt_i386.o: xm.h
-trgt_i386.po: nm.h
-trgt_i386.po: tm.h
-trgt_i386.po: xm.h
+trgt_amd64.o: nm.h
+trgt_amd64.o: tm.h
+trgt_amd64.o: xm.h
+trgt_amd64.po: nm.h
+trgt_amd64.po: tm.h
+trgt_amd64.po: xm.h
 .endif

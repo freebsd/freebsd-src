@@ -5,12 +5,16 @@ DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 DEP_MACHINE := ${.PARSEFILE:E}
 
 DIRDEPS = \
+	cddl/lib/libnvpair \
 	cddl/lib/libumem \
+	gnu/lib/libgcc \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libgeom \
+	lib/libmd \
+	lib/libthr \
 	lib/libutil \
 	lib/msun \
 

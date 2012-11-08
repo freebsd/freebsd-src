@@ -11,6 +11,7 @@ DIRDEPS = \
 	kerberos5/lib/libkrb5 \
 	lib/libmp \
 	lib/libpam/libpam \
+	secure/lib/libcrypto \
 
 
 .include <dirdeps.mk>

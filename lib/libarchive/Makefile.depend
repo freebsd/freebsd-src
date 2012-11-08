@@ -5,8 +5,16 @@ DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 DEP_MACHINE := ${.PARSEFILE:E}
 
 DIRDEPS = \
+	gnu/lib/libgcc \
 	include \
 	include/xlocale \
+	lib/${CSU_DIR} \
+	lib/libbz2 \
+	lib/libc \
+	lib/libexpat \
+	lib/liblzma \
+	lib/libz \
+	secure/lib/libcrypto \
 
 
 .include <dirdeps.mk>

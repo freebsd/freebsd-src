@@ -5,6 +5,8 @@ DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 DEP_MACHINE := ${.PARSEFILE:E}
 
 DIRDEPS = \
+	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
 	lib/msun \
@@ -36,22 +38,18 @@ CFG.po: DiagnosticCommonKinds.inc.h
 CFG.po: StmtNodes.inc.h
 CFGReachabilityAnalysis.o: AttrList.inc.h
 CFGReachabilityAnalysis.o: Attrs.inc.h
-CFGReachabilityAnalysis.o: DeclNodes.inc.h
 CFGReachabilityAnalysis.o: DiagnosticCommonKinds.inc.h
 CFGReachabilityAnalysis.o: StmtNodes.inc.h
 CFGReachabilityAnalysis.po: AttrList.inc.h
 CFGReachabilityAnalysis.po: Attrs.inc.h
-CFGReachabilityAnalysis.po: DeclNodes.inc.h
 CFGReachabilityAnalysis.po: DiagnosticCommonKinds.inc.h
 CFGReachabilityAnalysis.po: StmtNodes.inc.h
 CFGStmtMap.o: AttrList.inc.h
 CFGStmtMap.o: Attrs.inc.h
-CFGStmtMap.o: DeclNodes.inc.h
 CFGStmtMap.o: DiagnosticCommonKinds.inc.h
 CFGStmtMap.o: StmtNodes.inc.h
 CFGStmtMap.po: AttrList.inc.h
 CFGStmtMap.po: Attrs.inc.h
-CFGStmtMap.po: DeclNodes.inc.h
 CFGStmtMap.po: DiagnosticCommonKinds.inc.h
 CFGStmtMap.po: StmtNodes.inc.h
 CallGraph.o: AttrList.inc.h

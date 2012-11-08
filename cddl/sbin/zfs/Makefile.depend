@@ -9,11 +9,13 @@ DIRDEPS = \
 	cddl/lib/libumem \
 	cddl/lib/libuutil \
 	cddl/lib/libzfs \
+	gnu/lib/libgcc \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libgeom \
+	lib/libjail \
 	lib/libutil \
 	lib/msun \
 

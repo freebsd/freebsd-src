@@ -5,10 +5,15 @@ DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 DEP_MACHINE := ${.PARSEFILE:E}
 
 DIRDEPS = \
+	gnu/lib/libgcc \
 	include \
 	include/xlocale \
+	lib/${CSU_DIR} \
 	lib/libbsnmp/libbsnmp \
+	lib/libc \
 	usr.sbin/bsnmpd/modules \
+	usr.sbin/bsnmpd/modules/snmp_mibII \
+	usr.sbin/bsnmpd/modules/snmp_netgraph \
 
 
 .include <dirdeps.mk>
