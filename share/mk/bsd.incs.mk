@@ -31,7 +31,7 @@ _${group}INCS=
 .for header in ${${group}}
 .if defined(${group}OWN_${header:T}) || defined(${group}GRP_${header:T}) || \
     defined(${group}MODE_${header:T}) || defined(${group}DIR_${header:T}) || \
-    defined(${group}NAME_${header:T})
+    defined(${group}NAME_${header:T}) || defined(${group}NAME)
 ${group}OWN_${header:T}?=	${${group}OWN}
 ${group}GRP_${header:T}?=	${${group}GRP}
 ${group}MODE_${header:T}?=	${${group}MODE}
@@ -89,12 +89,16 @@ installincludes:
 realinstall: installincludes
 .ORDER: beforeinstall installincludes
 
-.if ${MK_STAGING} != "no"
+.if ${MK_STAGING} != "no" && !defined(_SKIP_BUILD)
 .if !target(stage_includes)
 .if !empty(STAGE_SETS)
 buildincludes: stage_files
 .if !empty(STAGE_AS_SETS)
 buildincludes: stage_as
+.endif
+.if !empty(INCSLINKS)
+stage_files: stage_symlinks
+STAGE_SYMLINKS.INCS= ${INCSLINKS:S,${INCSDIR}/,,}
 .endif
 .endif
 .endif
