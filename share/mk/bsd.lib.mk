@@ -114,7 +114,12 @@ PO_FLAG=-pg
 	${CTFCONVERT_CMD}
 
 .if !defined(_SKIP_BUILD)
-all: objwarn
+all: prebuild .WAIT
+prebuild: objwarn
+.if !defined(.PARSEDIR)
+# this is a no-op
+.WAIT:
+.endif
 .endif
 
 .include <bsd.symver.mk>
@@ -408,9 +413,12 @@ clean:
 .if defined(_SKIP_BUILD)
 stage_libs stage_files stage_as:
 .else
-.if !empty(_LIBS)
+.if !empty(_LIBS) && !defined(INTERNALLIB)
 stage_libs: ${_LIBS}
 all: stage_libs
+.endif
+.if !empty(INCS) || !empty(INCSGROUPS)
+prebuild: buildincludes
 .endif
 .include <meta.stage.mk>
 .endif
