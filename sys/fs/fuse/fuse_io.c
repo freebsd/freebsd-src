@@ -159,7 +159,6 @@ fuse_io_dispatch(struct vnode *vp, struct uio *uio, int ioflag,
 			FS_DEBUG("direct write of vnode %ju via file handle %ju\n",
 			    (uintmax_t)VTOILLU(vp), (uintmax_t)fufh->fh_id);
 			err = fuse_write_directbackend(vp, uio, cred, fufh);
-			fuse_invalidate_attr(vp);
 		} else {
 			FS_DEBUG("buffered write of vnode %ju\n", 
 			      (uintmax_t)VTOILLU(vp));
