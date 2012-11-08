@@ -1,4 +1,4 @@
-# $Id: dirdeps.mk,v 1.22 2012/04/25 15:12:29 sjg Exp $
+# $Id: dirdeps.mk,v 1.23 2012/11/06 05:44:03 sjg Exp $
 
 # Copyright (c) 2010-2012, Juniper Networks, Inc.
 # 
@@ -55,6 +55,39 @@
 #	Indicates whether .MAKE.LEVEL 0 builds anything:
 #	if "no" sub-makes are used to build everything,
 #	if "yes" sub-makes are only used to build for other machines.
+#
+# TARGET_SPEC_VARS
+#	All the description above (and below) assumes <machine> is the
+#	only data needed to control the build.
+#	This is not always the case.  So in addition to setting
+#	MACHINE in the build environment we set TARGET_SPEC which is
+#	composed of the values of TARGET_SPEC_VARS separated by
+#	commas.  The default is just MACHINE.
+#
+#	If more that MACHINE is needed then sys.mk needs to decompose
+#	TARGET_SPEC and set the relevant variables accordingly.
+#	It is important that MACHINE be included in TARGET_SPEC_VARS
+#	since if there is more the value passed as MACHINE will infact
+#	be the TARGET_SPEC.
+#	Note: TARGET_SPEC cannot contain any '.'s so the target
+#	tripple used by compiler folk won't work (directly anyway).
+#
+#	For example:
+#
+#		# variables other than MACHINE might be optional
+#		TARGET_SPEC_VARS = MACHINE TARGET_OS
+#		.if ${TARGET_SPEC:Uno:M*,*} != ""
+#		_tspec := ${TARGET_SPEC:S/,/ /g}
+#		MACHINE := ${_tspec:[1]}
+#		TARGET_OS := ${_tspec:[2]}
+#		# etc.
+#		.for v in ${TARGET_SPEC_VARS:O:u}
+#		.if empty($v)
+#		.undef $v
+#		.endif
+#		.endfor
+#		.endif
+#	
 
 .if ${.MAKE.LEVEL} == 0
 # only the first instance is interested in all this
@@ -67,16 +100,26 @@
 # do some setup we only need once
 _CURDIR ?= ${.CURDIR}
 
+# If TARGET_SPEC_VARS is other than just MACHINE
+# it should be set by sys.mk or similar by now.
+# TARGET_SPEC must not contain any '.'s.
+TARGET_SPEC_VARS ?= MACHINE
+TARGET_SPEC = ${TARGET_SPEC_VARS:@v@${$v:U}@:ts,}
+
 .if !defined(.MAKE.DEPENDFILE_PREFERENCE)
 # this makes the logic below neater?
 .MAKE.DEPENDFILE_PREFERENCE = ${_CURDIR}/${.MAKE.DEPENDFILE:T}
-.if ${.MAKE.DEPENDFILE:E} == "${MACHINE}"
+.if ${.MAKE.DEPENDFILE:E} == "${TARGET_SPEC}"
+.if ${TARGET_SPEC} != ${MACHINE}
+.MAKE.DEPENDFILE_PREFERENCE += ${_CURDIR}/${.MAKE.DEPENDFILE:T:R}.$${MACHINE}
+.endif
 .MAKE.DEPENDFILE_PREFERENCE += ${_CURDIR}/${.MAKE.DEPENDFILE:T:R}
 .endif
 .endif
 
 _default_dependfile := ${.MAKE.DEPENDFILE_PREFERENCE:[1]:T}
-_machine_dependfiles := ${.MAKE.DEPENDFILE_PREFERENCE:M*.${MACHINE}}
+_machine_dependfiles := ${.MAKE.DEPENDFILE_PREFERENCE:M*.${TARGET_SPEC}} \
+	${.MAKE.DEPENDFILE_PREFERENCE:M*.${MACHINE}}
 
 # for machine specific dependfiles we require ${MACHINE} to be at the end
 # also for the sake of sanity we require a common prefix
@@ -90,7 +133,7 @@ _machine_dependfiles := ${.MAKE.DEPENDFILE_PREFERENCE:M*.${MACHINE}}
 
 
 # this is how we identify non-machine specific dependfiles
-N_notmachine := ${.MAKE.DEPENDFILE_PREFERENCE:E:N${MACHINE}:${M_ListToSkip}}
+N_notmachine := ${.MAKE.DEPENDFILE_PREFERENCE:E:N${TARGET_SPEC}:N${MACHINE}:${M_ListToSkip}}
 
 .endif				# !target(_DIRDEP_USE)
 
@@ -100,11 +143,11 @@ _last_dependfile := ${.MAKE.MAKEFILES:M*/${.MAKE.DEPENDFILE_PREFIX}*:[-1]}
 # will not work, so we also test for DEP_MACHINE==depend below.
 .if empty(_last_dependfile)
 # we haven't included one yet
-DEP_MACHINE ?= ${TARGET_MACHINE:U${MACHINE}}
+DEP_MACHINE ?= ${TARGET_MACHINE:U${TARGET_SPEC}}
 # else it should be correctly set by ${.MAKE.DEPENDFILE}
 .elif ${_last_dependfile:E:${N_notmachine}} == "" || ${DEP_MACHINE:Uno:${N_notmachine}} == ""
 # don't rely on manually maintained files to be correct
-DEP_MACHINE := ${_DEP_MACHINE:U${MACHINE}}
+DEP_MACHINE := ${_DEP_MACHINE:U${TARGET_SPEC}}
 .else
 # just in case
 DEP_MACHINE ?= ${_last_dependfile:E}
@@ -159,6 +202,7 @@ _DIRDEP_USE:	.USE .MAKE
 	@for m in ${.MAKE.MAKEFILE_PREFERENCE}; do \
 		test -s ${.TARGET:R}/$$m || continue; \
 		echo "${TRACER}Checking ${.TARGET:R} for ${.TARGET:E} ..."; \
+		TARGET_SPEC=${.TARGET:E} \
 		MACHINE=${.TARGET:E} MACHINE_ARCH= NO_SUBDIR=1 \
 		${.MAKE} -C ${.TARGET:R} || exit 1; \
 		break; \
@@ -216,7 +260,7 @@ _this_dir := ${SRCTOP}/${DEP_RELDIR}
 _dep_hack := ${_this_dir}/${.MAKE.DEPENDFILE_PREFIX}.inc
 .-include "${_dep_hack}"
 
-.if ${DEP_RELDIR} != ${_DEP_RELDIR} || ${DEP_MACHINE} != ${MACHINE}
+.if ${DEP_RELDIR} != ${_DEP_RELDIR} || ${DEP_MACHINE} != ${TARGET_SPEC}
 # this should be all
 _machines := ${DEP_MACHINE}
 .else
@@ -231,7 +275,9 @@ _machines += host
 _machines := ${_machines:O:u}
 .endif
 
+# reset these each time through
 _build_dirs =
+_depdir_files =
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # pickup other machines for this dir if necessary
@@ -239,7 +285,7 @@ _build_dirs =
 _build_dirs += ${_machines:@m@${_CURDIR}.$m@}
 .else
 _build_dirs += ${_machines:N${DEP_MACHINE}:@m@${_CURDIR}.$m@}
-.if ${DEP_MACHINE} == ${MACHINE}
+.if ${DEP_MACHINE} == ${TARGET_SPEC}
 # pickup local dependencies now
 .-include <.depend>
 .endif
@@ -295,7 +341,7 @@ _depdir_files += ${.MAKE.DEPENDFILE_PREFERENCE:T:@m@${exists($d/$m):?$d/$m:}@:[1
 # a little more complex - building for another machine
 # we will ensure the file is qualified with a machine
 # so that if necessary _DEP_MACHINE can be set below
-_depdir_files += ${.MAKE.DEPENDFILE_PREFERENCE:T:S,.${MACHINE}$,.${d:E},:@m@${exists(${d:R}/$m):?${d:R}/$m:}@:[1]:@m@${"${m:M*.${d:E}}":?$m:$m.${d:E}}@}
+_depdir_files += ${.MAKE.DEPENDFILE_PREFERENCE:T:S,.${TARGET_SPEC}$,.${d:E},:S,.${MACHINE}$,.${d:E},:@m@${exists(${d:R}/$m):?${d:R}/$m:}@:[1]:@m@${"${m:M*.${d:E}}":?$m:$m.${d:E}}@}
 .endif
 .endfor
 
