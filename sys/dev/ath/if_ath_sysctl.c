@@ -99,6 +99,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
 
+#ifdef	ATH_DEBUG_ALQ
+#include <dev/ath/if_ath_alq.h>
+#endif
+
 static int
 ath_sysctl_slottime(SYSCTL_HANDLER_ARGS)
 {
@@ -502,6 +506,7 @@ ath_sysctl_forcebstuck(SYSCTL_HANDLER_ARGS)
 }
 
 
+#ifdef ATH_DEBUG_ALQ
 static int
 ath_sysctl_alq_log(SYSCTL_HANDLER_ARGS)
 {
@@ -520,7 +525,6 @@ ath_sysctl_alq_log(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-#ifdef	ATH_DEBUG
 /*
  * Attach the ALQ debugging if required.
  */
@@ -550,7 +554,7 @@ ath_sysctl_alq_attach(struct ath_softc *sc)
 		"numlost", CTLFLAG_RW, &sc->sc_alq.sc_alq_numlost, 0,
 		"number lost");
 }
-#endif
+#endif /* ATH_DEBUG_ALQ */
 
 void
 ath_sysctlattach(struct ath_softc *sc)
@@ -565,14 +569,14 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"regdomain", CTLFLAG_RD, &sc->sc_eerd, 0,
 		"EEPROM regdomain code");
-#ifdef	ATH_DEBUG
+#ifdef	ATH_DEBUG_ALQ
 	SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"debug", CTLFLAG_RW, &sc->sc_debug,
 		"control debugging printfs");
 	SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"ktrdebug", CTLFLAG_RW, &sc->sc_ktrdebug,
 		"control debugging KTR");
-#endif
+#endif /* ATH_DEBUG_ALQ */
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"slottime", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_slottime, "I", "802.11 slot time (us)");
