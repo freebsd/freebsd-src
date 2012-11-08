@@ -168,7 +168,7 @@ vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
 	/*
 	 * When opening a disk device, we want to preserve the user's original
 	 * intent.  We always want to open the device by the path the user gave
-	 * us, even if it is one of multiple paths to the save device.  But we
+	 * us, even if it is one of multiple paths to the same device.  But we
 	 * also want to be able to survive disks being removed/recabled.
 	 * Therefore the sequence of opening devices is:
 	 *
