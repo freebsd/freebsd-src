@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #define	STRBUF_SIZEOF(t)	(1 + CHAR_BIT * sizeof(t) / 3 + 1)
 
 /*
- * MAKENINES(n) turns n into (10**n)-1.  This is useful for converting a width
+ * MAKENINES(n) turns n into (10**n)-1.	 This is useful for converting a width
  * into a number that wide in decimal.
  * XXX: Overflows are not considered.
  */
@@ -133,7 +133,7 @@ static int f_sizesort;
        int f_statustime;	/* use time of last mode change */
 static int f_stream;		/* stream the output, separate with commas */
        int f_thousands;		/* show file sizes with thousands separators */
-       char *f_timeformat;      /* user-specified time format */
+       char *f_timeformat;	/* user-specified time format */
 static int f_timesort;		/* sort by time vice name */
        int f_type;		/* add type character for non-regular files */
 static int f_whiteout;		/* show whiteout entries */
@@ -185,7 +185,7 @@ main(int argc, char *argv[])
 	fts_options = FTS_PHYSICAL;
 	if (getenv("LS_SAMESORT"))
 		f_samesort = 1;
- 	while ((ch = getopt(argc, argv,
+	while ((ch = getopt(argc, argv,
 	    "1ABCD:FGHILPRSTUWXZabcdfghiklmnopqrstuwxy,")) != -1) {
 		switch (ch) {
 		/*
@@ -241,7 +241,7 @@ main(int argc, char *argv[])
 			f_timesort = 1;
 			f_sizesort = 0;
 			break;
-                /* Other flags.  Please keep alphabetic. */
+		/* Other flags.	 Please keep alphabetic. */
 		case ',':
 			f_thousands = 1;
 			break;
@@ -250,10 +250,10 @@ main(int argc, char *argv[])
 			f_octal = 1;
 			f_octal_escape = 0;
 			break;
-                case 'D':
-                        f_timeformat = optarg;
-                        break;
-                case 'F':
+		case 'D':
+			f_timeformat = optarg;
+			break;
+		case 'F':
 			f_type = 1;
 			f_slash = 0;
 			break;
@@ -534,7 +534,7 @@ traverse(int argc, char *argv[], int options)
 
 			/*
 			 * If already output something, put out a newline as
-			 * a separator.  If multiple arguments, precede each
+			 * a separator.	 If multiple arguments, precede each
 			 * directory with its name.
 			 */
 			if (output) {
@@ -861,7 +861,7 @@ label_out:
 			d.s_size = sizelen;
 		d.s_user = maxuser;
 	}
-        if (f_thousands)                        /* make space for commas */
+	if (f_thousands)			/* make space for commas */
 		d.s_size += (d.s_size - 1) / 3;
 	printfcn(&d);
 	output = 1;
@@ -874,7 +874,7 @@ label_out:
 /*
  * Ordering for mastercmp:
  * If ordering the argv (fts_level = FTS_ROOTLEVEL) return non-directories
- * as larger than directories.  Within either group, use the sort function.
+ * as larger than directories.	Within either group, use the sort function.
  * All other levels use the sort function.  Error entries remain unsorted.
  */
 static int
