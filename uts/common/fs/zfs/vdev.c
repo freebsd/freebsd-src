@@ -3153,3 +3153,41 @@ vdev_split(vdev_t *vd)
 	}
 	vdev_propagate_state(cvd);
 }
+
+void
+vdev_deadman(vdev_t *vd)
+{
+	for (int c = 0; c < vd->vdev_children; c++) {
+		vdev_t *cvd = vd->vdev_child[c];
+
+		vdev_deadman(cvd);
+	}
+
+	if (vd->vdev_ops->vdev_op_leaf) {
+		vdev_queue_t *vq = &vd->vdev_queue;
+
+		mutex_enter(&vq->vq_lock);
+		if (avl_numnodes(&vq->vq_pending_tree) > 0) {
+			spa_t *spa = vd->vdev_spa;
+			zio_t *fio;
+			uint64_t delta;
+
+			/*
+			 * Look at the head of all the pending queues,
+			 * if any I/O has been outstanding for longer than
+			 * the spa_deadman_synctime we panic the system.
+			 */
+			fio = avl_first(&vq->vq_pending_tree);
+			delta = ddi_get_lbolt64() - fio->io_timestamp;
+			if (delta > NSEC_TO_TICK(spa_deadman_synctime(spa))) {
+				zfs_dbgmsg("SLOW IO: zio timestamp %llu, "
+				    "delta %llu, last io %llu",
+				    fio->io_timestamp, delta,
+				    vq->vq_io_complete_ts);
+				fm_panic("I/O to pool '%s' appears to be "
+				    "hung.", spa_name(spa));
+			}
+		}
+		mutex_exit(&vq->vq_lock);
+	}
+}

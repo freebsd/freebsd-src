@@ -21,8 +21,6 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- */
-/*
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  * Copyright (c) 2012 by Delphix. All rights reserved.
  */
@@ -403,6 +401,7 @@ struct zio {
 
 	uint64_t	io_offset;
 	uint64_t	io_deadline;
+	uint64_t	io_timestamp;
 	avl_node_t	io_offset_node;
 	avl_node_t	io_deadline_node;
 	avl_tree_t	*io_vdev_tree;
@@ -548,6 +547,7 @@ extern int zio_handle_fault_injection(zio_t *zio, int error);
 extern int zio_handle_device_injection(vdev_t *vd, zio_t *zio, int error);
 extern int zio_handle_label_injection(zio_t *zio, int error);
 extern void zio_handle_ignored_writes(zio_t *zio);
+extern uint64_t zio_handle_io_delay(zio_t *zio);
 
 /*
  * Checksum ereport functions
