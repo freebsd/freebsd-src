@@ -1264,10 +1264,10 @@ initarm(struct arm_boot_params *abp)
 	dpcpu_init((void *)dpcpu.pv_va, 0);
 
 	/* Allocate stacks for all modes */
-	valloc_pages(irqstack, (IRQ_STACK_SIZE * MAXCPU));
-	valloc_pages(abtstack, (ABT_STACK_SIZE * MAXCPU));
-	valloc_pages(undstack, (UND_STACK_SIZE * MAXCPU));
-	valloc_pages(kernelstack, (KSTACK_PAGES * MAXCPU));
+	valloc_pages(irqstack, IRQ_STACK_SIZE * MAXCPU);
+	valloc_pages(abtstack, ABT_STACK_SIZE * MAXCPU);
+	valloc_pages(undstack, UND_STACK_SIZE * MAXCPU);
+	valloc_pages(kernelstack, KSTACK_PAGES * MAXCPU);
 	valloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 
 	/*
@@ -1408,4 +1408,3 @@ initarm(struct arm_boot_params *abp)
 	    sizeof(struct pcb)));
 }
 #endif
-
