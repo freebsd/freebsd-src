@@ -8,6 +8,9 @@ UPDATE_DEPENDFILE= no
 .endif
 
 CFLAGS+= ${CFLAGS_LAST}
+CXXFLAGS+= ${CXXFLAGS_LAST}
+LDFLAGS+= ${LDFLAGS_LAST}
+
 CLEANFILES+= .depend
 
 # handy for debugging
