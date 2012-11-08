@@ -34,5 +34,14 @@
 _e := ${.MAKE.DEPENDFILE_PREFERENCE:@m@${exists($m):?$m:}@}
 .if !empty(_e)
 .MAKE.DEPENDFILE := ${_e:[1]}
+.elif ${.MAKE.DEPENDFILE_PREFERENCE:M*${MACHINE}} != "" && ${.MAKE.DEPENDFILE_PREFERENCE:[1]:E} != ${MACHINE}
+# MACHINE specific depend files are supported, but *not* default.
+# If any already exist, we should follow suit.
+_aml = ${ALL_MACHINE_LIST:Uarm amd64 i386 powerpc:N${MACHINE}} ${MACHINE}
+# MACHINE must be the last entry in _aml ;-)
+_e := ${_aml:@MACHINE@${.MAKE.DEPENDFILE_PREFERENCE:@m@${exists($m):?$m:}@}@}
+.if !empty(_e)
+.MAKE.DEPENDFILE ?= ${.MAKE.DEPENDFILE_PREFERENCE:M*${MACHINE}:[1]}
+.endif
 .endif
 .MAKE.DEPENDFILE ?= ${.MAKE.DEPENDFILE_PREFERENCE:[1]}
