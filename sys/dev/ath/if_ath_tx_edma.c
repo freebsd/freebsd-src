@@ -405,14 +405,14 @@ ath_edma_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 	 *
 	 * Otherwise, just toss everything in each TX queue.
 	 */
-	 if (reset_type == ATH_RESET_NOLOSS) {
-	 	ath_edma_tx_processq(sc, 0);
-	 } else {
-		 for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
-		 	if (ATH_TXQ_SETUP(sc, i))
-		 		ath_tx_draintxq(sc, &sc->sc_txq[i]);
-		 }
-	 }
+	if (reset_type == ATH_RESET_NOLOSS) {
+		ath_edma_tx_processq(sc, 0);
+	} else {
+		for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
+			if (ATH_TXQ_SETUP(sc, i))
+				ath_tx_draintxq(sc, &sc->sc_txq[i]);
+		}
+	}
 
 	/* XXX dump out the TX completion FIFO contents */
 
