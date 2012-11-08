@@ -88,6 +88,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 
+#include <geom/geom.h>
+
 #include <ddb/ddb.h>
 
 #ifndef SOFTUPDATES
@@ -802,6 +804,7 @@ static	void handle_written_jnewblk(struct jnewblk *);
 static	void handle_written_jblkdep(struct jblkdep *);
 static	void handle_written_jfreefrag(struct jfreefrag *);
 static	void complete_jseg(struct jseg *);
+static	void complete_jsegs(struct jseg *);
 static	void jseg_write(struct ufsmount *ump, struct jseg *, uint8_t *);
 static	void jaddref_write(struct jaddref *, struct jseg *, uint8_t *);
 static	void jremref_write(struct jremref *, struct jseg *, uint8_t *);
@@ -1227,6 +1230,7 @@ static struct callout softdep_callout;
 static int req_pending;
 static int req_clear_inodedeps;	/* syncer process flush some inodedeps */
 static int req_clear_remove;	/* syncer process flush some freeblks */
+static int softdep_flushcache = 0; /* Should we do BIO_FLUSH? */
 
 /*
  * runtime statistics
@@ -1310,6 +1314,8 @@ SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_retries, CTLFLAG_RW,
     &stat_cleanup_retries, 0, "");
 SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_failures, CTLFLAG_RW,
     &stat_cleanup_failures, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, flushcache, CTLFLAG_RW,
+    &softdep_flushcache, 0, "");
 
 SYSCTL_DECL(_vfs_ffs);
 
@@ -3078,6 +3084,67 @@ softdep_flushjournal(mp)
 	FREE_LOCK(&lk);
 }
 
+static void softdep_synchronize_completed(struct bio *);
+static void softdep_synchronize(struct bio *, struct ufsmount *, void *);
+
+static void
+softdep_synchronize_completed(bp)
+        struct bio *bp;
+{
+	struct jseg *oldest;
+	struct jseg *jseg;
+
+	/*
+	 * caller1 marks the last segment written before we issued the
+	 * synchronize cache.
+	 */
+	jseg = bp->bio_caller1;
+	oldest = NULL;
+	ACQUIRE_LOCK(&lk);
+	/*
+	 * Mark all the journal entries waiting on the synchronize cache
+	 * as completed so they may continue on.
+	 */
+	while (jseg != NULL && (jseg->js_state & COMPLETE) == 0) {
+		jseg->js_state |= COMPLETE;
+		oldest = jseg;
+		jseg = TAILQ_PREV(jseg, jseglst, js_next);
+	}
+	/*
+	 * Restart deferred journal entry processing from the oldest
+	 * completed jseg.
+	 */
+	if (oldest)
+		complete_jsegs(oldest);
+
+	FREE_LOCK(&lk);
+	g_destroy_bio(bp);
+}
+
+/*
+ * Send BIO_FLUSH/SYNCHRONIZE CACHE to the device to enforce write ordering
+ * barriers.  The journal must be written prior to any blocks that depend
+ * on it and the journal can not be released until the blocks have be
+ * written.  This code handles both barriers simultaneously.
+ */
+static void
+softdep_synchronize(bp, ump, caller1)
+	struct bio *bp;
+	struct ufsmount *ump;
+	void *caller1;
+{
+
+	bp->bio_cmd = BIO_FLUSH;
+	bp->bio_flags |= BIO_ORDERED;
+	bp->bio_data = NULL;
+	bp->bio_offset = ump->um_cp->provider->mediasize;
+	bp->bio_length = 0;
+	bp->bio_done = softdep_synchronize_completed;
+	bp->bio_caller1 = caller1;
+	g_io_request(bp,
+	    (struct g_consumer *)ump->um_devvp->v_bufobj.bo_private);
+}
+
 /*
  * Flush some journal records to disk.
  */
@@ -3092,8 +3159,10 @@ softdep_process_journal(mp, needwk, flags)
 	struct worklist *wk;
 	struct jseg *jseg;
 	struct buf *bp;
+	struct bio *bio;
 	uint8_t *data;
 	struct fs *fs;
+	int shouldflush;
 	int segwritten;
 	int jrecmin;	/* Minimum records per block. */
 	int jrecmax;	/* Maximum records per block. */
@@ -3104,6 +3173,9 @@ softdep_process_journal(mp, needwk, flags)
 
 	if (MOUNTEDSUJ(mp) == 0)
 		return;
+	shouldflush = softdep_flushcache;
+	bio = NULL;
+	jseg = NULL;
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
 	jblocks = ump->softdep_jblocks;
@@ -3152,6 +3224,10 @@ softdep_process_journal(mp, needwk, flags)
 		LIST_INIT(&jseg->js_entries);
 		LIST_INIT(&jseg->js_indirs);
 		jseg->js_state = ATTACHED;
+		if (shouldflush == 0)
+			jseg->js_state |= COMPLETE;
+		else if (bio == NULL)
+			bio = g_alloc_bio();
 		jseg->js_jblocks = jblocks;
 		bp = geteblk(fs->fs_bsize, 0);
 		ACQUIRE_LOCK(&lk);
@@ -3284,6 +3360,17 @@ softdep_process_journal(mp, needwk, flags)
 		ACQUIRE_LOCK(&lk);
 	}
 	/*
+	 * If we wrote a segment issue a synchronize cache so the journal
+	 * is reflected on disk before the data is written.  Since reclaiming
+	 * journal space also requires writing a journal record this
+	 * process also enforces a barrier before reclamation.
+	 */
+	if (segwritten && shouldflush) {
+		softdep_synchronize(bio, ump, 
+		    TAILQ_LAST(&jblocks->jb_segs, jseglst));
+	} else if (bio)
+		g_destroy_bio(bio);
+	/*
 	 * If we've suspended the filesystem because we ran out of journal
 	 * space either try to sync it here to make some progress or
 	 * unsuspend it if we already have.
@@ -3366,16 +3453,47 @@ complete_jseg(jseg)
 }
 
 /*
- * Mark a jseg as DEPCOMPLETE and throw away the buffer.  Handle jseg
- * completions in order only.
+ * Determine which jsegs are ready for completion processing.  Waits for
+ * synchronize cache to complete as well as forcing in-order completion
+ * of journal entries.
+ */
+static void
+complete_jsegs(jseg)
+	struct jseg *jseg;
+{
+	struct jblocks *jblocks;
+	struct jseg *jsegn;
+
+	jblocks = jseg->js_jblocks;
+	/*
+	 * Don't allow out of order completions.  If this isn't the first
+	 * block wait for it to write before we're done.
+	 */
+	if (jseg != jblocks->jb_writeseg)
+		return;
+	/* Iterate through available jsegs processing their entries. */
+	while (jseg && (jseg->js_state & ALLCOMPLETE) == ALLCOMPLETE) {
+		jblocks->jb_oldestwrseq = jseg->js_oldseq;
+		jsegn = TAILQ_NEXT(jseg, js_next);
+		complete_jseg(jseg);
+		jseg = jsegn;
+	}
+	jblocks->jb_writeseg = jseg;
+	/*
+	 * Attempt to free jsegs now that oldestwrseq may have advanced. 
+	 */
+	free_jsegs(jblocks);
+}
+
+/*
+ * Mark a jseg as DEPCOMPLETE and throw away the buffer.  Attempt to handle
+ * the final completions.
  */
 static void
 handle_written_jseg(jseg, bp)
 	struct jseg *jseg;
 	struct buf *bp;
 {
-	struct jblocks *jblocks;
-	struct jseg *jsegn;
 
 	if (jseg->js_refs == 0)
 		panic("handle_written_jseg: No self-reference on %p", jseg);
@@ -3385,25 +3503,7 @@ handle_written_jseg(jseg, bp)
 	 * discarded.
 	 */
 	bp->b_flags |= B_INVAL | B_NOCACHE;
-	jblocks = jseg->js_jblocks;
-	/*
-	 * Don't allow out of order completions.  If this isn't the first
-	 * block wait for it to write before we're done.
-	 */
-	if (jseg != jblocks->jb_writeseg)
-		return;
-	/* Iterate through available jsegs processing their entries. */
-	do {
-		jblocks->jb_oldestwrseq = jseg->js_oldseq;
-		jsegn = TAILQ_NEXT(jseg, js_next);
-		complete_jseg(jseg);
-		jseg = jsegn;
-	} while (jseg && jseg->js_state & DEPCOMPLETE);
-	jblocks->jb_writeseg = jseg;
-	/*
-	 * Attempt to free jsegs now that oldestwrseq may have advanced. 
-	 */
-	free_jsegs(jblocks);
+	complete_jsegs(jseg);
 }
 
 static inline struct jsegdep *
@@ -4191,8 +4291,13 @@ free_jsegs(jblocks)
 			jblocks->jb_oldestseg = jseg;
 			return;
 		}
-		if (!LIST_EMPTY(&jseg->js_indirs) &&
-		    jseg->js_seq >= jblocks->jb_oldestwrseq)
+		if (jseg->js_seq > jblocks->jb_oldestwrseq)
+			break;
+		/*
+		 * We can free jsegs that didn't write entries when
+		 * oldestwrseq == js_seq.
+		 */
+		if (jseg->js_cnt != 0)
 			break;
 		free_jseg(jseg, jblocks);
 	}
