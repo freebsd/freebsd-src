@@ -22,14 +22,14 @@ CLEANFILES=	ioctl.c kdump_subr.c kdump_subr.h linux_syscalls.c
 
 ioctl.c: mkioctls
 	env MACHINE=${MACHINE} CPP="${CPP}" \
-	    sh ${.CURDIR}/mkioctls print ${DESTDIR}/usr/include > ${.TARGET}
+	    sh ${.CURDIR}/mkioctls print ${DESTDIR}${INCLUDEDIR} > ${.TARGET}
 
 kdump_subr.h: mksubr
-	sh ${.CURDIR}/mksubr ${DESTDIR}/usr/include | \
+	sh ${.CURDIR}/mksubr ${DESTDIR}${INCLUDEDIR} | \
 	    sed -n 's/^\([a-z].*)\)$$/void \1;/p' >${.TARGET}
 
 kdump_subr.c: mksubr kdump_subr.h
-	sh ${.CURDIR}/mksubr ${DESTDIR}/usr/include >${.TARGET}
+	sh ${.CURDIR}/mksubr ${DESTDIR}${INCLUDEDIR} >${.TARGET}
 
 linux_syscalls.c:
 	/bin/sh ${.CURDIR}/../../sys/kern/makesyscalls.sh \
@@ -38,3 +38,9 @@ linux_syscalls.c:
 	    >> linux_syscalls.c
 
 .include <bsd.prog.mk>
+
+.if ${MK_STAGING} != ""
+# we are interested in the files put in ${STAGE_OBJTOP}/include
+DESTDIR= ${STAGE_OBJTOP}
+INCLUDEDIR= /include
+.endif

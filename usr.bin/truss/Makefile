@@ -24,7 +24,7 @@ syscalls.h:	syscalls.master
 
 ioctl.c: ${.CURDIR}/../kdump/mkioctls
 	env MACHINE=${MACHINE} CPP="${CPP}" \
-		/bin/sh ${.CURDIR}/../kdump/mkioctls return ${DESTDIR}/usr/include > ${.TARGET}
+		/bin/sh ${.CURDIR}/../kdump/mkioctls return ${DESTDIR}${INCLUDEDIR} > ${.TARGET}
 
 .if ${MACHINE_CPUARCH} == "i386"
 SRCS+=	i386-linux.c linux_syscalls.h
@@ -73,3 +73,10 @@ freebsd32_syscalls.h:	fbsd32-syscalls.master
 .endif
 
 .include <bsd.prog.mk>
+
+
+.if ${MK_STAGING} != ""
+# we are interested in the files put in ${STAGE_OBJTOP}/include
+DESTDIR= ${STAGE_OBJTOP}
+INCLUDEDIR= /include
+.endif
