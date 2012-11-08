@@ -31,7 +31,7 @@
  *	nl_langinfo(3) extensions)
  *
  * XXX: correctly handle reserved 'charmap' keyword and '-m' option (require
- *      localedef(1) implementation).  Currently it's handled via
+ *	localedef(1) implementation).  Currently it's handled via
  *	nl_langinfo(CODESET).
  */
 
@@ -84,27 +84,27 @@ struct _lcinfo {
 /* ids for values not referenced by nl_langinfo() */
 #define	KW_ZERO			10000
 #define	KW_GROUPING		(KW_ZERO+1)
-#define KW_INT_CURR_SYMBOL 	(KW_ZERO+2)
-#define KW_CURRENCY_SYMBOL 	(KW_ZERO+3)
-#define KW_MON_DECIMAL_POINT 	(KW_ZERO+4)
-#define KW_MON_THOUSANDS_SEP 	(KW_ZERO+5)
-#define KW_MON_GROUPING 	(KW_ZERO+6)
-#define KW_POSITIVE_SIGN 	(KW_ZERO+7)
-#define KW_NEGATIVE_SIGN 	(KW_ZERO+8)
-#define KW_INT_FRAC_DIGITS 	(KW_ZERO+9)
-#define KW_FRAC_DIGITS 		(KW_ZERO+10)
-#define KW_P_CS_PRECEDES 	(KW_ZERO+11)
-#define KW_P_SEP_BY_SPACE 	(KW_ZERO+12)
-#define KW_N_CS_PRECEDES 	(KW_ZERO+13)
-#define KW_N_SEP_BY_SPACE 	(KW_ZERO+14)
-#define KW_P_SIGN_POSN 		(KW_ZERO+15)
-#define KW_N_SIGN_POSN 		(KW_ZERO+16)
-#define KW_INT_P_CS_PRECEDES 	(KW_ZERO+17)
-#define KW_INT_P_SEP_BY_SPACE 	(KW_ZERO+18)
-#define KW_INT_N_CS_PRECEDES 	(KW_ZERO+19)
-#define KW_INT_N_SEP_BY_SPACE 	(KW_ZERO+20)
-#define KW_INT_P_SIGN_POSN 	(KW_ZERO+21)
-#define KW_INT_N_SIGN_POSN 	(KW_ZERO+22)
+#define KW_INT_CURR_SYMBOL	(KW_ZERO+2)
+#define KW_CURRENCY_SYMBOL	(KW_ZERO+3)
+#define KW_MON_DECIMAL_POINT	(KW_ZERO+4)
+#define KW_MON_THOUSANDS_SEP	(KW_ZERO+5)
+#define KW_MON_GROUPING		(KW_ZERO+6)
+#define KW_POSITIVE_SIGN	(KW_ZERO+7)
+#define KW_NEGATIVE_SIGN	(KW_ZERO+8)
+#define KW_INT_FRAC_DIGITS	(KW_ZERO+9)
+#define KW_FRAC_DIGITS		(KW_ZERO+10)
+#define KW_P_CS_PRECEDES	(KW_ZERO+11)
+#define KW_P_SEP_BY_SPACE	(KW_ZERO+12)
+#define KW_N_CS_PRECEDES	(KW_ZERO+13)
+#define KW_N_SEP_BY_SPACE	(KW_ZERO+14)
+#define KW_P_SIGN_POSN		(KW_ZERO+15)
+#define KW_N_SIGN_POSN		(KW_ZERO+16)
+#define KW_INT_P_CS_PRECEDES	(KW_ZERO+17)
+#define KW_INT_P_SEP_BY_SPACE	(KW_ZERO+18)
+#define KW_INT_N_CS_PRECEDES	(KW_ZERO+19)
+#define KW_INT_N_SEP_BY_SPACE	(KW_ZERO+20)
+#define KW_INT_P_SIGN_POSN	(KW_ZERO+21)
+#define KW_INT_N_SIGN_POSN	(KW_ZERO+22)
 
 struct _kwinfo {
 	const char	*name;
@@ -283,16 +283,16 @@ main(int argc, char *argv[])
 	if (prt_categories || prt_keywords) {
 		if (argc > 0) {
 			setlocale(LC_ALL, "");
-                        while (argc > 0) {
+			while (argc > 0) {
 				showdetails(*argv);
-                                argv++;
-                                argc--;
-                        }
-                } else {
+				argv++;
+				argc--;
+			}
+		} else {
 			uint i;
-                        for (i = 0; i < sizeof (kwinfo) / sizeof (struct _kwinfo); i++)
+			for (i = 0; i < sizeof (kwinfo) / sizeof (struct _kwinfo); i++)
 				showdetails ((char *)kwinfo [i].name);
-                }
+		}
 		exit(0);
 	}
 
@@ -306,8 +306,8 @@ void
 usage(void)
 {
 	printf("Usage: locale [ -a | -m ]\n"
-               "       locale -k list [prefix]\n"
-               "       locale [ -ck ] [keyword ...]\n");
+	       "       locale -k list [prefix]\n"
+	       "       locale [ -ck ] [keyword ...]\n");
 	exit(1);
 }
 
@@ -316,7 +316,7 @@ usage(void)
  *
  * XXX actually output of this function does not guarantee that locale
  *     is really available to application, since it can be broken or
- *     inconsistent thus setlocale() will fail.  Maybe add '-V' function to
+ *     inconsistent thus setlocale() will fail.	 Maybe add '-V' function to
  *     also validate these locales?
  */
 void
@@ -427,10 +427,10 @@ init_locales_list(void)
 	}
 	closedir(dirp);
 
-        /* make sure that 'POSIX' and 'C' locales are present in the list.
+	/* make sure that 'POSIX' and 'C' locales are present in the list.
 	 * POSIX 1003.1-2001 requires presence of 'POSIX' name only here, but
-         * we also list 'C' for constistency
-         */
+	 * we also list 'C' for constistency
+	 */
 	if (sl_find(locales, "POSIX") == NULL)
 		sl_add(locales, "POSIX");
 
@@ -616,10 +616,10 @@ showdetails(char *kw)
 	}
 
 	if (prt_categories) {
-                  if (prt_keywords)
+		  if (prt_keywords)
 			printf("%-20s ", lookup_localecat(cat));
-                  else
-	                printf("%-20s\t%s\n", kw, lookup_localecat(cat));
+		  else
+			printf("%-20s\t%s\n", kw, lookup_localecat(cat));
 	}
 
 	if (prt_keywords) {
