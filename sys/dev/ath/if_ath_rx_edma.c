@@ -282,7 +282,7 @@ static void
 ath_edma_recv_flush(struct ath_softc *sc)
 {
 
-	device_printf(sc->sc_dev, "%s: called\n", __func__);
+	DPRINTF(sc, ATH_DEBUG_RECV, "%s: called\n", __func__);
 
 	ATH_PCU_LOCK(sc);
 	sc->sc_rxproc_cnt++;
