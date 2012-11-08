@@ -28,7 +28,4 @@ CFLAGS+=	-DFORWARD -Dnet_write=telnet_net_write
 .endif
 .endif
 
-INCS=		${TELNETDIR}/arpa/telnet.h
-INCSDIR=	${INCLUDEDIR}/arpa
-
 .include <bsd.lib.mk>
