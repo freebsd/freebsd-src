@@ -132,7 +132,7 @@ prn_printable(const char *s)
  * to fix this as an efficient fix would involve a lookup table. Same goes
  * for the rather inelegant code in prn_octal.
  *
- *                                              DES 1998/04/23
+ *						DES 1998/04/23
  */
 
 size_t
@@ -200,9 +200,9 @@ prn_octal(const char *s)
 			for (i = 0; i < prtlen; i++) {
 				ch = (unsigned char)s[i];
 				putchar('\\');
-		                putchar('0' + (ch >> 6));
-		                putchar('0' + ((ch >> 3) & 7));
-		                putchar('0' + (ch & 7));
+				putchar('0' + (ch >> 6));
+				putchar('0' + ((ch >> 3) & 7));
+				putchar('0' + (ch & 7));
 				len += 4;
 			}
 		}
