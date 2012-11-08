@@ -160,7 +160,7 @@ printlong(const DISPLAY *dp)
 		strmode(sp->st_mode, buf);
 		aclmode(buf, p);
 		np = p->fts_pointer;
-		(void)printf("%s %*u %-*s  %-*s  ", buf, dp->s_nlink,
+		(void)printf("%s %*u %-*s  %-*s	 ", buf, dp->s_nlink,
 		    sp->st_nlink, dp->s_user, np->user, dp->s_group,
 		    np->group);
 		if (f_flags)
@@ -382,7 +382,7 @@ printtime(time_t ftime)
 		format = d_first ? "%e %b %R" : "%b %e %R";
 	else
 		/* mmm dd  yyyy || dd mmm  yyyy */
-		format = d_first ? "%e %b  %Y" : "%b %e  %Y";
+		format = d_first ? "%e %b  %Y" : "%b %e	 %Y";
 	strftime(longstring, sizeof(longstring), format, localtime(&ftime));
 	fputs(longstring, stdout);
 	fputc(' ', stdout);
@@ -606,11 +606,11 @@ printsize(size_t width, off_t bytes)
 		humanize_number(buf, sizeof(buf), (int64_t)bytes, "",
 		    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 		(void)printf("%*s ", (u_int)width, buf);
-	} else if (f_thousands) {               /* with commas */
+	} else if (f_thousands) {		/* with commas */
 		/* This format assignment needed to work round gcc bug. */
-                const char *format = "%*j'd ";
+		const char *format = "%*j'd ";
 		(void)printf(format, (u_int)width, bytes);
-        } else
+	} else
 		(void)printf("%*jd ", (u_int)width, bytes);
 }
 
