@@ -77,9 +77,8 @@
 static int uhub_debug = 0;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, uhub, CTLFLAG_RW, 0, "USB HUB");
-SYSCTL_INT(_hw_usb_uhub, OID_AUTO, debug, CTLFLAG_RW, &uhub_debug, 0,
+SYSCTL_INT(_hw_usb_uhub, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN, &uhub_debug, 0,
     "Debug level");
-
 TUNABLE_INT("hw.usb.uhub.debug", &uhub_debug);
 #endif
 
@@ -415,7 +414,7 @@ repeat:
 		/* wait for maximum device power up time */
 
 		usb_pause_mtx(NULL, 
-		    USB_MS_TO_TICKS(USB_PORT_POWERUP_DELAY));
+		    USB_MS_TO_TICKS(usb_port_powerup_delay));
 
 		/* reset port, which implies enabling it */
 
@@ -979,7 +978,7 @@ uhub_attach(device_t dev)
 
 		/* get power delay */
 		pwrdly = ((hubdesc20.bPwrOn2PwrGood * UHD_PWRON_FACTOR) +
-		    USB_EXTRA_POWER_UP_TIME);
+		    usb_extra_power_up_time);
 
 		/* get complete HUB descriptor */
 		if (nports >= 8) {
@@ -1024,7 +1023,7 @@ uhub_attach(device_t dev)
 
 		/* get power delay */
 		pwrdly = ((hubdesc30.bPwrOn2PwrGood * UHD_PWRON_FACTOR) +
-		    USB_EXTRA_POWER_UP_TIME);
+		    usb_extra_power_up_time);
 
 		/* get complete HUB descriptor */
 		if (nports >= 8) {
@@ -1053,7 +1052,7 @@ uhub_attach(device_t dev)
 		/* default number of ports */
 		nports = 1;
 		/* default power delay */
-		pwrdly = ((10 * UHD_PWRON_FACTOR) + USB_EXTRA_POWER_UP_TIME);
+		pwrdly = ((10 * UHD_PWRON_FACTOR) + usb_extra_power_up_time);
 		break;
 	}
 	if (nports == 0) {
@@ -2261,7 +2260,7 @@ usb_dev_resume_peer(struct usb_device *udev)
 	}
 
 	/* resume settle time */
-	usb_pause_mtx(NULL, USB_MS_TO_TICKS(USB_PORT_RESUME_DELAY));
+	usb_pause_mtx(NULL, USB_MS_TO_TICKS(usb_port_resume_delay));
 
 	if (bus->methods->device_resume != NULL) {
 		/* resume USB device on the USB controller */
@@ -2414,7 +2413,7 @@ repeat:
 			    NULL, udev->port_no, UHF_PORT_SUSPEND);
 
 			/* resume settle time */
-			usb_pause_mtx(NULL, USB_MS_TO_TICKS(USB_PORT_RESUME_DELAY));
+			usb_pause_mtx(NULL, USB_MS_TO_TICKS(usb_port_resume_delay));
 		}
 		DPRINTF("Suspend was cancelled!\n");
 		return;
