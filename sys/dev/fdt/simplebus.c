@@ -134,7 +134,7 @@ static int
 simplebus_probe(device_t dev)
 {
 
-	if (!ofw_bus_is_compatible_strict(dev, "simple-bus"))
+	if (!ofw_bus_is_compatible(dev, "simple-bus"))
 		return (ENXIO);
 
 	device_set_desc(dev, "Flattened device tree simple bus");
