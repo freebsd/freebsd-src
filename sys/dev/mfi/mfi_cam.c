@@ -50,7 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 #include <cam/cam_debug.h>
+#include <cam/cam_periph.h>
 #include <cam/cam_sim.h>
+#include <cam/cam_xpt_periph.h>
 #include <cam/cam_xpt_sim.h>
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
@@ -63,12 +65,19 @@ __FBSDID("$FreeBSD$");
 #include <dev/mfi/mfi_ioctl.h>
 #include <dev/mfi/mfivar.h>
 
+enum mfip_state {
+	MFIP_STATE_NONE,
+	MFIP_STATE_DETACH,
+	MFIP_STATE_RESCAN
+};
+
 struct mfip_softc {
 	device_t	dev;
 	struct mfi_softc *mfi_sc;
 	struct cam_devq *devq;
 	struct cam_sim	*sim;
 	struct cam_path	*path;
+	enum mfip_state	state;
 };
 
 static int	mfip_probe(device_t);
@@ -76,6 +85,7 @@ static int	mfip_attach(device_t);
 static int	mfip_detach(device_t);
 static void	mfip_cam_action(struct cam_sim *, union ccb *);
 static void	mfip_cam_poll(struct cam_sim *);
+static void	mfip_cam_rescan(struct mfi_softc *, uint32_t tid);
 static struct mfi_command * mfip_start(void *);
 static void	mfip_done(struct mfi_command *cm);
 
@@ -122,6 +132,7 @@ mfip_attach(device_t dev)
 
 	mfisc = device_get_softc(device_get_parent(dev));
 	sc->dev = dev;
+	sc->state = MFIP_STATE_NONE;
 	sc->mfi_sc = mfisc;
 	mfisc->mfi_cam_start = mfip_start;
 
@@ -136,6 +147,8 @@ mfip_attach(device_t dev)
 		device_printf(dev, "CAM SIM attach failed\n");
 		return (EINVAL);
 	}
+
+	mfisc->mfi_cam_rescan_cb = mfip_cam_rescan;
 
 	mtx_lock(&mfisc->mfi_io_lock);
 	if (xpt_bus_register(sc->sim, dev, 0) != 0) {
@@ -158,6 +171,16 @@ mfip_detach(device_t dev)
 	sc = device_get_softc(dev);
 	if (sc == NULL)
 		return (EINVAL);
+
+	mtx_lock(&sc->mfi_sc->mfi_io_lock);
+	if (sc->state == MFIP_STATE_RESCAN) {
+		mtx_unlock(&sc->mfi_sc->mfi_io_lock);
+		return (EBUSY);
+	}
+	sc->state = MFIP_STATE_DETACH;
+	mtx_unlock(&sc->mfi_sc->mfi_io_lock);
+
+	sc->mfi_sc->mfi_cam_rescan_cb = NULL;
 
 	if (sc->sim != NULL) {
 		mtx_lock(&sc->mfi_sc->mfi_io_lock);
@@ -264,6 +287,54 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 
 	xpt_done(ccb);
 	return;
+}
+
+static void
+mfip_cam_rescan(struct mfi_softc *sc, uint32_t tid)
+{
+	union ccb *ccb;
+	struct mfip_softc *camsc;
+	struct cam_sim *sim;
+	device_t mfip_dev;
+
+	mtx_lock(&Giant);
+	mfip_dev = device_find_child(sc->mfi_dev, "mfip", -1);
+	mtx_unlock(&Giant);
+	if (mfip_dev == NULL) {
+		device_printf(sc->mfi_dev, "Couldn't find mfip child device!\n");
+		return;
+	}
+
+	mtx_lock(&sc->mfi_io_lock);
+	camsc = device_get_softc(mfip_dev);
+	if (camsc->state == MFIP_STATE_DETACH) {
+		mtx_unlock(&sc->mfi_io_lock);
+		return;
+	}
+	camsc->state = MFIP_STATE_RESCAN;
+	mtx_unlock(&sc->mfi_io_lock);
+
+	ccb = xpt_alloc_ccb_nowait();
+	if (ccb == NULL) {
+		device_printf(sc->mfi_dev,
+		    "Cannot allocate ccb for bus rescan.\n");
+		return;
+	}
+
+	sim = camsc->sim;
+	if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, cam_sim_path(sim),
+	    tid, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+		xpt_free_ccb(ccb);
+		device_printf(sc->mfi_dev,
+		    "Cannot create path for bus rescan.\n");
+		return;
+	}
+
+	xpt_rescan(ccb);
+
+	mtx_lock(&sc->mfi_io_lock);
+	camsc->state = MFIP_STATE_NONE;
+	mtx_unlock(&sc->mfi_io_lock);
 }
 
 static struct mfi_command *
