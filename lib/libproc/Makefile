@@ -14,6 +14,8 @@ SRCS=	proc_bkpt.c		\
 INCS=	libproc.h
 
 CFLAGS+=	-I${.CURDIR}
+# avoid cyclic dependency
+CFLAGS+=	-I${.CURDIR:H}/librtld_db
 
 .if ${MK_LIBCPLUSPLUS} != "no"
 LDADD+=		-lcxxrt
