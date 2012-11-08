@@ -130,6 +130,8 @@ __FBSDID("$FreeBSD$");
 
 MALLOC_DECLARE(M_ATHDEV);
 
+static void ath_edma_tx_processq(struct ath_softc *sc, int dosched);
+
 static void
 ath_edma_tx_fifo_fill(struct ath_softc *sc, struct ath_txq *txq)
 {
@@ -170,7 +172,7 @@ static void
 ath_edma_dma_restart(struct ath_softc *sc, struct ath_txq *txq)
 {
 
-	device_printf(sc->sc_dev, "%s: called: txq=%p, qnum=%d\n",
+	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called: txq=%p, qnum=%d\n",
 	    __func__,
 	    txq,
 	    txq->axq_qnum);
@@ -393,7 +395,7 @@ ath_edma_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 	struct ifnet *ifp = sc->sc_ifp;
 	int i;
 
-	device_printf(sc->sc_dev, "%s: called\n", __func__);
+	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
 
 	(void) ath_stoptxdma(sc);
 
@@ -403,16 +405,18 @@ ath_edma_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 	 *
 	 * Otherwise, just toss everything in each TX queue.
 	 */
+	 if (reset_type == ATH_RESET_NOLOSS) {
+	 	ath_edma_tx_processq(sc, 0);
+	 } else {
+		 for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
+		 	if (ATH_TXQ_SETUP(sc, i))
+		 		ath_tx_draintxq(sc, &sc->sc_txq[i]);
+		 }
+	 }
 
 	/* XXX dump out the TX completion FIFO contents */
 
 	/* XXX dump out the frames */
-
-	/* XXX for now, just drain */
-	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
-		if (ATH_TXQ_SETUP(sc, i))
-			ath_tx_draintxq(sc, &sc->sc_txq[i]);
-	}
 
 	IF_LOCK(&ifp->if_snd);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -421,12 +425,25 @@ ath_edma_tx_drain(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 }
 
 /*
- * Process the TX status queue.
+ * TX completion tasklet.
  */
+
 static void
 ath_edma_tx_proc(void *arg, int npending)
 {
 	struct ath_softc *sc = (struct ath_softc *) arg;
+
+	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: called, npending=%d\n",
+	    __func__, npending);
+	ath_edma_tx_processq(sc, 1);
+}
+
+/*
+ * Process the TX status queue.
+ */
+static void
+ath_edma_tx_processq(struct ath_softc *sc, int dosched)
+{
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_STATUS status;
 	struct ath_tx_status ts;
@@ -441,17 +458,14 @@ ath_edma_tx_proc(void *arg, int npending)
 	uint32_t txstatus[32];
 #endif
 
-	DPRINTF(sc, ATH_DEBUG_TX_PROC, "%s: called, npending=%d\n",
-	    __func__, npending);
-
 	for (idx = 0; ; idx++) {
 		bzero(&ts, sizeof(ts));
 
 		ATH_TXSTATUS_LOCK(sc);
-		status = ath_hal_txprocdesc(ah, NULL, (void *) &ts);
 #ifdef	ATH_DEBUG
 		ath_hal_gettxrawtxdesc(ah, txstatus);
 #endif
+		status = ath_hal_txprocdesc(ah, NULL, (void *) &ts);
 		ATH_TXSTATUS_UNLOCK(sc);
 
 #ifdef	ATH_DEBUG
@@ -594,7 +608,7 @@ ath_edma_tx_proc(void *arg, int npending)
 		 * working.
 		 */
 		ATH_TXQ_LOCK(txq);
-		if (txq->axq_fifo_depth == 0) {
+		if (dosched && txq->axq_fifo_depth == 0) {
 			ath_edma_tx_fifo_fill(sc, txq);
 		}
 		ATH_TXQ_UNLOCK(txq);
@@ -614,7 +628,8 @@ ath_edma_tx_proc(void *arg, int npending)
 	 * but there's no easy way right now to only populate
 	 * the txq task for _one_ TXQ.  This should be fixed.
 	 */
-	taskqueue_enqueue(sc->sc_tq, &sc->sc_txqtask);
+	if (dosched)
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_txqtask);
 }
 
 static void
