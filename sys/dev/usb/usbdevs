@@ -1545,6 +1545,7 @@ product EDIMAX EW7318USG	0x7318	USB Wireless dongle
 product EDIMAX RT2870_1		0x7711	RT2870
 product EDIMAX EW7717		0x7717	EW-7717
 product EDIMAX EW7718		0x7718	EW-7718
+product EDIMAX EW7811UN		0x7811	EW-7811Un
 
 /* eGalax Products */
 product EGALAX TPANEL		0x0001	Touch Panel
