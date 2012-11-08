@@ -186,11 +186,13 @@ struct {
  */
 static uma_zone_t mt_zone;
 
-static u_long vm_min_kernel_address = VM_MIN_KERNEL_ADDRESS;
+static vm_offset_t vm_min_kernel_address = VM_MIN_KERNEL_ADDRESS;
 SYSCTL_ULONG(_vm, OID_AUTO, min_kernel_address, CTLFLAG_RD,
     &vm_min_kernel_address, 0, "Min kernel address");
 
-static u_long vm_max_kernel_address = VM_MAX_KERNEL_ADDRESS;
+#ifndef __sparc64__
+static vm_offset_t vm_max_kernel_address = VM_MAX_KERNEL_ADDRESS;
+#endif
 SYSCTL_ULONG(_vm, OID_AUTO, max_kernel_address, CTLFLAG_RD,
     &vm_max_kernel_address, 0, "Max kernel address");
 
