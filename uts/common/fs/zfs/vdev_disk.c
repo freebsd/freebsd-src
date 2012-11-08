@@ -40,11 +40,6 @@
 
 extern ldi_ident_t zfs_li;
 
-typedef struct vdev_disk_buf {
-	buf_t	vdb_buf;
-	zio_t	*vdb_io;
-} vdev_disk_buf_t;
-
 static void
 vdev_disk_hold(vdev_t *vd)
 {
@@ -397,8 +392,8 @@ vdev_disk_physio(ldi_handle_t vd_lh, caddr_t data, size_t size,
 static void
 vdev_disk_io_intr(buf_t *bp)
 {
-	vdev_disk_buf_t *vdb = (vdev_disk_buf_t *)bp;
-	zio_t *zio = vdb->vdb_io;
+	vdev_buf_t *vb = (vdev_buf_t *)bp;
+	zio_t *zio = vb->vb_io;
 
 	/*
 	 * The rest of the zio stack only deals with EIO, ECKSUM, and ENXIO.
@@ -410,7 +405,7 @@ vdev_disk_io_intr(buf_t *bp)
 	if (zio->io_error == 0 && bp->b_resid != 0)
 		zio->io_error = EIO;
 
-	kmem_free(vdb, sizeof (vdev_disk_buf_t));
+	kmem_free(vb, sizeof (vdev_buf_t));
 
 	zio_interrupt(zio);
 }
@@ -441,7 +436,7 @@ vdev_disk_io_start(zio_t *zio)
 {
 	vdev_t *vd = zio->io_vd;
 	vdev_disk_t *dvd = vd->vdev_tsd;
-	vdev_disk_buf_t *vdb;
+	vdev_buf_t *vb;
 	struct dk_callback *dkc;
 	buf_t *bp;
 	int error;
@@ -505,10 +500,10 @@ vdev_disk_io_start(zio_t *zio)
 		return (ZIO_PIPELINE_CONTINUE);
 	}
 
-	vdb = kmem_alloc(sizeof (vdev_disk_buf_t), KM_SLEEP);
+	vb = kmem_alloc(sizeof (vdev_buf_t), KM_SLEEP);
 
-	vdb->vdb_io = zio;
-	bp = &vdb->vdb_buf;
+	vb->vb_io = zio;
+	bp = &vb->vb_buf;
 
 	bioinit(bp);
 	bp->b_flags = B_BUSY | B_NOCACHE |
