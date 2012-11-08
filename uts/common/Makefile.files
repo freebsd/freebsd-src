@@ -21,7 +21,7 @@
 
 #
 # Copyright (c) 1991, 2010, Oracle and/or its affiliates. All rights reserved.
-# Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+# Copyright (c) 2012 Nexenta Systems, Inc. All rights reserved.
 # Copyright (c) 2012 by Delphix. All rights reserved.
 #
 
@@ -1942,6 +1942,16 @@ NXGE_NPI_OBJS =	\
 
 NXGE_HCALL_OBJS =	\
 		nxge_hcall.o
+
+#
+# Virtio modules
+#
+
+# Virtio core
+VIRTIO_OBJS = virtio.o
+
+# Virtio block driver
+VIOBLK_OBJS = vioblk.o
 
 #
 #	kiconv modules
