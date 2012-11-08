@@ -9,7 +9,7 @@
 
 PROG=	atmconfig
 .ifndef RESCUE
-SRCS=	${.OBJDIR}/oid.h
+SRCS=	oid.h
 .endif
 SRCS+=	main.c diag.c natm.c
 .ifndef RESCUE
@@ -18,7 +18,7 @@ SRCS+=	atmconfig_device.c
 MAN=	atmconfig.8
 # CFLAGS+= -DPATH_HELP='".:/usr/share/doc/atm:/usr/local/share/doc/atm"'
 
-CFLAGS+= -I${.OBJDIR}
+CFLAGS+= -I.
 
 .ifndef RESCUE
 DPADD=	${LIBBSNMP}
@@ -43,8 +43,8 @@ FILESDIR= /usr/share/doc/atm
 SNMP_ATM_DEF= ${.CURDIR}/../../../contrib/ngatm/snmp_atm/atm_tree.def	\
 	${.CURDIR}/../../../usr.sbin/bsnmpd/modules/snmp_atm/atm_freebsd.def
 
-${.OBJDIR}/oid.h: atm_oid.list ${SNMP_ATM_DEF}
+oid.h: atm_oid.list ${SNMP_ATM_DEF}
 	cat ${SNMP_ATM_DEF} | gensnmptree -e `tail -n +2 ${.CURDIR}/atm_oid.list` \
-		> ${.OBJDIR}/oid.h
+		> ${.TARGET}
 
 .include <bsd.prog.mk>
