@@ -189,6 +189,12 @@ static struct td_sched td_sched0;
 #define	SCHED_INTERACT_HALF	(SCHED_INTERACT_MAX / 2)
 #define	SCHED_INTERACT_THRESH	(30)
 
+/*
+ * These parameters determine the slice behavior for batch work.
+ */
+#define	SCHED_SLICE_DEFAULT_DIVISOR	10	/* ~94 ms, 12 stathz ticks. */
+#define	SCHED_SLICE_MIN_DIVISOR		6	/* DEFAULT/MIN = ~16 ms. */
+
 /* Flags kept in td_flags. */
 #define	TDF_SLICEEND	TDF_SCHED2	/* Thread time slice is over. */
 
@@ -201,9 +207,10 @@ static struct td_sched td_sched0;
  * preempt_thresh:	Priority threshold for preemption and remote IPIs.
  */
 static int sched_interact = SCHED_INTERACT_THRESH;
-static int realstathz = 127;
 static int tickincr = 8 << SCHED_TICK_SHIFT;
-static int sched_slice = 12;
+static int realstathz = 127;	/* reset during boot. */
+static int sched_slice = 10;	/* reset during boot. */
+static int sched_slice_min = 1;	/* reset during boot. */
 #ifdef PREEMPTION
 #ifdef FULL_PREEMPTION
 static int preempt_thresh = PRI_MAX_IDLE;
@@ -556,6 +563,30 @@ tdq_load_rem(struct tdq *tdq, struct thread *td)
 		tdq->tdq_sysload--;
 	KTR_COUNTER0(KTR_SCHED, "load", tdq->tdq_loadname, tdq->tdq_load);
 	SDT_PROBE2(sched, , , load_change, (int)TDQ_ID(tdq), tdq->tdq_load);
+}
+
+/*
+ * Bound timeshare latency by decreasing slice size as load increases.  We
+ * consider the maximum latency as the sum of the threads waiting to run
+ * aside from curthread and target no more than sched_slice latency but
+ * no less than sched_slice_min runtime.
+ */
+static inline int
+tdq_slice(struct tdq *tdq)
+{
+	int load;
+
+	/*
+	 * It is safe to use sys_load here because this is called from
+	 * contexts where timeshare threads are running and so there
+	 * cannot be higher priority load in the system.
+	 */
+	load = tdq->tdq_sysload - 1;
+	if (load >= SCHED_SLICE_MIN_DIVISOR)
+		return (sched_slice_min);
+	if (load <= 1)
+		return (sched_slice);
+	return (sched_slice / load);
 }
 
 /*
@@ -1384,7 +1415,8 @@ sched_initticks(void *dummy)
 	int incr;
 
 	realstathz = stathz ? stathz : hz;
-	sched_slice = realstathz / 10;	/* ~100ms */
+	sched_slice = realstathz / SCHED_SLICE_DEFAULT_DIVISOR;
+	sched_slice_min = sched_slice / SCHED_SLICE_MIN_DIVISOR;
 	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
 	    realstathz);
 
@@ -1585,7 +1617,7 @@ schedinit(void)
 	thread0.td_sched = &td_sched0;
 	td_sched0.ts_ltick = ticks;
 	td_sched0.ts_ftick = ticks;
-	td_sched0.ts_slice = sched_slice;
+	td_sched0.ts_slice = 0;
 }
 
 /*
@@ -2003,8 +2035,10 @@ sched_wakeup(struct thread *td)
 		sched_interact_update(td);
 		sched_pctcpu_update(ts, 0);
 	}
-	/* Reset the slice value after we sleep. */
-	ts->ts_slice = sched_slice;
+	/*
+	 * Reset the slice value since we slept and advanced the round-robin.
+	 */
+	ts->ts_slice = 0;
 	sched_add(td, SRQ_BORING);
 }
 
@@ -2036,14 +2070,16 @@ sched_fork_thread(struct thread *td, struct thread *child)
 {
 	struct td_sched *ts;
 	struct td_sched *ts2;
+	struct tdq *tdq;
 
+	tdq = TDQ_SELF();
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	/*
 	 * Initialize child.
 	 */
 	ts = td->td_sched;
 	ts2 = child->td_sched;
-	child->td_lock = TDQ_LOCKPTR(TDQ_SELF());
+	child->td_lock = TDQ_LOCKPTR(tdq);
 	child->td_cpuset = cpuset_ref(td->td_cpuset);
 	ts2->ts_cpu = ts->ts_cpu;
 	ts2->ts_flags = 0;
@@ -2062,7 +2098,8 @@ sched_fork_thread(struct thread *td, struct thread *child)
 	 */
 	ts2->ts_slptime = ts->ts_slptime;
 	ts2->ts_runtime = ts->ts_runtime;
-	ts2->ts_slice = 1;	/* Attempt to quickly learn interactivity. */
+	/* Attempt to quickly learn interactivity. */
+	ts2->ts_slice = tdq_slice(tdq) - sched_slice_min;
 #ifdef KTR
 	bzero(ts2->ts_name, sizeof(ts2->ts_name));
 #endif
@@ -2227,8 +2264,8 @@ sched_clock(struct thread *td)
 	 * Force a context switch if the current thread has used up a full
 	 * time slice (default is 100ms).
 	 */
-	if (!TD_IS_IDLETHREAD(td) && --ts->ts_slice <= 0) {
-		ts->ts_slice = sched_slice;
+	if (!TD_IS_IDLETHREAD(td) && ++ts->ts_slice >= tdq_slice(tdq)) {
+		ts->ts_slice = 0;
 		td->td_flags |= TDF_NEEDRESCHED | TDF_SLICEEND;
 	}
 }
@@ -2799,6 +2836,7 @@ sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
 	if (new_val <= 0)
 		return (EINVAL);
 	sched_slice = imax(1, (new_val + period / 2) / period);
+	sched_slice_min = sched_slice / SCHED_SLICE_MIN_DIVISOR;
 	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
 	    realstathz);
 	return (0);
