@@ -35,7 +35,7 @@ We only pay attention to a subset of the information in the
 
 """
 RCSid:
-	$Id: meta2deps.py,v 1.5 2011/11/14 00:18:42 sjg Exp $
+	$Id: meta2deps.py,v 1.7 2012/11/06 05:44:03 sjg Exp $
 
 	Copyright (c) 2011, Juniper Networks, Inc.
 
@@ -183,6 +183,11 @@ class MetaFile:
                     srctop += '/'
                 if not srctop in self.srctops:
                     self.srctops.append(srctop)
+                _srctop = os.path.realpath(srctop)
+                if _srctop[-1] != '/':
+                    _srctop += '/'
+                if not _srctop in self.srctops:
+                    self.srctops.append(_srctop)
 
             for objroot in getv(conf, 'OBJROOTS', []):
                 if not objroot in self.objroots:
@@ -190,8 +195,8 @@ class MetaFile:
                     _objroot = os.path.realpath(objroot)
                     if objroot[-1] == '/':
                         _objroot += '/'
-                        if not _objroot in self.objroots:
-                            self.objroots.append(_objroot)
+                    if not _objroot in self.objroots:
+                        self.objroots.append(_objroot)
 
             if self.debug:
                 print >> self.debug_out, "host_target=", self.host_target
@@ -397,6 +402,9 @@ class MetaFile:
                 path = w[2].strip("'")
             else:
                 path = w[2]
+            # we are never interested in .dirdep files as dependencies
+            if path.endswith('.dirdep'):
+                continue
             # we don't want to resolve the last component if it is
             # a symlink
             path = resolve(path, cwd, last_dir, self.debug, self.debug_out)
