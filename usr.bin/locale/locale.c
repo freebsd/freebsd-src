@@ -253,11 +253,9 @@ main(int argc, char *argv[])
 	/* validate arguments */
 	if (all_locales && all_charmaps)
 		usage();
-	if ((all_locales || all_charmaps) && argc > 0) 
+	if ((all_locales || all_charmaps) && argc > 0)
 		usage();
 	if ((all_locales || all_charmaps) && (prt_categories || prt_keywords))
-		usage();
-	if ((prt_categories || prt_keywords) && argc <= 0)
 		usage();
 
 	/* process '-a' */
@@ -282,13 +280,19 @@ main(int argc, char *argv[])
 			}
 
 	/* process '-c' and/or '-k' */
-	if (prt_categories || prt_keywords || argc > 0) {
-		setlocale(LC_ALL, "");
-		while (argc > 0) {
-			showdetails(*argv);
-			argv++;
-			argc--;
-		}
+	if (prt_categories || prt_keywords) {
+		if (argc > 0) {
+			setlocale(LC_ALL, "");
+                        while (argc > 0) {
+				showdetails(*argv);
+                                argv++;
+                                argc--;
+                        }
+                } else {
+			uint i;
+                        for (i = 0; i < sizeof (kwinfo) / sizeof (struct _kwinfo); i++)
+				showdetails ((char *)kwinfo [i].name);
+                }
 		exit(0);
 	}
 
@@ -303,7 +307,7 @@ usage(void)
 {
 	printf("Usage: locale [ -a | -m ]\n"
                "       locale -k list [prefix]\n"
-               "       locale [ -ck ] keyword ...\n");
+               "       locale [ -ck ] [keyword ...]\n");
 	exit(1);
 }
 
@@ -612,7 +616,10 @@ showdetails(char *kw)
 	}
 
 	if (prt_categories) {
-		printf("%s\n", lookup_localecat(cat));
+                  if (prt_keywords)
+			printf("%-20s ", lookup_localecat(cat));
+                  else
+	                printf("%-20s\t%s\n", kw, lookup_localecat(cat));
 	}
 
 	if (prt_keywords) {
