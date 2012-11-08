@@ -4,7 +4,8 @@
  *
  * This software was developed by Semihalf under sponsorship from
  * the FreeBSD Foundation.
- * Portions of this documentation were written by Oleksandr Rybalko
+ *
+ * Portions of this software were developed by Oleksandr Rybalko
  * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
