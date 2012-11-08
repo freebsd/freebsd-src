@@ -175,7 +175,7 @@ prn_octal(const char *s)
 	size_t clen;
 	unsigned char ch;
 	int goodchar, i, len, prtlen;
-	
+
 	memset(&mbs, 0, sizeof(mbs));
 	len = 0;
 	while ((clen = mbrtowc(&wc, s, MB_LEN_MAX, &mbs)) != 0) {
@@ -222,9 +222,9 @@ usage(void)
 {
 	(void)fprintf(stderr,
 #ifdef COLORLS
-	"usage: ls [-ABCFGHILPRSTUWZabcdfghiklmnopqrstuwx1] [-D format]"
+	"usage: ls [-ABCFGHILPRSTUWZabcdfghiklmnopqrstuwxy1,] [-D format]"
 #else
-	"usage: ls [-ABCFHILPRSTUWZabcdfghiklmnopqrstuwx1] [-D format]"
+	"usage: ls [-ABCFHILPRSTUWZabcdfghiklmnopqrstuwxy1,] [-D format]"
 #endif
 		      " [file ...]\n");
 	exit(1);
