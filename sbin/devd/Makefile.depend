@@ -6,6 +6,7 @@ DEP_MACHINE := ${.PARSEFILE:E}
 
 DIRDEPS = \
 	gnu/lib/libstdc++ \
+	gnu/lib/libsupc++ \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \

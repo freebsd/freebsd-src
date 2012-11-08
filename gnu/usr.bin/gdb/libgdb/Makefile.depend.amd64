@@ -9,13 +9,45 @@ DIRDEPS = \
 	include \
 	include/arpa \
 	include/xlocale \
+	lib/libthread_db \
 	lib/msun \
+	lib/ncurses/ncursesw \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
+amd64-nat.o: nm.h
+amd64-nat.o: tm.h
+amd64-nat.o: xm.h
+amd64-nat.po: nm.h
+amd64-nat.po: tm.h
+amd64-nat.po: xm.h
+amd64-tdep.o: nm.h
+amd64-tdep.o: tm.h
+amd64-tdep.o: xm.h
+amd64-tdep.po: nm.h
+amd64-tdep.po: tm.h
+amd64-tdep.po: xm.h
+amd64bsd-nat.o: nm.h
+amd64bsd-nat.o: tm.h
+amd64bsd-nat.o: xm.h
+amd64bsd-nat.po: nm.h
+amd64bsd-nat.po: tm.h
+amd64bsd-nat.po: xm.h
+amd64fbsd-nat.o: nm.h
+amd64fbsd-nat.o: tm.h
+amd64fbsd-nat.o: xm.h
+amd64fbsd-nat.po: nm.h
+amd64fbsd-nat.po: tm.h
+amd64fbsd-nat.po: xm.h
+amd64fbsd-tdep.o: nm.h
+amd64fbsd-tdep.o: tm.h
+amd64fbsd-tdep.o: xm.h
+amd64fbsd-tdep.po: nm.h
+amd64fbsd-tdep.po: tm.h
+amd64fbsd-tdep.po: xm.h
 annotate.o: nm.h
 annotate.o: tm.h
 annotate.o: xm.h
@@ -460,36 +492,18 @@ hpacc-abi.o: xm.h
 hpacc-abi.po: nm.h
 hpacc-abi.po: tm.h
 hpacc-abi.po: xm.h
-i386-nat.o: nm.h
-i386-nat.o: tm.h
-i386-nat.o: xm.h
-i386-nat.po: nm.h
-i386-nat.po: tm.h
-i386-nat.po: xm.h
 i386-tdep.o: nm.h
 i386-tdep.o: tm.h
 i386-tdep.o: xm.h
 i386-tdep.po: nm.h
 i386-tdep.po: tm.h
 i386-tdep.po: xm.h
-i386bsd-nat.o: nm.h
-i386bsd-nat.o: tm.h
-i386bsd-nat.o: xm.h
-i386bsd-nat.po: nm.h
-i386bsd-nat.po: tm.h
-i386bsd-nat.po: xm.h
 i386bsd-tdep.o: nm.h
 i386bsd-tdep.o: tm.h
 i386bsd-tdep.o: xm.h
 i386bsd-tdep.po: nm.h
 i386bsd-tdep.po: tm.h
 i386bsd-tdep.po: xm.h
-i386fbsd-nat.o: nm.h
-i386fbsd-nat.o: tm.h
-i386fbsd-nat.o: xm.h
-i386fbsd-nat.po: nm.h
-i386fbsd-nat.po: tm.h
-i386fbsd-nat.po: xm.h
 i386fbsd-tdep-fixed.o: i386fbsd-tdep-fixed.c
 i386fbsd-tdep-fixed.o: nm.h
 i386fbsd-tdep-fixed.o: tm.h

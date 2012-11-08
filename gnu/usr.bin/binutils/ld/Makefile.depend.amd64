@@ -21,6 +21,10 @@ eelf_i386_fbsd.o: eelf_i386_fbsd.c
 eelf_i386_fbsd.o: ldgram.h
 eelf_i386_fbsd.po: eelf_i386_fbsd.c
 eelf_i386_fbsd.po: ldgram.h
+eelf_x86_64_fbsd.o: eelf_x86_64_fbsd.c
+eelf_x86_64_fbsd.o: ldgram.h
+eelf_x86_64_fbsd.po: eelf_x86_64_fbsd.c
+eelf_x86_64_fbsd.po: ldgram.h
 ldctor.o: ldgram.h
 ldctor.po: ldgram.h
 ldemul.o: ldemul-list.h

@@ -5,8 +5,12 @@ DEP_RELDIR := ${_PARSEDIR:S,${SRCTOP}/,,}
 DEP_MACHINE := ${.PARSEFILE:E}
 
 DIRDEPS = \
+	gnu/lib/libgcc \
 	include \
 	include/rpc \
+	lib/${CSU_DIR} \
+	lib/libc \
+	lib/libgssapi \
 
 
 .include <dirdeps.mk>

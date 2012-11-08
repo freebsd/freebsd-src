@@ -52,7 +52,9 @@ _randtable.o: libstand_bzlib_private.h
 _randtable.po: _randtable.c
 _randtable.po: libstand_bzlib_private.h
 _zutil.o: _zutil.c
+_zutil.o: libstand_gzguts.h
 _zutil.o: libstand_zutil.h
 _zutil.po: _zutil.c
+_zutil.po: libstand_gzguts.h
 _zutil.po: libstand_zutil.h
 .endif

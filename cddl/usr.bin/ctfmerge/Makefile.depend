@@ -6,12 +6,15 @@ DEP_MACHINE := ${.PARSEFILE:E}
 
 DIRDEPS = \
 	cddl/lib/libctf \
+	gnu/lib/libgcc \
 	include \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libdwarf \
 	lib/libelf \
+	lib/libthr \
+	lib/libz \
 
 
 .include <dirdeps.mk>

@@ -12,7 +12,6 @@ DIRDEPS = \
 	lib/${CSU_DIR} \
 	lib/libc \
 	lib/libedit \
-	lib/libtelnet \
 	lib/libutil \
 	lib/ncurses/ncurses \
 	lib/ncurses/ncursesw \

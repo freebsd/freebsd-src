@@ -8,7 +8,6 @@ DIRDEPS = \
 	gnu/lib/libgcc \
 	include \
 	include/arpa \
-	include/rpc \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \

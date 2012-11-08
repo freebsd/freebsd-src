@@ -8,6 +8,7 @@ DIRDEPS = \
 	include \
 	include/arpa \
 	include/xlocale \
+	kerberos5/lib/libroken \
 
 
 .include <dirdeps.mk>

@@ -7,21 +7,14 @@ DEP_MACHINE := ${.PARSEFILE:E}
 DIRDEPS = \
 	gnu/lib/libgcc \
 	include \
-	include/arpa \
-	include/rpc \
 	include/xlocale \
 	lib/${CSU_DIR} \
 	lib/libc \
+	secure/lib/libcrypto \
 
 
 .include <dirdeps.mk>
 
 .if ${DEP_RELDIR} == ${_DEP_RELDIR}
 # local dependencies - needed for -jN in clean tree
-i386-fbsd.o: syscalls.h
-i386-fbsd.po: syscalls.h
-i386-linux.o: linux_syscalls.h
-i386-linux.po: linux_syscalls.h
-ioctl.o: ioctl.c
-ioctl.po: ioctl.c
 .endif

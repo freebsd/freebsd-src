@@ -15,7 +15,6 @@ DIRDEPS = \
 	lib/libmd \
 	lib/libopie \
 	lib/libpam/libpam \
-	lib/libtelnet \
 	lib/libutil \
 	lib/msun \
 
