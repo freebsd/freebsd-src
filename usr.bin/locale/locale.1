@@ -40,7 +40,7 @@
 .Op Ar prefix
 .Nm
 .Op Fl ck
-.Ar keyword ...
+.Op Ar keyword ...
 .Sh DESCRIPTION
 The
 .Nm
@@ -74,8 +74,12 @@ directory.
 Print names of all available charmaps.
 .It Fl k
 Print the names and values of all selected keywords.
+If no keywords are selected, print the names and values of all defined
+keywords.
 .It Fl c
 Print the category name for all selected keywords.
+If no keywords are selected, print the category name for all defined
+keywords.
 .El
 .Sh IMPLEMENTATION NOTES
 The special
