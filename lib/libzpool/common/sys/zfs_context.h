@@ -603,6 +603,36 @@ extern cyclic_id_t cyclic_add(cyc_handler_t *, cyc_time_t *);
 extern void cyclic_remove(cyclic_id_t);
 extern int cyclic_reprogram(cyclic_id_t, hrtime_t);
 
+/*
+ * Buf structure
+ */
+#define	B_BUSY		0x0001
+#define	B_DONE		0x0002
+#define	B_ERROR		0x0004
+#define	B_READ		0x0040	/* read when I/O occurs */
+#define	B_WRITE		0x0100	/* non-read pseudo-flag */
+
+typedef struct buf {
+	int	b_flags;
+	size_t b_bcount;
+	union {
+		caddr_t b_addr;
+	} b_un;
+
+	lldaddr_t	_b_blkno;
+#define	b_lblkno	_b_blkno._f
+	size_t	b_resid;
+	size_t	b_bufsize;
+	int	(*b_iodone)(struct buf *);
+	int	b_error;
+	void	*b_private;
+} buf_t;
+
+extern void bioinit(buf_t *);
+extern void biodone(buf_t *);
+extern void bioerror(buf_t *, int);
+extern int geterror(buf_t *);
+
 #ifdef	__cplusplus
 }
 #endif
