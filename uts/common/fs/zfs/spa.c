@@ -130,6 +130,7 @@ boolean_t	zio_taskq_sysdc = B_TRUE;	/* use SDC scheduling class */
 uint_t		zio_taskq_basedc = 80;		/* base duty cycle */
 
 boolean_t	spa_create_process = B_TRUE;	/* no process ==> no sysdc */
+extern int	zfs_sync_pass_deferred_free;
 
 /*
  * This (illegal) pool name is used when temporarily importing a spa_t in order
@@ -6040,7 +6041,7 @@ spa_sync(spa_t *spa, uint64_t txg)
 		spa_errlog_sync(spa, txg);
 		dsl_pool_sync(dp, txg);
 
-		if (pass <= SYNC_PASS_DEFERRED_FREE) {
+		if (pass < zfs_sync_pass_deferred_free) {
 			zio_t *zio = zio_root(spa, NULL, NULL, 0);
 			bplist_iterate(free_bpl, spa_free_sync_cb,
 			    zio, tx);
