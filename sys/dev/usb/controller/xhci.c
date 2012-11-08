@@ -84,14 +84,17 @@ __FBSDID("$FreeBSD$");
     ((uint8_t *)&(((struct xhci_softc *)0)->sc_bus))))
 
 #ifdef USB_DEBUG
-static int xhcidebug = 0;
+static int xhcidebug;
+static int xhciroute;
 
 SYSCTL_NODE(_hw_usb, OID_AUTO, xhci, CTLFLAG_RW, 0, "USB XHCI");
 SYSCTL_INT(_hw_usb_xhci, OID_AUTO, debug, CTLFLAG_RW,
     &xhcidebug, 0, "Debug level");
+SYSCTL_INT(_hw_usb_xhci, OID_AUTO, xhci_port_route, CTLFLAG_RW,
+    &xhciroute, 0, "Routing bitmap for switching EHCI ports to XHCI controller");
 
 TUNABLE_INT("hw.usb.xhci.debug", &xhcidebug);
-
+TUNABLE_INT("hw.usb.xhci.xhci_port_route", &xhciroute);
 #endif
 
 #define	XHCI_INTR_ENDPT 1
@@ -176,6 +179,16 @@ xhci_dump_device(struct xhci_softc *sc, struct xhci_slot_ctx *psl)
 	DPRINTFN(5, "dwSctx3=0x%08x\n", xhci_ctx_get_le32(sc, &psl->dwSctx3));
 }
 #endif
+
+uint32_t
+xhci_get_port_route(void)
+{
+#ifdef USB_DEBUG
+	return (0xFFFFFFFFU ^ ((uint32_t)xhciroute));
+#else
+	return (0xFFFFFFFFU);
+#endif
+}
 
 static void
 xhci_iterate_hw_softc(struct usb_bus *bus, usb_bus_mem_sub_cb_t *cb)
