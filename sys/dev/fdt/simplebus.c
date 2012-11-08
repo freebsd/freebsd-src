@@ -287,9 +287,6 @@ simplebus_setup_intr(device_t bus, device_t child, struct resource *res,
 	enum intr_polarity pol;
 	int error, rid;
 
-	if (device_get_parent(child) != bus)
-		return (ECHILD);
-
 	di = device_get_ivars(child);
 	if (di == NULL)
 		return (ENXIO);
