@@ -1577,6 +1577,11 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 				sx_xunlock(&sc->mfi_config_lock);
 			}
 		}
+		if (sc->mfi_cam_rescan_cb != NULL &&
+		    (detail->code == MR_EVT_PD_INSERTED ||
+		    detail->code == MR_EVT_PD_REMOVED)) {
+			sc->mfi_cam_rescan_cb(sc, detail->args.pd.device_id);
+		}
 		break;
 	}
 }
