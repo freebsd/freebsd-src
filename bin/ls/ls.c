@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #define	STRBUF_SIZEOF(t)	(1 + CHAR_BIT * sizeof(t) / 3 + 1)
 
 /*
- * MAKENINES(n) turns n into (10**n)-1.	 This is useful for converting a width
+ * MAKENINES(n) turns n into (10**n)-1.  This is useful for converting a width
  * into a number that wide in decimal.
  * XXX: Overflows are not considered.
  */
@@ -241,7 +241,7 @@ main(int argc, char *argv[])
 			f_timesort = 1;
 			f_sizesort = 0;
 			break;
-		/* Other flags.	 Please keep alphabetic. */
+		/* Other flags.  Please keep alphabetic. */
 		case ',':
 			f_thousands = 1;
 			break;
@@ -534,7 +534,7 @@ traverse(int argc, char *argv[], int options)
 
 			/*
 			 * If already output something, put out a newline as
-			 * a separator.	 If multiple arguments, precede each
+			 * a separator.  If multiple arguments, precede each
 			 * directory with its name.
 			 */
 			if (output) {
@@ -874,7 +874,7 @@ label_out:
 /*
  * Ordering for mastercmp:
  * If ordering the argv (fts_level = FTS_ROOTLEVEL) return non-directories
- * as larger than directories.	Within either group, use the sort function.
+ * as larger than directories.  Within either group, use the sort function.
  * All other levels use the sort function.  Error entries remain unsorted.
  */
 static int
