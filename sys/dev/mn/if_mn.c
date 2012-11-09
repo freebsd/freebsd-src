@@ -1254,24 +1254,6 @@ mn_intr(void *xsc)
 	sc->m32x->stat = stat;
 }
 
-static void
-mn_timeout(void *xsc)
-{
-	static int round = 0;
-	struct mn_softc *sc;
-
-	mn_intr(xsc);
-	sc = xsc;
-	timeout(mn_timeout, xsc, 10 * hz);
-	round++;
-	if (round == 2) {
-		sc->m32_mem.ccb = 0x00008004;
-		sc->m32x->cmd = 0x1;
-	} else if (round > 2) {
-		printf("%s: timeout\n", sc->name);
-	}
-}
-
 /*
  * PCI initialization stuff
  */
