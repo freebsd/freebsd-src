@@ -339,7 +339,6 @@ fuse_vfsop_mount(struct mount *mp)
 
 	vfs_getnewfsid(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_MPSAFE;
 	if (subtype) {
 		strlcat(mp->mnt_stat.f_fstypename, ".", MFSNAMELEN);
 		strlcat(mp->mnt_stat.f_fstypename, subtype, MFSNAMELEN);
