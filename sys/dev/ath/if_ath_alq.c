@@ -68,7 +68,7 @@ if_ath_alq_init(struct if_ath_alq *alq, const char *devname)
 	bzero(alq, sizeof(*alq));
 
 	strncpy(alq->sc_alq_devname, devname, ATH_ALQ_DEVNAME_LEN);
-	printf("%s (%s): detached\n", __func__, alq->sc_alq_devname);
+	printf("%s (%s): attached\n", __func__, alq->sc_alq_devname);
 	snprintf(alq->sc_alq_filename, ATH_ALQ_FILENAME_LEN,
 	    "/tmp/ath_%s_alq.log", alq->sc_alq_devname);
 
