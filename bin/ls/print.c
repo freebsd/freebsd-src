@@ -160,7 +160,7 @@ printlong(const DISPLAY *dp)
 		strmode(sp->st_mode, buf);
 		aclmode(buf, p);
 		np = p->fts_pointer;
-		(void)printf("%s %*u %-*s  %-*s	 ", buf, dp->s_nlink,
+		(void)printf("%s %*u %-*s  %-*s  ", buf, dp->s_nlink,
 		    sp->st_nlink, dp->s_user, np->user, dp->s_group,
 		    np->group);
 		if (f_flags)
@@ -382,7 +382,7 @@ printtime(time_t ftime)
 		format = d_first ? "%e %b %R" : "%b %e %R";
 	else
 		/* mmm dd  yyyy || dd mmm  yyyy */
-		format = d_first ? "%e %b  %Y" : "%b %e	 %Y";
+		format = d_first ? "%e %b  %Y" : "%b %e  %Y";
 	strftime(longstring, sizeof(longstring), format, localtime(&ftime));
 	fputs(longstring, stdout);
 	fputc(' ', stdout);
