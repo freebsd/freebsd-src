@@ -2317,7 +2317,7 @@ void scic_sds_phy_stopped_state_enter(
  * entering the SCI_BASE_PHY_STATE_STARTING.
  *    - This function sets the state handlers for the phy object base state
  * machine starting state.
- *    - The SCU hardware is requested to start OOB/SN on this protocl engine.
+ *    - The SCU hardware is requested to start OOB/SN on this protocol engine.
  *    - The phy starting substate machine is started.
  *    - If the previous state was the ready state then the
  *      SCIC_SDS_CONTROLLER is informed that the phy has gone link down.
