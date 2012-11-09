@@ -2454,7 +2454,7 @@ proc_mmanplus(struct psm_softc *sc, packetbuf_t *pb, mousestatus_t *ms,
 {
 
 	/*
-	 * PS2++ protocl packet
+	 * PS2++ protocol packet
 	 *
 	 *          b7 b6 b5 b4 b3 b2 b1 b0
 	 * byte 1:  *  1  p3 p2 1  *  *  *
@@ -3738,7 +3738,7 @@ enable_mmanplus(KBDC kbdc, struct psm_softc *sc)
 		return (FALSE);
 
 	/*
-	 * PS2++ protocl, packet type 0
+	 * PS2++ protocol, packet type 0
 	 *
 	 *          b7 b6 b5 b4 b3 b2 b1 b0
 	 * byte 1:  *  1  p3 p2 1  *  *  *
