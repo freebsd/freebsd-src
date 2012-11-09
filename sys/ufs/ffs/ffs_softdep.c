@@ -4291,13 +4291,16 @@ free_jsegs(jblocks)
 			jblocks->jb_oldestseg = jseg;
 			return;
 		}
+		if ((jseg->js_state & ALLCOMPLETE) != ALLCOMPLETE)
+			break;
 		if (jseg->js_seq > jblocks->jb_oldestwrseq)
 			break;
 		/*
 		 * We can free jsegs that didn't write entries when
 		 * oldestwrseq == js_seq.
 		 */
-		if (jseg->js_cnt != 0)
+		if (jseg->js_seq == jblocks->jb_oldestwrseq &&
+		    jseg->js_cnt != 0)
 			break;
 		free_jseg(jseg, jblocks);
 	}
