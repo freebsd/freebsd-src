@@ -196,4 +196,13 @@ MAKE_PRINT_VAR_ON_ERROR+= \
 	OBJTOP \
 	${MAKE_PRINT_VAR_ON_ERROR_XTRAS}
 
+# these are handy
+# we can use this for a cheap timestamp at the start of a target's script,
+# but not at the end - since make will expand both at the same time.
+TIME_STAMP_FMT = @ %s [%Y-%m-%d %T]
+TIME_STAMP = ${TIME_STAMP_FMT:localtime}
+# this will produce the same output but as of when date(1) is run.
+TIME_STAMP_DATE = `date '+${TIME_STAMP_FMT}'`
+TIME_STAMP_END?= ${TIME_STAMP_DATE}
+
 .endif				# bmake
