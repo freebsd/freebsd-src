@@ -113,8 +113,17 @@ tunable_mbinit(void *dummy)
 
 	/* This has to be done before VM init. */
 	TUNABLE_INT_FETCH("kern.ipc.nmbclusters", &nmbclusters);
-	if (nmbclusters == 0)
+	if (nmbclusters == 0) {
+#ifdef VM_AUTOTUNE_NMBCLUSTERS
+		nmbclusters = VM_AUTOTUNE_NMBCLUSTERS;
+#else
 		nmbclusters = 1024 + maxusers * 64;
+#endif
+#ifdef VM_MAX_AUTOTUNE_NMBCLUSTERS
+		if (nmbclusters > VM_MAX_AUTOTUNE_NMBCLUSTERS)
+			nmbclusters = VM_MAX_AUTOTUNE_NMBCLUSTERS;
+#endif
+	}
 
 	TUNABLE_INT_FETCH("kern.ipc.nmbjumbop", &nmbjumbop);
 	if (nmbjumbop == 0)
