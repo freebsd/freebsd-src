@@ -170,7 +170,6 @@ struct callout_cpu cc_cpu;
 #define	CC_LOCK(cc)	mtx_lock_spin(&(cc)->cc_lock)
 #define	CC_UNLOCK(cc)	mtx_unlock_spin(&(cc)->cc_lock)
 #define	CC_LOCK_ASSERT(cc)	mtx_assert(&(cc)->cc_lock, MA_OWNED)
-#define	C_PRECISION	0x2
 
 #define FREQ2BT(freq, bt)                                               \
 {                                                                       \
@@ -576,8 +575,8 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 {
 	struct bintime bt;
 	uint64_t r_val;
-	int bucket, r_shift;
-	
+	int bucket;
+
 	CC_LOCK_ASSERT(cc);
 	if (bintime_cmp(&to_bintime, &cc->cc_lastscan, <))
 		to_bintime = cc->cc_lastscan;
@@ -589,35 +588,10 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	c->c_func = func;
 	c->c_time = to_bintime;
 	bintime_clear(&c->c_precision);
-	if (flags & C_PRECISION) {
-		r_shift = ((flags >> 2) & PRECISION_RANGE);
-		r_val = (r_shift != 0) ? (uint64_t)1 << (64 - r_shift) : 0;
-		/*
-		 * Round as far as precision specified is coarse (up to 8ms).
-		 * In order to play safe, round to to half of the interval and
-		 * set half precision.
-		 */
-		if (r_shift < 6) {
-			r_val = (r_shift != 0) ? r_val >> 2 :
-			    ((uint64_t)1 << (64 - 1)) - 1;
-			/*
-			 * Round only if c_time is not a multiple of the
-			 * rounding factor.
-			 */
-			if ((c->c_time.frac & r_val) != r_val) {
-				c->c_time.frac |= r_val - 1;
-				c->c_time.frac += 1;
-				if (c->c_time.frac == 0)
-					c->c_time.sec += 1;
-			}
-		}
-		c->c_precision.frac = r_val;
-		CTR6(KTR_CALLOUT, "rounding %d.%08x%08x to %d.%08x%08x",
-		    to_bintime.sec, (u_int) (to_bintime.frac >> 32),
-		    (u_int) (to_bintime.frac & 0xffffffff), c->c_time.sec,
-		    (u_int) (c->c_time.frac >> 32),
-		    (u_int) (c->c_time.frac & 0xffffffff)); 
-	} 
+	r_val = C_PREC2BT(flags);
+	c->c_precision.frac = r_val;
+	CTR3(KTR_CALLOUT, "precision set for %p: 0.%08x%08",
+	    c, (u_int) (r_val >> 32), (u_int) (r_val & 0xffffffff));
 	bucket = get_bucket(&c->c_time);
 	TAILQ_INSERT_TAIL(&cc->cc_callwheel[bucket], c, c_links.tqe);
 	/*
