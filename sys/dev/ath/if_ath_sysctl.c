@@ -711,7 +711,7 @@ ath_sysctlattach(struct ath_softc *sc)
 	}
 #endif
 
-#ifdef	ATH_DEBUG
+#ifdef	ATH_DEBUG_ALQ
 	ath_sysctl_alq_attach(sc);
 #endif
 }
