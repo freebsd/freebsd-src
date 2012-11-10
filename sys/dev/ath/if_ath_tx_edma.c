@@ -594,13 +594,26 @@ ath_edma_tx_processq(struct ath_softc *sc, int dosched)
 		 * in the TX descriptor.  However the TX completion
 		 * FIFO doesn't have this information.  So here we
 		 * do a separate HAL call to populate that information.
+		 *
+		 * The same problem exists with ts_longretry.
+		 * The FreeBSD HAL corrects ts_longretry in the HAL layer;
+		 * the AR9380 HAL currently doesn't.  So until the HAL
+		 * is imported and this can be added, we correct for it
+		 * here.
 		 */
-
 		/* XXX TODO */
 		/* XXX faked for now. Ew. */
 		if (ts.ts_finaltsi < 4) {
 			ts.ts_rate =
 			    bf->bf_state.bfs_rc[ts.ts_finaltsi].ratecode;
+			switch (ts.ts_finaltsi) {
+			case 3: ts.ts_longretry +=
+			    bf->bf_state.bfs_rc[2].tries;
+			case 2: ts.ts_longretry +=
+			    bf->bf_state.bfs_rc[1].tries;
+			case 1: ts.ts_longretry +=
+			    bf->bf_state.bfs_rc[0].tries;
+			}
 		} else {
 			device_printf(sc->sc_dev, "%s: finaltsi=%d\n",
 			    __func__,
