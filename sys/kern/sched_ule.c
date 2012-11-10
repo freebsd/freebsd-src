@@ -1441,7 +1441,7 @@ sched_initticks(void *dummy)
 	affinity = SCHED_AFFINITY_DEFAULT;
 #endif
 	if (sched_idlespinthresh < 0)
-		sched_idlespinthresh = imax(16, 2 * hz / realstathz);
+		sched_idlespinthresh = 2 * max(10000, 6 * hz) / realstathz;
 }
 
 
@@ -1883,7 +1883,8 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	preempted = !(td->td_flags & TDF_SLICEEND);
 	td->td_flags &= ~(TDF_NEEDRESCHED | TDF_SLICEEND);
 	td->td_owepreempt = 0;
-	tdq->tdq_switchcnt++;
+	if (!TD_IS_IDLETHREAD(td))
+		tdq->tdq_switchcnt++;
 	/*
 	 * The lock pointer in an idle thread should never change.  Reset it
 	 * to CAN_RUN as well.
@@ -2614,17 +2615,27 @@ sched_idletd(void *dummy)
 {
 	struct thread *td;
 	struct tdq *tdq;
-	int switchcnt;
+	int oldswitchcnt, switchcnt;
 	int i;
 
 	mtx_assert(&Giant, MA_NOTOWNED);
 	td = curthread;
 	tdq = TDQ_SELF();
 	THREAD_NO_SLEEPING();
+	oldswitchcnt = -1;
 	for (;;) {
+		if (tdq->tdq_load) {
+			thread_lock(td);
+			mi_switch(SW_VOL | SWT_IDLE, NULL);
+			thread_unlock(td);
+		}
+		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
 #ifdef SMP
-		if (tdq_idled(tdq) == 0)
-			continue;
+		if (switchcnt != oldswitchcnt) {
+			oldswitchcnt = switchcnt;
+			if (tdq_idled(tdq) == 0)
+				continue;
+		}
 #endif
 		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
 		/*
@@ -2641,20 +2652,26 @@ sched_idletd(void *dummy)
 				cpu_spinwait();
 			}
 		}
+
+		/* If there was context switch during spin, restart it. */
 		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
-		if (tdq->tdq_load == 0) {
-			tdq->tdq_cpu_idle = 1;
-			if (tdq->tdq_load == 0) {
-				cpu_idle(switchcnt > sched_idlespinthresh * 4);
-				tdq->tdq_switchcnt++;
-			}
-			tdq->tdq_cpu_idle = 0;
-		}
-		if (tdq->tdq_load) {
-			thread_lock(td);
-			mi_switch(SW_VOL | SWT_IDLE, NULL);
-			thread_unlock(td);
-		}
+		if (tdq->tdq_load != 0 || switchcnt != oldswitchcnt)
+			continue;
+
+		/* Run main MD idle handler. */
+		tdq->tdq_cpu_idle = 1;
+		cpu_idle(switchcnt * 4 > sched_idlespinthresh);
+		tdq->tdq_cpu_idle = 0;
+
+		/*
+		 * Account thread-less hardware interrupts and
+		 * other wakeup reasons equal to context switches.
+		 */
+		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
+		if (switchcnt != oldswitchcnt)
+			continue;
+		tdq->tdq_switchcnt++;
+		oldswitchcnt++;
 	}
 }
 
