@@ -774,7 +774,7 @@ struct ath_softc {
 	struct task		sc_dfstask;	/* DFS processing task */
 
 	/* ALQ */
-#ifdef	ATH_DEBUG
+#ifdef	ATH_DEBUG_ALQ
 	struct if_ath_alq sc_alq;
 #endif
 
