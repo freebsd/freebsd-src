@@ -79,32 +79,32 @@ struct _lcinfo {
 	{ "LC_MONETARY",	LC_MONETARY },
 	{ "LC_MESSAGES",	LC_MESSAGES }
 };
-#define NLCINFO (sizeof(lcinfo)/sizeof(lcinfo[0]))
+#define	NLCINFO (sizeof(lcinfo)/sizeof(lcinfo[0]))
 
 /* ids for values not referenced by nl_langinfo() */
 #define	KW_ZERO			10000
 #define	KW_GROUPING		(KW_ZERO+1)
-#define KW_INT_CURR_SYMBOL	(KW_ZERO+2)
-#define KW_CURRENCY_SYMBOL	(KW_ZERO+3)
-#define KW_MON_DECIMAL_POINT	(KW_ZERO+4)
-#define KW_MON_THOUSANDS_SEP	(KW_ZERO+5)
-#define KW_MON_GROUPING		(KW_ZERO+6)
-#define KW_POSITIVE_SIGN	(KW_ZERO+7)
-#define KW_NEGATIVE_SIGN	(KW_ZERO+8)
-#define KW_INT_FRAC_DIGITS	(KW_ZERO+9)
-#define KW_FRAC_DIGITS		(KW_ZERO+10)
-#define KW_P_CS_PRECEDES	(KW_ZERO+11)
-#define KW_P_SEP_BY_SPACE	(KW_ZERO+12)
-#define KW_N_CS_PRECEDES	(KW_ZERO+13)
-#define KW_N_SEP_BY_SPACE	(KW_ZERO+14)
-#define KW_P_SIGN_POSN		(KW_ZERO+15)
-#define KW_N_SIGN_POSN		(KW_ZERO+16)
-#define KW_INT_P_CS_PRECEDES	(KW_ZERO+17)
-#define KW_INT_P_SEP_BY_SPACE	(KW_ZERO+18)
-#define KW_INT_N_CS_PRECEDES	(KW_ZERO+19)
-#define KW_INT_N_SEP_BY_SPACE	(KW_ZERO+20)
-#define KW_INT_P_SIGN_POSN	(KW_ZERO+21)
-#define KW_INT_N_SIGN_POSN	(KW_ZERO+22)
+#define	KW_INT_CURR_SYMBOL	(KW_ZERO+2)
+#define	KW_CURRENCY_SYMBOL	(KW_ZERO+3)
+#define	KW_MON_DECIMAL_POINT	(KW_ZERO+4)
+#define	KW_MON_THOUSANDS_SEP	(KW_ZERO+5)
+#define	KW_MON_GROUPING		(KW_ZERO+6)
+#define	KW_POSITIVE_SIGN	(KW_ZERO+7)
+#define	KW_NEGATIVE_SIGN	(KW_ZERO+8)
+#define	KW_INT_FRAC_DIGITS	(KW_ZERO+9)
+#define	KW_FRAC_DIGITS		(KW_ZERO+10)
+#define	KW_P_CS_PRECEDES	(KW_ZERO+11)
+#define	KW_P_SEP_BY_SPACE	(KW_ZERO+12)
+#define	KW_N_CS_PRECEDES	(KW_ZERO+13)
+#define	KW_N_SEP_BY_SPACE	(KW_ZERO+14)
+#define	KW_P_SIGN_POSN		(KW_ZERO+15)
+#define	KW_N_SIGN_POSN		(KW_ZERO+16)
+#define	KW_INT_P_CS_PRECEDES	(KW_ZERO+17)
+#define	KW_INT_P_SEP_BY_SPACE	(KW_ZERO+18)
+#define	KW_INT_N_CS_PRECEDES	(KW_ZERO+19)
+#define	KW_INT_N_SEP_BY_SPACE	(KW_ZERO+20)
+#define	KW_INT_P_SIGN_POSN	(KW_ZERO+21)
+#define	KW_INT_N_SIGN_POSN	(KW_ZERO+22)
 
 struct _kwinfo {
 	const char	*name;
@@ -218,7 +218,7 @@ struct _kwinfo {
 	  "(POSIX legacy)" }					/* compat */
 
 };
-#define NKWINFO (sizeof(kwinfo)/sizeof(kwinfo[0]))
+#define	NKWINFO (sizeof(kwinfo)/sizeof(kwinfo[0]))
 
 const char *boguslocales[] = { "UTF-8" };
 #define	NBOGUS	(sizeof(boguslocales)/sizeof(boguslocales[0]))
@@ -316,7 +316,7 @@ usage(void)
  *
  * XXX actually output of this function does not guarantee that locale
  *     is really available to application, since it can be broken or
- *     inconsistent thus setlocale() will fail.	 Maybe add '-V' function to
+ *     inconsistent thus setlocale() will fail.  Maybe add '-V' function to
  *     also validate these locales?
  */
 void
@@ -664,7 +664,7 @@ showkeywordslist(char *substring)
 {
 	size_t	i;
 
-#define FMT "%-20s %-12s %-7s %-20s\n"
+#define	FMT "%-20s %-12s %-7s %-20s\n"
 
 	if (substring == NULL)
 		printf("List of available keywords\n\n");
