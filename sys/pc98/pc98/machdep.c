@@ -1237,7 +1237,7 @@ cpu_idle(int busy)
 
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
 	    busy, curcpu);
-#ifdef MP_WATCHDOG
+#if defined(MP_WATCHDOG)
 	ap_watchdog(PCPU_GET(cpuid));
 #endif
 	/* If we are busy - try to use fast methods. */
@@ -2157,6 +2157,8 @@ do_next:
 	for (off = 0; off < round_page(msgbufsize); off += PAGE_SIZE)
 		pmap_kenter((vm_offset_t)msgbufp + off, phys_avail[pa_indx] +
 		    off);
+
+	PT_UPDATES_FLUSH();
 }
 
 void
