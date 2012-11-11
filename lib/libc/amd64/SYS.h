@@ -36,38 +36,20 @@
 #include <sys/syscall.h>
 #include <machine/asm.h>
 
-#ifdef PIC
 #define	RSYSCALL(x)	ENTRY(__CONCAT(__sys_,x));			\
 			.weak CNAME(x);					\
 			.set CNAME(x),CNAME(__CONCAT(__sys_,x));	\
 			.weak CNAME(__CONCAT(_,x));			\
 			.set CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x)); \
-			mov __CONCAT($SYS_,x),%rax; KERNCALL; jb 2f; ret; \
-			2: movq PIC_GOT(HIDENAME(cerror)),%rcx; jmp *%rcx; \
+			mov __CONCAT($SYS_,x),%eax; KERNCALL;		\
+			jb HIDENAME(cerror); ret;			\
 			END(__CONCAT(__sys_,x))
 
 #define	PSEUDO(x)	ENTRY(__CONCAT(__sys_,x));			\
 			.weak CNAME(__CONCAT(_,x));			\
 			.set CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x)); \
-			mov __CONCAT($SYS_,x),%rax; KERNCALL; jb 2f; ret ; \
-			2: movq PIC_GOT(HIDENAME(cerror)),%rcx; jmp *%rcx; \
+			mov __CONCAT($SYS_,x),%eax; KERNCALL;		\
+			jb HIDENAME(cerror); ret;			\
 			END(__CONCAT(__sys_,x))
-#else
-#define	RSYSCALL(x)	ENTRY(__CONCAT(__sys_,x));			\
-			.weak CNAME(x);					\
-			.set CNAME(x),CNAME(__CONCAT(__sys_,x));	\
-			.weak CNAME(__CONCAT(_,x));			\
-			.set CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x)); \
-			mov __CONCAT($SYS_,x),%rax; KERNCALL; jb 2f; ret; \
-			2: jmp HIDENAME(cerror);			\
-			END(__CONCAT(__sys_,x))
-
-#define	PSEUDO(x)	ENTRY(__CONCAT(__sys_,x));			\
-			.weak CNAME(__CONCAT(_,x));			\
-			.set CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x)); \
-			mov __CONCAT($SYS_,x),%rax; KERNCALL; jb 2f; ret; \
-			2: jmp HIDENAME(cerror);			\
-			END(__CONCAT(__sys_,x))
-#endif
 
 #define KERNCALL	movq %rcx, %r10; syscall

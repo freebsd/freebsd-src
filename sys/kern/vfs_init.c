@@ -166,7 +166,7 @@ vfs_register(struct vfsconf *vfc)
 		return (EINVAL);
 	}
 	if (vfs_byname(vfc->vfc_name) != NULL)
-		return EEXIST;
+		return (EEXIST);
 
 	if (vfs_typenumhash != 0) {
 		/*

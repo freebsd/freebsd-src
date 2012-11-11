@@ -268,14 +268,37 @@
 
 /* Bitfields within ACPI registers */
 
-#define ACPI_REGISTER_PREPARE_BITS(Val, Pos, Mask)      ((Val << Pos) & Mask)
-#define ACPI_REGISTER_INSERT_VALUE(Reg, Pos, Mask, Val)  Reg = (Reg & (~(Mask))) | ACPI_REGISTER_PREPARE_BITS(Val, Pos, Mask)
+#define ACPI_REGISTER_PREPARE_BITS(Val, Pos, Mask) \
+    ((Val << Pos) & Mask)
 
-#define ACPI_INSERT_BITS(Target, Mask, Source)          Target = ((Target & (~(Mask))) | (Source & Mask))
+#define ACPI_REGISTER_INSERT_VALUE(Reg, Pos, Mask, Val) \
+    Reg = (Reg & (~(Mask))) | ACPI_REGISTER_PREPARE_BITS(Val, Pos, Mask)
+
+#define ACPI_INSERT_BITS(Target, Mask, Source) \
+    Target = ((Target & (~(Mask))) | (Source & Mask))
+
+/* Generic bitfield macros and masks */
+
+#define ACPI_GET_BITS(SourcePtr, Position, Mask) \
+    ((*SourcePtr >> Position) & Mask)
+
+#define ACPI_SET_BITS(TargetPtr, Position, Mask, Value) \
+    (*TargetPtr |= ((Value & Mask) << Position))
+
+#define ACPI_1BIT_MASK      0x00000001
+#define ACPI_2BIT_MASK      0x00000003
+#define ACPI_3BIT_MASK      0x00000007
+#define ACPI_4BIT_MASK      0x0000000F
+#define ACPI_5BIT_MASK      0x0000001F
+#define ACPI_6BIT_MASK      0x0000003F
+#define ACPI_7BIT_MASK      0x0000007F
+#define ACPI_8BIT_MASK      0x000000FF
+#define ACPI_16BIT_MASK     0x0000FFFF
+#define ACPI_24BIT_MASK     0x00FFFFFF
 
 /*
- * An ACPI_NAMESPACE_NODE can appear in some contexts
- * where a pointer to an ACPI_OPERAND_OBJECT can also
+ * An object of type ACPI_NAMESPACE_NODE can appear in some contexts
+ * where a pointer to an object of type ACPI_OPERAND_OBJECT can also
  * appear. This macro is used to distinguish them.
  *
  * The "Descriptor" field is the first field in both structures.
@@ -441,7 +464,7 @@
 #define ACPI_DUMP_OPERANDS(a, b ,c)     AcpiExDumpOperands(a, b, c)
 #define ACPI_DUMP_ENTRY(a, b)           AcpiNsDumpEntry (a, b)
 #define ACPI_DUMP_PATHNAME(a, b, c, d)  AcpiNsDumpPathname(a, b, c, d)
-#define ACPI_DUMP_BUFFER(a, b)          AcpiUtDumpBuffer((UINT8 *) a, b, DB_BYTE_DISPLAY, _COMPONENT)
+#define ACPI_DUMP_BUFFER(a, b)          AcpiUtDebugDumpBuffer((UINT8 *) a, b, DB_BYTE_DISPLAY, _COMPONENT)
 
 #else
 /*

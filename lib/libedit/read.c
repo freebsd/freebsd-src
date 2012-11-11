@@ -235,9 +235,12 @@ read_getcmd(EditLine *el, el_action_t *cmdnum, char *ch)
 	el_action_t cmd;
 	int num;
 
+	el->el_errno = 0;
 	do {
-		if ((num = el_getc(el, ch)) != 1)	/* if EOF or error */
+		if ((num = el_getc(el, ch)) != 1) {	/* if EOF or error */
+			el->el_errno = num == 0 ? 0 : errno;
 			return (num);
+		}
 
 #ifdef	KANJI
 		if ((*ch & 0200)) {
@@ -289,14 +292,21 @@ read_char(EditLine *el, char *cp)
 	ssize_t num_read;
 	int tried = 0;
 
-	while ((num_read = read(el->el_infd, cp, 1)) == -1)
+ again:
+	el->el_signal->sig_no = 0;
+	while ((num_read = read(el->el_infd, cp, 1)) == -1) {
+		if (el->el_signal->sig_no == SIGCONT) {
+			sig_set(el);
+			el_set(el, EL_REFRESH);
+			goto again;
+		}
 		if (!tried && read__fixio(el->el_infd, errno) == 0)
 			tried = 1;
 		else {
 			*cp = '\0';
 			return (-1);
 		}
-
+	}
 	return (int)num_read;
 }
 
@@ -403,17 +413,20 @@ el_gets(EditLine *el, int *nread)
 	int num;		/* how many chars we have read at NL */
 	char ch;
 	int crlf = 0;
+	int nrb;
 #ifdef FIONREAD
 	c_macro_t *ma = &el->el_chared.c_macro;
 #endif /* FIONREAD */
 
+	if (nread == NULL)
+		nread = &nrb;
 	*nread = 0;
 
 	if (el->el_flags & NO_TTY) {
 		char *cp = el->el_line.buffer;
 		size_t idx;
 
-		while ((*el->el_read.read_char)(el, cp) == 1) {
+		while ((num = (*el->el_read.read_char)(el, cp)) == 1) {
 			/* make sure there is space for next character */
 			if (cp + 1 >= el->el_line.limit) {
 				idx = (cp - el->el_line.buffer);
@@ -427,12 +440,13 @@ el_gets(EditLine *el, int *nread)
 			if (cp[-1] == '\r' || cp[-1] == '\n')
 				break;
 		}
+		if (num == -1)
+			el->el_errno = errno;
 
 		el->el_line.cursor = el->el_line.lastchar = cp;
 		*cp = '\0';
-		if (nread)
-			*nread = (int)(el->el_line.cursor - el->el_line.buffer);
-		return (*nread ? el->el_line.buffer : NULL);
+		*nread = (int)(el->el_line.cursor - el->el_line.buffer);
+		goto done;
 	}
 
 
@@ -443,8 +457,8 @@ el_gets(EditLine *el, int *nread)
 		(void) ioctl(el->el_infd, FIONREAD, (ioctl_t) & chrs);
 		if (chrs == 0) {
 			if (tty_rawmode(el) < 0) {
-				if (nread)
-					*nread = 0;
+				errno = 0;
+				*nread = 0;
 				return (NULL);
 			}
 		}
@@ -457,6 +471,7 @@ el_gets(EditLine *el, int *nread)
 	if (el->el_flags & EDIT_DISABLED) {
 		char *cp;
 		size_t idx;
+
 		if ((el->el_flags & UNBUFFERED) == 0)
 			cp = el->el_line.buffer;
 		else
@@ -464,7 +479,7 @@ el_gets(EditLine *el, int *nread)
 
 		term__flush(el);
 
-		while ((*el->el_read.read_char)(el, cp) == 1) {
+		while ((num = (*el->el_read.read_char)(el, cp)) == 1) {
 			/* make sure there is space next character */
 			if (cp + 1 >= el->el_line.limit) {
 				idx = (cp - el->el_line.buffer);
@@ -480,11 +495,13 @@ el_gets(EditLine *el, int *nread)
 				break;
 		}
 
+		if (num == -1) {
+			el->el_errno = errno;
+		}
+
 		el->el_line.cursor = el->el_line.lastchar = cp;
 		*cp = '\0';
-		if (nread)
-			*nread = (int)(el->el_line.cursor - el->el_line.buffer);
-		return (*nread ? el->el_line.buffer : NULL);
+		goto done;
 	}
 
 	for (num = OKCMD; num == OKCMD;) {	/* while still editing this
@@ -617,12 +634,17 @@ el_gets(EditLine *el, int *nread)
 	/* make sure the tty is set up correctly */
 	if ((el->el_flags & UNBUFFERED) == 0) {
 		read_finish(el);
-		if (nread)
-			*nread = num;
+		*nread = num != -1 ? num : 0;
 	} else {
-		if (nread)
-			*nread =
-			    (int)(el->el_line.lastchar - el->el_line.buffer);
+		*nread = (int)(el->el_line.lastchar - el->el_line.buffer);
 	}
-	return (num ? el->el_line.buffer : NULL);
+done:
+	if (*nread == 0) {
+		if (num == -1) {
+			*nread = -1;
+			errno = el->el_errno;
+		}
+		return NULL;
+	} else
+		return el->el_line.buffer;
 }

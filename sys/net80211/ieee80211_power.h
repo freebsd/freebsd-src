@@ -71,6 +71,11 @@ void	ieee80211_power_latevattach(struct ieee80211vap *);
 struct mbuf *ieee80211_node_psq_dequeue(struct ieee80211_node *ni, int *qlen);
 int	ieee80211_node_psq_drain(struct ieee80211_node *);
 int	ieee80211_node_psq_age(struct ieee80211_node *);
+
+/*
+ * Don't call these directly from the stack; they are vap methods
+ * that should be overridden.
+ */
 int	ieee80211_pwrsave(struct ieee80211_node *, struct mbuf *);
 void	ieee80211_node_pwrsave(struct ieee80211_node *, int enable);
 void	ieee80211_sta_pwrsave(struct ieee80211vap *, int enable);

@@ -99,6 +99,11 @@ TAILQ_HEAD(ifaddrhead, ifaddr);	/* instantiation is preserved in the list */
 TAILQ_HEAD(ifmultihead, ifmultiaddr);
 TAILQ_HEAD(ifgrouphead, ifg_group);
 
+#ifdef _KERNEL
+VNET_DECLARE(struct pfil_head, link_pfil_hook);	/* packet filter hooks */
+#define	V_link_pfil_hook	VNET(link_pfil_hook)
+#endif /* _KERNEL */
+
 /*
  * Structure defining a queue for a network interface.
  */
@@ -223,6 +228,7 @@ typedef void if_init_f_t(void *);
 #define	if_metric	if_data.ifi_metric
 #define	if_link_state	if_data.ifi_link_state
 #define	if_baudrate	if_data.ifi_baudrate
+#define	if_baudrate_pf	if_data.ifi_baudrate_pf
 #define	if_hwassist	if_data.ifi_hwassist
 #define	if_ipackets	if_data.ifi_ipackets
 #define	if_ierrors	if_data.ifi_ierrors
@@ -268,7 +274,7 @@ void	if_maddr_runlock(struct ifnet *ifp);	/* if_multiaddrs */
  * Output queues (ifp->if_snd) and slow device input queues (*ifp->if_slowq)
  * are queues of messages stored on ifqueue structures
  * (defined above).  Entries are added to and deleted from these structures
- * by these macros, which should be called with ipl raised to splimp().
+ * by these macros.
  */
 #define IF_LOCK(ifq)		mtx_lock(&(ifq)->ifq_mtx)
 #define IF_UNLOCK(ifq)		mtx_unlock(&(ifq)->ifq_mtx)
@@ -415,6 +421,8 @@ EVENTHANDLER_DECLARE(group_change_event, group_change_event_handler_t);
 #define	IF_AFDATA_DESTROY(ifp)	rw_destroy(&(ifp)->if_afdata_lock)
 
 #define	IF_AFDATA_LOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_LOCKED)
+#define	IF_AFDATA_RLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_RLOCKED)
+#define	IF_AFDATA_WLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_WLOCKED)
 #define	IF_AFDATA_UNLOCK_ASSERT(ifp)	rw_assert(&(ifp)->if_afdata_lock, RA_UNLOCKED)
 
 int	if_handoff(struct ifqueue *ifq, struct mbuf *m, struct ifnet *ifp,
@@ -584,21 +592,21 @@ do {									\
 
 #ifdef _KERNEL
 static __inline void
-drbr_stats_update(struct ifnet *ifp, int len, int mflags)
+if_initbaudrate(struct ifnet *ifp, uintmax_t baud)
 {
-#ifndef NO_SLOW_STATS
-	ifp->if_obytes += len;
-	if (mflags & M_MCAST)
-		ifp->if_omcasts++;
-#endif
+
+	ifp->if_baudrate_pf = 0;
+	while (baud > (u_long)(~0UL)) {
+		baud /= 10;
+		ifp->if_baudrate_pf++;
+	}
+	ifp->if_baudrate = baud;
 }
 
 static __inline int
 drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
 {	
 	int error = 0;
-	int len = m->m_pkthdr.len;
-	int mflags = m->m_flags;
 
 #ifdef ALTQ
 	if (ALTQ_IS_ENABLED(&ifp->if_snd)) {
@@ -606,12 +614,10 @@ drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
 		return (error);
 	}
 #endif
-	if ((error = buf_ring_enqueue_bytes(br, m, len)) == ENOBUFS) {
-		br->br_drops++;
+	error = buf_ring_enqueue(br, m);
+	if (error)
 		m_freem(m);
-	} else
-		drbr_stats_update(ifp, len, mflags);
-	
+
 	return (error);
 }
 

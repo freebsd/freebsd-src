@@ -201,7 +201,6 @@ client_skip_proxy(struct archive_read_filter *self, int64_t request)
 			request -= get;
 			total += get;
 		}
-		return total;
 	} else if (self->archive->client.seeker != NULL
 		&& request > 64 * 1024) {
 		/* If the client provided a seeker but not a skipper,
@@ -638,8 +637,8 @@ archive_read_data(struct archive *_a, void *buff, size_t s)
 			len = s;
 		} else if (a->read_data_output_offset <
 		    a->read_data_offset) {
-			len = a->read_data_offset -
-			    a->read_data_output_offset;
+			len = (size_t)(a->read_data_offset -
+			    a->read_data_output_offset);
 		} else
 			len = 0;
 
@@ -1231,7 +1230,7 @@ advance_file_pointer(struct archive_read_filter *filter, int64_t request)
 
 	/* Use up the copy buffer first. */
 	if (filter->avail > 0) {
-		min = minimum(request, (int64_t)filter->avail);
+		min = (size_t)minimum(request, (int64_t)filter->avail);
 		filter->next += min;
 		filter->avail -= min;
 		request -= min;
@@ -1241,7 +1240,7 @@ advance_file_pointer(struct archive_read_filter *filter, int64_t request)
 
 	/* Then use up the client buffer. */
 	if (filter->client_avail > 0) {
-		min = minimum(request, (int64_t)filter->client_avail);
+		min = (size_t)minimum(request, (int64_t)filter->client_avail);
 		filter->client_next += min;
 		filter->client_avail -= min;
 		request -= min;
@@ -1283,7 +1282,7 @@ advance_file_pointer(struct archive_read_filter *filter, int64_t request)
 		if (bytes_read >= request) {
 			filter->client_next =
 			    ((const char *)filter->client_buff) + request;
-			filter->client_avail = bytes_read - request;
+			filter->client_avail = (size_t)(bytes_read - request);
 			filter->client_total = bytes_read;
 			total_bytes_skipped += request;
 			filter->position += request;

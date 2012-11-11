@@ -593,7 +593,7 @@ bus_space_barrier(bus_space_tag_t tag, bus_space_handle_t bsh,
 	if (flags & BUS_SPACE_BARRIER_READ)
 		__asm __volatile("lock; addl $0,0(%%esp)" : : : "memory");
 	else
-		__asm __volatile("" : : : "memory");
+		__compiler_membar();
 }
 
 #ifdef BUS_SPACE_NO_LEGACY

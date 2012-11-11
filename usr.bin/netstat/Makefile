@@ -13,6 +13,10 @@ CFLAGS+=-fno-strict-aliasing
 CFLAGS+=-DIPSEC
 CFLAGS+=-DSCTP
 
+.if ${MK_INET_SUPPORT} != "no"
+CFLAGS+=-DINET
+.endif
+
 .if ${MK_INET6_SUPPORT} != "no"
 SRCS+=	inet6.c
 CFLAGS+=-DINET6

@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
@@ -724,9 +725,7 @@ sess_release(struct session *s)
 	}
 }
 
-#include "opt_ddb.h"
 #ifdef DDB
-#include <ddb/ddb.h>
 
 DB_SHOW_COMMAND(pgrpdump, pgrpdump)
 {
@@ -1874,7 +1873,7 @@ sysctl_kern_proc_pathname(SYSCTL_HANDLER_ARGS)
 	struct proc *p;
 	struct vnode *vp;
 	char *retbuf, *freebuf;
-	int error, vfslocked;
+	int error;
 
 	if (arglen != 1)
 		return (EINVAL);
@@ -1896,9 +1895,7 @@ sysctl_kern_proc_pathname(SYSCTL_HANDLER_ARGS)
 	if (*pidp != -1)
 		PROC_UNLOCK(p);
 	error = vn_fullpath(req->td, vp, &retbuf, &freebuf);
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vrele(vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	if (error)
 		return (error);
 	error = SYSCTL_OUT(req, retbuf, strlen(retbuf) + 1);
@@ -1965,7 +1962,6 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 	    entry = entry->next) {
 		vm_object_t obj, tobj, lobj;
 		vm_offset_t addr;
-		int vfslocked;
 
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 			continue;
@@ -2062,14 +2058,12 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 				vn_fullpath(curthread, vp, &fullpath,
 				    &freepath);
 				cred = curthread->td_ucred;
-				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 				vn_lock(vp, LK_SHARED | LK_RETRY);
 				if (VOP_GETATTR(vp, &va, cred) == 0) {
 					kve->kve_fileid = va.va_fileid;
 					kve->kve_fsid = va.va_fsid;
 				}
 				vput(vp);
-				VFS_UNLOCK_GIANT(vfslocked);
 			}
 		} else {
 			kve->kve_type = KVME_TYPE_NONE;
@@ -2135,7 +2129,7 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 		vm_object_t obj, tobj, lobj;
 		vm_offset_t addr;
 		vm_paddr_t locked_pa;
-		int vfslocked, mincoreinfo;
+		int mincoreinfo;
 
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 			continue;
@@ -2189,6 +2183,10 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 			kve->kve_flags |= KVME_FLAG_NEEDS_COPY;
 		if (entry->eflags & MAP_ENTRY_NOCOREDUMP)
 			kve->kve_flags |= KVME_FLAG_NOCOREDUMP;
+		if (entry->eflags & MAP_ENTRY_GROWS_UP)
+			kve->kve_flags |= KVME_FLAG_GROWS_UP;
+		if (entry->eflags & MAP_ENTRY_GROWS_DOWN)
+			kve->kve_flags |= KVME_FLAG_GROWS_DOWN;
 
 		last_timestamp = map->timestamp;
 		vm_map_unlock_read(map);
@@ -2236,7 +2234,6 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 				    &freepath);
 				kve->kve_vn_type = vntype_to_kinfo(vp->v_type);
 				cred = curthread->td_ucred;
-				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 				vn_lock(vp, LK_SHARED | LK_RETRY);
 				if (VOP_GETATTR(vp, &va, cred) == 0) {
 					kve->kve_vn_fileid = va.va_fileid;
@@ -2248,7 +2245,6 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 					kve->kve_status = KF_ATTR_VALID;
 				}
 				vput(vp);
-				VFS_UNLOCK_GIANT(vfslocked);
 			}
 		} else {
 			kve->kve_type = KVME_TYPE_NONE;

@@ -247,8 +247,8 @@ archive_write_gnutar_finish_entry(struct archive_write *a)
 	int ret;
 
 	gnutar = (struct gnutar *)a->format_data;
-	ret = __archive_write_nulls(a,
-	    gnutar->entry_bytes_remaining + gnutar->entry_padding);
+	ret = __archive_write_nulls(a, (size_t)
+	    (gnutar->entry_bytes_remaining + gnutar->entry_padding));
 	gnutar->entry_bytes_remaining = gnutar->entry_padding = 0;
 	return (ret);
 }
@@ -261,7 +261,7 @@ archive_write_gnutar_data(struct archive_write *a, const void *buff, size_t s)
 
 	gnutar = (struct gnutar *)a->format_data;
 	if (s > gnutar->entry_bytes_remaining)
-		s = gnutar->entry_bytes_remaining;
+		s = (size_t)gnutar->entry_bytes_remaining;
 	ret = __archive_write_output(a, buff, s);
 	gnutar->entry_bytes_remaining -= s;
 	if (ret != ARCHIVE_OK)

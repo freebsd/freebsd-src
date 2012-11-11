@@ -1,0 +1,3 @@
+#$FreeBSD$
+
+arm/ti/am335x/am335x_pmic.c			optional	am335x_pmic

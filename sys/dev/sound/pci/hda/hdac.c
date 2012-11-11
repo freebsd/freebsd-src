@@ -138,6 +138,15 @@ static const struct {
 	{ HDA_ATI_RV730,     "ATI RV730",	0, 0 },
 	{ HDA_ATI_RV740,     "ATI RV740",	0, 0 },
 	{ HDA_ATI_RV770,     "ATI RV770",	0, 0 },
+	{ HDA_ATI_RV810,     "ATI RV810",	0, 0 },
+	{ HDA_ATI_RV830,     "ATI RV830",	0, 0 },
+	{ HDA_ATI_RV840,     "ATI RV840",	0, 0 },
+	{ HDA_ATI_RV870,     "ATI RV870",	0, 0 },
+	{ HDA_ATI_RV910,     "ATI RV910",	0, 0 },
+	{ HDA_ATI_RV930,     "ATI RV930",	0, 0 },
+	{ HDA_ATI_RV940,     "ATI RV940",	0, 0 },
+	{ HDA_ATI_RV970,     "ATI RV970",	0, 0 },
+	{ HDA_ATI_R1000,     "ATI R1000",	0, 0 },
 	{ HDA_RDC_M3010,     "RDC M3010",	0, 0 },
 	{ HDA_VIA_VT82XX,    "VIA VT8251/8237A",0, 0 },
 	{ HDA_SIS_966,       "SiS 966",		0, 0 },
@@ -1065,6 +1074,8 @@ hdac_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	HDA_BOOTVERBOSE(
+		device_printf(dev, "PCI card vendor: 0x%04x, device: 0x%04x\n",
+		    pci_get_subvendor(dev), pci_get_subdevice(dev));
 		device_printf(dev, "HDA Driver Revision: %s\n",
 		    HDA_DRV_TEST_REV);
 	);

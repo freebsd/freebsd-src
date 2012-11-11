@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$NetBSD: sig.c,v 1.14 2009/02/18 15:04:40 christos Exp $
+ *	$NetBSD: sig.c,v 1.15 2009/02/19 15:20:22 christos Exp $
  */
 
 #if !defined(lint) && !defined(SCCSID)
@@ -72,6 +72,8 @@ sig_handler(int signo)
 	(void) sigemptyset(&nset);
 	(void) sigaddset(&nset, signo);
 	(void) sigprocmask(SIG_BLOCK, &nset, &oset);
+
+	sel->el_signal->sig_no = signo;
 
 	switch (signo) {
 	case SIGCONT:
@@ -158,12 +160,12 @@ sig_set(EditLine *el)
 	struct sigaction osa, nsa;
 
 	nsa.sa_handler = sig_handler;
+	nsa.sa_flags = 0;
 	sigemptyset(&nsa.sa_mask);
 
 	(void) sigprocmask(SIG_BLOCK, &el->el_signal->sig_set, &oset);
 
 	for (i = 0; sighdl[i] != -1; i++) {
-		nsa.sa_flags = SIGINT ? 0 : SA_RESTART;
 		/* This could happen if we get interrupted */
 		if (sigaction(sighdl[i], &nsa, &osa) != -1 &&
 		    osa.sa_handler != sig_handler)

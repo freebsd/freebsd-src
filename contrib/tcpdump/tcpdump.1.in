@@ -200,7 +200,8 @@ Print the AS number in BGP packets in ASDOT notation rather than ASPLAIN
 notation.
 .TP
 .B \-B
-Set the operating system capture buffer size to \fIbuffer_size\fP.
+Set the operating system capture buffer size to \fIbuffer_size\fP, in
+units of KiB (1024 bytes).
 .TP
 .B \-c
 Exit after receiving \fIcount\fP packets.
@@ -392,9 +393,37 @@ Make stdout line buffered.
 Useful if you want to see the data
 while capturing it.
 E.g.,
-.br
-``tcpdump\ \ \-l\ \ |\ \ tee dat'' or
-``tcpdump\ \ \-l \ \ > dat\ \ &\ \ tail\ \ \-f\ \ dat''.
+.IP
+.RS
+.RS
+.nf
+\fBtcpdump \-l | tee dat\fP
+.fi
+.RE
+.RE
+.IP
+or
+.IP
+.RS
+.RS
+.nf
+\fBtcpdump \-l > dat & tail \-f dat\fP
+.fi
+.RE
+.RE
+.IP
+Note that on Windows,``line buffered'' means ``unbuffered'', so that
+WinDump will write each character individually if
+.B \-l
+is specified.
+.IP
+.B \-U
+is similar to
+.B \-l
+in its behavior, but it will cause output to be ``packet-buffered'', so
+that the output is written to stdout at the end of each packet rather
+than at the end of each line; this is buffered on all platforms,
+including Windows.
 .TP
 .B \-L
 List the known data link types for the interface, in the specified mode,
@@ -511,11 +540,20 @@ on each dump line.
 Print undecoded NFS handles.
 .TP
 .B \-U
-Make output saved via the
+If the
 .B \-w
-option ``packet-buffered''; i.e., as each packet is saved, it will be
-written to the output file, rather than being written only when the
-output buffer fills.
+option is not specified, make the printed packet output
+``packet-buffered''; i.e., as the description of the contents of each
+packet is printed, it will be written to the standard output, rather
+than, when not writing to a terminal, being written only when the output
+buffer fills.
+.IP
+If the
+.B \-w
+option is specified, make the saved raw packet output
+``packet-buffered''; i.e., as each packet is saved, it will be written
+to the output file, rather than being written only when the output
+buffer fills.
 .IP
 The
 .B \-U
@@ -557,6 +595,13 @@ Write the raw packets to \fIfile\fR rather than parsing and printing
 them out.
 They can later be printed with the \-r option.
 Standard output is used if \fIfile\fR is ``-''.
+.IP
+This output will be buffered if written to a file or pipe, so a program
+reading from the file or pipe may not see packets for an arbitrary
+amount of time after they are received.  Use the
+.B \-U
+flag to cause packets to be written as soon as they are received.
+.IP
 See
 .BR pcap-savefile (@MAN_FILE_FORMATS@)
 for a description of the file format.

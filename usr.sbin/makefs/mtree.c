@@ -135,6 +135,47 @@ mtree_warning(const char *fmt, ...)
 	fputc('\n', stderr);
 }
 
+#ifndef MAKEFS_MAX_TREE_DEPTH
+# define MAKEFS_MAX_TREE_DEPTH (MAXPATHLEN/2)
+#endif
+
+/* construct path to node->name */
+static char *
+mtree_file_path(fsnode *node)
+{
+	fsnode *pnode;
+	struct sbuf *sb;
+	char *res, *rp[MAKEFS_MAX_TREE_DEPTH];
+	int depth;
+
+	depth = 0;
+	rp[depth] = node->name;
+	for (pnode = node->parent; pnode && depth < MAKEFS_MAX_TREE_DEPTH;
+	     pnode = pnode->parent) {
+		if (strcmp(pnode->name, ".") == 0)
+			break;
+		rp[++depth] = pnode->name;
+	}
+	
+	sb = sbuf_new(NULL, NULL, 0, SBUF_AUTOEXTEND);
+	if (sb == NULL) {
+		errno = ENOMEM;
+		return (NULL);
+	}
+	while (depth > 0) {
+		sbuf_cat(sb, rp[depth--]);
+		sbuf_putc(sb, '/');
+	}
+	sbuf_cat(sb, rp[depth]);
+	sbuf_finish(sb);
+	res = strdup(sbuf_data(sb));
+	sbuf_delete(sb);
+	if (res == NULL)
+		errno = ENOMEM;
+	return res;
+
+}
+
 /* mtree_resolve() sets errno to indicate why NULL was returned. */
 static char *
 mtree_resolve(const char *spec, int *istemp)
@@ -706,6 +747,12 @@ read_mtree_keywords(FILE *fp, fsnode *node)
 			return (0);
 		}
 		type = S_IFREG;
+	} else if (node->type != 0) {
+		type = node->type;
+		if (type == S_IFREG) {
+			/* the named path is the default contents */
+			node->contents = mtree_file_path(node);
+		}
 	} else
 		type = (node->symlink != NULL) ? S_IFLNK : S_IFDIR;
 

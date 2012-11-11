@@ -8,8 +8,6 @@ SRCS=	cd9660.c	\
 	common_kvm.c	\
 	libprocstat.c	\
         msdosfs.c	\
-	ntfs.c		\
-	smbfs.c		\
 	udf.c
 
 VERSION_DEF=	${.CURDIR}/Versions.def
@@ -23,11 +21,6 @@ DPADD=		${LIBKVM} ${LIBUTIL}
 LDADD=		-lkvm -lutil
 
 MAN=		libprocstat.3
-
-.if ${MK_NCP} != "no"
-CFLAGS+=	-DLIBPROCSTAT_NWFS
-SRCS+=	nwfs.c
-.endif
 
 # XXX This is a hack.
 .if ${MK_CDDL} != "no"

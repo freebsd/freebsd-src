@@ -355,18 +355,11 @@ pxe_close(struct open_file *f)
 static void
 pxe_print(int verbose)
 {
-	if (pxe_call != NULL) {
-		if (*bootplayer.Sname == '\0') {
-			printf("      "IP_STR":%s\n",
-			       IP_ARGS(htonl(bootplayer.sip)),
-			       bootplayer.bootfile);
-		} else {
-			printf("      %s:%s\n", bootplayer.Sname,
-			       bootplayer.bootfile);
-		}
-	}
 
-	return;
+	if (pxe_call == NULL)
+		return;
+
+	printf("    pxe0:    %s:%s\n", inet_ntoa(rootip), rootpath);
 }
 
 static void

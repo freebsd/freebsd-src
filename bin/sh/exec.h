@@ -72,5 +72,6 @@ void hashcd(void);
 void changepath(const char *);
 void defun(const char *, union node *);
 int unsetfunc(const char *);
+int isfunc(const char *);
 int typecmd_impl(int, char **, int, const char *);
 void clearcmdentry(void);

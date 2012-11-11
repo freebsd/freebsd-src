@@ -26,7 +26,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$NetBSD: fat.c,v 1.12 2000/10/10 20:24:52 is Exp $");
+__RCSID("$NetBSD: fat.c,v 1.18 2006/06/05 16:51:18 christos Exp $");
 static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
@@ -69,6 +69,7 @@ checkdirty(int fs, struct bootblock *boot)
 	off_t off;
 	u_char *buffer;
 	int ret = 0;
+	size_t len;
 
 	if (boot->ClustMask != CLUST16_MASK && boot->ClustMask != CLUST32_MASK)
 		return 0;
@@ -76,20 +77,20 @@ checkdirty(int fs, struct bootblock *boot)
 	off = boot->bpbResSectors;
 	off *= boot->bpbBytesPerSec;
 
-	buffer = malloc(boot->bpbBytesPerSec);
+	buffer = malloc(len = boot->bpbBytesPerSec);
 	if (buffer == NULL) {
-		perror("No space for FAT");
+		perr("No space for FAT sectors (%zu)", len);
 		return 1;
 	}
 
 	if (lseek(fs, off, SEEK_SET) != off) {
-		perror("Unable to read FAT");
+		perr("Unable to read FAT");
 		goto err;
 	}
 
 	if ((size_t)read(fs, buffer, boot->bpbBytesPerSec) !=
 	    boot->bpbBytesPerSec) {
-		perror("Unable to read FAT");
+		perr("Unable to read FAT");
 		goto err;
 	}
 
@@ -163,10 +164,11 @@ static int
 _readfat(int fs, struct bootblock *boot, u_int no, u_char **buffer)
 {
 	off_t off;
+	size_t len;
 
-	*buffer = malloc(boot->FATsecs * boot->bpbBytesPerSec);
+	*buffer = malloc(len = boot->FATsecs * boot->bpbBytesPerSec);
 	if (*buffer == NULL) {
-		perror("No space for FAT");
+		perr("No space for FAT sectors (%zu)", len);
 		return 0;
 	}
 
@@ -174,13 +176,13 @@ _readfat(int fs, struct bootblock *boot, u_int no, u_char **buffer)
 	off *= boot->bpbBytesPerSec;
 
 	if (lseek(fs, off, SEEK_SET) != off) {
-		perror("Unable to read FAT");
+		perr("Unable to read FAT");
 		goto err;
 	}
 
 	if ((size_t)read(fs, *buffer, boot->FATsecs * boot->bpbBytesPerSec)
 	    != boot->FATsecs * boot->bpbBytesPerSec) {
-		perror("Unable to read FAT");
+		perr("Unable to read FAT");
 		goto err;
 	}
 
@@ -207,10 +209,10 @@ readfat(int fs, struct bootblock *boot, u_int no, struct fatEntry **fp)
 
 	if (!_readfat(fs, boot, no, &buffer))
 		return FSFATAL;
-		
+
 	fat = malloc(len = boot->NumClusters * sizeof(struct fatEntry));
 	if (fat == NULL) {
-		perror("No space for FAT");
+		perr("No space for FAT clusters (%zu)", len);
 		free(buffer);
 		return FSFATAL;
 	}
@@ -318,7 +320,7 @@ readfat(int fs, struct bootblock *boot, u_int no, struct fatEntry **fp)
 /*
  * Get type of reserved cluster
  */
-char *
+const char *
 rsrvdcltype(cl_t cl)
 {
 	if (cl == CLUST_FREE)
@@ -428,13 +430,13 @@ clearchain(struct bootblock *boot, struct fatEntry *fat, cl_t head)
 }
 
 int
-tryclear(struct bootblock *boot, struct fatEntry *fat, cl_t head, cl_t *trunc)
+tryclear(struct bootblock *boot, struct fatEntry *fat, cl_t head, cl_t *truncp)
 {
 	if (ask(0, "Clear chain starting at %u", head)) {
 		clearchain(boot, fat, head);
 		return FSFATMOD;
 	} else if (ask(0, "Truncate")) {
-		*trunc = CLUST_EOF;
+		*truncp = CLUST_EOF;
 		return FSFATMOD;
 	} else
 		return FSERROR;
@@ -549,7 +551,7 @@ writefat(int fs, struct bootblock *boot, struct fatEntry *fat, int correct_fat)
 
 	buffer = malloc(fatsz = boot->FATsecs * boot->bpbBytesPerSec);
 	if (buffer == NULL) {
-		perror("No space for FAT");
+		perr("No space for FAT sectors (%zu)", fatsz);
 		return FSFATAL;
 	}
 	memset(buffer, 0, fatsz);
@@ -598,7 +600,7 @@ writefat(int fs, struct bootblock *boot, struct fatEntry *fat, int correct_fat)
 		free(old_fat);
 		p += count;
 	}
-			
+
 	for (cl = CLUST_FIRST; cl < boot->NumClusters; cl++) {
 		switch (boot->ClustMask) {
 		case CLUST32_MASK:
@@ -634,7 +636,7 @@ writefat(int fs, struct bootblock *boot, struct fatEntry *fat, int correct_fat)
 		off *= boot->bpbBytesPerSec;
 		if (lseek(fs, off, SEEK_SET) != off
 		    || (size_t)write(fs, buffer, fatsz) != fatsz) {
-			perror("Unable to write FAT");
+			perr("Unable to write FAT");
 			ret = FSFATAL; /* Return immediately?		XXX */
 		}
 	}

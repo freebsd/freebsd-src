@@ -67,16 +67,18 @@ mbpr(void *kvmd, u_long mbaddr)
 	struct memory_type_list *mtlp;
 	struct memory_type *mtp;
 	uintmax_t mbuf_count, mbuf_bytes, mbuf_free, mbuf_failures, mbuf_size;
+	uintmax_t mbuf_sleeps;
 	uintmax_t cluster_count, cluster_bytes, cluster_limit, cluster_free;
-	uintmax_t cluster_failures, cluster_size;
+	uintmax_t cluster_failures, cluster_size, cluster_sleeps;
 	uintmax_t packet_count, packet_bytes, packet_free, packet_failures;
+	uintmax_t packet_sleeps;
 	uintmax_t tag_count, tag_bytes;
 	uintmax_t jumbop_count, jumbop_bytes, jumbop_limit, jumbop_free;
-	uintmax_t jumbop_failures, jumbop_size;
+	uintmax_t jumbop_failures, jumbop_sleeps, jumbop_size;
 	uintmax_t jumbo9_count, jumbo9_bytes, jumbo9_limit, jumbo9_free;
-	uintmax_t jumbo9_failures, jumbo9_size;
+	uintmax_t jumbo9_failures, jumbo9_sleeps, jumbo9_size;
 	uintmax_t jumbo16_count, jumbo16_bytes, jumbo16_limit, jumbo16_free;
-	uintmax_t jumbo16_failures, jumbo16_size;
+	uintmax_t jumbo16_failures, jumbo16_sleeps, jumbo16_size;
 	uintmax_t bytes_inuse, bytes_incache, bytes_total;
 	int nsfbufs, nsfbufspeak, nsfbufsused;
 	struct mbstat mbstat;
@@ -121,6 +123,7 @@ mbpr(void *kvmd, u_long mbaddr)
 	mbuf_bytes = memstat_get_bytes(mtp);
 	mbuf_free = memstat_get_free(mtp);
 	mbuf_failures = memstat_get_failures(mtp);
+	mbuf_sleeps = memstat_get_sleeps(mtp);
 	mbuf_size = memstat_get_size(mtp);
 
 	mtp = memstat_mtl_find(mtlp, ALLOCATOR_UMA, MBUF_PACKET_MEM_NAME);
@@ -132,6 +135,7 @@ mbpr(void *kvmd, u_long mbaddr)
 	packet_count = memstat_get_count(mtp);
 	packet_bytes = memstat_get_bytes(mtp);
 	packet_free = memstat_get_free(mtp);
+	packet_sleeps = memstat_get_sleeps(mtp);
 	packet_failures = memstat_get_failures(mtp);
 
 	mtp = memstat_mtl_find(mtlp, ALLOCATOR_UMA, MBUF_CLUSTER_MEM_NAME);
@@ -145,6 +149,7 @@ mbpr(void *kvmd, u_long mbaddr)
 	cluster_limit = memstat_get_countlimit(mtp);
 	cluster_free = memstat_get_free(mtp);
 	cluster_failures = memstat_get_failures(mtp);
+	cluster_sleeps = memstat_get_sleeps(mtp);
 	cluster_size = memstat_get_size(mtp);
 
 	mtp = memstat_mtl_find(mtlp, ALLOCATOR_MALLOC, MBUF_TAG_MEM_NAME);
@@ -167,6 +172,7 @@ mbpr(void *kvmd, u_long mbaddr)
 	jumbop_limit = memstat_get_countlimit(mtp);
 	jumbop_free = memstat_get_free(mtp);
 	jumbop_failures = memstat_get_failures(mtp);
+	jumbop_sleeps = memstat_get_sleeps(mtp);
 	jumbop_size = memstat_get_size(mtp);
 
 	mtp = memstat_mtl_find(mtlp, ALLOCATOR_UMA, MBUF_JUMBO9_MEM_NAME);
@@ -180,6 +186,7 @@ mbpr(void *kvmd, u_long mbaddr)
 	jumbo9_limit = memstat_get_countlimit(mtp);
 	jumbo9_free = memstat_get_free(mtp);
 	jumbo9_failures = memstat_get_failures(mtp);
+	jumbo9_sleeps = memstat_get_sleeps(mtp);
 	jumbo9_size = memstat_get_size(mtp);
 
 	mtp = memstat_mtl_find(mtlp, ALLOCATOR_UMA, MBUF_JUMBO16_MEM_NAME);
@@ -193,6 +200,7 @@ mbpr(void *kvmd, u_long mbaddr)
 	jumbo16_limit = memstat_get_countlimit(mtp);
 	jumbo16_free = memstat_get_free(mtp);
 	jumbo16_failures = memstat_get_failures(mtp);
+	jumbo16_sleeps = memstat_get_sleeps(mtp);
 	jumbo16_size = memstat_get_size(mtp);
 
 	printf("%ju/%ju/%ju mbufs in use (current/cache/total)\n",
@@ -279,7 +287,13 @@ mbpr(void *kvmd, u_long mbaddr)
 	printf("%ju/%ju/%ju requests for mbufs denied (mbufs/clusters/"
 	    "mbuf+clusters)\n", mbuf_failures, cluster_failures,
 	    packet_failures);
+	printf("%ju/%ju/%ju requests for mbufs delayed (mbufs/clusters/"
+	    "mbuf+clusters)\n", mbuf_sleeps, cluster_sleeps,
+	    packet_sleeps);
 
+	printf("%ju/%ju/%ju requests for jumbo clusters delayed "
+	    "(%juk/9k/16k)\n", jumbop_sleeps, jumbo9_sleeps,
+	    jumbo16_sleeps, jumbop_size / 1024);
 	printf("%ju/%ju/%ju requests for jumbo clusters denied "
 	    "(%juk/9k/16k)\n", jumbop_failures, jumbo9_failures,
 	    jumbo16_failures, jumbop_size / 1024);

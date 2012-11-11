@@ -1,4 +1,4 @@
-/* $Id: output.c,v 1.43 2012/01/14 17:03:52 tom Exp $ */
+/* $Id: output.c,v 1.44 2012/05/26 01:13:02 tom Exp $ */
 
 #include "defs.h"
 
@@ -557,10 +557,10 @@ pack_vector(int vector)
 		}
 		while (newmax <= loc);
 
-		table = (Value_t *) REALLOC(table, (unsigned)newmax * sizeof(Value_t));
+		table = TREALLOC(Value_t, table, newmax);
 		NO_SPACE(table);
 
-		check = (Value_t *) REALLOC(check, (unsigned)newmax * sizeof(Value_t));
+		check = TREALLOC(Value_t, check, newmax);
 		NO_SPACE(check);
 
 		for (l = maxtable; l < newmax; ++l)
@@ -919,7 +919,7 @@ output_debug(void)
     ++outline;
     fprintf(code_file, "#define YYMAXTOKEN %d\n", max);
 
-    symnam = (const char **)MALLOC((unsigned)(max + 1) * sizeof(char *));
+    symnam = TMALLOC(const char *, max + 1);
     NO_SPACE(symnam);
 
     /* Note that it is  not necessary to initialize the element         */

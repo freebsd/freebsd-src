@@ -28,7 +28,7 @@
 .\"     @(#)random.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd September 4, 2012
 .Dt RANDOM 3
 .Os
 .Sh NAME
@@ -53,6 +53,14 @@
 .Ft char *
 .Fn setstate "char *state"
 .Sh DESCRIPTION
+.Bf -symbolic
+The functions described in this manual page are not cryptographically
+secure.
+Cryptographic applications should use
+.Xr arc4random 3
+instead.
+.Ef
+.Pp
 The
 .Fn random
 function
@@ -98,10 +106,8 @@ as the seed.
 .Pp
 The
 .Fn srandomdev
-routine initializes a state array using the
-.Xr random 4
-random number device which returns good random numbers,
-suitable for cryptographic use.
+routine initializes a state array using data from
+.Xr random 4 .
 Note that this particular seeding
 procedure can generate states which are impossible to reproduce by
 calling
@@ -175,7 +181,6 @@ messages are printed on the standard error output.
 .Xr arc4random 3 ,
 .Xr lrand48 3 ,
 .Xr rand 3 ,
-.Xr srand 3 ,
 .Xr random 4
 .Sh HISTORY
 These
@@ -191,6 +196,3 @@ The historical implementation used to have a very weak seeding; the
 random sequence did not vary much with the seed.
 The current implementation employs a better pseudo-random number
 generator for the initial state calculation.
-.Pp
-Applications requiring cryptographic quality randomness should use
-.Xr arc4random 3 .

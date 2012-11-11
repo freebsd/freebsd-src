@@ -269,6 +269,116 @@ static struct ada_quirk_entry ada_quirk_table[] =
 		/*quirks*/ADA_Q_4K
 	},
 	{
+		/*
+		 * Corsair Force 2 SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
+		 * PR: 169974
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Corsair CSSD-F*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * Corsair Force 3 SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
+		 * PR: 169974
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "Corsair Force 3*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * OCZ Agility 3 SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
+		 * PR: 169974
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "OCZ-AGILITY3*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * OCZ Vertex 2 SSDs (inc pro series)
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
+		 * PR: 169974
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "OCZ?VERTEX2*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * OCZ Vertex 3 SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
+		 * PR: 169974
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "OCZ-VERTEX3*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * SuperTalent TeraDrive CT SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
+		 * PR: 169974
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "FTM??CT25H*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * Crucial RealSSD C300 SSDs
+		 * 4k optimised
+		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
+		 * PR: 169974
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "C300-CTFDDAC???MAG*",
+		"*" }, /*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * XceedIOPS SATA SSDs
+		 * 4k optimised
+		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
+		 * PR: 169974
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SG9XCS2D*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * Intel 330 Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
+		 * PR: 169974
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "INTEL SSDSC2ct*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * OCZ Deneva R Series SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
+		 * PR: 169974
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "DENRSTE251M45*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/*
+		 * Kingston HyperX 3k SSDs
+		 * 4k optimised & trim only works in 4k requests + 4k aligned
+		 * Submitted by: Steven Hartland <steven.hartland@multiplay.co.uk>
+		 * PR: 169974
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "KINGSTON SH103S3*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
 		/* Default */
 		{
 		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
@@ -368,9 +478,9 @@ TUNABLE_INT("kern.cam.ada.retry_count", &ada_retry_count);
 SYSCTL_INT(_kern_cam_ada, OID_AUTO, default_timeout, CTLFLAG_RW,
            &ada_default_timeout, 0, "Normal I/O timeout (in seconds)");
 TUNABLE_INT("kern.cam.ada.default_timeout", &ada_default_timeout);
-SYSCTL_INT(_kern_cam_ada, OID_AUTO, ada_send_ordered, CTLFLAG_RW,
+SYSCTL_INT(_kern_cam_ada, OID_AUTO, send_ordered, CTLFLAG_RW,
            &ada_send_ordered, 0, "Send Ordered Tags");
-TUNABLE_INT("kern.cam.ada.ada_send_ordered", &ada_send_ordered);
+TUNABLE_INT("kern.cam.ada.send_ordered", &ada_send_ordered);
 SYSCTL_INT(_kern_cam_ada, OID_AUTO, spindown_shutdown, CTLFLAG_RW,
            &ada_spindown_shutdown, 0, "Spin down upon shutdown");
 TUNABLE_INT("kern.cam.ada.spindown_shutdown", &ada_spindown_shutdown);
@@ -914,17 +1024,17 @@ adasysctlinit(void *context, int pending)
 static int
 adagetattr(struct bio *bp)
 {
-	int ret = -1;
+	int ret;
 	struct cam_periph *periph;
 
-	if (bp->bio_disk == NULL || bp->bio_disk->d_drv1 == NULL)
-		return ENXIO;
 	periph = (struct cam_periph *)bp->bio_disk->d_drv1;
-	if (periph->path == NULL)
-		return ENXIO;
+	if (periph == NULL)
+		return (ENXIO);
 
+	cam_periph_lock(periph);
 	ret = xpt_getattr(bp->bio_data, bp->bio_length, bp->bio_attribute,
 	    periph->path);
+	cam_periph_unlock(periph);
 	if (ret == 0)
 		bp->bio_completed = bp->bio_length;
 	return ret;
@@ -943,11 +1053,6 @@ adaregister(struct cam_periph *periph, void *arg)
 	int legacy_id, quirks;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("adaregister: periph was NULL!!\n");
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	if (cgd == NULL) {
 		printf("adaregister: no getdev CCB, can't register device\n");
 		return(CAM_REQ_CMP_ERR);
@@ -1064,6 +1169,8 @@ adaregister(struct cam_periph *periph, void *arg)
 		softc->disk->d_flags |= DISKFLAG_CANDELETE;
 	strlcpy(softc->disk->d_descr, cgd->ident_data.model,
 	    MIN(sizeof(softc->disk->d_descr), sizeof(cgd->ident_data.model)));
+	strlcpy(softc->disk->d_ident, cgd->ident_data.serial,
+	    MIN(sizeof(softc->disk->d_ident), sizeof(cgd->ident_data.serial)));
 	softc->disk->d_hba_vendor = cpi.hba_vendor;
 	softc->disk->d_hba_device = cpi.hba_device;
 	softc->disk->d_hba_subvendor = cpi.hba_subvendor;

@@ -185,14 +185,6 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 		kproc_create(g_bde_worker, gp, &sc->thread, 0, 0,
 			"g_bde %s", gp->name);
 		pp = g_new_providerf(gp, gp->name);
-#if 0
-		/*
-		 * XXX: Disable this for now.  Appearantly UFS no longer
-		 * XXX: issues BIO_DELETE requests correctly, with the obvious
-		 * XXX: outcome that userdata is trashed.
-		 */
-		pp->flags |= G_PF_CANDELETE;
-#endif
 		pp->stripesize = kp->zone_cont;
 		pp->stripeoffset = 0;
 		pp->mediasize = sc->mediasize;

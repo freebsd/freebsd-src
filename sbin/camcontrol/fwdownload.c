@@ -131,7 +131,7 @@ static char	*fw_read_img(const char *fw_img_path,
 		    const struct fw_vendor *vp, int *num_bytes);
 static int	 fw_download_img(struct cam_device *cam_dev,
 		    const struct fw_vendor *vp, char *buf, int img_size,
-		    int sim_mode, int verbose, int retry_count, int timeout,
+		    int sim_mode, int printerrors, int retry_count, int timeout,
 		    const char */*name*/, const char */*type*/);
 
 /*
@@ -238,7 +238,7 @@ bailout1:
  */
 static int
 fw_download_img(struct cam_device *cam_dev, const struct fw_vendor *vp,
-    char *buf, int img_size, int sim_mode, int verbose, int retry_count,
+    char *buf, int img_size, int sim_mode, int printerrors, int retry_count,
     int timeout, const char *imgname, const char *type)
 {
 	struct scsi_write_buffer cdb;
@@ -290,7 +290,7 @@ fw_download_img(struct cam_device *cam_dev, const struct fw_vendor *vp,
 	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;
 	if (cam_send_ccb(cam_dev, ccb) < 0) {
 		warnx("Error sending identify/test unit ready");
-		if (verbose)
+		if (printerrors)
 			cam_error_print(cam_dev, ccb, CAM_ESF_ALL,
 			    CAM_EPF_ALL, stderr);
 		cam_freeccb(ccb);
@@ -298,7 +298,7 @@ fw_download_img(struct cam_device *cam_dev, const struct fw_vendor *vp,
 	}
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		warnx("Device is not ready");
-		if (verbose)
+		if (printerrors)
 			cam_error_print(cam_dev, ccb, CAM_ESF_ALL,
 			    CAM_EPF_ALL, stderr);
 		cam_freeccb(ccb);
@@ -372,7 +372,7 @@ fw_download_img(struct cam_device *cam_dev, const struct fw_vendor *vp,
 			/* Execute the command. */
 			if (cam_send_ccb(cam_dev, ccb) < 0) {
 				warnx("Error writing image to device");
-				if (verbose)
+				if (printerrors)
 					cam_error_print(cam_dev, ccb, CAM_ESF_ALL,
 						   CAM_EPF_ALL, stderr);
 				goto bailout;
@@ -398,7 +398,7 @@ bailout:
 
 int
 fwdownload(struct cam_device *device, int argc, char **argv,
-    char *combinedopt, int verbose, int retry_count, int timeout,
+    char *combinedopt, int printerrors, int retry_count, int timeout,
     const char *type)
 {
 	const struct fw_vendor *vp;
@@ -450,7 +450,7 @@ fwdownload(struct cam_device *device, int argc, char **argv,
 	if (sim_mode)
 		fprintf(stdout, "Running in simulation mode\n");
 
-	if (fw_download_img(device, vp, buf, img_size, sim_mode, verbose,
+	if (fw_download_img(device, vp, buf, img_size, sim_mode, printerrors,
 	    retry_count, timeout, fw_img_path, type) != 0) {
 		fprintf(stderr, "Firmware download failed\n");
 		goto fail;

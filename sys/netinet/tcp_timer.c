@@ -183,13 +183,18 @@ tcp_timer_delack(void *xtp)
 		return;
 	}
 	INP_WLOCK(inp);
-	if ((inp->inp_flags & INP_DROPPED) || callout_pending(&tp->t_timers->tt_delack)
-	    || !callout_active(&tp->t_timers->tt_delack)) {
+	if (callout_pending(&tp->t_timers->tt_delack) ||
+	    !callout_active(&tp->t_timers->tt_delack)) {
 		INP_WUNLOCK(inp);
 		CURVNET_RESTORE();
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_delack);
+	if ((inp->inp_flags & INP_DROPPED) != 0) {
+		INP_WUNLOCK(inp);
+		CURVNET_RESTORE();
+		return;
+	}
 
 	tp->t_flags |= TF_ACKNOW;
 	TCPSTAT_INC(tcps_delack);
@@ -229,7 +234,7 @@ tcp_timer_2msl(void *xtp)
 	}
 	INP_WLOCK(inp);
 	tcp_free_sackholes(tp);
-	if ((inp->inp_flags & INP_DROPPED) || callout_pending(&tp->t_timers->tt_2msl) ||
+	if (callout_pending(&tp->t_timers->tt_2msl) ||
 	    !callout_active(&tp->t_timers->tt_2msl)) {
 		INP_WUNLOCK(tp->t_inpcb);
 		INP_INFO_WUNLOCK(&V_tcbinfo);
@@ -237,6 +242,12 @@ tcp_timer_2msl(void *xtp)
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_2msl);
+	if ((inp->inp_flags & INP_DROPPED) != 0) {
+		INP_WUNLOCK(inp);
+		INP_INFO_WUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
+		return;
+	}
 	/*
 	 * 2 MSL timeout in shutdown went off.  If we're closed but
 	 * still waiting for peer to close and connection has been idle
@@ -300,14 +311,20 @@ tcp_timer_keep(void *xtp)
 		return;
 	}
 	INP_WLOCK(inp);
-	if ((inp->inp_flags & INP_DROPPED) || callout_pending(&tp->t_timers->tt_keep)
-	    || !callout_active(&tp->t_timers->tt_keep)) {
+	if (callout_pending(&tp->t_timers->tt_keep) ||
+	    !callout_active(&tp->t_timers->tt_keep)) {
 		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&V_tcbinfo);
 		CURVNET_RESTORE();
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_keep);
+	if ((inp->inp_flags & INP_DROPPED) != 0) {
+		INP_WUNLOCK(inp);
+		INP_INFO_WUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
+		return;
+	}
 	/*
 	 * Keep-alive timer went off; send something
 	 * or drop connection if idle for too long.
@@ -397,14 +414,20 @@ tcp_timer_persist(void *xtp)
 		return;
 	}
 	INP_WLOCK(inp);
-	if ((inp->inp_flags & INP_DROPPED) || callout_pending(&tp->t_timers->tt_persist)
-	    || !callout_active(&tp->t_timers->tt_persist)) {
+	if (callout_pending(&tp->t_timers->tt_persist) ||
+	    !callout_active(&tp->t_timers->tt_persist)) {
 		INP_WUNLOCK(inp);
 		INP_INFO_WUNLOCK(&V_tcbinfo);
 		CURVNET_RESTORE();
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_persist);
+	if ((inp->inp_flags & INP_DROPPED) != 0) {
+		INP_WUNLOCK(inp);
+		INP_INFO_WUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
+		return;
+	}
 	/*
 	 * Persistance timer into zero window.
 	 * Force a byte to be output, if possible.
@@ -420,6 +443,16 @@ tcp_timer_persist(void *xtp)
 	if (tp->t_rxtshift == TCP_MAXRXTSHIFT &&
 	    (ticks - tp->t_rcvtime >= tcp_maxpersistidle ||
 	     ticks - tp->t_rcvtime >= TCP_REXMTVAL(tp) * tcp_totbackoff)) {
+		TCPSTAT_INC(tcps_persistdrop);
+		tp = tcp_drop(tp, ETIMEDOUT);
+		goto out;
+	}
+	/*
+	 * If the user has closed the socket then drop a persisting
+	 * connection after a much reduced timeout.
+	 */
+	if (tp->t_state > TCPS_CLOSE_WAIT &&
+	    (ticks - tp->t_rcvtime) >= TCPTV_PERSMAX) {
 		TCPSTAT_INC(tcps_persistdrop);
 		tp = tcp_drop(tp, ETIMEDOUT);
 		goto out;
@@ -469,14 +502,20 @@ tcp_timer_rexmt(void * xtp)
 		return;
 	}
 	INP_WLOCK(inp);
-	if ((inp->inp_flags & INP_DROPPED) || callout_pending(&tp->t_timers->tt_rexmt)
-	    || !callout_active(&tp->t_timers->tt_rexmt)) {
+	if (callout_pending(&tp->t_timers->tt_rexmt) ||
+	    !callout_active(&tp->t_timers->tt_rexmt)) {
 		INP_WUNLOCK(inp);
 		INP_INFO_RUNLOCK(&V_tcbinfo);
 		CURVNET_RESTORE();
 		return;
 	}
 	callout_deactivate(&tp->t_timers->tt_rexmt);
+	if ((inp->inp_flags & INP_DROPPED) != 0) {
+		INP_WUNLOCK(inp);
+		INP_INFO_RUNLOCK(&V_tcbinfo);
+		CURVNET_RESTORE();
+		return;
+	}
 	tcp_free_sackholes(tp);
 	/*
 	 * Retransmission timer went off.  Message has not
@@ -510,7 +549,13 @@ tcp_timer_rexmt(void * xtp)
 	}
 	INP_INFO_RUNLOCK(&V_tcbinfo);
 	headlocked = 0;
-	if (tp->t_rxtshift == 1) {
+	if (tp->t_state == TCPS_SYN_SENT) {
+		/*
+		 * If the SYN was retransmitted, indicate CWND to be
+		 * limited to 1 segment in cc_conn_init().
+		 */
+		tp->snd_cwnd = 1;
+	} else if (tp->t_rxtshift == 1) {
 		/*
 		 * first retransmit; record ssthresh and cwnd so they can
 		 * be recovered if this turns out to be a "bad" retransmit.
@@ -537,20 +582,20 @@ tcp_timer_rexmt(void * xtp)
 		tp->t_flags &= ~TF_PREVVALID;
 	TCPSTAT_INC(tcps_rexmttimeo);
 	if (tp->t_state == TCPS_SYN_SENT)
-		rexmt = TCP_REXMTVAL(tp) * tcp_syn_backoff[tp->t_rxtshift];
+		rexmt = TCPTV_RTOBASE * tcp_syn_backoff[tp->t_rxtshift];
 	else
 		rexmt = TCP_REXMTVAL(tp) * tcp_backoff[tp->t_rxtshift];
 	TCPT_RANGESET(tp->t_rxtcur, rexmt,
 		      tp->t_rttmin, TCPTV_REXMTMAX);
 	/*
-	 * Disable rfc1323 if we haven't got any response to
+	 * Disable RFC1323 and SACK if we haven't got any response to
 	 * our third SYN to work-around some broken terminal servers
 	 * (most of which have hopefully been retired) that have bad VJ
 	 * header compression code which trashes TCP segments containing
 	 * unknown-to-them TCP options.
 	 */
 	if ((tp->t_state == TCPS_SYN_SENT) && (tp->t_rxtshift == 3))
-		tp->t_flags &= ~(TF_REQ_SCALE|TF_REQ_TSTMP);
+		tp->t_flags &= ~(TF_REQ_SCALE|TF_REQ_TSTMP|TF_SACK_PERMIT);
 	/*
 	 * If we backed off this far, our srtt estimate is probably bogus.
 	 * Clobber it so we'll take the next rtt measurement as our srtt;
@@ -561,7 +606,6 @@ tcp_timer_rexmt(void * xtp)
 #ifdef INET6
 		if ((tp->t_inpcb->inp_vflag & INP_IPV6) != 0)
 			in6_losing(tp->t_inpcb);
-		else
 #endif
 		tp->t_rttvar += (tp->t_srtt >> TCP_RTT_SHIFT);
 		tp->t_srtt = 0;

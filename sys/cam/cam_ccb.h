@@ -755,6 +755,7 @@ struct ccb_relsim {
  * Definitions for the asynchronous callback CCB fields.
  */
 typedef enum {
+	AC_UNIT_ATTENTION	= 0x4000,/* Device reported UNIT ATTENTION */
 	AC_ADVINFO_CHANGED	= 0x2000,/* Advance info might have changes */
 	AC_CONTRACT		= 0x1000,/* A contractual callback */
 	AC_GETDEV_CHANGED	= 0x800,/* Getdev info might have changed */

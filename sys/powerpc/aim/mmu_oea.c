@@ -96,11 +96,6 @@ __FBSDID("$FreeBSD$");
 /*
  * Manages physical address maps.
  *
- * In addition to hardware address maps, this module is called upon to
- * provide software-use-only maps which may or may not be stored in the
- * same form as hardware maps.  These pseudo-maps are used to store
- * intermediate results from copy operations to and from address spaces.
- *
  * Since the information managed by this module is also stored by the
  * logical address mapping module, this module may throw away valid virtual
  * to physical mappings at almost any time.  However, invalidations of
@@ -205,16 +200,7 @@ struct	pvo_head *moea_pvo_table;		/* pvo entries by pteg index */
 struct	pvo_head moea_pvo_kunmanaged =
     LIST_HEAD_INITIALIZER(moea_pvo_kunmanaged);	/* list of unmanaged pages */
 
-/*
- * Isolate the global pv list lock from data and other locks to prevent false
- * sharing within the cache.
- */
-static struct {
-	struct rwlock	lock;
-	char		padding[CACHE_LINE_SIZE - sizeof(struct rwlock)];
-} pvh_global __aligned(CACHE_LINE_SIZE);
-
-#define	pvh_global_lock	pvh_global.lock
+static struct rwlock_padalign pvh_global_lock;
 
 uma_zone_t	moea_upvo_zone;	/* zone for pvo entries for unmanaged pages */
 uma_zone_t	moea_mpvo_zone;	/* zone for pvo entries for managed pages */

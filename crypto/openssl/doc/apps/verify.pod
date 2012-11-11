@@ -10,6 +10,18 @@ B<openssl> B<verify>
 [B<-CApath directory>]
 [B<-CAfile file>]
 [B<-purpose purpose>]
+[B<-policy arg>]
+[B<-ignore_critical>]
+[B<-crl_check>]
+[B<-crl_check_all>]
+[B<-policy_check>]
+[B<-explicit_policy>]
+[B<-inhibit_any>]
+[B<-inhibit_map>]
+[B<-x509_strict>]
+[B<-extended_crl>]
+[B<-use_deltas>]
+[B<-policy_print>]
 [B<-untrusted file>]
 [B<-help>]
 [B<-issuer_checks>]
@@ -65,6 +77,63 @@ of the current certificate. This shows why each candidate issuer
 certificate was rejected. However the presence of rejection messages
 does not itself imply that anything is wrong: during the normal
 verify process several rejections may take place.
+
+=item B<-policy arg>
+
+Enable policy processing and add B<arg> to the user-initial-policy-set
+(see RFC3280 et al). The policy B<arg> can be an object name an OID in numeric
+form. This argument can appear more than once.
+
+=item B<-policy_check>
+
+Enables certificate policy processing.
+
+=item B<-explicit_policy>
+
+Set policy variable require-explicit-policy (see RFC3280 et al).
+
+=item B<-inhibit_any>
+
+Set policy variable inhibit-any-policy (see RFC3280 et al).
+
+=item B<-inhibit_map>
+
+Set policy variable inhibit-policy-mapping (see RFC3280 et al).
+
+=item B<-policy_print>
+
+Print out diagnostics, related to policy checking
+
+=item B<-crl_check>
+
+Checks end entity certificate validity by attempting to lookup a valid CRL.
+If a valid CRL cannot be found an error occurs. 
+
+=item B<-crl_check_all>
+
+Checks the validity of B<all> certificates in the chain by attempting
+to lookup valid CRLs.
+
+=item B<-ignore_critical>
+
+Normally if an unhandled critical extension is present which is not
+supported by OpenSSL the certificate is rejected (as required by
+RFC3280 et al). If this option is set critical extensions are
+ignored.
+
+=item B<-x509_strict>
+
+Disable workarounds for broken certificates which have to be disabled
+for strict X.509 compliance.
+
+=item B<-extended_crl>
+
+Enable extended CRL features such as indirect CRLs and alternate CRL
+signing keys.
+
+=item B<-use_deltas>
+
+Enable support for delta CRLs.
 
 =item B<-check_ss_sig>
 
@@ -176,7 +245,7 @@ normally means the list of trusted certificates is not complete.
 
 =item B<3 X509_V_ERR_UNABLE_TO_GET_CRL: unable to get certificate CRL>
 
-the CRL of a certificate could not be found. Unused.
+the CRL of a certificate could not be found.
 
 =item B<4 X509_V_ERR_UNABLE_TO_DECRYPT_CERT_SIGNATURE: unable to decrypt certificate's signature>
 
@@ -199,7 +268,7 @@ the signature of the certificate is invalid.
 
 =item B<8 X509_V_ERR_CRL_SIGNATURE_FAILURE: CRL signature failure>
 
-the signature of the certificate is invalid. Unused.
+the signature of the certificate is invalid.
 
 =item B<9 X509_V_ERR_CERT_NOT_YET_VALID: certificate is not yet valid>
 
@@ -211,11 +280,11 @@ the certificate has expired: that is the notAfter date is before the current tim
 
 =item B<11 X509_V_ERR_CRL_NOT_YET_VALID: CRL is not yet valid>
 
-the CRL is not yet valid. Unused.
+the CRL is not yet valid.
 
 =item B<12 X509_V_ERR_CRL_HAS_EXPIRED: CRL has expired>
 
-the CRL has expired. Unused.
+the CRL has expired.
 
 =item B<13 X509_V_ERR_ERROR_IN_CERT_NOT_BEFORE_FIELD: format error in certificate's notBefore field>
 
@@ -227,11 +296,11 @@ the certificate notAfter field contains an invalid time.
 
 =item B<15 X509_V_ERR_ERROR_IN_CRL_LAST_UPDATE_FIELD: format error in CRL's lastUpdate field>
 
-the CRL lastUpdate field contains an invalid time. Unused.
+the CRL lastUpdate field contains an invalid time.
 
 =item B<16 X509_V_ERR_ERROR_IN_CRL_NEXT_UPDATE_FIELD: format error in CRL's nextUpdate field>
 
-the CRL nextUpdate field contains an invalid time. Unused.
+the CRL nextUpdate field contains an invalid time.
 
 =item B<17 X509_V_ERR_OUT_OF_MEM: out of memory>
 
@@ -263,7 +332,7 @@ the certificate chain length is greater than the supplied maximum depth. Unused.
 
 =item B<23 X509_V_ERR_CERT_REVOKED: certificate revoked>
 
-the certificate has been revoked. Unused.
+the certificate has been revoked.
 
 =item B<24 X509_V_ERR_INVALID_CA: invalid CA certificate>
 

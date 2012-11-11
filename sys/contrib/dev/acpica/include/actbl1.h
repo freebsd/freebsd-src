@@ -82,9 +82,15 @@
 #pragma pack(1)
 
 /*
- * Note about bitfields: The UINT8 type is used for bitfields in ACPI tables.
- * This is the only type that is even remotely portable. Anything else is not
- * portable, so do not use any other bitfield types.
+ * Note: C bitfields are not used for this reason:
+ *
+ * "Bitfields are great and easy to read, but unfortunately the C language
+ * does not specify the layout of bitfields in memory, which means they are
+ * essentially useless for dealing with packed data in on-disk formats or
+ * binary wire protocols." (Or ACPI tables and buffers.) "If you ask me,
+ * this decision was a design error in C. Ritchie could have picked an order
+ * and stuck with it." Norman Ramsey.
+ * See http://stackoverflow.com/a/1053662/41661
  */
 
 
@@ -130,7 +136,7 @@ typedef struct acpi_table_bert
 {
     ACPI_TABLE_HEADER       Header;             /* Common ACPI table header */
     UINT32                  RegionLength;       /* Length of the boot error region */
-    UINT64                  Address;            /* Physical addresss of the error region */
+    UINT64                  Address;            /* Physical address of the error region */
 
 } ACPI_TABLE_BERT;
 
@@ -561,7 +567,9 @@ enum AcpiHestNotifyTypes
     ACPI_HEST_NOTIFY_LOCAL      = 2,
     ACPI_HEST_NOTIFY_SCI        = 3,
     ACPI_HEST_NOTIFY_NMI        = 4,
-    ACPI_HEST_NOTIFY_RESERVED   = 5     /* 5 and greater are reserved */
+    ACPI_HEST_NOTIFY_CMCI       = 5,    /* ACPI 5.0 */
+    ACPI_HEST_NOTIFY_MCE        = 6,    /* ACPI 5.0 */
+    ACPI_HEST_NOTIFY_RESERVED   = 7     /* 7 and greater are reserved */
 };
 
 /* Values for ConfigWriteEnable bitfield above */

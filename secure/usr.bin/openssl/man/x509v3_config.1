@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "X509V3_CONFIG 1"
-.TH X509V3_CONFIG 1 "2012-05-10" "0.9.8x" "OpenSSL"
+.TH X509V3_CONFIG 1 "2012-05-10" "1.0.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -185,7 +185,7 @@ use is defined by the extension code itself: check out the certificate
 policies extension for an example.
 .PP
 If an extension type is unsupported then the \fIarbitrary\fR extension syntax
-must be used, see the \s-1ARBITRART\s0 \s-1EXTENSIONS\s0 section for more details.
+must be used, see the \s-1ARBITRARY\s0 \s-1EXTENSIONS\s0 section for more details.
 .SH "STANDARD EXTENSIONS"
 .IX Header "STANDARD EXTENSIONS"
 The following sections describe each supported extension in detail.
@@ -311,7 +311,7 @@ preceeding the name with a \fB+\fR character.
 .PP
 otherName can include arbitrary data associated with an \s-1OID:\s0 the value
 should be the \s-1OID\s0 followed by a semicolon and the content in standard
-\&\fIASN1_generate_nconf()\fR format.
+\&\fIASN1_generate_nconf\fR\|(3) format.
 .PP
 Examples:
 .PP
@@ -359,21 +359,83 @@ Example:
 .Ve
 .SS "\s-1CRL\s0 distribution points."
 .IX Subsection "CRL distribution points."
-This is a multi-valued extension that supports all the literal options of
-subject alternative name. Of the few software packages that currently interpret
-this extension most only interpret the \s-1URI\s0 option.
+This is a multi-valued extension whose options can be either in name:value pair
+using the same form as subject alternative name or a single value representing
+a section name containing all the distribution point fields.
 .PP
-Currently each option will set a new DistributionPoint with the fullName
-field set to the given value.
+For a name:value pair a new DistributionPoint with the fullName field set to
+the given value both the cRLissuer and reasons fields are omitted in this case.
 .PP
-Other fields like cRLissuer and reasons cannot currently be set or displayed:
-at this time no examples were available that used these fields.
+In the single option case the section indicated contains values for each
+field. In this section:
 .PP
-Examples:
+If the name is \*(L"fullname\*(R" the value field should contain the full name
+of the distribution point in the same format as subject alternative name.
+.PP
+If the name is \*(L"relativename\*(R" then the value field should contain a section
+name whose contents represent a \s-1DN\s0 fragment to be placed in this field.
+.PP
+The name \*(L"CRLIssuer\*(R" if present should contain a value for this field in
+subject alternative name format.
+.PP
+If the name is \*(L"reasons\*(R" the value field should consist of a comma
+separated field containing the reasons. Valid reasons are: \*(L"keyCompromise\*(R",
+\&\*(L"CACompromise\*(R", \*(L"affiliationChanged\*(R", \*(L"superseded\*(R", \*(L"cessationOfOperation\*(R",
+\&\*(L"certificateHold\*(R", \*(L"privilegeWithdrawn\*(R" and \*(L"AACompromise\*(R".
+.PP
+Simple examples:
 .PP
 .Vb 2
 \& crlDistributionPoints=URI:http://myhost.com/myca.crl
 \& crlDistributionPoints=URI:http://my.com/my.crl,URI:http://oth.com/my.crl
+.Ve
+.PP
+Full distribution point example:
+.PP
+.Vb 1
+\& crlDistributionPoints=crldp1_section
+\&
+\& [crldp1_section]
+\&
+\& fullname=URI:http://myhost.com/myca.crl
+\& CRLissuer=dirName:issuer_sect
+\& reasons=keyCompromise, CACompromise
+\&
+\& [issuer_sect]
+\& C=UK
+\& O=Organisation
+\& CN=Some Name
+.Ve
+.SS "Issuing Distribution Point"
+.IX Subsection "Issuing Distribution Point"
+This extension should only appear in CRLs. It is a multi valued extension
+whose syntax is similar to the \*(L"section\*(R" pointed to by the \s-1CRL\s0 distribution
+points extension with a few differences.
+.PP
+The names \*(L"reasons\*(R" and \*(L"CRLissuer\*(R" are not recognized.
+.PP
+The name \*(L"onlysomereasons\*(R" is accepted which sets this field. The value is
+in the same format as the \s-1CRL\s0 distribution point \*(L"reasons\*(R" field.
+.PP
+The names \*(L"onlyuser\*(R", \*(L"onlyCA\*(R", \*(L"onlyAA\*(R" and \*(L"indirectCRL\*(R" are also accepted
+the values should be a boolean value (\s-1TRUE\s0 or \s-1FALSE\s0) to indicate the value of
+the corresponding field.
+.PP
+Example:
+.PP
+.Vb 1
+\& issuingDistributionPoint=critical, @idp_section
+\&
+\& [idp_section]
+\&
+\& fullname=URI:http://myhost.com/myca.crl
+\& indirectCRL=TRUE
+\& onlysomereasons=keyCompromise, CACompromise
+\&
+\& [issuer_sect]
+\& C=UK
+\& O=Organisation
+\& CN=Some Name
 .Ve
 .SS "Certificate Policies."
 .IX Subsection "Certificate Policies."
@@ -471,6 +533,16 @@ Examples:
 \& nameConstraints=permitted;email:.somedomain.com
 \&
 \& nameConstraints=excluded;email:.com
+\&issuingDistributionPoint = idp_section
+.Ve
+.SS "\s-1OCSP\s0 No Check"
+.IX Subsection "OCSP No Check"
+The \s-1OCSP\s0 No Check extension is a string extension but its value is ignored.
+.PP
+Example:
+.PP
+.Vb 1
+\& noCheck = ignored
 .Ve
 .SH "DEPRECATED EXTENSIONS"
 .IX Header "DEPRECATED EXTENSIONS"
@@ -509,7 +581,8 @@ the data is formatted correctly for the given extension type.
 There are two ways to encode arbitrary extensions.
 .PP
 The first way is to use the word \s-1ASN1\s0 followed by the extension content
-using the same syntax as \fIASN1_generate_nconf()\fR. For example:
+using the same syntax as \fIASN1_generate_nconf\fR\|(3).
+For example:
 .PP
 .Vb 1
 \& 1.2.3.4=critical,ASN1:UTF8String:Some random data
@@ -598,4 +671,5 @@ The \fBdirectoryName\fR and \fBotherName\fR option as well as the \fB\s-1ASN1\s0
 for arbitrary extensions was added in OpenSSL 0.9.8
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
-\&\fIreq\fR\|(1), \fIca\fR\|(1), \fIx509\fR\|(1)
+\&\fIreq\fR\|(1), \fIca\fR\|(1), \fIx509\fR\|(1),
+\&\fIASN1_generate_nconf\fR\|(3)

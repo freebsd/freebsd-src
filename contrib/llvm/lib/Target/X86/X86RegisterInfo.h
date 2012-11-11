@@ -50,6 +50,11 @@ private:
   ///
   unsigned FramePtr;
 
+  /// BasePtr - X86 physical register used as a base ptr in complex stack
+  /// frames. I.e., when we need a 3rd base, not just SP and FP, due to
+  /// variable size stack objects.
+  unsigned BasePtr;
+
 public:
   X86RegisterInfo(X86TargetMachine &tm, const TargetInstrInfo &tii);
 
@@ -65,7 +70,8 @@ public:
   int getCompactUnwindRegNum(unsigned RegNum, bool isEH) const;
 
   /// Code Generation virtual methods...
-  /// 
+  ///
+  virtual bool trackLivenessAfterRegAlloc(const MachineFunction &MF) const;
 
   /// getMatchingSuperRegClass - Return a subclass of the specified register
   /// class A so that each register in it has a sub-register of the
@@ -82,7 +88,8 @@ public:
 
   /// getPointerRegClass - Returns a TargetRegisterClass used for pointer
   /// values.
-  const TargetRegisterClass *getPointerRegClass(unsigned Kind = 0) const;
+  const TargetRegisterClass *
+  getPointerRegClass(const MachineFunction &MF, unsigned Kind = 0) const;
 
   /// getCrossCopyRegClass - Returns a legal register class to copy a register
   /// in the specified class to or from. Returns NULL if it is possible to copy
@@ -104,6 +111,8 @@ public:
   /// register scavenger to determine what registers are free.
   BitVector getReservedRegs(const MachineFunction &MF) const;
 
+  bool hasBasePointer(const MachineFunction &MF) const;
+
   bool canRealignStack(const MachineFunction &MF) const;
 
   bool needsStackRealignment(const MachineFunction &MF) const;
@@ -121,6 +130,7 @@ public:
   // Debug information queries.
   unsigned getFrameRegister(const MachineFunction &MF) const;
   unsigned getStackRegister() const { return StackPtr; }
+  unsigned getBaseRegister() const { return BasePtr; }
   // FIXME: Move to FrameInfok
   unsigned getSlotSize() const { return SlotSize; }
 

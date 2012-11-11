@@ -517,7 +517,7 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		char tbuf[80];
 
 		strcpy(tbuf, "/dev/");
-		strncat(tbuf, opts, sizeof(tbuf) - strlen(tbuf));
+		strlcat(tbuf, opts, sizeof(tbuf));
 
 		sc->vsc_tapfd = open(tbuf, O_RDWR);
 		if (sc->vsc_tapfd == -1) {

@@ -120,6 +120,10 @@ struct umutex	_rwlock_static_lock = DEFAULT_UMUTEX;
 struct umutex	_keytable_lock = DEFAULT_UMUTEX;
 struct urwlock	_thr_list_lock = DEFAULT_URWLOCK;
 struct umutex	_thr_event_lock = DEFAULT_UMUTEX;
+struct umutex	_suspend_all_lock = DEFAULT_UMUTEX;
+struct pthread	*_single_thread;
+int		_suspend_all_cycle;
+int		_suspend_all_waiters;
 
 int	__pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
 int	__pthread_mutex_lock(pthread_mutex_t *);
@@ -441,11 +445,14 @@ init_private(void)
 	_thr_umutex_init(&_keytable_lock);
 	_thr_urwlock_init(&_thr_atfork_lock);
 	_thr_umutex_init(&_thr_event_lock);
+	_thr_umutex_init(&_suspend_all_lock);
 	_thr_once_init();
 	_thr_spinlock_init();
 	_thr_list_init();
 	_thr_wake_addr_init();
 	_sleepq_init();
+	_single_thread = NULL;
+	_suspend_all_waiters = 0;
 
 	/*
 	 * Avoid reinitializing some things if they don't need to be,

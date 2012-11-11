@@ -93,7 +93,7 @@ typedef enum _SCI_BASE_REMOTE_DEVICE_STATES
    SCI_BASE_REMOTE_DEVICE_STATE_STOPPED,
 
    /**
-    * This state indicates the the remote device is in the process of
+    * This state indicates the remote device is in the process of
     * becoming ready (i.e. starting).  In this state no new IO operations
     * are permitted.
     * This state is entered from the STOPPED state.

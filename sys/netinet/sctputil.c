@@ -58,8 +58,7 @@ extern struct sctp_cc_functions sctp_cc_functions[];
 extern struct sctp_ss_functions sctp_ss_functions[];
 
 void
-sctp_sblog(struct sockbuf *sb,
-    struct sctp_tcb *stcb, int from, int incr)
+sctp_sblog(struct sockbuf *sb, struct sctp_tcb *stcb, int from, int incr)
 {
 	struct sctp_cwnd_log sctp_clog;
 
@@ -102,7 +101,6 @@ sctp_log_closing(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int16_t loc)
 	    sctp_clog.x.misc.log3,
 	    sctp_clog.x.misc.log4);
 }
-
 
 void
 rto_logging(struct sctp_nets *net, int from)
@@ -198,8 +196,7 @@ sctp_log_map(uint32_t map, uint32_t cum, uint32_t high, int from)
 }
 
 void
-sctp_log_fr(uint32_t biggest_tsn, uint32_t biggest_new_tsn, uint32_t tsn,
-    int from)
+sctp_log_fr(uint32_t biggest_tsn, uint32_t biggest_new_tsn, uint32_t tsn, int from)
 {
 	struct sctp_cwnd_log sctp_clog;
 
@@ -242,8 +239,7 @@ sctp_log_mb(struct mbuf *m, int from)
 }
 
 void
-sctp_log_strm_del(struct sctp_queued_to_read *control, struct sctp_queued_to_read *poschk,
-    int from)
+sctp_log_strm_del(struct sctp_queued_to_read *control, struct sctp_queued_to_read *poschk, int from)
 {
 	struct sctp_cwnd_log sctp_clog;
 
@@ -686,7 +682,7 @@ sctp_auditing(int from, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			}
 			if (lnet->flight_size != tot_out) {
 				SCTP_PRINTF("net:%p flight was %d corrected to %d\n",
-				    lnet, lnet->flight_size,
+				    (void *)lnet, lnet->flight_size,
 				    tot_out);
 				lnet->flight_size = tot_out;
 			}
@@ -1056,7 +1052,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 		 * that were dropped must be notified to the upper layer as
 		 * failed to send.
 		 */
-		asoc->strmout[i].next_sequence_sent = 0x0;
+		asoc->strmout[i].next_sequence_send = 0x0;
 		TAILQ_INIT(&asoc->strmout[i].outqueue);
 		asoc->strmout[i].stream_no = i;
 		asoc->strmout[i].last_msg_incomplete = 0;
@@ -1434,7 +1430,7 @@ sctp_timeout_handler(void *t)
 	if (tmr->self != (void *)tmr) {
 		/*
 		 * SCTP_PRINTF("Stale SCTP timer fired (%p), ignoring...\n",
-		 * tmr);
+		 * (void *)tmr);
 		 */
 		CURVNET_RESTORE();
 		return;
@@ -2112,7 +2108,7 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	}
 	if ((to_ticks <= 0) || (tmr == NULL)) {
 		SCTPDBG(SCTP_DEBUG_TIMER1, "%s: %d:software error to_ticks:%d tmr:%p not set ??\n",
-		    __FUNCTION__, t_type, to_ticks, tmr);
+		    __FUNCTION__, t_type, to_ticks, (void *)tmr);
 		return;
 	}
 	if (SCTP_OS_TIMER_PENDING(&tmr->timer)) {
@@ -2384,8 +2380,8 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	}
 	timevalsub(&now, old);
 	/* store the current RTT in us */
-	net->rtt = (uint64_t) 10000000 *(uint64_t) now.tv_sec +
-	         (uint64_t) now.tv_usec;
+	net->rtt = (uint64_t) 1000000 *(uint64_t) now.tv_sec +
+	        (uint64_t) now.tv_usec;
 
 	/* computer rtt in ms */
 	rtt = net->rtt / 1000;
@@ -2951,7 +2947,7 @@ sctp_notify_send_failed2(struct sctp_tcb *stcb, uint32_t error,
 	SCTP_BUF_LEN(m_notify) = 0;
 	if (sctp_stcb_is_feature_on(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVNSENDFAILEVNT)) {
 		ssfe = mtod(m_notify, struct sctp_send_failed_event *);
-		ssfe->ssfe_type = SCTP_SEND_FAILED;
+		ssfe->ssfe_type = SCTP_SEND_FAILED_EVENT;
 		ssfe->ssfe_flags = SCTP_DATA_UNSENT;
 		ssfe->ssfe_length = length;
 		ssfe->ssfe_error = error;
@@ -2977,7 +2973,7 @@ sctp_notify_send_failed2(struct sctp_tcb *stcb, uint32_t error,
 		/* not exactly what the user sent in, but should be close :) */
 		bzero(&ssf->ssf_info, sizeof(ssf->ssf_info));
 		ssf->ssf_info.sinfo_stream = sp->stream;
-		ssf->ssf_info.sinfo_ssn = sp->strseq;
+		ssf->ssf_info.sinfo_ssn = 0;
 		if (sp->some_taken) {
 			ssf->ssf_info.sinfo_flags = SCTP_DATA_LAST_FRAG;
 		} else {
@@ -3774,6 +3770,8 @@ sctp_report_all_outbound(struct sctp_tcb *stcb, uint16_t error, int holds_lock, 
 				if (sp->data) {
 					sctp_m_freem(sp->data);
 					sp->data = NULL;
+					sp->tail_mbuf = NULL;
+					sp->length = 0;
 				}
 			}
 			if (sp->net) {
@@ -4213,7 +4211,6 @@ sctp_print_address(struct sockaddr *sa)
 #ifdef INET6
 	char ip6buf[INET6_ADDRSTRLEN];
 
-	ip6buf[0] = 0;
 #endif
 
 	switch (sa->sa_family) {
@@ -4777,77 +4774,69 @@ sctp_release_pr_sctp_chunk(struct sctp_tcb *stcb, struct sctp_tmit_chunk *tp1,
 		 * Still no eom found. That means there is stuff left on the
 		 * stream out queue.. yuck.
 		 */
-		strq = &stcb->asoc.strmout[stream];
 		SCTP_TCB_SEND_LOCK(stcb);
-		TAILQ_FOREACH(sp, &strq->outqueue, next) {
-			/* FIXME: Shouldn't this be a serial number check? */
-			if (sp->strseq > seq) {
-				break;
-			}
-			/* Check if its our SEQ */
-			if (sp->strseq == seq) {
-				sp->discard_rest = 1;
-				/*
-				 * We may need to put a chunk on the queue
-				 * that holds the TSN that would have been
-				 * sent with the LAST bit.
-				 */
+		strq = &stcb->asoc.strmout[stream];
+		sp = TAILQ_FIRST(&strq->outqueue);
+		if (sp != NULL) {
+			sp->discard_rest = 1;
+			/*
+			 * We may need to put a chunk on the queue that
+			 * holds the TSN that would have been sent with the
+			 * LAST bit.
+			 */
+			if (chk == NULL) {
+				/* Yep, we have to */
+				sctp_alloc_a_chunk(stcb, chk);
 				if (chk == NULL) {
-					/* Yep, we have to */
-					sctp_alloc_a_chunk(stcb, chk);
-					if (chk == NULL) {
-						/*
-						 * we are hosed. All we can
-						 * do is nothing.. which
-						 * will cause an abort if
-						 * the peer is paying
-						 * attention.
-						 */
-						goto oh_well;
-					}
-					memset(chk, 0, sizeof(*chk));
-					chk->rec.data.rcv_flags = SCTP_DATA_LAST_FRAG;
-					chk->sent = SCTP_FORWARD_TSN_SKIP;
-					chk->asoc = &stcb->asoc;
-					chk->rec.data.stream_seq = sp->strseq;
-					chk->rec.data.stream_number = sp->stream;
-					chk->rec.data.payloadtype = sp->ppid;
-					chk->rec.data.context = sp->context;
-					chk->flags = sp->act_flags;
-					if (sp->net)
-						chk->whoTo = sp->net;
-					else
-						chk->whoTo = stcb->asoc.primary_destination;
-					atomic_add_int(&chk->whoTo->ref_count, 1);
-					chk->rec.data.TSN_seq = atomic_fetchadd_int(&stcb->asoc.sending_seq, 1);
-					stcb->asoc.pr_sctp_cnt++;
-					chk->pr_sctp_on = 1;
-					TAILQ_INSERT_TAIL(&stcb->asoc.sent_queue, chk, sctp_next);
-					stcb->asoc.sent_queue_cnt++;
-					stcb->asoc.pr_sctp_cnt++;
-				} else {
-					chk->rec.data.rcv_flags |= SCTP_DATA_LAST_FRAG;
-				}
-		oh_well:
-				if (sp->data) {
 					/*
-					 * Pull any data to free up the SB
-					 * and allow sender to "add more"
-					 * whilc we will throw away :-)
+					 * we are hosed. All we can do is
+					 * nothing.. which will cause an
+					 * abort if the peer is paying
+					 * attention.
 					 */
-					sctp_free_spbufspace(stcb, &stcb->asoc,
-					    sp);
-					ret_sz += sp->length;
-					do_wakeup_routine = 1;
-					sp->some_taken = 1;
-					sctp_m_freem(sp->data);
-					sp->length = 0;
-					sp->data = NULL;
-					sp->tail_mbuf = NULL;
+					goto oh_well;
 				}
-				break;
+				memset(chk, 0, sizeof(*chk));
+				chk->rec.data.rcv_flags = SCTP_DATA_LAST_FRAG;
+				chk->sent = SCTP_FORWARD_TSN_SKIP;
+				chk->asoc = &stcb->asoc;
+				chk->rec.data.stream_seq = strq->next_sequence_send;
+				chk->rec.data.stream_number = sp->stream;
+				chk->rec.data.payloadtype = sp->ppid;
+				chk->rec.data.context = sp->context;
+				chk->flags = sp->act_flags;
+				if (sp->net)
+					chk->whoTo = sp->net;
+				else
+					chk->whoTo = stcb->asoc.primary_destination;
+				atomic_add_int(&chk->whoTo->ref_count, 1);
+				chk->rec.data.TSN_seq = atomic_fetchadd_int(&stcb->asoc.sending_seq, 1);
+				stcb->asoc.pr_sctp_cnt++;
+				chk->pr_sctp_on = 1;
+				TAILQ_INSERT_TAIL(&stcb->asoc.sent_queue, chk, sctp_next);
+				stcb->asoc.sent_queue_cnt++;
+				stcb->asoc.pr_sctp_cnt++;
+			} else {
+				chk->rec.data.rcv_flags |= SCTP_DATA_LAST_FRAG;
 			}
-		}		/* End tailq_foreach */
+			strq->next_sequence_send++;
+	oh_well:
+			if (sp->data) {
+				/*
+				 * Pull any data to free up the SB and allow
+				 * sender to "add more" while we will throw
+				 * away :-)
+				 */
+				sctp_free_spbufspace(stcb, &stcb->asoc, sp);
+				ret_sz += sp->length;
+				do_wakeup_routine = 1;
+				sp->some_taken = 1;
+				sctp_m_freem(sp->data);
+				sp->data = NULL;
+				sp->tail_mbuf = NULL;
+				sp->length = 0;
+			}
+		}
 		SCTP_TCB_SEND_UNLOCK(stcb);
 	}
 	if (do_wakeup_routine) {
@@ -5208,10 +5197,10 @@ sctp_sorecvmsg(struct socket *so,
 		    rwnd_req, block_allowed, so->so_rcv.sb_cc, uio->uio_resid);
 	}
 	error = sblock(&so->so_rcv, (block_allowed ? SBL_WAIT : 0));
-	sockbuf_lock = 1;
 	if (error) {
 		goto release_unlocked;
 	}
+	sockbuf_lock = 1;
 restart:
 
 
@@ -5637,7 +5626,7 @@ found_one:
 			memcpy(from, &sin6, sizeof(struct sockaddr_in6));
 		}
 #endif
-#if defined(INET6)
+#ifdef INET6
 		{
 			struct sockaddr_in6 lsa6, *from6;
 
@@ -6534,7 +6523,7 @@ sctp_bindx_delete_address(struct sctp_inpcb *inp,
 		return;
 	}
 	addr_touse = sa;
-#if defined(INET6)
+#ifdef INET6
 	if (sa->sa_family == AF_INET6) {
 		struct sockaddr_in6 *sin6;
 
@@ -6824,7 +6813,7 @@ sctp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *ignored)
 	switch (iph->ip_v) {
 #ifdef INET
 	case IPVERSION:
-		iph->ip_len -= sizeof(struct udphdr);
+		iph->ip_len = htons(ntohs(iph->ip_len) - sizeof(struct udphdr));
 		sctp_input_with_port(m, off, port);
 		break;
 #endif

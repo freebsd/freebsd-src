@@ -29,6 +29,8 @@
 /*
  * USERBOOT interface versions
  */
+#define	USERBOOT_VERSION_1      1
+#define	USERBOOT_VERSION_2      2
 #define	USERBOOT_VERSION_3      3
 
 /*
@@ -37,7 +39,7 @@
 #define	USERBOOT_EXIT_QUIT      1
 #define	USERBOOT_EXIT_REBOOT    2
 
-struct loader_callbacks_v1 {
+struct loader_callbacks {
 	/*
 	 * Console i/o
 	 */
@@ -175,6 +177,12 @@ struct loader_callbacks_v1 {
          */
 	void		(*getmem)(void *arg, uint64_t *lowmem,
             uint64_t *highmem);
+
+	/*
+	 * ioctl interface to the disk device
+	 */
+	int		(*diskioctl)(void *arg, int unit, u_long cmd,
+	    void *data);
 
 	/*
 	 * Returns an environment variable in the form "name=value".

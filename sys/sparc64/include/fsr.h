@@ -31,6 +31,8 @@
 #define	FPRS_DU		(1 << 1)
 #define	FPRS_FEF	(1 << 2)
 
+#define	VIS_BLOCKSIZE	64
+
 #ifndef LOCORE
 
 #define	FSR_EXC_BITS	5

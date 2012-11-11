@@ -109,7 +109,8 @@ void ilist_traits<MachineInstr>::removeNodeFromList(MachineInstr *N) {
   assert(N->getParent() != 0 && "machine instruction not in a basic block");
 
   // Remove from the use/def lists.
-  N->RemoveRegOperandsFromUseLists();
+  if (MachineFunction *MF = N->getParent()->getParent())
+    N->RemoveRegOperandsFromUseLists(MF->getRegInfo());
 
   N->setParent(0);
 
@@ -271,11 +272,9 @@ void MachineBasicBlock::print(raw_ostream &OS, SlotIndexes *Indexes) const {
   }
   if (isLandingPad()) { OS << Comma << "EH LANDING PAD"; Comma = ", "; }
   if (hasAddressTaken()) { OS << Comma << "ADDRESS TAKEN"; Comma = ", "; }
-  if (Alignment) {
+  if (Alignment)
     OS << Comma << "Align " << Alignment << " (" << (1u << Alignment)
        << " bytes)";
-    Comma = ", ";
-  }
 
   OS << '\n';
 
@@ -312,8 +311,11 @@ void MachineBasicBlock::print(raw_ostream &OS, SlotIndexes *Indexes) const {
   if (!succ_empty()) {
     if (Indexes) OS << '\t';
     OS << "    Successors according to CFG:";
-    for (const_succ_iterator SI = succ_begin(), E = succ_end(); SI != E; ++SI)
+    for (const_succ_iterator SI = succ_begin(), E = succ_end(); SI != E; ++SI) {
       OS << " BB#" << (*SI)->getNumber();
+      if (!Weights.empty())
+        OS << '(' << *getWeightIterator(SI) << ')';
+    }
     OS << '\n';
   }
 }
@@ -479,18 +481,42 @@ MachineBasicBlock::removeSuccessor(succ_iterator I) {
 
 void MachineBasicBlock::replaceSuccessor(MachineBasicBlock *Old,
                                          MachineBasicBlock *New) {
-  uint32_t weight = 0;
-  succ_iterator SI = std::find(Successors.begin(), Successors.end(), Old);
+  if (Old == New)
+    return;
 
-  // If Weight list is empty it means we don't use it (disabled optimization).
-  if (!Weights.empty()) {
-    weight_iterator WI = getWeightIterator(SI);
-    weight = *WI;
+  succ_iterator E = succ_end();
+  succ_iterator NewI = E;
+  succ_iterator OldI = E;
+  for (succ_iterator I = succ_begin(); I != E; ++I) {
+    if (*I == Old) {
+      OldI = I;
+      if (NewI != E)
+        break;
+    }
+    if (*I == New) {
+      NewI = I;
+      if (OldI != E)
+        break;
+    }
+  }
+  assert(OldI != E && "Old is not a successor of this block");
+  Old->removePredecessor(this);
+
+  // If New isn't already a successor, let it take Old's place.
+  if (NewI == E) {
+    New->addPredecessor(this);
+    *OldI = New;
+    return;
   }
 
-  // Update the successor information.
-  removeSuccessor(SI);
-  addSuccessor(New, weight);
+  // New is already a successor.
+  // Update its weight instead of adding a duplicate edge.
+  if (!Weights.empty()) {
+    weight_iterator OldWI = getWeightIterator(OldI);
+    *getWeightIterator(NewI) += *OldWI;
+    Weights.erase(OldWI);
+  }
+  Successors.erase(OldI);
 }
 
 void MachineBasicBlock::addPredecessor(MachineBasicBlock *pred) {
@@ -509,14 +535,13 @@ void MachineBasicBlock::transferSuccessors(MachineBasicBlock *fromMBB) {
 
   while (!fromMBB->succ_empty()) {
     MachineBasicBlock *Succ = *fromMBB->succ_begin();
-    uint32_t weight = 0;
-
+    uint32_t Weight = 0;
 
     // If Weight list is empty it means we don't use it (disabled optimization).
     if (!fromMBB->Weights.empty())
-      weight = *fromMBB->Weights.begin();
+      Weight = *fromMBB->Weights.begin();
 
-    addSuccessor(Succ, weight);
+    addSuccessor(Succ, Weight);
     fromMBB->removeSuccessor(Succ);
   }
 }
@@ -528,7 +553,10 @@ MachineBasicBlock::transferSuccessorsAndUpdatePHIs(MachineBasicBlock *fromMBB) {
 
   while (!fromMBB->succ_empty()) {
     MachineBasicBlock *Succ = *fromMBB->succ_begin();
-    addSuccessor(Succ);
+    uint32_t Weight = 0;
+    if (!fromMBB->Weights.empty())
+      Weight = *fromMBB->Weights.begin();
+    addSuccessor(Succ, Weight);
     fromMBB->removeSuccessor(Succ);
 
     // Fix up any PHI nodes in the successor.
@@ -542,9 +570,12 @@ MachineBasicBlock::transferSuccessorsAndUpdatePHIs(MachineBasicBlock *fromMBB) {
   }
 }
 
+bool MachineBasicBlock::isPredecessor(const MachineBasicBlock *MBB) const {
+  return std::find(pred_begin(), pred_end(), MBB) != pred_end();
+}
+
 bool MachineBasicBlock::isSuccessor(const MachineBasicBlock *MBB) const {
-  const_succ_iterator I = std::find(Successors.begin(), Successors.end(), MBB);
-  return I != Successors.end();
+  return std::find(succ_begin(), succ_end(), MBB) != succ_end();
 }
 
 bool MachineBasicBlock::isLayoutSuccessor(const MachineBasicBlock *MBB) const {
@@ -596,6 +627,11 @@ bool MachineBasicBlock::canFallThrough() {
 
 MachineBasicBlock *
 MachineBasicBlock::SplitCriticalEdge(MachineBasicBlock *Succ, Pass *P) {
+  // Splitting the critical edge to a landing pad block is non-trivial. Don't do
+  // it in this generic function.
+  if (Succ->isLandingPad())
+    return NULL;
+
   MachineFunction *MF = getParent();
   DebugLoc dl;  // FIXME: this is nowhere
 
@@ -670,7 +706,7 @@ MachineBasicBlock::SplitCriticalEdge(MachineBasicBlock *Succ, Pass *P) {
 
   // Inherit live-ins from the successor
   for (MachineBasicBlock::livein_iterator I = Succ->livein_begin(),
-	 E = Succ->livein_end(); I != E; ++I)
+         E = Succ->livein_end(); I != E; ++I)
     NMBB->addLiveIn(*I);
 
   // Update LiveVariables.

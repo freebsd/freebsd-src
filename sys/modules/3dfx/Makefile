@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-MAINTAINER=	cokane@FreeBSD.org
-
 .PATH: $(.CURDIR)/../../dev/tdfx
 
 KMOD=	3dfx

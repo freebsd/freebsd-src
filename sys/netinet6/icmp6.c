@@ -133,15 +133,15 @@ VNET_DECLARE(int, icmp6_nodeinfo);
 static void icmp6_errcount(struct icmp6errstat *, int, int);
 static int icmp6_rip6_input(struct mbuf **, int);
 static int icmp6_ratelimit(const struct in6_addr *, const int, const int);
-static const char *icmp6_redirect_diag __P((struct in6_addr *,
-	struct in6_addr *, struct in6_addr *));
+static const char *icmp6_redirect_diag(struct in6_addr *,
+	struct in6_addr *, struct in6_addr *);
 static struct mbuf *ni6_input(struct mbuf *, int);
 static struct mbuf *ni6_nametodns(const char *, int, int);
 static int ni6_dnsmatch(const char *, int, const char *, int);
-static int ni6_addrs __P((struct icmp6_nodeinfo *, struct mbuf *,
-			  struct ifnet **, struct in6_addr *));
-static int ni6_store_addrs __P((struct icmp6_nodeinfo *, struct icmp6_nodeinfo *,
-				struct ifnet *, int));
+static int ni6_addrs(struct icmp6_nodeinfo *, struct mbuf *,
+			  struct ifnet **, struct in6_addr *);
+static int ni6_store_addrs(struct icmp6_nodeinfo *, struct icmp6_nodeinfo *,
+				struct ifnet *, int);
 static int icmp6_notify_error(struct mbuf **, int, int, int);
 
 /*
@@ -1176,8 +1176,6 @@ icmp6_notify_error(struct mbuf **mp, int off, int icmp6len, int code)
 		ip6cp.ip6c_finaldst = finaldst;
 		ip6cp.ip6c_src = &icmp6src;
 		ip6cp.ip6c_nxt = nxt;
-
-		m_addr_changed(m);
 
 		if (icmp6type == ICMP6_PACKET_TOO_BIG) {
 			notifymtu = ntohl(icmp6->icmp6_mtu);
@@ -2297,8 +2295,6 @@ icmp6_reflect(struct mbuf *m, size_t off)
 	 */
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
-
-	m_addr_changed(m);
 
 	ip6_output(m, NULL, NULL, 0, NULL, &outif, NULL);
 	if (outif)

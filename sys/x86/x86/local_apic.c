@@ -119,6 +119,7 @@ struct lapic {
 	u_long *la_timer_count;
 	u_long la_timer_period;
 	u_int la_timer_mode;
+	uint32_t lvt_timer_cache;
 	/* Include IDT_SYSCALL to make indexing easier. */
 	int la_ioint_irqs[APIC_NUM_IOINTS + 1];
 } static lapics[MAX_APIC_ID + 1];
@@ -161,9 +162,11 @@ static int x2apic;
 
 static void	lapic_enable(void);
 static void	lapic_resume(struct pic *pic);
-static void	lapic_timer_oneshot(u_int count, int enable_int);
-static void	lapic_timer_periodic(u_int count, int enable_int);
-static void	lapic_timer_stop(void);
+static void	lapic_timer_oneshot(struct lapic *,
+		    u_int count, int enable_int);
+static void	lapic_timer_periodic(struct lapic *,
+		    u_int count, int enable_int);
+static void	lapic_timer_stop(struct lapic *);
 static void	lapic_timer_set_divisor(u_int divisor);
 static uint32_t	lvt_mode(struct lapic *la, u_int pin, uint32_t value);
 static int	lapic_et_start(struct eventtimer *et,
@@ -408,7 +411,8 @@ lapic_setup(int boot)
 		lapic_set_lvt_pcint(lvt_mode(la, LVT_PMC, lapic_lvt_pcint()));
 
 	/* Program timer LVT and setup handler. */
-	lapic_set_lvt_timer(lvt_mode(la, LVT_TIMER, lapic_lvt_timer()));
+	la->lvt_timer_cache = lvt_mode(la, LVT_TIMER, lapic_lvt_timer());
+	lapic_set_lvt_timer(la->lvt_timer_cache);
 	if (boot) {
 		snprintf(buf, sizeof(buf), "cpu%d:timer", PCPU_GET(cpuid));
 		intrcnt_add(buf, &la->la_timer_count);
@@ -420,9 +424,9 @@ lapic_setup(int boot)
 		    lapic_id()));
 		lapic_timer_set_divisor(lapic_timer_divisor);
 		if (la->la_timer_mode == 1)
-			lapic_timer_periodic(la->la_timer_period, 1);
+			lapic_timer_periodic(la, la->la_timer_period, 1);
 		else
-			lapic_timer_oneshot(la->la_timer_period, 1);
+			lapic_timer_oneshot(la, la->la_timer_period, 1);
 	}
 
 	/* Program error LVT and clear any existing errors. */
@@ -527,13 +531,14 @@ lapic_et_start(struct eventtimer *et,
 	struct lapic *la;
 	u_long value;
 
+	la = &lapics[PCPU_GET(apic_id)];
 	if (et->et_frequency == 0) {
 		/* Start off with a divisor of 2 (power on reset default). */
 		lapic_timer_divisor = 2;
 		/* Try to calibrate the local APIC timer. */
 		do {
 			lapic_timer_set_divisor(lapic_timer_divisor);
-			lapic_timer_oneshot(APIC_TIMER_MAX_COUNT, 0);
+			lapic_timer_oneshot(la, APIC_TIMER_MAX_COUNT, 0);
 			DELAY(1000000);
 			value = APIC_TIMER_MAX_COUNT - lapic_ccr_timer();
 			if (value != APIC_TIMER_MAX_COUNT)
@@ -553,22 +558,22 @@ lapic_et_start(struct eventtimer *et,
 		et->et_max_period.frac =
 		    ((0xfffffffeLLU << 32) / et->et_frequency) << 32;
 	}
-	lapic_timer_set_divisor(lapic_timer_divisor);
-	la = &lapics[lapic_id()];
+	if (la->la_timer_mode == 0)
+		lapic_timer_set_divisor(lapic_timer_divisor);
 	if (period != NULL) {
 		la->la_timer_mode = 1;
 		la->la_timer_period =
 		    (et->et_frequency * (period->frac >> 32)) >> 32;
 		if (period->sec != 0)
 			la->la_timer_period += et->et_frequency * period->sec;
-		lapic_timer_periodic(la->la_timer_period, 1);
+		lapic_timer_periodic(la, la->la_timer_period, 1);
 	} else {
 		la->la_timer_mode = 2;
 		la->la_timer_period =
 		    (et->et_frequency * (first->frac >> 32)) >> 32;
 		if (first->sec != 0)
 			la->la_timer_period += et->et_frequency * first->sec;
-		lapic_timer_oneshot(la->la_timer_period, 1);
+		lapic_timer_oneshot(la, la->la_timer_period, 1);
 	}
 	return (0);
 }
@@ -576,10 +581,10 @@ lapic_et_start(struct eventtimer *et,
 static int
 lapic_et_stop(struct eventtimer *et)
 {
-	struct lapic *la = &lapics[lapic_id()];
+	struct lapic *la = &lapics[PCPU_GET(apic_id)];
 
 	la->la_timer_mode = 0;
-	lapic_timer_stop();
+	lapic_timer_stop(la);
 	return (0);
 }
 
@@ -1214,11 +1219,11 @@ lapic_timer_set_divisor(u_int divisor)
 }
 
 static void
-lapic_timer_oneshot(u_int count, int enable_int)
+lapic_timer_oneshot(struct lapic *la, u_int count, int enable_int)
 {
 	u_int32_t value;
 
-	value = lapic_lvt_timer();
+	value = la->lvt_timer_cache;
 	value &= ~APIC_LVTT_TM;
 	value |= APIC_LVTT_TM_ONE_SHOT;
 	if (enable_int)
@@ -1228,11 +1233,11 @@ lapic_timer_oneshot(u_int count, int enable_int)
 }
 
 static void
-lapic_timer_periodic(u_int count, int enable_int)
+lapic_timer_periodic(struct lapic *la, u_int count, int enable_int)
 {
 	u_int32_t value;
 
-	value = lapic_lvt_timer();
+	value = la->lvt_timer_cache;
 	value &= ~APIC_LVTT_TM;
 	value |= APIC_LVTT_TM_PERIODIC;
 	if (enable_int)
@@ -1242,11 +1247,11 @@ lapic_timer_periodic(u_int count, int enable_int)
 }
 
 static void
-lapic_timer_stop(void)
+lapic_timer_stop(struct lapic *la)
 {
 	u_int32_t value;
 
-	value = lapic_lvt_timer();
+	value = la->lvt_timer_cache;
 	value &= ~APIC_LVTT_TM;
 	value |= APIC_LVT_M;
 	lapic_set_lvt_timer(value);

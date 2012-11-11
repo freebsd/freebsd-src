@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "OPENSSL 1"
-.TH OPENSSL 1 "2012-05-10" "0.9.8x" "OpenSSL"
+.TH OPENSSL 1 "2012-05-10" "1.0.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -138,7 +138,7 @@ openssl \- OpenSSL command line tool
 [ \fIcommand_opts\fR ]
 [ \fIcommand_args\fR ]
 .PP
-\&\fBopenssl\fR [ \fBlist-standard-commands\fR | \fBlist-message-digest-commands\fR | \fBlist-cipher-commands\fR ]
+\&\fBopenssl\fR [ \fBlist-standard-commands\fR | \fBlist-message-digest-commands\fR | \fBlist-cipher-commands\fR | \fBlist-cipher-algorithms\fR | \fBlist-message-digest-algorithms\fR | \fBlist-public-key-algorithms\fR]
 .PP
 \&\fBopenssl\fR \fBno\-\fR\fI\s-1XXX\s0\fR [ \fIarbitrary options\fR ]
 .SH "DESCRIPTION"
@@ -151,13 +151,15 @@ The \fBopenssl\fR program is a command line tool for using the various
 cryptography functions of OpenSSL's \fBcrypto\fR library from the shell. 
 It can be used for
 .PP
-.Vb 6
-\& o  Creation of RSA, DH and DSA key parameters
+.Vb 8
+\& o  Creation and management of private keys, public keys and parameters
+\& o  Public key cryptographic operations
 \& o  Creation of X.509 certificates, CSRs and CRLs 
 \& o  Calculation of Message Digests
 \& o  Encryption and Decryption with Ciphers
 \& o  SSL/TLS Client and Server Tests
 \& o  Handling of S/MIME signed or encrypted mail
+\& o  Time Stamp requests, generation and verification
 .Ve
 .SH "COMMAND SUMMARY"
 .IX Header "COMMAND SUMMARY"
@@ -169,6 +171,16 @@ The pseudo-commands \fBlist-standard-commands\fR, \fBlist-message-digest-command
 and \fBlist-cipher-commands\fR output a list (one entry per line) of the names
 of all standard commands, message digest commands, or cipher commands,
 respectively, that are available in the present \fBopenssl\fR utility.
+.PP
+The pseudo-commands \fBlist-cipher-algorithms\fR and
+\&\fBlist-message-digest-algorithms\fR list all cipher and message digest names, one entry per line. Aliases are listed as:
+.PP
+.Vb 1
+\& from => to
+.Ve
+.PP
+The pseudo-command \fBlist-public-key-algorithms\fR lists all supported public
+key algorithms.
 .PP
 The pseudo-command \fBno\-\fR\fI\s-1XXX\s0\fR tests whether a command of the
 specified name is available.  If no command named \fI\s-1XXX\s0\fR exists, it
@@ -191,6 +203,9 @@ Certificate Authority (\s-1CA\s0) Management.
 .IP "\fBciphers\fR" 10
 .IX Item "ciphers"
 Cipher Suite Description Determination.
+.IP "\fBcms\fR" 10
+.IX Item "cms"
+\&\s-1CMS\s0 (Cryptographic Message Syntax) utility
 .IP "\fBcrl\fR" 10
 .IX Item "crl"
 Certificate Revocation List (\s-1CRL\s0) Management.
@@ -204,31 +219,49 @@ Message Digest Calculation.
 .IX Item "dh"
 Diffie-Hellman Parameter Management.
 Obsoleted by \fBdhparam\fR.
+.IP "\fBdhparam\fR" 10
+.IX Item "dhparam"
+Generation and Management of Diffie-Hellman Parameters. Superseded by 
+\&\fBgenpkey\fR and \fBpkeyparam\fR
 .IP "\fBdsa\fR" 10
 .IX Item "dsa"
 \&\s-1DSA\s0 Data Management.
 .IP "\fBdsaparam\fR" 10
 .IX Item "dsaparam"
-\&\s-1DSA\s0 Parameter Generation.
+\&\s-1DSA\s0 Parameter Generation and Management. Superseded by 
+\&\fBgenpkey\fR and \fBpkeyparam\fR
+.IP "\fBec\fR" 10
+.IX Item "ec"
+\&\s-1EC\s0 (Elliptic curve) key processing
+.IP "\fBecparam\fR" 10
+.IX Item "ecparam"
+\&\s-1EC\s0 parameter manipulation and generation
 .IP "\fBenc\fR" 10
 .IX Item "enc"
 Encoding with Ciphers.
+.IP "\fBengine\fR" 10
+.IX Item "engine"
+Engine (loadble module) information and manipulation.
 .IP "\fBerrstr\fR" 10
 .IX Item "errstr"
 Error Number to Error String Conversion.
-.IP "\fBdhparam\fR" 10
-.IX Item "dhparam"
-Generation and Management of Diffie-Hellman Parameters.
 .IP "\fBgendh\fR" 10
 .IX Item "gendh"
 Generation of Diffie-Hellman Parameters.
 Obsoleted by \fBdhparam\fR.
 .IP "\fBgendsa\fR" 10
 .IX Item "gendsa"
-Generation of \s-1DSA\s0 Parameters.
+Generation of \s-1DSA\s0 Private Key from Parameters. Superseded by 
+\&\fBgenpkey\fR and \fBpkey\fR
+.IP "\fBgenpkey\fR" 10
+.IX Item "genpkey"
+Generation of Private Key or Parameters.
 .IP "\fBgenrsa\fR" 10
 .IX Item "genrsa"
-Generation of \s-1RSA\s0 Parameters.
+Generation of \s-1RSA\s0 Private Key. Superceded by \fBgenpkey\fR.
+.IP "\fBnseq\fR" 10
+.IX Item "nseq"
+Create or examine a netscape certificate sequence
 .IP "\fBocsp\fR" 10
 .IX Item "ocsp"
 Online Certificate Status Protocol utility.
@@ -241,18 +274,28 @@ PKCS#12 Data Management.
 .IP "\fBpkcs7\fR" 10
 .IX Item "pkcs7"
 PKCS#7 Data Management.
+.IP "\fBpkey\fR" 10
+.IX Item "pkey"
+Public and private key management.
+.IP "\fBpkeyparam\fR" 10
+.IX Item "pkeyparam"
+Public key algorithm parameter management.
+.IP "\fBpkeyutl\fR" 10
+.IX Item "pkeyutl"
+Public key algorithm cryptographic operation utility.
 .IP "\fBrand\fR" 10
 .IX Item "rand"
 Generate pseudo-random bytes.
 .IP "\fBreq\fR" 10
 .IX Item "req"
-X.509 Certificate Signing Request (\s-1CSR\s0) Management.
+PKCS#10 X.509 Certificate Signing Request (\s-1CSR\s0) Management.
 .IP "\fBrsa\fR" 10
 .IX Item "rsa"
-\&\s-1RSA\s0 Data Management.
+\&\s-1RSA\s0 key management.
 .IP "\fBrsautl\fR" 10
 .IX Item "rsautl"
-\&\s-1RSA\s0 utility for signing, verification, encryption, and decryption.
+\&\s-1RSA\s0 utility for signing, verification, encryption, and decryption. Superseded
+by  \fBpkeyutl\fR
 .IP "\fBs_client\fR" 10
 .IX Item "s_client"
 This implements a generic \s-1SSL/TLS\s0 client which can establish a transparent
@@ -279,6 +322,12 @@ S/MIME mail processing.
 .IP "\fBspeed\fR" 10
 .IX Item "speed"
 Algorithm Speed Measurement.
+.IP "\fBspkac\fR" 10
+.IX Item "spkac"
+\&\s-1SPKAC\s0 printing and generating utility
+.IP "\fBts\fR" 10
+.IX Item "ts"
+Time Stamping Authority tool (client/server)
 .IP "\fBverify\fR" 10
 .IX Item "verify"
 X.509 Certificate Verification.
@@ -390,7 +439,7 @@ read the password from standard input.
 \&\fIasn1parse\fR\|(1), \fIca\fR\|(1), \fIconfig\fR\|(5),
 \&\fIcrl\fR\|(1), \fIcrl2pkcs7\fR\|(1), \fIdgst\fR\|(1),
 \&\fIdhparam\fR\|(1), \fIdsa\fR\|(1), \fIdsaparam\fR\|(1),
-\&\fIenc\fR\|(1), \fIgendsa\fR\|(1),
+\&\fIenc\fR\|(1), \fIgendsa\fR\|(1), \fIgenpkey\fR\|(1),
 \&\fIgenrsa\fR\|(1), \fInseq\fR\|(1), \fIopenssl\fR\|(1),
 \&\fIpasswd\fR\|(1),
 \&\fIpkcs12\fR\|(1), \fIpkcs7\fR\|(1), \fIpkcs8\fR\|(1),
@@ -399,11 +448,12 @@ read the password from standard input.
 \&\fIs_server\fR\|(1), \fIs_time\fR\|(1),
 \&\fIsmime\fR\|(1), \fIspkac\fR\|(1),
 \&\fIverify\fR\|(1), \fIversion\fR\|(1), \fIx509\fR\|(1),
-\&\fIcrypto\fR\|(3), \fIssl\fR\|(3)
+\&\fIcrypto\fR\|(3), \fIssl\fR\|(3), \fIx509v3_config\fR\|(5)
 .SH "HISTORY"
 .IX Header "HISTORY"
 The \fIopenssl\fR\|(1) document appeared in OpenSSL 0.9.2.
 The \fBlist\-\fR\fI\s-1XXX\s0\fR\fB\-commands\fR pseudo-commands were added in OpenSSL 0.9.3;
+The \fBlist\-\fR\fI\s-1XXX\s0\fR\fB\-algorithms\fR pseudo-commands were added in OpenSSL 1.0.0;
 the \fBno\-\fR\fI\s-1XXX\s0\fR pseudo-commands were added in OpenSSL 0.9.5a.
 For notes on the availability of other commands, see their individual
 manual pages.

@@ -101,7 +101,6 @@ struct ucycom_softc {
 #define	UCYCOM_CFG_STOPB	0x08
 #define	UCYCOM_CFG_DATAB	0x03
 	uint8_t	sc_ist;			/* status flags from last input */
-	uint8_t	sc_name[16];
 	uint8_t	sc_iface_no;
 	uint8_t	sc_temp_cfg[32];
 };
@@ -111,10 +110,12 @@ struct ucycom_softc {
 static device_probe_t ucycom_probe;
 static device_attach_t ucycom_attach;
 static device_detach_t ucycom_detach;
+static void ucycom_free_softc(struct ucycom_softc *);
 
 static usb_callback_t ucycom_ctrl_write_callback;
 static usb_callback_t ucycom_intr_read_callback;
 
+static void	ucycom_free(struct ucom_softc *);
 static void	ucycom_cfg_open(struct ucom_softc *);
 static void	ucycom_start_read(struct ucom_softc *);
 static void	ucycom_stop_read(struct ucom_softc *);
@@ -155,13 +156,14 @@ static const struct ucom_callback ucycom_callback = {
 	.ucom_start_write = &ucycom_start_write,
 	.ucom_stop_write = &ucycom_stop_write,
 	.ucom_poll = &ucycom_poll,
+	.ucom_free = &ucycom_free,
 };
 
 static device_method_t ucycom_methods[] = {
 	DEVMETHOD(device_probe, ucycom_probe),
 	DEVMETHOD(device_attach, ucycom_attach),
 	DEVMETHOD(device_detach, ucycom_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t ucycom_devclass;
@@ -218,9 +220,7 @@ ucycom_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "ucycom", NULL, MTX_DEF);
-
-	snprintf(sc->sc_name, sizeof(sc->sc_name),
-	    "%s", device_get_nameunit(dev));
+	ucom_ref(&sc->sc_super_ucom);
 
 	DPRINTF("\n");
 
@@ -297,9 +297,29 @@ ucycom_detach(device_t dev)
 
 	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UCYCOM_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	ucycom_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(ucycom);
+
+static void
+ucycom_free_softc(struct ucycom_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+ucycom_free(struct ucom_softc *ucom)
+{
+	ucycom_free_softc(ucom->sc_parent);
 }
 
 static void

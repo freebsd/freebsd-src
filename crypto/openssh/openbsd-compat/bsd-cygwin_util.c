@@ -76,6 +76,7 @@ static struct wenv {
 	{ NL("OS=") },
 	{ NL("PATH=") },
 	{ NL("PATHEXT=") },
+	{ NL("PROGRAMFILES=") },
 	{ NL("SYSTEMDRIVE=") },
 	{ NL("SYSTEMROOT=") },
 	{ NL("WINDIR=") }

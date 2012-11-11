@@ -1,4 +1,4 @@
-\ Copyright (c) 2006-2011 Devin Teske <dteske@freebsd.org>
+\ Copyright (c) 2006-2012 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -26,6 +26,11 @@
 
 marker task-menu-commands.4th
 
+include /boot/menusets.4th
+
+variable kernel_state
+variable root_state
+
 : acpi_enable ( -- )
 	s" set acpi_load=YES" evaluate \ XXX deprecated but harmless
 	s" set hint.acpi.0.disabled=0" evaluate
@@ -51,6 +56,13 @@ marker task-menu-commands.4th
 	menu-redraw
 
 	TRUE \ loop menu again
+;
+
+: init_safemode ( N -- N )
+	s" kern.smp.disabled" getenv -1 <> if
+		drop ( n c-addr -- n ) \ unused
+		toggle_menuitem ( n -- n )
+	then
 ;
 
 : toggle_safemode ( N -- N TRUE )
@@ -84,6 +96,13 @@ marker task-menu-commands.4th
 	TRUE \ loop menu again
 ;
 
+: init_singleuser ( N -- N )
+	s" boot_single" getenv -1 <> if
+		drop ( n c-addr -- n ) \ unused
+		toggle_menuitem ( n -- n )
+	then
+;
+
 : toggle_singleuser ( N -- N TRUE )
 	toggle_menuitem
 	menu-redraw
@@ -100,6 +119,13 @@ marker task-menu-commands.4th
 	then
 
 	TRUE \ loop menu again
+;
+
+: init_verbose ( N -- N )
+	s" boot_verbose" getenv -1 <> if
+		drop ( n c-addr -- n ) \ unused
+		toggle_menuitem ( n -- n )
+	then
 ;
 
 : toggle_verbose ( N -- N TRUE )
@@ -132,6 +158,27 @@ marker task-menu-commands.4th
 	FALSE \ exit the menu
 ;
 
+: init_cyclestate ( N K -- N )
+	over                   ( n k -- n k n )
+	s" cycle_stateN"       ( n k n -- n k n c-addr u )
+	-rot tuck 11 + c! swap ( n k n c-addr u -- n k c-addr u )
+	evaluate               ( n k c-addr u -- n k addr )
+	begin
+		tuck @  ( n k addr -- n addr k c )
+		over <> ( n addr k c -- n addr k 0|-1 )
+	while
+		rot ( n addr k -- addr k n )
+		cycle_menuitem
+		swap rot ( addr k n -- n k addr )
+	repeat
+	2drop ( n k addr -- n )
+;
+
+: init_kernel ( N -- N )
+	kernel_state @  ( n -- n k )
+	init_cyclestate ( n k -- n )
+;
+
 : cycle_kernel ( N -- N TRUE )
 	cycle_menuitem
 	menu-redraw
@@ -142,11 +189,8 @@ marker task-menu-commands.4th
 	-rot 2dup 11 + c! rot    \ replace 'N' with ASCII numeral
 	evaluate                 \ translate name into address
 	@                        \ dereference address into value
+	dup kernel_state !       \ save a copy for re-initialization
 	48 +                     \ convert to ASCII numeral
-
-	\ Since we are [in this file] going to override the standard `boot'
-	\ routine with a custom one, you should know that we use $kernel
-	\ when referencing the desired kernel. Set $kernel below.
 
 	s" set kernel=${kernel_prefix}${kernel[N]}${kernel_suffix}"
 	                          \ command to assemble full kernel-path
@@ -154,6 +198,11 @@ marker task-menu-commands.4th
 	evaluate                  \ sets $kernel to full kernel-path
 
 	TRUE \ loop menu again
+;
+
+: init_root ( N -- N )
+	root_state @    ( n -- n k )
+	init_cyclestate ( n k -- n )
 ;
 
 : cycle_root ( N -- N TRUE )
@@ -166,16 +215,20 @@ marker task-menu-commands.4th
 	-rot 2dup 11 + c! rot    \ replace 'N' with ASCII numeral
 	evaluate                 \ translate name into address
 	@                        \ dereference address into value
+	dup root_state !         \ save a copy for re-initialization
 	48 +                     \ convert to ASCII numeral
 
-	\ Since we are [in this file] going to override the standard `boot'
-	\ routine with a custom one, you should know that we use $root when
-	\ booting. Set $root below.
-
-	s" set root=${root_prefix}${root[N]}${root_prefix}"
-	                          \ command to assemble full kernel-path
+	s" set root=${root_prefix}${root[N]}${root_suffix}"
+	                          \ command to assemble root image-path
 	-rot tuck 30 + c! swap    \ replace 'N' with array index value
 	evaluate                  \ sets $kernel to full kernel-path
 
 	TRUE \ loop menu again
+;
+
+: goto_menu ( N M -- N TRUE )
+	menu-unset
+	menuset-loadsetnum ( n m -- n )
+	menu-redraw
+	TRUE \ Loop menu again
 ;

@@ -160,6 +160,20 @@ METHOD int write_ivar {
 };
 
 /**
+ * @brief Notify a bus that a child was deleted
+ *
+ * Called at the beginning of device_delete_child() to allow the parent
+ * to teardown any bus-specific state for the child.
+ * 
+ * @param _dev		the device whose child is being deleted
+ * @param _child	the child device which is being deleted
+ */
+METHOD void child_deleted {
+	device_t _dev;
+	device_t _child;
+};
+
+/**
  * @brief Notify a bus that a child was detached
  *
  * Called after the child's DEVICE_DETACH() method to allow the parent

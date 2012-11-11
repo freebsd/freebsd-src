@@ -93,7 +93,9 @@ namespace llvm {
                                                   CodeGenOpt::Level OL);
     typedef AsmPrinter *(*AsmPrinterCtorTy)(TargetMachine &TM,
                                             MCStreamer &Streamer);
-    typedef MCAsmBackend *(*MCAsmBackendCtorTy)(const Target &T, StringRef TT);
+    typedef MCAsmBackend *(*MCAsmBackendCtorTy)(const Target &T,
+                                                StringRef TT,
+                                                StringRef CPU);
     typedef MCTargetAsmLexer *(*MCAsmLexerCtorTy)(const Target &T,
                                                   const MCRegisterInfo &MRI,
                                                   const MCAsmInfo &MAI);
@@ -108,6 +110,7 @@ namespace llvm {
                                                   const MCRegisterInfo &MRI,
                                                   const MCSubtargetInfo &STI);
     typedef MCCodeEmitter *(*MCCodeEmitterCtorTy)(const MCInstrInfo &II,
+                                                  const MCRegisterInfo &MRI,
                                                   const MCSubtargetInfo &STI,
                                                   MCContext &Ctx);
     typedef MCStreamer *(*MCObjectStreamerCtorTy)(const Target &T,
@@ -352,10 +355,10 @@ namespace llvm {
     ///
     /// \arg Triple - The target triple string.
     /// \arg Backend - The target independent assembler object.
-    MCAsmBackend *createMCAsmBackend(StringRef Triple) const {
+    MCAsmBackend *createMCAsmBackend(StringRef Triple, StringRef CPU) const {
       if (!MCAsmBackendCtorFn)
         return 0;
-      return MCAsmBackendCtorFn(*this, Triple);
+      return MCAsmBackendCtorFn(*this, Triple, CPU);
     }
 
     /// createMCAsmLexer - Create a target specific assembly lexer.
@@ -405,11 +408,12 @@ namespace llvm {
 
     /// createMCCodeEmitter - Create a target specific code emitter.
     MCCodeEmitter *createMCCodeEmitter(const MCInstrInfo &II,
+                                       const MCRegisterInfo &MRI,
                                        const MCSubtargetInfo &STI,
                                        MCContext &Ctx) const {
       if (!MCCodeEmitterCtorFn)
         return 0;
-      return MCCodeEmitterCtorFn(II, STI, Ctx);
+      return MCCodeEmitterCtorFn(II, MRI, STI, Ctx);
     }
 
     /// createMCObjectStreamer - Create a target specific MCStreamer.
@@ -508,6 +512,21 @@ namespace llvm {
     /// \param Error - On failure, an error string describing why no target was
     /// found.
     static const Target *lookupTarget(const std::string &Triple,
+                                      std::string &Error);
+
+    /// lookupTarget - Lookup a target based on an architecture name
+    /// and a target triple.  If the architecture name is non-empty,
+    /// then the lookup is done by architecture.  Otherwise, the target
+    /// triple is used.
+    ///
+    /// \param ArchName - The architecture to use for finding a target.
+    /// \param TheTriple - The triple to use for finding a target.  The
+    /// triple is updated with canonical architecture name if a lookup
+    /// by architecture is done.
+    /// \param Error - On failure, an error string describing why no target was
+    /// found.
+    static const Target *lookupTarget(const std::string &ArchName,
+                                      Triple &TheTriple,
                                       std::string &Error);
 
     /// getClosestTargetForJIT - Pick the best target that is compatible with
@@ -1046,8 +1065,9 @@ namespace llvm {
     }
 
   private:
-    static MCAsmBackend *Allocator(const Target &T, StringRef Triple) {
-      return new MCAsmBackendImpl(T, Triple);
+    static MCAsmBackend *Allocator(const Target &T, StringRef Triple,
+                                   StringRef CPU) {
+      return new MCAsmBackendImpl(T, Triple, CPU);
     }
   };
 
@@ -1129,6 +1149,7 @@ namespace llvm {
 
   private:
     static MCCodeEmitter *Allocator(const MCInstrInfo &II,
+                                    const MCRegisterInfo &MRI,
                                     const MCSubtargetInfo &STI,
                                     MCContext &Ctx) {
       return new MCCodeEmitterImpl();

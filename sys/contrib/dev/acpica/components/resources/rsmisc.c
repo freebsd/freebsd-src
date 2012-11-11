@@ -865,5 +865,3 @@ Exit:
         return_ACPI_STATUS (AE_BAD_DATA);
     }
 #endif
-
-

@@ -101,12 +101,12 @@ nfsrv_dissectace(struct nfsrv_descript *nd, struct acl_entry *acep,
 	if (gotid == 0) {
 		if (flag & NFSV4ACE_IDENTIFIERGROUP) {
 			acep->ae_tag = ACL_GROUP;
-			aceerr = nfsv4_strtogid(name, len, &gid, p);
+			aceerr = nfsv4_strtogid(nd, name, len, &gid, p);
 			if (aceerr == 0)
 				acep->ae_id = (uid_t)gid;
 		} else {
 			acep->ae_tag = ACL_USER;
-			aceerr = nfsv4_strtouid(name, len, &uid, p);
+			aceerr = nfsv4_strtouid(nd, name, len, &uid, p);
 			if (aceerr == 0)
 				acep->ae_id = uid;
 		}

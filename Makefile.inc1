@@ -16,6 +16,8 @@
 #	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 #	LOCAL_LIB_DIRS="list of dirs" to add additional dirs to libraries target
+#	LOCAL_MTREE="list of mtree files" to process to allow local directories
+#	    to be created before files are installed
 #	LOCAL_TOOL_DIRS="list of dirs" to add additional dirs to the build-tools
 #	    list
 #	TARGET="machine" to crossbuild world for a different machine type
@@ -46,6 +48,7 @@ TARGET_ARCH=${TARGET}
 
 .include <bsd.own.mk>
 .include <bsd.arch.inc.mk>
+.include <bsd.compiler.mk>
 
 # We must do share/info early so that installation of info `dir'
 # entries works correctly.  Do it first since it is less likely to
@@ -137,7 +140,7 @@ VERSION!=	uname -srp
 VERSION+=	${OSRELDATE}
 .endif
 
-KNOWN_ARCHES?=	amd64 arm armeb/arm i386 i386/pc98 ia64 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
+KNOWN_ARCHES?=	amd64 arm armeb/arm armv6/arm armv6eb/arm i386 i386/pc98 ia64 mips mipsel/mips mips64el/mips mips64/mips mipsn32el/mips mipsn32/mips powerpc powerpc64/powerpc sparc64
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
 .else
@@ -235,7 +238,8 @@ BMAKEENV=	INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${BPATH}:${PATH} \
 		WORLDTMP=${WORLDTMP} \
 		VERSION="${VERSION}" \
-		MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}"
+		MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
+		COMPILER_TYPE=${COMPILER_TYPE}
 BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
 		DESTDIR= \
@@ -270,6 +274,16 @@ WMAKEENV=	${CROSSENV} \
 .if ${MK_CDDL} == "no"
 WMAKEENV+=	NO_CTF=1
 .endif
+.if ${CC:T:Mgcc} == "gcc"
+WMAKE_COMPILER_TYPE=	gcc
+.elif ${CC:T:Mclang} == "clang"
+WMAKE_COMPILER_TYPE=	clang
+.elif ${MK_CLANG_IS_CC} == "no"
+WMAKE_COMPILER_TYPE=	gcc
+.else
+WMAKE_COMPILER_TYPE=	clang
+.endif
+WMAKEENV+=	COMPILER_TYPE=${WMAKE_COMPILER_TYPE}
 WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1 DESTDIR=${WORLDTMP}
 
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
@@ -283,9 +297,10 @@ LIB32CPUFLAGS=	-march=i686 -mmmx -msse -msse2
 LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
 .endif
 LIB32WMAKEENV=	MACHINE=i386 MACHINE_ARCH=i386 \
-		MACHINE_CPU="i686 mmx sse sse2" \
-		LD="${LD} -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
-		AS="${AS} --32"
+		MACHINE_CPU="i686 mmx sse sse2"
+LIB32WMAKEFLAGS=	\
+		AS="${AS} --32" \
+		LD="${LD} -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32"
 
 .elif ${TARGET_ARCH} == "powerpc64"
 .if empty(TARGET_CPUTYPE)
@@ -293,7 +308,8 @@ LIB32CPUFLAGS=	-mcpu=powerpc
 .else
 LIB32CPUFLAGS=	-mcpu=${TARGET_CPUTYPE}
 .endif
-LIB32WMAKEENV=	MACHINE=powerpc MACHINE_ARCH=powerpc \
+LIB32WMAKEENV=	MACHINE=powerpc MACHINE_ARCH=powerpc
+LIB32WMAKEFLAGS=	\
 		LD="${LD} -m elf32ppc_fbsd"
 .endif
 
@@ -310,15 +326,20 @@ LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		VERSION="${VERSION}" \
 		INSTALL="sh ${.CURDIR}/tools/install.sh" \
 		PATH=${TMPPATH} \
+		LIBDIR=/usr/lib32 \
+		SHLIBDIR=/usr/lib32 \
+		COMPILER_TYPE=${WMAKE_COMPILER_TYPE}
+LIB32WMAKEFLAGS+=	\
 		CC="${CC} ${LIB32FLAGS}" \
 		CXX="${CXX} ${LIB32FLAGS}" \
-		LIBDIR=/usr/lib32 \
-		SHLIBDIR=/usr/lib32
+		DESTDIR=${LIB32TMP} \
+		-DCOMPAT_32BIT \
+		-DNO_CPU_CFLAGS \
+		-DNO_CTF \
+		-DNO_LINT
 
-LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
-		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_INFO \
-		-DWITHOUT_HTML -DNO_CTF -DNO_LINT -ECC -ECXX -EAS -ELD \
-		DESTDIR=${LIB32TMP}
+LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} ${LIB32WMAKEFLAGS} \
+		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_INFO -DWITHOUT_HTML
 LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*:N_LDSCRIPTROOT=*} -DNO_INCS
 .endif
 
@@ -388,6 +409,9 @@ _worldtmp:
 	mtree -deU -f ${.CURDIR}/etc/mtree/BIND.include.dist \
 	    -p ${WORLDTMP}/usr/include >/dev/null
 .endif
+.for _mtree in ${LOCAL_MTREE}
+	mtree -deU -f ${.CURDIR}/${_mtree} -p ${WORLDTMP} > /dev/null
+.endfor
 _legacy:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -636,7 +660,10 @@ ITOOLS=	[ awk cap_mkdb cat chflags chmod chown \
 #
 
 # Non-base distributions produced by the base system
-EXTRA_DISTRIBUTIONS=	doc games
+EXTRA_DISTRIBUTIONS=	doc
+.if ${MK_GAMES} != "no"
+EXTRA_DISTRIBUTIONS+=	games
+.endif
 .if defined(LIB32TMP) && ${MK_LIB32} != "no"
 EXTRA_DISTRIBUTIONS+=	lib32
 .endif
@@ -702,7 +729,8 @@ reinstall:
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Making hierarchy"
 	@echo "--------------------------------------------------------------"
-	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 hierarchy
+	${_+_}cd ${.CURDIR}; ${MAKE} -f Makefile.inc1 \
+	    LOCAL_MTREE=${LOCAL_MTREE} hierarchy
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo ">>> Installing everything"
@@ -1199,6 +1227,10 @@ cross-tools:
 #
 hierarchy hier:
 	cd ${.CURDIR}/etc;		${MAKE} distrib-dirs
+.for _mtree in ${LOCAL_MTREE}
+	mtree -eU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/${_mtree} \
+	    -p ${DESTDIR}/
+.endfor
 
 #
 # libraries - build all libraries, and install them under ${DESTDIR}.
@@ -1253,6 +1285,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		${_kerberos5_lib_libhx509} ${_kerberos5_lib_libkrb5} \
 		${_kerberos5_lib_libroken} \
 		${_kerberos5_lib_libwind} \
+		${_lib_atf_libatf_c} \
 		lib/libbz2 ${_libcom_err} lib/libcrypt \
 		lib/libexpat \
 		${_lib_libgssapi} ${_lib_libipx} \
@@ -1260,10 +1293,14 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
 		lib/libopie lib/libpam ${_lib_libthr} \
 		lib/libradius lib/libsbuf lib/libtacplus \
-		${_cddl_lib_libumem} \
+		${_cddl_lib_libumem} ${_cddl_lib_libnvpair} \
 		lib/libutil ${_lib_libypclnt} lib/libz lib/msun \
 		${_secure_lib_libcrypto} ${_secure_lib_libssh} \
 		${_secure_lib_libssl}
+
+.if ${MK_ATF} != "no"
+_lib_atf_libatf_c=	lib/atf/libatf-c
+.endif
 
 .if ${MK_LIBTHR} != "no"
 _lib_libthr=	lib/libthr
@@ -1284,6 +1321,7 @@ lib/libopie__L lib/libtacplus__L: lib/libmd__L
 
 .if ${MK_CDDL} != "no"
 _cddl_lib_libumem= cddl/lib/libumem
+_cddl_lib_libnvpair= cddl/lib/libnvpair
 _cddl_lib= cddl/lib
 .endif
 
@@ -1546,7 +1584,7 @@ check-old: check-old-files check-old-libs check-old-dirs
 # showconfig - show build configuration.
 #
 showconfig:
-	@${MAKE} -n -f bsd.own.mk -V dummy -dg1 | grep ^MK_ | sort
+	@${MAKE} -n -f bsd.own.mk -V dummy -dg1 2>&1 | grep ^MK_ | sort
 
 .if !empty(KRNLOBJDIR) && !empty(KERNCONF)
 DTBOUTPUTPATH= ${KRNLOBJDIR}/${KERNCONF}/
@@ -1554,7 +1592,7 @@ DTBOUTPUTPATH= ${KRNLOBJDIR}/${KERNCONF}/
 .if !defined(FDT_DTS_FILE) || empty(FDT_DTS_FILE)
 .if exists(${KERNCONFDIR}/${KERNCONF})
 FDT_DTS_FILE!= awk 'BEGIN {FS="="} /^makeoptions[[:space:]]+FDT_DTS_FILE/ {print $$2}' \
-	${KERNCONFDIR}/${KERNCONF}
+	${KERNCONFDIR}/${KERNCONF} ; echo
 .endif
 .endif
 

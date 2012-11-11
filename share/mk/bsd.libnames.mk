@@ -13,6 +13,8 @@ LIBCRT0?=	${DESTDIR}${LIBDIR}/crt0.o
 LIBALIAS?=	${DESTDIR}${LIBDIR}/libalias.a
 LIBARCHIVE?=	${DESTDIR}${LIBDIR}/libarchive.a
 LIBASN1?=	${DESTDIR}${LIBDIR}/libasn1.a
+LIBATF_C?=	${DESTDIR}${LIBDIR}/libatf-c.a
+LIBATF_CXX?=	${DESTDIR}${LIBDIR}/libatf-c++.a
 LIBATM?=	${DESTDIR}${LIBDIR}/libatm.a
 LIBAUDITD?=	${DESTDIR}${LIBDIR}/libauditd.a
 LIBAVL?=	${DESTDIR}${LIBDIR}/libavl.a
@@ -97,9 +99,6 @@ LIBMENU?=	${DESTDIR}${LIBDIR}/libmenu.a
 LIBMILTER?=	${DESTDIR}${LIBDIR}/libmilter.a
 .endif
 LIBMP?=		${DESTDIR}${LIBDIR}/libmp.a
-.if ${MK_NCP} != "no"
-LIBNCP?=	${DESTDIR}${LIBDIR}/libncp.a
-.endif
 LIBNCURSES?=	${DESTDIR}${LIBDIR}/libncurses.a
 LIBNCURSESW?=	${DESTDIR}${LIBDIR}/libncursesw.a
 LIBNETGRAPH?=	${DESTDIR}${LIBDIR}/libnetgraph.a
@@ -146,7 +145,6 @@ LIBRT?=		${DESTDIR}${LIBDIR}/librt.a
 LIBRTLD_DB?=	${DESTDIR}${LIBDIR}/librtld_db.a
 LIBSBUF?=	${DESTDIR}${LIBDIR}/libsbuf.a
 LIBSDP?=	${DESTDIR}${LIBDIR}/libsdp.a
-LIBSMB?=	${DESTDIR}${LIBDIR}/libsmb.a
 LIBSSH?=	${DESTDIR}${LIBDIR}/libssh.a
 LIBSSL?=	${DESTDIR}${LIBDIR}/libssl.a
 LIBSTAND?=	${DESTDIR}${LIBDIR}/libstand.a

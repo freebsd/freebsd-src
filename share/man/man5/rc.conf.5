@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2012
+.Dd October 27, 2012
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -168,6 +168,27 @@ If set to
 .Dq Li NO ,
 no swapfile is installed, otherwise the value is used as the full
 pathname to a file to use for additional swap space.
+.It Ao Ar name Ac Ns Va _chroot
+.Pq Vt str
+.Xr chroot
+to this directory before running the service.
+.It Ao Ar name Ac Ns Va _user
+.Pq Vt str
+Run the service under this user account.
+.It Ao Ar name Ac Ns Va _group
+.Pq Vt str
+Run the chrooted service under this system group. Unlike the _user
+setting, this setting has no effect if the service is not chrooted.
+.It Ao Ar name Ac Ns Va _fib
+.Pq Vt int
+The
+.Xr setfib 1
+value to run the service under.
+.It Ao Ar name Ac Ns Va _nice
+.Pq Vt int
+The
+.Xr nice 1
+value to run the service under.
 .It Va apm_enable
 .Pq Vt bool
 If set to
@@ -2934,6 +2955,34 @@ If set to
 .Dq Li YES
 this enables IPv4 mapped IPv6 address communication (like
 .Li ::ffff:a.b.c.d ) .
+.It Va rtsold_enable
+.Pq Vt bool
+Set to
+.Dq Li YES
+to enable the
+.Xr rtsold 8
+daemon to send ICMPv6 Router Solicitation messages.
+.It Va rtsold_flags
+.Pq Vt str
+If
+.Va rtsold_enable
+is set to
+.Dq Li YES ,
+these are the flags to pass to
+.Xr rtsold 8 .
+.It Va rtsol_flags
+.Pq Vt str
+For interfaces configured with the
+.Dq Li inet6 accept_rtadv
+keyword, these are the flags to pass to
+.Xr rtsol 8 .
+.Pp
+Note that
+.Va rtsold_enable
+is mutually exclusive to
+.Va rtsol_flags ;
+.Va rtsold_enable
+takes precedence.
 .It Va atm_enable
 .Pq Vt bool
 Set to

@@ -15,8 +15,8 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "regalloc"
-#include "RegisterClassInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/CodeGen/RegisterClassInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -50,9 +50,8 @@ void RegisterClassInfo::runOnMachineFunction(const MachineFunction &mf) {
     CSRNum.clear();
     CSRNum.resize(TRI->getNumRegs(), 0);
     for (unsigned N = 0; unsigned Reg = CSR[N]; ++N)
-      for (const uint16_t *AS = TRI->getOverlaps(Reg);
-           unsigned Alias = *AS; ++AS)
-        CSRNum[Alias] = N + 1; // 0 means no CSR, 1 means CalleeSaved[0], ...
+      for (MCRegAliasIterator AI(Reg, TRI, true); AI.isValid(); ++AI)
+        CSRNum[*AI] = N + 1; // 0 means no CSR, 1 means CalleeSaved[0], ...
     Update = true;
   }
   CalleeSaved = CSR;

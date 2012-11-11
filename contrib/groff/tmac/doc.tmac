@@ -438,7 +438,7 @@
 .      \" last argument
 .      if (\n[doc-reg-dfr1] == 4) \
 .        nop \|\-\c
-.      nop \f[]\s[0]\c
+.      nop \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]\c
 .      doc-print-and-reset
 .    \}
 .    el \{\

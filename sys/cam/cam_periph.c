@@ -1250,6 +1250,9 @@ cam_periph_freeze_after_event(struct cam_periph *periph,
 	struct timeval delta;
 	struct timeval duration_tv;
 
+	if (!timevalisset(event_time))
+		return;
+
 	microtime(&delta);
 	timevalsub(&delta, event_time);
 	duration_tv.tv_sec = duration_ms / 1000;
@@ -1593,6 +1596,7 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	const char *action_string;
 	cam_status  status;
 	int	    frozen, error, openings, print, lost_device;
+	int	    error_code, sense_key, asc, ascq;
 	u_int32_t   relsim_flags, timeout;
 
 	print = 1;
@@ -1759,6 +1763,12 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 			xpt_async(AC_LOST_DEVICE, newpath, NULL);
 			xpt_free_path(newpath);
 		}
+
+	/* Broadcast UNIT ATTENTIONs to all periphs. */
+	} else if (scsi_extract_sense_ccb(ccb,
+	    &error_code, &sense_key, &asc, &ascq) &&
+	    sense_key == SSD_KEY_UNIT_ATTENTION) {
+		xpt_async(AC_UNIT_ATTENTION, orig_ccb->ccb_h.path, orig_ccb);
 	}
 
 	/* Attempt a retry */

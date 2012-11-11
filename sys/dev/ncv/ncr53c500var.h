@@ -42,15 +42,6 @@
 struct ncv_softc {
 	struct scsi_low_softc sc_sclow;		/* generic data */
 
-#ifdef	__NetBSD__
-	bus_space_tag_t sc_iot;
-	bus_space_tag_t sc_memt;
-	bus_space_handle_t sc_ioh;
-
-	void *sc_ih;
-#endif	/* __NetBSD__ */
-
-#ifdef	__FreeBSD__
 	bus_space_tag_t sc_iot;
 	bus_space_tag_t sc_memt;
 	bus_space_handle_t sc_ioh;
@@ -65,7 +56,6 @@ struct ncv_softc {
 	struct resource *mem_res;
 
 	void *ncv_intrhand;
-#endif	/* __FreeBSD__ */
 
 	int sc_tmaxcnt;
 	int sc_selstop;			/* sel atn stop asserted */
@@ -92,12 +82,6 @@ struct ncv_targ_info {
  *****************************************************************/
 int ncvprobesubr(bus_space_tag_t, bus_space_handle_t ioh, u_int, int);
 void ncvattachsubr(struct ncv_softc *);
-int ncvprint(void *, const char *);
 int ncvintr(void *);
 
-#if	defined(__i386__) && 0
-#define	SOFT_INTR_REQUIRED(slp)	(softintr((slp)->sl_irq))
-#else	/* !__i386__ */
-#define	SOFT_INTR_REQUIRED(slp)
-#endif	/* !__i386__ */
 #endif	/* !_NCR53C500VAR_H_ */

@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslutils -- compiler utilities
@@ -54,32 +53,6 @@
         ACPI_MODULE_NAME    ("aslutils")
 
 
-char                        AslHexLookup[] =
-{
-    '0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'
-};
-
-/* Table below must match ASL_FILE_TYPES in asltypes.h */
-
-static const char       *AslFileTypeNames [ASL_NUM_FILES] =
-{
-    "stdout:       ",
-    "stderr:       ",
-    "Table Input:  ",
-    "Binary Output:",
-    "Source Output:",
-    "Preprocessor: ",
-    "Listing File: ",
-    "Hex Dump:     ",
-    "Namespace:    ",
-    "Debug File:   ",
-    "ASM Source:   ",
-    "C Source:     ",
-    "ASM Include:  ",
-    "C Include:    "
-};
-
-
 /* Local prototypes */
 
 static void
@@ -105,34 +78,34 @@ UtAttachNameseg (
  *
  ******************************************************************************/
 
+#define ACPI_TABLE_HELP_FORMAT  "%8u) %s    %s\n"
+
 void
 UtDisplaySupportedTables (
     void)
 {
     ACPI_DMTABLE_DATA       *TableData;
-    UINT32                  i = 6;
+    UINT32                  i;
 
 
-    printf ("\nACPI tables supported by iASL subsystems in "
-        "version %8.8X:\n"
-        "  ASL and Data Table compilers\n"
-        "  AML and Data Table disassemblers\n"
-        "  ACPI table template generator\n\n", ACPI_CA_VERSION);
+    printf ("\nACPI tables supported by iASL version %8.8X:\n"
+        "  (Compiler, Disassembler, Template Generator)\n\n",
+        ACPI_CA_VERSION);
 
     /* Special tables */
 
-    printf ("%8u) %s    %s\n", 1, ACPI_SIG_DSDT, "Differentiated System Description Table");
-    printf ("%8u) %s    %s\n", 2, ACPI_SIG_SSDT, "Secondary System Description Table");
-    printf ("%8u) %s    %s\n", 3, ACPI_SIG_FADT, "Fixed ACPI Description Table (FADT)");
-    printf ("%8u) %s    %s\n", 4, ACPI_SIG_FACS, "Firmware ACPI Control Structure");
-    printf ("%8u) %s    %s\n", 5, ACPI_RSDP_NAME, "Root System Description Pointer");
+    printf ("  Special tables and AML tables:\n");
+    printf (ACPI_TABLE_HELP_FORMAT, 1, ACPI_RSDP_NAME, "Root System Description Pointer");
+    printf (ACPI_TABLE_HELP_FORMAT, 2, ACPI_SIG_FACS, "Firmware ACPI Control Structure");
+    printf (ACPI_TABLE_HELP_FORMAT, 3, ACPI_SIG_DSDT, "Differentiated System Description Table");
+    printf (ACPI_TABLE_HELP_FORMAT, 4, ACPI_SIG_SSDT, "Secondary System Description Table");
 
     /* All data tables with common table header */
 
-    for (TableData = AcpiDmTableData; TableData->Signature; TableData++)
+    printf ("\n  Standard ACPI data tables:\n");
+    for (TableData = AcpiDmTableData, i = 5; TableData->Signature; TableData++, i++)
     {
-        printf ("%8u) %s    %s\n", i, TableData->Signature, TableData->Name);
-        i++;
+        printf (ACPI_TABLE_HELP_FORMAT, i, TableData->Signature, TableData->Name);
     }
 }
 
@@ -547,7 +520,7 @@ UtDisplaySummary (
         }
 
         FlPrintFile (FileId, "%14s %s - %u bytes\n",
-            AslFileTypeNames [i],
+            Gbl_Files[i].ShortDescription,
             Gbl_Files[i].Filename, FlGetFileSize (i));
     }
 
@@ -591,36 +564,23 @@ UtCheckIntegerRange (
     UINT32                  LowValue,
     UINT32                  HighValue)
 {
-    char                    *ParseError = NULL;
-    char                    Buffer[64];
-
 
     if (!Op)
     {
-        return NULL;
+        return (NULL);
     }
 
-    if (Op->Asl.Value.Integer < LowValue)
+    if ((Op->Asl.Value.Integer < LowValue) ||
+        (Op->Asl.Value.Integer > HighValue))
     {
-        ParseError = "Value below valid range";
-        Op->Asl.Value.Integer = LowValue;
+        sprintf (MsgBuffer, "0x%X, allowable: 0x%X-0x%X",
+            (UINT32) Op->Asl.Value.Integer, LowValue, HighValue);
+
+        AslError (ASL_ERROR, ASL_MSG_RANGE, Op, MsgBuffer);
+        return (NULL);
     }
 
-    if (Op->Asl.Value.Integer > HighValue)
-    {
-        ParseError = "Value above valid range";
-        Op->Asl.Value.Integer = HighValue;
-    }
-
-    if (ParseError)
-    {
-        sprintf (Buffer, "%s 0x%X-0x%X", ParseError, LowValue, HighValue);
-        AslCompilererror (Buffer);
-
-        return NULL;
-    }
-
-    return Op;
+    return (Op);
 }
 
 
@@ -656,6 +616,79 @@ UtGetStringBuffer (
     Gbl_StringCacheNext += Length;
 
     return (Buffer);
+}
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    UtExpandLineBuffers
+ *
+ * PARAMETERS:  None. Updates global line buffer pointers.
+ *
+ * RETURN:      None. Reallocates the global line buffers
+ *
+ * DESCRIPTION: Called if the current line buffer becomes filled. Reallocates
+ *              all global line buffers and updates Gbl_LineBufferSize. NOTE:
+ *              Also used for the initial allocation of the buffers, when
+ *              all of the buffer pointers are NULL. Initial allocations are
+ *              of size ASL_DEFAULT_LINE_BUFFER_SIZE
+ *
+ *****************************************************************************/
+
+void
+UtExpandLineBuffers (
+    void)
+{
+    UINT32                  NewSize;
+
+
+    /* Attempt to double the size of all line buffers */
+
+    NewSize = Gbl_LineBufferSize * 2;
+    if (Gbl_CurrentLineBuffer)
+    {
+        DbgPrint (ASL_DEBUG_OUTPUT,"Increasing line buffer size from %u to %u\n",
+            Gbl_LineBufferSize, NewSize);
+    }
+
+    Gbl_CurrentLineBuffer = realloc (Gbl_CurrentLineBuffer, NewSize);
+    Gbl_LineBufPtr = Gbl_CurrentLineBuffer;
+    if (!Gbl_CurrentLineBuffer)
+    {
+        goto ErrorExit;
+    }
+
+    Gbl_MainTokenBuffer = realloc (Gbl_MainTokenBuffer, NewSize);
+    if (!Gbl_MainTokenBuffer)
+    {
+        goto ErrorExit;
+    }
+
+    Gbl_MacroTokenBuffer = realloc (Gbl_MacroTokenBuffer, NewSize);
+    if (!Gbl_MacroTokenBuffer)
+    {
+        goto ErrorExit;
+    }
+
+    Gbl_ExpressionTokenBuffer = realloc (Gbl_ExpressionTokenBuffer, NewSize);
+    if (!Gbl_ExpressionTokenBuffer)
+    {
+        goto ErrorExit;
+    }
+
+    Gbl_LineBufferSize = NewSize;
+    return;
+
+
+    /* On error above, simply issue error messages and abort, cannot continue */
+
+ErrorExit:
+    printf ("Could not increase line buffer size from %u to %u\n",
+        Gbl_LineBufferSize, Gbl_LineBufferSize * 2);
+
+    AslError (ASL_ERROR, ASL_MSG_BUFFER_ALLOCATION,
+        NULL, NULL);
+    AslAbort ();
 }
 
 
@@ -798,12 +831,12 @@ UtAttachNameseg (
             Name++;
         }
 
-        /* Remaing string should be one single nameseg */
+        /* Remaining string should be one single nameseg */
 
         UtPadNameWithUnderscores (Name, PaddedNameSeg);
     }
 
-    strncpy (Op->Asl.NameSeg, PaddedNameSeg, 4);
+    ACPI_MOVE_NAME (Op->Asl.NameSeg, PaddedNameSeg);
 }
 
 

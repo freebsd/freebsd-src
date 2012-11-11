@@ -1,4 +1,4 @@
-/* $Id: bsd-misc.h,v 1.19 2010/11/08 22:26:23 tim Exp $ */
+/* $Id: bsd-misc.h,v 1.21 2012/07/03 22:50:10 dtucker Exp $ */
 
 /*
  * Copyright (c) 1999-2004 Damien Miller <djm@mindrot.org>
@@ -51,6 +51,9 @@ int setegid(uid_t);
 const char *strerror(int);
 #endif 
 
+#if !defined(HAVE_SETLINEBUF)
+#define setlinebuf(a)	(setvbuf((a), NULL, _IOLBF, 0))
+#endif
 
 #ifndef HAVE_UTIMES
 #ifndef HAVE_STRUCT_TIMEVAL
@@ -86,7 +89,7 @@ int tcsendbreak(int, int);
 #endif
 
 #ifndef HAVE_UNSETENV
-void unsetenv(const char *);
+int unsetenv(const char *);
 #endif
 
 /* wrapper for signal interface */

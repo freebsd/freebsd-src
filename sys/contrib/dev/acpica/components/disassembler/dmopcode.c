@@ -46,7 +46,6 @@
 #include <contrib/dev/acpica/include/acparser.h>
 #include <contrib/dev/acpica/include/amlcode.h>
 #include <contrib/dev/acpica/include/acdisasm.h>
-#include <contrib/dev/acpica/include/acnamesp.h>
 
 #ifdef ACPI_DISASSEMBLER
 
@@ -254,6 +253,10 @@ AcpiDmFieldPredefinedDescription (
     /* Major cheat: We previously put the Tag ptr in the Node field */
 
     Tag = ACPI_CAST_PTR (char, IndexOp->Common.Node);
+    if (!Tag)
+    {
+        return;
+    }
 
     /* Match the name in the info table */
 
@@ -629,7 +632,7 @@ AcpiDmDisassembleOneOp (
     case AML_BUFFER_OP:
 
         /*
-         * Determine the type of buffer.  We can have one of the following:
+         * Determine the type of buffer. We can have one of the following:
          *
          * 1) ResourceTemplate containing Resource Descriptors.
          * 2) Unicode String buffer
@@ -663,6 +666,11 @@ AcpiDmDisassembleOneOp (
         else if (AcpiDmIsStringBuffer (Op))
         {
             Op->Common.DisasmOpcode = ACPI_DASM_STRING;
+            AcpiOsPrintf ("Buffer");
+        }
+        else if (AcpiDmIsPldBuffer (Op))
+        {
+            Op->Common.DisasmOpcode = ACPI_DASM_PLD_METHOD;
             AcpiOsPrintf ("Buffer");
         }
         else

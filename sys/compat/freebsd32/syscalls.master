@@ -168,7 +168,8 @@
 68	AUE_NULL	OBSOL	vwrite
 69	AUE_SBRK	NOPROTO	{ int sbrk(int incr); }
 70	AUE_SSTK	NOPROTO	{ int sstk(int incr); }
-71	AUE_MMAP	OBSOL	ommap
+71	AUE_MMAP	COMPAT|NOPROTO	{ int mmap(void *addr, int len, \
+				    int prot, int flags, int fd, int pos); }
 72	AUE_O_VADVISE	NOPROTO	{ int ovadvise(int anom); } vadvise \
 				    ovadvise_args int
 73	AUE_MUNMAP	NOPROTO	{ int munmap(void *addr, size_t len); }
@@ -256,8 +257,9 @@
 126	AUE_SETREUID	NOPROTO	{ int setreuid(int ruid, int euid); }
 127	AUE_SETREGID	NOPROTO	{ int setregid(int rgid, int egid); }
 128	AUE_RENAME	NOPROTO	{ int rename(char *from, char *to); }
-129	AUE_TRUNCATE	OBSOL	otruncate
-130	AUE_FTRUNCATE	OBSOL	ftruncate
+129	AUE_TRUNCATE	COMPAT|NOPROTO	{ int truncate(char *path, \
+					    int length); }
+130	AUE_FTRUNCATE	COMPAT|NOPROTO	{ int ftruncate(int fd, int length); }
 131	AUE_FLOCK	NOPROTO	{ int flock(int fd, int how); }
 132	AUE_MKFIFO	NOPROTO	{ int mkfifo(char *path, int mode); }
 133	AUE_SENDTO	NOPROTO	{ int sendto(int s, caddr_t buf, \
@@ -455,7 +457,8 @@
 244	AUE_NULL	UNIMPL	nosys
 245	AUE_NULL	UNIMPL	nosys
 246	AUE_NULL	UNIMPL	nosys
-247	AUE_NULL	UNIMPL	nosys
+247	AUE_NULL	NOPROTO	{ int clock_getcpuclockid2(id_t id,\
+					int which, clockid_t *clock_id); }
 248	AUE_NULL	UNIMPL	ntp_gettime
 249	AUE_NULL	UNIMPL	nosys
 ; syscall numbers initially used in OpenBSD

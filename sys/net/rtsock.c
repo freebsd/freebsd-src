@@ -302,7 +302,7 @@ static int
 rts_attach(struct socket *so, int proto, struct thread *td)
 {
 	struct rawcb *rp;
-	int s, error;
+	int error;
 
 	KASSERT(so->so_pcb == NULL, ("rts_attach: so_pcb != NULL"));
 
@@ -311,20 +311,11 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 	if (rp == NULL)
 		return ENOBUFS;
 
-	/*
-	 * The splnet() is necessary to block protocols from sending
-	 * error notifications (like RTM_REDIRECT or RTM_LOSING) while
-	 * this PCB is extant but incompletely initialized.
-	 * Probably we should try to do more of this work beforehand and
-	 * eliminate the spl.
-	 */
-	s = splnet();
 	so->so_pcb = (caddr_t)rp;
 	so->so_fibnum = td->td_proc->p_fibnum;
 	error = raw_attach(so, proto);
 	rp = sotorawcb(so);
 	if (error) {
-		splx(s);
 		so->so_pcb = NULL;
 		free(rp, M_PCB);
 		return error;
@@ -345,7 +336,6 @@ rts_attach(struct socket *so, int proto, struct thread *td)
 	RTSOCK_UNLOCK();
 	soisconnected(so);
 	so->so_options |= SO_USELOOPBACK;
-	splx(s);
 	return 0;
 }
 

@@ -32,7 +32,7 @@
 .\"     @(#)islower.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd July 17, 2005
+.Dd July 30, 2012
 .Dt ISLOWER 3
 .Os
 .Sh NAME
@@ -44,6 +44,8 @@
 .In ctype.h
 .Ft int
 .Fn islower "int c"
+.Ft int
+.Fn islower_l "int c" "locale_t loc"
 .Sh DESCRIPTION
 The
 .Fn islower
@@ -63,11 +65,18 @@ In the ASCII character set, this includes the following characters
 .It "\&165\ ``u''" Ta "166\ ``v''" Ta "167\ ``w''" Ta "170\ ``x''" Ta "171\ ``y''"
 .It "\&172\ ``z''" Ta \& Ta \& Ta \& Ta \&
 .El
+The
+.Fn islower_l
+function takes an explicit locale argument, whereas the
+.Fn islower
+function uses the current global or per-thread locale.
 .Sh RETURN VALUES
 The
 .Fn islower
-function returns zero if the character tests false and
-returns non-zero if the character tests true.
+and
+.Fn islower_l
+functions return zero if the character tests false and
+return non-zero if the character tests true.
 .Sh COMPATIBILITY
 The
 .Bx 4.4
@@ -88,3 +97,7 @@ The
 .Fn islower
 function conforms to
 .St -isoC .
+The
+.Fn islower_l
+function conforms to
+.St -p1003.1-2008 .

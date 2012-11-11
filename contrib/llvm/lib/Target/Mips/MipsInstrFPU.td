@@ -54,10 +54,14 @@ let PrintMethod = "printFCCOperand", DecoderMethod = "DecodeCondCode" in
 // Feature predicates.
 //===----------------------------------------------------------------------===//
 
-def IsFP64bit        : Predicate<"Subtarget.isFP64bit()">, AssemblerPredicate<"FeatureFP64Bit">;
-def NotFP64bit       : Predicate<"!Subtarget.isFP64bit()">, AssemblerPredicate<"!FeatureFP64Bit">;
-def IsSingleFloat    : Predicate<"Subtarget.isSingleFloat()">, AssemblerPredicate<"FeatureSingleFloat">;
-def IsNotSingleFloat : Predicate<"!Subtarget.isSingleFloat()">, AssemblerPredicate<"!FeatureSingleFloat">;
+def IsFP64bit        : Predicate<"Subtarget.isFP64bit()">,
+                       AssemblerPredicate<"FeatureFP64Bit">;
+def NotFP64bit       : Predicate<"!Subtarget.isFP64bit()">,
+                       AssemblerPredicate<"!FeatureFP64Bit">;
+def IsSingleFloat    : Predicate<"Subtarget.isSingleFloat()">,
+                       AssemblerPredicate<"FeatureSingleFloat">;
+def IsNotSingleFloat : Predicate<"!Subtarget.isSingleFloat()">,
+                       AssemblerPredicate<"!FeatureSingleFloat">;
 
 // FP immediate patterns.
 def fpimm0 : PatLeaf<(fpimm), [{
@@ -97,7 +101,7 @@ class FPStore<bits<6> op, string opstr, RegisterClass RC, Operand MemOpnd>:
 }
 // FP indexed load.
 class FPIdxLoad<bits<6> funct, string opstr, RegisterClass DRC,
-                RegisterClass PRC, PatFrag FOp>:
+                RegisterClass PRC, SDPatternOperator FOp = null_frag>:
   FFMemIdx<funct, (outs DRC:$fd), (ins PRC:$base, PRC:$index),
            !strconcat(opstr, "\t$fd, $index($base)"),
            [(set DRC:$fd, (FOp (add PRC:$base, PRC:$index)))]> {
@@ -106,7 +110,7 @@ class FPIdxLoad<bits<6> funct, string opstr, RegisterClass DRC,
 
 // FP indexed store.
 class FPIdxStore<bits<6> funct, string opstr, RegisterClass DRC,
-                 RegisterClass PRC, PatFrag FOp>:
+                 RegisterClass PRC, SDPatternOperator FOp= null_frag>:
   FFMemIdx<funct, (outs), (ins DRC:$fs, PRC:$base, PRC:$index),
            !strconcat(opstr, "\t$fs, $index($base)"),
            [(FOp DRC:$fs, (add PRC:$base, PRC:$index))]> {
@@ -117,15 +121,15 @@ class FPIdxStore<bits<6> funct, string opstr, RegisterClass DRC,
 multiclass FFR1_W_M<bits<6> funct, string opstr> {
   def _S   : FFR1<funct, 16, opstr, "w.s", FGR32, FGR32>;
   def _D32 : FFR1<funct, 17, opstr, "w.d", FGR32, AFGR64>,
-             Requires<[NotFP64bit]>;
+             Requires<[NotFP64bit, HasStandardEncoding]>;
   def _D64 : FFR1<funct, 17, opstr, "w.d", FGR32, FGR64>,
-             Requires<[IsFP64bit]> {
+             Requires<[IsFP64bit, HasStandardEncoding]> {
     let DecoderNamespace = "Mips64";
   }
 }
 
 // Instructions that convert an FP value to 64-bit fixed point.
-let Predicates = [IsFP64bit], DecoderNamespace = "Mips64" in
+let Predicates = [IsFP64bit, HasStandardEncoding], DecoderNamespace = "Mips64" in
 multiclass FFR1_L_M<bits<6> funct, string opstr> {
   def _S   : FFR1<funct, 16, opstr, "l.s", FGR64, FGR32>;
   def _D64 : FFR1<funct, 17, opstr, "l.d", FGR64, FGR64>;
@@ -135,9 +139,9 @@ multiclass FFR1_L_M<bits<6> funct, string opstr> {
 multiclass FFR1P_M<bits<6> funct, string opstr, SDNode OpNode> {
   def _S   : FFR1P<funct, 16, opstr, "s", FGR32, FGR32, OpNode>;
   def _D32 : FFR1P<funct, 17, opstr, "d", AFGR64, AFGR64, OpNode>,
-             Requires<[NotFP64bit]>;
+             Requires<[NotFP64bit, HasStandardEncoding]>;
   def _D64 : FFR1P<funct, 17, opstr, "d", FGR64, FGR64, OpNode>,
-             Requires<[IsFP64bit]> {
+             Requires<[IsFP64bit, HasStandardEncoding]> {
     let DecoderNamespace = "Mips64";
   }
 }
@@ -146,9 +150,9 @@ multiclass FFR2P_M<bits<6> funct, string opstr, SDNode OpNode, bit isComm = 0> {
   let isCommutable = isComm in {
   def _S   : FFR2P<funct, 16, opstr, "s", FGR32, OpNode>;
   def _D32 : FFR2P<funct, 17, opstr, "d", AFGR64, OpNode>,
-             Requires<[NotFP64bit]>;
+             Requires<[NotFP64bit, HasStandardEncoding]>;
   def _D64 : FFR2P<funct, 17, opstr, "d", FGR64, OpNode>,
-             Requires<[IsFP64bit]> {
+             Requires<[IsFP64bit, HasStandardEncoding]> {
     let DecoderNamespace = "Mips64";
   }
 }
@@ -185,13 +189,13 @@ def CVT_S_W : FFR1<0x20, 20, "cvt", "s.w", FGR32, FGR32>;
 def CVT_L_S : FFR1<0x25, 16, "cvt", "l.s", FGR64, FGR32>;
 def CVT_L_D64: FFR1<0x25, 17, "cvt", "l.d", FGR64, FGR64>;
 
-let Predicates = [NotFP64bit] in {
+let Predicates = [NotFP64bit, HasStandardEncoding] in {
   def CVT_S_D32 : FFR1<0x20, 17, "cvt", "s.d", FGR32, AFGR64>;
   def CVT_D32_W : FFR1<0x21, 20, "cvt", "d.w", AFGR64, FGR32>;
   def CVT_D32_S : FFR1<0x21, 16, "cvt", "d.s", AFGR64, FGR32>;
 }
 
-let Predicates = [IsFP64bit], DecoderNamespace = "Mips64" in {
+let Predicates = [IsFP64bit, HasStandardEncoding], DecoderNamespace = "Mips64" in {
  def CVT_S_D64 : FFR1<0x20, 17, "cvt", "s.d", FGR32, FGR64>;
  def CVT_S_L   : FFR1<0x20, 21, "cvt", "s.l", FGR32, FGR64>;
  def CVT_D64_W : FFR1<0x21, 20, "cvt", "d.w", FGR64, FGR32>;
@@ -199,7 +203,7 @@ let Predicates = [IsFP64bit], DecoderNamespace = "Mips64" in {
  def CVT_D64_L : FFR1<0x21, 21, "cvt", "d.l", FGR64, FGR64>;
 }
 
-let Predicates = [NoNaNsFPMath] in {
+let Predicates = [NoNaNsFPMath, HasStandardEncoding] in {
   defm FABS    : FFR1P_M<0x5, "abs",  fabs>;
   defm FNEG    : FFR1P_M<0x7, "neg",  fneg>;
 }
@@ -242,14 +246,14 @@ def DMTC1 : FFRGPR<0x05, (outs FGR64:$fs), (ins CPU64Regs:$rt),
 
 def FMOV_S   : FFR1<0x6, 16, "mov", "s", FGR32, FGR32>;
 def FMOV_D32 : FFR1<0x6, 17, "mov", "d", AFGR64, AFGR64>,
-               Requires<[NotFP64bit]>;
+               Requires<[NotFP64bit, HasStandardEncoding]>;
 def FMOV_D64 : FFR1<0x6, 17, "mov", "d", FGR64, FGR64>,
-               Requires<[IsFP64bit]> {
+               Requires<[IsFP64bit, HasStandardEncoding]> {
   let DecoderNamespace = "Mips64";
 }
 
 /// Floating Point Memory Instructions
-let Predicates = [IsN64], DecoderNamespace = "Mips64" in {
+let Predicates = [IsN64, HasStandardEncoding], DecoderNamespace = "Mips64" in {
   def LWC1_P8   : FPLoad<0x31, "lwc1", FGR32, mem64>;
   def SWC1_P8   : FPStore<0x39, "swc1", FGR32, mem64>;
   def LDC164_P8 : FPLoad<0x35, "ldc1", FGR64, mem64> {
@@ -260,47 +264,56 @@ let Predicates = [IsN64], DecoderNamespace = "Mips64" in {
   }
 }
 
-let Predicates = [NotN64] in {
+let Predicates = [NotN64, HasStandardEncoding] in {
   def LWC1   : FPLoad<0x31, "lwc1", FGR32, mem>;
   def SWC1   : FPStore<0x39, "swc1", FGR32, mem>;
 }
 
-let Predicates = [NotN64, HasMips64], DecoderNamespace = "Mips64" in {
+let Predicates = [NotN64, HasMips64, HasStandardEncoding],
+  DecoderNamespace = "Mips64" in {
   def LDC164 : FPLoad<0x35, "ldc1", FGR64, mem>;
   def SDC164 : FPStore<0x3d, "sdc1", FGR64, mem>;
 }
 
-let Predicates = [NotN64, NotMips64] in {
+let Predicates = [NotN64, NotMips64, HasStandardEncoding] in {
   def LDC1   : FPLoad<0x35, "ldc1", AFGR64, mem>;
   def SDC1   : FPStore<0x3d, "sdc1", AFGR64, mem>;
 }
 
 // Indexed loads and stores.
-let Predicates = [HasMips32r2Or64] in {
+let Predicates = [HasMips32r2Or64, HasStandardEncoding] in {
   def LWXC1 : FPIdxLoad<0x0, "lwxc1", FGR32, CPURegs, load_a>;
-  def LUXC1 : FPIdxLoad<0x5, "luxc1", FGR32, CPURegs, load_u>;
   def SWXC1 : FPIdxStore<0x8, "swxc1", FGR32, CPURegs, store_a>;
-  def SUXC1 : FPIdxStore<0xd, "suxc1", FGR32, CPURegs, store_u>;
 }
 
-let Predicates = [HasMips32r2, NotMips64] in {
+let Predicates = [HasMips32r2, NotMips64, HasStandardEncoding] in {
   def LDXC1 : FPIdxLoad<0x1, "ldxc1", AFGR64, CPURegs, load_a>;
   def SDXC1 : FPIdxStore<0x9, "sdxc1", AFGR64, CPURegs, store_a>;
 }
 
-let Predicates = [HasMips64, NotN64], DecoderNamespace="Mips64" in {
+let Predicates = [HasMips64, NotN64, HasStandardEncoding], DecoderNamespace="Mips64" in {
   def LDXC164 : FPIdxLoad<0x1, "ldxc1", FGR64, CPURegs, load_a>;
   def SDXC164 : FPIdxStore<0x9, "sdxc1", FGR64, CPURegs, store_a>;
 }
 
 // n64
-let Predicates = [IsN64], isCodeGenOnly=1 in {
+let Predicates = [IsN64, HasStandardEncoding], isCodeGenOnly=1 in {
   def LWXC1_P8   : FPIdxLoad<0x0, "lwxc1", FGR32, CPU64Regs, load_a>;
-  def LUXC1_P8   : FPIdxLoad<0x5, "luxc1", FGR32, CPU64Regs, load_u>;
   def LDXC164_P8 : FPIdxLoad<0x1, "ldxc1", FGR64, CPU64Regs, load_a>;
   def SWXC1_P8   : FPIdxStore<0x8, "swxc1", FGR32, CPU64Regs, store_a>;
-  def SUXC1_P8   : FPIdxStore<0xd, "suxc1", FGR32, CPU64Regs, store_u>;
   def SDXC164_P8 : FPIdxStore<0x9, "sdxc1", FGR64, CPU64Regs, store_a>;
+}
+
+// Load/store doubleword indexed unaligned.
+let Predicates = [NotMips64, HasStandardEncoding] in {
+  def LUXC1 : FPIdxLoad<0x5, "luxc1", AFGR64, CPURegs>;
+  def SUXC1 : FPIdxStore<0xd, "suxc1", AFGR64, CPURegs>;
+}
+
+let Predicates = [HasMips64, HasStandardEncoding],
+  DecoderNamespace="Mips64" in {
+  def LUXC164 : FPIdxLoad<0x5, "luxc1", FGR64, CPURegs>;
+  def SUXC164 : FPIdxStore<0xd, "suxc1", FGR64, CPURegs>;
 }
 
 /// Floating-point Aritmetic
@@ -309,32 +322,33 @@ defm FDIV : FFR2P_M<0x03, "div", fdiv>;
 defm FMUL : FFR2P_M<0x02, "mul", fmul, 1>;
 defm FSUB : FFR2P_M<0x01, "sub", fsub>;
 
-let Predicates = [HasMips32r2] in {
+let Predicates = [HasMips32r2, HasStandardEncoding] in {
   def MADD_S : FMADDSUB<0x4, 0, "madd", "s", fadd, FGR32>;
   def MSUB_S : FMADDSUB<0x5, 0, "msub", "s", fsub, FGR32>;
 }
 
-let Predicates = [HasMips32r2, NoNaNsFPMath] in {
+let Predicates = [HasMips32r2, NoNaNsFPMath, HasStandardEncoding] in {
   def NMADD_S : FNMADDSUB<0x6, 0, "nmadd", "s", fadd, FGR32>;
   def NMSUB_S : FNMADDSUB<0x7, 0, "nmsub", "s", fsub, FGR32>;
 }
 
-let Predicates = [HasMips32r2, NotFP64bit] in {
+let Predicates = [HasMips32r2, NotFP64bit, HasStandardEncoding] in {
   def MADD_D32 : FMADDSUB<0x4, 1, "madd", "d", fadd, AFGR64>;
   def MSUB_D32 : FMADDSUB<0x5, 1, "msub", "d", fsub, AFGR64>;
 }
 
-let Predicates = [HasMips32r2, NotFP64bit, NoNaNsFPMath] in {
+let Predicates = [HasMips32r2, NotFP64bit, NoNaNsFPMath, HasStandardEncoding] in {
   def NMADD_D32 : FNMADDSUB<0x6, 1, "nmadd", "d", fadd, AFGR64>;
   def NMSUB_D32 : FNMADDSUB<0x7, 1, "nmsub", "d", fsub, AFGR64>;
 }
 
-let Predicates = [HasMips32r2, IsFP64bit], isCodeGenOnly=1 in {
+let Predicates = [HasMips32r2, IsFP64bit, HasStandardEncoding], isCodeGenOnly=1 in {
   def MADD_D64 : FMADDSUB<0x4, 1, "madd", "d", fadd, FGR64>;
   def MSUB_D64 : FMADDSUB<0x5, 1, "msub", "d", fsub, FGR64>;
 }
 
-let Predicates = [HasMips32r2, IsFP64bit, NoNaNsFPMath], isCodeGenOnly=1 in {
+let Predicates = [HasMips32r2, IsFP64bit, NoNaNsFPMath, HasStandardEncoding],
+    isCodeGenOnly=1 in {
   def NMADD_D64 : FNMADDSUB<0x6, 1, "nmadd", "d", fadd, FGR64>;
   def NMSUB_D64 : FNMADDSUB<0x7, 1, "nmsub", "d", fsub, FGR64>;
 }
@@ -391,8 +405,10 @@ class FCMP<bits<5> fmt, RegisterClass RC, string typestr> :
 /// Floating Point Compare
 let Defs=[FCR31] in {
   def FCMP_S32 : FCMP<0x10, FGR32, "s">;
-  def FCMP_D32 : FCMP<0x11, AFGR64, "d">, Requires<[NotFP64bit]>;
-  def FCMP_D64 : FCMP<0x11, FGR64, "d">, Requires<[IsFP64bit]> {
+  def FCMP_D32 : FCMP<0x11, AFGR64, "d">,
+      Requires<[NotFP64bit, HasStandardEncoding]>;
+  def FCMP_D64 : FCMP<0x11, FGR64, "d">,
+      Requires<[IsFP64bit, HasStandardEncoding]> {
     let DecoderNamespace = "Mips64";
   }
 }
@@ -400,69 +416,59 @@ let Defs=[FCR31] in {
 //===----------------------------------------------------------------------===//
 // Floating Point Pseudo-Instructions
 //===----------------------------------------------------------------------===//
-def MOVCCRToCCR : MipsPseudo<(outs CCR:$dst), (ins CCR:$src),
-                             "# MOVCCRToCCR", []>;
+def MOVCCRToCCR : PseudoSE<(outs CCR:$dst), (ins CCR:$src),
+                           "# MOVCCRToCCR", []>;
 
 // This pseudo instr gets expanded into 2 mtc1 instrs after register
 // allocation.
 def BuildPairF64 :
-  MipsPseudo<(outs AFGR64:$dst),
-             (ins CPURegs:$lo, CPURegs:$hi), "",
-             [(set AFGR64:$dst, (MipsBuildPairF64 CPURegs:$lo, CPURegs:$hi))]>;
+  PseudoSE<(outs AFGR64:$dst),
+           (ins CPURegs:$lo, CPURegs:$hi), "",
+           [(set AFGR64:$dst, (MipsBuildPairF64 CPURegs:$lo, CPURegs:$hi))]>;
 
 // This pseudo instr gets expanded into 2 mfc1 instrs after register
 // allocation.
 // if n is 0, lower part of src is extracted.
 // if n is 1, higher part of src is extracted.
 def ExtractElementF64 :
-  MipsPseudo<(outs CPURegs:$dst),
-             (ins AFGR64:$src, i32imm:$n), "",
-             [(set CPURegs:$dst,
-               (MipsExtractElementF64 AFGR64:$src, imm:$n))]>;
+  PseudoSE<(outs CPURegs:$dst), (ins AFGR64:$src, i32imm:$n), "",
+           [(set CPURegs:$dst, (MipsExtractElementF64 AFGR64:$src, imm:$n))]>;
 
 //===----------------------------------------------------------------------===//
 // Floating Point Patterns
 //===----------------------------------------------------------------------===//
-def : Pat<(f32 fpimm0), (MTC1 ZERO)>;
-def : Pat<(f32 fpimm0neg), (FNEG_S (MTC1 ZERO))>;
+def : MipsPat<(f32 fpimm0), (MTC1 ZERO)>;
+def : MipsPat<(f32 fpimm0neg), (FNEG_S (MTC1 ZERO))>;
 
-def : Pat<(f32 (sint_to_fp CPURegs:$src)), (CVT_S_W (MTC1 CPURegs:$src))>;
-def : Pat<(i32 (fp_to_sint FGR32:$src)), (MFC1 (TRUNC_W_S FGR32:$src))>;
+def : MipsPat<(f32 (sint_to_fp CPURegs:$src)), (CVT_S_W (MTC1 CPURegs:$src))>;
+def : MipsPat<(i32 (fp_to_sint FGR32:$src)), (MFC1 (TRUNC_W_S FGR32:$src))>;
 
-let Predicates = [NotFP64bit] in {
-  def : Pat<(f64 (sint_to_fp CPURegs:$src)), (CVT_D32_W (MTC1 CPURegs:$src))>;
-  def : Pat<(i32 (fp_to_sint AFGR64:$src)), (MFC1 (TRUNC_W_D32 AFGR64:$src))>;
-  def : Pat<(f32 (fround AFGR64:$src)), (CVT_S_D32 AFGR64:$src)>;
-  def : Pat<(f64 (fextend FGR32:$src)), (CVT_D32_S FGR32:$src)>;
+let Predicates = [NotFP64bit, HasStandardEncoding] in {
+  def : MipsPat<(f64 (sint_to_fp CPURegs:$src)),
+                (CVT_D32_W (MTC1 CPURegs:$src))>;
+  def : MipsPat<(i32 (fp_to_sint AFGR64:$src)),
+                (MFC1 (TRUNC_W_D32 AFGR64:$src))>;
+  def : MipsPat<(f32 (fround AFGR64:$src)), (CVT_S_D32 AFGR64:$src)>;
+  def : MipsPat<(f64 (fextend FGR32:$src)), (CVT_D32_S FGR32:$src)>;
 }
 
-let Predicates = [IsFP64bit] in {
-  def : Pat<(f64 fpimm0), (DMTC1 ZERO_64)>;
-  def : Pat<(f64 fpimm0neg), (FNEG_D64 (DMTC1 ZERO_64))>;
+let Predicates = [IsFP64bit, HasStandardEncoding] in {
+  def : MipsPat<(f64 fpimm0), (DMTC1 ZERO_64)>;
+  def : MipsPat<(f64 fpimm0neg), (FNEG_D64 (DMTC1 ZERO_64))>;
 
-  def : Pat<(f64 (sint_to_fp CPURegs:$src)), (CVT_D64_W (MTC1 CPURegs:$src))>;
-  def : Pat<(f32 (sint_to_fp CPU64Regs:$src)),
-            (CVT_S_L (DMTC1 CPU64Regs:$src))>;
-  def : Pat<(f64 (sint_to_fp CPU64Regs:$src)),
-            (CVT_D64_L (DMTC1 CPU64Regs:$src))>;
+  def : MipsPat<(f64 (sint_to_fp CPURegs:$src)),
+                (CVT_D64_W (MTC1 CPURegs:$src))>;
+  def : MipsPat<(f32 (sint_to_fp CPU64Regs:$src)),
+                (CVT_S_L (DMTC1 CPU64Regs:$src))>;
+  def : MipsPat<(f64 (sint_to_fp CPU64Regs:$src)),
+                (CVT_D64_L (DMTC1 CPU64Regs:$src))>;
 
-  def : Pat<(i32 (fp_to_sint FGR64:$src)), (MFC1 (TRUNC_W_D64 FGR64:$src))>;
-  def : Pat<(i64 (fp_to_sint FGR32:$src)), (DMFC1 (TRUNC_L_S FGR32:$src))>;
-  def : Pat<(i64 (fp_to_sint FGR64:$src)), (DMFC1 (TRUNC_L_D64 FGR64:$src))>;
+  def : MipsPat<(i32 (fp_to_sint FGR64:$src)),
+                (MFC1 (TRUNC_W_D64 FGR64:$src))>;
+  def : MipsPat<(i64 (fp_to_sint FGR32:$src)), (DMFC1 (TRUNC_L_S FGR32:$src))>;
+  def : MipsPat<(i64 (fp_to_sint FGR64:$src)),
+                (DMFC1 (TRUNC_L_D64 FGR64:$src))>;
 
-  def : Pat<(f32 (fround FGR64:$src)), (CVT_S_D64 FGR64:$src)>;
-  def : Pat<(f64 (fextend FGR32:$src)), (CVT_D64_S FGR32:$src)>;
-}
-
-// Patterns for unaligned floating point loads and stores.
-let Predicates = [HasMips32r2Or64, NotN64] in {
-  def : Pat<(f32 (load_u CPURegs:$addr)), (LUXC1 CPURegs:$addr, ZERO)>;
-  def : Pat<(store_u FGR32:$src, CPURegs:$addr),
-            (SUXC1 FGR32:$src, CPURegs:$addr, ZERO)>;
-}
-
-let Predicates = [IsN64] in {
-  def : Pat<(f32 (load_u CPU64Regs:$addr)), (LUXC1_P8 CPU64Regs:$addr, ZERO_64)>;
-  def : Pat<(store_u FGR32:$src, CPU64Regs:$addr),
-            (SUXC1_P8 FGR32:$src, CPU64Regs:$addr, ZERO_64)>;
+  def : MipsPat<(f32 (fround FGR64:$src)), (CVT_S_D64 FGR64:$src)>;
+  def : MipsPat<(f64 (fextend FGR32:$src)), (CVT_D64_S FGR32:$src)>;
 }

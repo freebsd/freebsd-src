@@ -56,8 +56,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_enc.h>
 #include <cam/scsi/scsi_enc_internal.h>
 
-#include <opt_enc.h>
-
 /* SES Native Type Device Support */
 
 /* SES Diagnostic Page Codes */
@@ -888,6 +886,7 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	struct device_match_result  *device_match;
 	struct device_match_pattern *device_pattern;
 	ses_path_iter_args_t	    *args;
+	struct cam_sim		    *sim;
 
 	args = (ses_path_iter_args_t *)arg;
 	match_pattern.type = DEV_MATCH_DEVICE;
@@ -900,9 +899,10 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	       device_pattern->data.devid_pat.id_len);
 
 	memset(&cdm, 0, sizeof(cdm));
-	if (xpt_create_path(&cdm.ccb_h.path, /*periph*/NULL, CAM_XPT_PATH_ID,
-			    CAM_TARGET_WILDCARD,
-			    CAM_LUN_WILDCARD) != CAM_REQ_CMP)
+	if (xpt_create_path_unlocked(&cdm.ccb_h.path, /*periph*/NULL,
+				     CAM_XPT_PATH_ID,
+				     CAM_TARGET_WILDCARD,
+				     CAM_LUN_WILDCARD) != CAM_REQ_CMP)
 		return;
 
 	cdm.ccb_h.func_code = XPT_DEV_MATCH;
@@ -912,8 +912,11 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 	cdm.match_buf_len   = sizeof(match_result);
 	cdm.matches         = &match_result;
 
+	sim = xpt_path_sim(cdm.ccb_h.path);
+	CAM_SIM_LOCK(sim);
 	xpt_action((union ccb *)&cdm);
 	xpt_free_path(cdm.ccb_h.path);
+	CAM_SIM_UNLOCK(sim);
 
 	if ((cdm.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP
 	 || (cdm.status != CAM_DEV_MATCH_LAST
@@ -922,14 +925,18 @@ ses_path_iter_devid_callback(enc_softc_t *enc, enc_element_t *elem,
 		return;
 
 	device_match = &match_result.result.device_result;
-	if (xpt_create_path(&cdm.ccb_h.path, /*periph*/NULL,
-			    device_match->path_id,
-			    device_match->target_id,
-			    device_match->target_lun) != CAM_REQ_CMP)
+	if (xpt_create_path_unlocked(&cdm.ccb_h.path, /*periph*/NULL,
+				     device_match->path_id,
+				     device_match->target_id,
+				     device_match->target_lun) != CAM_REQ_CMP)
 		return;
 
 	args->callback(enc, elem, cdm.ccb_h.path, args->callback_arg);
+
+	sim = xpt_path_sim(cdm.ccb_h.path);
+	CAM_SIM_LOCK(sim);
 	xpt_free_path(cdm.ccb_h.path);
+	CAM_SIM_UNLOCK(sim);
 }
 
 /**
@@ -1001,7 +1008,7 @@ ses_setphyspath_callback(enc_softc_t *enc, enc_element_t *elm,
 
 	args = (ses_setphyspath_callback_args_t *)arg;
 	old_physpath = malloc(MAXPATHLEN, M_SCSIENC, M_WAITOK|M_ZERO);
-
+	cam_periph_lock(enc->periph);
 	xpt_setup_ccb(&cdai.ccb_h, path, CAM_PRIORITY_NORMAL);
 	cdai.ccb_h.func_code = XPT_DEV_ADVINFO;
 	cdai.buftype = CDAI_TYPE_PHYS_PATH;
@@ -1026,6 +1033,7 @@ ses_setphyspath_callback(enc_softc_t *enc, enc_element_t *elm,
 		if (cdai.ccb_h.status == CAM_REQ_CMP)
 			args->num_set++;
 	}
+	cam_periph_unlock(enc->periph);
 	free(old_physpath, M_SCSIENC);
 }
 
@@ -1065,9 +1073,11 @@ ses_set_physpath(enc_softc_t *enc, enc_element_t *elm,
 		ret = ENOMEM;
 		goto out;
 	}
+	cam_periph_lock(enc->periph);
 	xpt_action((union ccb *)&cdai);
 	if ((cdai.ccb_h.status & CAM_DEV_QFRZN) != 0)
 		cam_release_devq(cdai.ccb_h.path, 0, 0, 0, FALSE);
+	cam_periph_unlock(enc->periph);
 	if (cdai.ccb_h.status != CAM_REQ_CMP)
 		goto out;
 
@@ -1177,7 +1187,7 @@ ses_set_timed_completion(enc_softc_t *enc, uint8_t tc_en)
 	err = cam_periph_runccb(ccb, enc_error, ENC_CFLAGS,
 	    ENC_FLAGS|SF_QUIET_IR, NULL);
 	if (ccb->ccb_h.status != CAM_REQ_CMP) {
-		ENC_LOG(enc, "Timed Completion Unsupported\n");
+		ENC_VLOG(enc, "Timed Completion Unsupported\n");
 		goto release;
 	}
 
@@ -1200,7 +1210,7 @@ ses_set_timed_completion(enc_softc_t *enc, uint8_t tc_en)
 
 	err = cam_periph_runccb(ccb, enc_error, ENC_CFLAGS, ENC_FLAGS, NULL);
 	if (ccb->ccb_h.status != CAM_REQ_CMP) {
-		ENC_LOG(enc, "Timed Completion Set Failed\n");
+		ENC_VLOG(enc, "Timed Completion Set Failed\n");
 		goto release;
 	}
 
@@ -1246,14 +1256,14 @@ ses_process_pages(enc_softc_t *enc, struct enc_fsm_state *state,
 		goto out;
 	}
 	if (xfer_len < sizeof(*page)) {
-		ENC_LOG(enc, "Unable to parse Diag Pages List Header\n");
+		ENC_VLOG(enc, "Unable to parse Diag Pages List Header\n");
 		err = EIO;
 		goto out;
 	}
 	page = (struct scsi_diag_page *)*bufp;
 	length = scsi_2btoul(page->length);
 	if (length + offsetof(struct scsi_diag_page, params) > xfer_len) {
-		ENC_LOG(enc, "Diag Pages List Too Long\n");
+		ENC_VLOG(enc, "Diag Pages List Too Long\n");
 		goto out;
 	}
 	ENC_DLOG(enc, "%s: page length %d, xfer_len %d\n",
@@ -1313,14 +1323,14 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	enc_cache = &enc->enc_daemon_cache;
 	ses_cache = enc_cache->private;
 	buf = *bufp;
-	err = -1;;
+	err = -1;
 
 	if (error != 0) {
 		err = error;
 		goto out;
 	}
 	if (xfer_len < sizeof(cfg_page->hdr)) {
-		ENC_LOG(enc, "Unable to parse SES Config Header\n");
+		ENC_VLOG(enc, "Unable to parse SES Config Header\n");
 		err = EIO;
 		goto out;
 	}
@@ -1328,7 +1338,7 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	cfg_page = (struct ses_cfg_page *)buf;
 	length = ses_page_length(&cfg_page->hdr);
 	if (length > xfer_len) {
-		ENC_LOG(enc, "Enclosure Config Page Too Long\n");
+		ENC_VLOG(enc, "Enclosure Config Page Too Long\n");
 		goto out;
 	}
 	last_valid_byte = &buf[length - 1];
@@ -1379,7 +1389,7 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	while (cur_subenc <= last_subenc) {
 
 		if (!ses_enc_desc_is_complete(buf_subenc, last_valid_byte)) {
-			ENC_LOG(enc, "Enclosure %d Beyond End of "
+			ENC_VLOG(enc, "Enclosure %d Beyond End of "
 			    "Descriptors\n", cur_subenc - subencs);
 			err = EIO;
 			goto out;
@@ -1418,7 +1428,7 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	sestype = ses_types;
 	while (cur_buf_type <= last_buf_type) {
 		if (&cur_buf_type->etype_txt_len > last_valid_byte) {
-			ENC_LOG(enc, "Runt Enclosure Type Header %d\n",
+			ENC_VLOG(enc, "Runt Enclosure Type Header %d\n",
 			    sestype - ses_types);
 			err = EIO;
 			goto out;
@@ -1426,7 +1436,7 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 		sestype->hdr  = cur_buf_type;
 		sestype->text = type_text;
 		type_text += cur_buf_type->etype_txt_len;
-		ENC_LOG(enc, " Type Desc[%d]: Type 0x%x, MaxElt %d, In Subenc "
+		ENC_VLOG(enc, " Type Desc[%d]: Type 0x%x, MaxElt %d, In Subenc "
 		    "%d, Text Length %d: %.*s\n", sestype - ses_types,
 		    sestype->hdr->etype_elm_type, sestype->hdr->etype_maxelt,
 		    sestype->hdr->etype_subenc, sestype->hdr->etype_txt_len,
@@ -1473,7 +1483,7 @@ ses_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 
 out:
 	if (err)
-		ses_softc_cleanup(enc);
+		ses_cache_free(enc, enc_cache);
 	else {
 		enc_update_request(enc, SES_UPDATE_GETSTATUS);
 		enc_update_request(enc, SES_UPDATE_GETELMDESCS);
@@ -1531,12 +1541,12 @@ ses_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 	 * could happen... Need to use dynamic discovery of the size.
 	 */
 	if (length > xfer_len) {
-		ENC_LOG(enc, "Enclosure Status Page Too Long\n");
+		ENC_VLOG(enc, "Enclosure Status Page Too Long\n");
 		goto out;
 	}
 	/* Make sure the length contains at least one header and status */
 	if (length < (sizeof(*page) + sizeof(*page->elements))) {
-		ENC_LOG(enc, "Enclosure Status Page Too Short\n");
+		ENC_VLOG(enc, "Enclosure Status Page Too Short\n");
 		goto out;
 	}
 
@@ -1578,11 +1588,11 @@ ses_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 	}
 
 	if (ses_iter_next(&iter) != NULL) {
-		ENC_LOG(enc, "Status page, length insufficient for "
+		ENC_VLOG(enc, "Status page, length insufficient for "
 			"expected number of objects\n");
 	} else {
 		if (cur_stat <= last_stat)
-			ENC_LOG(enc, "Status page, exhausted objects before "
+			ENC_VLOG(enc, "Status page, exhausted objects before "
 				"exhausing page\n");
 		enc_update_request(enc, SES_PUBLISH_CACHE);
 		err = 0;
@@ -1708,11 +1718,11 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 	ENC_DLOG(enc, "Additional Element Status Page Length 0x%x\n", length);
 	/* Make sure the length includes at least one header. */
 	if (length < sizeof(*hdr)+sizeof(struct ses_elm_addlstatus_base_hdr)) {
-		ENC_LOG(enc, "Runt Additional Element Status Page\n");
+		ENC_VLOG(enc, "Runt Additional Element Status Page\n");
 		goto out;
 	}
 	if (length > xfer_len) {
-		ENC_LOG(enc, "Additional Element Status Page Too Long\n");
+		ENC_VLOG(enc, "Additional Element Status Page Too Long\n");
 		goto out;
 	}
 
@@ -1765,7 +1775,7 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 
 			if (iter.individual_element_index > expected_index
 			 && status_type == TYPE_ADDLSTATUS_MANDATORY) {
-				ENC_LOG(enc, "%s: provided element "
+				ENC_VLOG(enc, "%s: provided element "
 					"index %d skips mandatory status "
 					" element at index %d\n",
 					__func__, eip_hdr->element_index,
@@ -1786,7 +1796,7 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 
 		/* Make sure the descriptor is within bounds */
 		if ((offset + elmpriv->addl.hdr->length) > length) {
-			ENC_LOG(enc, "Element %d Beyond End "
+			ENC_VLOG(enc, "Element %d Beyond End "
 			    "of Additional Element Status Descriptors\n",
 			    iter.global_element_index);
 			err = EIO;
@@ -1816,7 +1826,7 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 						   iter.global_element_index);
 			break;
 		default:
-			ENC_LOG(enc, "Element %d: Unknown Additional Element "
+			ENC_VLOG(enc, "Element %d: Unknown Additional Element "
 			    "Protocol 0x%x\n", iter.global_element_index,
 			    ses_elm_addlstatus_proto(elmpriv->addl.hdr));
 			goto out;
@@ -1933,11 +1943,11 @@ ses_process_elm_descs(enc_softc_t *enc, struct enc_fsm_state *state,
 	phdr = &ses_cache->elm_descs_page->hdr;
 	plength = ses_page_length(phdr);
 	if (xfer_len < sizeof(struct ses_page_hdr)) {
-		ENC_LOG(enc, "Runt Element Descriptor Page\n");
+		ENC_VLOG(enc, "Runt Element Descriptor Page\n");
 		goto out;
 	}
 	if (plength > xfer_len) {
-		ENC_LOG(enc, "Element Descriptor Page Too Long\n");
+		ENC_VLOG(enc, "Element Descriptor Page Too Long\n");
 		goto out;
 	}
 
@@ -1955,7 +1965,7 @@ ses_process_elm_descs(enc_softc_t *enc, struct enc_fsm_state *state,
 	    && (element = ses_iter_next(&iter)) != NULL) {
 
 		if ((offset + sizeof(struct ses_elm_desc_hdr)) > plength) {
-			ENC_LOG(enc, "Element %d Descriptor Header Past "
+			ENC_VLOG(enc, "Element %d Descriptor Header Past "
 			    "End of Buffer\n", iter.global_element_index);
 			goto out;
 		}
@@ -1965,7 +1975,7 @@ ses_process_elm_descs(enc_softc_t *enc, struct enc_fsm_state *state,
 		    iter.global_element_index, iter.type_index,
 		    iter.type_element_index, length, offset);
 		if ((offset + sizeof(*hdr) + length) > plength) {
-			ENC_LOG(enc, "Element%d Descriptor Past "
+			ENC_VLOG(enc, "Element%d Descriptor Past "
 			    "End of Buffer\n", iter.global_element_index);
 			goto out;
 		}
@@ -2140,7 +2150,7 @@ static int
 ses_get_elm_addlstatus_fc(enc_softc_t *enc, enc_cache_t *enc_cache,
 			  uint8_t *buf, int bufsiz)
 {
-	ENC_LOG(enc, "FC Device Support Stubbed in Additional Status Page\n");
+	ENC_VLOG(enc, "FC Device Support Stubbed in Additional Status Page\n");
 	return (ENODEV);
 }
 
@@ -2387,7 +2397,7 @@ ses_get_elm_addlstatus_sas_type0(enc_softc_t *enc, enc_cache_t *enc_cache,
 	physz = addl->proto_hdr.sas->base_hdr.num_phys;
 	physz *= sizeof(struct ses_elm_sas_device_phy);
 	if (physz > (bufsiz - offset + 4)) {
-		ENC_LOG(enc, "Element %d Device Phy List Beyond End Of Buffer\n",
+		ENC_VLOG(enc, "Element %d Device Phy List Beyond End Of Buffer\n",
 		    nobj);
 		err = EIO;
 		goto out;
@@ -2442,7 +2452,7 @@ ses_get_elm_addlstatus_sas_type1(enc_softc_t *enc, enc_cache_t *enc_cache,
 		physz = addl->proto_hdr.sas->base_hdr.num_phys *
 		    sizeof(struct ses_elm_sas_expander_phy);
 		if (physz > (bufsiz - offset)) {
-			ENC_LOG(enc, "Element %d: Expander Phy List Beyond "
+			ENC_VLOG(enc, "Element %d: Expander Phy List Beyond "
 			    "End Of Buffer\n", nobj);
 			err = EIO;
 			goto out;
@@ -2454,7 +2464,7 @@ ses_get_elm_addlstatus_sas_type1(enc_softc_t *enc, enc_cache_t *enc_cache,
 		physz = addl->proto_hdr.sas->base_hdr.num_phys *
 		    sizeof(struct ses_elm_sas_port_phy);
 		if (physz > (bufsiz - offset + 4)) {
-			ENC_LOG(enc, "Element %d: Port Phy List Beyond End "
+			ENC_VLOG(enc, "Element %d: Port Phy List Beyond End "
 			    "Of Buffer\n", nobj);
 			err = EIO;
 			goto out;
@@ -2506,7 +2516,7 @@ ses_get_elm_addlstatus_sas(enc_softc_t *enc, enc_cache_t *enc_cache,
 		case ELMTYP_ARRAY_DEV:
 			break;
 		default:
-			ENC_LOG(enc, "Element %d has Additional Status type 0, "
+			ENC_VLOG(enc, "Element %d has Additional Status type 0, "
 			    "invalid for SES element type 0x%x\n", nobj,
 			    ses_cache->ses_types[tidx].hdr->etype_elm_type);
 			err = ENODEV;
@@ -2524,7 +2534,7 @@ ses_get_elm_addlstatus_sas(enc_softc_t *enc, enc_cache_t *enc_cache,
 		case ELMTYP_ESCC:
 			break;
 		default:
-			ENC_LOG(enc, "Element %d has Additional Status type 1, "
+			ENC_VLOG(enc, "Element %d has Additional Status type 1, "
 			    "invalid for SES element type 0x%x\n", nobj,
 			    ses_cache->ses_types[tidx].hdr->etype_elm_type);
 			err = ENODEV;
@@ -2534,7 +2544,7 @@ ses_get_elm_addlstatus_sas(enc_softc_t *enc, enc_cache_t *enc_cache,
 						       bufsiz, eip, nobj);
 		break;
 	default:
-		ENC_LOG(enc, "Element %d of type 0x%x has Additional Status "
+		ENC_VLOG(enc, "Element %d of type 0x%x has Additional Status "
 		    "of unknown type 0x%x\n", nobj,
 		    ses_cache->ses_types[tidx].hdr->etype_elm_type, dtype);
 		err = ENODEV;

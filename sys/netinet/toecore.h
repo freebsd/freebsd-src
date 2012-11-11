@@ -119,7 +119,7 @@ int unregister_toedev(struct toedev *);
 int toe_l2_resolve(struct toedev *, struct ifnet *, struct sockaddr *,
     uint8_t *, uint16_t *);
 
-void toe_connect_failed(struct toedev *, struct tcpcb *, int);
+void toe_connect_failed(struct toedev *, struct inpcb *, int);
 
 void toe_syncache_add(struct in_conninfo *, struct tcpopt *, struct tcphdr *,
     struct inpcb *, void *, void *);

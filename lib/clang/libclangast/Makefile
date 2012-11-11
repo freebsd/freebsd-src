@@ -10,6 +10,13 @@ SRCS=	APValue.cpp \
 	ASTImporter.cpp \
 	AttrImpl.cpp \
 	CXXInheritance.cpp \
+	Comment.cpp \
+	CommentBriefParser.cpp \
+	CommentCommandTraits.cpp \
+	CommentDumper.cpp \
+	CommentLexer.cpp \
+	CommentParser.cpp \
+	CommentSema.cpp \
 	Decl.cpp \
 	DeclBase.cpp \
 	DeclCXX.cpp \
@@ -35,6 +42,7 @@ SRCS=	APValue.cpp \
 	NestedNameSpecifier.cpp \
 	NSAPI.cpp \
 	ParentMap.cpp \
+	RawCommentList.cpp \
 	RecordLayout.cpp \
 	RecordLayoutBuilder.cpp \
 	SelectorLocationsKind.cpp \
@@ -55,8 +63,10 @@ SRCS=	APValue.cpp \
 TGHDRS=	AttrImpl \
 	AttrList \
 	Attrs \
+	CommentNodes \
 	DeclNodes \
 	DiagnosticASTKinds \
+	DiagnosticCommentKinds \
 	DiagnosticCommonKinds \
 	DiagnosticSemaKinds \
 	StmtNodes

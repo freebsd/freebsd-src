@@ -363,9 +363,12 @@ ObjCMethodDecl *ObjCInterfaceDecl::lookupMethod(Selector Sel,
   return NULL;
 }
 
+// Will search "local" class/category implementations for a method decl.
+// If failed, then we search in class's root for an instance method.
+// Returns 0 if no method is found.
 ObjCMethodDecl *ObjCInterfaceDecl::lookupPrivateMethod(
                                    const Selector &Sel,
-                                   bool Instance) {
+                                   bool Instance) const {
   // FIXME: Should make sure no callers ever do this.
   if (!hasDefinition())
     return 0;
@@ -377,7 +380,23 @@ ObjCMethodDecl *ObjCInterfaceDecl::lookupPrivateMethod(
   if (ObjCImplementationDecl *ImpDecl = getImplementation())
     Method = Instance ? ImpDecl->getInstanceMethod(Sel) 
                       : ImpDecl->getClassMethod(Sel);
-  
+
+  // Look through local category implementations associated with the class.
+  if (!Method)
+    Method = Instance ? getCategoryInstanceMethod(Sel)
+                      : getCategoryClassMethod(Sel);
+
+  // Before we give up, check if the selector is an instance method.
+  // But only in the root. This matches gcc's behavior and what the
+  // runtime expects.
+  if (!Instance && !Method && !getSuperClass()) {
+    Method = lookupInstanceMethod(Sel);
+    // Look through local category implementations associated
+    // with the root class.
+    if (!Method)
+      Method = lookupPrivateMethod(Sel, true);
+  }
+
   if (!Method && getSuperClass())
     return getSuperClass()->lookupPrivateMethod(Sel, Instance);
   return Method;
@@ -451,7 +470,8 @@ void ObjCMethodDecl::setMethodParams(ASTContext &C,
   if (isImplicit())
     return setParamsAndSelLocs(C, Params, ArrayRef<SourceLocation>());
 
-  SelLocsKind = hasStandardSelectorLocs(getSelector(), SelLocs, Params, EndLoc);
+  SelLocsKind = hasStandardSelectorLocs(getSelector(), SelLocs, Params,
+                                        DeclEndLoc);
   if (SelLocsKind != SelLoc_NonStandard)
     return setParamsAndSelLocs(C, Params, ArrayRef<SourceLocation>());
 
@@ -521,6 +541,12 @@ ObjCMethodDecl *ObjCMethodDecl::getCanonicalDecl() {
                                                     isInstanceMethod());
 
   return this;
+}
+
+SourceLocation ObjCMethodDecl::getLocEnd() const {
+  if (Stmt *Body = getBody())
+    return Body->getLocEnd();
+  return DeclEndLoc;
 }
 
 ObjCMethodFamily ObjCMethodDecl::getMethodFamily() const {
@@ -767,7 +793,7 @@ ObjCIvarDecl *ObjCInterfaceDecl::all_declared_ivar_begin() {
   ObjCIvarDecl *curIvar = 0;
   if (!ivar_empty()) {
     ObjCInterfaceDecl::ivar_iterator I = ivar_begin(), E = ivar_end();
-    data().IvarList = (*I); ++I;
+    data().IvarList = *I; ++I;
     for (curIvar = data().IvarList; I != E; curIvar = *I, ++I)
       curIvar->setNextIvar(*I);
   }
@@ -778,7 +804,7 @@ ObjCIvarDecl *ObjCInterfaceDecl::all_declared_ivar_begin() {
       ObjCCategoryDecl::ivar_iterator I = CDecl->ivar_begin(),
                                           E = CDecl->ivar_end();
       if (!data().IvarList) {
-        data().IvarList = (*I); ++I;
+        data().IvarList = *I; ++I;
         curIvar = data().IvarList;
       }
       for ( ;I != E; curIvar = *I, ++I)
@@ -791,7 +817,7 @@ ObjCIvarDecl *ObjCInterfaceDecl::all_declared_ivar_begin() {
       ObjCImplementationDecl::ivar_iterator I = ImplDecl->ivar_begin(),
                                             E = ImplDecl->ivar_end();
       if (!data().IvarList) {
-        data().IvarList = (*I); ++I;
+        data().IvarList = *I; ++I;
         curIvar = data().IvarList;
       }
       for ( ;I != E; curIvar = *I, ++I)
@@ -915,16 +941,10 @@ ObjCIvarDecl *ObjCIvarDecl::Create(ASTContext &C, ObjCContainerDecl *DC,
     // decl contexts, the previously built IvarList must be rebuilt.
     ObjCInterfaceDecl *ID = dyn_cast<ObjCInterfaceDecl>(DC);
     if (!ID) {
-      if (ObjCImplementationDecl *IM = dyn_cast<ObjCImplementationDecl>(DC)) {
+      if (ObjCImplementationDecl *IM = dyn_cast<ObjCImplementationDecl>(DC))
         ID = IM->getClassInterface();
-        if (BW)
-          IM->setHasSynthBitfield(true);
-      } else {
-        ObjCCategoryDecl *CD = cast<ObjCCategoryDecl>(DC);
-        ID = CD->getClassInterface();
-        if (BW)
-          CD->setHasSynthBitfield(true);
-      }
+      else
+        ID = cast<ObjCCategoryDecl>(DC)->getClassInterface();
     }
     ID->setIvarList(0);
   }
@@ -1169,7 +1189,7 @@ void ObjCImplDecl::setClassInterface(ObjCInterfaceDecl *IFace) {
 }
 
 /// FindPropertyImplIvarDecl - This method lookup the ivar in the list of
-/// properties implemented in this category @implementation block and returns
+/// properties implemented in this category \@implementation block and returns
 /// the implemented property that uses it.
 ///
 ObjCPropertyImplDecl *ObjCImplDecl::
@@ -1184,8 +1204,8 @@ FindPropertyImplIvarDecl(IdentifierInfo *ivarId) const {
 }
 
 /// FindPropertyImplDecl - This method looks up a previous ObjCPropertyImplDecl
-/// added to the list of those properties @synthesized/@dynamic in this
-/// category @implementation block.
+/// added to the list of those properties \@synthesized/\@dynamic in this
+/// category \@implementation block.
 ///
 ObjCPropertyImplDecl *ObjCImplDecl::
 FindPropertyImplDecl(IdentifierInfo *Id) const {

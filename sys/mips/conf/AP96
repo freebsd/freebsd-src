@@ -22,19 +22,15 @@ options		AR71XX_REALMEM=64*1024*1024
 options		AR71XX_ENV_UBOOT
 
 # For DOS - enable if required
-options 	GEOM_PART_BSD
-options 	GEOM_PART_MBR
 options 	MSDOSFS
 
 # uncompress - to boot read-only lzma natively from flash
-device		geom_uzip
-options 	GEOM_UZIP
+device		geom_uncompress
+options		GEOM_UNCOMPRESS
+options		ROOTDEVNAME=\"ufs:/dev/map/rootfs.uncompress\"
 
 # Used for the static uboot partition map
 device          geom_map
-
-# Boot off of the rootfs, as defined in the geom_map setup.
-options         ROOTDEVNAME=\"ufs:map/rootfs.uzip\"
 
 # Options needed for the EEPROM based calibration/PCI configuration data.
 options 	AR71XX_ATH_EEPROM	# Fetch EEPROM/PCI config from flash

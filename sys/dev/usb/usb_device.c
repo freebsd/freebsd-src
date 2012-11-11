@@ -111,7 +111,7 @@ static void	usb_cdev_free(struct usb_device *);
 int	usb_template = 0;
 
 TUNABLE_INT("hw.usb.usb_template", &usb_template);
-SYSCTL_INT(_hw_usb, OID_AUTO, template, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb, OID_AUTO, template, CTLFLAG_RW | CTLFLAG_TUN,
     &usb_template, 0, "Selected USB device side template");
 
 /* English is default language */
@@ -120,11 +120,11 @@ static int usb_lang_id = 0x0009;
 static int usb_lang_mask = 0x00FF;
 
 TUNABLE_INT("hw.usb.usb_lang_id", &usb_lang_id);
-SYSCTL_INT(_hw_usb, OID_AUTO, usb_lang_id, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb, OID_AUTO, usb_lang_id, CTLFLAG_RW | CTLFLAG_TUN,
     &usb_lang_id, 0, "Preferred USB language ID");
 
 TUNABLE_INT("hw.usb.usb_lang_mask", &usb_lang_mask);
-SYSCTL_INT(_hw_usb, OID_AUTO, usb_lang_mask, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb, OID_AUTO, usb_lang_mask, CTLFLAG_RW | CTLFLAG_TUN,
     &usb_lang_mask, 0, "Preferred USB language mask");
 
 static const char* statestr[USB_STATE_MAX] = {
@@ -202,7 +202,7 @@ usbd_get_ep_by_addr(struct usb_device *udev, uint8_t ea_val)
 	/*
 	 * The default endpoint is always present and is checked separately:
 	 */
-	if ((udev->ctrl_ep.edesc) &&
+	if ((udev->ctrl_ep.edesc != NULL) &&
 	    ((udev->ctrl_ep.edesc->bEndpointAddress & EA_MASK) == ea_val)) {
 		ep = &udev->ctrl_ep;
 		goto found;
@@ -320,7 +320,7 @@ usbd_get_endpoint(struct usb_device *udev, uint8_t iface_index,
 	 * address" and "any direction" returns the first endpoint of the
 	 * interface. "iface_index" and "direction" is ignored:
 	 */
-	if ((udev->ctrl_ep.edesc) &&
+	if ((udev->ctrl_ep.edesc != NULL) &&
 	    ((udev->ctrl_ep.edesc->bEndpointAddress & ea_mask) == ea_val) &&
 	    ((udev->ctrl_ep.edesc->bmAttributes & type_mask) == type_val) &&
 	    (!index)) {
@@ -355,7 +355,6 @@ usbd_interface_count(struct usb_device *udev, uint8_t *count)
 	return (USB_ERR_NORMAL_COMPLETION);
 }
 
-
 /*------------------------------------------------------------------------*
  *	usb_init_endpoint
  *
@@ -370,6 +369,7 @@ usb_init_endpoint(struct usb_device *udev, uint8_t iface_index,
     struct usb_endpoint *ep)
 {
 	struct usb_bus_methods *methods;
+	usb_stream_t x;
 
 	methods = udev->bus->methods;
 
@@ -379,12 +379,25 @@ usb_init_endpoint(struct usb_device *udev, uint8_t iface_index,
 	ep->edesc = edesc;
 	ep->ecomp = ecomp;
 	ep->iface_index = iface_index;
-	TAILQ_INIT(&ep->endpoint_q.head);
-	ep->endpoint_q.command = &usbd_pipe_start;
+
+	/* setup USB stream queues */
+	for (x = 0; x != USB_MAX_EP_STREAMS; x++) {
+		TAILQ_INIT(&ep->endpoint_q[x].head);
+		ep->endpoint_q[x].command = &usbd_pipe_start;
+	}
 
 	/* the pipe is not supported by the hardware */
  	if (ep->methods == NULL)
 		return;
+
+	/* check for SUPER-speed streams mode endpoint */
+	if (udev->speed == USB_SPEED_SUPER && ecomp != NULL &&
+	    (edesc->bmAttributes & UE_XFERTYPE) == UE_BULK &&
+	    (UE_GET_BULK_STREAMS(ecomp->bmAttributes) != 0)) {
+		usbd_set_endpoint_mode(udev, ep, USB_EP_MODE_STREAMS);
+	} else {
+		usbd_set_endpoint_mode(udev, ep, USB_EP_MODE_DEFAULT);
+	}
 
 	/* clear stall, if any */
 	if (methods->clear_stall != NULL) {
@@ -933,6 +946,7 @@ usbd_set_endpoint_stall(struct usb_device *udev, struct usb_endpoint *ep,
     uint8_t do_stall)
 {
 	struct usb_xfer *xfer;
+	usb_stream_t x;
 	uint8_t et;
 	uint8_t was_stalled;
 
@@ -975,18 +989,22 @@ usbd_set_endpoint_stall(struct usb_device *udev, struct usb_endpoint *ep,
 
 	if (do_stall || (!was_stalled)) {
 		if (!was_stalled) {
-			/* lookup the current USB transfer, if any */
-			xfer = ep->endpoint_q.curr;
-		} else {
-			xfer = NULL;
+			for (x = 0; x != USB_MAX_EP_STREAMS; x++) {
+				/* lookup the current USB transfer, if any */
+				xfer = ep->endpoint_q[x].curr;
+				if (xfer != NULL) {
+					/*
+					 * The "xfer_stall" method
+					 * will complete the USB
+					 * transfer like in case of a
+					 * timeout setting the error
+					 * code "USB_ERR_STALLED".
+					 */
+					(udev->bus->methods->xfer_stall) (xfer);
+				}
+			}
 		}
-
-		/*
-		 * If "xfer" is non-NULL the "set_stall" method will
-		 * complete the USB transfer like in case of a timeout
-		 * setting the error code "USB_ERR_STALLED".
-		 */
-		(udev->bus->methods->set_stall) (udev, xfer, ep, &do_stall);
+		(udev->bus->methods->set_stall) (udev, ep, &do_stall);
 	}
 	if (!do_stall) {
 		ep->toggle_next = 0;	/* reset data toggle */
@@ -994,8 +1012,11 @@ usbd_set_endpoint_stall(struct usb_device *udev, struct usb_endpoint *ep,
 
 		(udev->bus->methods->clear_stall) (udev, ep);
 
-		/* start up the current or next transfer, if any */
-		usb_command_wrapper(&ep->endpoint_q, ep->endpoint_q.curr);
+		/* start the current or next transfer, if any */
+		for (x = 0; x != USB_MAX_EP_STREAMS; x++) {
+			usb_command_wrapper(&ep->endpoint_q[x],
+			    ep->endpoint_q[x].curr);
+		}
 	}
 	USB_BUS_UNLOCK(udev->bus);
 	return (0);
@@ -2744,4 +2765,48 @@ usbd_add_dynamic_quirk(struct usb_device *udev, uint16_t quirk)
 		}
 	}
 	return (USB_ERR_NOMEM);
+}
+
+/*
+ * The following function is used to select the endpoint mode. It
+ * should not be called outside enumeration context.
+ */
+
+usb_error_t
+usbd_set_endpoint_mode(struct usb_device *udev, struct usb_endpoint *ep,
+    uint8_t ep_mode)
+{   
+	usb_error_t error;
+	uint8_t do_unlock;
+
+	/* automatic locking */
+	if (usbd_enum_is_locked(udev)) {
+		do_unlock = 0;
+	} else {
+		do_unlock = 1;
+		usbd_enum_lock(udev);
+	}
+
+	if (udev->bus->methods->set_endpoint_mode != NULL) {
+		error = (udev->bus->methods->set_endpoint_mode) (
+		    udev, ep, ep_mode);
+	} else if (ep_mode != USB_EP_MODE_DEFAULT) {
+		error = USB_ERR_INVAL;
+	} else {
+		error = 0;
+	}
+
+	/* only set new mode regardless of error */
+	ep->ep_mode = ep_mode;
+
+	if (do_unlock)
+		usbd_enum_unlock(udev);
+
+	return (error);
+}
+
+uint8_t
+usbd_get_endpoint_mode(struct usb_device *udev, struct usb_endpoint *ep)
+{
+	return (ep->ep_mode);
 }

@@ -13,15 +13,15 @@
 
 #include "Mips.h"
 #include "MipsSubtarget.h"
+#include "MipsRegisterInfo.h"
 #include "llvm/MC/EDInstInfo.h"
 #include "llvm/MC/MCDisassembler.h"
+#include "llvm/MC/MCFixedLenDisassembler.h"
 #include "llvm/Support/MemoryObject.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCInst.h"
-#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Support/MathExtras.h"
-
 
 #include "MipsGenEDInfo.inc"
 
@@ -29,120 +29,72 @@ using namespace llvm;
 
 typedef MCDisassembler::DecodeStatus DecodeStatus;
 
-/// MipsDisassembler - a disasembler class for Mips32.
-class MipsDisassembler : public MCDisassembler {
+namespace {
+
+/// MipsDisassemblerBase - a disasembler class for Mips.
+class MipsDisassemblerBase : public MCDisassembler {
 public:
   /// Constructor     - Initializes the disassembler.
   ///
-  MipsDisassembler(const MCSubtargetInfo &STI, bool bigEndian) :
-    MCDisassembler(STI), isBigEndian(bigEndian) {
-  }
+  MipsDisassemblerBase(const MCSubtargetInfo &STI, const MCRegisterInfo *Info,
+                       bool bigEndian) :
+    MCDisassembler(STI), RegInfo(Info), isBigEndian(bigEndian) {}
 
-  ~MipsDisassembler() {
-  }
-
-  /// getInstruction - See MCDisassembler.
-  DecodeStatus getInstruction(MCInst &instr,
-                              uint64_t &size,
-                              const MemoryObject &region,
-                              uint64_t address,
-                              raw_ostream &vStream,
-                              raw_ostream &cStream) const;
+  virtual ~MipsDisassemblerBase() {}
 
   /// getEDInfo - See MCDisassembler.
   const EDInstInfo *getEDInfo() const;
 
+  const MCRegisterInfo *getRegInfo() const { return RegInfo; }
+
 private:
+  const MCRegisterInfo *RegInfo;
+protected:
   bool isBigEndian;
+};
+
+/// MipsDisassembler - a disasembler class for Mips32.
+class MipsDisassembler : public MipsDisassemblerBase {
+public:
+  /// Constructor     - Initializes the disassembler.
+  ///
+  MipsDisassembler(const MCSubtargetInfo &STI, const MCRegisterInfo *Info,
+                   bool bigEndian) :
+    MipsDisassemblerBase(STI, Info, bigEndian) {}
+
+  /// getInstruction - See MCDisassembler.
+  virtual DecodeStatus getInstruction(MCInst &instr,
+                                      uint64_t &size,
+                                      const MemoryObject &region,
+                                      uint64_t address,
+                                      raw_ostream &vStream,
+                                      raw_ostream &cStream) const;
 };
 
 
 /// Mips64Disassembler - a disasembler class for Mips64.
-class Mips64Disassembler : public MCDisassembler {
+class Mips64Disassembler : public MipsDisassemblerBase {
 public:
   /// Constructor     - Initializes the disassembler.
   ///
-  Mips64Disassembler(const MCSubtargetInfo &STI, bool bigEndian) :
-    MCDisassembler(STI), isBigEndian(bigEndian) {
-  }
-
-  ~Mips64Disassembler() {
-  }
+  Mips64Disassembler(const MCSubtargetInfo &STI, const MCRegisterInfo *Info,
+                     bool bigEndian) :
+    MipsDisassemblerBase(STI, Info, bigEndian) {}
 
   /// getInstruction - See MCDisassembler.
-  DecodeStatus getInstruction(MCInst &instr,
-                              uint64_t &size,
-                              const MemoryObject &region,
-                              uint64_t address,
-                              raw_ostream &vStream,
-                              raw_ostream &cStream) const;
-
-  /// getEDInfo - See MCDisassembler.
-  const EDInstInfo *getEDInfo() const;
-
-private:
-  bool isBigEndian;
+  virtual DecodeStatus getInstruction(MCInst &instr,
+                                      uint64_t &size,
+                                      const MemoryObject &region,
+                                      uint64_t address,
+                                      raw_ostream &vStream,
+                                      raw_ostream &cStream) const;
 };
 
-const EDInstInfo *MipsDisassembler::getEDInfo() const {
+} // end anonymous namespace
+
+const EDInstInfo *MipsDisassemblerBase::getEDInfo() const {
   return instInfoMips;
 }
-
-const EDInstInfo *Mips64Disassembler::getEDInfo() const {
-  return instInfoMips;
-}
-
-// Decoder tables for Mips register
-static const unsigned CPURegsTable[] = {
-  Mips::ZERO, Mips::AT, Mips::V0, Mips::V1,
-  Mips::A0, Mips::A1, Mips::A2, Mips::A3,
-  Mips::T0, Mips::T1, Mips::T2, Mips::T3,
-  Mips::T4, Mips::T5, Mips::T6, Mips::T7,
-  Mips::S0, Mips::S1, Mips::S2, Mips::S3,
-  Mips::S4, Mips::S5, Mips::S6, Mips::S7,
-  Mips::T8, Mips::T9, Mips::K0, Mips::K1,
-  Mips::GP, Mips::SP, Mips::FP, Mips::RA
-};
-
-static const unsigned FGR32RegsTable[] = {
-  Mips::F0, Mips::F1, Mips::F2, Mips::F3,
-  Mips::F4, Mips::F5, Mips::F6, Mips::F7,
-  Mips::F8, Mips::F9, Mips::F10, Mips::F11,
-  Mips::F12, Mips::F13, Mips::F14, Mips::F15,
-  Mips::F16, Mips::F17, Mips::F18, Mips::F18,
-  Mips::F20, Mips::F21, Mips::F22, Mips::F23,
-  Mips::F24, Mips::F25, Mips::F26, Mips::F27,
-  Mips::F28, Mips::F29, Mips::F30, Mips::F31
-};
-
-static const unsigned CPU64RegsTable[] = {
-  Mips::ZERO_64, Mips::AT_64, Mips::V0_64, Mips::V1_64,
-  Mips::A0_64, Mips::A1_64, Mips::A2_64, Mips::A3_64,
-  Mips::T0_64, Mips::T1_64, Mips::T2_64, Mips::T3_64,
-  Mips::T4_64, Mips::T5_64, Mips::T6_64, Mips::T7_64,
-  Mips::S0_64, Mips::S1_64, Mips::S2_64, Mips::S3_64,
-  Mips::S4_64, Mips::S5_64, Mips::S6_64, Mips::S7_64,
-  Mips::T8_64, Mips::T9_64, Mips::K0_64, Mips::K1_64,
-  Mips::GP_64, Mips::SP_64, Mips::FP_64, Mips::RA_64
-};
-
-static const unsigned FGR64RegsTable[] = {
-  Mips::D0_64,  Mips::D1_64,  Mips::D2_64,  Mips::D3_64,
-  Mips::D4_64,  Mips::D5_64,  Mips::D6_64,  Mips::D7_64,
-  Mips::D8_64,  Mips::D9_64,  Mips::D10_64, Mips::D11_64,
-  Mips::D12_64, Mips::D13_64, Mips::D14_64, Mips::D15_64,
-  Mips::D16_64, Mips::D17_64, Mips::D18_64, Mips::D19_64,
-  Mips::D20_64, Mips::D21_64, Mips::D22_64, Mips::D23_64,
-  Mips::D24_64, Mips::D25_64, Mips::D26_64, Mips::D27_64,
-  Mips::D28_64, Mips::D29_64, Mips::D30_64, Mips::D31_64
-};
-
-static const unsigned AFGR64RegsTable[] = {
-  Mips::D0,  Mips::D1,  Mips::D2,  Mips::D3,
-  Mips::D4,  Mips::D5,  Mips::D6,  Mips::D7,
-  Mips::D8,  Mips::D9,  Mips::D10, Mips::D11,
-  Mips::D12, Mips::D13, Mips::D14, Mips::D15
-};
 
 // Forward declare these because the autogenerated code will reference them.
 // Definitions are further down.
@@ -239,25 +191,25 @@ extern Target TheMipselTarget, TheMipsTarget, TheMips64Target,
 static MCDisassembler *createMipsDisassembler(
                        const Target &T,
                        const MCSubtargetInfo &STI) {
-  return new MipsDisassembler(STI,true);
+  return new MipsDisassembler(STI, T.createMCRegInfo(""), true);
 }
 
 static MCDisassembler *createMipselDisassembler(
                        const Target &T,
                        const MCSubtargetInfo &STI) {
-  return new MipsDisassembler(STI,false);
+  return new MipsDisassembler(STI, T.createMCRegInfo(""), false);
 }
 
 static MCDisassembler *createMips64Disassembler(
                        const Target &T,
                        const MCSubtargetInfo &STI) {
-  return new Mips64Disassembler(STI,true);
+  return new Mips64Disassembler(STI, T.createMCRegInfo(""), true);
 }
 
 static MCDisassembler *createMips64elDisassembler(
                        const Target &T,
                        const MCSubtargetInfo &STI) {
-  return new Mips64Disassembler(STI, false);
+  return new Mips64Disassembler(STI, T.createMCRegInfo(""), false);
 }
 
 extern "C" void LLVMInitializeMipsDisassembler() {
@@ -323,7 +275,8 @@ MipsDisassembler::getInstruction(MCInst &instr,
     return MCDisassembler::Fail;
 
   // Calling the auto-generated decoder function.
-  Result = decodeMipsInstruction32(instr, Insn, Address, this, STI);
+  Result = decodeInstruction(DecoderTableMips32, instr, Insn, Address,
+                             this, STI);
   if (Result != MCDisassembler::Fail) {
     Size = 4;
     return Result;
@@ -347,19 +300,26 @@ Mips64Disassembler::getInstruction(MCInst &instr,
     return MCDisassembler::Fail;
 
   // Calling the auto-generated decoder function.
-  Result = decodeMips64Instruction32(instr, Insn, Address, this, STI);
+  Result = decodeInstruction(DecoderTableMips6432, instr, Insn, Address,
+                             this, STI);
   if (Result != MCDisassembler::Fail) {
     Size = 4;
     return Result;
   }
   // If we fail to decode in Mips64 decoder space we can try in Mips32
-  Result = decodeMipsInstruction32(instr, Insn, Address, this, STI);
+  Result = decodeInstruction(DecoderTableMips32, instr, Insn, Address,
+                             this, STI);
   if (Result != MCDisassembler::Fail) {
     Size = 4;
     return Result;
   }
 
   return MCDisassembler::Fail;
+}
+
+static unsigned getReg(const void *D, unsigned RC, unsigned RegNo) {
+  const MipsDisassemblerBase *Dis = static_cast<const MipsDisassemblerBase*>(D);
+  return *(Dis->getRegInfo()->getRegClass(RC).begin() + RegNo);
 }
 
 static DecodeStatus DecodeCPU64RegsRegisterClass(MCInst &Inst,
@@ -370,7 +330,8 @@ static DecodeStatus DecodeCPU64RegsRegisterClass(MCInst &Inst,
   if (RegNo > 31)
     return MCDisassembler::Fail;
 
-  Inst.addOperand(MCOperand::CreateReg(CPU64RegsTable[RegNo]));
+  unsigned Reg = getReg(Decoder, Mips::CPU64RegsRegClassID, RegNo);
+  Inst.addOperand(MCOperand::CreateReg(Reg));
   return MCDisassembler::Success;
 }
 
@@ -380,8 +341,8 @@ static DecodeStatus DecodeCPURegsRegisterClass(MCInst &Inst,
                                                const void *Decoder) {
   if (RegNo > 31)
     return MCDisassembler::Fail;
-
-  Inst.addOperand(MCOperand::CreateReg(CPURegsTable[RegNo]));
+  unsigned Reg = getReg(Decoder, Mips::CPURegsRegClassID, RegNo);
+  Inst.addOperand(MCOperand::CreateReg(Reg));
   return MCDisassembler::Success;
 }
 
@@ -392,7 +353,8 @@ static DecodeStatus DecodeFGR64RegisterClass(MCInst &Inst,
   if (RegNo > 31)
     return MCDisassembler::Fail;
 
-  Inst.addOperand(MCOperand::CreateReg(FGR64RegsTable[RegNo]));
+  unsigned Reg = getReg(Decoder, Mips::FGR64RegClassID, RegNo);
+  Inst.addOperand(MCOperand::CreateReg(Reg));
   return MCDisassembler::Success;
 }
 
@@ -403,7 +365,8 @@ static DecodeStatus DecodeFGR32RegisterClass(MCInst &Inst,
   if (RegNo > 31)
     return MCDisassembler::Fail;
 
-  Inst.addOperand(MCOperand::CreateReg(FGR32RegsTable[RegNo]));
+  unsigned Reg = getReg(Decoder, Mips::FGR32RegClassID, RegNo);
+  Inst.addOperand(MCOperand::CreateReg(Reg));
   return MCDisassembler::Success;
 }
 
@@ -420,15 +383,18 @@ static DecodeStatus DecodeMem(MCInst &Inst,
                               uint64_t Address,
                               const void *Decoder) {
   int Offset = SignExtend32<16>(Insn & 0xffff);
-  int Reg = (int)fieldFromInstruction32(Insn, 16, 5);
-  int Base = (int)fieldFromInstruction32(Insn, 21, 5);
+  unsigned Reg = fieldFromInstruction(Insn, 16, 5);
+  unsigned Base = fieldFromInstruction(Insn, 21, 5);
+
+  Reg = getReg(Decoder, Mips::CPURegsRegClassID, Reg);
+  Base = getReg(Decoder, Mips::CPURegsRegClassID, Base);
 
   if(Inst.getOpcode() == Mips::SC){
-    Inst.addOperand(MCOperand::CreateReg(CPURegsTable[Reg]));
+    Inst.addOperand(MCOperand::CreateReg(Reg));
   }
 
-  Inst.addOperand(MCOperand::CreateReg(CPURegsTable[Reg]));
-  Inst.addOperand(MCOperand::CreateReg(CPURegsTable[Base]));
+  Inst.addOperand(MCOperand::CreateReg(Reg));
+  Inst.addOperand(MCOperand::CreateReg(Base));
   Inst.addOperand(MCOperand::CreateImm(Offset));
 
   return MCDisassembler::Success;
@@ -439,11 +405,14 @@ static DecodeStatus DecodeFMem(MCInst &Inst,
                                uint64_t Address,
                                const void *Decoder) {
   int Offset = SignExtend32<16>(Insn & 0xffff);
-  int Reg = (int)fieldFromInstruction32(Insn, 16, 5);
-  int Base = (int)fieldFromInstruction32(Insn, 21, 5);
+  unsigned Reg = fieldFromInstruction(Insn, 16, 5);
+  unsigned Base = fieldFromInstruction(Insn, 21, 5);
 
-  Inst.addOperand(MCOperand::CreateReg(FGR64RegsTable[Reg]));
-  Inst.addOperand(MCOperand::CreateReg(CPURegsTable[Base]));
+  Reg = getReg(Decoder, Mips::FGR64RegClassID, Reg);
+  Base = getReg(Decoder, Mips::CPURegsRegClassID, Base);
+
+  Inst.addOperand(MCOperand::CreateReg(Reg));
+  Inst.addOperand(MCOperand::CreateReg(Base));
   Inst.addOperand(MCOperand::CreateImm(Offset));
 
   return MCDisassembler::Success;
@@ -474,10 +443,12 @@ static DecodeStatus DecodeAFGR64RegisterClass(MCInst &Inst,
                                               unsigned RegNo,
                                               uint64_t Address,
                                               const void *Decoder) {
-  if (RegNo > 31)
+  if (RegNo > 30 || RegNo %2)
     return MCDisassembler::Fail;
 
-  Inst.addOperand(MCOperand::CreateReg(AFGR64RegsTable[RegNo]));
+  ;
+  unsigned Reg = getReg(Decoder, Mips::AFGR64RegClassID, RegNo /2);
+  Inst.addOperand(MCOperand::CreateReg(Reg));
   return MCDisassembler::Success;
 }
 
@@ -488,7 +459,7 @@ static DecodeStatus DecodeHWRegs64RegisterClass(MCInst &Inst,
   //Currently only hardware register 29 is supported
   if (RegNo != 29)
     return  MCDisassembler::Fail;
-  Inst.addOperand(MCOperand::CreateReg(Mips::HWR29));
+  Inst.addOperand(MCOperand::CreateReg(Mips::HWR29_64));
   return MCDisassembler::Success;
 }
 
@@ -517,7 +488,7 @@ static DecodeStatus DecodeJumpTarget(MCInst &Inst,
                                      uint64_t Address,
                                      const void *Decoder) {
 
-  unsigned JumpOffset = fieldFromInstruction32(Insn, 0, 26) << 2;
+  unsigned JumpOffset = fieldFromInstruction(Insn, 0, 26) << 2;
   Inst.addOperand(MCOperand::CreateImm(JumpOffset));
   return MCDisassembler::Success;
 }
