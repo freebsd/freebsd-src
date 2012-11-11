@@ -331,8 +331,7 @@ __END_DECLS
 	((db) << (PAGE_SHIFT - DEV_BSHIFT))
 
 /*
- * Given the pointer x to the member m of the struct s, return
- * a pointer to the containing structure.
+ * Old spelling of __containerof().
  */
 #define	member2struct(s, m, x)						\
 	((struct s *)(void *)((char *)(x) - offsetof(struct s, m)))
