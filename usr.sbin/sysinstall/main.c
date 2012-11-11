@@ -165,14 +165,21 @@ main(int argc, char **argv)
 
     /* First, see if we have any arguments to process (and argv[0] counts if it's not "sysinstall") */
     if (!RunningAsInit) {
-	for (i = optionArgs+1; i < argc; i++) {
+	int start_arg;
+
+	if (!strstr(argv[0], "sysinstall"))
+		start_arg = 0;
+	else
+		start_arg = optionArgs + 1;
+
+	for (i = start_arg; i < argc; i++) {
 	    if (DITEM_STATUS(dispatchCommand(argv[i])) != DITEM_SUCCESS)
 		systemShutdown(1);
 	}
 
 	/* If we were given commands to process on the command line, just exit
 	 * now */
-	if (argc > optionArgs+1)
+	if (argc > start_arg)
 	    systemShutdown(0);
     }
     else
