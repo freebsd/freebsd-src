@@ -36,12 +36,11 @@
 /*
  * Sleep/spin mutex.
  *
- * The layout of the first 2 members of struct mtx* is considered fixed.
- * More specifically, it is assumed that there is a member called mtx_lock
- * for every struct mtx* and that other locking primitive structures are
- * not allowed to use such name for their members.
- * If this needs to change, the bits in the mutex implementation might be
- * modified appropriately.
+ * All mutex implementations must always have a member called mtx_lock.
+ * Other locking primitive structures are not allowed to use this name
+ * for their members.
+ * If this rule needs to change, the bits in the mutex implementation must
+ * be modified appropriately.
  */
 struct mtx {
 	struct lock_object	lock_object;	/* Common lock properties. */
@@ -50,11 +49,12 @@ struct mtx {
 
 /*
  * Members of struct mtx_padalign must mirror members of struct mtx.
- * mtx_padalign mutexes can use mtx(9) KPI transparently, without modifies.
- * When using pad-aligned mutexes within structures, they should generally
- * stay as the first member of the struct.  This is because otherwise the
- * compiler can generate ever more padding for the struct to keep a correct
- * alignment for the mutex.
+ * mtx_padalign mutexes can use the mtx(9) API transparently without
+ * modification.
+ * Pad-aligned mutexes used within structures should generally be the
+ * first member of the struct.  Otherwise, the compiler can generate
+ * additional padding for the struct to keep a correct alignment for
+ * the mutex.
  */
 struct mtx_padalign {
 	struct lock_object	lock_object;	/* Common lock properties. */
