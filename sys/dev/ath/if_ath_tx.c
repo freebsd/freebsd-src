@@ -1236,8 +1236,6 @@ ath_tx_setds(struct ath_softc *sc, struct ath_buf *bf)
 	struct ath_desc *ds = bf->bf_desc;
 	struct ath_hal *ah = sc->sc_ah;
 
-	bzero(bf->bf_desc, sc->sc_tx_desclen * bf->bf_nseg);
-
 	ath_hal_setuptxdesc(ah, ds
 		, bf->bf_state.bfs_pktlen	/* packet length */
 		, bf->bf_state.bfs_hdrlen	/* header length */
