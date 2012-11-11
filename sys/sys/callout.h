@@ -52,17 +52,18 @@
 
 #define	C_DIRECT_EXEC		0x0001 /* direct execution of callout */
 #define	C_PRECISIONBITS		24
-#define	C_PRECISIONRANGE	((1 << C_PRECISIONBITS) - 1)	
+#define	C_PRECISIONRANGE	((1 << C_PRECISIONBITS) - 1)
 #define	C_PRECISIONMASK		(1 << ((32 - C_PRECISIONBITS) - 1))
-#define	C_T2PREC(x)		(((x) * 4294) & C_PRECISIONMASK) 
+#define	C_US2PREC(x)		(((x) * 4294) & C_PRECISIONMASK)
+#define	C_BT2PREC(x)		(((x) >> 32) & C_PRECISIONMASK)
 #define	C_PREC2BT(x)		((uint64_t)(flags & C_PRECISIONMASK) << 32)
 
 /*
  * Common values specified for precision.
  */
-#define	C_P1MS			C_T2PREC(1000)
-#define	C_P10MS			C_T2PREC(10000)
-#define	C_P100MS		C_T2PREC(100000)
+#define	C_P1MS			C_US2PREC(1000)
+#define	C_P10MS			C_US2PREC(10000)
+#define	C_P100MS		C_US2PREC(100000)
 
 struct callout_handle {
 	struct callout *callout;

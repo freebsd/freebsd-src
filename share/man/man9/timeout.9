@@ -349,6 +349,18 @@ Run handler directly from hardware interrupt context instead of softclock swi.
 It is faster, but puts more constraints on handlers.
 Handlers may use only spin mutexes for locking, and they must be fast because
 they run with absolute priority.
+.It Fn C_US2PREC
+Specifies acceptable deviation between requested and factual run time in
+microseconds.
+Bigger value allows to aggregate more events in one timer interrupt to
+reduce processing overhead and power consumption.
+.It Fn C_BT2PREC
+Alike to
+.Fn C_US2PREC ,
+but allows to specify deviation as 64bit fraction of second same as
+.Fa frac
+field in
+.Ft struct bintime .
 .El
 .Pp
 The function
