@@ -5598,6 +5598,13 @@ ath_node_set_tim(struct ieee80211_node *ni, int enable)
 #else
 	struct ath_vap *avp = ATH_VAP(ni->ni_vap);
 
+	/*
+	 * Some operating omdes don't set av_set_tim(), so don't
+	 * update it here.
+	 */
+	if (avp->av_set_tim == NULL)
+		return (0);
+
 	return (avp->av_set_tim(ni, enable));
 #endif /* ATH_SW_PSQ */
 }
