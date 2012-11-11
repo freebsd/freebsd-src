@@ -212,27 +212,26 @@ pass_add_physpath(void *context, int pending)
 	 */
 	periph = context;
 	softc = periph->softc;
+	physpath = malloc(MAXPATHLEN, M_DEVBUF, M_WAITOK);
 	cam_periph_lock(periph);
 	if (periph->flags & CAM_PERIPH_INVALID) {
 		cam_periph_unlock(periph);
-		return;
+		goto out;
 	}
-	cam_periph_unlock(periph);
-	physpath = malloc(MAXPATHLEN, M_DEVBUF, M_WAITOK);
 	if (xpt_getattr(physpath, MAXPATHLEN,
 			"GEOM::physpath", periph->path) == 0
 	 && strlen(physpath) != 0) {
 
+		cam_periph_unlock(periph);
 		make_dev_physpath_alias(MAKEDEV_WAITOK, &softc->alias_dev,
 					softc->dev, softc->alias_dev, physpath);
+		cam_periph_lock(periph);
 	}
-	free(physpath, M_DEVBUF);
 
 	/*
 	 * Now that we've made our alias, we no longer have to have a
 	 * reference to the device.
 	 */
-	cam_periph_lock(periph);
 	if ((softc->flags & PASS_FLAG_INITIAL_PHYSPATH) == 0) {
 		softc->flags |= PASS_FLAG_INITIAL_PHYSPATH;
 		cam_periph_unlock(periph);
@@ -240,6 +239,9 @@ pass_add_physpath(void *context, int pending)
 	}
 	else
 		cam_periph_unlock(periph);
+
+out:
+	free(physpath, M_DEVBUF);
 }
 
 static void
@@ -312,11 +314,6 @@ passregister(struct cam_periph *periph, void *arg)
 	int    no_tags;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("%s: periph was NULL!!\n", __func__);
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	if (cgd == NULL) {
 		printf("%s: no getdev CCB, can't register device\n", __func__);
 		return(CAM_REQ_CMP_ERR);
@@ -524,6 +521,7 @@ passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 	struct	cam_periph *periph;
 	struct	pass_softc *softc;
 	int	error;
+	uint32_t priority;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
@@ -556,6 +554,11 @@ passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 			break;
 		}
 
+		/* Compatibility for RL/priority-unaware code. */
+		priority = inccb->ccb_h.pinfo.priority;
+		if (priority < CAM_RL_TO_PRIORITY(CAM_RL_NORMAL))
+		    priority += CAM_RL_TO_PRIORITY(CAM_RL_NORMAL);
+
 		/*
 		 * Non-immediate CCBs need a CCB from the per-device pool
 		 * of CCBs, which is scheduled by the transport layer.
@@ -564,15 +567,14 @@ passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 		 */
 		if ((inccb->ccb_h.func_code & XPT_FC_QUEUED)
 		 && ((inccb->ccb_h.func_code & XPT_FC_USER_CCB) == 0)) {
-			ccb = cam_periph_getccb(periph,
-						inccb->ccb_h.pinfo.priority);
+			ccb = cam_periph_getccb(periph, priority);
 			ccb_malloced = 0;
 		} else {
 			ccb = xpt_alloc_ccb_nowait();
 
 			if (ccb != NULL)
 				xpt_setup_ccb(&ccb->ccb_h, periph->path,
-					      inccb->ccb_h.pinfo.priority);
+					      priority);
 			ccb_malloced = 1;
 		}
 

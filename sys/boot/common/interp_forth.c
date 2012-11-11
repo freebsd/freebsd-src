@@ -139,6 +139,12 @@ bf_command(FICL_VM *vm)
 	result=BF_PARSE;
     }
     free(line);
+    /*
+     * If there was error during nested ficlExec(), we may no longer have
+     * valid environment to return.  Throw all exceptions from here.
+     */
+    if (result != 0)
+	vmThrow(vm, result);
     /* This is going to be thrown!!! */
     stackPushINT(vm->pStack,result);
 }

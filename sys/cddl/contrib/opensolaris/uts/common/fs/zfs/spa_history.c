@@ -306,6 +306,9 @@ spa_history_log(spa_t *spa, const char *history_str, history_log_type_t what)
 
 	ASSERT(what != LOG_INTERNAL);
 
+	if (spa_version(spa) < SPA_VERSION_ZPOOL_HISTORY || !spa_writeable(spa))
+		return (EINVAL);
+
 	tx = dmu_tx_create_dd(spa_get_dsl(spa)->dp_mos_dir);
 	err = dmu_tx_assign(tx, TXG_WAIT);
 	if (err) {
@@ -435,8 +438,9 @@ log_internal(history_internal_events_t event, spa_t *spa,
 	/*
 	 * If this is part of creating a pool, not everything is
 	 * initialized yet, so don't bother logging the internal events.
+	 * Likewise if the pool is not writeable.
 	 */
-	if (tx->tx_txg == TXG_INITIAL)
+	if (tx->tx_txg == TXG_INITIAL || !spa_writeable(spa))
 		return;
 
 	va_copy(adx2, adx);

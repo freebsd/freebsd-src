@@ -359,11 +359,7 @@ yesno:
 		return (_POSIX_CLOCK_SELECTION);
 #endif
 	case _SC_CPUTIME:
-#if _POSIX_CPUTIME == 0
-#error "_POSIX_CPUTIME"
-#else
 		return (_POSIX_CPUTIME);
-#endif
 #ifdef notdef
 	case _SC_FILE_LOCKING:
 		/*

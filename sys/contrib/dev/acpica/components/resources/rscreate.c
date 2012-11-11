@@ -209,8 +209,8 @@ AcpiRsCreateResourceList (
  *
  * FUNCTION:    AcpiRsCreatePciRoutingTable
  *
- * PARAMETERS:  PackageObject           - Pointer to an ACPI_OPERAND_OBJECT
- *                                        package
+ * PARAMETERS:  PackageObject           - Pointer to a package containing one
+ *                                        of more ACPI_OPERAND_OBJECTs
  *              OutputBuffer            - Pointer to the user's buffer
  *
  * RETURN:      Status  AE_OK if okay, else a valid ACPI_STATUS code.
@@ -218,7 +218,7 @@ AcpiRsCreateResourceList (
  *              AE_BUFFER_OVERFLOW and OutputBuffer->Length will point
  *              to the size buffer needed.
  *
- * DESCRIPTION: Takes the ACPI_OPERAND_OBJECT  package and creates a
+ * DESCRIPTION: Takes the ACPI_OPERAND_OBJECT package and creates a
  *              linked list of PCI interrupt descriptions
  *
  * NOTE: It is the caller's responsibility to ensure that the start of the
@@ -531,4 +531,3 @@ AcpiRsCreateAmlResources (
             OutputBuffer->Pointer, (UINT32) OutputBuffer->Length));
     return_ACPI_STATUS (AE_OK);
 }
-

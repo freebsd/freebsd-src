@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "DGST 1"
-.TH DGST 1 "2012-05-10" "0.9.8x" "OpenSSL"
+.TH DGST 1 "2012-05-10" "1.0.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -141,6 +141,7 @@ dgst, md5, md4, md2, sha1, sha, mdc2, ripemd160 \- message digests
 [\fB\-binary\fR]
 [\fB\-out filename\fR]
 [\fB\-sign filename\fR]
+[\fB\-keyform arg\fR]
 [\fB\-passin arg\fR]
 [\fB\-verify filename\fR]
 [\fB\-prverify filename\fR]
@@ -178,6 +179,19 @@ filename to output to, or standard output by default.
 .IP "\fB\-sign filename\fR" 4
 .IX Item "-sign filename"
 digitally sign the digest using the private key in \*(L"filename\*(R".
+.IP "\fB\-keyform arg\fR" 4
+.IX Item "-keyform arg"
+Specifies the key format to sign digest with. Only \s-1PEM\s0 and \s-1ENGINE\s0
+formats are supported by the \fBdgst\fR command.
+.IP "\fB\-engine id\fR" 4
+.IX Item "-engine id"
+Use engine \fBid\fR for operations (including private key storage).
+This engine is not used as source for digest algorithms, unless it is
+also specified in the configuration file.
+.IP "\fB\-sigopt nm:v\fR" 4
+.IX Item "-sigopt nm:v"
+Pass options to the signature algorithm during sign or verify operations.
+Names and values of these options are algorithm-specific.
 .IP "\fB\-passin arg\fR" 4
 .IX Item "-passin arg"
 the private key password source. For more information about the format of \fBarg\fR
@@ -195,6 +209,31 @@ the actual signature to verify.
 .IP "\fB\-hmac key\fR" 4
 .IX Item "-hmac key"
 create a hashed \s-1MAC\s0 using \*(L"key\*(R".
+.IP "\fB\-mac alg\fR" 4
+.IX Item "-mac alg"
+create \s-1MAC\s0 (keyed Message Authentication Code). The most popular \s-1MAC\s0
+algorithm is \s-1HMAC\s0 (hash-based \s-1MAC\s0), but there are other \s-1MAC\s0 algorithms
+which are not based on hash, for instance \fBgost-mac\fR algorithm,
+supported by \fBccgost\fR engine. \s-1MAC\s0 keys and other options should be set
+via \fB\-macopt\fR parameter.
+.IP "\fB\-macopt nm:v\fR" 4
+.IX Item "-macopt nm:v"
+Passes options to \s-1MAC\s0 algorithm, specified by \fB\-mac\fR key.
+Following options are supported by both by \fB\s-1HMAC\s0\fR and \fBgost-mac\fR:
+.RS 4
+.IP "\fBkey:string\fR" 8
+.IX Item "key:string"
+Specifies \s-1MAC\s0 key as alphnumeric string (use if key contain printable
+characters only). String length must conform to any restrictions of
+the \s-1MAC\s0 algorithm for example exactly 32 chars for gost-mac.
+.IP "\fBhexkey:string\fR" 8
+.IX Item "hexkey:string"
+Specifies \s-1MAC\s0 key in hexadecimal form (two hex digits per byte).
+Key length must conform to any restrictions of the \s-1MAC\s0 algorithm
+for example exactly 32 chars for gost-mac.
+.RE
+.RS 4
+.RE
 .IP "\fB\-rand file(s)\fR" 4
 .IX Item "-rand file(s)"
 a file or files containing random data used to seed the random number

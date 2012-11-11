@@ -20,11 +20,14 @@
 /* Define if position independent code is enabled */
 #define ENABLE_PIC 0
 
-/* Define if timestamp information (e.g., __DATE___) is allowed */
+/* Define if timestamp information (e.g., __DATE__) is allowed */
 #define ENABLE_TIMESTAMPS 0
 
 /* Directory where gcc is installed. */
 #define GCC_INSTALL_PREFIX ""
+
+/* Define to 1 if you have the `arc4random' function. */
+#define HAVE_ARC4RANDOM 1
 
 /* Define to 1 if you have the `argz_append' function. */
 /* #undef HAVE_ARGZ_APPEND */
@@ -551,6 +554,9 @@
 /* Has gcc/MSVC atomic intrinsics */
 #define LLVM_HAS_ATOMICS 0
 
+/* Host triple LLVM will be executed on */
+/* #undef LLVM_HOSTTRIPLE */
+
 /* Installation directory for include files */
 /* #undef LLVM_INCLUDEDIR */
 
@@ -630,7 +636,7 @@
 #define LLVM_VERSION_MAJOR 3
 
 /* Minor version of the LLVM API */
-#define LLVM_VERSION_MINOR 1
+#define LLVM_VERSION_MINOR 2
 
 /* Define if the OS needs help to load dependent libraries for dlopen(). */
 #define LTDL_DLOPEN_DEPLIBS 1
@@ -663,13 +669,13 @@
 #define PACKAGE_NAME "LLVM"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "LLVM 3.1"
+#define PACKAGE_STRING "LLVM 3.2svn"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "llvm"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "3.1"
+#define PACKAGE_VERSION "3.2svn"
 
 /* Define as the return type of signal handlers (`int' or `void'). */
 #define RETSIGTYPE void

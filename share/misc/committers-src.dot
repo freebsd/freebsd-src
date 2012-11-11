@@ -15,14 +15,15 @@ digraph src {
 #   foo [label="Foo Bar\nfoo@FreeBSD.org\n????/??/??"]
 #
 # ????/??/?? is the date when the commit bit was obtained, usually the one you
-# can find looking at CVS logs for the access (or avail) file under CVSROOT.
+# can find looking at svn logs for the svnadmin/access file.
+# Use YYYY/MM/DD format.
 #
 # For returned commit bits, the node definition will follow this example:
 #
 #   foo [label="Foo Bar\nfoo@FreeBSD.org\n????/??/??\n????/??/??"]
 #
 # The first date is the same as for an active committer, the second date is
-# the date when the commit bit has been returned. Again, check CVS logs.
+# the date when the commit bit has been returned. Again, check svn logs.
 
 node [color=grey62, style=filled, bgcolor=black];
 
@@ -113,6 +114,7 @@ brooks [label="Brooks Davis\nbrooks@FreeBSD.org\n2001/06/21"]
 brucec [label="Bruce Cran\nbrucec@FreeBSD.org\n2010/01/29"]
 brueffer [label="Christian Brueffer\nbrueffer@FreeBSD.org\n2006/02/28"]
 bruno [label="Bruno Ducrot\nbruno@FreeBSD.org\n2005/07/18"]
+bryanv [label="Bryan Venteicher\nbryanv@FreeBSD.org\n2012/11/03"]
 bschmidt [label="Bernhard Schmidt\nbschmidt@FreeBSD.org\n2010/02/06"]
 bz [label="Bjoern A. Zeeb\nbz@FreeBSD.org\n2004/07/27"]
 cognet [label="Olivier Houchard\ncognet@FreeBSD.org\n2002/10/09"]
@@ -132,6 +134,7 @@ dougb [label="Doug Barton\ndougb@FreeBSD.org\n2000/10/26"]
 dteske [label="Devin Teske\ndteske@FreeBSD.org\n2012/04/10"]
 dumbbell [label="Jean-Sebastien Pedron\ndumbbell@FreeBSD.org\n2004/11/29"]
 dwmalone [label="David Malone\ndwmalone@FreeBSD.org\n2000/07/11"]
+eadler [label="Eitan Adler\neadler@FreeBSD.org\n2012/01/18"]
 ed [label="Ed Schouten\ned@FreeBSD.org\n2008/05/22"]
 edwin [label="Edwin Groothuis\nedwin@FreeBSD.org\n2007/06/25"]
 eivind [label="Eivind Eklund\neivind@FreeBSD.org\n????/??/??"]
@@ -213,6 +216,7 @@ obrien [label="David E. O'Brien\nobrien@FreeBSD.org\n1996/10/29"]
 olli [label="Oliver Fromme\nolli@FreeBSD.org\n2008/02/14"]
 peadar [label="Peter Edwards\npeadar@FreeBSD.org\n2004/03/08"]
 peter [label="Peter Wemm\npeter@FreeBSD.org\n????/??/??"]
+peterj [label="Peter Jeremy\npeterj@FreeBSD.org\n2012/09/14"]
 pfg [label="Pedro Giffuni\npfg@FreeBSD.org\n2011/12/01"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2004/01/21"]
 phk [label="Poul-Henning Kamp\nphk@FreeBSD.org\n1994/02/21"]
@@ -244,6 +248,7 @@ scottl [label="Scott Long\nscottl@FreeBSD.org\n2000/09/28"]
 sephe [label="Sepherosa Ziehau\nsephe@FreeBSD.org\n2007/03/28"]
 sepotvin [label="Stephane E. Potvin\nsepotvin@FreeBSD.org\n2007/02/15"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2006/03/07"]
+sjg [label="Simon J. Gerraty\nsjg@FreeBSD.org\n2012/10/23"]
 sobomax [label="Maxim Sobolev\nsobomax@FreeBSD.org\n2001/07/25"]
 sos [label="Soren Schmidt\nsos@FreeBSD.org\n????/??/??"]
 sson [label="Stacey Son\nsson@FreeBSD.org\n2008/07/08"]
@@ -272,6 +277,7 @@ yongari [label="Pyun YongHyeon\nyongari@FreeBSD.org\n2004/08/01"]
 zack [label="Zack Kirsch\nzack@FreeBSD.org\n2010/11/05"]
 zec [label="Marko Zec\nzec@FreeBSD.org\n2008/06/22"]
 zml [label="Zachary Loafman\nzml@FreeBSD.org\n2009/05/27"]
+zont [label="Andrey Zonov\nzont@FreeBSD.org\n2012/08/21"]
 
 # Pseudo target representing rev 1.1 of commit.allow
 day1 [label="Birth of FreeBSD"]
@@ -329,6 +335,7 @@ bz -> syrinx
 cognet -> jceel
 cognet -> kevlo
 
+cperciva -> eadler
 cperciva -> flz
 cperciva -> randi
 cperciva -> simon
@@ -390,8 +397,11 @@ gnn -> lstewart
 gnn -> np
 gnn -> davide
 
+grehan -> bryanv
+
 grog -> edwin
 grog -> le
+grog -> peterj
 
 imp -> akiyama
 imp -> ambrisko
@@ -435,9 +445,11 @@ jhb -> arr
 jhb -> avg
 jhb -> jeff
 jhb -> kbyanc
-jhb -> rnoland
+jhb -> peterj
 jhb -> pfg
+jhb -> rnoland
 
+jkh -> grog
 jkh -> imp
 jkh -> jlemon
 jkh -> joerg
@@ -480,6 +492,7 @@ kib -> rmh
 kib -> stas
 kib -> tijl
 kib -> trociny
+kib -> zont
 
 kmacy -> lstewart
 
@@ -487,6 +500,7 @@ marcel -> art
 marcel -> arun
 marcel -> marius
 marcel -> nwhitehorn
+marcel -> sjg
 
 markm -> jasone
 markm -> sheldonh

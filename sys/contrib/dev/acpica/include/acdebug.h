@@ -47,25 +47,33 @@
 
 #define ACPI_DEBUG_BUFFER_SIZE  0x4000      /* 16K buffer for return objects */
 
-typedef struct CommandInfo
+typedef struct acpi_db_command_info
 {
     char                    *Name;          /* Command Name */
     UINT8                   MinArgs;        /* Minimum arguments required */
 
-} COMMAND_INFO;
+} ACPI_DB_COMMAND_INFO;
 
-typedef struct ArgumentInfo
+typedef struct acpi_db_command_help
+{
+    UINT8                   LineCount;      /* Number of help lines */
+    char                    *Invocation;    /* Command Invocation */
+    char                    *Description;   /* Command Description */
+
+} ACPI_DB_COMMAND_HELP;
+
+typedef struct acpi_db_argument_info
 {
     char                    *Name;          /* Argument Name */
 
-} ARGUMENT_INFO;
+} ACPI_DB_ARGUMENT_INFO;
 
-typedef struct acpi_execute_walk
+typedef struct acpi_db_execute_walk
 {
     UINT32                  Count;
     UINT32                  MaxCount;
 
-} ACPI_EXECUTE_WALK;
+} ACPI_DB_EXECUTE_WALK;
 
 
 #define PARAM_LIST(pl)                  pl
@@ -112,8 +120,7 @@ AcpiDbDisplayTemplate (
 
 void
 AcpiDbUnloadAcpiTable (
-    char                    *TableArg,
-    char                    *InstanceArg);
+    char                    *Name);
 
 void
 AcpiDbSendNotify (
@@ -305,7 +312,7 @@ AcpiDbGetCacheInfo (
 ACPI_OBJECT_TYPE
 AcpiDbMatchArgument (
     char                    *UserArgument,
-    ARGUMENT_INFO           *Arguments);
+    ACPI_DB_ARGUMENT_INFO   *Arguments);
 
 void
 AcpiDbCloseDebugFile (

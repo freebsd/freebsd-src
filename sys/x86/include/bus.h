@@ -1038,7 +1038,7 @@ bus_space_barrier(bus_space_tag_t tag __unused, bus_space_handle_t bsh __unused,
 		__asm __volatile("lock; addl $0,0(%%esp)" : : : "memory");
 #endif
 	else
-		__asm __volatile("" : : : "memory");
+		__compiler_membar();
 #endif
 }
 

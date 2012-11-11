@@ -124,7 +124,7 @@
 .\" ========================================================================
 .\"
 .IX Title "REQ 1"
-.TH REQ 1 "2012-05-10" "0.9.8x" "OpenSSL"
+.TH REQ 1 "2012-05-10" "1.0.1c" "OpenSSL"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -148,12 +148,13 @@ req \- PKCS#10 certificate request and certificate generating utility.
 [\fB\-new\fR]
 [\fB\-rand file(s)\fR]
 [\fB\-newkey rsa:bits\fR]
-[\fB\-newkey dsa:file\fR]
+[\fB\-newkey alg:file\fR]
 [\fB\-nodes\fR]
 [\fB\-key filename\fR]
 [\fB\-keyform PEM|DER\fR]
 [\fB\-keyout filename\fR]
-[\fB\-[md5|sha1|md2|mdc2]\fR]
+[\fB\-keygen_engine id\fR]
+[\fB\-[digest]\fR]
 [\fB\-config filename\fR]
 [\fB\-subj arg\fR]
 [\fB\-multivalue\-rdn\fR]
@@ -161,11 +162,15 @@ req \- PKCS#10 certificate request and certificate generating utility.
 [\fB\-days n\fR]
 [\fB\-set_serial n\fR]
 [\fB\-asn1\-kludge\fR]
+[\fB\-no\-asn1\-kludge\fR]
 [\fB\-newhdr\fR]
 [\fB\-extensions section\fR]
 [\fB\-reqexts section\fR]
 [\fB\-utf8\fR]
 [\fB\-nameopt\fR]
+[\fB\-reqopt\fR]
+[\fB\-subject\fR]
+[\fB\-subj arg\fR]
 [\fB\-batch\fR]
 [\fB\-verbose\fR]
 [\fB\-engine id\fR]
@@ -206,6 +211,10 @@ see the \fB\s-1PASS\s0 \s-1PHRASE\s0 \s-1ARGUMENTS\s0\fR section in \fIopenssl\f
 .IP "\fB\-text\fR" 4
 .IX Item "-text"
 prints out the certificate request in text form.
+.IP "\fB\-subject\fR" 4
+.IX Item "-subject"
+prints out the request subject (or certificate subject if \fB\-x509\fR is
+specified)
 .IP "\fB\-pubkey\fR" 4
 .IX Item "-pubkey"
 outputs the public key.
@@ -228,6 +237,12 @@ in the configuration file and any requested extensions.
 .Sp
 If the \fB\-key\fR option is not used it will generate a new \s-1RSA\s0 private
 key using information specified in the configuration file.
+.IP "\fB\-subj arg\fR" 4
+.IX Item "-subj arg"
+Replaces subject field of input request with specified data and outputs
+modified request. The arg must be formatted as
+\&\fI/type0=value0/type1=value1/type2=...\fR,
+characters may be escaped by \e (backslash), no spaces are skipped.
 .IP "\fB\-rand file(s)\fR" 4
 .IX Item "-rand file(s)"
 a file or files containing random data used to seed the random number
@@ -238,10 +253,33 @@ all others.
 .IP "\fB\-newkey arg\fR" 4
 .IX Item "-newkey arg"
 this option creates a new certificate request and a new private
-key. The argument takes one of two forms. \fBrsa:nbits\fR, where
+key. The argument takes one of several forms. \fBrsa:nbits\fR, where
 \&\fBnbits\fR is the number of bits, generates an \s-1RSA\s0 key \fBnbits\fR
-in size. \fBdsa:filename\fR generates a \s-1DSA\s0 key using the parameters
-in the file \fBfilename\fR.
+in size. If \fBnbits\fR is omitted, i.e. \fB\-newkey rsa\fR specified,
+the default key size, specified in the configuration file is used.
+.Sp
+All other algorithms support the \fB\-newkey alg:file\fR form, where file may be
+an algorithm parameter file, created by the \fBgenpkey \-genparam\fR command
+or and X.509 certificate for a key with approriate algorithm.
+.Sp
+\&\fBparam:file\fR generates a key using the parameter file or certificate \fBfile\fR,
+the algorithm is determined by the parameters. \fBalgname:file\fR use algorithm
+\&\fBalgname\fR and parameter file \fBfile\fR: the two algorithms must match or an
+error occurs. \fBalgname\fR just uses algorithm \fBalgname\fR, and parameters,
+if neccessary should be specified via \fB\-pkeyopt\fR parameter.
+.Sp
+\&\fBdsa:filename\fR generates a \s-1DSA\s0 key using the parameters
+in the file \fBfilename\fR. \fBec:filename\fR generates \s-1EC\s0 key (usable both with
+\&\s-1ECDSA\s0 or \s-1ECDH\s0 algorithms), \fBgost2001:filename\fR generates \s-1GOST\s0 R
+34.10\-2001 key (requires \fBccgost\fR engine configured in the configuration
+file). If just \fBgost2001\fR is specified a parameter set should be
+specified by \fB\-pkeyopt paramset:X\fR
+.IP "\fB\-pkeyopt opt:value\fR" 4
+.IX Item "-pkeyopt opt:value"
+set the public key algorithm option \fBopt\fR to \fBvalue\fR. The precise set of
+options supported depends on the public key algorithm used and its
+implementation. See \fB\s-1KEY\s0 \s-1GENERATION\s0 \s-1OPTIONS\s0\fR in the \fBgenpkey\fR manual page
+for more details.
 .IP "\fB\-key filename\fR" 4
 .IX Item "-key filename"
 This specifies the file to read the private key from. It also
@@ -259,11 +297,15 @@ configuration file is used.
 .IX Item "-nodes"
 if this option is specified then if a private key is created it
 will not be encrypted.
-.IP "\fB\-[md5|sha1|md2|mdc2]\fR" 4
-.IX Item "-[md5|sha1|md2|mdc2]"
-this specifies the message digest to sign the request with. This
-overrides the digest algorithm specified in the configuration file.
-This option is ignored for \s-1DSA\s0 requests: they always use \s-1SHA1\s0.
+.IP "\fB\-[digest]\fR" 4
+.IX Item "-[digest]"
+this specifies the message digest to sign the request with (such as
+\&\fB\-md5\fR, \fB\-sha1\fR). This overrides the digest algorithm specified in
+the configuration file.
+.Sp
+Some public key algorithms may override this choice. For instance, \s-1DSA\s0
+signatures always use \s-1SHA1\s0, \s-1GOST\s0 R 34.10 signatures always use
+\&\s-1GOST\s0 R 34.11\-94 (\fB\-md_gost94\fR).
 .IP "\fB\-config filename\fR" 4
 .IX Item "-config filename"
 this allows an alternative configuration file to be specified,
@@ -323,6 +365,13 @@ option which determines how the subject or issuer names are displayed. The
 \&\fBoption\fR argument can be a single option or multiple options separated by
 commas.  Alternatively the \fB\-nameopt\fR switch may be used more than once to
 set multiple options. See the \fIx509\fR\|(1) manual page for details.
+.IP "\fB\-reqopt\fR" 4
+.IX Item "-reqopt"
+customise the output format used with \fB\-text\fR. The \fBoption\fR argument can be
+a single option or multiple options separated by commas.
+.Sp
+See discission of the  \fB\-certopt\fR parameter in the \fBx509\fR
+command.
 .IP "\fB\-asn1\-kludge\fR" 4
 .IX Item "-asn1-kludge"
 by default the \fBreq\fR command outputs certificate requests containing
@@ -337,6 +386,9 @@ empty \fB\s-1SET\s0 \s-1OF\s0\fR. The invalid form does not include the empty
 \&\fB\s-1SET\s0 \s-1OF\s0\fR whereas the correct form does.
 .Sp
 It should be noted that very few CAs still require the use of this option.
+.IP "\fB\-no\-asn1\-kludge\fR" 4
+.IX Item "-no-asn1-kludge"
+Reverses effect of \fB\-asn1\-kludge\fR
 .IP "\fB\-newhdr\fR" 4
 .IX Item "-newhdr"
 Adds the word \fB\s-1NEW\s0\fR to the \s-1PEM\s0 file header and footer lines on the outputed
@@ -349,10 +401,14 @@ non-interactive mode.
 print extra details about the operations being performed.
 .IP "\fB\-engine id\fR" 4
 .IX Item "-engine id"
-specifying an engine (by it's unique \fBid\fR string) will cause \fBreq\fR
+specifying an engine (by its unique \fBid\fR string) will cause \fBreq\fR
 to attempt to obtain a functional reference to the specified engine,
 thus initialising it if needed. The engine will then be set as the default
 for all available algorithms.
+.IP "\fB\-keygen_engine id\fR" 4
+.IX Item "-keygen_engine id"
+specifies an engine (by its unique \fBid\fR string) which would be used
+for key generation operations.
 .SH "CONFIGURATION FILE FORMAT"
 .IX Header "CONFIGURATION FILE FORMAT"
 The configuration options are specified in the \fBreq\fR section of
@@ -421,7 +477,9 @@ problems with BMPStrings and UTF8Strings: in particular Netscape.
 .IX Item "req_extensions"
 this specifies the configuration file section containing a list of
 extensions to add to the certificate request. It can be overridden
-by the \fB\-reqexts\fR command line switch.
+by the \fB\-reqexts\fR command line switch. See the 
+\&\fIx509v3_config\fR\|(5) manual page for details of the
+extension section format.
 .IP "\fBx509_extensions\fR" 4
 .IX Item "x509_extensions"
 this specifies the configuration file section containing a list of
@@ -698,4 +756,5 @@ address in subjectAltName should be input by the user.
 .SH "SEE ALSO"
 .IX Header "SEE ALSO"
 \&\fIx509\fR\|(1), \fIca\fR\|(1), \fIgenrsa\fR\|(1),
-\&\fIgendsa\fR\|(1), \fIconfig\fR\|(5)
+\&\fIgendsa\fR\|(1), \fIconfig\fR\|(5),
+\&\fIx509v3_config\fR\|(5)

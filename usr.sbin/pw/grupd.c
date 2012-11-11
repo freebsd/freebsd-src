@@ -29,6 +29,9 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <grp.h>
+#include <libutil.h>
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -65,107 +68,62 @@ getgrpath(const char * file)
 	return pathbuf;
 }
 
-int
-grdb(char *arg,...)
-{
-	/*
-	 * This is a stub for now, but maybe eventually be functional
-	 * if ever an indexed version of /etc/groups is implemented.
-	 */
-	arg=arg;
-	return 0;
-}
-
-int
-fmtgrentry(char **buf, int * buflen, struct group * grp, int type)
-{
-	int             i, l;
-
-	/*
-	 * Since a group line is of arbitrary length,
-	 * we need to calculate up-front just how long
-	 * it will need to be...
-	 */
-	/*  groupname              :   password                 :  gid  : */
-	l = strlen(grp->gr_name) + 1 + strlen(grp->gr_passwd) + 1 + 5 + 1;
-	/* group members + comma separator */
-	for (i = 0; grp->gr_mem[i] != NULL; i++) {
-		l += strlen(grp->gr_mem[i]) + 1;
-	}
-	l += 2; /* For newline & NUL */
-	if (extendline(buf, buflen, l) == -1)
-		l = -1;
-	else{
-		/*
-		 * Now we can safely format
-		 */
-		if (type == PWF_STANDARD)
-			l = sprintf(*buf, "%s:*:%ld:", grp->gr_name, (long) grp->gr_gid);
-		else
-			l = sprintf(*buf, "%s:%s:%ld:", grp->gr_name, grp->gr_passwd, (long) grp->gr_gid);
-
-		/*
-		 * List members
-		 */
-		for (i = 0; grp->gr_mem[i] != NULL; i++) {
-			l += sprintf(*buf + l, "%s%s", i ? "," : "", grp->gr_mem[i]);
-		}
-
-		(*buf)[l++] = '\n';
-		(*buf)[l] = '\0';
-	}
-	return l;
-}
-
-
-int
-fmtgrent(char **buf, int * buflen, struct group * grp)
-{
-	return fmtgrentry(buf, buflen, grp, PWF_STANDARD);
-}
-
-
 static int
-gr_update(struct group * grp, char const * group, int mode)
+gr_update(struct group * grp, char const * group)
 {
-	int             l;
-	char            pfx[64];
-	int		grbuflen = 0;
-	char	       *grbuf = NULL;
+	int pfd, tfd;
+	struct group *gr = NULL;
+	struct group *old_gr = NULL;
 
-	ENDGRENT();
-	l = snprintf(pfx, sizeof pfx, "%s:", group);
+	if (grp != NULL)
+		gr = gr_dup(grp);
 
-	/*
-	 * Update the group file
-	 */
-	if (grp != NULL && fmtgrentry(&grbuf, &grbuflen, grp, PWF_PASSWD) == -1)
-		l = -1;
-	else {
-		l = fileupdate(getgrpath(_GROUP), 0644, grbuf, pfx, l, mode);
-		if (l == 0)
-			l = grdb(NULL);
+	if (group != NULL)
+		old_gr = GETGRNAM(group);
+
+	if (gr_init(grpath, NULL))
+		err(1, "gr_init()");
+
+	if ((pfd = gr_lock()) == -1) {
+		gr_fini();
+		err(1, "gr_lock()");
 	}
-	if (grbuf != NULL)
-		free(grbuf);
-	return l;
+	if ((tfd = gr_tmp(-1)) == -1) {
+		gr_fini();
+		err(1, "gr_tmp()");
+	}
+	if (gr_copy(pfd, tfd, gr, old_gr) == -1) {
+		gr_fini();
+		err(1, "gr_copy()");
+	}
+	if (gr_mkdb() == -1) {
+		gr_fini();
+		err(1, "gr_mkdb()");
+	}
+	free(gr);
+	gr_fini();
+	return 0;
 }
 
 
 int
 addgrent(struct group * grp)
 {
-	return gr_update(grp, grp->gr_name, UPD_CREATE);
+	return gr_update(grp, NULL);
 }
 
 int
 chggrent(char const * login, struct group * grp)
 {
-	return gr_update(grp, login, UPD_REPLACE);
+	return gr_update(grp, login);
 }
 
 int
 delgrent(struct group * grp)
 {
-	return gr_update(NULL, grp->gr_name, UPD_DELETE);
+	char group[MAXLOGNAME];
+
+	strlcpy(group, grp->gr_name, MAXLOGNAME);
+
+	return gr_update(NULL, group);
 }

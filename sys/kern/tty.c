@@ -361,7 +361,7 @@ tty_is_ctty(struct tty *tp, struct proc *p)
 	return (p->p_session == tp->t_session && p->p_flag & P_CONTROLT);
 }
 
-static int
+int
 tty_wait_background(struct tty *tp, struct thread *td, int sig)
 {
 	struct proc *p = td->td_proc;
@@ -433,13 +433,6 @@ ttydev_read(struct cdev *dev, struct uio *uio, int ioflag)
 	error = ttydev_enter(tp);
 	if (error)
 		goto done;
-
-	error = tty_wait_background(tp, curthread, SIGTTIN);
-	if (error) {
-		tty_unlock(tp);
-		goto done;
-	}
-
 	error = ttydisc_read(tp, uio, ioflag);
 	tty_unlock(tp);
 
@@ -1388,6 +1381,16 @@ tty_flush(struct tty *tp, int flags)
 	}
 }
 
+void
+tty_set_winsize(struct tty *tp, const struct winsize *wsz)
+{
+
+	if (memcmp(&tp->t_winsize, wsz, sizeof(*wsz)) == 0)
+		return;
+	tp->t_winsize = *wsz;
+	tty_signal_pgrp(tp, SIGWINCH);
+}
+
 static int
 tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
     struct thread *td)
@@ -1696,10 +1699,7 @@ tty_generic_ioctl(struct tty *tp, u_long cmd, void *data, int fflag,
 		return (0);
 	case TIOCSWINSZ:
 		/* Set window size. */
-		if (bcmp(&tp->t_winsize, data, sizeof(struct winsize)) == 0)
-			return (0);
-		tp->t_winsize = *(struct winsize*)data;
-		tty_signal_pgrp(tp, SIGWINCH);
+		tty_set_winsize(tp, data);
 		return (0);
 	case TIOCEXCL:
 		tp->t_flags |= TF_EXCLUDE;

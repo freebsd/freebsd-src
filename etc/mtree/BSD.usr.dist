@@ -58,6 +58,8 @@
     sbin
     ..
     share
+        atf
+        ..
         calendar
             de_DE.ISO8859-1
             ..
@@ -76,6 +78,8 @@
         ..
         doc
             IPv6
+            ..
+            atf
             ..
             atm
             ..
@@ -211,6 +215,8 @@
             ..
             IPv6
             ..
+            atf
+            ..
             bootforth
             ..
             csh
@@ -271,6 +277,8 @@
                     ..
                 ..
             ..
+            libusb20
+            ..
             libvgl
             ..
             mdoc
@@ -279,15 +287,11 @@
                 bluetooth
                 ..
             ..
-            nwclient
-            ..
             pc-sysinstall
             ..
             perfmon
             ..
             pf
-            ..
-            portal
             ..
             ppi
             ..
@@ -307,10 +311,6 @@
                 setobjstat
                 ..
                 srcs
-                ..
-            ..
-            smbfs
-                print
                 ..
             ..
             sunrpc
@@ -950,6 +950,8 @@
             man9
             ..
         ..
+        mdocml
+        ..
         misc
             fonts
             ..
@@ -1328,6 +1330,14 @@
             catalog
             ..
         ..
+        xml
+            atf
+            ..
+        ..
+        xsl
+            atf
+            ..
+        ..
         zoneinfo
             Africa
             ..
@@ -1364,5 +1374,7 @@
         ..
     ..
     src             nochange
+    ..
+    tests
     ..
 ..

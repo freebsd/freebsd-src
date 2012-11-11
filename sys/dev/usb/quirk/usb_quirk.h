@@ -29,7 +29,7 @@
 
 enum {
 	/*
-	 * Keep in sync with theusb_quirk_str usb_quirk.c, and with the
+	 * Keep in sync with usb_quirk_str in usb_quirk.c, and with
 	 * share/man/man4/usb_quirk.4
 	 */
 	UQ_NONE,		/* not a valid quirk */
@@ -49,6 +49,7 @@ enum {
 	UQ_HID_IGNORE,		/* device should be ignored by hid class */
 	UQ_KBD_IGNORE,		/* device should be ignored by kbd class */
 	UQ_KBD_BOOTPROTO,	/* device should set the boot protocol */
+	UQ_UMS_IGNORE,          /* device should be ignored by ums class */
 	UQ_MS_BAD_CLASS,	/* doesn't identify properly */
 	UQ_MS_LEADING_BYTE,	/* mouse sends an unknown leading byte */
 	UQ_MS_REVZ,		/* mouse has Z-axis reversed */
@@ -64,13 +65,17 @@ enum {
 	UQ_CFG_INDEX_0,		/* select configuration index 0 by default */
 	UQ_ASSUME_CM_OVER_DATA,	/* assume cm over data feature */
 
-	/* USB Mass Storage Quirks. See "storage/umass.c" for a detailed description. */
+	/*
+	 * USB Mass Storage Quirks. See "storage/umass.c" for a
+	 * detailed description.
+	 */
 	UQ_MSC_NO_TEST_UNIT_READY,	/* send start/stop instead of TUR */
 	UQ_MSC_NO_RS_CLEAR_UA,		/* does not reset Unit Att. */
 	UQ_MSC_NO_START_STOP,		/* does not support start/stop */
 	UQ_MSC_NO_GETMAXLUN,		/* does not support get max LUN */
 	UQ_MSC_NO_INQUIRY,		/* fake generic inq response */
 	UQ_MSC_NO_INQUIRY_EVPD,		/* does not support inq EVPD */
+	UQ_MSC_NO_PREVENT_ALLOW,	/* does not support medium removal */ 
 	UQ_MSC_NO_SYNC_CACHE,		/* does not support sync cache */ 
 	UQ_MSC_SHUTTLE_INIT,		/* requires Shuttle init sequence */
 	UQ_MSC_ALT_IFACE_1,		/* switch to alternate interface 1 */

@@ -53,7 +53,7 @@ geli_start()
 	fi
 
 	for provider in ${devices}; do
-		provider_=`ltr ${provider} '/' '_'`
+		provider_=`ltr ${provider} '/-' '_'`
 
 		eval "flags=\${geli_${provider_}_flags}"
 		if [ -z "${flags}" ]; then

@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslstartup - Compiler startup routines, called from main
@@ -231,15 +230,19 @@ AslDetectSourceFileType (
     if (ACPI_FAILURE (Status))
     {
         printf ("Non-ascii input file - %s\n", Info->Filename);
-        Type = ASL_INPUT_TYPE_BINARY;
-        goto Cleanup;
+
+        if (!Gbl_IgnoreErrors)
+        {
+            Type = ASL_INPUT_TYPE_BINARY;
+            goto Cleanup;
+        }
     }
 
     /*
      * File is ASCII. Determine if this is an ASL file or an ACPI data
      * table file.
      */
-    while (fgets (Gbl_CurrentLineBuffer, ASL_LINE_BUFFER_SIZE, Info->Handle))
+    while (fgets (Gbl_CurrentLineBuffer, Gbl_LineBufferSize, Info->Handle))
     {
         /* Uppercase the buffer for caseless compare */
 

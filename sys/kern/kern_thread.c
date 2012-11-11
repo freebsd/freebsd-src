@@ -102,8 +102,8 @@ tid_alloc(void)
 		mtx_unlock(&tid_lock);
 		return (-1);
 	}
-	tid = tid_buffer[tid_head++];
-	tid_head %= TID_BUFFER_SIZE;
+	tid = tid_buffer[tid_head];
+	tid_head = (tid_head + 1) % TID_BUFFER_SIZE;
 	mtx_unlock(&tid_lock);
 	return (tid);
 }
@@ -115,11 +115,11 @@ tid_free(lwpid_t tid)
 
 	mtx_lock(&tid_lock);
 	if ((tid_tail + 1) % TID_BUFFER_SIZE == tid_head) {
-		tmp_tid = tid_buffer[tid_head++];
+		tmp_tid = tid_buffer[tid_head];
 		tid_head = (tid_head + 1) % TID_BUFFER_SIZE;
 	}
-	tid_buffer[tid_tail++] = tid;
-	tid_tail %= TID_BUFFER_SIZE;
+	tid_buffer[tid_tail] = tid;
+	tid_tail = (tid_tail + 1) % TID_BUFFER_SIZE;
 	mtx_unlock(&tid_lock);
 	if (tmp_tid != -1)
 		free_unr(tid_unrhdr, tmp_tid);
@@ -269,7 +269,11 @@ threadinit(void)
 {
 
 	mtx_init(&tid_lock, "TID lock", NULL, MTX_DEF);
-	/* leave one number for thread0 */
+
+	/*
+	 * pid_max cannot be greater than PID_MAX.
+	 * leave one number for thread0.
+	 */
 	tid_unrhdr = new_unrhdr(PID_MAX + 2, INT_MAX, &tid_lock);
 
 	thread_zone = uma_zcreate("THREAD", sched_sizeof_thread(),
@@ -618,7 +622,6 @@ thread_single(int mode)
 	p = td->td_proc;
 	mtx_assert(&Giant, MA_NOTOWNED);
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	KASSERT((td != NULL), ("curthread is NULL"));
 
 	if ((p->p_flag & P_HADTHREADS) == 0)
 		return (0);
@@ -714,7 +717,7 @@ stopme:
 		/*
 		 * We have gotten rid of all the other threads and we
 		 * are about to either exit or exec. In either case,
-		 * we try our utmost  to revert to being a non-threaded
+		 * we try our utmost to revert to being a non-threaded
 		 * process.
 		 */
 		p->p_singlethread = NULL;

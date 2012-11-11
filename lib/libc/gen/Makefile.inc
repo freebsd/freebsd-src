@@ -7,8 +7,8 @@
 SRCS+=  __getosreldate.c __xuname.c \
 	_once_stub.c _pthread_stubs.c _rand48.c _spinlock_stub.c \
 	_thread_init.c \
-	alarm.c arc4random.c assert.c aux.c basename.c check_utility_compat.c \
-	clock.c closedir.c confstr.c \
+	alarm.c arc4random.c assert.c auxv.c basename.c check_utility_compat.c \
+	clock.c clock_getcpuclockid.c closedir.c confstr.c \
 	crypt.c ctermid.c daemon.c devname.c dirfd.c dirname.c disklabel.c \
 	dlfcn.c drand48.c elf_utils.c erand48.c err.c errlst.c errno.c \
 	exec.c fdevname.c feature_present.c fmtcheck.c fmtmsg.c fnmatch.c \
@@ -24,7 +24,7 @@ SRCS+=  __getosreldate.c __xuname.c \
 	lockf.c lrand48.c mrand48.c nftw.c nice.c \
 	nlist.c nrand48.c opendir.c \
 	pause.c pmadvise.c popen.c posix_spawn.c \
-	psignal.c pututxline.c pw_scan.c pwcache.c \
+	psignal.c pututxline.c pw_scan.c \
 	raise.c readdir.c readpassphrase.c rewinddir.c \
 	scandir.c seed48.c seekdir.c semctl.c \
 	setdomainname.c sethostname.c setjmperr.c setmode.c \
@@ -35,6 +35,9 @@ SRCS+=  __getosreldate.c __xuname.c \
 	ttyname.c ttyslot.c ualarm.c ulimit.c uname.c unvis.c \
 	usleep.c utime.c utxdb.c valloc.c vis.c wait.c wait3.c waitpid.c \
 	wordexp.c
+
+.PATH: ${.CURDIR}/../../contrib/libc-pwcache
+SRCS+=	pwcache.c pwcache.h
 
 MISRCS+=modf.c
 
@@ -52,7 +55,7 @@ SYM_MAPS+=${.CURDIR}/gen/Symbol.map
 .sinclude "${.CURDIR}/${LIBC_ARCH}/gen/Makefile.inc"
 
 MAN+=	alarm.3 arc4random.3 \
-	basename.3 check_utility_compat.3 clock.3 \
+	basename.3 check_utility_compat.3 clock.3 clock_getcpuclockid.3 \
 	confstr.3 ctermid.3 daemon.3 devname.3 directory.3 dirname.3 \
 	dl_iterate_phdr.3 dladdr.3 dlinfo.3 dllockinit.3 dlopen.3 \
 	err.3 exec.3 \

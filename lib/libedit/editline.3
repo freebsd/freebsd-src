@@ -162,6 +162,11 @@ is modified to contain the number of characters read.
 Returns the line read if successful, or
 .Dv NULL
 if no characters were read or if an error occurred.
+If an error occurred,
+.Fa count
+is set to \-1 and
+.Dv errno
+contains the error code that caused it.
 The return value may not remain valid across calls to
 .Fn el_gets
 and must be copied if the data is to be retained.

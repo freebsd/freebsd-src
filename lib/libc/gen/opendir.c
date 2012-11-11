@@ -199,7 +199,8 @@ __opendir_common(int fd, const char *name, int flags)
 		 * which has also been read -- see fts.c.
 		 */
 		if (flags & DTF_REWIND) {
-			if ((fd2 = _open(name, O_RDONLY | O_DIRECTORY)) == -1) {
+			if ((fd2 = _open(name, O_RDONLY | O_DIRECTORY |
+			    O_CLOEXEC)) == -1) {
 				saved_errno = errno;
 				free(buf);
 				free(dirp);

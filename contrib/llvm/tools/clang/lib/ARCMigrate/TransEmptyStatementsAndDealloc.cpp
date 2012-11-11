@@ -21,6 +21,7 @@
 
 #include "Transforms.h"
 #include "Internals.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/Basic/SourceManager.h"
 
@@ -44,7 +45,7 @@ static bool isEmptyARCMTMacroStatement(NullStmt *S,
   SourceManager &SM = Ctx.getSourceManager();
   std::vector<SourceLocation>::iterator
     I = std::upper_bound(MacroLocs.begin(), MacroLocs.end(), SemiLoc,
-                         SourceManager::LocBeforeThanCompare(SM));
+                         BeforeThanCompare<SourceLocation>(SM));
   --I;
   SourceLocation
       AfterMacroLoc = I->getLocWithOffset(getARCMTMacroName().size());
@@ -210,8 +211,8 @@ static void cleanupDeallocOrFinalize(MigrationPass &pass) {
     ObjCMethodDecl *DeallocM = 0;
     ObjCMethodDecl *FinalizeM = 0;
     for (ObjCImplementationDecl::instmeth_iterator
-           MI = (*I)->instmeth_begin(),
-           ME = (*I)->instmeth_end(); MI != ME; ++MI) {
+           MI = I->instmeth_begin(),
+           ME = I->instmeth_end(); MI != ME; ++MI) {
       ObjCMethodDecl *MD = *MI;
       if (!MD->hasBody())
         continue;

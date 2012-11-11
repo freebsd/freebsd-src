@@ -28,6 +28,9 @@ struct VectorizeConfig {
   /// @brief The size of the native vector registers.
   unsigned VectorBits;
 
+  /// @brief Vectorize boolean values.
+  bool VectorizeBools;
+
   /// @brief Vectorize integer values.
   bool VectorizeInts;
 
@@ -48,6 +51,9 @@ struct VectorizeConfig {
 
   /// @brief Vectorize select instructions.
   bool VectorizeSelect;
+
+  /// @brief Vectorize comparison instructions.
+  bool VectorizeCmp;
 
   /// @brief Vectorize getelementptr instructions.
   bool VectorizeGEP;
@@ -79,6 +85,9 @@ struct VectorizeConfig {
 
   /// @brief The maximum number of pairing iterations.
   unsigned MaxIter;
+
+  /// @brief Don't try to form odd-length vectors.
+  bool Pow2LenOnly;
 
   /// @brief Don't boost the chain-depth contribution of loads and stores.
   bool NoMemOpBoost;

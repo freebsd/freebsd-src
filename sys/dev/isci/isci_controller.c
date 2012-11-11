@@ -49,6 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/isci/scil/scif_remote_device.h>
 #include <dev/isci/scil/scif_domain.h>
 #include <dev/isci/scil/scif_user_callback.h>
+#include <dev/isci/scil/scic_sgpio.h>
+
+#include <dev/led/led.h>
 
 void isci_action(struct cam_sim *sim, union ccb *ccb);
 void isci_poll(struct cam_sim *sim);
@@ -145,6 +148,14 @@ void scif_cb_controller_stop_complete(SCI_CONTROLLER_HANDLE_T controller,
 	isci_controller->is_started = FALSE;
 }
 
+static void
+isci_single_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
+{
+	SCI_PHYSICAL_ADDRESS *phys_addr = arg;
+
+	*phys_addr = seg[0].ds_addr;
+}
+
 /**
  * @brief This method will be invoked to allocate memory dynamically.
  *
@@ -159,7 +170,29 @@ void scif_cb_controller_stop_complete(SCI_CONTROLLER_HANDLE_T controller,
 void scif_cb_controller_allocate_memory(SCI_CONTROLLER_HANDLE_T controller,
     SCI_PHYSICAL_MEMORY_DESCRIPTOR_T *mde)
 {
+	struct ISCI_CONTROLLER *isci_controller = (struct ISCI_CONTROLLER *)
+	    sci_object_get_association(controller);
 
+	/*
+	 * Note this routine is only used for buffers needed to translate
+	 * SCSI UNMAP commands to ATA DSM commands for SATA disks.
+	 *
+	 * We first try to pull a buffer from the controller's pool, and only
+	 * call contigmalloc if one isn't there.
+	 */
+	if (!sci_pool_empty(isci_controller->unmap_buffer_pool)) {
+		sci_pool_get(isci_controller->unmap_buffer_pool,
+		    mde->virtual_address);
+	} else
+		mde->virtual_address = contigmalloc(PAGE_SIZE,
+		    M_ISCI, M_NOWAIT, 0, BUS_SPACE_MAXADDR,
+		    mde->constant_memory_alignment, 0);
+
+	if (mde->virtual_address != NULL)
+		bus_dmamap_load(isci_controller->buffer_dma_tag,
+		    NULL, mde->virtual_address, PAGE_SIZE,
+		    isci_single_map, &mde->physical_address,
+		    BUS_DMA_NOWAIT);
 }
 
 /**
@@ -176,7 +209,16 @@ void scif_cb_controller_allocate_memory(SCI_CONTROLLER_HANDLE_T controller,
 void scif_cb_controller_free_memory(SCI_CONTROLLER_HANDLE_T controller,
     SCI_PHYSICAL_MEMORY_DESCRIPTOR_T * mde)
 {
+	struct ISCI_CONTROLLER *isci_controller = (struct ISCI_CONTROLLER *)
+	    sci_object_get_association(controller);
 
+	/*
+	 * Put the buffer back into the controller's buffer pool, rather
+	 * than invoking configfree.  This helps reduce chance we won't
+	 * have buffers available when system is under memory pressure.
+	 */ 
+	sci_pool_put(isci_controller->unmap_buffer_pool,
+	    mde->virtual_address);
 }
 
 void isci_controller_construct(struct ISCI_CONTROLLER *controller,
@@ -228,12 +270,35 @@ void isci_controller_construct(struct ISCI_CONTROLLER *controller,
 	for ( int i = 0; i < SCI_MAX_TIMERS; i++ ) {
 		sci_pool_put(controller->timer_pool, timer++);
 	}
+
+	sci_pool_initialize(controller->unmap_buffer_pool);
+}
+
+static void isci_led_fault_func(void *priv, int onoff)
+{
+	struct ISCI_PHY *phy = priv;
+
+	/* map onoff to the fault LED */
+	phy->led_fault = onoff;
+	scic_sgpio_update_led_state(phy->handle, 1 << phy->index, 
+		phy->led_fault, phy->led_locate, 0);
+}
+
+static void isci_led_locate_func(void *priv, int onoff)
+{
+	struct ISCI_PHY *phy = priv;
+
+	/* map onoff to the locate LED */
+	phy->led_locate = onoff;
+	scic_sgpio_update_led_state(phy->handle, 1 << phy->index, 
+		phy->led_fault, phy->led_locate, 0);
 }
 
 SCI_STATUS isci_controller_initialize(struct ISCI_CONTROLLER *controller)
 {
 	SCIC_USER_PARAMETERS_T scic_user_parameters;
 	SCI_CONTROLLER_HANDLE_T scic_controller_handle;
+	char led_name[64];
 	unsigned long tunable;
 	int i;
 
@@ -313,6 +378,23 @@ SCI_STATUS isci_controller_initialize(struct ISCI_CONTROLLER *controller)
 	isci_controller_attach_to_cam(controller);
 	xpt_freeze_simq(controller->sim, 1);
 	mtx_unlock(&controller->lock);
+
+	for (i = 0; i < SCI_MAX_PHYS; i++) {
+		controller->phys[i].handle = scic_controller_handle;
+		controller->phys[i].index = i;
+
+		/* fault */
+		controller->phys[i].led_fault = 0;
+		sprintf(led_name, "isci.bus%d.port%d.fault", controller->index, i);
+		controller->phys[i].cdev_fault = led_create(isci_led_fault_func,
+		    &controller->phys[i], led_name);
+			
+		/* locate */
+		controller->phys[i].led_locate = 0;
+		sprintf(led_name, "isci.bus%d.port%d.locate", controller->index, i);
+		controller->phys[i].cdev_locate = led_create(isci_led_locate_func,
+		    &controller->phys[i], led_name);
+	}
 
 	return (scif_controller_initialize(controller->scif_controller_handle));
 }

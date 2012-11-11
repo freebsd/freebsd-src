@@ -195,7 +195,6 @@ errout:
 	kmem_free(dd, sizeof (dsl_dir_t));
 	dmu_buf_rele(dbuf, tag);
 	return (err);
-
 }
 
 void
@@ -229,7 +228,7 @@ dsl_dir_name(dsl_dir_t *dd, char *buf)
 	}
 }
 
-/* Calculate name legnth, avoiding all the strcat calls of dsl_dir_name */
+/* Calculate name length, avoiding all the strcat calls of dsl_dir_name */
 int
 dsl_dir_namelen(dsl_dir_t *dd)
 {
@@ -463,12 +462,14 @@ dsl_dir_destroy_check(void *arg1, void *arg2, dmu_tx_t *tx)
 	/*
 	 * There should be exactly two holds, both from
 	 * dsl_dataset_destroy: one on the dd directory, and one on its
-	 * head ds.  Otherwise, someone is trying to lookup something
-	 * inside this dir while we want to destroy it.  The
-	 * config_rwlock ensures that nobody else opens it after we
-	 * check.
+	 * head ds.  If there are more holds, then a concurrent thread is
+	 * performing a lookup inside this dir while we're trying to destroy
+	 * it.  To minimize this possibility, we perform this check only
+	 * in syncing context and fail the operation if we encounter
+	 * additional holds.  The dp_config_rwlock ensures that nobody else
+	 * opens it after we check.
 	 */
-	if (dmu_buf_refcount(dd->dd_dbuf) > 2)
+	if (dmu_tx_is_syncing(tx) && dmu_buf_refcount(dd->dd_dbuf) > 2)
 		return (EBUSY);
 
 	err = zap_count(mos, dd->dd_phys->dd_child_dir_zapobj, &count);
@@ -502,10 +503,10 @@ dsl_dir_destroy_sync(void *arg1, void *tag, dmu_tx_t *tx)
 
 	dsl_dir_set_reservation_sync(ds, &psa, tx);
 
-	ASSERT3U(dd->dd_phys->dd_used_bytes, ==, 0);
-	ASSERT3U(dd->dd_phys->dd_reserved, ==, 0);
+	ASSERT0(dd->dd_phys->dd_used_bytes);
+	ASSERT0(dd->dd_phys->dd_reserved);
 	for (t = 0; t < DD_USED_NUM; t++)
-		ASSERT3U(dd->dd_phys->dd_used_breakdown[t], ==, 0);
+		ASSERT0(dd->dd_phys->dd_used_breakdown[t]);
 
 	VERIFY(0 == zap_destroy(mos, dd->dd_phys->dd_child_dir_zapobj, tx));
 	VERIFY(0 == zap_destroy(mos, dd->dd_phys->dd_props_zapobj, tx));
@@ -593,10 +594,8 @@ dsl_dir_sync(dsl_dir_t *dd, dmu_tx_t *tx)
 {
 	ASSERT(dmu_tx_is_syncing(tx));
 
-	dmu_buf_will_dirty(dd->dd_dbuf, tx);
-
 	mutex_enter(&dd->dd_lock);
-	ASSERT3U(dd->dd_tempreserved[tx->tx_txg&TXG_MASK], ==, 0);
+	ASSERT0(dd->dd_tempreserved[tx->tx_txg&TXG_MASK]);
 	dprintf_dd(dd, "txg=%llu towrite=%lluK\n", tx->tx_txg,
 	    dd->dd_space_towrite[tx->tx_txg&TXG_MASK] / 1024);
 	dd->dd_space_towrite[tx->tx_txg&TXG_MASK] = 0;
@@ -951,8 +950,6 @@ dsl_dir_diduse_space(dsl_dir_t *dd, dd_used_t type,
 	ASSERT(dmu_tx_is_syncing(tx));
 	ASSERT(type < DD_USED_NUM);
 
-	dsl_dir_dirty(dd, tx);
-
 	if (needlock)
 		mutex_enter(&dd->dd_lock);
 	accounted_delta = parent_delta(dd, dd->dd_phys->dd_used_bytes, used);
@@ -961,6 +958,7 @@ dsl_dir_diduse_space(dsl_dir_t *dd, dd_used_t type,
 	    dd->dd_phys->dd_compressed_bytes >= -compressed);
 	ASSERT(uncompressed >= 0 ||
 	    dd->dd_phys->dd_uncompressed_bytes >= -uncompressed);
+	dmu_buf_will_dirty(dd->dd_dbuf, tx);
 	dd->dd_phys->dd_used_bytes += used;
 	dd->dd_phys->dd_uncompressed_bytes += uncompressed;
 	dd->dd_phys->dd_compressed_bytes += compressed;
@@ -1002,13 +1000,13 @@ dsl_dir_transfer_space(dsl_dir_t *dd, int64_t delta,
 	if (delta == 0 || !(dd->dd_phys->dd_flags & DD_FLAG_USED_BREAKDOWN))
 		return;
 
-	dsl_dir_dirty(dd, tx);
 	if (needlock)
 		mutex_enter(&dd->dd_lock);
 	ASSERT(delta > 0 ?
 	    dd->dd_phys->dd_used_breakdown[oldtype] >= delta :
 	    dd->dd_phys->dd_used_breakdown[newtype] >= -delta);
 	ASSERT(dd->dd_phys->dd_used_bytes >= ABS(delta));
+	dmu_buf_will_dirty(dd->dd_dbuf, tx);
 	dd->dd_phys->dd_used_breakdown[oldtype] -= delta;
 	dd->dd_phys->dd_used_breakdown[newtype] += delta;
 	if (needlock)
@@ -1065,10 +1063,6 @@ dsl_dir_set_quota_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	mutex_enter(&dd->dd_lock);
 	dd->dd_phys->dd_quota = effective_value;
 	mutex_exit(&dd->dd_lock);
-
-	spa_history_log_internal(LOG_DS_QUOTA, dd->dd_pool->dp_spa,
-	    tx, "%lld dataset = %llu ",
-	    (longlong_t)effective_value, dd->dd_phys->dd_head_dataset_obj);
 }
 
 int
@@ -1181,10 +1175,6 @@ dsl_dir_set_reservation_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 		    delta, 0, 0, tx);
 	}
 	mutex_exit(&dd->dd_lock);
-
-	spa_history_log_internal(LOG_DS_RESERVATION, dd->dd_pool->dp_spa,
-	    tx, "%lld dataset = %llu",
-	    (longlong_t)effective_value, dd->dd_phys->dd_head_dataset_obj);
 }
 
 int
@@ -1340,7 +1330,7 @@ dsl_dir_rename_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	dsl_dir_name(dd, oldname);
 	err = zap_remove(mos, dd->dd_parent->dd_phys->dd_child_dir_zapobj,
 	    dd->dd_myname, tx);
-	ASSERT3U(err, ==, 0);
+	ASSERT0(err);
 
 	(void) strcpy(dd->dd_myname, ra->mynewname);
 	dsl_dir_close(dd->dd_parent, dd);
@@ -1351,7 +1341,7 @@ dsl_dir_rename_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	/* add to new parent zapobj */
 	err = zap_add(mos, ra->newparent->dd_phys->dd_child_dir_zapobj,
 	    dd->dd_myname, 8, 1, &dd->dd_object, tx);
-	ASSERT3U(err, ==, 0);
+	ASSERT0(err);
 	dsl_dir_name(dd, newname);
 #ifdef _KERNEL
 	zfsvfs_update_fromname(oldname, newname);

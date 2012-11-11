@@ -1132,8 +1132,10 @@ defm XOR : ArithBinOp_RF<0x30, 0x32, 0x34, "xor", MRM6r, MRM6m,
                          X86xor_flag, xor, 1, 0>;
 defm ADD : ArithBinOp_RF<0x00, 0x02, 0x04, "add", MRM0r, MRM0m,
                          X86add_flag, add, 1, 1>;
+let isCompare = 1 in {
 defm SUB : ArithBinOp_RF<0x28, 0x2A, 0x2C, "sub", MRM5r, MRM5m,
                          X86sub_flag, sub, 0, 0>;
+}
 
 // Arithmetic.
 let Uses = [EFLAGS] in {
@@ -1143,7 +1145,9 @@ let Uses = [EFLAGS] in {
                             0, 0>;
 }
 
+let isCompare = 1 in {
 defm CMP : ArithBinOp_F<0x38, 0x3A, 0x3C, "cmp", MRM7r, MRM7m, X86cmp, 0, 0>;
+}
 
 
 //===----------------------------------------------------------------------===//
@@ -1154,7 +1158,7 @@ defm CMP : ArithBinOp_F<0x38, 0x3A, 0x3C, "cmp", MRM7r, MRM7m, X86cmp, 0, 0>;
 def X86testpat : PatFrag<(ops node:$lhs, node:$rhs),
                          (X86cmp (and_su node:$lhs, node:$rhs), 0)>;
 
-let Defs = [EFLAGS] in {
+let isCompare = 1, Defs = [EFLAGS] in {
   let isCommutable = 1 in {
     def TEST8rr  : BinOpRR_F<0x84, "test", Xi8 , X86testpat, MRMSrcReg>;
     def TEST16rr : BinOpRR_F<0x84, "test", Xi16, X86testpat, MRMSrcReg>;

@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/ioctl.h>
 #include <sys/stat.h>
+#include <sys/disk.h>
 
 #include <machine/specialreg.h>
 #include <machine/vmm.h>
@@ -291,6 +292,31 @@ cb_diskread(void *arg, int unit, uint64_t from, void *to, size_t size,
 	return (0);
 }
 
+static int
+cb_diskioctl(void *arg, int unit, u_long cmd, void *data)
+{
+	struct stat sb;
+
+	if (unit != 0 || disk_fd == -1)
+		return (EBADF);
+
+	switch (cmd) {
+	case DIOCGSECTORSIZE:
+		*(u_int *)data = 512;
+		break;
+	case DIOCGMEDIASIZE:
+		if (fstat(disk_fd, &sb) == 0)
+			*(off_t *)data = sb.st_size;
+		else
+			return (ENOTTY);
+		break;
+	default:
+		return (ENOTTY);
+	}
+
+	return (0);
+}
+
 /*
  * Guest virtual machine i/o callbacks
  */
@@ -490,7 +516,7 @@ cb_getenv(void *arg, int num)
 		return (NULL);
 }
 
-static struct loader_callbacks_v1 cb = {
+static struct loader_callbacks cb = {
 	.getc = cb_getc,
 	.putc = cb_putc,
 	.poll = cb_poll,
@@ -504,6 +530,7 @@ static struct loader_callbacks_v1 cb = {
 	.stat = cb_stat,
 
 	.diskread = cb_diskread,
+	.diskioctl = cb_diskioctl,
 
 	.copyin = cb_copyin,
 	.copyout = cb_copyout,
@@ -534,7 +561,7 @@ int
 main(int argc, char** argv)
 {
 	void *h;
-	void (*func)(struct loader_callbacks_v1 *, void *, int, int);
+	void (*func)(struct loader_callbacks *, void *, int, int);
 	int opt, error;
 	char *disk_image;
 

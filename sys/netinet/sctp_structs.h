@@ -77,8 +77,8 @@ TAILQ_HEAD(sctpnetlisthead, sctp_nets);
 struct sctp_stream_reset_list {
 	TAILQ_ENTRY(sctp_stream_reset_list) next_resp;
 	uint32_t tsn;
-	int number_entries;
-	struct sctp_stream_reset_out_request req;
+	uint32_t number_entries;
+	uint16_t list_of_streams[];
 };
 
 TAILQ_HEAD(sctp_resethead, sctp_stream_reset_list);
@@ -517,7 +517,6 @@ struct sctp_stream_queue_pending {
 	uint32_t context;
 	uint16_t sinfo_flags;
 	uint16_t stream;
-	uint16_t strseq;
 	uint16_t act_flags;
 	uint16_t auth_keyid;
 	uint8_t holds_key_ref;
@@ -590,7 +589,7 @@ struct sctp_stream_out {
 	struct sctp_streamhead outqueue;
 	union scheduling_parameters ss_params;
 	uint16_t stream_no;
-	uint16_t next_sequence_sent;	/* next one I expect to send out */
+	uint16_t next_sequence_send;	/* next one I expect to send out */
 	uint8_t last_msg_incomplete;
 };
 

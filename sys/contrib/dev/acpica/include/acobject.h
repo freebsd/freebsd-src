@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Name: acobject.h - Definition of ACPI_OPERAND_OBJECT  (Internal object only)
@@ -123,8 +122,8 @@ typedef struct acpi_object_integer
 
 
 /*
- * Note: The String and Buffer object must be identical through the Pointer
- * and Length elements.  There is code that depends on this.
+ * Note: The String and Buffer object must be identical through the
+ * pointer and length elements. There is code that depends on this.
  *
  * Fields common to both Strings and Buffers
  */
@@ -238,7 +237,7 @@ typedef struct acpi_object_method
 
 /******************************************************************************
  *
- * Objects that can be notified.  All share a common NotifyInfo area.
+ * Objects that can be notified. All share a common NotifyInfo area.
  *
  *****************************************************************************/
 
@@ -301,7 +300,7 @@ typedef struct acpi_object_thermal_zone
 
 /******************************************************************************
  *
- * Fields.  All share a common header/info field.
+ * Fields. All share a common header/info field.
  *
  *****************************************************************************/
 

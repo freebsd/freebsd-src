@@ -290,7 +290,8 @@ bool HexagonPacketizerList::IsCallDependent(MachineInstr* MI,
                                           unsigned DepReg) {
 
   const HexagonInstrInfo *QII = (const HexagonInstrInfo *) TII;
-  const HexagonRegisterInfo* QRI = (const HexagonRegisterInfo *) TM.getRegisterInfo();
+  const HexagonRegisterInfo* QRI =
+              (const HexagonRegisterInfo *) TM.getRegisterInfo();
 
   // Check for lr dependence
   if (DepReg == QRI->getRARegister()) {
@@ -305,7 +306,7 @@ bool HexagonPacketizerList::IsCallDependent(MachineInstr* MI,
 
   // Check if this is a predicate dependence
   const TargetRegisterClass* RC = QRI->getMinimalPhysRegClass(DepReg);
-  if (RC == Hexagon::PredRegsRegisterClass) {
+  if (RC == &Hexagon::PredRegsRegClass) {
     return true;
   }
 
@@ -365,7 +366,8 @@ bool HexagonPacketizerList::isNewValueInst(MachineInstr* MI) {
 // to the new-value stores.
 
 bool HexagonPacketizerList::IsNewifyStore (MachineInstr* MI) {
-  const HexagonRegisterInfo* QRI = (const HexagonRegisterInfo *) TM.getRegisterInfo();
+  const HexagonRegisterInfo* QRI =
+                          (const HexagonRegisterInfo *) TM.getRegisterInfo();
   switch (MI->getOpcode())
   {
     // store byte
@@ -492,7 +494,6 @@ static bool DoesModifyCalleeSavedReg(MachineInstr *MI,
 static int GetDotNewOp(const int opc) {
   switch (opc) {
   default: llvm_unreachable("Unknown .new type");
-
   // store new value byte
   case Hexagon::STrib:
     return Hexagon::STrib_nv_V4;
@@ -781,7 +782,6 @@ static int GetDotNewOp(const int opc) {
 static int GetDotNewPredOp(const int opc) {
   switch (opc) {
   default: llvm_unreachable("Unknown .new type");
-
   // Conditional stores
   // Store byte conditionally
   case Hexagon::STrib_cPt :
@@ -1443,7 +1443,7 @@ bool HexagonPacketizerList::PromoteToDotNew(MachineInstr* MI,
   const HexagonInstrInfo *QII = (const HexagonInstrInfo *) TII;
 
   int NewOpcode;
-  if (RC == Hexagon::PredRegsRegisterClass)
+  if (RC == &Hexagon::PredRegsRegClass)
     NewOpcode = GetDotNewPredOp(MI->getOpcode());
   else
     NewOpcode = GetDotNewOp(MI->getOpcode());
@@ -1477,7 +1477,6 @@ bool HexagonPacketizerList::PromoteToDotNew(MachineInstr* MI,
 static int GetDotOldOp(const int opc) {
   switch (opc) {
   default: llvm_unreachable("Unknown .old type");
-
   case Hexagon::TFR_cdnPt:
     return Hexagon::TFR_cPt;
 
@@ -2169,6 +2168,7 @@ static bool GetPredicateSense(MachineInstr* MI,
                               const HexagonInstrInfo *QII) {
 
   switch (MI->getOpcode()) {
+  default: llvm_unreachable("Unknown predicate sense of the instruction");
   case Hexagon::TFR_cPt:
   case Hexagon::TFR_cdnPt:
   case Hexagon::TFRI_cPt:
@@ -2511,9 +2511,6 @@ static bool GetPredicateSense(MachineInstr* MI,
   case Hexagon::STh_GP_cdnNotPt_V4 :
   case Hexagon::STw_GP_cdnNotPt_V4 :
     return false;
-
-  default:
-    assert (false && "Unknown predicate sense of the instruction");
   }
   // return *some value* to avoid compiler warning
   return false;
@@ -2711,7 +2708,6 @@ bool HexagonPacketizerList::isDotNewInst(MachineInstr* MI) {
   case Hexagon::STh_GP_cdnNotPt_V4:
   case Hexagon::STw_GP_cdnPt_V4:
   case Hexagon::STw_GP_cdnNotPt_V4:
-
     return true;
   }
   return false;
@@ -2794,12 +2790,13 @@ bool HexagonPacketizerList::CanPromoteToNewValueStore( MachineInstr *MI,
       GetStoreValueOperand(MI).getReg() != DepReg)
     return false;
 
-  const HexagonRegisterInfo* QRI = (const HexagonRegisterInfo *) TM.getRegisterInfo();
+  const HexagonRegisterInfo* QRI = 
+                            (const HexagonRegisterInfo *) TM.getRegisterInfo();
   const MCInstrDesc& MCID = PacketMI->getDesc();
   // first operand is always the result
 
   const HexagonInstrInfo *QII = (const HexagonInstrInfo *) TII;
-  const TargetRegisterClass* PacketRC = QII->getRegClass(MCID, 0, QRI);
+  const TargetRegisterClass* PacketRC = QII->getRegClass(MCID, 0, QRI, MF);
 
   // if there is already an store in the packet, no can do new value store
   // Arch Spec 3.4.4.2.
@@ -2815,7 +2812,7 @@ bool HexagonPacketizerList::CanPromoteToNewValueStore( MachineInstr *MI,
       return false;
   }
 
-  if (PacketRC == Hexagon::DoubleRegsRegisterClass) {
+  if (PacketRC == &Hexagon::DoubleRegsRegClass) {
     // new value store constraint: double regs can not feed into new value store
     // arch spec section: 5.4.2.2
     return false;
@@ -2840,28 +2837,28 @@ bool HexagonPacketizerList::CanPromoteToNewValueStore( MachineInstr *MI,
     return false;
   }
 
-  // If the source that feeds the store is predicated, new value store must also be
-  // also predicated.
+  // If the source that feeds the store is predicated, new value store must
+  // also be also predicated.
   if (QII->isPredicated(PacketMI)) {
     if (!QII->isPredicated(MI))
       return false;
 
     // Check to make sure that they both will have their predicates
     // evaluate identically
-    unsigned predRegNumSrc;
-    unsigned predRegNumDst;
-    const TargetRegisterClass* predRegClass;
+    unsigned predRegNumSrc = 0;
+    unsigned predRegNumDst = 0;
+    const TargetRegisterClass* predRegClass = NULL;
 
     // Get predicate register used in the source instruction
     for(unsigned opNum = 0; opNum < PacketMI->getNumOperands(); opNum++) {
       if ( PacketMI->getOperand(opNum).isReg())
       predRegNumSrc = PacketMI->getOperand(opNum).getReg();
       predRegClass = QRI->getMinimalPhysRegClass(predRegNumSrc);
-      if (predRegClass == Hexagon::PredRegsRegisterClass) {
+      if (predRegClass == &Hexagon::PredRegsRegClass) {
         break;
       }
     }
-    assert ((predRegClass == Hexagon::PredRegsRegisterClass ) &&
+    assert ((predRegClass == &Hexagon::PredRegsRegClass ) &&
         ("predicate register not found in a predicated PacketMI instruction"));
 
     // Get predicate register used in new-value store instruction
@@ -2869,11 +2866,11 @@ bool HexagonPacketizerList::CanPromoteToNewValueStore( MachineInstr *MI,
       if ( MI->getOperand(opNum).isReg())
       predRegNumDst = MI->getOperand(opNum).getReg();
       predRegClass = QRI->getMinimalPhysRegClass(predRegNumDst);
-      if (predRegClass == Hexagon::PredRegsRegisterClass) {
+      if (predRegClass == &Hexagon::PredRegsRegClass) {
         break;
       }
     }
-    assert ((predRegClass == Hexagon::PredRegsRegisterClass ) &&
+    assert ((predRegClass == &Hexagon::PredRegsRegClass ) &&
             ("predicate register not found in a predicated MI instruction"));
 
     // New-value register producer and user (store) need to satisfy these
@@ -2921,7 +2918,8 @@ bool HexagonPacketizerList::CanPromoteToNewValueStore( MachineInstr *MI,
 
     for(unsigned opNum = 0; opNum < MI->getNumOperands(); opNum++) {
       if (MI->getOperand(opNum).isReg() &&
-          TempSU->getInstr()->modifiesRegister(MI->getOperand(opNum).getReg(), QRI))
+          TempSU->getInstr()->modifiesRegister(MI->getOperand(opNum).getReg(),
+                                               QRI))
         return false;
     }
   }
@@ -2967,7 +2965,8 @@ bool HexagonPacketizerList::CanPromoteToNewValue( MachineInstr *MI,
                 MachineBasicBlock::iterator &MII)
 {
 
-  const HexagonRegisterInfo* QRI = (const HexagonRegisterInfo *) TM.getRegisterInfo();
+  const HexagonRegisterInfo* QRI =
+                            (const HexagonRegisterInfo *) TM.getRegisterInfo();
   if (!QRI->Subtarget.hasV4TOps() ||
       !IsNewifyStore(MI))
     return false;
@@ -3002,9 +3001,9 @@ bool HexagonPacketizerList::CanPromoteToDotNew( MachineInstr *MI,
     return false;
 
   // predicate .new
-  if (RC == Hexagon::PredRegsRegisterClass && isCondInst(MI))
+  if (RC == &Hexagon::PredRegsRegClass && isCondInst(MI))
       return true;
-  else if (RC != Hexagon::PredRegsRegisterClass &&
+  else if (RC != &Hexagon::PredRegsRegClass &&
       !IsNewifyStore(MI)) // MI is not a new-value store
     return false;
   else {
@@ -3014,7 +3013,8 @@ bool HexagonPacketizerList::CanPromoteToDotNew( MachineInstr *MI,
     int NewOpcode = GetDotNewOp(MI->getOpcode());
     const MCInstrDesc &desc = QII->get(NewOpcode);
     DebugLoc dl;
-    MachineInstr *NewMI = MI->getParent()->getParent()->CreateMachineInstr(desc, dl);
+    MachineInstr *NewMI =
+                    MI->getParent()->getParent()->CreateMachineInstr(desc, dl);
     bool ResourcesAvailable = ResourceTracker->canReserveResources(NewMI);
     MI->getParent()->getParent()->DeleteMachineInstr(NewMI);
 
@@ -3127,7 +3127,7 @@ bool HexagonPacketizerList::ArePredicatesComplements (MachineInstr* MI1,
         // there already exist anti dep on the same pred in
         // the packet.
         if (PacketSU->Succs[i].getSUnit() == SU &&
-            Hexagon::PredRegsRegisterClass->contains(
+            Hexagon::PredRegsRegClass.contains(
               PacketSU->Succs[i].getReg()) &&
             PacketSU->Succs[i].getKind() == SDep::Data &&
             // Here I know that *VIN is predicate setting instruction
@@ -3181,7 +3181,8 @@ bool HexagonPacketizerList::ignorePseudoInstruction(MachineInstr *MI,
   // If it doesn't, we ignore the instruction.
   const MCInstrDesc& TID = MI->getDesc();
   unsigned SchedClass = TID.getSchedClass();
-  const InstrStage* IS = ResourceTracker->getInstrItins()->beginStage(SchedClass);
+  const InstrStage* IS =
+                    ResourceTracker->getInstrItins()->beginStage(SchedClass);
   unsigned FuncUnits = IS->getUnits();
   return !FuncUnits;
 }
@@ -3220,7 +3221,8 @@ bool HexagonPacketizerList::isLegalToPacketizeTogether(SUnit *SUI, SUnit *SUJ) {
   MachineBasicBlock::iterator II = I;
 
   const unsigned FrameSize = MF.getFrameInfo()->getStackSize();
-  const HexagonRegisterInfo* QRI = (const HexagonRegisterInfo *) TM.getRegisterInfo();
+  const HexagonRegisterInfo* QRI =
+                      (const HexagonRegisterInfo *) TM.getRegisterInfo();
   const HexagonInstrInfo *QII = (const HexagonInstrInfo *) TII;
 
   // Inline asm cannot go in the packet.
@@ -3389,8 +3391,8 @@ bool HexagonPacketizerList::isLegalToPacketizeTogether(SUnit *SUI, SUnit *SUJ) {
       // we need to rework the last part, where it handles indirect call
       // of that (IsCallDependent) function. Bug 6216 is opened for this.
       //
-      unsigned DepReg;
-      const TargetRegisterClass* RC;
+      unsigned DepReg = 0;
+      const TargetRegisterClass* RC = NULL;
       if (DepType == SDep::Data) {
         DepReg = SUJ->Succs[i].getReg();
         RC = QRI->getMinimalPhysRegClass(DepReg);
@@ -3564,7 +3566,8 @@ bool HexagonPacketizerList::isLegalToPruneDependencies(SUnit *SUI, SUnit *SUJ) {
   return true;
 }
 
-MachineBasicBlock::iterator HexagonPacketizerList::addToPacket(MachineInstr *MI) {
+MachineBasicBlock::iterator
+HexagonPacketizerList::addToPacket(MachineInstr *MI) {
 
     MachineBasicBlock::iterator MII = MI;
     MachineBasicBlock *MBB = MI->getParent();
@@ -3597,7 +3600,8 @@ MachineBasicBlock::iterator HexagonPacketizerList::addToPacket(MachineInstr *MI)
             && (!tryAllocateResourcesForConstExt(nvjMI)
                 || !ResourceTracker->canReserveResources(nvjMI)))
         || // For non-extended instruction, no need to allocate extra 4 bytes.
-        (!QII->isExtended(nvjMI) && !ResourceTracker->canReserveResources(nvjMI)))
+        (!QII->isExtended(nvjMI) && 
+              !ResourceTracker->canReserveResources(nvjMI)))
       {
         endPacket(MBB, MI);
         // A new and empty packet starts.

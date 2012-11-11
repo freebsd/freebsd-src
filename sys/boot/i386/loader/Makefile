@@ -50,9 +50,6 @@ CFLAGS+=	-DLOADER_BZIP2_SUPPORT
 .if !defined(LOADER_NO_GZIP_SUPPORT)
 CFLAGS+=	-DLOADER_GZIP_SUPPORT
 .endif
-.if !defined(LOADER_NO_GPT_SUPPORT)
-CFLAGS+=	-DLOADER_GPT_SUPPORT
-.endif
 .if defined(LOADER_NANDFS_SUPPORT)
 CFLAGS+=	-DLOADER_NANDFS_SUPPORT
 .endif
@@ -128,6 +125,7 @@ LDADD=	${LIBFICL} ${LIBFIREWIRE} ${LIBZFSBOOT} ${LIBI386} ${LIBSTAND}
 .if ${MACHINE_CPUARCH} == "amd64"
 beforedepend ${OBJS}: machine
 CLEANFILES+=	machine
+CFLAGS+=	-DLOADER_PREFER_AMD64
 machine:
 	ln -sf ${.CURDIR}/../../../i386/include machine
 .endif

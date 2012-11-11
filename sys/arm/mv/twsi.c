@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/resource.h>
 
+#include <machine/_inttypes.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 
@@ -57,12 +58,17 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
+#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
+
+#include <arm/mv/mvreg.h>
+#include <arm/mv/mvvar.h>
 
 #include "iicbus_if.h"
 
 #define MV_TWSI_NAME		"twsi"
+#define	IICBUS_DEVNAME		"iicbus"
 
 #define TWSI_SLAVE_ADDR		0x00
 #define TWSI_EXT_SLAVE_ADDR	0x10
@@ -86,10 +92,10 @@ __FBSDID("$FreeBSD$");
 #define TWSI_STATUS_DATA_RD_NOACK	0x58
 
 #define TWSI_BAUD_RATE		0x0c
-#define TWSI_BAUD_RATE_94DOT3	0x53 /* N=3, M=10 */
-#define TWSI_BAUD_RATE_74DOT1	0x6b /* N=3, M=13 */
-#define TWSI_BAUD_RATE_51DOT8	0x4c /* N=4, M=9  */
-#define TWSI_BAUD_RATE_99DOT7	0x66 /* N=6, M=12 */
+#define	TWSI_BAUD_RATE_PARAM(M,N)	((((M) << 3) | ((N) & 0x7)) & 0x7f)
+#define	TWSI_BAUD_RATE_RAW(C,M,N)	((C)/((10*(M+1))<<(N+1)))
+#define	TWSI_BAUD_RATE_SLOW		50000	/* 50kHz */
+#define	TWSI_BAUD_RATE_FAST		100000	/* 100kHz */
 
 #define TWSI_SOFT_RESET		0x1c
 
@@ -108,6 +114,13 @@ struct mv_twsi_softc {
 	struct mtx	mutex;
 	device_t	iicbus;
 };
+
+static struct mv_twsi_baud_rate {
+	uint32_t	raw;
+	int		param;
+	int		m;
+	int		n;
+} baud_rate[IIC_FASTEST + 1];
 
 static int mv_twsi_probe(device_t);
 static int mv_twsi_attach(device_t);
@@ -299,13 +312,49 @@ mv_twsi_probe(device_t dev)
 	return (BUS_PROBE_DEFAULT);
 }
 
+#define	ABSSUB(a,b)	(((a) > (b)) ? (a) - (b) : (b) - (a))
+static void
+mv_twsi_cal_baud_rate(const uint32_t target, struct mv_twsi_baud_rate *rate)
+{
+	uint32_t clk, cur, diff, diff0;
+	int m, n, m0, n0;
+
+	/* Calculate baud rate. */
+	m0 = n0 = 4;	/* Default values on reset */
+	diff0 = 0xffffffff;
+	clk = get_tclk();
+
+	for (n = 0; n < 8; n++) {
+		for (m = 0; m < 16; m++) {
+			cur = TWSI_BAUD_RATE_RAW(clk,m,n);
+			diff = ABSSUB(target, cur);
+			if (diff < diff0) {
+				m0 = m;
+				n0 = n;
+				diff0 = diff;
+			}
+		}
+	}
+	rate->raw = TWSI_BAUD_RATE_RAW(clk, m0, n0);
+	rate->param = TWSI_BAUD_RATE_PARAM(m0, n0);
+	rate->m = m0;
+	rate->n = n0;
+}
+
 static int
 mv_twsi_attach(device_t dev)
 {
 	struct mv_twsi_softc *sc;
+	phandle_t child, iicbusnode;
+	device_t childdev;
+	struct iicbus_ivar *devi;
+	char dname[32];	/* 32 is taken from struct u_device */
+	uint32_t paddr;
+	int len, error;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
+	bzero(baud_rate, sizeof(baud_rate));
 
 	mtx_init(&sc->mutex, device_get_nameunit(dev), MV_TWSI_NAME, MTX_DEF);
 
@@ -316,14 +365,76 @@ mv_twsi_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	sc->iicbus = device_add_child(dev, "iicbus", -1);
+	mv_twsi_cal_baud_rate(TWSI_BAUD_RATE_SLOW, &baud_rate[IIC_SLOW]);
+	mv_twsi_cal_baud_rate(TWSI_BAUD_RATE_FAST, &baud_rate[IIC_FAST]);
+	if (bootverbose)
+		device_printf(dev, "calculated baud rates are:\n"
+		    " %" PRIu32 " kHz (M=%d, N=%d) for slow,\n"
+		    " %" PRIu32 " kHz (M=%d, N=%d) for fast.\n",
+		    baud_rate[IIC_SLOW].raw / 1000,
+		    baud_rate[IIC_SLOW].m,
+		    baud_rate[IIC_SLOW].n,
+		    baud_rate[IIC_FAST].raw / 1000,
+		    baud_rate[IIC_FAST].m,
+		    baud_rate[IIC_FAST].n);
+
+	sc->iicbus = device_add_child(dev, IICBUS_DEVNAME, -1);
 	if (sc->iicbus == NULL) {
 		device_printf(dev, "could not add iicbus child\n");
 		mv_twsi_detach(dev);
 		return (ENXIO);
 	}
-
+	/* Attach iicbus. */
 	bus_generic_attach(dev);
+
+	iicbusnode = 0;
+	/* Find iicbus as the child devices in the device tree. */
+	for (child = OF_child(ofw_bus_get_node(dev)); child != 0;
+	    child = OF_peer(child)) {
+		len = OF_getproplen(child, "model");
+		if (len <= 0 || len > sizeof(dname) - 1)
+			continue;
+		error = OF_getprop(child, "model", &dname, len);
+		dname[len + 1] = '\0';
+		if (error == -1)
+			continue;
+		len = strlen(dname);
+		if (len == strlen(IICBUS_DEVNAME) &&
+		    strncasecmp(dname, IICBUS_DEVNAME, len) == 0) {
+			iicbusnode = child;
+			break; 
+		}
+	}
+	if (iicbusnode == 0)
+		goto attach_end;
+
+	/* Attach child devices onto iicbus. */
+	for (child = OF_child(iicbusnode); child != 0; child = OF_peer(child)) {
+		/* Get slave address. */
+		error = OF_getprop(child, "i2c-address", &paddr, sizeof(paddr));
+		if (error == -1)
+			error = OF_getprop(child, "reg", &paddr, sizeof(paddr));
+		if (error == -1)
+			continue;
+
+		/* Get device driver name. */
+		len = OF_getproplen(child, "model");
+		if (len <= 0 || len > sizeof(dname) - 1)
+			continue;
+		OF_getprop(child, "model", &dname, len);
+		dname[len + 1] = '\0';
+
+		if (bootverbose)
+			device_printf(dev, "adding a device %s at %d.\n",
+			    dname, fdt32_to_cpu(paddr));
+		childdev = BUS_ADD_CHILD(sc->iicbus, 0, dname, -1);
+		devi = IICBUS_IVAR(childdev);
+		devi->addr = fdt32_to_cpu(paddr);
+	}
+
+attach_end:
+	bus_generic_attach(sc->iicbus);
+
 	return (0);
 }
 
@@ -355,28 +466,26 @@ static int
 mv_twsi_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 {
 	struct mv_twsi_softc *sc;
-	uint32_t baud_rate;
+	uint32_t param;
 
 	sc = device_get_softc(dev);
 
 	switch (speed) {
 	case IIC_SLOW:
-		baud_rate = TWSI_BAUD_RATE_51DOT8;
-		break;
 	case IIC_FAST:
-		baud_rate = TWSI_BAUD_RATE_51DOT8;
+		param = baud_rate[speed].param;
 		break;
-	case IIC_UNKNOWN:
 	case IIC_FASTEST:
+	case IIC_UNKNOWN:
 	default:
-		baud_rate = TWSI_BAUD_RATE_99DOT7;
+		param = baud_rate[IIC_FAST].param;
 		break;
 	}
 
 	mtx_lock(&sc->mutex);
 	TWSI_WRITE(sc, TWSI_SOFT_RESET, 0x0);
 	DELAY(2000);
-	TWSI_WRITE(sc, TWSI_BAUD_RATE, baud_rate);
+	TWSI_WRITE(sc, TWSI_BAUD_RATE, param);
 	TWSI_WRITE(sc, TWSI_CONTROL, TWSI_CONTROL_TWSIEN | TWSI_CONTROL_ACK);
 	DELAY(1000);
 	mtx_unlock(&sc->mutex);

@@ -22,6 +22,7 @@ class MCCodeEmitter;
 class MCContext;
 class MCInstrInfo;
 class MCObjectWriter;
+class MCRegisterInfo;
 class MCSubtargetInfo;
 class StringRef;
 class Target;
@@ -33,16 +34,22 @@ extern Target TheMips64Target;
 extern Target TheMips64elTarget;
 
 MCCodeEmitter *createMipsMCCodeEmitterEB(const MCInstrInfo &MCII,
+                                         const MCRegisterInfo &MRI,
                                          const MCSubtargetInfo &STI,
                                          MCContext &Ctx);
 MCCodeEmitter *createMipsMCCodeEmitterEL(const MCInstrInfo &MCII,
+                                         const MCRegisterInfo &MRI,
                                          const MCSubtargetInfo &STI,
                                          MCContext &Ctx);
 
-MCAsmBackend *createMipsAsmBackendEB32(const Target &T, StringRef TT);
-MCAsmBackend *createMipsAsmBackendEL32(const Target &T, StringRef TT);
-MCAsmBackend *createMipsAsmBackendEB64(const Target &T, StringRef TT);
-MCAsmBackend *createMipsAsmBackendEL64(const Target &T, StringRef TT);
+MCAsmBackend *createMipsAsmBackendEB32(const Target &T, StringRef TT,
+                                       StringRef CPU);
+MCAsmBackend *createMipsAsmBackendEL32(const Target &T, StringRef TT,
+                                       StringRef CPU);
+MCAsmBackend *createMipsAsmBackendEB64(const Target &T, StringRef TT,
+                                       StringRef CPU);
+MCAsmBackend *createMipsAsmBackendEL64(const Target &T, StringRef TT,
+                                       StringRef CPU);
 
 MCObjectWriter *createMipsELFObjectWriter(raw_ostream &OS,
                                           uint8_t OSABI,

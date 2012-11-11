@@ -39,19 +39,13 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/at91/at91var.h>
 #include <arm/at91/at91reg.h>
+#include <arm/at91/at91soc.h>
 #include <arm/at91/at91_aicreg.h>
 #include <arm/at91/at91sam9g20reg.h>
+#include <arm/at91/at91_pitreg.h>
 #include <arm/at91/at91_pmcreg.h>
 #include <arm/at91/at91_pmcvar.h>
-
-struct at91sam9_softc {
-	device_t dev;
-	bus_space_tag_t sc_st;
-	bus_space_handle_t sc_sh;
-	bus_space_handle_t sc_sys_sh;
-	bus_space_handle_t sc_aic_sh;
-	bus_space_handle_t sc_matrix_sh;
-};
+#include <arm/at91/at91_rstreg.h>
 
 /*
  * Standard priority levels for the system.  0 is lowest and 7 is highest.
@@ -129,118 +123,9 @@ static const struct cpu_devs at91_devs[] =
 };
 
 static void
-at91_cpu_add_builtin_children(device_t dev)
-{
-	int i;
-	const struct cpu_devs *walker;
-
-	for (i = 1, walker = at91_devs; walker->name; i++, walker++) {
-		at91_add_child(dev, i, walker->name, walker->unit,
-		    walker->mem_base, walker->mem_len, walker->irq0,
-		    walker->irq1, walker->irq2);
-	}
-}
-
-static uint32_t
-at91_pll_outa(int freq)
-{
-
-	switch (freq / 10000000) {
-		case 747 ... 801: return ((1 << 29) | (0 << 14));
-		case 697 ... 746: return ((1 << 29) | (1 << 14));
-		case 647 ... 696: return ((1 << 29) | (2 << 14));
-		case 597 ... 646: return ((1 << 29) | (3 << 14));
-		case 547 ... 596: return ((1 << 29) | (1 << 14));
-		case 497 ... 546: return ((1 << 29) | (2 << 14));
-		case 447 ... 496: return ((1 << 29) | (3 << 14));
-		case 397 ... 446: return ((1 << 29) | (4 << 14));
-		default: return (1 << 29);
-	}
-}
-
-static uint32_t
-at91_pll_outb(int freq)
-{
-
-	return (0);
-}
-
-static void
-at91_identify(driver_t *drv, device_t parent)
-{
-
-	if (at91_cpu_is(AT91_T_SAM9G20)) {
-		at91_add_child(parent, 0, "at91sam", 9, 0, 0, -1, 0, 0);
-		at91_cpu_add_builtin_children(parent);
-	}
-}
-
-static int
-at91_probe(device_t dev)
-{
-
-	device_set_desc(dev, soc_data.name);
-	return (0);
-}
-
-static int
-at91_attach(device_t dev)
+at91_clock_init(void)
 {
 	struct at91_pmc_clock *clk;
-	struct at91sam9_softc *sc = device_get_softc(dev);
-	int i;
-
-	struct at91_softc *at91sc = device_get_softc(device_get_parent(dev));
-
-	sc->sc_st = at91sc->sc_st;
-	sc->sc_sh = at91sc->sc_sh;
-	sc->dev = dev;
-
-	/*
-	 * XXX These values work for the RM9200, SAM926[01], and SAM9G20
-	 * will have to fix this when we want to support anything else. XXX
-	 */
-	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91SAM9G20_SYS_BASE,
-	    AT91SAM9G20_SYS_SIZE, &sc->sc_sys_sh) != 0)
-		panic("Enable to map system registers");
-
-	if (bus_space_subregion(sc->sc_st, sc->sc_sh, AT91SAM9G20_AIC_BASE,
-	    AT91SAM9G20_AIC_SIZE, &sc->sc_aic_sh) != 0)
-		panic("Enable to map system registers");
-
-	/* XXX Hack to tell atmelarm about the AIC */
-	at91sc->sc_aic_sh = sc->sc_aic_sh;
-
-	for (i = 0; i < 32; i++) {
-		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SVR +
-		    i * 4, i);
-		/* Priority. */
-		bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SMR + i * 4,
-		    at91_irq_prio[i]);
-		if (i < 8)
-			bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_EOICR,
-			    1);
-	}
-
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_SPU, 32);
-	/* No debug. */
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_DCR, 0);
-	/* Disable and clear all interrupts. */
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_IDCR, 0xffffffff);
-	bus_space_write_4(sc->sc_st, sc->sc_aic_sh, IC_ICCR, 0xffffffff);
-
-	if (bus_space_subregion(sc->sc_st, sc->sc_sh,
-	    AT91SAM9G20_MATRIX_BASE, AT91SAM9G20_MATRIX_SIZE,
-	    &sc->sc_matrix_sh) != 0)
-		panic("Enable to map matrix registers");
-
-	/* activate NAND*/
-	i = bus_space_read_4(sc->sc_st, sc->sc_matrix_sh,
-	    AT91SAM9G20_EBICSA);
-	bus_space_write_4(sc->sc_st, sc->sc_matrix_sh,
-	    AT91SAM9G20_EBICSA,
-	    i | AT91_MATRIX_EBI_CS3A_SMC_SMARTMEDIA);
-
 
 	/* Update USB device port clock info */
 	clk = at91_pmc_clock_ref("udpck");
@@ -262,7 +147,7 @@ at91_attach(device_t dev)
 	clk->pll_mul_mask  = SAM9G20_PLL_A_MUL_MASK;
 	clk->pll_div_shift = SAM9G20_PLL_A_DIV_SHIFT;
 	clk->pll_div_mask  = SAM9G20_PLL_A_DIV_MASK;
-	clk->set_outb      = at91_pll_outa;
+	clk->set_outb      = at91_pmc_800mhz_plla_outb;
 	at91_pmc_clock_deref(clk);
 
 	clk = at91_pmc_clock_ref("pllb");
@@ -274,24 +159,16 @@ at91_attach(device_t dev)
 	clk->pll_mul_mask  = SAM9G20_PLL_B_MUL_MASK;
 	clk->pll_div_shift = SAM9G20_PLL_B_DIV_SHIFT;
 	clk->pll_div_mask  = SAM9G20_PLL_B_DIV_MASK;
-	clk->set_outb      = at91_pll_outb;
+	clk->set_outb      = at91_pmc_800mhz_pllb_outb;
 	at91_pmc_clock_deref(clk);
-	return (0);
 }
 
-static device_method_t at91_methods[] = {
-	DEVMETHOD(device_probe, at91_probe),
-	DEVMETHOD(device_attach, at91_attach),
-	DEVMETHOD(device_identify, at91_identify),
-	{0, 0},
+static struct at91_soc_data soc_data = {
+	.soc_delay = at91_pit_delay,
+	.soc_reset = at91_rst_cpu_reset,
+	.soc_clock_init = at91_clock_init,
+	.soc_irq_prio = at91_irq_prio,
+	.soc_children = at91_devs,
 };
 
-static driver_t at91sam9_driver = {
-	"at91sam",
-	at91_methods,
-	sizeof(struct at91sam9_softc),
-};
-
-static devclass_t at91sam9_devclass;
-
-DRIVER_MODULE(at91sam, atmelarm, at91sam9_driver, at91sam9_devclass, 0, 0);
+AT91_SOC(AT91_T_SAM9G20, &soc_data);

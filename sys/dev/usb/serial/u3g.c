@@ -53,6 +53,7 @@
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
+#include <dev/usb/usb_cdc.h>
 #include "usbdevs.h"
 
 #define	USB_DEBUG_VAR u3g_debug
@@ -99,6 +100,7 @@ SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
 enum {
 	U3G_BULK_WR,
 	U3G_BULK_RD,
+	U3G_INTR,
 	U3G_N_TRANSFER,
 };
 
@@ -107,25 +109,35 @@ struct u3g_softc {
 	struct ucom_softc sc_ucom[U3G_MAXPORTS];
 
 	struct usb_xfer *sc_xfer[U3G_MAXPORTS][U3G_N_TRANSFER];
+	uint8_t sc_iface[U3G_MAXPORTS];			/* local status register */
+	uint8_t sc_lsr[U3G_MAXPORTS];			/* local status register */
+	uint8_t sc_msr[U3G_MAXPORTS];			/* u3g status register */
+	uint16_t sc_line[U3G_MAXPORTS];			/* line status */
+
 	struct usb_device *sc_udev;
 	struct mtx sc_mtx;
 
-	uint8_t	sc_lsr;			/* local status register */
-	uint8_t	sc_msr;			/* U3G status register */
-	uint8_t	sc_numports;
+	uint8_t sc_numports;
 };
 
 static device_probe_t u3g_probe;
 static device_attach_t u3g_attach;
 static device_detach_t u3g_detach;
+static void u3g_free_softc(struct u3g_softc *);
 
 static usb_callback_t u3g_write_callback;
 static usb_callback_t u3g_read_callback;
+static usb_callback_t u3g_intr_callback;
 
+static void u3g_cfg_get_status(struct ucom_softc *, uint8_t *, uint8_t *);
+static void u3g_cfg_set_dtr(struct ucom_softc *, uint8_t);
+static void u3g_cfg_set_rts(struct ucom_softc *, uint8_t);
 static void u3g_start_read(struct ucom_softc *ucom);
 static void u3g_stop_read(struct ucom_softc *ucom);
 static void u3g_start_write(struct ucom_softc *ucom);
 static void u3g_stop_write(struct ucom_softc *ucom);
+static void u3g_poll(struct ucom_softc *ucom);
+static void u3g_free(struct ucom_softc *ucom);
 
 
 static void u3g_test_autoinst(void *, struct usb_device *,
@@ -153,20 +165,34 @@ static const struct usb_config u3g_config[U3G_N_TRANSFER] = {
 		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.callback = &u3g_read_callback,
 	},
+
+	[U3G_INTR] = {
+		.type = UE_INTERRUPT,
+		.endpoint = UE_ADDR_ANY,
+		.direction = UE_DIR_IN,
+		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,.no_pipe_ok = 1,},
+		.bufsize = 0,	/* use wMaxPacketSize */
+		.callback = &u3g_intr_callback,
+	},
 };
 
 static const struct ucom_callback u3g_callback = {
+	.ucom_cfg_get_status = &u3g_cfg_get_status,
+	.ucom_cfg_set_dtr = &u3g_cfg_set_dtr,
+	.ucom_cfg_set_rts = &u3g_cfg_set_rts,
 	.ucom_start_read = &u3g_start_read,
 	.ucom_stop_read = &u3g_stop_read,
 	.ucom_start_write = &u3g_start_write,
 	.ucom_stop_write = &u3g_stop_write,
+	.ucom_poll = &u3g_poll,
+	.ucom_free = &u3g_free,
 };
 
 static device_method_t u3g_methods[] = {
 	DEVMETHOD(device_probe, u3g_probe),
 	DEVMETHOD(device_attach, u3g_attach),
 	DEVMETHOD(device_detach, u3g_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t u3g_devclass;
@@ -282,9 +308,12 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(HUAWEI, E143F, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E173, 0),
 	U3G_DEV(HUAWEI, E173_INIT, U3GINIT_HUAWEISCSI),
+	U3G_DEV(HUAWEI, E3131, 0),
+	U3G_DEV(HUAWEI, E3131_INIT, U3GINIT_HUAWEISCSI),
 	U3G_DEV(HUAWEI, E180V, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E220, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E220BIS, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E392, U3GINIT_HUAWEISCSI),
 	U3G_DEV(HUAWEI, MOBILE, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E1752, U3GINIT_HUAWEISCSI),
 	U3G_DEV(HUAWEI, E1820, U3GINIT_HUAWEISCSI),
@@ -357,6 +386,8 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(QUALCOMM2, MF330, 0),
 	U3G_DEV(QUALCOMM2, SIM5218, 0),
 	U3G_DEV(QUALCOMM2, VW110L, U3GINIT_SCSIEJECT),
+	U3G_DEV(QUALCOMM2, GOBI2000_QDL, 0),
+	U3G_DEV(QUALCOMM2, GOBI2000, 0),
 	U3G_DEV(QUALCOMMINC, AC2726, 0),
 	U3G_DEV(QUALCOMMINC, AC8700, 0),
 	U3G_DEV(QUALCOMMINC, AC8710, 0),
@@ -800,6 +831,7 @@ u3g_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "u3g", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	sc->sc_udev = uaa->device;
 
@@ -838,6 +870,15 @@ u3g_attach(device_t dev)
 			i++;
 			ep = 0;
 			continue;
+		}
+
+		iface = usbd_get_iface(uaa->device, i);
+		id = usbd_get_interface_descriptor(iface);
+		sc->sc_iface[nports] = id->bInterfaceNumber;
+
+		if (bootverbose && sc->sc_xfer[nports][U3G_INTR]) {
+			device_printf(dev, "port %d supports modem control",
+				      nports);
 		}
 
 		/* set stall by default */
@@ -887,9 +928,29 @@ u3g_detach(device_t dev)
 
 	for (subunit = 0; subunit != U3G_MAXPORTS; subunit++)
 		usbd_transfer_unsetup(sc->sc_xfer[subunit], U3G_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	u3g_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(u3g);
+
+static void
+u3g_free_softc(struct u3g_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+u3g_free(struct ucom_softc *ucom)
+{
+	u3g_free_softc(ucom->sc_parent);
 }
 
 static void
@@ -897,9 +958,11 @@ u3g_start_read(struct ucom_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
+	/* start interrupt endpoint (if configured) */
+	usbd_transfer_start(sc->sc_xfer[ucom->sc_subunit][U3G_INTR]);
+
 	/* start read endpoint */
 	usbd_transfer_start(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_RD]);
-	return;
 }
 
 static void
@@ -907,9 +970,11 @@ u3g_stop_read(struct ucom_softc *ucom)
 {
 	struct u3g_softc *sc = ucom->sc_parent;
 
+	/* stop interrupt endpoint (if configured) */
+	usbd_transfer_stop(sc->sc_xfer[ucom->sc_subunit][U3G_INTR]);
+
 	/* stop read endpoint */
 	usbd_transfer_stop(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_RD]);
-	return;
 }
 
 static void
@@ -918,7 +983,6 @@ u3g_start_write(struct ucom_softc *ucom)
 	struct u3g_softc *sc = ucom->sc_parent;
 
 	usbd_transfer_start(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_WR]);
-	return;
 }
 
 static void
@@ -927,7 +991,6 @@ u3g_stop_write(struct ucom_softc *ucom)
 	struct u3g_softc *sc = ucom->sc_parent;
 
 	usbd_transfer_stop(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_WR]);
-	return;
 }
 
 static void
@@ -956,7 +1019,6 @@ tr_setup:
 		}
 		break;
 	}
-	return;
 }
 
 static void
@@ -987,5 +1049,135 @@ tr_setup:
 		}
 		break;
 	}
-	return;
+}
+
+static void
+u3g_cfg_get_status(struct ucom_softc *ucom, uint8_t *lsr, uint8_t *msr)
+{
+	struct u3g_softc *sc = ucom->sc_parent;
+
+	*lsr = sc->sc_lsr[ucom->sc_subunit];
+	*msr = sc->sc_msr[ucom->sc_subunit];
+}
+
+static void
+u3g_cfg_set_line(struct ucom_softc *ucom)
+{
+	struct u3g_softc *sc = ucom->sc_parent;
+	struct usb_device_request req;
+
+	req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
+	req.bRequest = UCDC_SET_CONTROL_LINE_STATE;
+	USETW(req.wValue, sc->sc_line[ucom->sc_subunit]);
+	req.wIndex[0] = sc->sc_iface[ucom->sc_subunit];
+	req.wIndex[1] = 0;
+	USETW(req.wLength, 0);
+
+	ucom_cfg_do_request(sc->sc_udev, ucom,
+	    &req, NULL, 0, 1000);
+}
+
+static void
+u3g_cfg_set_dtr(struct ucom_softc *ucom, uint8_t onoff)
+{
+	struct u3g_softc *sc = ucom->sc_parent;
+
+	DPRINTF("onoff = %d\n", onoff);
+
+	if (onoff)
+		sc->sc_line[ucom->sc_subunit] |= UCDC_LINE_DTR;
+	else
+		sc->sc_line[ucom->sc_subunit] &= ~UCDC_LINE_DTR;
+
+	u3g_cfg_set_line(ucom);
+}
+
+static void
+u3g_cfg_set_rts(struct ucom_softc *ucom, uint8_t onoff)
+{
+	struct u3g_softc *sc = ucom->sc_parent;
+
+	DPRINTF("onoff = %d\n", onoff);
+
+	if (onoff)
+		sc->sc_line[ucom->sc_subunit] |= UCDC_LINE_RTS;
+	else
+		sc->sc_line[ucom->sc_subunit] &= ~UCDC_LINE_RTS;
+
+	u3g_cfg_set_line(ucom);
+}
+
+static void
+u3g_intr_callback(struct usb_xfer *xfer, usb_error_t error)
+{
+	struct ucom_softc *ucom = usbd_xfer_softc(xfer);
+	struct u3g_softc *sc = ucom->sc_parent;
+	struct usb_page_cache *pc;
+	struct usb_cdc_notification pkt;
+	int actlen;
+	uint16_t wLen;
+	uint8_t mstatus;
+
+	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);
+
+	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_TRANSFERRED:
+		if (actlen < 8) {	/* usb_cdc_notification with 2 data bytes */
+			DPRINTF("message too short (expected 8, received %d)\n", actlen);
+			goto tr_setup;
+		}
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_out(pc, 0, &pkt, actlen);
+
+		wLen = UGETW(pkt.wLength);
+		if (wLen < 2) {
+			DPRINTF("message too short (expected 2 data bytes, received %d)\n", wLen);
+			goto tr_setup;
+		}
+
+		if (pkt.bmRequestType == UCDC_NOTIFICATION
+		    && pkt.bNotification == UCDC_N_SERIAL_STATE) {
+			/*
+		         * Set the serial state in ucom driver based on
+		         * the bits from the notify message
+		         */
+			DPRINTF("notify bytes = 0x%02x, 0x%02x\n",
+			    pkt.data[0], pkt.data[1]);
+
+			/* currently, lsr is always zero. */
+			sc->sc_lsr[ucom->sc_subunit] = 0;
+			sc->sc_msr[ucom->sc_subunit] = 0;
+
+			mstatus = pkt.data[0];
+
+			if (mstatus & UCDC_N_SERIAL_RI)
+				sc->sc_msr[ucom->sc_subunit] |= SER_RI;
+			if (mstatus & UCDC_N_SERIAL_DSR)
+				sc->sc_msr[ucom->sc_subunit] |= SER_DSR;
+			if (mstatus & UCDC_N_SERIAL_DCD)
+				sc->sc_msr[ucom->sc_subunit] |= SER_DCD;
+			ucom_status_change(ucom);
+		}
+
+	case USB_ST_SETUP:
+tr_setup:
+		usbd_xfer_set_frame_len(xfer, 0, usbd_xfer_max_len(xfer));
+		usbd_transfer_submit(xfer);
+		return;
+
+	default:			/* Error */
+		if (error != USB_ERR_CANCELLED) {
+			/* try to clear stall first */
+			usbd_xfer_set_stall(xfer);
+			goto tr_setup;
+		}
+		return;
+	}
+}
+
+static void
+u3g_poll(struct ucom_softc *ucom)
+{
+	struct u3g_softc *sc = ucom->sc_parent;
+	usbd_transfer_poll(sc->sc_xfer[ucom->sc_subunit], U3G_N_TRANSFER);
 }

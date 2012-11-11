@@ -954,10 +954,13 @@ bpfread(struct cdev *dev, struct uio *uio, int ioflag)
 	error = bpf_uiomove(d, d->bd_hbuf, d->bd_hlen, uio);
 
 	BPFD_LOCK(d);
-	d->bd_fbuf = d->bd_hbuf;
-	d->bd_hbuf = NULL;
-	d->bd_hlen = 0;
-	bpf_buf_reclaimed(d);
+	if (d->bd_hbuf != NULL) {
+		/* Free the hold buffer only if it is still valid. */
+		d->bd_fbuf = d->bd_hbuf;
+		d->bd_hbuf = NULL;
+		d->bd_hlen = 0;
+		bpf_buf_reclaimed(d);
+	}
 	BPFD_UNLOCK(d);
 
 	return (error);

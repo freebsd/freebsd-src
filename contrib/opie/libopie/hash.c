@@ -17,6 +17,8 @@ you didn't get a copy, you may request one from <license@inner.net>.
 $FreeBSD$
 */
 
+#include <sys/endian.h>
+
 #include "opie_cfg.h"
 #include "opie.h"
 
@@ -39,6 +41,13 @@ unsigned algorithm)
       SHA1_Final((unsigned char *)digest, &sha);
       results[0] = digest[0] ^ digest[2] ^ digest[4];
       results[1] = digest[1] ^ digest[3];
+
+      /*
+       * RFC2289 mandates that we convert SHA1 digest from big-endian to little
+       * see Appendix A.
+       */
+      results[0] = bswap32(results[0]);
+      results[1] = bswap32(results[1]);
       };
       break;
     case 4:

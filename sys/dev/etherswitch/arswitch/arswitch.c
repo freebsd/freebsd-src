@@ -102,6 +102,7 @@ arswitch_probe(device_t dev)
 	if (ar7240_probe(dev) == 0) {
 		chipname = "AR7240";
 		sc->sc_switchtype = AR8X16_SWITCH_AR7240;
+		id = 0;
 		goto done;
 	}
 
@@ -262,7 +263,10 @@ arswitch_attach(device_t dev)
 		return (err);
 	
 	callout_init_mtx(&sc->callout_tick, &sc->sc_mtx, 0);
+
+	ARSWITCH_LOCK(sc);
 	arswitch_tick(sc);
+	ARSWITCH_UNLOCK(sc);
 	
 	return (err);
 }
@@ -370,6 +374,8 @@ arswitch_miipollstat(struct arswitch_softc *sc)
 	struct mii_softc *miisc;
 	int portstatus;
 
+	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
+
 	for (i = 0; i < sc->numphys; i++) {
 		if (sc->miibus[i] == NULL)
 			continue;
@@ -401,6 +407,24 @@ arswitch_tick(void *arg)
 
 	arswitch_miipollstat(sc);
 	callout_reset(&sc->callout_tick, hz, arswitch_tick, sc);
+}
+
+static void
+arswitch_lock(device_t dev)
+{
+	struct arswitch_softc *sc = device_get_softc(dev);
+
+	ARSWITCH_LOCK_ASSERT(sc, MA_NOTOWNED);
+	ARSWITCH_LOCK(sc);
+}
+
+static void
+arswitch_unlock(device_t dev)
+{
+	struct arswitch_softc *sc = device_get_softc(dev);
+
+	ARSWITCH_LOCK_ASSERT(sc, MA_OWNED);
+	ARSWITCH_UNLOCK(sc);
 }
 
 static etherswitch_info_t *
@@ -551,6 +575,8 @@ static device_method_t arswitch_methods[] = {
 	DEVMETHOD(mdio_writereg,	arswitch_writephy),
 
 	/* etherswitch interface */
+	DEVMETHOD(etherswitch_lock,	arswitch_lock),
+	DEVMETHOD(etherswitch_unlock,	arswitch_unlock),
 	DEVMETHOD(etherswitch_getinfo,	arswitch_getinfo),
 	DEVMETHOD(etherswitch_readreg,	arswitch_readreg),
 	DEVMETHOD(etherswitch_writereg,	arswitch_writereg),

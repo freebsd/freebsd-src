@@ -1,6 +1,6 @@
 /*******************************************************************************
  *
- * Module Name: utresrc - Resource managment utilities
+ * Module Name: utresrc - Resource management utilities
  *
  ******************************************************************************/
 
@@ -57,7 +57,7 @@
 
 /*
  * Strings used to decode resource descriptors.
- * Used by both the disasssembler and the debugger resource dump routines
+ * Used by both the disassembler and the debugger resource dump routines
  */
 const char                      *AcpiGbl_BmDecode[] =
 {
@@ -919,5 +919,3 @@ AcpiUtGetResourceEndTag (
 
     return_ACPI_STATUS (Status);
 }
-
-

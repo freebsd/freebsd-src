@@ -50,8 +50,7 @@ ENTRY(__sys_vfork)
 	jmp	*%ecx
 1:
 	pushl	%ecx
-	PIC_PROLOGUE
-	jmp     PIC_PLT(HIDENAME(cerror))
+	jmp     HIDENAME(cerror)
 END(__sys_vfork)
 
 	.section .note.GNU-stack,"",%progbits

@@ -243,8 +243,9 @@ __archive_mktemp(const char *tmpdir)
 		archive_wstrcpy(&temp_name, tmp);
 		free(tmp);
 	} else {
-		archive_wstring_append_from_mbs(&temp_name, tmpdir,
-		    strlen(tmpdir));
+		if (archive_wstring_append_from_mbs(&temp_name, tmpdir,
+		    strlen(tmpdir)) < 0)
+			goto exit_tmpfile;
 		if (temp_name.s[temp_name.length-1] != L'/')
 			archive_wstrappend_wchar(&temp_name, L'/');
 	}

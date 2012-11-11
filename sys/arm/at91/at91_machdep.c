@@ -90,9 +90,11 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/at91/at91board.h>
 #include <arm/at91/at91var.h>
+#include <arm/at91/at91soc.h>
 #include <arm/at91/at91_usartreg.h>
 #include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91sam9g20reg.h>
+#include <arm/at91/at91sam9g45reg.h>
 
 /* Page table for mapping proc0 zero page */
 #define KERNEL_PT_SYS		0
@@ -105,19 +107,11 @@ __FBSDID("$FreeBSD$");
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
 
-/* Define various stack sizes in pages */
-#define IRQ_STACK_SIZE	1
-#define ABT_STACK_SIZE	1
-#define UND_STACK_SIZE	1
-
 extern u_int data_abort_handler_address;
 extern u_int prefetch_abort_handler_address;
 extern u_int undefined_handler_address;
 
 struct pv_addr kernel_pt_table[NUM_KERNEL_PTS];
-
-struct pcpu __pcpu;
-struct pcpu *pcpup = &__pcpu;
 
 /* Physical and virtual addresses for some global pages */
 
@@ -200,6 +194,17 @@ const struct pmap_devmap at91_devmap[] = {
 		VM_PROT_READ|VM_PROT_WRITE,
 		PTE_NOCACHE,
 	},
+	/*
+	 * The next should be good for the 9G45.
+	 */
+	{
+		/* Internal Memory 1MB  */
+		AT91SAM9G45_OHCI_BASE,
+		AT91SAM9G45_OHCI_PA_BASE,
+		0x00100000,
+		VM_PROT_READ|VM_PROT_WRITE,
+		PTE_NOCACHE,
+	},
 	{ 0, 0, 0, 0, 0, }
 };
 
@@ -212,7 +217,7 @@ extern int memsize[];
 long
 at91_ramsize(void)
 {
-	uint32_t cr, mr, *SDRAMC;
+	uint32_t cr, mdr, mr, *SDRAMC;
 	int banks, rows, cols, bw;
 #ifdef LINUX_BOOT_ABI
 	/*
@@ -230,6 +235,24 @@ at91_ramsize(void)
 		rows = ((cr & AT91RM92_SDRAMC_CR_NR_MASK) >> 2) + 11;
 		cols = (cr & AT91RM92_SDRAMC_CR_NC_MASK) + 8;
 		bw = (mr & AT91RM92_SDRAMC_MR_DBW_16) ? 1 : 2;
+	} else if (at91_cpu_is(AT91_T_SAM9G45)) {
+		SDRAMC = (uint32_t *)(AT91_BASE + AT91SAM9G45_DDRSDRC0_BASE);
+		cr = SDRAMC[AT91SAM9G45_DDRSDRC_CR / 4];
+		mdr = SDRAMC[AT91SAM9G45_DDRSDRC_MDR / 4];
+		banks = 0;
+		rows = ((cr & AT91SAM9G45_DDRSDRC_CR_NR_MASK) >> 2) + 11;
+		cols = (cr & AT91SAM9G45_DDRSDRC_CR_NC_MASK) + 8;
+		bw = (mdr & AT91SAM9G45_DDRSDRC_MDR_DBW_16) ? 1 : 2;
+
+		/* Fix the calculation for DDR memory */
+		mdr &= AT91SAM9G45_DDRSDRC_MDR_MASK;
+		if (mdr & AT91SAM9G45_DDRSDRC_MDR_LPDDR1 ||
+		    mdr & AT91SAM9G45_DDRSDRC_MDR_DDR2) {
+			/* The cols value is 1 higher for DDR */
+			cols += 1;
+			/* DDR has 4 internal banks. */
+			banks = 2;
+		}
 	} else {
 		/*
 		 * This should be good for the 9260, 9261, 9G20, 9G35 and 9X25
@@ -278,7 +301,7 @@ static const char *soc_subtype_name[] = {
 	[AT91_ST_SAM9X35] = "at91sam9x35",
 };
 
-struct at91_soc_info soc_data;
+struct at91_soc_info soc_info;
 
 /*
  * Read the SoC ID from the CIDR register and try to match it against the
@@ -291,92 +314,92 @@ at91_try_id(uint32_t dbgu_base)
 {
 	uint32_t socid;
 
-	soc_data.cidr = *(volatile uint32_t *)(AT91_BASE + dbgu_base +
+	soc_info.cidr = *(volatile uint32_t *)(AT91_BASE + dbgu_base +
 	    DBGU_C1R);
-	socid = soc_data.cidr & ~AT91_CPU_VERSION_MASK;
+	socid = soc_info.cidr & ~AT91_CPU_VERSION_MASK;
 
-	soc_data.type = AT91_T_NONE;
-	soc_data.subtype = AT91_ST_NONE;
-	soc_data.family = (soc_data.cidr & AT91_CPU_FAMILY_MASK) >> 20;
-	soc_data.exid = *(volatile uint32_t *)(AT91_BASE + dbgu_base +
+	soc_info.type = AT91_T_NONE;
+	soc_info.subtype = AT91_ST_NONE;
+	soc_info.family = (soc_info.cidr & AT91_CPU_FAMILY_MASK) >> 20;
+	soc_info.exid = *(volatile uint32_t *)(AT91_BASE + dbgu_base +
 	    DBGU_C2R);
 
 	switch (socid) {
 	case AT91_CPU_CAP9:
-		soc_data.type = AT91_T_CAP9;
+		soc_info.type = AT91_T_CAP9;
 		break;
 	case AT91_CPU_RM9200:
-		soc_data.type = AT91_T_RM9200;
+		soc_info.type = AT91_T_RM9200;
 		break;
 	case AT91_CPU_SAM9XE128:
 	case AT91_CPU_SAM9XE256:
 	case AT91_CPU_SAM9XE512:
 	case AT91_CPU_SAM9260:
-		soc_data.type = AT91_T_SAM9260;
-		if (soc_data.family == AT91_FAMILY_SAM9XE)
-			soc_data.subtype = AT91_ST_SAM9XE;
+		soc_info.type = AT91_T_SAM9260;
+		if (soc_info.family == AT91_FAMILY_SAM9XE)
+			soc_info.subtype = AT91_ST_SAM9XE;
 		break;
 	case AT91_CPU_SAM9261:
-		soc_data.type = AT91_T_SAM9261;
+		soc_info.type = AT91_T_SAM9261;
 		break;
 	case AT91_CPU_SAM9263:
-		soc_data.type = AT91_T_SAM9263;
+		soc_info.type = AT91_T_SAM9263;
 		break;
 	case AT91_CPU_SAM9G10:
-		soc_data.type = AT91_T_SAM9G10;
+		soc_info.type = AT91_T_SAM9G10;
 		break;
 	case AT91_CPU_SAM9G20:
-		soc_data.type = AT91_T_SAM9G20;
+		soc_info.type = AT91_T_SAM9G20;
 		break;
 	case AT91_CPU_SAM9G45:
-		soc_data.type = AT91_T_SAM9G45;
+		soc_info.type = AT91_T_SAM9G45;
 		break;
 	case AT91_CPU_SAM9N12:
-		soc_data.type = AT91_T_SAM9N12;
+		soc_info.type = AT91_T_SAM9N12;
 		break;
 	case AT91_CPU_SAM9RL64:
-		soc_data.type = AT91_T_SAM9RL;
+		soc_info.type = AT91_T_SAM9RL;
 		break;
 	case AT91_CPU_SAM9X5:
-		soc_data.type = AT91_T_SAM9X5;
+		soc_info.type = AT91_T_SAM9X5;
 		break;
 	default:
 		return (0);
 	}
 
-	switch (soc_data.type) {
+	switch (soc_info.type) {
 	case AT91_T_SAM9G45:
-		switch (soc_data.exid) {
+		switch (soc_info.exid) {
 		case AT91_EXID_SAM9G45:
-			soc_data.subtype = AT91_ST_SAM9G45;
+			soc_info.subtype = AT91_ST_SAM9G45;
 			break;
 		case AT91_EXID_SAM9G46:
-			soc_data.subtype = AT91_ST_SAM9G46;
+			soc_info.subtype = AT91_ST_SAM9G46;
 			break;
 		case AT91_EXID_SAM9M10:
-			soc_data.subtype = AT91_ST_SAM9M10;
+			soc_info.subtype = AT91_ST_SAM9M10;
 			break;
 		case AT91_EXID_SAM9M11:
-			soc_data.subtype = AT91_ST_SAM9M11;
+			soc_info.subtype = AT91_ST_SAM9M11;
 			break;
 		}
 		break;
 	case AT91_T_SAM9X5:
-		switch (soc_data.exid) {
+		switch (soc_info.exid) {
 		case AT91_EXID_SAM9G15:
-			soc_data.subtype = AT91_ST_SAM9G15;
+			soc_info.subtype = AT91_ST_SAM9G15;
 			break;
 		case AT91_EXID_SAM9G25:
-			soc_data.subtype = AT91_ST_SAM9G25;
+			soc_info.subtype = AT91_ST_SAM9G25;
 			break;
 		case AT91_EXID_SAM9G35:
-			soc_data.subtype = AT91_ST_SAM9G35;
+			soc_info.subtype = AT91_ST_SAM9G35;
 			break;
 		case AT91_EXID_SAM9X25:
-			soc_data.subtype = AT91_ST_SAM9X25;
+			soc_info.subtype = AT91_ST_SAM9X25;
 			break;
 		case AT91_EXID_SAM9X35:
-			soc_data.subtype = AT91_ST_SAM9X35;
+			soc_info.subtype = AT91_ST_SAM9X35;
 			break;
 		}
 		break;
@@ -384,18 +407,25 @@ at91_try_id(uint32_t dbgu_base)
 		break;
 	}
 	/*
-	 * Disable interrupts
+	 * Disable interrupts in the DBGU unit...
 	 */
 	*(volatile uint32_t *)(AT91_BASE + dbgu_base + USART_IDR) = 0xffffffff;
 
 	/*
 	 * Save the name for later...
 	 */
-	snprintf(soc_data.name, sizeof(soc_data.name), "%s%s%s",
-	    soc_type_name[soc_data.type],
-	    soc_data.subtype == AT91_ST_NONE ? "" : " subtype ",
-	    soc_data.subtype == AT91_ST_NONE ? "" :
-	    soc_subtype_name[soc_data.subtype]);
+	snprintf(soc_info.name, sizeof(soc_info.name), "%s%s%s",
+	    soc_type_name[soc_info.type],
+	    soc_info.subtype == AT91_ST_NONE ? "" : " subtype ",
+	    soc_info.subtype == AT91_ST_NONE ? "" :
+	    soc_subtype_name[soc_info.subtype]);
+
+        /*
+         * try to get the matching CPU support.
+         */
+        soc_info.soc_data = at91_match_soc(soc_info.type, soc_info.subtype);
+        soc_info.dbgu_base = AT91_BASE + dbgu_base;
+
 	return (1);
 }
 
@@ -433,8 +463,7 @@ initarm(struct arm_boot_params *abp)
 
 	lastaddr = parse_boot_param(abp);
 	set_cpufuncs();
-	pcpu_init(pcpup, 0, sizeof(struct pcpu));
-	PCPU_SET(curthread, &thread0);
+	pcpu0_init();
 
 	/* Do basic tuning, hz etc */
 	init_param1();
@@ -548,6 +577,9 @@ initarm(struct arm_boot_params *abp)
 
 	cninit();
 
+	if (soc_info.soc_data == NULL)
+		printf("Warning: No soc support for %s found.\n", soc_info.name);
+
 	memsize = board_init();
 	physmem = memsize / PAGE_SIZE;
 
@@ -560,12 +592,8 @@ initarm(struct arm_boot_params *abp)
 	 * of the stack memory.
 	 */
 	cpu_control(CPU_CONTROL_MMU_ENABLE, CPU_CONTROL_MMU_ENABLE);
-	set_stackptr(PSR_IRQ32_MODE,
-	    irqstack.pv_va + IRQ_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_ABT32_MODE,
-	    abtstack.pv_va + ABT_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_UND32_MODE,
-	    undstack.pv_va + UND_STACK_SIZE * PAGE_SIZE);
+
+	set_stackptrs(0);
 
 	/*
 	 * We must now clean the cache again....
@@ -637,16 +665,16 @@ void
 DELAY(int n)
 {
 
-	if (soc_data.delay)
-		soc_data.delay(n);
+	if (soc_info.soc_data)
+		soc_info.soc_data->soc_delay(n);
 }
 
 void
 cpu_reset(void)
 {
 
-	if (soc_data.reset)
-		soc_data.reset();
+	if (soc_info.soc_data)
+		soc_info.soc_data->soc_reset();
 	while (1)
 		continue;
 }

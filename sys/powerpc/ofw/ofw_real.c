@@ -170,7 +170,6 @@ static size_t		of_bounce_size;
 static struct mtx	of_bounce_mtx;
 
 extern int		ofw_real_mode;
-extern struct pmap	ofw_pmap;
 
 /*
  * After the VM is up, allocate a wired, low memory bounce page.

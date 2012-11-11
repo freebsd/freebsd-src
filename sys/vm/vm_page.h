@@ -145,8 +145,8 @@ struct vm_page {
 	u_short cow;			/* page cow mapping count (P) */
 	u_int wire_count;		/* wired down maps refs (P) */
 	uint8_t aflags;			/* access is atomic */
-	uint8_t flags;			/* see below, often immutable after alloc */
-	u_short oflags;			/* page flags (O) */
+	uint8_t oflags;			/* page VPO_* flags (O) */
+	uint16_t flags;			/* page PG_* flags (P) */
 	u_char	act_count;		/* page usage count (O) */
 	u_char	busy;			/* page busy count (O) */
 	/* NOTE that these must support one bit per DEV_BSIZE in a page!!! */
@@ -169,17 +169,16 @@ struct vm_page {
  * 	 mappings, and such pages are also not on any PQ queue.
  *
  */
-#define	VPO_BUSY	0x0001	/* page is in transit */
-#define	VPO_WANTED	0x0002	/* someone is waiting for page */
-#define	VPO_UNMANAGED	0x0004		/* No PV management for page */
-#define	VPO_SWAPINPROG	0x0200	/* swap I/O in progress on page */
-#define	VPO_NOSYNC	0x0400	/* do not collect for syncer */
+#define	VPO_BUSY	0x01		/* page is in transit */
+#define	VPO_WANTED	0x02		/* someone is waiting for page */
+#define	VPO_UNMANAGED	0x04		/* no PV management for page */
+#define	VPO_SWAPINPROG	0x08		/* swap I/O in progress on page */
+#define	VPO_NOSYNC	0x10		/* do not collect for syncer */
 
 #define	PQ_NONE		255
 #define	PQ_INACTIVE	0
 #define	PQ_ACTIVE	1
-#define	PQ_HOLD		2
-#define	PQ_COUNT	3
+#define	PQ_COUNT	2
 
 struct vpgqueues {
 	struct pglist pl;
@@ -188,13 +187,8 @@ struct vpgqueues {
 
 extern struct vpgqueues vm_page_queues[PQ_COUNT];
 
-struct vpglocks {
-	struct mtx	data;
-	char		pad[CACHE_LINE_SIZE - sizeof(struct mtx)];
-} __aligned(CACHE_LINE_SIZE);
-
-extern struct vpglocks vm_page_queue_free_lock;
-extern struct vpglocks pa_lock[];
+extern struct mtx_padalign vm_page_queue_free_mtx;
+extern struct mtx_padalign pa_lock[];
 
 #if defined(__arm__)
 #define	PDRSHIFT	PDR_SHIFT
@@ -203,7 +197,7 @@ extern struct vpglocks pa_lock[];
 #endif
 
 #define	pa_index(pa)	((pa) >> PDRSHIFT)
-#define	PA_LOCKPTR(pa)	&pa_lock[pa_index((pa)) % PA_LOCK_COUNT].data
+#define	PA_LOCKPTR(pa)	((struct mtx *)(&pa_lock[pa_index(pa) % PA_LOCK_COUNT]))
 #define	PA_LOCKOBJPTR(pa)	((struct lock_object *)PA_LOCKPTR((pa)))
 #define	PA_LOCK(pa)	mtx_lock(PA_LOCKPTR(pa))
 #define	PA_TRYLOCK(pa)	mtx_trylock(PA_LOCKPTR(pa))
@@ -236,16 +230,15 @@ extern struct vpglocks pa_lock[];
 #define	vm_page_lock_assert(m, a)	mtx_assert(vm_page_lockptr((m)), (a))
 #endif
 
-#define	vm_page_queue_free_mtx	vm_page_queue_free_lock.data
-
 /*
- * These are the flags defined for vm_page.
- *
- * aflags are updated by atomic accesses.  Use the vm_page_aflag_set()
- * and vm_page_aflag_clear() functions to set and clear the flags.
+ * The vm_page's aflags are updated using atomic operations.  To set or clear
+ * these flags, the functions vm_page_aflag_set() and vm_page_aflag_clear()
+ * must be used.  Neither these flags nor these functions are part of the KBI.
  *
  * PGA_REFERENCED may be cleared only if the object containing the page is
- * locked.  It is set by both the MI and MD VM layers.
+ * locked.  It is set by both the MI and MD VM layers.  However, kernel
+ * loadable modules should not directly set this flag.  They should call
+ * vm_page_reference() instead.
  *
  * PGA_WRITEABLE is set exclusively on managed pages by pmap_enter().  When it
  * does so, the page must be VPO_BUSY.  The MI VM layer must never access this
@@ -262,14 +255,15 @@ extern struct vpglocks pa_lock[];
  * Page flags.  If changed at any other time than page allocation or
  * freeing, the modification must be protected by the vm_page lock.
  */
-#define	PG_CACHED	0x01		/* page is cached */
-#define	PG_FREE		0x02		/* page is free */
-#define	PG_FICTITIOUS	0x04		/* physical page doesn't exist */
-#define	PG_ZERO		0x08		/* page is zeroed */
-#define	PG_MARKER	0x10		/* special queue marker page */
-#define	PG_SLAB		0x20		/* object pointer is actually a slab */
-#define	PG_WINATCFLS	0x40		/* flush dirty page on inactive q */
-#define	PG_NODUMP	0x80		/* don't include this page in a dump */
+#define	PG_CACHED	0x0001		/* page is cached */
+#define	PG_FREE		0x0002		/* page is free */
+#define	PG_FICTITIOUS	0x0004		/* physical page doesn't exist */
+#define	PG_ZERO		0x0008		/* page is zeroed */
+#define	PG_MARKER	0x0010		/* special queue marker page */
+#define	PG_SLAB		0x0020		/* object pointer is actually a slab */
+#define	PG_WINATCFLS	0x0040		/* flush dirty page on inactive q */
+#define	PG_NODUMP	0x0080		/* don't include this page in a dump */
+#define	PG_UNHOLDFREE	0x0100		/* delayed free of a held page */
 
 /*
  * Misc constants.
@@ -281,7 +275,9 @@ extern struct vpglocks pa_lock[];
 
 #ifdef _KERNEL
 
-#include <vm/vm_param.h>
+#include <sys/systm.h>
+
+#include <machine/atomic.h>
 
 /*
  * Each pageable resident page falls into one of five lists:
@@ -310,7 +306,6 @@ extern struct vpglocks pa_lock[];
  *
  */
 
-struct vnode;
 extern int vm_page_zero_count;
 
 extern vm_page_t vm_page_array;		/* First resident page in table */
@@ -325,9 +320,8 @@ vm_page_t vm_phys_paddr_to_vm_page(vm_paddr_t pa);
 
 vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 
-extern struct vpglocks vm_page_queue_lock;
+extern struct mtx_padalign vm_page_queue_mtx;
 
-#define	vm_page_queue_mtx	vm_page_queue_lock.data
 #define vm_page_lock_queues()   mtx_lock(&vm_page_queue_mtx)
 #define vm_page_unlock_queues() mtx_unlock(&vm_page_queue_mtx)
 
@@ -350,8 +344,6 @@ extern struct vpglocks vm_page_queue_lock;
 #define	VM_ALLOC_COUNT_SHIFT	16
 #define	VM_ALLOC_COUNT(count)	((count) << VM_ALLOC_COUNT_SHIFT)
 
-void vm_page_aflag_set(vm_page_t m, uint8_t bits);
-void vm_page_aflag_clear(vm_page_t m, uint8_t bits);
 void vm_page_busy(vm_page_t m);
 void vm_page_flash(vm_page_t m);
 void vm_page_io_start(vm_page_t m);
@@ -388,10 +380,10 @@ vm_page_t vm_page_next(vm_page_t m);
 int vm_page_pa_tryrelock(pmap_t, vm_paddr_t, vm_paddr_t *);
 vm_page_t vm_page_prev(vm_page_t m);
 void vm_page_putfake(vm_page_t m);
+void vm_page_readahead_finish(vm_page_t m);
 void vm_page_reference(vm_page_t m);
 void vm_page_remove (vm_page_t);
 void vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
-void vm_page_requeue(vm_page_t m);
 void vm_page_set_valid_range(vm_page_t m, int base, int size);
 void vm_page_sleep(vm_page_t m, const char *msg);
 vm_page_t vm_page_splay(vm_pindex_t, vm_page_t);
@@ -427,6 +419,75 @@ void vm_page_object_lock_assert(vm_page_t m);
 #else
 #define	VM_PAGE_OBJECT_LOCK_ASSERT(m)	(void)0
 #endif
+
+/*
+ * We want to use atomic updates for the aflags field, which is 8 bits wide.
+ * However, not all architectures support atomic operations on 8-bit
+ * destinations.  In order that we can easily use a 32-bit operation, we
+ * require that the aflags field be 32-bit aligned.
+ */
+CTASSERT(offsetof(struct vm_page, aflags) % sizeof(uint32_t) == 0);
+
+/*
+ *	Clear the given bits in the specified page.
+ */
+static inline void
+vm_page_aflag_clear(vm_page_t m, uint8_t bits)
+{
+	uint32_t *addr, val;
+
+	/*
+	 * The PGA_REFERENCED flag can only be cleared if the object
+	 * containing the page is locked.
+	 */
+	if ((bits & PGA_REFERENCED) != 0)
+		VM_PAGE_OBJECT_LOCK_ASSERT(m);
+
+	/*
+	 * Access the whole 32-bit word containing the aflags field with an
+	 * atomic update.  Parallel non-atomic updates to the other fields
+	 * within this word are handled properly by the atomic update.
+	 */
+	addr = (void *)&m->aflags;
+	KASSERT(((uintptr_t)addr & (sizeof(uint32_t) - 1)) == 0,
+	    ("vm_page_aflag_clear: aflags is misaligned"));
+	val = bits;
+#if BYTE_ORDER == BIG_ENDIAN
+	val <<= 24;
+#endif
+	atomic_clear_32(addr, val);
+}
+
+/*
+ *	Set the given bits in the specified page.
+ */
+static inline void
+vm_page_aflag_set(vm_page_t m, uint8_t bits)
+{
+	uint32_t *addr, val;
+
+	/*
+	 * The PGA_WRITEABLE flag can only be set if the page is managed and
+	 * VPO_BUSY.  Currently, this flag is only set by pmap_enter().
+	 */
+	KASSERT((bits & PGA_WRITEABLE) == 0 ||
+	    (m->oflags & (VPO_UNMANAGED | VPO_BUSY)) == VPO_BUSY,
+	    ("vm_page_aflag_set: PGA_WRITEABLE and !VPO_BUSY"));
+
+	/*
+	 * Access the whole 32-bit word containing the aflags field with an
+	 * atomic update.  Parallel non-atomic updates to the other fields
+	 * within this word are handled properly by the atomic update.
+	 */
+	addr = (void *)&m->aflags;
+	KASSERT(((uintptr_t)addr & (sizeof(uint32_t) - 1)) == 0,
+	    ("vm_page_aflag_set: aflags is misaligned"));
+	val = bits;
+#if BYTE_ORDER == BIG_ENDIAN
+	val <<= 24;
+#endif
+	atomic_set_32(addr, val);
+} 
 
 /*
  *	vm_page_dirty:

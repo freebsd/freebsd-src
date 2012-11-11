@@ -68,4 +68,10 @@ struct nfsv4node {
 #define	NFSSATTR_SIZENEG1	0x4
 #define	NFSSATTR_SIZERDEV	0x8
 
+/* Use this macro for debug printfs. */
+#define	NFSCL_DEBUG(level, ...)	do {					\
+		if (nfscl_debuglevel >= (level))			\
+			printf(__VA_ARGS__);				\
+	} while (0)
+
 #endif	/* _NFS_NFSCL_H */

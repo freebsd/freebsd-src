@@ -1,6 +1,6 @@
 \ Copyright (c) 2003 Scott Long <scottl@freebsd.org>
 \ Copyright (c) 2003 Aleksander Fafula <alex@fafula.com>
-\ Copyright (c) 2006-2011 Devin Teske <dteske@freebsd.org>
+\ Copyright (c) 2006-2012 Devin Teske <dteske@FreeBSD.org>
 \ All rights reserved.
 \ 
 \ Redistribution and use in source and binary forms, with or without
@@ -75,6 +75,16 @@ variable menu_time            \ variable for tracking the passage of time
 variable menu_timeout         \ determined configurable delay duration
 variable menu_timeout_x       \ column position of timeout message
 variable menu_timeout_y       \ row position of timeout message
+
+\ Menu initialization status variables
+variable init_state1
+variable init_state2
+variable init_state3
+variable init_state4
+variable init_state5
+variable init_state6
+variable init_state7
+variable init_state8
 
 \ Boolean option status variables
 variable toggle_state1
@@ -384,7 +394,7 @@ create init_text8 255 allot
 \ ACPI option is to be presented to the user, otherwise returns -1. Used
 \ internally by menu-create, you need not (nor should you) call this directly.
 \ 
-: acpimenuitem ( -- C-Addr | -1 )
+: acpimenuitem ( -- C-Addr/U | -1 )
 
 	arch-i386? if
 		acpipresent? if
@@ -420,6 +430,16 @@ create init_text8 255 allot
 		drop s" Welcome to FreeBSD"
 	then
 	24 over 2 / - 9 at-xy type 
+
+	\ If $menu_init is set, evaluate it (allowing for whole menus to be
+	\ constructed dynamically -- as this function could conceivably set
+	\ the remaining environment variables to construct the menu entirely).
+	\ 
+	s" menu_init" getenv dup -1 <> if
+		evaluate
+	else
+		drop
+	then
 
 	\ Print our menu options with respective key/variable associations.
 	\ `printmenuitem' ends by adding the decimal ASCII value for the
@@ -473,6 +493,10 @@ create init_text8 255 allot
 	\ Initialize "Reboot" menu state variable (prevents double-entry)
 	false menurebootadded !
 
+	menu_start
+	1- menuidx !    \ Initialize the starting index for the menu
+	0 menurow !     \ Initialize the starting position for the menu
+
 	49 \ Iterator start (loop range 49 to 56; ASCII '1' to '8')
 	begin
 		\ If the "Options:" separator, print it.
@@ -488,13 +512,35 @@ create init_text8 255 allot
 			menurow @ 2 + menurow !
 			menurow @ menuY @ +
 			at-xy
-			." Options:"
+			s" menu_optionstext" getenv dup -1 <> if
+				type
+			else
+				drop ." Options:"
+			then
 		then
 
 		\ If this is the ACPI menu option, act accordingly.
 		dup menuacpi @ = if
-			acpimenuitem ( -- C-Addr | -1 )
+			acpimenuitem ( -- C-Addr/U | -1 )
 		else
+			\ make sure we have not already initialized this item
+			s" init_stateN"
+			-rot 2dup 10 + c! rot \ repace 'N'
+			evaluate dup @ 0= if
+				1 swap !
+
+				\ If this menuitem has an initializer, run it
+				s" menu_init[x]"
+				-rot 2dup 10 + c! rot \ replace 'x'
+				getenv dup -1 <> if
+					evaluate
+				else
+					drop
+				then
+			else
+				drop
+			then
+
 			loader_color? if
 				s" ansi_caption[x]"
 			else
@@ -502,14 +548,14 @@ create init_text8 255 allot
 			then
 		then
 
-		( C-Addr | -1 )
+		( C-Addr/U | -1 )
 		dup -1 <> if
 			\ replace 'x' with current iteration
 			-rot 2dup 13 + c! rot
         
 			\ test for environment variable
 			getenv dup -1 <> if
-				printmenuitem ( C-Addr -- N )
+				printmenuitem ( C-Addr/U -- N )
         
 				s" menukeyN !" \ generate cmd to store result
 				-rot 2dup 7 + c! rot
@@ -799,6 +845,8 @@ create init_text8 255 allot
 			exit ( pedantic; never reached )
 		then
 
+		dup menureboot @ = if 0 reboot then
+
 		\ Evaluate the decimal ASCII value against known menu item
 		\ key associations and act accordingly
 
@@ -890,8 +938,7 @@ create init_text8 255 allot
 			            \ continue if less than 57
 		until
 		drop \ loop iterator
-
-		menureboot @ = if 0 reboot then
+		drop \ key pressed
 
 	again	\ Non-operational key was pressed; repeat
 ;
@@ -913,6 +960,10 @@ create init_text8 255 allot
 		-rot 2dup 13 + c! rot	\ replace 'x'
 		unsetenv
 
+		s" menu_init[x]"	\ initializer basename
+		-rot 2dup 10 + c! rot	\ replace 'x'
+		unsetenv
+
 		s" menu_keycode[x]"	\ keycode basename
 		-rot 2dup 13 + c! rot	\ replace 'x'
 		unsetenv
@@ -931,29 +982,45 @@ create init_text8 255 allot
 
 		s" menu_caption[x][y]"	\ cycle_menuitem caption
 		-rot 2dup 13 + c! rot	\ replace 'x'
-		49 -rot
+		48 -rot
 		begin
 			16 2over rot + c! \ replace 'y'
 			2dup unsetenv
 
-			rot 1+ dup 56 > 2swap rot
+			rot 1+ dup 57 > 2swap rot
 		until
 		2drop drop
 
 		s" ansi_caption[x][y]"	\ cycle_menuitem ANSI caption
 		-rot 2dup 13 + c! rot	\ replace 'x'
-		49 -rot
+		48 -rot
 		begin
 			16 2over rot + c! \ replace 'y'
 			2dup unsetenv
 
-			rot 1+ dup 56 > 2swap rot
+			rot 1+ dup 57 > 2swap rot
 		until
 		2drop drop
 
 		s" 0 menukeyN !"	\ basename for key association var
 		-rot 2dup 9 + c! rot	\ replace 'N' with current iteration
 		evaluate		\ assign zero (0) to key assoc. var
+
+		s" 0 init_stateN !"	\ used by menu-create
+		-rot 2dup 12 + c! rot	\ replace 'N'
+		evaluate
+
+		s" 0 toggle_stateN !"	\ used by toggle_menuitem
+		-rot 2dup 14 + c! rot	\ replace 'N'
+		evaluate
+
+		s" 0 cycle_stateN !"	\ used by cycle_menuitem
+		-rot 2dup 13 + c! rot	\ replace 'N'
+		evaluate
+
+		s" 0 init_textN c!"	\ used by toggle_menuitem
+		-rot 2dup 11 + c! rot	\ replace 'N'
+		evaluate
 
 		1+ dup 56 >	\ increment, continue if less than 57
 	until
@@ -972,8 +1039,11 @@ create init_text8 255 allot
 
 	\ clear the "Options" menu separator flag
 	s" menu_options" unsetenv
+	s" menu_optionstext" unsetenv
 	0 menuoptions !
 
+	\ clear the menu initializer
+	s" menu_init" unsetenv
 ;
 
 \ This function both unsets menu variables and visually erases the menu area
@@ -988,6 +1058,16 @@ create init_text8 255 allot
 bullet menubllt !
 10 menuY !
 5 menuX !
+
+\ Initialize our menu initialization state variables
+0 init_state1 !
+0 init_state2 !
+0 init_state3 !
+0 init_state4 !
+0 init_state5 !
+0 init_state6 !
+0 init_state7 !
+0 init_state8 !
 
 \ Initialize our boolean state variables
 0 toggle_state1 !

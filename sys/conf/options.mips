@@ -37,6 +37,14 @@ CPU_SB1 	opt_global.h
 CPU_CNMIPS	opt_global.h
 CPU_RMI		opt_global.h
 CPU_NLM		opt_global.h
+CPU_BERI	opt_global.h
+
+# which MACHINE_ARCH architecture
+MIPS
+MIPSEL
+MIPS64
+MIPS64EL
+MIPSN32
 
 COMPAT_FREEBSD32	opt_compat.h
 
@@ -45,6 +53,10 @@ CFE		opt_global.h
 CFE_CONSOLE	opt_global.h
 CFE_ENV		opt_global.h
 CFE_ENV_SIZE	opt_global.h
+
+GFB_DEBUG		opt_gfb.h
+GFB_NO_FONT_LOADING	opt_gfb.h
+GFB_NO_MODE_CHANGE	opt_gfb.h
 
 NOFPU		opt_global.h
 
@@ -60,6 +72,7 @@ MAXMEM			opt_global.h
 # Options that control the Cavium Simple Executive.
 #
 OCTEON_VENDOR_LANNER		opt_cvmx.h
+OCTEON_VENDOR_RADISYS		opt_cvmx.h
 OCTEON_BOARD_CAPK_0100ND	opt_cvmx.h
 
 #
@@ -69,9 +82,23 @@ ARGE_DEBUG			opt_arge.h
 ARGE_MDIO			opt_arge.h
 
 #
+# At least one of the AR71XX ubiquiti boards has a Redboot configuration
+# that "lies" about the amount of RAM it has. Until a cleaner method is
+# defined, this option will suffice in overriding what Redboot says.
+#
+AR71XX_REALMEM			opt_ar71xx.h
+AR71XX_ENV_UBOOT		opt_ar71xx.h
+AR71XX_ENV_REDBOOT		opt_ar71xx.h
+AR71XX_ATH_EEPROM		opt_ar71xx.h
+
+#
 # Options that control the Ralink RT305xF Etherenet MAC.
 #
 IF_RT_DEBUG			opt_if_rt.h
 IF_RT_PHY_SUPPORT		opt_if_rt.h
 IF_RT_RING_DATA_COUNT		opt_if_rt.h
 
+#
+# Options that affect the pmap.
+#
+PV_STATS		opt_pmap.h

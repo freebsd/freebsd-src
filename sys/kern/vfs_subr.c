@@ -41,6 +41,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_watchdog.h"
 
@@ -91,9 +92,6 @@ __FBSDID("$FreeBSD$");
 #ifdef DDB
 #include <ddb/ddb.h>
 #endif
-
-#define	WI_MPSAFEQ	0
-#define	WI_GIANTQ	1
 
 static void	delmntque(struct vnode *vp);
 static int	flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo,
@@ -216,7 +214,7 @@ static uma_zone_t vnodepoll_zone;
 static int syncer_delayno;
 static long syncer_mask;
 LIST_HEAD(synclist, bufobj);
-static struct synclist *syncer_workitem_pending[2];
+static struct synclist *syncer_workitem_pending;
 /*
  * The sync_mtx protects:
  *	bo->bo_synclist
@@ -328,9 +326,7 @@ vntblinit(void *dummy __unused)
 	/*
 	 * Initialize the filesystem syncer.
 	 */
-	syncer_workitem_pending[WI_MPSAFEQ] = hashinit(syncer_maxdelay, M_VNODE,
-	    &syncer_mask);
-	syncer_workitem_pending[WI_GIANTQ] = hashinit(syncer_maxdelay, M_VNODE,
+	syncer_workitem_pending = hashinit(syncer_maxdelay, M_VNODE,
 	    &syncer_mask);
 	syncer_maxdelay = syncer_mask + 1;
 	mtx_init(&sync_mtx, "Syncer mtx", NULL, MTX_DEF);
@@ -760,7 +756,6 @@ static void
 vnlru_free(int count)
 {
 	struct vnode *vp;
-	int vfslocked;
 
 	mtx_assert(&vnode_free_list_mtx, MA_OWNED);
 	for (; count > 0; count--) {
@@ -792,9 +787,7 @@ vnlru_free(int count)
 		vholdl(vp);
 		mtx_unlock(&vnode_free_list_mtx);
 		VI_UNLOCK(vp);
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vtryrecycle(vp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		/*
 		 * If the recycled succeeded this vdrop will actually free
 		 * the vnode.  If not it will simply place it back on
@@ -816,7 +809,7 @@ static void
 vnlru_proc(void)
 {
 	struct mount *mp, *nmp;
-	int done, vfslocked;
+	int done;
 	struct proc *p = vnlruproc;
 
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, kproc_shutdown, p,
@@ -842,9 +835,7 @@ vnlru_proc(void)
 				nmp = TAILQ_NEXT(mp, mnt_list);
 				continue;
 			}
-			vfslocked = VFS_LOCK_GIANT(mp);
 			done += vlrureclaim(mp);
-			VFS_UNLOCK_GIANT(vfslocked);
 			mtx_lock(&mountlist_mtx);
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			vfs_unbusy(mp);
@@ -934,34 +925,22 @@ vtryrecycle(struct vnode *vp)
 }
 
 /*
- * Return the next vnode from the free list.
+ * Wait for available vnodes.
  */
-int
-getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
-    struct vnode **vpp)
+static int
+getnewvnode_wait(int suspended)
 {
-	struct vnode *vp = NULL;
-	struct bufobj *bo;
 
-	CTR3(KTR_VFS, "%s: mp %p with tag %s", __func__, mp, tag);
-	mtx_lock(&vnode_free_list_mtx);
-	/*
-	 * Lend our context to reclaim vnodes if they've exceeded the max.
-	 */
-	if (freevnodes > wantfreevnodes)
-		vnlru_free(1);
-	/*
-	 * Wait for available vnodes.
-	 */
+	mtx_assert(&vnode_free_list_mtx, MA_OWNED);
 	if (numvnodes > desiredvnodes) {
-		if (mp != NULL && (mp->mnt_kern_flag & MNTK_SUSPEND)) {
+		if (suspended) {
 			/*
 			 * File system is beeing suspended, we cannot risk a
 			 * deadlock here, so allocate new vnode anyway.
 			 */
 			if (freevnodes > wantfreevnodes)
 				vnlru_free(freevnodes - wantfreevnodes);
-			goto alloc;
+			return (0);
 		}
 		if (vnlruproc_sig == 0) {
 			vnlruproc_sig = 1;	/* avoid unnecessary wakeups */
@@ -969,16 +948,76 @@ getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 		}
 		msleep(&vnlruproc_sig, &vnode_free_list_mtx, PVFS,
 		    "vlruwk", hz);
-#if 0	/* XXX Not all VFS_VGET/ffs_vget callers check returns. */
-		if (numvnodes > desiredvnodes) {
-			mtx_unlock(&vnode_free_list_mtx);
-			return (ENFILE);
-		}
-#endif
 	}
-alloc:
+	return (numvnodes > desiredvnodes ? ENFILE : 0);
+}
+
+void
+getnewvnode_reserve(u_int count)
+{
+	struct thread *td;
+
+	td = curthread;
+	mtx_lock(&vnode_free_list_mtx);
+	while (count > 0) {
+		if (getnewvnode_wait(0) == 0) {
+			count--;
+			td->td_vp_reserv++;
+			numvnodes++;
+		}
+	}
+	mtx_unlock(&vnode_free_list_mtx);
+}
+
+void
+getnewvnode_drop_reserve(void)
+{
+	struct thread *td;
+
+	td = curthread;
+	mtx_lock(&vnode_free_list_mtx);
+	KASSERT(numvnodes >= td->td_vp_reserv, ("reserve too large"));
+	numvnodes -= td->td_vp_reserv;
+	mtx_unlock(&vnode_free_list_mtx);
+	td->td_vp_reserv = 0;
+}
+
+/*
+ * Return the next vnode from the free list.
+ */
+int
+getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
+    struct vnode **vpp)
+{
+	struct vnode *vp;
+	struct bufobj *bo;
+	struct thread *td;
+	int error;
+
+	CTR3(KTR_VFS, "%s: mp %p with tag %s", __func__, mp, tag);
+	vp = NULL;
+	td = curthread;
+	if (td->td_vp_reserv > 0) {
+		td->td_vp_reserv -= 1;
+		goto alloc;
+	}
+	mtx_lock(&vnode_free_list_mtx);
+	/*
+	 * Lend our context to reclaim vnodes if they've exceeded the max.
+	 */
+	if (freevnodes > wantfreevnodes)
+		vnlru_free(1);
+	error = getnewvnode_wait(mp != NULL && (mp->mnt_kern_flag &
+	    MNTK_SUSPEND));
+#if 0	/* XXX Not all VFS_VGET/ffs_vget callers check returns. */
+	if (error != 0) {
+		mtx_unlock(&vnode_free_list_mtx);
+		return (error);
+	}
+#endif
 	numvnodes++;
 	mtx_unlock(&vnode_free_list_mtx);
+alloc:
 	vp = (struct vnode *) uma_zalloc(vnode_zone, M_WAITOK|M_ZERO);
 	/*
 	 * Setup locks.
@@ -1092,11 +1131,8 @@ insmntque1(struct vnode *vp, struct mount *mp,
 	KASSERT(vp->v_mount == NULL,
 		("insmntque: vnode already on per mount vnode list"));
 	VNASSERT(mp != NULL, vp, ("Don't call insmntque(foo, NULL)"));
-#ifdef DEBUG_VFS_LOCKS
-	if (!VFS_NEEDSGIANT(mp))
-		ASSERT_VOP_ELOCKED(vp,
-		    "insmntque: mp-safe fs and non-locked vp");
-#endif
+	ASSERT_VOP_ELOCKED(vp, "insmntque: non-locked vp");
+
 	/*
 	 * We acquire the vnode interlock early to ensure that the
 	 * vnode cannot be recycled by another process releasing a
@@ -1630,8 +1666,6 @@ bgetvp(struct vnode *vp, struct buf *bp)
 	    ("bgetvp: bp already attached! %p", bp));
 
 	vhold(vp);
-	if (VFS_NEEDSGIANT(vp->v_mount) || bo->bo_flag & BO_NEEDSGIANT)
-		bp->b_flags |= B_NEEDSGIANT;
 	bp->b_vp = vp;
 	bp->b_bufobj = bo;
 	/*
@@ -1669,7 +1703,6 @@ brelvp(struct buf *bp)
 		syncer_worklist_len--;
 		mtx_unlock(&sync_mtx);
 	}
-	bp->b_flags &= ~B_NEEDSGIANT;
 	bp->b_vp = NULL;
 	bp->b_bufobj = NULL;
 	BO_UNLOCK(bo);
@@ -1682,7 +1715,7 @@ brelvp(struct buf *bp)
 static void
 vn_syncer_add_to_worklist(struct bufobj *bo, int delay)
 {
-	int queue, slot;
+	int slot;
 
 	ASSERT_BO_LOCKED(bo);
 
@@ -1698,10 +1731,7 @@ vn_syncer_add_to_worklist(struct bufobj *bo, int delay)
 		delay = syncer_maxdelay - 2;
 	slot = (syncer_delayno + delay) & syncer_mask;
 
-	queue = VFS_NEEDSGIANT(bo->__bo_vnode->v_mount) ? WI_GIANTQ :
-	    WI_MPSAFEQ;
-	LIST_INSERT_HEAD(&syncer_workitem_pending[queue][slot], bo,
-	    bo_synclist);
+	LIST_INSERT_HEAD(&syncer_workitem_pending[slot], bo, bo_synclist);
 	mtx_unlock(&sync_mtx);
 }
 
@@ -1781,8 +1811,7 @@ sync_vnode(struct synclist *slp, struct bufobj **bo, struct thread *td)
 static void
 sched_sync(void)
 {
-	struct synclist *gnext, *next;
-	struct synclist *gslp, *slp;
+	struct synclist *next, *slp;
 	struct bufobj *bo;
 	long starttime;
 	struct thread *td = curthread;
@@ -1828,13 +1857,11 @@ sched_sync(void)
 		 * Skip over empty worklist slots when shutting down.
 		 */
 		do {
-			slp = &syncer_workitem_pending[WI_MPSAFEQ][syncer_delayno];
-			gslp = &syncer_workitem_pending[WI_GIANTQ][syncer_delayno];
+			slp = &syncer_workitem_pending[syncer_delayno];
 			syncer_delayno += 1;
 			if (syncer_delayno == syncer_maxdelay)
 				syncer_delayno = 0;
-			next = &syncer_workitem_pending[WI_MPSAFEQ][syncer_delayno];
-			gnext = &syncer_workitem_pending[WI_GIANTQ][syncer_delayno];
+			next = &syncer_workitem_pending[syncer_delayno];
 			/*
 			 * If the worklist has wrapped since the
 			 * it was emptied of all but syncer vnodes,
@@ -1848,7 +1875,7 @@ sched_sync(void)
 				syncer_final_iter = SYNCER_SHUTDOWN_SPEEDUP;
 			}
 		} while (syncer_state != SYNCER_RUNNING && LIST_EMPTY(slp) &&
-		    LIST_EMPTY(gslp) && syncer_worklist_len > 0);
+		    syncer_worklist_len > 0);
 
 		/*
 		 * Keep track of the last time there was anything
@@ -1871,21 +1898,6 @@ sched_sync(void)
 			if (first_printf == 0)
 				wdog_kern_pat(WD_LASTVAL);
 
-		}
-		if (!LIST_EMPTY(gslp)) {
-			mtx_unlock(&sync_mtx);
-			mtx_lock(&Giant);
-			mtx_lock(&sync_mtx);
-			while (!LIST_EMPTY(gslp)) {
-				error = sync_vnode(gslp, &bo, td);
-				if (error == 1) {
-					LIST_REMOVE(bo, bo_synclist);
-					LIST_INSERT_HEAD(gnext, bo,
-					    bo_synclist);
-					continue;
-				}
-			}
-			mtx_unlock(&Giant);
 		}
 		if (syncer_state == SYNCER_FINAL_DELAY && syncer_final_iter > 0)
 			syncer_final_iter--;
@@ -2147,7 +2159,6 @@ vget(struct vnode *vp, int flags, struct thread *td)
 	int error;
 
 	error = 0;
-	VFS_ASSERT_GIANT(vp->v_mount);
 	VNASSERT((flags & LK_TYPE_MASK) != 0, vp,
 	    ("vget: invalid lock operation"));
 	CTR3(KTR_VFS, "%s: vp %p with flags %d", __func__, vp, flags);
@@ -2232,7 +2243,6 @@ vputx(struct vnode *vp, int func)
 		ASSERT_VOP_LOCKED(vp, "vput");
 	else
 		KASSERT(func == VPUTX_VRELE, ("vputx: wrong func"));
-	VFS_ASSERT_GIANT(vp->v_mount);
 	CTR2(KTR_VFS, "%s: vp %p", __func__, vp);
 	VI_LOCK(vp);
 
@@ -2497,6 +2507,9 @@ vinactive(struct vnode *vp, struct thread *td)
 	 * Before moving off the active list, we must be sure that any
 	 * modified pages are on the vnode's dirty list since these will
 	 * no longer be checked once the vnode is on the inactive list.
+	 * Because the vnode vm object keeps a hold reference on the vnode
+	 * if there is at least one resident non-cached page, the vnode
+	 * cannot leave the active list without the page cleanup done.
 	 */
 	obj = vp->v_object;
 	if (obj != NULL && (obj->flags & OBJ_MIGHTBEDIRTY) != 0) {
@@ -2687,6 +2700,58 @@ vgone(struct vnode *vp)
 	VI_UNLOCK(vp);
 }
 
+static void
+vgonel_reclaim_lowervp_vfs(struct mount *mp __unused,
+    struct vnode *lowervp __unused)
+{
+}
+
+/*
+ * Notify upper mounts about reclaimed vnode.
+ */
+static void
+vgonel_reclaim_lowervp(struct vnode *vp)
+{
+	static struct vfsops vgonel_vfsops = {
+		.vfs_reclaim_lowervp = vgonel_reclaim_lowervp_vfs
+	};
+	struct mount *mp, *ump, *mmp;
+
+	mp = vp->v_mount;
+	if (mp == NULL)
+		return;
+
+	MNT_ILOCK(mp);
+	if (TAILQ_EMPTY(&mp->mnt_uppers))
+		goto unlock;
+	MNT_IUNLOCK(mp);
+	mmp = malloc(sizeof(struct mount), M_TEMP, M_WAITOK | M_ZERO);
+	mmp->mnt_op = &vgonel_vfsops;
+	mmp->mnt_kern_flag |= MNTK_MARKER;
+	MNT_ILOCK(mp);
+	mp->mnt_kern_flag |= MNTK_VGONE_UPPER;
+	for (ump = TAILQ_FIRST(&mp->mnt_uppers); ump != NULL;) {
+		if ((ump->mnt_kern_flag & MNTK_MARKER) != 0) {
+			ump = TAILQ_NEXT(ump, mnt_upper_link);
+			continue;
+		}
+		TAILQ_INSERT_AFTER(&mp->mnt_uppers, ump, mmp, mnt_upper_link);
+		MNT_IUNLOCK(mp);
+		VFS_RECLAIM_LOWERVP(ump, vp);
+		MNT_ILOCK(mp);
+		ump = TAILQ_NEXT(mmp, mnt_upper_link);
+		TAILQ_REMOVE(&mp->mnt_uppers, mmp, mnt_upper_link);
+	}
+	free(mmp, M_TEMP);
+	mp->mnt_kern_flag &= ~MNTK_VGONE_UPPER;
+	if ((mp->mnt_kern_flag & MNTK_VGONE_WAITER) != 0) {
+		mp->mnt_kern_flag &= ~MNTK_VGONE_WAITER;
+		wakeup(&mp->mnt_uppers);
+	}
+unlock:
+	MNT_IUNLOCK(mp);
+}
+
 /*
  * vgone, with the vp interlock held.
  */
@@ -2711,6 +2776,7 @@ vgonel(struct vnode *vp)
 	if (vp->v_iflag & VI_DOOMED)
 		return;
 	vp->v_iflag |= VI_DOOMED;
+
 	/*
 	 * Check to see if the vnode is in use.  If so, we have to call
 	 * VOP_CLOSE() and VOP_INACTIVE().
@@ -2718,6 +2784,8 @@ vgonel(struct vnode *vp)
 	active = vp->v_usecount;
 	oweinact = (vp->v_iflag & VI_OWEINACT);
 	VI_UNLOCK(vp);
+	vgonel_reclaim_lowervp(vp);
+
 	/*
 	 * Clean out any buffers associated with the vnode.
 	 * If the flush fails, just toss the buffers.
@@ -2828,6 +2896,8 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VV_ISTTY", sizeof(buf));
 	if (vp->v_vflag & VV_NOSYNC)
 		strlcat(buf, "|VV_NOSYNC", sizeof(buf));
+	if (vp->v_vflag & VV_ETERNALDEV)
+		strlcat(buf, "|VV_ETERNALDEV", sizeof(buf));
 	if (vp->v_vflag & VV_CACHEDLABEL)
 		strlcat(buf, "|VV_CACHEDLABEL", sizeof(buf));
 	if (vp->v_vflag & VV_TEXT)
@@ -2844,9 +2914,11 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VV_DELETED", sizeof(buf));
 	if (vp->v_vflag & VV_MD)
 		strlcat(buf, "|VV_MD", sizeof(buf));
-	flags = vp->v_vflag & ~(VV_ROOT | VV_ISTTY | VV_NOSYNC |
+	if (vp->v_vflag & VV_FORCEINSMQ)
+		strlcat(buf, "|VV_FORCEINSMQ", sizeof(buf));
+	flags = vp->v_vflag & ~(VV_ROOT | VV_ISTTY | VV_NOSYNC | VV_ETERNALDEV |
 	    VV_CACHEDLABEL | VV_TEXT | VV_COPYONWRITE | VV_SYSTEM | VV_PROCDEP |
-	    VV_NOKNOTE | VV_DELETED | VV_MD);
+	    VV_NOKNOTE | VV_DELETED | VV_MD | VV_FORCEINSMQ);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VV(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
@@ -2859,12 +2931,14 @@ vn_printf(struct vnode *vp, const char *fmt, ...)
 		strlcat(buf, "|VI_DOOMED", sizeof(buf));
 	if (vp->v_iflag & VI_FREE)
 		strlcat(buf, "|VI_FREE", sizeof(buf));
+	if (vp->v_iflag & VI_ACTIVE)
+		strlcat(buf, "|VI_ACTIVE", sizeof(buf));
 	if (vp->v_iflag & VI_DOINGINACT)
 		strlcat(buf, "|VI_DOINGINACT", sizeof(buf));
 	if (vp->v_iflag & VI_OWEINACT)
 		strlcat(buf, "|VI_OWEINACT", sizeof(buf));
 	flags = vp->v_iflag & ~(VI_MOUNT | VI_AGE | VI_DOOMED | VI_FREE |
-	    VI_DOINGINACT | VI_OWEINACT);
+	    VI_ACTIVE | VI_DOINGINACT | VI_OWEINACT);
 	if (flags != 0) {
 		snprintf(buf2, sizeof(buf2), "|VI(0x%lx)", flags);
 		strlcat(buf, buf2, sizeof(buf));
@@ -2968,11 +3042,11 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_FLAG(MNT_SYNCHRONOUS);
 	MNT_FLAG(MNT_NOEXEC);
 	MNT_FLAG(MNT_NOSUID);
+	MNT_FLAG(MNT_NFS4ACLS);
 	MNT_FLAG(MNT_UNION);
 	MNT_FLAG(MNT_ASYNC);
 	MNT_FLAG(MNT_SUIDDIR);
 	MNT_FLAG(MNT_SOFTDEP);
-	MNT_FLAG(MNT_SUJ);
 	MNT_FLAG(MNT_NOSYMFOLLOW);
 	MNT_FLAG(MNT_GJOURNAL);
 	MNT_FLAG(MNT_MULTILABEL);
@@ -2980,7 +3054,7 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_FLAG(MNT_NOATIME);
 	MNT_FLAG(MNT_NOCLUSTERR);
 	MNT_FLAG(MNT_NOCLUSTERW);
-	MNT_FLAG(MNT_NFS4ACLS);
+	MNT_FLAG(MNT_SUJ);
 	MNT_FLAG(MNT_EXRDONLY);
 	MNT_FLAG(MNT_EXPORTED);
 	MNT_FLAG(MNT_DEFEXPORTED);
@@ -3025,6 +3099,11 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_KERN_FLAG(MNTK_REFEXPIRE);
 	MNT_KERN_FLAG(MNTK_EXTENDED_SHARED);
 	MNT_KERN_FLAG(MNTK_SHARED_WRITES);
+	MNT_KERN_FLAG(MNTK_NO_IOPF);
+	MNT_KERN_FLAG(MNTK_VGONE_UPPER);
+	MNT_KERN_FLAG(MNTK_VGONE_WAITER);
+	MNT_KERN_FLAG(MNTK_LOOKUP_EXCL_DOTDOT);
+	MNT_KERN_FLAG(MNTK_MARKER);
 	MNT_KERN_FLAG(MNTK_NOASYNC);
 	MNT_KERN_FLAG(MNTK_UNMOUNT);
 	MNT_KERN_FLAG(MNTK_MWAIT);
@@ -3111,21 +3190,49 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 /*
  * Fill in a struct xvfsconf based on a struct vfsconf.
  */
-static void
-vfsconf2x(struct vfsconf *vfsp, struct xvfsconf *xvfsp)
+static int
+vfsconf2x(struct sysctl_req *req, struct vfsconf *vfsp)
 {
+	struct xvfsconf xvfsp;
 
-	strcpy(xvfsp->vfc_name, vfsp->vfc_name);
-	xvfsp->vfc_typenum = vfsp->vfc_typenum;
-	xvfsp->vfc_refcount = vfsp->vfc_refcount;
-	xvfsp->vfc_flags = vfsp->vfc_flags;
+	bzero(&xvfsp, sizeof(xvfsp));
+	strcpy(xvfsp.vfc_name, vfsp->vfc_name);
+	xvfsp.vfc_typenum = vfsp->vfc_typenum;
+	xvfsp.vfc_refcount = vfsp->vfc_refcount;
+	xvfsp.vfc_flags = vfsp->vfc_flags;
 	/*
 	 * These are unused in userland, we keep them
 	 * to not break binary compatibility.
 	 */
-	xvfsp->vfc_vfsops = NULL;
-	xvfsp->vfc_next = NULL;
+	xvfsp.vfc_vfsops = NULL;
+	xvfsp.vfc_next = NULL;
+	return (SYSCTL_OUT(req, &xvfsp, sizeof(xvfsp)));
 }
+
+#ifdef COMPAT_FREEBSD32
+struct xvfsconf32 {
+	uint32_t	vfc_vfsops;
+	char		vfc_name[MFSNAMELEN];
+	int32_t		vfc_typenum;
+	int32_t		vfc_refcount;
+	int32_t		vfc_flags;
+	uint32_t	vfc_next;
+};
+
+static int
+vfsconf2x32(struct sysctl_req *req, struct vfsconf *vfsp)
+{
+	struct xvfsconf32 xvfsp;
+
+	strcpy(xvfsp.vfc_name, vfsp->vfc_name);
+	xvfsp.vfc_typenum = vfsp->vfc_typenum;
+	xvfsp.vfc_refcount = vfsp->vfc_refcount;
+	xvfsp.vfc_flags = vfsp->vfc_flags;
+	xvfsp.vfc_vfsops = 0;
+	xvfsp.vfc_next = 0;
+	return (SYSCTL_OUT(req, &xvfsp, sizeof(xvfsp)));
+}
+#endif
 
 /*
  * Top level filesystem related information gathering.
@@ -3134,14 +3241,16 @@ static int
 sysctl_vfs_conflist(SYSCTL_HANDLER_ARGS)
 {
 	struct vfsconf *vfsp;
-	struct xvfsconf xvfsp;
 	int error;
 
 	error = 0;
 	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list) {
-		bzero(&xvfsp, sizeof(xvfsp));
-		vfsconf2x(vfsp, &xvfsp);
-		error = SYSCTL_OUT(req, &xvfsp, sizeof xvfsp);
+#ifdef COMPAT_FREEBSD32
+		if (req->flags & SCTL_MASK32)
+			error = vfsconf2x32(req, vfsp);
+		else
+#endif
+			error = vfsconf2x(req, vfsp);
 		if (error)
 			break;
 	}
@@ -3161,7 +3270,6 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 	int *name = (int *)arg1 - 1;	/* XXX */
 	u_int namelen = arg2 + 1;	/* XXX */
 	struct vfsconf *vfsp;
-	struct xvfsconf xvfsp;
 
 	log(LOG_WARNING, "userland calling deprecated sysctl, "
 	    "please rebuild world\n");
@@ -3185,9 +3293,12 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 				break;
 		if (vfsp == NULL)
 			return (EOPNOTSUPP);
-		bzero(&xvfsp, sizeof(xvfsp));
-		vfsconf2x(vfsp, &xvfsp);
-		return (SYSCTL_OUT(req, &xvfsp, sizeof(xvfsp)));
+#ifdef COMPAT_FREEBSD32
+		if (req->flags & SCTL_MASK32)
+			return (vfsconf2x32(req, vfsp));
+		else
+#endif
+			return (vfsconf2x(req, vfsp));
 	}
 	return (EOPNOTSUPP);
 }
@@ -3328,7 +3439,6 @@ vfs_unmountall(void)
 	struct thread *td;
 	int error;
 
-	KASSERT(curthread != NULL, ("vfs_unmountall: NULL curthread"));
 	CTR1(KTR_VFS, "%s: unmounting all filesystems", __func__);
 	td = curthread;
 
@@ -4496,7 +4606,6 @@ vfs_mark_atime(struct vnode *vp, struct ucred *cred)
 	struct mount *mp;
 
 	mp = vp->v_mount;
-	VFS_ASSERT_GIANT(mp);
 	ASSERT_VOP_LOCKED(vp, "vfs_mark_atime");
 	if (mp != NULL && (mp->mnt_flag & (MNT_NOATIME | MNT_RDONLY)) == 0)
 		(void)VOP_MARKATIME(vp);

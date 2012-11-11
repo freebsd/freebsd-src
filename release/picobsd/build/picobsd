@@ -7,6 +7,8 @@
 #
 #	picobsd [options] image_type [site_name]
 #
+# CWARNFLAGS can be used to pass -Wall or similar options
+#
 # Where image_type is a directory with the picobsd config info,
 # and ${image_type}/floppy.tree.${site_name} contains
 # optional site-specific configuration.
@@ -164,7 +166,7 @@ create_includes_and_libraries2() { # opt_dir opt_target
     log "create_includes_and_libraries2() for ${SRC} $1"
     if [ ${OSVERSION} -ge 600000 ] ; then
 	no="-DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R" # WITHOUT_CDDL=1"
-	no="$no -DWITHOUT_CLANG"
+	no="$no -DWITHOUT_CLANG -DMALLOC_PRODUCTION"
     else
 	no="-DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R"
     fi

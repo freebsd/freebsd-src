@@ -18,7 +18,7 @@ font.h				optional	sc			\
 cddl/compat/opensolaris/kern/opensolaris_atomic.c			optional zfs powerpc compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/common/atomic/powerpc64/opensolaris_atomic.S	optional zfs powerpc64 compile-with "${ZFS_S}"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
-crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
+crypto/des/des_enc.c		optional	crypto | ipsec
 dev/bm/if_bm.c			optional	bm powermac
 dev/adb/adb_bus.c		optional	adb
 dev/adb/adb_kbd.c		optional	adb
@@ -32,18 +32,19 @@ dev/fb/fb.c			optional	sc
 dev/fdt/fdt_powerpc.c		optional	fdt
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
 dev/iicbus/ad7417.c		optional	ad7417 powermac
+dev/iicbus/ds1631.c		optional	ds1631 powermac
 dev/iicbus/ds1775.c		optional	ds1775 powermac
 dev/iicbus/max6690.c		optional	max6690 powermac
 dev/kbd/kbd.c			optional	sc
 dev/nand/nfc_fsl.c		optional	nand mpc85xx
-dev/ofw/openfirm.c		optional	aim | fdt
-dev/ofw/openfirmio.c		optional	aim | fdt
-dev/ofw/ofw_bus_if.m		optional	aim | fdt
-dev/ofw/ofw_if.m		optional	aim | fdt
-dev/ofw/ofw_bus_subr.c		optional	aim | fdt
+# ofw can be either aim or fdt: fdt case handled in files. aim only powerpc specific.
+dev/ofw/openfirm.c		optional	aim
+dev/ofw/openfirmio.c		optional	aim
+dev/ofw/ofw_bus_if.m		optional	aim
+dev/ofw/ofw_if.m		optional	aim
+dev/ofw/ofw_bus_subr.c		optional	aim
 dev/ofw/ofw_console.c		optional	aim
 dev/ofw/ofw_disk.c		optional	ofwd aim
-dev/ofw/ofw_fdt.c		optional	fdt
 dev/ofw/ofw_iicbus.c		optional	iicbus aim
 dev/ofw/ofw_standard.c		optional	aim powerpc
 dev/powermac_nvram/powermac_nvram.c optional	powermac_nvram powermac
@@ -53,6 +54,7 @@ dev/sec/sec.c			optional	sec mpc85xx
 dev/sound/macio/aoa.c		optional	snd_davbus | snd_ai2s powermac
 dev/sound/macio/davbus.c	optional	snd_davbus powermac
 dev/sound/macio/i2s.c		optional	snd_ai2s powermac
+dev/sound/macio/onyx.c		optional	snd_ai2s iicbus powermac
 dev/sound/macio/snapper.c	optional	snd_ai2s iicbus powermac
 dev/sound/macio/tumbler.c	optional	snd_ai2s iicbus powermac
 dev/syscons/scgfbrndr.c		optional	sc
@@ -61,6 +63,7 @@ dev/syscons/scvtb.c		optional	sc
 dev/tsec/if_tsec.c		optional	tsec
 dev/tsec/if_tsec_fdt.c		optional	tsec fdt
 dev/uart/uart_cpu_powerpc.c	optional	uart aim
+dev/usb/controller/ehci_fsl.c	optional	ehci mpc85xx
 kern/kern_clocksource.c		standard
 kern/subr_dummy_vdso_tc.c	standard
 kern/syscalls.c			optional	ktr
@@ -160,6 +163,7 @@ powerpc/powermac/hrowpic.c	optional	powermac pci
 powerpc/powermac/kiic.c		optional	powermac kiic
 powerpc/powermac/macgpio.c	optional	powermac pci 
 powerpc/powermac/macio.c	optional	powermac pci
+powerpc/powermac/nvbl.c		optional	powermac nvbl
 powerpc/powermac/openpic_macio.c optional	powermac pci
 powerpc/powermac/platform_powermac.c optional	powermac
 powerpc/powermac/powermac_thermal.c optional	powermac
@@ -225,10 +229,9 @@ powerpc/psim/iobus.c 		optional	psim
 powerpc/psim/ata_iobus.c	optional	ata psim
 powerpc/psim/openpic_iobus.c	optional	psim
 powerpc/psim/uart_iobus.c	optional	uart psim
-
-compat/freebsd32/freebsd32_ioctl.c	optional	compat_freebsd32
-compat/freebsd32/freebsd32_misc.c	optional	compat_freebsd32
-compat/freebsd32/freebsd32_syscalls.c	optional	compat_freebsd32
-compat/freebsd32/freebsd32_sysent.c	optional	compat_freebsd32
-kern/imgact_elf32.c			optional	compat_freebsd32
-
+powerpc/wii/platform_wii.c	optional	wii
+powerpc/wii/wii_bus.c		optional	wii
+powerpc/wii/wii_pic.c		optional	wii
+powerpc/wii/wii_fb.c		optional	wii
+powerpc/wii/wii_gpio.c		optional	wiigpio
+powerpc/wii/wii_ipc.c		optional	wii

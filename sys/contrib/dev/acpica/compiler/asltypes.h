@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: asltypes.h - compiler data types and struct definitions
@@ -133,6 +132,8 @@ typedef struct asl_file_info
 {
     FILE                        *Handle;
     char                        *Filename;
+    const char                  *ShortDescription;
+    const char                  *Description;
 
 } ASL_FILE_INFO;
 
@@ -146,14 +147,14 @@ typedef struct asl_file_status
 
 /*
  * File types. Note: Any changes to this table must also be reflected
- * in the AslFileTypeNames array.
+ * in the Gbl_Files array.
  */
 typedef enum
 {
     ASL_FILE_STDOUT             = 0,
     ASL_FILE_STDERR,
-    ASL_FILE_INPUT,             /* Don't move these first 3 file types */
-    ASL_FILE_AML_OUTPUT,
+    ASL_FILE_INPUT,
+    ASL_FILE_AML_OUTPUT,        /* Don't move these first 4 file types */
     ASL_FILE_SOURCE_OUTPUT,
     ASL_FILE_PREPROCESSOR,
     ASL_FILE_LISTING_OUTPUT,

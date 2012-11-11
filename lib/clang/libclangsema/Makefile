@@ -50,8 +50,10 @@ TGHDRS=	AttrList \
 	AttrParsedAttrList \
 	AttrTemplateInstantiate \
 	Attrs \
+	CommentNodes \
 	DeclNodes \
 	DiagnosticASTKinds \
+	DiagnosticCommentKinds \
 	DiagnosticCommonKinds \
 	DiagnosticParseKinds \
 	DiagnosticSemaKinds \

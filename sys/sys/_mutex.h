@@ -31,12 +31,34 @@
 #ifndef _SYS__MUTEX_H_
 #define	_SYS__MUTEX_H_
 
+#include <machine/param.h>
+
 /*
  * Sleep/spin mutex.
+ *
+ * The layout of the first 2 members of struct mtx* is considered fixed.
+ * More specifically, it is assumed that there is a member called mtx_lock
+ * for every struct mtx* and that other locking primitive structures are
+ * not allowed to use such name for their members.
+ * If this needs to change, the bits in the mutex implementation might be
+ * modified appropriately.
  */
 struct mtx {
 	struct lock_object	lock_object;	/* Common lock properties. */
 	volatile uintptr_t	mtx_lock;	/* Owner and flags. */
 };
+
+/*
+ * Members of struct mtx_padalign must mirror members of struct mtx.
+ * mtx_padalign mutexes can use mtx(9) KPI transparently, without modifies.
+ * When using pad-aligned mutexes within structures, they should generally
+ * stay as the first member of the struct.  This is because otherwise the
+ * compiler can generate ever more padding for the struct to keep a correct
+ * alignment for the mutex.
+ */
+struct mtx_padalign {
+	struct lock_object	lock_object;	/* Common lock properties. */
+	volatile uintptr_t	mtx_lock;	/* Owner and flags. */
+} __aligned(CACHE_LINE_SIZE);
 
 #endif /* !_SYS__MUTEX_H_ */

@@ -61,7 +61,7 @@
 #
 
 # backwards compat option for older systems.
-MACHINE_CPUARCH?=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
+MACHINE_CPUARCH?=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc64/powerpc/}
 
 AWK?=		awk
 KMODLOAD?=	/sbin/kldload
@@ -73,6 +73,7 @@ OBJCOPY?=	objcopy
 .endif
 
 .include <bsd.init.mk>
+.include <bsd.compiler.mk>
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 
@@ -108,7 +109,7 @@ CFLAGS+=	-I. -I@
 # for example.
 CFLAGS+=	-I@/contrib/altq
 
-.if ${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang"
+.if ${COMPILER_TYPE} != "clang"
 CFLAGS+=	-finline-limit=${INLINE_LIMIT}
 CFLAGS+= --param inline-unit-growth=100
 CFLAGS+= --param large-function-growth=1000
@@ -344,7 +345,8 @@ MFILES?= dev/acpica/acpi_if.m dev/acpi_support/acpi_wmi_if.m \
 	dev/mmc/mmcbr_if.m dev/mmc/mmcbus_if.m \
 	dev/mii/miibus_if.m dev/mvs/mvs_if.m dev/ofw/ofw_bus_if.m \
 	dev/pccard/card_if.m dev/pccard/power_if.m dev/pci/pci_if.m \
-	dev/pci/pcib_if.m dev/ppbus/ppbus_if.m dev/smbus/smbus_if.m \
+	dev/pci/pcib_if.m dev/ppbus/ppbus_if.m \
+	dev/sdhci/sdhci_if.m dev/smbus/smbus_if.m \
 	dev/sound/pci/hda/hdac_if.m \
 	dev/sound/pcm/ac97_if.m dev/sound/pcm/channel_if.m \
 	dev/sound/pcm/feeder_if.m dev/sound/pcm/mixer_if.m \

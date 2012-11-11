@@ -31,12 +31,15 @@
 #ifndef __T4_OFFLOAD_H__
 #define __T4_OFFLOAD_H__
 
-#define INIT_ULPTX_WR(w, wrlen, atomic, tid) do { \
-	(w)->wr.wr_hi = htonl(V_FW_WR_OP(FW_ULPTX_WR) | V_FW_WR_ATOMIC(atomic)); \
-	(w)->wr.wr_mid = htonl(V_FW_WR_LEN16(DIV_ROUND_UP(wrlen, 16)) | \
+#define INIT_ULPTX_WRH(w, wrlen, atomic, tid) do { \
+	(w)->wr_hi = htonl(V_FW_WR_OP(FW_ULPTX_WR) | V_FW_WR_ATOMIC(atomic)); \
+	(w)->wr_mid = htonl(V_FW_WR_LEN16(DIV_ROUND_UP(wrlen, 16)) | \
 			       V_FW_WR_FLOWID(tid)); \
-	(w)->wr.wr_lo = cpu_to_be64(0); \
+	(w)->wr_lo = cpu_to_be64(0); \
 } while (0)
+
+#define INIT_ULPTX_WR(w, wrlen, atomic, tid) \
+    INIT_ULPTX_WRH(&((w)->wr), wrlen, atomic, tid)
 
 #define INIT_TP_WR(w, tid) do { \
 	(w)->wr.wr_hi = htonl(V_FW_WR_OP(FW_TP_WR) | \

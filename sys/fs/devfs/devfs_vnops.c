@@ -1081,6 +1081,9 @@ devfs_open(struct vop_open_args *ap)
 		error = dsw->d_fdopen(dev, ap->a_mode, td, fp);
 	else
 		error = dsw->d_open(dev, ap->a_mode, S_IFCHR, td);
+	/* cleanup any cdevpriv upon error */
+	if (error != 0)
+		devfs_clear_cdevpriv();
 	td->td_fpop = fpop;
 
 	vn_lock(vp, vlocked | LK_RETRY);

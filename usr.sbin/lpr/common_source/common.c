@@ -52,6 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <dirent.h>
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -68,8 +69,6 @@ __FBSDID("$FreeBSD$");
  */
 char	line[BUFSIZ];
 const char	*progname;		/* program name */
-
-extern uid_t	uid, euid;
 
 static int compar(const void *_p1, const void *_p2);
 
@@ -125,20 +124,22 @@ getq(const struct printer *pp, struct jobqueue *(*namelist[]))
 	DIR *dirp;
 	int statres;
 
-	seteuid(euid);
+	PRIV_START
 	if ((dirp = opendir(pp->spool_dir)) == NULL) {
-		seteuid(uid);
+		PRIV_END
 		return (-1);
 	}
 	if (fstat(dirfd(dirp), &stbuf) < 0)
 		goto errdone;
-	seteuid(uid);
+	PRIV_END
 
 	/*
 	 * Estimate the array size by taking the size of the directory file
-	 * and dividing it by a multiple of the minimum size entry. 
+	 * and dividing it by a multiple of the minimum size entry.
 	 */
 	arraysz = (stbuf.st_size / 24);
+	if (arraysz < 16)
+		arraysz = 16;
 	queue = (struct jobqueue **)malloc(arraysz * sizeof(struct jobqueue *));
 	if (queue == NULL)
 		goto errdone;
@@ -147,9 +148,9 @@ getq(const struct printer *pp, struct jobqueue *(*namelist[]))
 	while ((d = readdir(dirp)) != NULL) {
 		if (d->d_name[0] != 'c' || d->d_name[1] != 'f')
 			continue;	/* daemon control files only */
-		seteuid(euid);
+		PRIV_START
 		statres = stat(d->d_name, &stbuf);
-		seteuid(uid);
+		PRIV_END
 		if (statres < 0)
 			continue;	/* Doesn't exist */
 		entrysz = sizeof(struct jobqueue) - sizeof(q->job_cfname) +
@@ -182,7 +183,7 @@ getq(const struct printer *pp, struct jobqueue *(*namelist[]))
 
 errdone:
 	closedir(dirp);
-	seteuid(uid);
+	PRIV_END
 	return (-1);
 }
 
@@ -338,10 +339,10 @@ set_qstate(int action, const char *lfname)
 	 * Find what the current access-bits are.
 	 */
 	memset(&stbuf, 0, sizeof(stbuf));
-	seteuid(euid);
+	PRIV_START
 	statres = stat(lfname, &stbuf);
 	errsav = errno;
-	seteuid(uid);
+	PRIV_END
 	if ((statres < 0) && (errsav != ENOENT)) {
 		printf("\tcannot stat() lock file\n");
 		return (SQS_STATFAIL);
@@ -400,10 +401,10 @@ set_qstate(int action, const char *lfname)
 	res = 0;
 	if (statres >= 0) {
 		/* The file already exists, so change the access. */
-		seteuid(euid);
+		PRIV_START
 		chres = chmod(lfname, chgbits);
 		errsav = errno;
-		seteuid(uid);
+		PRIV_END
 		res = SQS_CHGOK;
 		if (chres < 0)
 			res = SQS_CHGFAIL;
@@ -422,10 +423,10 @@ set_qstate(int action, const char *lfname)
 		 * all the read/write bits are set as desired.
 		 */
 		oldmask = umask(S_IWOTH);
-		seteuid(euid);
+		PRIV_START
 		fd = open(lfname, O_WRONLY|O_CREAT, newbits);
 		errsav = errno;
-		seteuid(uid);
+		PRIV_END
 		umask(oldmask);
 		res = SQS_CREFAIL;
 		if (fd >= 0) {
@@ -641,7 +642,7 @@ trstat_write(struct printer *pp, tr_sendrecv sendrecv, size_t bytecnt,
 	 *   secs=<n>      - seconds it took to transfer the file
 	 *   bytes=<n>     - number of bytes transfered (ie, "bytecount")
 	 *   bps=<n.n>e<n> - Bytes/sec (if the transfer was "big enough"
-	 *		     for this to be useful) 
+	 *		     for this to be useful)
 	 * ! top=<str>     - type of printer (if the type is defined in
 	 *		     printcap, and if this statline is for sending
 	 *		     a file to that ptr)
@@ -719,7 +720,7 @@ trstat_write(struct printer *pp, tr_sendrecv sendrecv, size_t bytecnt,
 	if (remspace > 1) {
 		strcpy(eostat, "\n");
 	} else {
-		/* probably should back up to just before the final " x=".. */  
+		/* probably should back up to just before the final " x=".. */
 		strcpy(statline+STATLINE_SIZE-2, "\n");
 	}
 	statfile = open(statfname, O_WRONLY|O_APPEND, 0664);
@@ -732,7 +733,7 @@ trstat_write(struct printer *pp, tr_sendrecv sendrecv, size_t bytecnt,
 	close(statfile);
 
 	return;
-#undef UPD_EOSTAT	
+#undef UPD_EOSTAT
 }
 
 #include <stdarg.h>

@@ -261,8 +261,8 @@ _find_processes()
 
 	_pref=
 	if [ $_interpreter != "." ]; then	# an interpreted script
-		_script=${_chroot}${_chroot:+"/"}$_procname
-		if [ -r $_script ]; then
+		_script="${_chroot}${_chroot:+/}$_procname"
+		if [ -r "$_script" ]; then
 			read _interp < $_script	# read interpreter name
 			case "$_interp" in
 			\#!*)
@@ -462,6 +462,8 @@ check_startmsgs()
 #				NOTE:	$flags from the parent environment
 #					can be used to override this.
 #
+#	${name}_fib	n	Routing table number to run ${command} with.
+#
 #	${name}_nice	n	Nice level to run ${command} at.
 #
 #	${name}_user	n	User to run ${command} as, using su(1) if not
@@ -640,7 +642,8 @@ run_rc_command()
 	fi
 	eval _chdir=\$${name}_chdir	_chroot=\$${name}_chroot \
 	    _nice=\$${name}_nice	_user=\$${name}_user \
-	    _group=\$${name}_group	_groups=\$${name}_groups
+	    _group=\$${name}_group	_groups=\$${name}_groups \
+	    _fib=\$${name}_fib
 
 	if [ -n "$_user" ]; then	# unset $_user if running as that user
 		if [ "$_user" = "$(eval $IDCMD)" ]; then
@@ -705,7 +708,7 @@ run_rc_command()
 				return 1
 			fi
 
-			if [ ! -x ${_chroot}${_chroot:+"/"}${command} ]; then
+			if [ ! -x "${_chroot}${_chroot:+/}${command}" ]; then
 				warn "run_rc_command: cannot run $command"
 				return 1
 			fi
@@ -721,11 +724,13 @@ run_rc_command()
 			if [ -n "$_chroot" ]; then
 				_doit="\
 ${_nice:+nice -n $_nice }\
+${_fib:+setfib -F $_fib }\
 chroot ${_user:+-u $_user }${_group:+-g $_group }${_groups:+-G $_groups }\
 $_chroot $command $rc_flags $command_args"
 			else
 				_doit="\
 ${_chdir:+cd $_chdir && }\
+${_fib:+setfib -F $_fib }\
 $command $rc_flags $command_args"
 				if [ -n "$_user" ]; then
 				    _doit="su -m $_user -c 'sh -c \"$_doit\"'"
@@ -1593,7 +1598,7 @@ geli_make_list()
 
 # Find scripts in local_startup directories that use the old syntax
 #
-find_local_scripts_old () {
+find_local_scripts_old() {
 	zlist=''
 	slist=''
 	for dir in ${local_startup}; do
@@ -1612,7 +1617,7 @@ find_local_scripts_old () {
 	done
 }
 
-find_local_scripts_new () {
+find_local_scripts_new() {
 	local_rc=''
 	for dir in ${local_startup}; do
 		if [ -d "${dir}" ]; then

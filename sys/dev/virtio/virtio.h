@@ -40,6 +40,7 @@ struct vq_alloc_info;
 #define VIRTIO_ID_ENTROPY	0x04
 #define VIRTIO_ID_BALLOON	0x05
 #define VIRTIO_ID_IOMEMORY	0x06
+#define VIRTIO_ID_SCSI		0x08
 #define VIRTIO_ID_9P		0x09
 
 /* Status byte for guest to report progress. */
@@ -151,6 +152,8 @@ VIRTIO_RDWR_DEVICE_CONFIG(1, uint8_t);
 VIRTIO_RDWR_DEVICE_CONFIG(2, uint16_t);
 VIRTIO_RDWR_DEVICE_CONFIG(4, uint32_t);
 
+#undef VIRTIO_RDWR_DEVICE_CONFIG
+
 #define VIRTIO_READ_IVAR(name, ivar)					\
 static inline int							\
 __CONCAT(virtio_get_,name)(device_t dev)				\
@@ -166,6 +169,8 @@ VIRTIO_READ_IVAR(device,	VIRTIO_IVAR_DEVICE);
 VIRTIO_READ_IVAR(subvendor,	VIRTIO_IVAR_SUBVENDOR);
 VIRTIO_READ_IVAR(subdevice,	VIRTIO_IVAR_SUBDEVICE);
 
+#undef VIRTIO_READ_IVAR
+
 #define VIRTIO_WRITE_IVAR(name, ivar)					\
 static inline void							\
 __CONCAT(virtio_set_,name)(device_t dev, void *val)			\
@@ -174,5 +179,7 @@ __CONCAT(virtio_set_,name)(device_t dev, void *val)			\
 }
 
 VIRTIO_WRITE_IVAR(feature_desc,	VIRTIO_IVAR_FEATURE_DESC);
+
+#undef VIRTIO_WRITE_IVAR
 
 #endif /* _VIRTIO_H_ */

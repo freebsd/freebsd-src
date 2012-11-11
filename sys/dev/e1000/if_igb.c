@@ -100,7 +100,7 @@ int	igb_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version:
  *********************************************************************/
-char igb_driver_version[] = "version - 2.3.4";
+char igb_driver_version[] = "version - 2.3.5";
 
 
 /*********************************************************************
@@ -961,7 +961,15 @@ igb_mq_start(struct ifnet *ifp, struct mbuf *m)
 	que = &adapter->queues[i];
 	if (((txr->queue_status & IGB_QUEUE_DEPLETED) == 0) &&
 	    IGB_TX_TRYLOCK(txr)) {
-		err = igb_mq_start_locked(ifp, txr, m);
+		struct mbuf *pm = NULL;
+		/*
+		** Try to queue first to avoid
+		** out-of-order delivery, but 
+		** settle for it if that fails
+		*/
+		if (m && drbr_enqueue(ifp, txr->br, m))
+			pm = m;
+		err = igb_mq_start_locked(ifp, txr, pm);
 		IGB_TX_UNLOCK(txr);
 	} else {
 		err = drbr_enqueue(ifp, txr->br, m);
@@ -981,7 +989,7 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 	IGB_TX_LOCK_ASSERT(txr);
 
 	if (((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) ||
-	    (txr->queue_status == IGB_QUEUE_DEPLETED) ||
+	    (txr->queue_status & IGB_QUEUE_DEPLETED) ||
 	    adapter->link_active == 0) {
 		if (m != NULL)
 			err = drbr_enqueue(ifp, txr->br, m);
@@ -1006,7 +1014,9 @@ igb_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 			break;
 		}
 		enq++;
-		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
+		ifp->if_obytes += next->m_pkthdr.len;
+		if (next->m_flags & M_MCAST)
+			ifp->if_omcasts++;
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			break;
@@ -1494,12 +1504,6 @@ igb_irq_fast(void *arg)
 }
 
 #ifdef DEVICE_POLLING
-/*********************************************************************
- *
- *  Legacy polling routine : if using this code you MUST be sure that
- *  multiqueue is not defined, ie, set igb_num_queues to 1.
- *
- *********************************************************************/
 #if __FreeBSD_version >= 800000
 #define POLL_RETURN_COUNT(a) (a)
 static int
@@ -1510,8 +1514,8 @@ static void
 igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 {
 	struct adapter		*adapter = ifp->if_softc;
-	struct igb_queue	*que = adapter->queues;
-	struct tx_ring		*txr = adapter->tx_rings;
+	struct igb_queue	*que;
+	struct tx_ring		*txr;
 	u32			reg_icr, rx_done = 0;
 	u32			loop = IGB_MAX_LOOP;
 	bool			more;
@@ -1533,20 +1537,26 @@ igb_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	}
 	IGB_CORE_UNLOCK(adapter);
 
-	igb_rxeof(que, count, &rx_done);
+	for (int i = 0; i < adapter->num_queues; i++) {
+		que = &adapter->queues[i];
+		txr = que->txr;
 
-	IGB_TX_LOCK(txr);
-	do {
-		more = igb_txeof(txr);
-	} while (loop-- && more);
+		igb_rxeof(que, count, &rx_done);
+
+		IGB_TX_LOCK(txr);
+		do {
+			more = igb_txeof(txr);
+		} while (loop-- && more);
 #if __FreeBSD_version >= 800000
-	if (!drbr_empty(ifp, txr->br))
-		igb_mq_start_locked(ifp, txr, NULL);
+		if (!drbr_empty(ifp, txr->br))
+			igb_mq_start_locked(ifp, txr, NULL);
 #else
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		igb_start_locked(txr, ifp);
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			igb_start_locked(txr, ifp);
 #endif
-	IGB_TX_UNLOCK(txr);
+		IGB_TX_UNLOCK(txr);
+	}
+
 	return POLL_RETURN_COUNT(rx_done);
 }
 #endif /* DEVICE_POLLING */
@@ -2522,7 +2532,6 @@ igb_allocate_msix(struct adapter *adapter)
 				"Bound queue %d to cpu %d\n",
 				i,igb_last_bind_cpu);
 			igb_last_bind_cpu = CPU_NEXT(igb_last_bind_cpu);
-			igb_last_bind_cpu = igb_last_bind_cpu % mp_ncpus;
 		}
 #if __FreeBSD_version >= 800000
 		TASK_INIT(&que->txr->txq_task, 0, igb_deferred_mq_start,
@@ -4752,7 +4761,7 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 		/* Make sure all segments of a bad packet are discarded */
 		if (((staterr & E1000_RXDEXT_ERR_FRAME_ERR_MASK) != 0) ||
 		    (rxr->discard)) {
-			ifp->if_ierrors++;
+			adapter->dropped_pkts++;
 			++rxr->rx_discarded;
 			if (!eop) /* Catch subsequent segs */
 				rxr->discard = TRUE;
@@ -4894,7 +4903,7 @@ next_desc:
 	}
 
 	if (done != NULL)
-		*done = rxdone;
+		*done += rxdone;
 
 	IGB_RX_UNLOCK(rxr);
 	return ((staterr & E1000_RXD_STAT_DD) ? TRUE : FALSE);

@@ -349,6 +349,14 @@ ath_compute_num_delims(struct ath_softc *sc, struct ath_buf *first_bf,
 	 */
 	ndelim += ATH_AGGR_ENCRYPTDELIM;
 
+	/*
+	 * For AR9380, there's a minimum number of delimeters
+	 * required when doing RTS.
+	 */
+	if (sc->sc_use_ent && (sc->sc_ent_cfg & AH_ENT_RTSCTS_DELIM_WAR)
+	    && ndelim < AH_FIRST_DESC_NDELIMS)
+		ndelim = AH_FIRST_DESC_NDELIMS;
+
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 	    "%s: pktlen=%d, ndelim=%d, mpdudensity=%d\n",
 	    __func__, pktlen, ndelim, mpdudensity);
@@ -511,6 +519,8 @@ ath_rateseries_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 			series[i].RateFlags |= HAL_RATESERIES_HALFGI;
 
 		series[i].Rate = rt->info[rc[i].rix].rateCode;
+		series[i].RateIndex = rc[i].rix;
+		series[i].tx_power_cap = 0x3f;	/* XXX for now */
 
 		/*
 		 * PktDuration doesn't include slot, ACK, RTS, etc timing -
@@ -540,12 +550,13 @@ ath_rateseries_print(struct ath_softc *sc, HAL_11N_RATE_SERIES *series)
 	int i;
 	for (i = 0; i < ATH_RC_NUM; i++) {
 		device_printf(sc->sc_dev ,"series %d: rate %x; tries %d; "
-		    "pktDuration %d; chSel %d; rateFlags %x\n",
+		    "pktDuration %d; chSel %d; txpowcap %d, rateFlags %x\n",
 		    i,
 		    series[i].Rate,
 		    series[i].Tries,
 		    series[i].PktDuration,
 		    series[i].ChSel,
+		    series[i].tx_power_cap,
 		    series[i].RateFlags);
 	}
 }
@@ -558,14 +569,12 @@ ath_rateseries_print(struct ath_softc *sc, HAL_11N_RATE_SERIES *series)
  * This isn't useful for sending beacon frames, which has different needs
  * wrt what's passed into the rate scenario function.
  */
-
 void
 ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni,
     struct ath_buf *bf)
 {
 	HAL_11N_RATE_SERIES series[4];
 	struct ath_desc *ds = bf->bf_desc;
-	struct ath_desc *lastds = NULL;
 	struct ath_hal *ah = sc->sc_ah;
 	int is_pspoll = (bf->bf_state.bfs_atype == HAL_PKT_TYPE_PSPOLL);
 	int ctsrate = bf->bf_state.bfs_ctsrate;
@@ -576,15 +585,7 @@ ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni,
 
 	ath_rateseries_setup(sc, ni, bf, series);
 
-	/* Enforce AR5416 aggregate limit - can't do RTS w/ an agg frame > 8k */
-
-	/* Enforce RTS and CTS are mutually exclusive */
-
-	/* Get a pointer to the last tx descriptor in the list */
-	lastds = bf->bf_lastds;
-
 #if 0
-	printf("pktlen: %d; flags 0x%x\n", pktlen, flags);
 	ath_rateseries_print(sc, series);
 #endif
 
@@ -599,21 +600,6 @@ ath_buf_set_rate(struct ath_softc *sc, struct ieee80211_node *ni,
 	    series,	/* 11n rate series */
 	    4,		/* number of series */
 	    flags);
-
-	/* Setup the last descriptor in the chain */
-	/*
-	 * XXX Why is this done here, and not in the upper layer?
-	 * The rate control code stores a copy of the RC info in
-	 * the last descriptor as well as the first, then uses
-	 * the shadow copy in the last descriptor to see what the RC
-	 * decisions were.  I'm not sure why; perhaps earlier hardware
-	 * overwrote the first descriptor contents.
-	 *
-	 * In the 802.11n case, it also clears the moreaggr/delim
-	 * fields.  Again, this should be done by the caller of
-	 * ath_buf_set_rate().
-	 */
-	ath_hal_setuplasttxdesc(ah, lastds, ds);
 
 	/* Set burst duration */
 	/*
@@ -683,7 +669,7 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 	h_baw = tap->txa_wnd / 2;
 
 	for (;;) {
-		bf = TAILQ_FIRST(&tid->axq_q);
+		bf = ATH_TID_FIRST(tid);
 		if (bf_first == NULL)
 			bf_first = bf;
 		if (bf == NULL) {
@@ -764,7 +750,7 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 		 * subsequent frame with this config.
 		 */
 		bf->bf_state.bfs_txflags &=
-		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
+		    ~ (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
 		bf->bf_state.bfs_txflags |=
 		    bf_first->bf_state.bfs_txflags &
 		    (HAL_TXDESC_RTSENA | HAL_TXDESC_CTSENA);
@@ -782,7 +768,7 @@ ath_tx_form_aggr(struct ath_softc *sc, struct ath_node *an,
 		/*
 		 * this packet is part of an aggregate.
 		 */
-		ATH_TXQ_REMOVE(tid, bf, bf_list);
+		ATH_TID_REMOVE(tid, bf, bf_list);
 
 		/* The TID lock is required for the BAW update */
 		ath_tx_addto_baw(sc, an, tid, bf);

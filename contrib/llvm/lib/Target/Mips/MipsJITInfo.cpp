@@ -27,7 +27,52 @@ using namespace llvm;
 
 
 void MipsJITInfo::replaceMachineCodeForFunction(void *Old, void *New) {
-  report_fatal_error("MipsJITInfo::replaceMachineCodeForFunction");
+  unsigned NewAddr = (intptr_t)New;
+  unsigned OldAddr = (intptr_t)Old;
+  const unsigned NopInstr = 0x0;
+
+  // If the functions are in the same memory segment, insert PC-region branch.
+  if ((NewAddr & 0xF0000000) == ((OldAddr + 4) & 0xF0000000)) {
+    unsigned *OldInstruction = (unsigned *)Old;
+    *OldInstruction = 0x08000000;
+    unsigned JTargetAddr = NewAddr & 0x0FFFFFFC;
+
+    JTargetAddr >>= 2;
+    *OldInstruction |= JTargetAddr;
+
+    // Insert a NOP.
+    OldInstruction++;
+    *OldInstruction = NopInstr;
+
+    sys::Memory::InvalidateInstructionCache(Old, 2 * 4);
+  } else {
+    // We need to clear hint bits from the instruction, in case it is 'jr ra'.
+    const unsigned HintMask = 0xFFFFF83F, ReturnSequence = 0x03e00008;
+    unsigned* CurrentInstr = (unsigned*)Old;
+    unsigned CurrInstrHintClear = (*CurrentInstr) & HintMask;
+    unsigned* NextInstr = CurrentInstr + 1;
+    unsigned NextInstrHintClear = (*NextInstr) & HintMask;
+
+    // Do absolute jump if there are 2 or more instructions before return from
+    // the old function.
+    if ((CurrInstrHintClear != ReturnSequence) &&
+        (NextInstrHintClear != ReturnSequence)) {
+      const unsigned LuiT0Instr = 0x3c080000, AddiuT0Instr = 0x25080000;
+      const unsigned JrT0Instr = 0x01000008;
+      // lui  t0,  high 16 bit of the NewAddr
+      (*(CurrentInstr++)) = LuiT0Instr | ((NewAddr & 0xffff0000) >> 16);
+      // addiu  t0, t0, low 16 bit of the NewAddr
+      (*(CurrentInstr++)) = AddiuT0Instr | (NewAddr & 0x0000ffff);
+      // jr t0
+      (*(CurrentInstr++)) = JrT0Instr;
+      (*CurrentInstr) = NopInstr;
+
+      sys::Memory::InvalidateInstructionCache(Old, 4 * 4);
+    } else {
+      // Unsupported case
+      report_fatal_error("MipsJITInfo::replaceMachineCodeForFunction");
+    }
+  }
 }
 
 /// JITCompilerFunction - This contains the address of the JIT function used to
@@ -154,8 +199,8 @@ TargetJITInfo::StubLayout MipsJITInfo::getStubLayout() {
   return Result;
 }
 
-void *MipsJITInfo::emitFunctionStub(const Function* F, void *Fn,
-    JITCodeEmitter &JCE) {
+void *MipsJITInfo::emitFunctionStub(const Function *F, void *Fn,
+                                    JITCodeEmitter &JCE) {
   JCE.emitAlignment(4);
   void *Addr = (void*) (JCE.getCurrentPCValue());
   if (!sys::Memory::setRangeWritable(Addr, 16))
@@ -193,7 +238,7 @@ void *MipsJITInfo::emitFunctionStub(const Function* F, void *Fn,
 /// it must rewrite the code to contain the actual addresses of any
 /// referenced global symbols.
 void MipsJITInfo::relocate(void *Function, MachineRelocation *MR,
-    unsigned NumRelocs, unsigned char* GOTBase) {
+                           unsigned NumRelocs, unsigned char *GOTBase) {
   for (unsigned i = 0; i != NumRelocs; ++i, ++MR) {
 
     void *RelocPos = (char*) Function + MR->getMachineCodeOffset();

@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 #include <arm/at91/at91var.h>
 #include <arm/at91/at91_streg.h>
+#include <arm/at91/at91rm92reg.h>
 
 static struct at91_st_softc {
 	struct resource *	sc_irq_res;
@@ -57,6 +58,12 @@ static inline uint32_t
 RD4(bus_size_t off)
 {
 
+	if (timer_softc == NULL) {
+		uint32_t *p = (uint32_t *)(AT91_BASE + AT91RM92_ST_BASE + off);
+
+		return *p;
+	}
+
 	return (bus_read_4(timer_softc->sc_mem_res, off));
 }
 
@@ -64,7 +71,13 @@ static inline void
 WR4(bus_size_t off, uint32_t val)
 {
 
-	bus_write_4(timer_softc->sc_mem_res, off, val);
+	if (timer_softc == NULL) {
+		uint32_t *p = (uint32_t *)(AT91_BASE + AT91RM92_ST_BASE + off);
+
+		*p = val;
+	}
+	else
+		bus_write_4(timer_softc->sc_mem_res, off, val);
 }
 
 static void at91_st_watchdog(void *, u_int, int *);
@@ -105,7 +118,7 @@ clock_intr(void *arg)
 	return (FILTER_STRAY);
 }
 
-static void
+void
 at91_st_delay(int n)
 {
 	uint32_t start, end, cur;
@@ -125,7 +138,7 @@ at91_st_delay(int n)
 	}
 }
 
-static void
+void
 at91_st_cpu_reset(void)
 {
 	/*
@@ -208,9 +221,6 @@ at91_st_attach(device_t dev)
 	err = at91_st_activate(dev);
 	if (err)
 		return err;
-
-        soc_data.delay = at91_st_delay;
-        soc_data.reset = at91_st_cpu_reset;      // XXX kinda late to be setting this...
 
 	timer_softc->sc_wet = EVENTHANDLER_REGISTER(watchdog_list,
 	  at91_st_watchdog, dev, 0);

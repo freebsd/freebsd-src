@@ -1,4 +1,4 @@
-/* $OpenBSD: sftp-glob.c,v 1.22 2006/08/03 03:34:42 deraadt Exp $ */
+/* $OpenBSD: sftp-glob.c,v 1.23 2011/10/04 14:17:32 djm Exp $ */
 /*
  * Copyright (c) 2001-2004 Damien Miller <djm@openbsd.org>
  *
@@ -111,7 +111,7 @@ fudge_lstat(const char *path, struct stat *st)
 {
 	Attrib *a;
 
-	if (!(a = do_lstat(cur.conn, (char *)path, 0)))
+	if (!(a = do_lstat(cur.conn, (char *)path, 1)))
 		return(-1);
 
 	attrib_to_stat(a, st);
@@ -124,7 +124,7 @@ fudge_stat(const char *path, struct stat *st)
 {
 	Attrib *a;
 
-	if (!(a = do_stat(cur.conn, (char *)path, 0)))
+	if (!(a = do_stat(cur.conn, (char *)path, 1)))
 		return(-1);
 
 	attrib_to_stat(a, st);

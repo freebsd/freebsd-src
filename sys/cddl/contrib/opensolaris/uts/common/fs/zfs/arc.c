@@ -135,6 +135,14 @@
 
 #include <vm/vm_pageout.h>
 
+#ifdef illumos
+#ifndef _KERNEL
+/* set with ZFS_DEBUG=watch, to enable watchpoints on frozen buffers */
+boolean_t arc_watch = B_FALSE;
+int arc_procfd;
+#endif
+#endif /* illumos */
+
 static kmutex_t		arc_reclaim_thr_lock;
 static kcondvar_t	arc_reclaim_thr_cv;	/* used to signal reclaim thr */
 static uint8_t		arc_thread_exit;
@@ -534,6 +542,9 @@ static void arc_get_data_buf(arc_buf_t *buf);
 static void arc_access(arc_buf_hdr_t *buf, kmutex_t *hash_lock);
 static int arc_evict_needed(arc_buf_contents_t type);
 static void arc_evict_ghost(arc_state_t *state, uint64_t spa, int64_t bytes);
+#ifdef illumos
+static void arc_buf_watch(arc_buf_t *buf);
+#endif /* illumos */
 
 static boolean_t l2arc_write_eligible(uint64_t spa_guid, arc_buf_hdr_t *ab);
 
@@ -1069,7 +1080,55 @@ arc_cksum_compute(arc_buf_t *buf, boolean_t force)
 	fletcher_2_native(buf->b_data, buf->b_hdr->b_size,
 	    buf->b_hdr->b_freeze_cksum);
 	mutex_exit(&buf->b_hdr->b_freeze_lock);
+#ifdef illumos
+	arc_buf_watch(buf);
+#endif /* illumos */
 }
+
+#ifdef illumos
+#ifndef _KERNEL
+typedef struct procctl {
+	long cmd;
+	prwatch_t prwatch;
+} procctl_t;
+#endif
+
+/* ARGSUSED */
+static void
+arc_buf_unwatch(arc_buf_t *buf)
+{
+#ifndef _KERNEL
+	if (arc_watch) {
+		int result;
+		procctl_t ctl;
+		ctl.cmd = PCWATCH;
+		ctl.prwatch.pr_vaddr = (uintptr_t)buf->b_data;
+		ctl.prwatch.pr_size = 0;
+		ctl.prwatch.pr_wflags = 0;
+		result = write(arc_procfd, &ctl, sizeof (ctl));
+		ASSERT3U(result, ==, sizeof (ctl));
+	}
+#endif
+}
+
+/* ARGSUSED */
+static void
+arc_buf_watch(arc_buf_t *buf)
+{
+#ifndef _KERNEL
+	if (arc_watch) {
+		int result;
+		procctl_t ctl;
+		ctl.cmd = PCWATCH;
+		ctl.prwatch.pr_vaddr = (uintptr_t)buf->b_data;
+		ctl.prwatch.pr_size = buf->b_hdr->b_size;
+		ctl.prwatch.pr_wflags = WA_WRITE;
+		result = write(arc_procfd, &ctl, sizeof (ctl));
+		ASSERT3U(result, ==, sizeof (ctl));
+	}
+#endif
+}
+#endif /* illumos */
 
 void
 arc_buf_thaw(arc_buf_t *buf)
@@ -1095,6 +1154,10 @@ arc_buf_thaw(arc_buf_t *buf)
 	}
 
 	mutex_exit(&buf->b_hdr->b_freeze_lock);
+
+#ifdef illumos
+	arc_buf_unwatch(buf);
+#endif /* illumos */
 }
 
 void
@@ -1112,6 +1175,7 @@ arc_buf_freeze(arc_buf_t *buf)
 	    buf->b_hdr->b_state == arc_anon);
 	arc_cksum_compute(buf, B_FALSE);
 	mutex_exit(hash_lock);
+
 }
 
 static void
@@ -1149,7 +1213,7 @@ add_reference(arc_buf_hdr_t *ab, kmutex_t *hash_lock, void *tag)
 		ASSERT(list_link_active(&ab->b_arc_node));
 		list_remove(list, ab);
 		if (GHOST_STATE(ab->b_state)) {
-			ASSERT3U(ab->b_datacnt, ==, 0);
+			ASSERT0(ab->b_datacnt);
 			ASSERT3P(ab->b_buf, ==, NULL);
 			delta = ab->b_size;
 		}
@@ -1496,21 +1560,22 @@ arc_buf_add_ref(arc_buf_t *buf, void* tag)
  * the buffer is placed on l2arc_free_on_write to be freed later.
  */
 static void
-arc_buf_data_free(arc_buf_hdr_t *hdr, void (*free_func)(void *, size_t),
-    void *data, size_t size)
+arc_buf_data_free(arc_buf_t *buf, void (*free_func)(void *, size_t))
 {
+	arc_buf_hdr_t *hdr = buf->b_hdr;
+
 	if (HDR_L2_WRITING(hdr)) {
 		l2arc_data_free_t *df;
 		df = kmem_alloc(sizeof (l2arc_data_free_t), KM_SLEEP);
-		df->l2df_data = data;
-		df->l2df_size = size;
+		df->l2df_data = buf->b_data;
+		df->l2df_size = hdr->b_size;
 		df->l2df_func = free_func;
 		mutex_enter(&l2arc_free_on_write_mtx);
 		list_insert_head(l2arc_free_on_write, df);
 		mutex_exit(&l2arc_free_on_write_mtx);
 		ARCSTAT_BUMP(arcstat_l2_free_on_write);
 	} else {
-		free_func(data, size);
+		free_func(buf->b_data, hdr->b_size);
 	}
 }
 
@@ -1526,16 +1591,17 @@ arc_buf_destroy(arc_buf_t *buf, boolean_t recycle, boolean_t all)
 		arc_buf_contents_t type = buf->b_hdr->b_type;
 
 		arc_cksum_verify(buf);
+#ifdef illumos
+		arc_buf_unwatch(buf);
+#endif /* illumos */
 
 		if (!recycle) {
 			if (type == ARC_BUFC_METADATA) {
-				arc_buf_data_free(buf->b_hdr, zio_buf_free,
-				    buf->b_data, size);
+				arc_buf_data_free(buf, zio_buf_free);
 				arc_space_return(size, ARC_SPACE_DATA);
 			} else {
 				ASSERT(type == ARC_BUFC_DATA);
-				arc_buf_data_free(buf->b_hdr,
-				    zio_data_buf_free, buf->b_data, size);
+				arc_buf_data_free(buf, zio_data_buf_free);
 				ARCSTAT_INCR(arcstat_data_size, -size);
 				atomic_add_64(&arc_size, -size);
 			}
@@ -1812,7 +1878,7 @@ evict_start:
 		hash_lock = HDR_LOCK(ab);
 		have_lock = MUTEX_HELD(hash_lock);
 		if (have_lock || mutex_tryenter(hash_lock)) {
-			ASSERT3U(refcount_count(&ab->b_refcnt), ==, 0);
+			ASSERT0(refcount_count(&ab->b_refcnt));
 			ASSERT(ab->b_datacnt > 0);
 			while (ab->b_buf) {
 				arc_buf_t *buf = ab->b_buf;
@@ -2712,7 +2778,7 @@ arc_access(arc_buf_hdr_t *buf, kmutex_t *hash_lock)
 			 * This is a prefetch access...
 			 * move this block back to the MRU state.
 			 */
-			ASSERT3U(refcount_count(&buf->b_refcnt), ==, 0);
+			ASSERT0(refcount_count(&buf->b_refcnt));
 			new_state = arc_mru;
 		}
 
@@ -2803,6 +2869,9 @@ arc_read_done(zio_t *zio)
 	}
 
 	arc_cksum_compute(buf, B_FALSE);
+#ifdef illumos
+	arc_buf_watch(buf);
+#endif /* illumos */
 
 	if (hash_lock && zio->io_error == 0 && hdr->b_state == arc_anon) {
 		/*
@@ -3053,7 +3122,7 @@ top:
 			/* this block is in the ghost cache */
 			ASSERT(GHOST_STATE(hdr->b_state));
 			ASSERT(!HDR_IO_IN_PROGRESS(hdr));
-			ASSERT3U(refcount_count(&hdr->b_refcnt), ==, 0);
+			ASSERT0(refcount_count(&hdr->b_refcnt));
 			ASSERT(hdr->b_buf == NULL);
 
 			/* if this is a prefetch, we don't have a reference */
@@ -3367,6 +3436,9 @@ arc_release(arc_buf_t *buf, void *tag)
 		}
 		hdr->b_datacnt -= 1;
 		arc_cksum_verify(buf);
+#ifdef illumos
+		arc_buf_unwatch(buf);
+#endif /* illumos */
 
 		mutex_exit(hash_lock);
 
@@ -3720,8 +3792,16 @@ arc_lowmem(void *arg __unused, int howto __unused)
 	mutex_enter(&arc_reclaim_thr_lock);
 	needfree = 1;
 	cv_signal(&arc_reclaim_thr_cv);
-	while (needfree)
-		msleep(&needfree, &arc_reclaim_thr_lock, 0, "zfs:lowmem", 0);
+
+	/*
+	 * It is unsafe to block here in arbitrary threads, because we can come
+	 * here from ARC itself and may hold ARC locks and thus risk a deadlock
+	 * with ARC reclaim thread.
+	 */
+	if (curproc == pageproc) {
+		while (needfree)
+			msleep(&needfree, &arc_reclaim_thr_lock, 0, "zfs:lowmem", 0);
+	}
 	mutex_exit(&arc_reclaim_thr_lock);
 	mutex_exit(&arc_lowmem_lock);
 }
@@ -4739,7 +4819,7 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 	mutex_exit(&l2arc_buflist_mtx);
 
 	if (pio == NULL) {
-		ASSERT3U(write_sz, ==, 0);
+		ASSERT0(write_sz);
 		kmem_cache_free(hdr_cache, head);
 		return (0);
 	}

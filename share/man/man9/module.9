@@ -99,7 +99,7 @@ static int foo_handler(module_t mod, int /*modeventtype_t*/ what,
 static moduledata_t mod_data= {
         "foo",
         foo_handler,
-        0
+	NULL
 };
 
 MODULE_VERSION(foo, 1);

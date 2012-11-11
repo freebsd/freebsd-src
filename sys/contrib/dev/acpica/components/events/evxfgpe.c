@@ -83,7 +83,7 @@ AcpiUpdateAllGpes (
     ACPI_STATUS             Status;
 
 
-    ACPI_FUNCTION_TRACE (AcpiUpdateGpes);
+    ACPI_FUNCTION_TRACE (AcpiUpdateAllGpes);
 
 
     Status = AcpiUtAcquireMutex (ACPI_MTX_EVENTS);
@@ -298,7 +298,8 @@ AcpiSetupGpeForWake (
     ACPI_STATUS             Status;
     ACPI_GPE_EVENT_INFO     *GpeEventInfo;
     ACPI_NAMESPACE_NODE     *DeviceNode;
-    ACPI_GPE_NOTIFY_INFO    *NewNotify, *Notify;
+    ACPI_GPE_NOTIFY_INFO    *Notify;
+    ACPI_GPE_NOTIFY_INFO    *NewNotify;
     ACPI_CPU_FLAGS          Flags;
 
 
@@ -334,6 +335,11 @@ AcpiSetupGpeForWake (
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
+    /*
+     * Allocate a new notify object up front, in case it is needed.
+     * Memory allocation while holding a spinlock is a big no-no
+     * on some hosts.
+     */
     NewNotify = ACPI_ALLOCATE_ZEROED (sizeof (ACPI_GPE_NOTIFY_INFO));
     if (!NewNotify)
     {
@@ -401,8 +407,12 @@ AcpiSetupGpeForWake (
     GpeEventInfo->Flags |= ACPI_GPE_CAN_WAKE;
     Status = AE_OK;
 
+
 UnlockAndExit:
     AcpiOsReleaseLock (AcpiGbl_GpeLock, Flags);
+
+    /* Delete the notify object if it was not used above */
+
     if (NewNotify)
     {
         ACPI_FREE (NewNotify);
@@ -470,7 +480,7 @@ AcpiSetGpeWakeMask (
         goto UnlockAndExit;
     }
 
-    RegisterBit = AcpiHwGetGpeRegisterBit (GpeEventInfo, GpeRegisterInfo);
+    RegisterBit = AcpiHwGetGpeRegisterBit (GpeEventInfo);
 
     /* Perform the action */
 
@@ -764,7 +774,7 @@ AcpiInstallGpeBlock (
     Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
     if (ACPI_FAILURE (Status))
     {
-        return (Status);
+        return_ACPI_STATUS (Status);
     }
 
     Node = AcpiNsValidateHandle (GpeDevice);
@@ -857,7 +867,7 @@ AcpiRemoveGpeBlock (
     Status = AcpiUtAcquireMutex (ACPI_MTX_NAMESPACE);
     if (ACPI_FAILURE (Status))
     {
-        return (Status);
+        return_ACPI_STATUS (Status);
     }
 
     Node = AcpiNsValidateHandle (GpeDevice);

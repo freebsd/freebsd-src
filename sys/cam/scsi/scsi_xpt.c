@@ -615,11 +615,6 @@ proberegister(struct cam_periph *periph, void *arg)
 	probe_softc *softc;
 
 	request_ccb = (union ccb *)arg;
-	if (periph == NULL) {
-		printf("proberegister: periph was NULL!!\n");
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	if (request_ccb == NULL) {
 		printf("proberegister: no probe CCB, "
 		       "can't register device\n");
@@ -2248,29 +2243,20 @@ scsi_scan_lun(struct cam_periph *periph, struct cam_path *path,
 	}
 
 	if (request_ccb == NULL) {
-		request_ccb = malloc(sizeof(union ccb), M_CAMXPT, M_NOWAIT);
+		request_ccb = xpt_alloc_ccb_nowait();
 		if (request_ccb == NULL) {
 			xpt_print(path, "scsi_scan_lun: can't allocate CCB, "
 			    "can't continue\n");
 			return;
 		}
-		new_path = malloc(sizeof(*new_path), M_CAMXPT, M_NOWAIT);
-		if (new_path == NULL) {
-			xpt_print(path, "scsi_scan_lun: can't allocate path, "
-			    "can't continue\n");
-			free(request_ccb, M_CAMXPT);
-			return;
-		}
-		status = xpt_compile_path(new_path, xpt_periph,
+		status = xpt_create_path(&new_path, xpt_periph,
 					  path->bus->path_id,
 					  path->target->target_id,
 					  path->device->lun_id);
-
 		if (status != CAM_REQ_CMP) {
-			xpt_print(path, "scsi_scan_lun: can't compile path, "
+			xpt_print(path, "scsi_scan_lun: can't create path, "
 			    "can't continue\n");
-			free(request_ccb, M_CAMXPT);
-			free(new_path, M_CAMXPT);
+			xpt_free_ccb(request_ccb);
 			return;
 		}
 		xpt_setup_ccb(&request_ccb->ccb_h, new_path, CAM_PRIORITY_XPT);
@@ -2309,9 +2295,9 @@ scsi_scan_lun(struct cam_periph *periph, struct cam_path *path,
 static void
 xptscandone(struct cam_periph *periph, union ccb *done_ccb)
 {
-	xpt_release_path(done_ccb->ccb_h.path);
-	free(done_ccb->ccb_h.path, M_CAMXPT);
-	free(done_ccb, M_CAMXPT);
+
+	xpt_free_path(done_ccb->ccb_h.path);
+	xpt_free_ccb(done_ccb);
 }
 
 static struct cam_ed *

@@ -12,10 +12,15 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Tooling/CompilationDatabase.h"
+#include "clang/Tooling/Tooling.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/YAMLParser.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/system_error.h"
+
+#ifdef USE_CUSTOM_COMPILATION_DATABASE
+#include "CustomCompilationDatabase.h"
+#endif
 
 namespace clang {
 namespace tooling {
@@ -121,6 +126,52 @@ CompilationDatabase::loadFromDirectory(StringRef BuildDirectory,
   return Database.take();
 }
 
+static CompilationDatabase *
+findCompilationDatabaseFromDirectory(StringRef Directory) {
+#ifdef USE_CUSTOM_COMPILATION_DATABASE
+  if (CompilationDatabase *DB =
+      ::clang::tooling::findCompilationDatabaseForDirectory(Directory))
+    return DB;
+#endif
+  while (!Directory.empty()) {
+    std::string LoadErrorMessage;
+
+    if (CompilationDatabase *DB =
+           CompilationDatabase::loadFromDirectory(Directory, LoadErrorMessage))
+      return DB;
+
+    Directory = llvm::sys::path::parent_path(Directory);
+  }
+  return NULL;
+}
+
+CompilationDatabase *
+CompilationDatabase::autoDetectFromSource(StringRef SourceFile,
+                                          std::string &ErrorMessage) {
+  llvm::SmallString<1024> AbsolutePath(getAbsolutePath(SourceFile));
+  StringRef Directory = llvm::sys::path::parent_path(AbsolutePath);
+
+  CompilationDatabase *DB = findCompilationDatabaseFromDirectory(Directory);
+
+  if (!DB)
+    ErrorMessage = ("Could not auto-detect compilation database for file \"" +
+                   SourceFile + "\"").str();
+  return DB;
+}
+
+CompilationDatabase *
+CompilationDatabase::autoDetectFromDirectory(StringRef SourceDir,
+                                             std::string &ErrorMessage) {
+  llvm::SmallString<1024> AbsolutePath(getAbsolutePath(SourceDir));
+
+  CompilationDatabase *DB = findCompilationDatabaseFromDirectory(AbsolutePath);
+
+  if (!DB)
+    ErrorMessage = ("Could not auto-detect compilation database from directory \"" +
+                   SourceDir + "\"").str();
+  return DB;
+}
+
 FixedCompilationDatabase *
 FixedCompilationDatabase::loadFromCommandLine(int &Argc,
                                               const char **Argv,
@@ -146,6 +197,11 @@ FixedCompilationDatabase::getCompileCommands(StringRef FilePath) const {
   std::vector<CompileCommand> Result(CompileCommands);
   Result[0].CommandLine.push_back(FilePath);
   return Result;
+}
+
+std::vector<std::string>
+FixedCompilationDatabase::getAllFiles() const {
+  return std::vector<std::string>();
 }
 
 JSONCompilationDatabase *
@@ -179,8 +235,10 @@ JSONCompilationDatabase::loadFromBuffer(StringRef DatabaseString,
 
 std::vector<CompileCommand>
 JSONCompilationDatabase::getCompileCommands(StringRef FilePath) const {
+  llvm::SmallString<128> NativeFilePath;
+  llvm::sys::path::native(FilePath, NativeFilePath);
   llvm::StringMap< std::vector<CompileCommandRef> >::const_iterator
-    CommandsRefI = IndexByFile.find(FilePath);
+    CommandsRefI = IndexByFile.find(NativeFilePath);
   if (CommandsRefI == IndexByFile.end())
     return std::vector<CompileCommand>();
   const std::vector<CompileCommandRef> &CommandsRef = CommandsRefI->getValue();
@@ -194,6 +252,21 @@ JSONCompilationDatabase::getCompileCommands(StringRef FilePath) const {
       unescapeCommandLine(CommandsRef[I].second->getValue(CommandStorage))));
   }
   return Commands;
+}
+
+std::vector<std::string>
+JSONCompilationDatabase::getAllFiles() const {
+  std::vector<std::string> Result;
+
+  llvm::StringMap< std::vector<CompileCommandRef> >::const_iterator
+    CommandsRefI = IndexByFile.begin();
+  const llvm::StringMap< std::vector<CompileCommandRef> >::const_iterator
+    CommandsRefEnd = IndexByFile.end();
+  for (; CommandsRefI != CommandsRefEnd; ++CommandsRefI) {
+    Result.push_back(CommandsRefI->first().str());
+  }
+
+  return Result;
 }
 
 bool JSONCompilationDatabase::parse(std::string &ErrorMessage) {
@@ -222,10 +295,9 @@ bool JSONCompilationDatabase::parse(std::string &ErrorMessage) {
       ErrorMessage = "Expected object.";
       return false;
     }
-    llvm::yaml::ScalarNode *Directory;
-    llvm::yaml::ScalarNode *Command;
-    llvm::SmallString<8> FileStorage;
-    llvm::StringRef File;
+    llvm::yaml::ScalarNode *Directory = NULL;
+    llvm::yaml::ScalarNode *Command = NULL;
+    llvm::yaml::ScalarNode *File = NULL;
     for (llvm::yaml::MappingNode::iterator KVI = Object->begin(),
                                            KVE = Object->end();
          KVI != KVE; ++KVI) {
@@ -242,20 +314,39 @@ bool JSONCompilationDatabase::parse(std::string &ErrorMessage) {
       }
       llvm::yaml::ScalarNode *KeyString =
         llvm::dyn_cast<llvm::yaml::ScalarNode>((*KVI).getKey());
+      if (KeyString == NULL) {
+        ErrorMessage = "Expected strings as key.";
+        return false;
+      }
       llvm::SmallString<8> KeyStorage;
       if (KeyString->getValue(KeyStorage) == "directory") {
         Directory = ValueString;
       } else if (KeyString->getValue(KeyStorage) == "command") {
         Command = ValueString;
       } else if (KeyString->getValue(KeyStorage) == "file") {
-        File = ValueString->getValue(FileStorage);
+        File = ValueString;
       } else {
         ErrorMessage = ("Unknown key: \"" +
                         KeyString->getRawValue() + "\"").str();
         return false;
       }
     }
-    IndexByFile[File].push_back(
+    if (!File) {
+      ErrorMessage = "Missing key: \"file\".";
+      return false;
+    }
+    if (!Command) {
+      ErrorMessage = "Missing key: \"command\".";
+      return false;
+    }
+    if (!Directory) {
+      ErrorMessage = "Missing key: \"directory\".";
+      return false;
+    }
+    llvm::SmallString<8> FileStorage;
+    llvm::SmallString<128> NativeFilePath;
+    llvm::sys::path::native(File->getValue(FileStorage), NativeFilePath);
+    IndexByFile[NativeFilePath].push_back(
       CompileCommandRef(Directory, Command));
   }
   return true;
@@ -263,4 +354,3 @@ bool JSONCompilationDatabase::parse(std::string &ErrorMessage) {
 
 } // end namespace tooling
 } // end namespace clang
-

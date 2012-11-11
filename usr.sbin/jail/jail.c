@@ -304,9 +304,33 @@ main(int argc, char **argv)
 				for (i++; i < argc; i++)
 					add_param(NULL, NULL, IP_COMMAND,
 					    argv[i]);
-				break;
 			}
-			add_param(NULL, NULL, 0, argv[i]);
+#ifdef INET
+			else if (!strncmp(argv[i], "ip4.addr=", 9)) {
+				for (cs = argv[i] + 9;; cs = ncs + 1) {
+					ncs = strchr(cs, ',');
+					if (ncs)
+						*ncs = '\0';
+					add_param(NULL, NULL, KP_IP4_ADDR, cs);
+					if (!ncs)
+						break;
+				}
+			}
+#endif
+#ifdef INET6
+			else if (!strncmp(argv[i], "ip6.addr=", 9)) {
+				for (cs = argv[i] + 9;; cs = ncs + 1) {
+					ncs = strchr(cs, ',');
+					if (ncs)
+						*ncs = '\0';
+					add_param(NULL, NULL, KP_IP6_ADDR, cs);
+					if (!ncs)
+						break;
+				}
+			}
+#endif
+			else
+				add_param(NULL, NULL, 0, argv[i]);
 		}
 	} else {
 		/* From the config file, perhaps with a specified jail */

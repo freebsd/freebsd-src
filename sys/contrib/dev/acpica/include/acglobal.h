@@ -72,7 +72,7 @@
 
 /*
  * Enable "slack" in the AML interpreter?  Default is FALSE, and the
- * interpreter strictly follows the ACPI specification.  Setting to TRUE
+ * interpreter strictly follows the ACPI specification. Setting to TRUE
  * allows the interpreter to ignore certain errors and/or bad AML constructs.
  *
  * Currently, these features are enabled by this flag:
@@ -287,16 +287,7 @@ ACPI_EXTERN UINT8                       AcpiGbl_OsiData;
 ACPI_EXTERN ACPI_INTERFACE_INFO        *AcpiGbl_SupportedInterfaces;
 ACPI_EXTERN ACPI_ADDRESS_RANGE         *AcpiGbl_AddressRangeList[ACPI_ADDRESS_RANGE_MAX];
 
-
 #ifndef DEFINE_ACPI_GLOBALS
-
-/* Exception codes */
-
-extern char const                       *AcpiGbl_ExceptionNames_Env[];
-extern char const                       *AcpiGbl_ExceptionNames_Pgm[];
-extern char const                       *AcpiGbl_ExceptionNames_Tbl[];
-extern char const                       *AcpiGbl_ExceptionNames_Aml[];
-extern char const                       *AcpiGbl_ExceptionNames_Ctrl[];
 
 /* Other miscellaneous */
 

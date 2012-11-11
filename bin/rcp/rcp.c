@@ -76,12 +76,13 @@ __FBSDID("$FreeBSD$");
 
 #define	OPTIONS "46dfprt"
 
-struct passwd *pwd;
-u_short	port;
-uid_t	userid;
-int errs, rem;
-int pflag, iamremote, iamrecursive, targetshouldbedirectory;
-int family = PF_UNSPEC;
+static struct passwd *pwd;
+static u_short	port;
+static uid_t	userid;
+static int errs, rem;
+int iamremote;
+static int pflag, iamrecursive, targetshouldbedirectory;
+static int family = PF_UNSPEC;
 
 static int argc_copy;
 static const char **argv_copy;
@@ -89,7 +90,7 @@ static const char **argv_copy;
 static char period[] = ".";
 
 #define	CMDNEEDS	64
-char cmd[CMDNEEDS];		/* must hold "rcp -r -p -d\0" */
+static char cmd[CMDNEEDS];	/* must hold "rcp -r -p -d\0" */
 
 int	 response(void);
 void	 rsource(char *, struct stat *);

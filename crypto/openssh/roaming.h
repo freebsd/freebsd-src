@@ -1,4 +1,4 @@
-/* $OpenBSD: roaming.h,v 1.5 2009/10/24 11:11:58 andreas Exp $ */
+/* $OpenBSD: roaming.h,v 1.6 2011/12/07 05:44:38 djm Exp $ */
 /*
  * Copyright (c) 2004-2009 AppGate Network Security AB
  *
@@ -18,8 +18,9 @@
 #ifndef ROAMING_H
 #define ROAMING_H
 
-#define DEFAULT_ROAMBUF 65536
-#define ROAMING_REQUEST "roaming@appgate.com"
+#define DEFAULT_ROAMBUF	65536
+#define MAX_ROAMBUF	(2*1024*1024) /* XXX arbitrary */
+#define ROAMING_REQUEST	"roaming@appgate.com"
 
 extern int roaming_enabled;
 extern int resume_in_progress;

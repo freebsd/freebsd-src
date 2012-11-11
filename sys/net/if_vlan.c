@@ -66,7 +66,6 @@ __FBSDID("$FreeBSD$");
 #include <net/if_vlan_var.h>
 #include <net/vnet.h>
 
-#define VLANNAME	"vlan"
 #define	VLAN_DEF_HWIDTH	4
 #define	VLAN_IFFLAGS	(IFF_BROADCAST | IFF_MULTICAST)
 
@@ -139,7 +138,8 @@ static int soft_pad = 0;
 SYSCTL_INT(_net_link_vlan, OID_AUTO, soft_pad, CTLFLAG_RW, &soft_pad, 0,
 	   "pad short frames before tagging");
 
-static MALLOC_DEFINE(M_VLAN, VLANNAME, "802.1Q Virtual LAN Interface");
+static const char vlanname[] = "vlan";
+static MALLOC_DEFINE(M_VLAN, vlanname, "802.1Q Virtual LAN Interface");
 
 static eventhandler_tag ifdetach_tag;
 static eventhandler_tag iflladdr_tag;
@@ -162,7 +162,7 @@ static struct sx ifv_lock;
 #define	VLAN_LOCK_ASSERT()	sx_assert(&ifv_lock, SA_LOCKED)
 #define	VLAN_LOCK()		sx_xlock(&ifv_lock)
 #define	VLAN_UNLOCK()		sx_xunlock(&ifv_lock)
-#define	TRUNK_LOCK_INIT(trunk)	rw_init(&(trunk)->rw, VLANNAME)
+#define	TRUNK_LOCK_INIT(trunk)	rw_init(&(trunk)->rw, vlanname)
 #define	TRUNK_LOCK_DESTROY(trunk) rw_destroy(&(trunk)->rw)
 #define	TRUNK_LOCK(trunk)	rw_wlock(&(trunk)->rw)
 #define	TRUNK_UNLOCK(trunk)	rw_wunlock(&(trunk)->rw)
@@ -192,7 +192,7 @@ static	int vlan_setflags(struct ifnet *ifp, int status);
 static	int vlan_setmulti(struct ifnet *ifp);
 static	int vlan_transmit(struct ifnet *ifp, struct mbuf *m);
 static	void vlan_unconfig(struct ifnet *ifp);
-static	void vlan_unconfig_locked(struct ifnet *ifp);
+static	void vlan_unconfig_locked(struct ifnet *ifp, int departing);
 static	int vlan_config(struct ifvlan *ifv, struct ifnet *p, uint16_t tag);
 static	void vlan_link_state(struct ifnet *ifp);
 static	void vlan_capabilities(struct ifvlan *ifv);
@@ -207,11 +207,10 @@ static	int vlan_clone_destroy(struct if_clone *, struct ifnet *);
 static	void vlan_ifdetach(void *arg, struct ifnet *ifp);
 static  void vlan_iflladdr(void *arg, struct ifnet *ifp);
 
-static	struct if_clone vlan_cloner = IFC_CLONE_INITIALIZER(VLANNAME, NULL,
-    IF_MAXUNIT, NULL, vlan_clone_match, vlan_clone_create, vlan_clone_destroy);
+static struct if_clone *vlan_cloner;
 
 #ifdef VIMAGE
-static VNET_DEFINE(struct if_clone, vlan_cloner);
+static VNET_DEFINE(struct if_clone *, vlan_cloner);
 #define	V_vlan_cloner	VNET(vlan_cloner)
 #endif
 
@@ -577,7 +576,7 @@ vlan_ifdetach(void *arg __unused, struct ifnet *ifp)
 #ifdef VLAN_ARRAY
 	for (i = 0; i < VLAN_ARRAY_SIZE; i++)
 		if ((ifv = ifp->if_vlantrunk->vlans[i])) {
-			vlan_unconfig_locked(ifv->ifv_ifp);
+			vlan_unconfig_locked(ifv->ifv_ifp, 1);
 			if (ifp->if_vlantrunk == NULL)
 				break;
 		}
@@ -585,7 +584,7 @@ vlan_ifdetach(void *arg __unused, struct ifnet *ifp)
 restart:
 	for (i = 0; i < (1 << ifp->if_vlantrunk->hwidth); i++)
 		if ((ifv = LIST_FIRST(&ifp->if_vlantrunk->hash[i]))) {
-			vlan_unconfig_locked(ifv->ifv_ifp);
+			vlan_unconfig_locked(ifv->ifv_ifp, 1);
 			if (ifp->if_vlantrunk)
 				goto restart;	/* trunk->hwidth can change */
 			else
@@ -723,7 +722,8 @@ vlan_modevent(module_t mod, int type, void *data)
 		vlan_tag_p = vlan_tag;
 		vlan_devat_p = vlan_devat;
 #ifndef VIMAGE
-		if_clone_attach(&vlan_cloner);
+		vlan_cloner = if_clone_advanced(vlanname, 0, vlan_clone_match,
+		    vlan_clone_create, vlan_clone_destroy);
 #endif
 		if (bootverbose)
 			printf("vlan: initialized, using "
@@ -737,7 +737,7 @@ vlan_modevent(module_t mod, int type, void *data)
 		break;
 	case MOD_UNLOAD:
 #ifndef VIMAGE
-		if_clone_detach(&vlan_cloner);
+		if_clone_detach(vlan_cloner);
 #endif
 		EVENTHANDLER_DEREGISTER(ifnet_departure_event, ifdetach_tag);
 		EVENTHANDLER_DEREGISTER(iflladdr_event, iflladdr_tag);
@@ -773,8 +773,9 @@ static void
 vnet_vlan_init(const void *unused __unused)
 {
 
+	vlan_cloner = if_clone_advanced(vlanname, 0, vlan_clone_match,
+		    vlan_clone_create, vlan_clone_destroy);
 	V_vlan_cloner = vlan_cloner;
-	if_clone_attach(&V_vlan_cloner);
 }
 VNET_SYSINIT(vnet_vlan_init, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
     vnet_vlan_init, NULL);
@@ -783,7 +784,7 @@ static void
 vnet_vlan_uninit(const void *unused __unused)
 {
 
-	if_clone_detach(&V_vlan_cloner);
+	if_clone_detach(V_vlan_cloner);
 }
 VNET_SYSUNINIT(vnet_vlan_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST,
     vnet_vlan_uninit, NULL);
@@ -835,7 +836,7 @@ vlan_clone_match(struct if_clone *ifc, const char *name)
 	if (vlan_clone_match_ethervid(ifc, name, NULL) != NULL)
 		return (1);
 
-	if (strncmp(VLANNAME, name, strlen(VLANNAME)) != 0)
+	if (strncmp(vlanname, name, strlen(vlanname)) != 0)
 		return (0);
 	for (cp = name + 4; *cp != '\0'; cp++) {
 		if (*cp < '0' || *cp > '9')
@@ -943,7 +944,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 	 * we don't conform to the default naming convention for interfaces.
 	 */
 	strlcpy(ifp->if_xname, name, IFNAMSIZ);
-	ifp->if_dname = ifc->ifc_name;
+	ifp->if_dname = vlanname;
 	ifp->if_dunit = unit;
 	/* NB: flags are not set here */
 	ifp->if_linkmib = &ifv->ifv_mib;
@@ -968,7 +969,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 		error = vlan_config(ifv, p, vid);
 		if (error != 0) {
 			/*
-			 * Since we've partialy failed, we need to back
+			 * Since we've partially failed, we need to back
 			 * out all the way, otherwise userland could get
 			 * confused.  Thus, we destroy the interface.
 			 */
@@ -1307,17 +1308,18 @@ vlan_unconfig(struct ifnet *ifp)
 {
 
 	VLAN_LOCK();
-	vlan_unconfig_locked(ifp);
+	vlan_unconfig_locked(ifp, 0);
 	VLAN_UNLOCK();
 }
 
 static void
-vlan_unconfig_locked(struct ifnet *ifp)
+vlan_unconfig_locked(struct ifnet *ifp, int departing)
 {
 	struct ifvlantrunk *trunk;
 	struct vlan_mc_entry *mc;
 	struct ifvlan *ifv;
 	struct ifnet  *parent;
+	int error;
 
 	VLAN_LOCK_ASSERT();
 
@@ -1337,14 +1339,21 @@ vlan_unconfig_locked(struct ifnet *ifp)
 		 */
 		while ((mc = SLIST_FIRST(&ifv->vlan_mc_listhead)) != NULL) {
 			/*
-			 * This may fail if the parent interface is
-			 * being detached.  Regardless, we should do a
-			 * best effort to free this interface as much
-			 * as possible as all callers expect vlan
-			 * destruction to succeed.
+			 * If the parent interface is being detached,
+			 * all its multicast addresses have already
+			 * been removed.  Warn about errors if
+			 * if_delmulti() does fail, but don't abort as
+			 * all callers expect vlan destruction to
+			 * succeed.
 			 */
-			(void)if_delmulti(parent,
-			    (struct sockaddr *)&mc->mc_addr);
+			if (!departing) {
+				error = if_delmulti(parent,
+				    (struct sockaddr *)&mc->mc_addr);
+				if (error)
+					if_printf(ifp,
+		    "Failed to delete multicast address from parent: %d\n",
+					    error);
+			}
 			SLIST_REMOVE_HEAD(&ifv->vlan_mc_listhead, mc_entries);
 			free(mc, M_VLAN);
 		}

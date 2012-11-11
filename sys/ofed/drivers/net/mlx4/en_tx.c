@@ -948,7 +948,9 @@ mlx4_en_transmit_locked(struct ifnet *dev, int tx_ind, struct mbuf *m)
 			break;
 		}
 		enqueued++;
-		drbr_stats_update(dev, next->m_pkthdr.len, next->m_flags);
+		dev->if_obytes += next->m_pkthdr.len;
+		if (next->m_flags & M_MCAST)
+			dev->if_omcasts++;
 		/* Send a copy of the frame to the BPF listener */
 		ETHER_BPF_MTAP(dev, next);
 		if ((dev->if_drv_flags & IFF_DRV_RUNNING) == 0)

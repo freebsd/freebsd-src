@@ -133,10 +133,18 @@ archive_compressor_bzip2_open(struct archive_write_filter *f)
 	if (ret != 0)
 		return (ret);
 
-	/* TODO: Find a better way to size this.  (Maybe look at the */
-	/* block size expected by the following filter?) */
 	if (data->compressed == NULL) {
-		data->compressed_buffer_size = 65536;
+		size_t bs = 65536, bpb;
+		if (f->archive->magic == ARCHIVE_WRITE_MAGIC) {
+			/* Buffer size should be a multiple number of the of bytes
+			 * per block for performance. */
+			bpb = archive_write_get_bytes_per_block(f->archive);
+			if (bpb > bs)
+				bs = bpb;
+			else if (bpb != 0)
+				bs -= bs % bpb;
+		}
+		data->compressed_buffer_size = bs;
 		data->compressed
 		    = (char *)malloc(data->compressed_buffer_size);
 		if (data->compressed == NULL) {

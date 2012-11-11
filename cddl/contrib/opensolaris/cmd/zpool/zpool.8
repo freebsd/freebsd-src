@@ -21,6 +21,7 @@
 .\" Copyright 2011, Nexenta Systems, Inc. All Rights Reserved.
 .\" Copyright (c) 2011, Justin T. Gibbs <gibbs@FreeBSD.org>
 .\" Copyright (c) 2012 by Delphix. All Rights Reserved.
+.\" Copyright (c) 2012, Glen Barber <gjb@FreeBSD.org>
 .\"
 .\" $FreeBSD$
 .\"
@@ -193,7 +194,7 @@ A
 describes a single device or a collection of devices organized according to
 certain performance and fault characteristics. The following virtual devices
 are supported:
-.Bl -tag
+.Bl -tag -width "XXXXXX"
 .It Sy disk
 A block device, typically located under
 .Pa /dev .
@@ -532,7 +533,7 @@ can provide additional information about a pool using this property.
 .It Sy dedupratio
 The deduplication ratio specified for a pool, expressed as a multiplier.
 For example, a
-.S dedupratio
+.Sy dedupratio
 value of 1.76 indicates that 1.76 units of data were stored but only 1 unit of disk space was actually consumed. See
 .Xr zfs 8
 for a description of the deduplication feature.
@@ -731,7 +732,7 @@ The current on-disk version of the pool. This can be increased, but never
 decreased. The preferred method of updating pools is with the
 .Qq Nm Cm upgrade
 command, though this property can be used when a specific version is needed
-for backwards compatibility. 
+for backwards compatibility.
 Once feature flags is enabled on a pool this property will no longer have a
 value.
 .El
@@ -1636,21 +1637,22 @@ for unixtime
 .Op Fl v
 .Xc
 .Pp
-Displays all pools formatted using a different
+Displays pools which do not have all supported features enabled and pools
+formatted using a legacy
 .Tn ZFS
-pool on-disk version. Older versions can continue to be used, but some
-features may not be available. These pools can be upgraded using
-.Qq Nm Cm upgrade Fl a .
-Pools that are formatted with a more recent version are also displayed,
-although these pools will be inaccessible on the system.
+version number.
+These pools can continue to be used, but some features may not be available.
+Use
+.Nm Cm upgrade Fl a
+to enable all features on all pools.
 .Bl -tag -width indent
 .It Fl v
-Displays
+Displays legacy
 .Tn ZFS
-pool versions supported by the current software. The current
-.Tn ZFS
-pool version and all previous supported versions are displayed, along
-with an explanation of the features provided with each version.
+versions supported by the current software.
+See
+.Xr zpool-features.5
+for a description of feature flags features supported by the current software.
 .El
 .It Xo
 .Nm
@@ -1659,19 +1661,33 @@ with an explanation of the features provided with each version.
 .Fl a | Ar pool ...
 .Xc
 .Pp
-Upgrades the given pool to the latest on-disk pool version. Once this is done,
-the pool will no longer be accessible on systems running older versions of the
-software.
+Enables all supported features on the given pool.
+Once this is done, the pool will no longer be accessible on systems that do
+not support feature flags.
+See
+.Xr zpool-features.5
+for details on compatability with system sthat support feature flags, but do
+not support all features enabled on the pool.
 .Bl -tag -width indent
 .It Fl a
-Upgrades all pools.
+Enables all supported features on all pools.
 .It Fl V Ar version
-Upgrade to the specified version. If the
+Upgrade to the specified legacy version. If the
 .Fl V
-flag is not specified, the pool is upgraded to the most recent version. This
-option can only be used to increase the version number, and only up to the most
-recent version supported by this software.
+flag is specified, no features will be enabled on the pool.
+This option can only be used to increase version number up to the last
+supported legacy version number.
 .El
+.El
+.Sh EXIT STATUS
+The following exit values are returned:
+.Bl -tag -offset 2n -width 2n
+.It 0
+Successful completion.
+.It 1
+An error occurred.
+.It 2
+Invalid command line options were specified.
 .El
 .Sh EXAMPLES
 .Bl -tag -width 0n
@@ -1909,16 +1925,6 @@ with the recovery mode flag:
 Pool data returned to its state as of Tue Sep 08 13:23:35 2009.
 Discarded approximately 29 seconds of transactions.
 .Ed
-.El
-.Sh EXIT STATUS
-The following exit values are returned:
-.Bl -tag -offset 2n -width 2n
-.It 0
-Successful completion.
-.It 1
-An error occurred.
-.It 2
-Invalid command line options were specified.
 .El
 .Sh SEE ALSO
 .Xr zfs 8

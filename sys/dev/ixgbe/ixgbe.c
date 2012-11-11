@@ -47,7 +47,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.4.8";
+char ixgbe_driver_version[] = "2.4.11";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -104,13 +104,15 @@ static int      ixgbe_probe(device_t);
 static int      ixgbe_attach(device_t);
 static int      ixgbe_detach(device_t);
 static int      ixgbe_shutdown(device_t);
-static void     ixgbe_start(struct ifnet *);
-static void     ixgbe_start_locked(struct tx_ring *, struct ifnet *);
 #if __FreeBSD_version >= 800000
 static int	ixgbe_mq_start(struct ifnet *, struct mbuf *);
 static int	ixgbe_mq_start_locked(struct ifnet *,
                     struct tx_ring *, struct mbuf *);
 static void	ixgbe_qflush(struct ifnet *);
+static void	ixgbe_deferred_mq_start(void *, int);
+#else
+static void     ixgbe_start(struct ifnet *);
+static void     ixgbe_start_locked(struct tx_ring *, struct ifnet *);
 #endif
 static int      ixgbe_ioctl(struct ifnet *, u_long, caddr_t);
 static void	ixgbe_init(void *);
@@ -178,6 +180,9 @@ static void     ixgbe_add_hw_stats(struct adapter *adapter);
 static __inline void ixgbe_rx_discard(struct rx_ring *, int);
 static __inline void ixgbe_rx_input(struct rx_ring *, struct ifnet *,
 		    struct mbuf *, u32);
+
+static void	ixgbe_enable_rx_drop(struct adapter *);
+static void	ixgbe_disable_rx_drop(struct adapter *);
 
 /* Support for pluggable optic modules */
 static bool	ixgbe_sfp_probe(struct adapter *);
@@ -290,6 +295,20 @@ TUNABLE_INT("hw.ixgbe.txd", &ixgbe_txd);
 static int ixgbe_rxd = PERFORM_RXD;
 TUNABLE_INT("hw.ixgbe.rxd", &ixgbe_rxd);
 
+/*
+** HW RSC control: 
+**  this feature only works with
+**  IPv4, and only on 82599 and later.
+**  Also this will cause IP forwarding to
+**  fail and that can't be controlled by
+**  the stack as LRO can. For all these
+**  reasons I've deemed it best to leave
+**  this off and not bother with a tuneable
+**  interface, this would need to be compiled
+**  to enable.
+*/
+static bool ixgbe_rsc_enable = FALSE;
+
 /* Keep running tab on them for sanity check */
 static int ixgbe_total_ports;
 
@@ -398,11 +417,6 @@ ixgbe_attach(device_t dev)
 	u32		ctrl_ext;
 
 	INIT_DEBUGOUT("ixgbe_attach: begin");
-
-	if (resource_disabled("ixgbe", device_get_unit(dev))) {
-		device_printf(dev, "Disabled by device hint\n");
-		return (ENXIO);
-	}
 
 	/* Allocate, clear, and link in our adapter structure */
 	adapter = device_get_softc(dev);
@@ -631,6 +645,7 @@ ixgbe_detach(device_t dev)
 {
 	struct adapter *adapter = device_get_softc(dev);
 	struct ix_queue *que = adapter->queues;
+	struct tx_ring *txr = adapter->tx_rings;
 	u32	ctrl_ext;
 
 	INIT_DEBUGOUT("ixgbe_detach: begin");
@@ -645,8 +660,11 @@ ixgbe_detach(device_t dev)
 	ixgbe_stop(adapter);
 	IXGBE_CORE_UNLOCK(adapter);
 
-	for (int i = 0; i < adapter->num_queues; i++, que++) {
+	for (int i = 0; i < adapter->num_queues; i++, que++, txr++) {
 		if (que->tq) {
+#if __FreeBSD_version >= 800000
+			taskqueue_drain(que->tq, &txr->txq_task);
+#endif
 			taskqueue_drain(que->tq, &que->que_task);
 			taskqueue_free(que->tq);
 		}
@@ -708,6 +726,7 @@ ixgbe_shutdown(device_t dev)
 }
 
 
+#if __FreeBSD_version < 800000
 /*********************************************************************
  *  Transmit entry point
  *
@@ -779,7 +798,7 @@ ixgbe_start(struct ifnet *ifp)
 	return;
 }
 
-#if __FreeBSD_version >= 800000
+#else
 /*
 ** Multiqueue Transmit driver
 **
@@ -807,7 +826,7 @@ ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 		IXGBE_TX_UNLOCK(txr);
 	} else {
 		err = drbr_enqueue(ifp, txr->br, m);
-		taskqueue_enqueue(que->tq, &que->que_task);
+		taskqueue_enqueue(que->tq, &txr->txq_task);
 	}
 
 	return (err);
@@ -846,7 +865,6 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 			break;
 		}
 		enqueued++;
-		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
 		/* Send a copy of the frame to the BPF listener */
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
@@ -870,6 +888,22 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		ixgbe_txeof(txr);
 
 	return (err);
+}
+
+/*
+ * Called from a taskqueue to drain queued transmit packets.
+ */
+static void
+ixgbe_deferred_mq_start(void *arg, int pending)
+{
+	struct tx_ring *txr = arg;
+	struct adapter *adapter = txr->adapter;
+	struct ifnet *ifp = adapter->ifp;
+
+	IXGBE_TX_LOCK(txr);
+	if (!drbr_empty(ifp, txr->br))
+		ixgbe_mq_start_locked(ifp, txr, NULL);
+	IXGBE_TX_UNLOCK(txr);
 }
 
 /*
@@ -1650,7 +1684,7 @@ ixgbe_media_status(struct ifnet * ifp, struct ifmediareq * ifmr)
 			ifmr->ifm_active |= IFM_100_TX | IFM_FDX;
 			break;
 		case IXGBE_LINK_SPEED_1GB_FULL:
-			ifmr->ifm_active |= IFM_1000_T | IFM_FDX;
+			ifmr->ifm_active |= adapter->optics | IFM_FDX;
 			break;
 		case IXGBE_LINK_SPEED_10GB_FULL:
 			ifmr->ifm_active |= adapter->optics | IFM_FDX;
@@ -2018,7 +2052,6 @@ ixgbe_local_timer(void *arg)
 
 	/*
 	** Check the TX queues status
-	**      - central locked handling of OACTIVE
 	**      - watchdog only if all queues show hung
 	*/          
 	for (int i = 0; i < adapter->num_queues; i++, que++, txr++) {
@@ -2193,6 +2226,11 @@ ixgbe_setup_optics(struct adapter *adapter)
 		return;
 	}
 
+	if (layer & IXGBE_PHYSICAL_LAYER_1000BASE_SX) {
+		adapter->optics = IFM_1000_SX;
+		return;
+	}
+
 	if (layer & (IXGBE_PHYSICAL_LAYER_10GBASE_LR |
 	    IXGBE_PHYSICAL_LAYER_10GBASE_LRM)) {
 		adapter->optics = IFM_10G_LR;
@@ -2230,6 +2268,9 @@ ixgbe_allocate_legacy(struct adapter *adapter)
 {
 	device_t dev = adapter->dev;
 	struct		ix_queue *que = adapter->queues;
+#if __FreeBSD_version >= 800000
+	struct tx_ring		*txr = adapter->tx_rings;
+#endif
 	int error, rid = 0;
 
 	/* MSI RID at 1 */
@@ -2249,6 +2290,9 @@ ixgbe_allocate_legacy(struct adapter *adapter)
 	 * Try allocating a fast interrupt and the associated deferred
 	 * processing contexts.
 	 */
+#if __FreeBSD_version >= 800000
+	TASK_INIT(&txr->txq_task, 0, ixgbe_deferred_mq_start, txr);
+#endif
 	TASK_INIT(&que->que_task, 0, ixgbe_handle_que, que);
 	que->tq = taskqueue_create_fast("ixgbe_que", M_NOWAIT,
             taskqueue_thread_enqueue, &que->tq);
@@ -2295,9 +2339,10 @@ ixgbe_allocate_msix(struct adapter *adapter)
 {
 	device_t        dev = adapter->dev;
 	struct 		ix_queue *que = adapter->queues;
+	struct  	tx_ring *txr = adapter->tx_rings;
 	int 		error, rid, vector = 0;
 
-	for (int i = 0; i < adapter->num_queues; i++, vector++, que++) {
+	for (int i = 0; i < adapter->num_queues; i++, vector++, que++, txr++) {
 		rid = vector + 1;
 		que->res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 		    RF_SHAREABLE | RF_ACTIVE);
@@ -2327,6 +2372,9 @@ ixgbe_allocate_msix(struct adapter *adapter)
 		if (adapter->num_queues > 1)
 			bus_bind_intr(dev, que->res, i);
 
+#if __FreeBSD_version >= 800000
+		TASK_INIT(&txr->txq_task, 0, ixgbe_deferred_mq_start, txr);
+#endif
 		TASK_INIT(&que->que_task, 0, ixgbe_handle_que, que);
 		que->tq = taskqueue_create_fast("ixgbe_que", M_NOWAIT,
 		    taskqueue_thread_enqueue, &que->tq);
@@ -2565,17 +2613,18 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 		return (-1);
 	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_baudrate = 1000000000;
+	if_initbaudrate(ifp, IF_Gbps(10));
 	ifp->if_init = ixgbe_init;
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ixgbe_ioctl;
-	ifp->if_start = ixgbe_start;
 #if __FreeBSD_version >= 800000
 	ifp->if_transmit = ixgbe_mq_start;
 	ifp->if_qflush = ixgbe_qflush;
+#else
+	ifp->if_start = ixgbe_start;
+	IFQ_SET_MAXLEN(&ifp->if_snd, adapter->num_tx_desc - 2);
 #endif
-	ifp->if_snd.ifq_maxlen = adapter->num_tx_desc - 2;
 
 	ether_ifattach(ifp, adapter->hw.mac.addr);
 
@@ -2589,13 +2638,11 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 
 	ifp->if_capabilities |= IFCAP_HWCSUM | IFCAP_TSO | IFCAP_VLAN_HWCSUM;
 	ifp->if_capabilities |= IFCAP_JUMBO_MTU;
+	ifp->if_capabilities |= IFCAP_LRO;
 	ifp->if_capabilities |= IFCAP_VLAN_HWTAGGING
 			     |  IFCAP_VLAN_HWTSO
 			     |  IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
-
-	/* Don't enable LRO by default */
-	ifp->if_capabilities |= IFCAP_LRO;
 
 	/*
 	** Don't turn this on by default, if vlans are
@@ -3734,21 +3781,30 @@ no_split:
 			mp = rxbuf->m_pack;
 
 		mp->m_pkthdr.len = mp->m_len = adapter->rx_mbuf_sz;
-		/* Get the memory mapping */
-		error = bus_dmamap_load_mbuf_sg(rxr->ptag,
-		    rxbuf->pmap, mp, pseg, &nsegs, BUS_DMA_NOWAIT);
-		if (error != 0) {
-			printf("Refresh mbufs: payload dmamap load"
-			    " failure - %d\n", error);
-			m_free(mp);
-			rxbuf->m_pack = NULL;
-			goto update;
+
+		/* If we're dealing with an mbuf that was copied rather
+		 * than replaced, there's no need to go through busdma.
+		 */
+		if ((rxbuf->flags & IXGBE_RX_COPY) == 0) {
+			/* Get the memory mapping */
+			error = bus_dmamap_load_mbuf_sg(rxr->ptag,
+			    rxbuf->pmap, mp, pseg, &nsegs, BUS_DMA_NOWAIT);
+			if (error != 0) {
+				printf("Refresh mbufs: payload dmamap load"
+				    " failure - %d\n", error);
+				m_free(mp);
+				rxbuf->m_pack = NULL;
+				goto update;
+			}
+			rxbuf->m_pack = mp;
+			bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
+			    BUS_DMASYNC_PREREAD);
+			rxbuf->paddr = rxr->rx_base[i].read.pkt_addr =
+			    htole64(pseg[0].ds_addr);
+		} else {
+			rxr->rx_base[i].read.pkt_addr = rxbuf->paddr;
+			rxbuf->flags &= ~IXGBE_RX_COPY;
 		}
-		rxbuf->m_pack = mp;
-		bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
-		    BUS_DMASYNC_PREREAD);
-		rxr->rx_base[i].read.pkt_addr =
-		    htole64(pseg[0].ds_addr);
 
 		refreshed = TRUE;
 		/* Next is precalculated */
@@ -3862,6 +3918,10 @@ ixgbe_rsc_count(union ixgbe_adv_rx_desc *rx)
  *  for an RX ring, this is toggled by the LRO capability
  *  even though it is transparent to the stack.
  *
+ *  NOTE: since this HW feature only works with IPV4 and 
+ *        our testing has shown soft LRO to be as effective
+ *        I have decided to disable this by default.
+ *
  **********************************************************************/
 static void
 ixgbe_setup_hw_rsc(struct rx_ring *rxr)
@@ -3869,6 +3929,13 @@ ixgbe_setup_hw_rsc(struct rx_ring *rxr)
 	struct	adapter 	*adapter = rxr->adapter;
 	struct	ixgbe_hw	*hw = &adapter->hw;
 	u32			rscctrl, rdrxctl;
+
+	/* If turning LRO/RSC off we need to disable it */
+	if ((adapter->ifp->if_capenable & IFCAP_LRO) == 0) {
+		rscctrl = IXGBE_READ_REG(hw, IXGBE_RSCCTL(rxr->me));
+		rscctrl &= ~IXGBE_RSCCTL_RSCEN;
+		return;
+	}
 
 	rdrxctl = IXGBE_READ_REG(hw, IXGBE_RDRXCTL);
 	rdrxctl &= ~IXGBE_RDRXCTL_RSCFRSTSIZE;
@@ -4061,6 +4128,7 @@ skip_head:
 	rxr->next_to_refresh = 0;
 	rxr->lro_enabled = FALSE;
 	rxr->rx_split_packets = 0;
+	rxr->rx_copies = 0;
 	rxr->rx_bytes = 0;
 	rxr->discard = FALSE;
 	rxr->vtag_strip = FALSE;
@@ -4070,12 +4138,8 @@ skip_head:
 
 	/*
 	** Now set up the LRO interface:
-	** 82598 uses software LRO, the
-	** 82599 and X540 use a hardware assist.
 	*/
-	if ((adapter->hw.mac.type != ixgbe_mac_82598EB) &&
-	    (ifp->if_capenable & IFCAP_RXCSUM) &&
-	    (ifp->if_capenable & IFCAP_LRO))
+	if (ixgbe_rsc_enable)
 		ixgbe_setup_hw_rsc(rxr);
 	else if (ifp->if_capenable & IFCAP_LRO) {
 		int err = tcp_lro_init(lro);
@@ -4618,17 +4682,39 @@ ixgbe_rxeof(struct ix_queue *que, int count)
 			** that determines what we are
 			*/
 			sendmp = rbuf->fmp;
-			rbuf->m_pack = rbuf->fmp = NULL;
 
 			if (sendmp != NULL) {  /* secondary frag */
+				rbuf->m_pack = rbuf->fmp = NULL;
 				mp->m_flags &= ~M_PKTHDR;
 				sendmp->m_pkthdr.len += mp->m_len;
 			} else {
+				/*
+				 * Optimize.  This might be a small packet,
+				 * maybe just a TCP ACK.  Do a fast copy that
+				 * is cache aligned into a new mbuf, and
+				 * leave the old mbuf+cluster for re-use.
+				 */
+				if (eop && plen <= IXGBE_RX_COPY_LEN) {
+					sendmp = m_gethdr(M_DONTWAIT, MT_DATA);
+					if (sendmp != NULL) {
+						sendmp->m_data +=
+						    IXGBE_RX_COPY_ALIGN;
+						ixgbe_bcopy(mp->m_data,
+						    sendmp->m_data, plen);
+						sendmp->m_len = plen;
+						rxr->rx_copies++;
+						rbuf->flags |= IXGBE_RX_COPY;
+					}
+				}
+				if (sendmp == NULL) {
+					rbuf->m_pack = rbuf->fmp = NULL;
+					sendmp = mp;
+				}
+
 				/* first desc of a non-ps chain */
-				sendmp = mp;
 				sendmp->m_flags |= M_PKTHDR;
 				sendmp->m_pkthdr.len = mp->m_len;
-				if (staterr & IXGBE_RXD_STAT_VP) {
+                                if (vtag) {
 					sendmp->m_pkthdr.ether_vtag = vtag;
 					sendmp->m_flags |= M_VLANTAG;
 				}
@@ -5269,6 +5355,7 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	ifp->if_ibytes = adapter->stats.gorc;
 	ifp->if_obytes = adapter->stats.gotc;
 	ifp->if_imcasts = adapter->stats.mprc;
+	ifp->if_omcasts = adapter->stats.mptc;
 	ifp->if_collisions = 0;
 
 	/* Rx Errors */
@@ -5476,6 +5563,9 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_bytes",
 				CTLFLAG_RD, &rxr->rx_bytes,
 				"Queue Bytes Received");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_copies",
+				CTLFLAG_RD, &rxr->rx_copies,
+				"Copied RX Frames");
 		SYSCTL_ADD_INT(ctx, queue_list, OID_AUTO, "lro_queued",
 				CTLFLAG_RD, &lro->lro_queued, 0,
 				"LRO Queued");
@@ -5673,10 +5763,14 @@ ixgbe_set_flowcntl(SYSCTL_HANDLER_ARGS)
 		case ixgbe_fc_tx_pause:
 		case ixgbe_fc_full:
 			adapter->hw.fc.requested_mode = adapter->fc;
+			if (adapter->num_queues > 1)
+				ixgbe_disable_rx_drop(adapter);
 			break;
 		case ixgbe_fc_none:
 		default:
 			adapter->hw.fc.requested_mode = ixgbe_fc_none;
+			if (adapter->num_queues > 1)
+				ixgbe_enable_rx_drop(adapter);
 	}
 	/* Don't autoneg if forcing a value */
 	adapter->hw.fc.disable_fc_autoneg = TRUE;
@@ -5772,4 +5866,35 @@ ixgbe_set_thermal_test(SYSCTL_HANDLER_ARGS)
 	}
 
 	return (0);
+}
+
+/*
+** Enable the hardware to drop packets when the buffer is
+** full. This is useful when multiqueue,so that no single
+** queue being full stalls the entire RX engine. We only
+** enable this when Multiqueue AND when Flow Control is 
+** disabled.
+*/
+static void
+ixgbe_enable_rx_drop(struct adapter *adapter)
+{
+        struct ixgbe_hw *hw = &adapter->hw;
+
+	for (int i = 0; i < adapter->num_queues; i++) {
+        	u32 srrctl = IXGBE_READ_REG(hw, IXGBE_SRRCTL(i));
+        	srrctl |= IXGBE_SRRCTL_DROP_EN;
+        	IXGBE_WRITE_REG(hw, IXGBE_SRRCTL(i), srrctl);
+	}
+}
+
+static void
+ixgbe_disable_rx_drop(struct adapter *adapter)
+{
+        struct ixgbe_hw *hw = &adapter->hw;
+
+	for (int i = 0; i < adapter->num_queues; i++) {
+        	u32 srrctl = IXGBE_READ_REG(hw, IXGBE_SRRCTL(i));
+        	srrctl &= ~IXGBE_SRRCTL_DROP_EN;
+        	IXGBE_WRITE_REG(hw, IXGBE_SRRCTL(i), srrctl);
+	}
 }

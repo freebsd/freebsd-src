@@ -69,6 +69,8 @@ ieee80211_power_vattach(struct ieee80211vap *vap)
 		vap->iv_update_ps = ieee80211_update_ps;
 		vap->iv_set_tim = ieee80211_set_tim;
 	}
+	vap->iv_node_ps = ieee80211_node_pwrsave;
+	vap->iv_sta_ps = ieee80211_sta_pwrsave;
 }
 
 void
