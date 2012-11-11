@@ -62,7 +62,7 @@ __FBSDID("$FreeBSD$");
  * iff the assertion failed.  Note the implied parameters buffer and
  * buflen
  */
-#define	XNB_ASSERT(cond) ({						\
+#define	XNB_ASSERT(cond) do (						\
 	int passed = (cond);						\
 	char *_buffer = (buffer);					\
 	size_t _buflen = (buflen);					\
@@ -71,7 +71,7 @@ __FBSDID("$FreeBSD$");
 		strlcat(_buffer, ":" TOSTRING(__LINE__) 		\
 		  " Assertion Error: " #cond "\n", _buflen);		\
 	}								\
- ! passed; })
+	} while (0)
 
 
 /**
