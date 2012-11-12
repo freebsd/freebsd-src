@@ -53,8 +53,8 @@
 
 /*
  * ACPI_DEBUG_OUTPUT    - This switch enables all the debug facilities of the
- *                        ACPI subsystem.  This includes the DEBUG_PRINT output
- *                        statements.  When disabled, all DEBUG_PRINT
+ *                        ACPI subsystem. This includes the DEBUG_PRINT output
+ *                        statements. When disabled, all DEBUG_PRINT
  *                        statements are compiled out.
  *
  * ACPI_APPLICATION     - Use this switch if the subsystem is going to be run
@@ -63,12 +63,12 @@
  */
 
 /*
- * OS name, used for the _OS object.  The _OS object is essentially obsolete,
+ * OS name, used for the _OS object. The _OS object is essentially obsolete,
  * but there is a large base of ASL/AML code in existing machines that check
- * for the string below.  The use of this string usually guarantees that
- * the ASL will execute down the most tested code path.  Also, there is some
+ * for the string below. The use of this string usually guarantees that
+ * the ASL will execute down the most tested code path. Also, there is some
  * code that will not execute the _OSI method unless _OS matches the string
- * below.  Therefore, change this string at your own risk.
+ * below. Therefore, change this string at your own risk.
  */
 #define ACPI_OS_NAME                    "Microsoft Windows NT"
 
@@ -195,7 +195,7 @@
 
 #define ACPI_MAX_ADDRESS_SPACE          255
 
-/* Array sizes.  Used for range checking also */
+/* Array sizes. Used for range checking also */
 
 #define ACPI_MAX_MATCH_OPCODE           5
 
@@ -230,4 +230,3 @@
 
 
 #endif /* _ACCONFIG_H */
-

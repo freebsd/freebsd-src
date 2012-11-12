@@ -331,10 +331,9 @@ The system defines an advisory macro
 .Dv MINCLSIZE ,
 which is the smallest amount of data to put into an
 .Vt mbuf cluster .
-It is equal to the sum of
-.Dv MLEN
-and
-.Dv MHLEN .
+It is equal to
+.Dv MHLEN
+plus one.
 It is typically preferable to store data into the data region of an
 .Vt mbuf ,
 if size permits, as opposed to allocating a separate
@@ -403,7 +402,8 @@ for details.
 Associate externally managed data with
 .Fa mbuf .
 Any internal data contained in the mbuf will be discarded, and the
-.Dv M_EXT flag will be set.
+.Dv M_EXT
+flag will be set.
 The
 .Fa buf
 and
@@ -706,7 +706,7 @@ It does not allocate any
 .Vt mbuf clusters ,
 so
 .Fa len
-must be less than
+must be less than or equal to
 .Dv MHLEN .
 .\"
 .It Fn m_pulldown mbuf offset len offsetp
@@ -722,7 +722,8 @@ are contiguous and lay in the data area of
 .Fa mbuf ,
 so they are accessible with
 .Fn mtod mbuf type .
-.Fa len must be smaller than, or equal to, the size of an
+.Fa len
+must be smaller than, or equal to, the size of an
 .Vt mbuf cluster .
 Return a pointer to an intermediate
 .Vt mbuf

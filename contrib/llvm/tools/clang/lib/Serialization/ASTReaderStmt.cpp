@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Serialization/ASTReader.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/StmtVisitor.h"
@@ -159,9 +160,22 @@ void ASTStmtReader::VisitLabelStmt(LabelStmt *S) {
   S->setIdentLoc(ReadSourceLocation(Record, Idx));
 }
 
+void ASTStmtReader::VisitAttributedStmt(AttributedStmt *S) {
+  VisitStmt(S);
+  uint64_t NumAttrs = Record[Idx++];
+  AttrVec Attrs;
+  Reader.ReadAttributes(F, Attrs, Record, Idx);
+  (void)NumAttrs;
+  assert(NumAttrs == S->NumAttrs);
+  assert(NumAttrs == Attrs.size());
+  std::copy(Attrs.begin(), Attrs.end(), S->Attrs);
+  S->SubStmt = Reader.ReadSubStmt();
+  S->AttrLoc = ReadSourceLocation(Record, Idx);
+}
+
 void ASTStmtReader::VisitIfStmt(IfStmt *S) {
   VisitStmt(S);
-  S->setConditionVariable(Reader.getContext(), 
+  S->setConditionVariable(Reader.getContext(),
                           ReadDeclAs<VarDecl>(Record, Idx));
   S->setCond(Reader.ReadSubExpr());
   S->setThen(Reader.ReadSubStmt());
@@ -306,6 +320,11 @@ void ASTStmtReader::VisitAsmStmt(AsmStmt *S) {
                                     Names.data(), Constraints.data(), 
                                     Exprs.data(), NumOutputs, NumInputs, 
                                     Clobbers.data(), NumClobbers);
+}
+
+void ASTStmtReader::VisitMSAsmStmt(MSAsmStmt *S) {
+  // FIXME: Statement reader not yet implemented for MS style inline asm.
+  VisitStmt(S);
 }
 
 void ASTStmtReader::VisitExpr(Expr *E) {
@@ -807,12 +826,12 @@ void ASTStmtReader::VisitObjCStringLiteral(ObjCStringLiteral *E) {
   E->setAtLoc(ReadSourceLocation(Record, Idx));
 }
 
-void ASTStmtReader::VisitObjCNumericLiteral(ObjCNumericLiteral *E) {
+void ASTStmtReader::VisitObjCBoxedExpr(ObjCBoxedExpr *E) {
   VisitExpr(E);
   // could be one of several IntegerLiteral, FloatLiteral, etc.
-  E->Number = Reader.ReadSubStmt();
-  E->ObjCNumericLiteralMethod = ReadDeclAs<ObjCMethodDecl>(Record, Idx);
-  E->AtLoc = ReadSourceLocation(Record, Idx);
+  E->SubExpr = Reader.ReadSubStmt();
+  E->BoxingMethod = ReadDeclAs<ObjCMethodDecl>(Record, Idx);
+  E->Range = ReadSourceRange(Record, Idx);
 }
 
 void ASTStmtReader::VisitObjCArrayLiteral(ObjCArrayLiteral *E) {
@@ -864,6 +883,7 @@ void ASTStmtReader::VisitObjCProtocolExpr(ObjCProtocolExpr *E) {
   VisitExpr(E);
   E->setProtocol(ReadDeclAs<ObjCProtocolDecl>(Record, Idx));
   E->setAtLoc(ReadSourceLocation(Record, Idx));
+  E->ProtoLoc = ReadSourceLocation(Record, Idx);
   E->setRParenLoc(ReadSourceLocation(Record, Idx));
 }
 
@@ -1065,7 +1085,8 @@ void ASTStmtReader::VisitMSDependentExistsStmt(MSDependentExistsStmt *S) {
 
 void ASTStmtReader::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   VisitCallExpr(E);
-  E->setOperator((OverloadedOperatorKind)Record[Idx++]);
+  E->Operator = (OverloadedOperatorKind)Record[Idx++];
+  E->Range = Reader.ReadSourceRange(F, Record, Idx);
 }
 
 void ASTStmtReader::VisitCXXConstructExpr(CXXConstructExpr *E) {
@@ -1630,6 +1651,12 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
       S = new (Context) LabelStmt(Empty);
       break;
 
+    case STMT_ATTRIBUTED:
+      S = AttributedStmt::CreateEmpty(
+        Context,
+        /*NumAttrs*/Record[ASTStmtReader::NumStmtFields]);
+      break;
+
     case STMT_IF:
       S = new (Context) IfStmt(Empty);
       break;
@@ -1875,8 +1902,8 @@ Stmt *ASTReader::ReadStmtFromStream(ModuleFile &F) {
     case EXPR_OBJC_STRING_LITERAL:
       S = new (Context) ObjCStringLiteral(Empty);
       break;
-    case EXPR_OBJC_NUMERIC_LITERAL:
-      S = new (Context) ObjCNumericLiteral(Empty);
+    case EXPR_OBJC_BOXED_EXPRESSION:
+      S = new (Context) ObjCBoxedExpr(Empty);
       break;
     case EXPR_OBJC_ARRAY_LITERAL:
       S = ObjCArrayLiteral::CreateEmpty(Context,

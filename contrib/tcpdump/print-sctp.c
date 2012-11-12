@@ -59,9 +59,9 @@ static const char rcsid[] _U_ =
 #include "ip6.h"
 #endif
 
-#define CHAN_HP 6700
-#define CHAN_MP 6701
-#define CHAN_LP 6702
+#define CHAN_HP 6704
+#define CHAN_MP 6705
+#define CHAN_LP 6706
 
 struct tok ForCES_channels[] = {
 	{ CHAN_HP, "ForCES HP" },

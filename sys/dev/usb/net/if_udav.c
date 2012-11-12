@@ -181,6 +181,15 @@ static const struct usb_ether_methods udav_ue_methods = {
 	.ue_mii_sts = udav_ifmedia_status,
 };
 
+static const struct usb_ether_methods udav_ue_methods_nophy = {
+	.ue_attach_post = udav_attach_post,
+	.ue_start = udav_start,
+	.ue_init = udav_init,
+	.ue_stop = udav_stop,
+	.ue_setmulti = udav_setmulti,
+	.ue_setpromisc = udav_setpromisc,
+};
+
 #ifdef USB_DEBUG
 static int udav_debug = 0;
 
@@ -206,7 +215,8 @@ static const STRUCT_USB_HOST_ID udav_devs[] = {
 	{USB_VPI(USB_VENDOR_SHANTOU, USB_PRODUCT_SHANTOU_ADM8515, 0)},
 	/* Kontron AG USB Ethernet */
 	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_DM9601, 0)},
-	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_JP1082, 0)},
+	{USB_VPI(USB_VENDOR_KONTRON, USB_PRODUCT_KONTRON_JP1082,
+	    UDAV_FLAG_NO_PHY)},
 };
 
 static void
@@ -259,11 +269,20 @@ udav_attach(device_t dev)
 		goto detach;
 	}
 
+	/*
+	 * The JP1082 has an unusable PHY and provides no link information.
+	 */
+	if (sc->sc_flags & UDAV_FLAG_NO_PHY) {
+		ue->ue_methods = &udav_ue_methods_nophy;
+		sc->sc_flags |= UDAV_FLAG_LINK;
+	} else {
+		ue->ue_methods = &udav_ue_methods;
+	}
+
 	ue->ue_sc = sc;
 	ue->ue_dev = dev;
 	ue->ue_udev = uaa->device;
 	ue->ue_mtx = &sc->sc_mtx;
-	ue->ue_methods = &udav_ue_methods;
 
 	error = uether_ifattach(ue);
 	if (error) {
@@ -712,7 +731,8 @@ udav_stop(struct usb_ether *ue)
 	UDAV_LOCK_ASSERT(sc, MA_OWNED);
 
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	sc->sc_flags &= ~UDAV_FLAG_LINK;
+	if (!(sc->sc_flags & UDAV_FLAG_NO_PHY))
+		sc->sc_flags &= ~UDAV_FLAG_LINK;
 
 	/*
 	 * stop all the transfers, if not already stopped:

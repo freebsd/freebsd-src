@@ -1,12 +1,11 @@
 /* $FreeBSD$ */
 /*
- * Copyright (C) 1984-2011  Mark Nudelman
+ * Copyright (C) 1984-2012  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
- * For more information about less, or for information on how to 
- * contact the author, see the README file.
+ * For more information, see the README file.
  */
 
 
@@ -803,7 +802,7 @@ scrsize()
 	else if ((n = ltgetnum("li")) > 0)
  		sc_height = n;
 #endif
-	else
+	if (sc_height <= 0)
 		sc_height = DEF_SC_HEIGHT;
 
 	if (sys_width > 0)
@@ -814,7 +813,7 @@ scrsize()
 	else if ((n = ltgetnum("co")) > 0)
  		sc_width = n;
 #endif
-	else
+	if (sc_width <= 0)
 		sc_width = DEF_SC_WIDTH;
 }
 

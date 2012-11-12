@@ -85,14 +85,23 @@ prompt_print(EditLine *el, int op)
 {
 	el_prompt_t *elp;
 	char *p;
+	int ignore = 0;
 
 	if (op == EL_PROMPT)
 		elp = &el->el_prompt;
 	else
 		elp = &el->el_rprompt;
-	p = (elp->p_func) (el);
-	while (*p)
-		re_putc(el, *p++, 1);
+
+	for (p = (*elp->p_func)(el); *p; p++) {
+		if (elp->p_ignore == *p) {
+			ignore = !ignore;
+			continue;
+		}
+		if (ignore)
+			term__putc(el, *p);
+		else
+			re_putc(el, *p, 1);
+	}
 
 	elp->p_pos.v = el->el_refresh.r_cursor.v;
 	elp->p_pos.h = el->el_refresh.r_cursor.h;
@@ -109,10 +118,12 @@ prompt_init(EditLine *el)
 	el->el_prompt.p_func = prompt_default;
 	el->el_prompt.p_pos.v = 0;
 	el->el_prompt.p_pos.h = 0;
+	el->el_prompt.p_ignore = '\0';
 	el->el_rprompt.p_func = prompt_default_r;
 	el->el_rprompt.p_pos.v = 0;
 	el->el_rprompt.p_pos.h = 0;
-	return (0);
+	el->el_rprompt.p_ignore = '\0';
+	return 0;
 }
 
 
@@ -130,24 +141,29 @@ prompt_end(EditLine *el __unused)
  *	Install a prompt printing function
  */
 protected int
-prompt_set(EditLine *el, el_pfunc_t prf, int op)
+prompt_set(EditLine *el, el_pfunc_t prf, char c, int op)
 {
 	el_prompt_t *p;
 
-	if (op == EL_PROMPT)
+	if (op == EL_PROMPT || op == EL_PROMPT_ESC)
 		p = &el->el_prompt;
 	else
 		p = &el->el_rprompt;
+
 	if (prf == NULL) {
-		if (op == EL_PROMPT)
+		if (op == EL_PROMPT || op == EL_PROMPT_ESC)
 			p->p_func = prompt_default;
 		else
 			p->p_func = prompt_default_r;
 	} else
 		p->p_func = prf;
+
+	p->p_ignore = c;
+
 	p->p_pos.v = 0;
 	p->p_pos.h = 0;
-	return (0);
+
+	return 0;
 }
 
 
@@ -155,14 +171,22 @@ prompt_set(EditLine *el, el_pfunc_t prf, int op)
  *	Retrieve the prompt printing function
  */
 protected int
-prompt_get(EditLine *el, el_pfunc_t *prf, int op)
+prompt_get(EditLine *el, el_pfunc_t *prf, char *c, int op)
 {
+	el_prompt_t *p;
 
 	if (prf == NULL)
-		return (-1);
+		return -1;
+
 	if (op == EL_PROMPT)
-		*prf = el->el_prompt.p_func;
+		p = &el->el_prompt;
 	else
-		*prf = el->el_rprompt.p_func;
-	return (0);
+		p = &el->el_rprompt;
+
+	*prf = el->el_rprompt.p_func;
+
+	if (c)
+		*c = p->p_ignore;
+
+	return 0;
 }

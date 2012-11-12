@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -30,6 +31,7 @@
 #include <sys/fs/zfs.h>
 #include <sys/zio.h>
 #include <sys/sunldi.h>
+#include <sys/efi_partition.h>
 #include <sys/fm/fs/zfs.h>
 
 /*
@@ -102,8 +104,39 @@ vdev_disk_rele(vdev_t *vd)
 	}
 }
 
+static uint64_t
+vdev_disk_get_space(vdev_t *vd, uint64_t capacity, uint_t blksz)
+{
+	ASSERT(vd->vdev_wholedisk);
+
+	vdev_disk_t *dvd = vd->vdev_tsd;
+	dk_efi_t dk_ioc;
+	efi_gpt_t *efi;
+	uint64_t avail_space = 0;
+	int efisize = EFI_LABEL_SIZE * 2;
+
+	dk_ioc.dki_data = kmem_alloc(efisize, KM_SLEEP);
+	dk_ioc.dki_lba = 1;
+	dk_ioc.dki_length = efisize;
+	dk_ioc.dki_data_64 = (uint64_t)(uintptr_t)dk_ioc.dki_data;
+	efi = dk_ioc.dki_data;
+
+	if (ldi_ioctl(dvd->vd_lh, DKIOCGETEFI, (intptr_t)&dk_ioc,
+	    FKIOCTL, kcred, NULL) == 0) {
+		uint64_t efi_altern_lba = LE_64(efi->efi_gpt_AlternateLBA);
+
+		zfs_dbgmsg("vdev %s, capacity %llu, altern lba %llu",
+		    vd->vdev_path, capacity, efi_altern_lba);
+		if (capacity > efi_altern_lba)
+			avail_space = (capacity - efi_altern_lba) * blksz;
+	}
+	kmem_free(dk_ioc.dki_data, efisize);
+	return (avail_space);
+}
+
 static int
-vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
+vdev_disk_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
+    uint64_t *ashift)
 {
 	spa_t *spa = vd->vdev_spa;
 	vdev_disk_t *dvd;
@@ -274,16 +307,6 @@ skip_open:
 	}
 
 	/*
-	 * If we own the whole disk, try to enable disk write caching.
-	 * We ignore errors because it's OK if we can't do it.
-	 */
-	if (vd->vdev_wholedisk == 1) {
-		int wce = 1;
-		(void) ldi_ioctl(dvd->vd_lh, DKIOCSETWCE, (intptr_t)&wce,
-		    FKIOCTL, kcred, NULL);
-	}
-
-	/*
 	 * Determine the device's minimum transfer size.
 	 * If the ioctl isn't supported, assume DEV_BSIZE.
 	 */
@@ -292,6 +315,25 @@ skip_open:
 		dkmext.dki_pbsize = DEV_BSIZE;
 
 	*ashift = highbit(MAX(dkmext.dki_pbsize, SPA_MINBLOCKSIZE)) - 1;
+
+	if (vd->vdev_wholedisk == 1) {
+		uint64_t capacity = dkmext.dki_capacity - 1;
+		uint64_t blksz = dkmext.dki_lbsize;
+		int wce = 1;
+
+		/*
+		 * If we own the whole disk, try to enable disk write caching.
+		 * We ignore errors because it's OK if we can't do it.
+		 */
+		(void) ldi_ioctl(dvd->vd_lh, DKIOCSETWCE, (intptr_t)&wce,
+		    FKIOCTL, kcred, NULL);
+
+		*max_psize = *psize + vdev_disk_get_space(vd, capacity, blksz);
+		zfs_dbgmsg("capacity change: vdev %s, psize %llu, "
+		    "max_psize %llu", vd->vdev_path, *psize, *max_psize);
+	} else {
+		*max_psize = *psize;
+	}
 
 	/*
 	 * Clear the nowritecache bit, so that on a vdev_reopen() we will

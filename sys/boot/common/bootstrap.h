@@ -109,10 +109,10 @@ struct console
     const char	*c_name;
     const char	*c_desc;
     int		c_flags;
-#define C_PRESENTIN	(1<<0)
-#define C_PRESENTOUT	(1<<1)
-#define C_ACTIVEIN	(1<<2)
-#define C_ACTIVEOUT	(1<<3)
+#define C_PRESENTIN	(1<<0)	    /* console can provide input */
+#define C_PRESENTOUT	(1<<1)	    /* console can provide output */
+#define C_ACTIVEIN	(1<<2)	    /* user wants input from console */
+#define C_ACTIVEOUT	(1<<3)	    /* user wants output to console */
     void	(* c_probe)(struct console *cp);	/* set c_flags to match hardware */
     int		(* c_init)(int arg);			/* reinit XXX may need more args */
     void	(* c_out)(int c);			/* emit c */
@@ -317,6 +317,9 @@ struct arch_switch
 #else
     void	(*arch_loadseg)(void *eh, void *ph, uint64_t delta);
 #endif
+
+    /* Probe ZFS pool(s), if needed. */
+    void	(*arch_zfs_probe)(void);
 };
 extern struct arch_switch archsw;
 
@@ -326,5 +329,11 @@ void	delay(int delay);
 void	dev_cleanup(void);
 
 time_t	time(time_t *tloc);
+
+#ifndef CTASSERT                /* Allow lint to override */
+#define CTASSERT(x)             _CTASSERT(x, __LINE__)
+#define _CTASSERT(x, y)         __CTASSERT(x, y)
+#define __CTASSERT(x, y)        typedef char __assert ## y[(x) ? 1 : -1]
+#endif
 
 #endif /* !_BOOTSTRAP_H_ */

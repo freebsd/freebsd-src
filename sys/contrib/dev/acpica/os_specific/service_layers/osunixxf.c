@@ -353,7 +353,7 @@ AcpiOsGetLine (
     UINT32                  BufferLength,
     UINT32                  *BytesRead)
 {
-    UINT8                   Temp;
+    int                     Temp;
     UINT32                  i;
 
 
@@ -364,13 +364,17 @@ AcpiOsGetLine (
             return (AE_BUFFER_OVERFLOW);
         }
 
-        scanf ("%1c", &Temp);
+        if ((Temp = getchar ()) == EOF)
+        {
+            return (AE_ERROR);
+        }
+
         if (!Temp || Temp == '\n')
         {
             break;
         }
 
-        Buffer [i] = Temp;
+        Buffer [i] = (char) Temp;
     }
 
     /* Null terminate the buffer */
@@ -1241,3 +1245,24 @@ AcpiOsExecute (
 }
 
 #endif /* ACPI_SINGLE_THREADED */
+
+
+/******************************************************************************
+ *
+ * FUNCTION:    AcpiOsWaitEventsComplete
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Wait for all asynchronous events to complete. This
+ *              implementation does nothing.
+ *
+ *****************************************************************************/
+
+void
+AcpiOsWaitEventsComplete (
+    void)
+{
+    return;
+}

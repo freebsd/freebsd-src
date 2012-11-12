@@ -1,0 +1,89 @@
+Following are examples of j_classflow.d.  
+
+This watches Java method entries and returns from all Java processes on the 
+system with hotspot provider support (1.6.0) and the flag
+"+ExtendedDTraceProbes".  eg, java -XX:+ExtendedDTraceProbes classfile
+
+Here we can see it run on Code/Java/Func_abc. 
+
+# j_classflow.d Func_abc
+  C    PID TIME(us)         -- CLASS.METHOD
+  0 311425 4789778117827    -> Func_abc.main
+  0 311425 4789778117844      -> Func_abc.func_a
+  0 311425 4789779120071        -> Func_abc.func_b
+  0 311425 4789780130070          -> Func_abc.func_c
+  0 311425 4789781140067          <- Func_abc.func_c
+  0 311425 4789781140079        <- Func_abc.func_b
+  0 311425 4789781140087      <- Func_abc.func_a
+  0 311425 4789781140095    <- Func_abc.main
+^C
+
+The first column, C gives us the CPU ID.
+
+The second column, TIME(us), gives us the time since boot in microseconds.
+
+The third column, PID gives us the Process ID.
+
+The fourth column, CLASS.METHOD gives us the Java class and method name.
+
+We can see that Func_abc.main called Func.abc.func_a, which in turn
+called Func_abc.funcb etc.
+
+Here we can see an example of running it on java/io/BufferedOutputStream
+
+# j_classflow.d java/io/BufferedOutputStream
+  C    PID TIME(us)         -- CLASS.METHOD
+  0 311461 4790094765413    -> java/io/BufferedOutputStream.<init>
+  0 311461 4790094765459    <- java/io/BufferedOutputStream.<init>
+  0 311461 4790094779559    -> java/io/BufferedOutputStream.<init>
+  0 311461 4790094779595    <- java/io/BufferedOutputStream.<init>
+  0 311461 4790094965883    -> java/io/BufferedOutputStream.write
+  0 311461 4790094965913    <- java/io/BufferedOutputStream.write
+  0 311461 4790094965926    -> java/io/BufferedOutputStream.flush
+  0 311461 4790094965936      -> java/io/BufferedOutputStream.flushBuffer
+  0 311461 4790094966279      <- java/io/BufferedOutputStream.flushBuffer
+  0 311461 4790094966293    <- java/io/BufferedOutputStream.flush
+  0 311461 4790094966588    -> java/io/BufferedOutputStream.write
+  0 311461 4790094966602    <- java/io/BufferedOutputStream.write
+  0 311461 4790094966610    -> java/io/BufferedOutputStream.flush
+  0 311461 4790094966618      -> java/io/BufferedOutputStream.flushBuffer
+  0 311461 4790094966778      <- java/io/BufferedOutputStream.flushBuffer
+  0 311461 4790094966787    <- java/io/BufferedOutputStream.flush
+  0 311461 4790094966811    -> java/io/BufferedOutputStream.flush
+  0 311461 4790094966819      -> java/io/BufferedOutputStream.flushBuffer
+  0 311461 4790094966828      <- java/io/BufferedOutputStream.flushBuffer
+  0 311461 4790094966836    <- java/io/BufferedOutputStream.flush
+  0 311461 4790095970345    -> java/io/BufferedOutputStream.write
+  0 311461 4790095970372    <- java/io/BufferedOutputStream.write
+  0 311461 4790095970382    -> java/io/BufferedOutputStream.flush
+  0 311461 4790095970390      -> java/io/BufferedOutputStream.flushBuffer
+  0 311461 4790095970453      <- java/io/BufferedOutputStream.flushBuffer
+  0 311461 4790095970462    <- java/io/BufferedOutputStream.flush
+  0 311461 4790095970737    -> java/io/BufferedOutputStream.write
+  0 311461 4790095970751    <- java/io/BufferedOutputStream.write
+  0 311461 4790095970759    -> java/io/BufferedOutputStream.flush
+  0 311461 4790095970766      -> java/io/BufferedOutputStream.flushBuffer
+  0 311461 4790095970795      <- java/io/BufferedOutputStream.flushBuffer
+  0 311461 4790095970804    <- java/io/BufferedOutputStream.flush
+  0 311461 4790095970828    -> java/io/BufferedOutputStream.flush
+  0 311461 4790095970836      -> java/io/BufferedOutputStream.flushBuffer
+  0 311461 4790095970844      <- java/io/BufferedOutputStream.flushBuffer
+  0 311461 4790095970853    <- java/io/BufferedOutputStream.flush
+  0 311461 4790096980348    -> java/io/BufferedOutputStream.write
+  0 311461 4790096980373    <- java/io/BufferedOutputStream.write
+  0 311461 4790096980383    -> java/io/BufferedOutputStream.flush
+  0 311461 4790096980391      -> java/io/BufferedOutputStream.flushBuffer
+  0 311461 4790096980452      <- java/io/BufferedOutputStream.flushBuffer
+  0 311461 4790096980460    <- java/io/BufferedOutputStream.flush
+  0 311461 4790096980735    -> java/io/BufferedOutputStream.write
+  0 311461 4790096980749    <- java/io/BufferedOutputStream.write
+  0 311461 4790096980757    -> java/io/BufferedOutputStream.flush
+  0 311461 4790096980765      -> java/io/BufferedOutputStream.flushBuffer
+  0 311461 4790096980794      <- java/io/BufferedOutputStream.flushBuffer
+  0 311461 4790096980803    <- java/io/BufferedOutputStream.flush
+  0 311461 4790096980826    -> java/io/BufferedOutputStream.flush
+  0 311461 4790096980834      -> java/io/BufferedOutputStream.flushBuffer
+  0 311461 4790096980843      <- java/io/BufferedOutputStream.flushBuffer
+  0 311461 4790096980851    <- java/io/BufferedOutputStream.flush
+
+

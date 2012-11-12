@@ -1246,7 +1246,7 @@ dns_dnssec_findmatchingkeys(dns_name_t *origin, const char *directory,
 	isc_dir_init(&dir);
 
 	isc_buffer_init(&b, namebuf, sizeof(namebuf) - 1);
-	RETERR(dns_name_totext(origin, ISC_FALSE, &b));
+	RETERR(dns_name_tofilenametext(origin, ISC_FALSE, &b));
 	len = isc_buffer_usedlength(&b);
 	namebuf[len] = '\0';
 

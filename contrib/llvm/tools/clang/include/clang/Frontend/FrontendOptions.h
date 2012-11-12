@@ -11,6 +11,7 @@
 #define LLVM_CLANG_FRONTEND_FRONTENDOPTIONS_H
 
 #include "clang/Frontend/CommandLineSourceLoc.h"
+#include "clang/Sema/CodeCompleteOptions.h"
 #include "llvm/ADT/StringRef.h"
 #include <string>
 #include <vector>
@@ -19,6 +20,7 @@ namespace clang {
 
 namespace frontend {
   enum ActionKind {
+    ASTDeclList,            ///< Parse ASTs and list Decl nodes.
     ASTDump,                ///< Parse ASTs and dump them.
     ASTDumpXML,             ///< Parse ASTs and dump them in XML.
     ASTPrint,               ///< Parse ASTs and print them.
@@ -42,8 +44,7 @@ namespace frontend {
     PrintDeclContext,       ///< Print DeclContext and their Decls.
     PrintPreamble,          ///< Print the "preamble" of the input file
     PrintPreprocessedInput, ///< -E mode.
-    PubnamesDump,           ///< Print all of the "public" names in the source.
-    RewriteMacros,          ///< Expand macros but not #includes.
+    RewriteMacros,          ///< Expand macros but not \#includes.
     RewriteObjC,            ///< ObjC->C Rewriter.
     RewriteTest,            ///< Rewriter playground
     RunAnalysis,            ///< Run one or more source code analyses.
@@ -85,7 +86,7 @@ struct FrontendInputFile {
   FrontendInputFile(StringRef File, InputKind Kind, bool IsSystem = false)
     : File(File.str()), Kind(Kind), IsSystem(IsSystem) { }
 };
-  
+
 /// FrontendOptions - Options for controlling the behavior of the frontend.
 class FrontendOptions {
 public:
@@ -94,12 +95,6 @@ public:
                                            /// instruct the AST writer to create
                                            /// relocatable PCH files.
   unsigned ShowHelp : 1;                   ///< Show the -help text.
-  unsigned ShowMacrosInCodeCompletion : 1; ///< Show macros in code completion
-                                           /// results.
-  unsigned ShowCodePatternsInCodeCompletion : 1; ///< Show code patterns in code
-                                                 /// completion results.
-  unsigned ShowGlobalSymbolsInCodeCompletion : 1; ///< Show top-level decls in
-                                                  /// code completion results.
   unsigned ShowStats : 1;                  ///< Show frontend performance
                                            /// metrics and statistics.
   unsigned ShowTimers : 1;                 ///< Show timers for individual
@@ -116,6 +111,8 @@ public:
                                            /// speed up parsing in cases you do
                                            /// not need them (e.g. with code
                                            /// completion).
+
+  CodeCompleteOptions CodeCompleteOpts;
 
   enum {
     ARCMT_None,
@@ -144,6 +141,9 @@ public:
 
   /// If given, the new suffix for fix-it rewritten files.
   std::string FixItSuffix;
+
+  /// If given, filter dumped AST Decl nodes by this substring.
+  std::string ASTDumpFilter;
 
   /// If given, enable code completion at the provided location.
   ParsedSourceLocation CodeCompletionAt;
@@ -184,9 +184,6 @@ public:
     ActionName = "";
     RelocatablePCH = 0;
     ShowHelp = 0;
-    ShowMacrosInCodeCompletion = 0;
-    ShowCodePatternsInCodeCompletion = 0;
-    ShowGlobalSymbolsInCodeCompletion = 1;
     ShowStats = 0;
     ShowTimers = 0;
     ShowVersion = 0;

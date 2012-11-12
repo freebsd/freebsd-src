@@ -1,0 +1,32 @@
+The following is a demonstration of the pathopens.d script,
+
+
+Here we run it for a few seconds then hit Ctrl-C,
+
+   # pathopens.d
+   Tracing... Hit Ctrl-C to end.
+   ^C
+    COUNT PATHNAME
+        1 /lib/libcmd.so.1
+        1 /export/home/root/DTrace/Dexplorer/dexplorer
+        1 /lib/libmd5.so.1
+        1 /lib/libaio.so.1
+        1 /lib/librt.so.1
+        1 /etc/security/prof_attr
+        1 /etc/mnttab
+        2 /devices/pseudo/devinfo@0:devinfo
+        2 /dev/kstat
+        2 /lib/libnvpair.so.1
+        2 /lib/libkstat.so.1
+        2 /lib/libdevinfo.so.1
+        2 /lib/libnsl.so.1
+        4 /lib/libc.so.1
+        4 /var/ld/ld.config
+        8 /export/home/brendan/Utils_solx86/setiathome-3.08.i386-pc-solaris2.6/outfile.sah
+
+In the above output, many of the files would have been opened using 
+absolute pathnames. However the "dexplorer" file was opened using a relative
+pathname - and the pathopens.d script has correctly printed the full path.
+
+The above shows that the outfile.sah file was opened successfully 8 times.
+

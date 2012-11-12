@@ -123,13 +123,23 @@ public:
 
   /// FindLineNumber - Find the line number for the specified location in the
   /// specified file.  This is not a fast method.
-  unsigned FindLineNumber(SMLoc Loc, int BufferID = -1) const;
+  unsigned FindLineNumber(SMLoc Loc, int BufferID = -1) const {
+    return getLineAndColumn(Loc, BufferID).first;
+  }
+
+  /// getLineAndColumn - Find the line and column number for the specified
+  /// location in the specified file.  This is not a fast method.
+  std::pair<unsigned, unsigned>
+    getLineAndColumn(SMLoc Loc, int BufferID = -1) const;
 
   /// PrintMessage - Emit a message about the specified location with the
   /// specified string.
   ///
+  /// @param ShowColors - Display colored messages if output is a terminal and
+  /// the default error handler is used.
   void PrintMessage(SMLoc Loc, DiagKind Kind, const Twine &Msg,
-                    ArrayRef<SMRange> Ranges = ArrayRef<SMRange>()) const;
+                    ArrayRef<SMRange> Ranges = ArrayRef<SMRange>(),
+                    bool ShowColors = true) const;
 
 
   /// GetMessage - Return an SMDiagnostic at the specified location with the
@@ -166,9 +176,9 @@ public:
   SMDiagnostic()
     : SM(0), LineNo(0), ColumnNo(0), Kind(SourceMgr::DK_Error) {}
   // Diagnostic with no location (e.g. file not found, command line arg error).
-  SMDiagnostic(const std::string &filename, SourceMgr::DiagKind Kind,
+  SMDiagnostic(const std::string &filename, SourceMgr::DiagKind Knd,
                const std::string &Msg)
-    : SM(0), Filename(filename), LineNo(-1), ColumnNo(-1), Kind(Kind),
+    : SM(0), Filename(filename), LineNo(-1), ColumnNo(-1), Kind(Knd),
       Message(Msg) {}
   
   // Diagnostic with a location.
@@ -188,7 +198,7 @@ public:
   const std::vector<std::pair<unsigned, unsigned> > &getRanges() const {
     return Ranges;
   }
-  void print(const char *ProgName, raw_ostream &S) const;
+  void print(const char *ProgName, raw_ostream &S, bool ShowColors = true) const;
 };
 
 }  // end llvm namespace

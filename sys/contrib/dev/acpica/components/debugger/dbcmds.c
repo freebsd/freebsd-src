@@ -91,7 +91,7 @@ AcpiDbDeviceResources (
  *
  * RETURN:      Pointer to a NS node
  *
- * DESCRIPTION: Convert a string to a valid NS pointer.  Handles numeric or
+ * DESCRIPTION: Convert a string to a valid NS pointer. Handles numeric or
  *              alpha strings.
  *
  ******************************************************************************/
@@ -174,14 +174,14 @@ AcpiDbSleep (
     }
 
     AcpiOsPrintf ("**** Going to sleep ****\n");
-    Status = AcpiEnterSleepState (SleepState, ACPI_NO_OPTIONAL_METHODS);
+    Status = AcpiEnterSleepState (SleepState);
     if (ACPI_FAILURE (Status))
     {
         goto ErrorExit;
     }
 
     AcpiOsPrintf ("**** Prepare to return from sleep ****\n");
-    Status = AcpiLeaveSleepStatePrep (SleepState, ACPI_NO_OPTIONAL_METHODS);
+    Status = AcpiLeaveSleepStatePrep (SleepState);
     if (ACPI_FAILURE (Status))
     {
         goto ErrorExit;
@@ -194,13 +194,13 @@ AcpiDbSleep (
         goto ErrorExit;
     }
 
-    return (Status);
+    return_ACPI_STATUS (Status);
 
 
 ErrorExit:
 
     ACPI_EXCEPTION ((AE_INFO, Status, "During sleep test"));
-    return (Status);
+    return_ACPI_STATUS (Status);
 }
 
 
@@ -240,7 +240,7 @@ AcpiDbDisplayLocks (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Display information about loaded tables.  Current
+ * DESCRIPTION: Display information about loaded tables. Current
  *              implementation displays all loaded tables.
  *
  ******************************************************************************/
@@ -254,12 +254,53 @@ AcpiDbDisplayTableInfo (
     ACPI_STATUS             Status;
 
 
+    /* Header */
+
+    AcpiOsPrintf ("Idx ID Status    Type            Sig  Address  Len   Header\n");
+
     /* Walk the entire root table list */
 
     for (i = 0; i < AcpiGbl_RootTableList.CurrentTableCount; i++)
     {
         TableDesc = &AcpiGbl_RootTableList.Tables[i];
-        AcpiOsPrintf ("%u ", i);
+
+        /* Index and Table ID */
+
+        AcpiOsPrintf ("%3u %.2u ", i, TableDesc->OwnerId);
+
+        /* Decode the table flags */
+
+        if (!(TableDesc->Flags & ACPI_TABLE_IS_LOADED))
+        {
+            AcpiOsPrintf ("NotLoaded ");
+        }
+        else
+        {
+            AcpiOsPrintf ("   Loaded ");
+        }
+
+        switch (TableDesc->Flags & ACPI_TABLE_ORIGIN_MASK)
+        {
+        case ACPI_TABLE_ORIGIN_UNKNOWN:
+            AcpiOsPrintf ("Unknown   ");
+            break;
+
+        case ACPI_TABLE_ORIGIN_MAPPED:
+            AcpiOsPrintf ("Mapped    ");
+            break;
+
+        case ACPI_TABLE_ORIGIN_ALLOCATED:
+            AcpiOsPrintf ("Allocated ");
+            break;
+
+        case ACPI_TABLE_ORIGIN_OVERRIDE:
+            AcpiOsPrintf ("Override  ");
+            break;
+
+        default:
+            AcpiOsPrintf ("INVALID   ");
+            break;
+        }
 
         /* Make sure that the table is mapped */
 
@@ -290,55 +331,45 @@ AcpiDbDisplayTableInfo (
  *
  * FUNCTION:    AcpiDbUnloadAcpiTable
  *
- * PARAMETERS:  TableArg        - Name of the table to be unloaded
- *              InstanceArg     - Which instance of the table to unload (if
- *                                there are multiple tables of the same type)
+ * PARAMETERS:  ObjectName          - Namespace pathname for an object that
+ *                                    is owned by the table to be unloaded
  *
- * RETURN:      Nonde
+ * RETURN:      None
  *
- * DESCRIPTION: Unload an ACPI table.
- *              Instance is not implemented
+ * DESCRIPTION: Unload an ACPI table, via any namespace node that is owned
+ *              by the table.
  *
  ******************************************************************************/
 
 void
 AcpiDbUnloadAcpiTable (
-    char                    *TableArg,
-    char                    *InstanceArg)
+    char                    *ObjectName)
 {
-/* TBD: Need to reimplement for new data structures */
-
-#if 0
-    UINT32                  i;
+    ACPI_NAMESPACE_NODE     *Node;
     ACPI_STATUS             Status;
 
 
-    /* Search all tables for the target type */
+    /* Translate name to an Named object */
 
-    for (i = 0; i < (ACPI_TABLE_ID_MAX+1); i++)
+    Node = AcpiDbConvertToNode (ObjectName);
+    if (!Node)
     {
-        if (!ACPI_STRNCMP (TableArg, AcpiGbl_TableData[i].Signature,
-                AcpiGbl_TableData[i].SigLength))
-        {
-            /* Found the table, unload it */
-
-            Status = AcpiUnloadTable (i);
-            if (ACPI_SUCCESS (Status))
-            {
-                AcpiOsPrintf ("[%s] unloaded and uninstalled\n", TableArg);
-            }
-            else
-            {
-                AcpiOsPrintf ("%s, while unloading [%s]\n",
-                    AcpiFormatException (Status), TableArg);
-            }
-
-            return;
-        }
+        AcpiOsPrintf ("Could not find [%s] in namespace\n",
+            ObjectName);
+        return;
     }
 
-    AcpiOsPrintf ("Unknown table type [%s]\n", TableArg);
-#endif
+    Status = AcpiUnloadParentTable (ACPI_CAST_PTR (ACPI_HANDLE, Node));
+    if (ACPI_SUCCESS (Status))
+    {
+        AcpiOsPrintf ("Parent of [%s] (%p) unloaded and uninstalled\n",
+            ObjectName, Node);
+    }
+    else
+    {
+        AcpiOsPrintf ("%s, while unloading parent table of [%s]\n",
+            AcpiFormatException (Status), ObjectName);
+    }
 }
 
 
@@ -351,7 +382,7 @@ AcpiDbUnloadAcpiTable (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Send an ACPI notification.  The value specified is sent to the
+ * DESCRIPTION: Send an ACPI notification. The value specified is sent to the
  *              named object as an ACPI notify.
  *
  ******************************************************************************/
@@ -546,7 +577,7 @@ AcpiDbDisplayTemplate (
 
 DumpBuffer:
     AcpiOsPrintf ("\nRaw data buffer:\n");
-    AcpiUtDumpBuffer ((UINT8 *) Node->Object->Buffer.Pointer,
+    AcpiUtDebugDumpBuffer ((UINT8 *) Node->Object->Buffer.Pointer,
         Node->Object->Buffer.Length,
         DB_BYTE_DISPLAY, ACPI_UINT32_MAX);
 

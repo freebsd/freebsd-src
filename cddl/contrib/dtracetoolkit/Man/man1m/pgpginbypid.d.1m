@@ -1,0 +1,47 @@
+.TH pgpginbypid.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+pgpginbypid.d \- pages paged in by PID. Uses DTrace.
+.SH SYNOPSIS
+.B pgpginbypid.d
+.SH DESCRIPTION
+pgpginbypid.d reports the rumber of pages paged in from the disks
+by process ID. This is an indicator that processes are reading
+from the disks.
+
+This is based on a script from DExplorer.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the vminfo provider.
+.SH EXAMPLES
+.TP
+This samples until Ctrl\-C is hit.
+# 
+.B pgpginbypid.d
+.PP
+.SH FIELDS
+.TP
+PID
+process ID
+.TP
+CMD
+process name
+.TP
+PAGES
+number of pages paged in
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+pgpginbypid.d will sample until Ctrl\-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+iosnoop(1m), dtrace(1M)
+

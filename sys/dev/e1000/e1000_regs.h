@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2011, Intel Corporation 
+  Copyright (c) 2001-2012, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -51,6 +51,7 @@
 #define E1000_BARCTRL_FLSIZE		0x0700 /* BAR ctrl Flsize */
 #define E1000_BARCTRL_CSRSIZE		0x2000 /* BAR ctrl CSR size */
 #define E1000_I350_BARCTRL		0x5BFC /* BAR ctrl reg */
+#define E1000_I350_DTXMXPKTSZ		0x355C /* Maximum sent packet size reg*/
 #define E1000_SCTL	0x00024  /* SerDes Control - RW */
 #define E1000_FCAL	0x00028  /* Flow Control Address Low - RW */
 #define E1000_FCAH	0x0002C  /* Flow Control Address High -RW */
@@ -143,6 +144,62 @@
 #define E1000_PBRWAC	0x024E8 /* Rx packet buffer wrap around counter - RO */
 #define E1000_RDTR	0x02820  /* Rx Delay Timer - RW */
 #define E1000_RADV	0x0282C  /* Rx Interrupt Absolute Delay Timer - RW */
+#define E1000_SRWR		0x12018  /* Shadow Ram Write Register - RW */
+#define E1000_I210_FLMNGCTL	0x12038
+#define E1000_I210_FLMNGDATA	0x1203C
+#define E1000_I210_FLMNGCNT	0x12040
+
+#define E1000_I210_FLSWCTL	0x12048
+#define E1000_I210_FLSWDATA	0x1204C
+#define E1000_I210_FLSWCNT	0x12050
+
+#define E1000_I210_FLA		0x1201C
+
+#define E1000_INVM_DATA_REG(_n)	(0x12120 + 4*(_n))
+#define E1000_INVM_SIZE		64 /* Number of INVM Data Registers */
+
+/* QAV Tx mode control register */
+#define E1000_I210_TQAVCTRL	0x3570
+
+/* QAV Tx mode control register bitfields masks */
+/* QAV enable */
+#define E1000_TQAVCTRL_MODE			(1 << 0)
+/* Fetching arbitration type */
+#define E1000_TQAVCTRL_FETCH_ARB		(1 << 4)
+/* Fetching timer enable */
+#define E1000_TQAVCTRL_FETCH_TIMER_ENABLE	(1 << 5)
+/* Launch arbitration type */
+#define E1000_TQAVCTRL_LAUNCH_ARB		(1 << 8)
+/* Launch timer enable */
+#define E1000_TQAVCTRL_LAUNCH_TIMER_ENABLE	(1 << 9)
+/* SP waits for SR enable */
+#define E1000_TQAVCTRL_SP_WAIT_SR		(1 << 10)
+/* Fetching timer correction */
+#define E1000_TQAVCTRL_FETCH_TIMER_DELTA_OFFSET	16
+#define E1000_TQAVCTRL_FETCH_TIMER_DELTA	\
+			(0xFFFF << E1000_TQAVCTRL_FETCH_TIMER_DELTA_OFFSET)
+
+/* High credit registers where _n can be 0 or 1. */
+#define E1000_I210_TQAVHC(_n)			(0x300C + 0x40 * (_n))
+
+/* Queues fetch arbitration priority control register */
+#define E1000_I210_TQAVARBCTRL			0x3574
+/* Queues priority masks where _n and _p can be 0-3. */
+#define E1000_TQAVARBCTRL_QUEUE_PRI(_n, _p)	((_p) << (2 * _n))
+/* QAV Tx mode control registers where _n can be 0 or 1. */
+#define E1000_I210_TQAVCC(_n)			(0x3004 + 0x40 * (_n))
+
+/* QAV Tx mode control register bitfields masks */
+#define E1000_TQAVCC_IDLE_SLOPE		0xFFFF /* Idle slope */
+#define E1000_TQAVCC_KEEP_CREDITS	(1 << 30) /* Keep credits opt enable */
+#define E1000_TQAVCC_QUEUE_MODE		(1 << 31) /* SP vs. SR Tx mode */
+
+/* Good transmitted packets counter registers */
+#define E1000_PQGPTC(_n)		(0x010014 + (0x100 * (_n)))
+
+/* Queues packet buffer size masks where _n can be 0-3 and _s 0-63 [kB] */
+#define E1000_I210_TXPBS_SIZE(_n, _s)	((_s) << (6 * _n))
+
 /*
  * Convenience macros
  *
@@ -424,10 +481,11 @@
 #define E1000_HOST_IF	0x08800  /* Host Interface */
 #define E1000_FFMT	0x09000  /* Flexible Filter Mask Table - RW Array */
 #define E1000_FFVT	0x09800  /* Flexible Filter Value Table - RW Array */
+#define E1000_HIBBA	0x8F40   /* Host Interface Buffer Base Address */
 /* Flexible Host Filter Table */
-#define E1000_FHFT(_n)	(0x09000 + (_n * 0x100))
+#define E1000_FHFT(_n)	(0x09000 + ((_n) * 0x100))
 /* Ext Flexible Host Filter Table */
-#define E1000_FHFT_EXT(_n)	(0x09A00 + (_n * 0x100))
+#define E1000_FHFT_EXT(_n)	(0x09A00 + ((_n) * 0x100))
 
 
 #define E1000_KMRNCTRLSTA	0x00034 /* MAC-PHY interface - RW */
@@ -590,10 +648,6 @@
 /* PCIe Parity Status Register */
 #define E1000_PCIEERRSTS	0x05BA8
 
-#define E1000_LTRMINV	0x5BB0 /* LTR Minimum Value */
-#define E1000_LTRMAXV	0x5BB4 /* LTR Maximum Value */
-#define E1000_DOBFFCTL	0x3F24 /* DMA OBFF Control Register */
-
 #define E1000_PROXYS	0x5F64 /* Proxying Status */
 #define E1000_PROXYFC	0x5F60 /* Proxying Filter Control */
 /* Thermal sensor configuration and status registers */
@@ -603,7 +657,7 @@
 #define E1000_THHIGHTC	0x0810C /* High Threshold Control */
 #define E1000_THSTAT	0x08110 /* Thermal Sensor Status */
 
-/*Energy Efficient Ethernet "EEE" registers */
+/* Energy Efficient Ethernet "EEE" registers */
 #define E1000_IPCNFG	0x0E38 /* Internal PHY Configuration */
 #define E1000_LTRC	0x01A0 /* Latency Tolerance Reporting Control */
 #define E1000_EEER	0x0E30 /* Energy Efficient Ethernet "EEE"*/
@@ -616,5 +670,10 @@
 #define E1000_B2OGPRC	0x04158 /* BMC2OS packets received by host */
 #define E1000_O2BGPTC	0x08FE4 /* OS2BMC packets received by BMC */
 #define E1000_O2BSPC	0x0415C /* OS2BMC packets transmitted by host */
+
+#define E1000_LTRMINV	0x5BB0 /* LTR Minimum Value */
+#define E1000_LTRMAXV	0x5BB4 /* LTR Maximum Value */
+#define E1000_DOBFFCTL	0x3F24 /* DMA OBFF Control Register */
+
 
 #endif

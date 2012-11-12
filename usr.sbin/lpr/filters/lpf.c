@@ -60,17 +60,17 @@ __FBSDID("$FreeBSD$");
 #define MAXWIDTH  132
 #define MAXREP    10
 
-char	buf[MAXREP][MAXWIDTH];
-int	maxcol[MAXREP] = {-1};
-int	lineno;
-int	width = 132;	/* default line length */
-int	length = 66;	/* page length */
-int	indent;		/* indentation length */
-int	npages = 1;
-int	literal;	/* print control characters */
-char	*name;		/* user's login name */
-char	*host;		/* user's machine name */
-char	*acctfile;	/* accounting information file */
+static char	buf[MAXREP][MAXWIDTH];
+static int	maxcol[MAXREP] = {-1};
+static int	lineno;
+static int	width = 132;	/* default line length */
+static int	length = 66;	/* page length */
+static int	indent;		/* indentation length */
+static int	npages = 1;
+static int	literal;	/* print control characters */
+static char	*name;		/* user's login name */
+static char	*host;		/* user's machine name */
+static char	*acctfile;	/* accounting information file */
 
 int
 main(int argc, char *argv[])

@@ -108,7 +108,8 @@ struct usb_bus_methods {
 	/* USB Device mode only - Mandatory */
 
 	void    (*get_hw_ep_profile) (struct usb_device *udev, const struct usb_hw_ep_profile **ppf, uint8_t ep_addr);
-	void    (*set_stall) (struct usb_device *udev, struct usb_xfer *xfer, struct usb_endpoint *ep, uint8_t *did_stall);
+	void    (*xfer_stall) (struct usb_xfer *xfer);
+	void    (*set_stall) (struct usb_device *udev, struct usb_endpoint *ep, uint8_t *did_stall);
 
 	/* USB Device mode mandatory. USB Host mode optional. */
 
@@ -143,6 +144,10 @@ struct usb_bus_methods {
 	/* Optional for host mode */
 
 	usb_error_t	(*set_address) (struct usb_device *, struct mtx *, uint16_t);
+
+	/* Optional for device and host mode */
+
+	usb_error_t	(*set_endpoint_mode) (struct usb_device *, struct usb_endpoint *, uint8_t);
 };
 
 /*

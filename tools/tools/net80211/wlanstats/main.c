@@ -57,7 +57,8 @@ static struct {
   },
   { "ampdu",
     "input,output,ampdu_reorder,ampdu_oor,rx_dup,ampdu_flush,ampdu_move,"
-    "ampdu_drop,ampdu_bar,ampdu_baroow,ampdu_barmove,rssi,rate"
+    "ampdu_drop,ampdu_bar,ampdu_baroow,ampdu_barmove,ampdu_bartx,"
+    "ampdu_bartxfail,ampdu_bartxretry,rssi,rate"
   },
 };
 

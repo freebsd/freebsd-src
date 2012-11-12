@@ -1,0 +1,54 @@
+JavaScript - DTracing JavaScript
+
+   There scripts trace the JavaScript programming language, and require a
+   browser to be built with the DTrace JavaScript provider.
+
+   The DTrace JavaScript provider was originally written by Brendan Gregg,
+   and later developed as part of a Mozilla DTrace provider suite by
+   engineers from both Sun and Mozilla. It currently exists as patches
+   to the Mozilla source tree and requires building from source to get
+   working; it may be integrated into Solaris builds by default in the
+   future. To download the current patches and instructions, visit,
+
+	http://www.opensolaris.org/os/project/mozilla-dtrace/
+
+   A rough guide for the process is,
+
+	1. Download the Mozilla source
+		http://developer.mozilla.org/en/docs/Mozilla_Source_Code_Via_CVS
+	2. Download the Mozilla DTrace framework patch, and apply
+		https://bugzilla.mozilla.org/show_bug.cgi?id=370906
+	3. Download the JavaScript DTrace provider patch, and apply
+		https://bugzilla.mozilla.org/show_bug.cgi?id=388564
+	4. Create a .mozconfig file (needed for compilation).
+	5. Setup various compilation environment vars (CC/CFLAGS/CXX/...)
+	6. autoconf
+	7. ./configure --enable-dtrace
+	8. gmake
+
+   See John Rice's instructions linked from the OpenSolaris page above
+   for details on steps 4-8.
+
+   Since the DTrace JavaScript provider may be developed further, there is a
+   chance that it has changed slightly by the time you are reading this,
+   causing these scripts to either break or behave oddly. Firstly, check for
+   newer versions of the DTraceToolkit; if it hasn't been updated and you need
+   to use these scripts immediately, then updating them shouldn't take
+   too long. The following was the state of the provider when these scripts
+   were written - check for changes and update the scripts accordingly,
+
+	provider javascript {
+	    probe function-entry(file, class, func)
+	    probe function-info(file, class, func, lineno, runfile, runlineno)
+	    probe function-args(file, class, func, argc, argv, argv0, argv1,
+		argv2, argv3, argv4)
+	    probe function-rval(file, class, func, lineno, rval, rval0)
+	    probe function-return(file, class, func)
+	    probe object-create-start(file, class)
+	    probe object-create(file, class, *object, rlineno)
+	    probe object-create-done(file, class)
+	    probe object-finalize(NULL, class, *object)
+	    probe execute-start(file, lineno)
+	    probe execute-done(file, lineno)
+	};
+

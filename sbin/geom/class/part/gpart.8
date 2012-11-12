@@ -650,7 +650,7 @@ for MBR,
 for GPT.
 .It Cm ms-ldm-metadata
 A partition that contains Logical Disk Manager (LDM) database.
-The scheme-specifig type is
+The scheme-specific type is
 .Qq Li "!5808c8aa-7e8f-42e0-85d2-e1e90434cfb3"
 for GPT.
 .El
@@ -971,7 +971,7 @@ By default mirrored volumes are shown as partitions with type
 .Sx "PARTITION TYPES"
 section).
 If this variable set to 1 each component of the mirrored volume will be
-present as independet partition.
+present as independent partition.
 .Em NOTE :
 This may break a mirrored volume and lead to data damage.
 .El
@@ -1006,11 +1006,12 @@ or
 but smaller than 545 kB since the first-stage loader will load the
 entire partition into memory during boot, regardless of how much data
 it actually contains.
-This example uses 94 blocks (47 kB) so the next partition will be
+This example uses 88 blocks (44 kB) so the next partition will be
 aligned on a 64 kB boundary without the need to specify an explicit
 offset or alignment.
+The boot partition itself is aligned on a 4 kB boundary.
 .Bd -literal -offset indent
-/sbin/gpart add -b 34 -s 94 -t freebsd-boot ad0
+/sbin/gpart add -b 40 -s 88 -t freebsd-boot ad0
 /sbin/gpart bootcode -p /boot/gptboot -i 1 ad0
 .Ed
 .Pp

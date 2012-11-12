@@ -15,6 +15,7 @@
 
 #include "clang/Sema/Ownership.h"
 #include "clang/Sema/Overload.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/UnresolvedSet.h"
 #include "clang/Basic/SourceLocation.h"
@@ -225,7 +226,9 @@ public:
   
   /// \brief Create the initialization entity for a temporary.
   static InitializedEntity InitializeTemporary(QualType Type) {
-    return InitializedEntity(EK_Temporary, SourceLocation(), Type);
+    InitializedEntity Result(EK_Temporary, SourceLocation(), Type);
+    Result.TypeInfo = 0;
+    return Result;
   }
 
   /// \brief Create the initialization entity for a temporary.
@@ -853,8 +856,8 @@ public:
   ///
   /// \param BaseType the base type to which we will be casting.
   ///
-  /// \param IsLValue true if the result of this cast will be treated as 
-  /// an lvalue.
+  /// \param Category Indicates whether the result will be treated as an
+  /// rvalue, an xvalue, or an lvalue.
   void AddDerivedToBaseCastStep(QualType BaseType,
                                 ExprValueKind Category);
      
@@ -863,9 +866,6 @@ public:
   /// \param BindingTemporary True if we are binding a reference to a temporary
   /// object (thereby extending its lifetime); false if we are binding to an
   /// lvalue or an lvalue treated as an rvalue.
-  ///
-  /// \param UnnecessaryCopy True if we should check for a copy
-  /// constructor for a completely unnecessary but
   void AddReferenceBindingStep(QualType T, bool BindingTemporary);
 
   /// \brief Add a new step that makes an extraneous copy of the input

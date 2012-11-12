@@ -13,6 +13,7 @@ LIBDEPS=llvmasmparser \
 	llvmanalysis \
 	llvmtarget \
 	llvmmc \
+	llvmobject \
 	llvmarchive \
 	llvmbitreader \
 	llvmcore \

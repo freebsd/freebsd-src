@@ -25,14 +25,13 @@ CFLAGS+= -DINET6
 
 CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../libc/gen/
 
-MAN+=	auth.3 expand_number.3 flopen.3 fparseln.3 hexdump.3 \
+MAN+=	expand_number.3 flopen.3 fparseln.3 hexdump.3 \
 	humanize_number.3 kinfo_getallproc.3 kinfo_getfile.3 \
 	kinfo_getproc.3 kinfo_getvmmap.3 kld.3 login_auth.3 login_cap.3 \
 	login_class.3 login_ok.3 login_times.3 login_tty.3 pidfile.3 \
 	property.3 pty.3 quotafile.3 realhostname.3 realhostname_sa.3 \
-	_secure_path.3 trimdomain.3 uucplock.3
-MAN+=	auth.conf.5 login.conf.5
-MLINKS+= auth.3 auth_getval.3
+	_secure_path.3 trimdomain.3 uucplock.3 pw_util.3
+MAN+=	login.conf.5
 MLINKS+= kld.3 kld_isloaded.3 kld.3 kld_load.3
 MLINKS+=login_auth.3 auth_cat.3 login_auth.3 auth_checknologin.3
 MLINKS+=login_cap.3 login_close.3 login_cap.3 login_getcapbool.3 \
@@ -68,5 +67,18 @@ MLINKS+=quotafile.3 quota_close.3 \
 	quotafile.3 quota_write_usage.3
 MLINKS+=uucplock.3 uu_lock.3 uucplock.3 uu_lock_txfr.3 \
 	uucplock.3 uu_lockerr.3 uucplock.3 uu_unlock.3 
+MLINKS+=pw_util.3 pw_copy.3 \
+	pw_util.3 pw_dup.3 \
+	pw_util.3 pw_edit.3 \
+	pw_util.3 pw_equal.3 \
+	pw_util.3 pw_fini.3 \
+	pw_util.3 pw_init.3 \
+	pw_util.3 pw_make.3 \
+	pw_util.3 pw_make_v7.3 \
+	pw_util.3 pw_mkdb.3 \
+	pw_util.3 pw_lock.3 \
+	pw_util.3 pw_scan.3 \
+	pw_util.3 pw_tempname.3 \
+	pw_util.3 pw_tmp.3
 
 .include <bsd.lib.mk>

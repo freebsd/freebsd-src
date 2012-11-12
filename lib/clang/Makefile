@@ -12,7 +12,6 @@ SUBDIR=	libclanganalysis \
 	libclangedit \
 	libclangfrontend \
 	libclangfrontendtool \
-	libclangindex \
 	libclanglex \
 	libclangparse \
 	libclangrewrite \
@@ -55,6 +54,7 @@ SUBDIR=	libclanganalysis \
 	libllvmmipsasmparser \
 	libllvmmipscodegen \
 	libllvmmipsdesc \
+	libllvmmipsdisassembler \
 	libllvmmipsinfo \
 	libllvmmipsinstprinter \
 	libllvmpowerpccodegen \

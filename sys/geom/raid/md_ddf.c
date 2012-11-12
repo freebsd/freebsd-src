@@ -125,6 +125,7 @@ static struct g_raid_md_class g_raid_md_ddf_class = {
 	"DDF",
 	g_raid_md_ddf_methods,
 	sizeof(struct g_raid_md_ddf_object),
+	.mdc_enable = 1,
 	.mdc_priority = 100
 };
 
@@ -789,7 +790,7 @@ ddf_meta_update(struct ddf_meta *meta, struct ddf_meta *src)
 		if (isff(spde->PD_GUID, 24))
 			continue;
 		j = ddf_meta_find_pd(meta, NULL,
-		    src->pdr->entry[i].PD_Reference);
+		    GET32(src, pdr->entry[i].PD_Reference));
 		if (j < 0) {
 			j = ddf_meta_find_pd(meta, NULL, 0xffffffff);
 			pde = &meta->pdr->entry[j];
@@ -1228,7 +1229,7 @@ hdrerror:
 	}
 
 done:
-	free(abuf, M_MD_DDF);
+	g_free(abuf);
 	if (error != 0)
 		ddf_meta_free(meta);
 	return (error);
@@ -1517,7 +1518,7 @@ g_raid_md_ddf_supported(int level, int qual, int disks, int force)
 		    qual != G_RAID_VOLUME_RLQ_RMDFLA &&
 		    qual != G_RAID_VOLUME_RLQ_RMDFLS)
 			return (0);
-		if (disks < 5)
+		if (disks < 4)
 			return (0);
 		break;
 	case G_RAID_VOLUME_RL_RAID1E:
@@ -1639,6 +1640,8 @@ g_raid_md_ddf_start_disk(struct g_raid_disk *disk, struct g_raid_volume *vol)
 			    g_raid_get_diskname(disk));
 			goto nofit;
 		}
+		eoff *= pd->pd_meta.sectorsize;
+		esize *= pd->pd_meta.sectorsize;
 		size = INT64_MAX;
 		for (i = 0; i < vol->v_disks_count; i++) {
 			sd = &vol->v_subdisks[i];
@@ -1651,16 +1654,15 @@ g_raid_md_ddf_start_disk(struct g_raid_disk *disk, struct g_raid_volume *vol)
 		}
 		if (disk_pos >= 0 &&
 		    vol->v_raid_level != G_RAID_VOLUME_RL_CONCAT &&
-		    (off_t)esize * 512 < size) {
+		    esize < size) {
 			G_RAID_DEBUG1(1, sc, "Disk %s free space "
 			    "is too small (%ju < %ju)",
-			    g_raid_get_diskname(disk),
-			    (off_t)esize * 512, size);
+			    g_raid_get_diskname(disk), esize, size);
 			disk_pos = -1;
 		}
 		if (disk_pos >= 0) {
 			if (vol->v_raid_level != G_RAID_VOLUME_RL_CONCAT)
-				esize = size / 512;
+				esize = size;
 			md_disk_bvd = disk_pos / GET16(vmeta, vdc->Primary_Element_Count); // XXX
 			md_disk_pos = disk_pos % GET16(vmeta, vdc->Primary_Element_Count); // XXX
 		} else {
@@ -1712,8 +1714,8 @@ nofit:
 		g_raid_change_disk_state(disk, G_RAID_DISK_S_ACTIVE);
 
 	if (resurrection) {
-		sd->sd_offset = (off_t)eoff * 512;
-		sd->sd_size = (off_t)esize * 512;
+		sd->sd_offset = eoff;
+		sd->sd_size = esize;
 	} else if (pdmeta->cr != NULL &&
 	    (vdc1 = ddf_meta_find_vdc(pdmeta, vmeta->vdc->VD_GUID)) != NULL) {
 		val2 = (uint64_t *)&(vdc1->Physical_Disk_Sequence[GET16(vmeta, hdr->Max_Primary_Element_Entries)]);
@@ -1850,6 +1852,13 @@ g_raid_md_ddf_start(struct g_raid_volume *vol)
 	vol->v_strip_size = vol->v_sectorsize << GET8(vmeta, vdc->Stripe_Size);
 	vol->v_disks_count = GET16(vmeta, vdc->Primary_Element_Count) *
 	    GET8(vmeta, vdc->Secondary_Element_Count);
+	vol->v_mdf_pdisks = GET8(vmeta, vdc->MDF_Parity_Disks);
+	vol->v_mdf_polynomial = GET16(vmeta, vdc->MDF_Parity_Generator_Polynomial);
+	vol->v_mdf_method = GET8(vmeta, vdc->MDF_Constant_Generation_Method);
+	if (GET8(vmeta, vdc->Rotate_Parity_count) > 31)
+		vol->v_rotate_parity = 1;
+	else
+		vol->v_rotate_parity = 1 << GET8(vmeta, vdc->Rotate_Parity_count);
 	vol->v_mediasize = GET64(vmeta, vdc->VD_Size) * vol->v_sectorsize;
 	for (i = 0, j = 0, bvd = 0; i < vol->v_disks_count; i++, j++) {
 		if (j == GET16(vmeta, vdc->Primary_Element_Count)) {
@@ -2078,7 +2087,7 @@ g_raid_md_taste_ddf(struct g_raid_md_object *md, struct g_class *mp,
 	struct g_raid_md_ddf_perdisk *pd;
 	struct g_raid_md_ddf_object *mdi;
 	struct g_geom *geom;
-	int error, result, len, be;
+	int error, result, be;
 	char name[16];
 
 	G_RAID_DEBUG(1, "Tasting DDF on %s", cp->provider->name);
@@ -2145,14 +2154,7 @@ g_raid_md_taste_ddf(struct g_raid_md_object *md, struct g_class *mp,
 	disk->d_consumer = rcp;
 	rcp->private = disk;
 
-	/* Read kernel dumping information. */
-	disk->d_kd.offset = 0;
-	disk->d_kd.length = OFF_MAX;
-	len = sizeof(disk->d_kd);
-	error = g_io_getattr("GEOM::kerneldump", rcp, &len, &disk->d_kd);
-	if (disk->d_kd.di.dumper == NULL)
-		G_RAID_DEBUG1(2, sc, "Dumping not supported by %s: %d.", 
-		    rcp->provider->name, error);
+	g_raid_get_disk_info(disk);
 
 	g_raid_md_ddf_new_disk(disk);
 
@@ -2222,7 +2224,7 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	char arg[16];
-	const char *verb, *volname, *levelname, *diskname;
+	const char *nodename, *verb, *volname, *levelname, *diskname;
 	char *tmp;
 	int *nargs, *force;
 	off_t size, sectorsize, strip, offs[DDF_MAX_DISKS_HARD], esize;
@@ -2310,6 +2312,7 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 				disks[i] = disk;
 				ddf_meta_unused_range(&pd->pd_meta,
 				    &offs[i], &esize);
+				offs[i] *= pp->sectorsize;
 				size = MIN(size, (off_t)esize * pp->sectorsize);
 				sectorsize = MAX(sectorsize, pp->sectorsize);
 				continue;
@@ -2338,18 +2341,11 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 				ddf_meta_update(&mdi->mdio_meta, &pd->pd_meta);
 			g_topology_unlock();
 
-			/* Read kernel dumping information. */
-			disk->d_kd.offset = 0;
-			disk->d_kd.length = OFF_MAX;
-			len = sizeof(disk->d_kd);
-			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
-			if (disk->d_kd.di.dumper == NULL)
-				G_RAID_DEBUG1(2, sc,
-				    "Dumping not supported by %s.",
-				    cp->provider->name);
+			g_raid_get_disk_info(disk);
 
 			/* Reserve some space for metadata. */
-			size = MIN(size, pp->mediasize - 131072llu * pp->sectorsize);
+			size = MIN(size, GET64(&pd->pd_meta,
+			    pdr->entry[0].Configured_Size) * pp->sectorsize);
 			sectorsize = MAX(sectorsize, pp->sectorsize);
 		}
 		if (error != 0) {
@@ -2430,16 +2426,24 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 			vol->v_mediasize = size;
 		else if (level == G_RAID_VOLUME_RL_RAID3 ||
 		    level == G_RAID_VOLUME_RL_RAID4 ||
-		    level == G_RAID_VOLUME_RL_RAID5 ||
-		    level == G_RAID_VOLUME_RL_RAID5R)
+		    level == G_RAID_VOLUME_RL_RAID5)
 			vol->v_mediasize = size * (numdisks - 1);
-		else if (level == G_RAID_VOLUME_RL_RAID6 ||
+		else if (level == G_RAID_VOLUME_RL_RAID5R) {
+			vol->v_mediasize = size * (numdisks - 1);
+			vol->v_rotate_parity = 1024;
+		} else if (level == G_RAID_VOLUME_RL_RAID6 ||
 		    level == G_RAID_VOLUME_RL_RAID5E ||
 		    level == G_RAID_VOLUME_RL_RAID5EE)
 			vol->v_mediasize = size * (numdisks - 2);
-		else if (level == G_RAID_VOLUME_RL_RAIDMDF)
-			vol->v_mediasize = size * (numdisks - 3);
-		else { /* RAID1E */
+		else if (level == G_RAID_VOLUME_RL_RAIDMDF) {
+			if (numdisks < 5)
+				vol->v_mdf_pdisks = 2;
+			else
+				vol->v_mdf_pdisks = 3;
+			vol->v_mdf_polynomial = 0x11d;
+			vol->v_mdf_method = 0x00;
+			vol->v_mediasize = size * (numdisks - vol->v_mdf_pdisks);
+		} else { /* RAID1E */
 			vol->v_mediasize = ((size * numdisks) / strip / 2) *
 			    strip;
 		}
@@ -2451,7 +2455,7 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 			disk = disks[i];
 			sd = &vol->v_subdisks[i];
 			sd->sd_disk = disk;
-			sd->sd_offset = (off_t)offs[i] * 512;
+			sd->sd_offset = offs[i];
 			sd->sd_size = size;
 			if (disk == NULL)
 				continue;
@@ -2483,8 +2487,12 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 	}
 	if (strcmp(verb, "delete") == 0) {
 
+		nodename = gctl_get_asciiparam(req, "arg0");
+		if (nodename != NULL && strcasecmp(sc->sc_name, nodename) != 0)
+			nodename = NULL;
+
 		/* Full node destruction. */
-		if (*nargs == 1) {
+		if (*nargs == 1 && nodename != NULL) {
 			/* Check if some volume is still open. */
 			force = gctl_get_paraml(req, "force", sizeof(*force));
 			if (force != NULL && *force == 0 &&
@@ -2502,11 +2510,12 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 		}
 
 		/* Destroy specified volume. If it was last - all node. */
-		if (*nargs != 2) {
+		if (*nargs > 2) {
 			gctl_error(req, "Invalid number of arguments.");
 			return (-1);
 		}
-		volname = gctl_get_asciiparam(req, "arg1");
+		volname = gctl_get_asciiparam(req,
+		    nodename != NULL ? "arg1" : "arg0");
 		if (volname == NULL) {
 			gctl_error(req, "No volume name.");
 			return (-2);
@@ -2515,6 +2524,14 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 		/* Search for volume. */
 		TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
 			if (strcmp(vol->v_name, volname) == 0)
+				break;
+			pp = vol->v_provider;
+			if (pp == NULL)
+				continue;
+			if (strcmp(pp->name, volname) == 0)
+				break;
+			if (strncmp(pp->name, "raid/", 5) == 0 &&
+			    strcmp(pp->name + 5, volname) == 0)
 				break;
 		}
 		if (vol == NULL) {
@@ -2643,15 +2660,7 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 			disk->d_md_data = (void *)pd;
 			cp->private = disk;
 
-			/* Read kernel dumping information. */
-			disk->d_kd.offset = 0;
-			disk->d_kd.length = OFF_MAX;
-			len = sizeof(disk->d_kd);
-			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
-			if (disk->d_kd.di.dumper == NULL)
-				G_RAID_DEBUG1(2, sc,
-				    "Dumping not supported by %s.",
-				    cp->provider->name);
+			g_raid_get_disk_info(disk);
 
 			/* Welcome the "new" disk. */
 			g_raid_change_disk_state(disk, G_RAID_DISK_S_SPARE);
@@ -2761,6 +2770,13 @@ g_raid_md_write_ddf(struct g_raid_md_object *md, struct g_raid_volume *tvol,
 		SET64(vmeta, vdc->Block_Count, 0);
 		SET64(vmeta, vdc->VD_Size, vol->v_mediasize / vol->v_sectorsize);
 		SET16(vmeta, vdc->Block_Size, vol->v_sectorsize);
+		SET8(vmeta, vdc->Rotate_Parity_count,
+		    fls(vol->v_rotate_parity) - 1);
+		SET8(vmeta, vdc->MDF_Parity_Disks, vol->v_mdf_pdisks);
+		SET16(vmeta, vdc->MDF_Parity_Generator_Polynomial,
+		    vol->v_mdf_polynomial);
+		SET8(vmeta, vdc->MDF_Constant_Generation_Method,
+		    vol->v_mdf_method);
 
 		SET16(vmeta, vde->VD_Number, vol->v_global_id);
 		if (vol->v_state <= G_RAID_VOLUME_S_BROKEN)
@@ -3017,6 +3033,8 @@ g_raid_md_free_volume_ddf(struct g_raid_md_object *md,
 		mdi->mdio_starting--;
 		callout_stop(&pv->pv_start_co);
 	}
+	free(pv, M_MD_DDF);
+	vol->v_md_data = NULL;
 	return (0);
 }
 
@@ -3038,4 +3056,4 @@ g_raid_md_free_ddf(struct g_raid_md_object *md)
 	return (0);
 }
 
-G_RAID_MD_DECLARE(g_raid_md_ddf);
+G_RAID_MD_DECLARE(ddf, "DDF");

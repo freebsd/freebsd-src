@@ -23,6 +23,7 @@ SUBDIR=	adduser \
 	digictl \
 	diskinfo \
 	dumpcis \
+	etcupdate \
 	extattr \
 	extattrctl \
 	fifolog \
@@ -36,6 +37,7 @@ SUBDIR=	adduser \
 	ifmcstat \
 	inetd \
 	iostat \
+	isfctl \
 	kldxref \
 	mailwrapper \
 	makefs \
@@ -46,7 +48,6 @@ SUBDIR=	adduser \
 	mixer \
 	mlxcontrol \
 	mountd \
-	mount_portalfs \
 	mptutil \
 	mtest \
 	mtree \
@@ -145,6 +146,11 @@ SUBDIR+=	rndc-confgen
 SUBDIR+=	bluetooth
 .endif
 
+.if ${MK_BSDCONFIG} != "no"
+SUBDIR+=	bsdconfig
+SUBDIR+=	sysrc
+.endif
+
 .if ${MK_BSNMP} != "no"
 SUBDIR+=	bsnmpd
 .endif
@@ -225,6 +231,11 @@ SUBDIR+=	lpr
 SUBDIR+=	manctl
 .endif
 
+.if ${MK_NAND} != "no"
+SUBDIR+=	nandsim
+SUBDIR+=	nandtool
+.endif
+
 .if ${MK_NETGRAPH} != "no"
 SUBDIR+=	flowctl
 SUBDIR+=	lmcconfig
@@ -256,9 +267,12 @@ SUBDIR+=	keyserv
 SUBDIR+=	ftp-proxy
 .endif
 
+.if ${MK_PKGBOOTSTRAP} != "no"
+SUBDIR+=	pkg
+.endif
+
 .if ${MK_PKGTOOLS} != "no"
 SUBDIR+=	pkg_install
-SUBDIR+=	pkg
 .endif
 
 # XXX MK_TOOLCHAIN?

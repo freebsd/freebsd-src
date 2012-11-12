@@ -96,7 +96,7 @@ void HexagonInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
   } else if(MO.isImm()) {
     printImmOperand(MI, OpNo, O);
   } else {
-    assert(false && "Unknown operand");
+    llvm_unreachable("Unknown operand");
   }
 }
 
@@ -110,8 +110,8 @@ void HexagonInstPrinter::printExtOperand(const MCInst *MI, unsigned OpNo,
   O << MI->getOperand(OpNo).getImm();
 }
 
-void HexagonInstPrinter::printUnsignedImmOperand(const MCInst *MI, unsigned OpNo,
-                                                 raw_ostream &O) const {
+void HexagonInstPrinter::printUnsignedImmOperand(const MCInst *MI,
+                                    unsigned OpNo, raw_ostream &O) const {
   O << MI->getOperand(OpNo).getImm();
 }
 

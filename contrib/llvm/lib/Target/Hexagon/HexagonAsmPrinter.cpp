@@ -54,7 +54,6 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
-#include <map>
 
 using namespace llvm;
 
@@ -78,7 +77,7 @@ void HexagonAsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
   const MachineOperand &MO = MI->getOperand(OpNo);
 
   switch (MO.getType()) {
-  default: llvm_unreachable("<unknown operand type>");
+  default: llvm_unreachable ("<unknown operand type>");
   case MachineOperand::MO_Register:
     O << HexagonInstPrinter::getRegisterName(MO.getReg());
     return;
@@ -134,7 +133,9 @@ bool HexagonAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
     if (ExtraCode[1] != 0) return true; // Unknown modifier.
 
     switch (ExtraCode[0]) {
-    default: return true;  // Unknown modifier.
+    default:
+      // See if this is a generic print operand
+      return AsmPrinter::PrintAsmOperand(MI, OpNo, AsmVariant, ExtraCode, OS);
     case 'c': // Don't print "$" before a global var name or constant.
       // Hexagon never has a prefix.
       printOperand(MI, OpNo, OS);
@@ -276,8 +277,8 @@ void HexagonAsmPrinter::printGlobalOperand(const MachineInstr *MI, int OpNo,
 void HexagonAsmPrinter::printJumpTable(const MachineInstr *MI, int OpNo,
                                        raw_ostream &O) {
   const MachineOperand &MO = MI->getOperand(OpNo);
-  assert( (MO.getType() == MachineOperand::MO_JumpTableIndex) &&
-    "Expecting jump table index");
+  assert( (MO.getType() == MachineOperand::MO_JumpTableIndex) && 
+           "Expecting jump table index");
 
   // Hexagon_TODO: Do we need name mangling?
   O << *GetJTISymbol(MO.getIndex());
@@ -287,7 +288,7 @@ void HexagonAsmPrinter::printConstantPool(const MachineInstr *MI, int OpNo,
                                        raw_ostream &O) {
   const MachineOperand &MO = MI->getOperand(OpNo);
   assert( (MO.getType() == MachineOperand::MO_ConstantPoolIndex) &&
-   "Expecting constant pool index");
+          "Expecting constant pool index");
 
   // Hexagon_TODO: Do we need name mangling?
   O << *GetCPISymbol(MO.getIndex());

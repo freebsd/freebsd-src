@@ -68,15 +68,15 @@ AcpiExStoreObjectToIndex (
  * FUNCTION:    AcpiExStore
  *
  * PARAMETERS:  *SourceDesc         - Value to be stored
- *              *DestDesc           - Where to store it.  Must be an NS node
- *                                    or an ACPI_OPERAND_OBJECT of type
+ *              *DestDesc           - Where to store it. Must be an NS node
+ *                                    or ACPI_OPERAND_OBJECT of type
  *                                    Reference;
  *              WalkState           - Current walk state
  *
  * RETURN:      Status
  *
  * DESCRIPTION: Store the value described by SourceDesc into the location
- *              described by DestDesc.  Called by various interpreter
+ *              described by DestDesc. Called by various interpreter
  *              functions to store the result of an operation into
  *              the destination operand -- not just simply the actual "Store"
  *              ASL operator.
@@ -398,7 +398,7 @@ AcpiExStoreObjectToIndex (
  *              with the input value.
  *
  *              When storing into an object the data is converted to the
- *              target object type then stored in the object.  This means
+ *              target object type then stored in the object. This means
  *              that the target object type (for an initialized target) will
  *              not be changed by a store operation.
  *
@@ -518,7 +518,7 @@ AcpiExStoreObjectToNode (
             "Storing %s (%p) directly into node (%p) with no implicit conversion\n",
             AcpiUtGetObjectTypeName (SourceDesc), SourceDesc, Node));
 
-        /* No conversions for all other types.  Just attach the source object */
+        /* No conversions for all other types. Just attach the source object */
 
         Status = AcpiNsAttachObject (Node, SourceDesc,
                     SourceDesc->Common.Type);
@@ -527,5 +527,3 @@ AcpiExStoreObjectToNode (
 
     return_ACPI_STATUS (Status);
 }
-
-

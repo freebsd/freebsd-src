@@ -1,0 +1,126 @@
+Faq - Frequently Asked Questions
+
+   The following may serve as a guide to the DTraceToolkit.
+
+16-May-2005, ver 0.30	(first version of the FAQ)
+
+The DTraceToolkit is new, and as such there hasn't been many questions asked.
+This may be better called a "possibly asked questions" :)
+
+
+Questions 
+
+1. Intro
+1.1. What is the DTraceToolkit?
+1.2. Who wrote the DTraceToolkit?
+1.3. Where do I get support?
+1.4. Am I now a performance tuning expert?
+1.5. Will this solve all my performance problems?
+1.6. So the DTraceToolkit *is* DTrace?
+
+2. Toolkit
+2.1. What is in it?
+2.2. What performance effect can the DTraceToolkit cause?
+
+3. Contributing
+3.1. Where do I send bugs?
+
+
+Answers
+
+1. Intro
+
+1.1. What is the DTraceToolkit?
+
+   The DTraceToolkit is a collection of tools written using DTrace for
+   the Solaris 10[tm] OS by Sun Microsystems[tm]. Many of these scripts
+   will also work on OpenSolaris.
+
+1.2. Who wrote the DTraceToolkit?
+
+   Volunteers of the DTrace and OpenSolaris community. Check the scripts
+   themselves, Docs/Contrib, Docs/Who and Docs/History.
+
+1.3. Where do I get support?
+
+   As the DTraceToolkit is a freeware product, there is no official company 
+   offering support for this. Sun Microsystems does not support this. If you 
+   post messages to the DTrace forums found in the Docs/Links file, a 
+   volunteer may help you out.
+
+1.4. Am I now a performance tuning expert?
+
+   The DTraceToolkit does not turn people into performance tuning experts in 
+   the same way that owning a set of golf clubs won't make you a professional
+   golfer. Experience and understanding are necessary. The toolkit certainly
+   helps by fetching the data in an easy way, and also by providing some
+   documentation. So it is valuable, but not magical. 
+
+1.5. Will this solve all my performance problems?
+
+   This is similar to the previous point; the DTraceToolkit is valuable
+   for it's scripts and documentation, but it's no magical product. 
+   Understanding and experience are necessary.
+
+1.6. So the DTraceToolkit *is* DTrace?
+
+   The DTraceToolkit is one use of DTrace, but there is far more to DTrace
+   than just the toolkit. DTrace allows people to write their own customised
+   scripts to solve a wide number of problems. 
+
+   Think of the DTraceToolkit as a starting point. Maybe your problem has
+   a solution in the kit. Maybe changing one of the toolkit programs slightly
+   is what you want. Finally you may need to write your script from scratch.
+
+
+2. Toolkit
+
+2.1. What is in it?
+
+   Read the Guide file for a table of contents, and Docs/Contents for a
+   list of commands.
+
+2.2. What performance effect can the DTraceToolkit cause?
+
+   Enabling DTrace to monitor events has little effect on the system, 
+   especially when compared to the disruptive behaviour of truss (See
+   http://www.brendangregg.com/DTrace/dtracevstruss.html for a comparison).
+
+   It really boils down to how often the events occur that you are monitoring.
+   The following numbers have been provided as an approximation:
+
+   1. Fixed rate scripts. For example, dispqlen.d samples at 1000 hz.
+      The impact will be negligible, close to 0% CPU. (in testing, 0.1% CPU).
+
+   2. Demand rated scripts. For example, iosnoop probes disk I/O events.
+      The impact depends on the rate of events, for many servers the disk
+      events would be slow enough for this to be less than 0.2% CPU. 
+      Scripts such as execsnoop would expect even fewer events, their impact
+      would be close to 0.0% CPU. However scripts that monitor potentially
+      very rapid events will have a greater impact, for example running
+      dapptrace on Xorg (over 6000 lines of output per second) was consuming
+      around 10% of a CPU to do so.
+
+   3. Heavy voodoo scripts. A few scripts in the toolkit must probe either
+      a ton of different events, or very rapid events, or both. They are
+      going to hurt and there is no way around it. Scripts such as cputimes
+      and cpudists trace very frequent events, and can chew around 5% of
+      the CPUs; scripts such as dapptrace and dappprof trace extreamly
+      frequent events, and can chew over 20%.
+
+   There is an emphasis in the DTraceToolkit to write demand rated scripts
+   that measure the fewest events, such that their impact is close to 0.0%
+   CPU usage. Some scripts are fixed rate, which are safer as their impact
+   has a known upper bound, and are most suitable to run in production.
+
+   There are additional notes in Notes/ALLoverhead_notes.txt about the
+   overheads for running DTrace.
+
+
+3. Contributing
+
+3.1. Where do I send bugs?
+
+   The DTraceToolkit maintainer. See the Docs/Maintainer file.
+
+

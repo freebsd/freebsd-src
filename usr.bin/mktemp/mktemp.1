@@ -99,6 +99,14 @@ Care should
 be taken to ensure that it is appropriate to use an environment variable
 potentially supplied by the user.
 .Pp
+If no arguments are passed or if only the
+.Fl d
+flag is passed
+.Nm
+behaves as if
+.Fl t Li tmp
+was supplied.
+.Pp
 Any number of temporary files may be created in a single invocation,
 including one based on the internal template resulting from the
 .Fl t

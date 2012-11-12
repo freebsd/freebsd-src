@@ -1,0 +1,87 @@
+.TH pfilestat 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+pfilestat \- show I/O latency break down by FD. Uses DTrace.
+.SH SYNOPSIS
+.B pfilestat [\-r|\-w] pid
+.SH DESCRIPTION
+This prints I/O statistics for each file descriptor within a process.
+In particular, the time break down during read() and write() events is
+measured.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+unstable - this script uses fbt provider probes which may change for
+future updates of the OS, invalidating this script. Please read
+Docs/Notes/ALLfbt_notes.txt for further details about these fbt scripts.
+.SH OPTIONS
+.TP
+\-r
+reads only
+.TP
+\-w
+writes only
+.TP
+pid
+process ID to examine
+.PP
+.SH EXAMPLES
+.TP
+Sample both read and write activity for PID 81,
+# 
+.B pfilestat 81
+.TP
+Sample reads only for PID 81,
+#
+.B pfilestat
+\-r 81
+.PP
+.SH FIELDS
+.TP
+STATE
+microstate. see STATES below.
+.TP
+FDUM
+file Descriptor ID
+.TP
+Time
+percentage of wallclock time in each STATE
+.TP
+File
+Name of file, if known
+.PP
+.SH STATES
+.TP
+read
+Time spent during the execution of the read() syscall.
+.TP
+write
+Time spent during the execution of the write() syscall.
+.TP
+waitcpu
+Latency spent waiting to be scheduled after becoming runnable.
+.TP
+running
+Process running user-mode code.
+.TP
+sleep-r
+Process sleeping on reads.
+.TP
+sleep-w
+Process sleeping on writes.
+.PP
+.SH DOCUMENTATION
+pfilestat is discussed and demonstrated in Solaris Internals 2nd edition,
+volume 2. 
+
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+pfilestat will sample until Ctrl\-C is hit. 
+.SH AUTHOR
+Richard McDougall
+.SH SEE ALSO
+dtrace(1M)

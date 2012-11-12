@@ -77,7 +77,6 @@
 /* Reserved table signatures */
 
 #define ACPI_SIG_CSRT           "CSRT"      /* Core System Resources Table */
-#define ACPI_SIG_DBG2           "DBG2"      /* Debug Port table 2 */
 #define ACPI_SIG_MATR           "MATR"      /* Memory Address Translation Table */
 #define ACPI_SIG_MSDM           "MSDM"      /* Microsoft Data Management Table */
 #define ACPI_SIG_WPBT           "WPBT"      /* Windows Platform Binary Table */
@@ -89,9 +88,15 @@
 #pragma pack(1)
 
 /*
- * Note about bitfields: The UINT8 type is used for bitfields in ACPI tables.
- * This is the only type that is even remotely portable. Anything else is not
- * portable, so do not use any other bitfield types.
+ * Note: C bitfields are not used for this reason:
+ *
+ * "Bitfields are great and easy to read, but unfortunately the C language
+ * does not specify the layout of bitfields in memory, which means they are
+ * essentially useless for dealing with packed data in on-disk formats or
+ * binary wire protocols." (Or ACPI tables and buffers.) "If you ask me,
+ * this decision was a design error in C. Ritchie could have picked an order
+ * and stuck with it." Norman Ramsey.
+ * See http://stackoverflow.com/a/1053662/41661
  */
 
 
@@ -314,10 +319,10 @@ typedef struct acpi_table_gtdt
  ******************************************************************************/
 
 #define ACPI_MPST_CHANNEL_INFO \
-    UINT16                  Reserved1; \
     UINT8                   ChannelId; \
-    UINT8                   Reserved2; \
-    UINT16                  PowerNodeCount;
+    UINT8                   Reserved1[3]; \
+    UINT16                  PowerNodeCount; \
+    UINT16                  Reserved2;
 
 /* Main table */
 
@@ -348,9 +353,8 @@ typedef struct acpi_mpst_power_node
     UINT32                  Length;
     UINT64                  RangeAddress;
     UINT64                  RangeLength;
-    UINT8                   NumPowerStates;
-    UINT8                   NumPhysicalComponents;
-    UINT16                  Reserved2;
+    UINT32                  NumPowerStates;
+    UINT32                  NumPhysicalComponents;
 
 } ACPI_MPST_POWER_NODE;
 
@@ -385,12 +389,13 @@ typedef struct acpi_mpst_component
 typedef struct acpi_mpst_data_hdr
 {
     UINT16                  CharacteristicsCount;
+    UINT16                  Reserved;
 
 } ACPI_MPST_DATA_HDR;
 
 typedef struct acpi_mpst_power_data
 {
-    UINT8                   Revision;
+    UINT8                   StructureId;
     UINT8                   Flags;
     UINT16                  Reserved1;
     UINT32                  AveragePower;
@@ -414,10 +419,10 @@ typedef struct acpi_mpst_shared
     UINT32                  Signature;
     UINT16                  PccCommand;
     UINT16                  PccStatus;
-    UINT16                  CommandRegister;
-    UINT16                  StatusRegister;
-    UINT16                  PowerStateId;
-    UINT16                  PowerNodeId;
+    UINT32                  CommandRegister;
+    UINT32                  StatusRegister;
+    UINT32                  PowerStateId;
+    UINT32                  PowerNodeId;
     UINT64                  EnergyConsumed;
     UINT64                  AveragePower;
 

@@ -306,7 +306,7 @@ struct kinfo_proc32 {
 	u_int	ki_estcpu;
 	u_int	ki_slptime;
 	u_int	ki_swtime;
-	int	ki_spareint1;
+	u_int	ki_cow;
 	u_int64_t ki_runtime;
 	struct	timeval32 ki_start;
 	struct	timeval32 ki_childtime;

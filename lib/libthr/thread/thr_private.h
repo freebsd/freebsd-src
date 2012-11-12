@@ -721,16 +721,20 @@ extern struct umutex	_rwlock_static_lock __hidden;
 extern struct umutex	_keytable_lock __hidden;
 extern struct urwlock	_thr_list_lock __hidden;
 extern struct umutex	_thr_event_lock __hidden;
+extern struct umutex	_suspend_all_lock __hidden;
+extern int		_suspend_all_waiters __hidden;
+extern int		_suspend_all_cycle __hidden;
+extern struct pthread	*_single_thread __hidden;
 
 /*
  * Function prototype definitions.
  */
 __BEGIN_DECLS
 int	_thr_setthreaded(int) __hidden;
-int	_mutex_cv_lock(struct pthread_mutex *, int count) __hidden;
-int	_mutex_cv_unlock(struct pthread_mutex *, int *count) __hidden;
-int     _mutex_cv_attach(struct pthread_mutex *, int count) __hidden;
-int     _mutex_cv_detach(struct pthread_mutex *, int *count) __hidden;
+int	_mutex_cv_lock(struct pthread_mutex *, int) __hidden;
+int	_mutex_cv_unlock(struct pthread_mutex *, int *, int *) __hidden;
+int     _mutex_cv_attach(struct pthread_mutex *, int) __hidden;
+int     _mutex_cv_detach(struct pthread_mutex *, int *) __hidden;
 int     _mutex_owned(struct pthread *, const struct pthread_mutex *) __hidden;
 int	_mutex_reinit(pthread_mutex_t *) __hidden;
 void	_mutex_fork(struct pthread *curthread) __hidden;
@@ -777,6 +781,8 @@ int	_thr_setscheduler(lwpid_t, int, const struct sched_param *) __hidden;
 void	_thr_signal_prefork(void) __hidden;
 void	_thr_signal_postfork(void) __hidden;
 void	_thr_signal_postfork_child(void) __hidden;
+void	_thr_suspend_all_lock(struct pthread *) __hidden;
+void	_thr_suspend_all_unlock(struct pthread *) __hidden;
 void	_thr_try_gc(struct pthread *, struct pthread *) __hidden;
 int	_rtp_to_schedparam(const struct rtprio *rtp, int *policy,
 		struct sched_param *param) __hidden;

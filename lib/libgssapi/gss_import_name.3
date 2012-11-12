@@ -59,7 +59,7 @@ parameter is of type
 in which case the returned internal name will be an MN for the
 mechanism that exported the name.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It input_name_buffer"
 .It minor_status
 Mechanism specific status code.
 .It input_name_buffer
@@ -78,7 +78,7 @@ after use with a call to
 .Fn gss_release_name .
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width "It GSS_S_BAD_NAMETYPE"
 .It GSS_S_COMPLETE
 Successful completion
 .It GSS_S_BAD_NAMETYPE
@@ -97,7 +97,7 @@ but the mechanism contained within the input-name is not supported
 .Sh SEE ALSO
 .Xr gss_release_name 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744

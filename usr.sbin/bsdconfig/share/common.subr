@@ -1,0 +1,330 @@
+if [ ! "$_COMMON_SUBR" ]; then _COMMON_SUBR=1
+#
+# Copyright (c) 2012 Ron McDowell
+# Copyright (c) 2012 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ GLOBALS
+
+#
+# Program name
+#
+pgm="${0##*/}"
+
+#
+# Program arguments
+#
+ARGC="$#"
+ARGV="$@"
+
+#
+# Global exit status variables
+#
+SUCCESS=0
+FAILURE=1
+
+############################################################ FUNCTIONS
+
+#
+# This is an empty function by default, to use it, copy
+# /usr/share/examples/bsdconfig/bsdconfigrc to $HOME/.bsdconfigrc
+#
+f_dprintf()
+{
+	: this page intentionally left blank
+}
+
+# f_err $fmt [ $opts ... ]
+#
+# Print a message to stderr (fd=2).
+#
+f_err()
+{
+	printf "$@" >&2
+}
+
+# f_quietly $command [ $arguments ... ]
+#
+# Run a command quietly (quell any output to stdout or stderr)
+#
+f_quietly()
+{
+	"$@" > /dev/null 2>&1
+}
+
+# f_have $anything ...
+#
+# A wrapper to the `type' built-in. Returns true if argument is a valid shell
+# built-in, keyword, or externally-tracked binary, otherwise false.
+#
+f_have()
+{
+	f_quietly type "$@"
+}
+
+# f_die [ $status [ $fmt [ $opts ... ]]]
+#
+# Abruptly terminate due to an error optionally displaying a message in a
+# dialog box using printf(1) syntax.
+#
+f_die()
+{
+	local status=$FAILURE
+
+	# If there is at least one argument, take it as the status
+	if [ $# -gt 0 ]; then
+		status=$1
+		shift 1 # status
+	fi
+
+	# If there are still arguments left, pass them to f_show_msg
+	[ $# -gt 0 ] && f_show_msg "$@"
+
+	# Optionally call f_clean_up() function if it exists
+	f_have f_clean_up && f_clean_up
+
+	exit $status
+}
+
+# f_interrupt
+#
+# Interrupt handler.
+#
+f_interrupt()
+{
+	exec 2>&1 # fix sh(1) bug where stderr gets lost within async-trap
+	f_die
+}
+
+# f_show_msg $fmt [ $opts ... ]
+#
+# Display a message in a dialog box using printf(1) syntax.
+#
+f_show_msg()
+{
+	local msg
+	msg=$( printf "$@" )
+
+	#
+	# Use f_dialog_msgbox from dialog.subr if possible, otherwise fall
+	# back to dialog(1) (without options, making it obvious when using
+	# un-aided system dialog).
+	#
+	if f_have f_dialog_msgbox; then
+		f_dialog_msgbox "$msg"
+	else
+		dialog --msgbox "$msg" 0 0
+	fi
+}
+
+# f_show_help $file
+#
+# Display a language help-file. Automatically takes $LANG and $LC_ALL into
+# consideration when displaying $file (suffix ".$LC_ALL" or ".$LANG" will
+# automatically be added prior to loading the language help-file).
+#
+# If a language has been requested by setting either $LANG or $LC_ALL in the
+# environment and the language-specific help-file does not exist we will fall
+# back to $file without-suffix.
+#
+# If the language help-file does not exist, an error is displayed instead.
+#
+f_show_help()
+{
+	local file="$1"
+	local lang="${LANG:-$LC_ALL}"
+
+	[ -f "$file.$lang" ] && file="$file.$lang"
+
+	#
+	# Use f_dialog_textbox from dialog.subr if possible, otherwise fall
+	# back to dialog(1) (without options, making it obvious when using
+	# un-aided system dialog).
+	#
+	if f_have f_dialog_textbox; then
+		f_dialog_textbox "$file"
+	else
+		dialog --msgbox "$( cat "$file" 2>&1 )" 0 0
+	fi
+}
+
+# f_include $file
+#
+# Include a shell subroutine file.
+#
+# If the subroutine file exists but returns error status during loading, exit
+# is called and execution is prematurely terminated with the same error status.
+#
+f_include()
+{
+	local file="$1"
+	. "$file" || exit $?
+}
+
+# f_include_lang $file
+#
+# Include a language file. Automatically takes $LANG and $LC_ALL into
+# consideration when including $file (suffix ".$LC_ALL" or ".$LANG" will
+# automatically by added prior to loading the language file).
+#
+# No error is produced if (a) a language has been requested (by setting either
+# $LANG or $LC_ALL in the environment) and (b) the language file does not
+# exist -- in which case we will fall back to loading $file without-suffix.
+#
+# If the language file exists but returns error status during loading, exit
+# is called and execution is prematurely terminated with the same error status.
+#
+f_include_lang()
+{
+	local file="$1"
+	local lang="${LANG:-$LC_ALL}"
+
+	f_dprintf "lang=[$lang]"
+	if [ -f "$file.$lang" ]; then
+		. "$file.$lang" || exit $?
+	else
+		. "$file" || exit $?
+	fi
+}
+
+# f_usage $file [ $key1 $value1 ... ]
+#
+# Display USAGE file with optional pre-processor macro definitions. The first
+# argument is the template file containing the usage text to be displayed. If
+# $LANG or $LC_ALL (in order of preference, respectively) is set, ".encoding"
+# will automatically be appended as a suffix to the provided $file pathname.
+#
+# When processing $file, output begins at the first line containing that is
+# (a) not a comment, (b) not empty, and (c) is not pure-whitespace. All lines
+# appearing after this first-line are output, including (a) comments (b) empty
+# lines, and (c) lines that are purely whitespace-only.
+#
+# If additional arguments appear after $file, substitutions are made while
+# printing the contents of the USAGE file. The pre-processor macro syntax is in
+# the style of autoconf(1), for example:
+#
+# 	f_usage $file "FOO" "BAR"
+#
+# Will cause instances of "@FOO@" appearing in $file to be replaced with the
+# text "BAR" before bering printed to the screen.
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_usage_awk='
+BEGIN { found = 0 }
+{
+	if ( !found && $0 ~ /^[[:space:]]*($|#)/ ) next
+	found = 1
+	print
+}
+'
+f_usage()
+{
+	local file="$1"
+	local lang="${LANG:-$LC_ALL}"
+
+	f_dprintf "lang=[$lang]"
+
+	shift 1 # file
+
+	local usage
+	if [ -f "$file.$lang" ]; then
+		usage=$( awk "$f_usage_awk" "$file.$lang" ) || exit $FAILURE
+	else
+		usage=$( awk "$f_usage_awk" "$file" ) || exit $FAILURE
+	fi
+
+	while [ $# -gt 0 ]; do
+		local key="$1"
+		export value="$2"
+		usage=$( echo "$usage" | awk \
+			"{ gsub(/@$key@/, ENVIRON[\"value\"]); print }" )
+		shift 2
+	done
+
+	f_err "%s\n" "$usage"
+
+	exit $FAILURE
+}
+
+# f_index_menu_selection $file $pgm
+#
+# Process $file looking for $menu_selection values that correspond to $pgm.
+# This function is for internationalization (i18n) mapping of the on-disk
+# scriptname ($pgm) into the localized language (given language-specific
+# $file). If $LANG or $LC_ALL (in orderder of preference, respectively) is set,
+# ".encoding" will automatically be appended as a suffix to the provided $file
+# pathname.
+#
+# If, within $file, multiple $menu_selection values map to $pgm, only the first
+# one will be returned. If no mapping can be made, the NULL string is returned.
+#
+# If $file does not exist, error status is returned along with the NULL string.
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_index_menusel_awk='
+# Variables that should be defined on the invocation line:
+# 	-v pgm="program_name"
+#
+( $0 ~ "^menu_selection=.*\\|" pgm "\"" ) {
+	sub(/\|.*/, "")
+	sub(/^menu_selection="/, "")
+	print
+	exit
+}
+'
+f_index_menu_selection()
+{
+	local file="$1" pgm="$2"
+	local lang="${LANG:-$LC_ALL}"
+
+	f_dprintf "lang=[$lang]"
+
+	if [ -f "$file.$lang" ]; then
+		awk -v pgm="$pgm" "$f_index_menusel_awk" "$file.$lang" ||
+			exit $FAILURE
+	elif [ -f "$file" ]; then
+		awk -v pgm="$pgm" "$f_index_menusel_awk" "$file" ||
+			exit $FAILURE
+	else
+		return $FAILURE
+	fi
+}
+
+############################################################ MAIN
+
+#
+# Trap signals so we can recover gracefully
+#
+trap 'f_interrupt' SIGINT
+trap 'f_die' SIGTERM SIGPIPE SIGXCPU SIGXFSZ \
+             SIGFPE SIGTRAP SIGABRT SIGSEGV
+trap '' SIGALRM SIGPROF SIGUSR1 SIGUSR2 SIGHUP SIGVTALRM
+
+fi # ! $_COMMON_SUBR

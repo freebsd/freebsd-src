@@ -150,7 +150,7 @@ MODULE_DEPEND(dc, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct dc_type const dc_devs[] = {
+static const struct dc_type dc_devs[] = {
 	{ DC_DEVID(DC_VENDORID_DEC, DC_DEVICEID_21143), 0,
 		"Intel 21143 10/100BaseTX" },
 	{ DC_DEVID(DC_VENDORID_DAVICOM, DC_DEVICEID_DM9009), 0,
@@ -354,8 +354,9 @@ static driver_t dc_driver = {
 
 static devclass_t dc_devclass;
 
-DRIVER_MODULE(dc, pci, dc_driver, dc_devclass, 0, 0);
-DRIVER_MODULE(miibus, dc, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE_ORDERED(dc, pci, dc_driver, dc_devclass, NULL, NULL,
+    SI_ORDER_ANY);
+DRIVER_MODULE(miibus, dc, miibus_driver, miibus_devclass, NULL, NULL);
 
 #define	DC_SETBIT(sc, reg, x)				\
 	CSR_WRITE_4(sc, reg, CSR_READ_4(sc, reg) | (x))

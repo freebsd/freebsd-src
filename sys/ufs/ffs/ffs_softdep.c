@@ -88,6 +88,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 
+#include <geom/geom.h>
+
 #include <ddb/ddb.h>
 
 #ifndef SOFTUPDATES
@@ -802,6 +804,7 @@ static	void handle_written_jnewblk(struct jnewblk *);
 static	void handle_written_jblkdep(struct jblkdep *);
 static	void handle_written_jfreefrag(struct jfreefrag *);
 static	void complete_jseg(struct jseg *);
+static	void complete_jsegs(struct jseg *);
 static	void jseg_write(struct ufsmount *ump, struct jseg *, uint8_t *);
 static	void jaddref_write(struct jaddref *, struct jseg *, uint8_t *);
 static	void jremref_write(struct jremref *, struct jseg *, uint8_t *);
@@ -920,7 +923,7 @@ static	struct freefrag *allocindir_merge(struct allocindir *,
 static	int bmsafemap_find(struct bmsafemap_hashhead *, struct mount *, int,
 	    struct bmsafemap **);
 static	struct bmsafemap *bmsafemap_lookup(struct mount *, struct buf *,
-	    int cg);
+	    int cg, struct bmsafemap *);
 static	int newblk_find(struct newblk_hashhead *, struct mount *, ufs2_daddr_t,
 	    int, struct newblk **);
 static	int newblk_lookup(struct mount *, ufs2_daddr_t, int, struct newblk **);
@@ -1227,6 +1230,7 @@ static struct callout softdep_callout;
 static int req_pending;
 static int req_clear_inodedeps;	/* syncer process flush some inodedeps */
 static int req_clear_remove;	/* syncer process flush some freeblks */
+static int softdep_flushcache = 0; /* Should we do BIO_FLUSH? */
 
 /*
  * runtime statistics
@@ -1310,6 +1314,8 @@ SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_retries, CTLFLAG_RW,
     &stat_cleanup_retries, 0, "");
 SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_failures, CTLFLAG_RW,
     &stat_cleanup_failures, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, flushcache, CTLFLAG_RW,
+    &softdep_flushcache, 0, "");
 
 SYSCTL_DECL(_vfs_ffs);
 
@@ -1338,14 +1344,12 @@ softdep_flush(void)
 	struct thread *td;
 	int remaining;
 	int progress;
-	int vfslocked;
 
 	td = curthread;
 	td->td_pflags |= TDP_NORUNNINGBUF;
 
 	for (;;) {	
 		kproc_suspend_check(softdepproc);
-		vfslocked = VFS_LOCK_GIANT((struct mount *)NULL);
 		ACQUIRE_LOCK(&lk);
 		/*
 		 * If requested, try removing inode or removal dependencies.
@@ -1361,7 +1365,6 @@ softdep_flush(void)
 			wakeup_one(&proc_waiting);
 		}
 		FREE_LOCK(&lk);
-		VFS_UNLOCK_GIANT(vfslocked);
 		remaining = progress = 0;
 		mtx_lock(&mountlist_mtx);
 		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp)  {
@@ -1370,11 +1373,9 @@ softdep_flush(void)
 				continue;
 			if (vfs_busy(mp, MBF_NOWAIT | MBF_MNTLSTLOCK))
 				continue;
-			vfslocked = VFS_LOCK_GIANT(mp);
 			progress += softdep_process_worklist(mp, 0);
 			ump = VFSTOUFS(mp);
 			remaining += ump->softdep_on_worklist;
-			VFS_UNLOCK_GIANT(vfslocked);
 			mtx_lock(&mountlist_mtx);
 			nmp = TAILQ_NEXT(mp, mnt_list);
 			vfs_unbusy(mp);
@@ -3083,6 +3084,67 @@ softdep_flushjournal(mp)
 	FREE_LOCK(&lk);
 }
 
+static void softdep_synchronize_completed(struct bio *);
+static void softdep_synchronize(struct bio *, struct ufsmount *, void *);
+
+static void
+softdep_synchronize_completed(bp)
+        struct bio *bp;
+{
+	struct jseg *oldest;
+	struct jseg *jseg;
+
+	/*
+	 * caller1 marks the last segment written before we issued the
+	 * synchronize cache.
+	 */
+	jseg = bp->bio_caller1;
+	oldest = NULL;
+	ACQUIRE_LOCK(&lk);
+	/*
+	 * Mark all the journal entries waiting on the synchronize cache
+	 * as completed so they may continue on.
+	 */
+	while (jseg != NULL && (jseg->js_state & COMPLETE) == 0) {
+		jseg->js_state |= COMPLETE;
+		oldest = jseg;
+		jseg = TAILQ_PREV(jseg, jseglst, js_next);
+	}
+	/*
+	 * Restart deferred journal entry processing from the oldest
+	 * completed jseg.
+	 */
+	if (oldest)
+		complete_jsegs(oldest);
+
+	FREE_LOCK(&lk);
+	g_destroy_bio(bp);
+}
+
+/*
+ * Send BIO_FLUSH/SYNCHRONIZE CACHE to the device to enforce write ordering
+ * barriers.  The journal must be written prior to any blocks that depend
+ * on it and the journal can not be released until the blocks have be
+ * written.  This code handles both barriers simultaneously.
+ */
+static void
+softdep_synchronize(bp, ump, caller1)
+	struct bio *bp;
+	struct ufsmount *ump;
+	void *caller1;
+{
+
+	bp->bio_cmd = BIO_FLUSH;
+	bp->bio_flags |= BIO_ORDERED;
+	bp->bio_data = NULL;
+	bp->bio_offset = ump->um_cp->provider->mediasize;
+	bp->bio_length = 0;
+	bp->bio_done = softdep_synchronize_completed;
+	bp->bio_caller1 = caller1;
+	g_io_request(bp,
+	    (struct g_consumer *)ump->um_devvp->v_bufobj.bo_private);
+}
+
 /*
  * Flush some journal records to disk.
  */
@@ -3097,8 +3159,10 @@ softdep_process_journal(mp, needwk, flags)
 	struct worklist *wk;
 	struct jseg *jseg;
 	struct buf *bp;
+	struct bio *bio;
 	uint8_t *data;
 	struct fs *fs;
+	int shouldflush;
 	int segwritten;
 	int jrecmin;	/* Minimum records per block. */
 	int jrecmax;	/* Maximum records per block. */
@@ -3109,6 +3173,9 @@ softdep_process_journal(mp, needwk, flags)
 
 	if (MOUNTEDSUJ(mp) == 0)
 		return;
+	shouldflush = softdep_flushcache;
+	bio = NULL;
+	jseg = NULL;
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
 	jblocks = ump->softdep_jblocks;
@@ -3157,6 +3224,10 @@ softdep_process_journal(mp, needwk, flags)
 		LIST_INIT(&jseg->js_entries);
 		LIST_INIT(&jseg->js_indirs);
 		jseg->js_state = ATTACHED;
+		if (shouldflush == 0)
+			jseg->js_state |= COMPLETE;
+		else if (bio == NULL)
+			bio = g_alloc_bio();
 		jseg->js_jblocks = jblocks;
 		bp = geteblk(fs->fs_bsize, 0);
 		ACQUIRE_LOCK(&lk);
@@ -3289,6 +3360,17 @@ softdep_process_journal(mp, needwk, flags)
 		ACQUIRE_LOCK(&lk);
 	}
 	/*
+	 * If we wrote a segment issue a synchronize cache so the journal
+	 * is reflected on disk before the data is written.  Since reclaiming
+	 * journal space also requires writing a journal record this
+	 * process also enforces a barrier before reclamation.
+	 */
+	if (segwritten && shouldflush) {
+		softdep_synchronize(bio, ump, 
+		    TAILQ_LAST(&jblocks->jb_segs, jseglst));
+	} else if (bio)
+		g_destroy_bio(bio);
+	/*
 	 * If we've suspended the filesystem because we ran out of journal
 	 * space either try to sync it here to make some progress or
 	 * unsuspend it if we already have.
@@ -3371,16 +3453,47 @@ complete_jseg(jseg)
 }
 
 /*
- * Mark a jseg as DEPCOMPLETE and throw away the buffer.  Handle jseg
- * completions in order only.
+ * Determine which jsegs are ready for completion processing.  Waits for
+ * synchronize cache to complete as well as forcing in-order completion
+ * of journal entries.
+ */
+static void
+complete_jsegs(jseg)
+	struct jseg *jseg;
+{
+	struct jblocks *jblocks;
+	struct jseg *jsegn;
+
+	jblocks = jseg->js_jblocks;
+	/*
+	 * Don't allow out of order completions.  If this isn't the first
+	 * block wait for it to write before we're done.
+	 */
+	if (jseg != jblocks->jb_writeseg)
+		return;
+	/* Iterate through available jsegs processing their entries. */
+	while (jseg && (jseg->js_state & ALLCOMPLETE) == ALLCOMPLETE) {
+		jblocks->jb_oldestwrseq = jseg->js_oldseq;
+		jsegn = TAILQ_NEXT(jseg, js_next);
+		complete_jseg(jseg);
+		jseg = jsegn;
+	}
+	jblocks->jb_writeseg = jseg;
+	/*
+	 * Attempt to free jsegs now that oldestwrseq may have advanced. 
+	 */
+	free_jsegs(jblocks);
+}
+
+/*
+ * Mark a jseg as DEPCOMPLETE and throw away the buffer.  Attempt to handle
+ * the final completions.
  */
 static void
 handle_written_jseg(jseg, bp)
 	struct jseg *jseg;
 	struct buf *bp;
 {
-	struct jblocks *jblocks;
-	struct jseg *jsegn;
 
 	if (jseg->js_refs == 0)
 		panic("handle_written_jseg: No self-reference on %p", jseg);
@@ -3390,25 +3503,7 @@ handle_written_jseg(jseg, bp)
 	 * discarded.
 	 */
 	bp->b_flags |= B_INVAL | B_NOCACHE;
-	jblocks = jseg->js_jblocks;
-	/*
-	 * Don't allow out of order completions.  If this isn't the first
-	 * block wait for it to write before we're done.
-	 */
-	if (jseg != jblocks->jb_writeseg)
-		return;
-	/* Iterate through available jsegs processing their entries. */
-	do {
-		jblocks->jb_oldestwrseq = jseg->js_oldseq;
-		jsegn = TAILQ_NEXT(jseg, js_next);
-		complete_jseg(jseg);
-		jseg = jsegn;
-	} while (jseg && jseg->js_state & DEPCOMPLETE);
-	jblocks->jb_writeseg = jseg;
-	/*
-	 * Attempt to free jsegs now that oldestwrseq may have advanced. 
-	 */
-	free_jsegs(jblocks);
+	complete_jsegs(jseg);
 }
 
 static inline struct jsegdep *
@@ -4196,8 +4291,16 @@ free_jsegs(jblocks)
 			jblocks->jb_oldestseg = jseg;
 			return;
 		}
-		if (!LIST_EMPTY(&jseg->js_indirs) &&
-		    jseg->js_seq >= jblocks->jb_oldestwrseq)
+		if ((jseg->js_state & ALLCOMPLETE) != ALLCOMPLETE)
+			break;
+		if (jseg->js_seq > jblocks->jb_oldestwrseq)
+			break;
+		/*
+		 * We can free jsegs that didn't write entries when
+		 * oldestwrseq == js_seq.
+		 */
+		if (jseg->js_seq == jblocks->jb_oldestwrseq &&
+		    jseg->js_cnt != 0)
 			break;
 		free_jseg(jseg, jblocks);
 	}
@@ -4456,8 +4559,8 @@ softdep_setup_mkdir(dp, ip)
 		KASSERT(jaddref != NULL,
 		    ("softdep_setup_mkdir: No addref structure present."));
 		KASSERT(jaddref->ja_parent == dp->i_number, 
-		    ("softdep_setup_mkdir: bad parent %d",
-		    jaddref->ja_parent));
+		    ("softdep_setup_mkdir: bad parent %ju",
+		    (uintmax_t)jaddref->ja_parent));
 		TAILQ_INSERT_BEFORE(&jaddref->ja_ref, &dotaddref->ja_ref,
 		    if_deps);
 	}
@@ -4707,12 +4810,26 @@ softdep_setup_inomapdep(bp, ip, newinum, mode)
 	 * Panic if it already exists as something is seriously wrong.
 	 * Otherwise add it to the dependency list for the buffer holding
 	 * the cylinder group map from which it was allocated.
+	 *
+	 * We have to preallocate a bmsafemap entry in case it is needed
+	 * in bmsafemap_lookup since once we allocate the inodedep, we
+	 * have to finish initializing it before we can FREE_LOCK().
+	 * By preallocating, we avoid FREE_LOCK() while doing a malloc
+	 * in bmsafemap_lookup. We cannot call bmsafemap_lookup before
+	 * creating the inodedep as it can be freed during the time
+	 * that we FREE_LOCK() while allocating the inodedep. We must
+	 * call workitem_alloc() before entering the locked section as
+	 * it also acquires the lock and we must avoid trying doing so
+	 * recursively.
 	 */
+	bmsafemap = malloc(sizeof(struct bmsafemap),
+	    M_BMSAFEMAP, M_SOFTDEP_FLAGS);
+	workitem_alloc(&bmsafemap->sm_list, D_BMSAFEMAP, mp);
 	ACQUIRE_LOCK(&lk);
 	if ((inodedep_lookup(mp, newinum, DEPALLOC | NODELAY, &inodedep)))
 		panic("softdep_setup_inomapdep: dependency %p for new"
 		    "inode already exists", inodedep);
-	bmsafemap = bmsafemap_lookup(mp, bp, ino_to_cg(fs, newinum));
+	bmsafemap = bmsafemap_lookup(mp, bp, ino_to_cg(fs, newinum), bmsafemap);
 	if (jaddref) {
 		LIST_INSERT_HEAD(&bmsafemap->sm_jaddrefhd, jaddref, ja_bmdeps);
 		TAILQ_INSERT_TAIL(&inodedep->id_inoreflst, &jaddref->ja_ref,
@@ -4786,7 +4903,7 @@ softdep_setup_blkmapdep(bp, mp, newblkno, frags, oldfrags)
 	if (newblk_lookup(mp, newblkno, DEPALLOC, &newblk) != 0)
 		panic("softdep_setup_blkmapdep: found block");
 	newblk->nb_bmsafemap = bmsafemap = bmsafemap_lookup(mp, bp,
-	    dtog(fs, newblkno));
+	    dtog(fs, newblkno), NULL);
 	if (jnewblk) {
 		jnewblk->jn_dep = (struct worklist *)newblk;
 		LIST_INSERT_HEAD(&bmsafemap->sm_jnewblkhd, jnewblk, jn_deps);
@@ -4827,13 +4944,16 @@ bmsafemap_find(bmsafemaphd, mp, cg, bmsafemapp)
  * Find the bmsafemap associated with a cylinder group buffer.
  * If none exists, create one. The buffer must be locked when
  * this routine is called and this routine must be called with
- * splbio interrupts blocked.
+ * the softdep lock held. To avoid giving up the lock while
+ * allocating a new bmsafemap, a preallocated bmsafemap may be
+ * provided. If it is provided but not needed, it is freed.
  */
 static struct bmsafemap *
-bmsafemap_lookup(mp, bp, cg)
+bmsafemap_lookup(mp, bp, cg, newbmsafemap)
 	struct mount *mp;
 	struct buf *bp;
 	int cg;
+	struct bmsafemap *newbmsafemap;
 {
 	struct bmsafemap_hashhead *bmsafemaphd;
 	struct bmsafemap *bmsafemap, *collision;
@@ -4843,16 +4963,27 @@ bmsafemap_lookup(mp, bp, cg)
 	mtx_assert(&lk, MA_OWNED);
 	if (bp)
 		LIST_FOREACH(wk, &bp->b_dep, wk_list)
-			if (wk->wk_type == D_BMSAFEMAP)
+			if (wk->wk_type == D_BMSAFEMAP) {
+				if (newbmsafemap)
+					WORKITEM_FREE(newbmsafemap,D_BMSAFEMAP);
 				return (WK_BMSAFEMAP(wk));
+			}
 	fs = VFSTOUFS(mp)->um_fs;
 	bmsafemaphd = BMSAFEMAP_HASH(fs, cg);
-	if (bmsafemap_find(bmsafemaphd, mp, cg, &bmsafemap) == 1)
+	if (bmsafemap_find(bmsafemaphd, mp, cg, &bmsafemap) == 1) {
+		if (newbmsafemap)
+			WORKITEM_FREE(newbmsafemap, D_BMSAFEMAP);
 		return (bmsafemap);
-	FREE_LOCK(&lk);
-	bmsafemap = malloc(sizeof(struct bmsafemap),
-		M_BMSAFEMAP, M_SOFTDEP_FLAGS);
-	workitem_alloc(&bmsafemap->sm_list, D_BMSAFEMAP, mp);
+	}
+	if (newbmsafemap) {
+		bmsafemap = newbmsafemap;
+	} else {
+		FREE_LOCK(&lk);
+		bmsafemap = malloc(sizeof(struct bmsafemap),
+			M_BMSAFEMAP, M_SOFTDEP_FLAGS);
+		workitem_alloc(&bmsafemap->sm_list, D_BMSAFEMAP, mp);
+		ACQUIRE_LOCK(&lk);
+	}
 	bmsafemap->sm_buf = bp;
 	LIST_INIT(&bmsafemap->sm_inodedephd);
 	LIST_INIT(&bmsafemap->sm_inodedepwr);
@@ -4862,7 +4993,6 @@ bmsafemap_lookup(mp, bp, cg)
 	LIST_INIT(&bmsafemap->sm_jnewblkhd);
 	LIST_INIT(&bmsafemap->sm_freehd);
 	LIST_INIT(&bmsafemap->sm_freewr);
-	ACQUIRE_LOCK(&lk);
 	if (bmsafemap_find(bmsafemaphd, mp, cg, &collision) == 1) {
 		WORKITEM_FREE(bmsafemap, D_BMSAFEMAP);
 		return (collision);
@@ -8557,7 +8687,7 @@ cancel_mkdir_dotdot(ip, dirrem, jremref)
 
 	if (inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, 0,
 	    &inodedep) == 0)
-		panic("cancel_mkdir_dotdot: Lost inodedep");
+		return (jremref);
 	dap = inodedep->id_mkdiradd;
 	if (dap == NULL || (dap->da_state & MKDIR_PARENT) == 0)
 		return (jremref);
@@ -8734,8 +8864,8 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 	if ((dap->da_state & ATTACHED) == 0)
 		panic("newdirrem: not ATTACHED");
 	if (dap->da_newinum != ip->i_number)
-		panic("newdirrem: inum %d should be %d",
-		    ip->i_number, dap->da_newinum);
+		panic("newdirrem: inum %ju should be %ju",
+		    (uintmax_t)ip->i_number, (uintmax_t)dap->da_newinum);
 	/*
 	 * If we are deleting a changed name that never made it to disk,
 	 * then return the dirrem describing the previous inode (which
@@ -9608,9 +9738,10 @@ initiate_write_filepage(pagedep, bp)
 			ep = (struct direct *)
 			    ((char *)bp->b_data + dap->da_offset);
 			if (ep->d_ino != dap->da_newinum)
-				panic("%s: dir inum %d != new %d",
+				panic("%s: dir inum %ju != new %ju",
 				    "initiate_write_filepage",
-				    ep->d_ino, dap->da_newinum);
+				    (uintmax_t)ep->d_ino,
+				    (uintmax_t)dap->da_newinum);
 			if (dap->da_state & DIRCHG)
 				ep->d_ino = dap->da_previous->dm_oldinum;
 			else
@@ -10167,10 +10298,11 @@ softdep_setup_inofree(mp, bp, ino, wkhd)
 	cgp = (struct cg *)bp->b_data;
 	inosused = cg_inosused(cgp);
 	if (isset(inosused, ino % fs->fs_ipg))
-		panic("softdep_setup_inofree: inode %d not freed.", ino);
+		panic("softdep_setup_inofree: inode %ju not freed.",
+		    (uintmax_t)ino);
 	if (inodedep_lookup(mp, ino, 0, &inodedep))
-		panic("softdep_setup_inofree: ino %d has existing inodedep %p",
-		    ino, inodedep);
+		panic("softdep_setup_inofree: ino %ju has existing inodedep %p",
+		    (uintmax_t)ino, inodedep);
 	if (wkhd) {
 		LIST_FOREACH_SAFE(wk, wkhd, wk_list, wkn) {
 			if (wk->wk_type != D_JADDREF)
@@ -10221,7 +10353,7 @@ softdep_setup_blkfree(mp, bp, blkno, frags, wkhd)
 	ACQUIRE_LOCK(&lk);
 	/* Lookup the bmsafemap so we track when it is dirty. */
 	fs = VFSTOUFS(mp)->um_fs;
-	bmsafemap = bmsafemap_lookup(mp, bp, dtog(fs, blkno));
+	bmsafemap = bmsafemap_lookup(mp, bp, dtog(fs, blkno), NULL);
 	/*
 	 * Detach any jnewblks which have been canceled.  They must linger
 	 * until the bitmap is cleared again by ffs_blkfree() to prevent
@@ -10267,7 +10399,7 @@ softdep_setup_blkfree(mp, bp, blkno, frags, wkhd)
 	 * allocation dependency.
 	 */
 	fs = VFSTOUFS(mp)->um_fs;
-	bmsafemap = bmsafemap_lookup(mp, bp, dtog(fs, blkno));
+	bmsafemap = bmsafemap_lookup(mp, bp, dtog(fs, blkno), NULL);
 	end = blkno + frags;
 	LIST_FOREACH(jnewblk, &bmsafemap->sm_jnewblkhd, jn_deps) {
 		/*
@@ -10396,8 +10528,8 @@ initiate_write_bmsafemap(bmsafemap, bp)
 				jaddref->ja_state |= UNDONE;
 				stat_jaddref++;
 			} else if ((bp->b_xflags & BX_BKGRDMARKER) == 0)
-				panic("initiate_write_bmsafemap: inode %d "
-				    "marked free", jaddref->ja_ino);
+				panic("initiate_write_bmsafemap: inode %ju "
+				    "marked free", (uintmax_t)jaddref->ja_ino);
 		}
 	}
 	/*
@@ -10687,6 +10819,7 @@ handle_jwork(wkhd)
 		case D_FREEFRAG:
 			rele_jseg(WK_JSEG(WK_FREEFRAG(wk)->ff_jdep));
 			WORKITEM_FREE(wk, D_FREEFRAG);
+			continue;
 		case D_FREEWORK:
 			handle_written_freework(WK_FREEWORK(wk));
 			continue;
@@ -12470,7 +12603,8 @@ retry:
 		if (dap == LIST_FIRST(diraddhdp)) {
 			inodedep_lookup(UFSTOVFS(ump), inum, 0, &inodedep);
 			panic("flush_pagedep_deps: failed to flush " 
-			    "inodedep %p ino %d dap %p", inodedep, inum, dap);
+			    "inodedep %p ino %ju dap %p",
+			    inodedep, (uintmax_t)inum, dap);
 		}
 	}
 	if (error)
@@ -13316,8 +13450,13 @@ softdep_deallocate_dependencies(bp)
 
 	if ((bp->b_ioflags & BIO_ERROR) == 0)
 		panic("softdep_deallocate_dependencies: dangling deps");
-	softdep_error(bp->b_vp->v_mount->mnt_stat.f_mntonname, bp->b_error);
-	panic("softdep_deallocate_dependencies: unrecovered I/O error");
+	if (bp->b_vp != NULL && bp->b_vp->v_mount != NULL)
+		softdep_error(bp->b_vp->v_mount->mnt_stat.f_mntonname, bp->b_error);
+	else
+		printf("softdep_deallocate_dependencies: "
+		    "got error %d while accessing filesystem\n", bp->b_error);
+	if (bp->b_error != ENXIO)
+		panic("softdep_deallocate_dependencies: unrecovered I/O error");
 }
 
 /*

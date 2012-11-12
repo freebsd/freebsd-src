@@ -524,7 +524,9 @@ ng_ksocket_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate private structure */
-	priv = malloc(sizeof(*priv), M_NETGRAPH_KSOCKET, M_WAITOK | M_ZERO);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_KSOCKET, M_NOWAIT | M_ZERO);
+	if (priv == NULL)
+		return (ENOMEM);
 
 	LIST_INIT(&priv->embryos);
 	/* cross link them */
@@ -1043,9 +1045,7 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 	struct mbuf *m;
 	struct ng_mesg *response;
 	struct uio auio;
-	int s, flags, error;
-
-	s = splnet();
+	int flags, error;
 
 	/* so = priv->so; *//* XXX could have derived this like so */
 	KASSERT(so == priv->so, ("%s: wrong socket", __func__));
@@ -1092,10 +1092,8 @@ ng_ksocket_incoming2(node_p node, hook_p hook, void *arg1, int arg2)
 	 * the hook gets created and is connected, this upcall function
 	 * will be called again.
 	 */
-	if (priv->hook == NULL) {
-		splx(s);
+	if (priv->hook == NULL)
 		return;
-	}
 
 	/* Read and forward available mbuf's */
 	auio.uio_td = NULL;
@@ -1163,7 +1161,6 @@ sendit:		/* Forward data with optional peer sockaddr as packet tag */
 		}
 		priv->flags |= KSF_EOFSEEN;
 	}
-	splx(s);
 }
 
 /*

@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/ctype.h>
 #include <sys/bio.h>
+#include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -105,6 +106,21 @@ g_dev_print(void)
 static void
 g_dev_attrchanged(struct g_consumer *cp, const char *attr)
 {
+	struct cdev *dev;
+	char buf[SPECNAMELEN + 6];
+
+	if (strcmp(attr, "GEOM::media") == 0) {
+		dev = cp->geom->softc;
+		snprintf(buf, sizeof(buf), "cdev=%s", dev->si_name);
+		devctl_notify_f("DEVFS", "CDEV", "MEDIACHANGE", buf, M_WAITOK);
+		dev = cp->cp_alias_dev;
+		if (dev != NULL) {
+			snprintf(buf, sizeof(buf), "cdev=%s", dev->si_name);
+			devctl_notify_f("DEVFS", "CDEV", "MEDIACHANGE", buf,
+			    M_WAITOK);
+		}
+		return;
+	}
 
 	if (strcmp(attr, "GEOM::physpath") != 0)
 		return;
@@ -119,7 +135,6 @@ g_dev_attrchanged(struct g_consumer *cp, const char *attr)
 		    g_io_getattr("GEOM::physpath", cp, &physpath_len, physpath);
 		g_access(cp, -1, 0, 0);
 		if (error == 0 && strlen(physpath) != 0) {
-			struct cdev *dev;
 			struct cdev *old_alias_dev;
 			struct cdev **alias_devp;
 
@@ -161,9 +176,6 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 
 	g_trace(G_T_TOPOLOGY, "dev_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
-	LIST_FOREACH(cp, &pp->consumers, consumers)
-		if (cp->geom->class == mp)
-			return (NULL);
 	gp = g_new_geomf(mp, pp->name);
 	cp = g_new_consumer(gp);
 	error = g_attach(cp, pp);
@@ -196,15 +208,11 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 		}
 	}
 
-	if (pp->flags & G_PF_CANDELETE)
-		dev->si_flags |= SI_CANDELETE;
 	dev->si_iosize_max = MAXPHYS;
 	gp->softc = dev;
 	dev->si_drv1 = gp;
 	dev->si_drv2 = cp;
 	if (adev != NULL) {
-		if (pp->flags & G_PF_CANDELETE)
-			adev->si_flags |= SI_CANDELETE;
 		adev->si_iosize_max = MAXPHYS;
 		adev->si_drv1 = gp;
 		adev->si_drv2 = cp;
@@ -351,7 +359,7 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 	case DIOCSKERNELDUMP:
 		u = *((u_int *)data);
 		if (!u) {
-			set_dumper(NULL);
+			set_dumper(NULL, NULL);
 			error = 0;
 			break;
 		}
@@ -360,7 +368,7 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		i = sizeof kd;
 		error = g_io_getattr("GEOM::kerneldump", cp, &i, &kd);
 		if (!error) {
-			error = set_dumper(&kd.di);
+			error = set_dumper(&kd.di, devtoname(dev));
 			if (!error)
 				dev->si_flags |= SI_DUMPDEV;
 		}
@@ -497,7 +505,7 @@ g_dev_strategy(struct bio *bp)
  *
  * Called from below when the provider orphaned us.
  * - Clear any dump settings.
- * - Destroy the struct cdev *to prevent any more request from coming in.  The
+ * - Destroy the struct cdev to prevent any more request from coming in.  The
  *   provider is already marked with an error, so anything which comes in
  *   in the interrim will be returned immediately.
  * - Wait for any outstanding I/O to finish.
@@ -518,7 +526,7 @@ g_dev_orphan(struct g_consumer *cp)
 
 	/* Reset any dump-area set on this device */
 	if (dev->si_flags & SI_DUMPDEV)
-		set_dumper(NULL);
+		set_dumper(NULL, NULL);
 
 	/* Destroy the struct cdev *so we get no more requests */
 	destroy_dev(dev);

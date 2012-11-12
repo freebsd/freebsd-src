@@ -1,0 +1,18 @@
+Include - include scripts for D scripting
+
+   This directory contains files that can be included for use with D scripts.
+
+   There are two types of include files,
+
+   *.h
+	These can be included using,
+
+	#!/usr/sbin/dtrace -Cs
+	#include <filename.h>
+
+   *.d
+	These must be copyied to a translator directory (/usr/lib/dtrace),
+	and should be automatically pulled in.
+
+   This directory does not contain runnable DTrace scripts.
+

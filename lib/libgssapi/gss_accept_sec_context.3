@@ -212,7 +212,7 @@ exist in version 1 of the GSS-API specification, so applications that
 wish to run over version 1 implementations must special-case these
 codes.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It input_chan_bindings"
 .It context_handle
 Context handle for new context.
 Supply
@@ -400,7 +400,7 @@ Specify
 Mechanism specific status code.
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_DEFECTIVE_CREDENTIAL"
 .It GSS_S_CONTINUE_NEEDED
 Indicates that a token from the peer application is required to
 complete the context,
@@ -442,7 +442,7 @@ the implementation or the provided credential.
 .Xr gss_release_name 3 ,
 .Xr gss_wrap 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744

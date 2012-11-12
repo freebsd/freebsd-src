@@ -34,7 +34,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd December 18, 2011
+.Dd May 26, 2012
 .Dt PAM_GET_AUTHTOK 3
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@
 .Fn pam_get_authtok "pam_handle_t *pamh" "int item" "const char **authtok" "const char *prompt"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn pam_get_authtok
 function returns the cached authentication token,
 or prompts the user if no token is currently cached.
 Either way, a pointer to the authentication token is stored in the
@@ -89,7 +89,7 @@ before it is
 passed to the conversation function.
 .Pp
 If
-.Nm
+.Fn pam_get_authtok
 is called from a module and the
 .Dv authtok_prompt
 /
@@ -110,17 +110,17 @@ is set to
 and there is a non-null
 .Dv PAM_OLDAUTHTOK
 item,
-.Nm
+.Fn pam_get_authtok
 will ask the user to confirm the new token by
 retyping it.
 If there is a mismatch,
-.Nm
+.Fn pam_get_authtok
 will return
 .Dv PAM_TRY_AGAIN .
 .Pp
 .Sh RETURN VALUES
 The
-.Nm
+.Fn pam_get_authtok
 function returns one of the following values:
 .Bl -tag -width 18n
 .It Bq Er PAM_BUF_ERR
@@ -140,15 +140,15 @@ Try again.
 .Xr pam_strerror 3
 .Sh STANDARDS
 The
-.Nm
+.Fn pam_get_authtok
 function is an OpenPAM extension.
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were developed for the
+.Fn pam_get_authtok
+function and this manual page were
+developed for the
 .Fx
-Project by
-ThinkSec AS and Network Associates Laboratories, the
+Project by ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,

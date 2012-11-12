@@ -54,6 +54,12 @@ def HexagonItinerariesV4 :
         InstrItinData<PSEUDO , [InstrStage<1, [SLOT0, SLOT1, SLOT2, SLOT3]>]>
       ]>;
 
+def HexagonModelV4 : SchedMachineModel {
+  // Max issue per cycle == bundle width.
+  let IssueWidth = 4;
+  let Itineraries = HexagonItinerariesV4;
+}
+
 //===----------------------------------------------------------------------===//
 // Hexagon V4 Resource Definitions -
 //===----------------------------------------------------------------------===//

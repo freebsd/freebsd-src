@@ -30,6 +30,7 @@ extern const struct tok smi_values[];
 #define OUI_IEEE_8021_PRIVATE 0x0080c2      /* IEEE 802.1 Organisation Specific - Annex F */
 #define OUI_IEEE_8023_PRIVATE 0x00120f      /* IEEE 802.3 Organisation Specific - Annex G */
 #define OUI_TIA         0x0012bb        /* TIA - Telecommunications Industry Association - ANSI/TIA-1057- 2006 */
+#define OUI_DCBX        0x001B21        /* DCBX */
 
 /*
  * These are SMI Network Management Private Enterprise Codes for

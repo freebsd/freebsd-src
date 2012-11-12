@@ -50,7 +50,7 @@ A given interprocess token may be imported only once.
 See
 .Fn gss_export_sec_context .
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It interprocess_token"
 .It minor_status
 Mechanism specific status code.
 .It interprocess_token
@@ -62,7 +62,7 @@ application after use with a call to
 .Fn gss_delete_sec_context .
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_DEFECTIVE_TOKEN"
 .It GSS_S_COMPLETE
 Successful completion
 .It GSS_S_NO_CONTEXT
@@ -78,7 +78,7 @@ Local policy prevents the import of this context by the current process
 .Xr gss_export_sec_context 3 ,
 .Xr gss_delete_sec_context 3
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744

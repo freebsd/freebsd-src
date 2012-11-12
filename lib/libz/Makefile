@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: projects/geom-events/lib/libz/Makefile 233668 2012-03-29 16:19:34Z lev $
 #
 
 LIB=		z
@@ -35,12 +35,12 @@ SRCS+=		uncompr.c
 SRCS+=		zopen.c
 SRCS+=		zutil.c
 
-.if ${MACHINE_ARCH} == "i386" && ${MACHINE_CPU:M*i686*}
-.PATH:		${.CURDIR}/contrib/asm686
-SRCS+=		match.S
-CFLAGS+=	-DASMV -DNO_UNDERLINE
-ACFLAGS+=	-Wa,--noexecstack
-.endif
+#.if ${MACHINE_ARCH} == "i386" && ${MACHINE_CPU:M*i686*}
+#.PATH:		${.CURDIR}/contrib/asm686
+#SRCS+=		match.S
+#CFLAGS+=	-DASMV -DNO_UNDERLINE
+#ACFLAGS+=	-Wa,--noexecstack
+#.endif
 
 #.if ${MACHINE_ARCH} == "amd64"
 #.PATH:		${.CURDIR}/contrib/gcc_gvmat64

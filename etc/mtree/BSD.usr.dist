@@ -58,6 +58,8 @@
     sbin
     ..
     share
+        atf
+        ..
         calendar
             de_DE.ISO8859-1
             ..
@@ -76,6 +78,8 @@
         ..
         doc
             IPv6
+            ..
+            atf
             ..
             atm
             ..
@@ -200,6 +204,10 @@
                 ..
             ..
         ..
+        dtrace
+            toolkit
+            ..
+        ..  
         examples
             BSD_daemon
             ..
@@ -207,10 +215,12 @@
             ..
             IPv6
             ..
+            atf
+            ..
             bootforth
             ..
-	    csh
-	    	..
+            csh
+            ..
             cvs
                 contrib
                 ..
@@ -267,6 +277,8 @@
                     ..
                 ..
             ..
+            libusb20
+            ..
             libvgl
             ..
             mdoc
@@ -275,15 +287,11 @@
                 bluetooth
                 ..
             ..
-            nwclient
-            ..
             pc-sysinstall
             ..
             perfmon
             ..
             pf
-            ..
-            portal
             ..
             ppi
             ..
@@ -303,10 +311,6 @@
                 setobjstat
                 ..
                 srcs
-                ..
-            ..
-            smbfs
-                print
                 ..
             ..
             sunrpc
@@ -946,6 +950,8 @@
             man9
             ..
         ..
+        mdocml
+        ..
         misc
             fonts
             ..
@@ -1324,6 +1330,14 @@
             catalog
             ..
         ..
+        xml
+            atf
+            ..
+        ..
+        xsl
+            atf
+            ..
+        ..
         zoneinfo
             Africa
             ..
@@ -1360,5 +1374,7 @@
         ..
     ..
     src             nochange
+    ..
+    tests
     ..
 ..

@@ -129,31 +129,8 @@ static int tcp_cksum(register const struct ip *ip,
 		     register const struct tcphdr *tp,
 		     register u_int len)
 {
-        union phu {
-                struct phdr {
-                        u_int32_t src;
-                        u_int32_t dst;
-                        u_char mbz;
-                        u_char proto;
-                        u_int16_t len;
-                } ph;
-                u_int16_t pa[6];
-        } phu;
-        const u_int16_t *sp;
-
-        /* pseudo-header.. */
-        phu.ph.len = htons((u_int16_t)len);
-        phu.ph.mbz = 0;
-        phu.ph.proto = IPPROTO_TCP;
-        memcpy(&phu.ph.src, &ip->ip_src.s_addr, sizeof(u_int32_t));
-        if (IP_HL(ip) == 5)
-                memcpy(&phu.ph.dst, &ip->ip_dst.s_addr, sizeof(u_int32_t));
-        else
-                phu.ph.dst = ip_finddst(ip);
-
-        sp = &phu.pa[0];
-        return in_cksum((u_short *)tp, len,
-                        sp[0]+sp[1]+sp[2]+sp[3]+sp[4]+sp[5]);
+	return (nextproto4_cksum(ip, (const u_int8_t *)tp, len,
+	    IPPROTO_TCP));
 }
 
 void
@@ -294,7 +271,6 @@ tcp_print(register const u_char *bp, register u_int length,
                  * both directions).
                  */
 #ifdef INET6
-                memset(&tha, 0, sizeof(tha));
                 rev = 0;
                 if (ip6) {
                         src = &ip6->ip6_src;
@@ -315,6 +291,27 @@ tcp_print(register const u_char *bp, register u_int length,
                                 tha.port = sport << 16 | dport;
                         }
                 } else {
+                        /*
+                         * Zero out the tha structure; the src and dst
+                         * fields are big enough to hold an IPv6
+                         * address, but we only have IPv4 addresses
+                         * and thus must clear out the remaining 124
+                         * bits.
+                         *
+                         * XXX - should we just clear those bytes after
+                         * copying the IPv4 addresses, rather than
+                         * zeroing out the entire structure and then
+                         * overwriting some of the zeroes?
+                         *
+                         * XXX - this could fail if we see TCP packets
+                         * with an IPv6 address with the lower 124 bits
+                         * all zero and also see TCP packes with an
+                         * IPv4 address with the same 32 bits as the
+                         * upper 32 bits of the IPv6 address in question.
+                         * Can that happen?  Is it likely enough to be
+                         * an issue?
+                         */
+                        memset(&tha, 0, sizeof(tha));
                         src = &ip->ip_src;
                         dst = &ip->ip_dst;
                         if (sport > dport)
@@ -393,34 +390,40 @@ tcp_print(register const u_char *bp, register u_int length,
                 return;
         }
 
-        if (IP_V(ip) == 4 && vflag && !Kflag && !fragmented) {
+        if (vflag && !Kflag && !fragmented) {
+                /* Check the checksum, if possible. */
                 u_int16_t sum, tcp_sum;
-                if (TTEST2(tp->th_sport, length)) {
-                        sum = tcp_cksum(ip, tp, length);
 
-                        (void)printf(", cksum 0x%04x",EXTRACT_16BITS(&tp->th_sum));
-                        if (sum != 0) {
+                if (IP_V(ip) == 4) {
+                        if (TTEST2(tp->th_sport, length)) {
+                                sum = tcp_cksum(ip, tp, length);
                                 tcp_sum = EXTRACT_16BITS(&tp->th_sum);
-                                (void)printf(" (incorrect -> 0x%04x)",in_cksum_shouldbe(tcp_sum, sum));
-                        } else
-                                (void)printf(" (correct)");
+
+                                (void)printf(", cksum 0x%04x", tcp_sum);
+                                if (sum != 0)
+                                        (void)printf(" (incorrect -> 0x%04x)",
+                                            in_cksum_shouldbe(tcp_sum, sum));
+                                else
+                                        (void)printf(" (correct)");
+                        }
                 }
-        }
 #ifdef INET6
-        if (IP_V(ip) == 6 && ip6->ip6_plen && vflag && !Kflag && !fragmented) {
-                u_int16_t sum,tcp_sum;
-                if (TTEST2(tp->th_sport, length)) {
-                        sum = nextproto6_cksum(ip6, (u_short *)tp, length, IPPROTO_TCP);
-                        (void)printf(", cksum 0x%04x",EXTRACT_16BITS(&tp->th_sum));
-                        if (sum != 0) {
+                else if (IP_V(ip) == 6 && ip6->ip6_plen) {
+                        if (TTEST2(tp->th_sport, length)) {
+                                sum = nextproto6_cksum(ip6, (const u_int8_t *)tp, length, IPPROTO_TCP);
                                 tcp_sum = EXTRACT_16BITS(&tp->th_sum);
-                                (void)printf(" (incorrect -> 0x%04x)",in_cksum_shouldbe(tcp_sum, sum));
-                        } else
-                                (void)printf(" (correct)");
 
+                                (void)printf(", cksum 0x%04x", tcp_sum);
+                                if (sum != 0)
+                                        (void)printf(" (incorrect -> 0x%04x)",
+                                            in_cksum_shouldbe(tcp_sum, sum));
+                                else
+                                        (void)printf(" (correct)");
+
+                        }
                 }
-        }
 #endif
+        }
 
         length -= hlen;
         if (vflag > 1 || length > 0 || flags & (TH_SYN | TH_FIN | TH_RST)) {
@@ -661,6 +664,8 @@ tcp_print(register const u_char *bp, register u_int length,
                 ns_print(bp + 2, length - 2, 0);
         } else if (sport == MSDP_PORT || dport == MSDP_PORT) {
                 msdp_print(bp, length);
+        } else if (sport == RPKI_RTR_PORT || dport == RPKI_RTR_PORT) {
+                rpki_rtr_print(bp, length);
         }
         else if (length > 0 && (sport == LDP_PORT || dport == LDP_PORT)) {
                 ldp_print(bp, length);

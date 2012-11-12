@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/taskqueue.h>
+#include "opt_mfi.h"
 
 /*
  * SCSI structures and definitions are used from here, but no linking
@@ -105,7 +106,7 @@ struct mfi_command {
 #define MFI_ON_MFIQ_READY	(1<<6)
 #define MFI_ON_MFIQ_BUSY	(1<<7)
 #define MFI_ON_MFIQ_MASK	((1<<5)|(1<<6)|(1<<7))
-	int			cm_aen_abort;
+#define MFI_CMD_SCSI		(1<<8)
 	uint8_t			retry_for_fw_reset;
 	void			(* cm_complete)(struct mfi_command *cm);
 	void			*cm_private;
@@ -126,6 +127,11 @@ struct mfi_disk {
 #define	MFI_DISK_FLAGS_DISABLED	0x02
 };
 
+struct mfi_disk_pending {
+	TAILQ_ENTRY(mfi_disk_pending)	ld_link;
+	int		ld_id;
+};
+
 struct mfi_system_pd {
 	TAILQ_ENTRY(mfi_system_pd) pd_link;
 	device_t	pd_dev;
@@ -135,6 +141,11 @@ struct mfi_system_pd {
 	struct mfi_pd_info *pd_info;
 	struct disk	*pd_disk;
 	int		pd_flags;
+};
+
+struct mfi_system_pending {
+	TAILQ_ENTRY(mfi_system_pending) pd_link;
+	int		pd_id;
 };
 
 struct mfi_evt_queue_elm {
@@ -177,7 +188,7 @@ struct mfi_softc {
 	// Start: LSIP200113393
 	bus_dma_tag_t			verbuf_h_dmat;
 	bus_dmamap_t			verbuf_h_dmamap;
-	uint32_t			verbuf_h_busaddr;
+	bus_addr_t			verbuf_h_busaddr;
 	uint32_t			*verbuf;
 	void				*kbuff_arr[MAX_IOCTL_SGE];
 	bus_dma_tag_t			mfi_kbuff_arr_dmat[2];
@@ -216,9 +227,13 @@ struct mfi_softc {
 
 	TAILQ_HEAD(,mfi_evt_queue_elm)	mfi_evt_queue;
 	struct task			mfi_evt_task;
+	struct task			mfi_map_sync_task;
 	TAILQ_HEAD(,mfi_aen)		mfi_aen_pids;
 	struct mfi_command		*mfi_aen_cm;
 	struct mfi_command		*mfi_skinny_cm;
+	struct mfi_command		*mfi_map_sync_cm;
+	int				cm_aen_abort;
+	int				cm_map_abort;
 	uint32_t			mfi_aen_triggered;
 	uint32_t			mfi_poll_waiting;
 	uint32_t			mfi_boot_seq_num;
@@ -229,7 +244,7 @@ struct mfi_softc {
 
 	bus_dma_tag_t			mfi_sense_dmat;
 	bus_dmamap_t			mfi_sense_dmamap;
-	uint32_t			mfi_sense_busaddr;
+	bus_addr_t			mfi_sense_busaddr;
 	struct mfi_sense		*mfi_sense;
 
 	struct resource			*mfi_irq;
@@ -281,11 +296,15 @@ struct mfi_softc {
 
 	TAILQ_HEAD(,mfi_disk)		mfi_ld_tqh;
 	TAILQ_HEAD(,mfi_system_pd)	mfi_syspd_tqh;
+	TAILQ_HEAD(,mfi_disk_pending)	mfi_ld_pend_tqh;
+	TAILQ_HEAD(,mfi_system_pending)	mfi_syspd_pend_tqh;
 	eventhandler_tag		mfi_eh;
 	struct cdev			*mfi_cdev;
 
 	TAILQ_HEAD(, ccb_hdr)		mfi_cam_ccbq;
 	struct mfi_command *		(* mfi_cam_start)(void *);
+	void				(*mfi_cam_rescan_cb)(struct mfi_softc *,
+					    uint32_t);
 	struct callout			mfi_watchdog_callout;
 	struct mtx			mfi_io_lock;
 	struct sx			mfi_config_lock;
@@ -299,12 +318,11 @@ struct mfi_softc {
 		    uint32_t frame_cnt);
 	int	(*mfi_adp_reset)(struct mfi_softc *sc);
 	int	(*mfi_adp_check_reset)(struct mfi_softc *sc);
+	void				(*mfi_intr_ptr)(void *sc);
 
 	/* ThunderBolt */
 	uint32_t			mfi_tbolt;
 	uint32_t			MFA_enabled;
-	uint64_t			map_id;
-	struct mfi_command 		*map_update_cmd;
 	/* Single Reply structure size */
 	uint16_t			reply_size;
 	/* Singler message size. */
@@ -318,7 +336,6 @@ struct mfi_softc {
 	uint8_t	*			request_message_pool;
 	uint8_t *			request_message_pool_align;
 	uint8_t *			request_desc_pool;
-	//uint32_t			request_desc_busaddr;
 	bus_addr_t			request_msg_busaddr;
 	bus_addr_t			reply_frame_busaddr;
 	bus_addr_t			sg_frame_busaddr;
@@ -417,7 +434,11 @@ extern int mfi_tbolt_alloc_cmd(struct mfi_softc *sc);
 extern int mfi_tbolt_send_frame(struct mfi_softc *sc, struct mfi_command *cm);
 extern int mfi_tbolt_adp_reset(struct mfi_softc *sc);
 extern int mfi_tbolt_reset(struct mfi_softc *sc);
-extern int mfi_tbolt_sync_map_info(struct mfi_softc *sc);
+extern void mfi_tbolt_sync_map_info(struct mfi_softc *sc);
+extern void mfi_handle_map_sync(void *context, int pending);
+extern int mfi_dcmd_command(struct mfi_softc *, struct mfi_command **,
+     uint32_t, void **, size_t);
+extern int mfi_build_cdb(int, uint8_t, u_int64_t, u_int32_t, uint8_t *);
 
 #define MFIQ_ADD(sc, qname)					\
 	do {							\

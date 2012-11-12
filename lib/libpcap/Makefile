@@ -37,8 +37,6 @@ MAN=	pcap.3 \
 	pcap_file.3 \
 	pcap_fileno.3 \
 	pcap_findalldevs.3 \
-	pcap_free_datalinks.3 \
-	pcap_freealldevs.3 \
 	pcap_freecode.3 \
 	pcap_get_selectable_fd.3 \
 	pcap_geterr.3 \
@@ -46,6 +44,7 @@ MAN=	pcap.3 \
 	pcap_is_swapped.3 \
 	pcap_lib_version.3 \
 	pcap_list_datalinks.3 \
+	pcap_list_tstamp_types.3 \
 	pcap_lookupdev.3 \
 	pcap_lookupnet.3 \
 	pcap_loop.3 \
@@ -61,6 +60,7 @@ MAN=	pcap.3 \
 	pcap_set_rfmon.3 \
 	pcap_set_snaplen.3 \
 	pcap_set_timeout.3 \
+	pcap_set_tstamp_type.3 \
 	pcap_setdirection.3 \
 	pcap_setfilter.3 \
 	pcap_setnonblock.3 \
@@ -69,12 +69,17 @@ MAN=	pcap.3 \
 	pcap_statustostr.3 \
 	pcap_strerror.3 \
 	pcap-savefile.5 \
+	pcap_tstamp_type_name_to_val.3 \
+	pcap_tstamp_type_val_to_name.3 \
 	pcap-filter.7 \
 	pcap-linktype.7
 MLINKS=	pcap_datalink_val_to_name.3 pcap_datalink_val_to_description.3 \
 	pcap_dump_open.3 pcap_dump_fopen.3 \
+	pcap_findalldevs.3 pcap_freealldevs.3 \
 	pcap_geterr.3 pcap_perror.3 \
 	pcap_inject.3 pcap_sendpacket.3 \
+	pcap_list_datalinks.3 pcap_free_datalinks.3 \
+	pcap_list_tstamp_types.3 pcap_free_tstamp_types.3 \
 	pcap_loop.3 pcap_dispatch.3 \
 	pcap_major_version.3 pcap_minor_version.3 \
 	pcap_next_ex.3 pcap_next.3 \

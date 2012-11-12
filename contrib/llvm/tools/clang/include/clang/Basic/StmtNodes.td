@@ -12,6 +12,7 @@ class DStmt<Stmt base, bit abstract = 0> : Stmt<abstract> {
 def NullStmt : Stmt;
 def CompoundStmt : Stmt;
 def LabelStmt : Stmt;
+def AttributedStmt : Stmt;
 def IfStmt : Stmt;
 def SwitchStmt : Stmt;
 def WhileStmt : Stmt;
@@ -29,6 +30,9 @@ def DefaultStmt : DStmt<SwitchCase>;
 
 // GNU Extensions
 def AsmStmt : Stmt;
+
+// MS Extensions
+def MSAsmStmt : Stmt;
 
 // Obj-C statements
 def ObjCAtTryStmt : Stmt;
@@ -133,7 +137,7 @@ def LambdaExpr : DStmt<Expr>;
 
 // Obj-C Expressions.
 def ObjCStringLiteral : DStmt<Expr>;
-def ObjCNumericLiteral : DStmt<Expr>;
+def ObjCBoxedExpr : DStmt<Expr>;
 def ObjCArrayLiteral : DStmt<Expr>;
 def ObjCDictionaryLiteral : DStmt<Expr>;
 def ObjCEncodeExpr : DStmt<Expr>;

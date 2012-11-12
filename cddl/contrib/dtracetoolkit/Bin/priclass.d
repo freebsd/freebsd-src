@@ -1,0 +1,1 @@
+../Kernel/priclass.d

@@ -3,6 +3,7 @@
 
       Commands marked with * may be preceded by a number, _N.
       Notes in parentheses indicate the behavior if _N is given.
+      A key preceded by a caret indicates the Ctrl key; thus ^K is ctrl-K.
 
   h  H                 Display this help.
   q  :q  Q  :Q  ZZ     Exit.
@@ -40,7 +41,7 @@
   ESC-u                Undo (toggle) search highlighting.
   &_p_a_t_t_e_r_n          *  Display only matching lines
         ---------------------------------------------------
-        Search patterns may be modified by one or more of:
+        A search pattern may be preceded by one or more of:
         ^N or !  Search for NON-matching lines.
         ^E or *  Search multiple files (pass thru END OF FILE).
         ^F or @  Start search at FIRST file (for /) or last file (for ?).
@@ -111,9 +112,9 @@
   -?  ........  --help
                   Display help (from command line).
   -a  ........  --search-skip-screen
-                  Forward search skips current screen.
+                  Search skips current screen.
   -A  ........  --SEARCH-SKIP-SCREEN
-                  Forward search always skips target line.
+                  Search starts just after target line.
   -b [_N]  ....  --buffers=[_N]
                   Number of buffers.
   -B  ........  --auto-buffers
@@ -169,7 +170,7 @@
   -s  ........  --squeeze-blank-lines
                   Squeeze multiple blank lines.
   -S  ........  --chop-long-lines
-                  Chop long lines.
+                  Chop (truncate) long lines rather than wrapping.
   -t [_t_a_g]  ..  --tag=[_t_a_g]
                   Find a tag.
   -T [_t_a_g_s_f_i_l_e] --tag-file=[_t_a_g_s_f_i_l_e]
@@ -186,8 +187,6 @@
                   Set tab stops.
   -X  ........  --no-init
                   Don't use termcap init/deinit strings.
-                --no-keypad
-                  Don't use termcap keypad init/deinit strings.
   -y [_N]  ....  --max-forw-scroll=[_N]
                   Forward scroll limit.
   -z [_N]  ....  --window=[_N]
@@ -199,7 +198,7 @@
   -# [_N]  ....  --shift=[_N]
                   Horizontal scroll amount (0 = one half screen width)
       ........  --no-keypad
-                  Don't send keypad init/deinit sequence.
+                  Don't send termcap keypad init/deinit strings.
       ........  --follow-name
                   The F command changes files if the input file is renamed.
 
@@ -213,19 +212,19 @@
 
  RightArrow                       ESC-l     Move cursor right one character.
  LeftArrow                        ESC-h     Move cursor left one character.
- CNTL-RightArrow  ESC-RightArrow  ESC-w     Move cursor right one word.
- CNTL-LeftArrow   ESC-LeftArrow   ESC-b     Move cursor left one word.
+ ctrl-RightArrow  ESC-RightArrow  ESC-w     Move cursor right one word.
+ ctrl-LeftArrow   ESC-LeftArrow   ESC-b     Move cursor left one word.
  HOME                             ESC-0     Move cursor to start of line.
  END                              ESC-$     Move cursor to end of line.
  BACKSPACE                                  Delete char to left of cursor.
  DELETE                           ESC-x     Delete char under cursor.
- CNTL-BACKSPACE   ESC-BACKSPACE             Delete word to left of cursor.
- CNTL-DELETE      ESC-DELETE      ESC-X     Delete word under cursor.
- CNTL-U           ESC (MS-DOS only)         Delete entire line.
+ ctrl-BACKSPACE   ESC-BACKSPACE             Delete word to left of cursor.
+ ctrl-DELETE      ESC-DELETE      ESC-X     Delete word under cursor.
+ ctrl-U           ESC (MS-DOS only)         Delete entire line.
  UpArrow                          ESC-k     Retrieve previous command line.
  DownArrow                        ESC-j     Retrieve next command line.
  TAB                                        Complete filename & cycle.
  SHIFT-TAB                        ESC-TAB   Complete filename & reverse cycle.
- CNTL-L                                     Complete filename, list all.
+ ctrl-L                                     Complete filename, list all.
 
 

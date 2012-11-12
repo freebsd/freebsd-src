@@ -16,6 +16,7 @@
 #define CLANG_CODEGEN_CODEGENTBAA_H
 
 #include "clang/Basic/LLVM.h"
+#include "llvm/MDBuilder.h"
 #include "llvm/ADT/DenseMap.h"
 
 namespace llvm {
@@ -25,6 +26,7 @@ namespace llvm {
 
 namespace clang {
   class ASTContext;
+  class CodeGenOptions;
   class LangOptions;
   class MangleContext;
   class QualType;
@@ -37,9 +39,12 @@ namespace CodeGen {
 /// while lowering AST types to LLVM types.
 class CodeGenTBAA {
   ASTContext &Context;
-  llvm::LLVMContext& VMContext;
+  const CodeGenOptions &CodeGenOpts;
   const LangOptions &Features;
   MangleContext &MContext;
+
+  // MDHelper - Helper for creating metadata.
+  llvm::MDBuilder MDHelper;
 
   /// MetadataCache - This maps clang::Types to llvm::MDNodes describing them.
   llvm::DenseMap<const Type *, llvm::MDNode *> MetadataCache;
@@ -55,12 +60,9 @@ class CodeGenTBAA {
   /// considered to be equivalent to it.
   llvm::MDNode *getChar();
 
-  llvm::MDNode *getTBAAInfoForNamedType(StringRef NameStr,
-                                        llvm::MDNode *Parent,
-                                        bool Readonly = false);
-
 public:
   CodeGenTBAA(ASTContext &Ctx, llvm::LLVMContext &VMContext,
+              const CodeGenOptions &CGO,
               const LangOptions &Features,
               MangleContext &MContext);
   ~CodeGenTBAA();

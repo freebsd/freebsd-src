@@ -95,7 +95,7 @@ int EVP_OpenInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
 		goto err;
 		}
 
-	i=EVP_PKEY_decrypt(key,ek,ekl,priv);
+	i=EVP_PKEY_decrypt_old(key,ek,ekl,priv);
 	if ((i <= 0) || !EVP_CIPHER_CTX_set_key_length(ctx, i))
 		{
 		/* ERROR */
@@ -115,7 +115,8 @@ int EVP_OpenFinal(EVP_CIPHER_CTX *ctx, unsigned char *out, int *outl)
 	int i;
 
 	i=EVP_DecryptFinal_ex(ctx,out,outl);
-	EVP_DecryptInit_ex(ctx,NULL,NULL,NULL,NULL);
+	if (i)
+		i = EVP_DecryptInit_ex(ctx,NULL,NULL,NULL,NULL);
 	return(i);
 	}
 #else /* !OPENSSL_NO_RSA */

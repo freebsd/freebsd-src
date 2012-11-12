@@ -196,7 +196,7 @@ bt_mca_probe (device_t dev)
 	} else {	       
 		mca_add_drq(dev, drq);
 		mca_add_irq(dev, irq);
-		result = 0;    
+		result = BUS_PROBE_DEFAULT;    
 	}	       
 	bt_mca_release_resources(dev);
 
@@ -229,8 +229,8 @@ bt_mca_attach (device_t dev)
 				/* nsegments	*/ ~0,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 				/* flags	*/ 0,
-				/* lockfunc	*/ busdma_lock_mutex,
-				/* lockarg	*/ &Giant,
+				/* lockfunc	*/ NULL,
+				/* lockarg	*/ NULL,
 				&bt->parent_dmat) != 0) {
 		bt_mca_release_resources(dev);
 		return (ENOMEM);
@@ -254,8 +254,8 @@ bt_mca_attach (device_t dev)
 				/* nsegments	*/ 1,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 				/* flags	*/ 0,
-				/* lockfunc	*/ busdma_lock_mutex,
-				/* lockarg	*/ &Giant,
+				/* lockfunc	*/ NULL,
+				/* lockarg	*/ NULL,
 				&bt->sense_dmat) != 0) {
 		bt_mca_release_resources(dev);
 		return (ENOMEM);

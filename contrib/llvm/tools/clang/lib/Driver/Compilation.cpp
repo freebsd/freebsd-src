@@ -219,7 +219,7 @@ void Compilation::initCompilationForDiagnostics(void) {
   // to avoid emitting warnings about unused args.
   OptSpecifier OutputOpts[] = { options::OPT_o, options::OPT_MD,
                                 options::OPT_MMD };
-  for (unsigned i = 0; i != sizeof(OutputOpts)/sizeof(OutputOpts[0]); ++i) {
+  for (unsigned i = 0, e = llvm::array_lengthof(OutputOpts); i != e; ++i) {
     if (TranslatedArgs->hasArg(OutputOpts[i]))
       TranslatedArgs->eraseArg(OutputOpts[i]);
   }
@@ -229,4 +229,8 @@ void Compilation::initCompilationForDiagnostics(void) {
   Redirects = new const llvm::sys::Path*[3]();
   Redirects[1] = new const llvm::sys::Path();
   Redirects[2] = new const llvm::sys::Path();
+}
+
+StringRef Compilation::getSysRoot(void) const {
+  return getDriver().SysRoot;
 }

@@ -1,7 +1,6 @@
 # $FreeBSD$
 
 .PATH:	${.CURDIR}/../../contrib/pf/authpf
-.PATH:	${.CURDIR}/../../contrib/pf/pfctl
 
 PROG=	authpf
 MAN=	authpf.8
@@ -10,8 +9,6 @@ BINGRP= authpf
 BINMODE= 6555
 
 SRCS=   authpf.c
-
-CFLAGS+= -I${.CURDIR}/../../contrib/pf/pfctl
 
 # XXX ALTQ:
 CFLAGS+= -DENABLE_ALTQ

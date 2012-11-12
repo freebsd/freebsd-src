@@ -209,7 +209,8 @@ value.
 The syntax is the same as for the
 .Fl l
 argument of
-.Xr cpuset 1 or the word
+.Xr cpuset 1
+or the word
 .Ql default .
 If set to
 .Ql default
@@ -266,9 +267,11 @@ The backoff delay is the number of tries above
 multiplied by 5 seconds.
 .It "login-retries	number	10	The number of login attempts"
 allowed before the login fails.
-.It "passwd_format	string	md5	The encryption format that new or"
+.It "passwd_format	string	sha512	The encryption format that new or"
 changed passwords will use.
-Valid values include "des", "md5" and "blf".
+Valid values include "des", "md5", "blf", "sha256" and "sha512"; see
+.Xr crypt 3
+for details.
 NIS clients using a
 .No non- Ns Fx
 NIS server should probably use "des".

@@ -67,39 +67,68 @@ static CanQualType GetReturnType(QualType RetTy) {
   return RetTy->getCanonicalTypeUnqualified().getUnqualifiedType();
 }
 
-/// Arrange the argument and result information for a value of the
-/// given unprototyped function type.
+/// Arrange the argument and result information for a value of the given
+/// unprototyped freestanding function type.
 const CGFunctionInfo &
-CodeGenTypes::arrangeFunctionType(CanQual<FunctionNoProtoType> FTNP) {
+CodeGenTypes::arrangeFreeFunctionType(CanQual<FunctionNoProtoType> FTNP) {
   // When translating an unprototyped function type, always use a
   // variadic type.
-  return arrangeFunctionType(FTNP->getResultType().getUnqualifiedType(),
-                             ArrayRef<CanQualType>(),
-                             FTNP->getExtInfo(),
-                             RequiredArgs(0));
+  return arrangeLLVMFunctionInfo(FTNP->getResultType().getUnqualifiedType(),
+                                 ArrayRef<CanQualType>(),
+                                 FTNP->getExtInfo(),
+                                 RequiredArgs(0));
 }
 
-/// Arrange the argument and result information for a value of the
-/// given function type, on top of any implicit parameters already
-/// stored.
-static const CGFunctionInfo &arrangeFunctionType(CodeGenTypes &CGT,
-                                  SmallVectorImpl<CanQualType> &argTypes,
-                                             CanQual<FunctionProtoType> FTP) {
-  RequiredArgs required = RequiredArgs::forPrototypePlus(FTP, argTypes.size());
+/// Arrange the LLVM function layout for a value of the given function
+/// type, on top of any implicit parameters already stored.  Use the
+/// given ExtInfo instead of the ExtInfo from the function type.
+static const CGFunctionInfo &arrangeLLVMFunctionInfo(CodeGenTypes &CGT,
+                                       SmallVectorImpl<CanQualType> &prefix,
+                                             CanQual<FunctionProtoType> FTP,
+                                              FunctionType::ExtInfo extInfo) {
+  RequiredArgs required = RequiredArgs::forPrototypePlus(FTP, prefix.size());
   // FIXME: Kill copy.
   for (unsigned i = 0, e = FTP->getNumArgs(); i != e; ++i)
-    argTypes.push_back(FTP->getArgType(i));
+    prefix.push_back(FTP->getArgType(i));
   CanQualType resultType = FTP->getResultType().getUnqualifiedType();
-  return CGT.arrangeFunctionType(resultType, argTypes,
-                                 FTP->getExtInfo(), required);
+  return CGT.arrangeLLVMFunctionInfo(resultType, prefix, extInfo, required);
+}
+
+/// Arrange the argument and result information for a free function (i.e.
+/// not a C++ or ObjC instance method) of the given type.
+static const CGFunctionInfo &arrangeFreeFunctionType(CodeGenTypes &CGT,
+                                      SmallVectorImpl<CanQualType> &prefix,
+                                            CanQual<FunctionProtoType> FTP) {
+  return arrangeLLVMFunctionInfo(CGT, prefix, FTP, FTP->getExtInfo());
+}
+
+/// Given the formal ext-info of a C++ instance method, adjust it
+/// according to the C++ ABI in effect.
+static void adjustCXXMethodInfo(CodeGenTypes &CGT,
+                                FunctionType::ExtInfo &extInfo,
+                                bool isVariadic) {
+  if (extInfo.getCC() == CC_Default) {
+    CallingConv CC = CGT.getContext().getDefaultCXXMethodCallConv(isVariadic);
+    extInfo = extInfo.withCallingConv(CC);
+  }
+}
+
+/// Arrange the argument and result information for a free function (i.e.
+/// not a C++ or ObjC instance method) of the given type.
+static const CGFunctionInfo &arrangeCXXMethodType(CodeGenTypes &CGT,
+                                      SmallVectorImpl<CanQualType> &prefix,
+                                            CanQual<FunctionProtoType> FTP) {
+  FunctionType::ExtInfo extInfo = FTP->getExtInfo();
+  adjustCXXMethodInfo(CGT, extInfo, FTP->isVariadic());
+  return arrangeLLVMFunctionInfo(CGT, prefix, FTP, extInfo);
 }
 
 /// Arrange the argument and result information for a value of the
-/// given function type.
+/// given freestanding function type.
 const CGFunctionInfo &
-CodeGenTypes::arrangeFunctionType(CanQual<FunctionProtoType> FTP) {
+CodeGenTypes::arrangeFreeFunctionType(CanQual<FunctionProtoType> FTP) {
   SmallVector<CanQualType, 16> argTypes;
-  return ::arrangeFunctionType(*this, argTypes, FTP);
+  return ::arrangeFreeFunctionType(*this, argTypes, FTP);
 }
 
 static CallingConv getCallingConventionForDecl(const Decl *D) {
@@ -134,7 +163,7 @@ CodeGenTypes::arrangeCXXMethodType(const CXXRecordDecl *RD,
   // Add the 'this' pointer.
   argTypes.push_back(GetThisType(Context, RD));
 
-  return ::arrangeFunctionType(*this, argTypes,
+  return ::arrangeCXXMethodType(*this, argTypes,
               FTP->getCanonicalTypeUnqualified().getAs<FunctionProtoType>());
 }
 
@@ -154,7 +183,7 @@ CodeGenTypes::arrangeCXXMethodDeclaration(const CXXMethodDecl *MD) {
     return arrangeCXXMethodType(MD->getParent(), prototype.getTypePtr());
   }
 
-  return arrangeFunctionType(prototype);
+  return arrangeFreeFunctionType(prototype);
 }
 
 /// Arrange the argument and result information for a declaration
@@ -176,7 +205,9 @@ CodeGenTypes::arrangeCXXConstructorDeclaration(const CXXConstructorDecl *D,
   for (unsigned i = 0, e = FTP->getNumArgs(); i != e; ++i)
     argTypes.push_back(FTP->getArgType(i));
 
-  return arrangeFunctionType(resultType, argTypes, FTP->getExtInfo(), required);
+  FunctionType::ExtInfo extInfo = FTP->getExtInfo();
+  adjustCXXMethodInfo(*this, extInfo, FTP->isVariadic());
+  return arrangeLLVMFunctionInfo(resultType, argTypes, extInfo, required);
 }
 
 /// Arrange the argument and result information for a declaration,
@@ -193,9 +224,12 @@ CodeGenTypes::arrangeCXXDestructor(const CXXDestructorDecl *D,
 
   CanQual<FunctionProtoType> FTP = GetFormalType(D);
   assert(FTP->getNumArgs() == 0 && "dtor with formal parameters");
+  assert(FTP->isVariadic() == 0 && "dtor with formal parameters");
 
-  return arrangeFunctionType(resultType, argTypes, FTP->getExtInfo(),
-                             RequiredArgs::All);
+  FunctionType::ExtInfo extInfo = FTP->getExtInfo();
+  adjustCXXMethodInfo(*this, extInfo, false);
+  return arrangeLLVMFunctionInfo(resultType, argTypes, extInfo,
+                                 RequiredArgs::All);
 }
 
 /// Arrange the argument and result information for the declaration or
@@ -214,14 +248,14 @@ CodeGenTypes::arrangeFunctionDeclaration(const FunctionDecl *FD) {
   // non-variadic type.
   if (isa<FunctionNoProtoType>(FTy)) {
     CanQual<FunctionNoProtoType> noProto = FTy.getAs<FunctionNoProtoType>();
-    return arrangeFunctionType(noProto->getResultType(),
-                               ArrayRef<CanQualType>(),
-                               noProto->getExtInfo(),
-                               RequiredArgs::All);
+    return arrangeLLVMFunctionInfo(noProto->getResultType(),
+                                   ArrayRef<CanQualType>(),
+                                   noProto->getExtInfo(),
+                                   RequiredArgs::All);
   }
 
   assert(isa<FunctionProtoType>(FTy));
-  return arrangeFunctionType(FTy.getAs<FunctionProtoType>());
+  return arrangeFreeFunctionType(FTy.getAs<FunctionProtoType>());
 }
 
 /// Arrange the argument and result information for the declaration or
@@ -261,8 +295,8 @@ CodeGenTypes::arrangeObjCMessageSendSignature(const ObjCMethodDecl *MD,
   RequiredArgs required =
     (MD->isVariadic() ? RequiredArgs(argTys.size()) : RequiredArgs::All);
 
-  return arrangeFunctionType(GetReturnType(MD->getResultType()), argTys,
-                             einfo, required);
+  return arrangeLLVMFunctionInfo(GetReturnType(MD->getResultType()), argTys,
+                                 einfo, required);
 }
 
 const CGFunctionInfo &
@@ -284,8 +318,8 @@ CodeGenTypes::arrangeGlobalDeclaration(GlobalDecl GD) {
 /// because the function might be unprototyped, in which case it's
 /// target-dependent in crazy ways.
 const CGFunctionInfo &
-CodeGenTypes::arrangeFunctionCall(const CallArgList &args,
-                                  const FunctionType *fnType) {
+CodeGenTypes::arrangeFreeFunctionCall(const CallArgList &args,
+                                      const FunctionType *fnType) {
   RequiredArgs required = RequiredArgs::All;
   if (const FunctionProtoType *proto = dyn_cast<FunctionProtoType>(fnType)) {
     if (proto->isVariadic())
@@ -295,22 +329,39 @@ CodeGenTypes::arrangeFunctionCall(const CallArgList &args,
     required = RequiredArgs(0);
   }
 
-  return arrangeFunctionCall(fnType->getResultType(), args,
-                             fnType->getExtInfo(), required);
+  return arrangeFreeFunctionCall(fnType->getResultType(), args,
+                                 fnType->getExtInfo(), required);
 }
 
 const CGFunctionInfo &
-CodeGenTypes::arrangeFunctionCall(QualType resultType,
-                                  const CallArgList &args,
-                                  const FunctionType::ExtInfo &info,
-                                  RequiredArgs required) {
+CodeGenTypes::arrangeFreeFunctionCall(QualType resultType,
+                                      const CallArgList &args,
+                                      FunctionType::ExtInfo info,
+                                      RequiredArgs required) {
   // FIXME: Kill copy.
   SmallVector<CanQualType, 16> argTypes;
   for (CallArgList::const_iterator i = args.begin(), e = args.end();
        i != e; ++i)
     argTypes.push_back(Context.getCanonicalParamType(i->Ty));
-  return arrangeFunctionType(GetReturnType(resultType), argTypes, info,
-                             required);
+  return arrangeLLVMFunctionInfo(GetReturnType(resultType), argTypes, info,
+                                 required);
+}
+
+/// Arrange a call to a C++ method, passing the given arguments.
+const CGFunctionInfo &
+CodeGenTypes::arrangeCXXMethodCall(const CallArgList &args,
+                                   const FunctionProtoType *FPT,
+                                   RequiredArgs required) {
+  // FIXME: Kill copy.
+  SmallVector<CanQualType, 16> argTypes;
+  for (CallArgList::const_iterator i = args.begin(), e = args.end();
+       i != e; ++i)
+    argTypes.push_back(Context.getCanonicalParamType(i->Ty));
+
+  FunctionType::ExtInfo info = FPT->getExtInfo();
+  adjustCXXMethodInfo(*this, info, FPT->isVariadic());
+  return arrangeLLVMFunctionInfo(GetReturnType(FPT->getResultType()),
+                                 argTypes, info, required);
 }
 
 const CGFunctionInfo &
@@ -326,23 +377,23 @@ CodeGenTypes::arrangeFunctionDeclaration(QualType resultType,
 
   RequiredArgs required =
     (isVariadic ? RequiredArgs(args.size()) : RequiredArgs::All);
-  return arrangeFunctionType(GetReturnType(resultType), argTypes, info,
-                             required);
+  return arrangeLLVMFunctionInfo(GetReturnType(resultType), argTypes, info,
+                                 required);
 }
 
 const CGFunctionInfo &CodeGenTypes::arrangeNullaryFunction() {
-  return arrangeFunctionType(getContext().VoidTy, ArrayRef<CanQualType>(),
-                             FunctionType::ExtInfo(), RequiredArgs::All);
+  return arrangeLLVMFunctionInfo(getContext().VoidTy, ArrayRef<CanQualType>(),
+                                 FunctionType::ExtInfo(), RequiredArgs::All);
 }
 
 /// Arrange the argument and result information for an abstract value
 /// of a given function type.  This is the method which all of the
 /// above functions ultimately defer to.
 const CGFunctionInfo &
-CodeGenTypes::arrangeFunctionType(CanQualType resultType,
-                                  ArrayRef<CanQualType> argTypes,
-                                  const FunctionType::ExtInfo &info,
-                                  RequiredArgs required) {
+CodeGenTypes::arrangeLLVMFunctionInfo(CanQualType resultType,
+                                      ArrayRef<CanQualType> argTypes,
+                                      FunctionType::ExtInfo info,
+                                      RequiredArgs required) {
 #ifndef NDEBUG
   for (ArrayRef<CanQualType>::const_iterator
          I = argTypes.begin(), E = argTypes.end(); I != E; ++I)
@@ -419,16 +470,36 @@ void CodeGenTypes::GetExpandedTypes(QualType type,
     uint64_t NumElts = AT->getSize().getZExtValue();
     for (uint64_t Elt = 0; Elt < NumElts; ++Elt)
       GetExpandedTypes(AT->getElementType(), expandedTypes);
-  } else if (const RecordType *RT = type->getAsStructureType()) {
+  } else if (const RecordType *RT = type->getAs<RecordType>()) {
     const RecordDecl *RD = RT->getDecl();
     assert(!RD->hasFlexibleArrayMember() &&
            "Cannot expand structure with flexible array.");
-    for (RecordDecl::field_iterator i = RD->field_begin(), e = RD->field_end();
-         i != e; ++i) {
-      const FieldDecl *FD = *i;
-      assert(!FD->isBitField() &&
-             "Cannot expand structure with bit-field members.");
-      GetExpandedTypes(FD->getType(), expandedTypes);
+    if (RD->isUnion()) {
+      // Unions can be here only in degenerative cases - all the fields are same
+      // after flattening. Thus we have to use the "largest" field.
+      const FieldDecl *LargestFD = 0;
+      CharUnits UnionSize = CharUnits::Zero();
+
+      for (RecordDecl::field_iterator i = RD->field_begin(), e = RD->field_end();
+           i != e; ++i) {
+        const FieldDecl *FD = *i;
+        assert(!FD->isBitField() &&
+               "Cannot expand structure with bit-field members.");
+        CharUnits FieldSize = getContext().getTypeSizeInChars(FD->getType());
+        if (UnionSize < FieldSize) {
+          UnionSize = FieldSize;
+          LargestFD = FD;
+        }
+      }
+      if (LargestFD)
+        GetExpandedTypes(LargestFD->getType(), expandedTypes);
+    } else {
+      for (RecordDecl::field_iterator i = RD->field_begin(), e = RD->field_end();
+           i != e; ++i) {
+        assert(!i->isBitField() &&
+               "Cannot expand structure with bit-field members.");
+        GetExpandedTypes(i->getType(), expandedTypes);
+      }
     }
   } else if (const ComplexType *CT = type->getAs<ComplexType>()) {
     llvm::Type *EltTy = ConvertType(CT->getElementType());
@@ -443,32 +514,55 @@ CodeGenFunction::ExpandTypeFromArgs(QualType Ty, LValue LV,
                                     llvm::Function::arg_iterator AI) {
   assert(LV.isSimple() &&
          "Unexpected non-simple lvalue during struct expansion.");
-  llvm::Value *Addr = LV.getAddress();
 
   if (const ConstantArrayType *AT = getContext().getAsConstantArrayType(Ty)) {
     unsigned NumElts = AT->getSize().getZExtValue();
     QualType EltTy = AT->getElementType();
     for (unsigned Elt = 0; Elt < NumElts; ++Elt) {
-      llvm::Value *EltAddr = Builder.CreateConstGEP2_32(Addr, 0, Elt);
+      llvm::Value *EltAddr = Builder.CreateConstGEP2_32(LV.getAddress(), 0, Elt);
       LValue LV = MakeAddrLValue(EltAddr, EltTy);
       AI = ExpandTypeFromArgs(EltTy, LV, AI);
     }
-  } else if (const RecordType *RT = Ty->getAsStructureType()) {
+  } else if (const RecordType *RT = Ty->getAs<RecordType>()) {
     RecordDecl *RD = RT->getDecl();
-    for (RecordDecl::field_iterator i = RD->field_begin(), e = RD->field_end();
-         i != e; ++i) {
-      FieldDecl *FD = *i;
-      QualType FT = FD->getType();
+    if (RD->isUnion()) {
+      // Unions can be here only in degenerative cases - all the fields are same
+      // after flattening. Thus we have to use the "largest" field.
+      const FieldDecl *LargestFD = 0;
+      CharUnits UnionSize = CharUnits::Zero();
 
-      // FIXME: What are the right qualifiers here?
-      LValue LV = EmitLValueForField(Addr, FD, 0);
-      AI = ExpandTypeFromArgs(FT, LV, AI);
+      for (RecordDecl::field_iterator i = RD->field_begin(), e = RD->field_end();
+           i != e; ++i) {
+        const FieldDecl *FD = *i;
+        assert(!FD->isBitField() &&
+               "Cannot expand structure with bit-field members.");
+        CharUnits FieldSize = getContext().getTypeSizeInChars(FD->getType());
+        if (UnionSize < FieldSize) {
+          UnionSize = FieldSize;
+          LargestFD = FD;
+        }
+      }
+      if (LargestFD) {
+        // FIXME: What are the right qualifiers here?
+        LValue SubLV = EmitLValueForField(LV, LargestFD);
+        AI = ExpandTypeFromArgs(LargestFD->getType(), SubLV, AI);
+      }
+    } else {
+      for (RecordDecl::field_iterator i = RD->field_begin(), e = RD->field_end();
+           i != e; ++i) {
+        FieldDecl *FD = *i;
+        QualType FT = FD->getType();
+
+        // FIXME: What are the right qualifiers here?
+        LValue SubLV = EmitLValueForField(LV, FD);
+        AI = ExpandTypeFromArgs(FT, SubLV, AI);
+      }
     }
   } else if (const ComplexType *CT = Ty->getAs<ComplexType>()) {
     QualType EltTy = CT->getElementType();
-    llvm::Value *RealAddr = Builder.CreateStructGEP(Addr, 0, "real");
+    llvm::Value *RealAddr = Builder.CreateStructGEP(LV.getAddress(), 0, "real");
     EmitStoreThroughLValue(RValue::get(AI++), MakeAddrLValue(RealAddr, EltTy));
-    llvm::Value *ImagAddr = Builder.CreateStructGEP(Addr, 1, "imag");
+    llvm::Value *ImagAddr = Builder.CreateStructGEP(LV.getAddress(), 1, "imag");
     EmitStoreThroughLValue(RValue::get(AI++), MakeAddrLValue(ImagAddr, EltTy));
   } else {
     EmitStoreThroughLValue(RValue::get(AI), LV);
@@ -889,14 +983,18 @@ void CodeGenModule::ConstructAttributeList(const CGFunctionInfo &FI,
   case ABIArgInfo::Ignore:
     break;
 
-  case ABIArgInfo::Indirect:
-    PAL.push_back(llvm::AttributeWithIndex::get(Index,
-                                                llvm::Attribute::StructRet));
+  case ABIArgInfo::Indirect: {
+    llvm::Attributes SRETAttrs = llvm::Attribute::StructRet;
+    if (RetAI.getInReg())
+      SRETAttrs |= llvm::Attribute::InReg;
+    PAL.push_back(llvm::AttributeWithIndex::get(Index, SRETAttrs));
+
     ++Index;
     // sret disables readnone and readonly
     FuncAttrs &= ~(llvm::Attribute::ReadOnly |
                    llvm::Attribute::ReadNone);
     break;
+  }
 
   case ABIArgInfo::Expand:
     llvm_unreachable("Invalid ABI kind for return argument");
@@ -905,14 +1003,6 @@ void CodeGenModule::ConstructAttributeList(const CGFunctionInfo &FI,
   if (RetAttrs)
     PAL.push_back(llvm::AttributeWithIndex::get(0, RetAttrs));
 
-  // FIXME: RegParm should be reduced in case of global register variable.
-  signed RegParm;
-  if (FI.getHasRegParm())
-    RegParm = FI.getRegParm();
-  else
-    RegParm = CodeGenOpts.NumRegisterParameters;
-
-  unsigned PointerWidth = getContext().getTargetInfo().getPointerWidth(0);
   for (CGFunctionInfo::const_arg_iterator it = FI.arg_begin(),
          ie = FI.arg_end(); it != ie; ++it) {
     QualType ParamType = it->type;
@@ -930,22 +1020,22 @@ void CodeGenModule::ConstructAttributeList(const CGFunctionInfo &FI,
         Attrs |= llvm::Attribute::ZExt;
       // FALL THROUGH
     case ABIArgInfo::Direct:
-      if (RegParm > 0 &&
-          (ParamType->isIntegerType() || ParamType->isPointerType() ||
-           ParamType->isReferenceType())) {
-        RegParm -=
-        (Context.getTypeSize(ParamType) + PointerWidth - 1) / PointerWidth;
-        if (RegParm >= 0)
+      if (AI.getInReg())
           Attrs |= llvm::Attribute::InReg;
-      }
+
       // FIXME: handle sseregparm someday...
 
       // Increment Index if there is padding.
       Index += (AI.getPaddingType() != 0);
 
       if (llvm::StructType *STy =
-            dyn_cast<llvm::StructType>(AI.getCoerceToType()))
-        Index += STy->getNumElements()-1;  // 1 will be added below.
+          dyn_cast<llvm::StructType>(AI.getCoerceToType())) {
+        unsigned Extra = STy->getNumElements()-1;  // 1 will be added below.
+        if (Attrs != llvm::Attribute::None)
+          for (unsigned I = 0; I < Extra; ++I)
+            PAL.push_back(llvm::AttributeWithIndex::get(Index + I, Attrs));
+        Index += Extra;
+      }
       break;
 
     case ABIArgInfo::Indirect:
@@ -1311,7 +1401,8 @@ static llvm::Value *tryEmitFusedAutoreleaseOfResult(CodeGenFunction &CGF,
 static llvm::Value *tryRemoveRetainOfSelf(CodeGenFunction &CGF,
                                           llvm::Value *result) {
   // This is only applicable to a method with an immutable 'self'.
-  const ObjCMethodDecl *method = dyn_cast<ObjCMethodDecl>(CGF.CurCodeDecl);
+  const ObjCMethodDecl *method =
+    dyn_cast_or_null<ObjCMethodDecl>(CGF.CurCodeDecl);
   if (!method) return 0;
   const VarDecl *self = method->getSelfDecl();
   if (!self->getType().isConstQualified()) return 0;
@@ -1760,26 +1851,38 @@ void CodeGenFunction::ExpandTypeToArgs(QualType Ty, RValue RV,
         EltRV = EmitLoadOfLValue(LV);
       ExpandTypeToArgs(EltTy, EltRV, Args, IRFuncTy);
     }
-  } else if (const RecordType *RT = Ty->getAsStructureType()) {
+  } else if (const RecordType *RT = Ty->getAs<RecordType>()) {
     RecordDecl *RD = RT->getDecl();
     assert(RV.isAggregate() && "Unexpected rvalue during struct expansion");
-    llvm::Value *Addr = RV.getAggregateAddr();
-    for (RecordDecl::field_iterator i = RD->field_begin(), e = RD->field_end();
-         i != e; ++i) {
-      FieldDecl *FD = *i;
-      QualType FT = FD->getType();
-    
-      // FIXME: What are the right qualifiers here?
-      LValue LV = EmitLValueForField(Addr, FD, 0);
-      RValue FldRV;
-      if (FT->isAnyComplexType())
-        // FIXME: Volatile?
-        FldRV = RValue::getComplex(LoadComplexFromAddr(LV.getAddress(), false));
-      else if (CodeGenFunction::hasAggregateLLVMType(FT))
-        FldRV = LV.asAggregateRValue();
-      else
-        FldRV = EmitLoadOfLValue(LV);
-      ExpandTypeToArgs(FT, FldRV, Args, IRFuncTy);
+    LValue LV = MakeAddrLValue(RV.getAggregateAddr(), Ty);
+
+    if (RD->isUnion()) {
+      const FieldDecl *LargestFD = 0;
+      CharUnits UnionSize = CharUnits::Zero();
+
+      for (RecordDecl::field_iterator i = RD->field_begin(), e = RD->field_end();
+           i != e; ++i) {
+        const FieldDecl *FD = *i;
+        assert(!FD->isBitField() &&
+               "Cannot expand structure with bit-field members.");
+        CharUnits FieldSize = getContext().getTypeSizeInChars(FD->getType());
+        if (UnionSize < FieldSize) {
+          UnionSize = FieldSize;
+          LargestFD = FD;
+        }
+      }
+      if (LargestFD) {
+        RValue FldRV = EmitRValueForField(LV, LargestFD);
+        ExpandTypeToArgs(LargestFD->getType(), FldRV, Args, IRFuncTy);
+      }
+    } else {
+      for (RecordDecl::field_iterator i = RD->field_begin(), e = RD->field_end();
+           i != e; ++i) {
+        FieldDecl *FD = *i;
+
+        RValue FldRV = EmitRValueForField(LV, FD);
+        ExpandTypeToArgs(FD->getType(), FldRV, Args, IRFuncTy);
+      }
     }
   } else if (Ty->isAnyComplexType()) {
     ComplexPairTy CV = RV.getComplexVal();
@@ -2010,8 +2113,7 @@ RValue CodeGenFunction::EmitCall(const CGFunctionInfo &CallInfo,
   unsigned CallingConv;
   CodeGen::AttributeListType AttributeList;
   CGM.ConstructAttributeList(CallInfo, TargetDecl, AttributeList, CallingConv);
-  llvm::AttrListPtr Attrs = llvm::AttrListPtr::get(AttributeList.begin(),
-                                                   AttributeList.end());
+  llvm::AttrListPtr Attrs = llvm::AttrListPtr::get(AttributeList);
 
   llvm::BasicBlock *InvokeDest = 0;
   if (!(Attrs.getFnAttributes() & llvm::Attribute::NoUnwind))

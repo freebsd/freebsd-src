@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -47,12 +48,13 @@ vdev_file_rele(vdev_t *vd)
 }
 
 static int
-vdev_file_open(vdev_t *vd, uint64_t *psize, uint64_t *ashift)
+vdev_file_open(vdev_t *vd, uint64_t *psize, uint64_t *max_psize,
+    uint64_t *ashift)
 {
 	vdev_file_t *vf;
 	vnode_t *vp;
 	vattr_t vattr;
-	int error, vfslocked;
+	int error;
 
 	/*
 	 * We must have a pathname, and it must be absolute.
@@ -112,11 +114,9 @@ skip_open:
 	 * Determine the physical size of the file.
 	 */
 	vattr.va_mask = AT_SIZE;
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	error = VOP_GETATTR(vp, &vattr, kcred);
 	VOP_UNLOCK(vp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
 	if (error) {
 		(void) VOP_CLOSE(vp, spa_mode(vd->vdev_spa), 1, 0, kcred, NULL);
 		vd->vdev_stat.vs_aux = VDEV_AUX_OPEN_FAILED;
@@ -125,7 +125,7 @@ skip_open:
 		return (error);
 	}
 
-	*psize = vattr.va_size;
+	*max_psize = *psize = vattr.va_size;
 	*ashift = SPA_MINBLOCKSHIFT;
 
 	return (0);

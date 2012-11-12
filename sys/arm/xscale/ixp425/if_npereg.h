@@ -32,7 +32,7 @@
 /*
  * Copyright (c) 2001-2005, Intel Corporation.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -44,8 +44,8 @@
  * 3. Neither the name of the Intel Corporation nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
- * 
+ *
+ *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS IS''
  * AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -253,19 +253,19 @@ struct npestats {
 /* NB: shorthands for mii bus mdio routines */
 #define	NPE_MAC_MDIO_CMD	NPE_MAC_MDIO_CMD_1
 #define	NPE_MAC_MDIO_STS	NPE_MAC_MDIO_STS_1
- 
+
 #define NPE_MII_GO                  (1<<31)
 #define NPE_MII_WRITE               (1<<26)
-#define NPE_MII_TIMEOUT_10TH_SECS        5    
+#define NPE_MII_TIMEOUT_10TH_SECS        5
 #define NPE_MII_10TH_SEC_IN_MILLIS     100
 #define NPE_MII_READ_FAIL           (1<<31)
- 
+
 #define NPE_MII_PHY_DEF_DELAY	300	/* max delay before link up, etc. */
 #define NPE_MII_PHY_NO_DELAY	0x0	/* do not delay */
 #define NPE_MII_PHY_NULL	0xff	/* PHY is not present */
 #define NPE_MII_PHY_DEF_ADDR	0x0	/* default PHY's logical address */
 
-/* Register definition */  
+/* Register definition */
 #define NPE_MII_CTRL_REG	0x0	/* Control Register */
 #define NPE_MII_STAT_REG	0x1	/* Status Register */
 #define NPE_MII_PHY_ID1_REG	0x2	/* PHY identifier 1 Register */

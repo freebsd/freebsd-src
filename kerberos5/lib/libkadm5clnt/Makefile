@@ -26,17 +26,14 @@ SRCS=	ad.c \
 	get_c.c \
 	get_princs_c.c \
 	init_c.c \
-	kadm5_locl.h \
 	kadm5_err.c \
 	kadm5_err.h \
 	marshall.c \
 	modify_c.c \
-	private.h \
 	privs_c.c \
 	randkey_c.c \
 	rename_c.c \
-	send_recv.c \
-	admin.h
+	send_recv.c
 
 CFLAGS+=-I${KRB5DIR}/lib/kadm5 -I${KRB5DIR}/lib/asn1 -I${KRB5DIR}/lib/roken -I.
 

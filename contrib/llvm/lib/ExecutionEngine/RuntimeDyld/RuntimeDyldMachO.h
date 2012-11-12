@@ -49,9 +49,10 @@ protected:
                             int64_t Addend);
 
   virtual void processRelocationRef(const ObjRelocationInfo &Rel,
-                                    const ObjectFile &Obj,
+                                    ObjectImage &Obj,
                                     ObjSectionToIDMap &ObjSectionToID,
-                                    LocalSymbolMap &Symbols, StubMap &Stubs);
+                                    const SymbolTableMap &Symbols,
+                                    StubMap &Stubs);
 
 public:
   virtual void resolveRelocation(uint8_t *LocalAddress,
@@ -59,7 +60,7 @@ public:
                                  uint64_t Value,
                                  uint32_t Type,
                                  int64_t Addend);
-                                 
+
   RuntimeDyldMachO(RTDyldMemoryManager *mm) : RuntimeDyldImpl(mm) {}
 
   bool isCompatibleFormat(const MemoryBuffer *InputBuffer) const;

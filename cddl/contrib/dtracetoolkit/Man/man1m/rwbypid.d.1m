@@ -1,0 +1,48 @@
+.TH rwbypid.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+rwbypid.d \- read/write calls by PID. Uses DTrace.
+.SH SYNOPSIS
+.B rwbypid.d
+.SH DESCRIPTION
+This script tracks the number of reads and writes at the syscall level
+by processes, printing the totals in a report. This matches reads
+and writes whether they succeed or not.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the syscall provider.
+.SH EXAMPLES
+.TP
+This samples until Ctrl\-C is hit.
+# 
+.B rwbypid.d
+.PP
+.SH FIELDS
+.TP
+PID
+process ID
+.TP
+CMD
+process name
+.TP
+DIR
+direction, Read or Write
+.TP
+COUNT
+total calls
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+rwbypid.d will sample until Ctrl\-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+rwbbypid.d(1M), dtrace(1M)
+

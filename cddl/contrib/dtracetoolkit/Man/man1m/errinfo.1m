@@ -1,0 +1,85 @@
+.TH errinfo 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+errinfo \- print errno for syscall fails. Uses DTrace.
+.SH SYNOPSIS
+.B errinfo
+[\-a|\-A|\-hsvZ] [\-c command]
+.SH DESCRIPTION
+errinfo snoops syscall failures and prints the errno value and
+description of the error number.
+
+This program can help determine if applications are silently
+failing, providing some details on the cause. 
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the syscall provider.
+.SH OPTIONS
+.TP
+\-c
+counts - print an aggregate style report containing a 
+frequency count of errors
+.TP
+\-p PID
+examine this PID only
+.TP
+\-n name
+examine processes with ths name only (eg, "ls")
+.SH EXAMPLES
+.TP
+Default output, print errors as they occur,
+# 
+.B errinfo
+.PP
+.TP
+Print a frequency count report,
+# 
+.B errinfo
+\-c 
+.PP
+.TP
+Snoop errors as they occur for "ssh" processes,
+#
+.B errinfo
+\-n ssh
+PP
+.TP
+Snoop errors for PID 81 only,
+#
+.B errinfo
+\-p 81
+.PP
+.SH FIELDS
+.TP
+EXEC
+Program name (truncated)
+.TP
+SYSCALL
+System call name
+.TP
+ERR
+Value of errno
+.TP
+DESC
+Description of errno message
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+errinfo will run forever until Ctrl\-C is hit. 
+.SH FILES
+.TP
+/usr/include/sys/errno.h
+Contains the full descriptions for the error numbers.
+.PP
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+dtrace(1M), truss(1)
+

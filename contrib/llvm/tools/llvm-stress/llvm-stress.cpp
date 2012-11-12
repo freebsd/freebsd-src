@@ -82,6 +82,12 @@ public:
     uint64_t Val = Rand32();
     return Val | (uint64_t(Rand32()) << 32);
   }
+
+  /// Rand operator for STL algorithms.
+  ptrdiff_t operator()(ptrdiff_t y) {
+    return  Rand64() % y;
+  }
+
 private:
   unsigned Seed;
 };
@@ -412,7 +418,7 @@ struct ExtractElementModifier: public Modifier {
     Value *Val0 = getRandomVectorValue();
     Value *V = ExtractElementInst::Create(Val0,
              ConstantInt::get(Type::getInt32Ty(BB->getContext()),
-             Ran->Rand() % cast<VectorType>(Val0->getType())->getNumElements()), 
+             Ran->Rand() % cast<VectorType>(Val0->getType())->getNumElements()),
              "E", BB->getTerminator());
     return PT->push_back(V);
   }
@@ -476,7 +482,7 @@ struct CastModifier: public Modifier {
       DestTy = pickVectorType(VecTy->getNumElements());
     }
 
-    // no need to casr.
+    // no need to cast.
     if (VTy == DestTy) return;
 
     // Pointers:
@@ -487,9 +493,11 @@ struct CastModifier: public Modifier {
         new BitCastInst(V, DestTy, "PC", BB->getTerminator()));
     }
 
+    unsigned VSize = VTy->getScalarType()->getPrimitiveSizeInBits();
+    unsigned DestSize = DestTy->getScalarType()->getPrimitiveSizeInBits();
+
     // Generate lots of bitcasts.
-    if ((Ran->Rand() & 1) &&
-        VTy->getPrimitiveSizeInBits() == DestTy->getPrimitiveSizeInBits()) {
+    if ((Ran->Rand() & 1) && VSize == DestSize) {
       return PT->push_back(
         new BitCastInst(V, DestTy, "BC", BB->getTerminator()));
     }
@@ -497,11 +505,11 @@ struct CastModifier: public Modifier {
     // Both types are integers:
     if (VTy->getScalarType()->isIntegerTy() &&
         DestTy->getScalarType()->isIntegerTy()) {
-      if (VTy->getScalarType()->getPrimitiveSizeInBits() >
-          DestTy->getScalarType()->getPrimitiveSizeInBits()) {
+      if (VSize > DestSize) {
         return PT->push_back(
           new TruncInst(V, DestTy, "Tr", BB->getTerminator()));
       } else {
+        assert(VSize < DestSize && "Different int types with the same size?");
         if (Ran->Rand() & 1)
           return PT->push_back(
             new ZExtInst(V, DestTy, "ZE", BB->getTerminator()));
@@ -531,14 +539,15 @@ struct CastModifier: public Modifier {
     // Both floats.
     if (VTy->getScalarType()->isFloatingPointTy() &&
         DestTy->getScalarType()->isFloatingPointTy()) {
-      if (VTy->getScalarType()->getPrimitiveSizeInBits() >
-          DestTy->getScalarType()->getPrimitiveSizeInBits()) {
+      if (VSize > DestSize) {
         return PT->push_back(
           new FPTruncInst(V, DestTy, "Tr", BB->getTerminator()));
-      } else {
+      } else if (VSize < DestSize) {
         return PT->push_back(
           new FPExtInst(V, DestTy, "ZE", BB->getTerminator()));
       }
+      // If VSize == DestSize, then the two types must be fp128 and ppc_fp128,
+      // for which there is no defined conversion. So do nothing.
     }
   }
 
@@ -596,15 +605,13 @@ struct CmpModifier: public Modifier {
   }
 };
 
-void FillFunction(Function *F) {
+void FillFunction(Function *F, Random &R) {
   // Create a legal entry block.
   BasicBlock *BB = BasicBlock::Create(F->getContext(), "BB", F);
   ReturnInst::Create(F->getContext(), BB);
 
   // Create the value table.
   Modifier::PieceTable PT;
-  // Pick an initial seed value
-  Random R(SeedCL);
 
   // Consider arguments as legal values.
   for (Function::arg_iterator it = F->arg_begin(), e = F->arg_end();
@@ -645,15 +652,17 @@ void FillFunction(Function *F) {
   SM->ActN(5); // Throw in a few stores.
 }
 
-void IntroduceControlFlow(Function *F) {
-  std::set<Instruction*> BoolInst;
+void IntroduceControlFlow(Function *F, Random &R) {
+  std::vector<Instruction*> BoolInst;
   for (BasicBlock::iterator it = F->begin()->begin(),
        e = F->begin()->end(); it != e; ++it) {
     if (it->getType() == IntegerType::getInt1Ty(F->getContext()))
-      BoolInst.insert(it);
+      BoolInst.push_back(it);
   }
 
-  for (std::set<Instruction*>::iterator it = BoolInst.begin(),
+  std::random_shuffle(BoolInst.begin(), BoolInst.end(), R);
+
+  for (std::vector<Instruction*>::iterator it = BoolInst.begin(),
        e = BoolInst.end(); it != e; ++it) {
     Instruction *Instr = *it;
     BasicBlock *Curr = Instr->getParent();
@@ -675,8 +684,13 @@ int main(int argc, char **argv) {
 
   std::auto_ptr<Module> M(new Module("/tmp/autogen.bc", getGlobalContext()));
   Function *F = GenEmptyFunction(M.get());
-  FillFunction(F);
-  IntroduceControlFlow(F);
+
+  // Pick an initial seed value
+  Random R(SeedCL);
+  // Generate lots of random instructions inside a single basic block.
+  FillFunction(F, R);
+  // Break the basic block into many loops.
+  IntroduceControlFlow(F, R);
 
   // Figure out what stream we are supposed to write to...
   OwningPtr<tool_output_file> Out;

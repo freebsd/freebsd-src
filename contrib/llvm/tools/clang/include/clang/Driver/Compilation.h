@@ -76,6 +76,8 @@ public:
 
   const DerivedArgList &getArgs() const { return *TranslatedArgs; }
 
+  DerivedArgList &getArgs() { return *TranslatedArgs; }
+
   ActionList &getActions() { return Actions; }
   const ActionList &getActions() const { return Actions; }
 
@@ -91,6 +93,9 @@ public:
   const ArgStringList &getFailureResultFiles() const {
     return FailureResultFiles;
   }
+
+  /// Returns the sysroot path.
+  StringRef getSysRoot() const;
 
   /// getArgsForToolChain - Return the derived argument list for the
   /// tool chain \arg TC (or the default tool chain, if TC is not

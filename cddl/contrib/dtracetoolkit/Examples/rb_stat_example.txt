@@ -1,0 +1,22 @@
+The following are examples of running rb_stat.d on Ruby programs.
+
+rb_stat.d shows you the number of events per second that have happened since
+the last line output.  The default interval is 1 second, but you can specify
+other intervals as arguments to the script.
+
+This shows the rb_stat.d script reflecting the Code/Ruby/func_slow.rb script.
+
+# ./rb_stat.d
+TIME                   EXEC/s METHOD/s OBJNEW/s OBJFRE/s RAIS/s RESC/s   GC/s
+2007 Sep 17 03:59:07        0        0        0        0      0      0      0
+2007 Sep 17 03:59:08        0   210426        7        0      0      0      0
+2007 Sep 17 03:59:09        0   724067        0        0      0      0      0
+2007 Sep 17 03:59:10        0   730877        0        0      0      0      0
+2007 Sep 17 03:59:11        0   134645        0        0      0      0      0
+2007 Sep 17 03:59:12        0        0        0        0      0      0      0
+2007 Sep 17 03:59:13        0        0        0        0      0      0      0
+^C
+
+We can see that at 2007 Sep 17 03:59:08 there were 0 new Ruby programs
+executed, 210426 methods called, 7 objects created, 0 objects freed, 0 raises,
+0 rescues and 0 garbage collects.

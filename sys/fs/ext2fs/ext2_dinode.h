@@ -57,9 +57,11 @@
 #define EXT2_COMPR		0x00000004	/* Compress file */
 #define EXT2_SYNC		0x00000008	/* Synchronous updates */
 #define EXT2_IMMUTABLE		0x00000010	/* Immutable file */
-#define EXT2_APPEND		0x00000020	/* writes to file may only append */
+#define EXT2_APPEND		0x00000020 /* writes to file may only append */
 #define EXT2_NODUMP		0x00000040	/* do not dump file */
 #define EXT2_NOATIME		0x00000080	/* do not update atime */
+
+#define EXT2_HTREE		0x00001000	/* HTree-indexed directory */
 
 /*
  * Definitions for nanosecond timestamps.

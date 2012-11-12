@@ -71,7 +71,7 @@ public:
     FunctionPrototypeScope = 0x100,
 
     /// AtCatchScope - This is a scope that corresponds to the Objective-C
-    /// @catch statement.
+    /// \@catch statement.
     AtCatchScope = 0x200,
     
     /// ObjCMethodScope - This scope corresponds to an Objective-C method body.
@@ -81,13 +81,8 @@ public:
     /// SwitchScope - This is a scope that corresponds to a switch statement.
     SwitchScope = 0x800,
 
-    /// ThisScope - This is the scope of a struct/union/class definition,
-    /// outside of any member function definition, where 'this' is nonetheless
-    /// usable.
-    ThisScope = 0x1000,
-    
     /// TryScope - This is the scope of a C++ try statement.
-    TryScope = 0x2000
+    TryScope = 0x1000
   };
 private:
   /// The parent scope for this scope.  This is null for the translation-unit
@@ -275,7 +270,7 @@ public:
     return getFlags() & Scope::FunctionPrototypeScope;
   }
 
-  /// isAtCatchScope - Return true if this scope is @catch.
+  /// isAtCatchScope - Return true if this scope is \@catch.
   bool isAtCatchScope() const {
     return getFlags() & Scope::AtCatchScope;
   }

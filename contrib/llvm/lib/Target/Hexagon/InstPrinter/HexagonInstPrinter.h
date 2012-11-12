@@ -35,16 +35,16 @@ namespace llvm {
     void printOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O) const;
     void printImmOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O) const;
     void printExtOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O) const;
-    void printUnsignedImmOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O)
-           const;
+    void printUnsignedImmOperand(const MCInst *MI, unsigned OpNo,
+                                 raw_ostream &O) const;
     void printNegImmOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O)
            const;
     void printNOneImmOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O)
            const;
     void printMEMriOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O)
            const;
-    void printFrameIndexOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O)
-           const;
+    void printFrameIndexOperand(const MCInst *MI, unsigned OpNo,
+                                raw_ostream &O) const;
     void printBranchOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O)
            const;
     void printCallOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O)
@@ -57,7 +57,8 @@ namespace llvm {
            const;
     void printJumpTable(const MCInst *MI, unsigned OpNo, raw_ostream &O) const;
 
-    void printConstantPool(const MCInst *MI, unsigned OpNo, raw_ostream &O) const;
+    void printConstantPool(const MCInst *MI, unsigned OpNo,
+                           raw_ostream &O) const;
 
     void printSymbolHi(const MCInst *MI, unsigned OpNo, raw_ostream &O) const
       { printSymbol(MI, OpNo, O, true); }

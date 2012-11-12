@@ -358,17 +358,20 @@ static bool ReadDataFromGlobal(Constant *C, uint64_t ByteOffset,
       NumElts = AT->getNumElements();
     else
       NumElts = cast<VectorType>(C->getType())->getNumElements();
-    
+
     for (; Index != NumElts; ++Index) {
       if (!ReadDataFromGlobal(C->getAggregateElement(Index), Offset, CurPtr,
                               BytesLeft, TD))
         return false;
-      if (EltSize >= BytesLeft)
+
+      uint64_t BytesWritten = EltSize - Offset;
+      assert(BytesWritten <= EltSize && "Not indexing into this element?");
+      if (BytesWritten >= BytesLeft)
         return true;
-      
+
       Offset = 0;
-      BytesLeft -= EltSize;
-      CurPtr += EltSize;
+      BytesLeft -= BytesWritten;
+      CurPtr += BytesWritten;
     }
     return true;
   }
@@ -600,6 +603,22 @@ static Constant *CastGEPIndices(ArrayRef<Constant *> Ops,
   return C;
 }
 
+/// Strip the pointer casts, but preserve the address space information.
+static Constant* StripPtrCastKeepAS(Constant* Ptr) {
+  assert(Ptr->getType()->isPointerTy() && "Not a pointer type");
+  PointerType *OldPtrTy = cast<PointerType>(Ptr->getType());
+  Ptr = cast<Constant>(Ptr->stripPointerCasts());
+  PointerType *NewPtrTy = cast<PointerType>(Ptr->getType());
+
+  // Preserve the address space number of the pointer.
+  if (NewPtrTy->getAddressSpace() != OldPtrTy->getAddressSpace()) {
+    NewPtrTy = NewPtrTy->getElementType()->getPointerTo(
+      OldPtrTy->getAddressSpace());
+    Ptr = ConstantExpr::getBitCast(Ptr, NewPtrTy);
+  }
+  return Ptr;
+}
+
 /// SymbolicallyEvaluateGEP - If we can symbolically evaluate the specified GEP
 /// constant expression, do so.
 static Constant *SymbolicallyEvaluateGEP(ArrayRef<Constant *> Ops,
@@ -636,13 +655,13 @@ static Constant *SymbolicallyEvaluateGEP(ArrayRef<Constant *> Ops,
       }
       return 0;
     }
-  
+
   unsigned BitWidth = TD->getTypeSizeInBits(IntPtrTy);
   APInt Offset =
     APInt(BitWidth, TD->getIndexedOffset(Ptr->getType(),
                                          makeArrayRef((Value **)Ops.data() + 1,
                                                       Ops.size() - 1)));
-  Ptr = cast<Constant>(Ptr->stripPointerCasts());
+  Ptr = StripPtrCastKeepAS(Ptr);
 
   // If this is a GEP of a GEP, fold it all into a single GEP.
   while (GEPOperator *GEP = dyn_cast<GEPOperator>(Ptr)) {
@@ -661,7 +680,7 @@ static Constant *SymbolicallyEvaluateGEP(ArrayRef<Constant *> Ops,
     Ptr = cast<Constant>(GEP->getOperand(0));
     Offset += APInt(BitWidth,
                     TD->getIndexedOffset(Ptr->getType(), NestedOps));
-    Ptr = cast<Constant>(Ptr->stripPointerCasts());
+    Ptr = StripPtrCastKeepAS(Ptr);
   }
 
   // If the base value for this address is a literal integer value, fold the
@@ -681,6 +700,7 @@ static Constant *SymbolicallyEvaluateGEP(ArrayRef<Constant *> Ops,
   // This makes it easy to determine if the getelementptr is "inbounds".
   // Also, this helps GlobalOpt do SROA on GlobalVariables.
   Type *Ty = Ptr->getType();
+  assert(Ty->isPointerTy() && "Forming regular GEP of non-pointer type");
   SmallVector<Constant*, 32> NewIdxs;
   do {
     if (SequentialType *ATy = dyn_cast<SequentialType>(Ty)) {
@@ -711,10 +731,17 @@ static Constant *SymbolicallyEvaluateGEP(ArrayRef<Constant *> Ops,
       }
       Ty = ATy->getElementType();
     } else if (StructType *STy = dyn_cast<StructType>(Ty)) {
-      // Determine which field of the struct the offset points into. The
-      // getZExtValue is at least as safe as the StructLayout API because we
-      // know the offset is within the struct at this point.
+      // If we end up with an offset that isn't valid for this struct type, we
+      // can't re-form this GEP in a regular form, so bail out. The pointer
+      // operand likely went through casts that are necessary to make the GEP
+      // sensible.
       const StructLayout &SL = *TD->getStructLayout(STy);
+      if (Offset.uge(SL.getSizeInBytes()))
+        break;
+
+      // Determine which field of the struct the offset points into. The
+      // getZExtValue is fine as we've already ensured that the offset is
+      // within the range representable by the StructLayout API.
       unsigned ElIdx = SL.getElementContainingOffset(Offset.getZExtValue());
       NewIdxs.push_back(ConstantInt::get(Type::getInt32Ty(Ty->getContext()),
                                          ElIdx));
@@ -772,13 +799,20 @@ Constant *llvm::ConstantFoldInstruction(Instruction *I,
       // all operands are constants.
       if (isa<UndefValue>(Incoming))
         continue;
-      // If the incoming value is not a constant, or is a different constant to
-      // the one we saw previously, then give up.
+      // If the incoming value is not a constant, then give up.
       Constant *C = dyn_cast<Constant>(Incoming);
-      if (!C || (CommonValue && C != CommonValue))
+      if (!C)
+        return 0;
+      // Fold the PHI's operands.
+      if (ConstantExpr *NewC = dyn_cast<ConstantExpr>(C))
+        C = ConstantFoldConstantExpression(NewC, TD, TLI);
+      // If the incoming value is a different constant to
+      // the one we saw previously, then give up.
+      if (CommonValue && C != CommonValue)
         return 0;
       CommonValue = C;
     }
+
 
     // If we reach here, all incoming values are the same constant or undef.
     return CommonValue ? CommonValue : UndefValue::get(PN->getType());
@@ -787,11 +821,17 @@ Constant *llvm::ConstantFoldInstruction(Instruction *I,
   // Scan the operand list, checking to see if they are all constants, if so,
   // hand off to ConstantFoldInstOperands.
   SmallVector<Constant*, 8> Ops;
-  for (User::op_iterator i = I->op_begin(), e = I->op_end(); i != e; ++i)
-    if (Constant *Op = dyn_cast<Constant>(*i))
-      Ops.push_back(Op);
-    else
+  for (User::op_iterator i = I->op_begin(), e = I->op_end(); i != e; ++i) {
+    Constant *Op = dyn_cast<Constant>(*i);
+    if (!Op)
       return 0;  // All operands not constant!
+
+    // Fold the Instruction's operands.
+    if (ConstantExpr *NewCE = dyn_cast<ConstantExpr>(Op))
+      Op = ConstantFoldConstantExpression(NewCE, TD, TLI);
+
+    Ops.push_back(Op);
+  }
 
   if (const CmpInst *CI = dyn_cast<CmpInst>(I))
     return ConstantFoldCompareInstOperands(CI->getPredicate(), Ops[0], Ops[1],

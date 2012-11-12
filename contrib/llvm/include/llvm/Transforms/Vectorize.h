@@ -28,11 +28,17 @@ struct VectorizeConfig {
   /// @brief The size of the native vector registers.
   unsigned VectorBits;
 
+  /// @brief Vectorize boolean values.
+  bool VectorizeBools;
+
   /// @brief Vectorize integer values.
   bool VectorizeInts;
 
   /// @brief Vectorize floating-point values.
   bool VectorizeFloats;
+
+  /// @brief Vectorize pointer values.
+  bool VectorizePointers;
 
   /// @brief Vectorize casting (conversion) operations.
   bool VectorizeCasts;
@@ -42,6 +48,15 @@ struct VectorizeConfig {
 
   /// @brief Vectorize the fused-multiply-add intrinsic.
   bool VectorizeFMA;
+
+  /// @brief Vectorize select instructions.
+  bool VectorizeSelect;
+
+  /// @brief Vectorize comparison instructions.
+  bool VectorizeCmp;
+
+  /// @brief Vectorize getelementptr instructions.
+  bool VectorizeGEP;
 
   /// @brief Vectorize loads and stores.
   bool VectorizeMemOps;
@@ -70,6 +85,9 @@ struct VectorizeConfig {
 
   /// @brief The maximum number of pairing iterations.
   unsigned MaxIter;
+
+  /// @brief Don't try to form odd-length vectors.
+  bool Pow2LenOnly;
 
   /// @brief Don't boost the chain-depth contribution of loads and stores.
   bool NoMemOpBoost;

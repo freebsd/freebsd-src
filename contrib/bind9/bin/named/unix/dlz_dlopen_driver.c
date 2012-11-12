@@ -250,7 +250,7 @@ dlopen_dlz_create(const char *dlzname, unsigned int argc, char *argv[],
 	isc_mutex_init(&cd->lock);
 
 	/* Open the library */
-	dlopen_flags = RTLD_NOW;
+	dlopen_flags = RTLD_NOW|RTLD_GLOBAL;
 
 #ifdef RTLD_DEEPBIND
 	/*

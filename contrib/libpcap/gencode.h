@@ -126,6 +126,8 @@
 
 #define Q_RADIO		40
 
+#define Q_CARP		41
+
 /* Directional qualifiers. */
 
 #define Q_SRC		1
@@ -136,6 +138,8 @@
 #define Q_ADDR2		6
 #define Q_ADDR3		7
 #define Q_ADDR4		8
+#define Q_RA		9
+#define Q_TA		10
 
 #define Q_DEFAULT	0
 #define Q_UNDEF		255
@@ -236,8 +240,8 @@ struct block {
 	struct slist *stmts;	/* side effect stmts */
 	struct stmt s;		/* branch stmt */
 	int mark;
-	int longjt;		/* jt branch requires long jump */
-	int longjf;		/* jf branch requires long jump */
+	u_int longjt;		/* jt branch requires long jump */
+	u_int longjf;		/* jf branch requires long jump */
 	int level;
 	int offset;
 	int sense;
@@ -326,7 +330,7 @@ void bpf_error(const char *, ...)
 void finish_parse(struct block *);
 char *sdup(const char *);
 
-struct bpf_insn *icode_to_fcode(struct block *, int *);
+struct bpf_insn *icode_to_fcode(struct block *, u_int *);
 int pcap_parse(void);
 void lex_init(const char *);
 void lex_cleanup(void);

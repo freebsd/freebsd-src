@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
@@ -724,9 +725,7 @@ sess_release(struct session *s)
 	}
 }
 
-#include "opt_ddb.h"
 #ifdef DDB
-#include <ddb/ddb.h>
 
 DB_SHOW_COMMAND(pgrpdump, pgrpdump)
 {
@@ -878,6 +877,9 @@ fill_kinfo_proc_only(struct proc *p, struct kinfo_proc *kp)
 	kp->ki_childtime = kp->ki_childstime;
 	timevaladd(&kp->ki_childtime, &kp->ki_childutime);
 
+	FOREACH_THREAD_IN_PROC(p, td0)
+		kp->ki_cow += td0->td_cow;
+
 	tp = NULL;
 	if (p->p_pgrp) {
 		kp->ki_pgid = p->p_pgrp->pg_id;
@@ -990,6 +992,7 @@ fill_kinfo_thread(struct thread *td, struct kinfo_proc *kp, int preferthread)
 		kp->ki_runtime = cputick2usec(td->td_rux.rux_runtime);
 		kp->ki_pctcpu = sched_pctcpu(td);
 		kp->ki_estcpu = td->td_estcpu;
+		kp->ki_cow = td->td_cow;
 	}
 
 	/* We can't get this anymore but ps etc never used it anyway. */
@@ -1132,6 +1135,7 @@ freebsd32_kinfo_proc_out(const struct kinfo_proc *ki, struct kinfo_proc32 *ki32)
 	CP(*ki, *ki32, ki_estcpu);
 	CP(*ki, *ki32, ki_slptime);
 	CP(*ki, *ki32, ki_swtime);
+	CP(*ki, *ki32, ki_cow);
 	CP(*ki, *ki32, ki_runtime);
 	TV_CP(*ki, *ki32, ki_start);
 	TV_CP(*ki, *ki32, ki_childtime);
@@ -1869,7 +1873,7 @@ sysctl_kern_proc_pathname(SYSCTL_HANDLER_ARGS)
 	struct proc *p;
 	struct vnode *vp;
 	char *retbuf, *freebuf;
-	int error, vfslocked;
+	int error;
 
 	if (arglen != 1)
 		return (EINVAL);
@@ -1891,9 +1895,7 @@ sysctl_kern_proc_pathname(SYSCTL_HANDLER_ARGS)
 	if (*pidp != -1)
 		PROC_UNLOCK(p);
 	error = vn_fullpath(req->td, vp, &retbuf, &freebuf);
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vrele(vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	if (error)
 		return (error);
 	error = SYSCTL_OUT(req, retbuf, strlen(retbuf) + 1);
@@ -1960,7 +1962,6 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 	    entry = entry->next) {
 		vm_object_t obj, tobj, lobj;
 		vm_offset_t addr;
-		int vfslocked;
 
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 			continue;
@@ -2057,14 +2058,12 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 				vn_fullpath(curthread, vp, &fullpath,
 				    &freepath);
 				cred = curthread->td_ucred;
-				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 				vn_lock(vp, LK_SHARED | LK_RETRY);
 				if (VOP_GETATTR(vp, &va, cred) == 0) {
 					kve->kve_fileid = va.va_fileid;
 					kve->kve_fsid = va.va_fsid;
 				}
 				vput(vp);
-				VFS_UNLOCK_GIANT(vfslocked);
 			}
 		} else {
 			kve->kve_type = KVME_TYPE_NONE;
@@ -2130,7 +2129,7 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 		vm_object_t obj, tobj, lobj;
 		vm_offset_t addr;
 		vm_paddr_t locked_pa;
-		int vfslocked, mincoreinfo;
+		int mincoreinfo;
 
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 			continue;
@@ -2184,6 +2183,10 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 			kve->kve_flags |= KVME_FLAG_NEEDS_COPY;
 		if (entry->eflags & MAP_ENTRY_NOCOREDUMP)
 			kve->kve_flags |= KVME_FLAG_NOCOREDUMP;
+		if (entry->eflags & MAP_ENTRY_GROWS_UP)
+			kve->kve_flags |= KVME_FLAG_GROWS_UP;
+		if (entry->eflags & MAP_ENTRY_GROWS_DOWN)
+			kve->kve_flags |= KVME_FLAG_GROWS_DOWN;
 
 		last_timestamp = map->timestamp;
 		vm_map_unlock_read(map);
@@ -2231,7 +2234,6 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 				    &freepath);
 				kve->kve_vn_type = vntype_to_kinfo(vp->v_type);
 				cred = curthread->td_ucred;
-				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 				vn_lock(vp, LK_SHARED | LK_RETRY);
 				if (VOP_GETATTR(vp, &va, cred) == 0) {
 					kve->kve_vn_fileid = va.va_fileid;
@@ -2243,7 +2245,6 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 					kve->kve_status = KF_ATTR_VALID;
 				}
 				vput(vp);
-				VFS_UNLOCK_GIANT(vfslocked);
 			}
 		} else {
 			kve->kve_type = KVME_TYPE_NONE;

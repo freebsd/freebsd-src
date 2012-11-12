@@ -100,7 +100,7 @@ next_command(struct cfjail *j)
 		if (j->comstring == NULL) {
 			j->comparam += create_failed ? -1 : 1;
 			switch ((comparam = *j->comparam)) {
-			case 0:
+			case IP__NULL:
 				return 0;
 			case IP_MOUNT_DEVFS:
 				if (!bool_param(j->intparams[IP_MOUNT_DEVFS]))
@@ -246,7 +246,7 @@ next_proc(int nonblock)
 /*
  * Run a single command for a jail, possible inside the jail.
  */
-int
+static int
 run_command(struct cfjail *j)
 {
 	const struct passwd *pwd;
@@ -290,6 +290,8 @@ run_command(struct cfjail *j)
 		} else {
 			if (create_jail(j) < 0)
 				return -1;
+			if (iflag)
+				printf("%d\n", j->jid);
 			if (verbose >= 0 && (j->name || verbose > 0))
 				jail_note(j, "created\n");
 			dep_done(j, DF_LIGHT);
@@ -584,7 +586,8 @@ run_command(struct cfjail *j)
 			term = getenv("TERM");
 			environ = &cleanenv;
 			setenv("PATH", "/bin:/usr/bin", 0);
-			setenv("TERM", term, 1);
+			if (term != NULL)
+				setenv("TERM", term, 1);
 		}
 		if (setusercontext(lcap, pwd, pwd->pw_uid, username
 		    ? LOGIN_SETALL & ~LOGIN_SETGROUP & ~LOGIN_SETLOGIN

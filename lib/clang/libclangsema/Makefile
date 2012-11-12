@@ -36,6 +36,7 @@ SRCS=	AnalysisBasedWarnings.cpp \
 	SemaOverload.cpp \
 	SemaPseudoObject.cpp \
 	SemaStmt.cpp \
+	SemaStmtAttr.cpp \
 	SemaTemplate.cpp \
 	SemaTemplateDeduction.cpp \
 	SemaTemplateInstantiate.cpp \
@@ -49,8 +50,10 @@ TGHDRS=	AttrList \
 	AttrParsedAttrList \
 	AttrTemplateInstantiate \
 	Attrs \
+	CommentNodes \
 	DeclNodes \
 	DiagnosticASTKinds \
+	DiagnosticCommentKinds \
 	DiagnosticCommonKinds \
 	DiagnosticParseKinds \
 	DiagnosticSemaKinds \

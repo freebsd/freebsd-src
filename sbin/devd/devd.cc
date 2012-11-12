@@ -807,7 +807,7 @@ create_socket(const char *name)
 	unlink(name);
 	if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0)
 	    	err(1, "fcntl");
-	if (bind(fd, (struct sockaddr *) & sun, slen) < 0)
+	if (::bind(fd, (struct sockaddr *) & sun, slen) < 0)
 		err(1, "bind");
 	listen(fd, 4);
 	chown(name, 0, 0);	/* XXX - root.wheel */
@@ -855,11 +855,9 @@ event_loop(void)
 	timeval tv;
 	fd_set fds;
 
-	fd = open(PATH_DEVCTL, O_RDONLY);
+	fd = open(PATH_DEVCTL, O_RDONLY | O_CLOEXEC);
 	if (fd == -1)
 		err(1, "Can't open devctl device %s", PATH_DEVCTL);
-	if (fcntl(fd, F_SETFD, FD_CLOEXEC) != 0)
-		err(1, "Can't set close-on-exec flag on devctl");
 	server_fd = create_socket(PIPE);
 	max_fd = max(fd, server_fd) + 1;
 	while (1) {

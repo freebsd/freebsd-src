@@ -39,17 +39,19 @@ class InstHexagon<dag outs, dag ins, string asmstr, list<dag> pattern,
 
   dag OutOperandList = outs;
   dag InOperandList = ins;
-  let AsmString   = asmstr;
+  let AsmString = asmstr;
   let Pattern = pattern;
   let Constraints = cstr;
-  let Itinerary   = itin;
+  let Itinerary = itin;
+  let Size = 4;
 
   // *** Must match HexagonBaseInfo.h ***
+  // Instruction type according to the ISA.
   Type HexagonType = type;
   let TSFlags{4-0} = HexagonType.Value;
+  // Solo instructions, i.e., those that cannot be in a packet with others.
   bits<1> isHexagonSolo = 0;
   let TSFlags{5} = isHexagonSolo;
-
   // Predicated instructions.
   bits<1> isPredicated = 0;
   let TSFlags{6} = isPredicated;
@@ -68,6 +70,13 @@ class LDInst<dag outs, dag ins, string asmstr, list<dag> pattern>
   bits<5> rd;
   bits<5> rs;
   bits<13> imm13;
+}
+
+class LDInst2<dag outs, dag ins, string asmstr, list<dag> pattern>
+  : InstHexagon<outs, ins, asmstr, pattern, "", LD, TypeLD> {
+  bits<5> rd;
+  bits<5> rs;
+  bits<13> imm13;
   let mayLoad = 1;
 }
 
@@ -80,13 +89,19 @@ class LDInstPost<dag outs, dag ins, string asmstr, list<dag> pattern,
   bits<5> rs;
   bits<5> rt;
   bits<13> imm13;
-  let mayLoad = 1;
 }
 
 // ST Instruction Class in V2/V3 can take SLOT0 only.
 // ST Instruction Class in V4    can take SLOT0 & SLOT1.
 // Definition of the instruction class CHANGED from V2/V3 to V4.
 class STInst<dag outs, dag ins, string asmstr, list<dag> pattern>
+  : InstHexagon<outs, ins, asmstr, pattern, "", ST, TypeST> {
+  bits<5> rd;
+  bits<5> rs;
+  bits<13> imm13;
+}
+
+class STInst2<dag outs, dag ins, string asmstr, list<dag> pattern>
   : InstHexagon<outs, ins, asmstr, pattern, "", ST, TypeST> {
   bits<5> rd;
   bits<5> rs;
@@ -113,7 +128,6 @@ class STInstPost<dag outs, dag ins, string asmstr, list<dag> pattern,
   bits<5> rs;
   bits<5> rt;
   bits<13> imm13;
-  let mayStore = 1;
 }
 
 // ALU32 Instruction Class in V2/V3/V4.
@@ -166,7 +180,7 @@ class MInst<dag outs, dag ins, string asmstr, list<dag> pattern>
 // Definition of the instruction class NOT CHANGED.
 // Name of the Instruction Class changed from M to XTYPE from V2/V3 to V4.
 class MInst_acc<dag outs, dag ins, string asmstr, list<dag> pattern,
-		string cstr>
+    string cstr>
     : InstHexagon<outs, ins, asmstr, pattern, cstr, M, TypeXTYPE> {
   bits<5> rd;
   bits<5> rs;
@@ -189,7 +203,7 @@ class SInst<dag outs, dag ins, string asmstr, list<dag> pattern>
 // Definition of the instruction class NOT CHANGED.
 // Name of the Instruction Class changed from S to XTYPE from V2/V3 to V4.
 class SInst_acc<dag outs, dag ins, string asmstr, list<dag> pattern,
-		string cstr>
+   string cstr>
   : InstHexagon<outs, ins, asmstr, pattern, cstr, S, TypeXTYPE> {
 //  : InstHexagon<outs, ins, asmstr, pattern, cstr,  S> {
 //  : InstHexagon<outs, ins, asmstr, pattern, cstr, !if(V4T, XTYPE_V4, S)> {
@@ -284,14 +298,28 @@ class JRInst<dag outs, dag ins, string asmstr, list<dag> pattern>
 
 
 // Post increment ST Instruction.
-class STInstPI<dag outs, dag ins, string asmstr, list<dag> pattern, string cstr>
+class STInstPI<dag outs, dag ins, string asmstr, list<dag> pattern,
+               string cstr>
+  : STInstPost<outs, ins, asmstr, pattern, cstr> {
+  let rt{0-4} = 0;
+}
+
+class STInst2PI<dag outs, dag ins, string asmstr, list<dag> pattern,
+                string cstr>
   : STInstPost<outs, ins, asmstr, pattern, cstr> {
   let rt{0-4} = 0;
   let mayStore = 1;
 }
 
 // Post increment LD Instruction.
-class LDInstPI<dag outs, dag ins, string asmstr, list<dag> pattern, string cstr>
+class LDInstPI<dag outs, dag ins, string asmstr, list<dag> pattern,
+               string cstr>
+  : LDInstPost<outs, ins, asmstr, pattern, cstr> {
+  let rt{0-4} = 0;
+}
+
+class LDInst2PI<dag outs, dag ins, string asmstr, list<dag> pattern,
+                string cstr>
   : LDInstPost<outs, ins, asmstr, pattern, cstr> {
   let rt{0-4} = 0;
   let mayLoad = 1;

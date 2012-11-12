@@ -120,7 +120,7 @@ ENTRY(sa11x0_activateirqs)
 	mov	pc, lr
 
 	.global _C_LABEL(intrnames), _C_LABEL(sintrnames)
-_C_LABEL(intrnames): 
+_C_LABEL(intrnames):
 _C_LABEL(sintrnames):
 	.int	0
 

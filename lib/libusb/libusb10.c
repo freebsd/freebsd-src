@@ -92,6 +92,7 @@ int
 libusb_init(libusb_context **context)
 {
 	struct libusb_context *ctx;
+	pthread_condattr_t attr;
 	char *debug;
 	int ret;
 
@@ -110,8 +111,28 @@ libusb_init(libusb_context **context)
 	TAILQ_INIT(&ctx->pollfds);
 	TAILQ_INIT(&ctx->tr_done);
 
-	pthread_mutex_init(&ctx->ctx_lock, NULL);
-	pthread_cond_init(&ctx->ctx_cond, NULL);
+	if (pthread_mutex_init(&ctx->ctx_lock, NULL) != 0) {
+		free(ctx);
+		return (LIBUSB_ERROR_NO_MEM);
+	}
+	if (pthread_condattr_init(&attr) != 0) {
+		pthread_mutex_destroy(&ctx->ctx_lock);
+		free(ctx);
+		return (LIBUSB_ERROR_NO_MEM);
+	}
+	if (pthread_condattr_setclock(&attr, CLOCK_MONOTONIC) != 0) {
+		pthread_mutex_destroy(&ctx->ctx_lock);
+		pthread_condattr_destroy(&attr);
+		free(ctx);
+		return (LIBUSB_ERROR_OTHER);
+	}
+	if (pthread_cond_init(&ctx->ctx_cond, &attr) != 0) {
+		pthread_mutex_destroy(&ctx->ctx_lock);
+		pthread_condattr_destroy(&attr);
+		free(ctx);
+		return (LIBUSB_ERROR_NO_MEM);
+	}
+	pthread_condattr_destroy(&attr);
 
 	ctx->ctx_handler = NO_THREAD;
 

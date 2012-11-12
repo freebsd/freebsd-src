@@ -26,8 +26,11 @@ CSTD?=	gnu89
 CFLAGS+=	-DCROSS_COMPILE
 .endif
 
-.if ${TARGET_ARCH} == "armeb"
+.if ${TARGET_ARCH} == "armeb" || ${TARGET_ARCH} == "armv6eb"
 CFLAGS += -DTARGET_ENDIAN_DEFAULT=MASK_BIG_END
+.endif
+.if ${TARGET_ARCH} == "armv6" || ${TARGET_ARCH} == "armv6eb"
+CFLAGS += -DFREEBSD_ARCH_armv6
 .endif
 
 .if ${TARGET_CPUARCH} == "mips"

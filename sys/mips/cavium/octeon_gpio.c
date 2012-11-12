@@ -383,8 +383,7 @@ octeon_gpio_attach(device_t dev)
 	KASSERT((device_get_unit(dev) == 0),
 	    ("octeon_gpio: Only one gpio module supported"));
 
-	mtx_init(&sc->gpio_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
-	    MTX_DEF);
+	mtx_init(&sc->gpio_mtx, device_get_nameunit(dev), NULL, MTX_DEF);
 
 	for ( i = 0; i < OCTEON_GPIO_IRQS; i++) {
 		if ((sc->gpio_irq_res[i] = bus_alloc_resource(dev, 

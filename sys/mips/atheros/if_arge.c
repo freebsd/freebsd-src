@@ -932,7 +932,19 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 	ar71xx_device_set_pll_ge(sc->arge_mac_unit, if_speed, pll);
 
 	/* set MII registers */
+	/*
+	 * This was introduced to match what the Linux ag71xx ethernet
+	 * driver does.  For the AR71xx case, it does set the port
+	 * MII speed.  However, if this is done, non-gigabit speeds
+	 * are not at all reliable when speaking via RGMII through
+	 * 'bridge' PHY port that's pretending to be a local PHY.
+	 *
+	 * Until that gets root caused, and until an AR71xx + normal
+	 * PHY board is tested, leave this disabled.
+	 */
+#if 0
 	ar71xx_device_set_mii_speed(sc->arge_mac_unit, if_speed);
+#endif
 }
 
 

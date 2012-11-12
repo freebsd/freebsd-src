@@ -35,17 +35,14 @@ struct uboot_devdesc
 	union {
 		struct {
 			void	*data;
-			int	pnum;
-			int	ptype;
+			int	slice;
+			int	partition;
+			off_t	offset;
 		} disk;
 	} d_kind;
 };
 
 #define d_disk d_kind.disk
-
-#define PTYPE_BSDLABEL	1
-#define PTYPE_GPT	2
-#define PTYPE_MBR	3
 
 /*
  * Default network packet alignment in memory
@@ -60,6 +57,7 @@ extern int devs_no;
 extern struct netif_driver uboot_net;
 extern struct devsw uboot_storage;
 
+void *uboot_vm_translate(vm_offset_t);
 ssize_t	uboot_copyin(const void *src, vm_offset_t dest, const size_t len);
 ssize_t	uboot_copyout(const vm_offset_t src, void *dest, const size_t len);
 ssize_t	uboot_readin(const int fd, vm_offset_t dest, const size_t len);

@@ -18,7 +18,7 @@ SUBDIR=	title \
 	04.quotas \
 	05.fastfs \
 	06.nfs \
-	07.lpd \
+	${_07.lpd} \
 	${_08.sendmailop} \
 	11.timedop \
 	12.timed \
@@ -26,6 +26,10 @@ SUBDIR=	title \
 
 .if ${MK_SENDMAIL} != "no"
 _08.sendmailop=	08.sendmailop 
+.endif
+
+.if ${MK_LPR} != "no"
+_07.lpd=	07.lpd
 .endif
 
 .include <bsd.subdir.mk>

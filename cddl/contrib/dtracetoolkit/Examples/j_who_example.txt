@@ -1,0 +1,17 @@
+In many cases, in order to get interesting or in-depth results the 
+ExtendedDTraceProbes flag needs to be set when DTracing Java programs.  In
+this case, because of the probes we have chosen to trace, running the program
+Code/Java/Func_abc, both with (PID 311517) and without (311526) this flag, 
+and we can see that it has made no difference, with each reporting 35 lines 
+executed.
+
+# j_who.d
+Tracing... Hit Ctrl-C to end.
+^C
+      PID    UID  CALLS ARGS                                                   
+   194441    100     18 /usr/local/lib/opera/9.02-20060919.1/opera
+   309790    100     20 java_vm
+   311517    100     35 java -XX:+ExtendedDTraceProbes Func_abc
+   311526    100     35 java Func_abc
+
+

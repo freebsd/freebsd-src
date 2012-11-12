@@ -227,9 +227,8 @@ bool Sema::RequireCompleteDeclContext(CXXScopeSpec &SS,
   if (loc.isInvalid()) loc = SS.getRange().getBegin();
 
   // The type must be complete.
-  if (RequireCompleteType(loc, type,
-                          PDiag(diag::err_incomplete_nested_name_spec)
-                            << SS.getRange())) {
+  if (RequireCompleteType(loc, type, diag::err_incomplete_nested_name_spec,
+                          SS.getRange())) {
     SS.SetInvalid(SS.getRange());
     return true;
   }
@@ -539,8 +538,9 @@ bool Sema::BuildCXXNestedNameSpecifier(Scope *S,
 
   NamedDecl *SD = Found.getAsSingle<NamedDecl>();
   if (isAcceptableNestedNameSpecifier(SD)) {
-    if (!ObjectType.isNull() && !ObjectTypeSearchedInScope) {
-      // C++ [basic.lookup.classref]p4:
+    if (!ObjectType.isNull() && !ObjectTypeSearchedInScope &&
+        !getLangOpts().CPlusPlus0x) {
+      // C++03 [basic.lookup.classref]p4:
       //   [...] If the name is found in both contexts, the
       //   class-name-or-namespace-name shall refer to the same entity.
       //
@@ -548,6 +548,8 @@ bool Sema::BuildCXXNestedNameSpecifier(Scope *S,
       // into the current scope (the scope of the postfix-expression) to
       // see if we can find the same name there. As above, if there is no
       // scope, reconstruct the result from the template instantiation itself.
+      //
+      // Note that C++11 does *not* perform this redundant lookup.
       NamedDecl *OuterDecl;
       if (S) {
         LookupResult FoundOuter(*this, &Identifier, IdentifierLoc, 

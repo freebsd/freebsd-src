@@ -1311,7 +1311,7 @@ tsd_cb (thread_key_t key, void (*destructor)(void *), void *ignore)
   else
     name = DEPRECATED_SYMBOL_NAME (ms);
 
-  printf_filtered ("Destructor %p <%s>\n", destructor, name);
+  printf_filtered ("Key %d, destructor %p <%s>\n", key, destructor, name);
   return 0;
 }
 

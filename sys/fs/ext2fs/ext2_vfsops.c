@@ -112,7 +112,7 @@ ext2_mount(struct mount *mp)
 	struct vfsoptlist *opts;
 	struct vnode *devvp;
 	struct thread *td;
-	struct ext2mount *ump = 0;
+	struct ext2mount *ump = NULL;
 	struct m_ext2fs *fs;
 	struct nameidata nd, *ndp = &nd;
 	accmode_t accmode;
@@ -665,8 +665,7 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	 * Initialize filesystem stat information in mount struct.
 	 */
 	MNT_ILOCK(mp);
- 	mp->mnt_kern_flag |= MNTK_MPSAFE | MNTK_LOOKUP_SHARED |
-            MNTK_EXTENDED_SHARED;
+ 	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED;
 	MNT_IUNLOCK(mp);
 	return (0);
 out:
@@ -767,7 +766,7 @@ ext2_statfs(struct mount *mp, struct statfs *sbp)
 	ump = VFSTOEXT2(mp);
 	fs = ump->um_e2fs;
 	if (fs->e2fs->e2fs_magic != E2FS_MAGIC)
-		panic("ext2fs_statvfs");
+		panic("ext2fs_statfs");
 
 	/*
 	 * Compute the overhead (FS structures)
@@ -830,7 +829,6 @@ ext2_sync(struct mount *mp, int waitfor)
 	/*
 	 * Write back each (modified) inode.
 	 */
-	MNT_ILOCK(mp);
 loop:
 	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		if (vp->v_type == VNON) {
@@ -847,7 +845,6 @@ loop:
 		}
 		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, td);
 		if (error) {
-			MNT_ILOCK(mp);
 			if (error == ENOENT) {
 				MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 				goto loop;

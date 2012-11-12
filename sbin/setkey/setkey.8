@@ -130,7 +130,7 @@ are treated as comment lines.
 .Ar src Ar dst Ar protocol Ar spi
 .Op Ar extensions
 .Ar algorithm ...
-.Li ;
+.Li \&;
 .Xc
 Add an SAD entry.
 .Li add
@@ -141,7 +141,7 @@ including when the key length does not match the specified algorithm.
 .Li get
 .Op Fl 46n
 .Ar src Ar dst Ar protocol Ar spi
-.Li ;
+.Li \&;
 .Xc
 Show an SAD entry.
 .\"
@@ -149,7 +149,7 @@ Show an SAD entry.
 .Li delete
 .Op Fl 46n
 .Ar src Ar dst Ar protocol Ar spi
-.Li ;
+.Li \&;
 .Xc
 Remove an SAD entry.
 .\"
@@ -157,14 +157,14 @@ Remove an SAD entry.
 .Li deleteall
 .Op Fl 46n
 .Ar src Ar dst Ar protocol
-.Li ;
+.Li \&;
 .Xc
 Remove all SAD entries that match the specification.
 .\"
 .It Xo
 .Li flush
 .Op Ar protocol
-.Li ;
+.Li \&;
 .Xc
 Clear all SAD entries matched by the options.
 .Fl F
@@ -173,7 +173,7 @@ on the command line achieves the same functionality.
 .It Xo
 .Li dump
 .Op Ar protocol
-.Li ;
+.Li \&;
 .Xc
 Dumps all SAD entries matched by the options.
 .Fl D
@@ -183,7 +183,7 @@ on the command line achieves the same functionality.
 .Li spdadd
 .Op Fl 46n
 .Ar src_range Ar dst_range Ar upperspec Ar policy
-.Li ;
+.Li \&;
 .Xc
 Add an SPD entry.
 .\"
@@ -191,13 +191,13 @@ Add an SPD entry.
 .Li spddelete
 .Op Fl 46n
 .Ar src_range Ar dst_range Ar upperspec Fl P Ar direction
-.Li ;
+.Li \&;
 .Xc
 Delete an SPD entry.
 .\"
 .It Xo
 .Li spdflush
-.Li ;
+.Li \&;
 .Xc
 Clear all SPD entries.
 .Fl FP
@@ -205,7 +205,7 @@ on the command line achieves the same functionality.
 .\"
 .It Xo
 .Li spddump
-.Li ;
+.Li \&;
 .Xc
 Dumps all SPD entries.
 .Fl DP
@@ -442,7 +442,7 @@ protocols other than TCP, UDP and ICMP may not be suitable to use with IPsec.
 .Ar policy
 is expressed in one of the following three formats:
 .Pp
-.Bl -tag -compact
+.Bl -tag -width 2n -compact
 .It Fl P Ar direction Li discard
 .It Fl P Ar direction Li none
 .It Xo Fl P Ar direction Li ipsec
@@ -553,7 +553,9 @@ For
 example, if an IP header was followed by an AH header followed by an
 ESP header followed by an upper layer protocol header, the rule would
 be:
+.Pp
 .Dl esp/transport//require ah/transport//require ;
+.Pp
 The rule order is very important.
 .Pp
 Note that

@@ -50,41 +50,39 @@ get_fs_line_xvars()
   ACTIVEDEV="${1}"
   LINE="${2}"
 
-  echo $LINE | cut -d ' ' -f 4 | grep -q ' (' 2>/dev/null
+  echo $LINE | cut -d ' ' -f 4 | grep -q '(' 2>/dev/null
+  if [ $? -ne 0 ] ; then return ; fi
+
+  # See if we are looking for ZFS specific options
+  echo $LINE | grep -q '^ZFS' 2>/dev/null
   if [ $? -eq 0 ] ; then
+    ZTYPE="NONE"
+    ZFSVARS="`echo $LINE | cut -d ' ' -f 4-20 |cut -d '(' -f 2- | cut -d ')' -f 1 | xargs`"
 
-    # See if we are looking for ZFS specific options
-    echo $LINE | grep -q '^ZFS' 2>/dev/null
+    echo $ZFSVARS | grep -qE "^(disk|file|mirror|raidz(1|2|3)?|spare|log|cache):" 2>/dev/null
     if [ $? -eq 0 ] ; then
-      ZTYPE="NONE"
-      ZFSVARS="`echo $LINE | cut -d ' ' -f 4 |cut -d '(' -f 2- | cut -d ')' -f 1 | xargs`"
-
-      echo $ZFSVARS | grep -qE "^(disk|file|mirror|raidz(1|2|3)?|spare|log|cache):" 2>/dev/null
-	  if [ $? -eq 0 ] ; then
        ZTYPE=`echo $ZFSVARS | cut -f1 -d:`
        ZFSVARS=`echo $ZFSVARS | sed "s|$ZTYPE: ||g" | sed "s|$ZTYPE:||g"`
-	  fi
-
-      # Return the ZFS options
-      if [ "${ZTYPE}" = "NONE" ] ; then
-        VAR="${ACTIVEDEV} ${ZFSVARS}"
-      else
-        VAR="${ZTYPE} ${ACTIVEDEV} ${ZFSVARS}"
-      fi
-      export VAR
-      return
-    fi # End of ZFS block
-
-    # See if we are looking for UFS specific newfs options
-    echo $LINE | grep -q '^UFS' 2>/dev/null
-    if [ $? -eq 0 ] ; then
-      FSVARS="`echo $LINE | cut -d '(' -f 2- | cut -d ')' -f 1 | xargs`"
-      VAR="${FSVARS}"
-      export VAR
-      return
     fi
 
-  fi # End of xtra-options block
+    # Return the ZFS options
+    if [ "${ZTYPE}" = "NONE" ] ; then
+      VAR="${ACTIVEDEV} ${ZFSVARS}"
+    else
+      VAR="${ZTYPE} ${ACTIVEDEV} ${ZFSVARS}"
+    fi
+    export VAR
+    return
+  fi # End of ZFS block
+
+  # See if we are looking for UFS specific newfs options
+  echo $LINE | grep -q '^UFS' 2>/dev/null
+  if [ $? -eq 0 ] ; then
+    FSVARS="`echo $LINE | cut -d '(' -f 2- | cut -d ')' -f 1 | xargs`"
+    VAR="${FSVARS}"
+    export VAR
+    return
+  fi
 
   # If we got here, set VAR to empty and export
   export VAR=""
@@ -96,8 +94,10 @@ setup_zfs_mirror_parts()
 {
   _nZFS=""
 
+  ZTYPE="`echo ${1} | awk '{print $1}'`"
+
   # Using mirroring, setup boot partitions on each disk
-  _mirrline="`echo ${1} | sed 's|mirror ||g'`"
+  _mirrline="`echo ${1} | sed 's|mirror ||g' | sed 's|raidz1 ||g' | sed 's|raidz2 ||g' | sed 's|raidz3 ||g' | sed 's|raidz ||g'`"
   for _zvars in $_mirrline
   do
     echo "Looping through _zvars: $_zvars" >>${LOGOUT}
@@ -107,15 +107,16 @@ setup_zfs_mirror_parts()
 
     is_disk "$_zvars" >/dev/null 2>/dev/null
     if [ $? -eq 0 ] ; then
-      echo "Setting up ZFS mirror disk $_zvars" >>${LOGOUT}
+      echo "Setting up ZFS disk $_zvars" >>${LOGOUT}
       init_gpt_full_disk "$_zvars" >/dev/null 2>/dev/null
-      rc_halt "gpart add -t freebsd-zfs ${_zvars}" >/dev/null 2>/dev/null
+      rc_halt "gpart add -a 4k -t freebsd-zfs ${_zvars}" >/dev/null 2>/dev/null
+      rc_halt "gpart bootcode -b /boot/pmbr -p /boot/gptzfsboot -i 1 ${_zvars}" >/dev/null 2>/dev/null
       _nZFS="$_nZFS ${_zvars}p2"	
     else
       _nZFS="$_nZFS ${_zvars}"	
     fi	
   done
-  echo "mirror $2 `echo $_nZFS | tr -s ' '`"
+  echo "$ZTYPE $2 `echo $_nZFS | tr -s ' '`"
 } ;
 
 # Function which creates a unique label name for the specified mount
@@ -163,6 +164,38 @@ gen_glabel_name()
   export VAL="${NAME}${NUM}" 
 };
 
+# Function to determine the size we can safely use when 0 is specified
+get_autosize()
+{
+  # Disk tag to look for
+  dTag="$1"
+
+  # Total MB Avail
+  get_disk_mediasize_mb "$2"
+  local _aSize=$VAL
+
+  while read line
+  do
+    # Check for data on this slice
+    echo $line | grep -q "^${_dTag}-part=" 2>/dev/null
+    if [ $? -ne 0 ] ; then continue ; fi
+
+    get_value_from_string "${line}"
+    STRING="$VAL"
+
+    # Get the size of this partition
+    SIZE=`echo $STRING | tr -s '\t' ' ' | cut -d ' ' -f 2` 
+    if [ $SIZE -eq 0 ] ; then continue ; fi
+    _aSize=`expr $_aSize - $SIZE`
+  done <${CFGF}
+
+  # Pad the size a bit
+  _aSize=`expr $_aSize - 2`
+
+  VAL="$_aSize"
+  export VAL
+};
+
 # Function to setup partitions using gpart
 setup_gpart_partitions()
 {
@@ -172,10 +205,13 @@ setup_gpart_partitions()
   local _sNum="$4"
   local _pType="$5"
   FOUNDPARTS="1"
+  USEDAUTOSIZE=0
 
   # Lets read in the config file now and setup our partitions
   if [ "${_pType}" = "gpt" ] ; then
     CURPART="2"
+  elif [ "${_pType}" = "apm" ] ; then
+    CURPART="3"
   else
     PARTLETTER="a"
     CURPART="1"
@@ -242,7 +278,15 @@ setup_gpart_partitions()
 
       if [ "$SIZE" = "0" ]
       then
-        SOUT=""
+	if [ $USEDAUTOSIZE -eq 1 ] ; then
+          exit_err "ERROR: You can not have two partitions with a size of 0 specified!"
+	fi
+        case ${_pType} in
+	  gpt|apm) get_autosize "${_dTag}" "$_pDisk" ;;
+	        *) get_autosize "${_dTag}" "$_wSlice" ;;
+        esac
+        SOUT="-s ${VAL}M"
+	USEDAUTOSIZE=1
       else
         SOUT="-s ${SIZE}M"
       fi
@@ -252,6 +296,9 @@ setup_gpart_partitions()
       if [ $? -eq 0 ] ; then
         export FOUNDROOT="1"
         if [ "${CURPART}" = "2" -a "$_pType" = "gpt" ] ; then
+          export FOUNDROOT="0"
+        fi
+        if [ "${CURPART}" = "3" -a "$_pType" = "apm" ] ; then
           export FOUNDROOT="0"
         fi
         if [ "${CURPART}" = "1" -a "$_pType" = "mbr" ] ; then
@@ -266,6 +313,9 @@ setup_gpart_partitions()
       if [ $? -eq 0 ] ; then
         export USINGBOOTPART="0"
         if [ "${CURPART}" != "2" -a "${_pType}" = "gpt" ] ; then
+            exit_err "/boot partition must be first partition"
+        fi
+        if [ "${CURPART}" != "3" -a "${_pType}" = "apm" ] ; then
             exit_err "/boot partition must be first partition"
         fi
         if [ "${CURPART}" != "1" -a "${_pType}" = "mbr" ] ; then
@@ -287,18 +337,22 @@ setup_gpart_partitions()
       # Get any extra options for this fs / line
       if [ "${_pType}" = "gpt" ] ; then
         get_fs_line_xvars "${_pDisk}p${CURPART}" "${STRING}"
+      elif [ "${_pType}" = "apm" ] ; then
+        get_fs_line_xvars "${_pDisk}s${CURPART}" "${STRING}"
       else
         get_fs_line_xvars "${_wSlice}${PARTLETTER}" "${STRING}"
       fi
-      XTRAOPTS="${VAR}"
+      XTRAOPTS="$VAR"
 
       # Check if using zfs mirror
-      echo ${XTRAOPTS} | grep -q "mirror" 2>/dev/null
+      echo ${XTRAOPTS} | grep -q -e "mirror" -e "raidz"
       if [ $? -eq 0 -a "$FS" = "ZFS" ] ; then
         if [ "${_pType}" = "gpt" -o "${_pType}" = "gptslice" ] ; then
        	  XTRAOPTS=$(setup_zfs_mirror_parts "$XTRAOPTS" "${_pDisk}p${CURPART}")
+        elif [ "${_pType}" = "apm" ] ; then
+       	  XTRAOPTS=$(setup_zfs_mirror_parts "$XTRAOPTS" "${_pDisk}s${CURPART}")
         else
-       	  XTRAOPTS=$(setup_zfs_mirror_parts "$XTRAOPTS" "${_wSlice}")
+       	  XTRAOPTS=$(setup_zfs_mirror_parts "$XTRAOPTS" "${_wSlice}${PARTLETTER}")
         fi
       fi
 
@@ -322,6 +376,9 @@ setup_gpart_partitions()
       elif [ "${_pType}" = "gptslice" ]; then
         sleep 2
         rc_halt "gpart add ${SOUT} -t ${PARTYPE} ${_wSlice}"
+      elif [ "${_pType}" = "apm" ]; then
+        sleep 2
+        rc_halt "gpart add ${SOUT} -t ${PARTYPE} ${_pDisk}"
       else
         sleep 2
         rc_halt "gpart add ${SOUT} -t ${PARTYPE} -i ${CURPART} ${_wSlice}"
@@ -351,6 +408,18 @@ setup_gpart_partitions()
         if [ -n "${ENCPASS}" ] ; then
           echo "${ENCPASS}" >${PARTDIR}-enc/${_dFile}p${CURPART}-encpass
         fi
+      elif [ "${_pType}" = "apm" ] ; then
+	_dFile="`echo $_pDisk | sed 's|/|-|g'`"
+        echo "${FS}#${MNT}#${ENC}#${PLABEL}#GPT#${XTRAOPTS}" >${PARTDIR}/${_dFile}s${CURPART}
+
+        # Clear out any headers
+        sleep 2
+        dd if=/dev/zero of=${_pDisk}s${CURPART} count=2048 2>/dev/null
+
+        # If we have a enc password, save it as well
+        if [ -n "${ENCPASS}" ] ; then
+          echo "${ENCPASS}" >${PARTDIR}-enc/${_dFile}s${CURPART}-encpass
+        fi
       else
 	# MBR Partition or GPT slice
 	_dFile="`echo $_wSlice | sed 's|/|-|g'`"
@@ -367,9 +436,10 @@ setup_gpart_partitions()
 
 
       # Increment our parts counter
-      if [ "$_pType" = "gpt" ] ; then 
+      if [ "$_pType" = "gpt" -o "$_pType" = "apm" ] ; then 
           CURPART=$((CURPART+1))
-        # If this is a gpt partition, we can continue and skip the MBR part letter stuff
+        # If this is a gpt/apm partition, 
+        # we can continue and skip the MBR part letter stuff
         continue
       else
           CURPART=$((CURPART+1))
@@ -436,6 +506,9 @@ populate_disk_label()
   if [ "$type" = "mbr" ] ; then
     wrkslice="${diskid}s${slicenum}"
   fi
+  if [ "$type" = "apm" ] ; then
+    wrkslice="${diskid}s${slicenum}"
+  fi
   if [ "$type" = "gpt" -o "$type" = "gptslice" ] ; then
     wrkslice="${diskid}p${slicenum}"
   fi
@@ -471,6 +544,9 @@ setup_disk_label()
       exit_err "ERROR: The partition ${i} doesn't exist! gpart failure!"
     fi
     if [ "$type" = "gpt" -a ! -e "${disk}p${pnum}" ] ; then
+      exit_err "ERROR: The partition ${i} doesn't exist! gpart failure!"
+    fi
+    if [ "$type" = "apm" -a ! -e "${disk}s${pnum}" ] ; then
       exit_err "ERROR: The partition ${i} doesn't exist! gpart failure!"
     fi
     if [ "$type" = "gptslice" -a ! -e "${disk}p${pnum}" ] ; then

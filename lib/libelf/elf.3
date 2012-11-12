@@ -385,9 +385,9 @@ See
 This section contains a brief overview of the available functionality
 in the ELF library.
 Each function listed here is described further in its own manual page.
-.Bl -tag -width indent
+.Bl -tag -width 2n
 .It "Archive Access"
-.Bl -tag -compact
+.Bl -tag -width 17n -compact
 .It Fn elf_getarsym
 Retrieve the archive symbol table.
 .It Fn elf_getarhdr
@@ -404,7 +404,7 @@ Random access inside an
 archive.
 .El
 .It "Data Structures"
-.Bl -tag -compact
+.Bl -tag -width 17n -compact
 .It Fn elf_getdata
 Retrieve translated data for an ELF section.
 .It Fn elf_getscn
@@ -437,7 +437,7 @@ Allocate an Executable Header in an ELF object.
 Allocate or resize the Program Header Table in an ELF object.
 .El
 .It "Data Translation"
-.Bl -tag -compact
+.Bl -tag -width 17n -compact
 .It Fn elf32_xlatetof , Fn elf64_xlatetof
 Translate an ELF data structure from its native representation to its
 file representation.
@@ -446,14 +446,14 @@ Translate an ELF data structure from its file representation to a
 native representation.
 .El
 .It "Error Reporting"
-.Bl -tag -compact
+.Bl -tag -width 17n -compact
 .It Fn elf_errno
 Retrieve the current error.
 .It Fn elf_errmsg
 Retrieve a human readable description of the current error.
 .El
 .It "Initialization"
-.Bl -tag -compact
+.Bl -tag -width 17n -compact
 .It Fn elf_begin
 Opens an
 .Xr ar 1
@@ -468,7 +468,7 @@ archive or ELF object present in a memory area.
 Sets the operating version.
 .El
 .It "IO Control"
-.Bl -tag -width ".Fn elf_setshstrndx" -compact
+.Bl -tag -width 17n -compact
 .It Fn elf_cntl
 Manage the association between and ELF descriptor and its underlying file.
 .It Fn elf_flagdata
@@ -492,7 +492,7 @@ Recompute ELF object layout and optionally write the modified object
 back to the underlying file.
 .El
 .It "Queries"
-.Bl -tag -width ".Fn elf_getshstrndx" -compact
+.Bl -tag -width 17n -compact
 .It Fn elf32_checksum , Fn elf64_checkum
 Compute checksum of an ELF object.
 .It Fn elf_getident

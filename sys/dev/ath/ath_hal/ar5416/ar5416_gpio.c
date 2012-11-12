@@ -85,23 +85,49 @@ ar5416GpioCfgOutput(struct ath_hal *ah, uint32_t gpio, HAL_GPIO_MUX_TYPE type)
 {
 	uint32_t gpio_shift, reg;
 
+#define	N(a)	(sizeof(a) / sizeof(a[0]))
+
 	HALASSERT(gpio < AH_PRIVATE(ah)->ah_caps.halNumGpioPins);
+
+	/*
+	 * This table maps the HAL GPIO pins to the actual hardware
+	 * values.
+	 */
+	static const u_int32_t MuxSignalConversionTable[] = {
+		AR_GPIO_OUTPUT_MUX_AS_OUTPUT,
+		AR_GPIO_OUTPUT_MUX_AS_PCIE_ATTENTION_LED,
+		AR_GPIO_OUTPUT_MUX_AS_PCIE_POWER_LED,
+		AR_GPIO_OUTPUT_MUX_AS_MAC_NETWORK_LED,
+		AR_GPIO_OUTPUT_MUX_AS_PCIE_POWER_LED,
+		AR_GPIO_OUTPUT_MUX_AS_RX_CLEAR_EXTERNAL,
+		AR_GPIO_OUTPUT_MUX_AS_TX_FRAME,
+	};
 
 	HALDEBUG(ah, HAL_DEBUG_GPIO,
 	    "%s: gpio=%d, type=%d\n", __func__, gpio, type);
 
-	/* NB: type maps directly to hardware */
-	/* XXX this may not actually be the case, for anything but output */
-	cfgOutputMux(ah, gpio, type);
-	gpio_shift = gpio << 1;			/* 2 bits per output mode */
+	/*
+	 * Convert HAL signal type definitions to hardware-specific values.
+	 */
+	if (type >= N(MuxSignalConversionTable)) {
+		ath_hal_printf(ah, "%s: mux %d is invalid!\n",
+		    __func__,
+		    type);
+		return AH_FALSE;
+	}
+	cfgOutputMux(ah, gpio, MuxSignalConversionTable[type]);
 
+	/* 2 bits per output mode */
+	gpio_shift = gpio << 1;
+
+	/* Always drive, rather than tristate/drive low/drive high */
 	reg = OS_REG_READ(ah, AR_GPIO_OE_OUT);
 	reg &= ~(AR_GPIO_OE_OUT_DRV << gpio_shift);
-	/* Always drive, rather than tristate/drive low/drive high */
 	reg |= AR_GPIO_OE_OUT_DRV_ALL << gpio_shift;
 	OS_REG_WRITE(ah, AR_GPIO_OE_OUT, reg);
 
 	return AH_TRUE;
+#undef	N
 }
  
 /*

@@ -1,0 +1,95 @@
+The following is a demonstration of the dexplorer program.
+
+
+Here we run dexplorer with no arguments. By default it will sample various
+system activities using DTrace at 5 seconds per sample. It creates an
+output tar.gz file containing all the DTrace output,
+
+   # dexplorer
+   Output dir will be the current dir (/export/home/root/DTrace/Dexplorer).
+   Hit enter for yes, or type path:
+   Starting dexplorer ver 0.70.
+   Sample interval is 5 seconds. Total run is > 100 seconds.
+     0% Interrupts by CPU...
+     5% Interrupt counts...
+    10% Dispatcher queue length by CPU...
+    15% Sdt counts...
+    20% Pages paged in by process name...
+    25% Files opened count...
+    30% Disk I/O size distribution by process name...
+    35% Minor faults by process name...
+    40% Vminfo data by process name...
+    45% Mib data by mib statistic...
+    50% TCP write bytes by process...
+    55% Sample process @ 1000 Hz...
+    60% Syscall count by process name...
+    65% Syscall count by syscall...
+    70% Read bytes by process name...
+    75% Write bytes by process name...
+    80% Sysinfo counts by process name...
+    85% New process counts with arguments...
+    90% Signal counts...
+    95% Syscall error counts...
+   100% Done.
+   File is de_jupiter_200506271803.tar.gz
+
+As each sample is taken, a line of output is printed above. The above example
+is for version 0.70, newer versions of dexplorer are likely to print more
+lines as they take more samples.
+
+The final line states which file all the output is now in.
+
+
+
+
+The following displays the contents of a dexplorer file,
+
+   # gunzip de_jupiter_200506271803.tar.gz
+   # tar xf de_jupiter_200506271803.tar
+   de_jupiter_200506271803
+   de_jupiter_200506271803/Cpu
+   de_jupiter_200506271803/Cpu/interrupt_by_cpu
+   de_jupiter_200506271803/Cpu/interrupt_time
+   de_jupiter_200506271803/Cpu/dispqlen_by_cpu
+   de_jupiter_200506271803/Cpu/sdt_count
+   de_jupiter_200506271803/Disk
+   de_jupiter_200506271803/Disk/pgpgin_by_processname
+   de_jupiter_200506271803/Disk/fileopen_count
+   de_jupiter_200506271803/Disk/sizedist_by_processname
+   de_jupiter_200506271803/Mem
+   de_jupiter_200506271803/Mem/minf_by_processname
+   de_jupiter_200506271803/Mem/vminfo_by_processname
+   de_jupiter_200506271803/Net
+   de_jupiter_200506271803/Net/mib_data
+   de_jupiter_200506271803/Net/tcpw_by_process
+   de_jupiter_200506271803/Proc
+   de_jupiter_200506271803/Proc/sample_process
+   de_jupiter_200506271803/Proc/syscall_by_processname
+   de_jupiter_200506271803/Proc/syscall_count
+   de_jupiter_200506271803/Proc/readb_by_processname
+   de_jupiter_200506271803/Proc/writeb_by_processname
+   de_jupiter_200506271803/Proc/sysinfo_by_processname
+   de_jupiter_200506271803/Proc/newprocess_count
+   de_jupiter_200506271803/Proc/signal_count
+   de_jupiter_200506271803/Proc/syscall_errors
+   de_jupiter_200506271803/Info
+   de_jupiter_200506271803/Info/uname-a
+   de_jupiter_200506271803/Info/psrinfo-v
+   de_jupiter_200506271803/Info/prtconf
+   de_jupiter_200506271803/Info/df-k
+   de_jupiter_200506271803/Info/ifconfig-a
+   de_jupiter_200506271803/Info/ps-o
+   de_jupiter_200506271803/Info/uptime
+   de_jupiter_200506271803/log
+
+
+
+The following demonstrates running dexplorer in full quiet mode,
+
+   # dexplorer -qy -d /var/tmp
+   #
+
+No text is written to the screen (-qy). The output file will have been 
+put in /var/tmp (-d).
+
+

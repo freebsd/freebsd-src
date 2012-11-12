@@ -1183,7 +1183,7 @@ parse_device(struct archive *a, struct archive_entry *entry, char *val)
 
 	comma1 = strchr(val, ',');
 	if (comma1 == NULL) {
-		archive_entry_set_dev(entry, mtree_atol10(&val));
+		archive_entry_set_dev(entry, (dev_t)mtree_atol10(&val));
 		return (ARCHIVE_OK);
 	}
 	++comma1;
@@ -1194,8 +1194,8 @@ parse_device(struct archive *a, struct archive_entry *entry, char *val)
 		return (ARCHIVE_WARN);
 	}
 	++comma2;
-	archive_entry_set_rdevmajor(entry, mtree_atol(&comma1));
-	archive_entry_set_rdevminor(entry, mtree_atol(&comma2));
+	archive_entry_set_rdevmajor(entry, (dev_t)mtree_atol(&comma1));
+	archive_entry_set_rdevminor(entry, (dev_t)mtree_atol(&comma2));
 	return (ARCHIVE_OK);
 }
 
@@ -1280,7 +1280,7 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			if (val[0] >= '0' && val[0] <= '9') {
 				*parsed_kws |= MTREE_HAS_PERM;
 				archive_entry_set_perm(entry,
-				    mtree_atol8(&val));
+				    (mode_t)mtree_atol8(&val));
 			} else {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
@@ -1292,7 +1292,8 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 	case 'n':
 		if (strcmp(key, "nlink") == 0) {
 			*parsed_kws |= MTREE_HAS_NLINK;
-			archive_entry_set_nlink(entry, mtree_atol10(&val));
+			archive_entry_set_nlink(entry,
+				(unsigned int)mtree_atol10(&val));
 			break;
 		}
 	case 'r':
@@ -1434,7 +1435,7 @@ read_data(struct archive_read *a, const void **buff, size_t *size, int64_t *offs
 	*buff = mtree->buff;
 	*offset = mtree->offset;
 	if ((int64_t)mtree->buffsize > mtree->cur_size - mtree->offset)
-		bytes_to_read = mtree->cur_size - mtree->offset;
+		bytes_to_read = (size_t)(mtree->cur_size - mtree->offset);
 	else
 		bytes_to_read = mtree->buffsize;
 	bytes_read = read(mtree->fd, mtree->buff, bytes_to_read);

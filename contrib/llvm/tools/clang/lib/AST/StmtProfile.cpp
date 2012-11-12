@@ -109,6 +109,11 @@ void StmtProfiler::VisitLabelStmt(const LabelStmt *S) {
   VisitDecl(S->getDecl());
 }
 
+void StmtProfiler::VisitAttributedStmt(const AttributedStmt *S) {
+  VisitStmt(S);
+  // TODO: maybe visit attributes?
+}
+
 void StmtProfiler::VisitIfStmt(const IfStmt *S) {
   VisitStmt(S);
   VisitDecl(S->getConditionVariable());
@@ -171,6 +176,11 @@ void StmtProfiler::VisitAsmStmt(const AsmStmt *S) {
   ID.AddInteger(S->getNumClobbers());
   for (unsigned I = 0, N = S->getNumClobbers(); I != N; ++I)
     VisitStringLiteral(S->getClobber(I));
+}
+
+void StmtProfiler::VisitMSAsmStmt(const MSAsmStmt *S) {
+  // FIXME: Implement MS style inline asm statement profiler.
+  VisitStmt(S);
 }
 
 void StmtProfiler::VisitCXXCatchStmt(const CXXCatchStmt *S) {
@@ -758,6 +768,7 @@ void StmtProfiler::VisitCXXUuidofExpr(const CXXUuidofExpr *S) {
 
 void StmtProfiler::VisitCXXThisExpr(const CXXThisExpr *S) {
   VisitExpr(S);
+  ID.AddBoolean(S->isImplicit());
 }
 
 void StmtProfiler::VisitCXXThrowExpr(const CXXThrowExpr *S) {
@@ -975,7 +986,7 @@ void StmtProfiler::VisitObjCStringLiteral(const ObjCStringLiteral *S) {
   VisitExpr(S);
 }
 
-void StmtProfiler::VisitObjCNumericLiteral(const ObjCNumericLiteral *E) {
+void StmtProfiler::VisitObjCBoxedExpr(const ObjCBoxedExpr *E) {
   VisitExpr(E);
 }
 
@@ -1155,7 +1166,7 @@ void StmtProfiler::VisitTemplateArgument(const TemplateArgument &Arg) {
     break;
 
   case TemplateArgument::Integral:
-    Arg.getAsIntegral()->Profile(ID);
+    Arg.getAsIntegral().Profile(ID);
     VisitType(Arg.getIntegralType());
     break;
 

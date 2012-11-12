@@ -51,6 +51,10 @@
 #include <contrib/dev/acpica/include/actables.h>
 #endif
 
+#ifdef ACPI_ASL_COMPILER
+#include <contrib/dev/acpica/compiler/aslcompiler.h>
+#endif
+
 #if (defined ACPI_DEBUGGER || defined ACPI_DISASSEMBLER)
 
 #define _COMPONENT          ACPI_CA_DEBUGGER
@@ -309,15 +313,24 @@ AcpiDbReadTable (
             AcpiOsPrintf (
                 "TableHeader length [0x%X] greater than the input file size [0x%X]\n",
                 TableHeader.Length, FileSize);
+
+#ifdef ACPI_ASL_COMPILER
+            Status = FlCheckForAscii (fp, NULL, FALSE);
+            if (ACPI_SUCCESS (Status))
+            {
+                AcpiOsPrintf ("File appears to be ASCII only, must be binary\n",
+                    TableHeader.Length, FileSize);
+            }
+#endif
             return (AE_BAD_HEADER);
         }
 
 #ifdef ACPI_OBSOLETE_CODE
         /* We only support a limited number of table types */
 
-        if (ACPI_STRNCMP ((char *) TableHeader.Signature, DSDT_SIG, 4) &&
-            ACPI_STRNCMP ((char *) TableHeader.Signature, PSDT_SIG, 4) &&
-            ACPI_STRNCMP ((char *) TableHeader.Signature, SSDT_SIG, 4))
+        if (!ACPI_COMPARE_NAME ((char *) TableHeader.Signature, ACPI_SIG_DSDT) &&
+            !ACPI_COMPARE_NAME ((char *) TableHeader.Signature, ACPI_SIG_PSDT) &&
+            !ACPI_COMPARE_NAME ((char *) TableHeader.Signature, ACPI_SIG_SSDT))
         {
             AcpiOsPrintf ("Table signature [%4.4s] is invalid or not supported\n",
                 (char *) TableHeader.Signature);
@@ -575,4 +588,3 @@ AcpiDbGetTableFromFile (
 }
 
 #endif  /* ACPI_DEBUGGER */
-

@@ -13,6 +13,7 @@ SRCS+=	avl.c
 .PATH:	${SUNW}/common/nvpair
 SRCS+=	nvpair.c
 SRCS+=	nvpair_alloc_fixed.c
+SRCS+=	fnvpair.c
 .PATH:	${.CURDIR}/../../cddl/contrib/opensolaris/common/unicode
 SRCS+=	u8_textprep.c
 
@@ -71,6 +72,7 @@ SRCS+=	sha2.c
 ZFS_SRCS=	${ZFS_OBJS:C/.o$/.c/}
 SRCS+=	${ZFS_SRCS}
 SRCS+=	vdev_geom.c
+SRCS+=	trim_map.c
 
 # Use FreeBSD's namecache.
 CFLAGS+=-DFREEBSD_NAMECACHE

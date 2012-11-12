@@ -116,6 +116,7 @@ DefaultVLIWScheduler::DefaultVLIWScheduler(
   MachineFunction &MF, MachineLoopInfo &MLI, MachineDominatorTree &MDT,
   bool IsPostRA) :
   ScheduleDAGInstrs(MF, MLI, MDT, IsPostRA) {
+  CanHandleTerminators = true;
 }
 
 void DefaultVLIWScheduler::schedule() {
@@ -158,12 +159,11 @@ void VLIWPacketizerList::PacketizeMIs(MachineBasicBlock *MBB,
                                       MachineBasicBlock::iterator BeginItr,
                                       MachineBasicBlock::iterator EndItr) {
   assert(VLIWScheduler && "VLIW Scheduler is not initialized!");
+  VLIWScheduler->startBlock(MBB);
   VLIWScheduler->enterRegion(MBB, BeginItr, EndItr, MBB->size());
   VLIWScheduler->schedule();
-  VLIWScheduler->exitRegion();
 
   // Generate MI -> SU map.
-  //std::map <MachineInstr*, SUnit*> MIToSUnit;
   MIToSUnit.clear();
   for (unsigned i = 0, e = VLIWScheduler->SUnits.size(); i != e; ++i) {
     SUnit *SU = &VLIWScheduler->SUnits[i];
@@ -220,4 +220,6 @@ void VLIWPacketizerList::PacketizeMIs(MachineBasicBlock *MBB,
 
   // End any packet left behind.
   endPacket(MBB, EndItr);
+  VLIWScheduler->exitRegion();
+  VLIWScheduler->finishBlock();
 }

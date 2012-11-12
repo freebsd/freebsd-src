@@ -306,11 +306,6 @@ CXXRT_1.0 {
         "std::type_info::__is_pointer_p() const";
 
 
-        "operator delete[](void*)";
-        "operator delete(void*)";
-        "operator new[](unsigned long)";
-        "operator new(unsigned long)";
-        "operator new(unsigned long, std::nothrow_t const&)";
 
     };
     __cxa_allocate_dependent_exception;
@@ -321,3 +316,16 @@ CXXRT_1.0 {
     __cxa_rethrow_primary_exception;
 
 } CXXABI_1.3.1;
+
+GLIBCXX_3.4 {
+    extern "C++" {
+        "operator delete[](void*)";
+        "operator delete(void*)";
+        "operator new[](unsigned int)";
+        "operator new(unsigned int)";
+        "operator new(unsigned int, std::nothrow_t const&)";
+        "operator new[](unsigned long)";
+        "operator new(unsigned long)";
+        "operator new(unsigned long, std::nothrow_t const&)";
+    };
+};

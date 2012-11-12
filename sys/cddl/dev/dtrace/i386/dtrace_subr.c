@@ -27,6 +27,10 @@
  * Use is subject to license terms.
  */
 
+/*
+ * Copyright (c) 2011, Joyent, Inc. All rights reserved.
+ */
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/types.h>
@@ -44,6 +48,8 @@
 extern uintptr_t 	kernelbase;
 extern uintptr_t 	dtrace_in_probe_addr;
 extern int		dtrace_in_probe;
+
+extern void dtrace_getnanotime(struct timespec *tsp);
 
 int dtrace_invop(uintptr_t, uintptr_t *, uintptr_t);
 
@@ -298,14 +304,15 @@ dtrace_safe_defer_signal(void)
 	}
 
 	/*
-	 * If we've executed the original instruction, but haven't performed
-	 * the jmp back to t->t_dtrace_npc or the clean up of any registers
-	 * used to emulate %rip-relative instructions in 64-bit mode, do that
-	 * here and take the signal right away. We detect this condition by
-	 * seeing if the program counter is the range [scrpc + isz, astpc).
+	 * If we have executed the original instruction, but we have performed
+	 * neither the jmp back to t->t_dtrace_npc nor the clean up of any
+	 * registers used to emulate %rip-relative instructions in 64-bit mode,
+	 * we'll save ourselves some effort by doing that here and taking the
+	 * signal right away.  We detect this condition by seeing if the program
+	 * counter is the range [scrpc + isz, astpc).
 	 */
-	if (t->t_dtrace_astpc - rp->r_pc <
-	    t->t_dtrace_astpc - t->t_dtrace_scrpc - isz) {
+	if (rp->r_pc >= t->t_dtrace_scrpc + isz &&
+	    rp->r_pc < t->t_dtrace_astpc) {
 #ifdef __amd64
 		/*
 		 * If there is a scratch register and we're on the
@@ -447,7 +454,7 @@ dtrace_gethrtime()
 	 * (see nsec_scale calculations) taking into account 32-bit shift of
 	 * the higher half and finally add.
 	 */
-	tsc = rdtsc() + tsc_skew[curcpu];
+	tsc = rdtsc() - tsc_skew[curcpu];
 	lo = tsc;
 	hi = tsc >> 32;
 	return (((lo * nsec_scale) >> SCALE_SHIFT) +
@@ -457,8 +464,11 @@ dtrace_gethrtime()
 uint64_t
 dtrace_gethrestime(void)
 {
-	printf("%s(%d): XXX\n",__func__,__LINE__);
-	return (0);
+	struct timespec current_time;
+
+	dtrace_getnanotime(&current_time);
+
+	return (current_time.tv_sec * 1000000000ULL + current_time.tv_nsec);
 }
 
 /* Function to handle DTrace traps during probes. See i386/i386/trap.c */

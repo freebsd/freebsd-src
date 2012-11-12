@@ -82,6 +82,13 @@
 # define __GNUC_VA_LIST_COMPATIBILITY 1
 #endif
 
+/*
+ * Compiler memory barriers, specific to gcc and clang.
+ */
+#if defined(__GNUC__)
+#define	__compiler_membar()	__asm __volatile(" " : : : "memory")
+#endif
+
 #ifndef __INTEL_COMPILER
 # define __GNUCLIKE_BUILTIN_NEXT_ARG 1
 # define __GNUCLIKE_MATH_BUILTIN_RELOPS
@@ -293,6 +300,12 @@
 #define __nonnull(x)
 #endif
 
+#if __GNUC_PREREQ__(3, 4)
+#define	__fastcall	__attribute__((__fastcall__))
+#else
+#define	__fastcall
+#endif
+
 #if __GNUC_PREREQ__(4, 1)
 #define	__returns_twice	__attribute__((__returns_twice__))
 #else
@@ -396,6 +409,22 @@
 #endif
 #define	__rangeof(type, start, end) \
 	(__offsetof(type, end) - __offsetof(type, start))
+
+/*
+ * Given the pointer x to the member m of the struct s, return
+ * a pointer to the containing structure.  When using GCC, we first
+ * assign pointer x to a local variable, to check that its type is
+ * compatible with member m.
+ */
+#if __GNUC_PREREQ__(3, 1)
+#define	__containerof(x, s, m) ({					\
+	const volatile __typeof(((s *)0)->m) *__x = (x);		\
+	__DEQUALIFY(s *, (const volatile char *)__x - __offsetof(s, m));\
+})
+#else
+#define	__containerof(x, s, m)						\
+	__DEQUALIFY(s *, (const volatile char *)(x) - __offsetof(s, m))
+#endif
 
 /*
  * Compiler-dependent macros to declare that functions take printf-like
@@ -653,6 +682,9 @@
 #endif
 #endif
 
+#ifndef	__has_extension
+#define	__has_extension  __has_feature
+#endif
 #ifndef	__has_feature
 #define	__has_feature(x) 0
 #endif

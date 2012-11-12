@@ -189,6 +189,7 @@ static void rem_ref(struct iw_cm_id *cm_id)
 static int cm_event_handler(struct iw_cm_id *cm_id, struct iw_cm_event *event);
 
 struct iw_cm_id *iw_create_cm_id(struct ib_device *device,
+				 struct socket *so,
 				 iw_cm_handler cm_handler,
 				 void *context)
 {
@@ -205,6 +206,7 @@ struct iw_cm_id *iw_create_cm_id(struct ib_device *device,
 	cm_id_priv->id.event_handler = cm_event_handler;
 	cm_id_priv->id.add_ref = add_ref;
 	cm_id_priv->id.rem_ref = rem_ref;
+	cm_id_priv->id.so = so;
 	spin_lock_init(&cm_id_priv->lock);
 	atomic_set(&cm_id_priv->refcount, 1);
 	init_waitqueue_head(&cm_id_priv->connect_wait);
@@ -629,6 +631,7 @@ static void cm_conn_req_handler(struct iwcm_id_private *listen_id_priv,
 	spin_unlock_irqrestore(&listen_id_priv->lock, flags);
 
 	cm_id = iw_create_cm_id(listen_id_priv->id.device,
+				iw_event->so,
 				listen_id_priv->id.cm_handler,
 				listen_id_priv->id.context);
 	/* If the cm_id could not be created, ignore the request */

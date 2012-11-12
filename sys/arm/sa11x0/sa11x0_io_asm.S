@@ -208,7 +208,7 @@ ENTRY(sa11x0_bs_rr_2)
 	movle	pc, lr
 
 sa11x0_bs_rr_2_loop:
-	ldrh	r1, [r0], #0x0002  
+	ldrh	r1, [r0], #0x0002
 	strh	r1, [r3], #0x0002
         subs    r2, r2, #0x00000001
 	bgt	sa11x0_bs_rr_2_loop
@@ -222,7 +222,7 @@ sa11x0_bs_rr_2_loop:
 ENTRY(sa11x0_bs_wr_2)
 	add	r0, r1, r2
 	ldr	r2, [sp, #0]
-	cmp	r2, #0x00000000  
+	cmp	r2, #0x00000000
 	movle	pc, lr
 
 sa11x0_bs_wr_2_loop:

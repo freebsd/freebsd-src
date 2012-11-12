@@ -768,7 +768,7 @@ static struct asc_table_entry asc_table[] = {
 	 *
 	 * SCSI ASC/ASCQ Assignments
 	 * Numeric Sorted Listing
-	 * as of  7/29/08
+	 * as of  5/20/12
 	 *
 	 * D - DIRECT ACCESS DEVICE (SBC-2)                   device column key
 	 * .T - SEQUENTIAL ACCESS DEVICE (SSC)               -------------------
@@ -854,6 +854,12 @@ static struct asc_table_entry asc_table[] = {
 	/* DT   R MAEBKV  */
 	{ SST(0x00, 0x1E, SS_RDEF,	/* XXX TBD */
 	    "Conflicting SA creation request") },
+	/* DT        B    */
+	{ SST(0x00, 0x1F, SS_RDEF,	/* XXX TBD */
+	    "Logical unit transitioning to another power condition") },
+	/* DT P      B    */
+	{ SST(0x00, 0x20, SS_RDEF,	/* XXX TBD */
+	    "Extended copy information available") },
 	/* D   W O   BK   */
 	{ SST(0x01, 0x00, SS_RDEF,
 	    "No index/sector signal") },
@@ -923,6 +929,33 @@ static struct asc_table_entry asc_table[] = {
 	/* DT   R MAEBKV  */
 	{ SST(0x04, 0x13, SS_RDEF,	/* XXX TBD */
 	    "Logical unit not ready, SA creation in progress") },
+	/* D         B    */
+	{ SST(0x04, 0x14, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, space allocation in progress") },
+	/*        M       */
+	{ SST(0x04, 0x15, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, robotics disabled") },
+	/*        M       */
+	{ SST(0x04, 0x16, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, configuration required") },
+	/*        M       */
+	{ SST(0x04, 0x17, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, calibration required") },
+	/*        M       */
+	{ SST(0x04, 0x18, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, a door is open") },
+	/*        M       */
+	{ SST(0x04, 0x19, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, operating in sequential mode") },
+	/* DT        B    */
+	{ SST(0x04, 0x1A, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, START/STOP UNIT command in progress") },
+	/* D         B    */
+	{ SST(0x04, 0x1B, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, sanitize in progress") },
+	/* DT     MAEB    */
+	{ SST(0x04, 0x1C, SS_RDEF,	/* XXX TBD */
+	    "Logical unit not ready, additional power use not yet granted") },
 	/* DTL WROMAEBKVF */
 	{ SST(0x05, 0x00, SS_RDEF,
 	    "Logical unit does not respond to selection") },
@@ -989,6 +1022,12 @@ static struct asc_table_entry asc_table[] = {
 	/* DTLPWROMAEBKVF */
 	{ SST(0x0B, 0x07, SS_RDEF,	/* XXX TBD */
 	    "Warning - degraded power to non-volatile cache") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x0B, 0x08, SS_RDEF,	/* XXX TBD */
+	    "Warning - power loss expected") },
+	/* D              */
+	{ SST(0x0B, 0x09, SS_RDEF,	/* XXX TBD */
+	    "Warning - device statistics notification available") },
 	/*  T   R         */
 	{ SST(0x0C, 0x00, SS_RDEF,
 	    "Write error") },
@@ -1031,6 +1070,9 @@ static struct asc_table_entry asc_table[] = {
 	/* DTLPWRO AEBKVF */
 	{ SST(0x0C, 0x0D, SS_RDEF,	/* XXX TBD */
 	    "Write error - not enough unsolicited data") },
+	/* DT  W O   BK   */
+	{ SST(0x0C, 0x0E, SS_RDEF,	/* XXX TBD */
+	    "Multiple write errors") },
 	/*      R         */
 	{ SST(0x0C, 0x0F, SS_RDEF,	/* XXX TBD */
 	    "Defects in error window") },
@@ -1076,6 +1118,12 @@ static struct asc_table_entry asc_table[] = {
 	/* DT  W O        */
 	{ SST(0x10, 0x03, SS_RDEF,	/* XXX TBD */
 	    "Logical block reference tag check failed") },
+	/*  T             */
+	{ SST(0x10, 0x04, SS_RDEF,	/* XXX TBD */
+	    "Logical block protection error on recovered buffer data") },
+	/*  T             */
+	{ SST(0x10, 0x05, SS_RDEF,	/* XXX TBD */
+	    "Logical block protection method error") },
 	/* DT  WRO   BK   */
 	{ SST(0x11, 0x00, SS_FATAL|EIO,
 	    "Unrecovered read error") },
@@ -1280,6 +1328,9 @@ static struct asc_table_entry asc_table[] = {
 	/* DT  WRO   BK   */
 	{ SST(0x1D, 0x00, SS_FATAL,
 	    "Miscompare during verify operation") },
+	/* D         B    */
+	{ SST(0x1D, 0x01, SS_RDEF,	/* XXX TBD */
+	    "Miscomparable verify of unmapped LBA") },
 	/* D   W O   BK   */
 	{ SST(0x1E, 0x00, SS_NOP | SSQ_PRINT_SENSE,
 	    "Recovered ID with ECC correction") },
@@ -1322,6 +1373,9 @@ static struct asc_table_entry asc_table[] = {
 	/* DT PWROMAEBK   */
 	{ SST(0x20, 0x0B, SS_RDEF,	/* XXX TBD */
 	    "Access denied - ACL LUN conflict") },
+	/*  T             */
+	{ SST(0x20, 0x0C, SS_FATAL | EINVAL,
+	    "Illegal command when not in append-only mode") },
 	/* DT  WRO   BK   */
 	{ SST(0x21, 0x00, SS_FATAL | EINVAL,
 	    "Logical block address out of range") },
@@ -1337,6 +1391,39 @@ static struct asc_table_entry asc_table[] = {
 	/* D              */
 	{ SST(0x22, 0x00, SS_FATAL | EINVAL,
 	    "Illegal function (use 20 00, 24 00, or 26 00)") },
+	/* DT P      B    */
+	{ SST(0x23, 0x00, SS_RDEF,	/* XXX TBD */
+	    "Invalid token operation, cause not reportable") },
+	/* DT P      B    */
+	{ SST(0x23, 0x01, SS_RDEF,	/* XXX TBD */
+	    "Invalid token operation, unsupported token type") },
+	/* DT P      B    */
+	{ SST(0x23, 0x02, SS_RDEF,	/* XXX TBD */
+	    "Invalid token operation, remote token usage not supported") },
+	/* DT P      B    */
+	{ SST(0x23, 0x03, SS_RDEF,	/* XXX TBD */
+	    "Invalid token operation, remote ROD token creation not supported") },
+	/* DT P      B    */
+	{ SST(0x23, 0x04, SS_RDEF,	/* XXX TBD */
+	    "Invalid token operation, token unknown") },
+	/* DT P      B    */
+	{ SST(0x23, 0x05, SS_RDEF,	/* XXX TBD */
+	    "Invalid token operation, token corrupt") },
+	/* DT P      B    */
+	{ SST(0x23, 0x06, SS_RDEF,	/* XXX TBD */
+	    "Invalid token operation, token revoked") },
+	/* DT P      B    */
+	{ SST(0x23, 0x07, SS_RDEF,	/* XXX TBD */
+	    "Invalid token operation, token expired") },
+	/* DT P      B    */
+	{ SST(0x23, 0x08, SS_RDEF,	/* XXX TBD */
+	    "Invalid token operation, token cancelled") },
+	/* DT P      B    */
+	{ SST(0x23, 0x09, SS_RDEF,	/* XXX TBD */
+	    "Invalid token operation, token deleted") },
+	/* DT P      B    */
+	{ SST(0x23, 0x0A, SS_RDEF,	/* XXX TBD */
+	    "Invalid token operation, invalid token length") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x24, 0x00, SS_FATAL | EINVAL,
 	    "Invalid field in CDB") },
@@ -1445,6 +1532,9 @@ static struct asc_table_entry asc_table[] = {
 	/*      R       F */
 	{ SST(0x27, 0x06, SS_RDEF,	/* XXX TBD */
 	    "Conditional write protect") },
+	/* D         B    */
+	{ SST(0x27, 0x07, SS_RDEF,	/* XXX TBD */
+	    "Space allocation failed write protect") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x28, 0x00, SS_FATAL | ENXIO,
 	    "Not ready to ready change, medium may have changed") },
@@ -1543,6 +1633,9 @@ static struct asc_table_entry asc_table[] = {
 	/* DT   R MAEBKV  */
 	{ SST(0x2A, 0x14, SS_RDEF,	/* XXX TBD */
 	    "SA creation capabilities data has changed") },
+	/*  T     M    V  */
+	{ SST(0x2A, 0x15, SS_RDEF,	/* XXX TBD */
+	    "Medium removal prevention preempted") },
 	/* DTLPWRO    K   */
 	{ SST(0x2B, 0x00, SS_RDEF,
 	    "Copy cannot execute since host cannot disconnect") },
@@ -1582,6 +1675,9 @@ static struct asc_table_entry asc_table[] = {
 	/*  T             */
 	{ SST(0x2C, 0x0B, SS_RDEF,	/* XXX TBD */
 	    "Not reserved") },
+	/* D              */
+	{ SST(0x2C, 0x0C, SS_RDEF,	/* XXX TBD */
+	    "ORWRITE generation does not match") },
 	/*  T             */
 	{ SST(0x2D, 0x00, SS_RDEF,
 	    "Overwrite error on update in place") },
@@ -1645,6 +1741,9 @@ static struct asc_table_entry asc_table[] = {
 	/*        M       */
 	{ SST(0x30, 0x12, SS_RDEF,	/* XXX TBD */
 	    "Incompatible volume qualifier") },
+	/*        M       */
+	{ SST(0x30, 0x13, SS_RDEF,	/* XXX TBD */
+	    "Cleaning volume expired") },
 	/* DT  WRO   BK   */
 	{ SST(0x31, 0x00, SS_RDEF,
 	    "Medium format corrupted") },
@@ -1654,6 +1753,9 @@ static struct asc_table_entry asc_table[] = {
 	/*      R         */
 	{ SST(0x31, 0x02, SS_RDEF,	/* XXX TBD */
 	    "Zoned formatting failed due to spare linking") },
+	/* D         B    */
+	{ SST(0x31, 0x03, SS_RDEF,	/* XXX TBD */
+	    "SANITIZE command failed") },
 	/* D   W O   BK   */
 	{ SST(0x32, 0x00, SS_RDEF,
 	    "No defect spare location available") },
@@ -1702,6 +1804,9 @@ static struct asc_table_entry asc_table[] = {
 	/*           B    */
 	{ SST(0x38, 0x06, SS_RDEF,	/* XXX TBD */
 	    "ESN - device busy class event") },
+	/* D              */
+	{ SST(0x38, 0x07, SS_RDEF,	/* XXX TBD */
+	    "Thin provisioning soft threshold reached") },
 	/* DTL WROMAE K   */
 	{ SST(0x39, 0x00, SS_RDEF,
 	    "Saving parameters not supported") },
@@ -1801,6 +1906,9 @@ static struct asc_table_entry asc_table[] = {
 	/*        M       */
 	{ SST(0x3B, 0x1B, SS_RDEF,	/* XXX TBD */
 	    "Data transfer device inserted") },
+	/*  T             */
+	{ SST(0x3B, 0x1C, SS_RDEF,	/* XXX TBD */
+	    "Too many logical objects on partition to support operation") },
 	/* DTLPWROMAE K   */
 	{ SST(0x3D, 0x00, SS_RDEF,
 	    "Invalid bits in IDENTIFY message") },
@@ -1904,6 +2012,9 @@ static struct asc_table_entry asc_table[] = {
 	/* DTLPWROMAEBKVF */
 	{ SST(0x44, 0x00, SS_RDEF,
 	    "Internal target failure") },
+	/* DT P   MAEBKVF */
+	{ SST(0x44, 0x01, SS_RDEF,	/* XXX TBD */
+	    "Persistent reservation information lost") },
 	/* DT        B    */
 	{ SST(0x44, 0x71, SS_RDEF,	/* XXX TBD */
 	    "ATA device failed set features") },
@@ -1967,6 +2078,27 @@ static struct asc_table_entry asc_table[] = {
 	/* DT PWROMAEBK   */
 	{ SST(0x4B, 0x06, SS_RDEF,	/* XXX TBD */
 	    "Initiator response timeout") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x07, SS_RDEF,	/* XXX TBD */
+	    "Connection lost") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x08, SS_RDEF,	/* XXX TBD */
+	    "Data-in buffer overflow - data buffer size") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x09, SS_RDEF,	/* XXX TBD */
+	    "Data-in buffer overflow - data buffer descriptor area") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x0A, SS_RDEF,	/* XXX TBD */
+	    "Data-in buffer error") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x0B, SS_RDEF,	/* XXX TBD */
+	    "Data-out buffer overflow - data buffer size") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x0C, SS_RDEF,	/* XXX TBD */
+	    "Data-out buffer overflow - data buffer descriptor area") },
+	/* DT PWROMAEBK F */
+	{ SST(0x4B, 0x0D, SS_RDEF,	/* XXX TBD */
+	    "Data-out buffer error") },
 	/* DTLPWROMAEBKVF */
 	{ SST(0x4C, 0x00, SS_RDEF,
 	    "Logical unit failed self-configuration") },
@@ -2012,6 +2144,18 @@ static struct asc_table_entry asc_table[] = {
 	/*  T             */
 	{ SST(0x53, 0x04, SS_RDEF,	/* XXX TBD */
 	    "Medium thread or unthread failure") },
+	/*        M       */
+	{ SST(0x53, 0x05, SS_RDEF,	/* XXX TBD */
+	    "Volume identifier invalid") },
+	/*  T             */
+	{ SST(0x53, 0x06, SS_RDEF,	/* XXX TBD */
+	    "Volume identifier missing") },
+	/*        M       */
+	{ SST(0x53, 0x07, SS_RDEF,	/* XXX TBD */
+	    "Duplicate volume identifier") },
+	/*        M       */
+	{ SST(0x53, 0x08, SS_RDEF,	/* XXX TBD */
+	    "Element status unknown") },
 	/*    P           */
 	{ SST(0x54, 0x00, SS_RDEF,
 	    "SCSI to host system interface failure") },
@@ -2048,6 +2192,15 @@ static struct asc_table_entry asc_table[] = {
 	/*        M       */
 	{ SST(0x55, 0x0A, SS_RDEF,	/* XXX TBD */
 	    "Data currently unavailable") },
+	/* DTLPWROMAEBKVF */
+	{ SST(0x55, 0x0B, SS_RDEF,	/* XXX TBD */
+	    "Insufficient power for operation") },
+	/* DT P      B    */
+	{ SST(0x55, 0x0C, SS_RDEF,	/* XXX TBD */
+	    "Insufficient resources to create ROD") },
+	/* DT P      B    */
+	{ SST(0x55, 0x0D, SS_RDEF,	/* XXX TBD */
+	    "Insufficient resources to create ROD token") },
 	/*      R         */
 	{ SST(0x57, 0x00, SS_RDEF,
 	    "Unable to recover table-of-contents") },
@@ -2354,6 +2507,24 @@ static struct asc_table_entry asc_table[] = {
 	/* DTLPWRO A  K   */
 	{ SST(0x5E, 0x04, SS_RDEF,
 	    "Standby condition activated by command") },
+	/* DTLPWRO A  K   */
+	{ SST(0x5E, 0x05, SS_RDEF,
+	    "Idle-B condition activated by timer") },
+	/* DTLPWRO A  K   */
+	{ SST(0x5E, 0x06, SS_RDEF,
+	    "Idle-B condition activated by command") },
+	/* DTLPWRO A  K   */
+	{ SST(0x5E, 0x07, SS_RDEF,
+	    "Idle-C condition activated by timer") },
+	/* DTLPWRO A  K   */
+	{ SST(0x5E, 0x08, SS_RDEF,
+	    "Idle-C condition activated by command") },
+	/* DTLPWRO A  K   */
+	{ SST(0x5E, 0x09, SS_RDEF,
+	    "Standby-Y condition activated by timer") },
+	/* DTLPWRO A  K   */
+	{ SST(0x5E, 0x0A, SS_RDEF,
+	    "Standby-Y condition activated by command") },
 	/*           B    */
 	{ SST(0x5E, 0x41, SS_RDEF,	/* XXX TBD */
 	    "Power state change to active") },
@@ -2834,11 +3005,10 @@ scsi_error_action(struct ccb_scsiio *csio, struct scsi_inquiry_data *inq_data,
 	int error_code, sense_key, asc, ascq;
 	scsi_sense_action action;
 
-	scsi_extract_sense_len(&csio->sense_data, csio->sense_len -
-			       csio->sense_resid, &error_code,
-			       &sense_key, &asc, &ascq, /*show_errors*/ 1);
-
-	if ((error_code == SSD_DEFERRED_ERROR)
+	if (!scsi_extract_sense_ccb((union ccb *)csio,
+	    &error_code, &sense_key, &asc, &ascq)) {
+		action = SS_RETRY | SSQ_DECREMENT_COUNT | SSQ_PRINT_SENSE | EIO;
+	} else if ((error_code == SSD_DEFERRED_ERROR)
 	 || (error_code == SSD_DESC_DEFERRED_ERROR)) {
 		/*
 		 * XXX dufault@FreeBSD.org
@@ -2901,11 +3071,17 @@ scsi_error_action(struct ccb_scsiio *csio, struct scsi_inquiry_data *inq_data,
 					  SSQ_PRINT_SENSE;
 			}
 		}
+		if ((action & SS_MASK) >= SS_START &&
+		    (sense_flags & SF_NO_RECOVERY)) {
+			action &= ~SS_MASK;
+			action |= SS_FAIL;
+		} else if ((action & SS_MASK) == SS_RETRY &&
+		    (sense_flags & SF_NO_RETRY)) {
+			action &= ~SS_MASK;
+			action |= SS_FAIL;
+		}
+
 	}
-#ifdef _KERNEL
-	if (bootverbose)
-		sense_flags |= SF_PRINT_ALWAYS;
-#endif
 	if ((sense_flags & SF_PRINT_ALWAYS) != 0)
 		action |= SSQ_PRINT_SENSE;
 	else if ((sense_flags & SF_NO_PRINT) != 0)
@@ -3058,6 +3234,10 @@ scsi_command_string(struct cam_device *device, struct ccb_scsiio *csio,
 			    scsi_cdb_string(csio->cdb_io.cdb_bytes, cdb_str,
 					    sizeof(cdb_str)));
 	}
+
+#ifdef _KERNEL
+	xpt_free_ccb((union ccb *)cgd);
+#endif
 
 	return(0);
 }
@@ -4138,9 +4318,9 @@ scsi_sense_desc_sbuf(struct sbuf *sb, struct scsi_sense_data *sense,
 		     struct scsi_inquiry_data *inq_data,
 		     struct scsi_sense_desc_header *header)
 {
-	int i, found;
+	int i;
 
-	for (i = 0, found = 0; i < (sizeof(scsi_sense_printers) /
+	for (i = 0; i < (sizeof(scsi_sense_printers) /
 	     sizeof(scsi_sense_printers[0])); i++) {
 		struct scsi_sense_desc_printer *printer;
 
@@ -4609,6 +4789,36 @@ scsi_extract_sense(struct scsi_sense_data *sense_data, int *error_code,
 {
 	scsi_extract_sense_len(sense_data, sizeof(*sense_data), error_code,
 			       sense_key, asc, ascq, /*show_errors*/ 0);
+}
+
+/*
+ * Extract basic sense information from SCSI I/O CCB structure.
+ */
+int
+scsi_extract_sense_ccb(union ccb *ccb,
+    int *error_code, int *sense_key, int *asc, int *ascq)
+{
+	struct scsi_sense_data *sense_data;
+
+	/* Make sure there are some sense data we can access. */
+	if (ccb->ccb_h.func_code != XPT_SCSI_IO ||
+	    (ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_SCSI_STATUS_ERROR ||
+	    (ccb->csio.scsi_status != SCSI_STATUS_CHECK_COND) ||
+	    (ccb->ccb_h.status & CAM_AUTOSNS_VALID) == 0 ||
+	    (ccb->ccb_h.flags & CAM_SENSE_PHYS))
+		return (0);
+
+	if (ccb->ccb_h.flags & CAM_SENSE_PTR)
+		bcopy(&ccb->csio.sense_data, &sense_data,
+		    sizeof(struct scsi_sense_data *));
+	else
+		sense_data = &ccb->csio.sense_data;
+	scsi_extract_sense_len(sense_data,
+	    ccb->csio.sense_len - ccb->csio.sense_resid,
+	    error_code, sense_key, asc, ascq, 1);
+	if (*error_code == -1)
+		return (0);
+	return (1);
 }
 
 /*
@@ -5727,6 +5937,66 @@ scsi_send_diagnostic(struct ccb_scsiio *csio, u_int32_t retries,
 			| (self_test      ? SSD_SELFTEST : 0)
 			| (page_format    ? SSD_PF       : 0);
 	scsi_ulto2b(param_list_length, scsi_cmd->length);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/param_list_length ? CAM_DIR_OUT : CAM_DIR_NONE,
+		      tag_action,
+		      data_ptr,
+		      param_list_length,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+void
+scsi_read_buffer(struct ccb_scsiio *csio, u_int32_t retries,
+			void (*cbfcnp)(struct cam_periph *, union ccb*),
+			uint8_t tag_action, int mode,
+			uint8_t buffer_id, u_int32_t offset,
+			uint8_t *data_ptr, uint32_t allocation_length,
+			uint8_t sense_len, uint32_t timeout)
+{
+	struct scsi_read_buffer *scsi_cmd;
+
+	scsi_cmd = (struct scsi_read_buffer *)&csio->cdb_io.cdb_bytes;
+	memset(scsi_cmd, 0, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = READ_BUFFER;
+	scsi_cmd->byte2 = mode;
+	scsi_cmd->buffer_id = buffer_id;
+	scsi_ulto3b(offset, scsi_cmd->offset);
+	scsi_ulto3b(allocation_length, scsi_cmd->length);
+
+	cam_fill_csio(csio,
+		      retries,
+		      cbfcnp,
+		      /*flags*/CAM_DIR_IN,
+		      tag_action,
+		      data_ptr,
+		      allocation_length,
+		      sense_len,
+		      sizeof(*scsi_cmd),
+		      timeout);
+}
+
+void
+scsi_write_buffer(struct ccb_scsiio *csio, u_int32_t retries,
+			void (*cbfcnp)(struct cam_periph *, union ccb *),
+			uint8_t tag_action, int mode,
+			uint8_t buffer_id, u_int32_t offset,
+			uint8_t *data_ptr, uint32_t param_list_length,
+			uint8_t sense_len, uint32_t timeout)
+{
+	struct scsi_write_buffer *scsi_cmd;
+
+	scsi_cmd = (struct scsi_write_buffer *)&csio->cdb_io.cdb_bytes;
+	memset(scsi_cmd, 0, sizeof(*scsi_cmd));
+	scsi_cmd->opcode = WRITE_BUFFER;
+	scsi_cmd->byte2 = mode;
+	scsi_cmd->buffer_id = buffer_id;
+	scsi_ulto3b(offset, scsi_cmd->offset);
+	scsi_ulto3b(param_list_length, scsi_cmd->length);
 
 	cam_fill_csio(csio,
 		      retries,

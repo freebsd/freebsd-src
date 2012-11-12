@@ -172,18 +172,6 @@ syscallret(struct thread *td, int error, struct syscall_args *sa __unused)
 	p = td->td_proc;
 
 	/*
-	 * Check for misbehavior.
-	 */
-	WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
-	    syscallname(p, sa->code));
-	KASSERT(td->td_critnest == 0,
-	    ("System call %s returning in a critical section",
-	    syscallname(p, sa->code)));
-	KASSERT(td->td_locks == 0,
-	    ("System call %s returning with %d locks held",
-	     syscallname(p, sa->code), td->td_locks));
-
-	/*
 	 * Handle reschedule and other end-of-syscall issues
 	 */
 	userret(td, td->td_frame);

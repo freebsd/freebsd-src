@@ -20,6 +20,7 @@ SUBDIR=adjkerntz \
 	dump \
 	dumpfs \
 	dumpon \
+	etherswitchcfg \
 	ffsinfo \
 	fsck \
 	fsck_ffs \
@@ -48,9 +49,9 @@ SUBDIR=adjkerntz \
 	mksnap_ffs \
 	mount \
 	mount_cd9660 \
+	mount_fusefs \
 	mount_msdosfs \
 	mount_nfs \
-	mount_ntfs \
 	mount_nullfs \
 	mount_udf \
 	mount_unionfs \
@@ -89,6 +90,11 @@ SUBDIR+=	ipf
 .if ${MK_IPFW} != "no"
 SUBDIR+=	ipfw
 SUBDIR+=	natd
+.endif
+
+.if ${MK_NAND} != "no"
+SUBDIR+=	nandfs
+SUBDIR+=	newfs_nandfs
 .endif
 
 .if ${MK_PF} != "no"

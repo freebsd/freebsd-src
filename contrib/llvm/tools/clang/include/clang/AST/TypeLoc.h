@@ -831,6 +831,7 @@ public:
 
 struct ObjCInterfaceLocInfo {
   SourceLocation NameLoc;
+  SourceLocation NameEndLoc;
 };
 
 /// \brief Wrapper for source info for ObjC interfaces.
@@ -850,9 +851,17 @@ public:
   void setNameLoc(SourceLocation Loc) {
     getLocalData()->NameLoc = Loc;
   }
-
+                                                    
   SourceRange getLocalSourceRange() const {
-    return SourceRange(getNameLoc());
+    return SourceRange(getNameLoc(), getNameEndLoc());
+  }
+  
+  SourceLocation getNameEndLoc() const {
+    return getLocalData()->NameEndLoc;
+  }
+
+  void setNameEndLoc(SourceLocation Loc) {
+    getLocalData()->NameEndLoc = Loc;
   }
 
   void initializeLocal(ASTContext &Context, SourceLocation Loc) {
@@ -1052,7 +1061,6 @@ public:
 struct FunctionLocInfo {
   SourceLocation LocalRangeBegin;
   SourceLocation LocalRangeEnd;
-  bool TrailingReturn;
 };
 
 /// \brief Wrapper for source info for functions.
@@ -1073,13 +1081,6 @@ public:
   }
   void setLocalRangeEnd(SourceLocation L) {
     getLocalData()->LocalRangeEnd = L;
-  }
-
-  bool getTrailingReturn() const {
-    return getLocalData()->TrailingReturn;
-  }
-  void setTrailingReturn(bool Trailing) {
-    getLocalData()->TrailingReturn = Trailing;
   }
 
   ArrayRef<ParmVarDecl *> getParams() const {
@@ -1110,7 +1111,6 @@ public:
   void initializeLocal(ASTContext &Context, SourceLocation Loc) {
     setLocalRangeBegin(Loc);
     setLocalRangeEnd(Loc);
-    setTrailingReturn(false);
     for (unsigned i = 0, e = getNumArgs(); i != e; ++i)
       setArg(i, NULL);
   }

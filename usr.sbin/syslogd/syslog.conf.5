@@ -28,7 +28,7 @@
 .\"     @(#)syslog.conf.5	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd December 23, 2008
+.Dd September 12, 2012
 .Dt SYSLOG.CONF 5
 .Os
 .Sh NAME
@@ -347,6 +347,14 @@ If a port number is added after a colon
 .Pq Ql :\&
 then that port will be used as the destination port
 rather than the usual syslog port.
+IPv6 addresses can be used
+by surrounding the address portion with
+square brackets
+.Po
+.Ql [\&
+and
+.Ql ]\&
+.Pc .
 .It
 A comma separated list of users.
 Selected messages are written to those users

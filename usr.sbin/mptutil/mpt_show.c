@@ -538,7 +538,7 @@ show_physdisks(int ac, char **av)
 {
 	CONFIG_PAGE_RAID_PHYS_DISK_0 *pinfo;
 	U16 IOCStatus;
-	int fd, i;
+	int error, fd, i;
 
 	if (ac != 1) {
 		warnx("show drives: extra arguments");

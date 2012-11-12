@@ -45,7 +45,6 @@
 #include <sys/module.h>
 #include <sys/mbuf.h>
 #include <sys/random.h>
-#include <sys/rwlock.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -63,6 +62,7 @@
 #include <net/if_vlan_var.h>
 #include <net/if_llatbl.h>
 #include <net/pf_mtag.h>
+#include <net/pfil.h>
 #include <net/vnet.h>
 
 #if defined(INET) || defined(INET6)
@@ -71,8 +71,6 @@
 #include <netinet/if_ether.h>
 #include <netinet/ip_carp.h>
 #include <netinet/ip_var.h>
-#include <netinet/ip_fw.h>
-#include <netinet/ipfw/ip_fw_private.h>
 #endif
 #ifdef INET6
 #include <netinet6/nd6.h>
@@ -105,6 +103,8 @@ extern u_char	aarp_org_code[3];
 CTASSERT(sizeof (struct ether_header) == ETHER_ADDR_LEN * 2 + 2);
 CTASSERT(sizeof (struct ether_addr) == ETHER_ADDR_LEN);
 #endif
+
+VNET_DEFINE(struct pfil_head, link_pfil_hook);	/* Packet filter hooks */
 
 /* netgraph node hooks for ng_ether(4) */
 void	(*ng_ether_input_p)(struct ifnet *ifp, struct mbuf **mp);
@@ -140,14 +140,6 @@ static MALLOC_DEFINE(M_ARPCOM, "arpcom", "802.* interface internals");
 	(bcmp(etherbroadcastaddr, (addr), ETHER_ADDR_LEN) == 0)
 
 #define senderr(e) do { error = (e); goto bad;} while (0)
-
-#if defined(INET) || defined(INET6)
-int
-ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst, int shared);
-static VNET_DEFINE(int, ether_ipfw);
-#define	V_ether_ipfw	VNET(ether_ipfw)
-#endif
-
 
 /*
  * Ethernet output routine.
@@ -427,18 +419,17 @@ bad:			if (m != NULL)
 int
 ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 {
-#if defined(INET) || defined(INET6)
+	int i;
 
-	if (V_ip_fw_chk_ptr && V_ether_ipfw != 0) {
-		if (ether_ipfw_chk(&m, ifp, 0) == 0) {
-			if (m) {
-				m_freem(m);
-				return EACCES;	/* pkt dropped */
-			} else
-				return 0;	/* consumed e.g. in a pipe */
-		}
+	if (PFIL_HOOKED(&V_link_pfil_hook)) {
+		i = pfil_run_hooks(&V_link_pfil_hook, &m, ifp, PFIL_OUT, NULL);
+
+		if (i != 0)
+			return (EACCES);
+
+		if (m == NULL)
+			return (0);
 	}
-#endif
 
 	/*
 	 * Queue message on interface, update output statistics if
@@ -448,113 +439,6 @@ ether_output_frame(struct ifnet *ifp, struct mbuf *m)
 }
 
 #if defined(INET) || defined(INET6)
-/*
- * ipfw processing for ethernet packets (in and out).
- * The second parameter is NULL from ether_demux, and ifp from
- * ether_output_frame.
- */
-int
-ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst, int shared)
-{
-	struct ether_header *eh;
-	struct ether_header save_eh;
-	struct mbuf *m;
-	int i;
-	struct ip_fw_args args;
-	struct m_tag *mtag;
-
-	/* fetch start point from rule, if any */
-	mtag = m_tag_locate(*m0, MTAG_IPFW_RULE, 0, NULL);
-	if (mtag == NULL) {
-		args.rule.slot = 0;
-	} else {
-		/* dummynet packet, already partially processed */
-		struct ipfw_rule_ref *r;
-
-		/* XXX can we free it after use ? */
-		mtag->m_tag_id = PACKET_TAG_NONE;
-		r = (struct ipfw_rule_ref *)(mtag + 1);
-		if (r->info & IPFW_ONEPASS)
-			return (1);
-		args.rule = *r;
-	}
-
-	/*
-	 * I need some amt of data to be contiguous, and in case others need
-	 * the packet (shared==1) also better be in the first mbuf.
-	 */
-	m = *m0;
-	i = min( m->m_pkthdr.len, max_protohdr);
-	if ( shared || m->m_len < i) {
-		m = m_pullup(m, i);
-		if (m == NULL) {
-			*m0 = m;
-			return 0;
-		}
-	}
-	eh = mtod(m, struct ether_header *);
-	save_eh = *eh;			/* save copy for restore below */
-	m_adj(m, ETHER_HDR_LEN);	/* strip ethernet header */
-
-	args.m = m;		/* the packet we are looking at		*/
-	args.oif = dst;		/* destination, if any			*/
-	args.next_hop = NULL;	/* we do not support forward yet	*/
-	args.next_hop6 = NULL;	/* we do not support forward yet	*/
-	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
-	args.inp = NULL;	/* used by ipfw uid/gid/jail rules	*/
-	i = V_ip_fw_chk_ptr(&args);
-	m = args.m;
-	if (m != NULL) {
-		/*
-		 * Restore Ethernet header, as needed, in case the
-		 * mbuf chain was replaced by ipfw.
-		 */
-		M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
-		if (m == NULL) {
-			*m0 = m;
-			return 0;
-		}
-		if (eh != mtod(m, struct ether_header *))
-			bcopy(&save_eh, mtod(m, struct ether_header *),
-				ETHER_HDR_LEN);
-	}
-	*m0 = m;
-
-	if (i == IP_FW_DENY) /* drop */
-		return 0;
-
-	KASSERT(m != NULL, ("ether_ipfw_chk: m is NULL"));
-
-	if (i == IP_FW_PASS) /* a PASS rule.  */
-		return 1;
-
-	if (ip_dn_io_ptr && (i == IP_FW_DUMMYNET)) {
-		int dir;
-		/*
-		 * Pass the pkt to dummynet, which consumes it.
-		 * If shared, make a copy and keep the original.
-		 */
-		if (shared) {
-			m = m_copypacket(m, M_DONTWAIT);
-			if (m == NULL)
-				return 0;
-		} else {
-			/*
-			 * Pass the original to dummynet and
-			 * nothing back to the caller
-			 */
-			*m0 = NULL ;
-		}
-		dir = PROTO_LAYER2 | (dst ? DIR_OUT : DIR_IN);
-		ip_dn_io_ptr(&m, dir, &args);
-		return 0;
-	}
-	/*
-	 * XXX at some point add support for divert/forward actions.
-	 * If none of the above matches, we have to drop the pkt.
-	 */
-	return 0;
-}
 #endif
 
 /*
@@ -788,6 +672,35 @@ ether_init(__unused void *arg)
 SYSINIT(ether, SI_SUB_INIT_IF, SI_ORDER_ANY, ether_init, NULL);
 
 static void
+vnet_ether_init(__unused void *arg)
+{
+	int i;
+
+	/* Initialize packet filter hooks. */
+	V_link_pfil_hook.ph_type = PFIL_TYPE_AF;
+	V_link_pfil_hook.ph_af = AF_LINK;
+	if ((i = pfil_head_register(&V_link_pfil_hook)) != 0)
+		printf("%s: WARNING: unable to register pfil link hook, "
+			"error %d\n", __func__, i);
+}
+VNET_SYSINIT(vnet_ether_init, SI_SUB_PROTO_IF, SI_ORDER_ANY,
+    vnet_ether_init, NULL);
+ 
+static void
+vnet_ether_destroy(__unused void *arg)
+{
+	int i;
+
+	if ((i = pfil_head_unregister(&V_link_pfil_hook)) != 0)
+		printf("%s: WARNING: unable to unregister pfil link hook, "
+			"error %d\n", __func__, i);
+}
+VNET_SYSUNINIT(vnet_ether_uninit, SI_SUB_PROTO_IF, SI_ORDER_ANY,
+    vnet_ether_destroy, NULL);
+
+
+
+static void
 ether_input(struct ifnet *ifp, struct mbuf *m)
 {
 
@@ -807,7 +720,7 @@ void
 ether_demux(struct ifnet *ifp, struct mbuf *m)
 {
 	struct ether_header *eh;
-	int isr;
+	int i, isr;
 	u_short ether_type;
 #if defined(NETATALK)
 	struct llc *l;
@@ -815,19 +728,14 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 
 	KASSERT(ifp != NULL, ("%s: NULL interface pointer", __func__));
 
-#if defined(INET) || defined(INET6)
-	/*
-	 * Allow dummynet and/or ipfw to claim the frame.
-	 * Do not do this for PROMISC frames in case we are re-entered.
-	 */
-	if (V_ip_fw_chk_ptr && V_ether_ipfw != 0 && !(m->m_flags & M_PROMISC)) {
-		if (ether_ipfw_chk(&m, NULL, 0) == 0) {
-			if (m)
-				m_freem(m);	/* dropped; free mbuf chain */
-			return;			/* consumed */
-		}
+	/* Do not grab PROMISC frames in case we are re-entered. */
+	if (PFIL_HOOKED(&V_link_pfil_hook) && !(m->m_flags & M_PROMISC)) {
+		i = pfil_run_hooks(&V_link_pfil_hook, &m, ifp, PFIL_IN, NULL);
+
+		if (i != 0 || m == NULL)
+			return;
 	}
-#endif
+
 	eh = mtod(m, struct ether_header *);
 	ether_type = ntohs(eh->ether_type);
 
@@ -1056,10 +964,6 @@ ether_reassign(struct ifnet *ifp, struct vnet *new_vnet, char *unused __unused)
 
 SYSCTL_DECL(_net_link);
 SYSCTL_NODE(_net_link, IFT_ETHER, ether, CTLFLAG_RW, 0, "Ethernet");
-#if defined(INET) || defined(INET6)
-SYSCTL_VNET_INT(_net_link_ether, OID_AUTO, ipfw, CTLFLAG_RW,
-	     &VNET_NAME(ether_ipfw), 0, "Pass ether pkts through firewall");
-#endif
 
 #if 0
 /*

@@ -52,6 +52,8 @@ struct ipspec {
 extern FILE *yyin;
 extern int yynerrs;
 
+extern int yyparse(void);
+
 struct cfjails cfjails = TAILQ_HEAD_INITIALIZER(cfjails);
 
 static void free_param(struct cfparams *pp, struct cfparam *p);
@@ -328,7 +330,7 @@ add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
 		}
 	} else {
 		flags = PF_APPEND;
-		if (ipnum != 0) {
+		if (ipnum != IP__NULL) {
 			name = intparams[ipnum].name;
 			flags |= intparams[ipnum].flags;
 		} else if ((cs = strchr(value, '='))) {
@@ -350,7 +352,7 @@ add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
 	}
 
 	/* See if this parameter has already been added. */
-	if (ipnum != 0)
+	if (ipnum != IP__NULL)
 		dp = j->intparams[ipnum];
 	else
 		TAILQ_FOREACH(dp, &j->params, tq)
@@ -375,10 +377,10 @@ add_param(struct cfjail *j, const struct cfparam *p, enum intparam ipnum,
 		np->flags = flags;
 		np->gen = 0;
 		TAILQ_INSERT_TAIL(&j->params, np, tq);
-		if (ipnum != 0)
+		if (ipnum != IP__NULL)
 			j->intparams[ipnum] = np;
 		else
-			for (ipnum = 1; ipnum < IP_NPARAM; ipnum++)
+			for (ipnum = IP__NULL + 1; ipnum < IP_NPARAM; ipnum++)
 				if (!(intparams[ipnum].flags & PF_CONV) &&
 				    equalopts(name, intparams[ipnum].name)) {
 					j->intparams[ipnum] = np;
@@ -596,7 +598,7 @@ check_intparams(struct cfjail *j)
 					error = -1;	
 				}
 				*cs = '\0';
-				s->len = cs - s->s + 1;
+				s->len = cs - s->s;
 			}
 		}
 	}
@@ -620,7 +622,7 @@ check_intparams(struct cfjail *j)
 					error = -1;	
 				}
 				*cs = '\0';
-				s->len = cs - s->s + 1;
+				s->len = cs - s->s;
 			}
 		}
 	}
@@ -688,6 +690,7 @@ import_params(struct cfjail *j)
 		if (jailparam_init(jp, p->name) < 0) {
 			error = -1;
 			jail_warnx(j, "%s", jail_errmsg);
+			jp++;
 			continue;
 		}
 		if (TAILQ_EMPTY(&p->val))
@@ -712,12 +715,11 @@ import_params(struct cfjail *j)
 			value = alloca(vallen);
 			cs = value;
 			TAILQ_FOREACH_SAFE(s, &p->val, tq, ts) {
-				strcpy(cs, s->s);
-				if (ts != NULL) {
-					cs += s->len + 1;
-					cs[-1] = ',';
-				}
+				memcpy(cs, s->s, s->len);
+				cs += s->len + 1;
+				cs[-1] = ',';
 			}
+			value[vallen - 1] = '\0';
 		}
 		if (jailparam_import(jp, value) < 0) {
 			error = -1;

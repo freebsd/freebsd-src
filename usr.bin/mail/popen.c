@@ -336,11 +336,13 @@ int
 wait_child(int pid)
 {
 	sigset_t nset, oset;
-	struct child *cp = findchild(pid);
+	struct child *cp;
 
 	(void)sigemptyset(&nset);
 	(void)sigaddset(&nset, SIGCHLD);
 	(void)sigprocmask(SIG_BLOCK, &nset, &oset);	
+
+	cp = findchild(pid);
 
 	while (!cp->done)
 		(void)sigsuspend(&oset);

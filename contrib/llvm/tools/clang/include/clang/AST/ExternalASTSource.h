@@ -126,6 +126,12 @@ public:
   virtual DeclContextLookupResult
   FindExternalVisibleDeclsByName(const DeclContext *DC, DeclarationName Name);
 
+  /// \brief Ensures that the table of all visible declarations inside this
+  /// context is up to date.
+  ///
+  /// The default implementation of this functino is a no-op.
+  virtual void completeVisibleDeclsMap(const DeclContext *DC);
+
   /// \brief Finds all declarations lexically contained within the given
   /// DeclContext, after applying an optional filter predicate.
   ///
@@ -172,6 +178,9 @@ public:
   /// set on the ObjCInterfaceDecl via the function 
   /// \c ObjCInterfaceDecl::setExternallyCompleted().
   virtual void CompleteType(ObjCInterfaceDecl *Class) { }
+
+  /// \brief Loads comment ranges.
+  virtual void ReadComments() { }
 
   /// \brief Notify ExternalASTSource that we started deserialization of
   /// a decl or type so until FinishedDeserializing is called there may be

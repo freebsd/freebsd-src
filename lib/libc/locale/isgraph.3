@@ -32,7 +32,7 @@
 .\"     @(#)isgraph.3	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd July 17, 2005
+.Dd July 30, 2012
 .Dt ISGRAPH 3
 .Os
 .Sh NAME
@@ -44,6 +44,8 @@
 .In ctype.h
 .Ft int
 .Fn isgraph "int c"
+.Ft int
+.Fn isgraph_l "int c" "locale_t loc"
 .Sh DESCRIPTION
 The
 .Fn isgraph
@@ -79,11 +81,19 @@ In the ASCII character set, this includes the following characters
 .It "\&166\ ``v''" Ta "167\ ``w''" Ta "170\ ``x''" Ta "171\ ``y''" Ta "172\ ``z''"
 .It "\&173\ ``{''" Ta "174\ ``|''" Ta "175\ ``}''" Ta "176\ ``~''" Ta \&
 .El
+.Pp
+The
+.Fn isgraph_l
+function takes an explicit locale argument, whereas the
+.Fn isgraph
+function uses the current global or per-thread locale.
 .Sh RETURN VALUES
 The
 .Fn isgraph
-function returns zero if the character tests false and
-returns non-zero if the character tests true.
+and
+.Fn isgraph_l
+functions return zero if the character tests false and
+return non-zero if the character tests true.
 .Sh COMPATIBILITY
 The
 .Bx 4.4
@@ -103,3 +113,7 @@ The
 .Fn isgraph
 function conforms to
 .St -isoC .
+The
+.Fn isgraph_l
+function conforms to
+.St -p1003.1-2008 .

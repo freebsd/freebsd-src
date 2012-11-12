@@ -316,7 +316,7 @@ _GLIBCXX_BEGIN_LDBL_NAMESPACE
       int __sep_pos = 0;
       while (!__testeof)
 	{
-	  if (__lc->_M_use_grouping && __c == __lc->_M_thousands_sep
+	  if ((__lc->_M_use_grouping && __c == __lc->_M_thousands_sep)
 	      || __c == __lc->_M_decimal_point)
 	    break;
 	  else if (__c == __lit[__num_base::_S_izero])
@@ -558,7 +558,7 @@ _GLIBCXX_BEGIN_LDBL_NAMESPACE
 	int __sep_pos = 0;
 	while (!__testeof)
 	  {
-	    if (__lc->_M_use_grouping && __c == __lc->_M_thousands_sep
+	    if ((__lc->_M_use_grouping && __c == __lc->_M_thousands_sep)
 		|| __c == __lc->_M_decimal_point)
 	      break;
 	    else if (__c == __lit[__num_base::_S_izero] 
@@ -748,16 +748,20 @@ _GLIBCXX_BEGIN_LDBL_NAMESPACE
 	      const char_type __c = *__beg;
 
 	      if (__testf)
-		if (__n < __lc->_M_falsename_size)
-		  __testf = __c == __lc->_M_falsename[__n];
-		else
-		  break;
+		{
+		  if (__n < __lc->_M_falsename_size)
+		    __testf = __c == __lc->_M_falsename[__n];
+		  else
+		    break;
+		}
 
 	      if (__testt)
-		if (__n < __lc->_M_truename_size)
-		  __testt = __c == __lc->_M_truename[__n];
-		else
-		  break;
+		{
+		  if (__n < __lc->_M_truename_size)
+		    __testt = __c == __lc->_M_truename[__n];
+		  else
+		    break;
+		}
 
 	      if (!__testf && !__testt)
 		break;
@@ -887,7 +891,11 @@ _GLIBCXX_BEGIN_LDBL_NAMESPACE
       const fmtflags __fmt = __io.flags();
       __io.flags(__fmt & ~ios_base::basefield | ios_base::hex);
 
-      unsigned long __ul;
+      typedef __gnu_cxx::__conditional_type<(sizeof(void*)
+					     <= sizeof(unsigned long)),
+	unsigned long, unsigned long long>::__type _UIntPtrType;
+
+      _UIntPtrType __ul;
       __beg = _M_extract_int(__beg, __end, __io, __err, __ul);
 
       // Reset from hex formatted input.
@@ -1309,8 +1317,12 @@ _GLIBCXX_BEGIN_LDBL_NAMESPACE
 					 | ios_base::internal);
       __io.flags(__flags & __fmt | (ios_base::hex | ios_base::showbase));
 
+      typedef __gnu_cxx::__conditional_type<(sizeof(const void*)
+					     <= sizeof(unsigned long)),
+	unsigned long, unsigned long long>::__type _UIntPtrType;
+
       __s = _M_insert_int(__s, __io, __fill,
-			  reinterpret_cast<unsigned long>(__v));
+			  reinterpret_cast<_UIntPtrType>(__v));
       __io.flags(__flags);
       return __s;
     }
@@ -1379,9 +1391,9 @@ _GLIBCXX_BEGIN_LDBL_NAMESPACE
 					 == money_base::space)))
 		    || (__i == 2 && ((static_cast<part>(__p.field[3])
 				      == money_base::value)
-				     || __mandatory_sign
+				     || (__mandatory_sign
 				     && (static_cast<part>(__p.field[3])
-					 == money_base::sign))))
+					 == money_base::sign)))))
 		  {
 		    const size_type __len = __lc->_M_curr_symbol_size;
 		    size_type __j = 0;

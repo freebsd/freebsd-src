@@ -39,12 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 #include <sys/rman.h>
 
-#include <mips/include/bus.h>
-#include <mips/include/cpu.h>
-#include <mips/include/cpufunc.h>
-#include <mips/include/frame.h>
-#include <mips/include/resource.h>
-
 #include <dev/iicbus/iiconf.h>
 #include <dev/iicbus/iicbus.h>
 

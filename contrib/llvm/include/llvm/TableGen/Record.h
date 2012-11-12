@@ -454,7 +454,7 @@ public:
   /// without adding quote markers.  This primaruly affects
   /// StringInits where we will not surround the string value with
   /// quotes.
-  virtual std::string getAsUnquotedString() const { return getAsString(); }  
+  virtual std::string getAsUnquotedString() const { return getAsString(); }
 
   /// dump - Debugging method that may be called through a debugger, just
   /// invokes print on stderr.
@@ -1529,7 +1529,7 @@ struct MultiClass {
 
   void dump() const;
 
-  MultiClass(const std::string &Name, SMLoc Loc, RecordKeeper &Records) : 
+  MultiClass(const std::string &Name, SMLoc Loc, RecordKeeper &Records) :
     Rec(Name, Loc, Records) {}
 };
 
@@ -1558,12 +1558,14 @@ public:
     return I == Defs.end() ? 0 : I->second;
   }
   void addClass(Record *R) {
-    assert(getClass(R->getNameInitAsString()) == 0 && "Class already exists!");
-    Classes.insert(std::make_pair(R->getNameInitAsString(), R));
+    bool Ins = Classes.insert(std::make_pair(R->getName(), R)).second;
+    (void)Ins;
+    assert(Ins && "Class already exists");
   }
   void addDef(Record *R) {
-    assert(getDef(R->getNameInitAsString()) == 0 && "Def already exists!");
-    Defs.insert(std::make_pair(R->getNameInitAsString(), R));
+    bool Ins = Defs.insert(std::make_pair(R->getName(), R)).second;
+    (void)Ins;
+    assert(Ins && "Record already exists");
   }
 
   /// removeClass - Remove, but do not delete, the specified record.

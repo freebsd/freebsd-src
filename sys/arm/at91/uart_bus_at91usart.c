@@ -42,33 +42,32 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_bus.h>
 #include <dev/uart/uart_cpu.h>
 
-#include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91var.h>
 
 #include "uart_if.h"
 
-static int usart_at91rm92_probe(device_t dev);
+static int usart_at91_probe(device_t dev);
 
 extern struct uart_class at91_usart_class;
 
-static device_method_t usart_at91rm92_methods[] = {
+static device_method_t usart_at91_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		usart_at91rm92_probe),
+	DEVMETHOD(device_probe,		usart_at91_probe),
 	DEVMETHOD(device_attach,	uart_bus_attach),
 	DEVMETHOD(device_detach,	uart_bus_detach),
 	{ 0, 0 }
 };
 
-static driver_t usart_at91rm92_driver = {
+static driver_t usart_at91_driver = {
 	uart_driver_name,
-	usart_at91rm92_methods,
+	usart_at91_methods,
 	sizeof(struct uart_softc),
 };
 
 extern SLIST_HEAD(uart_devinfo_list, uart_devinfo) uart_sysdevs;
 
 static int
-usart_at91rm92_probe(device_t dev)
+usart_at91_probe(device_t dev)
 {
 	struct uart_softc *sc;
 
@@ -96,6 +95,12 @@ usart_at91rm92_probe(device_t dev)
 	case 4:
 		device_set_desc(dev, "USART3");
 		break;
+	case 5:
+		device_set_desc(dev, "USART4");
+		break;
+	case 6:
+		device_set_desc(dev, "USART5");
+		break;
 	}
 	sc->sc_class = &at91_usart_class;
 	if (sc->sc_class->uc_rclk == 0)
@@ -104,4 +109,4 @@ usart_at91rm92_probe(device_t dev)
 }
 
 
-DRIVER_MODULE(uart, atmelarm, usart_at91rm92_driver, uart_devclass, 0, 0);
+DRIVER_MODULE(uart, atmelarm, usart_at91_driver, uart_devclass, 0, 0);

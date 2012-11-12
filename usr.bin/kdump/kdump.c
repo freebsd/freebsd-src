@@ -251,7 +251,8 @@ main(int argc, char *argv[])
 			}
 		}
 		if (trpoints & (1<<ktr_header.ktr_type))
-			if (pid == 0 || ktr_header.ktr_pid == pid)
+			if (pid == 0 || ktr_header.ktr_pid == pid ||
+			    ktr_header.ktr_tid == pid)
 				dumpheader(&ktr_header);
 		if ((ktrlen = ktr_header.ktr_len) < 0)
 			errx(1, "bogus length 0x%x", ktrlen);
@@ -266,7 +267,8 @@ main(int argc, char *argv[])
 		if (fetchprocinfo(&ktr_header, (u_int *)m) != 0)
 			continue;
 		sv_flags = abidump(&ktr_header);
-		if (pid && ktr_header.ktr_pid != pid)
+		if (pid && ktr_header.ktr_pid != pid &&
+		    ktr_header.ktr_tid != pid)
 			continue;
 		if ((trpoints & (1<<ktr_header.ktr_type)) == 0)
 			continue;
@@ -1240,11 +1242,15 @@ ktrpsig(struct ktr_psig *psig)
 		printf("SIG%s ", signames[psig->signo]);
 	else
 		printf("SIG %d ", psig->signo);
-	if (psig->action == SIG_DFL)
-		printf("SIG_DFL code=0x%x\n", psig->code);
-	else {
-		printf("caught handler=0x%lx mask=0x%x code=0x%x\n",
-		    (u_long)psig->action, psig->mask.__bits[0], psig->code);
+	if (psig->action == SIG_DFL) {
+		printf("SIG_DFL code=");
+		sigcodename(psig->signo, psig->code);
+		putchar('\n');
+	} else {
+		printf("caught handler=0x%lx mask=0x%x code=",
+		    (u_long)psig->action, psig->mask.__bits[0]);
+		sigcodename(psig->signo, psig->code);
+		putchar('\n');
 	}
 }
 
@@ -1414,8 +1420,6 @@ ktrsockaddr(struct sockaddr *sa)
  TODO: Support additional address families
 	#include <netnatm/natm.h>
 	struct sockaddr_natm	*natm;
-	#include <netsmb/netbios.h>
-	struct sockaddr_nb	*nb;
 */
 	char addr[64];
 

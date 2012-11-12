@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,34 +29,27 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*	$KAME: sctp6_var.h,v 1.7 2004/08/17 04:06:22 itojun Exp $	*/
-
-#ifndef _NETINET6_SCTP6_VAR_H_
-#define _NETINET6_SCTP6_VAR_H_
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
+#ifndef _NETINET6_SCTP6_VAR_H_
+#define _NETINET6_SCTP6_VAR_H_
 
 #if defined(_KERNEL)
 
 SYSCTL_DECL(_net_inet6_sctp6);
 extern struct pr_usrreqs sctp6_usrreqs;
 
+int sctp6_input(struct mbuf **, int *, int);
+int 
+sctp6_output(struct sctp_inpcb *, struct mbuf *, struct sockaddr *,
+    struct mbuf *, struct proc *);
+void sctp6_ctlinput(int, struct sockaddr *, void *);
+extern void 
+sctp6_notify(struct sctp_inpcb *, struct icmp6_hdr *,
+    struct sctphdr *, struct sockaddr *,
+    struct sctp_tcb *, struct sctp_nets *);
 
-int sctp6_input __P((struct mbuf **, int *, int));
-int sctp6_output
-__P((struct sctp_inpcb *, struct mbuf *, struct sockaddr *,
-    struct mbuf *, struct proc *));
-	void sctp6_ctlinput __P((int, struct sockaddr *, void *));
-
-
-	extern void sctp6_notify(struct sctp_inpcb *inp,
-         struct icmp6_hdr *icmph,
-         struct sctphdr *sh,
-         struct sockaddr *to,
-         struct sctp_tcb *stcb,
-         struct sctp_nets *net);
-
-
-#endif				/* _KERNEL */
+#endif
 #endif

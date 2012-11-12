@@ -56,8 +56,6 @@ INCS+=	krb5_asn1.h \
 	digest_asn1.h \
 	kx509_asn1.h
 
-ASN1_COMPILE=	asn1_compile
-
 ${GEN_CMS}: cms.asn1 cms.opt
 	${ASN1_COMPILE} --one-code-file \
 		--option-file=${.ALLSRC:M*.opt} ${.ALLSRC:M*.asn1} cms_asn1

@@ -85,7 +85,7 @@ static char                 *Converter = "0123456789ABCDEF";
 ACPI_OBJECT_TYPE
 AcpiDbMatchArgument (
     char                    *UserArgument,
-    ARGUMENT_INFO           *Arguments)
+    ACPI_DB_ARGUMENT_INFO   *Arguments)
 {
     UINT32                  i;
 
@@ -117,7 +117,7 @@ AcpiDbMatchArgument (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Set the current destination for debugger output.  Also sets
+ * DESCRIPTION: Set the current destination for debugger output. Also sets
  *              the debug output level accordingly.
  *
  ******************************************************************************/
@@ -204,7 +204,7 @@ AcpiDbDumpExternalObject (
             {
                 AcpiOsPrintf ("\n");
             }
-            AcpiUtDumpBuffer (ACPI_CAST_PTR (UINT8, ObjDesc->Buffer.Pointer),
+            AcpiUtDebugDumpBuffer (ACPI_CAST_PTR (UINT8, ObjDesc->Buffer.Pointer),
                     ObjDesc->Buffer.Length, DB_BYTE_DISPLAY, _COMPONENT);
         }
         else
@@ -316,7 +316,7 @@ AcpiDbPrepNamestring (
  *
  * DESCRIPTION: Lookup a name in the ACPI namespace
  *
- * Note: Currently begins search from the root.  Could be enhanced to use
+ * Note: Currently begins search from the root. Could be enhanced to use
  * the current prefix (scope) node as the search beginning point.
  *
  ******************************************************************************/
@@ -360,7 +360,7 @@ AcpiDbLocalNsLookup (
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiDbUInt32ToHexString
+ * FUNCTION:    AcpiDbUint32ToHexString
  *
  * PARAMETERS:  Value           - The value to be converted to string
  *              Buffer          - Buffer for result (not less than 11 bytes)
@@ -375,7 +375,7 @@ AcpiDbLocalNsLookup (
  ******************************************************************************/
 
 void
-AcpiDbUInt32ToHexString (
+AcpiDbUint32ToHexString (
     UINT32                  Value,
     char                    *Buffer)
 {
@@ -407,7 +407,7 @@ AcpiDbUInt32ToHexString (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Second pass parse of the ACPI tables.  We need to wait until
+ * DESCRIPTION: Second pass parse of the ACPI tables. We need to wait until
  *              second pass to parse the control methods
  *
  ******************************************************************************/
@@ -513,11 +513,9 @@ AcpiDbDumpBuffer (
     AcpiOsPrintf ("\nLocation %X:\n", Address);
 
     AcpiDbgLevel |= ACPI_LV_TABLES;
-    AcpiUtDumpBuffer (ACPI_TO_POINTER (Address), 64, DB_BYTE_DISPLAY,
+    AcpiUtDebugDumpBuffer (ACPI_TO_POINTER (Address), 64, DB_BYTE_DISPLAY,
             ACPI_UINT32_MAX);
 }
 #endif
 
 #endif /* ACPI_DEBUGGER */
-
-

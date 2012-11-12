@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -258,7 +259,9 @@ vdev_raidz_map_free(raidz_map_t *rm)
 	size_t size;
 
 	for (c = 0; c < rm->rm_firstdatacol; c++) {
-		zio_buf_free(rm->rm_col[c].rc_data, rm->rm_col[c].rc_size);
+		if (rm->rm_col[c].rc_data != NULL)
+			zio_buf_free(rm->rm_col[c].rc_data,
+			    rm->rm_col[c].rc_size);
 
 		if (rm->rm_col[c].rc_gdata != NULL)
 			zio_buf_free(rm->rm_col[c].rc_gdata,
@@ -280,7 +283,7 @@ vdev_raidz_map_free_vsd(zio_t *zio)
 {
 	raidz_map_t *rm = zio->io_vsd;
 
-	ASSERT3U(rm->rm_freed, ==, 0);
+	ASSERT0(rm->rm_freed);
 	rm->rm_freed = 1;
 
 	if (rm->rm_reports == 0)
@@ -503,14 +506,20 @@ vdev_raidz_map_alloc(zio_t *zio, uint64_t unit_shift, uint64_t dcols,
 	ASSERT3U(rm->rm_asize - asize, ==, rm->rm_nskip << unit_shift);
 	ASSERT3U(rm->rm_nskip, <=, nparity);
 
-	for (c = 0; c < rm->rm_firstdatacol; c++)
-		rm->rm_col[c].rc_data = zio_buf_alloc(rm->rm_col[c].rc_size);
+	if (zio->io_type != ZIO_TYPE_FREE) {
+		for (c = 0; c < rm->rm_firstdatacol; c++) {
+			rm->rm_col[c].rc_data =
+			    zio_buf_alloc(rm->rm_col[c].rc_size);
+		}
 
-	rm->rm_col[c].rc_data = zio->io_data;
+		rm->rm_col[c].rc_data = zio->io_data;
 
-	for (c = c + 1; c < acols; c++)
-		rm->rm_col[c].rc_data = (char *)rm->rm_col[c - 1].rc_data +
-		    rm->rm_col[c - 1].rc_size;
+		for (c = c + 1; c < acols; c++) {
+			rm->rm_col[c].rc_data =
+			    (char *)rm->rm_col[c - 1].rc_data +
+			    rm->rm_col[c - 1].rc_size;
+		}
+	}
 
 	/*
 	 * If all data stored spans all columns, there's a danger that parity
@@ -1133,7 +1142,7 @@ vdev_raidz_matrix_invert(raidz_map_t *rm, int n, int nmissing, int *missing,
 	 */
 	for (i = 0; i < nmissing; i++) {
 		for (j = 0; j < missing[i]; j++) {
-			ASSERT3U(rows[i][j], ==, 0);
+			ASSERT0(rows[i][j]);
 		}
 		ASSERT3U(rows[i][missing[i]], !=, 0);
 
@@ -1174,7 +1183,7 @@ vdev_raidz_matrix_invert(raidz_map_t *rm, int n, int nmissing, int *missing,
 			if (j == missing[i]) {
 				ASSERT3U(rows[i][j], ==, 1);
 			} else {
-				ASSERT3U(rows[i][j], ==, 0);
+				ASSERT0(rows[i][j]);
 			}
 		}
 	}
@@ -1441,7 +1450,8 @@ vdev_raidz_reconstruct(raidz_map_t *rm, int *t, int nt)
 }
 
 static int
-vdev_raidz_open(vdev_t *vd, uint64_t *asize, uint64_t *ashift)
+vdev_raidz_open(vdev_t *vd, uint64_t *asize, uint64_t *max_asize,
+    uint64_t *ashift)
 {
 	vdev_t *cvd;
 	uint64_t nparity = vd->vdev_nparity;
@@ -1469,10 +1479,12 @@ vdev_raidz_open(vdev_t *vd, uint64_t *asize, uint64_t *ashift)
 		}
 
 		*asize = MIN(*asize - 1, cvd->vdev_asize - 1) + 1;
+		*max_asize = MIN(*max_asize - 1, cvd->vdev_max_asize - 1) + 1;
 		*ashift = MAX(*ashift, cvd->vdev_ashift);
 	}
 
 	*asize *= vd->vdev_children;
+	*max_asize *= vd->vdev_children;
 
 	if (numerrors > nparity) {
 		vd->vdev_stat.vs_aux = VDEV_AUX_NO_REPLICAS;
@@ -1530,6 +1542,18 @@ vdev_raidz_io_start(zio_t *zio)
 	    vd->vdev_nparity);
 
 	ASSERT3U(rm->rm_asize, ==, vdev_psize_to_asize(vd, zio->io_size));
+
+	if (zio->io_type == ZIO_TYPE_FREE) {
+		for (c = 0; c < rm->rm_cols; c++) {
+			rc = &rm->rm_col[c];
+			cvd = vd->vdev_child[rc->rc_devidx];
+			zio_nowait(zio_vdev_child_io(zio, NULL, cvd,
+			    rc->rc_offset, rc->rc_data, rc->rc_size,
+			    zio->io_type, zio->io_priority, 0,
+			    vdev_raidz_child_done, rc));
+		}
+		return (ZIO_PIPELINE_CONTINUE);
+	}
 
 	if (zio->io_type == ZIO_TYPE_WRITE) {
 		vdev_raidz_generate_parity(rm);
@@ -1912,6 +1936,8 @@ vdev_raidz_io_done(zio_t *zio)
 		if (total_errors > rm->rm_firstdatacol)
 			zio->io_error = vdev_raidz_worst_error(rm);
 
+		return;
+	} else if (zio->io_type == ZIO_TYPE_FREE) {
 		return;
 	}
 

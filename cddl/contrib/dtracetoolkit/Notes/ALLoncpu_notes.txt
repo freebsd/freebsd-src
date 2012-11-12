@@ -1,0 +1,42 @@
+**************************************************************************
+* The following are notes for all scripts that measure on-CPU times.
+*
+* $Id: ALLoncpu_notes.txt 58 2007-10-01 13:36:29Z brendan $
+*
+* COPYRIGHT: Copyright (c) 2007 Brendan Gregg.
+**************************************************************************
+
+
+* What is "on-CPU" time?
+
+This is the time that a thread spent running on a CPU. It does not include
+time spent off-CPU time such as sleeping for I/O or waiting for scheduling.
+
+On-CPU times are useful for showing who is causing the CPUs to be busy,
+since they measure how much CPU time has been consumed by that thread.
+
+On-CPU times are also less susceptible to system "noise" than elapsed times,
+since much of the noise will be filtered out. DTrace itself also tries
+to subtract the small overheads of DTrace from the on-CPU time, to improve
+the accuracy of this time.
+
+See Notes/ALLelapsed_notes.txt for a description of a different time
+measurement, "elapsed" time.
+
+
+* How is "on-CPU" time measured?
+
+In DTrace, the following template provides on-CPU time as "this->oncpu",
+
+   <start-probe>
+   {
+	   self->vstart = vtimestamp;
+   }
+   
+   <end-probe>
+   {
+	   this->oncpu = vtimestamp - self->vstart;
+	   self->vstart = 0;
+	   ...
+   }
+

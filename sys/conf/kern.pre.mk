@@ -4,9 +4,10 @@
 # of the definitions that need to be before %BEFORE_DEPEND.
 
 .include <bsd.own.mk>
+.include <bsd.compiler.mk>
 
 # backwards compat option for older systems.
-MACHINE_CPUARCH?=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
+MACHINE_CPUARCH?=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc64/powerpc/}
 
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL_KO?=	kernel
@@ -18,6 +19,7 @@ LDSCRIPT?=	$S/conf/${LDSCRIPT_NAME}
 M=		${MACHINE_CPUARCH}
 
 AWK?=		awk
+CP?=		cp
 LINT?=		lint
 NM?=		nm
 OBJCOPY?=	objcopy
@@ -34,7 +36,7 @@ _MINUS_O=	-O2
 .endif
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
-.if ${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang"
+.if ${COMPILER_TYPE} != "clang"
 COPTFLAGS?=-O2 -frename-registers -pipe
 .else
 COPTFLAGS?=-O2 -pipe
@@ -62,9 +64,6 @@ INCLUDES+= -I$S/contrib/altq
 # ... and the same for ipfilter
 INCLUDES+= -I$S/contrib/ipfilter
 
-# ... and the same for pf
-INCLUDES+= -I$S/contrib/pf
-
 # ... and the same for ath
 INCLUDES+= -I$S/dev/ath -I$S/dev/ath/ath_hal
 
@@ -74,9 +73,6 @@ INCLUDES+= -I$S/contrib/ngatm
 # ... and the same for twa
 INCLUDES+= -I$S/dev/twa
 
-# ... and the same for XFS
-INCLUDES+= -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs
-
 # ... and the same for cxgb and cxgbe
 INCLUDES+= -I$S/dev/cxgb -I$S/dev/cxgbe
 
@@ -84,7 +80,7 @@ INCLUDES+= -I$S/dev/cxgb -I$S/dev/cxgbe
 
 CFLAGS=	${COPTFLAGS} ${C_DIALECT} ${DEBUG} ${CWARNFLAGS}
 CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
-.if ${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang"
+.if ${COMPILER_TYPE} != "clang"
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
 .if ${MACHINE_CPUARCH} != "mips"
 CFLAGS+= --param inline-unit-growth=100
@@ -101,17 +97,23 @@ WERROR?= -Werror
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
-.if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
+.if ${COMPILER_TYPE} == "clang"
 CLANG_NO_IAS= -no-integrated-as
 .endif
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
-CFLAGS+=	-DGPROF -falign-functions=16
+CFLAGS+=	-DGPROF
+.if ${COMPILER_TYPE} != "clang"
+CFLAGS+=	-falign-functions=16
+.endif
 .if ${PROFLEVEL} >= 2
 CFLAGS+=	-DGPROF4 -DGUPROF
-PROF=	-pg -mprofiler-epilogue
+PROF=		-pg
+.if ${COMPILER_TYPE} != "clang"
+PROF+=		-mprofiler-epilogue
+.endif
 .else
-PROF=	-pg
+PROF=		-pg
 .endif
 .endif
 DEFINED_PROF=	${PROF}
@@ -130,6 +132,10 @@ NORMAL_C_NOWERROR= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
 
 NORMAL_M= ${AWK} -f $S/tools/makeobjops.awk ${.IMPSRC} -c ; \
 	  ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.PREFIX}.c
+
+NORMAL_FW= uudecode -o ${.TARGET} ${.ALLSRC}
+NORMAL_FWO= ${LD} -b binary --no-warn-mismatch -d -warn-common -r \
+	-o ${.TARGET} ${.ALLSRC:M*.fw}
 
 # Special flags for managing the compat compiles for ZFS
 ZFS_CFLAGS=	-DFREEBSD_NAMECACHE -DBUILDING_ZFS -nostdinc -I$S/cddl/compat/opensolaris -I$S/cddl/contrib/opensolaris/uts/common/fs/zfs -I$S/cddl/contrib/opensolaris/uts/common/zmod -I$S/cddl/contrib/opensolaris/uts/common -I$S -I$S/cddl/contrib/opensolaris/common/zfs -I$S/cddl/contrib/opensolaris/common ${CFLAGS} -Wno-unknown-pragmas -Wno-missing-prototypes -Wno-undef -Wno-strict-prototypes -Wno-cast-qual -Wno-parentheses -Wno-redundant-decls -Wno-missing-braces -Wno-uninitialized -Wno-unused -Wno-inline -Wno-switch -Wno-pointer-arith -Wno-unknown-pragmas
@@ -150,7 +156,7 @@ NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
 # Infiniband C flags.  Correct include paths and omit errors that linux
 # does not honor.
 OFEDINCLUDES=	-I$S/ofed/include/
-OFEDNOERR=	-Wno-cast-qual -Wno-pointer-arith -fms-extensions
+OFEDNOERR=	-Wno-cast-qual -Wno-pointer-arith -fms-extensions -Wno-switch -Wno-sometimes-uninitialized -Wno-conversion -Wno-initializer-overrides
 OFEDCFLAGS=	${CFLAGS:N-I*} ${OFEDINCLUDES} ${CFLAGS:M-I*} ${OFEDNOERR}
 OFED_C_NOIMP=	${CC} -c -o ${.TARGET} ${OFEDCFLAGS} ${WERROR} ${PROF}
 OFED_C=		${OFED_C_NOIMP} ${.IMPSRC}
@@ -161,7 +167,7 @@ SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o ${MDOBJS} ${OBJS}
 SYSTEM_OBJS+= ${SYSTEM_CFILES:.c=.o}
 SYSTEM_OBJS+= hack.So
-SYSTEM_LD= @${LD} -Bdynamic -T ${LDSCRIPT} \
+SYSTEM_LD= @${LD} -Bdynamic -T ${LDSCRIPT} --no-warn-mismatch \
 	-warn-common -export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL= @${OBJCOPY} --strip-symbol gcc2_compiled. ${.TARGET} ; \
@@ -185,3 +191,8 @@ MKMODULESENV+=	WITHOUT_MODULES="${WITHOUT_MODULES}"
 .if defined(DEBUG)
 MKMODULESENV+=	DEBUG_FLAGS="${DEBUG}"
 .endif
+
+# Are various things configured?
+DDB_ENABLED!=	grep DDB opt_ddb.h || true ; echo
+DTR_ENABLED!=	grep KDTRACE_FRAME opt_kdtrace.h || true ; echo
+HWPMC_ENABLED!=	grep HWPMC opt_hwpmc_hooks.h || true ; echo

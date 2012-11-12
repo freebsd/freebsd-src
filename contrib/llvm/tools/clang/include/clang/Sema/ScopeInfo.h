@@ -74,7 +74,7 @@ public:
   ///
   ScopeKind Kind;
 
-  /// \brief Whether this function contains a VLA, @try, try, C++
+  /// \brief Whether this function contains a VLA, \@try, try, C++
   /// initializer, or anything else that can't be jumped past.
   bool HasBranchProtectedScope;
 
@@ -83,6 +83,14 @@ public:
 
   /// \brief Whether this function contains any indirect gotos.
   bool HasIndirectGoto;
+
+  /// A flag that is set when parsing a -dealloc method and no [super dealloc]
+  /// call was found yet.
+  bool ObjCShouldCallSuperDealloc;
+
+  /// A flag that is set when parsing a -finalize method and no [super finalize]
+  /// call was found yet.
+  bool ObjCShouldCallSuperFinalize;
 
   /// \brief Used to determine if errors occurred in this function or block.
   DiagnosticErrorTrap ErrorTrap;
@@ -93,7 +101,7 @@ public:
 
   /// \brief The list of return statements that occur within the function or
   /// block, if there is any chance of applying the named return value
-  /// optimization.
+  /// optimization, or if we need to infer a return type.
   SmallVector<ReturnStmt*, 4> Returns;
 
   /// \brief The stack of currently active compound stamement scopes in the
@@ -127,6 +135,8 @@ public:
       HasBranchProtectedScope(false),
       HasBranchIntoScope(false),
       HasIndirectGoto(false),
+      ObjCShouldCallSuperDealloc(false),
+      ObjCShouldCallSuperFinalize(false),
       ErrorTrap(Diag) { }
 
   virtual ~FunctionScopeInfo();
@@ -344,6 +354,9 @@ public:
   /// \brief Whether any of the capture expressions requires cleanups.
   bool ExprNeedsCleanups;
 
+  /// \brief Whether the lambda contains an unexpanded parameter pack.
+  bool ContainsUnexpandedParameterPack;
+
   /// \brief Variables used to index into by-copy array captures.
   llvm::SmallVector<VarDecl *, 4> ArrayIndexVars;
 
@@ -355,7 +368,7 @@ public:
                   CXXMethodDecl *CallOperator)
     : CapturingScopeInfo(Diag, ImpCap_None), Lambda(Lambda),
       CallOperator(CallOperator), NumExplicitCaptures(0), Mutable(false),
-      ExprNeedsCleanups(false)
+      ExprNeedsCleanups(false), ContainsUnexpandedParameterPack(false)
   {
     Kind = SK_Lambda;
   }

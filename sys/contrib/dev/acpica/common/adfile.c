@@ -100,7 +100,7 @@ AdGenerateFilename (
 
     FilenameBuf[i] = 0;
     strcat (FilenameBuf, ACPI_TABLE_FILE_SUFFIX);
-    return FilenameBuf;
+    return (FilenameBuf);
 }
 
 
@@ -183,7 +183,7 @@ AdWriteTable (
  * RETURN:      New filename containing the original base + the new suffix
  *
  * DESCRIPTION: Generate a new filename from the ASL source filename and a new
- *              extension.  Used to create the *.LST, *.TXT, etc. files.
+ *              extension. Used to create the *.LST, *.TXT, etc. files.
  *
  ******************************************************************************/
 
@@ -223,7 +223,7 @@ FlGenerateFilename (
         strcat (NewFilename, Suffix);
     }
 
-    return NewFilename;
+    return (NewFilename);
 }
 
 
@@ -298,20 +298,24 @@ FlSplitInputPathname (
         return (AE_NO_MEMORY);
     }
 
-    Substring = strrchr (DirectoryPath, '\\');
+    /* Convert backslashes to slashes in the entire path */
+
+    UtConvertBackslashes (DirectoryPath);
+
+    /* Backup to last slash or colon */
+
+    Substring = strrchr (DirectoryPath, '/');
     if (!Substring)
     {
-        Substring = strrchr (DirectoryPath, '/');
-        if (!Substring)
-        {
-            Substring = strrchr (DirectoryPath, ':');
-        }
+        Substring = strrchr (DirectoryPath, ':');
     }
+
+    /* Extract the simple filename */
 
     if (!Substring)
     {
+        Filename = FlStrdup (DirectoryPath);
         DirectoryPath[0] = 0;
-        Filename = FlStrdup (InputPath);
     }
     else
     {
@@ -326,8 +330,5 @@ FlSplitInputPathname (
 
     *OutDirectoryPath = DirectoryPath;
     *OutFilename = Filename;
-
     return (AE_OK);
 }
-
-

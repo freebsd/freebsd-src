@@ -21,8 +21,6 @@ SRCS=	accept_sec_context.c \
 	export_name.c \
 	export_sec_context.c \
 	external.c \
-	ntlm.h \
-	ntlm-private.h \
 	import_name.c \
 	import_sec_context.c \
 	indicate_mechs.c \

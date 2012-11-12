@@ -17,6 +17,7 @@
 #include "llvm/TableGen/Record.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <algorithm>
@@ -2483,10 +2484,9 @@ static void InferFromPattern(const CodeGenInstruction &Inst,
     // If we decided that this is a store from the pattern, then the .td file
     // entry is redundant.
     if (MayStore)
-      fprintf(stderr,
-              "Warning: mayStore flag explicitly set on instruction '%s'"
-              " but flag already inferred from pattern.\n",
-              Inst.TheDef->getName().c_str());
+      PrintWarning(Inst.TheDef->getLoc(),
+                   "mayStore flag explicitly set on "
+                   "instruction, but flag already inferred from pattern.");
     MayStore = true;
   }
 
@@ -2494,29 +2494,61 @@ static void InferFromPattern(const CodeGenInstruction &Inst,
     // If we decided that this is a load from the pattern, then the .td file
     // entry is redundant.
     if (MayLoad)
-      fprintf(stderr,
-              "Warning: mayLoad flag explicitly set on instruction '%s'"
-              " but flag already inferred from pattern.\n",
-              Inst.TheDef->getName().c_str());
+      PrintWarning(Inst.TheDef->getLoc(),
+                   "mayLoad flag explicitly set on "
+                   "instruction, but flag already inferred from pattern.");
     MayLoad = true;
   }
 
   if (Inst.neverHasSideEffects) {
     if (HadPattern)
-      fprintf(stderr, "Warning: neverHasSideEffects set on instruction '%s' "
-              "which already has a pattern\n", Inst.TheDef->getName().c_str());
+      PrintWarning(Inst.TheDef->getLoc(),
+                   "neverHasSideEffects flag explicitly set on "
+                   "instruction, but flag already inferred from pattern.");
     HasSideEffects = false;
   }
 
   if (Inst.hasSideEffects) {
     if (HasSideEffects)
-      fprintf(stderr, "Warning: hasSideEffects set on instruction '%s' "
-              "which already inferred this.\n", Inst.TheDef->getName().c_str());
+      PrintWarning(Inst.TheDef->getLoc(),
+                   "hasSideEffects flag explicitly set on "
+                   "instruction, but flag already inferred from pattern.");
     HasSideEffects = true;
   }
 
   if (Inst.Operands.isVariadic)
     IsVariadic = true;  // Can warn if we want.
+}
+
+/// hasNullFragReference - Return true if the DAG has any reference to the
+/// null_frag operator.
+static bool hasNullFragReference(DagInit *DI) {
+  DefInit *OpDef = dynamic_cast<DefInit*>(DI->getOperator());
+  if (!OpDef) return false;
+  Record *Operator = OpDef->getDef();
+
+  // If this is the null fragment, return true.
+  if (Operator->getName() == "null_frag") return true;
+  // If any of the arguments reference the null fragment, return true.
+  for (unsigned i = 0, e = DI->getNumArgs(); i != e; ++i) {
+    DagInit *Arg = dynamic_cast<DagInit*>(DI->getArg(i));
+    if (Arg && hasNullFragReference(Arg))
+      return true;
+  }
+
+  return false;
+}
+
+/// hasNullFragReference - Return true if any DAG in the list references
+/// the null_frag operator.
+static bool hasNullFragReference(ListInit *LI) {
+  for (unsigned i = 0, e = LI->getSize(); i != e; ++i) {
+    DagInit *DI = dynamic_cast<DagInit*>(LI->getElement(i));
+    assert(DI && "non-dag in an instruction Pattern list?!");
+    if (hasNullFragReference(DI))
+      return true;
+  }
+  return false;
 }
 
 /// ParseInstructions - Parse all of the instructions, inlining and resolving
@@ -2533,8 +2565,11 @@ void CodeGenDAGPatterns::ParseInstructions() {
 
     // If there is no pattern, only collect minimal information about the
     // instruction for its operand list.  We have to assume that there is one
-    // result, as we have no detailed info.
-    if (!LI || LI->getSize() == 0) {
+    // result, as we have no detailed info. A pattern which references the
+    // null_frag operator is as-if no pattern were specified. Normally this
+    // is from a multiclass expansion w/ a SDPatternOperator passed in as
+    // null_frag.
+    if (!LI || LI->getSize() == 0 || hasNullFragReference(LI)) {
       std::vector<Record*> Results;
       std::vector<Record*> Operands;
 
@@ -2873,6 +2908,11 @@ void CodeGenDAGPatterns::ParsePatterns() {
   for (unsigned i = 0, e = Patterns.size(); i != e; ++i) {
     Record *CurPattern = Patterns[i];
     DagInit *Tree = CurPattern->getValueAsDag("PatternToMatch");
+
+    // If the pattern references the null_frag, there's nothing to do.
+    if (hasNullFragReference(Tree))
+      continue;
+
     TreePattern *Pattern = new TreePattern(CurPattern, Tree, true, *this);
 
     // Inline pattern fragments into it.

@@ -29,9 +29,6 @@
 
 #include "clang/Config/config.h" // C_INCLUDE_DIRS
 
-#ifndef CLANG_PREFIX
-#define CLANG_PREFIX
-#endif
 using namespace clang;
 using namespace clang::frontend;
 
@@ -44,6 +41,7 @@ class InitHeaderSearch {
   std::vector<std::pair<IncludeDirGroup, DirectoryLookup> > IncludePath;
   typedef std::vector<std::pair<IncludeDirGroup,
                       DirectoryLookup> >::const_iterator path_iterator;
+  std::vector<std::pair<std::string, bool> > SystemHeaderPrefixes;
   HeaderSearch &Headers;
   bool Verbose;
   std::string IncludeSysroot;
@@ -60,6 +58,12 @@ public:
   void AddPath(const Twine &Path, IncludeDirGroup Group,
                bool isCXXAware, bool isUserSupplied,
                bool isFramework, bool IgnoreSysRoot = false);
+
+  /// AddSystemHeaderPrefix - Add the specified prefix to the system header
+  /// prefix list.
+  void AddSystemHeaderPrefix(StringRef Prefix, bool IsSystemHeader) {
+    SystemHeaderPrefixes.push_back(std::make_pair(Prefix, IsSystemHeader));
+  }
 
   /// AddGnuCPlusPlusIncludePaths - Add the necessary paths to support a gnu
   ///  libstdc++.
@@ -214,6 +218,8 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
     switch (os) {
     case llvm::Triple::FreeBSD:
     case llvm::Triple::NetBSD:
+    case llvm::Triple::OpenBSD:
+    case llvm::Triple::Bitrig:
       break;
     default:
       // FIXME: temporary hack: hard-coded paths.
@@ -319,7 +325,7 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
     }
     break;
   case llvm::Triple::FreeBSD:
-    AddPath(CLANG_PREFIX "/usr/include/clang/" CLANG_VERSION_STRING,
+    AddPath("/usr/include/clang/" CLANG_VERSION_STRING,
       System, false, false, false);
     break;
       
@@ -328,7 +334,7 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
   }
 
   if ( os != llvm::Triple::RTEMS )
-    AddPath(CLANG_PREFIX "/usr/include", System, false, false, false);
+    AddPath("/usr/include", System, false, false, false);
 }
 
 void InitHeaderSearch::
@@ -408,9 +414,9 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple, const HeaderSearchOp
   case llvm::Triple::FreeBSD:
     // FreeBSD 8.0
     // FreeBSD 7.3
-    AddGnuCPlusPlusIncludePaths(CLANG_PREFIX "/usr/include/c++/4.2",
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.2",
                                 "", "", "", triple);
-    AddGnuCPlusPlusIncludePaths(CLANG_PREFIX "/usr/include/c++/4.2/backward",
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.2/backward",
                                 "", "", "", triple);
     break;
   case llvm::Triple::NetBSD:
@@ -634,6 +640,8 @@ void InitHeaderSearch::Realize(const LangOptions &Lang) {
   bool DontSearchCurDir = false;  // TODO: set to true if -I- is set?
   Headers.SetSearchPaths(SearchList, NumQuoted, NumAngled, DontSearchCurDir);
 
+  Headers.SetSystemHeaderPrefixes(SystemHeaderPrefixes);
+
   // If verbose, print the list of directories that will be searched.
   if (Verbose) {
     llvm::errs() << "#include \"...\" search starts here:\n";
@@ -670,6 +678,10 @@ void clang::ApplyHeaderSearchOptions(HeaderSearch &HS,
   }
 
   Init.AddDefaultIncludePaths(Lang, Triple, HSOpts);
+
+  for (unsigned i = 0, e = HSOpts.SystemHeaderPrefixes.size(); i != e; ++i)
+    Init.AddSystemHeaderPrefix(HSOpts.SystemHeaderPrefixes[i].Prefix,
+                               HSOpts.SystemHeaderPrefixes[i].IsSystemHeader);
 
   if (HSOpts.UseBuiltinIncludes) {
     // Set up the builtin include directory in the module map.

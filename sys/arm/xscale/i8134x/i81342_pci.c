@@ -180,7 +180,7 @@ i81342_pci_attach(device_t dev)
 	sc->sc_io_rman.rm_type = RMAN_ARRAY;
 	sc->sc_io_rman.rm_descr = "I81342 PCI I/O Ports";
 	if (rman_init(&sc->sc_io_rman) != 0 ||
-		rman_manage_region(&sc->sc_io_rman, 
+		rman_manage_region(&sc->sc_io_rman,
 		sc->sc_is_atux ? IOP34X_PCIX_OIOBAR_VADDR :
 		IOP34X_PCIE_OIOBAR_VADDR,
 		(sc->sc_is_atux ? IOP34X_PCIX_OIOBAR_VADDR :
@@ -190,7 +190,7 @@ i81342_pci_attach(device_t dev)
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "I81342 PCI Memory";
 	if (rman_init(&sc->sc_mem_rman) != 0 ||
-	    rman_manage_region(&sc->sc_mem_rman, 
+	    rman_manage_region(&sc->sc_mem_rman,
 	    0, 0xffffffff) != 0) {
 		panic("i81342_pci_attach: failed to set up memory rman");
 	}
@@ -198,12 +198,12 @@ i81342_pci_attach(device_t dev)
 	sc->sc_irq_rman.rm_descr = "i81342 PCI IRQs";
 	if (sc->sc_is_atux) {
 		if (rman_init(&sc->sc_irq_rman) != 0 ||
-		    rman_manage_region(&sc->sc_irq_rman, ICU_INT_XINT0, 
+		    rman_manage_region(&sc->sc_irq_rman, ICU_INT_XINT0,
 		    ICU_INT_XINT3) != 0)
 			panic("i83142_pci_attach: failed to set up IRQ rman");
 	} else {
 		if (rman_init(&sc->sc_irq_rman) != 0 ||
-		    rman_manage_region(&sc->sc_irq_rman, ICU_INT_ATUE_MA, 
+		    rman_manage_region(&sc->sc_irq_rman, ICU_INT_ATUE_MA,
 		    ICU_INT_ATUE_MD) != 0)
 			panic("i81342_pci_attach: failed to set up IRQ rman");
 
@@ -242,7 +242,7 @@ i81342_pci_conf_setup(struct i81342_pci_softc *sc, int bus, int slot, int func,
 			*addr = (1 << (slot + 16)) | (slot << 11) |
 			    (func << 8) | reg;
 		else
-			*addr = (bus << 16) | (slot << 11) | (func << 11) | 
+			*addr = (bus << 16) | (slot << 11) | (func << 11) |
 			    reg | 1;
 	} else {
 		*addr = (bus << 24) | (slot << 19) | (func << 16) | reg;
@@ -297,7 +297,7 @@ i81342_pci_read_config(device_t dev, u_int bus, u_int slot, u_int func,
 }
 
 static void
-i81342_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func, 
+i81342_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
     u_int reg, u_int32_t data, int bytes)
 {
 	struct i81342_pci_softc *sc = device_get_softc(dev);
@@ -372,7 +372,7 @@ i81342_pci_alloc_resource(device_t bus, device_t child, int type, int *rid,
 				rman_release_resource(rv);
 				return (NULL);
 			}
-		} 
+		}
 	}
 	return (rv);
 

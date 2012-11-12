@@ -395,35 +395,16 @@ float	significandf(float);
  * long double versions of ISO/POSIX math functions
  */
 #if __ISO_C_VISIBLE >= 1999
-#if _DECLARE_C99_LDBL_MATH
-long double	acoshl(long double);
-#endif
 long double	acosl(long double);
-#if _DECLARE_C99_LDBL_MATH
-long double	asinhl(long double);
-#endif
 long double	asinl(long double);
 long double	atan2l(long double, long double);
-#if _DECLARE_C99_LDBL_MATH
-long double	atanhl(long double);
-#endif
 long double	atanl(long double);
 long double	cbrtl(long double);
 long double	ceill(long double);
 long double	copysignl(long double, long double) __pure2;
-#if _DECLARE_C99_LDBL_MATH
-long double	coshl(long double);
-#endif
 long double	cosl(long double);
-#if _DECLARE_C99_LDBL_MATH
-long double	erfcl(long double);
-long double	erfl(long double);
-#endif
 long double	exp2l(long double);
-#if _DECLARE_C99_LDBL_MATH
 long double	expl(long double);
-long double	expm1l(long double);
-#endif
 long double	fabsl(long double) __pure2;
 long double	fdiml(long double, long double);
 long double	floorl(long double);
@@ -435,20 +416,9 @@ long double	frexpl(long double value, int *); /* fundamentally !__pure2 */
 long double	hypotl(long double, long double);
 int		ilogbl(long double) __pure2;
 long double	ldexpl(long double, int);
-#if _DECLARE_C99_LDBL_MATH
-long double	lgammal(long double);
-#endif
 long long	llrintl(long double);
 long long	llroundl(long double);
-#if _DECLARE_C99_LDBL_MATH
-long double	log10l(long double);
-long double	log1pl(long double);
-long double	log2l(long double);
-#endif
 long double	logbl(long double);
-#if _DECLARE_C99_LDBL_MATH
-long double	logl(long double);
-#endif
 long		lrintl(long double);
 long		lroundl(long double);
 long double	modfl(long double, long double *); /* fundamentally !__pure2 */
@@ -458,30 +428,53 @@ long double	nextafterl(long double, long double);
 double		nexttoward(double, long double);
 float		nexttowardf(float, long double);
 long double	nexttowardl(long double, long double);
-#if _DECLARE_C99_LDBL_MATH
-long double	powl(long double, long double);
-#endif
 long double	remainderl(long double, long double);
 long double	remquol(long double, long double, int *);
 long double	rintl(long double);
 long double	roundl(long double);
 long double	scalblnl(long double, long);
 long double	scalbnl(long double, int);
-#if _DECLARE_C99_LDBL_MATH
-long double	sinhl(long double);
-#endif
 long double	sinl(long double);
 long double	sqrtl(long double);
-#if _DECLARE_C99_LDBL_MATH
-long double	tanhl(long double);
-#endif
 long double	tanl(long double);
-#if _DECLARE_C99_LDBL_MATH
-long double	tgammal(long double);
-#endif
 long double	truncl(long double);
 
 #endif /* __ISO_C_VISIBLE >= 1999 */
 __END_DECLS
 
 #endif /* !_MATH_H_ */
+
+/* separate header for cmath */
+#ifndef _MATH_EXTRA_H_
+#if __ISO_C_VISIBLE >= 1999
+#if _DECLARE_C99_LDBL_MATH
+
+#define _MATH_EXTRA_H_
+
+/*
+ * extra long double versions of math functions for C99 and cmath
+ */
+__BEGIN_DECLS
+
+long double	acoshl(long double);
+long double	asinhl(long double);
+long double	atanhl(long double);
+long double	coshl(long double);
+long double	erfcl(long double);
+long double	erfl(long double);
+long double	expm1l(long double);
+long double	lgammal(long double);
+long double	log10l(long double);
+long double	log1pl(long double);
+long double	log2l(long double);
+long double	logl(long double);
+long double	powl(long double, long double);
+long double	sinhl(long double);
+long double	tanhl(long double);
+long double	tgammal(long double);
+
+__END_DECLS
+
+#endif /* !_DECLARE_C99_LDBL_MATH */
+#endif /* __ISO_C_VISIBLE >= 1999 */
+#endif /* !_MATH_EXTRA_H_ */

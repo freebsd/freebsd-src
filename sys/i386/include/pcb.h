@@ -45,7 +45,10 @@
 #include <machine/npx.h>
 
 struct pcb {
+	int	pcb_cr0;
+	int	pcb_cr2;
 	int	pcb_cr3;
+	int	pcb_cr4;
 	int	pcb_edi;
 	int	pcb_esi;
 	int	pcb_ebp;
@@ -71,20 +74,30 @@ struct pcb {
 #define	PCB_KERNNPX	0x40	/* kernel uses npx */
 
 	caddr_t	pcb_onfault;	/* copyin/out fault recovery */
+	int	pcb_ds;
+	int	pcb_es;
+	int	pcb_fs;
 	int	pcb_gs;
+	int	pcb_ss;
 	struct segment_descriptor pcb_fsd;
 	struct segment_descriptor pcb_gsd;
 	struct	pcb_ext	*pcb_ext;	/* optional pcb extension */
 	int	pcb_psl;	/* process status long */
 	u_long	pcb_vm86[2];	/* vm86bios scratch space */
 	union	savefpu *pcb_save;
+
+	struct region_descriptor pcb_gdt;
+	struct region_descriptor pcb_idt;
+	uint16_t	pcb_ldt;
+	uint16_t	pcb_tr;
 };
 
 #ifdef _KERNEL
 struct trapframe;
 
 void	makectx(struct trapframe *, struct pcb *);
-void	savectx(struct pcb *) __returns_twice;
+int	savectx(struct pcb *) __returns_twice;
+void	resumectx(struct pcb *) __fastcall;
 #endif
 
 #endif /* _I386_PCB_H_ */

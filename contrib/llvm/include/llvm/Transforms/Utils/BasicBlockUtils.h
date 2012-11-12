@@ -110,7 +110,8 @@ bool isCriticalEdge(const TerminatorInst *TI, unsigned SuccNum,
 ///
 BasicBlock *SplitCriticalEdge(TerminatorInst *TI, unsigned SuccNum,
                               Pass *P = 0, bool MergeIdenticalEdges = false,
-                              bool DontDeleteUselessPHIs = false);
+                              bool DontDeleteUselessPHIs = false,
+                              bool SplitLandingPads = false);
 
 inline BasicBlock *SplitCriticalEdge(BasicBlock *BB, succ_iterator SI,
                                      Pass *P = 0) {
@@ -200,10 +201,6 @@ void SplitLandingPadPredecessors(BasicBlock *OrigBB,ArrayRef<BasicBlock*> Preds,
 /// predecessor.
 ReturnInst *FoldReturnIntoUncondBranch(ReturnInst *RI, BasicBlock *BB,
                                        BasicBlock *Pred);
-
-/// GetFirstDebugLocInBasicBlock - Return first valid DebugLoc entry in a
-/// given basic block.
-DebugLoc GetFirstDebugLocInBasicBlock(const BasicBlock *BB);
 
 } // End llvm namespace
 

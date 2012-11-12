@@ -76,8 +76,10 @@ typedef void g_orphan_t (struct g_consumer *);
 typedef void g_start_t (struct bio *);
 typedef void g_spoiled_t (struct g_consumer *);
 typedef void g_attrchanged_t (struct g_consumer *, const char *attr);
+typedef void g_provgone_t (struct g_provider *);
 typedef void g_dumpconf_t (struct sbuf *, const char *indent, struct g_geom *,
     struct g_consumer *, struct g_provider *);
+typedef void g_resize_t(struct g_consumer *cp);
 
 /*
  * The g_class structure describes a transformation class.  In other words
@@ -106,6 +108,8 @@ struct g_class {
 	g_access_t		*access;
 	g_orphan_t		*orphan;
 	g_ioctl_t		*ioctl;
+	g_provgone_t		*providergone;
+	g_resize_t		*resize;
 	void			*spare1;
 	void			*spare2;
 	/*
@@ -137,6 +141,8 @@ struct g_geom {
 	g_access_t		*access;
 	g_orphan_t		*orphan;
 	g_ioctl_t		*ioctl;
+	g_provgone_t		*providergone;
+	g_resize_t		*resize;
 	void			*spare0;
 	void			*spare1;
 	void			*softc;
@@ -168,7 +174,9 @@ struct g_consumer {
 	struct g_provider	*provider;
 	LIST_ENTRY(g_consumer)	consumers;	/* XXX: better name */
 	int			acr, acw, ace;
-	int			spoiled;
+	int			flags;
+#define G_CF_SPOILED		0x1
+#define G_CF_ORPHAN		0x4
 	struct devstat		*stat;
 	u_int			nstart, nend;
 
@@ -195,7 +203,6 @@ struct g_provider {
 	struct devstat		*stat;
 	u_int			nstart, nend;
 	u_int			flags;
-#define G_PF_CANDELETE		0x1
 #define G_PF_WITHER		0x2
 #define G_PF_ORPHAN		0x4
 
@@ -241,6 +248,8 @@ int g_post_event(g_event_t *func, void *arg, int flag, ...);
 int g_waitfor_event(g_event_t *func, void *arg, int flag, ...);
 void g_cancel_event(void *ref);
 int g_attr_changed(struct g_provider *pp, const char *attr, int flag);
+int g_media_changed(struct g_provider *pp, int flag);
+int g_media_gone(struct g_provider *pp, int flag);
 void g_orphan_provider(struct g_provider *pp, int error);
 void g_waitidlelock(void);
 
@@ -264,6 +273,7 @@ int g_handleattr_str(struct bio *bp, const char *attribute, const char *str);
 struct g_consumer * g_new_consumer(struct g_geom *gp);
 struct g_geom * g_new_geomf(struct g_class *mp, const char *fmt, ...);
 struct g_provider * g_new_providerf(struct g_geom *gp, const char *fmt, ...);
+void g_resize_provider(struct g_provider *pp, off_t size);
 int g_retaste(struct g_class *mp);
 void g_spoil(struct g_provider *pp, struct g_consumer *cp);
 int g_std_access(struct g_provider *pp, int dr, int dw, int de);

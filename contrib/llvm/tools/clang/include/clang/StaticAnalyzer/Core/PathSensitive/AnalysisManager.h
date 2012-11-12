@@ -19,13 +19,9 @@
 #include "clang/Frontend/AnalyzerOptions.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/PathDiagnostic.h"
+#include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
 
 namespace clang {
-
-namespace idx { 
-  class Indexer;
-  class TranslationUnit; 
-}
 
 namespace ento {
   class CheckerManager;
@@ -37,21 +33,13 @@ class AnalysisManager : public BugReporterData {
   ASTContext &Ctx;
   DiagnosticsEngine &Diags;
   const LangOptions &LangOpts;
-
-  OwningPtr<PathDiagnosticConsumer> PD;
+  PathDiagnosticConsumers PathConsumers;
 
   // Configurable components creators.
   StoreManagerCreator CreateStoreMgr;
   ConstraintManagerCreator CreateConstraintMgr;
 
   CheckerManager *CheckerMgr;
-
-  /// \brief Provide function definitions in other translation units. This is
-  /// NULL if we don't have multiple translation units. AnalysisManager does
-  /// not own the Indexer.
-  idx::Indexer *Idxer;
-
-  enum AnalysisScope { ScopeTU, ScopeDecl } AScope;
 
   /// \brief The maximum number of exploded nodes the analyzer will generate.
   unsigned MaxNodes;
@@ -94,17 +82,17 @@ public:
   bool NoRetryExhausted;
 
 public:
-  AnalysisManager(ASTContext &ctx, DiagnosticsEngine &diags, 
-                  const LangOptions &lang, PathDiagnosticConsumer *pd,
+  AnalysisManager(ASTContext &ctx,DiagnosticsEngine &diags,
+                  const LangOptions &lang,
+                  const PathDiagnosticConsumers &Consumers,
                   StoreManagerCreator storemgr,
                   ConstraintManagerCreator constraintmgr, 
                   CheckerManager *checkerMgr,
-                  idx::Indexer *idxer,
                   unsigned maxnodes, unsigned maxvisit,
                   bool vizdot, bool vizubi, AnalysisPurgeMode purge,
                   bool eager, bool trim,
                   bool useUnoptimizedCFG,
-                  bool addImplicitDtors, bool addInitializers,
+                  bool addImplicitDtors,
                   bool eagerlyTrimEGraph,
                   AnalysisIPAMode ipa,
                   unsigned inlineMaxStack,
@@ -112,12 +100,7 @@ public:
                   AnalysisInliningMode inliningMode,
                   bool NoRetry);
 
-  /// Construct a clone of the given AnalysisManager with the given ASTContext
-  /// and DiagnosticsEngine.
-  AnalysisManager(ASTContext &ctx, DiagnosticsEngine &diags,
-                  AnalysisManager &ParentAM);
-
-  ~AnalysisManager() { FlushDiagnostics(); }
+  ~AnalysisManager();
   
   void ClearContexts() {
     AnaCtxMgr.clear();
@@ -137,8 +120,6 @@ public:
 
   CheckerManager *getCheckerManager() const { return CheckerMgr; }
 
-  idx::Indexer *getIndexer() const { return Idxer; }
-
   virtual ASTContext &getASTContext() {
     return Ctx;
   }
@@ -155,14 +136,11 @@ public:
     return LangOpts;
   }
 
-  virtual PathDiagnosticConsumer *getPathDiagnosticConsumer() {
-    return PD.get();
+  ArrayRef<PathDiagnosticConsumer*> getPathDiagnosticConsumers()  {
+    return PathConsumers;
   }
-  
-  void FlushDiagnostics() {
-    if (PD.get())
-      PD->FlushDiagnostics(0);
-  }
+
+  void FlushDiagnostics();
 
   unsigned getMaxNodes() const { return MaxNodes; }
 
@@ -184,11 +162,7 @@ public:
 
   bool shouldEagerlyAssume() const { return EagerlyAssume; }
 
-  bool shouldInlineCall() const { return (IPAMode == Inlining); }
-
-  bool hasIndexer() const { return Idxer != 0; }
-
-  AnalysisDeclContext *getAnalysisDeclContextInAnotherTU(const Decl *D);
+  bool shouldInlineCall() const { return (IPAMode != None); }
 
   CFG *getCFG(Decl const *D) {
     return AnaCtxMgr.getContext(D)->getCFG();
@@ -205,10 +179,6 @@ public:
 
   AnalysisDeclContext *getAnalysisDeclContext(const Decl *D) {
     return AnaCtxMgr.getContext(D);
-  }
-
-  AnalysisDeclContext *getAnalysisDeclContext(const Decl *D, idx::TranslationUnit *TU) {
-    return AnaCtxMgr.getContext(D, TU);
   }
 
 };

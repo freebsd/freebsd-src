@@ -84,7 +84,7 @@ gdb_cpu_setreg(int regnum, void *val)
 int
 gdb_cpu_signal(int vector, int dummy __unused)
 {
-#ifdef E500
+#if defined(BOOKE)
 	if (vector == EXC_DEBUG || vector == EXC_PGM)
 		return (SIGTRAP);
 #else

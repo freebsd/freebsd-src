@@ -211,6 +211,8 @@ PUNCTUATOR(greatergreatergreater, ">>>")
 //   KEYCXX0X - This is a C++ keyword introduced to C++ in C++0x
 //   KEYGNU   - This is a keyword if GNU extensions are enabled
 //   KEYMS    - This is a keyword if Microsoft extensions are enabled
+//   KEYNOMS  - This is a keyword that must never be enabled under
+//              Microsoft mode
 //   KEYOPENCL  - This is a keyword in OpenCL
 //   KEYALTIVEC - This is a keyword in AltiVec
 //   KEYBORLAND - This is a keyword if Borland extensions are enabled
@@ -251,6 +253,7 @@ KEYWORD(void                        , KEYALL)
 KEYWORD(volatile                    , KEYALL)
 KEYWORD(while                       , KEYALL)
 KEYWORD(_Alignas                    , KEYALL)
+KEYWORD(_Alignof                    , KEYALL)
 KEYWORD(_Atomic                     , KEYALL)
 KEYWORD(_Bool                       , KEYNOCXX)
 KEYWORD(_Complex                    , KEYALL)
@@ -310,8 +313,8 @@ CXX_KEYWORD_OPERATOR(xor_eq  , caretequal)
 // C++0x keywords
 KEYWORD(alignas                     , KEYCXX0X)
 KEYWORD(alignof                     , KEYCXX0X)
-KEYWORD(char16_t                    , KEYCXX0X)
-KEYWORD(char32_t                    , KEYCXX0X)
+KEYWORD(char16_t                    , KEYCXX0X|KEYNOMS)
+KEYWORD(char32_t                    , KEYCXX0X|KEYNOMS)
 KEYWORD(constexpr                   , KEYCXX0X)
 KEYWORD(decltype                    , KEYCXX0X)
 KEYWORD(noexcept                    , KEYCXX0X)
@@ -341,6 +344,9 @@ KEYWORD(__PRETTY_FUNCTION__         , KEYALL)
 
 // GNU Extensions (outside impl-reserved namespace)
 KEYWORD(typeof                      , KEYGNU)
+
+// MS Extensions
+KEYWORD(L__FUNCTION__               , KEYMS)
 
 // GNU and MS Type Traits
 KEYWORD(__has_nothrow_assign        , KEYCXX)
@@ -486,28 +492,33 @@ ALIAS("__volatile"   , volatile   , KEYALL)
 ALIAS("__volatile__" , volatile   , KEYALL)
 
 // Microsoft extensions which should be disabled in strict conformance mode
-KEYWORD(__ptr64                   , KEYMS)
-KEYWORD(__ptr32                   , KEYMS)
-KEYWORD(__w64                     , KEYMS)
-KEYWORD(__uuidof                  , KEYMS | KEYBORLAND)
-KEYWORD(__try                     , KEYMS | KEYBORLAND)
-KEYWORD(__finally                 , KEYMS | KEYBORLAND)
-KEYWORD(__leave                   , KEYMS | KEYBORLAND)
-KEYWORD(__int64                   , KEYMS)
-KEYWORD(__if_exists               , KEYMS)
-KEYWORD(__if_not_exists           , KEYMS)
-ALIAS("__int8"       , char       , KEYMS)
-ALIAS("__int16"      , short      , KEYMS)
-ALIAS("__int32"      , int        , KEYMS)
-ALIAS("_asm"         , asm        , KEYMS)
-ALIAS("_cdecl"       , __cdecl    , KEYMS | KEYBORLAND)
-ALIAS("_fastcall"    , __fastcall , KEYMS | KEYBORLAND)
-ALIAS("_stdcall"     , __stdcall  , KEYMS | KEYBORLAND)
-ALIAS("_thiscall"    , __thiscall , KEYMS)
-ALIAS("_uuidof"      , __uuidof   , KEYMS | KEYBORLAND)
-ALIAS("_inline"      , inline     , KEYMS)
-ALIAS("_declspec"    , __declspec , KEYMS)
-ALIAS("__interface"  , struct     , KEYMS)
+KEYWORD(__ptr64                       , KEYMS)
+KEYWORD(__ptr32                       , KEYMS)
+KEYWORD(__w64                         , KEYMS)
+KEYWORD(__uuidof                      , KEYMS | KEYBORLAND)
+KEYWORD(__try                         , KEYMS | KEYBORLAND)
+KEYWORD(__finally                     , KEYMS | KEYBORLAND)
+KEYWORD(__leave                       , KEYMS | KEYBORLAND)
+KEYWORD(__int64                       , KEYMS)
+KEYWORD(__if_exists                   , KEYMS)
+KEYWORD(__if_not_exists               , KEYMS)
+KEYWORD(__single_inheritance          , KEYMS)
+KEYWORD(__multiple_inheritance        , KEYMS)
+KEYWORD(__virtual_inheritance         , KEYMS)
+ALIAS("__int8"           , char       , KEYMS)
+ALIAS("__int16"          , short      , KEYMS)
+ALIAS("__int32"          , int        , KEYMS)
+ALIAS("_asm"             , asm        , KEYMS)
+ALIAS("_alignof"         , __alignof  , KEYMS)
+ALIAS("__builtin_alignof", __alignof  , KEYMS)
+ALIAS("_cdecl"           , __cdecl    , KEYMS | KEYBORLAND)
+ALIAS("_fastcall"        , __fastcall , KEYMS | KEYBORLAND)
+ALIAS("_stdcall"         , __stdcall  , KEYMS | KEYBORLAND)
+ALIAS("_thiscall"        , __thiscall , KEYMS)
+ALIAS("_uuidof"          , __uuidof   , KEYMS | KEYBORLAND)
+ALIAS("_inline"          , inline     , KEYMS)
+ALIAS("_declspec"        , __declspec , KEYMS)
+ALIAS("__interface"      , struct     , KEYMS)
 
 // Borland Extensions which should be disabled in strict conformance mode.
 ALIAS("_pascal"      , __pascal   , KEYBORLAND)
@@ -583,6 +594,11 @@ ANNOTATION(pragma_vis)
 // The lexer produces these so that they only take effect when the parser
 // handles them.
 ANNOTATION(pragma_pack)
+
+// Annotation for #pragma clang __debug parser_crash...
+// The lexer produces these so that they only take effect when the parser
+// handles them.
+ANNOTATION(pragma_parser_crash)
 
 #undef ANNOTATION
 #undef TESTING_KEYWORD

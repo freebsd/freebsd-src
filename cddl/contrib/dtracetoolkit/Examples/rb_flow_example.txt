@@ -1,0 +1,54 @@
+The following are examples of rb_flow.d.
+
+This is a simple script to trace the flow of Ruby functions.
+Here it traces the example program, Code/Ruby/func_abc.rb
+ 
+# rb_flow.d
+  C TIME(us)         FILE                   -- CLASS::METHOD
+  0 3066417516583    func_abc.rb            -> Module::method_added
+  0 3066417516640    func_abc.rb            <- Module::method_added
+  0 3066417516658    func_abc.rb            -> Module::method_added
+  0 3066417516668    func_abc.rb            <- Module::method_added
+  0 3066417516680    func_abc.rb            -> Module::method_added
+  0 3066417516689    func_abc.rb            <- Module::method_added
+  0 3066417516701    func_abc.rb            -> Object::func_a
+  0 3066417516711    func_abc.rb              -> Object::print
+  0 3066417516730    func_abc.rb                -> IO::write
+  0 3066417516832    func_abc.rb                <- IO::write
+  0 3066417516841    func_abc.rb              <- Object::print
+  0 3066417516849    func_abc.rb              -> Object::sleep
+  0 3066418520705    func_abc.rb              <- Object::sleep
+  0 3066418520727    func_abc.rb              -> Object::func_b
+  0 3066418520744    func_abc.rb                -> Object::print
+  0 3066418520753    func_abc.rb                  -> IO::write
+  0 3066418520796    func_abc.rb                  <- IO::write
+  0 3066418520805    func_abc.rb                <- Object::print
+  0 3066418520813    func_abc.rb                -> Object::sleep
+  0 3066419530803    func_abc.rb                <- Object::sleep
+  0 3066419530825    func_abc.rb                -> Object::func_c
+  0 3066419530842    func_abc.rb                  -> Object::print
+  0 3066419530852    func_abc.rb                    -> IO::write
+  0 3066419530893    func_abc.rb                    <- IO::write
+  0 3066419530902    func_abc.rb                  <- Object::print
+  0 3066419530910    func_abc.rb                  -> Object::sleep
+  0 3066420540804    func_abc.rb                  <- Object::sleep
+  0 3066420540822    func_abc.rb                <- Object::func_c
+  0 3066420540831    func_abc.rb              <- Object::func_b
+  0 3066420540840    func_abc.rb            <- Object::func_a
+^C
+
+The fourth column is indented by 2 spaces to show when a new function begins.
+This shows which function is calling which - the output above begins by adding
+new methods, then showing that func_a began; did some print IO; slept, and 
+returned from sleep; and then called func_b.
+
+The TIME(us) column shows time from boot in microseconds.
+
+The FILE column shows the file that was being executed. 
+
+If the output looks illogical, check the CPU "C" column - if it changes,
+then the output is probably shuffled. See Notes/ALLsnoop_notes.txt for
+details and suggested workarounds.
+
+See Notes/ALLflow_notes.txt for important notes about reading flow outputs.
+

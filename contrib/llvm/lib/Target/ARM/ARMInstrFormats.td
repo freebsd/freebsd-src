@@ -532,6 +532,7 @@ class AIswp<bit b, dag oops, dag iops, string opc, list<dag> pattern>
   let Inst{11-4} = 0b00001001;
   let Inst{3-0} = Rt2;
 
+  let Unpredictable{11-8} = 0b1111;
   let DecoderMethod = "DecodeSwap";
 }
 
@@ -826,6 +827,8 @@ class AExtI<bits<8> opcod, dag oops, dag iops, InstrItinClass itin,
   let Inst{7-4}   = 0b0111;
   let Inst{9-8}   = 0b00;
   let Inst{27-20} = opcod;
+
+  let Unpredictable{9-8} = 0b11;
 }
 
 // Misc Arithmetic instructions.
@@ -1861,7 +1864,6 @@ class N3V<bit op24, bit op23, bits<2> op21_20, bits<4> op11_8, bit op6, bit op4,
           string opc, string dt, string asm, string cstr, list<dag> pattern>
   : N3VCommon<op24, op23, op21_20, op11_8, op6, op4,
               oops, iops, f, itin, opc, dt, asm, cstr, pattern> {
-
   // Instruction operands.
   bits<5> Vd;
   bits<5> Vn;

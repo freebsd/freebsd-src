@@ -12,10 +12,11 @@
  * LIMITATION, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
  * FOR A PARTICULAR PURPOSE.
  *
- * support for the IEEE Link Discovery Protocol as per 802.1ab
+ * support for the IEEE Link Discovery Protocol as per 802.1AB
  *
  * Original code by Hannes Gredler (hannes@juniper.net)
  * IEEE and TIA extensions by Carles Kishimoto <carles.kishimoto@gmail.com>
+ * DCBX extensions by Kaladhar Musunuru <kaladharm@sourceforge.net>
  */
 
 #ifndef lint
@@ -384,9 +385,9 @@ static const struct tok lldp_tia_application_type_values[] = {
     { 0, NULL}
 };
 
-#define LLDP_TIA_NETWORK_POLICY_U_BIT           (1 << 5)
+#define LLDP_TIA_NETWORK_POLICY_X_BIT           (1 << 5)
 #define LLDP_TIA_NETWORK_POLICY_T_BIT           (1 << 6)
-#define LLDP_TIA_NETWORK_POLICY_X_BIT           (1 << 7)
+#define LLDP_TIA_NETWORK_POLICY_U_BIT           (1 << 7)
 
 static const struct tok lldp_tia_network_policy_bits_values[] = {
     { LLDP_TIA_NETWORK_POLICY_U_BIT, "Unknown"},
@@ -542,6 +543,23 @@ static const struct tok lldp_aggregation_values[] = {
 };
 
 /*
+ * DCBX protocol subtypes.
+ */
+#define LLDP_DCBX_SUBTYPE_1                1
+#define LLDP_DCBX_SUBTYPE_2                2
+
+static const struct tok lldp_dcbx_subtype_values[] = {
+    { LLDP_DCBX_SUBTYPE_1, "DCB Capability Exchange Protocol Rev 1" },
+    { LLDP_DCBX_SUBTYPE_2, "DCB Capability Exchange Protocol Rev 1.01" },
+    { 0, NULL}
+};
+
+#define LLDP_DCBX_CONTROL_TLV                1
+#define LLDP_DCBX_PRIORITY_GROUPS_TLV        2
+#define LLDP_DCBX_PRIORITY_FLOW_CONTROL_TLV  3
+#define LLDP_DCBX_APPLICATION_TLV            4
+
+/*
  * Interface numbering subtypes.
  */
 #define LLDP_INTF_NUMB_IFX_SUBTYPE         2
@@ -556,13 +574,17 @@ static const struct tok lldp_intf_numb_subtype_values[] = {
 #define LLDP_INTF_NUM_LEN                  5
 
 /*
- * Print IEEE private extensions. (802.1 annex F)
+ * Print IEEE 802.1 private extensions. (802.1AB annex E)
  */
 static int
-lldp_private_8021_print(const u_char *tptr)
+lldp_private_8021_print(const u_char *tptr, u_int tlv_len)
 {
     int subtype, hexdump = FALSE;
+    u_int sublen;
 
+    if (tlv_len < 4) {
+        return hexdump;
+    }
     subtype = *(tptr+3);
 
     printf("\n\t  %s Subtype (%u)",
@@ -571,24 +593,47 @@ lldp_private_8021_print(const u_char *tptr)
 
     switch (subtype) {
     case LLDP_PRIVATE_8021_SUBTYPE_PORT_VLAN_ID:
+        if (tlv_len < 6) {
+            return hexdump;
+        }
         printf("\n\t    port vlan id (PVID): %u",
                EXTRACT_16BITS(tptr+4));
         break;
     case LLDP_PRIVATE_8021_SUBTYPE_PROTOCOL_VLAN_ID:
+        if (tlv_len < 7) {
+            return hexdump;
+        }
         printf("\n\t    port and protocol vlan id (PPVID): %u, flags [%s] (0x%02x)",
                EXTRACT_16BITS(tptr+5),
 	       bittok2str(lldp_8021_port_protocol_id_values, "none", *(tptr+4)),
 	       *(tptr+4));
         break;
     case LLDP_PRIVATE_8021_SUBTYPE_VLAN_NAME:
+        if (tlv_len < 6) {
+            return hexdump;
+        }
         printf("\n\t    vlan id (VID): %u",
                EXTRACT_16BITS(tptr+4));
+        if (tlv_len < 7) {
+            return hexdump;
+        }
+        sublen = *(tptr+6);
+        if (tlv_len < 7+sublen) {
+            return hexdump;
+        }
         printf("\n\t    vlan name: ");
-        safeputs((const char *)tptr+7, *(tptr+6));
+        safeputs((const char *)tptr+7, sublen);
         break;
     case LLDP_PRIVATE_8021_SUBTYPE_PROTOCOL_IDENTITY:
+        if (tlv_len < 5) {
+            return hexdump;
+        }
+        sublen = *(tptr+4);
+        if (tlv_len < 5+sublen) {
+            return hexdump;
+        }
         printf("\n\t    protocol identity: ");
-        safeputs((const char *)tptr+5, *(tptr+4));
+        safeputs((const char *)tptr+5, sublen);
         break;
 
     default:
@@ -600,13 +645,16 @@ lldp_private_8021_print(const u_char *tptr)
 }
 
 /*
- * Print IEEE private extensions. (802.3)
+ * Print IEEE 802.3 private extensions. (802.3bc)
  */
 static int
-lldp_private_8023_print(const u_char *tptr)
+lldp_private_8023_print(const u_char *tptr, u_int tlv_len)
 {
     int subtype, hexdump = FALSE;
 
+    if (tlv_len < 4) {
+        return hexdump;
+    }
     subtype = *(tptr+3);
 
     printf("\n\t  %s Subtype (%u)",
@@ -615,6 +663,9 @@ lldp_private_8023_print(const u_char *tptr)
 
     switch (subtype) {
     case LLDP_PRIVATE_8023_SUBTYPE_MACPHY:
+        if (tlv_len < 9) {
+            return hexdump;
+        }
         printf("\n\t    autonegotiation [%s] (0x%02x)",
                bittok2str(lldp_8023_autonegotiation_values, "none", *(tptr+4)),
                *(tptr+4));
@@ -627,6 +678,9 @@ lldp_private_8023_print(const u_char *tptr)
         break;
 
     case LLDP_PRIVATE_8023_SUBTYPE_MDIPOWER:
+        if (tlv_len < 7) {
+            return hexdump;
+        }
         printf("\n\t    MDI power support [%s], power pair %s, power class %s",
                bittok2str(lldp_mdi_values, "none", *(tptr+4)),
                tok2str(lldp_mdi_power_pairs_values, "unknown", *(tptr+5)),
@@ -634,6 +688,9 @@ lldp_private_8023_print(const u_char *tptr)
         break;
 
     case LLDP_PRIVATE_8023_SUBTYPE_LINKAGGR:
+        if (tlv_len < 9) {
+            return hexdump;
+        }
         printf("\n\t    aggregation status [%s], aggregation port ID %u",
                bittok2str(lldp_aggregation_values, "none", *(tptr+4)),
                EXTRACT_32BITS(tptr+5));
@@ -674,8 +731,12 @@ lldp_private_tia_print(const u_char *tptr, u_int tlv_len)
     int subtype, hexdump = FALSE;
     u_int8_t location_format;
     u_int16_t power_val;
-    u_int8_t lci_len, ca_type, ca_len;
+    u_int lci_len;
+    u_int8_t ca_type, ca_len;
 
+    if (tlv_len < 4) {
+        return hexdump;
+    }
     subtype = *(tptr+3);
 
     printf("\n\t  %s Subtype (%u)",
@@ -684,6 +745,9 @@ lldp_private_tia_print(const u_char *tptr, u_int tlv_len)
 
     switch (subtype) {
     case LLDP_PRIVATE_TIA_SUBTYPE_CAPABILITIES:
+        if (tlv_len < 7) {
+            return hexdump;
+        }
         printf("\n\t    Media capabilities [%s] (0x%04x)",
                bittok2str(lldp_tia_capabilities_values, "none",
                           EXTRACT_16BITS(tptr+4)), EXTRACT_16BITS(tptr+4));
@@ -693,6 +757,9 @@ lldp_private_tia_print(const u_char *tptr, u_int tlv_len)
         break;
 
     case LLDP_PRIVATE_TIA_SUBTYPE_NETWORK_POLICY:
+        if (tlv_len < 8) {
+            return hexdump;
+        }
         printf("\n\t    Application type [%s] (0x%02x)",
                tok2str(lldp_tia_application_type_values, "none", *(tptr+4)),
                *(tptr+4));
@@ -707,6 +774,9 @@ lldp_private_tia_print(const u_char *tptr, u_int tlv_len)
         break;
 
     case LLDP_PRIVATE_TIA_SUBTYPE_LOCAL_ID:
+        if (tlv_len < 5) {
+            return hexdump;
+        }
         location_format = *(tptr+4);
         printf("\n\t    Location data format %s (0x%02x)",
                tok2str(lldp_tia_location_data_format_values, "unknown", location_format),
@@ -714,6 +784,9 @@ lldp_private_tia_print(const u_char *tptr, u_int tlv_len)
 
         switch (location_format) {
         case LLDP_TIA_LOCATION_DATA_FORMAT_COORDINATE_BASED:
+            if (tlv_len < 21) {
+                return hexdump;
+            }
             printf("\n\t    Latitude resolution %u, latitude value %" PRIu64,
                    (*(tptr+5)>>2), lldp_extract_latlon(tptr+5));
             printf("\n\t    Longitude resolution %u, longitude value %" PRIu64,
@@ -730,7 +803,16 @@ lldp_private_tia_print(const u_char *tptr, u_int tlv_len)
             break;
 
         case LLDP_TIA_LOCATION_DATA_FORMAT_CIVIC_ADDRESS:
+            if (tlv_len < 6) {
+                return hexdump;
+            }
             lci_len = *(tptr+5);
+            if (lci_len < 3) {
+                return hexdump;
+            }
+            if (tlv_len < 7+lci_len) {
+                return hexdump;
+            }
             printf("\n\t    LCI length %u, LCI what %s (0x%02x), Country-code ",
                    lci_len,
                    tok2str(lldp_tia_location_lci_what_values, "unknown", *(tptr+6)),
@@ -744,6 +826,9 @@ lldp_private_tia_print(const u_char *tptr, u_int tlv_len)
 
             /* Decode each civic address element */	
             while (lci_len > 0) {
+                if (lci_len < 2) {
+                    return hexdump;
+                }
 		ca_type = *(tptr);
                 ca_len = *(tptr+1);
 
@@ -757,6 +842,9 @@ lldp_private_tia_print(const u_char *tptr, u_int tlv_len)
 		/* basic sanity check */
 		if ( ca_type == 0 || ca_len == 0) {
                     return hexdump;
+		}
+		if (lci_len < ca_len) {
+		    return hexdump;
 		}
 
                 safeputs((const char *)tptr, ca_len);
@@ -777,6 +865,9 @@ lldp_private_tia_print(const u_char *tptr, u_int tlv_len)
         break;
 
     case LLDP_PRIVATE_TIA_SUBTYPE_EXTENDED_POWER_MDI:
+        if (tlv_len < 7) {
+            return hexdump;
+        }
         printf("\n\t    Power type [%s]",
                (*(tptr+4)&0xC0>>6) ? "PD device" : "PSE device");
         printf(", Power source [%s]",
@@ -812,24 +903,196 @@ lldp_private_tia_print(const u_char *tptr, u_int tlv_len)
     return hexdump;
 }
 
+/*
+ * Print DCBX Protocol fields (V 1.01).
+ */
+static int
+lldp_private_dcbx_print(const u_char *pptr, u_int len)
+{
+    int subtype, hexdump = FALSE;
+    u_int8_t tval;
+    u_int16_t tlv;
+    u_int32_t i, pgval, uval;
+    u_int tlen, tlv_type, tlv_len;
+    const u_char *tptr, *mptr;
+
+    if (len < 4) {
+        return hexdump;
+    }
+    subtype = *(pptr+3);
+
+    printf("\n\t  %s Subtype (%u)",
+           tok2str(lldp_dcbx_subtype_values, "unknown", subtype),
+           subtype);
+
+    /* by passing old version */
+    if (subtype == LLDP_DCBX_SUBTYPE_1)
+	return TRUE;
+
+    tptr = pptr + 4;
+    tlen = len - 4;
+
+    while (tlen >= sizeof(tlv)) {
+
+        TCHECK2(*tptr, sizeof(tlv));
+
+        tlv = EXTRACT_16BITS(tptr);
+
+        tlv_type = LLDP_EXTRACT_TYPE(tlv);
+        tlv_len = LLDP_EXTRACT_LEN(tlv);
+        hexdump = FALSE;
+
+        tlen -= sizeof(tlv);
+        tptr += sizeof(tlv);
+
+        /* loop check */
+        if (!tlv_type || !tlv_len) {
+            break;
+        }
+
+        TCHECK2(*tptr, tlv_len);
+        if (tlen < tlv_len) {
+            goto trunc;
+        }
+
+	/* decode every tlv */
+        switch (tlv_type) {
+        case LLDP_DCBX_CONTROL_TLV:
+            if (tlv_len < 10) {
+                goto trunc;
+            }
+	    printf("\n\t    Control - Protocol Control (type 0x%x, length %d)",
+		LLDP_DCBX_CONTROL_TLV, tlv_len);
+	    printf("\n\t      Oper_Version: %d", *tptr);
+	    printf("\n\t      Max_Version: %d", *(tptr+1));
+	    printf("\n\t      Sequence Number: %d", EXTRACT_32BITS(tptr+2));
+	    printf("\n\t      Acknowledgement Number: %d",
+					EXTRACT_32BITS(tptr+6));
+	    break;
+        case LLDP_DCBX_PRIORITY_GROUPS_TLV:
+            if (tlv_len < 17) {
+                goto trunc;
+            }
+	    printf("\n\t    Feature - Priority Group (type 0x%x, length %d)",
+		LLDP_DCBX_PRIORITY_GROUPS_TLV, tlv_len);
+	    printf("\n\t      Oper_Version: %d", *tptr);
+	    printf("\n\t      Max_Version: %d", *(tptr+1));
+	    printf("\n\t      Info block(0x%02X): ", *(tptr+2));
+	    tval = *(tptr+2);
+	    printf("Enable bit: %d, Willing bit: %d, Error Bit: %d",
+		(tval &  0x80) ? 1 : 0, (tval &  0x40) ? 1 : 0,
+		(tval &  0x20) ? 1 : 0);
+	    printf("\n\t      SubType: %d", *(tptr+3));
+	    printf("\n\t      Priority Allocation");
+
+	    pgval = EXTRACT_32BITS(tptr+4);
+	    for (i = 0; i <= 7; i++) {
+		tval = *(tptr+4+(i/2));
+		printf("\n\t          PgId_%d: %d",
+			i, (pgval >> (28-4*i)) & 0xF);
+	    }
+	    printf("\n\t      Priority Group Allocation");
+	    for (i = 0; i <= 7; i++)
+		printf("\n\t          Pg percentage[%d]: %d", i, *(tptr+8+i));
+	    printf("\n\t      NumTCsSupported: %d", *(tptr+8+8));
+	    break;
+        case LLDP_DCBX_PRIORITY_FLOW_CONTROL_TLV:
+            if (tlv_len < 6) {
+                goto trunc;
+            }
+	    printf("\n\t    Feature - Priority Flow Control");
+	    printf(" (type 0x%x, length %d)",
+		LLDP_DCBX_PRIORITY_FLOW_CONTROL_TLV, tlv_len);
+	    printf("\n\t      Oper_Version: %d", *tptr);
+	    printf("\n\t      Max_Version: %d", *(tptr+1));
+	    printf("\n\t      Info block(0x%02X): ", *(tptr+2));
+	    tval = *(tptr+2);
+	    printf("Enable bit: %d, Willing bit: %d, Error Bit: %d",
+		(tval &  0x80) ? 1 : 0, (tval &  0x40) ? 1 : 0,
+		(tval &  0x20) ? 1 : 0);
+	    printf("\n\t      SubType: %d", *(tptr+3));
+	    tval = *(tptr+4);
+	    printf("\n\t      PFC Config (0x%02X)", *(tptr+4));
+	    for (i = 0; i <= 7; i++)
+		printf("\n\t          Priority Bit %d: %s",
+		    i, (tval & (1 << i)) ? "Enabled" : "Disabled");
+	    printf("\n\t      NumTCPFCSupported: %d", *(tptr+5));
+	    break;
+        case LLDP_DCBX_APPLICATION_TLV:
+            if (tlv_len < 4) {
+                goto trunc;
+            }
+	    printf("\n\t    Feature - Application (type 0x%x, length %d)",
+		LLDP_DCBX_APPLICATION_TLV, tlv_len);
+	    printf("\n\t      Oper_Version: %d", *tptr);
+	    printf("\n\t      Max_Version: %d", *(tptr+1));
+	    printf("\n\t      Info block(0x%02X): ", *(tptr+2));
+	    tval = *(tptr+2);
+	    printf("Enable bit: %d, Willing bit: %d, Error Bit: %d",
+		(tval &  0x80) ? 1 : 0, (tval &  0x40) ? 1 : 0,
+		(tval &  0x20) ? 1 : 0);
+	    printf("\n\t      SubType: %d", *(tptr+3));
+	    tval = tlv_len - 4;
+	    mptr = tptr + 4;
+	    while (tval >= 6) {
+		printf("\n\t      Application Value");
+		printf("\n\t          Application Protocol ID: 0x%04x",
+			EXTRACT_16BITS(mptr));
+		uval = EXTRACT_24BITS(mptr+2);
+		printf("\n\t          SF (0x%x) Application Protocol ID is %s",
+			(uval >> 22),
+			(uval >> 22) ? "Socket Number" : "L2 EtherType");
+		printf("\n\t          OUI: 0x%06x", uval & 0x3fffff);
+		printf("\n\t          User Priority Map: 0x%02x", *(mptr+5));
+		tval = tval - 6;
+		mptr = mptr + 6;
+	    }
+	    break;
+	default:
+	    hexdump = TRUE;
+	    break;
+	}
+
+        /* do we also want to see a hex dump ? */
+        if (vflag > 1 || (vflag && hexdump)) {
+	    print_unknown_data(tptr,"\n\t    ", tlv_len);
+        }
+
+        tlen -= tlv_len;
+        tptr += tlv_len;
+    }
+
+ trunc:
+    return hexdump;
+}
+
 static char *
-lldp_network_addr_print(const u_char *tptr) {
+lldp_network_addr_print(const u_char *tptr, u_int len) {
 
     u_int8_t af;
     static char buf[BUFSIZE];
     const char * (*pfunc)(const u_char *);
 
+    if (len < 1)
+      return NULL;
+    len--;
     af = *tptr;
     switch (af) {
     case AFNUM_INET:
+        if (len < 4)
+          return NULL;
         pfunc = getname; 
         break;
 #ifdef INET6
     case AFNUM_INET6:
+        if (len < 16)
+          return NULL;
         pfunc = getname6;
         break;
 #endif
     case AFNUM_802:
+        if (len < 6)
+          return NULL;
         pfunc = etheraddr_string;
         break;
     default:
@@ -854,10 +1117,14 @@ lldp_mgmt_addr_tlv_print(const u_char *pptr, u_int len) {
     u_int8_t mgmt_addr_len, intf_num_subtype, oid_len;
     const u_char *tptr;
     u_int tlen;
+    char *mgmt_addr;
     
     tlen = len;
     tptr = pptr;
 
+    if (tlen < 1) {
+        return 0;
+    }
     mgmt_addr_len = *tptr++;
     tlen--;
 
@@ -865,9 +1132,12 @@ lldp_mgmt_addr_tlv_print(const u_char *pptr, u_int len) {
         return 0;
     }
 
+    mgmt_addr = lldp_network_addr_print(tptr, mgmt_addr_len);
+    if (mgmt_addr == NULL) {
+        return 0;
+    }
     printf("\n\t  Management Address length %u, %s",
-           mgmt_addr_len,
-           lldp_network_addr_print(tptr));
+           mgmt_addr_len, mgmt_addr);
     tptr += mgmt_addr_len;
     tlen -= mgmt_addr_len;
 
@@ -890,6 +1160,9 @@ lldp_mgmt_addr_tlv_print(const u_char *pptr, u_int len) {
     if (tlen) {
         oid_len = *tptr;
 
+        if (tlen < oid_len) {
+            return 0;
+        }
         if (oid_len) {
             printf("\n\t  OID length %u", oid_len);
             safeputs((const char *)tptr+1, oid_len);
@@ -906,6 +1179,7 @@ lldp_print(register const u_char *pptr, register u_int len) {
     u_int16_t tlv, cap, ena_cap;
     u_int oui, tlen, hexdump, tlv_type, tlv_len;
     const u_char *tptr;
+    char *network_addr;
     
     tptr = pptr;
     tlen = len;
@@ -939,16 +1213,111 @@ lldp_print(register const u_char *pptr, register u_int len) {
         }
 
         TCHECK2(*tptr, tlv_len);
+        if (tlen < tlv_len) {
+            goto trunc;
+        }
 
         switch (tlv_type) {
+
+        case LLDP_CHASSIS_ID_TLV:
+            if (vflag) {
+                if (tlv_len < 2) {
+                    goto trunc;
+                }
+                subtype = *tptr;
+                printf("\n\t  Subtype %s (%u): ",
+                       tok2str(lldp_chassis_subtype_values, "Unknown", subtype),
+                       subtype);
+
+                switch (subtype) {
+                case LLDP_CHASSIS_MAC_ADDR_SUBTYPE:
+                    if (tlv_len < 1+6) {
+                        goto trunc;
+                    }
+                    printf("%s", etheraddr_string(tptr+1));
+                    break;
+
+                case LLDP_CHASSIS_INTF_NAME_SUBTYPE: /* fall through */
+                case LLDP_CHASSIS_LOCAL_SUBTYPE:
+                case LLDP_CHASSIS_CHASSIS_COMP_SUBTYPE:
+                case LLDP_CHASSIS_INTF_ALIAS_SUBTYPE:
+                case LLDP_CHASSIS_PORT_COMP_SUBTYPE:
+                    safeputs((const char *)tptr+1, tlv_len-1);
+                    break;
+
+                case LLDP_CHASSIS_NETWORK_ADDR_SUBTYPE:
+                    network_addr = lldp_network_addr_print(tptr+1, tlv_len-1);
+                    if (network_addr == NULL) {
+                        goto trunc;
+                    }
+                    printf("%s", network_addr);
+                    break;
+
+                default:
+                    hexdump = TRUE;
+                    break;
+                }
+            }
+            break;
+
+        case LLDP_PORT_ID_TLV:
+            if (vflag) {
+                if (tlv_len < 2) {
+                    goto trunc;
+                }
+                subtype = *tptr;
+                printf("\n\t  Subtype %s (%u): ",
+                       tok2str(lldp_port_subtype_values, "Unknown", subtype),
+                       subtype);
+
+                switch (subtype) {
+                case LLDP_PORT_MAC_ADDR_SUBTYPE:
+                    if (tlv_len < 1+6) {
+                        goto trunc;
+                    }
+                    printf("%s", etheraddr_string(tptr+1));
+                    break;
+
+                case LLDP_PORT_INTF_NAME_SUBTYPE: /* fall through */
+                case LLDP_PORT_LOCAL_SUBTYPE:
+                case LLDP_PORT_AGENT_CIRC_ID_SUBTYPE:
+                case LLDP_PORT_INTF_ALIAS_SUBTYPE:
+                case LLDP_PORT_PORT_COMP_SUBTYPE:
+                    safeputs((const char *)tptr+1, tlv_len-1);
+                    break;
+
+                case LLDP_PORT_NETWORK_ADDR_SUBTYPE:
+                    network_addr = lldp_network_addr_print(tptr+1, tlv_len-1);
+                    if (network_addr == NULL) {
+                        goto trunc;
+                    }
+                    printf("%s", network_addr);
+                    break;
+
+                default:
+                    hexdump = TRUE;
+                    break;
+                }
+            }
+            break;
+
         case LLDP_TTL_TLV:
             if (vflag) {
+                if (tlv_len < 2) {
+                    goto trunc;
+                }
                 printf(": TTL %us", EXTRACT_16BITS(tptr));
             }
             break;
 
-        case LLDP_SYSTEM_NAME_TLV:
+        case LLDP_PORT_DESCR_TLV:
+            if (vflag) {
+                printf(": ");
+                safeputs((const char *)tptr, tlv_len);
+            }
+            break;
 
+        case LLDP_SYSTEM_NAME_TLV:
             /*
              * The system name is also print in non-verbose mode
              * similar to the CDP printer.
@@ -963,13 +1332,6 @@ lldp_print(register const u_char *pptr, register u_int len) {
             }
             break;
 
-        case LLDP_PORT_DESCR_TLV:
-            if (vflag) {
-                printf(": ");
-                safeputs((const char *)tptr, tlv_len);
-            }
-            break;
-
         case LLDP_SYSTEM_DESCR_TLV:
             if (vflag) {
                 printf("\n\t  ");
@@ -977,93 +1339,17 @@ lldp_print(register const u_char *pptr, register u_int len) {
             }
             break;
 
-
-        case LLDP_CHASSIS_ID_TLV:
-            if (vflag) {
-                subtype = *tptr;
-                printf("\n\t  Subtype %s (%u): ",
-                       tok2str(lldp_chassis_subtype_values, "Unknown", subtype),
-                       subtype);
-
-                switch (subtype) {
-                case LLDP_CHASSIS_MAC_ADDR_SUBTYPE:
-                    printf("%s", etheraddr_string(tptr+1));
-                    break;
-
-                case LLDP_CHASSIS_INTF_NAME_SUBTYPE: /* fall through */
-                case LLDP_CHASSIS_LOCAL_SUBTYPE:
-                case LLDP_CHASSIS_CHASSIS_COMP_SUBTYPE:
-                case LLDP_CHASSIS_INTF_ALIAS_SUBTYPE:
-                case LLDP_CHASSIS_PORT_COMP_SUBTYPE:
-                    safeputs((const char *)tptr+1, tlv_len-1);
-                    break;
-
-                case LLDP_CHASSIS_NETWORK_ADDR_SUBTYPE:
-                    printf("%s", lldp_network_addr_print(tptr+1));
-                    break;
-
-                default:
-                    hexdump = TRUE;
-                    break;
-                }
-            }
-            break;
-
-        case LLDP_PORT_ID_TLV:
-            if (vflag) {
-                subtype = *tptr;
-                printf("\n\t  Subtype %s (%u): ",
-                       tok2str(lldp_port_subtype_values, "Unknown", subtype),
-                       subtype);
-
-                switch (subtype) {
-                case LLDP_PORT_MAC_ADDR_SUBTYPE:
-                    printf("%s", etheraddr_string(tptr+1));
-                    break;
-
-                case LLDP_PORT_INTF_NAME_SUBTYPE: /* fall through */
-                case LLDP_PORT_LOCAL_SUBTYPE:
-                case LLDP_PORT_AGENT_CIRC_ID_SUBTYPE:
-                case LLDP_PORT_INTF_ALIAS_SUBTYPE:
-                case LLDP_PORT_PORT_COMP_SUBTYPE:
-                    safeputs((const char *)tptr+1, tlv_len-1);
-                    break;
-
-                case LLDP_PORT_NETWORK_ADDR_SUBTYPE:
-                    printf("%s", lldp_network_addr_print(tptr+1));
-                    break;
-
-                default:
-                    hexdump = TRUE;
-                    break;
-                }
-            }
-            break;
-
-        case LLDP_PRIVATE_TLV:
-            if (vflag) {
-                oui = EXTRACT_24BITS(tptr);
-                printf(": OUI %s (0x%06x)", tok2str(oui_values, "Unknown", oui), oui);
-                
-                switch (oui) {
-                case OUI_IEEE_8021_PRIVATE:
-                    hexdump = lldp_private_8021_print(tptr);
-                    break;
-                case OUI_IEEE_8023_PRIVATE:
-                    hexdump = lldp_private_8023_print(tptr);
-                    break;
-                case OUI_TIA:
-                    hexdump = lldp_private_tia_print(tptr, tlv_len);
-                    break;
-                default:
-                    hexdump = TRUE;
-                    break;
-                }
-            }
-            break;
-
         case LLDP_SYSTEM_CAP_TLV:
             if (vflag) {
+                /*
+                 * XXX - IEEE Std 802.1AB-2009 says the first octet
+                 * if a chassis ID subtype, with the system
+                 * capabilities and enabled capabilities following
+                 * it.
+                 */
+                if (tlv_len < 4) {
+                    goto trunc;
+                }
                 cap = EXTRACT_16BITS(tptr);
                 ena_cap = EXTRACT_16BITS(tptr+2);
                 printf("\n\t  System  Capabilities [%s] (0x%04x)",
@@ -1075,8 +1361,36 @@ lldp_print(register const u_char *pptr, register u_int len) {
 
         case LLDP_MGMT_ADDR_TLV:
             if (vflag) {
-                if (!lldp_mgmt_addr_tlv_print(tptr, tlen)) {
+                if (!lldp_mgmt_addr_tlv_print(tptr, tlv_len)) {
                     goto trunc;
+                }
+            }
+            break;
+
+        case LLDP_PRIVATE_TLV:
+            if (vflag) {
+                if (tlv_len < 3) {
+                    goto trunc;
+                }
+                oui = EXTRACT_24BITS(tptr);
+                printf(": OUI %s (0x%06x)", tok2str(oui_values, "Unknown", oui), oui);
+                
+                switch (oui) {
+                case OUI_IEEE_8021_PRIVATE:
+                    hexdump = lldp_private_8021_print(tptr, tlv_len);
+                    break;
+                case OUI_IEEE_8023_PRIVATE:
+                    hexdump = lldp_private_8023_print(tptr, tlv_len);
+                    break;
+                case OUI_TIA:
+                    hexdump = lldp_private_tia_print(tptr, tlv_len);
+                    break;
+                case OUI_DCBX:
+                    hexdump = lldp_private_dcbx_print(tptr, tlv_len);
+                    break;
+                default:
+                    hexdump = TRUE;
+                    break;
                 }
             }
             break;

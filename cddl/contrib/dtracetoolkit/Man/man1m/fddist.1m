@@ -1,0 +1,63 @@
+.TH fddist 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+fddist \- file descriptor usage distributions. Uses DTrace.
+.SH SYNOPSIS
+.B fddist [\-r|\-w]
+.SH DESCRIPTION
+This prints distributions for read and write events by file descriptor,
+by process. This can be used to determine which file descriptor a
+process is doing the most I/O with.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the syscall provider.
+.SH OPTIONS
+.TP
+\-r
+reads only
+.TP
+\-w
+writes only
+.PP
+.SH EXAMPLES
+.TP
+Sample both read and write activity,
+# 
+.B fddist
+.TP
+Sample reads only,
+#
+.B fddist
+\-r
+.PP
+.SH FIELDS
+.TP
+EXEC
+process name
+.TP
+PID
+process ID
+.TP
+value
+file descriptor
+.TP
+count
+number of events
+.PP
+.SH BASED ON
+/usr/demo/dtrace/lquantize.d
+.PP
+.SH DOCUMENTATION
+DTrace Guide "Aggregations" chapter (docs.sun.com)
+
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+fddist will sample until Ctrl\-C is hit. 
+.SH SEE ALSO
+dtrace(1M)
+

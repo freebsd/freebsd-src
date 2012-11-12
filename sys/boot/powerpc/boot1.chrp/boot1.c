@@ -45,7 +45,6 @@ static char bootargs[128];
 static ofwh_t bootdev;
 
 static struct fs fs;
-static ino_t inomap;
 static char blkbuf[BSIZEMAX];
 static unsigned int fsblks;
 
@@ -492,7 +491,7 @@ load(const char *fname)
 	Elf32_Ehdr eh;
 	Elf32_Phdr ph;
 	caddr_t p;
-	ino_t ino;
+	ufs_ino_t ino;
 	int i;
 
 	if ((ino = lookup(fname)) == 0) {

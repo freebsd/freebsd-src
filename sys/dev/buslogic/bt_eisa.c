@@ -140,7 +140,7 @@ bt_eisa_alloc_resources(device_t dev)
 			return (ENOMEM);
 		}
 	} else
-		irq = 0;
+		irq = NULL;
 	bt->irq = irq;
 
 	return (0);
@@ -287,7 +287,7 @@ bt_eisa_probe(device_t dev)
 		result = ENXIO;
 	} else {
 		eisa_add_intr(dev, info.irq, shared);
-		result = 0;
+		result = BUS_PROBE_DEFAULT;
 	}
 	bt_eisa_release_resources(dev);
 
@@ -315,11 +315,11 @@ bt_eisa_attach(device_t dev)
 				/* nsegments	*/ ~0,
 				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
 				/* flags	*/ 0,
-				/* lockfunc	*/ busdma_lock_mutex,
-				/* lockarg,	*/ &Giant,
+				/* lockfunc	*/ NULL,
+				/* lockarg,	*/ NULL,
 				&bt->parent_dmat) != 0) {
 		bt_eisa_release_resources(dev);
-		return -1;
+		return (ENOMEM);
 	}
 
 	/*
@@ -328,7 +328,7 @@ bt_eisa_attach(device_t dev)
 	 */
 	if (bt_probe(dev) || bt_fetch_adapter_info(dev) || bt_init(dev)) {
 		bt_eisa_release_resources(dev);
-		return -1;
+		return (ENXIO);
 	}
 
 	/* Attach sub-devices - always succeeds (sets up intr) */

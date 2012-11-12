@@ -80,6 +80,66 @@ __FBSDID("$FreeBSD$");
 #define ADDCARRY(x)  (x > 65535 ? x -= 65535 : x)
 #define REDUCE {l_util.l = sum; sum = l_util.s[0] + l_util.s[1]; (void)ADDCARRY(sum);}
 
+static int
+_in6_cksum_pseudo(struct ip6_hdr *ip6, uint32_t len, uint8_t nxt, uint16_t csum)
+{
+	int sum;
+	uint16_t scope, *w;
+	union {
+		u_int16_t phs[4];
+		struct {
+			u_int32_t	ph_len;
+			u_int8_t	ph_zero[3];
+			u_int8_t	ph_nxt;
+		} __packed ph;
+	} uph;
+
+	sum = csum;
+
+	/*
+	 * First create IP6 pseudo header and calculate a summary.
+	 */
+	uph.ph.ph_len = htonl(len);
+	uph.ph.ph_zero[0] = uph.ph.ph_zero[1] = uph.ph.ph_zero[2] = 0;
+	uph.ph.ph_nxt = nxt;
+
+	/* Payload length and upper layer identifier. */
+	sum += uph.phs[0];  sum += uph.phs[1];
+	sum += uph.phs[2];  sum += uph.phs[3];
+
+	/* IPv6 source address. */
+	scope = in6_getscope(&ip6->ip6_src);
+	w = (u_int16_t *)&ip6->ip6_src;
+	sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
+	sum += w[4]; sum += w[5]; sum += w[6]; sum += w[7];
+	if (scope != 0)
+		sum -= scope;
+
+	/* IPv6 destination address. */
+	scope = in6_getscope(&ip6->ip6_dst);
+	w = (u_int16_t *)&ip6->ip6_dst;
+	sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
+	sum += w[4]; sum += w[5]; sum += w[6]; sum += w[7];
+	if (scope != 0)
+		sum -= scope;
+
+	return (sum);
+}
+
+int
+in6_cksum_pseudo(struct ip6_hdr *ip6, uint32_t len, uint8_t nxt, uint16_t csum)
+{
+	int sum;
+	union {
+		u_int16_t s[2];
+		u_int32_t l;
+	} l_util;
+
+	sum = _in6_cksum_pseudo(ip6, len, nxt, csum);
+	REDUCE;
+	return (sum);
+}
+
 /*
  * m MUST contain a contiguous IP6 header.
  * off is an offset where TCP/UDP/ICMP6 header starts.
@@ -89,12 +149,10 @@ __FBSDID("$FreeBSD$");
 int
 in6_cksum(struct mbuf *m, u_int8_t nxt, u_int32_t off, u_int32_t len)
 {
-	u_int16_t *w;
-	int sum = 0;
-	int mlen = 0;
-	int byte_swapped = 0;
 	struct ip6_hdr *ip6;
-	struct in6_addr in6;
+	u_int16_t *w, scope;
+	int byte_swapped, mlen;
+	int sum;
 	union {
 		u_int16_t phs[4];
 		struct {
@@ -112,42 +170,38 @@ in6_cksum(struct mbuf *m, u_int8_t nxt, u_int32_t off, u_int32_t len)
 		u_int32_t l;
 	} l_util;
 
-	/* sanity check */
-	if (m->m_pkthdr.len < off + len) {
-		panic("in6_cksum: mbuf len (%d) < off+len (%d+%d)",
-			m->m_pkthdr.len, off, len);
-	}
-
-	bzero(&uph, sizeof(uph));
+	/* Sanity check. */
+	KASSERT(m->m_pkthdr.len >= off + len, ("%s: mbuf len (%d) < off(%d)+"
+	    "len(%d)", __func__, m->m_pkthdr.len, off, len));
 
 	/*
 	 * First create IP6 pseudo header and calculate a summary.
 	 */
-	ip6 = mtod(m, struct ip6_hdr *);
 	uph.ph.ph_len = htonl(len);
+	uph.ph.ph_zero[0] = uph.ph.ph_zero[1] = uph.ph.ph_zero[2] = 0;
 	uph.ph.ph_nxt = nxt;
 
-	/*
-	 * IPv6 source address.
-	 * XXX: we'd like to avoid copying the address, but we can't due to
-	 * the possibly embedded scope zone ID.
-	 */
-	in6 = ip6->ip6_src;
-	in6_clearscope(&in6);
-	w = (u_int16_t *)&in6;
-	sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
-	sum += w[4]; sum += w[5]; sum += w[6]; sum += w[7];
-
-	/* IPv6 destination address */
-	in6 = ip6->ip6_dst;
-	in6_clearscope(&in6);
-	w = (u_int16_t *)&in6;
-	sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
-	sum += w[4]; sum += w[5]; sum += w[6]; sum += w[7];
-
-	/* Payload length and upper layer identifier */
-	sum += uph.phs[0];  sum += uph.phs[1];
+	/* Payload length and upper layer identifier. */
+	sum = uph.phs[0];  sum += uph.phs[1];
 	sum += uph.phs[2];  sum += uph.phs[3];
+
+	ip6 = mtod(m, struct ip6_hdr *);
+
+	/* IPv6 source address. */
+	scope = in6_getscope(&ip6->ip6_src);
+	w = (u_int16_t *)&ip6->ip6_src;
+	sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
+	sum += w[4]; sum += w[5]; sum += w[6]; sum += w[7];
+	if (scope != 0)
+		sum -= scope;
+
+	/* IPv6 destination address. */
+	scope = in6_getscope(&ip6->ip6_dst);
+	w = (u_int16_t *)&ip6->ip6_dst;
+	sum += w[0]; sum += w[1]; sum += w[2]; sum += w[3];
+	sum += w[4]; sum += w[5]; sum += w[6]; sum += w[7];
+	if (scope != 0)
+		sum -= scope;
 
 	/*
 	 * Secondly calculate a summary of the first mbuf excluding offset.
@@ -167,14 +221,16 @@ in6_cksum(struct mbuf *m, u_int8_t nxt, u_int32_t off, u_int32_t len)
 	/*
 	 * Force to even boundary.
 	 */
-	if ((1 & (long) w) && (mlen > 0)) {
+	if ((1 & (long)w) && (mlen > 0)) {
 		REDUCE;
 		sum <<= 8;
 		s_util.c[0] = *(u_char *)w;
 		w = (u_int16_t *)((char *)w + 1);
 		mlen--;
 		byte_swapped = 1;
-	}
+	} else
+		byte_swapped = 0;
+	
 	/*
 	 * Unroll the loop to make overhead from
 	 * branches &c small.

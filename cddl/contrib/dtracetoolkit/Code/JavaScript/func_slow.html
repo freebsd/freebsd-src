@@ -1,0 +1,31 @@
+<HTML>
+<HEAD><TITLE>func_slow, JavaScript</TITLE></HEAD>
+<BODY>
+<SCRIPT type="text/javascript">
+function func_c() {
+	document.write("Function C<br>")
+	for (i = 0; i < 30000; i++) {
+		j = i + 1
+	}
+}
+
+function func_b() {
+	document.write("Function B<br>")
+	for (i = 0; i < 20000; i++) {
+		j = i + 1
+	}
+	func_c()
+}
+
+function func_a() {
+	document.write("Function A<br>")
+	for (i = 0; i < 10000; i++) {
+		j = i + 1
+	}
+	func_b()
+}
+
+func_a()
+</SCRIPT>
+</BODY>
+</HTML>

@@ -65,6 +65,8 @@
 #include <machine/spr.h>
 #include <machine/asm.h>
 
+#include "opt_kdtrace.h"
+
 /* Locate the per-CPU data structure */
 #define GET_CPUINFO(r)  \
         mfsprg0  r
@@ -164,12 +166,13 @@ __start:
 	
 	bl	OF_initial_setup
 
-	lis	4,end@ha
-	addi	4,4,end@l
-	mr	5,4
-
 	lis	3,kernel_text@ha
 	addi	3,3,kernel_text@l
+
+	lis	4,end@ha
+	addi	4,4,end@l
+	add	4,4,3
+	mr	5,4
 
 	/* Restore the argument pointer and length */
 	mr	6,20

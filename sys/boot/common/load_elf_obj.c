@@ -369,7 +369,7 @@ __elfN(obj_parse_modmetadata)(struct preloaded_file *fp, elf_file_t ef)
 
 	if (__elfN(obj_lookup_set)(fp, ef, "modmetadata_set", &p, &p_stop,
 	    &modcnt) != 0)
-		return ENOENT;
+		return 0;
 
 	modcnt = 0;
 	while (p < p_stop) {

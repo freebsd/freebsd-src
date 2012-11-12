@@ -62,6 +62,7 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 	struct mbuf *m = *mp;
 	struct ip6_rthdr *rh;
 	int off = *offp, rhlen;
+#ifdef __notyet__
 	struct ip6aux *ip6a;
 
 	ip6a = ip6_findaux(m);
@@ -73,6 +74,7 @@ route6_input(struct mbuf **mp, int *offp, int proto)
 			return IPPROTO_DONE;
 		}
 	}
+#endif
 
 #ifndef PULLDOWN_TEST
 	IP6_EXTHDR_CHECK(m, off, sizeof(*rh), IPPROTO_DONE);

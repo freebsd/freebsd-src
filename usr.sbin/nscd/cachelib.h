@@ -92,6 +92,7 @@ struct common_cache_entry_params {
 	size_t	satisf_elemsize;	/* if entry size is exceeded,
 					 * this number of elements will be left,
 					 * others will be deleted */
+	int	confidence_threshold;	/* number matching replies required */
 	struct timeval	max_lifetime;	/* if 0 then no check is made */
 	enum cache_policy_t policy;	/* policy used for transformations */
 };
@@ -116,6 +117,7 @@ struct cache_ht_item_data_ {
 	size_t	value_size;
 
 	struct cache_policy_item_ *fifo_policy_item;
+	int	confidence;	/* incremented for each verification */
 };
 
 struct cache_ht_item_ {

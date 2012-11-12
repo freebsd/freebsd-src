@@ -115,6 +115,8 @@ static u_char dt_to_ext2_ft[] = {
 
 static int	ext2_dirbadentry(struct vnode *dp, struct ext2fs_direct_2 *de,
 		    int entryoffsetinblock);
+static int	ext2_lookup_ino(struct vnode *vdp, struct vnode **vpp,
+		    struct componentname *cnp, ino_t *dd_ino);
 
 /*
  * Vnode op for reading directories.
@@ -285,7 +287,14 @@ ext2_lookup(ap)
 		struct componentname *a_cnp;
 	} */ *ap;
 {
-	struct vnode *vdp;		/* vnode for directory being searched */
+
+	return (ext2_lookup_ino(ap->a_dvp, ap->a_vpp, ap->a_cnp, NULL));
+}
+
+static int
+ext2_lookup_ino(struct vnode *vdp, struct vnode **vpp, struct componentname *cnp,
+    ino_t *dd_ino)
+{
 	struct inode *dp;		/* inode for directory being searched */
 	struct buf *bp;			/* a buffer of directory entries */
 	struct ext2fs_direct_2 *ep;	/* the current directory entry */
@@ -305,22 +314,22 @@ ext2_lookup(ap)
 	doff_t enduseful;		/* pointer past last used dir slot */
 	u_long bmask;			/* block offset mask */
 	int namlen, error;
-	struct vnode **vpp = ap->a_vpp;
-	struct componentname *cnp = ap->a_cnp;
 	struct ucred *cred = cnp->cn_cred;
 	int flags = cnp->cn_flags;
 	int nameiop = cnp->cn_nameiop;
-	ino_t ino;
+	ino_t ino, ino1;
 	int ltype;
 
-	int	DIRBLKSIZ = VTOI(ap->a_dvp)->i_e2fs->e2fs_bsize;
+	int	DIRBLKSIZ = VTOI(vdp)->i_e2fs->e2fs_bsize;
 
-	bp = NULL;
-	slotoffset = -1;
-	*vpp = NULL;
-	vdp = ap->a_dvp;
+	if (vpp != NULL)
+		*vpp = NULL;
+
 	dp = VTOI(vdp);
 	bmask = VFSTOEXT2(vdp->v_mount)->um_mountp->mnt_stat.f_iosize - 1;
+restart:
+	bp = NULL;
+	slotoffset = -1;
 
 	/*
 	 * We now have a segment name to search for, and a directory to search.
@@ -536,10 +545,12 @@ searchloop:
 	 * Insert name into cache (as non-existent) if appropriate.
 	 */
 	if ((cnp->cn_flags & MAKEENTRY) && nameiop != CREATE)
-		cache_enter(vdp, *vpp, cnp);
+		cache_enter(vdp, NULL, cnp);
 	return (ENOENT);
 
 found:
+	if (dd_ino != NULL)
+		*dd_ino = ino;
 	if (numdirpasses == 2)
 		nchstats.ncs_pass2++;
 	/*
@@ -582,6 +593,8 @@ found:
 			dp->i_count = 0;
 		else
 			dp->i_count = dp->i_offset - prevoff;
+		if (dd_ino != NULL)
+			return (0);
 		if (dp->i_number == ino) {
 			VREF(vdp);
 			*vpp = vdp;
@@ -622,6 +635,8 @@ found:
 		 */
 		if (dp->i_number == ino)
 			return (EISDIR);
+		if (dd_ino != NULL)
+			return (0);
 		if ((error = VFS_VGET(vdp->v_mount, ino, LK_EXCLUSIVE,
 		    &tdp)) != 0)
 			return (error);
@@ -629,6 +644,8 @@ found:
 		cnp->cn_flags |= SAVENAME;
 		return (0);
 	}
+	if (dd_ino != NULL)
+		return (0);
 
 	/*
 	 * Step through the translation in the name.  We do not `vput' the
@@ -655,8 +672,27 @@ found:
 		VOP_UNLOCK(pdp, 0);	/* race to get the inode */
 		error = VFS_VGET(vdp->v_mount, ino, cnp->cn_lkflags, &tdp);
 		vn_lock(pdp, ltype | LK_RETRY);
-		if (error != 0)
+		if (pdp->v_iflag & VI_DOOMED) {
+			if (error == 0)
+				vput(tdp);
+			error = ENOENT;
+		}
+		if (error)
 			return (error);
+		/*
+		 * Recheck that ".." entry in the vdp directory points
+		 * to the inode we looked up before vdp lock was
+		 * dropped.
+		 */
+		error = ext2_lookup_ino(pdp, NULL, cnp, &ino1);
+		if (error) {
+			vput(tdp);
+			return (error);
+		}
+		if (ino1 != ino) {
+			vput(tdp);
+			goto restart;
+		}
 		*vpp = tdp;
 	} else if (dp->i_number == ino) {
 		VREF(vdp);	/* we want ourself, ie "." */

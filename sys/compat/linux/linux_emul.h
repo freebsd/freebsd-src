@@ -64,13 +64,42 @@ struct linux_emuldata {
 
 struct linux_emuldata	*em_find(struct proc *, int locked);
 
-#define	EMUL_LOCK(l)		mtx_lock(l)
-#define	EMUL_UNLOCK(l)		mtx_unlock(l)
+/*
+ * DTrace probes for locks should be fired after locking and before releasing
+ * to prevent races (to provide data/function stability in dtrace, see the
+ * output of "dtrace -v ..." and the corresponding dtrace docs).
+ */
+#define	EMUL_LOCK(l)		do { \
+				    mtx_lock(l); \
+				    LIN_SDT_PROBE1(locks, emul_lock, \
+					locked, l); \
+				} while (0)
+#define	EMUL_UNLOCK(l)		do { \
+				    LIN_SDT_PROBE1(locks, emul_lock, \
+					unlock, l); \
+				    mtx_unlock(l); \
+				} while (0)
 
-#define	EMUL_SHARED_RLOCK(l)	sx_slock(l)
-#define	EMUL_SHARED_RUNLOCK(l)	sx_sunlock(l)
-#define	EMUL_SHARED_WLOCK(l)	sx_xlock(l)
-#define	EMUL_SHARED_WUNLOCK(l)	sx_xunlock(l)
+#define	EMUL_SHARED_RLOCK(l)	do { \
+				    sx_slock(l); \
+				    LIN_SDT_PROBE1(locks, emul_shared_rlock, \
+					locked, l); \
+				} while (0)
+#define	EMUL_SHARED_RUNLOCK(l)	do { \
+				    LIN_SDT_PROBE1(locks, emul_shared_rlock, \
+					unlock, l); \
+				    sx_sunlock(l); \
+				} while (0)
+#define	EMUL_SHARED_WLOCK(l)	do { \
+				    sx_xlock(l); \
+				    LIN_SDT_PROBE1(locks, emul_shared_wlock, \
+					locked, l); \
+				} while (0)
+#define	EMUL_SHARED_WUNLOCK(l)	do { \
+				    LIN_SDT_PROBE1(locks, emul_shared_wlock, \
+					unlock, l); \
+				    sx_xunlock(l); \
+				} while (0)
 
 /* for em_find use */
 #define	EMUL_DOLOCK		1

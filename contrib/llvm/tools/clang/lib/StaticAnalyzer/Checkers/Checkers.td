@@ -84,6 +84,10 @@ def StackAddrEscapeChecker : Checker<"StackAddressEscape">,
   HelpText<"Check that addresses to stack memory do not escape the function">,
   DescFile<"StackAddrEscapeChecker.cpp">;
 
+def DynamicTypePropagation : Checker<"DynamicTypePropagation">,
+  HelpText<"Generate dynamic type information">,
+  DescFile<"DynamicTypePropagation.cpp">;
+
 } // end "core"
 
 let ParentPackage = CoreExperimental in {
@@ -167,10 +171,6 @@ def ReturnUndefChecker : Checker<"UndefReturn">,
 //===----------------------------------------------------------------------===//
 
 let ParentPackage = CplusplusExperimental in {
-
-def IteratorsChecker : Checker<"Iterators">,
-  HelpText<"Check improper uses of STL vector iterators">,
-  DescFile<"IteratorsChecker.cpp">;
 
 def VirtualCallChecker : Checker<"VirtualCall">,
   HelpText<"Check virtual function calls during construction or destruction">, 
@@ -283,6 +283,10 @@ def MallocPessimistic : Checker<"Malloc">,
   HelpText<"Check for memory leaks, double free, and use-after-free problems.">,
   DescFile<"MallocChecker.cpp">;
   
+def MallocSizeofChecker : Checker<"MallocSizeof">,
+  HelpText<"Check for dubious malloc arguments involving sizeof">,
+  DescFile<"MallocSizeofChecker.cpp">;
+  
 } // end "unix"
 
 let ParentPackage = UnixExperimental in {
@@ -294,10 +298,6 @@ def ChrootChecker : Checker<"Chroot">,
 def MallocOptimistic : Checker<"MallocWithAnnotations">,
   HelpText<"Check for memory leaks, double free, and use-after-free problems. Assumes that all user-defined functions which might free a pointer are annotated.">,
   DescFile<"MallocChecker.cpp">;
-
-def MallocSizeofChecker : Checker<"MallocSizeof">,
-  HelpText<"Check for dubious malloc arguments involving sizeof">,
-  DescFile<"MallocSizeofChecker.cpp">;
 
 def PthreadLockChecker : Checker<"PthreadLock">,
   HelpText<"Simple lock -> unlock checker">,
@@ -361,7 +361,7 @@ def MacOSKeychainAPIChecker : Checker<"SecKeychainAPI">,
 let ParentPackage = Cocoa in {
 
 def ObjCAtSyncChecker : Checker<"AtSync">,
-  HelpText<"Check for null pointers used as mutexes for @synchronized">,
+  HelpText<"Check for nil pointers used as mutexes for @synchronized">,
   DescFile<"ObjCAtSyncChecker.cpp">;
 
 def NilArgChecker : Checker<"NilArg">,
@@ -373,8 +373,8 @@ def ClassReleaseChecker : Checker<"ClassRelease">,
   DescFile<"BasicObjCFoundationChecks.cpp">;
 
 def VariadicMethodTypeChecker : Checker<"VariadicMethodTypes">,
-  HelpText<"Check for passing non-Objective-C types to variadic methods that expect "
-           "only Objective-C types">,
+  HelpText<"Check for passing non-Objective-C types to variadic collection "
+           "initialization methods that expect only Objective-C types">,
   DescFile<"BasicObjCFoundationChecks.cpp">;
 
 def NSAutoreleasePoolChecker : Checker<"NSAutoreleasePool">,
@@ -393,6 +393,10 @@ def ObjCSelfInitChecker : Checker<"SelfInit">,
   HelpText<"Check that 'self' is properly initialized inside an initializer method">,
   DescFile<"ObjCSelfInitChecker.cpp">;
 
+def ObjCLoopChecker : Checker<"Loops">,
+  HelpText<"Improved modeling of loops using Cocoa collection types">,
+  DescFile<"BasicObjCFoundationChecks.cpp">;
+
 def NSErrorChecker : Checker<"NSError">,
   HelpText<"Check usage of NSError** parameters">,
   DescFile<"NSErrorChecker.cpp">;
@@ -401,7 +405,7 @@ def RetainCountChecker : Checker<"RetainCount">,
   HelpText<"Check for leaks and improper reference count management">,
   DescFile<"RetainCountChecker.cpp">;
 
-} // end "cocoa"
+} // end "osx.cocoa"
 
 let ParentPackage = CocoaExperimental in {
 
@@ -475,6 +479,14 @@ def CallGraphDumper : Checker<"DumpCallGraph">,
   HelpText<"Display Call Graph">,
   DescFile<"DebugCheckers.cpp">;
 
+def TraversalDumper : Checker<"DumpTraversal">,
+  HelpText<"Print branch conditions as they are traversed by the engine">,
+  DescFile<"TraversalChecker.cpp">;
+
+def CallDumper : Checker<"DumpCalls">,
+  HelpText<"Print calls as they are traversed by the engine">,
+  DescFile<"TraversalChecker.cpp">;
+
 def AnalyzerStatsChecker : Checker<"Stats">,
   HelpText<"Emit warnings with analyzer statistics">,
   DescFile<"AnalyzerStatsChecker.cpp">;
@@ -482,6 +494,10 @@ def AnalyzerStatsChecker : Checker<"Stats">,
 def TaintTesterChecker : Checker<"TaintTest">,
   HelpText<"Mark tainted symbols as such.">,
   DescFile<"TaintTesterChecker.cpp">;
+
+def ExprInspectionChecker : Checker<"ExprInspection">,
+  HelpText<"Check the analyzer's understanding of expressions">,
+  DescFile<"ExprInspectionChecker.cpp">;
 
 } // end "debug"
 

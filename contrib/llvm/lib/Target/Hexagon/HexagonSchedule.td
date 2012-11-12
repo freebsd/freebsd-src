@@ -43,6 +43,12 @@ def HexagonItineraries :
         InstrItinData<PSEUDO , [InstrStage<1, [LUNIT, LSUNIT, MUNIT, SUNIT]>]>
       ]>;
 
+def HexagonModel : SchedMachineModel {
+  // Max issue per cycle == bundle width.
+  let IssueWidth = 4;
+  let Itineraries = HexagonItineraries;
+}
+
 //===----------------------------------------------------------------------===//
 // V4 Machine Info +
 //===----------------------------------------------------------------------===//

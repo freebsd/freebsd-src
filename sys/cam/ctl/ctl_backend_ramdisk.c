@@ -134,7 +134,7 @@ ctl_backend_ramdisk_init(void)
 {
 	struct ctl_be_ramdisk_softc *softc;
 #ifdef CTL_RAMDISK_PAGES
-	int i, j;
+	int i;
 #endif
 
 
@@ -151,17 +151,8 @@ ctl_backend_ramdisk_init(void)
 	softc->ramdisk_pages = (uint8_t **)malloc(sizeof(uint8_t *) *
 						  softc->num_pages, M_RAMDISK,
 						  M_WAITOK);
-	for (i = 0; i < softc->num_pages; i++) {
+	for (i = 0; i < softc->num_pages; i++)
 		softc->ramdisk_pages[i] = malloc(PAGE_SIZE, M_RAMDISK,M_WAITOK);
-		if (softc->ramdisk_pages[i] == NULL) {
-			for (j = 0; j < i; j++) {
-				free(softc->ramdisk_pages[j], M_RAMDISK);
-			}
-			free(softc->ramdisk_pages, M_RAMDISK);
-			panic("RAMDisk initialization failed\n");
-			return (1); /* NOTREACHED */
-		}
-	}
 #else
 	softc->ramdisk_buffer = (uint8_t *)malloc(softc->rd_size, M_RAMDISK,
 						  M_WAITOK);
@@ -313,13 +304,6 @@ ctl_backend_ramdisk_submit(union ctl_io *io)
 		io->scsiio.kern_data_ptr = malloc(sizeof(struct ctl_sg_entry) *
 						  num_sg_entries, M_RAMDISK,
 						  M_WAITOK);
-		if (io->scsiio.kern_data_ptr == NULL) {
-			ctl_set_internal_failure(&io->scsiio,
-						 /*sks_valid*/ 0,
-						 /*retry_count*/ 0);
-			ctl_done(io);
-			return (CTL_RETVAL_COMPLETE);
-		}
 		sg_entries = (struct ctl_sg_entry *)io->scsiio.kern_data_ptr;
 		for (i = 0, len_filled = 0; i < num_sg_entries;
 		     i++, len_filled += PAGE_SIZE) {

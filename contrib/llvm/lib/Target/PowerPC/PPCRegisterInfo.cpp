@@ -89,10 +89,17 @@ PPCRegisterInfo::PPCRegisterInfo(const PPCSubtarget &ST,
   ImmToIdxMap[PPC::ADDI8] = PPC::ADD8; ImmToIdxMap[PPC::STD_32] = PPC::STDX_32;
 }
 
+bool
+PPCRegisterInfo::trackLivenessAfterRegAlloc(const MachineFunction &MF) const {
+  return requiresRegisterScavenging(MF);
+}
+
+
 /// getPointerRegClass - Return the register class to use to hold pointers.
 /// This is used for addressing modes.
 const TargetRegisterClass *
-PPCRegisterInfo::getPointerRegClass(unsigned Kind) const {
+PPCRegisterInfo::getPointerRegClass(const MachineFunction &MF, unsigned Kind)
+                                                                       const {
   if (Subtarget.isPPC64())
     return &PPC::G8RCRegClass;
   return &PPC::GPRCRegClass;
@@ -189,6 +196,20 @@ PPCRegisterInfo::getRegPressureLimit(const TargetRegisterClass *RC,
     return 32 - DefaultSafety;
   case PPC::CRRCRegClassID:
     return 8 - DefaultSafety;
+  }
+}
+
+bool
+PPCRegisterInfo::avoidWriteAfterWrite(const TargetRegisterClass *RC) const {
+  switch (RC->getID()) {
+  case PPC::G8RCRegClassID:
+  case PPC::GPRCRegClassID:
+  case PPC::F8RCRegClassID:
+  case PPC::F4RCRegClassID:
+  case PPC::VRRCRegClassID:
+    return true;
+  default:
+    return false;
   }
 }
 
@@ -321,14 +342,14 @@ void PPCRegisterInfo::lowerDynamicAlloc(MachineBasicBlock::iterator II,
   // address of new allocated space.
   if (LP64) {
     if (requiresRegisterScavenging(MF)) // FIXME (64-bit): Use "true" part.
-      BuildMI(MBB, II, dl, TII.get(PPC::STDUX))
+      BuildMI(MBB, II, dl, TII.get(PPC::STDUX), PPC::X1)
         .addReg(Reg, RegState::Kill)
-        .addReg(PPC::X1, RegState::Define)
+        .addReg(PPC::X1)
         .addReg(MI.getOperand(1).getReg());
     else
-      BuildMI(MBB, II, dl, TII.get(PPC::STDUX))
+      BuildMI(MBB, II, dl, TII.get(PPC::STDUX), PPC::X1)
         .addReg(PPC::X0, RegState::Kill)
-        .addReg(PPC::X1, RegState::Define)
+        .addReg(PPC::X1)
         .addReg(MI.getOperand(1).getReg());
 
     if (!MI.getOperand(1).isKill())
@@ -342,9 +363,9 @@ void PPCRegisterInfo::lowerDynamicAlloc(MachineBasicBlock::iterator II,
         .addImm(maxCallFrameSize)
         .addReg(MI.getOperand(1).getReg(), RegState::ImplicitKill);
   } else {
-    BuildMI(MBB, II, dl, TII.get(PPC::STWUX))
+    BuildMI(MBB, II, dl, TII.get(PPC::STWUX), PPC::R1)
       .addReg(Reg, RegState::Kill)
-      .addReg(PPC::R1, RegState::Define)
+      .addReg(PPC::R1)
       .addReg(MI.getOperand(1).getReg());
 
     if (!MI.getOperand(1).isKill())
