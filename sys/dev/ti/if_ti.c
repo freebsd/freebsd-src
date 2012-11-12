@@ -145,7 +145,7 @@ typedef enum {
  * Various supported device vendors/types and their names.
  */
 
-static const struct ti_type const ti_devs[] = {
+static const struct ti_type ti_devs[] = {
 	{ ALT_VENDORID,	ALT_DEVICEID_ACENIC,
 		"Alteon AceNIC 1000baseSX Gigabit Ethernet" },
 	{ ALT_VENDORID,	ALT_DEVICEID_ACENIC_COPPER,

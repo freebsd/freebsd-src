@@ -249,7 +249,7 @@ struct fire_desc {
 	const char	*fd_name;
 };
 
-static const struct fire_desc const fire_compats[] = {
+static const struct fire_desc fire_compats[] = {
 	{ "pciex108e,80f0",	FIRE_MODE_FIRE,		"Fire" },
 #if 0
 	{ "pciex108e,80f8",	FIRE_MODE_OBERON,	"Oberon" },

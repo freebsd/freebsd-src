@@ -85,7 +85,7 @@ MODULE_DEPEND(ste, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct ste_type const ste_devs[] = {
+static const struct ste_type ste_devs[] = {
 	{ ST_VENDORID, ST_DEVICEID_ST201_1, "Sundance ST201 10/100BaseTX" },
 	{ ST_VENDORID, ST_DEVICEID_ST201_2, "Sundance ST201 10/100BaseTX" },
 	{ DL_VENDORID, DL_DEVICEID_DL10050, "D-Link DL10050 10/100BaseTX" },
