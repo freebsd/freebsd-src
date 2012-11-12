@@ -977,7 +977,7 @@ static	struct freework *newfreework(struct ufsmount *, struct freeblks *,
 	    struct freework *, ufs_lbn_t, ufs2_daddr_t, int, int, int);
 static	int jwait(struct worklist *, int);
 static	struct inodedep *inodedep_lookup_ip(struct inode *);
-static	int bmsafemap_rollbacks(struct bmsafemap *);
+static	int bmsafemap_backgroundwrite(struct bmsafemap *, struct buf *);
 static	struct freefile *handle_bufwait(struct inodedep *, struct workhead *);
 static	void handle_jwork(struct workhead *);
 static	struct mkdir *setup_newdir(struct diradd *, ino_t, ino_t, struct buf *,
@@ -1795,7 +1795,7 @@ softdep_move_dependencies(oldbp, newbp)
 	while ((wk = LIST_FIRST(&oldbp->b_dep)) != NULL) {
 		LIST_REMOVE(wk, wk_list);
 		if (wk->wk_type == D_BMSAFEMAP &&
-		    bmsafemap_rollbacks(WK_BMSAFEMAP(wk)))
+		    bmsafemap_backgroundwrite(WK_BMSAFEMAP(wk), newbp))
 			dirty = 1;
 		if (wktail == 0)
 			LIST_INSERT_HEAD(&newbp->b_dep, wk, wk_list);
@@ -5173,9 +5173,15 @@ jnewblk_merge(new, old, wkhd)
 		return (new);
 	/* Replace a jfreefrag with a jnewblk. */
 	if (new->wk_type == D_JFREEFRAG) {
+		if (WK_JNEWBLK(old)->jn_blkno != WK_JFREEFRAG(new)->fr_blkno)
+			panic("jnewblk_merge: blkno mismatch: %p, %p",
+			    old, new);
 		cancel_jfreefrag(WK_JFREEFRAG(new));
 		return (old);
 	}
+	if (old->wk_type != D_JNEWBLK || new->wk_type != D_JNEWBLK)
+		panic("jnewblk_merge: Bad type: old %d new %d\n",
+		    old->wk_type, new->wk_type);
 	/*
 	 * Handle merging of two jnewblk records that describe
 	 * different sets of fragments in the same block.
@@ -10504,7 +10510,7 @@ initiate_write_bmsafemap(bmsafemap, bp)
 	ino_t ino;
 
 	if (bmsafemap->sm_state & IOSTARTED)
-		panic("initiate_write_bmsafemap: Already started\n");
+		return;
 	bmsafemap->sm_state |= IOSTARTED;
 	/*
 	 * Clear any inode allocations which are pending journal writes.
@@ -10515,10 +10521,6 @@ initiate_write_bmsafemap(bmsafemap, bp)
 		inosused = cg_inosused(cgp);
 		LIST_FOREACH(jaddref, &bmsafemap->sm_jaddrefhd, ja_bmdeps) {
 			ino = jaddref->ja_ino % fs->fs_ipg;
-			/*
-			 * If this is a background copy the inode may not
-			 * be marked used yet.
-			 */
 			if (isset(inosused, ino)) {
 				if ((jaddref->ja_mode & IFMT) == IFDIR)
 					cgp->cg_cs.cs_ndir--;
@@ -10527,7 +10529,7 @@ initiate_write_bmsafemap(bmsafemap, bp)
 				jaddref->ja_state &= ~ATTACHED;
 				jaddref->ja_state |= UNDONE;
 				stat_jaddref++;
-			} else if ((bp->b_xflags & BX_BKGRDMARKER) == 0)
+			} else
 				panic("initiate_write_bmsafemap: inode %ju "
 				    "marked free", (uintmax_t)jaddref->ja_ino);
 		}
@@ -10542,9 +10544,8 @@ initiate_write_bmsafemap(bmsafemap, bp)
 		LIST_FOREACH(jnewblk, &bmsafemap->sm_jnewblkhd, jn_deps) {
 			if (jnewblk_rollback(jnewblk, fs, cgp, blksfree))
 				continue;
-			if ((bp->b_xflags & BX_BKGRDMARKER) == 0)
-				panic("initiate_write_bmsafemap: block %jd "
-				    "marked free", jnewblk->jn_blkno);
+			panic("initiate_write_bmsafemap: block %jd "
+			    "marked free", jnewblk->jn_blkno);
 		}
 	}
 	/*
@@ -11279,12 +11280,24 @@ diradd_inode_written(dap, inodedep)
  * only be called with lk and the buf lock on the cg held.
  */
 static int
-bmsafemap_rollbacks(bmsafemap)
+bmsafemap_backgroundwrite(bmsafemap, bp)
 	struct bmsafemap *bmsafemap;
+	struct buf *bp;
 {
+	int dirty;
 
-	return (!LIST_EMPTY(&bmsafemap->sm_jaddrefhd) | 
-	    !LIST_EMPTY(&bmsafemap->sm_jnewblkhd));
+	dirty = !LIST_EMPTY(&bmsafemap->sm_jaddrefhd) | 
+	    !LIST_EMPTY(&bmsafemap->sm_jnewblkhd);
+	/*
+	 * If we're initiating a background write we need to process the
+	 * rollbacks as they exist now, not as they exist when IO starts.
+	 * No other consumers will look at the contents of the shadowed
+	 * buf so this is safe to do here.
+	 */
+	if (bp->b_xflags & BX_BKGRDMARKER)
+		initiate_write_bmsafemap(bmsafemap, bp);
+
+	return (dirty);
 }
 
 /*
