@@ -95,7 +95,7 @@ static const struct ale_dev {
 	uint16_t	ale_vendorid;
 	uint16_t	ale_deviceid;
 	const char	*ale_name;
-} const ale_devs[] = {
+} ale_devs[] = {
     { VENDORID_ATHEROS, DEVICEID_ATHEROS_AR81XX,
     "Atheros AR8121/AR8113/AR8114 PCIe Ethernet" },
 };

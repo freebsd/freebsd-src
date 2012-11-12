@@ -143,7 +143,7 @@ typedef struct RfHalFuncs {
 		      int16_t *minPower, int16_t *maxPower,
 		      const struct ieee80211_channel *, uint16_t *rfXpdGain);
 	HAL_BOOL  (*getChannelMaxMinPower)(struct ath_hal *ah,
-		      const const struct ieee80211_channel *,
+		      const struct ieee80211_channel *,
 		      int16_t *maxPow, int16_t *minPow);
 	int16_t	  (*getNfAdjust)(struct ath_hal *, const HAL_CHANNEL_INTERNAL*);
 } RF_HAL_FUNCS;
