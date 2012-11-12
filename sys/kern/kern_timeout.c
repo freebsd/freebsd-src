@@ -632,12 +632,12 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
 	void *c_arg;
 	struct lock_class *class;
 	struct lock_object *c_lock;
-	int c_flags, flags, sharedlock;
+	int c_flags, sharedlock;
 #ifdef SMP
 	struct callout_cpu *new_cc;
 	void (*new_func)(void *);
 	void *new_arg;
-	int new_cpu;
+	int flags, new_cpu;
 	struct bintime new_time;
 #endif
 #ifdef DIAGNOSTIC

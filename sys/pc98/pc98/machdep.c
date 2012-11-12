@@ -1144,7 +1144,7 @@ SYSCTL_INT(_machdep, OID_AUTO, idle_mwait, CTLFLAG_RW, &idle_mwait,
 #define	STATE_SLEEPING	0x2
 
 static void
-cpu_idle_hlt(int busy)
+cpu_idle_hlt(int us)
 {
 	int *state;
 
@@ -1185,7 +1185,7 @@ cpu_idle_hlt(int busy)
 #define	MWAIT_C4	0x30
 
 static void
-cpu_idle_mwait(int busy)
+cpu_idle_mwait(int us)
 {
 	int *state;
 
@@ -1208,7 +1208,7 @@ cpu_idle_mwait(int busy)
 }
 
 static void
-cpu_idle_spin(int busy)
+cpu_idle_spin(int us)
 {
 	int *state;
 	int i;
@@ -1233,6 +1233,7 @@ void (*cpu_idle_fn)(int) = cpu_idle_hlt;
 void
 cpu_idle(int busy)
 {
+	int us = -1;
 
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
 	    busy, curcpu);
@@ -1250,11 +1251,11 @@ cpu_idle(int busy)
 	/* If we have time - switch timers into idle mode. */
 	if (!busy) {
 		critical_enter();
-		cpu_idleclock();
+		us = cpu_idleclock();
 	}
 
 	/* Call main idle method. */
-	cpu_idle_fn(busy);
+	cpu_idle_fn(us);
 
 	/* Switch timers mack into active mode. */
 	if (!busy) {

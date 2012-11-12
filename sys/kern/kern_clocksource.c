@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
+#include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/kdb.h>
 #include <sys/ktr.h>
@@ -771,7 +772,7 @@ cpu_stopprofclock(void)
 /*
  * Switch to idle mode (all ticks handled).
  */
-void
+int
 cpu_idleclock(void)
 {
 	struct bintime now, t;
@@ -783,7 +784,7 @@ cpu_idleclock(void)
 	    || curcpu == CPU_FIRST()
 #endif
 	    )
-		return;
+		return (-1);
 	state = DPCPU_PTR(timerstate);
 	if (periodic)
 		now = state->now;
@@ -799,6 +800,9 @@ cpu_idleclock(void)
 	if (!periodic)
 		loadtimer(&now, 0);
 	ET_HW_UNLOCK(state);
+	bintime_sub(&t, &now);
+	return (t.sec > (INT_MAX >> 20) ? INT_MAX :
+	    ((t.sec < 0) ? 0 : ((t.sec << 20) + (t.frac >> 44))));
 }
 
 /*
@@ -913,7 +917,9 @@ cpu_new_callout(int cpu, struct bintime bt, struct bintime bt_opt)
 	/* Otherwise make other CPU to reprogram it. */
 	state->handle = 1;
 	ET_HW_UNLOCK(state);
+#ifdef SMP
 	ipi_cpu(cpu, IPI_HARDCLOCK);
+#endif
 }
 
 /*
