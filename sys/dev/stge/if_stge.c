@@ -91,7 +91,7 @@ static const struct stge_product {
 	uint16_t	stge_vendorid;
 	uint16_t	stge_deviceid;
 	const char	*stge_name;
-} const stge_products[] = {
+} stge_products[] = {
 	{ VENDOR_SUNDANCETI,	DEVICEID_SUNDANCETI_ST1023,
 	  "Sundance ST-1023 Gigabit Ethernet" },
 
