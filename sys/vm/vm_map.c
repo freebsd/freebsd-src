@@ -3975,32 +3975,20 @@ vm_map_lookup_done(vm_map_t map, vm_map_entry_t entry)
 
 #include <ddb/ddb.h>
 
-/*
- *	vm_map_print:	[ debug ]
- */
-DB_SHOW_COMMAND(map, vm_map_print)
+static void
+vm_map_print(vm_map_t map)
 {
-	static int nlines;
-	/* XXX convert args. */
-	vm_map_t map = (vm_map_t)addr;
-	boolean_t full = have_addr;
-
 	vm_map_entry_t entry;
 
 	db_iprintf("Task map %p: pmap=%p, nentries=%d, version=%u\n",
 	    (void *)map,
 	    (void *)map->pmap, map->nentries, map->timestamp);
-	nlines++;
-
-	if (!full && db_indent)
-		return;
 
 	db_indent += 2;
 	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
 		db_iprintf("map entry %p: start=%p, end=%p\n",
 		    (void *)entry, (void *)entry->start, (void *)entry->end);
-		nlines++;
 		{
 			static char *inheritance_name[4] =
 			{"share", "copy", "none", "donate_copy"};
@@ -4016,14 +4004,11 @@ DB_SHOW_COMMAND(map, vm_map_print)
 			db_printf(", share=%p, offset=0x%jx\n",
 			    (void *)entry->object.sub_map,
 			    (uintmax_t)entry->offset);
-			nlines++;
 			if ((entry->prev == &map->header) ||
 			    (entry->prev->object.sub_map !=
 				entry->object.sub_map)) {
 				db_indent += 2;
-				vm_map_print((db_expr_t)(intptr_t)
-					     entry->object.sub_map,
-					     full, 0, (char *)0);
+				vm_map_print((vm_map_t)entry->object.sub_map);
 				db_indent -= 2;
 			}
 		} else {
@@ -4040,7 +4025,6 @@ DB_SHOW_COMMAND(map, vm_map_print)
 				db_printf(", copy (%s)",
 				    (entry->eflags & MAP_ENTRY_NEEDS_COPY) ? "needed" : "done");
 			db_printf("\n");
-			nlines++;
 
 			if ((entry->prev == &map->header) ||
 			    (entry->prev->object.vm_object !=
@@ -4048,17 +4032,23 @@ DB_SHOW_COMMAND(map, vm_map_print)
 				db_indent += 2;
 				vm_object_print((db_expr_t)(intptr_t)
 						entry->object.vm_object,
-						full, 0, (char *)0);
-				nlines += 4;
+						1, 0, (char *)0);
 				db_indent -= 2;
 			}
 		}
 	}
 	db_indent -= 2;
-	if (db_indent == 0)
-		nlines = 0;
 }
 
+DB_SHOW_COMMAND(map, map)
+{
+
+	if (!have_addr) {
+		db_printf("usage: show map <addr>\n");
+		return;
+	}
+	vm_map_print((vm_map_t)addr);
+}
 
 DB_SHOW_COMMAND(procvm, procvm)
 {
@@ -4074,7 +4064,7 @@ DB_SHOW_COMMAND(procvm, procvm)
 	    (void *)p, (void *)p->p_vmspace, (void *)&p->p_vmspace->vm_map,
 	    (void *)vmspace_pmap(p->p_vmspace));
 
-	vm_map_print((db_expr_t)(intptr_t)&p->p_vmspace->vm_map, 1, 0, NULL);
+	vm_map_print((vm_map_t)&p->p_vmspace->vm_map);
 }
 
 #endif /* DDB */
