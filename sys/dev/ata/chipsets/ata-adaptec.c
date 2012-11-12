@@ -62,7 +62,7 @@ static int
 ata_adaptec_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static const struct ata_chip_id const ids[] =
+    static const struct ata_chip_id ids[] =
     {{ ATA_ADAPTEC_1420, 0, 4, MV_60XX, ATA_SA300, "1420SA" },
      { ATA_ADAPTEC_1430, 0, 4, MV_7042, ATA_SA300, "1430SA" },
      { 0, 0, 0, 0, 0, 0}};

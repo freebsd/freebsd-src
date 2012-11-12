@@ -229,7 +229,7 @@ MODULE_DEPEND(tl, miibus, 1, 1, 1);
  * Various supported device vendors/types and their names.
  */
 
-static const struct tl_type const tl_devs[] = {
+static const struct tl_type tl_devs[] = {
 	{ TI_VENDORID,	TI_DEVICEID_THUNDERLAN,
 		"Texas Instruments ThunderLAN" },
 	{ COMPAQ_VENDORID, COMPAQ_DEVICEID_NETEL_10,

@@ -150,7 +150,7 @@ MODULE_DEPEND(dc, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct dc_type const dc_devs[] = {
+static const struct dc_type dc_devs[] = {
 	{ DC_DEVID(DC_VENDORID_DEC, DC_DEVICEID_21143), 0,
 		"Intel 21143 10/100BaseTX" },
 	{ DC_DEVID(DC_VENDORID_DAVICOM, DC_DEVICEID_DM9009), 0,

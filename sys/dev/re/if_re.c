@@ -171,7 +171,7 @@ TUNABLE_INT("hw.re.prefer_iomap", &prefer_iomap);
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct rl_type const re_devs[] = {
+static const struct rl_type re_devs[] = {
 	{ DLINK_VENDORID, DLINK_DEVICEID_528T, 0,
 	    "D-Link DGE-528(T) Gigabit Ethernet Adapter" },
 	{ DLINK_VENDORID, DLINK_DEVICEID_530T_REVC, 0,
@@ -194,7 +194,7 @@ static const struct rl_type const re_devs[] = {
 	    "US Robotics 997902 (RTL8169S) Gigabit Ethernet" }
 };
 
-static const struct rl_hwrev const re_hwrevs[] = {
+static const struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8139, RL_8139, "", RL_MTU },
 	{ RL_HWREV_8139A, RL_8139, "A", RL_MTU },
 	{ RL_HWREV_8139AG, RL_8139, "A-G", RL_MTU },
