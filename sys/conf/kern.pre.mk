@@ -156,7 +156,7 @@ NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
 # Infiniband C flags.  Correct include paths and omit errors that linux
 # does not honor.
 OFEDINCLUDES=	-I$S/ofed/include/
-OFEDNOERR=	-Wno-cast-qual -Wno-pointer-arith -fms-extensions -Wno-switch -Wno-sometimes-uninitialized -Wno-conversion -Wno-initializer-overrides
+OFEDNOERR=	-Wno-cast-qual -Wno-pointer-arith -fms-extensions
 OFEDCFLAGS=	${CFLAGS:N-I*} ${OFEDINCLUDES} ${CFLAGS:M-I*} ${OFEDNOERR}
 OFED_C_NOIMP=	${CC} -c -o ${.TARGET} ${OFEDCFLAGS} ${WERROR} ${PROF}
 OFED_C=		${OFED_C_NOIMP} ${.IMPSRC}
