@@ -24,6 +24,9 @@ arm/freescale/imx/imx_gpt.c		standard
 # Clock Configuration Manager
 arm/freescale/imx/imx51_ccm.c		standard
 
+# i.MX5xx PATA controller
+dev/ata/chipsets/ata-fsl.c		optional imxata
+
 # UART driver
 dev/uart/uart_dev_imx.c			optional uart
 
