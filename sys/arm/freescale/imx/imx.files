@@ -13,7 +13,7 @@ arm/freescale/imx/common.c		standard
 arm/freescale/imx/bus_space.c		standard
 
 # Dummy serial console
-arm/freescale/imx/console.c		standard
+#arm/freescale/imx/console.c		standard
 
 # TrustZone Interrupt Controller
 arm/freescale/imx/tzic.c		standard
