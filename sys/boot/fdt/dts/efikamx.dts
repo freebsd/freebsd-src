@@ -50,13 +50,24 @@
                         };
 
 			/* UART1, console */
-			serial@73fbc000 {
+			UART1: serial@73fbc000 {
 				status = "okay";
+				clock-frequency = <3000000>; /* XXX */
 			};
 
                         clock@73fd4000 {
 				status = "okay";
                         };
 		};
+	};
+
+	aliases {
+		UART1 = &UART1;
+	};
+
+	chosen {
+		bootargs = "-v";
+		stdin = "UART1";
+		stdout = "UART1";
 	};
 };
