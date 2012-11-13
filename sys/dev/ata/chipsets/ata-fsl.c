@@ -67,12 +67,12 @@ static int imx_ata_setmode(device_t dev, int target, int mode);
 static int
 imx_ata_probe(device_t dev)
 {
-	struct ata_pci_controller *ctlr;
+	struct ata_pci_controller *ctrl;
 
 	if (!ofw_bus_is_compatible(dev, "fsl,imx51-ata"))
 		return (ENXIO);
 
-	ctlr = device_get_softc(dev);
+	ctrl = device_get_softc(dev);
 
 	device_set_desc(dev, "Freescale Integrated PATA Controller");
 	return (BUS_PROBE_DEFAULT);
@@ -81,46 +81,46 @@ imx_ata_probe(device_t dev)
 static void
 imx_ata_intr(void *data)
 {
-	struct ata_pci_controller *ctlr = data;
+	struct ata_pci_controller *ctrl = data;
 
-	bus_write_2(ctlr->r_res1, 0x28, bus_read_2(ctlr->r_res1, 0x28));
-	ctlr->interrupt[0].function(ctlr->interrupt[0].argument);
+	bus_write_2(ctrl->r_res1, 0x28, bus_read_2(ctrl->r_res1, 0x28));
+	ctrl->interrupt[0].function(ctrl->interrupt[0].argument);
 }
 
 static int
 imx_ata_attach(device_t dev)
 {
-	struct ata_pci_controller *ctlr;
+	struct ata_pci_controller *ctrl;
 	device_t child;
 	int unit;
 
-	ctlr = device_get_softc(dev);
+	ctrl = device_get_softc(dev);
 	/* do chipset specific setups only needed once */
-	ctlr->legacy = ata_legacy(dev);
-	ctlr->channels = 1;
-	ctlr->ichannels = -1;
-	ctlr->ch_attach = ata_pci_ch_attach;
-	ctlr->ch_detach = ata_pci_ch_detach;
-	ctlr->dev = dev;
+	ctrl->legacy = ata_legacy(dev);
+	ctrl->channels = 1;
+	ctrl->ichannels = -1;
+	ctrl->ch_attach = ata_pci_ch_attach;
+	ctrl->ch_detach = ata_pci_ch_detach;
+	ctrl->dev = dev;
 
-	ctlr->r_type1 = SYS_RES_MEMORY;
-	ctlr->r_rid1 = 0;
-	ctlr->r_res1 = bus_alloc_resource_any(dev, ctlr->r_type1,
-	    &ctlr->r_rid1, RF_ACTIVE);
+	ctrl->r_type1 = SYS_RES_MEMORY;
+	ctrl->r_rid1 = 0;
+	ctrl->r_res1 = bus_alloc_resource_any(dev, ctrl->r_type1,
+	    &ctrl->r_rid1, RF_ACTIVE);
 
 	if (ata_setup_interrupt(dev, imx_ata_intr)) {
 		device_printf(dev, "failed to setup interrupt\n");
     		return ENXIO;
 	}
 
-	ctlr->channels = 1;
+	ctrl->channels = 1;
 
-	ctlr->ch_attach = imx_ata_ch_attach;
-	ctlr->setmode = imx_ata_setmode;
+	ctrl->ch_attach = imx_ata_ch_attach;
+	ctrl->setmode = imx_ata_setmode;
 
 	/* attach all channels on this controller */
 	unit = 0;
-	child = device_add_child(dev, "ata", ((unit == 0) && ctlr->legacy) ?
+	child = device_add_child(dev, "ata", ((unit == 0) && ctrl->legacy) ?
 		    unit : devclass_find_free_unit(ata_devclass, 2));
 	if (child == NULL)
 		device_printf(dev, "failed to add ata child device\n");
@@ -138,33 +138,33 @@ imx_ata_ch_attach(device_t dev)
 	struct ata_channel *ch;
 	int i;
 
-	ctlr = device_get_softc(device_get_parent(dev));
+	ctrl = device_get_softc(device_get_parent(dev));
 	ch = device_get_softc(dev);
 	for (i = ATA_DATA; i < ATA_MAX_RES; i++)
-		ch->r_io[i].res = ctlr->r_res1;
+		ch->r_io[i].res = ctrl->r_res1;
 
-	bus_write_2(ctlr->r_res1, 0x24, 0x80);
+	bus_write_2(ctrl->r_res1, 0x24, 0x80);
 	DELAY(100);
-	bus_write_2(ctlr->r_res1, 0x24, 0xc0);
+	bus_write_2(ctrl->r_res1, 0x24, 0xc0);
 	DELAY(100);
 
 
 	/* Write TIME_OFF/ON/1/2W */
-	bus_write_1(ctlr->r_res1, 0x00, 3);
-	bus_write_1(ctlr->r_res1, 0x01, 3);
-	bus_write_1(ctlr->r_res1, 0x02, (25 + 15) / 15);
-	bus_write_1(ctlr->r_res1, 0x03, (70 + 15) / 15);
+	bus_write_1(ctrl->r_res1, 0x00, 3);
+	bus_write_1(ctrl->r_res1, 0x01, 3);
+	bus_write_1(ctrl->r_res1, 0x02, (25 + 15) / 15);
+	bus_write_1(ctrl->r_res1, 0x03, (70 + 15) / 15);
 
 	/* Write TIME_2R/AX/RDX/4 */
-	bus_write_1(ctlr->r_res1, 0x04, (70 + 15) / 15);
-	bus_write_1(ctlr->r_res1, 0x05, (50 + 15) / 15 + 2);
-	bus_write_1(ctlr->r_res1, 0x06, 1);
-	bus_write_1(ctlr->r_res1, 0x07, (10 + 15) / 15);
+	bus_write_1(ctrl->r_res1, 0x04, (70 + 15) / 15);
+	bus_write_1(ctrl->r_res1, 0x05, (50 + 15) / 15 + 2);
+	bus_write_1(ctrl->r_res1, 0x06, 1);
+	bus_write_1(ctrl->r_res1, 0x07, (10 + 15) / 15);
 
 	/* Write TIME_9 ; the rest of timing registers is irrelevant for PIO */
-	bus_write_1(ctlr->r_res1, 0x08, (10 + 15) / 15);
+	bus_write_1(ctrl->r_res1, 0x08, (10 + 15) / 15);
 
-	bus_write_2(ctlr->r_res1, 0x24, 0xc1);
+	bus_write_2(ctrl->r_res1, 0x24, 0xc1);
 	DELAY(30000);
 
 	/* setup ATA registers */
@@ -190,9 +190,9 @@ imx_ata_ch_attach(device_t dev)
 	ch->flags |= ATA_KNOWN_PRESENCE;
 
 	/* Clear pending interrupts. */
-	bus_write_2(ctlr->r_res1, 0x28, 0xf8);
+	bus_write_2(ctrl->r_res1, 0x28, 0xf8);
 	/* Enable all, but Idle interrupts. */
-	bus_write_2(ctlr->r_res1, 0x2c, 0x88);
+	bus_write_2(ctrl->r_res1, 0x2c, 0x88);
 
 	return 0;
 }
