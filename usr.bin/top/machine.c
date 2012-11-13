@@ -225,7 +225,7 @@ long percentages();
 char *ordernames[] = {
 	"cpu", "size", "res", "time", "pri", "threads",
 	"total", "read", "write", "fault", "vcsw", "ivcsw",
-	"jid", NULL
+	"jid", "pid", NULL
 };
 #endif
 

@@ -234,8 +234,10 @@ fuse_vfsop_mount(struct mount *mp)
 	if (mp->mnt_flag & MNT_UPDATE)
 		return EOPNOTSUPP;
 
+	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_SYNCHRONOUS;
 	mp->mnt_data = NULL;
+	MNT_IUNLOCK(mp);
 	/* Get the new options passed to mount */
 	opts = mp->mnt_optnew;
 
@@ -323,23 +325,20 @@ fuse_vfsop_mount(struct mount *mp)
 		FUSE_UNLOCK();
 		goto out;
 	}
-	/* We need this here as this slot is used by getnewvnode() */
-	mp->mnt_stat.f_iosize = PAGE_SIZE;
-	mp->mnt_data = data;
 	data->ref++;
 	data->mp = mp;
 	data->dataflags |= mntopts;
 	data->max_read = max_read;
 	data->daemon_timeout = daemon_timeout;
-#ifdef XXXIP
-	if (!priv_check(td, PRIV_VFS_FUSE_SYNC_UNMOUNT))
-		data->dataflags |= FSESS_CAN_SYNC_UNMOUNT;
-#endif
 	FUSE_UNLOCK();
 
 	vfs_getnewfsid(mp);
+	MNT_ILOCK(mp);
+	mp->mnt_data = data;
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_MPSAFE;
+	MNT_IUNLOCK(mp);
+	/* We need this here as this slot is used by getnewvnode() */
+	mp->mnt_stat.f_iosize = PAGE_SIZE;
 	if (subtype) {
 		strlcat(mp->mnt_stat.f_fstypename, ".", MFSNAMELEN);
 		strlcat(mp->mnt_stat.f_fstypename, subtype, MFSNAMELEN);

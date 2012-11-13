@@ -207,6 +207,11 @@ _libproc=	libproc
 _librtld_db=	librtld_db
 .endif
 
+.if ${MACHINE_CPUARCH} == "powerpc"
+_libproc=	libproc
+_librtld_db=	librtld_db
+.endif
+
 .if ${MK_OPENSSL} != "no"
 _libmp=		libmp
 .endif

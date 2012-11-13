@@ -25,4 +25,10 @@ _lockstat=	lockstat
 _dtrace=	dtrace
 .endif
 
+.if ${MACHINE_CPUARCH} == "powerpc"
+_dtrace=	dtrace
+_dtruss=	dtruss
+_lockstat=	lockstat
+.endif
+
 .include <bsd.subdir.mk>

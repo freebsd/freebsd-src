@@ -1215,6 +1215,9 @@ typedef struct
 	int ath_hal_enable_ani;	/* should set this.. */
 	int ath_hal_cwm_ignore_ext_cca;
 	int ath_hal_show_bb_panic;
+	int ath_hal_ant_ctrl_comm2g_switch_enable;
+	int ath_hal_ext_atten_margin_cfg;
+	int ath_hal_war70c;
 } HAL_OPS_CONFIG;
 
 /*

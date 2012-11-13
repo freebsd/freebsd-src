@@ -106,11 +106,9 @@ static void	mfi_add_sys_pd_complete(struct mfi_command *);
 static struct mfi_command * mfi_bio_command(struct mfi_softc *);
 static void	mfi_bio_complete(struct mfi_command *);
 static struct mfi_command *mfi_build_ldio(struct mfi_softc *,struct bio*);
-static int mfi_build_syspd_cdb(struct mfi_pass_frame *pass, uint32_t block_count,
-		   uint64_t lba, uint8_t byte2, int readop);
 static struct mfi_command *mfi_build_syspdio(struct mfi_softc *,struct bio*);
 static int	mfi_send_frame(struct mfi_softc *, struct mfi_command *);
-static int	mfi_abort(struct mfi_softc *, struct mfi_command *);
+static int	mfi_abort(struct mfi_softc *, struct mfi_command **);
 static int	mfi_linux_ioctl_int(struct cdev *, u_long, caddr_t, int, struct thread *);
 static void	mfi_timeout(void *);
 static int	mfi_user_command(struct mfi_softc *,
@@ -376,6 +374,8 @@ mfi_attach(struct mfi_softc *sc)
 	sx_init(&sc->mfi_config_lock, "MFI config");
 	TAILQ_INIT(&sc->mfi_ld_tqh);
 	TAILQ_INIT(&sc->mfi_syspd_tqh);
+	TAILQ_INIT(&sc->mfi_ld_pend_tqh);
+	TAILQ_INIT(&sc->mfi_syspd_pend_tqh);
 	TAILQ_INIT(&sc->mfi_evt_queue);
 	TASK_INIT(&sc->mfi_evt_task, 0, mfi_handle_evt, sc);
 	TASK_INIT(&sc->mfi_map_sync_task, 0, mfi_handle_map_sync, sc);
@@ -697,6 +697,7 @@ mfi_attach(struct mfi_softc *sc)
 			device_printf(sc->mfi_dev, "Cannot set up interrupt\n");
 			return (EINVAL);
 		}
+		sc->mfi_intr_ptr = mfi_intr_tbolt;
 		sc->mfi_enable_intr(sc);
 	} else {
 		if ((error = mfi_comms_init(sc)) != 0)
@@ -707,6 +708,7 @@ mfi_attach(struct mfi_softc *sc)
 			device_printf(sc->mfi_dev, "Cannot set up interrupt\n");
 			return (EINVAL);
 		}
+		sc->mfi_intr_ptr = mfi_intr;
 		sc->mfi_enable_intr(sc);
 	}
 	if ((error = mfi_get_controller_info(sc)) != 0)
@@ -1281,18 +1283,23 @@ mfi_shutdown(struct mfi_softc *sc)
 	struct mfi_command *cm;
 	int error;
 
+
+	if (sc->mfi_aen_cm)
+		sc->cm_aen_abort = 1;
+	if (sc->mfi_aen_cm != NULL)
+		mfi_abort(sc, &sc->mfi_aen_cm);
+
+	if (sc->mfi_map_sync_cm)
+		sc->cm_map_abort = 1;
+	if (sc->mfi_map_sync_cm != NULL)
+		mfi_abort(sc, &sc->mfi_map_sync_cm);
+
 	mtx_lock(&sc->mfi_io_lock);
 	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_CTRL_SHUTDOWN, NULL, 0);
 	if (error) {
 		mtx_unlock(&sc->mfi_io_lock);
 		return (error);
 	}
-
-	if (sc->mfi_aen_cm != NULL)
-		mfi_abort(sc, sc->mfi_aen_cm);
-
-	if (sc->mfi_map_sync_cm != NULL)
-		mfi_abort(sc, sc->mfi_map_sync_cm);
 
 	dcmd = &cm->cm_frame->dcmd;
 	dcmd->header.flags = MFI_FRAME_DIR_NONE;
@@ -1315,6 +1322,7 @@ mfi_syspdprobe(struct mfi_softc *sc)
 	struct mfi_command *cm = NULL;
 	struct mfi_pd_list *pdlist = NULL;
 	struct mfi_system_pd *syspd, *tmp;
+	struct mfi_system_pending *syspd_pend;
 	int error, i, found;
 
 	sx_assert(&sc->mfi_config_lock, SA_XLOCKED);
@@ -1355,6 +1363,10 @@ mfi_syspdprobe(struct mfi_softc *sc)
 			if (syspd->pd_id == pdlist->addr[i].device_id)
 				found = 1;
 		}
+		TAILQ_FOREACH(syspd_pend, &sc->mfi_syspd_pend_tqh, pd_link) {
+			if (syspd_pend->pd_id == pdlist->addr[i].device_id)
+				found = 1;
+		}
 		if (found == 0)
 			mfi_add_sys_pd(sc, pdlist->addr[i].device_id);
 	}
@@ -1390,6 +1402,7 @@ mfi_ldprobe(struct mfi_softc *sc)
 	struct mfi_command *cm = NULL;
 	struct mfi_ld_list *list = NULL;
 	struct mfi_disk *ld;
+	struct mfi_disk_pending *ld_pend;
 	int error, i;
 
 	sx_assert(&sc->mfi_config_lock, SA_XLOCKED);
@@ -1416,6 +1429,10 @@ mfi_ldprobe(struct mfi_softc *sc)
 	for (i = 0; i < list->ld_count; i++) {
 		TAILQ_FOREACH(ld, &sc->mfi_ld_tqh, ld_link) {
 			if (ld->ld_id == list->ld_list[i].ld.v.target_id)
+				goto skip_add;
+		}
+		TAILQ_FOREACH(ld_pend, &sc->mfi_ld_pend_tqh, ld_link) {
+			if (ld_pend->ld_id == list->ld_list[i].ld.v.target_id)
 				goto skip_add;
 		}
 		mfi_add_ld(sc, list->ld_list[i].ld.v.target_id);
@@ -1560,6 +1577,11 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail)
 				sx_xunlock(&sc->mfi_config_lock);
 			}
 		}
+		if (sc->mfi_cam_rescan_cb != NULL &&
+		    (detail->code == MR_EVT_PD_INSERTED ||
+		    detail->code == MR_EVT_PD_REMOVED)) {
+			sc->mfi_cam_rescan_cb(sc, detail->args.pd.device_id);
+		}
 		break;
 	}
 }
@@ -1620,9 +1642,7 @@ mfi_aen_register(struct mfi_softc *sc, int seq, int locale)
 			    < current_aen.members.evt_class)
 				current_aen.members.evt_class =
 				    prior_aen.members.evt_class;
-			mtx_lock(&sc->mfi_io_lock);
-			mfi_abort(sc, sc->mfi_aen_cm);
-			mtx_unlock(&sc->mfi_io_lock);
+			mfi_abort(sc, &sc->mfi_aen_cm);
 		}
 	}
 
@@ -1814,9 +1834,16 @@ mfi_add_ld(struct mfi_softc *sc, int id)
 	struct mfi_command *cm;
 	struct mfi_dcmd_frame *dcmd = NULL;
 	struct mfi_ld_info *ld_info = NULL;
+	struct mfi_disk_pending *ld_pend;
 	int error;
 
 	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
+
+	ld_pend = malloc(sizeof(*ld_pend), M_MFIBUF, M_NOWAIT | M_ZERO);
+	if (ld_pend != NULL) {
+		ld_pend->ld_id = id;
+		TAILQ_INSERT_TAIL(&sc->mfi_ld_pend_tqh, ld_pend, ld_link);
+	}
 
 	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_LD_GET_INFO,
 	    (void **)&ld_info, sizeof(*ld_info));
@@ -1858,11 +1885,13 @@ mfi_add_ld_complete(struct mfi_command *cm)
 	hdr = &cm->cm_frame->header;
 	ld_info = cm->cm_private;
 
-	if (hdr->cmd_status != MFI_STAT_OK) {
+	if (sc->cm_map_abort || hdr->cmd_status != MFI_STAT_OK) {
 		free(ld_info, M_MFIBUF);
+		wakeup(&sc->mfi_map_sync_cm);
 		mfi_release_command(cm);
 		return;
 	}
+	wakeup(&sc->mfi_map_sync_cm);
 	mfi_release_command(cm);
 
 	mtx_unlock(&sc->mfi_io_lock);
@@ -1887,9 +1916,16 @@ static int mfi_add_sys_pd(struct mfi_softc *sc, int id)
 	struct mfi_command *cm;
 	struct mfi_dcmd_frame *dcmd = NULL;
 	struct mfi_pd_info *pd_info = NULL;
+	struct mfi_system_pending *syspd_pend;
 	int error;
 
 	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
+
+	syspd_pend = malloc(sizeof(*syspd_pend), M_MFIBUF, M_NOWAIT | M_ZERO);
+	if (syspd_pend != NULL) {
+		syspd_pend->pd_id = id;
+		TAILQ_INSERT_TAIL(&sc->mfi_syspd_pend_tqh, syspd_pend, pd_link);
+	}
 
 	error = mfi_dcmd_command(sc, &cm, MFI_DCMD_PD_GET_INFO,
 		(void **)&pd_info, sizeof(*pd_info));
@@ -1985,9 +2021,12 @@ mfi_bio_command(struct mfi_softc *sc)
 	return cm;
 }
 
-static int
-mfi_build_syspd_cdb(struct mfi_pass_frame *pass, uint32_t block_count,
-    uint64_t lba, uint8_t byte2, int readop)
+/*
+ * mostly copied from cam/scsi/scsi_all.c:scsi_read_write
+ */
+
+int
+mfi_build_cdb(int readop, uint8_t byte2, u_int64_t lba, u_int32_t block_count, uint8_t *cdb)
 {
 	int cdb_len;
 
@@ -1997,7 +2036,7 @@ mfi_build_syspd_cdb(struct mfi_pass_frame *pass, uint32_t block_count,
 		/* We can fit in a 6 byte cdb */
 		struct scsi_rw_6 *scsi_cmd;
 
-		scsi_cmd = (struct scsi_rw_6 *)&pass->cdb;
+		scsi_cmd = (struct scsi_rw_6 *)cdb;
 		scsi_cmd->opcode = readop ? READ_6 : WRITE_6;
 		scsi_ulto3b(lba, scsi_cmd->addr);
 		scsi_cmd->length = block_count & 0xff;
@@ -2007,7 +2046,7 @@ mfi_build_syspd_cdb(struct mfi_pass_frame *pass, uint32_t block_count,
 		/* Need a 10 byte CDB */
 		struct scsi_rw_10 *scsi_cmd;
 
-		scsi_cmd = (struct scsi_rw_10 *)&pass->cdb;
+		scsi_cmd = (struct scsi_rw_10 *)cdb;
 		scsi_cmd->opcode = readop ? READ_10 : WRITE_10;
 		scsi_cmd->byte2 = byte2;
 		scsi_ulto4b(lba, scsi_cmd->addr);
@@ -2020,7 +2059,7 @@ mfi_build_syspd_cdb(struct mfi_pass_frame *pass, uint32_t block_count,
 		/* Block count is too big for 10 byte CDB use a 12 byte CDB */
 		struct scsi_rw_12 *scsi_cmd;
 
-		scsi_cmd = (struct scsi_rw_12 *)&pass->cdb;
+		scsi_cmd = (struct scsi_rw_12 *)cdb;
 		scsi_cmd->opcode = readop ? READ_12 : WRITE_12;
 		scsi_cmd->byte2 = byte2;
 		scsi_ulto4b(lba, scsi_cmd->addr);
@@ -2035,7 +2074,7 @@ mfi_build_syspd_cdb(struct mfi_pass_frame *pass, uint32_t block_count,
 		 */
 		struct scsi_rw_16 *scsi_cmd;
 
-		scsi_cmd = (struct scsi_rw_16 *)&pass->cdb;
+		scsi_cmd = (struct scsi_rw_16 *)cdb;
 		scsi_cmd->opcode = readop ? READ_16 : WRITE_16;
 		scsi_cmd->byte2 = byte2;
 		scsi_u64to8b(lba, scsi_cmd->addr);
@@ -2053,15 +2092,15 @@ mfi_build_syspdio(struct mfi_softc *sc, struct bio *bio)
 {
 	struct mfi_command *cm;
 	struct mfi_pass_frame *pass;
-	int flags = 0;
+	uint32_t context = 0;
+	int flags = 0, blkcount = 0, readop;
 	uint8_t cdb_len;
-	uint32_t block_count, context = 0;
 
 	if ((cm = mfi_dequeue_free(sc)) == NULL)
 	    return (NULL);
 
 	/* Zero out the MFI frame */
- 	context = cm->cm_frame->header.context;
+	context = cm->cm_frame->header.context;
 	bzero(cm->cm_frame, sizeof(union mfi_frame));
 	cm->cm_frame->header.context = context;
 	pass = &cm->cm_frame->pass;
@@ -2070,22 +2109,24 @@ mfi_build_syspdio(struct mfi_softc *sc, struct bio *bio)
 	switch (bio->bio_cmd & 0x03) {
 	case BIO_READ:
 		flags = MFI_CMD_DATAIN;
+		readop = 1;
 		break;
 	case BIO_WRITE:
 		flags = MFI_CMD_DATAOUT;
+		readop = 0;
 		break;
 	default:
 		/* TODO: what about BIO_DELETE??? */
-		panic("Unsupported bio command");
+		panic("Unsupported bio command %x\n", bio->bio_cmd);
 	}
 
 	/* Cheat with the sector length to avoid a non-constant division */
-	block_count = (bio->bio_bcount + MFI_SECTOR_LEN - 1) / MFI_SECTOR_LEN;
+	blkcount = (bio->bio_bcount + MFI_SECTOR_LEN - 1) / MFI_SECTOR_LEN;
 	/* Fill the LBA and Transfer length in CDB */
-	cdb_len = mfi_build_syspd_cdb(pass, block_count, bio->bio_pblkno, 0,
-	    flags == MFI_CMD_DATAIN);
-
+	cdb_len = mfi_build_cdb(readop, 0, bio->bio_pblkno, blkcount,
+	    pass->cdb);
 	pass->header.target_id = (uintptr_t)bio->bio_driver1;
+	pass->header.lun_id = 0;
 	pass->header.timeout = 0;
 	pass->header.flags = 0;
 	pass->header.scsi_status = 0;
@@ -2132,7 +2173,7 @@ mfi_build_ldio(struct mfi_softc *sc, struct bio *bio)
 		break;
 	default:
 		/* TODO: what about BIO_DELETE??? */
-		panic("Unsupported bio command");
+		panic("Unsupported bio command %x\n", bio->bio_cmd);
 	}
 
 	/* Cheat with the sector length to avoid a non-constant division */
@@ -2422,15 +2463,14 @@ mfi_complete(struct mfi_softc *sc, struct mfi_command *cm)
 }
 
 static int
-mfi_abort(struct mfi_softc *sc, struct mfi_command *cm_abort)
+mfi_abort(struct mfi_softc *sc, struct mfi_command **cm_abort)
 {
 	struct mfi_command *cm;
 	struct mfi_abort_frame *abort;
 	int i = 0;
 	uint32_t context = 0;
 
-	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
-
+	mtx_lock(&sc->mfi_io_lock);
 	if ((cm = mfi_dequeue_free(sc)) == NULL) {
 		return (EBUSY);
 	}
@@ -2444,29 +2484,27 @@ mfi_abort(struct mfi_softc *sc, struct mfi_command *cm_abort)
 	abort->header.cmd = MFI_CMD_ABORT;
 	abort->header.flags = 0;
 	abort->header.scsi_status = 0;
-	abort->abort_context = cm_abort->cm_frame->header.context;
-	abort->abort_mfi_addr_lo = (uint32_t)cm_abort->cm_frame_busaddr;
+	abort->abort_context = (*cm_abort)->cm_frame->header.context;
+	abort->abort_mfi_addr_lo = (uint32_t)(*cm_abort)->cm_frame_busaddr;
 	abort->abort_mfi_addr_hi =
-	    (uint32_t)((uint64_t)cm_abort->cm_frame_busaddr >> 32);
+		(uint32_t)((uint64_t)(*cm_abort)->cm_frame_busaddr >> 32);
 	cm->cm_data = NULL;
 	cm->cm_flags = MFI_CMD_POLLED;
 
-	if (sc->mfi_aen_cm)
-		sc->cm_aen_abort = 1;
-	if (sc->mfi_map_sync_cm)
-		sc->cm_map_abort = 1;
 	mfi_mapcmd(sc, cm);
 	mfi_release_command(cm);
 
-	while (i < 5 && sc->mfi_aen_cm != NULL) {
-		msleep(&sc->mfi_aen_cm, &sc->mfi_io_lock, 0, "mfiabort",
+	mtx_unlock(&sc->mfi_io_lock);
+	while (i < 5 && *cm_abort != NULL) {
+		tsleep(cm_abort, 0, "mfiabort",
 		    5 * hz);
 		i++;
 	}
-	while (i < 5 && sc->mfi_map_sync_cm != NULL) {
-		msleep(&sc->mfi_map_sync_cm, &sc->mfi_io_lock, 0, "mfiabort",
-		    5 * hz);
-		i++;
+	if (*cm_abort != NULL) {
+		/* Force a complete if command didn't abort */
+		mtx_lock(&sc->mfi_io_lock);
+		(*cm_abort)->cm_complete(*cm_abort);
+		mtx_unlock(&sc->mfi_io_lock);
 	}
 
 	return (0);
@@ -2522,7 +2560,7 @@ mfi_dump_syspd_blocks(struct mfi_softc *sc, int id, uint64_t lba, void *virt,
 {
 	struct mfi_command *cm;
 	struct mfi_pass_frame *pass;
-	int error;
+	int error, readop, cdb_len;
 	uint32_t blkcount;
 
 	if ((cm = mfi_dequeue_free(sc)) == NULL)
@@ -2531,21 +2569,24 @@ mfi_dump_syspd_blocks(struct mfi_softc *sc, int id, uint64_t lba, void *virt,
 	pass = &cm->cm_frame->pass;
 	bzero(pass->cdb, 16);
 	pass->header.cmd = MFI_CMD_PD_SCSI_IO;
+
+	readop = 0;
 	blkcount = (len + MFI_SECTOR_LEN - 1) / MFI_SECTOR_LEN;
+	cdb_len = mfi_build_cdb(readop, 0, lba, blkcount, pass->cdb);
 	pass->header.target_id = id;
 	pass->header.timeout = 0;
 	pass->header.flags = 0;
 	pass->header.scsi_status = 0;
 	pass->header.sense_len = MFI_SENSE_LEN;
 	pass->header.data_len = len;
-	pass->header.cdb_len = mfi_build_syspd_cdb(pass, blkcount, lba, 0, 0);
+	pass->header.cdb_len = cdb_len;
 	pass->sense_addr_lo = (uint32_t)cm->cm_sense_busaddr;
 	pass->sense_addr_hi = (uint32_t)((uint64_t)cm->cm_sense_busaddr >> 32);
 	cm->cm_data = virt;
 	cm->cm_len = len;
 	cm->cm_sg = &pass->sgl;
 	cm->cm_total_frame_size = MFI_PASS_FRAME_SIZE;
-	cm->cm_flags = MFI_CMD_POLLED | MFI_CMD_DATAOUT;
+	cm->cm_flags = MFI_CMD_POLLED | MFI_CMD_DATAOUT | MFI_CMD_SCSI;
 
 	error = mfi_mapcmd(sc, cm);
 	bus_dmamap_sync(sc->mfi_buffer_dmat, cm->cm_dmamap,
@@ -2745,16 +2786,24 @@ mfi_check_command_post(struct mfi_softc *sc, struct mfi_command *cm)
 	}
 }
 
-static int mfi_check_for_sscd(struct mfi_softc *sc, struct mfi_command *cm)
+static int
+mfi_check_for_sscd(struct mfi_softc *sc, struct mfi_command *cm)
 {
-	struct mfi_config_data *conf_data=(struct mfi_config_data *)cm->cm_data;
+	struct mfi_config_data *conf_data;
 	struct mfi_command *ld_cm = NULL;
 	struct mfi_ld_info *ld_info = NULL;
+	struct mfi_ld_config *ld;
+	char *p;
 	int error = 0;
 
-	if ((cm->cm_frame->dcmd.opcode == MFI_DCMD_CFG_ADD) &&
-	    (conf_data->ld[0].params.isSSCD == 1)) {
-		error = 1;
+	conf_data = (struct mfi_config_data *)cm->cm_data;
+
+	if (cm->cm_frame->dcmd.opcode == MFI_DCMD_CFG_ADD) {
+		p = (char *)conf_data->array;
+		p += conf_data->array_size * conf_data->array_count;
+		ld = (struct mfi_ld_config *)p;
+		if (ld->params.isSSCD == 1)
+			error = 1;
 	} else if (cm->cm_frame->dcmd.opcode == MFI_DCMD_LD_DELETE) {
 		error = mfi_dcmd_command (sc, &ld_cm, MFI_DCMD_LD_GET_INFO,
 		    (void **)&ld_info, sizeof(*ld_info));

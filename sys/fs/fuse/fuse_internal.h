@@ -138,23 +138,6 @@ uio_setresid(struct uio *uio, ssize_t resid)
     uio->uio_resid = resid;
 }
 
-/* time */
-
-#define fuse_timespec_add(vvp, uvp)            \
-    do {                                       \
-           (vvp)->tv_sec += (uvp)->tv_sec;     \
-           (vvp)->tv_nsec += (uvp)->tv_nsec;   \
-           if ((vvp)->tv_nsec >= 1000000000) { \
-               (vvp)->tv_sec++;                \
-               (vvp)->tv_nsec -= 1000000000;   \
-           }                                   \
-    } while (0)
-
-#define fuse_timespec_cmp(tvp, uvp, cmp)       \
-        (((tvp)->tv_sec == (uvp)->tv_sec) ?    \
-         ((tvp)->tv_nsec cmp (uvp)->tv_nsec) : \
-         ((tvp)->tv_sec cmp (uvp)->tv_sec))
-
 /* miscellaneous */
 
 static __inline__
@@ -254,17 +237,9 @@ fuse_internal_attr_fat2vat(struct mount *mp,
 }
 
 
-#define cache_attrs(vp, fuse_out) do {                                         \
-    struct timespec uptsp_ ## __func__;                                        \
-                                                                               \
-    VTOFUD(vp)->cached_attrs_valid.tv_sec = (fuse_out)->attr_valid;            \
-    VTOFUD(vp)->cached_attrs_valid.tv_nsec = (fuse_out)->attr_valid_nsec;      \
-    nanouptime(&uptsp_ ## __func__);                                           \
-                                                                               \
-    fuse_timespec_add(&VTOFUD(vp)->cached_attrs_valid, &uptsp_ ## __func__);   \
-                                                                               \
-    fuse_internal_attr_fat2vat(vnode_mount(vp), &(fuse_out)->attr, VTOVA(vp)); \
-} while (0)
+#define	cache_attrs(vp, fuse_out)					\
+	fuse_internal_attr_fat2vat(vnode_mount(vp), &(fuse_out)->attr,	\
+	    VTOVA(vp));
 
 /* fsync */
 

@@ -99,6 +99,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
 
+#ifdef	ATH_DEBUG_ALQ
+#include <dev/ath/if_ath_alq.h>
+#endif
+
 static int
 ath_sysctl_slottime(SYSCTL_HANDLER_ARGS)
 {
@@ -501,6 +505,57 @@ ath_sysctl_forcebstuck(SYSCTL_HANDLER_ARGS)
 	return 0;
 }
 
+
+#ifdef ATH_DEBUG_ALQ
+static int
+ath_sysctl_alq_log(SYSCTL_HANDLER_ARGS)
+{
+	struct ath_softc *sc = arg1;
+	int error, enable;
+
+	enable = (sc->sc_alq.sc_alq_isactive);
+
+	error = sysctl_handle_int(oidp, &enable, 0, req);
+	if (error || !req->newptr)
+		return (error);
+	else if (enable)
+		error = if_ath_alq_start(&sc->sc_alq);
+	else
+		error = if_ath_alq_stop(&sc->sc_alq);
+	return (error);
+}
+
+/*
+ * Attach the ALQ debugging if required.
+ */
+static void
+ath_sysctl_alq_attach(struct ath_softc *sc)
+{
+	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
+	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
+
+	tree = SYSCTL_ADD_NODE(ctx, child, OID_AUTO, "alq", CTLFLAG_RD,
+	    NULL, "Atheros ALQ logging parameters");
+	child = SYSCTL_CHILDREN(tree);
+
+	SYSCTL_ADD_STRING(ctx, child, OID_AUTO, "filename",
+	    CTLFLAG_RW, sc->sc_alq.sc_alq_filename, 0, "ALQ filename");
+
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"enable", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		ath_sysctl_alq_log, "I", "");
+
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"debugmask", CTLFLAG_RW, &sc->sc_alq.sc_alq_debug, 0,
+		"ALQ debug mask");
+
+	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"numlost", CTLFLAG_RW, &sc->sc_alq.sc_alq_numlost, 0,
+		"number lost");
+}
+#endif /* ATH_DEBUG_ALQ */
+
 void
 ath_sysctlattach(struct ath_softc *sc)
 {
@@ -514,14 +569,14 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"regdomain", CTLFLAG_RD, &sc->sc_eerd, 0,
 		"EEPROM regdomain code");
-#ifdef	ATH_DEBUG
+#ifdef	ATH_DEBUG_ALQ
 	SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"debug", CTLFLAG_RW, &sc->sc_debug,
 		"control debugging printfs");
 	SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"ktrdebug", CTLFLAG_RW, &sc->sc_ktrdebug,
 		"control debugging KTR");
-#endif
+#endif /* ATH_DEBUG_ALQ */
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"slottime", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_slottime, "I", "802.11 slot time (us)");
@@ -654,6 +709,10 @@ ath_sysctlattach(struct ath_softc *sc)
 			"setcca", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 			ath_sysctl_setcca, "I", "enable CCA control");
 	}
+#endif
+
+#ifdef	ATH_DEBUG_ALQ
+	ath_sysctl_alq_attach(sc);
 #endif
 }
 

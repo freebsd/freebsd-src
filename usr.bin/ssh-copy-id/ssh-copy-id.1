@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 3, 2012
+.Dd November 11, 2012
 .Dt SSH-COPY-ID 1
 .Os
 .Sh NAME
@@ -42,8 +42,8 @@
 The
 .Nm
 utility copies public keys to a remote host's
-.Pa authorized_keys
-file.
+.Pa ~/.ssh/authorized_keys
+file (creating the file and directory, if required).
 .Pp
 The following options are available:
 .Bl -tag -width indent
@@ -71,6 +71,11 @@ default.
 .Pp
 The remaining arguments are a list of remote hosts to connect to,
 each one optionally qualified by a user name.
+.Sh EXIT STATUS
+.Ex -std
+.Sh EXAMPLES
+To send a specific key to multiple hosts:
+.Dl $ ssh-copy-id -i /path/to/keyfile.pub user@host1 user@host2 user@host3
 .Sh HISTORY
 The
 .Nm

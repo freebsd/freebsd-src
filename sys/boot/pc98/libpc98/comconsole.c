@@ -63,7 +63,6 @@ static void	comc_setup(int speed, int port);
 static int	comc_speed_set(struct env_var *ev, int flags,
 		    const void *value);
 
-static int	comc_started;
 static int	comc_curspeed;
 static int	comc_port = COMPORT;
 static uint32_t	comc_locator;
@@ -86,9 +85,6 @@ comc_probe(struct console *cp)
     char *cons, *env;
     int speed, port;
     uint32_t locator;
-
-    /* XXX check the BIOS equipment list? */
-    cp->c_flags |= (C_PRESENTIN | C_PRESENTOUT);
 
     if (comc_curspeed == 0) {
 	comc_curspeed = COMSPEED;
@@ -137,18 +133,19 @@ comc_probe(struct console *cp)
 	env_setenv("comconsole_pcidev", EV_VOLATILE, env, comc_pcidev_set,
 	    env_nounset);
     }
+    comc_setup(comc_curspeed, comc_port);
 }
 
 static int
 comc_init(int arg)
 {
-    if (comc_started && arg == 0)
-	return 0;
-    comc_started = 1;
 
     comc_setup(comc_curspeed, comc_port);
 
-    return(0);
+    if ((comconsole.c_flags & (C_PRESENTIN | C_PRESENTOUT)) ==
+	(C_PRESENTIN | C_PRESENTOUT))
+	return (CMD_OK);
+    return (CMD_ERROR);
 }
 
 static void
@@ -166,13 +163,13 @@ comc_putchar(int c)
 static int
 comc_getchar(void)
 {
-    return(comc_ischar() ? inb(comc_port + com_data) : -1);
+    return (comc_ischar() ? inb(comc_port + com_data) : -1);
 }
 
 static int
 comc_ischar(void)
 {
-    return(inb(comc_port + com_lsr) & LSR_RXRDY);
+    return (inb(comc_port + com_lsr) & LSR_RXRDY);
 }
 
 static int
@@ -185,7 +182,8 @@ comc_speed_set(struct env_var *ev, int flags, const void *value)
 	return (CMD_ERROR);
     }
 
-    if (comc_started && comc_curspeed != speed)
+    if ((comconsole.c_flags & (C_ACTIVEIN | C_ACTIVEOUT)) != 0 &&
+	comc_curspeed != speed)
 	comc_setup(speed, comc_port);
 
     env_setenv(ev->ev_name, flags | EV_NOHOOK, value, NULL, NULL);
@@ -203,7 +201,8 @@ comc_port_set(struct env_var *ev, int flags, const void *value)
 	return (CMD_ERROR);
     }
 
-    if (comc_started && comc_port != port) {
+    if ((comconsole.c_flags & (C_ACTIVEIN | C_ACTIVEOUT)) != 0 &&
+	comc_port != port) {
 	comc_setup(comc_curspeed, port);
 	set_hw_console_hint();
     }
@@ -305,7 +304,8 @@ comc_pcidev_set(struct env_var *ev, int flags, const void *value)
 		printf("Invalid pcidev\n");
 		return (CMD_ERROR);
 	}
-	if (comc_started && comc_locator != locator) {
+	if ((comconsole.c_flags & (C_ACTIVEIN | C_ACTIVEOUT)) != 0 &&
+	    comc_locator != locator) {
 		error = comc_pcidev_handle(locator);
 		if (error != CMD_OK)
 			return (error);
@@ -317,6 +317,8 @@ comc_pcidev_set(struct env_var *ev, int flags, const void *value)
 static void
 comc_setup(int speed, int port)
 {
+    static int TRY_COUNT = 1000000;
+    int tries;
 
     comc_curspeed = speed;
     comc_port = port;
@@ -327,9 +329,15 @@ comc_setup(int speed, int port)
     outb(comc_port + com_cfcr, COMC_FMT);
     outb(comc_port + com_mcr, MCR_RTS | MCR_DTR);
 
+    tries = 0;
     do
         inb(comc_port + com_data);
-    while (inb(comc_port + com_lsr) & LSR_RXRDY);
+    while (inb(comc_port + com_lsr) & LSR_RXRDY && ++tries < TRY_COUNT);
+
+    if (tries < TRY_COUNT)
+	comconsole.c_flags |= (C_PRESENTIN | C_PRESENTOUT);
+    else
+	comconsole.c_flags &= ~(C_PRESENTIN | C_PRESENTOUT);
 }
 
 static int

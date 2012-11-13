@@ -388,7 +388,7 @@ RetryFault:;
 				vm_object_deallocate(fs.first_object);
 				goto RetryFault;
 			}
-			vm_pageq_remove(fs.m);
+			vm_page_remque(fs.m);
 			vm_page_unlock(fs.m);
 
 			/*
