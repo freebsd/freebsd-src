@@ -421,17 +421,13 @@ enterpgrp(p, pgid, pgrp, sess)
 	struct pgrp *pgrp;
 	struct session *sess;
 {
-	struct pgrp *pgrp2;
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
 
 	KASSERT(pgrp != NULL, ("enterpgrp: pgrp == NULL"));
 	KASSERT(p->p_pid == pgid,
 	    ("enterpgrp: new pgrp and pid != pgid"));
-
-	pgrp2 = pgfind(pgid);
-
-	KASSERT(pgrp2 == NULL,
+	KASSERT(pgfind(pgid) == NULL,
 	    ("enterpgrp: pgrp with pgid exists"));
 	KASSERT(!SESS_LEADER(p),
 	    ("enterpgrp: session leader attempted setpgrp"));
