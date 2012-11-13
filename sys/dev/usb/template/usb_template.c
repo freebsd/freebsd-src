@@ -260,7 +260,7 @@ usb_make_endpoint_desc(struct usb_temp_setup *temp,
 					ed->bInterval = 1;	/* 1 ms */
 					break;
 				default:
-					ed->bInterval = 8;	/* 8*125 us */
+					ed->bInterval = 4;	/* 1 ms */
 					break;
 				}
 				break;
