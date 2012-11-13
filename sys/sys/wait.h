@@ -80,6 +80,9 @@
 #define	WSTOPPED	WUNTRACED   /* SUS compatibility */
 #define	WCONTINUED	4	/* Report a job control continued process. */
 #define	WNOWAIT		8	/* Poll only. Don't delete the proc entry. */
+#define	WEXITED		16	/* Wait for exited processes. */
+#define	WTRAPPED	32	/* Wait for a process to hit a trap or
+				   a breakpoint. */
 
 #if __BSD_VISIBLE
 #define	WLINUXCLONE 0x80000000	/* Wait for kthread spawned from linux_clone. */
@@ -87,6 +90,8 @@
 
 /*
  * Tokens for special values of the "pid" parameter to wait4.
+ * Extended struct __wrusage to collect rusage for both the target
+ * process and its children within one wait6() call.
  */
 #if __BSD_VISIBLE
 #define	WAIT_ANY	(-1)	/* any process */
@@ -97,12 +102,19 @@
 #include <sys/types.h>
 
 __BEGIN_DECLS
+struct __siginfo;
 pid_t	wait(int *);
 pid_t	waitpid(pid_t, int *, int);
+#if __POSIX_VISIBLE >= 200112
+int	waitid(idtype_t, id_t, struct __siginfo *, int);
+#endif
 #if __BSD_VISIBLE
 struct rusage;
+struct __wrusage;
 pid_t	wait3(int *, int, struct rusage *);
 pid_t	wait4(pid_t, int *, int, struct rusage *);
+pid_t	wait6(idtype_t, id_t, int *, int, struct __wrusage *,
+	    struct __siginfo *);
 #endif
 __END_DECLS
 #endif /* !_KERNEL */
