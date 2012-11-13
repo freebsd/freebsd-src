@@ -473,8 +473,17 @@
 			 * 101 EMI Indicates all pages have been transferred
 			 * to NFC during an auto program operation.
 			 */
+
 			/* 83FE0000 0x4000 PATA (PORT PIO) */
 			/* 70 PATA Parallel ATA host controller interrupt */
+                        ide@83fe0000 {
+                                compatible = "fsl,imx51-ata";
+                                reg = <0x83fe0000 0x4000>;
+                                interrupt-parent = <&tzic>;
+                                interrupts = <70>;
+                                status = "disabled";
+                        };
+
 			/* 83FE4000 0x4000 SIM */
 			/* 67 SIM intr composed of oef, xte, sdi1, and sdi0 */
 			/* 68 SIM intr composed of tc, etc, tfe, and rdrf */
