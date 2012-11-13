@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_async.8,v 1.6 1999/01/25 23:46:25 archie Exp $
 .\"
-.Dd January 19, 1999
+.Dd November 13, 2012
 .Dt NG_ASYNC 4
 .Os
 .Sh NAME
@@ -88,13 +88,13 @@ Flag sharing between frames is disabled after one second of transmit
 idle time.
 .Sh HOOKS
 This node type supports the following hooks:
-.Bl -tag -width foobar
-.It Dv async
+.Bl -tag -width ".Va async"
+.It Va async
 Asynchronous connection.
 Typically this hook would be connected to a
 .Xr ng_tty 4
 node, which handles transmission of serial data over a tty device.
-.It Dv sync
+.It Va sync
 Synchronous connection.
 This hook sends and receives synchronous frames.
 For PPP, these frames should contain address, control, and protocol fields,
@@ -106,24 +106,17 @@ type node.
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width foo
-.It Dv NGM_ASYNC_CMD_GET_STATS
-This command returns a
-.Dv "struct ng_async_stat"
-containing node statistics for packet, octet, and error counts.
-.It Dv NGM_ASYNC_CMD_CLR_STATS
-Clears the node statistics.
-.It Dv NGM_ASYNC_CMD_SET_CONFIG
+.It Dv NGM_ASYNC_CMD_SET_CONFIG Pq Ic setconfig
 Sets the node configuration, which is described by a
 .Dv "struct ng_async_cfg" :
 .Bd -literal -offset 4n
 struct ng_async_cfg {
-  u_char    enabled;  /* Turn encoding on/off */
-  uint16_t  amru;     /* Max receive async frame len */
-  uint16_t  smru;     /* Max receive sync frame len */
-  uint32_t  accm;     /* ACCM encoding */
+	u_char    enabled;  /* Turn encoding on/off */
+	uint16_t  amru;     /* Max receive async frame length */
+	uint16_t  smru;     /* Max receive sync frame length */
+	uint32_t  accm;     /* ACCM encoding */
 };
 .Ed
-.Pp
 The
 .Dv enabled
 field enables or disables all encoding/decoding functions (default disabled).
@@ -142,8 +135,15 @@ The
 .Dv accm
 field is the asynchronous character control map, which controls the escaping
 of characters 0x00 thorough 0x1f (default 0xffffffff).
-.It Dv NGM_ASYNC_CMD_GET_CONFIG
+.It Dv NGM_ASYNC_CMD_GET_CONFIG Pq Ic getconfig
 This command returns the current configuration structure.
+.It Dv NGM_ASYNC_CMD_GET_STATS Pq Ic getstats
+This command returns a
+.Dv "struct ng_async_stat"
+containing node statistics for packet, octet, and error counts.
+.It Dv NGM_ASYNC_CMD_CLR_STATS Pq Ic clrstats
+Clears the node statistics.
+.Pp
 .El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a

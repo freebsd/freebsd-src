@@ -88,23 +88,23 @@ and
 respectively.
 .Sh HOOKS
 This node type supports the following hooks:
-.Bl -tag -width foobarbarfoo
-.It Dv right
+.Bl -tag -width ".Va left2right"
+.It Va right
 The connection to the node on the right.
-.It Dv left
+.It Va left
 The connection to the node on the left.
-.It Dv right2left
+.It Va right2left
 Tap for right to left traffic.
-.It Dv left2right
+.It Va left2right
 Tap for left to right traffic.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following.
 .Bl -tag -width foo
-.It Dv NGM_TEE_GET_STATS
+.It Dv NGM_TEE_GET_STATS Pq Ic getstats
 Get statistics, returned as a
 .Dv "struct ng_tee_stats" .
-.It Dv NGM_TEE_CLR_STATS
+.It Dv NGM_TEE_CLR_STATS Pq Ic clrstats
 Clear statistics.
 .El
 .Sh SHUTDOWN
