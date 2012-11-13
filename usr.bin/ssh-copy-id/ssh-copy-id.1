@@ -73,6 +73,9 @@ The remaining arguments are a list of remote hosts to connect to,
 each one optionally qualified by a user name.
 .Sh EXIT STATUS
 .Ex -std
+.Sh EXAMPLES
+To send a specific key to multiple hosts:
+.Dl $ ssh-copy-id -i /path/to/keyfile.pub user@host1 user@host2 user@host3
 .Sh HISTORY
 The
 .Nm
