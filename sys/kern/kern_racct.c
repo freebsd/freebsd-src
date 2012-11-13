@@ -921,9 +921,12 @@ racct_proc_exit(struct proc *p)
 #endif
 	microuptime(&wallclock);
 	timevalsub(&wallclock, &p->p_stats->p_start);
-	pct_estimate = (1000000 * runtime * 100) /
-	    ((uint64_t)wallclock.tv_sec * 1000000 +
-	    wallclock.tv_usec);
+	if (wallclock.tv_sec > 0 || wallclock.tv_usec > 0) {
+		pct_estimate = (1000000 * runtime * 100) /
+		    ((uint64_t)wallclock.tv_sec * 1000000 +
+		    wallclock.tv_usec);
+	} else
+		pct_estimate = 0;
 	pct = racct_getpcpu(p, pct_estimate);
 
 	mtx_lock(&racct_lock);
@@ -1136,9 +1139,12 @@ racctd(void)
 				runtime = p->p_prev_runtime;
 #endif
 			p->p_prev_runtime = runtime;
-			pct_estimate = (1000000 * runtime * 100) /
-			    ((uint64_t)wallclock.tv_sec * 1000000 +
-			    wallclock.tv_usec);
+			if (wallclock.tv_sec > 0 || wallclock.tv_usec > 0) {
+				pct_estimate = (1000000 * runtime * 100) /
+				    ((uint64_t)wallclock.tv_sec * 1000000 +
+				    wallclock.tv_usec);
+			} else
+				pct_estimate = 0;
 			pct = racct_getpcpu(p, pct_estimate);
 			mtx_lock(&racct_lock);
 			racct_set_force_locked(p, RACCT_PCTCPU, pct);
