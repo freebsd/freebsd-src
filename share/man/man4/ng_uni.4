@@ -212,7 +212,7 @@ enum uni_sig {
 .Pp
 The meaning of most of the signals can be deduced from the ITU-T SDLs.
 A number of signals, however, is unique to this implementation:
-.Bl -tag -width indent
+.Bl -tag -width foo
 .It Dv UNIAPI_ERROR
 This is the error response, mentioned earlier.
 It carries an error code or
@@ -245,8 +245,8 @@ Each of the signals is followed by a fixed size structure defined in
 The
 .Nm uni
 node understands the standard control messages, plus the following:
-.Bl -tag -width indent
-.It Dv NGM_UNI_SETDEBUG
+.Bl -tag -width foo
+.It Dv NGM_UNI_SETDEBUG Pq Ic setdebug
 Set debugging facility levels.
 The UNI stack defines a number of debugging
 facilities, each one associated with a debugging level.
@@ -258,12 +258,12 @@ struct ngm_uni_debug {
 	uint32_t	level[UNI_MAXFACILITY];
 };
 .Ed
-.It Dv NGM_UNI_SETDEBUG
+.It Dv NGM_UNI_GETDEBUG Pq Ic getdebug
 Get debugging facility levels.
 This returns an
 .Vt ngm_uni_debug
 structure.
-.It Dv NGM_UNI_GET_CONFIG
+.It Dv NGM_UNI_GET_CONFIG Pq Ic get_config
 Retrieve the current configuration of the UNI instance.
 This message returns a
 .Vt uni_config
@@ -326,7 +326,7 @@ All timer values are given in milliseconds.
 Note, however, that the actual
 resolution of the timers depend on system configuration (see
 .Xr timeout 9 ) .
-.It Dv NGM_UNI_SET_CONFIG
+.It Dv NGM_UNI_SET_CONFIG Pq Ic set_config
 Change the UNI configuration.
 This takes a
 .Bd -literal
@@ -386,10 +386,10 @@ the definitions from
 and
 .Vt "enum uni_option"
 should be used.
-.It Dv NGM_UNI_ENABLE
+.It Dv NGM_UNI_ENABLE Pq Ic enable
 Create the UNI instance and enable processing.
 Before the UNI is enabled parameters cannot be retrieved or set.
-.It Dv NGM_UNI_DISABLE
+.It Dv NGM_UNI_DISABLE Pq Ic disable
 Destroy the UNI instance and free all resources.
 Note, that connections are not released.
 .El
