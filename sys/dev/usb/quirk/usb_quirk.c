@@ -458,6 +458,10 @@ static struct usb_quirk_entry usb_quirks[USB_DEV_QUIRKS_MAX] = {
 	USB_QUIRK(ROLAND, UA700, 0x0000, 0xffff, UQ_AU_VENDOR_CLASS),
 	USB_QUIRK(MEDELI, DD305, 0x0000, 0xffff, UQ_SINGLE_CMD_MIDI, UQ_MATCH_VENDOR_ONLY),
 
+	/* Non-standard USB AUDIO devices */
+	USB_QUIRK(MAUDIO, FASTTRACKULTRA, 0x0000, 0xffff, UQ_AU_VENDOR_CLASS),
+	USB_QUIRK(MAUDIO, FASTTRACKULTRA8R, 0x0000, 0xffff, UQ_AU_VENDOR_CLASS),
+
 	/*
 	 * Quirks for manufacturers which USB devices does not respond
 	 * after issuing non-supported commands:
