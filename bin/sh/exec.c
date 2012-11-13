@@ -85,7 +85,7 @@ struct tblentry {
 	struct tblentry *next;	/* next entry in hash chain */
 	union param param;	/* definition of builtin function */
 	int special;		/* flag for special builtin commands */
-	short cmdtype;		/* index identifying command */
+	signed char cmdtype;	/* index identifying command */
 	char rehash;		/* if set, cd done since entry created */
 	char cmdname[];		/* name of command */
 };

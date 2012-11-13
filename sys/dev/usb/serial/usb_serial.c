@@ -162,6 +162,7 @@ static tsw_ioctl_t ucom_ioctl;
 static tsw_modem_t ucom_modem;
 static tsw_param_t ucom_param;
 static tsw_outwakeup_t ucom_outwakeup;
+static tsw_inwakeup_t ucom_inwakeup;
 static tsw_free_t ucom_free;
 
 static struct ttydevsw ucom_class = {
@@ -169,6 +170,7 @@ static struct ttydevsw ucom_class = {
 	.tsw_open = ucom_open,
 	.tsw_close = ucom_close,
 	.tsw_outwakeup = ucom_outwakeup,
+	.tsw_inwakeup = ucom_inwakeup,
 	.tsw_ioctl = ucom_ioctl,
 	.tsw_param = ucom_param,
 	.tsw_modem = ucom_modem,
@@ -716,6 +718,10 @@ ucom_open(struct tty *tp)
 	sc->sc_pls_set = 0;
 	sc->sc_pls_clr = 0;
 
+	/* reset jitter buffer */
+	sc->sc_jitterbuf_in = 0;
+	sc->sc_jitterbuf_out = 0;
+
 	ucom_queue_command(sc, ucom_cfg_open, NULL,
 	    &sc->sc_open_task[0].hdr,
 	    &sc->sc_open_task[1].hdr);
@@ -778,6 +784,47 @@ ucom_close(struct tty *tp)
 	if (sc->sc_callback->ucom_stop_read) {
 		(sc->sc_callback->ucom_stop_read) (sc);
 	}
+}
+
+static void
+ucom_inwakeup(struct tty *tp)
+{
+	struct ucom_softc *sc = tty_softc(tp);
+	uint16_t pos;
+
+	if (sc == NULL)
+		return;
+
+	tty_lock(tp);
+
+	if (ttydisc_can_bypass(tp) != 0 || 
+	    (sc->sc_flag & UCOM_FLAG_HL_READY) == 0) {
+		tty_unlock(tp);
+		return;
+	}
+
+	pos = sc->sc_jitterbuf_out;
+
+	while (sc->sc_jitterbuf_in != pos) {
+		int c;
+
+		c = (char)sc->sc_jitterbuf[pos];
+
+		if (ttydisc_rint(tp, c, 0) == -1)
+			break;
+		pos++;
+		if (pos >= UCOM_JITTERBUF_SIZE)
+			pos -= UCOM_JITTERBUF_SIZE;
+	}
+
+	sc->sc_jitterbuf_out = pos;
+
+	/* clear RTS in async fashion */
+	if ((sc->sc_jitterbuf_in == pos) && 
+	    (sc->sc_flag & UCOM_FLAG_RTS_IFLOW))
+		ucom_rts(sc, 0);
+
+	tty_unlock(tp);
 }
 
 static int
@@ -1360,6 +1407,11 @@ ucom_put_data(struct ucom_softc *sc, struct usb_page_cache *pc,
 		/* first check if we can pass the buffer directly */
 
 		if (ttydisc_can_bypass(tp)) {
+
+			/* clear any jitter buffer */
+			sc->sc_jitterbuf_in = 0;
+			sc->sc_jitterbuf_out = 0;
+
 			if (ttydisc_rint_bypass(tp, buf, cnt) != cnt) {
 				DPRINTF("tp=%p, data lost\n", tp);
 			}
@@ -1368,8 +1420,31 @@ ucom_put_data(struct ucom_softc *sc, struct usb_page_cache *pc,
 		/* need to loop */
 
 		for (cnt = 0; cnt != res.length; cnt++) {
-			if (ttydisc_rint(tp, buf[cnt], 0) == -1) {
-				/* XXX what should we do? */
+			if (sc->sc_jitterbuf_in != sc->sc_jitterbuf_out ||
+			    ttydisc_rint(tp, buf[cnt], 0) == -1) {
+				uint16_t end;
+				uint16_t pos;
+
+				pos = sc->sc_jitterbuf_in;
+				end = sc->sc_jitterbuf_out +
+				    UCOM_JITTERBUF_SIZE - 1;
+				if (end >= UCOM_JITTERBUF_SIZE)
+					end -= UCOM_JITTERBUF_SIZE;
+
+				for (; cnt != res.length; cnt++) {
+					if (pos == end)
+						break;
+					sc->sc_jitterbuf[pos] = buf[cnt];
+					pos++;
+					if (pos >= UCOM_JITTERBUF_SIZE)
+						pos -= UCOM_JITTERBUF_SIZE;
+				}
+
+				sc->sc_jitterbuf_in = pos;
+
+				/* set RTS in async fashion */
+				if (sc->sc_flag & UCOM_FLAG_RTS_IFLOW)
+					ucom_rts(sc, 1);
 
 				DPRINTF("tp=%p, lost %d "
 				    "chars\n", tp, res.length - cnt);

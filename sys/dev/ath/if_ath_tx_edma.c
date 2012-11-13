@@ -449,7 +449,9 @@ ath_edma_tx_proc(void *arg, int npending)
 
 		ATH_TXSTATUS_LOCK(sc);
 		status = ath_hal_txprocdesc(ah, NULL, (void *) &ts);
+#ifdef	ATH_DEBUG
 		ath_hal_gettxrawtxdesc(ah, txstatus);
+#endif
 		ATH_TXSTATUS_UNLOCK(sc);
 
 #ifdef	ATH_DEBUG
@@ -599,6 +601,12 @@ ath_edma_tx_proc(void *arg, int npending)
 	}
 
 	sc->sc_wd_timer = 0;
+
+	if (idx > 0) {
+		IF_LOCK(&sc->sc_ifp->if_snd);
+		sc->sc_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		IF_UNLOCK(&sc->sc_ifp->if_snd);
+	}
 
 	/* Kick software scheduler */
 	/*
