@@ -6,6 +6,7 @@
  * from the FreeBSD Foundation.
  * Portions of this software were developed by Oleksandr Rybalko
  * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
