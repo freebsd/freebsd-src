@@ -10,12 +10,14 @@ SUBDIR=		dtmalloc	\
 		dtraceall	\
 		dtrace_test	\
 		dtio		\
+		lockstat	\
+		profile		\
 		prototype	\
 		sdt		\
 		systrace
 
 .if ${MACHINE_CPUARCH} == "amd64" || ${MACHINE_CPUARCH} == "i386"
-SUBDIR+=	fasttrap fbt lockstat profile systrace_linux32
+SUBDIR+=	fasttrap fbt systrace_linux32
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
 SUBDIR+=	systrace_freebsd32

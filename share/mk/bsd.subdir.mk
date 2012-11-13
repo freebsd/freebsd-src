@@ -29,6 +29,9 @@
 #	maninstall, manlint, obj, objlink, realinstall, regress, tags
 #
 
+.if !target(__<bsd.subdir.mk>__)
+__<bsd.subdir.mk>__:
+
 .include <bsd.init.mk>
 
 DISTRIBUTION?=	base
@@ -91,4 +94,6 @@ afterinstall:
 .endif
 install: beforeinstall realinstall afterinstall
 .ORDER: beforeinstall realinstall afterinstall
+.endif
+
 .endif

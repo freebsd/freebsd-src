@@ -1206,6 +1206,9 @@ initarm(struct arm_boot_params *abp)
 
 	pcpu0_init();
 
+	/* Do basic tuning, hz etc */
+	init_param1();
+
 	/* Calculate number of L2 tables needed for mapping vm_page_array */
 	l2size = (memsize / PAGE_SIZE) * sizeof(struct vm_page);
 	l2size = (l2size >> L1_S_SHIFT) + 1;
@@ -1219,17 +1222,16 @@ initarm(struct arm_boot_params *abp)
 	/* Make it divisible by 4 */
 	l2size = (l2size + 3) & ~3;
 
-#define KERNEL_TEXT_BASE (KERNBASE)
 	freemempos = (lastaddr + PAGE_MASK) & ~PAGE_MASK;
 
 	/* Define a macro to simplify memory allocation */
-#define valloc_pages(var, np)                   \
-	alloc_pages((var).pv_va, (np));         \
+#define valloc_pages(var, np)						\
+	alloc_pages((var).pv_va, (np));					\
 	(var).pv_pa = (var).pv_va + (KERNPHYSADDR - KERNVIRTADDR);
 
-#define alloc_pages(var, np)			\
-	(var) = freemempos;		\
-	freemempos += (np * PAGE_SIZE);		\
+#define alloc_pages(var, np)						\
+	(var) = freemempos;						\
+	freemempos += (np * PAGE_SIZE);					\
 	memset((char *)(var), 0, ((np) * PAGE_SIZE));
 
 	while (((freemempos - L1_TABLE_SIZE) & (L1_TABLE_SIZE - 1)) != 0)
@@ -1262,13 +1264,10 @@ initarm(struct arm_boot_params *abp)
 	dpcpu_init((void *)dpcpu.pv_va, 0);
 
 	/* Allocate stacks for all modes */
-	valloc_pages(irqstack, (IRQ_STACK_SIZE * MAXCPU));
-	valloc_pages(abtstack, (ABT_STACK_SIZE * MAXCPU));
-	valloc_pages(undstack, (UND_STACK_SIZE * MAXCPU));
-	valloc_pages(kernelstack, (KSTACK_PAGES * MAXCPU));
-
-	init_param1();
-
+	valloc_pages(irqstack, IRQ_STACK_SIZE * MAXCPU);
+	valloc_pages(abtstack, ABT_STACK_SIZE * MAXCPU);
+	valloc_pages(undstack, UND_STACK_SIZE * MAXCPU);
+	valloc_pages(kernelstack, KSTACK_PAGES * MAXCPU);
 	valloc_pages(msgbufpv, round_page(msgbufsize) / PAGE_SIZE);
 
 	/*
@@ -1323,8 +1322,7 @@ initarm(struct arm_boot_params *abp)
 	err_devmap = platform_devmap_init();
 	pmap_devmap_bootstrap(l1pagetable, pmap_devmap_bootstrap_table);
 
-	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) |
-	    DOMAIN_CLIENT);
+	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) | DOMAIN_CLIENT);
 	pmap_pa = kernel_l1pt.pv_pa;
 	setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
@@ -1403,7 +1401,6 @@ initarm(struct arm_boot_params *abp)
 	 */
 	physmap_init(availmem_regions, availmem_regions_sz);
 
-	/* Do basic tuning, hz etc */
 	init_param2(physmem);
 	kdb_init();
 
@@ -1411,4 +1408,3 @@ initarm(struct arm_boot_params *abp)
 	    sizeof(struct pcb)));
 }
 #endif
-

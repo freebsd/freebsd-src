@@ -253,7 +253,6 @@ tmpfs_mount(struct mount *mp)
 
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_MPSAFE;
 	MNT_IUNLOCK(mp);
 
 	mp->mnt_data = tmp;

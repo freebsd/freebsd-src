@@ -42,6 +42,9 @@
 #include <net80211/ieee80211_radiotap.h>
 #include <dev/ath/if_athioctl.h>
 #include <dev/ath/if_athrate.h>
+#ifdef	ATH_DEBUG_ALQ
+#include <dev/ath/if_ath_alq.h>
+#endif
 
 #define	ATH_TIMEOUT		1000
 
@@ -769,6 +772,11 @@ struct ath_softc {
 	void			*sc_dfs;	/* Used by an optional DFS module */
 	int			sc_dodfs;	/* Whether to enable DFS rx filter bits */
 	struct task		sc_dfstask;	/* DFS processing task */
+
+	/* ALQ */
+#ifdef	ATH_DEBUG_ALQ
+	struct if_ath_alq sc_alq;
+#endif
 
 	/* TX AMPDU handling */
 	int			(*sc_addba_request)(struct ieee80211_node *,

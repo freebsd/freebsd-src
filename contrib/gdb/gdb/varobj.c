@@ -2093,10 +2093,8 @@ c_value_of_variable (struct varobj *var)
 
 	    if (VALUE_LAZY (var->value))
 	      gdb_value_fetch_lazy (var->value);
-	    val_print (VALUE_TYPE (var->value),
-		       VALUE_CONTENTS_RAW (var->value), 0,
-		       VALUE_ADDRESS (var->value), stb,
-		       format_code[(int) var->format], 1, 0, 0);
+	    common_val_print (var->value, stb,
+			      format_code[(int) var->format], 1, 0, 0);
 	    thevalue = ui_file_xstrdup (stb, &dummy);
 	    do_cleanups (old_chain);
 	return thevalue;

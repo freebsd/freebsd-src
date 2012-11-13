@@ -342,6 +342,7 @@ create init_text8 255 allot
 			\ sure that things move along smoothly, allocate
 			\ a temporary NULL string
 
+			drop ( getenv cruft )
 			s" "
 		then
 	then

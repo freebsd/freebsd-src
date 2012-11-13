@@ -140,7 +140,7 @@ static void init_policy_queue(void);
 static int add_addrsel_policyent(struct in6_addrpolicy *);
 static int delete_addrsel_policyent(struct in6_addrpolicy *);
 static int walk_addrsel_policy(int (*)(struct in6_addrpolicy *, void *),
-				    void *);
+	void *);
 static int dump_addrsel_policyent(struct in6_addrpolicy *, void *);
 static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
 
@@ -1103,8 +1103,7 @@ delete_addrsel_policyent(struct in6_addrpolicy *key)
 }
 
 static int
-walk_addrsel_policy(int (*callback)(struct in6_addrpolicy *, void *),
-    void *w)
+walk_addrsel_policy(int (*callback)(struct in6_addrpolicy *, void *), void *w)
 {
 	struct addrsel_policyent *pol;
 	int error = 0;
