@@ -384,6 +384,7 @@ FBSD_1.3 {
 	ffclock_getestimate;
 	ffclock_setestimate;
 	posix_fadvise;
+	wait6;
 };
 
 FBSDprivate_1.0 {
@@ -1019,6 +1020,8 @@ FBSDprivate_1.0 {
 	__sys_vadvise;
 	_wait4;
 	__sys_wait4;
+	_wait6;
+	__sys_wait6;
 	_write;
 	__sys_write;
 	_writev;

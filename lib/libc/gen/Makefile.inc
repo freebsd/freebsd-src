@@ -34,7 +34,7 @@ SRCS+=  __getosreldate.c __xuname.c \
 	syslog.c telldir.c termios.c time.c times.c timezone.c tls.c \
 	ttyname.c ttyslot.c ualarm.c ulimit.c uname.c unvis.c \
 	usleep.c utime.c utxdb.c valloc.c vis.c wait.c wait3.c waitpid.c \
-	wordexp.c
+	waitid.c wordexp.c
 
 .PATH: ${.CURDIR}/../../contrib/libc-pwcache
 SRCS+=	pwcache.c pwcache.h
