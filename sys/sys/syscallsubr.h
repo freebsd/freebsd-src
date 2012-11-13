@@ -43,6 +43,7 @@ struct msghdr;
 struct msqid_ds;
 struct rlimit;
 struct rusage;
+struct __wrusage;
 union semun;
 struct sockaddr;
 struct stat;
@@ -234,6 +235,8 @@ int	kern_utimesat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, struct timeval *tptr, enum uio_seg tptrseg);
 int	kern_wait(struct thread *td, pid_t pid, int *status, int options,
 	    struct rusage *rup);
+int	kern_wait6(struct thread *td, idtype_t idtype, id_t id, int *status,
+	    int options, struct __wrusage *wrup, siginfo_t *sip);
 int	kern_writev(struct thread *td, int fd, struct uio *auio);
 int	kern_socketpair(struct thread *td, int domain, int type, int protocol,
 	    int *rsv);

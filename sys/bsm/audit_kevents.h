@@ -602,6 +602,7 @@
 #define	AUE_PDKILL		43198	/* FreeBSD. */
 #define	AUE_PDGETPID		43199	/* FreeBSD. */
 #define	AUE_PDWAIT		43200	/* FreeBSD. */
+#define	AUE_WAIT6		43201	/* FreeBSD. */
 
 /*
  * Darwin BSM uses a number of AUE_O_* definitions, which are aliased to the
