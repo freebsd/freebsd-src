@@ -274,20 +274,14 @@ compat/freebsd32/freebsd32_ioctl.c	optional	compat_freebsd32
 compat/freebsd32/freebsd32_misc.c	optional	compat_freebsd32
 compat/freebsd32/freebsd32_syscalls.c	optional	compat_freebsd32
 compat/freebsd32/freebsd32_sysent.c	optional	compat_freebsd32
-contrib/altq/altq/altq_cbq.c	optional altq \
-	compile-with "${NORMAL_C}"
-contrib/altq/altq/altq_cdnr.c	optional altq
-contrib/altq/altq/altq_hfsc.c	optional altq \
-	compile-with "${NORMAL_C}"
-contrib/altq/altq/altq_priq.c	optional altq \
-	compile-with "${NORMAL_C}"
-contrib/altq/altq/altq_red.c	optional altq \
-	compile-with "${NORMAL_C}"
-contrib/altq/altq/altq_rio.c	optional altq \
-	compile-with "${NORMAL_C}"
-contrib/altq/altq/altq_rmclass.c optional altq
-contrib/altq/altq/altq_subr.c	optional altq \
-	compile-with "${NORMAL_C}"
+contrib/altq/altq/altq_cbq.c		optional altq
+contrib/altq/altq/altq_cdnr.c		optional altq
+contrib/altq/altq/altq_hfsc.c		optional altq
+contrib/altq/altq/altq_priq.c		optional altq
+contrib/altq/altq/altq_red.c		optional altq
+contrib/altq/altq/altq_rio.c		optional altq
+contrib/altq/altq/altq_rmclass.c	optional altq
+contrib/altq/altq/altq_subr.c		optional altq
 contrib/dev/acpica/components/debugger/dbcmds.c		optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbdisply.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbexec.c		optional acpi acpi_debug
