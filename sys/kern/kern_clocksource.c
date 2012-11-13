@@ -147,15 +147,6 @@ struct pcpu_state {
 
 static DPCPU_DEFINE(struct pcpu_state, timerstate);
 
-#define FREQ2BT(freq, bt)						\
-{									\
-	(bt)->sec = 0;							\
-	(bt)->frac = ((uint64_t)0x8000000000000000  / (freq)) << 1;	\
-}
-#define BT2FREQ(bt)							\
-	(((uint64_t)0x8000000000000000 + ((bt)->frac >> 2)) /		\
-	    ((bt)->frac >> 1))
-
 /*
  * Timer broadcast IPI handler.
  */

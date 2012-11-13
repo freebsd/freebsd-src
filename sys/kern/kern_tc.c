@@ -119,6 +119,11 @@ static int timestepwarnings;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, stepwarnings, CTLFLAG_RW,
     &timestepwarnings, 0, "Log time steps");
 
+int tc_timethreshold;
+struct bintime tick_bt;
+SYSCTL_INT(_kern, OID_AUTO, tc_timethreshold, CTLFLAG_RW, 
+    &tc_timethreshold, 0, "Precision threshold for timing measurements"); 
+
 static void tc_windup(void);
 static void cpu_tick_calibrate(int);
 
@@ -1708,6 +1713,7 @@ tc_ticktock(int cnt)
 static void
 inittimecounter(void *dummy)
 {
+	int tick_rate;
 	u_int p;
 
 	/*
@@ -1723,6 +1729,9 @@ inittimecounter(void *dummy)
 	else
 		tc_tick = 1;
 	p = (tc_tick * 1000000) / hz;
+	tc_timethreshold = 20 * imin(1000000000 / hz, 1000000);
+	tick_rate = imax(hz, tc_tick);
+	FREQ2BT(tick_rate, &tick_bt);
 	printf("Timecounters tick every %d.%03u msec\n", p / 1000, p % 1000);
 
 #ifdef FFCLOCK

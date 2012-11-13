@@ -55,6 +55,21 @@ struct bintime {
 	uint64_t frac;
 };
 
+extern int tc_timethreshold;
+extern struct bintime tick_bt;
+
+#define FREQ2BT(freq, bt)                                               \
+{                                                                       \
+        (bt)->sec = 0;                                                  \
+        (bt)->frac = ((uint64_t)0x8000000000000000  / (freq)) << 1;     \
+}
+#define BT2FREQ(bt)                                                     \
+        (((uint64_t)0x8000000000000000 + ((bt)->frac >> 2)) /           \
+            ((bt)->frac >> 1))
+
+#define TIMESEL(x, bt)          					\
+	(((x) < (c_timethreshold)) ? binuptime(&bt) : getbinuptime(&bt))
+
 static __inline void
 bintime_addx(struct bintime *bt, uint64_t x)
 {

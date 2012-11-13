@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sleepqueue.h>
 #include <sys/sysctl.h>
 #include <sys/smp.h>
+#include <sys/time.h>
 
 #ifdef SMP
 #include <machine/cpu.h>
@@ -170,12 +171,6 @@ struct callout_cpu cc_cpu;
 #define	CC_LOCK(cc)	mtx_lock_spin(&(cc)->cc_lock)
 #define	CC_UNLOCK(cc)	mtx_unlock_spin(&(cc)->cc_lock)
 #define	CC_LOCK_ASSERT(cc)	mtx_assert(&(cc)->cc_lock, MA_OWNED)
-
-#define FREQ2BT(freq, bt)                                               \
-{                                                                       \
-        (bt)->sec = 0;                                                  \
-        (bt)->frac = ((uint64_t)0x8000000000000000  / (freq)) << 1;     \
-}
 
 #define	TIME_T_MAX							\
 	(sizeof(time_t) == (sizeof(int64_t)) ? INT64_MAX : INT32_MAX)
