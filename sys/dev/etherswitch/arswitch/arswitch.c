@@ -77,16 +77,6 @@ static void arswitch_tick(void *arg);
 static int arswitch_ifmedia_upd(struct ifnet *);
 static void arswitch_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
-static void
-arswitch_identify(driver_t *driver, device_t parent)
-{
-	device_t child;
-
-	if (device_find_child(parent, driver->name, -1) == NULL) {
-		child = BUS_ADD_CHILD(parent, 0, driver->name, -1);
-	}
-}
-
 static int
 arswitch_probe(device_t dev)
 {
@@ -557,7 +547,6 @@ arswitch_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 static device_method_t arswitch_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_identify,	arswitch_identify),
 	DEVMETHOD(device_probe,		arswitch_probe),
 	DEVMETHOD(device_attach,	arswitch_attach),
 	DEVMETHOD(device_detach,	arswitch_detach),

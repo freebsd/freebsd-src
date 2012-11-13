@@ -971,6 +971,31 @@ ipfw_send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
 }
 
 /*
+ * Queue keepalive packets for given dynamic rule
+ */
+static struct mbuf **
+ipfw_dyn_send_ka(struct mbuf **mtailp, ipfw_dyn_rule *q)
+{
+	struct mbuf *m_rev, *m_fwd;
+
+	m_rev = (q->state & ACK_REV) ? NULL :
+	    ipfw_send_pkt(NULL, &(q->id), q->ack_rev - 1, q->ack_fwd, TH_SYN);
+	m_fwd = (q->state & ACK_FWD) ? NULL :
+	    ipfw_send_pkt(NULL, &(q->id), q->ack_fwd - 1, q->ack_rev, 0);
+
+	if (m_rev != NULL) {
+		*mtailp = m_rev;
+		mtailp = &(*mtailp)->m_nextpkt;
+	}
+	if (m_fwd != NULL) {
+		*mtailp = m_fwd;
+		mtailp = &(*mtailp)->m_nextpkt;
+	}
+
+	return (mtailp);
+}
+
+/*
  * This procedure is only used to handle keepalives. It is invoked
  * every dyn_keepalive_period
  */
@@ -978,9 +1003,7 @@ static void
 ipfw_tick(void * vnetx) 
 {
 	struct mbuf *m0, *m, *mnext, **mtailp;
-#ifdef INET6
-	struct mbuf *m6, **m6_tailp;
-#endif
+	struct ip *h;
 	int i;
 	ipfw_dyn_rule *q;
 #ifdef VIMAGE
@@ -999,15 +1022,14 @@ ipfw_tick(void * vnetx)
 	 */
 	m0 = NULL;
 	mtailp = &m0;
-#ifdef INET6
-	m6 = NULL;
-	m6_tailp = &m6;
-#endif
 	IPFW_DYN_LOCK();
 	for (i = 0 ; i < V_curr_dyn_buckets ; i++) {
 		for (q = V_ipfw_dyn_v[i] ; q ; q = q->next ) {
 			if (q->dyn_type == O_LIMIT_PARENT)
 				continue;
+			if (TIME_LEQ(q->expire, time_uptime))
+				continue;	/* too late, rule expired */
+
 			if (q->id.proto != IPPROTO_TCP)
 				continue;
 			if ( (q->state & BOTH_SYN) != BOTH_SYN)
@@ -1015,55 +1037,24 @@ ipfw_tick(void * vnetx)
 			if (TIME_LEQ(time_uptime + V_dyn_keepalive_interval,
 			    q->expire))
 				continue;	/* too early */
-			if (TIME_LEQ(q->expire, time_uptime))
-				continue;	/* too late, rule expired */
 
-			m = (q->state & ACK_REV) ? NULL :
-			    ipfw_send_pkt(NULL, &(q->id), q->ack_rev - 1,
-			    q->ack_fwd, TH_SYN);
-			mnext = (q->state & ACK_FWD) ? NULL :
-			    ipfw_send_pkt(NULL, &(q->id), q->ack_fwd - 1,
-			    q->ack_rev, 0);
-
-			switch (q->id.addr_type) {
-			case 4:
-				if (m != NULL) {
-					*mtailp = m;
-					mtailp = &(*mtailp)->m_nextpkt;
-				}
-				if (mnext != NULL) {
-					*mtailp = mnext;
-					mtailp = &(*mtailp)->m_nextpkt;
-				}
-				break;
-#ifdef INET6
-			case 6:
-				if (m != NULL) {
-					*m6_tailp = m;
-					m6_tailp = &(*m6_tailp)->m_nextpkt;
-				}
-				if (mnext != NULL) {
-					*m6_tailp = mnext;
-					m6_tailp = &(*m6_tailp)->m_nextpkt;
-				}
-				break;
-#endif
-			}
+			mtailp = ipfw_dyn_send_ka(mtailp, q);
 		}
 	}
 	IPFW_DYN_UNLOCK();
+
+	/* Send keepalive packets if any */
 	for (m = m0; m != NULL; m = mnext) {
 		mnext = m->m_nextpkt;
 		m->m_nextpkt = NULL;
-		ip_output(m, NULL, NULL, 0, NULL, NULL);
-	}
+		h = mtod(m, struct ip *);
+		if (h->ip_v == 4)
+			ip_output(m, NULL, NULL, 0, NULL, NULL);
 #ifdef INET6
-	for (m = m6; m != NULL; m = mnext) {
-		mnext = m->m_nextpkt;
-		m->m_nextpkt = NULL;
-		ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
-	}
+		else
+			ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
 #endif
+	}
 done:
 	callout_reset_on(&V_ipfw_timeout, V_dyn_keepalive_period * hz,
 		      ipfw_tick, vnetx, 0);

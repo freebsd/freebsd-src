@@ -88,6 +88,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 
+#include <geom/geom.h>
+
 #include <ddb/ddb.h>
 
 #ifndef SOFTUPDATES
@@ -802,6 +804,7 @@ static	void handle_written_jnewblk(struct jnewblk *);
 static	void handle_written_jblkdep(struct jblkdep *);
 static	void handle_written_jfreefrag(struct jfreefrag *);
 static	void complete_jseg(struct jseg *);
+static	void complete_jsegs(struct jseg *);
 static	void jseg_write(struct ufsmount *ump, struct jseg *, uint8_t *);
 static	void jaddref_write(struct jaddref *, struct jseg *, uint8_t *);
 static	void jremref_write(struct jremref *, struct jseg *, uint8_t *);
@@ -974,7 +977,7 @@ static	struct freework *newfreework(struct ufsmount *, struct freeblks *,
 	    struct freework *, ufs_lbn_t, ufs2_daddr_t, int, int, int);
 static	int jwait(struct worklist *, int);
 static	struct inodedep *inodedep_lookup_ip(struct inode *);
-static	int bmsafemap_rollbacks(struct bmsafemap *);
+static	int bmsafemap_backgroundwrite(struct bmsafemap *, struct buf *);
 static	struct freefile *handle_bufwait(struct inodedep *, struct workhead *);
 static	void handle_jwork(struct workhead *);
 static	struct mkdir *setup_newdir(struct diradd *, ino_t, ino_t, struct buf *,
@@ -1227,6 +1230,7 @@ static struct callout softdep_callout;
 static int req_pending;
 static int req_clear_inodedeps;	/* syncer process flush some inodedeps */
 static int req_clear_remove;	/* syncer process flush some freeblks */
+static int softdep_flushcache = 0; /* Should we do BIO_FLUSH? */
 
 /*
  * runtime statistics
@@ -1310,6 +1314,8 @@ SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_retries, CTLFLAG_RW,
     &stat_cleanup_retries, 0, "");
 SYSCTL_INT(_debug_softdep, OID_AUTO, cleanup_failures, CTLFLAG_RW,
     &stat_cleanup_failures, 0, "");
+SYSCTL_INT(_debug_softdep, OID_AUTO, flushcache, CTLFLAG_RW,
+    &softdep_flushcache, 0, "");
 
 SYSCTL_DECL(_vfs_ffs);
 
@@ -1789,7 +1795,7 @@ softdep_move_dependencies(oldbp, newbp)
 	while ((wk = LIST_FIRST(&oldbp->b_dep)) != NULL) {
 		LIST_REMOVE(wk, wk_list);
 		if (wk->wk_type == D_BMSAFEMAP &&
-		    bmsafemap_rollbacks(WK_BMSAFEMAP(wk)))
+		    bmsafemap_backgroundwrite(WK_BMSAFEMAP(wk), newbp))
 			dirty = 1;
 		if (wktail == 0)
 			LIST_INSERT_HEAD(&newbp->b_dep, wk, wk_list);
@@ -3078,6 +3084,67 @@ softdep_flushjournal(mp)
 	FREE_LOCK(&lk);
 }
 
+static void softdep_synchronize_completed(struct bio *);
+static void softdep_synchronize(struct bio *, struct ufsmount *, void *);
+
+static void
+softdep_synchronize_completed(bp)
+        struct bio *bp;
+{
+	struct jseg *oldest;
+	struct jseg *jseg;
+
+	/*
+	 * caller1 marks the last segment written before we issued the
+	 * synchronize cache.
+	 */
+	jseg = bp->bio_caller1;
+	oldest = NULL;
+	ACQUIRE_LOCK(&lk);
+	/*
+	 * Mark all the journal entries waiting on the synchronize cache
+	 * as completed so they may continue on.
+	 */
+	while (jseg != NULL && (jseg->js_state & COMPLETE) == 0) {
+		jseg->js_state |= COMPLETE;
+		oldest = jseg;
+		jseg = TAILQ_PREV(jseg, jseglst, js_next);
+	}
+	/*
+	 * Restart deferred journal entry processing from the oldest
+	 * completed jseg.
+	 */
+	if (oldest)
+		complete_jsegs(oldest);
+
+	FREE_LOCK(&lk);
+	g_destroy_bio(bp);
+}
+
+/*
+ * Send BIO_FLUSH/SYNCHRONIZE CACHE to the device to enforce write ordering
+ * barriers.  The journal must be written prior to any blocks that depend
+ * on it and the journal can not be released until the blocks have be
+ * written.  This code handles both barriers simultaneously.
+ */
+static void
+softdep_synchronize(bp, ump, caller1)
+	struct bio *bp;
+	struct ufsmount *ump;
+	void *caller1;
+{
+
+	bp->bio_cmd = BIO_FLUSH;
+	bp->bio_flags |= BIO_ORDERED;
+	bp->bio_data = NULL;
+	bp->bio_offset = ump->um_cp->provider->mediasize;
+	bp->bio_length = 0;
+	bp->bio_done = softdep_synchronize_completed;
+	bp->bio_caller1 = caller1;
+	g_io_request(bp,
+	    (struct g_consumer *)ump->um_devvp->v_bufobj.bo_private);
+}
+
 /*
  * Flush some journal records to disk.
  */
@@ -3092,8 +3159,10 @@ softdep_process_journal(mp, needwk, flags)
 	struct worklist *wk;
 	struct jseg *jseg;
 	struct buf *bp;
+	struct bio *bio;
 	uint8_t *data;
 	struct fs *fs;
+	int shouldflush;
 	int segwritten;
 	int jrecmin;	/* Minimum records per block. */
 	int jrecmax;	/* Maximum records per block. */
@@ -3104,6 +3173,9 @@ softdep_process_journal(mp, needwk, flags)
 
 	if (MOUNTEDSUJ(mp) == 0)
 		return;
+	shouldflush = softdep_flushcache;
+	bio = NULL;
+	jseg = NULL;
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
 	jblocks = ump->softdep_jblocks;
@@ -3152,6 +3224,10 @@ softdep_process_journal(mp, needwk, flags)
 		LIST_INIT(&jseg->js_entries);
 		LIST_INIT(&jseg->js_indirs);
 		jseg->js_state = ATTACHED;
+		if (shouldflush == 0)
+			jseg->js_state |= COMPLETE;
+		else if (bio == NULL)
+			bio = g_alloc_bio();
 		jseg->js_jblocks = jblocks;
 		bp = geteblk(fs->fs_bsize, 0);
 		ACQUIRE_LOCK(&lk);
@@ -3284,6 +3360,17 @@ softdep_process_journal(mp, needwk, flags)
 		ACQUIRE_LOCK(&lk);
 	}
 	/*
+	 * If we wrote a segment issue a synchronize cache so the journal
+	 * is reflected on disk before the data is written.  Since reclaiming
+	 * journal space also requires writing a journal record this
+	 * process also enforces a barrier before reclamation.
+	 */
+	if (segwritten && shouldflush) {
+		softdep_synchronize(bio, ump, 
+		    TAILQ_LAST(&jblocks->jb_segs, jseglst));
+	} else if (bio)
+		g_destroy_bio(bio);
+	/*
 	 * If we've suspended the filesystem because we ran out of journal
 	 * space either try to sync it here to make some progress or
 	 * unsuspend it if we already have.
@@ -3366,16 +3453,47 @@ complete_jseg(jseg)
 }
 
 /*
- * Mark a jseg as DEPCOMPLETE and throw away the buffer.  Handle jseg
- * completions in order only.
+ * Determine which jsegs are ready for completion processing.  Waits for
+ * synchronize cache to complete as well as forcing in-order completion
+ * of journal entries.
+ */
+static void
+complete_jsegs(jseg)
+	struct jseg *jseg;
+{
+	struct jblocks *jblocks;
+	struct jseg *jsegn;
+
+	jblocks = jseg->js_jblocks;
+	/*
+	 * Don't allow out of order completions.  If this isn't the first
+	 * block wait for it to write before we're done.
+	 */
+	if (jseg != jblocks->jb_writeseg)
+		return;
+	/* Iterate through available jsegs processing their entries. */
+	while (jseg && (jseg->js_state & ALLCOMPLETE) == ALLCOMPLETE) {
+		jblocks->jb_oldestwrseq = jseg->js_oldseq;
+		jsegn = TAILQ_NEXT(jseg, js_next);
+		complete_jseg(jseg);
+		jseg = jsegn;
+	}
+	jblocks->jb_writeseg = jseg;
+	/*
+	 * Attempt to free jsegs now that oldestwrseq may have advanced. 
+	 */
+	free_jsegs(jblocks);
+}
+
+/*
+ * Mark a jseg as DEPCOMPLETE and throw away the buffer.  Attempt to handle
+ * the final completions.
  */
 static void
 handle_written_jseg(jseg, bp)
 	struct jseg *jseg;
 	struct buf *bp;
 {
-	struct jblocks *jblocks;
-	struct jseg *jsegn;
 
 	if (jseg->js_refs == 0)
 		panic("handle_written_jseg: No self-reference on %p", jseg);
@@ -3385,25 +3503,7 @@ handle_written_jseg(jseg, bp)
 	 * discarded.
 	 */
 	bp->b_flags |= B_INVAL | B_NOCACHE;
-	jblocks = jseg->js_jblocks;
-	/*
-	 * Don't allow out of order completions.  If this isn't the first
-	 * block wait for it to write before we're done.
-	 */
-	if (jseg != jblocks->jb_writeseg)
-		return;
-	/* Iterate through available jsegs processing their entries. */
-	do {
-		jblocks->jb_oldestwrseq = jseg->js_oldseq;
-		jsegn = TAILQ_NEXT(jseg, js_next);
-		complete_jseg(jseg);
-		jseg = jsegn;
-	} while (jseg && jseg->js_state & DEPCOMPLETE);
-	jblocks->jb_writeseg = jseg;
-	/*
-	 * Attempt to free jsegs now that oldestwrseq may have advanced. 
-	 */
-	free_jsegs(jblocks);
+	complete_jsegs(jseg);
 }
 
 static inline struct jsegdep *
@@ -4191,8 +4291,16 @@ free_jsegs(jblocks)
 			jblocks->jb_oldestseg = jseg;
 			return;
 		}
-		if (!LIST_EMPTY(&jseg->js_indirs) &&
-		    jseg->js_seq >= jblocks->jb_oldestwrseq)
+		if ((jseg->js_state & ALLCOMPLETE) != ALLCOMPLETE)
+			break;
+		if (jseg->js_seq > jblocks->jb_oldestwrseq)
+			break;
+		/*
+		 * We can free jsegs that didn't write entries when
+		 * oldestwrseq == js_seq.
+		 */
+		if (jseg->js_seq == jblocks->jb_oldestwrseq &&
+		    jseg->js_cnt != 0)
 			break;
 		free_jseg(jseg, jblocks);
 	}
@@ -5065,9 +5173,15 @@ jnewblk_merge(new, old, wkhd)
 		return (new);
 	/* Replace a jfreefrag with a jnewblk. */
 	if (new->wk_type == D_JFREEFRAG) {
+		if (WK_JNEWBLK(old)->jn_blkno != WK_JFREEFRAG(new)->fr_blkno)
+			panic("jnewblk_merge: blkno mismatch: %p, %p",
+			    old, new);
 		cancel_jfreefrag(WK_JFREEFRAG(new));
 		return (old);
 	}
+	if (old->wk_type != D_JNEWBLK || new->wk_type != D_JNEWBLK)
+		panic("jnewblk_merge: Bad type: old %d new %d\n",
+		    old->wk_type, new->wk_type);
 	/*
 	 * Handle merging of two jnewblk records that describe
 	 * different sets of fragments in the same block.
@@ -10396,7 +10510,7 @@ initiate_write_bmsafemap(bmsafemap, bp)
 	ino_t ino;
 
 	if (bmsafemap->sm_state & IOSTARTED)
-		panic("initiate_write_bmsafemap: Already started\n");
+		return;
 	bmsafemap->sm_state |= IOSTARTED;
 	/*
 	 * Clear any inode allocations which are pending journal writes.
@@ -10407,10 +10521,6 @@ initiate_write_bmsafemap(bmsafemap, bp)
 		inosused = cg_inosused(cgp);
 		LIST_FOREACH(jaddref, &bmsafemap->sm_jaddrefhd, ja_bmdeps) {
 			ino = jaddref->ja_ino % fs->fs_ipg;
-			/*
-			 * If this is a background copy the inode may not
-			 * be marked used yet.
-			 */
 			if (isset(inosused, ino)) {
 				if ((jaddref->ja_mode & IFMT) == IFDIR)
 					cgp->cg_cs.cs_ndir--;
@@ -10419,7 +10529,7 @@ initiate_write_bmsafemap(bmsafemap, bp)
 				jaddref->ja_state &= ~ATTACHED;
 				jaddref->ja_state |= UNDONE;
 				stat_jaddref++;
-			} else if ((bp->b_xflags & BX_BKGRDMARKER) == 0)
+			} else
 				panic("initiate_write_bmsafemap: inode %ju "
 				    "marked free", (uintmax_t)jaddref->ja_ino);
 		}
@@ -10434,9 +10544,8 @@ initiate_write_bmsafemap(bmsafemap, bp)
 		LIST_FOREACH(jnewblk, &bmsafemap->sm_jnewblkhd, jn_deps) {
 			if (jnewblk_rollback(jnewblk, fs, cgp, blksfree))
 				continue;
-			if ((bp->b_xflags & BX_BKGRDMARKER) == 0)
-				panic("initiate_write_bmsafemap: block %jd "
-				    "marked free", jnewblk->jn_blkno);
+			panic("initiate_write_bmsafemap: block %jd "
+			    "marked free", jnewblk->jn_blkno);
 		}
 	}
 	/*
@@ -11171,12 +11280,24 @@ diradd_inode_written(dap, inodedep)
  * only be called with lk and the buf lock on the cg held.
  */
 static int
-bmsafemap_rollbacks(bmsafemap)
+bmsafemap_backgroundwrite(bmsafemap, bp)
 	struct bmsafemap *bmsafemap;
+	struct buf *bp;
 {
+	int dirty;
 
-	return (!LIST_EMPTY(&bmsafemap->sm_jaddrefhd) | 
-	    !LIST_EMPTY(&bmsafemap->sm_jnewblkhd));
+	dirty = !LIST_EMPTY(&bmsafemap->sm_jaddrefhd) | 
+	    !LIST_EMPTY(&bmsafemap->sm_jnewblkhd);
+	/*
+	 * If we're initiating a background write we need to process the
+	 * rollbacks as they exist now, not as they exist when IO starts.
+	 * No other consumers will look at the contents of the shadowed
+	 * buf so this is safe to do here.
+	 */
+	if (bp->b_xflags & BX_BKGRDMARKER)
+		initiate_write_bmsafemap(bmsafemap, bp);
+
+	return (dirty);
 }
 
 /*

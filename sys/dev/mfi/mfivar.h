@@ -303,6 +303,8 @@ struct mfi_softc {
 
 	TAILQ_HEAD(, ccb_hdr)		mfi_cam_ccbq;
 	struct mfi_command *		(* mfi_cam_start)(void *);
+	void				(*mfi_cam_rescan_cb)(struct mfi_softc *,
+					    uint32_t);
 	struct callout			mfi_watchdog_callout;
 	struct mtx			mfi_io_lock;
 	struct sx			mfi_config_lock;

@@ -1163,15 +1163,14 @@ dev/drm/mach64_state.c		optional mach64drm
 dev/drm/mga_dma.c		optional mgadrm
 dev/drm/mga_drv.c		optional mgadrm
 dev/drm/mga_irq.c		optional mgadrm
-dev/drm/mga_state.c		optional mgadrm \
-	compile-with "${NORMAL_C} -finline-limit=13500"
+dev/drm/mga_state.c		optional mgadrm
 dev/drm/mga_warp.c		optional mgadrm
 dev/drm/r128_cce.c		optional r128drm \
 	compile-with "${NORMAL_C} ${NO_WUNUSED_VALUE} ${NO_WCONSTANT_CONVERSION}"
 dev/drm/r128_drv.c		optional r128drm
 dev/drm/r128_irq.c		optional r128drm
 dev/drm/r128_state.c		optional r128drm \
-	compile-with "${NORMAL_C} ${NO_WUNUSED_VALUE} -finline-limit=13500"
+	compile-with "${NORMAL_C} ${NO_WUNUSED_VALUE}"
 dev/drm/r300_cmdbuf.c		optional radeondrm
 dev/drm/r600_blit.c		optional radeondrm
 dev/drm/r600_cp.c		optional radeondrm \
