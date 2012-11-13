@@ -191,7 +191,7 @@ Host Controller.
 .Sh HCI INITIALIZATION
 On initialization, HCI control application must issue the following HCI
 commands (in any order).
-.Bl -tag -width indent
+.Bl -tag -width foo
 .It Dv Read_BD_ADDR
 To obtain BD_ADDR of the Bluetooth unit.
 .It Dv Read_Local_Supported_Features
@@ -250,23 +250,23 @@ typedef struct {
 .Ed
 .Sh HOOKS
 This node type supports the following hooks:
-.Bl -tag -width indent
-.It Dv drv
+.Bl -tag -width ".Va drv"
+.It Va drv
 Bluetooth Host Controller Transport Layer hook.
 Single HCI packet contained in single
 .Vt mbuf
 structure.
-.It Dv acl
+.It Va acl
 Upper layer protocol/node is connected to the hook.
 Single HCI ACL data packet contained in single
 .Vt mbuf
 structure.
-.It Dv sco
+.It Va sco
 Upper layer protocol/node is connected to the hook.
 Single HCI SCO data packet contained in single
 .Vt mbuf
 structure.
-.It Dv raw
+.It Va raw
 Raw hook.
 Every HCI frame (including HCI command frame) that goes in
 or out will be delivered to the hook.
@@ -276,7 +276,7 @@ Single HCI frame contained in single
 structure.
 .El
 .Sh BLUETOOTH UPPER LAYER PROTOCOLS INTERFACE (LP CONTROL MESSAGES)
-.Bl -tag -width indent
+.Bl -tag -width foo
 .It Dv NGM_HCI_LP_CON_REQ
 Requests the lower protocol to create a connection.
 If a physical link
@@ -311,7 +311,7 @@ agreement.
 .El
 .Sh NETGRAPH CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
-.Bl -tag -width indent
+.Bl -tag -width foo
 .It Dv NGM_HCI_NODE_GET_STATE
 Returns current state for the node.
 .It Dv NGM_HCI_NODE_INIT
