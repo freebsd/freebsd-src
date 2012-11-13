@@ -65,7 +65,7 @@ vm_offset_t
 initarm_lastaddr(void)
 {
 
-	boothowto |= RB_SERIAL|RB_VERBOSE|RB_MULTIPLE|RB_SINGLE;
+	boothowto |= RB_SERIAL|RB_VERBOSE|RB_MULTIPLE;
 	bootverbose = 1;
 
 	if (fdt_immr_addr(IMX51_DEV_VIRT_BASE) != 0)
