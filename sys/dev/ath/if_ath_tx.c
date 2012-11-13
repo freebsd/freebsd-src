@@ -528,11 +528,19 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 	    __func__, bf_first->bf_state.bfs_nframes,
 	    bf_first->bf_state.bfs_al);
 
+	bf = bf_first;
+
+	if (bf->bf_state.bfs_txrate0 == 0)
+		device_printf(sc->sc_dev, "%s: bf=%p, txrate0=%d\n",
+		    __func__, bf, 0);
+	if (bf->bf_state.bfs_rc[0].ratecode == 0)
+		device_printf(sc->sc_dev, "%s: bf=%p, rix0=%d\n",
+		    __func__, bf, 0);
+
 	/*
 	 * Setup all descriptors of all subframes - this will
 	 * call ath_hal_set11naggrmiddle() on every frame.
 	 */
-	bf = bf_first;
 	while (bf != NULL) {
 		DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 		    "%s: bf=%p, nseg=%d, pktlen=%d, seqno=%d\n",
@@ -1235,6 +1243,10 @@ ath_tx_setds(struct ath_softc *sc, struct ath_buf *bf)
 {
 	struct ath_desc *ds = bf->bf_desc;
 	struct ath_hal *ah = sc->sc_ah;
+
+	if (bf->bf_state.bfs_txrate0 == 0)
+		device_printf(sc->sc_dev, "%s: bf=%p, txrate0=%d\n",
+		    __func__, bf, 0);
 
 	ath_hal_setuptxdesc(ah, ds
 		, bf->bf_state.bfs_pktlen	/* packet length */
