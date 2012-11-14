@@ -1047,7 +1047,7 @@ struct cpu_functions cortexa_cpufuncs = {
 	
 	/* TLB functions */
 	
-	arm11_tlb_flushID,              /* tlb_flushID          */
+	armv7_tlb_flushID,              /* tlb_flushID          */
 	armv7_tlb_flushID_SE,           /* tlb_flushID_SE       */
 	arm11_tlb_flushI,               /* tlb_flushI           */
 	arm11_tlb_flushI_SE,            /* tlb_flushI_SE        */
