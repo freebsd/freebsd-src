@@ -347,6 +347,22 @@ vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 #define	VM_ALLOC_COUNT_SHIFT	16
 #define	VM_ALLOC_COUNT(count)	((count) << VM_ALLOC_COUNT_SHIFT)
 
+#ifdef M_NOWAIT
+static inline int
+malloc2vm_flags(int malloc_flags)
+{
+	int pflags;
+
+	pflags = (malloc_flags & M_USE_RESERVE) != 0 ? VM_ALLOC_INTERRUPT :
+	    VM_ALLOC_SYSTEM;
+	if ((malloc_flags & M_ZERO) != 0)
+		pflags |= VM_ALLOC_ZERO;
+	if ((malloc_flags & M_NODUMP) != 0)
+		pflags |= VM_ALLOC_NODUMP;
+	return (pflags);
+}
+#endif
+
 void vm_page_busy(vm_page_t m);
 void vm_page_flash(vm_page_t m);
 void vm_page_io_start(vm_page_t m);
