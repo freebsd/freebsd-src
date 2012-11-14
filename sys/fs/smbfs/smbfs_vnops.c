@@ -1135,18 +1135,6 @@ smbfs_lookup(ap)
 		SMBFSERR("invalid '..'\n");
 		return EIO;
 	}
-#ifdef SMB_VNODE_DEBUG
-	{
-		char *cp, c;
-
-		cp = name + nmlen;
-		c = *cp;
-		*cp = 0;
-		SMBVDEBUG("%d '%s' in '%s' id=d\n", nameiop, name, 
-			VTOSMB(dvp)->n_name);
-		*cp = c;
-	}
-#endif
 	islastcn = flags & ISLASTCN;
 	if (islastcn && (mp->mnt_flag & MNT_RDONLY) && (nameiop != LOOKUP))
 		return EROFS;
