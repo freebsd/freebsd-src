@@ -1067,7 +1067,8 @@ struct cpu_functions cortexa_cpufuncs = {
 	armv7_idcache_wbinv_all,        /* idcache_wbinv_all    */
 	armv7_idcache_wbinv_range,      /* idcache_wbinv_range  */
 	
-	/* Note: From OMAP4 the L2 ops are filled in when the
+	/* 
+	 * Note: For CPUs using the PL310 the L2 ops are filled in when the
 	 * L2 cache controller is actually enabled.
 	 */
 	cpufunc_nullop,                 /* l2cache_wbinv_all    */
