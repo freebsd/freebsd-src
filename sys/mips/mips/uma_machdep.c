@@ -50,12 +50,14 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	*flags = UMA_SLAB_PRIV;
 
 	if ((wait & (M_NOWAIT|M_USE_RESERVE)) == M_NOWAIT)
-		pflags = VM_ALLOC_INTERRUPT;
+		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_WIRED;
 	else
-		pflags = VM_ALLOC_SYSTEM;
+		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_WIRED;
+	if (wait & M_ZERO)
+		pflags |= VM_ALLOC_ZERO;
 
 	for (;;) {
-		m = pmap_alloc_direct_page(0, pflags);
+		m = vm_page_alloc_freelist(VM_FREELIST_DIRECT, pflags);
 		if (m == NULL) {
 			if (wait & M_NOWAIT)
 				return (NULL);
