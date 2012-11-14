@@ -2087,7 +2087,7 @@ sys_getlogin(struct thread *td, struct getlogin_args *uap)
 	if (strlen(login) + 1 > uap->namelen)
 		return (ERANGE);
 	error = copyout(login, uap->namebuf, uap->namelen);
-	return(error);
+	return (error);
 }
 
 /*
