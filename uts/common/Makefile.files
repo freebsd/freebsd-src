@@ -1995,7 +1995,7 @@ MEGA_SAS_OBJS = megaraid_sas.o
 #
 #	MR_SAS module
 #
-MR_SAS_OBJS = mr_sas.o
+MR_SAS_OBJS = ld_pd_map.o mr_sas.o mr_sas_tbolt.o mr_sas_list.o
 
 #
 #	ISCSI_INITIATOR module
