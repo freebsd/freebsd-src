@@ -422,7 +422,7 @@ routename(struct sockaddr *sa)
 
 /*
  * Return the name of the network whose address is given.
- * The address is assumed to be that of a net or subnet, not a host.
+ * The address is assumed to be that of a net, not a host.
  */
 const char *
 netname(struct sockaddr *sa)
@@ -430,9 +430,8 @@ netname(struct sockaddr *sa)
 	const char *cp = NULL;
 	static char line[MAXHOSTNAMELEN + 1];
 	struct netent *np = NULL;
-	u_long net, mask;
 	u_long i;
-	int n, subnetshift;
+	int n;
 
 	switch (sa->sa_family) {
 
@@ -444,28 +443,7 @@ netname(struct sockaddr *sa)
 		if (in.s_addr == 0)
 			cp = "default";
 		else if (!nflag) {
-			if (IN_CLASSA(i)) {
-				mask = IN_CLASSA_NET;
-				subnetshift = 8;
-			} else if (IN_CLASSB(i)) {
-				mask = IN_CLASSB_NET;
-				subnetshift = 8;
-			} else {
-				mask = IN_CLASSC_NET;
-				subnetshift = 4;
-			}
-			/*
-			 * If there are more bits than the standard mask
-			 * would suggest, subnets must be in use.
-			 * Guess at the subnet mask, assuming reasonable
-			 * width subnet fields.
-			 */
-			while (in.s_addr & ~mask)
-				mask |= mask >> subnetshift;
-			net = in.s_addr & mask;
-			while ((mask & 1) == 0)
-				mask >>= 1, net >>= 1;
-			np = getnetbyaddr(net, AF_INET);
+			np = getnetbyaddr(i, AF_INET);
 			if (np != NULL)
 				cp = np->n_name;
 		}
@@ -810,30 +788,19 @@ newroute(int argc, char **argv)
 static void
 inet_makenetandmask(u_long net, struct sockaddr_in *sin, u_long bits)
 {
-	u_long addr, mask = 0;
+	u_long mask = 0;
 	char *cp;
 
 	rtm_addrs |= RTA_NETMASK;
-	/*
-	 * XXX: This approach unable to handle 0.0.0.1/32 correctly
-	 * as inet_network() converts 0.0.0.1 and 1 equally.
-	 */
-	if (net <= 0xff)
-		addr = net << IN_CLASSA_NSHIFT;
-	else if (net <= 0xffff)
-		addr = net << IN_CLASSB_NSHIFT;
-	else if (net <= 0xffffff)
-		addr = net << IN_CLASSC_NSHIFT;
-	else
-		addr = net;
+
 	/*
 	 * If no /xx was specified we must calculate the
 	 * CIDR address.
 	 */
-	if ((bits == 0)  && (addr != 0)) {
+	if ((bits == 0) && (net != 0)) {
 		u_long i, j;
 		for(i=0,j=0xff; i<4; i++)  {
-			if (addr & j) {
+			if (net & j) {
 				break;
 			}
 			j <<= 8;
@@ -844,7 +811,7 @@ inet_makenetandmask(u_long net, struct sockaddr_in *sin, u_long bits)
 	if (bits != 0)
 		mask = 0xffffffff << (32 - bits);
 
-	sin->sin_addr.s_addr = htonl(addr);
+	sin->sin_addr.s_addr = htonl(net);
 	sin = &so_mask.sin;
 	sin->sin_addr.s_addr = htonl(mask);
 	sin->sin_len = 0;
