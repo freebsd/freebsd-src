@@ -335,7 +335,7 @@ AxCountTableInstances (
     InputFile = fopen (InputPathname, "rt");
     if (!InputFile)
     {
-        printf ("Could not open %s\n", InputPathname);
+        printf ("Could not open file %s\n", InputPathname);
         return (0);
     }
 
@@ -465,7 +465,7 @@ AxExtractTables (
     InputFile = fopen (InputPathname, "rt");
     if (!InputFile)
     {
-        printf ("Could not open %s\n", InputPathname);
+        printf ("Could not open file %s\n", InputPathname);
         return (-1);
     }
 
@@ -560,7 +560,7 @@ AxExtractTables (
             OutputFile = fopen (Filename, "w+b");
             if (!OutputFile)
             {
-                printf ("Could not open %s\n", Filename);
+                printf ("Could not open file %s\n", Filename);
                 Status = -1;
                 goto CleanupAndExit;
             }
@@ -595,7 +595,7 @@ AxExtractTables (
             BytesWritten = fwrite (Data, 1, BytesConverted, OutputFile);
             if (BytesWritten != BytesConverted)
             {
-                printf ("Write error on %s\n", Filename);
+                printf ("Error when writing file %s\n", Filename);
                 fclose (OutputFile);
                 OutputFile = NULL;
                 Status = -1;
@@ -665,7 +665,7 @@ AxListTables (
     InputFile = fopen (InputPathname, "rt");
     if (!InputFile)
     {
-        printf ("Could not open %s\n", InputPathname);
+        printf ("Could not open file %s\n", InputPathname);
         return (-1);
     }
 

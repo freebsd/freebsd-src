@@ -55,6 +55,7 @@ OBJECTS = \
 	$(OBJDIR)/dbutils.o \
 	$(OBJDIR)/dbxface.o \
 	$(OBJDIR)/dmbuffer.o \
+	$(OBJDIR)/dmdeferred.o \
 	$(OBJDIR)/dmnames.o \
 	$(OBJDIR)/dmobject.o \
 	$(OBJDIR)/dmopcode.o \

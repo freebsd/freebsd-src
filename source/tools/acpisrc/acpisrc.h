@@ -41,41 +41,31 @@
  * POSSIBILITY OF SUCH DAMAGES.
  */
 
-
-#define LINES_IN_LEGAL_HEADER               105 /* See above */
-#define LEGAL_HEADER_SIGNATURE              " * 2.1. This is your license from Intel Corp. under its intellectual property"
-#define LINES_IN_LINUX_HEADER               34
-#define LINUX_HEADER_SIGNATURE              " * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS"
-#define LINES_IN_ASL_HEADER                 29 /* Header as output from disassembler */
-
 #include "acpi.h"
 #include "accommon.h"
 
 #include <stdio.h>
 #include <sys/stat.h>
-#include <sys/types.h>
-#include <fcntl.h>
-#include <ctype.h>
-#ifdef WIN32
-#include <io.h>
-#include <direct.h>
-#endif
 #include <errno.h>
 
+/* mkdir/strlwr support */
 
-/* O_BINARY is not always defined */
-#ifndef O_BINARY
-#define O_BINARY    0x0
-#endif
+#ifdef WIN32
+#include <direct.h>
 
-/* Fixups for non-Win32 compilation */
-#ifndef WIN32
+#else
 #define mkdir(x) mkdir(x, 0770)
 char * strlwr(char* str);
 #endif
 
 
 /* Constants */
+
+#define LINES_IN_LEGAL_HEADER               105 /* See above */
+#define LEGAL_HEADER_SIGNATURE              " * 2.1. This is your license from Intel Corp. under its intellectual property"
+#define LINES_IN_LINUX_HEADER               34
+#define LINUX_HEADER_SIGNATURE              " * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS"
+#define LINES_IN_ASL_HEADER                 29 /* Header as output from disassembler */
 
 #define ASRC_MAX_FILE_SIZE                  (1024 * 100)
 

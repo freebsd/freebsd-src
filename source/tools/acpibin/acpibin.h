@@ -45,22 +45,8 @@
 #include "accommon.h"
 
 #include <stdio.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <fcntl.h>
-#include <ctype.h>
 #include <errno.h>
-
-#ifdef WIN32
-#include <stdlib.h>
-#include <io.h>
-#include <direct.h>
-#endif
-
-/* O_BINARY is not always defined */
-#ifndef O_BINARY
-#define O_BINARY    0x0
-#endif
 
 #define DB_CONSOLE_OUTPUT            0x02
 #define ACPI_DB_REDIRECTABLE_OUTPUT  0x01
@@ -68,7 +54,6 @@
 /*
  * Global variables. Defined in main.c only, externed in all other files
  */
-
 #ifdef _DECLARE_GLOBALS
 #define EXTERN
 #define INIT_GLOBAL(a,b)        a=b

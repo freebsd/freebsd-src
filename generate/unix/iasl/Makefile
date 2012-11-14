@@ -90,6 +90,7 @@ OBJECTS = \
 	$(OBJDIR)/dtutils.o \
 	$(OBJDIR)/dbfileio.o \
 	$(OBJDIR)/dmbuffer.o \
+	$(OBJDIR)/dmdeferred.o \
 	$(OBJDIR)/dmextern.o \
 	$(OBJDIR)/dmnames.o \
 	$(OBJDIR)/dmobject.o \
@@ -192,13 +193,13 @@ INTERMEDIATES = \
 	$(OBJDIR)/prparserparse.c
 
 MISC = \
-   	$(OBJDIR)/aslcompilerparse.h \
+	$(OBJDIR)/aslcompilerparse.h \
 	$(OBJDIR)/aslcompiler.y.h \
 	$(OBJDIR)/aslcompilerparse.output \
-   	$(OBJDIR)/dtparserparse.h \
+	$(OBJDIR)/dtparserparse.h \
 	$(OBJDIR)/dtparser.y.h \
 	$(OBJDIR)/dtparserparse.output \
-   	$(OBJDIR)/prparserparse.h \
+	$(OBJDIR)/prparserparse.h \
 	$(OBJDIR)/prparser.y.h \
 	$(OBJDIR)/prparserparse.output
 

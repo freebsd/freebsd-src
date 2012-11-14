@@ -143,15 +143,14 @@ FlOpenFile (
 
 
     File = fopen (Filename, Mode);
-
-    Gbl_Files[FileId].Filename = Filename;
-    Gbl_Files[FileId].Handle   = File;
-
     if (!File)
     {
         FlFileError (FileId, ASL_MSG_OPEN);
         AslAbort ();
     }
+
+    Gbl_Files[FileId].Filename = Filename;
+    Gbl_Files[FileId].Handle   = File;
 }
 
 
@@ -216,7 +215,7 @@ FlReadFile (
     /* Read and check for error */
 
     Actual = fread (Buffer, 1, Length, Gbl_Files[FileId].Handle);
-    if (Actual != Length)
+    if (Actual < Length)
     {
         if (feof (Gbl_Files[FileId].Handle))
         {
@@ -659,16 +658,17 @@ FlOpenIncludeWithPrefix (
     /* Attempt to open the file, push if successful */
 
     IncludeFile = fopen (Pathname, "r");
-    if (IncludeFile)
+    if (!IncludeFile)
     {
-        /* Push the include file on the open input file stack */
-
-        AslPushInputFileStack (IncludeFile, Pathname);
-        return (IncludeFile);
+        fprintf (stderr, "Could not open include file %s\n", Pathname);
+        ACPI_FREE (Pathname);
+        return (NULL);
     }
 
-    ACPI_FREE (Pathname);
-    return (NULL);
+    /* Push the include file on the open input file stack */
+
+    AslPushInputFileStack (IncludeFile, Pathname);
+    return (IncludeFile);
 }
 
 
@@ -952,7 +952,7 @@ FlOpenMiscOutputFiles (
         return (AE_OK);
     }
 
-   /* Create/Open a combined source output file */
+    /* Create/Open a combined source output file */
 
     Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_SOURCE);
     if (!Filename)

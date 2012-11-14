@@ -2,6 +2,9 @@
  * Miscellaneous instructions for building and using the iASL compiler.
  */
 
+Last update: 24 October 2012
+
+
 1) Generating iASL from source
 ------------------------------
 
@@ -23,20 +26,28 @@ be installed):
         constant expressions.
     3) The "common" source directory that is used for all ACPI components.
 
+
+1a) Notes for Linux/Unix generation
+-----------------------------------
+
 On Linux/Unix systems, the following commands will build the compiler:
 
     cd acpica (or cd acpica/generate/unix)
     make clean
     make iasl
 
+iASL has been generated with these versions of Flex/Bison:
+
+    Flex:  Version 2.5.32
+    Bison: Version 2.6.2
+
+
+1b) Notes for Windows generation
+--------------------------------
+
 On Windows, the Visual Studio 2008 project file appears in this directory:
 
     generate/msvc9/AcpiComponents.sln
-
-
-
-1a) Notes for Windows GNU Flex and GNU Bison
---------------------------------------------
 
 The Windows versions of GNU Flex/Bison must be installed, and they must
 be installed in a directory that contains no embedded spaces in the
@@ -56,7 +67,7 @@ the updated $PATH.
 
 iASL has been generated with these versions of Flex/Bison for Windows:
 
-    Flex for Windows:  V2.5.4
+    Flex for Windows:  V2.5.4a
     Bison for Windows: V2.4.1
 
 Flex is available at:  http://gnuwin32.sourceforge.net/packages/flex.htm
