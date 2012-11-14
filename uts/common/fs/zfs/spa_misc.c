@@ -260,7 +260,6 @@ extern int zfs_txg_synctime_ms;
  * Secondly, the value determines if an I/O is considered "hung".
  * Any I/O that has not completed in zfs_deadman_synctime is considered
  * "hung" resulting in a system panic.
- * 1000 zfs_txg_synctime_ms (i.e. 1000 seconds).
  */
 uint64_t zfs_deadman_synctime = 1000ULL;
 
