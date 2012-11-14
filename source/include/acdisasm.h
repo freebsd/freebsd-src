@@ -634,9 +634,16 @@ AcpiDmIsPldBuffer (
 
 
 /*
+ * dmdeferred
+ */
+ACPI_STATUS
+AcpiDmParseDeferredOps (
+    ACPI_PARSE_OBJECT       *Root);
+
+
+/*
  * dmextern
  */
-
 ACPI_STATUS
 AcpiDmAddToExternalFileList (
     char                    *PathList);
@@ -701,6 +708,7 @@ AcpiDmResourceTemplate (
 
 ACPI_STATUS
 AcpiDmIsResourceTemplate (
+    ACPI_WALK_STATE         *WalkState,
     ACPI_PARSE_OBJECT       *Op);
 
 void

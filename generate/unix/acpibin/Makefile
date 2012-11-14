@@ -27,7 +27,7 @@ HEADERS = \
     $(wildcard $(ACPIBIN)/*.h)
 
 OBJECTS = \
-   	$(OBJDIR)/abcompare.o \
+	$(OBJDIR)/abcompare.o \
 	$(OBJDIR)/abmain.o \
 	$(OBJDIR)/utalloc.o \
 	$(OBJDIR)/utcache.o \

@@ -430,7 +430,7 @@ AcpiRsGetListLength (
     {
         /* Validate the Resource Type and Resource Length */
 
-        Status = AcpiUtValidateResource (AmlBuffer, &ResourceIndex);
+        Status = AcpiUtValidateResource (NULL, AmlBuffer, &ResourceIndex);
         if (ACPI_FAILURE (Status))
         {
             /*

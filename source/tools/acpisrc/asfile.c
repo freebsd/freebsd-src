@@ -698,24 +698,32 @@ AsGetFile (
     char                    **FileBuffer,
     UINT32                  *FileSize)
 {
-
-    int                     FileHandle;
+    FILE                    *File;
     UINT32                  Size;
     char                    *Buffer;
+    int                     Seek1;
+    int                     Seek2;
+    size_t                  Actual;
 
 
     /* Binary mode leaves CR/LF pairs */
 
-    FileHandle = open (Filename, O_BINARY | O_RDONLY);
-    if (!FileHandle)
+    File = fopen (Filename, "rb");
+    if (!File)
     {
-        printf ("Could not open %s\n", Filename);
+        printf ("Could not open file %s\n", Filename);
         return (-1);
     }
 
-    if (fstat (FileHandle, &Gbl_StatBuf))
+    /* Need file size to allocate a buffer */
+
+    Seek1 = fseek (File, 0L, SEEK_END);
+    Size = ftell (File);
+    Seek2 = fseek (File, 0L, SEEK_SET);
+
+    if (Seek1 || Seek2 || (Size == -1))
     {
-        printf ("Could not get file status for %s\n", Filename);
+        printf ("Could not get file size for %s\n", Filename);
         goto ErrorExit;
     }
 
@@ -723,7 +731,6 @@ AsGetFile (
      * Create a buffer for the entire file
      * Add plenty extra buffer to accommodate string replacements
      */
-    Size = Gbl_StatBuf.st_size;
     Gbl_TotalSize += Size;
 
     Buffer = calloc (Size * 2, 1);
@@ -735,15 +742,16 @@ AsGetFile (
 
     /* Read the entire file */
 
-    Size = read (FileHandle, Buffer, Size);
-    if (Size == -1)
+    Actual = fread (Buffer, 1, Size, File);
+    if (Actual != Size)
     {
-        printf ("Could not read the input file %s\n", Filename);
+        printf ("Could not read the input file %s (%u bytes)\n",
+            Filename, Size);
         goto ErrorExit;
     }
 
     Buffer [Size] = 0;         /* Null terminate the buffer */
-    close (FileHandle);
+    fclose (File);
 
     /* Check for unix contamination */
 
@@ -757,13 +765,12 @@ AsGetFile (
 
     *FileBuffer = Buffer;
     *FileSize = Size;
-
     return (0);
 
 
 ErrorExit:
 
-    close (FileHandle);
+    fclose (File);
     return (-1);
 }
 
@@ -783,14 +790,13 @@ AsPutFile (
     char                    *FileBuffer,
     UINT32                  SystemFlags)
 {
+    FILE                    *File;
     UINT32                  FileSize;
-    int                     DestHandle;
-    int                     OpenFlags;
+    size_t                  Actual;
+    int                     Status = 0;
 
 
     /* Create the target file */
-
-    OpenFlags = O_TRUNC | O_CREAT | O_WRONLY | O_BINARY;
 
     if (!(SystemFlags & FLG_NO_CARRIAGE_RETURNS))
     {
@@ -799,8 +805,8 @@ AsPutFile (
         AsInsertCarriageReturns (FileBuffer);
     }
 
-    DestHandle = open (Pathname, OpenFlags, S_IREAD | S_IWRITE);
-    if (DestHandle == -1)
+    File = fopen (Pathname, "w+b");
+    if (!File)
     {
         perror ("Could not create destination file");
         printf ("Could not create destination file \"%s\"\n", Pathname);
@@ -810,9 +816,13 @@ AsPutFile (
     /* Write the buffer to the file */
 
     FileSize = strlen (FileBuffer);
-    write (DestHandle, FileBuffer, FileSize);
+    Actual = fwrite (FileBuffer, 1, FileSize, File);
+    if (Actual != FileSize)
+    {
+        printf ("Error writing output file \"%s\"\n", Pathname);
+        Status = -1;
+    }
 
-    close (DestHandle);
-
-    return (0);
+    fclose (File);
+    return (Status);
 }
