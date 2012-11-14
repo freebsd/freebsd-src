@@ -388,7 +388,7 @@ sa6_recoverscope(struct sockaddr_in6 *sin6)
 		zoneid = ntohs(sin6->sin6_addr.s6_addr16[1]);
 		if (zoneid) {
 			/* sanity check */
-			if (zoneid < 0 || V_if_index < zoneid)
+			if (V_if_index < zoneid)
 				return (ENXIO);
 			if (!ifnet_byindex(zoneid))
 				return (ENXIO);
