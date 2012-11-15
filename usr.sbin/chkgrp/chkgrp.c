@@ -37,11 +37,12 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sysexits.h>
 
 static char empty[] = { 0 };
 
-static void
+static void __dead2
 usage(void)
 {
     fprintf(stderr, "usage: chkgrp [groupfile]\n");
@@ -53,23 +54,32 @@ main(int argc, char *argv[])
 {
     unsigned int i;
     size_t len;
+    int quiet;
+    int ch;
     int n = 0, k, e = 0;
     char *line, *f[4], *p;
     const char *cp, *gfn;
     FILE *gf;
 
-    /* check arguments */
-    switch (argc) {
-    case 1:
-	gfn = "/etc/group";
-	break;
-    case 2:
-	gfn = argv[1];
-	break;
-    default:
-	gfn = NULL; /* silence compiler */
-	usage();
+    quiet = 0;
+    while ((ch = getopt(argc, argv, "q")) != -1) {
+	    switch (ch) {
+		case 'q':
+			quiet = 1;
+			break;
+		case '?':
+		default:
+			printf("hello\n");
+			usage();
+	    }
     }
+
+    if (optind == argc)
+	    gfn = "/etc/group";
+    else if (optind == argc - 1)
+	    gfn = argv[optind];
+    else
+	    usage();
 
     /* open group file */
     if ((gf = fopen(gfn, "r")) == NULL)
@@ -178,7 +188,7 @@ main(int argc, char *argv[])
 
     /* done */
     fclose(gf);
-    if (e == 0)
+    if (e == 0 && quiet == 0)
 	printf("%s is fine\n", gfn);
     exit(e ? EX_DATAERR : EX_OK);
 }
