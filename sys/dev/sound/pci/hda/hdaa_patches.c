@@ -541,6 +541,21 @@ hdaa_patch(struct hdaa_devinfo *devinfo)
 		if (w != NULL)
 			w->connsenable[0] = 0;
 		break;
+	case HDA_CODEC_ALC269:
+		/*
+		 * ASUS EeePC 1001px has strange variant of ALC269 CODEC,
+		 * that mutes speaker if unused mixer at NID 15 is muted.
+		 * Probably CODEC incorrectly reports internal connections.
+		 * Hide that muter from the driver.  There are several CODECs
+		 * sharing this ID and I have not enough information about
+		 * them to implement more universal solution.
+		 */
+		if (subid == 0x84371043) {
+			w = hdaa_widget_get(devinfo, 15);
+			if (w != NULL)
+				w->param.inamp_cap = 0;
+		}
+		break;
 	case HDA_CODEC_CX20582:
 	case HDA_CODEC_CX20583:
 	case HDA_CODEC_CX20584:
