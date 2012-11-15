@@ -30,7 +30,10 @@
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
+#include <errno.h>
 #include <ctype.h>
+#include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -149,6 +152,18 @@ main(int argc, char *argv[])
 	if (strspn(f[2], "0123456789") != strlen(f[2])) {
 	    warnx("%s: line %d: GID is not numeric", gfn, n);
 	    e++;
+	}
+
+	/* check the range of the group id */
+	errno = 0;
+	unsigned long groupid = strtoul(f[2], NULL, 10);
+	if (errno != 0) {
+		warnx("%s: line %d: strtoul failed", gfn, n);
+	}
+	else if (groupid > GID_MAX) {
+		warnx("%s: line %d: group id is too large (> %ju)",
+		  gfn, n, (uintmax_t)GID_MAX);
+		e++;
 	}
 	
 #if 0
