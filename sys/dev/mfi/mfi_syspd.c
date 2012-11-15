@@ -122,8 +122,8 @@ mfi_syspd_attach(device_t dev)
 		break;
 	}
 	mtx_unlock(&sc->pd_controller->mfi_io_lock);
-	device_printf(dev, "%juMB (%ju sectors) SYSPD volume\n",
-		      sectors / (1024 * 1024 / secsize), sectors);
+	device_printf(dev, "%juMB (%ju sectors) SYSPD volume (deviceid: %d)\n",
+		      sectors / (1024 * 1024 / secsize), sectors, sc->pd_id);
 	sc->pd_disk = disk_alloc();
 	sc->pd_disk->d_drv1 = sc;
 	sc->pd_disk->d_maxsize = sc->pd_controller->mfi_max_io * secsize;
