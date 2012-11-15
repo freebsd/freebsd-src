@@ -1938,7 +1938,7 @@ getlogin(struct thread *td, struct getlogin_args *uap)
 	SESS_UNLOCK(p->p_session);
 	PROC_UNLOCK(p);
 	error = copyout(login, uap->namebuf, uap->namelen);
-	return(error);
+	return (error);
 }
 
 /*
