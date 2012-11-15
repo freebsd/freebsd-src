@@ -666,6 +666,7 @@ HDA_ACCESSOR(revision_id,	REVISION_ID,	uint8_t);
 HDA_ACCESSOR(stepping_id,	STEPPING_ID,	uint8_t);
 HDA_ACCESSOR(subvendor_id,	SUBVENDOR_ID,	uint16_t);
 HDA_ACCESSOR(subdevice_id,	SUBDEVICE_ID,	uint16_t);
+HDA_ACCESSOR(subsystem_id,	SUBSYSTEM_ID,	uint32_t);
 HDA_ACCESSOR(node_type,		NODE_TYPE,	uint8_t);
 HDA_ACCESSOR(dma_nocache,	DMA_NOCACHE,	uint8_t);
 
