@@ -66,16 +66,14 @@ flag.
 This is implied for file systems specified on the command line.
 .It Fl b
 Use 512-byte blocks rather than the default.
-Note that
-this overrides the
+This overrides the
 .Ev BLOCKSIZE
 specification from the environment.
 .It Fl c
 Display a grand total.
 .It Fl g
 Use 1073741824-byte (1-Gbyte) blocks rather than the default.
-Note that
-this overrides the
+This overrides the
 .Ev BLOCKSIZE
 specification from the environment.
 .It Fl H
@@ -97,16 +95,16 @@ are always printed in base 10.
 Include statistics on the number of free inodes.
 .It Fl k
 Use 1024-byte (1-Kbyte) blocks rather than the default.
-Note that
-this overrides the
+This overrides the
 .Ev BLOCKSIZE
-specification from the environment.
+specification from the environment and the
+.Fl P
+option.
 .It Fl l
 Only display information about locally-mounted file systems.
 .It Fl m
 Use 1048576-byte (1-Mbyte) blocks rather than the default.
-Note that
-this overrides the
+This overrides the
 .Ev BLOCKSIZE
 specification from the environment.
 .It Fl n
@@ -120,9 +118,12 @@ will not request new statistics from the file systems, but will respond
 with the possibly stale statistics that were previously obtained.
 .It Fl P
 Use POSIX compliant output of 512-byte blocks rather than the default.
-Note that this overrides the
+This overrides the
 .Ev BLOCKSIZE
 specification from the environment.
+The
+.Fl k
+option overrides this option.
 .It Fl t
 Only print out statistics for file systems of the specified types.
 More than one type may be specified in a comma separated list.
@@ -148,6 +149,13 @@ command can be used to find out the types of file systems
 that are available on the system.
 .It Fl T
 Include file system type.
+.It Fl ,
+(Comma) Print sizes grouped and separated by thousands using the
+non-monetary separator returned by
+.Xr localeconv 3 ,
+typically a comma or period.
+If no locale is set, or the locale does not have a non-monetary separator, this
+option has no effect.
 .El
 .Sh ENVIRONMENT
 .Bl -tag -width BLOCKSIZE
@@ -165,9 +173,21 @@ is set, the block counts will be displayed in units of that size block.
 .Xr getfsstat 2 ,
 .Xr statfs 2 ,
 .Xr getmntinfo 3 ,
+.Xr localeconv 3 ,
 .Xr fstab 5 ,
 .Xr mount 8 ,
 .Xr quot 8
+.Sh STANDARDS
+With the exception of most options,
+the
+.Nm
+utility conforms to
+.St -p1003.1-2004 ,
+which defines only the
+.Fl k , P
+and
+.Fl t
+options.
 .Sh HISTORY
 A
 .Nm
