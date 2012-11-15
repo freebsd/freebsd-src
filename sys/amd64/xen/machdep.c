@@ -120,6 +120,8 @@ vm_paddr_t dump_avail[PHYSMAP_SIZE + 2];
 
 struct kva_md_info kmi;
 
+static struct trapframe proc0_tf;
+
 struct pcpu __pcpu[MAXCPU];
 
 struct user_segment_descriptor gdt[512] 
@@ -358,6 +360,7 @@ vm_paddr_t
 initxen(struct start_info *si)
 {
 
+	char *env;
 	caddr_t kmdp;
 	size_t kstack0_sz;
 	struct pcpu *pc;
@@ -520,6 +523,7 @@ initxen(struct start_info *si)
 
 	init_param2(physmem);
 
+	bzero(msgbufp, msgbufsize);
 	msgbufinit(msgbufp, msgbufsize);
 	//fpuinit(); XXX: TODO
 
@@ -542,6 +546,20 @@ initxen(struct start_info *si)
 	_udatasel = GSEL(GUDATA_SEL, SEL_UPL);
 	_ufssel = GSEL(GUFS32_SEL, SEL_UPL);
 	_ugssel = GSEL(GUGS32_SEL, SEL_UPL);
+
+	/* Load thread0 context */
+	load_ds(_udatasel);
+	load_es(_udatasel);
+	load_fs(_ufssel);
+
+	/* setup proc 0's pcb */
+	thread0.td_pcb->pcb_flags = 0;
+	thread0.td_pcb->pcb_cr3 = KPML4phys;
+	thread0.td_frame = &proc0_tf;
+
+        env = getenv("kernelname");
+	if (env != NULL)
+		strlcpy(kernelname, env, sizeof(kernelname));
 
 	return (u_int64_t) thread0.td_pcb  & ~0xFul /* 16 byte aligned */;
 }
