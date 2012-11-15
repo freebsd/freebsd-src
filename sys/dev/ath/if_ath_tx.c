@@ -623,6 +623,31 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 	 */
 	bf_first->bf_last = bf_prev;
 
+	/*
+	 * For non-AR9300 NICs, which require the rate control
+	 * in the final descriptor - let's set that up now.
+	 *
+	 * This is because the filltxdesc() HAL call doesn't
+	 * populate the last segment with rate control information
+	 * if firstSeg is also true.  For non-aggregate frames
+	 * that is fine, as the first frame already has rate control
+	 * info.  But if the last frame in an aggregate has one
+	 * descriptor, both firstseg and lastseg will be true and
+	 * the rate info isn't copied.
+	 *
+	 * This is inefficient on MIPS/ARM platforms that have
+	 * non-cachable memory for TX descriptors, but we'll just
+	 * make do for now.
+	 *
+	 * As to why the rate table is stashed in the last descriptor
+	 * rather than the first descriptor?  Because proctxdesc()
+	 * is called on the final descriptor in an MPDU or A-MPDU -
+	 * ie, the one that gets updated by the hardware upon
+	 * completion.  That way proctxdesc() doesn't need to know
+	 * about the first _and_ last TX descriptor.
+	 */
+	ath_hal_setuplasttxdesc(sc->sc_ah, bf_prev->bf_lastds, ds0);
+
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: end\n", __func__);
 }
 
