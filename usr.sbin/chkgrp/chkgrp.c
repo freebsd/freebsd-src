@@ -81,7 +81,7 @@ main(int argc, char *argv[])
 	    break;
 	if (len > 0 && line[len - 1] != '\n') {
 	    warnx("%s: line %d: no newline character", gfn, n);
-	    e++;
+	    e = 1;
 	}
 	while (len && isspace(line[len-1]))
 	    len--;
@@ -114,14 +114,14 @@ main(int argc, char *argv[])
             warnx("%s: line %d: missing field(s)", gfn, n);
 	    for ( ; k < 4; k++)
 		f[k] = empty;
-            e++;
+            e = 1;
         }
 
 	for (cp = f[0] ; *cp ; cp++) {
 	    if (!isalnum(*cp) && *cp != '.' && *cp != '_' && *cp != '-' &&
 		(cp > f[0] || *cp != '+')) {
 		warnx("%s: line %d: '%c' invalid character", gfn, n, *cp);
-		e++;
+		e = 1;
 	    }
 	}
 
@@ -129,14 +129,14 @@ main(int argc, char *argv[])
 	    if (!isalnum(*cp) && *cp != '.' && *cp != '_' && *cp != '-' &&
 			*cp != ',') {
 		warnx("%s: line %d: '%c' invalid character", gfn, n, *cp);
-		e++;
+		e = 1;
 	    }
 	}
 
 	/* check if fourth field ended with a colon */
 	if (i < len) {
 	    warnx("%s: line %d: too many fields", gfn, n);
-	    e++;
+	    e = 1;
 	}
 	
 	/* check that none of the fields contain whitespace */
@@ -144,14 +144,14 @@ main(int argc, char *argv[])
 	    if (strcspn(f[k], " \t") != strlen(f[k])) {
 		warnx("%s: line %d: field %d contains whitespace",
 		      gfn, n, k+1);
-		e++;
+		e = 1;
 	    }
 	}
 
 	/* check that the GID is numeric */
 	if (strspn(f[2], "0123456789") != strlen(f[2])) {
 	    warnx("%s: line %d: GID is not numeric", gfn, n);
-	    e++;
+	    e = 1;
 	}
 
 	/* check the range of the group id */
@@ -163,7 +163,7 @@ main(int argc, char *argv[])
 	else if (groupid > GID_MAX) {
 		warnx("%s: line %d: group id is too large (> %ju)",
 		  gfn, n, (uintmax_t)GID_MAX);
-		e++;
+		e = 1;
 	}
 	
 #if 0
