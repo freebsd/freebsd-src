@@ -69,7 +69,6 @@ main(int argc, char *argv[])
 			break;
 		case '?':
 		default:
-			printf("hello\n");
 			usage();
 	    }
     }
