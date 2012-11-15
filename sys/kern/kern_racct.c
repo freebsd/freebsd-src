@@ -403,7 +403,7 @@ racct_sub_racct(struct racct *dest, const struct racct *src)
 	 * Update resource usage in dest.
 	 */
 	for (i = 0; i <= RACCT_MAX; i++) {
-		if (!RACCT_IS_SLOPPY(i)) {
+		if (!RACCT_IS_SLOPPY(i) && !RACCT_IS_DECAYING(i)) {
 			KASSERT(dest->r_resources[i] >= 0,
 			    ("racct propagation meltdown: dest < 0"));
 			KASSERT(src->r_resources[i] >= 0,
@@ -414,7 +414,8 @@ racct_sub_racct(struct racct *dest, const struct racct *src)
 		if (RACCT_CAN_DROP(i)) {
 			dest->r_resources[i] -= src->r_resources[i];
 			if (dest->r_resources[i] < 0) {
-				KASSERT(RACCT_IS_SLOPPY(i),
+				KASSERT(RACCT_IS_SLOPPY(i) ||
+				    RACCT_IS_DECAYING(i),
 				    ("racct_sub_racct: usage < 0"));
 				dest->r_resources[i] = 0;
 			}
