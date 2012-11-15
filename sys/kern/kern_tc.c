@@ -120,7 +120,7 @@ SYSCTL_INT(_kern_timecounter, OID_AUTO, stepwarnings, CTLFLAG_RW,
     &timestepwarnings, 0, "Log time steps");
 
 int tc_timethreshold;
-int tc_timepercentage;
+int tc_timepercentage = TC_DEFAULTPERC;
 struct bintime tick_bt;
 SYSCTL_INT(_kern, OID_AUTO, tc_timepercentage, CTLFLAG_RW, 
     &tc_timepercentage, 0, "Precision percentage tolerance"); 
@@ -1714,8 +1714,8 @@ tc_ticktock(int cnt)
 static void
 inittimecounter(void *dummy)
 {
-	int tick_rate;
 	u_int p;
+	int tick_rate;
 
 	/*
 	 * Set the initial timeout to
