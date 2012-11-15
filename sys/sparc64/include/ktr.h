@@ -58,6 +58,7 @@ l2:	add	r2, 1, r3 ; \
 	bne	%icc, l2 ## b ; \
 	 mov	r3, r2 ; \
 	SET(ktr_buf, r3, r1) ; \
+	ldx	[r1], r1 ; \
 	mulx	r2, KTR_SIZEOF, r2 ; \
 	add	r1, r2, r1 ; \
 	rd	%tick, r2 ; \

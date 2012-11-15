@@ -167,10 +167,14 @@ int	stop_cpus_hard(cpuset_t);
 #if defined(__amd64__) || defined(__i386__)
 int	suspend_cpus(cpuset_t);
 #endif
+
 void	smp_rendezvous_action(void);
 extern	struct mtx smp_ipi_mtx;
 
 #endif /* SMP */
+
+int	quiesce_all_cpus(const char *, int);
+int	quiesce_cpus(cpuset_t, const char *, int);
 void	smp_no_rendevous_barrier(void *);
 void	smp_rendezvous(void (*)(void *), 
 		       void (*)(void *),
