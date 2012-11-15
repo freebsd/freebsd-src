@@ -385,9 +385,11 @@ racct_add_racct(struct racct *dest, const struct racct *src)
 	 */
 	for (i = 0; i <= RACCT_MAX; i++) {
 		KASSERT(dest->r_resources[i] >= 0,
-		    ("racct propagation meltdown: dest < 0"));
+		    ("%s: resource %d propagation meltdown: dest < 0",
+		    __func__, i));
 		KASSERT(src->r_resources[i] >= 0,
-		    ("racct propagation meltdown: src < 0"));
+		    ("%s: resource %d propagation meltdown: src < 0",
+		    __func__, i));
 		dest->r_resources[i] += src->r_resources[i];
 	}
 }
@@ -405,18 +407,21 @@ racct_sub_racct(struct racct *dest, const struct racct *src)
 	for (i = 0; i <= RACCT_MAX; i++) {
 		if (!RACCT_IS_SLOPPY(i) && !RACCT_IS_DECAYING(i)) {
 			KASSERT(dest->r_resources[i] >= 0,
-			    ("racct propagation meltdown: dest < 0"));
+			    ("%s: resource %d propagation meltdown: dest < 0",
+			    __func__, i));
 			KASSERT(src->r_resources[i] >= 0,
-			    ("racct propagation meltdown: src < 0"));
+			    ("%s: resource %d propagation meltdown: src < 0",
+			    __func__, i));
 			KASSERT(src->r_resources[i] <= dest->r_resources[i],
-			    ("racct propagation meltdown: src > dest"));
+			    ("%s: resource %d propagation meltdown: src > dest",
+			    __func__, i));
 		}
 		if (RACCT_CAN_DROP(i)) {
 			dest->r_resources[i] -= src->r_resources[i];
 			if (dest->r_resources[i] < 0) {
 				KASSERT(RACCT_IS_SLOPPY(i) ||
 				    RACCT_IS_DECAYING(i),
-				    ("racct_sub_racct: usage < 0"));
+				    ("%s: resource %d usage < 0", __func__, i));
 				dest->r_resources[i] = 0;
 			}
 		}
@@ -487,7 +492,7 @@ racct_alloc_resource(struct racct *racct, int resource,
 	racct->r_resources[resource] += amount;
 	if (racct->r_resources[resource] < 0) {
 		KASSERT(RACCT_IS_SLOPPY(resource) || RACCT_IS_DECAYING(resource),
-		    ("racct_alloc_resource: usage < 0"));
+		    ("%s: resource %d usage < 0", __func__, resource));
 		racct->r_resources[resource] = 0;
 	}
 	
@@ -633,7 +638,7 @@ racct_set_locked(struct proc *p, int resource, uint64_t amount)
 		diff_cred = diff_proc;
 #ifdef notyet
 	KASSERT(diff_proc >= 0 || RACCT_CAN_DROP(resource),
-	    ("racct_set: usage of non-droppable resource %d dropping",
+	    ("%s: usage of non-droppable resource %d dropping", __func__,
 	     resource));
 #endif
 #ifdef RCTL
@@ -782,12 +787,12 @@ racct_sub(struct proc *p, int resource, uint64_t amount)
 	 */
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	KASSERT(RACCT_CAN_DROP(resource),
-	    ("racct_sub: called for non-droppable resource %d", resource));
+	    ("%s: called for non-droppable resource %d", __func__, resource));
 
 	mtx_lock(&racct_lock);
 	KASSERT(amount <= p->p_racct->r_resources[resource],
-	    ("racct_sub: freeing %ju of resource %d, which is more "
-	     "than allocated %jd for %s (pid %d)", amount, resource,
+	    ("%s: freeing %ju of resource %d, which is more "
+	     "than allocated %jd for %s (pid %d)", __func__, amount, resource,
 	    (intmax_t)p->p_racct->r_resources[resource], p->p_comm, p->p_pid));
 
 	racct_alloc_resource(p->p_racct, resource, -amount);
@@ -805,7 +810,7 @@ racct_sub_cred_locked(struct ucred *cred, int resource, uint64_t amount)
 
 #ifdef notyet
 	KASSERT(RACCT_CAN_DROP(resource),
-	    ("racct_sub_cred: called for resource %d which can not drop",
+	    ("%s: called for resource %d which can not drop", __func__,
 	     resource));
 #endif
 
