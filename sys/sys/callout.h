@@ -51,19 +51,24 @@
 #define	CALLOUT_DIRECT 		0x0100 /* allow exec from hw int context */
 
 #define	C_DIRECT_EXEC		0x0001 /* direct execution of callout */
-#define	C_PRECISIONBITS		24
-#define	C_PRECISIONRANGE	((1 << C_PRECISIONBITS) - 1)
-#define	C_PRECISIONMASK		(1 << ((32 - C_PRECISIONBITS) - 1))
-#define	C_US2PREC(x)		(((x) * 4294) & C_PRECISIONMASK)
-#define	C_BT2PREC(x)		(((x) >> 32) & C_PRECISIONMASK)
-#define	C_PREC2BT(x)		((uint64_t)(flags & C_PRECISIONMASK) << 32)
+#define	C_PABSBITS		24
+#define	C_PABSMASK		(~((1 << (32 - C_PABSBITS)) - 1))
+#define	C_PABSRANGE		((1 << C_PABSBITS) - 1)
+#define	C_BT2PABS(x)		((x) >> 40)
+#define	C_SETPABS(x)		(((x) & C_PABSRANGE) << 8)
+#define	C_US2PABS(x)		(((x) * 4294) & ~C_PABSMASK)
+#define	C_PABS2BT(x)		((uint64_t)(flags & C_PABSMASK) << 32)
+#define	C_PRELBITS		5
+#define	C_PRELRANGE		((1 << C_PRELBITS) - 1)
+#define	C_PRELSET(x)		(((x) & C_PRELRANGE) << 1)
+#define	C_PRELGET(x)		(((x) >> 1) & C_PRELRANGE)
 
 /*
  * Common values specified for precision.
  */
-#define	C_P1MS			C_US2PREC(1000)
-#define	C_P10MS			C_US2PREC(10000)
-#define	C_P100MS		C_US2PREC(100000)
+#define	C_P1MS			C_US2PABS(1000)
+#define	C_P10MS			C_US2PABS(10000)
+#define	C_P100MS		C_US2PABS(100000)
 
 struct callout_handle {
 	struct callout *callout;

@@ -583,7 +583,7 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	c->c_func = func;
 	c->c_time = to_bintime;
 	bintime_clear(&c->c_precision);
-	r_val = C_PREC2BT(flags);
+	r_val = C_PABS2BT(flags);
 	c->c_precision.frac = r_val;
 	CTR3(KTR_CALLOUT, "precision set for %p: 0.%08x%08",
 	    c, (u_int) (r_val >> 32), (u_int) (r_val & 0xffffffff));

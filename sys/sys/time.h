@@ -58,6 +58,8 @@ struct bintime {
 extern int tc_timethreshold;
 extern struct bintime tick_bt;
 
+#define	TC_DEFAULTPERC		5
+
 #define FREQ2BT(freq, bt)                                               \
 {                                                                       \
         (bt)->sec = 0;                                                  \
