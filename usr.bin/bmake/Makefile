@@ -13,7 +13,7 @@ CFLAGS+= -I${.CURDIR}
 #	$NetBSD: Makefile,v 1.56 2012/05/30 21:54:23 sjg Exp $
 #	@(#)Makefile	5.2 (Berkeley) 12/28/90
 
-#	$Id: Makefile.in,v 1.174 2012/10/10 18:46:24 sjg Exp $
+#	$Id: Makefile.in,v 1.178 2012/11/15 16:48:59 sjg Exp $
 
 PROG?=	${.CURDIR:T}
 SRCS=	arch.c buf.c compat.c cond.c dir.c for.c hash.c job.c main.c \
@@ -33,7 +33,7 @@ srcdir= ${SRCTOP}/contrib/bmake
 CC?= gcc
 
 # Base version on src date
-MAKE_VERSION= 20121010
+MAKE_VERSION= 20121111
 DEFAULT_SYS_PATH = .../share/mk:/usr/share/mk
 
 CPPFLAGS+= 
