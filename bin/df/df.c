@@ -393,16 +393,11 @@ prthumanvalinode(int64_t bytes)
 
 /*
  * Convert statfs returned file system size into BLOCKSIZE units.
- * Attempts to avoid overflow for large file systems.
  */
 static intmax_t
 fsbtoblk(int64_t num, uint64_t fsbs, u_long bs)
 {
-
-	if (fsbs != 0 && fsbs < bs)
-		return (num / (intmax_t)(bs / fsbs));
-	else
-		return (num * (intmax_t)(fsbs / bs));
+	return (num * (intmax_t) fsbs / bs);
 }
 
 /*
@@ -452,6 +447,12 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 			    mwp->iused - 2, "iused", mwp->ifree, "ifree");
 		}
 		(void)printf("  Mounted on\n");
+	}
+	/* Check for 0 block size.  Can this happen? */
+	if (sfsp->f_bsize == 0) {
+		warnx ("File system %s does not have a block size, assuming 512.",
+		    sfsp->f_mntonname);
+		sfsp->f_bsize = 512;
 	}
 	(void)printf("%-*s", mwp->mntfrom, sfsp->f_mntfromname);
 	if (Tflag)
