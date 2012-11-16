@@ -35,25 +35,26 @@
 #include <sys/mount.h>
 
 struct file;
+enum idtype;
 struct itimerval;
 struct image_args;
 struct jail;
-struct mbuf;
-struct msghdr;
-struct msqid_ds;
-struct rlimit;
-struct rusage;
-struct __wrusage;
-union semun;
-struct sockaddr;
-struct stat;
 struct kevent;
 struct kevent_copyops;
 struct kld_file_stat;
 struct ksiginfo;
-struct sendfile_args;
-struct thr_param;
+struct mbuf;
+struct msghdr;
+struct msqid_ds;
 struct ogetdirentries_args;
+struct rlimit;
+struct rusage;
+union semun;
+struct sendfile_args;
+struct sockaddr;
+struct stat;
+struct thr_param;
+struct __wrusage;
 
 int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
