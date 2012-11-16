@@ -31,6 +31,23 @@
 #ifndef	__IF_ATH_ALQ_H__
 #define	__IF_ATH_ALQ_H__
 
+#define	ATH_ALQ_INIT_STATE		1
+struct if_ath_alq_init_state {
+	uint32_t	sc_mac_version;
+	uint32_t	sc_mac_revision;
+	uint32_t	sc_phy_rev;
+	uint32_t	sc_hal_magic;
+};
+
+#define	ATH_ALQ_EDMA_TXSTATUS		2
+#define	ATH_ALQ_EDMA_RXSTATUS		3
+#define	ATH_ALQ_EDMA_TXDESC		4
+
+/*
+ * These will always be logged, regardless.
+ */
+#define	ATH_ALQ_LOG_ALWAYS_MASK		0x00000001
+
 #define	ATH_ALQ_FILENAME_LEN	128
 #define	ATH_ALQ_DEVNAME_LEN	32
 
@@ -42,11 +59,8 @@ struct if_ath_alq {
 	int		sc_alq_isactive;
 	char		sc_alq_devname[ATH_ALQ_DEVNAME_LEN];
 	char		sc_alq_filename[ATH_ALQ_FILENAME_LEN];
+	struct if_ath_alq_init_state sc_alq_cfg;
 };
-
-#define	ATH_ALQ_EDMA_TXSTATUS		1
-#define	ATH_ALQ_EDMA_RXSTATUS		2
-#define	ATH_ALQ_EDMA_TXDESC		3
 
 /* 128 bytes in total */
 #define	ATH_ALQ_PAYLOAD_LEN		112
@@ -68,10 +82,13 @@ static inline int
 if_ath_alq_checkdebug(struct if_ath_alq *alq, uint16_t op)
 {
 
-	return (alq->sc_alq_debug & (1 << (op - 1)));
+	return ((alq->sc_alq_debug | ATH_ALQ_LOG_ALWAYS_MASK)
+	    & (1 << (op - 1)));
 }
 
 extern	void if_ath_alq_init(struct if_ath_alq *alq, const char *devname);
+extern	void if_ath_alq_setcfg(struct if_ath_alq *alq, uint32_t macVer,
+	    uint32_t macRev, uint32_t phyRev, uint32_t halMagic);
 extern	void if_ath_alq_tidyup(struct if_ath_alq *alq);
 extern	int if_ath_alq_start(struct if_ath_alq *alq);
 extern	int if_ath_alq_stop(struct if_ath_alq *alq);
