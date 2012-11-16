@@ -6,4 +6,4 @@
 #
 
 # Uncomment to display a random cookie each login:
-# if ( -x /usr/games/fortune ) /usr/games/fortune -s
+# [ -x /usr/games/fortune ] && /usr/games/fortune -s
