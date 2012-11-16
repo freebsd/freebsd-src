@@ -193,13 +193,11 @@ freebsd32_wait6(struct thread *td, struct freebsd32_wait6_args *uap)
 		wrup = &wru;
 	else
 		wrup = NULL;
-
 	if (uap->info != NULL) {
 		sip = &si;
 		bzero(sip, sizeof(*sip));
 	} else
 		sip = NULL;
-
 	error = kern_wait6(td, uap->idtype, uap->id, &status, uap->options,
 	    wrup, sip);
 	if (error != 0)

@@ -710,10 +710,10 @@ int
 sys_wait6(struct thread *td, struct wait6_args *uap)
 {
 	struct __wrusage wru, *wrup;
-	siginfo_t  si, *sip;
-	int error, status;
+	siginfo_t si, *sip;
 	idtype_t idtype;
 	id_t id;
+	int error, status;
 
 	idtype = uap->idtype;
 	id = uap->id;
@@ -932,7 +932,6 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 	default:
 		PROC_UNLOCK(p);
 		return (0);
-		break;
 	}
 
 	if (p_canwait(td, p)) {
@@ -962,7 +961,7 @@ proc_to_reap(struct thread *td, struct proc *p, idtype_t idtype, id_t id,
 	PROC_SLOCK(p);
 
 	if (siginfo != NULL) {
-		bzero (siginfo, sizeof (*siginfo));
+		bzero(siginfo, sizeof(*siginfo));
 		siginfo->si_errno = 0;
 
 		/*
@@ -1046,8 +1045,8 @@ kern_wait(struct thread *td, pid_t pid, int *status, int options,
 	else
 		wrup = NULL;
 	/*
-	 *  For backward compatibility we implicitly add flags WEXITED
-	 *  and WTRAPPED here.
+	 * For backward compatibility we implicitly add flags WEXITED
+	 * and WTRAPPED here.
 	 */
 	options |= WEXITED | WTRAPPED;
 	ret = kern_wait6(td, idtype, id, status, options, wrup, NULL);
@@ -1069,8 +1068,7 @@ kern_wait6(struct thread *td, idtype_t idtype, id_t id, int *status,
 
 	q = td->td_proc;
 
-	if ((pid_t)id == WAIT_MYPGRP &&
-	    (idtype == P_PID || idtype == P_PGID)) {
+	if ((pid_t)id == WAIT_MYPGRP && (idtype == P_PID || idtype == P_PGID)) {
 		id = (id_t)q->p_pgid;
 		idtype = P_PGID;
 	}
