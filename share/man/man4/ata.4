@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 18, 2012
+.Dd October 3, 2012
 .Dt ATA 4
 .Os
 .Sh NAME
@@ -108,7 +108,7 @@ can cause data loss on power failures and crashes.
 set to 1 to allow Message Signalled Interrupts (MSI) to be used by
 specified PCI ATA controller, if supported.
 .It Va hint.ata.X.devX.mode
-limits initial ATA mode for specified device on specified channel.
+limits the initial ATA mode for the specified device on the specified channel.
 .It Va hint.ata.X.mode
 limits initial ATA mode for every device on specified channel.
 .It Va hint.ata.X.pm_level
@@ -126,6 +126,12 @@ host initiates PARTIAL PM state transition every time port becomes idle.
 host initiates SLUMBER PM state transition every time port becomes idle.
 .El
 Modes 2 and 3 are implemented only for AHCI driver now.
+.It Va hint.ata. Ns Ar X Ns Va .dev Ns Ar X Ns Va .sata_rev
+limits the initial SATA revision (speed) for the specified device
+on the specified channel.
+Values 1, 2 and 3 are respectively 1.5, 3 and 6Gbps.
+.It Va hint.ata. Ns Ar X Ns Va .sata_rev
+Same, but for every device on the specified channel.
 .El
 .Sh DESCRIPTION
 The
