@@ -130,6 +130,35 @@ static struct ath_buf *
 ath_tx_retry_clone(struct ath_softc *sc, struct ath_node *an,
     struct ath_tid *tid, struct ath_buf *bf);
 
+#ifdef	ATH_DEBUG_ALQ
+void
+ath_tx_alq_post(struct ath_softc *sc, struct ath_buf *bf_first)
+{
+	struct ath_buf *bf;
+	int i, n;
+	const char *ds;
+
+	/* XXX we should skip out early if debugging isn't enabled! */
+	bf = bf_first;
+
+	while (bf != NULL) {
+		/* XXX should ensure bf_nseg > 0! */
+		if (bf->bf_nseg == 0)
+			break;
+		n = ((bf->bf_nseg - 1) / sc->sc_tx_nmaps) + 1;
+		for (i = 0, ds = (const char *) bf->bf_desc;
+		    i < n;
+		    i++, ds += sc->sc_tx_desclen) {
+			if_ath_alq_post(&sc->sc_alq,
+			    ATH_ALQ_EDMA_TXDESC,
+			    sc->sc_tx_desclen,
+			    ds);
+		}
+		bf = bf->bf_next;
+	}
+}
+#endif /* ATH_DEBUG_ALQ */
+
 /*
  * Whether to use the 11n rate scenario functions or not
  */
@@ -912,6 +941,11 @@ ath_legacy_xmit_handoff(struct ath_softc *sc, struct ath_txq *txq,
     struct ath_buf *bf)
 {
 	ATH_TXQ_LOCK_ASSERT(txq);
+
+#ifdef	ATH_DEBUG_ALQ
+	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXDESC))
+		ath_tx_alq_post(sc, bf);
+#endif
 
 	if (txq->axq_qnum == ATH_TXQ_SWQ)
 		ath_tx_handoff_mcast(sc, txq, bf);
@@ -5490,7 +5524,7 @@ ath_xmit_setup_legacy(struct ath_softc *sc)
 	 * worry about extracting the real length out of the HAL later.
 	 */
 	sc->sc_tx_desclen = sizeof(struct ath_desc);
-	sc->sc_tx_statuslen = 0;
+	sc->sc_tx_statuslen = sizeof(struct ath_desc);
 	sc->sc_tx_nmaps = 1;	/* only one buffer per TX desc */
 
 	sc->sc_tx.xmit_setup = ath_legacy_dma_txsetup;

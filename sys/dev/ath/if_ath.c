@@ -296,6 +296,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	if (ifp == NULL) {
 		device_printf(sc->sc_dev, "can not if_alloc()\n");
 		error = ENOSPC;
+		CURVNET_RESTORE();
 		goto bad;
 	}
 	ic = ifp->if_l2com;
@@ -890,6 +891,11 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 */
 #ifdef	ATH_DEBUG_ALQ
 	if_ath_alq_init(&sc->sc_alq, device_get_nameunit(sc->sc_dev));
+	if_ath_alq_setcfg(&sc->sc_alq,
+	    sc->sc_ah->ah_macVersion,
+	    sc->sc_ah->ah_macRev,
+	    sc->sc_ah->ah_phyRev,
+	    sc->sc_ah->ah_magic);
 #endif
 
 	/*
@@ -3767,6 +3773,14 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 		else if ((sc->sc_debug & ATH_DEBUG_RESET) && (dosched == 0))
 			ath_printtxbuf(sc, bf, txq->axq_qnum, 0,
 			    status == HAL_OK);
+#endif
+#ifdef	ATH_DEBUG_ALQ
+		if (if_ath_alq_checkdebug(&sc->sc_alq,
+		    ATH_ALQ_EDMA_TXSTATUS)) {
+			if_ath_alq_post(&sc->sc_alq, ATH_ALQ_EDMA_TXSTATUS,
+			sc->sc_tx_statuslen,
+			(char *) ds);
+		}
 #endif
 
 		if (status == HAL_EINPROGRESS) {
