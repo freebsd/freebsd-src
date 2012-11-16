@@ -50,9 +50,9 @@ function returns a preferred block size for reporting by system utilities
 and
 .Xr systat 1 ,
 based on the value of the
-.En BLOCKSIZE
+.Ev BLOCKSIZE
 environment variable.
-.En BLOCKSIZE
+.Ev BLOCKSIZE
 may be specified directly in bytes, or in multiples of a kilobyte by
 specifying a number followed by ``K'' or ``k'', in multiples of a
 megabyte by specifying a number followed by ``M'' or ``m'' or in
@@ -61,7 +61,7 @@ multiples of a gigabyte by specifying a number followed by ``G'' or
 Multiples must be integers.
 .Pp
 Valid values of
-.En BLOCKSIZE
+.Ev BLOCKSIZE
 are 512 bytes to 1 gigabyte.
 Sizes less than 512 bytes are rounded up to 512 bytes, and sizes
 greater than 1 GB are rounded down to 1 GB.
