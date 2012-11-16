@@ -324,8 +324,6 @@ extern long first_page;			/* first physical page number */
 
 #define VM_PAGE_TO_PHYS(entry)	((entry)->phys_addr)
 
-vm_page_t vm_phys_paddr_to_vm_page(vm_paddr_t pa);
-
 vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 
 /* page allocation classes: */
