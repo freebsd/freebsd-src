@@ -353,6 +353,9 @@ malloc2vm_flags(int malloc_flags)
 {
 	int pflags;
 
+	KASSERT((malloc_flags & M_USE_RESERVE) == 0 ||
+	    (malloc_flags & M_NOWAIT) != 0,
+	    ("M_USE_RESERVE requires M_NOWAIT"));
 	pflags = (malloc_flags & M_USE_RESERVE) != 0 ? VM_ALLOC_INTERRUPT :
 	    VM_ALLOC_SYSTEM;
 	if ((malloc_flags & M_ZERO) != 0)
