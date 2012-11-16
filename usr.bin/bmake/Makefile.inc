@@ -11,4 +11,8 @@
 PROG= make
 .endif
 
+.if ${MK_SHARED_TOOLCHAIN} == "no"
+NO_SHARED?=     YES
+.endif
+
 WARNS=3

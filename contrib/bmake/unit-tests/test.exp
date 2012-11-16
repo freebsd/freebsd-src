@@ -310,6 +310,9 @@ LIST:tw:C/ /,/g="one two three four five six"
 LIST:tw:C/ /,/1g="one two three four five six"
 LIST:tw:tW:C/ /,/="one,two three four five six"
 LIST:tW:tw:C/ /,/="one two three four five six"
+Making the.c
+Making the.h
+Making the.o from the.h the.c
 .TARGET="phony" .PREFIX="phony" .IMPSRC=""
 .TARGET="all" .PREFIX="all" .IMPSRC=""
 .TARGET="ok" .PREFIX="ok" .IMPSRC=""
