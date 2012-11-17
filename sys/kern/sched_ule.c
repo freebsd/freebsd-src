@@ -2636,8 +2636,10 @@ sched_idletd(void *dummy)
 			if (tdq_idled(tdq) == 0)
 				continue;
 		}
-#endif
 		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
+#else
+		oldswitchcnt = switchcnt;
+#endif
 		/*
 		 * If we're switching very frequently, spin while checking
 		 * for load rather than entering a low power state that 

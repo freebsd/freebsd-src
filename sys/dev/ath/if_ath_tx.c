@@ -130,6 +130,35 @@ static struct ath_buf *
 ath_tx_retry_clone(struct ath_softc *sc, struct ath_node *an,
     struct ath_tid *tid, struct ath_buf *bf);
 
+#ifdef	ATH_DEBUG_ALQ
+void
+ath_tx_alq_post(struct ath_softc *sc, struct ath_buf *bf_first)
+{
+	struct ath_buf *bf;
+	int i, n;
+	const char *ds;
+
+	/* XXX we should skip out early if debugging isn't enabled! */
+	bf = bf_first;
+
+	while (bf != NULL) {
+		/* XXX should ensure bf_nseg > 0! */
+		if (bf->bf_nseg == 0)
+			break;
+		n = ((bf->bf_nseg - 1) / sc->sc_tx_nmaps) + 1;
+		for (i = 0, ds = (const char *) bf->bf_desc;
+		    i < n;
+		    i++, ds += sc->sc_tx_desclen) {
+			if_ath_alq_post(&sc->sc_alq,
+			    ATH_ALQ_EDMA_TXDESC,
+			    sc->sc_tx_desclen,
+			    ds);
+		}
+		bf = bf->bf_next;
+	}
+}
+#endif /* ATH_DEBUG_ALQ */
+
 /*
  * Whether to use the 11n rate scenario functions or not
  */
@@ -528,11 +557,19 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 	    __func__, bf_first->bf_state.bfs_nframes,
 	    bf_first->bf_state.bfs_al);
 
+	bf = bf_first;
+
+	if (bf->bf_state.bfs_txrate0 == 0)
+		device_printf(sc->sc_dev, "%s: bf=%p, txrate0=%d\n",
+		    __func__, bf, 0);
+	if (bf->bf_state.bfs_rc[0].ratecode == 0)
+		device_printf(sc->sc_dev, "%s: bf=%p, rix0=%d\n",
+		    __func__, bf, 0);
+
 	/*
 	 * Setup all descriptors of all subframes - this will
 	 * call ath_hal_set11naggrmiddle() on every frame.
 	 */
-	bf = bf_first;
 	while (bf != NULL) {
 		DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 		    "%s: bf=%p, nseg=%d, pktlen=%d, seqno=%d\n",
@@ -614,6 +651,31 @@ ath_tx_setds_11n(struct ath_softc *sc, struct ath_buf *bf_first)
 	 * the aggregate list.
 	 */
 	bf_first->bf_last = bf_prev;
+
+	/*
+	 * For non-AR9300 NICs, which require the rate control
+	 * in the final descriptor - let's set that up now.
+	 *
+	 * This is because the filltxdesc() HAL call doesn't
+	 * populate the last segment with rate control information
+	 * if firstSeg is also true.  For non-aggregate frames
+	 * that is fine, as the first frame already has rate control
+	 * info.  But if the last frame in an aggregate has one
+	 * descriptor, both firstseg and lastseg will be true and
+	 * the rate info isn't copied.
+	 *
+	 * This is inefficient on MIPS/ARM platforms that have
+	 * non-cachable memory for TX descriptors, but we'll just
+	 * make do for now.
+	 *
+	 * As to why the rate table is stashed in the last descriptor
+	 * rather than the first descriptor?  Because proctxdesc()
+	 * is called on the final descriptor in an MPDU or A-MPDU -
+	 * ie, the one that gets updated by the hardware upon
+	 * completion.  That way proctxdesc() doesn't need to know
+	 * about the first _and_ last TX descriptor.
+	 */
+	ath_hal_setuplasttxdesc(sc->sc_ah, bf_prev->bf_lastds, ds0);
 
 	DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR, "%s: end\n", __func__);
 }
@@ -879,6 +941,11 @@ ath_legacy_xmit_handoff(struct ath_softc *sc, struct ath_txq *txq,
     struct ath_buf *bf)
 {
 	ATH_TXQ_LOCK_ASSERT(txq);
+
+#ifdef	ATH_DEBUG_ALQ
+	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXDESC))
+		ath_tx_alq_post(sc, bf);
+#endif
 
 	if (txq->axq_qnum == ATH_TXQ_SWQ)
 		ath_tx_handoff_mcast(sc, txq, bf);
@@ -1235,6 +1302,10 @@ ath_tx_setds(struct ath_softc *sc, struct ath_buf *bf)
 {
 	struct ath_desc *ds = bf->bf_desc;
 	struct ath_hal *ah = sc->sc_ah;
+
+	if (bf->bf_state.bfs_txrate0 == 0)
+		device_printf(sc->sc_dev, "%s: bf=%p, txrate0=%d\n",
+		    __func__, bf, 0);
 
 	ath_hal_setuptxdesc(ah, ds
 		, bf->bf_state.bfs_pktlen	/* packet length */
@@ -5453,7 +5524,7 @@ ath_xmit_setup_legacy(struct ath_softc *sc)
 	 * worry about extracting the real length out of the HAL later.
 	 */
 	sc->sc_tx_desclen = sizeof(struct ath_desc);
-	sc->sc_tx_statuslen = 0;
+	sc->sc_tx_statuslen = sizeof(struct ath_desc);
 	sc->sc_tx_nmaps = 1;	/* only one buffer per TX desc */
 
 	sc->sc_tx.xmit_setup = ath_legacy_dma_txsetup;

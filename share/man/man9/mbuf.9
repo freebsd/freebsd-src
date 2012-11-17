@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 18, 2011
+.Dd November 13, 2012
 .Dt MBUF 9
 .Os
 .\"
@@ -1063,45 +1063,6 @@ In this case, the checksum field will be initially
 set by the TCP/IP module to the checksum of the pseudo header
 defined by the TCP and UDP specifications.
 .Pp
-For outbound packets which have been fragmented
-by the host CPU, the following will also be true,
-regardless of the checksum flag settings:
-.Bl -bullet -offset indent
-.It
-all fragments will have the flag
-.Dv M_FRAG
-set in their
-.Va m_flags
-field;
-.It
-the first and the last fragments in the chain will have
-.Dv M_FIRSTFRAG
-or
-.Dv M_LASTFRAG
-set in their
-.Va m_flags ,
-correspondingly;
-.It
-the first fragment in the chain will have the total number
-of fragments contained in its
-.Va csum_data
-field.
-.El
-.Pp
-The last rule for fragmented packets takes precedence over the one
-for a TCP or UDP checksum.
-Nevertheless, offloading a TCP or UDP checksum is possible for a
-fragmented packet if the flag
-.Dv CSUM_IP_FRAGS
-is set in the field
-.Va ifnet.if_data.ifi_hwassist
-associated with the network interface.
-However, in this case the interface is expected to figure out
-the location of the checksum field within the sequence of fragments
-by itself because
-.Va csum_data
-contains a fragment count instead of a checksum offset value.
-.Pp
 On input, an interface indicates the actions it has performed
 on a packet by setting one or more of the following flags in
 .Va csum_flags
@@ -1147,22 +1108,6 @@ It is a peculiarity of the algorithm used that the Internet checksum
 calculated over any valid packet will be
 .Li 0xFFFF
 as long as the original checksum field is included.
-.Pp
-For inbound packets which are IP fragments, all
-.Va csum_data
-fields will be summed during reassembly to obtain the final checksum
-value passed to an upper layer in the
-.Va csum_data
-field of the reassembled packet.
-The
-.Va csum_flags
-fields of all fragments will be consolidated using logical AND
-to obtain the final value for
-.Va csum_flags .
-Thus, in order to successfully
-offload checksum computation for fragmented data,
-all fragments should have the same value of
-.Va csum_flags .
 .Sh STRESS TESTING
 When running a kernel compiled with the option
 .Dv MBUF_STRESS_TEST ,

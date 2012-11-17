@@ -136,37 +136,6 @@ MALLOC_DECLARE(M_ATHDEV);
 
 static void ath_edma_tx_processq(struct ath_softc *sc, int dosched);
 
-#ifdef	ATH_DEBUG_ALQ
-static void
-ath_edma_tx_alq_post(struct ath_softc *sc, struct ath_buf *bf_first)
-{
-	struct ath_buf *bf;
-	int i, n;
-	const char *ds;
-
-	/* XXX we should skip out early if debugging isn't enabled! */
-	bf = bf_first;
-
-	while (bf != NULL) {
-		/* XXX assume nmaps = 4! */
-		/* XXX should ensure bf_nseg > 0! */
-		if (bf->bf_nseg == 0)
-			break;
-		n = ((bf->bf_nseg - 1) / 4) + 1;
-		for (i = 0, ds = (const char *) bf->bf_desc;
-		    i < n;
-		    i++, ds += sc->sc_tx_desclen) {
-			if_ath_alq_post(&sc->sc_alq,
-			    ATH_ALQ_EDMA_TXDESC,
-			    96,
-			    ds);
-		}
-
-		bf = bf->bf_next;
-	}
-}
-#endif /* ATH_DEBUG_ALQ */
-
 static void
 ath_edma_tx_fifo_fill(struct ath_softc *sc, struct ath_txq *txq)
 {
@@ -187,7 +156,7 @@ ath_edma_tx_fifo_fill(struct ath_softc *sc, struct ath_txq *txq)
 #endif/* ATH_DEBUG */
 #ifdef	ATH_DEBUG_ALQ
 		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXDESC))
-			ath_edma_tx_alq_post(sc, bf);
+			ath_tx_alq_post(sc, bf);
 #endif /* ATH_DEBUG_ALQ */
 		txq->axq_fifo_depth++;
 		i++;
@@ -260,7 +229,7 @@ ath_edma_xmit_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 #endif /* ATH_DEBUG */
 #ifdef	ATH_DEBUG_ALQ
 		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXDESC))
-			ath_edma_tx_alq_post(sc, bf);
+			ath_tx_alq_post(sc, bf);
 #endif	/* ATH_DEBUG_ALQ */
 		ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
 		txq->axq_fifo_depth++;
@@ -271,16 +240,9 @@ ath_edma_xmit_handoff_hw(struct ath_softc *sc, struct ath_txq *txq,
 /*
  * Hand off this frame to a multicast software queue.
  *
- * Unlike legacy DMA, this doesn't chain together frames via the
- * link pointer.  Instead, they're just added to the queue.
- * When it comes time to populate the CABQ, these frames should
- * be individually pushed into the FIFO as appropriate.
- *
- * Yes, this does mean that I'll eventually have to flesh out some
- * replacement code to handle populating the CABQ, rather than
- * what's done in ath_beacon_generate().  It'll have to push each
- * frame from the HW CABQ to the FIFO rather than just appending
- * it to the existing TXQ and kicking off DMA.
+ * The EDMA TX CABQ will get a list of chained frames, chained
+ * together using the next pointer.  The single head of that
+ * particular queue is pushed to the hardware CABQ.
  */
 static void
 ath_edma_xmit_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
@@ -307,7 +269,13 @@ ath_edma_xmit_handoff_mcast(struct ath_softc *sc, struct ath_txq *txq,
 		   BUS_DMASYNC_PREWRITE);
 	}
 
+#ifdef	ATH_DEBUG_ALQ
+	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_TXDESC))
+		ath_tx_alq_post(sc, bf);
+#endif	/* ATH_DEBUG_ALQ */
+
 	ATH_TXQ_INSERT_TAIL(txq, bf, bf_list);
+	ath_hal_gettxdesclinkptr(sc->sc_ah, bf->bf_lastds, &txq->axq_link);
 }
 
 /*

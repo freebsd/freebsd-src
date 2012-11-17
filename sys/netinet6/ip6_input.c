@@ -686,10 +686,10 @@ passin:
 	dst6.sin6_len = sizeof(struct sockaddr_in6);
 	dst6.sin6_addr = ip6->ip6_dst;
 	ifp = m->m_pkthdr.rcvif;
-	IF_AFDATA_LOCK(ifp);
+	IF_AFDATA_RLOCK(ifp);
 	lle = lla_lookup(LLTABLE6(ifp), 0,
 	     (struct sockaddr *)&dst6);
-	IF_AFDATA_UNLOCK(ifp);
+	IF_AFDATA_RUNLOCK(ifp);
 	if ((lle != NULL) && (lle->la_flags & LLE_IFADDR)) {
 		struct ifaddr *ifa;
 		struct in6_ifaddr *ia6;

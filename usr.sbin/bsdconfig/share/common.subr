@@ -271,50 +271,186 @@ f_usage()
 	exit $FAILURE
 }
 
-# f_index_menu_selection $file $pgm
+# f_index_file $keyword
 #
-# Process $file looking for $menu_selection values that correspond to $pgm.
-# This function is for internationalization (i18n) mapping of the on-disk
-# scriptname ($pgm) into the localized language (given language-specific
-# $file). If $LANG or $LC_ALL (in orderder of preference, respectively) is set,
-# ".encoding" will automatically be appended as a suffix to the provided $file
-# pathname.
+# Process all INDEX files known to bsdconfig and return the path to first file
+# containing a menu_selection line with a keyword portion matching $keyword.
 #
-# If, within $file, multiple $menu_selection values map to $pgm, only the first
-# one will be returned. If no mapping can be made, the NULL string is returned.
+# If $LANG or $LC_ALL (in order of preference, respectively) is set,
+# "INDEX.encoding" files will be searched first.
 #
-# If $file does not exist, error status is returned along with the NULL string.
+# If no file is found, error status is returned along with the NULL string.
 #
 # This function is a two-parter. Below is the awk(1) portion of the function,
 # afterward is the sh(1) function which utilizes the below awk script.
 #
-f_index_menusel_awk='
+f_index_file_awk='
 # Variables that should be defined on the invocation line:
-# 	-v pgm="program_name"
-#
-( $0 ~ "^menu_selection=.*\\|" pgm "\"" ) {
-	sub(/\|.*/, "")
-	sub(/^menu_selection="/, "")
-	print
+# 	-v keyword="keyword"
+BEGIN { found = 0 }
+( $0 ~ "^menu_selection=\"" keyword "\\|" ) {
+	print FILENAME
+	found++
 	exit
 }
+END { exit ! found }
 '
-f_index_menu_selection()
+f_index_file()
 {
-	local file="$1" pgm="$2"
+	local keyword="$1"
 	local lang="${LANG:-$LC_ALL}"
 
 	f_dprintf "lang=[$lang]"
 
-	if [ -f "$file.$lang" ]; then
-		awk -v pgm="$pgm" "$f_index_menusel_awk" "$file.$lang" ||
-			exit $FAILURE
-	elif [ -f "$file" ]; then
-		awk -v pgm="$pgm" "$f_index_menusel_awk" "$file" ||
-			exit $FAILURE
+	if [ "$lang" ]; then
+		awk -v keyword="$keyword" "$f_index_file_awk" \
+			$BSDCFG_LIBE${BSDCFG_LIBE:+/}*/INDEX.$lang &&
+			return
+		# No match, fall-thru to non-i18n sources
+	fi
+	awk -v keyword="$keyword" "$f_index_file_awk" \
+		$BSDCFG_LIBE${BSDCFG_LIBE:+/}*/INDEX
+}
+
+# f_index_menusel_keyword $indexfile $pgm
+#
+# Process $indexfile and return only the keyword portion of the menu_selection
+# line with a command portion matching $pgm.
+#
+# This function is for internationalization (i18n) mapping of the on-disk
+# scriptname ($pgm) into the localized language (given language-specific
+# $indexfile). If $LANG or $LC_ALL (in orderder of preference, respectively) is
+# set, ".encoding" will automatically be appended as a suffix to the provided
+# $indexfile pathname.
+#
+# If, within $indexfile, multiple $menu_selection values map to $pgm, only the
+# first one will be returned. If no mapping can be made, the NULL string is
+# returned.
+#
+# If $indexfile does not exist, error status is returned with NULL.
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_index_menusel_keyword_awk='
+# Variables that should be defined on the invocation line:
+# 	-v pgm="program_name"
+#
+BEGIN {
+	prefix = "menu_selection=\""
+	plen = length(prefix)
+	found = 0
+}
+{
+	if (!match($0, "^" prefix ".*\\|.*\"")) next
+
+	keyword = command = substr($0, plen + 1, RLENGTH - plen - 1)
+	sub(/^.*\|/, "", command)
+	sub(/\|.*$/, "", keyword)
+
+	if ( command == pgm )
+	{
+		print keyword
+		found++
+		exit
+	}
+}
+END { exit ! found }
+'
+f_index_menusel_keyword()
+{
+	local indexfile="$1" pgm="$2"
+	local lang="${LANG:-$LC_ALL}"
+
+	f_dprintf "lang=[$lang]"
+
+	if [ -f "$indexfile.$lang" ]; then
+		awk -v pgm="$pgm" \
+			"$f_index_menusel_keyword_awk" \
+			"$indexfile.$lang"
+	elif [ -f "$indexfile" ]; then
+		awk -v pgm="$pgm" \
+			"$f_index_menusel_keyword_awk" \
+			"$indexfile"
+	fi
+}
+
+# f_index_menusel_command $indexfile $keyword
+#
+# Process $indexfile and return only the command portion of the menu_selection
+# line with a keyword portion matching $keyword.
+#
+# This function is for mapping [possibly international] keywords into the
+# command to be executed. If $LANG or $LC_ALL (order of preference) is set,
+# ".encoding" will automatically be appended as a suffix to the provided
+# $indexfile pathname.
+#
+# If, within $indexfile, multiple $menu_selection values map to $keyword, only
+# the first one will be returned. If no mapping can be made, the NULL string is
+# returned.
+#
+# If $indexfile doesn't exist, error status is returned with NULL.
+#
+# This function is a two-parter. Below is the awk(1) portion of the function,
+# afterward is the sh(1) function which utilizes the below awk script.
+#
+f_index_menusel_command_awk='
+# Variables that should be defined on the invocation line:
+# 	-v key="keyword"
+#
+BEGIN {
+	prefix = "menu_selection=\""
+	plen = length(prefix)
+	found = 0
+}
+{
+	if (!match($0, "^" prefix ".*\\|.*\"")) next
+
+	keyword = command = substr($0, plen + 1, RLENGTH - plen - 1)
+	sub(/^.*\|/, "", command)
+	sub(/\|.*$/, "", keyword)
+
+	if ( keyword == key )
+	{
+		print command
+		found++
+		exit
+	}
+}
+END { exit ! found }
+'
+f_index_menusel_command()
+{
+	local indexfile="$1" keyword="$2" command
+	local lang="${LANG:-$LC_ALL}"
+
+	f_dprintf "lang=[$lang]"
+
+	if [ -f "$indexfile.$lang" ]; then
+		command=$( awk -v key="$keyword" \
+				"$f_index_menusel_command_awk" \
+				"$indexfile.$lang" ) || return $FAILURE
+	elif [ -f "$indexfile" ]; then
+		command=$( awk -v key="$keyword" \
+				"$f_index_menusel_command_awk" \
+				"$indexfile" ) || return $FAILURE
 	else
 		return $FAILURE
 	fi
+
+	#
+	# If the command pathname is not fully qualified fix-up/force to be
+	# relative to the $indexfile directory.
+	#
+	case "$command" in
+	/*) : already fully qualified ;;
+	*)
+		local indexdir="${indexfile%/*}"
+		[ "$indexdir" != "$indexfile" ] || indexdir="."
+		command="$indexdir/$command"
+	esac
+
+	echo "$command"
 }
 
 ############################################################ MAIN

@@ -78,7 +78,7 @@ hooks is tagged accordingly and sent out the
 hook.
 .Sh HOOKS
 This node type supports the following hooks:
-.Bl -tag -width ".Va downstream"
+.Bl -tag -width "Aq Em any valid name"
 .It Va downstream
 Typically this hook would be connected to a
 .Xr ng_ether 4
@@ -102,12 +102,12 @@ hook.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
-.Bl -tag -width indent
-.It Dv NGM_VLAN_ADD_FILTER Pq Li addfilter
+.Bl -tag -width foo
+.It Dv NGM_VLAN_ADD_FILTER Pq Ic addfilter
 Associates a hook with the tag.
-.It Dv NGM_VLAN_DEL_FILTER Pq Li delfilter
+.It Dv NGM_VLAN_DEL_FILTER Pq Ic delfilter
 Disassociates a hook from the tag.
-.It Dv NGM_VLAN_GET_TABLE Pq Li gettable
+.It Dv NGM_VLAN_GET_TABLE Pq Ic gettable
 Returns a table of all hook/tag associations.
 .El
 .Sh EXAMPLES

@@ -121,7 +121,7 @@ devfs_alloc(int flags)
 	struct cdev *cdev;
 	struct timespec ts;
 
-	cdp = malloc(sizeof *cdp, M_CDEVP, M_USE_RESERVE | M_ZERO |
+	cdp = malloc(sizeof *cdp, M_CDEVP, M_ZERO |
 	    ((flags & MAKEDEV_NOWAIT) ? M_NOWAIT : M_WAITOK));
 	if (cdp == NULL)
 		return (NULL);
