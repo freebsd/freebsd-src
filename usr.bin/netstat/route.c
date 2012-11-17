@@ -637,6 +637,12 @@ fmt_sockaddr(struct sockaddr *sa, struct sockaddr *mask, int flags)
 	    {
 		struct sockaddr_in6 *sa6 = (struct sockaddr_in6 *)sa;
 
+		/*
+		 * The sa6->sin6_scope_id must be filled here because
+		 * this sockaddr is extracted from kmem(4) directly
+		 * and has KAME-specific embedded scope id in
+		 * sa6->sin6_addr.s6_addr[2].
+		 */
 		in6_fillscopeid(sa6);
 
 		if (flags & RTF_HOST)
