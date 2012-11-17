@@ -47,8 +47,6 @@ unsigned lineno = 1;
 static void handle_comment(void);
 static char * handle_string(void);
 
-#define YY_NO_UNPUT
-
 #undef ECHO
 
 %}
