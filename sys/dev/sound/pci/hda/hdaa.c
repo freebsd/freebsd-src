@@ -238,6 +238,142 @@ hdaa_audio_ctl_amp_get(struct hdaa_devinfo *devinfo, nid_t nid, int dir,
 	return (NULL);
 }
 
+static const struct matrix {
+	struct pcmchan_matrix	m;
+	int			analog;
+} matrixes[]  = {
+    { SND_CHN_MATRIX_MAP_1_0,	1 },
+    { SND_CHN_MATRIX_MAP_2_0,	1 },
+    { SND_CHN_MATRIX_MAP_2_1,	0 },
+    { SND_CHN_MATRIX_MAP_3_0,	0 },
+    { SND_CHN_MATRIX_MAP_3_1,	0 },
+    { SND_CHN_MATRIX_MAP_4_0,	1 },
+    { SND_CHN_MATRIX_MAP_4_1,	0 },
+    { SND_CHN_MATRIX_MAP_5_0,	0 },
+    { SND_CHN_MATRIX_MAP_5_1,	1 },
+    { SND_CHN_MATRIX_MAP_6_0,	0 },
+    { SND_CHN_MATRIX_MAP_6_1,	0 },
+    { SND_CHN_MATRIX_MAP_7_0,	0 },
+    { SND_CHN_MATRIX_MAP_7_1,	1 },
+};
+
+static const char *channel_names[] = SND_CHN_T_NAMES;
+
+/*
+ * Connected channels change handler.
+ */
+static void
+hdaa_channels_handler(struct hdaa_audio_as *as)
+{
+	struct hdaa_pcm_devinfo *pdevinfo = as->pdevinfo;
+	struct hdaa_devinfo *devinfo = pdevinfo->devinfo;
+	struct hdaa_chan *ch = &devinfo->chans[as->chans[0]];
+	struct hdaa_widget *w;
+	uint8_t *eld;
+	int i, total, sub, assume, channels;
+	uint16_t cpins, upins, tpins;
+
+	cpins = upins = 0;
+	eld = NULL;
+	for (i = 0; i < 16; i++) {
+		if (as->pins[i] <= 0)
+			continue;
+		w = hdaa_widget_get(devinfo, as->pins[i]);
+		if (w == NULL)
+			continue;
+		if (w->wclass.pin.connected == 1)
+			cpins |= (1 << i);
+		else if (w->wclass.pin.connected != 0)
+			upins |= (1 << i);
+		if (w->eld != NULL && w->eld_len >= 8)
+			eld = w->eld;
+	}
+	tpins = cpins | upins;
+	if (as->hpredir >= 0)
+		tpins &= 0x7fff;
+	if (tpins == 0)
+		tpins = as->pinset;
+
+	total = sub = assume = channels = 0;
+	if (eld) {
+		/* Map CEA speakers to sound(4) channels. */
+		if (eld[7] & 0x01) /* Front Left/Right */
+			channels |= SND_CHN_T_MASK_FL | SND_CHN_T_MASK_FR;
+		if (eld[7] & 0x02) /* Low Frequency Effect */
+			channels |= SND_CHN_T_MASK_LF;
+		if (eld[7] & 0x04) /* Front Center */
+			channels |= SND_CHN_T_MASK_FC;
+		if (eld[7] & 0x08) { /* Rear Left/Right */
+			/* If we have both RLR and RLRC, report RLR as side. */
+			if (eld[7] & 0x40) /* Rear Left/Right Center */
+			    channels |= SND_CHN_T_MASK_SL | SND_CHN_T_MASK_SR;
+			else
+			    channels |= SND_CHN_T_MASK_BL | SND_CHN_T_MASK_BR;
+		}
+		if (eld[7] & 0x10) /* Rear center */
+			channels |= SND_CHN_T_MASK_BC;
+		if (eld[7] & 0x20) /* Front Left/Right Center */
+			channels |= SND_CHN_T_MASK_FLC | SND_CHN_T_MASK_FRC;
+		if (eld[7] & 0x40) /* Rear Left/Right Center */
+			channels |= SND_CHN_T_MASK_BL | SND_CHN_T_MASK_BR;
+	} else if (as->pinset != 0 && (tpins & 0xffe0) == 0) {
+		/* Map UAA speakers to sound(4) channels. */
+		if (tpins & 0x0001)
+			channels |= SND_CHN_T_MASK_FL | SND_CHN_T_MASK_FR;
+		if (tpins & 0x0002)
+			channels |= SND_CHN_T_MASK_FC | SND_CHN_T_MASK_LF;
+		if (tpins & 0x0004)
+			channels |= SND_CHN_T_MASK_BL | SND_CHN_T_MASK_BR;
+		if (tpins & 0x0008)
+			channels |= SND_CHN_T_MASK_FLC | SND_CHN_T_MASK_FRC;
+		if (tpins & 0x0010) {
+			/* If there is no back pin, report side as back. */
+			if ((as->pinset & 0x0004) == 0)
+			    channels |= SND_CHN_T_MASK_BL | SND_CHN_T_MASK_BR;
+			else
+			    channels |= SND_CHN_T_MASK_SL | SND_CHN_T_MASK_SR;
+		}
+	} else if (as->mixed) {
+		/* Mixed assoc can be only stereo or theoretically mono. */
+		if (ch->channels == 1)
+			channels |= SND_CHN_T_MASK_FC;
+		else
+			channels |= SND_CHN_T_MASK_FL | SND_CHN_T_MASK_FR;
+	}
+	if (channels) {	/* We have some usable channels info. */
+		HDA_BOOTVERBOSE(
+			device_printf(pdevinfo->dev, "%s channel set is: ",
+			    as->dir == HDAA_CTL_OUT ? "Playback" : "Recording");
+			for (i = 0; i < SND_CHN_T_MAX; i++)
+				if (channels & (1 << i))
+					printf("%s, ", channel_names[i]);
+			printf("\n");
+		);
+		/* Look for maximal fitting matrix. */
+		for (i = 0; i < sizeof(matrixes) / sizeof(struct matrix); i++) {
+			if (as->pinset != 0 && matrixes[i].analog == 0)
+				continue;
+			if ((matrixes[i].m.mask & ~channels) == 0) {
+				total = matrixes[i].m.channels;
+				sub = matrixes[i].m.ext;
+			}
+		}
+	}
+	if (total == 0) {
+		assume = 1;
+		total = ch->channels;
+		sub = (total == 6 || total == 8) ? 1 : 0;
+	}
+	HDA_BOOTVERBOSE(
+		device_printf(pdevinfo->dev,
+		    "%s channel matrix is: %s%d.%d (%s)\n",
+		    as->dir == HDAA_CTL_OUT ? "Playback" : "Recording",
+		    assume ? "unknown, assuming " : "", total - sub, sub,
+		    cpins != 0 ? "connected" :
+		    (upins != 0 ? "unknown" : "disconnected"));
+	);
+}
+
 /*
  * Headphones redirection change handler.
  */
@@ -431,6 +567,8 @@ hdaa_presence_handler(struct hdaa_widget *w)
 		hdaa_hpredir_handler(w);
 	if (as->dir == HDAA_CTL_IN && old != 2)
 		hdaa_autorecsrc_handler(as, w);
+	if (old != 2)
+		hdaa_channels_handler(as);
 }
 
 /*
@@ -598,6 +736,7 @@ hdaa_eld_handler(struct hdaa_widget *w)
 	HDA_BOOTVERBOSE(
 		hdaa_eld_dump(w);
 	);
+	hdaa_channels_handler(&devinfo->as[w->bindas]);
 }
 
 /*
@@ -1455,14 +1594,17 @@ hdaa_audio_setup(struct hdaa_chan *ch)
 	uint16_t fmt, dfmt;
 	/* Mapping channel pairs to codec pins/converters. */
 	const static uint16_t convmap[2][5] =
-	    {{ 0x0010, 0x0001, 0x0201, 0x0231, 0x0231 }, /* 5.1 */
-	     { 0x0010, 0x0001, 0x2001, 0x2031, 0x2431 }};/* 7.1 */
+	    /*  1.0     2.0     4.0     5.1     7.1  */
+	    {{ 0x0010, 0x0001, 0x0201, 0x0231, 0x4231 },	/* no dup. */
+	     { 0x0010, 0x0001, 0x2201, 0x2231, 0x4231 }};	/* side dup. */
 	/* Mapping formats to HDMI channel allocations. */
 	const static uint8_t hdmica[2][8] =
+	    /*  1     2     3     4     5     6     7     8  */
 	    {{ 0x02, 0x00, 0x04, 0x08, 0x0a, 0x0e, 0x12, 0x12 }, /* x.0 */
 	     { 0x01, 0x03, 0x01, 0x03, 0x09, 0x0b, 0x0f, 0x13 }}; /* x.1 */
 	/* Mapping formats to HDMI channels order. */
 	const static uint32_t hdmich[2][8] =
+	    /*  1  /  5     2  /  6     3  /  7     4  /  8  */
 	    {{ 0xFFFF0F00, 0xFFFFFF10, 0xFFF2FF10, 0xFF32FF10,
 	       0xFF324F10, 0xF5324F10, 0x54326F10, 0x54326F10 }, /* x.0 */
 	     { 0xFFFFF000, 0xFFFF0100, 0xFFFFF210, 0xFFFF2310,
@@ -1482,10 +1624,9 @@ hdaa_audio_setup(struct hdaa_chan *ch)
 	fmt = hdaa_stream_format(ch);
 
 	/* Set channels to I/O converters mapping for known speaker setups. */
-	if ((as->pinset == 0x0007 || as->pinset == 0x0013)) /* Standard 5.1 */
-		convmapid = 0;
-	else if (as->pinset == 0x0017) /* Standard 7.1 */
-		convmapid = 1;
+	if ((as->pinset == 0x0007 || as->pinset == 0x0013) || /* Standard 5.1 */
+	    (as->pinset == 0x0017)) /* Standard 7.1 */
+		convmapid = (ch->dir == PCMDIR_PLAY);
 
 	dfmt = HDA_CMD_SET_DIGITAL_CONV_FMT1_DIGEN;
 	if (ch->fmt & AFMT_AC3)
@@ -6750,12 +6891,17 @@ hdaa_pcm_attach(device_t dev)
 
 	if (pdevinfo->mixer != NULL) {
 		hdaa_audio_ctl_set_defaults(pdevinfo);
+		hdaa_lock(devinfo);
+		if (pdevinfo->playas >= 0) {
+			as = &devinfo->as[pdevinfo->playas];
+			hdaa_channels_handler(as);
+		}
 		if (pdevinfo->recas >= 0) {
 			as = &devinfo->as[pdevinfo->recas];
-			hdaa_lock(devinfo);
 			hdaa_autorecsrc_handler(as, NULL);
-			hdaa_unlock(devinfo);
+			hdaa_channels_handler(as);
 		}
+		hdaa_unlock(devinfo);
 	}
 
 	snprintf(status, SND_STATUSLEN, "on %s %s",
