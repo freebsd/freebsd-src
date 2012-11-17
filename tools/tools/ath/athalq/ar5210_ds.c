@@ -129,7 +129,7 @@ ar5210_decode_rxstatus(struct if_ath_alq_payload *a)
 	    rxs.ds_status0 & AR_DataLen,
 	    MF(rxs.ds_status0, AR_More),
 	    MS(rxs.ds_status0, AR_RcvSigStrength),
-	    MS(rxs.ds_status0, AR_RcvAntenna));
+	    MF(rxs.ds_status0, AR_RcvAntenna));
 
 	/* ds_rxstatus1 */
 	printf("  RxDone=%d, RxFrameOk=%d, CrcErr=%d, DecryptCrcErr=%d\n",
