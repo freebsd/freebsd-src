@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #if 0
 #include "ar9300_ds.h"
 #endif
+#include "ar5212_ds.h"
 #include "ar5416_ds.h"
 
 #define AR5210_MAGIC    0x19980124
@@ -110,12 +111,14 @@ main(int argc, const char *argv[])
 				ath_alq_print_hdr(&hdr);
 				break;
 			default:
+				if (be32toh(hdr.sc_hal_magic) == AR5212_MAGIC)
+					ar5212_alq_payload(a);
+				else if (be32toh(hdr.sc_hal_magic) == AR5416_MAGIC)
+					ar5416_alq_payload(a);
 #if 0
-				if (be32toh(hdr.sc_hal_magic) == AR9300_MAGIC)
+				else if (be32toh(hdr.sc_hal_magic) == AR9300_MAGIC)
 					ar9300_alq_payload(a);
 #endif
-				if (be32toh(hdr.sc_hal_magic) == AR5416_MAGIC)
-					ar5416_alq_payload(a);
 				else
 					printf("[%d] [%lld] op: %d; len %d\n",
 					    be32toh(a->hdr.tstamp),
