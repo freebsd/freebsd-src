@@ -109,7 +109,7 @@ bool	Equal_probs	= FALSE;	/* scatter un-allocted prob equally */
 bool	Match		= FALSE;	/* dump fortunes matching a pattern */
 static bool	WriteToDisk = false;	/* use files on disk to save state */
 #ifdef DEBUG
-bool	Debug = FALSE;			/* print debug messages */
+int	Debug = FALSE;			/* print debug messages */
 #endif
 
 char	*Fortbuf = NULL;			/* fortune buffer for -m */
