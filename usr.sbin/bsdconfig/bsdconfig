@@ -202,6 +202,16 @@ dialog_menu_main()
 ############################################################ MAIN
 
 #
+# If $0 is not "bsdconfig", interpret it as a keyword to a menuitem
+#
+if [ "$pgm" != "bsdconfig" ] &&
+   indexfile=$( f_index_file "$pgm" ) &&
+   cmd=$( f_index_menusel_command "$indexfile" "$pgm" )
+then
+	exec "$cmd" "$@" || exit 1
+fi
+
+#
 # Process command-line arguments
 #
 while getopts hSX flag; do
@@ -244,51 +254,18 @@ if [ "$1" ]; then
 	esac
 
 	#
-	# Find the INDEX (possibly i18n) claiming this keyword
+	# Find the INDEX (possibly i18n) claiming this keyword and get the
+	# command to execute from the menu_selection line.
 	#
-	lang="${LANG:-$LC_ALL}"
-	if [ "$lang" ]; then
-		sel=$( grep "^menu_selection=\"$1|" */INDEX.$lang \
-		       		2> /dev/null | tail -1 )
-
-		# Fall-back to non-i18n sources if nothing was found
-		[ "$sel" ] ||
-			sel=$( grep "^menu_selection=\"$1|" */INDEX | tail -1 )
-	else
-		sel=$( grep "^menu_selection=\"$1|" */INDEX | tail -1 )
-	fi
-
-	#
-	# If no matches, display usage (which shows valid keywords)
-	#
-	if [ ! "$sel" ]; then
+	if ! { indexfile=$( f_index_file "$1" ) &&
+	       cmd=$( f_index_menusel_command "$indexfile" "$1" )
+	}; then
+		# no matches, display usage (which shows valid keywords)
 		f_err "%s: %s: $msg_not_found\n" "$pgm" "$1"
 		usage
 	fi
 
-	#
-	# The command to execute is after the pipe-character (|) in the
-	# menu_selection property of the INDEX file for the menuitem.
-	#
-	cmd="${sel#*|}"
-	cmd="${cmd%\"}"
-	if [ ! "$cmd" ]; then
-		echo "$pgm: $1: $msg_not_found"
-		usage
-	fi
 	shift
-
-	#
-	# If the command pathname is not fully qualified fix-up/force to be
-	# relative to the menuitem directory.
-	#
-	case "$cmd" in
-	/*) : already fully qualified ;;
-	*)
-		dir="${sel%%/*}"
-		cmd="$dir/$cmd"
-	esac
-
 	exec $cmd ${USE_XDIALOG:+-X} "$@" || exit 1
 fi
 

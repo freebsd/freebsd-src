@@ -70,18 +70,8 @@ smbfs_name_alloc(const u_char *name, int nmlen)
 	u_char *cp;
 
 	nmlen++;
-#ifdef SMBFS_NAME_DEBUG
-	cp = malloc(nmlen + 2 + sizeof(int), M_SMBNODENAME, M_WAITOK);
-	*(int*)cp = nmlen;
-	cp += sizeof(int);
-	cp[0] = 0xfc;
-	cp++;
-	bcopy(name, cp, nmlen - 1);
-	cp[nmlen] = 0xfe;
-#else
 	cp = malloc(nmlen, M_SMBNODENAME, M_WAITOK);
 	bcopy(name, cp, nmlen - 1);
-#endif
 	cp[nmlen - 1] = 0;
 	return cp;
 }
@@ -89,26 +79,8 @@ smbfs_name_alloc(const u_char *name, int nmlen)
 static void
 smbfs_name_free(u_char *name)
 {
-#ifdef SMBFS_NAME_DEBUG
-	int nmlen, slen;
-	u_char *cp;
 
-	cp = name;
-	cp--;
-	if (*cp != 0xfc)
-		panic("First byte of name entry '%s' corrupted", name);
-	cp -= sizeof(int);
-	nmlen = *(int*)cp;
-	slen = strlen(name) + 1;
-	if (nmlen != slen)
-		panic("Name length mismatch: was %d, now %d name '%s'",
-		    nmlen, slen, name);
-	if (name[nmlen] != 0xfe)
-		panic("Last byte of name entry '%s' corrupted\n", name);
-	free(cp, M_SMBNODENAME);
-#else
 	free(name, M_SMBNODENAME);
-#endif
 }
 
 static int __inline

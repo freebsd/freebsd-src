@@ -261,6 +261,9 @@ device		firmware	# firmware assist module
 # Note that 'bpf' is required for DHCP.
 device		bpf		# Berkeley packet filter
 
+# Hardware watchdog support.
+#device		octeon_wdog	# Octeon hardware watchdog
+
 # USB support
 options 	USB_DEBUG	# enable debug msgs
 device		octusb		# Cavium Octeon on-board USB interface (USB 2.0)
@@ -297,3 +300,14 @@ device		rum		# Ralink Technology RT2501USB wireless NICs
 device		uath		# Atheros AR5523 wireless NICs
 device		ural		# Ralink Technology RT2500USB wireless NICs
 device		zyd		# ZyDAS zd1211/zd1211b wireless NICs
+
+# crypto subsystem
+device		crypto		# core crypto support
+device		cryptodev	# /dev/crypto for access to h/w
+device		cryptocteon	# Octeon coprocessor 2 crypto offload
+
+# GPIO support
+#device		gpio
+
+# PMC support
+#device		hwpmc

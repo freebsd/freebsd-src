@@ -45,6 +45,8 @@ mips/cavium/octe/octebus.c			optional octe
 
 mips/cavium/octopci.c				optional pci
 mips/cavium/octopci_bus_space.c			optional pci
+mips/cavium/octeon_pci_console.c		optional pci
+contrib/octeon-sdk/octeon-pci-console.c		optional pci
 
 mips/cavium/usb/octusb.c			optional usb octusb
 mips/cavium/usb/octusb_octeon.c			optional usb octusb

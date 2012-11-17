@@ -145,13 +145,21 @@ Higher real/idle priority threads
 preempt lower real/idle priority threads.
 Threads of equal real/idle priority are run round-robin.
 .Sh RETURN VALUES
-.Rv -std rtprio
+.Rv -std rtprio rtprio_thread
 .Sh ERRORS
 The
 .Fn rtprio
-system call
+and
+.Fn rtprio_thread
+system calls
 will fail if:
 .Bl -tag -width Er
+.It Bq Er EFAULT
+The rtp pointer passed to
+.Fn rtprio
+or
+.Fn rtprio_thread
+was invalid.
 .It Bq Er EINVAL
 The specified
 .Fa prio

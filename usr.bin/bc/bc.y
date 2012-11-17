@@ -1084,7 +1084,7 @@ escape(const char *str)
 }
 
 /* ARGSUSED */
-void
+static void
 sigchld(int signo)
 {
 	pid_t pid;

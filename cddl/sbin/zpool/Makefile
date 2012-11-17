@@ -5,7 +5,7 @@
 .PATH: ${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/zfs
 
 PROG=	zpool
-MAN=	zpool.8 zpool-features.5
+MAN=	zpool.8 zpool-features.7
 SRCS=	zpool_main.c zpool_vdev.c zpool_iter.c zpool_util.c zfs_comutil.c
 SRCS+=	timestamp.c
 

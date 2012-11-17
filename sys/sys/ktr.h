@@ -116,7 +116,7 @@ extern int ktr_entries;
 extern int ktr_verbose;
 
 extern volatile int ktr_idx;
-extern struct ktr_entry ktr_buf[];
+extern struct ktr_entry *ktr_buf;
 
 #ifdef KTR
 
