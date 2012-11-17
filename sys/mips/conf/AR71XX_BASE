@@ -108,6 +108,7 @@ device		mx25l
 device		ar71xx_wdog
 
 device		uart
+device		uart_ar71xx
 
 device		loop
 device		ether
