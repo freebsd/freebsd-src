@@ -175,6 +175,14 @@ MTX_SYSINIT(rtsock, &rtsock_mtx, "rtsock route_cb lock", MTX_DEF);
 #define	RTSOCK_LOCK_ASSERT()	mtx_assert(&rtsock_mtx, MA_OWNED)
 
 static SYSCTL_NODE(_net, OID_AUTO, route, CTLFLAG_RD, 0, "");
+#ifdef INET6
+static VNET_DEFINE(int, deembed_scopeid) = 1;
+#define	V_deembed_scopeid	VNET(deembed_scopeid)
+SYSCTL_DECL(_net_inet6_ip6);
+SYSCTL_VNET_INT(_net_inet6_ip6, OID_AUTO, deembed_scopeid, CTLFLAG_RW,
+    &VNET_NAME(deembed_scopeid), 0,
+    "Extract embedded zone ID and set it to sin6_scope_id in sockaddr_in6.");
+#endif
 
 struct walkarg {
 	int	w_tmemsize;
@@ -563,6 +571,11 @@ route_output(struct mbuf *m, struct socket *so)
 	struct rtentry *rt = NULL;
 	struct radix_node_head *rnh;
 	struct rt_addrinfo info;
+#ifdef INET6
+	struct sockaddr_storage ss_dst;
+	struct sockaddr_storage ss_gw;
+	struct sockaddr_in6 *sin6;
+#endif
 	int len, error = 0;
 	struct ifnet *ifp = NULL;
 	union sockaddr_union saun;
@@ -790,7 +803,31 @@ route_output(struct mbuf *m, struct socket *so)
 				senderr(ESRCH);
 			}
 			info.rti_info[RTAX_DST] = rt_key(rt);
+#ifdef INET6
+			switch (rt_key(rt)->sa_family) {
+			case AF_INET6:
+				if (V_deembed_scopeid == 0)
+					break;
+				sin6 = (struct sockaddr_in6 *)&ss_dst;
+				bcopy(rt_key(rt), sin6, sizeof(*sin6));
+				if (sa6_recoverscope(sin6) == 0)
+					info.rti_info[RTAX_DST] =
+					    (struct sockaddr *)sin6;
+				break;
+			}
+#endif
 			info.rti_info[RTAX_GATEWAY] = rt->rt_gateway;
+#ifdef INET6
+			switch (rt->rt_gateway->sa_family) {
+			case AF_INET6:
+				sin6 = (struct sockaddr_in6 *)&ss_gw;
+				bcopy(rt->rt_gateway, sin6, sizeof(*sin6));
+				if (sa6_recoverscope(sin6) == 0)
+					info.rti_info[RTAX_GATEWAY] =
+					    (struct sockaddr *)sin6;
+				break;
+			}
+#endif
 			info.rti_info[RTAX_NETMASK] = rt_mask(rt);
 			info.rti_info[RTAX_GENMASK] = 0;
 			if (rtm->rtm_addrs & (RTA_IFP | RTA_IFA)) {
@@ -1041,6 +1078,10 @@ rt_msg1(int type, struct rt_addrinfo *rtinfo)
 	struct mbuf *m;
 	int i;
 	struct sockaddr *sa;
+#ifdef INET6
+	struct sockaddr_storage ss;
+	struct sockaddr_in6 *sin6;
+#endif
 	int len, dlen;
 
 	switch (type) {
@@ -1088,6 +1129,18 @@ rt_msg1(int type, struct rt_addrinfo *rtinfo)
 			continue;
 		rtinfo->rti_addrs |= (1 << i);
 		dlen = SA_SIZE(sa);
+#ifdef INET6
+		switch (sa->sa_family) {
+		case AF_INET6:
+			if (V_deembed_scopeid == 0)
+				break;
+			sin6 = (struct sockaddr_in6 *)&ss;
+			bcopy(sa, sin6, sizeof(*sin6));
+			if (sa6_recoverscope(sin6) == 0)
+				sa = (struct sockaddr *)sin6;
+			break;
+		}
+#endif
 		m_copyback(m, len, dlen, (caddr_t)sa);
 		len += dlen;
 	}
@@ -1110,6 +1163,10 @@ rt_msg2(int type, struct rt_addrinfo *rtinfo, caddr_t cp, struct walkarg *w)
 	int i;
 	int len, dlen, second_time = 0;
 	caddr_t cp0;
+#ifdef INET6
+	struct sockaddr_storage ss;
+	struct sockaddr_in6 *sin6;
+#endif
 
 	rtinfo->rti_addrs = 0;
 again:
@@ -1161,6 +1218,18 @@ again:
 			continue;
 		rtinfo->rti_addrs |= (1 << i);
 		dlen = SA_SIZE(sa);
+#ifdef INET6
+		switch (sa->sa_family) {
+		case AF_INET6:
+			if (V_deembed_scopeid == 0)
+				break;
+			sin6 = (struct sockaddr_in6 *)&ss;
+			bcopy(sa, sin6, sizeof(*sin6));
+			if (sa6_recoverscope(sin6) == 0)
+				sa = (struct sockaddr *)sin6;
+			break;
+		}
+#endif
 		if (cp) {
 			bcopy((caddr_t)sa, cp, (unsigned)dlen);
 			cp += dlen;
@@ -1501,6 +1570,11 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 	struct rtentry *rt = (struct rtentry *)rn;
 	int error = 0, size;
 	struct rt_addrinfo info;
+#ifdef INET6
+	struct sockaddr_storage ss[RTAX_MAX];
+	struct sockaddr_in6 *sin6;
+#endif
+	int i;
 
 	if (w->w_op == NET_RT_FLAGS && !(rt->rt_flags & w->w_arg))
 		return 0;
@@ -1519,6 +1593,22 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 		if (rt->rt_ifp->if_flags & IFF_POINTOPOINT)
 			info.rti_info[RTAX_BRD] = rt->rt_ifa->ifa_dstaddr;
 	}
+#ifdef INET6
+	for (i = 0; i < RTAX_MAX; i++) {
+		if (info.rti_info[i] == NULL)
+			continue;
+		switch (info.rti_info[i]->sa_family) {
+		case AF_INET6:
+			if (V_deembed_scopeid == 0)
+				break;
+			sin6 = (struct sockaddr_in6 *)&ss[i];
+			bcopy(info.rti_info[i], sin6, sizeof(*sin6));
+			if (sa6_recoverscope(sin6) == 0)
+				info.rti_info[i] = (struct sockaddr *)sin6;
+			break;
+		}
+	}
+#endif
 	size = rt_msg2(RTM_GET, &info, NULL, w);
 	if (w->w_req && w->w_tmem) {
 		struct rt_msghdr *rtm = (struct rt_msghdr *)w->w_tmem;

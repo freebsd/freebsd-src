@@ -557,18 +557,6 @@ routename(struct sockaddr *sa)
 		memcpy(&sin6, sa, sa->sa_len);
 		sin6.sin6_len = sizeof(struct sockaddr_in6);
 		sin6.sin6_family = AF_INET6;
-#ifdef __KAME__
-		if (sa->sa_len == sizeof(struct sockaddr_in6) &&
-		    (IN6_IS_ADDR_LINKLOCAL(&sin6.sin6_addr) ||
-		     IN6_IS_ADDR_MC_LINKLOCAL(&sin6.sin6_addr) ||
-		     IN6_IS_ADDR_MC_NODELOCAL(&sin6.sin6_addr)) &&
-		    sin6.sin6_scope_id == 0) {
-			sin6.sin6_scope_id =
-			    ntohs(*(u_int16_t *)&sin6.sin6_addr.s6_addr[2]);
-			sin6.sin6_addr.s6_addr[2] = 0;
-			sin6.sin6_addr.s6_addr[3] = 0;
-		}
-#endif
 		if (nflag)
 			niflags |= NI_NUMERICHOST;
 		if (getnameinfo((struct sockaddr *)&sin6, sin6.sin6_len,
@@ -661,18 +649,6 @@ netname(struct sockaddr *sa)
 		memcpy(&sin6, sa, sa->sa_len);
 		sin6.sin6_len = sizeof(struct sockaddr_in6);
 		sin6.sin6_family = AF_INET6;
-#ifdef __KAME__
-		if (sa->sa_len == sizeof(struct sockaddr_in6) &&
-		    (IN6_IS_ADDR_LINKLOCAL(&sin6.sin6_addr) ||
-		     IN6_IS_ADDR_MC_LINKLOCAL(&sin6.sin6_addr) ||
-		     IN6_IS_ADDR_MC_NODELOCAL(&sin6.sin6_addr)) &&
-		    sin6.sin6_scope_id == 0) {
-			sin6.sin6_scope_id =
-			    ntohs(*(u_int16_t *)&sin6.sin6_addr.s6_addr[2]);
-			sin6.sin6_addr.s6_addr[2] = 0;
-			sin6.sin6_addr.s6_addr[3] = 0;
-		}
-#endif
 		if (nflag)
 			niflags |= NI_NUMERICHOST;
 		if (getnameinfo((struct sockaddr *)&sin6, sin6.sin6_len,
@@ -1232,16 +1208,6 @@ getaddr(int which, char *str, struct hostent **hpp)
 			exit(1);
 		}
 		memcpy(&su->sin6, res->ai_addr, sizeof(su->sin6));
-#ifdef __KAME__
-		if ((IN6_IS_ADDR_LINKLOCAL(&su->sin6.sin6_addr) ||
-		     IN6_IS_ADDR_MC_LINKLOCAL(&su->sin6.sin6_addr) ||
-		     IN6_IS_ADDR_MC_NODELOCAL(&su->sin6.sin6_addr)) &&
-		    su->sin6.sin6_scope_id) {
-			*(u_int16_t *)&su->sin6.sin6_addr.s6_addr[2] =
-				htons(su->sin6.sin6_scope_id);
-			su->sin6.sin6_scope_id = 0;
-		}
-#endif
 		freeaddrinfo(res);
 		if (q != NULL)
 			*q++ = '/';
