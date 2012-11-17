@@ -23,4 +23,4 @@ mips/atheros/ar724x_chip.c	standard
 mips/atheros/ar91xx_chip.c	standard
 mips/atheros/ar71xx_fixup.c	optional ar71xx_ath_eeprom
 
-dev/hwpmc/hwpmc_mips24k.c	optional hwpmc
+dev/hwpmc/hwpmc_mips24k.c	optional hwpmc_mips24k
