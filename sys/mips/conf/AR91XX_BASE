@@ -36,6 +36,7 @@ options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 # PMC
 options		HWPMC_HOOKS
 device		hwpmc
+device		hwpmc_mips24k
 
 # options		NFS_LEGACYRPC
 # Debugging for use in -current
