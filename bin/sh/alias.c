@@ -68,7 +68,18 @@ setalias(const char *name, const char *val)
 		if (equal(name, ap->name)) {
 			INTOFF;
 			ckfree(ap->val);
+			/* See HACK below. */
+#ifdef notyet
 			ap->val	= savestr(val);
+#else
+			{
+			size_t len = strlen(val);
+			ap->val = ckmalloc(len + 2);
+			memcpy(ap->val, val, len);
+			ap->val[len] = ' ';
+			ap->val[len+1] = '\0';
+			}
+#endif
 			INTON;
 			return;
 		}

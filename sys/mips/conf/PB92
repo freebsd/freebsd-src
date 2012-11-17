@@ -124,6 +124,7 @@ device		ar71xx_wdog
 
 # Serial
 device		uart
+device		uart_ar71xx
 
 # Network twiddling
 device		loop

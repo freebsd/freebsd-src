@@ -481,7 +481,7 @@ SYSINIT(hook_tsc_freq, SI_SUB_CONFIGURE, SI_ORDER_ANY, hook_tsc_freq, NULL);
 void
 identify_cpu(void)
 {
-	u_int regs[4];
+	u_int regs[4], cpu_stdext_disable;
 
 	do_cpuid(0, regs);
 	cpu_high = regs[0];
@@ -516,6 +516,20 @@ identify_cpu(void)
 	if (cpu_high >= 7) {
 		cpuid_count(7, 0, regs);
 		cpu_stdext_feature = regs[1];
+
+		/*
+		 * Some hypervisors fail to filter out unsupported
+		 * extended features.  For now, disable the
+		 * extensions, activation of which requires setting a
+		 * bit in CR4, and which VM monitors do not support.
+		 */
+		if (cpu_feature2 & CPUID2_HV) {
+			cpu_stdext_disable = CPUID_STDEXT_FSGSBASE |
+			    CPUID_STDEXT_SMEP;
+		} else
+			cpu_stdext_disable = 0;
+		TUNABLE_INT_FETCH("hw.cpu_stdext_disable", &cpu_stdext_disable);
+		cpu_stdext_feature &= ~cpu_stdext_disable;
 	}
 
 	if (cpu_vendor_id == CPU_VENDOR_INTEL ||

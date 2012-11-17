@@ -47,6 +47,7 @@
  * 1.118, 1.124, 1.148, 1.149, 1.151, 1.171 - fixes to bulk updates
  * 1.120, 1.175 - use monotonic time_uptime
  * 1.122 - reduce number of updates for non-TCP sessions
+ * 1.125 - rewrite merge or stale processing
  * 1.128 - cleanups
  * 1.146 - bzero() mbuf before sparsely filling it with data
  * 1.170 - SIOCSIFMTU checks
@@ -774,7 +775,7 @@ static int
 pfsync_upd_tcp(struct pf_state *st, struct pfsync_state_peer *src,
     struct pfsync_state_peer *dst)
 {
-	int sfail = 0;
+	int sync = 0;
 
 	PF_STATE_LOCK_ASSERT(st);
 
@@ -783,27 +784,22 @@ pfsync_upd_tcp(struct pf_state *st, struct pfsync_state_peer *src,
 	 * for syn-proxy states.  Neither should the
 	 * sequence window slide backwards.
 	 */
-	if (st->src.state > src->state &&
+	if ((st->src.state > src->state &&
 	    (st->src.state < PF_TCPS_PROXY_SRC ||
-	    src->state >= PF_TCPS_PROXY_SRC))
-		sfail = 1;
-	else if (SEQ_GT(st->src.seqlo, ntohl(src->seqlo)))
-		sfail = 3;
-	else if (st->dst.state > dst->state) {
-		/* There might still be useful
-		 * information about the src state here,
-		 * so import that part of the update,
-		 * then "fail" so we send the updated
-		 * state back to the peer who is missing
-		 * our what we know. */
+	    src->state >= PF_TCPS_PROXY_SRC)) ||
+	    SEQ_GT(st->src.seqlo, ntohl(src->seqlo)))
+		sync++;
+	else
 		pf_state_peer_ntoh(src, &st->src);
-		/* XXX do anything with timeouts? */
-		sfail = 7;
-	} else if (st->dst.state >= TCPS_SYN_SENT &&
-	    SEQ_GT(st->dst.seqlo, ntohl(dst->seqlo)))
-		sfail = 4;
 
-	return (sfail);
+	if (st->dst.state > dst->state ||
+	    (st->dst.state >= TCPS_SYN_SENT &&
+	    SEQ_GT(st->dst.seqlo, ntohl(dst->seqlo))))
+		sync++;
+	else
+		pf_state_peer_ntoh(dst, &st->dst);
+
+	return (sync);
 }
 
 static int
@@ -811,9 +807,8 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 {
 	struct pfsync_softc *sc = V_pfsyncif;
 	struct pfsync_state *sa, *sp;
-	struct pf_state_key *sk;
 	struct pf_state *st;
-	int sfail;
+	int sync;
 
 	struct mbuf *mp;
 	int len = count * sizeof(*sp);
@@ -855,29 +850,33 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			PFSYNC_UNLOCK(sc);
 		}
 
-		sk = st->key[PF_SK_WIRE];	/* XXX right one? */
-		sfail = 0;
-		if (sk->proto == IPPROTO_TCP)
-			sfail = pfsync_upd_tcp(st, &sp->src, &sp->dst);
+		if (st->key[PF_SK_WIRE]->proto == IPPROTO_TCP)
+			sync = pfsync_upd_tcp(st, &sp->src, &sp->dst);
 		else {
+			sync = 0;
+
 			/*
 			 * Non-TCP protocol state machine always go
 			 * forwards
 			 */
 			if (st->src.state > sp->src.state)
-				sfail = 5;
-			else if (st->dst.state > sp->dst.state)
-				sfail = 6;
+				sync++;
+			else
+				pf_state_peer_ntoh(&sp->src, &st->src);
+			if (st->dst.state > sp->dst.state)
+				sync++;
+			else
+				pf_state_peer_ntoh(&sp->dst, &st->dst);
 		}
+		if (sync < 2) {
+			pfsync_alloc_scrub_memory(&sp->dst, &st->dst);
+			pf_state_peer_ntoh(&sp->dst, &st->dst);
+			st->expire = time_uptime;
+			st->timeout = sp->timeout;
+		}
+		st->pfsync_time = time_uptime;
 
-		if (sfail) {
-			if (V_pf_status.debug >= PF_DEBUG_MISC) {
-				printf("pfsync: %s stale update (%d)"
-				    " id: %016llx creatorid: %08x\n",
-				    (sfail < 7 ?  "ignoring" : "partial"),
-				    sfail, (unsigned long long)be64toh(st->id),
-				    ntohl(st->creatorid));
-			}
+		if (sync) {
 			V_pfsyncstats.pfsyncs_stale++;
 
 			pfsync_update_state(st);
@@ -887,12 +886,6 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			PFSYNC_UNLOCK(sc);
 			continue;
 		}
-		pfsync_alloc_scrub_memory(&sp->dst, &st->dst);
-		pf_state_peer_ntoh(&sp->src, &st->src);
-		pf_state_peer_ntoh(&sp->dst, &st->dst);
-		st->expire = time_uptime;
-		st->timeout = sp->timeout;
-		st->pfsync_time = time_uptime;
 		PF_STATE_UNLOCK(st);
 	}
 
@@ -904,12 +897,9 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 {
 	struct pfsync_softc *sc = V_pfsyncif;
 	struct pfsync_upd_c *ua, *up;
-	struct pf_state_key *sk;
 	struct pf_state *st;
-
 	int len = count * sizeof(*up);
-	int sfail;
-
+	int sync;
 	struct mbuf *mp;
 	int offp, i;
 
@@ -951,28 +941,33 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			PFSYNC_UNLOCK(sc);
 		}
 
-		sk = st->key[PF_SK_WIRE]; /* XXX right one? */
-		sfail = 0;
-		if (sk->proto == IPPROTO_TCP)
-			sfail = pfsync_upd_tcp(st, &up->src, &up->dst);
+		if (st->key[PF_SK_WIRE]->proto == IPPROTO_TCP)
+			sync = pfsync_upd_tcp(st, &up->src, &up->dst);
 		else {
+			sync = 0;
+
 			/*
-			 * Non-TCP protocol state machine always go forwards
+			 * Non-TCP protocol state machine always go
+			 * forwards
 			 */
 			if (st->src.state > up->src.state)
-				sfail = 5;
-			else if (st->dst.state > up->dst.state)
-				sfail = 6;
+				sync++;
+			else
+				pf_state_peer_ntoh(&up->src, &st->src);
+			if (st->dst.state > up->dst.state)
+				sync++;
+			else
+				pf_state_peer_ntoh(&up->dst, &st->dst);
 		}
+		if (sync < 2) {
+			pfsync_alloc_scrub_memory(&up->dst, &st->dst);
+			pf_state_peer_ntoh(&up->dst, &st->dst);
+			st->expire = time_uptime;
+			st->timeout = up->timeout;
+		}
+		st->pfsync_time = time_uptime;
 
-		if (sfail) {
-			if (V_pf_status.debug >= PF_DEBUG_MISC) {
-				printf("pfsync: ignoring stale update "
-				    "(%d) id: %016llx "
-				    "creatorid: %08x\n", sfail,
-				    (unsigned long long)be64toh(st->id),
-				    ntohl(st->creatorid));
-			}
+		if (sync) {
 			V_pfsyncstats.pfsyncs_stale++;
 
 			pfsync_update_state(st);
@@ -982,12 +977,6 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			PFSYNC_UNLOCK(sc);
 			continue;
 		}
-		pfsync_alloc_scrub_memory(&up->dst, &st->dst);
-		pf_state_peer_ntoh(&up->src, &st->src);
-		pf_state_peer_ntoh(&up->dst, &st->dst);
-		st->expire = time_uptime;
-		st->timeout = up->timeout;
-		st->pfsync_time = time_uptime;
 		PF_STATE_UNLOCK(st);
 	}
 
@@ -1545,6 +1534,16 @@ pfsync_sendout(int schedswi)
 			KASSERT(st->sync_state == q,
 				("%s: st->sync_state == q",
 					__func__));
+			if (st->timeout == PFTM_UNLINKED) {
+				/*
+				 * This happens if pfsync was once
+				 * stopped, and then re-enabled
+				 * after long time. Theoretically
+				 * may happen at usual runtime, too.
+				 */
+				pf_release_state(st);
+				continue;
+			}
 			/*
 			 * XXXGL: some of write methods do unlocked reads
 			 * of state data :(

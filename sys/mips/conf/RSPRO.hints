@@ -17,6 +17,7 @@ hint.arge.1.fduplex=1		#
 hint.arge.1.phymask=0x0		# no directly mapped PHYs
 hint.arge.1.miimode=3		# RGMII
 
+hint.arswitch.0.at="mdio0"
 hint.arswitch.0.is_7240=0
 hint.arswitch.0.numphys=4
 hint.arswitch.0.phy4cpu=1

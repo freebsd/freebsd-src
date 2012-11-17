@@ -1383,7 +1383,6 @@ nandfs_mountfs(struct vnode *devvp, struct mount *mp)
 	nmp->nm_ronly = ronly;
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_MPSAFE;
 	MNT_IUNLOCK(mp);
 	nmp->nm_nandfsdev = nandfsdev;
 	/* Add our mountpoint */

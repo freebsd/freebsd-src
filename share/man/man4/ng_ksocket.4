@@ -111,28 +111,28 @@ to sender.
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width foo
-.It Dv NGM_KSOCKET_BIND
+.It Dv NGM_KSOCKET_BIND Pq Ic bind
 This functions exactly like the
 .Xr bind 2
 system call.
 The
 .Vt "struct sockaddr"
 socket address parameter should be supplied as an argument.
-.It Dv NGM_KSOCKET_LISTEN
+.It Dv NGM_KSOCKET_LISTEN Pq Ic listen
 This functions exactly like the
 .Xr listen 2
 system call.
 The backlog parameter (a single 32 bit
 .Dv int )
 should be supplied as an argument.
-.It Dv NGM_KSOCKET_CONNECT
+.It Dv NGM_KSOCKET_CONNECT Pq Ic connect
 This functions exactly like the
 .Xr connect 2
 system call.
 The
 .Vt "struct sockaddr"
 destination address parameter should be supplied as an argument.
-.It Dv NGM_KSOCKET_ACCEPT
+.It Dv NGM_KSOCKET_ACCEPT Pq Ic accept
 Equivalent to the
 .Xr accept 2
 system call on a non-blocking socket.
@@ -148,26 +148,26 @@ when a connection is established.
 A cloned node supports a single hook with an arbitrary name.
 If not connected, a node disappears when its parent node is destroyed.
 Once connected, it becomes an independent node.
-.It Dv NGM_KSOCKET_GETNAME
+.It Dv NGM_KSOCKET_GETNAME Pq Ic getname
 Equivalent to the
 .Xr getsockname 2
 system call.
 The name is returned as a
 .Vt "struct sockaddr"
 in the arguments field of the reply.
-.It Dv NGM_KSOCKET_GETPEERNAME
+.It Dv NGM_KSOCKET_GETPEERNAME Pq Ic getpeername
 Equivalent to the
 .Xr getpeername 2
 system call.
 The name is returned as a
 .Vt "struct sockaddr"
 in the arguments field of the reply.
-.It Dv NGM_KSOCKET_SETOPT
+.It Dv NGM_KSOCKET_SETOPT Pq Ic setopt
 Equivalent to the
 .Xr setsockopt 2
 system call, except that the option name, level, and value are passed in a
 .Vt "struct ng_ksocket_sockopt" .
-.It Dv NGM_KSOCKET_GETOPT
+.It Dv NGM_KSOCKET_GETOPT Pq Ic getopt
 Equivalent to the
 .Xr getsockopt 2
 system call, except that the option is passed in a

@@ -60,6 +60,7 @@ struct dwc_otg_td {
 	uint8_t errcnt;
 	uint8_t tmr_res;
 	uint8_t tmr_val;
+	uint8_t curr_frame;
 	uint8_t	ep_no;
 	uint8_t channel;
 	uint8_t state;
@@ -69,8 +70,10 @@ struct dwc_otg_td {
 #define	DWC_CHAN_ST_WAIT_C_ANE 3
 #define	DWC_CHAN_ST_RX_PKT 4
 #define	DWC_CHAN_ST_RX_SPKT 5
+#define	DWC_CHAN_ST_RX_SPKT_SYNC 6
 #define	DWC_CHAN_ST_TX_PKT 4
 #define	DWC_CHAN_ST_TX_CPKT 5
+#define	DWC_CHAN_ST_TX_PKT_SYNC 6
 	uint8_t	error:1;
 	uint8_t	error_any:1;
 	uint8_t	error_stall:1;
