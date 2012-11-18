@@ -34,6 +34,7 @@
 #define _UFS_FFS_FS_H_
 
 #include <sys/mount.h>
+#include <ufs/ufs/dinode.h>
 
 /*
  * Each disk drive contains some number of filesystems.
