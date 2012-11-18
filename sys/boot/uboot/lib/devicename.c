@@ -131,6 +131,10 @@ uboot_parsedev(struct uboot_devdesc **dev, const char *devspec,
 				    *(cp + 1) != ':') {
 					pnum = strtol(cp + 1, &cp, 10);
 					ptype = PTYPE_GPT;
+				} else if (*cp == 's' && *(cp + 1) &&
+				    *(cp + 1) != ':') {
+					pnum = strtol(cp + 1, &cp, 10);
+					ptype = PTYPE_MBR;
 				} else {
 					pnum = *cp - 'a';
 					ptype = PTYPE_BSDLABEL;
@@ -217,6 +221,9 @@ uboot_fmtdev(void *vdev)
 				    dev->d_kind.disk.pnum + 'a');
 			else if (dev->d_kind.disk.ptype == PTYPE_GPT)
 				cp += sprintf(cp, "p%i",
+				    dev->d_kind.disk.pnum);
+			else if (dev->d_kind.disk.ptype == PTYPE_MBR)
+				cp += sprintf(cp, "s%i",
 				    dev->d_kind.disk.pnum);
 		}
 
