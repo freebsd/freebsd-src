@@ -1573,8 +1573,8 @@ sysctl_dumpentry(struct radix_node *rn, void *vw)
 #ifdef INET6
 	struct sockaddr_storage ss[RTAX_MAX];
 	struct sockaddr_in6 *sin6;
-#endif
 	int i;
+#endif
 
 	if (w->w_op == NET_RT_FLAGS && !(rt->rt_flags & w->w_arg))
 		return 0;
