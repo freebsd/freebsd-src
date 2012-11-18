@@ -12,6 +12,7 @@ CFLAGS+=	-I${.CURDIR}/../../cddl/boot/zfs
 
 CFLAGS+=	-ffreestanding
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+CFLAGS+=	-march=i386
 CFLAGS+=	-mpreferred-stack-boundary=2
 CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2
 .endif
@@ -22,7 +23,7 @@ CFLAGS+=	-mno-sse3
 CFLAGS+=	-msoft-float
 .endif
 .if ${MACHINE_ARCH} == "amd64"
-CFLAGS+=	-m32 -march=i386
+CFLAGS+=	-m32
 .endif
 
 CFLAGS+=	-Wformat -Wall
