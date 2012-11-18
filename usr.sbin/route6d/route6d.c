@@ -38,6 +38,7 @@ static const char _rcsid[] = "$KAME: route6d.c,v 1.104 2003/10/31 00:30:20 itoju
 
 #include <time.h>
 #include <unistd.h>
+#include <fnmatch.h>
 #include <stdlib.h>
 #include <string.h>
 #include <signal.h>
@@ -78,6 +79,7 @@ static const char _rcsid[] = "$KAME: route6d.c,v 1.104 2003/10/31 00:30:20 itoju
 #include "route6d.h"
 
 #define	MAXFILTER	40
+#define RT_DUMP_MAXRETRY	15
 
 #ifdef	DEBUG
 #define	INIT_INTERVAL6	6
@@ -172,6 +174,8 @@ int	nflag = 0;	/* don't update kernel routing table */
 int	aflag = 0;	/* age out even the statically defined routes */
 int	hflag = 0;	/* don't split horizon */
 int	lflag = 0;	/* exchange site local routes */
+int	Pflag = 0;	/* don't age out routes with RTF_PROTO[123] */
+int	Qflag = RTF_PROTO2;	/* set RTF_PROTO[123] flag to routes by RIPng */
 int	sflag = 0;	/* announce static routes w/ split horizon */
 int	Sflag = 0;	/* announce static routes to every interface */
 unsigned long routetag = 0;	/* route tag attached on originating case */
@@ -231,6 +235,7 @@ void applyplen(struct in6_addr *, int);
 void ifrtdump(int);
 void ifdump(int);
 void ifdump0(FILE *, const struct ifc *);
+void ifremove(int);
 void rtdump(int);
 void rt_entry(struct rt_msghdr *, int);
 void rtdexit(void);
@@ -279,9 +284,11 @@ main(int argc, char *argv[])
 {
 	int	ch;
 	int	error = 0;
+	unsigned long proto;
 	struct	ifc *ifcp;
 	sigset_t mask, omask;
-	FILE	*pidfile;
+	const char *pidfile = ROUTE6D_PID;
+	FILE *pidfh;
 	char *progname;
 	char *ep;
 
@@ -292,7 +299,7 @@ main(int argc, char *argv[])
 		progname = *argv;
 
 	pid = getpid();
-	while ((ch = getopt(argc, argv, "A:N:O:R:T:L:t:adDhlnqsS")) != -1) {
+	while ((ch = getopt(argc, argv, "A:N:O:R:T:L:t:adDhlnp:P:Q:qsS")) != -1) {
 		switch (ch) {
 		case 'A':
 		case 'N':
@@ -313,6 +320,41 @@ main(int argc, char *argv[])
 				fatal("invalid route tag");
 				/*NOTREACHED*/
 			}
+			break;
+		case 'p':
+			pidfile = optarg;
+			break;
+		case 'P':
+			ep = NULL;
+			proto = strtoul(optarg, &ep, 0);
+			if (!ep || *ep != '\0' || 3 < proto) {
+				fatal("invalid P flag");
+				/*NOTREACHED*/
+			}
+			if (proto == 0)
+				Pflag = 0;
+			if (proto == 1)
+				Pflag |= RTF_PROTO1;
+			if (proto == 2)
+				Pflag |= RTF_PROTO2;
+			if (proto == 3)
+				Pflag |= RTF_PROTO3;
+			break;
+		case 'Q':
+			ep = NULL;
+			proto = strtoul(optarg, &ep, 0);
+			if (!ep || *ep != '\0' || 3 < proto) {
+				fatal("invalid Q flag");
+				/*NOTREACHED*/
+			}
+			if (proto == 0)
+				Qflag = 0;
+			if (proto == 1)
+				Qflag |= RTF_PROTO1;
+			if (proto == 2)
+				Qflag |= RTF_PROTO2;
+			if (proto == 3)
+				Qflag |= RTF_PROTO3;
 			break;
 		case 'R':
 			if ((rtlog = fopen(optarg, "w")) == NULL) {
@@ -390,9 +432,9 @@ main(int argc, char *argv[])
 		ifrtdump(0);
 
 	pid = getpid();
-	if ((pidfile = fopen(ROUTE6D_PID, "w")) != NULL) {
-		fprintf(pidfile, "%d\n", pid);
-		fclose(pidfile);
+	if ((pidfh = fopen(pidfile, "w")) != NULL) {
+		fprintf(pidfh, "%d\n", pid);
+		fclose(pidfh);
 	}
 
 	if ((ripbuf = (struct rip6 *)malloc(RIP6_MAXMTU)) == NULL) {
@@ -1617,6 +1659,30 @@ ifconfig1(const char *name,
 	return 0;
 }
 
+void
+ifremove(int ifindex)
+{
+	struct ifc *ifcp;
+	struct riprt *rrt;
+
+	TAILQ_FOREACH(ifcp, &ifc_head, ifc_next) {
+		if (ifcp->ifc_index == ifindex)
+			break;
+	}
+	if (ifcp == NULL)
+		return; 
+
+	tracet(1, "ifremove: %s is departed.\n", ifcp->ifc_name);
+	TAILQ_REMOVE(&ifc_head, ifcp, ifc_next);
+
+	TAILQ_FOREACH(rrt, &riprt_head, rrt_next) {
+		if (rrt->rrt_index == ifcp->ifc_index &&
+		    rrt->rrt_rflags & RRTF_AGGREGATE)
+			delroute(&rrt->rrt_info, &rrt->rrt_gw);
+	}
+	free(ifcp);
+}
+
 /*
  * Receive and process routing messages.
  * Update interface information as necesssary.
@@ -1629,6 +1695,7 @@ rtrecv(void)
 	struct rt_msghdr *rtm;
 	struct ifa_msghdr *ifam;
 	struct if_msghdr *ifm;
+	struct if_announcemsghdr *ifan;
 	int len;
 	struct ifc *ifcp, *ic;
 	int iface = 0, rtable = 0;
@@ -1683,6 +1750,18 @@ rtrecv(void)
 			ifm = (struct if_msghdr *)p;
 			addrs = ifm->ifm_addrs;
 			q = (char *)(ifm + 1);
+			break;
+		case RTM_IFANNOUNCE:
+			ifan = (struct if_announcemsghdr *)p;
+			switch (ifan->ifan_what) {
+			case IFAN_ARRIVAL:
+				iface++;
+				break;
+			case IFAN_DEPARTURE:
+				ifremove(ifan->ifan_index);
+				iface++;
+				break;
+			}
 			break;
 		default:
 			rtm = (struct rt_msghdr *)p;
@@ -2560,7 +2639,7 @@ krtread(int again)
 			errmsg = "sysctl NET_RT_DUMP";
 			continue;
 		}
-	} while (retry < 5 && errmsg != NULL);
+	} while (retry < RT_DUMP_MAXRETRY && errmsg != NULL);
 	if (errmsg) {
 		fatal("%s (with %d retries, msize=%lu)", errmsg, retry,
 		    (u_long)msize);
@@ -2600,6 +2679,9 @@ rt_entry(struct rt_msghdr *rtm, int again)
 	if (rtm->rtm_flags & RTF_CLONED)
 		return;
 #endif
+	/* XXX: Ignore connected routes. */
+	if (!(rtm->rtm_flags & (RTF_GATEWAY|RTF_HOST|RTF_STATIC)))
+		return;
 	/*
 	 * do not look at dynamic routes.
 	 * netbsd/openbsd cloned routes have UGHD.
@@ -2649,6 +2731,8 @@ rt_entry(struct rt_msghdr *rtm, int again)
 	rrt->rrt_t = time(NULL);
 	if (aflag == 0 && (rtm->rtm_flags & RTF_STATIC))
 		rrt->rrt_t = 0;	/* Don't age static routes */
+	if (rtm->rtm_flags & Pflag)
+		rrt->rrt_t = 0;	/* Don't age PROTO[123] routes */
 	if ((rtm->rtm_flags & (RTF_HOST|RTF_GATEWAY)) == RTF_HOST)
 		rrt->rrt_t = 0;	/* Don't age non-gateway host routes */
 	np->rip6_tag = 0;
@@ -2763,6 +2847,7 @@ addroute(struct riprt *rrt,
 	rtm->rtm_seq = ++seq;
 	rtm->rtm_pid = pid;
 	rtm->rtm_flags = rrt->rrt_flags;
+	rtm->rtm_flags |= Qflag;
 	rtm->rtm_addrs = RTA_DST | RTA_GATEWAY | RTA_NETMASK;
 	rtm->rtm_rmx.rmx_hopcount = np->rip6_metric - 1;
 	rtm->rtm_inits = RTV_HOPCOUNT;
@@ -2828,6 +2913,7 @@ delroute(struct netinfo6 *np, struct in6_addr *gw)
 	rtm->rtm_seq = ++seq;
 	rtm->rtm_pid = pid;
 	rtm->rtm_flags = RTF_UP | RTF_GATEWAY;
+	rtm->rtm_flags |= Qflag;
 	if (np->rip6_plen == sizeof(struct in6_addr) * 8)
 		rtm->rtm_flags |= RTF_HOST;
 	rtm->rtm_addrs = RTA_DST | RTA_GATEWAY | RTA_NETMASK;
@@ -3133,7 +3219,7 @@ ifonly:
 				*iflp++ = '\0';
 
 			TAILQ_FOREACH(ifcp, &ifc_head, ifc_next) {
-				if (strcmp(ifname, ifcp->ifc_name) != 0)
+				if (fnmatch(ifname, ifcp->ifc_name, 0) != 0)
 					continue;
 
 				iffp = malloc(sizeof(*iffp));
@@ -3142,6 +3228,9 @@ ifonly:
 					/*NOTREACHED*/
 				}
 				memcpy(iffp, &iff, sizeof(*iffp));
+#if 0
+				syslog(LOG_INFO, "Add filter: type %d, ifname %s.", iffp->iff_type, ifname);
+#endif
 				TAILQ_INSERT_HEAD(&ifcp->ifc_iff_head, iffp, iff_next);
 			}
 		}
