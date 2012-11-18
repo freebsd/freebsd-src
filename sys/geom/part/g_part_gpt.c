@@ -155,6 +155,7 @@ static struct uuid gpt_uuid_bios_boot = GPT_ENT_TYPE_BIOS_BOOT;
 static struct uuid gpt_uuid_efi = GPT_ENT_TYPE_EFI;
 static struct uuid gpt_uuid_freebsd = GPT_ENT_TYPE_FREEBSD;
 static struct uuid gpt_uuid_freebsd_boot = GPT_ENT_TYPE_FREEBSD_BOOT;
+static struct uuid gpt_uuid_freebsd_nandfs = GPT_ENT_TYPE_FREEBSD_NANDFS;
 static struct uuid gpt_uuid_freebsd_swap = GPT_ENT_TYPE_FREEBSD_SWAP;
 static struct uuid gpt_uuid_freebsd_ufs = GPT_ENT_TYPE_FREEBSD_UFS;
 static struct uuid gpt_uuid_freebsd_vinum = GPT_ENT_TYPE_FREEBSD_VINUM;
@@ -195,6 +196,7 @@ static struct g_part_uuid_alias {
 	{ &gpt_uuid_efi, 		G_PART_ALIAS_EFI,		 0xee },
 	{ &gpt_uuid_freebsd,		G_PART_ALIAS_FREEBSD,		 0xa5 },
 	{ &gpt_uuid_freebsd_boot, 	G_PART_ALIAS_FREEBSD_BOOT,	 0 },
+	{ &gpt_uuid_freebsd_nandfs, 	G_PART_ALIAS_FREEBSD_NANDFS,	 0 },
 	{ &gpt_uuid_freebsd_swap,	G_PART_ALIAS_FREEBSD_SWAP,	 0 },
 	{ &gpt_uuid_freebsd_ufs,	G_PART_ALIAS_FREEBSD_UFS,	 0 },
 	{ &gpt_uuid_freebsd_vinum,	G_PART_ALIAS_FREEBSD_VINUM,	 0 },
