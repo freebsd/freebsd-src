@@ -126,8 +126,8 @@ device		ath		# Atheros NICs
 device		ath_pci		# Atheros pci/cardbus glue
 options 	ATH_DEBUG
 options 	ATH_DIAGAPI
-options		ATH_ENABLE_DFS
-options		ATH_ENABLE_11N
+options 	ATH_ENABLE_DFS
+options 	ATH_ENABLE_11N
 #options 	ATH_TX99_DIAG
 device		ath_rate_sample	# SampleRate tx rate control for ath
 
