@@ -144,7 +144,7 @@ static_inet6()
 
 	# get the number of FIBs supported.
 	fibs=$((`${SYSCTL_N} net.fibs` - 1))
-	if [ -n "$fibs" ]; then
+	if [ "$fibs" -gt 0 ]; then
 		fibmod="-fib 0-$fibs"
 	else
 		fibmod=
