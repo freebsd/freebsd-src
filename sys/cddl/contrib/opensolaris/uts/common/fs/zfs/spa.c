@@ -3763,10 +3763,21 @@ spa_generate_rootconf(const char *name)
 {
 	nvlist_t *config;
 	nvlist_t *nvtop, *nvroot;
+	uint64_t nchildren;
 	uint64_t pgid;
 
 	if (vdev_geom_read_pool_label(name, &config) != 0)
 		return (NULL);
+
+	/*
+	 * Multi-vdev root pool configuration discovery is not supported yet.
+	 */
+	nchildren = 0;
+	nvlist_lookup_uint64(config, ZPOOL_CONFIG_VDEV_CHILDREN, &nchildren);
+	if (nchildren != 1) {
+		nvlist_free(config);
+		return (NULL);
+	}
 
 	/*
 	 * Add this top-level vdev to the child array.
@@ -3810,25 +3821,30 @@ spa_import_rootpool(const char *name)
 	 * Read the label from the boot device and generate a configuration.
 	 */
 	config = spa_generate_rootconf(name);
-	if (config == NULL) {
+
+	mutex_enter(&spa_namespace_lock);
+	if (config != NULL) {
+		VERIFY(nvlist_lookup_string(config, ZPOOL_CONFIG_POOL_NAME,
+		    &pname) == 0 && strcmp(name, pname) == 0);
+		VERIFY(nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_TXG, &txg)
+		    == 0);
+
+		if ((spa = spa_lookup(pname)) != NULL) {
+			/*
+			 * Remove the existing root pool from the namespace so
+			 * that we can replace it with the correct config
+			 * we just read in.
+			 */
+			spa_remove(spa);
+		}
+		spa = spa_add(pname, config, NULL);
+	} else if ((spa = spa_lookup(name)) == NULL) {
 		cmn_err(CE_NOTE, "Cannot find the pool label for '%s'",
 		    name);
 		return (EIO);
+	} else {
+		VERIFY(nvlist_dup(spa->spa_config, &config, KM_SLEEP) == 0);
 	}
-
-	VERIFY(nvlist_lookup_string(config, ZPOOL_CONFIG_POOL_NAME,
-	    &pname) == 0 && strcmp(name, pname) == 0);
-	VERIFY(nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_TXG, &txg) == 0);
-
-	mutex_enter(&spa_namespace_lock);
-	if ((spa = spa_lookup(pname)) != NULL) {
-		/*
-		 * Remove the existing root pool from the namespace so that we
-		 * can replace it with the correct config we just read in.
-		 */
-		spa_remove(spa);
-	}
-	spa = spa_add(pname, config, NULL);
 	spa->spa_is_root = B_TRUE;
 	spa->spa_import_flags = ZFS_IMPORT_VERBATIM;
 
@@ -3849,15 +3865,15 @@ spa_import_rootpool(const char *name)
 		return (error);
 	}
 
-	error = 0;
 	spa_history_log_version(spa, LOG_POOL_IMPORT);
-out:
+
 	spa_config_enter(spa, SCL_ALL, FTAG, RW_WRITER);
 	vdev_free(rvd);
 	spa_config_exit(spa, SCL_ALL, FTAG);
 	mutex_exit(&spa_namespace_lock);
 
-	return (error);
+	nvlist_free(config);
+	return (0);
 }
 
 #endif	/* sun */
