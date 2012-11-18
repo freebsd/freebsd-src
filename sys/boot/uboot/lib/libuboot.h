@@ -45,6 +45,7 @@ struct uboot_devdesc
 
 #define PTYPE_BSDLABEL	1
 #define PTYPE_GPT	2
+#define PTYPE_MBR	3
 
 /*
  * Default network packet alignment in memory
