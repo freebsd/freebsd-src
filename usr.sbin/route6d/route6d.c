@@ -90,18 +90,6 @@ static char _rcsid[] = "$KAME: route6d.c,v 1.104 2003/10/31 00:30:20 itojun Exp 
 	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
 #define ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
 
-/*
- * Following two macros are highly depending on KAME Release
- */
-#define	IN6_LINKLOCAL_IFINDEX(addr) \
-	((addr).s6_addr[2] << 8 | (addr).s6_addr[3])
-
-#define	SET_IN6_LINKLOCAL_IFINDEX(addr, index) \
-	do { \
-		(addr).s6_addr[2] = ((index) >> 8) & 0xff; \
-		(addr).s6_addr[3] = (index) & 0xff; \
-	} while (0)
-
 struct	ifc {			/* Configuration of an interface */
 	char	*ifc_name;			/* if name */
 	struct	ifc *ifc_next;
@@ -122,6 +110,7 @@ struct	ifac {			/* Adddress associated to an interface */
 	struct	ifac *ifa_next;
 	struct	in6_addr ifa_addr;	/* address */
 	struct	in6_addr ifa_raddr;	/* remote address, valid in p2p */
+	int	ifa_scope_id;		/* scope id */
 	int	ifa_plen;		/* prefix length */
 };
 
@@ -883,8 +872,6 @@ ripsend(ifcp, sin6, flag)
 				if (nrt == maxrte - 2)
 					ripflush(ifcp, sin6);
 				np->rip6_dest = rrt->rrt_gw;
-				if (IN6_IS_ADDR_LINKLOCAL(&np->rip6_dest))
-					SET_IN6_LINKLOCAL_IFINDEX(np->rip6_dest, 0);
 				np->rip6_plen = 0;
 				np->rip6_tag = 0;
 				np->rip6_metric = NEXTHOP_METRIC;
@@ -1036,12 +1023,9 @@ sendpacket(sin6, len)
 	sin6 = &sincopy;
 
 	if (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr) ||
-	    IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
-		/* XXX: do not mix the interface index and link index */
-		idx = IN6_LINKLOCAL_IFINDEX(sin6->sin6_addr);
-		SET_IN6_LINKLOCAL_IFINDEX(sin6->sin6_addr, 0);
-		sin6->sin6_scope_id = idx;
-	} else
+	    IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr))
+		idx = sin6->sin6_scope_id;
+	else
 		idx = 0;
 
 	m.msg_name = (caddr_t)sin6;
@@ -1144,8 +1128,6 @@ riprecv()
 			break;
 		}
 	}
-	if (idx && IN6_IS_ADDR_LINKLOCAL(&fsock.sin6_addr))
-		SET_IN6_LINKLOCAL_IFINDEX(fsock.sin6_addr, idx);
 
 	if (len < sizeof(struct rip6)) {
 		trace(1, "Packet too short\n");
@@ -1221,7 +1203,7 @@ riprecv()
 		return;
 	}
 
-	idx = IN6_LINKLOCAL_IFINDEX(fsock.sin6_addr);
+	idx = fsock.sin6_scope_id;
 	ifcp = (idx < nindex2ifc) ? index2ifc[idx] : NULL;
 	if (!ifcp) {
 		trace(1, "Packets to unknown interface index %d\n", idx);
@@ -1248,7 +1230,6 @@ riprecv()
 			/* modify neighbor address */
 			if (IN6_IS_ADDR_LINKLOCAL(&np->rip6_dest)) {
 				nh = np->rip6_dest;
-				SET_IN6_LINKLOCAL_IFINDEX(nh, idx);
 				trace(1, "\tNexthop: %s\n", inet6_n2p(&nh));
 			} else if (IN6_IS_ADDR_UNSPECIFIED(&np->rip6_dest)) {
 				nh = fsock.sin6_addr;
@@ -1603,6 +1584,7 @@ ifconfig1(name, sa, ifcp, s)
 	ifcp->ifc_addr = ifa;
 	ifa->ifa_addr = sin6->sin6_addr;
 	ifa->ifa_plen = plen;
+	ifa->ifa_scope_id= sin6->sin6_scope_id;
 	if (ifcp->ifc_flags & IFF_POINTOPOINT) {
 		ifr.ifr_addr = *sin6;
 		if (ioctl(s, SIOCGIFDSTADDR_IN6, (char *)&ifr) < 0) {
@@ -1619,10 +1601,9 @@ ifconfig1(name, sa, ifcp, s)
 	}
 	if (ifcp->ifc_index < 0 && IN6_IS_ADDR_LINKLOCAL(&ifa->ifa_addr)) {
 		ifcp->ifc_mylladdr = ifa->ifa_addr;
-		ifcp->ifc_index = IN6_LINKLOCAL_IFINDEX(ifa->ifa_addr);
+		ifcp->ifc_index = ifa->ifa_scope_id;
 		memcpy(&ifcp->ifc_ripsin, &ripsin, ripsin.ss_len);
-		SET_IN6_LINKLOCAL_IFINDEX(ifcp->ifc_ripsin.sin6_addr,
-			ifcp->ifc_index);
+		ifcp->ifc_ripsin.sin6_scope_id = ifcp->ifc_index;
 		setindex2ifc(ifcp->ifc_index, ifcp);
 		ifcp->ifc_mtu = getifmtu(ifcp->ifc_index);
 		if (ifcp->ifc_mtu > RIP6_MAXMTU)
