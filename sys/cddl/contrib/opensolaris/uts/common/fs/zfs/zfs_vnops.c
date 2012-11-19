@@ -1908,6 +1908,9 @@ top:
 	}
 
 	if (delete_now) {
+#ifdef __FreeBSD__
+		panic("zfs_remove: delete_now branch taken");
+#endif
 		if (xattr_obj_unlinked) {
 			ASSERT3U(xzp->z_links, ==, 2);
 			mutex_enter(&xzp->z_lock);
