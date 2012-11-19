@@ -1676,14 +1676,6 @@ ffs_vgetf(mp, ino, flags, vpp, ffs_flags)
 	ump = VFSTOUFS(mp);
 	dev = ump->um_dev;
 	fs = ump->um_fs;
-
-	/*
-	 * If this malloc() is performed after the getnewvnode()
-	 * it might block, leaving a vnode with a NULL v_data to be
-	 * found by ffs_sync() if a sync happens to fire right then,
-	 * which will cause a panic because ffs_sync() blindly
-	 * dereferences vp->v_data (as well it should).
-	 */
 	ip = uma_zalloc(uma_inode, M_WAITOK | M_ZERO);
 
 	/* Allocate a new vnode/inode. */

@@ -757,13 +757,6 @@ reiserfs_iget(
 	rmp = VFSTOREISERFS(mp);
 	dev = rmp->rm_dev;
 
-	/*
-	 * If this malloc() is performed after the getnewvnode() it might
-	 * block, leaving a vnode with a NULL v_data to be found by
-	 * reiserfs_sync() if a sync happens to fire right then, which
-	 * will cause a panic because reiserfs_sync() blindly dereferences
-	 * vp->v_data (as well it should).
-	 */
 	reiserfs_log(LOG_DEBUG, "malloc(struct reiserfs_node)\n");
 	ip = malloc(sizeof(struct reiserfs_node), M_REISERFSNODE,
 	    M_WAITOK | M_ZERO);
