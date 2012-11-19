@@ -221,7 +221,7 @@ g_part_geometry(struct g_part_table *table, struct g_consumer *cp,
 				continue;
 			/*
 			 * Prefer a geometry with sectors > 1, but only if
-			 * it doesn't bump down the numbver of heads to 1.
+			 * it doesn't bump down the number of heads to 1.
 			 */
 			if (chs > bestchs || (chs == bestchs && heads > 1 &&
 			    table->gpt_sectors == 1)) {
