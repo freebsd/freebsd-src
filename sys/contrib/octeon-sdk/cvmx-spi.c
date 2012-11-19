@@ -652,6 +652,13 @@ int cvmx_spi_interface_up_cb(int interface, cvmx_spi_mode_t mode)
 
     gmxx_rxx_frm_min.u64 = 0;
     gmxx_rxx_frm_min.s.len = 64;
+#ifdef OCTEON_VENDOR_RADISYS
+    /*
+     * Incoming packets on the RSYS4GBE have the FCS stripped.
+     */
+    if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CUST_RADISYS_RSYS4GBE)
+	    gmxx_rxx_frm_min.s.len -= 4;
+#endif
     cvmx_write_csr(CVMX_GMXX_RXX_FRM_MIN(0,interface), gmxx_rxx_frm_min.u64);
     gmxx_rxx_frm_max.u64 = 0;
     gmxx_rxx_frm_max.s.len = 64*1024 - 4;
