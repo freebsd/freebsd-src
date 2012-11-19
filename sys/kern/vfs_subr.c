@@ -3988,7 +3988,8 @@ void
 assert_vop_locked(struct vnode *vp, const char *str)
 {
 
-	if (!IGNORE_LOCK(vp) && VOP_ISLOCKED(vp) == 0)
+	if (!IGNORE_LOCK(vp) &&
+	    (VOP_ISLOCKED(vp) == 0 || VOP_ISLOCKED(vp) == LK_EXCLOTHER))
 		vfs_badlock("is not locked but should be", str, vp);
 }
 
