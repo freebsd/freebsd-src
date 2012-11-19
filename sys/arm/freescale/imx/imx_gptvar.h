@@ -34,7 +34,7 @@
 
 struct imx_gpt_softc {
 	device_t 	sc_dev;
-	struct resource *res[3];
+	struct resource *res[2];
 	bus_space_tag_t sc_iot;
 	bus_space_handle_t sc_ioh;
 	int 		sc_intr;
