@@ -202,7 +202,6 @@ sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt,
 				return (-1);
 			}
 			if (IN6_IS_ADDR_V4MAPPED(&((struct sockaddr_in6 *)at)->sin6_addr)) {
-				len += sizeof(struct sockaddr_in);
 				in6_sin6_2_sin((struct sockaddr_in *)cpto, (struct sockaddr_in6 *)at);
 				cpto = ((caddr_t)cpto + sizeof(struct sockaddr_in));
 				len += sizeof(struct sockaddr_in);
