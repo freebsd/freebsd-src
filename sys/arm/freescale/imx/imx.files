@@ -32,3 +32,6 @@ dev/uart/uart_dev_imx.c			optional uart
 
 # USB join controller (1 OTG, 3 EHCI)
 dev/usb/controller/ehci_imx.c		optional ehci
+
+# Watchdog
+arm/freescale/imx/imx_wdog.c		optional imxwdt
