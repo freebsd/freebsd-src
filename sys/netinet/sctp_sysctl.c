@@ -549,8 +549,6 @@ skip:
 	if ((var) < (min)) { (var) = (min); } \
 	else if ((var) > (max)) { (var) = (max); }
 
-/* XXX: Remove the #if after tunneling over IPv6 works also on FreeBSD. */
-#if !defined(__FreeBSD__) || defined(INET)
 static int
 sysctl_sctp_udp_tunneling_check(SYSCTL_HANDLER_ARGS)
 {
@@ -581,8 +579,6 @@ sysctl_sctp_udp_tunneling_check(SYSCTL_HANDLER_ARGS)
 out:
 	return (error);
 }
-
-#endif
 
 
 static int
@@ -1067,12 +1063,9 @@ SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, clear_trace, CTLTYPE_UINT | CTLFLAG_R
     "Clear SCTP Logging buffer");
 #endif
 
-/* XXX: Remove the #if after tunneling over IPv6 works also on FreeBSD. */
-#if !defined(__FreeBSD__) || defined(INET)
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, udp_tunneling_port, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_udp_tunneling_port), 0, sysctl_sctp_udp_tunneling_check, "IU",
     SCTPCTL_UDP_TUNNELING_PORT_DESC);
-#endif
 
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, enable_sack_immediately, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_enable_sack_immediately), 0, sysctl_sctp_check, "IU",

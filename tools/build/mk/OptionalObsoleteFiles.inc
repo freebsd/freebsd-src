@@ -133,6 +133,7 @@ OLD_FILES+=usr/share/man/man3/atf-sh-api.3.gz
 OLD_FILES+=usr/share/man/man4/atf-test-case.4.gz
 OLD_FILES+=usr/share/man/man5/atf-formats.5.gz
 OLD_FILES+=usr/share/man/man7/atf.7.gz
+OLD_FILES+=usr/share/mk/atf.test.mk
 OLD_DIRS+=usr/share/xml/atf
 OLD_FILES+=usr/share/xml/atf/tests-results.dtd
 OLD_DIRS+=usr/share/xsl/atf

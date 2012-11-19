@@ -1724,6 +1724,23 @@ check_kern_features()
 	fi
 }
 
+# check_namevarlist var
+#	Return "0" if ${name}_var is reserved in rc.subr.
+
+_rc_namevarlist="program chroot chdir flags fib nice user group groups"
+check_namevarlist()
+{
+	local _v
+
+	for _v in $_rc_namevarlist; do
+	case $1 in
+	$_v)	return 0 ;;
+	esac
+	done
+
+	return 1
+}
+
 # _echoonce var msg mode
 #	mode=0: Echo $msg if ${$var} is empty.
 #	        After doing echo, a string is set to ${$var}.

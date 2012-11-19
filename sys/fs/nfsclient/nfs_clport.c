@@ -1150,31 +1150,6 @@ nfscl_maperr(struct thread *td, int error, uid_t uid, gid_t gid)
 }
 
 /*
- * Locate a process by number; return only "live" processes -- i.e., neither
- * zombies nor newly born but incompletely initialized processes.  By not
- * returning processes in the PRS_NEW state, we allow callers to avoid
- * testing for that condition to avoid dereferencing p_ucred, et al.
- * Identical to pfind() in kern_proc.c, except it assume the list is
- * already locked.
- */
-static struct proc *
-pfind_locked(pid_t pid)
-{
-	struct proc *p;
-
-	LIST_FOREACH(p, PIDHASH(pid), p_hash)
-		if (p->p_pid == pid) {
-			PROC_LOCK(p);
-			if (p->p_state == PRS_NEW) {
-				PROC_UNLOCK(p);
-				p = NULL;
-			}
-			break;
-		}
-	return (p);
-}
-
-/*
  * Check to see if the process for this owner exists. Return 1 if it doesn't
  * and 0 otherwise.
  */

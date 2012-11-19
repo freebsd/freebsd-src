@@ -1908,6 +1908,9 @@ top:
 	}
 
 	if (delete_now) {
+#ifdef __FreeBSD__
+		panic("zfs_remove: delete_now branch taken");
+#endif
 		if (xattr_obj_unlinked) {
 			ASSERT3U(xzp->z_links, ==, 2);
 			mutex_enter(&xzp->z_lock);
@@ -1937,6 +1940,9 @@ top:
 	} else if (unlinked) {
 		mutex_exit(&zp->z_lock);
 		zfs_unlinked_add(zp, tx);
+#ifdef __FreeBSD__
+		vp->v_vflag |= VV_NOSYNC;
+#endif
 	}
 
 	txtype = TX_REMOVE;

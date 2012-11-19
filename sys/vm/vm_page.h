@@ -288,7 +288,7 @@ extern struct mtx_padalign pa_lock[];
 #include <machine/atomic.h>
 
 /*
- * Each pageable resident page falls into one of five lists:
+ * Each pageable resident page falls into one of four lists:
  *
  *	free
  *		Available for allocation now.
@@ -296,10 +296,6 @@ extern struct mtx_padalign pa_lock[];
  *	cache
  *		Almost available for allocation. Still associated with
  *		an object, but clean and immediately freeable.
- *
- *	hold
- *		Will become free after a pending I/O operation
- *		completes.
  *
  * The following lists are LRU sorted:
  *
@@ -324,8 +320,6 @@ extern long first_page;			/* first physical page number */
 
 #define VM_PAGE_TO_PHYS(entry)	((entry)->phys_addr)
 
-vm_page_t vm_phys_paddr_to_vm_page(vm_paddr_t pa);
-
 vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 
 /* page allocation classes: */
@@ -346,6 +340,25 @@ vm_page_t PHYS_TO_VM_PAGE(vm_paddr_t pa);
 
 #define	VM_ALLOC_COUNT_SHIFT	16
 #define	VM_ALLOC_COUNT(count)	((count) << VM_ALLOC_COUNT_SHIFT)
+
+#ifdef M_NOWAIT
+static inline int
+malloc2vm_flags(int malloc_flags)
+{
+	int pflags;
+
+	KASSERT((malloc_flags & M_USE_RESERVE) == 0 ||
+	    (malloc_flags & M_NOWAIT) != 0,
+	    ("M_USE_RESERVE requires M_NOWAIT"));
+	pflags = (malloc_flags & M_USE_RESERVE) != 0 ? VM_ALLOC_INTERRUPT :
+	    VM_ALLOC_SYSTEM;
+	if ((malloc_flags & M_ZERO) != 0)
+		pflags |= VM_ALLOC_ZERO;
+	if ((malloc_flags & M_NODUMP) != 0)
+		pflags |= VM_ALLOC_NODUMP;
+	return (pflags);
+}
+#endif
 
 void vm_page_busy(vm_page_t m);
 void vm_page_flash(vm_page_t m);

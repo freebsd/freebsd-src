@@ -43,6 +43,7 @@
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/alq.h>
+#include <sys/endian.h>
 
 #include <dev/ath/if_ath_alq.h>
 
@@ -77,6 +78,18 @@ if_ath_alq_init(struct if_ath_alq *alq, const char *devname)
 }
 
 void
+if_ath_alq_setcfg(struct if_ath_alq *alq, uint32_t macVer,
+    uint32_t macRev, uint32_t phyRev, uint32_t halMagic)
+{
+
+	/* Store these in network order */
+	alq->sc_alq_cfg.sc_mac_version = htobe32(macVer);
+	alq->sc_alq_cfg.sc_mac_revision = htobe32(macRev);
+	alq->sc_alq_cfg.sc_phy_rev = htobe32(phyRev);
+	alq->sc_alq_cfg.sc_hal_magic = htobe32(halMagic);
+}
+
+void
 if_ath_alq_tidyup(struct if_ath_alq *alq)
 {
 
@@ -106,6 +119,9 @@ if_ath_alq_start(struct if_ath_alq *alq)
 	} else {
 		printf("%s (%s): opened\n", __func__, alq->sc_alq_devname);
 		alq->sc_alq_isactive = 1;
+		if_ath_alq_post(alq, ATH_ALQ_INIT_STATE,
+		    sizeof (struct if_ath_alq_init_state),
+		    (char *) &alq->sc_alq_cfg);
 	}
 	return (error);
 }
@@ -155,17 +171,17 @@ if_ath_alq_post(struct if_ath_alq *alq, uint16_t op, uint16_t len,
 		return;
 
 	ap = (struct if_ath_alq_hdr *) ale->ae_data;
-	ap->threadid = (uint64_t) curthread->td_tid;
-	ap->tstamp = (uint32_t) ticks;
-	ap->op = op;
-	ap->len = len;
+	ap->threadid = htobe64((uint64_t) curthread->td_tid);
+	ap->tstamp = htobe32((uint32_t) ticks);
+	ap->op = htobe16(op);
+	ap->len = htobe16(len);
 
 	/*
 	 * Copy the payload _after_ the header field.
 	 */
 	memcpy(((char *) ap) + sizeof(struct if_ath_alq_hdr),
 	    buf,
-	    ap->len);
+	    len);
 
 	alq_post(alq->sc_alq_alq, ale);
 }

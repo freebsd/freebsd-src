@@ -1752,11 +1752,11 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 
 		/* get headers. http_next_header expects one line readahead */
 		if (fetch_getln(conn) == -1) {
-		    fetch_syserr();
-		    goto ouch;
+			fetch_syserr();
+			goto ouch;
 		}
 		do {
-		    switch ((h = http_next_header(conn, &headerbuf, &p))) {
+			switch ((h = http_next_header(conn, &headerbuf, &p))) {
 			case hdr_syserror:
 				fetch_syserr();
 				goto ouch;
@@ -1785,7 +1785,7 @@ http_request(struct url *URL, const char *op, struct url_stat *us,
 				    conn->err != HTTP_USE_PROXY) {
 					n = 1;
 					break;
-                                }
+				}
 				if (new)
 					free(new);
 				if (verbose)

@@ -308,8 +308,6 @@ int cvm_oct_init_module(device_t bus)
 	int fau = FAU_NUM_PACKET_BUFFERS_TO_FREE;
 	int qos;
 
-	printf("cavium-ethernet: %s\n", OCTEON_SDK_VERSION_STRING);
-
 	cvm_oct_rx_initialize();
 	cvm_oct_configure_common_hw(bus);
 
