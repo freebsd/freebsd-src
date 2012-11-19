@@ -76,7 +76,7 @@ blocking_recver(int fd)
 	if (len == 0)
 		errx(-1, "FAIL: blocking_recver: recv: eof");
 	if (len != 1)
-		errx(-1, "FAIL: blocking_recver: recv: %d bytes", len);
+		errx(-1, "FAIL: blocking_recver: recv: %zd bytes", len);
 	if (interrupted)
 		errx(-1, "FAIL: blocking_recver: interrupted wrong pid");
 }
@@ -134,7 +134,7 @@ signaller(pid_t locking_recver_pid, int fd)
 		return;
 	}
 	if (len != sizeof(ch)) {
-		warnx("signaller send ret %d", len);
+		warnx("signaller send ret %zd", len);
 		return;
 	}
 	if (close(fd) < 0) {
