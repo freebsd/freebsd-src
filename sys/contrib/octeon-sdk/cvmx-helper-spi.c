@@ -104,6 +104,16 @@ int __cvmx_helper_spi_enumerate(int interface)
     }
 #endif
 
+#if defined(OCTEON_VENDOR_RADISYS)
+    if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CUST_RADISYS_RSYS4GBE) {
+	    if (interface == 0)
+		    return 13;
+	    if (interface == 1)
+		    return 8;
+	    return 0;
+    }
+#endif
+
 	if ((cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_SIM) &&
 	    cvmx_spi4000_is_present(interface))
 		return 10;
