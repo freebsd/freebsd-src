@@ -164,6 +164,13 @@ int __cvmx_helper_spi_enable(int interface)
         cvmx_pip_prt_cfgx_t port_config;
         port_config.u64 = cvmx_read_csr(CVMX_PIP_PRT_CFGX(ipd_port));
         port_config.s.crc_en = 1;
+#ifdef OCTEON_VENDOR_RADISYS
+	/*
+	 * Incoming packets on the RSYS4GBE have the FCS stripped.
+	 */
+	if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_CUST_RADISYS_RSYS4GBE)
+		port_config.s.crc_en = 0;
+#endif
         cvmx_write_csr(CVMX_PIP_PRT_CFGX(ipd_port), port_config.u64);
     }
 
