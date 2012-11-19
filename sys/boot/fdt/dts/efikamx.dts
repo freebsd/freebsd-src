@@ -58,6 +58,9 @@
                         clock@73fd4000 {
 				status = "okay";
                         };
+                        wdog@73f98000 {
+                                status = "okay";
+                        };
 		};
 		aips@80000000 {
                         ide@83fe0000 {
