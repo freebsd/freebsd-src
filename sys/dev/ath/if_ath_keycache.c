@@ -214,6 +214,15 @@ ath_keyset(struct ath_softc *sc, struct ieee80211vap *vap,
 		hk.kv_type = HAL_CIPHER_CLR;
 
 	/*
+	 * If we're installing a clear cipher key and
+	 * the hardware doesn't support that, just succeed.
+	 * Leave it up to the net80211 layer to figure it out.
+	 */
+	if (hk.kv_type == HAL_CIPHER_CLR && sc->sc_hasclrkey == 0) {
+		return (1);
+	}
+
+	/*
 	 * XXX TODO: check this:
 	 * 
 	 * Group keys on hardware that supports multicast frame
@@ -363,6 +372,14 @@ key_alloc_single(struct ath_softc *sc,
 {
 #define	N(a)	(sizeof(a)/sizeof(a[0]))
 	u_int i, keyix;
+
+	if (sc->sc_hasclrkey == 0) {
+		/*
+		 * Map to slot 0 for the AR5210.
+		 */
+		*txkeyix = *rxkeyix = 0;
+		return (1);
+	}
 
 	/* XXX try i,i+32,i+64,i+32+64 to minimize key pair conflicts */
 	for (i = 0; i < N(sc->sc_keymap); i++) {
