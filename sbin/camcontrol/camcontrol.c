@@ -5890,7 +5890,7 @@ usage(int printlong)
 "defects arguments:\n"
 "-f format         specify defect list format (block, bfi or phys)\n"
 "-G                get the grown defect list\n"
-"-P                get the permanant defect list\n"
+"-P                get the permanent defect list\n"
 "inquiry arguments:\n"
 "-D                get the standard inquiry data\n"
 "-S                get the serial number\n"
