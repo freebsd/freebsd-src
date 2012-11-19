@@ -1937,6 +1937,9 @@ top:
 	} else if (unlinked) {
 		mutex_exit(&zp->z_lock);
 		zfs_unlinked_add(zp, tx);
+#ifdef __FreeBSD__
+		vp->v_vflag |= VV_NOSYNC;
+#endif
 	}
 
 	txtype = TX_REMOVE;
