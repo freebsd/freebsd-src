@@ -81,10 +81,9 @@ static struct timecounter imx_gpt_timecounter = {
 	.tc_get_timecount  = imx_gpt_get_timecount,
 	.tc_counter_mask   = ~0u,
 	.tc_frequency      = 0,
-	.tc_quality        = 1000,
+	.tc_quality        = 500,
 };
 
-static volatile uint32_t imx_gpt_base;
 struct imx_gpt_softc *imx_gpt_sc = NULL;
 static volatile int imx_gpt_delay_count = 300;
 
@@ -140,7 +139,6 @@ imx_gpt_attach(device_t dev)
 	default:
 		sc->clkfreq = imx51_get_clock(IMX51CLK_IPG_CLK_ROOT);
 	}
-
 	device_printf(dev, "Run on %dKHz clock.\n", sc->clkfreq / 1000);
 
 	/* Reset */
@@ -156,10 +154,13 @@ imx_gpt_attach(device_t dev)
 	/* Disable interrupts */
 	WRITE4(sc, IMX_GPT_IR, 0);
 
-	/* Tick every 1us */
-	WRITE4(sc, IMX_GPT_PR, 1);
+	/* Tick every 10us */
+	/* XXX: must be calculated from clock source frequency */
+	WRITE4(sc, IMX_GPT_PR, 665);
+	/* Use 100 KHz */
+	sc->clkfreq = 100000;
 
-	/* Setup and enable the timer */
+	/* Setup and enable the timer interrupt */
 	err = bus_setup_intr(dev, sc->res[1], INTR_TYPE_CLK, imx_gpt_intr,
 	    NULL, sc, &sc->sc_ih);
 	if (err != 0) {
@@ -170,30 +171,28 @@ imx_gpt_attach(device_t dev)
 	}
 
 	sc->et.et_name = "i.MXxxx GPT Eventtimer";
-	sc->et.et_flags = ET_FLAGS_PERIODIC;
+	sc->et.et_flags = ET_FLAGS_ONESHOT;
 	sc->et.et_quality = 1000;
 	sc->et.et_frequency = sc->clkfreq;
 	sc->et.et_min_period.sec = 0;
 	sc->et.et_min_period.frac =
-            ((0x00000002LLU << 32) / sc->et.et_frequency) << 32;
+	    ((0x00000002LLU << 32) / sc->et.et_frequency) << 32;
 	sc->et.et_max_period.sec = 0xfffffff0U / sc->et.et_frequency;
 	sc->et.et_max_period.frac =
-            ((0xfffffffeLLU << 32) / sc->et.et_frequency) << 32;
+	    ((0xfffffffeLLU << 32) / sc->et.et_frequency) << 32;
 	sc->et.et_start = imx_gpt_timer_start;
 	sc->et.et_stop = imx_gpt_timer_stop;
 	sc->et.et_priv = sc;
 	et_register(&sc->et);
 
-	WRITE4(sc, IMX_GPT_OCR1, sc->sc_reload_value);
-
-	WRITE4(sc, IMX_GPT_SR, (GPT_IR_ROV << 1) - 1);
+	/* Disable interrupts */
 	WRITE4(sc, IMX_GPT_IR, 0);
+	/* ACK any panding interrupts */
+	WRITE4(sc, IMX_GPT_SR, (GPT_IR_ROV << 1) - 1);
 
-	/* i.MX515 has only one unit, but keep it to be safe */
 	if (device_get_unit(dev) == 0)
 	    imx_gpt_sc = sc;
 
-	sc->sc_reload_value = sc->clkfreq / hz - 1;
 	imx_gpt_timecounter.tc_frequency = sc->clkfreq;
 	tc_init(&imx_gpt_timecounter);
 
@@ -203,6 +202,8 @@ imx_gpt_attach(device_t dev)
 
 	imx_gpt_delay_count = imx51_get_clock(IMX51CLK_ARM_ROOT) / 4000000;
 
+	SET4(sc, IMX_GPT_CR, GPT_CR_EN);
+
 	return (0);
 }
 
@@ -210,8 +211,34 @@ static int
 imx_gpt_timer_start(struct eventtimer *et, struct bintime *first,
     struct bintime *period)
 {
+	struct imx_gpt_softc *sc;
+	uint32_t ticks;
 
-	return (0);
+	sc = (struct imx_gpt_softc *)et->et_priv;
+	if (first != NULL) {
+
+		ticks = (et->et_frequency * (first->frac >> 32)) >> 32;
+		if (first->sec != 0)
+			ticks += et->et_frequency * first->sec;
+
+		/*
+		 * TODO: setupt second compare reg with time which will save
+		 * us in case correct one lost, f.e. if period to short and
+		 * setup done later than counter reach target value.
+		 */
+		/* Do not disturb, otherwise event will be lost */
+		spinlock_enter();
+		/* Set expected value */
+		WRITE4(sc, IMX_GPT_OCR1, READ4(sc, IMX_GPT_CNT) + ticks);
+		/* Enable compare register 1 Interrupt */
+		SET4(sc, IMX_GPT_IR, GPT_IR_OF1);
+		/* Now everybody can relax */
+		spinlock_exit();
+
+		return (0);
+	}
+
+	return (EINVAL);
 }
 
 static int
@@ -221,7 +248,9 @@ imx_gpt_timer_stop(struct eventtimer *et)
 
 	sc = (struct imx_gpt_softc *)et->et_priv;
 
-	CLEAR4(sc, IMX_GPT_CR, GPT_CR_EN);
+	/* Disable OF1 Interrupt */
+	CLEAR4(sc, IMX_GPT_IR, GPT_IR_OF1);
+	WRITE4(sc, IMX_GPT_SR, GPT_IR_OF1);
 
 	return (0);
 }
@@ -243,35 +272,32 @@ cpu_initclocks(void)
 
 	cpu_initclocks_bsp();
 
-	WRITE4(imx_gpt_sc, IMX_GPT_IR, GPT_IR_ALL);
-	SET4(imx_gpt_sc, IMX_GPT_CR, GPT_CR_EN);
-	/* Do DELAY using counter */
+	/* Switch to DELAY using counter */
 	imx_gpt_delay_count = 0;
-	device_printf(imx_gpt_sc->sc_dev, "switch DELAY to use H/W counter\n");
-
+	device_printf(imx_gpt_sc->sc_dev,
+	    "switch DELAY to use H/W counter\n");
 }
 
 static int
 imx_gpt_intr(void *arg)
 {
-	uint64_t ccount;
+	struct imx_gpt_softc *sc;
 	uint32_t status;
 
-	status = READ4(imx_gpt_sc, IMX_GPT_SR);
-	WRITE4(imx_gpt_sc, IMX_GPT_SR, GPT_IR_OF1);
+	sc = (struct imx_gpt_softc *)arg;
+
+	/* Sometime we not get staus bit when interrupt arrive.  Cache? */
+	while (!(status = READ4(sc, IMX_GPT_SR)))
+		;
 
 	if (status & GPT_IR_OF1) {
-		/* Realod compare register */
-		ccount = READ4(imx_gpt_sc, IMX_GPT_CNT);
-		ccount += imx_gpt_sc->sc_reload_value;
-		ccount &= 0xffffffff;
-		WRITE4(imx_gpt_sc, IMX_GPT_OCR1, ccount);
-
-		if (imx_gpt_sc->et.et_active)
-			imx_gpt_sc->et.et_event_cb(&imx_gpt_sc->et,
-			    imx_gpt_sc->et.et_arg);
+		if (sc->et.et_active) {
+			sc->et.et_event_cb(&sc->et, sc->et.et_arg);
+		}
 	}
-	/* TODO: other ints */
+
+	/* ACK */
+	WRITE4(sc, IMX_GPT_SR, status);
 
 	return (FILTER_HANDLED);
 }
@@ -279,14 +305,11 @@ imx_gpt_intr(void *arg)
 u_int
 imx_gpt_get_timecount(struct timecounter *tc)
 {
-	uint32_t counter;
 
 	if (imx_gpt_sc == NULL)
 		return (0);
 
-	counter = READ4(imx_gpt_sc, IMX_GPT_CNT);
-
-	return (imx_gpt_base + counter);
+	return (READ4(imx_gpt_sc, IMX_GPT_CNT));
 }
 
 static device_method_t imx_gpt_methods[] = {
@@ -310,25 +333,28 @@ void
 DELAY(int usec)
 {
 	int32_t counts;
-	uint64_t counts_per_usec, last;
+	uint32_t last;
 
-	/* Check the timers are setup, if not just use a for loop for the meantime */
+	/*
+	 * Check the timers are setup, if not just use a for loop for the
+	 * meantime.
+	 */
 	if (imx_gpt_delay_count) {
 		for (; usec > 0; usec--)
-			for (counts = imx_gpt_delay_count; counts > 0; counts--)
-				cpufunc_nullop();	/* Prevent gcc from optimizing
-							 * out the loop
-							 */
+			for (counts = imx_gpt_delay_count; counts > 0;
+			    counts--)
+				/* Prevent optimizing out the loop */
+				cpufunc_nullop();
 		return;
 	}
 
-	/* Get the number of times to count */
-	counts_per_usec = ((imx_gpt_timecounter.tc_frequency / 1000000) + 1);
+	/* At least 1 count */
+	usec = MAX(1, usec / 100);
 
-	last = imx_gpt_get_timecount(NULL) + usec * counts_per_usec;
-
-	while (imx_gpt_get_timecount(NULL) < last) {
-		cpufunc_nullop();	/* Prevent optimizing out the loop */
+	last = READ4(imx_gpt_sc, IMX_GPT_CNT) + usec;
+	while (READ4(imx_gpt_sc, IMX_GPT_CNT) < last) {
+		/* Prevent optimizing out the loop */
+		cpufunc_nullop();
 	}
 	/* TODO: use interrupt on OCR2 */
 }
