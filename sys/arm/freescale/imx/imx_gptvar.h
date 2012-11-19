@@ -37,17 +37,10 @@ struct imx_gpt_softc {
 	struct resource *res[2];
 	bus_space_tag_t sc_iot;
 	bus_space_handle_t sc_ioh;
-	int 		sc_intr;
 	void 		*sc_ih;			/* interrupt handler */
-
-	int 		sc_reload_value;
-
 	uint32_t 	sc_clksrc;
 	uint32_t 	clkfreq;
-
 	struct eventtimer et;
-	int		period;
-	int		oneshot;
 };
 
 extern struct imx_gpt_softc *imx_gpt_sc;
