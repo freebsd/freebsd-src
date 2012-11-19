@@ -197,12 +197,6 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 		FREE((caddr_t)nfhp, M_NFSFH);
 		return (0);
 	}
-
-	/*
-	 * Allocate before getnewvnode since doing so afterward
-	 * might cause a bogus v_data pointer to get dereferenced
-	 * elsewhere if zalloc should block.
-	 */
 	np = uma_zalloc(newnfsnode_zone, M_WAITOK | M_ZERO);
 
 	error = getnewvnode("newnfs", mntp, &newnfs_vnodeops, &nvp);
