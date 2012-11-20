@@ -777,18 +777,18 @@ UINT32
 AcpiNsOpensScope (
     ACPI_OBJECT_TYPE        Type)
 {
-    ACPI_FUNCTION_TRACE_STR (NsOpensScope, AcpiUtGetTypeName (Type));
+    ACPI_FUNCTION_ENTRY ();
 
 
-    if (!AcpiUtValidObjectType (Type))
+    if (Type > ACPI_TYPE_LOCAL_MAX)
     {
         /* type code out of range  */
 
         ACPI_WARNING ((AE_INFO, "Invalid Object Type 0x%X", Type));
-        return_UINT32 (ACPI_NS_NORMAL);
+        return (ACPI_NS_NORMAL);
     }
 
-    return_UINT32 (((UINT32) AcpiGbl_NsProperties[Type]) & ACPI_NS_NEWSCOPE);
+    return (((UINT32) AcpiGbl_NsProperties[Type]) & ACPI_NS_NEWSCOPE);
 }
 
 

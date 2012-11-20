@@ -135,6 +135,10 @@ LsTreeWriteWalk (
     UINT32                  Level,
     void                    *Context);
 
+static UINT32
+LsReadAmlOutputFile (
+    UINT8                   *Buffer);
+
 
 /*******************************************************************************
  *
@@ -1282,6 +1286,38 @@ LsDoHexOutput (
 
 /*******************************************************************************
  *
+ * FUNCTION:    LsReadAmlOutputFile
+ *
+ * PARAMETERS:  Buffer              - Where to return data
+ *
+ * RETURN:      None.
+ *
+ * DESCRIPTION: Read a line of the AML output prior to formatting the data
+ *
+ ******************************************************************************/
+
+static UINT32
+LsReadAmlOutputFile (
+    UINT8                   *Buffer)
+{
+    UINT32                  Actual;
+
+
+    Actual = fread (Buffer, 1, HEX_TABLE_LINE_SIZE,
+        Gbl_Files[ASL_FILE_AML_OUTPUT].Handle);
+
+    if (ferror (Gbl_Files[ASL_FILE_AML_OUTPUT].Handle))
+    {
+        FlFileError (ASL_FILE_AML_OUTPUT, ASL_MSG_READ);
+        AslAbort ();
+    }
+
+    return (Actual);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    LsDoHexOutputC
  *
  * PARAMETERS:  None
@@ -1319,8 +1355,7 @@ LsDoHexOutputC (
     {
         /* Read enough bytes needed for one output line */
 
-        LineLength = fread (FileData, 1, HEX_TABLE_LINE_SIZE,
-                        Gbl_Files[ASL_FILE_AML_OUTPUT].Handle);
+        LineLength = LsReadAmlOutputFile (FileData);
         if (!LineLength)
         {
             break;
@@ -1407,8 +1442,7 @@ LsDoHexOutputAsl (
     {
         /* Read enough bytes needed for one output line */
 
-        LineLength = fread (FileData, 1, HEX_TABLE_LINE_SIZE,
-                        Gbl_Files[ASL_FILE_AML_OUTPUT].Handle);
+        LineLength = LsReadAmlOutputFile (FileData);
         if (!LineLength)
         {
             break;
@@ -1494,8 +1528,7 @@ LsDoHexOutputAsm (
     {
         /* Read enough bytes needed for one output line */
 
-        LineLength = fread (FileData, 1, HEX_TABLE_LINE_SIZE,
-                        Gbl_Files[ASL_FILE_AML_OUTPUT].Handle);
+        LineLength = LsReadAmlOutputFile (FileData);
         if (!LineLength)
         {
             break;
