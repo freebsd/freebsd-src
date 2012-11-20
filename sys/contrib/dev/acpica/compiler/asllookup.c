@@ -329,16 +329,19 @@ LsDoOneNamespaceObject (
 
         case ACPI_TYPE_LOCAL_RESOURCE_FIELD:
 
-            if (Node->Flags & 0x80)
+            FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT,
+                "   [Field Offset    0x%.4X Bits 0x%.4X Bytes] ",
+                Node->Value, Node->Value / 8);
+
+            if (Node->Flags & ANOBJ_IS_REFERENCED)
             {
                 FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT,
-                    "   [Field Offset    0x%.4X Bits 0x%.4X Bytes]",
-                    Node->Value, Node->Value / 8);
+                    "Referenced");
             }
             else
             {
                 FlPrintFile (ASL_FILE_NAMESPACE_OUTPUT,
-                    "   [Field Offset    0x%.4X Bytes]", Node->Value);
+                    "Name not referenced");
             }
             break;
 
