@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <vmmapi.h>
 
 #include "fbsdrun.h"
+#include "acpi.h"
 #include "inout.h"
 #include "dbgport.h"
 #include "mem.h"
@@ -93,6 +94,8 @@ static int foundcpus;
 
 static int strictio;
 
+static int acpi;
+
 static char *lomem_addr;
 static char *himem_addr;
 
@@ -128,9 +131,10 @@ usage(int code)
 {
 
         fprintf(stderr,
-                "Usage: %s [-aehBHIP][-g <gdb port>][-z <hz>][-s <pci>]"
+                "Usage: %s [-aehABHIP][-g <gdb port>][-z <hz>][-s <pci>]"
 		"[-S <pci>][-p pincpu][-n <pci>][-m lowmem][-M highmem] <vm>\n"
 		"       -a: local apic is in XAPIC mode (default is X2APIC)\n"
+		"       -A: create an ACPI table\n"
 		"       -g: gdb port (default is %d and 0 means don't open)\n"
 		"       -c: # cpus (default 1)\n"
 		"       -p: pin vcpu 'n' to host cpu 'pincpu + n'\n"
@@ -585,10 +589,13 @@ main(int argc, char *argv[])
 	guest_ncpus = 1;
 	ioapic = 0;
 
-	while ((c = getopt(argc, argv, "abehBHIPxp:g:c:z:s:S:n:m:M:")) != -1) {
+	while ((c = getopt(argc, argv, "abehABHIPxp:g:c:z:s:S:n:m:M:")) != -1) {
 		switch (c) {
 		case 'a':
 			disable_x2apic = 1;
+			break;
+		case 'A':
+			acpi = 1;
 			break;
 		case 'b':
 			bvmcons = 1;
@@ -744,6 +751,11 @@ main(int argc, char *argv[])
 	 * build the guest tables, MP etc.
 	 */
 	mptable_build(ctx, guest_ncpus, ioapic);
+
+	if (acpi) {
+		error = acpi_build(ctx, guest_ncpus, ioapic);
+		assert(error == 0);
+	}
 
 	/*
 	 * Add CPU 0
