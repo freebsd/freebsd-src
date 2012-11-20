@@ -1138,7 +1138,7 @@ _aicasm= sys/modules/aic7xxx/aicasm
 _share=	share/syscons/scrnmaps
 .endif
 
-.if ${MK_GCC} != "no" && (${MK_CLANG_IS_CC} == "no" || ${TARGET} == "pc98")
+.if ${MK_GCC} != "no"
 _gcc_tools= gnu/usr.bin/cc/cc_tools
 .endif
 
