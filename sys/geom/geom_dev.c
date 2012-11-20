@@ -176,7 +176,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 
 	g_trace(G_T_TOPOLOGY, "dev_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
-	gp = g_new_geomf(mp, pp->name);
+	gp = g_new_geomf(mp, "%s", pp->name);
 	cp = g_new_consumer(gp);
 	error = g_attach(cp, pp);
 	KASSERT(error == 0,
