@@ -34,8 +34,8 @@ KMOD=	acpi
 # ACPI CA sources
 SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c dbinput.c dbmethod.c
 SRCS+=	dbnames.c dbstats.c dbutils.c dbxface.c
-SRCS+=	dmbuffer.c dmnames.c dmopcode.c dmobject.c dmresrc.c dmresrcl.c
-SRCS+=	dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
+SRCS+=	dmbuffer.c dmdeferred.c dmnames.c dmopcode.c dmobject.c dmresrc.c
+SRCS+=	dmresrcl.c dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
 SRCS+=	dsargs.c dscontrol.c dsfield.c dsinit.c dsmethod.c dsmthdat.c
 SRCS+=	dsobject.c dsopcode.c dsutils.c dswexec.c dswload.c dswload2.c
 SRCS+=	dswscope.c dswstate.c
@@ -112,12 +112,11 @@ CLEANFILES+=acpi_wakecode.bin acpi_wakecode.h acpi_wakecode.o acpi_wakedata.h
 
 SRCS+=	opt_global.h
 
-ASM_CFLAGS=	-x assembler-with-cpp -DLOCORE ${CFLAGS}
-NORMAL_S=	${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
-NM?=		nm
+.include <bsd.kmod.mk>
 
 acpi_wakecode.o: acpi_wakecode.S assym.s
-	${NORMAL_S}
+	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} ${CLANG_NO_IAS} \
+	    ${WERROR} ${.IMPSRC}
 acpi_wakecode.bin: acpi_wakecode.o
 	objcopy -S -O binary acpi_wakecode.o ${.TARGET}
 acpi_wakecode.h: acpi_wakecode.bin
@@ -128,5 +127,3 @@ acpi_wakedata.h: acpi_wakecode.o
 	    while read offset dummy what; do \
 	    echo "#define	$${what}	0x$${offset}"; \
 	    done > ${.TARGET}
-
-.include <bsd.kmod.mk>
