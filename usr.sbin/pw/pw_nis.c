@@ -68,6 +68,8 @@ pw_nisupdate(const char * path, struct passwd * pwd, char const * user)
 	}
 	if (rename(pw_tempname(), path) == -1)
 		err(1, "rename()");
+	if (chmod(path, 0644) == -1)
+		err(1, "chmod()");
 
 	free(pw);
 	pw_fini();
