@@ -35,6 +35,7 @@
 #define CPUID_0000_0003 (0x3)
 #define CPUID_0000_0004 (0x4)
 #define CPUID_0000_0006 (0x6)
+#define CPUID_0000_0007 (0x7)
 #define	CPUID_0000_000A	(0xA)
 #define	CPUID_0000_000B	(0xB)
 #define CPUID_8000_0000	(0x80000000)
