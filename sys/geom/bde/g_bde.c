@@ -184,7 +184,7 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 		/* XXX: error check */
 		kproc_create(g_bde_worker, gp, &sc->thread, 0, 0,
 			"g_bde %s", gp->name);
-		pp = g_new_providerf(gp, gp->name);
+		pp = g_new_providerf(gp, "%s", gp->name);
 		pp->stripesize = kp->zone_cont;
 		pp->stripeoffset = 0;
 		pp->mediasize = sc->mediasize;
