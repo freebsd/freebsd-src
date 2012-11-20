@@ -318,14 +318,10 @@ gr_copy(int ffd, int tfd, const struct group *gr, struct group *old_gr)
 int
 gr_mkdb(void)
 {
-	int ret;
+	if (chmod(tempname, 0644) != 0)
+		return (-1);
 
-	ret = rename(tempname, group_file);
-
-	if (ret == 0)
-		chmod(group_file, 0644);
-
-	return (ret);
+	return (rename(tempname, group_file));
 }
 
 /*
