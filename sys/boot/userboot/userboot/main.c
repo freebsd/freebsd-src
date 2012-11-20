@@ -143,7 +143,6 @@ static void
 extract_currdev(void)
 {
 	struct disk_devdesc dev;
-	int gpt, rc;
 
 	//bzero(&dev, sizeof(dev));
 
@@ -153,37 +152,15 @@ extract_currdev(void)
 		dev.d_unit = 0;
 		dev.d_slice = 0;
 		dev.d_partition = 0;
-
 		/*
-		 * The priority is GPT, MBR and raw disk. Unfortunately,
-		 * disk_open() doesn't really get this right so first
-		 * probe for MBR, and then GPT. If GPT fails, re-probe
-		 * MBR if it succeeded, else assume raw.
+		 * Figure out if we are using MBR or GPT.
+		 * If neither, then access the disk as a raw device.
 		 */
-		rc = (*dev.d_dev->dv_open)(NULL, &dev);
-
-		dev.d_unit = 0;
-		dev.d_slice = 0;
-		dev.d_partition = 255;
-		gpt = (*dev.d_dev->dv_open)(NULL, &dev);
-
-		if (gpt) {
-			dev.d_unit = 0;
-			dev.d_slice = 0;
-			dev.d_partition = 0;
-			
-			if (!rc) {
-				(void) (*dev.d_dev->dv_open)(NULL, &dev);
-			} else {
-				/*
-				 * Force raw disk access
-				 */
-				dev.d_slice = -1;
-				dev.d_partition = -1;
-				dev.d_offset = 0;
-			}
+		if ((*dev.d_dev->dv_open)(NULL, &dev)) {
+			dev.d_slice = -1;
+			dev.d_partition = -1;
+			dev.d_offset = 0;
 		}
-
 	} else {
 		dev.d_dev = &host_dev;
 		dev.d_type = dev.d_dev->dv_type;
