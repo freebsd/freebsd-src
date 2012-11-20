@@ -28,8 +28,10 @@ LIBBSDXML?=	${DESTDIR}${LIBDIR}/libbsdxml.a
 LIBBSM?=	${DESTDIR}${LIBDIR}/libbsm.a
 LIBBSNMP?=	${DESTDIR}${LIBDIR}/libbsnmp.a
 LIBBZ2?=	${DESTDIR}${LIBDIR}/libbz2.a
+.if ${MK_LIBCPLUSPLUS} != "no"
 LIBCXXRT?=	${DESTDIR}${LIBDIR}/libcxxrt.a
 LIBCPLUSPLUS?=	${DESTDIR}${LIBDIR}/libc++.a
+.endif
 LIBC?=		${DESTDIR}${LIBDIR}/libc.a
 LIBC_PIC?=	${DESTDIR}${LIBDIR}/libc_pic.a
 LIBCALENDAR?=	${DESTDIR}${LIBDIR}/libcalendar.a
