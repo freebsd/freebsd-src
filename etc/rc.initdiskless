@@ -354,7 +354,7 @@ for i in ${templates} ; do
 	subdir=${j##*/}
 	if [ -d $j -a ! -f $j.cpio.gz  ]; then
 	    create_md $subdir
-	    (cd $j && pax -rw . /$subdir)
+	    cp -Rp $j/ /$subdir
 	fi
     done
     for j in /conf/$i/*.cpio.gz ; do
