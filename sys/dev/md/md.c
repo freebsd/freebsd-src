@@ -137,7 +137,6 @@ static g_access_t g_md_access;
 static void g_md_dumpconf(struct sbuf *sb, const char *indent,
     struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp);
 
-static int mdunits;
 static struct cdev *status_dev = 0;
 static struct sx md_sx;
 static struct unrhdr *md_uh;
@@ -1309,7 +1308,7 @@ mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread 
 }
 
 static void
-md_preloaded(u_char *image, size_t length)
+md_preloaded(u_char *image, size_t length, const char *name)
 {
 	struct md_s *sc;
 	int error;
@@ -1327,6 +1326,10 @@ md_preloaded(u_char *image, size_t length)
 		rootdevnames[0] = MD_ROOT_FSTYPE ":/dev/md0";
 #endif
 	mdinit(sc);
+	if (name != NULL) {
+		printf("%s%d: Preloaded image <%s> %zd bytes at %p\n",
+		    MD_NAME, sc->unit, name, length, image);
+	}
 }
 
 static void
@@ -1347,7 +1350,7 @@ g_md_init(struct g_class *mp __unused)
 	md_uh = new_unrhdr(0, INT_MAX, NULL);
 #ifdef MD_ROOT_SIZE
 	sx_xlock(&md_sx);
-	md_preloaded(mfs_root.start, sizeof(mfs_root.start));
+	md_preloaded(mfs_root.start, sizeof(mfs_root.start), NULL);
 	sx_xunlock(&md_sx);
 #endif
 	/* XXX: are preload_* static or do they need Giant ? */
@@ -1363,10 +1366,8 @@ g_md_init(struct g_class *mp __unused)
 		ptr = preload_fetch_addr(mod);
 		len = preload_fetch_size(mod);
 		if (ptr != NULL && len != 0) {
-			printf("%s%d: Preloaded image <%s> %d bytes at %p\n",
-			    MD_NAME, mdunits, name, len, ptr);
 			sx_xlock(&md_sx);
-			md_preloaded(ptr, len);
+			md_preloaded(ptr, len, name);
 			sx_xunlock(&md_sx);
 		}
 	}
