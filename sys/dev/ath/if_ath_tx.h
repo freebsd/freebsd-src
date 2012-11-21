@@ -124,6 +124,20 @@ extern	void ath_addba_response_timeout(struct ieee80211_node *ni,
     struct ieee80211_tx_ampdu *tap);
 
 /*
+ * AP mode power save handling (of stations)
+ */
+extern	void ath_tx_node_sleep(struct ath_softc *sc, struct ath_node *an);
+extern	void ath_tx_node_wakeup(struct ath_softc *sc, struct ath_node *an);
+extern	int ath_tx_node_is_asleep(struct ath_softc *sc, struct ath_node *an);
+
+/*
+ * Misc debugging stuff
+ */
+#ifdef	ATH_DEBUG_ALQ
+extern	void ath_tx_alq_post(struct ath_softc *sc, struct ath_buf *bf_first);
+#endif	/* ATH_DEBUG_ALQ */
+
+/*
  * Setup path
  */
 #define	ath_txdma_setup(_sc)			\
@@ -134,10 +148,8 @@ extern	void ath_addba_response_timeout(struct ieee80211_node *ni,
 	(_sc)->sc_tx.xmit_dma_restart((_sc), (_txq))
 #define	ath_tx_handoff(_sc, _txq, _bf)		\
 	(_sc)->sc_tx.xmit_handoff((_sc), (_txq), (_bf))
-#define	ath_tx_draintxq(_sc, _txq)		\
-	(_sc)->sc_tx.xmit_drainq((_sc), (_txq))
-#define	ath_tx_processq(_sc, _txq, _dosched)	\
-	(_sc)->sc_tx.xmit_processq((_sc), (_txq), (_dosched))
+#define	ath_draintxq(_sc, _rtype)		\
+	(_sc)->sc_tx.xmit_drain((_sc), (_rtype))
 
 extern	void ath_xmit_setup_legacy(struct ath_softc *sc);
 

@@ -41,14 +41,14 @@
 #define	IV_SHIFT	6
 
 #define	PIL_LOW		1	/* stray interrupts */
-#define	PIL_ITHREAD	2	/* interrupts that use ithreads */
-#define	PIL_RENDEZVOUS	3	/* smp rendezvous ipi */
-#define	PIL_AST		4	/* ast ipi */
-#define	PIL_STOP	5	/* stop cpu ipi */
-#define	PIL_PREEMPT	6	/* preempt idle thread cpu ipi */
-#define	PIL_HARDCLOCK	7	/* hardclock broadcast */
-#define	PIL_FILTER	12	/* filter interrupts */
-#define	PIL_BRIDGE	13	/* bridge interrupts */
+#define	PIL_PREEMPT	2	/* preempt idle thread CPU IPI */
+#define	PIL_ITHREAD	3	/* interrupts that use ithreads */
+#define	PIL_RENDEZVOUS	4	/* SMP rendezvous IPI */
+#define	PIL_AST		5	/* asynchronous trap IPI */
+#define	PIL_HARDCLOCK	6	/* hardclock broadcast */
+#define	PIL_FILTER	11	/* filter interrupts */
+#define	PIL_BRIDGE	12	/* bridge interrupts */
+#define	PIL_STOP	13	/* stop CPU IPI */
 #define	PIL_TICK	14	/* tick interrupts */
 
 #ifndef LOCORE
@@ -91,10 +91,10 @@ struct intr_vector {
 extern ih_func_t *intr_handlers[];
 extern struct intr_vector intr_vectors[];
 
-void	intr_add_cpu(u_int cpu);
 #ifdef SMP
-int	intr_bind(int vec, u_char cpu);
+void	intr_add_cpu(u_int cpu);
 #endif
+int	intr_bind(int vec, u_char cpu);
 int	intr_describe(int vec, void *ih, const char *descr);
 void	intr_setup(int level, ih_func_t *ihf, int pri, iv_func_t *ivf,
 	    void *iva);

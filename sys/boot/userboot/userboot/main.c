@@ -36,9 +36,9 @@ __FBSDID("$FreeBSD$");
 #include "disk.h"
 #include "libuserboot.h"
 
-#define	USERBOOT_VERSION	USERBOOT_VERSION_2
+#define	USERBOOT_VERSION	USERBOOT_VERSION_3
 
-struct loader_callbacks_v1 *callbacks;
+struct loader_callbacks *callbacks;
 void *callbacks_arg;
 
 extern char bootprog_name[];
@@ -67,9 +67,10 @@ exit(int v)
 }
 
 void
-loader_main(struct loader_callbacks_v1 *cb, void *arg, int version, int ndisks)
+loader_main(struct loader_callbacks *cb, void *arg, int version, int ndisks)
 {
 	static char malloc[512*1024];
+	const char *var;
 	int i;
 
         if (version != USERBOOT_VERSION)
@@ -106,6 +107,17 @@ loader_main(struct loader_callbacks_v1 *cb, void *arg, int version, int ndisks)
 #endif
 
 	setenv("LINES", "24", 1);	/* optional */
+
+	/*
+	 * Set custom environment variables
+	 */
+	i = 0;
+	while (1) {
+		var = CALLBACK(getenv, i++);
+		if (var == NULL)
+			break;
+		putenv(var);
+	}
 
 	archsw.arch_autoload = userboot_autoload;
 	archsw.arch_getdev = userboot_getdev;

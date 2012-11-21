@@ -155,7 +155,7 @@ A thread must hold the mutex before calling the
 .Fn cv_wait* ,
 functions.
 When a thread waits on a condition, the mutex
-is atomically released before the thread thread yields the processor,
+is atomically released before the thread yields the processor,
 then reacquired before the function call returns.
 .Pp
 See

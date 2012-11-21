@@ -34,6 +34,7 @@
 .Nd check the syntax of the group file
 .Sh SYNOPSIS
 .Nm
+.Op Fl q
 .Op Ar groupfile
 .Sh DESCRIPTION
 The
@@ -47,6 +48,12 @@ contains whitespace, and that the third field (the group ID) is
 numeric.
 It will also check for invalid characters in the group names
 and group members.
+The following options are available:
+.Bl -tag -width indent
+.It Fl q
+This option disables printing of text when the group format
+is correct.
+.El
 .Sh FILES
 .Bl -tag -width /etc/group -compact
 .It Pa /etc/group

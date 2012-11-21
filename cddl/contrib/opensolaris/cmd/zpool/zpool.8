@@ -21,6 +21,7 @@
 .\" Copyright 2011, Nexenta Systems, Inc. All Rights Reserved.
 .\" Copyright (c) 2011, Justin T. Gibbs <gibbs@FreeBSD.org>
 .\" Copyright (c) 2012 by Delphix. All Rights Reserved.
+.\" Copyright (c) 2012, Glen Barber <gjb@FreeBSD.org>
 .\"
 .\" $FreeBSD$
 .\"
@@ -193,7 +194,7 @@ A
 describes a single device or a collection of devices organized according to
 certain performance and fault characteristics. The following virtual devices
 are supported:
-.Bl -tag
+.Bl -tag -width "XXXXXX"
 .It Sy disk
 A block device, typically located under
 .Pa /dev .
@@ -532,7 +533,7 @@ can provide additional information about a pool using this property.
 .It Sy dedupratio
 The deduplication ratio specified for a pool, expressed as a multiplier.
 For example, a
-.S dedupratio
+.Sy dedupratio
 value of 1.76 indicates that 1.76 units of data were stored but only 1 unit of disk space was actually consumed. See
 .Xr zfs 8
 for a description of the deduplication feature.
@@ -566,7 +567,7 @@ Total size of the storage pool.
 .It Sy unsupported@ Ns Ar feature_guid
 Information about unsupported features that are enabled on the pool.
 See
-.Xr zpool-features 5
+.Xr zpool-features 7
 for details.
 .It Sy used
 Amount of storage space used within the pool.
@@ -716,7 +717,7 @@ which moves
 .Ar feature_name
 to the enabled state.
 See
-.Xr zpool-features 5
+.Xr zpool-features 7
 for details on feature states.
 .It Sy listsnaps Ns = Ns Cm on No | Cm off
 Controls whether information about snapshots associated with this pool is
@@ -731,7 +732,7 @@ The current on-disk version of the pool. This can be increased, but never
 decreased. The preferred method of updating pools is with the
 .Qq Nm Cm upgrade
 command, though this property can be used when a specific version is needed
-for backwards compatibility. 
+for backwards compatibility.
 Once feature flags is enabled on a pool this property will no longer have a
 value.
 .El
@@ -914,7 +915,7 @@ with the
 .Fl o
 option.
 See
-.Xr zpool-features 5
+.Xr zpool-features 7
 for details about feature properties.
 .It Xo
 .Fl o Ar property Ns = Ns Ar value
@@ -1650,7 +1651,7 @@ Displays legacy
 .Tn ZFS
 versions supported by the current software.
 See
-.Xr zpool-features.5
+.Xr zpool-features 7
 for a description of feature flags features supported by the current software.
 .El
 .It Xo
@@ -1664,7 +1665,7 @@ Enables all supported features on the given pool.
 Once this is done, the pool will no longer be accessible on systems that do
 not support feature flags.
 See
-.Xr zpool-features.5
+.Xr zpool-features 7
 for details on compatability with system sthat support feature flags, but do
 not support all features enabled on the pool.
 .Bl -tag -width indent
@@ -1677,6 +1678,16 @@ flag is specified, no features will be enabled on the pool.
 This option can only be used to increase version number up to the last
 supported legacy version number.
 .El
+.El
+.Sh EXIT STATUS
+The following exit values are returned:
+.Bl -tag -offset 2n -width 2n
+.It 0
+Successful completion.
+.It 1
+An error occurred.
+.It 2
+Invalid command line options were specified.
 .El
 .Sh EXAMPLES
 .Bl -tag -width 0n
@@ -1915,19 +1926,9 @@ Pool data returned to its state as of Tue Sep 08 13:23:35 2009.
 Discarded approximately 29 seconds of transactions.
 .Ed
 .El
-.Sh EXIT STATUS
-The following exit values are returned:
-.Bl -tag -offset 2n -width 2n
-.It 0
-Successful completion.
-.It 1
-An error occurred.
-.It 2
-Invalid command line options were specified.
-.El
 .Sh SEE ALSO
+.Xr zpool-features 7 ,
 .Xr zfs 8
-.Xr zpool-features 5
 .Sh AUTHORS
 This manual page is a
 .Xr mdoc 7

@@ -70,7 +70,7 @@ struct arswitch_softc {
 #define	ARSWITCH_UNLOCK(_sc)			\
 	    mtx_unlock(&(_sc)->sc_mtx)
 #define	ARSWITCH_LOCK_ASSERT(_sc, _what)	\
-	    mtx_assert(&(_s)c->sc_mtx, (_what))
+	    mtx_assert(&(_sc)->sc_mtx, (_what))
 #define	ARSWITCH_TRYLOCK(_sc)			\
 	    mtx_trylock(&(_sc)->sc_mtx)
 

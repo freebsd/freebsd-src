@@ -1224,6 +1224,15 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 1;
 		break;
 	}
+	/* clock_getcpuclockid2 */
+	case 247: {
+		struct clock_getcpuclockid2_args *p = params;
+		iarg[0] = p->id; /* id_t */
+		iarg[1] = p->which; /* int */
+		uarg[2] = (intptr_t) p->clock_id; /* clockid_t * */
+		*n_args = 3;
+		break;
+	}
 	/* minherit */
 	case 250: {
 		struct minherit_args *p = params;
@@ -3064,6 +3073,18 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[3] = p->len1; /* uint32_t */
 		uarg[4] = p->len2; /* uint32_t */
 		iarg[5] = p->advice; /* int */
+		*n_args = 6;
+		break;
+	}
+	/* freebsd32_wait6 */
+	case 532: {
+		struct freebsd32_wait6_args *p = params;
+		iarg[0] = p->idtype; /* int */
+		iarg[1] = p->id; /* int */
+		uarg[2] = (intptr_t) p->status; /* int * */
+		iarg[3] = p->options; /* int */
+		uarg[4] = (intptr_t) p->wrusage; /* struct wrusage32 * */
+		uarg[5] = (intptr_t) p->info; /* siginfo_t * */
 		*n_args = 6;
 		break;
 	}
@@ -4986,6 +5007,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		switch(ndx) {
 		case 0:
 			p = "struct ffclock_estimate *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* clock_getcpuclockid2 */
+	case 247:
+		switch(ndx) {
+		case 0:
+			p = "id_t";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "clockid_t *";
 			break;
 		default:
 			break;
@@ -8181,6 +8218,31 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		};
 		break;
+	/* freebsd32_wait6 */
+	case 532:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int *";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "struct wrusage32 *";
+			break;
+		case 5:
+			p = "siginfo_t *";
+			break;
+		default:
+			break;
+		};
+		break;
 	default:
 		break;
 	};
@@ -8887,6 +8949,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* ffclock_getestimate */
 	case 243:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* clock_getcpuclockid2 */
+	case 247:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;
@@ -9930,6 +9997,11 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_posix_fadvise */
 	case 531:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* freebsd32_wait6 */
+	case 532:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

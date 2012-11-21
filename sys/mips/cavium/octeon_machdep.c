@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ptrace.h>
 #include <sys/reboot.h>
 #include <sys/signalvar.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/time.h>
@@ -74,6 +75,8 @@ __FBSDID("$FreeBSD$");
 
 #include <contrib/octeon-sdk/cvmx.h>
 #include <contrib/octeon-sdk/cvmx-bootmem.h>
+#include <contrib/octeon-sdk/cvmx-ebt3000.h>
+#include <contrib/octeon-sdk/cvmx-helper-cfg.h>
 #include <contrib/octeon-sdk/cvmx-interrupt.h>
 #include <contrib/octeon-sdk/cvmx-version.h>
 
@@ -85,14 +88,11 @@ __FBSDID("$FreeBSD$");
 #define MAX_APP_DESC_ADDR     0xafffffff
 #endif
 
-#define OCTEON_CLOCK_DEFAULT (500 * 1000 * 1000)
-
 struct octeon_feature_description {
 	octeon_feature_t ofd_feature;
 	const char *ofd_string;
 };
 
-extern int	*edata;
 extern int	*end;
 extern char cpu_model[];
 extern char cpu_board[];
@@ -127,9 +127,6 @@ static const struct octeon_feature_description octeon_feature_descriptions[] = {
 	{ 0,					NULL }
 };
 
-uint64_t ciu_get_en_reg_addr_new(int corenum, int intx, int enx, int ciu_ip);
-void ciu_dump_interrutps_enabled(int core_num, int intx, int enx, int ciu_ip);
-
 static uint64_t octeon_get_ticks(void);
 static unsigned octeon_get_timecount(struct timecounter *tc);
 
@@ -157,88 +154,6 @@ void
 platform_reset(void)
 {
 	cvmx_write_csr(CVMX_CIU_SOFT_RST, 1);
-}
-
-void
-octeon_led_write_char(int char_position, char val)
-{
-	uint64_t ptr = (OCTEON_CHAR_LED_BASE_ADDR | 0xf8);
-
-	if (octeon_is_simulation())
-		return;
-
-	char_position &= 0x7;  /* only 8 chars */
-	ptr += char_position;
-	oct_write8_x8(ptr, val);
-}
-
-void
-octeon_led_write_char0(char val)
-{
-	uint64_t ptr = (OCTEON_CHAR_LED_BASE_ADDR | 0xf8);
-
-	if (octeon_is_simulation())
-		return;
-	oct_write8_x8(ptr, val);
-}
-
-void
-octeon_led_write_hexchar(int char_position, char hexval)
-{
-	uint64_t ptr = (OCTEON_CHAR_LED_BASE_ADDR | 0xf8);
-	char char1, char2;
-
-	if (octeon_is_simulation())
-		return;
-
-	char1 = (hexval >> 4) & 0x0f; char1 = (char1 < 10)?char1+'0':char1+'7';
-	char2 = (hexval  & 0x0f); char2 = (char2 < 10)?char2+'0':char2+'7';
-	char_position &= 0x7;  /* only 8 chars */
-	if (char_position > 6)
-		char_position = 6;
-	ptr += char_position;
-	oct_write8_x8(ptr, char1);
-	ptr++;
-	oct_write8_x8(ptr, char2);
-}
-
-void
-octeon_led_write_string(const char *str)
-{
-	uint64_t ptr = (OCTEON_CHAR_LED_BASE_ADDR | 0xf8);
-	int i;
-
-	if (octeon_is_simulation())
-		return;
-
-	for (i=0; i<8; i++, ptr++) {
-		if (str && *str)
-			oct_write8_x8(ptr, *str++);
-		else
-			oct_write8_x8(ptr, ' ');
-		(void)cvmx_read_csr(CVMX_MIO_BOOT_BIST_STAT);
-	}
-}
-
-static char progress[8] = { '-', '/', '|', '\\', '-', '/', '|', '\\'};
-
-void
-octeon_led_run_wheel(int *prog_count, int led_position)
-{
-	if (octeon_is_simulation())
-		return;
-	octeon_led_write_char(led_position, progress[*prog_count]);
-	*prog_count += 1;
-	*prog_count &= 0x7;
-}
-
-void
-octeon_led_write_hex(uint32_t wl)
-{
-	char nbuf[80];
-
-	sprintf(nbuf, "%X", wl);
-	octeon_led_write_string(nbuf);
 }
 
 /*
@@ -293,7 +208,7 @@ octeon_memory_init(void)
 
 	phys_end = round_page(MIPS_KSEG0_TO_PHYS((vm_offset_t)&end));
 
-	if (octeon_is_simulation()) {
+	if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM) {
 		/* Simulator we limit to 96 meg */
 		phys_avail[0] = phys_end;
 		phys_avail[1] = 96 << 20;
@@ -362,26 +277,51 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
 	const struct octeon_feature_description *ofd;
 	uint64_t platform_counter_freq;
 
-	/*
-	 * XXX
-	 * octeon_boot_params_init() should be called before anything else,
-	 * certainly before any output; we may find out from the boot
-	 * descriptor's flags that we're supposed to use the PCI or UART1
-	 * consoles rather than UART0.  No point doing that reorganization
-	 * until we actually intercept UART_DEV_CONSOLE for the UART1 case
-	 * and somehow handle the PCI console, which we lack code for
-	 * entirely.
-	 */
-
 	mips_postboot_fixup();
+
+	/*
+	 * Initialize boot parameters so that we can determine things like
+	 * which console we shoud use, etc.
+	 */
+	octeon_boot_params_init(a3);
 
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();
-	mips_timer_early_init(OCTEON_CLOCK_DEFAULT);
+	mips_timer_early_init(cvmx_sysinfo_get()->cpu_clock_hz);
+
+	/* Initialize console.  */
 	cninit();
 
+	/*
+	 * Display information about the board/CPU.
+	 */
+	printf("CPU clock: %uMHz  Core Mask: %#x\n",
+	       cvmx_sysinfo_get()->cpu_clock_hz / 1000000,
+	       cvmx_sysinfo_get()->core_mask);
+	printf("Board Type: %u  Revision: %u/%u\n",
+	       cvmx_sysinfo_get()->board_type,
+	       cvmx_sysinfo_get()->board_rev_major,
+	       cvmx_sysinfo_get()->board_rev_minor);
+	printf("MAC address base: %6D (%u configured)\n",
+	       cvmx_sysinfo_get()->mac_addr_base, ":",
+	       cvmx_sysinfo_get()->mac_addr_count);
+
+#if defined(OCTEON_BOARD_CAPK_0100ND)
+	strcpy(cpu_board, "CAPK-0100ND");
+	if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_CN3010_EVB_HS5) {
+		panic("Compiled for %s, but board type is %s.", cpu_board,
+		       cvmx_board_type_to_string(cvmx_sysinfo_get()->board_type));
+	}
+#else
+	strcpy(cpu_board,
+	       cvmx_board_type_to_string(cvmx_sysinfo_get()->board_type));
+#endif
+	printf("Board: %s\n", cpu_board);
+	strcpy(cpu_model, octeon_model_get_string(cvmx_get_proc_id()));
+	printf("Model: %s\n", cpu_model);
+	printf("Serial number: %s\n", cvmx_sysinfo_get()->board_serial_number);
+
 	octeon_ciu_reset();
-	octeon_boot_params_init(a3);
 	/*
 	 * XXX
 	 * We can certainly parse command line arguments or U-Boot environment
@@ -446,6 +386,46 @@ octeon_get_timecount(struct timecounter *tc)
 {
 	return ((unsigned)octeon_get_ticks());
 }
+
+static int
+sysctl_machdep_led_display(SYSCTL_HANDLER_ARGS)
+{
+	size_t buflen;
+	char buf[9];
+	int error;
+
+	if (req->newptr == NULL)
+		return (EINVAL);
+
+	if (cvmx_sysinfo_get()->led_display_base_addr == 0)
+		return (ENODEV);
+
+	/*
+	 * Revision 1.x of the EBT3000 only supports 4 characters, but
+	 * other devices support 8.
+	 */
+	if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_EBT3000 &&
+	    cvmx_sysinfo_get()->board_rev_major == 1)
+		buflen = 4;
+	else
+		buflen = 8;
+
+	if (req->newlen > buflen)
+		return (E2BIG);
+
+	error = SYSCTL_IN(req, buf, req->newlen);
+	if (error != 0)
+		return (error);
+
+	buf[req->newlen] = '\0';
+	ebt3000_str_write(buf);
+
+	return (0);
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, led_display, CTLTYPE_STRING | CTLFLAG_WR,
+    NULL, 0, sysctl_machdep_led_display, "A",
+    "String to display on LED display");
 
 /**
  * version of printf that works better in exception context.
@@ -556,105 +536,91 @@ typedef struct {
 	uint64_t cvmx_desc_vaddr;
 } octeon_boot_descriptor_t;
 
-cvmx_bootinfo_t *octeon_bootinfo;
-
-static octeon_boot_descriptor_t *app_desc_ptr;
-
-int
-octeon_is_simulation(void)
+static cvmx_bootinfo_t *
+octeon_process_app_desc_ver_6(octeon_boot_descriptor_t *app_desc_ptr)
 {
-	switch (cvmx_sysinfo_get()->board_type) {
-	case CVMX_BOARD_TYPE_SIM:
-		return 1;
-	default:
-		return 0;
-	}
-}
+	cvmx_bootinfo_t *octeon_bootinfo;
 
-static void
-octeon_process_app_desc_ver_6(void)
-{
 	/* XXX Why is 0x00000000ffffffffULL a bad value?  */
 	if (app_desc_ptr->cvmx_desc_vaddr == 0 ||
-	    app_desc_ptr->cvmx_desc_vaddr == 0xfffffffful)
-            	panic("Bad octeon_bootinfo %p", octeon_bootinfo);
+	    app_desc_ptr->cvmx_desc_vaddr == 0xfffffffful) {
+            	cvmx_safe_printf("Bad octeon_bootinfo %#jx\n",
+		    (uintmax_t)app_desc_ptr->cvmx_desc_vaddr);
+		return (NULL);
+	}
 
-    	octeon_bootinfo =
-	    (cvmx_bootinfo_t *)(intptr_t)app_desc_ptr->cvmx_desc_vaddr;
-        octeon_bootinfo =
-	    (cvmx_bootinfo_t *) ((intptr_t)octeon_bootinfo | MIPS_KSEG0_START);
-        if (octeon_bootinfo->major_version != 1)
-            	panic("Incompatible CVMX descriptor from bootloader: %d.%d %p",
-                       (int) octeon_bootinfo->major_version,
-                       (int) octeon_bootinfo->minor_version, octeon_bootinfo);
+    	octeon_bootinfo = cvmx_phys_to_ptr(app_desc_ptr->cvmx_desc_vaddr);
+        if (octeon_bootinfo->major_version != 1) {
+            	cvmx_safe_printf("Incompatible CVMX descriptor from bootloader: %d.%d %p\n",
+		    (int) octeon_bootinfo->major_version,
+		    (int) octeon_bootinfo->minor_version, octeon_bootinfo);
+		return (NULL);
+	}
 
 	cvmx_sysinfo_minimal_initialize(octeon_bootinfo->phy_mem_desc_addr,
 					octeon_bootinfo->board_type,
 					octeon_bootinfo->board_rev_major,
 					octeon_bootinfo->board_rev_minor,
 					octeon_bootinfo->eclock_hz);
-	memcpy(cvmx_sysinfo_get()->mac_addr_base, octeon_bootinfo->mac_addr_base, 6);
+	memcpy(cvmx_sysinfo_get()->mac_addr_base,
+	       octeon_bootinfo->mac_addr_base, 6);
 	cvmx_sysinfo_get()->mac_addr_count = octeon_bootinfo->mac_addr_count;
 	cvmx_sysinfo_get()->compact_flash_common_base_addr = 
 		octeon_bootinfo->compact_flash_common_base_addr;
 	cvmx_sysinfo_get()->compact_flash_attribute_base_addr = 
 		octeon_bootinfo->compact_flash_attribute_base_addr;
 	cvmx_sysinfo_get()->core_mask = octeon_bootinfo->core_mask;
+	cvmx_sysinfo_get()->led_display_base_addr =
+		octeon_bootinfo->led_display_base_addr;
+	memcpy(cvmx_sysinfo_get()->board_serial_number,
+	       octeon_bootinfo->board_serial_number,
+	       sizeof cvmx_sysinfo_get()->board_serial_number);
+	return (octeon_bootinfo);
 }
 
 static void
 octeon_boot_params_init(register_t ptr)
 {
-	if (ptr == 0 || ptr >= MAX_APP_DESC_ADDR)
-		panic("app descriptor passed at invalid address %#jx",
+	octeon_boot_descriptor_t *app_desc_ptr;
+	cvmx_bootinfo_t *octeon_bootinfo;
+
+	if (ptr == 0 || ptr >= MAX_APP_DESC_ADDR) {
+		cvmx_safe_printf("app descriptor passed at invalid address %#jx\n",
 		    (uintmax_t)ptr);
+		platform_reset();
+	}
 
 	app_desc_ptr = (octeon_boot_descriptor_t *)(intptr_t)ptr;
-	if (app_desc_ptr->desc_version < 6)
-		panic("Your boot code is too old to be supported.");
-	octeon_process_app_desc_ver_6();
+	if (app_desc_ptr->desc_version < 6) {
+		cvmx_safe_printf("Your boot code is too old to be supported.\n");
+		platform_reset();
+	}
+	octeon_bootinfo = octeon_process_app_desc_ver_6(app_desc_ptr);
+	if (octeon_bootinfo == NULL) {
+		cvmx_safe_printf("Could not parse boot descriptor.\n");
+		platform_reset();
+	}
 
-	KASSERT(octeon_bootinfo != NULL, ("octeon_bootinfo should be set"));
+	if (cvmx_sysinfo_get()->led_display_base_addr != 0) {
+		/*
+		 * Revision 1.x of the EBT3000 only supports 4 characters, but
+		 * other devices support 8.
+		 */
+		if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_EBT3000 &&
+		    cvmx_sysinfo_get()->board_rev_major == 1)
+			ebt3000_str_write("FBSD");
+		else
+			ebt3000_str_write("FreeBSD!");
+	}
 
-	if (cvmx_sysinfo_get()->phy_mem_desc_addr == (uint64_t)0)
-		panic("Your boot loader did not supply a memory descriptor.");
+	if (cvmx_sysinfo_get()->phy_mem_desc_addr == (uint64_t)0) {
+		cvmx_safe_printf("Your boot loader did not supply a memory descriptor.\n");
+		platform_reset();
+	}
 	cvmx_bootmem_init(cvmx_sysinfo_get()->phy_mem_desc_addr);
 
-        printf("Boot Descriptor Ver: %u -> %u/%u",
-               app_desc_ptr->desc_version, octeon_bootinfo->major_version,
-	       octeon_bootinfo->minor_version);
-        printf("  CPU clock: %uMHz  Core Mask: %#x\n",
-	       cvmx_sysinfo_get()->cpu_clock_hz / 1000000,
-	       cvmx_sysinfo_get()->core_mask);
-        printf("  Board Type: %u  Revision: %u/%u\n",
-               cvmx_sysinfo_get()->board_type,
-	       cvmx_sysinfo_get()->board_rev_major,
-	       cvmx_sysinfo_get()->board_rev_minor);
+	octeon_feature_init();
 
-        printf("  Mac Address %02X.%02X.%02X.%02X.%02X.%02X (%d)\n",
-	    octeon_bootinfo->mac_addr_base[0],
-	    octeon_bootinfo->mac_addr_base[1],
-	    octeon_bootinfo->mac_addr_base[2],
-	    octeon_bootinfo->mac_addr_base[3],
-	    octeon_bootinfo->mac_addr_base[4],
-	    octeon_bootinfo->mac_addr_base[5],
-	    octeon_bootinfo->mac_addr_count);
-
-#if defined(OCTEON_BOARD_CAPK_0100ND)
-	strcpy(cpu_board, "CAPK-0100ND");
-	if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_CN3010_EVB_HS5) {
-		printf("Compiled for CAPK-0100ND, but board type is %s\n",
-		    cvmx_board_type_to_string(cvmx_sysinfo_get()->board_type));
-		strcat(cpu_board, " hardwired, but type is ");
-		strcat(cpu_board, 
-		    cvmx_board_type_to_string(cvmx_sysinfo_get()->board_type));
-	}
-#else
-	strcpy(cpu_board,
-	    cvmx_board_type_to_string(cvmx_sysinfo_get()->board_type));
-	printf("Board: %s\n", cpu_board);
-#endif
-	strcpy(cpu_model, octeon_model_get_string(cvmx_get_proc_id()));
-	printf("Model: %s\n", cpu_model);
+	__cvmx_helper_cfg_init();
 }
 /* impEND: This stuff should move back into the Cavium SDK */

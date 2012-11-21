@@ -1429,7 +1429,7 @@ find_library(const char *xname, const Obj_Entry *refobj)
 {
     char *pathname;
     char *name;
-    bool objgiven;
+    bool nodeflib, objgiven;
 
     objgiven = refobj != NULL;
     if (strchr(xname, '/') != NULL) {	/* Hard coded pathname */
@@ -1464,6 +1464,7 @@ find_library(const char *xname, const Obj_Entry *refobj)
 	  (pathname = search_library_path(name, STANDARD_LIBRARY_PATH)) != NULL)
 	    return (pathname);
     } else {
+	nodeflib = objgiven ? refobj->z_nodeflib : false;
 	if ((objgiven &&
 	  (pathname = search_library_path(name, refobj->rpath)) != NULL) ||
 	  (objgiven && refobj->runpath == NULL && refobj != obj_main &&
@@ -1471,9 +1472,8 @@ find_library(const char *xname, const Obj_Entry *refobj)
 	  (pathname = search_library_path(name, ld_library_path)) != NULL ||
 	  (objgiven &&
 	  (pathname = search_library_path(name, refobj->runpath)) != NULL) ||
-	  (pathname = search_library_path(name, gethints(refobj->z_nodeflib)))
-	  != NULL ||
-	  (objgiven && !refobj->z_nodeflib &&
+	  (pathname = search_library_path(name, gethints(nodeflib))) != NULL ||
+	  (objgiven && !nodeflib &&
 	  (pathname = search_library_path(name, STANDARD_LIBRARY_PATH)) != NULL))
 	    return (pathname);
     }
@@ -1598,7 +1598,7 @@ gethints(bool nostdlib)
 		/* Keep from trying again in case the hints file is bad. */
 		hints = "";
 
-		if ((fd = open(ld_elf_hints_path, O_RDONLY)) == -1)
+		if ((fd = open(ld_elf_hints_path, O_RDONLY | O_CLOEXEC)) == -1)
 			return (NULL);
 		if (read(fd, &hdr, sizeof hdr) != sizeof hdr ||
 		    hdr.magic != ELFHINTS_MAGIC ||
@@ -1743,6 +1743,26 @@ init_dag(Obj_Entry *root)
     root->dag_inited = true;
 }
 
+static void
+process_nodelete(Obj_Entry *root)
+{
+	const Objlist_Entry *elm;
+
+	/*
+	 * Walk over object DAG and process every dependent object that
+	 * is marked as DF_1_NODELETE. They need to grow their own DAG,
+	 * which then should have its reference upped separately.
+	 */
+	STAILQ_FOREACH(elm, &root->dagmembers, link) {
+		if (elm->obj != NULL && elm->obj->z_nodelete &&
+		    !elm->obj->ref_nodel) {
+			dbg("obj %s nodelete", elm->obj->path);
+			init_dag(elm->obj);
+			ref_dag(elm->obj);
+			elm->obj->ref_nodel = true;
+		}
+	}
+}
 /*
  * Initialize the dynamic linker.  The argument is the address at which
  * the dynamic linker has been mapped into memory.  The primary task of
@@ -1932,12 +1952,6 @@ process_needed(Obj_Entry *obj, Needed_Entry *needed, int flags)
 	  flags & ~RTLD_LO_NOLOAD);
 	if (obj1 == NULL && !ld_tracing && (flags & RTLD_LO_FILTEES) == 0)
 	    return (-1);
-	if (obj1 != NULL && obj1->z_nodelete && !obj1->ref_nodel) {
-	    dbg("obj %s nodelete", obj1->path);
-	    init_dag(obj1);
-	    ref_dag(obj1);
-	    obj1->ref_nodel = true;
-	}
     }
     return (0);
 }
@@ -2032,13 +2046,13 @@ load_object(const char *name, int fd_u, const Obj_Entry *refobj, int flags)
      */
     fd = -1;
     if (fd_u == -1) {
-	if ((fd = open(path, O_RDONLY)) == -1) {
+	if ((fd = open(path, O_RDONLY | O_CLOEXEC)) == -1) {
 	    _rtld_error("Cannot open \"%s\"", path);
 	    free(path);
 	    return (NULL);
 	}
     } else {
-	fd = dup(fd_u);
+	fd = fcntl(fd_u, F_DUPFD_CLOEXEC, 0);
 	if (fd == -1) {
 	    _rtld_error("Cannot dup fd");
 	    free(path);
@@ -2833,8 +2847,15 @@ dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
 		/* Make list of init functions to call. */
 		initlist_add_objects(obj, &obj->next, &initlist);
 	    }
+	    /*
+	     * Process all no_delete objects here, given them own
+	     * DAGs to prevent their dependencies from being unloaded.
+	     * This has to be done after we have loaded all of the
+	     * dependencies, so that we do not miss any.
+	     */
+	    if (obj != NULL)
+		process_nodelete(obj);
 	} else {
-
 	    /*
 	     * Bump the reference counts for objects on this DAG.  If
 	     * this is the first dlopen() call for the object that was

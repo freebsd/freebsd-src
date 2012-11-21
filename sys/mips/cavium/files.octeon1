@@ -45,6 +45,8 @@ mips/cavium/octe/octebus.c			optional octe
 
 mips/cavium/octopci.c				optional pci
 mips/cavium/octopci_bus_space.c			optional pci
+mips/cavium/octeon_pci_console.c		optional pci
+contrib/octeon-sdk/octeon-pci-console.c		optional pci
 
 mips/cavium/usb/octusb.c			optional usb octusb
 mips/cavium/usb/octusb_octeon.c			optional usb octusb
@@ -58,8 +60,10 @@ mips/cavium/octeon_gpio.c			optional gpio
 contrib/octeon-sdk/cvmx-cmd-queue.c		standard
 contrib/octeon-sdk/cvmx-bootmem.c		standard
 contrib/octeon-sdk/cvmx-clock.c			standard
+contrib/octeon-sdk/cvmx-ebt3000.c		standard
 contrib/octeon-sdk/cvmx-fpa.c			standard
 contrib/octeon-sdk/cvmx-helper.c		standard
+contrib/octeon-sdk/cvmx-helper-cfg.c		standard
 contrib/octeon-sdk/cvmx-helper-board.c		standard
 contrib/octeon-sdk/cvmx-helper-cfg.c		standard
 contrib/octeon-sdk/cvmx-helper-errata.c		standard
@@ -88,6 +92,7 @@ contrib/octeon-sdk/cvmx-sysinfo.c		standard
 contrib/octeon-sdk/cvmx-thunder.c		standard
 contrib/octeon-sdk/cvmx-twsi.c			standard
 contrib/octeon-sdk/cvmx-warn.c			standard
+contrib/octeon-sdk/octeon-feature.c		standard
 contrib/octeon-sdk/octeon-model.c		standard
 
 # HWPMC 

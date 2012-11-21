@@ -533,13 +533,14 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	    dmat->lowaddr >= ptoa((vm_paddr_t)Maxmem) &&
 	    attr == VM_MEMATTR_DEFAULT) {
 		*vaddr = malloc(dmat->maxsize, M_DEVBUF, mflags);
+	} else if (dmat->nsegments >= btoc(dmat->maxsize) &&
+	    dmat->alignment <= PAGE_SIZE &&
+	    (dmat->boundary == 0 || dmat->boundary >= dmat->lowaddr)) {
+		/* Page-based multi-segment allocations allowed */
+		*vaddr = (void *)kmem_alloc_attr(kernel_map, dmat->maxsize,
+		    mflags, 0ul, dmat->lowaddr, attr);
+		*mapp = &contig_dmamap;
 	} else {
-		/*
-		 * XXX Use Contigmalloc until it is merged into this facility
-		 *     and handles multi-seg allocations.  Nobody is doing
-		 *     multi-seg allocations yet though.
-		 * XXX Certain AGP hardware does.
-		 */
 		*vaddr = (void *)kmem_alloc_contig(kernel_map, dmat->maxsize,
 		    mflags, 0ul, dmat->lowaddr, dmat->alignment ?
 		    dmat->alignment : 1ul, dmat->boundary, attr);

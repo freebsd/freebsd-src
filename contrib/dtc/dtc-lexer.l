@@ -198,7 +198,7 @@ static void push_input_file(const char *filename)
 {
 	assert(filename);
 
-	assert(include_stack_pointer >= MAX_INCLUDE_NESTING);
+	assert(include_stack_pointer < MAX_INCLUDE_NESTING);
 
 	srcfile_push(filename);
 

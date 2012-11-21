@@ -106,6 +106,7 @@ static int bd_open(struct open_file *f, ...);
 static int bd_close(struct open_file *f);
 static int bd_ioctl(struct open_file *f, u_long cmd, void *data);
 static void bd_print(int verbose);
+static void bd_cleanup(void);
 
 struct devsw biosdisk = {
 	"disk",
@@ -116,7 +117,7 @@ struct devsw biosdisk = {
 	bd_close,
 	bd_ioctl,
 	bd_print,
-	NULL
+	bd_cleanup
 };
 
 /*
@@ -181,6 +182,13 @@ bd_init(void)
 	return(0);
 }
 
+static void
+bd_cleanup(void)
+{
+
+	disk_cleanup(&biosdisk);
+}
+
 /*
  * Try to detect a device supported by the legacy int13 BIOS
  */
@@ -215,6 +223,8 @@ bd_int13probe(struct bdinfo *bd)
 	    bd->bd_hds, bd->bd_sec);
 
 	/* Determine if we can use EDD with this device. */
+	v86.ctl = V86_FLAGS;
+	v86.addr = 0x13;
 	v86.eax = 0x4100;
 	v86.edx = bd->bd_unit;
 	v86.ebx = 0x55aa;
@@ -240,6 +250,8 @@ bd_int13probe(struct bdinfo *bd)
 		bd->bd_sectors = params.sectors;
 		bd->bd_sectorsize = params.sector_size;
 	}
+	DEBUG("unit 0x%x flags %x, sectors %llu, sectorsize %u",
+	    bd->bd_unit, bd->bd_flags, bd->bd_sectors, bd->bd_sectorsize);
 	return (1);
 }
 
@@ -264,7 +276,9 @@ bd_print(int verbose)
 		dev.d_partition = -1;
 		if (disk_open(&dev,
 		    bdinfo[i].bd_sectorsize * bdinfo[i].bd_sectors,
-		    bdinfo[i].bd_sectorsize) == 0) {
+		    bdinfo[i].bd_sectorsize,
+		    (bdinfo[i].bd_flags & BD_FLOPPY) ?
+		    DISK_F_NOCACHE: 0) == 0) {
 			sprintf(line, "    disk%d", i);
 			disk_print(&dev, line, verbose);
 			disk_close(&dev);
@@ -296,7 +310,8 @@ bd_open(struct open_file *f, ...)
 		return (EIO);
 
 	return (disk_open(dev, BD(dev).bd_sectors * BD(dev).bd_sectorsize,
-	    BD(dev).bd_sectorsize));
+	    BD(dev).bd_sectorsize, (BD(dev).bd_flags & BD_FLOPPY) ?
+	    DISK_F_NOCACHE: 0));
 }
 
 static int
@@ -633,7 +648,8 @@ bd_getdev(struct i386_devdesc *d)
     if (biosdev == -1)				/* not a BIOS device */
 	return(-1);
     if (disk_open(dev, BD(dev).bd_sectors * BD(dev).bd_sectorsize,
-	BD(dev).bd_sectorsize) != 0)		/* oops, not a viable device */
+	BD(dev).bd_sectorsize,(BD(dev).bd_flags & BD_FLOPPY) ?
+	DISK_F_NOCACHE: 0) != 0)		/* oops, not a viable device */
 	    return (-1);
     else
 	disk_close(dev);

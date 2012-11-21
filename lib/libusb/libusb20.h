@@ -202,6 +202,7 @@ struct libusb20_quirk {
 /* USB transfer operations */
 int	libusb20_tr_close(struct libusb20_transfer *xfer);
 int	libusb20_tr_open(struct libusb20_transfer *xfer, uint32_t max_buf_size, uint32_t max_frame_count, uint8_t ep_no);
+int	libusb20_tr_open_stream(struct libusb20_transfer *xfer, uint32_t max_buf_size, uint32_t max_frame_count, uint8_t ep_no, uint16_t stream_id);
 struct libusb20_transfer *libusb20_tr_get_pointer(struct libusb20_device *pdev, uint16_t tr_index);
 uint16_t libusb20_tr_get_time_complete(struct libusb20_transfer *xfer);
 uint32_t libusb20_tr_get_actual_frames(struct libusb20_transfer *xfer);

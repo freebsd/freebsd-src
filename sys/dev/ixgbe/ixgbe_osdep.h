@@ -69,12 +69,17 @@
 	#define DEBUGOUT1(S,A)      printf(S "\n",A)
 	#define DEBUGOUT2(S,A,B)    printf(S "\n",A,B)
 	#define DEBUGOUT3(S,A,B,C)  printf(S "\n",A,B,C)
+	#define DEBUGOUT4(S,A,B,C,D)  printf(S "\n",A,B,C,D)
+	#define DEBUGOUT5(S,A,B,C,D,E)  printf(S "\n",A,B,C,D,E)
+	#define DEBUGOUT6(S,A,B,C,D,E,F)  printf(S "\n",A,B,C,D,E,F)
 	#define DEBUGOUT7(S,A,B,C,D,E,F,G)  printf(S "\n",A,B,C,D,E,F,G)
 #else
 	#define DEBUGOUT(S)
 	#define DEBUGOUT1(S,A)
 	#define DEBUGOUT2(S,A,B)
 	#define DEBUGOUT3(S,A,B,C)
+	#define DEBUGOUT4(S,A,B,C,D)
+	#define DEBUGOUT5(S,A,B,C,D,E)
 	#define DEBUGOUT6(S,A,B,C,D,E,F)
 	#define DEBUGOUT7(S,A,B,C,D,E,F,G)
 #endif
@@ -142,6 +147,25 @@ void prefetch(void *x)
 #else
 #define prefetch(x)
 #endif
+
+/*
+ * Optimized bcopy thanks to Luigi Rizzo's investigative work.  Assumes
+ * non-overlapping regions and 32-byte padding on both src and dst.
+ */
+static __inline int
+ixgbe_bcopy(void *_src, void *_dst, int l)
+{
+	uint64_t *src = _src;
+	uint64_t *dst = _dst;
+
+	for (; l > 0; l -= 32) {
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+	}
+	return (0);
+}
 
 struct ixgbe_osdep
 {

@@ -529,11 +529,11 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			nth = (struct tcphdr *)(ip6 + 1);
 		} else
 #endif /* INET6 */
-	      {
-		bcopy((caddr_t)ip, mtod(m, caddr_t), sizeof(struct ip));
-		ip = mtod(m, struct ip *);
-		nth = (struct tcphdr *)(ip + 1);
-	      }
+		{
+			bcopy((caddr_t)ip, mtod(m, caddr_t), sizeof(struct ip));
+			ip = mtod(m, struct ip *);
+			nth = (struct tcphdr *)(ip + 1);
+		}
 		bcopy((caddr_t)th, (caddr_t)nth, sizeof(struct tcphdr));
 		flags = TH_ACK;
 	} else {
@@ -544,7 +544,6 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		m_freem(m->m_next);
 		m->m_next = NULL;
 		m->m_data = (caddr_t)ipgen;
-		m_addr_changed(m);
 		/* m_len is set later */
 		tlen = 0;
 #define xchg(a,b,type) { type t; t=a; a=b; b=t; }
@@ -554,10 +553,10 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			nth = (struct tcphdr *)(ip6 + 1);
 		} else
 #endif /* INET6 */
-	      {
-		xchg(ip->ip_dst.s_addr, ip->ip_src.s_addr, uint32_t);
-		nth = (struct tcphdr *)(ip + 1);
-	      }
+		{
+			xchg(ip->ip_dst.s_addr, ip->ip_src.s_addr, uint32_t);
+			nth = (struct tcphdr *)(ip + 1);
+		}
 		if (th != nth) {
 			/*
 			 * this is usually a case when an extension header
@@ -585,10 +584,10 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 #ifdef INET
 	{
 		tlen += sizeof (struct tcpiphdr);
-		ip->ip_len = tlen;
+		ip->ip_len = htons(tlen);
 		ip->ip_ttl = V_ip_defttl;
 		if (V_path_mtu_discovery)
-			ip->ip_off |= IP_DF;
+			ip->ip_off |= htons(IP_DF);
 	}
 #endif
 	m->m_len = tlen;
@@ -903,14 +902,14 @@ tcp_discardcb(struct tcpcb *tp)
 				ssthresh = 2;
 			ssthresh *= (u_long)(tp->t_maxseg +
 #ifdef INET6
-				      (isipv6 ? sizeof (struct ip6_hdr) +
-					       sizeof (struct tcphdr) :
+			    (isipv6 ? sizeof (struct ip6_hdr) +
+				sizeof (struct tcphdr) :
 #endif
-				       sizeof (struct tcpiphdr)
+				sizeof (struct tcpiphdr)
 #ifdef INET6
-				       )
+			    )
 #endif
-				      );
+			    );
 		} else
 			ssthresh = 0;
 		metrics.rmx_ssthresh = ssthresh;
@@ -1399,12 +1398,11 @@ tcp_ctlinput(int cmd, struct sockaddr *sa, void *vip)
 					    /*
 					     * If no alternative MTU was
 					     * proposed, try the next smaller
-					     * one.  ip->ip_len has already
-					     * been swapped in icmp_input().
+					     * one.
 					     */
 					    if (!mtu)
-						mtu = ip_next_mtu(ip->ip_len,
-						 1);
+						mtu = ip_next_mtu(
+						 ntohs(ip->ip_len), 1);
 					    if (mtu < V_tcp_minmss
 						 + sizeof(struct tcpiphdr))
 						mtu = V_tcp_minmss

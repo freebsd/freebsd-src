@@ -266,11 +266,6 @@ unionfs_domount(struct mount *mp)
 	ump->um_copymode = copymode;
 	ump->um_whitemode = whitemode;
 
-	MNT_ILOCK(mp);
-	if ((lowerrootvp->v_mount->mnt_kern_flag & MNTK_MPSAFE) &&
-	    (upperrootvp->v_mount->mnt_kern_flag & MNTK_MPSAFE))
-		mp->mnt_kern_flag |= MNTK_MPSAFE;
-	MNT_IUNLOCK(mp);
 	mp->mnt_data = ump;
 
 	/*

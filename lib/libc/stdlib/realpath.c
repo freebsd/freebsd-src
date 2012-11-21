@@ -181,8 +181,6 @@ realpath(const char * __restrict path, char * __restrict resolved)
 			return (NULL);
 		}
 		if (lstat(resolved, &sb) != 0) {
-			if (errno != ENOENT || p != NULL)
-				errno = ENOTDIR;
 			if (m)
 				free(resolved);
 			return (NULL);

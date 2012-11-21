@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
  * Disk quota editor.
  */
 
-#include <sys/param.h>
-#include <sys/stat.h>
 #include <sys/file.h>
 #include <sys/mount.h>
 #include <sys/wait.h>
@@ -453,8 +451,10 @@ editit(char *tmpf)
 		const char *ed;
 
 		sigsetmask(omask);
-		setgid(getgid());
-		setuid(getuid());
+		if (setgid(getgid()) != 0)
+			err(1, "setgid failed");
+		if (setuid(getuid()) != 0)
+			err(1, "setuid failed");
 		if ((ed = getenv("EDITOR")) == (char *)0)
 			ed = _PATH_VI;
 		execlp(ed, ed, tmpf, (char *)0);

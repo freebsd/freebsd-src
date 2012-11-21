@@ -1,0 +1,21 @@
+# $FreeBSD$
+
+arm/broadcom/bcm2835/bcm2835_fb.c		optional sc
+arm/broadcom/bcm2835/bcm2835_intr.c		standard
+arm/broadcom/bcm2835/bcm2835_machdep.c		standard
+arm/broadcom/bcm2835/bcm2835_mbox.c		standard
+arm/broadcom/bcm2835/bcm2835_sdhci.c		optional sdhci
+arm/broadcom/bcm2835/bcm2835_systimer.c		standard
+arm/broadcom/bcm2835/bcm2835_wdog.c		standard
+arm/broadcom/bcm2835/bus_space.c		optional fdt
+arm/broadcom/bcm2835/common.c			optional fdt
+arm/broadcom/bcm2835/dwc_otg_brcm.c		optional dwcotg
+
+arm/arm/bus_space_generic.c                     standard
+arm/arm/bus_space_asm_generic.S                 standard
+arm/arm/cpufunc_asm_arm11.S                     standard
+arm/arm/cpufunc_asm_armv5.S                     standard
+arm/arm/cpufunc_asm_armv6.S                     standard
+arm/arm/irq_dispatch.S                          standard
+
+kern/kern_clocksource.c                         standard

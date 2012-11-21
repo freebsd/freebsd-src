@@ -426,7 +426,7 @@ el_gets(EditLine *el, int *nread)
 		char *cp = el->el_line.buffer;
 		size_t idx;
 
-		while ((*el->el_read.read_char)(el, cp) == 1) {
+		while ((num = (*el->el_read.read_char)(el, cp)) == 1) {
 			/* make sure there is space for next character */
 			if (cp + 1 >= el->el_line.limit) {
 				idx = (cp - el->el_line.buffer);
@@ -479,7 +479,7 @@ el_gets(EditLine *el, int *nread)
 
 		term__flush(el);
 
-		while ((*el->el_read.read_char)(el, cp) == 1) {
+		while ((num = (*el->el_read.read_char)(el, cp)) == 1) {
 			/* make sure there is space next character */
 			if (cp + 1 >= el->el_line.limit) {
 				idx = (cp - el->el_line.buffer);

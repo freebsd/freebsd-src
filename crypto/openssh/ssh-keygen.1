@@ -1,4 +1,4 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.106 2011/04/13 04:09:37 djm Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.109 2012/07/06 00:41:59 dtucker Exp $
 .\"	$FreeBSD$
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -36,7 +36,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd April 13, 2011
+.Dd July 6 2012
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -105,6 +105,9 @@
 .Fl f Ar input_file
 .Op Fl v
 .Op Fl a Ar num_trials
+.Op Fl J Ar num_lines
+.Op Fl j Ar start_line
+.Op Fl K Ar checkpt
 .Op Fl W Ar generator
 .Nm ssh-keygen
 .Fl s Ar ca_key
@@ -215,7 +218,7 @@ Generally, 2048 bits is considered sufficient.
 DSA keys must be exactly 1024 bits as specified by FIPS 186-2.
 For ECDSA keys, the
 .Fl b
-flag determines they key length by selecting from one of three elliptic
+flag determines the key length by selecting from one of three elliptic
 curve sizes: 256, 384 or 521 bits.
 Attempting to use bit lengths other than these three values for ECDSA keys
 will fail.
@@ -297,6 +300,24 @@ in the format specified by the
 .Fl m
 option and print an OpenSSH compatible private
 (or public) key to stdout.
+.It Fl J Ar num_lines
+Exit after screening the specified number of lines
+while performing DH candidate screening using the
+.Fl T
+option.
+.It Fl j Ar start_line
+Start screening at the specified line number
+while performing DH candidate screening using the
+.Fl T
+option.
+.It Fl K Ar checkpt
+Write the last line processed to the file
+.Ar checkpt
+while performing DH candidate screening using the
+.Fl T
+option.
+This will be used to skip lines in the input file that have already been
+processed if the job is restarted.
 This option allows importing keys from other software, including several
 commercial SSH implementations.
 The default import format is
@@ -510,7 +531,7 @@ This may be overridden using the
 .Fl S
 option, which specifies a different start point (in hex).
 .Pp
-Once a set of candidates have been generated, they must be tested for
+Once a set of candidates have been generated, they must be screened for
 suitability.
 This may be performed using the
 .Fl T

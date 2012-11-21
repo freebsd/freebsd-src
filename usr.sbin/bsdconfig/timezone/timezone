@@ -28,21 +28,21 @@
 #
 ############################################################ INCLUDES
 
-BSDCFG_LIBE="/usr/libexec/bsdconfig"
-. $BSDCFG_LIBE/include/common.subr || exit 1
-f_include $BSDCFG_LIBE/include/dialog.subr
-f_include $BSDCFG_LIBE/include/mustberoot.subr
-f_include $BSDCFG_LIBE/include/strings.subr
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/strings.subr
+f_include $BSDCFG_SHARE/timezone/continents.subr
+f_include $BSDCFG_SHARE/timezone/countries.subr
+f_include $BSDCFG_SHARE/timezone/iso3166.subr
+f_include $BSDCFG_SHARE/timezone/menus.subr
+f_include $BSDCFG_SHARE/timezone/zones.subr
 
-APP_DIR="090.timezone"
-f_include $BSDCFG_LIBE/$APP_DIR/include/continents.subr
-f_include $BSDCFG_LIBE/$APP_DIR/include/countries.subr
-f_include $BSDCFG_LIBE/$APP_DIR/include/iso3166.subr
-f_include $BSDCFG_LIBE/$APP_DIR/include/menus.subr
-f_include $BSDCFG_LIBE/$APP_DIR/include/zones.subr
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="090.timezone"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
+ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 [ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
 
 ############################################################ CONFIGURATION
@@ -91,14 +91,19 @@ dialog_menu_main()
 			\"\"         \
 	        	$continent_menu_list )
 
-	eval $DIALOG \
+	local dialog_menu
+	dialog_menu=$( eval $DIALOG \
 		--title \"\$title\"             \
 		--backtitle \"\$btitle\"        \
 		--ok-label \"\$msg_ok\"         \
 		--cancel-label \"\$msg_cancel\" \
 		--menu \"\$prompt\" $size       \
 		$continent_menu_list            \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	setvar DIALOG_MENU_$$ "$dialog_menu"
+	return $retval
 }
 
 ############################################################ MAIN
@@ -354,15 +359,17 @@ while :; do
 			#
 			# Launch the country selection menu
 			#
-			eval $DIALOG \
+			dialog_menu=$( eval $DIALOG \
 				--title \"\$title\"             \
 				--backtitle \"\$btitle\"        \
 				--ok-label \"\$msg_ok\"         \
 				--cancel-label \"\$msg_cancel\" \
 				--menu \"\$prompt\" $size       \
 				$menu_list                      \
-				2> "$DIALOG_TMPDIR/dialog.menu.$$"
+				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+			)
 			retval=$?
+			setvar DIALOG_MENU_$$ "$dialog_menu"
 			tag=$( f_dialog_menutag )
 
 			if [ $retval -ne 0 ]; then
@@ -409,15 +416,17 @@ while :; do
 		# Launch the zone selection menu
 		# NOTE: This is as deep as we go
 		#
-		eval $DIALOG \
+		dialog_menu=$( eval $DIALOG \
 			--title \"\$title\"             \
 			--backtitle \"\$btitle\"        \
 			--ok-label \"\$msg_ok\"         \
 			--cancel-label \"\$msg_cancel\" \
 			--menu \"\$prompt\" $size       \
 			$menu_list                      \
-			2> "$DIALOG_TMPDIR/dialog.menu.$$"
+			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		)
 		retval=$?
+		setvar DIALOG_MENU_$$ "$dialog_menu"
 		n=$( f_dialog_menutag )
 
 		if [ $retval -ne 0 ]; then

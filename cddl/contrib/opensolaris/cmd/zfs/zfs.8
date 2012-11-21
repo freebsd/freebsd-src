@@ -22,10 +22,12 @@
 .\" Copyright (c) 2012 Nexenta Systems, Inc. All Rights Reserved.
 .\" Copyright (c) 2012, Joyent, Inc. All rights reserved.
 .\" Copyright (c) 2011, Pawel Jakub Dawidek <pjd@FreeBSD.org>
+.\" Copyright (c) 2012, Glen Barber <gjb@FreeBSD.org>
+.\" Copyright (c) 2012, Bryan Drewery <bdrewery@FreeBSD.org>
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 22, 2012
+.Dd September 5, 2012
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -56,8 +58,8 @@
 .Op Fl dnpRrv
 .Sm off
 .Ar snapshot
-.Ns Op % Ns Ar snapname
-.Ns Op , Ns Ar ...
+.Op % Ns Ar snapname
+.Op , Ns Ar ...
 .Sm on
 .Nm
 .Cm snapshot
@@ -135,17 +137,21 @@
 .Fl a | Ar filesystem
 .Nm
 .Cm userspace
-.Op Fl niHp
+.Op Fl Hinp
 .Op Fl o Ar field Ns Op , Ns Ar ...
-.Op Fl sS Ar field
+.Op Fl s Ar field
+.Ar ...
+.Op Fl S Ar field
 .Ar ...
 .Op Fl t Ar type Ns Op , Ns Ar ...
 .Ar filesystem Ns | Ns Ar snapshot
 .Nm
 .Cm groupspace
-.Op Fl niHp
+.Op Fl Hinp
 .Op Fl o Ar field Ns Op , Ns Ar ...
-.Op Fl sS Ar field
+.Op Fl s Ar field
+.Ar ...
+.Op Fl S Ar field
 .Ar ...
 .Op Fl t Ar type Ns Op , Ns Ar ...
 .Ar filesystem Ns | Ns Ar snapshot
@@ -168,7 +174,7 @@
 .Fl a | Ar filesystem Ns | Ns Ar mountpoint
 .Nm
 .Cm send
-.Op Fl DnPpRrv
+.Op Fl DnPpRv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Nm
@@ -250,10 +256,10 @@
 .Op Ar snapshot Ns | Ns Ar filesystem
 .Nm
 .Cm jail
-.Ar jailid filesystem
+.Ar jailid Ns | Ns Ar jailname filesystem
 .Nm
 .Cm unjail
-.Ar jailid filesystem
+.Ar jailid Ns | Ns Ar jailname filesystem
 .Sh DESCRIPTION
 The
 .Nm
@@ -624,7 +630,7 @@ privilege with
 .Qq Nm Cm allow ,
 can access everyone's usage.
 .Pp
-The 
+The
 .Sy userused@ Ns ...
 properties are not displayed by
 .Qq Nm Cm get all .
@@ -1082,7 +1088,7 @@ bit is respected for the file system. The default value is
 .It Sy sharesmb Ns = Ns Cm on | off | Ar opts
 The
 .Sy sharesmb
-property has currently no effect o
+property currently has no effect on
 .Fx .
 .It Sy sharenfs Ns = Ns Cm on | off | Ar opts
 Controls whether the file system is shared via
@@ -1134,7 +1140,7 @@ will not use configured pool log devices.
 will instead optimize synchronous operations for global pool throughput and
 efficient use of resources.
 .It Sy snapdir Ns = Ns Cm hidden | visible
-Controls whether the 
+Controls whether the
 .Pa \&.zfs
 directory is hidden or visible in the root of the file system as discussed in
 the
@@ -1201,7 +1207,7 @@ are not reflected in the reservation.
 The
 .Sy vscan
 property is currently not supported on
-.Fx . 
+.Fx .
 .It Sy xattr Ns = Ns Cm off | on
 The
 .Sy xattr
@@ -1288,7 +1294,7 @@ properties. The correlation between properties and mount options is as follows:
 In addition, these options can be set on a per-mount basis using the
 .Fl o
 option, without affecting the property that is stored on disk. The values
-specified on the command line override the values stored in the dataset. These 
+specified on the command line override the values stored in the dataset. These
 properties are reported as "temporary" by the
 .Qq Nm Cm get
 command. If the properties are changed while the dataset is mounted, the new
@@ -1327,7 +1333,7 @@ domain name for the
 .Ar module
 component of property names to reduce the chance that two
 independently-developed packages use the same property name for different
-purposes. Property names beginning with 
+purposes. Property names beginning with
 .Em com.sun
 are reserved for use by Sun Microsystems.
 .Pp
@@ -1496,8 +1502,8 @@ behavior for mounted file systems in use.
 .Op Fl dnpRrv
 .Sm off
 .Ar snapshot
-.Ns Op % Ns Ar snapname
-.Ns Op , Ns Ar ...
+.Op % Ns Ar snapname
+.Op , Ns Ar ...
 .Sm on
 .Xc
 .Pp
@@ -1985,9 +1991,11 @@ Upgrade the specified file system.
 .It Xo
 .Nm
 .Cm userspace
-.Op Fl niHp
+.Op Fl Hinp
 .Op Fl o Ar field Ns Op , Ns Ar ...
-.Op Fl sS Ar field
+.Op Fl s Ar field
+.Ar ...
+.Op Fl S Ar field
 .Ar ...
 .Op Fl t Ar type Ns Op , Ns Ar ...
 .Ar filesystem Ns | Ns Ar snapshot
@@ -2005,9 +2013,9 @@ Print numeric ID instead of user/group name.
 .It Fl H
 Do not print headers, use tab-delimited output.
 .It Fl p
-Use exact (parseable) numeric output.
+Use exact (parsable) numeric output.
 .It Fl o Ar field Ns Op , Ns Ar ...
-Display only the specified fields from the following set,
+Display only the specified fields from the following set:
 .Sy type,name,used,quota .
 The default is to display all fields.
 .It Fl s Ar field
@@ -2022,7 +2030,7 @@ another. The default is
 Sort by this field in reverse order. See
 .Fl s .
 .It Fl t Ar type Ns Op , Ns Ar ...
-Print only the specified types from the following set,
+Print only the specified types from the following set:
 .Sy all,posixuser,smbuser,posixgroup,smbgroup .
 .Pp
 The default is
@@ -2030,15 +2038,17 @@ The default is
 .Pp
 The default can be changed to include group types.
 .It Fl i
-Translate SID to POSIX ID. This flag has currently no effect on
+Translate SID to POSIX ID. This flag currently has no effect on
 .Fx .
 .El
 .It Xo
 .Nm
 .Cm groupspace
-.Op Fl niHp
+.Op Fl Hinp
 .Op Fl o Ar field Ns Op , Ns Ar ...
-.Op Fl sS Ar field
+.Op Fl s Ar field
+.Ar ...
+.Op Fl S Ar field
 .Ar ...
 .Op Fl t Ar type Ns Op , Ns Ar ...
 .Ar filesystem Ns | Ns Ar snapshot
@@ -2186,7 +2196,7 @@ file system shared on the system.
 .It Xo
 .Nm
 .Cm send
-.Op Fl DnPpRrv
+.Op Fl DnPpRv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Xc
@@ -2216,7 +2226,7 @@ and it is assumed to be from the same file system as the last
 .Ar snapshot .
 .Pp
 If the destination is a clone, the source may be the origin snapshot, which
-must be fully specified (for example, 
+must be fully specified (for example,
 .Cm pool/fs@origin ,
 not just
 .Cm @origin ) .
@@ -2249,7 +2259,7 @@ properties, and current snapshot and file system names are set when the stream
 is received. If the
 .Fl F
 flag is specified when this stream is received, snapshots and file systems that
- do not exist on the sending side are destroyed.
+do not exist on the sending side are destroyed.
 .It Fl D
 Generate a deduplicated stream. Blocks which would have been sent multiple
 times in the send stream will only be sent once.  The receiving system must
@@ -2259,13 +2269,6 @@ be used regardless of the dataset's
 property, but performance will be much better if the filesystem uses a
 dedup-capable checksum (eg.
 .Sy sha256 ) .
-.It Fl r
-Recursively send all descendant snapshots.  This is similar to the
-.Fl R
-flag, but information about deleted and renamed datasets is not included, and
-property information is only included if the
-.Fl p
-flag is specified.
 .It Fl p
 Include the dataset's properties in the stream. This flag is implicit when
 .Fl R
@@ -2472,24 +2475,26 @@ subcommand or change a
 property. The following permissions are available:
 .Bl -column -offset 4n "secondarycache" "subcommand"
 .It NAME Ta TYPE Ta NOTES
-.It Xo allow Ta subcommand Ta Must
+.It allow Ta subcommand Ta Must Xo
 also have the permission that is being allowed
 .Xc
-.It Xo clone Ta subcommand Ta Must
+.It clone Ta subcommand Ta Must Xo
 also have the 'create' ability and 'mount' ability in the origin file system
 .Xc
 .It create Ta subcommand Ta Must also have the 'mount' ability
 .It destroy Ta subcommand Ta Must also have the 'mount' ability
+.It diff Ta subcommand Ta Allows lookup of paths within a dataset given an
+object number, and the ability to create snapshots necessary to 'zfs diff'
 .It hold Ta subcommand Ta Allows adding a user hold to a snapshot
 .It mount Ta subcommand Ta Allows mount/umount of Tn ZFS No datasets
-.It Xo promote Ta subcommand Ta Must
+.It promote Ta subcommand Ta Must Xo
 also have the 'mount' and 'promote' ability in the origin file system
 .Xc
 .It receive Ta subcommand Ta Must also have the 'mount' and 'create' ability
-.It Xo release Ta subcommand Ta Allows
+.It release Ta subcommand Ta Allows Xo
 releasing a user hold which might destroy the snapshot
 .Xc
-.It Xo rename Ta subcommand Ta Must
+.It rename Ta subcommand Ta Must Xo
 also have the 'mount' and 'create' ability in the new parent
 .Xc
 .It rollback Ta subcommand Ta Must also have the 'mount' ability
@@ -2505,7 +2510,6 @@ protocol
 .It userprop Ta other Ta Allows changing any user property
 .It userquota Ta other Ta Allows accessing any userquota@... property
 .It userused Ta other Ta Allows reading any userused@... property
-.It  Ta 
 .It aclinherit Ta property
 .It aclmode Ta property
 .It atime Ta property
@@ -2683,43 +2687,42 @@ descendent file systems.
 .Op Ar snapshot Ns | Ns Ar filesystem
 .Xc
 .Pp
-Describes differences between a snapshot and a successor dataset. The
-successor dataset can be a later snapshot or the current filesystem.
+Display the difference between a snapshot of a given filesystem and another
+snapshot of that filesystem from a later time or the current contents of the
+filesystem.  The first column is a character indicating the type of change,
+the other columns indicate pathname, new pathname
+.Pq in case of rename ,
+change in link count, and optionally file type and/or change time.
 .Pp
-The changed files are displayed including the change type. The change type
-is displayed useing a single character. If a file or directory was renamed,
-the old and the new names are displayed.
-.Pp
-The following change types can be displayed:
-.Pp
-.Bl -column -offset indent "CHARACTER" "CHANGE TYPE"
-.It CHARACTER Ta CHANGE TYPE
-.It \&+ Ta file was added
-.It \&- Ta file was removed
-.It \&M Ta file was modified
-.It \&R Ta file was renamed
+The types of change are:
+.Bl -column -offset 2n indent
+.It \&- Ta path was removed
+.It \&+ Ta path was added
+.It \&M Ta path was modified
+.It \&R Ta path was renamed
 .El
 .Bl -tag -width indent
 .It Fl F
-Display a single letter for the file type in second to last column.
-.Pp
-The following file types can be displayed:
-.Pp
-.Bl -column -offset indent "CHARACTER" "FILE TYPE"
-.It CHARACTER Ta FILE TYPE
-.It \&F Ta file
-.It \&/ Ta directory
+Display an indication of the type of file, in a manner similar to the
+.Fl F
+option of
+.Xr ls 1 .
+.Bl -column -offset 2n indent
 .It \&B Ta block device
+.It \&C Ta character device
+.It \&F Ta regular file
+.It \&/ Ta directory
 .It \&@ Ta symbolic link
 .It \&= Ta socket
 .It \&> Ta door (not supported on Fx )
-.It \&| Ta FIFO (not supported on Fx )
-.It \&P Ta event portal (not supported on Fx )
+.It \&| Ta named pipe (not supported on Fx )
+.It \&P Ta event port (not supported on Fx )
 .El
 .It Fl H
-Machine-parseable output, fields separated a tab character.
+Give more parseable tab-separated output, without header lines and without
+arrows.
 .It Fl t
-Display a change timestamp in the first column.
+Display the path's inode change time as the first column of output.
 .El
 .It Xo
 .Nm
@@ -2754,6 +2757,16 @@ Detaches the specified
 .Ar filesystem
 from the jail identified by JID
 .Ar jailid .
+.El
+.Sh EXIT STATUS
+The following exit values are returned:
+.Bl -tag -offset 2n -width 2n
+.It 0
+Successful completion.
+.It 1
+An error occurred.
+.It 2
+Invalid command line options were specified.
 .El
 .Sh EXAMPLES
 .Bl -tag -width 0n
@@ -2820,7 +2833,7 @@ Snapshots are displayed if the
 .Sy listsnaps
 property is
 .Cm on .
-The default is 
+The default is
 .Cm off .
 See
 .Xr zpool 8
@@ -3028,9 +3041,9 @@ a new snapshot, as follows:
 .Li # Ic zfs destroy -r pool/users@7daysago
 .Li # Ic zfs rename -r pool/users@6daysago @7daysago
 .Li # Ic zfs rename -r pool/users@5daysago @6daysago
-.Li # Ic zfs rename -r pool/users@yesterday @5daysago
-.Li # Ic zfs rename -r pool/users@yesterday @4daysago
-.Li # Ic zfs rename -r pool/users@yesterday @3daysago
+.Li # Ic zfs rename -r pool/users@4daysago @5daysago
+.Li # Ic zfs rename -r pool/users@3daysago @4daysago
+.Li # Ic zfs rename -r pool/users@2daysago @3daysago
 .Li # Ic zfs rename -r pool/users@yesterday @2daysago
 .Li # Ic zfs rename -r pool/users@today @yesterday
 .Li # Ic zfs snapshot -r pool/users@today
@@ -3171,16 +3184,21 @@ Local+Descendent permissions on (tank/users)
         group staff @pset,create,mount
 -------------------------------------------------------------
 .Ed
-.El
-.Sh EXIT STATUS
-The following exit values are returned:
-.Bl -tag -offset 2n -width 2n
-.It 0
-Successful completion.
-.It 1
-An error occurred.
-.It 2
-Invalid command line options were specified.
+.It Sy Example 22 Showing the differences between a snapshot and a ZFS Dataset
+.Pp
+The following example shows how to see what has changed between a prior
+snapshot of a ZFS Dataset and its current state.  The
+.Fl F
+option is used to indicate type information for the files affected.
+.Bd -literal -offset 2n
+.Li # Ic zfs diff tank/test@before tank/test
+M       /       /tank/test/
+M       F       /tank/test/linked      (+1)
+R       F       /tank/test/oldname -> /tank/test/newname
+-       F       /tank/test/deleted
++       F       /tank/test/created
+M       F       /tank/test/modified
+.Ed
 .El
 .Sh SEE ALSO
 .Xr chmod 2 ,

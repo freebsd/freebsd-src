@@ -130,21 +130,21 @@ struct ip6_exthdrs {
 	struct mbuf *ip6e_dest2;
 };
 
-static int ip6_pcbopt __P((int, u_char *, int, struct ip6_pktopts **,
-			   struct ucred *, int));
-static int ip6_pcbopts __P((struct ip6_pktopts **, struct mbuf *,
-	struct socket *, struct sockopt *));
+static int ip6_pcbopt(int, u_char *, int, struct ip6_pktopts **,
+			   struct ucred *, int);
+static int ip6_pcbopts(struct ip6_pktopts **, struct mbuf *,
+	struct socket *, struct sockopt *);
 static int ip6_getpcbopt(struct ip6_pktopts *, int, struct sockopt *);
-static int ip6_setpktopt __P((int, u_char *, int, struct ip6_pktopts *,
-	struct ucred *, int, int, int));
+static int ip6_setpktopt(int, u_char *, int, struct ip6_pktopts *,
+	struct ucred *, int, int, int);
 
 static int ip6_copyexthdr(struct mbuf **, caddr_t, int);
-static int ip6_insertfraghdr __P((struct mbuf *, struct mbuf *, int,
-	struct ip6_frag **));
+static int ip6_insertfraghdr(struct mbuf *, struct mbuf *, int,
+	struct ip6_frag **);
 static int ip6_insert_jumboopt(struct ip6_exthdrs *, u_int32_t);
 static int ip6_splithdr(struct mbuf *, struct ip6_exthdrs *);
-static int ip6_getpmtu __P((struct route_in6 *, struct route_in6 *,
-	struct ifnet *, struct in6_addr *, u_long *, int *, u_int));
+static int ip6_getpmtu(struct route_in6 *, struct route_in6 *,
+	struct ifnet *, struct in6_addr *, u_long *, int *, u_int);
 static int copypktopts(struct ip6_pktopts *, struct ip6_pktopts *, int);
 
 
@@ -257,9 +257,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	int segleft_org = 0;
 	struct secpolicy *sp = NULL;
 #endif /* IPSEC */
-#ifdef IPFIREWALL_FORWARD
 	struct m_tag *fwd_tag;
-#endif
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	if (ip6 == NULL) {
@@ -915,7 +913,6 @@ again:
 			goto again;	/* Redo the routing table lookup. */
 	}
 
-#ifdef IPFIREWALL_FORWARD
 	/* See if local, if yes, send it to netisr. */
 	if (m->m_flags & M_FASTFWD_OURS) {
 		if (m->m_pkthdr.rcvif == NULL)
@@ -933,15 +930,15 @@ again:
 		goto done;
 	}
 	/* Or forward to some other address? */
-	fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
-	if (fwd_tag) {
+	if ((m->m_flags & M_IP6_NEXTHOP) &&
+	    (fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL)) != NULL) {
 		dst = (struct sockaddr_in6 *)&ro->ro_dst;
 		bcopy((fwd_tag+1), dst, sizeof(struct sockaddr_in6));
 		m->m_flags |= M_SKIP_FIREWALL;
+		m->m_flags &= ~M_IP6_NEXTHOP;
 		m_tag_delete(m, fwd_tag);
 		goto again;
 	}
-#endif /* IPFIREWALL_FORWARD */
 
 passout:
 	/*
@@ -1615,18 +1612,22 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 					break;
 #define OPTSET(bit) \
 do { \
+	INP_WLOCK(in6p); \
 	if (optval) \
 		in6p->inp_flags |= (bit); \
 	else \
 		in6p->inp_flags &= ~(bit); \
+	INP_WUNLOCK(in6p); \
 } while (/*CONSTCOND*/ 0)
 #define OPTSET2292(bit) \
 do { \
+	INP_WLOCK(in6p); \
 	in6p->inp_flags |= IN6P_RFC2292; \
 	if (optval) \
 		in6p->inp_flags |= (bit); \
 	else \
 		in6p->inp_flags &= ~(bit); \
+	INP_WUNLOCK(in6p); \
 } while (/*CONSTCOND*/ 0)
 #define OPTBIT(bit) (in6p->inp_flags & (bit) ? 1 : 0)
 
@@ -1880,6 +1881,7 @@ do { \
 				if (error)
 					break;
 
+				INP_WLOCK(in6p);
 				switch (optval) {
 				case IPV6_PORTRANGE_DEFAULT:
 					in6p->inp_flags &= ~(INP_LOWPORT);
@@ -1900,6 +1902,7 @@ do { \
 					error = EINVAL;
 					break;
 				}
+				INP_WUNLOCK(in6p);
 				break;
 
 #ifdef IPSEC

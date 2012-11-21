@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include "common/common.h"
 #include "common/t4_msg.h"
 #include "common/t4_regs.h"
+#include "common/t4_tcb.h"
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
 
@@ -72,15 +73,15 @@ VNET_DECLARE(int, tcp_autorcvbuf_max);
 void
 send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 {
-        struct wrqe *wr;
-        struct fw_flowc_wr *flowc;
-	unsigned int nparams = ftxp ? 8 : 4, flowclen;
+	struct wrqe *wr;
+	struct fw_flowc_wr *flowc;
+	unsigned int nparams = ftxp ? 8 : 6, flowclen;
 	struct port_info *pi = toep->port;
 	struct adapter *sc = pi->adapter;
 	unsigned int pfvf = G_FW_VIID_PFN(pi->viid) << S_FW_VIID_PFN;
 	struct ofld_tx_sdesc *txsd = &toep->txsd[toep->txsd_pidx];
 
-	KASSERT(!toepcb_flag(toep, TPF_FLOWC_WR_SENT),
+	KASSERT(!(toep->flags & TPF_FLOWC_WR_SENT),
 	    ("%s: flowc for tid %u sent already", __func__, toep->tid));
 
 	CTR2(KTR_CXGBE, "%s: tid %u", __func__, toep->tid);
@@ -101,13 +102,13 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 	    V_FW_WR_FLOWID(toep->tid));
 
 	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_PFNVFN;
-        flowc->mnemval[0].val = htobe32(pfvf);
-        flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
-        flowc->mnemval[1].val = htobe32(pi->tx_chan);
-        flowc->mnemval[2].mnemonic = FW_FLOWC_MNEM_PORT;
-        flowc->mnemval[2].val = htobe32(pi->tx_chan);
-        flowc->mnemval[3].mnemonic = FW_FLOWC_MNEM_IQID;
-        flowc->mnemval[3].val = htobe32(toep->ofld_rxq->iq.abs_id);
+	flowc->mnemval[0].val = htobe32(pfvf);
+	flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
+	flowc->mnemval[1].val = htobe32(pi->tx_chan);
+	flowc->mnemval[2].mnemonic = FW_FLOWC_MNEM_PORT;
+	flowc->mnemval[2].val = htobe32(pi->tx_chan);
+	flowc->mnemval[3].mnemonic = FW_FLOWC_MNEM_IQID;
+	flowc->mnemval[3].val = htobe32(toep->ofld_rxq->iq.abs_id);
 	if (ftxp) {
 		uint32_t sndbuf = min(ftxp->snd_space, sc->tt.sndbuf);
 
@@ -119,6 +120,11 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 		flowc->mnemval[6].val = htobe32(sndbuf);
 		flowc->mnemval[7].mnemonic = FW_FLOWC_MNEM_MSS;
 		flowc->mnemval[7].val = htobe32(ftxp->mss);
+	} else {
+		flowc->mnemval[4].mnemonic = FW_FLOWC_MNEM_SNDBUF;
+		flowc->mnemval[4].val = htobe32(512);
+		flowc->mnemval[5].mnemonic = FW_FLOWC_MNEM_MSS;
+		flowc->mnemval[5].val = htobe32(512);
 	}
 
 	txsd->tx_credits = howmany(flowclen, 16);
@@ -130,7 +136,7 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 		toep->txsd_pidx = 0;
 	toep->txsd_avail--;
 
-	toepcb_set_flag(toep, TPF_FLOWC_WR_SENT);
+	toep->flags |= TPF_FLOWC_WR_SENT;
         t4_wrq_tx(sc, wr);
 }
 
@@ -150,15 +156,15 @@ send_reset(struct adapter *sc, struct toepcb *toep, uint32_t snd_nxt)
 	    inp->inp_flags & INP_DROPPED ? "inp dropped" :
 	    tcpstates[tp->t_state],
 	    toep->flags, inp->inp_flags,
-	    toepcb_flag(toep, TPF_ABORT_SHUTDOWN) ?
+	    toep->flags & TPF_ABORT_SHUTDOWN ?
 	    " (abort already in progress)" : "");
 
-	if (toepcb_flag(toep, TPF_ABORT_SHUTDOWN))
+	if (toep->flags & TPF_ABORT_SHUTDOWN)
 		return;	/* abort already in progress */
 
-	toepcb_set_flag(toep, TPF_ABORT_SHUTDOWN);
+	toep->flags |= TPF_ABORT_SHUTDOWN;
 
-	KASSERT(toepcb_flag(toep, TPF_FLOWC_WR_SENT),
+	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
 	    ("%s: flowc_wr not sent for tid %d.", __func__, tid));
 
 	wr = alloc_wrqe(sizeof(*req), toep->ofld_txq);
@@ -173,7 +179,7 @@ send_reset(struct adapter *sc, struct toepcb *toep, uint32_t snd_nxt)
 		req->rsvd0 = htobe32(snd_nxt);
 	else
 		req->rsvd0 = htobe32(tp->snd_nxt);
-	req->rsvd1 = !toepcb_flag(toep, TPF_TX_DATA_SENT);
+	req->rsvd1 = !(toep->flags & TPF_TX_DATA_SENT);
 	req->cmd = CPL_ABORT_SEND_RST;
 
 	/*
@@ -299,11 +305,13 @@ make_established(struct toepcb *toep, uint32_t snd_isn, uint32_t rcv_isn,
 }
 
 static int
-send_rx_credits(struct adapter *sc, struct toepcb *toep, uint32_t credits)
+send_rx_credits(struct adapter *sc, struct toepcb *toep, int credits)
 {
 	struct wrqe *wr;
 	struct cpl_rx_data_ack *req;
 	uint32_t dack = F_RX_DACK_CHANGE | V_RX_DACK_MODE(1);
+
+	KASSERT(credits >= 0, ("%s: %d credits", __func__, credits));
 
 	wr = alloc_wrqe(sizeof(*req), toep->ctrlq);
 	if (wr == NULL)
@@ -323,25 +331,28 @@ t4_rcvd(struct toedev *tod, struct tcpcb *tp)
 	struct adapter *sc = tod->tod_softc;
 	struct inpcb *inp = tp->t_inpcb;
 	struct socket *so = inp->inp_socket;
-	struct sockbuf *so_rcv = &so->so_rcv;
+	struct sockbuf *sb = &so->so_rcv;
 	struct toepcb *toep = tp->t_toe;
-	int must_send;
+	int credits;
 
 	INP_WLOCK_ASSERT(inp);
 
-	SOCKBUF_LOCK(so_rcv);
-	KASSERT(toep->enqueued >= so_rcv->sb_cc,
-	    ("%s: so_rcv->sb_cc > enqueued", __func__));
-	toep->rx_credits += toep->enqueued - so_rcv->sb_cc;
-	toep->enqueued = so_rcv->sb_cc;
-	SOCKBUF_UNLOCK(so_rcv);
+	SOCKBUF_LOCK(sb);
+	KASSERT(toep->sb_cc >= sb->sb_cc,
+	    ("%s: sb %p has more data (%d) than last time (%d).",
+	    __func__, sb, sb->sb_cc, toep->sb_cc));
+	toep->rx_credits += toep->sb_cc - sb->sb_cc;
+	toep->sb_cc = sb->sb_cc;
+	credits = toep->rx_credits;
+	SOCKBUF_UNLOCK(sb);
 
-	must_send = toep->rx_credits + 16384 >= tp->rcv_wnd;
-	if (must_send || toep->rx_credits >= 15 * 1024) {
-		int credits;
+	if (credits > 0 &&
+	    (credits + 16384 >= tp->rcv_wnd || credits >= 15 * 1024)) {
 
-		credits = send_rx_credits(sc, toep, toep->rx_credits);
+		credits = send_rx_credits(sc, toep, credits);
+		SOCKBUF_LOCK(sb);
 		toep->rx_credits -= credits;
+		SOCKBUF_UNLOCK(sb);
 		tp->rcv_wnd += credits;
 		tp->rcv_adv += credits;
 	}
@@ -358,12 +369,12 @@ close_conn(struct adapter *sc, struct toepcb *toep)
 	unsigned int tid = toep->tid;
 
 	CTR3(KTR_CXGBE, "%s: tid %u%s", __func__, toep->tid,
-	    toepcb_flag(toep, TPF_FIN_SENT) ? ", IGNORED" : "");
+	    toep->flags & TPF_FIN_SENT ? ", IGNORED" : "");
 
-	if (toepcb_flag(toep, TPF_FIN_SENT))
+	if (toep->flags & TPF_FIN_SENT)
 		return (0);
 
-	KASSERT(toepcb_flag(toep, TPF_FLOWC_WR_SENT),
+	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
 	    ("%s: flowc_wr not sent for tid %u.", __func__, tid));
 
 	wr = alloc_wrqe(sizeof(*req), toep->ofld_txq);
@@ -381,8 +392,8 @@ close_conn(struct adapter *sc, struct toepcb *toep)
         OPCODE_TID(req) = htonl(MK_OPCODE_TID(CPL_CLOSE_CON_REQ, tid));
 	req->rsvd = 0;
 
-	toepcb_set_flag(toep, TPF_FIN_SENT);
-	toepcb_clr_flag(toep, TPF_SEND_FIN);
+	toep->flags |= TPF_FIN_SENT;
+	toep->flags &= ~TPF_SEND_FIN;
 	t4_l2t_send(sc, wr, toep->l2te);
 
 	return (0);
@@ -534,17 +545,18 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep)
 	struct ofld_tx_sdesc *txsd = &toep->txsd[toep->txsd_pidx];
 
 	INP_WLOCK_ASSERT(inp);
-	KASSERT(toepcb_flag(toep, TPF_FLOWC_WR_SENT),
+	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
 	    ("%s: flowc_wr not sent for tid %u.", __func__, toep->tid));
 
-	if (toep->ulp_mode != ULP_MODE_NONE)
+	if (__predict_false(toep->ulp_mode != ULP_MODE_NONE &&
+	    toep->ulp_mode != ULP_MODE_TCPDDP))
 		CXGBE_UNIMPLEMENTED("ulp_mode");
 
 	/*
 	 * This function doesn't resume by itself.  Someone else must clear the
 	 * flag and call this function.
 	 */
-	if (__predict_false(toepcb_flag(toep, TPF_TX_SUSPENDED)))
+	if (__predict_false(toep->flags & TPF_TX_SUSPENDED))
 		return;
 
 	do {
@@ -570,7 +582,7 @@ t4_push_frames(struct adapter *sc, struct toepcb *toep)
 				plen -= m->m_len;
 				if (plen == 0) {
 					/* Too few credits */
-					toepcb_set_flag(toep, TPF_TX_SUSPENDED);
+					toep->flags |= TPF_TX_SUSPENDED;
 					SOCKBUF_UNLOCK(sb);
 					return;
 				}
@@ -613,7 +625,7 @@ unlocked:
 			break;
 		}
 
-		if (__predict_false(toepcb_flag(toep, TPF_FIN_SENT)))
+		if (__predict_false(toep->flags & TPF_FIN_SENT))
 			panic("%s: excess tx.", __func__);
 
 		if (plen <= max_imm) {
@@ -624,7 +636,7 @@ unlocked:
 					toep->ofld_txq);
 			if (wr == NULL) {
 				/* XXX: how will we recover from this? */
-				toepcb_set_flag(toep, TPF_TX_SUSPENDED);
+				toep->flags |= TPF_TX_SUSPENDED;
 				return;
 			}
 			txwr = wrtod(wr);
@@ -642,7 +654,7 @@ unlocked:
 			wr = alloc_wrqe(roundup(wr_len, 16), toep->ofld_txq);
 			if (wr == NULL) {
 				/* XXX: how will we recover from this? */
-				toepcb_set_flag(toep, TPF_TX_SUSPENDED);
+				toep->flags |= TPF_TX_SUSPENDED;
 				return;
 			}
 			txwr = wrtod(wr);
@@ -671,7 +683,7 @@ unlocked:
 		sb->sb_sndptr = sb_sndptr;
 		SOCKBUF_UNLOCK(sb);
 
-		toepcb_set_flag(toep, TPF_TX_DATA_SENT);
+		toep->flags |= TPF_TX_DATA_SENT;
 
 		KASSERT(toep->txsd_avail > 0, ("%s: no txsd", __func__));
 		txsd->plen = plen;
@@ -687,7 +699,7 @@ unlocked:
 	} while (m != NULL);
 
 	/* Send a FIN if requested, but only if there's no more data to send */
-	if (m == NULL && toepcb_flag(toep, TPF_SEND_FIN))
+	if (m == NULL && toep->flags & TPF_SEND_FIN)
 		close_conn(sc, toep);
 }
 
@@ -724,7 +736,7 @@ t4_send_fin(struct toedev *tod, struct tcpcb *tp)
 	    ("%s: inp %p dropped.", __func__, inp));
 	KASSERT(toep != NULL, ("%s: toep is NULL", __func__));
 
-	toepcb_set_flag(toep, TPF_SEND_FIN);
+	toep->flags |= TPF_SEND_FIN;
 	t4_push_frames(sc, toep);
 
 	return (0);
@@ -745,7 +757,7 @@ t4_send_rst(struct toedev *tod, struct tcpcb *tp)
 	KASSERT(toep != NULL, ("%s: toep is NULL", __func__));
 
 	/* hmmmm */
-	KASSERT(toepcb_flag(toep, TPF_FLOWC_WR_SENT),
+	KASSERT(toep->flags & TPF_FLOWC_WR_SENT,
 	    ("%s: flowc for tid %u [%s] not sent already",
 	    __func__, toep->tid, tcpstates[tp->t_state]));
 
@@ -765,7 +777,8 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct toepcb *toep = lookup_tid(sc, tid);
 	struct inpcb *inp = toep->inp;
 	struct tcpcb *tp = NULL;
-	struct socket *so = NULL;
+	struct socket *so;
+	struct sockbuf *sb;
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
 #endif
@@ -782,13 +795,38 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	CTR5(KTR_CXGBE, "%s: tid %u (%s), toep_flags 0x%x, inp %p", __func__,
 	    tid, tp ? tcpstates[tp->t_state] : "no tp", toep->flags, inp);
 
-	if (toepcb_flag(toep, TPF_ABORT_SHUTDOWN))
+	if (toep->flags & TPF_ABORT_SHUTDOWN)
 		goto done;
 
-	so = inp->inp_socket;
-
-	socantrcvmore(so);
 	tp->rcv_nxt++;	/* FIN */
+
+	so = inp->inp_socket;
+	sb = &so->so_rcv;
+	SOCKBUF_LOCK(sb);
+	if (__predict_false(toep->ddp_flags & (DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE))) {
+		m = m_get(M_NOWAIT, MT_DATA);
+		if (m == NULL)
+			CXGBE_UNIMPLEMENTED("mbuf alloc failure");
+
+		m->m_len = be32toh(cpl->rcv_nxt) - tp->rcv_nxt;
+		m->m_flags |= M_DDP;	/* Data is already where it should be */
+		m->m_data = "nothing to see here";
+		tp->rcv_nxt = be32toh(cpl->rcv_nxt);
+
+		toep->ddp_flags &= ~(DDP_BUF0_ACTIVE | DDP_BUF1_ACTIVE);
+
+		KASSERT(toep->sb_cc >= sb->sb_cc,
+		    ("%s: sb %p has more data (%d) than last time (%d).",
+		    __func__, sb, sb->sb_cc, toep->sb_cc));
+		toep->rx_credits += toep->sb_cc - sb->sb_cc;
+#ifdef USE_DDP_RX_FLOW_CONTROL
+		toep->rx_credits -= m->m_len;	/* adjust for F_RX_FC_DDP */
+#endif
+		sbappendstream_locked(sb, m);
+		toep->sb_cc = sb->sb_cc;
+	}
+	socantrcvmore_locked(so);	/* unlocks the sockbuf */
+
 	KASSERT(tp->rcv_nxt == be32toh(cpl->rcv_nxt),
 	    ("%s: rcv_nxt mismatch: %u %u", __func__, tp->rcv_nxt,
 	    be32toh(cpl->rcv_nxt)));
@@ -855,7 +893,7 @@ do_close_con_rpl(struct sge_iq *iq, const struct rss_header *rss,
 	CTR4(KTR_CXGBE, "%s: tid %u (%s), toep_flags 0x%x",
 	    __func__, tid, tp ? tcpstates[tp->t_state] : "no tp", toep->flags);
 
-	if (toepcb_flag(toep, TPF_ABORT_SHUTDOWN))
+	if (toep->flags & TPF_ABORT_SHUTDOWN)
 		goto done;
 
 	so = inp->inp_socket;
@@ -944,7 +982,6 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct sge_wrq *ofld_txq = toep->ofld_txq;
 	struct inpcb *inp;
 	struct tcpcb *tp;
-	struct socket *so;
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
 #endif
@@ -953,7 +990,7 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	    ("%s: unexpected opcode 0x%x", __func__, opcode));
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
 
-	if (toepcb_flag(toep, TPF_SYNQE))
+	if (toep->flags & TPF_SYNQE)
 		return (do_abort_req_synqe(iq, rss, m));
 
 	KASSERT(toep->tid == tid, ("%s: toep tid mismatch", __func__));
@@ -970,28 +1007,33 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	INP_WLOCK(inp);
 
 	tp = intotcpcb(inp);
-	so = inp->inp_socket;
 
 	CTR6(KTR_CXGBE,
 	    "%s: tid %d (%s), toep_flags 0x%x, inp_flags 0x%x, status %d",
-	    __func__, tid, tcpstates[tp->t_state], toep->flags, inp->inp_flags,
-	    cpl->status);
+	    __func__, tid, tp ? tcpstates[tp->t_state] : "no tp", toep->flags,
+	    inp->inp_flags, cpl->status);
 
 	/*
 	 * If we'd initiated an abort earlier the reply to it is responsible for
 	 * cleaning up resources.  Otherwise we tear everything down right here
 	 * right now.  We owe the T4 a CPL_ABORT_RPL no matter what.
 	 */
-	if (toepcb_flag(toep, TPF_ABORT_SHUTDOWN)) {
+	if (toep->flags & TPF_ABORT_SHUTDOWN) {
 		INP_WUNLOCK(inp);
 		goto done;
 	}
-	toepcb_set_flag(toep, TPF_ABORT_SHUTDOWN);
+	toep->flags |= TPF_ABORT_SHUTDOWN;
 
-	so_error_set(so, abort_status_to_errno(tp, cpl->status));
-	tp = tcp_close(tp);
-	if (tp == NULL)
-		INP_WLOCK(inp);	/* re-acquire */
+	if ((inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) == 0) {
+		struct socket *so = inp->inp_socket;
+
+		if (so != NULL)
+			so_error_set(so, abort_status_to_errno(tp,
+			    cpl->status));
+		tp = tcp_close(tp);
+		if (tp == NULL)
+			INP_WLOCK(inp);	/* re-acquire */
+	}
 
 	final_cpl_received(toep);
 done:
@@ -1019,7 +1061,7 @@ do_abort_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	    ("%s: unexpected opcode 0x%x", __func__, opcode));
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
 
-	if (toepcb_flag(toep, TPF_SYNQE))
+	if (toep->flags & TPF_SYNQE)
 		return (do_abort_rpl_synqe(iq, rss, m));
 
 	KASSERT(toep->tid == tid, ("%s: toep tid mismatch", __func__));
@@ -1027,7 +1069,7 @@ do_abort_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	CTR5(KTR_CXGBE, "%s: tid %u, toep %p, inp %p, status %d",
 	    __func__, tid, toep, inp, cpl->status);
 
-	KASSERT(toepcb_flag(toep, TPF_ABORT_SHUTDOWN),
+	KASSERT(toep->flags & TPF_ABORT_SHUTDOWN,
 	    ("%s: wasn't expecting abort reply", __func__));
 
 	INP_WLOCK(inp);
@@ -1046,15 +1088,16 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct inpcb *inp = toep->inp;
 	struct tcpcb *tp;
 	struct socket *so;
-	struct sockbuf *so_rcv;
+	struct sockbuf *sb;
+	int len;
 
-	if (__predict_false(toepcb_flag(toep, TPF_SYNQE))) {
+	if (__predict_false(toep->flags & TPF_SYNQE)) {
 		/*
 		 * do_pass_establish failed and must be attempting to abort the
 		 * synqe's tid.  Meanwhile, the T4 has sent us data for such a
 		 * connection.
 		 */
-		KASSERT(toepcb_flag(toep, TPF_ABORT_SHUTDOWN),
+		KASSERT(toep->flags & TPF_ABORT_SHUTDOWN,
 		    ("%s: synqe and tid isn't being aborted.", __func__));
 		m_freem(m);
 		return (0);
@@ -1064,11 +1107,12 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	/* strip off CPL header */
 	m_adj(m, sizeof(*cpl));
+	len = m->m_pkthdr.len;
 
 	INP_WLOCK(inp);
 	if (inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) {
 		CTR4(KTR_CXGBE, "%s: tid %u, rx (%d bytes), inp_flags 0x%x",
-		    __func__, tid, m->m_pkthdr.len, inp->inp_flags);
+		    __func__, tid, len, inp->inp_flags);
 		INP_WUNLOCK(inp);
 		m_freem(m);
 		return (0);
@@ -1084,21 +1128,20 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 #endif
 
-	tp->rcv_nxt += m->m_pkthdr.len;
-	KASSERT(tp->rcv_wnd >= m->m_pkthdr.len,
-	    ("%s: negative window size", __func__));
-	tp->rcv_wnd -= m->m_pkthdr.len;
+	tp->rcv_nxt += len;
+	KASSERT(tp->rcv_wnd >= len, ("%s: negative window size", __func__));
+	tp->rcv_wnd -= len;
 	tp->t_rcvtime = ticks;
 
 	so = inp_inpcbtosocket(inp);
-	so_rcv = &so->so_rcv;
-	SOCKBUF_LOCK(so_rcv);
+	sb = &so->so_rcv;
+	SOCKBUF_LOCK(sb);
 
-	if (__predict_false(so_rcv->sb_state & SBS_CANTRCVMORE)) {
+	if (__predict_false(sb->sb_state & SBS_CANTRCVMORE)) {
 		CTR3(KTR_CXGBE, "%s: tid %u, excess rx (%d bytes)",
-		    __func__, tid, m->m_pkthdr.len);
+		    __func__, tid, len);
 		m_freem(m);
-		SOCKBUF_UNLOCK(so_rcv);
+		SOCKBUF_UNLOCK(sb);
 		INP_WUNLOCK(inp);
 
 		INP_INFO_WLOCK(&V_tcbinfo);
@@ -1112,23 +1155,76 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	/* receive buffer autosize */
-	if (so_rcv->sb_flags & SB_AUTOSIZE &&
+	if (sb->sb_flags & SB_AUTOSIZE &&
 	    V_tcp_do_autorcvbuf &&
-	    so_rcv->sb_hiwat < V_tcp_autorcvbuf_max &&
-	    m->m_pkthdr.len > (sbspace(so_rcv) / 8 * 7)) {
-		unsigned int hiwat = so_rcv->sb_hiwat;
+	    sb->sb_hiwat < V_tcp_autorcvbuf_max &&
+	    len > (sbspace(sb) / 8 * 7)) {
+		unsigned int hiwat = sb->sb_hiwat;
 		unsigned int newsize = min(hiwat + V_tcp_autorcvbuf_inc,
 		    V_tcp_autorcvbuf_max);
 
-		if (!sbreserve_locked(so_rcv, newsize, so, NULL))
-			so_rcv->sb_flags &= ~SB_AUTOSIZE;
+		if (!sbreserve_locked(sb, newsize, so, NULL))
+			sb->sb_flags &= ~SB_AUTOSIZE;
 		else
 			toep->rx_credits += newsize - hiwat;
 	}
-	toep->enqueued += m->m_pkthdr.len;
-	sbappendstream_locked(so_rcv, m);
+
+	if (toep->ulp_mode == ULP_MODE_TCPDDP) {
+		int changed = !(toep->ddp_flags & DDP_ON) ^ cpl->ddp_off;
+
+		if (changed) {
+			if (__predict_false(!(toep->ddp_flags & DDP_SC_REQ))) {
+				/* XXX: handle this if legitimate */
+				panic("%s: unexpected DDP state change %d",
+				    __func__, cpl->ddp_off);
+			}
+			toep->ddp_flags ^= DDP_ON | DDP_SC_REQ;
+		}
+
+		if ((toep->ddp_flags & DDP_OK) == 0 &&
+		    time_uptime >= toep->ddp_disabled + DDP_RETRY_WAIT) {
+			toep->ddp_score = DDP_LOW_SCORE;
+			toep->ddp_flags |= DDP_OK;
+			CTR3(KTR_CXGBE, "%s: tid %u DDP_OK @ %u",
+			    __func__, tid, time_uptime);
+		}
+
+		if (toep->ddp_flags & DDP_ON) {
+
+			/*
+			 * CPL_RX_DATA with DDP on can only be an indicate.  Ask
+			 * soreceive to post a buffer or disable DDP.  The
+			 * payload that arrived in this indicate is appended to
+			 * the socket buffer as usual.
+			 */
+
+#if 0
+			CTR5(KTR_CXGBE,
+			    "%s: tid %u (0x%x) DDP indicate (seq 0x%x, len %d)",
+			    __func__, tid, toep->flags, be32toh(cpl->seq), len);
+#endif
+			sb->sb_flags |= SB_DDP_INDICATE;
+		} else if ((toep->ddp_flags & (DDP_OK|DDP_SC_REQ)) == DDP_OK &&
+		    tp->rcv_wnd > DDP_RSVD_WIN && len >= sc->tt.ddp_thres) {
+
+			/*
+			 * DDP allowed but isn't on (and a request to switch it
+			 * on isn't pending either), and conditions are ripe for
+			 * it to work.  Switch it on.
+			 */
+
+			enable_ddp(sc, toep);
+		}
+	}
+
+	KASSERT(toep->sb_cc >= sb->sb_cc,
+	    ("%s: sb %p has more data (%d) than last time (%d).",
+	    __func__, sb, sb->sb_cc, toep->sb_cc));
+	toep->rx_credits += toep->sb_cc - sb->sb_cc;
+	sbappendstream_locked(sb, m);
+	toep->sb_cc = sb->sb_cc;
 	sorwakeup_locked(so);
-	SOCKBUF_UNLOCK_ASSERT(so_rcv);
+	SOCKBUF_UNLOCK_ASSERT(sb);
 
 	INP_WUNLOCK(inp);
 	return (0);
@@ -1179,8 +1275,8 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	 * Very unusual case: we'd sent a flowc + abort_req for a synq entry and
 	 * now this comes back carrying the credits for the flowc.
 	 */
-	if (__predict_false(toepcb_flag(toep, TPF_SYNQE))) {
-		KASSERT(toepcb_flag(toep, TPF_ABORT_SHUTDOWN),
+	if (__predict_false(toep->flags & TPF_SYNQE)) {
+		KASSERT(toep->flags & TPF_ABORT_SHUTDOWN,
 		    ("%s: credits for a synq entry %p", __func__, toep));
 		return (0);
 	}
@@ -1194,7 +1290,7 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	INP_WLOCK(inp);
 
-	if (__predict_false(toepcb_flag(toep, TPF_ABORT_SHUTDOWN))) {
+	if (__predict_false(toep->flags & TPF_ABORT_SHUTDOWN)) {
 		INP_WUNLOCK(inp);
 		return (0);
 	}
@@ -1250,16 +1346,61 @@ do_fw4_ack(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 
 	/* XXX */
-	if ((toepcb_flag(toep, TPF_TX_SUSPENDED) &&
+	if ((toep->flags & TPF_TX_SUSPENDED &&
 	    toep->tx_credits >= MIN_OFLD_TX_CREDITS) ||
 	    toep->tx_credits == toep->txsd_total *
 	    howmany((sizeof(struct fw_ofld_tx_data_wr) + 1), 16)) {
-		toepcb_clr_flag(toep, TPF_TX_SUSPENDED);
+		toep->flags &= ~TPF_TX_SUSPENDED;
 		t4_push_frames(sc, toep);
 	}
 	INP_WUNLOCK(inp);
 
 	return (0);
+}
+
+static int
+do_set_tcb_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
+{
+	struct adapter *sc = iq->adapter;
+	const struct cpl_set_tcb_rpl *cpl = (const void *)(rss + 1);
+	unsigned int tid = GET_TID(cpl);
+#ifdef INVARIANTS
+	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
+#endif
+
+	KASSERT(opcode == CPL_SET_TCB_RPL,
+	    ("%s: unexpected opcode 0x%x", __func__, opcode));
+	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
+
+	if (tid >= sc->tids.ftid_base &&
+	    tid < sc->tids.ftid_base + sc->tids.nftids)
+		return (t4_filter_rpl(iq, rss, m)); /* TCB is a filter */
+
+	CXGBE_UNIMPLEMENTED(__func__);
+}
+
+void
+t4_set_tcb_field(struct adapter *sc, struct toepcb *toep, uint16_t word,
+    uint64_t mask, uint64_t val)
+{
+	struct wrqe *wr;
+	struct cpl_set_tcb_field *req;
+
+	wr = alloc_wrqe(sizeof(*req), toep->ctrlq);
+	if (wr == NULL) {
+		/* XXX */
+		panic("%s: allocation failure.", __func__);
+	}
+	req = wrtod(wr);
+
+	INIT_TP_WR_MIT_CPL(req, CPL_SET_TCB_FIELD, toep->tid);
+	req->reply_ctrl = htobe16(V_NO_REPLY(1) |
+	    V_QUEUENO(toep->ofld_rxq->iq.abs_id));
+	req->word_cookie = htobe16(V_WORD(word) | V_COOKIE(0));
+	req->mask = htobe64(mask);
+	req->val = htobe64(val);
+
+	t4_wrq_tx(sc, wr);
 }
 
 void
@@ -1272,5 +1413,13 @@ t4_init_cpl_io_handlers(struct adapter *sc)
 	t4_register_cpl_handler(sc, CPL_ABORT_RPL_RSS, do_abort_rpl);
 	t4_register_cpl_handler(sc, CPL_RX_DATA, do_rx_data);
 	t4_register_cpl_handler(sc, CPL_FW4_ACK, do_fw4_ack);
+	t4_register_cpl_handler(sc, CPL_SET_TCB_RPL, do_set_tcb_rpl);
+}
+
+void
+t4_uninit_cpl_io_handlers(struct adapter *sc)
+{
+
+	t4_register_cpl_handler(sc, CPL_SET_TCB_RPL, t4_filter_rpl);
 }
 #endif

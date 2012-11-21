@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91_pdcreg.h>
 
 #include <dev/spibus/spi.h>
+#include <dev/spibus/spibusvar.h>
 
 #include "spibus_if.h"
 
@@ -270,12 +271,15 @@ at91_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 {
 	struct at91_spi_softc *sc;
 	bus_addr_t addr;
-	int err, i, j, mode[4];
+	int err, i, j, mode[4], cs;
 
 	KASSERT(cmd->tx_cmd_sz == cmd->rx_cmd_sz,
 	    ("%s: TX/RX command sizes should be equal", __func__));
 	KASSERT(cmd->tx_data_sz == cmd->rx_data_sz,
 	    ("%s: TX/RX data sizes should be equal", __func__));
+
+	/* get the proper chip select */
+	spibus_get_cs(child, &cs);
 
 	sc = device_get_softc(dev);
 	i = 0;
@@ -291,9 +295,9 @@ at91_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	 * PSCDEC = 0 has a range of 0..3 for chip select.  We
 	 * don't support PSCDEC = 1 which has a range of 0..15.
 	 */
-	if (cmd->cs < 0 || cmd->cs > 3) {
+	if (cs < 0 || cs > 3) {
 		device_printf(dev,
-		    "Invalid chip select %d requested by %s\n", cmd->cs,
+		    "Invalid chip select %d requested by %s\n", cs,
 		    device_get_nameunit(child));
 		err = EINVAL;
 		goto out;
@@ -304,7 +308,7 @@ at91_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 	 * The AT91RM9200 couldn't do CS high for CS 0.  Other chips can, but we
 	 * don't support that yet, or other spi modes.
 	 */
-	if (at91_is_rm92() && cmd->cs == 0 &&
+	if (at91_is_rm92() && cs == 0 &&
 	    (cmd->flags & SPI_CHIP_SELECT_HIGH) != 0) {
 		device_printf(dev,
 		    "Invalid chip select high requested by %s for cs 0.\n",
@@ -313,7 +317,7 @@ at91_spi_transfer(device_t dev, device_t child, struct spi_command *cmd)
 		goto out;
 	}
 #endif
-	err = (RD4(sc, SPI_MR) & ~0x000f0000) | CS_TO_MR(cmd->cs);
+	err = (RD4(sc, SPI_MR) & ~0x000f0000) | CS_TO_MR(cs);
 	WR4(sc, SPI_MR, err);
 
 	/*

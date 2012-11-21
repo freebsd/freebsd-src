@@ -151,6 +151,7 @@ struct usb_xfer {
 	usb_frcount_t nframes;		/* number of USB frames to transfer */
 	usb_frcount_t aframes;		/* actual number of USB frames
 					 * transferred */
+	usb_stream_t stream_id;		/* USB3.0 specific field */
 
 	uint16_t max_packet_size;
 	uint16_t max_frame_size;

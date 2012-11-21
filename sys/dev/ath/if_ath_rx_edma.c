@@ -117,6 +117,10 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ath/if_ath_rx_edma.h>
 
+#ifdef	ATH_DEBUG_ALQ
+#include <dev/ath/if_ath_alq.h>
+#endif
+
 /*
  * some general macros
   */
@@ -282,7 +286,7 @@ static void
 ath_edma_recv_flush(struct ath_softc *sc)
 {
 
-	device_printf(sc->sc_dev, "%s: called\n", __func__);
+	DPRINTF(sc, ATH_DEBUG_RECV, "%s: called\n", __func__);
 
 	ATH_PCU_LOCK(sc);
 	sc->sc_rxproc_cnt++;
@@ -357,7 +361,12 @@ ath_edma_recv_proc_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 #ifdef	ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_RECV_DESC)
 			ath_printrxbuf(sc, bf, 0, bf->bf_rxstatus == HAL_OK);
-#endif
+#endif /* ATH_DEBUG */
+#ifdef	ATH_DEBUG_ALQ
+		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_RXSTATUS))
+			if_ath_alq_post(&sc->sc_alq, ATH_ALQ_EDMA_RXSTATUS,
+			    sc->sc_rx_statuslen, (char *) ds);
+#endif /* ATH_DEBUG */
 		if (bf->bf_rxstatus == HAL_EINPROGRESS)
 			break;
 
@@ -421,13 +430,15 @@ ath_edma_recv_proc_queue(struct ath_softc *sc, HAL_RX_QUEUE qtype,
 	if (ngood)
 		sc->sc_lastrx = tsf;
 
-	CTR2(ATH_KTR_INTR, "ath edma rx proc: npkts=%d, ngood=%d",
+	ATH_KTR(sc, ATH_KTR_INTERRUPTS, 2,
+	    "ath edma rx proc: npkts=%d, ngood=%d",
 	    npkts, ngood);
 
 	/* Handle resched and kickpcu appropriately */
 	ATH_PCU_LOCK(sc);
 	if (dosched && sc->sc_kickpcu) {
-		CTR0(ATH_KTR_ERR, "ath_edma_recv_proc_queue(): kickpcu");
+		ATH_KTR(sc, ATH_KTR_ERROR, 0,
+		    "ath_edma_recv_proc_queue(): kickpcu");
 		device_printf(sc->sc_dev,
 		    "%s: handled npkts %d ngood %d\n",
 		    __func__, npkts, ngood);
@@ -816,8 +827,6 @@ ath_edma_dma_rxteardown(struct ath_softc *sc)
 void
 ath_recv_setup_edma(struct ath_softc *sc)
 {
-
-	device_printf(sc->sc_dev, "DMA setup: EDMA\n");
 
 	/* Set buffer size to 4k */
 	sc->sc_edma_bufsize = 4096;

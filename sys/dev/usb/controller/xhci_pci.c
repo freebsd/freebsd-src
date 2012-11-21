@@ -292,9 +292,9 @@ xhci_pci_take_controller(device_t self)
 	/* On Intel chipsets reroute ports from EHCI to XHCI controller. */
 	if (device_id == 0x1e318086 /* Panther Point */ ||
 	    device_id == 0x8c318086 /* Lynx Point */) {
-		pci_write_config(self, PCI_XHCI_INTEL_USB3_PSSEN, 0xffffffff, 4);
-		pci_write_config(self, PCI_XHCI_INTEL_XUSB2PR, 0xffffffff, 4);
+		uint32_t temp = xhci_get_port_route();
+		pci_write_config(self, PCI_XHCI_INTEL_USB3_PSSEN, temp, 4);
+		pci_write_config(self, PCI_XHCI_INTEL_XUSB2PR, temp, 4);
 	}
-
 	return (0);
 }

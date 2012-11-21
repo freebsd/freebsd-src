@@ -252,7 +252,7 @@ AcpiDmCommaIfListMember (
 
     if (!Op->Common.Next)
     {
-        return FALSE;
+        return (FALSE);
     }
 
     if (AcpiDmListType (Op->Common.Parent) & BLOCK_COMMA_LIST)
@@ -264,20 +264,20 @@ AcpiDmCommaIfListMember (
         {
             /*
              * To handle the Divide() case where there are two optional
-             * targets, look ahead one more op.  If null, this null target
-             * is the one and only target -- no comma needed.  Otherwise,
+             * targets, look ahead one more op. If null, this null target
+             * is the one and only target -- no comma needed. Otherwise,
              * we need a comma to prepare for the next target.
              */
             if (!Op->Common.Next->Common.Next)
             {
-                return FALSE;
+                return (FALSE);
             }
         }
 
         if ((Op->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST) &&
             (!(Op->Common.Next->Common.DisasmFlags & ACPI_PARSEOP_PARAMLIST)))
         {
-            return FALSE;
+            return (FALSE);
         }
 
         AcpiOsPrintf (", ");

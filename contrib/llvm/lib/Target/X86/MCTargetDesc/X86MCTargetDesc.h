@@ -76,11 +76,12 @@ namespace X86_MC {
 }
 
 MCCodeEmitter *createX86MCCodeEmitter(const MCInstrInfo &MCII,
+                                      const MCRegisterInfo &MRI,
                                       const MCSubtargetInfo &STI,
                                       MCContext &Ctx);
 
-MCAsmBackend *createX86_32AsmBackend(const Target &T, StringRef TT);
-MCAsmBackend *createX86_64AsmBackend(const Target &T, StringRef TT);
+MCAsmBackend *createX86_32AsmBackend(const Target &T, StringRef TT, StringRef CPU);
+MCAsmBackend *createX86_64AsmBackend(const Target &T, StringRef TT, StringRef CPU);
 
 /// createX86MachObjectWriter - Construct an X86 Mach-O object writer.
 MCObjectWriter *createX86MachObjectWriter(raw_ostream &OS,

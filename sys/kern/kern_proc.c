@@ -137,6 +137,7 @@ static void proc_dtor(void *mem, int size, void *arg);
 static int proc_init(void *mem, int size, int flags);
 static void proc_fini(void *mem, int size);
 static void pargs_free(struct pargs *pa);
+static struct proc *zpfind_locked(pid_t pid);
 
 /*
  * Other process lists
@@ -284,20 +285,13 @@ inferior(p)
 	return (1);
 }
 
-/*
- * Locate a process by number; return only "live" processes -- i.e., neither
- * zombies nor newly born but incompletely initialized processes.  By not
- * returning processes in the PRS_NEW state, we allow callers to avoid
- * testing for that condition to avoid dereferencing p_ucred, et al.
- */
 struct proc *
-pfind(pid)
-	register pid_t pid;
+pfind_locked(pid_t pid)
 {
-	register struct proc *p;
+	struct proc *p;
 
-	sx_slock(&allproc_lock);
-	LIST_FOREACH(p, PIDHASH(pid), p_hash)
+	sx_assert(&allproc_lock, SX_LOCKED);
+	LIST_FOREACH(p, PIDHASH(pid), p_hash) {
 		if (p->p_pid == pid) {
 			PROC_LOCK(p);
 			if (p->p_state == PRS_NEW) {
@@ -306,17 +300,34 @@ pfind(pid)
 			}
 			break;
 		}
+	}
+	return (p);
+}
+
+/*
+ * Locate a process by number; return only "live" processes -- i.e., neither
+ * zombies nor newly born but incompletely initialized processes.  By not
+ * returning processes in the PRS_NEW state, we allow callers to avoid
+ * testing for that condition to avoid dereferencing p_ucred, et al.
+ */
+struct proc *
+pfind(pid_t pid)
+{
+	struct proc *p;
+
+	sx_slock(&allproc_lock);
+	p = pfind_locked(pid);
 	sx_sunlock(&allproc_lock);
 	return (p);
 }
 
 static struct proc *
-pfind_tid(pid_t tid)
+pfind_tid_locked(pid_t tid)
 {
 	struct proc *p;
 	struct thread *td;
 
-	sx_slock(&allproc_lock);
+	sx_assert(&allproc_lock, SX_LOCKED);
 	FOREACH_PROC_IN_SYSTEM(p) {
 		PROC_LOCK(p);
 		if (p->p_state == PRS_NEW) {
@@ -330,7 +341,6 @@ pfind_tid(pid_t tid)
 		PROC_UNLOCK(p);
 	}
 found:
-	sx_sunlock(&allproc_lock);
 	return (p);
 }
 
@@ -364,12 +374,16 @@ pget(pid_t pid, int flags, struct proc **pp)
 	struct proc *p;
 	int error;
 
+	sx_slock(&allproc_lock);
 	if (pid <= PID_MAX)
-		p = pfind(pid);
+		p = pfind_locked(pid);
 	else if ((flags & PGET_NOTID) == 0)
-		p = pfind_tid(pid);
+		p = pfind_tid_locked(pid);
 	else
 		p = NULL;
+	if (p == NULL && (flags & PGET_NOTWEXIT) == 0)
+		p = zpfind_locked(pid);
+	sx_sunlock(&allproc_lock);
 	if (p == NULL)
 		return (ESRCH);
 	if ((flags & PGET_CANSEE) != 0) {
@@ -421,17 +435,13 @@ enterpgrp(p, pgid, pgrp, sess)
 	struct pgrp *pgrp;
 	struct session *sess;
 {
-	struct pgrp *pgrp2;
 
 	sx_assert(&proctree_lock, SX_XLOCKED);
 
 	KASSERT(pgrp != NULL, ("enterpgrp: pgrp == NULL"));
 	KASSERT(p->p_pid == pgid,
 	    ("enterpgrp: new pgrp and pid != pgid"));
-
-	pgrp2 = pgfind(pgid);
-
-	KASSERT(pgrp2 == NULL,
+	KASSERT(pgfind(pgid) == NULL,
 	    ("enterpgrp: pgrp with pgid exists"));
 	KASSERT(!SESS_LEADER(p),
 	    ("enterpgrp: session leader attempted setpgrp"));
@@ -725,9 +735,7 @@ sess_release(struct session *s)
 	}
 }
 
-#include "opt_ddb.h"
 #ifdef DDB
-#include <ddb/ddb.h>
 
 DB_SHOW_COMMAND(pgrpdump, pgrpdump)
 {
@@ -1050,6 +1058,21 @@ pstats_free(struct pstats *ps)
 	free(ps, M_SUBPROC);
 }
 
+static struct proc *
+zpfind_locked(pid_t pid)
+{
+	struct proc *p;
+
+	sx_assert(&allproc_lock, SX_LOCKED);
+	LIST_FOREACH(p, &zombproc, p_list) {
+		if (p->p_pid == pid) {
+			PROC_LOCK(p);
+			break;
+		}
+	}
+	return (p);
+}
+
 /*
  * Locate a zombie process by number
  */
@@ -1059,11 +1082,7 @@ zpfind(pid_t pid)
 	struct proc *p;
 
 	sx_slock(&allproc_lock);
-	LIST_FOREACH(p, &zombproc, p_list)
-		if (p->p_pid == pid) {
-			PROC_LOCK(p);
-			break;
-		}
+	p = zpfind_locked(pid);
 	sx_sunlock(&allproc_lock);
 	return (p);
 }
@@ -1875,7 +1894,7 @@ sysctl_kern_proc_pathname(SYSCTL_HANDLER_ARGS)
 	struct proc *p;
 	struct vnode *vp;
 	char *retbuf, *freebuf;
-	int error, vfslocked;
+	int error;
 
 	if (arglen != 1)
 		return (EINVAL);
@@ -1897,9 +1916,7 @@ sysctl_kern_proc_pathname(SYSCTL_HANDLER_ARGS)
 	if (*pidp != -1)
 		PROC_UNLOCK(p);
 	error = vn_fullpath(req->td, vp, &retbuf, &freebuf);
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vrele(vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	if (error)
 		return (error);
 	error = SYSCTL_OUT(req, retbuf, strlen(retbuf) + 1);
@@ -1966,7 +1983,6 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 	    entry = entry->next) {
 		vm_object_t obj, tobj, lobj;
 		vm_offset_t addr;
-		int vfslocked;
 
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 			continue;
@@ -2063,14 +2079,12 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 				vn_fullpath(curthread, vp, &fullpath,
 				    &freepath);
 				cred = curthread->td_ucred;
-				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 				vn_lock(vp, LK_SHARED | LK_RETRY);
 				if (VOP_GETATTR(vp, &va, cred) == 0) {
 					kve->kve_fileid = va.va_fileid;
 					kve->kve_fsid = va.va_fsid;
 				}
 				vput(vp);
-				VFS_UNLOCK_GIANT(vfslocked);
 			}
 		} else {
 			kve->kve_type = KVME_TYPE_NONE;
@@ -2136,7 +2150,7 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 		vm_object_t obj, tobj, lobj;
 		vm_offset_t addr;
 		vm_paddr_t locked_pa;
-		int vfslocked, mincoreinfo;
+		int mincoreinfo;
 
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 			continue;
@@ -2241,7 +2255,6 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 				    &freepath);
 				kve->kve_vn_type = vntype_to_kinfo(vp->v_type);
 				cred = curthread->td_ucred;
-				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 				vn_lock(vp, LK_SHARED | LK_RETRY);
 				if (VOP_GETATTR(vp, &va, cred) == 0) {
 					kve->kve_vn_fileid = va.va_fileid;
@@ -2253,7 +2266,6 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 					kve->kve_status = KF_ATTR_VALID;
 				}
 				vput(vp);
-				VFS_UNLOCK_GIANT(vfslocked);
 			}
 		} else {
 			kve->kve_type = KVME_TYPE_NONE;

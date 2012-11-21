@@ -1223,7 +1223,7 @@ breakcmd(int argc, char **argv)
  * The `command' command.
  */
 int
-commandcmd(int argc, char **argv)
+commandcmd(int argc __unused, char **argv __unused)
 {
 	const char *path;
 	int ch;
@@ -1231,9 +1231,7 @@ commandcmd(int argc, char **argv)
 
 	path = bltinlookup("PATH", 1);
 
-	optind = optreset = 1;
-	opterr = 0;
-	while ((ch = getopt(argc, argv, "pvV")) != -1) {
+	while ((ch = nextopt("pvV")) != '\0') {
 		switch (ch) {
 		case 'p':
 			path = _PATH_STDPATH;
@@ -1244,20 +1242,15 @@ commandcmd(int argc, char **argv)
 		case 'V':
 			cmd = TYPECMD_BIGV;
 			break;
-		case '?':
-		default:
-			error("unknown option: -%c", optopt);
 		}
 	}
-	argc -= optind;
-	argv += optind;
 
 	if (cmd != -1) {
-		if (argc != 1)
+		if (*argptr == NULL || argptr[1] != NULL)
 			error("wrong number of arguments");
-		return typecmd_impl(2, argv - 1, cmd, path);
+		return typecmd_impl(2, argptr - 1, cmd, path);
 	}
-	if (argc != 0)
+	if (*argptr != NULL)
 		error("commandcmd bad call");
 
 	/*

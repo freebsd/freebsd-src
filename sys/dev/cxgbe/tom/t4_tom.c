@@ -55,6 +55,9 @@ __FBSDID("$FreeBSD$");
 #include "tom/t4_tom_l2t.h"
 #include "tom/t4_tom.h"
 
+static struct protosw ddp_protosw;
+static struct pr_usrreqs ddp_usrreqs;
+
 /* Module ops */
 static int t4_tom_mod_load(void);
 static int t4_tom_mod_unload(void);
@@ -138,9 +141,9 @@ void
 free_toepcb(struct toepcb *toep)
 {
 
-	KASSERT(toepcb_flag(toep, TPF_ATTACHED) == 0,
+	KASSERT(!(toep->flags & TPF_ATTACHED),
 	    ("%s: attached to an inpcb", __func__));
-	KASSERT(toepcb_flag(toep, TPF_CPL_PENDING) == 0,
+	KASSERT(!(toep->flags & TPF_CPL_PENDING),
 	    ("%s: CPL pending", __func__));
 
 	free(toep, M_CXGBE);
@@ -167,6 +170,8 @@ offload_socket(struct socket *so, struct toepcb *toep)
 	sb = &so->so_rcv;
 	SOCKBUF_LOCK(sb);
 	sb->sb_flags |= SB_NOCOALESCE;
+	if (toep->ulp_mode == ULP_MODE_TCPDDP)
+		so->so_proto = &ddp_protosw;
 	SOCKBUF_UNLOCK(sb);
 
 	/* Update TCP PCB */
@@ -176,7 +181,7 @@ offload_socket(struct socket *so, struct toepcb *toep)
 
 	/* Install an extra hold on inp */
 	toep->inp = inp;
-	toepcb_set_flag(toep, TPF_ATTACHED);
+	toep->flags |= TPF_ATTACHED;
 	in_pcbref(inp);
 
 	/* Add the TOE PCB to the active list */
@@ -211,7 +216,7 @@ undo_offload_socket(struct socket *so)
 	tp->t_flags &= ~TF_TOE;
 
 	toep->inp = NULL;
-	toepcb_clr_flag(toep, TPF_ATTACHED);
+	toep->flags &= ~TPF_ATTACHED;
 	if (in_pcbrele_wlocked(inp))
 		panic("%s: inp freed.", __func__);
 
@@ -227,13 +232,16 @@ release_offload_resources(struct toepcb *toep)
 	struct adapter *sc = td_adapter(td);
 	int tid = toep->tid;
 
-	KASSERT(toepcb_flag(toep, TPF_CPL_PENDING) == 0,
+	KASSERT(!(toep->flags & TPF_CPL_PENDING),
 	    ("%s: %p has CPL pending.", __func__, toep));
-	KASSERT(toepcb_flag(toep, TPF_ATTACHED) == 0,
+	KASSERT(!(toep->flags & TPF_ATTACHED),
 	    ("%s: %p is still attached.", __func__, toep));
 
 	CTR4(KTR_CXGBE, "%s: toep %p (tid %d, l2te %p)",
 	    __func__, toep, tid, toep->l2te);
+
+	if (toep->ulp_mode == ULP_MODE_TCPDDP)
+		release_ddp_resources(toep);
 
 	if (toep->l2te)
 		t4_l2t_release(toep->l2te);
@@ -269,7 +277,7 @@ t4_pcb_detach(struct toedev *tod __unused, struct tcpcb *tp)
 	INP_WLOCK_ASSERT(inp);
 
 	KASSERT(toep != NULL, ("%s: toep is NULL", __func__));
-	KASSERT(toepcb_flag(toep, TPF_ATTACHED),
+	KASSERT(toep->flags & TPF_ATTACHED,
 	    ("%s: not attached", __func__));
 
 #ifdef KTR
@@ -287,9 +295,9 @@ t4_pcb_detach(struct toedev *tod __unused, struct tcpcb *tp)
 
 	tp->t_toe = NULL;
 	tp->t_flags &= ~TF_TOE;
-	toepcb_clr_flag(toep, TPF_ATTACHED);
+	toep->flags &= ~TPF_ATTACHED;
 
-	if (toepcb_flag(toep, TPF_CPL_PENDING) == 0)
+	if (!(toep->flags & TPF_CPL_PENDING))
 		release_offload_resources(toep);
 }
 
@@ -304,16 +312,16 @@ final_cpl_received(struct toepcb *toep)
 
 	KASSERT(inp != NULL, ("%s: inp is NULL", __func__));
 	INP_WLOCK_ASSERT(inp);
-	KASSERT(toepcb_flag(toep, TPF_CPL_PENDING),
+	KASSERT(toep->flags & TPF_CPL_PENDING,
 	    ("%s: CPL not pending already?", __func__));
 
 	CTR6(KTR_CXGBE, "%s: tid %d, toep %p (0x%x), inp %p (0x%x)",
 	    __func__, toep->tid, toep, toep->flags, inp, inp->inp_flags);
 
 	toep->inp = NULL;
-	toepcb_clr_flag(toep, TPF_CPL_PENDING);
+	toep->flags &= ~TPF_CPL_PENDING;
 
-	if (toepcb_flag(toep, TPF_ATTACHED) == 0)
+	if (!(toep->flags & TPF_ATTACHED))
 		release_offload_resources(toep);
 
 	if (!in_pcbrele_wlocked(inp))
@@ -568,6 +576,8 @@ free_tom_data(struct adapter *sc, struct tom_data *td)
 	    ("%s: lctx hash table is not empty.", __func__));
 
 	t4_uninit_l2t_cpl_handlers(sc);
+	t4_uninit_cpl_io_handlers(sc);
+	t4_uninit_ddp(sc, td);
 
 	if (td->listen_mask != 0)
 		hashdestroy(td->listen_hash, M_CXGBE, td->listen_mask);
@@ -612,6 +622,8 @@ t4_tom_activate(struct adapter *sc)
 	rc = alloc_tid_tabs(&sc->tids);
 	if (rc != 0)
 		goto done;
+
+	t4_init_ddp(sc, td);
 
 	/* CPL handlers */
 	t4_init_connect_cpl_handlers(sc);
@@ -688,6 +700,16 @@ static int
 t4_tom_mod_load(void)
 {
 	int rc;
+	struct protosw *tcp_protosw;
+
+	tcp_protosw = pffindproto(PF_INET, IPPROTO_TCP, SOCK_STREAM);
+	if (tcp_protosw == NULL)
+		return (ENOPROTOOPT);
+
+	bcopy(tcp_protosw, &ddp_protosw, sizeof(ddp_protosw));
+	bcopy(tcp_protosw->pr_usrreqs, &ddp_usrreqs, sizeof(ddp_usrreqs));
+	ddp_usrreqs.pru_soreceive = t4_soreceive_ddp;
+	ddp_protosw.pr_usrreqs = &ddp_usrreqs;
 
 	rc = t4_register_uld(&tom_uld_info);
 	if (rc != 0)

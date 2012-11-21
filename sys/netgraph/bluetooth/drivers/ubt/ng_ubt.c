@@ -439,6 +439,7 @@ ubt_attach(device_t dev)
 	struct ubt_softc		*sc = device_get_softc(dev);
 	struct usb_endpoint_descriptor	*ed;
 	struct usb_interface_descriptor *id;
+	struct usb_interface		*iface;
 	uint16_t			wMaxPacketSize;
 	uint8_t				alt_index, i, j;
 	uint8_t				iface_index[2] = { 0, 1 };
@@ -554,10 +555,21 @@ ubt_attach(device_t dev)
 		goto detach;
 	}
 
-	/* Claim all interfaces on the device */
-	for (i = 1; usbd_get_iface(uaa->device, i) != NULL; i ++)
-		usbd_set_parent_iface(uaa->device, i, uaa->info.bIfaceIndex);
+	/* Claim all interfaces belonging to the Bluetooth part */
+	for (i = 1;; i++) {
+		iface = usbd_get_iface(uaa->device, i);
+		if (iface == NULL)
+			break;
+		id = usbd_get_interface_descriptor(iface);
 
+		if ((id != NULL) &&
+		    (id->bInterfaceClass == UICLASS_WIRELESS) &&
+		    (id->bInterfaceSubClass == UISUBCLASS_RF) &&
+		    (id->bInterfaceProtocol == UIPROTO_BLUETOOTH)) {
+			usbd_set_parent_iface(uaa->device, i,
+			    uaa->info.bIfaceIndex);
+		}
+	}
 	return (0); /* success */
 
 detach:

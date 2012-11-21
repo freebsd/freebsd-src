@@ -93,6 +93,7 @@ mfi_disk_attach(device_t dev)
 {
 	struct mfi_disk *sc;
 	struct mfi_ld_info *ld_info;
+	struct mfi_disk_pending *ld_pend;
 	uint64_t sectors;
 	uint32_t secsize;
 	char *state;
@@ -111,6 +112,13 @@ mfi_disk_attach(device_t dev)
 	secsize = MFI_SECTOR_LEN;
 	mtx_lock(&sc->ld_controller->mfi_io_lock);
 	TAILQ_INSERT_TAIL(&sc->ld_controller->mfi_ld_tqh, sc, ld_link);
+	TAILQ_FOREACH(ld_pend, &sc->ld_controller->mfi_ld_pend_tqh,
+	    ld_link) {
+		TAILQ_REMOVE(&sc->ld_controller->mfi_ld_pend_tqh,
+		    ld_pend, ld_link);
+		free(ld_pend, M_MFIBUF);
+		break;
+	}
 	mtx_unlock(&sc->ld_controller->mfi_io_lock);
 
 	switch (ld_info->ld_config.params.state) {
@@ -131,16 +139,16 @@ mfi_disk_attach(device_t dev)
 		break;
 	}
 
-        if ( strlen(ld_info->ld_config.properties.name) == 0 ) {
-                device_printf(dev, 
-                      "%juMB (%ju sectors) RAID volume (no label) is %s\n",
-                      sectors / (1024 * 1024 / secsize), sectors, state);
-        } else { 
-                device_printf(dev, 
-                      "%juMB (%ju sectors) RAID volume '%s' is %s\n",
-                      sectors / (1024 * 1024 / secsize), sectors,
-                      ld_info->ld_config.properties.name, state);
-        }
+	if ( strlen(ld_info->ld_config.properties.name) == 0 ) {
+		device_printf(dev,
+		      "%juMB (%ju sectors) RAID volume (no label) is %s\n",
+		       sectors / (1024 * 1024 / secsize), sectors, state);
+	} else {
+		device_printf(dev,
+		      "%juMB (%ju sectors) RAID volume '%s' is %s\n",
+		      sectors / (1024 * 1024 / secsize), sectors,
+		      ld_info->ld_config.properties.name, state);
+	}
 
 	sc->ld_disk = disk_alloc();
 	sc->ld_disk->d_drv1 = sc;

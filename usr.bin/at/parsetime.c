@@ -64,7 +64,7 @@ enum {	/* symbols */
     MIDNIGHT, NOON, TEATIME,
     PM, AM, TOMORROW, TODAY, NOW,
     MINUTES, HOURS, DAYS, WEEKS, MONTHS, YEARS,
-    NUMBER, PLUS, DOT, SLASH, ID, JUNK,
+    NUMBER, PLUS, MINUS, DOT, SLASH, ID, JUNK,
     JAN, FEB, MAR, APR, MAY, JUN,
     JUL, AUG, SEP, OCT, NOV, DEC,
     SUN, MON, TUE, WED, THU, FRI, SAT
@@ -246,6 +246,8 @@ token(void)
 	    return sc_tokid = DOT;
 	else if (sc_token[0] == '+')
 	    return sc_tokid = PLUS;
+	else if (sc_token[0] == '-')
+	    return sc_tokid = MINUS;
 	else if (sc_token[0] == '/')
 	    return sc_tokid = SLASH;
 	else
@@ -277,22 +279,14 @@ expect(int desired)
 
 
 /*
- * plus() parses a now + time
- *
- *  at [NOW] PLUS NUMBER [MINUTES|HOURS|DAYS|WEEKS|MONTHS|YEARS]
- *
+ * plus_or_minus() holds functionality common to plus() and minus()
  */
-
 static void
-plus(struct tm *tm)
+plus_or_minus(struct tm *tm, int delay)
 {
-    int delay;
     int expectplur;
 
-    expect(NUMBER);
-
-    delay = atoi(sc_token);
-    expectplur = (delay != 1) ? 1 : 0;
+    expectplur = (delay != 1 && delay != -1) ? 1 : 0;
 
     switch (token()) {
     case YEARS:
@@ -323,8 +317,40 @@ plus(struct tm *tm)
     tm->tm_isdst = -1;
     if (mktime(tm) < 0)
 	plonk(sc_tokid);
+} /* plus_or_minus */
 
+
+/*
+ * plus() parses a now + time
+ *
+ *  at [NOW] PLUS NUMBER [MINUTES|HOURS|DAYS|WEEKS|MONTHS|YEARS]
+ *
+ */
+static void
+plus(struct tm *tm)
+{
+    int delay;
+
+    expect(NUMBER);
+
+    delay = atoi(sc_token);
+    plus_or_minus(tm, delay);
 } /* plus */
+
+
+/*
+ * minus() is like plus but can not be used with NOW
+ */
+static void
+minus(struct tm *tm)
+{
+    int delay;
+
+    expect(NUMBER);
+
+    delay = -atoi(sc_token);
+    plus_or_minus(tm, delay);
+} /* minus */
 
 
 /*
@@ -379,7 +405,8 @@ tod(struct tm *tm)
      * if we've gone past that time - but if we're specifying a time plus
      * a relative offset, it's okay to bump things
      */
-    if ((sc_tokid == EOF || sc_tokid == PLUS) && tm->tm_hour > hour) {
+    if ((sc_tokid == EOF || sc_tokid == PLUS || sc_tokid == MINUS) && 
+	tm->tm_hour > hour) {
 	tm->tm_mday++;
 	tm->tm_wday++;
     }
@@ -455,6 +482,9 @@ month(struct tm *tm)
     switch (sc_tokid) {
     case PLUS:
 	    plus(tm);
+	    break;
+    case MINUS:
+	    minus(tm);
 	    break;
 
     case TOMORROW:
@@ -588,6 +618,12 @@ parsetime(int argc, char **argv)
 	    plus(&runtime);
 	    break;
 
+	    /* MINUS is different from PLUS in that NOW is not
+	     * an optional prefix for it
+	     */
+    case MINUS:
+	    minus(&runtime);
+	    break;
     case NUMBER:
 	    tod(&runtime);
 	    month(&runtime);

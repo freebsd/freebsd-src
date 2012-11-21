@@ -198,14 +198,17 @@ fail:
  * Reconcile kernel and user view of the transmit ring.
  * This routine might be called frequently so it must be efficient.
  *
- * Userspace has filled tx slots up to ring->cur (excluded).
- * The last unused slot previously known to the kernel was kring->nkr_hwcur,
- * and the last interrupt reported kring->nr_hwavail slots available.
+ * ring->cur holds the userspace view of the current ring index.  Userspace
+ * has filled the tx slots from the previous call's ring->cur up to but not
+ * including ring->cur for this call.  In this function the kernel updates
+ * kring->nr_hwcur to ring->cur, thus slots [kring->nr_hwcur, ring->cur) are
+ * now ready to transmit.  At the last interrupt kring->nr_hwavail slots were
+ * available.
  *
  * This function runs under lock (acquired from the caller or internally).
  * It must first update ring->avail to what the kernel knows,
- * subtract the newly used slots (ring->cur - kring->nkr_hwcur)
- * from both avail and nr_hwavail, and set ring->nkr_hwcur = ring->cur
+ * subtract the newly used slots (ring->cur - kring->nr_hwcur)
+ * from both avail and nr_hwavail, and set ring->nr_hwcur = ring->cur
  * issuing a dmamap_sync on all slots.
  *
  * Since ring comes from userspace, its content must be read only once,

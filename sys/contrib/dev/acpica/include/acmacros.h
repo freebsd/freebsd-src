@@ -50,14 +50,18 @@
  * get into potential aligment issues -- see the STORE macros below.
  * Use with care.
  */
-#define ACPI_GET8(ptr)                  *ACPI_CAST_PTR (UINT8, ptr)
-#define ACPI_GET16(ptr)                 *ACPI_CAST_PTR (UINT16, ptr)
-#define ACPI_GET32(ptr)                 *ACPI_CAST_PTR (UINT32, ptr)
-#define ACPI_GET64(ptr)                 *ACPI_CAST_PTR (UINT64, ptr)
-#define ACPI_SET8(ptr)                  *ACPI_CAST_PTR (UINT8, ptr)
-#define ACPI_SET16(ptr)                 *ACPI_CAST_PTR (UINT16, ptr)
-#define ACPI_SET32(ptr)                 *ACPI_CAST_PTR (UINT32, ptr)
-#define ACPI_SET64(ptr)                 *ACPI_CAST_PTR (UINT64, ptr)
+#define ACPI_CAST8(ptr)                 ACPI_CAST_PTR (UINT8, (ptr))
+#define ACPI_CAST16(ptr)                ACPI_CAST_PTR (UINT16, (ptr))
+#define ACPI_CAST32(ptr)                ACPI_CAST_PTR (UINT32, (ptr))
+#define ACPI_CAST64(ptr)                ACPI_CAST_PTR (UINT64, (ptr))
+#define ACPI_GET8(ptr)                  (*ACPI_CAST8 (ptr))
+#define ACPI_GET16(ptr)                 (*ACPI_CAST16 (ptr))
+#define ACPI_GET32(ptr)                 (*ACPI_CAST32 (ptr))
+#define ACPI_GET64(ptr)                 (*ACPI_CAST64 (ptr))
+#define ACPI_SET8(ptr, val)             (*ACPI_CAST8 (ptr) = (UINT8) (val))
+#define ACPI_SET16(ptr, val)            (*ACPI_CAST16 (ptr) = (UINT16) (val))
+#define ACPI_SET32(ptr, val)            (*ACPI_CAST32 (ptr) = (UINT32) (val))
+#define ACPI_SET64(ptr, val)            (*ACPI_CAST64 (ptr) = (UINT64) (val))
 
 /*
  * printf() format helpers
@@ -268,10 +272,47 @@
 
 /* Bitfields within ACPI registers */
 
-#define ACPI_REGISTER_PREPARE_BITS(Val, Pos, Mask)      ((Val << Pos) & Mask)
-#define ACPI_REGISTER_INSERT_VALUE(Reg, Pos, Mask, Val)  Reg = (Reg & (~(Mask))) | ACPI_REGISTER_PREPARE_BITS(Val, Pos, Mask)
+#define ACPI_REGISTER_PREPARE_BITS(Val, Pos, Mask) \
+    ((Val << Pos) & Mask)
 
-#define ACPI_INSERT_BITS(Target, Mask, Source)          Target = ((Target & (~(Mask))) | (Source & Mask))
+#define ACPI_REGISTER_INSERT_VALUE(Reg, Pos, Mask, Val) \
+    Reg = (Reg & (~(Mask))) | ACPI_REGISTER_PREPARE_BITS(Val, Pos, Mask)
+
+#define ACPI_INSERT_BITS(Target, Mask, Source) \
+    Target = ((Target & (~(Mask))) | (Source & Mask))
+
+/* Generic bitfield macros and masks */
+
+#define ACPI_GET_BITS(SourcePtr, Position, Mask) \
+    ((*SourcePtr >> Position) & Mask)
+
+#define ACPI_SET_BITS(TargetPtr, Position, Mask, Value) \
+    (*TargetPtr |= ((Value & Mask) << Position))
+
+#define ACPI_1BIT_MASK      0x00000001
+#define ACPI_2BIT_MASK      0x00000003
+#define ACPI_3BIT_MASK      0x00000007
+#define ACPI_4BIT_MASK      0x0000000F
+#define ACPI_5BIT_MASK      0x0000001F
+#define ACPI_6BIT_MASK      0x0000003F
+#define ACPI_7BIT_MASK      0x0000007F
+#define ACPI_8BIT_MASK      0x000000FF
+#define ACPI_16BIT_MASK     0x0000FFFF
+#define ACPI_24BIT_MASK     0x00FFFFFF
+
+/* Macros to extract flag bits from position zero */
+
+#define ACPI_GET_1BIT_FLAG(Value)                   ((Value) & ACPI_1BIT_MASK)
+#define ACPI_GET_2BIT_FLAG(Value)                   ((Value) & ACPI_2BIT_MASK)
+#define ACPI_GET_3BIT_FLAG(Value)                   ((Value) & ACPI_3BIT_MASK)
+#define ACPI_GET_4BIT_FLAG(Value)                   ((Value) & ACPI_4BIT_MASK)
+
+/* Macros to extract flag bits from position one and above */
+
+#define ACPI_EXTRACT_1BIT_FLAG(Field, Position)     (ACPI_GET_1BIT_FLAG ((Field) >> Position))
+#define ACPI_EXTRACT_2BIT_FLAG(Field, Position)     (ACPI_GET_2BIT_FLAG ((Field) >> Position))
+#define ACPI_EXTRACT_3BIT_FLAG(Field, Position)     (ACPI_GET_3BIT_FLAG ((Field) >> Position))
+#define ACPI_EXTRACT_4BIT_FLAG(Field, Position)     (ACPI_GET_4BIT_FLAG ((Field) >> Position))
 
 /*
  * An object of type ACPI_NAMESPACE_NODE can appear in some contexts
@@ -441,7 +482,7 @@
 #define ACPI_DUMP_OPERANDS(a, b ,c)     AcpiExDumpOperands(a, b, c)
 #define ACPI_DUMP_ENTRY(a, b)           AcpiNsDumpEntry (a, b)
 #define ACPI_DUMP_PATHNAME(a, b, c, d)  AcpiNsDumpPathname(a, b, c, d)
-#define ACPI_DUMP_BUFFER(a, b)          AcpiUtDumpBuffer((UINT8 *) a, b, DB_BYTE_DISPLAY, _COMPONENT)
+#define ACPI_DUMP_BUFFER(a, b)          AcpiUtDebugDumpBuffer((UINT8 *) a, b, DB_BYTE_DISPLAY, _COMPONENT)
 
 #else
 /*

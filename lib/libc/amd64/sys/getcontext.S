@@ -42,16 +42,9 @@ ENTRY(__sys_getcontext)
 	movq	(%rsp),%rsi	/* save getcontext return address */
 	mov	$SYS_getcontext,%rax
 	KERNCALL
-	jb	1f
+	jb	HIDENAME(cerror)
 	addq	$8,%rsp		/* remove stale (setcontext) return address */
 	jmp	*%rsi		/* restore return address */
-1:
-#ifdef PIC
-	movq	PIC_GOT(HIDENAME(cerror)),%rdx
-	jmp	*%rdx
-#else
-	jmp	HIDENAME(cerror)
-#endif
 END(__sys_getcontext)
 
 	.section .note.GNU-stack,"",%progbits

@@ -253,6 +253,8 @@ extern	HAL_BOOL ar5416SetRifsDelay(struct ath_hal *ah,
 	    const struct ieee80211_channel *chan, HAL_BOOL enable);
 
 extern	void ar5416EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
+extern	HAL_BOOL ar5416GetDfsDefaultThresh(struct ath_hal *ah,
+	    HAL_PHYERR_PARAM *pe);
 extern	void ar5416GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
 extern	HAL_BOOL ar5416ProcessRadarEvent(struct ath_hal *ah,
 	    struct ath_rx_status *rxs, uint64_t fulltsf, const char *buf,
@@ -389,7 +391,7 @@ extern	void ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
 		u_int nseries, u_int flags);
 
 extern void ar5416Set11nAggrFirst(struct ath_hal *ah, struct ath_desc *ds,
-		u_int aggrLen);
+		u_int aggrLen, u_int numDelims);
 extern	void ar5416Set11nAggrMiddle(struct ath_hal *ah, struct ath_desc *ds, u_int numDelims);
 extern void ar5416Set11nAggrLast(struct ath_hal *ah, struct ath_desc *ds);
 

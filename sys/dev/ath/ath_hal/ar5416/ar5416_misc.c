@@ -178,7 +178,8 @@ ar5416SetDecompMask(struct ath_hal *ah, uint16_t keyidx, int en)
 void
 ar5416SetCoverageClass(struct ath_hal *ah, uint8_t coverageclass, int now)
 {
-	AH_PRIVATE(ah)->ah_coverageClass = coverageclass;
+
+	ar5212SetCoverageClass(ah, coverageclass, now);
 }
 
 /*

@@ -3245,7 +3245,7 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 {
 	vm_map_entry_t new_entry, prev_entry;
 	vm_offset_t bot, top;
-	vm_size_t init_ssize;
+	vm_size_t growsize, init_ssize;
 	int orient, rv;
 	rlim_t vmemlim;
 
@@ -3264,7 +3264,8 @@ vm_map_stack(vm_map_t map, vm_offset_t addrbos, vm_size_t max_ssize,
 	    addrbos + max_ssize < addrbos)
 		return (KERN_NO_SPACE);
 
-	init_ssize = (max_ssize < sgrowsiz) ? max_ssize : sgrowsiz;
+	growsize = sgrowsiz;
+	init_ssize = (max_ssize < growsize) ? max_ssize : growsize;
 
 	PROC_LOCK(curthread->td_proc);
 	vmemlim = lim_cur(curthread->td_proc, RLIMIT_VMEM);
@@ -3357,6 +3358,7 @@ vm_map_growstack(struct proc *p, vm_offset_t addr)
 	struct vmspace *vm = p->p_vmspace;
 	vm_map_t map = &vm->vm_map;
 	vm_offset_t end;
+	vm_size_t growsize;
 	size_t grow_amount, max_grow;
 	rlim_t stacklim, vmemlim;
 	int is_procstack, rv;
@@ -3476,8 +3478,9 @@ Retry:
 	PROC_UNLOCK(p);
 #endif
 
-	/* Round up the grow amount modulo SGROWSIZ */
-	grow_amount = roundup (grow_amount, sgrowsiz);
+	/* Round up the grow amount modulo sgrowsiz */
+	growsize = sgrowsiz;
+	grow_amount = roundup(grow_amount, growsize);
 	if (grow_amount > stack_entry->avail_ssize)
 		grow_amount = stack_entry->avail_ssize;
 	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount > stacklim)) {
@@ -3972,32 +3975,20 @@ vm_map_lookup_done(vm_map_t map, vm_map_entry_t entry)
 
 #include <ddb/ddb.h>
 
-/*
- *	vm_map_print:	[ debug ]
- */
-DB_SHOW_COMMAND(map, vm_map_print)
+static void
+vm_map_print(vm_map_t map)
 {
-	static int nlines;
-	/* XXX convert args. */
-	vm_map_t map = (vm_map_t)addr;
-	boolean_t full = have_addr;
-
 	vm_map_entry_t entry;
 
 	db_iprintf("Task map %p: pmap=%p, nentries=%d, version=%u\n",
 	    (void *)map,
 	    (void *)map->pmap, map->nentries, map->timestamp);
-	nlines++;
-
-	if (!full && db_indent)
-		return;
 
 	db_indent += 2;
 	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
 		db_iprintf("map entry %p: start=%p, end=%p\n",
 		    (void *)entry, (void *)entry->start, (void *)entry->end);
-		nlines++;
 		{
 			static char *inheritance_name[4] =
 			{"share", "copy", "none", "donate_copy"};
@@ -4013,14 +4004,11 @@ DB_SHOW_COMMAND(map, vm_map_print)
 			db_printf(", share=%p, offset=0x%jx\n",
 			    (void *)entry->object.sub_map,
 			    (uintmax_t)entry->offset);
-			nlines++;
 			if ((entry->prev == &map->header) ||
 			    (entry->prev->object.sub_map !=
 				entry->object.sub_map)) {
 				db_indent += 2;
-				vm_map_print((db_expr_t)(intptr_t)
-					     entry->object.sub_map,
-					     full, 0, (char *)0);
+				vm_map_print((vm_map_t)entry->object.sub_map);
 				db_indent -= 2;
 			}
 		} else {
@@ -4037,7 +4025,6 @@ DB_SHOW_COMMAND(map, vm_map_print)
 				db_printf(", copy (%s)",
 				    (entry->eflags & MAP_ENTRY_NEEDS_COPY) ? "needed" : "done");
 			db_printf("\n");
-			nlines++;
 
 			if ((entry->prev == &map->header) ||
 			    (entry->prev->object.vm_object !=
@@ -4045,17 +4032,23 @@ DB_SHOW_COMMAND(map, vm_map_print)
 				db_indent += 2;
 				vm_object_print((db_expr_t)(intptr_t)
 						entry->object.vm_object,
-						full, 0, (char *)0);
-				nlines += 4;
+						1, 0, (char *)0);
 				db_indent -= 2;
 			}
 		}
 	}
 	db_indent -= 2;
-	if (db_indent == 0)
-		nlines = 0;
 }
 
+DB_SHOW_COMMAND(map, map)
+{
+
+	if (!have_addr) {
+		db_printf("usage: show map <addr>\n");
+		return;
+	}
+	vm_map_print((vm_map_t)addr);
+}
 
 DB_SHOW_COMMAND(procvm, procvm)
 {
@@ -4071,7 +4064,7 @@ DB_SHOW_COMMAND(procvm, procvm)
 	    (void *)p, (void *)p->p_vmspace, (void *)&p->p_vmspace->vm_map,
 	    (void *)vmspace_pmap(p->p_vmspace));
 
-	vm_map_print((db_expr_t)(intptr_t)&p->p_vmspace->vm_map, 1, 0, NULL);
+	vm_map_print((vm_map_t)&p->p_vmspace->vm_map);
 }
 
 #endif /* DDB */

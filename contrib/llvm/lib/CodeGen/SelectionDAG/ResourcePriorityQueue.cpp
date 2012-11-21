@@ -50,7 +50,7 @@ ResourcePriorityQueue::ResourcePriorityQueue(SelectionDAGISel *IS) :
 
    const TargetMachine &tm = (*IS->MF).getTarget();
    ResourcesModel = tm.getInstrInfo()->CreateTargetScheduleState(&tm,NULL);
-   // This hard requirment could be relaxed, but for now
+   // This hard requirement could be relaxed, but for now
    // do not let it procede.
    assert (ResourcesModel && "Unimplemented CreateTargetScheduleState.");
 
@@ -318,7 +318,7 @@ void ResourcePriorityQueue::reserveResources(SUnit *SU) {
 
   // If packet is now full, reset the state so in the next cycle
   // we start fresh.
-  if (Packet.size() >= InstrItins->IssueWidth) {
+  if (Packet.size() >= InstrItins->SchedModel->IssueWidth) {
     ResourcesModel->clearResources();
     Packet.clear();
   }
@@ -353,7 +353,7 @@ signed ResourcePriorityQueue::rawRegPressureDelta(SUnit *SU, unsigned RCId) {
 }
 
 /// Estimates change in reg pressure from this SU.
-/// It is acheived by trivial tracking of defined
+/// It is achieved by trivial tracking of defined
 /// and used vregs in dependent instructions.
 /// The RawPressure flag makes this function to ignore
 /// existing reg file sizes, and report raw def/use

@@ -142,6 +142,7 @@
 #define         ATA_SC_SPD_NO_SPEED     0x00000000
 #define         ATA_SC_SPD_SPEED_GEN1   0x00000010
 #define         ATA_SC_SPD_SPEED_GEN2   0x00000020
+#define         ATA_SC_SPD_SPEED_GEN3   0x00000040
 
 #define         ATA_SC_IPM_MASK         0x00000f00
 #define         ATA_SC_IPM_NONE         0x00000000
@@ -396,6 +397,7 @@ struct ata_request {
 #define         ATA_R_REQUEUE           0x00000400
 #define         ATA_R_THREAD            0x00000800
 #define         ATA_R_DIRECT            0x00001000
+#define         ATA_R_NEEDRESULT        0x00002000
 
 #define         ATA_R_ATAPI16           0x00010000
 #define         ATA_R_ATAPI_INTR        0x00020000

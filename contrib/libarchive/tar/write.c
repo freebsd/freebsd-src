@@ -235,6 +235,7 @@ tar_mode_r(struct bsdtar *bsdtar)
 
 	a = archive_read_new();
 	archive_read_support_filter_all(a);
+	archive_read_support_format_empty(a);
 	archive_read_support_format_tar(a);
 	archive_read_support_format_gnutar(a);
 	r = archive_read_open_fd(a, bsdtar->fd, 10240);

@@ -73,7 +73,6 @@ static void hostap_deliver_data(struct ieee80211vap *,
 static void hostap_recv_mgmt(struct ieee80211_node *, struct mbuf *,
 	    int subtype, int rssi, int nf);
 static void hostap_recv_ctl(struct ieee80211_node *, struct mbuf *, int);
-static void hostap_recv_pspoll(struct ieee80211_node *, struct mbuf *);
 
 void
 ieee80211_hostap_attach(struct ieee80211com *ic)
@@ -100,6 +99,7 @@ hostap_vattach(struct ieee80211vap *vap)
 	vap->iv_recv_ctl = hostap_recv_ctl;
 	vap->iv_opdetach = hostap_vdetach;
 	vap->iv_deliver_data = hostap_deliver_data;
+	vap->iv_recv_pspoll = ieee80211_recv_pspoll;
 }
 
 static void
@@ -645,7 +645,7 @@ hostap_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 		 */
 		if (((wh->i_fc[1] & IEEE80211_FC1_PWR_MGT) ^
 		    (ni->ni_flags & IEEE80211_NODE_PWR_MGT)))
-			ieee80211_node_pwrsave(ni,
+			vap->iv_node_ps(ni,
 				wh->i_fc[1] & IEEE80211_FC1_PWR_MGT);
 		/*
 		 * For 4-address packets handle WDS discovery
@@ -2240,7 +2240,7 @@ hostap_recv_ctl(struct ieee80211_node *ni, struct mbuf *m, int subtype)
 {
 	switch (subtype) {
 	case IEEE80211_FC0_SUBTYPE_PS_POLL:
-		hostap_recv_pspoll(ni, m);
+		ni->ni_vap->iv_recv_pspoll(ni, m);
 		break;
 	case IEEE80211_FC0_SUBTYPE_BAR:
 		ieee80211_recv_bar(ni, m);
@@ -2251,8 +2251,8 @@ hostap_recv_ctl(struct ieee80211_node *ni, struct mbuf *m, int subtype)
 /*
  * Process a received ps-poll frame.
  */
-static void
-hostap_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m0)
+void
+ieee80211_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m0)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211_frame_min *wh;

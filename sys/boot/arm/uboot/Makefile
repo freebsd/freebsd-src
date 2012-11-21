@@ -14,7 +14,11 @@ UBLDR_LOADADDR?=	0x1000000
 # Architecture-specific loader code
 SRCS=		start.S conf.c vers.c
 
+.if !defined(LOADER_NO_DISK_SUPPORT)
 LOADER_DISK_SUPPORT?=	yes
+.else
+LOADER_DISK_SUPPORT=	no
+.endif
 LOADER_UFS_SUPPORT?=	yes
 LOADER_CD9660_SUPPORT?=	no
 LOADER_EXT2FS_SUPPORT?=	no

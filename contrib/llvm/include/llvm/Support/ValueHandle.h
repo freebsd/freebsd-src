@@ -110,11 +110,12 @@ protected:
            V != DenseMapInfo<Value *>::getTombstoneKey();
   }
 
-private:
+public:
   // Callbacks made from Value.
   static void ValueIsDeleted(Value *V);
   static void ValueIsRAUWd(Value *Old, Value *New);
 
+private:
   // Internal implementation details.
   ValueHandleBase **getPrevPtr() const { return PrevPair.getPointer(); }
   HandleBaseKind getKind() const { return PrevPair.getInt(); }
@@ -367,7 +368,7 @@ protected:
   CallbackVH(const CallbackVH &RHS)
     : ValueHandleBase(Callback, RHS) {}
 
-  virtual ~CallbackVH();
+  virtual ~CallbackVH() {}
 
   void setValPtr(Value *P) {
     ValueHandleBase::operator=(P);
@@ -389,15 +390,13 @@ public:
   ///
   /// All implementations must remove the reference from this object to the
   /// Value that's being destroyed.
-  virtual void deleted() {
-    setValPtr(NULL);
-  }
+  virtual void deleted();
 
   /// Called when this->getValPtr()->replaceAllUsesWith(new_value) is called,
   /// _before_ any of the uses have actually been replaced.  If WeakVH were
   /// implemented as a CallbackVH, it would use this method to call
   /// setValPtr(new_value).  AssertingVH would do nothing in this method.
-  virtual void allUsesReplacedWith(Value *) {}
+  virtual void allUsesReplacedWith(Value *);
 };
 
 // Specialize simplify_type to allow CallbackVH to participate in

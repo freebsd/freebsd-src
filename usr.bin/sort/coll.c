@@ -260,7 +260,7 @@ skip_fields_to_start(const struct bwstring *s, size_t fields, bool *empty_field)
 		while (cpos < BWSLEN(s)) {
 			bool isblank;
 
-			isblank = iswblank(BWS_GET(s,cpos));
+			isblank = iswblank(BWS_GET(s, cpos));
 
 			if (isblank && !pb) {
 				--fields;
@@ -699,7 +699,7 @@ static void setsuffix(wchar_t c, unsigned char *si)
  * point is in sfrac, tail is the pointer to the remainder of the string.
  */
 static int
-read_number(struct bwstring *s0, int *sign, wchar_t *smain, int *main_len, wchar_t *sfrac, int *frac_len, unsigned char *si)
+read_number(struct bwstring *s0, int *sign, wchar_t *smain, size_t *main_len, wchar_t *sfrac, size_t *frac_len, unsigned char *si)
 {
 	bwstring_iterator s;
 
@@ -798,7 +798,8 @@ numcoll_impl(struct key_value *kv1, struct key_value *kv2,
 	struct bwstring *s1, *s2;
 	wchar_t sfrac1[MAX_NUM_SIZE + 1], sfrac2[MAX_NUM_SIZE + 1];
 	wchar_t smain1[MAX_NUM_SIZE + 1], smain2[MAX_NUM_SIZE + 1];
-	int cmp_res, frac1, frac2, main1, main2, sign1, sign2;
+	int cmp_res, sign1, sign2;
+	size_t frac1, frac2, main1, main2;
 	unsigned char SI1, SI2;
 	bool e1, e2, key1_read, key2_read;
 

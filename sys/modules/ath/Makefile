@@ -149,4 +149,6 @@ opt_ah.h:
 .include <bsd.kmod.mk>
 
 CWARNFLAGS.ah_regdomain.c=	${NO_WSHIFT_COUNT_NEGATIVE} ${NO_WSHIFT_COUNT_OVERFLOW}
+# XXX Work around clang warnings, until maintainer approves fix.
+CWARNFLAGS.if_ath.c=		${NO_WSOMETIMES_UNINITIALIZED}
 CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}

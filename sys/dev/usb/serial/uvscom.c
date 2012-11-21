@@ -163,11 +163,13 @@ struct uvscom_softc {
 static device_probe_t uvscom_probe;
 static device_attach_t uvscom_attach;
 static device_detach_t uvscom_detach;
+static void uvscom_free_softc(struct uvscom_softc *);
 
 static usb_callback_t uvscom_write_callback;
 static usb_callback_t uvscom_read_callback;
 static usb_callback_t uvscom_intr_callback;
 
+static void	uvscom_free(struct ucom_softc *);
 static void	uvscom_cfg_set_dtr(struct ucom_softc *, uint8_t);
 static void	uvscom_cfg_set_rts(struct ucom_softc *, uint8_t);
 static void	uvscom_cfg_set_break(struct ucom_softc *, uint8_t);
@@ -231,6 +233,7 @@ static const struct ucom_callback uvscom_callback = {
 	.ucom_start_write = &uvscom_start_write,
 	.ucom_stop_write = &uvscom_stop_write,
 	.ucom_poll = &uvscom_poll,
+	.ucom_free = &uvscom_free,
 };
 
 static const STRUCT_USB_HOST_ID uvscom_devs[] = {
@@ -250,7 +253,7 @@ static device_method_t uvscom_methods[] = {
 	DEVMETHOD(device_probe, uvscom_probe),
 	DEVMETHOD(device_attach, uvscom_attach),
 	DEVMETHOD(device_detach, uvscom_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t uvscom_devclass;
@@ -292,6 +295,7 @@ uvscom_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "uvscom", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	sc->sc_udev = uaa->device;
 
@@ -348,9 +352,29 @@ uvscom_detach(device_t dev)
 
 	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, UVSCOM_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	uvscom_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(uvscom);
+
+static void
+uvscom_free_softc(struct uvscom_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+uvscom_free(struct ucom_softc *ucom)
+{
+	uvscom_free_softc(ucom->sc_parent);
 }
 
 static void

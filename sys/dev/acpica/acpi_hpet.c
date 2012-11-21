@@ -57,6 +57,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #define HPET_VENDID_AMD		0x4353
+#define HPET_VENDID_AMD2	0x1022
 #define HPET_VENDID_INTEL	0x8086
 #define HPET_VENDID_NVIDIA	0x10de
 #define HPET_VENDID_SW		0x1166
@@ -505,7 +506,7 @@ hpet_attach(device_t dev)
 	 * properly, that makes it very unreliable - it freezes after any
 	 * interrupt loss. Avoid legacy IRQs for AMD.
 	 */
-	if (vendor == HPET_VENDID_AMD)
+	if (vendor == HPET_VENDID_AMD || vendor == HPET_VENDID_AMD2)
 		sc->allowed_irqs = 0x00000000;
 	/*
 	 * NVidia MCP5x chipsets have number of unexplained interrupt

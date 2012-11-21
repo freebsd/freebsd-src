@@ -87,8 +87,8 @@ extern FILE                 *AcpiGbl_OutputFile;
 #define ACPI_MSG_WARNING        "ACPI Warning: "
 #define ACPI_MSG_INFO           "ACPI: "
 
-#define ACPI_MSG_BIOS_ERROR     "ACPI Firmware Error: "
-#define ACPI_MSG_BIOS_WARNING   "ACPI Firmware Warning: "
+#define ACPI_MSG_BIOS_ERROR     "ACPI BIOS Bug: Error: "
+#define ACPI_MSG_BIOS_WARNING   "ACPI BIOS Bug: Warning: "
 
 /*
  * Common message suffix
@@ -477,7 +477,7 @@ AcpiUtNamespaceError (
         /* There is a non-ascii character in the name */
 
         ACPI_MOVE_32_TO_32 (&BadName, ACPI_CAST_PTR (UINT32, InternalName));
-        AcpiOsPrintf ("[0x%4.4X] (NON-ASCII)", BadName);
+        AcpiOsPrintf ("[0x%.8X] (NON-ASCII)", BadName);
     }
     else
     {

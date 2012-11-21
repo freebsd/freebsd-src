@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslrestype1 - Miscellaneous small resource descriptors
@@ -498,7 +497,7 @@ RsDoStartDependentDescriptor (
 
             /*
              * Update current byte offset to indicate the number of bytes from the
-             * start of the buffer.  Buffer can include multiple descriptors, we
+             * start of the buffer. Buffer can include multiple descriptors, we
              * must keep track of the offset of not only each descriptor, but each
              * element (field) within each descriptor as well.
              */
@@ -563,7 +562,7 @@ RsDoStartDependentNoPriDescriptor (
 
         /*
          * Update current byte offset to indicate the number of bytes from the
-         * start of the buffer.  Buffer can include multiple descriptors, we
+         * start of the buffer. Buffer can include multiple descriptors, we
          * must keep track of the offset of not only each descriptor, but each
          * element (field) within each descriptor as well.
          */
@@ -650,4 +649,3 @@ RsDoVendorSmallDescriptor (
     Descriptor->VendorSmall.DescriptorType |= (UINT8) i;
     return (Rnode);
 }
-

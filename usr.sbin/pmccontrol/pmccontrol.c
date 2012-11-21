@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 
 #define	PMCC_PROGRAM_NAME	"pmccontrol"
 
-STAILQ_HEAD(pmcc_op_list, pmcc_op) head = STAILQ_HEAD_INITIALIZER(head);
+static STAILQ_HEAD(pmcc_op_list, pmcc_op) head = STAILQ_HEAD_INITIALIZER(head);
 
 struct pmcc_op {
 	char	op_cpu;
@@ -94,7 +94,7 @@ static char usage_message[] =
 	"       " PMCC_PROGRAM_NAME " [-e pmc | -d pmc | -c cpu] ...";
 
 #if DEBUG
-FILE *debug_stream = NULL;
+static FILE *debug_stream = NULL;
 #endif
 
 #if DEBUG
@@ -103,15 +103,6 @@ FILE *debug_stream = NULL;
 #else
 #define DEBUG_MSG(m)		/*  */
 #endif /* !DEBUG */
-
-int pmc_syscall = -1;
-
-#define PMC_CALL(cmd, params)						\
-if ((error = syscall(pmc_syscall, PMC_OP_##cmd, (params))) != 0)	\
-{									\
-	DEBUG_MSG("ERROR: syscall [" #cmd "]");				\
-	exit(EX_OSERR);							\
-}
 
 #if DEBUG
 /* log debug messages to a separate file */

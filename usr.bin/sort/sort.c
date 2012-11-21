@@ -117,7 +117,7 @@ static bool print_symbols_on_debug;
 /*
  * Arguments from file (when file0-from option is used:
  */
-static int argc_from_file0 = -1;
+static size_t argc_from_file0 = (size_t)-1;
 static char **argv_from_file0;
 
 /*
@@ -146,7 +146,7 @@ enum
 #define	NUMBER_OF_MUTUALLY_EXCLUSIVE_FLAGS 6
 static const char mutually_exclusive_flags[NUMBER_OF_MUTUALLY_EXCLUSIVE_FLAGS] = { 'M', 'n', 'g', 'R', 'h', 'V' };
 
-struct option long_options[] = {
+static struct option long_options[] = {
 				{ "batch-size", required_argument, NULL, BS_OPT },
 				{ "buffer-size", required_argument, NULL, 'S' },
 				{ "check", optional_argument, NULL, 'c' },
@@ -244,9 +244,9 @@ read_fns_from_file0(const char *fn)
 			char *line = read_file0_line(&f0r);
 
 			if (line && *line) {
+				if (argc_from_file0 == (size_t)-1)
+					argc_from_file0 = 0;
 				++argc_from_file0;
-				if (argc_from_file0 < 1)
-					argc_from_file0 = 1;
 				argv_from_file0 = sort_realloc(argv_from_file0,
 				    argc_from_file0 * sizeof(char *));
 				if (argv_from_file0 == NULL)
@@ -1221,7 +1221,7 @@ main(int argc, char **argv)
 		ks->sm.func = get_sort_func(&(ks->sm));
 	}
 
-	if (argc_from_file0 >= 0) {
+	if (argv_from_file0) {
 		argc = argc_from_file0;
 		argv = argv_from_file0;
 	}

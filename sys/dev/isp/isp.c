@@ -939,7 +939,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		MBSINIT(&mbs, MBOX_WRITE_RAM_WORD, MBLOGNONE, 0);
 		mbs.param[1] = code_org;
 		mbs.param[2] = ucd.np[0];
-		isp_prt(isp, ISP_LOGDEBUG1, "WRITE RAM %u words at load address 0x%x\n", ucd.np[3], code_org);
+		isp_prt(isp, ISP_LOGDEBUG1, "WRITE RAM %u words at load address 0x%x", ucd.np[3], code_org);
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			isp_prt(isp, ISP_LOGERR, "F/W download failed at word %d", isp->isp_mbxwrk1 - code_org);

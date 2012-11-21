@@ -223,6 +223,12 @@ struct ath_desc {
 	uint32_t	ds_hw[HAL_DESC_HW_SIZE];	/* opaque h/w region */
 };
 
+struct ath_desc_txedma {
+	uint32_t	ds_info;
+	uint32_t	ds_link;
+	uint32_t	ds_hw[21];	/* includes buf/len */
+};
+
 struct ath_desc_status {
 	union {
 		struct ath_tx_status tx;/* xmit status */

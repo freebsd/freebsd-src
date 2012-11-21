@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #ifndef	_SYS_ARC_H
@@ -98,6 +99,7 @@ int arc_released(arc_buf_t *buf);
 int arc_has_callback(arc_buf_t *buf);
 void arc_buf_freeze(arc_buf_t *buf);
 void arc_buf_thaw(arc_buf_t *buf);
+boolean_t arc_buf_eviction_needed(arc_buf_t *buf);
 #ifdef ZFS_DEBUG
 int arc_referenced(arc_buf_t *buf);
 #endif
@@ -134,6 +136,13 @@ void l2arc_init(void);
 void l2arc_fini(void);
 void l2arc_start(void);
 void l2arc_stop(void);
+
+#ifdef illumos
+#ifndef _KERNEL
+extern boolean_t arc_watch;
+extern int arc_procfd;
+#endif
+#endif /* illumos */
 
 #ifdef	__cplusplus
 }

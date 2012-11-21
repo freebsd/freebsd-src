@@ -244,7 +244,7 @@ setup_lcall_gate(void)
 	bzero(ssd, sizeof(*ssd));
 	ssd->gd_looffset = lcall_addr;
 	ssd->gd_hioffset = lcall_addr >> 16;
-	ssd->gd_selector = _ucode32sel;
+	ssd->gd_selector = _ucodesel;
 	ssd->gd_type = SDT_SYSCGT;
 	ssd->gd_dpl = SEL_UPL;
 	ssd->gd_p = 1;

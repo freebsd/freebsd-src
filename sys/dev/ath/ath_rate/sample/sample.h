@@ -91,7 +91,7 @@ bin_to_size(int index)
 struct sample_node {
 	int static_rix;			/* rate index of fixed tx rate */
 #define	SAMPLE_MAXRATES	64		/* NB: corresponds to hal info[32] */
-	uint32_t ratemask;		/* bit mask of valid rate indices */
+	uint64_t ratemask;		/* bit mask of valid rate indices */
 	const struct txschedule *sched;	/* tx schedule table */
 
 	const HAL_RATE_TABLE *currates;

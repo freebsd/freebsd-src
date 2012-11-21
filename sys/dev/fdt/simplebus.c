@@ -61,9 +61,6 @@ static MALLOC_DEFINE(M_SIMPLEBUS, "simplebus", "simplebus devices information");
 struct simplebus_softc {
 	int	sc_addr_cells;
 	int	sc_size_cells;
-	u_long	sc_start_pa;
-	u_long	sc_start_va;
-	u_long	sc_size;
 };
 
 struct simplebus_devinfo {
@@ -155,10 +152,6 @@ simplebus_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	sc->sc_start_pa = fdt_immr_pa;
-	sc->sc_start_va = fdt_immr_va;
-	sc->sc_size = fdt_immr_size;
-
 	/*
 	 * Walk simple-bus and add direct subordinates as our children.
 	 */
@@ -182,10 +175,11 @@ simplebus_attach(device_t dev)
 		}
 
 		resource_list_init(&di->di_res);
-
-		if (fdt_reg_to_rl(dt_child, &di->di_res, sc->sc_start_va)) {
-			device_printf(dev, "%s: could not process 'reg' "
+		if (fdt_reg_to_rl(dt_child, &di->di_res)) {
+			device_printf(dev,
+			    "%s: could not process 'reg' "
 			    "property\n", di->di_ofw.obd_name);
+			/* XXX should unmap */
 			ofw_bus_gen_destroy_devinfo(&di->di_ofw);
 			free(di, M_SIMPLEBUS);
 			continue;
@@ -195,6 +189,7 @@ simplebus_attach(device_t dev)
 			device_printf(dev, "%s: could not process "
 			    "'interrupts' property\n", di->di_ofw.obd_name);
 			resource_list_free(&di->di_res);
+			/* XXX should unmap */
 			ofw_bus_gen_destroy_devinfo(&di->di_ofw);
 			free(di, M_SIMPLEBUS);
 			continue;
@@ -206,6 +201,7 @@ simplebus_attach(device_t dev)
 			device_printf(dev, "could not add child: %s\n",
 			    di->di_ofw.obd_name);
 			resource_list_free(&di->di_res);
+			/* XXX should unmap */
 			ofw_bus_gen_destroy_devinfo(&di->di_ofw);
 			free(di, M_SIMPLEBUS);
 			continue;

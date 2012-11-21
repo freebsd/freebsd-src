@@ -25,6 +25,7 @@ SRCS =	addrtoname.c af.c checksum.c cpack.c gmpls.c oui.c gmt2local.c \
 	print-lwapp.c print-lwres.c print-mobile.c print-mpls.c print-msdp.c \
 	print-mpcp.c \
 	print-nfs.c print-ntp.c print-null.c print-olsr.c print-ospf.c \
+	print-pfsync.c \
 	print-pgm.c print-pim.c print-ppi.c print-ppp.c print-pppoe.c \
 	print-pptp.c print-radius.c print-raw.c print-rip.c \
 	print-rpki-rtr.c \
@@ -32,7 +33,8 @@ SRCS =	addrtoname.c af.c checksum.c cpack.c gmpls.c oui.c gmt2local.c \
 	print-sip.c print-sl.c print-sll.c \
 	print-slow.c print-snmp.c print-stp.c print-sunatm.c print-sunrpc.c \
 	print-symantec.c print-syslog.c print-tcp.c print-telnet.c print-tftp.c \
-	print-timed.c print-token.c print-udld.c print-udp.c print-vjc.c \
+	print-timed.c print-tipc.c \
+	print-token.c print-udld.c print-udp.c print-vjc.c \
 	print-vqp.c print-vrrp.c print-vtp.c \
 	print-wb.c print-zephyr.c setsignal.c tcpdump.c util.c \
 	print-smb.c signature.c smbutil.c \

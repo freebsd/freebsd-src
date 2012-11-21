@@ -91,7 +91,7 @@ AcpiDbDeviceResources (
  *
  * RETURN:      Pointer to a NS node
  *
- * DESCRIPTION: Convert a string to a valid NS pointer.  Handles numeric or
+ * DESCRIPTION: Convert a string to a valid NS pointer. Handles numeric or
  *              alpha strings.
  *
  ******************************************************************************/
@@ -174,14 +174,14 @@ AcpiDbSleep (
     }
 
     AcpiOsPrintf ("**** Going to sleep ****\n");
-    Status = AcpiEnterSleepState (SleepState, ACPI_NO_OPTIONAL_METHODS);
+    Status = AcpiEnterSleepState (SleepState);
     if (ACPI_FAILURE (Status))
     {
         goto ErrorExit;
     }
 
     AcpiOsPrintf ("**** Prepare to return from sleep ****\n");
-    Status = AcpiLeaveSleepStatePrep (SleepState, ACPI_NO_OPTIONAL_METHODS);
+    Status = AcpiLeaveSleepStatePrep (SleepState);
     if (ACPI_FAILURE (Status))
     {
         goto ErrorExit;
@@ -194,13 +194,13 @@ AcpiDbSleep (
         goto ErrorExit;
     }
 
-    return (Status);
+    return_ACPI_STATUS (Status);
 
 
 ErrorExit:
 
     ACPI_EXCEPTION ((AE_INFO, Status, "During sleep test"));
-    return (Status);
+    return_ACPI_STATUS (Status);
 }
 
 
@@ -240,7 +240,7 @@ AcpiDbDisplayLocks (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Display information about loaded tables.  Current
+ * DESCRIPTION: Display information about loaded tables. Current
  *              implementation displays all loaded tables.
  *
  ******************************************************************************/
@@ -382,7 +382,7 @@ AcpiDbUnloadAcpiTable (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Send an ACPI notification.  The value specified is sent to the
+ * DESCRIPTION: Send an ACPI notification. The value specified is sent to the
  *              named object as an ACPI notify.
  *
  ******************************************************************************/
@@ -577,7 +577,7 @@ AcpiDbDisplayTemplate (
 
 DumpBuffer:
     AcpiOsPrintf ("\nRaw data buffer:\n");
-    AcpiUtDumpBuffer ((UINT8 *) Node->Object->Buffer.Pointer,
+    AcpiUtDebugDumpBuffer ((UINT8 *) Node->Object->Buffer.Pointer,
         Node->Object->Buffer.Length,
         DB_BYTE_DISPLAY, ACPI_UINT32_MAX);
 

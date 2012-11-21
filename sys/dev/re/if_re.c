@@ -171,7 +171,7 @@ TUNABLE_INT("hw.re.prefer_iomap", &prefer_iomap);
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct rl_type const re_devs[] = {
+static const struct rl_type re_devs[] = {
 	{ DLINK_VENDORID, DLINK_DEVICEID_528T, 0,
 	    "D-Link DGE-528(T) Gigabit Ethernet Adapter" },
 	{ DLINK_VENDORID, DLINK_DEVICEID_530T_REVC, 0,
@@ -194,7 +194,7 @@ static const struct rl_type const re_devs[] = {
 	    "US Robotics 997902 (RTL8169S) Gigabit Ethernet" }
 };
 
-static const struct rl_hwrev const re_hwrevs[] = {
+static const struct rl_hwrev re_hwrevs[] = {
 	{ RL_HWREV_8139, RL_8139, "", RL_MTU },
 	{ RL_HWREV_8139A, RL_8139, "A", RL_MTU },
 	{ RL_HWREV_8139AG, RL_8139, "A-G", RL_MTU },
@@ -1343,14 +1343,14 @@ re_attach(device_t dev)
 	/* Disable ASPM L0S/L1. */
 	if (sc->rl_expcap != 0) {
 		cap = pci_read_config(dev, sc->rl_expcap +
-		    PCIR_EXPRESS_LINK_CAP, 2);
-		if ((cap & PCIM_LINK_CAP_ASPM) != 0) {
+		    PCIER_LINK_CAP, 2);
+		if ((cap & PCIEM_LINK_CAP_ASPM) != 0) {
 			ctl = pci_read_config(dev, sc->rl_expcap +
-			    PCIR_EXPRESS_LINK_CTL, 2);
-			if ((ctl & 0x0003) != 0) {
-				ctl &= ~0x0003;
+			    PCIER_LINK_CTL, 2);
+			if ((ctl & PCIEM_LINK_CTL_ASPMC) != 0) {
+				ctl &= ~PCIEM_LINK_CTL_ASPMC;
 				pci_write_config(dev, sc->rl_expcap +
-				    PCIR_EXPRESS_LINK_CTL, ctl, 2);
+				    PCIER_LINK_CTL, ctl, 2);
 				device_printf(dev, "ASPM disabled\n");
 			}
 		} else
@@ -2112,8 +2112,8 @@ re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 	ifp = sc->rl_ifp;
 #ifdef DEV_NETMAP
 	if (ifp->if_capenable & IFCAP_NETMAP) {
-		NA(ifp)->rx_rings->nr_kflags |= NKR_PENDINTR;
-		selwakeuppri(&NA(ifp)->rx_rings->si, PI_NET);
+		NA(ifp)->rx_rings[0].nr_kflags |= NKR_PENDINTR;
+		selwakeuppri(&NA(ifp)->rx_rings[0].si, PI_NET);
 		return 0;
 	}
 #endif /* DEV_NETMAP */

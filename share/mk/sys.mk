@@ -13,8 +13,12 @@ unix		?=	We run FreeBSD, not UNIX.
 # and/or endian.  This is called MACHINE_CPU in NetBSD, but that's used
 # for something different in FreeBSD.
 #
-MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/armeb/arm/:C/powerpc64/powerpc/}
+MACHINE_CPUARCH=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc64/powerpc/}
 .endif
+
+# Set any local definitions first. Place this early, but it needs
+# MACHINE_CPUARCH to be defined.
+.sinclude <local.sys.mk>
 
 # If the special target .POSIX appears (without prerequisites or
 # commands) before the first noncomment line in the makefile, make shall
@@ -324,8 +328,19 @@ SHELL=	${__MAKE_SHELL}
 # XXX hint for bsd.port.mk
 OBJFORMAT?=	elf
 
+# Tell bmake to expand -V VAR by default
+.MAKE.EXPAND_VARIABLES= yes
+
+.if !defined(.PARSEDIR)
+# We are not bmake, which is more aggressive about searching .PATH
+# It is sometime necessary to curb its enthusiasm with .NOPATH
+# The following allows us to quietly ignore .NOPATH when not using bmake.
+.NOTMAIN: .NOPATH
+.NOPATH:
+
 # Toggle on warnings
 .WARN: dirsyntax
+.endif
 
 .endif
 

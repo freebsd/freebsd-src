@@ -582,7 +582,6 @@ mqfs_mount(struct mount *mp)
 	mp->mnt_data = &mqfs_data;
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_MPSAFE;
 	MNT_IUNLOCK(mp);
 	vfs_getnewfsid(mp);
 
@@ -2717,7 +2716,7 @@ freebsd32_kmq_timedsend(struct thread *td,
 	int error;
 	int waitok;
 
-	error = getmq_read(td, uap->mqd, &fp, NULL, &mq);
+	error = getmq_write(td, uap->mqd, &fp, NULL, &mq);
 	if (error)
 		return (error);
 	if (uap->abs_timeout != NULL) {
@@ -2746,7 +2745,7 @@ freebsd32_kmq_timedreceive(struct thread *td,
 	struct timespec *abs_timeout, ets;
 	int error, waitok;
 
-	error = getmq_write(td, uap->mqd, &fp, NULL, &mq);
+	error = getmq_read(td, uap->mqd, &fp, NULL, &mq);
 	if (error)
 		return (error);
 	if (uap->abs_timeout != NULL) {

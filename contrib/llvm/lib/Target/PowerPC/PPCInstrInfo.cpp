@@ -40,6 +40,10 @@ extern cl::opt<bool> DisablePPC64RS;
 
 using namespace llvm;
 
+static cl::
+opt<bool> DisableCTRLoopAnal("disable-ppc-ctrloop-analysis", cl::Hidden,
+            cl::desc("Disable analysis for CTR loops"));
+
 PPCInstrInfo::PPCInstrInfo(PPCTargetMachine &tm)
   : PPCGenInstrInfo(PPC::ADJCALLSTACKDOWN, PPC::ADJCALLSTACKUP),
     TM(tm), RI(*TM.getSubtargetImpl(), *this) {}
@@ -75,6 +79,22 @@ ScheduleHazardRecognizer *PPCInstrInfo::CreateTargetPostRAHazardRecognizer(
 
   return new PPCScoreboardHazardRecognizer(II, DAG);
 }
+
+// Detect 32 -> 64-bit extensions where we may reuse the low sub-register.
+bool PPCInstrInfo::isCoalescableExtInstr(const MachineInstr &MI,
+                                         unsigned &SrcReg, unsigned &DstReg,
+                                         unsigned &SubIdx) const {
+  switch (MI.getOpcode()) {
+  default: return false;
+  case PPC::EXTSW:
+  case PPC::EXTSW_32_64:
+    SrcReg = MI.getOperand(1).getReg();
+    DstReg = MI.getOperand(0).getReg();
+    SubIdx = PPC::sub_32;
+    return true;
+  }
+}
+
 unsigned PPCInstrInfo::isLoadFromStackSlot(const MachineInstr *MI,
                                            int &FrameIndex) const {
   switch (MI->getOpcode()) {
@@ -186,10 +206,14 @@ void PPCInstrInfo::insertNoop(MachineBasicBlock &MBB,
 
 
 // Branch analysis.
+// Note: If the condition register is set to CTR or CTR8 then this is a
+// BDNZ (imm == 1) or BDZ (imm == 0) branch.
 bool PPCInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,MachineBasicBlock *&TBB,
                                  MachineBasicBlock *&FBB,
                                  SmallVectorImpl<MachineOperand> &Cond,
                                  bool AllowModify) const {
+  bool isPPC64 = TM.getSubtargetImpl()->isPPC64();
+
   // If the block has no terminators, it just falls into the block after it.
   MachineBasicBlock::iterator I = MBB.end();
   if (I == MBB.begin())
@@ -221,7 +245,30 @@ bool PPCInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,MachineBasicBlock *&TBB,
       Cond.push_back(LastInst->getOperand(0));
       Cond.push_back(LastInst->getOperand(1));
       return false;
+    } else if (LastInst->getOpcode() == PPC::BDNZ8 ||
+               LastInst->getOpcode() == PPC::BDNZ) {
+      if (!LastInst->getOperand(0).isMBB())
+        return true;
+      if (DisableCTRLoopAnal)
+        return true;
+      TBB = LastInst->getOperand(0).getMBB();
+      Cond.push_back(MachineOperand::CreateImm(1));
+      Cond.push_back(MachineOperand::CreateReg(isPPC64 ? PPC::CTR8 : PPC::CTR,
+                                               true));
+      return false;
+    } else if (LastInst->getOpcode() == PPC::BDZ8 ||
+               LastInst->getOpcode() == PPC::BDZ) {
+      if (!LastInst->getOperand(0).isMBB())
+        return true;
+      if (DisableCTRLoopAnal)
+        return true;
+      TBB = LastInst->getOperand(0).getMBB();
+      Cond.push_back(MachineOperand::CreateImm(0));
+      Cond.push_back(MachineOperand::CreateReg(isPPC64 ? PPC::CTR8 : PPC::CTR,
+                                               true));
+      return false;
     }
+
     // Otherwise, don't know what this is.
     return true;
   }
@@ -243,6 +290,34 @@ bool PPCInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB,MachineBasicBlock *&TBB,
     TBB =  SecondLastInst->getOperand(2).getMBB();
     Cond.push_back(SecondLastInst->getOperand(0));
     Cond.push_back(SecondLastInst->getOperand(1));
+    FBB = LastInst->getOperand(0).getMBB();
+    return false;
+  } else if ((SecondLastInst->getOpcode() == PPC::BDNZ8 ||
+              SecondLastInst->getOpcode() == PPC::BDNZ) &&
+      LastInst->getOpcode() == PPC::B) {
+    if (!SecondLastInst->getOperand(0).isMBB() ||
+        !LastInst->getOperand(0).isMBB())
+      return true;
+    if (DisableCTRLoopAnal)
+      return true;
+    TBB = SecondLastInst->getOperand(0).getMBB();
+    Cond.push_back(MachineOperand::CreateImm(1));
+    Cond.push_back(MachineOperand::CreateReg(isPPC64 ? PPC::CTR8 : PPC::CTR,
+                                             true));
+    FBB = LastInst->getOperand(0).getMBB();
+    return false;
+  } else if ((SecondLastInst->getOpcode() == PPC::BDZ8 ||
+              SecondLastInst->getOpcode() == PPC::BDZ) &&
+      LastInst->getOpcode() == PPC::B) {
+    if (!SecondLastInst->getOperand(0).isMBB() ||
+        !LastInst->getOperand(0).isMBB())
+      return true;
+    if (DisableCTRLoopAnal)
+      return true;
+    TBB = SecondLastInst->getOperand(0).getMBB();
+    Cond.push_back(MachineOperand::CreateImm(0));
+    Cond.push_back(MachineOperand::CreateReg(isPPC64 ? PPC::CTR8 : PPC::CTR,
+                                             true));
     FBB = LastInst->getOperand(0).getMBB();
     return false;
   }
@@ -273,7 +348,9 @@ unsigned PPCInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
       return 0;
     --I;
   }
-  if (I->getOpcode() != PPC::B && I->getOpcode() != PPC::BCC)
+  if (I->getOpcode() != PPC::B && I->getOpcode() != PPC::BCC &&
+      I->getOpcode() != PPC::BDNZ8 && I->getOpcode() != PPC::BDNZ &&
+      I->getOpcode() != PPC::BDZ8  && I->getOpcode() != PPC::BDZ)
     return 0;
 
   // Remove the branch.
@@ -283,7 +360,9 @@ unsigned PPCInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
 
   if (I == MBB.begin()) return 1;
   --I;
-  if (I->getOpcode() != PPC::BCC)
+  if (I->getOpcode() != PPC::BCC &&
+      I->getOpcode() != PPC::BDNZ8 && I->getOpcode() != PPC::BDNZ &&
+      I->getOpcode() != PPC::BDZ8  && I->getOpcode() != PPC::BDZ)
     return 1;
 
   // Remove the branch.
@@ -301,10 +380,16 @@ PPCInstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
   assert((Cond.size() == 2 || Cond.size() == 0) &&
          "PPC branch conditions have two components!");
 
+  bool isPPC64 = TM.getSubtargetImpl()->isPPC64();
+
   // One-way branch.
   if (FBB == 0) {
     if (Cond.empty())   // Unconditional branch
       BuildMI(&MBB, DL, get(PPC::B)).addMBB(TBB);
+    else if (Cond[1].getReg() == PPC::CTR || Cond[1].getReg() == PPC::CTR8)
+      BuildMI(&MBB, DL, get(Cond[0].getImm() ?
+                              (isPPC64 ? PPC::BDNZ8 : PPC::BDNZ) :
+                              (isPPC64 ? PPC::BDZ8  : PPC::BDZ))).addMBB(TBB);
     else                // Conditional branch
       BuildMI(&MBB, DL, get(PPC::BCC))
         .addImm(Cond[0].getImm()).addReg(Cond[1].getReg()).addMBB(TBB);
@@ -312,8 +397,13 @@ PPCInstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
   }
 
   // Two-way Conditional Branch.
-  BuildMI(&MBB, DL, get(PPC::BCC))
-    .addImm(Cond[0].getImm()).addReg(Cond[1].getReg()).addMBB(TBB);
+  if (Cond[1].getReg() == PPC::CTR || Cond[1].getReg() == PPC::CTR8)
+    BuildMI(&MBB, DL, get(Cond[0].getImm() ?
+                            (isPPC64 ? PPC::BDNZ8 : PPC::BDNZ) :
+                            (isPPC64 ? PPC::BDZ8  : PPC::BDZ))).addMBB(TBB);
+  else
+    BuildMI(&MBB, DL, get(PPC::BCC))
+      .addImm(Cond[0].getImm()).addReg(Cond[1].getReg()).addMBB(TBB);
   BuildMI(&MBB, DL, get(PPC::B)).addMBB(FBB);
   return 2;
 }
@@ -354,7 +444,7 @@ PPCInstrInfo::StoreRegToStackSlot(MachineFunction &MF,
                                   const TargetRegisterClass *RC,
                                   SmallVectorImpl<MachineInstr*> &NewMIs) const{
   DebugLoc DL;
-  if (PPC::GPRCRegisterClass->hasSubClassEq(RC)) {
+  if (PPC::GPRCRegClass.hasSubClassEq(RC)) {
     if (SrcReg != PPC::LR) {
       NewMIs.push_back(addFrameReference(BuildMI(MF, DL, get(PPC::STW))
                                          .addReg(SrcReg,
@@ -370,7 +460,7 @@ PPCInstrInfo::StoreRegToStackSlot(MachineFunction &MF,
                                                  getKillRegState(isKill)),
                                          FrameIdx));
     }
-  } else if (PPC::G8RCRegisterClass->hasSubClassEq(RC)) {
+  } else if (PPC::G8RCRegClass.hasSubClassEq(RC)) {
     if (SrcReg != PPC::LR8) {
       NewMIs.push_back(addFrameReference(BuildMI(MF, DL, get(PPC::STD))
                                          .addReg(SrcReg,
@@ -386,17 +476,17 @@ PPCInstrInfo::StoreRegToStackSlot(MachineFunction &MF,
                                                  getKillRegState(isKill)),
                                          FrameIdx));
     }
-  } else if (PPC::F8RCRegisterClass->hasSubClassEq(RC)) {
+  } else if (PPC::F8RCRegClass.hasSubClassEq(RC)) {
     NewMIs.push_back(addFrameReference(BuildMI(MF, DL, get(PPC::STFD))
                                        .addReg(SrcReg,
                                                getKillRegState(isKill)),
                                        FrameIdx));
-  } else if (PPC::F4RCRegisterClass->hasSubClassEq(RC)) {
+  } else if (PPC::F4RCRegClass.hasSubClassEq(RC)) {
     NewMIs.push_back(addFrameReference(BuildMI(MF, DL, get(PPC::STFS))
                                        .addReg(SrcReg,
                                                getKillRegState(isKill)),
                                        FrameIdx));
-  } else if (PPC::CRRCRegisterClass->hasSubClassEq(RC)) {
+  } else if (PPC::CRRCRegClass.hasSubClassEq(RC)) {
     if ((!DisablePPC32RS && !TM.getSubtargetImpl()->isPPC64()) ||
         (!DisablePPC64RS && TM.getSubtargetImpl()->isPPC64())) {
       NewMIs.push_back(addFrameReference(BuildMI(MF, DL, get(PPC::SPILL_CR))
@@ -438,7 +528,7 @@ PPCInstrInfo::StoreRegToStackSlot(MachineFunction &MF,
                                                  getKillRegState(isKill)),
                                          FrameIdx));
     }
-  } else if (PPC::CRBITRCRegisterClass->hasSubClassEq(RC)) {
+  } else if (PPC::CRBITRCRegClass.hasSubClassEq(RC)) {
     // FIXME: We use CRi here because there is no mtcrf on a bit. Since the
     // backend currently only uses CR1EQ as an individual bit, this should
     // not cause any bug. If we need other uses of CR bits, the following
@@ -470,9 +560,9 @@ PPCInstrInfo::StoreRegToStackSlot(MachineFunction &MF,
       Reg = PPC::CR7;
 
     return StoreRegToStackSlot(MF, Reg, isKill, FrameIdx,
-                               PPC::CRRCRegisterClass, NewMIs);
+                               &PPC::CRRCRegClass, NewMIs);
 
-  } else if (PPC::VRRCRegisterClass->hasSubClassEq(RC)) {
+  } else if (PPC::VRRCRegClass.hasSubClassEq(RC)) {
     // We don't have indexed addressing for vector loads.  Emit:
     // R0 = ADDI FI#
     // STVX VAL, 0, R0
@@ -522,7 +612,7 @@ PPCInstrInfo::LoadRegFromStackSlot(MachineFunction &MF, DebugLoc DL,
                                    unsigned DestReg, int FrameIdx,
                                    const TargetRegisterClass *RC,
                                    SmallVectorImpl<MachineInstr*> &NewMIs)const{
-  if (PPC::GPRCRegisterClass->hasSubClassEq(RC)) {
+  if (PPC::GPRCRegClass.hasSubClassEq(RC)) {
     if (DestReg != PPC::LR) {
       NewMIs.push_back(addFrameReference(BuildMI(MF, DL, get(PPC::LWZ),
                                                  DestReg), FrameIdx));
@@ -531,7 +621,7 @@ PPCInstrInfo::LoadRegFromStackSlot(MachineFunction &MF, DebugLoc DL,
                                                  PPC::R11), FrameIdx));
       NewMIs.push_back(BuildMI(MF, DL, get(PPC::MTLR)).addReg(PPC::R11));
     }
-  } else if (PPC::G8RCRegisterClass->hasSubClassEq(RC)) {
+  } else if (PPC::G8RCRegClass.hasSubClassEq(RC)) {
     if (DestReg != PPC::LR8) {
       NewMIs.push_back(addFrameReference(BuildMI(MF, DL, get(PPC::LD), DestReg),
                                          FrameIdx));
@@ -540,13 +630,13 @@ PPCInstrInfo::LoadRegFromStackSlot(MachineFunction &MF, DebugLoc DL,
                                                  PPC::X11), FrameIdx));
       NewMIs.push_back(BuildMI(MF, DL, get(PPC::MTLR8)).addReg(PPC::X11));
     }
-  } else if (PPC::F8RCRegisterClass->hasSubClassEq(RC)) {
+  } else if (PPC::F8RCRegClass.hasSubClassEq(RC)) {
     NewMIs.push_back(addFrameReference(BuildMI(MF, DL, get(PPC::LFD), DestReg),
                                        FrameIdx));
-  } else if (PPC::F4RCRegisterClass->hasSubClassEq(RC)) {
+  } else if (PPC::F4RCRegClass.hasSubClassEq(RC)) {
     NewMIs.push_back(addFrameReference(BuildMI(MF, DL, get(PPC::LFS), DestReg),
                                        FrameIdx));
-  } else if (PPC::CRRCRegisterClass->hasSubClassEq(RC)) {
+  } else if (PPC::CRRCRegClass.hasSubClassEq(RC)) {
     if ((!DisablePPC32RS && !TM.getSubtargetImpl()->isPPC64()) ||
         (!DisablePPC64RS && TM.getSubtargetImpl()->isPPC64())) {
       NewMIs.push_back(addFrameReference(BuildMI(MF, DL,
@@ -578,7 +668,7 @@ PPCInstrInfo::LoadRegFromStackSlot(MachineFunction &MF, DebugLoc DL,
                          PPC::MTCRF8 : PPC::MTCRF), DestReg)
                        .addReg(ScratchReg));
     }
-  } else if (PPC::CRBITRCRegisterClass->hasSubClassEq(RC)) {
+  } else if (PPC::CRBITRCRegClass.hasSubClassEq(RC)) {
 
     unsigned Reg = 0;
     if (DestReg == PPC::CR0LT || DestReg == PPC::CR0GT ||
@@ -607,9 +697,9 @@ PPCInstrInfo::LoadRegFromStackSlot(MachineFunction &MF, DebugLoc DL,
       Reg = PPC::CR7;
 
     return LoadRegFromStackSlot(MF, DL, Reg, FrameIdx,
-                                PPC::CRRCRegisterClass, NewMIs);
+                                &PPC::CRRCRegClass, NewMIs);
 
-  } else if (PPC::VRRCRegisterClass->hasSubClassEq(RC)) {
+  } else if (PPC::VRRCRegClass.hasSubClassEq(RC)) {
     // We don't have indexed addressing for vector loads.  Emit:
     // R0 = ADDI FI#
     // Dest = LVX 0, R0
@@ -665,8 +755,11 @@ PPCInstrInfo::emitFrameIndexDebugValue(MachineFunction &MF,
 bool PPCInstrInfo::
 ReverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const {
   assert(Cond.size() == 2 && "Invalid PPC branch opcode!");
-  // Leave the CR# the same, but invert the condition.
-  Cond[0].setImm(PPC::InvertPredicate((PPC::Predicate)Cond[0].getImm()));
+  if (Cond[1].getReg() == PPC::CTR8 || Cond[1].getReg() == PPC::CTR)
+    Cond[0].setImm(Cond[0].getImm() == 0 ? 1 : 0);
+  else
+    // Leave the CR# the same, but invert the condition.
+    Cond[0].setImm(PPC::InvertPredicate((PPC::Predicate)Cond[0].getImm()));
   return false;
 }
 

@@ -10,6 +10,7 @@ del
 delete
 dst
 expire
+fib
 flush
 gateway
 genmask
