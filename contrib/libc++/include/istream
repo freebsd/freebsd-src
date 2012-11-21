@@ -194,7 +194,7 @@ protected:
 public:
 
     // 27.7.1.1.3 Prefix/suffix:
-    class sentry;
+    class _LIBCPP_VISIBLE sentry;
 
     // 27.7.1.2 Formatted input:
     basic_istream& operator>>(basic_istream& (*__pf)(basic_istream&));
@@ -1263,6 +1263,7 @@ basic_istream<_CharT, _Traits>::putback(char_type __c)
     try
     {
 #endif  // _LIBCPP_NO_EXCEPTIONS
+        this->clear(this->rdstate() & ~ios_base::eofbit);
         sentry __sen(*this, true);
         if (__sen)
         {
@@ -1290,6 +1291,7 @@ basic_istream<_CharT, _Traits>::unget()
     try
     {
 #endif  // _LIBCPP_NO_EXCEPTIONS
+        this->clear(this->rdstate() & ~ios_base::eofbit);
         sentry __sen(*this, true);
         if (__sen)
         {
@@ -1368,6 +1370,7 @@ basic_istream<_CharT, _Traits>::seekg(pos_type __pos)
     try
     {
 #endif  // _LIBCPP_NO_EXCEPTIONS
+        this->clear(this->rdstate() & ~ios_base::eofbit);
         sentry __sen(*this, true);
         if (__sen)
             if (this->rdbuf()->pubseekpos(__pos, ios_base::in) == pos_type(-1))

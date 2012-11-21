@@ -74,6 +74,9 @@ int mbtowc(wchar_t* restrict pwc, const char* restrict s, size_t n);
 int wctomb(char* s, wchar_t wchar);
 size_t mbstowcs(wchar_t* restrict pwcs, const char* restrict s, size_t n);
 size_t wcstombs(char* restrict s, const wchar_t* restrict pwcs, size_t n);
+int at_quick_exit(void (*func)(void))                                     // C++11
+void quick_exit(int status);                                              // C++11
+void *aligned_alloc(size_t alignment, size_t size);                       // C11
 
 }  // std
 
@@ -135,14 +138,17 @@ using ::wcstombs;
 using ::at_quick_exit;
 using ::quick_exit;
 #endif
+#ifdef _LIBCPP_HAS_C11_FEATURES
+using ::aligned_alloc;
+#endif
 
 // MSVC already has the correct prototype in <stdlib.h.h> #ifdef __cplusplus
 #if !defined(_MSC_VER) && !defined(__sun__)
-inline _LIBCPP_INLINE_VISIBILITY long      abs(     long __x) {return  labs(__x);}
-inline _LIBCPP_INLINE_VISIBILITY long long abs(long long __x) {return llabs(__x);}
+inline _LIBCPP_INLINE_VISIBILITY long      abs(     long __x) _NOEXCEPT {return  labs(__x);}
+inline _LIBCPP_INLINE_VISIBILITY long long abs(long long __x) _NOEXCEPT {return llabs(__x);}
 
-inline _LIBCPP_INLINE_VISIBILITY  ldiv_t div(     long __x,      long __y) {return  ldiv(__x, __y);}
-inline _LIBCPP_INLINE_VISIBILITY lldiv_t div(long long __x, long long __y) {return lldiv(__x, __y);}
+inline _LIBCPP_INLINE_VISIBILITY  ldiv_t div(     long __x,      long __y) _NOEXCEPT {return  ldiv(__x, __y);}
+inline _LIBCPP_INLINE_VISIBILITY lldiv_t div(long long __x, long long __y) _NOEXCEPT {return lldiv(__x, __y);}
 #endif // _MSC_VER
 
 _LIBCPP_END_NAMESPACE_STD
