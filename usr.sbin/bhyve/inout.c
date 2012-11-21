@@ -74,6 +74,7 @@ emulate_inout(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 	      uint32_t *eax, int strict)
 {
 	int flags;
+	uint32_t mask;
 	inout_func_t handler;
 	void *arg;
 
@@ -83,6 +84,21 @@ emulate_inout(struct vmctx *ctx, int vcpu, int in, int port, int bytes,
 
 	if (strict && handler == default_inout)
 		return (-1);
+
+	if (!in) {
+		switch (bytes) {
+		case 1:
+			mask = 0xff;
+			break;
+		case 2:
+			mask = 0xffff;
+			break;
+		default:
+			mask = 0xffffffff;
+			break;
+		}
+		*eax = *eax & mask;
+	}
 
 	flags = inout_handlers[port].flags;
 	arg = inout_handlers[port].arg;
