@@ -854,27 +854,6 @@ mdinit(struct md_s *sc)
 	    DEVSTAT_ALL_SUPPORTED, DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 }
 
-/*
- * XXX: we should check that the range they feed us is mapped.
- * XXX: we should implement read-only.
- */
-
-static int
-mdcreate_preload(struct md_s *sc, struct md_ioctl *mdio)
-{
-
-	if (mdio->md_options & ~(MD_AUTOUNIT | MD_FORCE))
-		return (EINVAL);
-	if (mdio->md_base == 0)
-		return (EINVAL);
-	sc->flags = mdio->md_options & MD_FORCE;
-	/* Cast to pointer size, then to pointer to avoid warning */
-	sc->pl_ptr = (u_char *)(uintptr_t)mdio->md_base;
-	sc->pl_len = (size_t)sc->mediasize;
-	return (0);
-}
-
-
 static int
 mdcreate_malloc(struct md_s *sc, struct md_ioctl *mdio)
 {
@@ -1238,8 +1217,12 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 			error = mdcreate_malloc(sc, mdio);
 			break;
 		case MD_PRELOAD:
-			sc->start = mdstart_preload;
-			error = mdcreate_preload(sc, mdio);
+			/*
+			 * We disallow attaching preloaded memory disks via
+			 * ioctl. Preloaded memory disks are automatically
+			 * attached in g_md_init().
+			 */
+			error = EOPNOTSUPP;
 			break;
 		case MD_VNODE:
 			sc->start = mdstart_vnode;
