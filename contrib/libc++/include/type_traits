@@ -607,22 +607,33 @@ template <class _Tp> struct __libcpp_abstract<_Tp, false> : public false_type {}
 
 template <class _Tp> struct _LIBCPP_VISIBLE is_abstract : public __libcpp_abstract<_Tp> {};
 
+// is_base_of
+
+#ifdef _LIBCP_HAS_IS_BASE_OF
+
+template <class _Bp, class _Dp>
+struct _LIBCPP_VISIBLE is_base_of
+    : public integral_constant<bool, __is_base_of(_Bp, _Dp)> {};
+
+#else  // __has_feature(is_base_of)
+
+#error is_base_of not implemented.
+
+#endif  // __has_feature(is_base_of)
+
 // is_convertible
 
 #if __has_feature(is_convertible_to)
 
 template <class _T1, class _T2> struct _LIBCPP_VISIBLE is_convertible
-    : public integral_constant<bool, __is_convertible_to(_T1, _T2)> {};
+    : public integral_constant<bool, __is_convertible_to(_T1, _T2) &&
+                                     !is_abstract<_T2>::value> {};
 
 #else  // __has_feature(is_convertible_to)
 
 namespace __is_convertible_imp
 {
-#ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
-template <class _Tp> char  __test(const volatile typename remove_reference<_Tp>::type&&);
-#else
 template <class _Tp> char  __test(_Tp);
-#endif
 template <class _Tp> __two __test(...);
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
 template <class _Tp> _Tp&& __source();
@@ -657,7 +668,17 @@ template <class _T1, class _T2,
     unsigned _T2_is_array_function_or_void = __is_convertible_imp::__is_array_function_or_void<_T2>::value>
 struct __is_convertible
     : public integral_constant<bool,
+#ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
         sizeof(__is_convertible_imp::__test<_T2>(__is_convertible_imp::__source<_T1>())) == 1
+#else
+        sizeof(__is_convertible_imp::__test<_T2>(__is_convertible_imp::__source<_T1>())) == 1
+         && !(!is_function<_T1>::value && !is_reference<_T1>::value && is_reference<_T2>::value
+              && (!is_const<typename remove_reference<_T2>::type>::value
+                  || is_volatile<typename remove_reference<_T2>::type>::value)
+                  && (is_same<typename remove_cv<_T1>::type,
+                              typename remove_cv<typename remove_reference<_T2>::type>::type>::value
+                      || is_base_of<typename remove_reference<_T2>::type, _T1>::value))
+#endif
     >
 {};
 
@@ -687,6 +708,7 @@ template <class _T1, class _T2> struct __is_convertible<_T1, _T2, 2, 0>         
 #ifndef _LIBCPP_HAS_NO_RVALUE_REFERENCES
 template <class _T1>            struct __is_convertible<_T1, _T1&&, 2, 0>               : public true_type {};
 #endif
+template <class _T1>            struct __is_convertible<_T1, _T1&, 2, 0>               : public true_type {};
 template <class _T1>            struct __is_convertible<_T1, _T1*, 2, 0>               : public true_type {};
 template <class _T1>            struct __is_convertible<_T1, _T1*const, 2, 0>          : public true_type {};
 template <class _T1>            struct __is_convertible<_T1, _T1*volatile, 2, 0>       : public true_type {};
@@ -717,20 +739,6 @@ template <class _T1, class _T2> struct _LIBCPP_VISIBLE is_convertible
 };
 
 #endif  // __has_feature(is_convertible_to)
-
-// is_base_of
-
-#ifdef _LIBCP_HAS_IS_BASE_OF
-
-template <class _Bp, class _Dp>
-struct _LIBCPP_VISIBLE is_base_of
-    : public integral_constant<bool, __is_base_of(_Bp, _Dp)> {};
-
-#else  // __has_feature(is_base_of)
-
-#error is_base_of not implemented.
-
-#endif  // __has_feature(is_base_of)
 
 // is_empty
 
@@ -1609,76 +1617,12 @@ struct __member_pointer_traits
 
 template <class _Callable> class result_of;
 
+#ifdef _LIBCPP_HAS_NO_VARIADICS
+
 template <class _Fn, bool, bool>
 class __result_of
 {
 };
-
-#ifndef _LIBCPP_HAS_NO_VARIADICS
-
-template <class _Fn, class ..._ArgTypes>
-class __result_of<_Fn(_ArgTypes...), true, false>
-{
-public:
-    typedef decltype(declval<_Fn>()(declval<_ArgTypes>()...)) type;
-};
-
-template <class _MP, class _Tp, bool _IsMemberFunctionPtr>
-struct __result_of_mp;
-
-// member function pointer
-
-template <class _MP, class _Tp>
-struct __result_of_mp<_MP, _Tp, true>
-    : public common_type<typename __member_pointer_traits<_MP>::_ReturnType>
-{
-};
-
-// member data pointer
-
-template <class _MP, class _Tp, bool>
-struct __result_of_mdp;
-
-template <class _Rp, class _Class, class _Tp>
-struct __result_of_mdp<_Rp _Class::*, _Tp, false>
-{
-    typedef typename __apply_cv<decltype(*_VSTD::declval<_Tp>()), _Rp>::type&& type;
-};
-
-template <class _Rp, class _Class, class _Tp>
-struct __result_of_mdp<_Rp _Class::*, _Tp, true>
-{
-    typedef typename __apply_cv<_Tp, _Rp>::type&& type;
-};
-
-template <class _Rp, class _Class, class _Tp>
-struct __result_of_mp<_Rp _Class::*, _Tp, false>
-    : public __result_of_mdp<_Rp _Class::*, _Tp,
-            is_base_of<_Class, typename remove_reference<_Tp>::type>::value>
-{
-};
-
-template <class _Fn, class _Tp, class ..._ArgTypes>
-class __result_of<_Fn(_Tp, _ArgTypes...), false, true>  // _Fn must be member pointer
-    : public __result_of_mp<typename remove_reference<_Fn>::type,
-                            _Tp,
-                            is_member_function_pointer<typename remove_reference<_Fn>::type>::value>
-{
-};
-
-// result_of
-
-template <class _Fn, class ..._ArgTypes>
-class _LIBCPP_VISIBLE result_of<_Fn(_ArgTypes...)>
-    : public __result_of<_Fn(_ArgTypes...),
-                         is_class<typename remove_reference<_Fn>::type>::value ||
-                         is_function<typename remove_reference<_Fn>::type>::value,
-                         is_member_pointer<typename remove_reference<_Fn>::type>::value
-                        >
-{
-};
-
-#else  // _LIBCPP_HAS_NO_VARIADICS
 
 template <class _Fn>
 class __result_of<_Fn(), true, false>
@@ -2781,37 +2725,37 @@ struct __check_complete<_Tp&&>
 
 template <class _Rp, class ..._Param>
 struct __check_complete<_Rp (*)(_Param...)>
-    : private __check_complete<_Param...>
+    : private __check_complete<_Rp>
 {
 };
 
 template <class _Rp, class ..._Param>
 struct __check_complete<_Rp (_Param...)>
-    : private __check_complete<_Param...>
+    : private __check_complete<_Rp>
 {
 };
 
 template <class _Rp, class _Class, class ..._Param>
 struct __check_complete<_Rp (_Class::*)(_Param...)>
-    : private __check_complete<_Class, _Param...>
+    : private __check_complete<_Class>
 {
 };
 
 template <class _Rp, class _Class, class ..._Param>
 struct __check_complete<_Rp (_Class::*)(_Param...) const>
-    : private __check_complete<_Class, _Param...>
+    : private __check_complete<_Class>
 {
 };
 
 template <class _Rp, class _Class, class ..._Param>
 struct __check_complete<_Rp (_Class::*)(_Param...) volatile>
-    : private __check_complete<_Class, _Param...>
+    : private __check_complete<_Class>
 {
 };
 
 template <class _Rp, class _Class, class ..._Param>
 struct __check_complete<_Rp (_Class::*)(_Param...) const volatile>
-    : private __check_complete<_Class, _Param...>
+    : private __check_complete<_Class>
 {
 };
 
@@ -2819,49 +2763,49 @@ struct __check_complete<_Rp (_Class::*)(_Param...) const volatile>
 
 template <class _Rp, class _Class, class ..._Param>
 struct __check_complete<_Rp (_Class::*)(_Param...) &>
-    : private __check_complete<_Class, _Param...>
+    : private __check_complete<_Class>
 {
 };
 
 template <class _Rp, class _Class, class ..._Param>
 struct __check_complete<_Rp (_Class::*)(_Param...) const&>
-    : private __check_complete<_Class, _Param...>
+    : private __check_complete<_Class>
 {
 };
 
 template <class _Rp, class _Class, class ..._Param>
 struct __check_complete<_Rp (_Class::*)(_Param...) volatile&>
-    : private __check_complete<_Class, _Param...>
+    : private __check_complete<_Class>
 {
 };
 
 template <class _Rp, class _Class, class ..._Param>
 struct __check_complete<_Rp (_Class::*)(_Param...) const volatile&>
-    : private __check_complete<_Class, _Param...>
+    : private __check_complete<_Class>
 {
 };
 
 template <class _Rp, class _Class, class ..._Param>
 struct __check_complete<_Rp (_Class::*)(_Param...) &&>
-    : private __check_complete<_Class, _Param...>
+    : private __check_complete<_Class>
 {
 };
 
 template <class _Rp, class _Class, class ..._Param>
 struct __check_complete<_Rp (_Class::*)(_Param...) const&&>
-    : private __check_complete<_Class, _Param...>
+    : private __check_complete<_Class>
 {
 };
 
 template <class _Rp, class _Class, class ..._Param>
 struct __check_complete<_Rp (_Class::*)(_Param...) volatile&&>
-    : private __check_complete<_Class, _Param...>
+    : private __check_complete<_Class>
 {
 };
 
 template <class _Rp, class _Class, class ..._Param>
 struct __check_complete<_Rp (_Class::*)(_Param...) const volatile&&>
-    : private __check_complete<_Class, _Param...>
+    : private __check_complete<_Class>
 {
 };
 
@@ -2885,11 +2829,13 @@ __invoke(__any, _Args&& ...__args)
 // bullets 1 and 2
 
 template <class _Fp, class _A0, class ..._Args>
+_LIBCPP_INLINE_VISIBILITY
 auto
 __invoke(_Fp&& __f, _A0&& __a0, _Args&& ...__args)
     -> decltype((_VSTD::forward<_A0>(__a0).*__f)(_VSTD::forward<_Args>(__args)...));
 
 template <class _Fp, class _A0, class ..._Args>
+_LIBCPP_INLINE_VISIBILITY
 auto
 __invoke(_Fp&& __f, _A0&& __a0, _Args&& ...__args)
     -> decltype(((*_VSTD::forward<_A0>(__a0)).*__f)(_VSTD::forward<_Args>(__args)...));
@@ -2897,11 +2843,13 @@ __invoke(_Fp&& __f, _A0&& __a0, _Args&& ...__args)
 // bullets 3 and 4
 
 template <class _Fp, class _A0>
+_LIBCPP_INLINE_VISIBILITY
 auto
 __invoke(_Fp&& __f, _A0&& __a0)
     -> decltype(_VSTD::forward<_A0>(__a0).*__f);
 
 template <class _Fp, class _A0>
+_LIBCPP_INLINE_VISIBILITY
 auto
 __invoke(_Fp&& __f, _A0&& __a0)
     -> decltype((*_VSTD::forward<_A0>(__a0)).*__f);
@@ -2909,6 +2857,7 @@ __invoke(_Fp&& __f, _A0&& __a0)
 // bullet 5
 
 template <class _Fp, class ..._Args>
+_LIBCPP_INLINE_VISIBILITY
 auto
 __invoke(_Fp&& __f, _Args&& ...__args)
     -> decltype(_VSTD::forward<_Fp>(__f)(_VSTD::forward<_Args>(__args)...));
@@ -2917,7 +2866,7 @@ __invoke(_Fp&& __f, _Args&& ...__args)
 
 template <class _Fp, class ..._Args>
 struct __invokable_imp
-    : private __check_complete<_Fp, _Args...>
+    : private __check_complete<_Fp>
 {
     typedef decltype(
             __invoke(_VSTD::declval<_Fp>(), _VSTD::declval<_Args>()...)
@@ -2948,6 +2897,12 @@ struct __invoke_of_imp<true, _Fp, _Args...>
 template <class _Fp, class ..._Args>
 struct __invoke_of
     : public __invoke_of_imp<__invokable<_Fp, _Args...>::value, _Fp, _Args...>
+{
+};
+
+template <class _Fp, class ..._Args>
+class _LIBCPP_VISIBLE result_of<_Fp(_Args...)>
+    : public __invoke_of<_Fp, _Args...>
 {
 };
 
