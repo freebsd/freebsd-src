@@ -93,6 +93,7 @@ FBSD_1.0 {
 };
 
 FBSD_1.3 {
+	aligned_alloc;
 	atof_l;
 	atoi_l;
 	atol_l;
