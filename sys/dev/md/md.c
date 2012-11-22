@@ -677,6 +677,15 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 				sched_unpin();
 				vm_page_wakeup(m);
 				break;
+			} else if (rv == VM_PAGER_FAIL) {
+				/*
+				 * Pager does not have the page.  Zero
+				 * the allocated page, and mark it as
+				 * valid. Do not set dirty, the page
+				 * can be recreated if thrown out.
+				 */
+				bzero((void *)sf_buf_kva(sf), PAGE_SIZE);
+				m->valid = VM_PAGE_BITS_ALL;
 			}
 			bcopy((void *)(sf_buf_kva(sf) + offs), p, len);
 			cpu_flush_dcache(p, len);
