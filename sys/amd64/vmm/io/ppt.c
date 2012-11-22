@@ -247,7 +247,7 @@ ppt_teardown_msix_intr(struct pptdev *ppt, int idx)
 static void 
 ppt_teardown_msix(struct pptdev *ppt)
 {
-	int i, error;
+	int i;
 
 	if (ppt->msix.num_msgs == 0) 
 		return;
@@ -267,9 +267,7 @@ ppt_teardown_msix(struct pptdev *ppt)
 	free(ppt->msix.cookie, M_PPTMSIX);
 	free(ppt->msix.arg, M_PPTMSIX);
 
-	error = pci_release_msi(ppt->dev);
-	if (error) 
-		printf("ppt_teardown_msix: Failed to release MSI-X resources (error %i)\n", error);
+	pci_release_msi(ppt->dev);
 
 	ppt->msix.num_msgs = 0;
 }
@@ -519,7 +517,7 @@ ppt_setup_msix(struct vm *vm, int vcpu, int bus, int slot, int func,
 {
 	struct pptdev *ppt;
 	struct pci_devinfo *dinfo;
-	int numvec, vector_count, rid, error;
+	int numvec, alloced, rid, error;
 	size_t res_size, cookie_size, arg_size;
 
 	ppt = ppt_find(bus, slot, func);
@@ -538,48 +536,39 @@ ppt_setup_msix(struct vm *vm, int vcpu, int bus, int slot, int func,
 	 *	Allocate the IRQ resources
 	 *	Set up some variables in ppt->msix
 	 */
-	if (!ppt->msix.msix_table_res) {
-		ppt->msix.res = NULL;
-		ppt->msix.cookie = NULL;
-		ppt->msix.arg = NULL;
-
-		rid = dinfo->cfg.msix.msix_table_bar;
-		ppt->msix.msix_table_res = bus_alloc_resource_any(ppt->dev, SYS_RES_MEMORY,
-								  &rid, RF_ACTIVE);
-		if (ppt->msix.msix_table_res == NULL) 
-			return (ENOSPC);
-
-		ppt->msix.msix_table_rid = rid;
-
-		vector_count = numvec = pci_msix_count(ppt->dev);
-
-		error = pci_alloc_msix(ppt->dev, &numvec);
-		if (error) 
-			return (error);
-		else if (vector_count != numvec) {
-			pci_release_msi(ppt->dev);
-			return (ENOSPC);
-		} 
-
-		ppt->msix.num_msgs = numvec;
+	if (ppt->msix.num_msgs == 0) {
+		numvec = pci_msix_count(ppt->dev);
+		if (numvec <= 0)
+			return (EINVAL);
 
 		ppt->msix.startrid = 1;
+		ppt->msix.num_msgs = numvec;
 
 		res_size = numvec * sizeof(ppt->msix.res[0]);
 		cookie_size = numvec * sizeof(ppt->msix.cookie[0]);
 		arg_size = numvec * sizeof(ppt->msix.arg[0]);
 
-		ppt->msix.res = malloc(res_size, M_PPTMSIX, M_WAITOK);
-		ppt->msix.cookie = malloc(cookie_size, M_PPTMSIX, M_WAITOK);
-		ppt->msix.arg = malloc(arg_size, M_PPTMSIX, M_WAITOK);
-		if (ppt->msix.res == NULL || ppt->msix.cookie == NULL || 
-		    ppt->msix.arg == NULL) {
+		ppt->msix.res = malloc(res_size, M_PPTMSIX, M_WAITOK | M_ZERO);
+		ppt->msix.cookie = malloc(cookie_size, M_PPTMSIX,
+					  M_WAITOK | M_ZERO);
+		ppt->msix.arg = malloc(arg_size, M_PPTMSIX, M_WAITOK | M_ZERO);
+
+		rid = dinfo->cfg.msix.msix_table_bar;
+		ppt->msix.msix_table_res = bus_alloc_resource_any(ppt->dev,
+					       SYS_RES_MEMORY, &rid, RF_ACTIVE);
+
+		if (ppt->msix.msix_table_res == NULL) {
 			ppt_teardown_msix(ppt);
 			return (ENOSPC);
 		}
-		bzero(ppt->msix.res, res_size);
-		bzero(ppt->msix.cookie, cookie_size);
-		bzero(ppt->msix.arg, arg_size);
+		ppt->msix.msix_table_rid = rid;
+
+		alloced = numvec;
+		error = pci_alloc_msix(ppt->dev, &alloced);
+		if (error || alloced != numvec) {
+			ppt_teardown_msix(ppt);
+			return (error == 0 ? ENOSPC: error);
+		}
 	}
 
 	if ((vector_control & PCIM_MSIX_VCTRL_MASK) == 0) {
