@@ -672,7 +672,7 @@ passthru_write(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 
 	sc = pi->pi_arg;
 
-	if (pi->pi_msix.enabled && pi->pi_msix.table_bar == baridx) {
+	if (pi->pi_msix.table_bar == baridx) {
 		msix_table_write(ctx, vcpu, sc, offset, size, value);
 	} else {
 		assert(pi->pi_bar[baridx].type == PCIBAR_IO);
@@ -696,7 +696,7 @@ passthru_read(struct vmctx *ctx, int vcpu, struct pci_devinst *pi, int baridx,
 
 	sc = pi->pi_arg;
 
-	if (pi->pi_msix.enabled && pi->pi_msix.table_bar == baridx) {
+	if (pi->pi_msix.table_bar == baridx) {
 		val = msix_table_read(sc, offset, size);
 	} else {
 		assert(pi->pi_bar[baridx].type == PCIBAR_IO);
