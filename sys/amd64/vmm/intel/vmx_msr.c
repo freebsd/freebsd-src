@@ -148,7 +148,7 @@ msr_bitmap_change_access(char *bitmap, u_int msr, int access)
 {
 	int byte, bit;
 
-	if (msr >= 0x00000000 && msr <= 0x00001FFF)
+	if (msr <= 0x00001FFF)
 		byte = msr / 8;
 	else if (msr >= 0xC0000000 && msr <= 0xC0001FFF)
 		byte = 1024 + (msr - 0xC0000000) / 8;
