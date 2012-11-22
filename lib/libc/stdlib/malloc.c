@@ -6046,6 +6046,20 @@ RETURN:
 }
 
 void *
+aligned_alloc(size_t alignment, size_t size)
+{
+	void *memptr;
+	int ret;
+
+	ret = posix_memalign(&memptr, alignment, size);
+	if (ret != 0) {
+		errno = ret;
+		return (NULL);
+	}
+	return (memptr);
+}
+
+void *
 calloc(size_t num, size_t size)
 {
 	void *ret;
