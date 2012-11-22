@@ -207,7 +207,6 @@ smbfs_mount(struct mount *mp)
 	vfs_flagopt(mp->mnt_optnew,
 	    "nolong", &smp->sm_flags, SMBFS_MOUNT_NO_LONG);
 
-/*	simple_lock_init(&smp->sm_npslock);*/
 	pc = mp->mnt_stat.f_mntfromname;
 	pe = pc + sizeof(mp->mnt_stat.f_mntfromname);
 	bzero(pc, MNAMELEN);
