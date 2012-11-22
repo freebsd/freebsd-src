@@ -220,6 +220,13 @@ static int eap_server_tls_process_fragment(struct eap_ssl_data *data,
 				   " over 64 kB)");
 			return -1;
 		}
+		if (len > message_length) {
+			wpa_printf(MSG_INFO, "SSL: Too much data (%d bytes) in "
+				   "first fragment of frame (TLS Message "
+				   "Length %d bytes)",
+				   (int) len, (int) message_length);
+			return -1;
+		}
 
 		data->in_buf = wpabuf_alloc(message_length);
 		if (data->in_buf == NULL) {
