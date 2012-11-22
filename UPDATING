@@ -8,6 +8,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20121122:	p11	FreeBSD-SA-12:06.bind FreeBSD-SA-12:08.linux
+	Fix multiple Denial of Service vulnerabilities with named(8).
+
+	Fix Linux compatibility layer input validation error.
+
 20120806:	p10	FreeBSD-SA-12:05.bind
 	Fix named(8) DNSSEC validation Denial of Service.
 
