@@ -127,6 +127,17 @@ struct dns_rdata {
 #define DNS_RDATA_UPDATE	0x0001		/*%< update pseudo record */
 
 /*
+ * The maximum length of a RDATA that can be sent on the wire.
+ * Max packet size (65535) less header (12), less name (1), type (2),
+ * class (2), ttl(4), length (2).
+ *
+ * None of the defined types that support name compression can exceed
+ * this and all new types are to be sent uncompressed.
+ */
+
+#define DNS_RDATA_MAXLENGTH	65512U
+
+/*
  * Flags affecting rdata formatting style.  Flags 0xFFFF0000
  * are used by masterfile-level formatting and defined elsewhere.
  * See additional comments at dns_rdata_tofmttext().
