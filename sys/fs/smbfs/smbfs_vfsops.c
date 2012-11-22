@@ -320,7 +320,7 @@ smbfs_root(struct mount *mp, int flags, struct vnode **vpp)
 	error = smbfs_smb_lookup(NULL, NULL, 0, &fattr, scred);
 	if (error)
 		goto out;
-	error = smbfs_nget(mp, NULL, "TheRooT", 7, &fattr, &vp);
+	error = smbfs_nget(mp, NULL, NULL, 0, &fattr, &vp);
 	if (error)
 		goto out;
 	ASSERT_VOP_LOCKED(vp, "smbfs_root");
