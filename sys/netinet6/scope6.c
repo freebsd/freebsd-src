@@ -121,11 +121,11 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 	int error = 0;
 	struct scope6_id *sid = NULL;
 
-	IF_AFDATA_LOCK(ifp);
+	IF_AFDATA_WLOCK(ifp);
 	sid = SID(ifp);
 
 	if (!sid) {	/* paranoid? */
-		IF_AFDATA_UNLOCK(ifp);
+		IF_AFDATA_WUNLOCK(ifp);
 		return (EINVAL);
 	}
 
@@ -139,7 +139,6 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 	 * interface addresses, routing table entries, PCB entries...
 	 */
 
-	SCOPE6_LOCK();
 	for (i = 0; i < 16; i++) {
 		if (idlist->s6id_list[i] &&
 		    idlist->s6id_list[i] != sid->s6id_list[i]) {
@@ -149,8 +148,7 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 			 */
 			if (i == IPV6_ADDR_SCOPE_INTFACELOCAL &&
 			    idlist->s6id_list[i] != ifp->if_index) {
-				IF_AFDATA_UNLOCK(ifp);
-				SCOPE6_UNLOCK();
+				IF_AFDATA_WUNLOCK(ifp);
 				return (EINVAL);
 			}
 
@@ -162,8 +160,7 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 				 * IDs, but we check the consistency for
 				 * safety in later use.
 				 */
-				IF_AFDATA_UNLOCK(ifp);
-				SCOPE6_UNLOCK();
+				IF_AFDATA_WUNLOCK(ifp);
 				return (EINVAL);
 			}
 
@@ -175,8 +172,7 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 			sid->s6id_list[i] = idlist->s6id_list[i];
 		}
 	}
-	SCOPE6_UNLOCK();
-	IF_AFDATA_UNLOCK(ifp);
+	IF_AFDATA_WUNLOCK(ifp);
 
 	return (error);
 }
@@ -184,20 +180,19 @@ scope6_set(struct ifnet *ifp, struct scope6_id *idlist)
 int
 scope6_get(struct ifnet *ifp, struct scope6_id *idlist)
 {
-	/* We only need to lock the interface's afdata for SID() to work. */
-	IF_AFDATA_LOCK(ifp);
-	struct scope6_id *sid = SID(ifp);
+	struct scope6_id *sid;
 
+	/* We only need to lock the interface's afdata for SID() to work. */
+	IF_AFDATA_RLOCK(ifp);
+	sid = SID(ifp);
 	if (sid == NULL) {	/* paranoid? */
-		IF_AFDATA_UNLOCK(ifp);
+		IF_AFDATA_RUNLOCK(ifp);
 		return (EINVAL);
 	}
 
-	SCOPE6_LOCK();
 	*idlist = *sid;
-	SCOPE6_UNLOCK();
 
-	IF_AFDATA_UNLOCK(ifp);
+	IF_AFDATA_RUNLOCK(ifp);
 	return (0);
 }
 
@@ -388,7 +383,7 @@ sa6_recoverscope(struct sockaddr_in6 *sin6)
 		zoneid = ntohs(sin6->sin6_addr.s6_addr16[1]);
 		if (zoneid) {
 			/* sanity check */
-			if (zoneid < 0 || V_if_index < zoneid)
+			if (V_if_index < zoneid)
 				return (ENXIO);
 			if (!ifnet_byindex(zoneid))
 				return (ENXIO);
@@ -414,7 +409,7 @@ in6_setscope(struct in6_addr *in6, struct ifnet *ifp, u_int32_t *ret_id)
 	u_int32_t zoneid = 0;
 	struct scope6_id *sid;
 
-	IF_AFDATA_LOCK(ifp);
+	IF_AFDATA_RLOCK(ifp);
 
 	sid = SID(ifp);
 
@@ -431,19 +426,17 @@ in6_setscope(struct in6_addr *in6, struct ifnet *ifp, u_int32_t *ret_id)
 	 */
 	if (IN6_IS_ADDR_LOOPBACK(in6)) {
 		if (!(ifp->if_flags & IFF_LOOPBACK)) {
-			IF_AFDATA_UNLOCK(ifp);
+			IF_AFDATA_RUNLOCK(ifp);
 			return (EINVAL);
 		} else {
 			if (ret_id != NULL)
 				*ret_id = 0; /* there's no ambiguity */
-			IF_AFDATA_UNLOCK(ifp);
+			IF_AFDATA_RUNLOCK(ifp);
 			return (0);
 		}
 	}
 
 	scope = in6_addrscope(in6);
-
-	SCOPE6_LOCK();
 	switch (scope) {
 	case IPV6_ADDR_SCOPE_INTFACELOCAL: /* should be interface index */
 		zoneid = sid->s6id_list[IPV6_ADDR_SCOPE_INTFACELOCAL];
@@ -465,8 +458,7 @@ in6_setscope(struct in6_addr *in6, struct ifnet *ifp, u_int32_t *ret_id)
 		zoneid = 0;	/* XXX: treat as global. */
 		break;
 	}
-	SCOPE6_UNLOCK();
-	IF_AFDATA_UNLOCK(ifp);
+	IF_AFDATA_RUNLOCK(ifp);
 
 	if (ret_id != NULL)
 		*ret_id = zoneid;
