@@ -2842,26 +2842,9 @@ netinet/in_proto.c		optional inet | inet6 \
 	compile-with "${NORMAL_C} -I$S/contrib/pf"
 netinet/in_rmx.c		optional inet
 netinet/ip_divert.c		optional inet ipdivert ipfirewall
-netinet/ipfw/dn_heap.c		optional inet dummynet
-netinet/ipfw/dn_sched_fifo.c	optional inet dummynet
-netinet/ipfw/dn_sched_prio.c	optional inet dummynet
-netinet/ipfw/dn_sched_qfq.c	optional inet dummynet 
-netinet/ipfw/dn_sched_rr.c	optional inet dummynet
-netinet/ipfw/dn_sched_wf2q.c	optional inet dummynet 
-netinet/ipfw/ip_dummynet.c	optional inet dummynet
-netinet/ipfw/ip_dn_io.c		optional inet dummynet
-netinet/ipfw/ip_dn_glue.c	optional inet dummynet
 netinet/ip_ecn.c		optional inet | inet6
 netinet/ip_encap.c		optional inet | inet6
 netinet/ip_fastfwd.c		optional inet
-netinet/ipfw/ip_fw2.c		optional inet ipfirewall \
-	compile-with "${NORMAL_C} -I$S/contrib/pf"
-netinet/ipfw/ip_fw_dynamic.c	optional inet ipfirewall
-netinet/ipfw/ip_fw_log.c	optional inet ipfirewall
-netinet/ipfw/ip_fw_pfil.c	optional inet ipfirewall
-netinet/ipfw/ip_fw_sockopt.c	optional inet ipfirewall
-netinet/ipfw/ip_fw_table.c	optional inet ipfirewall
-netinet/ipfw/ip_fw_nat.c	optional inet ipfirewall_nat
 netinet/ip_icmp.c		optional inet | inet6
 netinet/ip_input.c		optional inet
 netinet/ip_ipsec.c		optional inet ipsec
@@ -2969,6 +2952,23 @@ netncp/ncp_nls.c		optional ncp
 netncp/ncp_rq.c			optional ncp
 netncp/ncp_sock.c		optional ncp
 netncp/ncp_subr.c		optional ncp
+netpfil/ipfw/dn_heap.c		optional inet dummynet
+netpfil/ipfw/dn_sched_fifo.c	optional inet dummynet
+netpfil/ipfw/dn_sched_prio.c	optional inet dummynet
+netpfil/ipfw/dn_sched_qfq.c	optional inet dummynet
+netpfil/ipfw/dn_sched_rr.c	optional inet dummynet
+netpfil/ipfw/dn_sched_wf2q.c	optional inet dummynet
+netpfil/ipfw/ip_dummynet.c	optional inet dummynet
+netpfil/ipfw/ip_dn_io.c		optional inet dummynet
+netpfil/ipfw/ip_dn_glue.c	optional inet dummynet
+netpfil/ipfw/ip_fw2.c		optional inet ipfirewall \
+	compile-with "${NORMAL_C} -I$S/contrib/pf"
+netpfil/ipfw/ip_fw_dynamic.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_log.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_pfil.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_sockopt.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_table.c	optional inet ipfirewall
+netpfil/ipfw/ip_fw_nat.c	optional inet ipfirewall_nat
 netsmb/smb_conn.c		optional netsmb
 netsmb/smb_crypt.c		optional netsmb
 netsmb/smb_dev.c		optional netsmb
