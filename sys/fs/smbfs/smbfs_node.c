@@ -114,7 +114,6 @@ smbfs_node_alloc(struct mount *mp, struct vnode *dvp, const char *dirnm,
 	sc.n_parent = dvp;
 	sc.n_nmlen = nmlen;
 	sc.n_name = name;	
-	*vpp = NULL;
 	if (smp->sm_root != NULL && dvp == NULL) {
 		SMBERROR("do not allocate root vnode twice!\n");
 		return EINVAL;
@@ -136,7 +135,6 @@ smbfs_node_alloc(struct mount *mp, struct vnode *dvp, const char *dirnm,
 		vprint("smbfs_node_alloc: dead parent vnode", dvp);
 		return EINVAL;
 	}
-	*vpp = NULL;
 	error = vfs_hash_get(mp, smbfs_hash(name, nmlen), LK_EXCLUSIVE, td,
 	    vpp, smbfs_vnode_cmp, &sc);
 	if (error)
@@ -233,7 +231,6 @@ smbfs_nget(struct mount *mp, struct vnode *dvp, const char *name, int nmlen,
 	struct vnode *vp;
 	int error, sep;
 
-	*vpp = NULL;
 	dnp = (dvp) ? VTOSMB(dvp) : NULL;
 	sep = 0;
 	if (dnp != NULL) {
