@@ -107,44 +107,6 @@ smb_dos2unixtime(u_int dd, u_int dt, u_int dh, int tzoff,
 	smb_time_server2local(tsp->tv_sec, tzoff, tsp);
 }
 
-static int
-smb_fphelp(struct mbchain *mbp, struct smb_vc *vcp, struct smbnode *np,
-	int caseopt)
-{
-	struct smbmount *smp= np->n_mount;
-	struct smbnode **npp = smp->sm_npstack;
-	int i, error = 0;
-
-/*	simple_lock(&smp->sm_npslock);*/
-	i = 0;
-	while (np->n_parent) {
-		if (i++ == SMBFS_MAXPATHCOMP) {
-/*			simple_unlock(&smp->sm_npslock);*/
-			return ENAMETOOLONG;
-		}
-		*npp++ = np;
-		if ((np->n_flag & NREFPARENT) == 0)
-			break;
-		np = VTOSMB(np->n_parent);
-	}
-/*	if (i == 0)
-		return smb_put_dmem(mbp, vcp, "\\", 2, caseopt);*/
-	while (i--) {
-		np = *--npp;
-		if (SMB_UNICODE_STRINGS(vcp))
-			error = mb_put_uint16le(mbp, '\\');
-		else
-			error = mb_put_uint8(mbp, '\\');
-		if (error)
-			break;
-		error = smb_put_dmem(mbp, vcp, np->n_name, np->n_nmlen, caseopt);
-		if (error)
-			break;
-	}
-/*	simple_unlock(&smp->sm_npslock);*/
-	return error;
-}
-
 int
 smbfs_fullpath(struct mbchain *mbp, struct smb_vc *vcp, struct smbnode *dnp,
 	const char *name, int nmlen)
@@ -160,23 +122,28 @@ smbfs_fullpath(struct mbchain *mbp, struct smb_vc *vcp, struct smbnode *dnp,
 	if (SMB_DIALECT(vcp) < SMB_DIALECT_LANMAN1_0)
 		caseopt |= SMB_CS_UPPER;
 	if (dnp != NULL) {
-		error = smb_fphelp(mbp, vcp, dnp, caseopt);
+		error = smb_put_dmem(mbp, vcp, dnp->n_rpath, dnp->n_rplen, 
+		    caseopt);
 		if (error)
 			return error;
+		if (name) {
+			/* Put the separator */
+			if (SMB_UNICODE_STRINGS(vcp))
+				error = mb_put_uint16le(mbp, '\\');
+			else
+				error = mb_put_uint8(mbp, '\\');
+			if (error)
+				return error;
+			/* Put the name */
+			error = smb_put_dmem(mbp, vcp, name, nmlen, caseopt);
+			if (error)
+				return error;
+		}
 	}
-	if (name) {
-		if (SMB_UNICODE_STRINGS(vcp))
-			error = mb_put_uint16le(mbp, '\\');
-		else
-			error = mb_put_uint8(mbp, '\\');
-		if (error)
-			return error;
-		error = smb_put_dmem(mbp, vcp, name, nmlen, caseopt);
-		if (error)
-			return error;
-	}
-	error = mb_put_uint8(mbp, 0);
-	if (SMB_UNICODE_STRINGS(vcp) && error == 0)
+	/* Put NULL terminator. */
+	if (SMB_UNICODE_STRINGS(vcp))
+		error = mb_put_uint16le(mbp, 0);
+	else
 		error = mb_put_uint8(mbp, 0);
 	return error;
 }
