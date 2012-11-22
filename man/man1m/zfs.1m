@@ -830,7 +830,7 @@ mode from the application.
 .sp
 .ne 2
 .na
-\fB\fBaclmode\fR=\fBdiscard\fR | \fBgroupmask\fR | \fBpassthrough\fR\fR
+\fB\fBaclmode\fR=\fBdiscard\fR | \fBgroupmask\fR | \fBpassthrough\fR\fR | \fBrestricted\fR\fR
 .ad
 .sp .6
 .RS 4n
@@ -839,10 +839,18 @@ an \fBaclmode\fR property of \fBdiscard\fR (the default) deletes all \fBACL\fR
 entries that do not represent the mode of the file. An \fBaclmode\fR property
 of \fBgroupmask\fR reduces permissions granted in all \fBALLOW\fR entries found
 in the \fBACL\fR such that they are no greater than the group permissions
-specified by \fBchmod\fR.  A file system with an \fBaclmode\fR property of
+specified by \fBchmod\fR(2).  A file system with an \fBaclmode\fR property of
 \fBpassthrough\fR indicates that no changes are made to the \fBACL\fR other
-than creating or updating the necessary \fBACL\fR entries to
-represent the new mode of the file or directory.
+than creating or updating the necessary \fBACL\fR entries to represent the new
+mode of the file or directory. An \fBaclmode\fR property of \fBrestricted\fR
+will cause the \fBchmod\fR(2) operation to return an error when used on any
+file or directory which has a non-trivial \fBACL\fR whose entries can not be
+represented by a mode. \fBchmod\fR(2) is required to change the set user ID,
+set group ID, or sticky bits on a file or directory, as they do not have
+equivalent \fBACL\fR entries. In order to use \fBchmod\fR(2) on a file or
+directory with a non-trivial \fBACL\fR when \fBaclmode\fR is set to
+\fBrestricted\fR, you must first remove all \fBACL\fR entries which do not
+represent the current mode.
 .RE
 
 .sp
@@ -3939,7 +3947,7 @@ Interface Stability	Committed
 \fBssh\fR(1), \fBiscsitadm\fR(1M), \fBmount\fR(1M), \fBshare\fR(1M),
 \fBsharemgr\fR(1M), \fBunshare\fR(1M), \fBzonecfg\fR(1M), \fBzpool\fR(1M),
 \fBchmod\fR(2), \fBstat\fR(2), \fBwrite\fR(2), \fBfsync\fR(3C),
-\fBdfstab\fR(4), \fBattributes\fR(5)
+\fBdfstab\fR(4), \fBacl\fR(5), \fBattributes\fR(5)
 .sp
 .LP
 See the \fBgzip\fR(1) man page, which is not part of the SunOS man page
