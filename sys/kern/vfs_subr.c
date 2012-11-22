@@ -4095,16 +4095,6 @@ vop_strategy_pre(void *ap)
 }
 
 void
-vop_lookup_pre(void *ap)
-{
-}
-
-void
-vop_lookup_post(void *ap, int rc)
-{
-}
-
-void
 vop_lock_pre(void *ap)
 {
 #ifdef DEBUG_VFS_LOCKS
