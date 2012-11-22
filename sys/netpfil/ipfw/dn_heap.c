@@ -37,7 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
-#include <netinet/ipfw/dn_heap.h>
+#include <netpfil/ipfw/dn_heap.h>
 #ifndef log
 #define log(x, arg...)
 #endif
