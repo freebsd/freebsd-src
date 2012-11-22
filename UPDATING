@@ -15,6 +15,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20121122:	p5	FreeBSD-SA-12:06.bind FreeBSD-SA-12:07.hostapd
+			FreeBSD-SA-12:08.linux
+	Fix multiple Denial of Service vulnerabilities with named(8).
+
+	Fix insufficient message length validation for EAP-TLS messages.
+
+	Fix Linux compatibility layer input validation error.
+
 20120806:	p4	FreeBSD-SA-12:05.bind
 	Fix named(8) DNSSEC validation Denial of Service.
 
