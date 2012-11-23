@@ -1125,7 +1125,21 @@ keg_small_init(uma_keg_t keg)
 		rsize = (rsize & ~keg->uk_align) + (keg->uk_align + 1);
 
 	keg->uk_rsize = rsize;
-	keg->uk_ppera = 1;
+
+	if (keg->uk_flags & UMA_ZONE_PCPU) {
+
+		KASSERT(keg->uk_rsize < sizeof(struct pcpu),
+		    ("%s: size %u too large", __func__, keg->uk_rsize));
+
+		keg->uk_slabsize = sizeof(struct pcpu);
+		keg->uk_ppera = mp_ncpus/(PAGE_SIZE/sizeof(struct pcpu));
+		/* Account for remainder. */
+		if (mp_ncpus * sizeof(struct pcpu) > PAGE_SIZE * keg->uk_ppera)
+			keg->uk_ppera++;
+	} else {
+		keg->uk_slabsize = UMA_SLAB_SIZE;
+		keg->uk_ppera = 1;
+	}
 
 	if (keg->uk_flags & UMA_ZONE_OFFPAGE) {
 		shsize = 0;
@@ -1137,10 +1151,10 @@ keg_small_init(uma_keg_t keg)
 		shsize = sizeof(struct uma_slab);
 	}
 
-	keg->uk_ipers = (UMA_SLAB_SIZE - shsize) / rsize;
+	keg->uk_ipers = (keg->uk_slabsize - shsize) / rsize;
 	KASSERT(keg->uk_ipers != 0, ("keg_small_init: ipers is 0"));
 	memused = keg->uk_ipers * rsize + shsize;
-	wastedspace = UMA_SLAB_SIZE - memused;
+	wastedspace = keg->uk_slabsize - memused;
 
 	/*
 	 * We can't do OFFPAGE if we're internal or if we've been
@@ -1154,8 +1168,8 @@ keg_small_init(uma_keg_t keg)
 		return;
 
 	if ((wastedspace >= UMA_MAX_WASTE) &&
-	    (keg->uk_ipers < (UMA_SLAB_SIZE / keg->uk_rsize))) {
-		keg->uk_ipers = UMA_SLAB_SIZE / keg->uk_rsize;
+	    (keg->uk_ipers < (keg->uk_slabsize / keg->uk_rsize))) {
+		keg->uk_ipers = keg->uk_slabsize / keg->uk_rsize;
 		KASSERT(keg->uk_ipers <= 255,
 		    ("keg_small_init: keg->uk_ipers too high!"));
 #ifdef UMA_DEBUG
@@ -1165,7 +1179,7 @@ keg_small_init(uma_keg_t keg)
 		    "calculated ipers = %d, "
 		    "new wasted space = %d\n", keg->uk_name, wastedspace,
 		    UMA_MAX_WASTE, keg->uk_ipers,
-		    UMA_SLAB_SIZE - keg->uk_ipers * keg->uk_rsize);
+		    keg->uk_slabsize - keg->uk_ipers * keg->uk_rsize);
 #endif
 		keg->uk_flags |= UMA_ZONE_OFFPAGE;
 	}
@@ -1194,6 +1208,8 @@ keg_large_init(uma_keg_t keg)
 	KASSERT(keg != NULL, ("Keg is null in keg_large_init"));
 	KASSERT((keg->uk_flags & UMA_ZFLAG_CACHEONLY) == 0,
 	    ("keg_large_init: Cannot large-init a UMA_ZFLAG_CACHEONLY keg"));
+	KASSERT((keg->uk_flags & UMA_ZONE_PCPU) == 0,
+	    ("%s: Cannot large-init a UMA_ZONE_PCPU keg", __func__));
 
 	pages = keg->uk_size / PAGE_SIZE;
 
@@ -1202,6 +1218,7 @@ keg_large_init(uma_keg_t keg)
 		pages++;
 
 	keg->uk_ppera = pages;
+	keg->uk_slabsize = pages * PAGE_SIZE;
 	keg->uk_ipers = 1;
 	keg->uk_rsize = keg->uk_size;
 
@@ -1222,6 +1239,9 @@ keg_cachespread_init(uma_keg_t keg)
 	int pages;
 	int rsize;
 
+	KASSERT((keg->uk_flags & UMA_ZONE_PCPU) == 0,
+	    ("%s: Cannot cachespread-init a UMA_ZONE_PCPU keg", __func__));
+
 	alignsize = keg->uk_align + 1;
 	rsize = keg->uk_size;
 	/*
@@ -1239,6 +1259,7 @@ keg_cachespread_init(uma_keg_t keg)
 	pages = MIN(pages, (128 * 1024) / PAGE_SIZE);
 	keg->uk_rsize = rsize;
 	keg->uk_ppera = pages;
+	keg->uk_slabsize = UMA_SLAB_SIZE;
 	keg->uk_ipers = ((pages * PAGE_SIZE) + trailer) / rsize;
 	keg->uk_flags |= UMA_ZONE_OFFPAGE | UMA_ZONE_VTOSLAB;
 	KASSERT(keg->uk_ipers <= uma_max_ipers,
@@ -1287,6 +1308,13 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 
 	if (arg->flags & UMA_ZONE_REFCNT || arg->flags & UMA_ZONE_MALLOC)
 		keg->uk_flags |= UMA_ZONE_VTOSLAB;
+
+	if (arg->flags & UMA_ZONE_PCPU)
+#ifdef SMP
+		keg->uk_flags |= UMA_ZONE_OFFPAGE;
+#else
+		keg->uk_flags &= ~UMA_ZONE_PCPU;
+#endif
 
 	/*
 	 * The +UMA_FRITM_SZ added to uk_size is to account for the
