@@ -1168,9 +1168,11 @@ keg_small_init(uma_keg_t keg)
 		    UMA_SLAB_SIZE - keg->uk_ipers * keg->uk_rsize);
 #endif
 		keg->uk_flags |= UMA_ZONE_OFFPAGE;
-		if ((keg->uk_flags & UMA_ZONE_VTOSLAB) == 0)
-			keg->uk_flags |= UMA_ZONE_HASH;
 	}
+
+	if ((keg->uk_flags & UMA_ZONE_OFFPAGE) &&
+	    (keg->uk_flags & UMA_ZONE_VTOSLAB) == 0)
+		keg->uk_flags |= UMA_ZONE_HASH;
 }
 
 /*
