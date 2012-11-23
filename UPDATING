@@ -24,6 +24,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20121117:
+	The sin6_scope_id member variable in struct sockaddr_in6 is now
+	filled by the kernel before passing the structure to the userland via
+	sysctl or routing socket.  This means the KAME-specific embedded scope
+	id in sin6_addr.s6_addr[2] is always cleared in userland application.
+	This behavior can be controlled by net.inet6.ip6.deembed_scopeid.
+	__FreeBSD_version is bumped to 1000025.
+
 20121105:
 	On i386 and amd64 systems WITH_CLANG_IS_CC is now the default.
 	This means that the world and kernel will be compiled with clang
