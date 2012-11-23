@@ -1007,8 +1007,8 @@ options 	FUSE			#FUSE support module
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
 options 	NFSSERVER		#Network File System server
 options 	NFSLOCKD		#Network Lock Manager
-options 	NFSCL			#experimental NFS client with NFSv4
-options 	NFSD			#experimental NFS server with NFSv4
+options 	NFSCL			#New Network Filesystem Client
+options 	NFSD			#New Network Filesystem Server
 options 	KGSSAPI			#Kernel GSSAPI implementation
 
 options 	NULLFS			#NULL filesystem
