@@ -1825,6 +1825,13 @@ Set the authentication key to
 Set the virtual host ID.
 This is a required setting.
 Acceptable values are 1 to 255.
+.It Cm state Ar state
+Force the interface into state 
+.Ar state . 
+Valid states are INIT, BACKUP, and MASTER. Note that manually setting the state
+to INIT is ignored by 
+.Xr carp 4 .
+This state is set automatically when the underlying interface is down.
 .El
 .Pp
 The
