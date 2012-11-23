@@ -1388,6 +1388,7 @@ struct ath_hal {
 	void	  __ahdecl(*ah_gpioSetIntr)(struct ath_hal*, u_int, uint32_t);
 	uint32_t __ahdecl(*ah_getTsf32)(struct ath_hal*);
 	uint64_t __ahdecl(*ah_getTsf64)(struct ath_hal*);
+	void     __ahdecl(*ah_setTsf64)(struct ath_hal *, uint64_t);
 	void	  __ahdecl(*ah_resetTsf)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_detectCardPresent)(struct ath_hal*);
 	void	  __ahdecl(*ah_updateMibCounters)(struct ath_hal*,
