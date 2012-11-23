@@ -406,7 +406,11 @@ ath_tdma_update(struct ieee80211_node *ni,
 		sc->sc_stats.ast_tdma_timers++;
 	}
 	if (tsfdelta > 0) {
-		ath_hal_adjusttsf(ah, tsfdelta);
+		uint64_t tsf;
+
+		/* XXX should just teach ath_hal_adjusttsf() to do this */
+		tsf = ath_hal_gettsf64(ah);
+		ath_hal_settsf64(ah, tsf + tsfdelta);
 		sc->sc_stats.ast_tdma_tsf++;
 	}
 	ath_tdma_beacon_send(sc, vap);		/* prepare response */
