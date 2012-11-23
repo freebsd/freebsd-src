@@ -142,10 +142,8 @@ int sncdebug = 0;
 
 
 int
-sncconfig(sc, media, nmedia, defmedia, myea)
-	struct snc_softc *sc;
-	int *media, nmedia, defmedia;
-	u_int8_t *myea;
+sncconfig(struct snc_softc *sc, int *media, int nmedia, int defmedia,
+    u_int8_t *myea)
 {
 	struct ifnet *ifp;
 	int i;
@@ -196,8 +194,7 @@ sncconfig(sc, media, nmedia, defmedia, myea)
 }
 
 void
-sncshutdown(arg)
-	void *arg;
+sncshutdown(void *arg)
 {
 	struct snc_softc *sc = arg;
 
@@ -209,8 +206,7 @@ sncshutdown(arg)
  * Media change callback.
  */
 int
-snc_mediachange(ifp)
-	struct ifnet *ifp;
+snc_mediachange(struct ifnet *ifp)
 {
 	struct snc_softc *sc = ifp->if_softc;
 	int error;
@@ -228,9 +224,7 @@ snc_mediachange(ifp)
  * Media status callback.
  */
 void
-snc_mediastatus(ifp, ifmr)
-	struct ifnet *ifp;
-	struct ifmediareq *ifmr;
+snc_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct snc_softc *sc = ifp->if_softc;
 
@@ -249,10 +243,7 @@ snc_mediastatus(ifp, ifmr)
 
 
 static int
-sncioctl(ifp, cmd, data)
-	struct ifnet *ifp;
-	u_long cmd;
-	caddr_t data;
+sncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct ifreq *ifr;
 	struct snc_softc *sc = ifp->if_softc;
@@ -318,8 +309,7 @@ sncioctl(ifp, cmd, data)
  * Encapsulate a packet of type family for the local net.
  */
 static void
-sncstart(ifp)
-	struct ifnet *ifp;
+sncstart(struct ifnet *ifp)
 {
 	struct snc_softc	*sc = ifp->if_softc;
 
@@ -329,8 +319,7 @@ sncstart(ifp)
 }
 
 static void
-sncstart_locked(ifp)
-	struct ifnet *ifp;
+sncstart_locked(struct ifnet *ifp)
 {
 	struct snc_softc	*sc = ifp->if_softc;
 	struct mbuf	*m;
@@ -391,16 +380,14 @@ outloop:
  * hardware/software errors.
  */
 static void
-sncreset(sc)
-	struct snc_softc *sc;
+sncreset(struct snc_softc *sc)
 {
 	sncstop(sc);
 	sncinit_locked(sc);
 }
 
 static void
-sncinit(xsc)
-	void *xsc;
+sncinit(void *xsc)
 {
 	struct snc_softc *sc = xsc;
 
@@ -477,8 +464,7 @@ sncinit_locked(struct snc_softc *sc)
  * part way through.
  */
 static int
-sncstop(sc)
-	struct snc_softc *sc;
+sncstop(struct snc_softc *sc)
 {
 	struct mtd *mtd;
 
@@ -537,10 +523,7 @@ sncwatchdog(void *arg)
  * stuff packet into sonic
  */
 static u_int
-sonicput(sc, m0, mtd_next)
-	struct snc_softc *sc;
-	struct mbuf *m0;
-	int mtd_next;
+sonicput(struct snc_softc *sc, struct mbuf *m0, int mtd_next)
 {
 	struct mtd *mtdp;
 	struct mbuf *m;
@@ -630,8 +613,7 @@ sonicput(sc, m0, mtd_next)
  * CAM support
  */
 static void
-caminitialise(sc)
-	struct snc_softc *sc;
+caminitialise(struct snc_softc *sc)
 {
 	u_int32_t v_cda = sc->v_cda;
 	int	i;
@@ -654,10 +636,7 @@ caminitialise(sc)
 }
 
 static void
-camentry(sc, entry, ea)
-	int entry;
-	u_char *ea;
-	struct snc_softc *sc;
+camentry(struct snc_softc *sc, int entry, u_char *ea)
 {
 	u_int32_t v_cda = sc->v_cda;
 	int	camoffset = entry * CDA_CAMDESC;
@@ -671,8 +650,7 @@ camentry(sc, entry, ea)
 }
 
 static void
-camprogram(sc)
-	struct snc_softc *sc;
+camprogram(struct snc_softc *sc)
 {
         struct ifmultiaddr      *ifma;
 	struct ifnet *ifp;
@@ -733,8 +711,7 @@ camprogram(sc)
 
 #ifdef SNCDEBUG
 static void
-camdump(sc)
-	struct snc_softc *sc;
+camdump(struct snc_softc *sc)
 {
 	int	i;
 
@@ -759,8 +736,7 @@ camdump(sc)
 #endif
 
 static void
-initialise_tda(sc)
-	struct snc_softc *sc;
+initialise_tda(struct snc_softc *sc)
 {
 	struct mtd *mtd;
 	int	i;
@@ -781,8 +757,7 @@ initialise_tda(sc)
 }
 
 static void
-initialise_rda(sc)
-	struct snc_softc *sc;
+initialise_rda(struct snc_softc *sc)
 {
 	int		i;
 	u_int32_t	vv_rda = 0;
@@ -810,8 +785,7 @@ initialise_rda(sc)
 }
 
 static void
-initialise_rra(sc)
-	struct snc_softc *sc;
+initialise_rra(struct snc_softc *sc)
 {
 	int	i;
 	u_int	v;
@@ -843,8 +817,7 @@ initialise_rra(sc)
 }
 
 void
-sncintr(arg)
-	void	*arg;
+sncintr(void *arg)
 {
 	struct snc_softc *sc = (struct snc_softc *)arg;
 	int	isr;
@@ -913,8 +886,7 @@ sncintr(arg)
  * Transmit interrupt routine
  */
 static void
-sonictxint(sc)
-	struct snc_softc *sc;
+sonictxint(struct snc_softc *sc)
 {
 	struct mtd	*mtd;
 	u_int32_t	txp;
@@ -991,8 +963,7 @@ sonictxint(sc)
  * Receive interrupt routine
  */
 static void
-sonicrxint(sc)
-	struct snc_softc *sc;
+sonicrxint(struct snc_softc *sc)
 {
 	u_int32_t rda;
 	int	orra;
@@ -1085,10 +1056,7 @@ sonicrxint(sc)
  * appropriate protocol handler
  */
 static int
-sonic_read(sc, pkt, len)
-	struct snc_softc *sc;
-	u_int32_t pkt;
-	int len;
+sonic_read(struct snc_softc *sc, u_int32_t pkt, int len)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ether_header *et;
@@ -1132,10 +1100,7 @@ sonic_read(sc, pkt, len)
  * munge the received packet into an mbuf chain
  */
 static struct mbuf *
-sonic_get(sc, pkt, datalen)
-	struct snc_softc *sc;
-	u_int32_t pkt;
-	int datalen;
+sonic_get(struct snc_softc *sc, u_int32_t pkt, int datalen)
 {
 	struct	mbuf *m, *top, **mp;
 	int	len;
@@ -1195,8 +1160,7 @@ sonic_get(sc, pkt, datalen)
  * Enable power on the interface.
  */
 int
-snc_enable(sc)
-	struct snc_softc *sc;
+snc_enable(struct snc_softc *sc)
 {
 
 #ifdef	SNCDEBUG
@@ -1218,8 +1182,7 @@ snc_enable(sc)
  * Disable power on the interface.
  */
 void
-snc_disable(sc)
-	struct snc_softc *sc;
+snc_disable(struct snc_softc *sc)
 {
 
 #ifdef	SNCDEBUG
