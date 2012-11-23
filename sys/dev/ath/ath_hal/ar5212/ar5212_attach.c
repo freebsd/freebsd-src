@@ -111,6 +111,7 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_gpioSetIntr			= ar5212GpioSetIntr,
 	.ah_getTsf32			= ar5212GetTsf32,
 	.ah_getTsf64			= ar5212GetTsf64,
+	.ah_setTsf64			= ar5212SetTsf64,
 	.ah_resetTsf			= ar5212ResetTsf,
 	.ah_detectCardPresent		= ar5212DetectCardPresent,
 	.ah_updateMibCounters		= ar5212UpdateMibCounters,
