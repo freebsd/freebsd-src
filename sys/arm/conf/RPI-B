@@ -85,6 +85,9 @@ device		sdhci
 device		mmc
 device		mmcsd
 
+device		gpio
+device		gpioled
+
 options 	KDB
 options 	DDB			#Enable the kernel debugger
 options 	INVARIANTS		#Enable calls of extra sanity checking
