@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_maxmem.h"
 #include "opt_npx.h"
 #include "opt_perfmon.h"
+#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -1122,7 +1123,7 @@ void
 cpu_halt(void)
 {
 	for (;;)
-		__asm__ ("hlt");
+		halt();
 }
 
 static int	idle_mwait = 1;		/* Use MONITOR/MWAIT for short idle. */
@@ -1141,9 +1142,22 @@ cpu_idle_hlt(int busy)
 
 	state = (int *)PCPU_PTR(monitorbuf);
 	*state = STATE_SLEEPING;
+
 	/*
-	 * We must absolutely guarentee that hlt is the next instruction
-	 * after sti or we introduce a timing window.
+	 * Since we may be in a critical section from cpu_idle(), if
+	 * an interrupt fires during that critical section we may have
+	 * a pending preemption.  If the CPU halts, then that thread
+	 * may not execute until a later interrupt awakens the CPU.
+	 * To handle this race, check for a runnable thread after
+	 * disabling interrupts and immediately return if one is
+	 * found.  Also, we must absolutely guarentee that hlt is
+	 * the next instruction after sti.  This ensures that any
+	 * interrupt that fires after the call to disable_intr() will
+	 * immediately awaken the CPU from hlt.  Finally, please note
+	 * that on x86 this works fine because of interrupts enabled only
+	 * after the instruction following sti takes place, while IF is set
+	 * to 1 immediately, allowing hlt instruction to acknowledge the
+	 * interrupt.
 	 */
 	disable_intr();
 	if (sched_runnable())
@@ -1169,11 +1183,19 @@ cpu_idle_mwait(int busy)
 
 	state = (int *)PCPU_PTR(monitorbuf);
 	*state = STATE_MWAIT;
-	if (!sched_runnable()) {
-		cpu_monitor(state, 0, 0);
-		if (*state == STATE_MWAIT)
-			cpu_mwait(0, MWAIT_C1);
+
+	/* See comments in cpu_idle_hlt(). */
+	disable_intr();
+	if (sched_runnable()) {
+		enable_intr();
+		*state = STATE_RUNNING;
+		return;
 	}
+	cpu_monitor(state, 0, 0);
+	if (*state == STATE_MWAIT)
+		__asm __volatile("sti; mwait" : : "a" (MWAIT_C1), "c" (0));
+	else
+		enable_intr();
 	*state = STATE_RUNNING;
 }
 
@@ -1185,6 +1207,12 @@ cpu_idle_spin(int busy)
 
 	state = (int *)PCPU_PTR(monitorbuf);
 	*state = STATE_RUNNING;
+
+	/*
+	 * The sched_runnable() call is racy but as long as there is
+	 * a loop missing it one time will have just a little impact if any 
+	 * (and it is much better than missing the check at all).
+	 */
 	for (i = 0; i < 1000; i++) {
 		if (sched_runnable())
 			return;
@@ -1198,7 +1226,7 @@ void
 cpu_idle(int busy)
 {
 
-#ifdef SMP
+#if defined(SMP)
 	if (mp_grab_cpu_hlt())
 		return;
 #endif
@@ -1708,7 +1736,11 @@ extern inthand_t
 	IDTVEC(bnd), IDTVEC(ill), IDTVEC(dna), IDTVEC(fpusegm),
 	IDTVEC(tss), IDTVEC(missing), IDTVEC(stk), IDTVEC(prot),
 	IDTVEC(page), IDTVEC(mchk), IDTVEC(rsvd), IDTVEC(fpu), IDTVEC(align),
-	IDTVEC(xmm), IDTVEC(lcall_syscall), IDTVEC(int0x80_syscall);
+	IDTVEC(xmm),
+#ifdef KDTRACE_HOOKS
+	IDTVEC(dtrace_ret),
+#endif
+	IDTVEC(lcall_syscall), IDTVEC(int0x80_syscall);
 
 #ifdef DDB
 /*
@@ -2088,6 +2120,8 @@ do_next:
 	for (off = 0; off < round_page(msgbufsize); off += PAGE_SIZE)
 		pmap_kenter((vm_offset_t)msgbufp + off, phys_avail[pa_indx] +
 		    off);
+
+	PT_UPDATES_FLUSH();
 }
 
 void
@@ -2227,6 +2261,10 @@ init386(first)
 	    GSEL(GCODE_SEL, SEL_KPL));
  	setidt(IDT_SYSCALL, &IDTVEC(int0x80_syscall), SDT_SYS386TGT, SEL_UPL,
 	    GSEL(GCODE_SEL, SEL_KPL));
+#ifdef KDTRACE_HOOKS
+	setidt(IDT_DTRACE_RET, &IDTVEC(dtrace_ret), SDT_SYS386TGT, SEL_UPL,
+	    GSEL(GCODE_SEL, SEL_KPL));
+#endif
 
 	r_idt.rd_limit = sizeof(idt0) - 1;
 	r_idt.rd_base = (int) idt;
@@ -2563,7 +2601,8 @@ int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
-	KASSERT(td == curthread || TD_IS_SUSPENDED(td),
+	KASSERT(td == curthread || TD_IS_SUSPENDED(td) ||
+	    P_SHOULDSTOP(td->td_proc),
 	    ("not suspended thread %p", td));
 #ifdef DEV_NPX
 	npxgetregs(td);
@@ -2732,6 +2771,7 @@ static void
 fpstate_drop(struct thread *td)
 {
 
+	KASSERT(PCB_USER_FPU(td->td_pcb), ("fpstate_drop: kernel-owned fpu"));
 	critical_enter();
 #ifdef DEV_NPX
 	if (PCPU_GET(fpcurthread) == td)
