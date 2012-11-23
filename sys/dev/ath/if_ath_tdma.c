@@ -336,7 +336,21 @@ ath_tdma_update(struct ieee80211_node *ni,
 	 * adjustments are done by pulling the TSF forward and possibly
 	 * rewriting the beacon timers.
 	 */
-	nexttbtt = ath_hal_getnexttbtt(ah);
+	/*
+	 * The logic here assumes the nexttbtt counter is in TSF
+	 * but the prr-11n NICs are in TU.  The HAL shifts them
+	 * to TSF but there's two important differences:
+	 *
+	 * + The TU->TSF values have 0's for the low 9 bits, and
+	 * + The counter wraps at TU_TO_TSF(HAL_BEACON_PERIOD + 1) for
+	 *   the pre-11n NICs, but not for the 11n NICs.
+	 *
+	 * So for now, just make sure the nexttbtt value we get
+	 * matches the second issue or once nexttbtt exceeds this
+	 * value, tsfdelta ends up becoming very negative and all
+	 * of the adjustments get very messed up.
+	 */
+	nexttbtt = ath_hal_getnexttbtt(ah) % (TU_TO_TSF(HAL_BEACON_PERIOD + 1));
 	tsfdelta = (int32_t)((nextslot % TU_TO_TSF(HAL_BEACON_PERIOD + 1)) - nexttbtt);
 
 	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
