@@ -969,6 +969,8 @@ void	ath_intr(void *);
 	OS_REG_READ(_ah, AR_TSF_L32)
 #define	ath_hal_gettsf64(_ah) \
 	((*(_ah)->ah_getTsf64)((_ah)))
+#define	ath_hal_settsf64(_ah, _val) \
+	((*(_ah)->ah_setTsf64)((_ah), (_val)))
 #define	ath_hal_resettsf(_ah) \
 	((*(_ah)->ah_resetTsf)((_ah)))
 #define	ath_hal_rxena(_ah) \
