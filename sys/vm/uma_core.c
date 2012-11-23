@@ -746,9 +746,9 @@ finished:
 			    SKIP_NONE, ZFREE_STATFREE);
 #ifdef UMA_DEBUG
 		printf("%s: Returning %d bytes.\n",
-		    keg->uk_name, UMA_SLAB_SIZE * keg->uk_ppera);
+		    keg->uk_name, PAGE_SIZE * keg->uk_ppera);
 #endif
-		keg->uk_freef(mem, UMA_SLAB_SIZE * keg->uk_ppera, flags);
+		keg->uk_freef(mem, PAGE_SIZE * keg->uk_ppera, flags);
 	}
 }
 
@@ -846,7 +846,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int wait)
 		wait |= M_NODUMP;
 
 	/* zone is passed for legacy reasons. */
-	mem = allocf(zone, keg->uk_ppera * UMA_SLAB_SIZE, &flags, wait);
+	mem = allocf(zone, keg->uk_ppera * PAGE_SIZE, &flags, wait);
 	if (mem == NULL) {
 		if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 			zone_free_item(keg->uk_slabzone, slab, NULL,
@@ -908,7 +908,7 @@ keg_alloc_slab(uma_keg_t keg, uma_zone_t zone, int wait)
 			if (keg->uk_flags & UMA_ZONE_OFFPAGE)
 				zone_free_item(keg->uk_slabzone, slab,
 				    NULL, SKIP_NONE, ZFREE_STATFREE);
-			keg->uk_freef(mem, UMA_SLAB_SIZE * keg->uk_ppera,
+			keg->uk_freef(mem, PAGE_SIZE * keg->uk_ppera,
 			    flags);
 			KEG_LOCK(keg);
 			return (NULL);
@@ -1193,10 +1193,10 @@ keg_large_init(uma_keg_t keg)
 	KASSERT((keg->uk_flags & UMA_ZFLAG_CACHEONLY) == 0,
 	    ("keg_large_init: Cannot large-init a UMA_ZFLAG_CACHEONLY keg"));
 
-	pages = keg->uk_size / UMA_SLAB_SIZE;
+	pages = keg->uk_size / PAGE_SIZE;
 
 	/* Account for remainder */
-	if ((pages * UMA_SLAB_SIZE) < keg->uk_size)
+	if ((pages * PAGE_SIZE) < keg->uk_size)
 		pages++;
 
 	keg->uk_ppera = pages;
