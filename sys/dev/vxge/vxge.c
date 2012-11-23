@@ -709,7 +709,9 @@ vxge_mq_send_locked(ifnet_t ifp, vxge_vpath_t *vpath, mbuf_t m_head)
 			VXGE_DRV_STATS(vpath, tx_again);
 			break;
 		}
-		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
+		ifp->if_obytes += next->m_pkthdr.len;
+		if (next->m_flags & M_MCAST)
+			ifp->if_omcasts++;
 
 		/* Send a copy of the frame to the BPF listener */
 		ETHER_BPF_MTAP(ifp, next);
