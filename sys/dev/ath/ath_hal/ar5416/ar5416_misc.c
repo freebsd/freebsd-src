@@ -131,6 +131,21 @@ ar5416GetTsf64(struct ath_hal *ah)
 void
 ar5416SetTsf64(struct ath_hal *ah, uint64_t tsf64)
 {
+	/* XXX check if this is correct! */
+#if 0
+	int i;
+	uint32_t v;
+
+	for (i = 0; i < 10; i++) {
+		v = OS_REG_READ(ah, AR_SLP32_MODE);
+		if ((v & AR_SLP32_TSF_WRITE_STATUS) == 0)
+			break;
+		OS_DELAY(10);
+	}
+	if (i == 10)
+		ath_hal_printf(ah, "%s: couldn't slew things right!\n", __func__);
+#endif
+
 	OS_REG_WRITE(ah, AR_TSF_L32, tsf64 & 0xffffffff);
 	OS_REG_WRITE(ah, AR_TSF_U32, (tsf64 >> 32) & 0xffffffff);
 }
