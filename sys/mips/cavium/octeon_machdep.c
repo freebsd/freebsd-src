@@ -276,6 +276,7 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
 {
 	const struct octeon_feature_description *ofd;
 	uint64_t platform_counter_freq;
+	int rv;
 
 	mips_postboot_fixup();
 
@@ -293,19 +294,25 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
 	cninit();
 
 	/*
-	 * Display information about the board/CPU.
+	 * Display information about the CPU.
 	 */
+#if !defined(OCTEON_MODEL)
+	printf("Using runtime CPU model checks.\n");
+#else
+	printf("Compiled for CPU model: " __XSTRING(OCTEON_MODEL) "\n");
+#endif
+	strcpy(cpu_model, octeon_model_get_string(cvmx_get_proc_id()));
+	printf("CPU Model: %s\n", cpu_model);
 	printf("CPU clock: %uMHz  Core Mask: %#x\n",
 	       cvmx_sysinfo_get()->cpu_clock_hz / 1000000,
 	       cvmx_sysinfo_get()->core_mask);
-	printf("Board Type: %u  Revision: %u/%u\n",
-	       cvmx_sysinfo_get()->board_type,
-	       cvmx_sysinfo_get()->board_rev_major,
-	       cvmx_sysinfo_get()->board_rev_minor);
-	printf("MAC address base: %6D (%u configured)\n",
-	       cvmx_sysinfo_get()->mac_addr_base, ":",
-	       cvmx_sysinfo_get()->mac_addr_count);
+	rv = octeon_model_version_check(cvmx_get_proc_id());
+	if (rv == -1)
+		panic("%s: kernel not compatible with this processor.", __func__);
 
+	/*
+	 * Display information about the board.
+	 */
 #if defined(OCTEON_BOARD_CAPK_0100ND)
 	strcpy(cpu_board, "CAPK-0100ND");
 	if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_CN3010_EVB_HS5) {
@@ -317,9 +324,21 @@ platform_start(__register_t a0, __register_t a1, __register_t a2 __unused,
 	       cvmx_board_type_to_string(cvmx_sysinfo_get()->board_type));
 #endif
 	printf("Board: %s\n", cpu_board);
-	strcpy(cpu_model, octeon_model_get_string(cvmx_get_proc_id()));
-	printf("Model: %s\n", cpu_model);
+	printf("Board Type: %u  Revision: %u/%u\n",
+	       cvmx_sysinfo_get()->board_type,
+	       cvmx_sysinfo_get()->board_rev_major,
+	       cvmx_sysinfo_get()->board_rev_minor);
 	printf("Serial number: %s\n", cvmx_sysinfo_get()->board_serial_number);
+
+	/*
+	 * Additional on-chip hardware/settings.
+	 *
+	 * XXX Display PCI host/target?  What else?
+	 */
+	printf("MAC address base: %6D (%u configured)\n",
+	       cvmx_sysinfo_get()->mac_addr_base, ":",
+	       cvmx_sysinfo_get()->mac_addr_count);
+
 
 	octeon_ciu_reset();
 	/*
