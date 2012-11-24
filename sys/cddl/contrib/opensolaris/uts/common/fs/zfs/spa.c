@@ -3865,8 +3865,6 @@ spa_import_rootpool(const char *name)
 		return (error);
 	}
 
-	spa_history_log_version(spa, LOG_POOL_IMPORT);
-
 	spa_config_enter(spa, SCL_ALL, FTAG, RW_WRITER);
 	vdev_free(rvd);
 	spa_config_exit(spa, SCL_ALL, FTAG);
