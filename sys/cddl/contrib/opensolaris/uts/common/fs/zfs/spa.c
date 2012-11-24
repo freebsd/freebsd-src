@@ -3838,6 +3838,14 @@ spa_import_rootpool(const char *name)
 			spa_remove(spa);
 		}
 		spa = spa_add(pname, config, NULL);
+
+		/*
+		 * Set spa_ubsync.ub_version as it can be used in vdev_alloc()
+		 * via spa_version().
+		 */
+		if (nvlist_lookup_uint64(config, ZPOOL_CONFIG_VERSION,
+		    &spa->spa_ubsync.ub_version) != 0)
+			spa->spa_ubsync.ub_version = SPA_VERSION_INITIAL;
 	} else if ((spa = spa_lookup(name)) == NULL) {
 		cmn_err(CE_NOTE, "Cannot find the pool label for '%s'",
 		    name);
