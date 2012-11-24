@@ -446,6 +446,24 @@ SYSCTL_PROC(_machdep, OID_AUTO, led_display, CTLTYPE_STRING | CTLFLAG_WR,
     NULL, 0, sysctl_machdep_led_display, "A",
     "String to display on LED display");
 
+void
+cvmx_dvprintf(const char *fmt, va_list ap)
+{
+	if (!bootverbose)
+		return;
+	vprintf(fmt, ap);
+}
+
+void
+cvmx_dprintf(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	cvmx_dvprintf(fmt, ap);
+	va_end(ap);
+}
+
 /**
  * version of printf that works better in exception context.
  *
