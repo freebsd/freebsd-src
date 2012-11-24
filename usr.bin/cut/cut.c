@@ -68,7 +68,7 @@ static int	b_n_cut(FILE *, const char *);
 static int	c_cut(FILE *, const char *);
 static int	f_cut(FILE *, const char *);
 static void	get_list(char *);
-static int	is_delim(int);
+static int	is_delim(wchar_t);
 static void	needpos(size_t);
 static void	usage(void);
 
@@ -364,7 +364,7 @@ out:
 }
 
 static int
-is_delim(int ch)
+is_delim(wchar_t ch)
 {
 	if (wflag) {
 		if (ch == ' ' || ch == '\t')
