@@ -128,6 +128,18 @@ ar5416GetTsf64(struct ath_hal *ah)
 	return (((uint64_t) u32) << 32) | ((uint64_t) low2);
 }
 
+/*
+ * Update the TSF.
+ *
+ * The full TSF is only updated once the upper 32 bits have
+ * been written.  Writing only the lower 32 bits of the TSF
+ * will not actually correctly update the TSF.
+ *
+ * The #if 0'ed code is to check whether the previous TSF
+ * reset or write has completed before writing to the
+ * TSF.  Strictly speaking, it should be also checked before
+ * reading the TSF as the write/reset may not have completed.
+ */
 void
 ar5416SetTsf64(struct ath_hal *ah, uint64_t tsf64)
 {
