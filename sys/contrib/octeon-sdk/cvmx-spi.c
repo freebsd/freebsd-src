@@ -182,9 +182,7 @@ int cvmx_spi_restart_interface(int interface, cvmx_spi_mode_t mode, int timeout)
     if (!(OCTEON_IS_MODEL(OCTEON_CN38XX) || OCTEON_IS_MODEL(OCTEON_CN58XX)))
         return res;
 
-#if CVMX_ENABLE_DEBUG_PRINTS
     cvmx_dprintf ("SPI%d: Restart %s\n", interface, modes[mode]);
-#endif
 
     // Callback to perform SPI4 reset
     INVOKE_CB(cvmx_spi_callbacks.reset_cb, interface,mode);
