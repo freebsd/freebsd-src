@@ -283,7 +283,7 @@ f_dialog_infobox_size()
 		n=$( echo "$btitle" | f_number_of_lines )
 		height=$(( $height + $n + 2 ))
 	fi
-	
+
 	# Make sure height is less than maximum screen size
 	[ $height -le $max_height ] || height=$max_height
 
