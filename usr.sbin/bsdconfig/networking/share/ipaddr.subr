@@ -60,7 +60,7 @@ f_ifconfig_inet()
 	'
 }
 
-# f_dialog_validate_ipaddr $ipaddr
+# f_validate_ipaddr $ipaddr
 #
 # Returns zero if the given argument (an IP address) is of the proper format.
 #
@@ -73,10 +73,7 @@ f_ifconfig_inet()
 # 	 	maximum of 255 (or 2^8, being an octet comprised of 8 bits).
 # 	4	The IP address has either too few or too many octets.
 #
-# If the IP address is determined to be invalid, the appropriate error will be
-# displayed using the f_dialog_msgbox function.
-#
-f_dialog_validate_ipaddr()
+f_validate_ipaddr()
 {
 	local ip="$1"
 
@@ -106,12 +103,19 @@ f_dialog_validate_ipaddr()
 
 		[ $noctets -eq 4 ] || exit 4
 	)
+}
+# f_dialog_iperror $error $ipaddr
+#
+# Display a msgbox with the appropriate error message for an error returned by
+# f_validate_ipaddr above.
+#
+f_dialog_iperror()
+{
+	local error="$1" ip="$2"
 
-	#
-	# Produce an appropriate error message if necessary.
-	#
-	local retval=$?
-	case $retval in
+	[ ${error:-0} -ne 0 ] || return $SUCCESS
+
+	case "$error" in
 	1) f_dialog_msgbox "$( printf \
 		"$msg_ipv4_addr_octet_contains_invalid_chars" "$ip" )";;
 	2) f_dialog_msgbox "$( printf \
@@ -121,34 +125,57 @@ f_dialog_validate_ipaddr()
 	4) f_dialog_msgbox "$( printf \
 		"$msg_ipv4_addr_octet_missing_or_extra" "$ip" )";;
 	esac
+}
+
+# f_dialog_validate_ipaddr $ipaddr
+#
+# Returns zero if the given argument (an IP address) is of the proper format.
+#
+# If the IP address is determined to be invalid, the appropriate error will be
+# displayed using the f_dialog_iperror function above.
+#
+f_dialog_validate_ipaddr()
+{
+	local ip="$1"
+
+	f_validate_ipaddr "$ip"
+	local retval=$?
+
+	# Produce an appropriate error message if necessary.
+	[ $retval -eq $SUCCESS ] || f_dialog_iperror $retval "$ip"
 
 	return $retval
 }
 
-# f_dialog_validate_ipaddr6 $ipv6_addr
+# f_validate_ipaddr6 $ipv6_addr
 #
 # Returns zero if the given argument (an IPv6 address) is of the proper format.
 #
 # The return status for invalid IP address is one of:
 # 	1	One or more individual segments within the IP address
 # 	 	(separated by colons) contains one or more invalid characters.
-# 	2	More than two segments within the IP address are null or the
-# 	 	the second null segment is not at the end of the address.
-# 	3	One or more individual segments within the IP address exceeds
-# 	 	the word length of 32-bits (segments are always hexadecimal).
-# 	4	The IP address has either too few or too many segments.
-# 	5	The IPv4 address at the end of the IPv6 address is invalid.
+# 	 	Segments must contain only combinations of the characters 0-9,
+# 	 	A-F, or a-f.
+# 	2	Too many/incorrect null segments. A single null segment is
+# 	 	allowed within the IP address (separated by colons) but not
+# 	 	allowed at the beginning or end (unless a double-null segment;
+# 	 	i.e., "::*" or "*::").
+# 	3	One or more individual segments within the IP address
+# 	 	(separated by colons) exceeds the length of 4 hex-digits.
+# 	4	The IP address entered has either too few (less than 3), too
+# 	 	many (more than 8), or not enough segments, separated by
+# 	 	colons.
+# 	5*	The IPv4 address at the end of the IPv6 address is invalid.
+# 	*	When there is an error with the dotted-quad IPv4 address at the
+# 	 	end of the IPv6 address, the return value of 5 is OR'd with a
+# 	 	bit-shifted (<< 4) return of f_validate_ipaddr.
 #
-# If the IP address is determined to be invalid, the appropriate error will be
-# displayed using the f_dialog_msgbox function.
-#
-f_dialog_validate_ipaddr6()
+f_validate_ipaddr6()
 {
 	local ip="$1"
 
 	( # Operate within a sub-shell to protect the parent environment
 
-		oldIFS="$IFS"
 		IFS=":" # Split on `colon'
 		set -- $ip:
 
@@ -216,9 +243,8 @@ f_dialog_validate_ipaddr6()
 				contains_ipv4_segment=1
 
 				# Validate the IPv4 address
-				IFS="$oldIFS"
-				f_dialog_validate_ipaddr "$segment" || exit 5
-				IFS=":"
+				f_validate_ipaddr "$segment" ||
+					exit $(( 5 | $? << 4 ))
 				;;
 			*)
 				# Segment characters are all valid but too many
@@ -254,12 +280,20 @@ f_dialog_validate_ipaddr6()
 
 		exit $SUCCESS
 	)
+}
 
-	#
-	# Produce an appropriate error message if necessary.
-	#
-	local retval=$?
-	case $retval in
+# f_dialog_ip6error $error $ipv6_addr
+#
+# Display a msgbox with the appropriate error message for an error returned by
+# f_validate_ipaddr6 above.
+#
+f_dialog_ip6error()
+{
+	local error="$1" ip="$2"
+
+	[ ${error:-0} -ne 0 ] || return $SUCCESS
+
+	case "$error" in
 	1) f_dialog_msgbox "$( printf \
 		"$msg_ipv6_addr_segment_contains_invalid_chars" "$ip" )";;
 	2) f_dialog_msgbox "$( printf \
@@ -268,10 +302,30 @@ f_dialog_validate_ipaddr6()
 		"$msg_ipv6_addr_segment_contains_too_many_chars" "$ip" )";;
 	4) f_dialog_msgbox "$( printf \
 		"$msg_ipv6_addr_too_few_or_extra_segments" "$ip" )";;
-	5) : IPv4 at the end of IPv6 address is invalid ;;
-		# Don't display an error because f_dialog_validate_ipaddr
-		# already displayed one for the particular issue encountered.
+	*)
+		if [ $(( $error & 0xF )) -eq 5 ]; then
+			# IPv4 at the end of IPv6 address is invalid
+			f_dialog_iperror $(( $error >> 4 )) "$ip"
+		fi
 	esac
+}
+
+# f_dialog_validate_ipaddr6 $ipv6_addr
+#
+# Returns zero if the given argument (an IPv6 address) is of the proper format.
+#
+# If the IP address is determined to be invalid, the appropriate error will be
+# displayed using the f_dialog_ip6error function above.
+#
+f_dialog_validate_ipaddr6()
+{
+	local ip="$1"
+
+	f_validate_ipaddr6 "$ip"
+	local retval=$?
+
+	# Produce an appropriate error message if necessary.
+	[ $retval -eq $SUCCESS ] || f_dialog_ip6error $retval "$ip"
 
 	return $retval
 }
