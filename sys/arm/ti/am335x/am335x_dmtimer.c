@@ -128,7 +128,7 @@ static struct am335x_dmtimer *am335x_dmtimer_tc_tmr = NULL;
 static unsigned am335x_dmtimer_tc_get_timecount(struct timecounter *);
 
 static struct timecounter am335x_dmtimer_tc = {
-	.tc_name           = "AM335x Timecouter",
+	.tc_name           = "AM335x Timecounter",
 	.tc_get_timecount  = am335x_dmtimer_tc_get_timecount,
 	.tc_poll_pps       = NULL,
 	.tc_counter_mask   = ~0u,
