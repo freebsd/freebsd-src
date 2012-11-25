@@ -446,7 +446,7 @@
 			i2c@83fc4000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fsl,imx51-i2c", "fsl,imx1-i2c";
+				compatible = "fsl,imx51-i2c", "fsl,imx1-i2c", "fsl,imx-i2c";
 				reg = <0x83fc4000 0x4000>;
 				interrupt-parent = <&tzic>; interrupts = <63>;
 				status = "disabled";
@@ -456,7 +456,7 @@
 			i2c@83fc8000 {
 				#address-cells = <1>;
 				#size-cells = <0>;
-				compatible = "fsl,imx51-i2c", "fsl,imx1-i2c";
+				compatible = "fsl,imx51-i2c", "fsl,imx1-i2c", "fsl,imx-i2c";
 				reg = <0x83fc8000 0x4000>;
 				interrupt-parent = <&tzic>; interrupts = <62>;
 				status = "disabled";
