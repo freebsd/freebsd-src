@@ -38,6 +38,7 @@ struct imx_gpt_softc {
 	bus_space_tag_t sc_iot;
 	bus_space_handle_t sc_ioh;
 	void 		*sc_ih;			/* interrupt handler */
+	uint32_t 	sc_period;
 	uint32_t 	sc_clksrc;
 	uint32_t 	clkfreq;
 	struct eventtimer et;

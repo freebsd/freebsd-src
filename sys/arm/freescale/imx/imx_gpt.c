@@ -171,7 +171,7 @@ imx_gpt_attach(device_t dev)
 	}
 
 	sc->et.et_name = "i.MXxxx GPT Eventtimer";
-	sc->et.et_flags = ET_FLAGS_ONESHOT;
+	sc->et.et_flags = ET_FLAGS_ONESHOT | ET_FLAGS_PERIODIC;
 	sc->et.et_quality = 1000;
 	sc->et.et_frequency = sc->clkfreq;
 	sc->et.et_min_period.sec = 0;
@@ -215,7 +215,15 @@ imx_gpt_timer_start(struct eventtimer *et, struct bintime *first,
 	uint32_t ticks;
 
 	sc = (struct imx_gpt_softc *)et->et_priv;
-	if (first != NULL) {
+
+	if (period != NULL) {
+		sc->sc_period = (et->et_frequency * (first->frac >> 32)) >> 32;
+		sc->sc_period += et->et_frequency * first->sec;
+		/* Set expected value */
+		WRITE4(sc, IMX_GPT_OCR2, READ4(sc, IMX_GPT_CNT) + sc->sc_period);
+		/* Enable compare register 2 Interrupt */
+		SET4(sc, IMX_GPT_IR, GPT_IR_OF2);
+	} else if (first != NULL) {
 
 		ticks = (et->et_frequency * (first->frac >> 32)) >> 32;
 		if (first->sec != 0)
@@ -248,9 +256,10 @@ imx_gpt_timer_stop(struct eventtimer *et)
 
 	sc = (struct imx_gpt_softc *)et->et_priv;
 
-	/* Disable OF1 Interrupt */
-	CLEAR4(sc, IMX_GPT_IR, GPT_IR_OF1);
-	WRITE4(sc, IMX_GPT_SR, GPT_IR_OF1);
+	/* Disable OF2 Interrupt */
+	CLEAR4(sc, IMX_GPT_IR, GPT_IR_OF2);
+	WRITE4(sc, IMX_GPT_SR, GPT_IR_OF2);
+	sc->sc_period = 0;
 
 	return (0);
 }
@@ -293,6 +302,14 @@ imx_gpt_intr(void *arg)
 	if (status & GPT_IR_OF1) {
 		if (sc->et.et_active) {
 			sc->et.et_event_cb(&sc->et, sc->et.et_arg);
+		}
+	}
+	if (status & GPT_IR_OF2) {
+		if (sc->et.et_active) {
+			sc->et.et_event_cb(&sc->et, sc->et.et_arg);
+			/* Set expected value */
+			WRITE4(sc, IMX_GPT_OCR2, READ4(sc, IMX_GPT_CNT) +
+			    sc->sc_period);
 		}
 	}
 
