@@ -128,7 +128,7 @@ static struct arm_tmr_softc *arm_tmr_sc = NULL;
 static timecounter_get_t arm_tmr_get_timecount;
 
 static struct timecounter arm_tmr_timecount = {
-	.tc_name           = "ARM MPCore Timecouter",
+	.tc_name           = "ARM MPCore Timecounter",
 	.tc_get_timecount  = arm_tmr_get_timecount,
 	.tc_poll_pps       = NULL,
 	.tc_counter_mask   = ~0u,
