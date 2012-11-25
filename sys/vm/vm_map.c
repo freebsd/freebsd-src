@@ -1793,10 +1793,14 @@ vm_map_submap(
 /*
  *	vm_map_pmap_enter:
  *
- *	Preload read-only mappings for the given object's resident pages into
- *	the given map.  This eliminates the soft faults on process startup and
- *	immediately after an mmap(2).  Because these are speculative mappings,
- *	cached pages are not reactivated and mapped.
+ *	Preload read-only mappings for the specified object's resident pages
+ *	into the target map.  If "flags" is MAP_PREFAULT_PARTIAL, then only
+ *	the resident pages within the address range [addr, addr + ulmin(size,
+ *	ptoa(MAX_INIT_PT))) are mapped.  Otherwise, all resident pages within
+ *	the specified address range are mapped.  This eliminates many soft
+ *	faults on process startup and immediately after an mmap(2).  Because
+ *	these are speculative mappings, cached pages are not reactivated and
+ *	mapped.
  */
 void
 vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
@@ -1815,11 +1819,8 @@ vm_map_pmap_enter(vm_map_t map, vm_offset_t addr, vm_prot_t prot,
 	}
 
 	psize = atop(size);
-
-	if ((flags & MAP_PREFAULT_PARTIAL) && psize > MAX_INIT_PT &&
-	    object->resident_page_count > MAX_INIT_PT)
-		goto unlock_return;
-
+	if (psize > MAX_INIT_PT && (flags & MAP_PREFAULT_PARTIAL) != 0)
+		psize = MAX_INIT_PT;
 	if (psize + pindex > object->size) {
 		if (object->size < pindex)
 			goto unlock_return;
