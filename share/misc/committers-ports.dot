@@ -58,6 +58,7 @@ avilla [label="Alberto Villa\navilla@FreeBSD.org\n2010/01/24"]
 avl [label="Alexander Logvinov\navl@FreeBSD.org\n2009/05/27"]
 az [label="Andrej Zverev\naz@FreeBSD.org\n2005/10/03"]
 bapt [label="Baptiste Daroussin\nbapt@FreeBSD.org\n2010/07/27"]
+bar [label="Barbara Guida\nbar@FreeBSD.org\n2012/11/25"]
 bdrewery [label="Bryan Drewery\nbdrewery@FreeBSD.org\n2012/07/31"]
 beat [label="Beat Gaetzi\nbeat@FreeBSD.org\n2009/01/28"]
 beech [label="Beech Rintoul\nbeech@FreeBSD.org\n2007/05/30"]
@@ -297,6 +298,7 @@ fjoe -> flo
 fjoe -> krion
 fjoe -> osa
 
+flo -> bar
 flo -> jase
 
 flz -> garga
@@ -437,6 +439,7 @@ philip -> koitsu
 
 rafan -> chinsan
 
+rene -> bar
 rene -> crees
 rene -> jgh
 rene -> olivierd
