@@ -50,6 +50,10 @@
  * Enable/disable nopwrite feature.
  */
 int zfs_nopwrite_enabled = 1;
+SYSCTL_DECL(_vfs_zfs);
+TUNABLE_INT("vfs.zfs.nopwrite_enabled", &zfs_nopwrite_enabled);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, nopwrite_enabled, CTLFLAG_RDTUN,
+    &zfs_nopwrite_enabled, 0, "Enable nopwrite feature");
 
 const dmu_object_type_info_t dmu_ot[DMU_OT_NUMTYPES] = {
 	{	DMU_BSWAP_UINT8,	TRUE,	"unallocated"		},
@@ -1562,7 +1566,6 @@ dmu_object_set_compress(objset_t *os, uint64_t object, uint8_t compress,
 
 int zfs_mdcomp_disable = 0;
 TUNABLE_INT("vfs.zfs.mdcomp_disable", &zfs_mdcomp_disable);
-SYSCTL_DECL(_vfs_zfs);
 SYSCTL_INT(_vfs_zfs, OID_AUTO, mdcomp_disable, CTLFLAG_RW,
     &zfs_mdcomp_disable, 0, "Disable metadata compression");
 
