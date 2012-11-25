@@ -45,9 +45,9 @@
 
 	soc@70000000 {
 		aips@70000000 {
-                        timer@73fa0000 {
+			timer@73fa0000 {
 				status = "okay";
-                        };
+			};
 
 			/* UART1, console */
 			UART1: serial@73fbc000 {
@@ -55,17 +55,17 @@
 				clock-frequency = <3000000>; /* XXX */
 			};
 
-                        clock@73fd4000 {
+			clock@73fd4000 {
 				status = "okay";
-                        };
-                        wdog@73f98000 {
-                                status = "okay";
-                        };
+			};
+			wdog@73f98000 {
+				status = "okay";
+			};
 		};
 		aips@80000000 {
-                        ide@83fe0000 {
-                                status = "okay";
-                        };
+			ide@83fe0000 {
+				status = "okay";
+			};
 		};
 	};
 
