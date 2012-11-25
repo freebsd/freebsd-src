@@ -83,6 +83,8 @@ struct i2c_softc {
 	device_t		iicbus;
 	struct resource		*res;
 	struct mtx		mutex;
+	int			flags;
+#define	FSL_IMX_I2C		(1 << 0) /* To distinguish MPC and i.MX SoCs */
 	int			rid;
 	bus_space_handle_t	bsh;
 	bus_space_tag_t		bst;
@@ -187,10 +189,16 @@ i2c_probe(device_t dev)
 {
 	struct i2c_softc *sc;
 
-	if (!ofw_bus_is_compatible(dev, "fsl-i2c"))
+	sc = device_get_softc(dev);
+
+	if (ofw_bus_is_compatible(dev, "fsl-i2c"))
+		/* compatible */;
+	else if (ofw_bus_is_compatible(dev, "fsl,imx-i2c"))
+		/* compatible, i.MX SoC */
+		sc->flags |= FSL_IMX_I2C;
+	else
 		return (ENXIO);
 
-	sc = device_get_softc(dev);
 	sc->rid = 0;
 
 	sc->res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &sc->rid,
@@ -341,7 +349,8 @@ i2c_reset(device_t dev, u_char speed, u_char addr, u_char *oldadr)
 	i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
 	DELAY(1000);
 	i2c_write_reg(sc, I2C_FDR_REG, baud_rate);
-	i2c_write_reg(sc, I2C_DFSRR_REG, I2C_DFSSR_DIV);
+	if (!(sc->flags & FSL_IMX_I2C))
+		i2c_write_reg(sc, I2C_DFSRR_REG, I2C_DFSSR_DIV);
 	i2c_write_reg(sc, I2C_CONTROL_REG, I2C_ENABLE);
 	DELAY(1000);
 	mtx_unlock(&sc->mutex);
