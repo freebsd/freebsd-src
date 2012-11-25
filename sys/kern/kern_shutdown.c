@@ -121,11 +121,6 @@ SYSCTL_INT(_kern, OID_AUTO, sync_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
 	&sync_on_panic, 0, "Do a sync before rebooting from a panic");
 TUNABLE_INT("kern.sync_on_panic", &sync_on_panic);
 
-static int stop_scheduler_on_panic = 1;
-SYSCTL_INT(_kern, OID_AUTO, stop_scheduler_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
-    &stop_scheduler_on_panic, 0, "stop scheduler upon entering panic");
-TUNABLE_INT("kern.stop_scheduler_on_panic", &stop_scheduler_on_panic);
-
 static SYSCTL_NODE(_kern, OID_AUTO, shutdown, CTLFLAG_RW, 0,
     "Shutdown environment");
 
@@ -552,7 +547,6 @@ void
 panic(const char *fmt, ...)
 {
 #ifdef SMP
-	static volatile u_int panic_cpu = NOCPU;
 	cpuset_t other_cpus;
 #endif
 	struct thread *td = curthread;
@@ -560,39 +554,27 @@ panic(const char *fmt, ...)
 	va_list ap;
 	static char buf[256];
 
-	if (stop_scheduler_on_panic)
-		spinlock_enter();
-	else
-		critical_enter();
+	spinlock_enter();
 
 #ifdef SMP
 	/*
-	 * We don't want multiple CPU's to panic at the same time, so we
-	 * use panic_cpu as a simple spinlock.  We have to keep checking
-	 * panic_cpu if we are spinning in case the panic on the first
-	 * CPU is canceled.
+	 * stop_cpus_hard(other_cpus) should prevent multiple CPUs from
+	 * concurrently entering panic.  Only the winner will proceed
+	 * further.
 	 */
-	if (panic_cpu != PCPU_GET(cpuid))
-		while (atomic_cmpset_int(&panic_cpu, NOCPU,
-		    PCPU_GET(cpuid)) == 0)
-			while (panic_cpu != NOCPU)
-				; /* nothing */
-
-	if (stop_scheduler_on_panic) {
-		if (panicstr == NULL && !kdb_active) {
-			other_cpus = all_cpus;
-			CPU_CLR(PCPU_GET(cpuid), &other_cpus);
-			stop_cpus_hard(other_cpus);
-		}
-
-		/*
-		 * We set stop_scheduler here and not in the block above,
-		 * because we want to ensure that if panic has been called and
-		 * stop_scheduler_on_panic is true, then stop_scheduler will
-		 * always be set.  Even if panic has been entered from kdb.
-		 */
-		td->td_stopsched = 1;
+	if (panicstr == NULL && !kdb_active) {
+		other_cpus = all_cpus;
+		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+		stop_cpus_hard(other_cpus);
 	}
+
+	/*
+	 * We set stop_scheduler here and not in the block above,
+	 * because we want to ensure that if panic has been called and
+	 * stop_scheduler_on_panic is true, then stop_scheduler will
+	 * always be set.  Even if panic has been entered from kdb.
+	 */
+	td->td_stopsched = 1;
 #endif
 
 	bootopt = RB_AUTOBOOT;
@@ -632,8 +614,6 @@ panic(const char *fmt, ...)
 	/* thread_unlock(td); */
 	if (!sync_on_panic)
 		bootopt |= RB_NOSYNC;
-	if (!stop_scheduler_on_panic)
-		critical_exit();
 	kern_reboot(bootopt);
 }
 
