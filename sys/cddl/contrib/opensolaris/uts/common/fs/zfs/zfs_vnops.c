@@ -6212,7 +6212,6 @@ zfs_freebsd_reclaim(ap)
 	vnode_t	*vp = ap->a_vp;
 	znode_t	*zp = VTOZ(vp);
 	zfsvfs_t *zfsvfs = zp->z_zfsvfs;
-	int refcnt;
 
 	ASSERT(zp != NULL);
 
