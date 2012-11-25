@@ -113,6 +113,10 @@ device		imxata
 options 	ATA_CAM
 options 	ATA_STATIC_ID	# Static device numbering
 
+device		fsliic
+device		iic
+device		iicbus
+
 # SCSI peripherals
 device		scbus		# SCSI bus (required for SCSI)
 device		da		# Direct Access (disks)
