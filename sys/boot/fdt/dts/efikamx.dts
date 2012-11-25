@@ -63,6 +63,12 @@
 			};
 		};
 		aips@80000000 {
+			i2c@83fc4000 {
+				status = "okay";
+			};
+			i2c@83fc8000 {
+				status = "okay";
+			};
 			ide@83fe0000 {
 				status = "okay";
 			};
