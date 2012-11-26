@@ -876,7 +876,8 @@ acpi_cpu_cx_list(struct acpi_cpu_softc *sc)
     sbuf_new(&sb, sc->cpu_cx_supported, sizeof(sc->cpu_cx_supported),
 	SBUF_FIXEDLEN);
     for (i = 0; i < sc->cpu_cx_count; i++)
-	sbuf_printf(&sb, "C%d/%d ", i + 1, sc->cpu_cx_states[i].trans_lat);
+	sbuf_printf(&sb, "C%d/%d/%d ", i + 1, sc->cpu_cx_states[i].type,
+	    sc->cpu_cx_states[i].trans_lat);
     sbuf_trim(&sb);
     sbuf_finish(&sb);
 }	
@@ -921,6 +922,7 @@ acpi_cpu_idle()
 {
     struct	acpi_cpu_softc *sc;
     struct	acpi_cx *cx_next;
+    uint64_t	cputicks;
     uint32_t	start_time, end_time;
     int		bm_active, cx_next_idx, i;
 
@@ -960,11 +962,12 @@ acpi_cpu_idle()
      * driver polling for new devices keeps this bit set all the
      * time if USB is loaded.
      */
-    if ((cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0) {
+    if ((cpu_quirks & CPU_QUIRK_NO_BM_CTRL) == 0 &&
+	cx_next_idx > sc->cpu_non_c3) {
 	AcpiReadBitRegister(ACPI_BITREG_BUS_MASTER_STATUS, &bm_active);
 	if (bm_active != 0) {
 	    AcpiWriteBitRegister(ACPI_BITREG_BUS_MASTER_STATUS, 1);
-	    cx_next_idx = min(cx_next_idx, sc->cpu_non_c3);
+	    cx_next_idx = sc->cpu_non_c3;
 	}
     }
 
@@ -980,11 +983,10 @@ acpi_cpu_idle()
      * we are called inside critical section, delaying context switch.
      */
     if (cx_next->type == ACPI_STATE_C1) {
-	AcpiHwRead(&start_time, &AcpiGbl_FADT.XPmTimerBlock);
+	cputicks = cpu_ticks();
 	acpi_cpu_c1();
-	AcpiHwRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
-        end_time = PM_USEC(acpi_TimerDelta(end_time, start_time));
-        if (curthread->td_critnest == 0)
+	end_time = ((cpu_ticks() - cputicks) << 20) / cpu_tickrate();
+	if (curthread->td_critnest == 0)
 		end_time = min(end_time, 500000 / hz);
 	sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 + end_time) / 4;
 	return;
@@ -1008,7 +1010,13 @@ acpi_cpu_idle()
      * get the time very close to the CPU start/stop clock logic, this
      * is the only reliable time source.
      */
-    AcpiHwRead(&start_time, &AcpiGbl_FADT.XPmTimerBlock);
+    if (cx_next->type == ACPI_STATE_C3) {
+	AcpiHwRead(&start_time, &AcpiGbl_FADT.XPmTimerBlock);
+	cputicks = 0;
+    } else {
+	start_time = 0;
+	cputicks = cpu_ticks();
+    }
     CPU_GET_REG(cx_next->p_lvlx, 1);
 
     /*
@@ -1018,7 +1026,11 @@ acpi_cpu_idle()
      * margin that we are certain to have a correct value.
      */
     AcpiHwRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
-    AcpiHwRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
+    if (cx_next->type == ACPI_STATE_C3) {
+	AcpiHwRead(&end_time, &AcpiGbl_FADT.XPmTimerBlock);
+	end_time = acpi_TimerDelta(end_time, start_time);
+    } else
+	end_time = ((cpu_ticks() - cputicks) << 20) / cpu_tickrate();
 
     /* Enable bus master arbitration and disable bus master wakeup. */
     if (cx_next->type == ACPI_STATE_C3 &&
@@ -1028,8 +1040,6 @@ acpi_cpu_idle()
     }
     ACPI_ENABLE_IRQS();
 
-    /* Find the actual time asleep in microseconds. */
-    end_time = acpi_TimerDelta(end_time, start_time);
     sc->cpu_prev_sleep = (sc->cpu_prev_sleep * 3 + PM_USEC(end_time)) / 4;
 }
 
