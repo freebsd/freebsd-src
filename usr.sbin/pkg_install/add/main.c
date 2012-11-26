@@ -136,7 +136,6 @@ main(int argc, char **argv)
     static char temppackageroot[MAXPATHLEN];
     static char pkgaddpath[MAXPATHLEN];
 
-    warnpkgng();
     if (*argv[0] != '/' && strchr(argv[0], '/') != NULL)
 	PkgAddCmd = realpath(argv[0], pkgaddpath);
     else
@@ -295,6 +294,7 @@ main(int argc, char **argv)
 	if (chroot("."))
 	    errx(1, "chroot to %s failed", Chroot);
     }
+    warnpkgng();
     /* Make sure the sub-execs we invoke get found */
     setenv("PATH", 
 	   "/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin",
