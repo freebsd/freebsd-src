@@ -578,6 +578,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 		bcopy((char *)evl, (char *)evl + ETHER_VLAN_ENCAP_LEN,
 		    ETHER_HDR_LEN - ETHER_TYPE_LEN);
 		m_adj(m, ETHER_VLAN_ENCAP_LEN);
+		eh = mtod(m, struct ether_header *);
 	}
 
 	M_SETFIB(m, ifp->if_fib);
