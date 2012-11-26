@@ -77,7 +77,7 @@ static int imx_gpt_probe(device_t);
 static int imx_gpt_attach(device_t);
 
 static struct timecounter imx_gpt_timecounter = {
-	.tc_name           = "i.MX GPT Timecouter",
+	.tc_name           = "i.MX GPT Timecounter",
 	.tc_get_timecount  = imx_gpt_get_timecount,
 	.tc_counter_mask   = ~0u,
 	.tc_frequency      = 0,
