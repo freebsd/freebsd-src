@@ -1219,7 +1219,6 @@ hdaa_sysctl_caps(SYSCTL_HANDLER_ARGS)
 			sbuf_printf(&sb, " (selected)");
 		sbuf_printf(&sb, "\n");
 	}
-	sbuf_trim(&sb);
 	error = sbuf_finish(&sb);
 	sbuf_delete(&sb);
 	return (error);
