@@ -5552,7 +5552,7 @@ hdaa_dump_ctls(struct hdaa_pcm_devinfo *pdevinfo, const char *banner, uint32_t f
 	struct hdaa_devinfo *devinfo = pdevinfo->devinfo;
 	struct hdaa_audio_ctl *ctl;
 	char buf[64];
-	int i, j, printed;
+	int i, j, printed = 0;
 
 	if (flag == 0) {
 		flag = ~(SOUND_MASK_VOLUME | SOUND_MASK_PCM |
