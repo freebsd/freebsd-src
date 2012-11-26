@@ -40,7 +40,11 @@ void warnpkgng(void)
 {
 	char pkgngpath[MAXPATHLEN];
 	char *pkgngdir;
+	char *dontwarn;
 
+	dontwarn = getenv("PKG_OLD_NOWARN");
+	if (dontwarn != NULL)
+		return;
 	pkgngdir = getenv("PKG_DBDIR");
 	if (pkgngdir == NULL)
 		pkgngdir = "/var/db/pkg";
