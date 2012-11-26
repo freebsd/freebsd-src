@@ -534,8 +534,9 @@ typedef UINT64                          ACPI_INTEGER;
 #define ACPI_NOTIFY_DEVICE_PLD_CHECK    (UINT8) 0x09
 #define ACPI_NOTIFY_RESERVED            (UINT8) 0x0A
 #define ACPI_NOTIFY_LOCALITY_UPDATE     (UINT8) 0x0B
+#define ACPI_NOTIFY_SHUTDOWN_REQUEST    (UINT8) 0x0C
 
-#define ACPI_NOTIFY_MAX                 0x0B
+#define ACPI_NOTIFY_MAX                 0x0C
 
 /*
  * Types associated with ACPI names and objects. The first group of
@@ -701,7 +702,8 @@ typedef UINT32                          ACPI_EVENT_STATUS;
 #define ACPI_ALL_NOTIFY                 (ACPI_SYSTEM_NOTIFY | ACPI_DEVICE_NOTIFY)
 #define ACPI_MAX_NOTIFY_HANDLER_TYPE    0x3
 
-#define ACPI_MAX_SYS_NOTIFY             0x7f
+#define ACPI_MAX_SYS_NOTIFY             0x7F
+#define ACPI_MAX_DEVICE_SPECIFIC_NOTIFY 0xBF
 
 
 /* Address Space (Operation Region) Types */
@@ -790,6 +792,19 @@ typedef UINT8                           ACPI_ADR_SPACE_TYPE;
 
 #define ACPI_ENABLE_EVENT                       1
 #define ACPI_DISABLE_EVENT                      0
+
+
+/* Sleep function dispatch */
+
+typedef ACPI_STATUS (*ACPI_SLEEP_FUNCTION) (
+    UINT8                   SleepState);
+
+typedef struct acpi_sleep_functions
+{
+    ACPI_SLEEP_FUNCTION     LegacyFunction;
+    ACPI_SLEEP_FUNCTION     ExtendedFunction;
+
+} ACPI_SLEEP_FUNCTIONS;
 
 
 /*

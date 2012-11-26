@@ -428,7 +428,6 @@
 
 #endif /* ACPI_SIMPLE_RETURN_MACROS */
 
-
 /* Conditional execution */
 
 #define ACPI_DEBUG_EXEC(a)              a
@@ -476,6 +475,14 @@
 #define return_PTR(s)                   return(s)
 
 #endif /* ACPI_DEBUG_OUTPUT */
+
+
+#if (!ACPI_REDUCED_HARDWARE)
+#define ACPI_HW_OPTIONAL_FUNCTION(addr)     addr
+#else
+#define ACPI_HW_OPTIONAL_FUNCTION(addr)     NULL
+#endif
+
 
 /*
  * Some code only gets executed when the debugger is built in.

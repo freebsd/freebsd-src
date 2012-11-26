@@ -1085,6 +1085,7 @@ sysclock_snap2bintime(struct sysclock_snap *cs, struct bintime *bt,
 		/* Boot time adjustment, for uptime/monotonic clocks. */
 		if (flags & FFCLOCK_UPTIME)
 			bintime_sub(bt, &ffclock_boottime);
+		break;
 #endif
 	default:
 		return (EINVAL);

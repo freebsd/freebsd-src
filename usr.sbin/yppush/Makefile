@@ -14,7 +14,7 @@ CFLAGS+= -I. -I${.CURDIR}/../../libexec/ypxfr
 
 WARNS?=	2
 
-RPCGEN= rpcgen -C
+RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -C
 
 CLEANFILES= ${GENSRCS}
 

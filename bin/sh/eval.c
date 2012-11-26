@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 
 
 int evalskip;			/* set if we are skipping commands */
-static int skipcount;		/* number of levels to skip */
+int skipcount;			/* number of levels to skip */
 MKINIT int loopnest;		/* current loop nesting level */
 int funcnest;			/* depth of function calls */
 static int builtin_flags;	/* evalcommand flags for builtins */
@@ -89,7 +89,7 @@ int oexitstatus;		/* saved exit status */
 
 static void evalloop(union node *, int);
 static void evalfor(union node *, int);
-static union node *evalcase(union node *, int);
+static union node *evalcase(union node *);
 static void evalsubshell(union node *, int);
 static void evalredir(union node *, int);
 static void expredir(union node *);
@@ -256,7 +256,18 @@ evaltree(union node *n, int flags)
 			evalfor(n, flags & ~EV_EXIT);
 			break;
 		case NCASE:
-			next = evalcase(n, flags);
+			next = evalcase(n);
+			break;
+		case NCLIST:
+			next = n->nclist.body;
+			break;
+		case NCLISTFALLTHRU:
+			if (n->nclist.body) {
+				evaltree(n->nclist.body, flags & ~EV_EXIT);
+				if (evalskip)
+					goto out;
+			}
+			next = n->nclist.next;
 			break;
 		case NDEFUN:
 			defun(n->narg.text, n->narg.next);
@@ -337,6 +348,7 @@ evalfor(union node *n, int flags)
 	union node *argp;
 	struct strlist *sp;
 	struct stackmark smark;
+	int status;
 
 	setstackmark(&smark);
 	arglist.lastp = &arglist.list;
@@ -346,11 +358,12 @@ evalfor(union node *n, int flags)
 	}
 	*arglist.lastp = NULL;
 
-	exitstatus = 0;
 	loopnest++;
+	status = 0;
 	for (sp = arglist.list ; sp ; sp = sp->next) {
 		setvar(n->nfor.var, sp->text, 0);
 		evaltree(n->nfor.body, flags);
+		status = exitstatus;
 		if (evalskip) {
 			if (evalskip == SKIPCONT && --skipcount <= 0) {
 				evalskip = 0;
@@ -363,12 +376,18 @@ evalfor(union node *n, int flags)
 	}
 	loopnest--;
 	popstackmark(&smark);
+	exitstatus = status;
 }
 
 
+/*
+ * Evaluate a case statement, returning the selected tree.
+ *
+ * The exit status needs care to get right.
+ */
 
 static union node *
-evalcase(union node *n, int flags)
+evalcase(union node *n)
 {
 	union node *cp;
 	union node *patp;
@@ -378,25 +397,26 @@ evalcase(union node *n, int flags)
 	setstackmark(&smark);
 	arglist.lastp = &arglist.list;
 	oexitstatus = exitstatus;
-	exitstatus = 0;
 	expandarg(n->ncase.expr, &arglist, EXP_TILDE);
 	for (cp = n->ncase.cases ; cp ; cp = cp->nclist.next) {
 		for (patp = cp->nclist.pattern ; patp ; patp = patp->narg.next) {
 			if (casematch(patp, arglist.list->text)) {
 				popstackmark(&smark);
 				while (cp->nclist.next &&
-				    cp->type == NCLISTFALLTHRU) {
-					evaltree(cp->nclist.body,
-					    flags & ~EV_EXIT);
-					if (evalskip != 0)
-						return (NULL);
+				    cp->type == NCLISTFALLTHRU &&
+				    cp->nclist.body == NULL)
 					cp = cp->nclist.next;
-				}
+				if (cp->nclist.next &&
+				    cp->type == NCLISTFALLTHRU)
+					return (cp);
+				if (cp->nclist.body == NULL)
+					exitstatus = 0;
 				return (cp->nclist.body);
 			}
 		}
 	}
 	popstackmark(&smark);
+	exitstatus = 0;
 	return (NULL);
 }
 
@@ -900,6 +920,15 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			mode = FORK_NOJOB;
 			if (pipe(pip) < 0)
 				error("Pipe call failed: %s", strerror(errno));
+		}
+		if (cmdentry.cmdtype == CMDNORMAL &&
+		    cmd->ncmd.redirect == NULL &&
+		    varlist.list == NULL &&
+		    (mode == FORK_FG || mode == FORK_NOJOB) &&
+		    !disvforkset() && !iflag && !mflag) {
+			vforkexecshell(jp, argv, environment(), path,
+			    cmdentry.u.index, flags & EV_BACKCMD ? pip : NULL);
+			goto parent;
 		}
 		if (forkshell(jp, cmd, mode) != 0)
 			goto parent;	/* at end of routine */

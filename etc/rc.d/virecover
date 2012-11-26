@@ -12,7 +12,7 @@
 . /etc/rc.subr
 
 name="virecover"
-rcvar="`set_rcvar`"
+rcvar="virecover_enable"
 stop_cmd=":"
 start_cmd="virecover_start"
 

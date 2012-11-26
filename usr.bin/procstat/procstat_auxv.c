@@ -81,7 +81,7 @@ is_elf32(pid_t pid)
 static size_t
 retrieve_auxv32(pid_t pid)
 {
-	int error, name[4];
+	int name[4];
 	size_t len, i;
 	void *ptr;
 
@@ -90,9 +90,9 @@ retrieve_auxv32(pid_t pid)
 	name[2] = KERN_PROC_AUXV;
 	name[3] = pid;
 	len = sizeof(auxv32);
-	error = sysctl(name, 4, auxv32, &len, NULL, 0);
-	if (error < 0 && errno != ESRCH && errno != EPERM) {
-		warn("sysctl: kern.proc.auxv: %d: %d", pid, errno);
+	if (sysctl(name, 4, auxv32, &len, NULL, 0) == -1) {
+		if (errno != ESRCH && errno != EPERM)
+			warn("sysctl: kern.proc.auxv: %d: %d", pid, errno);
 		return (0);
 	}
 	for (i = 0; i < len; i++) {
@@ -117,7 +117,7 @@ retrieve_auxv32(pid_t pid)
 static size_t
 retrieve_auxv(pid_t pid)
 {
-	int error, name[4];
+	int name[4];
 	size_t len;
 
 #if __ELF_WORD_SIZE == 64
@@ -129,9 +129,9 @@ retrieve_auxv(pid_t pid)
 	name[2] = KERN_PROC_AUXV;
 	name[3] = pid;
 	len = sizeof(auxv);
-	error = sysctl(name, 4, auxv, &len, NULL, 0);
-	if (error < 0 && errno != ESRCH && errno != EPERM) {
-		warn("sysctl: kern.proc.auxv: %d: %d", pid, errno);
+	if (sysctl(name, 4, auxv, &len, NULL, 0) == -1) {
+		if (errno != ESRCH && errno != EPERM)
+			warn("sysctl: kern.proc.auxv: %d: %d", pid, errno);
 		return (0);
 	}
 	return (len);

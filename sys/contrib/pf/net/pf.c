@@ -320,7 +320,7 @@ u_int8_t		 pf_get_wscale(struct mbuf *, int, u_int16_t,
 u_int16_t		 pf_get_mss(struct mbuf *, int, u_int16_t,
 			    sa_family_t);
 u_int16_t		 pf_calc_mss(struct pf_addr *, sa_family_t,
-				u_int16_t);
+				int, u_int16_t);
 void			 pf_set_rt_ifp(struct pf_state *,
 			    struct pf_addr *);
 int			 pf_check_proto_cksum(struct mbuf *, int, int,
@@ -3137,7 +3137,7 @@ pf_get_mss(struct mbuf *m, int off, u_int16_t th_off, sa_family_t af)
 }
 
 u_int16_t
-pf_calc_mss(struct pf_addr *addr, sa_family_t af, u_int16_t offer)
+pf_calc_mss(struct pf_addr *addr, sa_family_t af, int rtableid, u_int16_t offer)
 {
 #ifdef INET
 	struct sockaddr_in	*dst;
@@ -3166,11 +3166,7 @@ pf_calc_mss(struct pf_addr *addr, sa_family_t af, u_int16_t offer)
 		dst->sin_len = sizeof(*dst);
 		dst->sin_addr = addr->v4;
 #ifdef __FreeBSD__
-#ifdef RTF_PRCLONING
-		rtalloc_ign(&ro, (RTF_CLONING | RTF_PRCLONING));
-#else /* !RTF_PRCLONING */
-		in_rtalloc_ign(&ro, 0, 0);
-#endif
+		in_rtalloc_ign(&ro, 0, rtableid);
 #else /* ! __FreeBSD__ */
 		rtalloc_noclone(&ro, NO_CLONING);
 #endif
@@ -3186,12 +3182,7 @@ pf_calc_mss(struct pf_addr *addr, sa_family_t af, u_int16_t offer)
 		dst6->sin6_len = sizeof(*dst6);
 		dst6->sin6_addr = addr->v6;
 #ifdef __FreeBSD__
-#ifdef RTF_PRCLONING
-		rtalloc_ign((struct route *)&ro6,
-		    (RTF_CLONING | RTF_PRCLONING));
-#else /* !RTF_PRCLONING */
-		rtalloc_ign((struct route *)&ro6, 0);
-#endif
+		in6_rtalloc_ign(&ro6, 0, rtableid);
 #else /* ! __FreeBSD__ */
 		rtalloc_noclone((struct route *)&ro6, NO_CLONING);
 #endif
@@ -3532,14 +3523,14 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 		else if (r->proto && r->proto != pd->proto)
 			r = r->skip[PF_SKIP_PROTO].ptr;
 		else if (PF_MISMATCHAW(&r->src.addr, saddr, af,
-		    r->src.neg, kif))
+		    r->src.neg, kif, M_GETFIB(m)))
 			r = r->skip[PF_SKIP_SRC_ADDR].ptr;
 		/* tcp/udp only. port_op always 0 in other cases */
 		else if (r->src.port_op && !pf_match_port(r->src.port_op,
 		    r->src.port[0], r->src.port[1], sport))
 			r = r->skip[PF_SKIP_SRC_PORT].ptr;
 		else if (PF_MISMATCHAW(&r->dst.addr, daddr, af,
-		    r->dst.neg, NULL))
+		    r->dst.neg, NULL, M_GETFIB(m)))
 			r = r->skip[PF_SKIP_DST_ADDR].ptr;
 		/* tcp/udp only. port_op always 0 in other cases */
 		else if (r->dst.port_op && !pf_match_port(r->dst.port_op,
@@ -3988,9 +3979,10 @@ pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
 		}
 		s->src.seqhi = htonl(arc4random());
 		/* Find mss option */
+		int rtid = M_GETFIB(m);
 		mss = pf_get_mss(m, off, th->th_off, pd->af);
-		mss = pf_calc_mss(pd->src, pd->af, mss);
-		mss = pf_calc_mss(pd->dst, pd->af, mss);
+		mss = pf_calc_mss(pd->src, pd->af, rtid, mss);
+		mss = pf_calc_mss(pd->dst, pd->af, rtid, mss);
 		s->src.mss = mss;
 #ifdef __FreeBSD__
 		pf_send_tcp(NULL, r, pd->af, pd->dst, pd->src, th->th_dport,
@@ -4072,10 +4064,10 @@ pf_test_fragment(struct pf_rule **rm, int direction, struct pfi_kif *kif,
 		else if (r->proto && r->proto != pd->proto)
 			r = r->skip[PF_SKIP_PROTO].ptr;
 		else if (PF_MISMATCHAW(&r->src.addr, pd->src, af,
-		    r->src.neg, kif))
+		    r->src.neg, kif, M_GETFIB(m)))
 			r = r->skip[PF_SKIP_SRC_ADDR].ptr;
 		else if (PF_MISMATCHAW(&r->dst.addr, pd->dst, af,
-		    r->dst.neg, NULL))
+		    r->dst.neg, NULL, M_GETFIB(m)))
 			r = r->skip[PF_SKIP_DST_ADDR].ptr;
 		else if (r->tos && !(r->tos == pd->tos))
 			r = TAILQ_NEXT(r, entries);
@@ -5677,7 +5669,8 @@ pf_pull_hdr(struct mbuf *m, int off, void *p, int len,
 }
 
 int
-pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif)
+pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif,
+    int rtableid)
 {
 #ifdef __FreeBSD__
 #ifdef RADIX_MPATH
@@ -5751,13 +5744,21 @@ pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *kif)
 		goto out;
 
 #ifdef __FreeBSD__
-/* XXX MRT not always INET */ /* stick with table 0 though */
-#ifdef INET
-	if (af == AF_INET)
-		in_rtalloc_ign((struct route *)&ro, 0, 0);
-	else
+	switch (af) {
+#ifdef INET6
+	case AF_INET6:
+		in6_rtalloc_ign(&ro, 0, rtableid);
+		break;
 #endif
-		rtalloc_ign((struct route *)&ro, 0);
+#ifdef INET
+	case AF_INET:
+		in_rtalloc_ign((struct route *)&ro, 0, rtableid);
+		break;
+#endif
+	default:
+		rtalloc_ign((struct route *)&ro, 0);	/* No/default FIB. */
+		break;
+	}
 #else /* ! __FreeBSD__ */
 	rtalloc_noclone((struct route *)&ro, NO_CLONING);
 #endif
@@ -5803,7 +5804,8 @@ out:
 }
 
 int
-pf_rtlabel_match(struct pf_addr *addr, sa_family_t af, struct pf_addr_wrap *aw)
+pf_rtlabel_match(struct pf_addr *addr, sa_family_t af, struct pf_addr_wrap *aw,
+    int rtableid)
 {
 	struct sockaddr_in	*dst;
 #ifdef INET6
@@ -5835,16 +5837,21 @@ pf_rtlabel_match(struct pf_addr *addr, sa_family_t af, struct pf_addr_wrap *aw)
 	}
 
 #ifdef __FreeBSD__
-# ifdef RTF_PRCLONING
-	rtalloc_ign((struct route *)&ro, (RTF_CLONING|RTF_PRCLONING));
-# else /* !RTF_PRCLONING */
-#ifdef INET
-	if (af == AF_INET)
-		in_rtalloc_ign((struct route *)&ro, 0, 0);
-	else
+	switch (af) {
+#ifdef INET6
+	case AF_INET6:
+		in6_rtalloc_ign(&ro, 0, rtableid);
+		break;
 #endif
+#ifdef INET
+	case AF_INET:
+		in_rtalloc_ign((struct route *)&ro, 0, rtableid);
+		break;
+#endif
+	default:
 		rtalloc_ign((struct route *)&ro, 0);
-# endif
+		break;
+	}
 #else /* ! __FreeBSD__ */
 	rtalloc_noclone((struct route *)&ro, NO_CLONING);
 #endif
@@ -5927,7 +5934,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 
 	if (r->rt == PF_FASTROUTE) {
 #ifdef __FreeBSD__
-		in_rtalloc(ro, 0);
+		in_rtalloc_ign(ro, 0, M_GETFIB(m0));
 #else
 		rtalloc(ro);
 #endif
@@ -6893,7 +6900,7 @@ done:
 		    ("pf: dropping packet with ip options\n"));
 	}
 
-	if ((s && s->tag) || r->rtableid)
+	if ((s && s->tag) || r->rtableid >= 0)
 #ifdef __FreeBSD__
 		pf_tag_packet(m, s ? s->tag : 0, r->rtableid, pd.pf_mtag);
 #else
@@ -7437,7 +7444,7 @@ done:
 		    ("pf: dropping packet with dangerous v6 headers\n"));
 	}
 
-	if ((s && s->tag) || r->rtableid)
+	if ((s && s->tag) || r->rtableid >= 0)
 #ifdef __FreeBSD__
 		pf_tag_packet(m, s ? s->tag : 0, r->rtableid, pd.pf_mtag);
 #else

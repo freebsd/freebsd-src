@@ -30,7 +30,7 @@
 	
 	.text
 	
-ASENTRY(atomic_set_8)
+ASENTRY_NOPROF(atomic_set_8)
 0:	lwarx	0, 0, 3		/* load old value */
 	slwi	4, 4, 24	/* shift the byte so it's in the right place */
 	or	0, 0, 4		/* generate new value */
@@ -40,7 +40,7 @@ ASENTRY(atomic_set_8)
 	sync
 	blr			/* return */
 
-ASENTRY(atomic_clear_8)
+ASENTRY_NOPROF(atomic_clear_8)
 0:	lwarx 	0, 0, 3		/* load old value */
 	slwi	4, 4, 24	/* shift the byte so it's in the right place */
 	andc	0, 0, 4		/* generate new value */
@@ -50,7 +50,7 @@ ASENTRY(atomic_clear_8)
 	sync
 	blr			/* return */
 
-ASENTRY(atomic_add_8)
+ASENTRY_NOPROF(atomic_add_8)
 0:	lwarx	9, 0, 3		/* load old value */
 	srwi	0, 9, 24	/* byte alignment */
 	add	0, 4, 0		/* calculate new value */
@@ -63,7 +63,7 @@ ASENTRY(atomic_add_8)
 	sync
 	blr			/* return */
 
-ASENTRY(atomic_subtract_8)
+ASENTRY_NOPROF(atomic_subtract_8)
 0:	lwarx	9, 0, 3		/* load old value */
 	srwi	0, 9, 24	/* byte alignment */
 	subf	0, 4, 0		/* calculate new value */
@@ -76,7 +76,7 @@ ASENTRY(atomic_subtract_8)
 	sync
 	blr			/* return */
 
-ASENTRY(atomic_set_16)
+ASENTRY_NOPROF(atomic_set_16)
 	li	11, 3		/* mask to test for alignment */
 	andc.	11, 3, 11	/* force address to be word-aligned */
 0:	lwarx	12, 0, 11	/* load old value */
@@ -89,7 +89,7 @@ ASENTRY(atomic_set_16)
 	sync
 	blr			/* return */
 
-ASENTRY(atomic_clear_16)
+ASENTRY_NOPROF(atomic_clear_16)
 	li	11, 3		/* mask to test for alignment */
 	andc.	11, 3, 11	/* force address to be word-aligned */
 0:	lwarx	12, 0, 11	/* load old value */
@@ -102,7 +102,7 @@ ASENTRY(atomic_clear_16)
 	sync
 	blr			/* return */
 
-ASENTRY(atomic_add_16)
+ASENTRY_NOPROF(atomic_add_16)
 	li	11, 3		/* mask to test for alignment */
 	andc.	11, 3, 11	/* force address to be word-aligned */
 0:	lwarx	12, 0, 11	/* load old value */
@@ -119,7 +119,7 @@ ASENTRY(atomic_add_16)
 	sync
 	blr			/* return */
 
-ASENTRY(atomic_subtract_16)
+ASENTRY_NOPROF(atomic_subtract_16)
 	li	11, 3		/* mask to test for alignment */
 	andc.	11, 3, 11	/* force address to be word-aligned */
 0:	lwarx	12, 0, 11	/* load old value */

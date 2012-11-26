@@ -117,7 +117,7 @@ static int
 ntfs_cmount ( 
 	struct mntarg *ma,
 	void *data,
-	int flags)
+	uint64_t flags)
 {
 	struct ntfs_args args;
 	struct export_args exp;

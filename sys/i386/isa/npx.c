@@ -985,6 +985,50 @@ DRIVER_MODULE(npxisa, acpi, npxisa_driver, npxisa_devclass, 0, 0);
 #endif
 #endif /* DEV_ISA */
 
+static MALLOC_DEFINE(M_FPUKERN_CTX, "fpukern_ctx",
+    "Kernel contexts for FPU state");
+
+#define	XSAVE_AREA_ALIGN	64
+
+#define	FPU_KERN_CTX_NPXINITDONE 0x01
+
+struct fpu_kern_ctx {
+	union savefpu *prev;
+	uint32_t flags;
+	char hwstate1[];
+};
+
+struct fpu_kern_ctx *
+fpu_kern_alloc_ctx(u_int flags)
+{
+	struct fpu_kern_ctx *res;
+	size_t sz;
+
+	sz = sizeof(struct fpu_kern_ctx) + XSAVE_AREA_ALIGN +
+	    sizeof(union savefpu);
+	res = malloc(sz, M_FPUKERN_CTX, ((flags & FPU_KERN_NOWAIT) ?
+	    M_NOWAIT : M_WAITOK) | M_ZERO);
+	return (res);
+}
+
+void
+fpu_kern_free_ctx(struct fpu_kern_ctx *ctx)
+{
+
+	/* XXXKIB clear the memory ? */
+	free(ctx, M_FPUKERN_CTX);
+}
+
+static union savefpu *
+fpu_kern_ctx_savefpu(struct fpu_kern_ctx *ctx)
+{
+	vm_offset_t p;
+
+	p = (vm_offset_t)&ctx->hwstate1;
+	p = roundup2(p, XSAVE_AREA_ALIGN);
+	return ((union savefpu *)p);
+}
+
 int
 fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
 {
@@ -998,7 +1042,7 @@ fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx, u_int flags)
 		ctx->flags |= FPU_KERN_CTX_NPXINITDONE;
 	npxexit(td);
 	ctx->prev = pcb->pcb_save;
-	pcb->pcb_save = &ctx->hwstate;
+	pcb->pcb_save = fpu_kern_ctx_savefpu(ctx);
 	pcb->pcb_flags |= PCB_KERNNPX;
 	pcb->pcb_flags &= ~PCB_NPXINITDONE;
 	return (0);

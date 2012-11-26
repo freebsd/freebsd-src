@@ -43,47 +43,47 @@
 .Ft int
 .Fo rijndael_makeKey
 .Fa "keyInstance *key"
-.Fa "u_int8_t direction"
+.Fa "uint8_t direction"
 .Fa "int keyLen"
 .Fa "char *keyMaterial"
 .Fc
 .Ft int
 .Fo rijndael_cipherInit
 .Fa "cipherInstance *cipher"
-.Fa "u_int8_t mode"
+.Fa "uint8_t mode"
 .Fa "char *IV"
 .Fc
 .Ft int
 .Fo rijndael_blockEncrypt
 .Fa "cipherInstance *cipher"
 .Fa "keyInstance *key"
-.Fa "u_int8_t *input"
+.Fa "uint8_t *input"
 .Fa "int inputLen"
-.Fa "u_int8_t *outBuffer"
+.Fa "uint8_t *outBuffer"
 .Fc
 .Ft int
 .Fo rijndael_padEncrypt
 .Fa "cipherInstance *cipher"
 .Fa "keyInstance *key"
-.Fa "u_int8_t *input"
+.Fa "uint8_t *input"
 .Fa "int inputOctets"
-.Fa "u_int8_t *outBuffer"
+.Fa "uint8_t *outBuffer"
 .Fc
 .Ft int
 .Fo rijndael_blockDecrypt
 .Fa "cipherInstance *cipher"
 .Fa "keyInstance *key"
-.Fa "u_int8_t *input"
+.Fa "uint8_t *input"
 .Fa "int inputLen"
-.Fa "u_int8_t *outBuffer"
+.Fa "uint8_t *outBuffer"
 .Fc
 .Ft int
 .Fo rijndael_padDecrypt
 .Fa "cipherInstance *cipher"
 .Fa "keyInstance *key"
-.Fa "u_int8_t *input"
+.Fa "uint8_t *input"
 .Fa "int inputOctets"
-.Fa "u_int8_t *outBuffer"
+.Fa "uint8_t *outBuffer"
 .Fc
 .Sh DESCRIPTION
 The

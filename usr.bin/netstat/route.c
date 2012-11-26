@@ -113,7 +113,6 @@ typedef union {
 
 static sa_u pt_u;
 
-int	fibnum;
 int	do_rtent = 0;
 struct	rtentry rtentry;
 struct	radix_node rnode;
@@ -148,8 +147,7 @@ routepr(u_long rtree)
 {
 	struct radix_node_head **rnhp, *rnh, head;
 	size_t intsize;
-	int i;
-	int numfibs;
+	int fam, fibnum, numfibs;
 
 	intsize = sizeof(int);
 	if (sysctlbyname("net.my_fibnum", &fibnum, &intsize, NULL, 0) == -1)
@@ -181,15 +179,20 @@ routepr(u_long rtree)
 		if (kread((u_long)(rtree), (char *)(rt_tables), (numfibs *
 		    (AF_MAX+1) * sizeof(struct radix_node_head *))) != 0)
 			return;
-		for (i = 0; i <= AF_MAX; i++) {
+		for (fam = 0; fam <= AF_MAX; fam++) {
 			int tmpfib;
-			if (i != AF_INET)
-				tmpfib = 0;
-			else
+
+			switch (fam) {
+			case AF_INET6:
+			case AF_INET:
 				tmpfib = fibnum;
+				break;
+			default:
+				tmpfib = 0;
+			}
 			rnhp = (struct radix_node_head **)*rt_tables;
 			/* Calculate the in-kernel address. */
-			rnhp += tmpfib * (AF_MAX+1) + i;
+			rnhp += tmpfib * (AF_MAX+1) + fam;
 			/* Read the in kernel rhn pointer. */
 			if (kget(rnhp, rnh) != 0)
 				continue;
@@ -198,16 +201,16 @@ routepr(u_long rtree)
 			/* Read the rnh data. */
 			if (kget(rnh, head) != 0)
 				continue;
-			if (i == AF_UNSPEC) {
+			if (fam == AF_UNSPEC) {
 				if (Aflag && af == 0) {
 					printf("Netmasks:\n");
 					p_tree(head.rnh_treetop);
 				}
-			} else if (af == AF_UNSPEC || af == i) {
-				size_cols(i, head.rnh_treetop);
-				pr_family(i);
+			} else if (af == AF_UNSPEC || af == fam) {
+				size_cols(fam, head.rnh_treetop);
+				pr_family(fam);
 				do_rtent = 1;
-				pr_rthdr(i);
+				pr_rthdr(fam);
 				p_tree(head.rnh_treetop);
 			}
 		}

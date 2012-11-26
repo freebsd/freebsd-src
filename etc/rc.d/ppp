@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="ppp"
-rcvar=`set_rcvar`
+rcvar="ppp_enable"
 command="/usr/sbin/${name}"
 start_cmd="ppp_start"
 stop_cmd="ppp_stop"

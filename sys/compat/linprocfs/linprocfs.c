@@ -954,7 +954,7 @@ linprocfs_doproccmdline(PFS_FILL_ARGS)
 
 	PROC_UNLOCK(p);
 
-	ret = proc_getargv(td, p, sb, ARG_MAX);
+	ret = proc_getargv(td, p, sb);
 	return (ret);
 }
 
@@ -988,7 +988,7 @@ linprocfs_doprocenviron(PFS_FILL_ARGS)
 
 	PROC_UNLOCK(p);
 
-	ret = proc_getenvv(td, p, sb, ARG_MAX);
+	ret = proc_getenvv(td, p, sb);
 	return (ret);
 }
 

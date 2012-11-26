@@ -296,7 +296,7 @@ cd9660_write_file(FILE *fd, cd9660node *writenode)
 			inode->flags |= FI_WRITTEN;
 			if (writenode->node->contents == NULL)
 				cd9660_compute_full_filename(writenode,
-				    temp_file_name, 0);
+				    temp_file_name);
 			ret = cd9660_copy_file(fd, writenode->fileDataSector,
 			    (writenode->node->contents != NULL) ?
 			    writenode->node->contents : temp_file_name);

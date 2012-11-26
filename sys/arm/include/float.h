@@ -44,9 +44,15 @@ extern int __flt_rounds(void);
 __END_DECLS
 
 #define FLT_RADIX	2		/* b */
-#define FLT_ROUNDS	-1
-#define	FLT_EVAL_METHOD	(-1)		/* XXX */
+#ifndef	_ARM_HARD_FLOAT
+#define	FLT_ROUNDS	__flt_rounds()
+#else
+#define	FLT_ROUNDS	(-1)
+#endif
+#if __ISO_C_VISIBLE >= 1999
+#define	FLT_EVAL_METHOD	0
 #define	DECIMAL_DIG	17		/* max precision in decimal digits */
+#endif
 
 #define FLT_MANT_DIG	24		/* p */
 #define FLT_EPSILON	1.19209290E-07F	/* b**(1-p) */
@@ -57,6 +63,11 @@ __END_DECLS
 #define FLT_MAX_EXP	128		/* emax */
 #define FLT_MAX		3.40282347E+38F	/* (1-b**(-p))*b**emax */
 #define FLT_MAX_10_EXP	38		/* floor(log10((1-b**(-p))*b**emax)) */
+#if __ISO_C_VISIBLE >= 2011
+#define	FLT_TRUE_MIN	1.40129846E-45F	/* b**(emin-p) */
+#define	FLT_DECIMAL_DIG	9		/* ceil(1+p*log10(b)) */
+#define	FLT_HAS_SUBNORM	1
+#endif /* __ISO_C_VISIBLE >= 2011 */
 
 #define DBL_MANT_DIG	53
 #define DBL_EPSILON	2.2204460492503131E-16
@@ -67,14 +78,25 @@ __END_DECLS
 #define DBL_MAX_EXP	1024
 #define DBL_MAX		1.7976931348623157E+308
 #define DBL_MAX_10_EXP	308
+#if __ISO_C_VISIBLE >= 2011
+#define	DBL_TRUE_MIN	4.9406564584124654E-324
+#define	DBL_DECIMAL_DIG	17
+#define	DBL_HAS_SUBNORM	1
+#endif /* __ISO_C_VISIBLE >= 2011 */
 
 #define LDBL_MANT_DIG	DBL_MANT_DIG
-#define LDBL_EPSILON	DBL_EPSILON
+#define LDBL_EPSILON	((long double)DBL_EPSILON)
 #define LDBL_DIG	DBL_DIG
 #define LDBL_MIN_EXP	DBL_MIN_EXP
-#define LDBL_MIN	DBL_MIN
+#define LDBL_MIN	((long double)DBL_MIN)
 #define LDBL_MIN_10_EXP	DBL_MIN_10_EXP
 #define LDBL_MAX_EXP	DBL_MAX_EXP
-#define LDBL_MAX	DBL_MAX
+#define LDBL_MAX	((long double)DBL_MAX)
 #define LDBL_MAX_10_EXP	DBL_MAX_10_EXP
+#if __ISO_C_VISIBLE >= 2011
+#define	LDBL_TRUE_MIN	((long double)DBL_TRUE_MIN)
+#define	LDBL_DECIMAL_DIG DBL_DECIMAL_DIG
+#define	LDBL_HAS_SUBNORM DBL_HAS_SUBNORM
+#endif /* __ISO_C_VISIBLE >= 2011 */
+
 #endif /* _MACHINE_FLOAT_H_ */

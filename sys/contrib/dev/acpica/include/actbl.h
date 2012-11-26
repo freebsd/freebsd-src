@@ -354,6 +354,13 @@ enum AcpiPreferedPmProfiles
     PM_TABLET               = 8
 };
 
+/* Values for SleepStatus and SleepControl registers (V5 FADT) */
+
+#define ACPI_X_WAKE_STATUS          0x80
+#define ACPI_X_SLEEP_TYPE_MASK      0x1C
+#define ACPI_X_SLEEP_TYPE_POSITION  0x02
+#define ACPI_X_SLEEP_ENABLE         0x20
+
 
 /* Reset to default packing */
 

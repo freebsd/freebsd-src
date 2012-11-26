@@ -354,21 +354,6 @@ ctl_sense_to_fixed(struct scsi_sense_data_desc *sense_src,
 			   SSD_ELEM_NONE);
 }
 
-ctl_sense_format
-ctl_get_sense_format(struct scsi_sense_data *sense_data)
-{
-	switch (sense_data->error_code & SSD_ERRCODE) {
-	case SSD_DESC_CURRENT_ERROR:
-	case SSD_DESC_DEFERRED_ERROR:
-		return (SSD_TYPE_DESC);
-	case SSD_CURRENT_ERROR:
-	case SSD_DEFERRED_ERROR:
-	default:
-		return (SSD_TYPE_FIXED);
-		break;
-	}
-}
-
 void
 ctl_set_ua(struct ctl_scsiio *ctsio, int asc, int ascq)
 {
@@ -382,7 +367,7 @@ ctl_set_ua(struct ctl_scsiio *ctsio, int asc, int ascq)
 
 ctl_ua_type
 ctl_build_ua(ctl_ua_type ua_type, struct scsi_sense_data *sense,
-	     ctl_sense_format sense_format)
+	     scsi_sense_data_type sense_format)
 {
 	ctl_ua_type ua_to_build;
 	int i, asc, ascq;

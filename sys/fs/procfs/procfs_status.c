@@ -193,5 +193,5 @@ procfs_doproccmdline(PFS_FILL_ARGS)
 
 	PROC_UNLOCK(p);
 
-	return (proc_getargv(td, p, sb, ARG_MAX));
+	return (proc_getargv(td, p, sb));
 }

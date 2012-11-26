@@ -65,7 +65,7 @@ static vfs_root_t	fdesc_root;
  * Compatibility shim for old mount(2) system call.
  */
 int
-fdesc_cmount(struct mntarg *ma, void *data, int flags)
+fdesc_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	return kernel_mount(ma, flags);
 }

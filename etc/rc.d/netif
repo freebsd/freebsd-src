@@ -123,15 +123,27 @@ network_common()
 		_cooked_list="`list_net_interfaces`"
 	fi
 
+	_dadwait=
 	_fail=
 	_ok=
 	for ifn in ${_cooked_list}; do
 		if ${_func} ${ifn} $2; then
 			_ok="${_ok} ${ifn}"
+			if ipv6if ${ifn}; then
+				_dadwait=1
+			fi
 		else
 			_fail="${_fail} ${ifn}"
 		fi
 	done
+
+	# inet6 address configuration needs sleep for DAD.
+	case ${_func}:${_dadwait} in
+	ifn_start:1)
+		sleep `${SYSCTL_N} net.inet6.ip6.dad_count`
+		sleep 1
+	;;
+	esac
 
 	_str=
 	if [ -n "${_ok}" ]; then

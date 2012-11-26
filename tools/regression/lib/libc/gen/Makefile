@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-TESTS=	test-arc4random test-fmtcheck test-fnmatch \
+TESTS=	test-arc4random test-fmtcheck test-fmtmsg test-fnmatch \
 	test-fpclassify test-posix_spawn test-wordexp
 
 .PHONY: tests

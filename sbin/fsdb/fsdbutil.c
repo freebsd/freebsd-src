@@ -293,22 +293,21 @@ printblocks(ino_t inum, union dinode *dp)
     printf("Blocks for inode %d:\n", inum);
     printf("Direct blocks:\n");
     ndb = howmany(DIP(dp, di_size), sblock.fs_bsize);
-    for (i = 0; i < NDADDR; i++) {
-	if (DIP(dp, di_db[i]) == 0) {
-	    putchar('\n');
-	    return;
-	}
+    for (i = 0; i < NDADDR && i < ndb; i++) {
 	if (i > 0)
 	    printf(", ");
 	blkno = DIP(dp, di_db[i]);
 	printf("%jd", (intmax_t)blkno);
-	if (--ndb == 0 && (offset = blkoff(&sblock, DIP(dp, di_size))) != 0) {
+    }
+    if (ndb <= NDADDR) {
+	offset = blkoff(&sblock, DIP(dp, di_size));
+	if (offset != 0) {
 	    nfrags = numfrags(&sblock, fragroundup(&sblock, offset));
 	    printf(" (%d frag%s)", nfrags, nfrags > 1? "s": "");
 	}
     }
     putchar('\n');
-    if (ndb == 0)
+    if (ndb <= NDADDR)
 	return;
 
     bufp = malloc((unsigned int)sblock.fs_bsize);

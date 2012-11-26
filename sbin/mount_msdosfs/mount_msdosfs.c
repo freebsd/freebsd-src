@@ -193,7 +193,8 @@ main(int argc, char **argv)
 	 * Resolve the mountpoint with realpath(3) and remove unnecessary
 	 * slashes from the devicename if there are any.
 	 */
-	(void)checkpath(dir, mntpath);
+	if (checkpath(dir, mntpath) != 0)
+		err(EX_USAGE, "%s", mntpath);
 	(void)rmslashes(dev, dev);
 
 	if (!set_gid || !set_uid || !set_mask) {

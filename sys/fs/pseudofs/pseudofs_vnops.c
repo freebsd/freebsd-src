@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2001 Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -589,7 +589,8 @@ pfs_read(struct vop_read_args *va)
 	struct proc *proc;
 	struct sbuf *sb = NULL;
 	int error, locked;
-	unsigned int buflen, offset, resid;
+	off_t offset;
+	ssize_t buflen, resid;
 
 	PFS_TRACE(("%s", pn->pn_name));
 	pfs_assert_not_owned(pn);

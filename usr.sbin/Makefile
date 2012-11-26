@@ -306,7 +306,7 @@ SUBDIR+=	usbdump
 .if ${MK_UTMPX} != "no"
 SUBDIR+=	ac
 SUBDIR+=	lastlogin
-SUBDIR+=	utxrm
+SUBDIR+=	utx
 .endif
 
 .if ${MK_WIRELESS} != "no"

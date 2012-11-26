@@ -29,7 +29,7 @@
 .Sh SYNOPSIS
 .In sys/mbuf.h
 .Ft "struct m_tag *"
-.Fn m_tag_alloc "u_int32_t cookie" "int type" "int len" "int wait"
+.Fn m_tag_alloc "uint32_t cookie" "int type" "int len" "int wait"
 .Ft "struct m_tag *"
 .Fn m_tag_copy "struct m_tag *t" "int how"
 .Ft int
@@ -51,7 +51,7 @@
 .Ft void
 .Fn m_tag_init "struct mbuf *m"
 .Ft struct m_tag *
-.Fn m_tag_locate "struct mbuf *m" "u_int32_t cookie" "int type" "struct m_tag *t"
+.Fn m_tag_locate "struct mbuf *m" "uint32_t cookie" "int type" "struct m_tag *t"
 .Ft "struct m_tag *"
 .Fn m_tag_next "struct mbuf *m" "struct m_tag *t"
 .Ft void
@@ -100,9 +100,9 @@ bytes of a tag contain a
 .Bd -literal
 struct m_tag {
 	SLIST_ENTRY(m_tag)	m_tag_link;	/* List of packet tags */
-	u_int16_t		m_tag_id;	/* Tag ID */
-	u_int16_t		m_tag_len;	/* Length of data */
-	u_int32_t		m_tag_cookie;	/* ABI/Module ID */
+	uint16_t		m_tag_id;	/* Tag ID */
+	uint16_t		m_tag_len;	/* Length of data */
+	uint32_t		m_tag_cookie;	/* ABI/Module ID */
 	void			(*m_tag_free)(struct m_tag *);
 };
 .Ed

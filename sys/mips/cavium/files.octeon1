@@ -24,6 +24,10 @@ mips/cavium/cryptocteon/cryptocteon.c		optional cryptocteon
 mips/mips/octeon_cop2_swtch.S			standard
 mips/mips/octeon_cop2.c				standard
 
+# octm must be first, so management ports get the first MAC addresses
+mips/cavium/if_octm.c				optional octm
+contrib/octeon-sdk/cvmx-mgmt-port.c		optional octm
+
 mips/cavium/octe/ethernet.c			optional octe
 mips/cavium/octe/ethernet-mv88e61xx.c		optional octe octeon_vendor_lanner
 mips/cavium/octe/ethernet-common.c		optional octe
@@ -38,10 +42,6 @@ mips/cavium/octe/ethernet-xaui.c		optional octe
 mips/cavium/octe/mv88e61xxphy.c			optional octe mv88e61xxphy
 mips/cavium/octe/octe.c				optional octe
 mips/cavium/octe/octebus.c			optional octe
-
-mips/cavium/if_octm.c				optional octm
-
-contrib/octeon-sdk/cvmx-mgmt-port.c		optional octm
 
 mips/cavium/octopci.c				optional pci
 mips/cavium/octopci_bus_space.c			optional pci

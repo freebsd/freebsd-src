@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.nls.c,v 3.21 2006/09/26 16:45:30 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.nls.c,v 3.23 2010/02/12 22:17:20 christos Exp $ */
 /*
  * tc.nls.c: NLS handling
  */
@@ -32,9 +32,33 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: tc.nls.c,v 3.21 2006/09/26 16:45:30 christos Exp $")
+RCSID("$tcsh: tc.nls.c,v 3.23 2010/02/12 22:17:20 christos Exp $")
+
 
 #ifdef WIDE_STRINGS
+# ifdef HAVE_WCWIDTH
+#  ifdef UTF16_STRINGS
+int
+xwcwidth (wint_t wchar)
+{
+  wchar_t ws[2];
+
+  if (wchar <= 0xffff)
+    return wcwidth ((wchar_t) wchar);
+  /* UTF-16 systems can't handle these values directly in calls to wcwidth.
+     However, they can handle them as surrogate pairs in calls to wcswidth.
+     What we do here is to convert UTF-32 values >= 0x10000 into surrogate
+     pairs and compute the width by calling wcswidth. */
+  wchar -= 0x10000;
+  ws[0] = 0xd800 | (wchar >> 10);
+  ws[1] = 0xdc00 | (wchar & 0x3ff);
+  return wcswidth (ws, 2);
+}
+#  else
+#define xwcwidth wcwidth
+#  endif /* !UTF16_STRINGS */
+# endif /* HAVE_WCWIDTH */
+
 int
 NLSWidth(Char c)
 {
@@ -42,7 +66,7 @@ NLSWidth(Char c)
     int l;
     if (c & INVALID_BYTE)
 	return 1;
-    l = wcwidth(c);
+    l = xwcwidth((wchar_t) c);
     return l >= 0 ? l : 0;
 # else
     return iswprint(c) != 0;
@@ -58,7 +82,7 @@ NLSStringWidth(const Char *s)
     while (*s) {
 	c = *s++;
 #ifdef HAVE_WCWIDTH
-	if ((l = wcwidth(c)) < 0)
+	if ((l = xwcwidth((wchar_t) c)) < 0)
 		l = 2;
 #else
 	l = iswprint(c) != 0;

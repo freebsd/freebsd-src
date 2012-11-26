@@ -332,6 +332,7 @@ _sem_getvalue(sem_t * __restrict sem, int * __restrict sval)
 static __inline int
 usem_wake(struct _usem *sem)
 {
+	rmb();
 	if (!sem->_has_waiters)
 		return (0);
 	return _umtx_op(sem, UMTX_OP_SEM_WAKE, 0, NULL, NULL);

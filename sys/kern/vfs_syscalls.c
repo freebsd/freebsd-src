@@ -134,7 +134,7 @@ sys_sync(td, uap)
 	struct sync_args *uap;
 {
 	struct mount *mp, *nmp;
-	int vfslocked;
+	int save, vfslocked;
 
 	mtx_lock(&mountlist_mtx);
 	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
@@ -145,18 +145,10 @@ sys_sync(td, uap)
 		vfslocked = VFS_LOCK_GIANT(mp);
 		if ((mp->mnt_flag & MNT_RDONLY) == 0 &&
 		    vn_start_write(NULL, &mp, V_NOWAIT) == 0) {
-			MNT_ILOCK(mp);
-			mp->mnt_noasync++;
-			mp->mnt_kern_flag &= ~MNTK_ASYNC;
-			MNT_IUNLOCK(mp);
+			save = curthread_pflags_set(TDP_SYNCIO);
 			vfs_msync(mp, MNT_NOWAIT);
 			VFS_SYNC(mp, MNT_NOWAIT);
-			MNT_ILOCK(mp);
-			mp->mnt_noasync--;
-			if ((mp->mnt_flag & MNT_ASYNC) != 0 &&
-			    mp->mnt_noasync == 0)
-				mp->mnt_kern_flag |= MNTK_ASYNC;
-			MNT_IUNLOCK(mp);
+			curthread_pflags_restore(save);
 			vn_finished_write(mp);
 		}
 		VFS_UNLOCK_GIANT(vfslocked);
@@ -2700,7 +2692,7 @@ kern_readlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct nameidata nd;
 	int vfslocked;
 
-	if (count > INT_MAX)
+	if (count > IOSIZE_MAX)
 		return (EINVAL);
 
 	NDINIT_AT(&nd, LOOKUP, NOFOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE |
@@ -4161,7 +4153,8 @@ kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
 	int error, eofflag;
 
 	AUDIT_ARG_FD(fd);
-	if (count > INT_MAX)
+	auio.uio_resid = count;
+	if (auio.uio_resid > IOSIZE_MAX)
 		return (EINVAL);
 	if ((error = getvnode(td->td_proc->p_fd, fd, CAP_READ | CAP_SEEK,
 	    &fp)) != 0)
@@ -4185,7 +4178,6 @@ unionread:
 	auio.uio_rw = UIO_READ;
 	auio.uio_segflg = UIO_USERSPACE;
 	auio.uio_td = td;
-	auio.uio_resid = count;
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	AUDIT_ARG_VNODE1(vp);
 	loff = auio.uio_offset = fp->f_offset;

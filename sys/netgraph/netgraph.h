@@ -365,7 +365,7 @@ struct ng_node {
 	void   *nd_private;		/* node type dependant node ID */
 	ng_ID_t	nd_ID;			/* Unique per node */
 	LIST_HEAD(hooks, ng_hook) nd_hooks;	/* linked list of node hooks */
-	LIST_ENTRY(ng_node)	  nd_nodes;	/* linked list of all nodes */
+	LIST_ENTRY(ng_node)	  nd_nodes;	/* name hash collision list */
 	LIST_ENTRY(ng_node)	  nd_idnodes;	/* ID hash collision list */
 	struct	ng_queue	  nd_input_queue; /* input queue for locking */
 	int	nd_refs;		/* # of references to this node */
@@ -1201,10 +1201,6 @@ typedef void *meta_p;
 #define NG_FREE_META(meta)
 #define NGI_GET_META(i,m)
 #define	ng_copy_meta(meta) NULL
-
-/* Hash related definitions */
-#define	NG_ID_HASH_SIZE 128 /* most systems wont need even this many */
-#define	NG_NAME_HASH_SIZE 128 /* most systems wont need even this many */
 
 /*
  * Mark the current thread when called from the outbound path of the

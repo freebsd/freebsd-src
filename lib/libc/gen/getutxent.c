@@ -70,13 +70,18 @@ setutxdb(int db, const char *file)
 	if (uf == NULL)
 		return (-1);
 
-	/* Safety check: never use broken files. */
-	if (db != UTXDB_LOG && _fstat(fileno(uf), &sb) != -1 &&
-	    sb.st_size % sizeof(struct futx) != 0) {
-		fclose(uf);
-		uf = NULL;
-		errno = EFTYPE;
-		return (-1);
+	if (db != UTXDB_LOG) {
+		/* Safety check: never use broken files. */
+		if (_fstat(fileno(uf), &sb) != -1 &&
+		    sb.st_size % sizeof(struct futx) != 0) {
+			fclose(uf);
+			uf = NULL;
+			errno = EFTYPE;
+			return (-1);
+		}
+		/* Prevent reading of partial records. */
+		(void)setvbuf(uf, NULL, _IOFBF,
+		    rounddown(BUFSIZ, sizeof(struct futx)));
 	}
 
 	udb = db;

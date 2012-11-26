@@ -11,7 +11,7 @@
 . /etc/rc.subr
 
 name="ntpd"
-rcvar=`set_rcvar`
+rcvar="ntpd_enable"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 start_precmd="ntpd_precmd"

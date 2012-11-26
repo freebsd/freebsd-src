@@ -7612,16 +7612,22 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	asoc = &stcb->asoc;
-#ifdef INET6
-	if (net->ro._l_addr.sin6.sin6_family == AF_INET6) {
-		goal_mtu = net->mtu - SCTP_MIN_OVERHEAD;
-	} else {
-		/* ?? not sure what else to do */
+	switch (net->ro._l_addr.sa.sa_family) {
+#ifdef INET
+	case AF_INET:
 		goal_mtu = net->mtu - SCTP_MIN_V4_OVERHEAD;
-	}
-#else
-	goal_mtu = net->mtu - SCTP_MIN_OVERHEAD;
+		break;
 #endif
+#ifdef INET6
+	case AF_INET6:
+		goal_mtu = net->mtu - SCTP_MIN_OVERHEAD;
+		break;
+#endif
+	default:
+		/* TSNH */
+		goal_mtu = net->mtu;
+		break;
+	}
 	/* Need an allowance for the data chunk header too */
 	goal_mtu -= sizeof(struct sctp_data_chunk);
 
@@ -8180,10 +8186,21 @@ again_one_more_time:
 					if (!no_out_cnt)
 						*num_out += ctl_cnt;
 					/* recalc a clean slate and setup */
-					if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
-						mtu = (net->mtu - SCTP_MIN_OVERHEAD);
-					} else {
-						mtu = (net->mtu - SCTP_MIN_V4_OVERHEAD);
+					switch (net->ro._l_addr.sa.sa_family) {
+#ifdef INET
+					case AF_INET:
+						mtu = net->mtu - SCTP_MIN_V4_OVERHEAD;
+						break;
+#endif
+#ifdef INET6
+					case AF_INET6:
+						mtu = net->mtu - SCTP_MIN_OVERHEAD;
+						break;
+#endif
+					default:
+						/* TSNH */
+						mtu = net->mtu;
+						break;
 					}
 					to_out = 0;
 					no_fragmentflg = 1;
@@ -8446,10 +8463,21 @@ again_one_more_time:
 					if (!no_out_cnt)
 						*num_out += ctl_cnt;
 					/* recalc a clean slate and setup */
-					if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
-						mtu = (net->mtu - SCTP_MIN_OVERHEAD);
-					} else {
-						mtu = (net->mtu - SCTP_MIN_V4_OVERHEAD);
+					switch (net->ro._l_addr.sa.sa_family) {
+#ifdef INET
+					case AF_INET:
+						mtu = net->mtu - SCTP_MIN_V4_OVERHEAD;
+						break;
+#endif
+#ifdef INET6
+					case AF_INET6:
+						mtu = net->mtu - SCTP_MIN_OVERHEAD;
+						break;
+#endif
+					default:
+						/* TSNH */
+						mtu = net->mtu;
+						break;
 					}
 					to_out = 0;
 					no_fragmentflg = 1;
@@ -9492,10 +9520,21 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 		}
 		/* pick up the net */
 		net = chk->whoTo;
-		if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
-			mtu = (net->mtu - SCTP_MIN_OVERHEAD);
-		} else {
+		switch (net->ro._l_addr.sa.sa_family) {
+#ifdef INET
+		case AF_INET:
 			mtu = net->mtu - SCTP_MIN_V4_OVERHEAD;
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
+			mtu = net->mtu - SCTP_MIN_OVERHEAD;
+			break;
+#endif
+		default:
+			/* TSNH */
+			mtu = net->mtu;
+			break;
 		}
 
 		if ((asoc->peers_rwnd < mtu) && (asoc->total_flight > 0)) {
@@ -9816,12 +9855,10 @@ one_chunk_around:
 	return (0);
 }
 
-
-static int
+static void
 sctp_timer_validation(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
-    struct sctp_association *asoc,
-    int ret)
+    struct sctp_association *asoc)
 {
 	struct sctp_nets *net;
 
@@ -9829,7 +9866,7 @@ sctp_timer_validation(struct sctp_inpcb *inp,
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		if (SCTP_OS_TIMER_PENDING(&net->rxt_timer.timer)) {
 			/* Here is a timer */
-			return (ret);
+			return;
 		}
 	}
 	SCTP_TCB_LOCK_ASSERT(stcb);
@@ -9840,7 +9877,7 @@ sctp_timer_validation(struct sctp_inpcb *inp,
 	} else {
 		sctp_timer_start(SCTP_TIMER_TYPE_SEND, inp, stcb, asoc->primary_destination);
 	}
-	return (ret);
+	return;
 }
 
 void
@@ -9950,7 +9987,7 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 #ifdef SCTP_AUDITING_ENABLED
 			sctp_auditing(8, inp, stcb, NULL);
 #endif
-			(void)sctp_timer_validation(inp, stcb, asoc, ret);
+			sctp_timer_validation(inp, stcb, asoc);
 			return;
 		}
 		if (ret < 0) {
@@ -12839,9 +12876,9 @@ sctp_lower_sosend(struct socket *so,
 			goto out_unlocked;
 		}
 	}
-	if ((SCTP_SO_IS_NBIO(so)
+	if (SCTP_SO_IS_NBIO(so)
 	    || (flags & MSG_NBIO)
-	    )) {
+	    ) {
 		non_blocking = 1;
 	}
 	/* would we block? */

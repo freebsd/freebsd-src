@@ -8736,7 +8736,7 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 	struct ctl_lun *lun;
 	uint32_t initidx;
 	int have_error;
-	ctl_sense_format sense_format;
+	scsi_sense_data_type sense_format;
 
 	cdb = (struct scsi_request_sense *)ctsio->cdb;
 
@@ -8748,9 +8748,9 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 	 * Determine which sense format the user wants.
 	 */
 	if (cdb->byte2 & SRS_DESC)
-		sense_format = CTL_SENSE_DESCRIPTOR;
+		sense_format = SSD_TYPE_DESC;
 	else
-		sense_format = CTL_SENSE_FIXED;
+		sense_format = SSD_TYPE_FIXED;
 
 	ctsio->kern_data_ptr = malloc(sizeof(*sense_ptr), M_CTL, M_WAITOK);
 	if (ctsio->kern_data_ptr == NULL) {
@@ -8789,13 +8789,13 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 	 */
 	mtx_lock(&lun->ctl_softc->ctl_lock);
 	if (ctl_is_set(lun->have_ca, initidx)) {
-		ctl_sense_format stored_format;
+		scsi_sense_data_type stored_format;
 
 		/*
 		 * Check to see which sense format was used for the stored
 		 * sense data.
 		 */
-		stored_format = ctl_get_sense_format(
+		stored_format = scsi_sense_type(
 		    &lun->pending_sense[initidx].sense);
 
 		/*
@@ -8804,14 +8804,17 @@ ctl_request_sense(struct ctl_scsiio *ctsio)
 		 * format.  If we're going from descriptor to fixed format
 		 * sense data, we may lose things in translation, depending
 		 * on what options were used.
+		 *
+		 * If the stored format is SSD_TYPE_NONE (i.e. invalid),
+		 * for some reason we'll just copy it out as-is.
 		 */
-		if ((stored_format == CTL_SENSE_FIXED)
-		 && (sense_format == CTL_SENSE_DESCRIPTOR))
+		if ((stored_format == SSD_TYPE_FIXED)
+		 && (sense_format == SSD_TYPE_DESC))
 			ctl_sense_to_desc((struct scsi_sense_data_fixed *)
 			    &lun->pending_sense[initidx].sense,
 			    (struct scsi_sense_data_desc *)sense_ptr);
-		else if ((stored_format == CTL_SENSE_DESCRIPTOR)
-		      && (sense_format == CTL_SENSE_FIXED))
+		else if ((stored_format == SSD_TYPE_DESC)
+		      && (sense_format == SSD_TYPE_FIXED))
 			ctl_sense_to_fixed((struct scsi_sense_data_desc *)
 			    &lun->pending_sense[initidx].sense,
 			    (struct scsi_sense_data_fixed *)sense_ptr);
@@ -10459,14 +10462,14 @@ ctl_scsiio_precheck(struct ctl_softc *ctl_softc, struct ctl_scsiio *ctsio)
 
 		ua_type = lun->pending_sense[initidx].ua_pending;
 		if (ua_type != CTL_UA_NONE) {
-			ctl_sense_format sense_format;
+			scsi_sense_data_type sense_format;
 
 			if (lun != NULL)
 				sense_format = (lun->flags &
-				    CTL_LUN_SENSE_DESC) ? CTL_SENSE_DESCRIPTOR :
-				    CTL_SENSE_FIXED;
+				    CTL_LUN_SENSE_DESC) ? SSD_TYPE_DESC :
+				    SSD_TYPE_FIXED;
 			else
-				sense_format = CTL_SENSE_FIXED;
+				sense_format = SSD_TYPE_FIXED;
 
 			ua_type = ctl_build_ua(ua_type, &ctsio->sense_data,
 					       sense_format);

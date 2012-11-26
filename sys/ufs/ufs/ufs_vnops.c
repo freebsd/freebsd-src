@@ -571,8 +571,9 @@ ufs_setattr(ap)
 			DIP_SET(ip, i_flags, ip->i_flags);
 		}
 		ip->i_flag |= IN_CHANGE;
+		error = UFS_UPDATE(vp, 0);
 		if (vap->va_flags & (IMMUTABLE | APPEND))
-			return (0);
+			return (error);
 	}
 	if (ip->i_flags & (IMMUTABLE | APPEND))
 		return (EPERM);
@@ -738,6 +739,9 @@ ufs_markatime(ap)
 	VI_LOCK(vp);
 	ip->i_flag |= IN_ACCESS;
 	VI_UNLOCK(vp);
+	/*
+	 * XXXKIB No UFS_UPDATE(ap->a_vp, 0) there.
+	 */
 	return (0);
 }
 
@@ -794,6 +798,9 @@ ufs_chmod(vp, mode, cred, td)
 	if ((vp->v_mount->mnt_flag & MNT_NFS4ACLS) != 0)
 		error = ufs_update_nfs4_acl_after_mode_change(vp, mode, ip->i_uid, cred, td);
 #endif
+	if (error == 0 && (ip->i_flag & IN_CHANGE) != 0)
+		error = UFS_UPDATE(vp, 0);
+
 	return (error);
 }
 
@@ -912,7 +919,8 @@ good:
 			DIP_SET(ip, i_mode, ip->i_mode);
 		}
 	}
-	return (0);
+	error = UFS_UPDATE(vp, 0);
+	return (error);
 }
 
 static int
@@ -2079,6 +2087,7 @@ ufs_rmdir(ap)
 		dp->i_nlink--;
 		DIP_SET(dp, i_nlink, dp->i_nlink);
 		dp->i_flag |= IN_CHANGE;
+		error = UFS_UPDATE(dvp, 0);
 		ip->i_nlink--;
 		DIP_SET(ip, i_nlink, ip->i_nlink);
 		ip->i_flag |= IN_CHANGE;
@@ -2122,6 +2131,7 @@ ufs_symlink(ap)
 		ip->i_size = len;
 		DIP_SET(ip, i_size, len);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		error = UFS_UPDATE(vp, 0);
 	} else
 		error = vn_rdwr(UIO_WRITE, vp, ap->a_target, len, (off_t)0,
 		    UIO_SYSSPACE, IO_NODELOCKED | IO_NOMACCHECK,

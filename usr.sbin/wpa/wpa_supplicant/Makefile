@@ -5,7 +5,7 @@
 .PATH.c:${WPA_SUPPLICANT_DISTDIR} \
 	${WPA_DISTDIR}/src/drivers \
 	${WPA_DISTDIR}/src/eap_peer \
-	${WPA_DISTDIR}/src/rsn_supp
+	${WPA_DISTDIR}/src/rsn_supp \
 	${WPA_DISTDIR}/src/crypto
 
 PROG=	wpa_supplicant

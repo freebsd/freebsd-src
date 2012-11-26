@@ -3019,7 +3019,7 @@ flags_out:
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 				error = EINVAL;
 			} else {
-				SCTP_INP_RUNLOCK(inp);
+				SCTP_INP_RLOCK(inp);
 				onoff = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_RECVRCVINFO);
 				SCTP_INP_RUNLOCK(inp);
 			}
@@ -3038,7 +3038,7 @@ flags_out:
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_USRREQ, EINVAL);
 				error = EINVAL;
 			} else {
-				SCTP_INP_RUNLOCK(inp);
+				SCTP_INP_RLOCK(inp);
 				onoff = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_RECVNXTINFO);
 				SCTP_INP_RUNLOCK(inp);
 			}
@@ -6357,7 +6357,7 @@ sctp_ingetaddr(struct socket *so, struct sockaddr **addr)
 int
 sctp_peeraddr(struct socket *so, struct sockaddr **addr)
 {
-	struct sockaddr_in *sin = (struct sockaddr_in *)*addr;
+	struct sockaddr_in *sin;
 	int fnd;
 	struct sockaddr_in *sin_a;
 	struct sctp_inpcb *inp;

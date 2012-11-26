@@ -184,3 +184,4 @@ static moduledata_t wtap_conf = {
 };
 
 DECLARE_MODULE(wtap, wtap_conf, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
+MODULE_DEPEND(wtap, wlan, 1, 1, 1);	/* 802.11 media layer */

@@ -261,7 +261,7 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 		else if (r->proto && r->proto != pd->proto)
 			r = r->skip[PF_SKIP_PROTO].ptr;
 		else if (PF_MISMATCHAW(&src->addr, saddr, pd->af,
-		    src->neg, kif))
+		    src->neg, kif, M_GETFIB(m)))
 			r = r->skip[src == &r->src ? PF_SKIP_SRC_ADDR :
 			    PF_SKIP_DST_ADDR].ptr;
 		else if (src->port_op && !pf_match_port(src->port_op,
@@ -269,10 +269,11 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 			r = r->skip[src == &r->src ? PF_SKIP_SRC_PORT :
 			    PF_SKIP_DST_PORT].ptr;
 		else if (dst != NULL &&
-		    PF_MISMATCHAW(&dst->addr, daddr, pd->af, dst->neg, NULL))
+		    PF_MISMATCHAW(&dst->addr, daddr, pd->af, dst->neg, NULL,
+		    M_GETFIB(m)))
 			r = r->skip[PF_SKIP_DST_ADDR].ptr;
 		else if (xdst != NULL && PF_MISMATCHAW(xdst, daddr, pd->af,
-		    0, NULL))
+		    0, NULL, M_GETFIB(m)))
 			r = TAILQ_NEXT(r, entries);
 		else if (dst != NULL && dst->port_op &&
 		    !pf_match_port(dst->port_op, dst->port[0],

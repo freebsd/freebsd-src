@@ -80,7 +80,7 @@ struct octusb_qh {
 	uint8_t	ep_num;
 	uint8_t	ep_type;
 	uint8_t	ep_toggle_next;
-	uint8_t	port_index;
+	uint8_t	root_port_index;
 	uint8_t	fixup_complete;
 	uint8_t	fixup_pending;
 	uint8_t	hs_hub_addr;

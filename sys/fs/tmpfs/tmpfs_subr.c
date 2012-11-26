@@ -882,7 +882,7 @@ tmpfs_dir_whiteout_remove(struct vnode *dvp, struct componentname *cnp)
  * Returns zero on success or an appropriate error code on failure.
  */
 int
-tmpfs_reg_resize(struct vnode *vp, off_t newsize)
+tmpfs_reg_resize(struct vnode *vp, off_t newsize, boolean_t ignerr)
 {
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *node;
@@ -929,6 +929,7 @@ retry:
 					vm_page_sleep(m, "tmfssz");
 					goto retry;
 				}
+				MPASS(m->valid == VM_PAGE_BITS_ALL);
 			} else if (vm_pager_has_page(uobj, idx, NULL, NULL)) {
 				m = vm_page_alloc(uobj, idx, VM_ALLOC_NORMAL);
 				if (m == NULL) {
@@ -951,13 +952,16 @@ retry:
 				} else {
 					vm_page_free(m);
 					vm_page_unlock(m);
-					VM_OBJECT_UNLOCK(uobj);
-					return (EIO);
+					if (ignerr)
+						m = NULL;
+					else {
+						VM_OBJECT_UNLOCK(uobj);
+						return (EIO);
+					}
 				}
 			}
 			if (m != NULL) {
 				pmap_zero_page_area(m, base, PAGE_SIZE - base);
-				MPASS(m->valid == VM_PAGE_BITS_ALL);
 				vm_page_dirty(m);
 				vm_pager_page_unswapped(m);
 			}
@@ -1351,7 +1355,7 @@ tmpfs_truncate(struct vnode *vp, off_t length)
 	if (length > VFS_TO_TMPFS(vp->v_mount)->tm_maxfilesize)
 		return (EFBIG);
 
-	error = tmpfs_reg_resize(vp, length);
+	error = tmpfs_reg_resize(vp, length, FALSE);
 	if (error == 0) {
 		node->tn_status |= TMPFS_NODE_CHANGED | TMPFS_NODE_MODIFIED;
 	}

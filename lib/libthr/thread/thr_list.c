@@ -149,11 +149,20 @@ _thr_alloc(struct pthread *curthread)
 		if (total_threads > MAX_THREADS)
 			return (NULL);
 		atomic_fetchadd_int(&total_threads, 1);
-		thread = malloc(sizeof(struct pthread));
+		thread = calloc(1, sizeof(struct pthread));
 		if (thread == NULL) {
 			atomic_fetchadd_int(&total_threads, -1);
 			return (NULL);
 		}
+		if ((thread->sleepqueue = _sleepq_alloc()) == NULL ||
+		    (thread->wake_addr = _thr_alloc_wake_addr()) == NULL) {
+			thr_destroy(curthread, thread);
+			atomic_fetchadd_int(&total_threads, -1);
+			return (NULL);
+		}
+	} else {
+		bzero(&thread->_pthread_startzero, 
+			__rangeof(struct pthread, _pthread_startzero, _pthread_endzero));
 	}
 	if (curthread != NULL) {
 		THR_LOCK_ACQUIRE(curthread, &tcb_lock);
@@ -163,10 +172,7 @@ _thr_alloc(struct pthread *curthread)
 		tcb = _tcb_ctor(thread, 1 /* initial tls */);
 	}
 	if (tcb != NULL) {
-		memset(thread, 0, sizeof(*thread));
 		thread->tcb = tcb;
-		thread->sleepqueue = _sleepq_alloc();
-		thread->wake_addr = _thr_alloc_wake_addr();
 	} else {
 		thr_destroy(curthread, thread);
 		atomic_fetchadd_int(&total_threads, -1);
@@ -194,8 +200,6 @@ _thr_free(struct pthread *curthread, struct pthread *thread)
 	}
 	thread->tcb = NULL;
 	if ((curthread == NULL) || (free_thread_count >= MAX_CACHED_THREADS)) {
-		_sleepq_free(thread->sleepqueue);
-		_thr_release_wake_addr(thread->wake_addr);
 		thr_destroy(curthread, thread);
 		atomic_fetchadd_int(&total_threads, -1);
 	} else {
@@ -213,6 +217,10 @@ _thr_free(struct pthread *curthread, struct pthread *thread)
 static void
 thr_destroy(struct pthread *curthread __unused, struct pthread *thread)
 {
+	if (thread->sleepqueue != NULL)
+		_sleepq_free(thread->sleepqueue);
+	if (thread->wake_addr != NULL)
+		_thr_release_wake_addr(thread->wake_addr);
 	free(thread);
 }
 

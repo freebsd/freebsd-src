@@ -238,6 +238,7 @@ extern void	*trapcode64;
 extern void	*rstcode, *rstsize;
 #endif
 extern void	*trapcode, *trapsize;
+extern void	*slbtrap, *slbtrapsize;
 extern void	*alitrap, *alisize;
 extern void	*dsitrap, *dsisize;
 extern void	*decrint, *decrsize;
@@ -490,8 +491,8 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	bcopy(&dsitrap,  (void *)(EXC_DSI + trap_offset),  (size_t)&dsisize);
 	bcopy(generictrap, (void *)EXC_ISI,  (size_t)&trapsize);
 	#ifdef __powerpc64__
-	bcopy(generictrap, (void *)EXC_DSE,  (size_t)&trapsize);
-	bcopy(generictrap, (void *)EXC_ISE,  (size_t)&trapsize);
+	bcopy(&slbtrap, (void *)EXC_DSE,  (size_t)&slbtrapsize);
+	bcopy(&slbtrap, (void *)EXC_ISE,  (size_t)&slbtrapsize);
 	#endif
 	bcopy(generictrap, (void *)EXC_EXI,  (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_FPU,  (size_t)&trapsize);

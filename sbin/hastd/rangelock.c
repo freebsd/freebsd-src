@@ -128,15 +128,13 @@ bool
 rangelock_islocked(struct rangelocks *rls, off_t offset, off_t length)
 {
 	struct rlock *rl;
+	off_t end;
 
 	PJDLOG_ASSERT(rls->rls_magic == RANGELOCKS_MAGIC);
 
+	end = offset + length;
 	TAILQ_FOREACH(rl, &rls->rls_locks, rl_next) {
-		if (rl->rl_start >= offset && rl->rl_start < offset + length)
-			break;
-		else if (rl->rl_end > offset && rl->rl_end <= offset + length)
-			break;
-		else if (rl->rl_start < offset && rl->rl_end > offset + length)
+		if (rl->rl_start < end && rl->rl_end > offset)
 			break;
 	}
 	return (rl != NULL);

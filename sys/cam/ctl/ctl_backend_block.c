@@ -260,15 +260,15 @@ int ctl_be_block_init(void);
 
 static struct ctl_backend_driver ctl_be_block_driver = 
 {
-	name: "block",
-	flags: CTL_BE_FLAG_HAS_CONFIG,
-	init: ctl_be_block_init,
-	data_submit: ctl_be_block_submit,
-	data_move_done: ctl_be_block_move_done,
-	config_read: ctl_be_block_config_read,
-	config_write: ctl_be_block_config_write,
-	ioctl: ctl_be_block_ioctl,
-	lun_info: ctl_be_block_lun_info
+	.name = "block",
+	.flags = CTL_BE_FLAG_HAS_CONFIG,
+	.init = ctl_be_block_init,
+	.data_submit = ctl_be_block_submit,
+	.data_move_done = ctl_be_block_move_done,
+	.config_read = ctl_be_block_config_read,
+	.config_write = ctl_be_block_config_write,
+	.ioctl = ctl_be_block_ioctl,
+	.lun_info = ctl_be_block_lun_info
 };
 
 MALLOC_DEFINE(M_CTLBLK, "ctlblk", "Memory used for CTL block backend");

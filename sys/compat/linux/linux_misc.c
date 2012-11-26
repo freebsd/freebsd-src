@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002 Doug Rabson
- * Copyright (c) 1994-1995 Søren Schmidt
+ * Copyright (c) 1994-1995 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -229,9 +229,9 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	struct vattr attr;
 	vm_offset_t vmaddr;
 	unsigned long file_offset;
-	vm_offset_t buffer;
 	unsigned long bss_size;
 	char *library;
+	ssize_t aresid;
 	int error;
 	int locked, vfslocked;
 
@@ -308,8 +308,8 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	if (error)
 		goto cleanup;
 
-	/* Pull in executable header into kernel_map */
-	error = vm_mmap(kernel_map, (vm_offset_t *)&a_out, PAGE_SIZE,
+	/* Pull in executable header into exec_map */
+	error = vm_mmap(exec_map, (vm_offset_t *)&a_out, PAGE_SIZE,
 	    VM_PROT_READ, VM_PROT_READ, 0, OBJT_VNODE, vp, 0);
 	if (error)
 		goto cleanup;
@@ -402,24 +402,15 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 		if (error)
 			goto cleanup;
 
-		/* map file into kernel_map */
-		error = vm_mmap(kernel_map, &buffer,
-		    round_page(a_out->a_text + a_out->a_data + file_offset),
-		    VM_PROT_READ, VM_PROT_READ, 0, OBJT_VNODE, vp,
-		    trunc_page(file_offset));
-		if (error)
+		error = vn_rdwr(UIO_READ, vp, (void *)vmaddr, file_offset,
+		    a_out->a_text + a_out->a_data, UIO_USERSPACE, 0,
+		    td->td_ucred, NOCRED, &aresid, td);
+		if (error != 0)
 			goto cleanup;
-
-		/* copy from kernel VM space to user space */
-		error = copyout(PTRIN(buffer + file_offset),
-		    (void *)vmaddr, a_out->a_text + a_out->a_data);
-
-		/* release temporary kernel space */
-		vm_map_remove(kernel_map, buffer, buffer +
-		    round_page(a_out->a_text + a_out->a_data + file_offset));
-
-		if (error)
+		if (aresid != 0) {
+			error = ENOEXEC;
 			goto cleanup;
+		}
 	} else {
 #ifdef DEBUG
 		printf("uselib: Page aligned binary %lu\n", file_offset);
@@ -463,10 +454,9 @@ cleanup:
 		VFS_UNLOCK_GIANT(vfslocked);
 	}
 
-	/* Release the kernel mapping. */
+	/* Release the temporary mapping. */
 	if (a_out)
-		vm_map_remove(kernel_map, (vm_offset_t)a_out,
-		    (vm_offset_t)a_out + PAGE_SIZE);
+		kmem_free_wakeup(exec_map, (vm_offset_t)a_out, PAGE_SIZE);
 
 	return (error);
 }

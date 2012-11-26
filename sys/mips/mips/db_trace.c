@@ -49,10 +49,13 @@ extern char edata[];
  */
 #define	MIPS_END_OF_FUNCTION(ins)	((ins) == 0x03e00008)
 
-/*
- * kdbpeekD(addr) - skip one word starting at 'addr', then read the second word
- */
-#define	kdbpeekD(addr)	kdbpeek(((int *)(addr)) + 1)
+#if defined(__mips_n64)
+#	define	MIPS_IS_VALID_KERNELADDR(reg)	((((reg) & 3) == 0) && \
+					((vm_offset_t)(reg) >= MIPS_XKPHYS_START))
+#else
+#	define	MIPS_IS_VALID_KERNELADDR(reg)	((((reg) & 3) == 0) && \
+					((vm_offset_t)(reg) >= MIPS_KSEG0_START))
+#endif
 
 /*
  * Functions ``special'' enough to print by name
@@ -141,8 +144,8 @@ loop:
 	}
 	/* check for bad SP: could foul up next frame */
 	/*XXX MIPS64 bad: this hard-coded SP is lame */
-	if (sp & 3 || (uintptr_t)sp < 0x80000000u) {
-		(*printfn) ("SP 0x%x: not in kernel\n", sp);
+	if (!MIPS_IS_VALID_KERNELADDR(sp)) {
+		(*printfn) ("SP 0x%jx: not in kernel\n", sp);
 		ra = 0;
 		subr = 0;
 		goto done;
@@ -182,8 +185,8 @@ loop:
 	}
 	/* check for bad PC */
 	/*XXX MIPS64 bad: These hard coded constants are lame */
-	if (pc & 3 || pc < (uintptr_t)0x80000000) {
-		(*printfn) ("PC 0x%x: not in kernel\n", pc);
+	if (!MIPS_IS_VALID_KERNELADDR(pc)) {
+		(*printfn) ("PC 0x%jx: not in kernel\n", pc);
 		ra = 0;
 		goto done;
 	}
@@ -304,27 +307,27 @@ loop:
 			mask |= (1 << i.IType.rt);
 			switch (i.IType.rt) {
 			case 4:/* a0 */
-				args[0] = kdbpeekD((int *)(sp + (short)i.IType.imm));
+				args[0] = kdbpeekd((int *)(sp + (short)i.IType.imm));
 				valid_args[0] = 1;
 				break;
 
 			case 5:/* a1 */
-				args[1] = kdbpeekD((int *)(sp + (short)i.IType.imm));
+				args[1] = kdbpeekd((int *)(sp + (short)i.IType.imm));
 				valid_args[1] = 1;
 				break;
 
 			case 6:/* a2 */
-				args[2] = kdbpeekD((int *)(sp + (short)i.IType.imm));
+				args[2] = kdbpeekd((int *)(sp + (short)i.IType.imm));
 				valid_args[2] = 1;
 				break;
 
 			case 7:/* a3 */
-				args[3] = kdbpeekD((int *)(sp + (short)i.IType.imm));
+				args[3] = kdbpeekd((int *)(sp + (short)i.IType.imm));
 				valid_args[3] = 1;
 				break;
 
 			case 31:	/* ra */
-				ra = kdbpeekD((int *)(sp + (short)i.IType.imm));
+				ra = kdbpeekd((int *)(sp + (short)i.IType.imm));
 			}
 			break;
 
@@ -350,7 +353,7 @@ done:
 			(*printfn)("?");
 	}
 
-	(*printfn) (") ra %x sp %x sz %d\n", ra, sp, stksize);
+	(*printfn) (") ra %jx sp %jx sz %d\n", ra, sp, stksize);
 
 	if (ra) {
 		if (pc == ra && stksize == 0)

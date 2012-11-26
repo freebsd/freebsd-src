@@ -1,5 +1,5 @@
 XCOMM
-XCOMM $tcsh: Imakefile,v 1.86 2007/03/19 23:25:02 christos Exp $
+XCOMM $tcsh: Imakefile,v 1.87 2010/01/28 19:01:05 christos Exp $
 XCOMM
 XCOMM Imakefile for tcsh 6.12
 XCOMM Marc Horowitz, MIT SIPB
@@ -93,7 +93,11 @@ ones.  Please send in your fixes and additions! */
 #      if (OSMinorVersion < 6)
 #       define ConfigH sol24
 #      else
-#       define ConfigH sol26
+#       if (OSMinorVersion < 9)
+#        define ConfigH sol26
+#       else
+#        define ConfigH sol29
+#       endif
 #      endif
 #     endif
 #    endif

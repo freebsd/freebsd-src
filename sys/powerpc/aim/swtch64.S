@@ -268,7 +268,8 @@ ENTRY(savectx)
  * fork_trampoline()
  * Set up the return from cpu_fork()
  */
-ENTRY(fork_trampoline)
+
+ENTRY_NOPROF(fork_trampoline)
 	ld	%r3,CF_FUNC(%r1)
 	ld	%r4,CF_ARG0(%r1)
 	ld	%r5,CF_ARG1(%r1)

@@ -219,19 +219,19 @@ options 	MAXCPU=32
 
 # ADAPTIVE_MUTEXES changes the behavior of blocking mutexes to spin
 # if the thread that currently owns the mutex is executing on another
-# CPU.  This behaviour is enabled by default, so this option can be used
+# CPU.  This behavior is enabled by default, so this option can be used
 # to disable it.
 options 	NO_ADAPTIVE_MUTEXES
 
 # ADAPTIVE_RWLOCKS changes the behavior of reader/writer locks to spin
 # if the thread that currently owns the rwlock is executing on another
-# CPU.  This behaviour is enabled by default, so this option can be used
+# CPU.  This behavior is enabled by default, so this option can be used
 # to disable it.
 options 	NO_ADAPTIVE_RWLOCKS
 
 # ADAPTIVE_SX changes the behavior of sx locks to spin if the thread that
 # currently owns the sx lock is executing on another CPU.
-# This behaviour is enabled by default, so this option can be used to
+# This behavior is enabled by default, so this option can be used to
 # disable it.
 options 	NO_ADAPTIVE_SX
 
@@ -437,7 +437,7 @@ options 	KTRACE_REQUEST_POOL=101
 # initial value of the ktr_mask variable which determines at runtime
 # what events to trace.  KTR_CPUMASK determines which CPU's log
 # events, with bit X corresponding to CPU X.  The layout of the string
-# passed as KTR_CPUMASK must match a serie of bitmasks each of them
+# passed as KTR_CPUMASK must match a series of bitmasks each of them
 # separated by the ", " characters (ie:
 # KTR_CPUMASK=("0xAF, 0xFFFFFFFFFFFFFFFF")).  KTR_VERBOSE enables
 # dumping of KTR events to the console by default.  This functionality
@@ -602,7 +602,7 @@ options 	FLOWTABLE
 options 	SCTP
 # There are bunches of options:
 # this one turns on all sorts of
-# nastly printing that you can
+# nastily printing that you can
 # do. It's all controlled by a
 # bit mask (settable by socket opt and
 # by sysctl). Including will not cause
@@ -1269,7 +1269,7 @@ hint.sa.1.target="6"
 # The sg driver provides a passthrough API that is compatible with the
 # Linux SG driver.  It will work in conjunction with the COMPAT_LINUX
 # option to run linux SG apps.  It can also stand on its own and provide
-# source level API compatiblity for porting apps to FreeBSD.
+# source level API compatibility for porting apps to FreeBSD.
 #
 # Target Mode support is provided here but also requires that a SIM
 # (SCSI Host Adapter Driver) provide support as well.
@@ -1434,7 +1434,7 @@ options 	SC_NORM_REV_ATTR=(FG_YELLOW|BG_GREEN)
 options 	SC_KERNEL_CONS_ATTR=(FG_RED|BG_BLACK)
 options 	SC_KERNEL_CONS_REV_ATTR=(FG_BLACK|BG_RED)
 
-# The following options will let you change the default behaviour of
+# The following options will let you change the default behavior of
 # cut-n-paste feature
 options 	SC_CUT_SPACES2TABS	# convert leading spaces into tabs
 options 	SC_CUT_SEPCHARS=\"x09\"	# set of characters that delimit words
@@ -1835,7 +1835,7 @@ hint.uart.0.baud="115200"
 #		specifically, the 0x20 flag can also be set (see above).
 #		Currently, at most one unit can have console support; the
 #		first one (in config file order) with this flag set is
-#		preferred.  Setting this flag for sio0 gives the old behaviour.
+#		preferred.  Setting this flag for sio0 gives the old behavior.
 #	0x80	use this port for serial line gdb support in ddb.  Also known
 #		as debug port.
 #
@@ -1972,6 +1972,7 @@ device		xmphy		# XaQti XMAC II
 #	SMC EZ Card 1000 (SMC9462TX), D-Link DGE-500T, Asante FriendlyNet
 #	GigaNIX 1000TA and 1000TPC, the Addtron AEG320T, the Surecom
 #	EP-320G-TX and the Netgear GA622T.
+# oce:	Emulex 10 Gbit adapters (OneConnect Ethernet)
 # pcn:	Support for PCI fast ethernet adapters based on the AMD Am79c97x
 #	PCnet-FAST, PCnet-FAST+, PCnet-FAST III, PCnet-PRO and PCnet-Home
 #	chipsets. These can also be handled by the le(4) driver if the
@@ -2112,6 +2113,7 @@ device		ixgbe		# Intel Pro/10Gbe PCIE Ethernet
 device		le		# AMD Am7900 LANCE and Am79C9xx PCnet
 device		mxge		# Myricom Myri-10G 10GbE NIC
 device		nxge		# Neterion Xframe 10GbE Server/Storage Adapter
+device		oce		# Emulex 10 GbE (OneConnect Ethernet)
 device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
 device		txp		# 3Com 3cR990 (``Typhoon'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
@@ -2333,7 +2335,7 @@ hint.gusc.0.flags="0x13"
 #                              sanity checking and possible increase of
 #                              verbosity.
 #
-# SND_DIAGNOSTIC               Simmilar in a spirit of INVARIANTS/DIAGNOSTIC,
+# SND_DIAGNOSTIC               Similar in a spirit of INVARIANTS/DIAGNOSTIC,
 #                              zero tolerance against inconsistencies.
 #
 # SND_FEEDER_MULTIFORMAT       By default, only 16/32 bit feeders are compiled
@@ -2416,7 +2418,7 @@ device		cmx
 # options 	BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_NTSC
 # Specifies the default video capture mode.
 # This is required for Dual Crystal (28&35Mhz) boards where PAL is used
-# to prevent hangs during initialisation, e.g. VideoLogic Captivator PCI.
+# to prevent hangs during initialization, e.g. VideoLogic Captivator PCI.
 #
 # options 	BKTR_USE_PLL
 # This is required for PAL or SECAM boards with a 28Mhz crystal and no 35Mhz
@@ -2426,7 +2428,7 @@ device		cmx
 # This enables IOCTLs which give user level access to the GPIO port.
 #
 # options 	BKTR_NO_MSP_RESET
-# Prevents the MSP34xx reset. Good if you initialise the MSP in another OS first
+# Prevents the MSP34xx reset. Good if you initialize the MSP in another OS first
 #
 # options 	BKTR_430_FX_MODE
 # Switch Bt878/879 cards into Intel 430FX chipset compatibility mode.

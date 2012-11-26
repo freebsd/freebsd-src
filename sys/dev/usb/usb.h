@@ -688,6 +688,7 @@ struct usb_port_status {
 #define	UPS_PORT_LS_LOOPBACK	0x0B
 #define	UPS_PORT_LS_RESUME	0x0F
 #define	UPS_PORT_POWER			0x0100
+#define	UPS_PORT_POWER_SS		0x0200	/* super-speed only */
 #define	UPS_LOW_SPEED			0x0200
 #define	UPS_HIGH_SPEED			0x0400
 #define	UPS_OTHER_SPEED			0x0600	/* currently FreeBSD specific */

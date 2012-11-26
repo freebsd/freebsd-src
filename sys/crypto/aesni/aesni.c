@@ -116,6 +116,7 @@ aesni_detach(device_t dev)
 	}
 	while ((ses = TAILQ_FIRST(&sc->sessions)) != NULL) {
 		TAILQ_REMOVE(&sc->sessions, ses, next);
+		fpu_kern_free_ctx(ses->fpu_ctx);
 		free(ses, M_AESNI);
 	}
 	rw_wunlock(&sc->lock);
@@ -165,8 +166,13 @@ aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 			rw_wunlock(&sc->lock);
 			return (ENOMEM);
 		}
-		KASSERT(((uintptr_t)ses) % 0x10 == 0,
-		    ("malloc returned unaligned pointer"));
+		ses->fpu_ctx = fpu_kern_alloc_ctx(FPU_KERN_NORMAL |
+		    FPU_KERN_NOWAIT);
+		if (ses->fpu_ctx == NULL) {
+			free(ses, M_AESNI);
+			rw_wunlock(&sc->lock);
+			return (ENOMEM);
+		}
 		ses->id = sc->sid++;
 	} else {
 		TAILQ_REMOVE(&sc->sessions, ses, next);
@@ -191,12 +197,15 @@ aesni_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 static void
 aesni_freesession_locked(struct aesni_softc *sc, struct aesni_session *ses)
 {
+	struct fpu_kern_ctx *ctx;
 	uint32_t sid;
 
 	sid = ses->id;
 	TAILQ_REMOVE(&sc->sessions, ses, next);
+	ctx = ses->fpu_ctx;
 	bzero(ses, sizeof(*ses));
 	ses->id = sid;
+	ses->fpu_ctx = ctx;
 	TAILQ_INSERT_HEAD(&sc->sessions, ses, next);
 }
 

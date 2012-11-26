@@ -76,14 +76,34 @@
 #endif
 
 #if defined(PROF) || (defined(_KERNEL) && defined(GPROF))
-# define	_PROF_PROLOGUE	mflr 0; stw 0,4(1); bl _mcount
+# ifdef __powerpc64__
+#   define	_PROF_PROLOGUE	mflr 0;					\
+				std 3,48(1);				\
+				std 4,56(1);				\
+				std 5,64(1);				\
+				std 0,16(1);				\
+				stdu 1,-112(1);				\
+				bl _mcount;				\
+				nop;					\
+				ld 0,112+16(1);				\
+				ld 3,112+48(1);				\
+				ld 4,112+56(1);				\
+				ld 5,112+64(1);				\
+				mtlr 0;					\
+				addi 1,1,112
+# else
+#   define	_PROF_PROLOGUE	mflr 0; stw 0,4(1); bl _mcount
+# endif
 #else
 # define	_PROF_PROLOGUE
 #endif
 
-#define	ENTRY(y)	_ENTRY(CNAME(y)); _PROF_PROLOGUE
 #define	ASENTRY(y)	_ENTRY(ASMNAME(y)); _PROF_PROLOGUE
+#define	ENTRY(y)	_ENTRY(CNAME(y)); _PROF_PROLOGUE
 #define	GLOBAL(y)	_GLOBAL(CNAME(y))
+
+#define	ASENTRY_NOPROF(y)	_ENTRY(ASMNAME(y))
+#define	ENTRY_NOPROF(y)		_ENTRY(CNAME(y))
 
 #define	ASMSTR		.asciz
 
@@ -96,9 +116,9 @@
 #define __FBSDID(s)	/* nothing */
 #endif /* not lint and not STRIP_FBSDID */
 
-#define	WEAK_ALIAS(alias,sym)					\
+#define	WEAK_REFERENCE(sym, alias)				\
 	.weak alias;						\
-	alias = sym
+	.equ alias,sym
 
 #ifdef __STDC__
 #define	WARN_REFERENCES(_sym,_msg)				\

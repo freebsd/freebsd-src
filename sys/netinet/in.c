@@ -73,7 +73,7 @@ static int in_lifaddr_ioctl(struct socket *, u_long, caddr_t,
 
 static void	in_socktrim(struct sockaddr_in *);
 static int	in_ifinit(struct ifnet *, struct in_ifaddr *,
-		    struct sockaddr_in *, int, int, int);
+		    struct sockaddr_in *, int, int);
 static void	in_purgemaddrs(struct ifnet *);
 
 static VNET_DEFINE(int, nosameprefix);
@@ -220,7 +220,6 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	struct in_addr dst;
 	struct in_ifinfo *ii;
 	struct in_aliasreq *ifra = (struct in_aliasreq *)data;
-	struct sockaddr_in oldaddr;
 	int error, hostIsNew, iaIsNew, maskIsNew;
 	int iaIsFirst;
 	u_long ocmd = cmd;
@@ -278,10 +277,8 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	case SIOCSIFBRDADDR:
 	case SIOCSIFDSTADDR:
 	case SIOCSIFNETMASK:
-		if (ifr->ifr_addr.sa_family != AF_INET ||
-		    ifr->ifr_addr.sa_len != sizeof(struct sockaddr_in))
-			return (EINVAL);
-		break;
+		/* We no longer support that old commands. */
+		return (EINVAL);
 
 	case SIOCALIFADDR:
 		if (td != NULL) {
@@ -322,10 +319,6 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	 */
 	switch (cmd) {
 	case SIOCAIFADDR:
-	case SIOCSIFADDR:
-	case SIOCSIFBRDADDR:
-	case SIOCSIFNETMASK:
-	case SIOCSIFDSTADDR:
 		if (td != NULL) {
 			error = priv_check(td, PRIV_NET_ADDIFADDR);
 			if (error)
@@ -413,10 +406,6 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			error = EADDRNOTAVAIL;
 			goto out;
 		}
-		/* FALLTHROUGH */
-	case SIOCSIFADDR:
-	case SIOCSIFNETMASK:
-	case SIOCSIFDSTADDR:
 		if (ia == NULL) {
 			ia = (struct in_ifaddr *)
 				malloc(sizeof *ia, M_IFADDR, M_NOWAIT |
@@ -452,7 +441,6 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		}
 		break;
 
-	case SIOCSIFBRDADDR:
 	case SIOCGIFADDR:
 	case SIOCGIFNETMASK:
 	case SIOCGIFDSTADDR:
@@ -493,61 +481,6 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		*((struct sockaddr_in *)&ifr->ifr_addr) = ia->ia_sockmask;
 		goto out;
 
-	case SIOCSIFDSTADDR:
-		if ((ifp->if_flags & IFF_POINTOPOINT) == 0) {
-			error = EINVAL;
-			goto out;
-		}
-		oldaddr = ia->ia_dstaddr;
-		ia->ia_dstaddr = *(struct sockaddr_in *)&ifr->ifr_dstaddr;
-		if (ifp->if_ioctl != NULL) {
-			error = (*ifp->if_ioctl)(ifp, SIOCSIFDSTADDR,
-			    (caddr_t)ia);
-			if (error) {
-				ia->ia_dstaddr = oldaddr;
-				goto out;
-			}
-		}
-		if (ia->ia_flags & IFA_ROUTE) {
-			ia->ia_ifa.ifa_dstaddr = (struct sockaddr *)&oldaddr;
-			rtinit(&(ia->ia_ifa), (int)RTM_DELETE, RTF_HOST);
-			ia->ia_ifa.ifa_dstaddr =
-					(struct sockaddr *)&ia->ia_dstaddr;
-			rtinit(&(ia->ia_ifa), (int)RTM_ADD, RTF_HOST|RTF_UP);
-		}
-		goto out;
-
-	case SIOCSIFBRDADDR:
-		if ((ifp->if_flags & IFF_BROADCAST) == 0) {
-			error = EINVAL;
-			goto out;
-		}
-		ia->ia_broadaddr = *(struct sockaddr_in *)&ifr->ifr_broadaddr;
-		goto out;
-
-	case SIOCSIFADDR:
-		error = in_ifinit(ifp, ia,
-		    (struct sockaddr_in *) &ifr->ifr_addr, 1, 0, 0);
-		if (error != 0 && iaIsNew)
-			break;
-		if (error == 0) {
-			ii = ((struct in_ifinfo *)ifp->if_afdata[AF_INET]);
-			if (iaIsFirst &&
-			    (ifp->if_flags & IFF_MULTICAST) != 0) {
-				error = in_joingroup(ifp, &allhosts_addr,
-				    NULL, &ii->ii_allhosts);
-			}
-			EVENTHANDLER_INVOKE(ifaddr_event, ifp);
-		}
-		error = 0;
-		goto out;
-
-	case SIOCSIFNETMASK:
-		ia->ia_sockmask.sin_addr = ((struct sockaddr_in *)
-		    &ifr->ifr_addr)->sin_addr;
-		ia->ia_subnetmask = ntohl(ia->ia_sockmask.sin_addr.s_addr);
-		goto out;
-
 	case SIOCAIFADDR:
 		maskIsNew = 0;
 		hostIsNew = 1;
@@ -579,8 +512,8 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			maskIsNew  = 1; /* We lie; but the effect's the same */
 		}
 		if (hostIsNew || maskIsNew)
-			error = in_ifinit(ifp, ia, &ifra->ifra_addr, 0,
-			    maskIsNew, (ocmd == cmd ? ifra->ifra_vhid : 0));
+			error = in_ifinit(ifp, ia, &ifra->ifra_addr, maskIsNew,
+			    (ocmd == cmd ? ifra->ifra_vhid : 0));
 		if (error != 0 && iaIsNew)
 			break;
 
@@ -863,13 +796,10 @@ in_ifscrub(struct ifnet *ifp, struct in_ifaddr *ia, u_int flags)
  */
 static int
 in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
-    int scrub, int masksupplied, int vhid)
+    int masksupplied, int vhid)
 {
 	register u_long i = ntohl(sin->sin_addr.s_addr);
 	int flags = RTF_UP, error = 0;
-
-	if (scrub)
-		in_scrubprefix(ia, LLE_STATIC);
 
 	IN_IFADDR_WLOCK();
 	if (ia->ia_addr.sin_family == AF_INET)
@@ -949,7 +879,7 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 
 		bzero(&ia_ro, sizeof(ia_ro));
 		*((struct sockaddr_in *)(&ia_ro.ro_dst)) = ia->ia_addr;
-		rtalloc_ign_fib(&ia_ro, 0, 0);
+		rtalloc_ign_fib(&ia_ro, 0, RT_DEFAULT_FIB);
 		if ((ia_ro.ro_rt != NULL) && (ia_ro.ro_rt->rt_ifp != NULL) &&
 		    (ia_ro.ro_rt->rt_ifp == V_loif)) {
 			RT_LOCK(ia_ro.ro_rt);

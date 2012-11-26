@@ -11,7 +11,7 @@
 . /etc/rc.subr
 
 name="amd"
-rcvar=`set_rcvar`
+rcvar="amd_enable"
 command="/usr/sbin/${name}"
 start_precmd="amd_precmd"
 command_args="&"
@@ -19,15 +19,8 @@ extra_commands="reload"
 
 amd_precmd()
 {
-	if ! checkyesno nfs_client_enable; then
-		force_depend nfsclient || return 1
-	fi
-
-	if ! checkyesno rpcbind_enable  && \
-	    ! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
-	then
-		force_depend rpcbind || return 1
-	fi
+	force_depend nfsclient nfs_client || return 1
+	force_depend rpcbind || return 1
 
 	case ${amd_map_program} in
 	[Nn][Oo] | '')
@@ -49,7 +42,6 @@ amd_precmd()
 		command_args="> /var/run/amd.pid 2> /dev/null"
 		;;
 	esac
-	return 0
 }
 
 load_rc_config $name

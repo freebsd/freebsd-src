@@ -182,6 +182,8 @@ void	devfs_rules_apply(struct devfs_mount *, struct devfs_dirent *);
 void	devfs_rules_cleanup(struct devfs_mount *);
 int	devfs_rules_ioctl(struct devfs_mount *, u_long, caddr_t,
 	    struct thread *);
+void	devfs_ruleset_set(devfs_rsnum rsnum, struct devfs_mount *dm);
+void	devfs_ruleset_apply(struct devfs_mount *dm);
 int	devfs_allocv(struct devfs_dirent *, struct mount *, int,
 	    struct vnode **);
 char	*devfs_fqpn(char *, struct devfs_mount *, struct devfs_dirent *,

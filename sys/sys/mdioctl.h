@@ -86,6 +86,6 @@ struct md_ioctl {
 #define MD_READONLY	0x08	/* Readonly mode */
 #define MD_COMPRESS	0x10	/* Compression mode */
 #define MD_FORCE	0x20	/* Don't try to prevent foot-shooting */
-#define MD_ASYNC	0x40	/* Don't try to prevent foot-shooting */
+#define MD_ASYNC	0x40	/* Asynchronous mode */
 
 #endif	/* _SYS_MDIOCTL_H_*/

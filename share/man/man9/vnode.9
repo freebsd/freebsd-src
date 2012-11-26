@@ -119,13 +119,13 @@ No type.
 .It Dv VREG
 A regular file; may be with or without VM object backing.
 If you want to make sure this get a backing object, call
-.Xr vfs_object_create 9 .
+.Fn vnode_create_vobject .
 .It Dv VDIR
 A directory.
 .It Dv VBLK
 A block device; may be with or without VM object backing.
 If you want to make sure this get a backing object, call
-.Xr vfs_object_create 9 .
+.Fn vnode_create_vobject .
 .It Dv VCHR
 A character device.
 .It Dv VLNK

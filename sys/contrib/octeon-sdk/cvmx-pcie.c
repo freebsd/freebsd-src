@@ -501,6 +501,12 @@ retry:
         }
     }
 
+    /* Make sure a CN56XX pass 1 isn't trying to do anything; errata for PASS 1 */
+    if (OCTEON_IS_MODEL(OCTEON_CN56XX_PASS1_X)) {
+        cvmx_dprintf ("PCIe port %d: CN56XX_PASS_1, skipping\n", pcie_port);
+        return -1;
+    }
+
     /* PCIe switch arbitration mode. '0' == fixed priority NPEI, PCIe0, then PCIe1. '1' == round robin. */
     npei_ctl_status.s.arb = 1;
     /* Allow up to 0x20 config retries */

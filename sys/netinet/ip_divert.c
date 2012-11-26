@@ -30,14 +30,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#if !defined(KLD_MODULE)
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_sctp.h"
 #ifndef INET
-#error "IPDIVERT requires INET."
+#error "IPDIVERT requires INET"
 #endif
-#endif
-#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>

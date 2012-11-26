@@ -109,7 +109,7 @@ extern "C" {
 #if (defined(_WIN32) || defined(__WIN32__)) && !defined(WIN32)
 #  define WIN32
 #endif
-#if defined(__GNUC__) || defined(WIN32) || defined(__386__) || defined(i386)
+#if defined(__GNUC__) || defined(WIN32) || defined(__386__) || defined(__i386__)
 #  ifndef __32BIT__
 #    define __32BIT__
 #  endif

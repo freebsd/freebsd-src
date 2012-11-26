@@ -248,10 +248,16 @@ ucom_attach(struct ucom_super_softc *ssc, struct ucom_softc *sc,
 		return (EINVAL);
 	}
 
+	/* allocate a uniq unit number */
 	ssc->sc_unit = ucom_unit_alloc();
 	if (ssc->sc_unit == -1)
 		return (ENOMEM);
 
+	/* generate TTY name string */
+	snprintf(ssc->sc_ttyname, sizeof(ssc->sc_ttyname),
+	    UCOM_TTY_PREFIX "%d", ssc->sc_unit);
+
+	/* create USB request handling process */
 	error = usb_proc_create(&ssc->sc_tq, mtx, "ucom", USB_PRI_MED);
 	if (error) {
 		ucom_unit_free(ssc->sc_unit);
@@ -291,6 +297,16 @@ ucom_detach(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 
 	if (ssc->sc_subunits == 0)
 		return;		/* not initialized */
+
+	if (ssc->sc_sysctl_ttyname != NULL) {
+		sysctl_remove_oid(ssc->sc_sysctl_ttyname, 1, 0);
+		ssc->sc_sysctl_ttyname = NULL;
+	}
+
+	if (ssc->sc_sysctl_ttyports != NULL) {
+		sysctl_remove_oid(ssc->sc_sysctl_ttyports, 1, 0);
+		ssc->sc_sysctl_ttyports = NULL;
+	}
 
 	usb_proc_drain(&ssc->sc_tq);
 
@@ -420,19 +436,36 @@ ucom_detach_tty(struct ucom_softc *sc)
 void
 ucom_set_pnpinfo_usb(struct ucom_super_softc *ssc, device_t dev)
 {
-    char buf[64];
-    uint8_t iface_index;
-    struct usb_attach_arg *uaa;
+	char buf[64];
+	uint8_t iface_index;
+	struct usb_attach_arg *uaa;
 
-    snprintf(buf, sizeof(buf), "ttyname=%s%d ttyports=%d",
-	     UCOM_TTY_PREFIX, ssc->sc_unit, ssc->sc_subunits);
+	snprintf(buf, sizeof(buf), "ttyname=" UCOM_TTY_PREFIX
+	    "%d ttyports=%d", ssc->sc_unit, ssc->sc_subunits);
 
-    /* Store the PNP info in the first interface for the dev */
-    uaa = device_get_ivars(dev);
-    iface_index = uaa->info.bIfaceIndex;
+	/* Store the PNP info in the first interface for the device */
+	uaa = device_get_ivars(dev);
+	iface_index = uaa->info.bIfaceIndex;
     
-    if (usbd_set_pnpinfo(uaa->device, iface_index, buf) != 0)
-	device_printf(dev, "Could not set PNP info\n");
+	if (usbd_set_pnpinfo(uaa->device, iface_index, buf) != 0)
+		device_printf(dev, "Could not set PNP info\n");
+
+	/*
+	 * The following information is also replicated in the PNP-info
+	 * string which is registered above:
+	 */
+	if (ssc->sc_sysctl_ttyname == NULL) {
+		ssc->sc_sysctl_ttyname = SYSCTL_ADD_STRING(NULL,
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		    OID_AUTO, "ttyname", CTLFLAG_RD, ssc->sc_ttyname, 0,
+		    "TTY device basename");
+	}
+	if (ssc->sc_sysctl_ttyports == NULL) {
+		ssc->sc_sysctl_ttyports = SYSCTL_ADD_INT(NULL,
+		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+		    OID_AUTO, "ttyports", CTLFLAG_RD,
+		    NULL, ssc->sc_subunits, "Number of ports");
+	}
 }
 
 static void

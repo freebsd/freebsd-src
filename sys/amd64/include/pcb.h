@@ -92,7 +92,8 @@ struct pcb {
 	struct amd64tss *pcb_tssp;
 
 	struct savefpu	*pcb_save;
-	struct savefpu	pcb_user_save;
+
+	uint64_t	pcb_pad[2];
 };
 
 #ifdef _KERNEL
@@ -130,6 +131,7 @@ clear_pcb_flags(struct pcb *pcb, const u_int flags)
 
 void	makectx(struct trapframe *, struct pcb *);
 int	savectx(struct pcb *);
+
 #endif
 
 #endif /* _AMD64_PCB_H_ */

@@ -10,8 +10,8 @@
 . /etc/rc.subr
 
 name="hostapd"
+rcvar="hostapd_enable"
 command="/usr/sbin/${name}"
-rcvar=`set_rcvar`
 
 conf_file="/etc/${name}.conf"
 pidfile="/var/run/${name}.pid"

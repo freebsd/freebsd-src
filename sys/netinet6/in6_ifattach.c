@@ -790,7 +790,6 @@ in6_ifdetach(struct ifnet *ifp)
 	struct ifaddr *ifa, *next;
 	struct radix_node_head *rnh;
 	struct rtentry *rt;
-	short rtflags;
 	struct sockaddr_in6 sin6;
 	struct in6_multi_mship *imm;
 
@@ -821,16 +820,9 @@ in6_ifdetach(struct ifnet *ifp)
 			in6_leavegroup(imm);
 		}
 
-		/* remove from the routing table */
-		if ((ia->ia_flags & IFA_ROUTE) &&
-		    (rt = rtalloc1((struct sockaddr *)&ia->ia_addr, 0, 0UL))) {
-			rtflags = rt->rt_flags;
-			RTFREE_LOCKED(rt);
-			rtrequest(RTM_DELETE, (struct sockaddr *)&ia->ia_addr,
-			    (struct sockaddr *)&ia->ia_addr,
-			    (struct sockaddr *)&ia->ia_prefixmask,
-			    rtflags, (struct rtentry **)0);
-		}
+		/* Remove link-local from the routing table. */
+		if (ia->ia_flags & IFA_ROUTE)
+			(void)rtinit(&ia->ia_ifa, RTM_DELETE, ia->ia_flags);
 
 		/* remove from the linked list */
 		IF_ADDR_WLOCK(ifp);
@@ -859,7 +851,10 @@ in6_ifdetach(struct ifnet *ifp)
 	 */
 	nd6_purge(ifp);
 
-	/* remove route to link-local allnodes multicast (ff02::1) */
+	/*
+	 * Remove route to link-local allnodes multicast (ff02::1).
+	 * These only get automatically installed for the default FIB.
+	 */
 	bzero(&sin6, sizeof(sin6));
 	sin6.sin6_len = sizeof(struct sockaddr_in6);
 	sin6.sin6_family = AF_INET6;
@@ -868,10 +863,11 @@ in6_ifdetach(struct ifnet *ifp)
 		/* XXX: should not fail */
 		return;
 	/* XXX grab lock first to avoid LOR */
-	rnh = rt_tables_get_rnh(0, AF_INET6);
+	rnh = rt_tables_get_rnh(RT_DEFAULT_FIB, AF_INET6);
 	if (rnh != NULL) {
 		RADIX_NODE_HEAD_LOCK(rnh);
-		rt = rtalloc1((struct sockaddr *)&sin6, 0, RTF_RNH_LOCKED);
+		rt = in6_rtalloc1((struct sockaddr *)&sin6, 0, RTF_RNH_LOCKED,
+		    RT_DEFAULT_FIB);
 		if (rt) {
 			if (rt->rt_ifp == ifp)
 				rtexpunge(rt);

@@ -1,5 +1,5 @@
 /*-
- * Copyright 2010 Konstantin Belousov <kib@FreeBSD.ORG>.
+ * Copyright 2010, 2012 Konstantin Belousov <kib@FreeBSD.ORG>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,10 +36,34 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "libc_private.h"
 
-Elf_Auxinfo *__elf_aux_vector;
+extern char **environ;
+extern int _DYNAMIC;
+#pragma weak _DYNAMIC
+
+void *__elf_aux_vector;
+static pthread_once_t aux_vector_once = PTHREAD_ONCE_INIT;
+
+static void
+init_aux_vector_once(void)
+{
+	Elf_Addr *sp;
+
+	sp = (Elf_Addr *)environ;
+	while (*sp++ != 0)
+		;
+	__elf_aux_vector = (Elf_Auxinfo *)sp;
+}
+
+void
+__init_elf_aux_vector(void)
+{
+
+	if (&_DYNAMIC != NULL)
+		return;
+	_once(&aux_vector_once, init_aux_vector_once);
+}
 
 static pthread_once_t aux_once = PTHREAD_ONCE_INIT;
-
 static int pagesize, osreldate, canary_len, ncpus, pagesizes_len;
 static char *canary, *pagesizes;
 
@@ -86,6 +110,7 @@ _elf_aux_info(int aux, void *buf, int buflen)
 {
 	int res;
 
+	__init_elf_aux_vector();
 	if (__elf_aux_vector == NULL)
 		return (ENOSYS);
 	_once(&aux_once, init_aux);

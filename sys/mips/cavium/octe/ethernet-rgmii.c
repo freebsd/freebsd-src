@@ -215,7 +215,9 @@ int cvm_oct_rgmii_init(struct ifnet *ifp)
 	int error;
 	int rid;
 
-	cvm_oct_common_init(ifp);
+	if (cvm_oct_common_init(ifp) != 0)
+	    return ENXIO;
+
 	priv->open = cvm_oct_common_open;
 	priv->stop = cvm_oct_common_stop;
 	priv->stop(ifp);

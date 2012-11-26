@@ -1,3 +1,147 @@
+  6. V6.18.01 - 20120214
+  5. fix interruptible wait again
+  4. ignore bogus compiler overflow message
+  3. cleanup ifdefs in utmp code, and provide default array entries
+  2. Ignore #machine entries in host.defs
+  1. Detect missing ) in gethost.c (Corinna Vinschen)
+
+104. V6.18.00 - 20120114
+103. remove unused variables.
+102. Make gethost use definitions for x __x__ and __x automatically.
+101. More utmp fixes
+100. V6.17.10 - 20120105
+ 99. Add more FreeBSD/NetBSD machines
+ 98. Add portability wrapper for gencat
+ 97. Fix warning for write in SYSMALLOC systems.
+ 96. V6.17.09 - 20120102
+ 95. revert gencat handling to pre-cygwin fixes (without the env settings)
+ 94. remove stray endutent()
+ 93. V6.17.08 - 20111230
+ 92. Remove - from gencat
+ 91. Provide support for malloc_usable_size() so that linux works again
+     without SYSMALLOC
+ 90. Add support for FreeBSD's utmpx.
+ 89. V6.17.07 - 20111227
+ 88. Fix debian bug #645238: tcsh segfaults when prompt includes %j and
+     there are more than 10 jobs.
+ 87. PR/155: Default $anyerror to set for backward compatibility
+ 86. PR/149: Don't print -1 in %j (Vojtech Vitek)
+ 85. handle -- on chdir commands as the end of options processing so that
+     they can process a directory like -x without resorting to ./-x
+     (Andrew Stevenson)
+ 84. Handle write(2) returning ENOENT from SoFS, thanks ++HAL (Robert Byrnes)
+ 83. PR/38: Null check for jobs (Kurt Miller)
+ 82. Fix spelling correction correcting ./foo -> ../foo2 (jean-luc leger)
+ 81. PR/120: string0 in filetest does not have enough space.
+ 80. V6.17.06 - 20110415
+ 79. PR/110: Add $anyerror to select behavior. Default to the new one.
+ 78. Don't try to spell commands that are correct (Rouben Rostamian)
+     [./tcsh -f; set path=($path 2); mkdir foo2; cd foo2; touch foo;
+      chmod +x foo; set correct=cmd; ./foo -> ../foo]
+ 77. Don't push the syntax struct on the cleanup stack, because on foo;bar
+     if foo fails, we will free bar prematurely (Ben Miller)
+ 76. Avoid infinite loop while trying to print the pid of a dying process
+     to a closed file (Bob Arendt)
+ 75. Handle completion of ${ variables (Anthony Mallet)
+ 74. Add --disable-nls-catalogs (Corinna Vinschen)
+ 73. convert message catalogs to UTF-8 (Werner Fink)
+ 72. check that the NLS path works before setting $NLSPATH.
+ 71. use SYSMALLOC for GLIBC (Werner Fink)
+ 70. use mallinfo for SYSMALLOC (Corinna Vinschen)
+ 69. V6.17.05 - 20110201
+ 68. Use mkstemp() if there for here docs (Werner Fink)
+ 67. Fix handling of errors and exit values in builtins (Werner Fink)
+ 66. Better pty name detection (Werner Fink)
+ 65. Enable NLS catalogs on Cygwin (Corinna Vinschen)
+ 64. NLSPATH handling fixes (Corinna Vinschen)
+ 63. Avoid infrequent exit when tcsh cd's into a non-existent directory
+     https://bugzilla.novell.com/show_bug.cgi?id=293395 (Werner Fink)
+ 62. Don't try to spell check full path binaries that are correct because
+     they can cause hangs when other nfs partitions are hung. (Werner Fink)
+ 61. Avoid nested interrupts when exiting causing history writing to fail
+     https://bugzilla.novell.com/show_bug.cgi?id=331627 (Werner Fink)
+ 60. Instead of giving an error or ignoring lines with missing eol at eof,
+     process them.
+ 59. Avoid leaking fd's in mail check (Werner Fink)
+ 58. Add cygwin_xcrypt() (Corinna Vinschen)
+ 57. Recognize i686 (Corinna Vinschen)
+ 56. Rename cygwin32 to cygwin and bring it up-to-date with modern cygwin
+     settings (Corinna Vinschen)
+ 55. Avoid double slashes in cdpath (Corinna Vinschen)
+ 54. V6.17.04 - 20110118
+ 53. Revert PR/110, breaks the test suite.
+ 52. V6.17.03 - 20110117
+ 51. PR/102: Complain on input files with missing trailing \n
+ 50. PR/104: If atime == mtime we don't have new mail.
+ 49. PR/113: Don't allow illegal variable names to be set.
+ 48. PR/112: don't set $REMOTEHOST on the local machine.
+ 47. PR/110: exit status of the pipeline should be the status of the last
+     command.
+ 46. Android support (Corinna Vinschen)
+ 45. Add AUTOSET_KANJI which works around the Shift-JIS encoding that
+     translates unshifted 7 bit ASCII (Werner Fink)
+ 44. Handle mb{r,}towc() returning 0 by setting the return value to NUL
+     (Jean-Luc Leger)
+ 43. PR/109: make wait interruptible (Vojtech Vitek)
+ 42. resource limit fixes: signed vs. unsigned, megabyte issue, doc issues
+     (Robert Byrnes)
+ 41. remove .bat and .cmd handling for executables on cygwin (Corinna Vinschen)
+ 40. Don't echo history while history -L or history -M
+ 39. Check for EOS before ** from Greg Dionne
+ 38. Don't fork in backeval from Bryan Mason
+ 37. Better globstar support from Greg Dionne
+ 36. Error out when processing the last incomplete line instead of silently
+     ignoring it (Anders Kaseorg)
+ 35. Fix SEGV from echo ``
+ 34. Better fixes for histchars and promptchars (nargs)
+ 33. Fix win32 issue calling fmalloc/ffree from non-thread-safe context.
+     (Fabio Fabbri)
+ 32. V6.17.02 - 20100512
+ 31. PR/79: nargs: Better handling for promptchars.
+ 30. PR/97: Add parseoctal to retain compatibility with previous versions (Jim
+     Zajkowski)
+ 29. PR/84: Performance fixes for large history merges (add
+     hashtable (Ted Anderson)
+ 28. Revert previous #23; people should use $histlit if they want this
+     feature.
+ 27. Don't kill "hup" background jobs when a child of the shell exits.
+     From Debian.
+ 26. Ignore \r\n in the command line options for OS's that don't strip
+     these from #!; from Debian
+ 25. Fix enhanced missing patch (Greg Dionne)
+ 24. Callers of rt_mbtowc don't grok -2 as a return. Return -1 for now.
+     (Corinna Vinschen)
+ 23. Turn HistLit on while recording history to avoid \!\! losing its \.
+     From Debian
+ 22. set autoexpand; set histchars="";\n<tab> crash. From Debian
+ 21. V6.17.01 - 20100506
+ 20. unset verbose while we are reading the history file to avoid echoing
+     to the terminal. (Jeffrey Bastian)
+ 19. globstar addition, Enhance addition, euid, euser, gid variables
+     (Greg Dionne)
+ 18. Make 'e' in vi mode work like 'b' - use wordchars (Alistair Crooks)
+ 17. Handle UTF-16 surrogates (Corinna Vinschen)
+ 16. Make tcsh work on systems where sizeof(wchar_t) == 2 (Corinna Vinschen)
+ 15. Better support for Solaris >= 2.9 (Thomas Uhle)
+ 14. Change internal expression calculations to long long so that we can
+     deal with > 32 bit time, inodes, uids, file sizes etc.
+ 13. Add new linux resource limits.
+ 12. Don't print 'Exit X' when printexitvalue is set in `` expressions
+     (Jeff Bastian)
+ 11. Add more LS_COLORS vars (M.H. Anderson)
+ 10. Reduce whitespace in Makefile (Don Estabrook)
+  9. Manual page fixes (Alan R. S. Bueno)
+  8. Remove history in loops bug from the documentation (Holger Weiss)
+  7. Add autorehash (Holger Weiss)
+  6. Add history.at (Ted Anderson)
+  5. Better NLSPATH handling (Norm Jacobs)
+  4. Fix hostname building from utmp (Cyrus Rahman)
+  3. Handle pending signals before flush so that the the history file does
+     not get truncated.  (Ted Anderson)
+  2. Fix AsciiOnly setting that broke 8 bit input. (Juergen Keil)
+  1. remember to closedir in mailchk (from Werner Fink, reported by
+     David Binderman)
+
  21. V6.17.00 - 20090710
  20. Fix dataroot autoconf issue.
  19. Fix directory stuff for unit tests.

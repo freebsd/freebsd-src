@@ -438,6 +438,10 @@ mpt_pci_attach(device_t dev)
 	case PCI_PRODUCT_LSI_FC7X04X:
 		mpt->is_fc = 1;
 		break;
+	case PCI_PRODUCT_LSI_SAS1078:
+	case PCI_PRODUCT_LSI_SAS1078DE:
+		mpt->is_1078 = 1;
+		/* FALLTHROUGH */
 	case PCI_PRODUCT_LSI_SAS1064:
 	case PCI_PRODUCT_LSI_SAS1064A:
 	case PCI_PRODUCT_LSI_SAS1064E:
@@ -445,8 +449,6 @@ mpt_pci_attach(device_t dev)
 	case PCI_PRODUCT_LSI_SAS1066E:
 	case PCI_PRODUCT_LSI_SAS1068:
 	case PCI_PRODUCT_LSI_SAS1068E:
-	case PCI_PRODUCT_LSI_SAS1078:
-	case PCI_PRODUCT_LSI_SAS1078DE:
 		mpt->is_sas = 1;
 		break;
 	default:
@@ -527,23 +529,31 @@ mpt_pci_attach(device_t dev)
 	mpt->pci_pio_reg = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
 	    &mpt_io_bar, RF_ACTIVE);
 	if (mpt->pci_pio_reg == NULL) {
-		device_printf(dev, "unable to map registers in PIO mode\n");
-		goto bad;
+		if (bootverbose) {
+			device_printf(dev,
+			    "unable to map registers in PIO mode\n");
+		}
+	} else {
+		mpt->pci_pio_st = rman_get_bustag(mpt->pci_pio_reg);
+		mpt->pci_pio_sh = rman_get_bushandle(mpt->pci_pio_reg);
 	}
-	mpt->pci_pio_st = rman_get_bustag(mpt->pci_pio_reg);
-	mpt->pci_pio_sh = rman_get_bushandle(mpt->pci_pio_reg);
 
 	/* Allocate kernel virtual memory for the 9x9's Mem0 region */
 	mpt_mem_bar = PCIR_BAR(mpt_mem_bar);
 	mpt->pci_reg = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &mpt_mem_bar, RF_ACTIVE);
 	if (mpt->pci_reg == NULL) {
-		device_printf(dev, "Unable to memory map registers.\n");
-		if (mpt->is_sas) {
+		if (bootverbose || mpt->is_sas || mpt->pci_pio_reg == NULL) {
+			device_printf(dev,
+			    "Unable to memory map registers.\n");
+		}
+		if (mpt->is_sas || mpt->pci_pio_reg == NULL) {
 			device_printf(dev, "Giving Up.\n");
 			goto bad;
 		}
-		device_printf(dev, "Falling back to PIO mode.\n");
+		if (bootverbose) {
+			device_printf(dev, "Falling back to PIO mode.\n");
+		}
 		mpt->pci_st = mpt->pci_pio_st;
 		mpt->pci_sh = mpt->pci_pio_sh;
 	} else {

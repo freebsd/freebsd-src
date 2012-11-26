@@ -93,7 +93,7 @@ ENTRY(setjmp)
 	li	%r3,0			/* return (0) */
 	blr
 
-	WEAK_ALIAS(longjmp, __longjmp)
+	WEAK_REFERENCE(__longjmp, longjmp)
 ENTRY(__longjmp)
 	ld	%r9,40 + 0*8(%r3)
 	ld	%r10,40 + 1*8(%r3)

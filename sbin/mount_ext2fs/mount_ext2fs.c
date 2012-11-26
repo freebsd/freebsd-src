@@ -103,7 +103,8 @@ main(int argc, char *argv[])
 	 * Resolve the mountpoint with realpath(3) and remove unnecessary
 	 * slashes from the devicename if there are any.
 	 */
-	(void)checkpath(fs_name, mntpath);
+	if (checkpath(fs_name, mntpath) != 0)
+		err(EX_USAGE, "%s", mntpath);
 	(void)rmslashes(fspec, fspec);
 
 	build_iovec(&iov, &iovlen, "fstype", fstype, strlen(fstype) + 1);

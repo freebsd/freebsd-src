@@ -333,16 +333,16 @@ pmap_bootstrap(u_int cpu_impl)
 	 * pmap_bootstrap_alloc is called.
 	 */
 	if ((pmem = OF_finddevice("/memory")) == -1)
-		panic("pmap_bootstrap: finddevice /memory");
+		OF_panic("%s: finddevice /memory", __func__);
 	if ((sz = OF_getproplen(pmem, "available")) == -1)
-		panic("pmap_bootstrap: getproplen /memory/available");
+		OF_panic("%s: getproplen /memory/available", __func__);
 	if (sizeof(phys_avail) < sz)
-		panic("pmap_bootstrap: phys_avail too small");
+		OF_panic("%s: phys_avail too small", __func__);
 	if (sizeof(mra) < sz)
-		panic("pmap_bootstrap: mra too small");
+		OF_panic("%s: mra too small", __func__);
 	bzero(mra, sz);
 	if (OF_getprop(pmem, "available", mra, sz) == -1)
-		panic("pmap_bootstrap: getprop /memory/available");
+		OF_panic("%s: getprop /memory/available", __func__);
 	sz /= sizeof(*mra);
 	CTR0(KTR_PMAP, "pmap_bootstrap: physical memory");
 	qsort(mra, sz, sizeof (*mra), mr_cmp);
@@ -414,7 +414,7 @@ pmap_bootstrap(u_int cpu_impl)
 	 */
 	pa = pmap_bootstrap_alloc(tsb_kernel_size, colors);
 	if (pa & PAGE_MASK_4M)
-		panic("pmap_bootstrap: TSB unaligned\n");
+		OF_panic("%s: TSB unaligned", __func__);
 	tsb_kernel_phys = pa;
 	if (tsb_kernel_ldd_phys == 0) {
 		tsb_kernel =
@@ -461,7 +461,7 @@ pmap_bootstrap(u_int cpu_impl)
 #define	PATCH_ASI(addr, asi) do {					\
 	if (addr[0] != WR_R_I(IF_F3_RD(addr[0]), 0x0,			\
 	    IF_F3_RS1(addr[0])))					\
-		panic("%s: patched instructions have changed",		\
+		OF_panic("%s: patched instructions have changed",	\
 		    __func__);						\
 	addr[0] |= EIF_IMM((asi), 13);					\
 	flush(addr);							\
@@ -470,7 +470,7 @@ pmap_bootstrap(u_int cpu_impl)
 #define	PATCH_LDD(addr, asi) do {					\
 	if (addr[0] != LDDA_R_I_R(IF_F3_RD(addr[0]), 0x0,		\
 	    IF_F3_RS1(addr[0]), IF_F3_RS2(addr[0])))			\
-		panic("%s: patched instructions have changed",		\
+		OF_panic("%s: patched instructions have changed",	\
 		    __func__);						\
 	addr[0] |= EIF_F3_IMM_ASI(asi);					\
 	flush(addr);							\
@@ -481,7 +481,7 @@ pmap_bootstrap(u_int cpu_impl)
 	    addr[1] != OR_R_I_R(IF_F3_RD(addr[1]), 0x0,			\
 	    IF_F3_RS1(addr[1]))	||					\
 	    addr[3] != SETHI(IF_F2_RD(addr[3]), 0x0))			\
-		panic("%s: patched instructions have changed",		\
+		OF_panic("%s: patched instructions have changed",	\
 		    __func__);						\
 	addr[0] |= EIF_IMM((val) >> 42, 22);				\
 	addr[1] |= EIF_IMM((val) >> 32, 10);				\
@@ -495,7 +495,7 @@ pmap_bootstrap(u_int cpu_impl)
 	if (addr[0] != SETHI(IF_F2_RD(addr[0]), 0x0) ||			\
 	    addr[1] != OR_R_I_R(IF_F3_RD(addr[1]), 0x0,			\
 	    IF_F3_RS1(addr[1])))					\
-		panic("%s: patched instructions have changed",		\
+		OF_panic("%s: patched instructions have changed",	\
 		    __func__);						\
 	addr[0] |= EIF_IMM((val) >> 10, 22);				\
 	addr[1] |= EIF_IMM((val), 10);					\
@@ -604,14 +604,15 @@ pmap_bootstrap(u_int cpu_impl)
 	 * Add the PROM mappings to the kernel TSB.
 	 */
 	if ((vmem = OF_finddevice("/virtual-memory")) == -1)
-		panic("pmap_bootstrap: finddevice /virtual-memory");
+		OF_panic("%s: finddevice /virtual-memory", __func__);
 	if ((sz = OF_getproplen(vmem, "translations")) == -1)
-		panic("pmap_bootstrap: getproplen translations");
+		OF_panic("%s: getproplen translations", __func__);
 	if (sizeof(translations) < sz)
-		panic("pmap_bootstrap: translations too small");
+		OF_panic("%s: translations too small", __func__);
 	bzero(translations, sz);
 	if (OF_getprop(vmem, "translations", translations, sz) == -1)
-		panic("pmap_bootstrap: getprop /virtual-memory/translations");
+		OF_panic("%s: getprop /virtual-memory/translations",
+		    __func__);
 	sz /= sizeof(*translations);
 	translations_size = sz;
 	CTR0(KTR_PMAP, "pmap_bootstrap: translations");
@@ -649,11 +650,11 @@ pmap_bootstrap(u_int cpu_impl)
 	 * calls in that situation.
 	 */
 	if ((sz = OF_getproplen(pmem, "reg")) == -1)
-		panic("pmap_bootstrap: getproplen /memory/reg");
+		OF_panic("%s: getproplen /memory/reg", __func__);
 	if (sizeof(sparc64_memreg) < sz)
-		panic("pmap_bootstrap: sparc64_memreg too small");
+		OF_panic("%s: sparc64_memreg too small", __func__);
 	if (OF_getprop(pmem, "reg", sparc64_memreg, sz) == -1)
-		panic("pmap_bootstrap: getprop /memory/reg");
+		OF_panic("%s: getprop /memory/reg", __func__);
 	sparc64_nmemreg = sz / sizeof(*sparc64_memreg);
 
 	/*
@@ -726,7 +727,7 @@ pmap_bootstrap_alloc(vm_size_t size, uint32_t colors)
 		phys_avail[i] += size;
 		return (pa);
 	}
-	panic("pmap_bootstrap_alloc");
+	OF_panic("%s: no suitable region found", __func__);
 }
 
 /*

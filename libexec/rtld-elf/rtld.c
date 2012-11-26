@@ -757,6 +757,7 @@ die(void)
     if (msg == NULL)
 	msg = "Fatal error";
     rtld_fdputstr(STDERR_FILENO, msg);
+    rtld_fdputchar(STDERR_FILENO, '\n');
     _exit(1);
 }
 
@@ -1113,6 +1114,11 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 
 	case PT_GNU_STACK:
 	    obj->stack_flags = ph->p_flags;
+	    break;
+
+	case PT_GNU_RELRO:
+	    obj->relro_page = obj->relocbase + trunc_page(ph->p_vaddr);
+	    obj->relro_size = round_page(ph->p_memsz);
 	    break;
 	}
     }
@@ -2006,6 +2012,14 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
 	if (obj->bind_now || bind_now)
 	    if (reloc_jmpslots(obj, lockstate) == -1)
 		return -1;
+
+	if (obj->relro_size > 0) {
+	    if (mprotect(obj->relro_page, obj->relro_size, PROT_READ) == -1) {
+		_rtld_error("%s: Cannot enforce relro protection: %s",
+		  obj->path, strerror(errno));
+		return -1;
+	    }
+	}
 
 	/*
 	 * Set up the magic number and version in the Obj_Entry.  These
@@ -3528,9 +3542,7 @@ tls_get_addr_common(Elf_Addr** dtvp, int index, size_t offset)
     return (void*) (dtv[index + 1] + offset);
 }
 
-/* XXX not sure what variants to use for arm. */
-
-#if defined(__ia64__) || defined(__powerpc__)
+#if defined(__arm__) || defined(__ia64__) || defined(__mips__) || defined(__powerpc__)
 
 /*
  * Allocate Static TLS using the Variant I method.
@@ -3611,8 +3623,7 @@ free_tls(void *tcb, size_t tcbsize, size_t tcbalign)
 
 #endif
 
-#if defined(__i386__) || defined(__amd64__) || defined(__sparc64__) || \
-    defined(__arm__) || defined(__mips__)
+#if defined(__i386__) || defined(__amd64__) || defined(__sparc64__)
 
 /*
  * Allocate Static TLS using the Variant II method.

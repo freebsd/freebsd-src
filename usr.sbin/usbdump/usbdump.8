@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 31, 2011
+.Dd February 16, 2012
 .Dt USBDUMP 8
 .Os
 .Sh NAME
@@ -38,6 +38,7 @@
 .Op Fl s Ar snaplen
 .Op Fl v
 .Op Fl w Ar file
+.Op Fl f Ar filter
 .Sh DESCRIPTION
 The
 .Nm
@@ -61,6 +62,16 @@ When defined multiple times the verbosity level increases.
 .It Fl w Ar file
 Write the raw packets to
 .Ar file .
+.It Fl f Ar filter
+The filter argument consists of either one or two numbers separated by a dot.
+The first indicates the device unit number which should be traced.
+The second number which is optional indicates the endpoint which should be traced.
+To get all traffic for the control endpoint, two filters should be
+created, one for endpoint 0 and one for endpoint 128.
+If 128 is added to the endpoint number that means IN direction, else OUT direction is implied.
+A device unit or endpoint value of -1 means ignore this field.
+If no filters are specified, all packets are passed through using the default -1,-1 filter.
+This option can be specified multiple times.
 .El
 .Sh EXAMPLES
 Capture the USB raw packets on usbus2:
@@ -71,6 +82,11 @@ Dump the USB raw packets of usbus2 into the file without packet
 size limit:
 .Pp
 .Dl "usbdump -i usbus2 -s 0 -w /tmp/dump_pkts"
+.Pp
+Dump the USB raw packets of usbus2, but only the control endpoint traffic
+of device unit number 3:
+.Pp
+.Dl "usbdump -i usbus2 -s 0 -f 3.0 -f 3.128 -w /tmp/dump_pkts"
 .Pp
 Read and display the USB raw packets from previous file:
 .Pp

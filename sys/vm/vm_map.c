@@ -1130,6 +1130,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 	vm_map_entry_t temp_entry;
 	vm_eflags_t protoeflags;
 	struct ucred *cred;
+	vm_inherit_t inheritance;
 	boolean_t charge_prev_obj;
 
 	VM_MAP_ASSERT_LOCKED(map);
@@ -1173,6 +1174,10 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		protoeflags |= MAP_ENTRY_NOSYNC;
 	if (cow & MAP_DISABLE_COREDUMP)
 		protoeflags |= MAP_ENTRY_NOCOREDUMP;
+	if (cow & MAP_INHERIT_SHARE)
+		inheritance = VM_INHERIT_SHARE;
+	else
+		inheritance = VM_INHERIT_DEFAULT;
 
 	cred = NULL;
 	KASSERT((object != kmem_object && object != kernel_object) ||
@@ -1227,7 +1232,7 @@ charged:
 		 * can extend the previous map entry to include the
 		 * new range as well.
 		 */
-		if ((prev_entry->inheritance == VM_INHERIT_DEFAULT) &&
+		if ((prev_entry->inheritance == inheritance) &&
 		    (prev_entry->protection == prot) &&
 		    (prev_entry->max_protection == max)) {
 			map->size += (end - prev_entry->end);
@@ -1276,7 +1281,7 @@ charged:
 	new_entry->offset = offset;
 	new_entry->avail_ssize = 0;
 
-	new_entry->inheritance = VM_INHERIT_DEFAULT;
+	new_entry->inheritance = inheritance;
 	new_entry->protection = prot;
 	new_entry->max_protection = max;
 	new_entry->wired_count = 0;

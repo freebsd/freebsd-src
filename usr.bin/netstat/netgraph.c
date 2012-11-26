@@ -67,7 +67,6 @@ netgraphprotopr(u_long off, const char *name, int af1 __unused,
 {
 	struct ngpcb *this, *next;
 	struct ngpcb ngpcb;
-	struct ngsock info;
 	struct socket sockb;
 	int debug = 1;
 
@@ -165,15 +164,10 @@ netgraphprotopr(u_long off, const char *name, int af1 __unused,
 		printf("%-5.5s %6u %6u ",
 		    name, sockb.so_rcv.sb_cc, sockb.so_snd.sb_cc);
 
-		/* Get ngsock structure */
-		if (ngpcb.sockdata == NULL)	/* unconnected data socket */
-			goto finish;
-		kread((u_long)ngpcb.sockdata, (char *)&info, sizeof(info));
-
 		/* Get info on associated node */
-		if (info.node_id == 0 || csock == -1)
+		if (ngpcb.node_id == 0 || csock == -1)
 			goto finish;
-		snprintf(path, sizeof(path), "[%x]:", info.node_id);
+		snprintf(path, sizeof(path), "[%x]:", ngpcb.node_id);
 		if (NgSendMsg(csock, path,
 		    NGM_GENERIC_COOKIE, NGM_NODEINFO, NULL, 0) < 0)
 			goto finish;

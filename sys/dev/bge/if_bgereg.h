@@ -2864,6 +2864,7 @@ struct bge_softc {
 	int			bge_timer;
 	int			bge_forced_collapse;
 	int			bge_forced_udpcsum;
+	int			bge_msi;
 	int			bge_csum_features;
 	struct callout		bge_stat_ch;
 	uint32_t		bge_rx_discards;

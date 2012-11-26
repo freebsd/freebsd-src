@@ -19,6 +19,7 @@
 #	    list
 #	TARGET="machine" to crossbuild world for a different machine type
 #	TARGET_ARCH= may be required when a TARGET supports multiple endians
+#	BUILDENV_SHELL= shell to launch for the buildenv target (def:/bin/sh)
 
 #
 # The intended user-driven targets are:
@@ -107,6 +108,8 @@ CLEANDIR=	cleandir
 .endif
 
 LOCAL_TOOL_DIRS?=
+
+BUILDENV_SHELL?=/bin/sh
 
 CVS?=		cvs
 CVSFLAGS?=	-A -P -d -I!
@@ -558,7 +561,7 @@ buildenvvars:
 
 buildenv:
 	@echo Entering world for ${TARGET_ARCH}:${TARGET}
-	@cd ${.CURDIR} && env ${WMAKEENV} sh || true
+	@cd ${.CURDIR} && env ${WMAKEENV} ${BUILDENV_SHELL} || true
 
 TOOLCHAIN_TGTS=	${WMAKE_TGTS:N_depend:Neverything:Nbuild32}
 toolchain: ${TOOLCHAIN_TGTS}
@@ -832,6 +835,7 @@ buildkernel:
 	@echo ">>> stage 2.3: build tools"
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${_kernel}; \
+	    PATH=${BPATH}:${PATH} \
 	    MAKESRCPATH=${KERNSRCDIR}/dev/aic7xxx/aicasm \
 	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF \
 	    -f ${KERNSRCDIR}/dev/aic7xxx/aicasm/Makefile
@@ -839,6 +843,7 @@ buildkernel:
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KERNSRCDIR}/modules)
 .for target in obj depend all
 	cd ${KERNSRCDIR}/modules/aic7xxx/aicasm; \
+	    PATH=${BPATH}:${PATH} \
 	    MAKEOBJDIRPREFIX=${KRNLOBJDIR}/${_kernel}/modules \
 	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF ${target}
 .endfor
@@ -887,10 +892,21 @@ distributekernel distributekernel.debug:
 	    ${CROSSENV} PATH=${TMPPATH} ${MAKE} KERNEL=${INSTKERNNAME} \
 	    DESTDIR=${DESTDIR}/${DISTDIR}/kernel \
 	    ${.TARGET:S/distributekernel/install/}
+.for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
+	cd ${KRNLOBJDIR}/${_kernel}; \
+	    ${CROSSENV} PATH=${TMPPATH} ${MAKE} \
+	    KERNEL=${INSTKERNNAME}.${_kernel} \
+	    DESTDIR=${DESTDIR}/${DISTDIR}/kernel.${_kernel} \
+	    ${.TARGET:S/distributekernel/install/}
+.endfor
 
 packagekernel:
-	${_+_}cd ${DESTDIR}/${DISTDIR}/kernel; \
+	cd ${DESTDIR}/${DISTDIR}/kernel; \
 	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.txz .
+.for _kernel in ${BUILDKERNELS:S/${INSTALLKERNEL}//}
+	cd ${DESTDIR}/${DISTDIR}/kernel.${_kernel}; \
+	    tar cvJf ${DESTDIR}/${DISTDIR}/kernel.${_kernel}.txz .
+.endfor
 
 #
 # doxygen

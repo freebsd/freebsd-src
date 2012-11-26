@@ -11,9 +11,9 @@
 . /etc/rc.subr
 
 name="hcsecd"
+rcvar="hcsecd_enable"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
-rcvar=`set_rcvar`
 required_modules="ng_btsocket"
 
 load_rc_config $name

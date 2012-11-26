@@ -1,6 +1,5 @@
 # $FreeBSD$
-.PATH: ${.CURDIR}/../../../../dev/sound/pci \
-       ${.CURDIR}/../../../../gnu/dev/sound/pci
+.PATH: ${.CURDIR}/../../../../dev/sound/pci
 
 KMOD=	snd_emu10kx
 
@@ -11,6 +10,5 @@ SRCS+=	vnode_if.h
 SRCS+=	emu10kx.c
 SRCS+=	emu10kx-pcm.c
 SRCS+=	emu10kx-midi.c
-SRCS+=	emuxkireg.h
 
 .include <bsd.kmod.mk>

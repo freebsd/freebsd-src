@@ -123,7 +123,7 @@ nwfs_initnls(struct nwmount *nmp) {
 	return 0;
 }
 
-static int nwfs_cmount(struct mntarg *ma, void *data, int flags)
+static int nwfs_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	struct nwfs_args args; 	  /* will hold data from mount request */
 	int error;

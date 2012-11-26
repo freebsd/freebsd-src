@@ -440,7 +440,8 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	vm_offset_t mapbase;
 	size_t mapsize;
 	int error = 0;
-	int resid, flags;
+	ssize_t resid;
+	int flags;
 	elf_file_t ef;
 	linker_file_t lf;
 	int symtabindex;
@@ -684,7 +685,11 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	 * location of code and data in the kernel's address space, request a
 	 * mapping that is above the kernel.  
 	 */
+#ifdef __amd64__
 	mapbase = KERNBASE;
+#else
+	mapbase = VM_MIN_KERNEL_ADDRESS;
+#endif
 	error = vm_map_find(kernel_map, ef->object, 0, &mapbase,
 	    round_page(mapsize), TRUE, VM_PROT_ALL, VM_PROT_ALL, FALSE);
 	if (error) {

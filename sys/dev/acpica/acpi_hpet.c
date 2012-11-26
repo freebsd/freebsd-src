@@ -342,7 +342,7 @@ hpet_identify(driver_t *driver, device_t parent)
 		if (found)
 			continue;
 		/* If not - create it from table info. */
-		child = BUS_ADD_CHILD(parent, ACPI_DEV_BASE_ORDER, "hpet", 0);
+		child = BUS_ADD_CHILD(parent, 2, "hpet", 0);
 		if (child == NULL) {
 			printf("%s: can't add child\n", __func__);
 			continue;

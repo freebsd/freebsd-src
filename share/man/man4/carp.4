@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 20, 2011
+.Dd January 26, 2012
 .Dt CARP 4
 .Os
 .Sh NAME
@@ -99,24 +99,14 @@ packets.
 Enabled by default.
 .It Va net.inet.carp.preempt
 Allow virtual hosts to preempt each other.
-It is also used to failover
-.Nm
-interfaces as a group.
-When the option is enabled and one of the
-.Nm
-enabled physical interfaces
-goes down,
-.Cm advskew
-is changed to 240 on all
-.Nm
-interfaces.
-See also the first example.
+When enabled, a vhid in a backup state would preempt a master that
+is announcing itself with a lower advskew.
 Disabled by default.
 .It Va net.inet.carp.log
 Value of 0 disables any logging.
 Value of 1 enables logging state changes of
 .Nm
-interfaces.
+vhids.
 Values above 1 enable logging of bad
 .Nm
 packets.
@@ -202,9 +192,9 @@ and
 section for more information.
 .Sh EXAMPLES
 For firewalls and routers with multiple interfaces, it is desirable to
-failover all of the
+failover all of the addresses running
 .Nm
-interfaces together, when one of the physical interfaces goes down.
+together, when one of the physical interfaces goes down.
 This is achieved by the preempt option.
 Enable it on both host A and B:
 .Pp
@@ -225,14 +215,13 @@ ifconfig em0 vhid 1 advskew 100 pass mekmitasdigoat 192.168.1.1/24
 ifconfig em1 vhid 2 advskew 100 pass mekmitasdigoat 192.168.2.1/24
 .Ed
 .Pp
-Because of the preempt option, when one of the physical interfaces of
-host A fails,
+When one of the physical interfaces of host A fails,
 .Cm advskew
-is adjusted to 240 on all its
+is demoted to a configured value on all its
 .Nm
-interfaces.
-This will cause host B to preempt on both interfaces instead of
-just the failed one.
+vhids.
+Due to the preempt option, host B would start announcing itself, and thus
+preempt host A on both interfaces instead of just the failed one.
 .\".Pp
 .\"In order to set up an ARP balanced virtual host, it is necessary to configure
 .\"one virtual host for each physical host which would respond to ARP requests

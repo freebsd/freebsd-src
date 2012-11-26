@@ -269,7 +269,9 @@ static void	carp_master_down_locked(struct carp_softc *);
 static void	carp_send_ad(void *);
 static void	carp_send_ad_locked(struct carp_softc *);
 static void	carp_addroute(struct carp_softc *);
+static void	carp_ifa_addroute(struct ifaddr *);
 static void	carp_delroute(struct carp_softc *);
+static void	carp_ifa_delroute(struct ifaddr *);
 static void	carp_send_ad_all(void *, int);
 static void	carp_demote_adj(int, char *);
 
@@ -705,19 +707,24 @@ carp_send_ad_all(void *ctx __unused, int pending __unused)
 	LIST_FOREACH(sc, &carp_list, sc_next)
 		if (sc->sc_state == MASTER) {
 			CARP_LOCK(sc);
+			CURVNET_SET(sc->sc_carpdev->if_vnet);
 			carp_send_ad_locked(sc);
+			CURVNET_RESTORE();
 			CARP_UNLOCK(sc);
 		}
 	mtx_unlock(&carp_mtx);
 }
 
+/* Send a periodic advertisement, executed in callout context. */
 static void
 carp_send_ad(void *v)
 {
 	struct carp_softc *sc = v;
 
 	CARP_LOCK_ASSERT(sc);
+	CURVNET_SET(sc->sc_carpdev->if_vnet);
 	carp_send_ad_locked(sc);
+	CURVNET_RESTORE();
 	CARP_UNLOCK(sc);
 }
 
@@ -907,22 +914,29 @@ carp_addroute(struct carp_softc *sc)
 	struct ifaddr *ifa;
 
 	CARP_FOREACH_IFA(sc, ifa)
-		switch (ifa->ifa_addr->sa_family) {
+		carp_ifa_addroute(ifa);
+}
+
+static void
+carp_ifa_addroute(struct ifaddr *ifa)
+{
+
+	switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
-		case AF_INET:
-			in_addprefix(ifatoia(ifa), RTF_UP);
-			ifa_add_loopback_route(ifa,
-			    (struct sockaddr *)&ifatoia(ifa)->ia_addr);
-			break;
+	case AF_INET:
+		in_addprefix(ifatoia(ifa), RTF_UP);
+		ifa_add_loopback_route(ifa,
+		    (struct sockaddr *)&ifatoia(ifa)->ia_addr);
+		break;
 #endif
 #ifdef INET6
-		case AF_INET6:
-			ifa_add_loopback_route(ifa,
-			    (struct sockaddr *)&ifatoia6(ifa)->ia_addr);
-			in6_ifaddloop(ifa);
-			break;
+	case AF_INET6:
+		ifa_add_loopback_route(ifa,
+		    (struct sockaddr *)&ifatoia6(ifa)->ia_addr);
+		in6_ifaddloop(ifa);
+		break;
 #endif
-		}
+	}
 }
 
 static void
@@ -931,22 +945,29 @@ carp_delroute(struct carp_softc *sc)
 	struct ifaddr *ifa;
 
 	CARP_FOREACH_IFA(sc, ifa)
-		switch (ifa->ifa_addr->sa_family) {
+		carp_ifa_delroute(ifa);
+}
+
+static void
+carp_ifa_delroute(struct ifaddr *ifa)
+{
+
+	switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
-		case AF_INET:
-			ifa_del_loopback_route(ifa,
-			    (struct sockaddr *)&ifatoia(ifa)->ia_addr);
-			in_scrubprefix(ifatoia(ifa), LLE_STATIC);
-			break;
+	case AF_INET:
+		ifa_del_loopback_route(ifa,
+		    (struct sockaddr *)&ifatoia(ifa)->ia_addr);
+		in_scrubprefix(ifatoia(ifa), LLE_STATIC);
+		break;
 #endif
 #ifdef INET6
-		case AF_INET6:
-			ifa_del_loopback_route(ifa,
-			    (struct sockaddr *)&ifatoia6(ifa)->ia_addr);
-			in6_ifremloop(ifa);
-			break;
+	case AF_INET6:
+		ifa_del_loopback_route(ifa,
+		    (struct sockaddr *)&ifatoia6(ifa)->ia_addr);
+		in6_ifremloop(ifa);
+		break;
 #endif
-		}
+	}
 }
 
 #ifdef INET
@@ -1074,6 +1095,7 @@ carp_forus(struct ifnet *ifp, u_char *dhost)
 	return (0);
 }
 
+/* Master down timeout event, executed in callout context. */
 static void
 carp_master_down(void *v)
 {
@@ -1081,12 +1103,14 @@ carp_master_down(void *v)
 
 	CARP_LOCK_ASSERT(sc);
 
+	CURVNET_SET(sc->sc_carpdev->if_vnet);
 	if (sc->sc_state == BACKUP) {
 		CARP_LOG("VHID %u@%s: BACKUP -> MASTER (master down)\n",
 		    sc->sc_vhid,
 		    sc->sc_carpdev->if_xname);
 		carp_master_down_locked(sc);
 	}
+	CURVNET_RESTORE();
 
 	CARP_UNLOCK(sc);
 }
@@ -1856,6 +1880,7 @@ carp_detach(struct ifaddr *ifa)
 #endif
 	}
 
+	carp_ifa_delroute(ifa);
 	carp_multicast_cleanup(sc, ifa->ifa_addr->sa_family);
 
 	ifa->ifa_carp = NULL;

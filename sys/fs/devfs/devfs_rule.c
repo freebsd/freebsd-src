@@ -771,3 +771,38 @@ devfs_rules_cleanup(struct devfs_mount *dm)
 		devfs_ruleset_reap(ds);
 	}
 }
+
+/*
+ * Make rsnum the active ruleset for dm (locked)
+ */
+void
+devfs_ruleset_set(devfs_rsnum rsnum, struct devfs_mount *dm)
+{
+
+	sx_assert(&dm->dm_lock, SX_XLOCKED);
+
+	sx_xlock(&sx_rules);
+	devfs_ruleset_use(rsnum, dm);
+	sx_xunlock(&sx_rules);
+}
+
+/*
+ * Apply the current active ruleset on a mount
+ */
+void
+devfs_ruleset_apply(struct devfs_mount *dm)
+{
+	struct devfs_ruleset *ds;
+
+	sx_assert(&dm->dm_lock, SX_XLOCKED);
+
+	sx_xlock(&sx_rules);
+	if (dm->dm_ruleset == 0) {
+		sx_xunlock(&sx_rules);
+		return;
+	}
+	ds = devfs_ruleset_bynum(dm->dm_ruleset);
+	if (ds != NULL)
+		devfs_ruleset_applydm(ds, dm);
+	sx_xunlock(&sx_rules);
+}

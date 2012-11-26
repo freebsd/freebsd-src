@@ -1433,10 +1433,15 @@ re_attach(device_t dev)
 			sc->rl_flags |= RL_FLAG_MACSLEEP;
 		/* FALLTHROUGH */
 	case RL_HWREV_8168CP:
-	case RL_HWREV_8168D:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
 		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2 | RL_FLAG_WOL_MANLINK;
+		break;
+	case RL_HWREV_8168D:
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHYWAKE_PM |
+		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
+		    RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2 |
+		    RL_FLAG_WOL_MANLINK;
 		break;
 	case RL_HWREV_8168DP:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
@@ -3558,7 +3563,6 @@ re_stop(struct rl_softc *sc)
 	}
 
 	/* Free the TX list buffers. */
-
 	for (i = 0; i < sc->rl_ldata.rl_tx_desc_cnt; i++) {
 		txd = &sc->rl_ldata.rl_tx_desc[i];
 		if (txd->tx_m != NULL) {
@@ -3572,16 +3576,29 @@ re_stop(struct rl_softc *sc)
 	}
 
 	/* Free the RX list buffers. */
-
 	for (i = 0; i < sc->rl_ldata.rl_rx_desc_cnt; i++) {
 		rxd = &sc->rl_ldata.rl_rx_desc[i];
 		if (rxd->rx_m != NULL) {
-			bus_dmamap_sync(sc->rl_ldata.rl_tx_mtag,
+			bus_dmamap_sync(sc->rl_ldata.rl_rx_mtag,
 			    rxd->rx_dmamap, BUS_DMASYNC_POSTREAD);
 			bus_dmamap_unload(sc->rl_ldata.rl_rx_mtag,
 			    rxd->rx_dmamap);
 			m_freem(rxd->rx_m);
 			rxd->rx_m = NULL;
+		}
+	}
+
+	if ((sc->rl_flags & RL_FLAG_JUMBOV2) != 0) {
+		for (i = 0; i < sc->rl_ldata.rl_rx_desc_cnt; i++) {
+			rxd = &sc->rl_ldata.rl_jrx_desc[i];
+			if (rxd->rx_m != NULL) {
+				bus_dmamap_sync(sc->rl_ldata.rl_jrx_mtag,
+				    rxd->rx_dmamap, BUS_DMASYNC_POSTREAD);
+				bus_dmamap_unload(sc->rl_ldata.rl_jrx_mtag,
+				    rxd->rx_dmamap);
+				m_freem(rxd->rx_m);
+				rxd->rx_m = NULL;
+			}
 		}
 	}
 }
@@ -3796,7 +3813,7 @@ re_setwol(struct rl_softc *sc)
 	/* Config register write done. */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
-	if ((ifp->if_capenable & IFCAP_WOL) != 0 &&
+	if ((ifp->if_capenable & IFCAP_WOL) == 0 &&
 	    (sc->rl_flags & RL_FLAG_PHYWAKE_PM) != 0)
 		CSR_WRITE_1(sc, RL_PMCH, CSR_READ_1(sc, RL_PMCH) & ~0x80);
 	/*

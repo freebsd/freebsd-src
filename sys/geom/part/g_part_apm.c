@@ -102,7 +102,7 @@ static struct g_part_scheme g_part_apm_scheme = {
 	sizeof(struct g_part_apm_table),
 	.gps_entrysz = sizeof(struct g_part_apm_entry),
 	.gps_minent = 16,
-	.gps_maxent = INT_MAX,
+	.gps_maxent = 4096,
 };
 G_PART_SCHEME_DECLARE(g_part_apm);
 

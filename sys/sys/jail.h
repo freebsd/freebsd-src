@@ -176,7 +176,8 @@ struct prison {
 	unsigned	 pr_allow;			/* (p) PR_ALLOW_* flags */
 	int		 pr_securelevel;		/* (p) securelevel */
 	int		 pr_enforce_statfs;		/* (p) statfs permission */
-	int		 pr_spare[5];
+	int		 pr_devfs_rsnum;		/* (p) devfs ruleset */
+	int		 pr_spare[4];
 	unsigned long	 pr_hostid;			/* (p) jail hostid */
 	char		 pr_name[MAXHOSTNAMELEN];	/* (p) admin jail name */
 	char		 pr_path[MAXPATHLEN];		/* (c) chroot path */

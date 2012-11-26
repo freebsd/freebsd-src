@@ -409,6 +409,11 @@ device		hptiop
 device		ips
 
 #
+# Intel C600 (Patsburg) integrated SAS controller
+device		isci
+options		ISCI_LOGGING	# enable debugging in isci HAL
+
+#
 # SafeNet crypto driver: can be moved to the MI NOTES as soon as
 # it's tested on a big-endian machine
 #

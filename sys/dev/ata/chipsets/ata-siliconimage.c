@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -239,6 +239,10 @@ ata_cmd_ch_attach(device_t dev)
 
     if (ctlr->chip->cfg2 & SII_INTR)
 	ch->hw.status = ata_cmd_status;
+
+#ifdef ATA_CAM
+	ch->flags |= ATA_NO_ATAPI_DMA;
+#endif
 
     return 0;
 }

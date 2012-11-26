@@ -374,7 +374,9 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 	static caddr_t iobuf;
 	long blkno, start;
 	ufs2_daddr_t i, cbase, dmax;
+#ifdef FSIRAND
 	struct ufs1_dinode *dp1;
+#endif
 	struct csum *cs;
 	uint d, dupper, dlower;
 
@@ -452,8 +454,8 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 		bzero(iobuf, sblock.fs_bsize);
 		for (i = 0; i < sblock.fs_ipg / INOPF(&sblock);
 		     i += sblock.fs_frag) {
-			dp1 = (struct ufs1_dinode *)(void *)iobuf;
 #ifdef FSIRAND
+			dp1 = (struct ufs1_dinode *)(void *)iobuf;
 			for (j = 0; j < INOPB(&sblock); j++) {
 				dp1->di_gen = random();
 				dp1++;

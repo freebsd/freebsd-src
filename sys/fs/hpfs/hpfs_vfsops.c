@@ -73,7 +73,7 @@ static int
 hpfs_cmount ( 
 	struct mntarg *ma,
 	void *data,
-	int flags)
+	uint64_t flags)
 {
 	struct hpfs_args args;
 	struct export_args exp;

@@ -474,7 +474,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		/* No caching/ no readaheads. Just read data into the user buffer */
 		return nfs_readrpc(vp, uio, cred);
 
-	biosize = vp->v_mount->mnt_stat.f_iosize;
+	biosize = vp->v_bufobj.bo_bsize;
 	seqcount = (int)((off_t)(ioflag >> IO_SEQSHIFT) * biosize / BKVASIZE);
 	
 	error = nfs_bioread_check_cons(vp, td, cred);
@@ -564,7 +564,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 
 		n = 0;
 		if (on < bcount)
-			n = min((unsigned)(bcount - on), uio->uio_resid);
+			n = MIN((unsigned)(bcount - on), uio->uio_resid);
 		break;
 	    case VLNK:
 		nfsstats.biocache_readlinks++;
@@ -583,7 +583,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 			return (error);
 		    }
 		}
-		n = min(uio->uio_resid, NFS_MAXPATHLEN - bp->b_resid);
+		n = MIN(uio->uio_resid, NFS_MAXPATHLEN - bp->b_resid);
 		on = 0;
 		break;
 	    case VDIR:
@@ -751,8 +751,8 @@ nfs_directio_write(vp, uiop, cred, ioflag)
 		struct iovec iov;
 do_sync:
 		while (uiop->uio_resid > 0) {
-			size = min(uiop->uio_resid, wsize);
-			size = min(uiop->uio_iov->iov_len, size);
+			size = MIN(uiop->uio_resid, wsize);
+			size = MIN(uiop->uio_iov->iov_len, size);
 			iov.iov_base = uiop->uio_iov->iov_base;
 			iov.iov_len = size;
 			uio.uio_iov = &iov;
@@ -800,8 +800,8 @@ do_sync:
 		 * in NFS directio access.
 		 */
 		while (uiop->uio_resid > 0) {
-			size = min(uiop->uio_resid, wsize);
-			size = min(uiop->uio_iov->iov_len, size);
+			size = MIN(uiop->uio_resid, wsize);
+			size = MIN(uiop->uio_iov->iov_len, size);
 			bp = getpbuf(&nfs_pbuf_freecnt);
 			t_uio = malloc(sizeof(struct uio), M_NFSDIRECTIO, M_WAITOK);
 			t_iov = malloc(sizeof(struct iovec), M_NFSDIRECTIO, M_WAITOK);
@@ -951,7 +951,7 @@ flush_and_restart:
 	if (vn_rlimit_fsize(vp, uio, td))
 		return (EFBIG);
 
-	biosize = vp->v_mount->mnt_stat.f_iosize;
+	biosize = vp->v_bufobj.bo_bsize;
 	/*
 	 * Find all of this file's B_NEEDCOMMIT buffers.  If our writes
 	 * would exceed the local maximum per-file write commit size when
@@ -1014,7 +1014,7 @@ flush_and_restart:
 		nfsstats.biocache_writes++;
 		lbn = uio->uio_offset / biosize;
 		on = uio->uio_offset & (biosize-1);
-		n = min((unsigned)(biosize - on), uio->uio_resid);
+		n = MIN((unsigned)(biosize - on), uio->uio_resid);
 again:
 		/*
 		 * Handle direct append and file extension cases, calculate
@@ -1255,12 +1255,8 @@ nfs_getcacheblk(struct vnode *vp, daddr_t bn, int size, struct thread *td)
 		bp = getblk(vp, bn, size, 0, 0, 0);
 	}
 
-	if (vp->v_type == VREG) {
-		int biosize;
-
-		biosize = mp->mnt_stat.f_iosize;
-		bp->b_blkno = bn * (biosize / DEV_BSIZE);
-	}
+	if (vp->v_type == VREG)
+		bp->b_blkno = bn * (vp->v_bufobj.bo_bsize / DEV_BSIZE);
 	return (bp);
 }
 
@@ -1767,7 +1763,7 @@ nfs_meta_setsize(struct vnode *vp, struct ucred *cred, struct thread *td, u_quad
 {
 	struct nfsnode *np = VTONFS(vp);
 	u_quad_t tsize;
-	int biosize = vp->v_mount->mnt_stat.f_iosize;
+	int biosize = vp->v_bufobj.bo_bsize;
 	int error = 0;
 
 	mtx_lock(&np->n_mtx);

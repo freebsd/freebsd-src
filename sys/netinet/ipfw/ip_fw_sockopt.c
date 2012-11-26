@@ -594,7 +594,6 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_IPPRECEDENCE:
 		case O_IPVER:
 		case O_SOCKARG:
-		case O_TCPWIN:
 		case O_TCPFLAGS:
 		case O_TCPOPTS:
 		case O_ESTAB:
@@ -704,6 +703,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_IPTTL:
 		case O_IPLEN:
 		case O_TCPDATALEN:
+		case O_TCPWIN:
 		case O_TAGGED:
 			if (cmdlen < 1 || cmdlen > 31)
 				goto bad_size;

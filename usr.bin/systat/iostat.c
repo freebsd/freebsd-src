@@ -254,7 +254,6 @@ barlabels(int row)
 	return (row);
 }
 
-
 void
 showiostat(void)
 {

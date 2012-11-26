@@ -158,7 +158,7 @@
 #define	OUT_ADC_REC	OUT_ADC_REC_L
 #define	OUT_MIC_CAP	0x0c
 
-/* Live! 5.1 Digital, non-standart 5.1 (center & sub) outputs */
+/* Live! 5.1 Digital, non-standard 5.1 (center & sub) outputs */
 #define	OUT_A_CENTER	0x11
 #define	OUT_A_SUB	0x12
 
@@ -806,7 +806,7 @@ emu_enable_ir(struct emu_sc_info *sc)
 
 
 /*
- * emu_timer_ - HW timer managment
+ * emu_timer_ - HW timer management
  */
 int
 emu_timer_create(struct emu_sc_info *sc)
@@ -913,7 +913,7 @@ emu_timer_clear(struct emu_sc_info *sc, int timer)
 }
 
 /*
- * emu_intr_ - HW interrupt handler managment
+ * emu_intr_ - HW interrupt handler management
  */
 int
 emu_intr_register(struct emu_sc_info *sc, uint32_t inte_mask, uint32_t intr_mask, uint32_t(*func) (void *softc, uint32_t irq), void *isc)
@@ -1012,7 +1012,7 @@ emu_intr(void *p)
 			if (sc->dbg_level > 1)
 				device_printf(sc->dev, "EMU_IPR2: %08x\n", stat);
 
-			break;	/* to avoid infinite loop. shoud be removed
+			break;	/* to avoid infinite loop. should be removed
 				 * after completion of P16V interface. */
 		}
 

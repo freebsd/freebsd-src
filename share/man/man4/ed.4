@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2009
+.Dd February 8, 2012
 .Dt ED 4
 .Os
 .Sh NAME
@@ -139,7 +139,7 @@ Allied Telesis SIC-98, SIC-98NOTE (110pin), SIU-98 (flags 0x600000) (PC-98)
 .It
 Allied Telesis SIU-98-D (flags 0x610000) (PC-98)
 .It
-AmbiCom 10BaseT card
+AmbiCom 10BaseT card (8002, 8002T, 8010 and 8610)
 .It
 Bay Networks NETGEAR FA410TXC Fast Ethernet
 .It
@@ -147,11 +147,15 @@ Belkin F5D5020 PC Card Fast Ethernet
 .It
 Billionton LM5LT-10B Ethernet/Modem PC Card
 .It
+Billionton LNT-10TB, LNT-10TN Ethernet PC Card
+.It
 Bromax iPort 10/100 Ethernet PC Card
 .It
 Bromax iPort 10 Ethernet PC Card
 .It
-Buffalo LPC2-CLT, LPC3-CLT, LPC3-CLX, LPC4-TX PC Card
+Buffalo LPC2-CLT, LPC3-CLT, LPC3-CLX, LPC4-TX, LPC-CTX PC Card
+.It
+Buffalo LPC-CF-CLT CF Card
 .It
 CNet BC40 adapter
 .It
@@ -431,7 +435,7 @@ Some devices supported by
 do not generate the link state change events used by
 .Xr devd 8
 to start
-.Xr dhclinet 8 .
+.Xr dhclient 8 .
 If you have problems with
 .Xr dhclient 8
 not starting and the device is always attached to the network it may

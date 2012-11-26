@@ -12,17 +12,17 @@
 .error "The ACPI module is only for amd64 and i386"
 .endif
 
-.PATH:	${.CURDIR}/../../../contrib/dev/acpica/debugger \
-	${.CURDIR}/../../../contrib/dev/acpica/disassembler \
-	${.CURDIR}/../../../contrib/dev/acpica/dispatcher \
-	${.CURDIR}/../../../contrib/dev/acpica/events \
-	${.CURDIR}/../../../contrib/dev/acpica/executer \
-	${.CURDIR}/../../../contrib/dev/acpica/hardware \
-	${.CURDIR}/../../../contrib/dev/acpica/namespace \
-	${.CURDIR}/../../../contrib/dev/acpica/parser \
-	${.CURDIR}/../../../contrib/dev/acpica/resources \
-	${.CURDIR}/../../../contrib/dev/acpica/tables \
-	${.CURDIR}/../../../contrib/dev/acpica/utilities \
+.PATH:	${.CURDIR}/../../../contrib/dev/acpica/components/debugger \
+	${.CURDIR}/../../../contrib/dev/acpica/components/disassembler \
+	${.CURDIR}/../../../contrib/dev/acpica/components/dispatcher \
+	${.CURDIR}/../../../contrib/dev/acpica/components/events \
+	${.CURDIR}/../../../contrib/dev/acpica/components/executer \
+	${.CURDIR}/../../../contrib/dev/acpica/components/hardware \
+	${.CURDIR}/../../../contrib/dev/acpica/components/namespace \
+	${.CURDIR}/../../../contrib/dev/acpica/components/parser \
+	${.CURDIR}/../../../contrib/dev/acpica/components/resources \
+	${.CURDIR}/../../../contrib/dev/acpica/components/tables \
+	${.CURDIR}/../../../contrib/dev/acpica/components/utilities \
 	${.CURDIR}/../../../pci \
 	${.CURDIR}/../../../dev/acpica \
 	${.CURDIR}/../../../dev/acpica/Osd \
@@ -45,8 +45,8 @@ SRCS+=	exconfig.c exconvrt.c excreate.c exdebug.c exdump.c exfield.c
 SRCS+=	exfldio.c exmisc.c exmutex.c exnames.c exoparg1.c exoparg2.c
 SRCS+=	exoparg3.c exoparg6.c exprep.c exregion.c exresnte.c exresolv.c
 SRCS+=	exresop.c exstore.c exstoren.c exstorob.c exsystem.c exutils.c
-SRCS+=	hwacpi.c hwgpe.c hwpci.c hwregs.c hwsleep.c hwtimer.c hwvalid.c
-SRCS+=	hwxface.c
+SRCS+=	hwacpi.c hwesleep.c hwgpe.c hwpci.c hwregs.c hwsleep.c hwtimer.c
+SRCS+=	hwvalid.c hwxface.c hwxfsleep.c
 SRCS+=	nsaccess.c nsalloc.c nsdump.c nseval.c nsinit.c nsload.c nsnames.c
 SRCS+=	nsobject.c nsparse.c nspredef.c nsrepair.c nsrepair2.c nssearch.c
 SRCS+=	nsutils.c nswalk.c nsxfeval.c nsxfname.c nsxfobj.c

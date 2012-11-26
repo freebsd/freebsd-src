@@ -225,10 +225,18 @@ ffs_snapshot(mp, snapfile)
 	ump = VFSTOUFS(mp);
 	fs = ump->um_fs;
 	sn = NULL;
+	/*
+	 * At the moment, journaled soft updates cannot support
+	 * taking snapshots.
+	 */
+	if (MOUNTEDSUJ(mp)) {
+		vfs_mount_error(mp, "%s: Snapshots are not yet supported when "
+		    "running with journaled soft updates", fs->fs_fsmnt);
+		return (EOPNOTSUPP);
+	}
 	MNT_ILOCK(mp);
 	flag = mp->mnt_flag;
 	MNT_IUNLOCK(mp);
-
 	/*
 	 * Need to serialize access to snapshot code per filesystem.
 	 */

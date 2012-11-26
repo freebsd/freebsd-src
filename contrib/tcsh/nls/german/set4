@@ -1,29 +1,29 @@
-$ $tcsh: set4,v 1.3 2006/03/02 18:46:46 christos Exp $
+$ $tcsh: set4,v 1.4 2011/02/04 18:19:37 christos Exp $
 $ Termcap strings
 $set 4 
-1 füge neue, leere Zeile hinzu
-2 hörbare Pieps
-3 lösche bis zum Ende der Anzeige
-4 lösche bis zum Ende der Zeile
+1 fÃ¼ge neue, leere Zeile hinzu
+2 hÃ¶rbare Pieps
+3 lÃ¶sche bis zum Ende der Anzeige
+4 lÃ¶sche bis zum Ende der Zeile
 5 Cursor zu horizontaler Position
-6 lösche Bildschirm
-7 lösche ein Zeichen
-8 lösche eine Zeile
-9 starte Löschemodus
-10 beende Löschmodus
-11 beende Einfügemodus
+6 lÃ¶sche Bildschirm
+7 lÃ¶sche ein Zeichen
+8 lÃ¶sche eine Zeile
+9 starte LÃ¶schemodus
+10 beende LÃ¶schmodus
+11 beende EinfÃ¼gemodus
 12 Cursor aus Statuszeile
 13 Cursor in Ursprungsposition
-14 füge Zeichen ein
-15 starte Einfügemodus
-16 setze Füllzeichen ein
+14 fÃ¼ge Zeichen ein
+15 starte EinfÃ¼gemodus
+16 setze FÃ¼llzeichen ein
 17 Cursor nach unten
 18 Cursor nach links
 19 Cursor nach rechts
 20 Cursor nach oben
 21 starte Fettschrift
 22 beende Attribute
-23 nicht zerstörendes Leerzeichen
+23 nicht zerstÃ¶rendes Leerzeichen
 24 beende hervorgehobene Darstellung
 25 beginne hervorgehobene Darstellung
 26 Cursor in Statuszeile
@@ -31,13 +31,13 @@ $set 4
 28 beginne Unterstreichung
 29 beende Unterstreichung
 30 sichtbarer Pieps
-31 lösche mehrere Zeichen
+31 lÃ¶sche mehrere Zeichen
 32 Cursor mehrere Zeichen nach unten
-33 füge mehrere Zeichen ein
+33 fÃ¼ge mehrere Zeichen ein
 34 Cursor mehrere Zeichen nach links
 35 Cursor mehrere Zeichen nach rechts
 36 Cursor mehrere Zeichen nach oben
-37 hat automatische Ränder
+37 hat automatische RÃ¤nder
 38 kann physikalische Tabulatoren benutzen
 39 Anzahl Zeilen
 40 Anzahl Spalten

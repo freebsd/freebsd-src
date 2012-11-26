@@ -146,7 +146,6 @@
  */
 
 #include "includes.h"
-__RCSID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -513,10 +512,6 @@ getlast_entry(struct logininfo *li)
 #else /* !USE_LASTLOG */
 #if defined(USE_UTMPX) && defined(HAVE_SETUTXDB) && \
     defined(UTXDB_LASTLOGIN) && defined(HAVE_GETUTXUSER)
-	return (utmpx_get_entry(li));
-#endif
-
-#if 1
 	return (utmpx_get_entry(li));
 #endif
 

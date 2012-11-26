@@ -74,6 +74,7 @@ int sndbuf_remalloc(struct snd_dbuf *b, unsigned int blkcnt, unsigned int blksz)
 void sndbuf_reset(struct snd_dbuf *b);
 void sndbuf_clear(struct snd_dbuf *b, unsigned int length);
 void sndbuf_fillsilence(struct snd_dbuf *b);
+void sndbuf_fillsilence_rl(struct snd_dbuf *b, u_int rl);
 void sndbuf_softreset(struct snd_dbuf *b);
 void sndbuf_clearshadow(struct snd_dbuf *b);
 

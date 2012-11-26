@@ -73,14 +73,8 @@
 	((struct netmap_ring *)((char *)(nifp) +	\
 	    (nifp)->ring_ofs[index + (nifp)->ni_num_queues+1] ) )
 
-#if NETMAP_BUF_SIZE != 2048
-#error cannot handle odd size
 #define NETMAP_BUF(ring, index)				\
-	((char *)(ring) + (ring)->buf_ofs + ((index)*NETMAP_BUF_SIZE))
-#else
-#define NETMAP_BUF(ring, index)				\
-	((char *)(ring) + (ring)->buf_ofs + ((index)<<11))
-#endif
+	((char *)(ring) + (ring)->buf_ofs + ((index)*(ring)->nr_buf_size))
 
 #define	NETMAP_RING_NEXT(r, i)				\
 	((i)+1 == (r)->num_slots ? 0 : (i) + 1 )

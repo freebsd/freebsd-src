@@ -666,7 +666,7 @@ passin:
 	dst->sin6_len = sizeof(struct sockaddr_in6);
 	dst->sin6_family = AF_INET6;
 	dst->sin6_addr = ip6->ip6_dst;
-	rin6.ro_rt = rtalloc1((struct sockaddr *)dst, 0, 0);
+	rin6.ro_rt = in6_rtalloc1((struct sockaddr *)dst, 0, 0, M_GETFIB(m));
 	if (rin6.ro_rt)
 		RT_UNLOCK(rin6.ro_rt);
 

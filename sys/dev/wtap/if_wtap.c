@@ -84,7 +84,7 @@ wtap_node_write(struct cdev *dev, struct uio *uio, int ioflag)
 	uint8_t buf[1024];
 	int buf_len;
 
-	uprintf("write device %s \"echo.\"\n", dev->si_name);
+	uprintf("write device %s \"echo.\"\n", devtoname(dev));
 	buf_len = MIN(uio->uio_iov->iov_len, 1024);
 	err = copyin(uio->uio_iov->iov_base, buf, buf_len);
 
@@ -101,7 +101,7 @@ wtap_node_write(struct cdev *dev, struct uio *uio, int ioflag)
 
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		printf("ifp->if_xname = %s\n", ifp->if_xname);
-		if(strcmp(dev->si_name, ifp->if_xname) == 0){
+		if(strcmp(devtoname(dev), ifp->if_xname) == 0){
 			printf("found match, correspoding wtap = %s\n",
 			    ifp->if_xname);
 			sc = (struct wtap_softc *)ifp->if_softc;

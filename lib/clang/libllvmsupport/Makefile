@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmsupport
 
 SRCDIR=	lib/Support
@@ -66,5 +68,15 @@ SRCS=	APFloat.cpp \
 	regstrlcpy.c \
 	system_error.cpp
 LLVM_REQUIRES_RTTI=
+
+.if ${MK_CLANG_EXTRAS} != "no"
+SRCS+=	BlockFrequency.cpp \
+	BranchProbability.cpp \
+	DataExtractor.cpp \
+	Disassembler.cpp \
+	FileUtilities.cpp \
+	MemoryObject.cpp \
+	SystemUtils.cpp
+.endif
 
 .include "../clang.lib.mk"

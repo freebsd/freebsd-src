@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="pflog"
-rcvar=`set_rcvar`
+rcvar="pflog_enable"
 command="/sbin/pflogd"
 pidfile="/var/run/pflogd.pid"
 start_precmd="pflog_prestart"

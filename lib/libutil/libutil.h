@@ -48,6 +48,11 @@ typedef	__gid_t		gid_t;
 #define	_GID_T_DECLARED
 #endif
 
+#ifndef _MODE_T_DECLARED
+typedef	__mode_t	mode_t;
+#define	_MODE_T_DECLARED
+#endif
+
 #ifndef _PID_T_DECLARED
 typedef	__pid_t		pid_t;
 #define	_PID_T_DECLARED
@@ -63,31 +68,19 @@ typedef	__uid_t		uid_t;
 #define	_UID_T_DECLARED
 #endif
 
-#define PROPERTY_MAX_NAME	64
-#define PROPERTY_MAX_VALUE	512
+#define	PROPERTY_MAX_NAME	64
+#define	PROPERTY_MAX_VALUE	512
 
-/* for properties.c */
+/* For properties.c. */
 typedef struct _property {
 	struct _property *next;
-	char *name;
-	char *value;
+	char	*name;
+	char	*value;
 } *properties;
 
-#ifdef _SYS_PARAM_H_
-/* for pidfile.c */
-struct pidfh {
-	int	pf_fd;
-	char	pf_path[MAXPATHLEN + 1];
-	__dev_t	pf_dev;
-	ino_t	pf_ino;
-};
-#endif
-
-/* Avoid pulling in all the include files for no need */
+/* Avoid pulling in all the include files for no need. */
 struct in_addr;
-struct kinfo_file;
-struct kinfo_proc;
-struct kinfo_vmentry;
+struct pidfh;
 struct sockaddr;
 struct termios;
 struct winsize;
@@ -118,10 +111,16 @@ int	kld_load(const char *_name);
 int	login_tty(int _fd);
 int	openpty(int *_amaster, int *_aslave, char *_name,
 	    struct termios *_termp, struct winsize *_winp);
+int	pidfile_close(struct pidfh *_pfh);
+int	pidfile_fileno(const struct pidfh *_pfh);
+struct pidfh *
+	pidfile_open(const char *_path, mode_t _mode, pid_t *_pidptr);
+int	pidfile_remove(struct pidfh *_pfh);
+int	pidfile_write(struct pidfh *_pfh);
 void	properties_free(properties _list);
 char	*property_find(properties _list, const char *_name);
 properties
-	properties_read(int fd);
+	properties_read(int _fd);
 int	realhostname(char *_host, size_t _hsize, const struct in_addr *_ip);
 int	realhostname_sa(char *_host, size_t _hsize, struct sockaddr *_addr,
 	    int _addrlen);
@@ -133,14 +132,20 @@ int	uu_lock(const char *_ttyname);
 int	uu_unlock(const char *_ttyname);
 int	uu_lock_txfr(const char *_ttyname, pid_t _pid);
 
-#ifdef _STDIO_H_	/* avoid adding new includes */
+/*
+ * Conditionally prototype the following functions if the include
+ * files upon which they depend have been included.
+ */
+#ifdef _STDIO_H_
 char	*fparseln(FILE *_fp, size_t *_len, size_t *_lineno,
 	    const char _delim[3], int _flags);
 #endif
 
 #ifdef _PWD_H_
-int	pw_copy(int _ffd, int _tfd, const struct passwd *_pw, struct passwd *_old_pw);
-struct passwd *pw_dup(const struct passwd *_pw);
+int	pw_copy(int _ffd, int _tfd, const struct passwd *_pw,
+	    struct passwd *_old_pw);
+struct passwd
+	*pw_dup(const struct passwd *_pw);
 int	pw_edit(int _notsetuid);
 int	pw_equal(const struct passwd *_pw1, const struct passwd *_pw2);
 void	pw_fini(void);
@@ -149,31 +154,27 @@ char	*pw_make(const struct passwd *_pw);
 char	*pw_make_v7(const struct passwd *_pw);
 int	pw_mkdb(const char *_user);
 int	pw_lock(void);
-struct passwd *pw_scan(const char *_line, int _flags);
-const char *pw_tempname(void);
+struct passwd *
+	pw_scan(const char *_line, int _flags);
+const char *
+	pw_tempname(void);
 int	pw_tmp(int _mfd);
 #endif
 
 #ifdef _GRP_H_
-int 	gr_copy(int __ffd, int _tfd, const struct group *_gr, struct group *_old_gr);
-struct group *gr_dup(const struct group *_gr);
+int 	gr_copy(int __ffd, int _tfd, const struct group *_gr,
+	    struct group *_old_gr);
+struct group *
+	gr_dup(const struct group *_gr);
 int	gr_equal(const struct group *_gr1, const struct group *_gr2);
 void	gr_fini(void);
 int	gr_init(const char *_dir, const char *_master);
 int	gr_lock(void);
 char	*gr_make(const struct group *_gr);
 int	gr_mkdb(void);
-struct group *gr_scan(const char *_line);
+struct group *
+	gr_scan(const char *_line);
 int	gr_tmp(int _mdf);
-#endif
-
-#ifdef _SYS_PARAM_H_
-int	pidfile_close(struct pidfh *_pfh);
-int	pidfile_fileno(const struct pidfh *_pfh);
-struct pidfh *
-	pidfile_open(const char *_path, mode_t _mode, pid_t *_pidptr);
-int	pidfile_remove(struct pidfh *_pfh);
-int	pidfile_write(struct pidfh *_pfh);
 #endif
 
 #ifdef _UFS_UFS_QUOTA_H_
@@ -198,22 +199,6 @@ int	quota_write_usage(struct quotafile *_qf, struct dqblk *_dqb, int _id);
 
 __END_DECLS
 
-#define UU_LOCK_INUSE (1)
-#define UU_LOCK_OK (0)
-#define UU_LOCK_OPEN_ERR (-1)
-#define UU_LOCK_READ_ERR (-2)
-#define UU_LOCK_CREAT_ERR (-3)
-#define UU_LOCK_WRITE_ERR (-4)
-#define UU_LOCK_LINK_ERR (-5)
-#define UU_LOCK_TRY_ERR (-6)
-#define UU_LOCK_OWNER_ERR (-7)
-
-/* return values from realhostname() */
-#define HOSTNAME_FOUND		(0)
-#define HOSTNAME_INCORRECTNAME	(1)
-#define HOSTNAME_INVALIDADDR	(2)
-#define HOSTNAME_INVALIDNAME	(3)
-
 /* fparseln(3) */
 #define	FPARSELN_UNESCESC	0x01
 #define	FPARSELN_UNESCCONT	0x02
@@ -221,26 +206,43 @@ __END_DECLS
 #define	FPARSELN_UNESCREST	0x08
 #define	FPARSELN_UNESCALL	0x0f
 
-/* pw_scan() */
-#define PWSCAN_MASTER		0x01
-#define PWSCAN_WARN		0x02
-
-/* humanize_number(3) */
-#define HN_DECIMAL		0x01
-#define HN_NOSPACE		0x02
-#define HN_B			0x04
-#define HN_DIVISOR_1000		0x08
-#define HN_IEC_PREFIXES		0x10
-
-/* maxscale = 0x07 */
-#define HN_GETSCALE		0x10
-#define HN_AUTOSCALE		0x20
-
-/* hexdump(3) */
+/* Flags for hexdump(3). */
 #define	HD_COLUMN_MASK		0xff
 #define	HD_DELIM_MASK		0xff00
 #define	HD_OMIT_COUNT		(1 << 16)
 #define	HD_OMIT_HEX		(1 << 17)
 #define	HD_OMIT_CHARS		(1 << 18)
+
+/* Values for humanize_number(3)'s flags parameter. */
+#define	HN_DECIMAL		0x01
+#define	HN_NOSPACE		0x02
+#define	HN_B			0x04
+#define	HN_DIVISOR_1000		0x08
+#define	HN_IEC_PREFIXES		0x10
+
+/* Values for humanize_number(3)'s scale parameter. */
+#define	HN_GETSCALE		0x10
+#define	HN_AUTOSCALE		0x20
+
+/* Return values from realhostname(). */
+#define	HOSTNAME_FOUND		0
+#define	HOSTNAME_INCORRECTNAME	1
+#define	HOSTNAME_INVALIDADDR	2
+#define	HOSTNAME_INVALIDNAME	3
+
+/* Flags for pw_scan(). */
+#define	PWSCAN_MASTER		0x01
+#define	PWSCAN_WARN		0x02
+
+/* Return values from uu_lock(). */
+#define	UU_LOCK_INUSE		1
+#define	UU_LOCK_OK		0
+#define	UU_LOCK_OPEN_ERR	(-1)
+#define	UU_LOCK_READ_ERR	(-2)
+#define	UU_LOCK_CREAT_ERR	(-3)
+#define	UU_LOCK_WRITE_ERR	(-4)
+#define	UU_LOCK_LINK_ERR	(-5)
+#define	UU_LOCK_TRY_ERR		(-6)
+#define	UU_LOCK_OWNER_ERR	(-7)
 
 #endif /* !_LIBUTIL_H_ */

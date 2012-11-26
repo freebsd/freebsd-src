@@ -749,7 +749,7 @@ static driver_t ps3fb_sc_driver = {
 
 static devclass_t	sc_devclass;
 
-DRIVER_MODULE(sc, nexus, ps3fb_sc_driver, sc_devclass, 0, 0);
+DRIVER_MODULE(ps3fb, nexus, ps3fb_sc_driver, sc_devclass, 0, 0);
 
 /*
  * Define a stub keyboard driver in case one hasn't been

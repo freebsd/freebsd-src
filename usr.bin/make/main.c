@@ -146,6 +146,14 @@ uint32_t	warn_nocmd;	/* command line no-warning flags */
 time_t		now;		/* Time at start of make */
 struct GNode	*DEFAULT;	/* .DEFAULT node */
 
+static struct {
+	const char *foreign_name;
+	const char *freebsd_name;
+} arch_aliases[] = {
+	{ "x86_64", "amd64" },
+	{ "mipsel", "mips" },
+};
+
 /**
  * Exit with usage message.
  */
@@ -939,10 +947,19 @@ main(int argc, char **argv)
 	 */
 	if ((machine = getenv("MACHINE")) == NULL) {
 		static struct utsname utsname;
+		unsigned int i;
 
 		if (uname(&utsname) == -1)
 			err(2, "uname");
 		machine = utsname.machine;
+
+		/* Canonicalize non-FreeBSD naming conventions */
+		for (i = 0; i < sizeof(arch_aliases)
+		     / sizeof(arch_aliases[0]); i++)
+			if (!strcmp(machine, arch_aliases[i].foreign_name)) {
+				machine = arch_aliases[i].freebsd_name;
+				break;
+			}
 	}
 
 	if ((machine_arch = getenv("MACHINE_ARCH")) == NULL) {

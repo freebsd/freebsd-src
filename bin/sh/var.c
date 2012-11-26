@@ -94,6 +94,7 @@ struct var vps2;
 struct var vps4;
 struct var vvers;
 static struct var voptind;
+struct var vdisvfork;
 
 int forcelocal;
 
@@ -125,6 +126,8 @@ static const struct varinit varinit[] = {
 #endif
 	{ &voptind,	0,				"OPTIND=1",
 	  getoptsreset },
+	{ &vdisvfork,	VUNSET,				"SH_DISABLE_VFORK=",
+	  NULL },
 	{ NULL,	0,				NULL,
 	  NULL }
 };
@@ -600,7 +603,7 @@ showvarscmd(int argc __unused, char **argv __unused)
 		}
 	}
 
-	INTON;
+	INTOFF;
 	vars = ckmalloc(n * sizeof(*vars));
 	i = 0;
 	for (vpp = vartab; vpp < vartab + VTABSIZE; vpp++) {
@@ -625,7 +628,7 @@ showvarscmd(int argc __unused, char **argv __unused)
 		out1c('\n');
 	}
 	ckfree(vars);
-	INTOFF;
+	INTON;
 
 	return 0;
 }

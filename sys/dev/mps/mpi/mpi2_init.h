@@ -1,13 +1,42 @@
-/* $FreeBSD$ */
+/*-
+ * Copyright (c) 2011 LSI Corp.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * LSI MPT-Fusion Host Adapter FreeBSD
+ *
+ * $FreeBSD$
+ */
+
 /*
- *  Copyright (c) 2000-2009 LSI Corporation.
+ *  Copyright (c) 2000-2011 LSI Corporation.
  *
  *
  *           Name:  mpi2_init.h
  *          Title:  MPI SCSI initiator mode messages and structures
  *  Creation Date:  June 23, 2006
  *
- *    mpi2_init.h Version:  02.00.08
+ *    mpi2_init.h Version:  02.00.11
  *
  *  Version History
  *  ---------------
@@ -32,6 +61,9 @@
  *                      both SCSI IO Error Reply and SCSI Task Management Reply.
  *                      Added ResponseInfo field to MPI2_SCSI_TASK_MANAGE_REPLY.
  *                      Added MPI2_SCSITASKMGMT_RSP_TM_OVERLAPPED_TAG define.
+ *  02-10-10  02.00.09  Removed unused structure that had "#if 0" around it.
+ *  05-12-10  02.00.10  Added optional vendor-unique region to SCSI IO Request.
+ *  11-10-10  02.00.11  Added MPI2_SCSIIO_NUM_SGLOFFSETS define.
  *  --------------------------------------------------------------------------
  */
 
@@ -57,20 +89,6 @@ typedef struct
     U32                     TransferLength;             /* 0x1C */
 } MPI2_SCSI_IO_CDB_EEDP32, MPI2_POINTER PTR_MPI2_SCSI_IO_CDB_EEDP32,
   Mpi2ScsiIoCdbEedp32_t, MPI2_POINTER pMpi2ScsiIoCdbEedp32_t;
-
-/* TBD: I don't think this is needed for MPI2/Gen2 */
-#if 0
-typedef struct
-{
-    U8                      CDB[16];                    /* 0x00 */
-    U32                     DataLength;                 /* 0x10 */
-    U32                     PrimaryReferenceTag;        /* 0x14 */
-    U16                     PrimaryApplicationTag;      /* 0x18 */
-    U16                     PrimaryApplicationTagMask;  /* 0x1A */
-    U32                     TransferLength;             /* 0x1C */
-} MPI2_SCSI_IO32_CDB_EEDP16, MPI2_POINTER PTR_MPI2_SCSI_IO32_CDB_EEDP16,
-  Mpi2ScsiIo32CdbEedp16_t, MPI2_POINTER pMpi2ScsiIo32CdbEedp16_t;
-#endif
 
 typedef union
 {
@@ -112,7 +130,13 @@ typedef struct _MPI2_SCSI_IO_REQUEST
     U8                      LUN[8];                         /* 0x34 */
     U32                     Control;                        /* 0x3C */
     MPI2_SCSI_IO_CDB_UNION  CDB;                            /* 0x40 */
+
+#ifdef MPI2_SCSI_IO_VENDOR_UNIQUE_REGION /* typically this is left undefined */
+    MPI2_SCSI_IO_VENDOR_UNIQUE VendorRegion;
+#endif
+
     MPI2_SGE_IO_UNION       SGL;                            /* 0x60 */
+
 } MPI2_SCSI_IO_REQUEST, MPI2_POINTER PTR_MPI2_SCSI_IO_REQUEST,
   Mpi2SCSIIORequest_t, MPI2_POINTER pMpi2SCSIIORequest_t;
 
@@ -145,6 +169,9 @@ typedef struct _MPI2_SCSI_IO_REQUEST
 #define MPI2_SCSIIO_SGLFLAGS_SGL2_SHIFT             (8)
 #define MPI2_SCSIIO_SGLFLAGS_SGL1_SHIFT             (4)
 #define MPI2_SCSIIO_SGLFLAGS_SGL0_SHIFT             (0)
+
+/* number of SGLOffset fields */
+#define MPI2_SCSIIO_NUM_SGLOFFSETS                  (4)
 
 /* SCSI IO IoFlags bits */
 

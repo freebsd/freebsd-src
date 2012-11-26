@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.decls.h,v 3.55 2009/02/25 22:54:54 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.decls.h,v 3.62 2011/02/25 23:58:34 christos Exp $ */
 /*
  * sh.decls.h	 External declarations from sh*.c
  */
@@ -48,9 +48,9 @@ extern	void		  phup		(void);
 extern	void		  process	(int);
 extern	void		  untty		(void);
 #ifdef PROF
-extern	void		  done		(int);
+extern	void		  done		(int) __attribute__((__noreturn__));
 #else
-extern	void		  xexit		(int);
+extern	void		  xexit		(int) __attribute__((__noreturn__));
 #endif
 extern	int		  grabpgrp	(int, pid_t);
 
@@ -82,7 +82,7 @@ extern	void		  heredoc	(Char *);
 /*
  * sh.err.c
  */
-extern	void		  reset		(void);
+extern	void		  reset		(void) __attribute__((__noreturn__));
 extern	void		  cleanup_push_internal(void *, void (*fn) (void *)
 #ifdef CLEANUP_DEBUG
 						, const char *, size_t
@@ -91,8 +91,9 @@ extern	void		  cleanup_push_internal(void *, void (*fn) (void *)
 #define cleanup_push(v, f) cleanup_push_internal(v, f)
 #endif
 );
+extern	int		  cleanup_reset(void);
 extern	void		  cleanup_ignore(void *);
-extern	void		  cleanup_until	(void *);
+extern	void		  cleanup_until(void *);
 extern	void		  cleanup_until_mark(void);
 extern	size_t		  cleanup_push_mark(void);
 extern	void		  cleanup_pop_mark(size_t);
@@ -103,7 +104,9 @@ extern	void		  sigprocmask_cleanup(void *);
 extern	void		  xfree_indirect(void *);
 extern	void		  errinit	(void);
 extern	void		  seterror	(unsigned int, ...);
-extern	void		  stderror	(unsigned int, ...);
+extern	void		  fixerror	(void);
+extern	void		  stderror	(unsigned int, ...)
+    __attribute__((__noreturn__));
 
 /*
  * sh.exec.c
@@ -122,9 +125,9 @@ extern	int		  find_cmd	(Char *, int);
 /*
  * sh.exp.c
  */
-extern  Char     *filetest       (Char *, Char ***, int);
-extern	int	 	  expr		(Char ***);
-extern	int		  exp0		(Char ***, int);
+extern  Char		 *filetest      (Char *, Char ***, int);
+extern	tcsh_number_t 	  expr		(Char ***);
+extern	tcsh_number_t	  exp0		(Char ***, int);
 
 /*
  * sh.file.c
@@ -212,11 +215,12 @@ extern  int	  	  t_pmatch	(const Char *, const Char *,
  * sh.hist.c
  */
 extern	void	 	  dohist	(Char **, struct command *);
-extern  struct Hist 	 *enthist	(int, struct wordent *, int, int);
+extern  struct Hist 	 *enthist	(int, struct wordent *, int, int, int);
 extern	void	 	  savehist	(struct wordent *, int);
 extern	char		 *fmthist	(int, ptr_t);
 extern	void		  rechist	(Char *, int);
 extern	void		  loadhist	(Char *, int);
+extern	void		  displayHistStats(const char *);
 
 /*
  * sh.init.c
@@ -270,9 +274,11 @@ extern	void		  setzero	(void *, size_t);
 extern	Char		 *strip		(Char *);
 extern	Char		 *quote		(Char *);
 extern	const Char	 *quote_meta	(struct Strbuf *, const Char *);
+#ifndef SHORT_STRINGS
 extern	char		 *strnsave	(const char *, size_t);
+#endif
 extern	char		 *strsave	(const char *);
-extern	void		  udvar		(Char *);
+extern	void		  udvar		(Char *) __attribute__((__noreturn__));
 #ifndef POSIX
 extern  char   	  	 *strstr	(const char *, const char *);
 #endif /* !POSIX */
@@ -368,8 +374,8 @@ extern	void		  mypipe	(int *);
 extern	struct varent 	 *adrof1	(const Char *, struct varent *);
 extern	void		  doset		(Char **, struct command *);
 extern	void		  dolet		(Char **, struct command *);
-extern	Char		 *putn		(int);
-extern	int		  getn		(Char *);
+extern	Char		 *putn		(tcsh_number_t);
+extern	tcsh_number_t	  getn		(const Char *);
 extern	Char		 *value1	(Char *, struct varent *);
 extern	void		  setcopy	(const Char *, const Char *, int);
 extern	void		  setv		(const Char *, Char *, int);
@@ -380,13 +386,16 @@ extern	void		  setq		(const Char *, Char **,
 extern	void		  unset		(Char **, struct command *);
 extern	void		  unset1	(Char *[], struct varent *);
 extern	void		  unsetv	(Char *);
-extern	void		  setNS		(Char *);
+extern	void		  setNS		(const Char *);
 extern	void		  shift		(Char **, struct command *);
 extern	void		  plist		(struct varent *, int);
 extern	Char		 *unparse	(struct command *);
 #if defined(DSPMBYTE)
 extern	void 		  update_dspmbyte_vars	(void);
 extern	void		  autoset_dspmbyte	(const Char *);
+#endif
+#if defined(AUTOSET_KANJI)
+extern	void		  autoset_kanji	(void);
 #endif
 
 /*

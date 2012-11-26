@@ -107,6 +107,7 @@ struct ptrace_lwpinfo {
 #define	PL_FLAG_EXEC	0x10	/* exec(2) succeeded */
 #define	PL_FLAG_SI	0x20	/* siginfo is valid */
 #define	PL_FLAG_FORKED	0x40	/* new child */
+#define	PL_FLAG_CHILD	0x80	/* I am from child */
 	sigset_t	pl_sigmask;	/* LWP signal mask */
 	sigset_t	pl_siglist;	/* LWP pending signal */
 	struct __siginfo pl_siginfo;	/* siginfo for signal */
@@ -130,12 +131,6 @@ struct ptrace_vm_entry {
 
 #ifdef _KERNEL
 
-#define	PTRACESTOP_SC(p, td, flag)				\
-	if ((p)->p_flag & P_TRACED && (p)->p_stops & (flag)) {	\
-		PROC_LOCK(p);					\
-		ptracestop((td), SIGTRAP);			\
-		PROC_UNLOCK(p);					\
-	}
 /*
  * The flags below are used for ptrace(2) tracing and have no relation
  * to procfs.  They are stored in struct proc's p_stops member.

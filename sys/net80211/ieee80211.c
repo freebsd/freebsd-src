@@ -276,7 +276,7 @@ ieee80211_ifattach(struct ieee80211com *ic,
 	/* Create a taskqueue for all state changes */
 	ic->ic_tq = taskqueue_create("ic_taskq", M_WAITOK | M_ZERO,
 	    taskqueue_thread_enqueue, &ic->ic_tq);
-	taskqueue_start_threads(&ic->ic_tq, 1, PI_NET, "%s taskq",
+	taskqueue_start_threads(&ic->ic_tq, 1, PI_NET, "%s net80211 taskq",
 	    ifp->if_xname);
 	/*
 	 * Fill in 802.11 available channel set, mark all

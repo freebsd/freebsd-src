@@ -100,17 +100,17 @@ login_fbtab(char *tty, uid_t uid, gid_t gid)
 	if ((cp = devname = strtok(buf, WSPACE)) == 0)
 	    continue;				/* empty or comment */
 	if (strncmp(devname, _PATH_DEV, sizeof _PATH_DEV - 1) != 0
-	       || (cp = strtok((char *) 0, WSPACE)) == 0
+	       || (cp = strtok(NULL, WSPACE)) == 0
 	       || *cp != '0'
 	       || sscanf(cp, "%o", &prot) == 0
 	       || prot == 0
 	       || (prot & 0777) != prot
-	       || (cp = strtok((char *) 0, WSPACE)) == 0) {
+	       || (cp = strtok(NULL, WSPACE)) == 0) {
 	    syslog(LOG_ERR, "%s: bad entry: %s", table, cp ? cp : "(null)");
 	    continue;
 	}
 	if (strcmp(devname + 5, tty) == 0) {
-	    for (cp = strtok(cp, ":"); cp; cp = strtok((char *) 0, ":")) {
+	    for (cp = strtok(cp, ":"); cp; cp = strtok(NULL, ":")) {
 		login_protect(table, cp, prot, uid, gid);
 	    }
 	}

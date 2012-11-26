@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2004 Tim J. Robbins
  * Copyright (c) 2001 Doug Rabson
- * Copyright (c) 1994-1996 Søren Schmidt
+ * Copyright (c) 1994-1996 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

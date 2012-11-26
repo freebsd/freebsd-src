@@ -168,6 +168,9 @@ typedef struct Struct_Obj_Entry {
     size_t tlsoffset;		/* Offset of static TLS block for this module */
     size_t tlsalign;		/* Alignment of static TLS block */
 
+    caddr_t relro_page;
+    size_t relro_size;
+
     /* Items from the dynamic section. */
     Elf_Addr *pltgot;		/* PLT or GOT, depending on architecture */
     const Elf_Rel *rel;		/* Relocation entries */

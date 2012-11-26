@@ -75,7 +75,7 @@ base.txz:
 kernel.txz:
 	-mkdir ${DISTDIR}
 	cd ${WORLDDIR} && ${IMAKE} distributekernel packagekernel DISTDIR=${DISTDIR}
-	mv ${DISTDIR}/kernel.txz ${.OBJDIR}
+	mv ${DISTDIR}/kernel*.txz ${.OBJDIR}
 
 src.txz:
 	-mkdir -p ${DISTDIR}/usr

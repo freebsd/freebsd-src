@@ -149,8 +149,8 @@ struct vnode {
 	struct	lock *v_vnlock;			/* u pointer to vnode lock */
 	int	v_holdcnt;			/* i prevents recycling. */
 	int	v_usecount;			/* i ref count of users */
-	u_long	v_iflag;			/* i vnode flags (see below) */
-	u_long	v_vflag;			/* v vnode flags */
+	u_int	v_iflag;			/* i vnode flags (see below) */
+	u_int	v_vflag;			/* v vnode flags */
 	int	v_writecount;			/* v ref count of writers */
 
 	/*
@@ -538,6 +538,10 @@ void	assert_vop_unlocked(struct vnode *vp, const char *str);
  */
 #define VCALL(c) ((c)->a_desc->vdesc_call(c))
 
+#define DOINGASYNC(vp)	   					\
+	(((vp)->v_mount->mnt_kern_flag & MNTK_ASYNC) != 0 &&	\
+	 ((curthread->td_pflags & TDP_SYNCIO) == 0))
+
 /*
  * VMIO support inline
  */
@@ -578,10 +582,12 @@ struct vattr;
 struct vnode;
 
 /* cache_* may belong in namei.h. */
-void	cache_enter(struct vnode *dvp, struct vnode *vp,
-	    struct componentname *cnp);
+#define	cache_enter(dvp, vp, cnp)					\
+	cache_enter_time(dvp, vp, cnp, NULL)
+void	cache_enter_time(struct vnode *dvp, struct vnode *vp,
+	    struct componentname *cnp, struct timespec *tsp);
 int	cache_lookup(struct vnode *dvp, struct vnode **vpp,
-	    struct componentname *cnp);
+	    struct componentname *cnp, struct timespec *tsp, int *ticksp);
 void	cache_purge(struct vnode *vp);
 void	cache_purge_negative(struct vnode *vp);
 void	cache_purgevfs(struct mount *mp);
@@ -605,6 +611,8 @@ int	vn_fullpath(struct thread *td, struct vnode *vn,
 int	vn_fullpath_global(struct thread *td, struct vnode *vn,
 	    char **retbuf, char **freebuf);
 int	vn_commname(struct vnode *vn, char *buf, u_int buflen);
+int	vn_path_to_global_path(struct thread *td, struct vnode *vp,
+	    char *path, u_int pathlen);
 int	vaccess(enum vtype type, mode_t file_mode, uid_t file_uid,
 	    gid_t file_gid, accmode_t accmode, struct ucred *cred,
 	    int *privused);
@@ -645,7 +653,7 @@ void	vn_pages_remove(struct vnode *vp, vm_pindex_t start, vm_pindex_t end);
 int	vn_pollrecord(struct vnode *vp, struct thread *p, int events);
 int	vn_rdwr(enum uio_rw rw, struct vnode *vp, void *base,
 	    int len, off_t offset, enum uio_seg segflg, int ioflg,
-	    struct ucred *active_cred, struct ucred *file_cred, int *aresid,
+	    struct ucred *active_cred, struct ucred *file_cred, ssize_t *aresid,
 	    struct thread *td);
 int	vn_rdwr_inchunks(enum uio_rw rw, struct vnode *vp, void *base,
 	    size_t len, off_t offset, enum uio_seg segflg, int ioflg,

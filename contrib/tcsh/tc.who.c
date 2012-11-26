@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.who.c,v 3.51 2006/03/03 22:08:45 amold Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.who.c,v 3.57 2012/01/17 20:53:38 christos Exp $ */
 /*
  * tc.who.c: Watch logins and logouts...
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: tc.who.c,v 3.51 2006/03/03 22:08:45 amold Exp $")
+RCSID("$tcsh: tc.who.c,v 3.57 2012/01/17 20:53:38 christos Exp $")
 
 #include "tc.h"
 
@@ -44,6 +44,11 @@ RCSID("$tcsh: tc.who.c,v 3.51 2006/03/03 22:08:45 amold Exp $")
 
 #ifdef HAVE_UTMPX_H
 # include <utmpx.h>
+# define UTNAMLEN	sizeof(((struct utmpx *) 0)->ut_name)
+# define UTLINLEN	sizeof(((struct utmpx *) 0)->ut_line)
+# ifdef HAVE_STRUCT_UTMPX_UT_HOST
+#  define UTHOSTLEN	sizeof(((struct utmpx *) 0)->ut_host)
+# endif
 /* I just redefine a few words here.  Changing every occurrence below
  * seems like too much of work.  All UTMP functions have equivalent
  * UTMPX counterparts, so they can be added all here when needed.
@@ -55,68 +60,81 @@ RCSID("$tcsh: tc.who.c,v 3.51 2006/03/03 22:08:45 amold Exp $")
 #  define TCSH_PATH_UTMP _PATH_UTMPX
 # elif defined(UTMPX_FILE)
 #  define TCSH_PATH_UTMP UTMPX_FILE
-# endif /* __UTMPX_FILE && !UTMPX_FILE */
-# ifdef TCSH_PATH_UTMP
+# elif __FreeBSD_version >= 900000
+#  /* Why isn't this defined somewhere? */
+#  define TCSH_PATH_UTMP "/var/run/utx.active"
+# elif defined(__hpux)
+#  define TCSH_PATH_UTMP "/etc/utmpx"
+# endif
+# if defined(TCSH_PATH_UTMP) || !defined(HAVE_UTMP_H)
 #  define utmp utmpx
-#  if defined(HAVE_STRUCT_UTMP_UT_TV)
-#   define ut_time ut_tv.tv_sec
-#  elif defined(HAVE_STRUCT_UTMP_UT_XTIME)
-#   define ut_time ut_xtime
-#  endif
-#  ifdef HAVE_STRUCT_UTMP_UT_USER
-#   define ut_name ut_user
-#  endif
-#  ifdef HAVE_GETUTENT
+#  define TCSH_USE_UTMPX
+#  if defined(HAVE_GETUTENT) || defined(HAVE_GETUTXENT)
 #   define getutent getutxent
 #   define setutent setutxent
 #   define endutent endutxent
-#  endif /* HAVE_GETUTENT */
-# else
-#  ifdef HAVE_UTMP_H
-#   include <utmp.h>
-#  endif /* WINNT_NATIVE */
-# endif /* TCSH_PATH_UTMP */
-#else /* !HAVE_UTMPX_H */
-# ifdef HAVE_UTMP_H
-#  include <utmp.h>
-# endif /* WINNT_NATIVE */
+#  endif /* HAVE_GETUTENT || HAVE_GETUTXENT */
+#  if defined(HAVE_STRUCT_UTMPX_UT_TV)
+#   define ut_time ut_tv.tv_sec
+#  elif defined(HAVE_STRUCT_UTMPX_UT_XTIME)
+#   define ut_time ut_xtime
+#  endif
+#  if defined(HAVE_STRUCT_UTMPX_UT_USER)
+#   define ut_name ut_user
+#  endif
+# endif /* TCSH_PATH_UTMP || !HAVE_UTMP_H */
 #endif /* HAVE_UTMPX_H */
 
-#ifndef BROKEN_CC
-# define UTNAMLEN	sizeof(((struct utmp *) 0)->ut_name)
-# define UTLINLEN	sizeof(((struct utmp *) 0)->ut_line)
-# ifdef HAVE_STRUCT_UTMP_UT_HOST
-#  ifdef _SEQUENT_
-#   define UTHOSTLEN	100
-#  else
-#   define UTHOSTLEN	sizeof(((struct utmp *) 0)->ut_host)
-#  endif
-# endif	/* HAVE_STRUCT_UTMP_UT_HOST */
-#else
+#if !defined(TCSH_USE_UTMPX) && defined(HAVE_UTMP_H)
+# include <utmp.h>
+# if defined(HAVE_STRUCT_UTMP_UT_TV)
+#  define ut_time ut_tv.tv_sec
+# elif defined(HAVE_STRUCT_UTMP_UT_XTIME)
+#  define ut_time ut_xtime
+# endif
+# if defined(HAVE_STRUCT_UTMP_UT_USER)
+#  define ut_name ut_user
+# endif
+# ifndef BROKEN_CC
+#  define UTNAMLEN	sizeof(((struct utmp *) 0)->ut_name)
+#  define UTLINLEN	sizeof(((struct utmp *) 0)->ut_line)
+#  ifdef HAVE_STRUCT_UTMP_UT_HOST
+#   ifdef _SEQUENT_
+#    define UTHOSTLEN	100
+#   else
+#    define UTHOSTLEN	sizeof(((struct utmp *) 0)->ut_host)
+#   endif
+#  endif	/* HAVE_STRUCT_UTMP_UT_HOST */
+# else
 /* give poor cc a little help if it needs it */
 struct utmp __ut;
-
-# define UTNAMLEN	sizeof(__ut.ut_name)
-# define UTLINLEN	sizeof(__ut.ut_line)
-# ifdef HAVE_STRUCT_UTMP_UT_HOST
-#  ifdef _SEQUENT_
-#   define UTHOSTLEN	100
+#  define UTNAMLEN	sizeof(__ut.ut_name)
+#  define UTLINLEN	sizeof(__ut.ut_line)
+#  ifdef HAVE_STRUCT_UTMP_UT_HOST
+#   ifdef _SEQUENT_
+#    define UTHOSTLEN	100
+#   else
+#    define UTHOSTLEN	sizeof(__ut.ut_host)
+#   endif
+#  endif /* HAVE_STRUCT_UTMP_UT_HOST */
+# endif /* BROKEN_CC */
+# ifndef TCSH_PATH_UTMP
+#  ifdef UTMP_FILE
+#   define TCSH_PATH_UTMP UTMP_FILE
+#  elif defined(_PATH_UTMP)
+#   define TCSH_PATH_UTMP _PATH_UTMP
 #  else
-#   define UTHOSTLEN	sizeof(__ut.ut_host)
-#  endif
-# endif /* HAVE_STRUCT_UTMP_UT_HOST */
-#endif /* BROKEN_CC */
+#   define TCSH_PATH_UTMP "/etc/utmp"
+#  endif /* UTMP_FILE */
+# endif /* TCSH_PATH_UTMP */
+#endif /* !TCSH_USE_UTMPX && HAVE_UTMP_H */
 
-#ifndef TCSH_PATH_UTMP
-# ifdef	UTMP_FILE
-#  define TCSH_PATH_UTMP UTMP_FILE
-# elif defined(_PATH_UTMP)
-#  define TCSH_PATH_UTMP _PATH_UTMP
-# else
-#  define TCSH_PATH_UTMP "/etc/utmp"
-# endif /* UTMP_FILE */
-#endif /* TCSH_PATH_UTMP */
-
+#ifndef UTNAMLEN
+#define UTNAMLEN 64
+#endif
+#ifndef UTLINLEN
+#define UTLINLEN 64
+#endif
 
 struct who {
     struct who *who_next;
@@ -124,9 +142,9 @@ struct who {
     char    who_name[UTNAMLEN + 1];
     char    who_new[UTNAMLEN + 1];
     char    who_tty[UTLINLEN + 1];
-#ifdef HAVE_STRUCT_UTMP_UT_HOST
+#ifdef UTHOSTLEN
     char    who_host[UTHOSTLEN + 1];
-#endif /* HAVE_STRUCT_UTMP_UT_HOST */
+#endif /* UTHOSTLEN */
     time_t  who_time;
     int     who_status;
 };
@@ -180,7 +198,7 @@ watch_login(int force)
 {
     int     comp = -1, alldone;
     int	    firsttime = stlast == 1;
-#ifdef HAVE_GETUTENT
+#if defined(HAVE_GETUTENT) || defined(HAVE_GETUTXENT)
     struct utmp *uptr;
 #else
     int utmpfd;
@@ -259,7 +277,7 @@ watch_login(int force)
 	return;
     }
     stlast = sta.st_mtime;
-#ifdef HAVE_GETUTENT
+#if defined(HAVE_GETUTENT) || defined(HAVE_GETUTXENT)
     setutent();
 #else
     if ((utmpfd = xopen(TCSH_PATH_UTMP, O_RDONLY|O_LARGEFILE)) < 0) {
@@ -284,7 +302,7 @@ watch_login(int force)
      * Read in the utmp file, sort the entries, and update existing entries or
      * add new entries to the status list.
      */
-#ifdef HAVE_GETUTENT
+#if defined(HAVE_GETUTENT) || defined(HAVE_GETUTXENT)
     while ((uptr = getutent()) != NULL) {
         memcpy(&utmp, uptr, sizeof (utmp));
 #else
@@ -333,7 +351,7 @@ watch_login(int force)
 	    }
 	    else {
 		(void) strncpy(wp->who_new, utmp.ut_name, UTNAMLEN);
-# ifdef HAVE_STRUCT_UTMP_UT_HOST
+# ifdef UTHOSTLEN
 #  ifdef _SEQUENT_
 		host = ut_find_host(wp->who_tty);
 		if (host)
@@ -343,7 +361,7 @@ watch_login(int force)
 #  else
 		(void) strncpy(wp->who_host, utmp.ut_host, UTHOSTLEN);
 #  endif
-# endif /* HAVE_STRUCT_UTMP_UT_HOST */
+# endif /* UTHOSTLEN */
 		wp->who_time = utmp.ut_time;
 		if (wp->who_name[0] == '\0')
 		    wp->who_status = ONLINE;
@@ -354,7 +372,7 @@ watch_login(int force)
 	else {		/* new tty in utmp */
 	    wpnew = xcalloc(1, sizeof *wpnew);
 	    (void) strncpy(wpnew->who_tty, utmp.ut_line, UTLINLEN);
-# ifdef HAVE_STRUCT_UTMP_UT_HOST
+# ifdef UTHOSTLEN
 #  ifdef _SEQUENT_
 	    host = ut_find_host(wpnew->who_tty);
 	    if (host)
@@ -364,7 +382,7 @@ watch_login(int force)
 #  else
 	    (void) strncpy(wpnew->who_host, utmp.ut_host, UTHOSTLEN);
 #  endif
-# endif /* HAVE_STRUCT_UTMP_UT_HOST */
+# endif /* UTHOSTLEN */
 	    wpnew->who_time = utmp.ut_time;
 # ifdef DEAD_PROCESS
 	    if (utmp.ut_type == DEAD_PROCESS)
@@ -387,14 +405,11 @@ watch_login(int force)
 	    wp->who_prev = wpnew;	/* linked in now */
 	}
     }
-#ifdef HAVE_GETUTENT
+#if defined(HAVE_GETUTENT) || defined(HAVE_GETUTXENT)
     endutent();
 #else
     cleanup_until(&utmpfd);
 #endif
-# if defined(HAVE_STRUCT_UTMP_UT_HOST) && defined(_SEQUENT_)
-    endutent();
-# endif
 #endif /* !WINNT_NATIVE */
 
     if (force || vp == NULL) {
@@ -494,11 +509,11 @@ debugwholist(struct who *new, struct who *wp)
 static void
 print_who(struct who *wp)
 {
-#ifdef HAVE_STRUCT_UTMP_UT_HOST
+#ifdef UTHOSTLEN
     Char   *cp = str2short(CGETS(26, 7, "%n has %a %l from %m."));
 #else
     Char   *cp = str2short(CGETS(26, 8, "%n has %a %l."));
-#endif /* HAVE_STRUCT_UTMP_UT_HOST */
+#endif /* UTHOSTLEN */
     struct varent *vp = adrof(STRwho);
     Char *str;
 
@@ -519,11 +534,11 @@ who_info(ptr_t ptr, int c)
 {
     struct who *wp = ptr;
     char *wbuf;
-#ifdef HAVE_STRUCT_UTMP_UT_HOST
+#ifdef UTHOSTLEN
     char *wb;
     int flg;
     char *pb;
-#endif /* HAVE_STRUCT_UTMP_UT_HOST */
+#endif /* UTHOSTLEN */
 
     switch (c) {
     case 'n':		/* user name */
@@ -551,7 +566,7 @@ who_info(ptr_t ptr, int c)
 	}
 	break;
 
-#ifdef HAVE_STRUCT_UTMP_UT_HOST
+#ifdef UTHOSTLEN
     case 'm':
 	if (wp->who_host[0] == '\0')
 	    return strsave(CGETS(26, 12, "local"));
@@ -585,7 +600,7 @@ who_info(ptr_t ptr, int c)
 	    *wb = '\0';
 	    return wbuf;
 	}
-#endif /* HAVE_STRUCT_UTMP_UT_HOST */
+#endif /* UTHOSTLEN */
 
     case 'l':
 	return strsave(wp->who_tty);
@@ -620,7 +635,7 @@ dolog(Char **v, struct command *c)
     }
 }
 
-# ifdef HAVE_STRUCT_UTMP_UT_HOST
+# ifdef UTHOSTLEN
 size_t
 utmphostsize(void)
 {
@@ -644,12 +659,11 @@ utmphost(void)
     resetwatch();
     return host;
 }
-# endif /* HAVE_STRUCT_UTMP_UT_HOST */
+# endif /* UTHOSTLEN */
 
 #ifdef WINNT_NATIVE
-void add_to_who_list(name, mach_nm)
-    char *name;
-    char *mach_nm;
+void
+add_to_who_list(char *name, char *mach_nm)
 {
 
     struct who *wp, *wpnew;

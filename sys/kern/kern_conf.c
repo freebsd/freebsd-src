@@ -690,16 +690,15 @@ prep_devname(struct cdev *dev, const char *fmt, va_list ap)
 
 	mtx_assert(&devmtx, MA_OWNED);
 
-	len = vsnrprintf(dev->__si_namebuf, sizeof(dev->__si_namebuf), 32,
-	    fmt, ap);
-	if (len > sizeof(dev->__si_namebuf) - 1)
+	len = vsnrprintf(dev->si_name, sizeof(dev->si_name), 32, fmt, ap);
+	if (len > sizeof(dev->si_name) - 1)
 		return (ENAMETOOLONG);
 
 	/* Strip leading slashes. */
-	for (from = dev->__si_namebuf; *from == '/'; from++)
+	for (from = dev->si_name; *from == '/'; from++)
 		;
 
-	for (to = dev->__si_namebuf; *from != '\0'; from++, to++) {
+	for (to = dev->si_name; *from != '\0'; from++, to++) {
 		/* Treat multiple sequential slashes as single. */
 		while (from[0] == '/' && from[1] == '/')
 			from++;
@@ -710,11 +709,11 @@ prep_devname(struct cdev *dev, const char *fmt, va_list ap)
 	}
 	*to = '\0';
 
-	if (dev->__si_namebuf[0] == '\0')
+	if (dev->si_name[0] == '\0')
 		return (EINVAL);
 
 	/* Disallow "." and ".." components. */
-	for (s = dev->__si_namebuf;;) {
+	for (s = dev->si_name;;) {
 		for (q = s; *q != '/' && *q != '\0'; q++)
 			;
 		if (q - s == 1 && s[0] == '.')
@@ -726,7 +725,7 @@ prep_devname(struct cdev *dev, const char *fmt, va_list ap)
 		s = q + 1;
 	}
 
-	if (devfs_dev_exists(dev->__si_namebuf) != 0)
+	if (devfs_dev_exists(dev->si_name) != 0)
 		return (EEXIST);
 
 	return (0);

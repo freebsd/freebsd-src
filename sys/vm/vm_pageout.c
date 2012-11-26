@@ -714,11 +714,8 @@ vm_pageout_map_deactivate_pages(map, desired)
 	 * table pages.
 	 */
 	if (desired == 0 && nothingwired) {
-		tmpe = map->header.next;
-		while (tmpe != &map->header) {
-			pmap_remove(vm_map_pmap(map), tmpe->start, tmpe->end);
-			tmpe = tmpe->next;
-		}
+		pmap_remove(vm_map_pmap(map), vm_map_min(map),
+		    vm_map_max(map));
 	}
 	vm_map_unlock(map);
 }

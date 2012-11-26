@@ -22,6 +22,22 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20120211:
+	The getifaddrs upgrade path broken with 20111215 has been restored.
+	If you have upgraded in between 20111215 and 20120209 you need to
+	recompile libc again with your kernel.  You still need to recompile
+	world to be able to configure CARP but this restriction already
+	comes from 20111215.
+
+20120114:
+	The set_rcvar() function has been removed from /etc/rc.subr.  All
+	base and ports rc.d scripts have been updated, so if you have a
+	port installed with a script in /usr/local/etc/rc.d you can either
+	hand-edit the rcvar= line, or reinstall the port.
+
+	An easy way to handle the mass-update of /etc/rc.d:
+	rm /etc/rc.d/* && mergemaster -i
+
 20120109:
 	panic(9) now stops other CPUs in the SMP systems, disables interrupts
 	on the current CPU and prevents other threads from running.

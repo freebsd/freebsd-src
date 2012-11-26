@@ -970,17 +970,26 @@ do_unlock_umtx32(struct thread *td, uint32_t *m, uint32_t id)
 }
 #endif
 
+static inline int 
+tstohz(const struct timespec *tsp)
+{
+	struct timeval tv;
+
+	TIMESPEC_TO_TIMEVAL(&tv, tsp);
+	return tvtohz(&tv);
+}
+
 /*
  * Fetch and compare value, sleep on the address if value is not changed.
  */
 static int
 do_wait(struct thread *td, void *addr, u_long id,
-	struct timespec *timeout, int compat32, int is_private)
+	struct timespec *timeout, int compat32, int is_private, uint32_t flags)
 {
 	struct umtx_q *uq;
-	struct timespec ts, ts2, ts3;
-	struct timeval tv;
+	struct timespec ets, cts, tts;
 	u_long tmp;
+	int clockid = (flags >> 16) & 0xFFFF;
 	int error = 0;
 
 	uq = td->td_umtxq;
@@ -1005,12 +1014,22 @@ do_wait(struct thread *td, void *addr, u_long id,
 		umtxq_remove(uq);
 		umtxq_unlock(&uq->uq_key);
 	} else {
-		getnanouptime(&ts);
-		timespecadd(&ts, timeout);
-		TIMESPEC_TO_TIMEVAL(&tv, timeout);
+		kern_clock_gettime(td, clockid, &cts);
+		if ((flags & UMTX_WAIT_ABSTIME) == 0) {
+			ets = cts;
+			timespecadd(&ets, timeout);
+		} else {
+			ets = *timeout;
+		}
 		umtxq_lock(&uq->uq_key);
 		for (;;) {
-			error = umtxq_sleep(uq, "uwait", tvtohz(&tv));
+			if (timespeccmp(&cts, &ets, >=)) {
+				error = ETIMEDOUT;
+				break;
+			}
+			tts = ets;
+			timespecsub(&tts, &cts);
+			error = umtxq_sleep(uq, "uwait", tstohz(&tts));
 			if (!(uq->uq_flags & UQF_UMTXQ)) {
 				error = 0;
 				break;
@@ -1018,15 +1037,7 @@ do_wait(struct thread *td, void *addr, u_long id,
 			if (error != ETIMEDOUT)
 				break;
 			umtxq_unlock(&uq->uq_key);
-			getnanouptime(&ts2);
-			if (timespeccmp(&ts2, &ts, >=)) {
-				error = ETIMEDOUT;
-				umtxq_lock(&uq->uq_key);
-				break;
-			}
-			ts3 = ts;
-			timespecsub(&ts3, &ts2);
-			TIMESPEC_TO_TIMEVAL(&tv, &ts3);
+			kern_clock_gettime(td, clockid, &cts);
 			umtxq_lock(&uq->uq_key);
 		}
 		umtxq_remove(uq);
@@ -2804,9 +2815,8 @@ do_sem_wait(struct thread *td, struct _usem *sem, struct timespec *timeout)
 	umtxq_insert(uq);
 	umtxq_unlock(&uq->uq_key);
 
-	if (fuword32(__DEVOLATILE(uint32_t *, &sem->_has_waiters)) == 0)
-		casuword32(__DEVOLATILE(uint32_t *, &sem->_has_waiters), 0, 1);
-
+	casuword32(__DEVOLATILE(uint32_t *, &sem->_has_waiters), 0, 1);
+	rmb();
 	count = fuword32(__DEVOLATILE(uint32_t *, &sem->_count));
 	if (count != 0) {
 		umtxq_lock(&uq->uq_key);
@@ -2942,6 +2952,7 @@ __umtx_op_wait(struct thread *td, struct _umtx_op_args *uap)
 {
 	struct timespec *ts, timeout;
 	int error;
+	uint32_t flags;
 
 	if (uap->uaddr2 == NULL)
 		ts = NULL;
@@ -2951,7 +2962,8 @@ __umtx_op_wait(struct thread *td, struct _umtx_op_args *uap)
 			return (error);
 		ts = &timeout;
 	}
-	return do_wait(td, uap->obj, uap->val, ts, 0, 0);
+	flags = (uint32_t)(uintptr_t)uap->uaddr1;
+	return do_wait(td, uap->obj, uap->val, ts, 0, 0, flags);
 }
 
 static int
@@ -2959,6 +2971,7 @@ __umtx_op_wait_uint(struct thread *td, struct _umtx_op_args *uap)
 {
 	struct timespec *ts, timeout;
 	int error;
+	uint32_t flags;
 
 	if (uap->uaddr2 == NULL)
 		ts = NULL;
@@ -2968,7 +2981,8 @@ __umtx_op_wait_uint(struct thread *td, struct _umtx_op_args *uap)
 			return (error);
 		ts = &timeout;
 	}
-	return do_wait(td, uap->obj, uap->val, ts, 1, 0);
+	flags = (uint32_t)(uintptr_t)uap->uaddr1;
+	return do_wait(td, uap->obj, uap->val, ts, 1, 0, flags);
 }
 
 static int
@@ -2976,6 +2990,7 @@ __umtx_op_wait_uint_private(struct thread *td, struct _umtx_op_args *uap)
 {
 	struct timespec *ts, timeout;
 	int error;
+	uint32_t flags;
 
 	if (uap->uaddr2 == NULL)
 		ts = NULL;
@@ -2985,7 +3000,8 @@ __umtx_op_wait_uint_private(struct thread *td, struct _umtx_op_args *uap)
 			return (error);
 		ts = &timeout;
 	}
-	return do_wait(td, uap->obj, uap->val, ts, 1, 1);
+	flags = (uint32_t)(uintptr_t)uap->uaddr1;
+	return do_wait(td, uap->obj, uap->val, ts, 1, 1, flags);
 }
 
 static int
@@ -3287,6 +3303,7 @@ __umtx_op_wait_compat32(struct thread *td, struct _umtx_op_args *uap)
 {
 	struct timespec *ts, timeout;
 	int error;
+	uint32_t flags;
 
 	if (uap->uaddr2 == NULL)
 		ts = NULL;
@@ -3296,7 +3313,8 @@ __umtx_op_wait_compat32(struct thread *td, struct _umtx_op_args *uap)
 			return (error);
 		ts = &timeout;
 	}
-	return do_wait(td, uap->obj, uap->val, ts, 1, 0);
+	flags = (uint32_t)(uintptr_t)uap->uaddr1;
+	return do_wait(td, uap->obj, uap->val, ts, 1, 0, flags);
 }
 
 static int
@@ -3395,6 +3413,7 @@ __umtx_op_wait_uint_private_compat32(struct thread *td, struct _umtx_op_args *ua
 {
 	struct timespec *ts, timeout;
 	int error;
+	uint32_t flags;
 
 	if (uap->uaddr2 == NULL)
 		ts = NULL;
@@ -3404,7 +3423,8 @@ __umtx_op_wait_uint_private_compat32(struct thread *td, struct _umtx_op_args *ua
 			return (error);
 		ts = &timeout;
 	}
-	return do_wait(td, uap->obj, uap->val, ts, 1, 1);
+	flags = (uint32_t)(uintptr_t)uap->uaddr1;
+	return do_wait(td, uap->obj, uap->val, ts, 1, 1, flags);
 }
 
 static int

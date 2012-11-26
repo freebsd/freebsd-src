@@ -853,7 +853,7 @@ printf("dvp %d:%d:%d\n", (int)mp, (int)dvp->v_vflag & VV_ROOT, (int)flags & ISDO
 	if (error) 
 	    return ENOENT;
 
-	error = cache_lookup(dvp, vpp, cnp);
+	error = cache_lookup(dvp, vpp, cnp, NULL, NULL);
 	NCPVNDEBUG("cache_lookup returned %d\n", error);
 	if (error > 0)
 		return error;

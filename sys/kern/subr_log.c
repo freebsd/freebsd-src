@@ -59,6 +59,7 @@ static	d_close_t	logclose;
 static	d_read_t	logread;
 static	d_ioctl_t	logioctl;
 static	d_poll_t	logpoll;
+static	d_kqfilter_t	logkqfilter;
 
 static	void logtimeout(void *arg);
 
@@ -69,7 +70,18 @@ static struct cdevsw log_cdevsw = {
 	.d_read =	logread,
 	.d_ioctl =	logioctl,
 	.d_poll =	logpoll,
+	.d_kqfilter =	logkqfilter,
 	.d_name =	"log",
+};
+
+static int	logkqread(struct knote *note, long hint);
+static void	logkqdetach(struct knote *note);
+
+static struct filterops log_read_filterops = {
+	.f_isfd =	1,
+	.f_attach =	NULL,
+	.f_detach =	logkqdetach,
+	.f_event =	logkqread,
 };
 
 static struct logsoftc {
@@ -181,6 +193,40 @@ logpoll(struct cdev *dev, int events, struct thread *td)
 	return (revents);
 }
 
+static int
+logkqfilter(struct cdev *dev, struct knote *kn)
+{
+
+	if (kn->kn_filter != EVFILT_READ)
+		return (EINVAL);
+
+	kn->kn_fop = &log_read_filterops;
+	kn->kn_hook = NULL;
+
+	mtx_lock(&msgbuf_lock);
+	knlist_add(&logsoftc.sc_selp.si_note, kn, 1);
+	mtx_unlock(&msgbuf_lock);
+	return (0);
+}
+
+static int
+logkqread(struct knote *kn, long hint)
+{
+
+	mtx_assert(&msgbuf_lock, MA_OWNED);
+	kn->kn_data = msgbuf_getcount(msgbufp);
+	return (kn->kn_data != 0);
+}
+
+static void
+logkqdetach(struct knote *kn)
+{
+
+	mtx_lock(&msgbuf_lock);
+	knlist_remove(&logsoftc.sc_selp.si_note, kn, 1);
+	mtx_unlock(&msgbuf_lock);
+}
+
 static void
 logtimeout(void *arg)
 {
@@ -198,6 +244,7 @@ logtimeout(void *arg)
 	}
 	msgbuftrigger = 0;
 	selwakeuppri(&logsoftc.sc_selp, LOG_RDPRI);
+	KNOTE_LOCKED(&logsoftc.sc_selp.si_note, 0);
 	if ((logsoftc.sc_state & LOG_ASYNC) && logsoftc.sc_sigio != NULL)
 		pgsigio(&logsoftc.sc_sigio, SIGIO, 0);
 	cv_broadcastpri(&log_wakeup, LOG_RDPRI);
@@ -256,6 +303,7 @@ log_drvinit(void *unused)
 
 	cv_init(&log_wakeup, "klog");
 	callout_init_mtx(&logsoftc.sc_callout, &msgbuf_lock, 0);
+	knlist_init_mtx(&logsoftc.sc_selp.si_note, &msgbuf_lock);
 	make_dev_credf(MAKEDEV_ETERNAL, &log_cdevsw, 0, NULL, UID_ROOT,
 	    GID_WHEEL, 0600, "klog");
 }

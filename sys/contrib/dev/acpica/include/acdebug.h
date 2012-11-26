@@ -137,18 +137,20 @@ void
 AcpiDbDisplayResources (
     char                    *ObjectArg);
 
+ACPI_HW_DEPENDENT_RETURN_VOID (
 void
 AcpiDbDisplayGpes (
-    void);
+    void))
 
 void
 AcpiDbDisplayHandlers (
     void);
 
+ACPI_HW_DEPENDENT_RETURN_VOID (
 void
 AcpiDbGenerateGpe (
     char                    *GpeArg,
-    char                    *BlockArg);
+    char                    *BlockArg))
 
 
 /*

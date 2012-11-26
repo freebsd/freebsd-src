@@ -17,7 +17,7 @@ LDADD=	-lwrap
 
 CLEANFILES= yp_svc.c ypxfr_clnt.c yp.h
 
-RPCGEN= rpcgen -I -C
+RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -I -C
 
 # We need to remove the 'static' keyword from _rpcsvcstate so that
 # yp_main.c can see it.

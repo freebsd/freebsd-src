@@ -84,6 +84,11 @@ ACPI_STATUS
 AcpiTbVerifyTable (
     ACPI_TABLE_DESC         *TableDesc);
 
+ACPI_TABLE_HEADER *
+AcpiTbTableOverride (
+    ACPI_TABLE_HEADER       *TableHeader,
+    ACPI_TABLE_DESC         *TableDesc);
+
 ACPI_STATUS
 AcpiTbAddTable (
     ACPI_TABLE_DESC         *TableDesc,

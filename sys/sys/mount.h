@@ -557,7 +557,7 @@ struct nameidata;
 struct sysctl_req;
 struct mntarg;
 
-typedef int vfs_cmount_t(struct mntarg *ma, void *data, int flags);
+typedef int vfs_cmount_t(struct mntarg *ma, void *data, uint64_t flags);
 typedef int vfs_unmount_t(struct mount *mp, int mntflags);
 typedef int vfs_root_t(struct mount *mp, int flags, struct vnode **vpp);
 typedef	int vfs_quotactl_t(struct mount *mp, int cmds, uid_t uid, void *arg);
@@ -700,7 +700,7 @@ extern	char *mountrootfsname;
 
 int	dounmount(struct mount *, int, struct thread *);
 
-int	kernel_mount(struct mntarg *ma, int flags);
+int	kernel_mount(struct mntarg *ma, uint64_t flags);
 int	kernel_vmount(int flags, ...);
 struct mntarg *mount_arg(struct mntarg *ma, const char *name, const void *val, int len);
 struct mntarg *mount_argb(struct mntarg *ma, int flag, const char *name);
@@ -737,7 +737,8 @@ int	vfs_export			 /* process mount export info */
 	    (struct mount *, struct export_args *);
 void	vfs_allocate_syncvnode(struct mount *);
 void	vfs_deallocate_syncvnode(struct mount *);
-int	vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions);
+int	vfs_donmount(struct thread *td, uint64_t fsflags,
+	    struct uio *fsoptions);
 void	vfs_getnewfsid(struct mount *);
 struct cdev *vfs_getrootfsid(struct mount *);
 struct	mount *vfs_getvfs(fsid_t *);      /* return vfs given fsid */

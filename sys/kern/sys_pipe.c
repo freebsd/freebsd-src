@@ -617,7 +617,7 @@ pipe_read(fp, uio, active_cred, flags, td)
 			size = rpipe->pipe_buffer.size - rpipe->pipe_buffer.out;
 			if (size > rpipe->pipe_buffer.cnt)
 				size = rpipe->pipe_buffer.cnt;
-			if (size > (u_int) uio->uio_resid)
+			if (size > uio->uio_resid)
 				size = (u_int) uio->uio_resid;
 
 			PIPE_UNLOCK(rpipe);
@@ -650,7 +650,7 @@ pipe_read(fp, uio, active_cred, flags, td)
 		 */
 		} else if ((size = rpipe->pipe_map.cnt) &&
 			   (rpipe->pipe_state & PIPE_DIRECTW)) {
-			if (size > (u_int) uio->uio_resid)
+			if (size > uio->uio_resid)
 				size = (u_int) uio->uio_resid;
 
 			PIPE_UNLOCK(rpipe);
@@ -764,9 +764,10 @@ pipe_build_write_buffer(wpipe, uio)
 	KASSERT(wpipe->pipe_state & PIPE_DIRECTW,
 		("Clone attempt on non-direct write pipe!"));
 
-	size = (u_int) uio->uio_iov->iov_len;
-	if (size > wpipe->pipe_buffer.size)
-		size = wpipe->pipe_buffer.size;
+	if (uio->uio_iov->iov_len > wpipe->pipe_buffer.size)
+                size = wpipe->pipe_buffer.size;
+	else
+                size = uio->uio_iov->iov_len;
 
 	if ((i = vm_fault_quick_hold_pages(&curproc->p_vmspace->vm_map,
 	    (vm_offset_t)uio->uio_iov->iov_base, size, VM_PROT_READ,
@@ -960,7 +961,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 	int flags;
 {
 	int error = 0;
-	int desiredsize, orig_resid;
+	size_t desiredsize, orig_resid;
 	struct pipe *wpipe, *rpipe;
 
 	rpipe = fp->f_data;

@@ -148,7 +148,7 @@ static __inline struct mpt_personality *
 mpt_pers_find(struct mpt_softc *mpt, u_int start_at)
 {
 	KASSERT(start_at <= MPT_MAX_PERSONALITIES,
-		("mpt_pers_find: starting position out of range\n"));
+		("mpt_pers_find: starting position out of range"));
 
 	while (start_at < MPT_MAX_PERSONALITIES
 	    && (mpt->mpt_pers_mask & (0x1 << start_at)) == 0) {
@@ -1053,6 +1053,12 @@ mpt_hard_reset(struct mpt_softc *mpt)
 
 	mpt_lprt(mpt, MPT_PRT_DEBUG, "hard reset\n");
 
+	if (mpt->is_1078) {
+		mpt_write(mpt, MPT_OFFSET_RESET_1078, 0x07);
+		DELAY(1000);
+		return;
+	}
+
 	error = mpt_enable_diag_mode(mpt);
 	if (error) {
 		mpt_prt(mpt, "WARNING - Could not enter diagnostic mode !\n");
@@ -1197,8 +1203,7 @@ mpt_free_request(struct mpt_softc *mpt, request_t *req)
 	uint32_t offset, reply_baddr;
 	
 	if (req == NULL || req != &mpt->request_pool[req->index]) {
-		panic("mpt_free_request bad req ptr\n");
-		return;
+		panic("mpt_free_request: bad req ptr");
 	}
 	if ((nxt = req->chain) != NULL) {
 		req->chain = NULL;
@@ -1261,7 +1266,7 @@ retry:
 	req = TAILQ_FIRST(&mpt->request_free_list);
 	if (req != NULL) {
 		KASSERT(req == &mpt->request_pool[req->index],
-		    ("mpt_get_request: corrupted request free list\n"));
+		    ("mpt_get_request: corrupted request free list"));
 		KASSERT(req->state == REQ_STATE_FREE,
 		    ("req %p:%u not free on free list %x index %d function %x",
 		    req, req->serno, req->state, req->index,
@@ -2450,6 +2455,11 @@ mpt_download_fw(struct mpt_softc *mpt)
 	int error;
 	uint32_t ext_offset;
 	uint32_t data;
+
+	if (mpt->pci_pio_reg == NULL) {
+		mpt_prt(mpt, "No PIO resource!\n");
+		return (ENXIO);
+	}
 
 	mpt_prt(mpt, "Downloading Firmware - Image Size %d\n",
 		mpt->fw_image_size);

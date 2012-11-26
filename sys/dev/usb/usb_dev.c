@@ -842,7 +842,7 @@ usb_open(struct cdev *dev, int fflags, int devtype, struct thread *td)
 	struct usb_cdev_privdata *cpd;
 	int err, ep;
 
-	DPRINTFN(2, "%s fflags=0x%08x\n", dev->si_name, fflags);
+	DPRINTFN(2, "%s fflags=0x%08x\n", devtoname(dev), fflags);
 
 	KASSERT(fflags & (FREAD|FWRITE), ("invalid open flags"));
 	if (((fflags & FREAD) && !(pd->mode & FREAD)) ||

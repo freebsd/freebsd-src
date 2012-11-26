@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip_gre.h>
 #include <machine/in_cksum.h>
 #else
-#error ip_gre input without IP?
+#error "ip_gre requires INET"
 #endif
 
 #ifdef NETATALK

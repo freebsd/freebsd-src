@@ -128,13 +128,6 @@ AcpiDsStoreObjectToLocal (
 }
 
 ACPI_STATUS
-AcpiEvDeleteGpeBlock (
-    ACPI_GPE_BLOCK_INFO     *GpeBlock)
-{
-    return (AE_OK);
-}
-
-ACPI_STATUS
 AcpiEvQueueNotifyRequest (
     ACPI_NAMESPACE_NODE     *Node,
     UINT32                  NotifyValue)
@@ -147,6 +140,14 @@ AcpiEvIsNotifyObject (
     ACPI_NAMESPACE_NODE     *Node)
 {
     return (FALSE);
+}
+
+#if (!ACPI_REDUCED_HARDWARE)
+ACPI_STATUS
+AcpiEvDeleteGpeBlock (
+    ACPI_GPE_BLOCK_INFO     *GpeBlock)
+{
+    return (AE_OK);
 }
 
 ACPI_STATUS
@@ -162,6 +163,7 @@ AcpiEvReleaseGlobalLock (
 {
     return (AE_OK);
 }
+#endif /* !ACPI_REDUCED_HARDWARE */
 
 ACPI_STATUS
 AcpiEvInitializeRegion (

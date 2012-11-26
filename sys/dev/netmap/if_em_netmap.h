@@ -27,7 +27,7 @@
  * $FreeBSD$
  * $Id: if_em_netmap.h 9802 2011-12-02 18:42:37Z luigi $
  *
- * netmap changes for if_em.
+ * netmap support for if_em.c
  *
  * For structure and details on the individual functions please see
  * ixgbe_netmap.h
@@ -42,9 +42,10 @@
 static void	em_netmap_block_tasks(struct adapter *);
 static void	em_netmap_unblock_tasks(struct adapter *);
 static int	em_netmap_reg(struct ifnet *, int onoff);
-static int	em_netmap_txsync(void *, u_int, int);
-static int	em_netmap_rxsync(void *, u_int, int);
-static void	em_netmap_lock_wrapper(void *, int, u_int);
+static int	em_netmap_txsync(struct ifnet *, u_int, int);
+static int	em_netmap_rxsync(struct ifnet *, u_int, int);
+static void	em_netmap_lock_wrapper(struct ifnet *, int, u_int);
+
 
 static void
 em_netmap_attach(struct adapter *adapter)
@@ -61,18 +62,14 @@ em_netmap_attach(struct adapter *adapter)
 	na.nm_rxsync = em_netmap_rxsync;
 	na.nm_lock = em_netmap_lock_wrapper;
 	na.nm_register = em_netmap_reg;
-	na.buff_size = NETMAP_BUF_SIZE;
 	netmap_attach(&na, adapter->num_queues);
 }
 
 
-/*
- * wrapper to export locks to the generic code
- */
 static void
-em_netmap_lock_wrapper(void *_a, int what, u_int queueid)
+em_netmap_lock_wrapper(struct ifnet *ifp, int what, u_int queueid)
 {
-	struct adapter *adapter = _a;
+	struct adapter *adapter = ifp->if_softc;
 
 	ASSERT(queueid < adapter->num_queues);
 	switch (what) {
@@ -138,6 +135,7 @@ em_netmap_unblock_tasks(struct adapter *adapter)
 	}
 }
 
+
 /*
  * register-unregister routine
  */
@@ -171,7 +169,7 @@ em_netmap_reg(struct ifnet *ifp, int onoff)
 		}
 	} else {
 fail:
-		/* restore if_transmit */
+		/* return to non-netmap mode */
 		ifp->if_transmit = na->if_transmit;
 		ifp->if_capenable &= ~IFCAP_NETMAP;
 		em_init_locked(adapter);	/* also enable intr */
@@ -180,13 +178,14 @@ fail:
 	return (error);
 }
 
+
 /*
  * Reconcile hardware and user view of the transmit ring.
  */
 static int
-em_netmap_txsync(void *a, u_int ring_nr, int do_lock)
+em_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 {
-	struct adapter *adapter = a;
+	struct adapter *adapter = ifp->if_softc;
 	struct tx_ring *txr = &adapter->tx_rings[ring_nr];
 	struct netmap_adapter *na = NA(adapter->ifp);
 	struct netmap_kring *kring = &na->tx_rings[ring_nr];
@@ -212,10 +211,8 @@ em_netmap_txsync(void *a, u_int ring_nr, int do_lock)
 	 */
 	j = kring->nr_hwcur;
 	if (j != k) {	/* we have packets to send */
-		l = j - kring->nkr_hwofs;
-		if (l < 0)
-			l += lim + 1;
-		while (j != k) {
+		l = netmap_tidx_k2n(na, ring_nr, j);
+		for (n = 0; j != k; n++) {
 			struct netmap_slot *slot = &ring->slot[j];
 			struct e1000_tx_desc *curr = &txr->tx_base[l];
 			struct em_buffer *txbuf = &txr->tx_buffers[l];
@@ -225,6 +222,7 @@ em_netmap_txsync(void *a, u_int ring_nr, int do_lock)
 			uint64_t paddr;
 			void *addr = PNMB(slot, &paddr);
 			int len = slot->len;
+
 			if (addr == netmap_buffer_base || len > NETMAP_BUF_SIZE) {
 				if (do_lock)
 					EM_TX_UNLOCK(txr);
@@ -247,7 +245,6 @@ em_netmap_txsync(void *a, u_int ring_nr, int do_lock)
 				BUS_DMASYNC_PREWRITE);
 			j = (j == lim) ? 0 : j + 1;
 			l = (l == lim) ? 0 : l + 1;
-			n++;
 		}
 		kring->nr_hwcur = k;
 
@@ -263,9 +260,9 @@ em_netmap_txsync(void *a, u_int ring_nr, int do_lock)
 	if (n == 0 || kring->nr_hwavail < 1) {
 		int delta;
 
-		/* record completed transmissions using THD. */
+		/* record completed transmissions using TDH */
 		l = E1000_READ_REG(&adapter->hw, E1000_TDH(ring_nr));
-		if (l >= kring->nkr_num_slots) { /* XXX can happen */
+		if (l >= kring->nkr_num_slots) { /* XXX can it happen ? */
 			D("TDH wrap %d", l);
 			l -= kring->nkr_num_slots;
 		}
@@ -286,13 +283,14 @@ em_netmap_txsync(void *a, u_int ring_nr, int do_lock)
 	return 0;
 }
 
+
 /*
  * Reconcile kernel and user view of the receive ring.
  */
 static int
-em_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
+em_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 {
-	struct adapter *adapter = a;
+	struct adapter *adapter = ifp->if_softc;
 	struct rx_ring *rxr = &adapter->rx_rings[ring_nr];
 	struct netmap_adapter *na = NA(adapter->ifp);
 	struct netmap_kring *kring = &na->rx_rings[ring_nr];
@@ -305,6 +303,7 @@ em_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
  
 	if (do_lock)
 		EM_RX_LOCK(rxr);
+
 	/* XXX check sync modes */
 	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
 			BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
@@ -317,12 +316,7 @@ em_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 	 *	j == (l + kring->nkr_hwofs) % ring_size
 	 */
 	l = rxr->next_to_check;
-	j = l + kring->nkr_hwofs;
-	/* here nkr_hwofs can be negative so must check for j < 0 */
-	if (j < 0)
-		j += lim + 1;
-	else if (j > lim)
-		j -= lim + 1;
+	j = netmap_ridx_n2k(na, ring_nr, l);
 	for (n = 0; ; n++) {
 		struct e1000_rx_desc *curr = &rxr->rx_base[l];
 
@@ -342,16 +336,10 @@ em_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 	}
 
 	/* skip past packets that userspace has already processed */
-	j = kring->nr_hwcur;
+	j = kring->nr_hwcur;	/* netmap ring index */
 	if (j != k) { /* userspace has read some packets. */
-		n = 0;
-		l = j - kring->nkr_hwofs; /* NIC ring index */
-		/* here nkr_hwofs can be negative so check for l > lim */
-		if (l < 0)
-			l += lim + 1;
-		else if (l > lim)
-			l -= lim + 1;
-		while (j != k) {
+		l = netmap_ridx_k2n(na, ring_nr, j); /* NIC ring index */
+		for (n = 0; j != k; n++) {
 			struct netmap_slot *slot = &ring->slot[j];
 			struct e1000_rx_desc *curr = &rxr->rx_base[l];
 			struct em_buffer *rxbuf = &rxr->rx_buffers[l];
@@ -377,7 +365,6 @@ em_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 
 			j = (j == lim) ? 0 : j + 1;
 			l = (l == lim) ? 0 : l + 1;
-			n++;
 		}
 		kring->nr_hwavail -= n;
 		kring->nr_hwcur = k;
@@ -396,3 +383,4 @@ em_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 		EM_RX_UNLOCK(rxr);
 	return 0;
 }
+/* end of file */

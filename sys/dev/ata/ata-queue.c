@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -112,6 +112,7 @@ ata_queue_request(struct ata_request *request)
 	ATA_DEBUG_RQ(request, "wait for completion");
 	if (!dumping &&
 	    sema_timedwait(&request->done, request->timeout * hz * 4)) {
+	    callout_drain(&request->callout);
 	    device_printf(request->dev,
 			  "WARNING - %s taskqueue timeout "
 			  "- completing request directly\n",

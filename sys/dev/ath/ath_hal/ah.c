@@ -1266,3 +1266,27 @@ ath_hal_getcca(struct ath_hal *ah)
 		return 1;
 	return ((diag & 0x500000) == 0);
 }
+
+/*
+ * This routine is only needed when supporting EEPROM-in-RAM setups
+ * (eg embedded SoCs and on-board PCI/PCIe devices.)
+ */
+/* NB: This is in 16 bit words; not bytes */
+/* XXX This doesn't belong here!  */
+#define ATH_DATA_EEPROM_SIZE    2048
+
+HAL_BOOL
+ath_hal_EepromDataRead(struct ath_hal *ah, u_int off, uint16_t *data)
+{
+	if (ah->ah_eepromdata == AH_NULL) {
+		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: no eeprom data!\n", __func__);
+		return AH_FALSE;
+	}
+	if (off > ATH_DATA_EEPROM_SIZE) {
+		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: offset %x > %x\n",
+		    __func__, off, ATH_DATA_EEPROM_SIZE);
+		return AH_FALSE;
+	}
+	(*data) = ah->ah_eepromdata[off];
+	return AH_TRUE;
+}

@@ -2020,9 +2020,15 @@ device_probe_child(device_t dev, device_t child)
 			if (!hasclass) {
 				if (device_set_devclass(child,
 				    dl->driver->name) != 0) {
+					char const * devname =
+					    device_get_name(child);
+					if (devname == NULL)
+						devname = "(unknown)";
 					printf("driver bug: Unable to set "
-					    "devclass (devname: %s)\n",
-					    device_get_name(child));
+					    "devclass (class: %s "
+					    "devname: %s)\n",
+					    dl->driver->name,
+					    devname);
 					(void)device_set_driver(child, NULL);
 					continue;
 				}

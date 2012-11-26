@@ -572,5 +572,4 @@ static inline int offload_running(adapter_t *adapter)
 void cxgb_tx_watchdog(void *arg);
 int cxgb_transmit(struct ifnet *ifp, struct mbuf *m);
 void cxgb_qflush(struct ifnet *ifp);
-void cxgb_start(struct ifnet *ifp);
 #endif

@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
 
 extern int octeon_is_simulation(void);
 
+static uint64_t mac_addr = 0;
+static uint32_t mac_offset = 0;
 
 /**
  * Set the multicast list. Currently unimplemented.
@@ -88,6 +90,37 @@ void cvm_oct_common_set_multicast_list(struct ifnet *ifp)
 	}
 }
 
+
+/**
+ * Assign a MAC addres from the pool of available MAC addresses
+ * Can return as either a 64-bit value and/or 6 octets.
+ *
+ * @param macp    Filled in with the assigned address if non-NULL
+ * @param octets  Filled in with the assigned address if non-NULL
+ * @return Zero on success
+ */
+int cvm_assign_mac_address(uint64_t *macp, uint8_t *octets)
+{
+	/* Initialize from global MAC address base; fail if not set */
+	if (mac_addr == 0) {
+		memcpy((uint8_t *)&mac_addr + 2, cvmx_sysinfo_get()->mac_addr_base, 6);
+		if (mac_addr == 0)
+			return ENXIO;
+	}
+
+	if (mac_offset >= cvmx_sysinfo_get()->mac_addr_count)
+		return ENXIO;	    /* Out of addresses to assign */
+	
+	if (macp)
+		*macp = mac_addr;
+	if (octets)
+		memcpy(octets, (u_int8_t *)&mac_addr + 2, 6);
+
+	mac_addr++;
+	mac_offset++;
+
+	return 0;
+}
 
 /**
  * Set the hardware MAC address for a device
@@ -268,16 +301,11 @@ void cvm_oct_common_poll(struct ifnet *ifp)
  */
 int cvm_oct_common_init(struct ifnet *ifp)
 {
-	char mac[6] = {
-		cvmx_sysinfo_get()->mac_addr_base[0],
-		cvmx_sysinfo_get()->mac_addr_base[1],
-		cvmx_sysinfo_get()->mac_addr_base[2],
-		cvmx_sysinfo_get()->mac_addr_base[3],
-		cvmx_sysinfo_get()->mac_addr_base[4],
-		cvmx_sysinfo_get()->mac_addr_base[5] };
+	uint8_t mac[6];
 	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;
 
-	mac[5] += cvm_oct_mac_addr_offset++;
+	if (cvm_assign_mac_address(NULL, mac) != 0)
+		return ENXIO;
 
 	ifp->if_mtu = ETHERMTU;
 

@@ -160,8 +160,7 @@ bad:
 
 
 void
-sethistsize(hs)
-	const char *hs;
+sethistsize(const char *hs)
 {
 	int histsize;
 	HistEvent he;

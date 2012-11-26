@@ -1199,7 +1199,7 @@ sctp6_getaddr(struct socket *so, struct sockaddr **addr)
 static int
 sctp6_peeraddr(struct socket *so, struct sockaddr **addr)
 {
-	struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)*addr;
+	struct sockaddr_in6 *sin6;
 	int fnd;
 	struct sockaddr_in6 *sin_a6;
 	struct sctp_inpcb *inp;

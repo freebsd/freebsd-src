@@ -28,7 +28,7 @@
 .\"     @(#)getgrouplist.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd February 20, 2012
 .Dt GETGROUPLIST 3
 .Os
 .Sh NAME
@@ -64,7 +64,7 @@ the actual number of groups found is returned in
 The
 .Fn getgrouplist
 function
-returns \-1 if the size of the group list is too small to
+returns 0 on success and \-1 if the size of the group list is too small to
 hold all the user's groups.
 Here, the group array will be filled with as many groups as will fit.
 .Sh FILES

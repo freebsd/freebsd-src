@@ -112,16 +112,25 @@ done_store_dr:
 
 	/* have we used fp, and need a save? */
 	cmpq	%rdi,PCPU(FPCURTHREAD)
-	jne	1f
+	jne	3f
 	movq	PCB_SAVEFPU(%r8),%r8
 	clts
+	cmpl	$0,use_xsave
+	jne	1f
 	fxsave	(%r8)
-	smsw	%ax
+	jmp	2f
+1:	movq	%rdx,%rcx
+	movl	xsave_mask,%eax
+	movl	xsave_mask+4,%edx
+/*	xsave	(%r8) */
+	.byte	0x41,0x0f,0xae,0x20
+	movq	%rcx,%rdx
+2:	smsw	%ax
 	orb	$CR0_TS,%al
 	lmsw	%ax
 	xorl	%eax,%eax
 	movq	%rax,PCPU(FPCURTHREAD)
-1:
+3:
 
 	/* Save is done.  Now fire up new thread. Leave old vmspace. */
 	movq	TD_PCB(%rsi),%r8
@@ -354,10 +363,19 @@ ENTRY(savectx)
 	sldt	PCB_LDT(%rdi)
 	str	PCB_TR(%rdi)
 
-	clts
-	fxsave	PCB_USERFPU(%rdi)
-	movq	%rsi,%cr0	/* The previous %cr0 is saved in %rsi. */
+2:	movq	%rsi,%cr0	/* The previous %cr0 is saved in %rsi. */
 
 	movl	$1,%eax
 	ret
 END(savectx)
+
+/*
+ * Wrapper around fpusave to care about TS0_CR.
+ */
+ENTRY(ctx_fpusave)
+	movq	%cr0,%rsi
+	clts
+	call	fpusave
+	movq	%rsi,%cr0
+	ret
+END(ctx_fpusave)

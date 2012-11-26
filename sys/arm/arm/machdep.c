@@ -137,7 +137,7 @@ sendsig(catcher, ksi, mask)
 	    catcher, sig);
 
 	/* Allocate and validate space for the signal handler context. */
-	if ((td->td_flags & TDP_ALTSTACK) != 0 && !(onstack) &&
+	if ((td->td_pflags & TDP_ALTSTACK) != 0 && !(onstack) &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		fp = (struct sigframe *)(td->td_sigstk.ss_sp + 
 		    td->td_sigstk.ss_size);

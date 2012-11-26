@@ -1,4 +1,4 @@
-$ $tcsh: set30,v 1.2 2006/03/02 18:46:45 christos Exp $
+$ $tcsh: set30,v 1.3 2011/02/04 18:19:33 christos Exp $
 $ tw.parse.c
 $set 30 
 1 starting_a_command %d\n
@@ -7,7 +7,7 @@ $set 30
 4 %s: Internal match error.\n
 5 elementi
 6 veergu
-7 Leidsin %d %s, n‰itan neid? [e/j] 
+7 Leidsin %d %s, n√§itan neid? [e/j] 
 8 looking = %d\n
 9 \n%s sisemine viga: Ma ei tea, mida ma otsin!\n
 10 pole kataloog

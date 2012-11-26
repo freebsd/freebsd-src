@@ -1305,6 +1305,7 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
  *	VM_ALLOC_IFNOTCACHED	return NULL, do not reactivate if the page
  *				is cached
  *	VM_ALLOC_NOBUSY		do not set the flag VPO_BUSY on the page
+ *	VM_ALLOC_NODUMP		do not include the page in a kernel core dump
  *	VM_ALLOC_NOOBJ		page is not associated with an object and
  *				should not have the flag VPO_BUSY set
  *	VM_ALLOC_WIRED		wire the allocated page
@@ -1429,6 +1430,8 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	 * must be cleared before the free page queues lock is released.
 	 */
 	flags = 0;
+	if (req & VM_ALLOC_NODUMP)
+		flags |= PG_NODUMP;
 	if (m->flags & PG_ZERO) {
 		vm_page_zero_count--;
 		if (req & VM_ALLOC_ZERO)
@@ -1599,6 +1602,8 @@ retry:
 	flags = 0;
 	if ((req & VM_ALLOC_ZERO) != 0)
 		flags = PG_ZERO;
+	if ((req & VM_ALLOC_NODUMP) != 0)
+		flags |= PG_NODUMP;
 	if ((req & VM_ALLOC_WIRED) != 0)
 		atomic_add_int(&cnt.v_wire_count, npages);
 	oflags = VPO_UNMANAGED;

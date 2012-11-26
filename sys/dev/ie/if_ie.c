@@ -157,6 +157,9 @@ static int	ie_debug = IED_RNR;
 
 #define IE_BUF_LEN	ETHER_MAX_LEN	/* length of transmit buffer */
 
+/* XXX this driver uses `volatile' and `caddr_t' to a fault. */
+typedef	volatile char *v_caddr_t;	/* core address, pointer to volatile */
+
 /* Forward declaration */
 struct ie_softc;
 

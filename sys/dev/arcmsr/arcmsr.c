@@ -3861,7 +3861,7 @@ static int arcmsr_probe(device_t dev)
 		return(ENXIO);
 	sprintf(buf, "Areca %s Host Adapter RAID Controller %s\n", type, raid6 ? "(RAID6 capable)" : "");
 	device_set_desc_copy(dev, buf);
-	return 0;
+	return (BUS_PROBE_DEFAULT);
 }
 /*
 ************************************************************************

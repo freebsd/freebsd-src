@@ -251,7 +251,7 @@ padlock_cipher_process(struct padlock_session *ses, struct cryptodesc *enccrd,
 
 	td = curthread;
 	if (!is_fpu_kern_thread(0)) {
-		error = fpu_kern_enter(td, &ses->ses_fpu_ctx, FPU_KERN_NORMAL);
+		error = fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL);
 		saved_ctx = 1;
 	} else {
 		error = 0;
@@ -264,7 +264,7 @@ padlock_cipher_process(struct padlock_session *ses, struct cryptodesc *enccrd,
 	    ses->ses_iv);
 
 	if (saved_ctx)
-		fpu_kern_leave(td, &ses->ses_fpu_ctx);
+		fpu_kern_leave(td, ses->ses_fpu_ctx);
 
 	if (allocated) {
 		crypto_copyback(crp->crp_flags, crp->crp_buf, enccrd->crd_skip,
