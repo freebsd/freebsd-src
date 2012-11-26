@@ -3,6 +3,11 @@
  * Copyright (c) 2003 David Xu <davidxu@freebsd.org>
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -35,8 +40,6 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include "mblocal.h"
 
-extern int __mb_sb_limit;
-
 static size_t	_GB2312_mbrtowc(wchar_t * __restrict, const char * __restrict,
 		    size_t, mbstate_t * __restrict);
 static int	_GB2312_mbsinit(const mbstate_t *);
@@ -49,15 +52,15 @@ typedef struct {
 } _GB2312State;
 
 int
-_GB2312_init(_RuneLocale *rl)
+_GB2312_init(struct xlocale_ctype *l, _RuneLocale *rl)
 {
 
-	_CurrentRuneLocale = rl;
-	__mbrtowc = _GB2312_mbrtowc;
-	__wcrtomb = _GB2312_wcrtomb;
-	__mbsinit = _GB2312_mbsinit;
-	__mb_cur_max = 2;
-	__mb_sb_limit = 128;
+	l->runes = rl;
+	l->__mbrtowc = _GB2312_mbrtowc;
+	l->__wcrtomb = _GB2312_wcrtomb;
+	l->__mbsinit = _GB2312_mbsinit;
+	l->__mb_cur_max = 2;
+	l->__mb_sb_limit = 128;
 	return (0);
 }
 

@@ -27,7 +27,6 @@
 #include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Analysis/DIBuilder.h"
 #include "llvm/Analysis/Dominators.h"
-#include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/ProfileInfo.h"
 #include "llvm/Analysis/ValueTracking.h"
@@ -227,13 +226,17 @@ bool llvm::ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions) {
 bool llvm::isInstructionTriviallyDead(Instruction *I) {
   if (!I->use_empty() || isa<TerminatorInst>(I)) return false;
 
+  // We don't want the landingpad instruction removed by anything this general.
+  if (isa<LandingPadInst>(I))
+    return false;
+
   // We don't want debug info removed by anything this general, unless
   // debug info is empty.
   if (DbgDeclareInst *DDI = dyn_cast<DbgDeclareInst>(I)) {
-    if (DDI->getAddress()) 
+    if (DDI->getAddress())
       return false;
     return true;
-  } 
+  }
   if (DbgValueInst *DVI = dyn_cast<DbgValueInst>(I)) {
     if (DVI->getValue())
       return false;
@@ -244,10 +247,16 @@ bool llvm::isInstructionTriviallyDead(Instruction *I) {
 
   // Special case intrinsics that "may have side effects" but can be deleted
   // when dead.
-  if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(I))
+  if (IntrinsicInst *II = dyn_cast<IntrinsicInst>(I)) {
     // Safe to delete llvm.stacksave if dead.
     if (II->getIntrinsicID() == Intrinsic::stacksave)
       return true;
+
+    // Lifetime intrinsics are dead when their right-hand is undef.
+    if (II->getIntrinsicID() == Intrinsic::lifetime_start ||
+        II->getIntrinsicID() == Intrinsic::lifetime_end)
+      return isa<UndefValue>(II->getArgOperand(1));
+  }
   return false;
 }
 
@@ -712,10 +721,14 @@ bool llvm::EliminateDuplicatePHINodes(BasicBlock *BB) {
 /// their preferred alignment from the beginning.
 ///
 static unsigned enforceKnownAlignment(Value *V, unsigned Align,
-                                      unsigned PrefAlign) {
+                                      unsigned PrefAlign, const TargetData *TD) {
   V = V->stripPointerCasts();
 
   if (AllocaInst *AI = dyn_cast<AllocaInst>(V)) {
+    // If the preferred alignment is greater than the natural stack alignment
+    // then don't round up. This avoids dynamic stack realignment.
+    if (TD && TD->exceedsNaturalStackAlignment(PrefAlign))
+      return Align;
     // If there is a requested alignment and if this is an alloca, round up.
     if (AI->getAlignment() >= PrefAlign)
       return AI->getAlignment();
@@ -766,7 +779,7 @@ unsigned llvm::getOrEnforceKnownAlignment(Value *V, unsigned PrefAlign,
   Align = std::min(Align, +Value::MaximumAlignment);
   
   if (PrefAlign > Align)
-    Align = enforceKnownAlignment(V, Align, PrefAlign);
+    Align = enforceKnownAlignment(V, Align, PrefAlign, TD);
     
   // We don't need to make any adjustment.
   return Align;

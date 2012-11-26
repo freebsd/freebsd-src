@@ -57,6 +57,7 @@
 
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_netgraph.h"
+#include "opt_kdb.h"
 #endif
 
 /* debugging options */
@@ -190,7 +191,7 @@ static __inline void
 _chkhook(hook_p hook, char *file, int line)
 {
 	if (hook->hk_magic != HK_MAGIC) {
-		printf("Accessing freed hook ");
+		printf("Accessing freed ");
 		dumphook(hook, file, line);
 	}
 	hook->lastline = line;
@@ -458,7 +459,7 @@ static __inline void
 _chknode(node_p node, char *file, int line)
 {
 	if (node->nd_magic != ND_MAGIC) {
-		printf("Accessing freed node ");
+		printf("Accessing freed ");
 		dumpnode(node, file, line);
 	}
 	node->lastline = line;
@@ -1134,7 +1135,7 @@ SYSCTL_DECL(_net_graph);
  */
 int	ng_address_ID(node_p here, item_p item, ng_ID_t ID, ng_ID_t retaddr);
 int	ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr);
-int	ng_address_path(node_p here, item_p item, char *address, ng_ID_t raddr);
+int	ng_address_path(node_p here, item_p item, const char *address, ng_ID_t raddr);
 int	ng_bypass(hook_p hook1, hook_p hook2);
 hook_p	ng_findhook(node_p node, const char *name);
 struct	ng_type *ng_findtype(const char *type);

@@ -59,7 +59,7 @@ static void my_free(void *p) {	free(p); }
 #define free(p, t)	my_free(p)
 #endif /* !_KERNEL */
 
-MALLOC_DEFINE(M_DN_HEAP, "dummynet", "dummynet heap");
+static MALLOC_DEFINE(M_DN_HEAP, "dummynet", "dummynet heap");
 
 /*
  * Heap management functions.

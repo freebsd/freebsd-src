@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 
 /*
  * Set the process's credentials to those specified in user,
- * saveing the existing ones in save.
+ * saving the existing ones in save.
  * Return 0 on success, -1 (with errno set) on error.
  */
 int

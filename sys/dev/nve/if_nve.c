@@ -184,15 +184,11 @@ static device_method_t nve_methods[] = {
 	DEVMETHOD(device_detach, nve_detach),
 	DEVMETHOD(device_shutdown, nve_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, nve_miibus_readreg),
 	DEVMETHOD(miibus_writereg, nve_miibus_writereg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t nve_driver = {
@@ -533,7 +529,6 @@ nve_attach(device_t dev)
 	ifp->if_ioctl = nve_ioctl;
 	ifp->if_start = nve_ifstart;
 	ifp->if_init = nve_init;
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_baudrate = IF_Mbps(100);
 	IFQ_SET_MAXLEN(&ifp->if_snd, TX_RING_SIZE - 1);
 	ifp->if_snd.ifq_drv_maxlen = TX_RING_SIZE - 1;
@@ -1202,10 +1197,10 @@ nve_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	NVE_LOCK(sc);
 	mii = device_get_softc(sc->miibus);
 	mii_pollstat(mii);
-	NVE_UNLOCK(sc);
 
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	NVE_UNLOCK(sc);
 
 	return;
 }

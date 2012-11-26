@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <err.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -87,7 +88,8 @@ unwind(char *map)
 
 	key.data = NULL;
 	while (yp_next_record(dbp, &key, &data, 1, 1) == YP_TRUE)
-		printf("%.*s %.*s\n", key.size,key.data,data.size,data.data);
+		printf("%.*s %.*s\n", (int)key.size, key.data, (int)data.size,
+		    data.data);
 
 	(void)(dbp->close)(dbp);
 	return;
@@ -218,7 +220,7 @@ main(int argc, char *argv[])
 
 	key.data = "YP_LAST_MODIFIED";
 	key.size = sizeof("YP_LAST_MODIFIED") - 1;
-	snprintf(buf, sizeof(buf), "%lu", time(NULL));
+	snprintf(buf, sizeof(buf), "%jd", (intmax_t)time(NULL));
 	data.data = (char *)&buf;
 	data.size = strlen(buf);
 	yp_put_record(dbp, &key, &data, 0);

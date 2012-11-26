@@ -49,8 +49,8 @@
 
 #include "mixer_if.h"
 
+#include <dev/sound/pci/emuxkireg.h>
 #include <dev/sound/pci/emu10kx.h>
-#include "emu10k1-alsa%diked.h"
 
 struct emu_pcm_pchinfo {
 	int		spd;
@@ -555,8 +555,8 @@ emu_ac97_read_emulation(struct emu_pcm_info *sc, int regno)
 		break;
 	}
 
-	emu_wr(sc->card, AC97ADDRESS, regno, 1);
-	tmp = emu_rd(sc->card, AC97DATA, 2);
+	emu_wr(sc->card, EMU_AC97ADDR, regno, 1);
+	tmp = emu_rd(sc->card, EMU_AC97DATA, 2);
 
 	if (use_ac97)
 		emulated = tmp;
@@ -621,8 +621,8 @@ emu_ac97_write_emulation(struct emu_pcm_info *sc, int regno, uint32_t data)
 		break;
 	}
 	if (write_ac97) {
-		emu_wr(sc->card, AC97ADDRESS, regno, 1);
-		emu_wr(sc->card, AC97DATA, data, 2);
+		emu_wr(sc->card, EMU_AC97ADDR, regno, 1);
+		emu_wr(sc->card, EMU_AC97DATA, data, 2);
 	}
 }
 
@@ -658,8 +658,8 @@ emu_rdcd(kobj_t obj __unused, void *devinfo, int regno)
 	struct emu_pcm_info *sc = (struct emu_pcm_info *)devinfo;
 
 	KASSERT(sc->card != NULL, ("emu_rdcd: no soundcard"));
-	emu_wr(sc->card, AC97ADDRESS, regno, 1);
-	rd = emu_rd(sc->card, AC97DATA, 2);
+	emu_wr(sc->card, EMU_AC97ADDR, regno, 1);
+	rd = emu_rd(sc->card, EMU_AC97DATA, 2);
 	return (rd);
 }
 
@@ -669,8 +669,8 @@ emu_wrcd(kobj_t obj __unused, void *devinfo, int regno, uint32_t data)
 	struct emu_pcm_info *sc = (struct emu_pcm_info *)devinfo;
 
 	KASSERT(sc->card != NULL, ("emu_wrcd: no soundcard"));
-	emu_wr(sc->card, AC97ADDRESS, regno, 1);
-	emu_wr(sc->card, AC97DATA, data, 2);
+	emu_wr(sc->card, EMU_AC97ADDR, regno, 1);
+	emu_wr(sc->card, EMU_AC97DATA, data, 2);
 	return (0);
 }
 
@@ -870,12 +870,12 @@ emurchan_init(kobj_t obj __unused, void *devinfo, struct snd_dbuf *b, struct pcm
 	ch->blksz = sc->bufsz / 2; /* We rise interrupt for half-full buffer */
 	ch->fmt = SND_FORMAT(AFMT_U8, 1, 0);
 	ch->spd = 8000;
-	ch->idxreg = sc->is_emu10k1 ? ADCIDX : A_ADCIDX;
-	ch->basereg = ADCBA;
-	ch->sizereg = ADCBS;
-	ch->setupreg = ADCCR;
-	ch->irqmask = INTE_ADCBUFENABLE;
-	ch->iprmask = IPR_ADCBUFFULL | IPR_ADCBUFHALFFULL;
+	ch->idxreg = sc->is_emu10k1 ? EMU_ADCIDX : EMU_A_ADCIDX;
+	ch->basereg = EMU_ADCBA;
+	ch->sizereg = EMU_ADCBS;
+	ch->setupreg = EMU_ADCCR;
+	ch->irqmask = EMU_INTE_ADCBUFENABLE;
+	ch->iprmask = EMU_IPR_ADCBUFFULL | EMU_IPR_ADCBUFHALFFULL;
 
 	if (sndbuf_alloc(ch->buffer, emu_gettag(sc->card), 0, sc->bufsz) != 0)
 		return (NULL);
@@ -953,22 +953,22 @@ emurchan_trigger(kobj_t obj __unused, void *c_devinfo, int go)
 
 	switch (sc->bufsz) {
 	case 4096:
-		sz = ADCBS_BUFSIZE_4096;
+		sz = EMU_RECBS_BUFSIZE_4096;
 		break;
 	case 8192:
-		sz = ADCBS_BUFSIZE_8192;
+		sz = EMU_RECBS_BUFSIZE_8192;
 		break;
 	case 16384:
-		sz = ADCBS_BUFSIZE_16384;
+		sz = EMU_RECBS_BUFSIZE_16384;
 		break;
 	case 32768:
-		sz = ADCBS_BUFSIZE_32768;
+		sz = EMU_RECBS_BUFSIZE_32768;
 		break;
 	case 65536:
-		sz = ADCBS_BUFSIZE_65536;
+		sz = EMU_RECBS_BUFSIZE_65536;
 		break;
 	default:
-		sz = ADCBS_BUFSIZE_4096;
+		sz = EMU_RECBS_BUFSIZE_4096;
 	}
 
 	snd_mtxlock(sc->lock);
@@ -976,9 +976,9 @@ emurchan_trigger(kobj_t obj __unused, void *c_devinfo, int go)
 	case PCMTRIG_START:
 		ch->run = 1;
 		emu_wrptr(sc->card, 0, ch->sizereg, sz);
-		val = sc->is_emu10k1 ? ADCCR_LCHANENABLE : A_ADCCR_LCHANENABLE;
+		val = sc->is_emu10k1 ? EMU_ADCCR_LCHANENABLE : EMU_A_ADCCR_LCHANENABLE;
 		if (AFMT_CHANNEL(ch->fmt) > 1)
-			val |= sc->is_emu10k1 ? ADCCR_RCHANENABLE : A_ADCCR_RCHANENABLE;
+			val |= sc->is_emu10k1 ? EMU_ADCCR_RCHANENABLE : EMU_A_ADCCR_RCHANENABLE;
 		val |= sc->is_emu10k1 ? emu_k1_recval(ch->spd) : emu_k2_recval(ch->spd);
 		emu_wrptr(sc->card, 0, ch->setupreg, 0);
 		emu_wrptr(sc->card, 0, ch->setupreg, val);
@@ -1049,11 +1049,11 @@ emufxrchan_init(kobj_t obj __unused, void *devinfo, struct snd_dbuf *b, struct p
 	ch = &(sc->rch_efx);
 	ch->fmt = SND_FORMAT(AFMT_S16_LE, 1, 0);
 	ch->spd = sc->is_emu10k1 ? 48000*32 : 48000 * 64;
-	ch->idxreg = FXIDX;
-	ch->basereg = FXBA;
-	ch->sizereg = FXBS;
-	ch->irqmask = INTE_EFXBUFENABLE;
-	ch->iprmask = IPR_EFXBUFFULL | IPR_EFXBUFHALFFULL;
+	ch->idxreg = EMU_FXIDX;
+	ch->basereg = EMU_FXBA;
+	ch->sizereg = EMU_FXBS;
+	ch->irqmask = EMU_INTE_EFXBUFENABLE;
+	ch->iprmask = EMU_IPR_EFXBUFFULL | EMU_IPR_EFXBUFHALFFULL;
 	ch->buffer = b;
 	ch->pcm = sc;
 	ch->channel = c;
@@ -1113,22 +1113,22 @@ emufxrchan_trigger(kobj_t obj __unused, void *c_devinfo, int go)
 
 	switch (sc->bufsz) {
 	case 4096:
-		sz = ADCBS_BUFSIZE_4096;
+		sz = EMU_RECBS_BUFSIZE_4096;
 		break;
 	case 8192:
-		sz = ADCBS_BUFSIZE_8192;
+		sz = EMU_RECBS_BUFSIZE_8192;
 		break;
 	case 16384:
-		sz = ADCBS_BUFSIZE_16384;
+		sz = EMU_RECBS_BUFSIZE_16384;
 		break;
 	case 32768:
-		sz = ADCBS_BUFSIZE_32768;
+		sz = EMU_RECBS_BUFSIZE_32768;
 		break;
 	case 65536:
-		sz = ADCBS_BUFSIZE_65536;
+		sz = EMU_RECBS_BUFSIZE_65536;
 		break;
 	default:
-		sz = ADCBS_BUFSIZE_4096;
+		sz = EMU_RECBS_BUFSIZE_4096;
 	}
 
 	snd_mtxlock(sc->lock);
@@ -1140,14 +1140,14 @@ emufxrchan_trigger(kobj_t obj __unused, void *c_devinfo, int go)
 		/*
 		 * SB Live! is limited to 32 mono channels. Audigy
 		 * has 64 mono channels. Channels are enabled
-		 * by setting a bit in A_FXWC[1|2] registers.
+		 * by setting a bit in EMU_A_FXWC[1|2] registers.
 		 */
 		/* XXX there is no way to demultiplex this streams for now */
 		if (sc->is_emu10k1) {
-			emu_wrptr(sc->card, 0, FXWC, 0xffffffff);
+			emu_wrptr(sc->card, 0, EMU_FXWC, 0xffffffff);
 		} else {
-			emu_wrptr(sc->card, 0, A_FXWC1, 0xffffffff);
-			emu_wrptr(sc->card, 0, A_FXWC2, 0xffffffff);
+			emu_wrptr(sc->card, 0, EMU_A_FXWC1, 0xffffffff);
+			emu_wrptr(sc->card, 0, EMU_A_FXWC2, 0xffffffff);
 		}
 		break;
 	case PCMTRIG_STOP:
@@ -1155,10 +1155,10 @@ emufxrchan_trigger(kobj_t obj __unused, void *c_devinfo, int go)
 	case PCMTRIG_ABORT:
 		ch->run = 0;
 		if (sc->is_emu10k1) {
-			emu_wrptr(sc->card, 0, FXWC, 0x0);
+			emu_wrptr(sc->card, 0, EMU_FXWC, 0x0);
 		} else {
-			emu_wrptr(sc->card, 0, A_FXWC1, 0x0);
-			emu_wrptr(sc->card, 0, A_FXWC2, 0x0);
+			emu_wrptr(sc->card, 0, EMU_A_FXWC1, 0x0);
+			emu_wrptr(sc->card, 0, EMU_A_FXWC2, 0x0);
 		}
 		emu_wrptr(sc->card, 0, ch->sizereg, 0);
 		(void)emu_intr_unregister(sc->card, ch->ihandle);
@@ -1238,8 +1238,8 @@ emu_pcm_intr(void *pcm, uint32_t stat)
 
 	snd_mtxlock(sc->lock);
 	
-	if (stat & IPR_INTERVALTIMER) {
-		ack |= IPR_INTERVALTIMER;
+	if (stat & EMU_IPR_INTERVALTIMER) {
+		ack |= EMU_IPR_INTERVALTIMER;
 		for (i = 0; i < MAX_CHANNELS; i++)
 			if (sc->pch[i].channel) {
 				if (sc->pch[i].run == 1) {
@@ -1262,8 +1262,8 @@ emu_pcm_intr(void *pcm, uint32_t stat)
 	}
 
 
-	if (stat & (IPR_ADCBUFFULL | IPR_ADCBUFHALFFULL)) {
-		ack |= stat & (IPR_ADCBUFFULL | IPR_ADCBUFHALFFULL);
+	if (stat & (EMU_IPR_ADCBUFFULL | EMU_IPR_ADCBUFHALFFULL)) {
+		ack |= stat & (EMU_IPR_ADCBUFFULL | EMU_IPR_ADCBUFHALFFULL);
 		if (sc->rch_adc.channel) {
 			snd_mtxunlock(sc->lock);
 			chn_intr(sc->rch_adc.channel);
@@ -1271,8 +1271,8 @@ emu_pcm_intr(void *pcm, uint32_t stat)
 		}
 	}
 
-	if (stat & (IPR_EFXBUFFULL | IPR_EFXBUFHALFFULL)) {
-		ack |= stat & (IPR_EFXBUFFULL | IPR_EFXBUFHALFFULL);
+	if (stat & (EMU_IPR_EFXBUFFULL | EMU_IPR_EFXBUFHALFFULL)) {
+		ack |= stat & (EMU_IPR_EFXBUFFULL | EMU_IPR_EFXBUFHALFFULL);
 		if (sc->rch_efx.channel) {
 			snd_mtxunlock(sc->lock);
 			chn_intr(sc->rch_efx.channel);
@@ -1450,8 +1450,8 @@ emu_pcm_attach(device_t dev)
 		goto bad;
 	}
 
-	inte = INTE_INTERVALTIMERENB;
-	ipr = IPR_INTERVALTIMER; /* Used by playback & ADC */
+	inte = EMU_INTE_INTERTIMERENB;
+	ipr = EMU_IPR_INTERVALTIMER; /* Used by playback & ADC */
 	sc->ihandle = emu_intr_register(sc->card, inte, ipr, &emu_pcm_intr, sc);
 
 	if (emu_pcm_init(sc) == -1) {

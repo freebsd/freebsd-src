@@ -36,11 +36,14 @@
 .Nd reminder service
 .Sh SYNOPSIS
 .Nm
-.Op Fl a
 .Op Fl A Ar num
+.Op Fl a
 .Op Fl B Ar num
+.Op Fl D Ar moon|sun
+.Op Fl d
 .Op Fl F Ar friday
 .Op Fl f Ar calendarfile
+.Op Fl l Ar longitude
 .Oo
 .Bk -words
 .Fl t Ar dd Ns
@@ -49,16 +52,14 @@
 .Sm on
 .Ek
 .Oc
-.Op Fl W Ar num
 .Op Fl U Ar UTC-offset
-.Op Fl l Ar longitude
+.Op Fl W Ar num
 .Sh DESCRIPTION
 The
 .Nm
 utility checks the current directory for a file named
 .Pa calendar
-and displays lines that begin with either today's date
-or tomorrow's.
+and displays lines that fall into the specified date range.
 On the day before a weekend (normally Friday), events for the next
 three days are displayed.
 .Pp
@@ -76,6 +77,10 @@ This requires super-user privileges.
 Print lines from today and the previous
 .Ar num
 days (backward, past).
+.It Fl D Ar moon|sun
+Print UTC offset, longitude and moon or sun information.
+.It Fl d
+Debug option: print current date information.
 .It Fl F Ar friday
 Specify which day of the week is ``Friday'' (the day before the
 weekend begins).
@@ -84,6 +89,11 @@ Default is 5.
 Use
 .Pa calendarfile
 as the default calendar file.
+.It Fl l Ar longitude
+Perform lunar and solar calculations from this longitude.
+If neither longitude nor UTC offset is specified, the calculations will 
+be based on the difference between UTC time and localtime.
+If both are specified, UTC offset overrides longitude.
 .It Xo Fl t
 .Sm off
 .Ar dd
@@ -91,12 +101,11 @@ as the default calendar file.
 .Sm on
 .Xc
 For test purposes only: set date directly to argument values.
-.It Fl l Ar longitude , Fl U Ar UTC-offset
-Only one is needed:
-Perform lunar and solar calculations from this longitude or from
-this UTC offset.
-If neither is specified, the calculations will be based on the
-difference between UTC time and localtime.
+.It Fl U Ar UTC-offset
+Perform lunar and solar calculations from this UTC offset.
+If neither UTC offset nor longitude is specified, the calculations
+will be based on the difference between UTC time and localtime.
+If both are specified, UTC offset overrides longitude. 
 .It Fl W Ar num
 Print lines from today and the next
 .Ar num

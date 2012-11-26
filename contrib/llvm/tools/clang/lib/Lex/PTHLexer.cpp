@@ -73,7 +73,7 @@ LexNextToken:
   Tok.setKind(TKind);
   Tok.setFlag(TFlags);
   assert(!LexingRawMode);
-  Tok.setLocation(FileStartLoc.getFileLocWithOffset(FileOffset));
+  Tok.setLocation(FileStartLoc.getLocWithOffset(FileOffset));
   Tok.setLength(Len);
 
   // Handle identifiers.
@@ -147,7 +147,7 @@ bool PTHLexer::LexEndOfFile(Token &Result) {
 
   // If we are in a #if directive, emit an error.
   while (!ConditionalStack.empty()) {
-    if (!PP->isCodeCompletionFile(FileStartLoc))
+    if (PP->getCodeCompletionFileLoc() != FileStartLoc)
       PP->Diag(ConditionalStack.back().IfLoc,
                diag::err_pp_unterminated_conditional);
     ConditionalStack.pop_back();
@@ -297,7 +297,7 @@ SourceLocation PTHLexer::getSourceLocation() {
   // NOTE: This is a virtual function; hence it is defined out-of-line.
   const unsigned char *OffsetPtr = CurPtr + (DISK_TOKEN_SIZE - 4);
   uint32_t Offset = ReadLE32(OffsetPtr);
-  return FileStartLoc.getFileLocWithOffset(Offset);
+  return FileStartLoc.getLocWithOffset(Offset);
 }
 
 //===----------------------------------------------------------------------===//
@@ -380,7 +380,7 @@ public:
   }
 
   static unsigned ComputeHash(const internal_key_type& a) {
-    return llvm::HashString(llvm::StringRef(a.first, a.second));
+    return llvm::HashString(StringRef(a.first, a.second));
   }
 
   // This hopefully will just get inlined and removed by the optimizer.
@@ -431,11 +431,12 @@ PTHManager::~PTHManager() {
   free(PerIDCache);
 }
 
-static void InvalidPTH(Diagnostic &Diags, const char *Msg) {
-  Diags.Report(Diags.getCustomDiagID(Diagnostic::Error, Msg));
+static void InvalidPTH(DiagnosticsEngine &Diags, const char *Msg) {
+  Diags.Report(Diags.getCustomDiagID(DiagnosticsEngine::Error, Msg));
 }
 
-PTHManager *PTHManager::Create(const std::string &file, Diagnostic &Diags) {
+PTHManager *PTHManager::Create(const std::string &file,
+                               DiagnosticsEngine &Diags) {
   // Memory map the PTH file.
   llvm::OwningPtr<llvm::MemoryBuffer> File;
 
@@ -572,10 +573,10 @@ IdentifierInfo* PTHManager::LazilyCreateIdentifierInfo(unsigned PersistentID) {
   return II;
 }
 
-IdentifierInfo* PTHManager::get(llvm::StringRef Name) {
+IdentifierInfo* PTHManager::get(StringRef Name) {
   PTHStringIdLookup& SL = *((PTHStringIdLookup*)StringIdLookup);
   // Double check our assumption that the last character isn't '\0'.
-  assert(Name.empty() || Name.data()[Name.size()-1] != '\0');
+  assert(Name.empty() || Name.back() != '\0');
   PTHStringIdLookup::iterator I = SL.find(std::make_pair(Name.data(),
                                                          Name.size()));
   if (I == SL.end()) // No identifier found?

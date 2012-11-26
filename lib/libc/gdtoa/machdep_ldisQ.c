@@ -2,6 +2,11 @@
  * Copyright (c) 2003 David Schultz <das@FreeBSD.ORG>
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -38,10 +43,10 @@ __FBSDID("$FreeBSD$");
 #include "gdtoaimp.h"
 
 long double
-strtold(const char * __restrict s, char ** __restrict sp)
+strtold_l(const char * __restrict s, char ** __restrict sp, locale_t locale)
 {
 	long double result;
 
-	strtorQ(s, sp, FLT_ROUNDS, &result);
+	strtorQ_l(s, sp, FLT_ROUNDS, &result, locale);
 	return result;
 }

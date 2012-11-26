@@ -63,7 +63,8 @@ static int	acpi_smbat_get_bst(device_t dev, struct acpi_bst *bst);
 ACPI_SERIAL_DECL(smbat, "ACPI Smart Battery");
 
 SYSCTL_DECL(_debug_acpi);
-SYSCTL_NODE(_debug_acpi, OID_AUTO, batt, CTLFLAG_RD, NULL, "Battery debugging");
+static SYSCTL_NODE(_debug_acpi, OID_AUTO, batt, CTLFLAG_RD, NULL,
+    "Battery debugging");
 
 /* On some laptops with smart batteries, enabling battery monitoring
  * software causes keystrokes from atkbd to be lost.  This has also been

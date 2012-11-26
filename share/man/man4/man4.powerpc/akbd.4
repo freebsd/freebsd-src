@@ -58,7 +58,36 @@ Apple iBook Keyboard
 .It
 Apple PowerBook Keyboard
 .El
+.Sh EVENTS
+The
+.Nm
+driver sends events to
+.Xr devd 8
+for the following events under the 
+.Cd PMU
+system:
+.Pp
+.Bl -bullet -compact
+.It
+Power button - 
+.Cd "Button"
+subsystem, 
+.Cd "pressed"
+type.
+.El
+.Sh SYSCTL VARIABLES
+The
+.Nm
+driver supports the following sysctl variable for configuring the Fn keys:
+.Bl -tag -width indent
+.It Va dev.akbd.%d.fn_keys_function_as_primary
+Set the Fn keys to be their F-key type as default.  A value of 0 causes the 
+F-keys keys to work as special keys by default (
+.Xr abtn 4 )
+and a value of 1 sets them to behave as F-keys by default.
+.El
 .Sh SEE ALSO
+.Xr abtn 4 ,
 .Xr adb 4 ,
 .Xr cuda 4 ,
 .Xr pmu 4

@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #define	_COMPONENT	ACPI_OS_SERVICES
 ACPI_MODULE_NAME("SYNCH")
 
-MALLOC_DEFINE(M_ACPISEM, "acpisem", "ACPI semaphore");
+static MALLOC_DEFINE(M_ACPISEM, "acpisem", "ACPI semaphore");
 
 /*
  * Convert milliseconds to ticks.

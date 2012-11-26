@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_llc.h>
+#include <net/if_dl.h>
+#include <net/if_var.h>
 #include <net/ethernet.h>
 
 #include <net/bpf.h>
@@ -584,6 +586,30 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			vap->iv_stats.is_rx_wrongbss++;
 			goto out;
 		}
+
+		/*
+		 * Some devices may be in a promiscuous mode
+		 * where they receive frames for multiple station
+		 * addresses.
+		 *
+		 * If we receive a data frame that isn't
+		 * destined to our VAP MAC, drop it.
+		 *
+		 * XXX TODO: This is only enforced when not scanning;
+		 * XXX it assumes a software-driven scan will put the NIC
+		 * XXX into a "no data frames" mode before setting this
+		 * XXX flag. Otherwise it may be possible that we'll still
+		 * XXX process data frames whilst scanning.
+		 */
+		if ((! IEEE80211_IS_MULTICAST(wh->i_addr1))
+		    && (! IEEE80211_ADDR_EQ(wh->i_addr1, IF_LLADDR(ifp)))) {
+			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
+			    bssid, NULL, "not to cur sta: lladdr=%6D, addr1=%6D",
+			    IF_LLADDR(ifp), ":", wh->i_addr1, ":");
+			vap->iv_stats.is_rx_wrongbss++;
+			goto out;
+		}
+
 		IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);
 		ni->ni_noise = nf;
 		if (HAS_SEQ(type) && !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
@@ -1347,6 +1373,8 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				    scan.htcap, scan.htinfo);
 				/* XXX state changes? */
 			}
+			if (scan.quiet)
+				ic->ic_set_quiet(ni, scan.quiet);
 			if (scan.tim != NULL) {
 				struct ieee80211_tim_ie *tim =
 				    (struct ieee80211_tim_ie *) scan.tim;

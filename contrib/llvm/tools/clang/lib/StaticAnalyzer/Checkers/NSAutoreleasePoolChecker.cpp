@@ -9,7 +9,7 @@
 //
 //  This file defines a NSAutoreleasePoolChecker, a small checker that warns
 //  about subpar uses of NSAutoreleasePool.  Note that while the check itself
-//  (in it's current form) could be written as a flow-insensitive check, in
+//  (in its current form) could be written as a flow-insensitive check, in
 //  can be potentially enhanced in the future with flow-sensitive information.
 //  It is also a good example of the CheckerVisitor interface. 
 //
@@ -18,9 +18,10 @@
 #include "ClangSACheckers.h"
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ObjCMessage.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Decl.h"
 
@@ -53,7 +54,7 @@ void NSAutoreleasePoolChecker::checkPreObjCMessage(ObjCMessage msg,
   
   if (!PT)
     return;  
-  const ObjCInterfaceDecl* OD = PT->getInterfaceDecl();
+  const ObjCInterfaceDecl *OD = PT->getInterfaceDecl();
   if (!OD)
     return;  
   if (!OD->getIdentifier()->getName().equals("NSAutoreleasePool"))
@@ -66,14 +67,18 @@ void NSAutoreleasePoolChecker::checkPreObjCMessage(ObjCMessage msg,
     return;
                      
   SourceRange R = msg.getSourceRange();
-
+  BugReporter &BR = C.getBugReporter();
+  const LocationContext *LC = C.getPredecessor()->getLocationContext();
+  const SourceManager &SM = BR.getSourceManager();
+  const Expr *E = msg.getMsgOrPropExpr();
+  PathDiagnosticLocation L = PathDiagnosticLocation::createBegin(E, SM, LC);
   C.getBugReporter().EmitBasicReport("Use -drain instead of -release",
     "API Upgrade (Apple)",
     "Use -drain instead of -release when using NSAutoreleasePool "
-    "and garbage collection", R.getBegin(), &R, 1);
+    "and garbage collection", L, &R, 1);
 }
 
 void ento::registerNSAutoreleasePoolChecker(CheckerManager &mgr) {
-  if (mgr.getLangOptions().getGCMode() != LangOptions::NonGC)
+  if (mgr.getLangOptions().getGC() != LangOptions::NonGC)
     mgr.registerChecker<NSAutoreleasePoolChecker>();
 }

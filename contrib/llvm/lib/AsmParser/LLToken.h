@@ -53,6 +53,9 @@ namespace lltok {
     kw_deplibs,
     kw_datalayout,
     kw_volatile,
+    kw_atomic,
+    kw_unordered, kw_monotonic, kw_acquire, kw_release, kw_acq_rel, kw_seq_cst,
+    kw_singlethread,
     kw_nuw,
     kw_nsw,
     kw_exact,
@@ -87,6 +90,7 @@ namespace lltok {
     kw_readnone,
     kw_readonly,
     kw_uwtable,
+    kw_returns_twice,
 
     kw_inlinehint,
     kw_noinline,
@@ -97,7 +101,6 @@ namespace lltok {
     kw_noredzone,
     kw_noimplicitfloat,
     kw_naked,
-    kw_hotpatch,
     kw_nonlazybind,
 
     kw_type,
@@ -106,6 +109,9 @@ namespace lltok {
     kw_eq, kw_ne, kw_slt, kw_sgt, kw_sle, kw_sge, kw_ult, kw_ugt, kw_ule,
     kw_uge, kw_oeq, kw_one, kw_olt, kw_ogt, kw_ole, kw_oge, kw_ord, kw_uno,
     kw_ueq, kw_une,
+
+    // atomicrmw operations that aren't also instruction keywords.
+    kw_xchg, kw_nand, kw_max, kw_min, kw_umax, kw_umin,
 
     // Instruction Opcodes (Opcode in UIntVal).
     kw_add,  kw_fadd, kw_sub,  kw_fsub, kw_mul,  kw_fmul,
@@ -118,10 +124,13 @@ namespace lltok {
     kw_fptoui, kw_fptosi, kw_inttoptr, kw_ptrtoint, kw_bitcast,
     kw_select, kw_va_arg,
 
-    kw_ret, kw_br, kw_switch, kw_indirectbr, kw_invoke, kw_unwind,
+    kw_landingpad, kw_personality, kw_cleanup, kw_catch, kw_filter,
+
+    kw_ret, kw_br, kw_switch, kw_indirectbr, kw_invoke, kw_unwind, kw_resume,
     kw_unreachable,
 
-    kw_alloca, kw_load, kw_store, kw_getelementptr,
+    kw_alloca, kw_load, kw_store, kw_fence, kw_cmpxchg, kw_atomicrmw,
+    kw_getelementptr,
 
     kw_extractelement, kw_insertelement, kw_shufflevector,
     kw_extractvalue, kw_insertvalue, kw_blockaddress,

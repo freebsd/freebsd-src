@@ -54,7 +54,7 @@ static int smb_vcnext = 1;	/* next unique id for VC */
 
 SYSCTL_NODE(_net, OID_AUTO, smb, CTLFLAG_RW, NULL, "SMB protocol");
 
-MALLOC_DEFINE(M_SMBCONN, "smb_conn", "SMB connection");
+static MALLOC_DEFINE(M_SMBCONN, "smb_conn", "SMB connection");
 
 static void smb_co_init(struct smb_connobj *cp, int level, char *ilockname,
     char *lockname);
@@ -444,13 +444,29 @@ smb_vc_create(struct smb_vcspec *vcspec,
 		goto fail;
 	if (vcspec->servercs[0]) {
 		error = (int)iconv_open(vcspec->servercs, vcspec->localcs,
-		    &vcp->vc_toserver);
+		    &vcp->vc_cp_toserver);
 		if (error)
 			goto fail;
 		error = (int)iconv_open(vcspec->localcs, vcspec->servercs,
-		    &vcp->vc_tolocal);
+		    &vcp->vc_cp_tolocal);
 		if (error)
 			goto fail;
+		vcp->vc_toserver = vcp->vc_cp_toserver;
+		vcp->vc_tolocal = vcp->vc_cp_tolocal;
+		iconv_add(ENCODING_UNICODE, ENCODING_UNICODE, SMB_UNICODE_NAME);
+		iconv_add(ENCODING_UNICODE, SMB_UNICODE_NAME, ENCODING_UNICODE);
+		error = (int)iconv_open(SMB_UNICODE_NAME, vcspec->localcs,
+		    &vcp->vc_ucs_toserver);
+		if (!error) {
+			error = (int)iconv_open(vcspec->localcs, SMB_UNICODE_NAME,
+			    &vcp->vc_ucs_tolocal);
+		}
+		if (error) {
+			if (vcp->vc_ucs_toserver)
+				iconv_close(vcp->vc_ucs_toserver);
+			vcp->vc_ucs_toserver = NULL;
+			vcp->vc_ucs_tolocal = NULL;
+		}
 	}
 	error = (int)smb_iod_create(vcp);
 	if (error)
@@ -486,9 +502,17 @@ smb_vc_free(struct smb_connobj *cp)
 	if (vcp->vc_toupper)
 		iconv_close(vcp->vc_toupper);
 	if (vcp->vc_tolocal)
-		iconv_close(vcp->vc_tolocal);
+		vcp->vc_tolocal = NULL;
 	if (vcp->vc_toserver)
-		iconv_close(vcp->vc_toserver);
+		vcp->vc_toserver = NULL;
+	if (vcp->vc_cp_tolocal)
+		iconv_close(vcp->vc_cp_tolocal);
+	if (vcp->vc_cp_toserver)
+		iconv_close(vcp->vc_cp_toserver);
+	if (vcp->vc_ucs_tolocal)
+		iconv_close(vcp->vc_ucs_tolocal);
+	if (vcp->vc_ucs_toserver)
+		iconv_close(vcp->vc_ucs_toserver);
 	smb_co_done(VCTOCP(vcp));
 	smb_sl_destroy(&vcp->vc_stlock);
 	free(vcp, M_SMBCONN);

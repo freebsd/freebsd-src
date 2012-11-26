@@ -1,4 +1,6 @@
-This is the pkg_install suite of tools for doing maintainance of
+$FreeBSD$
+
+This is the pkg_install suite of tools for doing maintenance of
 software "packages".  More documentation is available in the man pages
 for each individual command.
 

@@ -100,8 +100,8 @@ static void		usage(void);
 int
 main(int argc, char *argv[])
 {
-	int ch, unit;
-	char *file_name, targname[16];
+	int ch;
+	char *file_name;
 	u_int16_t req_flags, sim_flags;
 	off_t user_size;
 
@@ -283,17 +283,11 @@ main(int argc, char *argv[])
 			warnx("aio support tested ok");
 	}
 
-	/* Go through all the control devices and find one that isn't busy. */
-	unit = 0;
-	do {
-		snprintf(targname, sizeof(targname), "/dev/targ%d", unit++);
-    		targ_fd = open(targname, O_RDWR);
-	} while (targ_fd < 0 && errno == EBUSY);
-
+	targ_fd = open("/dev/targ", O_RDWR);
 	if (targ_fd < 0)
-    	    errx(1, "Tried to open %d devices, none available", unit);
+    	    err(1, "/dev/targ");
 	else
-	    warnx("opened %s", targname);
+	    warnx("opened /dev/targ");
 
 	/* The first three are handled by kevent() later */
 	signal(SIGHUP, SIG_IGN);

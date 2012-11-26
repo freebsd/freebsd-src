@@ -902,8 +902,10 @@ doscheckpath(source, target)
 out:;
 	if (bp)
 		brelse(bp);
+#ifdef MSDOSFS_DEBUG
 	if (error == ENOTDIR)
 		printf("doscheckpath(): .. not a directory?\n");
+#endif
 	if (dep != NULL)
 		vput(DETOV(dep));
 	return (error);

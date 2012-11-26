@@ -47,7 +47,7 @@ ifcmd(const char *cmd, const char *args)
 			clrtoeol();
 			addstr("what scale? ");
 			addstr(get_helplist());
-		} 
+		}
 	}
 	return (1);
 }

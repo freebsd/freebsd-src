@@ -2,7 +2,6 @@
 
 PROG=	acpidb
 SRCS=	acpidb.c
-SRCS+=	osunixxf.c
 
 # debugger
 SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c	\
@@ -11,7 +10,7 @@ SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c	\
 
 # disassembler
 SRCS+=	dmbuffer.c dmnames.c dmobject.c dmopcode.c dmresrc.c	\
-	dmresrcl.c dmresrcs.c dmutils.c dmwalk.c
+	dmresrcl.c dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
 
 # events
 SRCS+=	evevent.c evglock.c evgpe.c evgpeblk.c evgpeinit.c	\
@@ -44,20 +43,24 @@ SRCS+=	nsaccess.c nsalloc.c nsdump.c nseval.c nsinit.c		\
 	nsrepair.c nsrepair2.c nssearch.c nsutils.c nswalk.c	\
 	nsxfeval.c nsxfname.c nsxfobj.c
 
+# os_specific/service_layers
+SRCS+=	osunixxf.c
+
 # resources
 SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsinfo.c		\
 	rsio.c rsirq.c rslist.c rsmemory.c rsmisc.c		\
-	rsutils.c rsxface.c
+	rsserial.c rsutils.c rsxface.c
 
 # tables
 SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c	\
 	tbxfroot.c
 
 # utilities
-SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdecode.c	\
-	utdelete.c uteval.c utglobal.c utids.c utinit.c		\
-	utlock.c utmath.c utmisc.c utmutex.c utobject.c utosi.c	\
-	utresrc.c utstate.c uttrack.c utxface.c utxferror.c
+SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c	\
+	utdecode.c utdelete.c uteval.c utglobal.c utids.c	\
+	utinit.c utlock.c utmath.c utmisc.c utmutex.c		\
+	utobject.c utosi.c utresrc.c utstate.c uttrack.c	\
+	utxface.c utxferror.c
 
 MAN=	acpidb.8
 WARNS?=	2

@@ -28,6 +28,8 @@ S=	../../..
 .endif
 .include "$S/conf/kern.pre.mk"
 
+INCLUDES+= -I$S/contrib/libfdt
+
 LDSCRIPT_NAME?=ldscript.$M
 SYSTEM_LD:= ${SYSTEM_LD:$S/conf/${LDSCRIPT_NAME}=${LDSCRIPT_NAME}}
 SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/${LDSCRIPT_NAME}=${LDSCRIPT_NAME}}

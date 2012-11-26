@@ -7,11 +7,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -50,7 +50,6 @@ struct sctp_sysctl {
 #if !defined(SCTP_WITH_NO_CSUM)
 	uint32_t sctp_no_csum_on_loopback;
 #endif
-	uint32_t sctp_strict_init;
 	uint32_t sctp_peer_chunk_oh;
 	uint32_t sctp_max_burst_default;
 	uint32_t sctp_max_chunks_on_queue;
@@ -110,12 +109,12 @@ struct sctp_sysctl {
 #if defined(SCTP_LOCAL_TRACE_BUF)
 	struct sctp_log sctp_log;
 #endif
-	uint32_t sctp_udp_tunneling_for_client_enable;
 	uint32_t sctp_udp_tunneling_port;
 	uint32_t sctp_enable_sack_immediately;
 	uint32_t sctp_vtag_time_wait;
 	uint32_t sctp_buffer_splitting;
 	uint32_t sctp_initial_cwnd;
+	uint32_t sctp_blackhole;
 #if defined(SCTP_DEBUG)
 	uint32_t sctp_debug_on;
 #endif
@@ -168,12 +167,6 @@ struct sctp_sysctl {
 #define SCTPCTL_LOOPBACK_NOCSUM_MIN	0
 #define SCTPCTL_LOOPBACK_NOCSUM_MAX	1
 #define SCTPCTL_LOOPBACK_NOCSUM_DEFAULT	1
-
-/* strict_init: Enable strict INIT/INIT-ACK singleton enforcement */
-#define SCTPCTL_STRICT_INIT_DESC	"Enable strict INIT/INIT-ACK singleton enforcement"
-#define SCTPCTL_STRICT_INIT_MIN		0
-#define SCTPCTL_STRICT_INIT_MAX		1
-#define SCTPCTL_STRICT_INIT_DEFAULT	1
 
 /* peer_chkoh: Amount to debit peers rwnd per chunk sent */
 #define SCTPCTL_PEER_CHKOH_DESC		"Amount to debit peers rwnd per chunk sent"
@@ -464,12 +457,6 @@ struct sctp_sysctl {
 #define SCTPCTL_MOBILITY_FASTHANDOFF_MAX	1
 #define SCTPCTL_MOBILITY_FASTHANDOFF_DEFAULT	SCTP_DEFAULT_MOBILITY_FASTHANDOFF
 
-/* Enable SCTP/UDP tunneling for clients*/
-#define SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_DESC	"Enable SCTP/UDP tunneling for client"
-#define SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MIN	0
-#define SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MAX	1
-#define SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_DEFAULT	SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MIN
-
 /* Enable SCTP/UDP tunneling port */
 #define SCTPCTL_UDP_TUNNELING_PORT_DESC		"Set the SCTP/UDP tunneling port"
 #define SCTPCTL_UDP_TUNNELING_PORT_MIN		0
@@ -532,6 +519,11 @@ struct sctp_sysctl {
 #define SCTPCTL_RTTVAR_DCCCECN_MIN	0
 #define SCTPCTL_RTTVAR_DCCCECN_MAX	1
 #define SCTPCTL_RTTVAR_DCCCECN_DEFAULT	1	/* 0 means disable feature */
+
+#define SCTPCTL_BLACKHOLE_DESC		"Enable SCTP blackholing"
+#define SCTPCTL_BLACKHOLE_MIN		0
+#define SCTPCTL_BLACKHOLE_MAX		2
+#define SCTPCTL_BLACKHOLE_DEFAULT	SCTPCTL_BLACKHOLE_MIN
 
 #if defined(SCTP_DEBUG)
 /* debug: Configure debug output */

@@ -178,7 +178,7 @@ sap_add(struct sap_info *si, struct sockaddr *from)
 
 /*
  * Change an existing SAP entry. If a clone exist for the old one,
- * check if it is cheaper. If it is change tothe clone, otherwise
+ * check if it is cheaper. If it is change to the clone, otherwise
  * delete all the clones.
  */
 void

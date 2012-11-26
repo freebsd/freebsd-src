@@ -303,6 +303,7 @@ cpu_reset:
 
 	lis	%r3,1@l
 	bla	CNAME(cpudep_ap_early_bootstrap)
+	lis	%r3,1@l
 	bla	CNAME(pmap_cpu_bootstrap)
 	bla	CNAME(cpudep_ap_bootstrap)
 	mr	%r1,%r3
@@ -665,8 +666,8 @@ disitrap:
 	GET_CPUINFO(%r1)
 	lwz	%r30,(PC_TEMPSAVE+CPUSAVE_AIM_DAR)(%r1) /* get DAR */
 	stw	%r30,(PC_DBSAVE  +CPUSAVE_AIM_DAR)(%r1) /* save DAR */
-	lwz	%r30,(PC_TEMPSAVE+CPUSAVE_AIM_DSISR)(%r1) /* get DSISR */
-	stw	%r30,(PC_DBSAVE  +CPUSAVE_AIM_DSISR)(%r1) /* save DSISR */
+	lwz	%r31,(PC_TEMPSAVE+CPUSAVE_AIM_DSISR)(%r1) /* get DSISR */
+	stw	%r31,(PC_DBSAVE  +CPUSAVE_AIM_DSISR)(%r1) /* save DSISR */
 	lwz	%r30,(PC_DISISAVE+CPUSAVE_R28)(%r1) /* get  r28 */
 	stw	%r30,(PC_DBSAVE  +CPUSAVE_R28)(%r1) /* save r28 */
 	lwz	%r31,(PC_DISISAVE+CPUSAVE_R29)(%r1) /* get  r29 */

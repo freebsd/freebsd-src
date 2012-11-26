@@ -17,7 +17,7 @@
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/GRState.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/SmallString.h"
 using namespace clang;
@@ -35,12 +35,12 @@ public:
 private:
   void EmitStackError(CheckerContext &C, const MemRegion *R,
                       const Expr *RetE) const;
-  static SourceRange GenName(llvm::raw_ostream &os, const MemRegion *R,
+  static SourceRange GenName(raw_ostream &os, const MemRegion *R,
                              SourceManager &SM);
 };
 }
 
-SourceRange StackAddrEscapeChecker::GenName(llvm::raw_ostream &os,
+SourceRange StackAddrEscapeChecker::GenName(raw_ostream &os,
                                           const MemRegion *R,
                                           SourceManager &SM) {
     // Get the base region, stripping away fields and elements.
@@ -50,34 +50,39 @@ SourceRange StackAddrEscapeChecker::GenName(llvm::raw_ostream &os,
   
   // Check if the region is a compound literal.
   if (const CompoundLiteralRegion* CR = dyn_cast<CompoundLiteralRegion>(R)) { 
-    const CompoundLiteralExpr* CL = CR->getLiteralExpr();
+    const CompoundLiteralExpr *CL = CR->getLiteralExpr();
     os << "stack memory associated with a compound literal "
           "declared on line "
-        << SM.getInstantiationLineNumber(CL->getLocStart())
+        << SM.getExpansionLineNumber(CL->getLocStart())
         << " returned to caller";    
     range = CL->getSourceRange();
   }
   else if (const AllocaRegion* AR = dyn_cast<AllocaRegion>(R)) {
-    const Expr* ARE = AR->getExpr();
+    const Expr *ARE = AR->getExpr();
     SourceLocation L = ARE->getLocStart();
     range = ARE->getSourceRange();    
     os << "stack memory allocated by call to alloca() on line "
-       << SM.getInstantiationLineNumber(L);
+       << SM.getExpansionLineNumber(L);
   }
   else if (const BlockDataRegion *BR = dyn_cast<BlockDataRegion>(R)) {
     const BlockDecl *BD = BR->getCodeRegion()->getDecl();
     SourceLocation L = BD->getLocStart();
     range = BD->getSourceRange();
     os << "stack-allocated block declared on line "
-       << SM.getInstantiationLineNumber(L);
+       << SM.getExpansionLineNumber(L);
   }
   else if (const VarRegion *VR = dyn_cast<VarRegion>(R)) {
     os << "stack memory associated with local variable '"
        << VR->getString() << '\'';
     range = VR->getDecl()->getSourceRange();
   }
+  else if (const CXXTempObjectRegion *TOR = dyn_cast<CXXTempObjectRegion>(R)) {
+    os << "stack memory associated with temporary object of type '"
+       << TOR->getValueType().getAsString() << '\'';
+    range = TOR->getExpr()->getSourceRange();
+  }
   else {
-    assert(false && "Invalid region in ReturnStackAddressChecker.");
+    llvm_unreachable("Invalid region in ReturnStackAddressChecker.");
   } 
   
   return range;
@@ -99,7 +104,7 @@ void StackAddrEscapeChecker::EmitStackError(CheckerContext &C, const MemRegion *
   llvm::raw_svector_ostream os(buf);
   SourceRange range = GenName(os, R, C.getSourceManager());
   os << " returned to caller";
-  RangedBugReport *report = new RangedBugReport(*BT_returnstack, os.str(), N);
+  BugReport *report = new BugReport(*BT_returnstack, os.str(), N);
   report->addRange(RetE->getSourceRange());
   if (range.isValid())
     report->addRange(range);
@@ -134,7 +139,7 @@ void StackAddrEscapeChecker::checkPreStmt(const ReturnStmt *RS,
 void StackAddrEscapeChecker::checkEndPath(EndOfFunctionNodeBuilder &B,
                                         ExprEngine &Eng) const {
 
-  const GRState *state = B.getState();
+  const ProgramState *state = B.getState();
 
   // Iterate over all bindings to global variables and see if it contains
   // a memory region in the stack space.
@@ -143,7 +148,7 @@ void StackAddrEscapeChecker::checkEndPath(EndOfFunctionNodeBuilder &B,
     ExprEngine &Eng;
     const StackFrameContext *CurSFC;
   public:
-    llvm::SmallVector<std::pair<const MemRegion*, const MemRegion*>, 10> V;
+    SmallVector<std::pair<const MemRegion*, const MemRegion*>, 10> V;
 
     CallBack(ExprEngine &Eng, const LocationContext *LCtx)
       : Eng(Eng), CurSFC(LCtx->getCurrentStackFrame()) {}
@@ -202,9 +207,9 @@ void StackAddrEscapeChecker::checkEndPath(EndOfFunctionNodeBuilder &B,
                                 Eng.getContext().getSourceManager());
     os << " is still referred to by the global variable '";
     const VarRegion *VR = cast<VarRegion>(cb.V[i].first->getBaseRegion());
-    os << VR->getDecl()->getNameAsString() 
+    os << *VR->getDecl()
        << "' upon returning to the caller.  This will be a dangling reference";
-    RangedBugReport *report = new RangedBugReport(*BT_stackleak, os.str(), N);
+    BugReport *report = new BugReport(*BT_stackleak, os.str(), N);
     if (range.isValid())
       report->addRange(range);
 

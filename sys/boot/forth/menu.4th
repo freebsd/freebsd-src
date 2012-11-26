@@ -131,11 +131,11 @@ create init_text8 255 allot
 
 	\ Print the value of menuidx
 	loader_color? if
-		." [1m"
+		." [1m" ( [22m )
 	then
 	menuidx @ .
 	loader_color? if
-		." [37m"
+		." [37m" ( [39m )
 	then
 
 	\ Move the cursor forward 1 column
@@ -897,21 +897,59 @@ create init_text8 255 allot
 ;
 
 \ This function unsets all the possible environment variables associated with
-\ creating the interactive menu. Call this when you want to clear the menu
-\ area in preparation for another menu.
+\ creating the interactive menu.
 \ 
-: menu-clear ( -- )
+: menu-unset ( -- )
 
 	49 \ Iterator start (loop range 49 to 56; ASCII '1' to '8')
 	begin
-		\ basename for caption variable
-		loader_color? if
-			s" ansi_caption[x]"
-		else
-			s" menu_caption[x]"
-		then
+		\ Unset variables in-order of appearance in menu.4th(8)
+
+		s" menu_caption[x]"	\ basename for caption variable
 		-rot 2dup 13 + c! rot	\ replace 'x' with current iteration
 		unsetenv		\ not erroneous to unset unknown var
+
+		s" menu_command[x]"	\ command basename
+		-rot 2dup 13 + c! rot	\ replace 'x'
+		unsetenv
+
+		s" menu_keycode[x]"	\ keycode basename
+		-rot 2dup 13 + c! rot	\ replace 'x'
+		unsetenv
+
+		s" ansi_caption[x]"	\ ANSI caption basename
+		-rot 2dup 13 + c! rot	\ replace 'x'
+		unsetenv
+
+		s" toggled_text[x]"	\ toggle_menuitem caption basename
+		-rot 2dup 13 + c! rot	\ replace 'x'
+		unsetenv
+
+		s" toggled_ansi[x]"	\ toggle_menuitem ANSI caption basename
+		-rot 2dup 13 + c! rot	\ replace 'x'
+		unsetenv
+
+		s" menu_caption[x][y]"	\ cycle_menuitem caption
+		-rot 2dup 13 + c! rot	\ replace 'x'
+		49 -rot
+		begin
+			16 2over rot + c! \ replace 'y'
+			2dup unsetenv
+
+			rot 1+ dup 56 > 2swap rot
+		until
+		2drop drop
+
+		s" ansi_caption[x][y]"	\ cycle_menuitem ANSI caption
+		-rot 2dup 13 + c! rot	\ replace 'x'
+		49 -rot
+		begin
+			16 2over rot + c! \ replace 'y'
+			2dup unsetenv
+
+			rot 1+ dup 56 > 2swap rot
+		until
+		2drop drop
 
 		s" 0 menukeyN !"	\ basename for key association var
 		-rot 2dup 9 + c! rot	\ replace 'N' with current iteration
@@ -920,6 +958,9 @@ create init_text8 255 allot
 		1+ dup 56 >	\ increment, continue if less than 57
 	until
 	drop \ iterator
+
+	\ unset the timeout command
+	s" menu_timeout_command" unsetenv
 
 	\ clear the "Reboot" menu option flag
 	s" menu_reboot" unsetenv
@@ -933,6 +974,13 @@ create init_text8 255 allot
 	s" menu_options" unsetenv
 	0 menuoptions !
 
+;
+
+\ This function both unsets menu variables and visually erases the menu area
+\ in-preparation for another menu.
+\ 
+: menu-clear ( -- )
+	menu-unset
 	menu-erase
 ;
 

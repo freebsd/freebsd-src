@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <powerpc/ofw/ofw_syscons.h>
 
 static int ofwfb_ignore_mmap_checks = 1;
-SYSCTL_NODE(_hw, OID_AUTO, ofwfb, CTLFLAG_RD, 0, "ofwfb");
+static SYSCTL_NODE(_hw, OID_AUTO, ofwfb, CTLFLAG_RD, 0, "ofwfb");
 SYSCTL_INT(_hw_ofwfb, OID_AUTO, relax_mmap, CTLFLAG_RW,
     &ofwfb_ignore_mmap_checks, 0, "relaxed mmap bounds checking");
 

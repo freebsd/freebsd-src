@@ -30,10 +30,10 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- * 
- * $FreeBSD$
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -128,9 +128,8 @@ static device_method_t firewire_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_add_child,	firewire_add_child),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 char *linkspeed[] = {
 	"S100", "S200", "S400", "S800",

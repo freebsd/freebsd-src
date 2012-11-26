@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 
 #include <netinet/in.h>
+#include <netinet/in_var.h>
 #include <net/if_types.h>
 #include <net/if_dl.h>
 #include <net/vnet.h>
@@ -109,19 +110,22 @@ struct bootp_packet {
 };
 
 struct bootpc_ifcontext {
-	struct bootpc_ifcontext *next;
+	STAILQ_ENTRY(bootpc_ifcontext) next;
 	struct bootp_packet call;
 	struct bootp_packet reply;
 	int replylen;
 	int overload;
-	struct socket *so;
-	struct ifreq ireq;
+	union {
+		struct ifreq _ifreq;
+		struct in_aliasreq _in_alias_req;
+	} _req;
+#define	ireq	_req._ifreq
+#define	iareq	_req._in_alias_req
 	struct ifnet *ifp;
 	struct sockaddr_dl *sdl;
 	struct sockaddr_in myaddr;
 	struct sockaddr_in netmask;
 	struct sockaddr_in gw;
-	struct sockaddr_in broadcast;	/* Different for each interface */
 	int gotgw;
 	int gotnetmask;
 	int gotrootpath;
@@ -153,8 +157,7 @@ struct bootpc_tagcontext {
 };
 
 struct bootpc_globalcontext {
-	struct bootpc_ifcontext *interfaces;
-	struct bootpc_ifcontext *lastinterface;
+	STAILQ_HEAD(, bootpc_ifcontext) interfaces;
 	u_int32_t xid;
 	int gotrootpath;
 	int gotgw;
@@ -215,6 +218,7 @@ struct bootpc_globalcontext {
 #endif
 
 static char bootp_cookie[128];
+static struct socket *bootp_so;
 SYSCTL_STRING(_kern, OID_AUTO, bootp_cookie, CTLFLAG_RD,
 	bootp_cookie, 0, "Cookie (T134) supplied by bootp server");
 
@@ -233,7 +237,7 @@ static void	print_sin_addr(struct sockaddr_in *addr);
 static void	clear_sinaddr(struct sockaddr_in *sin);
 static void	allocifctx(struct bootpc_globalcontext *gctx);
 static void	bootpc_compose_query(struct bootpc_ifcontext *ifctx,
-		    struct bootpc_globalcontext *gctx, struct thread *td);
+		    struct thread *td);
 static unsigned char *bootpc_tag(struct bootpc_tagcontext *tctx,
 		    struct bootp_packet *bp, int len, int tag);
 static void bootpc_tag_helper(struct bootpc_tagcontext *tctx,
@@ -251,8 +255,8 @@ void bootpboot_p_iflist(void);
 static int	bootpc_call(struct bootpc_globalcontext *gctx,
 		    struct thread *td);
 
-static int	bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx,
-		    struct bootpc_globalcontext *gctx, struct thread *td);
+static void	bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx,
+		    struct thread *td);
 
 static int	bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
 		    struct bootpc_globalcontext *gctx, struct thread *td);
@@ -270,14 +274,9 @@ static __inline int bootpc_ifctx_isfailed(struct bootpc_ifcontext *ifctx);
 
 /*
  * In order to have multiple active interfaces with address 0.0.0.0
- * and be able to send data to a selected interface, we perform
- * some tricks:
- *
- *  - The 'broadcast' address is different for each interface.
- *
- *  - We temporarily add routing pointing 255.255.255.255 to the
- *    selected interface broadcast address, thus the packet sent
- *    goes to that interface.
+ * and be able to send data to a selected interface, we first set
+ * mask to /8 on all interfaces, and temporarily set it to /0 when
+ * doing sosend().
  */
 
 #ifdef BOOTP_DEBUG
@@ -419,11 +418,8 @@ static void
 allocifctx(struct bootpc_globalcontext *gctx)
 {
 	struct bootpc_ifcontext *ifctx;
-	ifctx = (struct bootpc_ifcontext *) malloc(sizeof(*ifctx),
-						   M_TEMP, M_WAITOK | M_ZERO);
-	if (ifctx == NULL)
-		panic("Failed to allocate bootp interface context structure");
 
+	ifctx = malloc(sizeof(*ifctx), M_TEMP, M_WAITOK | M_ZERO);
 	ifctx->xid = gctx->xid;
 #ifdef BOOTP_NO_DHCP
 	ifctx->state = IF_BOOTP_UNRESOLVED;
@@ -431,11 +427,7 @@ allocifctx(struct bootpc_globalcontext *gctx)
 	ifctx->state = IF_DHCP_UNRESOLVED;
 #endif
 	gctx->xid += 0x100;
-	if (gctx->interfaces != NULL)
-		gctx->lastinterface->next = ifctx;
-	else
-		gctx->interfaces = ifctx;
-	gctx->lastinterface = ifctx;
+	STAILQ_INSERT_TAIL(&gctx->interfaces, ifctx, next);
 }
 
 static __inline int
@@ -570,7 +562,6 @@ bootpc_received(struct bootpc_globalcontext *gctx,
 static int
 bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 {
-	struct socket *so;
 	struct sockaddr_in *sin, dst;
 	struct uio auio;
 	struct sockopt sopt;
@@ -585,13 +576,6 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 	int retry;
 	const char *s;
 
-	/*
-	 * Create socket and set its recieve timeout.
-	 */
-	error = socreate(AF_INET, &so, SOCK_DGRAM, 0, td->td_ucred, td);
-	if (error != 0)
-		goto out0;
-
 	tv.tv_sec = 1;
 	tv.tv_usec = 0;
 	bzero(&sopt, sizeof(sopt));
@@ -601,7 +585,7 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 	sopt.sopt_val = &tv;
 	sopt.sopt_valsize = sizeof tv;
 
-	error = sosetopt(so, &sopt);
+	error = sosetopt(bootp_so, &sopt);
 	if (error != 0)
 		goto out;
 
@@ -613,7 +597,7 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 	sopt.sopt_val = &on;
 	sopt.sopt_valsize = sizeof on;
 
-	error = sosetopt(so, &sopt);
+	error = sosetopt(bootp_so, &sopt);
 	if (error != 0)
 		goto out;
 
@@ -626,7 +610,7 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 	sopt.sopt_val = &on;
 	sopt.sopt_valsize = sizeof on;
 
-	error = sosetopt(so, &sopt);
+	error = sosetopt(bootp_so, &sopt);
 	if (error != 0)
 		goto out;
 
@@ -636,7 +620,7 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 	sin = &dst;
 	clear_sinaddr(sin);
 	sin->sin_port = htons(IPPORT_BOOTPC);
-	error = sobind(so, (struct sockaddr *)sin, td);
+	error = sobind(bootp_so, (struct sockaddr *)sin, td);
 	if (error != 0) {
 		printf("bind failed\n");
 		goto out;
@@ -662,9 +646,7 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 		outstanding = 0;
 		gotrootpath = 0;
 
-		for (ifctx = gctx->interfaces;
-		     ifctx != NULL;
-		     ifctx = ifctx->next) {
+		STAILQ_FOREACH(ifctx, &gctx->interfaces, next) {
 			if (bootpc_ifctx_isresolved(ifctx) != 0 &&
 			    bootpc_tag(&gctx->tmptag, &ifctx->reply,
 				       ifctx->replylen,
@@ -672,9 +654,10 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 				gotrootpath = 1;
 		}
 
-		for (ifctx = gctx->interfaces;
-		     ifctx != NULL;
-		     ifctx = ifctx->next) {
+		STAILQ_FOREACH(ifctx, &gctx->interfaces, next) {
+			struct in_aliasreq *ifra = &ifctx->iareq;
+			sin = (struct sockaddr_in *)&ifra->ifra_mask;
+
 			ifctx->outstanding = 0;
 			if (bootpc_ifctx_isresolved(ifctx)  != 0 &&
 			    gotrootpath != 0) {
@@ -694,7 +677,7 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 			    (ifctx->state == IF_BOOTP_UNRESOLVED &&
 			     ifctx->dhcpquerytype != DHCP_NOMSG)) {
 				ifctx->sentmsg = 0;
-				bootpc_compose_query(ifctx, gctx, td);
+				bootpc_compose_query(ifctx, td);
 			}
 
 			/* Send BOOTP request (or re-send). */
@@ -734,44 +717,32 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 			auio.uio_td = td;
 
 			/* Set netmask to 0.0.0.0 */
-
-			sin = (struct sockaddr_in *) &ifctx->ireq.ifr_addr;
 			clear_sinaddr(sin);
-			error = ifioctl(ifctx->so, SIOCSIFNETMASK,
-					(caddr_t) &ifctx->ireq, td);
+			error = ifioctl(bootp_so, SIOCAIFADDR, (caddr_t)ifra,
+			    td);
 			if (error != 0)
-				panic("bootpc_call:"
-				      "set if netmask, error=%d",
-				      error);
+				panic("%s: SIOCAIFADDR, error=%d", __func__,
+				    error);
 
-			error = sosend(so, (struct sockaddr *) &dst,
+			error = sosend(bootp_so, (struct sockaddr *) &dst,
 				       &auio, NULL, NULL, 0, td);
-			if (error != 0) {
-				printf("bootpc_call: sosend: %d state %08x\n",
-				       error, (int) so->so_state);
-			}
-
-			/* XXX: Is this needed ? */
-			pause("bootpw", hz/10);
+			if (error != 0)
+				printf("%s: sosend: %d state %08x\n", __func__,
+				    error, (int )bootp_so->so_state);
 
 			/* Set netmask to 255.0.0.0 */
-
-			sin = (struct sockaddr_in *) &ifctx->ireq.ifr_addr;
-			clear_sinaddr(sin);
-			sin->sin_addr.s_addr = htonl(0xff000000u);
-			error = ifioctl(ifctx->so, SIOCSIFNETMASK,
-					(caddr_t) &ifctx->ireq, td);
+			sin->sin_addr.s_addr = htonl(IN_CLASSA_NET);
+			error = ifioctl(bootp_so, SIOCAIFADDR, (caddr_t)ifra,
+			    td);
 			if (error != 0)
-				panic("bootpc_call:"
-				      "set if netmask, error=%d",
-				      error);
-
+				panic("%s: SIOCAIFADDR, error=%d", __func__,
+				    error);
 		}
 
 		if (outstanding == 0 &&
 		    (rtimo == 0 || time_second >= rtimo)) {
 			error = 0;
-			goto gotreply;
+			goto out;
 		}
 
 		/* Determine new timeout. */
@@ -801,12 +772,10 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 			auio.uio_td = td;
 
 			rcvflg = 0;
-			error = soreceive(so, NULL, &auio,
+			error = soreceive(bootp_so, NULL, &auio,
 					  NULL, NULL, &rcvflg);
 			gctx->secs = time_second - gctx->starttime;
-			for (ifctx = gctx->interfaces;
-			     ifctx != NULL;
-			     ifctx = ifctx->next) {
+			STAILQ_FOREACH(ifctx, &gctx->interfaces, next) {
 				if (bootpc_ifctx_isresolved(ifctx) != 0 ||
 				    bootpc_ifctx_isfailed(ifctx) != 0)
 					continue;
@@ -829,9 +798,7 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 				continue;
 
 			/* Is this an answer to our query */
-			for (ifctx = gctx->interfaces;
-			     ifctx != NULL;
-			     ifctx = ifctx->next) {
+			STAILQ_FOREACH(ifctx, &gctx->interfaces, next) {
 				if (gctx->reply.xid != ifctx->call.xid)
 					continue;
 
@@ -906,15 +873,13 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 #endif
 		/* Force a retry if halfway in DHCP negotiation */
 		retry = 0;
-		for (ifctx = gctx->interfaces; ifctx != NULL;
-		     ifctx = ifctx->next) {
+		STAILQ_FOREACH(ifctx, &gctx->interfaces, next)
 			if (ifctx->state == IF_DHCP_OFFERED) {
 				if (ifctx->dhcpquerytype == DHCP_DISCOVER)
 					retry = 1;
 				else
 					ifctx->state = IF_DHCP_UNRESOLVED;
 			}
-		}
 
 		if (retry != 0)
 			continue;
@@ -931,14 +896,14 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 	 * ignored
 	 */
 
-	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next) {
+	STAILQ_FOREACH(ifctx, &gctx->interfaces, next)
 		if (bootpc_ifctx_isresolved(ifctx) == 0) {
 			printf("%s timeout for interface %s\n",
 			       ifctx->dhcpquerytype != DHCP_NOMSG ?
 			       "DHCP" : "BOOTP",
 			       ifctx->ireq.ifr_name);
 		}
-	}
+
 	if (gctx->gotrootpath != 0) {
 #if 0
 		printf("Got a root path, ignoring remaining timeout\n");
@@ -947,40 +912,28 @@ bootpc_call(struct bootpc_globalcontext *gctx, struct thread *td)
 		goto out;
 	}
 #ifndef BOOTP_NFSROOT
-	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next) {
+	STAILQ_FOREACH(ifctx, &gctx->interfaces, next)
 		if (bootpc_ifctx_isresolved(ifctx) != 0) {
 			error = 0;
 			goto out;
 		}
-	}
 #endif
 	error = ETIMEDOUT;
-	goto out;
 
-gotreply:
 out:
-	soclose(so);
-out0:
-	return error;
+	return (error);
 }
 
-static int
-bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx,
-    struct bootpc_globalcontext *gctx, struct thread *td)
+static void
+bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx, struct thread *td)
 {
+	struct ifreq *ifr;
+	struct in_aliasreq *ifra;
 	struct sockaddr_in *sin;
 	int error;
-	struct ifreq *ireq;
-	struct socket *so;
-	struct ifaddr *ifa;
-	struct sockaddr_dl *sdl;
 
-	error = socreate(AF_INET, &ifctx->so, SOCK_DGRAM, 0, td->td_ucred, td);
-	if (error != 0)
-		panic("nfs_boot: socreate, error=%d", error);
-
-	ireq = &ifctx->ireq;
-	so = ifctx->so;
+	ifr = &ifctx->ireq;
+	ifra = &ifctx->iareq;
 
 	/*
 	 * Bring up the interface.
@@ -988,70 +941,56 @@ bootpc_fakeup_interface(struct bootpc_ifcontext *ifctx,
 	 * Get the old interface flags and or IFF_UP into them; if
 	 * IFF_UP set blindly, interface selection can be clobbered.
 	 */
-	error = ifioctl(so, SIOCGIFFLAGS, (caddr_t)ireq, td);
+	error = ifioctl(bootp_so, SIOCGIFFLAGS, (caddr_t)ifr, td);
 	if (error != 0)
-		panic("bootpc_fakeup_interface: GIFFLAGS, error=%d", error);
-	ireq->ifr_flags |= IFF_UP;
-	error = ifioctl(so, SIOCSIFFLAGS, (caddr_t)ireq, td);
+		panic("%s: SIOCGIFFLAGS, error=%d", __func__, error);
+	ifr->ifr_flags |= IFF_UP;
+	error = ifioctl(bootp_so, SIOCSIFFLAGS, (caddr_t)ifr, td);
 	if (error != 0)
-		panic("bootpc_fakeup_interface: SIFFLAGS, error=%d", error);
+		panic("%s: SIOCSIFFLAGS, error=%d", __func__, error);
 
 	/*
 	 * Do enough of ifconfig(8) so that the chosen interface
-	 * can talk to the servers.  (just set the address)
+	 * can talk to the servers. Set address to 0.0.0.0/8 and
+	 * broadcast address to local broadcast.
 	 */
-
-	/* addr is 0.0.0.0 */
-
-	sin = (struct sockaddr_in *) &ireq->ifr_addr;
+	sin = (struct sockaddr_in *)&ifra->ifra_addr;
 	clear_sinaddr(sin);
-	error = ifioctl(so, SIOCSIFADDR, (caddr_t) ireq, td);
-	if (error != 0 && (error != EEXIST || ifctx == gctx->interfaces))
-		panic("bootpc_fakeup_interface: "
-		      "set if addr, error=%d", error);
-
-	/* netmask is 255.0.0.0 */
-
-	sin = (struct sockaddr_in *) &ireq->ifr_addr;
+	sin = (struct sockaddr_in *)&ifra->ifra_mask;
 	clear_sinaddr(sin);
-	sin->sin_addr.s_addr = htonl(0xff000000u);
-	error = ifioctl(so, SIOCSIFNETMASK, (caddr_t)ireq, td);
-	if (error != 0)
-		panic("bootpc_fakeup_interface: set if netmask, error=%d",
-		      error);
-
-	/* Broadcast is 255.255.255.255 */
-
-	sin = (struct sockaddr_in *)&ireq->ifr_addr;
+	sin->sin_addr.s_addr = htonl(IN_CLASSA_NET);
+	sin = (struct sockaddr_in *)&ifra->ifra_broadaddr;
 	clear_sinaddr(sin);
-	clear_sinaddr(&ifctx->broadcast);
 	sin->sin_addr.s_addr = htonl(INADDR_BROADCAST);
-	ifctx->broadcast.sin_addr.s_addr = sin->sin_addr.s_addr;
-
-	error = ifioctl(so, SIOCSIFBRDADDR, (caddr_t)ireq, td);
+	error = ifioctl(bootp_so, SIOCAIFADDR, (caddr_t)ifra, td);
 	if (error != 0)
-		panic("bootpc_fakeup_interface: "
-		      "set if broadcast addr, error=%d",
-		      error);
-
-	/* Get HW address */
-
-	sdl = NULL;
-	TAILQ_FOREACH(ifa, &ifctx->ifp->if_addrhead, ifa_link)
-		if (ifa->ifa_addr->sa_family == AF_LINK) {
-			sdl = (struct sockaddr_dl *)ifa->ifa_addr;
-			if (sdl->sdl_type == IFT_ETHER)
-				break;
-		}
-
-	if (sdl == NULL)
-		panic("bootpc: Unable to find HW address for %s",
-		      ifctx->ireq.ifr_name);
-	ifctx->sdl = sdl;
-
-	return error;
+		panic("%s: SIOCAIFADDR, error=%d", __func__, error);
 }
 
+static void
+bootpc_shutdown_interface(struct bootpc_ifcontext *ifctx, struct thread *td)
+{
+	struct ifreq *ifr;
+	struct sockaddr_in *sin;
+	int error;
+
+	ifr = &ifctx->ireq;
+
+	printf("Shutdown interface %s\n", ifctx->ireq.ifr_name);
+	error = ifioctl(bootp_so, SIOCGIFFLAGS, (caddr_t)ifr, td);
+	if (error != 0)
+		panic("%s: SIOCGIFFLAGS, error=%d", __func__, error);
+	ifr->ifr_flags &= ~IFF_UP;
+	error = ifioctl(bootp_so, SIOCSIFFLAGS, (caddr_t)ifr, td);
+	if (error != 0)
+		panic("%s: SIOCSIFFLAGS, error=%d", __func__, error);
+
+	sin = (struct sockaddr_in *) &ifr->ifr_addr;
+	clear_sinaddr(sin);
+	error = ifioctl(bootp_so, SIOCDIFADDR, (caddr_t) ifr, td);
+	if (error != 0)
+		panic("%s: SIOCDIFADDR, error=%d", __func__, error);
+}
 
 static int
 bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
@@ -1061,42 +1000,22 @@ bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
 	struct sockaddr_in defdst;
 	struct sockaddr_in defmask;
 	struct sockaddr_in *sin;
-	struct ifreq *ireq;
-	struct socket *so;
+	struct ifreq *ifr;
+	struct in_aliasreq *ifra;
 	struct sockaddr_in *myaddr;
 	struct sockaddr_in *netmask;
 	struct sockaddr_in *gw;
 
-	ireq = &ifctx->ireq;
-	so = ifctx->so;
+	ifr = &ifctx->ireq;
+	ifra = &ifctx->iareq;
 	myaddr = &ifctx->myaddr;
 	netmask = &ifctx->netmask;
 	gw = &ifctx->gw;
 
 	if (bootpc_ifctx_isresolved(ifctx) == 0) {
-
 		/* Shutdown interfaces where BOOTP failed */
-
-		printf("Shutdown interface %s\n", ifctx->ireq.ifr_name);
-		error = ifioctl(so, SIOCGIFFLAGS, (caddr_t)ireq, td);
-		if (error != 0)
-			panic("bootpc_adjust_interface: "
-			      "SIOCGIFFLAGS, error=%d", error);
-		ireq->ifr_flags &= ~IFF_UP;
-		error = ifioctl(so, SIOCSIFFLAGS, (caddr_t)ireq, td);
-		if (error != 0)
-			panic("bootpc_adjust_interface: "
-			      "SIOCSIFFLAGS, error=%d", error);
-
-		sin = (struct sockaddr_in *) &ireq->ifr_addr;
-		clear_sinaddr(sin);
-		error = ifioctl(so, SIOCDIFADDR, (caddr_t) ireq, td);
-		if (error != 0 && (error != EEXIST ||
-				   ifctx == gctx->interfaces))
-			panic("bootpc_adjust_interface: "
-			      "SIOCDIFADDR, error=%d", error);
-
-		return 0;
+		bootpc_shutdown_interface(ifctx, td);
+		return (0);
 	}
 
 	printf("Adjusted interface %s\n", ifctx->ireq.ifr_name);
@@ -1104,28 +1023,21 @@ bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
 	 * Do enough of ifconfig(8) so that the chosen interface
 	 * can talk to the servers.  (just set the address)
 	 */
-	bcopy(netmask, &ireq->ifr_addr, sizeof(*netmask));
-	error = ifioctl(so, SIOCSIFNETMASK, (caddr_t) ireq, td);
-	if (error != 0)
-		panic("bootpc_adjust_interface: "
-		      "set if netmask, error=%d", error);
-
-	/* Broadcast is with host part of IP address all 1's */
-
-	sin = (struct sockaddr_in *) &ireq->ifr_addr;
+	sin = (struct sockaddr_in *) &ifr->ifr_addr;
 	clear_sinaddr(sin);
-	sin->sin_addr.s_addr = myaddr->sin_addr.s_addr |
-		~ netmask->sin_addr.s_addr;
-	error = ifioctl(so, SIOCSIFBRDADDR, (caddr_t) ireq, td);
+	error = ifioctl(bootp_so, SIOCDIFADDR, (caddr_t) ifr, td);
 	if (error != 0)
-		panic("bootpc_adjust_interface: "
-		      "set if broadcast addr, error=%d", error);
+		panic("%s: SIOCDIFADDR, error=%d", __func__, error);
 
-	bcopy(myaddr, &ireq->ifr_addr, sizeof(*myaddr));
-	error = ifioctl(so, SIOCSIFADDR, (caddr_t) ireq, td);
-	if (error != 0 && (error != EEXIST || ifctx == gctx->interfaces))
-		panic("bootpc_adjust_interface: "
-		      "set if addr, error=%d", error);
+	bcopy(myaddr, &ifra->ifra_addr, sizeof(*myaddr));
+	bcopy(netmask, &ifra->ifra_mask, sizeof(*netmask));
+	clear_sinaddr(&ifra->ifra_broadaddr);
+	ifra->ifra_broadaddr.sin_addr.s_addr = myaddr->sin_addr.s_addr |
+	    ~netmask->sin_addr.s_addr;
+
+	error = ifioctl(bootp_so, SIOCAIFADDR, (caddr_t)ifra, td);
+	if (error != 0)
+		panic("%s: SIOCAIFADDR, error=%d", __func__, error);
 
 	/* Add new default route */
 
@@ -1139,13 +1051,12 @@ bootpc_adjust_interface(struct bootpc_ifcontext *ifctx,
 				  (struct sockaddr *) &defmask,
 				  (RTF_UP | RTF_GATEWAY | RTF_STATIC), NULL, 0);
 		if (error != 0) {
-			printf("bootpc_adjust_interface: "
-			       "add net route, error=%d\n", error);
-			return error;
+			printf("%s: RTM_ADD, error=%d\n", __func__, error);
+			return (error);
 		}
 	}
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -1288,8 +1199,7 @@ print_in_addr(struct in_addr addr)
 }
 
 static void
-bootpc_compose_query(struct bootpc_ifcontext *ifctx,
-    struct bootpc_globalcontext *gctx, struct thread *td)
+bootpc_compose_query(struct bootpc_ifcontext *ifctx, struct thread *td)
 {
 	unsigned char *vendp;
 	unsigned char vendor_client[64];
@@ -1595,9 +1505,11 @@ bootpc_decode_reply(struct nfsv3_diskless *nd, struct bootpc_ifcontext *ifctx,
 void
 bootpc_init(void)
 {
-	struct bootpc_ifcontext *ifctx, *nctx;	/* Interface BOOTP contexts */
+	struct bootpc_ifcontext *ifctx;		/* Interface BOOTP contexts */
 	struct bootpc_globalcontext *gctx; 	/* Global BOOTP context */
 	struct ifnet *ifp;
+	struct sockaddr_dl *sdl;
+	struct ifaddr *ifa;
 	int error;
 #ifndef BOOTP_WIRED_TO
 	int ifcnt;
@@ -1615,9 +1527,7 @@ bootpc_init(void)
 		return;
 
 	gctx = malloc(sizeof(*gctx), M_TEMP, M_WAITOK | M_ZERO);
-	if (gctx == NULL)
-		panic("Failed to allocate bootp global context structure");
-
+	STAILQ_INIT(&gctx->interfaces);
 	gctx->xid = ~0xFFFF;
 	gctx->starttime = time_second;
 
@@ -1626,7 +1536,7 @@ bootpc_init(void)
 	 */
 	CURVNET_SET(TD_TO_VNET(td));
 #ifdef BOOTP_WIRED_TO
-	printf("bootpc_init: wired to interface '%s'\n",
+	printf("%s: wired to interface '%s'\n", __func__, 
 	       __XSTRING(BOOTP_WIRED_TO));
 	allocifctx(gctx);
 #else
@@ -1634,60 +1544,94 @@ bootpc_init(void)
 	 * Preallocate interface context storage, if another interface
 	 * attaches and wins the race, it won't be eligible for bootp.
 	 */
+	ifcnt = 0;
 	IFNET_RLOCK();
-	for (ifp = TAILQ_FIRST(&V_ifnet), ifcnt = 0;
-	     ifp != NULL;
-	     ifp = TAILQ_NEXT(ifp, if_link)) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if ((ifp->if_flags &
 		     (IFF_LOOPBACK | IFF_POINTOPOINT | IFF_BROADCAST)) !=
 		    IFF_BROADCAST)
 			continue;
+		switch (ifp->if_alloctype) {
+			case IFT_ETHER:
+			case IFT_FDDI:
+			case IFT_ISO88025:
+				break;
+			default:
+				continue;
+		}
 		ifcnt++;
 	}
 	IFNET_RUNLOCK();
 	if (ifcnt == 0)
-		panic("bootpc_init: no eligible interfaces");
+		panic("%s: no eligible interfaces", __func__);
 	for (; ifcnt > 0; ifcnt--)
 		allocifctx(gctx);
 #endif
 
+	ifctx = STAILQ_FIRST(&gctx->interfaces);
 	IFNET_RLOCK();
-	for (ifp = TAILQ_FIRST(&V_ifnet), ifctx = gctx->interfaces;
-	     ifp != NULL && ifctx != NULL;
-	     ifp = TAILQ_NEXT(ifp, if_link)) {
-		strlcpy(ifctx->ireq.ifr_name, ifp->if_xname,
-		    sizeof(ifctx->ireq.ifr_name));
+	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
+		if (ifctx == NULL)
+			break;
 #ifdef BOOTP_WIRED_TO
-		if (strcmp(ifctx->ireq.ifr_name,
-			   __XSTRING(BOOTP_WIRED_TO)) != 0)
+		if (strcmp(ifp->if_xname, __XSTRING(BOOTP_WIRED_TO)) != 0)
 			continue;
 #else
 		if ((ifp->if_flags &
 		     (IFF_LOOPBACK | IFF_POINTOPOINT | IFF_BROADCAST)) !=
 		    IFF_BROADCAST)
 			continue;
+		switch (ifp->if_alloctype) {
+			case IFT_ETHER:
+			case IFT_FDDI:
+			case IFT_ISO88025:
+				break;
+			default:
+				continue;
+		}
 #endif
+		strlcpy(ifctx->ireq.ifr_name, ifp->if_xname,
+		    sizeof(ifctx->ireq.ifr_name));
 		ifctx->ifp = ifp;
-		ifctx = ifctx->next;
+
+		/* Get HW address */
+		sdl = NULL;
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
+			if (ifa->ifa_addr->sa_family == AF_LINK) {
+				sdl = (struct sockaddr_dl *)ifa->ifa_addr;
+				if (sdl->sdl_type == IFT_ETHER)
+					break;
+			}
+		if (sdl == NULL)
+			panic("bootpc: Unable to find HW address for %s",
+			    ifctx->ireq.ifr_name);
+		ifctx->sdl = sdl;
+
+		ifctx = STAILQ_NEXT(ifctx, next);
 	}
 	IFNET_RUNLOCK();
 	CURVNET_RESTORE();
 
-	if (gctx->interfaces == NULL || gctx->interfaces->ifp == NULL) {
+	if (STAILQ_EMPTY(&gctx->interfaces) ||
+	    STAILQ_FIRST(&gctx->interfaces)->ifp == NULL) {
 #ifdef BOOTP_WIRED_TO
-		panic("bootpc_init: Could not find interface specified "
+		panic("%s: Could not find interface specified "
 		      "by BOOTP_WIRED_TO: "
-		      __XSTRING(BOOTP_WIRED_TO));
+		      __XSTRING(BOOTP_WIRED_TO), __func__);
 #else
-		panic("bootpc_init: no suitable interface");
+		panic("%s: no suitable interface", __func__);
 #endif
 	}
 
-	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next)
-		bootpc_fakeup_interface(ifctx, gctx, td);
+	error = socreate(AF_INET, &bootp_so, SOCK_DGRAM, 0, td->td_ucred, td);
+	if (error != 0)
+		panic("%s: socreate, error=%d", __func__, error);
 
-	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next)
-		bootpc_compose_query(ifctx, gctx, td);
+	STAILQ_FOREACH(ifctx, &gctx->interfaces, next)
+		bootpc_fakeup_interface(ifctx, td);
+
+	STAILQ_FOREACH(ifctx, &gctx->interfaces, next)
+		bootpc_compose_query(ifctx, td);
 
 	error = bootpc_call(gctx, td);
 
@@ -1705,7 +1649,7 @@ bootpc_init(void)
 #endif
 	mountopts(&nd->root_args, NULL);
 
-	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next)
+	STAILQ_FOREACH(ifctx, &gctx->interfaces, next)
 		if (bootpc_ifctx_isresolved(ifctx) != 0)
 			bootpc_decode_reply(nd, ifctx, gctx);
 
@@ -1714,19 +1658,16 @@ bootpc_init(void)
 		panic("bootpc: No root path offered");
 #endif
 
-	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next) {
+	STAILQ_FOREACH(ifctx, &gctx->interfaces, next)
 		bootpc_adjust_interface(ifctx, gctx, td);
 
-		soclose(ifctx->so);
-	}
+	soclose(bootp_so);
 
-	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = ifctx->next)
+	STAILQ_FOREACH(ifctx, &gctx->interfaces, next)
 		if (ifctx->gotrootpath != 0)
 			break;
 	if (ifctx == NULL) {
-		for (ifctx = gctx->interfaces;
-		     ifctx != NULL;
-		     ifctx = ifctx->next)
+		STAILQ_FOREACH(ifctx, &gctx->interfaces, next)
 			if (bootpc_ifctx_isresolved(ifctx) != 0)
 				break;
 	}
@@ -1755,8 +1696,8 @@ bootpc_init(void)
 	bcopy(&ifctx->netmask, &nd->myif.ifra_mask, sizeof(ifctx->netmask));
 
 out:
-	for (ifctx = gctx->interfaces; ifctx != NULL; ifctx = nctx) {
-		nctx = ifctx->next;
+	while((ifctx = STAILQ_FIRST(&gctx->interfaces)) != NULL) {
+		STAILQ_REMOVE_HEAD(&gctx->interfaces, next);
 		free(ifctx, M_TEMP);
 	}
 	free(gctx, M_TEMP);

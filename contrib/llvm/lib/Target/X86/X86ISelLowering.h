@@ -175,8 +175,14 @@ namespace llvm {
       /// PSIGNB/W/D - Copy integer sign.
       PSIGNB, PSIGNW, PSIGND,
 
-      /// PBLENDVB - Variable blend
-      PBLENDVB,
+      /// BLEND family of opcodes
+      BLENDV,
+
+      /// FHADD - Floating point horizontal add.
+      FHADD,
+
+      /// FHSUB - Floating point horizontal sub.
+      FHSUB,
 
       /// FMAX, FMIN - Floating point max and min.
       ///
@@ -222,6 +228,8 @@ namespace llvm {
       ADD, SUB, ADC, SBB, SMUL,
       INC, DEC, OR, XOR, AND,
 
+      ANDN, // ANDN - Bitwise AND NOT with FLAGS results.
+
       UMUL, // LOW, HI, FLAGS = umul LHS, RHS
 
       // MUL_IMM - X86 specific multiply by immediate.
@@ -257,12 +265,12 @@ namespace llvm {
       MOVSS,
       UNPCKLPS,
       UNPCKLPD,
-      VUNPCKLPS,
-      VUNPCKLPD,
       VUNPCKLPSY,
       VUNPCKLPDY,
       UNPCKHPS,
       UNPCKHPD,
+      VUNPCKHPSY,
+      VUNPCKHPDY,
       PUNPCKLBW,
       PUNPCKLWD,
       PUNPCKLDQ,
@@ -271,6 +279,12 @@ namespace llvm {
       PUNPCKHWD,
       PUNPCKHDQ,
       PUNPCKHQDQ,
+      VPERMILPS,
+      VPERMILPSY,
+      VPERMILPD,
+      VPERMILPDY,
+      VPERM2F128,
+      VBROADCAST,
 
       // VASTART_SAVE_XMM_REGS - Save xmm argument registers to the stack,
       // according to %al. An operator is needed so that this can be expanded
@@ -279,6 +293,11 @@ namespace llvm {
 
       // WIN_ALLOCA - Windows's _chkstk call to do stack probing.
       WIN_ALLOCA,
+
+      // SEG_ALLOCA - For allocating variable amounts of stack space when using
+      // segmented stacks. Check if the current stacklet has enough space, and
+      // falls back to heap allocation if not.
+      SEG_ALLOCA,
 
       // Memory barrier
       MEMBARRIER,
@@ -297,9 +316,10 @@ namespace llvm {
       ATOMNAND64_DAG,
       ATOMSWAP64_DAG,
 
-      // LCMPXCHG_DAG, LCMPXCHG8_DAG - Compare and swap.
+      // LCMPXCHG_DAG, LCMPXCHG8_DAG, LCMPXCHG16_DAG - Compare and swap.
       LCMPXCHG_DAG,
       LCMPXCHG8_DAG,
+      LCMPXCHG16_DAG,
 
       // VZEXT_LOAD - Load, scalar_to_vector, and zero extend.
       VZEXT_LOAD,
@@ -407,19 +427,15 @@ namespace llvm {
 
     /// isMOVSHDUPMask - Return true if the specified VECTOR_SHUFFLE operand
     /// specifies a shuffle of elements that is suitable for input to MOVSHDUP.
-    bool isMOVSHDUPMask(ShuffleVectorSDNode *N);
+    bool isMOVSHDUPMask(ShuffleVectorSDNode *N, const X86Subtarget *Subtarget);
 
     /// isMOVSLDUPMask - Return true if the specified VECTOR_SHUFFLE operand
     /// specifies a shuffle of elements that is suitable for input to MOVSLDUP.
-    bool isMOVSLDUPMask(ShuffleVectorSDNode *N);
+    bool isMOVSLDUPMask(ShuffleVectorSDNode *N, const X86Subtarget *Subtarget);
 
     /// isMOVDDUPMask - Return true if the specified VECTOR_SHUFFLE operand
     /// specifies a shuffle of elements that is suitable for input to MOVDDUP.
     bool isMOVDDUPMask(ShuffleVectorSDNode *N);
-
-    /// isPALIGNRMask - Return true if the specified VECTOR_SHUFFLE operand
-    /// specifies a shuffle of elements that is suitable for input to PALIGNR.
-    bool isPALIGNRMask(ShuffleVectorSDNode *N);
 
     /// isVEXTRACTF128Index - Return true if the specified
     /// EXTRACT_SUBVECTOR operand specifies a vector extract that is
@@ -505,7 +521,7 @@ namespace llvm {
     /// function arguments in the caller parameter area. For X86, aggregates
     /// that contains are placed at 16-byte boundaries while the rest are at
     /// 4-byte boundaries.
-    virtual unsigned getByValTypeAlignment(const Type *Ty) const;
+    virtual unsigned getByValTypeAlignment(Type *Ty) const;
 
     /// getOptimalMemOpType - Returns the target specific optimal type for load
     /// and store operations as a result of memset, memcpy, and memmove
@@ -564,8 +580,8 @@ namespace llvm {
     /// DAG node.
     virtual const char *getTargetNodeName(unsigned Opcode) const;
 
-    /// getSetCCResultType - Return the ISD::SETCC ValueType
-    virtual MVT::SimpleValueType getSetCCResultType(EVT VT) const;
+    /// getSetCCResultType - Return the value type to use for ISD::SETCC.
+    virtual EVT getSetCCResultType(EVT VT) const;
 
     /// computeMaskedBitsForTargetNode - Determine which of the bits specified
     /// in Mask are known to be either zero or one and return them in the
@@ -617,12 +633,12 @@ namespace llvm {
 
     /// isLegalAddressingMode - Return true if the addressing mode represented
     /// by AM is legal for this target, for a load/store of the specified type.
-    virtual bool isLegalAddressingMode(const AddrMode &AM, const Type *Ty)const;
+    virtual bool isLegalAddressingMode(const AddrMode &AM, Type *Ty)const;
 
     /// isTruncateFree - Return true if it's free to truncate a value of
     /// type Ty1 to type Ty2. e.g. On x86 it's free to truncate a i32 value in
     /// register EAX to i16 by referencing its sub-register AX.
-    virtual bool isTruncateFree(const Type *Ty1, const Type *Ty2) const;
+    virtual bool isTruncateFree(Type *Ty1, Type *Ty2) const;
     virtual bool isTruncateFree(EVT VT1, EVT VT2) const;
 
     /// isZExtFree - Return true if any actual instruction that defines a
@@ -633,7 +649,7 @@ namespace llvm {
     /// does not necessarily apply to truncate instructions. e.g. on x86-64,
     /// all instructions that define 32-bit values implicit zero-extend the
     /// result out to 64 bits.
-    virtual bool isZExtFree(const Type *Ty1, const Type *Ty2) const;
+    virtual bool isZExtFree(Type *Ty1, Type *Ty2) const;
     virtual bool isZExtFree(EVT VT1, EVT VT2) const;
 
     /// isNarrowingProfitable - Return true if it's profitable to narrow
@@ -813,11 +829,14 @@ namespace llvm {
     SDValue LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerFRAME_TO_ARGS_OFFSET(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerEH_RETURN(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerTRAMPOLINE(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerINIT_TRAMPOLINE(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerADJUST_TRAMPOLINE(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerFLT_ROUNDS_(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerCTLZ(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerCTTZ(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerMUL_V2I64(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerADD(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerSUB(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerMUL(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerShift(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerXALUO(SDValue Op, SelectionDAG &DAG) const;
 
@@ -825,6 +844,7 @@ namespace llvm {
     SDValue LowerLOAD_SUB(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerREADCYCLECOUNTER(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerMEMBARRIER(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerATOMIC_FENCE(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerSIGN_EXTEND_INREG(SDValue Op, SelectionDAG &DAG) const;
 
     // Utility functions to help LowerVECTOR_SHUFFLE
@@ -930,6 +950,10 @@ namespace llvm {
 
     MachineBasicBlock *EmitLoweredWinAlloca(MachineInstr *MI,
                                               MachineBasicBlock *BB) const;
+
+    MachineBasicBlock *EmitLoweredSegAlloca(MachineInstr *MI,
+                                            MachineBasicBlock *BB,
+                                            bool Is64Bit) const;
 
     MachineBasicBlock *EmitLoweredTLSCall(MachineInstr *MI,
                                           MachineBasicBlock *BB) const;

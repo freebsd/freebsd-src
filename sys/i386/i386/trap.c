@@ -136,7 +136,7 @@ void dblfault_handler(void);
 
 extern inthand_t IDTVEC(lcall_syscall);
 
-#define MAX_TRAP_MSG		30
+#define MAX_TRAP_MSG		33
 static char *trap_msg[] = {
 	"",					/*  0 unused */
 	"privileged instruction fault",		/*  1 T_PRIVINFLT */
@@ -169,6 +169,10 @@ static char *trap_msg[] = {
 	"machine check trap",			/* 28 T_MCHK */
 	"SIMD floating-point exception",	/* 29 T_XMMFLT */
 	"reserved (unknown) fault",		/* 30 T_RESERVED */
+	"",					/* 31 unused (reserved) */
+	"DTrace pid return trap",               /* 32 T_DTRACE_RET */
+	"DTrace fasttrap probe trap",           /* 33 T_DTRACE_PROBE */
+
 };
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
@@ -265,10 +269,6 @@ trap(struct trapframe *frame)
 	 * handled the trap and modified the trap frame so that this
 	 * function can return normally.
 	 */
-	if ((type == T_PROTFLT || type == T_PAGEFLT) &&
-	    dtrace_trap_func != NULL)
-		if ((*dtrace_trap_func)(frame, type))
-			goto out;
 	if (type == T_DTRACE_PROBE || type == T_DTRACE_RET ||
 	    type == T_BPTFLT) {
 		struct reg regs;
@@ -287,6 +287,9 @@ trap(struct trapframe *frame)
 		    dtrace_return_probe_ptr(&regs) == 0)
 			goto out;
 	}
+	if ((type == T_PROTFLT || type == T_PAGEFLT) &&
+	    dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type))
+		goto out;
 #endif
 
 	if ((frame->tf_eflags & PSL_I) == 0) {
@@ -1062,9 +1065,8 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 #include "../../kern/subr_syscall.c"
 
 /*
- *	syscall -	system call request C handler
- *
- *	A system call is essentially treated as a trap.
+ * syscall - system call request C handler.  A system call is
+ * essentially treated as a trap by reusing the frame layout.
  */
 void
 syscall(struct trapframe *frame)

@@ -17,7 +17,9 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	ELFCodeEmitter.cpp \
 	ELFWriter.cpp \
 	EdgeBundles.cpp \
+	ExecutionDepsFix.cpp \
 	ExpandISelPseudos.cpp \
+	ExpandPostRAPseudos.cpp \
 	GCMetadata.cpp \
 	GCMetadataPrinter.cpp \
 	GCStrategy.cpp \
@@ -27,16 +29,18 @@ SRCS=	AggressiveAntiDepBreaker.cpp \
 	IntrinsicLowering.cpp \
 	LLVMTargetMachine.cpp \
 	LatencyPriorityQueue.cpp \
+	LexicalScopes.cpp \
 	LiveDebugVariables.cpp \
 	LiveInterval.cpp \
 	LiveIntervalAnalysis.cpp \
 	LiveIntervalUnion.cpp \
 	LiveStackAnalysis.cpp \
 	LiveVariables.cpp \
+	LiveRangeCalc.cpp \
 	LiveRangeEdit.cpp \
 	LocalStackSlotAllocation.cpp \
-	LowerSubregs.cpp \
 	MachineBasicBlock.cpp \
+	MachineBranchProbabilityInfo.cpp \
 	MachineCSE.cpp \
 	MachineDominators.cpp \
 	MachineFunction.cpp \

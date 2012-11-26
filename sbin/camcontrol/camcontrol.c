@@ -86,7 +86,8 @@ typedef enum {
 	CAM_CMD_SMP_RG		= 0x00000018,
 	CAM_CMD_SMP_PC		= 0x00000019,
 	CAM_CMD_SMP_PHYLIST	= 0x0000001a,
-	CAM_CMD_SMP_MANINFO	= 0x0000001b
+	CAM_CMD_SMP_MANINFO	= 0x0000001b,
+	CAM_CMD_DOWNLOAD_FW	= 0x0000001c
 } cam_cmdmask;
 
 typedef enum {
@@ -140,7 +141,7 @@ static const char smppc_opts[] = "a:A:d:lm:M:o:p:s:S:T:";
 static const char smpphylist_opts[] = "lq";
 #endif
 
-struct camcontrol_opts option_table[] = {
+static struct camcontrol_opts option_table[] = {
 #ifndef MINIMALISTIC
 	{"tur", CAM_CMD_TUR, CAM_ARG_NONE, NULL},
 	{"inquiry", CAM_CMD_INQUIRY, CAM_ARG_NONE, "DSR"},
@@ -180,6 +181,7 @@ struct camcontrol_opts option_table[] = {
 	{"idle", CAM_CMD_IDLE, CAM_ARG_NONE, "t:"},
 	{"standby", CAM_CMD_STANDBY, CAM_ARG_NONE, "t:"},
 	{"sleep", CAM_CMD_SLEEP, CAM_ARG_NONE, ""},
+	{"fwdownload", CAM_CMD_DOWNLOAD_FW, CAM_ARG_NONE, "f:ys"},
 #endif /* MINIMALISTIC */
 	{"help", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
 	{"-?", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
@@ -207,8 +209,8 @@ struct cam_devlist {
 	path_id_t path_id;
 };
 
-cam_cmdmask cmdlist;
-cam_argmask arglist;
+static cam_cmdmask cmdlist;
+static cam_argmask arglist;
 
 camcontrol_optret getoption(struct camcontrol_opts *table, char *arg,
 			    uint32_t *cmdnum, cam_argmask *argnum,
@@ -222,8 +224,6 @@ static int testunitready(struct cam_device *device, int retry_count,
 			 int timeout, int quiet);
 static int scsistart(struct cam_device *device, int startstop, int loadeject,
 		     int retry_count, int timeout);
-static int scsidoinquiry(struct cam_device *device, int argc, char **argv,
-			 char *combinedopt, int retry_count, int timeout);
 static int scsiinquiry(struct cam_device *device, int retry_count, int timeout);
 static int scsiserial(struct cam_device *device, int retry_count, int timeout);
 static int camxferrate(struct cam_device *device);
@@ -683,7 +683,7 @@ scsistart(struct cam_device *device, int startstop, int loadeject,
 	return(error);
 }
 
-static int
+int
 scsidoinquiry(struct cam_device *device, int argc, char **argv,
 	      char *combinedopt, int retry_count, int timeout)
 {
@@ -2506,7 +2506,7 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char *warnstr = "error sending command";
+		const char warnstr[] = "error sending command";
 
 		if (retval < 0)
 			warn(warnstr);
@@ -3412,7 +3412,6 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 		}
 		if (spi && syncrate != -1) {
 			int prelim_sync_period;
-			u_int freq;
 
 			if ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0) {
 				warnx("HBA is not capable of changing "
@@ -3437,7 +3436,6 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 				prelim_sync_period = 10000000 / syncrate;
 			spi->sync_period =
 				scsi_calc_syncparam(prelim_sync_period);
-			freq = scsi_calc_syncsrate(spi->sync_period);
 			didsettings++;
 		}
 		if (sata && syncrate != -1) {
@@ -3571,7 +3569,7 @@ scsiformat(struct cam_device *device, int argc, char **argv,
 	union ccb *ccb;
 	int c;
 	int ycount = 0, quiet = 0;
-	int error = 0, response = 0, retval = 0;
+	int error = 0, retval = 0;
 	int use_timeout = 10800 * 1000;
 	int immediate = 1;
 	struct format_defect_list_header fh;
@@ -3625,27 +3623,7 @@ scsiformat(struct cam_device *device, int argc, char **argv,
 	}
 
 	if (ycount == 0) {
-
-		do {
-			char str[1024];
-
-			fprintf(stdout, "Are you SURE you want to do "
-				"this? (yes/no) ");
-
-			if (fgets(str, sizeof(str), stdin) != NULL) {
-
-				if (strncasecmp(str, "yes", 3) == 0)
-					response = 1;
-				else if (strncasecmp(str, "no", 2) == 0)
-					response = -1;
-				else {
-					fprintf(stdout, "Please answer"
-						" \"yes\" or \"no\"\n");
-				}
-			}
-		} while (response == 0);
-
-		if (response == -1) {
+		if (!get_confirmation()) {
 			error = 1;
 			goto scsiformat_bailout;
 		}
@@ -4050,13 +4028,12 @@ retry:
 					RPL_LUNDATA_LUN_LUN_MASK);
 				break;
 			case RPL_LUNDATA_ATYP_EXTLUN: {
-				int field_len, field_len_code, eam_code;
+				int field_len_code, eam_code;
 
 				eam_code = lundata->luns[i].lundata[j] &
 					RPL_LUNDATA_EXT_EAM_MASK;
 				field_len_code = (lundata->luns[i].lundata[j] &
 					RPL_LUNDATA_EXT_LEN_MASK) >> 4;
-				field_len = field_len_code * 2;
 
 				if ((eam_code == RPL_LUNDATA_EXT_EAM_WK)
 				 && (field_len_code == 0x00)) {
@@ -4469,7 +4446,7 @@ smpcmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char *warnstr = "error sending command";
+		const char warnstr[] = "error sending command";
 
 		if (retval < 0)
 			warn(warnstr);
@@ -4587,7 +4564,7 @@ try_long:
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char *warnstr = "error sending command";
+		const char warnstr[] = "error sending command";
 
 		if (retval < 0)
 			warn(warnstr);
@@ -4646,7 +4623,7 @@ bailout:
 	return (error);
 }
 
-struct camcontrol_opts phy_ops[] = {
+static struct camcontrol_opts phy_ops[] = {
 	{"nop", SMP_PC_PHY_OP_NOP, CAM_ARG_NONE, NULL},
 	{"linkreset", SMP_PC_PHY_OP_LINK_RESET, CAM_ARG_NONE, NULL},
 	{"hardreset", SMP_PC_PHY_OP_HARD_RESET, CAM_ARG_NONE, NULL},
@@ -4892,7 +4869,7 @@ smpphycontrol(struct cam_device *device, int argc, char **argv,
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char *warnstr = "error sending command";
+		const char warnstr[] = "error sending command";
 
 		if (retval < 0)
 			warn(warnstr);
@@ -4974,7 +4951,7 @@ smpmaninfo(struct cam_device *device, int argc, char **argv,
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char *warnstr = "error sending command";
+		const char warnstr[] = "error sending command";
 
 		if (retval < 0)
 			warn(warnstr);
@@ -5371,7 +5348,7 @@ smpphylist(struct cam_device *device, int argc, char **argv,
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char *warnstr = "error sending command";
+		const char warnstr[] = "error sending command";
 
 		if (retval < 0)
 			warn(warnstr);
@@ -5451,7 +5428,7 @@ smpphylist(struct cam_device *device, int argc, char **argv,
 		if (((retval = cam_send_ccb(device, ccb)) < 0)
 		 || (((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
 		  && (disresponse->function_result != SMP_FR_PHY_VACANT))) {
-			const char *warnstr = "error sending command";
+			const char warnstr[] = "error sending command";
 
 			if (retval < 0)
 				warn(warnstr);
@@ -5693,6 +5670,7 @@ usage(int verbose)
 "        camcontrol idle       [dev_id][generic args][-t time]\n"
 "        camcontrol standby    [dev_id][generic args][-t time]\n"
 "        camcontrol sleep      [dev_id][generic args]\n"
+"        camcontrol fwdownload [dev_id][generic args] <-f fw_image> [-y][-s]\n"
 #endif /* MINIMALISTIC */
 "        camcontrol help\n");
 	if (!verbose)
@@ -5728,6 +5706,7 @@ usage(int verbose)
 "idle        send the ATA IDLE command to the named device\n"
 "standby     send the ATA STANDBY command to the named device\n"
 "sleep       send the ATA SLEEP command to the named device\n"
+"fwdownload  program firmware of the named device with the given image"
 "help        this message\n"
 "Device Identifiers:\n"
 "bus:target        specify the bus and target, lun defaults to 0\n"
@@ -5750,7 +5729,7 @@ usage(int verbose)
 "defects arguments:\n"
 "-f format         specify defect list format (block, bfi or phys)\n"
 "-G                get the grown defect list\n"
-"-P                get the permanant defect list\n"
+"-P                get the permanent defect list\n"
 "inquiry arguments:\n"
 "-D                get the standard inquiry data\n"
 "-S                get the serial number\n"
@@ -5819,7 +5798,12 @@ usage(int verbose)
 "-w                don't send immediate format command\n"
 "-y                don't ask any questions\n"
 "idle/standby arguments:\n"
-"-t <arg>          number of seconds before respective state.\n");
+"-t <arg>          number of seconds before respective state.\n"
+"fwdownload arguments:\n"
+"-f fw_image       path to firmware image file\n"
+"-y                don't ask any questions\n"
+"-s                run in simulation mode\n"
+"-v                print info for every firmware segment sent to device\n");
 #endif /* MINIMALISTIC */
 }
 
@@ -6134,6 +6118,10 @@ main(int argc, char **argv)
 			error = atapm(cam_dev, argc, argv,
 						 combinedopt, retry_count,
 						 timeout);
+			break;
+		case CAM_CMD_DOWNLOAD_FW:
+			error = fwdownload(cam_dev, argc, argv, combinedopt,
+			    arglist & CAM_ARG_VERBOSE, retry_count, timeout);
 			break;
 #endif /* MINIMALISTIC */
 		case CAM_CMD_USAGE:

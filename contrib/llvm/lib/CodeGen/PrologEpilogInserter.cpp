@@ -29,6 +29,7 @@
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetInstrInfo.h"
@@ -54,6 +55,8 @@ INITIALIZE_PASS_END(PEI, "prologepilog",
 
 STATISTIC(NumVirtualFrameRegs, "Number of virtual frame regs encountered");
 STATISTIC(NumScavengedRegs, "Number of frame index regs scavenged");
+STATISTIC(NumBytesStackSpace,
+          "Number of bytes used for stack in all functions");
 
 /// createPrologEpilogCodeInserter - This function returns a pass that inserts
 /// prolog and epilog code, and eliminates abstract frame references.
@@ -677,7 +680,9 @@ void PEI::calculateFrameObjectOffsets(MachineFunction &Fn) {
   }
 
   // Update frame info to pretend that this is part of the stack...
-  MFI->setStackSize(Offset - LocalAreaOffset);
+  int64_t StackSize = Offset - LocalAreaOffset;
+  MFI->setStackSize(StackSize);
+  NumBytesStackSpace += StackSize;
 }
 
 /// insertPrologEpilogCode - Scan the function for modified callee saved
@@ -696,6 +701,13 @@ void PEI::insertPrologEpilogCode(MachineFunction &Fn) {
     if (!I->empty() && I->back().getDesc().isReturn())
       TFI.emitEpilogue(Fn, *I);
   }
+
+  // Emit additional code that is required to support segmented stacks, if
+  // we've been asked for it.  This, when linked with a runtime with support
+  // for segmented stacks (libgcc is one), will result in allocating stack
+  // space in small chunks instead of one large contiguous block.
+  if (EnableSegmentedStacks)
+    TFI.adjustForSegmentedStacks(Fn);
 }
 
 /// replaceFrameIndices - Replace all MO_FrameIndex operands with physical

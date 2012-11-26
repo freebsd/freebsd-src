@@ -19,6 +19,7 @@
 #include "clang/AST/Expr.h"
 #include "clang/Analysis/CFG.h"
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/PointerUnion.h"
 #include "llvm/ADT/DenseMap.h"
@@ -31,14 +32,35 @@ class Stmt;
 class CFGReverseBlockReachabilityAnalysis;
 class CFGStmtMap;
 class LiveVariables;
+class ManagedAnalysis;
 class ParentMap;
 class PseudoConstantAnalysis;
 class ImplicitParamDecl;
 class LocationContextManager;
 class StackFrameContext;
-
+  
 namespace idx { class TranslationUnit; }
 
+/// The base class of a hierarchy of objects representing analyses tied
+/// to AnalysisContext.
+class ManagedAnalysis {
+protected:
+  ManagedAnalysis() {}
+public:
+  virtual ~ManagedAnalysis();
+  
+  // Subclasses need to implement:
+  //
+  //  static const void *getTag();
+  //
+  // Which returns a fixed pointer address to distinguish classes of
+  // analysis objects.  They also need to implement:
+  //
+  //  static [Derived*] create(AnalysisContext &Ctx);
+  //
+  // which creates the analysis object given an AnalysisContext.
+};
+  
 /// AnalysisContext contains the context data for the function or method under
 /// analysis.
 class AnalysisContext {
@@ -54,7 +76,6 @@ class AnalysisContext {
   CFG::BuildOptions::ForcedBlkExprs *forcedBlkExprs;
   
   bool builtCFG, builtCompleteCFG;
-  const bool useUnoptimizedCFG;
 
   llvm::OwningPtr<LiveVariables> liveness;
   llvm::OwningPtr<LiveVariables> relaxedLiveness;
@@ -67,12 +88,13 @@ class AnalysisContext {
   // FIXME: remove.
   llvm::DenseMap<const BlockDecl*,void*> *ReferencedBlockVars;
 
+  void *ManagedAnalyses;
+
 public:
+  AnalysisContext(const Decl *d, idx::TranslationUnit *tu);
+
   AnalysisContext(const Decl *d, idx::TranslationUnit *tu,
-                  bool useUnoptimizedCFG = false,
-                  bool addehedges = false,
-                  bool addImplicitDtors = false,
-                  bool addInitializers = false);
+                  const CFG::BuildOptions &buildOptions);
 
   ~AnalysisContext();
 
@@ -81,13 +103,22 @@ public:
 
   idx::TranslationUnit *getTranslationUnit() const { return TU; }
 
+  /// Return the build options used to construct the CFG.
+  CFG::BuildOptions &getCFGBuildOptions() {
+    return cfgBuildOptions;
+  }
+
+  const CFG::BuildOptions &getCFGBuildOptions() const {
+    return cfgBuildOptions;
+  }
+  
   /// getAddEHEdges - Return true iff we are adding exceptional edges from
   /// callExprs.  If this is false, then try/catch statements and blocks
   /// reachable from them can appear to be dead in the CFG, analysis passes must
   /// cope with that.
   bool getAddEHEdges() const { return cfgBuildOptions.AddEHEdges; }  
   bool getUseUnoptimizedCFG() const {
-      return cfgBuildOptions.PruneTriviallyFalseEdges;
+      return !cfgBuildOptions.PruneTriviallyFalseEdges;
   }
   bool getAddImplicitDtors() const { return cfgBuildOptions.AddImplicitDtors; }
   bool getAddInitializers() const { return cfgBuildOptions.AddInitializers; }
@@ -95,7 +126,7 @@ public:
   void registerForcedBlockExpression(const Stmt *stmt);
   const CFGBlock *getBlockForRegisteredExpression(const Stmt *stmt);
   
-  Stmt *getBody();
+  Stmt *getBody() const;
   CFG *getCFG();
   
   CFGStmtMap *getCFGStmtMap();
@@ -114,8 +145,6 @@ public:
 
   ParentMap &getParentMap();
   PseudoConstantAnalysis *getPseudoConstantAnalysis();
-  LiveVariables *getLiveVariables();
-  LiveVariables *getRelaxedLiveVariables();
 
   typedef const VarDecl * const * referenced_decls_iterator;
 
@@ -125,29 +154,44 @@ public:
   /// Return the ImplicitParamDecl* associated with 'self' if this
   /// AnalysisContext wraps an ObjCMethodDecl.  Returns NULL otherwise.
   const ImplicitParamDecl *getSelfDecl() const;
+  
+  /// Return the specified analysis object, lazily running the analysis if
+  /// necessary.  Return NULL if the analysis could not run.
+  template <typename T>
+  T *getAnalysis() {
+    const void *tag = T::getTag();
+    ManagedAnalysis *&data = getAnalysisImpl(tag);
+    if (!data) {
+      data = T::create(*this);
+    }
+    return static_cast<T*>(data);
+  }
+private:
+  ManagedAnalysis *&getAnalysisImpl(const void* tag);
 };
 
 class AnalysisContextManager {
   typedef llvm::DenseMap<const Decl*, AnalysisContext*> ContextMap;
   ContextMap Contexts;
-  bool UseUnoptimizedCFG;
-  bool AddImplicitDtors;
-  bool AddInitializers;
+  CFG::BuildOptions cfgBuildOptions;
 public:
   AnalysisContextManager(bool useUnoptimizedCFG = false,
-      bool addImplicitDtors = false, bool addInitializers = false)
-    : UseUnoptimizedCFG(useUnoptimizedCFG), AddImplicitDtors(addImplicitDtors),
-      AddInitializers(addInitializers) {}
+                         bool addImplicitDtors = false,
+                         bool addInitializers = false);
   
   ~AnalysisContextManager();
 
   AnalysisContext *getContext(const Decl *D, idx::TranslationUnit *TU = 0);
 
-  bool getUseUnoptimizedCFG() const { return UseUnoptimizedCFG; }
-  bool getAddImplicitDtors() const { return AddImplicitDtors; }
-  bool getAddInitializers() const { return AddInitializers; }
+  bool getUseUnoptimizedCFG() const {
+    return !cfgBuildOptions.PruneTriviallyFalseEdges;
+  }
+  
+  CFG::BuildOptions &getCFGBuildOptions() {
+    return cfgBuildOptions;
+  }
 
-  // Discard all previously created AnalysisContexts.
+  /// Discard all previously created AnalysisContexts.
   void clear();
 };
 
@@ -187,8 +231,9 @@ public:
 
   CFG *getCFG() const { return getAnalysisContext()->getCFG(); }
 
-  LiveVariables *getLiveVariables() const {
-    return getAnalysisContext()->getLiveVariables();
+  template <typename T>
+  T *getAnalysis() const {
+    return getAnalysisContext()->getAnalysis<T>();
   }
 
   ParentMap &getParentMap() const {
@@ -212,7 +257,7 @@ public:
                             ContextKind ck,
                             AnalysisContext *ctx,
                             const LocationContext *parent,
-                            const void* data);
+                            const void *data);
 };
 
 class StackFrameContext : public LocationContext {
@@ -251,7 +296,7 @@ public:
     ID.AddInteger(idx);
   }
 
-  static bool classof(const LocationContext* Ctx) {
+  static bool classof(const LocationContext *Ctx) {
     return Ctx->getKind() == StackFrame;
   }
 };
@@ -274,7 +319,7 @@ public:
     ProfileCommon(ID, Scope, ctx, parent, s);
   }
 
-  static bool classof(const LocationContext* Ctx) {
+  static bool classof(const LocationContext *Ctx) {
     return Ctx->getKind() == Scope;
   }
 };
@@ -302,7 +347,7 @@ public:
     ProfileCommon(ID, Block, ctx, parent, bd);
   }
 
-  static bool classof(const LocationContext* Ctx) {
+  static bool classof(const LocationContext *Ctx) {
     return Ctx->getKind() == Block;
   }
 };

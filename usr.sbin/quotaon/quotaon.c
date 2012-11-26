@@ -75,13 +75,11 @@ int
 main(int argc, char **argv)
 {
 	struct fstab *fs;
-	char *whoami;
+	const char *whoami;
 	long argnum, done = 0;
 	int ch, i, offmode = 0, errs = 0;
 
-	whoami = rindex(*argv, '/') + 1;
-	if (whoami == (char *)1)
-		whoami = *argv;
+	whoami = getprogname();
 	if (strcmp(whoami, "quotaoff") == 0)
 		offmode++;
 	else if (strcmp(whoami, "quotaon") != 0)

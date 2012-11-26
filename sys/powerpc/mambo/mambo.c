@@ -56,9 +56,7 @@ static device_method_t  mambobus_methods[] = {
 	DEVMETHOD(device_attach,	mambobus_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 	DEVMETHOD(bus_add_child,	bus_generic_add_child),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	bus_generic_read_ivar),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
@@ -66,7 +64,7 @@ static device_method_t  mambobus_methods[] = {
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource,bus_generic_activate_resource),
 
-	{0,0}
+	DEVMETHOD_END
 };
 
 static driver_t mambobus_driver = {

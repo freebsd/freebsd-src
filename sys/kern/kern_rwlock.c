@@ -58,7 +58,8 @@ __FBSDID("$FreeBSD$");
 #ifdef ADAPTIVE_RWLOCKS
 static int rowner_retries = 10;
 static int rowner_loops = 10000;
-SYSCTL_NODE(_debug, OID_AUTO, rwlock, CTLFLAG_RD, NULL, "rwlock debugging");
+static SYSCTL_NODE(_debug, OID_AUTO, rwlock, CTLFLAG_RD, NULL,
+    "rwlock debugging");
 SYSCTL_INT(_debug_rwlock, OID_AUTO, retry, CTLFLAG_RW, &rowner_retries, 0, "");
 SYSCTL_INT(_debug_rwlock, OID_AUTO, loops, CTLFLAG_RW, &rowner_loops, 0, "");
 #endif
@@ -66,12 +67,12 @@ SYSCTL_INT(_debug_rwlock, OID_AUTO, loops, CTLFLAG_RW, &rowner_loops, 0, "");
 #ifdef DDB
 #include <ddb/ddb.h>
 
-static void	db_show_rwlock(struct lock_object *lock);
+static void	db_show_rwlock(const struct lock_object *lock);
 #endif
-static void	assert_rw(struct lock_object *lock, int what);
+static void	assert_rw(const struct lock_object *lock, int what);
 static void	lock_rw(struct lock_object *lock, int how);
 #ifdef KDTRACE_HOOKS
-static int	owner_rw(struct lock_object *lock, struct thread **owner);
+static int	owner_rw(const struct lock_object *lock, struct thread **owner);
 #endif
 static int	unlock_rw(struct lock_object *lock);
 
@@ -120,10 +121,10 @@ struct lock_class lock_class_rw = {
 #endif
 
 void
-assert_rw(struct lock_object *lock, int what)
+assert_rw(const struct lock_object *lock, int what)
 {
 
-	rw_assert((struct rwlock *)lock, what);
+	rw_assert((const struct rwlock *)lock, what);
 }
 
 void
@@ -156,9 +157,9 @@ unlock_rw(struct lock_object *lock)
 
 #ifdef KDTRACE_HOOKS
 int
-owner_rw(struct lock_object *lock, struct thread **owner)
+owner_rw(const struct lock_object *lock, struct thread **owner)
 {
-	struct rwlock *rw = (struct rwlock *)lock;
+	const struct rwlock *rw = (const struct rwlock *)lock;
 	uintptr_t x = rw->rw_lock;
 
 	*owner = rw_wowner(rw);
@@ -222,7 +223,7 @@ rw_sysinit_flags(void *arg)
 }
 
 int
-rw_wowned(struct rwlock *rw)
+rw_wowned(const struct rwlock *rw)
 {
 
 	return (rw_wowner(rw) == curthread);
@@ -232,6 +233,8 @@ void
 _rw_wlock(struct rwlock *rw, const char *file, int line)
 {
 
+	if (SCHEDULER_STOPPED())
+		return;
 	MPASS(curthread != NULL);
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_wlock() of destroyed rwlock @ %s:%d", file, line));
@@ -247,6 +250,9 @@ int
 _rw_try_wlock(struct rwlock *rw, const char *file, int line)
 {
 	int rval;
+
+	if (SCHEDULER_STOPPED())
+		return (1);
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_try_wlock() of destroyed rwlock @ %s:%d", file, line));
@@ -272,6 +278,8 @@ void
 _rw_wunlock(struct rwlock *rw, const char *file, int line)
 {
 
+	if (SCHEDULER_STOPPED())
+		return;
 	MPASS(curthread != NULL);
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_wunlock() of destroyed rwlock @ %s:%d", file, line));
@@ -315,6 +323,9 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 	uint64_t sleep_cnt = 0;
 	int64_t sleep_time = 0;
 #endif
+
+	if (SCHEDULER_STOPPED())
+		return;
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_rlock() of destroyed rwlock @ %s:%d", file, line));
@@ -498,6 +509,9 @@ _rw_try_rlock(struct rwlock *rw, const char *file, int line)
 {
 	uintptr_t x;
 
+	if (SCHEDULER_STOPPED())
+		return (1);
+
 	for (;;) {
 		x = rw->rw_lock;
 		KASSERT(rw->rw_lock != RW_DESTROYED,
@@ -523,6 +537,9 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 {
 	struct turnstile *ts;
 	uintptr_t x, v, queue;
+
+	if (SCHEDULER_STOPPED())
+		return;
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_runlock() of destroyed rwlock @ %s:%d", file, line));
@@ -648,6 +665,9 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 	uint64_t sleep_cnt = 0;
 	int64_t sleep_time = 0;
 #endif
+
+	if (SCHEDULER_STOPPED())
+		return;
 
 	if (rw_wlocked(rw)) {
 		KASSERT(rw->lock_object.lo_flags & LO_RECURSABLE,
@@ -813,6 +833,9 @@ _rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 	uintptr_t v;
 	int queue;
 
+	if (SCHEDULER_STOPPED())
+		return;
+
 	if (rw_wlocked(rw) && rw_recursed(rw)) {
 		rw->rw_recurse--;
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
@@ -874,6 +897,9 @@ _rw_try_upgrade(struct rwlock *rw, const char *file, int line)
 	uintptr_t v, x, tid;
 	struct turnstile *ts;
 	int success;
+
+	if (SCHEDULER_STOPPED())
+		return (1);
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_try_upgrade() of destroyed rwlock @ %s:%d", file, line));
@@ -945,6 +971,9 @@ _rw_downgrade(struct rwlock *rw, const char *file, int line)
 	uintptr_t tid, v;
 	int rwait, wwait;
 
+	if (SCHEDULER_STOPPED())
+		return;
+
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_downgrade() of destroyed rwlock @ %s:%d", file, line));
 	_rw_assert(rw, RA_WLOCKED | RA_NOTRECURSED, file, line);
@@ -1010,7 +1039,7 @@ out:
  * thread owns an rlock.
  */
 void
-_rw_assert(struct rwlock *rw, int what, const char *file, int line)
+_rw_assert(const struct rwlock *rw, int what, const char *file, int line)
 {
 
 	if (panicstr != NULL)
@@ -1083,12 +1112,12 @@ _rw_assert(struct rwlock *rw, int what, const char *file, int line)
 
 #ifdef DDB
 void
-db_show_rwlock(struct lock_object *lock)
+db_show_rwlock(const struct lock_object *lock)
 {
-	struct rwlock *rw;
+	const struct rwlock *rw;
 	struct thread *td;
 
-	rw = (struct rwlock *)lock;
+	rw = (const struct rwlock *)lock;
 
 	db_printf(" state: ");
 	if (rw->rw_lock == RW_UNLOCKED)

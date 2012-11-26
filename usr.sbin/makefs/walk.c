@@ -172,7 +172,7 @@ create_fsnode(const char *name, struct stat *stbuf)
 /*
  * free_fsnodes --
  *	Removes node from tree and frees it and all of
- *   its decendents.
+ *   its descendants.
  */
 void
 free_fsnodes(fsnode *node)

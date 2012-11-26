@@ -218,7 +218,7 @@ For_Eval(char *line)
 /*-
  *-----------------------------------------------------------------------
  * For_Run --
- *	Run the for loop, immitating the actions of an include file
+ *	Run the for loop, imitating the actions of an include file
  *
  * Results:
  *	None.

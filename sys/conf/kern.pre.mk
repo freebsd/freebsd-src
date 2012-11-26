@@ -34,7 +34,11 @@ _MINUS_O=	-O2
 .endif
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
+.if ${CC:T:Mclang} != "clang"
 COPTFLAGS?=-O2 -frename-registers -pipe
+.else
+COPTFLAGS?=-O2 -pipe
+.endif
 .else
 COPTFLAGS?=${_MINUS_O} -pipe
 .endif
@@ -67,10 +71,10 @@ INCLUDES+= -I$S/dev/ath -I$S/dev/ath/ath_hal
 # ... and the same for the NgATM stuff
 INCLUDES+= -I$S/contrib/ngatm
 
-# .. and the same for twa
+# ... and the same for twa
 INCLUDES+= -I$S/dev/twa
 
-# ...  and XFS
+# ... and the same for XFS
 INCLUDES+= -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs
 
 # ... and the same for cxgb and cxgbe
@@ -123,8 +127,13 @@ NORMAL_C_NOWERROR= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
 NORMAL_M= ${AWK} -f $S/tools/makeobjops.awk ${.IMPSRC} -c ; \
 	  ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.PREFIX}.c
 
-NORMAL_CTFCONVERT= [ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		   ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.if ${MK_CTF} != "no"
+NORMAL_CTFCONVERT=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.elif ${MAKE_VERSION} >= 5201111300
+NORMAL_CTFCONVERT=
+.else
+NORMAL_CTFCONVERT=	@:
+.endif
 
 NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
 
@@ -142,7 +151,6 @@ SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o ${MDOBJS} ${OBJS}
 SYSTEM_OBJS+= ${SYSTEM_CFILES:.c=.o}
 SYSTEM_OBJS+= hack.So
-SYSTEM_CTFMERGE= [ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SYSTEM_OBJS} vers.o
 SYSTEM_LD= @${LD} -Bdynamic -T ${LDSCRIPT} \
 	-warn-common -export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o

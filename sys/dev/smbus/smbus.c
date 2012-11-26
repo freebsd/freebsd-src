@@ -55,11 +55,10 @@ static device_method_t smbus_methods[] = {
         DEVMETHOD(device_attach,        smbus_attach),
         DEVMETHOD(device_detach,        smbus_detach),
 
-        /* bus interface */
+	/* bus interface */
 	DEVMETHOD(bus_add_child,	bus_generic_add_child),
-        DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
-        { 0, 0 }
+	DEVMETHOD_END
 };
 
 driver_t smbus_driver = {

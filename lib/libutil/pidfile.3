@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2008
+.Dd October 16, 2011
 .Dt PIDFILE 3
 .Os
 .Sh NAME
@@ -46,6 +46,8 @@
 .Fn pidfile_close "struct pidfh *pfh"
 .Ft int
 .Fn pidfile_remove "struct pidfh *pfh"
+.Ft int
+.Fn pidfile_fileno "struct pidfh *pfh"
 .Sh DESCRIPTION
 The
 .Nm pidfile
@@ -59,11 +61,14 @@ The
 function opens (or creates) a file specified by the
 .Fa path
 argument and locks it.
-If a file can not be locked, a PID of an already running daemon is returned in
-the
+If
 .Fa pidptr
-argument (if it is not
-.Dv NULL ) .
+argument is not
+.Dv NULL
+and file can not be locked, the function will use it to store a PID of an
+already running daemon or
+.Li -1
+in case daemon did not write its PID yet.
 The function does not write process' PID into the file here, so it can be
 used before
 .Fn fork Ns ing
@@ -74,6 +79,9 @@ argument is
 .Dv NULL ,
 .Pa /var/run/ Ns Ao Va progname Ac Ns Pa .pid
 file will be used.
+The
+.Fn pidfile_open
+function sets the FD_CLOEXEC close-on-exec flag on the open file descriptor.
 .Pp
 The
 .Fn pidfile_write
@@ -89,6 +97,10 @@ to start a child process.
 The
 .Fn pidfile_remove
 function closes and removes a pidfile.
+.Pp
+The
+.Fn pidfile_fileno
+function returns the file descriptor for the open pidfile.
 .Sh RETURN VALUES
 The
 .Fn pidfile_open
@@ -102,15 +114,27 @@ If an error occurs,
 will be set.
 .Pp
 .Rv -std pidfile_write pidfile_close pidfile_remove
+.Pp
+The
+.Fn pidfile_fileno
+function returns the low-level file descriptor.
+It returns
+.Li -1
+and sets
+.Va errno
+if a NULL
+.Vt pidfh
+is specified, or if the pidfile is no longer open.
 .Sh EXAMPLES
 The following example shows in which order these functions should be used.
 Note that it is safe to pass
 .Dv NULL
 to
 .Fn pidfile_write ,
-.Fn pidfile_remove
-and
+.Fn pidfile_remove ,
 .Fn pidfile_close
+and
+.Fn pidfile_fileno
 functions.
 .Bd -literal
 struct pidfh *pfh;
@@ -162,16 +186,18 @@ function will fail if:
 .It Bq Er EEXIST
 Some process already holds the lock on the given pidfile, meaning that a
 daemon is already running.
+If
+.Fa pidptr
+argument is not
+.Dv NULL
+the function will use it to store a PID of an already running daemon or
+.Li -1
+in case daemon did not write its PID yet.
 .It Bq Er ENAMETOOLONG
 Specified pidfile's name is too long.
 .It Bq Er EINVAL
 Some process already holds the lock on the given pidfile, but PID read
 from there is invalid.
-.It Bq Er EAGAIN
-Some process already holds the lock on the given pidfile, but the file
-is truncated.
-Most likely, the existing daemon is writing new PID into
-the file.
 .El
 .Pp
 The
@@ -179,6 +205,7 @@ The
 function may also fail and set
 .Va errno
 for any errors specified for the
+.Xr fcntl 2 ,
 .Xr fstat 2 ,
 .Xr open 2 ,
 and
@@ -239,6 +266,16 @@ and
 system calls and the
 .Xr flopen 3
 library function.
+.Pp
+The
+.Fn pidfile_fileno
+function will fail if:
+.Bl -tag -width Er
+.It Bq Er EDOOFUS
+Improper function use.
+Probably called not from the process which used
+.Fn pidfile_open .
+.El
 .Sh SEE ALSO
 .Xr open 2 ,
 .Xr daemon 3 ,

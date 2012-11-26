@@ -130,7 +130,9 @@ rest(int centisecs)
  * except possibly at physical block boundaries.
  */
 
+#ifndef  __bool_true_false_are_defined
 typedef int	bool;
+#endif
 #define TRUE	1
 #define FALSE	0
 

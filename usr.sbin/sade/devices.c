@@ -29,7 +29,6 @@
  *
  */
 
-#include "sade.h"
 #include <sys/fcntl.h>
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -39,6 +38,8 @@
 #include <sys/stat.h>
 #include <ctype.h>
 #include <libdisk.h>
+
+#include "sade.h"
 
 /* how much to bias minor number for a given /dev/<ct#><un#>s<s#> slice */
 #define SLICE_DELTA	(0x10000)
@@ -122,7 +123,7 @@ deviceTry(struct _devname dev, char *try, int i)
 
 /* Register a new device in the devices array */
 Device *
-deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,
+deviceRegister(char *name, char *desc, char *devname, DeviceType type,
 	       Boolean (*init)(Device *), FILE * (*get)(Device *, char *, Boolean),
 	       void (*shutdown)(Device *), void *private)
 {
@@ -135,7 +136,6 @@ deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean e
 	newdev->description = desc;
 	newdev->devname = devname;
 	newdev->type = type;
-	newdev->enabled = enabled;
 	newdev->init = init ? init : dummyInit;
 	newdev->get = get ? get : dummyGet;
 	newdev->shutdown = shutdown ? shutdown : dummyShutdown;
@@ -223,7 +223,7 @@ deviceGetAll(void)
 		continue;
 	    }
 
-	    deviceRegister(names[i], names[i], d->name, DEVICE_TYPE_DISK, FALSE,
+	    deviceRegister(names[i], names[i], d->name, DEVICE_TYPE_DISK,
 			   dummyInit, dummyGet, dummyShutdown, d);
 	    if (isDebug())
 		msgDebug("Found a disk device named %s\n", names[i]);
@@ -237,7 +237,7 @@ deviceGetAll(void)
 
 		    /* Got one! */
 		    snprintf(devname, sizeof devname, "/dev/%s", c1->name);
-		    dev = deviceRegister(c1->name, c1->name, strdup(devname), DEVICE_TYPE_DOS, TRUE,
+		    dev = deviceRegister(c1->name, c1->name, strdup(devname), DEVICE_TYPE_DOS,
 			mediaInitDOS, mediaGetDOS, mediaShutdownDOS, NULL);
 		    dev->private = c1;
 		    if (isDebug())
@@ -248,7 +248,7 @@ deviceGetAll(void)
 	}
 	free(names);
     }
-    dialog_clear_norefresh();
+    dlg_clear();
 }
 
 /* Rescan all devices, after closing previous set - convenience function */
@@ -314,7 +314,7 @@ deviceCount(Device **devs)
  * menu is cloned.
  */
 DMenu *
-deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)(dialogMenuItem *d), int (*check)(dialogMenuItem *d))
+deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)(dialogMenuItem *d))
 {
     Device **devs;
     int numdevs;
@@ -338,7 +338,6 @@ deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)(dialogMenuItem *d), i
 	if (j == numDevs)
 	    tmp->items[i].title = "<unknown device type>";
 	tmp->items[i].fire = hook;
-	tmp->items[i].checked = check;
     }
     tmp->items[i].title = NULL;
     return tmp;

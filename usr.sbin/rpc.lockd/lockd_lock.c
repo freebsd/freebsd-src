@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
  * A set of utilities for managing file locking
  *
  * XXX: All locks are in a linked list, a better structure should be used
- * to improve search/access effeciency.
+ * to improve search/access efficiency.
  */
 
 /* struct describing a lock */
@@ -98,7 +98,7 @@ struct blockedlocklist_head blockedlocklist_head = LIST_HEAD_INITIALIZER(blocked
 #define LKST_LOCKED	1 /* lock is locked */
 /* XXX: Is this flag file specific or lock specific? */
 #define LKST_WAITING	2 /* file is already locked by another host */
-#define LKST_PROCESSING	3 /* child is trying to aquire the lock */
+#define LKST_PROCESSING	3 /* child is trying to acquire the lock */
 #define LKST_DYING	4 /* must dies when we get news from the child */
 
 /* struct describing a monitored host */
@@ -1917,7 +1917,7 @@ testlock(struct nlm4_lock *lock, bool_t exclusive, int flags __unused)
 }
 
 /*
- * getlock: try to aquire the lock.
+ * getlock: try to acquire the lock.
  * If file is already locked and we can sleep, put the lock in the list with
  * status LKST_WAITING; it'll be processed later.
  * Otherwise try to lock. If we're allowed to block, fork a child which
@@ -1947,7 +1947,7 @@ getlock(nlm4_lockargs *lckarg, struct svc_req *rqstp, const int flags)
 	}
 
 	if (lckarg->alock.fh.n_len != sizeof(fhandle_t)) {
-		debuglog("recieved fhandle size %d, local size %d",
+		debuglog("received fhandle size %d, local size %d",
 		    lckarg->alock.fh.n_len, (int)sizeof(fhandle_t));
 	}
 

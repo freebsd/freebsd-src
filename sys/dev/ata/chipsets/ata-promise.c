@@ -94,7 +94,6 @@ static void ata_promise_next_hpkt(struct ata_pci_controller *ctlr);
 #define PR_SATA		0x40
 #define PR_SATA2	0x80
 
-
 /*
  * Promise chipset support functions
  */
@@ -249,6 +248,14 @@ ata_promise_chipinit(device_t dev)
 	if (!(ctlr->r_res1 = bus_alloc_resource_any(dev, ctlr->r_type1,
 						    &ctlr->r_rid1, RF_ACTIVE)))
 	    goto failnfree;
+
+#ifdef __sparc64__
+	if (ctlr->chip->cfg2 == PR_SX4X &&
+	    !bus_space_map(rman_get_bustag(ctlr->r_res1),
+	    rman_get_bushandle(ctlr->r_res1), rman_get_size(ctlr->r_res1),
+	    BUS_SPACE_MAP_LINEAR, NULL))
+		goto failnfree;
+#endif
 
 	ctlr->r_type2 = SYS_RES_MEMORY;
 	ctlr->r_rid2 = PCIR_BAR(3);

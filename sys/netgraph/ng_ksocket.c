@@ -69,7 +69,8 @@
 #include <netatalk/at.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_KSOCKET, "netgraph_ksock", "netgraph ksock node ");
+static MALLOC_DEFINE(M_NETGRAPH_KSOCKET, "netgraph_ksock",
+    "netgraph ksock node");
 #else
 #define M_NETGRAPH_KSOCKET M_NETGRAPH
 #endif
@@ -222,7 +223,7 @@ ng_ksocket_sockaddr_parse(const struct ng_parse_type *type,
 	/* Get socket address family followed by a slash */
 	while (isspace(s[*off]))
 		(*off)++;
-	if ((t = index(s + *off, '/')) == NULL)
+	if ((t = strchr(s + *off, '/')) == NULL)
 		return (EINVAL);
 	if ((len = t - (s + *off)) > sizeof(fambuf) - 1)
 		return (EINVAL);
@@ -564,14 +565,14 @@ ng_ksocket_newhook(node_p node, hook_p hook, const char *name0)
 		/* Extract family, type, and protocol from hook name */
 		snprintf(name, sizeof(name), "%s", name0);
 		s1 = name;
-		if ((s2 = index(s1, '/')) == NULL)
+		if ((s2 = strchr(s1, '/')) == NULL)
 			return (EINVAL);
 		*s2++ = '\0';
 		family = ng_ksocket_parse(ng_ksocket_families, s1, 0);
 		if (family == -1)
 			return (EINVAL);
 		s1 = s2;
-		if ((s2 = index(s1, '/')) == NULL)
+		if ((s2 = strchr(s1, '/')) == NULL)
 			return (EINVAL);
 		*s2++ = '\0';
 		type = ng_ksocket_parse(ng_ksocket_types, s1, 0);

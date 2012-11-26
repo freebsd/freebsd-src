@@ -906,7 +906,7 @@ pfr_lookup_addr(struct pfr_ktable *kt, struct pfr_addr *ad, int exact)
 		pfr_prepare_network(&mask, ad->pfra_af, ad->pfra_net);
 		s = splsoftnet(); /* rn_lookup makes use of globals */
 #ifdef __FreeBSD__
-		PF_ASSERT(MA_OWNED);
+		PF_LOCK_ASSERT();
 #endif
 		ke = (struct pfr_kentry *)rn_lookup(&sa, &mask, head);
 		splx(s);
@@ -1127,7 +1127,7 @@ pfr_route_kentry(struct pfr_ktable *kt, struct pfr_kentry *ke)
 
 	s = splsoftnet();
 #ifdef __FreeBSD__
-	PF_ASSERT(MA_OWNED);
+	PF_LOCK_ASSERT();
 #endif
 	if (KENTRY_NETWORK(ke)) {
 		pfr_prepare_network(&mask, ke->pfrke_af, ke->pfrke_net);
@@ -1166,7 +1166,7 @@ pfr_unroute_kentry(struct pfr_ktable *kt, struct pfr_kentry *ke)
 
 	s = splsoftnet();
 #ifdef __FreeBSD__
-	PF_ASSERT(MA_OWNED);
+	PF_LOCK_ASSERT();
 #endif
 	if (KENTRY_NETWORK(ke)) {
 		pfr_prepare_network(&mask, ke->pfrke_af, ke->pfrke_net);

@@ -66,6 +66,8 @@ static char msgbuf[255];
 extern int mmlex(void);
 %}
 
+%option noinput
+
 WORD		[A-Za-z_][-A-Za-z_0-9]*
 SPACE		[ \t]+
 MCARG		[^(), \t]+

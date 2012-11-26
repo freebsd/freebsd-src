@@ -61,7 +61,7 @@
 #include <sys/dtrace.h>
 #include <sys/dtrace_bsd.h>
 
-MALLOC_DEFINE(M_FBT, "fbt", "Function Boundary Tracing");
+static MALLOC_DEFINE(M_FBT, "fbt", "Function Boundary Tracing");
 
 #define	FBT_PUSHL_EBP		0x55
 #define	FBT_MOVL_ESP_EBP0_V0	0x8b

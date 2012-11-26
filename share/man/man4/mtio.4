@@ -35,7 +35,7 @@
 .\"     @(#)mtio.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd February 11, 1996
+.Dd November 11, 2011
 .Dt MTIO 4
 .Os
 .Sh NAME
@@ -97,7 +97,7 @@ The following definitions are from
 /* structure for MTIOCTOP - mag tape op command */
 struct mtop {
 	short	mt_op;		/* operations defined below */
-	daddr_t	mt_count;	/* how many of them */
+	int32_t	mt_count;	/* how many of them */
 };
 
 /* operations */
@@ -165,19 +165,25 @@ struct mtget {
 	short	mt_dsreg;	/* ``drive status'' register */
 	short	mt_erreg;	/* ``error'' register */
 /* end device-dependent registers */
+	/*
+	 * Note that the residual count, while maintained, may be
+	 * be nonsense because the size of the residual may (greatly)
+	 * exceed 32 K-bytes. Use the MTIOCERRSTAT ioctl to get a
+	 * more accurate count.
+	 */
 	short	mt_resid;	/* residual count */
 #if defined (__FreeBSD__)
-	daddr_t mt_blksiz;	/* presently operating blocksize */
-	daddr_t mt_density;	/* presently operating density */
+	int32_t mt_blksiz;	/* presently operating blocksize */
+	int32_t mt_density;	/* presently operating density */
 	u_int32_t mt_comp;	/* presently operating compression */
-	daddr_t mt_blksiz0;	/* blocksize for mode 0 */
-	daddr_t mt_blksiz1;	/* blocksize for mode 1 */
-	daddr_t mt_blksiz2;	/* blocksize for mode 2 */
-	daddr_t mt_blksiz3;	/* blocksize for mode 3 */
-	daddr_t mt_density0;	/* density for mode 0 */
-	daddr_t mt_density1;	/* density for mode 1 */
-	daddr_t mt_density2;	/* density for mode 2 */
-	daddr_t mt_density3;	/* density for mode 3 */
+	int32_t mt_blksiz0;	/* blocksize for mode 0 */
+	int32_t mt_blksiz1;	/* blocksize for mode 1 */
+	int32_t mt_blksiz2;	/* blocksize for mode 2 */
+	int32_t mt_blksiz3;	/* blocksize for mode 3 */
+	int32_t mt_density0;	/* density for mode 0 */
+	int32_t mt_density1;	/* density for mode 1 */
+	int32_t mt_density2;	/* density for mode 2 */
+	int32_t mt_density3;	/* density for mode 3 */
 /* the following are not yet implemented */
 	u_int32_t mt_comp0;	/* compression type for mode 0 */
 	u_int32_t mt_comp1;	/* compression type for mode 1 */
@@ -185,8 +191,8 @@ struct mtget {
 	u_int32_t mt_comp3;	/* compression type for mode 3 */
 /* end not yet implemented */
 #endif
-	daddr_t	mt_fileno;	/* relative file number of current position */
-	daddr_t	mt_blkno;	/* relative block number of current position */
+	int32_t	mt_fileno;	/* relative file number of current position */
+	int32_t	mt_blkno;	/* relative block number of current position */
 };
 
 /* structure for MTIOCERRSTAT - tape get error status command */
@@ -198,10 +204,10 @@ struct scsi_tape_errors {
 	 * of issuing an MTIOCERRSTAT unlatches and clears them.
 	 */
 	u_int8_t io_sense[32];	/* Last Sense Data For Data I/O */
-	u_int32_t io_resid;	/* residual count from last Data I/O */
+	int32_t io_resid;	/* residual count from last Data I/O */
 	u_int8_t io_cdb[16];	/* Command that Caused the Last Data Sense */
 	u_int8_t ctl_sense[32];	/* Last Sense Data For Control I/O */
-	u_int32_t ctl_resid;	/* residual count from last Control I/O */
+	int32_t ctl_resid;	/* residual count from last Control I/O */
 	u_int8_t ctl_cdb[16];	/* Command that Caused the Last Control Sense */
 	/*
 	 * These are the read and write cumulative error counters.
@@ -274,20 +280,6 @@ union mterrstat {
 
 #ifndef _KERNEL
 #define	DEFTAPE	"/dev/nsa0"
-#endif
-
-#ifdef	_KERNEL
-/*
- * minor device number
- */
-
-#define	T_UNIT		003		/* unit selection */
-#define	T_NOREWIND	004		/* no rewind on close */
-#define	T_DENSEL	030		/* density select */
-#define	T_800BPI	000		/* select  800 bpi */
-#define	T_1600BPI	010		/* select 1600 bpi */
-#define	T_6250BPI	020		/* select 6250 bpi */
-#define	T_BADBPI	030		/* undefined selection */
 #endif
 
 #endif /* !_SYS_MTIO_H_ */

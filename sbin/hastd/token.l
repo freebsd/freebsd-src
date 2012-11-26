@@ -44,8 +44,12 @@ int lineno;
 #define	DP	do { } while (0)
 %}
 
+%option noinput
+%option nounput
+
 %%
 control			{ DP; return CONTROL; }
+pidfile			{ DP; return PIDFILE; }
 listen			{ DP; return LISTEN; }
 port			{ DP; return PORT; }
 replication		{ DP; return REPLICATION; }

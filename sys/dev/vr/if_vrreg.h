@@ -720,20 +720,21 @@ struct vr_softc {
 	void			*vr_intrhand;
 	device_t		vr_miibus;
 	uint8_t			vr_revid;	/* Rhine chip revision */
-	uint8_t			vr_flags;	/* See VR_F_* below */
-#define	VR_F_RESTART		0x01		/* Restart unit on next tick */
+	int			vr_flags;	/* See VR_F_* below */
+#define	VR_F_RESTART		0x0001		/* Restart unit on next tick */
+#define	VR_F_TXPAUSE		0x0010
+#define	VR_F_SUSPENDED		0x2000
+#define	VR_F_DETACHED		0x4000
+#define	VR_F_LINK		0x8000
 	int			vr_if_flags;
 	struct vr_chain_data	vr_cdata;
 	struct vr_ring_data	vr_rdata;
 	struct vr_statistics	vr_stat;
 	struct callout		vr_stat_callout;
 	struct mtx		vr_mtx;
-	int			vr_suspended;	/* if 1, sleeping/detaching */
 	int			vr_quirks;
-	int			vr_link;
 	int			vr_watchdog_timer;
 	int			vr_txthresh;
-	int			vr_detach;
 #ifdef DEVICE_POLLING
 	int			rxcycles;
 #endif

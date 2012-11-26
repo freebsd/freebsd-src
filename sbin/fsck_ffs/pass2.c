@@ -613,7 +613,7 @@ fix_extraneous(struct inoinfo *inp, struct inodesc *idesc)
 			printf(" (IGNORED)\n");
 			return (0);
 		}
-		if ((cp = rindex(oldname, '/')) == NULL) {
+		if ((cp = strchr(oldname, '/')) == NULL) {
 			printf(" (IGNORED)\n");
 			return (0);
 		}

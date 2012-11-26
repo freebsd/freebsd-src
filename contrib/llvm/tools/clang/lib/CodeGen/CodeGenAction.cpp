@@ -30,12 +30,12 @@ using namespace llvm;
 
 namespace clang {
   class BackendConsumer : public ASTConsumer {
-    Diagnostic &Diags;
+    DiagnosticsEngine &Diags;
     BackendAction Action;
     const CodeGenOptions &CodeGenOpts;
     const TargetOptions &TargetOpts;
     const LangOptions &LangOpts;
-    llvm::raw_ostream *AsmOutStream;
+    raw_ostream *AsmOutStream;
     ASTContext *Context;
 
     Timer LLVMIRGeneration;
@@ -45,12 +45,12 @@ namespace clang {
     llvm::OwningPtr<llvm::Module> TheModule;
 
   public:
-    BackendConsumer(BackendAction action, Diagnostic &_Diags,
+    BackendConsumer(BackendAction action, DiagnosticsEngine &_Diags,
                     const CodeGenOptions &compopts,
                     const TargetOptions &targetopts,
                     const LangOptions &langopts,
                     bool TimePasses,
-                    const std::string &infile, llvm::raw_ostream *OS,
+                    const std::string &infile, raw_ostream *OS,
                     LLVMContext &C) :
       Diags(_Diags),
       Action(action),
@@ -185,7 +185,7 @@ static FullSourceLoc ConvertBackendLocation(const llvm::SMDiagnostic &D,
   // Translate the offset into the file.
   unsigned Offset = D.getLoc().getPointer()  - LBuf->getBufferStart();
   SourceLocation NewLoc =
-  CSM.getLocForStartOfFile(FID).getFileLocWithOffset(Offset);
+  CSM.getLocForStartOfFile(FID).getLocWithOffset(Offset);
   return FullSourceLoc(NewLoc, CSM);
 }
 
@@ -199,7 +199,7 @@ void BackendConsumer::InlineAsmDiagHandler2(const llvm::SMDiagnostic &D,
   // we re-format the SMDiagnostic in terms of a clang diagnostic.
 
   // Strip "error: " off the start of the message string.
-  llvm::StringRef Message = D.getMessage();
+  StringRef Message = D.getMessage();
   if (Message.startswith("error: "))
     Message = Message.substr(7);
 
@@ -259,7 +259,7 @@ llvm::LLVMContext *CodeGenAction::takeLLVMContext() {
 }
 
 static raw_ostream *GetOutputStream(CompilerInstance &CI,
-                                    llvm::StringRef InFile,
+                                    StringRef InFile,
                                     BackendAction Action) {
   switch (Action) {
   case Backend_EmitAssembly:
@@ -275,14 +275,13 @@ static raw_ostream *GetOutputStream(CompilerInstance &CI,
     return CI.createDefaultOutputFile(true, InFile, "o");
   }
 
-  assert(0 && "Invalid action!");
-  return 0;
+  llvm_unreachable("Invalid action!");
 }
 
 ASTConsumer *CodeGenAction::CreateASTConsumer(CompilerInstance &CI,
-                                              llvm::StringRef InFile) {
+                                              StringRef InFile) {
   BackendAction BA = static_cast<BackendAction>(Act);
-  llvm::OwningPtr<llvm::raw_ostream> OS(GetOutputStream(CI, InFile, BA));
+  llvm::OwningPtr<raw_ostream> OS(GetOutputStream(CI, InFile, BA));
   if (BA != Backend_EmitNothing && !OS)
     return 0;
 
@@ -320,17 +319,17 @@ void CodeGenAction::ExecuteAction() {
     TheModule.reset(ParseIR(MainFileCopy, Err, *VMContext));
     if (!TheModule) {
       // Translate from the diagnostic info to the SourceManager location.
-      SourceLocation Loc = SM.getLocation(
+      SourceLocation Loc = SM.translateFileLineCol(
         SM.getFileEntryForID(SM.getMainFileID()), Err.getLineNo(),
         Err.getColumnNo() + 1);
 
       // Get a custom diagnostic for the error. We strip off a leading
       // diagnostic code if there is one.
-      llvm::StringRef Msg = Err.getMessage();
+      StringRef Msg = Err.getMessage();
       if (Msg.startswith("error: "))
         Msg = Msg.substr(7);
-      unsigned DiagID = CI.getDiagnostics().getCustomDiagID(Diagnostic::Error,
-                                                            Msg);
+      unsigned DiagID = CI.getDiagnostics().getCustomDiagID(
+          DiagnosticsEngine::Error, Msg);
 
       CI.getDiagnostics().Report(Loc, DiagID);
       return;

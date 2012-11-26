@@ -10,14 +10,12 @@
 #ifndef LLVM_CLANG_FRONTEND_FRONTENDACTION_H
 #define LLVM_CLANG_FRONTEND_FRONTENDACTION_H
 
+#include "clang/Basic/LLVM.h"
+#include "clang/Basic/LangOptions.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/OwningPtr.h"
 #include <string>
 #include <vector>
-
-namespace llvm {
-  class raw_ostream;
-}
 
 namespace clang {
 class ASTConsumer;
@@ -55,7 +53,7 @@ class FrontendAction {
 
 private:
   ASTConsumer* CreateWrappedASTConsumer(CompilerInstance &CI,
-                                        llvm::StringRef InFile);
+                                        StringRef InFile);
 
 protected:
   /// @name Implementation Action Interface
@@ -76,7 +74,7 @@ protected:
   ///
   /// \return The new AST consumer, or 0 on failure.
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         llvm::StringRef InFile) = 0;
+                                         StringRef InFile) = 0;
 
   /// \brief Callback before starting processing a single input, giving the
   /// opportunity to modify the CompilerInvocation or do some other action
@@ -92,7 +90,7 @@ protected:
   /// \return True on success; on failure \see ExecutionAction() and
   /// EndSourceFileAction() will not be called.
   virtual bool BeginSourceFileAction(CompilerInstance &CI,
-                                     llvm::StringRef Filename) {
+                                     StringRef Filename) {
     return true;
   }
 
@@ -152,7 +150,7 @@ public:
     return CurrentASTUnit.take();
   }
 
-  void setCurrentFile(llvm::StringRef Value, InputKind Kind, ASTUnit *AST = 0);
+  void setCurrentFile(StringRef Value, InputKind Kind, ASTUnit *AST = 0);
 
   /// @}
   /// @name Supported Modes
@@ -163,9 +161,8 @@ public:
   /// file inputs.
   virtual bool usesPreprocessorOnly() const = 0;
 
-  /// usesCompleteTranslationUnit - For AST based actions, should the
-  /// translation unit be completed?
-  virtual bool usesCompleteTranslationUnit() { return true; }
+  /// \brief For AST-based actions, the kind of translation unit we're handling.
+  virtual TranslationUnitKind getTranslationUnitKind() { return TU_Complete; }
 
   /// hasPCHSupport - Does this action support use with PCH?
   virtual bool hasPCHSupport() const { return !usesPreprocessorOnly(); }
@@ -205,7 +202,7 @@ public:
   ///
   /// \return True on success; the compilation of this file should be aborted
   /// and neither Execute nor EndSourceFile should be called.
-  bool BeginSourceFile(CompilerInstance &CI, llvm::StringRef Filename,
+  bool BeginSourceFile(CompilerInstance &CI, StringRef Filename,
                        InputKind Kind);
 
   /// Execute - Set the source managers main input file, and run the action.
@@ -236,7 +233,7 @@ public:
 class PluginASTAction : public ASTFrontendAction {
 protected:
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         llvm::StringRef InFile) = 0;
+                                         StringRef InFile) = 0;
 
 public:
   /// ParseArgs - Parse the given plugin command line arguments.
@@ -256,7 +253,7 @@ protected:
   /// CreateASTConsumer - Provide a default implementation which returns aborts,
   /// this method should never be called by FrontendAction clients.
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         llvm::StringRef InFile);
+                                         StringRef InFile);
 
 public:
   virtual bool usesPreprocessorOnly() const { return true; }
@@ -272,10 +269,10 @@ class WrapperFrontendAction : public FrontendAction {
 
 protected:
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         llvm::StringRef InFile);
+                                         StringRef InFile);
   virtual bool BeginInvocation(CompilerInstance &CI);
   virtual bool BeginSourceFileAction(CompilerInstance &CI,
-                                     llvm::StringRef Filename);
+                                     StringRef Filename);
   virtual void ExecuteAction();
   virtual void EndSourceFileAction();
 
@@ -285,7 +282,7 @@ public:
   WrapperFrontendAction(FrontendAction *WrappedAction);
 
   virtual bool usesPreprocessorOnly() const;
-  virtual bool usesCompleteTranslationUnit();
+  virtual TranslationUnitKind getTranslationUnitKind();
   virtual bool hasPCHSupport() const;
   virtual bool hasASTFileSupport() const;
   virtual bool hasIRSupport() const;

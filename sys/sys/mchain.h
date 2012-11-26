@@ -67,6 +67,7 @@ struct mbuf *mb_detach(struct mbchain *mbp);
 int  mb_fixhdr(struct mbchain *mbp);
 caddr_t mb_reserve(struct mbchain *mbp, int size);
 
+int  mb_put_padbyte(struct mbchain *mbp);
 int  mb_put_uint8(struct mbchain *mbp, u_int8_t x);
 int  mb_put_uint16be(struct mbchain *mbp, u_int16_t x);
 int  mb_put_uint16le(struct mbchain *mbp, u_int16_t x);

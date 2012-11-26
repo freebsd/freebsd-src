@@ -201,7 +201,7 @@ spx_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 	ANYl(spxstat.spxs_sndurg, "packet", " sent with URG only");
 	ANYl(spxstat.spxs_sndwinup, "window update-only packet", " sent");
 	ANYl(spxstat.spxs_sndctrl, "control (SYN|FIN|RST) packet", " sent");
-	ANYl(spxstat.spxs_sndvoid, "request", " to send a non-existant packet");
+	ANYl(spxstat.spxs_sndvoid, "request", " to send a non-existent packet");
 	ANYl(spxstat.spxs_rcvtotal, "total packet", " received");
 	ANYl(spxstat.spxs_rcvpack, "packet", " received in sequence");
 	ANYl(spxstat.spxs_rcvbyte, "byte", " received in sequence");

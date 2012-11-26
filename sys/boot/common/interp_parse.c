@@ -137,7 +137,7 @@ parse(int *argc, char ***argv, char *str)
 
 	case VAR:
 	    if (token) {
-		PARSE_FAIL((q = index(p, token)) == NULL);
+		PARSE_FAIL((q = strchr(p, token)) == NULL);
 	    } else {
 		q = p;
 		while (*q && !isspace(*q))

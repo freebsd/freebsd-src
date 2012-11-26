@@ -149,7 +149,7 @@
             (1 hrDiskStorageEntry : INTEGER op_hrDiskStorageTable
               (1 hrDiskStorageAccess INTEGER GET)
               (2 hrDiskStorageMedia INTEGER GET)
-              (3 hrDiskStorageRemoveble INTEGER GET)
+              (3 hrDiskStorageRemovable INTEGER GET)
               (4 hrDiskStorageCapacity INTEGER GET)
             )
           )

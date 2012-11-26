@@ -173,16 +173,12 @@ static device_method_t pcn_methods[] = {
 	DEVMETHOD(device_detach,	pcn_detach),
 	DEVMETHOD(device_shutdown,	pcn_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	pcn_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	pcn_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	pcn_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t pcn_driver = {

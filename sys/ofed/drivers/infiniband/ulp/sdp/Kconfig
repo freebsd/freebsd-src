@@ -21,7 +21,7 @@ config INFINIBAND_SDP_DEBUG_DATA
         bool "Sockets Direct Protocol data path debugging"
         depends on INFINIBAND_SDP_DEBUG
         ---help---
-          This option compiles debugging code into the the data path
+          This option compiles debugging code into the data path
           of the SDP driver.  The output can be turned on via the
           data_debug_level module parameter; however, even with output
           turned off, this debugging code will have some performance

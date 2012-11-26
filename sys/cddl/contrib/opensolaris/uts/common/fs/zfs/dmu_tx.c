@@ -21,6 +21,9 @@
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  */
+/*
+ * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+ */
 
 #include <sys/dmu.h>
 #include <sys/dmu_impl.h>
@@ -676,6 +679,8 @@ dmu_tx_hold_zap(dmu_tx_t *tx, uint64_t object, int add, const char *name)
 	ASSERT3P(dmu_ot[dn->dn_type].ot_byteswap, ==, zap_byteswap);
 
 	if (dn->dn_maxblkid == 0 && !add) {
+		blkptr_t *bp;
+
 		/*
 		 * If there is only one block  (i.e. this is a micro-zap)
 		 * and we are not adding anything, the accounting is simple.
@@ -690,14 +695,13 @@ dmu_tx_hold_zap(dmu_tx_t *tx, uint64_t object, int add, const char *name)
 		 * Use max block size here, since we don't know how much
 		 * the size will change between now and the dbuf dirty call.
 		 */
+		bp = &dn->dn_phys->dn_blkptr[0];
 		if (dsl_dataset_block_freeable(dn->dn_objset->os_dsl_dataset,
-		    &dn->dn_phys->dn_blkptr[0],
-		    dn->dn_phys->dn_blkptr[0].blk_birth)) {
+		    bp, bp->blk_birth))
 			txh->txh_space_tooverwrite += SPA_MAXBLOCKSIZE;
-		} else {
+		else
 			txh->txh_space_towrite += SPA_MAXBLOCKSIZE;
-		}
-		if (dn->dn_phys->dn_blkptr[0].blk_birth)
+		if (!BP_IS_HOLE(bp))
 			txh->txh_space_tounref += SPA_MAXBLOCKSIZE;
 		return;
 	}
@@ -1273,7 +1277,6 @@ dmu_tx_hold_spill(dmu_tx_t *tx, uint64_t object)
 {
 	dnode_t *dn;
 	dmu_tx_hold_t *txh;
-	blkptr_t *bp;
 
 	txh = dmu_tx_hold_object_impl(tx, tx->tx_objset, object,
 	    THT_SPILL, 0, 0);
@@ -1286,15 +1289,16 @@ dmu_tx_hold_spill(dmu_tx_t *tx, uint64_t object)
 	/* If blkptr doesn't exist then add space to towrite */
 	if (!(dn->dn_phys->dn_flags & DNODE_FLAG_SPILL_BLKPTR)) {
 		txh->txh_space_towrite += SPA_MAXBLOCKSIZE;
-		txh->txh_space_tounref = 0;
 	} else {
+		blkptr_t *bp;
+
 		bp = &dn->dn_phys->dn_spill;
 		if (dsl_dataset_block_freeable(dn->dn_objset->os_dsl_dataset,
 		    bp, bp->blk_birth))
 			txh->txh_space_tooverwrite += SPA_MAXBLOCKSIZE;
 		else
 			txh->txh_space_towrite += SPA_MAXBLOCKSIZE;
-		if (bp->blk_birth)
+		if (!BP_IS_HOLE(bp))
 			txh->txh_space_tounref += SPA_MAXBLOCKSIZE;
 	}
 }

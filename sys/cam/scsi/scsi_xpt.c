@@ -1811,14 +1811,14 @@ scsi_find_quirk(struct cam_ed *device)
 static int
 sysctl_cam_search_luns(SYSCTL_HANDLER_ARGS)
 {
-	int error, bool;
+	int error, val;
 
-	bool = cam_srch_hi;
-	error = sysctl_handle_int(oidp, &bool, 0, req);
+	val = cam_srch_hi;
+	error = sysctl_handle_int(oidp, &val, 0, req);
 	if (error != 0 || req->newptr == NULL)
 		return (error);
-	if (bool == 0 || bool == 1) {
-		cam_srch_hi = bool;
+	if (val == 0 || val == 1) {
+		cam_srch_hi = val;
 		return (0);
 	} else {
 		return (EINVAL);

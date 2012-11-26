@@ -1,6 +1,6 @@
 .\"-
 .\" Copyright (c) 2001-2003 Networks Associates Technology, Inc.
-.\" Copyright (c) 2004-2007 Dag-Erling Smørgrav
+.\" Copyright (c) 2004-2011 Dag-Erling Smørgrav
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,9 +32,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4$
+.\" $Id$
 .\"
-.Dd December 21, 2007
+.Dd December 18, 2011
 .Dt PAM_GET_ITEM 3
 .Os
 .Sh NAME
@@ -53,12 +53,18 @@ The
 function stores a pointer to the item specified by
 the
 .Fa item_type
-argument in the location specified by the
+argument in the location pointed to by the
 .Fa item
 argument.
 The item is retrieved from the PAM context specified by the
 .Fa pamh
 argument.
+If
+.Nm
+fails, the
+.Fa item
+argument is untouched.
+.Pp
 The following item types are recognized:
 .Bl -tag -width 18n
 .It Dv PAM_SERVICE
@@ -90,6 +96,8 @@ authentication token.
 .It Dv PAM_OLDAUTHTOK_PROMPT
 The prompt to use when asking the applicant for an
 expired authentication token prior to changing it.
+.It Dv PAM_HOST
+The name of the host the application runs on.
 .El
 .Pp
 See
@@ -122,7 +130,8 @@ The
 .Nm
 function and this manual page were developed for the
 .Fx
-Project by ThinkSec AS and Network Associates Laboratories, the
+Project by
+ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,

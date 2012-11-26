@@ -142,6 +142,8 @@ ps3pic_attach(device_t dev)
 	lv1_construct_event_receive_port(&sc->sc_ipi_outlet[1]);
 	lv1_connect_irq_plug_ext(ppe, !thread, sc->sc_ipi_outlet[0],
 	    sc->sc_ipi_outlet[1], 0);
+#else
+	sc->sc_ipi_outlet[0] = sc->sc_ipi_outlet[1] = 63;
 #endif
 
 	powerpc_register_pic(dev, 0, sc->sc_ipi_outlet[0], 1, FALSE);

@@ -540,6 +540,7 @@ void 	inp_4tuple_get(struct inpcb *inp, uint32_t *laddr, uint16_t *lp,
 #define	INP_LLE_VALID		0x00000001 /* cached lle is valid */	
 #define	INP_RT_VALID		0x00000002 /* cached rtentry is valid */
 #define	INP_PCBGROUPWILD	0x00000004 /* in pcbgroup wildcard list */
+#define	INP_REUSEPORT		0x00000008 /* SO_REUSEPORT option is set */
 
 /*
  * Flags passed to in_pcblookup*() functions.

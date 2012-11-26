@@ -167,7 +167,7 @@ client_request(void)
 		goto err;
 	}
 	daemon_uid = pw->pw_uid;
-	/* drop our root priviledges */
+	/* drop our root privileges */
 	(void)lockd_seteuid(daemon_uid);
 
 	for (;;) {

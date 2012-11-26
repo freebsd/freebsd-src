@@ -30,8 +30,13 @@ case "$daily_accounting_enable" in
 	    cd /var/account
 	    rc=0
 
-	    n=$daily_accounting_save
-	    rm -f acct.$n.gz acct.$n || rc=3
+	    n=$(( $daily_accounting_save - 1 ))
+	    for f in acct.*; do
+	    	case "$f" in acct.\*) continue ;; esac	# No files match
+	    	m=${f%.gz} ; m=${m#acct.}
+		[ $m -ge $n ] && { rm $f || rc=3; }
+	    done
+
 	    m=$n
 	    n=$(($n - 1))
 	    while [ $n -ge 0 ]
@@ -44,13 +49,14 @@ case "$daily_accounting_enable" in
 
 	    /etc/rc.d/accounting rotate_log || rc=3
 
+	    rm -f acct.merge && cp acct.0 acct.merge || rc=3
+	    sa -s $daily_accounting_flags /var/account/acct.merge || rc=3
+	    rm acct.merge
+
 	    case "$daily_accounting_compress" in
 		[Yy][Ee][Ss])
-		    gzip --keep -f acct.0 || rc=3;;
+		    gzip -f acct.0 || rc=3;;
 	    esac
-
-	    sa -s $daily_accounting_flags /var/account/acct.0 &&
-		unlink acct.0 || rc=3
 	fi;;
 
     *)  rc=0;;

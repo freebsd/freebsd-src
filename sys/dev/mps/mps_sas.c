@@ -119,7 +119,7 @@ struct mpssas_devprobe {
 #define MPSSAS_DISCOVERY_TIMEOUT	20
 #define MPSSAS_MAX_DISCOVERY_TIMEOUTS	10 /* 200 seconds */
 
-MALLOC_DEFINE(M_MPSSAS, "MPSSAS", "MPS SAS memory");
+static MALLOC_DEFINE(M_MPSSAS, "MPSSAS", "MPS SAS memory");
 
 static __inline int mpssas_set_lun(uint8_t *lun, u_int ccblun);
 static struct mpssas_target * mpssas_alloc_target(struct mpssas_softc *,
@@ -937,6 +937,7 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->transport_version = 0;
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_SPC;
+		cpi->maxio = MAXPHYS;
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
@@ -1675,6 +1676,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 
 		sense_len = min(rep->SenseCount, ccb->csio.sense_len -
 		    ccb->csio.sense_resid);
+		bzero(&ccb->csio.sense_data, sizeof(&ccb->csio.sense_data));
 		bcopy(cm->cm_sense, &ccb->csio.sense_data, sense_len);
 		ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
 	}

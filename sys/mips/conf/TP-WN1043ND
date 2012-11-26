@@ -20,11 +20,16 @@ options		MSDOSFS
 options		GEOM_PART_BSD
 options		GEOM_PART_MBR
 
-# Just make sure the thing boots off of the first attached SCSI device for now!
-#options		ROOTDEVNAME=\"ufs:da0a\"
-# Or an MDROOT for testing.
-options		MD_ROOT
-options		MD_ROOT_SIZE=5120
+# Enable the uboot environment stuff rather then the
+# redboot stuff.
+options		AR71XX_ENV_UBOOT
+
+# uzip - to boot natively from flash
 device		geom_uzip
 options		GEOM_UZIP
-options		ROOTDEVNAME=\"ufs:/dev/md0.uzip\"
+
+# Used for the static uboot partition map
+device          geom_map
+
+# Boot off of the rootfs, as defined in the geom_map setup.
+options		ROOTDEVNAME=\"ufs:map/rootfs.uzip\"

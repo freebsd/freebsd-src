@@ -65,6 +65,8 @@ static int ata_nvidia_setmode(device_t dev, int target, int mode);
 #define NVAHCI          0x04
 #define NVNOFORCE       0x08
 
+static int force_ahci = 1;
+TUNABLE_INT("hw.ahci.force", &force_ahci);
 
 /*
  * nVidia chipset support functions
@@ -181,7 +183,7 @@ ata_nvidia_probe(device_t dev)
 
     ata_set_desc(dev);
     if ((ctlr->chip->cfg1 & NVAHCI) &&
-	((ctlr->chip->cfg1 & NVNOFORCE) == 0 ||
+	((force_ahci == 1 && (ctlr->chip->cfg1 & NVNOFORCE) == 0) ||
 	 pci_get_subclass(dev) != PCIS_STORAGE_IDE))
 	ctlr->chipinit = ata_ahci_chipinit;
     else

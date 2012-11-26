@@ -71,9 +71,9 @@ __FBSDID("$FreeBSD$");
 
 #define sblock	disk.d_fs
 #define	acg	disk.d_cg
-struct	uufsd disk;
-struct	fs *fs = &sblock;
-int	errs;
+static struct	uufsd disk;
+static struct	fs *fs = &sblock;
+static int	errs;
 
 int	chkuse(daddr_t, int);
 

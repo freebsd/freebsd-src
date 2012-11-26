@@ -26,7 +26,7 @@
  *
  */
 
-/*	$NetBSD: esp_sbus.c,v 1.31 2005/02/27 00:27:48 perry Exp $	*/
+/*	$NetBSD: esp_sbus.c,v 1.51 2009/09/17 16:28:12 tsutsui Exp $	*/
 
 /*-
  * Copyright (c) 1997, 1998 The NetBSD Foundation, Inc.
@@ -44,13 +44,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -75,13 +68,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/module.h>
 #include <sys/mutex.h>
+#include <sys/rman.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
 #include <machine/bus.h>
 #include <machine/ofw_machdep.h>
 #include <machine/resource.h>
-#include <sys/rman.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -99,7 +92,7 @@ __FBSDID("$FreeBSD$");
 
 struct esp_softc {
 	struct ncr53c9x_softc	sc_ncr53c9x;	/* glue to MI code */
-	struct device		*sc_dev;
+	device_t		sc_dev;
 
 	struct resource		*sc_res;
 
@@ -108,8 +101,6 @@ struct esp_softc {
 
 	struct lsi64854_softc	*sc_dma;	/* pointer to my DMA */
 };
-
-static devclass_t	esp_devclass;
 
 static int	esp_probe(device_t);
 static int	esp_dma_attach(device_t);
@@ -125,7 +116,8 @@ static device_method_t esp_dma_methods[] = {
 	DEVMETHOD(device_detach,	esp_dma_detach),
 	DEVMETHOD(device_suspend,	esp_suspend),
 	DEVMETHOD(device_resume,	esp_resume),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t esp_dma_driver = {
@@ -143,7 +135,8 @@ static device_method_t esp_sbus_methods[] = {
 	DEVMETHOD(device_detach,	esp_sbus_detach),
 	DEVMETHOD(device_suspend,	esp_suspend),
 	DEVMETHOD(device_resume,	esp_resume),
-	{0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t esp_sbus_driver = {
@@ -158,12 +151,12 @@ MODULE_DEPEND(esp, sbus, 1, 1, 1);
 /*
  * Functions and the switch for the MI code
  */
-static u_char	esp_read_reg(struct ncr53c9x_softc *sc, int reg);
-static void	esp_write_reg(struct ncr53c9x_softc *sc, int reg, u_char v);
+static uint8_t	esp_read_reg(struct ncr53c9x_softc *sc, int reg);
+static void	esp_write_reg(struct ncr53c9x_softc *sc, int reg, uint8_t v);
 static int	esp_dma_isintr(struct ncr53c9x_softc *sc);
 static void	esp_dma_reset(struct ncr53c9x_softc *sc);
 static int	esp_dma_intr(struct ncr53c9x_softc *sc);
-static int	esp_dma_setup(struct ncr53c9x_softc *sc, caddr_t *addr,
+static int	esp_dma_setup(struct ncr53c9x_softc *sc, void **addr,
 		    size_t *len, int datain, size_t *dmasize);
 static void	esp_dma_go(struct ncr53c9x_softc *sc);
 static void	esp_dma_stop(struct ncr53c9x_softc *sc);
@@ -172,7 +165,7 @@ static int	espattach(struct esp_softc *esc,
 		    const struct ncr53c9x_glue *gluep);
 static int	espdetach(struct esp_softc *esc);
 
-static const struct ncr53c9x_glue esp_sbus_glue = {
+static const struct ncr53c9x_glue const esp_sbus_glue = {
 	esp_read_reg,
 	esp_write_reg,
 	esp_dma_isintr,
@@ -182,7 +175,6 @@ static const struct ncr53c9x_glue esp_sbus_glue = {
 	esp_dma_go,
 	esp_dma_stop,
 	esp_dma_isactive,
-	NULL,			/* gl_clear_latched_intr */
 };
 
 static int
@@ -252,9 +244,9 @@ esp_sbus_attach(device_t dev)
 		    BUS_SPACE_MAXADDR,		/* lowaddr */
 		    BUS_SPACE_MAXADDR,		/* highaddr */
 		    NULL, NULL,			/* filter, filterarg */
-		    BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
-		    0,				/* nsegments */
-		    BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
+		    BUS_SPACE_MAXSIZE,		/* maxsize */
+		    BUS_SPACE_UNRESTRICTED,	/* nsegments */
+		    BUS_SPACE_MAXSIZE,		/* maxsegsize */
 		    0,				/* flags */
 		    NULL, NULL,			/* no locking */
 		    &lsc->sc_parent_dmat);
@@ -299,8 +291,10 @@ esp_sbus_attach(device_t dev)
 		}
 		for (i = 0; i < nchildren; i++) {
 			if (device_is_attached(children[i]) &&
-			    sbus_get_slot(children[i]) == sbus_get_slot(dev) &&
-			    strcmp(ofw_bus_get_name(children[i]), "dma") == 0) {
+			    sbus_get_slot(children[i]) ==
+			    sbus_get_slot(dev) &&
+			    strcmp(ofw_bus_get_name(children[i]),
+			    "dma") == 0) {
 				/* XXX hackery */
 				esc->sc_dma = (struct lsi64854_softc *)
 				    device_get_softc(children[i]);
@@ -460,13 +454,6 @@ espattach(struct esp_softc *esc, const struct ncr53c9x_glue *gluep)
 
 	NCR_LOCK_INIT(sc);
 
-	/* Attach the DMA engine. */
-	error = lsi64854_attach(esc->sc_dma);
-	if (error != 0) {
-		device_printf(esc->sc_dev, "lsi64854_attach failed\n");
-		goto fail_lock;
-	}
-
 	sc->sc_id = OF_getscsinitid(esc->sc_dev);
 
 #ifdef ESP_SBUS_DEBUG
@@ -523,9 +510,9 @@ espattach(struct esp_softc *esc, const struct ncr53c9x_glue *gluep)
 	NCR_WRITE_REG(sc, NCR_CFG2, sc->sc_cfg2);
 
 	if ((NCR_READ_REG(sc, NCR_CFG2) & ~NCRCFG2_RSVD) !=
-	    (NCRCFG2_SCSI2 | NCRCFG2_RPE)) {
+	    (NCRCFG2_SCSI2 | NCRCFG2_RPE))
 		sc->sc_rev = NCR_VARIANT_ESP100;
-	} else {
+	else {
 		sc->sc_cfg2 = NCRCFG2_SCSI2;
 		NCR_WRITE_REG(sc, NCR_CFG2, sc->sc_cfg2);
 		sc->sc_cfg3 = 0;
@@ -533,9 +520,9 @@ espattach(struct esp_softc *esc, const struct ncr53c9x_glue *gluep)
 		sc->sc_cfg3 = (NCRCFG3_CDB | NCRCFG3_FCLK);
 		NCR_WRITE_REG(sc, NCR_CFG3, sc->sc_cfg3);
 		if (NCR_READ_REG(sc, NCR_CFG3) !=
-		    (NCRCFG3_CDB | NCRCFG3_FCLK)) {
+		    (NCRCFG3_CDB | NCRCFG3_FCLK))
 			sc->sc_rev = NCR_VARIANT_ESP100A;
-		} else {
+		else {
 			/* NCRCFG2_FE enables > 64K transfers. */
 			sc->sc_cfg2 |= NCRCFG2_FE;
 			sc->sc_cfg3 = 0;
@@ -550,9 +537,11 @@ espattach(struct esp_softc *esc, const struct ncr53c9x_glue *gluep)
 
 				case 0x02:
 					if ((uid & 0x07) == 0x02)
-						sc->sc_rev = NCR_VARIANT_FAS216;
+						sc->sc_rev =
+						    NCR_VARIANT_FAS216;
 					else
-						sc->sc_rev = NCR_VARIANT_FAS236;
+						sc->sc_rev =
+						    NCR_VARIANT_FAS236;
 					break;
 
 				case 0x0a:
@@ -567,7 +556,8 @@ espattach(struct esp_softc *esc, const struct ncr53c9x_glue *gluep)
 					 */
 					device_printf(esc->sc_dev,
 					    "Unknown chip\n");
-					goto fail_lsi;
+					error = ENXIO;
+					goto fail_lock;
 				}
 			}
 		}
@@ -576,12 +566,6 @@ espattach(struct esp_softc *esc, const struct ncr53c9x_glue *gluep)
 #ifdef ESP_SBUS_DEBUG
 	printf("%s: revision %d, uid 0x%x\n", __func__, sc->sc_rev, uid);
 #endif
-
-	/*
-	 * XXX minsync and maxxfer _should_ be set up in MI code,
-	 * XXX but it appears to have some dependency on what sort
-	 * XXX of DMA we're hooked up to, etc.
-	 */
 
 	/*
 	 * This is the value used to start sync negotiations
@@ -594,31 +578,27 @@ espattach(struct esp_softc *esc, const struct ncr53c9x_glue *gluep)
 	 */
 	sc->sc_minsync = 1000 / sc->sc_freq;
 
+	/*
+	 * Except for some variants the maximum transfer size is 64k.
+	 */
+	sc->sc_maxxfer = 64 * 1024;
 	sc->sc_maxoffset = 15;
 	sc->sc_extended_geom = 1;
 
 	/*
 	 * Alas, we must now modify the value a bit, because it's
-	 * only valid when can switch on FASTCLK and FASTSCSI bits
-	 * in config register 3...
+	 * only valid when we can switch on FASTCLK and FASTSCSI bits
+	 * in the config register 3...
 	 */
 	switch (sc->sc_rev) {
 	case NCR_VARIANT_ESP100:
 		sc->sc_maxwidth = MSG_EXT_WDTR_BUS_8_BIT;
-		sc->sc_maxxfer = 64 * 1024;
 		sc->sc_minsync = 0;	/* No synch on old chip? */
 		break;
 
 	case NCR_VARIANT_ESP100A:
-		sc->sc_maxwidth = MSG_EXT_WDTR_BUS_8_BIT;
-		sc->sc_maxxfer = 64 * 1024;
-		/* Min clocks/byte is 5 */
-		sc->sc_minsync = ncr53c9x_cpb2stp(sc, 5);
-		break;
-
 	case NCR_VARIANT_ESP200:
 		sc->sc_maxwidth = MSG_EXT_WDTR_BUS_8_BIT;
-		sc->sc_maxxfer = 16 * 1024 * 1024;
 		/* Min clocks/byte is 5 */
 		sc->sc_minsync = ncr53c9x_cpb2stp(sc, 5);
 		break;
@@ -647,6 +627,19 @@ espattach(struct esp_softc *esc, const struct ncr53c9x_glue *gluep)
 		sc->sc_maxwidth = MSG_EXT_WDTR_BUS_16_BIT;
 		sc->sc_maxxfer = 16 * 1024 * 1024;
 		break;
+	}
+
+	/*
+	 * Given that we allocate resources based on sc->sc_maxxfer it doesn't
+	 * make sense to supply a value higher than the maximum actually used.
+	 */
+	sc->sc_maxxfer = min(sc->sc_maxxfer, MAXPHYS);
+
+	/* Attach the DMA engine. */
+	error = lsi64854_attach(esc->sc_dma);
+	if (error != 0) {
+		device_printf(esc->sc_dev, "lsi64854_attach failed\n");
+		goto fail_lock;
 	}
 
 	/* Establish interrupt channel. */
@@ -718,9 +711,9 @@ espdetach(struct esp_softc *esc)
 static int esp_sbus_debug = 0;
 
 static const struct {
-	char *r_name;
-	int   r_flag;
-} esp__read_regnames [] = {
+	const char *r_name;
+	int r_flag;
+} const esp__read_regnames [] = {
 	{ "TCL", 0},			/* 0/00 */
 	{ "TCM", 0},			/* 1/04 */
 	{ "FIFO", 0},			/* 2/08 */
@@ -739,10 +732,10 @@ static const struct {
 	{ "TCX", 1},			/* f/3c */
 };
 
-static const struct {
-	char *r_name;
-	int   r_flag;
-} esp__write_regnames[] = {
+static const const struct {
+	const char *r_name;
+	int r_flag;
+} const esp__write_regnames[] = {
 	{ "TCL", 1},			/* 0/00 */
 	{ "TCM", 1},			/* 1/04 */
 	{ "FIFO", 0},			/* 2/08 */
@@ -762,11 +755,11 @@ static const struct {
 };
 #endif
 
-static u_char
+static uint8_t
 esp_read_reg(struct ncr53c9x_softc *sc, int reg)
 {
 	struct esp_softc *esc = (struct esp_softc *)sc;
-	u_char v;
+	uint8_t v;
 
 	v = bus_read_1(esc->sc_res, reg * 4);
 
@@ -780,7 +773,7 @@ esp_read_reg(struct ncr53c9x_softc *sc, int reg)
 }
 
 static void
-esp_write_reg(struct ncr53c9x_softc *sc, int reg, u_char v)
+esp_write_reg(struct ncr53c9x_softc *sc, int reg, uint8_t v)
 {
 	struct esp_softc *esc = (struct esp_softc *)sc;
 
@@ -818,8 +811,8 @@ esp_dma_intr(struct ncr53c9x_softc *sc)
 }
 
 static int
-esp_dma_setup(struct ncr53c9x_softc *sc, caddr_t *addr, size_t *len,
-	      int datain, size_t *dmasize)
+esp_dma_setup(struct ncr53c9x_softc *sc, void **addr, size_t *len,
+    int datain, size_t *dmasize)
 {
 	struct esp_softc *esc = (struct esp_softc *)sc;
 

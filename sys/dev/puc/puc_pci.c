@@ -135,8 +135,8 @@ static device_method_t puc_pci_methods[] = {
     DEVMETHOD(bus_print_child,		puc_bus_print_child),
     DEVMETHOD(bus_child_pnpinfo_str,	puc_bus_child_pnpinfo_str),
     DEVMETHOD(bus_child_location_str,	puc_bus_child_location_str),
-    DEVMETHOD(bus_driver_added,		bus_generic_driver_added),
-    { 0, 0 }
+
+    DEVMETHOD_END
 };
 
 static driver_t puc_pci_driver = {

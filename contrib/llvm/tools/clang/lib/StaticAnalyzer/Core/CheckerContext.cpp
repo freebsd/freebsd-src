@@ -23,8 +23,8 @@ CheckerContext::~CheckerContext() {
   // if we are building sinks or we generated a node and decided to not
   // add it as a transition.
   if (Dst.size() == size && !B.BuildSinks && !B.hasGeneratedNode) {
-    if (ST && ST != B.GetState(Pred)) {
-      static int autoTransitionTag = 0;
+    if (ST && ST != Pred->getState()) {
+      static SimpleProgramPointTag autoTransitionTag("CheckerContext : auto");
       addTransition(ST, &autoTransitionTag);
     }
     else

@@ -759,6 +759,18 @@ struct ieee80211_country_ie {
 /*
  * 802.11h Channel Switch Announcement (CSA).
  */
+struct ieee80211_quiet_ie {
+	uint8_t		quiet_ie;		/* IEEE80211_ELEMID_QUIET */
+	uint8_t		len;
+	uint8_t		tbttcount;		/* quiet start */
+	uint8_t		period;			/* beacon intervals between quiets */
+	uint16_t	duration;		/* TUs of each quiet*/
+	uint16_t	offset;			/* TUs of from TBTT of quiet start */
+} __packed;
+
+/*
+ * 802.11h Channel Switch Announcement (CSA).
+ */
 struct ieee80211_csa_ie {
 	uint8_t		csa_ie;		/* IEEE80211_ELEMID_CHANSWITCHANN */
 	uint8_t		csa_len;

@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
  * on, turned off, etc.
  */
 
-MALLOC_DEFINE(M_ACPIPWR, "acpipwr", "ACPI power resources");
+static MALLOC_DEFINE(M_ACPIPWR, "acpipwr", "ACPI power resources");
 
 /* Hooks for the ACPI CA debugging infrastructure */
 #define _COMPONENT	ACPI_POWERRES

@@ -24,7 +24,7 @@ class InitOnlyAction : public FrontendAction {
   virtual void ExecuteAction();
 
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         llvm::StringRef InFile);
+                                         StringRef InFile);
 
 public:
   // Don't claim to only use the preprocessor, we want to follow the AST path,
@@ -39,59 +39,65 @@ public:
 class ASTPrintAction : public ASTFrontendAction {
 protected:
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         llvm::StringRef InFile);
+                                         StringRef InFile);
 };
 
 class ASTDumpAction : public ASTFrontendAction {
 protected:
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         llvm::StringRef InFile);
+                                         StringRef InFile);
 };
 
 class ASTDumpXMLAction : public ASTFrontendAction {
 protected:
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         llvm::StringRef InFile);
+                                         StringRef InFile);
 };
 
 class ASTViewAction : public ASTFrontendAction {
 protected:
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         llvm::StringRef InFile);
+                                         StringRef InFile);
 };
 
 class DeclContextPrintAction : public ASTFrontendAction {
 protected:
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         llvm::StringRef InFile);
+                                         StringRef InFile);
 };
 
 class GeneratePCHAction : public ASTFrontendAction {
+  bool MakeModule;
+  
 protected:
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         llvm::StringRef InFile);
+                                         StringRef InFile);
 
-  virtual bool usesCompleteTranslationUnit() { return false; }
+  virtual TranslationUnitKind getTranslationUnitKind() { 
+    return MakeModule? TU_Module : TU_Prefix;
+  }
 
   virtual bool hasASTFileSupport() const { return false; }
 
 public:
+  /// \brief Create a new action
+  explicit GeneratePCHAction(bool MakeModule) : MakeModule(MakeModule) { }
+  
   /// \brief Compute the AST consumer arguments that will be used to
   /// create the PCHGenerator instance returned by CreateASTConsumer.
   ///
   /// \returns true if an error occurred, false otherwise.
   static bool ComputeASTConsumerArguments(CompilerInstance &CI,
-                                          llvm::StringRef InFile,
+                                          StringRef InFile,
                                           std::string &Sysroot,
                                           std::string &OutputFile,
-                                          llvm::raw_ostream *&OS,
-                                          bool &Chaining);
+                                          raw_ostream *&OS);
 };
 
 class SyntaxOnlyAction : public ASTFrontendAction {
 protected:
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         llvm::StringRef InFile);
+                                         StringRef InFile);
 
 public:
   virtual bool hasCodeCompletionSupport() const { return true; }
@@ -114,10 +120,10 @@ class ASTMergeAction : public FrontendAction {
 
 protected:
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
-                                         llvm::StringRef InFile);
+                                         StringRef InFile);
 
   virtual bool BeginSourceFileAction(CompilerInstance &CI,
-                                     llvm::StringRef Filename);
+                                     StringRef Filename);
 
   virtual void ExecuteAction();
   virtual void EndSourceFileAction();
@@ -128,7 +134,7 @@ public:
   virtual ~ASTMergeAction();
 
   virtual bool usesPreprocessorOnly() const;
-  virtual bool usesCompleteTranslationUnit();
+  virtual TranslationUnitKind getTranslationUnitKind();
   virtual bool hasPCHSupport() const;
   virtual bool hasASTFileSupport() const;
   virtual bool hasCodeCompletionSupport() const;
@@ -137,7 +143,7 @@ public:
 class PrintPreambleAction : public FrontendAction {
 protected:
   void ExecuteAction();
-  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &, llvm::StringRef) { 
+  virtual ASTConsumer *CreateASTConsumer(CompilerInstance &, StringRef) { 
     return 0; 
   }
   

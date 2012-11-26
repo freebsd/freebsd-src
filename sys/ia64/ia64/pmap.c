@@ -207,7 +207,7 @@ static uma_zone_t ptezone;
  * Virtual Hash Page Table (VHPT) data.
  */
 /* SYSCTL_DECL(_machdep); */
-SYSCTL_NODE(_machdep, OID_AUTO, vhpt, CTLFLAG_RD, 0, "");
+static SYSCTL_NODE(_machdep, OID_AUTO, vhpt, CTLFLAG_RD, 0, "");
 
 struct ia64_bucket *pmap_vhpt_bucket;
 

@@ -154,7 +154,7 @@ struct sdhci_softc {
 	struct sdhci_slot slots[6];
 };
 
-SYSCTL_NODE(_hw, OID_AUTO, sdhci, CTLFLAG_RD, 0, "sdhci driver");
+static SYSCTL_NODE(_hw, OID_AUTO, sdhci, CTLFLAG_RD, 0, "sdhci driver");
 
 int	sdhci_debug;
 TUNABLE_INT("hw.sdhci.debug", &sdhci_debug);

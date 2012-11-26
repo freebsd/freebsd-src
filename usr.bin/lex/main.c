@@ -27,7 +27,7 @@
  */
 
 #ifndef lint
-char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1990 The Regents of the University of California.\n\
  All rights reserved.\n";
 #endif /* not lint */

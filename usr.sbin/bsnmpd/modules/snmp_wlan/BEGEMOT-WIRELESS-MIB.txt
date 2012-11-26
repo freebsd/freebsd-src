@@ -82,8 +82,8 @@ WlanMgmtReasonCode ::= TEXTUAL-CONVENTION
 		    associationLeave(8),
 		    associationNotAuthenticated(9),
 -- XXX: TODO - FIXME
-		    dissasocPwrcapBad(10),
-		    dissasocSuperchanBad(11),
+		    dissassocPwrcapBad(10),
+		    dissassocSuperchanBad(11),
 		    ieInvalid(13),
 		    micFailure(14),
 		    fourWayHandshakeTimeout(15),
@@ -579,10 +579,10 @@ wlanIfaceCountryCode OBJECT-TYPE
 	interface is operating include all environments in the specified
 	country.
 
-	2. an ASCII 'O' character, if the country's regulastions are for
+	2. an ASCII 'O' character, if the country's regulations are for
 	Outdoor environment only.
 
-	3. an ASCII 'I' character, if the country's regulastions are for
+	3. an ASCII 'I' character, if the country's regulations are for
 	Indoor environment only."
     ::= { wlanIfaceConfigEntry 2 }
 
@@ -634,7 +634,7 @@ wlanIfaceFastFrames OBJECT-TYPE
     DESCRIPTION
 	"The value of this object controls whether use of Atheros Fast
 	Frames is enabled when when communicating with another Fast
-	Frames-capable station. The value is only meaningfull for
+	Frames-capable station. The value is only meaningful for
 	interfaces that support Atheros Fast Frames."
     ::= { wlanIfaceConfigEntry 7 }
 
@@ -645,7 +645,7 @@ wlanIfaceDturbo OBJECT-TYPE
     DESCRIPTION
 	"The value of this object controls whether use of Atheros Dynamic
 	Turbo mode is enabled when when communicating with another Dynamic
-	Turbo-capable station. The value is only meaningfull for interfaces
+	Turbo-capable station. The value is only meaningful for interfaces
 	that support Atheros Dynamic Turbo mode."
     ::= { wlanIfaceConfigEntry 8 }
 
@@ -731,7 +731,7 @@ wlanIfaceBeaconMissedThreshold OBJECT-TYPE
     MAX-ACCESS	read-write
     STATUS	current
     DESCRIPTION
-	"The value of this object specifies the number of consequtive missed
+	"The value of this object specifies the number of consecutive missed
 	beacons before an interface operating in station mode will attempt
 	to search for a new access point."
     DEFVAL	{ 7 }
@@ -788,7 +788,7 @@ wlanIfaceDynamicWds OBJECT-TYPE
     STATUS	current
     DESCRIPTION
 	"The value of this object specifies whether Dynamic WDS (DWDS)
-	support is enabled. The value is only meaningfull for interfaces
+	support is enabled. The value is only meaningful for interfaces
 	that support Dynamic WDS."
     ::= { wlanIfaceConfigEntry 21 }
 
@@ -798,7 +798,7 @@ wlanIfacePowerSave OBJECT-TYPE
     STATUS	current
     DESCRIPTION
 	"The value of this object specifies whether powersave operation
-	is enabled. The value is only meaningfull for interfaces that
+	is enabled. The value is only meaningful for interfaces that
 	support powersave operation."
     ::= { wlanIfaceConfigEntry 22 }
 
@@ -809,7 +809,7 @@ wlanIfaceApBridge OBJECT-TYPE
     DESCRIPTION
 	"The value of this object specifies whether packets between
 	wireless clients will be passed directly by an interface
-	operating in host ap mode. Disabling it may be usefull in
+	operating in host ap mode. Disabling it may be useful in
 	situations when traffic between wireless clients needs to be
 	processed with packet filtering."
     DEFVAL	{ true }
@@ -1308,7 +1308,7 @@ wlanIfaceChannelFrequency OBJECT-TYPE
     MAX-ACCESS	read-only
     STATUS	current
     DESCRIPTION
-	"The channel frequency setting in Mhz."
+	"The channel frequency setting in MHz."
     ::= { wlanIfaceChannelEntry 5 }
 
 wlanIfaceChannelMaxRegPower OBJECT-TYPE
@@ -2741,7 +2741,7 @@ wlanStatsDwdsMcastDiscard OBJECT-TYPE
     MAX-ACCESS	read-only
     STATUS	current
     DESCRIPTION
-	"The number of multicast over DWDS frames discared by this interface."
+	"The number of multicast over DWDS frames discarded by this interface."
     ::= { wlanIfaceStatisticsEntry 98 }
 
 wlanStatsHTAssocRejectNoHT OBJECT-TYPE
@@ -2759,7 +2759,7 @@ wlanStatsHTAssocDowngrade OBJECT-TYPE
     MAX-ACCESS	read-only
     STATUS	current
     DESCRIPTION
-	"The number of times HT was dissallowed for an association on
+	"The number of times HT was disallowed for an association on
 	this interface due to WEP or TKIP requested."
     ::= { wlanIfaceStatisticsEntry 100 }
 
@@ -2769,7 +2769,7 @@ wlanStatsHTAssocRateMismatch OBJECT-TYPE
     MAX-ACCESS	read-only
     STATUS	current
     DESCRIPTION
-	"The number of times rate mismatch occured furing HT rate set
+	"The number of times rate mismatch occurred during HT rate set
 	handling on this interface."
     ::= { wlanIfaceStatisticsEntry 101 }
 
@@ -2787,7 +2787,7 @@ wlanStatsAMPDUMoved OBJECT-TYPE
     MAX-ACCESS	read-only
     STATUS	current
     DESCRIPTION
-	"The number of time A-MPDU MSDU moved window occured for this
+	"The number of time A-MPDU MSDU moved window occurred for this
 	interface."
     ::= { wlanIfaceStatisticsEntry 103 }
 
@@ -2807,7 +2807,7 @@ wlanStatsADDBANoRequest OBJECT-TYPE
     MAX-ACCESS	read-only
     STATUS	current
     DESCRIPTION
-	"The number of received ADDBA responces frames that were discarded
+	"The number of received ADDBA responses frames that were discarded
 	by this interface due to no pending ADDBA."
     ::= { wlanIfaceStatisticsEntry 105 }
 
@@ -2817,7 +2817,7 @@ wlanStatsADDBABadToken OBJECT-TYPE
     MAX-ACCESS	read-only
     STATUS	current
     DESCRIPTION
-	"The number of received ADDBA responce frames that were discarded
+	"The number of received ADDBA response frames that were discarded
 	by this interface since ADDBA response caused dialogtoken mismatch."
     ::= { wlanIfaceStatisticsEntry 106 }
 
@@ -2827,7 +2827,7 @@ wlanStatsADDBABadPolicy OBJECT-TYPE
     MAX-ACCESS	read-only
     STATUS	current
     DESCRIPTION
-	"The number of received ADDBA responce frames that were discarded
+	"The number of received ADDBA response frames that were discarded
 	by this interface since ADDBA response caused policy mismatch."
     ::= { wlanIfaceStatisticsEntry 107 }
 
@@ -2877,7 +2877,7 @@ wlanLastDissasocReason OBJECT-TYPE
     MAX-ACCESS	read-only
     STATUS	current
     DESCRIPTION
-	"The last received dissasociate reason on this interface."
+	"The last received disassociate reason on this interface."
     ::= { wlanIfaceStatisticsEntry 113 }
 
 wlanLastAuthFailReason OBJECT-TYPE
@@ -2942,7 +2942,7 @@ wlanStatsAMPDURexmtFailed OBJECT-TYPE
     MAX-ACCESS	read-only
     STATUS	current
     DESCRIPTION
-	"The number of A-MPDU frames for which retransmition failed on
+	"The number of A-MPDU frames for which retransmission failed on
 	this interface."
     ::= { wlanIfaceStatisticsEntry 120 }
 
@@ -3696,7 +3696,7 @@ wlanMeshDroppedMisaligned OBJECT-TYPE
     STATUS	current
     DESCRIPTION
 	"The number of frames that were dropped by this interface due to
-	bad alighment."
+	bad alignment."
     ::= { wlanMeshStatsEntry 11 }
 
 -- ---------------------------------------------------------- --

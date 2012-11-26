@@ -7,11 +7,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -81,8 +81,7 @@ struct sctp_host_name_param {
 /* supported address type */
 struct sctp_supported_addr_param {
 	struct sctp_paramhdr ph;/* type=SCTP_SUPPORTED_ADDRTYPE */
-	uint16_t addr_type[SCTP_ARRAY_MIN_LEN];	/* array of supported address
-						 * types */
+	uint16_t addr_type[2];	/* array of supported address types */
 }                         SCTP_PACKED;
 
 /* ECN parameter */

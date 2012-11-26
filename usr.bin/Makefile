@@ -33,6 +33,7 @@ SUBDIR=	alias \
 	compress \
 	cpuset \
 	csplit \
+	ctlstat \
 	cut \
 	dirname \
 	du \
@@ -250,9 +251,10 @@ SUBDIR+=	bc
 SUBDIR+=	chkey
 SUBDIR+=	dc
 SUBDIR+=	newkey
+.endif
+
 .if ${MK_LIBTHR} != "no"
 SUBDIR+=	csup
-.endif
 .endif
 
 .if ${MK_LOCATE} != "no"

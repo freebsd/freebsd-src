@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/nlm/hal/haldefs.h>
 #include <mips/nlm/hal/iomap.h>
-#include <mips/nlm/hal/cpuinfo.h>
 #include <mips/nlm/hal/usb.h>
 
 #include <mips/nlm/xlp.h>

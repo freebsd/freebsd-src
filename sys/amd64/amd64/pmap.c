@@ -182,7 +182,7 @@ static vm_paddr_t dmaplimit;
 vm_offset_t kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
 pt_entry_t pg_nx;
 
-SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
+static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 
 static int pat_works = 1;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pat_works, CTLFLAG_RD, &pat_works, 1,
@@ -805,7 +805,7 @@ pmap_shpgperproc_proc(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_vm_pmap, OID_AUTO, shpgperproc, CTLTYPE_INT|CTLFLAG_RW, 
     &shpgperproc, 0, pmap_shpgperproc_proc, "IU", "Page share factor per proc");
 
-SYSCTL_NODE(_vm_pmap, OID_AUTO, pde, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_vm_pmap, OID_AUTO, pde, CTLFLAG_RD, 0,
     "2MB page mapping counters");
 
 static u_long pmap_pde_demotions;
@@ -824,7 +824,7 @@ static u_long pmap_pde_promotions;
 SYSCTL_ULONG(_vm_pmap_pde, OID_AUTO, promotions, CTLFLAG_RD,
     &pmap_pde_promotions, 0, "2MB page promotions");
 
-SYSCTL_NODE(_vm_pmap, OID_AUTO, pdpe, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_vm_pmap, OID_AUTO, pdpe, CTLFLAG_RD, 0,
     "1GB page mapping counters");
 
 static u_long pmap_pdpe_demotions;
@@ -1255,8 +1255,8 @@ retry:
 	if (pdep != NULL && (pde = *pdep)) {
 		if (pde & PG_PS) {
 			if ((pde & PG_RW) || (prot & VM_PROT_WRITE) == 0) {
-				if (vm_page_pa_tryrelock(pmap, (pde & PG_PS_FRAME) |
-				       (va & PDRMASK), &pa))
+				if (vm_page_pa_tryrelock(pmap, (pde &
+				    PG_PS_FRAME) | (va & PDRMASK), &pa))
 					goto retry;
 				m = PHYS_TO_VM_PAGE((pde & PG_PS_FRAME) |
 				    (va & PDRMASK));
@@ -1266,7 +1266,8 @@ retry:
 			pte = *pmap_pde_to_pte(pdep, va);
 			if ((pte & PG_V) &&
 			    ((pte & PG_RW) || (prot & VM_PROT_WRITE) == 0)) {
-				if (vm_page_pa_tryrelock(pmap, pte & PG_FRAME, &pa))
+				if (vm_page_pa_tryrelock(pmap, pte & PG_FRAME,
+				    &pa))
 					goto retry;
 				m = PHYS_TO_VM_PAGE(pte & PG_FRAME);
 				vm_page_hold(m);
@@ -1635,7 +1636,6 @@ int
 pmap_pinit(pmap_t pmap)
 {
 	vm_page_t pml4pg;
-	static vm_pindex_t color;
 	int i;
 
 	PMAP_LOCK_INIT(pmap);
@@ -1643,8 +1643,8 @@ pmap_pinit(pmap_t pmap)
 	/*
 	 * allocate the page directory page
 	 */
-	while ((pml4pg = vm_page_alloc(NULL, color++, VM_ALLOC_NOOBJ |
-	    VM_ALLOC_NORMAL | VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL)
+	while ((pml4pg = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
+	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL)
 		VM_WAIT;
 
 	pmap->pm_pml4 = (pml4_entry_t *)PHYS_TO_DMAP(VM_PAGE_TO_PHYS(pml4pg));
@@ -2188,7 +2188,6 @@ get_pv_entry(pmap_t pmap, int try)
 {
 	static const struct timeval printinterval = { 60, 0 };
 	static struct timeval lastprint;
-	static vm_pindex_t colour;
 	struct vpgqueues *pq;
 	int bit, field;
 	pv_entry_t pv;
@@ -2228,7 +2227,7 @@ retry:
 		}
 	}
 	/* No free items, allocate another chunk */
-	m = vm_page_alloc(NULL, colour, (pq == &vm_page_queues[PQ_ACTIVE] ?
+	m = vm_page_alloc(NULL, 0, (pq == &vm_page_queues[PQ_ACTIVE] ?
 	    VM_ALLOC_SYSTEM : VM_ALLOC_NORMAL) | VM_ALLOC_NOOBJ |
 	    VM_ALLOC_WIRED);
 	if (m == NULL) {
@@ -2255,7 +2254,6 @@ retry:
 	}
 	PV_STAT(pc_chunk_count++);
 	PV_STAT(pc_chunk_allocs++);
-	colour++;
 	dump_add_page(m->phys_addr);
 	pc = (void *)PHYS_TO_DMAP(m->phys_addr);
 	pc->pc_pmap = pmap;

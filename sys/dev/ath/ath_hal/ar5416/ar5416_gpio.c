@@ -35,7 +35,10 @@ static void
 cfgOutputMux(struct ath_hal *ah, uint32_t gpio, uint32_t type)
 {
 	int addr;
-	uint32_t gpio_shift, reg;
+	uint32_t gpio_shift, tmp;
+
+	HALDEBUG(ah, HAL_DEBUG_GPIO, "%s: gpio=%d, type=%d\n",
+	    __func__, gpio, type);
 
 	/* each MUX controls 6 GPIO pins */
 	if (gpio > 11)
@@ -61,12 +64,17 @@ cfgOutputMux(struct ath_hal *ah, uint32_t gpio, uint32_t type)
 	 * will never be used.  So it should be fine that bit 4 won't be
 	 * able to recover.
 	 */
-	reg = OS_REG_READ(ah, addr);
-	if (addr == AR_GPIO_OUTPUT_MUX1 && !AR_SREV_MERLIN_20_OR_LATER(ah))
-		reg = ((reg & 0x1F0) << 1) | (reg & ~0x1F0);
-	reg &= ~(0x1f << gpio_shift);
-	reg |= type << gpio_shift;
-	OS_REG_WRITE(ah, addr, reg);
+	if (AR_SREV_MERLIN_20_OR_LATER(ah) ||
+	    (addr != AR_GPIO_OUTPUT_MUX1)) {
+		OS_REG_RMW(ah, addr, (type << gpio_shift),
+		    (0x1f << gpio_shift));
+	} else {
+		tmp = OS_REG_READ(ah, addr);
+		tmp = ((tmp & 0x1F0) << 1) | (tmp & ~0x1F0);
+		tmp &= ~(0x1f << gpio_shift);
+		tmp |= type << gpio_shift;
+		OS_REG_WRITE(ah, addr, tmp);
+	}
 }
 
 /*
@@ -79,12 +87,17 @@ ar5416GpioCfgOutput(struct ath_hal *ah, uint32_t gpio, HAL_GPIO_MUX_TYPE type)
 
 	HALASSERT(gpio < AH_PRIVATE(ah)->ah_caps.halNumGpioPins);
 
+	HALDEBUG(ah, HAL_DEBUG_GPIO,
+	    "%s: gpio=%d, type=%d\n", __func__, gpio, type);
+
 	/* NB: type maps directly to hardware */
+	/* XXX this may not actually be the case, for anything but output */
 	cfgOutputMux(ah, gpio, type);
 	gpio_shift = gpio << 1;			/* 2 bits per output mode */
 
 	reg = OS_REG_READ(ah, AR_GPIO_OE_OUT);
 	reg &= ~(AR_GPIO_OE_OUT_DRV << gpio_shift);
+	/* Always drive, rather than tristate/drive low/drive high */
 	reg |= AR_GPIO_OE_OUT_DRV_ALL << gpio_shift;
 	OS_REG_WRITE(ah, AR_GPIO_OE_OUT, reg);
 
@@ -100,6 +113,8 @@ ar5416GpioCfgInput(struct ath_hal *ah, uint32_t gpio)
 	uint32_t gpio_shift, reg;
 
 	HALASSERT(gpio < AH_PRIVATE(ah)->ah_caps.halNumGpioPins);
+
+	HALDEBUG(ah, HAL_DEBUG_GPIO, "%s: gpio=%d\n", __func__, gpio);
 
 	/* TODO: configure input mux for AR5416 */
 	/* If configured as input, set output to tristate */
@@ -122,6 +137,8 @@ ar5416GpioSet(struct ath_hal *ah, uint32_t gpio, uint32_t val)
 	uint32_t reg;
 
 	HALASSERT(gpio < AH_PRIVATE(ah)->ah_caps.halNumGpioPins);
+	HALDEBUG(ah, HAL_DEBUG_GPIO,
+	   "%s: gpio=%d, val=%d\n", __func__, gpio, val);
 
 	reg = OS_REG_READ(ah, AR_GPIO_IN_OUT);
 	if (val & 1)
@@ -146,6 +163,8 @@ ar5416GpioGet(struct ath_hal *ah, uint32_t gpio)
 	 * Read output value for all gpio's, shift it,
 	 * and verify whether the specific bit is set.
 	 */
+	if (AR_SREV_KIWI_10_OR_LATER(ah))
+		bits = MS(OS_REG_READ(ah, AR_GPIO_IN_OUT), AR9287_GPIO_IN_VAL);
 	if (AR_SREV_KITE_10_OR_LATER(ah))
 		bits = MS(OS_REG_READ(ah, AR_GPIO_IN_OUT), AR9285_GPIO_IN_VAL);
 	else if (AR_SREV_MERLIN_10_OR_LATER(ah))
@@ -165,6 +184,8 @@ ar5416GpioSetIntr(struct ath_hal *ah, u_int gpio, uint32_t ilevel)
 	uint32_t val, mask;
 
 	HALASSERT(gpio < AH_PRIVATE(ah)->ah_caps.halNumGpioPins);
+	HALDEBUG(ah, HAL_DEBUG_GPIO,
+	    "%s: gpio=%d, ilevel=%d\n", __func__, gpio, ilevel);
 
 	if (ilevel == HAL_GPIO_INTR_DISABLE) {
 		val = MS(OS_REG_READ(ah, AR_INTR_ASYNC_ENABLE),

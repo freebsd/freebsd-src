@@ -32,13 +32,13 @@
 #include <sys/time.h>
 
 #include <netinet/in.h>
-
-#include <arpa/inet.h>
+#include <netdb.h>			/* getaddrinfo */
 
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>			/* close */
 
 static void
 usage(void)
@@ -141,26 +141,25 @@ blast_loop(int s, long duration, u_char *packet, u_int packet_len)
 int
 main(int argc, char *argv[])
 {
-	long payloadsize, port, duration;
-	struct sockaddr_in sin;
+	long payloadsize, duration;
+	struct addrinfo hints, *res, *res0;
 	char *dummy, *packet;
-	int s;
+	int port, s, error;
+	const char *cause = NULL;
 
 	if (argc != 5)
 		usage();
 
-	bzero(&sin, sizeof(sin));
-	sin.sin_len = sizeof(sin);
-	sin.sin_family = AF_INET;
-	if (inet_aton(argv[1], &sin.sin_addr) == 0) {
-		perror(argv[1]);
-		return (-1);
-	}
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = PF_UNSPEC;
+	hints.ai_socktype = SOCK_DGRAM;
 
 	port = strtoul(argv[2], &dummy, 10);
-	if (port < 1 || port > 65535 || *dummy != '\0')
+	if (port < 1 || port > 65535 || *dummy != '\0') {
+		fprintf(stderr, "Invalid port number: %s\n", argv[2]);
 		usage();
-	sin.sin_port = htons(port);
+		/*NOTREACHED*/
+	}
 
 	payloadsize = strtoul(argv[3], &dummy, 10);
 	if (payloadsize < 0 || *dummy != '\0')
@@ -168,29 +167,55 @@ main(int argc, char *argv[])
 	if (payloadsize > 32768) {
 		fprintf(stderr, "payloadsize > 32768\n");
 		return (-1);
+		/*NOTREACHED*/
 	}
 
 	duration = strtoul(argv[4], &dummy, 10);
-	if (duration < 0 || *dummy != '\0')
+	if (duration < 0 || *dummy != '\0') {
+		fprintf(stderr, "Invalid duration time: %s\n", argv[4]);
 		usage();
+		/*NOTREACHED*/
+	}
 
 	packet = malloc(payloadsize);
 	if (packet == NULL) {
 		perror("malloc");
 		return (-1);
+		/*NOTREACHED*/
 	}
+
 	bzero(packet, payloadsize);
-
-	s = socket(PF_INET, SOCK_DGRAM, 0);
-	if (s == -1) {
-		perror("socket");
+	error = getaddrinfo(argv[1],argv[2], &hints, &res0);
+	if (error) {
+		perror(gai_strerror(error));
 		return (-1);
+		/*NOTREACHED*/
+	}
+	s = -1;
+	for (res = res0; res; res = res->ai_next) {
+		s = socket(res->ai_family, res->ai_socktype, 0);
+		if (s < 0) {
+			cause = "socket";
+			continue;
+		}
+
+		if (connect(s, res->ai_addr, res->ai_addrlen) < 0) {
+			cause = "connect";
+			close(s);
+			s = -1;
+			continue;
+		}
+
+		break;  /* okay we got one */
+	}
+	if (s < 0) {
+		perror(cause);
+		return (-1);
+		/*NOTREACHED*/
 	}
 
-	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
-		perror("connect");
-		return (-1);
-	}
+	freeaddrinfo(res0);
 
 	return (blast_loop(s, duration, packet, payloadsize));
+
 }

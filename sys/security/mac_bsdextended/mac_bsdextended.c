@@ -72,7 +72,7 @@ static struct mtx ugidfw_mtx;
 
 SYSCTL_DECL(_security_mac);
 
-SYSCTL_NODE(_security_mac, OID_AUTO, bsdextended, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security_mac, OID_AUTO, bsdextended, CTLFLAG_RW, 0,
     "TrustedBSD extended BSD MAC policy controls");
 
 static int	ugidfw_enabled = 1;
@@ -80,7 +80,8 @@ SYSCTL_INT(_security_mac_bsdextended, OID_AUTO, enabled, CTLFLAG_RW,
     &ugidfw_enabled, 0, "Enforce extended BSD policy");
 TUNABLE_INT("security.mac.bsdextended.enabled", &ugidfw_enabled);
 
-MALLOC_DEFINE(M_MACBSDEXTENDED, "mac_bsdextended", "BSD Extended MAC rule");
+static MALLOC_DEFINE(M_MACBSDEXTENDED, "mac_bsdextended",
+    "BSD Extended MAC rule");
 
 #define	MAC_BSDEXTENDED_MAXRULES	250
 static struct mac_bsdextended_rule *rules[MAC_BSDEXTENDED_MAXRULES];
@@ -202,7 +203,7 @@ out:
 	return (error);
 }
 
-SYSCTL_NODE(_security_mac_bsdextended, OID_AUTO, rules,
+static SYSCTL_NODE(_security_mac_bsdextended, OID_AUTO, rules,
     CTLFLAG_MPSAFE | CTLFLAG_RW, sysctl_rule, "BSD extended MAC rules");
 
 static void

@@ -13,10 +13,8 @@
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/DenseSet.h"
 #include <map>
-
 using namespace clang;
 using namespace arcmt;
-using llvm::StringRef;
 
 namespace {
 
@@ -46,9 +44,9 @@ class TransformActionsImpl {
     ActionKind Kind;
     SourceLocation Loc;
     SourceRange R1, R2;
-    llvm::StringRef Text1, Text2;
+    StringRef Text1, Text2;
     Stmt *S;
-    llvm::SmallVector<unsigned, 2> DiagIDs;
+    SmallVector<unsigned, 2> DiagIDs;
   };
 
   std::vector<ActionData> CachedActions;
@@ -70,11 +68,11 @@ class TransformActionsImpl {
       SourceLocation beginLoc = range.getBegin(), endLoc = range.getEnd();
       assert(beginLoc.isValid() && endLoc.isValid());
       if (range.isTokenRange()) {
-        Begin = FullSourceLoc(srcMgr.getInstantiationLoc(beginLoc), srcMgr);
+        Begin = FullSourceLoc(srcMgr.getExpansionLoc(beginLoc), srcMgr);
         End = FullSourceLoc(getLocForEndOfToken(endLoc, srcMgr, PP), srcMgr);
       } else {
-        Begin = FullSourceLoc(srcMgr.getInstantiationLoc(beginLoc), srcMgr);
-        End = FullSourceLoc(srcMgr.getInstantiationLoc(endLoc), srcMgr);
+        Begin = FullSourceLoc(srcMgr.getExpansionLoc(beginLoc), srcMgr);
+        End = FullSourceLoc(srcMgr.getExpansionLoc(endLoc), srcMgr);
       }
       assert(Begin.isValid() && End.isValid());
     } 
@@ -104,7 +102,7 @@ class TransformActionsImpl {
     }
   };
 
-  typedef llvm::SmallVector<StringRef, 2> TextsVec;
+  typedef SmallVector<StringRef, 2> TextsVec;
   typedef std::map<FullSourceLoc, TextsVec, FullSourceLoc::BeforeThanCompare>
       InsertsMap;
   InsertsMap Inserts;
@@ -130,19 +128,19 @@ public:
 
   bool isInTransaction() const { return IsInTransaction; }
 
-  void insert(SourceLocation loc, llvm::StringRef text);
-  void insertAfterToken(SourceLocation loc, llvm::StringRef text);
+  void insert(SourceLocation loc, StringRef text);
+  void insertAfterToken(SourceLocation loc, StringRef text);
   void remove(SourceRange range);
   void removeStmt(Stmt *S);
-  void replace(SourceRange range, llvm::StringRef text);
+  void replace(SourceRange range, StringRef text);
   void replace(SourceRange range, SourceRange replacementRange);
-  void replaceStmt(Stmt *S, llvm::StringRef text);
-  void replaceText(SourceLocation loc, llvm::StringRef text,
-                   llvm::StringRef replacementText);
+  void replaceStmt(Stmt *S, StringRef text);
+  void replaceText(SourceLocation loc, StringRef text,
+                   StringRef replacementText);
   void increaseIndentation(SourceRange range,
                            SourceLocation parentIndent);
 
-  bool clearDiagnostic(llvm::ArrayRef<unsigned> IDs, SourceRange range);
+  bool clearDiagnostic(ArrayRef<unsigned> IDs, SourceRange range);
 
   void applyRewrites(TransformActions::RewriteReceiver &receiver);
 
@@ -151,17 +149,17 @@ private:
   bool canInsertAfterToken(SourceLocation loc);
   bool canRemoveRange(SourceRange range);
   bool canReplaceRange(SourceRange range, SourceRange replacementRange);
-  bool canReplaceText(SourceLocation loc, llvm::StringRef text);
+  bool canReplaceText(SourceLocation loc, StringRef text);
 
   void commitInsert(SourceLocation loc, StringRef text);
   void commitInsertAfterToken(SourceLocation loc, StringRef text);
   void commitRemove(SourceRange range);
   void commitRemoveStmt(Stmt *S);
   void commitReplace(SourceRange range, SourceRange replacementRange);
-  void commitReplaceText(SourceLocation loc, llvm::StringRef text,
-                         llvm::StringRef replacementText);
+  void commitReplaceText(SourceLocation loc, StringRef text,
+                         StringRef replacementText);
   void commitIncreaseIndentation(SourceRange range,SourceLocation parentIndent);
-  void commitClearDiagnostic(llvm::ArrayRef<unsigned> IDs, SourceRange range);
+  void commitClearDiagnostic(ArrayRef<unsigned> IDs, SourceRange range);
 
   void addRemoval(CharSourceRange range);
   void addInsertion(SourceLocation loc, StringRef text);
@@ -364,7 +362,7 @@ void TransformActionsImpl::increaseIndentation(SourceRange range,
   CachedActions.push_back(data);
 }
 
-bool TransformActionsImpl::clearDiagnostic(llvm::ArrayRef<unsigned> IDs,
+bool TransformActionsImpl::clearDiagnostic(ArrayRef<unsigned> IDs,
                                            SourceRange range) {
   assert(IsInTransaction && "Actions only allowed during a transaction");
   if (!CapturedDiags.hasDiagnostic(IDs, range))
@@ -383,7 +381,7 @@ bool TransformActionsImpl::canInsert(SourceLocation loc) {
     return false;
 
   SourceManager &SM = Ctx.getSourceManager();
-  if (SM.isInSystemHeader(SM.getInstantiationLoc(loc)))
+  if (SM.isInSystemHeader(SM.getExpansionLoc(loc)))
     return false;
 
   if (loc.isFileID())
@@ -396,7 +394,7 @@ bool TransformActionsImpl::canInsertAfterToken(SourceLocation loc) {
     return false;
 
   SourceManager &SM = Ctx.getSourceManager();
-  if (SM.isInSystemHeader(SM.getInstantiationLoc(loc)))
+  if (SM.isInSystemHeader(SM.getExpansionLoc(loc)))
     return false;
 
   if (loc.isFileID())
@@ -418,14 +416,14 @@ bool TransformActionsImpl::canReplaceText(SourceLocation loc, StringRef text) {
     return false;
 
   SourceManager &SM = Ctx.getSourceManager();
-  loc = SM.getInstantiationLoc(loc);
+  loc = SM.getExpansionLoc(loc);
 
   // Break down the source location.
   std::pair<FileID, unsigned> locInfo = SM.getDecomposedLoc(loc);
 
   // Try to load the file buffer.
   bool invalidTemp = false;
-  llvm::StringRef file = SM.getBufferData(locInfo.first, &invalidTemp);
+  StringRef file = SM.getBufferData(locInfo.first, &invalidTemp);
   if (invalidTemp)
     return false;
 
@@ -479,9 +477,9 @@ void TransformActionsImpl::commitReplaceText(SourceLocation loc,
                                              StringRef text,
                                              StringRef replacementText) {
   SourceManager &SM = Ctx.getSourceManager();
-  loc = SM.getInstantiationLoc(loc);
+  loc = SM.getExpansionLoc(loc);
   // canReplaceText already checked if loc points at text.
-  SourceLocation afterText = loc.getFileLocWithOffset(text.size());
+  SourceLocation afterText = loc.getLocWithOffset(text.size());
 
   addRemoval(CharSourceRange::getCharRange(loc, afterText));
   commitInsert(loc, replacementText);  
@@ -493,17 +491,17 @@ void TransformActionsImpl::commitIncreaseIndentation(SourceRange range,
   IndentationRanges.push_back(
                  std::make_pair(CharRange(CharSourceRange::getTokenRange(range),
                                           SM, PP),
-                                SM.getInstantiationLoc(parentIndent)));
+                                SM.getExpansionLoc(parentIndent)));
 }
 
-void TransformActionsImpl::commitClearDiagnostic(llvm::ArrayRef<unsigned> IDs,
+void TransformActionsImpl::commitClearDiagnostic(ArrayRef<unsigned> IDs,
                                                  SourceRange range) {
   CapturedDiags.clearDiagnostic(IDs, range);
 }
 
 void TransformActionsImpl::addInsertion(SourceLocation loc, StringRef text) {
   SourceManager &SM = Ctx.getSourceManager();
-  loc = SM.getInstantiationLoc(loc);
+  loc = SM.getExpansionLoc(loc);
   for (std::list<CharRange>::reverse_iterator
          I = Removals.rbegin(), E = Removals.rend(); I != E; ++I) {
     if (!SM.isBeforeInTranslationUnit(loc, I->End))
@@ -591,16 +589,16 @@ SourceLocation TransformActionsImpl::getLocForEndOfToken(SourceLocation loc,
                                                          SourceManager &SM,
                                                          Preprocessor &PP) {
   if (loc.isMacroID())
-    loc = SM.getInstantiationRange(loc).second;
+    loc = SM.getExpansionRange(loc).second;
   return PP.getLocForEndOfToken(loc);
 }
 
 TransformActions::RewriteReceiver::~RewriteReceiver() { }
 
-TransformActions::TransformActions(Diagnostic &diag,
+TransformActions::TransformActions(DiagnosticsEngine &diag,
                                    CapturedDiagList &capturedDiags,
                                    ASTContext &ctx, Preprocessor &PP)
-  : Diags(diag), CapturedDiags(capturedDiags) {
+  : Diags(diag), CapturedDiags(capturedDiags), ReportedErrors(false) {
   Impl = new TransformActionsImpl(capturedDiags, ctx, PP);
 }
 
@@ -621,12 +619,12 @@ void TransformActions::abortTransaction() {
 }
 
 
-void TransformActions::insert(SourceLocation loc, llvm::StringRef text) {
+void TransformActions::insert(SourceLocation loc, StringRef text) {
   static_cast<TransformActionsImpl*>(Impl)->insert(loc, text);
 }
 
 void TransformActions::insertAfterToken(SourceLocation loc,
-                                        llvm::StringRef text) {
+                                        StringRef text) {
   static_cast<TransformActionsImpl*>(Impl)->insertAfterToken(loc, text);
 }
 
@@ -638,7 +636,7 @@ void TransformActions::removeStmt(Stmt *S) {
   static_cast<TransformActionsImpl*>(Impl)->removeStmt(S);
 }
 
-void TransformActions::replace(SourceRange range, llvm::StringRef text) {
+void TransformActions::replace(SourceRange range, StringRef text) {
   static_cast<TransformActionsImpl*>(Impl)->replace(range, text);
 }
 
@@ -647,12 +645,12 @@ void TransformActions::replace(SourceRange range,
   static_cast<TransformActionsImpl*>(Impl)->replace(range, replacementRange);
 }
 
-void TransformActions::replaceStmt(Stmt *S, llvm::StringRef text) {
+void TransformActions::replaceStmt(Stmt *S, StringRef text) {
   static_cast<TransformActionsImpl*>(Impl)->replaceStmt(S, text);
 }
 
-void TransformActions::replaceText(SourceLocation loc, llvm::StringRef text,
-                                   llvm::StringRef replacementText) {
+void TransformActions::replaceText(SourceLocation loc, StringRef text,
+                                   StringRef replacementText) {
   static_cast<TransformActionsImpl*>(Impl)->replaceText(loc, text,
                                                         replacementText);
 }
@@ -663,7 +661,7 @@ void TransformActions::increaseIndentation(SourceRange range,
                                                                 parentIndent);
 }
 
-bool TransformActions::clearDiagnostic(llvm::ArrayRef<unsigned> IDs,
+bool TransformActions::clearDiagnostic(ArrayRef<unsigned> IDs,
                                        SourceRange range) {
   return static_cast<TransformActionsImpl*>(Impl)->clearDiagnostic(IDs, range);
 }
@@ -672,7 +670,7 @@ void TransformActions::applyRewrites(RewriteReceiver &receiver) {
   static_cast<TransformActionsImpl*>(Impl)->applyRewrites(receiver);
 }
 
-void TransformActions::reportError(llvm::StringRef error, SourceLocation loc,
+void TransformActions::reportError(StringRef error, SourceLocation loc,
                                    SourceRange range) {
   assert(!static_cast<TransformActionsImpl*>(Impl)->isInTransaction() &&
          "Errors should be emitted out of a transaction");
@@ -683,9 +681,10 @@ void TransformActions::reportError(llvm::StringRef error, SourceLocation loc,
      = Diags.getDiagnosticIDs()->getCustomDiagID(DiagnosticIDs::Error,
                                                  rewriteErr);
   Diags.Report(loc, diagID) << range;
+  ReportedErrors = true;
 }
 
-void TransformActions::reportNote(llvm::StringRef note, SourceLocation loc,
+void TransformActions::reportNote(StringRef note, SourceLocation loc,
                                   SourceRange range) {
   assert(!static_cast<TransformActionsImpl*>(Impl)->isInTransaction() &&
          "Errors should be emitted out of a transaction");

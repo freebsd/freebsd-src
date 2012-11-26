@@ -168,8 +168,8 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
     __register_t a2 __unused, __register_t a3 __unused)
 {
 	uint64_t platform_counter_freq;
-	int argc, i;
-	char **argv, **envp;
+	int argc = 0, i;
+	char **argv = NULL, **envp = NULL;
 	vm_offset_t kernend;
 
 	/* 
@@ -184,9 +184,18 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	/* Initialize pcpu stuff */
 	mips_pcpu0_init();
 
+	/*
+	 * Until some more sensible abstractions for uboot/redboot
+	 * environment handling, we have to make this a compile-time
+	 * hack.  The existing code handles the uboot environment
+	 * very incorrectly so we should just ignore initialising
+	 * the relevant pointers.
+	 */
+#ifndef	AR71XX_ENV_UBOOT
 	argc = a0;
 	argv = (char**)a1;
 	envp = (char**)a2;
+#endif
 	/* 
 	 * Protect ourselves from garbage in registers 
 	 */
@@ -255,6 +264,9 @@ platform_start(__register_t a0 __unused, __register_t a1 __unused,
 	printf("  a2 = %08x\n", a2);
 	printf("  a3 = %08x\n", a3);
 
+	/*
+	 * XXX this code is very redboot specific.
+	 */
 	printf("Cmd line:");
 	if (MIPS_IS_VALID_PTR(argv)) {
 		for (i = 0; i < argc; i++) {

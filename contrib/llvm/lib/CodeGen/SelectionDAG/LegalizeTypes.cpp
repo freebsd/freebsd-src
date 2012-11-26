@@ -946,6 +946,13 @@ bool DAGTypeLegalizer::CustomWidenLowerNode(SDNode *N, EVT VT) {
   return true;
 }
 
+SDValue DAGTypeLegalizer::DisintegrateMERGE_VALUES(SDNode *N, unsigned ResNo) {
+  for (unsigned i = 0, e = N->getNumValues(); i != e; ++i)
+    if (i != ResNo)
+      ReplaceValueWith(SDValue(N, i), SDValue(N->getOperand(i)));
+  return SDValue(N, ResNo);
+}
+
 /// GetSplitDestVTs - Compute the VTs needed for the low/hi parts of a type
 /// which is split into two not necessarily identical pieces.
 void DAGTypeLegalizer::GetSplitDestVTs(EVT InVT, EVT &LoVT, EVT &HiVT) {
@@ -1046,7 +1053,7 @@ SDValue DAGTypeLegalizer::MakeLibCall(RTLIB::Libcall LC, EVT RetVT,
   SDValue Callee = DAG.getExternalSymbol(TLI.getLibcallName(LC),
                                          TLI.getPointerTy());
 
-  const Type *RetTy = RetVT.getTypeForEVT(*DAG.getContext());
+  Type *RetTy = RetVT.getTypeForEVT(*DAG.getContext());
   std::pair<SDValue,SDValue> CallInfo =
     TLI.LowerCallTo(DAG.getEntryNode(), RetTy, isSigned, !isSigned, false,
                     false, 0, TLI.getLibcallCallingConv(LC), false,
@@ -1067,7 +1074,7 @@ DAGTypeLegalizer::ExpandChainLibCall(RTLIB::Libcall LC,
   TargetLowering::ArgListEntry Entry;
   for (unsigned i = 1, e = Node->getNumOperands(); i != e; ++i) {
     EVT ArgVT = Node->getOperand(i).getValueType();
-    const Type *ArgTy = ArgVT.getTypeForEVT(*DAG.getContext());
+    Type *ArgTy = ArgVT.getTypeForEVT(*DAG.getContext());
     Entry.Node = Node->getOperand(i);
     Entry.Ty = ArgTy;
     Entry.isSExt = isSigned;
@@ -1078,7 +1085,7 @@ DAGTypeLegalizer::ExpandChainLibCall(RTLIB::Libcall LC,
                                          TLI.getPointerTy());
 
   // Splice the libcall in wherever FindInputOutputChains tells us to.
-  const Type *RetTy = Node->getValueType(0).getTypeForEVT(*DAG.getContext());
+  Type *RetTy = Node->getValueType(0).getTypeForEVT(*DAG.getContext());
   std::pair<SDValue, SDValue> CallInfo =
     TLI.LowerCallTo(InChain, RetTy, isSigned, !isSigned, false, false,
                     0, TLI.getLibcallCallingConv(LC), /*isTailCall=*/false,
@@ -1093,24 +1100,8 @@ DAGTypeLegalizer::ExpandChainLibCall(RTLIB::Libcall LC,
 /// type i1, the bits of which conform to getBooleanContents.
 SDValue DAGTypeLegalizer::PromoteTargetBoolean(SDValue Bool, EVT VT) {
   DebugLoc dl = Bool.getDebugLoc();
-  ISD::NodeType ExtendCode;
-  switch (TLI.getBooleanContents()) {
-  default:
-    assert(false && "Unknown BooleanContent!");
-  case TargetLowering::UndefinedBooleanContent:
-    // Extend to VT by adding rubbish bits.
-    ExtendCode = ISD::ANY_EXTEND;
-    break;
-  case TargetLowering::ZeroOrOneBooleanContent:
-    // Extend to VT by adding zero bits.
-    ExtendCode = ISD::ZERO_EXTEND;
-    break;
-  case TargetLowering::ZeroOrNegativeOneBooleanContent: {
-    // Extend to VT by copying the sign bit.
-    ExtendCode = ISD::SIGN_EXTEND;
-    break;
-  }
-  }
+  ISD::NodeType ExtendCode =
+    TargetLowering::getExtendForContent(TLI.getBooleanContents(VT.isVector()));
   return DAG.getNode(ExtendCode, dl, VT, Bool);
 }
 

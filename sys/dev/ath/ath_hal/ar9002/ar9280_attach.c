@@ -892,9 +892,12 @@ ar9280SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 static const char*
 ar9280Probe(uint16_t vendorid, uint16_t devid)
 {
-	if (vendorid == ATHEROS_VENDOR_ID &&
-	    (devid == AR9280_DEVID_PCI || devid == AR9280_DEVID_PCIE))
-		return "Atheros 9280";
+	if (vendorid == ATHEROS_VENDOR_ID) {
+		if (devid == AR9280_DEVID_PCI)
+			return "Atheros 9220";
+		if (devid == AR9280_DEVID_PCIE)
+			return "Atheros 9280";
+	}
 	return AH_NULL;
 }
 AH_CHIP(AR9280, ar9280Probe, ar9280Attach);

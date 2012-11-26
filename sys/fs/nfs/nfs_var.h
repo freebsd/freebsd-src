@@ -418,8 +418,8 @@ int nfsrpc_pathconf(vnode_t, struct nfsv3_pathconf *,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, int *, void *);
 int nfsrpc_renew(struct nfsclclient *, struct ucred *,
     NFSPROC_T *);
-int nfsrpc_rellockown(struct nfsmount *, struct nfscllockowner *,
-    struct ucred *, NFSPROC_T *);
+int nfsrpc_rellockown(struct nfsmount *, struct nfscllockowner *, uint8_t *,
+    int, struct ucred *, NFSPROC_T *);
 int nfsrpc_getdirpath(struct nfsmount *, u_char *, struct ucred *,
     NFSPROC_T *);
 int nfsrpc_delegreturn(struct nfscldeleg *, struct ucred *,

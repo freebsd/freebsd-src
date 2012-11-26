@@ -1,5 +1,5 @@
 /*
- * FreeBSD install - a package for the installation and maintainance
+ * FreeBSD install - a package for the installation and maintenance
  * of non-core utilities.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -123,7 +123,7 @@ find_plist_option(Package *pkg, const char *name)
 
 /*
  * Delete plist item 'type' in the list (if 'name' is non-null, match it
- * too.)  If 'all' is set, delete all items, not just the first occurance.
+ * too.)  If 'all' is set, delete all items, not just the first occurrence.
  */
 void
 delete_plist(Package *pkg, Boolean all, plist_t type, const char *name)

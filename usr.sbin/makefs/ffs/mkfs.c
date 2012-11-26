@@ -139,7 +139,9 @@ ffs_mkfs(const char *fsys, const fsinfo_t *fsopts)
 	avgfpdir =      ffs_opts->avgfpdir;
 	bbsize =        BBSIZE;
 	sbsize =        SBLOCKSIZE;
-	
+
+	strlcpy(sblock.fs_volname, ffs_opts->label, sizeof(sblock.fs_volname));
+
 	if (Oflag == 0) {
 		sblock.fs_old_inodefmt = FS_42INODEFMT;
 		sblock.fs_maxsymlinklen = 0;

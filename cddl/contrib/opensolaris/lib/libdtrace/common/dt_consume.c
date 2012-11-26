@@ -873,7 +873,7 @@ dt_print_stack(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 			if (pc > sym.st_value) {
 				(void) snprintf(c, sizeof (c), "%s`%s+0x%llx",
 				    dts.dts_object, dts.dts_name,
-				    pc - sym.st_value);
+				    (u_longlong_t)(pc - sym.st_value));
 			} else {
 				(void) snprintf(c, sizeof (c), "%s`%s",
 				    dts.dts_object, dts.dts_name);
@@ -886,9 +886,10 @@ dt_print_stack(dtrace_hdl_t *dtp, FILE *fp, const char *format,
 			 */
 			if (dtrace_lookup_by_addr(dtp, pc, NULL, &dts) == 0) {
 				(void) snprintf(c, sizeof (c), "%s`0x%llx",
-				    dts.dts_object, pc);
+				    dts.dts_object, (u_longlong_t)pc);
 			} else {
-				(void) snprintf(c, sizeof (c), "0x%llx", pc);
+				(void) snprintf(c, sizeof (c), "0x%llx",
+				    (u_longlong_t)pc);
 			}
 		}
 

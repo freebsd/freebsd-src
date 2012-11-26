@@ -41,12 +41,16 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/IRBuilder.h"
+#include "llvm/Support/PatternMatch.h"
 using namespace llvm;
+using namespace PatternMatch;
 
 STATISTIC(NumGVNInstr,  "Number of instructions deleted");
 STATISTIC(NumGVNLoad,   "Number of loads deleted");
 STATISTIC(NumGVNPRE,    "Number of instructions PRE'd");
 STATISTIC(NumGVNBlocks, "Number of blocks merged");
+STATISTIC(NumGVNSimpl,  "Number of instructions simplified");
+STATISTIC(NumGVNEqProp, "Number of equalities propagated");
 STATISTIC(NumPRELoad,   "Number of loads PRE'd");
 
 static cl::opt<bool> EnablePRE("enable-pre",
@@ -63,7 +67,7 @@ static cl::opt<bool> EnableLoadPRE("enable-load-pre", cl::init(true));
 namespace {
   struct Expression {
     uint32_t opcode;
-    const Type *type;
+    Type *type;
     SmallVector<uint32_t, 4> varargs;
 
     Expression(uint32_t o = ~2U) : opcode(o) { }
@@ -548,6 +552,9 @@ namespace {
     void cleanupGlobalSets();
     void verifyRemoved(const Instruction *I) const;
     bool splitCriticalEdges();
+    unsigned replaceAllDominatedUsesWith(Value *From, Value *To,
+                                         BasicBlock *Root);
+    bool propagateEquality(Value *LHS, Value *RHS, BasicBlock *Root);
   };
 
   char GVN::ID = 0;
@@ -655,7 +662,7 @@ SpeculationFailure:
 /// CanCoerceMustAliasedValueToLoad - Return true if
 /// CoerceAvailableValueToLoadType will succeed.
 static bool CanCoerceMustAliasedValueToLoad(Value *StoredVal,
-                                            const Type *LoadTy,
+                                            Type *LoadTy,
                                             const TargetData &TD) {
   // If the loaded or stored value is an first class array or struct, don't try
   // to transform them.  We need to be able to bitcast to integer.
@@ -680,17 +687,17 @@ static bool CanCoerceMustAliasedValueToLoad(Value *StoredVal,
 ///
 /// If we can't do it, return null.
 static Value *CoerceAvailableValueToLoadType(Value *StoredVal, 
-                                             const Type *LoadedTy,
+                                             Type *LoadedTy,
                                              Instruction *InsertPt,
                                              const TargetData &TD) {
   if (!CanCoerceMustAliasedValueToLoad(StoredVal, LoadedTy, TD))
     return 0;
   
   // If this is already the right type, just return it.
-  const Type *StoredValTy = StoredVal->getType();
+  Type *StoredValTy = StoredVal->getType();
   
-  uint64_t StoreSize = TD.getTypeStoreSizeInBits(StoredValTy);
-  uint64_t LoadSize = TD.getTypeStoreSizeInBits(LoadedTy);
+  uint64_t StoreSize = TD.getTypeSizeInBits(StoredValTy);
+  uint64_t LoadSize = TD.getTypeSizeInBits(LoadedTy);
   
   // If the store and reload are the same size, we can always reuse it.
   if (StoreSize == LoadSize) {
@@ -704,7 +711,7 @@ static Value *CoerceAvailableValueToLoadType(Value *StoredVal,
       StoredVal = new PtrToIntInst(StoredVal, StoredValTy, "", InsertPt);
     }
     
-    const Type *TypeToCastTo = LoadedTy;
+    Type *TypeToCastTo = LoadedTy;
     if (TypeToCastTo->isPointerTy())
       TypeToCastTo = TD.getIntPtrType(StoredValTy->getContext());
     
@@ -743,7 +750,7 @@ static Value *CoerceAvailableValueToLoadType(Value *StoredVal,
   }
   
   // Truncate the integer to the right size now.
-  const Type *NewIntTy = IntegerType::get(StoredValTy->getContext(), LoadSize);
+  Type *NewIntTy = IntegerType::get(StoredValTy->getContext(), LoadSize);
   StoredVal = new TruncInst(StoredVal, NewIntTy, "trunc", InsertPt);
   
   if (LoadedTy == NewIntTy)
@@ -765,7 +772,7 @@ static Value *CoerceAvailableValueToLoadType(Value *StoredVal,
 /// Check this case to see if there is anything more we can do before we give
 /// up.  This returns -1 if we have to give up, or a byte number in the stored
 /// value of the piece that feeds the load.
-static int AnalyzeLoadFromClobberingWrite(const Type *LoadTy, Value *LoadPtr,
+static int AnalyzeLoadFromClobberingWrite(Type *LoadTy, Value *LoadPtr,
                                           Value *WritePtr,
                                           uint64_t WriteSizeInBits,
                                           const TargetData &TD) {
@@ -839,7 +846,7 @@ static int AnalyzeLoadFromClobberingWrite(const Type *LoadTy, Value *LoadPtr,
 
 /// AnalyzeLoadFromClobberingStore - This function is called when we have a
 /// memdep query of a load that ends up being a clobbering store.
-static int AnalyzeLoadFromClobberingStore(const Type *LoadTy, Value *LoadPtr,
+static int AnalyzeLoadFromClobberingStore(Type *LoadTy, Value *LoadPtr,
                                           StoreInst *DepSI,
                                           const TargetData &TD) {
   // Cannot handle reading from store of first-class aggregate yet.
@@ -856,7 +863,7 @@ static int AnalyzeLoadFromClobberingStore(const Type *LoadTy, Value *LoadPtr,
 /// AnalyzeLoadFromClobberingLoad - This function is called when we have a
 /// memdep query of a load that ends up being clobbered by another load.  See if
 /// the other load can feed into the second load.
-static int AnalyzeLoadFromClobberingLoad(const Type *LoadTy, Value *LoadPtr,
+static int AnalyzeLoadFromClobberingLoad(Type *LoadTy, Value *LoadPtr,
                                          LoadInst *DepLI, const TargetData &TD){
   // Cannot handle reading from store of first-class aggregate yet.
   if (DepLI->getType()->isStructTy() || DepLI->getType()->isArrayTy())
@@ -883,7 +890,7 @@ static int AnalyzeLoadFromClobberingLoad(const Type *LoadTy, Value *LoadPtr,
 
 
 
-static int AnalyzeLoadFromClobberingMemInst(const Type *LoadTy, Value *LoadPtr,
+static int AnalyzeLoadFromClobberingMemInst(Type *LoadTy, Value *LoadPtr,
                                             MemIntrinsic *MI,
                                             const TargetData &TD) {
   // If the mem operation is a non-constant size, we can't handle it.
@@ -920,7 +927,7 @@ static int AnalyzeLoadFromClobberingMemInst(const Type *LoadTy, Value *LoadPtr,
                                  llvm::Type::getInt8PtrTy(Src->getContext()));
   Constant *OffsetCst = 
     ConstantInt::get(Type::getInt64Ty(Src->getContext()), (unsigned)Offset);
-  Src = ConstantExpr::getGetElementPtr(Src, &OffsetCst, 1);
+  Src = ConstantExpr::getGetElementPtr(Src, OffsetCst);
   Src = ConstantExpr::getBitCast(Src, PointerType::getUnqual(LoadTy));
   if (ConstantFoldLoadFromConstPtr(Src, &TD))
     return Offset;
@@ -934,7 +941,7 @@ static int AnalyzeLoadFromClobberingMemInst(const Type *LoadTy, Value *LoadPtr,
 /// mustalias.  Check this case to see if there is anything more we can do
 /// before we give up.
 static Value *GetStoreValueForLoad(Value *SrcVal, unsigned Offset,
-                                   const Type *LoadTy,
+                                   Type *LoadTy,
                                    Instruction *InsertPt, const TargetData &TD){
   LLVMContext &Ctx = SrcVal->getType()->getContext();
   
@@ -946,10 +953,9 @@ static Value *GetStoreValueForLoad(Value *SrcVal, unsigned Offset,
   // Compute which bits of the stored value are being used by the load.  Convert
   // to an integer type to start with.
   if (SrcVal->getType()->isPointerTy())
-    SrcVal = Builder.CreatePtrToInt(SrcVal, TD.getIntPtrType(Ctx), "tmp");
+    SrcVal = Builder.CreatePtrToInt(SrcVal, TD.getIntPtrType(Ctx));
   if (!SrcVal->getType()->isIntegerTy())
-    SrcVal = Builder.CreateBitCast(SrcVal, IntegerType::get(Ctx, StoreSize*8),
-                                   "tmp");
+    SrcVal = Builder.CreateBitCast(SrcVal, IntegerType::get(Ctx, StoreSize*8));
   
   // Shift the bits to the least significant depending on endianness.
   unsigned ShiftAmt;
@@ -959,11 +965,10 @@ static Value *GetStoreValueForLoad(Value *SrcVal, unsigned Offset,
     ShiftAmt = (StoreSize-LoadSize-Offset)*8;
   
   if (ShiftAmt)
-    SrcVal = Builder.CreateLShr(SrcVal, ShiftAmt, "tmp");
+    SrcVal = Builder.CreateLShr(SrcVal, ShiftAmt);
   
   if (LoadSize != StoreSize)
-    SrcVal = Builder.CreateTrunc(SrcVal, IntegerType::get(Ctx, LoadSize*8),
-                                 "tmp");
+    SrcVal = Builder.CreateTrunc(SrcVal, IntegerType::get(Ctx, LoadSize*8));
   
   return CoerceAvailableValueToLoadType(SrcVal, LoadTy, InsertPt, TD);
 }
@@ -974,7 +979,7 @@ static Value *GetStoreValueForLoad(Value *SrcVal, unsigned Offset,
 /// because the pointers don't mustalias.  Check this case to see if there is
 /// anything more we can do before we give up.
 static Value *GetLoadValueForLoad(LoadInst *SrcVal, unsigned Offset,
-                                  const Type *LoadTy, Instruction *InsertPt,
+                                  Type *LoadTy, Instruction *InsertPt,
                                   GVN &gvn) {
   const TargetData &TD = *gvn.getTargetData();
   // If Offset+LoadTy exceeds the size of SrcVal, then we must be wanting to
@@ -982,8 +987,8 @@ static Value *GetLoadValueForLoad(LoadInst *SrcVal, unsigned Offset,
   unsigned SrcValSize = TD.getTypeStoreSize(SrcVal->getType());
   unsigned LoadSize = TD.getTypeStoreSize(LoadTy);
   if (Offset+LoadSize > SrcValSize) {
-    assert(!SrcVal->isVolatile() && "Cannot widen volatile load!");
-    assert(isa<IntegerType>(SrcVal->getType())&&"Can't widen non-integer load");
+    assert(SrcVal->isSimple() && "Cannot widen volatile/atomic load!");
+    assert(SrcVal->getType()->isIntegerTy() && "Can't widen non-integer load");
     // If we have a load/load clobber an DepLI can be widened to cover this
     // load, then we should widen it to the next power of 2 size big enough!
     unsigned NewLoadSize = Offset+LoadSize;
@@ -996,7 +1001,7 @@ static Value *GetLoadValueForLoad(LoadInst *SrcVal, unsigned Offset,
     // memdep queries will find the new load.  We can't easily remove the old
     // load completely because it is already in the value numbering table.
     IRBuilder<> Builder(SrcVal->getParent(), ++BasicBlock::iterator(SrcVal));
-    const Type *DestPTy = 
+    Type *DestPTy = 
       IntegerType::get(LoadTy->getContext(), NewLoadSize*8);
     DestPTy = PointerType::get(DestPTy, 
                        cast<PointerType>(PtrVal->getType())->getAddressSpace());
@@ -1034,7 +1039,7 @@ static Value *GetLoadValueForLoad(LoadInst *SrcVal, unsigned Offset,
 /// GetMemInstValueForLoad - This function is called when we have a
 /// memdep query of a load that ends up being a clobbering mem intrinsic.
 static Value *GetMemInstValueForLoad(MemIntrinsic *SrcInst, unsigned Offset,
-                                     const Type *LoadTy, Instruction *InsertPt,
+                                     Type *LoadTy, Instruction *InsertPt,
                                      const TargetData &TD){
   LLVMContext &Ctx = LoadTy->getContext();
   uint64_t LoadSize = TD.getTypeSizeInBits(LoadTy)/8;
@@ -1081,7 +1086,7 @@ static Value *GetMemInstValueForLoad(MemIntrinsic *SrcInst, unsigned Offset,
                                  llvm::Type::getInt8PtrTy(Src->getContext()));
   Constant *OffsetCst = 
   ConstantInt::get(Type::getInt64Ty(Src->getContext()), (unsigned)Offset);
-  Src = ConstantExpr::getGetElementPtr(Src, &OffsetCst, 1);
+  Src = ConstantExpr::getGetElementPtr(Src, OffsetCst);
   Src = ConstantExpr::getBitCast(Src, PointerType::getUnqual(LoadTy));
   return ConstantFoldLoadFromConstPtr(Src, &TD);
 }
@@ -1154,7 +1159,7 @@ struct AvailableValueInBlock {
   
   /// MaterializeAdjustedValue - Emit code into this block to adjust the value
   /// defined here to the specified type.  This handles various coercion cases.
-  Value *MaterializeAdjustedValue(const Type *LoadTy, GVN &gvn) const {
+  Value *MaterializeAdjustedValue(Type *LoadTy, GVN &gvn) const {
     Value *Res;
     if (isSimpleValue()) {
       Res = getSimpleValue();
@@ -1213,7 +1218,7 @@ static Value *ConstructSSAForLoadSet(LoadInst *LI,
   SSAUpdater SSAUpdate(&NewPHIs);
   SSAUpdate.Initialize(LI->getType(), LI->getName());
   
-  const Type *LoadTy = LI->getType();
+  Type *LoadTy = LI->getType();
   
   for (unsigned i = 0, e = ValuesPerBlock.size(); i != e; ++i) {
     const AvailableValueInBlock &AV = ValuesPerBlock[i];
@@ -1274,7 +1279,9 @@ bool GVN::processNonLocalLoad(LoadInst *LI) {
 
   // If we had a phi translation failure, we'll have a single entry which is a
   // clobber in the current block.  Reject this early.
-  if (Deps.size() == 1 && Deps[0].getResult().isUnknown()) {
+  if (Deps.size() == 1
+      && !Deps[0].getResult().isDef() && !Deps[0].getResult().isClobber())
+  {
     DEBUG(
       dbgs() << "GVN: non-local load ";
       WriteAsOperand(dbgs(), LI);
@@ -1294,7 +1301,7 @@ bool GVN::processNonLocalLoad(LoadInst *LI) {
     BasicBlock *DepBB = Deps[i].getBB();
     MemDepResult DepInfo = Deps[i].getResult();
 
-    if (DepInfo.isUnknown()) {
+    if (!DepInfo.isDef() && !DepInfo.isClobber()) {
       UnavailableBlocks.push_back(DepBB);
       continue;
     }
@@ -1359,7 +1366,7 @@ bool GVN::processNonLocalLoad(LoadInst *LI) {
       continue;
     }
 
-    assert(DepInfo.isDef() && "Expecting def here");
+    // DepInfo.isDef() here
 
     Instruction *DepInst = DepInfo.getInst();
 
@@ -1446,8 +1453,8 @@ bool GVN::processNonLocalLoad(LoadInst *LI) {
   for (unsigned i = 0, e = UnavailableBlocks.size(); i != e; ++i)
     Blockers.insert(UnavailableBlocks[i]);
 
-  // Lets find first basic block with more than one predecessor.  Walk backwards
-  // through predecessors if needed.
+  // Let's find the first basic block with more than one predecessor.  Walk
+  // backwards through predecessors if needed.
   BasicBlock *LoadBB = LI->getParent();
   BasicBlock *TmpBB = LoadBB;
 
@@ -1519,10 +1526,19 @@ bool GVN::processNonLocalLoad(LoadInst *LI) {
               << Pred->getName() << "': " << *LI << '\n');
         return false;
       }
+
+      if (LoadBB->isLandingPad()) {
+        DEBUG(dbgs()
+              << "COULD NOT PRE LOAD BECAUSE OF LANDING PAD CRITICAL EDGE '"
+              << Pred->getName() << "': " << *LI << '\n');
+        return false;
+      }
+
       unsigned SuccNum = GetSuccessorNumber(Pred, LoadBB);
       NeedToSplit.push_back(std::make_pair(Pred->getTerminator(), SuccNum));
     }
   }
+
   if (!NeedToSplit.empty()) {
     toSplit.append(NeedToSplit.begin(), NeedToSplit.end());
     return false;
@@ -1660,7 +1676,7 @@ bool GVN::processLoad(LoadInst *L) {
   if (!MD)
     return false;
 
-  if (L->isVolatile())
+  if (!L->isSimple())
     return false;
 
   if (L->use_empty()) {
@@ -1747,7 +1763,11 @@ bool GVN::processLoad(LoadInst *L) {
     return false;
   }
 
-  if (Dep.isUnknown()) {
+  // If it is defined in another block, try harder.
+  if (Dep.isNonLocal())
+    return processNonLocalLoad(L);
+
+  if (!Dep.isDef()) {
     DEBUG(
       // fast print dep, using operator<< on instruction is too slow.
       dbgs() << "GVN: load ";
@@ -1756,12 +1776,6 @@ bool GVN::processLoad(LoadInst *L) {
     );
     return false;
   }
-
-  // If it is defined in another block, try harder.
-  if (Dep.isNonLocal())
-    return processNonLocalLoad(L);
-
-  assert(Dep.isDef() && "Expecting def here");
 
   Instruction *DepInst = Dep.getInst();
   if (StoreInst *DepSI = dyn_cast<StoreInst>(DepInst)) {
@@ -1874,6 +1888,133 @@ Value *GVN::findLeader(BasicBlock *BB, uint32_t num) {
   return Val;
 }
 
+/// replaceAllDominatedUsesWith - Replace all uses of 'From' with 'To' if the
+/// use is dominated by the given basic block.  Returns the number of uses that
+/// were replaced.
+unsigned GVN::replaceAllDominatedUsesWith(Value *From, Value *To,
+                                          BasicBlock *Root) {
+  unsigned Count = 0;
+  for (Value::use_iterator UI = From->use_begin(), UE = From->use_end();
+       UI != UE; ) {
+    Instruction *User = cast<Instruction>(*UI);
+    unsigned OpNum = UI.getOperandNo();
+    ++UI;
+
+    if (DT->dominates(Root, User->getParent())) {
+      User->setOperand(OpNum, To);
+      ++Count;
+    }
+  }
+  return Count;
+}
+
+/// propagateEquality - The given values are known to be equal in every block
+/// dominated by 'Root'.  Exploit this, for example by replacing 'LHS' with
+/// 'RHS' everywhere in the scope.  Returns whether a change was made.
+bool GVN::propagateEquality(Value *LHS, Value *RHS, BasicBlock *Root) {
+  if (LHS == RHS) return false;
+  assert(LHS->getType() == RHS->getType() && "Equal but types differ!");
+
+  // Don't try to propagate equalities between constants.
+  if (isa<Constant>(LHS) && isa<Constant>(RHS))
+    return false;
+
+  // Make sure that any constants are on the right-hand side.  In general the
+  // best results are obtained by placing the longest lived value on the RHS.
+  if (isa<Constant>(LHS))
+    std::swap(LHS, RHS);
+
+  // If neither term is constant then bail out.  This is not for correctness,
+  // it's just that the non-constant case is much less useful: it occurs just
+  // as often as the constant case but handling it hardly ever results in an
+  // improvement.
+  if (!isa<Constant>(RHS))
+    return false;
+
+  // If value numbering later deduces that an instruction in the scope is equal
+  // to 'LHS' then ensure it will be turned into 'RHS'.
+  addToLeaderTable(VN.lookup_or_add(LHS), RHS, Root);
+
+  // Replace all occurrences of 'LHS' with 'RHS' everywhere in the scope.
+  unsigned NumReplacements = replaceAllDominatedUsesWith(LHS, RHS, Root);
+  bool Changed = NumReplacements > 0;
+  NumGVNEqProp += NumReplacements;
+
+  // Now try to deduce additional equalities from this one.  For example, if the
+  // known equality was "(A != B)" == "false" then it follows that A and B are
+  // equal in the scope.  Only boolean equalities with an explicit true or false
+  // RHS are currently supported.
+  if (!RHS->getType()->isIntegerTy(1))
+    // Not a boolean equality - bail out.
+    return Changed;
+  ConstantInt *CI = dyn_cast<ConstantInt>(RHS);
+  if (!CI)
+    // RHS neither 'true' nor 'false' - bail out.
+    return Changed;
+  // Whether RHS equals 'true'.  Otherwise it equals 'false'.
+  bool isKnownTrue = CI->isAllOnesValue();
+  bool isKnownFalse = !isKnownTrue;
+
+  // If "A && B" is known true then both A and B are known true.  If "A || B"
+  // is known false then both A and B are known false.
+  Value *A, *B;
+  if ((isKnownTrue && match(LHS, m_And(m_Value(A), m_Value(B)))) ||
+      (isKnownFalse && match(LHS, m_Or(m_Value(A), m_Value(B))))) {
+    Changed |= propagateEquality(A, RHS, Root);
+    Changed |= propagateEquality(B, RHS, Root);
+    return Changed;
+  }
+
+  // If we are propagating an equality like "(A == B)" == "true" then also
+  // propagate the equality A == B.
+  if (ICmpInst *Cmp = dyn_cast<ICmpInst>(LHS)) {
+    // Only equality comparisons are supported.
+    if ((isKnownTrue && Cmp->getPredicate() == CmpInst::ICMP_EQ) ||
+        (isKnownFalse && Cmp->getPredicate() == CmpInst::ICMP_NE)) {
+      Value *Op0 = Cmp->getOperand(0), *Op1 = Cmp->getOperand(1);
+      Changed |= propagateEquality(Op0, Op1, Root);
+    }
+    return Changed;
+  }
+
+  return Changed;
+}
+
+/// isOnlyReachableViaThisEdge - There is an edge from 'Src' to 'Dst'.  Return
+/// true if every path from the entry block to 'Dst' passes via this edge.  In
+/// particular 'Dst' must not be reachable via another edge from 'Src'.
+static bool isOnlyReachableViaThisEdge(BasicBlock *Src, BasicBlock *Dst,
+                                       DominatorTree *DT) {
+  // First off, there must not be more than one edge from Src to Dst, there
+  // should be exactly one.  So keep track of the number of times Src occurs
+  // as a predecessor of Dst and fail if it's more than once.  Secondly, any
+  // other predecessors of Dst should be dominated by Dst (see logic below).
+  bool SawEdgeFromSrc = false;
+  for (pred_iterator PI = pred_begin(Dst), PE = pred_end(Dst); PI != PE; ++PI) {
+    BasicBlock *Pred = *PI;
+    if (Pred == Src) {
+      // An edge from Src to Dst.
+      if (SawEdgeFromSrc)
+        // There are multiple edges from Src to Dst - fail.
+        return false;
+      SawEdgeFromSrc = true;
+      continue;
+    }
+    // If the predecessor is not dominated by Dst, then it must be possible to
+    // reach it either without passing through Src (and thus not via the edge)
+    // or by passing through Src but taking a different edge out of Src.  Either
+    // way it is possible to reach Dst without passing via the edge, so fail.
+    if (!DT->dominates(Dst, *PI))
+      return false;
+  }
+  assert(SawEdgeFromSrc && "No edge between these basic blocks!");
+
+  // Every path from the entry block to Dst must at some point pass to Dst from
+  // a predecessor that is not dominated by Dst.  This predecessor can only be
+  // Src, since all others are dominated by Dst.  As there is only one edge from
+  // Src to Dst, the path passes by this edge.
+  return true;
+}
 
 /// processInstruction - When calculating availability, handle an instruction
 /// by inserting it into the appropriate sets
@@ -1891,6 +2032,7 @@ bool GVN::processInstruction(Instruction *I) {
     if (MD && V->getType()->isPointerTy())
       MD->invalidateCachedPointerInfo(V);
     markInstructionForDeletion(I);
+    ++NumGVNSimpl;
     return true;
   }
 
@@ -1903,30 +2045,45 @@ bool GVN::processInstruction(Instruction *I) {
     return false;
   }
 
-  // For conditions branches, we can perform simple conditional propagation on
+  // For conditional branches, we can perform simple conditional propagation on
   // the condition value itself.
   if (BranchInst *BI = dyn_cast<BranchInst>(I)) {
     if (!BI->isConditional() || isa<Constant>(BI->getCondition()))
       return false;
-    
+
     Value *BranchCond = BI->getCondition();
-    uint32_t CondVN = VN.lookup_or_add(BranchCond);
-  
+
     BasicBlock *TrueSucc = BI->getSuccessor(0);
     BasicBlock *FalseSucc = BI->getSuccessor(1);
-  
-    if (TrueSucc->getSinglePredecessor())
-      addToLeaderTable(CondVN,
-                   ConstantInt::getTrue(TrueSucc->getContext()),
-                   TrueSucc);
-    if (FalseSucc->getSinglePredecessor())
-      addToLeaderTable(CondVN,
-                   ConstantInt::getFalse(TrueSucc->getContext()),
-                   FalseSucc);
-    
-    return false;
+    BasicBlock *Parent = BI->getParent();
+    bool Changed = false;
+
+    if (isOnlyReachableViaThisEdge(Parent, TrueSucc, DT))
+      Changed |= propagateEquality(BranchCond,
+                                   ConstantInt::getTrue(TrueSucc->getContext()),
+                                   TrueSucc);
+
+    if (isOnlyReachableViaThisEdge(Parent, FalseSucc, DT))
+      Changed |= propagateEquality(BranchCond,
+                                   ConstantInt::getFalse(FalseSucc->getContext()),
+                                   FalseSucc);
+
+    return Changed;
   }
-  
+
+  // For switches, propagate the case values into the case destinations.
+  if (SwitchInst *SI = dyn_cast<SwitchInst>(I)) {
+    Value *SwitchCond = SI->getCondition();
+    BasicBlock *Parent = SI->getParent();
+    bool Changed = false;
+    for (unsigned i = 1, e = SI->getNumCases(); i != e; ++i) {
+      BasicBlock *Dst = SI->getSuccessor(i);
+      if (isOnlyReachableViaThisEdge(Parent, Dst, DT))
+        Changed |= propagateEquality(SwitchCond, SI->getCaseValue(i), Dst);
+    }
+    return Changed;
+  }
+
   // Instructions with void type don't return a value, so there's
   // no point in trying to find redudancies in them.
   if (I->getType()->isVoidTy()) return false;
@@ -2070,6 +2227,9 @@ bool GVN::performPRE(Function &F) {
 
     // Nothing to PRE in the entry block.
     if (CurrentBlock == &F.getEntryBlock()) continue;
+
+    // Don't perform PRE on a landing pad.
+    if (CurrentBlock->isLandingPad()) continue;
 
     for (BasicBlock::iterator BI = CurrentBlock->begin(),
          BE = CurrentBlock->end(); BI != BE; ) {

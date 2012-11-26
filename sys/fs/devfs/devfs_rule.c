@@ -617,7 +617,7 @@ devfs_rule_run(struct devfs_krule *dk, struct devfs_dirent *de, unsigned depth)
 		 * XXX: not work as this is called when devices are created
 		 * XXX: long time after the rules were instantiated.
 		 * XXX: a printf() would probably give too much noise, or
-		 * XXX: DoS the machine.  I guess a a rate-limited message
+		 * XXX: DoS the machine.  I guess a rate-limited message
 		 * XXX: might work.
 		 */
 		if (depth > 0) {

@@ -888,7 +888,7 @@ out_free:
 /*
  * Retrieve MLD per-group source filter mode and lists via sysctl.
  *
- * Note: The 128-bit IPv6 group addres needs to be segmented into
+ * Note: The 128-bit IPv6 group address needs to be segmented into
  * 32-bit pieces for marshaling to sysctl. So the MIB name ends
  * up looking like this:
  *  a.b.c.d.e.ifindex.g[0].g[1].g[2].g[3]

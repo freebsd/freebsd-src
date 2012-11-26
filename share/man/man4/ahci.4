@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 17, 2011
+.Dd December 6, 2011
 .Dt AHCI 4
 .Os
 .Sh NAME
@@ -90,12 +90,15 @@ Some controllers, such as ICH8, do not implement modes 2 and 3 with NCQ used.
 Because of artificial entering latency, performance degradation in modes
 4 and 5 is much smaller then in modes 2 and 3.
 .Pp
-Note that interface Power Management is not compatible with
-device presence detection.
-A manual bus reset is needed on device hot-plug.
+Note that interface Power Management complicates device presence detection.
+A manual bus reset/rescan may be needed after device hot-plug, unless hardware
+implements Cold Presence Detection.
 .It Va hint.ahcich. Ns Ar X Ns Va .sata_rev
 setting to nonzero value limits maximum SATA revision (speed).
 Values 1, 2 and 3 are respectively 1.5, 3 and 6Gbps.
+.It Va hw.ahci.force
+setting to nonzero value forces driver attach to some known AHCI-capable
+chips even if they are configured for legacy IDE emulation. Default is 1.
 .El
 .Sh DESCRIPTION
 This driver provides the

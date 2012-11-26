@@ -38,6 +38,10 @@ def FeatureSingleFloat : SubtargetFeature<"single-float", "IsSingleFloat",
                                 "true", "Only supports single precision float">;
 def FeatureO32         : SubtargetFeature<"o32", "MipsABI", "O32",
                                 "Enable o32 ABI">;
+def FeatureN32         : SubtargetFeature<"n32", "MipsABI", "N32",
+                                "Enable n32 ABI">;
+def FeatureN64         : SubtargetFeature<"n64", "MipsABI", "N64",
+                                "Enable n64 ABI">;
 def FeatureEABI        : SubtargetFeature<"eabi", "MipsABI", "EABI",
                                 "Enable eabi ABI">;
 def FeatureVFPU        : SubtargetFeature<"vfpu", "HasVFPU",
@@ -54,16 +58,19 @@ def FeatureSwap        : SubtargetFeature<"swap", "HasSwap", "true",
                                 "Enable 'byte/half swap' instructions.">;
 def FeatureBitCount    : SubtargetFeature<"bitcount", "HasBitCount", "true",
                                 "Enable 'count leading bits' instructions.">;
-def FeatureMips1       : SubtargetFeature<"mips1", "MipsArchVersion", "Mips1",
-                                "Mips1 ISA Support">;
-def FeatureMips2       : SubtargetFeature<"mips2", "MipsArchVersion", "Mips2",
-                                "Mips2 ISA Support">;
 def FeatureMips32      : SubtargetFeature<"mips32", "MipsArchVersion", "Mips32",
                                 "Mips32 ISA Support",
                                 [FeatureCondMov, FeatureBitCount]>;
 def FeatureMips32r2    : SubtargetFeature<"mips32r2", "MipsArchVersion",
                                 "Mips32r2", "Mips32r2 ISA Support",
                                 [FeatureMips32, FeatureSEInReg]>;
+def FeatureMips64      : SubtargetFeature<"mips64", "MipsArchVersion",
+                                "Mips64", "Mips64 ISA Support",
+                                [FeatureGP64Bit, FeatureFP64Bit,
+                                 FeatureMips32]>;
+def FeatureMips64r2    : SubtargetFeature<"mips64r2", "MipsArchVersion",
+                                "Mips64r2", "Mips64r2 ISA Support",
+                                [FeatureMips64, FeatureMips32r2]>;
 
 //===----------------------------------------------------------------------===//
 // Mips processors supported.
@@ -72,21 +79,10 @@ def FeatureMips32r2    : SubtargetFeature<"mips32r2", "MipsArchVersion",
 class Proc<string Name, list<SubtargetFeature> Features>
  : Processor<Name, MipsGenericItineraries, Features>;
 
-def : Proc<"mips1", [FeatureMips1]>;
-def : Proc<"r2000", [FeatureMips1]>;
-def : Proc<"r3000", [FeatureMips1]>;
-
-def : Proc<"mips2", [FeatureMips2]>;
-def : Proc<"r6000", [FeatureMips2]>;
-
+def : Proc<"mips32r1", [FeatureMips32]>;
 def : Proc<"4ke", [FeatureMips32r2]>;
-
-// Allegrex is a 32bit subset of r4000, both for integer and fp registers,
-// but much more similar to Mips2 than Mips3. It also contains some of
-// Mips32/Mips32r2 instructions and a custom vector fpu processor.
-def : Proc<"allegrex", [FeatureMips2, FeatureSingleFloat, FeatureEABI,
-      FeatureVFPU, FeatureSEInReg, FeatureCondMov, FeatureMulDivAdd,
-      FeatureMinMax, FeatureSwap, FeatureBitCount]>;
+def : Proc<"mips64r1", [FeatureMips64]>;
+def : Proc<"mips64r2", [FeatureMips64r2]>;
 
 def MipsAsmWriter : AsmWriter {
   string AsmWriterClassName  = "InstPrinter";

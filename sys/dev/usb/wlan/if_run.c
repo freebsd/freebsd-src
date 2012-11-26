@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef	RUN_DEBUG
 int run_debug = 0;
-SYSCTL_NODE(_hw_usb, OID_AUTO, run, CTLFLAG_RW, 0, "USB run");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, run, CTLFLAG_RW, 0, "USB run");
 SYSCTL_INT(_hw_usb_run, OID_AUTO, debug, CTLFLAG_RW, &run_debug, 0,
     "run debug level");
 #endif
@@ -144,9 +144,11 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(AZUREWAVE,		RT3070_3),
     RUN_DEV(BELKIN,		F5D8053V3),
     RUN_DEV(BELKIN,		F5D8055),
+    RUN_DEV(BELKIN,		F5D8055V2),
     RUN_DEV(BELKIN,		F6D4050V1),
     RUN_DEV(BELKIN,		RT2870_1),
     RUN_DEV(BELKIN,		RT2870_2),
+    RUN_DEV(CISCOLINKSYS,	AE1000),
     RUN_DEV(CISCOLINKSYS2,	RT3070),
     RUN_DEV(CISCOLINKSYS3,	RT3070),
     RUN_DEV(CONCEPTRONIC2,	RT2870_1),
@@ -206,12 +208,14 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(LOGITEC,		RT2870_1),
     RUN_DEV(LOGITEC,		RT2870_2),
     RUN_DEV(LOGITEC,		RT2870_3),
+    RUN_DEV(LOGITECH,		LANW300NU2),
     RUN_DEV(MELCO,		RT2870_1),
     RUN_DEV(MELCO,		RT2870_2),
     RUN_DEV(MELCO,		WLIUCAG300N),
     RUN_DEV(MELCO,		WLIUCG300N),
     RUN_DEV(MELCO,		WLIUCG301N),
     RUN_DEV(MELCO,		WLIUCGN),
+    RUN_DEV(MELCO,		WLIUCGNM),
     RUN_DEV(MOTOROLA4,		RT2770),
     RUN_DEV(MOTOROLA4,		RT3070),
     RUN_DEV(MSI,		RT3070_1),
@@ -247,6 +251,7 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(RALINK,		RT3370),
     RUN_DEV(RALINK,		RT3572),
     RUN_DEV(RALINK,		RT8070),
+    RUN_DEV(SAMSUNG,		WIS09ABGN),
     RUN_DEV(SAMSUNG2,		RT2870_1),
     RUN_DEV(SENAO,		RT2870_1),
     RUN_DEV(SENAO,		RT2870_2),
@@ -310,9 +315,9 @@ static usb_callback_t	run_bulk_tx_callback5;
 static void	run_bulk_tx_callbackN(struct usb_xfer *xfer,
 		    usb_error_t error, unsigned int index);
 static struct ieee80211vap *run_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode, int flags,
-		    const uint8_t bssid[IEEE80211_ADDR_LEN], const uint8_t
-		    mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	run_vap_delete(struct ieee80211vap *);
 static void	run_cmdq_cb(void *, int);
 static void	run_setup_tx_list(struct run_softc *,
@@ -743,8 +748,8 @@ run_detach(device_t self)
 }
 
 static struct ieee80211vap *
-run_vap_create(struct ieee80211com *ic,
-    const char name[IFNAMSIZ], int unit, int opmode, int flags,
+run_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
     const uint8_t bssid[IEEE80211_ADDR_LEN],
     const uint8_t mac[IEEE80211_ADDR_LEN])
 {
@@ -2715,7 +2720,6 @@ run_bulk_tx_callbackN(struct usb_xfer *xfer, usb_error_t error, unsigned int ind
 	struct run_endpoint_queue *pq = &sc->sc_epq[index];
 	struct mbuf *m;
 	usb_frlength_t size;
-	unsigned int len;
 	int actlen;
 	int sumlen;
 
@@ -2745,7 +2749,8 @@ tr_setup:
 		STAILQ_REMOVE_HEAD(&pq->tx_qh, next);
 
 		m = data->m;
-		if (m->m_pkthdr.len > RUN_MAX_TXSZ) {
+		if ((m->m_pkthdr.len +
+		    sizeof(data->desc) + 3 + 8) > RUN_MAX_TXSZ) {
 			DPRINTF("data overflow, %u bytes\n",
 			    m->m_pkthdr.len);
 
@@ -2760,6 +2765,14 @@ tr_setup:
 		size = sizeof(data->desc);
 		usbd_copy_in(pc, 0, &data->desc, size);
 		usbd_m_copy_in(pc, size, m, 0, m->m_pkthdr.len);
+		size += m->m_pkthdr.len;
+		/*
+		 * Align end on a 4-byte boundary, pad 8 bytes (CRC +
+		 * 4-byte padding), and be sure to zero those trailing
+		 * bytes:
+		 */
+		usbd_frame_zero(pc, size, ((-size) & 3) + 8);
+		size += ((-size) & 3) + 8;
 
 		vap = data->ni->ni_vap;
 		if (ieee80211_radiotap_active_vap(vap)) {
@@ -2778,13 +2791,10 @@ tr_setup:
 			ieee80211_radiotap_tx(vap, m);
 		}
 
-		/* align end on a 4-bytes boundary */
-		len = (size + IEEE80211_CRC_LEN + m->m_pkthdr.len + 3) & ~3;
+		DPRINTFN(11, "sending frame len=%u/%u  @ index %d\n",
+		    m->m_pkthdr.len, size, index);
 
-		DPRINTFN(11, "sending frame len=%u xferlen=%u @ index %d\n",
-			m->m_pkthdr.len, len, index);
-
-		usbd_xfer_set_frame_len(xfer, 0, len);
+		usbd_xfer_set_frame_len(xfer, 0, size);
 		usbd_xfer_set_priv(xfer, data);
 
 		usbd_transfer_submit(xfer);

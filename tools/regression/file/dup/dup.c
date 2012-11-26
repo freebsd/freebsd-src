@@ -104,7 +104,7 @@ main(int __unused argc, char __unused *argv[])
 	 * Normally dup and dup2 will clear the close-on-exec
 	 * flag on the new fd (which appears to be an implementation
 	 * mistake from start and not some planned behavior).
-	 * In todays implementations of dup and dup2 we have to make
+	 * In today's implementations of dup and dup2 we have to make
 	 * an effort to really clear that flag.  But all tested
 	 * implementations of dup2 have another tweak.  If we
 	 * dup2(old, new) when old == new, the syscall short-circuits

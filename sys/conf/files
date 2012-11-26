@@ -50,11 +50,6 @@ aic79xx_reg_print.c	optional ahd pci				   \
 aic79xx_reg_print.o		optional ahd pci ahd_reg_pretty_print	   \
 	compile-with	"${NORMAL_C}"					   \
 	no-implicit-rule local
-emu10k1-alsa%diked.h		optional snd_emu10k1 | snd_emu10kx	   \
-	dependency	"$S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h" \
-	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h emu10k1-alsa%diked.h" \
-	no-obj no-implicit-rule before-depend				   \
-	clean		"emu10k1-alsa%diked.h"
 #
 # The 'fdt_dtb_file' target covers an actual DTB file name, which is derived
 # from the specified source (DTS) file: <platform>.dts -> <platform>.dtb
@@ -67,16 +62,6 @@ fdt_static_dtb.h		optional fdt fdt_dtb_static \
 	compile-with "sh $S/tools/fdt/make_dtbh.sh ${FDT_DTS_FILE} ." \
 	no-obj no-implicit-rule before-depend \
 	clean		"fdt_static_dtb.h"
-p16v-alsa%diked.h		optional snd_emu10kx pci		   \
-	dependency	"$S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p16v-alsa.h" \
-	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p16v-alsa.h p16v-alsa%diked.h" \
-	no-obj no-implicit-rule before-depend				   \
-	clean		"p16v-alsa%diked.h"
-p17v-alsa%diked.h		optional snd_emu10kx pci		   \
-	dependency	"$S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p17v-alsa.h" \
-	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p17v-alsa.h p17v-alsa%diked.h" \
-	no-obj no-implicit-rule before-depend				   \
-	clean		"p17v-alsa%diked.h"
 feeder_eq_gen.h			optional sound				   \
 	dependency	"$S/tools/sound/feeder_eq_mkfilter.awk"		   \
 	compile-with	"${AWK} -f $S/tools/sound/feeder_eq_mkfilter.awk -- ${FEEDER_EQ_PRESETS} > feeder_eq_gen.h" \
@@ -130,6 +115,19 @@ cam/scsi/scsi_all.c		optional scbus
 cam/scsi/scsi_cd.c		optional cd
 cam/scsi/scsi_ch.c		optional ch
 cam/ata/ata_da.c		optional ada | da
+cam/ctl/ctl.c			optional ctl
+cam/ctl/ctl_backend.c		optional ctl
+cam/ctl/ctl_backend_block.c	optional ctl
+cam/ctl/ctl_backend_ramdisk.c	optional ctl
+cam/ctl/ctl_cmd_table.c		optional ctl
+cam/ctl/ctl_frontend.c		optional ctl
+cam/ctl/ctl_frontend_cam_sim.c	optional ctl
+cam/ctl/ctl_frontend_internal.c	optional ctl
+cam/ctl/ctl_mem_pool.c		optional ctl
+cam/ctl/ctl_scsi_all.c		optional ctl
+cam/ctl/ctl_error.c		optional ctl
+cam/ctl/ctl_util.c		optional ctl
+cam/ctl/scsi_ctl.c		optional ctl
 cam/scsi/scsi_da.c		optional da
 cam/scsi/scsi_low.c		optional ct | ncv | nsp | stg
 cam/scsi/scsi_low_pisa.c	optional ct | ncv | nsp | stg
@@ -172,6 +170,7 @@ contrib/dev/acpica/disassembler/dmopcode.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmobject.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmresrc.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmresrcl.c	optional acpi acpi_debug
+contrib/dev/acpica/disassembler/dmresrcl2.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmresrcs.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmutils.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmwalk.c	optional acpi acpi_debug
@@ -272,6 +271,7 @@ contrib/dev/acpica/resources/rsirq.c		optional acpi
 contrib/dev/acpica/resources/rslist.c		optional acpi
 contrib/dev/acpica/resources/rsmemory.c		optional acpi
 contrib/dev/acpica/resources/rsmisc.c		optional acpi
+contrib/dev/acpica/resources/rsserial.c		optional acpi
 contrib/dev/acpica/resources/rsutils.c		optional acpi
 contrib/dev/acpica/resources/rsxface.c		optional acpi
 contrib/dev/acpica/tables/tbfadt.c		optional acpi
@@ -280,6 +280,7 @@ contrib/dev/acpica/tables/tbinstal.c		optional acpi
 contrib/dev/acpica/tables/tbutils.c		optional acpi
 contrib/dev/acpica/tables/tbxface.c		optional acpi
 contrib/dev/acpica/tables/tbxfroot.c		optional acpi
+contrib/dev/acpica/utilities/utaddress.c	optional acpi
 contrib/dev/acpica/utilities/utalloc.c		optional acpi
 contrib/dev/acpica/utilities/utcache.c		optional acpi
 contrib/dev/acpica/utilities/utcopy.c		optional acpi
@@ -300,8 +301,9 @@ contrib/dev/acpica/utilities/utresrc.c		optional acpi
 contrib/dev/acpica/utilities/utstate.c		optional acpi
 contrib/dev/acpica/utilities/utxface.c		optional acpi
 contrib/dev/acpica/utilities/utxferror.c	optional acpi
+#contrib/dev/acpica/utilities/utxfmutex.c	optional acpi
 contrib/ipfilter/netinet/fil.c	optional ipfilter inet \
-	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_auth.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_fil_freebsd.c optional ipfilter inet \
@@ -313,11 +315,11 @@ contrib/ipfilter/netinet/ip_log.c optional ipfilter inet \
 contrib/ipfilter/netinet/ip_nat.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_proxy.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_state.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_lookup.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -Wno-error -I$S/contrib/ipfilter"
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN} -Wno-error -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_pool.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_htable.c optional ipfilter inet \
@@ -505,8 +507,10 @@ dev/aic/aic.c			optional aic
 dev/aic/aic_pccard.c		optional aic pccard
 dev/aic7xxx/ahc_eisa.c		optional ahc eisa
 dev/aic7xxx/ahc_isa.c		optional ahc isa
-dev/aic7xxx/ahc_pci.c		optional ahc pci
-dev/aic7xxx/ahd_pci.c		optional ahd pci
+dev/aic7xxx/ahc_pci.c		optional ahc pci \
+	compile-with "${NORMAL_C} ${NO_WCONSTANT_CONVERSION}"
+dev/aic7xxx/ahd_pci.c		optional ahd pci \
+	compile-with "${NORMAL_C} ${NO_WCONSTANT_CONVERSION}"
 dev/aic7xxx/aic7770.c		optional ahc
 dev/aic7xxx/aic79xx.c		optional ahd pci
 dev/aic7xxx/aic79xx_osm.c	optional ahd pci
@@ -517,7 +521,6 @@ dev/aic7xxx/aic7xxx_osm.c	optional ahc
 dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
 dev/alc/if_alc.c		optional alc pci
 dev/ale/if_ale.c		optional ale pci
-dev/amd/amd.c			optional amd
 dev/amr/amr.c			optional amr
 dev/amr/amr_cam.c		optional amrp amr
 dev/amr/amr_disk.c		optional amr
@@ -527,7 +530,8 @@ dev/an/if_an.c			optional an
 dev/an/if_an_isa.c		optional an isa
 dev/an/if_an_pccard.c		optional an pccard
 dev/an/if_an_pci.c		optional an pci
-dev/asr/asr.c			optional asr pci
+dev/asr/asr.c			optional asr pci \
+	compile-with "${NORMAL_C} ${NO_WARRAY_BOUNDS}"
 #
 dev/ata/ata_if.m		optional ata | atacore
 dev/ata/ata-all.c		optional ata | atacore
@@ -583,6 +587,8 @@ dev/ath/if_ath_debug.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_keycache.c	optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_led.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_tx.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_tx_ht.c		optional ath \
@@ -608,7 +614,7 @@ dev/ath/ath_hal/ah_eeprom_9287.c \
 	optional ath_hal | ath_ar9287 \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ath_hal/ah_regdomain.c	optional ath \
-	compile-with "${NORMAL_C} -I$S/dev/ath"
+	compile-with "${NORMAL_C} ${NO_WSHIFT_COUNT_NEGATIVE} ${NO_WSHIFT_COUNT_OVERFLOW} -I$S/dev/ath"
 # ar5210
 dev/ath/ath_hal/ar5210/ar5210_attach.c		optional ath_hal | ath_ar5210 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
@@ -778,13 +784,15 @@ dev/ath/ath_hal/ar5416/ar5416_xmit.c \
 	ath_ar9287 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 # ar9130 (depends upon ar5416) - also requires AH_SUPPORT_AR9130
-dev/ath/ath_hal/ar9001/ar9130_attach.c optional ath_hal | ath_ar9130 \
+#
+# Since this is an embedded MAC SoC, there's no need to compile it into the
+# default HAL.
+dev/ath/ath_hal/ar9001/ar9130_attach.c optional ath_ar9130 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar9001/ar9130_phy.c optional ath_hal | ath_ar9130 \
+dev/ath/ath_hal/ar9001/ar9130_phy.c optional ath_ar9130 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar9001/ar9130_eeprom.c optional ath_hal | ath_ar9130 \
+dev/ath/ath_hal/ar9001/ar9130_eeprom.c optional ath_ar9130 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-
 # ar9160 (depends on ar5416)
 dev/ath/ath_hal/ar9001/ar9160_attach.c optional ath_hal | ath_ar9160 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
@@ -831,7 +839,8 @@ dev/ath/ath_hal/ar5212/ar5112.c	optional ath_hal | ath_rf5112 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5212/ar5413.c	optional ath_hal | ath_rf5413 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar2133.c optional ath_hal | ath_ar5416 | ath_ar9160 \
+dev/ath/ath_hal/ar5416/ar2133.c optional ath_hal | ath_ar5416 | \
+	ath_ar9130 | ath_ar9160 | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar9002/ar9280.c optional ath_hal | ath_ar9280 | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
@@ -982,15 +991,18 @@ dev/drm/mga_irq.c		optional mgadrm
 dev/drm/mga_state.c		optional mgadrm \
 	compile-with "${NORMAL_C} -finline-limit=13500"
 dev/drm/mga_warp.c		optional mgadrm
-dev/drm/r128_cce.c		optional r128drm
+dev/drm/r128_cce.c		optional r128drm \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_VALUE} ${NO_WCONSTANT_CONVERSION}"
 dev/drm/r128_drv.c		optional r128drm
 dev/drm/r128_irq.c		optional r128drm
 dev/drm/r128_state.c		optional r128drm \
-	compile-with "${NORMAL_C} -finline-limit=13500"
+	compile-with "${NORMAL_C} ${NO_WUNUSED_VALUE} -finline-limit=13500"
 dev/drm/r300_cmdbuf.c		optional radeondrm
 dev/drm/r600_blit.c		optional radeondrm
-dev/drm/r600_cp.c		optional radeondrm
-dev/drm/radeon_cp.c		optional radeondrm
+dev/drm/r600_cp.c		optional radeondrm \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_VALUE} ${NO_WCONSTANT_CONVERSION}"
+dev/drm/radeon_cp.c		optional radeondrm \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_VALUE} ${NO_WCONSTANT_CONVERSION}"
 dev/drm/radeon_cs.c		optional radeondrm
 dev/drm/radeon_drv.c		optional radeondrm
 dev/drm/radeon_irq.c		optional radeondrm
@@ -1064,6 +1076,7 @@ dev/ep/if_ep_eisa.c		optional ep eisa
 dev/ep/if_ep_isa.c		optional ep isa
 dev/ep/if_ep_mca.c		optional ep mca
 dev/ep/if_ep_pccard.c		optional ep pccard
+dev/esp/esp_pci.c		optional esp pci
 dev/esp/ncr53c9x.c		optional esp
 dev/ex/if_ex.c			optional ex
 dev/ex/if_ex_isa.c		optional ex isa
@@ -1092,6 +1105,7 @@ dev/firewire/sbp_targ.c		optional sbp_targ
 dev/flash/at45d.c		optional at45d
 dev/flash/mx25l.c		optional mx25l
 dev/fxp/if_fxp.c		optional fxp
+dev/fxp/inphy.c			optional fxp
 dev/gem/if_gem.c		optional gem
 dev/gem/if_gem_pci.c		optional gem pci
 dev/gem/if_gem_sbus.c		optional gem sbus
@@ -1418,16 +1432,13 @@ dev/mii/bmtphy.c		optional miibus | bmtphy
 dev/mii/brgphy.c		optional miibus | brgphy
 dev/mii/ciphy.c			optional miibus | ciphy
 dev/mii/e1000phy.c		optional miibus | e1000phy
-# XXX only xl cards?
-dev/mii/exphy.c			optional miibus | exphy
 dev/mii/gentbi.c		optional miibus | gentbi
 dev/mii/icsphy.c		optional miibus | icsphy
-# XXX only fxp cards?
-dev/mii/inphy.c			optional miibus | inphy
 dev/mii/ip1000phy.c		optional miibus | ip1000phy
 dev/mii/jmphy.c			optional miibus | jmphy
 dev/mii/lxtphy.c		optional miibus | lxtphy
 dev/mii/mii.c			optional miibus | mii
+dev/mii/mii_bitbang.c		optional miibus | mii_bitbang
 dev/mii/mii_physubr.c		optional miibus | mii
 dev/mii/miibus_if.m		optional miibus | mii
 dev/mii/mlphy.c			optional miibus | mlphy
@@ -1440,8 +1451,6 @@ dev/mii/rdcphy.c		optional miibus | rdcphy
 dev/mii/rgephy.c		optional miibus | rgephy
 dev/mii/rlphy.c			optional miibus | rlphy
 dev/mii/rlswitch.c		optional rlswitch
-# XXX rue only?
-dev/mii/ruephy.c		optional miibus | ruephy
 dev/mii/smcphy.c		optional miibus | smcphy
 dev/mii/tdkphy.c		optional miibus | tdkphy
 dev/mii/tlphy.c			optional miibus | tlphy
@@ -1510,18 +1519,27 @@ dev/mxge/mxge_rss_ethp_z8e.c	optional mxge pci
 dev/my/if_my.c			optional my
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
+dev/netmap/netmap.c		optional netmap
 dev/nge/if_nge.c		optional nge
-dev/nxge/if_nxge.c		optional nxge
-dev/nxge/xgehal/xgehal-device.c	optional nxge
+dev/nxge/if_nxge.c		optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
+dev/nxge/xgehal/xgehal-device.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
 dev/nxge/xgehal/xgehal-mm.c	optional nxge
 dev/nxge/xgehal/xge-queue.c	optional nxge
-dev/nxge/xgehal/xgehal-driver.c	optional nxge
-dev/nxge/xgehal/xgehal-ring.c	optional nxge
-dev/nxge/xgehal/xgehal-channel.c	optional nxge
-dev/nxge/xgehal/xgehal-fifo.c	optional nxge
-dev/nxge/xgehal/xgehal-stats.c	optional nxge
+dev/nxge/xgehal/xgehal-driver.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
+dev/nxge/xgehal/xgehal-ring.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
+dev/nxge/xgehal/xgehal-channel.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
+dev/nxge/xgehal/xgehal-fifo.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
+dev/nxge/xgehal/xgehal-stats.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
 dev/nxge/xgehal/xgehal-config.c	optional nxge
-dev/nxge/xgehal/xgehal-mgmt.c	optional nxge
+dev/nxge/xgehal/xgehal-mgmt.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
 dev/nmdm/nmdm.c			optional nmdm
 dev/nsp/nsp.c			optional nsp
 dev/nsp/nsp_pccard.c		optional nsp pccard
@@ -1713,22 +1731,10 @@ dev/sound/pci/csa.c		optional snd_csa pci \
 	warning "kernel contains GPL contaminated csaimg.h header"
 dev/sound/pci/csapcm.c		optional snd_csa pci
 dev/sound/pci/ds1.c		optional snd_ds1 pci
-dev/sound/pci/emu10k1.c		optional snd_emu10k1 pci \
-	dependency "emu10k1-alsa%diked.h" \
-	warning "kernel contains GPL contaminated emu10k1 headers"
-dev/sound/pci/emu10kx.c		optional snd_emu10kx pci \
-	dependency "emu10k1-alsa%diked.h" \
-	dependency "p16v-alsa%diked.h" \
-	dependency "p17v-alsa%diked.h" \
-	warning "kernel contains GPL contaminated emu10kx headers"
-dev/sound/pci/emu10kx-pcm.c	optional snd_emu10kx pci \
-	dependency "emu10k1-alsa%diked.h" \
-	dependency "p16v-alsa%diked.h" \
-	dependency "p17v-alsa%diked.h" \
-	warning "kernel contains GPL contaminated emu10kx headers"
-dev/sound/pci/emu10kx-midi.c	optional snd_emu10kx pci \
-	dependency "emu10k1-alsa%diked.h" \
-	warning "kernel contains GPL contaminated emu10kx headers"
+dev/sound/pci/emu10k1.c		optional snd_emu10k1 pci
+dev/sound/pci/emu10kx.c		optional snd_emu10kx pci
+dev/sound/pci/emu10kx-pcm.c	optional snd_emu10kx pci
+dev/sound/pci/emu10kx-midi.c	optional snd_emu10kx pci
 dev/sound/pci/envy24.c		optional snd_envy24 pci
 dev/sound/pci/envy24ht.c	optional snd_envy24ht pci
 dev/sound/pci/es137x.c		optional snd_es137x pci
@@ -1924,6 +1930,7 @@ dev/usb/net/if_mos.c		optional mos
 dev/usb/net/if_rue.c		optional rue
 dev/usb/net/if_udav.c		optional udav
 dev/usb/net/if_usie.c		optional usie
+dev/usb/net/ruephy.c		optional rue
 dev/usb/net/usb_ethernet.c	optional aue | axe | cdce | cue | kue | mos | \
 					 rue | udav
 dev/usb/net/uhso.c		optional uhso
@@ -2062,6 +2069,7 @@ wpi.fw			optional wpifw					\
 dev/xe/if_xe.c			optional xe
 dev/xe/if_xe_pccard.c		optional xe pccard
 dev/xl/if_xl.c			optional xl pci
+dev/xl/xlphy.c			optional xl pci
 fs/coda/coda_fbsd.c		optional vcoda
 fs/coda/coda_psdev.c		optional vcoda
 fs/coda/coda_subr.c		optional vcoda
@@ -2247,6 +2255,22 @@ geom/raid3/g_raid3.c		optional geom_raid3
 geom/raid3/g_raid3_ctl.c	optional geom_raid3
 geom/shsec/g_shsec.c		optional geom_shsec
 geom/stripe/g_stripe.c		optional geom_stripe
+geom/uncompress/g_uncompress.c	optional geom_uncompress
+contrib/xz-embedded/freebsd/xz_malloc.c	\
+	optional xz_embedded | geom_uncompress \
+	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
+contrib/xz-embedded/linux/lib/xz/xz_crc32.c \
+	optional xz_embedded | geom_uncompress \
+	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
+contrib/xz-embedded/linux/lib/xz/xz_dec_bcj.c \
+	optional xz_embedded | geom_uncompress \
+	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
+contrib/xz-embedded/linux/lib/xz/xz_dec_lzma2.c \
+	optional xz_embedded | geom_uncompress \
+	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
+contrib/xz-embedded/linux/lib/xz/xz_dec_stream.c \
+	optional xz_embedded | geom_uncompress \
+	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
 geom/uzip/g_uzip.c		optional geom_uzip
 geom/virstor/binstream.c	optional geom_virstor
 geom/virstor/g_virstor.c	optional geom_virstor
@@ -2311,6 +2335,7 @@ kern/kern_event.c		standard
 kern/kern_exec.c		standard
 kern/kern_exit.c		standard
 kern/kern_fail.c		standard
+kern/kern_ffclock.c		standard
 kern/kern_fork.c		standard
 kern/kern_gzio.c		optional gzio
 kern/kern_hhook.c		standard
@@ -2373,8 +2398,9 @@ kern/sched_ule.c		optional sched_ule
 kern/serdev_if.m		standard
 kern/stack_protector.c		standard \
 	compile-with "${NORMAL_C:N-fstack-protector*}"
-kern/subr_acl_nfs4.c		standard
-kern/subr_acl_posix1e.c		standard
+# XXX subr_acl_nfs4.c is also used by ZFS
+kern/subr_acl_nfs4.c		optional ufs_acl
+kern/subr_acl_posix1e.c		optional ufs_acl
 kern/subr_autoconf.c		standard
 kern/subr_blist.c		standard
 kern/subr_bus.c			standard
@@ -2524,26 +2550,25 @@ libkern/bcd.c			standard
 libkern/bsearch.c		standard
 libkern/crc32.c			standard
 libkern/fnmatch.c		standard
-libkern/gets.c			standard
 libkern/iconv.c			optional libiconv
 libkern/iconv_converter_if.m	optional libiconv
+libkern/iconv_ucs.c		optional libiconv
 libkern/iconv_xlat.c		optional libiconv
 libkern/iconv_xlat16.c		optional libiconv
-libkern/index.c			standard
 libkern/inet_aton.c		standard
 libkern/inet_ntoa.c		standard
 libkern/inet_ntop.c		standard
 libkern/inet_pton.c		standard
 libkern/mcount.c		optional profiling-routine
+libkern/memcchr.c		standard
 libkern/memcmp.c		standard
 libkern/qsort.c			standard
 libkern/qsort_r.c		standard
 libkern/random.c		standard
-libkern/rindex.c		standard
 libkern/scanc.c			standard
-libkern/skpc.c			standard
 libkern/strcasecmp.c		standard
 libkern/strcat.c		standard
+libkern/strchr.c		standard
 libkern/strcmp.c		standard
 libkern/strcpy.c		standard
 libkern/strcspn.c		standard
@@ -2554,6 +2579,7 @@ libkern/strlen.c		standard
 libkern/strncmp.c		standard
 libkern/strncpy.c		standard
 libkern/strnlen.c		standard
+libkern/strrchr.c		standard
 libkern/strsep.c		standard
 libkern/strspn.c		standard
 libkern/strstr.c		standard
@@ -2616,7 +2642,7 @@ net/slcompress.c		optional netgraph_vjc | sppp | \
 net/vnet.c			optional vimage
 net/zlib.c			optional crypto | geom_uzip | ipsec | \
 					 mxge | netgraph_deflate | \
-					 ddb_ctf | gzio
+					 ddb_ctf | gzio | geom_uncompress
 net80211/ieee80211.c		optional wlan
 net80211/ieee80211_acl.c	optional wlan wlan_acl
 net80211/ieee80211_action.c	optional wlan
@@ -3464,7 +3490,7 @@ gnu/fs/xfs/FreeBSD/xfs_sysctl.c	optional xfs \
 gnu/fs/xfs/FreeBSD/xfs_fs_subr.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/xfs_ioctl.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/support/debug.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/support/ktrace.c	optional xfs \

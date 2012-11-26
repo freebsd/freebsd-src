@@ -1,4 +1,4 @@
-//===-- Support/SCCIterator.h - Strongly Connected Comp. Iter. --*- C++ -*-===//
+//===---- ADT/SCCIterator.h - Strongly Connected Comp. Iter. ----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -87,7 +87,7 @@ class scc_iterator
         DFSVisitOne(childN);
         continue;
       }
-      
+
       unsigned childNum = nodeVisitNumbers[childN];
       if (MinVisitNumStack.back() > childNum)
         MinVisitNumStack.back() = childNum;
@@ -114,7 +114,7 @@ class scc_iterator
 
       if (minVisitNum != nodeVisitNumbers[visitingN])
         continue;
-      
+
       // A full SCC is on the SCCNodeStack!  It includes all nodes below
       // visitingN on the stack.  Copy those nodes to CurrentSCC,
       // reset their minVisit values, and return (this suspends
@@ -139,7 +139,7 @@ public:
 
   // Provide static "constructors"...
   static inline _Self begin(const GraphT &G){return _Self(GT::getEntryNode(G));}
-  static inline _Self end  (const GraphT &G) { return _Self(); }
+  static inline _Self end  (const GraphT &) { return _Self(); }
 
   // Direct loop termination test: I.isAtEnd() is more efficient than I == end()
   inline bool isAtEnd() const {
@@ -183,7 +183,7 @@ public:
         return true;
     return false;
   }
-                           
+
   /// ReplaceNode - This informs the scc_iterator that the specified Old node
   /// has been deleted, and New is to be used in its place.
   void ReplaceNode(NodeType *Old, NodeType *New) {

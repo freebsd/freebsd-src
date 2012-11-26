@@ -1,8 +1,23 @@
 # $FreeBSD$
 
-# Where to find the libarchive sources
-LA_SRCDIR=${.CURDIR}/..
+LIBARCHIVEDIR=	${.CURDIR}/../../../contrib/libarchive
 
+NO_MAN=yes
+
+PROG=libarchive_test
+INTERNALPROG=yes  # Don't install this; it's just for testing
+DPADD=${LIBBZ2} ${LIBZ} ${LIBMD} ${LIBCRYPTO} ${LIBBSDXML}
+LDADD= -L ${.OBJDIR}/.. -larchive
+LDADD+= -lz -lbz2 -llzma -lmd -lcrypto -lbsdxml
+CFLAGS+= -g
+CFLAGS+= -I${.CURDIR}/.. -I${LIBARCHIVEDIR} -I${.OBJDIR}
+CFLAGS+= -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
+
+# Uncomment to link against dmalloc
+#LDADD+= -L/usr/local/lib -ldmalloc
+#CFLAGS+= -I/usr/local/include -DUSE_DMALLOC
+
+.PATH:  ${LIBARCHIVEDIR}/libarchive/test
 TESTS= \
 	test_acl_basic.c			\
 	test_acl_freebsd.c			\
@@ -52,7 +67,7 @@ TESTS= \
 	test_read_format_gtar_gz.c		\
 	test_read_format_gtar_lzma.c		\
 	test_read_format_gtar_sparse.c		\
-	test_read_format_iso_gz.c		\
+	test_read_format_iso_Z.c		\
 	test_read_format_iso_multi_extent.c	\
 	test_read_format_isorr_rr_moved.c	\
 	test_read_format_isojoliet_bz2.c	\
@@ -120,28 +135,14 @@ SRCS= \
 	main.c					\
 	read_open_memory.c
 
-NO_MAN=yes
-
-PROG=libarchive_test
-INTERNALPROG=yes  # Don't install this; it's just for testing
-DPADD=${LIBBZ2} ${LIBZ} ${LIBMD} ${LIBCRYPTO} ${LIBBSDXML}
-LDADD= -L ${.OBJDIR}/.. -larchive
-LDADD+= -lz -lbz2 -llzma -lmd -lcrypto -lbsdxml
-CFLAGS+= -g
-CFLAGS+= -I${LA_SRCDIR} -I.
-CFLAGS+= -DHAVE_LIBLZMA=1 -DHAVE_LZMA_H=1
-
-# Uncomment to link against dmalloc
-#LDADD+= -L/usr/local/lib -ldmalloc
-#CFLAGS+= -I/usr/local/include -DUSE_DMALLOC
-
 # Build libarchive_test and run it.
 check test: libarchive_test
-	./libarchive_test -r ${.CURDIR}
+	./libarchive_test -r ${LIBARCHIVEDIR}/libarchive/test
 
 # list.h is just a list of all tests, as indicated by DEFINE_TEST macro lines
 list.h: ${TESTS} Makefile
-	(cd ${.CURDIR}; cat test_*.c) | grep DEFINE_TEST > list.h
+	(cd ${LIBARCHIVEDIR}/libarchive/test; cat test_*.c) | \
+	grep DEFINE_TEST > ${.OBJDIR}/list.h
 
 CLEANFILES += *.out *.o *.core *~ list.h .dirstamp .depend
 CLEANDIRS += .deps .libs

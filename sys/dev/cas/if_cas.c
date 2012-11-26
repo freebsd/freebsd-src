@@ -2600,16 +2600,12 @@ static device_method_t cas_pci_methods[] = {
 	/* Use the suspend handler here, it is all that is required. */
 	DEVMETHOD(device_shutdown,	cas_pci_suspend),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	cas_mii_readreg),
 	DEVMETHOD(miibus_writereg,	cas_mii_writereg),
 	DEVMETHOD(miibus_statchg,	cas_mii_statchg),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t cas_pci_driver = {

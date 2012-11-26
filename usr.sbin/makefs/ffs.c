@@ -145,7 +145,7 @@ static  void	*ffs_build_dinode2(struct ufs2_dinode *, dirbuf_t *, fsnode *,
 
 int	sectorsize;		/* XXX: for buf.c::getblk() */
 
-	/* publically visible functions */
+	/* publicly visible functions */
 
 void
 ffs_prep_opts(fsinfo_t *fsopts)
@@ -235,6 +235,9 @@ ffs_parse_opts(const char *option, fsinfo_t *fsopts)
 			warnx("Invalid optimization `%s'", val);
 			goto leave_ffs_parse_opts;
 		}
+		rv = 1;
+	} else if (strcmp(var, "label") == 0) {
+		strlcpy(ffs_opts->label, val, sizeof(ffs_opts->label));
 		rv = 1;
 	} else
 		rv = set_option(ffs_options, var, val);

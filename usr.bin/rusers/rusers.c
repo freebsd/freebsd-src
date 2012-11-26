@@ -56,10 +56,10 @@ __FBSDID("$FreeBSD$");
 #define HOST_WIDTH	20
 #define LINE_WIDTH	15
 
-int longopt;
-int allopt;
+static int longopt;
+static int allopt;
 
-struct host_list {
+static struct host_list {
 	struct	host_list *next;
 	struct	in_addr addr;
 } *hosts;

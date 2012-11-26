@@ -5,8 +5,6 @@ LIB=	llvmtarget
 SRCDIR=	lib/Target
 SRCS=	Mangler.cpp \
 	Target.cpp \
-	TargetAsmInfo.cpp \
-	TargetAsmLexer.cpp \
 	TargetData.cpp \
 	TargetELFWriterInfo.cpp \
 	TargetFrameLowering.cpp \

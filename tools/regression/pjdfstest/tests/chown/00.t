@@ -296,7 +296,7 @@ for type in regular dir fifo block char socket symlink; do
 	fi
 done
 
-# successfull chown(2) call (except uid and gid equal to -1) updates ctime.
+# successful chown(2) call (except uid and gid equal to -1) updates ctime.
 for type in regular dir fifo block char socket symlink; do
 	if [ "${type}" != "symlink" ]; then
 		create_file ${type} ${n0}

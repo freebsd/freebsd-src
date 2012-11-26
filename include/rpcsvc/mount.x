@@ -150,7 +150,7 @@ program MOUNTPROG {
 	version MOUNTVERS {
 		/*
 		 * Does no work. It is made available in all RPC services
-		 * to allow server reponse testing and timing
+		 * to allow server response testing and timing
 		 */
 		void
 		MOUNTPROC_NULL(void) = 0;
@@ -205,7 +205,7 @@ program MOUNTPROG {
 	version MOUNTVERS3 {
 		/*
 		 * Does no work. It is made available in all RPC services
-		 * to allow server reponse testing and timing
+		 * to allow server response testing and timing
 		 */
 		void
 		MOUNTPROC_NULL(void) = 0;

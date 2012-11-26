@@ -14,6 +14,8 @@
 #ifndef LLVM_CLANG_MACROARGS_H
 #define LLVM_CLANG_MACROARGS_H
 
+#include "llvm/ADT/ArrayRef.h"
+
 #include <vector>
 
 namespace clang {
@@ -58,9 +60,8 @@ public:
   /// MacroArgs ctor function - Create a new MacroArgs object with the specified
   /// macro and argument info.
   static MacroArgs *create(const MacroInfo *MI,
-                           const Token *UnexpArgTokens,
-                           unsigned NumArgTokens, bool VarargsElided,
-                           Preprocessor &PP);
+                           llvm::ArrayRef<Token> UnexpArgTokens,
+                           bool VarargsElided, Preprocessor &PP);
 
   /// destroy - Destroy and deallocate the memory for this object.
   ///
@@ -88,7 +89,8 @@ public:
   /// getStringifiedArgument - Compute, cache, and return the specified argument
   /// that has been 'stringified' as required by the # operator.
   const Token &getStringifiedArgument(unsigned ArgNo, Preprocessor &PP,
-                                      SourceLocation hashInstLoc);
+                                      SourceLocation ExpansionLocStart,
+                                      SourceLocation ExpansionLocEnd);
 
   /// getNumArguments - Return the number of arguments passed into this macro
   /// invocation.
@@ -109,7 +111,8 @@ public:
   ///
   static Token StringifyArgument(const Token *ArgToks,
                                  Preprocessor &PP, bool Charify,
-                                 SourceLocation hashInstLoc);
+                                 SourceLocation ExpansionLocStart,
+                                 SourceLocation ExpansionLocEnd);
   
   
   /// deallocate - This should only be called by the Preprocessor when managing

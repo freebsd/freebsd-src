@@ -8,7 +8,7 @@ output for '^not ok'.
 
 ----------------------------------------------------------------------------
 
-The rest of this file is intented for developers.
+The rest of this file is intended for developers.
 
 The tests are invoked via the test.sh script or prove(1) from p5-Test-Harness.
 Tests are normally executed in a special test directory that is built under

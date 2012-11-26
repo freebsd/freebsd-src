@@ -33,19 +33,6 @@ namespace ARMRI {
   };
 }
 
-/// isARMLowRegister - Returns true if the register is low register r0-r7.
-///
-static inline bool isARMLowRegister(unsigned Reg) {
-  using namespace ARM;
-  switch (Reg) {
-  case R0:  case R1:  case R2:  case R3:
-  case R4:  case R5:  case R6:  case R7:
-    return true;
-  default:
-    return false;
-  }
-}
-
 /// isARMArea1Register - Returns true if the register is a low register (r0-r7)
 /// or a stack/pc register that we should push/pop.
 static inline bool isARMArea1Register(unsigned Reg, bool isDarwin) {
@@ -129,6 +116,8 @@ public:
                                        unsigned &NewSubIdx) const;
 
   const TargetRegisterClass *getPointerRegClass(unsigned Kind = 0) const;
+  const TargetRegisterClass*
+  getCrossCopyRegClass(const TargetRegisterClass *RC) const;
 
   const TargetRegisterClass*
   getLargestLegalSuperClass(const TargetRegisterClass *RC) const;
@@ -164,16 +153,12 @@ public:
   bool cannotEliminateFrame(const MachineFunction &MF) const;
 
   // Debug information queries.
-  unsigned getRARegister() const;
   unsigned getFrameRegister(const MachineFunction &MF) const;
   unsigned getBaseRegister() const { return BasePtr; }
 
   // Exception handling queries.
   unsigned getEHExceptionRegister() const;
   unsigned getEHHandlerRegister() const;
-
-  int getDwarfRegNum(unsigned RegNum, bool isEH) const;
-  int getLLVMRegNum(unsigned RegNum, bool isEH) const;
 
   bool isLowRegister(unsigned Reg) const;
 

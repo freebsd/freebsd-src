@@ -218,8 +218,9 @@ ar5212WriteAssocid(struct ath_hal *ah, const uint8_t *bssid, uint16_t assocId)
 {
 	struct ath_hal_5212 *ahp = AH5212(ah);
 
-	/* XXX save bssid for possible re-use on reset */
+	/* save bssid for possible re-use on reset */
 	OS_MEMCPY(ahp->ah_bssid, bssid, IEEE80211_ADDR_LEN);
+	ahp->ah_assocId = assocId;
 	OS_REG_WRITE(ah, AR_BSS_ID0, LE_READ_4(ahp->ah_bssid));
 	OS_REG_WRITE(ah, AR_BSS_ID1, LE_READ_2(ahp->ah_bssid+4) |
 				     ((assocId & 0x3fff)<<AR_BSS_ID1_AID_S));
@@ -573,7 +574,7 @@ ar5212SetDecompMask(struct ath_hal *ah, uint16_t keyidx, int en)
 	struct ath_hal_5212 *ahp = AH5212(ah);
 
         if (keyidx >= HAL_DECOMP_MASK_SIZE)
-                return HAL_EINVAL; 
+                return AH_FALSE;
         OS_REG_WRITE(ah, AR_DCM_A, keyidx);
         OS_REG_WRITE(ah, AR_DCM_D, en ? AR_DCM_D_EN : 0);
         ahp->ah_decompMask[keyidx] = en;

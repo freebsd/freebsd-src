@@ -45,12 +45,12 @@
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/Target/Mangler.h"
-#include "llvm/Target/TargetAsmInfo.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetELFWriterInfo.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
@@ -65,7 +65,8 @@ char ELFWriter::ID = 0;
 
 ELFWriter::ELFWriter(raw_ostream &o, TargetMachine &tm)
   : MachineFunctionPass(ID), O(o), TM(tm),
-    OutContext(*new MCContext(*TM.getMCAsmInfo(), new TargetAsmInfo(tm))),
+    OutContext(*new MCContext(*TM.getMCAsmInfo(), *TM.getRegisterInfo(),
+                              &TM.getTargetLowering()->getObjFileLowering())),
     TLOF(TM.getTargetLowering()->getObjFileLowering()),
     is64Bit(TM.getTargetData()->getPointerSizeInBits() == 64),
     isLittleEndian(TM.getTargetData()->isLittleEndian()),
@@ -482,7 +483,7 @@ void ELFWriter::EmitGlobalConstant(const Constant *CV, ELFSection &GblS) {
       EmitGlobalConstantLargeInt(CI, GblS);
     return;
   } else if (const ConstantVector *CP = dyn_cast<ConstantVector>(CV)) {
-    const VectorType *PTy = CP->getType();
+    VectorType *PTy = CP->getType();
     for (unsigned I = 0, E = PTy->getNumElements(); I < E; ++I)
       EmitGlobalConstant(CP->getOperand(I), GblS);
     return;
@@ -540,8 +541,7 @@ CstExprResTy ELFWriter::ResolveConstantExpr(const Constant *CV) {
   case Instruction::GetElementPtr: {
     const Constant *ptrVal = CE->getOperand(0);
     SmallVector<Value*, 8> idxVec(CE->op_begin()+1, CE->op_end());
-    int64_t Offset = TD->getIndexedOffset(ptrVal->getType(), &idxVec[0],
-                                          idxVec.size());
+    int64_t Offset = TD->getIndexedOffset(ptrVal->getType(), idxVec);
     return std::make_pair(ptrVal, Offset);
   }
   case Instruction::IntToPtr: {
@@ -552,7 +552,7 @@ CstExprResTy ELFWriter::ResolveConstantExpr(const Constant *CV) {
   }
   case Instruction::PtrToInt: {
     Constant *Op = CE->getOperand(0);
-    const Type *Ty = CE->getType();
+    Type *Ty = CE->getType();
 
     // We can emit the pointer value into this slot if the slot is an
     // integer slot greater or equal to the size of the pointer.

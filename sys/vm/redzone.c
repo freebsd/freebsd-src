@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/redzone.h>
 
 
-SYSCTL_NODE(_vm, OID_AUTO, redzone, CTLFLAG_RW, NULL, "RedZone data");
+static SYSCTL_NODE(_vm, OID_AUTO, redzone, CTLFLAG_RW, NULL, "RedZone data");
 static u_long redzone_extra_mem = 0;
 SYSCTL_ULONG(_vm_redzone, OID_AUTO, extra_mem, CTLFLAG_RD, &redzone_extra_mem,
     0, "Extra memory allocated by redzone");     

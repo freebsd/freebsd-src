@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 
-MALLOC_DEFINE(M_80211_DFS, "80211dfs", "802.11 DFS state");
+static MALLOC_DEFINE(M_80211_DFS, "80211dfs", "802.11 DFS state");
 
 static	int ieee80211_nol_timeout = 30*60;		/* 30 minutes */
 SYSCTL_INT(_net_wlan, OID_AUTO, nol_timeout, CTLFLAG_RW,
@@ -64,6 +64,12 @@ SYSCTL_INT(_net_wlan, OID_AUTO, cac_timeout, CTLFLAG_RW,
 	&ieee80211_cac_timeout, 0, "CAC timeout (secs)");
 #define	CAC_TIMEOUT	msecs_to_ticks(ieee80211_cac_timeout*1000)
 
+static int
+null_set_quiet(struct ieee80211_node *ni, u_int8_t *quiet_elm)
+{
+	return ENOSYS;
+}
+
 void
 ieee80211_dfs_attach(struct ieee80211com *ic)
 {
@@ -71,6 +77,8 @@ ieee80211_dfs_attach(struct ieee80211com *ic)
 
 	callout_init_mtx(&dfs->nol_timer, IEEE80211_LOCK_OBJ(ic), 0);
 	callout_init_mtx(&dfs->cac_timer, IEEE80211_LOCK_OBJ(ic), 0);
+
+	ic->ic_set_quiet = null_set_quiet;
 }
 
 void

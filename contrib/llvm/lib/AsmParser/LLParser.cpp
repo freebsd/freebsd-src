@@ -26,7 +26,7 @@
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
-static std::string getTypeString(const Type *T) {
+static std::string getTypeString(Type *T) {
   std::string Result;
   raw_string_ostream Tmp(Result);
   Tmp << *T;
@@ -119,6 +119,9 @@ bool LLParser::ValidateEndOfModule() {
   // Look for intrinsic functions and CallInst that need to be upgraded
   for (Module::iterator FI = M->begin(), FE = M->end(); FI != FE; )
     UpgradeCallsToIntrinsic(FI++); // must be post-increment, as we remove
+
+  // Upgrade to new EH scheme. N.B. This will go away in 3.1.
+  UpgradeExceptionHandling(M);
 
   // Check debug info intrinsics.
   CheckDebugInfoIntrinsics(M);
@@ -744,9 +747,9 @@ bool LLParser::ParseGlobal(const std::string &Name, LocTy NameLoc,
 /// GetGlobalVal - Get a value with the specified name or ID, creating a
 /// forward reference record if needed.  This can return null if the value
 /// exists but does not have the right type.
-GlobalValue *LLParser::GetGlobalVal(const std::string &Name, const Type *Ty,
+GlobalValue *LLParser::GetGlobalVal(const std::string &Name, Type *Ty,
                                     LocTy Loc) {
-  const PointerType *PTy = dyn_cast<PointerType>(Ty);
+  PointerType *PTy = dyn_cast<PointerType>(Ty);
   if (PTy == 0) {
     Error(Loc, "global variable reference must have pointer type");
     return 0;
@@ -775,7 +778,7 @@ GlobalValue *LLParser::GetGlobalVal(const std::string &Name, const Type *Ty,
 
   // Otherwise, create a new forward reference for this value and remember it.
   GlobalValue *FwdVal;
-  if (const FunctionType *FT = dyn_cast<FunctionType>(PTy->getElementType()))
+  if (FunctionType *FT = dyn_cast<FunctionType>(PTy->getElementType()))
     FwdVal = Function::Create(FT, GlobalValue::ExternalWeakLinkage, Name, M);
   else
     FwdVal = new GlobalVariable(*M, PTy->getElementType(), false,
@@ -785,8 +788,8 @@ GlobalValue *LLParser::GetGlobalVal(const std::string &Name, const Type *Ty,
   return FwdVal;
 }
 
-GlobalValue *LLParser::GetGlobalVal(unsigned ID, const Type *Ty, LocTy Loc) {
-  const PointerType *PTy = dyn_cast<PointerType>(Ty);
+GlobalValue *LLParser::GetGlobalVal(unsigned ID, Type *Ty, LocTy Loc) {
+  PointerType *PTy = dyn_cast<PointerType>(Ty);
   if (PTy == 0) {
     Error(Loc, "global variable reference must have pointer type");
     return 0;
@@ -813,7 +816,7 @@ GlobalValue *LLParser::GetGlobalVal(unsigned ID, const Type *Ty, LocTy Loc) {
 
   // Otherwise, create a new forward reference for this value and remember it.
   GlobalValue *FwdVal;
-  if (const FunctionType *FT = dyn_cast<FunctionType>(PTy->getElementType()))
+  if (FunctionType *FT = dyn_cast<FunctionType>(PTy->getElementType()))
     FwdVal = Function::Create(FT, GlobalValue::ExternalWeakLinkage, "", M);
   else
     FwdVal = new GlobalVariable(*M, PTy->getElementType(), false,
@@ -908,6 +911,7 @@ bool LLParser::ParseOptionalAttrs(unsigned &Attrs, unsigned AttrKind) {
     case lltok::kw_noreturn:        Attrs |= Attribute::NoReturn; break;
     case lltok::kw_nounwind:        Attrs |= Attribute::NoUnwind; break;
     case lltok::kw_uwtable:         Attrs |= Attribute::UWTable; break;
+    case lltok::kw_returns_twice:   Attrs |= Attribute::ReturnsTwice; break;
     case lltok::kw_noinline:        Attrs |= Attribute::NoInline; break;
     case lltok::kw_readnone:        Attrs |= Attribute::ReadNone; break;
     case lltok::kw_readonly:        Attrs |= Attribute::ReadOnly; break;
@@ -919,7 +923,6 @@ bool LLParser::ParseOptionalAttrs(unsigned &Attrs, unsigned AttrKind) {
     case lltok::kw_noredzone:       Attrs |= Attribute::NoRedZone; break;
     case lltok::kw_noimplicitfloat: Attrs |= Attribute::NoImplicitFloat; break;
     case lltok::kw_naked:           Attrs |= Attribute::Naked; break;
-    case lltok::kw_hotpatch:        Attrs |= Attribute::Hotpatch; break;
     case lltok::kw_nonlazybind:     Attrs |= Attribute::NonLazyBind; break;
 
     case lltok::kw_alignstack: {
@@ -1145,6 +1148,32 @@ bool LLParser::ParseOptionalCommaAlign(unsigned &Alignment,
   return false;
 }
 
+/// ParseScopeAndOrdering
+///   if isAtomic: ::= 'singlethread'? AtomicOrdering
+///   else: ::=
+///
+/// This sets Scope and Ordering to the parsed values.
+bool LLParser::ParseScopeAndOrdering(bool isAtomic, SynchronizationScope &Scope,
+                                     AtomicOrdering &Ordering) {
+  if (!isAtomic)
+    return false;
+
+  Scope = CrossThread;
+  if (EatIfPresent(lltok::kw_singlethread))
+    Scope = SingleThread;
+  switch (Lex.getKind()) {
+  default: return TokError("Expected ordering on atomic instruction");
+  case lltok::kw_unordered: Ordering = Unordered; break;
+  case lltok::kw_monotonic: Ordering = Monotonic; break;
+  case lltok::kw_acquire: Ordering = Acquire; break;
+  case lltok::kw_release: Ordering = Release; break;
+  case lltok::kw_acq_rel: Ordering = AcquireRelease; break;
+  case lltok::kw_seq_cst: Ordering = SequentiallyConsistent; break;
+  }
+  Lex.Lex();
+  return false;
+}
+
 /// ParseOptionalStackAlignment
 ///   ::= /* empty */
 ///   ::= 'alignstack' '(' 4 ')'
@@ -1237,7 +1266,7 @@ bool LLParser::ParseType(Type *&Result, bool AllowVoid) {
     // If the type hasn't been defined yet, create a forward definition and
     // remember where that forward def'n was seen (in case it never is defined).
     if (Entry.first == 0) {
-      Entry.first = StructType::createNamed(Context, Lex.getStrVal());
+      Entry.first = StructType::create(Context, Lex.getStrVal());
       Entry.second = Lex.getLoc();
     }
     Result = Entry.first;
@@ -1254,7 +1283,7 @@ bool LLParser::ParseType(Type *&Result, bool AllowVoid) {
     // If the type hasn't been defined yet, create a forward definition and
     // remember where that forward def'n was seen (in case it never is defined).
     if (Entry.first == 0) {
-      Entry.first = StructType::createNamed(Context, "");
+      Entry.first = StructType::create(Context);
       Entry.second = Lex.getLoc();
     }
     Result = Entry.first;
@@ -1476,7 +1505,7 @@ bool LLParser::ParseStructDefinition(SMLoc TypeLoc, StringRef Name,
     
     // If this type number has never been uttered, create it.
     if (Entry.first == 0)
-      Entry.first = StructType::createNamed(Context, Name);
+      Entry.first = StructType::create(Context, Name);
     ResultTy = Entry.first;
     return false;
   }
@@ -1502,7 +1531,7 @@ bool LLParser::ParseStructDefinition(SMLoc TypeLoc, StringRef Name,
   
   // If this type number has never been uttered, create it.
   if (Entry.first == 0)
-    Entry.first = StructType::createNamed(Context, Name);
+    Entry.first = StructType::create(Context, Name);
   
   StructType *STy = cast<StructType>(Entry.first);
  
@@ -1668,7 +1697,7 @@ bool LLParser::PerFunctionState::FinishFunction() {
 /// forward reference record if needed.  This can return null if the value
 /// exists but does not have the right type.
 Value *LLParser::PerFunctionState::GetVal(const std::string &Name,
-                                          const Type *Ty, LocTy Loc) {
+                                          Type *Ty, LocTy Loc) {
   // Look this name up in the normal function symbol table.
   Value *Val = F.getValueSymbolTable().lookup(Name);
 
@@ -1709,7 +1738,7 @@ Value *LLParser::PerFunctionState::GetVal(const std::string &Name,
   return FwdVal;
 }
 
-Value *LLParser::PerFunctionState::GetVal(unsigned ID, const Type *Ty,
+Value *LLParser::PerFunctionState::GetVal(unsigned ID, Type *Ty,
                                           LocTy Loc) {
   // Look this name up in the normal function symbol table.
   Value *Val = ID < NumberedVals.size() ? NumberedVals[ID] : 0;
@@ -2273,16 +2302,11 @@ bool LLParser::ParseValID(ValID &ID, PerFunctionState *PFS) {
       if (Elts.size() == 0 || !Elts[0]->getType()->isPointerTy())
         return Error(ID.Loc, "getelementptr requires pointer operand");
 
-      if (!GetElementPtrInst::getIndexedType(Elts[0]->getType(),
-                                             (Value**)(Elts.data() + 1),
-                                             Elts.size() - 1))
+      ArrayRef<Constant *> Indices(Elts.begin() + 1, Elts.end());
+      if (!GetElementPtrInst::getIndexedType(Elts[0]->getType(), Indices))
         return Error(ID.Loc, "invalid indices for getelementptr");
-      ID.ConstantVal = InBounds ?
-        ConstantExpr::getInBoundsGetElementPtr(Elts[0],
-                                               Elts.data() + 1,
-                                               Elts.size() - 1) :
-        ConstantExpr::getGetElementPtr(Elts[0],
-                                       Elts.data() + 1, Elts.size() - 1);
+      ID.ConstantVal = ConstantExpr::getGetElementPtr(Elts[0], Indices,
+                                                      InBounds);
     } else if (Opc == Instruction::Select) {
       if (Elts.size() != 3)
         return Error(ID.Loc, "expected three operands to select");
@@ -2323,7 +2347,7 @@ bool LLParser::ParseValID(ValID &ID, PerFunctionState *PFS) {
 }
 
 /// ParseGlobalValue - Parse a global value with the specified type.
-bool LLParser::ParseGlobalValue(const Type *Ty, Constant *&C) {
+bool LLParser::ParseGlobalValue(Type *Ty, Constant *&C) {
   C = 0;
   ValID ID;
   Value *V = NULL;
@@ -2410,7 +2434,7 @@ bool LLParser::ParseMetadataValue(ValID &ID, PerFunctionState *PFS) {
 // Function Parsing.
 //===----------------------------------------------------------------------===//
 
-bool LLParser::ConvertValIDToValue(const Type *Ty, ValID &ID, Value *&V,
+bool LLParser::ConvertValIDToValue(Type *Ty, ValID &ID, Value *&V,
                                    PerFunctionState *PFS) {
   if (Ty->isFunctionTy())
     return Error(ID.Loc, "functions are not values, refer to them as pointers");
@@ -2426,8 +2450,8 @@ bool LLParser::ConvertValIDToValue(const Type *Ty, ValID &ID, Value *&V,
     V = PFS->GetVal(ID.StrVal, Ty, ID.Loc);
     return (V == 0);
   case ValID::t_InlineAsm: {
-    const PointerType *PTy = dyn_cast<PointerType>(Ty);
-    const FunctionType *FTy = 
+    PointerType *PTy = dyn_cast<PointerType>(Ty);
+    FunctionType *FTy = 
       PTy ? dyn_cast<FunctionType>(PTy->getElementType()) : 0;
     if (!FTy || !InlineAsm::Verify(FTy, ID.StrVal2))
       return Error(ID.Loc, "invalid type for inline asm constraint string");
@@ -2506,7 +2530,7 @@ bool LLParser::ConvertValIDToValue(const Type *Ty, ValID &ID, Value *&V,
     return false;
   case ValID::t_ConstantStruct:
   case ValID::t_PackedConstantStruct:
-    if (const StructType *ST = dyn_cast<StructType>(Ty)) {
+    if (StructType *ST = dyn_cast<StructType>(Ty)) {
       if (ST->getNumElements() != ID.UIntVal)
         return Error(ID.Loc,
                      "initializer with struct type has wrong # elements");
@@ -2519,15 +2543,15 @@ bool LLParser::ConvertValIDToValue(const Type *Ty, ValID &ID, Value *&V,
           return Error(ID.Loc, "element " + Twine(i) +
                     " of struct initializer doesn't match struct element type");
       
-      V = ConstantStruct::get(ST, ArrayRef<Constant*>(ID.ConstantStructElts,
-                                                      ID.UIntVal));
+      V = ConstantStruct::get(ST, makeArrayRef(ID.ConstantStructElts,
+                                               ID.UIntVal));
     } else
       return Error(ID.Loc, "constant expression type mismatch");
     return false;
   }
 }
 
-bool LLParser::ParseValue(const Type *Ty, Value *&V, PerFunctionState *PFS) {
+bool LLParser::ParseValue(Type *Ty, Value *&V, PerFunctionState *PFS) {
   V = 0;
   ValID ID;
   return ParseValID(ID, PFS) ||
@@ -2671,9 +2695,9 @@ bool LLParser::ParseFunctionHeader(Function *&Fn, bool isDefine) {
   if (PAL.paramHasAttr(1, Attribute::StructRet) && !RetType->isVoidTy())
     return Error(RetTypeLoc, "functions with 'sret' argument must return void");
 
-  const FunctionType *FT =
+  FunctionType *FT =
     FunctionType::get(RetType, ParamTypeList, isVarArg);
-  const PointerType *PFT = PointerType::getUnqual(FT);
+  PointerType *PFT = PointerType::getUnqual(FT);
 
   Fn = 0;
   if (!FunctionName.empty()) {
@@ -2864,6 +2888,7 @@ int LLParser::ParseInstruction(Instruction *&Inst, BasicBlock *BB,
   case lltok::kw_switch:      return ParseSwitch(Inst, PFS);
   case lltok::kw_indirectbr:  return ParseIndirectBr(Inst, PFS);
   case lltok::kw_invoke:      return ParseInvoke(Inst, PFS);
+  case lltok::kw_resume:      return ParseResume(Inst, PFS);
   // Binary Operators.
   case lltok::kw_add:
   case lltok::kw_sub:
@@ -2923,13 +2948,18 @@ int LLParser::ParseInstruction(Instruction *&Inst, BasicBlock *BB,
   case lltok::kw_insertelement:  return ParseInsertElement(Inst, PFS);
   case lltok::kw_shufflevector:  return ParseShuffleVector(Inst, PFS);
   case lltok::kw_phi:            return ParsePHI(Inst, PFS);
+  case lltok::kw_landingpad:     return ParseLandingPad(Inst, PFS);
   case lltok::kw_call:           return ParseCall(Inst, PFS, false);
   case lltok::kw_tail:           return ParseCall(Inst, PFS, true);
   // Memory.
   case lltok::kw_alloca:         return ParseAlloc(Inst, PFS);
   case lltok::kw_load:           return ParseLoad(Inst, PFS, false);
   case lltok::kw_store:          return ParseStore(Inst, PFS, false);
+  case lltok::kw_cmpxchg:        return ParseCmpXchg(Inst, PFS);
+  case lltok::kw_atomicrmw:      return ParseAtomicRMW(Inst, PFS);
+  case lltok::kw_fence:          return ParseFence(Inst, PFS);
   case lltok::kw_volatile:
+    // For compatibility; canonical location is after load
     if (EatIfPresent(lltok::kw_load))
       return ParseLoad(Inst, PFS, true);
     else if (EatIfPresent(lltok::kw_store))
@@ -3162,8 +3192,8 @@ bool LLParser::ParseInvoke(Instruction *&Inst, PerFunctionState &PFS) {
   // If RetType is a non-function pointer type, then this is the short syntax
   // for the call, which means that RetType is just the return type.  Infer the
   // rest of the function argument types from the arguments that are present.
-  const PointerType *PFTy = 0;
-  const FunctionType *Ty = 0;
+  PointerType *PFTy = 0;
+  FunctionType *Ty = 0;
   if (!(PFTy = dyn_cast<PointerType>(RetType)) ||
       !(Ty = dyn_cast<FunctionType>(PFTy->getElementType()))) {
     // Pull out the types of all of the arguments...
@@ -3194,7 +3224,7 @@ bool LLParser::ParseInvoke(Instruction *&Inst, PerFunctionState &PFS) {
   FunctionType::param_iterator I = Ty->param_begin();
   FunctionType::param_iterator E = Ty->param_end();
   for (unsigned i = 0, e = ArgList.size(); i != e; ++i) {
-    const Type *ExpectedTy = 0;
+    Type *ExpectedTy = 0;
     if (I != E) {
       ExpectedTy = *I++;
     } else if (!Ty->isVarArg()) {
@@ -3225,7 +3255,17 @@ bool LLParser::ParseInvoke(Instruction *&Inst, PerFunctionState &PFS) {
   return false;
 }
 
+/// ParseResume
+///   ::= 'resume' TypeAndValue
+bool LLParser::ParseResume(Instruction *&Inst, PerFunctionState &PFS) {
+  Value *Exn; LocTy ExnLoc;
+  if (ParseTypeAndValue(Exn, ExnLoc, PFS))
+    return true;
 
+  ResumeInst *RI = ResumeInst::Create(Exn);
+  Inst = RI;
+  return false;
+}
 
 //===----------------------------------------------------------------------===//
 // Binary Operators.
@@ -3473,6 +3513,56 @@ int LLParser::ParsePHI(Instruction *&Inst, PerFunctionState &PFS) {
   return AteExtraComma ? InstExtraComma : InstNormal;
 }
 
+/// ParseLandingPad
+///   ::= 'landingpad' Type 'personality' TypeAndValue 'cleanup'? Clause+
+/// Clause
+///   ::= 'catch' TypeAndValue
+///   ::= 'filter'
+///   ::= 'filter' TypeAndValue ( ',' TypeAndValue )*
+bool LLParser::ParseLandingPad(Instruction *&Inst, PerFunctionState &PFS) {
+  Type *Ty = 0; LocTy TyLoc;
+  Value *PersFn; LocTy PersFnLoc;
+
+  if (ParseType(Ty, TyLoc) ||
+      ParseToken(lltok::kw_personality, "expected 'personality'") ||
+      ParseTypeAndValue(PersFn, PersFnLoc, PFS))
+    return true;
+
+  LandingPadInst *LP = LandingPadInst::Create(Ty, PersFn, 0);
+  LP->setCleanup(EatIfPresent(lltok::kw_cleanup));
+
+  while (Lex.getKind() == lltok::kw_catch || Lex.getKind() == lltok::kw_filter){
+    LandingPadInst::ClauseType CT;
+    if (EatIfPresent(lltok::kw_catch))
+      CT = LandingPadInst::Catch;
+    else if (EatIfPresent(lltok::kw_filter))
+      CT = LandingPadInst::Filter;
+    else
+      return TokError("expected 'catch' or 'filter' clause type");
+
+    Value *V; LocTy VLoc;
+    if (ParseTypeAndValue(V, VLoc, PFS)) {
+      delete LP;
+      return true;
+    }
+
+    // A 'catch' type expects a non-array constant. A filter clause expects an
+    // array constant.
+    if (CT == LandingPadInst::Catch) {
+      if (isa<ArrayType>(V->getType()))
+        Error(VLoc, "'catch' clause has an invalid type");
+    } else {
+      if (!isa<ArrayType>(V->getType()))
+        Error(VLoc, "'filter' clause has an invalid type");
+    }
+
+    LP->addClause(V);
+  }
+
+  Inst = LP;
+  return false;
+}
+
 /// ParseCall
 ///   ::= 'tail'? 'call' OptionalCallingConv OptionalAttrs Type Value
 ///       ParameterList OptionalAttrs
@@ -3498,8 +3588,8 @@ bool LLParser::ParseCall(Instruction *&Inst, PerFunctionState &PFS,
   // If RetType is a non-function pointer type, then this is the short syntax
   // for the call, which means that RetType is just the return type.  Infer the
   // rest of the function argument types from the arguments that are present.
-  const PointerType *PFTy = 0;
-  const FunctionType *Ty = 0;
+  PointerType *PFTy = 0;
+  FunctionType *Ty = 0;
   if (!(PFTy = dyn_cast<PointerType>(RetType)) ||
       !(Ty = dyn_cast<FunctionType>(PFTy->getElementType()))) {
     // Pull out the types of all of the arguments...
@@ -3530,7 +3620,7 @@ bool LLParser::ParseCall(Instruction *&Inst, PerFunctionState &PFS,
   FunctionType::param_iterator I = Ty->param_begin();
   FunctionType::param_iterator E = Ty->param_end();
   for (unsigned i = 0, e = ArgList.size(); i != e; ++i) {
-    const Type *ExpectedTy = 0;
+    Type *ExpectedTy = 0;
     if (I != E) {
       ExpectedTy = *I++;
     } else if (!Ty->isVarArg()) {
@@ -3596,34 +3686,85 @@ int LLParser::ParseAlloc(Instruction *&Inst, PerFunctionState &PFS) {
 }
 
 /// ParseLoad
-///   ::= 'volatile'? 'load' TypeAndValue (',' OptionalInfo)?
+///   ::= 'load' 'volatile'? TypeAndValue (',' 'align' i32)?
+///   ::= 'load' 'atomic' 'volatile'? TypeAndValue 
+///       'singlethread'? AtomicOrdering (',' 'align' i32)?
+///   Compatibility:
+///   ::= 'volatile' 'load' TypeAndValue (',' 'align' i32)?
 int LLParser::ParseLoad(Instruction *&Inst, PerFunctionState &PFS,
                         bool isVolatile) {
   Value *Val; LocTy Loc;
   unsigned Alignment = 0;
   bool AteExtraComma = false;
+  bool isAtomic = false;
+  AtomicOrdering Ordering = NotAtomic;
+  SynchronizationScope Scope = CrossThread;
+
+  if (Lex.getKind() == lltok::kw_atomic) {
+    if (isVolatile)
+      return TokError("mixing atomic with old volatile placement");
+    isAtomic = true;
+    Lex.Lex();
+  }
+
+  if (Lex.getKind() == lltok::kw_volatile) {
+    if (isVolatile)
+      return TokError("duplicate volatile before and after store");
+    isVolatile = true;
+    Lex.Lex();
+  }
+
   if (ParseTypeAndValue(Val, Loc, PFS) ||
+      ParseScopeAndOrdering(isAtomic, Scope, Ordering) ||
       ParseOptionalCommaAlign(Alignment, AteExtraComma))
     return true;
 
   if (!Val->getType()->isPointerTy() ||
       !cast<PointerType>(Val->getType())->getElementType()->isFirstClassType())
     return Error(Loc, "load operand must be a pointer to a first class type");
+  if (isAtomic && !Alignment)
+    return Error(Loc, "atomic load must have explicit non-zero alignment");
+  if (Ordering == Release || Ordering == AcquireRelease)
+    return Error(Loc, "atomic load cannot use Release ordering");
 
-  Inst = new LoadInst(Val, "", isVolatile, Alignment);
+  Inst = new LoadInst(Val, "", isVolatile, Alignment, Ordering, Scope);
   return AteExtraComma ? InstExtraComma : InstNormal;
 }
 
 /// ParseStore
-///   ::= 'volatile'? 'store' TypeAndValue ',' TypeAndValue (',' 'align' i32)?
+
+///   ::= 'store' 'volatile'? TypeAndValue ',' TypeAndValue (',' 'align' i32)?
+///   ::= 'store' 'atomic' 'volatile'? TypeAndValue ',' TypeAndValue
+///       'singlethread'? AtomicOrdering (',' 'align' i32)?
+///   Compatibility:
+///   ::= 'volatile' 'store' TypeAndValue ',' TypeAndValue (',' 'align' i32)?
 int LLParser::ParseStore(Instruction *&Inst, PerFunctionState &PFS,
                          bool isVolatile) {
   Value *Val, *Ptr; LocTy Loc, PtrLoc;
   unsigned Alignment = 0;
   bool AteExtraComma = false;
+  bool isAtomic = false;
+  AtomicOrdering Ordering = NotAtomic;
+  SynchronizationScope Scope = CrossThread;
+
+  if (Lex.getKind() == lltok::kw_atomic) {
+    if (isVolatile)
+      return TokError("mixing atomic with old volatile placement");
+    isAtomic = true;
+    Lex.Lex();
+  }
+
+  if (Lex.getKind() == lltok::kw_volatile) {
+    if (isVolatile)
+      return TokError("duplicate volatile before and after store");
+    isVolatile = true;
+    Lex.Lex();
+  }
+
   if (ParseTypeAndValue(Val, Loc, PFS) ||
       ParseToken(lltok::comma, "expected ',' after store operand") ||
       ParseTypeAndValue(Ptr, PtrLoc, PFS) ||
+      ParseScopeAndOrdering(isAtomic, Scope, Ordering) ||
       ParseOptionalCommaAlign(Alignment, AteExtraComma))
     return true;
 
@@ -3633,9 +3774,129 @@ int LLParser::ParseStore(Instruction *&Inst, PerFunctionState &PFS,
     return Error(Loc, "store operand must be a first class value");
   if (cast<PointerType>(Ptr->getType())->getElementType() != Val->getType())
     return Error(Loc, "stored value and pointer type do not match");
+  if (isAtomic && !Alignment)
+    return Error(Loc, "atomic store must have explicit non-zero alignment");
+  if (Ordering == Acquire || Ordering == AcquireRelease)
+    return Error(Loc, "atomic store cannot use Acquire ordering");
 
-  Inst = new StoreInst(Val, Ptr, isVolatile, Alignment);
+  Inst = new StoreInst(Val, Ptr, isVolatile, Alignment, Ordering, Scope);
   return AteExtraComma ? InstExtraComma : InstNormal;
+}
+
+/// ParseCmpXchg
+///   ::= 'cmpxchg' 'volatile'? TypeAndValue ',' TypeAndValue ',' TypeAndValue
+///       'singlethread'? AtomicOrdering
+int LLParser::ParseCmpXchg(Instruction *&Inst, PerFunctionState &PFS) {
+  Value *Ptr, *Cmp, *New; LocTy PtrLoc, CmpLoc, NewLoc;
+  bool AteExtraComma = false;
+  AtomicOrdering Ordering = NotAtomic;
+  SynchronizationScope Scope = CrossThread;
+  bool isVolatile = false;
+
+  if (EatIfPresent(lltok::kw_volatile))
+    isVolatile = true;
+
+  if (ParseTypeAndValue(Ptr, PtrLoc, PFS) ||
+      ParseToken(lltok::comma, "expected ',' after cmpxchg address") ||
+      ParseTypeAndValue(Cmp, CmpLoc, PFS) ||
+      ParseToken(lltok::comma, "expected ',' after cmpxchg cmp operand") ||
+      ParseTypeAndValue(New, NewLoc, PFS) ||
+      ParseScopeAndOrdering(true /*Always atomic*/, Scope, Ordering))
+    return true;
+
+  if (Ordering == Unordered)
+    return TokError("cmpxchg cannot be unordered");
+  if (!Ptr->getType()->isPointerTy())
+    return Error(PtrLoc, "cmpxchg operand must be a pointer");
+  if (cast<PointerType>(Ptr->getType())->getElementType() != Cmp->getType())
+    return Error(CmpLoc, "compare value and pointer type do not match");
+  if (cast<PointerType>(Ptr->getType())->getElementType() != New->getType())
+    return Error(NewLoc, "new value and pointer type do not match");
+  if (!New->getType()->isIntegerTy())
+    return Error(NewLoc, "cmpxchg operand must be an integer");
+  unsigned Size = New->getType()->getPrimitiveSizeInBits();
+  if (Size < 8 || (Size & (Size - 1)))
+    return Error(NewLoc, "cmpxchg operand must be power-of-two byte-sized"
+                         " integer");
+
+  AtomicCmpXchgInst *CXI =
+    new AtomicCmpXchgInst(Ptr, Cmp, New, Ordering, Scope);
+  CXI->setVolatile(isVolatile);
+  Inst = CXI;
+  return AteExtraComma ? InstExtraComma : InstNormal;
+}
+
+/// ParseAtomicRMW
+///   ::= 'atomicrmw' 'volatile'? BinOp TypeAndValue ',' TypeAndValue
+///       'singlethread'? AtomicOrdering
+int LLParser::ParseAtomicRMW(Instruction *&Inst, PerFunctionState &PFS) {
+  Value *Ptr, *Val; LocTy PtrLoc, ValLoc;
+  bool AteExtraComma = false;
+  AtomicOrdering Ordering = NotAtomic;
+  SynchronizationScope Scope = CrossThread;
+  bool isVolatile = false;
+  AtomicRMWInst::BinOp Operation;
+
+  if (EatIfPresent(lltok::kw_volatile))
+    isVolatile = true;
+
+  switch (Lex.getKind()) {
+  default: return TokError("expected binary operation in atomicrmw");
+  case lltok::kw_xchg: Operation = AtomicRMWInst::Xchg; break;
+  case lltok::kw_add: Operation = AtomicRMWInst::Add; break;
+  case lltok::kw_sub: Operation = AtomicRMWInst::Sub; break;
+  case lltok::kw_and: Operation = AtomicRMWInst::And; break;
+  case lltok::kw_nand: Operation = AtomicRMWInst::Nand; break;
+  case lltok::kw_or: Operation = AtomicRMWInst::Or; break;
+  case lltok::kw_xor: Operation = AtomicRMWInst::Xor; break;
+  case lltok::kw_max: Operation = AtomicRMWInst::Max; break;
+  case lltok::kw_min: Operation = AtomicRMWInst::Min; break;
+  case lltok::kw_umax: Operation = AtomicRMWInst::UMax; break;
+  case lltok::kw_umin: Operation = AtomicRMWInst::UMin; break;
+  }
+  Lex.Lex();  // Eat the operation.
+
+  if (ParseTypeAndValue(Ptr, PtrLoc, PFS) ||
+      ParseToken(lltok::comma, "expected ',' after atomicrmw address") ||
+      ParseTypeAndValue(Val, ValLoc, PFS) ||
+      ParseScopeAndOrdering(true /*Always atomic*/, Scope, Ordering))
+    return true;
+
+  if (Ordering == Unordered)
+    return TokError("atomicrmw cannot be unordered");
+  if (!Ptr->getType()->isPointerTy())
+    return Error(PtrLoc, "atomicrmw operand must be a pointer");
+  if (cast<PointerType>(Ptr->getType())->getElementType() != Val->getType())
+    return Error(ValLoc, "atomicrmw value and pointer type do not match");
+  if (!Val->getType()->isIntegerTy())
+    return Error(ValLoc, "atomicrmw operand must be an integer");
+  unsigned Size = Val->getType()->getPrimitiveSizeInBits();
+  if (Size < 8 || (Size & (Size - 1)))
+    return Error(ValLoc, "atomicrmw operand must be power-of-two byte-sized"
+                         " integer");
+
+  AtomicRMWInst *RMWI =
+    new AtomicRMWInst(Operation, Ptr, Val, Ordering, Scope);
+  RMWI->setVolatile(isVolatile);
+  Inst = RMWI;
+  return AteExtraComma ? InstExtraComma : InstNormal;
+}
+
+/// ParseFence
+///   ::= 'fence' 'singlethread'? AtomicOrdering
+int LLParser::ParseFence(Instruction *&Inst, PerFunctionState &PFS) {
+  AtomicOrdering Ordering = NotAtomic;
+  SynchronizationScope Scope = CrossThread;
+  if (ParseScopeAndOrdering(true /*Always atomic*/, Scope, Ordering))
+    return true;
+
+  if (Ordering == Unordered)
+    return TokError("fence cannot be unordered");
+  if (Ordering == Monotonic)
+    return TokError("fence cannot be monotonic");
+
+  Inst = new FenceInst(Context, Ordering, Scope);
+  return InstNormal;
 }
 
 /// ParseGetElementPtr
@@ -3663,10 +3924,9 @@ int LLParser::ParseGetElementPtr(Instruction *&Inst, PerFunctionState &PFS) {
     Indices.push_back(Val);
   }
 
-  if (!GetElementPtrInst::getIndexedType(Ptr->getType(),
-                                         Indices.begin(), Indices.end()))
+  if (!GetElementPtrInst::getIndexedType(Ptr->getType(), Indices))
     return Error(Loc, "invalid getelementptr indices");
-  Inst = GetElementPtrInst::Create(Ptr, Indices.begin(), Indices.end());
+  Inst = GetElementPtrInst::Create(Ptr, Indices);
   if (InBounds)
     cast<GetElementPtrInst>(Inst)->setIsInBounds(true);
   return AteExtraComma ? InstExtraComma : InstNormal;

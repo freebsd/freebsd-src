@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,6 +50,79 @@
 
 #define _COMPONENT          ACPI_RESOURCES
         ACPI_MODULE_NAME    ("rscreate")
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiBufferToResource
+ *
+ * PARAMETERS:  AmlBuffer           - Pointer to the resource byte stream
+ *              AmlBufferLength     - Length of the AmlBuffer
+ *              ResourcePtr         - Where the converted resource is returned
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Convert a raw AML buffer to a resource list
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiBufferToResource (
+    UINT8                   *AmlBuffer,
+    UINT16                  AmlBufferLength,
+    ACPI_RESOURCE           **ResourcePtr)
+{
+    ACPI_STATUS             Status;
+    ACPI_SIZE               ListSizeNeeded;
+    void                    *Resource;
+    void                    *CurrentResourcePtr;
+
+    /*
+     * Note: we allow AE_AML_NO_RESOURCE_END_TAG, since an end tag
+     * is not required here.
+     */
+
+    /* Get the required length for the converted resource */
+
+    Status = AcpiRsGetListLength (AmlBuffer, AmlBufferLength,
+                &ListSizeNeeded);
+    if (Status == AE_AML_NO_RESOURCE_END_TAG)
+    {
+        Status = AE_OK;
+    }
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    /* Allocate a buffer for the converted resource */
+
+    Resource = ACPI_ALLOCATE_ZEROED (ListSizeNeeded);
+    CurrentResourcePtr = Resource;
+    if (!Resource)
+    {
+        return (AE_NO_MEMORY);
+    }
+
+    /* Perform the AML-to-Resource conversion */
+
+    Status = AcpiUtWalkAmlResources (AmlBuffer, AmlBufferLength,
+                AcpiRsConvertAmlToResources, &CurrentResourcePtr);
+    if (Status == AE_AML_NO_RESOURCE_END_TAG)
+    {
+        Status = AE_OK;
+    }
+    if (ACPI_FAILURE (Status))
+    {
+        ACPI_FREE (Resource);
+    }
+    else
+    {
+        *ResourcePtr = Resource;
+    }
+
+    return (Status);
+}
 
 
 /*******************************************************************************

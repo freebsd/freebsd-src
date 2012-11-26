@@ -375,15 +375,15 @@ NNON_LEAF(MipsKernGenException, KERN_EXC_FRAME_SIZE, ra)
 	REG_S	a3, CALLFRAME_RA + KERN_REG_SIZE(sp)		# for debugging
 
 	/*
-	 * Update interrupt mask in saved status register
+	 * Update interrupt and CPU mask in saved status register
 	 * Some of interrupts could be disabled by
 	 * intr filters if interrupts are enabled later
 	 * in trap handler
 	 */
 	mfc0	a0, MIPS_COP_0_STATUS
-	and	a0, a0, MIPS_SR_INT_MASK
+	and	a0, a0, (MIPS_SR_INT_MASK|MIPS_SR_COP_USABILITY)
 	RESTORE_REG(a1, SR, sp)
-	and	a1, a1, ~MIPS_SR_INT_MASK
+	and	a1, a1, ~(MIPS_SR_INT_MASK|MIPS_SR_COP_USABILITY)
 	or	a1, a1, a0
 	SAVE_REG(a1, SR, sp)
 	RESTORE_CPU			# v0 contains the return address.
@@ -469,6 +469,7 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 # Turn off fpu and enter kernel mode
 	and	t0, a0, ~(MIPS_SR_COP_1_BIT | MIPS_SR_EXL | MIPS3_SR_KSU_MASK | MIPS_SR_INT_IE)
 #if defined(CPU_CNMIPS)
+	and	t0, t0, ~(MIPS_SR_COP_2_BIT)
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS_SR_PX)
 #elif defined(CPU_RMI)	|| defined(CPU_NLM)
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_COP_2_BIT)
@@ -557,6 +558,33 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 	.set	at
 END(MipsUserGenException)
 
+	.set	push
+	.set	noat
+NON_LEAF(mips_wait, CALLFRAME_SIZ, ra)
+	PTR_SUBU        sp, sp, CALLFRAME_SIZ
+	.mask   0x80000000, (CALLFRAME_RA - CALLFRAME_SIZ)
+	REG_S   ra, CALLFRAME_RA(sp)		# save RA
+	mfc0	t0, MIPS_COP_0_STATUS
+	xori	t1, t0, MIPS_SR_INT_IE
+	mtc0	t1, MIPS_COP_0_STATUS
+	COP0_SYNC
+	jal	sched_runnable
+	nop
+	REG_L   ra, CALLFRAME_RA(sp)
+	mfc0	t0, MIPS_COP_0_STATUS
+	ori	t1, t0, MIPS_SR_INT_IE
+	.align 4
+GLOBAL(MipsWaitStart)			# this is 16 byte aligned
+	mtc0	t1, MIPS_COP_0_STATUS
+	bnez	v0, MipsWaitEnd
+	nop
+	wait
+GLOBAL(MipsWaitEnd)			# MipsWaitStart + 16
+	jr	ra
+	PTR_ADDU        sp, sp, CALLFRAME_SIZ
+END(mips_wait)
+	.set	pop
+
 /*----------------------------------------------------------------------------
  *
  * MipsKernIntr --
@@ -578,6 +606,19 @@ NNON_LEAF(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
 	.set	noat
 	PTR_SUBU	sp, sp, KERN_EXC_FRAME_SIZE
 	.mask	0x80000000, (CALLFRAME_RA - KERN_EXC_FRAME_SIZE)
+
+/*
+ * Check for getting interrupts just before wait
+ */
+	MFC0	k0, MIPS_COP_0_EXC_PC
+	ori	k0, 0xf
+	xori	k0, 0xf			# 16 byte align
+	PTR_LA	k1, MipsWaitStart
+	bne	k0, k1, 1f
+	nop
+	PTR_ADDU k1, 16			# skip over wait
+	MTC0	k1, MIPS_COP_0_EXC_PC
+1:
 /*
  *  Save CPU state, building 'frame'.
  */
@@ -591,15 +632,15 @@ NNON_LEAF(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
 	REG_S	a3, CALLFRAME_RA + KERN_REG_SIZE(sp)		# for debugging
 
 	/*
-	 * Update interrupt mask in saved status register
+	 * Update interrupt and CPU mask in saved status register
 	 * Some of interrupts could be disabled by
 	 * intr filters if interrupts are enabled later
 	 * in trap handler
 	 */
 	mfc0	a0, MIPS_COP_0_STATUS
-	and	a0, a0, MIPS_SR_INT_MASK
+	and	a0, a0, (MIPS_SR_INT_MASK|MIPS_SR_COP_USABILITY)
 	RESTORE_REG(a1, SR, sp)
-	and	a1, a1, ~MIPS_SR_INT_MASK
+	and	a1, a1, ~(MIPS_SR_INT_MASK|MIPS_SR_COP_USABILITY)
 	or	a1, a1, a0
 	SAVE_REG(a1, SR, sp)
 	REG_L	v0, CALLFRAME_RA + KERN_REG_SIZE(sp)
@@ -687,6 +728,7 @@ NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
 # Turn off fpu, disable interrupts, set kernel mode kernel mode, clear exception level.
 	and	t0, a0, ~(MIPS_SR_COP_1_BIT | MIPS_SR_EXL | MIPS_SR_INT_IE | MIPS3_SR_KSU_MASK)
 #ifdef CPU_CNMIPS
+	and	t0, t0, ~(MIPS_SR_COP_2_BIT)
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS_SR_PX)
 #elif defined(CPU_RMI)	|| defined(CPU_NLM)
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_COP_2_BIT)

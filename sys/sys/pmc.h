@@ -87,7 +87,8 @@
 	__PMC_CPU(INTEL_COREI7, 0x8B,   "Intel Core i7") \
 	__PMC_CPU(INTEL_WESTMERE, 0x8C,   "Intel Westmere") \
 	__PMC_CPU(INTEL_XSCALE,	0x100,	"Intel XScale") \
-	__PMC_CPU(MIPS_24K,     0x200,  "MIPS 24K") 
+	__PMC_CPU(MIPS_24K,     0x200,  "MIPS 24K")  \
+	__PMC_CPU(PPC_7450,     0x300,  "PowerPC MPC7450")
 
 enum pmc_cputype {
 #undef	__PMC_CPU
@@ -96,7 +97,7 @@ enum pmc_cputype {
 };
 
 #define	PMC_CPU_FIRST	PMC_CPU_AMD_K7
-#define	PMC_CPU_LAST	PMC_CPU_MIPS_24K
+#define	PMC_CPU_LAST	PMC_CPU_PPC_7450
 
 /*
  * Classes of PMCs
@@ -114,7 +115,8 @@ enum pmc_cputype {
 	__PMC_CLASS(UCF)	/* Intel Uncore fixed function */	\
 	__PMC_CLASS(UCP)	/* Intel Uncore programmable */		\
 	__PMC_CLASS(XSCALE)	/* Intel XScale counters */		\
-	__PMC_CLASS(MIPS24K)    /* MIPS 24K */
+	__PMC_CLASS(MIPS24K)    /* MIPS 24K */ \
+	__PMC_CLASS(PPC7450)	/* Motorola MPC7450 class */
 
 enum pmc_class {
 #undef  __PMC_CLASS
@@ -123,7 +125,7 @@ enum pmc_class {
 };
 
 #define	PMC_CLASS_FIRST	PMC_CLASS_TSC
-#define	PMC_CLASS_LAST	PMC_CLASS_MIPS24K
+#define	PMC_CLASS_LAST	PMC_CLASS_PPC7450
 
 /*
  * A PMC can be in the following states:
@@ -302,7 +304,8 @@ enum pmc_event {
 	__PMC_OP(PMCSETCOUNT, "Set initial count/sampling rate")	\
 	__PMC_OP(PMCSTART, "Start a PMC")				\
 	__PMC_OP(PMCSTOP, "Stop a PMC")					\
-	__PMC_OP(WRITELOG, "Write a cookie to the log file")
+	__PMC_OP(WRITELOG, "Write a cookie to the log file")		\
+	__PMC_OP(CLOSELOG, "Close log file")
 
 
 enum pmc_ops {
@@ -1039,6 +1042,7 @@ extern struct pmc_debugflags pmc_debugflags;
 #define	PMC_DEBUG_MIN_SIO		9 /* schedule i/o */
 #define	PMC_DEBUG_MIN_FLS	       10 /* flush */
 #define	PMC_DEBUG_MIN_SAM	       11 /* sample */
+#define	PMC_DEBUG_MIN_CLO	       12 /* close */
 
 #else
 #define	PMCDBG(M,N,L,F,...)		/* nothing */

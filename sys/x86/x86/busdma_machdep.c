@@ -113,7 +113,7 @@ static int total_bpages;
 static int busdma_zonecount;
 static STAILQ_HEAD(, bounce_zone) bounce_zone_list;
 
-SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD, 0, "Busdma parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, busdma, CTLFLAG_RD, 0, "Busdma parameters");
 SYSCTL_INT(_hw_busdma, OID_AUTO, total_bpages, CTLFLAG_RD, &total_bpages, 0,
 	   "Total bounce pages");
 

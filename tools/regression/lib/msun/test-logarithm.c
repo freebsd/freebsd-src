@@ -97,7 +97,7 @@ void
 run_generic_tests(void)
 {
 
-	/* exp(1) == 0, no exceptions raised */
+	/* log(1) == 0, no exceptions raised */
 	testall0(1.0, 0.0, ALL_STD_EXCEPT, 0);
 	testall1(0.0, 0.0, ALL_STD_EXCEPT, 0);
 	testall1(-0.0, -0.0, ALL_STD_EXCEPT, 0);
@@ -142,17 +142,44 @@ run_log2_tests(void)
 	}
 }
 
+void
+run_roundingmode_tests(void)
+{
+
+	/*
+	 * Corner cases in other rounding modes.
+	 */
+	fesetround(FE_DOWNWARD);
+	/* These are still positive per IEEE 754R */
+	testall0(1.0, 0.0, ALL_STD_EXCEPT, 0);
+	testall1(0.0, 0.0, ALL_STD_EXCEPT, 0);
+	fesetround(FE_TOWARDZERO);
+	testall0(1.0, 0.0, ALL_STD_EXCEPT, 0);
+	testall1(0.0, 0.0, ALL_STD_EXCEPT, 0);
+
+	fesetround(FE_UPWARD);
+	testall0(1.0, 0.0, ALL_STD_EXCEPT, 0);
+	testall1(0.0, 0.0, ALL_STD_EXCEPT, 0);
+	/* log1p(-0.0) == -0.0 even when rounding upwards */
+	testall1(-0.0, -0.0, ALL_STD_EXCEPT, 0);
+
+	fesetround(FE_TONEAREST);
+}
+
 int
 main(int argc, char *argv[])
 {
 
-	printf("1..2\n");
+	printf("1..3\n");
 
 	run_generic_tests();
 	printf("ok 1 - logarithm\n");
 
 	run_log2_tests();
 	printf("ok 2 - logarithm\n");
+
+	run_roundingmode_tests();
+	printf("ok 3 - logarithm\n");
 
 	return (0);
 }

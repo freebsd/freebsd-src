@@ -121,7 +121,7 @@ struct fattr {
 	unsigned uid;		/* owner user id */
 	unsigned gid;		/* owner group id */
 	unsigned size;		/* file size in bytes */
-	unsigned blocksize;	/* prefered block size */
+	unsigned blocksize;	/* preferred block size */
 	unsigned rdev;		/* special device # */
 	unsigned blocks;	/* Kb of disk used by file */
 	unsigned fsid;		/* device # */
@@ -402,7 +402,7 @@ struct fattr3 {
 	uid3	uid;		/* owner user id */
 	gid3	gid;		/* owner group id */
 	size3	size;		/* file size in bytes */
-	size3	used;		/* prefered block size */
+	size3	used;		/* preferred block size */
 	specdata3 rdev;		/* special device # */
 	uint64 fsid;		/* device # */
 	fileid3	fileid;		/* inode # */

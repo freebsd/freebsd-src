@@ -148,7 +148,6 @@ void LiveInterval::markValNoForDeletion(VNInfo *ValNo) {
 /// remaining unused values.
 void LiveInterval::RenumberValues(LiveIntervals &lis) {
   SmallPtrSet<VNInfo*, 8> Seen;
-  bool seenPHIDef = false;
   valnos.clear();
   for (const_iterator I = begin(), E = end(); I != E; ++I) {
     VNInfo *VNI = I->valno;
@@ -157,26 +156,6 @@ void LiveInterval::RenumberValues(LiveIntervals &lis) {
     assert(!VNI->isUnused() && "Unused valno used by live range");
     VNI->id = (unsigned)valnos.size();
     valnos.push_back(VNI);
-    VNI->setHasPHIKill(false);
-    if (VNI->isPHIDef())
-      seenPHIDef = true;
-  }
-
-  // Recompute phi kill flags.
-  if (!seenPHIDef)
-    return;
-  for (const_vni_iterator I = vni_begin(), E = vni_end(); I != E; ++I) {
-    VNInfo *VNI = *I;
-    if (!VNI->isPHIDef())
-      continue;
-    const MachineBasicBlock *PHIBB = lis.getMBBFromIndex(VNI->def);
-    assert(PHIBB && "No basic block for phi-def");
-    for (MachineBasicBlock::const_pred_iterator PI = PHIBB->pred_begin(),
-         PE = PHIBB->pred_end(); PI != PE; ++PI) {
-      VNInfo *KVNI = getVNInfoAt(lis.getMBBEndIdx(*PI).getPrevSlot());
-      if (KVNI)
-        KVNI->setHasPHIKill(true);
-    }
   }
 }
 
@@ -294,20 +273,20 @@ LiveInterval::addRangeFrom(LiveRange LR, iterator From) {
   return ranges.insert(it, LR);
 }
 
-/// extendInBlock - If this interval is live before UseIdx in the basic
-/// block that starts at StartIdx, extend it to be live at UseIdx and return
-/// the value. If there is no live range before UseIdx, return NULL.
-VNInfo *LiveInterval::extendInBlock(SlotIndex StartIdx, SlotIndex UseIdx) {
+/// extendInBlock - If this interval is live before Kill in the basic
+/// block that starts at StartIdx, extend it to be live up to Kill and return
+/// the value. If there is no live range before Kill, return NULL.
+VNInfo *LiveInterval::extendInBlock(SlotIndex StartIdx, SlotIndex Kill) {
   if (empty())
     return 0;
-  iterator I = std::upper_bound(begin(), end(), UseIdx);
+  iterator I = std::upper_bound(begin(), end(), Kill.getPrevSlot());
   if (I == begin())
     return 0;
   --I;
   if (I->end <= StartIdx)
     return 0;
-  if (I->end <= UseIdx)
-    extendIntervalEndTo(I, UseIdx.getNextSlot());
+  if (I->end < Kill)
+    extendIntervalEndTo(I, Kill);
   return I->valno;
 }
 

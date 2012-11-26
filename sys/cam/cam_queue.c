@@ -40,9 +40,9 @@ __FBSDID("$FreeBSD$");
 #include <cam/cam_queue.h>
 #include <cam/cam_debug.h>
 
-MALLOC_DEFINE(M_CAMQ, "CAM queue", "CAM queue buffers");
-MALLOC_DEFINE(M_CAMDEVQ, "CAM dev queue", "CAM dev queue buffers");
-MALLOC_DEFINE(M_CAMCCBQ, "CAM ccb queue", "CAM ccb queue buffers");
+static MALLOC_DEFINE(M_CAMQ, "CAM queue", "CAM queue buffers");
+static MALLOC_DEFINE(M_CAMDEVQ, "CAM dev queue", "CAM dev queue buffers");
+static MALLOC_DEFINE(M_CAMCCBQ, "CAM ccb queue", "CAM ccb queue buffers");
 
 static __inline int
 		queue_cmp(cam_pinfo **queue_array, int i, int j);

@@ -49,6 +49,7 @@ main(void)
 	dists = calloc(ndists, sizeof(const char *));
 	if (dists == NULL) {
 		fprintf(stderr, "Out of memory!\n");
+		free(diststring);
 		return (1);
 	}
 

@@ -65,7 +65,7 @@ hostname_start()
 		# Null hostname is probably OK if DHCP is in use.
 		#
 		if [ -z "`list_net_interfaces dhcp`" ]; then
-			warn "\$hostname is not set -- see ${rcvar_manpage}."
+			warn "\$hostname is not set -- see rc.conf(5)."
 		fi
 		return
 	fi

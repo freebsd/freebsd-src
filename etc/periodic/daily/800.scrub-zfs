@@ -15,7 +15,7 @@ then
     source_periodic_confs
 fi
 
-: ${daily_scrub_zfs_default_threshold=30}
+: ${daily_scrub_zfs_default_threshold=35}
 
 case "$daily_scrub_zfs_enable" in
     [Yy][Ee][Ss])

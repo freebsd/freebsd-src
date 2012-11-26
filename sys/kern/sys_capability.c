@@ -52,6 +52,7 @@
  */
 
 #include "opt_capsicum.h"
+#include "opt_ktrace.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -68,6 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/ucred.h>
+#include <sys/uio.h>
+#include <sys/ktrace.h>
 
 #include <security/audit/audit.h>
 
@@ -212,8 +215,13 @@ static int
 cap_check(struct capability *c, cap_rights_t rights)
 {
 
-	if ((c->cap_rights | rights) != c->cap_rights)
+	if ((c->cap_rights | rights) != c->cap_rights) {
+#ifdef KTRACE
+		if (KTRPOINT(curthread, KTR_CAPFAIL))
+			ktrcapfail(CAPFAIL_NOTCAPABLE, rights, c->cap_rights);
+#endif
 		return (ENOTCAPABLE);
+	}
 	return (0);
 }
 
@@ -306,8 +314,14 @@ kern_capwrap(struct thread *td, struct file *fp, cap_rights_t rights,
 	 */
 	if (fp->f_type == DTYPE_CAPABILITY) {
 		cp_old = fp->f_data;
-		if ((cp_old->cap_rights | rights) != cp_old->cap_rights)
+		if ((cp_old->cap_rights | rights) != cp_old->cap_rights) {
+#ifdef KTRACE
+			if (KTRPOINT(curthread, KTR_CAPFAIL))
+				ktrcapfail(CAPFAIL_INCREASE,
+				    rights, cp_old->cap_rights);
+#endif
 			return (ENOTCAPABLE);
+		}
 	}
 
 	/*

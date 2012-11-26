@@ -38,7 +38,7 @@ SRCS+=	ifieee80211.c regdomain.c # SIOC[GS]IEEE80211 support
 DPADD+=	${LIBBSDXML} ${LIBJAIL} ${LIBSBUF}
 LDADD+=	-lbsdxml -ljail -lsbuf
 
-SRCS+=	ifcarp.c		# SIOC[GS]VH support
+SRCS+=	carp.c			# SIOC[GS]VH support
 SRCS+=	ifgroup.c		# ...
 SRCS+=	ifpfsync.c		# pfsync(4) support
 

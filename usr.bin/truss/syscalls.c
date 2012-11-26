@@ -89,7 +89,7 @@ static const char rcsid[] =
 /*
  * This should probably be in its own file, sorted alphabetically.
  */
-struct syscall syscalls[] = {
+static struct syscall syscalls[] = {
 	{ .name = "fcntl", .ret_type = 1, .nargs = 3,
 	  .args = { { Int, 0 } , { Fcntl, 1 }, { Fcntlflag | OUT, 2 } } },
 	{ .name = "fork", .ret_type = 1, .nargs = 0 },
@@ -283,7 +283,7 @@ static struct xlat kevent_flags[] = {
 	X(EV_CLEAR) X(EV_FLAG1) X(EV_ERROR) X(EV_EOF) XEND
 };
 
-struct xlat poll_flags[] = {
+static struct xlat poll_flags[] = {
 	X(POLLSTANDARD) X(POLLIN) X(POLLPRI) X(POLLOUT) X(POLLERR)
 	X(POLLHUP) X(POLLNVAL) X(POLLRDNORM) X(POLLRDBAND)
 	X(POLLWRBAND) X(POLLINIGNEOF) XEND

@@ -174,7 +174,7 @@ int  ncp_get_bindery_object_id(NWCONN_HANDLE, u_int16_t, const char *,
 int  ncp_get_bindery_object_name(NWCONN_HANDLE, u_int32_t,
 		struct ncp_bindery_object *);
 int  ncp_scan_bindery_object(NWCONN_HANDLE, u_int32_t, u_int16_t, 
-		char *, struct ncp_bindery_object *);
+		const char *, struct ncp_bindery_object *);
 int  ncp_read_property_value(NWCONN_HANDLE, int object_type, const char *,
 		int, const char *, struct nw_property *);
 int  ncp_get_encryption_key(NWCONN_HANDLE, char *);

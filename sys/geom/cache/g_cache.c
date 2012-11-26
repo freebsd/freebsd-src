@@ -48,7 +48,8 @@ FEATURE(geom_cache, "GEOM cache module");
 static MALLOC_DEFINE(M_GCACHE, "gcache_data", "GEOM_CACHE Data");
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, cache, CTLFLAG_RW, 0, "GEOM_CACHE stuff");
+static SYSCTL_NODE(_kern_geom, OID_AUTO, cache, CTLFLAG_RW, 0,
+    "GEOM_CACHE stuff");
 static u_int g_cache_debug = 0;
 SYSCTL_UINT(_kern_geom_cache, OID_AUTO, debug, CTLFLAG_RW, &g_cache_debug, 0,
     "Debug level");

@@ -322,6 +322,10 @@ to write logged events to.
 Flush all pending log data in
 .Xr hwpmc 4 Ns Ap s
 buffers.
+.It Fn pmc_close_logfile
+Flush all pending log data and close
+.Xr hwpmc 4 Ns Ap s
+side of the stream.
 .It Fn pmc_writelog
 Append arbitrary user data to the current log file.
 .El

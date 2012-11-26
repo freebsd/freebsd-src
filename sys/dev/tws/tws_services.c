@@ -53,7 +53,7 @@ struct tws_sense *tws_find_sense_from_mfa(struct tws_softc *sc, u_int64_t mfa);
 
 
 
-struct error_desc array[] = {
+static struct error_desc array[] = {
     { "Cannot add sysctl tree node", 0x2000, ERROR,
        "%s: (0x%02X: 0x%04X): %s:\n", "ERROR" },
     { "Register window not available", 0x2001, ERROR,

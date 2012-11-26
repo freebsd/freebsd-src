@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 30, 2007
+.Dd December 21, 2011
 .Dt PW 8
 .Os
 .Sh NAME
@@ -712,6 +712,17 @@ Jobs queued for processing by
 .Ar at
 are also removed if the user's uid is unique and not also used by another account on the
 system.
+.Pp
+The
+.Ar usermod
+command adds one additional option:
+.Bl -tag -width "-G grouplist"
+.It Fl l Ar name
+This option allows changing of an existing account name to
+.Ql \&name .
+The new name must not already exist, and any attempt to duplicate an
+existing account name will be rejected.
+.El
 .Pp
 The
 .Ar usershow

@@ -573,6 +573,16 @@ int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
 #define	LINUX_F_UNLCK		2
 
 /*
+ * posix_fadvise advice
+ */
+#define	LINUX_POSIX_FADV_NORMAL		0
+#define	LINUX_POSIX_FADV_RANDOM		1
+#define	LINUX_POSIX_FADV_SEQUENTIAL    	2
+#define	LINUX_POSIX_FADV_WILLNEED      	3
+#define	LINUX_POSIX_FADV_DONTNEED      	4
+#define	LINUX_POSIX_FADV_NOREUSE       	5
+
+/*
  * mount flags
  */
 #define	LINUX_MS_RDONLY		0x0001

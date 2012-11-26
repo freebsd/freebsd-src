@@ -212,7 +212,8 @@ realpath(const char * __restrict path, char * __restrict resolved)
 					symlink[slen] = '/';
 					symlink[slen + 1] = 0;
 				}
-				left_len = strlcat(symlink, left, sizeof(left));
+				left_len = strlcat(symlink, left,
+				    sizeof(symlink));
 				if (left_len >= sizeof(left)) {
 					if (m)
 						free(resolved);

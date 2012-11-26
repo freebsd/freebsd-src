@@ -1208,7 +1208,7 @@ pw_checkname(u_char *name, int gecos)
 	if (reject) {
 		snprintf(showch, sizeof(showch), (*ch >= ' ' && *ch < 127)
 		    ? "`%c'" : "0x%02x", *ch);
-		errx(EX_DATAERR, "invalid character %s at position %d in %s",
+		errx(EX_DATAERR, "invalid character %s at position %td in %s",
 		    showch, (ch - name), showtype);
 	}
 	if (!gecos && (ch - name) > LOGNAMESIZE)

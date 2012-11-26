@@ -24,7 +24,7 @@ static const float one = 1.0, shuge = 1.0e37;
 float
 __ieee754_sinhf(float x)
 {
-	float t,w,h;
+	float t,h;
 	int32_t ix,jx;
 
 	GET_FLOAT_WORD(jx,x);
@@ -48,11 +48,8 @@ __ieee754_sinhf(float x)
 	if (ix < 0x42b17217)  return h*__ieee754_expf(fabsf(x));
 
     /* |x| in [logf(maxfloat), overflowthresold] */
-	if (ix<=0x42b2d4fc) {
-	    w = __ieee754_expf((float)0.5*fabsf(x));
-	    t = h*w;
-	    return t*w;
-	}
+	if (ix<=0x42b2d4fc)
+	    return h*2.0F*__ldexp_expf(fabsf(x), -1);
 
     /* |x| > overflowthresold, sinh(x) overflow */
 	return x*shuge;

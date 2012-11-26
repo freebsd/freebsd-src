@@ -31,6 +31,10 @@
 
 #include <sys/_types.h>
 
+#ifndef	__fenv_static
+#define	__fenv_static	static
+#endif
+
 typedef	__uint32_t	fenv_t;
 typedef	__uint32_t	fexcept_t;
 
@@ -98,7 +102,7 @@ union __fpscr {
 	} __bits;
 };
 
-static __inline int
+__fenv_static inline int
 feclearexcept(int __excepts)
 {
 	union __fpscr __r;
@@ -111,7 +115,7 @@ feclearexcept(int __excepts)
 	return (0);
 }
 
-static __inline int
+__fenv_static inline int
 fegetexceptflag(fexcept_t *__flagp, int __excepts)
 {
 	union __fpscr __r;
@@ -121,7 +125,7 @@ fegetexceptflag(fexcept_t *__flagp, int __excepts)
 	return (0);
 }
 
-static __inline int
+__fenv_static inline int
 fesetexceptflag(const fexcept_t *__flagp, int __excepts)
 {
 	union __fpscr __r;
@@ -135,7 +139,7 @@ fesetexceptflag(const fexcept_t *__flagp, int __excepts)
 	return (0);
 }
 
-static __inline int
+__fenv_static inline int
 feraiseexcept(int __excepts)
 {
 	union __fpscr __r;
@@ -148,7 +152,7 @@ feraiseexcept(int __excepts)
 	return (0);
 }
 
-static __inline int
+__fenv_static inline int
 fetestexcept(int __excepts)
 {
 	union __fpscr __r;
@@ -157,7 +161,7 @@ fetestexcept(int __excepts)
 	return (__r.__bits.__reg & __excepts);
 }
 
-static __inline int
+__fenv_static inline int
 fegetround(void)
 {
 	union __fpscr __r;
@@ -166,7 +170,7 @@ fegetround(void)
 	return (__r.__bits.__reg & _ROUND_MASK);
 }
 
-static __inline int
+__fenv_static inline int
 fesetround(int __round)
 {
 	union __fpscr __r;
@@ -180,7 +184,7 @@ fesetround(int __round)
 	return (0);
 }
 
-static __inline int
+__fenv_static inline int
 fegetenv(fenv_t *__envp)
 {
 	union __fpscr __r;
@@ -190,7 +194,7 @@ fegetenv(fenv_t *__envp)
 	return (0);
 }
 
-static __inline int
+__fenv_static inline int
 feholdexcept(fenv_t *__envp)
 {
 	union __fpscr __r;
@@ -202,7 +206,7 @@ feholdexcept(fenv_t *__envp)
 	return (0);
 }
 
-static __inline int
+__fenv_static inline int
 fesetenv(const fenv_t *__envp)
 {
 	union __fpscr __r;
@@ -212,7 +216,7 @@ fesetenv(const fenv_t *__envp)
 	return (0);
 }
 
-static __inline int
+__fenv_static inline int
 feupdateenv(const fenv_t *__envp)
 {
 	union __fpscr __r;
@@ -226,7 +230,9 @@ feupdateenv(const fenv_t *__envp)
 
 #if __BSD_VISIBLE
 
-static __inline int
+/* We currently provide no external definitions of the functions below. */
+
+static inline int
 feenableexcept(int __mask)
 {
 	union __fpscr __r;
@@ -239,7 +245,7 @@ feenableexcept(int __mask)
 	return ((__oldmask & _ENABLE_MASK) << _FPUSW_SHIFT);
 }
 
-static __inline int
+static inline int
 fedisableexcept(int __mask)
 {
 	union __fpscr __r;
@@ -252,7 +258,7 @@ fedisableexcept(int __mask)
 	return ((__oldmask & _ENABLE_MASK) << _FPUSW_SHIFT);
 }
 
-static __inline int
+static inline int
 fegetexcept(void)
 {
 	union __fpscr __r;

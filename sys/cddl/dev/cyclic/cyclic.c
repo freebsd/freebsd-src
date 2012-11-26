@@ -339,7 +339,7 @@ static kmem_cache_t *cyclic_id_cache;
 static cyc_id_t *cyclic_id_head;
 static cyc_backend_t cyclic_backend;
 
-MALLOC_DEFINE(M_CYCLIC, "cyclic", "Cyclic timer subsystem");
+static MALLOC_DEFINE(M_CYCLIC, "cyclic", "Cyclic timer subsystem");
 
 static __inline hrtime_t
 cyc_gethrtime(void)

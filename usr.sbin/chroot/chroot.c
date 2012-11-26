@@ -56,16 +56,12 @@ __FBSDID("$FreeBSD$");
 
 static void usage(void);
 
-char	*user;		/* user to switch to before running program */
-char	*group;		/* group to switch to ... */
-char	*grouplist;	/* group list to switch to ... */
-
 int
 main(int argc, char *argv[])
 {
 	struct group	*gp;
 	struct passwd	*pw;
-	char		*endp, *p;
+	char		*endp, *p, *user, *group, *grouplist;
 	const char	*shell;
 	gid_t		gid, *gidlist;
 	uid_t		uid;
@@ -74,6 +70,7 @@ main(int argc, char *argv[])
 
 	gid = 0;
 	uid = 0;
+	user = group = grouplist = NULL;
 	while ((ch = getopt(argc, argv, "G:g:u:")) != -1) {
 		switch(ch) {
 		case 'u':

@@ -15,13 +15,11 @@
 #ifndef LLVM_CODEGEN_SPLITKIT_H
 #define LLVM_CODEGEN_SPLITKIT_H
 
+#include "LiveRangeCalc.h"
 #include "llvm/ADT/ArrayRef.h"
-#include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/IndexedMap.h"
 #include "llvm/ADT/IntervalMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
-#include "llvm/CodeGen/SlotIndexes.h"
 
 namespace llvm {
 
@@ -37,12 +35,6 @@ class TargetRegisterInfo;
 class VirtRegMap;
 class VNInfo;
 class raw_ostream;
-
-/// At some point we should just include MachineDominators.h:
-class MachineDominatorTree;
-template <class NodeT> class DomTreeNodeBase;
-typedef DomTreeNodeBase<MachineBasicBlock> MachineDomTreeNode;
-
 
 /// SplitAnalysis - Analyze a LiveInterval, looking for live range splitting
 /// opportunities.
@@ -76,16 +68,16 @@ public:
   ///
   struct BlockInfo {
     MachineBasicBlock *MBB;
-    SlotIndex FirstUse;   ///< First instr using current reg.
-    SlotIndex LastUse;    ///< Last instr using current reg.
-    bool LiveThrough;     ///< Live in whole block (Templ 5. above).
+    SlotIndex FirstInstr; ///< First instr accessing current reg.
+    SlotIndex LastInstr;  ///< Last instr accessing current reg.
+    SlotIndex FirstDef;   ///< First non-phi valno->def, or SlotIndex().
     bool LiveIn;          ///< Current reg is live in.
     bool LiveOut;         ///< Current reg is live out.
 
     /// isOneInstr - Returns true when this BlockInfo describes a single
     /// instruction.
     bool isOneInstr() const {
-      return SlotIndex::isSameInstr(FirstUse, LastUse);
+      return SlotIndex::isSameInstr(FirstInstr, LastInstr);
     }
   };
 
@@ -185,10 +177,15 @@ public:
 
   typedef SmallPtrSet<const MachineBasicBlock*, 16> BlockPtrSet;
 
-  /// getMultiUseBlocks - Add basic blocks to Blocks that may benefit from
-  /// having CurLI split to a new live interval. Return true if Blocks can be
-  /// passed to SplitEditor::splitSingleBlocks.
-  bool getMultiUseBlocks(BlockPtrSet &Blocks);
+  /// shouldSplitSingleBlock - Returns true if it would help to create a local
+  /// live range for the instructions in BI. There is normally no benefit to
+  /// creating a live range for a single instruction, but it does enable
+  /// register class inflation if the instruction has a restricted register
+  /// class.
+  ///
+  /// @param BI           The block to be isolated.
+  /// @param SingleInstrs True when single instructions should be isolated.
+  bool shouldSplitSingleBlock(const BlockInfo &BI, bool SingleInstrs) const;
 };
 
 
@@ -212,6 +209,36 @@ class SplitEditor {
   const TargetInstrInfo &TII;
   const TargetRegisterInfo &TRI;
 
+public:
+
+  /// ComplementSpillMode - Select how the complement live range should be
+  /// created.  SplitEditor automatically creates interval 0 to contain
+  /// anything that isn't added to another interval.  This complement interval
+  /// can get quite complicated, and it can sometimes be an advantage to allow
+  /// it to overlap the other intervals.  If it is going to spill anyway, no
+  /// registers are wasted by keeping a value in two places at the same time.
+  enum ComplementSpillMode {
+    /// SM_Partition(Default) - Try to create the complement interval so it
+    /// doesn't overlap any other intervals, and the original interval is
+    /// partitioned.  This may require a large number of back copies and extra
+    /// PHI-defs.  Only segments marked with overlapIntv will be overlapping.
+    SM_Partition,
+
+    /// SM_Size - Overlap intervals to minimize the number of inserted COPY
+    /// instructions.  Copies to the complement interval are hoisted to their
+    /// common dominator, so only one COPY is required per value in the
+    /// complement interval.  This also means that no extra PHI-defs need to be
+    /// inserted in the complement interval.
+    SM_Size,
+
+    /// SM_Speed - Overlap intervals to minimize the expected execution
+    /// frequency of the inserted copies.  This is very similar to SM_Size, but
+    /// the complement interval may get some extra PHI-defs.
+    SM_Speed
+  };
+
+private:
+
   /// Edit - The current parent register and new intervals created.
   LiveRangeEdit *Edit;
 
@@ -219,6 +246,9 @@ class SplitEditor {
   /// The index 0 is used for the complement, so the first interval started by
   /// openIntv will be 1.
   unsigned OpenIdx;
+
+  /// The current spill mode, selected by reset().
+  ComplementSpillMode SpillMode;
 
   typedef IntervalMap<SlotIndex, unsigned> RegAssignMap;
 
@@ -231,65 +261,34 @@ class SplitEditor {
   /// Idx.
   RegAssignMap RegAssign;
 
-  typedef DenseMap<std::pair<unsigned, unsigned>, VNInfo*> ValueMap;
+  typedef PointerIntPair<VNInfo*, 1> ValueForcePair;
+  typedef DenseMap<std::pair<unsigned, unsigned>, ValueForcePair> ValueMap;
 
   /// Values - keep track of the mapping from parent values to values in the new
   /// intervals. Given a pair (RegIdx, ParentVNI->id), Values contains:
   ///
   /// 1. No entry - the value is not mapped to Edit.get(RegIdx).
-  /// 2. Null - the value is mapped to multiple values in Edit.get(RegIdx).
-  ///    Each value is represented by a minimal live range at its def.
-  /// 3. A non-null VNInfo - the value is mapped to a single new value.
+  /// 2. (Null, false) - the value is mapped to multiple values in
+  ///    Edit.get(RegIdx).  Each value is represented by a minimal live range at
+  ///    its def.  The full live range can be inferred exactly from the range
+  ///    of RegIdx in RegAssign.
+  /// 3. (Null, true).  As above, but the ranges in RegAssign are too large, and
+  ///    the live range must be recomputed using LiveRangeCalc::extend().
+  /// 4. (VNI, false) The value is mapped to a single new value.
   ///    The new value has no live ranges anywhere.
   ValueMap Values;
 
-  typedef std::pair<VNInfo*, MachineDomTreeNode*> LiveOutPair;
-  typedef IndexedMap<LiveOutPair, MBB2NumberFunctor> LiveOutMap;
+  /// LRCalc - Cache for computing live ranges and SSA update.  Each instance
+  /// can only handle non-overlapping live ranges, so use a separate
+  /// LiveRangeCalc instance for the complement interval when in spill mode.
+  LiveRangeCalc LRCalc[2];
 
-  // LiveOutCache - Map each basic block where a new register is live out to the
-  // live-out value and its defining block.
-  // One of these conditions shall be true:
-  //
-  //  1. !LiveOutCache.count(MBB)
-  //  2. LiveOutCache[MBB].second.getNode() == MBB
-  //  3. forall P in preds(MBB): LiveOutCache[P] == LiveOutCache[MBB]
-  //
-  // This is only a cache, the values can be computed as:
-  //
-  //  VNI = Edit.get(RegIdx)->getVNInfoAt(LIS.getMBBEndIdx(MBB))
-  //  Node = mbt_[LIS.getMBBFromIndex(VNI->def)]
-  //
-  // The cache is also used as a visited set by extendRange(). It can be shared
-  // by all the new registers because at most one is live out of each block.
-  LiveOutMap LiveOutCache;
-
-  // LiveOutSeen - Indexed by MBB->getNumber(), a bit is set for each valid
-  // entry in LiveOutCache.
-  BitVector LiveOutSeen;
-
-  /// LiveInBlock - Info for updateSSA() about a block where a register is
-  /// live-in.
-  /// The updateSSA caller provides DomNode and Kill inside MBB, updateSSA()
-  /// adds the computed live-in value.
-  struct LiveInBlock {
-    // Dominator tree node for the block.
-    // Cleared by updateSSA when the final value has been determined.
-    MachineDomTreeNode *DomNode;
-
-    // Live-in value filled in by updateSSA once it is known.
-    VNInfo *Value;
-
-    // Position in block where the live-in range ends, or SlotIndex() if the
-    // range passes through the block.
-    SlotIndex Kill;
-
-    LiveInBlock(MachineDomTreeNode *node) : DomNode(node), Value(0) {}
-  };
-
-  /// LiveInBlocks - List of live-in blocks used by findReachingDefs() and
-  /// updateSSA(). This list is usually empty, it exists here to avoid frequent
-  /// reallocations.
-  SmallVector<LiveInBlock, 16> LiveInBlocks;
+  /// getLRCalc - Return the LRCalc to use for RegIdx.  In spill mode, the
+  /// complement interval can overlap the other intervals, so it gets its own
+  /// LRCalc instance.  When not in spill mode, all intervals can share one.
+  LiveRangeCalc &getLRCalc(unsigned RegIdx) {
+    return LRCalc[SpillMode != SM_Partition && RegIdx != 0];
+  }
 
   /// defValue - define a value in RegIdx from ParentVNI at Idx.
   /// Idx does not have to be ParentVNI->def, but it must be contained within
@@ -298,9 +297,11 @@ class SplitEditor {
   /// Return the new LI value.
   VNInfo *defValue(unsigned RegIdx, const VNInfo *ParentVNI, SlotIndex Idx);
 
-  /// markComplexMapped - Mark ParentVNI as complex mapped in RegIdx regardless
-  /// of the number of defs.
-  void markComplexMapped(unsigned RegIdx, const VNInfo *ParentVNI);
+  /// forceRecompute - Force the live range of ParentVNI in RegIdx to be
+  /// recomputed by LiveRangeCalc::extend regardless of the number of defs.
+  /// This is used for values whose live range doesn't match RegAssign exactly.
+  /// They could have rematerialized, or back-copies may have been moved.
+  void forceRecompute(unsigned RegIdx, const VNInfo *ParentVNI);
 
   /// defFromParent - Define Reg from ParentVNI at UseIdx using either
   /// rematerialization or a COPY from parent. Return the new value.
@@ -310,22 +311,18 @@ class SplitEditor {
                         MachineBasicBlock &MBB,
                         MachineBasicBlock::iterator I);
 
-  /// extendRange - Extend the live range of Edit.get(RegIdx) so it reaches Idx.
-  /// Insert PHIDefs as needed to preserve SSA form.
-  void extendRange(unsigned RegIdx, SlotIndex Idx);
+  /// removeBackCopies - Remove the copy instructions that defines the values
+  /// in the vector in the complement interval.
+  void removeBackCopies(SmallVectorImpl<VNInfo*> &Copies);
 
-  /// findReachingDefs - Starting from MBB, add blocks to LiveInBlocks until all
-  /// reaching defs for LI are found.
-  /// @param LI   Live interval whose value is needed.
-  /// @param MBB  Block where LI should be live-in.
-  /// @param Kill Kill point in MBB.
-  /// @return Unique value seen, or NULL.
-  VNInfo *findReachingDefs(LiveInterval *LI, MachineBasicBlock *MBB,
-                           SlotIndex Kill);
+  /// getShallowDominator - Returns the least busy dominator of MBB that is
+  /// also dominated by DefMBB.  Busy is measured by loop depth.
+  MachineBasicBlock *findShallowDominator(MachineBasicBlock *MBB,
+                                          MachineBasicBlock *DefMBB);
 
-  /// updateSSA - Compute and insert PHIDefs such that all blocks in
-  // LiveInBlocks get a known live-in value. Add live ranges to the blocks.
-  void updateSSA();
+  /// hoistCopiesForSize - Hoist back-copies to the complement interval in a
+  /// way that minimizes code size. This implements the SM_Size spill mode.
+  void hoistCopiesForSize();
 
   /// transferValues - Transfer values to the new ranges.
   /// Return true if any ranges were skipped.
@@ -348,7 +345,7 @@ public:
               MachineDominatorTree&);
 
   /// reset - Prepare for a new split.
-  void reset(LiveRangeEdit&);
+  void reset(LiveRangeEdit&, ComplementSpillMode = SM_Partition);
 
   /// Create a new virtual register and live interval.
   /// Return the interval index, starting from 1. Interval index 0 is the
@@ -422,10 +419,6 @@ public:
   /// uses in a single block. This is intended to be used as part of a larger
   /// split, and doesn't call finish().
   void splitSingleBlock(const SplitAnalysis::BlockInfo &BI);
-
-  /// splitSingleBlocks - Split CurLI into a separate live interval inside each
-  /// basic block in Blocks.
-  void splitSingleBlocks(const SplitAnalysis::BlockPtrSet &Blocks);
 
   /// splitLiveThroughBlock - Split CurLI in the given block such that it
   /// enters the block in IntvIn and leaves it in IntvOut. There may be uses in

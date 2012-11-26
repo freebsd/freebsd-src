@@ -71,6 +71,5 @@ struct syscall_args {
 	u_int nap;
 	u_int32_t insn;
 };
-#define	HAVE_SYSCALL_ARGS_DEF 1
 
 #endif /* !_MACHINE_PROC_H_ */

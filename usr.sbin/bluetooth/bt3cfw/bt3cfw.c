@@ -221,6 +221,7 @@ main(int argc, char *argv[])
 
 	free(firmware);
 	firmware = NULL;
+	fclose(firmware_file);
 
 	return (0);
 }

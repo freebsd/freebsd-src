@@ -135,7 +135,8 @@ static int		cf_lowest_freq;
 static int		cf_verbose;
 TUNABLE_INT("debug.cpufreq.lowest", &cf_lowest_freq);
 TUNABLE_INT("debug.cpufreq.verbose", &cf_verbose);
-SYSCTL_NODE(_debug, OID_AUTO, cpufreq, CTLFLAG_RD, NULL, "cpufreq debugging");
+static SYSCTL_NODE(_debug, OID_AUTO, cpufreq, CTLFLAG_RD, NULL,
+    "cpufreq debugging");
 SYSCTL_INT(_debug_cpufreq, OID_AUTO, lowest, CTLFLAG_RW, &cf_lowest_freq, 1,
     "Don't provide levels below this frequency.");
 SYSCTL_INT(_debug_cpufreq, OID_AUTO, verbose, CTLFLAG_RW, &cf_verbose, 1,

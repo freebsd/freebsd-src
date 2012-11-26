@@ -118,7 +118,7 @@ __FBSDID("$FreeBSD$");
 /* Threshold for using the streaming buffer */
 #define	IOMMU_STREAM_THRESH	128
 
-MALLOC_DEFINE(M_IOMMU, "dvmamem", "IOMMU DVMA Buffers");
+static MALLOC_DEFINE(M_IOMMU, "dvmamem", "IOMMU DVMA Buffers");
 
 static	int iommu_strbuf_flush_sync(struct iommu_state *);
 #ifdef IOMMU_DIAG

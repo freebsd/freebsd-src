@@ -557,7 +557,7 @@ find_pattern(char *line, char *pattern)
 	return (NULL);
 }
 
-/* Find a free name for an object given a a prefix. */
+/* Find a free name for an object given a prefix. */
 char *
 find_name(const char *prefix, int type, int namelen)
 {
@@ -937,14 +937,12 @@ gvinum_parityop(int argc, char **argv, int rebuild)
 	struct gctl_req *req;
 	int flags, i;
 	const char *errstr;
-	char *op, *msg;
+	char *op;
 
 	if (rebuild) {
 		op = "rebuildparity";
-		msg = "Rebuilding";
 	} else {
 		op = "checkparity";
-		msg = "Checking";
 	}
 
 	optreset = 1;
@@ -1057,9 +1055,8 @@ gvinum_rm(int argc, char **argv)
 	struct gctl_req *req;
 	int flags, i, j;
 	const char *errstr;
-	char buf[20], *cmd;
+	char buf[20];
 
-	cmd = argv[0];
 	flags = 0;
 	optreset = 1;
 	optind = 1;

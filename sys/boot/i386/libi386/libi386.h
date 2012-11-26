@@ -52,14 +52,6 @@ struct i386_devdesc
     } d_kind;
 };
 
-struct edd_packet {
-    uint16_t	len;
-    uint16_t	count;
-    uint16_t	offset;
-    uint16_t	seg;
-    uint64_t	lba;
-};
-                 
 int	i386_getdev(void **vdev, const char *devspec, const char **path);
 char	*i386_fmtdev(void *vdev);
 int	i386_setcurrdev(struct env_var *ev, int flags, const void *value);
@@ -105,6 +97,7 @@ extern vm_offset_t	high_heap_base;	/* for use as the heap */
 int biospci_find_devclass(uint32_t class, int index, uint32_t *locator);
 int biospci_write_config(uint32_t locator, int offset, int width, uint32_t val);
 int biospci_read_config(uint32_t locator, int offset, int width, uint32_t *val);
+uint32_t biospci_locator(int8_t bus, uint8_t device, uint8_t function);
 
 void	biosacpi_detect(void);
 

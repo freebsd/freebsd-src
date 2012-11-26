@@ -80,7 +80,7 @@ static	char	*p2out;
 /* flags always passed to cc(1) */
 static	char	**cflags;
 
-/* flags for cc(1), controled by sflag/tflag */
+/* flags for cc(1), controlled by sflag/tflag */
 static	char	**lcflags;
 
 /* flags for lint1 */
@@ -656,7 +656,7 @@ fname(const char *name)
 	appcstrg(&args, name);
 
 	/* we reuse the same tmp file for cpp output, so rewind and truncate */
-	if (lseek(cppoutfd, SEEK_SET, (off_t)0) != 0) {
+	if (lseek(cppoutfd, (off_t)0, SEEK_SET) != 0) {
 		warn("lseek");
 		terminate(-1);
 	}

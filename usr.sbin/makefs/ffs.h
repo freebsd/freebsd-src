@@ -40,7 +40,11 @@
 #ifndef _FFS_H
 #define _FFS_H
 
+#include <ufs/ufs/dinode.h>
+#include <ufs/ffs/fs.h>
+
 typedef struct {
+	char	label[MAXVOLLEN];	/* volume name/label */
 	int	bsize;		/* block size */
 	int	fsize;		/* fragment size */
 	int	cpg;		/* cylinders per group */

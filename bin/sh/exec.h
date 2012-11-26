@@ -70,7 +70,6 @@ void find_command(const char *, struct cmdentry *, int, const char *);
 int find_builtin(const char *, int *);
 void hashcd(void);
 void changepath(const char *);
-void addcmdentry(const char *, struct cmdentry *);
 void defun(const char *, union node *);
 int unsetfunc(const char *);
 int typecmd_impl(int, char **, int, const char *);

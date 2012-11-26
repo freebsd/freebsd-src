@@ -855,6 +855,15 @@ _C_LABEL(x):
  * For more info on CP0 hazards see Chapter 7 (p.99) of "MIPS32 Architecture 
  *    For Programmers Volume III: The MIPS32 Privileged Resource Architecture"
  */
+#if defined(CPU_NLM)
+#define	HAZARD_DELAY	sll $0,3
+#define	ITLBNOPFIX	sll $0,3
+#elif defined(CPU_RMI)
+#define	HAZARD_DELAY
+#define	ITLBNOPFIX
+#else
 #define	ITLBNOPFIX	nop;nop;nop;nop;nop;nop;nop;nop;nop;nop;
 #define	HAZARD_DELAY	nop;nop;nop;nop;nop;
+#endif
+
 #endif /* !_MACHINE_ASM_H_ */

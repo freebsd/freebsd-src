@@ -103,7 +103,11 @@ struct EffectiveContext {
       } else if (isa<FunctionDecl>(DC)) {
         FunctionDecl *Function = cast<FunctionDecl>(DC)->getCanonicalDecl();
         Functions.push_back(Function);
-        DC = Function->getDeclContext();
+        
+        if (Function->getFriendObjectKind())
+          DC = Function->getLexicalDeclContext();
+        else
+          DC = Function->getDeclContext();
       } else if (DC->isFileContext()) {
         break;
       } else {
@@ -126,11 +130,11 @@ struct EffectiveContext {
     return Inner;
   }
 
-  typedef llvm::SmallVectorImpl<CXXRecordDecl*>::const_iterator record_iterator;
+  typedef SmallVectorImpl<CXXRecordDecl*>::const_iterator record_iterator;
 
   DeclContext *Inner;
-  llvm::SmallVector<FunctionDecl*, 4> Functions;
-  llvm::SmallVector<CXXRecordDecl*, 4> Records;
+  SmallVector<FunctionDecl*, 4> Functions;
+  SmallVector<CXXRecordDecl*, 4> Records;
   bool Dependent;
 };
 
@@ -146,10 +150,8 @@ struct AccessTarget : public AccessedEntity {
                MemberNonce _,
                CXXRecordDecl *NamingClass,
                DeclAccessPair FoundDecl,
-               QualType BaseObjectType,
-               bool IsUsingDecl = false)
-    : AccessedEntity(Context, Member, NamingClass, FoundDecl, BaseObjectType),
-      IsUsingDeclaration(IsUsingDecl) {
+               QualType BaseObjectType)
+    : AccessedEntity(Context, Member, NamingClass, FoundDecl, BaseObjectType) {
     initialize();
   }
 
@@ -218,7 +220,6 @@ private:
     DeclaringClass = DeclaringClass->getCanonicalDecl();
   }
 
-  bool IsUsingDeclaration : 1;
   bool HasInstanceContext : 1;
   mutable bool CalculatedInstanceContext : 1;
   mutable const CXXRecordDecl *InstanceContext;
@@ -260,7 +261,7 @@ static AccessResult IsDerivedFromInclusive(const CXXRecordDecl *Derived,
     return AR_dependent;
 
   AccessResult OnFailure = AR_inaccessible;
-  llvm::SmallVector<const CXXRecordDecl*, 8> Queue; // actually a stack
+  SmallVector<const CXXRecordDecl*, 8> Queue; // actually a stack
 
   while (true) {
     for (CXXRecordDecl::base_class_const_iterator
@@ -421,7 +422,7 @@ static AccessResult MatchesFriend(Sema &S,
 
   // Check whether the friend is the template of a class in the
   // context chain.
-  for (llvm::SmallVectorImpl<CXXRecordDecl*>::const_iterator
+  for (SmallVectorImpl<CXXRecordDecl*>::const_iterator
          I = EC.Records.begin(), E = EC.Records.end(); I != E; ++I) {
     CXXRecordDecl *Record = *I;
 
@@ -472,7 +473,7 @@ static AccessResult MatchesFriend(Sema &S,
                                   FunctionDecl *Friend) {
   AccessResult OnFailure = AR_inaccessible;
 
-  for (llvm::SmallVectorImpl<FunctionDecl*>::const_iterator
+  for (SmallVectorImpl<FunctionDecl*>::const_iterator
          I = EC.Functions.begin(), E = EC.Functions.end(); I != E; ++I) {
     if (Friend == *I)
       return AR_accessible;
@@ -493,7 +494,7 @@ static AccessResult MatchesFriend(Sema &S,
 
   AccessResult OnFailure = AR_inaccessible;
 
-  for (llvm::SmallVectorImpl<FunctionDecl*>::const_iterator
+  for (SmallVectorImpl<FunctionDecl*>::const_iterator
          I = EC.Functions.begin(), E = EC.Functions.end(); I != E; ++I) {
 
     FunctionTemplateDecl *FTD = (*I)->getPrimaryTemplate();
@@ -584,7 +585,7 @@ struct ProtectedFriendContext {
   bool EverDependent;
 
   /// The path down to the current base class.
-  llvm::SmallVector<const CXXRecordDecl*, 20> CurPath;
+  SmallVector<const CXXRecordDecl*, 20> CurPath;
 
   ProtectedFriendContext(Sema &S, const EffectiveContext &EC,
                          const CXXRecordDecl *InstanceContext,
@@ -1273,7 +1274,7 @@ static AccessResult CheckEffectiveAccess(Sema &S,
                                          AccessTarget &Entity) {
   assert(Entity.getAccess() != AS_public && "called for public access!");
 
-  if (S.getLangOptions().Microsoft &&
+  if (S.getLangOptions().MicrosoftMode &&
       IsMicrosoftUsingDeclarationAccessBug(S, Loc, Entity))
     return AR_accessible;
 
@@ -1554,8 +1555,7 @@ Sema::AccessResult Sema::CheckMemberOperatorAccess(SourceLocation OpLoc,
       Found.getAccess() == AS_public)
     return AR_accessible;
 
-  const RecordType *RT = ObjectExpr->getType()->getAs<RecordType>();
-  assert(RT && "found member operator but object expr not of record type");
+  const RecordType *RT = ObjectExpr->getType()->castAs<RecordType>();
   CXXRecordDecl *NamingClass = cast<CXXRecordDecl>(RT->getDecl());
 
   AccessTarget Entity(Context, AccessTarget::Member, NamingClass, Found,
@@ -1638,11 +1638,32 @@ void Sema::CheckLookupAccess(const LookupResult &R) {
     if (I.getAccess() != AS_public) {
       AccessTarget Entity(Context, AccessedEntity::Member,
                           R.getNamingClass(), I.getPair(),
-                          R.getBaseObjectType(), R.isUsingDeclaration());
+                          R.getBaseObjectType());
       Entity.setDiag(diag::err_access);
       CheckAccess(*this, R.getNameLoc(), Entity);
     }
   }
+}
+
+/// Checks access to Decl from the given class. The check will take access
+/// specifiers into account, but no member access expressions and such.
+///
+/// \param Decl the declaration to check if it can be accessed
+/// \param Class the class/context from which to start the search
+/// \return true if the Decl is accessible from the Class, false otherwise.
+bool Sema::IsSimplyAccessible(NamedDecl *Decl, CXXRecordDecl *Class) {
+  if (!Class || !Decl->isCXXClassMember())
+    return true;
+
+  QualType qType = Class->getTypeForDecl()->getCanonicalTypeInternal();
+  AccessTarget Entity(Context, AccessedEntity::Member, Class,
+                      DeclAccessPair::make(Decl, Decl->getAccess()),
+                      qType);
+  if (Entity.getAccess() == AS_public)
+    return true;
+
+  EffectiveContext EC(CurContext);
+  return ::IsAccessible(*this, EC, Entity) != ::AR_inaccessible;
 }
 
 void Sema::ActOnStartSuppressingAccessChecks() {

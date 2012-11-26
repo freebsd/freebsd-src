@@ -2,6 +2,11 @@
  * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -34,15 +39,21 @@ __FBSDID("$FreeBSD$");
 #include "mblocal.h"
 
 size_t
+wcsnrtombs_l(char * __restrict dst, const wchar_t ** __restrict src, size_t nwc,
+    size_t len, mbstate_t * __restrict ps, locale_t locale)
+{
+	FIX_LOCALE(locale);
+	if (ps == NULL)
+		ps = &locale->wcsnrtombs;
+	return (XLOCALE_CTYPE(locale)->__wcsnrtombs(dst, src, nwc, len, ps));
+}
+size_t
 wcsnrtombs(char * __restrict dst, const wchar_t ** __restrict src, size_t nwc,
     size_t len, mbstate_t * __restrict ps)
 {
-	static mbstate_t mbs;
-
-	if (ps == NULL)
-		ps = &mbs;
-	return (__wcsnrtombs(dst, src, nwc, len, ps));
+	return wcsnrtombs_l(dst, src, nwc, len, ps, __get_locale());
 }
+
 
 size_t
 __wcsnrtombs_std(char * __restrict dst, const wchar_t ** __restrict src,
@@ -53,13 +64,14 @@ __wcsnrtombs_std(char * __restrict dst, const wchar_t ** __restrict src,
 	const wchar_t *s;
 	size_t nbytes;
 	size_t nb;
+	struct xlocale_ctype *l = XLOCALE_CTYPE(__get_locale());
 
 	s = *src;
 	nbytes = 0;
 
 	if (dst == NULL) {
 		while (nwc-- > 0) {
-			if ((nb = __wcrtomb(buf, *s, ps)) == (size_t)-1)
+			if ((nb = l->__wcrtomb(buf, *s, ps)) == (size_t)-1)
 				/* Invalid character - wcrtomb() sets errno. */
 				return ((size_t)-1);
 			else if (*s == L'\0')
@@ -73,7 +85,7 @@ __wcsnrtombs_std(char * __restrict dst, const wchar_t ** __restrict src,
 	while (len > 0 && nwc-- > 0) {
 		if (len > (size_t)MB_CUR_MAX) {
 			/* Enough space to translate in-place. */
-			if ((nb = __wcrtomb(dst, *s, ps)) == (size_t)-1) {
+			if ((nb = l->__wcrtomb(dst, *s, ps)) == (size_t)-1) {
 				*src = s;
 				return ((size_t)-1);
 			}
@@ -86,7 +98,7 @@ __wcsnrtombs_std(char * __restrict dst, const wchar_t ** __restrict src,
 			 * character is too long for the buffer.
 			 */
 			mbsbak = *ps;
-			if ((nb = __wcrtomb(buf, *s, ps)) == (size_t)-1) {
+			if ((nb = l->__wcrtomb(buf, *s, ps)) == (size_t)-1) {
 				*src = s;
 				return ((size_t)-1);
 			}

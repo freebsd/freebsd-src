@@ -276,7 +276,7 @@ fm801_wrcd(kobj_t obj, void *devinfo, int regno, u_int32_t data)
 static kobj_method_t fm801_ac97_methods[] = {
     	KOBJMETHOD(ac97_read,		fm801_rdcd),
     	KOBJMETHOD(ac97_write,		fm801_wrcd),
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 AC97_DECLARE(fm801_ac97);
 
@@ -530,7 +530,7 @@ static kobj_method_t fm801ch_methods[] = {
     	KOBJMETHOD(channel_trigger,		fm801ch_trigger),
     	KOBJMETHOD(channel_getptr,		fm801ch_getptr),
     	KOBJMETHOD(channel_getcaps,		fm801ch_getcaps),
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 CHANNEL_DECLARE(fm801ch);
 
@@ -749,12 +749,12 @@ static device_method_t fm801_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_alloc_resource,	fm801_alloc_resource),
 	DEVMETHOD(bus_release_resource,	fm801_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	{ 0, 0}
+
+	DEVMETHOD_END
 };
 
 static driver_t fm801_driver = {

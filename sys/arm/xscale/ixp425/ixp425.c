@@ -639,9 +639,12 @@ ixp425_setup_intr(device_t dev, device_t child,
     driver_intr_t *intr, void *arg, void **cookiep)    
 {
 	uint32_t mask, mask2;
+	int error;
 
-	BUS_SETUP_INTR(device_get_parent(dev), child, res, flags, filt, intr,
-	     arg, cookiep);
+	error = BUS_SETUP_INTR(device_get_parent(dev), child, res, flags,
+	    filt, intr, arg, cookiep);
+	if (error)
+		return (error);
 
 	get_masks(res, &mask, &mask2);
 	update_masks(intr_enabled | mask, intr_enabled2 | mask2);

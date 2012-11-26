@@ -9,7 +9,7 @@
 
 #include "CTargetMachine.h"
 #include "llvm/Module.h"
-#include "llvm/Target/TargetRegistry.h"
+#include "llvm/Support/TargetRegistry.h"
 using namespace llvm;
 
 Target llvm::TheCBackendTarget;
@@ -17,3 +17,5 @@ Target llvm::TheCBackendTarget;
 extern "C" void LLVMInitializeCBackendTargetInfo() { 
   RegisterTarget<> X(TheCBackendTarget, "c", "C backend");
 }
+
+extern "C" void LLVMInitializeCBackendTargetMC() {}

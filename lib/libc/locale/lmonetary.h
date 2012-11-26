@@ -2,6 +2,11 @@
  * Copyright (c) 2000, 2001 Alexey Zelkin <phantom@FreeBSD.org>
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -28,6 +33,7 @@
 
 #ifndef _LMONETARY_H_
 #define	_LMONETARY_H_
+#include "xlocale_private.h"
 
 struct lc_monetary_T {
 	const char	*int_curr_symbol;
@@ -52,8 +58,13 @@ struct lc_monetary_T {
 	const char	*int_p_sign_posn;
 	const char	*int_n_sign_posn;
 };
+struct xlocale_monetary {
+	struct xlocale_component header;
+	char *buffer;
+	struct lc_monetary_T locale;
+};
 
-struct lc_monetary_T *__get_current_monetary_locale(void);
+struct lc_monetary_T *__get_current_monetary_locale(locale_t loc);
 int	__monetary_load_locale(const char *);
 
 #endif /* !_LMONETARY_H_ */

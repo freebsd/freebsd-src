@@ -44,7 +44,7 @@
 .Sh SYNOPSIS
 .Nm ssh-agent
 .Op Fl c | s
-.Op Fl d
+.Op Fl dx
 .Op Fl a Ar bind_address
 .Op Fl t Ar life
 .Op Ar command Op Ar arg ...
@@ -103,6 +103,8 @@ A lifetime specified for an identity with
 .Xr ssh-add 1
 overrides this value.
 Without this option the default maximum lifetime is forever.
+.It Fl x
+Exit after the last client has disconnected.
 .El
 .Pp
 If a commandline is given, this is executed as a subprocess of the agent.

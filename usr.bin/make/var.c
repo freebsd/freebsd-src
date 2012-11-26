@@ -842,7 +842,7 @@ VarLocal(const char name[])
 }
 
 /**
- * Find the given variable in the given context and the enviornment.
+ * Find the given variable in the given context and the environment.
  *
  * Results:
  *	A pointer to the structure describing the desired variable or

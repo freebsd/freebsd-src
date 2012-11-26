@@ -49,7 +49,6 @@ struct syscall_args {
 	register_t args32[8];
 	int narg;
 };
-#define	HAVE_SYSCALL_ARGS_DEF 1
 #endif
 
 #endif /* !_MACHINE_PROC_H_ */

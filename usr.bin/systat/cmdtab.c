@@ -40,22 +40,22 @@ static const char sccsid[] = "@(#)cmdtab.c	8.1 (Berkeley) 6/6/93";
 #include "mode.h"
 
 struct	cmdtab cmdtab[] = {
-        { "pigs",	showpigs,	fetchpigs,	labelpigs,
+	{ "pigs",	showpigs,	fetchpigs,	labelpigs,
 	  initpigs,	openpigs,	closepigs,	0,
 	  0,		CF_LOADAV },
-        { "swap",	showswap,	fetchswap,	labelswap,
+	{ "swap",	showswap,	fetchswap,	labelswap,
 	  initswap,	openswap,	closeswap,	0,
 	  0,		CF_LOADAV },
-        { "mbufs",	showmbufs,	fetchmbufs,	labelmbufs,
+	{ "mbufs",	showmbufs,	fetchmbufs,	labelmbufs,
 	  initmbufs,	openmbufs,	closembufs,	0,
 	  0,		CF_LOADAV },
-        { "iostat",	showiostat,	fetchiostat,	labeliostat,
+	{ "iostat",	showiostat,	fetchiostat,	labeliostat,
 	  initiostat,	openiostat,	closeiostat,	cmdiostat,
 	  0,		CF_LOADAV },
-        { "vmstat",	showkre,	fetchkre,	labelkre,
+	{ "vmstat",	showkre,	fetchkre,	labelkre,
 	  initkre,	openkre,	closekre,	cmdkre,
 	  0,		0 },
-        { "netstat",	shownetstat,	fetchnetstat,	labelnetstat,
+	{ "netstat",	shownetstat,	fetchnetstat,	labelnetstat,
 	  initnetstat,	opennetstat,	closenetstat,	cmdnetstat,
 	  0,		CF_LOADAV },
 	{ "icmp",	showicmp,	fetchicmp,	labelicmp,
@@ -78,6 +78,6 @@ struct	cmdtab cmdtab[] = {
 	{ "ifstat",	showifstat,	fetchifstat,	labelifstat,
 	  initifstat,	openifstat,	closeifstat,	cmdifstat,
 	  0,		CF_LOADAV },
-        { NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0 }
+	{ NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0 }
 };
 struct  cmdtab *curcmd = &cmdtab[0];

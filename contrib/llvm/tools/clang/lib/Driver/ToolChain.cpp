@@ -18,11 +18,11 @@
 #include "clang/Driver/ObjCRuntime.h"
 #include "clang/Driver/Options.h"
 #include "llvm/Support/ErrorHandling.h"
-
 using namespace clang::driver;
+using namespace clang;
 
-ToolChain::ToolChain(const HostInfo &_Host, const llvm::Triple &_Triple)
-  : Host(_Host), Triple(_Triple) {
+ToolChain::ToolChain(const HostInfo &H, const llvm::Triple &T)
+  : Host(H), Triple(T) {
 }
 
 ToolChain::~ToolChain() {
@@ -79,7 +79,7 @@ static const char *getARMTargetCPU(const ArgList &Args,
   if (Arg *A = Args.getLastArg(options::OPT_mcpu_EQ))
     return A->getValue(Args);
 
-  llvm::StringRef MArch;
+  StringRef MArch;
   if (Arg *A = Args.getLastArg(options::OPT_march_EQ)) {
     // Otherwise, if we have -march= choose the base CPU for that arch.
     MArch = A->getValue(Args);
@@ -134,7 +134,7 @@ static const char *getARMTargetCPU(const ArgList &Args,
 //
 // FIXME: This is redundant with -mcpu, why does LLVM use this.
 // FIXME: tblgen this, or kill it!
-static const char *getLLVMArchSuffixForARM(llvm::StringRef CPU) {
+static const char *getLLVMArchSuffixForARM(StringRef CPU) {
   if (CPU == "arm7tdmi" || CPU == "arm7tdmi-s" || CPU == "arm710t" ||
       CPU == "arm720t" || CPU == "arm9" || CPU == "arm9tdmi" ||
       CPU == "arm920" || CPU == "arm920t" || CPU == "arm922t" ||
@@ -169,7 +169,8 @@ static const char *getLLVMArchSuffixForARM(llvm::StringRef CPU) {
   return "";
 }
 
-std::string ToolChain::ComputeLLVMTriple(const ArgList &Args) const {
+std::string ToolChain::ComputeLLVMTriple(const ArgList &Args, 
+                                         types::ID InputType) const {
   switch (getTriple().getArch()) {
   default:
     return getTripleString();
@@ -182,12 +183,14 @@ std::string ToolChain::ComputeLLVMTriple(const ArgList &Args) const {
     // Thumb2 is the default for V7 on Darwin.
     //
     // FIXME: Thumb should just be another -target-feaure, not in the triple.
-    llvm::StringRef Suffix =
+    StringRef Suffix =
       getLLVMArchSuffixForARM(getARMTargetCPU(Args, Triple));
-    bool ThumbDefault =
-      (Suffix == "v7" && getTriple().getOS() == llvm::Triple::Darwin);
+    bool ThumbDefault = (Suffix == "v7" && getTriple().isOSDarwin());
     std::string ArchName = "arm";
-    if (Args.hasFlag(options::OPT_mthumb, options::OPT_mno_thumb, ThumbDefault))
+
+    // Assembly files should start in ARM mode.
+    if (InputType != types::TY_PP_Asm &&
+        Args.hasFlag(options::OPT_mthumb, options::OPT_mno_thumb, ThumbDefault))
       ArchName = "thumb";
     Triple.setArchName(ArchName + Suffix.str());
 
@@ -196,49 +199,49 @@ std::string ToolChain::ComputeLLVMTriple(const ArgList &Args) const {
   }
 }
 
-std::string ToolChain::ComputeEffectiveClangTriple(const ArgList &Args) const {
+std::string ToolChain::ComputeEffectiveClangTriple(const ArgList &Args, 
+                                                   types::ID InputType) const {
   // Diagnose use of Darwin OS deployment target arguments on non-Darwin.
   if (Arg *A = Args.getLastArg(options::OPT_mmacosx_version_min_EQ,
                                options::OPT_miphoneos_version_min_EQ,
                                options::OPT_mios_simulator_version_min_EQ))
-    getDriver().Diag(clang::diag::err_drv_clang_unsupported)
+    getDriver().Diag(diag::err_drv_clang_unsupported)
       << A->getAsString(Args);
 
-  return ComputeLLVMTriple(Args);
+  return ComputeLLVMTriple(Args, InputType);
+}
+
+void ToolChain::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
+                                          ArgStringList &CC1Args) const {
+  // Each toolchain should provide the appropriate include flags.
 }
 
 ToolChain::CXXStdlibType ToolChain::GetCXXStdlibType(const ArgList &Args) const{
   if (Arg *A = Args.getLastArg(options::OPT_stdlib_EQ)) {
-    llvm::StringRef Value = A->getValue(Args);
+    StringRef Value = A->getValue(Args);
     if (Value == "libc++")
       return ToolChain::CST_Libcxx;
     if (Value == "libstdc++")
       return ToolChain::CST_Libstdcxx;
-    getDriver().Diag(clang::diag::err_drv_invalid_stdlib_name)
+    getDriver().Diag(diag::err_drv_invalid_stdlib_name)
       << A->getAsString(Args);
   }
 
   return ToolChain::CST_Libstdcxx;
 }
 
-void ToolChain::AddClangCXXStdlibIncludeArgs(const ArgList &Args,
-                                             ArgStringList &CmdArgs,
-                                             bool ObjCXXAutoRefCount) const {
-  CXXStdlibType Type = GetCXXStdlibType(Args);
-
-  // Header search paths are handled by the mass of goop in InitHeaderSearch.
-
-  switch (Type) {
-  case ToolChain::CST_Libcxx:
-    if (ObjCXXAutoRefCount)
-      CmdArgs.push_back("-fobjc-arc-cxxlib=libc++");
-    break;
-
-  case ToolChain::CST_Libstdcxx:
-    if (ObjCXXAutoRefCount)
-      CmdArgs.push_back("-fobjc-arc-cxxlib=libstdc++");
-    break;
-  }
+void ToolChain::AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
+                                             ArgStringList &CC1Args) const {
+  // Header search paths should be handled by each of the subclasses.
+  // Historically, they have not been, and instead have been handled inside of
+  // the CC1-layer frontend. As the logic is hoisted out, this generic function
+  // will slowly stop being called.
+  //
+  // While it is being called, replicate a bit of a hack to propagate the
+  // '-stdlib=' flag down to CC1 so that it can in turn customize the C++
+  // header search paths with it. Once all systems are overriding this
+  // function, the CC1 flag and this line can be removed.
+  DriverArgs.AddAllArgs(CC1Args, options::OPT_stdlib_EQ);
 }
 
 void ToolChain::AddCXXStdlibLibArgs(const ArgList &Args,

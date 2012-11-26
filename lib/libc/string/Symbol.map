@@ -91,6 +91,14 @@ FBSD_1.1 {
 	wcsnlen;
 };
 
+FBSD_1.3 {
+	strcasecmp_l;
+	strcasestr_l;
+	strncasecmp_l;
+	wcswidth_l;
+	wcwidth_l;
+};
+
 FBSDprivate_1.0 {
 	__strtok_r;
 };

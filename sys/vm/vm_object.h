@@ -96,7 +96,7 @@ struct vm_object {
 	objtype_t type;			/* type of pager */
 	u_short flags;			/* see below */
 	u_short pg_color;		/* (c) color of first page in obj */
-	u_short paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
+	u_int paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
 	int resident_page_count;	/* number of resident pages */
 	struct vm_object *backing_object; /* object that I'm a shadow of */
 	vm_ooffset_t backing_object_offset;/* Offset in backing object */
@@ -121,6 +121,7 @@ struct vm_object {
 		 */
 		struct {
 			TAILQ_HEAD(, vm_page) devp_pglist;
+			struct cdev_pager_ops *ops;
 		} devp;
 
 		/*
@@ -223,6 +224,8 @@ void vm_object_destroy (vm_object_t);
 void vm_object_terminate (vm_object_t);
 void vm_object_set_writeable_dirty (vm_object_t);
 void vm_object_init (void);
+void vm_object_page_cache(vm_object_t object, vm_pindex_t start,
+    vm_pindex_t end);
 void vm_object_page_clean(vm_object_t object, vm_ooffset_t start,
     vm_ooffset_t end, int flags);
 void vm_object_page_remove(vm_object_t object, vm_pindex_t start,

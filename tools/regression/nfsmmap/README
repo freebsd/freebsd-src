@@ -1,3 +1,4 @@
+$FreeBSD$
 These tests are intended to make sure that NFS's use of the
 b_{valid,dirty}{off,end} fields of struct buf is consistent with the
 VM system's use of the underlying VM pages.
@@ -17,4 +18,4 @@ Test2:
 	should first write out the dirty range and then read the rest
 	of the page.  This is currently broken since the vnode_pager
 	doesn't use the original buf for its i/o and therefore the
-	information in b_dirtyoff, b_dirtyend is not avalable.
+	information in b_dirtyoff, b_dirtyend is not available.

@@ -53,7 +53,7 @@ conv_c(PR *pr, u_char *p, size_t bufsize)
 	wchar_t wc;
 	size_t clen, oclen;
 	int converr, pad, width;
-	char peekbuf[MB_LEN_MAX];
+	u_char peekbuf[MB_LEN_MAX];
 
 	if (pr->mbleft > 0) {
 		str = "**";
@@ -103,7 +103,7 @@ retry:
 		if (clen == 0)
 			clen = 1;
 		else if (clen == (size_t)-1 || (clen == (size_t)-2 &&
-		    buf == peekbuf)) {
+		    p == peekbuf)) {
 			memset(&pr->mbstate, 0, sizeof(pr->mbstate));
 			wc = *p;
 			clen = 1;

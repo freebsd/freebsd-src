@@ -9,3 +9,5 @@ device		uart_ns8250
 
 options 	GEOM_PART_BSD
 options 	GEOM_PART_MBR
+
+options		VFS_ALLOW_NONMPSAFE

@@ -186,7 +186,7 @@ struct mqueue_msg {
 	/* following real data... */
 };
 
-SYSCTL_NODE(_kern, OID_AUTO, mqueue, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_kern, OID_AUTO, mqueue, CTLFLAG_RW, 0,
 	"POSIX real time message queue");
 
 static int	default_maxmsg  = 10;
@@ -1974,7 +1974,7 @@ kern_kmq_open(struct thread *td, const char *upath, int flags, mode_t mode,
 	 * characters. 
 	 */
 	len = strlen(path);
-	if (len < 2  || path[0] != '/' || index(path + 1, '/') != NULL)
+	if (len < 2 || path[0] != '/' || strchr(path + 1, '/') != NULL)
 		return (EINVAL);
 
 	error = falloc(td, &fp, &fd, 0);
@@ -2077,7 +2077,7 @@ sys_kmq_unlink(struct thread *td, struct kmq_unlink_args *uap)
 		return (error);
 
 	len = strlen(path);
-	if (len < 2  || path[0] != '/' || index(path + 1, '/') != NULL)
+	if (len < 2 || path[0] != '/' || strchr(path + 1, '/') != NULL)
 		return (EINVAL);
 
 	sx_xlock(&mqfs_data.mi_lock);

@@ -131,11 +131,11 @@ static arith_t do_binop(int op, arith_t a, arith_t b)
 			yyerror("divide error");
 		return op == ARITH_REM ? a % b : a / b;
 	case ARITH_MUL:
-		return a * b;
+		return (uintmax_t)a * (uintmax_t)b;
 	case ARITH_ADD:
-		return a + b;
+		return (uintmax_t)a + (uintmax_t)b;
 	case ARITH_SUB:
-		return a - b;
+		return (uintmax_t)a - (uintmax_t)b;
 	case ARITH_LSHIFT:
 		return a << b;
 	case ARITH_RSHIFT:

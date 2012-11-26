@@ -29,3 +29,6 @@ options 	GEOM_PART_PC98
 device		atpic
 
 options 	NEW_PCIB
+
+# Allow mounting non-MPSAFE filesystems
+options		VFS_ALLOW_NONMPSAFE

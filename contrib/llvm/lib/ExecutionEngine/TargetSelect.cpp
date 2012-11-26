@@ -17,11 +17,11 @@
 #include "llvm/Module.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/MC/SubtargetFeature.h"
-#include "llvm/Support/CommandLine.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Host.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegistry.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Host.h"
+#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
 /// selectTarget - Pick a target either via -march or by guessing the native
@@ -30,6 +30,8 @@ TargetMachine *EngineBuilder::selectTarget(Module *Mod,
                               StringRef MArch,
                               StringRef MCPU,
                               const SmallVectorImpl<std::string>& MAttrs,
+                              Reloc::Model RM,
+                              CodeModel::Model CM,
                               std::string *ErrorStr) {
   Triple TheTriple(Mod->getTargetTriple());
   if (TheTriple.getTriple().empty())
@@ -83,8 +85,9 @@ TargetMachine *EngineBuilder::selectTarget(Module *Mod,
   }
 
   // Allocate a target...
-  TargetMachine *Target =
-    TheTarget->createTargetMachine(TheTriple.getTriple(), MCPU, FeaturesStr);
+  TargetMachine *Target = TheTarget->createTargetMachine(TheTriple.getTriple(),
+                                                         MCPU, FeaturesStr,
+                                                         RM, CM);
   assert(Target && "Could not allocate target machine!");
   return Target;
 }

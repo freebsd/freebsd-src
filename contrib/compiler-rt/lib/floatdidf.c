@@ -11,10 +11,8 @@
  *
  *===----------------------------------------------------------------------===
  */
-#include "abi.h"
 
 #include "int_lib.h"
-#include <float.h>
 
 /* Returns: convert a to a double, rounding toward even. */
 
@@ -30,7 +28,6 @@ ARM_EABI_FNALIAS(l2d, floatdidf);
 /* Support for systems that have hardware floating-point; we'll set the inexact flag
  * as a side-effect of this computation.
  */
-#include <stdint.h>
 
 COMPILER_RT_ABI double
 __floatdidf(di_int a)

@@ -1,3 +1,6 @@
+$FreeBSD$
+--------
+
 Vixie Cron		Changes from V2 to V3
 Paul Vixie
 29-Dec-1993
@@ -20,7 +23,7 @@ be reread whenever it changes.
 
 I also added a "-e" option to crontab(1).  Nine people also sent me diffs
 to add this option, but I had already implemented it on my own.  I actually
-released an interrim version (V2.2, I think) for limited testing, and got a
+released an interim version (V2.2, I think) for limited testing, and got a
 chance to fix a bad security bug in the "-e" option thanks to XXX.
 
 The daemon used to be extraordinarily sloppy in its use of file descriptors.
@@ -57,7 +60,7 @@ which explains why a lot of other people complained that it wasn't using
 syslog even when they configured it that way :-).  Steve Simmons told me
 first, though, so he gets the point.
 
-An interrim version of the daemon tried to "stat" every file before
+An interim version of the daemon tried to "stat" every file before
 executing it; this turned out to be a horribly bad idea since finding the
 name of a file from a shell command is a hard job (that's why we have
 shells, right?)  I removed this bogus code.  Dave Burgess gets the point.

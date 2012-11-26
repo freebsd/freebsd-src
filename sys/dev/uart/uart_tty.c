@@ -54,6 +54,8 @@ static cn_init_t uart_cninit;
 static cn_term_t uart_cnterm;
 static cn_getc_t uart_cngetc;
 static cn_putc_t uart_cnputc;
+static cn_grab_t uart_cngrab;
+static cn_ungrab_t uart_cnungrab;
 
 CONSOLE_DRIVER(uart);
 
@@ -105,6 +107,16 @@ uart_cnterm(struct consdev *cp)
 {
 
 	uart_term(cp->cn_arg);
+}
+
+static void
+uart_cngrab(struct consdev *cp)
+{
+}
+
+static void
+uart_cnungrab(struct consdev *cp)
+{
 }
 
 static void

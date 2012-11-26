@@ -308,7 +308,7 @@ addtype(type_t *tp)
 
 	/* now it can be only a combination of arithmetic types and void */
 	if (t == SIGNED || t == UNSIGN) {
-		/* remeber specifiers "signed" and "unsigned" in dcs->d_smod */
+		/* remember specifiers "signed" and "unsigned" in dcs->d_smod */
 		if (dcs->d_smod != NOTSPEC)
 			/*
 			 * more than one "signed" and/or "unsigned"; print
@@ -545,7 +545,7 @@ popdecl(void)
 		/*
 		 * casts and sizeof
 		 * Append all symbols declared in the abstract declaration
-		 * to the list of symbols declared in the surounding decl.
+		 * to the list of symbols declared in the surrounding decl.
 		 * or block.
 		 * XXX I'm not sure whether they should be removed from the
 		 * symbol table now or later.
@@ -2580,8 +2580,8 @@ ledecl(sym_t *dsym)
 }
 
 /*
- * Print an error or a warning if the symbol cant be initialized due
- * to type/storage class. Returnvalue is 1 if an error has been
+ * Print an error or a warning if the symbol can't be initialized due
+ * to type/storage class. Return value is 1 if an error has been
  * detected.
  */
 static int
@@ -2613,7 +2613,7 @@ chkinit(sym_t *sym)
 }
 
 /*
- * Create a symbole for an abstract declaration.
+ * Create a symbol for an abstract declaration.
  */
 sym_t *
 aname(void)
@@ -2895,7 +2895,7 @@ chktusg(sym_t *sym)
 	if (!incompl(sym->s_type))
 		return;
 
-	/* complain alwasy about incomplet tags declared inside blocks */
+	/* complain always about incomplete tags declared inside blocks */
 	if (!zflag || dcs->d_ctx != EXTERN)
 		return;
 

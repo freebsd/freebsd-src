@@ -201,7 +201,7 @@ parse(char *string)
 	if (oidfmt(mib, len, fmt, &kind))
 		err(1, "couldn't find format of oid '%s'", bufp);
 
-	if (newval == NULL) {
+	if (newval == NULL || dflag) {
 		if ((kind & CTLTYPE) == CTLTYPE_NODE) {
 			if (dflag) {
 				i = show_var(mib, len);

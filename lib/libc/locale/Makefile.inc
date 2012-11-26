@@ -5,7 +5,7 @@
 .PATH: ${.CURDIR}/${LIBC_ARCH}/locale ${.CURDIR}/locale
 
 SRCS+=	ascii.c big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c \
-	gb18030.c gb2312.c gbk.c isctype.c iswctype.c \
+	gb18030.c gb2312.c gbk.c ctype.c isctype.c iswctype.c \
 	ldpart.c lmessages.c lmonetary.c lnumeric.c localeconv.c mblen.c \
 	mbrlen.c \
 	mbrtowc.c mbsinit.c mbsnrtowcs.c \
@@ -20,7 +20,8 @@ SRCS+=	ascii.c big5.c btowc.c collate.c collcmp.c euc.c fix_grouping.c \
 	wcstoimax.c wcstol.c wcstold.c wcstoll.c \
 	wcstombs.c \
 	wcstoul.c wcstoull.c wcstoumax.c wctob.c wctomb.c wctrans.c wctype.c \
-	wcwidth.c
+	wcwidth.c\
+	xlocale.c
 
 SYM_MAPS+=${.CURDIR}/locale/Symbol.map
 
@@ -37,7 +38,9 @@ MAN+=	btowc.3 \
 	wcsftime.3 \
 	wcrtomb.3 \
 	wcsrtombs.3 wcstod.3 wcstol.3 wcstombs.3 wctomb.3 \
-	wctrans.3 wctype.3 wcwidth.3
+	wctrans.3 wctype.3 wcwidth.3 \
+	duplocale.3 freelocale.3 newlocale.3 querylocale.3 uselocale.3 xlocale.3
+
 MAN+=	big5.5 euc.5 gb18030.5 gb2312.5 gbk.5 mskanji.5 utf8.5
 
 MLINKS+=btowc.3 wctob.3

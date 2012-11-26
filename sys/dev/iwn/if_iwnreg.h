@@ -739,6 +739,8 @@ struct iwn5000_wimax_coex {
 struct iwn5000_calib_elem {
 	uint32_t	enable;
 	uint32_t	start;
+#define	IWN5000_CALIB_DC	(1 << 1)
+
 	uint32_t	send;
 	uint32_t	apply;
 	uint32_t	reserved;

@@ -14,8 +14,8 @@
 #include "PPCISelLowering.h"
 #include "PPCMachineFunctionInfo.h"
 #include "PPCPerfectShuffle.h"
-#include "PPCPredicates.h"
 #include "PPCTargetMachine.h"
+#include "MCTargetDesc/PPCPredicates.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/VectorExtras.h"
 #include "llvm/CodeGen/CallingConvLower.h"
@@ -211,7 +211,8 @@ PPCTargetLowering::PPCTargetLowering(PPCTargetMachine &TM)
   setOperationAction(ISD::TRAP, MVT::Other, Legal);
 
   // TRAMPOLINE is custom lowered.
-  setOperationAction(ISD::TRAMPOLINE, MVT::Other, Custom);
+  setOperationAction(ISD::INIT_TRAMPOLINE, MVT::Other, Custom);
+  setOperationAction(ISD::ADJUST_TRAMPOLINE, MVT::Other, Custom);
 
   // VASTART needs to be custom lowered to use the VarArgsFrameIndex
   setOperationAction(ISD::VASTART           , MVT::Other, Custom);
@@ -365,7 +366,11 @@ PPCTargetLowering::PPCTargetLowering(PPCTargetMachine &TM)
     setOperationAction(ISD::BUILD_VECTOR, MVT::v4f32, Custom);
   }
 
+  setOperationAction(ISD::ATOMIC_LOAD,  MVT::i32, Expand);
+  setOperationAction(ISD::ATOMIC_STORE, MVT::i32, Expand);
+
   setBooleanContents(ZeroOrOneBooleanContent);
+  setBooleanVectorContents(ZeroOrOneBooleanContent); // FIXME: Is this correct?
 
   if (TM.getSubtarget<PPCSubtarget>().isPPC64()) {
     setStackPointerRegisterToSaveRestore(PPC::X1);
@@ -401,12 +406,14 @@ PPCTargetLowering::PPCTargetLowering(PPCTargetMachine &TM)
   if (PPCSubTarget.isDarwin())
     setPrefFunctionAlignment(4);
 
+  setInsertFencesForAtomic(true);
+
   computeRegisterProperties();
 }
 
 /// getByValTypeAlignment - Return the desired alignment for ByVal aggregate
 /// function arguments in the caller parameter area.
-unsigned PPCTargetLowering::getByValTypeAlignment(const Type *Ty) const {
+unsigned PPCTargetLowering::getByValTypeAlignment(Type *Ty) const {
   const TargetMachine &TM = getTargetMachine();
   // Darwin passes everything on 4 byte boundary.
   if (TM.getSubtarget<PPCSubtarget>().isDarwin())
@@ -463,7 +470,7 @@ const char *PPCTargetLowering::getTargetNodeName(unsigned Opcode) const {
   }
 }
 
-MVT::SimpleValueType PPCTargetLowering::getSetCCResultType(EVT VT) const {
+EVT PPCTargetLowering::getSetCCResultType(EVT VT) const {
   return MVT::i32;
 }
 
@@ -1368,8 +1375,13 @@ SDValue PPCTargetLowering::LowerVAARG(SDValue Op, SelectionDAG &DAG,
   return DAG.getLoad(VT, dl, InChain, Result, MachinePointerInfo(), false, false, 0);
 }
 
-SDValue PPCTargetLowering::LowerTRAMPOLINE(SDValue Op,
-                                           SelectionDAG &DAG) const {
+SDValue PPCTargetLowering::LowerADJUST_TRAMPOLINE(SDValue Op,
+                                                  SelectionDAG &DAG) const {
+  return Op.getOperand(0);
+}
+
+SDValue PPCTargetLowering::LowerINIT_TRAMPOLINE(SDValue Op,
+                                                SelectionDAG &DAG) const {
   SDValue Chain = Op.getOperand(0);
   SDValue Trmp = Op.getOperand(1); // trampoline
   SDValue FPtr = Op.getOperand(2); // nested function
@@ -1378,7 +1390,7 @@ SDValue PPCTargetLowering::LowerTRAMPOLINE(SDValue Op,
 
   EVT PtrVT = DAG.getTargetLoweringInfo().getPointerTy();
   bool isPPC64 = (PtrVT == MVT::i64);
-  const Type *IntPtrTy =
+  Type *IntPtrTy =
     DAG.getTargetLoweringInfo().getTargetData()->getIntPtrType(
                                                              *DAG.getContext());
 
@@ -1398,16 +1410,13 @@ SDValue PPCTargetLowering::LowerTRAMPOLINE(SDValue Op,
 
   // Lower to a call to __trampoline_setup(Trmp, TrampSize, FPtr, ctx_reg)
   std::pair<SDValue, SDValue> CallResult =
-    LowerCallTo(Chain, Op.getValueType().getTypeForEVT(*DAG.getContext()),
+    LowerCallTo(Chain, Type::getVoidTy(*DAG.getContext()),
                 false, false, false, false, 0, CallingConv::C, false,
                 /*isReturnValueUsed=*/true,
                 DAG.getExternalSymbol("__trampoline_setup", PtrVT),
                 Args, DAG, dl);
 
-  SDValue Ops[] =
-    { CallResult.first, CallResult.second };
-
-  return DAG.getMergeValues(Ops, 2, dl);
+  return CallResult.second;
 }
 
 SDValue PPCTargetLowering::LowerVASTART(SDValue Op, SelectionDAG &DAG,
@@ -2550,7 +2559,7 @@ unsigned PrepareCall(SelectionDAG &DAG, SDValue &Callee, SDValue &InFlag,
     if (!DAG.getTarget().getSubtarget<PPCSubtarget>().isJITCodeModel()) {
       unsigned OpFlags = 0;
       if (DAG.getTarget().getRelocationModel() != Reloc::Static &&
-          (!PPCSubTarget.getTargetTriple().isMacOSX() ||
+          (PPCSubTarget.getTargetTriple().isMacOSX() &&
            PPCSubTarget.getTargetTriple().isMacOSXVersionLT(10, 5)) &&
           (G->getGlobal()->isDeclaration() ||
            G->getGlobal()->isWeakForLinker())) {
@@ -2574,7 +2583,7 @@ unsigned PrepareCall(SelectionDAG &DAG, SDValue &Callee, SDValue &InFlag,
     unsigned char OpFlags = 0;
 
     if (DAG.getTarget().getRelocationModel() != Reloc::Static &&
-        (!PPCSubTarget.getTargetTriple().isMacOSX() ||
+        (PPCSubTarget.getTargetTriple().isMacOSX() &&
          PPCSubTarget.getTargetTriple().isMacOSXVersionLT(10, 5))) {
       // PC-relative references to external symbols should go through $stub,
       // unless we're building with the leopard linker or later, which
@@ -2941,6 +2950,7 @@ PPCTargetLowering::LowerCall_SVR4(SDValue Chain, SDValue Callee,
   SmallVector<TailCallArgumentInfo, 8> TailCallArguments;
   SmallVector<SDValue, 8> MemOpChains;
 
+  bool seenFloatArg = false;
   // Walk the register/memloc assignments, inserting copies/loads.
   for (unsigned i = 0, j = 0, e = ArgLocs.size();
        i != e;
@@ -2985,6 +2995,7 @@ PPCTargetLowering::LowerCall_SVR4(SDValue Chain, SDValue Callee,
     }
 
     if (VA.isRegLoc()) {
+      seenFloatArg |= VA.getLocVT().isFloatingPoint();
       // Put argument in a physical register.
       RegsToPass.push_back(std::make_pair(VA.getLocReg(), Arg));
     } else {
@@ -3011,9 +3022,11 @@ PPCTargetLowering::LowerCall_SVR4(SDValue Chain, SDValue Callee,
     Chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other,
                         &MemOpChains[0], MemOpChains.size());
 
-  // Set CR6 to true if this is a vararg call.
+  // Set CR6 to true if this is a vararg call with floating args passed in
+  // registers.
   if (isVarArg) {
-    SDValue SetCR(DAG.getMachineNode(PPC::CRSET, dl, MVT::i32), 0);
+    SDValue SetCR(DAG.getMachineNode(seenFloatArg ? PPC::CRSET : PPC::CRUNSET,
+                                     dl, MVT::i32), 0);
     RegsToPass.push_back(std::make_pair(unsigned(PPC::CR1EQ), SetCR));
   }
 
@@ -3401,6 +3414,17 @@ PPCTargetLowering::LowerCall_Darwin(SDValue Chain, SDValue Callee,
   return FinishCall(CallConv, dl, isTailCall, isVarArg, DAG,
                     RegsToPass, InFlag, Chain, Callee, SPDiff, NumBytes,
                     Ins, InVals);
+}
+
+bool
+PPCTargetLowering::CanLowerReturn(CallingConv::ID CallConv,
+                                  MachineFunction &MF, bool isVarArg,
+                                  const SmallVectorImpl<ISD::OutputArg> &Outs,
+                                  LLVMContext &Context) const {
+  SmallVector<CCValAssign, 16> RVLocs;
+  CCState CCInfo(CallConv, isVarArg, MF, getTargetMachine(),
+                 RVLocs, Context);
+  return CCInfo.CheckReturn(Outs, RetCC_PPC);
 }
 
 SDValue
@@ -4490,7 +4514,8 @@ SDValue PPCTargetLowering::LowerOperation(SDValue Op, SelectionDAG &DAG) const {
   case ISD::GlobalTLSAddress:   llvm_unreachable("TLS not implemented for PPC");
   case ISD::JumpTable:          return LowerJumpTable(Op, DAG);
   case ISD::SETCC:              return LowerSETCC(Op, DAG);
-  case ISD::TRAMPOLINE:         return LowerTRAMPOLINE(Op, DAG);
+  case ISD::INIT_TRAMPOLINE:    return LowerINIT_TRAMPOLINE(Op, DAG);
+  case ISD::ADJUST_TRAMPOLINE:  return LowerADJUST_TRAMPOLINE(Op, DAG);
   case ISD::VASTART:
     return LowerVASTART(Op, DAG, PPCSubTarget);
 
@@ -5504,7 +5529,7 @@ PPCTargetLowering::getSingleConstraintMatchWeight(
     // but allow it at the lowest weight.
   if (CallOperandVal == NULL)
     return CW_Default;
-  const Type *type = CallOperandVal->getType();
+  Type *type = CallOperandVal->getType();
   // Look at the constraint type.
   switch (*constraint) {
   default:
@@ -5634,7 +5659,7 @@ void PPCTargetLowering::LowerAsmOperandForConstraint(SDValue Op,
 // isLegalAddressingMode - Return true if the addressing mode represented
 // by AM is legal for this target, for a load/store of the specified type.
 bool PPCTargetLowering::isLegalAddressingMode(const AddrMode &AM,
-                                              const Type *Ty) const {
+                                              Type *Ty) const {
   // FIXME: PPC does not allow r+i addressing modes for vectors!
 
   // PPC allows a sign-extended 16-bit immediate field.
@@ -5670,7 +5695,7 @@ bool PPCTargetLowering::isLegalAddressingMode(const AddrMode &AM,
 /// isLegalAddressImmediate - Return true if the integer value can be used
 /// as the offset of the target addressing mode for load / store of the
 /// given type.
-bool PPCTargetLowering::isLegalAddressImmediate(int64_t V,const Type *Ty) const{
+bool PPCTargetLowering::isLegalAddressImmediate(int64_t V,Type *Ty) const{
   // PPC allows a sign-extended 16-bit immediate field.
   return (V > -(1 << 16) && V < (1 << 16)-1);
 }

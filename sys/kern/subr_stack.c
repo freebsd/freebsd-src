@@ -77,7 +77,7 @@ stack_put(struct stack *st, vm_offset_t pc)
 }
 
 void
-stack_copy(struct stack *src, struct stack *dst)
+stack_copy(const struct stack *src, struct stack *dst)
 {
 
 	*dst = *src;
@@ -91,7 +91,7 @@ stack_zero(struct stack *st)
 }
 
 void
-stack_print(struct stack *st)
+stack_print(const struct stack *st)
 {
 	char namebuf[64];
 	long offset;
@@ -107,7 +107,7 @@ stack_print(struct stack *st)
 }
 
 void
-stack_print_short(struct stack *st)
+stack_print_short(const struct stack *st)
 {
 	char namebuf[64];
 	long offset;
@@ -127,7 +127,7 @@ stack_print_short(struct stack *st)
 }
 
 void
-stack_print_ddb(struct stack *st)
+stack_print_ddb(const struct stack *st)
 {
 	const char *name;
 	long offset;
@@ -143,7 +143,7 @@ stack_print_ddb(struct stack *st)
 
 #ifdef DDB
 void
-stack_print_short_ddb(struct stack *st)
+stack_print_short_ddb(const struct stack *st)
 {
 	const char *name;
 	long offset;
@@ -167,7 +167,7 @@ stack_print_short_ddb(struct stack *st)
  * other for use in the live kernel.
  */
 void
-stack_sbuf_print(struct sbuf *sb, struct stack *st)
+stack_sbuf_print(struct sbuf *sb, const struct stack *st)
 {
 	char namebuf[64];
 	long offset;
@@ -184,7 +184,7 @@ stack_sbuf_print(struct sbuf *sb, struct stack *st)
 
 #ifdef DDB
 void
-stack_sbuf_print_ddb(struct sbuf *sb, struct stack *st)
+stack_sbuf_print_ddb(struct sbuf *sb, const struct stack *st)
 {
 	const char *name;
 	long offset;
@@ -201,8 +201,8 @@ stack_sbuf_print_ddb(struct sbuf *sb, struct stack *st)
 
 #ifdef KTR
 void
-stack_ktr(u_int mask, const char *file, int line, struct stack *st, u_int depth,
-    int cheap)
+stack_ktr(u_int mask, const char *file, int line, const struct stack *st,
+    u_int depth, int cheap)
 {
 #ifdef DDB
 	const char *name;

@@ -66,7 +66,7 @@
 
 /* MALLOC define */
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_RFCOMM, "netgraph_btsocks_rfcomm",
+static MALLOC_DEFINE(M_NETGRAPH_BTSOCKET_RFCOMM, "netgraph_btsocks_rfcomm",
 		"Netgraph Bluetooth RFCOMM sockets");
 #else
 #define M_NETGRAPH_BTSOCKET_RFCOMM M_NETGRAPH
@@ -203,7 +203,7 @@ static int					ng_btsocket_rfcomm_curpps;
 
 /* Sysctl tree */
 SYSCTL_DECL(_net_bluetooth_rfcomm_sockets);
-SYSCTL_NODE(_net_bluetooth_rfcomm_sockets, OID_AUTO, stream, CTLFLAG_RW,
+static SYSCTL_NODE(_net_bluetooth_rfcomm_sockets, OID_AUTO, stream, CTLFLAG_RW,
 	0, "Bluetooth STREAM RFCOMM sockets family");
 SYSCTL_UINT(_net_bluetooth_rfcomm_sockets_stream, OID_AUTO, debug_level,
 	CTLFLAG_RW,

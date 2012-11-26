@@ -100,6 +100,7 @@ static void tryexec(char *, char **, char **);
 static void printentry(struct tblentry *, int);
 static struct tblentry *cmdlookup(const char *, int);
 static void delete_cmd_entry(void);
+static void addcmdentry(const char *, struct cmdentry *);
 
 
 
@@ -593,7 +594,7 @@ delete_cmd_entry(void)
  * the same name.
  */
 
-void
+static void
 addcmdentry(const char *name, struct cmdentry *entry)
 {
 	struct tblentry *cmdp;

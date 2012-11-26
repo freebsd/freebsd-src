@@ -482,7 +482,7 @@ restart:
 		if (state->list->drives[i]->PhysDiskID == state->target_id)
 			goto restart;
 
-	/* Seach volumes second. */
+	/* Search volumes second. */
 	vol = state->ioc2->RaidVolume;
 	for (i = 0; i < state->ioc2->NumActiveVolumes; vol++, i++)
 		if (vol->VolumeID == state->target_id)

@@ -29,20 +29,20 @@ class StackFrameContext;
 
 namespace ento {
 
-class GRState;
-class GRStateManager;
+class ProgramState;
+class ProgramStateManager;
 class SubRegionMap;
 
 class StoreManager {
 protected:
   SValBuilder &svalBuilder;
-  GRStateManager &StateMgr;
+  ProgramStateManager &StateMgr;
 
   /// MRMgr - Manages region objects associated with this StoreManager.
   MemRegionManager &MRMgr;
   ASTContext &Ctx;
 
-  StoreManager(GRStateManager &stateMgr);
+  StoreManager(ProgramStateManager &stateMgr);
 
 public:
   virtual ~StoreManager() {}
@@ -60,7 +60,7 @@ public:
   /// \param[in] state The analysis state.
   /// \param[in] loc The symbolic memory location.
   /// \param[in] val The value to bind to location \c loc.
-  /// \return A pointer to a GRState object that contains the same bindings as
+  /// \return A pointer to a ProgramState object that contains the same bindings as
   ///   \c state with the addition of having the value specified by \c val bound
   ///   to the location given for \c loc.
   virtual StoreRef Bind(Store store, Loc loc, SVal val) = 0;
@@ -73,7 +73,7 @@ public:
   ///  for the compound literal and 'BegInit' and 'EndInit' represent an
   ///  array of initializer values.
   virtual StoreRef BindCompoundLiteral(Store store,
-                                       const CompoundLiteralExpr* cl,
+                                       const CompoundLiteralExpr *cl,
                                        const LocationContext *LC, SVal v) = 0;
 
   /// getInitialStore - Returns the initial "empty" store representing the
@@ -97,16 +97,16 @@ public:
     return svalBuilder.makeLoc(MRMgr.getStringRegion(S));
   }
 
-  Loc getLValueCompoundLiteral(const CompoundLiteralExpr* CL,
+  Loc getLValueCompoundLiteral(const CompoundLiteralExpr *CL,
                                const LocationContext *LC) {
     return loc::MemRegionVal(MRMgr.getCompoundLiteralRegion(CL, LC));
   }
 
-  virtual SVal getLValueIvar(const ObjCIvarDecl* decl, SVal base) {
+  virtual SVal getLValueIvar(const ObjCIvarDecl *decl, SVal base) {
     return getLValueFieldOrIvar(decl, base);
   }
 
-  virtual SVal getLValueField(const FieldDecl* D, SVal Base) {
+  virtual SVal getLValueField(const FieldDecl *D, SVal Base) {
     return getLValueFieldOrIvar(D, Base);
   }
 
@@ -114,7 +114,7 @@ public:
 
   // FIXME: This should soon be eliminated altogether; clients should deal with
   // region extents directly.
-  virtual DefinedOrUnknownSVal getSizeInElements(const GRState *state, 
+  virtual DefinedOrUnknownSVal getSizeInElements(const ProgramState *state, 
                                                  const MemRegion *region,
                                                  QualType EleTy) {
     return UnknownVal();
@@ -130,12 +130,12 @@ public:
   }
 
   class CastResult {
-    const GRState *state;
+    const ProgramState *state;
     const MemRegion *region;
   public:
-    const GRState *getState() const { return state; }
+    const ProgramState *getState() const { return state; }
     const MemRegion* getRegion() const { return region; }
-    CastResult(const GRState *s, const MemRegion* r = 0) : state(s), region(r){}
+    CastResult(const ProgramState *s, const MemRegion* r = 0) : state(s), region(r){}
   };
 
   const ElementRegion *GetElementZeroRegion(const MemRegion *R, QualType T);
@@ -146,12 +146,14 @@ public:
   const MemRegion *castRegion(const MemRegion *region, QualType CastToTy);
 
   virtual StoreRef removeDeadBindings(Store store, const StackFrameContext *LCtx,
-                                      SymbolReaper& SymReaper,
-                      llvm::SmallVectorImpl<const MemRegion*>& RegionRoots) = 0;
+                                      SymbolReaper& SymReaper) = 0;
 
   virtual StoreRef BindDecl(Store store, const VarRegion *VR, SVal initVal) = 0;
 
   virtual StoreRef BindDeclWithNoInit(Store store, const VarRegion *VR) = 0;
+  
+  virtual bool includedInBindings(Store store,
+                                  const MemRegion *region) const = 0;
   
   /// If the StoreManager supports it, increment the reference count of
   /// the specified Store object.
@@ -163,7 +165,7 @@ public:
   virtual void decrementReferenceCount(Store store) {}
 
   typedef llvm::DenseSet<SymbolRef> InvalidatedSymbols;
-  typedef llvm::SmallVector<const MemRegion *, 8> InvalidatedRegions;
+  typedef SmallVector<const MemRegion *, 8> InvalidatedRegions;
 
   /// invalidateRegions - Clears out the specified regions from the store,
   ///  marking their values as unknown. Depending on the store, this may also
@@ -185,19 +187,18 @@ public:
   ///   even if they do not currently have bindings. Pass \c NULL if this
   ///   information will not be used.
   virtual StoreRef invalidateRegions(Store store,
-                                     const MemRegion * const *Begin,
-                                     const MemRegion * const *End,
+                                     ArrayRef<const MemRegion *> Regions,
                                      const Expr *E, unsigned Count,
                                      InvalidatedSymbols &IS,
                                      bool invalidateGlobals,
-                                     InvalidatedRegions *Regions) = 0;
+                                     InvalidatedRegions *Invalidated) = 0;
 
   /// enterStackFrame - Let the StoreManager to do something when execution
   /// engine is about to execute into a callee.
-  virtual StoreRef enterStackFrame(const GRState *state,
+  virtual StoreRef enterStackFrame(const ProgramState *state,
                                    const StackFrameContext *frame);
 
-  virtual void print(Store store, llvm::raw_ostream& Out,
+  virtual void print(Store store, raw_ostream &Out,
                      const char* nl, const char *sep) = 0;
 
   class BindingsHandler {
@@ -217,11 +218,11 @@ protected:
   /// CastRetrievedVal - Used by subclasses of StoreManager to implement
   ///  implicit casts that arise from loads from regions that are reinterpreted
   ///  as another region.
-  SVal CastRetrievedVal(SVal val, const TypedRegion *region, QualType castTy,
-                        bool performTestOnly = true);
+  SVal CastRetrievedVal(SVal val, const TypedValueRegion *region, 
+                        QualType castTy, bool performTestOnly = true);
 
 private:
-  SVal getLValueFieldOrIvar(const Decl* decl, SVal base);
+  SVal getLValueFieldOrIvar(const Decl *decl, SVal base);
 };
 
 
@@ -269,11 +270,9 @@ public:
   virtual bool iterSubRegions(const MemRegion *region, Visitor& V) const = 0;
 };
 
-// FIXME: Do we need to pass GRStateManager anymore?
-StoreManager *CreateBasicStoreManager(GRStateManager& StMgr);
-StoreManager *CreateRegionStoreManager(GRStateManager& StMgr);
-StoreManager *CreateFieldsOnlyRegionStoreManager(GRStateManager& StMgr);
-StoreManager *CreateFlatStoreManager(GRStateManager &StMgr);
+// FIXME: Do we need to pass ProgramStateManager anymore?
+StoreManager *CreateRegionStoreManager(ProgramStateManager& StMgr);
+StoreManager *CreateFieldsOnlyRegionStoreManager(ProgramStateManager& StMgr);
 
 } // end GR namespace
 

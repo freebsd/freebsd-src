@@ -173,15 +173,10 @@ static int
 mvs_detach(device_t dev)
 {
 	struct mvs_controller *ctlr = device_get_softc(dev);
-	device_t *children;
-	int nchildren, i;
 
 	/* Detach & delete all children */
-	if (!device_get_children(dev, &children, &nchildren)) {
-		for (i = 0; i < nchildren; i++)
-			device_delete_child(dev, children[i]);
-		free(children, M_TEMP);
-	}
+	device_delete_children(dev);
+
 	/* Free interrupt. */
 	if (ctlr->irq.r_irq) {
 		bus_teardown_intr(dev, ctlr->irq.r_irq,

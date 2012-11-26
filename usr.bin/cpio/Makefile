@@ -2,17 +2,20 @@
 
 .include <bsd.own.mk>
 
-PROG=	bsdcpio
-BSDCPIO_VERSION_STRING=2.8.4
+LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
 
+PROG=	bsdcpio
+BSDCPIO_VERSION_STRING=2.8.5
+
+.PATH:	${LIBARCHIVEDIR}/cpio
 SRCS=	cpio.c cmdline.c
 
-.PATH:	${.CURDIR}/../../lib/libarchive/libarchive_fe
+.PATH:	${LIBARCHIVEDIR}/libarchive_fe
 SRCS+=	err.c line_reader.c matching.c pathmatch.c
 
 CFLAGS+= -DBSDCPIO_VERSION_STRING=\"${BSDCPIO_VERSION_STRING}\"
-CFLAGS+= -DPLATFORM_CONFIG_H=\"config_freebsd.h\"
-CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../../lib/libarchive/libarchive_fe
+CFLAGS+= -DPLATFORM_CONFIG_H=\"${.CURDIR}/config_freebsd.h\"
+CFLAGS+= -I${LIBARCHIVEDIR}/cpio -I${LIBARCHIVEDIR}/libarchive_fe
 
 .ifdef RELEASE_CRUNCH
 # FreeBSD's installer uses cpio in crunched binaries that are
@@ -32,9 +35,12 @@ LDADD+= -lmd
 SYMLINKS=bsdcpio ${BINDIR}/cpio
 MLINKS= bsdcpio.1 cpio.1
 
-.PHONY: check test
+.PHONY: check test clean-test
 
 check test: $(PROG) bsdcpio.1.gz
-	cd ${.CURDIR}/test && make clean test
+	cd ${.CURDIR}/test && make obj && make test
+
+clean-test:
+	cd ${.CURDIR}/test && make clean
 
 .include <bsd.prog.mk>

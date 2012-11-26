@@ -2,6 +2,11 @@
  * Copyright (c) 2002-2004 Tim J. Robbins
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -55,22 +60,22 @@ typedef struct {
 } _UTF8State;
 
 int
-_UTF8_init(_RuneLocale *rl)
+_UTF8_init(struct xlocale_ctype *l, _RuneLocale *rl)
 {
 
-	__mbrtowc = _UTF8_mbrtowc;
-	__wcrtomb = _UTF8_wcrtomb;
-	__mbsinit = _UTF8_mbsinit;
-	__mbsnrtowcs = _UTF8_mbsnrtowcs;
-	__wcsnrtombs = _UTF8_wcsnrtombs;
-	_CurrentRuneLocale = rl;
-	__mb_cur_max = 6;
+	l->__mbrtowc = _UTF8_mbrtowc;
+	l->__wcrtomb = _UTF8_wcrtomb;
+	l->__mbsinit = _UTF8_mbsinit;
+	l->__mbsnrtowcs = _UTF8_mbsnrtowcs;
+	l->__wcsnrtombs = _UTF8_wcsnrtombs;
+	l->runes = rl;
+	l->__mb_cur_max = 6;
 	/*
 	 * UCS-4 encoding used as the internal representation, so
 	 * slots 0x0080-0x00FF are occuped and must be excluded
 	 * from the single byte ctype by setting the limit.
 	 */
-	__mb_sb_limit = 128;
+	l->__mb_sb_limit = 128;
 
 	return (0);
 }

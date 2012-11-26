@@ -46,7 +46,7 @@ fi
 #   client      - will try to protect just this machine
 #   simple      - will try to protect a whole network
 #   closed      - totally disables IP services except via lo0 interface
-#   workstation - will try to protect just this machine using statefull
+#   workstation - will try to protect just this machine using stateful
 #		  firewalling. See below for rc.conf variables used
 #   UNKNOWN     - disables the loading of firewall rules.
 #   filename    - will load the rules in the given filename (full path required)
@@ -105,7 +105,7 @@ setup_ipv6_mandatory () {
 	${fwcmd} add pass ipv6-icmp from fe80::/10 to fe80::/10
 	${fwcmd} add pass ipv6-icmp from fe80::/10 to ff02::/16
 
-	# Allow ICMPv6 destination unreach
+	# Allow ICMPv6 destination unreachable
 	${fwcmd} add pass ipv6-icmp from any to any icmp6types 1
 
 	# Allow NS/NA/toobig (don't filter it out)
@@ -437,7 +437,7 @@ case ${firewall_type} in
 	#				 default denied packets should be
 	#				 logged (in /var/log/security).
 	#  firewall_nologports:		List of TCP/UDP ports for which
-	#				 denied incomming packets are not
+	#				 denied incoming packets are not
 	#				 logged.
 
 	# Allow packets for which a state has been built.
@@ -505,7 +505,7 @@ case ${firewall_type} in
 	  ${fwcmd} add deny { tcp or udp } from any to any $i in
 	done
 
-	# Broadcasts and muticasts
+	# Broadcasts and multicasts
 	${fwcmd} add deny ip  from any to 255.255.255.255
 	${fwcmd} add deny ip  from any to 224.0.0.0/24 in	# XXX
 
@@ -513,7 +513,7 @@ case ${firewall_type} in
 	${fwcmd} add deny udp from any to any 520 in
 
 	# Noise from webbrowsing.
-	# The statefull filter is a bit agressive, and will cause some
+	# The stateful filter is a bit aggressive, and will cause some
 	#  connection teardowns to be logged.
 	${fwcmd} add deny tcp from any 80,443 to any 1024-65535 in
 

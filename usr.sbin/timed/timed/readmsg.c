@@ -35,9 +35,8 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#define	TSPTYPES
 #include "globals.h"
-
-extern char *tsptype[];
 
 /*
  * LOOKAT checks if the message is of the requested type and comes from
@@ -182,8 +181,8 @@ again:
 			rwait.tv_usec = 1000000/CLK_TCK;
 
 		if (trace) {
-			fprintf(fd, "readmsg: wait %ld.%6ld at %s\n",
-				rwait.tv_sec, rwait.tv_usec, date());
+			fprintf(fd, "readmsg: wait %jd.%6ld at %s\n",
+				(intmax_t)rwait.tv_sec, rwait.tv_usec, date());
 			/* Notice a full disk, as we flush trace info.
 			 * It is better to flush periodically than at
 			 * every line because the tracing consists of bursts
@@ -215,7 +214,7 @@ again:
 		 */
 		if (n < (ssize_t)(sizeof(struct tsp) - MAXHOSTNAMELEN + 32)) {
 			syslog(LOG_NOTICE,
-			    "short packet (%u/%u bytes) from %s",
+			    "short packet (%zd/%zu bytes) from %s",
 			      n, sizeof(struct tsp) - MAXHOSTNAMELEN + 32,
 			      inet_ntoa(from.sin_addr));
 			continue;
@@ -487,7 +486,7 @@ print(msg, addr)
 		break;
 
 	case TSP_ADJTIME:
-		fprintf(fd, "%s %d %-6u (%ld,%ld) %-15s %s\n",
+		fprintf(fd, "%s %d %-6u (%d,%d) %-15s %s\n",
 			tsptype[msg->tsp_type],
 			msg->tsp_vers,
 			msg->tsp_seq,

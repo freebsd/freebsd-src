@@ -927,7 +927,7 @@ struct walkarg {
 
 static int in6_src_sysctl(SYSCTL_HANDLER_ARGS);
 SYSCTL_DECL(_net_inet6_ip6);
-SYSCTL_NODE(_net_inet6_ip6, IPV6CTL_ADDRCTLPOLICY, addrctlpolicy,
+static SYSCTL_NODE(_net_inet6_ip6, IPV6CTL_ADDRCTLPOLICY, addrctlpolicy,
 	CTLFLAG_RD, in6_src_sysctl, "");
 
 static int

@@ -301,6 +301,7 @@ cpu_reset:
 	lis	%r3,1@l
 	bl	CNAME(cpudep_ap_early_bootstrap) /* Set PCPU */
 	nop
+	lis	%r3,1@l
 	bl	CNAME(pmap_cpu_bootstrap)	/* Turn on virtual memory */
 	nop
 	bl	CNAME(cpudep_ap_bootstrap)	/* Set up PCPU and stack */

@@ -47,32 +47,32 @@ static const char sccsid[] = "@(#)cmds.c	8.2 (Berkeley) 4/29/95";
 void
 command(const char *cmd)
 {
-        struct cmdtab *p;
-        char *cp, *tmpstr, *tmpstr1;
+	struct cmdtab *p;
+	char *cp, *tmpstr, *tmpstr1;
 	int interval, omask;
 
 	tmpstr = tmpstr1 = strdup(cmd);
 	omask = sigblock(sigmask(SIGALRM));
-        for (cp = tmpstr1; *cp && !isspace(*cp); cp++)
-                ;
-        if (*cp)
-                *cp++ = '\0';
+	for (cp = tmpstr1; *cp && !isspace(*cp); cp++)
+		;
+	if (*cp)
+		*cp++ = '\0';
 	if (*tmpstr1 == '\0')
 		return;
 	for (; *cp && isspace(*cp); cp++)
 		;
-        if (strcmp(tmpstr1, "quit") == 0 || strcmp(tmpstr1, "q") == 0)
-                die(0);
+	if (strcmp(tmpstr1, "quit") == 0 || strcmp(tmpstr1, "q") == 0)
+		die(0);
 	if (strcmp(tmpstr1, "load") == 0) {
 		load();
 		goto done;
 	}
-        if (strcmp(tmpstr1, "stop") == 0) {
-                alarm(0);
-                mvaddstr(CMDLINE, 0, "Refresh disabled.");
-                clrtoeol();
+	if (strcmp(tmpstr1, "stop") == 0) {
+		alarm(0);
+		mvaddstr(CMDLINE, 0, "Refresh disabled.");
+		clrtoeol();
 		goto done;
-        }
+	}
 	if (strcmp(tmpstr1, "help") == 0) {
 		int _col, _len;
 
@@ -89,30 +89,30 @@ command(const char *cmd)
 		goto done;
 	}
 	interval = atoi(tmpstr1);
-        if (interval <= 0 &&
+	if (interval <= 0 &&
 	    (strcmp(tmpstr1, "start") == 0 || strcmp(tmpstr1, "interval") == 0)) {
 		interval = *cp ? atoi(cp) : naptime;
-                if (interval <= 0) {
+		if (interval <= 0) {
 			error("%d: bad interval.", interval);
 			goto done;
-                }
+		}
 	}
 	if (interval > 0) {
-                alarm(0);
-                naptime = interval;
-                display(0);
-                status();
+		alarm(0);
+		naptime = interval;
+		display(0);
+		status();
 		goto done;
-        }
+	}
 	p = lookup(tmpstr1);
 	if (p == (struct cmdtab *)-1) {
 		error("%s: Ambiguous command.", tmpstr1);
 		goto done;
 	}
-        if (p) {
-                if (curcmd == p)
+	if (p) {
+		if (curcmd == p)
 			goto done;
-                alarm(0);
+		alarm(0);
 		(*curcmd->c_close)(wnd);
 		curcmd->c_flags &= ~CF_INIT;
 		wnd = (*p->c_open)();
@@ -131,12 +131,12 @@ command(const char *cmd)
 			else
 				goto done;
 		}
-                curcmd = p;
+		curcmd = p;
 		labels();
-                display(0);
-                status();
+		display(0);
+		status();
 		goto done;
-        }
+	}
 	if (curcmd->c_cmd == 0 || !(*curcmd->c_cmd)(tmpstr1, cp))
 		error("%s: Unknown command.", tmpstr1);
 done:
@@ -176,18 +176,18 @@ void
 status(void)
 {
 
-        error("Showing %s, refresh every %d seconds.",
-          curcmd->c_name, naptime);
+	error("Showing %s, refresh every %d seconds.",
+	  curcmd->c_name, naptime);
 }
 
 int
 prefix(const char *s1, const char *s2)
 {
 
-        while (*s1 == *s2) {
-                if (*s1 == '\0')
-                        return (1);
-                s1++, s2++;
-        }
-        return (*s1 == '\0');
+	while (*s1 == *s2) {
+		if (*s1 == '\0')
+			return (1);
+		s1++, s2++;
+	}
+	return (*s1 == '\0');
 }

@@ -94,7 +94,9 @@
 #define	AR_QTXDP(_i)	(AR_Q0_TXDP + ((_i)<<2))
 
 #define	AR_Q_TXE	0x0840	/* MAC Transmit Queue enable */
+#define	AR_Q_TXE_M	0x000003FF	/* Mask for TXE (QCU 0-9) */
 #define	AR_Q_TXD	0x0880	/* MAC Transmit Queue disable */
+#define	AR_Q_TXD_M	0x000003FF	/* Mask for TXD (QCU 0-9) */
 
 #define	AR_Q0_CBRCFG	0x08c0	/* MAC CBR configuration */
 #define	AR_Q1_CBRCFG	0x08c4	/* MAC CBR configuration */

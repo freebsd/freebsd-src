@@ -23,9 +23,10 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -113,7 +114,6 @@ static device_method_t	grackle_methods[] = {
 	DEVMETHOD(device_attach,	grackle_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	grackle_read_ivar),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
@@ -131,7 +131,7 @@ static device_method_t	grackle_methods[] = {
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,     grackle_get_node),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t	grackle_driver = {

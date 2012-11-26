@@ -85,7 +85,7 @@ ncp_read_property_value(NWCONN_HANDLE connid, int object_type,
 
 int
 ncp_scan_bindery_object(NWCONN_HANDLE connid, u_int32_t last_id,
-	u_int16_t object_type, char *search_string,
+	u_int16_t object_type, const char *search_string,
 	struct ncp_bindery_object *target)
 {
 	int error;

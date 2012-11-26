@@ -42,9 +42,9 @@
  * XXX should enlarge these, if only to give empty names instead of bounds
  * errors for large signal numbers.
  */
-extern __const char *__const sys_signame[NSIG];
-extern __const char *__const sys_siglist[NSIG];
-extern __const int sys_nsig;
+extern const char * const sys_signame[NSIG];
+extern const char * const sys_siglist[NSIG];
+extern const int sys_nsig;
 #endif
 
 #if __POSIX_VISIBLE >= 200112 || __XSI_VISIBLE

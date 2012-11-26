@@ -813,6 +813,10 @@ DEF_TRAVERSE_TYPE(ObjCObjectPointerType, {
     TRY_TO(TraverseType(T->getPointeeType()));
   })
 
+DEF_TRAVERSE_TYPE(AtomicType, {
+    TRY_TO(TraverseType(T->getValueType()));
+  })
+
 #undef DEF_TRAVERSE_TYPE
 
 // ----------------- TypeLoc traversal -----------------
@@ -1041,6 +1045,10 @@ DEF_TRAVERSE_TYPELOC(ObjCObjectPointerType, {
     TRY_TO(TraverseTypeLoc(TL.getPointeeLoc()));
   })
 
+DEF_TRAVERSE_TYPELOC(AtomicType, {
+    TRY_TO(TraverseTypeLoc(TL.getValueLoc()));
+  })
+
 #undef DEF_TRAVERSE_TYPELOC
 
 // ----------------- Decl traversal -----------------
@@ -1113,6 +1121,10 @@ DEF_TRAVERSE_DECL(FriendTemplateDecl, {
       }
     }
   })
+
+DEF_TRAVERSE_DECL(ClassScopeFunctionSpecializationDecl, {
+  TRY_TO(TraverseDecl(D->getSpecialization()));
+ })
 
 DEF_TRAVERSE_DECL(LinkageSpecDecl, { })
 
@@ -1252,7 +1264,7 @@ bool RecursiveASTVisitor<Derived>::TraverseClassInstantiations(
           = (U.get<ClassTemplatePartialSpecializationDecl*>() == Pattern);
 
       if (ShouldVisit)
-        TRY_TO(TraverseClassTemplateSpecializationDecl(SD));
+        TRY_TO(TraverseDecl(SD));
       break;
     }
 
@@ -1280,7 +1292,7 @@ DEF_TRAVERSE_DECL(ClassTemplateDecl, {
     TRY_TO(TraverseTemplateParameterListHelper(D->getTemplateParameters()));
 
     // By default, we do not traverse the instantiations of
-    // class templates since they do not apprear in the user code. The
+    // class templates since they do not appear in the user code. The
     // following code optionally traverses them.
     if (getDerived().shouldVisitTemplateInstantiations()) {
       // If this is the definition of the primary template, visit
@@ -1318,7 +1330,7 @@ bool RecursiveASTVisitor<Derived>::TraverseFunctionInstantiations(
     case TSK_ExplicitSpecialization:
       break;
     default:
-      assert(false && "Unknown specialization kind.");
+      llvm_unreachable("Unknown specialization kind.");
     }
   }
 
@@ -1548,10 +1560,10 @@ bool RecursiveASTVisitor<Derived>::TraverseFunctionHelper(FunctionDecl *D) {
         FTSI->getTemplateSpecializationKind() != TSK_ImplicitInstantiation) {
       // A specialization might not have explicit template arguments if it has
       // a templated return type and concrete arguments.
-      if (const TemplateArgumentListInfo *TALI =
+      if (const ASTTemplateArgumentListInfo *TALI =
           FTSI->TemplateArgumentsAsWritten) {
-        TRY_TO(TraverseTemplateArgumentLocsHelper(TALI->getArgumentArray(),
-                                                  TALI->size()));
+        TRY_TO(TraverseTemplateArgumentLocsHelper(TALI->getTemplateArgs(),
+                                                  TALI->NumTemplateArgs));
       }
     }
   }
@@ -1980,6 +1992,7 @@ DEF_TRAVERSE_STMT(SizeOfPackExpr, { })
 DEF_TRAVERSE_STMT(SubstNonTypeTemplateParmPackExpr, { })
 DEF_TRAVERSE_STMT(SubstNonTypeTemplateParmExpr, { })
 DEF_TRAVERSE_STMT(MaterializeTemporaryExpr, { })
+DEF_TRAVERSE_STMT(AtomicExpr, { })
 
 // These literals (all of them) do not need any action.
 DEF_TRAVERSE_STMT(IntegerLiteral, { })

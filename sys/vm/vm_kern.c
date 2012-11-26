@@ -543,7 +543,7 @@ kmem_init_zero_region(void)
 	 * zeros, while not using much more physical resources.
 	 */
 	addr = kmem_alloc_nofault(kernel_map, ZERO_REGION_SIZE);
-	m = vm_page_alloc(NULL, OFF_TO_IDX(addr - VM_MIN_KERNEL_ADDRESS),
+	m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL |
 	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 	if ((m->flags & PG_ZERO) == 0)
 		pmap_zero_page(m);

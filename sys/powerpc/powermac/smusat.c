@@ -63,7 +63,7 @@ static int	smusat_attach(device_t);
 static int	smusat_sensor_sysctl(SYSCTL_HANDLER_ARGS);
 static int	smusat_sensor_read(struct smu_sensor *sens);
 
-MALLOC_DEFINE(M_SMUSAT, "smusat", "SMU Sattelite Sensors");
+static MALLOC_DEFINE(M_SMUSAT, "smusat", "SMU Sattelite Sensors");
 
 static device_method_t  smusat_methods[] = {
 	/* Device interface */

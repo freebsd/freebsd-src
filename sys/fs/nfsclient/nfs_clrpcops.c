@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
  */
 
 #ifndef APPLEKEXT
+#include "opt_inet6.h"
+
 #include <fs/nfs/nfsport.h>
 
 /*
@@ -649,7 +651,8 @@ nfsrpc_doclose(struct nfsmount *nmp, struct nfsclopen *op, NFSPROC_T *p)
 		 * puts on the wire has the file handle for this file appended
 		 * to it, so it can be done now.
 		 */
-		(void)nfsrpc_rellockown(nmp, lp, tcred, p);
+		(void)nfsrpc_rellockown(nmp, lp, lp->nfsl_open->nfso_fh,
+		    lp->nfsl_open->nfso_fhlen, tcred, p);
 	}
 
 	/*
@@ -1231,8 +1234,7 @@ nfsrpc_read(vnode_t vp, struct uio *uiop, struct ucred *cred,
 	newcred = cred;
 	if (NFSHASNFSV4(nmp)) {
 		nfhp = np->n_fhp;
-		if (p == NULL)
-			newcred = NFSNEWCRED(cred);
+		newcred = NFSNEWCRED(cred);
 	}
 	retrycnt = 0;
 	do {
@@ -1262,7 +1264,7 @@ nfsrpc_read(vnode_t vp, struct uio *uiop, struct ucred *cred,
 	     expireret == 0 && clidrev != 0 && retrycnt < 4));
 	if (error && retrycnt >= 4)
 		error = EIO;
-	if (NFSHASNFSV4(nmp) && p == NULL)
+	if (NFSHASNFSV4(nmp))
 		NFSFREECRED(newcred);
 	return (error);
 }
@@ -1383,8 +1385,7 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		clidrev = nmp->nm_clp->nfsc_clientidrev;
 	newcred = cred;
 	if (NFSHASNFSV4(nmp)) {
-		if (p == NULL)
-			newcred = NFSNEWCRED(cred);
+		newcred = NFSNEWCRED(cred);
 		nfhp = np->n_fhp;
 	}
 	retrycnt = 0;
@@ -1434,7 +1435,7 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	    ((error == NFSERR_STALESTATEID ||
 	      error == NFSERR_STALEDONTRECOVER) && called_from_strategy != 0)))
 		error = EIO;
-	if (NFSHASNFSV4(nmp) && p == NULL)
+	if (NFSHASNFSV4(nmp))
 		NFSFREECRED(newcred);
 	return (error);
 }
@@ -4027,7 +4028,7 @@ nfsrpc_renew(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
  */
 APPLESTATIC int
 nfsrpc_rellockown(struct nfsmount *nmp, struct nfscllockowner *lp,
-    struct ucred *cred, NFSPROC_T *p)
+    uint8_t *fh, int fhlen, struct ucred *cred, NFSPROC_T *p)
 {
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	u_int32_t *tl;
@@ -4039,10 +4040,8 @@ nfsrpc_rellockown(struct nfsmount *nmp, struct nfscllockowner *lp,
 	*tl++ = nmp->nm_clp->nfsc_clientid.lval[0];
 	*tl = nmp->nm_clp->nfsc_clientid.lval[1];
 	NFSBCOPY(lp->nfsl_owner, own, NFSV4CL_LOCKNAMELEN);
-	NFSBCOPY(lp->nfsl_open->nfso_fh, &own[NFSV4CL_LOCKNAMELEN],
-	    lp->nfsl_open->nfso_fhlen);
-	(void)nfsm_strtom(nd, own, NFSV4CL_LOCKNAMELEN +
-	    lp->nfsl_open->nfso_fhlen);
+	NFSBCOPY(fh, &own[NFSV4CL_LOCKNAMELEN], fhlen);
+	(void)nfsm_strtom(nd, own, NFSV4CL_LOCKNAMELEN + fhlen);
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
 	    NFS_PROG, NFS_VER4, NULL, 1, NULL);

@@ -30,7 +30,7 @@ extern char edata[];
 
 /*
  * A function using a stack frame has the following instruction as the first
- * one: addiu sp,sp,-<frame_size>
+ * one: [d]addiu sp,sp,-<frame_size>
  *
  * We make use of this to detect starting address of a function. This works
  * better than using 'j ra' instruction to signify end of the previous
@@ -39,7 +39,8 @@ extern char edata[];
  *
  * XXX the abi does not require that the addiu instruction be the first one.
  */
-#define	MIPS_START_OF_FUNCTION(ins)	(((ins) & 0xffff8000) == 0x27bd8000)
+#define	MIPS_START_OF_FUNCTION(ins)	((((ins) & 0xffff8000) == 0x27bd8000) \
+	|| (((ins) & 0xffff8000) == 0x67bd8000))
 
 /*
  * MIPS ABI 3.0 requires that all functions return using the 'j ra' instruction
@@ -329,6 +330,8 @@ loop:
 
 		case OP_ADDI:
 		case OP_ADDIU:
+		case OP_DADDI:
+		case OP_DADDIU:
 			/* look for stack pointer adjustment */
 			if (i.IType.rs != 29 || i.IType.rt != 29)
 				break;

@@ -39,8 +39,8 @@ const char *ProgName = "sade";
 int
 main(int argc, char **argv)
 {
-    int choice, scroll, curr, max, status;
-    
+    int status;
+
     /* Record name to be able to restart */
     StartName = argv[0];
 
@@ -77,7 +77,9 @@ main(int argc, char **argv)
 
     /* Try to preserve our scroll-back buffer */
     if (OnVTY) {
-	for (curr = 0; curr < 25; curr++)
+        int i;
+
+	for (i = 0; i < 25; i++)
 	    putchar('\n');
     }
     /* Move stderr aside */
@@ -105,10 +107,9 @@ main(int argc, char **argv)
     }
 
     /* Begin user dialog at outer menu */
-    dialog_clear();
+    dlg_clear();
     while (1) {
-	choice = scroll = curr = max = 0;
-	dmenuOpen(&MenuMain, &choice, &scroll, &curr, &max, FALSE);
+	dmenuOpen(&MenuMain);
 	if (getpid() != 1
 	    || !msgNoYes("Are you sure you wish to exit?")
 	    )

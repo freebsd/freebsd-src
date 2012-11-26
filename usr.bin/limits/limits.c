@@ -236,7 +236,7 @@ static struct {
 
 /*
  * One letter for each resource levels.
- * NOTE: There is a dependancy on the corresponding
+ * NOTE: There is a dependency on the corresponding
  * letter index being equal to the resource number.
  * If sys/resource.h defines are changed, this needs
  * to be modified accordingly!

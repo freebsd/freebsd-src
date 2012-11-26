@@ -75,8 +75,8 @@ _des_crypt_call(buf, len, dparms)
 
 	des_crypt_1_arg.desbuf.desbuf_len = len;
 	des_crypt_1_arg.desbuf.desbuf_val = buf;
-	des_crypt_1_arg.des_dir = dparms->des_dir;
-	des_crypt_1_arg.des_mode = dparms->des_mode;
+	des_crypt_1_arg.des_dir = (dparms->des_dir == ENCRYPT) ? ENCRYPT_DES : DECRYPT_DES;
+	des_crypt_1_arg.des_mode = (dparms->des_mode == CBC) ? CBC_DES : ECB_DES;
 	bcopy(dparms->des_ivec, des_crypt_1_arg.des_ivec, 8);
 	bcopy(dparms->des_key, des_crypt_1_arg.des_key, 8);
 

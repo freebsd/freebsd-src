@@ -442,7 +442,7 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 	VM_OBJECT_LOCK(tobj);
 	vm_object_pip_add(tobj, 1);
 	m = vm_page_grab(tobj, idx, VM_ALLOC_WIRED |
-	    VM_ALLOC_ZERO | VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
 		if (vm_pager_has_page(tobj, idx, NULL, NULL)) {
 			error = vm_pager_get_pages(tobj, &m, 1, 0);
@@ -666,7 +666,7 @@ nocache:
 	VM_OBJECT_LOCK(tobj);
 	vm_object_pip_add(tobj, 1);
 	tpg = vm_page_grab(tobj, idx, VM_ALLOC_WIRED |
-	    VM_ALLOC_ZERO | VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 	if (tpg->valid != VM_PAGE_BITS_ALL) {
 		if (vm_pager_has_page(tobj, idx, NULL, NULL)) {
 			error = vm_pager_get_pages(tobj, &tpg, 1, 0);
@@ -965,11 +965,8 @@ tmpfs_rename(struct vop_rename_args *v)
 
 	/* If we need to move the directory between entries, lock the
 	 * source so that we can safely operate on it. */
-	if (tdvp != fdvp) {
-		error = vn_lock(fdvp, LK_EXCLUSIVE | LK_RETRY);
-		if (error != 0)
-			goto out;
-	}
+	if (fdvp != tdvp && fdvp != tvp)
+		vn_lock(fdvp, LK_EXCLUSIVE | LK_RETRY);
 	fdnode = VP_TO_TMPFS_DIR(fdvp);
 	fnode = VP_TO_TMPFS_NODE(fvp);
 	de = tmpfs_dir_lookup(fdnode, fnode, fcnp);
@@ -1138,11 +1135,12 @@ tmpfs_rename(struct vop_rename_args *v)
 		 * really reclaimed. */
 		tmpfs_free_dirent(VFS_TO_TMPFS(tvp->v_mount), de, TRUE);
 	}
+	cache_purge(fvp);
 
 	error = 0;
 
 out_locked:
-	if (fdnode != tdnode)
+	if (fdvp != tdvp && fdvp != tvp)
 		VOP_UNLOCK(fdvp, 0);
 
 out:

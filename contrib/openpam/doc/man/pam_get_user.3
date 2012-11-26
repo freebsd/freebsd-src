@@ -1,6 +1,6 @@
 .\"-
 .\" Copyright (c) 2001-2003 Networks Associates Technology, Inc.
-.\" Copyright (c) 2004-2007 Dag-Erling Smørgrav
+.\" Copyright (c) 2004-2011 Dag-Erling Smørgrav
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,9 +32,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4$
+.\" $Id$
 .\"
-.Dd December 21, 2007
+.Dd December 18, 2011
 .Dt PAM_GET_USER 3
 .Os
 .Sh NAME
@@ -70,10 +70,26 @@ If it is
 .Dv NULL ,
 the
 .Dv PAM_USER_PROMPT
-will be used.
+item will be used.
 If that item is also
 .Dv NULL ,
 a hardcoded default prompt will be used.
+Either way, the prompt is expanded using
+.Xr openpam_subst 3
+before it is
+passed to the conversation function.
+.Pp
+If
+.Nm
+is called from a module and the
+.Dv user_prompt
+option is
+set in the policy file, the value of that option takes precedence over
+both the
+.Fa prompt
+argument and the
+.Dv PAM_USER_PROMPT
+item.
 .Pp
 .Sh RETURN VALUES
 The
@@ -88,6 +104,7 @@ Conversation failure.
 System error.
 .El
 .Sh SEE ALSO
+.Xr openpam_subst 3 ,
 .Xr pam 3 ,
 .Xr pam_get_authtok 3 ,
 .Xr pam_get_item 3 ,
@@ -104,7 +121,8 @@ The
 .Nm
 function and this manual page were developed for the
 .Fx
-Project by ThinkSec AS and Network Associates Laboratories, the
+Project by
+ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,

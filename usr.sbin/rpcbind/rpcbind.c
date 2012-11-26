@@ -366,7 +366,7 @@ init_transport(struct netconfig *nconf)
 			hints.ai_flags &= AI_NUMERICHOST;
 		    } else {
 			/*
-			 * Skip if we have an AF_INET6 adress.
+			 * Skip if we have an AF_INET6 address.
 			 */
 			if (inet_pton(AF_INET6,
 			    hosts[nhostsbak], host_addr) == 1) {
@@ -381,7 +381,7 @@ init_transport(struct netconfig *nconf)
 			hints.ai_flags &= AI_NUMERICHOST;
 		    } else {
 			/*
-			 * Skip if we have an AF_INET adress.
+			 * Skip if we have an AF_INET address.
 			 */
 			if (inet_pton(AF_INET, hosts[nhostsbak],
 			    host_addr) == 1) {

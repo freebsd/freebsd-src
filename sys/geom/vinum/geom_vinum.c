@@ -47,7 +47,8 @@ __FBSDID("$FreeBSD$");
 #include <geom/vinum/geom_vinum_raid5.h>
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, vinum, CTLFLAG_RW, 0, "GEOM_VINUM stuff");
+static SYSCTL_NODE(_kern_geom, OID_AUTO, vinum, CTLFLAG_RW, 0,
+    "GEOM_VINUM stuff");
 u_int g_vinum_debug = 0;
 TUNABLE_INT("kern.geom.vinum.debug", &g_vinum_debug);
 SYSCTL_UINT(_kern_geom_vinum, OID_AUTO, debug, CTLFLAG_RW, &g_vinum_debug, 0,

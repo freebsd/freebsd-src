@@ -377,6 +377,7 @@ bool Parser::isCXXTypeId(TentativeCXXTypeIdContext Context, bool &isAmbiguous) {
 ///
 /// [C++0x] attribute-specifier:
 ///         '[' '[' attribute-list ']' ']'
+///         alignment-specifier
 ///
 /// [C++0x] attribute-list:
 ///         attribute[opt]
@@ -409,6 +410,9 @@ bool Parser::isCXXTypeId(TentativeCXXTypeIdContext Context, bool &isAmbiguous) {
 ///         any token but '(', ')', '[', ']', '{', or '}'
 bool Parser::isCXX0XAttributeSpecifier (bool CheckClosing,
                                         tok::TokenKind *After) {
+  if (Tok.is(tok::kw_alignas))
+    return true;
+
   if (Tok.isNot(tok::l_square) || NextToken().isNot(tok::l_square))
     return false;
   
@@ -552,7 +556,8 @@ Parser::TPResult Parser::TryParseDeclarator(bool mayBeAbstract,
           Tok.is(tok::kw___cdecl) ||
           Tok.is(tok::kw___stdcall) ||
           Tok.is(tok::kw___fastcall) ||
-          Tok.is(tok::kw___thiscall))
+          Tok.is(tok::kw___thiscall) ||
+          Tok.is(tok::kw___unaligned))
         return TPResult::True(); // attributes indicate declaration
       TPResult TPR = TryParseDeclarator(mayBeAbstract, mayHaveIdentifier);
       if (TPR != TPResult::Ambiguous())
@@ -605,8 +610,14 @@ Parser::isExpressionOrTypeSpecifierSimple(tok::TokenKind Kind) {
   // Obviously starts an expression.
   case tok::numeric_constant:
   case tok::char_constant:
+  case tok::wide_char_constant:
+  case tok::utf16_char_constant:
+  case tok::utf32_char_constant:
   case tok::string_literal:
   case tok::wide_string_literal:
+  case tok::utf8_string_literal:
+  case tok::utf16_string_literal:
+  case tok::utf32_string_literal:
   case tok::l_square:
   case tok::l_paren:
   case tok::amp:
@@ -674,6 +685,7 @@ Parser::isExpressionOrTypeSpecifierSimple(tok::TokenKind Kind) {
   case tok::kw_const:
   case tok::kw_double:
   case tok::kw_enum:
+  case tok::kw_half:
   case tok::kw_float:
   case tok::kw_int:
   case tok::kw_long:
@@ -705,8 +717,10 @@ Parser::isExpressionOrTypeSpecifierSimple(tok::TokenKind Kind) {
   case tok::kw___stdcall:
   case tok::kw___fastcall:
   case tok::kw___thiscall:
+  case tok::kw___unaligned:
   case tok::kw___vector:
   case tok::kw___pixel:
+  case tok::kw__Atomic:
     return TPResult::False();
 
   default:
@@ -863,6 +877,9 @@ Parser::TPResult Parser::isCXXDeclarationSpecifier() {
   case tok::kw_virtual:
   case tok::kw_explicit:
 
+    // Modules
+  case tok::kw___module_private__:
+      
     // type-specifier:
     //   simple-type-specifier
     //   class-specifier
@@ -896,7 +913,9 @@ Parser::TPResult Parser::isCXXDeclarationSpecifier() {
   case tok::kw___thiscall:
   case tok::kw___w64:
   case tok::kw___ptr64:
+  case tok::kw___ptr32:
   case tok::kw___forceinline:
+  case tok::kw___unaligned:
     return TPResult::True();
 
     // Borland
@@ -976,6 +995,7 @@ Parser::TPResult Parser::isCXXDeclarationSpecifier() {
   case tok::kw___int64:
   case tok::kw_signed:
   case tok::kw_unsigned:
+  case tok::kw_half:
   case tok::kw_float:
   case tok::kw_double:
   case tok::kw_void:
@@ -1014,6 +1034,10 @@ Parser::TPResult Parser::isCXXDeclarationSpecifier() {
 
   // C++0x type traits support
   case tok::kw___underlying_type:
+    return TPResult::True();
+
+  // C1x _Atomic
+  case tok::kw__Atomic:
     return TPResult::True();
 
   default:

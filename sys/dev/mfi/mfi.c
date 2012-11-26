@@ -484,15 +484,8 @@ mfi_attach(struct mfi_softc *sc)
 	mtx_unlock(&sc->mfi_io_lock);
 
 	/*
-	 * Set up the interrupt handler.  XXX This should happen in
-	 * mfi_pci.c
+	 * Set up the interrupt handler.
 	 */
-	sc->mfi_irq_rid = 0;
-	if ((sc->mfi_irq = bus_alloc_resource_any(sc->mfi_dev, SYS_RES_IRQ,
-	    &sc->mfi_irq_rid, RF_SHAREABLE | RF_ACTIVE)) == NULL) {
-		device_printf(sc->mfi_dev, "Cannot allocate interrupt\n");
-		return (EINVAL);
-	}
 	if (bus_setup_intr(sc->mfi_dev, sc->mfi_irq, INTR_MPSAFE|INTR_TYPE_BIO,
 	    NULL, mfi_intr, sc, &sc->mfi_intr)) {
 		device_printf(sc->mfi_dev, "Cannot set up interrupt\n");
@@ -931,6 +924,12 @@ mfi_intr(void *arg)
 
 	if (sc->mfi_check_clear_intr(sc))
 		return;
+
+	/*
+	 * Do a dummy read to flush the interrupt ACK that we just performed,
+	 * ensuring that everything is really, truly consistent.
+	 */
+	(void)sc->mfi_read_fw_status(sc);
 
 	pi = sc->mfi_comms->hw_pi;
 	ci = sc->mfi_comms->hw_ci;

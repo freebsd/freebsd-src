@@ -70,7 +70,7 @@ sp_client(const char *srcaddr, const char *dstaddr, void **ctxp)
 	if (spctx == NULL)
 		return (errno);
 
-	if (socketpair(PF_UNIX, SOCK_STREAM, 0, spctx->sp_fd) < 0) {
+	if (socketpair(PF_UNIX, SOCK_STREAM, 0, spctx->sp_fd) == -1) {
 		ret = errno;
 		free(spctx);
 		return (ret);

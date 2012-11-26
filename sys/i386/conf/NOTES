@@ -706,6 +706,10 @@ device		aacp	# SCSI Passthrough interface (optional, CAM required)
 device		asr
 
 #
+# Highpoint RocketRAID 27xx.
+device		hpt27xx
+
+#
 # Highpoint RocketRAID 182x.
 device		hptmv
 
@@ -828,9 +832,11 @@ hint.pcf.0.irq="5"
 #
 # ichwd: Intel ICH watchdog timer
 # amdsbwd: AMD SB7xx watchdog timer
+# viawd: VIA south bridge watchdog timer
 #
 device		ichwd
 device		amdsbwd
+device		viawd
 
 #
 # Temperature sensors:

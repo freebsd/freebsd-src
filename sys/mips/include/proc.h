@@ -39,6 +39,10 @@
 #ifndef _MACHINE_PROC_H_
 #define	_MACHINE_PROC_H_
 
+#ifdef	CPU_CNMIPS
+#include <machine/octeon_cop2.h>
+#endif
+
 /*
  * Machine-dependent part of the proc structure.
  */
@@ -58,10 +62,18 @@ struct mdthread {
 	int		md_pc_count;	/* performance counter */
 	int		md_pc_spill;	/* performance counter spill */
 	void		*md_tls;
+#ifdef	CPU_CNMIPS
+	struct octeon_cop2_state	*md_cop2; /* kernel context */
+	struct octeon_cop2_state	*md_ucop2; /* userland context */
+#define	COP2_OWNER_USERLAND	0x0000		/* Userland owns COP2 */
+#define	COP2_OWNER_KERNEL	0x0001		/* Kernel owns COP2 */
+	int		md_cop2owner;
+#endif
 };
 
 /* md_flags */
 #define	MDTD_FPUSED	0x0001		/* Process used the FPU */
+#define	MDTD_COP2USED	0x0002		/* Process used the COP2 */
 
 struct mdproc {
 	/* empty */
@@ -80,7 +92,6 @@ struct syscall_args {
 	int narg;
 	struct trapframe *trapframe;
 };
-#define	HAVE_SYSCALL_ARGS_DEF 1
 #endif
 
 #ifdef __mips_n64

@@ -748,11 +748,13 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 
 	if (dodnld && IS_24XX(isp)) {
 		const uint32_t *ptr = isp->isp_mdvec->dv_ispfw;
+		int wordload;
 
 		/*
 		 * Keep loading until we run out of f/w.
 		 */
 		code_org = ptr[2];	/* 1st load address is our start addr */
+		wordload = 0;
 
 		for (;;) {
 			uint32_t la, wi, wl;
@@ -777,6 +779,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 					wl--;
 				}
 				MEMORYBARRIER(isp, SYNC_REQUEST, 0, ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp)), -1);
+	again:
 				ISP_MEMZERO(&mbs, sizeof (mbs));
 				if (la < 0x10000 && nw < 0x10000) {
 					mbs.param[0] = MBOX_LOAD_RISC_RAM_2100;
@@ -786,6 +789,23 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 					mbs.param[4] = nw;
 					mbs.param[6] = DMA_WD3(isp->isp_rquest_dma);
 					mbs.param[7] = DMA_WD2(isp->isp_rquest_dma);
+					isp_prt(isp, ISP_LOGDEBUG0, "LOAD RISC RAM 2100 %u words at load address 0x%x", nw, la);
+				} else if (wordload) {
+					union {
+						const uint32_t *cp;
+						uint32_t *np;
+					} ucd;
+					ucd.cp = (const uint32_t *)cp;
+					mbs.param[0] = MBOX_WRITE_RAM_WORD_EXTENDED;
+					mbs.param[1] = la;
+					mbs.param[2] = (*ucd.np);
+					mbs.param[3] = (*ucd.np) >> 16;
+					mbs.param[8] = la >> 16;
+					isp->isp_mbxwrk0 = nw - 1;
+					isp->isp_mbxworkp = ucd.np+1;
+					isp->isp_mbxwrk1 = (la + 1);
+					isp->isp_mbxwrk8 = (la + 1) >> 16;
+					isp_prt(isp, ISP_LOGDEBUG0, "WRITE RAM WORD EXTENDED %u words at load address 0x%x", nw, la);
 				} else {
 					mbs.param[0] = MBOX_LOAD_RISC_RAM;
 					mbs.param[1] = la;
@@ -796,10 +816,16 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 					mbs.param[6] = DMA_WD3(isp->isp_rquest_dma);
 					mbs.param[7] = DMA_WD2(isp->isp_rquest_dma);
 					mbs.param[8] = la >> 16;
+					isp_prt(isp, ISP_LOGDEBUG0, "LOAD RISC RAM %u words at load address 0x%x", nw, la);
 				}
 				mbs.logval = MBLOGALL;
 				isp_mboxcmd(isp, &mbs);
 				if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
+					if (mbs.param[0] == MBOX_HOST_INTERFACE_ERROR) {
+						isp_prt(isp, ISP_LOGERR, "switching to word load");
+						wordload = 1;
+						goto again;
+					}
 					isp_prt(isp, ISP_LOGERR, "F/W Risc Ram Load Failed");
 					ISP_RESET0(isp);
 					return;
@@ -855,6 +881,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 					mbs.param[4] = nw;
 					mbs.param[6] = DMA_WD3(isp->isp_rquest_dma);
 					mbs.param[7] = DMA_WD2(isp->isp_rquest_dma);
+					isp_prt(isp, ISP_LOGDEBUG1, "LOAD RISC RAM 2100 %u words at load address 0x%x\n", nw, la);
 				} else {
 					mbs.param[0] = MBOX_LOAD_RISC_RAM;
 					mbs.param[1] = la;
@@ -864,6 +891,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 					mbs.param[6] = DMA_WD3(isp->isp_rquest_dma);
 					mbs.param[7] = DMA_WD2(isp->isp_rquest_dma);
 					mbs.param[8] = la >> 16;
+					isp_prt(isp, ISP_LOGDEBUG1, "LOAD RISC RAM %u words at load address 0x%x\n", nw, la);
 				}
 				mbs.logval = MBLOGALL;
 				isp_mboxcmd(isp, &mbs);
@@ -910,6 +938,7 @@ isp_reset(ispsoftc_t *isp, int do_load_defaults)
 		mbs.param[1] = code_org;
 		mbs.param[2] = ucd.np[0];
 		mbs.logval = MBLOGNONE;
+		isp_prt(isp, ISP_LOGDEBUG1, "WRITE RAM %u words at load address 0x%x\n", ucd.np[3], code_org);
 		isp_mboxcmd(isp, &mbs);
 		if (mbs.param[0] != MBOX_COMMAND_COMPLETE) {
 			isp_prt(isp, ISP_LOGERR, "F/W download failed at word %d", isp->isp_mbxwrk1 - code_org);
@@ -6589,23 +6618,39 @@ isp_mbox_continue(ispsoftc_t *isp)
 		mbs.param[1] = isp->isp_mbxwrk1++;
 		break;
 	case MBOX_WRITE_RAM_WORD_EXTENDED:
+		if (IS_24XX(isp)) {
+			uint32_t *lptr = (uint32_t *)ptr;
+			mbs.param[2] = lptr[0];
+			mbs.param[3] = lptr[0] >> 16;
+			lptr++;
+			ptr = (uint16_t *)lptr;
+		} else {
+			mbs.param[2] = *ptr++;
+		}
 		offset = isp->isp_mbxwrk1;
 		offset |= isp->isp_mbxwrk8 << 16;
-
-		mbs.param[2] = *ptr++;
 		mbs.param[1] = offset;
 		mbs.param[8] = offset >> 16;
-		isp->isp_mbxwrk1 = ++offset;
+		offset++;
+		isp->isp_mbxwrk1 = offset;
 		isp->isp_mbxwrk8 = offset >> 16;
 		break;
 	case MBOX_READ_RAM_WORD_EXTENDED:
+		if (IS_24XX(isp)) {
+			uint32_t *lptr = (uint32_t *)ptr;
+			uint32_t val = isp->isp_mboxtmp[2];
+			val |= (isp->isp_mboxtmp[3]) << 16;
+			*lptr++ = val;
+			ptr = (uint16_t *)lptr;
+		} else {
+			*ptr++ = isp->isp_mboxtmp[2];
+		}
 		offset = isp->isp_mbxwrk1;
 		offset |= isp->isp_mbxwrk8 << 16;
-
-		*ptr++ = isp->isp_mboxtmp[2];
 		mbs.param[1] = offset;
 		mbs.param[8] = offset >> 16;
-		isp->isp_mbxwrk1 = ++offset;
+		offset++;
+		isp->isp_mbxwrk1 = offset;
 		isp->isp_mbxwrk8 = offset >> 16;
 		break;
 	}
@@ -6830,7 +6875,7 @@ static const uint32_t mbpfc[] = {
 	ISPOPMAP(0x00, 0x00),	/* 0x0c: */
 	ISPOPMAP(0x10f, 0x01),	/* 0x0d: MBOX_WRITE_RAM_WORD_EXTENDED */
 	ISPOPMAP(0x01, 0x05),	/* 0x0e: MBOX_CHECK_FIRMWARE */
-	ISPOPMAP(0x10f, 0x05),	/* 0x0f: MBOX_READ_RAM_WORD_EXTENDED */
+	ISPOPMAP(0x103, 0x0d),	/* 0x0f: MBOX_READ_RAM_WORD_EXTENDED */
 	ISPOPMAP(0x1f, 0x11),	/* 0x10: MBOX_INIT_REQ_QUEUE */
 	ISPOPMAP(0x2f, 0x21),	/* 0x11: MBOX_INIT_RES_QUEUE */
 	ISPOPMAP(0x0f, 0x01),	/* 0x12: MBOX_EXECUTE_IOCB */
@@ -6962,13 +7007,13 @@ static const char *fc_mbcmd_names[] = {
 	"MAILBOX REG TEST",
 	"VERIFY CHECKSUM",
 	"ABOUT FIRMWARE",
-	"LOAD RAM",
+	"LOAD RAM (2100)",
 	"DUMP RAM",
+	"LOAD RISC RAM",
+	NULL,
 	"WRITE RAM WORD EXTENDED",
-	NULL,
-	"READ RAM WORD EXTENDED",
 	"CHECK FIRMWARE",
-	NULL,
+	"READ RAM WORD EXTENDED",
 	"INIT REQUEST QUEUE",
 	"INIT RESULT QUEUE",
 	"EXECUTE IOCB",

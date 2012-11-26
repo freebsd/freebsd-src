@@ -60,7 +60,7 @@ __FBSDID("$FreeBSD$");
 static void usage(void);
 static u_int get_pageins(void);
 
-int dohalt;
+static int dohalt;
 
 int
 main(int argc, char *argv[])
@@ -69,9 +69,9 @@ main(int argc, char *argv[])
 	const struct passwd *pw;
 	int ch, howto, i, fd, lflag, nflag, qflag, sverrno;
 	u_int pageins;
-	const char *p, *user, *kernel = NULL;
+	const char *user, *kernel = NULL;
 
-	if (strstr((p = rindex(*argv, '/')) ? p + 1 : *argv, "halt")) {
+	if (strcmp(getprogname(), "halt") == 0) {
 		dohalt = 1;
 		howto = RB_HALT;
 	} else

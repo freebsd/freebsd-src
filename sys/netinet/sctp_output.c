@@ -7,11 +7,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -1868,7 +1868,7 @@ sctp_is_address_in_scope(struct sctp_ifa *ifa,
     int ipv6_addr_legal,
     int loopback_scope,
     int ipv4_local_scope,
-    int local_scope,
+    int local_scope SCTP_UNUSED,/* XXX */
     int site_scope,
     int do_update)
 {
@@ -2156,23 +2156,20 @@ skip_count:
 			}
 			cnt++;
 		}
-		if (cnt > SCTP_ADDRESS_LIMIT) {
-			limit_out = 1;
-		}
 		/*
 		 * To get through a NAT we only list addresses if we have
 		 * more than one. That way if you just bind a single address
 		 * we let the source of the init dictate our address.
 		 */
 		if (cnt > 1) {
+			cnt = cnt_inits_to;
 			LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
-				cnt = 0;
 				if (laddr->ifa == NULL) {
 					continue;
 				}
-				if (laddr->ifa->localifa_flags & SCTP_BEING_DELETED)
+				if (laddr->ifa->localifa_flags & SCTP_BEING_DELETED) {
 					continue;
-
+				}
 				if (sctp_is_address_in_scope(laddr->ifa,
 				    scope->ipv4_addr_legal,
 				    scope->ipv6_addr_legal,
@@ -2546,7 +2543,6 @@ once_again_too:
 static struct sctp_ifa *
 sctp_choose_boundspecific_stcb(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
-    struct sctp_nets *net,
     sctp_route_t * ro,
     uint32_t vrf_id,
     uint8_t dest_is_priv,
@@ -2865,8 +2861,7 @@ sctp_count_num_preferred_boundall(struct sctp_ifn *ifn,
 }
 
 static struct sctp_ifa *
-sctp_choose_boundall(struct sctp_inpcb *inp,
-    struct sctp_tcb *stcb,
+sctp_choose_boundall(struct sctp_tcb *stcb,
     struct sctp_nets *net,
     sctp_route_t * ro,
     uint32_t vrf_id,
@@ -2886,6 +2881,7 @@ sctp_choose_boundall(struct sctp_inpcb *inp,
 	int retried = 0;
 
 #endif
+
 	/*-
 	 * For boundall we can use any address in the association.
 	 * If non_asoc_addr_ok is set we can use any address (at least in
@@ -3330,7 +3326,7 @@ sctp_source_address_selection(struct sctp_inpcb *inp,
 		/*
 		 * Bound all case
 		 */
-		answer = sctp_choose_boundall(inp, stcb, net, ro, vrf_id,
+		answer = sctp_choose_boundall(stcb, net, ro, vrf_id,
 		    dest_is_priv, dest_is_loop,
 		    non_asoc_addr_ok, fam);
 		SCTP_IPI_ADDR_RUNLOCK();
@@ -3340,7 +3336,7 @@ sctp_source_address_selection(struct sctp_inpcb *inp,
 	 * Subset bound case
 	 */
 	if (stcb) {
-		answer = sctp_choose_boundspecific_stcb(inp, stcb, net, ro,
+		answer = sctp_choose_boundspecific_stcb(inp, stcb, ro,
 		    vrf_id, dest_is_priv,
 		    dest_is_loop,
 		    non_asoc_addr_ok, fam);
@@ -3691,7 +3687,7 @@ sctp_findassociation_cmsgs(struct sctp_inpcb **inp_p,
 }
 
 static struct mbuf *
-sctp_add_cookie(struct sctp_inpcb *inp, struct mbuf *init, int init_offset,
+sctp_add_cookie(struct mbuf *init, int init_offset,
     struct mbuf *initack, int initack_offset, struct sctp_state_cookie *stc_in, uint8_t ** signature)
 {
 	struct mbuf *copy_init, *copy_initack, *m_at, *sig, *mret;
@@ -3759,7 +3755,6 @@ sctp_add_cookie(struct sctp_inpcb *inp, struct mbuf *init, int init_offset,
 
 	/* tack the INIT and then the INIT-ACK onto the chain */
 	cookie_sz = 0;
-	m_at = mret;
 	for (m_at = mret; m_at; m_at = SCTP_BUF_NEXT(m_at)) {
 		cookie_sz += SCTP_BUF_LEN(m_at);
 		if (SCTP_BUF_NEXT(m_at) == NULL) {
@@ -3767,7 +3762,6 @@ sctp_add_cookie(struct sctp_inpcb *inp, struct mbuf *init, int init_offset,
 			break;
 		}
 	}
-
 	for (m_at = copy_init; m_at; m_at = SCTP_BUF_NEXT(m_at)) {
 		cookie_sz += SCTP_BUF_LEN(m_at);
 		if (SCTP_BUF_NEXT(m_at) == NULL) {
@@ -3775,7 +3769,6 @@ sctp_add_cookie(struct sctp_inpcb *inp, struct mbuf *init, int init_offset,
 			break;
 		}
 	}
-
 	for (m_at = copy_initack; m_at; m_at = SCTP_BUF_NEXT(m_at)) {
 		cookie_sz += SCTP_BUF_LEN(m_at);
 		if (SCTP_BUF_NEXT(m_at) == NULL) {
@@ -3802,8 +3795,7 @@ sctp_add_cookie(struct sctp_inpcb *inp, struct mbuf *init, int init_offset,
 
 
 static uint8_t
-sctp_get_ect(struct sctp_tcb *stcb,
-    struct sctp_tmit_chunk *chk)
+sctp_get_ect(struct sctp_tcb *stcb)
 {
 	if ((stcb != NULL) && (stcb->asoc.ecn_allowed == 1)) {
 		return (SCTP_ECT0_BIT);
@@ -3868,15 +3860,15 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
     uint16_t auth_keyid,
     int nofragment_flag,
     int ecn_ok,
-    struct sctp_tmit_chunk *chk,
     int out_of_asoc_ok,
     uint16_t src_port,
     uint16_t dest_port,
     uint32_t v_tag,
     uint16_t port,
-    int so_locked,
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
-    SCTP_UNUSED
+    int so_locked SCTP_UNUSED,
+#else
+    int so_locked,
 #endif
     union sctp_sockstore *over_addr,
     struct mbuf *init
@@ -3984,7 +3976,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			}
 			tos_value &= 0xfc;
 			if (ecn_ok) {
-				tos_value |= sctp_get_ect(stcb, chk);
+				tos_value |= sctp_get_ect(stcb);
 			}
 			if ((nofragment_flag) && (port == 0)) {
 				ip->ip_off = IP_DF;
@@ -4062,6 +4054,12 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				}
 			}
 			if (port) {
+				if (htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)) == 0) {
+					sctp_handle_no_route(stcb, net, so_locked);
+					SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, EHOSTUNREACH);
+					sctp_m_freem(m);
+					return (EHOSTUNREACH);
+				}
 				udp = (struct udphdr *)((caddr_t)ip + sizeof(struct ip));
 				udp->uh_sport = htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
 				udp->uh_dport = port;
@@ -4290,7 +4288,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			}
 			tos_value &= 0xfc;
 			if (ecn_ok) {
-				tos_value |= sctp_get_ect(stcb, chk);
+				tos_value |= sctp_get_ect(stcb);
 			}
 			flowinfo = 0x06;
 			flowinfo <<= 8;
@@ -4413,6 +4411,12 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			ip6h->ip6_src = lsa6->sin6_addr;
 
 			if (port) {
+				if (htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)) == 0) {
+					sctp_handle_no_route(stcb, net, so_locked);
+					SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, EHOSTUNREACH);
+					sctp_m_freem(m);
+					return (EHOSTUNREACH);
+				}
 				udp = (struct udphdr *)((caddr_t)ip6h + sizeof(struct ip6_hdr));
 				udp->uh_sport = htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
 				udp->uh_dport = port;
@@ -4668,24 +4672,24 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 #ifdef INET6
 #ifdef INET
 	/* we support 2 types: IPv4/IPv6 */
-	sup_addr->ph.param_length = htons(sizeof(*sup_addr) + sizeof(uint16_t));
+	sup_addr->ph.param_length = htons(sizeof(struct sctp_paramhdr) + 2 * sizeof(uint16_t));
 	sup_addr->addr_type[0] = htons(SCTP_IPV4_ADDRESS);
 	sup_addr->addr_type[1] = htons(SCTP_IPV6_ADDRESS);
 #else
 	/* we support 1 type: IPv6 */
-	sup_addr->ph.param_length = htons(sizeof(*sup_addr) + sizeof(uint8_t));
+	sup_addr->ph.param_length = htons(sizeof(struct sctp_paramhdr) + sizeof(uint16_t));
 	sup_addr->addr_type[0] = htons(SCTP_IPV6_ADDRESS);
 	sup_addr->addr_type[1] = htons(0);	/* this is the padding */
 #endif
 #else
 	/* we support 1 type: IPv4 */
-	sup_addr->ph.param_length = htons(sizeof(*sup_addr) + sizeof(uint8_t));
+	sup_addr->ph.param_length = htons(sizeof(struct sctp_paramhdr) + sizeof(uint16_t));
 	sup_addr->addr_type[0] = htons(SCTP_IPV4_ADDRESS);
 	sup_addr->addr_type[1] = htons(0);	/* this is the padding */
 #endif
-	SCTP_BUF_LEN(m) += sizeof(*sup_addr) + sizeof(uint16_t);
+	SCTP_BUF_LEN(m) += sizeof(struct sctp_supported_addr_param);
 	/* adaptation layer indication parameter */
-	ali = (struct sctp_adaptation_layer_indication *)((caddr_t)sup_addr + sizeof(*sup_addr) + sizeof(uint16_t));
+	ali = (struct sctp_adaptation_layer_indication *)((caddr_t)sup_addr + sizeof(struct sctp_supported_addr_param));
 	ali->ph.param_type = htons(SCTP_ULP_ADAPTATION);
 	ali->ph.param_length = htons(sizeof(*ali));
 	ali->indication = ntohl(inp->sctp_ep.adaptation_layer_indicator);
@@ -4794,7 +4798,6 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 			SCTP_BUF_LEN(m) += SCTP_SIZE32(p_len);
 		}
 	}
-	m_at = m;
 	/* now the addresses */
 	{
 		struct sctp_scoping scp;
@@ -4803,9 +4806,10 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 		 * To optimize this we could put the scoping stuff into a
 		 * structure and remove the individual uint8's from the
 		 * assoc structure. Then we could just sifa in the address
-		 * within the stcb.. but for now this is a quick hack to get
+		 * within the stcb. But for now this is a quick hack to get
 		 * the address stuff teased apart.
 		 */
+
 		scp.ipv4_addr_legal = stcb->asoc.ipv4_addr_legal;
 		scp.ipv6_addr_legal = stcb->asoc.ipv6_addr_legal;
 		scp.loopback_scope = stcb->asoc.loopback_scope;
@@ -4813,7 +4817,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 		scp.local_scope = stcb->asoc.local_scope;
 		scp.site_scope = stcb->asoc.site_scope;
 
-		m_at = sctp_add_addresses_to_i_ia(inp, stcb, &scp, m_at, cnt_inits_to);
+		sctp_add_addresses_to_i_ia(inp, stcb, &scp, m, cnt_inits_to);
 	}
 
 	/* calulate the size and update pkt header and chunk header */
@@ -4843,12 +4847,11 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 			sctp_m_freem(m);
 			return;
 		}
-		p_len += padval;
 	}
 	SCTPDBG(SCTP_DEBUG_OUTPUT4, "Sending INIT - calls lowlevel_output\n");
 	ret = sctp_lowlevel_chunk_output(inp, stcb, net,
 	    (struct sockaddr *)&net->ro._l_addr,
-	    m, 0, NULL, 0, 0, 0, NULL, 0,
+	    m, 0, NULL, 0, 0, 0, 0,
 	    inp->sctp_lport, stcb->rport, htonl(0),
 	    net->port, so_locked, NULL, NULL);
 	SCTPDBG(SCTP_DEBUG_OUTPUT4, "lowlevel_output - %d\n", ret);
@@ -5064,7 +5067,6 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 						return (NULL);
 					}
 					m_copyback(op_err, err_at, plen, (caddr_t)phdr);
-					err_at += plen;
 				}
 				return (op_err);
 				break;
@@ -5197,7 +5199,7 @@ invalid_size:
 
 static int
 sctp_are_there_new_addresses(struct sctp_association *asoc,
-    struct mbuf *in_initpkt, int iphlen, int offset)
+    struct mbuf *in_initpkt, int offset)
 {
 	/*
 	 * Given a INIT packet, look through the packet to verify that there
@@ -5307,6 +5309,7 @@ sctp_are_there_new_addresses(struct sctp_association *asoc,
 				p4 = (struct sctp_ipv4addr_param *)phdr;
 				sin4.sin_addr.s_addr = p4->addr;
 				sa_touse = (struct sockaddr *)&sin4;
+				break;
 			}
 #endif
 #ifdef INET6
@@ -5324,10 +5327,12 @@ sctp_are_there_new_addresses(struct sctp_association *asoc,
 				memcpy((caddr_t)&sin6.sin6_addr, p6->addr,
 				    sizeof(p6->addr));
 				sa_touse = (struct sockaddr *)&sin6;
+				break;
 			}
 #endif
 		default:
 			sa_touse = NULL;
+			break;
 		}
 		if (sa_touse) {
 			/* ok, sa_touse points to one to check */
@@ -5422,7 +5427,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	mp_last = NULL;
 	if ((asoc != NULL) &&
 	    (SCTP_GET_STATE(asoc) != SCTP_STATE_COOKIE_WAIT) &&
-	    (sctp_are_there_new_addresses(asoc, init_pkt, iphlen, offset))) {
+	    (sctp_are_there_new_addresses(asoc, init_pkt, offset))) {
 		/* new addresses, out of here in non-cookie-wait states */
 		/*
 		 * Send a ABORT, we don't add the new address error clause
@@ -5536,7 +5541,7 @@ do_a_abort:
 	default:
 		goto do_a_abort;
 		break;
-	};
+	}
 
 	if (net == NULL) {
 		to = (struct sockaddr *)&store;
@@ -5711,6 +5716,8 @@ do_a_abort:
 			stc.laddress[2] = 0;
 			stc.laddress[3] = 0;
 			stc.laddr_type = SCTP_IPV4_ADDRESS;
+			/* scope_id is only for v6 */
+			stc.scope_id = 0;
 			break;
 #endif
 #ifdef INET6
@@ -5719,6 +5726,7 @@ do_a_abort:
 			memcpy(&stc.address, &sin6->sin6_addr,
 			    sizeof(struct in6_addr));
 			stc.addr_type = SCTP_IPV6_ADDRESS;
+			stc.scope_id = sin6->sin6_scope_id;
 			if (net->src_addr_selected == 0) {
 				/*
 				 * strange case here, the INIT should have
@@ -5746,6 +5754,7 @@ do_a_abort:
 	/* who are we */
 	memcpy(stc.identification, SCTP_VERSION_STRING,
 	    min(strlen(SCTP_VERSION_STRING), sizeof(stc.identification)));
+	memset(stc.reserved, 0, SCTP_RESERVE_SPACE);
 	/* now the chunk header */
 	initack->ch.chunk_type = SCTP_INITIATION_ACK;
 	initack->ch.chunk_flags = 0;
@@ -5952,6 +5961,7 @@ do_a_abort:
 
 		llen = 0;
 		ol = op_err;
+
 		while (ol) {
 			llen += SCTP_BUF_LEN(ol);
 			ol = SCTP_BUF_NEXT(ol);
@@ -5983,7 +5993,7 @@ do_a_abort:
 	}
 
 	/* Now we must build a cookie */
-	m_cookie = sctp_add_cookie(inp, init_pkt, offset, m, 0, &stc, &signature);
+	m_cookie = sctp_add_cookie(init_pkt, offset, m, 0, &stc, &signature);
 	if (m_cookie == NULL) {
 		/* memory problem */
 		sctp_m_freem(m);
@@ -6021,15 +6031,11 @@ do_a_abort:
 	padval = p_len % 4;
 	if ((padval) && (mp_last)) {
 		/* see my previous comments on mp_last */
-		int ret;
-
-		ret = sctp_add_pad_tombuf(mp_last, (4 - padval));
-		if (ret) {
+		if (sctp_add_pad_tombuf(mp_last, (4 - padval))) {
 			/* Houston we have a problem, no space */
 			sctp_m_freem(m);
 			return;
 		}
-		p_len += padval;
 	}
 	if (stc.loopback_scope) {
 		over_addr = &store1;
@@ -6038,7 +6044,7 @@ do_a_abort:
 	}
 
 	(void)sctp_lowlevel_chunk_output(inp, NULL, NULL, to, m, 0, NULL, 0, 0,
-	    0, NULL, 0,
+	    0, 0,
 	    inp->sctp_lport, sh->src_port, init_chk->init.initiate_tag,
 	    port, SCTP_SO_NOT_LOCKED, over_addr, init_pkt);
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
@@ -6228,7 +6234,7 @@ sctp_msg_append(struct sctp_tcb *stcb,
     struct mbuf *m,
     struct sctp_sndrcvinfo *srcv, int hold_stcb_lock)
 {
-	int error = 0, holds_lock;
+	int error = 0;
 	struct mbuf *at;
 	struct sctp_stream_queue_pending *sp = NULL;
 	struct sctp_stream_out *strm;
@@ -6237,7 +6243,6 @@ sctp_msg_append(struct sctp_tcb *stcb,
 	 * Given an mbuf chain, put it into the association send queue and
 	 * place it on the wheel
 	 */
-	holds_lock = hold_stcb_lock;
 	if (srcv->sinfo_stream >= stcb->asoc.streamoutcnt) {
 		/* Invalid stream number */
 		SCTP_LTRACE_ERR_RET_PKT(m, NULL, stcb, net, SCTP_FROM_SCTP_OUTPUT, EINVAL);
@@ -6306,7 +6311,9 @@ sctp_msg_append(struct sctp_tcb *stcb,
 		sctp_auth_key_acquire(stcb, sp->auth_keyid);
 		sp->holds_key_ref = 1;
 	}
-	SCTP_TCB_SEND_LOCK(stcb);
+	if (hold_stcb_lock == 0) {
+		SCTP_TCB_SEND_LOCK(stcb);
+	}
 	sctp_snd_sb_alloc(stcb, sp->length);
 	atomic_add_int(&stcb->asoc.stream_queue_cnt, 1);
 	TAILQ_INSERT_TAIL(&strm->outqueue, sp, next);
@@ -6316,7 +6323,9 @@ sctp_msg_append(struct sctp_tcb *stcb,
 	}
 	stcb->asoc.ss_functions.sctp_ss_add_to_stream(stcb, &stcb->asoc, strm, sp, 1);
 	m = NULL;
-	SCTP_TCB_SEND_UNLOCK(stcb);
+	if (hold_stcb_lock == 0) {
+		SCTP_TCB_SEND_UNLOCK(stcb);
+	}
 out_now:
 	if (m) {
 		sctp_m_freem(m);
@@ -6502,7 +6511,7 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 
 static void
 sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
-    uint32_t val)
+    uint32_t val SCTP_UNUSED)
 {
 	struct sctp_copy_all *ca;
 	struct mbuf *m;
@@ -6702,7 +6711,7 @@ no_chunk_output:
 }
 
 static void
-sctp_sendall_completes(void *ptr, uint32_t val)
+sctp_sendall_completes(void *ptr, uint32_t val SCTP_UNUSED)
 {
 	struct sctp_copy_all *ca;
 
@@ -7583,7 +7592,6 @@ dont_do_it:
 out_of:
 	if (send_lock_up) {
 		SCTP_TCB_SEND_UNLOCK(stcb);
-		send_lock_up = 0;
 	}
 	return (to_move);
 }
@@ -7598,7 +7606,7 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 )
 {
 	struct sctp_association *asoc;
-	struct sctp_stream_out *strq, *strqn;
+	struct sctp_stream_out *strq;
 	int goal_mtu, moved_how_much, total_moved = 0, bail = 0;
 	int locked, giveup;
 
@@ -7627,7 +7635,6 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 		strq = stcb->asoc.ss_functions.sctp_ss_select_stream(stcb, net, asoc);
 		locked = 0;
 	}
-	strqn = strq;
 	while ((goal_mtu > 0) && strq) {
 		giveup = 0;
 		bail = 0;
@@ -7940,7 +7947,7 @@ again_one_more_time:
 			 */
 			continue;
 		}
-		ctl_cnt = bundle_at = 0;
+		bundle_at = 0;
 		endoutchain = outchain = NULL;
 		no_fragmentflg = 1;
 		one_chunk = 0;
@@ -8003,12 +8010,20 @@ again_one_more_time:
 			if (chk->rec.chunk_id.id != SCTP_ASCONF) {
 				continue;
 			}
-			if (chk->whoTo != net) {
-				/*
-				 * No, not sent to the network we are
-				 * looking at
-				 */
-				break;
+			if (chk->whoTo == NULL) {
+				if (asoc->alternate == NULL) {
+					if (asoc->primary_destination != net) {
+						break;
+					}
+				} else {
+					if (asoc->alternate != net) {
+						break;
+					}
+				}
+			} else {
+				if (chk->whoTo != net) {
+					break;
+				}
 			}
 			if (chk->data == NULL) {
 				break;
@@ -8092,6 +8107,10 @@ again_one_more_time:
 				 */
 				no_data_chunks = 1;
 				chk->sent = SCTP_DATAGRAM_SENT;
+				if (chk->whoTo == NULL) {
+					chk->whoTo = net;
+					atomic_add_int(&net->ref_count, 1);
+				}
 				chk->snd_count++;
 				if (mtu == 0) {
 					/*
@@ -8110,7 +8129,7 @@ again_one_more_time:
 					    (struct sockaddr *)&net->ro._l_addr,
 					    outchain, auth_offset, auth,
 					    stcb->asoc.authinfo.active_keyid,
-					    no_fragmentflg, 0, NULL, asconf,
+					    no_fragmentflg, 0, asconf,
 					    inp->sctp_lport, stcb->rport,
 					    htonl(stcb->asoc.peer_vtag),
 					    net->port, so_locked, NULL, NULL))) {
@@ -8198,12 +8217,20 @@ again_one_more_time:
 					goto skip_net_check;
 				}
 			}
-			if (chk->whoTo != net) {
-				/*
-				 * No, not sent to the network we are
-				 * looking at
-				 */
-				continue;
+			if (chk->whoTo == NULL) {
+				if (asoc->alternate == NULL) {
+					if (asoc->primary_destination != net) {
+						continue;
+					}
+				} else {
+					if (asoc->alternate != net) {
+						continue;
+					}
+				}
+			} else {
+				if (chk->whoTo != net) {
+					continue;
+				}
 			}
 	skip_net_check:
 			if (chk->data == NULL) {
@@ -8332,6 +8359,10 @@ again_one_more_time:
 						SCTP_STAT_INCR(sctps_sendecne);
 					}
 					chk->sent = SCTP_DATAGRAM_SENT;
+					if (chk->whoTo == NULL) {
+						chk->whoTo = net;
+						atomic_add_int(&net->ref_count, 1);
+					}
 					chk->snd_count++;
 				}
 				if (mtu == 0) {
@@ -8359,7 +8390,7 @@ again_one_more_time:
 					    outchain,
 					    auth_offset, auth,
 					    stcb->asoc.authinfo.active_keyid,
-					    no_fragmentflg, 0, NULL, asconf,
+					    no_fragmentflg, 0, asconf,
 					    inp->sctp_lport, stcb->rport,
 					    htonl(stcb->asoc.peer_vtag),
 					    net->port, so_locked, NULL, NULL))) {
@@ -8614,7 +8645,6 @@ again_one_more_time:
 					chk->window_probe = 0;
 					data_list[bundle_at++] = chk;
 					if (bundle_at >= SCTP_MAX_DATA_BUNDLING) {
-						mtu = 0;
 						break;
 					}
 					if (chk->sent == SCTP_DATAGRAM_UNSENT) {
@@ -8688,7 +8718,6 @@ no_data_fill:
 			    auth_keyid,
 			    no_fragmentflg,
 			    bundle_at,
-			    data_list[0],
 			    asconf,
 			    inp->sctp_lport, stcb->rport,
 			    htonl(stcb->asoc.peer_vtag),
@@ -8732,7 +8761,7 @@ no_data_fill:
 			} else {
 				asoc->ifp_had_enobuf = 0;
 			}
-			outchain = endoutchain = NULL;
+			endoutchain = NULL;
 			auth = NULL;
 			auth_offset = 0;
 			if (bundle_at || hbflag) {
@@ -9196,7 +9225,7 @@ sctp_send_asconf_ack(struct sctp_tcb *stcb)
 	 */
 	struct sctp_tmit_chunk *chk;
 	struct sctp_asconf_ack *ack, *latest_ack;
-	struct mbuf *m_ack, *m;
+	struct mbuf *m_ack;
 	struct sctp_nets *net = NULL;
 
 	SCTP_TCB_LOCK_ASSERT(stcb);
@@ -9275,7 +9304,6 @@ sctp_send_asconf_ack(struct sctp_tcb *stcb)
 		chk->data = m_ack;
 		chk->send_size = 0;
 		/* Get size */
-		m = m_ack;
 		chk->send_size = ack->len;
 		chk->rec.chunk_id.id = SCTP_ASCONF_ACK;
 		chk->rec.chunk_id.can_take_data = 1;
@@ -9368,7 +9396,6 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 			ctl_cnt++;
 			if (chk->rec.chunk_id.id == SCTP_FORWARD_CUM_TSN) {
 				fwd_tsn = 1;
-				fwd = chk;
 			}
 			/*
 			 * Add an AUTH chunk, if chunk requires it save the
@@ -9400,13 +9427,13 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 		if ((error = sctp_lowlevel_chunk_output(inp, stcb, chk->whoTo,
 		    (struct sockaddr *)&chk->whoTo->ro._l_addr, m,
 		    auth_offset, auth, stcb->asoc.authinfo.active_keyid,
-		    no_fragmentflg, 0, NULL, 0,
+		    no_fragmentflg, 0, 0,
 		    inp->sctp_lport, stcb->rport, htonl(stcb->asoc.peer_vtag),
 		    chk->whoTo->port, so_locked, NULL, NULL))) {
 			SCTP_STAT_INCR(sctps_lowlevelerr);
 			return (error);
 		}
-		m = endofchain = NULL;
+		endofchain = NULL;
 		auth = NULL;
 		auth_offset = 0;
 		/*
@@ -9576,16 +9603,13 @@ one_chunk_around:
 			 * now are there anymore forward from chk to pick
 			 * up?
 			 */
-			fwd = TAILQ_NEXT(chk, sctp_next);
-			while (fwd) {
+			for (fwd = TAILQ_NEXT(chk, sctp_next); fwd != NULL; fwd = TAILQ_NEXT(fwd, sctp_next)) {
 				if (fwd->sent != SCTP_DATAGRAM_RESEND) {
 					/* Nope, not for retran */
-					fwd = TAILQ_NEXT(fwd, sctp_next);
 					continue;
 				}
 				if (fwd->whoTo != net) {
 					/* Nope, not the net in question */
-					fwd = TAILQ_NEXT(fwd, sctp_next);
 					continue;
 				}
 				if (data_auth_reqd && (auth == NULL)) {
@@ -9633,7 +9657,6 @@ one_chunk_around:
 					if (bundle_at >= SCTP_MAX_DATA_BUNDLING) {
 						break;
 					}
-					fwd = TAILQ_NEXT(fwd, sctp_next);
 				} else {
 					/* can't fit so we are done */
 					break;
@@ -9658,14 +9681,14 @@ one_chunk_around:
 			if ((error = sctp_lowlevel_chunk_output(inp, stcb, net,
 			    (struct sockaddr *)&net->ro._l_addr, m,
 			    auth_offset, auth, auth_keyid,
-			    no_fragmentflg, 0, NULL, 0,
+			    no_fragmentflg, 0, 0,
 			    inp->sctp_lport, stcb->rport, htonl(stcb->asoc.peer_vtag),
 			    net->port, so_locked, NULL, NULL))) {
 				/* error, we could not output */
 				SCTP_STAT_INCR(sctps_lowlevelerr);
 				return (error);
 			}
-			m = endofchain = NULL;
+			endofchain = NULL;
 			auth = NULL;
 			auth_offset = 0;
 			/* For HB's */
@@ -10097,13 +10120,13 @@ sctp_chunk_output(struct sctp_inpcb *inp,
 
 
 int
-sctp_output(inp, m, addr, control, p, flags)
-	struct sctp_inpcb *inp;
-	struct mbuf *m;
-	struct sockaddr *addr;
-	struct mbuf *control;
-	struct thread *p;
-	int flags;
+sctp_output(
+    struct sctp_inpcb *inp,
+    struct mbuf *m,
+    struct sockaddr *addr,
+    struct mbuf *control,
+    struct thread *p,
+    int flags)
 {
 	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET_PKT(m, inp, NULL, NULL, SCTP_FROM_SCTP_OUTPUT, EINVAL);
@@ -10227,12 +10250,14 @@ sctp_fill_in_rest:
 			 * we report.
 			 */
 			at = TAILQ_FIRST(&asoc->sent_queue);
-			for (i = 0; i < cnt_of_skipped; i++) {
-				tp1 = TAILQ_NEXT(at, sctp_next);
-				if (tp1 == NULL) {
-					break;
+			if (at != NULL) {
+				for (i = 0; i < cnt_of_skipped; i++) {
+					tp1 = TAILQ_NEXT(at, sctp_next);
+					if (tp1 == NULL) {
+						break;
+					}
+					at = tp1;
 				}
-				at = tp1;
 			}
 			if (at && SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_TRY_ADVANCE) {
 				sctp_misc_ints(SCTP_FWD_TSN_CHECK,
@@ -10296,7 +10321,6 @@ sctp_fill_in_rest:
 		}
 	}
 	return;
-
 }
 
 void
@@ -10777,7 +10801,7 @@ sctp_send_abort_tcb(struct sctp_tcb *stcb, struct mbuf *operr, int so_locked
 
 	(void)sctp_lowlevel_chunk_output(stcb->sctp_ep, stcb, net,
 	    (struct sockaddr *)&net->ro._l_addr,
-	    m_out, auth_offset, auth, stcb->asoc.authinfo.active_keyid, 1, 0, NULL, 0,
+	    m_out, auth_offset, auth, stcb->asoc.authinfo.active_keyid, 1, 0, 0,
 	    stcb->sctp_ep->sctp_lport, stcb->rport, htonl(stcb->asoc.peer_vtag),
 	    stcb->asoc.primary_destination->port, so_locked, NULL, NULL);
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
@@ -10813,7 +10837,7 @@ sctp_send_shutdown_complete(struct sctp_tcb *stcb,
 	SCTP_BUF_LEN(m_shutdown_comp) = sizeof(struct sctp_shutdown_complete_chunk);
 	(void)sctp_lowlevel_chunk_output(stcb->sctp_ep, stcb, net,
 	    (struct sockaddr *)&net->ro._l_addr,
-	    m_shutdown_comp, 0, NULL, 0, 1, 0, NULL, 0,
+	    m_shutdown_comp, 0, NULL, 0, 1, 0, 0,
 	    stcb->sctp_ep->sctp_lport, stcb->rport,
 	    htonl(vtag),
 	    net->port, SCTP_SO_NOT_LOCKED, NULL, NULL);
@@ -10822,7 +10846,7 @@ sctp_send_shutdown_complete(struct sctp_tcb *stcb,
 }
 
 void
-sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
+sctp_send_shutdown_complete2(struct mbuf *m, struct sctphdr *sh,
     uint32_t vrf_id, uint16_t port)
 {
 	/* formulate and SEND a SHUTDOWN-COMPLETE */
@@ -10937,6 +10961,10 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
 		return;
 	}
 	if (port) {
+		if (htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)) == 0) {
+			sctp_m_freem(mout);
+			return;
+		}
 		udp = (struct udphdr *)comp_cp;
 		udp->uh_sport = htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
 		udp->uh_dport = port;
@@ -11897,6 +11925,10 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 
 	udp = (struct udphdr *)abm;
 	if (port) {
+		if (htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)) == 0) {
+			sctp_m_freem(mout);
+			return;
+		}
 		udp->uh_sport = htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
 		udp->uh_dport = port;
 		/* set udp->uh_ulen later */
@@ -12158,6 +12190,10 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 
 	udp = (struct udphdr *)sh_out;
 	if (port) {
+		if (htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)) == 0) {
+			sctp_m_freem(mout);
+			return;
+		}
 		udp->uh_sport = htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
 		udp->uh_dport = port;
 		/* set udp->uh_ulen later */
@@ -12296,9 +12332,7 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 }
 
 static struct mbuf *
-sctp_copy_resume(struct sctp_stream_queue_pending *sp,
-    struct uio *uio,
-    struct sctp_sndrcvinfo *srcv,
+sctp_copy_resume(struct uio *uio,
     int max_send_len,
     int user_marks_eor,
     int *error,
@@ -12347,8 +12381,7 @@ sctp_copy_it_in(struct sctp_tcb *stcb,
     struct sctp_nets *net,
     int max_send_len,
     int user_marks_eor,
-    int *error,
-    int non_blocking)
+    int *error)
 {
 	/*-
 	 * This routine must be very careful in its work. Protocol
@@ -12897,15 +12930,12 @@ sctp_lower_sosend(struct socket *so,
 		if (top) {
 			struct mbuf *cntm = NULL;
 
-			mm = sctp_get_mbuf_for_msg(1, 0, M_WAIT, 1, MT_DATA);
+			mm = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr), 0, M_WAIT, 1, MT_DATA);
 			if (sndlen != 0) {
-				cntm = top;
-				while (cntm) {
+				for (cntm = top; cntm; cntm = SCTP_BUF_NEXT(cntm)) {
 					tot_out += SCTP_BUF_LEN(cntm);
-					cntm = SCTP_BUF_NEXT(cntm);
 				}
 			}
-			tot_demand = (tot_out + sizeof(struct sctp_paramhdr));
 		} else {
 			/* Must fit in a MTU */
 			tot_out = sndlen;
@@ -12956,7 +12986,6 @@ sctp_lower_sosend(struct socket *so,
 		}
 		if (hold_tcblock == 0) {
 			SCTP_TCB_LOCK(stcb);
-			hold_tcblock = 1;
 		}
 		atomic_add_int(&stcb->asoc.refcnt, -1);
 		free_cnt_applied = 0;
@@ -13053,7 +13082,7 @@ sctp_lower_sosend(struct socket *so,
 			    stcb->asoc.chunks_on_out_queue,
 			    SCTP_BASE_SYSCTL(sctp_max_chunks_on_queue));
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_BLK_LOGGING_ENABLE) {
-				sctp_log_block(SCTP_BLOCK_LOG_INTO_BLKA, so, asoc, sndlen);
+				sctp_log_block(SCTP_BLOCK_LOG_INTO_BLKA, asoc, sndlen);
 			}
 			be.error = 0;
 			stcb->block_entry = &be;
@@ -13072,7 +13101,7 @@ sctp_lower_sosend(struct socket *so,
 			}
 			if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_BLK_LOGGING_ENABLE) {
 				sctp_log_block(SCTP_BLOCK_LOG_OUTOF_BLK,
-				    so, asoc, stcb->asoc.total_output_queue_size);
+				    asoc, stcb->asoc.total_output_queue_size);
 			}
 			if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
 				goto out_unlocked;
@@ -13122,7 +13151,7 @@ skip_preblock:
 		strm = &stcb->asoc.strmout[srcv->sinfo_stream];
 		if (strm->last_msg_incomplete == 0) {
 	do_a_copy_in:
-			sp = sctp_copy_it_in(stcb, asoc, srcv, uio, net, max_len, user_marks_eor, &error, non_blocking);
+			sp = sctp_copy_it_in(stcb, asoc, srcv, uio, net, max_len, user_marks_eor, &error);
 			if ((sp == NULL) || (error)) {
 				goto out;
 			}
@@ -13190,7 +13219,7 @@ skip_preblock:
 					SCTP_TCB_UNLOCK(stcb);
 					hold_tcblock = 0;
 				}
-				mm = sctp_copy_resume(sp, uio, srcv, max_len, user_marks_eor, &error, &sndout, &new_tail);
+				mm = sctp_copy_resume(uio, max_len, user_marks_eor, &error, &sndout, &new_tail);
 				if ((mm == NULL) || error) {
 					if (mm) {
 						sctp_m_freem(mm);
@@ -13372,7 +13401,7 @@ skip_preblock:
 			    min(SCTP_BASE_SYSCTL(sctp_add_more_threshold), SCTP_SB_LIMIT_SND(so)))) {
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_BLK_LOGGING_ENABLE) {
 					sctp_log_block(SCTP_BLOCK_LOG_INTO_BLK,
-					    so, asoc, uio->uio_resid);
+					    asoc, uio->uio_resid);
 				}
 				be.error = 0;
 				stcb->block_entry = &be;
@@ -13392,7 +13421,7 @@ skip_preblock:
 				}
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_BLK_LOGGING_ENABLE) {
 					sctp_log_block(SCTP_BLOCK_LOG_OUTOF_BLK,
-					    so, asoc, stcb->asoc.total_output_queue_size);
+					    asoc, stcb->asoc.total_output_queue_size);
 				}
 			}
 			SOCKBUF_UNLOCK(&so->so_snd);
@@ -13594,8 +13623,6 @@ skip_out_eof:
 		    stcb->asoc.total_flight,
 		    stcb->asoc.chunks_on_out_queue, stcb->asoc.total_flight_count);
 	}
-	if (queue_only_for_init)
-		queue_only_for_init = 0;
 	if ((queue_only == 0) && (nagle_applies == 0) && (stcb->asoc.peers_rwnd && un_sent)) {
 		/* we can attempt to send too. */
 		if (hold_tcblock == 0) {
@@ -13641,11 +13668,9 @@ out_unlocked:
 
 	if (local_soresv && stcb) {
 		atomic_subtract_int(&stcb->asoc.sb_send_resv, sndlen);
-		local_soresv = 0;
 	}
 	if (create_lock_applied) {
 		SCTP_ASOC_CREATE_UNLOCK(inp);
-		create_lock_applied = 0;
 	}
 	if ((stcb) && hold_tcblock) {
 		SCTP_TCB_UNLOCK(stcb);
@@ -13691,6 +13716,7 @@ sctp_add_auth_chunk(struct mbuf *m, struct mbuf **m_end,
 	struct mbuf *m_auth;
 	struct sctp_auth_chunk *auth;
 	int chunk_len;
+	struct mbuf *cn;
 
 	if ((m_end == NULL) || (auth_ret == NULL) || (offset == NULL) ||
 	    (stcb == NULL))
@@ -13728,17 +13754,10 @@ sctp_add_auth_chunk(struct mbuf *m, struct mbuf **m_end,
 	/* key id and hmac digest will be computed and filled in upon send */
 
 	/* save the offset where the auth was inserted into the chain */
-	if (m != NULL) {
-		struct mbuf *cn;
-
-		*offset = 0;
-		cn = m;
-		while (cn) {
-			*offset += SCTP_BUF_LEN(cn);
-			cn = SCTP_BUF_NEXT(cn);
-		}
-	} else
-		*offset = 0;
+	*offset = 0;
+	for (cn = m; cn; cn = SCTP_BUF_NEXT(cn)) {
+		*offset += SCTP_BUF_LEN(cn);
+	}
 
 	/* update length and return pointer to the auth chunk */
 	SCTP_BUF_LEN(m_auth) = chunk_len;
@@ -13778,8 +13797,7 @@ sctp_v6src_match_nexthop(struct sockaddr_in6 *src6, sctp_route_t * ro)
 	SCTPDBG_ADDR(SCTP_DEBUG_OUTPUT2, (struct sockaddr *)src6);
 
 	/* search installed gateway from prefix entry */
-	for (pfxrtr = pfx->ndpr_advrtrs.lh_first; pfxrtr; pfxrtr =
-	    pfxrtr->pfr_next) {
+	LIST_FOREACH(pfxrtr, &pfx->ndpr_advrtrs, pfr_entry) {
 		memset(&gw6, 0, sizeof(struct sockaddr_in6));
 		gw6.sin6_family = AF_INET6;
 		gw6.sin6_len = sizeof(struct sockaddr_in6);

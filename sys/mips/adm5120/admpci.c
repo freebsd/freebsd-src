@@ -473,7 +473,6 @@ static device_method_t admpci_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	admpci_read_ivar),
 	DEVMETHOD(bus_write_ivar,	admpci_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	admpci_alloc_resource),
@@ -489,7 +488,7 @@ static device_method_t admpci_methods[] = {
 	DEVMETHOD(pcib_write_config,	admpci_write_config),
 	DEVMETHOD(pcib_route_interrupt,	admpci_route_interrupt),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t admpci_driver = {

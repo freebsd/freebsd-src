@@ -65,9 +65,6 @@ MALLOC_DEFINE(M_LLTABLE, "lltable", "link level address tables");
 static VNET_DEFINE(SLIST_HEAD(, lltable), lltables);
 #define	V_lltables	VNET(lltables)
 
-extern void arprequest(struct ifnet *, struct in_addr *, struct in_addr *,
-	u_char *);
-
 static void vnet_lltable_init(void);
 
 struct rwlock lltable_rwlock;

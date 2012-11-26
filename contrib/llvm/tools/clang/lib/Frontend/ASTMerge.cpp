@@ -17,12 +17,12 @@
 using namespace clang;
 
 ASTConsumer *ASTMergeAction::CreateASTConsumer(CompilerInstance &CI,
-                                               llvm::StringRef InFile) {
+                                               StringRef InFile) {
   return AdaptedAction->CreateASTConsumer(CI, InFile);
 }
 
 bool ASTMergeAction::BeginSourceFileAction(CompilerInstance &CI,
-                                           llvm::StringRef Filename) {
+                                           StringRef Filename) {
   // FIXME: This is a hack. We need a better way to communicate the
   // AST file, compiler instance, and file name than member variables
   // of FrontendAction.
@@ -41,8 +41,8 @@ void ASTMergeAction::ExecuteAction() {
   llvm::IntrusiveRefCntPtr<DiagnosticIDs>
       DiagIDs(CI.getDiagnostics().getDiagnosticIDs());
   for (unsigned I = 0, N = ASTFiles.size(); I != N; ++I) {
-    llvm::IntrusiveRefCntPtr<Diagnostic>
-        Diags(new Diagnostic(DiagIDs, CI.getDiagnostics().getClient(),
+    llvm::IntrusiveRefCntPtr<DiagnosticsEngine>
+        Diags(new DiagnosticsEngine(DiagIDs, CI.getDiagnostics().getClient(),
                              /*ShouldOwnClient=*/false));
     ASTUnit *Unit = ASTUnit::LoadFromASTFile(ASTFiles[I], Diags,
                                              CI.getFileSystemOpts(), false);
@@ -93,8 +93,8 @@ bool ASTMergeAction::usesPreprocessorOnly() const {
   return AdaptedAction->usesPreprocessorOnly();
 }
 
-bool ASTMergeAction::usesCompleteTranslationUnit() {
-  return AdaptedAction->usesCompleteTranslationUnit();
+TranslationUnitKind ASTMergeAction::getTranslationUnitKind() {
+  return AdaptedAction->getTranslationUnitKind();
 }
 
 bool ASTMergeAction::hasPCHSupport() const {

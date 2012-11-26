@@ -69,7 +69,7 @@
 #include <netgraph/ng_tag.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_TAG, "netgraph_tag", "netgraph tag node ");
+static MALLOC_DEFINE(M_NETGRAPH_TAG, "netgraph_tag", "netgraph tag node");
 #else
 #define M_NETGRAPH_TAG M_NETGRAPH
 #endif

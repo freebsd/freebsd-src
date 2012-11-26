@@ -223,6 +223,7 @@ umtx_key_match(const struct umtx_key *k1, const struct umtx_key *k2)
 	        k1->info.both.b == k2->info.both.b);
 }
 
+int umtx_copyin_timeout(const void *, struct timespec *);
 int umtx_key_get(void *, int, int, struct umtx_key *);
 void umtx_key_release(struct umtx_key *);
 struct umtx_q *umtxq_alloc(void);

@@ -67,7 +67,7 @@
 # SRC points to your FreeBSD source tree.
 # l_usrtree points to the /usr subdir for the source tree.
 #     Normally /usr or ${SRC}/../usr
-# l_objtree points to the obj tree. Normally ${l_usrtree}/obj-pico
+# l_objtree points to the obj tree. Normally ${l_usrtree}/obj-pico-${o_arch}
 # c_label is either bsdlabel or disklabel
 # PICO_TREE is where standard picobsd stuff resides.
 #     Normally ${SRC}/release/picobsd
@@ -105,11 +105,6 @@ set_defaults() {	# no arguments
     EDITOR=${EDITOR:-vi}
     fd_size=${fd_size:-1440}
 
-    o_use_loader="yes"		# use /boot/loader
-	# You should not change it unless you are really short
-	# of space, and your kernel is small enough that the
-	# bootblocks manage to load it.
-
     o_all_in_mfs="yes"		# put all files in mfs so you can boot
 				# and run the image via diskless boot.
     o_clean=""			# set if you want to clean prev.builds.
@@ -121,6 +116,7 @@ set_defaults() {	# no arguments
     o_no_devfs=			# default is use devfs.
 	# You should only set it when building 4.x images
     o_do_modules=""		# do not build modules
+    o_arch=`uname -m`		# default to amd64 or i386 ...
 
     SRC="/usr/src"		# default location for sources
     c_startdir=`pwd`		# directory where we start
@@ -165,20 +161,30 @@ set_defaults() {	# no arguments
 # and also to build a specific target
 create_includes_and_libraries2() { # opt_dir opt_target
     local no
-    log "create_includes_and_libraries2() for ${SRC}"
+    log "create_includes_and_libraries2() for ${SRC} $1"
     if [ ${OSVERSION} -ge 600000 ] ; then
 	no="-DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R" # WITHOUT_CDDL=1"
     else
 	no="-DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R"
     fi
-    MAKEOBJDIRPREFIX=${l_objtree}
-    export MAKEOBJDIRPREFIX
     ( cd ${SRC};
     # make -DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R -DPICOBSD buildworld
     if [ -d "$1" ] ; then
 	cd $1 ; ${BINMAKE} ${o_par} $2	# specific target, e.g. ld-elf.so
     else
-	${BINMAKE} ${o_par} _+_= $no toolchain _includes _libraries
+	MAKEOBJDIRPREFIX=${l_objtree}
+	export MAKEOBJDIRPREFIX
+	# export WITH_RESCUE=yes	# build crunchide
+	# ${BINMAKE} ${o_par} _+_= $no toolchain _includes _libraries
+	(
+	    # eval export `cd ${SRC}; ${BINMAKE} -f Makefile.inc1 -V BMAKEENV`
+	    eval "export XMAKE=\"`cd ${SRC}; make -f Makefile -V XMAKE`\""
+	    ${BINMAKE} ${o_par} _+_= $no toolchain
+	)
+        eval export `cd ${SRC}; ${BINMAKE} -f Makefile.inc1 -V WMAKEENV`
+	${BINMAKE} ${o_par} _+_= $no _includes _libraries
+	[ ${o_arch} != `uname -m` ] && \
+	    (cd ${l_objtree}; ln -s . ${o_arch}.${o_arch} || true )
     fi
     )
 }
@@ -241,16 +247,19 @@ set_type() {	# the_type the_site
     name=""	# clear in case of errors
     for i in ${c_startdir}/${a} ${PICO_TREE}/${a} ; do
 	log "set_type: checking $i"
-	[ -d $i -a -f $i/PICOBSD -a -f $i/crunch.conf ] || continue
-	set -- `cat $i/PICOBSD | \
+	[ -d $i -a -f $i/crunch.conf ] || continue
+	# look for a kernel config file, privilege arch-specific
+	l_kernconf=$i/PICOBSD.${o_arch}
+	[ -f $l_kernconf ] || l_kernconf=$i/PICOBSD
+	[ -f $l_kernconf ] || continue
+	set -- `cat $l_kernconf | \
 	    awk '/^#PicoBSD/ {print $2, $3, $4, $5, $6}'`
 	[ x"$1" != "x" ] || continue
-	MFS_SIZE=$1 ; init_name=$2
-	mfs_inodes=$3 ; fd_inodes=$4
+	MFS_SIZE=$1
 	name=`(cd $i ; pwd) `
 	name=`basename $name`
 	MY_TREE=$i
-	BUILDDIR=${c_startdir}/build_dir-${name}
+	BUILDDIR=${c_startdir}/build_dir-${name}-${o_arch}
 	log "Matching file $name in $i"
 	return ;
     done
@@ -327,10 +336,7 @@ main_dialog() {
 	K "edit Kernel config file" \
 	E "Edit crunch.conf file" \
 	S "MFS Size: ${MFS_SIZE}kB" \
-	I "Init type: ${init_name}" \
 	F "Floppy size: ${fd_size}kB" \
-	M "MFS bytes per inode: ${mfs_inodes}" \
-	U "UFS bytes per inode: ${fd_inodes}" \
 	$ "Site-info: ${SITE}" \
 	Q "Quit" \
 	2> ${c_reply}
@@ -347,12 +353,6 @@ main_dialog() {
 	log $l
 	{ dialog --menu "Setup the type of configuration" 12 70 5 $l \
 		2> ${c_reply} && set_type "`cat ${c_reply}`" ${SITE} ; } || true
-	;;
-    I)
-	{ dialog --menu "Choose your init(8) program" \
-	10 70 2 init "Standard init (requires getty)" \
-	oinit "small init from TinyWare" 2> ${c_reply} \
-		&& init_name=`cat ${c_reply}` ; } || true
 	;;
 
     K) ${EDITOR} ${MY_TREE}/PICOBSD ;;
@@ -383,20 +383,6 @@ this as small as possible. " 10 70 2> ${c_reply} \
 	{ dialog --menu "Set floppy size" 15 70 4 \
 	    1440 "1.44MB" 1720 "1.72MB" 2880 "2.88MB" 4096 "4MB" \
 		 2> ${c_reply} && fd_size=`cat ${c_reply}` ; } || true
-	;;
-
-    M)
-	{ dialog --title "MFS bytes per inode:" --inputbox \
-	"Enter MFS bytes per inode (typically 4096..65536). \
-	A larger value means fewer inodes but more space on MFS" \
-	10 70 2> ${c_reply} && mfs_inodes=`cat ${c_reply}`  ; } || true
-	;;
-
-    U)
-	{ dialog --title "Floppy bytes per inode:" --inputbox \
-	"Enter floppy bytes per inode (typically 3072..65536). \
-	A larger value means fewer inodes but more space on the floppy." \
-	10 70 2> ${c_reply} && fd_inodes=`cat ${c_reply}` ; } || true
 	;;
 
     N) break 2
@@ -451,9 +437,11 @@ do_kernel() {		# OK
     log "do_kernel() Preparing kernel \"$name\" in $MY_TREE"
     (cd $MY_TREE; export name SRC BUILDDIR # used in this makefile ;
 	# export CONFIG
+	export WARNS CWARNFLAGS
 	[ "${o_do_modules}" = "yes" ] && export MODULES=""
-	${BINMAKE} ${o_par} -v -f ${PICO_TREE}/build/Makefile.conf ) || \
-	fail $? missing_kernel
+	${BINMAKE} ${o_par} KERNCONF=${l_kernconf}	\
+		-v -f ${PICO_TREE}/build/Makefile.conf ) || \
+	    fail $? missing_kernel
 }
 
 # Populate the variable part of the floppy filesystem. Must be done before
@@ -563,7 +551,7 @@ do_links() {	# rootdir varname
 # find_progs is a helper function to locate the named programs
 # or libraries in ${o_objdir} or ${_SHLIBDIRPREFIX},
 # and return the full pathnames.
-# Called as "find_progs [-L libpath] [-P binpath] prog1 prog2 ... "
+# Called as "find_progs [[-L libpath] [-P binpath]] prog1 prog2 ... "
 # On return it sets ${u_progs} to the list of programs, and ${u_libs}
 # to the list of shared libraries used.
 # 
@@ -586,23 +574,32 @@ do_links() {	# rootdir varname
 #  }
 
 find_progs() {	# programs
-	local i
-	local oo=${o_objdir:-${_SHLIBDIRPREFIX}} # default objdir
-	local lp=$oo/lib			# default lib.prefix
-	local o=""				# additional objdir
+	local pass i old_libs="" tmp o=""
 	if [ x"$1" = "x-L" -a -d "$2" ] ; then # set lib search path
-		o=$2; shift; shift
-		lp="$lp:$o/lib:$o/usr/lib:$o/usr/local/lib"
-		o="-P $o"
+		o="-P $2"; shift; shift
 	fi
-	u_libs=""
-	u_progs="`find_progs_helper $*`"
-	log "looking for libs for <$u_progs> in $lp"
+	# Result returned in global variables
+	u_libs="" ; u_progs="`find_progs_helper $*`"
 	[ -z "${u_progs}" ] && return 1	# not found, error
-	i="`( LD_LIBRARY_PATH=$lp ldd ${u_progs} ) | \
-		grep -v '^/' | awk '{print $1}' | sort | uniq`"
-	u_libs="`find_progs_helper $o $i`"
-	return 0
+	# use objdump to find libraries. Iterate to fetch recursive
+	# dependencies.
+	tmp="${u_progs}" ; pass=1
+	while [ $pass -lt 10 ] ; do
+		pass=$(($pass + 1))
+		i="`objdump -x ${tmp} | \
+			awk '$1 == "NEEDED" { print $2 }' | sort | uniq`"
+		if [ "$old_libs" = "$i" ] ; then
+			log "libraries for: $my_progs ($u_progs) are ($i) $u_libs"
+			log "--- done find_progs ---"
+			return 0
+		else
+			# logverbose "old--- $old_libs --- new +++ $i +++"
+		fi
+		u_libs="`find_progs_helper $o $i`"
+		old_libs="$i"
+		tmp="$tmp $u_libs"
+	done
+	log "WARNING: Too many passes, giving up"
 }
 
 find_progs_helper() {	# programs
@@ -635,8 +632,12 @@ find_progs_helper() {	# programs
 		[ -d "${ldir}/${i}" ] && places="${places} ${ldir}/${i}"
 	    done
 	fi
+	for i in $progs ; do
+		# full pathnames are just listed
+		[ -f "$i" ] && echo $i && continue
+		find ${places} -maxdepth 3 -type f -name ${i} | head -1
+	done
 	# use maxdepth 3 because some libs are way down
-	find ${places} -maxdepth 3 -type f \( ${names} \)
 }
 
 # Populate the memory filesystem with binaries and non-variable
@@ -786,7 +787,6 @@ populate_mfs_tree() {
 final_cleanup() {
     log "final_cleanup()"
     rm -rf ${c_mnt} ${c_reply} 2> /dev/null || true
-    rm -f ${c_reply}
 }
 
 # fail errno errcode
@@ -855,17 +855,6 @@ fill_floppy_image() {
     fi
 
     log "Labeling floppy image"
-    b2=${BUILDDIR}/boot2 # modified boot2
-    cp -f ${c_boot2} ${b2}
-    chmod 0644 ${b2}
-
-    if [ ${o_use_loader} = "no" ] ; then
-	log "patch ${c_boot2} to boot /kernel right away"
-	set `strings -at d ${b2} | grep "/boot/loader"`
-	echo -e "/kernel\0\0\0\0\0" | \
-	    dd of=${b2} obs=$1 oseek=1 conv=notrunc 2>/dev/null
-    fi
-    chmod 0444 ${b2}
 
     dst=${BUILDDIR}/image.tree
     rm -rf ${dst}
@@ -891,17 +880,13 @@ fill_floppy_image() {
     	log "not loading mfs, size ${mfs_size} img ${imgsize}"
     fi
     log "Compress with kgzip and copy to floppy image"
-    if [ ${o_use_loader} = "no" ] ; then
-	kgzip -o kernel.gz kernel
-	cp -p kernel.gz ${dst}/kernel || fail $? no_space "copying kernel"
-    else
-        gzip kernel
-	mkdir -p  ${dst}/boot/kernel
-	echo "hint.acpi.0.disabled=\"1\"" > ${dst}/boot/loader.conf
-	echo "console=\"comconsole\"" >> ${dst}/boot/loader.conf
-	cp -p /boot/loader ${dst}/boot/loader || fail $? no_space "copying bootloader"
-	cp -p kernel.gz ${dst}/boot/kernel/kernel.gz || fail $? no_space "copying kernel"
-    fi
+
+    mkdir -p  ${dst}/boot/kernel
+    # XXX update loader.conf
+    echo "hint.acpi.0.disabled=\"1\"" > ${dst}/boot/loader.conf
+    echo "console=\"comconsole\"" >> ${dst}/boot/loader.conf
+    cp -p /boot/loader ${dst}/boot/loader || fail $? no_space "copying bootloader"
+    gzip -c kernel > ${dst}/boot/kernel/kernel.gz || fail $? no_space "copying kernel"
 
     # now transfer the floppy tree. If it is already in mfs, dont bother.
     if [ "${o_all_in_mfs}" != "yes" ] ; then
@@ -951,10 +936,13 @@ fill_floppy_image() {
     # so we skip 276 from the source, and 276+512=788 from dst
     # the old style blocks used 512 and 1024 respectively
 
-    dd if=${b2} iseek=1 ibs=276 2> /dev/null | \
+    dd if=${c_boot2} iseek=1 ibs=276 2> /dev/null | \
 	dd of=${BUILDDIR}/${c_img} oseek=1 obs=788 conv=notrunc 2>/dev/null
     log "done disk image"
     # XXX (log "Fixing permissions"; cd ${dst}; chown -R root *)
+    # leave build stuff if verbose
+    [ ${o_verbose} -gt 0 ] && return
+
     rm -rf ${BUILDDIR}/floppy.tree || true # cleanup
     # df -ik ${dst} | colrm 70 > .build.reply
     rm -rf ${dst}
@@ -973,7 +961,7 @@ set_build_parameters() {
     else
 	l_usrtree=${USR:-${SRC}/../usr}
     fi
-    l_objtree=${l_usrtree}/obj-pico
+    l_objtree=${l_usrtree}/obj-pico-${o_arch}
 
     PICO_TREE=${PICO_TREE:-${SRC}/release/picobsd}
     set `grep "#define[\t ]__FreeBSD_version" ${SRC}/sys/sys/param.h`
@@ -981,9 +969,11 @@ set_build_parameters() {
     log "OSVERSION is ${OSVERSION}"
     if [ ${OSVERSION} -ge 500035 ] ; then
 	export MAKEOBJDIRPREFIX=${l_objtree}
-	export TARGET_ARCH=i386 TARGET=i386
+	export TARGET_ARCH=${o_arch} TARGET=${o_arch}
+	# XXX why change machine_arch ?
+	#-- export MACHINE_ARCH=`uname -m` MACHINE=`uname -m`
+	# export CWARNFLAGS="-Wextra -Wno-sign-compare -Wno-missing-field-initializers"
 	eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V BINMAKE`\""
-	eval export `cd ${SRC}; ${BINMAKE} -f Makefile.inc1 -V WMAKEENV`
     fi
 
     if [ "${o_init_src}" != "" ] ; then
@@ -992,6 +982,8 @@ set_build_parameters() {
 	else
 	    create_includes_and_libraries2
 	fi
+    else
+	eval export `cd ${SRC}; ${BINMAKE} -f Makefile.inc1 -V WMAKEENV`
     fi
     if [ ${OSVERSION} -lt 500035 ] ; then
 	# Create the right LIBS and CFLAGS for further builds.
@@ -1027,22 +1019,27 @@ set_defaults
 while [ true ]; do
     log "Parsing $1"
     case $1 in
+    --par)
+	o_par="-j 8"
+	;;
+
     --src)	# set the source path instead of /usr/src
 	SRC=`realpath $2`
 	shift
 	;;
-    --init)
+
+    --init)	# run a partial buildworld on the source tree
 	o_init_src="YES"
 	;;
 
-    --floppy_size)
-	fd_size=$2
+    --arch)	# override the target architecture
+	o_arch=$2
 	shift
 	;;
 
-    --no_loader)	# omit /boot/loader, just rely on boot2
-			# (it may have problems with kernels > 4MB)
-	o_use_loader="no"
+    --floppy_size)	# image size
+	fd_size=$2
+	shift
 	;;
 
     --all_in_mfs)
@@ -1056,6 +1053,7 @@ while [ true ]; do
     --modules)	# also build kernel modules
 	o_do_modules="yes"
 	;;
+
     -n)
 	o_interactive="NO"
 	;;

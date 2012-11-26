@@ -193,6 +193,10 @@ struct ata_pci_controller {
 #define ATA_I82801IB_AH4        0x29238086
 #define ATA_I82801IB_R1         0x29258086
 #define ATA_I82801IB_S2         0x29268086
+#define ATA_I82801IBM_S1        0x29288086
+#define ATA_I82801IBM_AH        0x29298086
+#define ATA_I82801IBM_R1        0x292a8086
+#define ATA_I82801IBM_S2        0x292d8086
 #define ATA_I82801JIB_S1        0x3a208086
 #define ATA_I82801JIB_AH        0x3a228086
 #define ATA_I82801JIB_R1        0x3a258086
@@ -232,6 +236,7 @@ struct ata_pci_controller {
 #define ATA_PBG_AH1		0x1d028086
 #define ATA_PBG_R1		0x1d048086
 #define ATA_PBG_R2		0x1d068086
+#define ATA_PBG_R3		0x28268086
 #define ATA_PBG_S2		0x1d088086
 
 #define ATA_PPT_S1		0x1e008086
@@ -549,6 +554,7 @@ int ata_pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 uint32_t ata_pci_read_config(device_t dev, device_t child, int reg, int width);
 void ata_pci_write_config(device_t dev, device_t child, int reg, 
     uint32_t val, int width);
+int ata_pci_print_child(device_t dev, device_t child);
 int ata_pci_child_location_str(device_t dev, device_t child, char *buf,
     size_t buflen);
 struct resource * ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid, u_long start, u_long end, u_long count, u_int flags);
@@ -601,6 +607,7 @@ static device_method_t __CONCAT(dname,_methods)[] = { \
     DEVMETHOD(bus_teardown_intr,        ata_pci_teardown_intr), \
     DEVMETHOD(pci_read_config,		ata_pci_read_config), \
     DEVMETHOD(pci_write_config,		ata_pci_write_config), \
+    DEVMETHOD(bus_print_child,		ata_pci_print_child), \
     DEVMETHOD(bus_child_location_str,	ata_pci_child_location_str), \
     { 0, 0 } \
 }; \

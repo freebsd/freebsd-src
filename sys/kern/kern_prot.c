@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef REGRESSION
 FEATURE(regression,
-    "Kernel support for interfaces nessesary for regression testing (SECURITY RISK!)");
+    "Kernel support for interfaces necessary for regression testing (SECURITY RISK!)");
 #endif
 
 #if defined(INET) || defined(INET6)

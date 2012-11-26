@@ -7,8 +7,6 @@ FBSD_1.0 {
 	fegetenv;
 	feholdexcept;
 	feupdateenv;
-	__feenableexcept;
-	__fedisableexcept;
 	feenableexcept;
 	fedisableexcept;
 };

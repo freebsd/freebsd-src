@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 /*
@@ -212,6 +213,11 @@ spa_prop_get_config(spa_t *spa, nvlist_t **nvp)
 
 	spa_prop_add_list(*nvp, ZPOOL_PROP_GUID, NULL, spa_guid(spa), src);
 
+	if (spa->spa_comment != NULL) {
+		spa_prop_add_list(*nvp, ZPOOL_PROP_COMMENT, spa->spa_comment,
+		    0, ZPROP_SRC_LOCAL);
+	}
+
 	if (spa->spa_root != NULL)
 		spa_prop_add_list(*nvp, ZPOOL_PROP_ALTROOT, spa->spa_root,
 		    0, ZPROP_SRC_LOCAL);
@@ -351,7 +357,7 @@ spa_prop_validate(spa_t *spa, nvlist_t *props)
 		char *propname, *strval;
 		uint64_t intval;
 		objset_t *os;
-		char *slash;
+		char *slash, *check;
 
 		propname = nvpair_name(elem);
 
@@ -471,6 +477,26 @@ spa_prop_validate(spa_t *spa, nvlist_t *props)
 				error = EINVAL;
 			break;
 
+		case ZPOOL_PROP_COMMENT:
+			if ((error = nvpair_value_string(elem, &strval)) != 0)
+				break;
+			for (check = strval; *check != '\0'; check++) {
+				/*
+				 * The kernel doesn't have an easy isprint()
+				 * check.  For this kernel check, we merely
+				 * check ASCII apart from DEL.  Fix this if
+				 * there is an easy-to-use kernel isprint().
+				 */
+				if (*check >= 0x7f) {
+					error = EINVAL;
+					break;
+				}
+				check++;
+			}
+			if (strlen(strval) > ZPROP_MAX_COMMENT)
+				error = E2BIG;
+			break;
+
 		case ZPOOL_PROP_DEDUPDITTO:
 			if (spa_version(spa) < SPA_VERSION_DEDUP)
 				error = ENOTSUP;
@@ -569,6 +595,43 @@ spa_prop_clear_bootfs(spa_t *spa, uint64_t dsobj, dmu_tx_t *tx)
 		    zpool_prop_to_name(ZPOOL_PROP_BOOTFS), tx) == 0);
 		spa->spa_bootfs = 0;
 	}
+}
+
+/*
+ * Change the GUID for the pool.  This is done so that we can later
+ * re-import a pool built from a clone of our own vdevs.  We will modify
+ * the root vdev's guid, our own pool guid, and then mark all of our
+ * vdevs dirty.  Note that we must make sure that all our vdevs are
+ * online when we do this, or else any vdevs that weren't present
+ * would be orphaned from our pool.  We are also going to issue a
+ * sysevent to update any watchers.
+ */
+int
+spa_change_guid(spa_t *spa)
+{
+	uint64_t	oldguid, newguid;
+	uint64_t	txg;
+
+	if (!(spa_mode_global & FWRITE))
+		return (EROFS);
+
+	txg = spa_vdev_enter(spa);
+
+	if (spa->spa_root_vdev->vdev_state != VDEV_STATE_HEALTHY)
+		return (spa_vdev_exit(spa, NULL, txg, ENXIO));
+
+	oldguid = spa_guid(spa);
+	newguid = spa_generate_guid(NULL);
+	ASSERT3U(oldguid, !=, newguid);
+
+	spa->spa_root_vdev->vdev_guid = newguid;
+	spa->spa_root_vdev->vdev_guid_sum += (newguid - oldguid);
+
+	vdev_config_dirty(spa->spa_root_vdev);
+
+	spa_event_notify(spa, NULL, ESC_ZFS_POOL_REGUID);
+
+	return (spa_vdev_exit(spa, NULL, txg, 0));
 }
 
 /*
@@ -1024,6 +1087,11 @@ spa_unload(spa_t *spa)
 	spa->spa_l2cache.sav_count = 0;
 
 	spa->spa_async_suspended = 0;
+
+	if (spa->spa_comment != NULL) {
+		spa_strfree(spa->spa_comment);
+		spa->spa_comment = NULL;
+	}
 
 	spa_config_exit(spa, SCL_ALL, FTAG);
 }
@@ -1742,12 +1810,17 @@ spa_load(spa_t *spa, spa_load_state_t state, spa_import_type_t type,
 {
 	nvlist_t *config = spa->spa_config;
 	char *ereport = FM_EREPORT_ZFS_POOL;
+	char *comment;
 	int error;
 	uint64_t pool_guid;
 	nvlist_t *nvl;
 
 	if (nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_GUID, &pool_guid))
 		return (EINVAL);
+
+	ASSERT(spa->spa_comment == NULL);
+	if (nvlist_lookup_string(config, ZPOOL_CONFIG_COMMENT, &comment) == 0)
+		spa->spa_comment = spa_strdup(comment);
 
 	/*
 	 * Versioning wasn't explicitly added to the label until later, so if
@@ -1764,7 +1837,7 @@ spa_load(spa_t *spa, spa_load_state_t state, spa_import_type_t type,
 	    spa_guid_exists(pool_guid, 0)) {
 		error = EEXIST;
 	} else {
-		spa->spa_load_guid = pool_guid;
+		spa->spa_config_guid = pool_guid;
 
 		if (nvlist_lookup_nvlist(config, ZPOOL_CONFIG_SPLIT,
 		    &nvl) == 0) {
@@ -5379,6 +5452,20 @@ spa_sync_props(void *arg1, void *arg2, dmu_tx_t *tx)
 			 * 'readonly' and 'cachefile' are also non-persisitent
 			 * properties.
 			 */
+			break;
+		case ZPOOL_PROP_COMMENT:
+			VERIFY(nvpair_value_string(elem, &strval) == 0);
+			if (spa->spa_comment != NULL)
+				spa_strfree(spa->spa_comment);
+			spa->spa_comment = spa_strdup(strval);
+			/*
+			 * We need to dirty the configuration on all the vdevs
+			 * so that their labels get updated.  It's unnecessary
+			 * to do this for pool creation since the vdev's
+			 * configuratoin has already been dirtied.
+			 */
+			if (tx->tx_txg != TXG_INITIAL)
+				vdev_config_dirty(spa->spa_root_vdev);
 			break;
 		default:
 			/*

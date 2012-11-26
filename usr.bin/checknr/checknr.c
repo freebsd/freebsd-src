@@ -59,34 +59,34 @@ __FBSDID("$FreeBSD$");
 #define MAXBR	100	/* Max number of bracket pairs known */
 #define MAXCMDS	500	/* Max number of commands known */
 
-void addcmd(char *);
-void addmac(const char *);
-int binsrch(const char *);
-void checkknown(const char *);
-void chkcmd(const char *, const char *);
-void complain(int);
-int eq(const char *, const char *);
-void nomatch(const char *);
-void pe(int);
-void process(FILE *);
-void prop(int);
+static void addcmd(char *);
+static void addmac(const char *);
+static int binsrch(const char *);
+static void checkknown(const char *);
+static void chkcmd(const char *, const char *);
+static void complain(int);
+static int eq(const char *, const char *);
+static void nomatch(const char *);
+static void pe(int);
+static void process(FILE *);
+static void prop(int);
 static void usage(void);
 
 /*
  * The stack on which we remember what we've seen so far.
  */
-struct stkstr {
+static struct stkstr {
 	int opno;	/* number of opening bracket */
 	int pl;		/* '+', '-', ' ' for \s, 1 for \f, 0 for .ft */
 	int parm;	/* parm to size, font, etc */
 	int lno;	/* line number */
 } stk[MAXSTK];
-int stktop;
+static int stktop;
 
 /*
  * The kinds of opening and closing brackets.
  */
-struct brstr {
+static struct brstr {
 	const char *opbr;
 	const char *clbr;
 } br[MAXBR] = {
@@ -145,7 +145,7 @@ struct brstr {
  * All commands known to nroff, plus macro packages.
  * Used so we can complain about unrecognized commands.
  */
-const char *knowncmds[MAXCMDS] = {
+static const char *knowncmds[MAXCMDS] = {
 "$c", "$f", "$h", "$p", "$s", "(b", "(c", "(d", "(f", "(l", "(q", "(t",
 "(x", "(z", ")b", ")c", ")d", ")f", ")l", ")q", ")t", ")x", ")z", "++",
 "+c", "1C", "1c", "2C", "2c", "@(", "@)", "@C", "@D", "@F", "@I", "@M",
@@ -179,13 +179,13 @@ const char *knowncmds[MAXCMDS] = {
 "yr", 0
 };
 
-int	lineno;		/* current line number in input file */
-const char *cfilename;	/* name of current file */
-int	nfiles;		/* number of files to process */
-int	fflag;		/* -f: ignore \f */
-int	sflag;		/* -s: ignore \s */
-int	ncmds;		/* size of knowncmds */
-int	slot;		/* slot in knowncmds found by binsrch */
+static int	lineno;		/* current line number in input file */
+static const char *cfilename;	/* name of current file */
+static int	nfiles;		/* number of files to process */
+static int	fflag;		/* -f: ignore \f */
+static int	sflag;		/* -s: ignore \s */
+static int	ncmds;		/* size of knowncmds */
+static int	slot;		/* slot in knowncmds found by binsrch */
 
 int
 main(int argc, char **argv)
@@ -275,7 +275,7 @@ usage(void)
 	exit(1);
 }
 
-void
+static void
 process(FILE *f)
 {
 	int i, n;
@@ -372,7 +372,7 @@ process(FILE *f)
 	}
 }
 
-void
+static void
 complain(int i)
 {
 	pe(stk[i].lno);
@@ -381,7 +381,7 @@ complain(int i)
 	printf("\n");
 }
 
-void
+static void
 prop(int i)
 {
 	if (stk[i].pl == 0)
@@ -399,7 +399,7 @@ prop(int i)
 	}
 }
 
-void
+static void
 chkcmd(const char *line __unused, const char *mac)
 {
 	int i;
@@ -435,7 +435,7 @@ chkcmd(const char *line __unused, const char *mac)
 	}
 }
 
-void
+static void
 nomatch(const char *mac)
 {
 	int i, j;
@@ -480,14 +480,14 @@ nomatch(const char *mac)
 }
 
 /* eq: are two strings equal? */
-int
+static int
 eq(const char *s1, const char *s2)
 {
 	return (strcmp(s1, s2) == 0);
 }
 
 /* print the first part of an error message, given the line number */
-void
+static void
 pe(int linen)
 {
 	if (nfiles > 1)
@@ -495,7 +495,7 @@ pe(int linen)
 	printf("%d: ", linen);
 }
 
-void
+static void
 checkknown(const char *mac)
 {
 
@@ -513,7 +513,7 @@ checkknown(const char *mac)
 /*
  * We have a .de xx line in "line".  Add xx to the list of known commands.
  */
-void
+static void
 addcmd(char *line)
 {
 	char *mac;
@@ -544,7 +544,7 @@ addcmd(char *line)
  * me someday?)  Anyway, I claim that .de is fairly rare in user
  * nroff programs, and the register loop below is pretty fast.
  */
-void
+static void
 addmac(const char *mac)
 {
 	const char **src, **dest, **loc;
@@ -575,7 +575,7 @@ printf("after: %s %s %s %s %s, %d cmds\n", knowncmds[slot-2], knowncmds[slot-1],
  * Do a binary search in knowncmds for mac.
  * If found, return the index.  If not, return -1.
  */
-int
+static int
 binsrch(const char *mac)
 {
 	const char *p;	/* pointer to current cmd in list */

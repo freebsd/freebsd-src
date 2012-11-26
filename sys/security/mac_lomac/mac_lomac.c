@@ -93,7 +93,7 @@ struct mac_lomac_proc {
 
 SYSCTL_DECL(_security_mac);
 
-SYSCTL_NODE(_security_mac, OID_AUTO, lomac, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security_mac, OID_AUTO, lomac, CTLFLAG_RW, 0,
     "TrustedBSD mac_lomac policy controls");
 
 static int	lomac_label_size = sizeof(struct mac_lomac);
@@ -137,7 +137,7 @@ static int	lomac_slot;
     mac_label_get((l), lomac_slot))
 #define	PSLOT_SET(l, val) mac_label_set((l), lomac_slot, (uintptr_t)(val))
 
-MALLOC_DEFINE(M_LOMAC, "mac_lomac_label", "MAC/LOMAC labels");
+static MALLOC_DEFINE(M_LOMAC, "mac_lomac_label", "MAC/LOMAC labels");
 
 static struct mac_lomac *
 lomac_alloc(int flag)
@@ -762,10 +762,10 @@ lomac_parse(struct mac_lomac *ml, char *string)
 
 	/* Do we have a range? */
 	single = string;
-	range = index(string, '(');
+	range = strchr(string, '(');
 	if (range == single)
 		single = NULL;
-	auxsingle = index(string, '[');
+	auxsingle = strchr(string, '[');
 	if (auxsingle == single)
 		single = NULL;
 	if (range != NULL && auxsingle != NULL)
@@ -776,13 +776,13 @@ lomac_parse(struct mac_lomac *ml, char *string)
 		*range = '\0';
 		range++;
 		rangelow = range;
-		rangehigh = index(rangelow, '-');
+		rangehigh = strchr(rangelow, '-');
 		if (rangehigh == NULL)
 			return (EINVAL);
 		rangehigh++;
 		if (*rangelow == '\0' || *rangehigh == '\0')
 			return (EINVAL);
-		rangeend = index(rangehigh, ')');
+		rangeend = strchr(rangehigh, ')');
 		if (rangeend == NULL)
 			return (EINVAL);
 		if (*(rangeend + 1) != '\0')
@@ -798,7 +798,7 @@ lomac_parse(struct mac_lomac *ml, char *string)
 		/* Nul terminate the end of the single string. */
 		*auxsingle = '\0';
 		auxsingle++;
-		auxsingleend = index(auxsingle, ']');
+		auxsingleend = strchr(auxsingle, ']');
 		if (auxsingleend == NULL)
 			return (EINVAL);
 		if (*(auxsingleend + 1) != '\0')

@@ -169,7 +169,7 @@ RW_SYSINIT(rctl_lock, &rctl_lock, "RCTL lock");
 static int rctl_rule_fully_specified(const struct rctl_rule *rule);
 static void rctl_rule_to_sbuf(struct sbuf *sb, const struct rctl_rule *rule);
 
-MALLOC_DEFINE(M_RCTL, "rctl", "Resource Limits");
+static MALLOC_DEFINE(M_RCTL, "rctl", "Resource Limits");
 
 static const char *
 rctl_subject_type_name(int subject)

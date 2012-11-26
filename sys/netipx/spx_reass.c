@@ -93,7 +93,7 @@ __FBSDID("$FreeBSD$");
 static int	spx_use_delack = 0;
 static int	spxrexmtthresh = 3;
 
-MALLOC_DEFINE(M_SPXREASSQ, "spxreassq", "SPX reassembly queue entry");
+static MALLOC_DEFINE(M_SPXREASSQ, "spxreassq", "SPX reassembly queue entry");
 
 /*
  * Flesh pending queued segments on SPX close.

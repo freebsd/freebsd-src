@@ -147,7 +147,8 @@ static struct syncache
 static VNET_DEFINE(struct tcp_syncache, tcp_syncache);
 #define	V_tcp_syncache			VNET(tcp_syncache)
 
-SYSCTL_NODE(_net_inet_tcp, OID_AUTO, syncache, CTLFLAG_RW, 0, "TCP SYN cache");
+static SYSCTL_NODE(_net_inet_tcp, OID_AUTO, syncache, CTLFLAG_RW, 0,
+    "TCP SYN cache");
 
 SYSCTL_VNET_UINT(_net_inet_tcp_syncache, OID_AUTO, bucketlimit, CTLFLAG_RDTUN,
     &VNET_NAME(tcp_syncache.bucket_limit), 0,

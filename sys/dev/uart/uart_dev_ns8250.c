@@ -582,9 +582,11 @@ static int
 ns8250_bus_ipend(struct uart_softc *sc)
 {
 	struct uart_bas *bas;
+	struct ns8250_softc *ns8250;
 	int ipend;
 	uint8_t iir, lsr;
 
+	ns8250 = (struct ns8250_softc *)sc;
 	bas = &sc->sc_bas;
 	uart_lock(sc->sc_hwmtx);
 	iir = uart_getreg(bas, REG_IIR);
@@ -602,9 +604,10 @@ ns8250_bus_ipend(struct uart_softc *sc)
 		if (lsr & LSR_RXRDY)
 			ipend |= SER_INT_RXREADY;
 	} else {
-		if (iir & IIR_TXRDY)
+		if (iir & IIR_TXRDY) {
 			ipend |= SER_INT_TXIDLE;
-		else
+			uart_setreg(bas, REG_IER, ns8250->ier);
+		} else
 			ipend |= SER_INT_SIGCHG;
 	}
 	if (ipend == 0)

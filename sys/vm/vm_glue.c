@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
-
+#include <sys/_kstack_cache.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -331,12 +331,7 @@ vm_sync_icache(vm_map_t map, vm_offset_t va, vm_offset_t sz)
 	pmap_sync_icache(map->pmap, va, sz);
 }
 
-struct kstack_cache_entry {
-	vm_object_t ksobj;
-	struct kstack_cache_entry *next_ks_entry;
-};
-
-static struct kstack_cache_entry *kstack_cache;
+struct kstack_cache_entry *kstack_cache;
 static int kstack_cache_size = 128;
 static int kstacks;
 static struct mtx kstack_cache_mtx;

@@ -30,8 +30,12 @@
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCInstrInfo.h"
+#include "llvm/MC/MCObjectFileInfo.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
+#include "llvm/MC/MCAsmBackend.h"
+#include "llvm/MC/MCTargetAsmParser.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -39,23 +43,15 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/PrettyStackTrace.h"
 #include "llvm/Support/SourceMgr.h"
-#include "llvm/Support/Timer.h"
-#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Signals.h"
+#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/TargetSelect.h"
+#include "llvm/Support/Timer.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/system_error.h"
-#include "llvm/Target/TargetAsmBackend.h"
-#include "llvm/Target/TargetAsmInfo.h"
-#include "llvm/Target/TargetAsmParser.h"
 #include "llvm/Target/TargetData.h"
-#include "llvm/Target/TargetInstrInfo.h"
-#include "llvm/Target/TargetLowering.h"
-#include "llvm/Target/TargetLoweringObjectFile.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegistry.h"
-#include "llvm/Target/TargetSelect.h"
-#include "llvm/Target/TargetSubtargetInfo.h"
 using namespace clang;
 using namespace clang::driver;
 using namespace llvm;
@@ -125,7 +121,7 @@ public:
   }
 
   static void CreateFromArgs(AssemblerInvocation &Res, const char **ArgBegin,
-                             const char **ArgEnd, Diagnostic &Diags);
+                             const char **ArgEnd, DiagnosticsEngine &Diags);
 };
 
 }
@@ -133,7 +129,7 @@ public:
 void AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
                                          const char **ArgBegin,
                                          const char **ArgEnd,
-                                         Diagnostic &Diags) {
+                                         DiagnosticsEngine &Diags) {
   using namespace clang::driver::cc1asoptions;
   // Parse the arguments.
   OwningPtr<OptTable> OptTbl(createCC1AsOptTable());
@@ -207,7 +203,7 @@ void AssemblerInvocation::CreateFromArgs(AssemblerInvocation &Opts,
 }
 
 static formatted_raw_ostream *GetOutputStream(AssemblerInvocation &Opts,
-                                              Diagnostic &Diags,
+                                              DiagnosticsEngine &Diags,
                                               bool Binary) {
   if (Opts.OutputPath.empty())
     Opts.OutputPath = "-";
@@ -230,7 +226,8 @@ static formatted_raw_ostream *GetOutputStream(AssemblerInvocation &Opts,
   return new formatted_raw_ostream(*Out, formatted_raw_ostream::DELETE_STREAM);
 }
 
-static bool ExecuteAssembler(AssemblerInvocation &Opts, Diagnostic &Diags) {
+static bool ExecuteAssembler(AssemblerInvocation &Opts,
+                             DiagnosticsEngine &Diags) {
   // Get the target specific parser.
   std::string Error;
   const Target *TheTarget(TargetRegistry::lookupTarget(Opts.Triple, Error));
@@ -259,64 +256,60 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts, Diagnostic &Diags) {
   OwningPtr<MCAsmInfo> MAI(TheTarget->createMCAsmInfo(Opts.Triple));
   assert(MAI && "Unable to create target asm info!");
 
+  OwningPtr<MCRegisterInfo> MRI(TheTarget->createMCRegInfo(Opts.Triple));
+  assert(MRI && "Unable to create target register info!");
+
   bool IsBinary = Opts.OutputType == AssemblerInvocation::FT_Obj;
   formatted_raw_ostream *Out = GetOutputStream(Opts, Diags, IsBinary);
   if (!Out)
     return false;
 
-  // FIXME: We shouldn't need to do this (and link in codegen).
-  OwningPtr<TargetMachine> TM(TheTarget->createTargetMachine(Opts.Triple,
-                                                             "", ""));
-  if (!TM) {
-    Diags.Report(diag::err_target_unknown_triple) << Opts.Triple;
-    return false;
-  }
-
-  const TargetAsmInfo *tai = new TargetAsmInfo(*TM);
-  MCContext Ctx(*MAI, tai);
+  // FIXME: This is not pretty. MCContext has a ptr to MCObjectFileInfo and
+  // MCObjectFileInfo needs a MCContext reference in order to initialize itself.
+  OwningPtr<MCObjectFileInfo> MOFI(new MCObjectFileInfo());
+  MCContext Ctx(*MAI, *MRI, MOFI.get());
+  // FIXME: Assembler behavior can change with -static.
+  MOFI->InitMCObjectFileInfo(Opts.Triple,
+                             Reloc::Default, CodeModel::Default, Ctx);
   if (Opts.SaveTemporaryLabels)
     Ctx.setAllowTemporaryLabels(false);
 
   OwningPtr<MCStreamer> Str;
 
-  const TargetLoweringObjectFile &TLOF =
-    TM->getTargetLowering()->getObjFileLowering();
-  const_cast<TargetLoweringObjectFile&>(TLOF).Initialize(Ctx, *TM);
-
-  const MCSubtargetInfo &STI = TM->getSubtarget<MCSubtargetInfo>();
+  OwningPtr<MCInstrInfo> MCII(TheTarget->createMCInstrInfo());
+  OwningPtr<MCSubtargetInfo>
+    STI(TheTarget->createMCSubtargetInfo(Opts.Triple, "", ""));
 
   // FIXME: There is a bit of code duplication with addPassesToEmitFile.
   if (Opts.OutputType == AssemblerInvocation::FT_Asm) {
     MCInstPrinter *IP =
-      TheTarget->createMCInstPrinter(Opts.OutputAsmVariant, *MAI);
+      TheTarget->createMCInstPrinter(Opts.OutputAsmVariant, *MAI, *STI);
     MCCodeEmitter *CE = 0;
-    TargetAsmBackend *TAB = 0;
+    MCAsmBackend *MAB = 0;
     if (Opts.ShowEncoding) {
-      CE = TheTarget->createCodeEmitter(*TM->getInstrInfo(), STI, Ctx);
-      TAB = TheTarget->createAsmBackend(Opts.Triple);
+      CE = TheTarget->createMCCodeEmitter(*MCII, *STI, Ctx);
+      MAB = TheTarget->createMCAsmBackend(Opts.Triple);
     }
     Str.reset(TheTarget->createAsmStreamer(Ctx, *Out, /*asmverbose*/true,
                                            /*useLoc*/ true,
-                                           /*useCFI*/ true, IP, CE, TAB,
+                                           /*useCFI*/ true, IP, CE, MAB,
                                            Opts.ShowInst));
   } else if (Opts.OutputType == AssemblerInvocation::FT_Null) {
     Str.reset(createNullStreamer(Ctx));
   } else {
     assert(Opts.OutputType == AssemblerInvocation::FT_Obj &&
            "Invalid file type!");
-    MCCodeEmitter *CE = TheTarget->createCodeEmitter(*TM->getInstrInfo(),
-                                                     STI, Ctx);
-    TargetAsmBackend *TAB = TheTarget->createAsmBackend(Opts.Triple);
-    Str.reset(TheTarget->createObjectStreamer(Opts.Triple, Ctx, *TAB, *Out,
-                                              CE, Opts.RelaxAll,
-                                              Opts.NoExecStack));
+    MCCodeEmitter *CE = TheTarget->createMCCodeEmitter(*MCII, *STI, Ctx);
+    MCAsmBackend *MAB = TheTarget->createMCAsmBackend(Opts.Triple);
+    Str.reset(TheTarget->createMCObjectStreamer(Opts.Triple, Ctx, *MAB, *Out,
+                                                CE, Opts.RelaxAll,
+                                                Opts.NoExecStack));
     Str.get()->InitSections();
   }
 
-  OwningPtr<MCAsmParser> Parser(createMCAsmParser(*TheTarget, SrcMgr, Ctx,
+  OwningPtr<MCAsmParser> Parser(createMCAsmParser(SrcMgr, Ctx,
                                                   *Str.get(), *MAI));
-  OwningPtr<TargetAsmParser>
-    TAP(TheTarget->createAsmParser(const_cast<MCSubtargetInfo&>(STI), *Parser));
+  OwningPtr<MCTargetAsmParser> TAP(TheTarget->createMCAsmParser(*STI, *Parser));
   if (!TAP) {
     Diags.Report(diag::err_target_unknown_triple) << Opts.Triple;
     return false;
@@ -337,7 +330,7 @@ static bool ExecuteAssembler(AssemblerInvocation &Opts, Diagnostic &Diags) {
 }
 
 static void LLVMErrorHandler(void *UserData, const std::string &Message) {
-  Diagnostic &Diags = *static_cast<Diagnostic*>(UserData);
+  DiagnosticsEngine &Diags = *static_cast<DiagnosticsEngine*>(UserData);
 
   Diags.Report(diag::err_fe_error_backend) << Message;
 
@@ -354,12 +347,7 @@ int cc1as_main(const char **ArgBegin, const char **ArgEnd,
 
   // Initialize targets and assembly printers/parsers.
   InitializeAllTargetInfos();
-  // FIXME: We shouldn't need to initialize the Target(Machine)s.
-  InitializeAllTargets();
-  InitializeAllMCAsmInfos();
-  InitializeAllMCInstrInfos();
-  InitializeAllMCSubtargetInfos();
-  InitializeAllAsmPrinters();
+  InitializeAllTargetMCs();
   InitializeAllAsmParsers();
 
   // Construct our diagnostic client.
@@ -367,7 +355,7 @@ int cc1as_main(const char **ArgBegin, const char **ArgEnd,
     = new TextDiagnosticPrinter(errs(), DiagnosticOptions());
   DiagClient->setPrefix("clang -cc1as");
   llvm::IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
-  Diagnostic Diags(DiagID, DiagClient);
+  DiagnosticsEngine Diags(DiagID, DiagClient);
 
   // Set an error handler, so that any LLVM backend diagnostics go through our
   // error handler.

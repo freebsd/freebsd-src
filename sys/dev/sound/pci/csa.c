@@ -1076,7 +1076,6 @@ static device_method_t csa_methods[] = {
 	DEVMETHOD(device_resume,	csa_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_alloc_resource,	csa_alloc_resource),
 	DEVMETHOD(bus_release_resource,	csa_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
@@ -1084,7 +1083,7 @@ static device_method_t csa_methods[] = {
 	DEVMETHOD(bus_setup_intr,	csa_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	csa_teardown_intr),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t csa_driver = {

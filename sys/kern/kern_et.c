@@ -41,7 +41,7 @@ struct mtx	et_eventtimers_mtx;
 MTX_SYSINIT(et_eventtimers_init, &et_eventtimers_mtx, "et_mtx", MTX_DEF);
 
 SYSCTL_NODE(_kern, OID_AUTO, eventtimer, CTLFLAG_RW, 0, "Event timers");
-SYSCTL_NODE(_kern_eventtimer, OID_AUTO, et, CTLFLAG_RW, 0, "");
+static SYSCTL_NODE(_kern_eventtimer, OID_AUTO, et, CTLFLAG_RW, 0, "");
 
 /*
  * Register a new event timer hardware.

@@ -38,6 +38,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
+#include <sys/sysctl.h>
 
 #include <sys/proc.h>
 #include <sys/bus.h>
@@ -75,6 +76,13 @@
 #define	ISP_IFLAGS	INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE
 
 #ifdef	ISP_TARGET_MODE
+/* Not quite right, but there was no bump for this change */
+#if __FreeBSD_version < 225469
+#define	SDFIXED(x)	(&x)
+#else
+#define	SDFIXED(x)	((struct scsi_sense_data_fixed *)(&x))
+#endif
+
 #define	ISP_TARGET_FUNCTIONS	1
 #define	ATPDPSIZE	4096
 
@@ -486,6 +494,7 @@ default:							\
 
 #define	XS_SAVE_SENSE(xs, sense_ptr, slen)	do {			\
 		(xs)->ccb_h.status |= CAM_AUTOSNS_VALID;		\
+		memset(&(xs)->sense_data, 0, sizeof(&(xs)->sense_data));\
 		memcpy(&(xs)->sense_data, sense_ptr, imin(XS_SNSLEN(xs),\
 		       slen)); 						\
 		if (slen < (xs)->sense_len) 				\

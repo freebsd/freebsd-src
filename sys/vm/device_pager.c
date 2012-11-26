@@ -76,6 +76,18 @@ struct pagerops devicepagerops = {
 	.pgo_haspage =	dev_pager_haspage,
 };
 
+static int old_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
+    vm_ooffset_t foff, struct ucred *cred, u_short *color);
+static void old_dev_pager_dtor(void *handle);
+static int old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset,
+    int prot, vm_page_t *mres);
+
+static struct cdev_pager_ops old_dev_pager_ops = {
+	.cdev_pg_ctor =	old_dev_pager_ctor,
+	.cdev_pg_dtor =	old_dev_pager_dtor,
+	.cdev_pg_fault = old_dev_pager_fault
+};
+
 static void
 dev_pager_init()
 {
@@ -83,22 +95,28 @@ dev_pager_init()
 	mtx_init(&dev_pager_mtx, "dev_pager list", NULL, MTX_DEF);
 }
 
-/*
- * MPSAFE
- */
-static vm_object_t
-dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
-    vm_ooffset_t foff, struct ucred *cred)
+vm_object_t
+cdev_pager_lookup(void *handle)
 {
-	struct cdev *dev;
+	vm_object_t object;
+
+	mtx_lock(&dev_pager_mtx);
+	object = vm_pager_object_lookup(&dev_pager_object_list, handle);
+	vm_object_reference(object);
+	mtx_unlock(&dev_pager_mtx);
+	return (object);
+}
+
+vm_object_t
+cdev_pager_allocate(void *handle, enum obj_type tp, struct cdev_pager_ops *ops,
+    vm_ooffset_t size, vm_prot_t prot, vm_ooffset_t foff, struct ucred *cred)
+{
 	vm_object_t object, object1;
 	vm_pindex_t pindex;
-	unsigned int npages;
-	vm_paddr_t paddr;
-	vm_ooffset_t off;
-	vm_memattr_t dummy;
-	struct cdevsw *csw;
-	int ref;
+	u_short color;
+
+	if (tp != OBJT_DEVICE)
+		return (NULL);
 
 	/*
 	 * Offset should be page aligned.
@@ -109,27 +127,8 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	size = round_page(size);
 	pindex = OFF_TO_IDX(foff + size);
 
-	/*
-	 * Make sure this device can be mapped.
-	 */
-	dev = handle;
-	csw = dev_refthread(dev, &ref);
-	if (csw == NULL)
+	if (ops->cdev_pg_ctor(handle, size, prot, foff, cred, &color) != 0)
 		return (NULL);
-
-	/*
-	 * Check that the specified range of the device allows the desired
-	 * protection.
-	 *
-	 * XXX assumes VM_PROT_* == PROT_*
-	 */
-	npages = OFF_TO_IDX(size);
-	for (off = foff; npages--; off += PAGE_SIZE)
-		if (csw->d_mmap(dev, off, &paddr, (int)prot, &dummy) != 0) {
-			dev_relthread(dev, ref);
-			return (NULL);
-		}
-
 	mtx_lock(&dev_pager_mtx);
 
 	/*
@@ -144,9 +143,11 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		 * device's memory.
 		 */
 		mtx_unlock(&dev_pager_mtx);
-		object1 = vm_object_allocate(OBJT_DEVICE, pindex);
+		object1 = vm_object_allocate(tp, pindex);
 		object1->flags |= OBJ_COLORED;
-		object1->pg_color = atop(paddr) - OFF_TO_IDX(off - PAGE_SIZE);
+		object1->pg_color = color;
+		object1->handle = handle;
+		object1->un_pager.devp.ops = ops;
 		TAILQ_INIT(&object1->un_pager.devp.devp_pglist);
 		mtx_lock(&dev_pager_mtx);
 		object = vm_pager_object_lookup(&dev_pager_object_list, handle);
@@ -162,13 +163,14 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 			object->handle = handle;
 			TAILQ_INSERT_TAIL(&dev_pager_object_list, object,
 			    pager_object_list);
+			KASSERT(object->type == tp,
+		("Inconsistent device pager type %p %d", object, tp));
 		}
 	} else {
 		if (pindex > object->size)
 			object->size = pindex;
 	}
 	mtx_unlock(&dev_pager_mtx);
-	dev_relthread(dev, ref);
 	if (object1 != NULL) {
 		object1->handle = object1;
 		mtx_lock(&dev_pager_mtx);
@@ -180,6 +182,24 @@ dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	return (object);
 }
 
+static vm_object_t
+dev_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
+    vm_ooffset_t foff, struct ucred *cred)
+{
+
+	return (cdev_pager_allocate(handle, OBJT_DEVICE, &old_dev_pager_ops,
+	    size, prot, foff, cred));
+}
+
+void
+cdev_pager_free_page(vm_object_t object, vm_page_t m)
+{
+
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	TAILQ_REMOVE(&object->un_pager.devp.devp_pglist, m, pageq);
+	vm_page_putfake(m);
+}
+
 static void
 dev_pager_dealloc(object)
 	vm_object_t object;
@@ -187,6 +207,8 @@ dev_pager_dealloc(object)
 	vm_page_t m;
 
 	VM_OBJECT_UNLOCK(object);
+	object->un_pager.devp.ops->cdev_pg_dtor(object->handle);
+
 	mtx_lock(&dev_pager_mtx);
 	TAILQ_REMOVE(&dev_pager_object_list, object, pager_object_list);
 	mtx_unlock(&dev_pager_mtx);
@@ -194,35 +216,57 @@ dev_pager_dealloc(object)
 	/*
 	 * Free up our fake pages.
 	 */
-	while ((m = TAILQ_FIRST(&object->un_pager.devp.devp_pglist)) != NULL) {
-		TAILQ_REMOVE(&object->un_pager.devp.devp_pglist, m, pageq);
-		vm_page_putfake(m);
-	}
+	while ((m = TAILQ_FIRST(&object->un_pager.devp.devp_pglist)) != NULL)
+		cdev_pager_free_page(object, m);
 }
 
 static int
-dev_pager_getpages(object, m, count, reqpage)
-	vm_object_t object;
-	vm_page_t *m;
-	int count;
-	int reqpage;
+dev_pager_getpages(vm_object_t object, vm_page_t *ma, int count, int reqpage)
 {
-	vm_pindex_t offset;
-	vm_paddr_t paddr;
-	vm_page_t m_paddr, page;
-	vm_memattr_t memattr;
-	struct cdev *dev;
-	int i, ref, ret;
-	struct cdevsw *csw;
-	struct thread *td;
-	struct file *fpop;
+	int error, i;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-	dev = object->handle;
-	page = m[reqpage];
-	offset = page->pindex;
+	error = object->un_pager.devp.ops->cdev_pg_fault(object,
+	    IDX_TO_OFF(ma[reqpage]->pindex), PROT_READ, &ma[reqpage]);
+
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+
+	for (i = 0; i < count; i++) {
+		if (i != reqpage) {
+			vm_page_lock(ma[i]);
+			vm_page_free(ma[i]);
+			vm_page_unlock(ma[i]);
+		}
+	}
+
+	if (error == VM_PAGER_OK) {
+		TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist,
+		    ma[reqpage], pageq);
+	}
+
+	return (error);
+}
+
+static int
+old_dev_pager_fault(vm_object_t object, vm_ooffset_t offset, int prot,
+    vm_page_t *mres)
+{
+	vm_pindex_t pidx;
+	vm_paddr_t paddr;
+	vm_page_t m_paddr, page;
+	struct cdev *dev;
+	struct cdevsw *csw;
+	struct file *fpop;
+	struct thread *td;
+	vm_memattr_t memattr;
+	int ref, ret;
+
+	pidx = OFF_TO_IDX(offset);
 	memattr = object->memattr;
+
 	VM_OBJECT_UNLOCK(object);
+
+	dev = object->handle;
 	csw = dev_refthread(dev, &ref);
 	if (csw == NULL) {
 		VM_OBJECT_LOCK(object);
@@ -231,11 +275,16 @@ dev_pager_getpages(object, m, count, reqpage)
 	td = curthread;
 	fpop = td->td_fpop;
 	td->td_fpop = NULL;
-	ret = csw->d_mmap(dev, (vm_ooffset_t)offset << PAGE_SHIFT, &paddr,
-	    PROT_READ, &memattr);
-	KASSERT(ret == 0, ("dev_pager_getpage: map function returns error"));
+	ret = csw->d_mmap(dev, offset, &paddr, prot, &memattr);
 	td->td_fpop = fpop;
 	dev_relthread(dev, ref);
+	if (ret != 0) {
+		printf(
+	    "WARNING: dev_pager_getpage: map function returns error %d", ret);
+		VM_OBJECT_LOCK(object);
+		return (VM_PAGER_FAIL);
+	}
+
 	/* If "paddr" is a real page, perform a sanity check on "memattr". */
 	if ((m_paddr = vm_phys_paddr_to_vm_page(paddr)) != NULL &&
 	    pmap_page_get_memattr(m_paddr) != memattr) {
@@ -243,23 +292,14 @@ dev_pager_getpages(object, m, count, reqpage)
 		printf(
 	    "WARNING: A device driver has set \"memattr\" inconsistently.\n");
 	}
-	if ((page->flags & PG_FICTITIOUS) != 0) {
+	if (((*mres)->flags & PG_FICTITIOUS) != 0) {
 		/*
-		 * If the passed in reqpage page is a fake page, update it with
+		 * If the passed in result page is a fake page, update it with
 		 * the new physical address.
 		 */
+		page = *mres;
 		VM_OBJECT_LOCK(object);
 		vm_page_updatefake(page, paddr, memattr);
-		if (count > 1) {
-
-			for (i = 0; i < count; i++) {
-				if (i != reqpage) {
-					vm_page_lock(m[i]);
-					vm_page_free(m[i]);
-					vm_page_unlock(m[i]);
-				}
-			}
-		}
 	} else {
 		/*
 		 * Replace the passed in reqpage page with our own fake page and
@@ -267,14 +307,11 @@ dev_pager_getpages(object, m, count, reqpage)
 		 */
 		page = vm_page_getfake(paddr, memattr);
 		VM_OBJECT_LOCK(object);
-		TAILQ_INSERT_TAIL(&object->un_pager.devp.devp_pglist, page, pageq);
-		for (i = 0; i < count; i++) {
-			vm_page_lock(m[i]);
-			vm_page_free(m[i]);
-			vm_page_unlock(m[i]);
-		}
-		vm_page_insert(page, object, offset);
-		m[reqpage] = page;
+		vm_page_lock(*mres);
+		vm_page_free(*mres);
+		vm_page_unlock(*mres);
+		*mres = page;
+		vm_page_insert(page, object, pidx);
 	}
 	page->valid = VM_PAGE_BITS_ALL;
 	return (VM_PAGER_OK);
@@ -288,6 +325,7 @@ dev_pager_putpages(object, m, count, sync, rtvals)
 	boolean_t sync;
 	int *rtvals;
 {
+
 	panic("dev_pager_putpage called");
 }
 
@@ -303,4 +341,51 @@ dev_pager_haspage(object, pindex, before, after)
 	if (after != NULL)
 		*after = 0;
 	return (TRUE);
+}
+
+static int
+old_dev_pager_ctor(void *handle, vm_ooffset_t size, vm_prot_t prot,
+    vm_ooffset_t foff, struct ucred *cred, u_short *color)
+{
+	struct cdev *dev;
+	struct cdevsw *csw;
+	vm_memattr_t dummy;
+	vm_ooffset_t off;
+	vm_paddr_t paddr;
+	unsigned int npages;
+	int ref;
+
+	/*
+	 * Make sure this device can be mapped.
+	 */
+	dev = handle;
+	csw = dev_refthread(dev, &ref);
+	if (csw == NULL)
+		return (ENXIO);
+
+	/*
+	 * Check that the specified range of the device allows the desired
+	 * protection.
+	 *
+	 * XXX assumes VM_PROT_* == PROT_*
+	 */
+	npages = OFF_TO_IDX(size);
+	for (off = foff; npages--; off += PAGE_SIZE) {
+		if (csw->d_mmap(dev, off, &paddr, (int)prot, &dummy) != 0) {
+			dev_relthread(dev, ref);
+			return (EINVAL);
+		}
+	}
+
+	dev_ref(dev);
+	dev_relthread(dev, ref);
+	*color = atop(paddr) - OFF_TO_IDX(off - PAGE_SIZE);
+	return (0);
+}
+
+static void
+old_dev_pager_dtor(void *handle)
+{
+
+	dev_rel(handle);
 }

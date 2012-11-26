@@ -264,50 +264,72 @@
 .ds doc-volume-as-algor        algor
 .ds doc-volume-as-amd64        amd64
 .ds doc-volume-as-amiga        amiga
+.ds doc-volume-as-amigappc     amigappc
 .ds doc-volume-as-arc          arc
+.ds doc-volume-as-arm          arm
 .ds doc-volume-as-arm26        arm26
 .ds doc-volume-as-arm32        arm32
+.ds doc-volume-as-armish       armish
 .ds doc-volume-as-atari        atari
+.ds doc-volume-as-aviion       aviion
+.ds doc-volume-as-beagle       beagle
 .ds doc-volume-as-bebox        bebox
 .ds doc-volume-as-cats         cats
 .ds doc-volume-as-cesfic       cesfic
 .ds doc-volume-as-cobalt       cobalt
 .ds doc-volume-as-dreamcast    dreamcast
+.ds doc-volume-as-emips        emips
 .ds doc-volume-as-evbarm       evbarm
 .ds doc-volume-as-evbmips      evbmips
 .ds doc-volume-as-evbppc       evbppc
 .ds doc-volume-as-evbsh3       evbsh3
+.ds doc-volume-as-ews4800mips  ews4800mips
 .ds doc-volume-as-hp300        hp300
 .ds doc-volume-as-hp700        hp700
 .ds doc-volume-as-hpcarm       hpcarm
 .ds doc-volume-as-hpcmips      hpcmips
 .ds doc-volume-as-hpcsh        hpcsh
+.ds doc-volume-as-hppa         hppa
+.ds doc-volume-as-hppa64       hppa64
 .ds doc-volume-as-i386         i386
+.ds doc-volume-as-ia64         ia64
+.ds doc-volume-as-ibmnws       ibmnws
+.ds doc-volume-as-iyonix       iyonix
+.ds doc-volume-as-landisk      landisk
+.ds doc-volume-as-loongson     loongson
 .ds doc-volume-as-luna68k      luna68k
+.ds doc-volume-as-luna88k      luna88k
 .ds doc-volume-as-m68k         m68k
 .ds doc-volume-as-mac68k       mac68k
 .ds doc-volume-as-macppc       macppc
 .ds doc-volume-as-mips         mips
+.ds doc-volume-as-mips64       mips64
 .ds doc-volume-as-mipsco       mipsco
 .ds doc-volume-as-mmeye        mmeye
 .ds doc-volume-as-mvme68k      mvme68k
+.ds doc-volume-as-mvme88k      mvme88k
 .ds doc-volume-as-mvmeppc      mvmeppc
 .ds doc-volume-as-netwinder    netwinder
 .ds doc-volume-as-news68k      news68k
 .ds doc-volume-as-newsmips     newsmips
 .ds doc-volume-as-next68k      next68k
 .ds doc-volume-as-ofppc        ofppc
+.ds doc-volume-as-palm         palm
 .ds doc-volume-as-pc532        pc532
 .ds doc-volume-as-playstation2 playstation2
 .ds doc-volume-as-pmax         pmax
 .ds doc-volume-as-pmppc        pmppc
 .ds doc-volume-as-powerpc      powerpc
 .ds doc-volume-as-prep         prep
+.ds doc-volume-as-rs6000       rs6000
 .ds doc-volume-as-sandpoint    sandpoint
 .ds doc-volume-as-sbmips       sbmips
+.ds doc-volume-as-sgi          sgi
 .ds doc-volume-as-sgimips      sgimips
 .ds doc-volume-as-sh3          sh3
 .ds doc-volume-as-shark        shark
+.ds doc-volume-as-socppc       socppc
+.ds doc-volume-as-solbourne    solbourne
 .ds doc-volume-as-sparc        sparc
 .ds doc-volume-as-sparc64      sparc64
 .ds doc-volume-as-sun2         sun2
@@ -316,6 +338,8 @@
 .ds doc-volume-as-vax          vax
 .ds doc-volume-as-x68k         x68k
 .ds doc-volume-as-x86_64       x86_64
+.ds doc-volume-as-xen          xen
+.ds doc-volume-as-zaurus       zaurus
 .
 .de Dt
 .  \" reset default arguments
@@ -451,12 +475,16 @@
 .ds doc-operating-system-NetBSD-3.0   3.0
 .ds doc-operating-system-NetBSD-3.0.1 3.0.1
 .ds doc-operating-system-NetBSD-3.0.2 3.0.2
+.ds doc-operating-system-NetBSD-3.0.3 3.0.3
 .ds doc-operating-system-NetBSD-3.1   3.1
+.ds doc-operating-system-NetBSD-3.1.1 3.1.1
 .ds doc-operating-system-NetBSD-4.0   4.0
 .ds doc-operating-system-NetBSD-4.0.1 4.0.1
 .ds doc-operating-system-NetBSD-5.0   5.0
 .ds doc-operating-system-NetBSD-5.0.1 5.0.1
 .ds doc-operating-system-NetBSD-5.0.2 5.0.2
+.ds doc-operating-system-NetBSD-5.1   5.1
+.ds doc-operating-system-NetBSD-6.0   6.0
 .
 .ds doc-operating-system-OpenBSD-2.0  2.0
 .ds doc-operating-system-OpenBSD-2.1  2.1
@@ -487,6 +515,8 @@
 .ds doc-operating-system-OpenBSD-4.6  4.6
 .ds doc-operating-system-OpenBSD-4.7  4.7
 .ds doc-operating-system-OpenBSD-4.8  4.8
+.ds doc-operating-system-OpenBSD-4.9  4.9
+.ds doc-operating-system-OpenBSD-5.0  5.0
 .
 .ds doc-operating-system-FreeBSD-1.0     1.0
 .ds doc-operating-system-FreeBSD-1.1     1.1
@@ -544,6 +574,7 @@
 .ds doc-operating-system-FreeBSD-8.0     8.0
 .ds doc-operating-system-FreeBSD-8.1     8.1
 .ds doc-operating-system-FreeBSD-8.2     8.2
+.ds doc-operating-system-FreeBSD-9.0     9.0
 .
 .ds doc-operating-system-Darwin-8.0.0  8.0.0
 .ds doc-operating-system-Darwin-8.1.0  8.1.0
@@ -566,7 +597,6 @@
 .ds doc-operating-system-Darwin-9.6.0  9.6.0
 .ds doc-operating-system-Darwin-9.7.0  9.7.0
 .ds doc-operating-system-Darwin-9.8.0  9.8.0
-.ds doc-operating-system-Darwin-10.6.0 10.6.0
 .ds doc-operating-system-Darwin-10.1.0 10.1.0
 .ds doc-operating-system-Darwin-10.2.0 10.2.0
 .ds doc-operating-system-Darwin-10.3.0 10.3.0
@@ -593,6 +623,11 @@
 .ds doc-operating-system-DragonFly-2.4    2.4
 .ds doc-operating-system-DragonFly-2.6    2.6
 .ds doc-operating-system-DragonFly-2.8    2.8
+.ds doc-operating-system-DragonFly-2.9    2.9
+.ds doc-operating-system-DragonFly-2.9.1  2.9.1
+.ds doc-operating-system-DragonFly-2.10   2.10
+.ds doc-operating-system-DragonFly-2.10.1 2.10.1
+.ds doc-operating-system-DragonFly-2.11   2.11
 .
 .de Os
 .  ds doc-command-name

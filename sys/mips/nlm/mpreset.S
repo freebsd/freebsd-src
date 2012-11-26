@@ -45,6 +45,42 @@
 	.set	noreorder
 	.set	mips64
 
+#define	MFCR(rt,rs)	.word	((0x1c<<26)|((rs)<<21)|((rt)<<16)|(0x18))
+#define	MTCR(rt,rs)	.word	((0x1c<<26)|((rs)<<21)|((rt)<<16)|(0x19))
+/*
+ * We need to do this to really flush the dcache before splitting it
+ */
+.macro flush_l1_dcache
+	.set	push
+	.set	noreorder
+	li	$8, LSU_DEBUG_DATA0 /* use register number to handle */
+	li	$9, LSU_DEBUG_ADDR  /* different ABIs */
+	li	t2, 0
+	li	t3, 0x200
+1:
+	sll	v0, t2, 5
+	MTCR(0, 8)
+	ori	v1, v0, 0x3
+	MTCR(3, 9)
+2:
+	MFCR(3, 9)
+	andi	v1, 0x1
+	bnez	v1, 2b
+	nop
+	MTCR(0, 8)
+	ori	v1, v0, 0x7
+	MTCR(3, 9)
+3:
+	MFCR(3, 9)
+	andi	v1, 0x1
+	bnez	v1, 3b
+	nop
+	addi	t2, 1
+	bne	t3, t2, 1b
+	nop
+	.set pop
+.endm
+
 VECTOR(XLPResetEntry, unknown)
 	mfc0	t0, MIPS_COP_0_STATUS
 	li	t1, 0x80000
@@ -111,11 +147,14 @@ LEAF(xlp_enable_threads)
 	sd	t1, 72(sp)
 	sd	gp, 80(sp)
 	sd	ra, 88(sp)
+
+	flush_l1_dcache
+
 	/* Use register number to work in o32 and n32 */
 	li	$9, ((CPU_BLOCKID_MAP << 8) | MAP_THREADMODE)
 	move	$8, a0	
 	sync
-	.word	0x71280019	/* mtcr    t0, t1*/
+	MTCR(8, 9)
 	mfc0	t0, MIPS_COP_0_PRID, 1
 	andi	t0, 0x3
 	beqz	t0, 2f
@@ -134,8 +173,8 @@ LEAF(xlp_enable_threads)
 	 */
 	li	$9, 0x400
 	li	$8, 0
-	.word	0x71280019	/* mtcr    $8, $9*/
-	.word	0x000000c0	/* ehb */
+	MTCR(8, 9)
+	sll	zero,3		/* ehb */
 #endif
 	dmfc0	t0, $4, 2	/* SP saved in UserLocal */
 	ori	sp, t0, 0x7

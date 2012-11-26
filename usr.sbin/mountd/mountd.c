@@ -3092,7 +3092,7 @@ checkmask(struct sockaddr *sa)
 /*
  * Compare two sockaddrs according to a specified mask. Return zero if
  * `sa1' matches `sa2' when filtered by the netmask in `samask'.
- * If samask is NULL, perform a full comparision.
+ * If samask is NULL, perform a full comparison.
  */
 int
 sacmp(struct sockaddr *sa1, struct sockaddr *sa2, struct sockaddr *samask)

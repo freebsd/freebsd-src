@@ -111,11 +111,13 @@ struct hastd_listen {
 
 struct hastd_config {
 	/* Address to communicate with hastctl(8). */
-	char	 hc_controladdr[HAST_ADDRSIZE];
+	char	hc_controladdr[HAST_ADDRSIZE];
 	/* Protocol-specific data. */
 	struct proto_conn *hc_controlconn;
 	/* Incoming control connection. */
 	struct proto_conn *hc_controlin;
+	/* PID file path. */
+	char	hc_pidfile[PATH_MAX];
 	/* List of addresses to listen on. */
 	TAILQ_HEAD(, hastd_listen) hc_listen;
 	/* List of resources. */

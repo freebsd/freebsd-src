@@ -175,8 +175,7 @@ struct scsi_inquiry
 #define	SI_EVPD 	0x01
 #define	SI_CMDDT	0x02
 	u_int8_t page_code;
-	u_int8_t reserved;
-	u_int8_t length;
+	u_int8_t length[2];
 	u_int8_t control;
 };
 
@@ -531,6 +530,55 @@ struct scsi_caching_page {
 	uint8_t reserved;
 	uint8_t non_cache_seg_size[3];
 };
+
+/*
+ * XXX KDM move this off to a vendor shim.
+ */
+struct copan_power_subpage {
+	uint8_t page_code;
+#define	PWR_PAGE_CODE		0x00
+	uint8_t subpage;
+#define	PWR_SUBPAGE_CODE	0x02
+	uint8_t page_length[2];
+	uint8_t page_version;
+#define	PWR_VERSION		    0x01
+	uint8_t total_luns;
+	uint8_t max_active_luns;
+#define	PWR_DFLT_MAX_LUNS	    0x07
+	uint8_t reserved[25];
+};
+
+/*
+ * XXX KDM move this off to a vendor shim.
+ */
+struct copan_aps_subpage {
+	uint8_t page_code;
+#define	APS_PAGE_CODE		0x00
+	uint8_t subpage;
+#define	APS_SUBPAGE_CODE	0x03
+	uint8_t page_length[2];
+	uint8_t page_version;
+#define	APS_VERSION		    0x00
+	uint8_t lock_active;
+#define	APS_LOCK_ACTIVE	    0x01
+#define	APS_LOCK_INACTIVE	0x00
+	uint8_t reserved[26];
+};
+
+/*
+ * XXX KDM move this off to a vendor shim.
+ */
+struct copan_debugconf_subpage {
+	uint8_t page_code;
+#define DBGCNF_PAGE_CODE		0x00
+	uint8_t subpage;
+#define DBGCNF_SUBPAGE_CODE	0xF0
+	uint8_t page_length[2];
+	uint8_t page_version;
+#define DBGCNF_VERSION			0x00
+	uint8_t ctl_time_io_secs[2];
+};
+
 
 struct scsi_info_exceptions_page {
 	u_int8_t page_code;
@@ -932,6 +980,7 @@ struct ata_pass_16 {
 #define	WRITE_12		0xAA
 #define	WRITE_VERIFY_12		0xAE
 #define	READ_ELEMENT_STATUS	0xB8
+#define	READ_CD			0xBE
 
 /* Maintenance In Service Action Codes */
 #define	REPORT_IDENTIFYING_INFRMATION		0x05
@@ -1348,6 +1397,17 @@ struct scsi_read_capacity_data_long
 {
 	uint8_t addr[8];
 	uint8_t length[4];
+#define	SRC16_PROT_EN		0x01
+#define	SRC16_P_TYPE		0x0e
+	uint8_t prot;
+#define	SRC16_LBPPBE		0x0f
+#define	SRC16_PI_EXPONENT	0xf0
+#define	SRC16_PI_EXPONENT_SHIFT	4
+	uint8_t prot_lbppbe;
+#define	SRC16_LALBA		0x3fff
+#define	SRC16_LBPRZ		0x4000
+#define	SRC16_LBPME		0x8000
+	uint8_t lalba_lbp[2];
 };
 
 struct scsi_report_luns

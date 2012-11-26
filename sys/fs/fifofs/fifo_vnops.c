@@ -218,7 +218,7 @@ fail1:
 			free(fip, M_VNODE);
 			return (error);
 		}
-		fip->fi_readers = fip->fi_writers = 0;
+		fip->fi_wgen = fip->fi_readers = fip->fi_writers = 0;
 		wso->so_snd.sb_lowat = PIPE_BUF;
 		SOCKBUF_LOCK(&rso->so_rcv);
 		rso->so_rcv.sb_state |= SBS_CANTRCVMORE;

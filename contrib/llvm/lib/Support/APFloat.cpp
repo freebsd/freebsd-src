@@ -832,6 +832,7 @@ APFloat::incrementSignificand()
 
   /* Our callers should never cause us to overflow.  */
   assert(carry == 0);
+  (void)carry;
 }
 
 /* Add the significand of the RHS.  Returns the carry flag.  */
@@ -926,6 +927,7 @@ APFloat::multiplySignificand(const APFloat &rhs, const APFloat *addend)
     APFloat extendedAddend(*addend);
     status = extendedAddend.convert(extendedSemantics, rmTowardZero, &ignored);
     assert(status == opOK);
+    (void)status;
     lost_fraction = addOrSubtractSignificand(extendedAddend, false);
 
     /* Restore our state.  */
@@ -1190,7 +1192,7 @@ APFloat::normalize(roundingMode rounding_mode,
 
   if (omsb) {
     /* OMSB is numbered from 1.  We want to place it in the integer
-       bit numbered PRECISON if possible, with a compensating change in
+       bit numbered PRECISION if possible, with a compensating change in
        the exponent.  */
     exponentChange = omsb - semantics->precision;
 
@@ -1389,6 +1391,7 @@ APFloat::addOrSubtractSignificand(const APFloat &rhs, bool subtract)
     /* The code above is intended to ensure that no borrow is
        necessary.  */
     assert(!carry);
+    (void)carry;
   } else {
     if (bits > 0) {
       APFloat temp_rhs(rhs);
@@ -1402,6 +1405,7 @@ APFloat::addOrSubtractSignificand(const APFloat &rhs, bool subtract)
 
     /* We have a guard bit; generating a carry cannot happen.  */
     assert(!carry);
+    (void)carry;
   }
 
   return lost_fraction;
@@ -2098,7 +2102,7 @@ APFloat::convertToInteger(APSInt &result,
   opStatus status = convertToInteger(
     parts.data(), bitWidth, result.isSigned(), rounding_mode, isExact);
   // Keeps the original signed-ness.
-  result = APInt(bitWidth, (unsigned)parts.size(), parts.data());
+  result = APInt(bitWidth, parts);
   return status;
 }
 
@@ -2121,7 +2125,7 @@ APFloat::convertFromUnsignedParts(const integerPart *src,
   dstCount = partCount();
   precision = semantics->precision;
 
-  /* We want the most significant PRECISON bits of SRC.  There may not
+  /* We want the most significant PRECISION bits of SRC.  There may not
      be that many; extract what we can.  */
   if (precision <= omsb) {
     exponent = omsb - 1;
@@ -2192,7 +2196,7 @@ APFloat::convertFromZeroExtendedInteger(const integerPart *parts,
                                         roundingMode rounding_mode)
 {
   unsigned int partCount = partCountForBits(width);
-  APInt api = APInt(width, partCount, parts);
+  APInt api = APInt(width, makeArrayRef(parts, partCount));
 
   sign = false;
   if (isSigned && APInt::tcExtractBit(parts, width - 1)) {
@@ -2746,7 +2750,7 @@ APFloat::convertF80LongDoubleAPFloatToAPInt() const
   words[0] = mysignificand;
   words[1] =  ((uint64_t)(sign & 1) << 15) |
               (myexponent & 0x7fffLL);
-  return APInt(80, 2, words);
+  return APInt(80, words);
 }
 
 APInt
@@ -2791,7 +2795,7 @@ APFloat::convertPPCDoubleDoubleAPFloatToAPInt() const
   words[1] =  ((uint64_t)(sign2 & 1) << 63) |
               ((myexponent2 & 0x7ff) <<  52) |
               (mysignificand2 & 0xfffffffffffffLL);
-  return APInt(128, 2, words);
+  return APInt(128, words);
 }
 
 APInt
@@ -2827,7 +2831,7 @@ APFloat::convertQuadrupleAPFloatToAPInt() const
              ((myexponent & 0x7fff) << 48) |
              (mysignificand2 & 0xffffffffffffLL);
 
-  return APInt(128, 2, words);
+  return APInt(128, words);
 }
 
 APInt
@@ -3239,8 +3243,9 @@ APFloat APFloat::getLargest(const fltSemantics &Sem, bool Negative) {
     significand[i] = ~((integerPart) 0);
 
   // ...and then clear the top bits for internal consistency.
-  significand[N-1] &=
-    (((integerPart) 1) << ((Sem.precision % integerPartWidth) - 1)) - 1;
+  if (Sem.precision % integerPartWidth != 0)
+    significand[N-1] &=
+      (((integerPart) 1) << (Sem.precision % integerPartWidth)) - 1;
 
   return Val;
 }
@@ -3270,7 +3275,7 @@ APFloat APFloat::getSmallestNormalized(const fltSemantics &Sem, bool Negative) {
   Val.exponent = Sem.minExponent;
   Val.zeroSignificand();
   Val.significandParts()[partCountForBits(Sem.precision)-1] |=
-    (((integerPart) 1) << ((Sem.precision % integerPartWidth) - 1));
+    (((integerPart) 1) << ((Sem.precision - 1) % integerPartWidth));
 
   return Val;
 }
@@ -3413,8 +3418,8 @@ void APFloat::toString(SmallVectorImpl<char> &Str,
   // Decompose the number into an APInt and an exponent.
   int exp = exponent - ((int) semantics->precision - 1);
   APInt significand(semantics->precision,
-                    partCountForBits(semantics->precision),
-                    significandParts());
+                    makeArrayRef(significandParts(),
+                                 partCountForBits(semantics->precision)));
 
   // Set FormatPrecision if zero.  We want to do this before we
   // truncate trailing zeros, as those are part of the precision.
@@ -3451,7 +3456,7 @@ void APFloat::toString(SmallVectorImpl<char> &Str,
     //                 <= semantics->precision + e * 137 / 59
     //   (log_2(5) ~ 2.321928 < 2.322034 ~ 137/59)
 
-    unsigned precision = semantics->precision + 137 * texp / 59;
+    unsigned precision = semantics->precision + (137 * texp + 136) / 59;
 
     // Multiply significand by 5^e.
     //   N * 5^0101 == N * 5^(1*1) * 5^(0*2) * 5^(1*4) * 5^(0*8)

@@ -485,8 +485,8 @@ _substrcmp(const char *str1, const char* str2)
  * of the first.  A warning is printed to stderr in the case that the
  * first string does not match the third.
  *
- * This function exists to warn about the bizzare construction
- * strncmp(str, "by", 2) which is used to allow people to use a shotcut
+ * This function exists to warn about the bizarre construction
+ * strncmp(str, "by", 2) which is used to allow people to use a shortcut
  * for "bytes".  The problem is that in addition to accepting "by",
  * "byt", "byte", and "bytes", it also excepts "by_rabid_dogs" and any
  * other string beginning with "by".
@@ -2903,9 +2903,9 @@ chkarg:
 			((struct sockaddr_in*)&result)->sin_addr.s_addr =
 			    INADDR_ANY;
 		} else {
-			/* 
+			/*
 			 * Resolve the host name or address to a family and a
-			 * network representation of the addres.
+			 * network representation of the address.
 			 */
 			if (getaddrinfo(*av, NULL, NULL, &res))
 				errx(EX_DATAERR, NULL);

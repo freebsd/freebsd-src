@@ -304,7 +304,8 @@ static struct kthread_desc deadlkres_kd = {
 
 SYSINIT(deadlkres, SI_SUB_CLOCKS, SI_ORDER_ANY, kthread_start, &deadlkres_kd);
 
-SYSCTL_NODE(_debug, OID_AUTO, deadlkres, CTLFLAG_RW, 0, "Deadlock resolver");
+static SYSCTL_NODE(_debug, OID_AUTO, deadlkres, CTLFLAG_RW, 0,
+    "Deadlock resolver");
 SYSCTL_INT(_debug_deadlkres, OID_AUTO, slptime_threshold, CTLFLAG_RW,
     &slptime_threshold, 0,
     "Number of seconds within is valid to sleep on a sleepqueue");

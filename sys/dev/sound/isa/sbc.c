@@ -790,7 +790,6 @@ static device_method_t sbc_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	sbc_read_ivar),
 	DEVMETHOD(bus_write_ivar,	sbc_write_ivar),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_alloc_resource,	sbc_alloc_resource),
 	DEVMETHOD(bus_release_resource,	sbc_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
@@ -798,7 +797,7 @@ static device_method_t sbc_methods[] = {
 	DEVMETHOD(bus_setup_intr,	sbc_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	sbc_teardown_intr),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t sbc_driver = {

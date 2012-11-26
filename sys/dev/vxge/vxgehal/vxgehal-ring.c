@@ -1339,7 +1339,7 @@ vxge_hal_ring_rxd_post_post_db(
  * vxge_hal_ring_is_next_rxd_completed - Check if the next rxd is completed
  * @vpath_handle: Virtual Path handle.
  *
- * Checks if the the _next_	completed descriptor is	in host	memory
+ * Checks if the _next_	completed descriptor is	in host	memory
  *
  * Returns: VXGE_HAL_OK - success.
  * VXGE_HAL_INF_NO_MORE_COMPLETED_DESCRIPTORS - No completed	descriptors

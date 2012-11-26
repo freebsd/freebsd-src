@@ -16,9 +16,9 @@ SRCS=	ArgumentPromotion.cpp \
 	Inliner.cpp \
 	Internalize.cpp \
 	LoopExtractor.cpp \
-	LowerSetJmp.cpp \
 	MergeFunctions.cpp \
 	PartialInlining.cpp \
+	PassManagerBuilder.cpp \
 	PruneEH.cpp \
 	StripDeadPrototypes.cpp \
 	StripSymbols.cpp

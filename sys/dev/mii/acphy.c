@@ -87,7 +87,7 @@ static device_method_t acphy_methods[] = {
 	DEVMETHOD(device_attach,	acphy_attach),
 	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t acphy_devclass;

@@ -91,7 +91,7 @@ static void siis_process_request_sense(device_t dev, union ccb *ccb);
 static void siisaction(struct cam_sim *sim, union ccb *ccb);
 static void siispoll(struct cam_sim *sim);
 
-MALLOC_DEFINE(M_SIIS, "SIIS driver", "SIIS driver data buffers");
+static MALLOC_DEFINE(M_SIIS, "SIIS driver", "SIIS driver data buffers");
 
 static struct {
 	uint32_t	id;
@@ -205,15 +205,10 @@ static int
 siis_detach(device_t dev)
 {
 	struct siis_controller *ctlr = device_get_softc(dev);
-	device_t *children;
-	int nchildren, i;
 
 	/* Detach & delete all children */
-	if (!device_get_children(dev, &children, &nchildren)) {
-		for (i = 0; i < nchildren; i++)
-			device_delete_child(dev, children[i]);
-		free(children, M_TEMP);
-	}
+	device_delete_children(dev);
+
 	/* Free interrupts. */
 	if (ctlr->irq.r_irq) {
 		bus_teardown_intr(dev, ctlr->irq.r_irq,

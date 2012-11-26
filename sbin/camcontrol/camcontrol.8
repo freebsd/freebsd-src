@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 30, 2010
+.Dd November 24, 2011
 .Dt CAMCONTROL 8
 .Os
 .Sh NAME
@@ -219,6 +219,13 @@
 .Ic sleep
 .Op device id
 .Op generic args
+.Nm
+.Ic fwdownload
+.Op device id
+.Op generic args
+.Aq Fl f Ar fw_image
+.Op Fl y
+.Op Fl s
 .Nm
 .Ic help
 .Sh DESCRIPTION
@@ -1060,6 +1067,54 @@ specifies automatic standby timer value in seconds. Value 0 disables timer.
 .It Ic sleep
 Put ATA device into SLEEP state. Note that the only way get device out of
 this state may be reset.
+.It Ic fwdownload
+Program firmware of the named SCSI device using the image file provided.
+.Pp
+Current list of supported vendors:
+.Bl -bullet -offset indent -compact
+.It
+HITACHI
+.It
+HP
+.It
+IBM
+.It
+PLEXTOR
+.It
+QUANTUM
+.It
+SEAGATE
+.El
+.Pp
+.Em WARNING! WARNING! WARNING!
+.Pp
+Little testing has been done to make sure that different device models from
+each vendor work correctly with the fwdownload command.
+A vendor name appearing in the supported list means only that firmware of at
+least one device type from that vendor has successfully been programmed with
+the fwdownload command.
+Extra caution should be taken when using this command since there is no
+guarantee it will not break a device from the listed vendors.
+Ensure that you have a recent backup of the data on the device before
+performing a firmware update.
+.Bl -tag -width 11n
+.It Fl f Ar fw_image
+Path to the firmware image file to be downloaded to the specified device.
+.It Fl y
+Do not ask for confirmation.
+.It Fl s
+Run in simulation mode.
+Packet sizes that will be sent are shown, but no actual packet is sent to the
+device.
+No confimation is asked in simulation mode.
+.It Fl v
+Besides showing sense information in case of a failure, the verbose option
+causes
+.Nm
+to output a line for every firmware segment that is sent to the device by the
+fwdownload command
+-- the same as the ones shown in simulation mode.
+.El
 .It Ic help
 Print out verbose usage information.
 .El

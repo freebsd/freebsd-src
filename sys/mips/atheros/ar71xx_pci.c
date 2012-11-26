@@ -538,7 +538,6 @@ static device_method_t ar71xx_pci_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	ar71xx_pci_read_ivar),
 	DEVMETHOD(bus_write_ivar,	ar71xx_pci_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	ar71xx_pci_alloc_resource),
@@ -554,7 +553,7 @@ static device_method_t ar71xx_pci_methods[] = {
 	DEVMETHOD(pcib_write_config,	ar71xx_pci_write_config),
 	DEVMETHOD(pcib_route_interrupt,	ar71xx_pci_route_interrupt),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ar71xx_pci_driver = {

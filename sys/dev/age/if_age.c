@@ -282,9 +282,9 @@ age_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 	mii = device_get_softc(sc->age_miibus);
 
 	mii_pollstat(mii);
-	AGE_UNLOCK(sc);
 	ifmr->ifm_status = mii->mii_media_status;
 	ifmr->ifm_active = mii->mii_media_active;
+	AGE_UNLOCK(sc);
 }
 
 /*

@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,14 +77,15 @@ AcpiTbSetupFadtRegisters (
 typedef struct acpi_fadt_info
 {
     char                    *Name;
-    UINT8                   Address64;
-    UINT8                   Address32;
-    UINT8                   Length;
+    UINT16                  Address64;
+    UINT16                  Address32;
+    UINT16                  Length;
     UINT8                   DefaultLength;
     UINT8                   Type;
 
 } ACPI_FADT_INFO;
 
+#define ACPI_FADT_OPTIONAL          0
 #define ACPI_FADT_REQUIRED          1
 #define ACPI_FADT_SEPARATE_LENGTH   2
 
@@ -102,7 +103,7 @@ static ACPI_FADT_INFO     FadtInfoTable[] =
         ACPI_FADT_OFFSET (Pm1bEventBlock),
         ACPI_FADT_OFFSET (Pm1EventLength),
         ACPI_PM1_REGISTER_WIDTH * 2,        /* Enable + Status register */
-        0},
+        ACPI_FADT_OPTIONAL},
 
     {"Pm1aControlBlock",
         ACPI_FADT_OFFSET (XPm1aControlBlock),
@@ -116,7 +117,7 @@ static ACPI_FADT_INFO     FadtInfoTable[] =
         ACPI_FADT_OFFSET (Pm1bControlBlock),
         ACPI_FADT_OFFSET (Pm1ControlLength),
         ACPI_PM1_REGISTER_WIDTH,
-        0},
+        ACPI_FADT_OPTIONAL},
 
     {"Pm2ControlBlock",
         ACPI_FADT_OFFSET (XPm2ControlBlock),
@@ -156,7 +157,7 @@ static ACPI_FADT_INFO     FadtInfoTable[] =
 typedef struct acpi_fadt_pm_info
 {
     ACPI_GENERIC_ADDRESS    *Target;
-    UINT8                   Source;
+    UINT16                  Source;
     UINT8                   RegisterNum;
 
 } ACPI_FADT_PM_INFO;
@@ -280,8 +281,13 @@ AcpiTbParseFadt (
     AcpiTbInstallTable ((ACPI_PHYSICAL_ADDRESS) AcpiGbl_FADT.XDsdt,
         ACPI_SIG_DSDT, ACPI_TABLE_INDEX_DSDT);
 
-    AcpiTbInstallTable ((ACPI_PHYSICAL_ADDRESS) AcpiGbl_FADT.XFacs,
-        ACPI_SIG_FACS, ACPI_TABLE_INDEX_FACS);
+    /* If Hardware Reduced flag is set, there is no FACS */
+
+    if (!AcpiGbl_ReducedHardware)
+    {
+        AcpiTbInstallTable ((ACPI_PHYSICAL_ADDRESS) AcpiGbl_FADT.XFacs,
+            ACPI_SIG_FACS, ACPI_TABLE_INDEX_FACS);
+    }
 }
 
 
@@ -309,13 +315,13 @@ AcpiTbCreateLocalFadt (
 
     /*
      * Check if the FADT is larger than the largest table that we expect
-     * (the ACPI 2.0/3.0 version). If so, truncate the table, and issue
+     * (the ACPI 5.0 version). If so, truncate the table, and issue
      * a warning.
      */
     if (Length > sizeof (ACPI_TABLE_FADT))
     {
         ACPI_WARNING ((AE_INFO,
-            "FADT (revision %u) is longer than ACPI 2.0 version, "
+            "FADT (revision %u) is longer than ACPI 5.0 version, "
             "truncating length %u to %u",
             Table->Revision, Length, (UINT32) sizeof (ACPI_TABLE_FADT)));
     }
@@ -328,6 +334,14 @@ AcpiTbCreateLocalFadt (
 
     ACPI_MEMCPY (&AcpiGbl_FADT, Table,
         ACPI_MIN (Length, sizeof (ACPI_TABLE_FADT)));
+
+    /* Take a copy of the Hardware Reduced flag */
+
+    AcpiGbl_ReducedHardware = FALSE;
+    if (AcpiGbl_FADT.Flags & ACPI_FADT_HW_REDUCED)
+    {
+        AcpiGbl_ReducedHardware = TRUE;
+    }
 
     /* Convert the local copy of the FADT to the common internal format */
 
@@ -528,6 +542,13 @@ AcpiTbValidateFadt (
             AcpiGbl_FADT.Dsdt, ACPI_FORMAT_UINT64 (AcpiGbl_FADT.XDsdt)));
 
         AcpiGbl_FADT.XDsdt = (UINT64) AcpiGbl_FADT.Dsdt;
+    }
+
+    /* If Hardware Reduced flag is set, we are all done */
+
+    if (AcpiGbl_ReducedHardware)
+    {
+        return;
     }
 
     /* Examine all of the 64-bit extended address fields (X fields) */

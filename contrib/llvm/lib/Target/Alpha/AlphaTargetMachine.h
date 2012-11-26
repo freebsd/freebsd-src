@@ -36,8 +36,9 @@ class AlphaTargetMachine : public LLVMTargetMachine {
   AlphaSelectionDAGInfo TSInfo;
 
 public:
-  AlphaTargetMachine(const Target &T, const std::string &TT,
-                     const std::string &CPU, const std::string &FS);
+  AlphaTargetMachine(const Target &T, StringRef TT,
+                     StringRef CPU, StringRef FS,
+                     Reloc::Model RM, CodeModel::Model CM);
 
   virtual const AlphaInstrInfo *getInstrInfo() const { return &InstrInfo; }
   virtual const TargetFrameLowering  *getFrameLowering() const {

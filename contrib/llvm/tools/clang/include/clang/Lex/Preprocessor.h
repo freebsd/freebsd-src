@@ -49,6 +49,7 @@ class PPCallbacks;
 class CodeCompletionHandler;
 class DirectoryLookup;
 class PreprocessingRecord;
+class ModuleLoader;
   
 /// Preprocessor - This object engages in a tight little dance with the lexer to
 /// efficiently preprocess tokens.  Lexers know only about tokens within a
@@ -56,17 +57,19 @@ class PreprocessingRecord;
 /// like the #include stack, token expansion, etc.
 ///
 class Preprocessor : public llvm::RefCountedBase<Preprocessor> {
-  Diagnostic        *Diags;
-  LangOptions        Features;
-  const TargetInfo  &Target;
+  DiagnosticsEngine        *Diags;
+  LangOptions       &Features;
+  const TargetInfo  *Target;
   FileManager       &FileMgr;
   SourceManager     &SourceMgr;
   ScratchBuffer     *ScratchBuf;
   HeaderSearch      &HeaderInfo;
+  ModuleLoader      &TheModuleLoader;
 
   /// \brief External source of macros.
   ExternalPreprocessorSource *ExternalSource;
 
+  
   /// PTH - An optional PTHManager object used for getting tokens from
   ///  a token cache rather than lexing the original source file.
   llvm::OwningPtr<PTHManager> PTH;
@@ -90,6 +93,7 @@ class Preprocessor : public llvm::RefCountedBase<Preprocessor> {
   IdentifierInfo *Ident__has_attribute;            // __has_attribute
   IdentifierInfo *Ident__has_include;              // __has_include
   IdentifierInfo *Ident__has_include_next;         // __has_include_next
+  IdentifierInfo *Ident__has_warning;              // __has_warning
 
   SourceLocation DATELoc, TIMELoc;
   unsigned CounterValue;  // Next __COUNTER__ value.
@@ -102,7 +106,9 @@ class Preprocessor : public llvm::RefCountedBase<Preprocessor> {
   // State that is set before the preprocessor begins.
   bool KeepComments : 1;
   bool KeepMacroComments : 1;
-
+  bool SuppressIncludeNotFoundError : 1;
+  bool AutoModuleImport : 1;
+  
   // State that changes while the preprocessor runs:
   bool InMacroArgs : 1;            // True if parsing fn macro invocation args.
 
@@ -145,6 +151,29 @@ class Preprocessor : public llvm::RefCountedBase<Preprocessor> {
   /// \brief The file that we're performing code-completion for, if any.
   const FileEntry *CodeCompletionFile;
 
+  /// \brief The offset in file for the code-completion point.
+  unsigned CodeCompletionOffset;
+
+  /// \brief The location for the code-completion point. This gets instantiated
+  /// when the CodeCompletionFile gets #include'ed for preprocessing.
+  SourceLocation CodeCompletionLoc;
+
+  /// \brief The start location for the file of the code-completion point.
+  /// This gets instantiated when the CodeCompletionFile gets #include'ed
+  /// for preprocessing.
+  SourceLocation CodeCompletionFileLoc;
+
+  /// \brief The source location of the __import_module__ keyword we just
+  /// lexed, if any.
+  SourceLocation ModuleImportLoc;
+
+  /// \brief The source location of the currently-active
+  /// #pragma clang arc_cf_code_audited begin.
+  SourceLocation PragmaARCCFCodeAuditedLoc;
+  
+  /// \brief True if we hit the code-completion point.
+  bool CodeCompletionReached;
+
   /// \brief The number of bytes that we will initially skip when entering the
   /// main file, which is used when loading a precompiled preamble, along
   /// with a flag that indicates whether skipping this number of bytes will
@@ -165,7 +194,7 @@ class Preprocessor : public llvm::RefCountedBase<Preprocessor> {
   ///  if not expanding a macro.  This is an alias for either CurLexer or
   ///  CurPTHLexer.
   PreprocessorLexer *CurPPLexer;
-
+    
   /// CurLookup - The DirectoryLookup structure used to find the current
   /// FileEntry, if CurLexer is non-null and if applicable.  This allows us to
   /// implement #include_next and find directory-specific properties.
@@ -175,20 +204,31 @@ class Preprocessor : public llvm::RefCountedBase<Preprocessor> {
   /// expanding a macro.  One of CurLexer and CurTokenLexer must be null.
   llvm::OwningPtr<TokenLexer> CurTokenLexer;
 
+  /// \brief The kind of lexer we're currently working with.
+  enum CurLexerKind { 
+    CLK_Lexer, 
+    CLK_PTHLexer, 
+    CLK_TokenLexer, 
+    CLK_CachingLexer,
+    CLK_LexAfterModuleImport
+  } CurLexerKind;
+
   /// IncludeMacroStack - This keeps track of the stack of files currently
   /// #included, and macros currently being expanded from, not counting
   /// CurLexer/CurTokenLexer.
   struct IncludeStackInfo {
+    enum CurLexerKind     CurLexerKind;
     Lexer                 *TheLexer;
     PTHLexer              *ThePTHLexer;
     PreprocessorLexer     *ThePPLexer;
     TokenLexer            *TheTokenLexer;
     const DirectoryLookup *TheDirLookup;
 
-    IncludeStackInfo(Lexer *L, PTHLexer* P, PreprocessorLexer* PPL,
+    IncludeStackInfo(enum CurLexerKind K, Lexer *L, PTHLexer* P, 
+                     PreprocessorLexer* PPL,
                      TokenLexer* TL, const DirectoryLookup *D)
-      : TheLexer(L), ThePTHLexer(P), ThePPLexer(PPL), TheTokenLexer(TL),
-        TheDirLookup(D) {}
+      : CurLexerKind(K), TheLexer(L), ThePTHLexer(P), ThePPLexer(PPL), 
+        TheTokenLexer(TL), TheDirLookup(D) {}
   };
   std::vector<IncludeStackInfo> IncludeMacroStack;
 
@@ -220,10 +260,6 @@ class Preprocessor : public llvm::RefCountedBase<Preprocessor> {
   /// previous macro value.
   llvm::DenseMap<IdentifierInfo*, std::vector<MacroInfo*> > PragmaPushMacroInfo;
 
-  /// \brief Expansion source location for the last macro that expanded
-  /// to no tokens.
-  SourceLocation LastEmptyMacroExpansionLoc;
-
   // Various statistics we track for performance analysis.
   unsigned NumDirectives, NumIncluded, NumDefined, NumUndefined, NumPragma;
   unsigned NumIf, NumElse, NumEndif;
@@ -246,7 +282,7 @@ class Preprocessor : public llvm::RefCountedBase<Preprocessor> {
   /// Works like a stack; a TokenLexer adds the macro expanded tokens that is
   /// going to lex in the cache and when it finishes the tokens are removed
   /// from the end of the cache.
-  llvm::SmallVector<Token, 16> MacroExpandedTokens;
+  SmallVector<Token, 16> MacroExpandedTokens;
   std::vector<std::pair<TokenLexer *, size_t> > MacroExpandingLexersStack;
 
   /// \brief A record of the macro definitions and expansions that
@@ -257,7 +293,7 @@ class Preprocessor : public llvm::RefCountedBase<Preprocessor> {
   PreprocessingRecord *Record;
   
 private:  // Cached tokens state.
-  typedef llvm::SmallVector<Token, 1> CachedTokensTy;
+  typedef SmallVector<Token, 1> CachedTokensTy;
 
   /// CachedTokens - Cached tokens are stored here when we do backtracking or
   /// lookahead. They are "lexed" by the CachingLex() method.
@@ -291,19 +327,27 @@ private:  // Cached tokens state.
   MacroInfo *getInfoForMacro(IdentifierInfo *II) const;
   
 public:
-  Preprocessor(Diagnostic &diags, const LangOptions &opts,
-               const TargetInfo &target,
+  Preprocessor(DiagnosticsEngine &diags, LangOptions &opts,
+               const TargetInfo *target,
                SourceManager &SM, HeaderSearch &Headers,
+               ModuleLoader &TheModuleLoader,
                IdentifierInfoLookup *IILookup = 0,
-               bool OwnsHeaderSearch = false);
+               bool OwnsHeaderSearch = false,
+               bool DelayInitialization = false);
 
   ~Preprocessor();
 
-  Diagnostic &getDiagnostics() const { return *Diags; }
-  void setDiagnostics(Diagnostic &D) { Diags = &D; }
+  /// \brief Initialize the preprocessor, if the constructor did not already
+  /// perform the initialization.
+  ///
+  /// \param Target Information about the target.
+  void Initialize(const TargetInfo &Target);
+  
+  DiagnosticsEngine &getDiagnostics() const { return *Diags; }
+  void setDiagnostics(DiagnosticsEngine &D) { Diags = &D; }
 
   const LangOptions &getLangOptions() const { return Features; }
-  const TargetInfo &getTargetInfo() const { return Target; }
+  const TargetInfo &getTargetInfo() const { return *Target; }
   FileManager &getFileManager() const { return FileMgr; }
   SourceManager &getSourceManager() const { return SourceMgr; }
   HeaderSearch &getHeaderSearchInfo() const { return HeaderInfo; }
@@ -325,6 +369,9 @@ public:
     return ExternalSource;
   }
 
+  /// \brief Retrieve the module loader associated with this preprocessor.
+  ModuleLoader &getModuleLoader() const { return TheModuleLoader; }
+  
   /// SetCommentRetentionState - Control whether or not the preprocessor retains
   /// comments in output.
   void SetCommentRetentionState(bool KeepComments, bool KeepMacroComments) {
@@ -334,6 +381,19 @@ public:
 
   bool getCommentRetentionState() const { return KeepComments; }
 
+  void SetSuppressIncludeNotFoundError(bool Suppress) {
+    SuppressIncludeNotFoundError = Suppress;
+  }
+
+  bool GetSuppressIncludeNotFoundError() {
+    return SuppressIncludeNotFoundError;
+  }
+
+  /// \brief Specify whether automatic module imports are enabled.
+  void setAutoModuleImport(bool AutoModuleImport = true) {
+    this->AutoModuleImport = AutoModuleImport;
+  }
+  
   /// isCurrentLexer - Return true if we are lexing directly from the specified
   /// lexer.
   bool isCurrentLexer(const PreprocessorLexer *L) const {
@@ -380,12 +440,6 @@ public:
   macro_iterator macro_begin(bool IncludeExternalMacros = true) const;
   macro_iterator macro_end(bool IncludeExternalMacros = true) const;
 
-  /// \brief Expansion source location for the last macro that expanded
-  /// to no tokens.
-  SourceLocation getLastEmptyMacroExpansionLoc() const {
-    return LastEmptyMacroExpansionLoc;
-  }
-
   const std::string &getPredefines() const { return Predefines; }
   /// setPredefines - Set the predefines for this Preprocessor.  These
   /// predefines are automatically injected when parsing the main file.
@@ -397,25 +451,25 @@ public:
   /// pointers is preferred unless the identifier is already available as a
   /// string (this avoids allocation and copying of memory to construct an
   /// std::string).
-  IdentifierInfo *getIdentifierInfo(llvm::StringRef Name) const {
+  IdentifierInfo *getIdentifierInfo(StringRef Name) const {
     return &Identifiers.get(Name);
   }
 
   /// AddPragmaHandler - Add the specified pragma handler to the preprocessor.
   /// If 'Namespace' is non-null, then it is a token required to exist on the
   /// pragma line before the pragma string starts, e.g. "STDC" or "GCC".
-  void AddPragmaHandler(llvm::StringRef Namespace, PragmaHandler *Handler);
+  void AddPragmaHandler(StringRef Namespace, PragmaHandler *Handler);
   void AddPragmaHandler(PragmaHandler *Handler) {
-    AddPragmaHandler(llvm::StringRef(), Handler);
+    AddPragmaHandler(StringRef(), Handler);
   }
 
   /// RemovePragmaHandler - Remove the specific pragma handler from
   /// the preprocessor. If \arg Namespace is non-null, then it should
   /// be the namespace that \arg Handler was added to. It is an error
   /// to remove a handler that has not been registered.
-  void RemovePragmaHandler(llvm::StringRef Namespace, PragmaHandler *Handler);
+  void RemovePragmaHandler(StringRef Namespace, PragmaHandler *Handler);
   void RemovePragmaHandler(PragmaHandler *Handler) {
-    RemovePragmaHandler(llvm::StringRef(), Handler);
+    RemovePragmaHandler(StringRef(), Handler);
   }
 
   /// \brief Add the specified comment handler to the preprocessor.
@@ -524,16 +578,17 @@ public:
   /// Lex - To lex a token from the preprocessor, just pull a token from the
   /// current lexer or macro object.
   void Lex(Token &Result) {
-    if (CurLexer)
-      CurLexer->Lex(Result);
-    else if (CurPTHLexer)
-      CurPTHLexer->Lex(Result);
-    else if (CurTokenLexer)
-      CurTokenLexer->Lex(Result);
-    else
-      CachingLex(Result);
+    switch (CurLexerKind) {
+    case CLK_Lexer: CurLexer->Lex(Result); break;
+    case CLK_PTHLexer: CurPTHLexer->Lex(Result); break;
+    case CLK_TokenLexer: CurTokenLexer->Lex(Result); break;
+    case CLK_CachingLexer: CachingLex(Result); break;
+    case CLK_LexAfterModuleImport: LexAfterModuleImport(Result); break;
+    }
   }
 
+  void LexAfterModuleImport(Token &Result);
+  
   /// LexNonComment - Lex a token.  If it's a comment, keep lexing until we get
   /// something not a comment.  This is useful in -E -C mode where comments
   /// would foul up preprocessor directive handling.
@@ -554,6 +609,14 @@ public:
 
     // Reenable it.
     DisableMacroExpansion = OldVal;
+  }
+
+  /// LexUnexpandedNonComment - Like LexNonComment, but this disables macro
+  /// expansion of identifier tokens.
+  void LexUnexpandedNonComment(Token &Result) {
+    do
+      LexUnexpandedToken(Result);
+    while (Result.getKind() == tok::comment);
   }
 
   /// LookAhead - This peeks ahead N tokens and returns that token without
@@ -635,12 +698,45 @@ public:
   bool SetCodeCompletionPoint(const FileEntry *File,
                               unsigned Line, unsigned Column);
 
-  /// \brief Determine if this source location refers into the file
-  /// for which we are performing code completion.
-  bool isCodeCompletionFile(SourceLocation FileLoc) const;
-
   /// \brief Determine if we are performing code completion.
   bool isCodeCompletionEnabled() const { return CodeCompletionFile != 0; }
+
+  /// \brief Returns the location of the code-completion point.
+  /// Returns an invalid location if code-completion is not enabled or the file
+  /// containing the code-completion point has not been lexed yet.
+  SourceLocation getCodeCompletionLoc() const { return CodeCompletionLoc; }
+
+  /// \brief Returns the start location of the file of code-completion point.
+  /// Returns an invalid location if code-completion is not enabled or the file
+  /// containing the code-completion point has not been lexed yet.
+  SourceLocation getCodeCompletionFileLoc() const {
+    return CodeCompletionFileLoc;
+  }
+
+  /// \brief Returns true if code-completion is enabled and we have hit the
+  /// code-completion point.
+  bool isCodeCompletionReached() const { return CodeCompletionReached; }
+
+  /// \brief Note that we hit the code-completion point.
+  void setCodeCompletionReached() {
+    assert(isCodeCompletionEnabled() && "Code-completion not enabled!");
+    CodeCompletionReached = true;
+    // Silence any diagnostics that occur after we hit the code-completion.
+    getDiagnostics().setSuppressAllDiagnostics(true);
+  }
+
+  /// \brief The location of the currently-active #pragma clang
+  /// arc_cf_code_audited begin.  Returns an invalid location if there
+  /// is no such pragma active.
+  SourceLocation getPragmaARCCFCodeAuditedLoc() const {
+    return PragmaARCCFCodeAuditedLoc;
+  }
+
+  /// \brief Set the location of the currently-active #pragma clang
+  /// arc_cf_code_audited begin.  An invalid location ends the pragma.
+  void setPragmaARCCFCodeAuditedLoc(SourceLocation Loc) {
+    PragmaARCCFCodeAuditedLoc = Loc;
+  }
 
   /// \brief Instruct the preprocessor to skip part of the main
   /// the main source file.
@@ -657,11 +753,11 @@ public:
   /// Diag - Forwarding function for diagnostics.  This emits a diagnostic at
   /// the specified Token's location, translating the token's start
   /// position in the current buffer into a SourcePosition object for rendering.
-  DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) {
+  DiagnosticBuilder Diag(SourceLocation Loc, unsigned DiagID) const {
     return Diags->Report(Loc, DiagID);
   }
 
-  DiagnosticBuilder Diag(const Token &Tok, unsigned DiagID) {
+  DiagnosticBuilder Diag(const Token &Tok, unsigned DiagID) const {
     return Diags->Report(Tok.getLocation(), DiagID);
   }
 
@@ -672,8 +768,8 @@ public:
   /// \param buffer A buffer which will be used only if the token requires
   ///   "cleaning", e.g. if it contains trigraphs or escaped newlines
   /// \param invalid If non-null, will be set \c true if an error occurs.
-  llvm::StringRef getSpelling(SourceLocation loc,
-                              llvm::SmallVectorImpl<char> &buffer,
+  StringRef getSpelling(SourceLocation loc,
+                              SmallVectorImpl<char> &buffer,
                               bool *invalid = 0) const {
     return Lexer::getSpelling(loc, buffer, SourceMgr, Features, invalid);
   }
@@ -707,8 +803,8 @@ public:
   /// getSpelling - This method is used to get the spelling of a token into a
   /// SmallVector. Note that the returned StringRef may not point to the
   /// supplied buffer if a copy can be avoided.
-  llvm::StringRef getSpelling(const Token &Tok,
-                              llvm::SmallVectorImpl<char> &Buffer, 
+  StringRef getSpelling(const Token &Tok,
+                              SmallVectorImpl<char> &Buffer, 
                               bool *Invalid = 0) const;
 
   /// getSpellingOfSingleCharacterNumericConstant - Tok is a numeric constant
@@ -731,8 +827,9 @@ public:
   /// CreateString - Plop the specified string into a scratch buffer and set the
   /// specified token's location and length to it.  If specified, the source
   /// location provides a location of the expansion point of the token.
-  void CreateString(const char *Buf, unsigned Len,
-                    Token &Tok, SourceLocation SourceLoc = SourceLocation());
+  void CreateString(const char *Buf, unsigned Len, Token &Tok,
+                    SourceLocation ExpansionLocStart = SourceLocation(),
+                    SourceLocation ExpansionLocEnd = SourceLocation());
 
   /// \brief Computes the source location just past the end of the
   /// token at this source location.
@@ -892,16 +989,17 @@ public:
   /// caller is expected to provide a buffer that is large enough to hold the
   /// spelling of the filename, but is also expected to handle the case when
   /// this method decides to use a different buffer.
-  bool GetIncludeFilenameSpelling(SourceLocation Loc,llvm::StringRef &Filename);
+  bool GetIncludeFilenameSpelling(SourceLocation Loc,StringRef &Filename);
 
   /// LookupFile - Given a "foo" or <foo> reference, look up the indicated file,
   /// return null on failure.  isAngled indicates whether the file reference is
   /// for system #include's or not (i.e. using <> instead of "").
-  const FileEntry *LookupFile(llvm::StringRef Filename,
+  const FileEntry *LookupFile(StringRef Filename,
                               bool isAngled, const DirectoryLookup *FromDir,
                               const DirectoryLookup *&CurDir,
-                              llvm::SmallVectorImpl<char> *SearchPath,
-                              llvm::SmallVectorImpl<char> *RelativePath);
+                              SmallVectorImpl<char> *SearchPath,
+                              SmallVectorImpl<char> *RelativePath,
+                              StringRef *SuggestedModule);
 
   /// GetCurLookup - The DirectoryLookup structure used to find the current
   /// FileEntry, if CurLexer is non-null and if applicable.  This allows us to
@@ -932,7 +1030,8 @@ public:
 private:
 
   void PushIncludeMacroStack() {
-    IncludeMacroStack.push_back(IncludeStackInfo(CurLexer.take(),
+    IncludeMacroStack.push_back(IncludeStackInfo(CurLexerKind,
+                                                 CurLexer.take(),
                                                  CurPTHLexer.take(),
                                                  CurPPLexer,
                                                  CurTokenLexer.take(),
@@ -946,6 +1045,7 @@ private:
     CurPPLexer = IncludeMacroStack.back().ThePPLexer;
     CurTokenLexer.reset(IncludeMacroStack.back().TheTokenLexer);
     CurDirLookup  = IncludeMacroStack.back().TheDirLookup;
+    CurLexerKind = IncludeMacroStack.back().CurLexerKind;
     IncludeMacroStack.pop_back();
   }
 
@@ -976,7 +1076,8 @@ private:
   /// already seen one so a #else directive is a duplicate.  When this returns,
   /// the caller can lex the first valid token.
   void SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
-                                    bool FoundNonSkipPortion, bool FoundElse);
+                                    bool FoundNonSkipPortion, bool FoundElse,
+                                    SourceLocation ElseLoc = SourceLocation());
 
   /// PTHSkipExcludedConditionalBlock - A fast PTH version of
   ///  SkipExcludedConditionalBlock.
@@ -1006,7 +1107,7 @@ private:
   /// going to lex in the cache and when it finishes the tokens are removed
   /// from the end of the cache.
   Token *cacheMacroExpandedTokens(TokenLexer *tokLexer,
-                                  llvm::ArrayRef<Token> tokens);
+                                  ArrayRef<Token> tokens);
   void removeCachedMacroExpandedTokensOfLastLexer();
   friend void TokenLexer::ExpandFunctionArguments();
 
@@ -1081,7 +1182,8 @@ private:
   void HandleDigitDirective(Token &Tok);
   void HandleUserDiagnosticDirective(Token &Tok, bool isWarning);
   void HandleIdentSCCSDirective(Token &Tok);
-
+  void HandleMacroExportDirective(Token &Tok);
+  
   // File inclusion.
   void HandleIncludeDirective(SourceLocation HashLoc,
                               Token &Tok,

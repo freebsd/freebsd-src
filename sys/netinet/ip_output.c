@@ -895,12 +895,43 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
 
 	error = optval = 0;
 	if (sopt->sopt_level != IPPROTO_IP) {
-		if ((sopt->sopt_level == SOL_SOCKET) &&
-		    (sopt->sopt_name == SO_SETFIB)) {
-			inp->inp_inc.inc_fibnum = so->so_fibnum;
-			return (0);
+		error = EINVAL;
+
+		if (sopt->sopt_level == SOL_SOCKET &&
+		    sopt->sopt_dir == SOPT_SET) {
+			switch (sopt->sopt_name) {
+			case SO_REUSEADDR:
+				INP_WLOCK(inp);
+				if (IN_MULTICAST(ntohl(inp->inp_laddr.s_addr))) {
+					if ((so->so_options &
+					    (SO_REUSEADDR | SO_REUSEPORT)) != 0)
+						inp->inp_flags2 |= INP_REUSEPORT;
+					else
+						inp->inp_flags2 &= ~INP_REUSEPORT;
+				}
+				INP_WUNLOCK(inp);
+				error = 0;
+				break;
+			case SO_REUSEPORT:
+				INP_WLOCK(inp);
+				if ((so->so_options & SO_REUSEPORT) != 0)
+					inp->inp_flags2 |= INP_REUSEPORT;
+				else
+					inp->inp_flags2 &= ~INP_REUSEPORT;
+				INP_WUNLOCK(inp);
+				error = 0;
+				break;
+			case SO_SETFIB:
+				INP_WLOCK(inp);
+				inp->inp_inc.inc_fibnum = so->so_fibnum;
+				INP_WUNLOCK(inp);
+				error = 0;
+				break;
+			default:
+				break;
+			}
 		}
-		return (EINVAL);
+		return (error);
 	}
 
 	switch (sopt->sopt_dir) {

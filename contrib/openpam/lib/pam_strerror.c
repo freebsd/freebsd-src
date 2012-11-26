@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2007 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,47 +32,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_strerror.c 408 2007-12-21 11:36:24Z des $
+ * $Id: pam_strerror.c 491 2011-11-12 00:12:32Z des $
  */
+
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include <stdio.h>
 
 #include <security/pam_appl.h>
 
 #include "openpam_impl.h"
-
-const char *_pam_err_name[PAM_NUM_ERRORS] = {
-	"PAM_SUCCESS",
-	"PAM_OPEN_ERR",
-	"PAM_SYMBOL_ERR",
-	"PAM_SERVICE_ERR",
-	"PAM_SYSTEM_ERR",
-	"PAM_BUF_ERR",
-	"PAM_CONV_ERR",
-	"PAM_PERM_DENIED",
-	"PAM_MAXTRIES",
-	"PAM_AUTH_ERR",
-	"PAM_NEW_AUTHTOK_REQD",
-	"PAM_CRED_INSUFFICIENT",
-	"PAM_AUTHINFO_UNAVAIL",
-	"PAM_USER_UNKNOWN",
-	"PAM_CRED_UNAVAIL",
-	"PAM_CRED_EXPIRED",
-	"PAM_CRED_ERR",
-	"PAM_ACCT_EXPIRED",
-	"PAM_AUTHTOK_EXPIRED",
-	"PAM_SESSION_ERR",
-	"PAM_AUTHTOK_ERR",
-	"PAM_AUTHTOK_RECOVERY_ERR",
-	"PAM_AUTHTOK_LOCK_BUSY",
-	"PAM_AUTHTOK_DISABLE_AGING",
-	"PAM_NO_MODULE_DATA",
-	"PAM_IGNORE",
-	"PAM_ABORT",
-	"PAM_TRY_AGAIN",
-	"PAM_MODULE_UNKNOWN",
-	"PAM_DOMAIN_UNKNOWN"
-};
 
 /*
  * XSSO 4.2.1
@@ -159,6 +130,8 @@ pam_strerror(const pam_handle_t *pamh,
 /**
  * The =pam_strerror function returns a pointer to a string containing a
  * textual description of the error indicated by the =error_number
- * argument, in the context of the PAM transaction described by the =pamh
  * argument.
+ * The =pamh argument is ignored.
+ * For compatibility with other implementations, it should be either a
+ * valid PAM handle returned by a previous call to =pam_start, or =NULL.
  */

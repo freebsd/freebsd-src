@@ -171,6 +171,8 @@ null_hashins(mp, xp)
 static void
 null_insmntque_dtr(struct vnode *vp, void *xp)
 {
+
+	vput(((struct null_node *)xp)->null_lowervp);
 	vp->v_data = NULL;
 	vp->v_vnlock = &vp->v_lock;
 	free(xp, M_NULLFSNODE);
@@ -198,6 +200,9 @@ null_nodeget(mp, lowervp, vpp)
 	struct vnode *vp;
 	int error;
 
+	ASSERT_VOP_LOCKED(lowervp, "lowervp");
+	KASSERT(lowervp->v_usecount >= 1, ("Unreferenced vnode %p\n", lowervp));
+
 	/* Lookup the hash firstly */
 	*vpp = null_hashget(mp, lowervp);
 	if (*vpp != NULL) {
@@ -223,6 +228,7 @@ null_nodeget(mp, lowervp, vpp)
 
 	error = getnewvnode("null", mp, &null_vnodeops, &vp);
 	if (error) {
+		vput(lowervp);
 		free(xp, M_NULLFSNODE);
 		return (error);
 	}
@@ -289,22 +295,12 @@ null_checkvp(vp, fil, lno)
 #endif
 	if (a->null_lowervp == NULLVP) {
 		/* Should never happen */
-		int i; u_long *p;
-		printf("vp = %p, ZERO ptr\n", (void *)vp);
-		for (p = (u_long *) a, i = 0; i < 8; i++)
-			printf(" %lx", p[i]);
-		printf("\n");
-		panic("null_checkvp");
+		panic("null_checkvp %p", vp);
 	}
 	VI_LOCK_FLAGS(a->null_lowervp, MTX_DUPOK);
-	if (a->null_lowervp->v_usecount < 1) {
-		int i; u_long *p;
-		printf("vp = %p, unref'ed lowervp\n", (void *)vp);
-		for (p = (u_long *) a, i = 0; i < 8; i++)
-			printf(" %lx", p[i]);
-		printf("\n");
-		panic ("null with unref'ed lowervp");
-	}
+	if (a->null_lowervp->v_usecount < 1)
+		panic ("null with unref'ed lowervp, vp %p lvp %p",
+		    vp, a->null_lowervp);
 	VI_UNLOCK(a->null_lowervp);
 #ifdef notyet
 	printf("null %x/%d -> %x/%d [%s, %d]\n",

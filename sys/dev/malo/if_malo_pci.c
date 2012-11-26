@@ -79,7 +79,7 @@ struct malo_pci_softc {
  * Tunable variables.
  */
 SYSCTL_DECL(_hw_malo);
-SYSCTL_NODE(_hw_malo, OID_AUTO, pci, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw_malo, OID_AUTO, pci, CTLFLAG_RD, 0,
     "Marvell 88W8335 driver PCI parameters");
 
 static int msi_disable = 0;				/* MSI disabled  */

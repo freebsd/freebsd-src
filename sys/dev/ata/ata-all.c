@@ -103,7 +103,7 @@ static int ata_dma = 1;
 static int atapi_dma = 1;
 
 /* sysctl vars */
-SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
 TUNABLE_INT("hw.ata.ata_dma", &ata_dma);
 SYSCTL_INT(_hw_ata, OID_AUTO, ata_dma, CTLFLAG_RDTUN, &ata_dma, 0,
 	   "ATA disk DMA mode control");
@@ -120,6 +120,9 @@ SYSCTL_INT(_hw_ata, OID_AUTO, wc, CTLFLAG_RDTUN, &ata_wc, 0,
 TUNABLE_INT("hw.ata.setmax", &ata_setmax);
 SYSCTL_INT(_hw_ata, OID_AUTO, setmax, CTLFLAG_RDTUN, &ata_setmax, 0,
 	   "ATA disk set max native address");
+#ifdef ATA_CAM
+FEATURE(ata_cam, "ATA devices are accessed through the cam(4) driver");
+#endif
 
 /*
  * newbus device interface related functions

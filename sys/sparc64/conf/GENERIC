@@ -26,7 +26,7 @@ makeoptions	DEBUG=-g		# Build kernel with gdb(1) debug symbols
 # Platforms supported
 #	At this time all platforms are supported, as-is.
 
-options 	SCHED_4BSD		# 4BSD scheduler
+options 	SCHED_ULE		# ULE scheduler
 #options 	PREEMPTION		# Enable kernel thread preemption
 options 	INET			# InterNETworking
 options 	INET6			# IPv6 communications protocols
@@ -60,11 +60,16 @@ options 	_KPOSIX_PRIORITY_SCHEDULING # POSIX P1003_1B real-time extensions
 options 	PRINTF_BUFR_SIZE=128	# Prevent printf output being interspersed.
 options 	HWPMC_HOOKS		# Necessary kernel hooks for hwpmc(4)
 options 	AUDIT			# Security event auditing
+options 	CAPABILITY_MODE		# Capsicum capability mode
+options 	CAPABILITIES		# Capsicum capabilities
 options 	MAC			# TrustedBSD MAC Framework
 options 	INCLUDE_CONFIG_FILE	# Include this file in kernel
 
-# Debugging for use in -current
+# Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
+# For minimum debugger support (stable branch) use:
+#options 	KDB_TRACE		# Print a stack trace for a panic.
+# For full debugger support use this instead:
 options 	DDB			# Support DDB.
 options 	GDB			# Support remote GDB.
 options 	DEADLKRES		# Enable the deadlock resolver
@@ -100,11 +105,11 @@ device		ahc		# AHA2940 and onboard AIC7xxx devices
 options 	AHC_ALLOW_MEMIO	# Attempt to use memory mapped I/O
 options 	AHC_REG_PRETTY_PRINT	# Print register bitfields in debug
 					# output.  Adds ~128k to driver.
+device		esp		# AMD Am53C974, Sun ESP and FAS	families
 device		isp		# Qlogic family
 device		ispfw		# Firmware module for Qlogic host adapters
 device		mpt		# LSI-Logic MPT-Fusion
 device		sym		# NCR/Symbios/LSI Logic 53C8XX/53C1010/53C1510D
-device		esp		# NCR53c9x (FEPS/FAS366)
 
 # ATA/SCSI peripherals
 device		scbus		# SCSI bus (required for ATA/SCSI)
@@ -114,6 +119,7 @@ device		sa		# Sequential Access (tape etc)
 device		cd		# CD
 device		pass		# Passthrough device (direct ATA/SCSI access)
 device		ses		# SCSI Environmental Services (and SAF-TE)
+device		ctl		# CAM Target Layer
 
 # RAID controllers
 #device		amr		# AMI MegaRAID
@@ -261,7 +267,8 @@ device		zyd		# ZyDAS zd1211/zd1211b wireless NICs
 
 # FireWire support
 device		firewire	# FireWire bus code
-device		sbp		# SCSI over FireWire (Requires scbus and da)
+# sbp(4) works for some systems but causes boot failure on others
+#device		sbp		# SCSI over FireWire (Requires scbus and da)
 device		fwe		# Ethernet over FireWire (non-standard!)
 device		fwip		# IP over FireWire (RFC 2734,3146)
 device		dcons		# Dumb console driver

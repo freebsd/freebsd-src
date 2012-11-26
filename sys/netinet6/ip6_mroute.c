@@ -156,7 +156,7 @@ static VNET_DEFINE(int, ip6_mrouter_ver) = 0;
 
 SYSCTL_DECL(_net_inet6);
 SYSCTL_DECL(_net_inet6_ip6);
-SYSCTL_NODE(_net_inet6, IPPROTO_PIM, pim, CTLFLAG_RW, 0, "PIM");
+static SYSCTL_NODE(_net_inet6, IPPROTO_PIM, pim, CTLFLAG_RW, 0, "PIM");
 
 static struct mrt6stat mrt6stat;
 SYSCTL_STRUCT(_net_inet6_ip6, OID_AUTO, mrt6stat, CTLFLAG_RW,
@@ -250,7 +250,7 @@ static mifi_t nummifs = 0;
 static mifi_t reg_mif_num = (mifi_t)-1;
 
 static struct pim6stat pim6stat;
-SYSCTL_STRUCT(_net_inet6_pim, PIM6CTL_STATS, stats, CTLFLAG_RD,
+SYSCTL_STRUCT(_net_inet6_pim, PIM6CTL_STATS, stats, CTLFLAG_RW,
     &pim6stat, pim6stat,
     "PIM Statistics (struct pim6stat, netinet6/pim_var.h)");
 

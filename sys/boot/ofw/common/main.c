@@ -133,7 +133,7 @@ main(int (*openfirm)(void *))
 	printf("Memory: %lldKB\n", memsize() / 1024);
 
 	OF_getprop(chosen, "bootpath", bootpath, 64);
-	ch = index(bootpath, ':');
+	ch = strchr(bootpath, ':');
 	*ch = '\0';
 	printf("Booted from: %s\n", bootpath);
 

@@ -14,6 +14,7 @@
 #ifndef LLVM_CLANG_BASIC_TARGETINFO_H
 #define LLVM_CLANG_BASIC_TARGETINFO_H
 
+#include "clang/Basic/LLVM.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
@@ -31,7 +32,7 @@ struct fltSemantics;
 }
 
 namespace clang {
-class Diagnostic;
+class DiagnosticsEngine;
 class LangOptions;
 class MacroBuilder;
 class SourceLocation;
@@ -68,21 +69,24 @@ protected:
   unsigned char PointerWidth, PointerAlign;
   unsigned char BoolWidth, BoolAlign;
   unsigned char IntWidth, IntAlign;
+  unsigned char HalfWidth, HalfAlign;
   unsigned char FloatWidth, FloatAlign;
   unsigned char DoubleWidth, DoubleAlign;
   unsigned char LongDoubleWidth, LongDoubleAlign;
   unsigned char LargeArrayMinWidth, LargeArrayAlign;
   unsigned char LongWidth, LongAlign;
   unsigned char LongLongWidth, LongLongAlign;
+  unsigned char MaxAtomicPromoteWidth, MaxAtomicInlineWidth;
   const char *DescriptionString;
   const char *UserLabelPrefix;
   const char *MCountName;
-  const llvm::fltSemantics *FloatFormat, *DoubleFormat, *LongDoubleFormat;
+  const llvm::fltSemantics *HalfFormat, *FloatFormat, *DoubleFormat,
+    *LongDoubleFormat;
   unsigned char RegParmMax, SSERegParmMax;
   TargetCXXABI CXXABI;
   const LangAS::Map *AddrSpaceMap;
 
-  mutable llvm::StringRef PlatformName;
+  mutable StringRef PlatformName;
   mutable VersionTuple PlatformMinVersion;
 
   unsigned HasAlignMac68kSupport : 1;
@@ -97,7 +101,8 @@ public:
   /// \param Opts - The options to use to initialize the target. The target may
   /// modify the options to canonicalize the target feature information to match
   /// what the backend expects.
-  static TargetInfo* CreateTargetInfo(Diagnostic &Diags, TargetOptions &Opts);
+  static TargetInfo* CreateTargetInfo(DiagnosticsEngine &Diags,
+                                      TargetOptions &Opts);
 
   virtual ~TargetInfo();
 
@@ -130,6 +135,16 @@ protected:
   /// ensure that the individual bit-field will not straddle an alignment
   /// boundary.
   unsigned UseBitFieldTypeAlignment : 1;
+
+  /// Control whether zero length bitfields (e.g., int : 0;) force alignment of
+  /// the next bitfield.  If the alignment of the zero length bitfield is 
+  /// greater than the member that follows it, `bar', `bar' will be aligned as
+  /// the type of the zero-length bitfield.
+  unsigned UseZeroLengthBitfieldAlignment : 1;
+
+  /// If non-zero, specifies a fixed alignment value for bitfields that follow
+  /// zero length bitfield, regardless of the zero length bitfield type.
+  unsigned ZeroLengthBitfieldBoundary;
 
 public:
   IntType getSizeType() const { return SizeType; }
@@ -211,6 +226,11 @@ public:
   unsigned getChar32Width() const { return getTypeWidth(Char32Type); }
   unsigned getChar32Align() const { return getTypeAlign(Char32Type); }
 
+  /// getHalfWidth/Align/Format - Return the size/align/format of 'half'.
+  unsigned getHalfWidth() const { return HalfWidth; }
+  unsigned getHalfAlign() const { return HalfAlign; }
+  const llvm::fltSemantics &getHalfFormat() const { return *HalfFormat; }
+
   /// getFloatWidth/Align/Format - Return the size/align/format of 'float'.
   unsigned getFloatWidth() const { return FloatWidth; }
   unsigned getFloatAlign() const { return FloatAlign; }
@@ -233,6 +253,14 @@ public:
   // 'large' and its alignment.
   unsigned getLargeArrayMinWidth() const { return LargeArrayMinWidth; }
   unsigned getLargeArrayAlign() const { return LargeArrayAlign; }
+
+  /// getMaxAtomicPromoteWidth - Return the maximum width lock-free atomic
+  /// operation which will ever be supported for the given target
+  unsigned getMaxAtomicPromoteWidth() const { return MaxAtomicPromoteWidth; }
+  /// getMaxAtomicInlineWidth - Return the maximum width lock-free atomic
+  /// operation which can be inlined given the supported features of the
+  /// given target.
+  unsigned getMaxAtomicInlineWidth() const { return MaxAtomicInlineWidth; }
 
   /// getIntMaxTWidth - Return the size of intmax_t and uintmax_t for this
   /// target, in bits.
@@ -261,8 +289,22 @@ public:
     return MCountName;
   }
 
+  /// useBitFieldTypeAlignment() - Check whether the alignment of bit-field 
+  /// types is respected when laying out structures.
   bool useBitFieldTypeAlignment() const {
     return UseBitFieldTypeAlignment;
+  }
+
+  /// useZeroLengthBitfieldAlignment() - Check whether zero length bitfields 
+  /// should force alignment of the next member.
+  bool useZeroLengthBitfieldAlignment() const {
+    return UseZeroLengthBitfieldAlignment;
+  }
+
+  /// getZeroLengthBitfieldBoundary() - Get the fixed alignment value in bits
+  /// for a member that follows a zero length bitfield.
+  unsigned getZeroLengthBitfieldBoundary() const {
+    return ZeroLengthBitfieldBoundary;
   }
 
   /// hasAlignMac68kSupport - Check whether this target support '#pragma options
@@ -306,16 +348,16 @@ public:
   /// isValidClobber - Returns whether the passed in string is
   /// a valid clobber in an inline asm statement. This is used by
   /// Sema.
-  bool isValidClobber(llvm::StringRef Name) const;
+  bool isValidClobber(StringRef Name) const;
 
   /// isValidGCCRegisterName - Returns whether the passed in string
   /// is a valid register name according to GCC. This is used by Sema for
   /// inline asm statements.
-  bool isValidGCCRegisterName(llvm::StringRef Name) const;
+  bool isValidGCCRegisterName(StringRef Name) const;
 
   // getNormalizedGCCRegisterName - Returns the "normalized" GCC register name.
   // For example, on x86 it will return "ax" when "eax" is passed in.
-  llvm::StringRef getNormalizedGCCRegisterName(llvm::StringRef Name) const;
+  StringRef getNormalizedGCCRegisterName(StringRef Name) const;
 
   struct ConstraintInfo {
     enum {
@@ -331,7 +373,7 @@ public:
     std::string ConstraintStr;  // constraint: "=rm"
     std::string Name;           // Operand name: [foo] with no []'s.
   public:
-    ConstraintInfo(llvm::StringRef ConstraintStr, llvm::StringRef Name)
+    ConstraintInfo(StringRef ConstraintStr, StringRef Name)
       : Flags(0), TiedOperand(-1), ConstraintStr(ConstraintStr.str()),
       Name(Name.str()) {}
 
@@ -444,7 +486,7 @@ public:
   /// and give good diagnostics in cases when the assembler or code generator
   /// would otherwise reject the section specifier.
   ///
-  virtual std::string isValidSectionSpecifier(llvm::StringRef SR) const {
+  virtual std::string isValidSectionSpecifier(StringRef SR) const {
     return "";
   }
 
@@ -453,11 +495,9 @@ public:
   /// language options which change the target configuration.
   virtual void setForcedLangOptions(LangOptions &Opts);
 
-  /// getDefaultFeatures - Get the default set of target features for
-  /// the \args CPU; this should include all legal feature strings on
-  /// the target.
-  virtual void getDefaultFeatures(const std::string &CPU,
-                                  llvm::StringMap<bool> &Features) const {
+  /// getDefaultFeatures - Get the default set of target features for the CPU;
+  /// this should include all legal feature strings on the target.
+  virtual void getDefaultFeatures(llvm::StringMap<bool> &Features) const {
   }
 
   /// getABI - Get the ABI in use.
@@ -473,10 +513,8 @@ public:
   /// setCPU - Target the specific CPU.
   ///
   /// \return - False on error (invalid CPU name).
-  //
-  // FIXME: Remove this.
   virtual bool setCPU(const std::string &Name) {
-    return true;
+    return false;
   }
 
   /// setABI - Use the specific ABI.
@@ -565,7 +603,7 @@ public:
 
   /// \brief Retrieve the name of the platform as it is used in the
   /// availability attribute.
-  llvm::StringRef getPlatformName() const { return PlatformName; }
+  StringRef getPlatformName() const { return PlatformName; }
 
   /// \brief Retrieve the minimum desired version of the platform, to
   /// which the program should be compiled.

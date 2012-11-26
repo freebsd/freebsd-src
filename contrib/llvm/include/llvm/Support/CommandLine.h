@@ -59,6 +59,15 @@ void ParseEnvironmentOptions(const char *progName, const char *envvar,
 ///                     CommandLine utilities to print their own version string.
 void SetVersionPrinter(void (*func)());
 
+///===---------------------------------------------------------------------===//
+/// AddExtraVersionPrinter - Add an extra printer to use in addition to the
+///                          default one. This can be called multiple times,
+///                          and each time it adds a new function to the list
+///                          which will be called after the basic LLVM version
+///                          printing is complete. Each can then add additional
+///                          information specific to the tool.
+void AddExtraVersionPrinter(void (*func)());
+
 
 // PrintOptionValues - Print option values.
 // With -print-options print the difference between option values and defaults.
@@ -795,6 +804,28 @@ public:
 };
 
 EXTERN_TEMPLATE_INSTANTIATION(class basic_parser<unsigned>);
+
+//--------------------------------------------------
+// parser<unsigned long long>
+//
+template<>
+class parser<unsigned long long> : public basic_parser<unsigned long long> {
+public:
+  // parse - Return true on error.
+  bool parse(Option &O, StringRef ArgName, StringRef Arg,
+             unsigned long long &Val);
+
+  // getValueName - Overload in subclass to provide a better default value.
+  virtual const char *getValueName() const { return "uint"; }
+
+  void printOptionDiff(const Option &O, unsigned long long V, OptVal Default,
+                       size_t GlobalWidth) const;
+
+  // An out-of-line virtual method to provide a 'home' for this class.
+  virtual void anchor();
+};
+
+EXTERN_TEMPLATE_INSTANTIATION(class basic_parser<unsigned long long>);
 
 //--------------------------------------------------
 // parser<double>

@@ -71,6 +71,11 @@ namespace llvm {
       SRA_FLAG,     // V,Flag = sra_flag X -> sra X, 1 + save carry out.
       RRX,          // V = RRX X, Flag     -> srl X, 1 + shift in carry flag.
 
+      ADDC,         // Add with carry
+      ADDE,         // Add using carry
+      SUBC,         // Sub with carry
+      SUBE,         // Sub using carry
+
       VMOVRRD,      // double to two gprs.
       VMOVDRR,      // Two gprs to double.
 
@@ -206,18 +211,22 @@ namespace llvm {
       VST4_UPD,
       VST2LN_UPD,
       VST3LN_UPD,
-      VST4LN_UPD
+      VST4LN_UPD,
+
+      // 64-bit atomic ops (value split into two registers)
+      ATOMADD64_DAG,
+      ATOMSUB64_DAG,
+      ATOMOR64_DAG,
+      ATOMXOR64_DAG,
+      ATOMAND64_DAG,
+      ATOMNAND64_DAG,
+      ATOMSWAP64_DAG,
+      ATOMCMPXCHG64_DAG
     };
   }
 
   /// Define some predicates that are used for node matching.
   namespace ARM {
-    /// getVFPf32Imm / getVFPf64Imm - If the given fp immediate can be
-    /// materialized with a VMOV.f32 / VMOV.f64 (i.e. fconsts / fconstd)
-    /// instruction, returns its 8-bit integer representation. Otherwise,
-    /// returns -1.
-    int getVFPf32Imm(const APFloat &FPImm);
-    int getVFPf64Imm(const APFloat &FPImm);
     bool isBitFieldInvertedMask(unsigned v);
   }
 
@@ -240,9 +249,15 @@ namespace llvm {
 
     virtual const char *getTargetNodeName(unsigned Opcode) const;
 
+    /// getSetCCResultType - Return the value type to use for ISD::SETCC.
+    virtual EVT getSetCCResultType(EVT VT) const;
+
     virtual MachineBasicBlock *
       EmitInstrWithCustomInserter(MachineInstr *MI,
                                   MachineBasicBlock *MBB) const;
+
+    virtual void
+    AdjustInstrPostInstrSelection(MachineInstr *MI, SDNode *Node) const;
 
     SDValue PerformCMOVCombine(SDNode *N, SelectionDAG &DAG) const;
     virtual SDValue PerformDAGCombine(SDNode *N, DAGCombinerInfo &DCI) const;
@@ -256,7 +271,7 @@ namespace llvm {
 
     /// isLegalAddressingMode - Return true if the addressing mode represented
     /// by AM is legal for this target, for a load/store of the specified type.
-    virtual bool isLegalAddressingMode(const AddrMode &AM, const Type *Ty)const;
+    virtual bool isLegalAddressingMode(const AddrMode &AM, Type *Ty)const;
     bool isLegalT2ScaledAddressingMode(const AddrMode &AM, EVT VT) const;
 
     /// isLegalICmpImmediate - Return true if the specified immediate is legal
@@ -485,11 +500,27 @@ namespace llvm {
                                         MachineBasicBlock *BB,
                                         unsigned Size,
                                         unsigned BinOpcode) const;
+    MachineBasicBlock *EmitAtomicBinary64(MachineInstr *MI,
+                                          MachineBasicBlock *BB,
+                                          unsigned Op1,
+                                          unsigned Op2,
+                                          bool NeedsCarry = false,
+                                          bool IsCmpxchg = false) const;
     MachineBasicBlock * EmitAtomicBinaryMinMax(MachineInstr *MI,
                                                MachineBasicBlock *BB,
                                                unsigned Size,
                                                bool signExtend,
                                                ARMCC::CondCodes Cond) const;
+
+    void EmitBasePointerRecalculation(MachineInstr *MI, MachineBasicBlock *MBB,
+                                      MachineBasicBlock *DispatchBB) const;
+
+    void SetupEntryBlockForSjLj(MachineInstr *MI,
+                                MachineBasicBlock *MBB,
+                                MachineBasicBlock *DispatchBB, int FI) const;
+
+    MachineBasicBlock *EmitSjLjDispatchBlock(MachineInstr *MI,
+                                             MachineBasicBlock *MBB) const;
 
     bool RemapAddSubWithFlags(MachineInstr *MI, MachineBasicBlock *BB) const;
   };

@@ -1693,7 +1693,7 @@ fdt_get_ranges(const char *nodename, void *buf, int size, int *tuples,
 	int len, tuple_size, tuples_count;
 
 	node = OF_finddevice(nodename);
-	if (node <= 0)
+	if (node == -1)
 		return (EINVAL);
 
 	if ((fdt_addrsize_cells(node, &addr_cells, &size_cells)) != 0)
@@ -1762,11 +1762,11 @@ win_cpu_from_dt(void)
 	/*
 	 * Retrieve CESA SRAM data.
 	 */
-	if ((node = OF_finddevice("sram")) != 0)
+	if ((node = OF_finddevice("sram")) != -1)
 		if (fdt_is_compatible(node, "mrvl,cesa-sram"))
 			goto moveon;
 
-	if ((node = OF_finddevice("/")) == 0)
+	if ((node = OF_finddevice("/")) != -1)
 		return (ENXIO);
 
 	if ((node = fdt_find_compatible(node, "mrvl,cesa-sram", 0)) == 0)
@@ -1796,7 +1796,7 @@ fdt_win_setup(void)
 	int err, i;
 
 	node = OF_finddevice("/");
-	if (node == 0)
+	if (node == -1)
 		panic("fdt_win_setup: no root node");
 
 	node = fdt_find_compatible(node, "simple-bus", 1);

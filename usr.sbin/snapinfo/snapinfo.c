@@ -39,14 +39,15 @@
 #include <string.h>
 #include <unistd.h>
 
-void	find_inum(char *path);
-void	usage(void);
-int	compare_function(const char *, const struct stat *, int, struct FTW *);
-int	find_snapshot(struct statfs *sfs);
+static void	find_inum(char *path);
+static void	usage(void);
+static int	compare_function(const char *, const struct stat *,
+		    int, struct FTW *);
+static int	find_snapshot(struct statfs *sfs);
 
-int verbose;
-int cont_search;
-uint32_t inode;
+static int	verbose;
+static int	cont_search;
+static uint32_t	inode;
 
 int
 main(int argc, char **argv)
@@ -112,7 +113,7 @@ main(int argc, char **argv)
 	return (0);
 }
 
-int
+static int
 find_snapshot(struct statfs *sfs)
 {
 	struct uufsd disk;
@@ -138,7 +139,7 @@ find_snapshot(struct statfs *sfs)
 	return 0;
 }
 
-int
+static int
 compare_function(const char *path, const struct stat *st, int flags,
     struct FTW * ftwv __unused)
 {
@@ -157,7 +158,7 @@ compare_function(const char *path, const struct stat *st, int flags,
 	return (0);
 }
 
-void
+static void
 find_inum(char *path)
 {
 	int ret;
@@ -169,7 +170,7 @@ find_inum(char *path)
 	}
 }
 
-void
+static void
 usage(void)
 {
 

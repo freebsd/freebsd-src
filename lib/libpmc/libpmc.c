@@ -83,6 +83,10 @@ static int mips24k_allocate_pmc(enum pmc_event _pe, char* ctrspec,
 			     struct pmc_op_pmcallocate *_pmc_config);
 #endif /* __mips__ */
 
+#if defined(__powerpc__)
+static int ppc7450_allocate_pmc(enum pmc_event _pe, char* ctrspec,
+			     struct pmc_op_pmcallocate *_pmc_config);
+#endif /* __powerpc__ */
 
 #define PMC_CALL(cmd, params)				\
 	syscall(pmc_syscall, PMC_OP_##cmd, (params))
@@ -149,6 +153,7 @@ PMC_CLASSDEP_TABLE(p6, P6);
 PMC_CLASSDEP_TABLE(xscale, XSCALE);
 PMC_CLASSDEP_TABLE(mips24k, MIPS24K);
 PMC_CLASSDEP_TABLE(ucf, UCF);
+PMC_CLASSDEP_TABLE(ppc7450, PPC7450);
 
 #undef	__PMC_EV_ALIAS
 #define	__PMC_EV_ALIAS(N,CODE) 	{ N, PMC_EV_##CODE },
@@ -211,6 +216,7 @@ PMC_MDEP_TABLE(p5, P5, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(p6, P6, PMC_CLASS_TSC);
 PMC_MDEP_TABLE(xscale, XSCALE, PMC_CLASS_XSCALE);
 PMC_MDEP_TABLE(mips24k, MIPS24K, PMC_CLASS_MIPS24K);
+PMC_MDEP_TABLE(ppc7450, PPC7450, PMC_CLASS_PPC7450);
 
 static const struct pmc_event_descr tsc_event_table[] =
 {
@@ -263,6 +269,10 @@ PMC_CLASS_TABLE_DESC(xscale, XSCALE, xscale, xscale);
 PMC_CLASS_TABLE_DESC(mips24k, MIPS24K, mips24k, mips24k);
 #endif /* __mips__ */
 
+#if defined(__powerpc__)
+PMC_CLASS_TABLE_DESC(ppc7450, PPC7450, ppc7450, ppc7450);
+#endif
+
 #undef	PMC_CLASS_TABLE_DESC
 
 static const struct pmc_class_descr **pmc_class_table;
@@ -289,7 +299,7 @@ static const char * pmc_class_names[] = {
 };
 
 struct pmc_cputype_map {
-	enum pmc_class	pm_cputype;
+	enum pmc_cputype pm_cputype;
 	const char	*pm_name;
 };
 
@@ -2212,6 +2222,44 @@ mips24k_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
 }
 #endif /* __mips__ */
 
+#if defined(__powerpc__)
+
+static struct pmc_event_alias ppc7450_aliases[] = {
+	EV_ALIAS("instructions",	"INSTR_COMPLETED"),
+	EV_ALIAS("branches",		"BRANCHES_COMPLETED"),
+	EV_ALIAS("branch-mispredicts",	"MISPREDICTED_BRANCHES"),
+	EV_ALIAS(NULL, NULL)
+};
+
+#define	PPC7450_KW_OS		"os"
+#define	PPC7450_KW_USR		"usr"
+#define	PPC7450_KW_ANYTHREAD	"anythread"
+
+static int
+ppc7450_allocate_pmc(enum pmc_event pe, char *ctrspec __unused,
+		  struct pmc_op_pmcallocate *pmc_config __unused)
+{
+	char *p;
+
+	(void) pe;
+
+	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
+	
+	while ((p = strsep(&ctrspec, ",")) != NULL) {
+		if (KWMATCH(p, PPC7450_KW_OS))
+			pmc_config->pm_caps |= PMC_CAP_SYSTEM;
+		else if (KWMATCH(p, PPC7450_KW_USR))
+			pmc_config->pm_caps |= PMC_CAP_USER;
+		else if (KWMATCH(p, PPC7450_KW_ANYTHREAD))
+			pmc_config->pm_caps |= (PMC_CAP_USER | PMC_CAP_SYSTEM);
+		else
+			return (-1);
+	}
+
+	return (0);
+}
+#endif /* __powerpc__ */
+
 
 /*
  * Match an event name `name' with its canonical form.
@@ -2573,6 +2621,10 @@ pmc_event_names_of_class(enum pmc_class cl, const char ***eventnames,
 		ev = mips24k_event_table;
 		count = PMC_EVENT_TABLE_SIZE(mips24k);
 		break;
+	case PMC_CLASS_PPC7450:
+		ev = ppc7450_event_table;
+		count = PMC_EVENT_TABLE_SIZE(ppc7450);
+		break;
 	default:
 		errno = EINVAL;
 		return (-1);
@@ -2593,6 +2645,12 @@ int
 pmc_flush_logfile(void)
 {
 	return (PMC_CALL(FLUSHLOG,0));
+}
+
+int
+pmc_close_logfile(void)
+{
+	return (PMC_CALL(CLOSELOG,0));
 }
 
 int
@@ -2778,6 +2836,12 @@ pmc_init(void)
 		pmc_class_table[n] = &mips24k_class_table_descr;
 		break;
 #endif /* __mips__ */
+#if defined(__powerpc__)
+	case PMC_CPU_PPC_7450:
+		PMC_MDEP_INIT(ppc7450);
+		pmc_class_table[n] = &ppc7450_class_table_descr;
+		break;
+#endif
 	default:
 		/*
 		 * Some kind of CPU this version of the library knows nothing
@@ -2917,6 +2981,10 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 	} else if (pe >= PMC_EV_MIPS24K_FIRST && pe <= PMC_EV_MIPS24K_LAST) {
 		ev = mips24k_event_table;
 		evfence = mips24k_event_table + PMC_EVENT_TABLE_SIZE(mips24k
+);
+	} else if (pe >= PMC_EV_PPC7450_FIRST && pe <= PMC_EV_PPC7450_LAST) {
+		ev = ppc7450_event_table;
+		evfence = ppc7450_event_table + PMC_EVENT_TABLE_SIZE(ppc7450
 );
 	} else if (pe == PMC_EV_TSC_TSC) {
 		ev = tsc_event_table;

@@ -23,14 +23,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$ 
+ * $FreeBSD$
  */
 
 #ifndef	_MACHINE_INTR_MACHDEP_H_
 #define	_MACHINE_INTR_MACHDEP_H_
 
+#include <machine/atomic.h>
+
 #if defined(CPU_RMI) || defined(CPU_NLM)
-#define XLR_MAX_INTR 64 
+#define XLR_MAX_INTR 64
 #else
 #define NHARD_IRQS	6
 #define NSOFT_IRQS	2
@@ -39,9 +41,9 @@
 struct trapframe;
 
 void cpu_init_interrupts(void);
-void cpu_establish_hardintr(const char *, driver_filter_t *, driver_intr_t *, 
+void cpu_establish_hardintr(const char *, driver_filter_t *, driver_intr_t *,
     void *, int, int, void **);
-void cpu_establish_softintr(const char *, driver_filter_t *, void (*)(void*), 
+void cpu_establish_softintr(const char *, driver_filter_t *, void (*)(void*),
     void *, int, int, void **);
 void cpu_intr(struct trapframe *);
 

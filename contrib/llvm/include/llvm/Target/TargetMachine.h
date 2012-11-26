@@ -14,6 +14,7 @@
 #ifndef LLVM_TARGET_TARGETMACHINE_H
 #define LLVM_TARGET_TARGETMACHINE_H
 
+#include "llvm/MC/MCCodeGenInfo.h"
 #include "llvm/ADT/StringRef.h"
 #include <cassert>
 #include <string>
@@ -23,6 +24,7 @@ namespace llvm {
 class InstrItineraryData;
 class JITCodeEmitter;
 class MCAsmInfo;
+class MCCodeGenInfo;
 class MCContext;
 class Pass;
 class PassManager;
@@ -40,27 +42,6 @@ class TargetSelectionDAGInfo;
 class TargetSubtargetInfo;
 class formatted_raw_ostream;
 class raw_ostream;
-
-// Relocation model types.
-namespace Reloc {
-  enum Model {
-    Default,
-    Static,
-    PIC_,         // Cannot be named PIC due to collision with -DPIC
-    DynamicNoPIC
-  };
-}
-
-// Code model types.
-namespace CodeModel {
-  enum Model {
-    Default,
-    Small,
-    Kernel,
-    Medium,
-    Large
-  };
-}
 
 // Code generation optimization level.
 namespace CodeGenOpt {
@@ -107,6 +88,9 @@ protected: // Can only create subclasses.
   std::string TargetTriple;
   std::string TargetCPU;
   std::string TargetFS;
+
+  /// CodeGenInfo - Low level target information such as relocation model.
+  const MCCodeGenInfo *CodeGenInfo;
 
   /// AsmInfo - Contains target specific asm information.
   ///
@@ -214,19 +198,11 @@ public:
 
   /// getRelocationModel - Returns the code generation relocation model. The
   /// choices are static, PIC, and dynamic-no-pic, and target default.
-  static Reloc::Model getRelocationModel();
-
-  /// setRelocationModel - Sets the code generation relocation model.
-  ///
-  static void setRelocationModel(Reloc::Model Model);
+  Reloc::Model getRelocationModel() const;
 
   /// getCodeModel - Returns the code model. The choices are small, kernel,
   /// medium, large, and target default.
-  static CodeModel::Model getCodeModel();
-
-  /// setCodeModel - Sets the code model.
-  ///
-  static void setCodeModel(CodeModel::Model Model);
+  CodeModel::Model getCodeModel() const;
 
   /// getAsmVerbosityDefault - Returns the default value of asm verbosity.
   ///
@@ -309,7 +285,8 @@ public:
 class LLVMTargetMachine : public TargetMachine {
 protected: // Can only create subclasses.
   LLVMTargetMachine(const Target &T, StringRef TargetTriple,
-                    StringRef CPU, StringRef FS);
+                    StringRef CPU, StringRef FS,
+                    Reloc::Model RM, CodeModel::Model CM);
 
 private:
   /// addCommonCodeGenPasses - Add standard LLVM codegen passes used for
@@ -317,9 +294,6 @@ private:
   ///
   bool addCommonCodeGenPasses(PassManagerBase &, CodeGenOpt::Level,
                               bool DisableVerify, MCContext *&OutCtx);
-
-  virtual void setCodeModelForJIT();
-  virtual void setCodeModelForStatic();
 
 public:
   /// addPassesToEmitFile - Add passes to the specified pass manager to get the

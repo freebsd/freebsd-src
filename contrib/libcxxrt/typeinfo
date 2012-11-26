@@ -1,0 +1,26 @@
+namespace std
+{
+	/**
+	  * Standard type info class.  The layout of this class is specified by the
+	  * ABI.
+	  */
+	class type_info
+	{
+		public:
+		/**
+		 * Virtual destructor.  This class must have one virtual function to
+		 * ensure that it has a vtable.
+		 */
+		virtual ~type_info();
+		bool operator==(const type_info &) const;
+		bool operator!=(const type_info &) const;
+		bool before(const type_info &) const;
+		const char* name() const;
+		type_info();
+		private:
+		type_info(const type_info& rhs);
+		type_info& operator= (const type_info& rhs);
+		const char *__type_name;
+	};
+}
+

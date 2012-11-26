@@ -25,9 +25,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * FreeBSD-specific code.
@@ -135,9 +136,7 @@ static device_method_t twe_methods[] = {
     DEVMETHOD(device_suspend,	twe_suspend),
     DEVMETHOD(device_resume,	twe_resume),
 
-    DEVMETHOD(bus_print_child,	bus_generic_print_child),
-    DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static driver_t twe_pci_driver = {
@@ -872,7 +871,7 @@ twed_detach(device_t dev)
 /********************************************************************************
  * Allocate a command buffer
  */
-MALLOC_DEFINE(TWE_MALLOC_CLASS, "twe_commands", "twe commands");
+static MALLOC_DEFINE(TWE_MALLOC_CLASS, "twe_commands", "twe commands");
 
 struct twe_request *
 twe_allocate_request(struct twe_softc *sc, int tag)

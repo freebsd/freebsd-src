@@ -22,9 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
  
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -94,7 +95,7 @@ static device_method_t driver_methods[] = {
 	DEVMETHOD(device_detach,	hpt_detach),
 
 	DEVMETHOD(device_shutdown,	hpt_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t hpt_pci_driver = {
@@ -2371,7 +2372,10 @@ hpt_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 
 		case XPT_CALC_GEOMETRY:
-		{
+#if __FreeBSD_version >= 500000
+			cam_calc_geometry(&ccb->ccg, 1);
+#else
+			{
 			struct	  ccb_calc_geometry *ccg;
 			u_int32_t size_mb;
 			u_int32_t secs_per_cylinder;
@@ -2389,9 +2393,10 @@ hpt_action(struct cam_sim *sim, union ccb *ccb)
 			secs_per_cylinder = ccg->heads * ccg->secs_per_track;
 			ccg->cylinders = ccg->volume_size / secs_per_cylinder;
 			ccb->ccb_h.status = CAM_REQ_CMP;
+			}
+#endif
 			xpt_done(ccb);
 			break;
-		}
 
 		case XPT_PATH_INQ:		/* Path routing inquiry */
 		{

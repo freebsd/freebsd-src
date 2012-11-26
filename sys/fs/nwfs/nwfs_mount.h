@@ -65,11 +65,4 @@ struct nwfs_args {
 	int		tz;
 };
 
-#ifdef _KERNEL
-
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_NWFSMNT);
-#endif
-
-#endif
 #endif /* !_NWFS_MOUNT_H_ */

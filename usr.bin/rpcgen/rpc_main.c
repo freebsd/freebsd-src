@@ -64,10 +64,6 @@ static void clnt_output(const char *, const char *, int, const char * );
 static char *generate_guard(const char *);
 static void c_initialize(void);
 
-#if !defined(__FreeBSD__) && !defined(__NetBSD__)
-char * rindex();
-#endif
-
 static void usage(void);
 static void options_usage(void);
 static int do_registers(int, const char **);
@@ -233,7 +229,7 @@ extendfile(const char *path, const char *ext)
 	const char *p;
 	const char *file;
 
-	if ((file = rindex(path, '/')) == NULL)
+	if ((file = strrchr(path, '/')) == NULL)
 		file = path;
 	else
 		file++;
@@ -821,7 +817,7 @@ static void mkfile_output(struct commandline *cmd)
 	if (allfiles){
 		mkftemp = xmalloc(strlen("makefile.") +
 		                     strlen(cmd->infile) + 1);
-		temp = (char *)rindex(cmd->infile, '.');
+		temp = strrchr(cmd->infile, '.');
 		strcpy(mkftemp, "makefile.");
 		(void) strncat(mkftemp, cmd->infile,
 			(temp - cmd->infile));

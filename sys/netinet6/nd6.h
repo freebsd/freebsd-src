@@ -278,8 +278,6 @@ struct nd_prefix {
 	int	ndpr_refcnt;	/* reference couter from addresses */
 };
 
-#define ndpr_next		ndpr_entry.le_next
-
 #define ndpr_raf		ndpr_flags
 #define ndpr_raf_onlink		ndpr_flags.onlink
 #define ndpr_raf_auto		ndpr_flags.autonomous
@@ -313,7 +311,6 @@ struct inet6_ndpr_msghdr {
 
 struct nd_pfxrouter {
 	LIST_ENTRY(nd_pfxrouter) pfr_entry;
-#define pfr_next pfr_entry.le_next
 	struct nd_defrouter *router;
 };
 
@@ -406,6 +403,7 @@ void nd6_purge __P((struct ifnet *));
 void nd6_nud_hint __P((struct rtentry *, struct in6_addr *, int));
 int nd6_resolve __P((struct ifnet *, struct rtentry *, struct mbuf *,
 	struct sockaddr *, u_char *));
+void nd6_rtrequest __P((int, struct rtentry *, struct rt_addrinfo *));
 int nd6_ioctl __P((u_long, caddr_t, struct ifnet *));
 struct llentry *nd6_cache_lladdr __P((struct ifnet *, struct in6_addr *,
 	char *, int, int, int));
@@ -436,15 +434,12 @@ void nd6_dad_duplicated __P((struct ifaddr *));
 void nd6_rs_input __P((struct mbuf *, int, int));
 void nd6_ra_input __P((struct mbuf *, int, int));
 void prelist_del __P((struct nd_prefix *));
-void defrouter_addreq __P((struct nd_defrouter *));
 void defrouter_reset __P((void));
 void defrouter_select __P((void));
 void defrtrlist_del __P((struct nd_defrouter *));
 void prelist_remove __P((struct nd_prefix *));
 int nd6_prelist_add __P((struct nd_prefixctl *, struct nd_defrouter *,
 	struct nd_prefix **));
-int nd6_prefix_onlink __P((struct nd_prefix *));
-int nd6_prefix_offlink __P((struct nd_prefix *));
 void pfxlist_onlink_check __P((void));
 struct nd_defrouter *defrouter_lookup __P((struct in6_addr *, struct ifnet *));
 struct nd_prefix *nd6_prefix_lookup __P((struct nd_prefixctl *));

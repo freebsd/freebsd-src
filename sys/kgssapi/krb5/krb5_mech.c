@@ -288,6 +288,7 @@ get_keys(struct krb5_context *kc)
 	case ETYPE_DES3_CBC_SHA1:
 	case ETYPE_OLD_DES3_CBC_SHA1:
 		etype = ETYPE_DES3_CBC_SHA1;
+		break;
 
 	default:
 		etype = keydata->kk_type;

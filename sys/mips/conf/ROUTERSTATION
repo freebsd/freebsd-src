@@ -1,0 +1,24 @@
+#
+# Ubiquiti Routerstation: Boot from onboard flash
+#
+# $FreeBSD$
+#
+
+include		"AR71XX_BASE"
+ident		"ROUTERSTATION"
+hints		"ROUTERSTATION.hints"
+
+# XXX Is there an RTC on the RS?
+
+# GEOM modules
+device		geom_redboot	# to get access to the SPI flash partitions
+device		geom_uzip	# compressed in-memory filesystem support
+options		GEOM_UZIP
+
+# For DOS
+options		GEOM_PART_BSD
+options		GEOM_PART_MBR
+options		MSDOSFS
+
+# Boot path - redboot MFS
+options		ROOTDEVNAME=\"ufs:redboot/rootfs.uzip\"

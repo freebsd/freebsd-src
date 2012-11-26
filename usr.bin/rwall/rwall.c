@@ -64,11 +64,11 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 
-char *mbuf;
+static char *mbuf;
 
 static char notty[] = "no tty";
 
-void	makemsg(const char *);
+static void	makemsg(const char *);
 static void usage(void);
 
 /* ARGSUSED */
@@ -121,7 +121,7 @@ usage(void)
 	exit(1);
 }
 
-void
+static void
 makemsg(const char *fname)
 {
 	struct tm *lt;

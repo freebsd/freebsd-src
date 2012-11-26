@@ -70,6 +70,13 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 	uint32_t isr, isr0, isr1, sync_cause = 0;
 	HAL_CAPABILITIES *pCap = &AH_PRIVATE(ah)->ah_caps;
 
+#ifdef	AH_INTERRUPT_DEBUGGING
+	/*
+	 * Blank the interrupt debugging area regardless.
+	 */
+	bzero(&ah->ah_intrstate, sizeof(ah->ah_intrstate));
+#endif
+
 	/*
 	 * Verify there's a mac interrupt and the RTC is on.
 	 */
@@ -89,6 +96,16 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 		if (isr == 0 && sync_cause == 0)
 			return AH_FALSE;
 	}
+
+#ifdef	AH_INTERRUPT_DEBUGGING
+	ah->ah_intrstate[0] = isr;
+	ah->ah_intrstate[1] = OS_REG_READ(ah, AR_ISR_S0);
+	ah->ah_intrstate[2] = OS_REG_READ(ah, AR_ISR_S1);
+	ah->ah_intrstate[3] = OS_REG_READ(ah, AR_ISR_S2);
+	ah->ah_intrstate[4] = OS_REG_READ(ah, AR_ISR_S3);
+	ah->ah_intrstate[5] = OS_REG_READ(ah, AR_ISR_S4);
+	ah->ah_intrstate[6] = OS_REG_READ(ah, AR_ISR_S5);
+#endif
 
 	if (isr != 0) {
 		struct ath_hal_5212 *ahp = AH5212(ah);

@@ -639,7 +639,7 @@ svc_rpc_gss_forget_client(struct svc_rpc_gss_client *client)
 		/*
 		 * Make sure this client has not already been removed
 		 * from the lists by svc_rpc_gss_forget_client() or
-		 * svc_rpc_gss_forget_client_locked() already.
+		 * svc_rpc_gss_forget_client_locked().
 		 */
 		if (client == tclient) {
 			svc_rpc_gss_forget_client_locked(client);

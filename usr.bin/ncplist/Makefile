@@ -1,8 +1,7 @@
 # $FreeBSD$
 
 PROG=	ncplist
-
-WARNS?=	0
+NO_WCAST_ALIGN=
 
 DPADD=	${LIBNCP} ${LIBIPX}
 LDADD=	-lncp -lipx

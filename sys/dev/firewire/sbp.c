@@ -132,7 +132,8 @@ static int use_doorbell = 0;
 static int sbp_tags = 0;
 
 SYSCTL_DECL(_hw_firewire);
-SYSCTL_NODE(_hw_firewire, OID_AUTO, sbp, CTLFLAG_RD, 0, "SBP-II Subsystem");
+static SYSCTL_NODE(_hw_firewire, OID_AUTO, sbp, CTLFLAG_RD, 0,
+	"SBP-II Subsystem");
 SYSCTL_INT(_debug, OID_AUTO, sbp_debug, CTLFLAG_RW, &debug, 0,
 	"SBP debug flag");
 SYSCTL_INT(_hw_firewire_sbp, OID_AUTO, auto_login, CTLFLAG_RW, &auto_login, 0,
@@ -276,7 +277,7 @@ static void sbp_mgm_timeout (void *arg);
 static void sbp_timeout (void *arg);
 static void sbp_mgm_orb (struct sbp_dev *, int, struct sbp_ocb *);
 
-MALLOC_DEFINE(M_SBP, "sbp", "SBP-II/FireWire");
+static MALLOC_DEFINE(M_SBP, "sbp", "SBP-II/FireWire");
 
 /* cam related functions */
 static void	sbp_action(struct cam_sim *sim, union ccb *ccb);

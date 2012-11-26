@@ -617,13 +617,13 @@ platform_mpp_init(void)
 	/*
 	 * Try to access the MPP node directly i.e. through /aliases/mpp.
 	 */
-	if ((node = OF_finddevice("mpp")) != 0)
+	if ((node = OF_finddevice("mpp")) != -1)
 		if (fdt_is_compatible(node, "mrvl,mpp"))
 			goto moveon;
 	/*
 	 * Find the node the long way.
 	 */
-	if ((node = OF_finddevice("/")) == 0)
+	if ((node = OF_finddevice("/")) == -1)
 		return (ENXIO);
 
 	if ((node = fdt_find_compatible(node, "simple-bus", 0)) == 0)
@@ -752,7 +752,7 @@ platform_devmap_init(void)
 	/*
 	 * PCI range(s).
 	 */
-	if ((root = OF_finddevice("/")) == 0)
+	if ((root = OF_finddevice("/")) == -1)
 		return (ENXIO);
 
 	for (child = OF_child(root); child != 0; child = OF_peer(child))
@@ -779,7 +779,7 @@ platform_devmap_init(void)
 	/*
 	 * CESA SRAM range.
 	 */
-	if ((child = OF_finddevice("sram")) != 0)
+	if ((child = OF_finddevice("sram")) != -1)
 		if (fdt_is_compatible(child, "mrvl,cesa-sram"))
 			goto moveon;
 

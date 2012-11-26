@@ -2,6 +2,11 @@
  * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -33,13 +38,19 @@ __FBSDID("$FreeBSD$");
 #include "mblocal.h"
 
 int
-wctob(wint_t c)
+wctob_l(wint_t c, locale_t locale)
 {
 	static const mbstate_t initial;
 	mbstate_t mbs = initial;
 	char buf[MB_LEN_MAX];
+	FIX_LOCALE(locale);
 
-	if (c == WEOF || __wcrtomb(buf, c, &mbs) != 1)
+	if (c == WEOF || XLOCALE_CTYPE(locale)->__wcrtomb(buf, c, &mbs) != 1)
 		return (EOF);
 	return ((unsigned char)*buf);
+}
+int
+wctob(wint_t c)
+{
+	return wctob_l(c, __get_locale());
 }

@@ -59,7 +59,6 @@ public:
   // LiveIntervalUnions share an external allocator.
   typedef LiveSegments::Allocator Allocator;
 
-  class InterferenceResult;
   class Query;
 
 private:
@@ -106,62 +105,13 @@ public:
   void verify(LiveVirtRegBitSet& VisitedVRegs);
 #endif
 
-  /// Cache a single interference test result in the form of two intersecting
-  /// segments. This allows efficiently iterating over the interferences. The
-  /// iteration logic is handled by LiveIntervalUnion::Query which may
-  /// filter interferences depending on the type of query.
-  class InterferenceResult {
-    friend class Query;
-
-    LiveInterval::iterator VirtRegI; // current position in VirtReg
-    SegmentIter LiveUnionI;          // current position in LiveUnion
-
-    // Internal ctor.
-    InterferenceResult(LiveInterval::iterator VRegI, SegmentIter UnionI)
-      : VirtRegI(VRegI), LiveUnionI(UnionI) {}
-
-  public:
-    // Public default ctor.
-    InterferenceResult(): VirtRegI(), LiveUnionI() {}
-
-    /// start - Return the start of the current overlap.
-    SlotIndex start() const {
-      return std::max(VirtRegI->start, LiveUnionI.start());
-    }
-
-    /// stop - Return the end of the current overlap.
-    SlotIndex stop() const {
-      return std::min(VirtRegI->end, LiveUnionI.stop());
-    }
-
-    /// interference - Return the register that is interfering here.
-    LiveInterval *interference() const { return LiveUnionI.value(); }
-
-    // Note: this interface provides raw access to the iterators because the
-    // result has no way to tell if it's valid to dereference them.
-
-    // Access the VirtReg segment.
-    LiveInterval::iterator virtRegPos() const { return VirtRegI; }
-
-    // Access the LiveUnion segment.
-    const SegmentIter &liveUnionPos() const { return LiveUnionI; }
-
-    bool operator==(const InterferenceResult &IR) const {
-      return VirtRegI == IR.VirtRegI && LiveUnionI == IR.LiveUnionI;
-    }
-    bool operator!=(const InterferenceResult &IR) const {
-      return !operator==(IR);
-    }
-
-    void print(raw_ostream &OS, const TargetRegisterInfo *TRI) const;
-  };
-
   /// Query interferences between a single live virtual register and a live
   /// interval union.
   class Query {
     LiveIntervalUnion *LiveUnion;
     LiveInterval *VirtReg;
-    InterferenceResult FirstInterference;
+    LiveInterval::iterator VirtRegI; // current position in VirtReg
+    SegmentIter LiveUnionI;          // current position in LiveUnion
     SmallVector<LiveInterval*,4> InterferingVRegs;
     bool CheckedFirstInterference;
     bool SeenAllInterferences;
@@ -206,26 +156,8 @@ public:
       return *VirtReg;
     }
 
-    bool isInterference(const InterferenceResult &IR) const {
-      if (IR.VirtRegI != VirtReg->end()) {
-        assert(overlap(*IR.VirtRegI, IR.LiveUnionI) &&
-               "invalid segment iterators");
-        return true;
-      }
-      return false;
-    }
-
     // Does this live virtual register interfere with the union?
-    bool checkInterference() { return isInterference(firstInterference()); }
-
-    // Get the first pair of interfering segments, or a noninterfering result.
-    // This initializes the firstInterference_ cache.
-    const InterferenceResult &firstInterference();
-
-    // Treat the result as an iterator and advance to the next interfering pair
-    // of segments. Visiting each unique interfering pairs means that the same
-    // VirtReg or LiveUnion segment may be visited multiple times.
-    bool nextInterference(InterferenceResult &IR) const;
+    bool checkInterference() { return collectInterferingVRegs(1); }
 
     // Count the virtual registers in this union that interfere with this
     // query's live virtual register, up to maxInterferingRegs.
@@ -249,13 +181,9 @@ public:
     /// Loop.
     bool checkLoopInterference(MachineLoopRange*);
 
-    void print(raw_ostream &OS, const TargetRegisterInfo *TRI);
   private:
     Query(const Query&);          // DO NOT IMPLEMENT
     void operator=(const Query&); // DO NOT IMPLEMENT
-
-    // Private interface for queries
-    void findIntersection(InterferenceResult &IR) const;
   };
 };
 

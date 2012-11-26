@@ -23,6 +23,7 @@
  */
 
 /* Portions Copyright 2007 Jeremy Teo */
+/* Portions Copyright 2011 Martin Matuska <mm@FreeBSD.org> */
 
 #ifdef _KERNEL
 #include <sys/types.h>

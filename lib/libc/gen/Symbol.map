@@ -213,6 +213,7 @@ FBSD_1.0 {
 	ldexp;
 	lockf;
 	lrand48;
+	modf;
 	mrand48;
 	nftw;
 	nice;
@@ -378,6 +379,11 @@ FBSD_1.2 {
 	sem_wait;
 	setutxdb;
 	setutxent;
+};
+
+FBSD_1.3 {
+	 fdlopen;
+	__FreeBSD_libc_enter_restricted_mode;
 };
 
 FBSDprivate_1.0 {

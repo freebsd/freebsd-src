@@ -164,7 +164,7 @@ kthrdlk_done(void)
 	while (test_thrcnt != 0) {
 		ret = mtx_sleep(&global_condvar, &test_global_lock, 0, "waiting thrs end", 30 * hz);
 		if (ret == EWOULDBLOCK) {
-			panic("some threads not die! remaing: %d", test_thrcnt);
+			panic("some threads not die! remaining: %d", test_thrcnt);
 			break;
 		}
 	}

@@ -247,6 +247,7 @@ static_atm()
 
 static_ipx()
 {
+	:
 }
 
 ropts_init()

@@ -27,7 +27,7 @@
 # $FreeBSD$
 #
 # PROVIDE: kld
-# REQUIRE: FILESYSTEMS
+# REQUIRE: kldxref
 # KEYWORD: nojail
 
 . /etc/rc.subr

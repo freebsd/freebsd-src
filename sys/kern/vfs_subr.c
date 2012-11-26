@@ -1054,7 +1054,7 @@ alloc:
 	vp->v_tag = tag;
 	vp->v_op = vops;
 	v_incr_usecount(vp);
-	vp->v_data = 0;
+	vp->v_data = NULL;
 #ifdef MAC
 	mac_vnode_init(vp);
 	if (mp != NULL && (mp->mnt_flag & MNT_MULTILABEL) == 0)
@@ -1191,7 +1191,7 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 	do {
 		error = flushbuflist(&bo->bo_clean,
 		    flags, bo, slpflag, slptimeo);
-		if (error == 0)
+		if (error == 0 && !(flags & V_CLEANONLY))
 			error = flushbuflist(&bo->bo_dirty,
 			    flags, bo, slpflag, slptimeo);
 		if (error != 0 && error != EAGAIN) {
@@ -1220,7 +1220,8 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 	/*
 	 * Destroy the copy in the VM cache, too.
 	 */
-	if (bo->bo_object != NULL && (flags & (V_ALT | V_NORMAL)) == 0) {
+	if (bo->bo_object != NULL &&
+	    (flags & (V_ALT | V_NORMAL | V_CLEANONLY)) == 0) {
 		VM_OBJECT_LOCK(bo->bo_object);
 		vm_object_page_remove(bo->bo_object, 0, 0, (flags & V_SAVE) ?
 		    OBJPR_CLEANONLY : 0);
@@ -1229,7 +1230,7 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 
 #ifdef INVARIANTS
 	BO_LOCK(bo);
-	if ((flags & (V_ALT | V_NORMAL)) == 0 &&
+	if ((flags & (V_ALT | V_NORMAL | V_CLEANONLY)) == 0 &&
 	    (bo->bo_dirty.bv_cnt > 0 || bo->bo_clean.bv_cnt > 0))
 		panic("vinvalbuf: flush failed");
 	BO_UNLOCK(bo);
@@ -1255,7 +1256,7 @@ vinvalbuf(struct vnode *vp, int flags, int slpflag, int slptimeo)
  *
  */
 static int
-flushbuflist( struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
+flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
     int slptimeo)
 {
 	struct buf *bp, *nbp;
@@ -3054,7 +3055,7 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 	struct vfsconf *vfsp;
 	struct xvfsconf xvfsp;
 
-	printf("WARNING: userland calling deprecated sysctl, "
+	log(LOG_WARNING, "userland calling deprecated sysctl, "
 	    "please rebuild world\n");
 
 #if 1 || defined(COMPAT_PRELITE2)
@@ -4032,6 +4033,15 @@ vop_create_post(void *ap, int rc)
 }
 
 void
+vop_deleteextattr_post(void *ap, int rc)
+{
+	struct vop_deleteextattr_args *a = ap;
+
+	if (!rc)
+		VFS_KNOTE_LOCKED(a->a_vp, NOTE_ATTRIB);
+}
+
+void
 vop_link_post(void *ap, int rc)
 {
 	struct vop_link_args *a = ap;
@@ -4107,6 +4117,15 @@ void
 vop_setattr_post(void *ap, int rc)
 {
 	struct vop_setattr_args *a = ap;
+
+	if (!rc)
+		VFS_KNOTE_LOCKED(a->a_vp, NOTE_ATTRIB);
+}
+
+void
+vop_setextattr_post(void *ap, int rc)
+{
+	struct vop_setextattr_args *a = ap;
 
 	if (!rc)
 		VFS_KNOTE_LOCKED(a->a_vp, NOTE_ATTRIB);

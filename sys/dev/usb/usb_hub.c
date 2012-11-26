@@ -76,7 +76,7 @@
 #ifdef USB_DEBUG
 static int uhub_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uhub, CTLFLAG_RW, 0, "USB HUB");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uhub, CTLFLAG_RW, 0, "USB HUB");
 SYSCTL_INT(_hw_usb_uhub, OID_AUTO, debug, CTLFLAG_RW, &uhub_debug, 0,
     "Debug level");
 
@@ -611,6 +611,7 @@ uhub_suspend_resume_port(struct uhub_softc *sc, uint8_t portno)
 		switch (UPS_PORT_LINK_STATE_GET(sc->sc_st.port_status)) {
 		case UPS_PORT_LS_U0:
 		case UPS_PORT_LS_U1:
+		case UPS_PORT_LS_RESUME:
 			is_suspend = 0;
 			break;
 		default:
@@ -706,6 +707,13 @@ uhub_explore(struct usb_device *udev)
 		DPRINTF("Device is suspended!\n");
 		return (0);
 	}
+
+	/*
+	 * Make sure we don't race against user-space applications
+	 * like LibUSB:
+	 */
+	usbd_enum_lock(udev);
+
 	for (x = 0; x != hub->nports; x++) {
 		up = hub->ports + x;
 		portno = x + 1;
@@ -782,6 +790,8 @@ uhub_explore(struct usb_device *udev)
 		/* explore succeeded - reset restart counter */
 		up->restartcnt = 0;
 	}
+
+	usbd_enum_unlock(udev);
 
 	/* initial status checked */
 	sc->sc_flags |= UHUB_FLAG_DID_EXPLORE;

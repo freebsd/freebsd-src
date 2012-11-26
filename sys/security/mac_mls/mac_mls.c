@@ -93,7 +93,7 @@
 
 SYSCTL_DECL(_security_mac);
 
-SYSCTL_NODE(_security_mac, OID_AUTO, mls, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security_mac, OID_AUTO, mls, CTLFLAG_RW, 0,
     "TrustedBSD mac_mls policy controls");
 
 static int	mls_label_size = sizeof(struct mac_mls);
@@ -1632,9 +1632,6 @@ mls_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
 
 	if (!mls_enabled)
 		return (0);
-
-	subj = SLOT(cred->cr_label);
-	obj = SLOT(shmlabel);
 
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(shmlabel);

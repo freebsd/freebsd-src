@@ -243,8 +243,8 @@ iicbus_write(device_t bus, const char *buf, int len, int *sent, int timeout)
 {
 	struct iicbus_softc *sc = (struct iicbus_softc *)device_get_softc(bus);
 	
-	/* a slave must have been started with the appropriate address */
-	if (!sc->started || (sc->started & LSB))
+	/* a slave must have been started for writing */
+	if (sc->started == 0 || (sc->strict != 0 && (sc->started & LSB) != 0))
 		return (EINVAL);
 
 	return (IICBUS_WRITE(device_get_parent(bus), buf, len, sent, timeout));
@@ -261,8 +261,8 @@ iicbus_read(device_t bus, char *buf, int len, int *read, int last, int delay)
 {
 	struct iicbus_softc *sc = (struct iicbus_softc *)device_get_softc(bus);
 	
-	/* a slave must have been started with the appropriate address */
-	if (!sc->started || !(sc->started & LSB))
+	/* a slave must have been started for reading */
+	if (sc->started == 0 || (sc->strict != 0 && (sc->started & LSB) == 0))
 		return (EINVAL);
 
 	return (IICBUS_READ(device_get_parent(bus), buf, len, read, last, delay));

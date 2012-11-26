@@ -252,8 +252,8 @@ Path::GetUserHomeDirectory() {
 Path
 Path::GetCurrentDirectory() {
   char pathname[MAXPATHLEN];
-  if (!getcwd(pathname,MAXPATHLEN)) {
-    assert (false && "Could not query current working directory.");
+  if (!getcwd(pathname, MAXPATHLEN)) {
+    assert(false && "Could not query current working directory.");
     return Path();
   }
 

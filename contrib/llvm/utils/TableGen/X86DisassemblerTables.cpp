@@ -17,7 +17,7 @@
 #include "X86DisassemblerShared.h"
 #include "X86DisassemblerTables.h"
 
-#include "TableGenBackend.h"
+#include "llvm/TableGen/TableGenBackend.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
@@ -32,26 +32,32 @@ using namespace X86Disassembler;
 /// @param parent - The class that may be the superset
 /// @return       - True if child is a subset of parent, false otherwise.
 static inline bool inheritsFrom(InstructionContext child,
-                                InstructionContext parent) {
+                                InstructionContext parent,
+                                bool VEX_LIG = false) {
   if (child == parent)
     return true;
   
   switch (parent) {
   case IC:
-    return true;
+    return(inheritsFrom(child, IC_64BIT) ||
+           inheritsFrom(child, IC_OPSIZE) ||
+           inheritsFrom(child, IC_XD) ||
+           inheritsFrom(child, IC_XS));
   case IC_64BIT:
     return(inheritsFrom(child, IC_64BIT_REXW)   ||
            inheritsFrom(child, IC_64BIT_OPSIZE) ||
            inheritsFrom(child, IC_64BIT_XD)     ||
            inheritsFrom(child, IC_64BIT_XS));
   case IC_OPSIZE:
-    return(inheritsFrom(child, IC_64BIT_OPSIZE));
+    return inheritsFrom(child, IC_64BIT_OPSIZE);
   case IC_XD:
-    return(inheritsFrom(child, IC_64BIT_XD) ||
-           inheritsFrom(child, IC_VEX_XD));
+    return inheritsFrom(child, IC_64BIT_XD);
   case IC_XS:
-    return(inheritsFrom(child, IC_64BIT_XS) ||
-           inheritsFrom(child, IC_VEX_XS));
+    return inheritsFrom(child, IC_64BIT_XS);
+  case IC_XD_OPSIZE:
+    return inheritsFrom(child, IC_64BIT_XD_OPSIZE);
+  case IC_XS_OPSIZE:
+    return inheritsFrom(child, IC_64BIT_XS_OPSIZE);
   case IC_64BIT_REXW:
     return(inheritsFrom(child, IC_64BIT_REXW_XS) ||
            inheritsFrom(child, IC_64BIT_REXW_XD) ||
@@ -62,42 +68,37 @@ static inline bool inheritsFrom(InstructionContext child,
     return(inheritsFrom(child, IC_64BIT_REXW_XD));
   case IC_64BIT_XS:
     return(inheritsFrom(child, IC_64BIT_REXW_XS));
+  case IC_64BIT_XD_OPSIZE:
+  case IC_64BIT_XS_OPSIZE:
+    return false;
   case IC_64BIT_REXW_XD:
-    return false;
   case IC_64BIT_REXW_XS:
-    return false;
   case IC_64BIT_REXW_OPSIZE:
     return false;
   case IC_VEX:
-    return(inheritsFrom(child, IC_VEX_XS) ||
-           inheritsFrom(child, IC_VEX_XD) ||
-           inheritsFrom(child, IC_VEX_L) ||
-           inheritsFrom(child, IC_VEX_W) ||
-           inheritsFrom(child, IC_VEX_OPSIZE));
+    return inheritsFrom(child, IC_VEX_W) ||
+           (VEX_LIG && inheritsFrom(child, IC_VEX_L));
   case IC_VEX_XS:
-    return(inheritsFrom(child, IC_VEX_L_XS) ||
-           inheritsFrom(child, IC_VEX_W_XS));
+    return inheritsFrom(child, IC_VEX_W_XS) ||
+           (VEX_LIG && inheritsFrom(child, IC_VEX_L_XS));
   case IC_VEX_XD:
-    return(inheritsFrom(child, IC_VEX_L_XD) ||
-           inheritsFrom(child, IC_VEX_W_XD));
-  case IC_VEX_L:
-    return(inheritsFrom(child, IC_VEX_L_XS) ||
-           inheritsFrom(child, IC_VEX_L_XD));
-  case IC_VEX_L_XS:
-    return false;
-  case IC_VEX_L_XD:
-    return false;
-  case IC_VEX_W:
-    return(inheritsFrom(child, IC_VEX_W_XS) ||
-           inheritsFrom(child, IC_VEX_W_XD) ||
-           inheritsFrom(child, IC_VEX_W_OPSIZE));
-  case IC_VEX_W_XS:
-    return false;
-  case IC_VEX_W_XD:
-    return false;
+    return inheritsFrom(child, IC_VEX_W_XD) ||
+           (VEX_LIG && inheritsFrom(child, IC_VEX_L_XD));
   case IC_VEX_OPSIZE:
-    return inheritsFrom(child, IC_VEX_W_OPSIZE);
+    return inheritsFrom(child, IC_VEX_W_OPSIZE) ||
+           (VEX_LIG && inheritsFrom(child, IC_VEX_L_OPSIZE));
+  case IC_VEX_W:
+  case IC_VEX_W_XS:
+  case IC_VEX_W_XD:
+  case IC_VEX_W_OPSIZE:
+    return false;
+  case IC_VEX_L:
+  case IC_VEX_L_XS:
+  case IC_VEX_L_XD:
+  case IC_VEX_L_OPSIZE:
+    return false;
   default:
+    llvm_unreachable("Unknown instruction class");
     return false;
   }
 }
@@ -515,6 +516,8 @@ void DisassemblerTables::emitContextTable(raw_ostream &o, uint32_t &i) const {
       o << "IC_VEX_XD";
     else if ((index & ATTR_VEX) && (index & ATTR_XS))
       o << "IC_VEX_XS";
+    else if (index & ATTR_VEX)
+      o << "IC_VEX";
     else if ((index & ATTR_64BIT) && (index & ATTR_REXW) && (index & ATTR_XS))
       o << "IC_64BIT_REXW_XS";
     else if ((index & ATTR_64BIT) && (index & ATTR_REXW) && (index & ATTR_XD))
@@ -522,6 +525,10 @@ void DisassemblerTables::emitContextTable(raw_ostream &o, uint32_t &i) const {
     else if ((index & ATTR_64BIT) && (index & ATTR_REXW) && 
              (index & ATTR_OPSIZE))
       o << "IC_64BIT_REXW_OPSIZE";
+    else if ((index & ATTR_64BIT) && (index & ATTR_XD) && (index & ATTR_OPSIZE))
+      o << "IC_64BIT_XD_OPSIZE";
+    else if ((index & ATTR_64BIT) && (index & ATTR_XS) && (index & ATTR_OPSIZE))
+      o << "IC_64BIT_XS_OPSIZE";
     else if ((index & ATTR_64BIT) && (index & ATTR_XS))
       o << "IC_64BIT_XS";
     else if ((index & ATTR_64BIT) && (index & ATTR_XD))
@@ -532,14 +539,16 @@ void DisassemblerTables::emitContextTable(raw_ostream &o, uint32_t &i) const {
       o << "IC_64BIT_REXW";
     else if ((index & ATTR_64BIT))
       o << "IC_64BIT";
+    else if ((index & ATTR_XS) && (index & ATTR_OPSIZE))
+      o << "IC_XS_OPSIZE";
+    else if ((index & ATTR_XD) && (index & ATTR_OPSIZE))
+      o << "IC_XD_OPSIZE";
     else if (index & ATTR_XS)
       o << "IC_XS";
     else if (index & ATTR_XD)
       o << "IC_XD";
     else if (index & ATTR_OPSIZE)
       o << "IC_OPSIZE";
-    else if (index & ATTR_VEX)
-      o << "IC_VEX";
     else
       o << "IC";
 
@@ -616,8 +625,11 @@ void DisassemblerTables::setTableFields(ModRMDecision     &decision,
         if(newInfo.filtered)
           continue; // filtered instructions get lowest priority
         
-        if(previousInfo.name == "NOOP")
-          continue; // special case for XCHG32ar and NOOP
+        if(previousInfo.name == "NOOP" && (newInfo.name == "XCHG16ar" ||
+                                           newInfo.name == "XCHG32ar" ||
+                                           newInfo.name == "XCHG32ar64" ||
+                                           newInfo.name == "XCHG64ar"))
+          continue; // special case for XCHG*ar and NOOP
 
         if (outranks(previousInfo.insnContext, newInfo.insnContext))
           continue;
@@ -643,14 +655,19 @@ void DisassemblerTables::setTableFields(OpcodeType          type,
                                         InstructionContext  insnContext,
                                         uint8_t             opcode,
                                         const ModRMFilter   &filter,
-                                        InstrUID            uid) {
+                                        InstrUID            uid,
+                                        bool                is32bit,
+                                        bool                ignoresVEX_L) {
   unsigned index;
   
   ContextDecision &decision = *Tables[type];
 
   for (index = 0; index < IC_max; ++index) {
+    if (is32bit && inheritsFrom((InstructionContext)index, IC_64BIT))
+      continue;
+
     if (inheritsFrom((InstructionContext)index, 
-                     InstructionSpecifiers[uid].insnContext))
+                     InstructionSpecifiers[uid].insnContext, ignoresVEX_L))
       setTableFields(decision.opcodeDecisions[index].modRMDecisions[opcode], 
                      filter,
                      uid,

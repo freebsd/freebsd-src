@@ -2293,6 +2293,8 @@ static cn_init_t sio_cninit;
 static cn_term_t sio_cnterm;
 static cn_getc_t sio_cngetc;
 static cn_putc_t sio_cnputc;
+static cn_grab_t sio_cngrab;
+static cn_ungrab_t sio_cnungrab;
 
 CONSOLE_DRIVER(sio);
 
@@ -2510,6 +2512,16 @@ sio_cnterm(cp)
 	struct consdev	*cp;
 {
 	comconsole = -1;
+}
+
+static void
+sio_cngrab(struct consdev *cp)
+{
+}
+
+static void
+sio_cnungrab(struct consdev *cp)
+{
 }
 
 static int

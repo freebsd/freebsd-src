@@ -38,6 +38,8 @@
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 
 #include <machine/stdarg.h>
 
@@ -59,6 +61,17 @@
 #define	BUSTAG(ah)	((ah)->ah_st)
 #endif
 
+/*
+ * This lock is used to seralise register access for chips which have
+ * problems w/ SMP CPUs issuing concurrent PCI transactions.
+ *
+ * XXX This is a global lock for now; it should be pushed to
+ * a per-device lock in some platform-independent fashion.
+ */
+struct mtx ah_regser_mtx;
+MTX_SYSINIT(ah_regser, &ah_regser_mtx, "Atheros register access mutex",
+    MTX_SPIN);
+
 extern	void ath_hal_printf(struct ath_hal *, const char*, ...)
 		__printflike(2,3);
 extern	void ath_hal_vprintf(struct ath_hal *, const char*, __va_list)
@@ -76,7 +89,8 @@ extern	void DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...);
 
 /* NB: put this here instead of the driver to avoid circular references */
 SYSCTL_NODE(_hw, OID_AUTO, ath, CTLFLAG_RD, 0, "Atheros driver parameters");
-SYSCTL_NODE(_hw_ath, OID_AUTO, hal, CTLFLAG_RD, 0, "Atheros HAL parameters");
+static SYSCTL_NODE(_hw_ath, OID_AUTO, hal, CTLFLAG_RD, 0,
+    "Atheros HAL parameters");
 
 #ifdef AH_DEBUG
 int ath_hal_debug = 0;
@@ -85,7 +99,7 @@ SYSCTL_INT(_hw_ath_hal, OID_AUTO, debug, CTLFLAG_RW, &ath_hal_debug,
 TUNABLE_INT("hw.ath.hal.debug", &ath_hal_debug);
 #endif /* AH_DEBUG */
 
-MALLOC_DEFINE(M_ATH_HAL, "ath_hal", "ath hal data");
+static MALLOC_DEFINE(M_ATH_HAL, "ath_hal", "ath hal data");
 
 void*
 ath_hal_malloc(size_t size)
@@ -249,12 +263,16 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 			alq_post(ath_hal_alq, ale);
 		}
 	}
+	if (ah->ah_config.ah_serialise_reg_war)
+		mtx_lock_spin(&ah_regser_mtx);
 #if _BYTE_ORDER == _BIG_ENDIAN
 	if (OS_REG_UNSWAPPED(reg))
 		bus_space_write_4(tag, h, reg, val);
 	else
 #endif
 		bus_space_write_stream_4(tag, h, reg, val);
+	if (ah->ah_config.ah_serialise_reg_war)
+		mtx_unlock_spin(&ah_regser_mtx);
 }
 
 u_int32_t
@@ -264,12 +282,16 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 	bus_space_handle_t h = ah->ah_sh;
 	u_int32_t val;
 
+	if (ah->ah_config.ah_serialise_reg_war)
+		mtx_lock_spin(&ah_regser_mtx);
 #if _BYTE_ORDER == _BIG_ENDIAN
 	if (OS_REG_UNSWAPPED(reg))
 		val = bus_space_read_4(tag, h, reg);
 	else
 #endif
 		val = bus_space_read_stream_4(tag, h, reg);
+	if (ah->ah_config.ah_serialise_reg_war)
+		mtx_unlock_spin(&ah_regser_mtx);
 	if (ath_hal_alq) {
 		struct ale *ale = ath_hal_alq_get(ah);
 		if (ale) {
@@ -315,12 +337,16 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 	bus_space_tag_t tag = BUSTAG(ah);
 	bus_space_handle_t h = ah->ah_sh;
 
+	if (ah->ah_config.ah_serialise_reg_war)
+		mtx_lock_spin(&ah_regser_mtx);
 #if _BYTE_ORDER == _BIG_ENDIAN
 	if (OS_REG_UNSWAPPED(reg))
 		bus_space_write_4(tag, h, reg, val);
 	else
 #endif
 		bus_space_write_stream_4(tag, h, reg, val);
+	if (ah->ah_config.ah_serialise_reg_war)
+		mtx_unlock_spin(&ah_regser_mtx);
 }
 
 u_int32_t
@@ -330,12 +356,16 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 	bus_space_handle_t h = ah->ah_sh;
 	u_int32_t val;
 
+	if (ah->ah_config.ah_serialise_reg_war)
+		mtx_lock_spin(&ah_regser_mtx);
 #if _BYTE_ORDER == _BIG_ENDIAN
 	if (OS_REG_UNSWAPPED(reg))
 		val = bus_space_read_4(tag, h, reg);
 	else
 #endif
 		val = bus_space_read_stream_4(tag, h, reg);
+	if (ah->ah_config.ah_serialise_reg_war)
+		mtx_unlock_spin(&ah_regser_mtx);
 	return val;
 }
 #endif /* AH_DEBUG || AH_REGOPS_FUNC */

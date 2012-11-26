@@ -188,7 +188,7 @@ vm_pager_init()
 	 * Initialize known pagers
 	 */
 	for (pgops = pagertab; pgops < &pagertab[npagers]; pgops++)
-		if (pgops && ((*pgops)->pgo_init != NULL))
+		if ((*pgops)->pgo_init != NULL)
 			(*(*pgops)->pgo_init) ();
 }
 

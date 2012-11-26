@@ -170,7 +170,7 @@ SYSCTL_INT(_net_bpf, OID_AUTO, maxinsns, CTLFLAG_RW,
 static int bpf_zerocopy_enable = 0;
 SYSCTL_INT(_net_bpf, OID_AUTO, zerocopy_enable, CTLFLAG_RW,
     &bpf_zerocopy_enable, 0, "Enable new zero-copy BPF buffer sessions");
-SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_MPSAFE | CTLFLAG_RW,
+static SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_MPSAFE | CTLFLAG_RW,
     bpf_stats_sysctl, "bpf statistics portal");
 
 static	d_open_t	bpfopen;
@@ -2253,33 +2253,42 @@ bpfdetach(struct ifnet *ifp)
 {
 	struct bpf_if	*bp;
 	struct bpf_d	*d;
+#ifdef INVARIANTS
+	int ndetached;
 
-	/* Locate BPF interface information */
-	mtx_lock(&bpf_mtx);
-	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
-		if (ifp == bp->bif_ifp)
-			break;
-	}
+	ndetached = 0;
+#endif
 
-	/* Interface wasn't attached */
-	if ((bp == NULL) || (bp->bif_ifp == NULL)) {
+	/* Find all bpf_if struct's which reference ifp and detach them. */
+	do {
+		mtx_lock(&bpf_mtx);
+		LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+			if (ifp == bp->bif_ifp)
+				break;
+		}
+		if (bp != NULL)
+			LIST_REMOVE(bp, bif_next);
 		mtx_unlock(&bpf_mtx);
+
+		if (bp != NULL) {
+#ifdef INVARIANTS
+			ndetached++;
+#endif
+			while ((d = LIST_FIRST(&bp->bif_dlist)) != NULL) {
+				bpf_detachd(d);
+				BPFD_LOCK(d);
+				bpf_wakeup(d);
+				BPFD_UNLOCK(d);
+			}
+			mtx_destroy(&bp->bif_mtx);
+			free(bp, M_BPF);
+		}
+	} while (bp != NULL);
+
+#ifdef INVARIANTS
+	if (ndetached == 0)
 		printf("bpfdetach: %s was not attached\n", ifp->if_xname);
-		return;
-	}
-
-	LIST_REMOVE(bp, bif_next);
-	mtx_unlock(&bpf_mtx);
-
-	while ((d = LIST_FIRST(&bp->bif_dlist)) != NULL) {
-		bpf_detachd(d);
-		BPFD_LOCK(d);
-		bpf_wakeup(d);
-		BPFD_UNLOCK(d);
-	}
-
-	mtx_destroy(&bp->bif_mtx);
-	free(bp, M_BPF);
+#endif
 }
 
 /*

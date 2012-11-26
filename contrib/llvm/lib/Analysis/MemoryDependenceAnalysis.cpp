@@ -120,21 +120,27 @@ AliasAnalysis::ModRefResult GetLocation(const Instruction *Inst,
                                         AliasAnalysis::Location &Loc,
                                         AliasAnalysis *AA) {
   if (const LoadInst *LI = dyn_cast<LoadInst>(Inst)) {
-    if (LI->isVolatile()) {
-      Loc = AliasAnalysis::Location();
+    if (LI->isUnordered()) {
+      Loc = AA->getLocation(LI);
+      return AliasAnalysis::Ref;
+    } else if (LI->getOrdering() == Monotonic) {
+      Loc = AA->getLocation(LI);
       return AliasAnalysis::ModRef;
     }
-    Loc = AA->getLocation(LI);
-    return AliasAnalysis::Ref;
+    Loc = AliasAnalysis::Location();
+    return AliasAnalysis::ModRef;
   }
 
   if (const StoreInst *SI = dyn_cast<StoreInst>(Inst)) {
-    if (SI->isVolatile()) {
-      Loc = AliasAnalysis::Location();
+    if (SI->isUnordered()) {
+      Loc = AA->getLocation(SI);
+      return AliasAnalysis::Mod;
+    } else if (SI->getOrdering() == Monotonic) {
+      Loc = AA->getLocation(SI);
       return AliasAnalysis::ModRef;
     }
-    Loc = AA->getLocation(SI);
-    return AliasAnalysis::Mod;
+    Loc = AliasAnalysis::Location();
+    return AliasAnalysis::ModRef;
   }
 
   if (const VAArgInst *V = dyn_cast<VAArgInst>(Inst)) {
@@ -232,7 +238,7 @@ getCallSiteDependencyFrom(CallSite CS, bool isReadOnlyCall,
   // unknown, otherwise it is non-local.
   if (BB != &BB->getParent()->getEntryBlock())
     return MemDepResult::getNonLocal();
-  return MemDepResult::getUnknown();
+  return MemDepResult::getNonFuncLocal();
 }
 
 /// isLoadLoadClobberIfExtendedToFullWidth - Return true if LI is a load that
@@ -270,8 +276,8 @@ unsigned MemoryDependenceAnalysis::
 getLoadLoadClobberFullWidthSize(const Value *MemLocBase, int64_t MemLocOffs,
                                 unsigned MemLocSize, const LoadInst *LI,
                                 const TargetData &TD) {
-  // We can only extend non-volatile integer loads.
-  if (!isa<IntegerType>(LI->getType()) || LI->isVolatile()) return 0;
+  // We can only extend simple integer loads.
+  if (!isa<IntegerType>(LI->getType()) || !LI->isSimple()) return 0;
   
   // Get the base of this load.
   int64_t LIOffs = 0;
@@ -369,6 +375,11 @@ getPointerDependencyFrom(const AliasAnalysis::Location &MemLoc, bool isLoad,
     // Values depend on loads if the pointers are must aliased.  This means that
     // a load depends on another must aliased load from the same value.
     if (LoadInst *LI = dyn_cast<LoadInst>(Inst)) {
+      // Atomic loads have complications involved.
+      // FIXME: This is overly conservative.
+      if (!LI->isUnordered())
+        return MemDepResult::getClobber(LI);
+
       AliasAnalysis::Location LoadLoc = AA->getLocation(LI);
       
       // If we found a pointer, check if it could be the same as our pointer.
@@ -382,7 +393,7 @@ getPointerDependencyFrom(const AliasAnalysis::Location &MemLoc, bool isLoad,
           // location is 1 byte at P+1).  If so, return it as a load/load
           // clobber result, allowing the client to decide to widen the load if
           // it wants to.
-          if (const IntegerType *ITy = dyn_cast<IntegerType>(LI->getType()))
+          if (IntegerType *ITy = dyn_cast<IntegerType>(LI->getType()))
             if (LI->getAlignment()*8 > ITy->getPrimitiveSizeInBits() &&
                 isLoadLoadClobberIfExtendedToFullWidth(MemLoc, MemLocBase,
                                                        MemLocOffset, LI, TD))
@@ -424,6 +435,11 @@ getPointerDependencyFrom(const AliasAnalysis::Location &MemLoc, bool isLoad,
     }
     
     if (StoreInst *SI = dyn_cast<StoreInst>(Inst)) {
+      // Atomic stores have complications involved.
+      // FIXME: This is overly conservative.
+      if (!SI->isUnordered())
+        return MemDepResult::getClobber(SI);
+
       // If alias analysis can tell that this store is guaranteed to not modify
       // the query pointer, ignore it.  Use getModRefInfo to handle cases where
       // the query pointer points to constant memory etc.
@@ -483,7 +499,7 @@ getPointerDependencyFrom(const AliasAnalysis::Location &MemLoc, bool isLoad,
   // unknown, otherwise it is non-local.
   if (BB != &BB->getParent()->getEntryBlock())
     return MemDepResult::getNonLocal();
-  return MemDepResult::getUnknown();
+  return MemDepResult::getNonFuncLocal();
 }
 
 /// getDependency - Return the instruction on which a memory operation
@@ -516,7 +532,7 @@ MemDepResult MemoryDependenceAnalysis::getDependency(Instruction *QueryInst) {
     if (QueryParent != &QueryParent->getParent()->getEntryBlock())
       LocalCache = MemDepResult::getNonLocal();
     else
-      LocalCache = MemDepResult::getUnknown();
+      LocalCache = MemDepResult::getNonFuncLocal();
   } else {
     AliasAnalysis::Location MemLoc;
     AliasAnalysis::ModRefResult MR = GetLocation(QueryInst, MemLoc, AA);
@@ -672,7 +688,7 @@ MemoryDependenceAnalysis::getNonLocalCallDependency(CallSite QueryCS) {
       // a clobber, otherwise it is unknown.
       Dep = MemDepResult::getNonLocal();
     } else {
-      Dep = MemDepResult::getUnknown();
+      Dep = MemDepResult::getNonFuncLocal();
     }
     
     // If we had a dirty entry for the block, update it.  Otherwise, just add
@@ -790,7 +806,7 @@ GetNonLocalInfoForBlock(const AliasAnalysis::Location &Loc,
   // If the block has a dependency (i.e. it isn't completely transparent to
   // the value), remember the reverse association because we just added it
   // to Cache!
-  if (Dep.isNonLocal() || Dep.isUnknown())
+  if (!Dep.isDef() && !Dep.isClobber())
     return Dep;
   
   // Keep the ReverseNonLocalPtrDeps map up to date so we can efficiently

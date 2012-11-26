@@ -23,7 +23,6 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/system_error.h"
-#include "llvm/Target/TargetRegistry.h"
 #include "llvm/Support/Host.h"
 #include "llvm/Support/Path.h"
 #include "llvm/ADT/OwningPtr.h"
@@ -45,6 +44,7 @@ TEMPLATE_INSTANTIATION(class basic_parser<bool>);
 TEMPLATE_INSTANTIATION(class basic_parser<boolOrDefault>);
 TEMPLATE_INSTANTIATION(class basic_parser<int>);
 TEMPLATE_INSTANTIATION(class basic_parser<unsigned>);
+TEMPLATE_INSTANTIATION(class basic_parser<unsigned long long>);
 TEMPLATE_INSTANTIATION(class basic_parser<double>);
 TEMPLATE_INSTANTIATION(class basic_parser<float>);
 TEMPLATE_INSTANTIATION(class basic_parser<std::string>);
@@ -63,6 +63,7 @@ void parser<bool>::anchor() {}
 void parser<boolOrDefault>::anchor() {}
 void parser<int>::anchor() {}
 void parser<unsigned>::anchor() {}
+void parser<unsigned long long>::anchor() {}
 void parser<double>::anchor() {}
 void parser<float>::anchor() {}
 void parser<std::string>::anchor() {}
@@ -1006,6 +1007,16 @@ bool parser<unsigned>::parse(Option &O, StringRef ArgName,
   return false;
 }
 
+// parser<unsigned long long> implementation
+//
+bool parser<unsigned long long>::parse(Option &O, StringRef ArgName,
+                                      StringRef Arg, unsigned long long &Value){
+
+  if (Arg.getAsInteger(0, Value))
+    return O.error("'" + Arg + "' value invalid for uint argument!");
+  return false;
+}
+
 // parser<double>/parser<float> implementation
 //
 static bool parseDouble(Option &O, StringRef Arg, double &Value) {
@@ -1151,6 +1162,7 @@ PRINT_OPT_DIFF(bool)
 PRINT_OPT_DIFF(boolOrDefault)
 PRINT_OPT_DIFF(int)
 PRINT_OPT_DIFF(unsigned)
+PRINT_OPT_DIFF(unsigned long long)
 PRINT_OPT_DIFF(double)
 PRINT_OPT_DIFF(float)
 PRINT_OPT_DIFF(char)
@@ -1330,10 +1342,7 @@ void cl::PrintOptionValues() {
 
 static void (*OverrideVersionPrinter)() = 0;
 
-static int TargetArraySortFn(const void *LHS, const void *RHS) {
-  typedef std::pair<const char *, const Target*> pair_ty;
-  return strcmp(((const pair_ty*)LHS)->first, ((const pair_ty*)RHS)->first);
-}
+static std::vector<void (*)()>* ExtraVersionPrinters = 0;
 
 namespace {
 class VersionPrinter {
@@ -1357,41 +1366,31 @@ public:
     std::string CPU = sys::getHostCPUName();
     if (CPU == "generic") CPU = "(unknown)";
     OS << ".\n"
-#if defined(ENABLE_TIMESTAMPS) && ENABLE_TIMESTAMPS == 1
+#if (ENABLE_TIMESTAMPS == 1)
        << "  Built " << __DATE__ << " (" << __TIME__ << ").\n"
 #endif
        << "  Host: " << sys::getHostTriple() << '\n'
-       << "  Host CPU: " << CPU << '\n'
-       << '\n'
-       << "  Registered Targets:\n";
-
-    std::vector<std::pair<const char *, const Target*> > Targets;
-    size_t Width = 0;
-    for (TargetRegistry::iterator it = TargetRegistry::begin(),
-           ie = TargetRegistry::end(); it != ie; ++it) {
-      Targets.push_back(std::make_pair(it->getName(), &*it));
-      Width = std::max(Width, strlen(Targets.back().first));
-    }
-    if (!Targets.empty())
-      qsort(&Targets[0], Targets.size(), sizeof(Targets[0]),
-            TargetArraySortFn);
-
-    for (unsigned i = 0, e = Targets.size(); i != e; ++i) {
-      OS << "    " << Targets[i].first;
-      OS.indent(Width - strlen(Targets[i].first)) << " - "
-             << Targets[i].second->getShortDescription() << '\n';
-    }
-    if (Targets.empty())
-      OS << "    (none)\n";
+       << "  Host CPU: " << CPU << '\n';
   }
   void operator=(bool OptionWasSpecified) {
     if (!OptionWasSpecified) return;
 
-    if (OverrideVersionPrinter == 0) {
-      print();
+    if (OverrideVersionPrinter != 0) {
+      (*OverrideVersionPrinter)();
       exit(1);
     }
-    (*OverrideVersionPrinter)();
+    print();
+
+    // Iterate over any registered extra printers and call them to add further
+    // information.
+    if (ExtraVersionPrinters != 0) {
+      outs() << '\n';
+      for (std::vector<void (*)()>::iterator I = ExtraVersionPrinters->begin(),
+                                             E = ExtraVersionPrinters->end();
+           I != E; ++I)
+        (*I)();
+    }
+
     exit(1);
   }
 };
@@ -1423,4 +1422,11 @@ void cl::PrintVersionMessage() {
 
 void cl::SetVersionPrinter(void (*func)()) {
   OverrideVersionPrinter = func;
+}
+
+void cl::AddExtraVersionPrinter(void (*func)()) {
+  if (ExtraVersionPrinters == 0)
+    ExtraVersionPrinters = new std::vector<void (*)()>;
+
+  ExtraVersionPrinters->push_back(func);
 }

@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #define	DEFAULT_HOSTUUID	"00000000-0000-0000-0000-000000000000"
 
 MALLOC_DEFINE(M_PRISON, "prison", "Prison structures");
-MALLOC_DEFINE(M_PRISON_RACCT, "prison_racct", "Prison racct structures");
+static MALLOC_DEFINE(M_PRISON_RACCT, "prison_racct", "Prison racct structures");
 
 /* Keep struct prison prison0 and some code in kern_jail_set() readable. */
 #ifdef INET
@@ -3944,7 +3944,7 @@ prison_path(struct prison *pr1, struct prison *pr2)
 /*
  * Jail-related sysctls.
  */
-SYSCTL_NODE(_security, OID_AUTO, jail, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security, OID_AUTO, jail, CTLFLAG_RW, 0,
     "Jails");
 
 static int

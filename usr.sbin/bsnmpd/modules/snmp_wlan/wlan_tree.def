@@ -75,8 +75,8 @@ typedef WlanMgmtReasonCode ENUM (
 	7 notAssociated
 	8 associationLeave
 	9 associationNotAuthenticated
-	10 dissasocPwrcapBad
-	11 dissasocSuperchanBad
+	10 dissassocPwrcapBad
+	11 dissassocSuperchanBad
 	13 ieInvalid
 	14 micFailure
 	15 fourWayHandshakeTimeout

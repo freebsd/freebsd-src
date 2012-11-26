@@ -91,7 +91,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int at91dcidebug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, at91dci, CTLFLAG_RW, 0, "USB at91dci");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, at91dci, CTLFLAG_RW, 0, "USB at91dci");
 SYSCTL_INT(_hw_usb_at91dci, OID_AUTO, debug, CTLFLAG_RW,
     &at91dcidebug, 0, "at91dci debug level");
 #endif
@@ -1461,16 +1461,16 @@ at91dci_uninit(struct at91dci_softc *sc)
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
-void
+static void
 at91dci_suspend(struct at91dci_softc *sc)
 {
-	return;
+	/* TODO */
 }
 
-void
+static void
 at91dci_resume(struct at91dci_softc *sc)
 {
-	return;
+	/* TODO */
 }
 
 static void
@@ -2123,7 +2123,7 @@ tr_handle_get_port_status:
 		if (sc->sc_flags.status_vbus &&
 		    sc->sc_flags.status_bus_reset) {
 			/* reset endpoint flags */
-			bzero(sc->sc_ep_flags, sizeof(sc->sc_ep_flags));
+			memset(sc->sc_ep_flags, 0, sizeof(sc->sc_ep_flags));
 		}
 	}
 	if (sc->sc_flags.change_suspend) {
@@ -2306,6 +2306,26 @@ at91dci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 	}
 }
 
+static void
+at91dci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
+{
+	struct at91dci_softc *sc = AT9100_DCI_BUS2SC(bus);
+
+	switch (state) {
+	case USB_HW_POWER_SUSPEND:
+		at91dci_suspend(sc);
+		break;
+	case USB_HW_POWER_SHUTDOWN:
+		at91dci_uninit(sc);
+		break;
+	case USB_HW_POWER_RESUME:
+		at91dci_resume(sc);
+		break;
+	default:
+		break;
+	}
+}
+
 struct usb_bus_methods at91dci_bus_methods =
 {
 	.endpoint_init = &at91dci_ep_init,
@@ -2316,4 +2336,5 @@ struct usb_bus_methods at91dci_bus_methods =
 	.clear_stall = &at91dci_clear_stall,
 	.roothub_exec = &at91dci_roothub_exec,
 	.xfer_poll = &at91dci_do_poll,
+	.set_hw_power_sleep = &at91dci_set_hw_power_sleep,
 };

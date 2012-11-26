@@ -58,7 +58,8 @@ MLINKS+=uucplock.3 uu_lock.3 uucplock.3 uu_lock_txfr.3 \
 MLINKS+=pidfile.3 pidfile_open.3 \
 	pidfile.3 pidfile_write.3 \
 	pidfile.3 pidfile_close.3 \
-	pidfile.3 pidfile_remove.3
+	pidfile.3 pidfile_remove.3 \
+	pidfile.3 pidfile_fileno.3
 MLINKS+=quotafile.3 quota_open.3 \
 	quotafile.3 quota_fsname.3 \
 	quotafile.3 quota_qfname.3 \

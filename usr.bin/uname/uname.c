@@ -63,21 +63,22 @@ static const char sccsid[] = "@(#)uname.c	8.2 (Berkeley) 5/4/95";
 #define	IFLAG	0x40
 
 typedef void (*get_t)(void);
-get_t get_ident, get_platform, get_hostname, get_arch, get_release, get_sysname, get_version;
+static get_t get_ident, get_platform, get_hostname, get_arch,
+    get_release, get_sysname, get_version;
 
-void native_ident(void);
-void native_platform(void);
-void native_hostname(void);
-void native_arch(void);
-void native_release(void);
-void native_sysname(void);
-void native_version(void);
-void print_uname(u_int);
-void setup_get(void);
-void usage(void);
+static void native_ident(void);
+static void native_platform(void);
+static void native_hostname(void);
+static void native_arch(void);
+static void native_release(void);
+static void native_sysname(void);
+static void native_version(void);
+static void print_uname(u_int);
+static void setup_get(void);
+static void usage(void);
 
-char *ident, *platform, *hostname, *arch, *release, *sysname, *version;
-int space;
+static char *ident, *platform, *hostname, *arch, *release, *sysname, *version;
+static int space;
 
 int
 main(int argc, char *argv[])
@@ -142,7 +143,7 @@ do {							\
 	}						\
 } while (0)
 
-void
+static void
 setup_get(void)
 {
 	CHECK_ENV("s", sysname);
@@ -165,7 +166,7 @@ setup_get(void)
 		printf("%s", var);		\
 	}
 
-void
+static void
 print_uname(u_int flags)
 {
 	PRINT_FLAG(flags, SFLAG, sysname);
@@ -179,7 +180,7 @@ print_uname(u_int flags)
 }
 
 #define	NATIVE_SYSCTL2_GET(var,mib0,mib1)	\
-void						\
+static void					\
 native_##var(void)				\
 {						\
 	int mib[] = { (mib0), (mib1) };		\
@@ -193,7 +194,7 @@ native_##var(void)				\
 		err(1, "sysctl");
 
 #define	NATIVE_SYSCTLNAME_GET(var,name)		\
-void						\
+static void					\
 native_##var(void)				\
 {						\
 	size_t len;				\
@@ -242,7 +243,7 @@ NATIVE_SYSCTL2_GET(arch, CTL_HW, HW_MACHINE_ARCH) {
 NATIVE_SYSCTLNAME_GET(ident, "kern.ident") {
 } NATIVE_SET;
 
-void
+static void
 usage(void)
 {
 	fprintf(stderr, "usage: uname [-aimnoprsv]\n");

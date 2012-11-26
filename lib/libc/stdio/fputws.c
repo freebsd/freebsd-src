@@ -2,6 +2,11 @@
  * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -39,13 +44,15 @@ __FBSDID("$FreeBSD$");
 #include "mblocal.h"
 
 int
-fputws(const wchar_t * __restrict ws, FILE * __restrict fp)
+fputws_l(const wchar_t * __restrict ws, FILE * __restrict fp, locale_t locale)
 {
 	size_t nbytes;
 	char buf[BUFSIZ];
 	struct __suio uio;
 	struct __siov iov;
 	const wchar_t *wsp;
+	FIX_LOCALE(locale);
+	struct xlocale_ctype *l = XLOCALE_CTYPE(locale);
 
 	FLOCKFILE(fp);
 	ORIENT(fp, 1);
@@ -56,7 +63,7 @@ fputws(const wchar_t * __restrict ws, FILE * __restrict fp)
 	iov.iov_base = buf;
 	do {
 		wsp = ws;
-		nbytes = __wcsnrtombs(buf, &wsp, SIZE_T_MAX, sizeof(buf),
+		nbytes = l->__wcsnrtombs(buf, &wsp, SIZE_T_MAX, sizeof(buf),
 		    &fp->_mbstate);
 		if (nbytes == (size_t)-1)
 			goto error;
@@ -70,4 +77,10 @@ fputws(const wchar_t * __restrict ws, FILE * __restrict fp)
 error:
 	FUNLOCKFILE(fp);
 	return (-1);
+}
+
+int
+fputws(const wchar_t * __restrict ws, FILE * __restrict fp)
+{
+	return fputws_l(ws, fp, __get_locale());
 }

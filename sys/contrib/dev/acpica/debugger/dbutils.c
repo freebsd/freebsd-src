@@ -5,7 +5,7 @@
  ******************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -208,7 +208,7 @@ AcpiDbDumpExternalObject (
                 AcpiOsPrintf ("\n");
             }
             AcpiUtDumpBuffer (ACPI_CAST_PTR (UINT8, ObjDesc->Buffer.Pointer),
-                    ObjDesc->Buffer.Length, DB_DWORD_DISPLAY, _COMPONENT);
+                    ObjDesc->Buffer.Length, DB_BYTE_DISPLAY, _COMPONENT);
         }
         else
         {

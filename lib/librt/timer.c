@@ -102,12 +102,14 @@ __timer_create(clockid_t clockid, struct sigevent *evp, timer_t *timerid)
 	}
 
 	if (__sigev_check_init()) {
+		free(timer);
 		errno = EINVAL;
 		return (-1);
 	}
 
 	sn = __sigev_alloc(SI_TIMER, evp, NULL, 0);
 	if (sn == NULL) {
+		free(timer);
 		errno = EAGAIN;
 		return (-1);
 	}

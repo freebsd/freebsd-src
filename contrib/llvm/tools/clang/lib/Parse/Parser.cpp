@@ -72,7 +72,7 @@ Parser::Parser(Preprocessor &pp, Sema &actions)
 
 /// If a crash happens while the parser is active, print out a line indicating
 /// what the current token is.
-void PrettyStackTraceParserEntry::print(llvm::raw_ostream &OS) const {
+void PrettyStackTraceParserEntry::print(raw_ostream &OS) const {
   const Token &Tok = P.getCurToken();
   if (Tok.is(tok::eof)) {
     OS << "<eof> parser at end of file\n";
@@ -120,34 +120,6 @@ void Parser::SuggestParentheses(SourceLocation Loc, unsigned DK,
   Diag(Loc, DK)
     << FixItHint::CreateInsertion(ParenRange.getBegin(), "(")
     << FixItHint::CreateInsertion(EndLoc, ")");
-}
-
-/// MatchRHSPunctuation - For punctuation with a LHS and RHS (e.g. '['/']'),
-/// this helper function matches and consumes the specified RHS token if
-/// present.  If not present, it emits a corresponding diagnostic indicating
-/// that the parser failed to match the RHS of the token at LHSLoc.
-SourceLocation Parser::MatchRHSPunctuation(tok::TokenKind RHSTok,
-                                           SourceLocation LHSLoc) {
-
-  if (Tok.is(RHSTok))
-    return ConsumeAnyToken();
-
-  SourceLocation R = Tok.getLocation();
-  const char *LHSName = "unknown";
-  diag::kind DID = diag::err_parse_error;
-  switch (RHSTok) {
-  default: break;
-  case tok::r_paren : LHSName = "("; DID = diag::err_expected_rparen; break;
-  case tok::r_brace : LHSName = "{"; DID = diag::err_expected_rbrace; break;
-  case tok::r_square: LHSName = "["; DID = diag::err_expected_rsquare; break;
-  case tok::greater:  LHSName = "<"; DID = diag::err_expected_greater; break;
-  case tok::greatergreatergreater:
-                      LHSName = "<<<"; DID = diag::err_expected_ggg; break;
-  }
-  Diag(Tok, DID);
-  Diag(LHSLoc, diag::note_matching) << LHSName;
-  SkipUntil(RHSTok);
-  return R;
 }
 
 static bool IsCommonTypo(tok::TokenKind ExpectedTok, const Token &Tok) {
@@ -298,6 +270,9 @@ bool Parser::SkipUntil(const tok::TokenKind *Toks, unsigned NumToks,
 
     case tok::string_literal:
     case tok::wide_string_literal:
+    case tok::utf8_string_literal:
+    case tok::utf16_string_literal:
+    case tok::utf32_string_literal:
       ConsumeStringToken();
       break;
         
@@ -440,6 +415,7 @@ void Parser::Initialize() {
     ObjCTypeQuals[objc_byref] = &PP.getIdentifierTable().get("byref");
   }
 
+  Ident_instancetype = 0;
   Ident_final = 0;
   Ident_override = 0;
 
@@ -550,7 +526,12 @@ Parser::ParseExternalDeclaration(ParsedAttributesWithRange &attrs,
                                  ParsingDeclSpec *DS) {
   DelayedCleanupPoint CleanupRAII(TopLevelDeclCleanupPool);
   ParenBraceBracketBalancer BalancerRAIIObj(*this);
-  
+
+  if (PP.isCodeCompletionReached()) {
+    cutOffParsing();
+    return DeclGroupPtrTy();
+  }
+
   Decl *SingleDecl = 0;
   switch (Tok.getKind()) {
   case tok::semi:
@@ -590,10 +571,7 @@ Parser::ParseExternalDeclaration(ParsedAttributesWithRange &attrs,
     break;
   }
   case tok::at:
-    // @ is not a legal token unless objc is enabled, no need to check for ObjC.
-    /// FIXME: ParseObjCAtDirectives should return a DeclGroup for things like
-    /// @class foo, bar;
-    SingleDecl = ParseObjCAtDirectives();
+    return ParseObjCAtDirectives();
     break;
   case tok::minus:
   case tok::plus:
@@ -608,8 +586,8 @@ Parser::ParseExternalDeclaration(ParsedAttributesWithRange &attrs,
       Actions.CodeCompleteOrdinaryName(getCurScope(), 
                                    ObjCImpDecl? Sema::PCC_ObjCImplementation
                                               : Sema::PCC_Namespace);
-    ConsumeCodeCompletionToken();
-    return ParseExternalDeclaration(attrs);
+    cutOffParsing();
+    return DeclGroupPtrTy();
   case tok::kw_using:
   case tok::kw_namespace:
   case tok::kw_typedef:
@@ -676,6 +654,9 @@ Parser::ParseExternalDeclaration(ParsedAttributesWithRange &attrs,
     ParseMicrosoftIfExistsExternalDeclaration();
     return DeclGroupPtrTy();
 
+  case tok::kw___import_module__:
+    return ParseModuleImport();
+      
   default:
   dont_know:
     // We can't tell whether this is a function-definition or declaration yet.
@@ -808,6 +789,11 @@ Parser::ParseDeclarationOrFunctionDefinition(ParsedAttributes &attrs,
                                              AccessSpecifier AS) {
   ParsingDeclSpec DS(*this);
   DS.takeAttributesFrom(attrs);
+  // Must temporarily exit the objective-c container scope for
+  // parsing c constructs and re-enter objc container scope
+  // afterwards.
+  ObjCDeclContextSwitch ObjCDC(*this);
+    
   return ParseDeclarationOrFunctionDefinition(DS, AS);
 }
 
@@ -877,9 +863,9 @@ Decl *Parser::ParseFunctionDefinition(ParsingDeclarator &D,
     ParseScope BodyScope(this, Scope::FnScope|Scope::DeclScope);
     Scope *ParentScope = getCurScope()->getParent();
 
+    D.setFunctionDefinition(true);
     Decl *DP = Actions.HandleDeclarator(ParentScope, D,
-                                move(TemplateParameterLists),
-                                /*IsFunctionDefinition=*/true);
+                                        move(TemplateParameterLists));
     D.complete(DP);
     D.getMutableDeclSpec().abort();
 
@@ -1133,12 +1119,11 @@ Parser::ExprResult Parser::ParseSimpleAsm(SourceLocation *EndLoc) {
     ConsumeToken();
   }
 
-  if (Tok.isNot(tok::l_paren)) {
+  BalancedDelimiterTracker T(*this, tok::l_paren);
+  if (T.consumeOpen()) {
     Diag(Tok, diag::err_expected_lparen_after) << "asm";
     return ExprError();
   }
-
-  Loc = ConsumeParen();
 
   ExprResult Result(ParseAsmStringLiteral());
 
@@ -1148,9 +1133,10 @@ Parser::ExprResult Parser::ParseSimpleAsm(SourceLocation *EndLoc) {
       *EndLoc = Tok.getLocation();
     ConsumeAnyToken();
   } else {
-    Loc = MatchRHSPunctuation(tok::r_paren, Loc);
+    // Close the paren and get the location of the end bracket
+    T.consumeClose();
     if (EndLoc)
-      *EndLoc = Loc;
+      *EndLoc = T.getCloseLocation();
   }
 
   return move(Result);
@@ -1190,7 +1176,7 @@ TemplateIdAnnotation *Parser::takeTemplateIdAnnotation(const Token &tok) {
 ///
 /// Note that this routine emits an error if you call it with ::new or ::delete
 /// as the current tokens, so only call it in contexts where these are invalid.
-bool Parser::TryAnnotateTypeOrScopeToken(bool EnteringContext) {
+bool Parser::TryAnnotateTypeOrScopeToken(bool EnteringContext, bool NeedType) {
   assert((Tok.is(tok::identifier) || Tok.is(tok::coloncolon)
           || Tok.is(tok::kw_typename) || Tok.is(tok::annot_cxxscope)) &&
          "Cannot be a type or scope token!");
@@ -1208,7 +1194,7 @@ bool Parser::TryAnnotateTypeOrScopeToken(bool EnteringContext) {
                                        0, /*IsTypename*/true))
       return true;
     if (!SS.isSet()) {
-      if (getLang().Microsoft)
+      if (getLang().MicrosoftExt)
         Diag(Tok.getLocation(), diag::warn_expected_qualified_after_typename);
       else
         Diag(Tok.getLocation(), diag::err_expected_qualified_after_typename);
@@ -1264,13 +1250,18 @@ bool Parser::TryAnnotateTypeOrScopeToken(bool EnteringContext) {
       return true;
 
   if (Tok.is(tok::identifier)) {
+    IdentifierInfo *CorrectedII = 0;
     // Determine whether the identifier is a type name.
     if (ParsedType Ty = Actions.getTypeName(*Tok.getIdentifierInfo(),
                                             Tok.getLocation(), getCurScope(),
                                             &SS, false, 
                                             NextToken().is(tok::period),
                                             ParsedType(),
-                                            /*NonTrivialTypeSourceInfo*/true)) {
+                                            /*NonTrivialTypeSourceInfo*/true,
+                                            NeedType ? &CorrectedII : NULL)) {
+      // A FixIt was applied as a result of typo correction
+      if (CorrectedII)
+        Tok.setIdentifierInfo(CorrectedII);
       // This is a typename. Replace the current token in-place with an
       // annotation type token.
       Tok.setKind(tok::annot_typename);
@@ -1405,20 +1396,27 @@ bool Parser::isTokenEqualOrMistypedEqualEqual(unsigned DiagID) {
   return Tok.is(tok::equal);
 }
 
-void Parser::CodeCompletionRecovery() {
+SourceLocation Parser::handleUnexpectedCodeCompletionToken() {
+  assert(Tok.is(tok::code_completion));
+  PrevTokLocation = Tok.getLocation();
+
   for (Scope *S = getCurScope(); S; S = S->getParent()) {
     if (S->getFlags() & Scope::FnScope) {
       Actions.CodeCompleteOrdinaryName(getCurScope(), Sema::PCC_RecoveryInFunction);
-      return;
+      cutOffParsing();
+      return PrevTokLocation;
     }
     
     if (S->getFlags() & Scope::ClassScope) {
       Actions.CodeCompleteOrdinaryName(getCurScope(), Sema::PCC_Class);
-      return;
+      cutOffParsing();
+      return PrevTokLocation;
     }
   }
   
   Actions.CodeCompleteOrdinaryName(getCurScope(), Sema::PCC_Namespace);
+  cutOffParsing();
+  return PrevTokLocation;
 }
 
 // Anchor the Parser::FieldCallback vtable to this translation unit.
@@ -1463,13 +1461,12 @@ bool Parser::ParseMicrosoftIfExistsCondition(bool& Result) {
   Token Condition = Tok;
   SourceLocation IfExistsLoc = ConsumeToken();
 
-  SourceLocation LParenLoc = Tok.getLocation();
-  if (Tok.isNot(tok::l_paren)) {
+  BalancedDelimiterTracker T(*this, tok::l_paren);
+  if (T.consumeOpen()) {
     Diag(Tok, diag::err_expected_lparen_after) << IfExistsLoc;
     SkipUntil(tok::semi);
     return true;
   }
-  ConsumeParen(); // eat the '('.
   
   // Parse nested-name-specifier.
   CXXScopeSpec SS;
@@ -1488,7 +1485,8 @@ bool Parser::ParseMicrosoftIfExistsCondition(bool& Result) {
     return true;
   }
 
-  if (MatchRHSPunctuation(tok::r_paren, LParenLoc).isInvalid())
+  T.consumeClose();
+  if (T.getCloseLocation().isInvalid())
     return true;
 
   // Check if the symbol exists.
@@ -1532,4 +1530,87 @@ void Parser::ParseMicrosoftIfExistsExternalDeclaration() {
     return;
   }
   ConsumeBrace();
+}
+
+Parser::DeclGroupPtrTy Parser::ParseModuleImport() {
+  assert(Tok.is(tok::kw___import_module__) && 
+         "Improper start to module import");
+  SourceLocation ImportLoc = ConsumeToken();
+  
+  // Parse the module name.
+  if (!Tok.is(tok::identifier)) {
+    Diag(Tok, diag::err_module_expected_ident);
+    SkipUntil(tok::semi);
+    return DeclGroupPtrTy();
+  }
+  
+  IdentifierInfo &ModuleName = *Tok.getIdentifierInfo();
+  SourceLocation ModuleNameLoc = ConsumeToken();
+  DeclResult Import = Actions.ActOnModuleImport(ImportLoc, ModuleName, ModuleNameLoc);
+  ExpectAndConsumeSemi(diag::err_module_expected_semi);
+  if (Import.isInvalid())
+    return DeclGroupPtrTy();
+  
+  return Actions.ConvertDeclToDeclGroup(Import.get());
+}
+
+bool Parser::BalancedDelimiterTracker::consumeOpen() {
+  // Try to consume the token we are holding
+  if (P.Tok.is(Kind)) {
+    P.QuantityTracker.push(Kind);
+    Cleanup = true;
+    if (P.QuantityTracker.getDepth(Kind) < MaxDepth) {
+      LOpen = P.ConsumeAnyToken();
+      return false;
+    } else {
+      P.Diag(P.Tok, diag::err_parser_impl_limit_overflow);
+      P.SkipUntil(tok::eof);
+    }
+  }
+  return true;
+}
+
+bool Parser::BalancedDelimiterTracker::expectAndConsume(unsigned DiagID, 
+                                            const char *Msg,
+                                            tok::TokenKind SkipToToc ) {
+  LOpen = P.Tok.getLocation();
+  if (!P.ExpectAndConsume(Kind, DiagID, Msg, SkipToToc)) {
+    P.QuantityTracker.push(Kind);
+    Cleanup = true;
+    if (P.QuantityTracker.getDepth(Kind) < MaxDepth) {
+      return false;
+    } else {
+      P.Diag(P.Tok, diag::err_parser_impl_limit_overflow);
+      P.SkipUntil(tok::eof);
+    }
+  }
+  return true;
+}
+
+bool Parser::BalancedDelimiterTracker::consumeClose() {
+  if (P.Tok.is(Close)) {
+    LClose = P.ConsumeAnyToken();
+    if (Cleanup)
+      P.QuantityTracker.pop(Kind);
+
+    Cleanup = false;
+    return false;
+  } else {
+    const char *LHSName = "unknown";
+    diag::kind DID = diag::err_parse_error;
+    switch (Close) {
+    default: break;
+    case tok::r_paren : LHSName = "("; DID = diag::err_expected_rparen; break;
+    case tok::r_brace : LHSName = "{"; DID = diag::err_expected_rbrace; break;
+    case tok::r_square: LHSName = "["; DID = diag::err_expected_rsquare; break;
+    case tok::greater:  LHSName = "<"; DID = diag::err_expected_greater; break;
+    case tok::greatergreatergreater:
+                        LHSName = "<<<"; DID = diag::err_expected_ggg; break;
+    }
+    P.Diag(P.Tok, DID);
+    P.Diag(LOpen, diag::note_matching) << LHSName;
+    if (P.SkipUntil(Close))
+      LClose = P.Tok.getLocation();
+  }
+  return true;
 }

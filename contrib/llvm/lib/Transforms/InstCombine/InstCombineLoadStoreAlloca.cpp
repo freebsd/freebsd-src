@@ -26,7 +26,7 @@ Instruction *InstCombiner::visitAllocaInst(AllocaInst &AI) {
   // Ensure that the alloca array size argument has type intptr_t, so that
   // any casting is exposed early.
   if (TD) {
-    const Type *IntPtrTy = TD->getIntPtrType(AI.getContext());
+    Type *IntPtrTy = TD->getIntPtrType(AI.getContext());
     if (AI.getArraySize()->getType() != IntPtrTy) {
       Value *V = Builder->CreateIntCast(AI.getArraySize(),
                                         IntPtrTy, false);
@@ -38,7 +38,7 @@ Instruction *InstCombiner::visitAllocaInst(AllocaInst &AI) {
   // Convert: alloca Ty, C - where C is a constant != 1 into: alloca [C x Ty], 1
   if (AI.isArrayAllocation()) {  // Check C != 1
     if (const ConstantInt *C = dyn_cast<ConstantInt>(AI.getArraySize())) {
-      const Type *NewTy = 
+      Type *NewTy = 
         ArrayType::get(AI.getAllocatedType(), C->getZExtValue());
       assert(isa<AllocaInst>(AI) && "Unknown type of allocation inst!");
       AllocaInst *New = Builder->CreateAlloca(NewTy, 0, AI.getName());
@@ -58,8 +58,7 @@ Instruction *InstCombiner::visitAllocaInst(AllocaInst &AI) {
       Idx[0] = NullIdx;
       Idx[1] = NullIdx;
       Instruction *GEP =
-           GetElementPtrInst::CreateInBounds(New, Idx, Idx + 2,
-                                             New->getName()+".sub");
+           GetElementPtrInst::CreateInBounds(New, Idx, New->getName()+".sub");
       InsertNewInstBefore(GEP, *It);
 
       // Now make everything use the getelementptr instead of the original
@@ -92,28 +91,28 @@ static Instruction *InstCombineLoadCast(InstCombiner &IC, LoadInst &LI,
   User *CI = cast<User>(LI.getOperand(0));
   Value *CastOp = CI->getOperand(0);
 
-  const PointerType *DestTy = cast<PointerType>(CI->getType());
-  const Type *DestPTy = DestTy->getElementType();
-  if (const PointerType *SrcTy = dyn_cast<PointerType>(CastOp->getType())) {
+  PointerType *DestTy = cast<PointerType>(CI->getType());
+  Type *DestPTy = DestTy->getElementType();
+  if (PointerType *SrcTy = dyn_cast<PointerType>(CastOp->getType())) {
 
     // If the address spaces don't match, don't eliminate the cast.
     if (DestTy->getAddressSpace() != SrcTy->getAddressSpace())
       return 0;
 
-    const Type *SrcPTy = SrcTy->getElementType();
+    Type *SrcPTy = SrcTy->getElementType();
 
     if (DestPTy->isIntegerTy() || DestPTy->isPointerTy() || 
          DestPTy->isVectorTy()) {
       // If the source is an array, the code below will not succeed.  Check to
       // see if a trivial 'gep P, 0, 0' will help matters.  Only do this for
       // constants.
-      if (const ArrayType *ASrcTy = dyn_cast<ArrayType>(SrcPTy))
+      if (ArrayType *ASrcTy = dyn_cast<ArrayType>(SrcPTy))
         if (Constant *CSrc = dyn_cast<Constant>(CastOp))
           if (ASrcTy->getNumElements() != 0) {
             Value *Idxs[2];
             Idxs[0] = Constant::getNullValue(Type::getInt32Ty(LI.getContext()));
             Idxs[1] = Idxs[0];
-            CastOp = ConstantExpr::getGetElementPtr(CSrc, Idxs, 2);
+            CastOp = ConstantExpr::getGetElementPtr(CSrc, Idxs);
             SrcTy = cast<PointerType>(CastOp->getType());
             SrcPTy = SrcTy->getElementType();
           }
@@ -133,6 +132,7 @@ static Instruction *InstCombineLoadCast(InstCombiner &IC, LoadInst &LI,
         LoadInst *NewLoad = 
           IC.Builder->CreateLoad(CastOp, LI.isVolatile(), CI->getName());
         NewLoad->setAlignment(LI.getAlignment());
+        NewLoad->setAtomic(LI.getOrdering(), LI.getSynchScope());
         // Now cast the result of the load.
         return new BitCastInst(NewLoad, LI.getType());
       }
@@ -163,8 +163,9 @@ Instruction *InstCombiner::visitLoadInst(LoadInst &LI) {
     if (Instruction *Res = InstCombineLoadCast(*this, LI, TD))
       return Res;
 
-  // None of the following transforms are legal for volatile loads.
-  if (LI.isVolatile()) return 0;
+  // None of the following transforms are legal for volatile/atomic loads.
+  // FIXME: Some of it is okay for atomic loads; needs refactoring.
+  if (!LI.isSimple()) return 0;
   
   // Do really simple store-to-load forwarding and load CSE, to catch cases
   // where there are several consecutive memory accesses to the same location,
@@ -256,11 +257,11 @@ static Instruction *InstCombineStoreToCast(InstCombiner &IC, StoreInst &SI) {
   User *CI = cast<User>(SI.getOperand(1));
   Value *CastOp = CI->getOperand(0);
 
-  const Type *DestPTy = cast<PointerType>(CI->getType())->getElementType();
-  const PointerType *SrcTy = dyn_cast<PointerType>(CastOp->getType());
+  Type *DestPTy = cast<PointerType>(CI->getType())->getElementType();
+  PointerType *SrcTy = dyn_cast<PointerType>(CastOp->getType());
   if (SrcTy == 0) return 0;
   
-  const Type *SrcPTy = SrcTy->getElementType();
+  Type *SrcPTy = SrcTy->getElementType();
 
   if (!DestPTy->isIntegerTy() && !DestPTy->isPointerTy())
     return 0;
@@ -280,12 +281,12 @@ static Instruction *InstCombineStoreToCast(InstCombiner &IC, StoreInst &SI) {
     NewGEPIndices.push_back(Zero);
     
     while (1) {
-      if (const StructType *STy = dyn_cast<StructType>(SrcPTy)) {
+      if (StructType *STy = dyn_cast<StructType>(SrcPTy)) {
         if (!STy->getNumElements()) /* Struct can be empty {} */
           break;
         NewGEPIndices.push_back(Zero);
         SrcPTy = STy->getElementType(0);
-      } else if (const ArrayType *ATy = dyn_cast<ArrayType>(SrcPTy)) {
+      } else if (ArrayType *ATy = dyn_cast<ArrayType>(SrcPTy)) {
         NewGEPIndices.push_back(Zero);
         SrcPTy = ATy->getElementType();
       } else {
@@ -314,8 +315,8 @@ static Instruction *InstCombineStoreToCast(InstCombiner &IC, StoreInst &SI) {
   Value *NewCast;
   Value *SIOp0 = SI.getOperand(0);
   Instruction::CastOps opcode = Instruction::BitCast;
-  const Type* CastSrcTy = SIOp0->getType();
-  const Type* CastDstTy = SrcPTy;
+  Type* CastSrcTy = SIOp0->getType();
+  Type* CastDstTy = SrcPTy;
   if (CastDstTy->isPointerTy()) {
     if (CastSrcTy->isIntegerTy())
       opcode = Instruction::IntToPtr;
@@ -327,8 +328,7 @@ static Instruction *InstCombineStoreToCast(InstCombiner &IC, StoreInst &SI) {
   // SIOp0 is a pointer to aggregate and this is a store to the first field,
   // emit a GEP to index into its first field.
   if (!NewGEPIndices.empty())
-    CastOp = IC.Builder->CreateInBoundsGEP(CastOp, NewGEPIndices.begin(),
-                                           NewGEPIndices.end());
+    CastOp = IC.Builder->CreateInBoundsGEP(CastOp, NewGEPIndices);
   
   NewCast = IC.Builder->CreateCast(opcode, SIOp0, CastDstTy,
                                    SIOp0->getName()+".c");
@@ -370,21 +370,6 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
   Value *Val = SI.getOperand(0);
   Value *Ptr = SI.getOperand(1);
 
-  // If the RHS is an alloca with a single use, zapify the store, making the
-  // alloca dead.
-  if (!SI.isVolatile()) {
-    if (Ptr->hasOneUse()) {
-      if (isa<AllocaInst>(Ptr)) 
-        return EraseInstFromFunction(SI);
-      if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(Ptr)) {
-        if (isa<AllocaInst>(GEP->getOperand(0))) {
-          if (GEP->getOperand(0)->hasOneUse())
-            return EraseInstFromFunction(SI);
-        }
-      }
-    }
-  }
-
   // Attempt to improve the alignment.
   if (TD) {
     unsigned KnownAlign =
@@ -398,6 +383,23 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
       SI.setAlignment(KnownAlign);
     else if (StoreAlign == 0)
       SI.setAlignment(EffectiveStoreAlign);
+  }
+
+  // Don't hack volatile/atomic stores.
+  // FIXME: Some bits are legal for atomic stores; needs refactoring.
+  if (!SI.isSimple()) return 0;
+
+  // If the RHS is an alloca with a single use, zapify the store, making the
+  // alloca dead.
+  if (Ptr->hasOneUse()) {
+    if (isa<AllocaInst>(Ptr)) 
+      return EraseInstFromFunction(SI);
+    if (GetElementPtrInst *GEP = dyn_cast<GetElementPtrInst>(Ptr)) {
+      if (isa<AllocaInst>(GEP->getOperand(0))) {
+        if (GEP->getOperand(0)->hasOneUse())
+          return EraseInstFromFunction(SI);
+      }
+    }
   }
 
   // Do really simple DSE, to catch cases where there are several consecutive
@@ -417,8 +419,8 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
     
     if (StoreInst *PrevSI = dyn_cast<StoreInst>(BBI)) {
       // Prev store isn't volatile, and stores to the same location?
-      if (!PrevSI->isVolatile() &&equivalentAddressValues(PrevSI->getOperand(1),
-                                                          SI.getOperand(1))) {
+      if (PrevSI->isSimple() && equivalentAddressValues(PrevSI->getOperand(1),
+                                                        SI.getOperand(1))) {
         ++NumDeadStore;
         ++BBI;
         EraseInstFromFunction(*PrevSI);
@@ -432,7 +434,7 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
     // then *this* store is dead (X = load P; store X -> P).
     if (LoadInst *LI = dyn_cast<LoadInst>(BBI)) {
       if (LI == Val && equivalentAddressValues(LI->getOperand(0), Ptr) &&
-          !SI.isVolatile())
+          LI->isSimple())
         return EraseInstFromFunction(SI);
       
       // Otherwise, this is a load from some other location.  Stores before it
@@ -444,9 +446,6 @@ Instruction *InstCombiner::visitStoreInst(StoreInst &SI) {
     if (BBI->mayWriteToMemory() || BBI->mayReadFromMemory())
       break;
   }
-  
-  
-  if (SI.isVolatile()) return 0;  // Don't hack volatile stores.
 
   // store X, null    -> turns into 'unreachable' in SimplifyCFG
   if (isa<ConstantPointerNull>(Ptr) && SI.getPointerAddressSpace() == 0) {
@@ -549,11 +548,11 @@ bool InstCombiner::SimplifyStoreAtEndOfBlock(StoreInst &SI) {
         return false;
       --BBI;
     }
-    // If this isn't a store, isn't a store to the same location, or if the
-    // alignments differ, bail out.
+    // If this isn't a store, isn't a store to the same location, or is not the
+    // right kind of store, bail out.
     OtherStore = dyn_cast<StoreInst>(BBI);
     if (!OtherStore || OtherStore->getOperand(1) != SI.getOperand(1) ||
-        OtherStore->getAlignment() != SI.getAlignment())
+        !SI.isSameOperationAs(OtherStore))
       return false;
   } else {
     // Otherwise, the other block ended with a conditional branch. If one of the
@@ -569,7 +568,7 @@ bool InstCombiner::SimplifyStoreAtEndOfBlock(StoreInst &SI) {
       // Check to see if we find the matching store.
       if ((OtherStore = dyn_cast<StoreInst>(BBI))) {
         if (OtherStore->getOperand(1) != SI.getOperand(1) ||
-            OtherStore->getAlignment() != SI.getAlignment())
+            !SI.isSameOperationAs(OtherStore))
           return false;
         break;
       }
@@ -601,10 +600,12 @@ bool InstCombiner::SimplifyStoreAtEndOfBlock(StoreInst &SI) {
   
   // Advance to a place where it is safe to insert the new store and
   // insert it.
-  BBI = DestBB->getFirstNonPHI();
+  BBI = DestBB->getFirstInsertionPt();
   StoreInst *NewSI = new StoreInst(MergedVal, SI.getOperand(1),
-                                   OtherStore->isVolatile(),
-                                   SI.getAlignment());
+                                   SI.isVolatile(),
+                                   SI.getAlignment(),
+                                   SI.getOrdering(),
+                                   SI.getSynchScope());
   InsertNewInstBefore(NewSI, *BBI);
   NewSI->setDebugLoc(OtherStore->getDebugLoc()); 
 

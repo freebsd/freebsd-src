@@ -84,45 +84,27 @@ struct pidfh {
 #endif
 
 /* Avoid pulling in all the include files for no need */
-struct termios;
-struct winsize;
 struct in_addr;
 struct kinfo_file;
 struct kinfo_proc;
 struct kinfo_vmentry;
+struct sockaddr;
+struct termios;
+struct winsize;
 
 __BEGIN_DECLS
+char	*auth_getval(const char *_name);
 void	clean_environment(const char * const *_white,
 	    const char * const *_more_white);
+int	expand_number(const char *_buf, uint64_t *_num);
 int	extattr_namespace_to_string(int _attrnamespace, char **_string);
 int	extattr_string_to_namespace(const char *_string, int *_attrnamespace);
 int	flopen(const char *_path, int _flags, ...);
-void	hexdump(const void *ptr, int length, const char *hdr, int flags);
-int	login_tty(int _fd);
-void	trimdomain(char *_fullhost, int _hostsize);
-int	openpty(int *_amaster, int *_aslave, char *_name,
-		     struct termios *_termp, struct winsize *_winp);
 int	forkpty(int *_amaster, char *_name,
-		     struct termios *_termp, struct winsize *_winp);
+	    struct termios *_termp, struct winsize *_winp);
+void	hexdump(const void *_ptr, int _length, const char *_hdr, int _flags);
 int	humanize_number(char *_buf, size_t _len, int64_t _number,
 	    const char *_suffix, int _scale, int _flags);
-int	expand_number(const char *_buf, uint64_t *_num);
-const char *uu_lockerr(int _uu_lockresult);
-int	uu_lock(const char *_ttyname);
-int	uu_unlock(const char *_ttyname);
-int	uu_lock_txfr(const char *_ttyname, pid_t _pid);
-int	_secure_path(const char *_path, uid_t _uid, gid_t _gid);
-properties properties_read(int fd);
-void	properties_free(properties list);
-char	*property_find(properties list, const char *name);
-char	*auth_getval(const char *name);
-int	realhostname(char *host, size_t hsize, const struct in_addr *ip);
-struct sockaddr;
-int	realhostname_sa(char *host, size_t hsize, struct sockaddr *addr,
-			     int addrlen);
-
-int	kld_isloaded(const char *name);
-int	kld_load(const char *name);
 struct kinfo_file *
 	kinfo_getfile(pid_t _pid, int *_cntp);
 struct kinfo_vmentry *
@@ -131,9 +113,29 @@ struct kinfo_proc *
 	kinfo_getallproc(int *_cntp);
 struct kinfo_proc *
 	kinfo_getproc(pid_t _pid);
+int	kld_isloaded(const char *_name);
+int	kld_load(const char *_name);
+int	login_tty(int _fd);
+int	openpty(int *_amaster, int *_aslave, char *_name,
+	    struct termios *_termp, struct winsize *_winp);
+void	properties_free(properties _list);
+char	*property_find(properties _list, const char *_name);
+properties
+	properties_read(int fd);
+int	realhostname(char *_host, size_t _hsize, const struct in_addr *_ip);
+int	realhostname_sa(char *_host, size_t _hsize, struct sockaddr *_addr,
+	    int _addrlen);
+int	_secure_path(const char *_path, uid_t _uid, gid_t _gid);
+void	trimdomain(char *_fullhost, int _hostsize);
+const char *
+	uu_lockerr(int _uu_lockresult);
+int	uu_lock(const char *_ttyname);
+int	uu_unlock(const char *_ttyname);
+int	uu_lock_txfr(const char *_ttyname, pid_t _pid);
 
 #ifdef _STDIO_H_	/* avoid adding new includes */
-char   *fparseln(FILE *, size_t *, size_t *, const char[3], int);
+char	*fparseln(FILE *_fp, size_t *_len, size_t *_lineno,
+	    const char _delim[3], int _flags);
 #endif
 
 #ifdef _PWD_H_
@@ -144,6 +146,7 @@ int	pw_equal(const struct passwd *_pw1, const struct passwd *_pw2);
 void	pw_fini(void);
 int	pw_init(const char *_dir, const char *_master);
 char	*pw_make(const struct passwd *_pw);
+char	*pw_make_v7(const struct passwd *_pw);
 int	pw_mkdb(const char *_user);
 int	pw_lock(void);
 struct passwd *pw_scan(const char *_line, int _flags);
@@ -152,34 +155,45 @@ int	pw_tmp(int _mfd);
 #endif
 
 #ifdef _GRP_H_
-int	gr_equal(const struct group *gr1, const struct group *gr2);
-char	*gr_make(const struct group *gr);
-struct group *gr_dup(const struct group *gr);
-struct group *gr_scan(const char *line);
+int 	gr_copy(int __ffd, int _tfd, const struct group *_gr, struct group *_old_gr);
+struct group *gr_dup(const struct group *_gr);
+int	gr_equal(const struct group *_gr1, const struct group *_gr2);
+void	gr_fini(void);
+int	gr_init(const char *_dir, const char *_master);
+int	gr_lock(void);
+char	*gr_make(const struct group *_gr);
+int	gr_mkdb(void);
+struct group *gr_scan(const char *_line);
+int	gr_tmp(int _mdf);
 #endif
 
 #ifdef _SYS_PARAM_H_
-struct pidfh *pidfile_open(const char *path, mode_t mode, pid_t *pidptr);
-int pidfile_write(struct pidfh *pfh);
-int pidfile_close(struct pidfh *pfh);
-int pidfile_remove(struct pidfh *pfh);
+int	pidfile_close(struct pidfh *_pfh);
+int	pidfile_fileno(const struct pidfh *_pfh);
+struct pidfh *
+	pidfile_open(const char *_path, mode_t _mode, pid_t *_pidptr);
+int	pidfile_remove(struct pidfh *_pfh);
+int	pidfile_write(struct pidfh *_pfh);
 #endif
 
 #ifdef _UFS_UFS_QUOTA_H_
-struct quotafile;
 struct fstab;
-struct quotafile *quota_open(struct fstab *, int, int);
-void quota_close(struct quotafile *);
-int quota_on(struct quotafile *);
-int quota_off(struct quotafile *);
-const char *quota_fsname(const struct quotafile *);
-const char *quota_qfname(const struct quotafile *);
-int quota_maxid(struct quotafile *);
-int quota_check_path(const struct quotafile *, const char *path);
-int quota_read(struct quotafile *, struct dqblk *, int);
-int quota_write_limits(struct quotafile *, struct dqblk *, int);
-int quota_write_usage(struct quotafile *, struct dqblk *, int);
-int quota_convert(struct quotafile *, int);
+struct quotafile;
+int	quota_check_path(const struct quotafile *_qf, const char *_path);
+void	quota_close(struct quotafile *_qf);
+int	quota_convert(struct quotafile *_qf, int _wordsize);
+const char *
+	quota_fsname(const struct quotafile *_qf);
+int	quota_maxid(struct quotafile *_qf);
+int	quota_off(struct quotafile *_qf);
+int	quota_on(struct quotafile *_qf);
+struct quotafile *
+	quota_open(struct fstab *_fs, int _quotatype, int _openflags);
+const char *
+	quota_qfname(const struct quotafile *_qf);
+int	quota_read(struct quotafile *_qf, struct dqblk *_dqb, int _id);
+int	quota_write_limits(struct quotafile *_qf, struct dqblk *_dqb, int _id);
+int	quota_write_usage(struct quotafile *_qf, struct dqblk *_dqb, int _id);
 #endif
 
 __END_DECLS

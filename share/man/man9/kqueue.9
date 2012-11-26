@@ -1,4 +1,4 @@
-.\" Copyright 2006 John-Mark Gurney
+.\" Copyright 2006,2011 John-Mark Gurney
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,15 +24,16 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 28, 2006
+.Dd November 5, 2011
 .Dt KQUEUE 9
 .Os
 .Sh NAME
 .Nm kqueue_add_filteropts , kqueue_del_filteropts ,
 .Nm kqfd_register ,
 .Nm knote_fdclose ,
+.Nm knlist_init , knlist_init_mtx ,
 .Nm knlist_add , knlist_remove , knlist_remove_inevent , knlist_empty ,
-.Nm knlist_init , knlist_destroy , knlist_clear , knlist_delete ,
+.Nm knlist_clear , knlist_delete , knlist_destroy ,
 .Nm KNOTE_LOCKED , KNOTE_UNLOCKED
 .Nd "event delivery subsystem"
 .Sh SYNOPSIS
@@ -46,14 +47,6 @@
 .Ft void
 .Fn knote_fdclose "struct thread *td" "int fd"
 .Ft void
-.Fn knlist_add "struct knlist *knl" "struct knote *kn" "int islocked"
-.Ft void
-.Fn knlist_remove "struct knlist *knl" "struct knote *kn" "int islocked"
-.Ft void
-.Fn knlist_remove_inevent "struct knlist *knl" "struct knote *kn"
-.Ft int
-.Fn knlist_empty "struct knlist *knl"
-.Ft void
 .Fo knlist_init
 .Fa "struct knlist *knl"
 .Fa "void *lock"
@@ -62,11 +55,21 @@
 .Fa "int \*[lp]*kl_locked\*[rp]\*[lp]void *\*[rp]"
 .Fc
 .Ft void
-.Fn knlist_destroy "struct knlist *knl"
+.Fn knlist_init_mtx "struct knlist *knl" "struct mtx *lock"
+.Ft void
+.Fn knlist_add "struct knlist *knl" "struct knote *kn" "int islocked"
+.Ft void
+.Fn knlist_remove "struct knlist *knl" "struct knote *kn" "int islocked"
+.Ft void
+.Fn knlist_remove_inevent "struct knlist *knl" "struct knote *kn"
+.Ft int
+.Fn knlist_empty "struct knlist *knl"
 .Ft void
 .Fn knlist_clear "struct knlist *knl" "int islocked"
 .Ft void
 .Fn knlist_delete "struct knlist *knl" "struct thread *td" "int islocked"
+.Ft void
+.Fn knlist_destroy "struct knlist *knl"
 .Ft void
 .Fn KNOTE_LOCKED "struct knlist *knl" "long hint"
 .Ft void
@@ -135,7 +138,8 @@ bit of
 .Va kn_status
 in the
 .Vt knote .
-The function shall return 0 on success, or appropriate error for the failure.
+The function shall return 0 on success, or appropriate error for the failure,
+such as when the object is being destroyed, or does not exist.
 During
 .Va f_attach ,
 it is valid to change the
@@ -155,7 +159,13 @@ function will be called to detach the
 if the
 .Vt knote
 has not already been detached by a call to
-.Fn knlist_remove .
+.Fn knlist_remove ,
+.Fn knlist_remove_inevent
+or
+.Fn knlist_delete .
+The list
+.Fa lock
+will not be held when this function is called.
 .It Va f_event
 The
 .Va f_event
@@ -247,57 +257,120 @@ A
 is not required, but is commonly used.
 If used, the
 .Vt knlist
-must be initialized with the
+must be initialized with either
 .Fn knlist_init
-function.
-If
-.Fa lock
-is
-.Dv NULL ,
-an internal lock will be used and the remaining arguments will be ignored.
-The
-.Fa kl_lock , kl_unlock
-and
-.Fa kl_locked
-functions will be used to manipulate a
-.Fa lock .
-If the argument is
-.Dv NULL ,
-default routines operating on
-.Vt "struct mtx *"
-will be used.
+or
+.Fn knlist_init_mtx .
 The
 .Vt knlist
 structure may be embedded into the object structure.
 The
 .Fa lock
-will be held over calls to
-.Va f_event .
-If
-.Dv NULL
-is passed for the mutex, a private mutex will be used.
+will be held over
+.Va f_event
+calls.
+.Pp
+For the
+.Fn knlist_init
+function, if
+.Fa lock
+is
+.Dv NULL ,
+a shared global lock will be used and the remaining arguments must be
+.Dv NULL .
+The function pointers
+.Fa kl_lock , kl_unlock
+and
+.Fa kl_locked
+will be used to manipulate the argument
+.Fa lock .
+If any of the function pointers are
+.Dv NULL ,
+a function operating on
+.Dv MTX_DEF
+style
+.Xr mutex 9
+locks will be used instead.
+.Pp
+The function
+.Fn knlist_init_mtx
+may be used to initalize a
+.Vt knlist
+when
+.Fa lock
+is a
+.Dv MTX_DEF
+style
+.Xr mutex 9
+lock.
+.Pp
 The function
 .Fn knlist_empty
-requires that a
+returns true when there are no
+.Vt knotes
+on the list.
+The function requires that the
 .Fa lock
-be held.
+be held when called.
+.Pp
 The function
 .Fn knlist_clear
-is used to remove all
+removes all
 .Vt knotes
-associated with the list.
+from the list.
 The
 .Fa islocked
-argument declares if
+argument declares if the
 .Fa lock
 has been acquired.
 All
 .Vt knotes
-will be marked as detached, and
+will have
 .Dv EV_ONESHOT
-will be set so that the
+set so that the
 .Vt knote
-will be deleted after the next scan.
+will be returned and removed durning the next scan.
+The
+.Va f_detach
+function will be called when the
+.Vt knote
+is deleted durning the next scan.
+This function must not be used when
+.Va f_isfd
+is set in
+.Vt "struct filterops" ,
+as the
+.Fa td
+argument of
+.Fn fdrop
+will be
+.Dv NULL .
+.Pp
+The function
+.Fn knlist_delete
+removes and deletes all
+.Vt knotes
+on the list.
+The function
+.Va f_detach
+will not be called, and the
+.Vt knote
+will not be returned on the next scan.
+Using this function could leak user land resources if a process uses the
+.Vt knote
+to track resources.
+.Pp
+Both the
+.Fn knlist_clear
+and
+.Fn knlist_delete
+functions may sleep.
+They also may release the
+.Fa lock
+to wait for other
+.Vt knotes
+to drain.
+.Pp
 The
 .Fn knlist_destroy
 function is used to destroy a
@@ -314,7 +387,9 @@ may be attached to the object.
 A
 .Vt knlist
 may be emptied by calling
-.Fn knlist_clear .
+.Fn knlist_clear
+or
+.Fn knlist_delete .
 .Pp
 The macros
 .Fn KNOTE_LOCKED
@@ -333,7 +408,7 @@ The macro
 .Fn KNOTE_LOCKED
 must be used if the lock associated with the
 .Fa knl
-passed in is held.
+is held.
 The function
 .Fn KNOTE_UNLOCKED
 will acquire the lock before iterating over the list of

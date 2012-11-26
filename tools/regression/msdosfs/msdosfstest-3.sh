@@ -9,8 +9,10 @@ mdconfig -a -t swap -s 128m -u 10
 bsdlabel -w md10 auto
 newfs_msdos -F 16 -b 8192 /dev/md10a
 mount_msdosfs -L zh_TW.Big5 -D CP950 /dev/md10a /tmp/msdosfstest/
-mkdir /tmp/msdosfstest/012345678_¨¸´c¤§¬ü
-cd /tmp/msdosfstest/012345678_¨¸´c¤§¬ü
+# The comment is UTF-8, the actual command uses the Big5 representation.
+# mkdir /tmp/msdosfstest/012345678_é‚ªæƒ¡ä¹‹ç¾Ž
+mkdir /tmp/msdosfstest/012345678_$'\250\270\264\143\244\247\254\374'
+cd /tmp/msdosfstest/012345678_$'\250\270\264\143\244\247\254\374'
 if [ $? -eq 0 ]; then
 	echo "ok 3";
 else

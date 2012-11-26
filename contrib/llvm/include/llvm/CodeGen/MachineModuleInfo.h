@@ -34,7 +34,7 @@
 #include "llvm/Pass.h"
 #include "llvm/GlobalValue.h"
 #include "llvm/Metadata.h"
-#include "llvm/CodeGen/MachineLocation.h"
+#include "llvm/MC/MachineLocation.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/DebugLoc.h"
@@ -107,43 +107,48 @@ class MachineModuleInfo : public ImmutablePass {
   /// want.
   MachineModuleInfoImpl *ObjFileMMI;
 
-  // FrameMoves - List of moves done by a function's prolog.  Used to construct
-  // frame maps by debug and exception handling consumers.
+  /// FrameMoves - List of moves done by a function's prolog.  Used to construct
+  /// frame maps by debug and exception handling consumers.
   std::vector<MachineMove> FrameMoves;
 
-  // LandingPads - List of LandingPadInfo describing the landing pad information
-  // in the current function.
+  /// CompactUnwindEncoding - If the target supports it, this is the compact
+  /// unwind encoding. It replaces a function's CIE and FDE.
+  uint32_t CompactUnwindEncoding;
+
+  /// LandingPads - List of LandingPadInfo describing the landing pad
+  /// information in the current function.
   std::vector<LandingPadInfo> LandingPads;
 
-  // Map of invoke call site index values to associated begin EH_LABEL for
-  // the current function.
+  /// LPadToCallSiteMap - Map a landing pad's EH symbol to the call site
+  /// indexes.
+  DenseMap<MCSymbol*, SmallVector<unsigned, 4> > LPadToCallSiteMap;
+
+  /// CallSiteMap - Map of invoke call site index values to associated begin
+  /// EH_LABEL for the current function.
   DenseMap<MCSymbol*, unsigned> CallSiteMap;
 
-  // The current call site index being processed, if any. 0 if none.
+  /// CurCallSite - The current call site index being processed, if any. 0 if
+  /// none.
   unsigned CurCallSite;
 
-  // TypeInfos - List of C++ TypeInfo used in the current function.
-  //
+  /// TypeInfos - List of C++ TypeInfo used in the current function.
   std::vector<const GlobalVariable *> TypeInfos;
 
-  // FilterIds - List of typeids encoding filters used in the current function.
-  //
+  /// FilterIds - List of typeids encoding filters used in the current function.
   std::vector<unsigned> FilterIds;
 
-  // FilterEnds - List of the indices in FilterIds corresponding to filter
-  // terminators.
-  //
+  /// FilterEnds - List of the indices in FilterIds corresponding to filter
+  /// terminators.
   std::vector<unsigned> FilterEnds;
 
-  // Personalities - Vector of all personality functions ever seen. Used to emit
-  // common EH frames.
+  /// Personalities - Vector of all personality functions ever seen. Used to
+  /// emit common EH frames.
   std::vector<const Function *> Personalities;
 
   /// UsedFunctions - The functions in the @llvm.used list in a more easily
   /// searchable format.  This does not include the functions in
   /// llvm.compiler.used.
   SmallPtrSet<const Function *, 32> UsedFunctions;
-
 
   /// AddrLabelSymbols - This map keeps track of which symbol is being used for
   /// the specified basic block's address of label.
@@ -156,8 +161,9 @@ class MachineModuleInfo : public ImmutablePass {
   /// in this module.
   bool DbgInfoAvailable;
 
-  /// True if this module calls VarArg function with floating point arguments.
-  /// This is used to emit an undefined reference to fltused on Windows targets.
+  /// CallsExternalVAFunctionWithFloatingPointArguments - True if this module
+  /// calls VarArg function with floating point arguments.  This is used to emit
+  /// an undefined reference to fltused on Windows targets.
   bool CallsExternalVAFunctionWithFloatingPointArguments;
 
 public:
@@ -170,7 +176,8 @@ public:
 
   MachineModuleInfo();  // DUMMY CONSTRUCTOR, DO NOT CALL.
   // Real constructor.
-  MachineModuleInfo(const MCAsmInfo &MAI, const TargetAsmInfo *TAI);
+  MachineModuleInfo(const MCAsmInfo &MAI, const MCRegisterInfo &MRI,
+                    const MCObjectFileInfo *MOFI);
   ~MachineModuleInfo();
 
   bool doInitialization();
@@ -229,6 +236,15 @@ public:
   /// handling comsumers.
   std::vector<MachineMove> &getFrameMoves() { return FrameMoves; }
 
+  /// getCompactUnwindEncoding - Returns the compact unwind encoding for a
+  /// function if the target supports the encoding. This encoding replaces a
+  /// function's CIE and FDE.
+  uint32_t getCompactUnwindEncoding() const { return CompactUnwindEncoding; }
+
+  /// setCompactUnwindEncoding - Set the compact unwind encoding for a function
+  /// if the target supports the encoding.
+  void setCompactUnwindEncoding(uint32_t Enc) { CompactUnwindEncoding = Enc; }
+
   /// getAddrLabelSymbol - Return the symbol to be used for the specified basic
   /// block when its address is taken.  This cannot be its normal LBB label
   /// because the block may be accessed outside its containing function.
@@ -286,12 +302,12 @@ public:
   /// addCatchTypeInfo - Provide the catch typeinfo for a landing pad.
   ///
   void addCatchTypeInfo(MachineBasicBlock *LandingPad,
-                        std::vector<const GlobalVariable *> &TyInfo);
+                        ArrayRef<const GlobalVariable *> TyInfo);
 
   /// addFilterTypeInfo - Provide the filter typeinfo for a landing pad.
   ///
   void addFilterTypeInfo(MachineBasicBlock *LandingPad,
-                         std::vector<const GlobalVariable *> &TyInfo);
+                         ArrayRef<const GlobalVariable *> TyInfo);
 
   /// addCleanup - Add a cleanup action for a landing pad.
   ///
@@ -315,16 +331,40 @@ public:
     return LandingPads;
   }
 
-  /// setCallSiteBeginLabel - Map the begin label for a call site
+  /// setCallSiteLandingPad - Map the landing pad's EH symbol to the call
+  /// site indexes.
+  void setCallSiteLandingPad(MCSymbol *Sym, ArrayRef<unsigned> Sites);
+
+  /// getCallSiteLandingPad - Get the call site indexes for a landing pad EH
+  /// symbol.
+  SmallVectorImpl<unsigned> &getCallSiteLandingPad(MCSymbol *Sym) {
+    assert(hasCallSiteLandingPad(Sym) &&
+           "missing call site number for landing pad!");
+    return LPadToCallSiteMap[Sym];
+  }
+
+  /// hasCallSiteLandingPad - Return true if the landing pad Eh symbol has an
+  /// associated call site.
+  bool hasCallSiteLandingPad(MCSymbol *Sym) {
+    return !LPadToCallSiteMap[Sym].empty();
+  }
+
+  /// setCallSiteBeginLabel - Map the begin label for a call site.
   void setCallSiteBeginLabel(MCSymbol *BeginLabel, unsigned Site) {
     CallSiteMap[BeginLabel] = Site;
   }
 
-  /// getCallSiteBeginLabel - Get the call site number for a begin label
+  /// getCallSiteBeginLabel - Get the call site number for a begin label.
   unsigned getCallSiteBeginLabel(MCSymbol *BeginLabel) {
-    assert(CallSiteMap.count(BeginLabel) &&
+    assert(hasCallSiteBeginLabel(BeginLabel) &&
            "Missing call site number for EH_LABEL!");
     return CallSiteMap[BeginLabel];
+  }
+
+  /// hasCallSiteBeginLabel - Return true if the begin label has a call site
+  /// number associated with it.
+  bool hasCallSiteBeginLabel(MCSymbol *BeginLabel) {
+    return CallSiteMap[BeginLabel] != 0;
   }
 
   /// setCurrentCallSite - Set the call site currently being processed.

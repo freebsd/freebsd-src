@@ -107,7 +107,7 @@ namespace llvm {
     virtual const char *getTargetNodeName(unsigned Opcode) const;
 
     /// getSetCCResultType - Return the ValueType for ISD::SETCC
-    virtual MVT::SimpleValueType getSetCCResultType(EVT VT) const;
+    virtual EVT getSetCCResultType(EVT VT) const;
 
     virtual MVT getShiftAmountTy(EVT LHSTy) const { return MVT::i32; }
 
@@ -147,7 +147,7 @@ namespace llvm {
 
     /// isLegalAddressImmediate - Return true if the integer value can be used
     /// as the offset of the target addressing mode.
-    virtual bool isLegalAddressImmediate(int64_t V, const Type *Ty) const;
+    virtual bool isLegalAddressImmediate(int64_t V, Type *Ty) const;
     virtual bool isLegalAddressImmediate(GlobalValue *) const;
 
     virtual bool isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const;
@@ -179,7 +179,7 @@ namespace llvm {
     virtual bool isLegalICmpImmediate(int64_t Imm) const;
 
     virtual bool isLegalAddressingMode(const AddrMode &AM,
-                                       const Type *Ty) const;
+                                       Type *Ty) const;
   };
 }
 

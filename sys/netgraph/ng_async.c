@@ -61,7 +61,7 @@
 #include <net/ppp_defs.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_ASYNC, "netgraph_async", "netgraph async node ");
+static MALLOC_DEFINE(M_NETGRAPH_ASYNC, "netgraph_async", "netgraph async node");
 #else
 #define M_NETGRAPH_ASYNC M_NETGRAPH
 #endif

@@ -92,7 +92,7 @@
 
 SYSCTL_DECL(_security_mac);
 
-SYSCTL_NODE(_security_mac, OID_AUTO, biba, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security_mac, OID_AUTO, biba, CTLFLAG_RW, 0,
     "TrustedBSD mac_biba policy controls");
 
 static int	biba_label_size = sizeof(struct mac_biba);

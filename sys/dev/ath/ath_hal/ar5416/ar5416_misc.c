@@ -73,21 +73,29 @@ ar5416SetLedState(struct ath_hal *ah, HAL_LED_STATE state)
 		AR_MAC_LED_ASSOC_NONE,
 		AR_MAC_LED_ASSOC_NONE,
 	};
-	uint32_t bits;
 
 	if (AR_SREV_HOWL(ah))
 		return;
 
-	bits = OS_REG_READ(ah, AR_MAC_LED);
-	bits = (bits &~ AR_MAC_LED_MODE)
-	     | SM(AR_MAC_LED_MODE_POWON, AR_MAC_LED_MODE)
-#if 1
-	     | SM(AR_MAC_LED_MODE_NETON, AR_MAC_LED_MODE)
-#endif
-	     ;
-	bits = (bits &~ AR_MAC_LED_ASSOC)
-	     | SM(ledbits[state & 0x7], AR_MAC_LED_ASSOC);
-	OS_REG_WRITE(ah, AR_MAC_LED, bits);
+	/*
+	 * Set the blink operating mode.
+	 */
+	OS_REG_RMW_FIELD(ah, AR_MAC_LED,
+	    AR_MAC_LED_ASSOC, ledbits[state & 0x7]);
+
+	/* XXX Blink slow mode? */
+	/* XXX Blink threshold? */
+	/* XXX Blink sleep hystersis? */
+
+	/*
+	 * Set the LED blink configuration to be proportional
+	 * to the current TX and RX filter bytes.  (Ie, RX'ed
+	 * frames that don't match the filter are ignored.)
+	 * This means that higher TX/RX throughput will result
+	 * in the blink rate increasing.
+	 */
+	OS_REG_RMW_FIELD(ah, AR_MAC_LED, AR_MAC_LED_MODE,
+	    AR_MAC_LED_MODE_PROP);
 }
 
 /*
@@ -161,7 +169,7 @@ ar5416SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 HAL_BOOL
 ar5416SetDecompMask(struct ath_hal *ah, uint16_t keyidx, int en)
 {
-	return HAL_OK;
+	return AH_TRUE;
 }
 
 /* Setup coverage class */
@@ -169,6 +177,57 @@ void
 ar5416SetCoverageClass(struct ath_hal *ah, uint8_t coverageclass, int now)
 {
 	AH_PRIVATE(ah)->ah_coverageClass = coverageclass;
+}
+
+/*
+ * Return the busy for rx_frame, rx_clear, and tx_frame
+ */
+uint32_t
+ar5416GetMibCycleCountsPct(struct ath_hal *ah, uint32_t *rxc_pcnt,
+    uint32_t *extc_pcnt, uint32_t *rxf_pcnt, uint32_t *txf_pcnt)
+{
+	struct ath_hal_5416 *ahp = AH5416(ah);
+	u_int32_t good = 1;
+
+	/* XXX freeze/unfreeze mib counters */
+	uint32_t rc = OS_REG_READ(ah, AR_RCCNT);
+	uint32_t ec = OS_REG_READ(ah, AR_EXTRCCNT);
+	uint32_t rf = OS_REG_READ(ah, AR_RFCNT);
+	uint32_t tf = OS_REG_READ(ah, AR_TFCNT);
+	uint32_t cc = OS_REG_READ(ah, AR_CCCNT); /* read cycles last */
+
+	if (ahp->ah_cycleCount == 0 || ahp->ah_cycleCount > cc) {
+		/*
+		 * Cycle counter wrap (or initial call); it's not possible
+		 * to accurately calculate a value because the registers
+		 * right shift rather than wrap--so punt and return 0.
+		 */
+		HALDEBUG(ah, HAL_DEBUG_ANY,
+			    "%s: cycle counter wrap. ExtBusy = 0\n", __func__);
+			good = 0;
+	} else {
+		uint32_t cc_d = cc - ahp->ah_cycleCount;
+		uint32_t rc_d = rc - ahp->ah_ctlBusy;
+		uint32_t ec_d = ec - ahp->ah_extBusy;
+		uint32_t rf_d = rf - ahp->ah_rxBusy;
+		uint32_t tf_d = tf - ahp->ah_txBusy;
+
+		if (cc_d != 0) {
+			*rxc_pcnt = rc_d * 100 / cc_d;
+			*rxf_pcnt = rf_d * 100 / cc_d;
+			*txf_pcnt = tf_d * 100 / cc_d;
+			*extc_pcnt = ec_d * 100 / cc_d;
+		} else {
+			good = 0;
+		}
+	}
+	ahp->ah_cycleCount = cc;
+	ahp->ah_rxBusy = rf;
+	ahp->ah_ctlBusy = rc;
+	ahp->ah_txBusy = tf;
+	ahp->ah_extBusy = ec;
+
+	return good;
 }
 
 /*
@@ -284,7 +343,7 @@ ar5416Get11nRxClear(struct ath_hal *ah)
         rxclear |= HAL_RX_CLEAR_CTL_LOW;
     }
     /* extension channel */
-    if (val & AR_DIAG_RXCLEAR_CTL_LOW) {
+    if (val & AR_DIAG_RXCLEAR_EXT_LOW) {
         rxclear |= HAL_RX_CLEAR_EXT_LOW;
     }
     return rxclear;

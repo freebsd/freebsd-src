@@ -21,9 +21,10 @@
  * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -51,9 +52,7 @@ static device_method_t ofw_cpulist_methods[] = {
 	DEVMETHOD(device_attach,	ofw_cpulist_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 	DEVMETHOD(bus_add_child,	bus_generic_add_child),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_child_pnpinfo_str, ofw_bus_gen_child_pnpinfo_str),
 
 	/* ofw_bus interface */
@@ -64,7 +63,7 @@ static device_method_t ofw_cpulist_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ofw_cpulist_driver = {
@@ -140,9 +139,7 @@ static device_method_t ofw_cpu_methods[] = {
 	DEVMETHOD(device_attach,	ofw_cpu_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 	DEVMETHOD(bus_add_child,	bus_generic_add_child),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	ofw_cpu_read_ivar),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
@@ -150,7 +147,7 @@ static device_method_t ofw_cpu_methods[] = {
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource,bus_generic_activate_resource),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ofw_cpu_driver = {

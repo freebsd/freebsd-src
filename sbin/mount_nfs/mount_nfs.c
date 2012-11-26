@@ -612,6 +612,13 @@ fallback_mount(struct iovec *iov, int iovlen, int mntflags)
 		}
 		args.flags |= NFSMNT_ACDIRMAX;
 	}
+	if (findopt(iov, iovlen, "wcommitsize", &opt, NULL) == 0) {
+		ret = sscanf(opt, "%d", &args.wcommitsize);
+		if (ret != 1 || args.wcommitsize < 0) {
+			errx(1, "illegal wcommitsize: %s", opt);
+		}
+		args.flags |= NFSMNT_WCOMMITSIZE;
+	}
 	if (findopt(iov, iovlen, "deadthresh", &opt, NULL) == 0) {
 		ret = sscanf(opt, "%d", &args.deadthresh);
 		if (ret != 1 || args.deadthresh <= 0) {
@@ -781,7 +788,7 @@ getnfsargs(char *spec, struct iovec **iov, int *iovlen)
 	for (;;) {
 		/*
 		 * Try each entry returned by getaddrinfo(). Note the
-		 * occurence of remote errors by setting `remoteerr'.
+		 * occurrence of remote errors by setting `remoteerr'.
 		 */
 		remoteerr = 0;
 		for (ai = ai_nfs; ai != NULL; ai = ai->ai_next) {

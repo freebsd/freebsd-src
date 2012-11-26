@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include <bzlib.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -51,14 +50,20 @@ __FBSDID("$FreeBSD$");
 #include <wctype.h>
 #include <zlib.h>
 
+#ifndef WITHOUT_BZIP2
+#include <bzlib.h>
+#endif
+
 #include "grep.h"
 
 #define	MAXBUFSIZ	(32 * 1024)
 #define	LNBUFBUMP	80
 
 static gzFile gzbufdesc;
-static BZFILE* bzbufdesc;
 static lzma_stream lstrm = LZMA_STREAM_INIT;
+#ifndef WITHOUT_BZIP2
+static BZFILE* bzbufdesc;
+#endif
 
 static unsigned char *buffer;
 static unsigned char *bufpos;
@@ -72,7 +77,6 @@ static inline int
 grep_refill(struct file *f)
 {
 	ssize_t nr;
-	int bzerr;
 
 	if (filebehave == FILE_MMAP)
 		return (0);
@@ -80,9 +84,12 @@ grep_refill(struct file *f)
 	bufpos = buffer;
 	bufrem = 0;
 
-	if (filebehave == FILE_GZIP)
+	if (filebehave == FILE_GZIP) {
 		nr = gzread(gzbufdesc, buffer, MAXBUFSIZ);
-	else if (filebehave == FILE_BZIP && bzbufdesc != NULL) {
+#ifndef WITHOUT_BZIP2
+	} else if (filebehave == FILE_BZIP && bzbufdesc != NULL) {
+		int bzerr;
+
 		nr = BZ2_bzRead(&bzerr, bzbufdesc, buffer, MAXBUFSIZ);
 		switch (bzerr) {
 		case BZ_OK:
@@ -108,6 +115,7 @@ grep_refill(struct file *f)
 			/* Make sure we exit with an error */
 			nr = -1;
 		}
+#endif
 	} else if ((filebehave == FILE_XZ) || (filebehave == FILE_LZMA)) {
 		lzma_action action = LZMA_RUN;
 		uint8_t in_buf[MAXBUFSIZ];
@@ -271,9 +279,11 @@ grep_open(const char *path)
 	    (gzbufdesc = gzdopen(f->fd, "r")) == NULL)
 		goto error2;
 
+#ifndef WITHOUT_BZIP2
 	if (filebehave == FILE_BZIP &&
 	    (bzbufdesc = BZ2_bzdopen(f->fd, "r")) == NULL)
 		goto error2;
+#endif
 
 	/* Fill read buffer, also catches errors early */
 	if (bufrem == 0 && grep_refill(f) != 0)

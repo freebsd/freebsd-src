@@ -39,9 +39,11 @@ typedef __u32 __le32;
 typedef __u32 __be32;
 typedef __u64 __le64;
 typedef __u64 __be64;
+#ifndef __bool_true_false_are_defined
 typedef _Bool bool;
 #define	true	TRUE
 #define	false	FALSE
+#endif
 
 typedef unsigned long kernel_ulong_t;
 typedef unsigned int    uint;

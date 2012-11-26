@@ -37,7 +37,7 @@ extern boolean	 _escaped;             /* if last character was an escape */
 extern char    *s_start;               /* start of the current string */
 extern char    *l_acmbeg;              /* string introducing a comment */
 extern char    *l_acmend;              /* string ending a comment */
-extern char    *l_blkbeg;              /* string begining of a block */
+extern char    *l_blkbeg;              /* string beginning of a block */
 extern char    *l_blkend;              /* string ending a block */
 extern char    *l_chrbeg;              /* delimiter for character constant */
 extern char    *l_chrend;              /* delimiter for character constant */

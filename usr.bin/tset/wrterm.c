@@ -56,7 +56,7 @@ wrtermcap(char *bp)
 	char *t, *sep;
 
 	/* Find the end of the terminal names. */
-	if ((t = index(bp, ':')) == NULL)
+	if ((t = strchr(bp, ':')) == NULL)
 		errx(1, "termcap names not colon terminated");
 	*t++ = '\0';
 

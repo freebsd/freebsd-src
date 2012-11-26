@@ -3178,6 +3178,7 @@ mpt_scsi_reply_frame_handler(struct mpt_softc *mpt, request_t *req,
 		else
 			ccb->csio.sense_resid = 0;
 
+		bzero(&ccb->csio.sense_data, sizeof(&ccb->csio.sense_data));
 		bcopy(req->sense_vbuf, &ccb->csio.sense_data,
 		    min(ccb->csio.sense_len, sense_returned));
 	}

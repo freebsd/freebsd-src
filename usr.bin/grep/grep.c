@@ -148,9 +148,7 @@ static inline const char	*init_color(const char *);
 bool	 first = true;	/* flag whether we are processing the first match */
 bool	 prev;		/* flag whether or not the previous line matched */
 int	 tail;		/* lines left to print */
-bool	 notfound;	/* file not found */
-
-extern char	*__progname;
+bool	 file_err;	/* file reading error */
 
 /*
  * Prints usage information and returns 2.
@@ -158,7 +156,7 @@ extern char	*__progname;
 static void
 usage(void)
 {
-	fprintf(stderr, getstr(4), __progname);
+	fprintf(stderr, getstr(4), getprogname());
 	fprintf(stderr, "%s", getstr(5));
 	fprintf(stderr, "%s", getstr(5));
 	fprintf(stderr, "%s", getstr(6));
@@ -168,7 +166,7 @@ usage(void)
 
 static const char	*optstr = "0123456789A:B:C:D:EFGHIJMLOPSRUVZabcd:e:f:hilm:nopqrsuvwxXy";
 
-struct option long_options[] =
+static const struct option long_options[] =
 {
 	{"binary-files",	required_argument,	NULL, BIN_OPT},
 	{"help",		no_argument,		NULL, HELP_OPT},
@@ -332,7 +330,8 @@ int
 main(int argc, char *argv[])
 {
 	char **aargv, **eargv, *eopts;
-	char *pn, *ep;
+	char *ep;
+	const char *pn;
 	unsigned long long l;
 	unsigned int aargc, eargc, i;
 	int c, lastc, needpattern, newarg, prevoptind;
@@ -346,7 +345,7 @@ main(int argc, char *argv[])
 	/* Check what is the program name of the binary.  In this
 	   way we can have all the funcionalities in one binary
 	   without the need of scripting and using ugly hacks. */
-	pn = __progname;
+	pn = getprogname();
 	if (pn[0] == 'b' && pn[1] == 'z') {
 		filebehave = FILE_BZIP;
 		pn += 2;
@@ -508,6 +507,10 @@ main(int argc, char *argv[])
 			cflags |= REG_ICASE;
 			break;
 		case 'J':
+#ifdef WITHOUT_BZIP2
+			errno = EOPNOTSUPP;
+			err(2, "bzip2 support was disabled at compile-time");
+#endif
 			filebehave = FILE_BZIP;
 			break;
 		case 'L':
@@ -568,7 +571,7 @@ main(int argc, char *argv[])
 			filebehave = FILE_MMAP;
 			break;
 		case 'V':
-			printf(getstr(9), __progname, VERSION);
+			printf(getstr(9), getprogname(), VERSION);
 			exit(0);
 		case 'v':
 			vflag = true;
@@ -725,5 +728,5 @@ main(int argc, char *argv[])
 
 	/* Find out the correct return value according to the
 	   results and the command line option. */
-	exit(c ? (notfound ? (qflag ? 0 : 2) : 0) : (notfound ? 2 : 1));
+	exit(c ? (file_err ? (qflag ? 0 : 2) : 0) : (file_err ? 2 : 1));
 }

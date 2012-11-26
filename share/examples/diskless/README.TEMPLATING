@@ -94,8 +94,8 @@ be useful to set up clients and server for diskless boot.
 	/usr/ports	( note 5 )
 	/usr/src	( note 5 )
 	/usr/local/crack ( note 5 )
-	/usr/X11R6/lib/X11/xdm/xdm-errors ( note 6 )
-	/usr/X11R6/lib/X11/xdm/xdm-pid 	  ( note 6 )
+	/usr/local/lib/X11/xdm/xdm-errors ( note 6 )
+	/usr/local/lib/X11/xdm/xdm-pid 	  ( note 6 )
 	/usr/local/etc/ssh_host_key	  ( note 6 )
 	/usr/local/etc/ssh_host_key.pub	  ( note 6 )
 	/usr/local/etc/ssh_random_seed	  ( note 6 )
@@ -120,7 +120,7 @@ be useful to set up clients and server for diskless boot.
 		do not want to template such directories.
 
 	note 6: Note that you can solve the problem of xdm and sshd creating
-		files in /usr.  With xdm, edit /usr/X11R6/lib/xdm/xdm-config
+		files in /usr.  With xdm, edit /usr/local/lib/xdm/xdm-config
 		and change the errorLogFile and pidFile config lines.
 
 		With sshd, add 'HostKey' and 'RandomSeed' directives to specify

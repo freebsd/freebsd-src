@@ -86,7 +86,7 @@
 				    struct l_utimbuf *times); }
 31	AUE_NULL	UNIMPL	stty
 32	AUE_NULL	UNIMPL	gtty
-33	AUE_ACCESS	STD	{ int linux_access(char *path, l_int flags); }
+33	AUE_ACCESS	STD	{ int linux_access(char *path, l_int amode); }
 34	AUE_NICE	STD	{ int linux_nice(l_int inc); }
 35	AUE_NULL	UNIMPL	ftime
 36	AUE_SYNC	NOPROTO	{ int sync(void); }
@@ -419,7 +419,8 @@
 247	AUE_NULL	UNIMPL	linux_io_getevents
 248	AUE_NULL	UNIMPL	linux_io_submit
 249	AUE_NULL	UNIMPL	linux_io_cancel
-250	AUE_NULL	STD	{ int linux_fadvise64(void); }
+250	AUE_NULL	STD	{ int linux_fadvise64(int fd, l_loff_t offset, \
+					l_size_t len, int advice); }
 251	AUE_NULL	UNIMPL
 252	AUE_EXIT	STD	{ int linux_exit_group(int error_code); }
 253	AUE_NULL	STD	{ int linux_lookup_dcookie(void); }
@@ -443,7 +444,9 @@
 270	AUE_NULL	STD	{ int linux_tgkill(int tgid, int pid, int sig); }
 271	AUE_UTIMES	STD	{ int linux_utimes(char *fname, \
 					struct l_timeval *tptr); }
-272	AUE_NULL	STD	{ int linux_fadvise64_64(void); }
+272	AUE_NULL	STD	{ int linux_fadvise64_64(int fd, \
+					l_loff_t offset, l_loff_t len, \
+					int advice); }
 273	AUE_NULL	UNIMPL
 274	AUE_NULL	STD	{ int linux_mbind(void); }
 275	AUE_NULL	STD	{ int linux_get_mempolicy(void); }
@@ -483,14 +486,14 @@
 302	AUE_RENAMEAT	STD	{ int linux_renameat(l_int olddfd, const char *oldname, \
 					l_int newdfd, const char *newname); }
 303	AUE_LINKAT	STD	{ int linux_linkat(l_int olddfd, const char *oldname, \
-					l_int newdfd, const char *newname, l_int flags); }
+					l_int newdfd, const char *newname, l_int flag); }
 304	AUE_SYMLINKAT	STD	{ int linux_symlinkat(const char *oldname, l_int newdfd, \
 					const char *newname); }
 305	AUE_READLINKAT	STD	{ int linux_readlinkat(l_int dfd, const char *path, \
 					char *buf, l_int bufsiz); }
 306	AUE_FCHMODAT	STD	{ int linux_fchmodat(l_int dfd, const char *filename, \
 					l_mode_t mode); }
-307	AUE_FACCESSAT	STD	{ int linux_faccessat(l_int dfd, const char *filename, l_int mode); }
+307	AUE_FACCESSAT	STD	{ int linux_faccessat(l_int dfd, const char *filename, l_int amode, int flag); }
 308	AUE_NULL	STD	{ int linux_pselect6(void); }
 309	AUE_NULL	STD	{ int linux_ppoll(void); }
 310	AUE_NULL	STD	{ int linux_unshare(void); }

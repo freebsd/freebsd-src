@@ -41,6 +41,7 @@
 .Op Fl B | F
 .Op Fl T Ar fstype : Ns Ar fsoptions
 .Op Fl t Ar fstype
+.Op Fl c Ar fstab
 .Oo Ar special | node Oc ...
 .Sh DESCRIPTION
 The
@@ -117,6 +118,10 @@ Check if the
 .Dq clean
 flag is set in the superblock and skip file system checks if file system was
 properly dismounted and marked clean.
+.It Fl c Ar fstab
+Specify the
+.Pa fstab
+file to use.
 .It Fl d
 Debugging mode.
 Just print the commands without executing them.

@@ -55,9 +55,9 @@ static const char sccsid[] = "@(#)unexpand.c	8.1 (Berkeley) 6/6/93";
 #include <wchar.h>
 #include <wctype.h>
 
-int	all;
-int	nstops;
-int	tabstops[100];
+static int	all;
+static int	nstops;
+static int	tabstops[100];
 
 static void getstops(const char *);
 static void usage(void);

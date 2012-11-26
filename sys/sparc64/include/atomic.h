@@ -78,7 +78,7 @@
  * order which we use for running the kernel and all of the userland atomic
  * loads and stores behave as if the were followed by a membar with a mask
  * of #LoadLoad | #LoadStore | #StoreStore.  In order to be also sufficient
- * for use of relaxed memory ordering, the atomic_cas() in the acq variants 
+ * for use of relaxed memory ordering, the atomic_cas() in the acq variants
  * additionally would have to be followed by a membar #LoadLoad | #LoadStore.
  * Due to the suggested assembly syntax of the membar operands containing a
  * # character, they cannot be used in macros.  The cmask and mmask bits thus
@@ -97,6 +97,7 @@
 #define	atomic_cas_acq(p, e, s, sz) ({					\
 	itype(sz) v;							\
 	v = atomic_cas((p), (e), (s), sz);				\
+	__asm __volatile("" : : : "memory");				\
 	v;								\
 })
 
@@ -121,6 +122,7 @@
 #define	atomic_op_acq(p, op, v, sz) ({					\
 	itype(sz) t;							\
 	t = atomic_op((p), op, (v), sz);				\
+	__asm __volatile("" : : : "memory");				\
 	t;								\
 })
 
@@ -137,6 +139,7 @@
 #define	atomic_load_acq(p, sz) ({					\
 	itype(sz) v;							\
 	v = atomic_load((p), sz);					\
+	__asm __volatile("" : : : "memory");				\
 	v;								\
 })
 

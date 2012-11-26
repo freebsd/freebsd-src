@@ -79,7 +79,7 @@ static const char rcsid[] =
 int	_dbg_lvl_ = (DL_INFO); /* DL_TRC */
 #endif /* FS_DEBUG */
 
-struct uufsd disk;
+static struct uufsd disk;
 
 #define sblock disk.d_fs
 #define acg    disk.d_cg

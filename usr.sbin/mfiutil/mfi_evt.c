@@ -438,7 +438,7 @@ mfi_decode_evt(int fd, struct mfi_evt_detail *detail, int verbose)
 		printf(": ");
 		break;
 	case MR_EVT_ARGS_LD_STRIP:
-		printf("VOL %s", volume_name(fd, &detail->args.ld_prog.ld));
+		printf("VOL %s", volume_name(fd, &detail->args.ld_strip.ld));
 		if (verbose) {
 			printf(" strip %lld",
 			    (long long)detail->args.ld_strip.strip);

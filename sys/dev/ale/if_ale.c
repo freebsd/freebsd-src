@@ -270,9 +270,9 @@ ale_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 	mii = device_get_softc(sc->ale_miibus);
 
 	mii_pollstat(mii);
-	ALE_UNLOCK(sc);
 	ifmr->ifm_status = mii->mii_media_status;
 	ifmr->ifm_active = mii->mii_media_active;
+	ALE_UNLOCK(sc);
 }
 
 static int

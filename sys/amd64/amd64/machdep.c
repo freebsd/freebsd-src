@@ -1401,10 +1401,13 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 		Maxmem = atop(physmem_tunable);
 
 	/*
-	 * By default keep the memtest enabled.  Use a general name so that
+	 * By default enable the memory test on real hardware, and disable
+	 * it if we appear to be running in a VM.  This avoids touching all
+	 * pages unnecessarily, which doesn't matter on real hardware but is
+	 * bad for shared VM hosts.  Use a general name so that
 	 * one could eventually do more with the code than just disable it.
 	 */
-	memtest = 1;
+	memtest = (vm_guest > VM_GUEST_NO) ? 0 : 1;
 	TUNABLE_ULONG_FETCH("hw.memtest.tests", &memtest);
 
 	/*
@@ -2047,7 +2050,8 @@ int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
-	KASSERT(td == curthread || TD_IS_SUSPENDED(td),
+	KASSERT(td == curthread || TD_IS_SUSPENDED(td) ||
+	    P_SHOULDSTOP(td->td_proc),
 	    ("not suspended thread %p", td));
 	fpugetregs(td);
 	fill_fpregs_xmm(&td->td_pcb->pcb_user_save, fpregs);

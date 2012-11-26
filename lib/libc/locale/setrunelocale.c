@@ -5,6 +5,11 @@
  * This code is derived from software contributed to Berkeley by
  * Paul Borman at Krystal Technologies.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -49,67 +54,45 @@ extern int __mb_sb_limit;
 
 extern _RuneLocale	*_Read_RuneMagi(FILE *);
 
-static int		__setrunelocale(const char *);
+static int		__setrunelocale(struct xlocale_ctype *l, const char *);
+
+#define __collate_load_error (table->__collate_load_error)
+#define __collate_substitute_nontrivial (table->__collate_substitute_nontrivial)
+#define __collate_substitute_table_ptr (table->__collate_substitute_table_ptr)
+#define __collate_char_pri_table_ptr (table->__collate_char_pri_table_ptr)
+#define __collate_chain_pri_table (table->__collate_chain_pri_table)
+
+
+static void destruct_ctype(void *v)
+{
+	struct xlocale_ctype *l = v;
+	if (strcmp(l->runes->__encoding, "EUC") == 0)
+		free(l->runes->__variable);
+	if (&_DefaultRuneLocale != l->runes) 
+		free(l->runes);
+	free(l);
+}
+_RuneLocale *__getCurrentRuneLocale(void)
+{
+	return XLOCALE_CTYPE(__get_locale())->runes;
+}
 
 static int
-__setrunelocale(const char *encoding)
+__setrunelocale(struct xlocale_ctype *l, const char *encoding)
 {
 	FILE *fp;
 	char name[PATH_MAX];
 	_RuneLocale *rl;
 	int saverr, ret;
-	size_t (*old__mbrtowc)(wchar_t * __restrict,
-	    const char * __restrict, size_t, mbstate_t * __restrict);
-	size_t (*old__wcrtomb)(char * __restrict, wchar_t,
-	    mbstate_t * __restrict);
-	int (*old__mbsinit)(const mbstate_t *);
-	size_t (*old__mbsnrtowcs)(wchar_t * __restrict,
-	    const char ** __restrict, size_t, size_t, mbstate_t * __restrict);
-	size_t (*old__wcsnrtombs)(char * __restrict,
-	    const wchar_t ** __restrict, size_t, size_t,
-	    mbstate_t * __restrict);
-	static char ctype_encoding[ENCODING_LEN + 1];
-	static _RuneLocale *CachedRuneLocale;
-	static int Cached__mb_cur_max;
-	static int Cached__mb_sb_limit;
-	static size_t (*Cached__mbrtowc)(wchar_t * __restrict,
-	    const char * __restrict, size_t, mbstate_t * __restrict);
-	static size_t (*Cached__wcrtomb)(char * __restrict, wchar_t,
-	    mbstate_t * __restrict);
-	static int (*Cached__mbsinit)(const mbstate_t *);
-	static size_t (*Cached__mbsnrtowcs)(wchar_t * __restrict,
-	    const char ** __restrict, size_t, size_t, mbstate_t * __restrict);
-	static size_t (*Cached__wcsnrtombs)(char * __restrict,
-	    const wchar_t ** __restrict, size_t, size_t,
-	    mbstate_t * __restrict);
+	struct xlocale_ctype saved = *l;
 
 	/*
 	 * The "C" and "POSIX" locale are always here.
 	 */
 	if (strcmp(encoding, "C") == 0 || strcmp(encoding, "POSIX") == 0) {
-		(void) _none_init(&_DefaultRuneLocale);
+		(void) _none_init(l, (_RuneLocale*)&_DefaultRuneLocale);
 		return (0);
 	}
-
-	/*
-	 * If the locale name is the same as our cache, use the cache.
-	 */
-	if (CachedRuneLocale != NULL &&
-	    strcmp(encoding, ctype_encoding) == 0) {
-		_CurrentRuneLocale = CachedRuneLocale;
-		__mb_cur_max = Cached__mb_cur_max;
-		__mb_sb_limit = Cached__mb_sb_limit;
-		__mbrtowc = Cached__mbrtowc;
-		__mbsinit = Cached__mbsinit;
-		__mbsnrtowcs = Cached__mbsnrtowcs;
-		__wcrtomb = Cached__wcrtomb;
-		__wcsnrtombs = Cached__wcsnrtombs;
-		return (0);
-	}
-
-	/*
-	 * Slurp the locale file into the cache.
-	 */
 
 	/* Range checking not needed, encoding length already checked before */
 	(void) strcpy(name, _PathLocale);
@@ -127,63 +110,47 @@ __setrunelocale(const char *encoding)
 	}
 	(void)fclose(fp);
 
-	old__mbrtowc = __mbrtowc;
-	old__mbsinit = __mbsinit;
-	old__mbsnrtowcs = __mbsnrtowcs;
-	old__wcrtomb = __wcrtomb;
-	old__wcsnrtombs = __wcsnrtombs;
-
-	__mbrtowc = NULL;
-	__mbsinit = NULL;
-	__mbsnrtowcs = __mbsnrtowcs_std;
-	__wcrtomb = NULL;
-	__wcsnrtombs = __wcsnrtombs_std;
+	l->__mbrtowc = NULL;
+	l->__mbsinit = NULL;
+	l->__mbsnrtowcs = __mbsnrtowcs_std;
+	l->__wcrtomb = NULL;
+	l->__wcsnrtombs = __wcsnrtombs_std;
 
 	rl->__sputrune = NULL;
 	rl->__sgetrune = NULL;
 	if (strcmp(rl->__encoding, "NONE") == 0)
-		ret = _none_init(rl);
+		ret = _none_init(l, rl);
 	else if (strcmp(rl->__encoding, "ASCII") == 0)
-		ret = _ascii_init(rl);
+		ret = _ascii_init(l, rl);
 	else if (strcmp(rl->__encoding, "UTF-8") == 0)
-		ret = _UTF8_init(rl);
+		ret = _UTF8_init(l, rl);
 	else if (strcmp(rl->__encoding, "EUC") == 0)
-		ret = _EUC_init(rl);
+		ret = _EUC_init(l, rl);
 	else if (strcmp(rl->__encoding, "GB18030") == 0)
- 		ret = _GB18030_init(rl);
+ 		ret = _GB18030_init(l, rl);
 	else if (strcmp(rl->__encoding, "GB2312") == 0)
-		ret = _GB2312_init(rl);
+		ret = _GB2312_init(l, rl);
 	else if (strcmp(rl->__encoding, "GBK") == 0)
-		ret = _GBK_init(rl);
+		ret = _GBK_init(l, rl);
 	else if (strcmp(rl->__encoding, "BIG5") == 0)
-		ret = _BIG5_init(rl);
+		ret = _BIG5_init(l, rl);
 	else if (strcmp(rl->__encoding, "MSKanji") == 0)
-		ret = _MSKanji_init(rl);
+		ret = _MSKanji_init(l, rl);
 	else
 		ret = EFTYPE;
 
 	if (ret == 0) {
-		if (CachedRuneLocale != NULL) {
-			/* See euc.c */
-			if (strcmp(CachedRuneLocale->__encoding, "EUC") == 0)
-				free(CachedRuneLocale->__variable);
-			free(CachedRuneLocale);
+		/* Free the old runes if it exists. */
+		/* FIXME: The "EUC" check here is a hideous abstraction violation. */
+		if ((saved.runes != &_DefaultRuneLocale) && (saved.runes)) {
+			if (strcmp(saved.runes->__encoding, "EUC") == 0) {
+				free(saved.runes->__variable);
+			}
+			free(saved.runes);
 		}
-		CachedRuneLocale = _CurrentRuneLocale;
-		Cached__mb_cur_max = __mb_cur_max;
-		Cached__mb_sb_limit = __mb_sb_limit;
-		Cached__mbrtowc = __mbrtowc;
-		Cached__mbsinit = __mbsinit;
-		Cached__mbsnrtowcs = __mbsnrtowcs;
-		Cached__wcrtomb = __wcrtomb;
-		Cached__wcsnrtombs = __wcsnrtombs;
-		(void)strcpy(ctype_encoding, encoding);
 	} else {
-		__mbrtowc = old__mbrtowc;
-		__mbsinit = old__mbsinit;
-		__mbsnrtowcs = old__mbsnrtowcs;
-		__wcrtomb = old__wcrtomb;
-		__wcsnrtombs = old__wcsnrtombs;
+		/* Restore the saved version if this failed. */
+		memcpy(l, &saved, sizeof(struct xlocale_ctype));
 		free(rl);
 	}
 
@@ -193,12 +160,24 @@ __setrunelocale(const char *encoding)
 int
 __wrap_setrunelocale(const char *locale)
 {
-	int ret = __setrunelocale(locale);
+	int ret = __setrunelocale(&__xlocale_global_ctype, locale);
 
 	if (ret != 0) {
 		errno = ret;
 		return (_LDP_ERROR);
 	}
+	__mb_cur_max = __xlocale_global_ctype.__mb_cur_max;
+	__mb_sb_limit = __xlocale_global_ctype.__mb_sb_limit;
 	return (_LDP_LOADED);
 }
-
+void *__ctype_load(const char *locale, locale_t unused)
+{
+	struct xlocale_ctype *l = calloc(sizeof(struct xlocale_ctype), 1);
+	l->header.header.destructor = destruct_ctype;
+	if (__setrunelocale(l, locale))
+	{
+		free(l);
+		return NULL;
+	}
+	return l;
+}

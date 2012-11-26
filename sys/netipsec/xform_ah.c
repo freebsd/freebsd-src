@@ -770,10 +770,8 @@ ah_input_cb(struct cryptop *crp)
 		if (sav->tdb_cryptoid != 0)
 			sav->tdb_cryptoid = crp->crp_sid;
 
-		if (crp->crp_etype == EAGAIN) {
-			error = crypto_dispatch(crp);
-			return error;
-		}
+		if (crp->crp_etype == EAGAIN)
+			return (crypto_dispatch(crp));
 
 		V_ahstat.ahs_noxform++;
 		DPRINTF(("%s: crypto error %d\n", __func__, crp->crp_etype));
@@ -1137,7 +1135,6 @@ ah_output_cb(struct cryptop *crp)
 	struct secasvar *sav;
 	struct mbuf *m;
 	caddr_t ptr;
-	int err;
 
 	tc = (struct tdb_crypto *) crp->crp_opaque;
 	IPSEC_ASSERT(tc != NULL, ("null opaque data area!"));
@@ -1164,8 +1161,7 @@ ah_output_cb(struct cryptop *crp)
 
 		if (crp->crp_etype == EAGAIN) {
 			IPSECREQUEST_UNLOCK(isr);
-			error = crypto_dispatch(crp);
-			return error;
+			return (crypto_dispatch(crp));
 		}
 
 		V_ahstat.ahs_noxform++;
@@ -1208,10 +1204,10 @@ ah_output_cb(struct cryptop *crp)
 #endif
 
 	/* NB: m is reclaimed by ipsec_process_done. */
-	err = ipsec_process_done(m, isr);
+	error = ipsec_process_done(m, isr);
 	KEY_FREESAV(&sav);
 	IPSECREQUEST_UNLOCK(isr);
-	return err;
+	return error;
 bad:
 	if (sav)
 		KEY_FREESAV(&sav);

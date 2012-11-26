@@ -67,6 +67,12 @@ struct coff_section {
   support::ulittle32_t Characteristics;
 };
 
+struct coff_relocation {
+  support::ulittle32_t VirtualAddress;
+  support::ulittle32_t SymbolTableIndex;
+  support::ulittle16_t Type;
+};
+
 class COFFObjectFile : public ObjectFile {
 private:
   const coff_file_header *Header;
@@ -78,26 +84,52 @@ private:
         error_code        getSection(int32_t index,
                                      const coff_section *&Res) const;
         error_code        getString(uint32_t offset, StringRef &Res) const;
+        error_code        getSymbol(uint32_t index,
+                                    const coff_symbol *&Res) const;
 
   const coff_symbol      *toSymb(DataRefImpl Symb) const;
   const coff_section     *toSec(DataRefImpl Sec) const;
+  const coff_relocation  *toRel(DataRefImpl Rel) const;
 
 protected:
   virtual error_code getSymbolNext(DataRefImpl Symb, SymbolRef &Res) const;
   virtual error_code getSymbolName(DataRefImpl Symb, StringRef &Res) const;
+  virtual error_code getSymbolOffset(DataRefImpl Symb, uint64_t &Res) const;
   virtual error_code getSymbolAddress(DataRefImpl Symb, uint64_t &Res) const;
   virtual error_code getSymbolSize(DataRefImpl Symb, uint64_t &Res) const;
   virtual error_code getSymbolNMTypeChar(DataRefImpl Symb, char &Res) const;
   virtual error_code isSymbolInternal(DataRefImpl Symb, bool &Res) const;
+  virtual error_code isSymbolGlobal(DataRefImpl Symb, bool &Res) const;
+  virtual error_code getSymbolType(DataRefImpl Symb, SymbolRef::SymbolType &Res) const;
 
   virtual error_code getSectionNext(DataRefImpl Sec, SectionRef &Res) const;
   virtual error_code getSectionName(DataRefImpl Sec, StringRef &Res) const;
   virtual error_code getSectionAddress(DataRefImpl Sec, uint64_t &Res) const;
   virtual error_code getSectionSize(DataRefImpl Sec, uint64_t &Res) const;
   virtual error_code getSectionContents(DataRefImpl Sec, StringRef &Res) const;
+  virtual error_code getSectionAlignment(DataRefImpl Sec, uint64_t &Res) const;
   virtual error_code isSectionText(DataRefImpl Sec, bool &Res) const;
+  virtual error_code isSectionData(DataRefImpl Sec, bool &Res) const;
+  virtual error_code isSectionBSS(DataRefImpl Sec, bool &Res) const;
   virtual error_code sectionContainsSymbol(DataRefImpl Sec, DataRefImpl Symb,
                                            bool &Result) const;
+  virtual relocation_iterator getSectionRelBegin(DataRefImpl Sec) const;
+  virtual relocation_iterator getSectionRelEnd(DataRefImpl Sec) const;
+
+  virtual error_code getRelocationNext(DataRefImpl Rel,
+                                       RelocationRef &Res) const;
+  virtual error_code getRelocationAddress(DataRefImpl Rel,
+                                          uint64_t &Res) const;
+  virtual error_code getRelocationSymbol(DataRefImpl Rel,
+                                         SymbolRef &Res) const;
+  virtual error_code getRelocationType(DataRefImpl Rel,
+                                       uint32_t &Res) const;
+  virtual error_code getRelocationTypeName(DataRefImpl Rel,
+                                           SmallVectorImpl<char> &Result) const;
+  virtual error_code getRelocationAdditionalInfo(DataRefImpl Rel,
+                                                 int64_t &Res) const;
+  virtual error_code getRelocationValueString(DataRefImpl Rel,
+                                           SmallVectorImpl<char> &Result) const;
 
 public:
   COFFObjectFile(MemoryBuffer *Object, error_code &ec);

@@ -545,8 +545,14 @@ static struct ucp_event_descr ucp_events[] = {
 
     UCPDESCR(0CH_01H, 0x0C, 0x01, UCP_F_FM | UCP_F_WM),
     UCPDESCR(0CH_02H, 0x0C, 0x02, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(0CH_04H, 0x0C, 0x04, UCP_F_FM | UCP_F_WM),
-    UCPDESCR(0CH_08H, 0x0C, 0x08, UCP_F_FM | UCP_F_WM),
+    UCPDESCR(0CH_04H_E, 0x0C, 0x04, UCP_F_FM | UCP_F_WM),
+    UCPDESCR(0CH_04H_F, 0x0C, 0x04, UCP_F_FM | UCP_F_WM),
+    UCPDESCR(0CH_04H_M, 0x0C, 0x04, UCP_F_FM | UCP_F_WM),
+    UCPDESCR(0CH_04H_S, 0x0C, 0x04, UCP_F_FM | UCP_F_WM),
+    UCPDESCR(0CH_08H_E, 0x0C, 0x08, UCP_F_FM | UCP_F_WM),
+    UCPDESCR(0CH_08H_F, 0x0C, 0x08, UCP_F_FM | UCP_F_WM),
+    UCPDESCR(0CH_08H_M, 0x0C, 0x08, UCP_F_FM | UCP_F_WM),
+    UCPDESCR(0CH_08H_S, 0x0C, 0x08, UCP_F_FM | UCP_F_WM),
 
     UCPDESCR(20H_01H, 0x20, 0x01, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
     UCPDESCR(20H_02H, 0x20, 0x02, UCP_F_FM | UCP_F_I7 | UCP_F_WM),
@@ -964,6 +970,36 @@ ucp_start_pmc(int cpu, int ri)
 
 	PMCDBG(MDP,STA,2, "ucp-start/2 cpu=%d ri=%d evselmsr=0x%x evsel=0x%x",
 	    cpu, ri, UCP_EVSEL0 + ri, evsel);
+
+	/* Event specific configuration. */
+	switch (pm->pm_event) {
+	case PMC_EV_UCP_EVENT_0CH_04H_E:
+		wrmsr(MSR_GQ_SNOOP_MESF,0x2);
+		break;
+	case PMC_EV_UCP_EVENT_0CH_04H_F:
+		wrmsr(MSR_GQ_SNOOP_MESF,0x8);
+		break;
+	case PMC_EV_UCP_EVENT_0CH_04H_M:
+		wrmsr(MSR_GQ_SNOOP_MESF,0x1);
+		break;
+	case PMC_EV_UCP_EVENT_0CH_04H_S:
+		wrmsr(MSR_GQ_SNOOP_MESF,0x4);
+		break;
+	case PMC_EV_UCP_EVENT_0CH_08H_E:
+		wrmsr(MSR_GQ_SNOOP_MESF,0x2);
+		break;
+	case PMC_EV_UCP_EVENT_0CH_08H_F:
+		wrmsr(MSR_GQ_SNOOP_MESF,0x8);
+		break;	
+	case PMC_EV_UCP_EVENT_0CH_08H_M:
+		wrmsr(MSR_GQ_SNOOP_MESF,0x1);
+		break;
+	case PMC_EV_UCP_EVENT_0CH_08H_S:
+		wrmsr(MSR_GQ_SNOOP_MESF,0x4);
+		break;
+	default:	
+		break;
+	}
 
 	wrmsr(UCP_EVSEL0 + ri, evsel);
 

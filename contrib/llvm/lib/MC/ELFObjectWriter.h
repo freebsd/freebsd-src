@@ -347,6 +347,7 @@ class ELFObjectWriter : public MCObjectWriter {
     virtual unsigned GetRelocType(const MCValue &Target, const MCFixup &Fixup,
                                   bool IsPCRel, bool IsRelocWithSymbol,
                                   int64_t Addend) = 0;
+    virtual void adjustFixupOffset(const MCFixup &Fixup, uint64_t &RelocOffset) { }
   };
 
   //===- X86ELFObjectWriter -------------------------------------------===//
@@ -395,6 +396,22 @@ class ELFObjectWriter : public MCObjectWriter {
     
   };
 
+  //===- PPCELFObjectWriter -------------------------------------------===//
+
+  class PPCELFObjectWriter : public ELFObjectWriter {
+  public:
+    PPCELFObjectWriter(MCELFObjectTargetWriter *MOTW,
+                          raw_ostream &_OS,
+                          bool IsLittleEndian);
+
+    virtual ~PPCELFObjectWriter();
+  protected:
+    virtual unsigned GetRelocType(const MCValue &Target, const MCFixup &Fixup,
+                                  bool IsPCRel, bool IsRelocWithSymbol,
+                                  int64_t Addend);
+    virtual void adjustFixupOffset(const MCFixup &Fixup, uint64_t &RelocOffset);
+  };
+
   //===- MBlazeELFObjectWriter -------------------------------------------===//
 
   class MBlazeELFObjectWriter : public ELFObjectWriter {
@@ -404,6 +421,21 @@ class ELFObjectWriter : public MCObjectWriter {
                           bool IsLittleEndian);
 
     virtual ~MBlazeELFObjectWriter();
+  protected:
+    virtual unsigned GetRelocType(const MCValue &Target, const MCFixup &Fixup,
+                                  bool IsPCRel, bool IsRelocWithSymbol,
+                                  int64_t Addend);
+  };
+
+  //===- MipsELFObjectWriter -------------------------------------------===//
+
+  class MipsELFObjectWriter : public ELFObjectWriter {
+  public:
+    MipsELFObjectWriter(MCELFObjectTargetWriter *MOTW,
+                        raw_ostream &_OS,
+                        bool IsLittleEndian);
+
+    virtual ~MipsELFObjectWriter();
   protected:
     virtual unsigned GetRelocType(const MCValue &Target, const MCFixup &Fixup,
                                   bool IsPCRel, bool IsRelocWithSymbol,

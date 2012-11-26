@@ -218,7 +218,7 @@ void fs_tbl_process_statfs_entry(const struct statfs *, int32_t);
 /* Called after refreshing fs part of hrStorageTable */
 void fs_tbl_post_refresh(void);
 
-/* Refresh the FS table if neccessary. */
+/* Refresh the FS table if necessary. */
 void refresh_fs_tbl(void);
 
 /* Finalization routine for hrFSTable. */

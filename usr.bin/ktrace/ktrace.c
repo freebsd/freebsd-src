@@ -43,14 +43,15 @@ static char sccsid[] = "@(#)ktrace.c	8.1 (Berkeley) 6/6/93";
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/stat.h>
 #include <sys/file.h>
+#include <sys/stat.h>
 #include <sys/time.h>
-#include <sys/errno.h>
 #include <sys/uio.h>
 #include <sys/ktrace.h>
 
 #include <err.h>
+#include <errno.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -59,21 +60,22 @@ __FBSDID("$FreeBSD$");
 
 static char def_tracefile[] = DEF_TRACEFILE;
 
+static enum clear { NOTSET, CLEAR, CLEARALL } clear = NOTSET;
+static int pid;
+
 static void no_ktrace(int);
-static int rpid(char *);
+static void set_pid_clear(const char *, enum clear);
 static void usage(void);
 
 int
 main(int argc, char *argv[])
 {
-	enum { NOTSET, CLEAR, CLEARALL } clear;
-	int append, ch, fd, inherit, ops, pid, pidset, trpoints;
+	int append, ch, fd, inherit, ops, trpoints;
 	const char *tracefile;
 	mode_t omask;
 	struct stat sb;
 
-	clear = NOTSET;
-	append = ops = pidset = inherit = 0;
+	append = ops = inherit = 0;
 	trpoints = DEF_POINTS;
 	tracefile = def_tracefile;
 	while ((ch = getopt(argc,argv,"aCcdf:g:ip:t:")) != -1)
@@ -82,11 +84,10 @@ main(int argc, char *argv[])
 			append = 1;
 			break;
 		case 'C':
-			clear = CLEARALL;
-			pidset = 1;
+			set_pid_clear("1", CLEARALL);
 			break;
 		case 'c':
-			clear = CLEAR;
+			set_pid_clear(NULL, CLEAR);
 			break;
 		case 'd':
 			ops |= KTRFLAG_DESCEND;
@@ -95,15 +96,14 @@ main(int argc, char *argv[])
 			tracefile = optarg;
 			break;
 		case 'g':
-			pid = -rpid(optarg);
-			pidset = 1;
+			set_pid_clear(optarg, NOTSET);
+			pid = -pid;
 			break;
 		case 'i':
 			inherit = 1;
 			break;
 		case 'p':
-			pid = rpid(optarg);
-			pidset = 1;
+			set_pid_clear(optarg, NOTSET);
 			break;
 		case 't':
 			trpoints = getpoints(optarg);
@@ -115,12 +115,19 @@ main(int argc, char *argv[])
 		default:
 			usage();
 		}
+
 	argv += optind;
 	argc -= optind;
-	
-	if ((pidset && *argv) || (!pidset && clear == NOTSET && !*argv))
+
+	/* must have either -[Cc], a pid or a command */
+	if (clear == NOTSET && pid == 0 && argc == 0)
 		usage();
-			
+	/* can't have both a pid and a command */
+	/* (note that -C sets pid to 1) */
+	if (pid != 0 && argc > 0) {
+		usage();
+	}
+
 	if (inherit)
 		trpoints |= KTRFAC_INHERIT;
 
@@ -129,10 +136,9 @@ main(int argc, char *argv[])
 		if (clear == CLEARALL) {
 			ops = KTROP_CLEAR | KTRFLAG_DESCEND;
 			trpoints = ALL_POINTS;
-			pid = 1;
-		} else
-			ops |= pidset ? KTROP_CLEAR : KTROP_CLEARFILE;
-
+		} else {
+			ops |= pid ? KTROP_CLEAR : KTROP_CLEARFILE;
+		}
 		if (ktrace(tracefile, ops, trpoints, pid) < 0)
 			err(1, "%s", tracefile);
 		exit(0);
@@ -160,46 +166,75 @@ main(int argc, char *argv[])
 
 	trpoints |= PROC_ABI_POINTS;
 
-	if (*argv) { 
+	if (argc > 0) { 
 		if (ktrace(tracefile, ops, trpoints, getpid()) < 0)
 			err(1, "%s", tracefile);
-		execvp(argv[0], &argv[0]);
-		err(1, "exec of '%s' failed", argv[0]);
+		execvp(*argv, argv);
+		err(1, "exec of '%s' failed", *argv);
 	}
-	else if (ktrace(tracefile, ops, trpoints, pid) < 0)
+	if (ktrace(tracefile, ops, trpoints, pid) < 0)
 		err(1, "%s", tracefile);
 	exit(0);
 }
 
-static int
-rpid(char *p)
+static void
+set_pid_clear(const char *p, enum clear cl)
 {
-	static int first;
+	intmax_t n;
+	char *e;
 
-	if (first++) {
+	if (clear != NOTSET && cl != NOTSET) {
+		/* either -c and -C or either of them twice */
+		warnx("only one -c or -C flag is permitted");
+		usage();
+	}
+	if ((clear == CLEARALL && p != NULL) || (cl == CLEARALL && pid != 0)) {
+		/* both -C and a pid or pgid */
+		warnx("the -C flag may not be combined with -g or -p");
+		usage();
+	}
+	if (p != NULL && pid != 0) {
+		/* either -p and -g or either of them twice */
 		warnx("only one -g or -p flag is permitted");
 		usage();
 	}
-	if (!*p) {
-		warnx("illegal process id");
-		usage();
+	if (p != NULL) {
+		errno = 0;
+		n = strtoimax(p, &e, 10);
+		/*
+		 * 1) not a number, or outside the range of an intmax_t
+		 * 2) inside the range of intmax_t but outside the range
+		 *    of an int, keeping in mind that the pid may be
+		 *    negated if it's actually a pgid.
+		 */
+		if (*e != '\0' || n < 1 || errno == ERANGE ||
+		    n > (intmax_t)INT_MAX || n > -(intmax_t)INT_MIN) {
+			warnx("invalid process or group id");
+			usage();
+		}
+		pid = n;
 	}
-	return(atoi(p));
+	if (cl != NOTSET)
+		if ((clear = cl) == CLEARALL)
+			pid = 1;
 }
 
 static void
 usage(void)
 {
-	(void)fprintf(stderr, "%s\n%s\n",
-"usage: ktrace [-aCcdi] [-f trfile] [-g pgrp | -p pid] [-t trstr]",
-"       ktrace [-adi] [-f trfile] [-t trstr] command");
+
+	fprintf(stderr, "%s\n%s\n",
+	    "usage: ktrace [-aCcdi] [-f trfile] [-g pgrp | -p pid] [-t trstr]",
+	    "       ktrace [-adi] [-f trfile] [-t trstr] command");
 	exit(1);
 }
 
 static void
 no_ktrace(int sig __unused)
 {
-        (void)fprintf(stderr,
-"error:\tktrace() system call not supported in the running kernel\n\tre-compile kernel with 'options KTRACE'\n");
+
+	fprintf(stderr, "error:\t%s\n\t%s\n",
+	    "ktrace() system call not supported in the running kernel",
+	    "re-compile kernel with 'options KTRACE'");
         exit(1);
 }

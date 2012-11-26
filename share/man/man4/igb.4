@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 14, 2010
+.Dd October 11, 2011
 .Dt IGB 4
 .Os
 .Sh NAME
@@ -151,11 +151,11 @@ prompt before booting the kernel or stored in
 .Bl -tag -width indent
 .It Va hw.igb.rxd
 Number of receive descriptors allocated by the driver.
-The default value is 256.
+The default value is 1024.
 The minimum is 80, and the maximum is 4096.
 .It Va hw.igb.txd
 Number of transmit descriptors allocated by the driver.
-The default value is 256.
+The default value is 1024.
 The minimum is 80, and the maximum is 4096.
 .It Va hw.igb.enable_aim
 If set to 1, enable Adaptive Interrupt Moderation.

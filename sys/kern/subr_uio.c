@@ -437,7 +437,7 @@ copyinstrfrom(const void * __restrict src, void * __restrict dst, size_t len,
 }
 
 int
-copyiniov(struct iovec *iovp, u_int iovcnt, struct iovec **iov, int error)
+copyiniov(const struct iovec *iovp, u_int iovcnt, struct iovec **iov, int error)
 {
 	u_int iovlen;
 
@@ -455,7 +455,7 @@ copyiniov(struct iovec *iovp, u_int iovcnt, struct iovec **iov, int error)
 }
 
 int
-copyinuio(struct iovec *iovp, u_int iovcnt, struct uio **uiop)
+copyinuio(const struct iovec *iovp, u_int iovcnt, struct uio **uiop)
 {
 	struct iovec *iov;
 	struct uio *uio;

@@ -14,12 +14,12 @@
 
 #define DEBUG_TYPE "jit"
 #include "ARM.h"
-#include "ARMAddressingModes.h"
 #include "ARMConstantPoolValue.h"
 #include "ARMInstrInfo.h"
 #include "ARMRelocations.h"
 #include "ARMSubtarget.h"
 #include "ARMTargetMachine.h"
+#include "MCTargetDesc/ARMAddressingModes.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
@@ -161,11 +161,11 @@ namespace {
     //  are already handled elsewhere. They are placeholders to allow this
     //  encoder to continue to function until the MC encoder is sufficiently
     //  far along that this one can be eliminated entirely.
-    unsigned NEONThumb2DataIPostEncoder(const MachineInstr &MI, unsigned Val) 
+    unsigned NEONThumb2DataIPostEncoder(const MachineInstr &MI, unsigned Val)
       const { return 0; }
-    unsigned NEONThumb2LoadStorePostEncoder(const MachineInstr &MI,unsigned Val) 
+    unsigned NEONThumb2LoadStorePostEncoder(const MachineInstr &MI,unsigned Val)
       const { return 0; }
-    unsigned NEONThumb2DupPostEncoder(const MachineInstr &MI,unsigned Val) 
+    unsigned NEONThumb2DupPostEncoder(const MachineInstr &MI,unsigned Val)
       const { return 0; }
     unsigned VFPThumb2PostEncoder(const MachineInstr&MI, unsigned Val)
       const { return 0; }
@@ -189,13 +189,17 @@ namespace {
       unsigned Op) const { return 0; }
     unsigned getARMBranchTargetOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
+    unsigned getARMBLXTargetOpValue(const MachineInstr &MI, unsigned Op)
+      const { return 0; }
     unsigned getCCOutOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
     unsigned getSOImmOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
     unsigned getT2SOImmOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
-    unsigned getSORegOpValue(const MachineInstr &MI, unsigned Op)
+    unsigned getSORegRegOpValue(const MachineInstr &MI, unsigned Op)
+      const { return 0; }
+    unsigned getSORegImmOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
     unsigned getThumbAddrModeRegRegOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
@@ -203,7 +207,11 @@ namespace {
       const { return 0; }
     unsigned getT2AddrModeImm8OpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
+    unsigned getT2Imm8s4OpValue(const MachineInstr &MI, unsigned Op)
+      const { return 0; }
     unsigned getT2AddrModeImm8s4OpValue(const MachineInstr &MI, unsigned Op)
+      const { return 0; }
+    unsigned getT2AddrModeImm0_1020s4OpValue(const MachineInstr &MI,unsigned Op)
       const { return 0; }
     unsigned getT2AddrModeImm8OffsetOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
@@ -212,10 +220,6 @@ namespace {
     unsigned getT2AddrModeSORegOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
     unsigned getT2SORegOpValue(const MachineInstr &MI, unsigned Op)
-      const { return 0; }
-    unsigned getRotImmOpValue(const MachineInstr &MI, unsigned Op)
-      const { return 0; }
-    unsigned getImmMinusOneOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
     unsigned getT2AdrLabelOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
@@ -230,8 +234,6 @@ namespace {
       const { return 0; }
     unsigned getBitfieldInvertedMaskOpValue(const MachineInstr &MI,
                                             unsigned Op) const { return 0; }
-    unsigned getMsbOpValue(const MachineInstr &MI,
-                           unsigned Op) const { return 0; }
     unsigned getSsatBitPosValue(const MachineInstr &MI,
                                 unsigned Op) const { return 0; }
     uint32_t getLdStmModeOpValue(const MachineInstr &MI, unsigned OpIdx)
@@ -267,6 +269,8 @@ namespace {
     uint32_t getAddrMode2OpValue(const MachineInstr &MI, unsigned OpIdx)
       const { return 0;}
     uint32_t getAddrMode2OffsetOpValue(const MachineInstr &MI, unsigned OpIdx)
+      const { return 0;}
+    uint32_t getPostIdxRegOpValue(const MachineInstr &MI, unsigned OpIdx)
       const { return 0;}
     uint32_t getAddrMode3OffsetOpValue(const MachineInstr &MI, unsigned OpIdx)
       const { return 0;}
@@ -632,15 +636,16 @@ void ARMCodeEmitter::emitConstPoolInstruction(const MachineInstr &MI) {
           << (void*)MCE.getCurrentPCValue() << " " << *ACPV << '\n');
 
     assert(ACPV->isGlobalValue() && "unsupported constant pool value");
-    const GlobalValue *GV = ACPV->getGV();
+    const GlobalValue *GV = cast<ARMConstantPoolConstant>(ACPV)->getGV();
     if (GV) {
       Reloc::Model RelocM = TM.getRelocationModel();
       emitGlobalAddress(GV, ARM::reloc_arm_machine_cp_entry,
                         isa<Function>(GV),
                         Subtarget->GVIsIndirectSymbol(GV, RelocM),
                         (intptr_t)ACPV);
-     } else  {
-      emitExternalSymbolAddress(ACPV->getSymbol(), ARM::reloc_arm_absolute);
+    } else  {
+      const char *Sym = cast<ARMConstantPoolSymbol>(ACPV)->getSymbol();
+      emitExternalSymbolAddress(Sym, ARM::reloc_arm_absolute);
     }
     emitWordLE(0);
   } else {
@@ -983,7 +988,7 @@ unsigned ARMCodeEmitter::getMachineSoImmOpValue(unsigned SoImm) {
 
 unsigned ARMCodeEmitter::getAddrModeSBit(const MachineInstr &MI,
                                          const MCInstrDesc &MCID) const {
-  for (unsigned i = MI.getNumOperands(), e = MCID.getNumOperands(); i >= e; --i){
+  for (unsigned i = MI.getNumOperands(), e = MCID.getNumOperands(); i >= e;--i){
     const MachineOperand &MO = MI.getOperand(i-1);
     if (MO.isReg() && MO.isDef() && MO.getReg() == ARM::CPSR)
       return 1 << ARMII::S_BitShift;

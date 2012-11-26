@@ -71,7 +71,7 @@ struct tcb {
 	u_long __i;						\
 	__asm __volatile("movq %%fs:%1, %0"			\
 	    : "=r" (__i)					\
-	    : "m" (*(u_long *)(__tcb_offset(name))));		\
+	    : "m" (*(volatile u_long *)(__tcb_offset(name))));  \
 	__result = (__tcb_type(name))__i;			\
 								\
 	__result;						\
