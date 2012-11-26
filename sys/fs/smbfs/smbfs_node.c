@@ -187,6 +187,7 @@ smbfs_node_alloc(struct mount *mp, struct vnode *dvp, const char *dirnm,
 		bcopy(name, p, nmlen);
 		p += nmlen;
 	}
+	*p = '\0';
 	MPASS(p == rpath + rplen);
 	lockmgr(vp->v_vnlock, LK_EXCLUSIVE, NULL);
 	/* Vnode initialization */
