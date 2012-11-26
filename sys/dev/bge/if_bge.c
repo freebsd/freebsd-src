@@ -885,7 +885,7 @@ bge_miibus_writereg(device_t dev, int phy, int reg, int val)
 
 	if (i == BGE_TIMEOUT)
 		device_printf(sc->bge_dev,
-		    "PHY write timed out (phy %d, reg %d, val %d)\n",
+		    "PHY write timed out (phy %d, reg %d, val 0x%04x)\n",
 		    phy, reg, val);
 
 	return (0);
@@ -1466,8 +1466,10 @@ bge_chipinit(struct bge_softc *sc)
 	dma_rw_ctl = BGE_PCIDMARWCTL_RD_CMD_SHIFT(6) |
 	    BGE_PCIDMARWCTL_WR_CMD_SHIFT(7);
 	if (sc->bge_flags & BGE_FLAG_PCIE) {
-		/* Read watermark not used, 128 bytes for write. */
-		dma_rw_ctl |= BGE_PCIDMARWCTL_WR_WAT_SHIFT(3);
+		if (sc->bge_mps >= 256)
+			dma_rw_ctl |= BGE_PCIDMARWCTL_WR_WAT_SHIFT(7);
+		else
+			dma_rw_ctl |= BGE_PCIDMARWCTL_WR_WAT_SHIFT(3);
 	} else if (sc->bge_flags & BGE_FLAG_PCIX) {
 		if (BGE_IS_5714_FAMILY(sc)) {
 			/* 256 bytes for read and write. */
@@ -2034,6 +2036,7 @@ bge_blockinit(struct bge_softc *sc)
 	if (!(BGE_IS_5705_PLUS(sc)))
 		CSR_WRITE_4(sc, BGE_RXLS_MODE, BGE_RXLSMODE_ENABLE);
 
+	/* Turn on DMA, clear stats. */
 	val = BGE_MACMODE_TXDMA_ENB | BGE_MACMODE_RXDMA_ENB |
 	    BGE_MACMODE_RX_STATS_CLEAR | BGE_MACMODE_TX_STATS_CLEAR |
 	    BGE_MACMODE_RX_STATS_ENB | BGE_MACMODE_TX_STATS_ENB |
@@ -2046,7 +2049,6 @@ bge_blockinit(struct bge_softc *sc)
 	else
 		val |= BGE_PORTMODE_MII;
 
-	/* Turn on DMA, clear stats */
 	CSR_WRITE_4(sc, BGE_MAC_MODE, val);
 	DELAY(40);
 
@@ -3186,11 +3188,16 @@ bge_attach(device_t dev)
 		 */
 		sc->bge_flags |= BGE_FLAG_PCIE;
 		sc->bge_expcap = reg;
+		/* Extract supported maximum payload size. */
+		sc->bge_mps = pci_read_config(dev, sc->bge_expcap +
+		    PCIER_DEVICE_CAP, 2);
+		sc->bge_mps = 128 << (sc->bge_mps & PCIEM_CAP_MAX_PAYLOAD);
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5719 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5720)
-			pci_set_max_read_req(dev, 2048);
-		else if (pci_get_max_read_req(dev) != 4096)
-			pci_set_max_read_req(dev, 4096);
+			sc->bge_expmrq = 2048;
+		else
+			sc->bge_expmrq = 4096;
+		pci_set_max_read_req(dev, sc->bge_expmrq);
 	} else {
 		/*
 		 * Check if the device is in PCI-X Mode.
@@ -3399,7 +3406,7 @@ bge_attach(device_t dev)
 	/* The SysKonnect SK-9D41 is a 1000baseSX card. */
 	if ((pci_read_config(dev, BGE_PCI_SUBSYS, 4) >> 16) ==
 	    SK_SUBSYSID_9D41 || (hwcfg & BGE_HWCFG_MEDIA) == BGE_MEDIA_FIBER) {
-		if (BGE_IS_5714_FAMILY(sc))
+		if (BGE_IS_5705_PLUS(sc))
 			sc->bge_flags |= BGE_FLAG_MII_SERDES;
 		else
 			sc->bge_flags |= BGE_FLAG_TBI;
@@ -3622,13 +3629,25 @@ bge_reset(struct bge_softc *sc)
 
 	/* XXX: Broadcom Linux driver. */
 	if (sc->bge_flags & BGE_FLAG_PCIE) {
-		if (CSR_READ_4(sc, 0x7E2C) == 0x60)	/* PCIE 1.0 */
-			CSR_WRITE_4(sc, 0x7E2C, 0x20);
+		if (sc->bge_asicrev != BGE_ASICREV_BCM5785 &&
+		    (sc->bge_flags & BGE_FLAG_5717_PLUS) == 0) {
+			if (CSR_READ_4(sc, 0x7E2C) == 0x60)	/* PCIE 1.0 */
+				CSR_WRITE_4(sc, 0x7E2C, 0x20);
+		}
 		if (sc->bge_chipid != BGE_CHIPID_BCM5750_A0) {
 			/* Prevent PCIE link training during global reset */
 			CSR_WRITE_4(sc, BGE_MISC_CFG, 1 << 29);
 			reset |= 1 << 29;
 		}
+	}
+
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5906) {
+		val = CSR_READ_4(sc, BGE_VCPU_STATUS);
+		CSR_WRITE_4(sc, BGE_VCPU_STATUS,
+		    val | BGE_VCPU_STATUS_DRV_RESET);
+		val = CSR_READ_4(sc, BGE_VCPU_EXT_CTRL);
+		CSR_WRITE_4(sc, BGE_VCPU_EXT_CTRL,
+		    val & ~BGE_VCPU_EXT_CTRL_HALT_CPU);
 	}
 
 	/*
@@ -3641,15 +3660,6 @@ bge_reset(struct bge_softc *sc)
 
 	/* Issue global reset */
 	write_op(sc, BGE_MISC_CFG, reset);
-
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5906) {
-		val = CSR_READ_4(sc, BGE_VCPU_STATUS);
-		CSR_WRITE_4(sc, BGE_VCPU_STATUS,
-		    val | BGE_VCPU_STATUS_DRV_RESET);
-		val = CSR_READ_4(sc, BGE_VCPU_EXT_CTRL);
-		CSR_WRITE_4(sc, BGE_VCPU_EXT_CTRL,
-		    val & ~BGE_VCPU_EXT_CTRL_HALT_CPU);
-	}
 
 	DELAY(1000);
 
@@ -3667,6 +3677,7 @@ bge_reset(struct bge_softc *sc)
 		    PCIEM_CTL_NOSNOOP_ENABLE);
 		pci_write_config(dev, sc->bge_expcap + PCIER_DEVICE_CTL,
 		    devctl, 2);
+		pci_set_max_read_req(dev, sc->bge_expmrq);
 		/* Clear error status. */
 		pci_write_config(dev, sc->bge_expcap + PCIER_DEVICE_STA,
 		    PCIEM_STA_CORRECTABLE_ERROR |
@@ -3798,7 +3809,6 @@ bge_reset(struct bge_softc *sc)
 		val = CSR_READ_4(sc, 0x7C00);
 		CSR_WRITE_4(sc, 0x7C00, val | (1 << 25));
 	}
-	DELAY(10000);
 
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5720)
 		BGE_CLRBIT(sc, BGE_CPMU_CLCK_ORIDE,
@@ -4088,10 +4098,12 @@ bge_poll(struct ifnet *ifp, enum poll_cmd cmd, int count)
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
 	    sc->bge_cdata.bge_status_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+	/* Fetch updates from the status block. */
 	rx_prod = sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx;
 	tx_cons = sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx;
 
 	statusword = sc->bge_ldata.bge_status_block->bge_status;
+	/* Clear the status so the next pass only sees the changes. */
 	sc->bge_ldata.bge_status_block->bge_status = 0;
 
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
@@ -4159,11 +4171,12 @@ bge_intr_task(void *arg, int pending)
 	    sc->bge_cdata.bge_status_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
-	/* Save producer/consumer indexess. */
+	/* Save producer/consumer indices. */
 	rx_prod = sc->bge_ldata.bge_status_block->bge_idx[0].bge_rx_prod_idx;
 	tx_cons = sc->bge_ldata.bge_status_block->bge_idx[0].bge_tx_cons_idx;
 	status = sc->bge_ldata.bge_status_block->bge_status;
 	status_tag = sc->bge_ldata.bge_status_block->bge_status_tag << 24;
+	/* Dirty the status flag. */
 	sc->bge_ldata.bge_status_block->bge_status = 0;
 	bus_dmamap_sync(sc->bge_cdata.bge_status_tag,
 	    sc->bge_cdata.bge_status_map,
@@ -5703,7 +5716,7 @@ bge_link_upd(struct bge_softc *sc)
 		bge_miibus_statchg(sc->bge_dev);
 	}
 
-	/* Clear the attention. */
+	/* Disable MAC attention when link is up. */
 	CSR_WRITE_4(sc, BGE_MAC_STS, BGE_MACSTAT_SYNC_CHANGED |
 	    BGE_MACSTAT_CFG_CHANGED | BGE_MACSTAT_MI_COMPLETE |
 	    BGE_MACSTAT_LINK_CHANGED);
