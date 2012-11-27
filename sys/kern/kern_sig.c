@@ -171,6 +171,7 @@ SYSINIT(signal, SI_SUB_P1003_1B, SI_ORDER_FIRST+3, sigqueue_start, NULL);
 	    (cr1)->cr_uid == (cr2)->cr_uid)
 
 static int	sugid_coredump;
+TUNABLE_INT("kern.sugid_coredump", &sugid_coredump);
 SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RW,
     &sugid_coredump, 0, "Allow setuid and setgid processes to dump core");
 
@@ -3015,6 +3016,7 @@ SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_gzlevel, CTLFLAG_RW,
 #endif
 
 static char corefilename[MAXPATHLEN] = {"%N.core"};
+TUNABLE_STR("kern.corefile", corefilename, sizeof(corefilename));
 SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RW, corefilename,
 	      sizeof(corefilename), "process corefile name format string");
 
