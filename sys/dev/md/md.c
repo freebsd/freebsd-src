@@ -1032,7 +1032,7 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	 * Range check.  Disallow negative sizes or any size less then the
 	 * size of a page.  Then round to a page.
 	 */
-	if (sc->mediasize == 0 || (sc->mediasize % PAGE_SIZE) != 0)
+	if (sc->mediasize <= 0 || (sc->mediasize % PAGE_SIZE) != 0)
 		return (EDOM);
 
 	/*
@@ -1073,6 +1073,7 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 	struct md_ioctl *mdio;
 	struct md_s *sc;
 	int error, i;
+	unsigned sectsize;
 
 	if (md_debug)
 		printf("mdctlioctl(%s %lx %p %x %p)\n",
@@ -1101,6 +1102,12 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		default:
 			return (EINVAL);
 		}
+		if (mdio->md_sectorsize == 0)
+			sectsize = DEV_BSIZE;
+		else
+			sectsize = mdio->md_sectorsize;
+		if (sectsize > MAXPHYS || mdio->md_mediasize < sectsize)
+			return (EINVAL);
 		if (mdio->md_options & MD_AUTOUNIT)
 			sc = mdnew(-1, &error, mdio->md_type);
 		else {
@@ -1113,10 +1120,7 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		if (mdio->md_options & MD_AUTOUNIT)
 			mdio->md_unit = sc->unit;
 		sc->mediasize = mdio->md_mediasize;
-		if (mdio->md_sectorsize == 0)
-			sc->sectorsize = DEV_BSIZE;
-		else
-			sc->sectorsize = mdio->md_sectorsize;
+		sc->sectorsize = sectsize;
 		error = EDOOFUS;
 		switch (sc->type) {
 		case MD_MALLOC:
