@@ -1679,6 +1679,14 @@ sys_kill(struct thread *td, struct kill_args *uap)
 	struct proc *p;
 	int error;
 
+	/*
+	 * A process in capability mode can send signals only to himself.
+	 * The main rationale behind this is that abort(3) is implemented as
+	 * kill(getpid(), SIGABRT).
+	 */
+	if (IN_CAPABILITY_MODE(td) && uap->pid != td->td_proc->p_pid)
+		return (ECAPMODE);
+
 	AUDIT_ARG_SIGNUM(uap->signum);
 	AUDIT_ARG_PID(uap->pid);
 	if ((u_int)uap->signum > _SIG_MAXSIG)
