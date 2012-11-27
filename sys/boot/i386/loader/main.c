@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <stddef.h>
 #include <string.h>
 #include <machine/bootinfo.h>
+#include <machine/cpufunc.h>
 #include <machine/psl.h>
 #include <sys/reboot.h>
 
@@ -321,34 +322,42 @@ command_heap(int argc, char *argv[])
     return(CMD_OK);
 }
 
-/* ISA bus access functions for PnP, derived from <machine/cpufunc.h> */
-static int		
+#ifdef LOADER_ZFS_SUPPORT
+COMMAND_SET(lszfs, "lszfs", "list child datasets of a zfs dataset",
+    command_lszfs);
+
+static int
+command_lszfs(int argc, char *argv[])
+{
+    int err;
+
+    if (argc != 2) {
+	command_errmsg = "wrong number of arguments";
+	return (CMD_ERROR);
+    }
+
+    err = zfs_list(argv[1]);
+    if (err != 0) {
+	command_errmsg = strerror(err);
+	return (CMD_ERROR);
+    }
+    return (CMD_OK);
+}
+#endif
+
+/* ISA bus access functions for PnP. */
+static int
 isa_inb(int port)
 {
-    u_char	data;
-    
-    if (__builtin_constant_p(port) && 
-	(((port) & 0xffff) < 0x100) && 
-	((port) < 0x10000)) {
-	__asm __volatile("inb %1,%0" : "=a" (data) : "id" ((u_short)(port)));
-    } else {
-	__asm __volatile("inb %%dx,%0" : "=a" (data) : "d" (port));
-    }
-    return(data);
+
+    return (inb(port));
 }
 
 static void
 isa_outb(int port, int value)
 {
-    u_char	al = value;
-    
-    if (__builtin_constant_p(port) && 
-	(((port) & 0xffff) < 0x100) && 
-	((port) < 0x10000)) {
-	__asm __volatile("outb %0,%1" : : "a" (al), "id" ((u_short)(port)));
-    } else {
-        __asm __volatile("outb %0,%%dx" : : "a" (al), "d" (port));
-    }
+
+    outb(port, value);
 }
 
 #ifdef LOADER_ZFS_SUPPORT
@@ -356,25 +365,17 @@ static void
 i386_zfs_probe(void)
 {
     char devname[32];
-    int unit, slice;
+    int unit;
 
     /*
      * Open all the disks we can find and see if we can reconstruct
-     * ZFS pools from them. Bogusly assumes that the disks are named
-     * diskN, diskNpM or diskNsM.
+     * ZFS pools from them.
      */
     for (unit = 0; unit < MAXBDDEV; unit++) {
+	if (bd_unit2bios(unit) == -1)
+	    break;
 	sprintf(devname, "disk%d:", unit);
-	if (zfs_probe_dev(devname, NULL) == ENXIO)
-	    continue;
-	for (slice = 1; slice <= 128; slice++) {
-	    sprintf(devname, "disk%dp%d:", unit, slice);
-	    zfs_probe_dev(devname, NULL);
-	}
-	for (slice = 1; slice <= 4; slice++) {
-	    sprintf(devname, "disk%ds%d:", unit, slice);
-	    zfs_probe_dev(devname, NULL);
-	}
+	zfs_probe_dev(devname, NULL);
     }
 }
 #endif

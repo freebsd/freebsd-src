@@ -548,7 +548,8 @@ bmap_getlbns(struct nandfs_node *node, nandfs_lbn_t bn, struct nandfs_indir *ap,
 	DPRINTF(BMAP, ("%s: node %p bn=%jx mnindir=%zd enter\n", __func__,
 	    node, bn, MNINDIR(fsdev)));
 
-	*nump = 0;
+	if (nump)
+		*nump = 0;
 	numlevels = 0;
 	realbn = bn;
 

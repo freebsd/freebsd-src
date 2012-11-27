@@ -80,13 +80,6 @@ __FBSDID("$FreeBSD$");
 /*
  *	Manages physical address maps.
  *
- *	In addition to hardware address maps, this
- *	module is called upon to provide software-use-only
- *	maps which may or may not be stored in the same
- *	form as hardware maps.  These pseudo-maps are
- *	used to store intermediate results from copy
- *	operations to and from address spaces.
- *
  *	Since the information managed by this module is
  *	also stored by the logical address mapping module,
  *	this module may throw away valid virtual-to-physical
@@ -344,7 +337,7 @@ static void pmap_update_pde_invalidate(vm_offset_t va, pd_entry_t newpde);
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
 
 static vm_page_t _pmap_allocpte(pmap_t pmap, u_int ptepindex, int flags);
-static int _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m, vm_page_t *free);
+static void _pmap_unwire_ptp(pmap_t pmap, vm_page_t m, vm_page_t *free);
 static pt_entry_t *pmap_pte_quick(pmap_t pmap, vm_offset_t va);
 static void pmap_pte_release(pt_entry_t *pte);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, vm_page_t *);
@@ -1672,22 +1665,25 @@ pmap_remove_pt_page(pmap_t pmap, vm_page_t mpte)
 }
 
 /*
- * This routine unholds page table pages, and if the hold count
- * drops to zero, then it decrements the wire count.
+ * Decrements a page table page's wire count, which is used to record the
+ * number of valid page table entries within the page.  If the wire count
+ * drops to zero, then the page table page is unmapped.  Returns TRUE if the
+ * page table page was unmapped and FALSE otherwise.
  */
-static __inline int
-pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m, vm_page_t *free)
+static inline boolean_t
+pmap_unwire_ptp(pmap_t pmap, vm_page_t m, vm_page_t *free)
 {
 
 	--m->wire_count;
-	if (m->wire_count == 0)
-		return (_pmap_unwire_pte_hold(pmap, m, free));
-	else
-		return (0);
+	if (m->wire_count == 0) {
+		_pmap_unwire_ptp(pmap, m, free);
+		return (TRUE);
+	} else
+		return (FALSE);
 }
 
-static int 
-_pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m, vm_page_t *free)
+static void
+_pmap_unwire_ptp(pmap_t pmap, vm_page_t m, vm_page_t *free)
 {
 	vm_offset_t pteva;
 
@@ -1716,8 +1712,6 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m, vm_page_t *free)
 	 * *ALL* TLB shootdown is done
 	 */
 	pmap_add_delayed_free_list(m, free, TRUE);
-
-	return (1);
 }
 
 /*
@@ -1734,7 +1728,7 @@ pmap_unuse_pt(pmap_t pmap, vm_offset_t va, vm_page_t *free)
 		return (0);
 	ptepde = *pmap_pde(pmap, va);
 	mpte = PHYS_TO_VM_PAGE(ptepde & PG_FRAME);
-	return (pmap_unwire_pte_hold(pmap, mpte, free));
+	return (pmap_unwire_ptp(pmap, mpte, free));
 }
 
 /*
@@ -1962,7 +1956,7 @@ pmap_lazyfix_action(void)
 	(*ipi_lazypmap_counts[PCPU_GET(cpuid)])++;
 #endif
 	if (rcr3() == lazyptd)
-		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
+		load_cr3(curpcb->pcb_cr3);
 	CPU_CLR_ATOMIC(PCPU_GET(cpuid), lazymask);
 	atomic_store_rel_int(&lazywait, 1);
 }
@@ -1972,7 +1966,7 @@ pmap_lazyfix_self(u_int cpuid)
 {
 
 	if (rcr3() == lazyptd)
-		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
+		load_cr3(curpcb->pcb_cr3);
 	CPU_CLR_ATOMIC(cpuid, lazymask);
 }
 
@@ -2039,7 +2033,7 @@ pmap_lazyfix(pmap_t pmap)
 
 	cr3 = vtophys(pmap->pm_pdir);
 	if (cr3 == rcr3()) {
-		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
+		load_cr3(curpcb->pcb_cr3);
 		CPU_CLR(PCPU_GET(cpuid), &pmap->pm_active);
 	}
 }
@@ -3819,7 +3813,7 @@ pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va, vm_page_t m,
 	    !pmap_try_insert_pv_entry(pmap, va, m)) {
 		if (mpte != NULL) {
 			free = NULL;
-			if (pmap_unwire_pte_hold(pmap, mpte, &free)) {
+			if (pmap_unwire_ptp(pmap, mpte, &free)) {
 				pmap_invalidate_page(pmap, va);
 				pmap_free_zero_pages(free);
 			}
@@ -4088,8 +4082,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 					dst_pmap->pm_stats.resident_count++;
 	 			} else {
 					free = NULL;
-					if (pmap_unwire_pte_hold(dst_pmap,
-					    dstmpte, &free)) {
+					if (pmap_unwire_ptp(dst_pmap, dstmpte,
+					    &free)) {
 						pmap_invalidate_page(dst_pmap,
 						    addr);
 						pmap_free_zero_pages(free);
@@ -5010,16 +5004,13 @@ pmap_mapbios(vm_paddr_t pa, vm_size_t size)
 void
 pmap_unmapdev(vm_offset_t va, vm_size_t size)
 {
-	vm_offset_t base, offset, tmpva;
+	vm_offset_t base, offset;
 
 	if (va >= KERNBASE && va + size <= KERNBASE + KERNLOAD)
 		return;
 	base = trunc_page(va);
 	offset = va & PAGE_MASK;
 	size = roundup(offset + size, PAGE_SIZE);
-	for (tmpva = base; tmpva < (base + size); tmpva += PAGE_SIZE)
-		pmap_kremove(tmpva);
-	pmap_invalidate_range(kernel_pmap, va, tmpva);
 	kmem_free(kernel_map, base, size);
 }
 

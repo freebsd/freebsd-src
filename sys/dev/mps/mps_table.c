@@ -463,10 +463,12 @@ mps_print_sgl(struct mps_softc *sc, struct mps_command *cm, int offset)
 	sge = (MPI2_SGE_SIMPLE64 *)&frame[offset * 4];
 	printf("SGL for command %p\n", cm);
 
+	hexdump(frame, 128, NULL, 0);
 	while (frame != NULL) {
-		flags = sge->FlagsLength >> MPI2_SGE_FLAGS_SHIFT;
-		printf("seg%d flags=0x%x len=0x%x addr=0x%jx\n", i, flags,
-		    sge->FlagsLength & 0xffffff, mps_to_u64(&sge->Address));
+		flags = le32toh(sge->FlagsLength) >> MPI2_SGE_FLAGS_SHIFT;
+		printf("seg%d flags=0x%02x len=0x%06x addr=0x%016jx\n",
+		    i, flags, le32toh(sge->FlagsLength) & 0xffffff,
+		    mps_to_u64(&sge->Address));
 		if (flags & (MPI2_SGE_FLAGS_END_OF_LIST |
 		    MPI2_SGE_FLAGS_END_OF_BUFFER))
 			break;
@@ -475,8 +477,8 @@ mps_print_sgl(struct mps_softc *sc, struct mps_command *cm, int offset)
 		if (flags & MPI2_SGE_FLAGS_LAST_ELEMENT) {
 			sgc = (MPI2_SGE_CHAIN32 *)sge;
 			printf("chain flags=0x%x len=0x%x Offset=0x%x "
-			    "Address=0x%x\n", sgc->Flags, sgc->Length,
-			    sgc->NextChainOffset, sgc->Address);
+			    "Address=0x%x\n", sgc->Flags, le16toh(sgc->Length),
+			    sgc->NextChainOffset, le32toh(sgc->Address));
 			if (chain == NULL)
 				chain = TAILQ_FIRST(&cm->cm_chain_list);
 			else

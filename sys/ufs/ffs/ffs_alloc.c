@@ -598,7 +598,8 @@ ffs_reallocblks_ufs1(ap)
 	 */
 #ifdef DEBUG
 	if (prtrealloc)
-		printf("realloc: ino %d, lbns %jd-%jd\n\told:", ip->i_number,
+		printf("realloc: ino %ju, lbns %jd-%jd\n\told:",
+		    (uintmax_t)ip->i_number,
 		    (intmax_t)start_lbn, (intmax_t)end_lbn);
 #endif
 	blkno = newblk;
@@ -2176,8 +2177,8 @@ ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
 		cgbno = fsbtodb(fs, cgtod(fs, cg));
 	}
 	if (ino >= fs->fs_ipg * fs->fs_ncg)
-		panic("ffs_freefile: range: dev = %s, ino = %lu, fs = %s",
-		    devtoname(dev), (u_long)ino, fs->fs_fsmnt);
+		panic("ffs_freefile: range: dev = %s, ino = %ju, fs = %s",
+		    devtoname(dev), (uintmax_t)ino, fs->fs_fsmnt);
 	if ((error = bread(devvp, cgbno, (int)fs->fs_cgsize, NOCRED, &bp))) {
 		brelse(bp);
 		return (error);
@@ -2192,8 +2193,8 @@ ffs_freefile(ump, fs, devvp, ino, mode, wkhd)
 	inosused = cg_inosused(cgp);
 	ino %= fs->fs_ipg;
 	if (isclr(inosused, ino)) {
-		printf("dev = %s, ino = %u, fs = %s\n", devtoname(dev),
-		    ino + cg * fs->fs_ipg, fs->fs_fsmnt);
+		printf("dev = %s, ino = %ju, fs = %s\n", devtoname(dev),
+		    (uintmax_t)(ino + cg * fs->fs_ipg), fs->fs_fsmnt);
 		if (fs->fs_ronly == 0)
 			panic("ffs_freefile: freeing free inode");
 	}
@@ -2343,8 +2344,9 @@ ffs_fserr(fs, inum, cp)
 	struct thread *td = curthread;	/* XXX */
 	struct proc *p = td->td_proc;
 
-	log(LOG_ERR, "pid %d (%s), uid %d inumber %d on %s: %s\n",
-	    p->p_pid, p->p_comm, td->td_ucred->cr_uid, inum, fs->fs_fsmnt, cp);
+	log(LOG_ERR, "pid %d (%s), uid %d inumber %ju on %s: %s\n",
+	    p->p_pid, p->p_comm, td->td_ucred->cr_uid, (uintmax_t)inum,
+	    fs->fs_fsmnt, cp);
 }
 
 /*
@@ -2556,16 +2558,16 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 #ifdef DEBUG
 		if (fsckcmds) {
 			if (cmd.size == 1)
-				printf("%s: free %s inode %d\n",
+				printf("%s: free %s inode %ju\n",
 				    mp->mnt_stat.f_mntonname,
 				    filetype == IFDIR ? "directory" : "file",
-				    (ino_t)cmd.value);
+				    (uintmax_t)cmd.value);
 			else
-				printf("%s: free %s inodes %d-%d\n",
+				printf("%s: free %s inodes %ju-%ju\n",
 				    mp->mnt_stat.f_mntonname,
 				    filetype == IFDIR ? "directory" : "file",
-				    (ino_t)cmd.value,
-				    (ino_t)(cmd.value + cmd.size - 1));
+				    (uintmax_t)cmd.value,
+				    (uintmax_t)(cmd.value + cmd.size - 1));
 		}
 #endif /* DEBUG */
 		while (cmd.size > 0) {

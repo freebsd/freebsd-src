@@ -2550,6 +2550,7 @@ mfi_config_lock(struct mfi_softc *sc, uint32_t opcode)
 	case MFI_DCMD_LD_DELETE:
 	case MFI_DCMD_CFG_ADD:
 	case MFI_DCMD_CFG_CLEAR:
+	case MFI_DCMD_CFG_FOREIGN_IMPORT:
 		sx_xlock(&sc->mfi_config_lock);
 		return (1);
 	default:

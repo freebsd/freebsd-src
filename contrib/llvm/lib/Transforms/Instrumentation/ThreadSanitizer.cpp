@@ -22,73 +22,73 @@
 #define DEBUG_TYPE "tsan"
 
 #include "FunctionBlackList.h"
-#include "llvm/ADT/SmallSet.h"
-#include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/StringExtras.h"
-#include "llvm/Intrinsics.h"
 #include "llvm/Function.h"
+#include "llvm/IRBuilder.h"
+#include "llvm/Intrinsics.h"
 #include "llvm/LLVMContext.h"
 #include "llvm/Metadata.h"
 #include "llvm/Module.h"
+#include "llvm/Type.h"
+#include "llvm/ADT/SmallSet.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/Statistic.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/IRBuilder.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetData.h"
 #include "llvm/Transforms/Instrumentation.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/ModuleUtils.h"
-#include "llvm/Type.h"
 
 using namespace llvm;
 
 static cl::opt<std::string>  ClBlackListFile("tsan-blacklist",
        cl::desc("Blacklist file"), cl::Hidden);
 
-static cl::opt<bool> ClPrintStats("tsan-print-stats",
-       cl::desc("Print ThreadSanitizer instrumentation stats"), cl::Hidden);
+STATISTIC(NumInstrumentedReads, "Number of instrumented reads");
+STATISTIC(NumInstrumentedWrites, "Number of instrumented writes");
+STATISTIC(NumOmittedReadsBeforeWrite, 
+          "Number of reads ignored due to following writes");
+STATISTIC(NumAccessesWithBadSize, "Number of accesses with bad size");
+STATISTIC(NumInstrumentedVtableWrites, "Number of vtable ptr writes");
+STATISTIC(NumOmittedReadsFromConstantGlobals,
+          "Number of reads from constant globals");
+STATISTIC(NumOmittedReadsFromVtable, "Number of vtable reads");
 
 namespace {
-
-// Stats counters for ThreadSanitizer instrumentation.
-struct ThreadSanitizerStats {
-  size_t NumInstrumentedReads;
-  size_t NumInstrumentedWrites;
-  size_t NumOmittedReadsBeforeWrite;
-  size_t NumAccessesWithBadSize;
-  size_t NumInstrumentedVtableWrites;
-  size_t NumOmittedReadsFromConstantGlobals;
-  size_t NumOmittedReadsFromVtable;
-};
 
 /// ThreadSanitizer: instrument the code in module to find races.
 struct ThreadSanitizer : public FunctionPass {
   ThreadSanitizer();
+  const char *getPassName() const;
   bool runOnFunction(Function &F);
   bool doInitialization(Module &M);
-  bool doFinalization(Module &M);
-  bool instrumentLoadOrStore(Instruction *I);
   static char ID;  // Pass identification, replacement for typeid.
 
  private:
-  void choseInstructionsToInstrument(SmallVectorImpl<Instruction*> &Local,
-                                     SmallVectorImpl<Instruction*> &All);
+  bool instrumentLoadOrStore(Instruction *I);
+  bool instrumentAtomic(Instruction *I);
+  void chooseInstructionsToInstrument(SmallVectorImpl<Instruction*> &Local,
+                                      SmallVectorImpl<Instruction*> &All);
   bool addrPointsToConstantData(Value *Addr);
+  int getMemoryAccessFuncIndex(Value *Addr);
 
   TargetData *TD;
   OwningPtr<FunctionBlackList> BL;
+  IntegerType *OrdTy;
   // Callbacks to run-time library are computed in doInitialization.
-  Value *TsanFuncEntry;
-  Value *TsanFuncExit;
+  Function *TsanFuncEntry;
+  Function *TsanFuncExit;
   // Accesses sizes are powers of two: 1, 2, 4, 8, 16.
   static const size_t kNumberOfAccessSizes = 5;
-  Value *TsanRead[kNumberOfAccessSizes];
-  Value *TsanWrite[kNumberOfAccessSizes];
-  Value *TsanVptrUpdate;
-
-  // Stats are modified w/o synchronization.
-  ThreadSanitizerStats stats;
+  Function *TsanRead[kNumberOfAccessSizes];
+  Function *TsanWrite[kNumberOfAccessSizes];
+  Function *TsanAtomicLoad[kNumberOfAccessSizes];
+  Function *TsanAtomicStore[kNumberOfAccessSizes];
+  Function *TsanVptrUpdate;
 };
 }  // namespace
 
@@ -96,6 +96,10 @@ char ThreadSanitizer::ID = 0;
 INITIALIZE_PASS(ThreadSanitizer, "tsan",
     "ThreadSanitizer: detects data races.",
     false, false)
+
+const char *ThreadSanitizer::getPassName() const {
+  return "ThreadSanitizer";
+}
 
 ThreadSanitizer::ThreadSanitizer()
   : FunctionPass(ID),
@@ -106,12 +110,18 @@ FunctionPass *llvm::createThreadSanitizerPass() {
   return new ThreadSanitizer();
 }
 
+static Function *checkInterfaceFunction(Constant *FuncOrBitcast) {
+  if (Function *F = dyn_cast<Function>(FuncOrBitcast))
+     return F;
+  FuncOrBitcast->dump();
+  report_fatal_error("ThreadSanitizer interface function redefined");
+}
+
 bool ThreadSanitizer::doInitialization(Module &M) {
   TD = getAnalysisIfAvailable<TargetData>();
   if (!TD)
     return false;
   BL.reset(new FunctionBlackList(ClBlackListFile));
-  memset(&stats, 0, sizeof(stats));
 
   // Always insert a call to __tsan_init into the module's CTORs.
   IRBuilder<> IRB(M.getContext());
@@ -120,38 +130,38 @@ bool ThreadSanitizer::doInitialization(Module &M) {
   appendToGlobalCtors(M, cast<Function>(TsanInit), 0);
 
   // Initialize the callbacks.
-  TsanFuncEntry = M.getOrInsertFunction("__tsan_func_entry", IRB.getVoidTy(),
-                                        IRB.getInt8PtrTy(), NULL);
-  TsanFuncExit = M.getOrInsertFunction("__tsan_func_exit", IRB.getVoidTy(),
-                                       NULL);
+  TsanFuncEntry = checkInterfaceFunction(M.getOrInsertFunction(
+      "__tsan_func_entry", IRB.getVoidTy(), IRB.getInt8PtrTy(), NULL));
+  TsanFuncExit = checkInterfaceFunction(M.getOrInsertFunction(
+      "__tsan_func_exit", IRB.getVoidTy(), NULL));
+  OrdTy = IRB.getInt32Ty();
   for (size_t i = 0; i < kNumberOfAccessSizes; ++i) {
-    SmallString<32> ReadName("__tsan_read");
-    ReadName += itostr(1 << i);
-    TsanRead[i] = M.getOrInsertFunction(ReadName, IRB.getVoidTy(),
-                                        IRB.getInt8PtrTy(), NULL);
-    SmallString<32> WriteName("__tsan_write");
-    WriteName += itostr(1 << i);
-    TsanWrite[i] = M.getOrInsertFunction(WriteName, IRB.getVoidTy(),
-                                         IRB.getInt8PtrTy(), NULL);
-  }
-  TsanVptrUpdate = M.getOrInsertFunction("__tsan_vptr_update", IRB.getVoidTy(),
-                                         IRB.getInt8PtrTy(), IRB.getInt8PtrTy(),
-                                         NULL);
-  return true;
-}
+    const size_t ByteSize = 1 << i;
+    const size_t BitSize = ByteSize * 8;
+    SmallString<32> ReadName("__tsan_read" + itostr(ByteSize));
+    TsanRead[i] = checkInterfaceFunction(M.getOrInsertFunction(
+        ReadName, IRB.getVoidTy(), IRB.getInt8PtrTy(), NULL));
 
-bool ThreadSanitizer::doFinalization(Module &M) {
-  if (ClPrintStats) {
-    errs() << "ThreadSanitizerStats " << M.getModuleIdentifier()
-           << ": wr " << stats.NumInstrumentedWrites
-           << "; rd " << stats.NumInstrumentedReads
-           << "; vt " << stats.NumInstrumentedVtableWrites
-           << "; bs " << stats.NumAccessesWithBadSize
-           << "; rbw " << stats.NumOmittedReadsBeforeWrite
-           << "; rcg " << stats.NumOmittedReadsFromConstantGlobals
-           << "; rvt " << stats.NumOmittedReadsFromVtable
-           << "\n";
+    SmallString<32> WriteName("__tsan_write" + itostr(ByteSize));
+    TsanWrite[i] = checkInterfaceFunction(M.getOrInsertFunction(
+        WriteName, IRB.getVoidTy(), IRB.getInt8PtrTy(), NULL));
+
+    Type *Ty = Type::getIntNTy(M.getContext(), BitSize);
+    Type *PtrTy = Ty->getPointerTo();
+    SmallString<32> AtomicLoadName("__tsan_atomic" + itostr(BitSize) +
+                                   "_load");
+    TsanAtomicLoad[i] = checkInterfaceFunction(M.getOrInsertFunction(
+        AtomicLoadName, Ty, PtrTy, OrdTy, NULL));
+
+    SmallString<32> AtomicStoreName("__tsan_atomic" + itostr(BitSize) +
+                                    "_store");
+    TsanAtomicStore[i] = checkInterfaceFunction(M.getOrInsertFunction(
+        AtomicStoreName, IRB.getVoidTy(), PtrTy, Ty, OrdTy,
+        NULL));
   }
+  TsanVptrUpdate = checkInterfaceFunction(M.getOrInsertFunction(
+      "__tsan_vptr_update", IRB.getVoidTy(), IRB.getInt8PtrTy(),
+      IRB.getInt8PtrTy(), NULL));
   return true;
 }
 
@@ -173,13 +183,13 @@ bool ThreadSanitizer::addrPointsToConstantData(Value *Addr) {
   if (GlobalVariable *GV = dyn_cast<GlobalVariable>(Addr)) {
     if (GV->isConstant()) {
       // Reads from constant globals can not race with any writes.
-      stats.NumOmittedReadsFromConstantGlobals++;
+      NumOmittedReadsFromConstantGlobals++;
       return true;
     }
   } else if(LoadInst *L = dyn_cast<LoadInst>(Addr)) {
     if (isVtableAccess(L)) {
       // Reads from a vtable pointer can not race with any writes.
-      stats.NumOmittedReadsFromVtable++;
+      NumOmittedReadsFromVtable++;
       return true;
     }
   }
@@ -197,7 +207,7 @@ bool ThreadSanitizer::addrPointsToConstantData(Value *Addr) {
 //
 // 'Local' is a vector of insns within the same BB (no calls between).
 // 'All' is a vector of insns that will be instrumented.
-void ThreadSanitizer::choseInstructionsToInstrument(
+void ThreadSanitizer::chooseInstructionsToInstrument(
     SmallVectorImpl<Instruction*> &Local,
     SmallVectorImpl<Instruction*> &All) {
   SmallSet<Value*, 8> WriteTargets;
@@ -212,7 +222,7 @@ void ThreadSanitizer::choseInstructionsToInstrument(
       Value *Addr = Load->getPointerOperand();
       if (WriteTargets.count(Addr)) {
         // We will write to this temp, so no reason to analyze the read.
-        stats.NumOmittedReadsBeforeWrite++;
+        NumOmittedReadsBeforeWrite++;
         continue;
       }
       if (addrPointsToConstantData(Addr)) {
@@ -225,12 +235,27 @@ void ThreadSanitizer::choseInstructionsToInstrument(
   Local.clear();
 }
 
+static bool isAtomic(Instruction *I) {
+  if (LoadInst *LI = dyn_cast<LoadInst>(I))
+    return LI->isAtomic() && LI->getSynchScope() == CrossThread;
+  if (StoreInst *SI = dyn_cast<StoreInst>(I))
+    return SI->isAtomic() && SI->getSynchScope() == CrossThread;
+  if (isa<AtomicRMWInst>(I))
+    return true;
+  if (isa<AtomicCmpXchgInst>(I))
+    return true;
+  if (FenceInst *FI = dyn_cast<FenceInst>(I))
+    return FI->getSynchScope() == CrossThread;
+  return false;
+}
+
 bool ThreadSanitizer::runOnFunction(Function &F) {
   if (!TD) return false;
   if (BL->isIn(F)) return false;
   SmallVector<Instruction*, 8> RetVec;
   SmallVector<Instruction*, 8> AllLoadsAndStores;
   SmallVector<Instruction*, 8> LocalLoadsAndStores;
+  SmallVector<Instruction*, 8> AtomicAccesses;
   bool Res = false;
   bool HasCalls = false;
 
@@ -240,16 +265,18 @@ bool ThreadSanitizer::runOnFunction(Function &F) {
     BasicBlock &BB = *FI;
     for (BasicBlock::iterator BI = BB.begin(), BE = BB.end();
          BI != BE; ++BI) {
-      if (isa<LoadInst>(BI) || isa<StoreInst>(BI))
+      if (isAtomic(BI))
+        AtomicAccesses.push_back(BI);
+      else if (isa<LoadInst>(BI) || isa<StoreInst>(BI))
         LocalLoadsAndStores.push_back(BI);
       else if (isa<ReturnInst>(BI))
         RetVec.push_back(BI);
       else if (isa<CallInst>(BI) || isa<InvokeInst>(BI)) {
         HasCalls = true;
-        choseInstructionsToInstrument(LocalLoadsAndStores, AllLoadsAndStores);
+        chooseInstructionsToInstrument(LocalLoadsAndStores, AllLoadsAndStores);
       }
     }
-    choseInstructionsToInstrument(LocalLoadsAndStores, AllLoadsAndStores);
+    chooseInstructionsToInstrument(LocalLoadsAndStores, AllLoadsAndStores);
   }
 
   // We have collected all loads and stores.
@@ -259,6 +286,11 @@ bool ThreadSanitizer::runOnFunction(Function &F) {
   // Instrument memory accesses.
   for (size_t i = 0, n = AllLoadsAndStores.size(); i < n; ++i) {
     Res |= instrumentLoadOrStore(AllLoadsAndStores[i]);
+  }
+
+  // Instrument atomic memory accesses.
+  for (size_t i = 0, n = AtomicAccesses.size(); i < n; ++i) {
+    Res |= instrumentAtomic(AtomicAccesses[i]);
   }
 
   // Instrument function entry/exit points if there were instrumented accesses.
@@ -283,29 +315,98 @@ bool ThreadSanitizer::instrumentLoadOrStore(Instruction *I) {
   Value *Addr = IsWrite
       ? cast<StoreInst>(I)->getPointerOperand()
       : cast<LoadInst>(I)->getPointerOperand();
+  int Idx = getMemoryAccessFuncIndex(Addr);
+  if (Idx < 0)
+    return false;
+  if (IsWrite && isVtableAccess(I)) {
+    DEBUG(dbgs() << "  VPTR : " << *I << "\n");
+    Value *StoredValue = cast<StoreInst>(I)->getValueOperand();
+    // StoredValue does not necessary have a pointer type.
+    if (isa<IntegerType>(StoredValue->getType()))
+      StoredValue = IRB.CreateIntToPtr(StoredValue, IRB.getInt8PtrTy());
+    // Call TsanVptrUpdate.
+    IRB.CreateCall2(TsanVptrUpdate,
+                    IRB.CreatePointerCast(Addr, IRB.getInt8PtrTy()),
+                    IRB.CreatePointerCast(StoredValue, IRB.getInt8PtrTy()));
+    NumInstrumentedVtableWrites++;
+    return true;
+  }
+  Value *OnAccessFunc = IsWrite ? TsanWrite[Idx] : TsanRead[Idx];
+  IRB.CreateCall(OnAccessFunc, IRB.CreatePointerCast(Addr, IRB.getInt8PtrTy()));
+  if (IsWrite) NumInstrumentedWrites++;
+  else         NumInstrumentedReads++;
+  return true;
+}
+
+static ConstantInt *createOrdering(IRBuilder<> *IRB, AtomicOrdering ord) {
+  uint32_t v = 0;
+  switch (ord) {
+    case NotAtomic:              assert(false);
+    case Unordered:              // Fall-through.
+    case Monotonic:              v = 1 << 0; break;
+ // case Consume:                v = 1 << 1; break;  // Not specified yet.
+    case Acquire:                v = 1 << 2; break;
+    case Release:                v = 1 << 3; break;
+    case AcquireRelease:         v = 1 << 4; break;
+    case SequentiallyConsistent: v = 1 << 5; break;
+  }
+  return IRB->getInt32(v);
+}
+
+bool ThreadSanitizer::instrumentAtomic(Instruction *I) {
+  IRBuilder<> IRB(I);
+  if (LoadInst *LI = dyn_cast<LoadInst>(I)) {
+    Value *Addr = LI->getPointerOperand();
+    int Idx = getMemoryAccessFuncIndex(Addr);
+    if (Idx < 0)
+      return false;
+    const size_t ByteSize = 1 << Idx;
+    const size_t BitSize = ByteSize * 8;
+    Type *Ty = Type::getIntNTy(IRB.getContext(), BitSize);
+    Type *PtrTy = Ty->getPointerTo();
+    Value *Args[] = {IRB.CreatePointerCast(Addr, PtrTy),
+                     createOrdering(&IRB, LI->getOrdering())};
+    CallInst *C = CallInst::Create(TsanAtomicLoad[Idx],
+                                   ArrayRef<Value*>(Args));
+    ReplaceInstWithInst(I, C);
+
+  } else if (StoreInst *SI = dyn_cast<StoreInst>(I)) {
+    Value *Addr = SI->getPointerOperand();
+    int Idx = getMemoryAccessFuncIndex(Addr);
+    if (Idx < 0)
+      return false;
+    const size_t ByteSize = 1 << Idx;
+    const size_t BitSize = ByteSize * 8;
+    Type *Ty = Type::getIntNTy(IRB.getContext(), BitSize);
+    Type *PtrTy = Ty->getPointerTo();
+    Value *Args[] = {IRB.CreatePointerCast(Addr, PtrTy),
+                     IRB.CreateIntCast(SI->getValueOperand(), Ty, false),
+                     createOrdering(&IRB, SI->getOrdering())};
+    CallInst *C = CallInst::Create(TsanAtomicStore[Idx],
+                                   ArrayRef<Value*>(Args));
+    ReplaceInstWithInst(I, C);
+  } else if (isa<AtomicRMWInst>(I)) {
+    // FIXME: Not yet supported.
+  } else if (isa<AtomicCmpXchgInst>(I)) {
+    // FIXME: Not yet supported.
+  } else if (isa<FenceInst>(I)) {
+    // FIXME: Not yet supported.
+  }
+  return true;
+}
+
+int ThreadSanitizer::getMemoryAccessFuncIndex(Value *Addr) {
   Type *OrigPtrTy = Addr->getType();
   Type *OrigTy = cast<PointerType>(OrigPtrTy)->getElementType();
   assert(OrigTy->isSized());
   uint32_t TypeSize = TD->getTypeStoreSizeInBits(OrigTy);
   if (TypeSize != 8  && TypeSize != 16 &&
       TypeSize != 32 && TypeSize != 64 && TypeSize != 128) {
-    stats.NumAccessesWithBadSize++;
+    NumAccessesWithBadSize++;
     // Ignore all unusual sizes.
-    return false;
-  }
-  if (IsWrite && isVtableAccess(I)) {
-    Value *StoredValue = cast<StoreInst>(I)->getValueOperand();
-    IRB.CreateCall2(TsanVptrUpdate,
-                    IRB.CreatePointerCast(Addr, IRB.getInt8PtrTy()),
-                    IRB.CreatePointerCast(StoredValue, IRB.getInt8PtrTy()));
-    stats.NumInstrumentedVtableWrites++;
-    return true;
+    return -1;
   }
   size_t Idx = CountTrailingZeros_32(TypeSize / 8);
   assert(Idx < kNumberOfAccessSizes);
-  Value *OnAccessFunc = IsWrite ? TsanWrite[Idx] : TsanRead[Idx];
-  IRB.CreateCall(OnAccessFunc, IRB.CreatePointerCast(Addr, IRB.getInt8PtrTy()));
-  if (IsWrite) stats.NumInstrumentedWrites++;
-  else         stats.NumInstrumentedReads++;
-  return true;
+  return Idx;
 }

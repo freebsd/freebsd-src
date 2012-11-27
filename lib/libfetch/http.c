@@ -76,7 +76,15 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
+
+#ifdef WITH_SSL
+#include <openssl/md5.h>
+#define MD5Init(c) MD5_Init(c)
+#define MD5Update(c, data, len) MD5_Update(c, data, len)
+#define MD5Final(md, c) MD5_Final(md, c)
+#else
 #include <md5.h>
+#endif
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>

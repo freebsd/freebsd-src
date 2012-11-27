@@ -118,10 +118,12 @@ struct u3g_softc {
 static device_probe_t u3g_probe;
 static device_attach_t u3g_attach;
 static device_detach_t u3g_detach;
+static void u3g_free_softc(struct u3g_softc *);
 
 static usb_callback_t u3g_write_callback;
 static usb_callback_t u3g_read_callback;
 
+static void u3g_free(struct ucom_softc *ucom);
 static void u3g_start_read(struct ucom_softc *ucom);
 static void u3g_stop_read(struct ucom_softc *ucom);
 static void u3g_start_write(struct ucom_softc *ucom);
@@ -160,13 +162,14 @@ static const struct ucom_callback u3g_callback = {
 	.ucom_stop_read = &u3g_stop_read,
 	.ucom_start_write = &u3g_start_write,
 	.ucom_stop_write = &u3g_stop_write,
+	.ucom_free = &u3g_free,
 };
 
 static device_method_t u3g_methods[] = {
 	DEVMETHOD(device_probe, u3g_probe),
 	DEVMETHOD(device_attach, u3g_attach),
 	DEVMETHOD(device_detach, u3g_detach),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t u3g_devclass;
@@ -282,9 +285,12 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(HUAWEI, E143F, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E173, 0),
 	U3G_DEV(HUAWEI, E173_INIT, U3GINIT_HUAWEISCSI),
+	U3G_DEV(HUAWEI, E3131, 0),
+	U3G_DEV(HUAWEI, E3131_INIT, U3GINIT_HUAWEISCSI),
 	U3G_DEV(HUAWEI, E180V, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E220, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E220BIS, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E392, U3GINIT_HUAWEISCSI),
 	U3G_DEV(HUAWEI, MOBILE, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E1752, U3GINIT_HUAWEISCSI),
 	U3G_DEV(HUAWEI, E1820, U3GINIT_HUAWEISCSI),
@@ -357,6 +363,8 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(QUALCOMM2, MF330, 0),
 	U3G_DEV(QUALCOMM2, SIM5218, 0),
 	U3G_DEV(QUALCOMM2, VW110L, U3GINIT_SCSIEJECT),
+	U3G_DEV(QUALCOMM2, GOBI2000_QDL, 0),
+	U3G_DEV(QUALCOMM2, GOBI2000, 0),
 	U3G_DEV(QUALCOMMINC, AC2726, 0),
 	U3G_DEV(QUALCOMMINC, AC8700, 0),
 	U3G_DEV(QUALCOMMINC, AC8710, 0),
@@ -800,6 +808,7 @@ u3g_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "u3g", NULL, MTX_DEF);
+	ucom_ref(&sc->sc_super_ucom);
 
 	sc->sc_udev = uaa->device;
 
@@ -887,9 +896,29 @@ u3g_detach(device_t dev)
 
 	for (subunit = 0; subunit != U3G_MAXPORTS; subunit++)
 		usbd_transfer_unsetup(sc->sc_xfer[subunit], U3G_N_TRANSFER);
-	mtx_destroy(&sc->sc_mtx);
+
+	device_claim_softc(dev);
+
+	u3g_free_softc(sc);
 
 	return (0);
+}
+
+UCOM_UNLOAD_DRAIN(u3g);
+
+static void
+u3g_free_softc(struct u3g_softc *sc)
+{
+	if (ucom_unref(&sc->sc_super_ucom)) {
+		mtx_destroy(&sc->sc_mtx);
+		device_free_softc(sc);
+	}
+}
+
+static void
+u3g_free(struct ucom_softc *ucom)
+{
+	u3g_free_softc(ucom->sc_parent);
 }
 
 static void
@@ -899,7 +928,6 @@ u3g_start_read(struct ucom_softc *ucom)
 
 	/* start read endpoint */
 	usbd_transfer_start(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_RD]);
-	return;
 }
 
 static void
@@ -909,7 +937,6 @@ u3g_stop_read(struct ucom_softc *ucom)
 
 	/* stop read endpoint */
 	usbd_transfer_stop(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_RD]);
-	return;
 }
 
 static void
@@ -918,7 +945,6 @@ u3g_start_write(struct ucom_softc *ucom)
 	struct u3g_softc *sc = ucom->sc_parent;
 
 	usbd_transfer_start(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_WR]);
-	return;
 }
 
 static void
@@ -927,7 +953,6 @@ u3g_stop_write(struct ucom_softc *ucom)
 	struct u3g_softc *sc = ucom->sc_parent;
 
 	usbd_transfer_stop(sc->sc_xfer[ucom->sc_subunit][U3G_BULK_WR]);
-	return;
 }
 
 static void
@@ -956,7 +981,6 @@ tr_setup:
 		}
 		break;
 	}
-	return;
 }
 
 static void
@@ -987,5 +1011,4 @@ tr_setup:
 		}
 		break;
 	}
-	return;
 }

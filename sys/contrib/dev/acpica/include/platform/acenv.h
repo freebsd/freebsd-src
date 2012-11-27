@@ -180,6 +180,9 @@
 #elif defined(_AED_EFI)
 #include "acefi.h"
 
+#elif defined(__HAIKU__)
+#include "achaiku.h"
+
 #else
 
 /* Unknown environment */

@@ -8,6 +8,7 @@ SRCS=	DeltaTree.cpp \
 	FrontendActions.cpp \
 	HTMLPrint.cpp \
 	HTMLRewrite.cpp \
+	InclusionRewriter.cpp \
 	RewriteMacros.cpp \
 	RewriteModernObjC.cpp \
 	RewriteObjC.cpp \
@@ -19,6 +20,7 @@ SRCS=	DeltaTree.cpp \
 TGHDRS=	AttrList \
 	AttrParsedAttrList \
 	Attrs \
+	CommentNodes \
 	DeclNodes \
 	DiagnosticCommonKinds \
 	DiagnosticFrontendKinds \

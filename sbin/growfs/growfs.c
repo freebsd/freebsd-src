@@ -324,6 +324,7 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 	DBG_FUNC("initcg")
 	static caddr_t iobuf;
 	long blkno, start;
+	ino_t ino;
 	ufs2_daddr_t i, cbase, dmax;
 	struct ufs1_dinode *dp1;
 	struct csum *cs;
@@ -392,8 +393,8 @@ initcg(int cylno, time_t modtime, int fso, unsigned int Nflag)
 	}
 	acg.cg_cs.cs_nifree += sblock.fs_ipg;
 	if (cylno == 0)
-		for (i = 0; i < ROOTINO; i++) {
-			setbit(cg_inosused(&acg), i);
+		for (ino = 0; ino < ROOTINO; ino++) {
+			setbit(cg_inosused(&acg), ino);
 			acg.cg_cs.cs_nifree--;
 		}
 	/*

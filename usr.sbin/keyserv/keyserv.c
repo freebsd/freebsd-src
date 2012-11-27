@@ -232,7 +232,7 @@ randomize(master)
 
 	seed = 0;
 	for (i = 0; i < 1024; i++) {
-		(void) gettimeofday(&tv, (struct timezone *) NULL);
+		(void)gettimeofday(&tv, NULL);
 		shift = i % 8 * sizeof (int);
 		seed ^= (tv.tv_usec << shift) | (tv.tv_usec >> (32 - shift));
 	}
@@ -575,7 +575,7 @@ key_gen_1_svc_prog(v, s)
 	static des_block keygen;
 	static des_block key;
 
-	(void) gettimeofday(&time, (struct timezone *) NULL);
+	(void)gettimeofday(&time, NULL);
 	keygen.key.high += (time.tv_sec ^ time.tv_usec);
 	keygen.key.low += (time.tv_sec ^ time.tv_usec);
 	ecb_crypt((char *)&masterkey, (char *)&keygen, sizeof (keygen),

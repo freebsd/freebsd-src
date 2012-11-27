@@ -498,8 +498,8 @@ public:
   Value *VisitObjCStringLiteral(const ObjCStringLiteral *E) {
     return CGF.EmitObjCStringLiteral(E);
   }
-  Value *VisitObjCNumericLiteral(ObjCNumericLiteral *E) {
-    return CGF.EmitObjCNumericLiteral(E);
+  Value *VisitObjCBoxedExpr(ObjCBoxedExpr *E) {
+    return CGF.EmitObjCBoxedExpr(E);
   }
   Value *VisitObjCArrayLiteral(ObjCArrayLiteral *E) {
     return CGF.EmitObjCArrayLiteral(E);
@@ -798,14 +798,15 @@ Value *ScalarExprEmitter::VisitMemberExpr(MemberExpr *E) {
     return Builder.getInt(Value);
   }
 
-  // Emit debug info for aggregate now, if it was delayed to reduce 
+  // Emit debug info for aggregate now, if it was delayed to reduce
   // debug info size.
   CGDebugInfo *DI = CGF.getDebugInfo();
-  if (DI && CGF.CGM.getCodeGenOpts().LimitDebugInfo) {
+  if (DI &&
+      CGF.CGM.getCodeGenOpts().DebugInfo == CodeGenOptions::LimitedDebugInfo) {
     QualType PQTy = E->getBase()->IgnoreParenImpCasts()->getType();
     if (const PointerType * PTy = dyn_cast<PointerType>(PQTy))
       if (FieldDecl *M = dyn_cast<FieldDecl>(E->getMemberDecl()))
-        DI->getOrCreateRecordType(PTy->getPointeeType(), 
+        DI->getOrCreateRecordType(PTy->getPointeeType(),
                                   M->getParent()->getLocation());
   }
   return EmitLoadOfLValue(E);
@@ -1520,7 +1521,7 @@ Value *ScalarExprEmitter::VisitOffsetOfExpr(OffsetOfExpr *E) {
       // FIXME: It would be nice if we didn't have to loop here!
       for (RecordDecl::field_iterator Field = RD->field_begin(),
                                       FieldEnd = RD->field_end();
-           Field != FieldEnd; (void)++Field, ++i) {
+           Field != FieldEnd; ++Field, ++i) {
         if (*Field == MemberDecl)
           break;
       }
@@ -1554,9 +1555,8 @@ Value *ScalarExprEmitter::VisitOffsetOfExpr(OffsetOfExpr *E) {
       // Compute the offset to the base.
       const RecordType *BaseRT = CurrentType->getAs<RecordType>();
       CXXRecordDecl *BaseRD = cast<CXXRecordDecl>(BaseRT->getDecl());
-      int64_t OffsetInt = RL.getBaseClassOffsetInBits(BaseRD) /
-                          CGF.getContext().getCharWidth();
-      Offset = llvm::ConstantInt::get(ResultType, OffsetInt);
+      CharUnits OffsetInt = RL.getBaseClassOffset(BaseRD);
+      Offset = llvm::ConstantInt::get(ResultType, OffsetInt.getQuantity());
       break;
     }
     }
@@ -1682,11 +1682,9 @@ LValue ScalarExprEmitter::EmitCompoundAssignLValue(
   // Load/convert the LHS.
   LValue LHSLV = EmitCheckedLValue(E->getLHS());
   OpInfo.LHS = EmitLoadOfLValue(LHSLV);
-  OpInfo.LHS = EmitScalarConversion(OpInfo.LHS, LHSTy,
-                                    E->getComputationLHSType());
 
   llvm::PHINode *atomicPHI = 0;
-  if (const AtomicType *atomicTy = OpInfo.Ty->getAs<AtomicType>()) {
+  if (LHSTy->isAtomicType()) {
     // FIXME: For floating point types, we should be saving and restoring the
     // floating point environment in the loop.
     llvm::BasicBlock *startBB = Builder.GetInsertBlock();
@@ -1695,10 +1693,12 @@ LValue ScalarExprEmitter::EmitCompoundAssignLValue(
     Builder.SetInsertPoint(opBB);
     atomicPHI = Builder.CreatePHI(OpInfo.LHS->getType(), 2);
     atomicPHI->addIncoming(OpInfo.LHS, startBB);
-    OpInfo.Ty = atomicTy->getValueType();
     OpInfo.LHS = atomicPHI;
   }
-  
+
+  OpInfo.LHS = EmitScalarConversion(OpInfo.LHS, LHSTy,
+                                    E->getComputationLHSType());
+
   // Expand the binary operator.
   Result = (this->*Func)(OpInfo);
   
@@ -2592,7 +2592,7 @@ VisitAbstractConditionalOperator(const AbstractConditionalOperator *E) {
     llvm::Value *LHSTmp = LHS;
     bool wasCast = false;
     llvm::VectorType *rhsVTy = cast<llvm::VectorType>(RHS->getType());
-    if (rhsVTy->getElementType()->isFloatTy()) {
+    if (rhsVTy->getElementType()->isFloatingPointTy()) {
       RHSTmp = Builder.CreateBitCast(RHS, tmp2->getType());
       LHSTmp = Builder.CreateBitCast(LHS, tmp->getType());
       wasCast = true;

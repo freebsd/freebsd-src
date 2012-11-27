@@ -33,10 +33,11 @@ __FBSDID("$FreeBSD$");
  *	Stand-alone file reading package.
  */
 
+#include <sys/disk.h>
 #include <sys/param.h>
-#include <sys/disklabel.h>
 #include <sys/time.h>
 #include <sys/queue.h>
+#include <part.h>
 #include <stddef.h>
 #include <stdarg.h>
 #include <string.h>
@@ -317,7 +318,7 @@ zfs_readdir(struct open_file *f, struct dirent *d)
 		if (zc->l_entry.le_type != ZAP_CHUNK_ENTRY)
 			goto fzap_next;
 
-		namelen = zc->l_entry.le_name_length;
+		namelen = zc->l_entry.le_name_numints;
 		if (namelen > sizeof(d->d_name))
 			namelen = sizeof(d->d_name);
 
@@ -376,21 +377,104 @@ zfs_dev_init(void)
 	return (0);
 }
 
+struct zfs_probe_args {
+	int		fd;
+	const char	*devname;
+	uint64_t	*pool_guid;
+	uint16_t	secsz;
+};
+
+static int
+zfs_diskread(void *arg, void *buf, size_t blocks, off_t offset)
+{
+	struct zfs_probe_args *ppa;
+
+	ppa = (struct zfs_probe_args *)arg;
+	return (vdev_read(NULL, (void *)(uintptr_t)ppa->fd,
+	    offset * ppa->secsz, buf, blocks * ppa->secsz));
+}
+
+static int
+zfs_probe(int fd, uint64_t *pool_guid)
+{
+	spa_t *spa;
+	int ret;
+
+	ret = vdev_probe(vdev_read, (void *)(uintptr_t)fd, &spa);
+	if (ret == 0 && pool_guid != NULL)
+		*pool_guid = spa->spa_guid;
+	return (ret);
+}
+
+static void
+zfs_probe_partition(void *arg, const char *partname,
+    const struct ptable_entry *part)
+{
+	struct zfs_probe_args *ppa, pa;
+	struct ptable *table;
+	char devname[32];
+	int ret;
+
+	/* Probe only freebsd-zfs and freebsd partitions */
+	if (part->type != PART_FREEBSD &&
+	    part->type != PART_FREEBSD_ZFS)
+		return;
+
+	ppa = (struct zfs_probe_args *)arg;
+	strncpy(devname, ppa->devname, strlen(ppa->devname) - 1);
+	devname[strlen(ppa->devname) - 1] = '\0';
+	sprintf(devname, "%s%s:", devname, partname);
+	pa.fd = open(devname, O_RDONLY);
+	if (pa.fd == -1)
+		return;
+	ret = zfs_probe(pa.fd, ppa->pool_guid);
+	if (ret == 0)
+		return;
+	/* Do we have BSD label here? */
+	if (part->type == PART_FREEBSD) {
+		pa.devname = devname;
+		pa.pool_guid = ppa->pool_guid;
+		pa.secsz = ppa->secsz;
+		table = ptable_open(&pa, part->end - part->start + 1,
+		    ppa->secsz, zfs_diskread);
+		if (table != NULL) {
+			ptable_iterate(table, &pa, zfs_probe_partition);
+			ptable_close(table);
+		}
+	}
+	close(pa.fd);
+}
+
 int
 zfs_probe_dev(const char *devname, uint64_t *pool_guid)
 {
-	spa_t *spa;
-	int fd;
+	struct ptable *table;
+	struct zfs_probe_args pa;
+	off_t mediasz;
 	int ret;
 
-	fd = open(devname, O_RDONLY);
-	if (fd == -1)
+	pa.fd = open(devname, O_RDONLY);
+	if (pa.fd == -1)
 		return (ENXIO);
-	ret = vdev_probe(vdev_read, (void *)(uintptr_t)fd, &spa);
-	if (ret != 0)
-		close(fd);
-	else if (pool_guid != NULL)
-		*pool_guid = spa->spa_guid;
+	/* Probe the whole disk */
+	ret = zfs_probe(pa.fd, pool_guid);
+	if (ret == 0)
+		return (0);
+	/* Probe each partition */
+	ret = ioctl(pa.fd, DIOCGMEDIASIZE, &mediasz);
+	if (ret == 0)
+		ret = ioctl(pa.fd, DIOCGSECTORSIZE, &pa.secsz);
+	if (ret == 0) {
+		pa.devname = devname;
+		pa.pool_guid = pool_guid;
+		table = ptable_open(&pa, mediasz / pa.secsz, pa.secsz,
+		    zfs_diskread);
+		if (table != NULL) {
+			ptable_iterate(table, &pa, zfs_probe_partition);
+			ptable_close(table);
+		}
+	}
+	close(pa.fd);
 	return (0);
 }
 
@@ -429,7 +513,10 @@ zfs_dev_open(struct open_file *f, ...)
 	dev = va_arg(args, struct zfs_devdesc *);
 	va_end(args);
 
-	spa = spa_find_by_guid(dev->pool_guid);
+	if (dev->pool_guid == 0)
+		spa = STAILQ_FIRST(&zfs_pools);
+	else
+		spa = spa_find_by_guid(dev->pool_guid);
 	if (!spa)
 		return (ENXIO);
 	rv = zfs_spa_init(spa);
@@ -543,7 +630,10 @@ zfs_fmtdev(void *vdev)
 	if (dev->d_type != DEVT_ZFS)
 		return (buf);
 
-	spa = spa_find_by_guid(dev->pool_guid);
+	if (dev->pool_guid == 0)
+		spa = STAILQ_FIRST(&zfs_pools);
+	else
+		spa = spa_find_by_guid(dev->pool_guid);
 	if (spa == NULL) {
 		printf("ZFS: can't find pool by guid\n");
 		return (buf);
@@ -567,4 +657,39 @@ zfs_fmtdev(void *vdev)
 		sprintf(buf, "%s:%s/%s:", dev->d_dev->dv_name, spa->spa_name,
 		    rootname);
 	return (buf);
+}
+
+int
+zfs_list(const char *name)
+{
+	static char	poolname[ZFS_MAXNAMELEN];
+	uint64_t	objid;
+	spa_t		*spa;
+	const char	*dsname;
+	int		len;
+	int		rv;
+
+	len = strlen(name);
+	dsname = strchr(name, '/');
+	if (dsname != NULL) {
+		len = dsname - name;
+		dsname++;
+	}
+	memcpy(poolname, name, len);
+	poolname[len] = '\0';
+
+	spa = spa_find_by_name(poolname);
+	if (!spa)
+		return (ENXIO);
+	rv = zfs_spa_init(spa);
+	if (rv != 0)
+		return (rv);
+	if (dsname != NULL)
+		rv = zfs_lookup_dataset(spa, dsname, &objid);
+	else
+		rv = zfs_get_root(spa, &objid);
+	if (rv != 0)
+		return (rv);
+	rv = zfs_list_dataset(spa, objid);
+	return (0);
 }

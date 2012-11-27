@@ -1026,8 +1026,8 @@ ext2_vfree(pvp, ino, mode)
 	fs = pip->i_e2fs;
 	ump = pip->i_ump;
 	if ((u_int)ino > fs->e2fs_ipg * fs->e2fs_gcount)
-		panic("ext2_vfree: range: devvp = %p, ino = %d, fs = %s",
-		    pip->i_devvp, ino, fs->e2fs_fsmnt);
+		panic("ext2_vfree: range: devvp = %p, ino = %ju, fs = %s",
+		    pip->i_devvp, (uintmax_t)ino, fs->e2fs_fsmnt);
 
 	cg = ino_to_cg(fs, ino);
 	error = bread(pip->i_devvp,

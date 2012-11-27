@@ -1136,26 +1136,15 @@ ipi_startup(int apic_id, int vector)
 {
 
 	/*
-	 * first we do an INIT/RESET IPI this INIT IPI might be run, reseting
+	 * first we do an INIT IPI: this INIT IPI might be run, resetting
 	 * and running the target CPU. OR this INIT IPI might be latched (P5
 	 * bug), CPU waiting for STARTUP IPI. OR this INIT IPI might be
 	 * ignored.
 	 */
-
-	/* do an INIT IPI: assert RESET */
 	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
 	    APIC_LEVEL_ASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_INIT, apic_id);
-
-	/* wait for pending status end */
 	lapic_ipi_wait(-1);
-
-	/* do an INIT IPI: deassert RESET */
-	lapic_ipi_raw(APIC_DEST_ALLESELF | APIC_TRIGMOD_LEVEL |
-	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_INIT, 0);
-
-	/* wait for pending status end */
 	DELAY(10000);		/* wait ~10mS */
-	lapic_ipi_wait(-1);
 
 	/*
 	 * next we do a STARTUP IPI: the previous INIT IPI might still be
@@ -1165,8 +1154,6 @@ ipi_startup(int apic_id, int vector)
 	 * run. OR the previous INIT IPI was ignored. and this STARTUP IPI
 	 * will run.
 	 */
-
-	/* do a STARTUP IPI */
 	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
 	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
 	    vector, apic_id);
@@ -1179,7 +1166,6 @@ ipi_startup(int apic_id, int vector)
 	 * this STARTUP IPI will be ignored, as only ONE STARTUP IPI is
 	 * recognized after hardware RESET or INIT IPI.
 	 */
-
 	lapic_ipi_raw(APIC_DEST_DESTFLD | APIC_TRIGMOD_EDGE |
 	    APIC_LEVEL_DEASSERT | APIC_DESTMODE_PHY | APIC_DELMODE_STARTUP |
 	    vector, apic_id);

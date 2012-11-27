@@ -55,9 +55,30 @@
 /*
  * Pte related macros
  */
-#define PTE_NOCACHE	0
-#define PTE_CACHE	1
-#define PTE_PAGETABLE	2
+#if ARM_ARCH_6 || ARM_ARCH_7A
+#ifdef SMP
+#define PTE_NOCACHE	2
+#else
+#define PTE_NOCACHE	1
+#endif
+#define PTE_CACHE	4
+#define PTE_DEVICE	2
+#define PTE_PAGETABLE	4
+#else
+#define PTE_NOCACHE	1
+#define PTE_CACHE	2
+#define PTE_PAGETABLE	3
+#endif
+
+enum mem_type {
+	STRONG_ORD = 0,
+	DEVICE_NOSHARE,
+	DEVICE_SHARE,
+	NRML_NOCACHE,
+	NRML_IWT_OWT,
+	NRML_IWB_OWB,
+	NRML_IWBA_OWBA
+};
 
 #ifndef LOCORE
 
@@ -71,8 +92,7 @@
 
 #ifdef _KERNEL
 
-#define vtophys(va)	pmap_extract(pmap_kernel(), (vm_offset_t)(va))
-#define pmap_kextract(va)	pmap_extract(pmap_kernel(), (vm_offset_t)(va))
+#define vtophys(va)	pmap_kextract((vm_offset_t)(va))
 
 #endif
 
@@ -102,13 +122,6 @@ struct	md_page {
 	vm_offset_t pv_kva;		/* first kernel VA mapping */
 	TAILQ_HEAD(,pv_entry)	pv_list;
 };
-
-#define	VM_MDPAGE_INIT(pg)						\
-do {									\
-	TAILQ_INIT(&pg->pv_list);					\
-	mtx_init(&(pg)->md_page.pvh_mtx, "MDPAGE Mutex", NULL, MTX_DEV);\
-	(pg)->mdpage.pvh_attrs = 0;					\
-} while (/*CONSTCOND*/0)
 
 struct l1_ttable;
 struct l2_dtable;
@@ -209,10 +222,12 @@ extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
 void	pmap_bootstrap(vm_offset_t, vm_offset_t, struct pv_addr *);
+int	pmap_change_attr(vm_offset_t, vm_size_t, int);
 void	pmap_kenter(vm_offset_t va, vm_paddr_t pa);
 void	pmap_kenter_nocache(vm_offset_t va, vm_paddr_t pa);
 void	*pmap_kenter_temp(vm_paddr_t pa, int i);
 void 	pmap_kenter_user(vm_offset_t va, vm_paddr_t pa);
+vm_paddr_t pmap_kextract(vm_offset_t va);
 void	pmap_kremove(vm_offset_t);
 void	*pmap_mapdev(vm_offset_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
@@ -225,6 +240,7 @@ void
 pmap_map_entry(vm_offset_t l1pt, vm_offset_t va, vm_offset_t pa, int prot,
     int cache);
 int pmap_fault_fixup(pmap_t, vm_offset_t, vm_prot_t, int);
+int pmap_dmap_iscurrent(pmap_t pmap);
 
 /*
  * Definitions for MMU domains
@@ -251,17 +267,10 @@ extern int pmap_needs_pte_sync;
  * We use these macros since we use different bits on different processor
  * models.
  */
-#define	L1_S_PROT_U		(L1_S_AP(AP_U))
-#define	L1_S_PROT_W		(L1_S_AP(AP_W))
-#define	L1_S_PROT_MASK		(L1_S_PROT_U|L1_S_PROT_W)
 
 #define	L1_S_CACHE_MASK_generic	(L1_S_B|L1_S_C)
 #define	L1_S_CACHE_MASK_xscale	(L1_S_B|L1_S_C|L1_S_XSCALE_TEX(TEX_XSCALE_X)|\
     				L1_S_XSCALE_TEX(TEX_XSCALE_T))
-
-#define	L2_L_PROT_U		(L2_AP(AP_U))
-#define	L2_L_PROT_W		(L2_AP(AP_W))
-#define	L2_L_PROT_MASK		(L2_L_PROT_U|L2_L_PROT_W)
 
 #define	L2_L_CACHE_MASK_generic	(L2_B|L2_C)
 #define	L2_L_CACHE_MASK_xscale	(L2_B|L2_C|L2_XSCALE_L_TEX(TEX_XSCALE_X) | \
@@ -293,6 +302,11 @@ extern int pmap_needs_pte_sync;
 /*
  * User-visible names for the ones that vary with MMU class.
  */
+#if (ARM_MMU_V6 + ARM_MMU_V7) != 0
+#define	L2_AP(x)	(L2_AP0(x))
+#else
+#define	L2_AP(x)	(L2_AP0(x) | L2_AP1(x) | L2_AP2(x) | L2_AP3(x))
+#endif
 
 #if ARM_NMMUS > 1
 /* More than one MMU class configured; use variables. */
@@ -334,6 +348,77 @@ extern int pmap_needs_pte_sync;
 #define	L1_C_PROTO		L1_C_PROTO_xscale
 #define	L2_S_PROTO		L2_S_PROTO_xscale
 
+#elif (ARM_MMU_V6 + ARM_MMU_V7) != 0
+
+#define	L2_S_PROT_U		(L2_AP0(2))		/* user access */
+#define	L2_S_PROT_R		(L2_APX|L2_AP0(1))	/* read access */
+
+#define	L2_S_PROT_MASK		(L2_S_PROT_U|L2_S_PROT_R)
+#define	L2_S_WRITABLE(pte)	(!(pte & L2_APX))
+
+#ifndef SMP
+#define	L1_S_CACHE_MASK		(L1_S_TEX_MASK|L1_S_B|L1_S_C)
+#define	L2_L_CACHE_MASK		(L2_L_TEX_MASK|L2_B|L2_C)
+#define	L2_S_CACHE_MASK		(L2_S_TEX_MASK|L2_B|L2_C)
+#else
+#define	L1_S_CACHE_MASK		(L1_S_TEX_MASK|L1_S_B|L1_S_C|L1_SHARED)
+#define	L2_L_CACHE_MASK		(L2_L_TEX_MASK|L2_B|L2_C|L2_SHARED)
+#define	L2_S_CACHE_MASK		(L2_S_TEX_MASK|L2_B|L2_C|L2_SHARED)
+#endif  /* SMP */
+
+#define	L1_S_PROTO		(L1_TYPE_S)
+#define	L1_C_PROTO		(L1_TYPE_C)
+#define	L2_S_PROTO		(L2_TYPE_S)
+
+#ifndef SMP
+#define ARM_L1S_STRONG_ORD	(0)
+#define ARM_L1S_DEVICE_NOSHARE	(L1_S_TEX(2))
+#define ARM_L1S_DEVICE_SHARE	(L1_S_B)
+#define ARM_L1S_NRML_NOCACHE	(L1_S_TEX(1))
+#define ARM_L1S_NRML_IWT_OWT	(L1_S_C)
+#define ARM_L1S_NRML_IWB_OWB	(L1_S_C|L1_S_B)
+#define ARM_L1S_NRML_IWBA_OWBA	(L1_S_TEX(1)|L1_S_C|L1_S_B)
+
+#define ARM_L2L_STRONG_ORD	(0)
+#define ARM_L2L_DEVICE_NOSHARE	(L2_L_TEX(2))
+#define ARM_L2L_DEVICE_SHARE	(L2_B)
+#define ARM_L2L_NRML_NOCACHE	(L2_L_TEX(1))
+#define ARM_L2L_NRML_IWT_OWT	(L2_C)
+#define ARM_L2L_NRML_IWB_OWB	(L2_C|L2_B)
+#define ARM_L2L_NRML_IWBA_OWBA	(L2_L_TEX(1)|L2_C|L2_B)
+
+#define ARM_L2S_STRONG_ORD	(0)
+#define ARM_L2S_DEVICE_NOSHARE	(L2_S_TEX(2))
+#define ARM_L2S_DEVICE_SHARE	(L2_B)
+#define ARM_L2S_NRML_NOCACHE	(L2_S_TEX(1))
+#define ARM_L2S_NRML_IWT_OWT	(L2_C)
+#define ARM_L2S_NRML_IWB_OWB	(L2_C|L2_B)
+#define ARM_L2S_NRML_IWBA_OWBA	(L2_S_TEX(1)|L2_C|L2_B)
+#else
+#define ARM_L1S_STRONG_ORD	(0)
+#define ARM_L1S_DEVICE_NOSHARE	(L1_S_TEX(2))
+#define ARM_L1S_DEVICE_SHARE	(L1_S_B)
+#define ARM_L1S_NRML_NOCACHE	(L1_S_TEX(1)|L1_SHARED)
+#define ARM_L1S_NRML_IWT_OWT	(L1_S_C|L1_SHARED)
+#define ARM_L1S_NRML_IWB_OWB	(L1_S_C|L1_S_B|L1_SHARED)
+#define ARM_L1S_NRML_IWBA_OWBA	(L1_S_TEX(1)|L1_S_C|L1_S_B|L1_SHARED)
+
+#define ARM_L2L_STRONG_ORD	(0)
+#define ARM_L2L_DEVICE_NOSHARE	(L2_L_TEX(2))
+#define ARM_L2L_DEVICE_SHARE	(L2_B)
+#define ARM_L2L_NRML_NOCACHE	(L2_L_TEX(1)|L2_SHARED)
+#define ARM_L2L_NRML_IWT_OWT	(L2_C|L2_SHARED)
+#define ARM_L2L_NRML_IWB_OWB	(L2_C|L2_B|L2_SHARED)
+#define ARM_L2L_NRML_IWBA_OWBA	(L2_L_TEX(1)|L2_C|L2_B|L2_SHARED)
+
+#define ARM_L2S_STRONG_ORD	(0)
+#define ARM_L2S_DEVICE_NOSHARE	(L2_S_TEX(2))
+#define ARM_L2S_DEVICE_SHARE	(L2_B)
+#define ARM_L2S_NRML_NOCACHE	(L2_S_TEX(1)|L2_SHARED)
+#define ARM_L2S_NRML_IWT_OWT	(L2_C|L2_SHARED)
+#define ARM_L2S_NRML_IWB_OWB	(L2_C|L2_B|L2_SHARED)
+#define ARM_L2S_NRML_IWBA_OWBA	(L2_S_TEX(1)|L2_C|L2_B|L2_SHARED)
+#endif /* SMP */
 #endif /* ARM_NMMUS > 1 */
 
 #if (ARM_MMU_SA1 == 1) && (ARM_NMMUS == 1)
@@ -350,14 +435,41 @@ extern int pmap_needs_pte_sync;
  * These macros return various bits based on kernel/user and protection.
  * Note that the compiler will usually fold these at compile time.
  */
+#if (ARM_MMU_V6 + ARM_MMU_V7) == 0
+
+#define	L1_S_PROT_U		(L1_S_AP(AP_U))
+#define	L1_S_PROT_W		(L1_S_AP(AP_W))
+#define	L1_S_PROT_MASK		(L1_S_PROT_U|L1_S_PROT_W)
+#define	L1_S_WRITABLE(pd)	((pd) & L1_S_PROT_W)
+
 #define	L1_S_PROT(ku, pr)	((((ku) == PTE_USER) ? L1_S_PROT_U : 0) | \
 				 (((pr) & VM_PROT_WRITE) ? L1_S_PROT_W : 0))
+
+#define	L2_L_PROT_U		(L2_AP(AP_U))
+#define	L2_L_PROT_W		(L2_AP(AP_W))
+#define	L2_L_PROT_MASK		(L2_L_PROT_U|L2_L_PROT_W)
 
 #define	L2_L_PROT(ku, pr)	((((ku) == PTE_USER) ? L2_L_PROT_U : 0) | \
 				 (((pr) & VM_PROT_WRITE) ? L2_L_PROT_W : 0))
 
 #define	L2_S_PROT(ku, pr)	((((ku) == PTE_USER) ? L2_S_PROT_U : 0) | \
 				 (((pr) & VM_PROT_WRITE) ? L2_S_PROT_W : 0))
+#else
+#define	L1_S_PROT_U		(L1_S_AP(AP_U))
+#define	L1_S_PROT_MASK		(L1_S_APX|L1_S_AP(0x3))
+#define	L1_S_WRITABLE(pd)	(!((pd) & L1_S_APX))
+
+#define	L1_S_PROT(ku, pr)	(L1_S_PROT_MASK & ~((((ku) == PTE_KERNEL) ? L1_S_PROT_U : 0) | \
+				 (((pr) & VM_PROT_WRITE) ? L1_S_APX : 0)))
+
+#define	L2_L_PROT_MASK		(L2_APX|L2_AP0(0x3))
+#define	L2_L_PROT(ku, pr)	(L2_L_PROT_MASK & ~((((ku) == PTE_KERNEL) ? L2_S_PROT_U : 0) | \
+				 (((pr) & VM_PROT_WRITE) ? L2_APX : 0)))
+
+#define	L2_S_PROT(ku, pr)	(L2_S_PROT_MASK & ~((((ku) == PTE_KERNEL) ? L2_S_PROT_U : 0) | \
+				 (((pr) & VM_PROT_WRITE) ? L2_APX : 0)))
+
+#endif
 
 /*
  * Macros to test if a mapping is mappable with an L1 Section mapping
@@ -422,7 +534,7 @@ extern pt_entry_t		pte_l2_s_proto;
 extern void (*pmap_copy_page_func)(vm_paddr_t, vm_paddr_t);
 extern void (*pmap_zero_page_func)(vm_paddr_t, int, int);
 
-#if (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 || defined(CPU_XSCALE_81342)
+#if (ARM_MMU_GENERIC + ARM_MMU_V6 + ARM_MMU_V7 + ARM_MMU_SA1) != 0 || defined(CPU_XSCALE_81342)
 void	pmap_copy_page_generic(vm_paddr_t, vm_paddr_t);
 void	pmap_zero_page_generic(vm_paddr_t, int, int);
 
@@ -436,6 +548,9 @@ void	pmap_pte_init_arm9(void);
 #if defined(CPU_ARM10)
 void	pmap_pte_init_arm10(void);
 #endif /* CPU_ARM10 */
+#if (ARM_MMU_V6 + ARM_MMU_V7) != 0
+void	pmap_pte_init_mmu_v6(void);
+#endif /* CPU_ARM11 */
 #endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
 
 #if /* ARM_MMU_SA1 == */1
@@ -500,8 +615,6 @@ void	pmap_use_minicache(vm_offset_t, vm_size_t);
 #define	PVF_UNMAN	0x80		/* mapping is unmanaged */
 
 void vector_page_setprot(int);
-
-void pmap_update(pmap_t);
 
 /*
  * This structure is used by machine-dependent code to describe

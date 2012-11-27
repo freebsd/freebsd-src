@@ -1,15 +1,5 @@
 # $FreeBSD$
 
-hint.apb.0.at="nexus0"
-hint.apb.0.irq=4
-
-# uart0
-hint.uart.0.at="apb0"
-# see atheros/uart_cpu_ar71xx.c why +3
-hint.uart.0.maddr=0x18020003
-hint.uart.0.msize=0x18
-hint.uart.0.irq=3
-
 # arge0 MDIO bus
 hint.argemdio.0.at="nexus0"
 hint.argemdio.0.maddr=0x19000000
@@ -21,21 +11,12 @@ hint.argemdio.0.order=0
 # arge0: MII; dedicated PHY 4 on switch, connected via internal switch
 # MDIO bus.
 
-hint.arge.0.at="nexus0"
-hint.arge.0.maddr=0x19000000
-hint.arge.0.msize=0x1000
-hint.arge.0.irq=2
 # hint.arge.0.eeprommac=0x83fe9ff0
 hint.arge.0.phymask=0x10	# PHY 4
 # hint.arge.0.miimode=2		# MII
 hint.arge.0.mdio=mdioproxy1	# Hanging off the arswitch MDIO bus
 
 # arge1: connected to the LAN switch MAC, at 1000BaseTX / GMII.
-hint.arge.1.at="nexus0"
-hint.arge.1.maddr=0x1A000000
-hint.arge.1.msize=0x1000
-hint.arge.1.irq=3
-
 hint.arge.1.phymask=0x0
 # hint.arge.1.miimode=1		# GMII
 hint.arge.1.media=1000		# Force to 1000BaseTX/full
@@ -54,25 +35,6 @@ hint.arswitch.0.is_gmii=0	# No, not GMII
 hint.pcib.0.bus.0.0.0.ath_fixup_addr=0x1fff1000
 hint.pcib.0.bus.0.0.0.ath_fixup_size=4096
 
-# ehci - note the 0x100 offset for the AR913x/AR724x
-hint.ehci.0.at="nexus0"
-hint.ehci.0.maddr=0x1b000100
-hint.ehci.0.msize=0x00ffff00
-hint.ehci.0.irq=1
-
-# pci
-hint.pcib.0.at="nexus0"
-hint.pcib.0.irq=0
-
-# ath
-hint.ath.0.eeprom_firmware="pcib.0.bus.0.0.0.eeprom_firmware"
-
-# GPIO
-hint.gpio.0.at="apb0"
-hint.gpio.0.maddr=0x18040000
-hint.gpio.0.msize=0x1000
-hint.gpio.0.irq=2
-
 # Signal leds
 hint.gpioled.0.at="gpiobus0"
 hint.gpioled.0.name="sig1"
@@ -86,18 +48,6 @@ hint.gpioled.2.pins=0x0800	# pin 11
 hint.gpioled.3.at="gpiobus0"
 hint.gpioled.3.name="sig4"
 hint.gpioled.3.pins=0x0080	# pin 7
-
-# SPI controller/bus
-hint.spi.0.at="nexus0"
-hint.spi.0.maddr=0x1f000000
-hint.spi.0.msize=0x10
-
-# SPI flash
-hint.mx25l.0.at="spibus0"
-hint.mx25l.0.cs=0
-
-# Watchdog
-hint.ar71xx_wdog.0.at="nexus0"
 
 # nvram mapping - XXX ?
 hint.nvram.0.base=0x1f030000

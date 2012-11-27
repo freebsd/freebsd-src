@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #include "extern.h"
 #include "syscall.h"
 
-#define MAXARGS 6
+#define	MAXARGS	6
 
 static void
 usage(void)
@@ -113,19 +113,19 @@ static struct ex_types {
 
 /*
  * Set the execution type.  This is called after every exec, and when
- * a process is first monitored. 
+ * a process is first monitored.
  */
 
 static struct ex_types *
 set_etype(struct trussinfo *trussinfo)
 {
 	struct ex_types *funcs;
-	char progt[32];
-	
-	size_t len = sizeof(progt);
-	int mib[4];
+	size_t len;
 	int error;
+	int mib[4];
+	char progt[32];
 
+	len = sizeof(progt);
 	mib[0] = CTL_KERN;
 	mib[1] = KERN_PROC;
 	mib[2] = KERN_PROC_SV_NAME;
@@ -135,7 +135,7 @@ set_etype(struct trussinfo *trussinfo)
 		err(2, "can not get etype");
 
 	for (funcs = ex_types; funcs->type; funcs++)
-		if (!strcmp(funcs->type, progt))
+		if (strcmp(funcs->type, progt) == 0)
 			break;
 
 	if (funcs->type == NULL) {
@@ -163,16 +163,15 @@ strsig(int sig)
 int
 main(int ac, char **av)
 {
-	int c;
-	int i;
-	pid_t childpid;
-	int status;
-	char **command;
+	struct timespec timediff;
+	struct sigaction sa;
 	struct ex_types *funcs;
-	int initial_open;
-	char *fname;
 	struct trussinfo *trussinfo;
+	char *fname;
 	char *signame;
+	char **command;
+	pid_t childpid;
+	int c, initial_open, status;
 
 	fname = NULL;
 	initial_open = 1;
@@ -192,7 +191,7 @@ main(int ac, char **av)
 		case 'p':	/* specified pid */
 			trussinfo->pid = atoi(optarg);
 			/* make sure i don't trace me */
-			if(trussinfo->pid == getpid()) {
+			if (trussinfo->pid == getpid()) {
 				fprintf(stderr, "attempt to grab self.\n");
 				exit(2);
 			}
@@ -221,7 +220,7 @@ main(int ac, char **av)
 		case 's':	/* Specified string size */
 			trussinfo->strsize = atoi(optarg);
 			break;
-		case 'S':	/* Don't trace signals */ 
+		case 'S':	/* Don't trace signals */
 			trussinfo->flags |= NOSIGS;
 			break;
 		default:
@@ -260,10 +259,13 @@ main(int ac, char **av)
 		signal(SIGTERM, SIG_IGN);
 		signal(SIGQUIT, SIG_IGN);
 	} else {
+		sa.sa_handler = restore_proc;
+		sa.sa_flags = 0;
+		sigemptyset(&sa.sa_mask);
+		sigaction(SIGINT, &sa, NULL);
+		sigaction(SIGQUIT, &sa, NULL);
+		sigaction(SIGTERM, &sa, NULL);
 		start_tracing(trussinfo->pid);
-		signal(SIGINT, restore_proc);
-		signal(SIGTERM, restore_proc);
-		signal(SIGQUIT, restore_proc);
 	}
 
 
@@ -285,25 +287,23 @@ START_TRACE:
 	clock_gettime(CLOCK_REALTIME, &trussinfo->start_time);
 
 	do {
-		struct timespec timediff;
 		waitevent(trussinfo);
 
-		switch(i = trussinfo->pr_why) {
+		switch (trussinfo->pr_why) {
 		case S_SCE:
 			funcs->enter_syscall(trussinfo, MAXARGS);
 			clock_gettime(CLOCK_REALTIME,
-			    &trussinfo->before);
+			    &trussinfo->curthread->before);
 			break;
 		case S_SCX:
 			clock_gettime(CLOCK_REALTIME,
-			    &trussinfo->after);
+			    &trussinfo->curthread->after);
 
 			if (trussinfo->curthread->in_fork &&
 			    (trussinfo->flags & FOLLOWFORKS)) {
 				trussinfo->curthread->in_fork = 0;
-				childpid =
-				    funcs->exit_syscall(trussinfo,
-					trussinfo->pr_data);
+				childpid = funcs->exit_syscall(trussinfo,
+				    trussinfo->pr_data);
 
 				/*
 				 * Fork a new copy of ourself to trace
@@ -326,15 +326,15 @@ START_TRACE:
 				fprintf(trussinfo->outfile, "%5d: ",
 				    trussinfo->pid);
 			if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
-				timespecsubt(&trussinfo->after,
+				timespecsubt(&trussinfo->curthread->after,
 				    &trussinfo->start_time, &timediff);
 				fprintf(trussinfo->outfile, "%ld.%09ld ",
 				    (long)timediff.tv_sec,
 				    timediff.tv_nsec);
 			}
 			if (trussinfo->flags & RELATIVETIMESTAMPS) {
-				timespecsubt(&trussinfo->after,
-				    &trussinfo->before, &timediff);
+				timespecsubt(&trussinfo->curthread->after,
+				    &trussinfo->curthread->before, &timediff);
 				fprintf(trussinfo->outfile, "%ld.%09ld ",
 				    (long)timediff.tv_sec,
 				    timediff.tv_nsec);
@@ -352,17 +352,17 @@ START_TRACE:
 				fprintf(trussinfo->outfile, "%5d: ",
 				    trussinfo->pid);
 			if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
-				timespecsubt(&trussinfo->after,
+				timespecsubt(&trussinfo->curthread->after,
 				    &trussinfo->start_time, &timediff);
 				fprintf(trussinfo->outfile, "%ld.%09ld ",
 				    (long)timediff.tv_sec,
 				    timediff.tv_nsec);
 			}
 			if (trussinfo->flags & RELATIVETIMESTAMPS) {
-			  timespecsubt(&trussinfo->after,
-			      &trussinfo->before, &timediff);
-			  fprintf(trussinfo->outfile, "%ld.%09ld ",
-			    (long)timediff.tv_sec, timediff.tv_nsec);
+				timespecsubt(&trussinfo->curthread->after,
+				    &trussinfo->curthread->before, &timediff);
+				fprintf(trussinfo->outfile, "%ld.%09ld ",
+				    (long)timediff.tv_sec, timediff.tv_nsec);
 			}
 			fprintf(trussinfo->outfile,
 			    "process exit, rval = %u\n", trussinfo->pr_data);
@@ -370,15 +370,17 @@ START_TRACE:
 		default:
 			break;
 		}
-	} while (trussinfo->pr_why != S_EXIT);
+	} while (trussinfo->pr_why != S_EXIT &&
+	    trussinfo->pr_why != S_DETACHED);
 
-	if (trussinfo->flags & FOLLOWFORKS)
+	if (trussinfo->flags & FOLLOWFORKS) {
 		do {
 			childpid = wait(&status);
 		} while (childpid != -1);
+	}
 
- 	if (trussinfo->flags & COUNTONLY)
- 		print_summary(trussinfo);
+	if (trussinfo->flags & COUNTONLY)
+		print_summary(trussinfo);
 
 	fflush(trussinfo->outfile);
 

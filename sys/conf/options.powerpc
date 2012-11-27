@@ -23,6 +23,7 @@ POWERMAC		opt_platform.h
 PS3			opt_platform.h
 MAMBO
 PSIM
+WII			opt_platform.h
 
 SC_OFWFB		opt_ofwfb.h
 

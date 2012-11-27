@@ -143,6 +143,13 @@ struct ISCI_INTERRUPT_INFO
 
 };
 
+struct ISCI_LED
+{
+	struct cdev		*cdev;
+	SCI_CONTROLLER_HANDLE_T	handle;
+	int			index;
+};
+
 struct ISCI_CONTROLLER
 {
 	struct isci_softc 	*isci;
@@ -169,12 +176,14 @@ struct ISCI_CONTROLLER
 	uint32_t		queue_depth;
 	uint32_t		sim_queue_depth;
 	SCI_FAST_LIST_T		pending_device_reset_list;
+	struct ISCI_LED		led[SCI_MAX_PHYS];
 
 	SCI_MEMORY_DESCRIPTOR_LIST_HANDLE_T mdl;
 
 	SCI_POOL_CREATE(remote_device_pool, struct ISCI_REMOTE_DEVICE *, SCI_MAX_REMOTE_DEVICES);
 	SCI_POOL_CREATE(request_pool, struct ISCI_REQUEST *, SCI_MAX_IO_REQUESTS);
 	SCI_POOL_CREATE(timer_pool, struct ISCI_TIMER *, SCI_MAX_TIMERS);
+	SCI_POOL_CREATE(unmap_buffer_pool, void *, SCI_MAX_REMOTE_DEVICES);
 };
 
 struct ISCI_REQUEST

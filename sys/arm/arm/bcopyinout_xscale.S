@@ -41,12 +41,15 @@ __FBSDID("$FreeBSD$");
 	.text
 	.align	0
 
-#ifdef MULTIPROCESSOR
-.Lcpu_info:
-	.word	_C_LABEL(cpu_info)
+#ifdef _ARM_ARCH_6
+#define GET_PCB(tmp) \
+	mrc p15, 0, tmp, c13, c0, 4; \
+	add	tmp, tmp, #(PC_CURPCB)
 #else
 .Lcurpcb:
 	.word	_C_LABEL(__pcpu) + PC_CURPCB
+#define GET_PCB(tmp) \
+	ldr	tmp, .Lcurpcb
 #endif
 
 /*
@@ -85,18 +88,8 @@ ENTRY(copyin)
 .Lnormal:
 	stmfd	sp!, {r10-r11, lr}
 
-#ifdef MULTIPROCESSOR
-	/* XXX Probably not appropriate for non-Hydra SMPs */
-	stmfd	sp!, {r0-r2}
-	bl	_C_LABEL(cpu_number)
-	ldr	r10, .Lcpu_info
-	ldmfd	sp!, {r0-r2}
-	ldr	r10, [r10, r0, lsl #2]
-	ldr	r10, [r10, #CI_CURPCB]
-#else
-	ldr	r10, .Lcurpcb
+	GET_PCB(r10)
 	ldr	r10, [r10]
-#endif
 
 	mov	r3, #0x00
 	adr	ip, .Lcopyin_fault
@@ -108,6 +101,7 @@ ENTRY(copyin)
 	ldmfd	sp!, {r10-r11, pc}
 
 .Lcopyin_fault:
+	ldr	r0, =EFAULT
 	str	r11, [r10, #PCB_ONFAULT]
 	cmp	r3, #0x00
 	ldmgtfd	sp!, {r4-r7}		/* r3 > 0 Restore r4-r7 */
@@ -536,18 +530,8 @@ ENTRY(copyout)
 .Lnormale:									
 	stmfd	sp!, {r10-r11, lr}
 
-#ifdef MULTIPROCESSOR
-	/* XXX Probably not appropriate for non-Hydra SMPs */
-	stmfd	sp!, {r0-r2}
-	bl	_C_LABEL(cpu_number)
-	ldr	r10, .Lcpu_info
-	ldmfd	sp!, {r0-r2}
-	ldr	r10, [r10, r0, lsl #2]
-	ldr	r10, [r10, #CI_CURPCB]
-#else
-	ldr	r10, .Lcurpcb
+	GET_PCB(r10)
 	ldr	r10, [r10]
-#endif
 
 	mov	r3, #0x00
 	adr	ip, .Lcopyout_fault
@@ -559,6 +543,7 @@ ENTRY(copyout)
 	ldmfd	sp!, {r10-r11, pc}
 
 .Lcopyout_fault:
+	ldr	r0, =EFAULT
 	str	r11, [r10, #PCB_ONFAULT]
 	cmp	r3, #0x00
 	ldmgtfd	sp!, {r4-r7}		/* r3 > 0 Restore r4-r7 */

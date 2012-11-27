@@ -56,8 +56,8 @@ device		mge			# Marvell Gigabit Ethernet controller
 device		mii
 device		e1000phy
 device		bpf
-options		HZ=1000
-options		DEVICE_POLLING
+options 	HZ=1000
+options 	DEVICE_POLLING
 device		vlan
 
 device		cesa			# Marvell security engine
@@ -78,5 +78,5 @@ device		nand
 
 # Flattened Device Tree
 options 	FDT
-options		FDT_DTB_STATIC
+options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=sheevaplug.dts

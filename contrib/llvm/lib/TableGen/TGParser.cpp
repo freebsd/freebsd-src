@@ -292,107 +292,78 @@ bool TGParser::AddSubMultiClass(MultiClass *CurMC,
 /// ProcessForeachDefs - Given a record, apply all of the variable
 /// values in all surrounding foreach loops, creating new records for
 /// each combination of values.
-bool TGParser::ProcessForeachDefs(Record *CurRec, MultiClass *CurMultiClass,
-                                  SMLoc Loc) {
+bool TGParser::ProcessForeachDefs(Record *CurRec, SMLoc Loc) {
+  if (Loops.empty())
+    return false;
+
   // We want to instantiate a new copy of CurRec for each combination
   // of nested loop iterator values.  We don't want top instantiate
   // any copies until we have values for each loop iterator.
   IterSet IterVals;
-  for (LoopVector::iterator Loop = Loops.begin(), LoopEnd = Loops.end();
-       Loop != LoopEnd;
-       ++Loop) {
-    // Process this loop.
-    if (ProcessForeachDefs(CurRec, CurMultiClass, Loc,
-                           IterVals, *Loop, Loop+1)) {
-      Error(Loc,
-            "Could not process loops for def " + CurRec->getNameInitAsString());
-      return true;
-    }
-  }
-
-  return false;
+  return ProcessForeachDefs(CurRec, Loc, IterVals);
 }
 
 /// ProcessForeachDefs - Given a record, a loop and a loop iterator,
 /// apply each of the variable values in this loop and then process
 /// subloops.
-bool TGParser::ProcessForeachDefs(Record *CurRec, MultiClass *CurMultiClass,
-                                  SMLoc Loc, IterSet &IterVals,
-                                  ForeachLoop &CurLoop,
-                                  LoopVector::iterator NextLoop) {
-  Init *IterVar = CurLoop.IterVar;
-  ListInit *List = dynamic_cast<ListInit *>(CurLoop.ListValue);
+bool TGParser::ProcessForeachDefs(Record *CurRec, SMLoc Loc, IterSet &IterVals){
+  // Recursively build a tuple of iterator values.
+  if (IterVals.size() != Loops.size()) {
+    assert(IterVals.size() < Loops.size());
+    ForeachLoop &CurLoop = Loops[IterVals.size()];
+    ListInit *List = dynamic_cast<ListInit *>(CurLoop.ListValue);
+    if (List == 0) {
+      Error(Loc, "Loop list is not a list");
+      return true;
+    }
 
-  if (List == 0) {
-    Error(Loc, "Loop list is not a list");
+    // Process each value.
+    for (int64_t i = 0; i < List->getSize(); ++i) {
+      Init *ItemVal = List->resolveListElementReference(*CurRec, 0, i);
+      IterVals.push_back(IterRecord(CurLoop.IterVar, ItemVal));
+      if (ProcessForeachDefs(CurRec, Loc, IterVals))
+        return true;
+      IterVals.pop_back();
+    }
+    return false;
+  }
+
+  // This is the bottom of the recursion. We have all of the iterator values
+  // for this point in the iteration space.  Instantiate a new record to
+  // reflect this combination of values.
+  Record *IterRec = new Record(*CurRec);
+
+  // Set the iterator values now.
+  for (unsigned i = 0, e = IterVals.size(); i != e; ++i) {
+    VarInit *IterVar = IterVals[i].IterVar;
+    TypedInit *IVal = dynamic_cast<TypedInit *>(IterVals[i].IterValue);
+    if (IVal == 0) {
+      Error(Loc, "foreach iterator value is untyped");
+      return true;
+    }
+
+    IterRec->addValue(RecordVal(IterVar->getName(), IVal->getType(), false));
+
+    if (SetValue(IterRec, Loc, IterVar->getName(),
+                 std::vector<unsigned>(), IVal)) {
+      Error(Loc, "when instantiating this def");
+      return true;
+    }
+
+    // Resolve it next.
+    IterRec->resolveReferencesTo(IterRec->getValue(IterVar->getName()));
+
+    // Remove it.
+    IterRec->removeValue(IterVar->getName());
+  }
+
+  if (Records.getDef(IterRec->getNameInitAsString())) {
+    Error(Loc, "def already exists: " + IterRec->getNameInitAsString());
     return true;
   }
 
-  // Process each value.
-  for (int64_t i = 0; i < List->getSize(); ++i) {
-    Init *ItemVal = List->resolveListElementReference(*CurRec, 0, i);
-    IterVals.push_back(IterRecord(IterVar, ItemVal));
-
-    if (IterVals.size() == Loops.size()) {
-      // Ok, we have all of the iterator values for this point in the
-      // iteration space.  Instantiate a new record to reflect this
-      // combination of values.
-      Record *IterRec = new Record(*CurRec);
-
-      // Set the iterator values now.
-      for (IterSet::iterator i = IterVals.begin(), iend = IterVals.end();
-           i != iend;
-           ++i) {
-        VarInit *IterVar = dynamic_cast<VarInit *>(i->IterVar);
-        if (IterVar == 0) {
-          Error(Loc, "foreach iterator is unresolved");
-          return true;
-        }
-
-        TypedInit *IVal  = dynamic_cast<TypedInit *>(i->IterValue);
-        if (IVal == 0) {
-          Error(Loc, "foreach iterator value is untyped");
-          return true;
-        }
-
-        IterRec->addValue(RecordVal(IterVar->getName(), IVal->getType(), false));
-
-        if (SetValue(IterRec, Loc, IterVar->getName(),
-                     std::vector<unsigned>(), IVal)) {
-          Error(Loc, "when instantiating this def");
-          return true;
-        }
-
-        // Resolve it next.
-        IterRec->resolveReferencesTo(IterRec->getValue(IterVar->getName()));
-
-        // Remove it.
-        IterRec->removeValue(IterVar->getName());
-      }
-
-      if (Records.getDef(IterRec->getNameInitAsString())) {
-        Error(Loc, "def already exists: " + IterRec->getNameInitAsString());
-        return true;
-      }
-
-      Records.addDef(IterRec);
-      IterRec->resolveReferences();
-    }
-
-    if (NextLoop != Loops.end()) {
-      // Process nested loops.
-      if (ProcessForeachDefs(CurRec, CurMultiClass, Loc, IterVals, *NextLoop,
-                             NextLoop+1)) {
-        Error(Loc,
-              "Could not process loops for def " +
-              CurRec->getNameInitAsString());
-        return true;
-      }
-    }
-
-    // We're done with this iterator.
-    IterVals.pop_back();
-  }
+  Records.addDef(IterRec);
+  IterRec->resolveReferences();
   return false;
 }
 
@@ -1726,9 +1697,11 @@ Init *TGParser::ParseDeclaration(Record *CurRec,
 /// the name of the declared object or a NULL Init on error.  Return
 /// the name of the parsed initializer list through ForeachListName.
 ///
-///  ForeachDeclaration ::= ID '=' Value
+///  ForeachDeclaration ::= ID '=' '[' ValueList ']'
+///  ForeachDeclaration ::= ID '=' '{' RangeList '}'
+///  ForeachDeclaration ::= ID '=' RangePiece
 ///
-Init *TGParser::ParseForeachDeclaration(Init *&ForeachListValue) {
+VarInit *TGParser::ParseForeachDeclaration(ListInit *&ForeachListValue) {
   if (Lex.getCode() != tgtok::Id) {
     TokError("Expected identifier in foreach declaration");
     return 0;
@@ -1744,26 +1717,59 @@ Init *TGParser::ParseForeachDeclaration(Init *&ForeachListValue) {
   }
   Lex.Lex();  // Eat the '='
 
-  // Expect a list initializer.
-  ForeachListValue = ParseValue(0, 0, ParseForeachMode);
+  RecTy *IterType = 0;
+  std::vector<unsigned> Ranges;
 
-  TypedInit *TypedList = dynamic_cast<TypedInit *>(ForeachListValue);
-  if (TypedList == 0) {
-    TokError("Value list is untyped");
-    return 0;
+  switch (Lex.getCode()) {
+  default: TokError("Unknown token when expecting a range list"); return 0;
+  case tgtok::l_square: { // '[' ValueList ']'
+    Init *List = ParseSimpleValue(0, 0, ParseForeachMode);
+    ForeachListValue = dynamic_cast<ListInit*>(List);
+    if (ForeachListValue == 0) {
+      TokError("Expected a Value list");
+      return 0;
+    }
+    RecTy *ValueType = ForeachListValue->getType();
+    ListRecTy *ListType = dynamic_cast<ListRecTy *>(ValueType);
+    if (ListType == 0) {
+      TokError("Value list is not of list type");
+      return 0;
+    }
+    IterType = ListType->getElementType();
+    break;
   }
 
-  RecTy *ValueType = TypedList->getType();
-  ListRecTy *ListType = dynamic_cast<ListRecTy *>(ValueType);
-  if (ListType == 0) {
-    TokError("Value list is not of list type");
-    return 0;
+  case tgtok::IntVal: { // RangePiece.
+    if (ParseRangePiece(Ranges))
+      return 0;
+    break;
   }
 
-  RecTy *IterType = ListType->getElementType();
-  VarInit *IterVar = VarInit::get(DeclName, IterType);
+  case tgtok::l_brace: { // '{' RangeList '}'
+    Lex.Lex(); // eat the '{'
+    Ranges = ParseRangeList();
+    if (Lex.getCode() != tgtok::r_brace) {
+      TokError("expected '}' at end of bit range list");
+      return 0;
+    }
+    Lex.Lex();
+    break;
+  }
+  }
 
-  return IterVar;
+  if (!Ranges.empty()) {
+    assert(!IterType && "Type already initialized?");
+    IterType = IntRecTy::get();
+    std::vector<Init*> Values;
+    for (unsigned i = 0, e = Ranges.size(); i != e; ++i)
+      Values.push_back(IntInit::get(Ranges[i]));
+    ForeachListValue = ListInit::get(Values, IterType);
+  }
+
+  if (!IterType)
+    return 0;
+
+  return VarInit::get(DeclName, IterType);
 }
 
 /// ParseTemplateArgList - Read a template argument list, which is a non-empty
@@ -1932,7 +1938,7 @@ bool TGParser::ParseDef(MultiClass *CurMultiClass) {
   // Parse ObjectName and make a record for it.
   Record *CurRec = new Record(ParseObjectName(CurMultiClass), DefLoc, Records);
 
-  if (!CurMultiClass) {
+  if (!CurMultiClass && Loops.empty()) {
     // Top-level def definition.
 
     // Ensure redefinition doesn't happen.
@@ -1942,7 +1948,7 @@ bool TGParser::ParseDef(MultiClass *CurMultiClass) {
       return true;
     }
     Records.addDef(CurRec);
-  } else {
+  } else if (CurMultiClass) {
     // Otherwise, a def inside a multiclass, add it to the multiclass.
     for (unsigned i = 0, e = CurMultiClass->DefPrototypes.size(); i != e; ++i)
       if (CurMultiClass->DefPrototypes[i]->getNameInit()
@@ -1978,7 +1984,7 @@ bool TGParser::ParseDef(MultiClass *CurMultiClass) {
     }
   }
 
-  if (ProcessForeachDefs(CurRec, CurMultiClass, DefLoc)) {
+  if (ProcessForeachDefs(CurRec, DefLoc)) {
     Error(DefLoc,
           "Could not process loops for def" + CurRec->getNameInitAsString());
     return true;
@@ -1999,8 +2005,8 @@ bool TGParser::ParseForeach(MultiClass *CurMultiClass) {
 
   // Make a temporary object to record items associated with the for
   // loop.
-  Init *ListValue = 0;
-  Init *IterName = ParseForeachDeclaration(ListValue);
+  ListInit *ListValue = 0;
+  VarInit *IterName = ParseForeachDeclaration(ListValue);
   if (IterName == 0)
     return TokError("expected declaration in for");
 
@@ -2278,23 +2284,33 @@ InstantiateMulticlassDef(MultiClass &MC,
   Ref.Rec = DefProto;
   AddSubClass(CurRec, Ref);
 
-  if (DefNameString == 0) {
-    // We must resolve references to NAME.
-    if (SetValue(CurRec, Ref.RefLoc, "NAME", std::vector<unsigned>(),
-                 DefmPrefix)) {
-      Error(DefmPrefixLoc, "Could not resolve "
-            + CurRec->getNameInitAsString() + ":NAME to '"
-            + DefmPrefix->getAsUnquotedString() + "'");
-      return 0;
-    }
+  // Set the value for NAME. We don't resolve references to it 'til later,
+  // though, so that uses in nested multiclass names don't get
+  // confused.
+  if (SetValue(CurRec, Ref.RefLoc, "NAME", std::vector<unsigned>(),
+               DefmPrefix)) {
+    Error(DefmPrefixLoc, "Could not resolve "
+          + CurRec->getNameInitAsString() + ":NAME to '"
+          + DefmPrefix->getAsUnquotedString() + "'");
+    return 0;
+  }
 
+  // If the DefNameString didn't resolve, we probably have a reference to
+  // NAME and need to replace it. We need to do at least this much greedily,
+  // otherwise nested multiclasses will end up with incorrect NAME expansions.
+  if (DefNameString == 0) {
     RecordVal *DefNameRV = CurRec->getValue("NAME");
     CurRec->resolveReferencesTo(DefNameRV);
   }
 
   if (!CurMultiClass) {
-    // We do this after resolving NAME because before resolution, many
-    // multiclass defs will have the same name expression.  If we are
+    // Now that we're at the top level, resolve all NAME references
+    // in the resultant defs that weren't in the def names themselves.
+    RecordVal *DefNameRV = CurRec->getValue("NAME");
+    CurRec->resolveReferencesTo(DefNameRV);
+
+    // Now that NAME references are resolved and we're at the top level of
+    // any multiclass expansions, add the record to the RecordKeeper. If we are
     // currently in a multiclass, it means this defm appears inside a
     // multiclass and its name won't be fully resolvable until we see
     // the top-level defm.  Therefore, we don't add this to the

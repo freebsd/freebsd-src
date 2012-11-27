@@ -48,8 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_enc_internal.h>
 #include <cam/scsi/scsi_message.h>
 
-#include <opt_enc.h>
-
 /*
  * SAF-TE Type Device Emulation
  */
@@ -222,7 +220,7 @@ struct scfg {
 static char *safte_2little = "Too Little Data Returned (%d) at line %d\n";
 #define	SAFT_BAIL(r, x)	\
 	if ((r) >= (x)) { \
-		ENC_LOG(enc, safte_2little, x, __LINE__);\
+		ENC_VLOG(enc, safte_2little, x, __LINE__);\
 		return (EIO); \
 	}
 
@@ -271,7 +269,7 @@ safte_process_config(enc_softc_t *enc, struct enc_fsm_state *state,
 	if (error != 0)
 		return (error);
 	if (xfer_len < 6) {
-		ENC_LOG(enc, "too little data (%d) for configuration\n",
+		ENC_VLOG(enc, "too little data (%d) for configuration\n",
 		    xfer_len);
 		return (EIO);
 	}
@@ -437,7 +435,7 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 			break;
 		default:
 			cache->elm_map[oid].encstat[0] = SES_OBJSTAT_UNSUPPORTED;
-			ENC_LOG(enc, "Unknown fan%d status 0x%x\n", i,
+			ENC_VLOG(enc, "Unknown fan%d status 0x%x\n", i,
 			    buf[r] & 0xff);
 			break;
 		}
@@ -497,7 +495,7 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 			cfg->enc_status |= SES_ENCSTAT_INFO;
 			break;
 		default:
-			ENC_LOG(enc, "unknown power supply %d status (0x%x)\n",
+			ENC_VLOG(enc, "unknown power supply %d status (0x%x)\n",
 			    i, buf[r] & 0xff);
 			break;
 		}
@@ -545,7 +543,7 @@ safte_process_status(enc_softc_t *enc, struct enc_fsm_state *state,
 		default:
 			cache->elm_map[oid].encstat[0] =
 			    SES_OBJSTAT_UNSUPPORTED;
-			ENC_LOG(enc, "unknown lock status 0x%x\n",
+			ENC_VLOG(enc, "unknown lock status 0x%x\n",
 			    buf[r] & 0xff);
 			break;
 		}

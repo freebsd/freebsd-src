@@ -15,11 +15,11 @@
 
 # $FreeBSD$
 
+#include <bootargs.h>
+
 #
 # BTX C startup code (ELF).
 #
-
-#include <bootargs.h>
 
 #
 # Globals.

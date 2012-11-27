@@ -465,6 +465,11 @@ cbb_chipinit(struct cbb_softc *sc)
 	if (pci_read_config(sc->dev, PCIR_LATTIMER, 1) < 0x20)
 		pci_write_config(sc->dev, PCIR_LATTIMER, 0x20, 1);
 
+	/* Restore bus configuration */
+	pci_write_config(sc->dev, PCIR_PRIBUS_2, sc->pribus, 1);
+	pci_write_config(sc->dev, PCIR_SECBUS_2, sc->secbus, 1);
+	pci_write_config(sc->dev, PCIR_SUBBUS_2, sc->subbus, 1);
+
 	/* Enable memory access */
 	PCI_MASK_CONFIG(sc->dev, PCIR_COMMAND,
 	    | PCIM_CMD_MEMEN

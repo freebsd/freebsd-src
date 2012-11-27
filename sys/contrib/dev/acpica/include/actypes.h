@@ -520,13 +520,6 @@ typedef UINT64                          ACPI_INTEGER;
 #define ACPI_SLEEP_TYPE_INVALID         0xFF
 
 /*
- * Sleep/Wake flags
- */
-#define ACPI_NO_OPTIONAL_METHODS        0x00 /* Do not execute any optional methods */
-#define ACPI_EXECUTE_GTS                0x01 /* For enter sleep interface */
-#define ACPI_EXECUTE_BFS                0x02 /* For leave sleep prep interface */
-
-/*
  * Standard notify values
  */
 #define ACPI_NOTIFY_BUS_CHECK           (UINT8) 0x00
@@ -809,8 +802,7 @@ typedef UINT8                           ACPI_ADR_SPACE_TYPE;
 /* Sleep function dispatch */
 
 typedef ACPI_STATUS (*ACPI_SLEEP_FUNCTION) (
-    UINT8                   SleepState,
-    UINT8                   Flags);
+    UINT8                   SleepState);
 
 typedef struct acpi_sleep_functions
 {

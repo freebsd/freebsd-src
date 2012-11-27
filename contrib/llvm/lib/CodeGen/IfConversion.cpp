@@ -18,6 +18,7 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineBranchProbabilityInfo.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
+#include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetLowering.h"
@@ -155,7 +156,9 @@ namespace {
     const TargetRegisterInfo *TRI;
     const InstrItineraryData *InstrItins;
     const MachineBranchProbabilityInfo *MBPI;
+    MachineRegisterInfo *MRI;
 
+    bool PreRegAlloc;
     bool MadeChange;
     int FnNum;
   public:
@@ -263,14 +266,20 @@ bool IfConverter::runOnMachineFunction(MachineFunction &MF) {
   TII = MF.getTarget().getInstrInfo();
   TRI = MF.getTarget().getRegisterInfo();
   MBPI = &getAnalysis<MachineBranchProbabilityInfo>();
+  MRI = &MF.getRegInfo();
   InstrItins = MF.getTarget().getInstrItineraryData();
   if (!TII) return false;
 
-  // Tail merge tend to expose more if-conversion opportunities.
-  BranchFolder BF(true, false);
-  bool BFChange = BF.OptimizeFunction(MF, TII,
+  PreRegAlloc = MRI->isSSA();
+
+  bool BFChange = false;
+  if (!PreRegAlloc) {
+    // Tail merge tend to expose more if-conversion opportunities.
+    BranchFolder BF(true, false);
+    BFChange = BF.OptimizeFunction(MF, TII,
                                    MF.getTarget().getRegisterInfo(),
                                    getAnalysisIfAvailable<MachineModuleInfo>());
+  }
 
   DEBUG(dbgs() << "\nIfcvt: function (" << ++FnNum <<  ") \'"
                << MF.getFunction()->getName() << "\'");
@@ -621,7 +630,7 @@ void IfConverter::ScanInstructions(BBInfo &BBI) {
   if (BBI.IsDone)
     return;
 
-  bool AlreadyPredicated = BBI.Predicate.size() > 0;
+  bool AlreadyPredicated = !BBI.Predicate.empty();
   // First analyze the end of BB branches.
   BBI.TrueBB = BBI.FalseBB = NULL;
   BBI.BrCond.clear();
@@ -786,8 +795,8 @@ IfConverter::BBInfo &IfConverter::AnalyzeBlock(MachineBasicBlock *BB,
 
   unsigned Dups = 0;
   unsigned Dups2 = 0;
-  bool TNeedSub = TrueBBI.Predicate.size() > 0;
-  bool FNeedSub = FalseBBI.Predicate.size() > 0;
+  bool TNeedSub = !TrueBBI.Predicate.empty();
+  bool FNeedSub = !FalseBBI.Predicate.empty();
   bool Enqueued = false;
 
   BranchProbability Prediction = MBPI->getEdgeProbability(BB, TrueBBI.BB);
@@ -962,9 +971,8 @@ static void InitPredRedefs(MachineBasicBlock *BB, SmallSet<unsigned,4> &Redefs,
          E = BB->livein_end(); I != E; ++I) {
     unsigned Reg = *I;
     Redefs.insert(Reg);
-    for (const uint16_t *Subreg = TRI->getSubRegisters(Reg);
-         *Subreg; ++Subreg)
-      Redefs.insert(*Subreg);
+    for (MCSubRegIterator SubRegs(Reg, TRI); SubRegs.isValid(); ++SubRegs)
+      Redefs.insert(*SubRegs);
   }
 }
 
@@ -983,8 +991,8 @@ static void UpdatePredRedefs(MachineInstr *MI, SmallSet<unsigned,4> &Redefs,
       Defs.push_back(Reg);
     else if (MO.isKill()) {
       Redefs.erase(Reg);
-      for (const uint16_t *SR = TRI->getSubRegisters(Reg); *SR; ++SR)
-        Redefs.erase(*SR);
+      for (MCSubRegIterator SubRegs(Reg, TRI); SubRegs.isValid(); ++SubRegs)
+        Redefs.erase(*SubRegs);
     }
   }
   for (unsigned i = 0, e = Defs.size(); i != e; ++i) {
@@ -993,11 +1001,12 @@ static void UpdatePredRedefs(MachineInstr *MI, SmallSet<unsigned,4> &Redefs,
       if (AddImpUse)
         // Treat predicated update as read + write.
         MI->addOperand(MachineOperand::CreateReg(Reg, false/*IsDef*/,
-                                                true/*IsImp*/,false/*IsKill*/));
+                                              true/*IsImp*/,false/*IsKill*/,
+                                              false/*IsDead*/,true/*IsUndef*/));
     } else {
       Redefs.insert(Reg);
-      for (const uint16_t *SR = TRI->getSubRegisters(Reg); *SR; ++SR)
-        Redefs.insert(*SR);
+      for (MCSubRegIterator SubRegs(Reg, TRI); SubRegs.isValid(); ++SubRegs)
+        Redefs.insert(*SubRegs);
     }
   }
 }
@@ -1335,8 +1344,8 @@ bool IfConverter::IfConvertDiamond(BBInfo &BBI, IfcvtKind Kind,
           // These are defined before ctrl flow reach the 'false' instructions.
           // They cannot be modified by the 'true' instructions.
           ExtUses.insert(Reg);
-          for (const uint16_t *SR = TRI->getSubRegisters(Reg); *SR; ++SR)
-            ExtUses.insert(*SR);
+          for (MCSubRegIterator SubRegs(Reg, TRI); SubRegs.isValid(); ++SubRegs)
+            ExtUses.insert(*SubRegs);
         }
       }
 
@@ -1344,8 +1353,8 @@ bool IfConverter::IfConvertDiamond(BBInfo &BBI, IfcvtKind Kind,
         unsigned Reg = Defs[i];
         if (!ExtUses.count(Reg)) {
           RedefsByFalse.insert(Reg);
-          for (const uint16_t *SR = TRI->getSubRegisters(Reg); *SR; ++SR)
-            RedefsByFalse.insert(*SR);
+          for (MCSubRegIterator SubRegs(Reg, TRI); SubRegs.isValid(); ++SubRegs)
+            RedefsByFalse.insert(*SubRegs);
         }
       }
     }

@@ -766,7 +766,26 @@ zfs_secpolicy_rename_perms(const char *from, const char *to, cred_t *cr)
 static int
 zfs_secpolicy_rename(zfs_cmd_t *zc, cred_t *cr)
 {
-	return (zfs_secpolicy_rename_perms(zc->zc_name, zc->zc_value, cr));
+	char *at = NULL;
+	int error;
+
+	if ((zc->zc_cookie & 1) != 0) {
+		/*
+		 * This is recursive rename, so the starting snapshot might
+		 * not exist. Check file system or volume permission instead.
+		 */
+		at = strchr(zc->zc_name, '@');
+		if (at == NULL)
+			return (EINVAL);
+		*at = '\0';
+	}
+
+	error = zfs_secpolicy_rename_perms(zc->zc_name, zc->zc_value, cr);
+
+	if (at != NULL)
+		*at = '@';
+
+	return (error);
 }
 
 static int
@@ -1817,7 +1836,7 @@ zfs_ioc_objset_stats_impl(zfs_cmd_t *zc, objset_t *os)
 			error = zvol_get_stats(os, nv);
 			if (error == EIO)
 				return (error);
-			VERIFY3S(error, ==, 0);
+			VERIFY0(error);
 		}
 		error = put_nvlist(zc, nv);
 		nvlist_free(nv);
@@ -4149,7 +4168,17 @@ zfs_ioc_pool_reopen(zfs_cmd_t *zc)
 		return (error);
 
 	spa_vdev_state_enter(spa, SCL_NONE);
+
+	/*
+	 * If a resilver is already in progress then set the
+	 * spa_scrub_reopen flag to B_TRUE so that we don't restart
+	 * the scan as a side effect of the reopen. Otherwise, let
+	 * vdev_open() decided if a resilver is required.
+	 */
+	spa->spa_scrub_reopen = dsl_scan_resilvering(spa->spa_dsl_pool);
 	vdev_reopen(spa->spa_root_vdev);
+	spa->spa_scrub_reopen = B_FALSE;
+
 	(void) spa_vdev_state_exit(spa, NULL, 0);
 	spa_close(spa, FTAG);
 	return (0);

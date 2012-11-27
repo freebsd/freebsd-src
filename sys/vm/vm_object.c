@@ -456,7 +456,7 @@ vm_object_vndeallocate(vm_object_t object)
 			VOP_UNLOCK(vp, 0);
 		} else {
 			if (object->ref_count == 0)
-				vp->v_vflag &= ~VV_TEXT;
+				VOP_UNSET_TEXT(vp);
 			VM_OBJECT_UNLOCK(object);
 			vput(vp);
 		}
@@ -1918,8 +1918,13 @@ again:
 		if ((options & OBJPR_NOTMAPPED) == 0) {
 			pmap_remove_all(p);
 			/* Account for removal of wired mappings. */
-			if (wirings != 0)
-				p->wire_count -= wirings;
+			if (wirings != 0) {
+				KASSERT(p->wire_count == wirings,
+				    ("inconsistent wire count %d %d %p",
+				    p->wire_count, wirings, p));
+				p->wire_count = 0;
+				atomic_subtract_int(&cnt.v_wire_count, 1);
+			}
 		}
 		vm_page_free(p);
 		vm_page_unlock(p);

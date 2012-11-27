@@ -2,6 +2,6 @@
 #$FreeBSD$
 
 files		"../xscale/ixp425/files.ixp425"
-include		"../xscale/std.xscale"
+include		"../xscale/std.xscale-be"
 cpu 		CPU_XSCALE_IXP435
 cpu 		CPU_XSCALE_IXP425

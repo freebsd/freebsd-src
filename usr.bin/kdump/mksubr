@@ -388,7 +388,13 @@ auto_switch_type "schedpolicyname"     "SCHED_[A-Z]+[[:space:]]+[0-9]+"         
 auto_switch_type "sendfileflagsname"   "SF_[A-Z]+[[:space:]]+[0-9]+"                  "sys/socket.h"
 auto_or_type     "shmatname"           "SHM_[A-Z]+[[:space:]]+[0-9]{6}+"              "sys/shm.h"
 auto_switch_type "shutdownhowname"     "SHUT_[A-Z]+[[:space:]]+[0-9]+"                "sys/socket.h"
+auto_switch_type "sigbuscodename"      "BUS_[A-Z]+[[:space:]]+[0-9]+"                 "sys/signal.h"
+auto_switch_type "sigchldcodename"     "CLD_[A-Z]+[[:space:]]+[0-9]+"                 "sys/signal.h"
+auto_switch_type "sigfpecodename"      "FPE_[A-Z]+[[:space:]]+[0-9]+"                 "sys/signal.h"
 auto_switch_type "sigprocmaskhowname"  "SIG_[A-Z]+[[:space:]]+[0-9]+"                 "sys/signal.h"
+auto_switch_type "sigillcodename"      "ILL_[A-Z]+[[:space:]]+[0-9]+"                 "sys/signal.h"
+auto_switch_type "sigsegvcodename"     "SEGV_[A-Z]+[[:space:]]+[0-9]+"                 "sys/signal.h"
+auto_switch_type "sigtrapcodename"     "TRAP_[A-Z]+[[:space:]]+[0-9]+"                 "sys/signal.h"
 auto_if_type     "sockdomainname"      "PF_[[:alnum:]]+[[:space:]]+"                  "sys/socket.h"
 auto_if_type     "sockfamilyname"      "AF_[[:alnum:]]+[[:space:]]+"                  "sys/socket.h"
 auto_if_type     "sockipprotoname"     "IPPROTO_[[:alnum:]]+[[:space:]]+"             "netinet/in.h"
@@ -501,4 +507,46 @@ cat <<_EOF_
 	printf(">");
 }
 
+/*
+ * AUTO - Special
+ *
+ * Check general codes first, then defer to signal-specific codes.
+ */
+void
+sigcodename(int sig, int code)
+{
+	switch (code) {
 _EOF_
+egrep "^#[[:space:]]*define[[:space:]]+SI_[A-Z]+[[:space:]]+0(x[0-9abcdef]+)?[[:space:]]*" \
+	$include_dir/sys/signal.h | grep -v SI_UNDEFINED | \
+	awk '{ for (i = 1; i <= NF; i++) \
+		if ($i ~ /define/) \
+			break; \
+		++i; \
+		printf "\tcase %s:\n\t\tprintf(\"%s\");\n\t\tbreak;\n", $i, $i }'
+cat <<_EOF_
+	default:
+		switch (sig) {
+		case SIGILL:
+			sigillcodename(code);
+			break;
+		case SIGBUS:
+			sigbuscodename(code);
+			break;
+		case SIGSEGV:
+			sigsegvcodename(code);
+			break;
+		case SIGFPE:
+			sigfpecodename(code);
+			break;
+		case SIGTRAP:
+			sigtrapcodename(code);
+			break;
+		case SIGCHLD:
+			sigchldcodename(code);
+			break;
+		default:
+			printf("<invalid=%#x>", code);
+		}
+	}
+}

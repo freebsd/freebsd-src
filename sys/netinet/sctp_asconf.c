@@ -1862,7 +1862,6 @@ sctp_addr_mgmt_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 {
 	int status;
 
-
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) == 0 ||
 	    sctp_is_feature_off(inp, SCTP_PCB_FLAGS_DO_ASCONF)) {
 		/* subset bound, no ASCONF allowed case, so ignore */
@@ -2278,7 +2277,7 @@ sctp_set_primary_ip_address_sa(struct sctp_tcb *stcb, struct sockaddr *sa)
 		/* set primary queuing succeeded */
 		SCTPDBG(SCTP_DEBUG_ASCONF1,
 		    "set_primary_ip_address_sa: queued on tcb=%p, ",
-		    stcb);
+		    (void *)stcb);
 		SCTPDBG_ADDR(SCTP_DEBUG_ASCONF1, sa);
 		if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) {
 #ifdef SCTP_TIMER_BASED_ASCONF
@@ -2291,7 +2290,7 @@ sctp_set_primary_ip_address_sa(struct sctp_tcb *stcb, struct sockaddr *sa)
 		}
 	} else {
 		SCTPDBG(SCTP_DEBUG_ASCONF1, "set_primary_ip_address_sa: failed to add to queue on tcb=%p, ",
-		    stcb);
+		    (void *)stcb);
 		SCTPDBG_ADDR(SCTP_DEBUG_ASCONF1, sa);
 		return (-1);
 	}
@@ -2314,7 +2313,7 @@ sctp_set_primary_ip_address(struct sctp_ifa *ifa)
 			    SCTP_SET_PRIM_ADDR)) {
 				/* set primary queuing succeeded */
 				SCTPDBG(SCTP_DEBUG_ASCONF1, "set_primary_ip_address: queued on stcb=%p, ",
-				    stcb);
+				    (void *)stcb);
 				SCTPDBG_ADDR(SCTP_DEBUG_ASCONF1, &ifa->address.sa);
 				if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) {
 #ifdef SCTP_TIMER_BASED_ASCONF
@@ -2747,13 +2746,14 @@ sctp_process_initack_addresses(struct sctp_tcb *stcb, struct mbuf *m,
 	struct sctp_paramhdr tmp_param, *ph;
 	uint16_t plen, ptype;
 	struct sctp_ifa *sctp_ifa;
-	struct sctp_ipv6addr_param addr_store;
 
 #ifdef INET6
+	struct sctp_ipv6addr_param addr6_store;
 	struct sockaddr_in6 sin6;
 
 #endif
 #ifdef INET
+	struct sctp_ipv4addr_param addr4_store;
 	struct sockaddr_in sin;
 
 #endif
@@ -2802,7 +2802,7 @@ sctp_process_initack_addresses(struct sctp_tcb *stcb, struct mbuf *m,
 				a6p = (struct sctp_ipv6addr_param *)
 				    sctp_m_getptr(m, offset,
 				    sizeof(struct sctp_ipv6addr_param),
-				    (uint8_t *) & addr_store);
+				    (uint8_t *) & addr6_store);
 				if (plen != sizeof(struct sctp_ipv6addr_param) ||
 				    a6p == NULL) {
 					return;
@@ -2821,7 +2821,7 @@ sctp_process_initack_addresses(struct sctp_tcb *stcb, struct mbuf *m,
 				/* get the entire IPv4 address param */
 				a4p = (struct sctp_ipv4addr_param *)sctp_m_getptr(m, offset,
 				    sizeof(struct sctp_ipv4addr_param),
-				    (uint8_t *) & addr_store);
+				    (uint8_t *) & addr4_store);
 				if (plen != sizeof(struct sctp_ipv4addr_param) ||
 				    a4p == NULL) {
 					return;
@@ -2899,16 +2899,17 @@ sctp_addr_in_initack(struct mbuf *m, uint32_t offset, uint32_t length, struct so
 {
 	struct sctp_paramhdr tmp_param, *ph;
 	uint16_t plen, ptype;
-	struct sctp_ipv6addr_param addr_store;
 
 #ifdef INET
 	struct sockaddr_in *sin;
 	struct sctp_ipv4addr_param *a4p;
+	struct sctp_ipv6addr_param addr4_store;
 
 #endif
 #ifdef INET6
 	struct sockaddr_in6 *sin6;
 	struct sctp_ipv6addr_param *a6p;
+	struct sctp_ipv6addr_param addr6_store;
 	struct sockaddr_in6 sin6_tmp;
 
 #endif
@@ -2954,7 +2955,7 @@ sctp_addr_in_initack(struct mbuf *m, uint32_t offset, uint32_t length, struct so
 				a6p = (struct sctp_ipv6addr_param *)
 				    sctp_m_getptr(m, offset,
 				    sizeof(struct sctp_ipv6addr_param),
-				    (uint8_t *) & addr_store);
+				    (uint8_t *) & addr6_store);
 				if (a6p == NULL) {
 					return (0);
 				}
@@ -2984,7 +2985,7 @@ sctp_addr_in_initack(struct mbuf *m, uint32_t offset, uint32_t length, struct so
 				a4p = (struct sctp_ipv4addr_param *)
 				    sctp_m_getptr(m, offset,
 				    sizeof(struct sctp_ipv4addr_param),
-				    (uint8_t *) & addr_store);
+				    (uint8_t *) & addr4_store);
 				if (a4p == NULL) {
 					return (0);
 				}

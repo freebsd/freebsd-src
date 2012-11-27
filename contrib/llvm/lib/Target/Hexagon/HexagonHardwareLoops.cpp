@@ -328,7 +328,10 @@ CountValue *HexagonHardwareLoops::getTripCount(MachineLoop *L) const {
   // can get a useful trip count.  The trip count can
   // be either a register or an immediate.  The location
   // of the value depends upon the type (reg or imm).
-  while ((IV_Opnd = IV_Opnd->getNextOperandForReg())) {
+  for (MachineRegisterInfo::reg_iterator
+       RI = MRI->reg_begin(IV_Opnd->getReg()), RE = MRI->reg_end();
+       RI != RE; ++RI) {
+    IV_Opnd = &RI.getOperand();
     const MachineInstr *MI = IV_Opnd->getParent();
     if (L->contains(MI) && isCompareEqualsImm(MI)) {
       const MachineOperand &MO = MI->getOperand(2);
@@ -491,7 +494,7 @@ bool HexagonHardwareLoops::convertToHardwareLoop(MachineLoop *L) {
               TII->get(Hexagon::NEG), CountReg).addReg(CountReg1);
     }
 
-    // Add the Loop instruction to the begining of the loop.
+    // Add the Loop instruction to the beginning of the loop.
     BuildMI(*Preheader, InsertPos, InsertPos->getDebugLoc(),
             TII->get(Hexagon::LOOP0_r)).addMBB(LoopStart).addReg(CountReg);
   } else {
@@ -623,7 +626,7 @@ void HexagonFixupHwLoops::convertLoopInstr(MachineFunction &MF,
   const TargetInstrInfo *TII = MF.getTarget().getInstrInfo();
   MachineBasicBlock *MBB = MII->getParent();
   DebugLoc DL = MII->getDebugLoc();
-  unsigned Scratch = RS.scavengeRegister(Hexagon::IntRegsRegisterClass, MII, 0);
+  unsigned Scratch = RS.scavengeRegister(&Hexagon::IntRegsRegClass, MII, 0);
 
   // First, set the LC0 with the trip count.
   if (MII->getOperand(1).isReg()) {

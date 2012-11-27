@@ -85,7 +85,7 @@ master()
 		if (ntp->status == MASTER)
 			masterup(ntp);
 	}
-	(void)gettimeofday(&ntime, 0);
+	(void)gettimeofday(&ntime, NULL);
 	pollingtime = ntime.tv_sec+3;
 	if (justquit)
 		polls = 0;
@@ -96,14 +96,14 @@ master()
  *	to update all timers.
  */
 loop:
-	(void)gettimeofday(&ntime, 0);
+	(void)gettimeofday(&ntime, NULL);
 	wait.tv_sec = pollingtime - ntime.tv_sec;
 	if (wait.tv_sec < 0)
 		wait.tv_sec = 0;
 	wait.tv_usec = 0;
 	msg = readmsg(TSP_ANY, ANYADDR, &wait, 0);
 	if (!msg) {
-		(void)gettimeofday(&ntime, 0);
+		(void)gettimeofday(&ntime, NULL);
 		if (ntime.tv_sec >= pollingtime) {
 			pollingtime = ntime.tv_sec + SAMPLEINTVL;
 			get_goodgroup(0);
@@ -175,7 +175,7 @@ loop:
 			}
 
 			mchgdate(msg);
-			(void)gettimeofday(&ntime, 0);
+			(void)gettimeofday(&ntime, NULL);
 			pollingtime = ntime.tv_sec + SAMPLEINTVL;
 			break;
 
@@ -203,7 +203,7 @@ loop:
 			}
 
 			mchgdate(msg);
-			(void)gettimeofday(&ntime, 0);
+			(void)gettimeofday(&ntime, NULL);
 			pollingtime = ntime.tv_sec + SAMPLEINTVL;
 			break;
 
@@ -284,7 +284,7 @@ loop:
 			 * do not want to call synch() while waiting
 			 * to be killed!
 			 */
-			(void)gettimeofday(&ntime, (struct timezone *)0);
+			(void)gettimeofday(&ntime, NULL);
 			pollingtime = ntime.tv_sec + SAMPLEINTVL;
 			break;
 
@@ -354,7 +354,7 @@ mchgdate(msg)
 	(void)strcpy(olddate, date());
 
 	/* adjust time for residence on the queue */
-	(void)gettimeofday(&otime, 0);
+	(void)gettimeofday(&otime, NULL);
 	adj_msg_time(msg,&otime);
 
  	tmptv.tv_sec = msg->tsp_time.tv_sec;
@@ -368,11 +368,11 @@ mchgdate(msg)
 		synch(tvtomsround(ntime));
 	} else {
 		utx.ut_type = OLD_TIME;
-		gettimeofday(&utx.ut_tv, NULL);
+		(void)gettimeofday(&utx.ut_tv, NULL);
 		pututxline(&utx);
  		(void)settimeofday(&tmptv, 0);
 		utx.ut_type = NEW_TIME;
-		gettimeofday(&utx.ut_tv, NULL);
+		(void)gettimeofday(&utx.ut_tv, NULL);
 		pututxline(&utx);
 		spreadtime();
 	}
@@ -396,7 +396,7 @@ synch(mydelta)
 	if (slvcount > 0) {
 		if (trace)
 			fprintf(fd, "measurements starting at %s\n", date());
-		(void)gettimeofday(&check, 0);
+		(void)gettimeofday(&check, NULL);
 		for (htp = self.l_fwd; htp != &self; htp = htp->l_fwd) {
 			if (htp->noanswer != 0) {
 				measure_status = measure(500, 100,
@@ -424,7 +424,7 @@ synch(mydelta)
 			} else {
 				htp->delta = measure_delta;
 			}
-			(void)gettimeofday(&stop, 0);
+			(void)gettimeofday(&stop, NULL);
 			timevalsub(&stop, &stop, &check);
 			if (stop.tv_sec >= 1) {
 				if (trace)
@@ -437,7 +437,7 @@ synch(mydelta)
 				if (0 != readmsg(TSP_TRACEON,ANYADDR,
 						 &wait,0))
 					traceon();
-				(void)gettimeofday(&check, 0);
+				(void)gettimeofday(&check, NULL);
 			}
 		}
 		if (trace)
@@ -474,7 +474,7 @@ spreadtime()
 	for (htp = self.l_fwd; htp != &self; htp = htp->l_fwd) {
 		to.tsp_type = TSP_SETTIME;
 		(void)strcpy(to.tsp_name, hostname);
-		(void)gettimeofday(&tmptv, 0);
+		(void)gettimeofday(&tmptv, NULL);
 		to.tsp_time.tv_sec = tmptv.tv_sec;
 		to.tsp_time.tv_usec = tmptv.tv_usec;
 		answer = acksend(&to, &htp->addr, htp->name,
@@ -732,7 +732,7 @@ masterup(net)
 	 * we do not tell them to start using our time, before we have
 	 * found a good master.
 	 */
-	(void)gettimeofday(&net->slvwait, 0);
+	(void)gettimeofday(&net->slvwait, NULL);
 }
 
 void
@@ -755,12 +755,12 @@ newslave(msg)
 	 * If we are stable, send our time to the slave.
 	 * Do not go crazy if the date has been changed.
 	 */
-	(void)gettimeofday(&now, 0);
+	(void)gettimeofday(&now, NULL);
 	if (now.tv_sec >= fromnet->slvwait.tv_sec+3
 	    || now.tv_sec < fromnet->slvwait.tv_sec) {
 		to.tsp_type = TSP_SETTIME;
 		(void)strcpy(to.tsp_name, hostname);
-		(void)gettimeofday(&tmptv, 0);
+		(void)gettimeofday(&tmptv, NULL);
 		to.tsp_time.tv_sec = tmptv.tv_sec;
 		to.tsp_time.tv_usec = tmptv.tv_usec;
 		answer = acksend(&to, &htp->addr,

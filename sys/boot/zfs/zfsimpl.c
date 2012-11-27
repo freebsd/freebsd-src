@@ -1245,7 +1245,7 @@ fzap_name_equal(const zap_leaf_t *zl, const zap_leaf_chunk_t *zc, const char *na
 	const zap_leaf_chunk_t *nc;
 	const char *p;
 
-	namelen = zc->l_entry.le_name_length;
+	namelen = zc->l_entry.le_name_numints;
 			
 	nc = &ZAP_LEAF_CHUNK(zl, zc->l_entry.le_name_chunk);
 	p = name;
@@ -1355,6 +1355,8 @@ fzap_lookup(const spa_t *spa, const dnode_phys_t *dnode, const char *name, uint6
 		zc = &ZAP_LEAF_CHUNK(&zl, zc->l_entry.le_next);
 	}
 	if (fzap_name_equal(&zl, zc, name)) {
+		if (zc->l_entry.le_value_intlen * zc->l_entry.le_value_numints > 8)
+			return (E2BIG);
 		*value = fzap_leaf_value(&zl, zc);
 		return (0);
 	}
@@ -1384,8 +1386,6 @@ zap_lookup(const spa_t *spa, const dnode_phys_t *dnode, const char *name, uint64
 	printf("ZFS: invalid zap_type=%d\n", (int)zap_type);
 	return (EIO);
 }
-
-#ifdef BOOT2
 
 /*
  * List a microzap directory. Assumes that the zap scratch buffer contains
@@ -1458,7 +1458,7 @@ fzap_list(const spa_t *spa, const dnode_phys_t *dnode)
 			zc = &ZAP_LEAF_CHUNK(&zl, j);
 			if (zc->l_entry.le_type != ZAP_CHUNK_ENTRY)
 				continue;
-			namelen = zc->l_entry.le_name_length;
+			namelen = zc->l_entry.le_name_numints;
 			if (namelen > sizeof(name))
 				namelen = sizeof(name);
 
@@ -1484,7 +1484,8 @@ fzap_list(const spa_t *spa, const dnode_phys_t *dnode)
 			 */
 			value = fzap_leaf_value(&zl, zc);
 
-			printf("%s 0x%jx\n", name, (uintmax_t)value);
+			//printf("%s 0x%jx\n", name, (uintmax_t)value);
+			printf("%s\n", name);
 		}
 	}
 
@@ -1509,8 +1510,6 @@ zap_list(const spa_t *spa, const dnode_phys_t *dnode)
 	else
 		return fzap_list(spa, dnode);
 }
-
-#endif
 
 static int
 objset_get_dnode(const spa_t *spa, const objset_phys_t *os, uint64_t objnum, dnode_phys_t *dnode)
@@ -1557,7 +1556,7 @@ fzap_name_copy(const zap_leaf_t *zl, const zap_leaf_chunk_t *zc, char *name)
 	const zap_leaf_chunk_t *nc;
 	char *p;
 
-	namelen = zc->l_entry.le_name_length;
+	namelen = zc->l_entry.le_name_numints;
 
 	nc = &ZAP_LEAF_CHUNK(zl, zc->l_entry.le_name_chunk);
 	p = name;
@@ -1581,9 +1580,7 @@ fzap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name, uint64_t v
 	int bsize = dnode->dn_datablkszsec << SPA_MINBLOCKSHIFT;
 	zap_phys_t zh = *(zap_phys_t *) zap_scratch;
 	fat_zap_t z;
-	uint64_t *ptrtbl;
-	uint64_t hash;
-	int rc;
+	int i, j;
 
 	if (zh.zap_magic != ZAP_MAGIC)
 		return (EIO);
@@ -1592,59 +1589,34 @@ fzap_rlookup(const spa_t *spa, const dnode_phys_t *dnode, char *name, uint64_t v
 	z.zap_phys = (zap_phys_t *) zap_scratch;
 
 	/*
-	 * Figure out where the pointer table is and read it in if necessary.
+	 * This assumes that the leaf blocks start at block 1. The
+	 * documentation isn't exactly clear on this.
 	 */
-	if (zh.zap_ptrtbl.zt_blk) {
-		rc = dnode_read(spa, dnode, zh.zap_ptrtbl.zt_blk * bsize,
-			       zap_scratch, bsize);
-		if (rc)
-			return (rc);
-		ptrtbl = (uint64_t *) zap_scratch;
-	} else {
-		ptrtbl = &ZAP_EMBEDDED_PTRTBL_ENT(&z, 0);
-	}
-
-	hash = zap_hash(zh.zap_salt, name);
-
 	zap_leaf_t zl;
 	zl.l_bs = z.zap_block_shift;
+	for (i = 0; i < zh.zap_num_leafs; i++) {
+		off_t off = (i + 1) << zl.l_bs;
 
-	off_t off = ptrtbl[hash >> (64 - zh.zap_ptrtbl.zt_shift)] << zl.l_bs;
-	zap_leaf_chunk_t *zc;
+		if (dnode_read(spa, dnode, off, zap_scratch, bsize))
+			return (EIO);
 
-	rc = dnode_read(spa, dnode, off, zap_scratch, bsize);
-	if (rc)
-		return (rc);
+		zl.l_phys = (zap_leaf_phys_t *) zap_scratch;
 
-	zl.l_phys = (zap_leaf_phys_t *) zap_scratch;
+		for (j = 0; j < ZAP_LEAF_NUMCHUNKS(&zl); j++) {
+			zap_leaf_chunk_t *zc;
 
-	/*
-	 * Make sure this chunk matches our hash.
-	 */
-	if (zl.l_phys->l_hdr.lh_prefix_len > 0
-	    && zl.l_phys->l_hdr.lh_prefix
-	    != hash >> (64 - zl.l_phys->l_hdr.lh_prefix_len))
-		return (ENOENT);
+			zc = &ZAP_LEAF_CHUNK(&zl, j);
+			if (zc->l_entry.le_type != ZAP_CHUNK_ENTRY)
+				continue;
+			if (zc->l_entry.le_value_intlen != 8 ||
+			    zc->l_entry.le_value_numints != 1)
+				continue;
 
-	/*
-	 * Hash within the chunk to find our entry.
-	 */
-	int shift = (64 - ZAP_LEAF_HASH_SHIFT(&zl) - zl.l_phys->l_hdr.lh_prefix_len);
-	int h = (hash >> shift) & ((1 << ZAP_LEAF_HASH_SHIFT(&zl)) - 1);
-	h = zl.l_phys->l_hash[h];
-	if (h == 0xffff)
-		return (ENOENT);
-	zc = &ZAP_LEAF_CHUNK(&zl, h);
-	while (zc->l_entry.le_hash != hash) {
-		if (zc->l_entry.le_next == 0xffff) {
-			zc = 0;
-			break;
+			if (fzap_leaf_value(&zl, zc) == value) {
+				fzap_name_copy(&zl, zc, name);
+				return (0);
+			}
 		}
-		zc = &ZAP_LEAF_CHUNK(&zl, zc->l_entry.le_next);
-	}
-	if (fzap_leaf_value(&zl, zc) == value) {
-		fzap_name_copy(&zl, zc, name);
-		return (0);
 	}
 
 	return (ENOENT);
@@ -1774,6 +1746,38 @@ zfs_lookup_dataset(const spa_t *spa, const char *name, uint64_t *objnum)
 	*objnum = dd->dd_head_dataset_obj;
 	return (0);
 }
+
+#ifndef BOOT2
+static int
+zfs_list_dataset(const spa_t *spa, uint64_t objnum/*, int pos, char *entry*/)
+{
+	uint64_t dir_obj, child_dir_zapobj;
+	dnode_phys_t child_dir_zap, dir, dataset;
+	dsl_dataset_phys_t *ds;
+	dsl_dir_phys_t *dd;
+
+	if (objset_get_dnode(spa, &spa->spa_mos, objnum, &dataset)) {
+		printf("ZFS: can't find dataset %ju\n", (uintmax_t)objnum);
+		return (EIO);
+	}
+	ds = (dsl_dataset_phys_t *) &dataset.dn_bonus;
+	dir_obj = ds->ds_dir_obj;
+
+	if (objset_get_dnode(spa, &spa->spa_mos, dir_obj, &dir)) {
+		printf("ZFS: can't find dirobj %ju\n", (uintmax_t)dir_obj);
+		return (EIO);
+	}
+	dd = (dsl_dir_phys_t *)&dir.dn_bonus;
+
+	child_dir_zapobj = dd->dd_child_dir_zapobj;
+	if (objset_get_dnode(spa, &spa->spa_mos, child_dir_zapobj, &child_dir_zap) != 0) {
+		printf("ZFS: can't find child zap %ju\n", (uintmax_t)dir_obj);
+		return (EIO);
+	}
+
+	return (zap_list(spa, &child_dir_zap) != 0);
+}
+#endif
 
 /*
  * Find the object set given the object number of its dataset object

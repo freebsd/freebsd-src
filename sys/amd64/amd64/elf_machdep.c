@@ -36,7 +36,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysent.h>
 #include <sys/imgact_elf.h>
 #include <sys/syscall.h>
-#include <sys/sysent.h>
 #include <sys/signalvar.h>
 #include <sys/vnode.h>
 

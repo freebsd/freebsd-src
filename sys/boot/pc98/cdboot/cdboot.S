@@ -30,13 +30,13 @@
 
 # $FreeBSD$
 
-#include <bootargs.h>
-
 #
 # Basically, we first create a set of boot arguments to pass to the loaded
 # binary.  Then we attempt to load /boot/loader from the CD we were booted
 # off of. 
 #
+
+#include <bootargs.h>
 
 #
 # Memory locations.

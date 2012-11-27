@@ -29,8 +29,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bio.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/sx.h>
 
 #include <sys/bus.h>
 #include <sys/conf.h>
@@ -44,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
-#include <dev/mlx/mlx_compat.h>
 #include <dev/mlx/mlxio.h>
 #include <dev/mlx/mlxvar.h>
 #include <dev/mlx/mlxreg.h>
@@ -88,6 +91,21 @@ struct mlx_ident
     {0, 0, 0, 0, 0, 0}
 };
 
+static struct mlx_ident *
+mlx_pci_match(device_t dev)
+{
+    struct mlx_ident *m;
+
+    for (m = mlx_identifiers; m->vendor != 0; m++) {
+	if ((m->vendor == pci_get_vendor(dev)) &&
+	    (m->device == pci_get_device(dev)) &&
+	    ((m->subvendor == 0) || ((m->subvendor == pci_get_subvendor(dev)) &&
+				     (m->subdevice == pci_get_subdevice(dev)))))
+	    return (m);
+    }
+    return (NULL);
+}
+
 static int
 mlx_pci_probe(device_t dev)
 {
@@ -95,15 +113,10 @@ mlx_pci_probe(device_t dev)
 
     debug_called(1);
 
-    for (m = mlx_identifiers; m->vendor != 0; m++) {
-	if ((m->vendor == pci_get_vendor(dev)) &&
-	    (m->device == pci_get_device(dev)) &&
-	    ((m->subvendor == 0) || ((m->subvendor == pci_get_subvendor(dev)) &&
-				     (m->subdevice == pci_get_subdevice(dev))))) {
-	    
-	    device_set_desc(dev, m->desc);
-	    return(BUS_PROBE_DEFAULT);
-	}
+    m = mlx_pci_match(dev);
+    if (m != NULL) {
+	device_set_desc(dev, m->desc);
+	return(BUS_PROBE_DEFAULT);
     }
     return(ENXIO);
 }
@@ -112,45 +125,29 @@ static int
 mlx_pci_attach(device_t dev)
 {
     struct mlx_softc	*sc;
-    int			i, error;
-    u_int32_t		command;
+    struct mlx_ident	*m;
+    int			error;
 
     debug_called(1);
 
-    /*
-     * Make sure we are going to be able to talk to this board.
-     */
-    command = pci_read_config(dev, PCIR_COMMAND, 2);
-    if ((command & PCIM_CMD_MEMEN) == 0) {
-	device_printf(dev, "memory window not available\n");
-	return(ENXIO);
-    }
-    /* force the busmaster enable bit on */
-    command |= PCIM_CMD_BUSMASTEREN;
-    pci_write_config(dev, PCIR_COMMAND, command, 2);
+    pci_enable_busmaster(dev);
 
-    /*
-     * Initialise softc.
-     */
     sc = device_get_softc(dev);
-    bzero(sc, sizeof(*sc));
     sc->mlx_dev = dev;
 
     /*
      * Work out what sort of adapter this is (we need to know this in order
      * to map the appropriate interface resources).
      */
-    sc->mlx_iftype = 0;
-    for (i = 0; mlx_identifiers[i].vendor != 0; i++) {
-	if ((mlx_identifiers[i].vendor == pci_get_vendor(dev)) &&
-	    (mlx_identifiers[i].device == pci_get_device(dev))) {
-	    sc->mlx_iftype = mlx_identifiers[i].iftype;
-	    break;
-	}
-    }
-    if (sc->mlx_iftype == 0)		/* shouldn't happen */
+    m = mlx_pci_match(dev);
+    if (m == NULL)		/* shouldn't happen */
 	return(ENXIO);
-    
+    sc->mlx_iftype = m->iftype;
+
+    mtx_init(&sc->mlx_io_lock, "mlx I/O", NULL, MTX_DEF);
+    sx_init(&sc->mlx_config_lock, "mlx config");
+    callout_init_mtx(&sc->mlx_timeout, &sc->mlx_io_lock, 0);
+
     /*
      * Allocate the PCI register window.
      */
@@ -183,8 +180,6 @@ mlx_pci_attach(device_t dev)
 	mlx_free(sc);
 	return(ENXIO);
     }
-    sc->mlx_btag = rman_get_bustag(sc->mlx_mem);
-    sc->mlx_bhandle = rman_get_bushandle(sc->mlx_mem);
 
     /*
      * Allocate the parent bus DMA tag appropriate for PCI.

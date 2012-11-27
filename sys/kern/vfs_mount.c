@@ -481,6 +481,7 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp, const char *fspath,
 	mac_mount_create(cred, mp);
 #endif
 	arc4rand(&mp->mnt_hashseed, sizeof mp->mnt_hashseed, 0);
+	TAILQ_INIT(&mp->mnt_uppers);
 	return (mp);
 }
 
@@ -514,6 +515,7 @@ vfs_mount_destroy(struct mount *mp)
 			vprint("", vp);
 		panic("unmount: dangling vnode");
 	}
+	KASSERT(TAILQ_EMPTY(&mp->mnt_uppers), ("mnt_uppers"));
 	if (mp->mnt_nvnodelistsize != 0)
 		panic("vfs_mount_destroy: nonzero nvnodelistsize");
 	if (mp->mnt_activevnodelistsize != 0)
@@ -1275,7 +1277,8 @@ dounmount(mp, flags, td)
 	}
 
 	MNT_ILOCK(mp);
-	if (mp->mnt_kern_flag & MNTK_UNMOUNT) {
+	if ((mp->mnt_kern_flag & MNTK_UNMOUNT) != 0 ||
+	    !TAILQ_EMPTY(&mp->mnt_uppers)) {
 		MNT_IUNLOCK(mp);
 		if (coveredvp)
 			VOP_UNLOCK(coveredvp, 0);

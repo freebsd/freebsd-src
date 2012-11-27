@@ -246,7 +246,6 @@ tun_destroy(struct tun_softc *tp)
 {
 	struct cdev *dev;
 
-	/* Unlocked read. */
 	mtx_lock(&tp->tun_mtx);
 	if ((tp->tun_flags & TUN_OPEN) != 0)
 		cv_wait_unlock(&tp->tun_cv, &tp->tun_mtx);

@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
@@ -72,13 +73,6 @@ __FBSDID("$FreeBSD$");
 
 /*
  *	Manages physical address maps.
- *
- *	In addition to hardware address maps, this
- *	module is called upon to provide software-use-only
- *	maps which may or may not be stored in the same
- *	form as hardware maps.  These pseudo-maps are
- *	used to store intermediate results from copy
- *	operations to and from address spaces.
  *
  *	Since the information managed by this module is
  *	also stored by the logical address mapping module,

@@ -104,13 +104,15 @@ static int      ixgbe_probe(device_t);
 static int      ixgbe_attach(device_t);
 static int      ixgbe_detach(device_t);
 static int      ixgbe_shutdown(device_t);
-static void     ixgbe_start(struct ifnet *);
-static void     ixgbe_start_locked(struct tx_ring *, struct ifnet *);
 #if __FreeBSD_version >= 800000
 static int	ixgbe_mq_start(struct ifnet *, struct mbuf *);
 static int	ixgbe_mq_start_locked(struct ifnet *,
                     struct tx_ring *, struct mbuf *);
 static void	ixgbe_qflush(struct ifnet *);
+static void	ixgbe_deferred_mq_start(void *, int);
+#else
+static void     ixgbe_start(struct ifnet *);
+static void     ixgbe_start_locked(struct tx_ring *, struct ifnet *);
 #endif
 static int      ixgbe_ioctl(struct ifnet *, u_long, caddr_t);
 static void	ixgbe_init(void *);
@@ -631,6 +633,7 @@ ixgbe_detach(device_t dev)
 {
 	struct adapter *adapter = device_get_softc(dev);
 	struct ix_queue *que = adapter->queues;
+	struct tx_ring *txr = adapter->tx_rings;
 	u32	ctrl_ext;
 
 	INIT_DEBUGOUT("ixgbe_detach: begin");
@@ -645,8 +648,11 @@ ixgbe_detach(device_t dev)
 	ixgbe_stop(adapter);
 	IXGBE_CORE_UNLOCK(adapter);
 
-	for (int i = 0; i < adapter->num_queues; i++, que++) {
+	for (int i = 0; i < adapter->num_queues; i++, que++, txr++) {
 		if (que->tq) {
+#if __FreeBSD_version >= 800000
+			taskqueue_drain(que->tq, &txr->txq_task);
+#endif
 			taskqueue_drain(que->tq, &que->que_task);
 			taskqueue_free(que->tq);
 		}
@@ -708,6 +714,7 @@ ixgbe_shutdown(device_t dev)
 }
 
 
+#if __FreeBSD_version < 800000
 /*********************************************************************
  *  Transmit entry point
  *
@@ -779,7 +786,7 @@ ixgbe_start(struct ifnet *ifp)
 	return;
 }
 
-#if __FreeBSD_version >= 800000
+#else
 /*
 ** Multiqueue Transmit driver
 **
@@ -807,7 +814,7 @@ ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 		IXGBE_TX_UNLOCK(txr);
 	} else {
 		err = drbr_enqueue(ifp, txr->br, m);
-		taskqueue_enqueue(que->tq, &que->que_task);
+		taskqueue_enqueue(que->tq, &txr->txq_task);
 	}
 
 	return (err);
@@ -846,7 +853,6 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 			break;
 		}
 		enqueued++;
-		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
 		/* Send a copy of the frame to the BPF listener */
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
@@ -870,6 +876,22 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 		ixgbe_txeof(txr);
 
 	return (err);
+}
+
+/*
+ * Called from a taskqueue to drain queued transmit packets.
+ */
+static void
+ixgbe_deferred_mq_start(void *arg, int pending)
+{
+	struct tx_ring *txr = arg;
+	struct adapter *adapter = txr->adapter;
+	struct ifnet *ifp = adapter->ifp;
+
+	IXGBE_TX_LOCK(txr);
+	if (!drbr_empty(ifp, txr->br))
+		ixgbe_mq_start_locked(ifp, txr, NULL);
+	IXGBE_TX_UNLOCK(txr);
 }
 
 /*
@@ -2230,6 +2252,9 @@ ixgbe_allocate_legacy(struct adapter *adapter)
 {
 	device_t dev = adapter->dev;
 	struct		ix_queue *que = adapter->queues;
+#if __FreeBSD_version >= 800000
+	struct tx_ring		*txr = adapter->tx_rings;
+#endif
 	int error, rid = 0;
 
 	/* MSI RID at 1 */
@@ -2249,6 +2274,9 @@ ixgbe_allocate_legacy(struct adapter *adapter)
 	 * Try allocating a fast interrupt and the associated deferred
 	 * processing contexts.
 	 */
+#if __FreeBSD_version >= 800000
+	TASK_INIT(&txr->txq_task, 0, ixgbe_deferred_mq_start, txr);
+#endif
 	TASK_INIT(&que->que_task, 0, ixgbe_handle_que, que);
 	que->tq = taskqueue_create_fast("ixgbe_que", M_NOWAIT,
             taskqueue_thread_enqueue, &que->tq);
@@ -2295,9 +2323,10 @@ ixgbe_allocate_msix(struct adapter *adapter)
 {
 	device_t        dev = adapter->dev;
 	struct 		ix_queue *que = adapter->queues;
+	struct  	tx_ring *txr = adapter->tx_rings;
 	int 		error, rid, vector = 0;
 
-	for (int i = 0; i < adapter->num_queues; i++, vector++, que++) {
+	for (int i = 0; i < adapter->num_queues; i++, vector++, que++, txr++) {
 		rid = vector + 1;
 		que->res = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 		    RF_SHAREABLE | RF_ACTIVE);
@@ -2327,6 +2356,9 @@ ixgbe_allocate_msix(struct adapter *adapter)
 		if (adapter->num_queues > 1)
 			bus_bind_intr(dev, que->res, i);
 
+#if __FreeBSD_version >= 800000
+		TASK_INIT(&txr->txq_task, 0, ixgbe_deferred_mq_start, txr);
+#endif
 		TASK_INIT(&que->que_task, 0, ixgbe_handle_que, que);
 		que->tq = taskqueue_create_fast("ixgbe_que", M_NOWAIT,
 		    taskqueue_thread_enqueue, &que->tq);
@@ -2570,12 +2602,13 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ixgbe_ioctl;
-	ifp->if_start = ixgbe_start;
 #if __FreeBSD_version >= 800000
 	ifp->if_transmit = ixgbe_mq_start;
 	ifp->if_qflush = ixgbe_qflush;
+#else
+	ifp->if_start = ixgbe_start;
+	IFQ_SET_MAXLEN(&ifp->if_snd, adapter->num_tx_desc - 2);
 #endif
-	ifp->if_snd.ifq_maxlen = adapter->num_tx_desc - 2;
 
 	ether_ifattach(ifp, adapter->hw.mac.addr);
 
@@ -3734,21 +3767,30 @@ no_split:
 			mp = rxbuf->m_pack;
 
 		mp->m_pkthdr.len = mp->m_len = adapter->rx_mbuf_sz;
-		/* Get the memory mapping */
-		error = bus_dmamap_load_mbuf_sg(rxr->ptag,
-		    rxbuf->pmap, mp, pseg, &nsegs, BUS_DMA_NOWAIT);
-		if (error != 0) {
-			printf("Refresh mbufs: payload dmamap load"
-			    " failure - %d\n", error);
-			m_free(mp);
-			rxbuf->m_pack = NULL;
-			goto update;
+
+		/* If we're dealing with an mbuf that was copied rather
+		 * than replaced, there's no need to go through busdma.
+		 */
+		if ((rxbuf->flags & IXGBE_RX_COPY) == 0) {
+			/* Get the memory mapping */
+			error = bus_dmamap_load_mbuf_sg(rxr->ptag,
+			    rxbuf->pmap, mp, pseg, &nsegs, BUS_DMA_NOWAIT);
+			if (error != 0) {
+				printf("Refresh mbufs: payload dmamap load"
+				    " failure - %d\n", error);
+				m_free(mp);
+				rxbuf->m_pack = NULL;
+				goto update;
+			}
+			rxbuf->m_pack = mp;
+			bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
+			    BUS_DMASYNC_PREREAD);
+			rxbuf->paddr = rxr->rx_base[i].read.pkt_addr =
+			    htole64(pseg[0].ds_addr);
+		} else {
+			rxr->rx_base[i].read.pkt_addr = rxbuf->paddr;
+			rxbuf->flags &= ~IXGBE_RX_COPY;
 		}
-		rxbuf->m_pack = mp;
-		bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
-		    BUS_DMASYNC_PREREAD);
-		rxr->rx_base[i].read.pkt_addr =
-		    htole64(pseg[0].ds_addr);
 
 		refreshed = TRUE;
 		/* Next is precalculated */
@@ -4061,6 +4103,7 @@ skip_head:
 	rxr->next_to_refresh = 0;
 	rxr->lro_enabled = FALSE;
 	rxr->rx_split_packets = 0;
+	rxr->rx_copies = 0;
 	rxr->rx_bytes = 0;
 	rxr->discard = FALSE;
 	rxr->vtag_strip = FALSE;
@@ -4618,14 +4661,36 @@ ixgbe_rxeof(struct ix_queue *que, int count)
 			** that determines what we are
 			*/
 			sendmp = rbuf->fmp;
-			rbuf->m_pack = rbuf->fmp = NULL;
 
 			if (sendmp != NULL) {  /* secondary frag */
+				rbuf->m_pack = rbuf->fmp = NULL;
 				mp->m_flags &= ~M_PKTHDR;
 				sendmp->m_pkthdr.len += mp->m_len;
 			} else {
+				/*
+				 * Optimize.  This might be a small packet,
+				 * maybe just a TCP ACK.  Do a fast copy that
+				 * is cache aligned into a new mbuf, and
+				 * leave the old mbuf+cluster for re-use.
+				 */
+				if (eop && plen <= IXGBE_RX_COPY_LEN) {
+					sendmp = m_gethdr(M_DONTWAIT, MT_DATA);
+					if (sendmp != NULL) {
+						sendmp->m_data +=
+						    IXGBE_RX_COPY_ALIGN;
+						ixgbe_bcopy(mp->m_data,
+						    sendmp->m_data, plen);
+						sendmp->m_len = plen;
+						rxr->rx_copies++;
+						rbuf->flags |= IXGBE_RX_COPY;
+					}
+				}
+				if (sendmp == NULL) {
+					rbuf->m_pack = rbuf->fmp = NULL;
+					sendmp = mp;
+				}
+
 				/* first desc of a non-ps chain */
-				sendmp = mp;
 				sendmp->m_flags |= M_PKTHDR;
 				sendmp->m_pkthdr.len = mp->m_len;
 				if (staterr & IXGBE_RXD_STAT_VP) {
@@ -5269,6 +5334,7 @@ ixgbe_update_stats_counters(struct adapter *adapter)
 	ifp->if_ibytes = adapter->stats.gorc;
 	ifp->if_obytes = adapter->stats.gotc;
 	ifp->if_imcasts = adapter->stats.mprc;
+	ifp->if_omcasts = adapter->stats.mptc;
 	ifp->if_collisions = 0;
 
 	/* Rx Errors */
@@ -5476,6 +5542,9 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_bytes",
 				CTLFLAG_RD, &rxr->rx_bytes,
 				"Queue Bytes Received");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_copies",
+				CTLFLAG_RD, &rxr->rx_copies,
+				"Copied RX Frames");
 		SYSCTL_ADD_INT(ctx, queue_list, OID_AUTO, "lro_queued",
 				CTLFLAG_RD, &lro->lro_queued, 0,
 				"LRO Queued");

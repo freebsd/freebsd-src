@@ -79,7 +79,7 @@ AcpiDbListInfo (
 /*
  * Statistics subcommands
  */
-static ARGUMENT_INFO        AcpiDbStatTypes [] =
+static ACPI_DB_ARGUMENT_INFO    AcpiDbStatTypes [] =
 {
     {"ALLOCATIONS"},
     {"OBJECTS"},
@@ -397,12 +397,6 @@ AcpiDbDisplayStatistics (
     UINT32                  i;
     UINT32                  Temp;
 
-
-    if (!TypeArg)
-    {
-        AcpiOsPrintf ("The following subcommands are available:\n    ALLOCATIONS, OBJECTS, MEMORY, MISC, SIZES, TABLES\n");
-        return (AE_OK);
-    }
 
     AcpiUtStrupr (TypeArg);
     Temp = AcpiDbMatchArgument (TypeArg, AcpiDbStatTypes);

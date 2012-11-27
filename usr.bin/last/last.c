@@ -72,12 +72,12 @@ typedef struct arg {
 } ARG;
 static ARG	*arglist;			/* head of linked list */
 
-static LIST_HEAD(idlisthead, idtab) idlist;
+static SLIST_HEAD(, idtab) idlist;
 
 struct idtab {
 	time_t	logout;				/* log out time */
 	char	id[sizeof ((struct utmpx *)0)->ut_id]; /* identifier */
-	LIST_ENTRY(idtab) list;
+	SLIST_ENTRY(idtab) list;
 };
 
 static const	char *crmsg;			/* cause of last reboot */
@@ -206,7 +206,7 @@ wtmp(void)
 	char ct[80];
 	struct tm *tm;
 
-	LIST_INIT(&idlist);
+	SLIST_INIT(&idlist);
 	(void)time(&t);
 
 	/* Load the last entries from the file. */
@@ -240,16 +240,14 @@ wtmp(void)
 static void
 doentry(struct utmpx *bp)
 {
-	struct idtab	*tt, *ttx;		/* idlist entry */
+	struct idtab *tt;
 
 	/* the machine stopped */
 	if (bp->ut_type == BOOT_TIME || bp->ut_type == SHUTDOWN_TIME) {
 		/* everybody just logged out */
-		for (tt = LIST_FIRST(&idlist); tt;) {
-			LIST_REMOVE(tt, list);
-			ttx = tt;
-			tt = LIST_NEXT(tt, list);
-			free(ttx);
+		while ((tt = SLIST_FIRST(&idlist)) != NULL) {
+			SLIST_REMOVE_HEAD(&idlist, list);
+			free(tt);
 		}
 		currentout = -bp->ut_tv.tv_sec;
 		crmsg = bp->ut_type != SHUTDOWN_TIME ?
@@ -279,7 +277,7 @@ doentry(struct utmpx *bp)
 		return;
 
 	/* find associated identifier */
-	LIST_FOREACH(tt, &idlist, list)
+	SLIST_FOREACH(tt, &idlist, list)
 	    if (!memcmp(tt->id, bp->ut_id, sizeof bp->ut_id))
 		    break;
 
@@ -290,7 +288,7 @@ doentry(struct utmpx *bp)
 			errx(1, "malloc failure");
 		tt->logout = currentout;
 		memcpy(tt->id, bp->ut_id, sizeof bp->ut_id);
-		LIST_INSERT_HEAD(&idlist, tt, list);
+		SLIST_INSERT_HEAD(&idlist, tt, list);
 	}
 
 	/*

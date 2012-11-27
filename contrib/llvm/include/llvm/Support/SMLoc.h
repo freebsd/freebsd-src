@@ -24,7 +24,6 @@ class SMLoc {
   const char *Ptr;
 public:
   SMLoc() : Ptr(0) {}
-  SMLoc(const SMLoc &RHS) : Ptr(RHS.Ptr) {}
 
   bool isValid() const { return Ptr != 0; }
 
@@ -48,7 +47,7 @@ public:
   SMLoc Start, End;
 
   SMRange() {}
-  SMRange(SMLoc Start, SMLoc End) : Start(Start), End(End) {
+  SMRange(SMLoc St, SMLoc En) : Start(St), End(En) {
     assert(Start.isValid() == End.isValid() &&
            "Start and end should either both be valid or both be invalid!");
   }

@@ -896,7 +896,11 @@ bge_miibus_statchg(device_t dev)
 {
 	struct bge_softc *sc;
 	struct mii_data *mii;
+	uint32_t mac_mode, rx_mode, tx_mode;
+
 	sc = device_get_softc(dev);
+	if ((sc->bge_ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
 	mii = device_get_softc(sc->bge_miibus);
 
 	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
@@ -922,30 +926,40 @@ bge_miibus_statchg(device_t dev)
 		sc->bge_link = 0;
 	if (sc->bge_link == 0)
 		return;
-	BGE_CLRBIT(sc, BGE_MAC_MODE, BGE_MACMODE_PORTMODE);
+
+	/*
+	 * APE firmware touches these registers to keep the MAC
+	 * connected to the outside world.  Try to keep the
+	 * accesses atomic.
+	 */
+
+	/* Set the port mode (MII/GMII) to match the link speed. */
+	mac_mode = CSR_READ_4(sc, BGE_MAC_MODE) &
+	    ~(BGE_MACMODE_PORTMODE | BGE_MACMODE_HALF_DUPLEX);
+	tx_mode = CSR_READ_4(sc, BGE_TX_MODE);
+	rx_mode = CSR_READ_4(sc, BGE_RX_MODE);
+
 	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T ||
 	    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX)
-		BGE_SETBIT(sc, BGE_MAC_MODE, BGE_PORTMODE_GMII);
+		mac_mode |= BGE_PORTMODE_GMII;
 	else
-		BGE_SETBIT(sc, BGE_MAC_MODE, BGE_PORTMODE_MII);
+		mac_mode |= BGE_PORTMODE_MII;
 
+	/* Set MAC flow control behavior to match link flow control settings. */
+	tx_mode &= ~BGE_TXMODE_FLOWCTL_ENABLE;
+	rx_mode &= ~BGE_RXMODE_FLOWCTL_ENABLE;
 	if (IFM_OPTIONS(mii->mii_media_active & IFM_FDX) != 0) {
-		BGE_CLRBIT(sc, BGE_MAC_MODE, BGE_MACMODE_HALF_DUPLEX);
-		if ((IFM_OPTIONS(mii->mii_media_active) &
-		    IFM_ETH_TXPAUSE) != 0)
-			BGE_SETBIT(sc, BGE_TX_MODE, BGE_TXMODE_FLOWCTL_ENABLE);
-		else
-			BGE_CLRBIT(sc, BGE_TX_MODE, BGE_TXMODE_FLOWCTL_ENABLE);
-		if ((IFM_OPTIONS(mii->mii_media_active) &
-		    IFM_ETH_RXPAUSE) != 0)
-			BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_FLOWCTL_ENABLE);
-		else
-			BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_FLOWCTL_ENABLE);
-	} else {
-		BGE_SETBIT(sc, BGE_MAC_MODE, BGE_MACMODE_HALF_DUPLEX);
-		BGE_CLRBIT(sc, BGE_TX_MODE, BGE_TXMODE_FLOWCTL_ENABLE);
-		BGE_CLRBIT(sc, BGE_RX_MODE, BGE_RXMODE_FLOWCTL_ENABLE);
-	}
+		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_TXPAUSE) != 0)
+			tx_mode |= BGE_TXMODE_FLOWCTL_ENABLE;
+		if ((IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_RXPAUSE) != 0)
+			rx_mode |= BGE_RXMODE_FLOWCTL_ENABLE;
+	} else
+		mac_mode |= BGE_MACMODE_HALF_DUPLEX;
+
+	CSR_WRITE_4(sc, BGE_MAC_MODE, mac_mode);
+	DELAY(40);
+	CSR_WRITE_4(sc, BGE_TX_MODE, tx_mode);
+	CSR_WRITE_4(sc, BGE_RX_MODE, rx_mode);
 }
 
 /*
@@ -1421,6 +1435,7 @@ bge_chipinit(struct bge_softc *sc)
 
 	/* Clear the MAC control register */
 	CSR_WRITE_4(sc, BGE_MAC_MODE, 0);
+	DELAY(40);
 
 	/*
 	 * Clear the MAC statistics block in the NIC's
@@ -2033,6 +2048,7 @@ bge_blockinit(struct bge_softc *sc)
 
 	/* Turn on DMA, clear stats */
 	CSR_WRITE_4(sc, BGE_MAC_MODE, val);
+	DELAY(40);
 
 	/* Set misc. local control, enable interrupts on attentions */
 	CSR_WRITE_4(sc, BGE_MISC_LOCAL_CTL, BGE_MLC_INTR_ONATTN);
@@ -3625,17 +3641,17 @@ bge_reset(struct bge_softc *sc)
 			pci_write_config(dev, 0xC4, val | (1 << 15), 4);
 		}
 		devctl = pci_read_config(dev,
-		    sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL, 2);
+		    sc->bge_expcap + PCIER_DEVICE_CTL, 2);
 		/* Clear enable no snoop and disable relaxed ordering. */
-		devctl &= ~(PCIM_EXP_CTL_RELAXED_ORD_ENABLE |
-		    PCIM_EXP_CTL_NOSNOOP_ENABLE);
-		pci_write_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_CTL,
+		devctl &= ~(PCIEM_CTL_RELAXED_ORD_ENABLE |
+		    PCIEM_CTL_NOSNOOP_ENABLE);
+		pci_write_config(dev, sc->bge_expcap + PCIER_DEVICE_CTL,
 		    devctl, 2);
 		/* Clear error status. */
-		pci_write_config(dev, sc->bge_expcap + PCIR_EXPRESS_DEVICE_STA,
-		    PCIM_EXP_STA_CORRECTABLE_ERROR |
-		    PCIM_EXP_STA_NON_FATAL_ERROR | PCIM_EXP_STA_FATAL_ERROR |
-		    PCIM_EXP_STA_UNSUPPORTED_REQ, 2);
+		pci_write_config(dev, sc->bge_expcap + PCIER_DEVICE_STA,
+		    PCIEM_STA_CORRECTABLE_ERROR |
+		    PCIEM_STA_NON_FATAL_ERROR | PCIEM_STA_FATAL_ERROR |
+		    PCIEM_STA_UNSUPPORTED_REQ, 2);
 	}
 
 	/* Reset some of the PCI state that got zapped by reset. */
@@ -3739,6 +3755,7 @@ bge_reset(struct bge_softc *sc)
 		BGE_SETBIT(sc, BGE_MODE_CTL, BGE_MODECTL_STACKUP);
 
 	CSR_WRITE_4(sc, BGE_MAC_MODE, 0);
+	DELAY(40);
 
 	/*
 	 * The 5704 in TBI mode apparently needs some special
@@ -5016,9 +5033,11 @@ bge_init_locked(struct bge_softc *sc)
 	}
 	/* Turn on transmitter. */
 	CSR_WRITE_4(sc, BGE_TX_MODE, mode | BGE_TXMODE_ENABLE);
+	DELAY(100);
 
 	/* Turn on receiver. */
 	BGE_SETBIT(sc, BGE_RX_MODE, BGE_RXMODE_ENABLE);
+	DELAY(10);
 
 	/*
 	 * Set the number of good frames to receive after RX MBUF
@@ -5054,10 +5073,10 @@ bge_init_locked(struct bge_softc *sc)
 	bge_writembx(sc, BGE_MBX_IRQ0_LO, 0);
 	}
 
-	bge_ifmedia_upd_locked(ifp);
-
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+
+	bge_ifmedia_upd_locked(ifp);
 
 	callout_reset(&sc->bge_stat_ch, hz, bge_tick, sc);
 }
@@ -5135,6 +5154,7 @@ bge_ifmedia_upd_locked(struct ifnet *ifp)
 				BGE_SETBIT(sc, BGE_MAC_MODE,
 				    BGE_MACMODE_HALF_DUPLEX);
 			}
+			DELAY(40);
 			break;
 		default:
 			return (EINVAL);
@@ -5610,9 +5630,11 @@ bge_link_upd(struct bge_softc *sc)
 		if (status & BGE_MACSTAT_TBI_PCS_SYNCHED) {
 			if (!sc->bge_link) {
 				sc->bge_link++;
-				if (sc->bge_asicrev == BGE_ASICREV_BCM5704)
+				if (sc->bge_asicrev == BGE_ASICREV_BCM5704) {
 					BGE_CLRBIT(sc, BGE_MAC_MODE,
 					    BGE_MACMODE_TBI_SEND_CFGS);
+					DELAY(40);
+				}
 				CSR_WRITE_4(sc, BGE_MAC_STS, 0xFFFFFFFF);
 				if (bootverbose)
 					if_printf(sc->bge_ifp, "link UP\n");

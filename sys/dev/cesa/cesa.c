@@ -1005,6 +1005,7 @@ cesa_attach(device_t dev)
 
 	switch (d) {
 	case MV_DEV_88F6281:
+	case MV_DEV_88F6282:
 		sc->sc_tperr = 0;
 		break;
 	case MV_DEV_MV78100:

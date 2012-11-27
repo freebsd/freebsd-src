@@ -2113,7 +2113,7 @@ finish_express_del:
 		 */
 		struct sctp_queued_to_read *ctl, *nctl;
 
-		sctp_reset_in_stream(stcb, liste->number_entries, liste->req.list_of_streams);
+		sctp_reset_in_stream(stcb, liste->number_entries, liste->list_of_streams);
 		TAILQ_REMOVE(&asoc->resetHead, liste, next_resp);
 		SCTP_FREE(liste, SCTP_M_STRESET);
 		/* sa_ignore FREED_MEMORY */
@@ -4420,7 +4420,7 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 			    cum_ack, send_s);
 			if (tp1) {
 				SCTP_PRINTF("Got send_s from tsn:%x + 1 of tp1:%p\n",
-				    tp1->rec.data.TSN_seq, tp1);
+				    tp1->rec.data.TSN_seq, (void *)tp1);
 			}
 	hopeless_peer:
 			*abort_now = 1;

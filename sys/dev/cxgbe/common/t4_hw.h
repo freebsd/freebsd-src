@@ -161,10 +161,12 @@ struct pagepod {
 #define S_PPOD_TAG    6
 #define M_PPOD_TAG    0xFFFFFF
 #define V_PPOD_TAG(x) ((x) << S_PPOD_TAG)
+#define G_PPOD_TAG(x) (((x) >> S_PPOD_TAG) & M_PPOD_TAG)
 
 #define S_PPOD_PGSZ    30
 #define M_PPOD_PGSZ    0x3
 #define V_PPOD_PGSZ(x) ((x) << S_PPOD_PGSZ)
+#define G_PPOD_PGSZ(x) (((x) >> S_PPOD_PGSZ) & M_PPOD_PGSZ)
 
 #define S_PPOD_TID    32
 #define M_PPOD_TID    0xFFFFFF

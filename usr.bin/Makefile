@@ -68,7 +68,7 @@ SUBDIR=	alias \
 	ipcs \
 	join \
 	jot \
-	kdump \
+	${_kdump} \
 	keylogin \
 	keylogout \
 	killall \
@@ -163,7 +163,7 @@ SUBDIR=	alias \
 	tr \
 	true \
 	truncate \
-	truss \
+	${_truss} \
 	tset \
 	tsort \
 	tty \
@@ -208,10 +208,6 @@ SUBDIR+=	at
 SUBDIR+=	atm
 .endif
 
-.if ${MK_MAN_UTILS} != "no"
-SUBDIR+=	catman
-.endif
-
 .if ${MK_BIND_UTILS} != "no"
 SUBDIR+=	dig
 SUBDIR+=	host
@@ -235,6 +231,10 @@ SUBDIR+=	calendar
 _clang=		clang
 .endif
 
+.if ${MK_GROFF} != "no"
+SUBDIR+=	vgrind
+.endif
+
 .if ${MK_HESIOD} != "no"
 SUBDIR+=	hesinfo
 .endif
@@ -245,15 +245,13 @@ _mkcsmapper=	mkcsmapper
 _mkesdb=	mkesdb
 .endif
 
-.if ${MK_GROFF} != "no"
-SUBDIR+=	vgrind
+.if ${MK_KDUMP} != "no"
+SUBDIR+=        kdump
+SUBDIR+=        truss
 .endif
 
-.if ${MK_OPENSSL} != "no"
-SUBDIR+=	bc
-SUBDIR+=	chkey
-SUBDIR+=	dc
-SUBDIR+=	newkey
+.if ${MK_KERBEROS_SUPPORT} != "no"
+SUBDIR+=	compile_et
 .endif
 
 .if ${MK_LIBTHR} != "no"
@@ -262,10 +260,6 @@ SUBDIR+=	csup
 
 .if ${MK_LOCATE} != "no"
 SUBDIR+=	locate
-.endif
-
-.if ${MK_KERBEROS_SUPPORT} != "no"
-SUBDIR+=	compile_et
 .endif
 
 # XXX msgs?
@@ -277,10 +271,15 @@ SUBDIR+=	msgs
 .endif
 
 .if ${MK_MAKE} != "no"
+.if ${MK_BMAKE} != "no"
+SUBDIR+=	bmake
+.else
 SUBDIR+=	make
+.endif
 .endif
 
 .if ${MK_MAN_UTILS} != "no"
+SUBDIR+=	catman
 _makewhatis=	makewhatis
 _man=		man
 .endif
@@ -293,6 +292,13 @@ SUBDIR+=	nc
 SUBDIR+=	ypcat
 SUBDIR+=	ypmatch
 SUBDIR+=	ypwhich
+.endif
+
+.if ${MK_OPENSSL} != "no"
+SUBDIR+=	bc
+SUBDIR+=	chkey
+SUBDIR+=	dc
+SUBDIR+=	newkey
 .endif
 
 .if ${MK_QUOTAS} != "no"

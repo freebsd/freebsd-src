@@ -158,7 +158,7 @@
 				    struct l_old_select_argv *ptr); }
 83	AUE_SYMLINK	STD	{ int linux_symlink(char *path, char *to); }
 ; 84: oldlstat
-84	AUE_LSTAT	STD	{ int linux_lstat(char *path, struct ostat *up); }
+84	AUE_LSTAT	STD	{ int linux_lstat(char *path, struct l_stat *up); }
 85	AUE_READLINK	STD	{ int linux_readlink(char *name, char *buf, \
 				    l_int count); }
 86	AUE_USELIB	STD	{ int linux_uselib(char *library); }

@@ -1606,7 +1606,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
                 pcb->pcb_dr3 = 0;
                 pcb->pcb_dr6 = 0;
                 pcb->pcb_dr7 = 0;
-                if (pcb == PCPU_GET(curpcb)) {
+                if (pcb == curpcb) {
 		        /*
 			 * Clear the debug registers on the running
 			 * CPU, otherwise they will end up affecting
