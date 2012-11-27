@@ -92,7 +92,7 @@ f_dialog_title()
 {
 	local new_title="$1"
 
-	if [ "$new_title" ]; then
+	if [ "${1+set}" ]; then
 		if [ "$USE_XDIALOG" ]; then
 			_DIALOG_BACKTITLE="$DIALOG_BACKTITLE"
 			DIALOG_BACKTITLE="$new_title"
@@ -133,7 +133,7 @@ f_dialog_backtitle()
 {
 	local new_backtitle="$1"
 
-	if [ "$new_backtitle" ]; then
+	if [ "${1+set}" ]; then
 		if [ "$USE_XDIALOG" ]; then
 			_DIALOG_TITLE="$DIALOG_TITLE"
 			DIALOG_TITLE="$new_backtitle"
