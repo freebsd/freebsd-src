@@ -175,6 +175,11 @@ TUNABLE_INT("kern.sugid_coredump", &sugid_coredump);
 SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RW,
     &sugid_coredump, 0, "Allow setuid and setgid processes to dump core");
 
+static int	capmode_coredump;
+TUNABLE_INT("kern.capmode_coredump", &capmode_coredump);
+SYSCTL_INT(_kern, OID_AUTO, capmode_coredump, CTLFLAG_RW,
+    &capmode_coredump, 0, "Allow processes in capability mode to dump core");
+
 static int	do_coredump = 1;
 SYSCTL_INT(_kern, OID_AUTO, coredump, CTLFLAG_RW,
 	&do_coredump, 0, "Enable/Disable coredumps");
@@ -3134,12 +3139,17 @@ nomem:
 		int error, n;
 		int flags = O_CREAT | O_EXCL | FWRITE | O_NOFOLLOW;
 		int cmode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
+		int oflags = 0;
+
+		if (capmode_coredump)
+			oflags = VN_OPEN_NOCAPCHECK;
 
 		for (n = 0; n < num_cores; n++) {
 			temp[indexpos] = '0' + n;
 			NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE,
 			    temp, td);
-			error = vn_open(&nd, &flags, cmode, NULL);
+			error = vn_open_cred(&nd, &flags, cmode, oflags,
+			    td->td_ucred, NULL);
 			if (error) {
 				if (error == EEXIST)
 					continue;
@@ -3241,7 +3251,8 @@ coredump(struct thread *td)
 restart:
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, td);
 	flags = O_CREAT | FWRITE | O_NOFOLLOW;
-	error = vn_open_cred(&nd, &flags, S_IRUSR | S_IWUSR, VN_OPEN_NOAUDIT,
+	error = vn_open_cred(&nd, &flags, S_IRUSR | S_IWUSR,
+	    VN_OPEN_NOAUDIT | (capmode_coredump ? VN_OPEN_NOCAPCHECK : 0),
 	    cred, NULL);
 	if (error) {
 #ifdef AUDIT
