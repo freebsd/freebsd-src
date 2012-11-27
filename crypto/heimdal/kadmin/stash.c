@@ -1,40 +1,40 @@
 /*
- * Copyright (c) 2004 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2004 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Portions Copyright (c) 2009 Apple Inc. All rights reserved.
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "kadmin_locl.h"
 #include "kadmin-commands.h"
-
-RCSID("$Id: stash.c 22251 2007-12-09 05:58:43Z lha $");
 
 extern int local_flag;
 
@@ -45,7 +45,7 @@ stash(struct stash_options *opt, int argc, char **argv)
     krb5_error_code ret;
     krb5_enctype enctype;
     hdb_master_key mkey;
-    
+
     if(!local_flag) {
 	krb5_warnx(context, "stash is only available in local (-l) mode");
 	return 0;
@@ -65,14 +65,14 @@ stash(struct stash_options *opt, int argc, char **argv)
 
     ret = hdb_read_master_key(context, opt->key_file_string, &mkey);
     if(ret && ret != ENOENT) {
-	krb5_warn(context, ret, "reading master key from %s", 
+	krb5_warn(context, ret, "reading master key from %s",
 		  opt->key_file_string);
 	return 0;
     }
 
     if (opt->convert_file_flag) {
 	if (ret)
-	    krb5_warn(context, ret, "reading master key from %s", 
+	    krb5_warn(context, ret, "reading master key from %s",
 		      opt->key_file_string);
 	return 0;
     } else {
@@ -87,10 +87,15 @@ stash(struct stash_options *opt, int argc, char **argv)
 	    n = read(opt->master_key_fd_integer, buf, sizeof(buf));
 	    if(n == 0)
 		krb5_warnx(context, "end of file reading passphrase");
-	    else if(n < 0)
+	    else if(n < 0) {
 		krb5_warn(context, errno, "reading passphrase");
+		n = 0;
+	    }
 	    buf[n] = '\0';
 	    buf[strcspn(buf, "\r\n")] = '\0';
+	} else if (opt->random_password_flag) {
+	    random_password (buf, sizeof(buf));
+	    printf("Using random master stash password: %s\n", buf);
 	} else {
 	    if(UI_UTIL_read_pw_string(buf, sizeof(buf), "Master key: ", 1)) {
 		hdb_free_master_key(context, mkey);
@@ -101,7 +106,7 @@ stash(struct stash_options *opt, int argc, char **argv)
 	ret = hdb_add_master_key(context, &key, &mkey);
 	krb5_free_keyblock_contents(context, &key);
     }
-    
+
     {
 	char *new, *old;
 	asprintf(&old, "%s.old", opt->key_file_string);
@@ -110,7 +115,7 @@ stash(struct stash_options *opt, int argc, char **argv)
 	    ret = ENOMEM;
 	    goto out;
 	}
-	    
+
 	if(unlink(new) < 0 && errno != ENOENT) {
 	    ret = errno;
 	    goto out;
@@ -121,12 +126,18 @@ stash(struct stash_options *opt, int argc, char **argv)
 	    unlink(new);
 	else {
 	    unlink(old);
+#ifndef NO_POSIX_LINKS
 	    if(link(opt->key_file_string, old) < 0 && errno != ENOENT) {
 		ret = errno;
 		unlink(new);
-	    } else if(rename(new, opt->key_file_string) < 0) {
-		ret = errno;
+	    } else {
+#endif
+		if(rename(new, opt->key_file_string) < 0) {
+		    ret = errno;
+		}
+#ifndef NO_POSIX_LINKS
 	    }
+#endif
 	}
     out:
 	free(old);

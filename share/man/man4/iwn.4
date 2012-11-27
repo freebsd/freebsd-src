@@ -25,13 +25,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 20, 2010
+.Dd March 27, 2012
 .Dt IWN 4
 .Os
 .Sh NAME
 .Nm iwn
-.Nd Intel Wireless WiFi Link 4965/1000/5000/5150/5300/6000/6050 
-IEEE 802.11n driver
+.Nd Intel IEEE 802.11n wireless network driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 include the following lines in your
@@ -51,6 +50,8 @@ Choose one from:
 .Cd "device iwn5000fw"
 .Cd "device iwn5150fw"
 .Cd "device iwn6000fw"
+.Cd "device iwn6000g2afw"
+.Cd "device iwn6000g2bfw"
 .Cd "device iwn6050fw"
 .Ed
 .Pp
@@ -71,15 +72,32 @@ iwn1000fw_load="YES"
 iwn5000fw_load="YES"
 iwn5150fw_load="YES"
 iwn6000fw_load="YES"
+iwn6000g2afw_load="YES"
+iwn6000g2bfw_load="YES"
 iwn6050fw_load="YES"
 .Ed
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for
-.Tn Intel
-Wireless WiFi Link 4965, 1000, 5000 and 6000 series of 
-PCI-Express network adapters.
+driver provides support for:
+.Pp
+.Bl -tag -width Ds -offset indent -compact
+.It Intel Centrino Advanced-N 6200
+.It Intel Centrino Advanced-N 6205
+.It Intel Centrino Advanced-N 6230
+.It Intel Centrino Advanced-N + WiMAX 6250
+.It Intel Centrino Ultimate-N 6300
+.It Intel Centrino Wireless-N 130
+.It Intel Centrino Wireless-N 1000
+.It Intel Centrino Wireless-N 1030
+.It Intel Centrino Wireless-N + WiMAX 6150
+.It Intel Ultimate N WiFi Link 5300
+.It Intel Wireless WiFi Link 4965
+.It Intel WiFi Link 5100
+.It Intel WiMAX/WiFi Link 5150
+.It Intel WiMAX/WiFi Link 5350
+.El
+.Pp
 .Nm
 supports
 .Cm station ,
@@ -133,7 +151,7 @@ This should not happen.
 The driver failed to load the firmware image using the
 .Xr firmware 9
 subsystem.
-Verify the 
+Verify the
 .Xr iwnfw 4
 firmware module is present.
 .It "iwn%d: could not load boot firmware"

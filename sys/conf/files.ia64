@@ -28,6 +28,7 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"ukbdmap.h"
 #
+cddl/contrib/opensolaris/common/atomic/ia64/opensolaris_atomic.S	optional zfs compile-with "${ZFS_S}"
 compat/freebsd32/freebsd32_ioctl.c	optional	compat_freebsd32
 compat/freebsd32/freebsd32_misc.c	optional	compat_freebsd32
 compat/freebsd32/freebsd32_syscalls.c	optional	compat_freebsd32

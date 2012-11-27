@@ -761,7 +761,6 @@ ipfw_config_pipe(int ac, char **av)
 {
 	int i, j;
 	char *end;
-	void *par = NULL;
 	struct dn_id *buf, *base;
 	struct dn_sch *sch = NULL;
 	struct dn_link *p = NULL;
@@ -905,7 +904,6 @@ ipfw_config_pipe(int ac, char **av)
 			 * per-flow queue, mask is dst_ip, dst_port,
 			 * src_ip, src_port, proto measured in bits
 			 */
-			par = NULL;
 
 			bzero(mask, sizeof(*mask));
 			end = NULL;
@@ -1179,7 +1177,6 @@ end_mask:
 	    if (fs->flags & DN_IS_RED) {
 		size_t len;
 		int lookup_depth, avg_pkt_size;
-		double w_q;
 
 		if (fs->min_th >= fs->max_th)
 		    errx(EX_DATAERR, "min_th %d must be < than max_th %d",
@@ -1205,6 +1202,7 @@ end_mask:
 			    "net.inet.ip.dummynet.red_avg_pkt_size must"
 			    " be greater than zero");
 
+#if 0 /* the following computation is now done in the kernel */
 		/*
 		 * Ticks needed for sending a medium-sized packet.
 		 * Unfortunately, when we are configuring a WF2Q+ queue, we
@@ -1214,19 +1212,16 @@ end_mask:
 		 * correct. But on the other hand, why do we want RED with
 		 * WF2Q+ ?
 		 */
-#if 0
 		if (p.bandwidth==0) /* this is a WF2Q+ queue */
 			s = 0;
 		else
 			s = (double)ck.hz * avg_pkt_size * 8 / p.bandwidth;
-#endif
 		/*
 		 * max idle time (in ticks) before avg queue size becomes 0.
 		 * NOTA:  (3/w_q) is approx the value x so that
 		 * (1-w_q)^x < 10^-3.
 		 */
 		w_q = ((double)fs->w_q) / (1 << SCALE_RED);
-#if 0 // go in kernel
 		idle = s * 3. / w_q;
 		fs->lookup_step = (int)idle / lookup_depth;
 		if (!fs->lookup_step)
@@ -1235,7 +1230,7 @@ end_mask:
 		for (t = fs->lookup_step; t > 1; --t)
 			weight *= 1 - w_q;
 		fs->lookup_weight = (int)(weight * (1 << SCALE_RED));
-#endif
+#endif /* code moved in the kernel */
 	    }
 	}
 

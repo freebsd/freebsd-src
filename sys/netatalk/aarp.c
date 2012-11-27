@@ -467,7 +467,7 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
 	if (aat != NULL) {
 		if (op == AARPOP_PROBE) {
 			/*
-			 * Someone's probing for spa, dealocate the one we've
+			 * Someone's probing for spa, deallocate the one we've
 			 * got, so that if the prober keeps the address,
 			 * we'll be able to arp for him.
 			 */

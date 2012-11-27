@@ -43,18 +43,10 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include "libc_private.h"
 #include "crtbrand.c"
+#include "ignore_init.c"
 
 struct Struct_Obj_Entry;
 struct ps_strings;
-
-#ifndef NOSHARED
-extern int _DYNAMIC;
-#pragma weak _DYNAMIC
-#endif
-
-extern void _init(void);
-extern void _fini(void);
-extern int main(int, char **, char **);
 
 #ifdef GCRT
 extern void _mcleanup(void);
@@ -62,9 +54,6 @@ extern void monstartup(void *, void *);
 extern int eprol;
 extern int etext;
 #endif
-
-char **environ;
-const char *__progname = "";
 
 void __start(char **, void (*)(void), struct Struct_Obj_Entry *, struct ps_strings *);
 
@@ -83,29 +72,21 @@ __start(char **ap,
 	argv = ap + 1;
 	env  = ap + 2 + argc;
 	environ = env;
-	if (argc > 0 && argv[0] != NULL) {
-		const char *s;
-		__progname = argv[0];
-		for (s = __progname; *s != '\0'; s++)
-			if (*s == '/')
-				__progname = s + 1;
-	}
+	if (argc > 0 && argv[0] != NULL)
+		handle_progname(argv[0]);
 
-#ifndef NOSHARED
 	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
-#endif
+	else
+		_init_tls();
+
 #ifdef GCRT
 	atexit(_mcleanup);
-#endif
-	atexit(_fini);
-#ifdef GCRT
 	monstartup(&eprol, &etext);
 #endif
-#ifndef NOGPREL
-	_init();
-#endif
-	exit( main(argc, argv, env) );
+
+	handle_static_init(argc, argv, env);
+	exit(main(argc, argv, env));
 }
 
 #ifdef GCRT

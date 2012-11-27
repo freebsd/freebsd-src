@@ -1,15 +1,6 @@
-Fix output so that tests for MIME and APPLE flags are not needed all
-over the place, and actual output is only done in one place. This
-needs a design. Suggestion: push possible outputs on to a list, then
-pick the last-pushed (most specific, one hopes) value at the end, or
-use a default if the list is empty.
+TODOs live in the TODO section of doc/file.man (i.e. file(1)). They
+are more visible there, so please add any further TODOs to that file,
+not here.
 
-Continue to squash all magic bugs. See Debian BTS for a good source.
-
-Store arbitrarily long strings, for example for %s patterns, so that
-they can be printed out. Fixes Debian bug #271672.
-
-Add syntax for other sorts of counted string (Debian bug #466032). Use
-to fix bug #283760.
-
-Add syntax for relative offsets after current level (Debian bug #466037).
+(This change was made when Reuben Thomas noticed that all the bugs
+listed in the BUGS section of the man page had been fixed!)

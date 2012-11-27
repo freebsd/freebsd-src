@@ -42,13 +42,34 @@ int
 _pthread_barrier_destroy(pthread_barrier_t *barrier)
 {
 	pthread_barrier_t	bar;
+	struct pthread		*curthread;
 
 	if (barrier == NULL || *barrier == NULL)
 		return (EINVAL);
 
+	curthread = _get_curthread();
 	bar = *barrier;
-	if (bar->b_waiters > 0)
+	THR_UMUTEX_LOCK(curthread, &bar->b_lock);
+	if (bar->b_destroying) {
+		THR_UMUTEX_UNLOCK(curthread, &bar->b_lock);
 		return (EBUSY);
+	}
+	bar->b_destroying = 1;
+	do {
+		if (bar->b_waiters > 0) {
+			bar->b_destroying = 0;
+			THR_UMUTEX_UNLOCK(curthread, &bar->b_lock);
+			return (EBUSY);
+		}
+		if (bar->b_refcount != 0) {
+			_thr_ucond_wait(&bar->b_cv, &bar->b_lock, NULL, 0);
+			THR_UMUTEX_LOCK(curthread, &bar->b_lock);
+		} else
+			break;
+	} while (1);
+	bar->b_destroying = 0;
+	THR_UMUTEX_UNLOCK(curthread, &bar->b_lock);
+
 	*barrier = NULL;
 	free(bar);
 	return (0);
@@ -74,6 +95,7 @@ _pthread_barrier_init(pthread_barrier_t *barrier,
 	bar->b_cycle	= 0;
 	bar->b_waiters	= 0;
 	bar->b_count	= count;
+	bar->b_refcount = 0;
 	*barrier	= bar;
 
 	return (0);
@@ -101,11 +123,14 @@ _pthread_barrier_wait(pthread_barrier_t *barrier)
 		ret = PTHREAD_BARRIER_SERIAL_THREAD;
 	} else {
 		cycle = bar->b_cycle;
+		bar->b_refcount++;
 		do {
 			_thr_ucond_wait(&bar->b_cv, &bar->b_lock, NULL, 0);
 			THR_UMUTEX_LOCK(curthread, &bar->b_lock);
 			/* test cycle to avoid bogus wakeup */
 		} while (cycle == bar->b_cycle);
+		if (--bar->b_refcount == 0 && bar->b_destroying)
+			_thr_ucond_broadcast(&bar->b_cv);
 		THR_UMUTEX_UNLOCK(curthread, &bar->b_lock);
 		ret = 0;
 	}

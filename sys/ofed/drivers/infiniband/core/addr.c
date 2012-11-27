@@ -136,6 +136,7 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 	}
 
 	switch (addr->sa_family) {
+#ifdef INET
 	case AF_INET:
 		dev = ip_dev_find(NULL,
 			((struct sockaddr_in *) addr)->sin_addr.s_addr);
@@ -146,6 +147,7 @@ int rdma_translate_ip(struct sockaddr *addr, struct rdma_dev_addr *dev_addr)
 		ret = rdma_copy_addr(dev_addr, dev, NULL);
 		dev_put(dev);
 		break;
+#endif
 
 #if defined(INET6)
 	case AF_INET6:
@@ -346,7 +348,9 @@ static int addr_resolve(struct sockaddr *src_in,
 	struct sockaddr_in6 *sin6;
 	struct ifaddr *ifa;
 	struct ifnet *ifp;
+#if defined(INET) || defined(INET6)
 	struct llentry *lle;
+#endif
 	struct rtentry *rte;
 	in_port_t port;
 	u_char edst[MAX_ADDR_LEN];
@@ -365,6 +369,7 @@ static int addr_resolve(struct sockaddr *src_in,
 	ifp = NULL;
 	rte = NULL;
 	switch (dst_in->sa_family) {
+#ifdef INET
 	case AF_INET:
 		sin = (struct sockaddr_in *)dst_in;
 		if (sin->sin_addr.s_addr == INADDR_BROADCAST)
@@ -383,6 +388,7 @@ static int addr_resolve(struct sockaddr *src_in,
 		} else
 			src_in = NULL; 
 		break;
+#endif
 #ifdef INET6
 	case AF_INET6:
 		sin6 = (struct sockaddr_in6 *)dst_in;
@@ -459,12 +465,21 @@ mcast:
 	/*
 	 * Resolve the link local address.
 	 */
-	if (dst_in->sa_family == AF_INET)
+	switch (dst_in->sa_family) {
+#ifdef INET
+	case AF_INET:
 		error = arpresolve(ifp, rte, NULL, dst_in, edst, &lle);
-#ifdef INET6
-	else
-		error = nd6_storelladdr(ifp, NULL, dst_in, (u_char *)edst, &lle);
+		break;
 #endif
+#ifdef INET6
+	case AF_INET6:
+		error = nd6_storelladdr(ifp, NULL, dst_in, (u_char *)edst, &lle);
+		break;
+#endif
+	default:
+		/* XXX: Shouldn't happen. */
+		error = -EINVAL;
+	}
 	RTFREE(rte);
 	if (error == 0)
 		return rdma_copy_addr(addr, ifp, edst);

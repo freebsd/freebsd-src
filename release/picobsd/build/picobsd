@@ -164,6 +164,7 @@ create_includes_and_libraries2() { # opt_dir opt_target
     log "create_includes_and_libraries2() for ${SRC} $1"
     if [ ${OSVERSION} -ge 600000 ] ; then
 	no="-DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R" # WITHOUT_CDDL=1"
+	no="$no -DWITHOUT_CLANG"
     else
 	no="-DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R"
     fi
@@ -882,7 +883,7 @@ fill_floppy_image() {
     log "Compress with kgzip and copy to floppy image"
 
     mkdir -p  ${dst}/boot/kernel
-    # XXX update loader.conf
+    # XXX loader.conf does not work unless we also load the .4th files
     echo "hint.acpi.0.disabled=\"1\"" > ${dst}/boot/loader.conf
     echo "console=\"comconsole\"" >> ${dst}/boot/loader.conf
     cp -p /boot/loader ${dst}/boot/loader || fail $? no_space "copying bootloader"

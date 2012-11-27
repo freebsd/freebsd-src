@@ -269,12 +269,12 @@ DEFINE_TEST(test_write_disk_sparse)
         archive_write_disk_set_options(ad, 0);
 	verify_write_data(ad, 0);
 	verify_write_data_block(ad, 0);
-	assertEqualInt(0, archive_write_finish(ad));
+	assertEqualInt(0, archive_write_free(ad));
 
 	assert((ad = archive_write_disk_new()) != NULL);
         archive_write_disk_set_options(ad, ARCHIVE_EXTRACT_SPARSE);
 	verify_write_data(ad, 1);
 	verify_write_data_block(ad, 1);
-	assertEqualInt(0, archive_write_finish(ad));
+	assertEqualInt(0, archive_write_free(ad));
 
 }

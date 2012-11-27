@@ -154,7 +154,7 @@ getSenseData(u_int status, union ccb *ccb, pduq_t *pq)
      scsi_rsp_t		*cmd = &pp->ipdu.scsi_rsp;
      caddr_t		bp;
      int		sense_len, mustfree = 0;
-     int		error_code, sense_key, asc, ascq;
+     int                error_code, sense_key, asc, ascq;
 
      bp = mtod(pq->mp, caddr_t);
      if((sense_len = scsi_2btoul(bp)) == 0)
@@ -176,9 +176,8 @@ getSenseData(u_int status, union ccb *ccb, pduq_t *pq)
      scsi->sense_resid = 0;
      if(cmd->flag & (BIT(1)|BIT(2)))
 	  scsi->sense_resid = ntohl(pp->ipdu.scsi_rsp.rcnt);
-
      scsi_extract_sense_len(sense, scsi->sense_len - scsi->sense_resid,
-	&error_code, &sense_key, &asc, &ascq, /*show_errors*/ 1);
+       &error_code, &sense_key, &asc, &ascq, /*show_errors*/ 1);
 
      debug(3, "sense_len=%d rcnt=%d sense_resid=%d dsl=%d error_code=%x flags=%x",
 	   sense_len,
@@ -479,6 +478,8 @@ scsi_encap(struct cam_sim *sim, union ccb *ccb)
      cmd = &pq->pdu.ipdu.scsi_req;
      cmd->opcode = ISCSI_SCSI_CMD;
      cmd->F = 1;
+#if 0
+// this breaks at least Isilon's iscsi target.
      /*
       | map tag option, default is UNTAGGED
       */
@@ -488,6 +489,9 @@ scsi_encap(struct cam_sim *sim, union ccb *ccb)
      case MSG_ORDERED_Q_TAG:	cmd->attr = iSCSI_TASK_ORDER;	break;
      case MSG_ACA_TASK:		cmd->attr = iSCSI_TASK_ACA;	break;
      }
+#else
+     cmd->attr = iSCSI_TASK_SIMPLE;
+#endif
 
      dwl(sp, ccb_h->target_lun, (u_char *)&cmd->lun);
 

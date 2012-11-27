@@ -2,7 +2,7 @@
                "http://www.oasis-open.org/docbook/xml/4.2/docbookx.dtd"
                [<!ENTITY mdash "&#8212;">]>
 <!--
- - Copyright (C) 2010  Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2010, 2012  Internet Systems Consortium, Inc. ("ISC")
  -
  - Permission to use, copy, modify, and/or distribute this software for any
  - purpose with or without fee is hereby granted, provided that the above
@@ -17,7 +17,7 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: pkcs11.xml,v 1.3 2010-02-06 07:42:02 marka Exp $ -->
+<!-- $Id$ -->
 
 <sect1 id="pkcs11">
   <title>PKCS #11 (Cryptoki) support</title>
@@ -68,12 +68,15 @@
         is an example of such a device.</para>
       </listitem>
     </itemizedlist>
-    <para>The modified OpenSSL code is included in the BIND 9.7.0
-    release, in the form of a context diff against the latest OpenSSL.
+    <para>The modified OpenSSL code is included in the BIND 9 release,
+        in the form of a context diff against the latest verions of
+        OpenSSL.  OpenSSL 0.9.8 and 1.0.0 are both supported; there are
+        separate diffs for each version.  In the examples to follow,
+        we use OpenSSL 0.9.8, but the same methods work with OpenSSL 1.0.0.
     </para>
     <note>
-      The latest OpenSSL version at the time of the BIND release
-      is 0.9.8l.
+      The latest OpenSSL versions at the time of the BIND release
+      are 0.9.8s and 1.0.0f.
       ISC will provide an updated patch as new versions of OpenSSL
       are released. The version number in the following examples
       is expected to change.</note>
@@ -82,18 +85,18 @@
     necessary to build OpenSSL with this patch in place and inform
     it of the path to the HSM-specific PKCS #11 provider
     library.</para>
-    <para>Obtain OpenSSL 0.9.8l:</para>
+    <para>Obtain OpenSSL 0.9.8s:</para>
     <screen>
-$ <userinput>wget <ulink>http://www.openssl.org/source/openssl-0.9.8l.tar.gz</ulink></userinput>
+$ <userinput>wget <ulink>http://www.openssl.org/source/openssl-0.9.8s.tar.gz</ulink></userinput>
 </screen>
     <para>Extract the tarball:</para>
     <screen>
-$ <userinput>tar zxf openssl-0.9.8l.tar.gz</userinput>
+$ <userinput>tar zxf openssl-0.9.8s.tar.gz</userinput>
 </screen>
     <para>Apply the patch from the BIND 9 release:</para>
     <screen>
-$ <userinput>patch -p1 -d openssl-0.9.8l \
-            &lt; bind-9.7.0/bin/pkcs11/openssl-0.9.8l-patch</userinput>
+$ <userinput>patch -p1 -d openssl-0.9.8s \
+            &lt; bind9/bin/pkcs11/openssl-0.9.8s-patch</userinput>
 </screen>
     <note>(Note that the patch file may not be compatible with the
     "patch" utility on all operating systems. You may need to
@@ -124,7 +127,7 @@ $ <userinput>cp pkcs11.GCC4.0.2.so.4.05 /opt/pkcs11/usr/lib/libpkcs11.so</userin
       <para>Finally, the Keyper library requires threads, so we
       must specify -pthread.</para>
       <screen>
-$ <userinput>cd openssl-0.9.8l</userinput>
+$ <userinput>cd openssl-0.9.8s</userinput>
 $ <userinput>./Configure linux-generic32 -m32 -pthread \
             --pk11-libname=/opt/pkcs11/usr/lib/libpkcs11.so \
             --pk11-flavor=sign-only \
@@ -145,7 +148,7 @@ $ <userinput>./Configure linux-generic32 -m32 -pthread \
       <para>In this example, we are building on Solaris x86 on an
       AMD64 system.</para>
       <screen>
-$ <userinput>cd openssl-0.9.8l</userinput>
+$ <userinput>cd openssl-0.9.8s</userinput>
 $ <userinput>./Configure solaris64-x86_64-cc \
             --pk11-libname=/usr/lib/64/libpkcs11.so \
             --pk11-flavor=crypto-accelerator \
@@ -156,36 +159,74 @@ $ <userinput>./Configure solaris64-x86_64-cc \
       <para>After configuring, run 
       <command>make</command> and 
       <command>make test</command>.</para>
-      <para>Once you have built OpenSSL, run
-      "<command>apps/openssl engine pkcs11</command>" to confirm
-      that PKCS #11 support was compiled in correctly. The output
-      should be one of the following lines, depending on the flavor
-      selected:</para>
+    </sect3>
+    <sect3>
+      <!-- Example 3 -->
+      <title>Building OpenSSL for SoftHSM</title>
+      <para>SoftHSM is a software library provided by the OpenDNSSEC
+      project (http://www.opendnssec.org) which provides a PKCS#11
+      interface to a virtual HSM, implemented in the form of encrypted
+      data on the local filesystem.  It uses the Botan library for
+      encryption and SQLite3 for data storage.  Though less secure
+      than a true HSM, it can provide more secure key storage than
+      traditional key files, and can allow you to experiment with
+      PKCS#11 when an HSM is not available.</para>
+      <para>The SoftHSM cryptographic store must be installed and
+      initialized before using it with OpenSSL, and the SOFTHSM_CONF
+      environment variable must always point to the SoftHSM configuration
+      file:</para>
       <screen>
+$ <userinput> cd softhsm-1.3.0 </userinput>
+$ <userinput> configure --prefix=/opt/pkcs11/usr </userinput>
+$ <userinput> make </userinput>
+$ <userinput> make install </userinput>
+$ <userinput> export SOFTHSM_CONF=/opt/pkcs11/softhsm.conf </userinput>
+$ <userinput> echo "0:/opt/pkcs11/softhsm.db" > $SOFTHSM_CONF </userinput>
+$ <userinput> /opt/pkcs11/usr/bin/softhsm --init-token 0 --slot 0 --label softhsm </userinput>
+</screen>
+      <para>SoftHSM can perform all cryptographic operations, but
+      since it only uses your system CPU, there is no need to use it
+      for anything but signing.  Therefore, we choose the 'sign-only'
+      flavor when building OpenSSL.</para>
+      <screen>
+$ <userinput>cd openssl-0.9.8s</userinput>
+$ <userinput>./Configure linux-x86_64 -pthread \
+            --pk11-libname=/opt/pkcs11/usr/lib/libpkcs11.so \
+            --pk11-flavor=sign-only \
+            --prefix=/opt/pkcs11/usr</userinput>
+</screen>
+      <para>After configuring, run "<command>make</command>"
+      and "<command>make test</command>".</para>
+    </sect3>
+    <para>Once you have built OpenSSL, run
+    "<command>apps/openssl engine pkcs11</command>" to confirm
+    that PKCS #11 support was compiled in correctly. The output
+    should be one of the following lines, depending on the flavor
+    selected:</para>
+    <screen>
         (pkcs11) PKCS #11 engine support (sign only)
 </screen>
-      <para>Or:</para>
-      <screen>
+    <para>Or:</para>
+    <screen>
         (pkcs11) PKCS #11 engine support (crypto accelerator)
 </screen>
-      <para>Next, run
-      "<command>apps/openssl engine pkcs11 -t</command>". This will
-      attempt to initialize the PKCS #11 engine. If it is able to
-      do so successfully, it will report
-      <quote><literal>[ available ]</literal></quote>.</para>
-      <para>If the output is correct, run
-      "<command>make install</command>" which will install the
-      modified OpenSSL suite to 
-      <filename>/opt/pkcs11/usr</filename>.</para>
-    </sect3>
+    <para>Next, run
+    "<command>apps/openssl engine pkcs11 -t</command>". This will
+    attempt to initialize the PKCS #11 engine. If it is able to
+    do so successfully, it will report
+    <quote><literal>[ available ]</literal></quote>.</para>
+    <para>If the output is correct, run
+    "<command>make install</command>" which will install the
+    modified OpenSSL suite to 
+    <filename>/opt/pkcs11/usr</filename>.</para>
   </sect2>
   <sect2>
     <title>Building BIND 9 with PKCS#11</title>
     <para>When building BIND 9, the location of the custom-built
     OpenSSL library must be specified via configure.</para>
     <sect3>
-      <!-- Example 3 -->
-      <title>Configuring BIND 9 for Linux</title>
+      <!-- Example 4 -->
+      <title>Configuring BIND 9 for Linux with the AEP Keyper</title>
       <para>To link with the PKCS #11 provider, threads must be
       enabled in the BIND 9 build.</para>
       <para>The PKCS #11 library for the AEP Keyper is currently
@@ -193,19 +234,19 @@ $ <userinput>./Configure solaris64-x86_64-cc \
       64-bit host, we must force a 32-bit build by adding "-m32" to
       the CC options on the "configure" command line.</para>
       <screen>
-$ <userinput>cd ../bind-9.7.0</userinput>
+$ <userinput>cd ../bind9</userinput>
 $ <userinput>./configure CC="gcc -m32" --enable-threads \
            --with-openssl=/opt/pkcs11/usr \
            --with-pkcs11=/opt/pkcs11/usr/lib/libpkcs11.so</userinput>
 </screen>
     </sect3>
     <sect3>
-      <!-- Example 4 -->
-      <title>Configuring BIND 9 for Solaris</title>
+      <!-- Example 5 -->
+      <title>Configuring BIND 9 for Solaris with the SCA 6000</title>
       <para>To link with the PKCS #11 provider, threads must be
       enabled in the BIND 9 build.</para>
       <screen>
-$ <userinput>cd ../bind-9.7.0</userinput>
+$ <userinput>cd ../bind9</userinput>
 $ <userinput>./configure CC="cc -xarch=amd64" --enable-threads \
             --with-openssl=/opt/pkcs11/usr \
             --with-pkcs11=/usr/lib/64/libpkcs11.so</userinput>
@@ -217,10 +258,22 @@ $ <userinput>./configure CC="cc -xarch=amd64" --enable-threads \
       same as the --prefix argument to the OpenSSL
       Configure).</para>
     </sect3>
+    <sect3>
+      <!-- Example 6 -->
+      <title>Configuring BIND 9 for SoftHSM</title>
+      <screen>
+$ <userinput>cd ../bind9</userinput>
+$ <userinput>./configure --enable-threads \
+           --with-openssl=/opt/pkcs11/usr \
+           --with-pkcs11=/opt/pkcs11/usr/lib/libpkcs11.so</userinput>
+</screen>
+    </sect3>
     <para>After configuring, run
     "<command>make</command>",
     "<command>make test</command>" and
     "<command>make install</command>".</para>
+    <para>(Note: If "make test" fails in the "pkcs11" system test, you may
+    have forgotten to set the SOFTHSM_CONF environment variable.)</para>
   </sect2>
   <sect2>
     <title>PKCS #11 Tools</title>

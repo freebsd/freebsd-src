@@ -100,6 +100,7 @@ AsmPrinter::AsmPrinter(TargetMachine &tm, MCStreamer &Streamer)
     OutStreamer(Streamer),
     LastMI(0), LastFn(0), Counter(~0U), SetCounter(0) {
   DD = 0; DE = 0; MMI = 0; LI = 0;
+  CurrentFnSym = CurrentFnSymForSize = 0;
   GCMetadataPrinters = 0;
   VerboseAsm = Streamer.isVerboseAsm();
 }
@@ -613,6 +614,10 @@ bool AsmPrinter::needsSEHMoves() {
     MF->getFunction()->needsUnwindTableEntry();
 }
 
+bool AsmPrinter::needsRelocationsForDwarfStringPool() const {
+  return MAI->doesDwarfUseRelocationsForStringPool();
+}
+
 void AsmPrinter::emitPrologLabel(const MachineInstr &MI) {
   MCSymbol *Label = MI.getOperand(0).getMCSymbol();
 
@@ -732,6 +737,18 @@ void AsmPrinter::EmitFunctionBody() {
       OutStreamer.EmitRawText(StringRef("\tnop\n"));
   }
 
+  const Function *F = MF->getFunction();
+  for (Function::const_iterator i = F->begin(), e = F->end(); i != e; ++i) {
+    const BasicBlock *BB = i;
+    if (!BB->hasAddressTaken())
+      continue;
+    MCSymbol *Sym = GetBlockAddressSymbol(BB);
+    if (Sym->isDefined())
+      continue;
+    OutStreamer.AddComment("Address of block that was removed by CodeGen");
+    OutStreamer.EmitLabel(Sym);
+  }
+
   // Emit target-specific gunk after the function body.
   EmitFunctionBodyEnd();
 
@@ -745,7 +762,8 @@ void AsmPrinter::EmitFunctionBody() {
 
     const MCExpr *SizeExp =
       MCBinaryExpr::CreateSub(MCSymbolRefExpr::Create(FnEndLabel, OutContext),
-                              MCSymbolRefExpr::Create(CurrentFnSym, OutContext),
+                              MCSymbolRefExpr::Create(CurrentFnSymForSize,
+                                                      OutContext),
                               OutContext);
     OutStreamer.EmitELFSize(CurrentFnSym, SizeExp);
   }
@@ -780,7 +798,7 @@ void AsmPrinter::EmitDwarfRegOp(const MachineLocation &MLoc) const {
   const TargetRegisterInfo *TRI = TM.getRegisterInfo();
   int Reg = TRI->getDwarfRegNum(MLoc.getReg(), false);
 
-  for (const unsigned *SR = TRI->getSuperRegisters(MLoc.getReg());
+  for (const uint16_t *SR = TRI->getSuperRegisters(MLoc.getReg());
        *SR && Reg < 0; ++SR) {
     Reg = TRI->getDwarfRegNum(*SR, false);
     // FIXME: Get the bit range this register uses of the superregister
@@ -840,6 +858,12 @@ bool AsmPrinter::doFinalization(Module &M) {
     MCSymbol *Name = Mang->getSymbol(&F);
     EmitVisibility(Name, V, false);
   }
+
+  // Emit module flags.
+  SmallVector<Module::ModuleFlagEntry, 8> ModuleFlags;
+  M.getModuleFlagsMetadata(ModuleFlags);
+  if (!ModuleFlags.empty())
+    getObjFileLowering().emitModuleFlags(OutStreamer, ModuleFlags, Mang, TM);
 
   // Finalize debug and EH information.
   if (DE) {
@@ -929,6 +953,7 @@ void AsmPrinter::SetupMachineFunction(MachineFunction &MF) {
   this->MF = &MF;
   // Get the function symbol.
   CurrentFnSym = Mang->getSymbol(MF.getFunction());
+  CurrentFnSymForSize = CurrentFnSym;
 
   if (isVerbose())
     LI = &getAnalysis<MachineLoopInfo>();
@@ -1120,7 +1145,7 @@ void AsmPrinter::EmitJumpTableEntry(const MachineJumpTableInfo *MJTI,
   const MCExpr *Value = 0;
   switch (MJTI->getEntryKind()) {
   case MachineJumpTableInfo::EK_Inline:
-    llvm_unreachable("Cannot emit EK_Inline jump table entry"); break;
+    llvm_unreachable("Cannot emit EK_Inline jump table entry");
   case MachineJumpTableInfo::EK_Custom32:
     Value = TM.getTargetLowering()->LowerCustomJumpTableEntry(MJTI, MBB, UID,
                                                               OutContext);
@@ -1136,6 +1161,15 @@ void AsmPrinter::EmitJumpTableEntry(const MachineJumpTableInfo *MJTI,
     //     .gprel32 LBB123
     MCSymbol *MBBSym = MBB->getSymbol();
     OutStreamer.EmitGPRel32Value(MCSymbolRefExpr::Create(MBBSym, OutContext));
+    return;
+  }
+
+  case MachineJumpTableInfo::EK_GPRel64BlockAddress: {
+    // EK_GPRel64BlockAddress - Each entry is an address of block, encoded
+    // with a relocation as gp-relative, e.g.:
+    //     .gpdword LBB123
+    MCSymbol *MBBSym = MBB->getSymbol();
+    OutStreamer.EmitGPRel64Value(MCSymbolRefExpr::Create(MBBSym, OutContext));
     return;
   }
 
@@ -1191,12 +1225,8 @@ bool AsmPrinter::EmitSpecialLLVMGlobal(const GlobalVariable *GV) {
 
   assert(GV->hasInitializer() && "Not a special LLVM global!");
 
-  const TargetData *TD = TM.getTargetData();
-  unsigned Align = Log2_32(TD->getPointerPrefAlignment());
   if (GV->getName() == "llvm.global_ctors") {
-    OutStreamer.SwitchSection(getObjFileLowering().getStaticCtorSection());
-    EmitAlignment(Align);
-    EmitXXStructorList(GV->getInitializer());
+    EmitXXStructorList(GV->getInitializer(), /* isCtor */ true);
 
     if (TM.getRelocationModel() == Reloc::Static &&
         MAI->hasStaticCtorDtorReferenceInStaticMode()) {
@@ -1208,9 +1238,7 @@ bool AsmPrinter::EmitSpecialLLVMGlobal(const GlobalVariable *GV) {
   }
 
   if (GV->getName() == "llvm.global_dtors") {
-    OutStreamer.SwitchSection(getObjFileLowering().getStaticDtorSection());
-    EmitAlignment(Align);
-    EmitXXStructorList(GV->getInitializer());
+    EmitXXStructorList(GV->getInitializer(), /* isCtor */ false);
 
     if (TM.getRelocationModel() == Reloc::Static &&
         MAI->hasStaticCtorDtorReferenceInStaticMode()) {
@@ -1240,7 +1268,7 @@ void AsmPrinter::EmitLLVMUsedList(const Constant *List) {
   }
 }
 
-typedef std::pair<int, Constant*> Structor;
+typedef std::pair<unsigned, Constant*> Structor;
 
 static bool priority_order(const Structor& lhs, const Structor& rhs) {
   return lhs.first < rhs.first;
@@ -1248,7 +1276,7 @@ static bool priority_order(const Structor& lhs, const Structor& rhs) {
 
 /// EmitXXStructorList - Emit the ctor or dtor list taking into account the init
 /// priority.
-void AsmPrinter::EmitXXStructorList(const Constant *List) {
+void AsmPrinter::EmitXXStructorList(const Constant *List, bool isCtor) {
   // Should be an array of '{ int, void ()* }' structs.  The first value is the
   // init priority.
   if (!isa<ConstantArray>(List)) return;
@@ -1274,19 +1302,20 @@ void AsmPrinter::EmitXXStructorList(const Constant *List) {
                                        CS->getOperand(1)));
   }
 
-  // Emit the function pointers in reverse priority order.
-  switch (MAI->getStructorOutputOrder()) {
-  case Structors::None:
-    break;
-  case Structors::PriorityOrder:
-    std::sort(Structors.begin(), Structors.end(), priority_order);
-    break;
-  case Structors::ReversePriorityOrder:
-    std::sort(Structors.rbegin(), Structors.rend(), priority_order);
-    break;
+  // Emit the function pointers in the target-specific order
+  const TargetData *TD = TM.getTargetData();
+  unsigned Align = Log2_32(TD->getPointerPrefAlignment());
+  std::stable_sort(Structors.begin(), Structors.end(), priority_order);
+  for (unsigned i = 0, e = Structors.size(); i != e; ++i) {
+    const MCSection *OutputSection =
+      (isCtor ?
+       getObjFileLowering().getStaticCtorSection(Structors[i].first) :
+       getObjFileLowering().getStaticDtorSection(Structors[i].first));
+    OutStreamer.SwitchSection(OutputSection);
+    if (OutStreamer.getCurrentSection() != OutStreamer.getPreviousSection())
+      EmitAlignment(Align);
+    EmitXXStructor(Structors[i].second);
   }
-  for (unsigned i = 0, e = Structors.size(); i != e; ++i)
-    EmitGlobalConstant(Structors[i].second);
 }
 
 //===--------------------------------------------------------------------===//
@@ -1423,7 +1452,6 @@ static const MCExpr *LowerConstant(const Constant *CV, AsmPrinter &AP) {
   const ConstantExpr *CE = dyn_cast<ConstantExpr>(CV);
   if (CE == 0) {
     llvm_unreachable("Unknown constant value to lower!");
-    return MCConstantExpr::Create(0, Ctx);
   }
 
   switch (CE->getOpcode()) {
@@ -1445,7 +1473,6 @@ static const MCExpr *LowerConstant(const Constant *CV, AsmPrinter &AP) {
                      !AP.MF ? 0 : AP.MF->getFunction()->getParent());
       report_fatal_error(OS.str());
     }
-    return MCConstantExpr::Create(0, Ctx);
   case Instruction::GetElementPtr: {
     const TargetData &TD = *AP.TM.getTargetData();
     // Generate a symbolic expression for the byte address
@@ -1543,6 +1570,19 @@ static void EmitGlobalConstantImpl(const Constant *C, unsigned AddrSpace,
 /// isRepeatedByteSequence - Determine whether the given value is
 /// composed of a repeated sequence of identical bytes and return the
 /// byte value.  If it is not a repeated sequence, return -1.
+static int isRepeatedByteSequence(const ConstantDataSequential *V) {
+  StringRef Data = V->getRawDataValues();
+  assert(!Data.empty() && "Empty aggregates should be CAZ node");
+  char C = Data[0];
+  for (unsigned i = 1, e = Data.size(); i != e; ++i)
+    if (Data[i] != C) return -1;
+  return static_cast<uint8_t>(C); // Ensure 255 is not returned as -1.
+}
+
+
+/// isRepeatedByteSequence - Determine whether the given value is
+/// composed of a repeated sequence of identical bytes and return the
+/// byte value.  If it is not a repeated sequence, return -1.
 static int isRepeatedByteSequence(const Value *V, TargetMachine &TM) {
 
   if (const ConstantInt *CI = dyn_cast<ConstantInt>(V)) {
@@ -1568,8 +1608,7 @@ static int isRepeatedByteSequence(const Value *V, TargetMachine &TM) {
   if (const ConstantArray *CA = dyn_cast<ConstantArray>(V)) {
     // Make sure all array elements are sequences of the same repeated
     // byte.
-    if (CA->getNumOperands() == 0) return -1;
-
+    assert(CA->getNumOperands() != 0 && "Should be a CAZ");
     int Byte = isRepeatedByteSequence(CA->getOperand(0), TM);
     if (Byte == -1) return -1;
 
@@ -1580,37 +1619,92 @@ static int isRepeatedByteSequence(const Value *V, TargetMachine &TM) {
     }
     return Byte;
   }
+  
+  if (const ConstantDataSequential *CDS = dyn_cast<ConstantDataSequential>(V))
+    return isRepeatedByteSequence(CDS);
 
   return -1;
 }
 
-static void EmitGlobalConstantArray(const ConstantArray *CA, unsigned AddrSpace,
-                                    AsmPrinter &AP) {
-  if (AddrSpace != 0 || !CA->isString()) {
-    // Not a string.  Print the values in successive locations.
+static void EmitGlobalConstantDataSequential(const ConstantDataSequential *CDS,
+                                             unsigned AddrSpace,AsmPrinter &AP){
+  
+  // See if we can aggregate this into a .fill, if so, emit it as such.
+  int Value = isRepeatedByteSequence(CDS, AP.TM);
+  if (Value != -1) {
+    uint64_t Bytes = AP.TM.getTargetData()->getTypeAllocSize(CDS->getType());
+    // Don't emit a 1-byte object as a .fill.
+    if (Bytes > 1)
+      return AP.OutStreamer.EmitFill(Bytes, Value, AddrSpace);
+  }
+  
+  // If this can be emitted with .ascii/.asciz, emit it as such.
+  if (CDS->isString())
+    return AP.OutStreamer.EmitBytes(CDS->getAsString(), AddrSpace);
 
-    // See if we can aggregate some values.  Make sure it can be
-    // represented as a series of bytes of the constant value.
-    int Value = isRepeatedByteSequence(CA, AP.TM);
-
-    if (Value != -1) {
-      uint64_t Bytes = AP.TM.getTargetData()->getTypeAllocSize(CA->getType());
-      AP.OutStreamer.EmitFill(Bytes, Value, AddrSpace);
+  // Otherwise, emit the values in successive locations.
+  unsigned ElementByteSize = CDS->getElementByteSize();
+  if (isa<IntegerType>(CDS->getElementType())) {
+    for (unsigned i = 0, e = CDS->getNumElements(); i != e; ++i) {
+      if (AP.isVerbose())
+        AP.OutStreamer.GetCommentOS() << format("0x%" PRIx64 "\n",
+                                                CDS->getElementAsInteger(i));
+      AP.OutStreamer.EmitIntValue(CDS->getElementAsInteger(i),
+                                  ElementByteSize, AddrSpace);
     }
-    else {
-      for (unsigned i = 0, e = CA->getNumOperands(); i != e; ++i)
-        EmitGlobalConstantImpl(CA->getOperand(i), AddrSpace, AP);
+  } else if (ElementByteSize == 4) {
+    // FP Constants are printed as integer constants to avoid losing
+    // precision.
+    assert(CDS->getElementType()->isFloatTy());
+    for (unsigned i = 0, e = CDS->getNumElements(); i != e; ++i) {
+      union {
+        float F;
+        uint32_t I;
+      };
+      
+      F = CDS->getElementAsFloat(i);
+      if (AP.isVerbose())
+        AP.OutStreamer.GetCommentOS() << "float " << F << '\n';
+      AP.OutStreamer.EmitIntValue(I, 4, AddrSpace);
     }
-    return;
+  } else {
+    assert(CDS->getElementType()->isDoubleTy());
+    for (unsigned i = 0, e = CDS->getNumElements(); i != e; ++i) {
+      union {
+        double F;
+        uint64_t I;
+      };
+      
+      F = CDS->getElementAsDouble(i);
+      if (AP.isVerbose())
+        AP.OutStreamer.GetCommentOS() << "double " << F << '\n';
+      AP.OutStreamer.EmitIntValue(I, 8, AddrSpace);
+    }
   }
 
-  // Otherwise, it can be emitted as .ascii.
-  SmallVector<char, 128> TmpVec;
-  TmpVec.reserve(CA->getNumOperands());
-  for (unsigned i = 0, e = CA->getNumOperands(); i != e; ++i)
-    TmpVec.push_back(cast<ConstantInt>(CA->getOperand(i))->getZExtValue());
+  const TargetData &TD = *AP.TM.getTargetData();
+  unsigned Size = TD.getTypeAllocSize(CDS->getType());
+  unsigned EmittedSize = TD.getTypeAllocSize(CDS->getType()->getElementType()) *
+                        CDS->getNumElements();
+  if (unsigned Padding = Size - EmittedSize)
+    AP.OutStreamer.EmitZeros(Padding, AddrSpace);
 
-  AP.OutStreamer.EmitBytes(StringRef(TmpVec.data(), TmpVec.size()), AddrSpace);
+}
+
+static void EmitGlobalConstantArray(const ConstantArray *CA, unsigned AddrSpace,
+                                    AsmPrinter &AP) {
+  // See if we can aggregate some values.  Make sure it can be
+  // represented as a series of bytes of the constant value.
+  int Value = isRepeatedByteSequence(CA, AP.TM);
+
+  if (Value != -1) {
+    uint64_t Bytes = AP.TM.getTargetData()->getTypeAllocSize(CA->getType());
+    AP.OutStreamer.EmitFill(Bytes, Value, AddrSpace);
+  }
+  else {
+    for (unsigned i = 0, e = CA->getNumOperands(); i != e; ++i)
+      EmitGlobalConstantImpl(CA->getOperand(i), AddrSpace, AP);
+  }
 }
 
 static void EmitGlobalConstantVector(const ConstantVector *CV,
@@ -1656,26 +1750,41 @@ static void EmitGlobalConstantStruct(const ConstantStruct *CS,
 
 static void EmitGlobalConstantFP(const ConstantFP *CFP, unsigned AddrSpace,
                                  AsmPrinter &AP) {
-  // FP Constants are printed as integer constants to avoid losing
-  // precision.
-  if (CFP->getType()->isDoubleTy()) {
+  if (CFP->getType()->isHalfTy()) {
     if (AP.isVerbose()) {
-      double Val = CFP->getValueAPF().convertToDouble();
-      AP.OutStreamer.GetCommentOS() << "double " << Val << '\n';
+      SmallString<10> Str;
+      CFP->getValueAPF().toString(Str);
+      AP.OutStreamer.GetCommentOS() << "half " << Str << '\n';
     }
-
     uint64_t Val = CFP->getValueAPF().bitcastToAPInt().getZExtValue();
-    AP.OutStreamer.EmitIntValue(Val, 8, AddrSpace);
+    AP.OutStreamer.EmitIntValue(Val, 2, AddrSpace);
     return;
   }
 
   if (CFP->getType()->isFloatTy()) {
     if (AP.isVerbose()) {
       float Val = CFP->getValueAPF().convertToFloat();
-      AP.OutStreamer.GetCommentOS() << "float " << Val << '\n';
+      uint64_t IntVal = CFP->getValueAPF().bitcastToAPInt().getZExtValue();
+      AP.OutStreamer.GetCommentOS() << "float " << Val << '\n'
+                                    << " (" << format("0x%x", IntVal) << ")\n";
     }
     uint64_t Val = CFP->getValueAPF().bitcastToAPInt().getZExtValue();
     AP.OutStreamer.EmitIntValue(Val, 4, AddrSpace);
+    return;
+  }
+
+  // FP Constants are printed as integer constants to avoid losing
+  // precision.
+  if (CFP->getType()->isDoubleTy()) {
+    if (AP.isVerbose()) {
+      double Val = CFP->getValueAPF().convertToDouble();
+      uint64_t IntVal = CFP->getValueAPF().bitcastToAPInt().getZExtValue();
+      AP.OutStreamer.GetCommentOS() << "double " << Val << '\n'
+                                    << " (" << format("0x%lx", IntVal) << ")\n";
+    }
+
+    uint64_t Val = CFP->getValueAPF().bitcastToAPInt().getZExtValue();
+    AP.OutStreamer.EmitIntValue(Val, 8, AddrSpace);
     return;
   }
 
@@ -1742,20 +1851,20 @@ static void EmitGlobalConstantLargeInt(const ConstantInt *CI,
 
 static void EmitGlobalConstantImpl(const Constant *CV, unsigned AddrSpace,
                                    AsmPrinter &AP) {
-  if (isa<ConstantAggregateZero>(CV) || isa<UndefValue>(CV)) {
-    uint64_t Size = AP.TM.getTargetData()->getTypeAllocSize(CV->getType());
+  const TargetData *TD = AP.TM.getTargetData();
+  uint64_t Size = TD->getTypeAllocSize(CV->getType());
+  if (isa<ConstantAggregateZero>(CV) || isa<UndefValue>(CV))
     return AP.OutStreamer.EmitZeros(Size, AddrSpace);
-  }
 
   if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
-    unsigned Size = AP.TM.getTargetData()->getTypeAllocSize(CV->getType());
     switch (Size) {
     case 1:
     case 2:
     case 4:
     case 8:
       if (AP.isVerbose())
-        AP.OutStreamer.GetCommentOS() << format("0x%llx\n", CI->getZExtValue());
+        AP.OutStreamer.GetCommentOS() << format("0x%" PRIx64 "\n",
+                                                CI->getZExtValue());
       AP.OutStreamer.EmitIntValue(CI->getZExtValue(), Size, AddrSpace);
       return;
     default:
@@ -1764,29 +1873,45 @@ static void EmitGlobalConstantImpl(const Constant *CV, unsigned AddrSpace,
     }
   }
 
+  if (const ConstantFP *CFP = dyn_cast<ConstantFP>(CV))
+    return EmitGlobalConstantFP(CFP, AddrSpace, AP);
+
+  if (isa<ConstantPointerNull>(CV)) {
+    AP.OutStreamer.EmitIntValue(0, Size, AddrSpace);
+    return;
+  }
+
+  if (const ConstantDataSequential *CDS = dyn_cast<ConstantDataSequential>(CV))
+    return EmitGlobalConstantDataSequential(CDS, AddrSpace, AP);
+  
   if (const ConstantArray *CVA = dyn_cast<ConstantArray>(CV))
     return EmitGlobalConstantArray(CVA, AddrSpace, AP);
 
   if (const ConstantStruct *CVS = dyn_cast<ConstantStruct>(CV))
     return EmitGlobalConstantStruct(CVS, AddrSpace, AP);
 
-  if (const ConstantFP *CFP = dyn_cast<ConstantFP>(CV))
-    return EmitGlobalConstantFP(CFP, AddrSpace, AP);
+  if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(CV)) {
+    // Look through bitcasts, which might not be able to be MCExpr'ized (e.g. of
+    // vectors).
+    if (CE->getOpcode() == Instruction::BitCast)
+      return EmitGlobalConstantImpl(CE->getOperand(0), AddrSpace, AP);
 
-  if (isa<ConstantPointerNull>(CV)) {
-    unsigned Size = AP.TM.getTargetData()->getTypeAllocSize(CV->getType());
-    AP.OutStreamer.EmitIntValue(0, Size, AddrSpace);
-    return;
+    if (Size > 8) {
+      // If the constant expression's size is greater than 64-bits, then we have
+      // to emit the value in chunks. Try to constant fold the value and emit it
+      // that way.
+      Constant *New = ConstantFoldConstantExpression(CE, TD);
+      if (New && New != CE)
+        return EmitGlobalConstantImpl(New, AddrSpace, AP);
+    }
   }
-
+  
   if (const ConstantVector *V = dyn_cast<ConstantVector>(CV))
     return EmitGlobalConstantVector(V, AddrSpace, AP);
-
+    
   // Otherwise, it must be a ConstantExpr.  Lower it to an MCExpr, then emit it
   // thread the streamer with EmitValue.
-  AP.OutStreamer.EmitValue(LowerConstant(CV, AP),
-                         AP.TM.getTargetData()->getTypeAllocSize(CV->getType()),
-                           AddrSpace);
+  AP.OutStreamer.EmitValue(LowerConstant(CV, AP), Size, AddrSpace);
 }
 
 /// EmitGlobalConstant - Print a general LLVM constant to the .s file.
@@ -1953,7 +2078,7 @@ static void EmitBasicBlockLoopComments(const MachineBasicBlock &MBB,
 void AsmPrinter::EmitBasicBlockStart(const MachineBasicBlock *MBB) const {
   // Emit an alignment directive for this block, if needed.
   if (unsigned Align = MBB->getAlignment())
-    EmitAlignment(Log2_32(Align));
+    EmitAlignment(Align);
 
   // If the block has its address taken, emit any labels that were used to
   // reference the block.  It is possible that there is more than one label
@@ -1970,27 +2095,22 @@ void AsmPrinter::EmitBasicBlockStart(const MachineBasicBlock *MBB) const {
       OutStreamer.EmitLabel(Syms[i]);
   }
 
+  // Print some verbose block comments.
+  if (isVerbose()) {
+    if (const BasicBlock *BB = MBB->getBasicBlock())
+      if (BB->hasName())
+        OutStreamer.AddComment("%" + BB->getName());
+    EmitBasicBlockLoopComments(*MBB, LI, *this);
+  }
+
   // Print the main label for the block.
   if (MBB->pred_empty() || isBlockOnlyReachableByFallthrough(MBB)) {
     if (isVerbose() && OutStreamer.hasRawTextSupport()) {
-      if (const BasicBlock *BB = MBB->getBasicBlock())
-        if (BB->hasName())
-          OutStreamer.AddComment("%" + BB->getName());
-
-      EmitBasicBlockLoopComments(*MBB, LI, *this);
-
       // NOTE: Want this comment at start of line, don't emit with AddComment.
       OutStreamer.EmitRawText(Twine(MAI->getCommentString()) + " BB#" +
                               Twine(MBB->getNumber()) + ":");
     }
   } else {
-    if (isVerbose()) {
-      if (const BasicBlock *BB = MBB->getBasicBlock())
-        if (BB->hasName())
-          OutStreamer.AddComment("%" + BB->getName());
-      EmitBasicBlockLoopComments(*MBB, LI, *this);
-    }
-
     OutStreamer.EmitLabel(MBB->getSymbol());
   }
 }
@@ -2048,7 +2168,7 @@ isBlockOnlyReachableByFallthrough(const MachineBasicBlock *MBB) const {
     MachineInstr &MI = *II;
 
     // If it is not a simple branch, we are in a table somewhere.
-    if (!MI.getDesc().isBranch() || MI.getDesc().isIndirectBranch())
+    if (!MI.isBranch() || MI.isIndirectBranch())
       return false;
 
     // If we are the operands of one of the branches, this is not
@@ -2090,6 +2210,4 @@ GCMetadataPrinter *AsmPrinter::GetOrCreateGCPrinter(GCStrategy *S) {
     }
 
   report_fatal_error("no GCMetadataPrinter registered for GC: " + Twine(Name));
-  return 0;
 }
-

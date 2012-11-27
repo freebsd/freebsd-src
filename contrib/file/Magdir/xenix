@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: xenix,v 1.9 2009/09/19 16:28:13 christos Exp $
 # xenix:  file(1) magic for Microsoft Xenix
 #
 # "Middle model" stuff, and "Xenix 8086 relocatable or 80286 small

@@ -81,7 +81,6 @@ SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
     "Unprivileged users may mount and unmount file systems");
 
 MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
-static MALLOC_DEFINE(M_VNODE_MARKER, "vnodemarker", "vnode marker");
 static uma_zone_t mount_zone;
 
 /* List of mounted filesystems. */
@@ -462,6 +461,8 @@ vfs_mount_alloc(struct vnode *vp, struct vfsconf *vfsp, const char *fspath,
 	    __rangeof(struct mount, mnt_startzero, mnt_endzero));
 	TAILQ_INIT(&mp->mnt_nvnodelist);
 	mp->mnt_nvnodelistsize = 0;
+	TAILQ_INIT(&mp->mnt_activevnodelist);
+	mp->mnt_activevnodelistsize = 0;
 	mp->mnt_ref = 0;
 	(void) vfs_busy(mp, MBF_NOWAIT);
 	mp->mnt_op = vfsp->vfc_vfsops;
@@ -515,6 +516,8 @@ vfs_mount_destroy(struct mount *mp)
 	}
 	if (mp->mnt_nvnodelistsize != 0)
 		panic("vfs_mount_destroy: nonzero nvnodelistsize");
+	if (mp->mnt_activevnodelistsize != 0)
+		panic("vfs_mount_destroy: nonzero activevnodelistsize");
 	if (mp->mnt_lockref != 0)
 		panic("vfs_mount_destroy: nonzero lock refcount");
 	MNT_IUNLOCK(mp);
@@ -851,7 +854,8 @@ vfs_domount_first(
 	mp->mnt_optnew = NULL;
 
 	MNT_ILOCK(mp);
-	if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
+	if ((mp->mnt_flag & MNT_ASYNC) != 0 &&
+	    (mp->mnt_kern_flag & MNTK_NOASYNC) == 0)
 		mp->mnt_kern_flag |= MNTK_ASYNC;
 	else
 		mp->mnt_kern_flag &= ~MNTK_ASYNC;
@@ -991,7 +995,8 @@ vfs_domount_update(
 		 */
 		mp->mnt_flag = (mp->mnt_flag & MNT_QUOTA) | (flag & ~MNT_QUOTA);
 	}
-	if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
+	if ((mp->mnt_flag & MNT_ASYNC) != 0 &&
+	    (mp->mnt_kern_flag & MNTK_NOASYNC) == 0)
 		mp->mnt_kern_flag |= MNTK_ASYNC;
 	else
 		mp->mnt_kern_flag &= ~MNTK_ASYNC;
@@ -1351,7 +1356,8 @@ dounmount(mp, flags, td)
 		}
 		mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_UNMOUNTF);
 		mp->mnt_flag |= async_flag;
-		if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
+		if ((mp->mnt_flag & MNT_ASYNC) != 0 &&
+		    (mp->mnt_kern_flag & MNTK_NOASYNC) == 0)
 			mp->mnt_kern_flag |= MNTK_ASYNC;
 		if (mp->mnt_kern_flag & MNTK_MWAIT) {
 			mp->mnt_kern_flag &= ~MNTK_MWAIT;
@@ -1517,6 +1523,48 @@ vfs_getopt_pos(struct vfsoptlist *opts, const char *name)
 	return (-1);
 }
 
+int
+vfs_getopt_size(struct vfsoptlist *opts, const char *name, off_t *value)
+{
+	char *opt_value, *vtp;
+	quad_t iv;
+	int error, opt_len;
+
+	error = vfs_getopt(opts, name, (void **)&opt_value, &opt_len);
+	if (error != 0)
+		return (error);
+	if (opt_len == 0 || opt_value == NULL)
+		return (EINVAL);
+	if (opt_value[0] == '\0' || opt_value[opt_len - 1] != '\0')
+		return (EINVAL);
+	iv = strtoq(opt_value, &vtp, 0);
+	if (vtp == opt_value || (vtp[0] != '\0' && vtp[1] != '\0'))
+		return (EINVAL);
+	if (iv < 0)
+		return (EINVAL);
+	switch (vtp[0]) {
+	case 't':
+	case 'T':
+		iv *= 1024;
+	case 'g':
+	case 'G':
+		iv *= 1024;
+	case 'm':
+	case 'M':
+		iv *= 1024;
+	case 'k':
+	case 'K':
+		iv *= 1024;
+	case '\0':
+		break;
+	default:
+		return (EINVAL);
+	}
+	*value = iv;
+
+	return (0);
+}
+
 char *
 vfs_getopts(struct vfsoptlist *opts, const char *name, int *error)
 {
@@ -1675,9 +1723,13 @@ vfs_copyopt(opts, name, dest, len)
 }
 
 /*
- * This is a helper function for filesystems to traverse their
- * vnodes.  See MNT_VNODE_FOREACH() in sys/mount.h
+ * These are helper functions for filesystems to traverse all
+ * their vnodes.  See MNT_VNODE_FOREACH() in sys/mount.h.
+ *
+ * This interface has been deprecated in favor of MNT_VNODE_FOREACH_ALL.
  */
+
+MALLOC_DECLARE(M_VNODE_MARKER);
 
 struct vnode *
 __mnt_vnode_next(struct vnode **mvp, struct mount *mp)
@@ -1766,7 +1818,6 @@ __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp)
 	*mvp = NULL;
 	MNT_REL(mp);
 }
-
 
 int
 __vfs_statfs(struct mount *mp, struct statfs *sbp)

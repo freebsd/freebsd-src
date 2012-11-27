@@ -86,7 +86,7 @@ Configure a system for debugging.
 .It Fl x Ar kernel
 Print kernel configuration file embedded into a kernel
 file.
-This option makes sense only if 
+This option makes sense only if
 .Cd "options INCLUDE_CONFIG_FILE"
 entry was present in your configuration file.
 .It Fl p
@@ -246,7 +246,7 @@ The
 utility appeared in
 .Bx 4.1 .
 .Pp
-Before support for 
+Before support for
 .Fl x
 was introduced,
 .Cd "options INCLUDE_CONFIG_FILE"
@@ -255,7 +255,7 @@ the new kernel.
 This meant that
 .Xr strings 1
 could be used to extract it from a kernel:
-to extract the configuration information, you had to use 
+to extract the configuration information, you had to use
 the command:
 .Pp
 .Dl "strings -n 3 kernel | sed -n 's/^___//p'"

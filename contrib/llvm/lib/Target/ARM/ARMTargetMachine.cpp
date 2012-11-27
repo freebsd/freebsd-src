@@ -20,6 +20,7 @@
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Target/TargetOptions.h"
+#include "llvm/Transforms/Scalar.h"
 using namespace llvm;
 
 static cl::opt<bool>
@@ -33,24 +34,32 @@ extern "C" void LLVMInitializeARMTarget() {
   RegisterTargetMachine<ThumbTargetMachine> Y(TheThumbTarget);
 }
 
+
 /// TargetMachine ctor - Create an ARM architecture model.
 ///
 ARMBaseTargetMachine::ARMBaseTargetMachine(const Target &T, StringRef TT,
                                            StringRef CPU, StringRef FS,
-                                           Reloc::Model RM, CodeModel::Model CM)
-  : LLVMTargetMachine(T, TT, CPU, FS, RM, CM),
+                                           const TargetOptions &Options,
+                                           Reloc::Model RM, CodeModel::Model CM,
+                                           CodeGenOpt::Level OL)
+  : LLVMTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
     Subtarget(TT, CPU, FS),
     JITInfo(),
     InstrItins(Subtarget.getInstrItineraryData()) {
   // Default to soft float ABI
-  if (FloatABIType == FloatABI::Default)
-    FloatABIType = FloatABI::Soft;
+  if (Options.FloatABIType == FloatABI::Default)
+    this->Options.FloatABIType = FloatABI::Soft;
 }
+
+void ARMTargetMachine::anchor() { }
 
 ARMTargetMachine::ARMTargetMachine(const Target &T, StringRef TT,
                                    StringRef CPU, StringRef FS,
-                                   Reloc::Model RM, CodeModel::Model CM)
-  : ARMBaseTargetMachine(T, TT, CPU, FS, RM, CM), InstrInfo(Subtarget),
+                                   const TargetOptions &Options,
+                                   Reloc::Model RM, CodeModel::Model CM,
+                                   CodeGenOpt::Level OL)
+  : ARMBaseTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
+    InstrInfo(Subtarget),
     DataLayout(Subtarget.isAPCS_ABI() ?
                std::string("e-p:32:32-f64:32:64-i64:32:64-"
                            "v128:32:128-v64:32:64-n32-S32") :
@@ -68,10 +77,14 @@ ARMTargetMachine::ARMTargetMachine(const Target &T, StringRef TT,
                        "support ARM mode execution!");
 }
 
+void ThumbTargetMachine::anchor() { }
+
 ThumbTargetMachine::ThumbTargetMachine(const Target &T, StringRef TT,
                                        StringRef CPU, StringRef FS,
-                                       Reloc::Model RM, CodeModel::Model CM)
-  : ARMBaseTargetMachine(T, TT, CPU, FS, RM, CM),
+                                       const TargetOptions &Options,
+                                       Reloc::Model RM, CodeModel::Model CM,
+                                       CodeGenOpt::Level OL)
+  : ARMBaseTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
     InstrInfo(Subtarget.hasThumb2()
               ? ((ARMBaseInstrInfo*)new Thumb2InstrInfo(Subtarget))
               : ((ARMBaseInstrInfo*)new Thumb1InstrInfo(Subtarget))),
@@ -94,65 +107,94 @@ ThumbTargetMachine::ThumbTargetMachine(const Target &T, StringRef TT,
               : (ARMFrameLowering*)new Thumb1FrameLowering(Subtarget)) {
 }
 
-bool ARMBaseTargetMachine::addPreISel(PassManagerBase &PM,
-                                      CodeGenOpt::Level OptLevel) {
-  if (OptLevel != CodeGenOpt::None && EnableGlobalMerge)
-    PM.add(createARMGlobalMergePass(getTargetLowering()));
+namespace {
+/// ARM Code Generator Pass Configuration Options.
+class ARMPassConfig : public TargetPassConfig {
+public:
+  ARMPassConfig(ARMBaseTargetMachine *TM, PassManagerBase &PM)
+    : TargetPassConfig(TM, PM) {}
+
+  ARMBaseTargetMachine &getARMTargetMachine() const {
+    return getTM<ARMBaseTargetMachine>();
+  }
+
+  const ARMSubtarget &getARMSubtarget() const {
+    return *getARMTargetMachine().getSubtargetImpl();
+  }
+
+  virtual bool addPreISel();
+  virtual bool addInstSelector();
+  virtual bool addPreRegAlloc();
+  virtual bool addPreSched2();
+  virtual bool addPreEmitPass();
+};
+} // namespace
+
+TargetPassConfig *ARMBaseTargetMachine::createPassConfig(PassManagerBase &PM) {
+  return new ARMPassConfig(this, PM);
+}
+
+bool ARMPassConfig::addPreISel() {
+  if (TM->getOptLevel() != CodeGenOpt::None && EnableGlobalMerge)
+    PM->add(createGlobalMergePass(TM->getTargetLowering()));
 
   return false;
 }
 
-bool ARMBaseTargetMachine::addInstSelector(PassManagerBase &PM,
-                                           CodeGenOpt::Level OptLevel) {
-  PM.add(createARMISelDag(*this, OptLevel));
+bool ARMPassConfig::addInstSelector() {
+  PM->add(createARMISelDag(getARMTargetMachine(), getOptLevel()));
   return false;
 }
 
-bool ARMBaseTargetMachine::addPreRegAlloc(PassManagerBase &PM,
-                                          CodeGenOpt::Level OptLevel) {
+bool ARMPassConfig::addPreRegAlloc() {
   // FIXME: temporarily disabling load / store optimization pass for Thumb1.
-  if (OptLevel != CodeGenOpt::None && !Subtarget.isThumb1Only())
-    PM.add(createARMLoadStoreOptimizationPass(true));
-  if (OptLevel != CodeGenOpt::None && Subtarget.isCortexA9())
-    PM.add(createMLxExpansionPass());
+  if (getOptLevel() != CodeGenOpt::None && !getARMSubtarget().isThumb1Only())
+    PM->add(createARMLoadStoreOptimizationPass(true));
+  if (getOptLevel() != CodeGenOpt::None && getARMSubtarget().isCortexA9())
+    PM->add(createMLxExpansionPass());
   return true;
 }
 
-bool ARMBaseTargetMachine::addPreSched2(PassManagerBase &PM,
-                                        CodeGenOpt::Level OptLevel) {
+bool ARMPassConfig::addPreSched2() {
   // FIXME: temporarily disabling load / store optimization pass for Thumb1.
-  if (OptLevel != CodeGenOpt::None) {
-    if (!Subtarget.isThumb1Only())
-      PM.add(createARMLoadStoreOptimizationPass());
-    if (Subtarget.hasNEON())
-      PM.add(createExecutionDependencyFixPass(&ARM::DPRRegClass));
+  if (getOptLevel() != CodeGenOpt::None) {
+    if (!getARMSubtarget().isThumb1Only()) {
+      PM->add(createARMLoadStoreOptimizationPass());
+      printAndVerify("After ARM load / store optimizer");
+    }
+    if (getARMSubtarget().hasNEON())
+      PM->add(createExecutionDependencyFixPass(&ARM::DPRRegClass));
   }
 
   // Expand some pseudo instructions into multiple instructions to allow
   // proper scheduling.
-  PM.add(createARMExpandPseudoPass());
+  PM->add(createARMExpandPseudoPass());
 
-  if (OptLevel != CodeGenOpt::None) {
-    if (!Subtarget.isThumb1Only())
-      PM.add(createIfConverterPass());
+  if (getOptLevel() != CodeGenOpt::None) {
+    if (!getARMSubtarget().isThumb1Only())
+      addPass(IfConverterID);
   }
-  if (Subtarget.isThumb2())
-    PM.add(createThumb2ITBlockPass());
+  if (getARMSubtarget().isThumb2())
+    PM->add(createThumb2ITBlockPass());
 
   return true;
 }
 
-bool ARMBaseTargetMachine::addPreEmitPass(PassManagerBase &PM,
-                                          CodeGenOpt::Level OptLevel) {
-  if (Subtarget.isThumb2() && !Subtarget.prefers32BitThumb())
-    PM.add(createThumb2SizeReductionPass());
+bool ARMPassConfig::addPreEmitPass() {
+  if (getARMSubtarget().isThumb2()) {
+    if (!getARMSubtarget().prefers32BitThumb())
+      PM->add(createThumb2SizeReductionPass());
 
-  PM.add(createARMConstantIslandPass());
+    // Constant island pass work on unbundled instructions.
+    addPass(UnpackMachineBundlesID);
+  }
+
+  PM->add(createARMConstantIslandPass());
+
   return true;
 }
 
 bool ARMBaseTargetMachine::addCodeEmitter(PassManagerBase &PM,
-                                          CodeGenOpt::Level OptLevel,
                                           JITCodeEmitter &JCE) {
   // Machine code emitter pass for ARM.
   PM.add(createARMJITCodeEmitterPass(*this, JCE));

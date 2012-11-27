@@ -1090,6 +1090,11 @@ ar5212GetDiagState(struct ath_hal *ah, int request,
 				return AH_FALSE;
 			return ar5212AniSetParams(ah, args, args);
 		}
+		break;
+	case HAL_DIAG_CHANSURVEY:
+		*result = &ahp->ah_chansurvey;
+		*resultsize = sizeof(HAL_CHANNEL_SURVEY);
+		return AH_TRUE;
 	}
 	return AH_FALSE;
 }
@@ -1242,4 +1247,14 @@ uint32_t
 ar5212Get11nExtBusy(struct ath_hal *ah)
 {
 	return 0;
+}
+
+/*
+ * There's no channel survey support for the AR5211.
+ */
+HAL_BOOL
+ar5212GetMibCycleCounts(struct ath_hal *ah, HAL_SURVEY_SAMPLE *hsample)
+{
+
+	return (AH_FALSE);
 }

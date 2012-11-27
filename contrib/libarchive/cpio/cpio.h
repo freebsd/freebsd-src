@@ -43,18 +43,18 @@
  */
 struct cpio {
 	/* Option parsing */
-	const char	 *optarg;
+	const char	 *argument;
 
 	/* Options */
 	const char	 *filename;
-	char		  mode; /* -i -o -p */
-	char		  compress; /* -j, -y, or -z */
+	int		  mode; /* -i -o -p */
+	int		  compress; /* -j, -y, or -z */
 	const char	 *format; /* -H format */
 	int		  bytes_per_block; /* -b block_size */
 	int		  verbose;   /* -v */
+	int		  dot;  /* -V */
 	int		  quiet;   /* --quiet */
 	int		  extract_flags; /* Flags for extract operation */
-	char		  symlink_mode; /* H or L, per BSD conventions */
 	const char	 *compress_program;
 	int		  option_append; /* -A, only relevant for -o */
 	int		  option_atime_restore; /* -a */

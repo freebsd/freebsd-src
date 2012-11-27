@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=	kstash ktutil
+SUBDIR=	iprop-log kstash ktutil
 
 .include <bsd.subdir.mk>

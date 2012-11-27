@@ -4492,7 +4492,8 @@ tulip_busdma_allocring(device_t dev, tulip_softc_t * const sc, size_t count,
     /* First, setup a tag. */
     ri->ri_max = count;
     size = count * sizeof(tulip_desc_t);
-    error = bus_dma_tag_create(NULL, 32, 0, BUS_SPACE_MAXADDR_32BIT,
+    error = bus_dma_tag_create(bus_get_dma_tag(dev),
+	32, 0, BUS_SPACE_MAXADDR_32BIT,
 	BUS_SPACE_MAXADDR, NULL, NULL, size, 1, size, 0, NULL, NULL,
 	&ri->ri_ring_tag);
     if (error) {
@@ -4520,7 +4521,7 @@ tulip_busdma_allocring(device_t dev, tulip_softc_t * const sc, size_t count,
     }
 
     /* Allocate a tag for the data buffers. */
-    error = bus_dma_tag_create(NULL, align, 0,
+    error = bus_dma_tag_create(bus_get_dma_tag(dev), align, 0,
 	BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	MCLBYTES * nsegs, nsegs, MCLBYTES, 0, NULL, NULL, &ri->ri_data_tag);
     if (error) {
@@ -4600,7 +4601,7 @@ tulip_busdma_init(device_t dev, tulip_softc_t * const sc)
     /*
      * Allocate a DMA tag, memory, and map for setup descriptor
      */
-    error = bus_dma_tag_create(NULL, 32, 0,
+    error = bus_dma_tag_create(bus_get_dma_tag(dev), 32, 0,
 	BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
 	sizeof(sc->tulip_setupdata), 1, sizeof(sc->tulip_setupdata), 0,
 	NULL, NULL, &sc->tulip_setup_tag);

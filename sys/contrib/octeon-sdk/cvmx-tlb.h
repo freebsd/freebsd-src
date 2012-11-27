@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -53,40 +53,6 @@
 #ifdef	__cplusplus
 extern "C" {
 #endif
-
-#define CVMX_TLB_PAGEMASK_4K		(0x3     << 11)
-#define CVMX_TLB_PAGEMASK_16K		(0xF     << 11)
-#define CVMX_TLB_PAGEMASK_64K		(0x3F    << 11)
-#define CVMX_TLB_PAGEMASK_256K		(0xFF    << 11)
-#define CVMX_TLB_PAGEMASK_1M		(0x3FF   << 11)
-#define CVMX_TLB_PAGEMASK_4M		(0xFFF   << 11)
-#define CVMX_TLB_PAGEMASK_16M		(0x3FFF  << 11)
-#define CVMX_TLB_PAGEMASK_64M		(0xFFFF  << 11)
-#define CVMX_TLB_PAGEMASK_256M		(0x3FFFF << 11)
-
-#define PAGE_MASK 			( ~(( 1<< 12 ) -1))
-
-/**
- *  Set up a wired entry. This function is designed to be used by Simple
- *  Executive to set up its virtual to physical address mapping at start up
- *  time. After the mapping is set up, the remaining unused TLB entries can
- *  be use for run time shared memory mapping.
- *
- *  Calling this function causes the C0 wired index register to increase.
- *  Wired index register points to the separation between fixed TLB mapping
- *  and run time shared memory mapping.
- *
- *  @param  hi		Entry Hi
- *  @param  lo0		Entry Low0
- *  @param  lo1		Entry Low1
- *  @pagam  pagemask    Pagemask
- *
- *  @return 0: the entry is added
- *  @return -1: out of TLB entry
- */
-int cvmx_tlb_add_wired_entry( uint64_t hi, uint64_t lo0,
-			      uint64_t lo1, uint64_t pagemask);
-
 
 /**
  *  Find a free entry that can be used for share memory mapping.
@@ -166,22 +132,6 @@ int cvmx_tlb_lookup(uint64_t vaddr);
  */
 void cvmx_tlb_dump_all(void);
 
-/**
- *  Query for total number of TLBs of the core
- *
- *  @return Total number of TLB entries available on the core
- */
-static inline uint32_t cvmx_tlb_size_limit(void)
-{
-	uint32_t tlb_size_limit = 0;
-
-	if      (OCTEON_IS_MODEL(OCTEON_CN63XX))  tlb_size_limit = 128;
-	else if (OCTEON_IS_MODEL(OCTEON_CN5XXX))  tlb_size_limit =  64;
-	else if (OCTEON_IS_MODEL(OCTEON_CN3XXX))  tlb_size_limit =  32;
-
-	return tlb_size_limit;
-}
-
 /*
  * @INTERNAL
  * return the next power of two value for the given input <v>
@@ -217,51 +167,6 @@ static inline int __is_power_of_two(uint64_t v)
 	CVMX_DPOP(num_of_1s, v);
 	return (num_of_1s  ==  1 );
 }
-
-
-/**
- * @INTERNAL
- *
- * Find last bit set 64bit version
- *
- * @param x the integer to find leading 1
- *
- * @return >=0 the bit position (0..63) of the most significant 1 bit in a word
- *   	   -1 if no 1 bit exists
- */
-static inline uint64_t __fls64(uint64_t x)
-{
-	int lz;
-
-	if (sizeof(x) != 8) return 0;
-
-	__asm__(
-	"	.set	push						\n"
-	"	.set	mips64						\n"
-	"	dclz	%0, %1						\n"
-	"	.set	pop						\n"
-	: "=r" (lz)
-	: "r" (x));
-
-	return 63 - lz;
-}
-
-/**
- * @INTERNAL
- * Compute  log2(v), only works if v is power of two.
- *
- * @param v  the input value
- * @return  log2(v)
- */
-static inline uint32_t __log2(uint64_t v)
-{
-	uint32_t log2 = 0 ;
-
-	if (v) log2 =  __fls64(v);
-
-	return log2;
-}
-
 
 #ifdef	__cplusplus
 }

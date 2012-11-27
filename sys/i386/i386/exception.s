@@ -35,6 +35,7 @@
  */
 
 #include "opt_apic.h"
+#include "opt_atpic.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"
 #include "opt_npx.h"
@@ -299,14 +300,18 @@ ENTRY(fork_trampoline)
 	SUPERALIGN_TEXT
 MCOUNT_LABEL(bintr)
 
+#ifdef DEV_ATPIC
 #include <i386/i386/atpic_vector.s>
+#endif
 
-#ifdef DEV_APIC
+#if defined(DEV_APIC) && defined(DEV_ATPIC)
 	.data
 	.p2align 4
 	.text
 	SUPERALIGN_TEXT
+#endif
 
+#ifdef DEV_APIC
 #include <i386/i386/apic_vector.s>
 #endif
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995-2001 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995-2001 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
  *
@@ -31,18 +31,17 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: base64.c 15506 2005-06-23 10:47:57Z lha $");
-#endif
+
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include "base64.h"
 
-static const char base64_chars[] = 
+static const char base64_chars[] =
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
-static int 
+static int
 pos(char c)
 {
     const char *p;
@@ -52,7 +51,7 @@ pos(char c)
     return -1;
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 base64_encode(const void *data, int size, char **str)
 {
     char *s, *p;
@@ -60,11 +59,18 @@ base64_encode(const void *data, int size, char **str)
     int c;
     const unsigned char *q;
 
-    p = s = (char *) malloc(size * 4 / 3 + 4);
-    if (p == NULL)
+    if (size > INT_MAX/4 || size < 0) {
+	*str = NULL;
 	return -1;
+    }
+
+    p = s = (char *) malloc(size * 4 / 3 + 4);
+    if (p == NULL) {
+        *str = NULL;
+	return -1;
+    }
     q = (const unsigned char *) data;
-    i = 0;
+
     for (i = 0; i < size;) {
 	c = q[i++];
 	c *= 256;
@@ -87,7 +93,7 @@ base64_encode(const void *data, int size, char **str)
     }
     *p = 0;
     *str = s;
-    return strlen(s);
+    return (int) strlen(s);
 }
 
 #define DECODE_ERROR 0xffffffff
@@ -114,7 +120,7 @@ token_decode(const char *token)
     return (marker << 24) | val;
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 base64_decode(const char *str, void *data)
 {
     const char *p;

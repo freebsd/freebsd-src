@@ -223,6 +223,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 #ifdef SMP
 	cpuset_t	wakeup_cpus;
 #endif
+	register_t	rf;
 	ACPI_STATUS	status;
 	int		ret;
 
@@ -241,7 +242,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 	AcpiSetFirmwareWakingVector(WAKECODE_PADDR(sc));
 
-	spinlock_enter();
+	rf = intr_disable();
 	intr_suspend();
 
 	if (savectx(susppcbs[0])) {
@@ -269,7 +270,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		if (state == ACPI_STATE_S4 && sc->acpi_s4bios)
 			status = AcpiEnterSleepStateS4bios();
 		else
-			status = AcpiEnterSleepState(state);
+			status = AcpiEnterSleepState(state, acpi_sleep_flags);
 
 		if (status != AE_OK) {
 			device_printf(sc->acpi_dev,
@@ -283,6 +284,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	} else {
 		pmap_init_pat();
 		load_cr3(susppcbs[0]->pcb_cr3);
+		initializecpu();
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
 #ifdef SMP
@@ -300,7 +302,7 @@ out:
 
 	mca_resume();
 	intr_resume();
-	spinlock_exit();
+	intr_restore(rf);
 
 	AcpiSetFirmwareWakingVector(0);
 

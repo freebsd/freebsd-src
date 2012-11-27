@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: db.h,v 1.104.8.1 2011-05-19 04:42:51 each Exp $ */
+/* $Id$ */
 
 #ifndef DNS_DB_H
 #define DNS_DB_H 1
@@ -177,7 +177,8 @@ typedef struct dns_dbmethods {
 				       dns_zone_t *zone, dns_db_t *db,
 				       dns_dbversion_t *version,
 				       dns_rdataset_t *ardataset,
-				       dns_rpz_st_t *st);
+				       dns_rpz_st_t *st,
+				       dns_name_t *query_qname);
 } dns_dbmethods_t;
 
 typedef isc_result_t
@@ -1509,7 +1510,8 @@ dns_db_rpz_enabled(dns_db_t *db, dns_rpz_st_t *st);
 isc_result_t
 dns_db_rpz_findips(dns_rpz_zone_t *rpz, dns_rpz_type_t rpz_type,
 		   dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *version,
-		   dns_rdataset_t *ardataset, dns_rpz_st_t *st);
+		   dns_rdataset_t *ardataset, dns_rpz_st_t *st,
+		   dns_name_t *query_qname);
 /*%<
  * Search the CDIR block tree of a response policy tree of trees for the best
  * match to any of the IP addresses in an A or AAAA rdataset.
@@ -1522,6 +1524,10 @@ dns_db_rpz_findips(dns_rpz_zone_t *rpz, dns_rpz_type_t rpz_type,
  * \li	'ardataset' is an A or AAAA rdataset of addresses to check
  * \li	'found' specifies the previous best match if any or
  *	    or NULL, an empty name, 0, DNS_RPZ_POLICY_MISS, and 0
+ *
+ * Returns:
+ * \li	#ISC_R_SUCCESS
+ * \li	#ISC_R_UNEXPECTED
  */
 
 ISC_LANG_ENDDECLS

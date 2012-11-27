@@ -74,6 +74,7 @@ options {
             * ) ];
         attach-cache <string>;
         auth-nxdomain <boolean>; // default changed
+        auto-dnssec ( allow | maintain | off );
         avoid-v4-udp-ports { <portrange>; ... };
         avoid-v6-udp-ports { <portrange>; ... };
         bindkeys-file <quoted_string>;
@@ -113,7 +114,7 @@ options {
         dnssec-accept-expired <boolean>;
         dnssec-dnskey-kskonly <boolean>;
         dnssec-enable <boolean>;
-        dnssec-lookaside ( <string> trust-anchor <string> | auto );
+        dnssec-lookaside ( <string> trust-anchor <string> | auto | no );
         dnssec-must-be-secure <string> <boolean>;
         dnssec-secure-to-insecure <boolean>;
         dnssec-validation ( yes | no | auto );
@@ -196,8 +197,8 @@ options {
         reserved-sockets <integer>;
         resolver-query-timeout <integer>;
         response-policy {
-                zone <string> [ policy ( given | no-op | nxdomain | nodata
-                    | cname <domain> ) ];
+                zone <string> [ policy ( given | disabled | passthru |
+                    no-op | nxdomain | nodata | cname <domain> ) ];
         };
         rfc2308-type1 <boolean>; // not yet implemented
         root-delegation-only [ exclude { <quoted_string>; ... } ];
@@ -297,6 +298,7 @@ view <string> <optional_class> {
             * ) ];
         attach-cache <string>;
         auth-nxdomain <boolean>; // default changed
+        auto-dnssec ( allow | maintain | off );
         cache-file <quoted_string>;
         check-dup-records ( fail | warn | ignore );
         check-integrity <boolean>;
@@ -332,7 +334,7 @@ view <string> <optional_class> {
         dnssec-accept-expired <boolean>;
         dnssec-dnskey-kskonly <boolean>;
         dnssec-enable <boolean>;
-        dnssec-lookaside ( <string> trust-anchor <string> | auto );
+        dnssec-lookaside ( <string> trust-anchor <string> | auto | no );
         dnssec-must-be-secure <string> <boolean>;
         dnssec-secure-to-insecure <boolean>;
         dnssec-validation ( yes | no | auto );
@@ -399,8 +401,8 @@ view <string> <optional_class> {
         request-nsid <boolean>;
         resolver-query-timeout <integer>;
         response-policy {
-                zone <string> [ policy ( given | no-op | nxdomain | nodata
-                    | cname <domain> ) ];
+                zone <string> [ policy ( given | disabled | passthru |
+                    no-op | nxdomain | nodata | cname <domain> ) ];
         };
         rfc2308-type1 <boolean>; // not yet implemented
         root-delegation-only [ exclude { <quoted_string>; ... } ];

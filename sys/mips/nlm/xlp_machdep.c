@@ -98,7 +98,7 @@ __FBSDID("$FreeBSD$");
 char boot1_env[4096];
 
 uint64_t xlp_cpu_frequency;
-uint64_t xlp_io_base = MIPS_PHYS_TO_KSEG1(XLP_DEFAULT_IO_BASE);
+uint64_t xlp_io_base = MIPS_PHYS_TO_DIRECT_UNCACHED(XLP_DEFAULT_IO_BASE);
 
 int xlp_ncores;
 int xlp_threads_per_core;
@@ -196,9 +196,15 @@ xlp_parse_mmu_options(void)
 		goto unsupp;
 	}
 
-	/* Take out cores which do not exist on chip */
+	/* Try to find the enabled cores from SYS block */
 	sysbase = nlm_get_sys_regbase(0);
 	cpu_rst_mask = nlm_read_sys_reg(sysbase, SYS_CPU_RESET) & 0xff;
+
+	/* XLP 416 does not report this correctly, fix */
+	if (nlm_processor_id() == CHIP_PROCESSOR_ID_XLP_416)
+		cpu_rst_mask = 0xe;
+
+	/* Take out cores which do not exist on chip */
 	for (i = 1; i < XLP_MAX_CORES; i++) {
 		if ((cpu_rst_mask & (1 << i)) == 0)
 			cpu_map &= ~(0xfu << (4 * i));
@@ -358,14 +364,14 @@ mips_init(void)
 	mips_cpu_init();
 	cpuinfo.cache_coherent_dma = TRUE;
 	pmap_bootstrap();
+	mips_proc0_init();
+	mutex_init();
 #ifdef DDB
 	kdb_init();
 	if (boothowto & RB_KDB) {
 		kdb_enter("Boot flags requested debugger", NULL);
 	}
 #endif
-	mips_proc0_init();
-	mutex_init();
 }
 
 unsigned int
@@ -433,8 +439,12 @@ xlp_mem_init(void)
 
 		/* first bar, start a bit after end */
 		if (base == 0) {
-			base = (vm_paddr_t)MIPS_KSEG0_TO_PHYS(&_end) + 0x20000;
-			lim  = 0x0c000000;  /* TODO : hack to avoid uboot packet mem */
+			base = (vm_paddr_t)MIPS_KSEG0_TO_PHYS(&_end);
+			base = round_page(base) + 0x20000; /* round up */
+			/* TODO : hack to avoid uboot packet mem, network
+			 * interface will write here if not reset correctly
+			 * by u-boot */
+			lim  = 0x0c000000;
 		}
 		if (base >= XLP_MEM_LIM) {
 			printf("Mem [%d]: Ignore %#jx - %#jx\n", i,
@@ -456,7 +466,7 @@ xlp_mem_init(void)
 		 * Exclude reset entry memory range 0x1fc00000 - 0x20000000
 		 * from free memory
 		 */
-		if (base <= 0x1fc00000 && (base + lim) > 0x1fc00000) {
+		if (base < 0x20000000 && lim > 0x1fc00000) {
 			uint64_t base0, lim0, base1, lim1;
 
 			base0 = base;
@@ -511,12 +521,11 @@ platform_start(__register_t a0 __unused,
 	/* initialize console so that we have printf */
 	boothowto |= (RB_SERIAL | RB_MULTIPLE);	/* Use multiple consoles */
 
-	nlm_pic_irt_init(); /* complete before interrupts or console init */
 	init_static_kenv(boot1_env, sizeof(boot1_env));
 	xlp_bootargs_init(a0);
 
 	/* clockrate used by delay, so initialize it here */
-	xlp_cpu_frequency = xlp_get_cpu_frequency(0);
+	xlp_cpu_frequency = xlp_get_cpu_frequency(0, 0);
 	cpu_clock = xlp_cpu_frequency / 1000000;
 	mips_timer_early_init(xlp_cpu_frequency);
 
@@ -542,6 +551,9 @@ platform_start(__register_t a0 __unused,
 	/* setup for the startup core */
 	xlp_setup_mmu();
 
+	/* Read/Guess/setup board information */
+	nlm_board_info_setup();
+
 	/* MIPS generic init */
 	mips_init();
 
@@ -549,7 +561,6 @@ platform_start(__register_t a0 __unused,
 	 * XLP specific post initialization
  	 * initialize other on chip stuff
 	 */
-	nlm_board_info_setup();
 	xlp_pic_init();
 
 	mips_timer_init_params(xlp_cpu_frequency, 0);
@@ -561,22 +572,6 @@ platform_cpu_init()
 }
 
 void
-platform_identify(void)
-{
-
-	printf("XLP Eval Board\n");
-}
-
-/*
- * XXX Maybe return the state of the watchdog in enter, and pass it to
- * exit?  Like spl().
- */
-void
-platform_trap_enter(void)
-{
-}
-
-void
 platform_reset(void)
 {
 	uint64_t sysbase = nlm_get_sys_regbase(0);
@@ -584,11 +579,6 @@ platform_reset(void)
 	nlm_write_sys_reg(sysbase, SYS_CHIP_RESET, 1);
 	for( ; ; )
 		__asm __volatile("wait");
-}
-
-void
-platform_trap_exit(void)
-{
 }
 
 #ifdef SMP

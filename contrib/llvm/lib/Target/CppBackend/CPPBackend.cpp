@@ -33,8 +33,9 @@
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Config/config.h"
 #include <algorithm>
-#include <set>
+#include <cstdio>
 #include <map>
+#include <set>
 using namespace llvm;
 
 static cl::opt<std::string>
@@ -189,11 +190,22 @@ static std::string getTypePrefix(Type *Ty) {
   case Type::VectorTyID:   return "packed_";
   default:                 return "other_";
   }
-  return "unknown_";
 }
 
 void CppWriter::error(const std::string& msg) {
   report_fatal_error(msg);
+}
+
+static inline std::string ftostr(const APFloat& V) {
+  std::string Buf;
+  if (&V.getSemantics() == &APFloat::IEEEdouble) {
+    raw_string_ostream(Buf) << V.convertToDouble();
+    return Buf;
+  } else if (&V.getSemantics() == &APFloat::IEEEsingle) {
+    raw_string_ostream(Buf) << (double)V.convertToFloat();
+    return Buf;
+  }
+  return "<unknown format in ftostr>"; // error
 }
 
 // printCFP - Print a floating point constant .. very carefully :)
@@ -301,7 +313,6 @@ void CppWriter::printLinkageType(GlobalValue::LinkageTypes LT) {
 
 void CppWriter::printVisibilityType(GlobalValue::VisibilityTypes VisType) {
   switch (VisType) {
-  default: llvm_unreachable("Unknown GVar visibility");
   case GlobalValue::DefaultVisibility:
     Out << "GlobalValue::DefaultVisibility";
     break;
@@ -443,7 +454,7 @@ void CppWriter::printAttributes(const AttrListPtr &PAL,
     for (unsigned i = 0; i < PAL.getNumSlots(); ++i) {
       unsigned index = PAL.getSlot(i).Index;
       Attributes attrs = PAL.getSlot(i).Attrs;
-      Out << "PAWI.Index = " << index << "U; PAWI.Attrs = 0 ";
+      Out << "PAWI.Index = " << index << "U; PAWI.Attrs = Attribute::None ";
 #define HANDLE_ATTR(X)                 \
       if (attrs & Attribute::X)      \
         Out << " | Attribute::" #X;  \
@@ -678,11 +689,6 @@ void CppWriter::printConstant(const Constant *CV) {
   std::string constName(getCppName(CV));
   std::string typeName(getCppName(CV->getType()));
 
-  if (isa<GlobalValue>(CV)) {
-    // Skip variables and functions, we emit them elsewhere
-    return;
-  }
-
   if (const ConstantInt *CI = dyn_cast<ConstantInt>(CV)) {
     std::string constValue = CI->getValue().toString(10, true);
     Out << "ConstantInt* " << constName
@@ -700,38 +706,17 @@ void CppWriter::printConstant(const Constant *CV) {
     printCFP(CFP);
     Out << ";";
   } else if (const ConstantArray *CA = dyn_cast<ConstantArray>(CV)) {
-    if (CA->isString() &&
-        CA->getType()->getElementType() ==
-            Type::getInt8Ty(CA->getContext())) {
-      Out << "Constant* " << constName <<
-             " = ConstantArray::get(mod->getContext(), \"";
-      std::string tmp = CA->getAsString();
-      bool nullTerminate = false;
-      if (tmp[tmp.length()-1] == 0) {
-        tmp.erase(tmp.length()-1);
-        nullTerminate = true;
-      }
-      printEscapedString(tmp);
-      // Determine if we want null termination or not.
-      if (nullTerminate)
-        Out << "\", true"; // Indicate that the null terminator should be
-                           // added.
-      else
-        Out << "\", false";// No null terminator
-      Out << ");";
-    } else {
-      Out << "std::vector<Constant*> " << constName << "_elems;";
+    Out << "std::vector<Constant*> " << constName << "_elems;";
+    nl(Out);
+    unsigned N = CA->getNumOperands();
+    for (unsigned i = 0; i < N; ++i) {
+      printConstant(CA->getOperand(i)); // recurse to print operands
+      Out << constName << "_elems.push_back("
+          << getCppName(CA->getOperand(i)) << ");";
       nl(Out);
-      unsigned N = CA->getNumOperands();
-      for (unsigned i = 0; i < N; ++i) {
-        printConstant(CA->getOperand(i)); // recurse to print operands
-        Out << constName << "_elems.push_back("
-            << getCppName(CA->getOperand(i)) << ");";
-        nl(Out);
-      }
-      Out << "Constant* " << constName << " = ConstantArray::get("
-          << typeName << ", " << constName << "_elems);";
     }
+    Out << "Constant* " << constName << " = ConstantArray::get("
+        << typeName << ", " << constName << "_elems);";
   } else if (const ConstantStruct *CS = dyn_cast<ConstantStruct>(CV)) {
     Out << "std::vector<Constant*> " << constName << "_fields;";
     nl(Out);
@@ -744,14 +729,14 @@ void CppWriter::printConstant(const Constant *CV) {
     }
     Out << "Constant* " << constName << " = ConstantStruct::get("
         << typeName << ", " << constName << "_fields);";
-  } else if (const ConstantVector *CP = dyn_cast<ConstantVector>(CV)) {
+  } else if (const ConstantVector *CVec = dyn_cast<ConstantVector>(CV)) {
     Out << "std::vector<Constant*> " << constName << "_elems;";
     nl(Out);
-    unsigned N = CP->getNumOperands();
+    unsigned N = CVec->getNumOperands();
     for (unsigned i = 0; i < N; ++i) {
-      printConstant(CP->getOperand(i));
+      printConstant(CVec->getOperand(i));
       Out << constName << "_elems.push_back("
-          << getCppName(CP->getOperand(i)) << ");";
+          << getCppName(CVec->getOperand(i)) << ");";
       nl(Out);
     }
     Out << "Constant* " << constName << " = ConstantVector::get("
@@ -759,6 +744,41 @@ void CppWriter::printConstant(const Constant *CV) {
   } else if (isa<UndefValue>(CV)) {
     Out << "UndefValue* " << constName << " = UndefValue::get("
         << typeName << ");";
+  } else if (const ConstantDataSequential *CDS =
+               dyn_cast<ConstantDataSequential>(CV)) {
+    if (CDS->isString()) {
+      Out << "Constant *" << constName <<
+      " = ConstantDataArray::getString(mod->getContext(), \"";
+      StringRef Str = CDS->getAsString();
+      bool nullTerminate = false;
+      if (Str.back() == 0) {
+        Str = Str.drop_back();
+        nullTerminate = true;
+      }
+      printEscapedString(Str);
+      // Determine if we want null termination or not.
+      if (nullTerminate)
+        Out << "\", true);";
+      else
+        Out << "\", false);";// No null terminator
+    } else {
+      // TODO: Could generate more efficient code generating CDS calls instead.
+      Out << "std::vector<Constant*> " << constName << "_elems;";
+      nl(Out);
+      for (unsigned i = 0; i != CDS->getNumElements(); ++i) {
+        Constant *Elt = CDS->getElementAsConstant(i);
+        printConstant(Elt);
+        Out << constName << "_elems.push_back(" << getCppName(Elt) << ");";
+        nl(Out);
+      }
+      Out << "Constant* " << constName;
+      
+      if (isa<ArrayType>(CDS->getType()))
+        Out << " = ConstantArray::get(";
+      else
+        Out << " = ConstantVector::get(";
+      Out << typeName << ", " << constName << "_elems);";
+    }
   } else if (const ConstantExpr *CE = dyn_cast<ConstantExpr>(CV)) {
     if (CE->getOpcode() == Instruction::GetElementPtr) {
       Out << "std::vector<Constant*> " << constName << "_indices;";
@@ -1083,10 +1103,10 @@ void CppWriter::printInstruction(const Instruction *I,
         << getOpName(SI->getDefaultDest()) << ", "
         << SI->getNumCases() << ", " << bbname << ");";
     nl(Out);
-    unsigned NumCases = SI->getNumCases();
-    for (unsigned i = 1; i < NumCases; ++i) {
-      const ConstantInt* CaseVal = SI->getCaseValue(i);
-      const BasicBlock* BB = SI->getSuccessor(i);
+    for (SwitchInst::ConstCaseIt i = SI->case_begin(), e = SI->case_end();
+         i != e; ++i) {
+      const ConstantInt* CaseVal = i.getCaseValue();
+      const BasicBlock *BB = i.getCaseSuccessor();
       Out << iName << "->addCase("
           << getOpName(CaseVal) << ", "
           << getOpName(BB) << ");";
@@ -1133,11 +1153,6 @@ void CppWriter::printInstruction(const Instruction *I,
     printAttributes(inv->getAttributes(), iName);
     Out << iName << "->setAttributes(" << iName << "_PAL);";
     nl(Out);
-    break;
-  }
-  case Instruction::Unwind: {
-    Out << "new UnwindInst("
-        << bbname << ");";
     break;
   }
   case Instruction::Unreachable: {
@@ -1354,7 +1369,7 @@ void CppWriter::printInstruction(const Instruction *I,
     case Instruction::PtrToInt: Out << "PtrToIntInst"; break;
     case Instruction::IntToPtr: Out << "IntToPtrInst"; break;
     case Instruction::BitCast:  Out << "BitCastInst"; break;
-    default: assert(0 && "Unreachable"); break;
+    default: llvm_unreachable("Unreachable");
     }
     Out << "(" << opNames[0] << ", "
         << getCppName(cst->getType()) << ", \"";
@@ -2049,8 +2064,6 @@ bool CppWriter::runOnModule(Module &M) {
       fname = "makeLLVMType";
     printType(fname,tgtname);
     break;
-   default:
-    error("Invalid generation option");
   }
 
   return false;
@@ -2065,7 +2078,6 @@ char CppWriter::ID = 0;
 bool CPPTargetMachine::addPassesToEmitFile(PassManagerBase &PM,
                                            formatted_raw_ostream &o,
                                            CodeGenFileType FileType,
-                                           CodeGenOpt::Level OptLevel,
                                            bool DisableVerify) {
   if (FileType != TargetMachine::CGFT_AssemblyFile) return true;
   PM.add(new CppWriter(o));

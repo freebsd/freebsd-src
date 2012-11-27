@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 9, 2010
+.Dd March 5, 2012
 .Dt NG_PATCH 4
 .Os
 .Sh NAME
@@ -164,7 +164,7 @@ Here
 .Dq Li ttl_add
 node of type
 .Nm
-configured to add (mode 
+configured to add (mode
 .Dv NG_PATCH_MODE_ADD )
 a
 .Va value
@@ -185,7 +185,7 @@ So you do:
 		{ mode=7 value=0xf7 length=1 offset=1 }		\e
 		{ mode=8 value=0x02 length=1 offset=1 } ] }
 SEQ
-/sbin/ipfw add 160 netgraph 600 ip from any to any not dst-port 80
+/sbin/ipfw add 160 netgraph 300 ip from any to any not dst-port 80
 .Ed
 .Pp
 This first does

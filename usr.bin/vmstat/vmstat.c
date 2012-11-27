@@ -81,26 +81,20 @@ static char da[] = "da";
 static struct nlist namelist[] = {
 #define X_SUM		0
 	{ "_cnt" },
-#define	X_BOOTTIME	1
-	{ "_boottime" },
-#define X_HZ		2
+#define X_HZ		1
 	{ "_hz" },
-#define X_STATHZ	3
+#define X_STATHZ	2
 	{ "_stathz" },
-#define X_NCHSTATS	4
+#define X_NCHSTATS	3
 	{ "_nchstats" },
-#define	X_INTRNAMES	5
+#define	X_INTRNAMES	4
 	{ "_intrnames" },
-#define	X_SINTRNAMES	6
+#define	X_SINTRNAMES	5
 	{ "_sintrnames" },
-#define	X_INTRCNT	7
+#define	X_INTRCNT	6
 	{ "_intrcnt" },
-#define	X_SINTRCNT	8
+#define	X_SINTRCNT	7
 	{ "_sintrcnt" },
-#define	X_KMEMSTATS	9
-	{ "_kmemstatistics" },
-#define	X_KMEMZONES	10
-	{ "_kmemzones" },
 #ifdef notyet
 #define	X_DEFICIT	XXX
 	{ "_deficit" },
@@ -112,7 +106,7 @@ static struct nlist namelist[] = {
 	{ "_xstats" },
 #define X_END		XXX
 #else
-#define X_END		11
+#define X_END		8
 #endif
 	{ "" },
 };

@@ -22,7 +22,7 @@
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
 #include "clang/AST/DeclCXX.h"
-#include "clang/AST/Decl.h"
+#include "clang/AST/ExprCXX.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/PrettyPrinter.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -117,17 +117,17 @@ public:
                     CheckerContext &C) const;
 
 private:
-  const ProgramState *handleAssign(const ProgramState *state,
+  ProgramStateRef handleAssign(ProgramStateRef state,
                                    const Expr *lexp,
                                    const Expr *rexp,
                                    const LocationContext *LC) const;
 
-  const ProgramState *handleAssign(const ProgramState *state,
+  ProgramStateRef handleAssign(ProgramStateRef state,
                                    const MemRegion *MR,
                                    const Expr *rexp,
                                    const LocationContext *LC) const;
 
-  const ProgramState *invalidateIterators(const ProgramState *state,
+  ProgramStateRef invalidateIterators(ProgramStateRef state,
                                           const MemRegion *MR,
                                           const MemberExpr *ME) const;
 
@@ -135,7 +135,7 @@ private:
 
   void checkArgs(CheckerContext &C, const CallExpr *CE) const;
 
-  const MemRegion *getRegion(const ProgramState *state,
+  const MemRegion *getRegion(ProgramStateRef state,
                              const Expr *E,
                              const LocationContext *LC) const;
 
@@ -227,7 +227,7 @@ static RefKind getTemplateKind(QualType T) {
 
 // Iterate through our map and invalidate any iterators that were
 // initialized fromt the specified instance MemRegion.
-const ProgramState *IteratorsChecker::invalidateIterators(const ProgramState *state,
+ProgramStateRef IteratorsChecker::invalidateIterators(ProgramStateRef state,
                           const MemRegion *MR, const MemberExpr *ME) const {
   IteratorState::EntryMap Map = state->get<IteratorState>();
   if (Map.isEmpty())
@@ -246,7 +246,7 @@ const ProgramState *IteratorsChecker::invalidateIterators(const ProgramState *st
 }
 
 // Handle assigning to an iterator where we don't have the LValue MemRegion.
-const ProgramState *IteratorsChecker::handleAssign(const ProgramState *state,
+ProgramStateRef IteratorsChecker::handleAssign(ProgramStateRef state,
     const Expr *lexp, const Expr *rexp, const LocationContext *LC) const {
   // Skip the cast if present.
   if (const MaterializeTemporaryExpr *M 
@@ -254,7 +254,7 @@ const ProgramState *IteratorsChecker::handleAssign(const ProgramState *state,
     lexp = M->GetTemporaryExpr();
   if (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(lexp))
     lexp = ICE->getSubExpr();
-  SVal sv = state->getSVal(lexp);
+  SVal sv = state->getSVal(lexp, LC);
   const MemRegion *MR = sv.getAsRegion();
   if (!MR)
     return state;
@@ -271,7 +271,7 @@ const ProgramState *IteratorsChecker::handleAssign(const ProgramState *state,
 }
 
 // handle assigning to an iterator
-const ProgramState *IteratorsChecker::handleAssign(const ProgramState *state,
+ProgramStateRef IteratorsChecker::handleAssign(ProgramStateRef state,
     const MemRegion *MR, const Expr *rexp, const LocationContext *LC) const {
   // Assume unknown until we find something definite.
   state = state->set<IteratorState>(MR, RefState::getUnknown());
@@ -376,7 +376,7 @@ const DeclRefExpr *IteratorsChecker::getDeclRefExpr(const Expr *E) const {
 }
 
 // Get the MemRegion associated with the expresssion.
-const MemRegion *IteratorsChecker::getRegion(const ProgramState *state,
+const MemRegion *IteratorsChecker::getRegion(ProgramStateRef state,
     const Expr *E, const LocationContext *LC) const {
   const DeclRefExpr *DRE = getDeclRefExpr(E);
   if (!DRE)
@@ -394,9 +394,8 @@ const MemRegion *IteratorsChecker::getRegion(const ProgramState *state,
 // use those nodes.  We also cannot create multiple nodes at one ProgramPoint
 // with the same tag.
 void IteratorsChecker::checkExpr(CheckerContext &C, const Expr *E) const {
-  const ProgramState *state = C.getState();
-  const MemRegion *MR = getRegion(state, E,
-                   C.getPredecessor()->getLocationContext());
+  ProgramStateRef state = C.getState();
+  const MemRegion *MR = getRegion(state, E, C.getLocationContext());
   if (!MR)
     return;
 
@@ -405,7 +404,7 @@ void IteratorsChecker::checkExpr(CheckerContext &C, const Expr *E) const {
   if (!RS)
     return;
   if (RS->isInvalid()) {
-    if (ExplodedNode *N = C.generateNode()) {
+    if (ExplodedNode *N = C.addTransition()) {
       if (!BT_Invalid)
         // FIXME: We are eluding constness here.
         const_cast<IteratorsChecker*>(this)->BT_Invalid = new BuiltinBug("");
@@ -428,7 +427,7 @@ void IteratorsChecker::checkExpr(CheckerContext &C, const Expr *E) const {
     }
   }
   else if (RS->isUndefined()) {
-    if (ExplodedNode *N = C.generateNode()) {
+    if (ExplodedNode *N = C.addTransition()) {
       if (!BT_Undefined)
         // FIXME: We are eluding constness here.
         const_cast<IteratorsChecker*>(this)->BT_Undefined =
@@ -466,8 +465,8 @@ void IteratorsChecker::checkPreStmt(const CallExpr *CE,
 void IteratorsChecker::checkPreStmt(const CXXOperatorCallExpr *OCE,
                                     CheckerContext &C) const
 {
-  const LocationContext *LC = C.getPredecessor()->getLocationContext();
-  const ProgramState *state = C.getState();
+  const LocationContext *LC = C.getLocationContext();
+  ProgramStateRef state = C.getState();
   OverloadedOperatorKind Kind = OCE->getOperator();
   if (Kind == OO_Equal) {
     checkExpr(C, OCE->getArg(1));
@@ -497,7 +496,7 @@ void IteratorsChecker::checkPreStmt(const CXXOperatorCallExpr *OCE,
       if (!RS1)
         return;
       if (RS0->getMemRegion() != RS1->getMemRegion()) {
-      if (ExplodedNode *N = C.generateNode()) {
+      if (ExplodedNode *N = C.addTransition()) {
           if (!BT_Incompatible)
             const_cast<IteratorsChecker*>(this)->BT_Incompatible =
               new BuiltinBug(
@@ -524,8 +523,8 @@ void IteratorsChecker::checkPreStmt(const DeclStmt *DS,
     return;
 
   // Get the MemRegion associated with the iterator and mark it as Undefined.
-  const ProgramState *state = C.getState();
-  Loc VarLoc = state->getLValue(VD, C.getPredecessor()->getLocationContext());
+  ProgramStateRef state = C.getState();
+  Loc VarLoc = state->getLValue(VD, C.getLocationContext());
   const MemRegion *MR = VarLoc.getAsRegion();
   if (!MR)
     return;
@@ -545,8 +544,7 @@ void IteratorsChecker::checkPreStmt(const DeclStmt *DS,
           E = M->GetTemporaryExpr();
         if (const ImplicitCastExpr *ICE = dyn_cast<ImplicitCastExpr>(E))
           InitEx = ICE->getSubExpr();
-        state = handleAssign(state, MR, InitEx,
-                                  C.getPredecessor()->getLocationContext());
+        state = handleAssign(state, MR, InitEx, C.getLocationContext());
       }
     }
   }
@@ -576,14 +574,14 @@ void IteratorsChecker::checkPreStmt(const CXXMemberCallExpr *MCE,
   const DeclRefExpr *DRE = dyn_cast<DeclRefExpr>(ME->getBase());
   if (!DRE || getTemplateKind(DRE->getType()) != VectorKind)
     return;
-  SVal tsv = C.getState()->getSVal(DRE);
+  SVal tsv = C.getState()->getSVal(DRE, C.getLocationContext());
   // Get the MemRegion associated with the container instance.
   const MemRegion *MR = tsv.getAsRegion();
   if (!MR)
     return;
   // If we are calling a function that invalidates iterators, mark them
   // appropriately by finding matching instances.
-  const ProgramState *state = C.getState();
+  ProgramStateRef state = C.getState();
   StringRef mName = ME->getMemberDecl()->getName();
   if (llvm::StringSwitch<bool>(mName)
       .Cases("insert", "reserve", "push_back", true)

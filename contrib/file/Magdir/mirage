@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: mirage,v 1.7 2009/09/19 16:28:10 christos Exp $
 # mirage:  file(1) magic for Mirage executables
 #
 # XXX - byte order?

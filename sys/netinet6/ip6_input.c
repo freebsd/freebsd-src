@@ -163,6 +163,8 @@ ip6_init(void)
 
 	TUNABLE_INT_FETCH("net.inet6.ip6.auto_linklocal",
 	    &V_ip6_auto_linklocal);
+	TUNABLE_INT_FETCH("net.inet6.ip6.accept_rtadv", &V_ip6_accept_rtadv);
+	TUNABLE_INT_FETCH("net.inet6.ip6.no_radr", &V_ip6_no_radr);
 
 	TAILQ_INIT(&V_in6_ifaddrhead);
 

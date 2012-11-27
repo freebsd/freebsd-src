@@ -157,7 +157,7 @@ extern struct pr_usrreqs sctp_usrreqs;
 }
 
 #define sctp_alloc_a_chunk(_stcb, _chk) { \
-	if (TAILQ_EMPTY(&(_stcb)->asoc.free_chunks))  { \
+	if (TAILQ_EMPTY(&(_stcb)->asoc.free_chunks)) { \
 		(_chk) = SCTP_ZONE_GET(SCTP_BASE_INFO(ipi_zone_chunk), struct sctp_tmit_chunk); \
 		if ((_chk)) { \
 			SCTP_INCR_CHK_COUNT(); \

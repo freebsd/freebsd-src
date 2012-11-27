@@ -549,7 +549,7 @@ wds_attach(device_t dev)
 		goto bad;
 
 	/* now create the memory buffer */
-	error = bus_dma_tag_create(NULL, /*alignment*/4,
+	error = bus_dma_tag_create(bus_get_dma_tag(dev), /*alignment*/4,
 				   /*boundary*/0,
 				   /*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 				   /*highaddr*/ BUS_SPACE_MAXADDR,

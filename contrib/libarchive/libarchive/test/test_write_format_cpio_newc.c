@@ -111,12 +111,7 @@ DEFINE_TEST(test_write_format_cpio_newc)
 	assertEqualIntA(a, 0, archive_write_header(a, entry));
 	archive_entry_free(entry);
 
-
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(a);
-#else
-	assert(0 == archive_write_finish(a));
-#endif
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*
 	 * Verify the archive format.

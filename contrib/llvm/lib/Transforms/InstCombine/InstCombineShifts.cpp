@@ -190,7 +190,8 @@ static Value *GetShiftedValue(Value *V, unsigned NumBits, bool isLeftShift,
       V = IC.Builder->CreateLShr(C, NumBits);
     // If we got a constantexpr back, try to simplify it with TD info.
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(V))
-      V = ConstantFoldConstantExpression(CE, IC.getTargetData());
+      V = ConstantFoldConstantExpression(CE, IC.getTargetData(),
+                                         IC.getTargetLibraryInfo());
     return V;
   }
   
@@ -198,7 +199,7 @@ static Value *GetShiftedValue(Value *V, unsigned NumBits, bool isLeftShift,
   IC.Worklist.Add(I);
 
   switch (I->getOpcode()) {
-  default: assert(0 && "Inconsistency with CanEvaluateShifted");
+  default: llvm_unreachable("Inconsistency with CanEvaluateShifted");
   case Instruction::And:
   case Instruction::Or:
   case Instruction::Xor:
@@ -535,12 +536,11 @@ Instruction *InstCombiner::FoldShiftByConstant(Value *Op0, ConstantInt *Op1,
     if (ShiftAmt1 == 0) return 0;  // Will be simplified in the future.
     Value *X = ShiftOp->getOperand(0);
     
-    uint32_t AmtSum = ShiftAmt1+ShiftAmt2;   // Fold into one big shift.
-    
     IntegerType *Ty = cast<IntegerType>(I.getType());
     
     // Check for (X << c1) << c2  and  (X >> c1) >> c2
     if (I.getOpcode() == ShiftOp->getOpcode()) {
+      uint32_t AmtSum = ShiftAmt1+ShiftAmt2;   // Fold into one big shift.
       // If this is oversized composite shift, then unsigned shifts get 0, ashr
       // saturates.
       if (AmtSum >= TypeBits) {
@@ -576,7 +576,16 @@ Instruction *InstCombiner::FoldShiftByConstant(Value *Op0, ConstantInt *Op1,
           ShiftOp->getOpcode() != Instruction::Shl) {
         assert(ShiftOp->getOpcode() == Instruction::LShr ||
                ShiftOp->getOpcode() == Instruction::AShr);
-        Value *Shift = Builder->CreateShl(X, ConstantInt::get(Ty, ShiftDiff));
+        ConstantInt *ShiftDiffCst = ConstantInt::get(Ty, ShiftDiff);
+        if (ShiftOp->isExact()) {
+          // (X >>?,exact C1) << C2 --> X << (C2-C1)
+          BinaryOperator *NewShl = BinaryOperator::Create(Instruction::Shl,
+                                                          X, ShiftDiffCst);
+          NewShl->setHasNoUnsignedWrap(I.hasNoUnsignedWrap());
+          NewShl->setHasNoSignedWrap(I.hasNoSignedWrap());
+          return NewShl;
+        }
+        Value *Shift = Builder->CreateShl(X, ShiftDiffCst);
         
         APInt Mask(APInt::getHighBitsSet(TypeBits, TypeBits - ShiftAmt2));
         return BinaryOperator::CreateAnd(Shift,
@@ -586,15 +595,34 @@ Instruction *InstCombiner::FoldShiftByConstant(Value *Op0, ConstantInt *Op1,
       // (X << C1) >>u C2  --> X >>u (C2-C1) & (-1 >> C2)
       if (I.getOpcode() == Instruction::LShr &&
           ShiftOp->getOpcode() == Instruction::Shl) {
-        assert(ShiftOp->getOpcode() == Instruction::Shl);
-        Value *Shift = Builder->CreateLShr(X, ConstantInt::get(Ty, ShiftDiff));
+        ConstantInt *ShiftDiffCst = ConstantInt::get(Ty, ShiftDiff);
+        // (X <<nuw C1) >>u C2 --> X >>u (C2-C1)
+        if (ShiftOp->hasNoUnsignedWrap()) {
+          BinaryOperator *NewLShr = BinaryOperator::Create(Instruction::LShr,
+                                                           X, ShiftDiffCst);
+          NewLShr->setIsExact(I.isExact());
+          return NewLShr;
+        }
+        Value *Shift = Builder->CreateLShr(X, ShiftDiffCst);
         
         APInt Mask(APInt::getLowBitsSet(TypeBits, TypeBits - ShiftAmt2));
         return BinaryOperator::CreateAnd(Shift,
                                          ConstantInt::get(I.getContext(),Mask));
       }
-      
-      // We can't handle (X << C1) >>s C2, it shifts arbitrary bits in.
+
+      // We can't handle (X << C1) >>s C2, it shifts arbitrary bits in. However,
+      // we can handle (X <<nsw C1) >>s C2 since it only shifts in sign bits.
+      if (I.getOpcode() == Instruction::AShr &&
+          ShiftOp->getOpcode() == Instruction::Shl) {
+        if (ShiftOp->hasNoSignedWrap()) {
+          // (X <<nsw C1) >>s C2 --> X >>s (C2-C1)
+          ConstantInt *ShiftDiffCst = ConstantInt::get(Ty, ShiftDiff);
+          BinaryOperator *NewAShr = BinaryOperator::Create(Instruction::AShr,
+                                                           X, ShiftDiffCst);
+          NewAShr->setIsExact(I.isExact());
+          return NewAShr;
+        }
+      }
     } else {
       assert(ShiftAmt2 < ShiftAmt1);
       uint32_t ShiftDiff = ShiftAmt1-ShiftAmt2;
@@ -602,9 +630,16 @@ Instruction *InstCombiner::FoldShiftByConstant(Value *Op0, ConstantInt *Op1,
       // (X >>? C1) << C2 --> X >>? (C1-C2) & (-1 << C2)
       if (I.getOpcode() == Instruction::Shl &&
           ShiftOp->getOpcode() != Instruction::Shl) {
-        Value *Shift = Builder->CreateBinOp(ShiftOp->getOpcode(), X,
-                                            ConstantInt::get(Ty, ShiftDiff));
-        
+        ConstantInt *ShiftDiffCst = ConstantInt::get(Ty, ShiftDiff);
+        if (ShiftOp->isExact()) {
+          // (X >>?exact C1) << C2 --> X >>?exact (C1-C2)
+          BinaryOperator *NewShr = BinaryOperator::Create(ShiftOp->getOpcode(),
+                                                          X, ShiftDiffCst);
+          NewShr->setIsExact(true);
+          return NewShr;
+        }
+        Value *Shift = Builder->CreateBinOp(ShiftOp->getOpcode(),
+                                            X, ShiftDiffCst);
         APInt Mask(APInt::getHighBitsSet(TypeBits, TypeBits - ShiftAmt2));
         return BinaryOperator::CreateAnd(Shift,
                                          ConstantInt::get(I.getContext(),Mask));
@@ -613,14 +648,34 @@ Instruction *InstCombiner::FoldShiftByConstant(Value *Op0, ConstantInt *Op1,
       // (X << C1) >>u C2  --> X << (C1-C2) & (-1 >> C2)
       if (I.getOpcode() == Instruction::LShr &&
           ShiftOp->getOpcode() == Instruction::Shl) {
-        Value *Shift = Builder->CreateShl(X, ConstantInt::get(Ty, ShiftDiff));
+        ConstantInt *ShiftDiffCst = ConstantInt::get(Ty, ShiftDiff);
+        if (ShiftOp->hasNoUnsignedWrap()) {
+          // (X <<nuw C1) >>u C2 --> X <<nuw (C1-C2)
+          BinaryOperator *NewShl = BinaryOperator::Create(Instruction::Shl,
+                                                          X, ShiftDiffCst);
+          NewShl->setHasNoUnsignedWrap(true);
+          return NewShl;
+        }
+        Value *Shift = Builder->CreateShl(X, ShiftDiffCst);
         
         APInt Mask(APInt::getLowBitsSet(TypeBits, TypeBits - ShiftAmt2));
         return BinaryOperator::CreateAnd(Shift,
                                          ConstantInt::get(I.getContext(),Mask));
       }
       
-      // We can't handle (X << C1) >>a C2, it shifts arbitrary bits in.
+      // We can't handle (X << C1) >>s C2, it shifts arbitrary bits in. However,
+      // we can handle (X <<nsw C1) >>s C2 since it only shifts in sign bits.
+      if (I.getOpcode() == Instruction::AShr &&
+          ShiftOp->getOpcode() == Instruction::Shl) {
+        if (ShiftOp->hasNoSignedWrap()) {
+          // (X <<nsw C1) >>s C2 --> X <<nsw (C1-C2)
+          ConstantInt *ShiftDiffCst = ConstantInt::get(Ty, ShiftDiff);
+          BinaryOperator *NewShl = BinaryOperator::Create(Instruction::Shl,
+                                                          X, ShiftDiffCst);
+          NewShl->setHasNoSignedWrap(true);
+          return NewShl;
+        }
+      }
     }
   }
   return 0;

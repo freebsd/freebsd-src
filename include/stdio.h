@@ -225,6 +225,9 @@ __END_DECLS
 #define	stderr	__stderrp
 
 __BEGIN_DECLS
+#ifdef _XLOCALE_H_
+#include <xlocale/_stdio.h>
+#endif
 /*
  * Functions defined in ANSI C standard.
  */

@@ -190,10 +190,7 @@ AcpiDbDumpExternalObject (
     case ACPI_TYPE_STRING:
 
         AcpiOsPrintf ("[String] Length %.2X = ", ObjDesc->String.Length);
-        for (i = 0; i < ObjDesc->String.Length; i++)
-        {
-            AcpiOsPrintf ("%c", ObjDesc->String.Pointer[i]);
-        }
+        AcpiUtPrintString (ObjDesc->String.Pointer, ACPI_UINT8_MAX);
         AcpiOsPrintf ("\n");
         break;
 

@@ -136,7 +136,8 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 		AUDIT_SYSCALL_EXIT(error, td);
 
 		/* Save the latest error return value. */
-		td->td_errno = error;
+		if ((td->td_pflags & TDP_NERRNO) == 0)
+			td->td_errno = error;
 
 #ifdef KDTRACE_HOOKS
 		/*
@@ -165,7 +166,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 static inline void
 syscallret(struct thread *td, int error, struct syscall_args *sa __unused)
 {
-	struct proc *p;
+	struct proc *p, *p2;
 	int traced;
 
 	p = td->td_proc;
@@ -191,9 +192,12 @@ syscallret(struct thread *td, int error, struct syscall_args *sa __unused)
 	    syscallname(p, sa->code), td, td->td_proc->p_pid, td->td_name);
 
 #ifdef KTRACE
-	if (KTRPOINT(td, KTR_SYSRET))
-		ktrsysret(sa->code, error, td->td_retval[0]);
+	if (KTRPOINT(td, KTR_SYSRET)) {
+		ktrsysret(sa->code, (td->td_pflags & TDP_NERRNO) == 0 ?
+		    error : td->td_errno, td->td_retval[0]);
+	}
 #endif
+	td->td_pflags &= ~TDP_NERRNO;
 
 	if (p->p_flag & P_TRACED) {
 		traced = 1;
@@ -222,5 +226,24 @@ syscallret(struct thread *td, int error, struct syscall_args *sa __unused)
 			ptracestop(td, SIGTRAP);
 		td->td_dbgflags &= ~(TDB_SCX | TDB_EXEC | TDB_FORK);
 		PROC_UNLOCK(p);
+	}
+
+	if (td->td_pflags & TDP_RFPPWAIT) {
+		/*
+		 * Preserve synchronization semantics of vfork.  If
+		 * waiting for child to exec or exit, fork set
+		 * P_PPWAIT on child, and there we sleep on our proc
+		 * (in case of exit).
+		 *
+		 * Do it after the ptracestop() above is finished, to
+		 * not block our debugger until child execs or exits
+		 * to finish vfork wait.
+		 */
+		td->td_pflags &= ~TDP_RFPPWAIT;
+		p2 = td->td_rfppwait_p;
+		PROC_LOCK(p2);
+		while (p2->p_flag & P_PPWAIT)
+			cv_wait(&p2->p_pwait, &p2->p_mtx);
+		PROC_UNLOCK(p2);
 	}
 }

@@ -864,7 +864,7 @@ nexttoken(char **in, time_t *value)
 	}
 }
 
-#define TM_YEAR_ORIGIN 1900
+#define	TM_YEAR_ORIGIN 1900
 
 /* Yield A - B, measured in seconds.  */
 static long

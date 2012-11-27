@@ -31,9 +31,13 @@ class ZeroOutInDeallocRemover :
   llvm::DenseMap<ObjCPropertyDecl*, ObjCPropertyImplDecl*> SynthesizedProperties;
   ImplicitParamDecl *SelfD;
   ExprSet Removables;
+  Selector FinalizeSel;
 
 public:
-  ZeroOutInDeallocRemover(MigrationPass &pass) : Pass(pass), SelfD(0) { }
+  ZeroOutInDeallocRemover(MigrationPass &pass) : Pass(pass), SelfD(0) {
+    FinalizeSel =
+        Pass.Ctx.Selectors.getNullarySelector(&Pass.Ctx.Idents.get("finalize"));
+  }
 
   bool VisitObjCMessageExpr(ObjCMessageExpr *ME) {
     ASTContext &Ctx = Pass.Ctx;
@@ -74,6 +78,15 @@ public:
     return true;
   }
 
+  bool VisitPseudoObjectExpr(PseudoObjectExpr *POE) {
+    if (isZeroingPropIvar(POE) && isRemovable(POE)) {
+      Transaction Trans(Pass.TA);
+      Pass.TA.removeStmt(POE);
+    }
+
+    return true;
+  }
+
   bool VisitBinaryOperator(BinaryOperator *BOE) {
     if (isZeroingPropIvar(BOE) && isRemovable(BOE)) {
       Transaction Trans(Pass.TA);
@@ -84,7 +97,8 @@ public:
   }
 
   bool TraverseObjCMethodDecl(ObjCMethodDecl *D) {
-    if (D->getMethodFamily() != OMF_dealloc)
+    if (D->getMethodFamily() != OMF_dealloc &&
+        !(D->isInstanceMethod() && D->getSelector() == FinalizeSel))
       return true;
     if (!D->hasBody())
       return true;
@@ -137,17 +151,21 @@ private:
   }
 
   bool isZeroingPropIvar(Expr *E) {
-    BinaryOperator *BOE = dyn_cast_or_null<BinaryOperator>(E);
-    if (!BOE) return false;
+    E = E->IgnoreParens();
+    if (BinaryOperator *BO = dyn_cast<BinaryOperator>(E))
+      return isZeroingPropIvar(BO);
+    if (PseudoObjectExpr *PO = dyn_cast<PseudoObjectExpr>(E))
+      return isZeroingPropIvar(PO);
+    return false;
+  }
 
+  bool isZeroingPropIvar(BinaryOperator *BOE) {
     if (BOE->getOpcode() == BO_Comma)
       return isZeroingPropIvar(BOE->getLHS()) &&
              isZeroingPropIvar(BOE->getRHS());
 
     if (BOE->getOpcode() != BO_Assign)
-        return false;
-
-    ASTContext &Ctx = Pass.Ctx;
+      return false;
 
     Expr *LHS = BOE->getLHS();
     if (ObjCIvarRefExpr *IV = dyn_cast<ObjCIvarRefExpr>(LHS)) {
@@ -167,31 +185,44 @@ private:
       if (!IvarBacksPropertySynthesis)
         return false;
     }
-    else if (ObjCPropertyRefExpr *PropRefExp = dyn_cast<ObjCPropertyRefExpr>(LHS)) {
-      // TODO: Using implicit property decl.
-      if (PropRefExp->isImplicitProperty())
-        return false;
-      if (ObjCPropertyDecl *PDecl = PropRefExp->getExplicitProperty()) {
-        if (!SynthesizedProperties.count(PDecl))
-          return false;
-      }
-    }
     else
         return false;
 
-    Expr *RHS = BOE->getRHS();
-    bool RHSIsNull = RHS->isNullPointerConstant(Ctx,
-                                                Expr::NPC_ValueDependentIsNull);
-    if (RHSIsNull)
+    return isZero(BOE->getRHS());
+  }
+
+  bool isZeroingPropIvar(PseudoObjectExpr *PO) {
+    BinaryOperator *BO = dyn_cast<BinaryOperator>(PO->getSyntacticForm());
+    if (!BO) return false;
+    if (BO->getOpcode() != BO_Assign) return false;
+
+    ObjCPropertyRefExpr *PropRefExp =
+      dyn_cast<ObjCPropertyRefExpr>(BO->getLHS()->IgnoreParens());
+    if (!PropRefExp) return false;
+
+    // TODO: Using implicit property decl.
+    if (PropRefExp->isImplicitProperty())
+      return false;
+
+    if (ObjCPropertyDecl *PDecl = PropRefExp->getExplicitProperty()) {
+      if (!SynthesizedProperties.count(PDecl))
+        return false;
+    }
+
+    return isZero(cast<OpaqueValueExpr>(BO->getRHS())->getSourceExpr());
+  }
+
+  bool isZero(Expr *E) {
+    if (E->isNullPointerConstant(Pass.Ctx, Expr::NPC_ValueDependentIsNull))
       return true;
 
-    return isZeroingPropIvar(RHS);
+    return isZeroingPropIvar(E);
   }
 };
 
 } // anonymous namespace
 
-void trans::removeZeroOutPropsInDealloc(MigrationPass &pass) {
+void trans::removeZeroOutPropsInDeallocFinalize(MigrationPass &pass) {
   ZeroOutInDeallocRemover trans(pass);
   trans.TraverseDecl(pass.Ctx.getTranslationUnitDecl());
 }

@@ -256,8 +256,10 @@ sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	switch (fp->f_type) {
 	case DTYPE_FIFO:
 	case DTYPE_VNODE:
-		if (!(mac_labeled & MPC_OBJECT_VNODE))
-			return (EINVAL);
+		if (!(mac_labeled & MPC_OBJECT_VNODE)) {
+			error = EINVAL;
+			goto out_fdrop;
+		}
 		vp = fp->f_vnode;
 		intlabel = mac_vnode_label_alloc();
 		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
@@ -271,8 +273,10 @@ sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 		break;
 
 	case DTYPE_PIPE:
-		if (!(mac_labeled & MPC_OBJECT_PIPE))
-			return (EINVAL);
+		if (!(mac_labeled & MPC_OBJECT_PIPE)) {
+			error = EINVAL;
+			goto out_fdrop;
+		}
 		pipe = fp->f_data;
 		intlabel = mac_pipe_label_alloc();
 		PIPE_LOCK(pipe);
@@ -284,8 +288,10 @@ sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 		break;
 
 	case DTYPE_SOCKET:
-		if (!(mac_labeled & MPC_OBJECT_SOCKET))
-			return (EINVAL);
+		if (!(mac_labeled & MPC_OBJECT_SOCKET)) {
+			error = EINVAL;
+			goto out_fdrop;
+		}
 		so = fp->f_data;
 		intlabel = mac_socket_label_alloc(M_WAITOK);
 		SOCK_LOCK(so);
@@ -299,10 +305,10 @@ sys___mac_get_fd(struct thread *td, struct __mac_get_fd_args *uap)
 	default:
 		error = EINVAL;
 	}
-	fdrop(fp, td);
 	if (error == 0)
 		error = copyout(buffer, mac.m_string, strlen(buffer)+1);
-
+out_fdrop:
+	fdrop(fp, td);
 out:
 	free(buffer, M_MACTEMP);
 	free(elements, M_MACTEMP);
@@ -450,8 +456,10 @@ sys___mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 	switch (fp->f_type) {
 	case DTYPE_FIFO:
 	case DTYPE_VNODE:
-		if (!(mac_labeled & MPC_OBJECT_VNODE))
-			return (EINVAL);
+		if (!(mac_labeled & MPC_OBJECT_VNODE)) {
+			error = EINVAL;
+			goto out_fdrop;
+		}
 		intlabel = mac_vnode_label_alloc();
 		error = mac_vnode_internalize_label(intlabel, buffer);
 		if (error) {
@@ -475,8 +483,10 @@ sys___mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 		break;
 
 	case DTYPE_PIPE:
-		if (!(mac_labeled & MPC_OBJECT_PIPE))
-			return (EINVAL);
+		if (!(mac_labeled & MPC_OBJECT_PIPE)) {
+			error = EINVAL;
+			goto out_fdrop;
+		}
 		intlabel = mac_pipe_label_alloc();
 		error = mac_pipe_internalize_label(intlabel, buffer);
 		if (error == 0) {
@@ -490,8 +500,10 @@ sys___mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 		break;
 
 	case DTYPE_SOCKET:
-		if (!(mac_labeled & MPC_OBJECT_SOCKET))
-			return (EINVAL);
+		if (!(mac_labeled & MPC_OBJECT_SOCKET)) {
+			error = EINVAL;
+			goto out_fdrop;
+		}
 		intlabel = mac_socket_label_alloc(M_WAITOK);
 		error = mac_socket_internalize_label(intlabel, buffer);
 		if (error == 0) {
@@ -505,6 +517,7 @@ sys___mac_set_fd(struct thread *td, struct __mac_set_fd_args *uap)
 	default:
 		error = EINVAL;
 	}
+out_fdrop:
 	fdrop(fp, td);
 out:
 	free(buffer, M_MACTEMP);

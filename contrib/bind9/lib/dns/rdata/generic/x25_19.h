@@ -18,7 +18,7 @@
 #ifndef GENERIC_X25_19_H
 #define GENERIC_X25_19_H 1
 
-/* $Id: x25_19.h,v 1.18 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: x25_19.h,v 1.18 2007/06/19 23:47:17 tbox Exp $ */
 
 /*!
  *  \brief Per RFC1183 */

@@ -35,7 +35,7 @@ DEFINE_TEST(test_read_format_tar_empty_filename)
 	struct archive *a;
 
 	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	extract_reference_file(name);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, name, 10240));
@@ -58,9 +58,5 @@ DEFINE_TEST(test_read_format_tar_empty_filename)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 
 	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
-#endif
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

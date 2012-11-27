@@ -39,11 +39,7 @@ dtrace_ioctl_helper(struct cdev *dev, u_long cmd, caddr_t addr, int flags,
 	case DTRACEHIOC_ADDDOF:
 		dhp = (dof_helper_t *)addr;
 		/* XXX all because dofhp_dof is 64 bit */
-#ifdef __i386
-		addr = (caddr_t)(uint32_t)dhp->dofhp_dof;
-#else
-		addr = (caddr_t)dhp->dofhp_dof;
-#endif
+		addr = (caddr_t)(vm_offset_t)dhp->dofhp_dof;
 		/* FALLTHROUGH */
 	case DTRACEHIOC_ADD:
 		dof = dtrace_dof_copyin((intptr_t)addr, &rval);

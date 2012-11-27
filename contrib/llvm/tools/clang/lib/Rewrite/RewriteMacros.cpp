@@ -66,7 +66,7 @@ static void LexRawTokensFromMainFile(Preprocessor &PP,
   // Create a lexer to lex all the tokens of the main file in raw mode.  Even
   // though it is in raw mode, it will not return comments.
   const llvm::MemoryBuffer *FromFile = SM.getBuffer(SM.getMainFileID());
-  Lexer RawLex(SM.getMainFileID(), FromFile, SM, PP.getLangOptions());
+  Lexer RawLex(SM.getMainFileID(), FromFile, SM, PP.getLangOpts());
 
   // Switch on comment lexing because we really do want them.
   RawLex.SetCommentRetentionState(true);
@@ -91,7 +91,7 @@ void clang::RewriteMacrosInInput(Preprocessor &PP, raw_ostream *OS) {
   SourceManager &SM = PP.getSourceManager();
 
   Rewriter Rewrite;
-  Rewrite.setSourceMgr(SM, PP.getLangOptions());
+  Rewrite.setSourceMgr(SM, PP.getLangOpts());
   RewriteBuffer &RB = Rewrite.getEditBuffer(SM.getMainFileID());
 
   std::vector<Token> RawTokens;
@@ -167,7 +167,7 @@ void clang::RewriteMacrosInInput(Preprocessor &PP, raw_ostream *OS) {
       // Comment out a whole run of tokens instead of bracketing each one with
       // comments.  Add a leading space if RawTok didn't have one.
       bool HasSpace = RawTok.hasLeadingSpace();
-      RB.InsertTextAfter(RawOffs, " /*"+HasSpace);
+      RB.InsertTextAfter(RawOffs, &" /*"[HasSpace]);
       unsigned EndPos;
 
       do {

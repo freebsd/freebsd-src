@@ -660,7 +660,11 @@ typedef struct {
 	uint32_t        tx_busy;
 	uint32_t        rx_busy;
 	uint32_t        chan_busy;
+	uint32_t        ext_chan_busy;
 	uint32_t        cycle_count;
+	/* XXX TODO */
+	uint32_t        ofdm_phyerr_count;
+	uint32_t        cck_phyerr_count;
 } HAL_SURVEY_SAMPLE;
 
 /*
@@ -815,6 +819,7 @@ struct ath_hal {
 	uint16_t	*ah_eepromdata;	/* eeprom buffer, if needed */
 
 	uint32_t	ah_intrstate[8];	/* last int state */
+	uint32_t	ah_syncstate;		/* last sync intr state */
 
 	HAL_OPS_CONFIG ah_config;
 	const HAL_RATE_TABLE *__ahdecl(*ah_getRateTable)(struct ath_hal *,
@@ -1010,7 +1015,7 @@ struct ath_hal {
 	HAL_BOOL  __ahdecl(*ah_chainTxDesc)(struct ath_hal *,
 				struct ath_desc *, u_int, u_int, HAL_PKT_TYPE,
 				u_int, HAL_CIPHER, uint8_t, u_int, HAL_BOOL,
-				HAL_BOOL);
+				HAL_BOOL, HAL_BOOL);
 	HAL_BOOL  __ahdecl(*ah_setupFirstTxDesc)(struct ath_hal *,
 				struct ath_desc *, u_int, u_int, u_int,
 				u_int, u_int, u_int, u_int, u_int);
@@ -1029,8 +1034,8 @@ struct ath_hal {
 	    			struct ath_desc *);
 	void	  __ahdecl(*ah_set11nBurstDuration)(struct ath_hal *,
 	    			struct ath_desc *, u_int);
-	uint32_t  __ahdecl(*ah_get_mib_cycle_counts_pct) (struct ath_hal *,
-				uint32_t *, uint32_t *, uint32_t *, uint32_t *);
+	HAL_BOOL  __ahdecl(*ah_getMibCycleCounts) (struct ath_hal *,
+				HAL_SURVEY_SAMPLE *);
 
 	uint32_t  __ahdecl(*ah_get11nExtBusy)(struct ath_hal *);
 	void      __ahdecl(*ah_set11nMac2040)(struct ath_hal *,

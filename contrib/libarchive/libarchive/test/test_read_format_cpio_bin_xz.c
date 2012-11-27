@@ -51,11 +51,11 @@ DEFINE_TEST(test_read_format_cpio_bin_xz)
 	int r;
 
 	assert((a = archive_read_new()) != NULL);
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
-	r = archive_read_support_compression_xz(a);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	r = archive_read_support_filter_xz(a);
 	if (r == ARCHIVE_WARN) {
 		skipping("xz reading not fully supported on this platform");
-		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 		return;
 	}
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
@@ -65,6 +65,6 @@ DEFINE_TEST(test_read_format_cpio_bin_xz)
 	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_XZ);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_CPIO_BIN_LE);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 

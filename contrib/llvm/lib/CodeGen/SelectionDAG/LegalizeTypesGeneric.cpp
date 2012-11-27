@@ -21,7 +21,6 @@
 
 #include "LegalizeTypes.h"
 #include "llvm/Target/TargetData.h"
-#include "llvm/CodeGen/PseudoSourceValue.h"
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -46,8 +45,6 @@ void DAGTypeLegalizer::ExpandRes_BITCAST(SDNode *N, SDValue &Lo, SDValue &Hi) {
 
   // Handle some special cases efficiently.
   switch (getTypeAction(InVT)) {
-    default:
-      assert(false && "Unknown type action!");
     case TargetLowering::TypeLegal:
     case TargetLowering::TypePromoteInteger:
       break;
@@ -130,7 +127,8 @@ void DAGTypeLegalizer::ExpandRes_BITCAST(SDNode *N, SDValue &Lo, SDValue &Hi) {
                                false, false, 0);
 
   // Load the first half from the stack slot.
-  Lo = DAG.getLoad(NOutVT, dl, Store, StackPtr, PtrInfo, false, false, 0);
+  Lo = DAG.getLoad(NOutVT, dl, Store, StackPtr, PtrInfo, 
+                   false, false, false, 0);
 
   // Increment the pointer to the other half.
   unsigned IncrementSize = NOutVT.getSizeInBits() / 8;
@@ -140,7 +138,7 @@ void DAGTypeLegalizer::ExpandRes_BITCAST(SDNode *N, SDValue &Lo, SDValue &Hi) {
   // Load the second half from the stack slot.
   Hi = DAG.getLoad(NOutVT, dl, Store, StackPtr,
                    PtrInfo.getWithOffset(IncrementSize), false,
-                   false, MinAlign(Alignment, IncrementSize));
+                   false, false, MinAlign(Alignment, IncrementSize));
 
   // Handle endianness of the load.
   if (TLI.isBigEndian())
@@ -212,11 +210,12 @@ void DAGTypeLegalizer::ExpandRes_NormalLoad(SDNode *N, SDValue &Lo,
   unsigned Alignment = LD->getAlignment();
   bool isVolatile = LD->isVolatile();
   bool isNonTemporal = LD->isNonTemporal();
+  bool isInvariant = LD->isInvariant();
 
   assert(NVT.isByteSized() && "Expanded type not byte sized!");
 
   Lo = DAG.getLoad(NVT, dl, Chain, Ptr, LD->getPointerInfo(),
-                   isVolatile, isNonTemporal, Alignment);
+                   isVolatile, isNonTemporal, isInvariant, Alignment);
 
   // Increment the pointer to the other half.
   unsigned IncrementSize = NVT.getSizeInBits() / 8;
@@ -224,7 +223,7 @@ void DAGTypeLegalizer::ExpandRes_NormalLoad(SDNode *N, SDValue &Lo,
                     DAG.getIntPtrConstant(IncrementSize));
   Hi = DAG.getLoad(NVT, dl, Chain, Ptr,
                    LD->getPointerInfo().getWithOffset(IncrementSize),
-                   isVolatile, isNonTemporal,
+                   isVolatile, isNonTemporal, isInvariant,
                    MinAlign(Alignment, IncrementSize));
 
   // Build a factor node to remember that this load is independent of the

@@ -1,34 +1,36 @@
 /*
- * Copyright (c) 1999 - 2007 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1999 - 2007 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Portions Copyright (c) 2009 Apple Inc. All rights reserved.
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "der_locl.h"
@@ -41,7 +43,7 @@
 
 #include "check-common.h"
 
-RCSID("$Id: check-der.c 21359 2007-06-27 08:15:41Z lha $");
+RCSID("$Id$");
 
 static int
 cmp_integer (void *a, void *b)
@@ -75,17 +77,19 @@ test_integer (void)
 
     for (i = 0; i < ntests; ++i) {
 	tests[i].val = &values[i];
-	asprintf (&tests[i].name, "integer %d", values[i]);
+	if (asprintf (&tests[i].name, "integer %d", values[i]) < 0)
+	    errx(1, "malloc");
 	if (tests[i].name == NULL)
 	    errx(1, "malloc");
     }
 
     ret = generic_test (tests, ntests, sizeof(int),
 			(generic_encode)der_put_integer,
-			 (generic_length) der_length_integer,
-			 (generic_decode)der_get_integer,
-			 (generic_free)NULL,
-			 cmp_integer);
+			(generic_length) der_length_integer,
+			(generic_decode)der_get_integer,
+			(generic_free)NULL,
+			cmp_integer,
+			NULL);
 
     for (i = 0; i < ntests; ++i)
 	free (tests[i].name);
@@ -190,14 +194,15 @@ test_unsigned (void)
 	{NULL, 4, "\x7f\xff\xff\xff"}
     };
 
-    unsigned int values[] = {0, 127, 128, 256, 512, 32768, 
+    unsigned int values[] = {0, 127, 128, 256, 512, 32768,
 			     0x80000000, 0x7fffffff};
     int i, ret;
     int ntests = sizeof(tests) / sizeof(*tests);
 
     for (i = 0; i < ntests; ++i) {
 	tests[i].val = &values[i];
-	asprintf (&tests[i].name, "unsigned %u", values[i]);
+	if (asprintf (&tests[i].name, "unsigned %u", values[i]) < 0)
+	    errx(1, "malloc");
 	if (tests[i].name == NULL)
 	    errx(1, "malloc");
     }
@@ -207,8 +212,9 @@ test_unsigned (void)
 			(generic_length)der_length_unsigned,
 			(generic_decode)der_get_unsigned,
 			(generic_free)NULL,
-			cmp_unsigned);
-    for (i = 0; i < ntests; ++i) 
+			cmp_unsigned,
+			NULL);
+    for (i = 0; i < ntests; ++i)
 	free (tests[i].name);
     return ret;
 }
@@ -237,7 +243,8 @@ test_octet_string (void)
     int ret;
 
     tests[0].val = &s1;
-    asprintf (&tests[0].name, "a octet string");
+    if (asprintf (&tests[0].name, "a octet string") < 0)
+	errx(1, "malloc");
     if (tests[0].name == NULL)
 	errx(1, "malloc");
 
@@ -246,7 +253,8 @@ test_octet_string (void)
 			(generic_length)der_length_octet_string,
 			(generic_decode)der_get_octet_string,
 			(generic_free)der_free_octet_string,
-			cmp_octet_string);
+			cmp_octet_string,
+			NULL);
     free(tests[0].name);
     return ret;
 }
@@ -277,11 +285,13 @@ test_bmp_string (void)
     int ret;
 
     tests[0].val = &s1;
-    asprintf (&tests[0].name, "a bmp string");
+    if (asprintf (&tests[0].name, "a bmp string") < 0)
+	errx(1, "malloc");
     if (tests[0].name == NULL)
 	errx(1, "malloc");
     tests[1].val = &s2;
-    asprintf (&tests[1].name, "second bmp string");
+    if (asprintf (&tests[1].name, "second bmp string") < 0)
+	errx(1, "malloc");
     if (tests[1].name == NULL)
 	errx(1, "malloc");
 
@@ -290,7 +300,8 @@ test_bmp_string (void)
 			(generic_length)der_length_bmp_string,
 			(generic_decode)der_get_bmp_string,
 			(generic_free)der_free_bmp_string,
-			cmp_bmp_string);
+			cmp_bmp_string,
+			NULL);
     free(tests[0].name);
     free(tests[1].name);
     return ret;
@@ -322,11 +333,13 @@ test_universal_string (void)
     int ret;
 
     tests[0].val = &s1;
-    asprintf (&tests[0].name, "a universal string");
+    if (asprintf (&tests[0].name, "a universal string") < 0)
+	errx(1, "malloc");
     if (tests[0].name == NULL)
 	errx(1, "malloc");
     tests[1].val = &s2;
-    asprintf (&tests[1].name, "second universal string");
+    if (asprintf (&tests[1].name, "second universal string") < 0)
+	errx(1, "malloc");
     if (tests[1].name == NULL)
 	errx(1, "malloc");
 
@@ -335,7 +348,8 @@ test_universal_string (void)
 			(generic_length)der_length_universal_string,
 			(generic_decode)der_get_universal_string,
 			(generic_free)der_free_universal_string,
-			cmp_universal_string);
+			cmp_universal_string,
+			NULL);
     free(tests[0].name);
     free(tests[1].name);
     return ret;
@@ -361,7 +375,8 @@ test_general_string (void)
     int ret, ntests = sizeof(tests) / sizeof(*tests);
 
     tests[0].val = &s1;
-    asprintf (&tests[0].name, "the string \"%s\"", s1);
+    if (asprintf (&tests[0].name, "the string \"%s\"", s1) < 0)
+	errx(1, "malloc");
     if (tests[0].name == NULL)
 	errx(1, "malloc");
 
@@ -370,7 +385,8 @@ test_general_string (void)
 			(generic_length)der_length_general_string,
 			(generic_decode)der_get_general_string,
 			(generic_free)der_free_general_string,
-			cmp_general_string);
+			cmp_general_string,
+			NULL);
     free(tests[0].name);
     return ret;
 }
@@ -397,7 +413,8 @@ test_generalized_time (void)
 
     for (i = 0; i < ntests; ++i) {
 	tests[i].val = &values[i];
-	asprintf (&tests[i].name, "time %d", (int)values[i]);
+	if (asprintf (&tests[i].name, "time %d", (int)values[i]) < 0)
+	    errx(1, "malloc");
 	if (tests[i].name == NULL)
 	    errx(1, "malloc");
     }
@@ -407,7 +424,8 @@ test_generalized_time (void)
 			(generic_length)der_length_generalized_time,
 			(generic_decode)der_get_generalized_time,
 			(generic_free)NULL,
-			cmp_generalized_time);
+			cmp_generalized_time,
+			NULL);
     for (i = 0; i < ntests; ++i)
 	free(tests[i].name);
     return ret;
@@ -444,7 +462,8 @@ test_oid (void)
 
     for (i = 0; i < ntests; ++i) {
 	tests[i].val = &values[i];
-	asprintf (&tests[i].name, "oid %d", i);
+	if (asprintf (&tests[i].name, "oid %d", i) < 0)
+	    errx(1, "malloc");
 	if (tests[i].name == NULL)
 	    errx(1, "malloc");
     }
@@ -454,7 +473,8 @@ test_oid (void)
 			(generic_length)der_length_oid,
 			(generic_decode)der_get_oid,
 			(generic_free)der_free_oid,
-			test_cmp_oid);
+			test_cmp_oid,
+			NULL);
     for (i = 0; i < ntests; ++i)
 	free(tests[i].name);
     return ret;
@@ -480,7 +500,8 @@ test_bit_string (void)
 
     for (i = 0; i < ntests; ++i) {
 	tests[i].val = &values[i];
-	asprintf (&tests[i].name, "bit_string %d", i);
+	if (asprintf (&tests[i].name, "bit_string %d", i) < 0)
+	    errx(1, "malloc");
 	if (tests[i].name == NULL)
 	    errx(1, "malloc");
     }
@@ -490,7 +511,8 @@ test_bit_string (void)
 			(generic_length)der_length_bit_string,
 			(generic_decode)der_get_bit_string,
 			(generic_free)der_free_bit_string,
-			test_cmp_bit_string);
+			test_cmp_bit_string,
+			NULL);
     for (i = 0; i < ntests; ++i)
 	free(tests[i].name);
     return ret;
@@ -531,7 +553,8 @@ test_heim_integer (void)
 
     for (i = 0; i < ntests; ++i) {
 	tests[i].val = &values[i];
-	asprintf (&tests[i].name, "heim_integer %d", i);
+	if (asprintf (&tests[i].name, "heim_integer %d", i) < 0)
+	    errx(1, "malloc");
 	if (tests[i].name == NULL)
 	    errx(1, "malloc");
     }
@@ -541,8 +564,9 @@ test_heim_integer (void)
 			(generic_length)der_length_heim_integer,
 			(generic_decode)der_get_heim_integer,
 			(generic_free)der_free_heim_integer,
-			test_cmp_heim_integer);
-    for (i = 0; i < ntests; ++i) 
+			test_cmp_heim_integer,
+			NULL);
+    for (i = 0; i < ntests; ++i)
 	free (tests[i].name);
     if (ret)
 	return ret;
@@ -580,7 +604,8 @@ test_boolean (void)
 
     for (i = 0; i < ntests; ++i) {
 	tests[i].val = &values[i];
-	asprintf (&tests[i].name, "heim_boolean %d", i);
+	if (asprintf (&tests[i].name, "heim_boolean %d", i) < 0)
+	    errx(1, "malloc");
 	if (tests[i].name == NULL)
 	    errx(1, "malloc");
     }
@@ -590,8 +615,9 @@ test_boolean (void)
 			(generic_length)der_length_boolean,
 			(generic_decode)der_get_boolean,
 			(generic_free)NULL,
-			test_cmp_boolean);
-    for (i = 0; i < ntests; ++i) 
+			test_cmp_boolean,
+			NULL);
+    for (i = 0; i < ntests; ++i)
 	free (tests[i].name);
     if (ret)
 	return ret;
@@ -733,7 +759,7 @@ check_fail_oid(void)
     struct test_case tests[] = {
 	{NULL, 0, "", "empty input data"},
 	{NULL, 2, "\x00\x80", "last byte continuation" },
-	{NULL, 11, "\x00\x81\x80\x80\x80\x80\x80\x80\x80\x80\x00", 
+	{NULL, 11, "\x00\x81\x80\x80\x80\x80\x80\x80\x80\x80\x00",
 	"oid element overflow" }
     };
     int ntests = sizeof(tests) / sizeof(*tests);
@@ -808,7 +834,7 @@ test_heim_int_format(void)
 	"EE386BFB" "5A899FA5" "AE9F2411" "7C4B1FE6" "49286651" "ECE65381"
 	"FFFFFFFF" "FFFFFFFF";
     heim_integer bni = {
-	128, 
+	128,
 	"\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xC9\x0F\xDA\xA2"
 	"\x21\x68\xC2\x34\xC4\xC6\x62\x8B\x80\xDC\x1C\xD1"
 	"\x29\x02\x4E\x08\x8A\x67\xCC\x74\x02\x0B\xBE\xA6"
@@ -916,7 +942,7 @@ check_trailing_nul(void)
 	{ 0, (const unsigned char *)"foo\0", 4, "foo", 4 },
 	{ 0, (const unsigned char *)"foo", 3, "foo", 3 }
     };
-    
+
     for (i = 0; i < sizeof(foo)/sizeof(foo[0]); i++) {
 	char *s;
 	size_t size;
@@ -1024,7 +1050,7 @@ corner_tag(void)
 	int ok;
 	const char *ptr;
 	size_t len;
-    } tests[] = { 
+    } tests[] = {
 	{ 1, "\x00", 1 },
 	{ 0, "\xff", 1 },
 	{ 0, "\xff\xff\xff\xff\xff\xff\xff\xff", 8 }
@@ -1036,7 +1062,7 @@ corner_tag(void)
     size_t size;
 
     for (i = 0; i < sizeof(tests)/sizeof(tests[0]); i++) {
-	ret = der_get_tag((const unsigned char*)tests[i].ptr, 
+	ret = der_get_tag((const unsigned char*)tests[i].ptr,
 			  tests[i].len, &cl, &ty, &tag, &size);
 	if (ret) {
 	    if (tests[i].ok)

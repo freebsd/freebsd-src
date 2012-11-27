@@ -368,8 +368,9 @@ AcpiNsRepairObject (
     ACPI_OPERAND_OBJECT     **ReturnObjectPtr);
 
 ACPI_STATUS
-AcpiNsRepairPackageList (
+AcpiNsWrapWithPackage (
     ACPI_PREDEFINED_DATA    *Data,
+    ACPI_OPERAND_OBJECT     *OriginalObject,
     ACPI_OPERAND_OBJECT     **ObjDescPtr);
 
 ACPI_STATUS

@@ -1,5 +1,5 @@
 <!--
- - Copyright (C) 2004-2011 Internet Systems Consortium, Inc. ("ISC")
+ - Copyright (C) 2004-2012 Internet Systems Consortium, Inc. ("ISC")
  - Copyright (C) 2000-2003 Internet Software Consortium.
  - 
  - Permission to use, copy, modify, and/or distribute this software for any
@@ -14,7 +14,7 @@
  - OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
  - PERFORMANCE OF THIS SOFTWARE.
 -->
-<!-- $Id: Bv9ARM.ch04.html,v 1.125.8.9 2011-08-03 02:35:12 tbox Exp $ -->
+<!-- $Id$ -->
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
@@ -49,59 +49,59 @@
 <dt><span class="sect1"><a href="Bv9ARM.ch04.html#dynamic_update">Dynamic Update</a></span></dt>
 <dd><dl><dt><span class="sect2"><a href="Bv9ARM.ch04.html#journal">The journal file</a></span></dt></dl></dd>
 <dt><span class="sect1"><a href="Bv9ARM.ch04.html#incremental_zone_transfers">Incremental Zone Transfers (IXFR)</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch04.html#id2570885">Split DNS</a></span></dt>
-<dd><dl><dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2570903">Example split DNS setup</a></span></dt></dl></dd>
+<dt><span class="sect1"><a href="Bv9ARM.ch04.html#id2570934">Split DNS</a></span></dt>
+<dd><dl><dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2570952">Example split DNS setup</a></span></dt></dl></dd>
 <dt><span class="sect1"><a href="Bv9ARM.ch04.html#tsig">TSIG</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2571336">Generate Shared Keys for Each Pair of Hosts</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2571478">Copying the Shared Secret to Both Machines</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2571489">Informing the Servers of the Key's Existence</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2571525">Instructing the Server to Use the Key</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2571651">TSIG Key Based Access Control</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2571700">Errors</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2564012">Generate Shared Keys for Each Pair of Hosts</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2564086">Copying the Shared Secret to Both Machines</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2571811">Informing the Servers of the Key's Existence</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2571847">Instructing the Server to Use the Key</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2571905">TSIG Key Based Access Control</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2571954">Errors</a></span></dt>
 </dl></dd>
-<dt><span class="sect1"><a href="Bv9ARM.ch04.html#id2571714">TKEY</a></span></dt>
-<dt><span class="sect1"><a href="Bv9ARM.ch04.html#id2563980">SIG(0)</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch04.html#id2571968">TKEY</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch04.html#id2572153">SIG(0)</a></span></dt>
 <dt><span class="sect1"><a href="Bv9ARM.ch04.html#DNSSEC">DNSSEC</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2564117">Generating Keys</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2572183">Signing the Zone</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2572264">Configuring Servers</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2572221">Generating Keys</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2572300">Signing the Zone</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2572381">Configuring Servers</a></span></dt>
 </dl></dd>
 <dt><span class="sect1"><a href="Bv9ARM.ch04.html#dnssec.dynamic.zones">DNSSEC, Dynamic Zones, and Automatic Signing</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563484">Converting from insecure to secure</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563522">Dynamic DNS update method</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563626">Fully automatic zone signing</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563777">Private-type records</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563814">DNSKEY rollovers</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563827">Dynamic DNS update method</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563860">Automatic key rollovers</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563886">NSEC3PARAM rollovers via UPDATE</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563896">Converting from NSEC to NSEC3</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563906">Converting from NSEC3 to NSEC</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563918">Converting from secure to insecure</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563956">Periodic re-signing</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2571816">NSEC3 and OPTOUT</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2571421">Converting from insecure to secure</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2571459">Dynamic DNS update method</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563508">Fully automatic zone signing</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563590">Private-type records</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563696">DNSKEY rollovers</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563708">Dynamic DNS update method</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563741">Automatic key rollovers</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563836">NSEC3PARAM rollovers via UPDATE</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563846">Converting from NSEC to NSEC3</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563856">Converting from NSEC3 to NSEC</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563868">Converting from secure to insecure</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563906">Periodic re-signing</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2563915">NSEC3 and OPTOUT</a></span></dt>
 </dl></dd>
 <dt><span class="sect1"><a href="Bv9ARM.ch04.html#rfc5011.support">Dynamic Trust Anchor Management</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2571869">Validating Resolver</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2571892">Authoritative Server</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2571685">Validating Resolver</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2571707">Authoritative Server</a></span></dt>
 </dl></dd>
 <dt><span class="sect1"><a href="Bv9ARM.ch04.html#pkcs11">PKCS #11 (Cryptoki) support</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2609757">Prerequisites</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2607912">Building BIND 9 with PKCS#11</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2608144">PKCS #11 Tools</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2608174">Using the HSM</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2610353">Specifying the engine on the command line</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2610467">Running named with automatic zone re-signing</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2609970">Prerequisites</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2608219">Building BIND 9 with PKCS#11</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2610529">PKCS #11 Tools</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2610560">Using the HSM</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2635129">Specifying the engine on the command line</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2635243">Running named with automatic zone re-signing</a></span></dt>
 </dl></dd>
-<dt><span class="sect1"><a href="Bv9ARM.ch04.html#id2572484">IPv6 Support in <acronym class="acronym">BIND</acronym> 9</a></span></dt>
+<dt><span class="sect1"><a href="Bv9ARM.ch04.html#id2572669">IPv6 Support in <acronym class="acronym">BIND</acronym> 9</a></span></dt>
 <dd><dl>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2572819">Address Lookups Using AAAA Records</a></span></dt>
-<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2572840">Address to Name Lookups Using Nibble Format</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2572868">Address Lookups Using AAAA Records</a></span></dt>
+<dt><span class="sect2"><a href="Bv9ARM.ch04.html#id2572889">Address to Name Lookups Using Nibble Format</a></span></dt>
 </dl></dd>
 </dl>
 </div>
@@ -247,16 +247,18 @@
         to <strong class="userinput"><code>yes</code></strong>.
       </p>
 <p>
-        When acting as a slave, <acronym class="acronym">BIND</acronym> 9 will
-        attempt to use IXFR unless
-        it is explicitly disabled. For more information about disabling
-        IXFR, see the description of the <span><strong class="command">request-ixfr</strong></span> clause
-        of the <span><strong class="command">server</strong></span> statement.
+        When acting as a slave, <acronym class="acronym">BIND</acronym> 9 will attempt
+        to use IXFR unless it is explicitly disabled via the
+        <span><strong class="command">request-ixfr</strong></span> option or the use of
+        <span><strong class="command">ixfr-from-differences</strong></span>.  For
+        more information about disabling IXFR, see the description
+        of the <span><strong class="command">request-ixfr</strong></span> clause of the
+        <span><strong class="command">server</strong></span> statement.
       </p>
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2570885"></a>Split DNS</h2></div></div></div>
+<a name="id2570934"></a>Split DNS</h2></div></div></div>
 <p>
         Setting up different views, or visibility, of the DNS space to
         internal and external resolvers is usually referred to as a
@@ -286,7 +288,7 @@
       </p>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2570903"></a>Example split DNS setup</h3></div></div></div>
+<a name="id2570952"></a>Example split DNS setup</h3></div></div></div>
 <p>
         Let's say a company named <span class="emphasis"><em>Example, Inc.</em></span>
         (<code class="literal">example.com</code>)
@@ -543,7 +545,7 @@ nameserver 172.16.72.4
       </p>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2571336"></a>Generate Shared Keys for Each Pair of Hosts</h3></div></div></div>
+<a name="id2564012"></a>Generate Shared Keys for Each Pair of Hosts</h3></div></div></div>
 <p>
           A shared secret is generated to be shared between <span class="emphasis"><em>host1</em></span> and <span class="emphasis"><em>host2</em></span>.
           An arbitrary key name is chosen: "host1-host2.". The key name must
@@ -551,7 +553,7 @@ nameserver 172.16.72.4
         </p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2571353"></a>Automatic Generation</h4></div></div></div>
+<a name="id2564029"></a>Automatic Generation</h4></div></div></div>
 <p>
             The following command will generate a 128-bit (16 byte) HMAC-SHA256
             key as described above. Longer keys are better, but shorter keys
@@ -575,7 +577,7 @@ nameserver 172.16.72.4
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2571392"></a>Manual Generation</h4></div></div></div>
+<a name="id2564068"></a>Manual Generation</h4></div></div></div>
 <p>
             The shared secret is simply a random sequence of bits, encoded
             in base-64. Most ASCII strings are valid base-64 strings (assuming
@@ -590,7 +592,7 @@ nameserver 172.16.72.4
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2571478"></a>Copying the Shared Secret to Both Machines</h3></div></div></div>
+<a name="id2564086"></a>Copying the Shared Secret to Both Machines</h3></div></div></div>
 <p>
           This is beyond the scope of DNS. A secure transport mechanism
           should be used. This could be secure FTP, ssh, telephone, etc.
@@ -598,7 +600,7 @@ nameserver 172.16.72.4
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2571489"></a>Informing the Servers of the Key's Existence</h3></div></div></div>
+<a name="id2571811"></a>Informing the Servers of the Key's Existence</h3></div></div></div>
 <p>
           Imagine <span class="emphasis"><em>host1</em></span> and <span class="emphasis"><em>host 2</em></span>
           are
@@ -625,7 +627,7 @@ key host1-host2. {
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2571525"></a>Instructing the Server to Use the Key</h3></div></div></div>
+<a name="id2571847"></a>Instructing the Server to Use the Key</h3></div></div></div>
 <p>
           Since keys are shared between two hosts only, the server must
           be told when keys are to be used. The following is added to the <code class="filename">named.conf</code> file
@@ -657,7 +659,7 @@ server 10.1.2.3 {
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2571651"></a>TSIG Key Based Access Control</h3></div></div></div>
+<a name="id2571905"></a>TSIG Key Based Access Control</h3></div></div></div>
 <p>
           <acronym class="acronym">BIND</acronym> allows IP addresses and ranges
           to be specified in ACL
@@ -684,7 +686,7 @@ allow-update { key host1-host2. ;};
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2571700"></a>Errors</h3></div></div></div>
+<a name="id2571954"></a>Errors</h3></div></div></div>
 <p>
           The processing of TSIG signed messages can result in
           several errors. If a signed message is sent to a non-TSIG aware
@@ -710,7 +712,7 @@ allow-update { key host1-host2. ;};
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2571714"></a>TKEY</h2></div></div></div>
+<a name="id2571968"></a>TKEY</h2></div></div></div>
 <p><span><strong class="command">TKEY</strong></span>
         is a mechanism for automatically generating a shared secret
         between two hosts.  There are several "modes" of
@@ -746,7 +748,7 @@ allow-update { key host1-host2. ;};
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2563980"></a>SIG(0)</h2></div></div></div>
+<a name="id2572153"></a>SIG(0)</h2></div></div></div>
 <p>
         <acronym class="acronym">BIND</acronym> 9 partially supports DNSSEC SIG(0)
             transaction signatures as specified in RFC 2535 and RFC 2931.
@@ -807,7 +809,7 @@ allow-update { key host1-host2. ;};
       </p>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2564117"></a>Generating Keys</h3></div></div></div>
+<a name="id2572221"></a>Generating Keys</h3></div></div></div>
 <p>
           The <span><strong class="command">dnssec-keygen</strong></span> program is used to
           generate keys.
@@ -863,7 +865,7 @@ allow-update { key host1-host2. ;};
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2572183"></a>Signing the Zone</h3></div></div></div>
+<a name="id2572300"></a>Signing the Zone</h3></div></div></div>
 <p>
           The <span><strong class="command">dnssec-signzone</strong></span> program is used
           to sign a zone.
@@ -905,7 +907,7 @@ allow-update { key host1-host2. ;};
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2572264"></a>Configuring Servers</h3></div></div></div>
+<a name="id2572381"></a>Configuring Servers</h3></div></div></div>
 <p>
           To enable <span><strong class="command">named</strong></span> to respond appropriately
           to DNS requests from DNSSEC aware clients,
@@ -1065,7 +1067,7 @@ options {
   from insecure to signed and back again. A secure zone can use
   either NSEC or NSEC3 chains.</p>
 <div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title">
-<a name="id2563484"></a>Converting from insecure to secure</h3></div></div></div></div>
+<a name="id2571421"></a>Converting from insecure to secure</h3></div></div></div></div>
 <p>Changing a zone from insecure to secure can be done in two
   ways: using a dynamic DNS update, or the 
   <span><strong class="command">auto-dnssec</strong></span> zone option.</p>
@@ -1091,7 +1093,7 @@ options {
   well. An NSEC chain will be generated as part of the initial
   signing process.</p>
 <div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title">
-<a name="id2563522"></a>Dynamic DNS update method</h3></div></div></div></div>
+<a name="id2571459"></a>Dynamic DNS update method</h3></div></div></div></div>
 <p>To insert the keys via dynamic update:</p>
 <pre class="screen">
         % nsupdate
@@ -1127,7 +1129,7 @@ options {
 <p>While the initial signing and NSEC/NSEC3 chain generation
   is happening, other updates are possible as well.</p>
 <div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title">
-<a name="id2563626"></a>Fully automatic zone signing</h3></div></div></div></div>
+<a name="id2563508"></a>Fully automatic zone signing</h3></div></div></div></div>
 <p>To enable automatic signing, add the 
   <span><strong class="command">auto-dnssec</strong></span> option to the zone statement in 
   <code class="filename">named.conf</code>. 
@@ -1162,7 +1164,7 @@ options {
   configuration. If this has not been done, the configuration will
   fail.</p>
 <div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title">
-<a name="id2563777"></a>Private-type records</h3></div></div></div></div>
+<a name="id2563590"></a>Private-type records</h3></div></div></div></div>
 <p>The state of the signing process is signaled by
   private-type records (with a default type value of 65534). When
   signing is complete, these records will have a nonzero value for
@@ -1203,12 +1205,12 @@ options {
 <p>
   </p>
 <div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title">
-<a name="id2563814"></a>DNSKEY rollovers</h3></div></div></div></div>
+<a name="id2563696"></a>DNSKEY rollovers</h3></div></div></div></div>
 <p>As with insecure-to-secure conversions, rolling DNSSEC
   keys can be done in two ways: using a dynamic DNS update, or the 
   <span><strong class="command">auto-dnssec</strong></span> zone option.</p>
 <div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title">
-<a name="id2563827"></a>Dynamic DNS update method</h3></div></div></div></div>
+<a name="id2563708"></a>Dynamic DNS update method</h3></div></div></div></div>
 <p> To perform key rollovers via dynamic update, you need to add
   the <code class="filename">K*</code> files for the new keys so that 
   <span><strong class="command">named</strong></span> can find them. You can then add the new
@@ -1230,7 +1232,7 @@ options {
   <span><strong class="command">named</strong></span> will clean out any signatures generated
   by the old key after the update completes.</p>
 <div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title">
-<a name="id2563860"></a>Automatic key rollovers</h3></div></div></div></div>
+<a name="id2563741"></a>Automatic key rollovers</h3></div></div></div></div>
 <p>When a new key reaches its activation date (as set by
   <span><strong class="command">dnssec-keygen</strong></span> or <span><strong class="command">dnssec-settime</strong></span>),
   if the <span><strong class="command">auto-dnssec</strong></span> zone option is set to 
@@ -1245,27 +1247,27 @@ options {
   completes in 30 days, after which it will be safe to remove the
   old key from the DNSKEY RRset.</p>
 <div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title">
-<a name="id2563886"></a>NSEC3PARAM rollovers via UPDATE</h3></div></div></div></div>
+<a name="id2563836"></a>NSEC3PARAM rollovers via UPDATE</h3></div></div></div></div>
 <p>Add the new NSEC3PARAM record via dynamic update. When the
   new NSEC3 chain has been generated, the NSEC3PARAM flag field
   will be zero. At this point you can remove the old NSEC3PARAM
   record. The old chain will be removed after the update request
   completes.</p>
 <div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title">
-<a name="id2563896"></a>Converting from NSEC to NSEC3</h3></div></div></div></div>
+<a name="id2563846"></a>Converting from NSEC to NSEC3</h3></div></div></div></div>
 <p>To do this, you just need to add an NSEC3PARAM record. When
   the conversion is complete, the NSEC chain will have been removed
   and the NSEC3PARAM record will have a zero flag field. The NSEC3
   chain will be generated before the NSEC chain is
   destroyed.</p>
 <div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title">
-<a name="id2563906"></a>Converting from NSEC3 to NSEC</h3></div></div></div></div>
+<a name="id2563856"></a>Converting from NSEC3 to NSEC</h3></div></div></div></div>
 <p>To do this, use <span><strong class="command">nsupdate</strong></span> to
   remove all NSEC3PARAM records with a zero flag
   field. The NSEC chain will be generated before the NSEC3 chain is
   removed.</p>
 <div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title">
-<a name="id2563918"></a>Converting from secure to insecure</h3></div></div></div></div>
+<a name="id2563868"></a>Converting from secure to insecure</h3></div></div></div></div>
 <p>To convert a signed zone to unsigned using dynamic DNS,
   delete all the DNSKEY records from the zone apex using
   <span><strong class="command">nsupdate</strong></span>. All signatures, NSEC or NSEC3 chains,
@@ -1280,14 +1282,14 @@ options {
   <span><strong class="command">allow</strong></span> instead (or it will re-sign).
   </p>
 <div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title">
-<a name="id2563956"></a>Periodic re-signing</h3></div></div></div></div>
+<a name="id2563906"></a>Periodic re-signing</h3></div></div></div></div>
 <p>In any secure zone which supports dynamic updates, named
   will periodically re-sign RRsets which have not been re-signed as
   a result of some update action. The signature lifetimes will be
   adjusted so as to spread the re-sign load over time rather than
   all at once.</p>
 <div class="sect2" lang="en"><div class="titlepage"><div><div><h3 class="title">
-<a name="id2571816"></a>NSEC3 and OPTOUT</h3></div></div></div></div>
+<a name="id2563915"></a>NSEC3 and OPTOUT</h3></div></div></div></div>
 <p>
   <span><strong class="command">named</strong></span> only supports creating new NSEC3 chains
   where all the NSEC3 records in the zone have the same OPTOUT
@@ -1309,7 +1311,7 @@ options {
   configuration files.</p>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2571869"></a>Validating Resolver</h3></div></div></div>
+<a name="id2571685"></a>Validating Resolver</h3></div></div></div>
 <p>To configure a validating resolver to use RFC 5011 to
     maintain a trust anchor, configure the trust anchor using a 
     <span><strong class="command">managed-keys</strong></span> statement. Information about
@@ -1320,7 +1322,7 @@ options {
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2571892"></a>Authoritative Server</h3></div></div></div>
+<a name="id2571707"></a>Authoritative Server</h3></div></div></div>
 <p>To set up an authoritative zone for RFC 5011 trust anchor
     maintenance, generate two (or more) key signing keys (KSKs) for
     the zone. Sign the zone with one of them; this is the "active"
@@ -1394,7 +1396,7 @@ $ <strong class="userinput"><code>dnssec-signzone -S -K keys example.net</code><
   Debian Linux, Solaris x86 and Windows Server 2003.</p>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2609757"></a>Prerequisites</h3></div></div></div>
+<a name="id2609970"></a>Prerequisites</h3></div></div></div>
 <p>See the HSM vendor documentation for information about
     installing, initializing, testing and troubleshooting the
     HSM.</p>
@@ -1429,13 +1431,16 @@ $ <strong class="userinput"><code>dnssec-signzone -S -K keys example.net</code><
         other computationally-intensive operations. The AEP Keyper
         is an example of such a device.</p></li>
 </ul></div>
-<p>The modified OpenSSL code is included in the BIND 9.7.0
-    release, in the form of a context diff against the latest OpenSSL.
+<p>The modified OpenSSL code is included in the BIND 9 release,
+        in the form of a context diff against the latest verions of
+        OpenSSL.  OpenSSL 0.9.8 and 1.0.0 are both supported; there are
+        separate diffs for each version.  In the examples to follow,
+        we use OpenSSL 0.9.8, but the same methods work with OpenSSL 1.0.0.
     </p>
 <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
 <h3 class="title">Note</h3>
-      The latest OpenSSL version at the time of the BIND release
-      is 0.9.8l.
+      The latest OpenSSL versions at the time of the BIND release
+      are 0.9.8s and 1.0.0f.
       ISC will provide an updated patch as new versions of OpenSSL
       are released. The version number in the following examples
       is expected to change.</div>
@@ -1444,18 +1449,18 @@ $ <strong class="userinput"><code>dnssec-signzone -S -K keys example.net</code><
     necessary to build OpenSSL with this patch in place and inform
     it of the path to the HSM-specific PKCS #11 provider
     library.</p>
-<p>Obtain OpenSSL 0.9.8l:</p>
+<p>Obtain OpenSSL 0.9.8s:</p>
 <pre class="screen">
-$ <strong class="userinput"><code>wget <a href="" target="_top">http://www.openssl.org/source/openssl-0.9.8l.tar.gz</a></code></strong>
+$ <strong class="userinput"><code>wget <a href="" target="_top">http://www.openssl.org/source/openssl-0.9.8s.tar.gz</a></code></strong>
 </pre>
 <p>Extract the tarball:</p>
 <pre class="screen">
-$ <strong class="userinput"><code>tar zxf openssl-0.9.8l.tar.gz</code></strong>
+$ <strong class="userinput"><code>tar zxf openssl-0.9.8s.tar.gz</code></strong>
 </pre>
 <p>Apply the patch from the BIND 9 release:</p>
 <pre class="screen">
-$ <strong class="userinput"><code>patch -p1 -d openssl-0.9.8l \
-            &lt; bind-9.7.0/bin/pkcs11/openssl-0.9.8l-patch</code></strong>
+$ <strong class="userinput"><code>patch -p1 -d openssl-0.9.8s \
+            &lt; bind9/bin/pkcs11/openssl-0.9.8s-patch</code></strong>
 </pre>
 <div class="note" style="margin-left: 0.5in; margin-right: 0.5in;">
 <h3 class="title">Note</h3>(Note that the patch file may not be compatible with the
@@ -1468,7 +1473,7 @@ $ <strong class="userinput"><code>patch -p1 -d openssl-0.9.8l \
     when we configure BIND 9.</p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2607669"></a>Building OpenSSL for the AEP Keyper on Linux</h4></div></div></div>
+<a name="id2607881"></a>Building OpenSSL for the AEP Keyper on Linux</h4></div></div></div>
 <p>The AEP Keyper is a highly secure key storage device,
       but does not provide hardware cryptographic acceleration. It
       can carry out cryptographic operations, but it is probably
@@ -1487,7 +1492,7 @@ $ <strong class="userinput"><code>cp pkcs11.GCC4.0.2.so.4.05 /opt/pkcs11/usr/lib
 <p>Finally, the Keyper library requires threads, so we
       must specify -pthread.</p>
 <pre class="screen">
-$ <strong class="userinput"><code>cd openssl-0.9.8l</code></strong>
+$ <strong class="userinput"><code>cd openssl-0.9.8s</code></strong>
 $ <strong class="userinput"><code>./Configure linux-generic32 -m32 -pthread \
             --pk11-libname=/opt/pkcs11/usr/lib/libpkcs11.so \
             --pk11-flavor=sign-only \
@@ -1500,7 +1505,7 @@ $ <strong class="userinput"><code>./Configure linux-generic32 -m32 -pthread \
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2607806"></a>Building OpenSSL for the SCA 6000 on Solaris</h4></div></div></div>
+<a name="id2608019"></a>Building OpenSSL for the SCA 6000 on Solaris</h4></div></div></div>
 <p>The SCA-6000 PKCS #11 provider is installed as a system
       library, libpkcs11. It is a true crypto accelerator, up to 4
       times faster than any CPU, so the flavor shall be
@@ -1508,7 +1513,7 @@ $ <strong class="userinput"><code>./Configure linux-generic32 -m32 -pthread \
 <p>In this example, we are building on Solaris x86 on an
       AMD64 system.</p>
 <pre class="screen">
-$ <strong class="userinput"><code>cd openssl-0.9.8l</code></strong>
+$ <strong class="userinput"><code>cd openssl-0.9.8s</code></strong>
 $ <strong class="userinput"><code>./Configure solaris64-x86_64-cc \
             --pk11-libname=/usr/lib/64/libpkcs11.so \
             --pk11-flavor=crypto-accelerator \
@@ -1519,11 +1524,50 @@ $ <strong class="userinput"><code>./Configure solaris64-x86_64-cc \
 <p>After configuring, run 
       <span><strong class="command">make</strong></span> and 
       <span><strong class="command">make test</strong></span>.</p>
+</div>
+<div class="sect3" lang="en">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="id2608068"></a>Building OpenSSL for SoftHSM</h4></div></div></div>
+<p>SoftHSM is a software library provided by the OpenDNSSEC
+      project (http://www.opendnssec.org) which provides a PKCS#11
+      interface to a virtual HSM, implemented in the form of encrypted
+      data on the local filesystem.  It uses the Botan library for
+      encryption and SQLite3 for data storage.  Though less secure
+      than a true HSM, it can provide more secure key storage than
+      traditional key files, and can allow you to experiment with
+      PKCS#11 when an HSM is not available.</p>
+<p>The SoftHSM cryptographic store must be installed and
+      initialized before using it with OpenSSL, and the SOFTHSM_CONF
+      environment variable must always point to the SoftHSM configuration
+      file:</p>
+<pre class="screen">
+$ <strong class="userinput"><code> cd softhsm-1.3.0 </code></strong>
+$ <strong class="userinput"><code> configure --prefix=/opt/pkcs11/usr </code></strong>
+$ <strong class="userinput"><code> make </code></strong>
+$ <strong class="userinput"><code> make install </code></strong>
+$ <strong class="userinput"><code> export SOFTHSM_CONF=/opt/pkcs11/softhsm.conf </code></strong>
+$ <strong class="userinput"><code> echo "0:/opt/pkcs11/softhsm.db" &gt; $SOFTHSM_CONF </code></strong>
+$ <strong class="userinput"><code> /opt/pkcs11/usr/bin/softhsm --init-token 0 --slot 0 --label softhsm </code></strong>
+</pre>
+<p>SoftHSM can perform all cryptographic operations, but
+      since it only uses your system CPU, there is no need to use it
+      for anything but signing.  Therefore, we choose the 'sign-only'
+      flavor when building OpenSSL.</p>
+<pre class="screen">
+$ <strong class="userinput"><code>cd openssl-0.9.8s</code></strong>
+$ <strong class="userinput"><code>./Configure linux-x86_64 -pthread \
+            --pk11-libname=/opt/pkcs11/usr/lib/libpkcs11.so \
+            --pk11-flavor=sign-only \
+            --prefix=/opt/pkcs11/usr</code></strong>
+</pre>
+<p>After configuring, run "<span><strong class="command">make</strong></span>"
+      and "<span><strong class="command">make test</strong></span>".</p>
+</div>
 <p>Once you have built OpenSSL, run
-      "<span><strong class="command">apps/openssl engine pkcs11</strong></span>" to confirm
-      that PKCS #11 support was compiled in correctly. The output
-      should be one of the following lines, depending on the flavor
-      selected:</p>
+    "<span><strong class="command">apps/openssl engine pkcs11</strong></span>" to confirm
+    that PKCS #11 support was compiled in correctly. The output
+    should be one of the following lines, depending on the flavor
+    selected:</p>
 <pre class="screen">
         (pkcs11) PKCS #11 engine support (sign only)
 </pre>
@@ -1532,24 +1576,23 @@ $ <strong class="userinput"><code>./Configure solaris64-x86_64-cc \
         (pkcs11) PKCS #11 engine support (crypto accelerator)
 </pre>
 <p>Next, run
-      "<span><strong class="command">apps/openssl engine pkcs11 -t</strong></span>". This will
-      attempt to initialize the PKCS #11 engine. If it is able to
-      do so successfully, it will report
-      &#8220;<span class="quote"><code class="literal">[ available ]</code></span>&#8221;.</p>
+    "<span><strong class="command">apps/openssl engine pkcs11 -t</strong></span>". This will
+    attempt to initialize the PKCS #11 engine. If it is able to
+    do so successfully, it will report
+    &#8220;<span class="quote"><code class="literal">[ available ]</code></span>&#8221;.</p>
 <p>If the output is correct, run
-      "<span><strong class="command">make install</strong></span>" which will install the
-      modified OpenSSL suite to 
-      <code class="filename">/opt/pkcs11/usr</code>.</p>
-</div>
+    "<span><strong class="command">make install</strong></span>" which will install the
+    modified OpenSSL suite to 
+    <code class="filename">/opt/pkcs11/usr</code>.</p>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2607912"></a>Building BIND 9 with PKCS#11</h3></div></div></div>
+<a name="id2608219"></a>Building BIND 9 with PKCS#11</h3></div></div></div>
 <p>When building BIND 9, the location of the custom-built
     OpenSSL library must be specified via configure.</p>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2607921"></a>Configuring BIND 9 for Linux</h4></div></div></div>
+<a name="id2608228"></a>Configuring BIND 9 for Linux with the AEP Keyper</h4></div></div></div>
 <p>To link with the PKCS #11 provider, threads must be
       enabled in the BIND 9 build.</p>
 <p>The PKCS #11 library for the AEP Keyper is currently
@@ -1557,7 +1600,7 @@ $ <strong class="userinput"><code>./Configure solaris64-x86_64-cc \
       64-bit host, we must force a 32-bit build by adding "-m32" to
       the CC options on the "configure" command line.</p>
 <pre class="screen">
-$ <strong class="userinput"><code>cd ../bind-9.7.0</code></strong>
+$ <strong class="userinput"><code>cd ../bind9</code></strong>
 $ <strong class="userinput"><code>./configure CC="gcc -m32" --enable-threads \
            --with-openssl=/opt/pkcs11/usr \
            --with-pkcs11=/opt/pkcs11/usr/lib/libpkcs11.so</code></strong>
@@ -1565,11 +1608,11 @@ $ <strong class="userinput"><code>./configure CC="gcc -m32" --enable-threads \
 </div>
 <div class="sect3" lang="en">
 <div class="titlepage"><div><div><h4 class="title">
-<a name="id2608020"></a>Configuring BIND 9 for Solaris</h4></div></div></div>
+<a name="id2608260"></a>Configuring BIND 9 for Solaris with the SCA 6000</h4></div></div></div>
 <p>To link with the PKCS #11 provider, threads must be
       enabled in the BIND 9 build.</p>
 <pre class="screen">
-$ <strong class="userinput"><code>cd ../bind-9.7.0</code></strong>
+$ <strong class="userinput"><code>cd ../bind9</code></strong>
 $ <strong class="userinput"><code>./configure CC="cc -xarch=amd64" --enable-threads \
             --with-openssl=/opt/pkcs11/usr \
             --with-pkcs11=/usr/lib/64/libpkcs11.so</code></strong>
@@ -1581,14 +1624,26 @@ $ <strong class="userinput"><code>./configure CC="cc -xarch=amd64" --enable-thre
       same as the --prefix argument to the OpenSSL
       Configure).</p>
 </div>
+<div class="sect3" lang="en">
+<div class="titlepage"><div><div><h4 class="title">
+<a name="id2610481"></a>Configuring BIND 9 for SoftHSM</h4></div></div></div>
+<pre class="screen">
+$ <strong class="userinput"><code>cd ../bind9</code></strong>
+$ <strong class="userinput"><code>./configure --enable-threads \
+           --with-openssl=/opt/pkcs11/usr \
+           --with-pkcs11=/opt/pkcs11/usr/lib/libpkcs11.so</code></strong>
+</pre>
+</div>
 <p>After configuring, run
     "<span><strong class="command">make</strong></span>",
     "<span><strong class="command">make test</strong></span>" and
     "<span><strong class="command">make install</strong></span>".</p>
+<p>(Note: If "make test" fails in the "pkcs11" system test, you may
+    have forgotten to set the SOFTHSM_CONF environment variable.)</p>
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2608144"></a>PKCS #11 Tools</h3></div></div></div>
+<a name="id2610529"></a>PKCS #11 Tools</h3></div></div></div>
 <p>BIND 9 includes a minimal set of tools to operate the
     HSM, including 
     <span><strong class="command">pkcs11-keygen</strong></span> to generate a new key pair
@@ -1606,7 +1661,7 @@ $ <strong class="userinput"><code>./configure CC="cc -xarch=amd64" --enable-thre
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2608174"></a>Using the HSM</h3></div></div></div>
+<a name="id2610560"></a>Using the HSM</h3></div></div></div>
 <p>First, we must set up the runtime environment so the
     OpenSSL and PKCS #11 libraries can be loaded:</p>
 <pre class="screen">
@@ -1694,7 +1749,7 @@ example.net.signed
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2610353"></a>Specifying the engine on the command line</h3></div></div></div>
+<a name="id2635129"></a>Specifying the engine on the command line</h3></div></div></div>
 <p>The OpenSSL engine can be specified in 
     <span><strong class="command">named</strong></span> and all of the BIND 
     <span><strong class="command">dnssec-*</strong></span> tools by using the "-E
@@ -1715,7 +1770,7 @@ $ <strong class="userinput"><code>dnssec-signzone -E '' -S example.net</code></s
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2610467"></a>Running named with automatic zone re-signing</h3></div></div></div>
+<a name="id2635243"></a>Running named with automatic zone re-signing</h3></div></div></div>
 <p>If you want 
     <span><strong class="command">named</strong></span> to dynamically re-sign zones using HSM
     keys, and/or to to sign new records inserted via nsupdate, then
@@ -1751,7 +1806,7 @@ $ <strong class="userinput"><code>dnssec-signzone -E '' -S example.net</code></s
 </div>
 <div class="sect1" lang="en">
 <div class="titlepage"><div><div><h2 class="title" style="clear: both">
-<a name="id2572484"></a>IPv6 Support in <acronym class="acronym">BIND</acronym> 9</h2></div></div></div>
+<a name="id2572669"></a>IPv6 Support in <acronym class="acronym">BIND</acronym> 9</h2></div></div></div>
 <p>
         <acronym class="acronym">BIND</acronym> 9 fully supports all currently
         defined forms of IPv6 name to address and address to name
@@ -1789,7 +1844,7 @@ $ <strong class="userinput"><code>dnssec-signzone -E '' -S example.net</code></s
       </p>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2572819"></a>Address Lookups Using AAAA Records</h3></div></div></div>
+<a name="id2572868"></a>Address Lookups Using AAAA Records</h3></div></div></div>
 <p>
           The IPv6 AAAA record is a parallel to the IPv4 A record,
           and, unlike the deprecated A6 record, specifies the entire
@@ -1808,7 +1863,7 @@ host            3600    IN      AAAA    2001:db8::1
 </div>
 <div class="sect2" lang="en">
 <div class="titlepage"><div><div><h3 class="title">
-<a name="id2572840"></a>Address to Name Lookups Using Nibble Format</h3></div></div></div>
+<a name="id2572889"></a>Address to Name Lookups Using Nibble Format</h3></div></div></div>
 <p>
           When looking up an address in nibble format, the address
           components are simply reversed, just as in IPv4, and

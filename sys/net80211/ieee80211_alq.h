@@ -38,6 +38,7 @@
  */
 struct ieee80211_alq_rec {
 	uint32_t	r_timestamp;	/* XXX may wrap! */
+	uint32_t	r_threadid;	/* current thread id */
 	uint16_t	r_wlan;		/* wlan interface number */
 	uint8_t		r_version;	/* version */
 	uint8_t		r_op;		/* top-level operation id */
@@ -46,6 +47,7 @@ struct ieee80211_alq_rec {
 };
 
 /* General logging function */
-extern void ieee80211_alq_log(struct ieee80211vap *vap, uint8_t op, u_char *p, int l);
+extern	void ieee80211_alq_log(struct ieee80211vap *vap, uint8_t op,
+	    u_char *p, int l);
 
 #endif	/* __IEEE80211_ALQ_H__ */

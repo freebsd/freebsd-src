@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ondestroy.c,v 1.16 2007-06-19 23:47:17 tbox Exp $ */
+/* $Id: ondestroy.c,v 1.16 2007/06/19 23:47:17 tbox Exp $ */
 
 /*! \file */
 

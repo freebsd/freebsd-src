@@ -71,11 +71,7 @@ ASSYM(TD_UPTE, offsetof(struct thread, td_md.md_upte));
 ASSYM(TD_KSTACK, offsetof(struct thread, td_kstack));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_LOCK, offsetof(struct thread, td_lock));
-ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
-ASSYM(TD_TLS, offsetof(struct thread, td_md.md_tls));
 ASSYM(TD_MDFLAGS, offsetof(struct thread, td_md.md_flags));
-
-ASSYM(TF_REG_SR, offsetof(struct trapframe, sr));
 
 ASSYM(U_PCB_REGS, offsetof(struct pcb, pcb_regs.zero));
 ASSYM(U_PCB_CONTEXT, offsetof(struct pcb, pcb_context));
@@ -87,21 +83,20 @@ ASSYM(PC_SEGBASE, offsetof(struct pcpu, pc_segbase));
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_FPCURTHREAD, offsetof(struct pcpu, pc_fpcurthread));
 ASSYM(PC_CPUID, offsetof(struct pcpu, pc_cpuid));
-ASSYM(PC_CURPMAP, offsetof(struct pcpu, pc_curpmap));
 
 ASSYM(VM_MAX_KERNEL_ADDRESS, VM_MAX_KERNEL_ADDRESS);
 ASSYM(VM_MAXUSER_ADDRESS, VM_MAXUSER_ADDRESS);
 ASSYM(SIGF_UC, offsetof(struct sigframe, sf_uc));
+#ifdef COMPAT_FREEBSD32
+ASSYM(SIGF32_UC, offsetof(struct sigframe32, sf_uc));
+#endif
 ASSYM(SIGFPE, SIGFPE);
 ASSYM(PAGE_SHIFT, PAGE_SHIFT);
 ASSYM(PAGE_SIZE, PAGE_SIZE);
-ASSYM(PAGE_MASK, PAGE_MASK);
 ASSYM(PDRSHIFT, PDRSHIFT);
 ASSYM(SEGSHIFT, SEGSHIFT);
-ASSYM(NPTEPG, NPTEPG);
 ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
-ASSYM(PCPU_SIZE, sizeof(struct pcpu));
 ASSYM(MAXCOMLEN, MAXCOMLEN);
 ASSYM(MDTD_COP2USED, MDTD_COP2USED);
 

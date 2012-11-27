@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: ibm370,v 1.8 2009/09/19 16:28:09 christos Exp $
 # ibm370:  file(1) magic for IBM 370 and compatibles.
 #
 # "ibm370" said that 0x15d == 0535 was "ibm 370 pure executable".

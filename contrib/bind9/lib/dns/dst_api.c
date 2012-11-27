@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -31,7 +31,7 @@
 
 /*
  * Principal Author: Brian Wellington
- * $Id: dst_api.c,v 1.57.10.1 2011-03-21 19:53:34 each Exp $
+ * $Id$
  */
 
 /*! \file */
@@ -447,7 +447,6 @@ dst_key_fromfile(dns_name_t *name, dns_keytag_t id,
 		dst_key_free(&key);
 		return (DST_R_INVALIDPRIVATEKEY);
 	}
-	key->key_id = id;
 
 	*keyp = key;
 	return (ISC_R_SUCCESS);
@@ -598,7 +597,7 @@ dst_key_fromdns(dns_name_t *name, dns_rdataclass_t rdclass,
 	isc_uint8_t alg, proto;
 	isc_uint32_t flags, extflags;
 	dst_key_t *key = NULL;
-	dns_keytag_t id;
+	dns_keytag_t id, rid;
 	isc_region_t r;
 	isc_result_t result;
 
@@ -613,6 +612,7 @@ dst_key_fromdns(dns_name_t *name, dns_rdataclass_t rdclass,
 	alg = isc_buffer_getuint8(source);
 
 	id = dst_region_computeid(&r, alg);
+	rid = dst_region_computerid(&r, alg);
 
 	if (flags & DNS_KEYFLAG_EXTENDED) {
 		if (isc_buffer_remaininglength(source) < 2)
@@ -626,6 +626,7 @@ dst_key_fromdns(dns_name_t *name, dns_rdataclass_t rdclass,
 	if (result != ISC_R_SUCCESS)
 		return (result);
 	key->key_id = id;
+	key->key_rid = rid;
 
 	*keyp = key;
 	return (ISC_R_SUCCESS);
@@ -926,13 +927,6 @@ comparekeys(const dst_key_t *key1, const dst_key_t *key2,
 	if (key1->key_alg != key2->key_alg)
 		return (ISC_FALSE);
 
-	/*
-	 * For all algorithms except RSAMD5, revoking the key
-	 * changes the key ID, increasing it by 128.  If we want to
-	 * be able to find matching keys even if one of them is the
-	 * revoked version of the other one, then we need to check
-	 * for that possibility.
-	 */
 	if (key1->key_id != key2->key_id) {
 		if (!match_revoked_key)
 			return (ISC_FALSE);
@@ -941,11 +935,8 @@ comparekeys(const dst_key_t *key1, const dst_key_t *key2,
 		if ((key1->key_flags & DNS_KEYFLAG_REVOKE) ==
 		    (key2->key_flags & DNS_KEYFLAG_REVOKE))
 			return (ISC_FALSE);
-		if ((key1->key_flags & DNS_KEYFLAG_REVOKE) != 0 &&
-		    key1->key_id != ((key2->key_id + 128) & 0xffff))
-			return (ISC_FALSE);
-		if ((key2->key_flags & DNS_KEYFLAG_REVOKE) != 0 &&
-		    key2->key_id != ((key1->key_id + 128) & 0xffff))
+		if (key1->key_id != key2->key_rid &&
+		    key1->key_rid != key2->key_id)
 			return (ISC_FALSE);
 	}
 
@@ -1572,7 +1563,8 @@ write_public_key(const dst_key_t *key, int type, const char *directory) {
 	fprintf(fp, " ");
 
 	isc_buffer_usedregion(&classb, &r);
-	isc_util_fwrite(r.base, 1, r.length, fp);
+	if ((unsigned) fwrite(r.base, 1, r.length, fp) != r.length)
+	       ret = DST_R_WRITEERROR;
 
 	if ((type & DST_TYPE_KEY) != 0)
 		fprintf(fp, " KEY ");
@@ -1580,7 +1572,8 @@ write_public_key(const dst_key_t *key, int type, const char *directory) {
 		fprintf(fp, " DNSKEY ");
 
 	isc_buffer_usedregion(&textb, &r);
-	isc_util_fwrite(r.base, 1, r.length, fp);
+	if ((unsigned) fwrite(r.base, 1, r.length, fp) != r.length)
+	       ret = DST_R_WRITEERROR;
 
 	fputc('\n', fp);
 	fflush(fp);
@@ -1643,6 +1636,7 @@ computeid(dst_key_t *key) {
 
 	isc_buffer_usedregion(&dnsbuf, &r);
 	key->key_id = dst_region_computeid(&r, key->key_alg);
+	key->key_rid = dst_region_computerid(&r, key->key_alg);
 	return (ISC_R_SUCCESS);
 }
 

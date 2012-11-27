@@ -15,6 +15,7 @@
 
 #include "clang/Basic/OnDiskHashTable.h"
 #include "clang/AST/DeclarationName.h"
+#include "llvm/Support/Endian.h"
 #include <utility>
 #include <sys/stat.h>
 
@@ -26,7 +27,7 @@ struct HeaderFileInfo;
   
 namespace serialization {
 
-class Module;
+class ModuleFile;
 
 namespace reader {
 
@@ -34,14 +35,15 @@ namespace reader {
 /// in an AST file.
 class ASTDeclContextNameLookupTrait {
   ASTReader &Reader;
-  Module &F;
+  ModuleFile &F;
   
 public:
   /// \brief Pair of begin/end iterators for DeclIDs.
   ///
   /// Note that these declaration IDs are local to the module that contains this
   /// particular lookup t
-  typedef std::pair<DeclID *, DeclID *> data_type;
+  typedef llvm::support::ulittle32_t LE32DeclID;
+  typedef std::pair<LE32DeclID *, LE32DeclID *> data_type;
 
   /// \brief Special internal key for declaration names.
   /// The hash table creates keys for comparison; we do not create
@@ -55,8 +57,7 @@ public:
   typedef DeclarationName external_key_type;
   typedef DeclNameKey internal_key_type;
 
-  explicit ASTDeclContextNameLookupTrait(ASTReader &Reader, 
-                                         Module &F) 
+  explicit ASTDeclContextNameLookupTrait(ASTReader &Reader, ModuleFile &F)
     : Reader(Reader), F(F) { }
 
   static bool EqualKey(const internal_key_type& a,
@@ -66,9 +67,8 @@ public:
 
   unsigned ComputeHash(const DeclNameKey &Key) const;
   internal_key_type GetInternalKey(const external_key_type& Name) const;
-  external_key_type GetExternalKey(const internal_key_type& Key) const;
 
-  static std::pair<unsigned, unsigned> 
+  static std::pair<unsigned, unsigned>
   ReadKeyDataLength(const unsigned char*& d);
 
   internal_key_type ReadKey(const unsigned char* d, unsigned);
@@ -77,14 +77,10 @@ public:
                      unsigned DataLen);
 };
 
-/// \brief The on-disk hash table used for the DeclContext's Name lookup table.
-typedef OnDiskChainedHashTable<ASTDeclContextNameLookupTrait>
-  ASTDeclContextNameLookupTable;
-
 /// \brief Class that performs lookup for an identifier stored in an AST file.
 class ASTIdentifierLookupTrait {
   ASTReader &Reader;
-  Module &F;
+  ModuleFile &F;
   
   // If we know the IdentifierInfo in advance, it is here and we will
   // not build a new one. Used when deserializing information about an
@@ -98,7 +94,7 @@ public:
   
   typedef external_key_type internal_key_type;
   
-  ASTIdentifierLookupTrait(ASTReader &Reader, Module &F,
+  ASTIdentifierLookupTrait(ASTReader &Reader, ModuleFile &F,
                            IdentifierInfo *II = 0)
     : Reader(Reader), F(F), KnownII(II) { }
   
@@ -127,6 +123,9 @@ public:
   IdentifierInfo *ReadData(const internal_key_type& k,
                            const unsigned char* d,
                            unsigned DataLen);
+  
+  ASTReader &getReader() const { return Reader; }
+  
 };
   
 /// \brief The on-disk hash table used to contain information about
@@ -138,7 +137,7 @@ typedef OnDiskChainedHashTable<ASTIdentifierLookupTrait>
 /// method pool stored in an AST file.
 class ASTSelectorLookupTrait {
   ASTReader &Reader;
-  Module &F;
+  ModuleFile &F;
   
 public:
   struct data_type {
@@ -150,7 +149,7 @@ public:
   typedef Selector external_key_type;
   typedef external_key_type internal_key_type;
   
-  ASTSelectorLookupTrait(ASTReader &Reader, Module &F) 
+  ASTSelectorLookupTrait(ASTReader &Reader, ModuleFile &F) 
     : Reader(Reader), F(F) { }
   
   static bool EqualKey(const internal_key_type& a,
@@ -185,7 +184,7 @@ typedef OnDiskChainedHashTable<ASTSelectorLookupTrait>
 /// and symlinks.
 class HeaderFileInfoTrait {
   ASTReader &Reader;
-  Module &M;
+  ModuleFile &M;
   HeaderSearch *HS;
   const char *FrameworkStrings;
   const char *SearchPath;
@@ -210,7 +209,7 @@ public:
   
   typedef HeaderFileInfo data_type;
   
-  HeaderFileInfoTrait(ASTReader &Reader, Module &M, HeaderSearch *HS,
+  HeaderFileInfoTrait(ASTReader &Reader, ModuleFile &M, HeaderSearch *HS,
                       const char *FrameworkStrings,
                       const char *SearchPath = 0) 
   : Reader(Reader), M(M), HS(HS), FrameworkStrings(FrameworkStrings), 

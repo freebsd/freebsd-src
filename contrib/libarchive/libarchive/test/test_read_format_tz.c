@@ -40,22 +40,19 @@ DEFINE_TEST(test_read_format_tz)
 	struct archive *a;
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_compression_all(a));
+	    archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_open_memory(a, archive, sizeof(archive)));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(1, archive_file_count(a));
 	failure("archive_compression_name(a)=\"%s\"",
 	    archive_compression_name(a));
 	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_COMPRESS);
 	failure("archive_format_name(a)=\"%s\"", archive_format_name(a));
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
-#endif
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 

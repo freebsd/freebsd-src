@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,13 +49,29 @@
  * Interface to the PCI / PCIe DMA engines. These are only avialable
  * on chips with PCI / PCIe.
  *
- * <hr>$Revision: 50126 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+#include <linux/module.h>
+#include <asm/octeon/cvmx.h>
+#include <asm/octeon/octeon-model.h>
+#include <asm/octeon/cvmx-config.h>
+#include <asm/octeon/cvmx-cmd-queue.h>
+#include <asm/octeon/cvmx-dma-engine.h>
+#include <asm/octeon/octeon-feature.h>
+#include <asm/octeon/cvmx-npi-defs.h>
+#include <asm/octeon/cvmx-npei-defs.h>
+#include <asm/octeon/cvmx-dpi-defs.h>
+#include <asm/octeon/cvmx-pexp-defs.h>
+#include <asm/octeon/cvmx-helper-cfg.h>
+#else
 #include "executive-config.h"
 #include "cvmx-config.h"
 #include "cvmx.h"
 #include "cvmx-cmd-queue.h"
 #include "cvmx-dma-engine.h"
+#include "cvmx-helper-cfg.h"
+#endif
 
 #ifdef CVMX_ENABLE_PKO_FUNCTIONS
 
@@ -153,6 +169,7 @@ int cvmx_dma_engine_initialize(void)
     else if (octeon_has_feature(OCTEON_FEATURE_PCIE))
     {
         cvmx_dpi_engx_buf_t dpi_engx_buf;
+        cvmx_dpi_dma_engx_en_t dpi_dma_engx_en;
         cvmx_dpi_dma_control_t dma_control;
         cvmx_dpi_ctl_t dpi_ctl;
 
@@ -172,11 +189,16 @@ int cvmx_dma_engine_initialize(void)
         dma_control.s.pkt_hp = 1;
         dma_control.s.pkt_en = 1;
         dma_control.s.dma_enb = 0x1f;
-        dma_control.s.dwb_denb = 1;
+        dma_control.s.dwb_denb = cvmx_helper_cfg_opt_get(CVMX_HELPER_CFG_OPT_USE_DWB);
         dma_control.s.dwb_ichk = CVMX_FPA_OUTPUT_BUFFER_POOL_SIZE/128;
         dma_control.s.fpa_que = CVMX_FPA_OUTPUT_BUFFER_POOL;
         dma_control.s.o_mode = 1;
         cvmx_write_csr(CVMX_DPI_DMA_CONTROL, dma_control.u64);
+        /* When dma_control[pkt_en] = 1, engine 5 is used for packets and is not
+           available for DMA. */
+        dpi_dma_engx_en.u64 = cvmx_read_csr(CVMX_DPI_DMA_ENGX_EN(5));
+        dpi_dma_engx_en.s.qen = 0;
+        cvmx_write_csr(CVMX_DPI_DMA_ENGX_EN(5), dpi_dma_engx_en.u64);
         dpi_ctl.u64 = cvmx_read_csr(CVMX_DPI_CTL);
         dpi_ctl.s.en = 1;
         cvmx_write_csr(CVMX_DPI_CTL, dpi_ctl.u64);
@@ -197,10 +219,12 @@ int cvmx_dma_engine_initialize(void)
 
     return 0;
 }
-
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+EXPORT_SYMBOL(cvmx_dma_engine_initialize);
+#endif
 
 /**
- * Shutdown all DMA engines. The engeines must be idle when this
+ * Shutdown all DMA engines. The engines must be idle when this
  * function is called.
  *
  * @return Zero on success, negative on failure
@@ -270,16 +294,18 @@ int cvmx_dma_engine_shutdown(void)
 
     return 0;
 }
-
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+EXPORT_SYMBOL(cvmx_dma_engine_shutdown);
+#endif
 
 /**
- * Submit a series of DMA comamnd to the DMA engines.
+ * Submit a series of DMA command to the DMA engines.
  *
  * @param engine  Engine to submit to (0 to cvmx_dma_engine_get_num()-1)
  * @param header  Command header
  * @param num_buffers
  *                The number of data pointers
- * @param buffers Comamnd data pointers
+ * @param buffers Command data pointers
  *
  * @return Zero on success, negative on failure
  */
@@ -519,5 +545,7 @@ int cvmx_dma_engine_transfer(int engine, cvmx_dma_engine_header_t header,
     }
     return cvmx_dma_engine_submit(engine, header, words, buffers);
 }
-
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+EXPORT_SYMBOL(cvmx_dma_engine_transfer);
+#endif
 #endif

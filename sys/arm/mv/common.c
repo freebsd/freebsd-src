@@ -1766,7 +1766,7 @@ win_cpu_from_dt(void)
 		if (fdt_is_compatible(node, "mrvl,cesa-sram"))
 			goto moveon;
 
-	if ((node = OF_finddevice("/")) != -1)
+	if ((node = OF_finddevice("/")) == -1)
 		return (ENXIO);
 
 	if ((node = fdt_find_compatible(node, "mrvl,cesa-sram", 0)) == 0)

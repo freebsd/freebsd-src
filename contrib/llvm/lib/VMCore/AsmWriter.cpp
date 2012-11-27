@@ -89,7 +89,6 @@ enum PrefixType {
 static void PrintLLVMName(raw_ostream &OS, StringRef Name, PrefixType Prefix) {
   assert(!Name.empty() && "Cannot get empty name!");
   switch (Prefix) {
-  default: llvm_unreachable("Bad prefix!");
   case NoPrefix: break;
   case GlobalPrefix: OS << '@'; break;
   case LabelPrefix:  break;
@@ -189,6 +188,7 @@ void TypePrinting::incorporateTypes(const Module &M) {
 void TypePrinting::print(Type *Ty, raw_ostream &OS) {
   switch (Ty->getTypeID()) {
   case Type::VoidTyID:      OS << "void"; break;
+  case Type::HalfTyID:      OS << "half"; break;
   case Type::FloatTyID:     OS << "float"; break;
   case Type::DoubleTyID:    OS << "double"; break;
   case Type::X86_FP80TyID:  OS << "x86_fp80"; break;
@@ -231,7 +231,7 @@ void TypePrinting::print(Type *Ty, raw_ostream &OS) {
     if (I != NumberedTypes.end())
       OS << '%' << I->second;
     else  // Not enumerated, print the hex address.
-      OS << "%\"type 0x" << STy << '\"';
+      OS << "%\"type " << STy << '\"';
     return;
   }
   case Type::PointerTyID: {
@@ -708,31 +708,37 @@ static void WriteConstantInternal(raw_ostream &Out, const Constant *CV,
   }
 
   if (const ConstantFP *CFP = dyn_cast<ConstantFP>(CV)) {
-    if (&CFP->getValueAPF().getSemantics() == &APFloat::IEEEdouble ||
-        &CFP->getValueAPF().getSemantics() == &APFloat::IEEEsingle) {
+    if (&CFP->getValueAPF().getSemantics() == &APFloat::IEEEhalf ||
+        &CFP->getValueAPF().getSemantics() == &APFloat::IEEEsingle ||
+        &CFP->getValueAPF().getSemantics() == &APFloat::IEEEdouble) {
       // We would like to output the FP constant value in exponential notation,
       // but we cannot do this if doing so will lose precision.  Check here to
       // make sure that we only output it in exponential format if we can parse
       // the value back and get the same value.
       //
       bool ignored;
+      bool isHalf = &CFP->getValueAPF().getSemantics()==&APFloat::IEEEhalf;
       bool isDouble = &CFP->getValueAPF().getSemantics()==&APFloat::IEEEdouble;
-      double Val = isDouble ? CFP->getValueAPF().convertToDouble() :
-                              CFP->getValueAPF().convertToFloat();
-      SmallString<128> StrVal;
-      raw_svector_ostream(StrVal) << Val;
+      bool isInf = CFP->getValueAPF().isInfinity();
+      bool isNaN = CFP->getValueAPF().isNaN();
+      if (!isHalf && !isInf && !isNaN) {
+        double Val = isDouble ? CFP->getValueAPF().convertToDouble() :
+                                CFP->getValueAPF().convertToFloat();
+        SmallString<128> StrVal;
+        raw_svector_ostream(StrVal) << Val;
 
-      // Check to make sure that the stringized number is not some string like
-      // "Inf" or NaN, that atof will accept, but the lexer will not.  Check
-      // that the string matches the "[-+]?[0-9]" regex.
-      //
-      if ((StrVal[0] >= '0' && StrVal[0] <= '9') ||
-          ((StrVal[0] == '-' || StrVal[0] == '+') &&
-           (StrVal[1] >= '0' && StrVal[1] <= '9'))) {
-        // Reparse stringized version!
-        if (atof(StrVal.c_str()) == Val) {
-          Out << StrVal.str();
-          return;
+        // Check to make sure that the stringized number is not some string like
+        // "Inf" or NaN, that atof will accept, but the lexer will not.  Check
+        // that the string matches the "[-+]?[0-9]" regex.
+        //
+        if ((StrVal[0] >= '0' && StrVal[0] <= '9') ||
+            ((StrVal[0] == '-' || StrVal[0] == '+') &&
+             (StrVal[1] >= '0' && StrVal[1] <= '9'))) {
+          // Reparse stringized version!
+          if (APFloat(APFloat::IEEEdouble, StrVal).convertToDouble() == Val) {
+            Out << StrVal.str();
+            return;
+          }
         }
       }
       // Otherwise we could not reparse it to exactly the same value, so we must
@@ -743,7 +749,7 @@ static void WriteConstantInternal(raw_ostream &Out, const Constant *CV,
              "assuming that double is 64 bits!");
       char Buffer[40];
       APFloat apf = CFP->getValueAPF();
-      // Floats are represented in ASCII IR as double, convert.
+      // Halves and floats are represented in ASCII IR as double, convert.
       if (!isDouble)
         apf.convert(APFloat::IEEEdouble, APFloat::rmNearestTiesToEven,
                           &ignored);
@@ -823,34 +829,52 @@ static void WriteConstantInternal(raw_ostream &Out, const Constant *CV,
   }
 
   if (const ConstantArray *CA = dyn_cast<ConstantArray>(CV)) {
+    Type *ETy = CA->getType()->getElementType();
+    Out << '[';
+    TypePrinter.print(ETy, Out);
+    Out << ' ';
+    WriteAsOperandInternal(Out, CA->getOperand(0),
+                           &TypePrinter, Machine,
+                           Context);
+    for (unsigned i = 1, e = CA->getNumOperands(); i != e; ++i) {
+      Out << ", ";
+      TypePrinter.print(ETy, Out);
+      Out << ' ';
+      WriteAsOperandInternal(Out, CA->getOperand(i), &TypePrinter, Machine,
+                             Context);
+    }
+    Out << ']';
+    return;
+  }
+  
+  if (const ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CV)) {
     // As a special case, print the array as a string if it is an array of
     // i8 with ConstantInt values.
-    //
-    Type *ETy = CA->getType()->getElementType();
     if (CA->isString()) {
       Out << "c\"";
       PrintEscapedString(CA->getAsString(), Out);
       Out << '"';
-    } else {                // Cannot output in string format...
-      Out << '[';
-      if (CA->getNumOperands()) {
-        TypePrinter.print(ETy, Out);
-        Out << ' ';
-        WriteAsOperandInternal(Out, CA->getOperand(0),
-                               &TypePrinter, Machine,
-                               Context);
-        for (unsigned i = 1, e = CA->getNumOperands(); i != e; ++i) {
-          Out << ", ";
-          TypePrinter.print(ETy, Out);
-          Out << ' ';
-          WriteAsOperandInternal(Out, CA->getOperand(i), &TypePrinter, Machine,
-                                 Context);
-        }
-      }
-      Out << ']';
+      return;
     }
+
+    Type *ETy = CA->getType()->getElementType();
+    Out << '[';
+    TypePrinter.print(ETy, Out);
+    Out << ' ';
+    WriteAsOperandInternal(Out, CA->getElementAsConstant(0),
+                           &TypePrinter, Machine,
+                           Context);
+    for (unsigned i = 1, e = CA->getNumElements(); i != e; ++i) {
+      Out << ", ";
+      TypePrinter.print(ETy, Out);
+      Out << ' ';
+      WriteAsOperandInternal(Out, CA->getElementAsConstant(i), &TypePrinter,
+                             Machine, Context);
+    }
+    Out << ']';
     return;
   }
+
 
   if (const ConstantStruct *CS = dyn_cast<ConstantStruct>(CV)) {
     if (CS->getType()->isPacked())
@@ -882,21 +906,19 @@ static void WriteConstantInternal(raw_ostream &Out, const Constant *CV,
     return;
   }
 
-  if (const ConstantVector *CP = dyn_cast<ConstantVector>(CV)) {
-    Type *ETy = CP->getType()->getElementType();
-    assert(CP->getNumOperands() > 0 &&
-           "Number of operands for a PackedConst must be > 0");
+  if (isa<ConstantVector>(CV) || isa<ConstantDataVector>(CV)) {
+    Type *ETy = CV->getType()->getVectorElementType();
     Out << '<';
     TypePrinter.print(ETy, Out);
     Out << ' ';
-    WriteAsOperandInternal(Out, CP->getOperand(0), &TypePrinter, Machine,
-                           Context);
-    for (unsigned i = 1, e = CP->getNumOperands(); i != e; ++i) {
+    WriteAsOperandInternal(Out, CV->getAggregateElement(0U), &TypePrinter,
+                           Machine, Context);
+    for (unsigned i = 1, e = CV->getType()->getVectorNumElements(); i != e;++i){
       Out << ", ";
       TypePrinter.print(ETy, Out);
       Out << ' ';
-      WriteAsOperandInternal(Out, CP->getOperand(i), &TypePrinter, Machine,
-                             Context);
+      WriteAsOperandInternal(Out, CV->getAggregateElement(i), &TypePrinter,
+                             Machine, Context);
     }
     Out << '>';
     return;
@@ -1162,7 +1184,6 @@ void AssemblyWriter::writeAtomic(AtomicOrdering Ordering,
     return;
 
   switch (SynchScope) {
-  default: Out << " <bad scope " << int(SynchScope) << ">"; break;
   case SingleThread: Out << " singlethread"; break;
   case CrossThread: break;
   }
@@ -1710,13 +1731,12 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
     Out << ", ";
     writeOperand(SI.getDefaultDest(), true);
     Out << " [";
-    // Skip the first item since that's the default case.
-    unsigned NumCases = SI.getNumCases();
-    for (unsigned i = 1; i < NumCases; ++i) {
+    for (SwitchInst::CaseIt i = SI.case_begin(), e = SI.case_end();
+         i != e; ++i) {
       Out << "\n    ";
-      writeOperand(SI.getCaseValue(i), true);
+      writeOperand(i.getCaseValue(), true);
       Out << ", ";
-      writeOperand(SI.getSuccessor(i), true);
+      writeOperand(i.getCaseSuccessor(), true);
     }
     Out << "\n  ]";
   } else if (isa<IndirectBrInst>(I)) {
@@ -1988,7 +2008,7 @@ static void WriteMDNodeComment(const MDNode *Node,
   if (!CI) return;
   APInt Val = CI->getValue();
   APInt Tag = Val & ~APInt(Val.getBitWidth(), LLVMDebugVersionMask);
-  if (Val.ult(LLVMDebugVersion))
+  if (Val.ult(LLVMDebugVersion11))
     return;
 
   Out.PadToColumn(50);
@@ -2110,3 +2130,6 @@ void Type::dump() const { print(dbgs()); }
 
 // Module::dump() - Allow printing of Modules from the debugger.
 void Module::dump() const { print(dbgs(), 0); }
+
+// NamedMDNode::dump() - Allow printing of NamedMDNodes from the debugger.
+void NamedMDNode::dump() const { print(dbgs(), 0); }

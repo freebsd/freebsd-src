@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2004 - 2007 Kungliga Tekniska Högskolan
+ * Copyright (c) 2004 - 2007 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
  * SUCH DAMAGE. 
  */
-/* $Id: kadmin-commands.in 21969 2007-10-18 18:51:11Z lha $ */
+/* $Id$ */
 
 command = {
 	name = "stash"
@@ -53,6 +53,11 @@ command = {
 		long = "convert-file"
 		type = "flag"
 		help = "just convert keyfile to new format"
+	}
+	option = {
+		long = "random-password"
+		type = "flag"
+		help = "use a random password (and print the password to stdout)"
 	}
 	option = {
 		long = "master-key-fd"
@@ -88,6 +93,11 @@ command = {
 		long = "realm-max-renewable-life"
 		type = "string"
 		help = "realm max renewable lifetime"
+	}
+	option = {
+		long = "bare"
+		type = "flag"
+		help = "only create krbtgt for realm"
 	}
 	argument = "realm..."
 	min_args = "1"

@@ -1,5 +1,5 @@
 /*
- * Portions Copyright (C) 2005-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Portions Copyright (C) 2005-2012  Internet Systems Consortium, Inc. ("ISC")
  * Portions Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -50,7 +50,7 @@
  * USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdlz.c,v 1.31.8.2 2011-03-21 19:53:34 each Exp $ */
+/* $Id$ */
 
 /*! \file */
 
@@ -1836,7 +1836,11 @@ dns_sdlz_putrr(dns_sdlzlookup_t *lookup, const char *type, dns_ttl_t ttl,
 					    &lookup->callbacks);
 		if (result != ISC_R_SUCCESS)
 			isc_buffer_free(&rdatabuf);
+		if (size >= 65535)
+			break;
 		size *= 2;
+		if (size >= 65535)
+			size = 65535;
 	} while (result == ISC_R_NOSPACE);
 
 	if (result != ISC_R_SUCCESS)

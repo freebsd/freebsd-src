@@ -1,3 +1,6 @@
+
+#------------------------------------------------------------------------------
+# $File: fortran,v 1.6 2009/09/19 16:28:09 christos Exp $
 # FORTRAN source
 0	regex/100	\^[Cc][\ \t]	FORTRAN program
 !:mime	text/x-fortran

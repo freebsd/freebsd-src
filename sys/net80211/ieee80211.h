@@ -199,6 +199,13 @@ struct ieee80211_qosframe_addr4 {
 #define	IEEE80211_QOS_EOSP			0x10	/* EndOfService Period*/
 #define	IEEE80211_QOS_EOSP_S			4
 #define	IEEE80211_QOS_TID			0x0f
+/* qos[1] byte used for all frames sent by mesh STAs in a mesh BSS */
+#define IEEE80211_QOS_MC			0x10	/* Mesh control */
+/* Mesh power save level*/
+#define IEEE80211_QOS_MESH_PSL			0x20
+/* Mesh Receiver Service Period Initiated */
+#define IEEE80211_QOS_RSPI			0x40
+/* bits 11 to 15 reserved */
 
 /* does frame have QoS sequence control data */
 #define	IEEE80211_QOS_HAS_SEQ(wh) \
@@ -325,6 +332,9 @@ struct ieee80211_action {
 #define	IEEE80211_ACTION_CAT_DLS	2	/* DLS */
 #define	IEEE80211_ACTION_CAT_BA		3	/* BA */
 #define	IEEE80211_ACTION_CAT_HT		7	/* HT */
+#define	IEEE80211_ACTION_CAT_MESH	13	/* Mesh */
+#define	IEEE80211_ACTION_CAT_SELF_PROT	15	/* Self-protected */
+/* 16 - 125 reserved */
 #define	IEEE80211_ACTION_CAT_VENDOR	127	/* Vendor Specific */
 
 #define	IEEE80211_ACTION_HT_TXCHWIDTH	0	/* recommended xmit chan width*/
@@ -724,7 +734,7 @@ enum {
 	IEEE80211_ELEMID_MESHAWAKEW	= 119,
 	IEEE80211_ELEMID_MESHBEACONT	= 120,
 	/* 121-124 MMCAOP not implemented yet */
-	IEEE80211_ELEMID_MESHPANN	= 125, /* XXX: is GANN now, not used */
+	IEEE80211_ELEMID_MESHGANN	= 125,
 	IEEE80211_ELEMID_MESHRANN	= 126,
 	/* 127 Extended Capabilities */
 	/* 128-129 reserved */

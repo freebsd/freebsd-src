@@ -149,7 +149,7 @@ mfi_pdstate(enum mfi_pd_state state)
 	case MFI_PD_STATE_COPYBACK:
 		return ("COPYBACK");
 	case MFI_PD_STATE_SYSTEM:
-		return ("SYSTEM");
+		return ("JBOD");
 	default:
 		sprintf(buf, "PSTATE 0x%04x", state);
 		return (buf);

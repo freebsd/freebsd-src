@@ -95,6 +95,48 @@ g_vfs_done(struct bio *bip)
 	struct g_vfs_softc *sc;
 	struct buf *bp;
 	int vfslocked, destroy;
+	struct mount *mp;
+	struct vnode *vp;
+	struct cdev *cdevp;
+
+	/*
+	 * Collect statistics on synchronous and asynchronous read
+	 * and write counts for disks that have associated filesystems.
+	 * Since this run by the g_up thread it is single threaded and
+	 * we do not need to use atomic increments on the counters.
+	 */
+	bp = bip->bio_caller2;
+	vp = bp->b_vp;
+	if (vp == NULL) {
+		mp = NULL;
+	} else {
+		/*
+		 * If not a disk vnode, use its associated mount point
+		 * otherwise use the mountpoint associated with the disk.
+		 */
+		VI_LOCK(vp);
+		if (vp->v_type != VCHR ||
+		    (cdevp = vp->v_rdev) == NULL ||
+		    cdevp->si_devsw == NULL ||
+		    (cdevp->si_devsw->d_flags & D_DISK) == 0)
+			mp = vp->v_mount;
+		else
+			mp = cdevp->si_mountpt;
+		VI_UNLOCK(vp);
+	}
+	if (mp != NULL) {
+		if (bp->b_iocmd == BIO_WRITE) {
+			if (LK_HOLDER(bp->b_lock.lk_lock) == LK_KERNPROC)
+				mp->mnt_stat.f_asyncwrites++;
+			else
+				mp->mnt_stat.f_syncwrites++;
+		} else {
+			if (LK_HOLDER(bp->b_lock.lk_lock) == LK_KERNPROC)
+				mp->mnt_stat.f_asyncreads++;
+			else
+				mp->mnt_stat.f_syncreads++;
+		}
+	}
 
 	cp = bip->bio_from;
 	sc = cp->geom->softc;
@@ -103,7 +145,6 @@ g_vfs_done(struct bio *bip)
 		g_print_bio(bip);
 		printf("error = %d\n", bip->bio_error);
 	}
-	bp = bip->bio_caller2;
 	bp->b_error = bip->bio_error;
 	bp->b_ioflags = bip->bio_flags;
 	if (bip->bio_error)

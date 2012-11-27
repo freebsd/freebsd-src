@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 21, 2002
+.Dd May 02, 2012
 .Dt DEVELOPMENT 7
 .Os
 .Sh NAME
@@ -89,7 +89,7 @@ I recommend a
 partition of at least 5GB.
 .Pp
 On the master server, use
-.Xr cvsup 1 Pq Pa ports/net/cvsup
+.Xr csup 1
 to automatically pull down and maintain
 the
 .Fx
@@ -108,23 +108,23 @@ The
 job should look something like this (please randomize the time of
 day!).
 Note that you can use the
-.Xr cvsup 1
+.Xr csup 1
 configuration file example directly from
 .Pa /usr/share/examples
 without modification by supplying appropriate arguments
 to
-.Xr cvsup 1 .
+.Xr csup 1 .
 .Bd -literal -offset 4n
-33 6 * * *      /usr/local/bin/cvsup -g -r 20 -L 2 -h cvsup.freebsd.org /usr/share/examples/cvsup/cvs-supfile
+33 6 * * *      /usr/bin/csup -r 20 -L 2 -h cvsup.freebsd.org /usr/share/examples/cvsup/cvs-supfile
 .Ed
 .Pp
 Run the
-.Xr cvsup 1
+.Xr csup 1
 manually the first time to pull down the archive.
 It could take
 all day depending on how fast your connection is!
 You will run all
-.Xr cvsup 1
+.Xr csup 1
 and
 .Xr cvs 1
 operations as
@@ -555,7 +555,7 @@ Since the main
 tree is based on CVS, the former is convenient.
 .Pp
 First, you need to modify your
-.Xr cvsup 1
+.Xr csup 1
 environment to avoid it modifying
 the local changes you have committed to the repository.
 It is important to remove the
@@ -568,7 +568,7 @@ subdirectory to your
 .Pa refuse
 file.
 For more information, see
-.Xr cvsup 1 .
+.Xr csup 1 .
 .Pp
 The
 .Fx
@@ -598,13 +598,13 @@ For more information on using CVS, see
 .Pp
 .Sy WARNING!
 The
-.Xr cvsup 1
+.Xr csup 1
 utility may blow away changes made on a local branch in
 some situations.
 This has been reported to occur when the master CVS repository is
 directly manipulated or an RCS file is changed.
 At this point,
-.Xr cvsup 1
+.Xr csup 1
 notices that the client and server have entirely
 different RCS files, so it does a full replace instead of trying to
 send just deltas.
@@ -619,7 +619,7 @@ Bottom line is, if you value your local branch then you
 should back it up before every update.
 .Sh UPDATING VIA CVS
 The advantage of using
-.Xr cvsup 1
+.Xr csup 1
 to maintain an updated copy of the CVS
 repository instead of using it to maintain source trees directly is that you
 can then pick and choose when you bring your source tree (or pieces of your

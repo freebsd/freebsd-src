@@ -1,4 +1,4 @@
-//===- PTXRegisterInfo.h - PTX Register Information Impl --------*- C++ -*-===//
+//===-- PTXRegisterInfo.h - PTX Register Information Impl -------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -32,9 +32,9 @@ public:
   PTXRegisterInfo(PTXTargetMachine &TM,
                   const TargetInstrInfo &tii);
 
-  virtual const unsigned
+  virtual const uint16_t
     *getCalleeSavedRegs(const MachineFunction *MF = 0) const {
-    static const unsigned CalleeSavedRegs[] = { 0 };
+    static const uint16_t CalleeSavedRegs[] = { 0 };
     return CalleeSavedRegs; // save nothing
   }
 
@@ -49,7 +49,6 @@ public:
 
   virtual unsigned getFrameRegister(const MachineFunction &MF) const {
     llvm_unreachable("PTX does not have a frame register");
-    return 0;
   }
 }; // struct PTXRegisterInfo
 } // namespace llvm

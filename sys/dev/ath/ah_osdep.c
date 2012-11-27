@@ -38,6 +38,7 @@
 #include <sys/bus.h>
 #include <sys/malloc.h>
 #include <sys/proc.h>
+#include <sys/pcpu.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 
@@ -257,6 +258,7 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 		struct ale *ale = ath_hal_alq_get(ah);
 		if (ale) {
 			struct athregrec *r = (struct athregrec *) ale->ae_data;
+			r->threadid = curthread->td_tid;
 			r->op = OP_WRITE;
 			r->reg = reg;
 			r->val = val;
@@ -265,12 +267,7 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 	}
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
-#if _BYTE_ORDER == _BIG_ENDIAN
-	if (OS_REG_UNSWAPPED(reg))
-		bus_space_write_4(tag, h, reg, val);
-	else
-#endif
-		bus_space_write_stream_4(tag, h, reg, val);
+	bus_space_write_4(tag, h, reg, val);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
 }
@@ -284,18 +281,14 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
-#if _BYTE_ORDER == _BIG_ENDIAN
-	if (OS_REG_UNSWAPPED(reg))
-		val = bus_space_read_4(tag, h, reg);
-	else
-#endif
-		val = bus_space_read_stream_4(tag, h, reg);
+	val = bus_space_read_4(tag, h, reg);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
 	if (ath_hal_alq) {
 		struct ale *ale = ath_hal_alq_get(ah);
 		if (ale) {
 			struct athregrec *r = (struct athregrec *) ale->ae_data;
+			r->threadid = curthread->td_tid;
 			r->op = OP_READ;
 			r->reg = reg;
 			r->val = val;
@@ -312,6 +305,7 @@ OS_MARK(struct ath_hal *ah, u_int id, u_int32_t v)
 		struct ale *ale = ath_hal_alq_get(ah);
 		if (ale) {
 			struct athregrec *r = (struct athregrec *) ale->ae_data;
+			r->threadid = curthread->td_tid;
 			r->op = OP_MARK;
 			r->reg = id;
 			r->val = v;
@@ -339,12 +333,7 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
-#if _BYTE_ORDER == _BIG_ENDIAN
-	if (OS_REG_UNSWAPPED(reg))
-		bus_space_write_4(tag, h, reg, val);
-	else
-#endif
-		bus_space_write_stream_4(tag, h, reg, val);
+	bus_space_write_4(tag, h, reg, val);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
 }
@@ -358,12 +347,7 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
-#if _BYTE_ORDER == _BIG_ENDIAN
-	if (OS_REG_UNSWAPPED(reg))
-		val = bus_space_read_4(tag, h, reg);
-	else
-#endif
-		val = bus_space_read_stream_4(tag, h, reg);
+	val = bus_space_read_4(tag, h, reg);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
 	return val;

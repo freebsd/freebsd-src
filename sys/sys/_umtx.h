@@ -31,6 +31,7 @@
 #define	_SYS__UMTX_H_
 
 #include <sys/_types.h>
+#include <sys/_timespec.h>
 
 struct umtx {
 	volatile unsigned long	u_owner;	/* Owner of the mutex. */
@@ -62,6 +63,12 @@ struct _usem {
 	volatile __uint32_t	_has_waiters;
 	volatile __uint32_t	_count;
 	__uint32_t		_flags;
+};
+
+struct _umtx_time {
+	struct timespec		_timeout;
+	__uint32_t		_flags;
+	__uint32_t		_clockid;
 };
 
 #endif /* !_SYS__UMTX_H_ */

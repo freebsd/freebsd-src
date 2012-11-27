@@ -25,12 +25,14 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 8, 2008
+.Dd February 23, 2012
 .Dt AMDTEMP 4
 .Os
 .Sh NAME
 .Nm amdtemp
-.Nd device driver for AMD K8, K10 and K11 on-die digital thermal sensor
+.Nd device driver for
+.Tn AMD
+processor on-die digital thermal sensor
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following line in your
@@ -49,22 +51,39 @@ amdtemp_load="YES"
 The
 .Nm
 driver provides support for the on-die digital thermal sensor present
-in AMD K8, K10 and K11 processors.
+in
+.Tn AMD
+Family 0Fh, 10h, 11h, 12h, 14h, and 15h processors.
 .Pp
-For the K8 family, the
+For Family 0Fh processors, the
 .Nm
-driver reports each core's temperature through a sysctl node in the
-corresponding CPU devices's sysctl tree, named
-.Va dev.amdtemp.%d.sensor{0,1}.core{0,1} .
+driver reports each core's temperature through sysctl nodes, named
+.Va dev.amdtemp.%d.core{0,1}.sensor{0,1} .
 The driver also creates
 .Va dev.cpu.%d.temperature
-displaying the maximum temperature of the two sensors 
-located in each CPU core.
+in the corresponding CPU device's sysctl tree, displaying the maximum
+temperature of the two sensors located in each CPU core.
 .Pp
-For the K10 and K11 families, the driver creates
+For Family 10h, 11h, 12h, 14h, and 15h processors, the driver reports each
+package's temperature through a sysctl node, named
+.Va dev.amdtemp.%d.core0.sensor0 .
+The driver also creates
 .Va dev.cpu.%d.temperature
-with the temperature of each core.
+in the corresponding CPU device's sysctl tree, displaying the temperature
+of the shared sensor located in each CPU package.
+.Sh SYSCTL VARIABLES
+The following variable is available as both
+.Xr sysctl 8
+variable and
+.Xr loader 8
+tunable:
+.Bl -tag -width indent
+.It Va dev.amdtemp.%d.sensor_offset
+.El
+Add the given offset to the temperature of the sensor.
+Default is 0.
 .Sh SEE ALSO
+.Xr loader 8 ,
 .Xr sysctl 8
 .Sh HISTORY
 The
@@ -74,6 +93,19 @@ driver first appeared in
 .Sh AUTHORS
 .An Rui Paulo Aq rpaulo@FreeBSD.org
 .An Norikatsu Shigemura Aq nork@FreeBSD.org
-.Sh BUGS
-AMD K9 is not supported because temperature reporting has been replaced
-by Maltese.
+.An Jung-uk Kim Aq jkim@FreeBSD.org
+.Sh CAVEATS
+For Family 10h and later processors,
+.Do
+(the reported temperature) is a non-physical temperature measured on
+an arbitrary scale and it does not represent an actual physical
+temperature like die or case temperature.
+Instead, it specifies the processor temperature relative to the point
+at which the system must supply the maximum cooling for the processor's
+specified maximum case temperature and maximum thermal power dissipation
+.Dc
+according to
+.Rs
+.%T BIOS and Kernel Developer's Guide (BKDG) for AMD Processors
+.%U http://developer.amd.com/documentation/guides/Pages/default.aspx
+.Re

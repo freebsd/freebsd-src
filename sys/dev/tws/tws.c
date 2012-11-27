@@ -521,7 +521,7 @@ tws_init(struct tws_softc *sc)
                                  TWS_MAX_32BIT_SG_ELEMENTS;
     dma_mem_size = (sizeof(struct tws_command_packet) * tws_queue_depth) +
                              (TWS_SECTOR_SIZE) ;
-    if ( bus_dma_tag_create(NULL,                    /* parent */          
+    if ( bus_dma_tag_create(bus_get_dma_tag(sc->tws_dev), /* PCI parent */ 
                             TWS_ALIGNMENT,           /* alignment */
                             0,                       /* boundary */
                             BUS_SPACE_MAXADDR_32BIT, /* lowaddr */

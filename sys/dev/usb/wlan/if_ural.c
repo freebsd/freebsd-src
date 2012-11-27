@@ -800,7 +800,7 @@ tr_setup:
 			STAILQ_REMOVE_HEAD(&sc->tx_q, next);
 			m = data->m;
 
-			if (m->m_pkthdr.len > (RAL_FRAME_SIZE + RAL_TX_DESC_SIZE)) {
+			if (m->m_pkthdr.len > (int)(RAL_FRAME_SIZE + RAL_TX_DESC_SIZE)) {
 				DPRINTFN(0, "data overflow, %u bytes\n",
 				    m->m_pkthdr.len);
 				m->m_pkthdr.len = (RAL_FRAME_SIZE + RAL_TX_DESC_SIZE);
@@ -881,7 +881,7 @@ ural_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		DPRINTFN(15, "rx done, actlen=%d\n", len);
 
-		if (len < RAL_RX_DESC_SIZE + IEEE80211_MIN_LEN) {
+		if (len < (int)(RAL_RX_DESC_SIZE + IEEE80211_MIN_LEN)) {
 			DPRINTF("%s: xfer too short %d\n",
 			    device_get_nameunit(sc->sc_dev), len);
 			ifp->if_ierrors++;
@@ -1950,7 +1950,7 @@ ural_read_eeprom(struct ural_softc *sc)
 static int
 ural_bbp_init(struct ural_softc *sc)
 {
-#define N(a)	(sizeof (a) / sizeof ((a)[0]))
+#define N(a)	((int)(sizeof (a) / sizeof ((a)[0])))
 	int i, ntries;
 
 	/* wait for BBP to be ready */
@@ -2034,7 +2034,7 @@ ural_set_rxantenna(struct ural_softc *sc, int antenna)
 static void
 ural_init_locked(struct ural_softc *sc)
 {
-#define N(a)	(sizeof (a) / sizeof ((a)[0]))
+#define N(a)	((int)(sizeof (a) / sizeof ((a)[0])))
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	uint16_t tmp;

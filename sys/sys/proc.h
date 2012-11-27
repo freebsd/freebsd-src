@@ -311,6 +311,7 @@ struct thread {
 	struct vnet	*td_vnet;	/* (k) Effective vnet. */
 	const char	*td_vnet_lpush;	/* (k) Debugging vnet push / pop. */
 	struct trapframe *td_intr_frame;/* (k) Frame of the current irq */
+	struct proc *td_rfppwait_p;	/* (k) The vforked child */
 };
 
 struct mtx *thread_lock_block(struct thread *);
@@ -415,6 +416,9 @@ do {									\
 #define	TDP_CALLCHAIN	0x00400000 /* Capture thread's callchain */
 #define	TDP_IGNSUSP	0x00800000 /* Permission to ignore the MNTK_SUSPEND* */
 #define	TDP_AUDITREC	0x01000000 /* Audit record pending on thread */
+#define	TDP_RFPPWAIT	0x02000000 /* Handle RFPPWAIT on syscall exit */
+#define	TDP_RESETSPUR	0x04000000 /* Reset spurious page fault history. */
+#define	TDP_NERRNO	0x08000000 /* Last errno is already in td_errno */
 
 /*
  * Reasons that the current thread can not be run yet.
@@ -507,8 +511,6 @@ struct proc {
 /* The following fields are all zeroed upon creation in fork. */
 #define	p_startzero	p_oppid
 	pid_t		p_oppid;	/* (c + e) Save ppid in ptrace. XXX */
-	int		p_dbg_child;	/* (c + e) # of debugged children in
-							ptrace. */
 	struct vmspace	*p_vmspace;	/* (b) Address space. */
 	u_int		p_swtick;	/* (c) Tick when swapped in or out. */
 	struct itimerval p_realtimer;	/* (c) Alarm timer. */
@@ -576,6 +578,14 @@ struct proc {
 					   after fork. */
 	uint64_t	p_prev_runtime;	/* (c) Resource usage accounting. */
 	struct racct	*p_racct;	/* (b) Resource accounting. */
+	/*
+	 * An orphan is the child that has beed re-parented to the
+	 * debugger as a result of attaching to it.  Need to keep
+	 * track of them for parent to be able to collect the exit
+	 * status of what used to be children.
+	 */
+	LIST_ENTRY(proc) p_orphan;	/* (e) List of orphan processes. */
+	LIST_HEAD(, proc) p_orphans;	/* (e) Pointer to list of orphans. */
 };
 
 #define	p_session	p_pgrp->pg_session
@@ -614,6 +624,7 @@ struct proc {
 #define	P_HWPMC		0x800000 /* Process is using HWPMCs */
 
 #define	P_JAILED	0x1000000 /* Process is in jail. */
+#define	P_ORPHAN	0x2000000 /* Orphaned. */
 #define	P_INEXEC	0x4000000 /* Process is in execve(). */
 #define	P_STATCHILD	0x8000000 /* Child process stopped or exited. */
 #define	P_INMEM		0x10000000 /* Loaded into memory. */
@@ -829,6 +840,7 @@ struct	proc *zpfind(pid_t);		/* Find zombie process by id. */
 #define	PGET_ISCURRENT	0x00008	/* Check that the found process is current. */
 #define	PGET_NOTWEXIT	0x00010	/* Check that the process is not in P_WEXIT. */
 #define	PGET_NOTINEXEC	0x00020	/* Check that the process is not in P_INEXEC. */
+#define	PGET_NOTID	0x00040	/* Do not assume tid if pid > PID_MAX. */
 
 #define	PGET_WANTREAD	(PGET_HOLD | PGET_CANDEBUG | PGET_NOTWEXIT)
 

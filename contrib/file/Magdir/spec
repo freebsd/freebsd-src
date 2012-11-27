@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: spec,v 1.4 2009/09/19 16:28:12 christos Exp $
 # spec:  file(1) magic for SPEC raw results (*.raw, *.rsf)
 #
 # Cloyce D. Spradling <cloyce@headgear.org>

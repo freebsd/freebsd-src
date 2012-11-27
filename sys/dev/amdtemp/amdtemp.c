@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2008, 2009 Rui Paulo <rpaulo@FreeBSD.org>
  * Copyright (c) 2009 Norikatsu Shigemura <nork@FreeBSD.org>
- * Copyright (c) 2009 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2009-2012 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,7 +27,7 @@
  */
 
 /*
- * Driver for the AMD CPU on-die thermal sensors for Family 0Fh/10h/11h procs.
+ * Driver for the AMD CPU on-die thermal sensors.
  * Initially based on the k8temp Linux driver.
  */
 
@@ -47,12 +47,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/specialreg.h>
 
 #include <dev/pci/pcivar.h>
+#include <x86/pci_cfgreg.h>
 
 typedef enum {
-	SENSOR0_CORE0,
-	SENSOR0_CORE1,
-	SENSOR1_CORE0,
-	SENSOR1_CORE1,
+	CORE0_SENSOR0,
+	CORE0_SENSOR1,
+	CORE1_SENSOR0,
+	CORE1_SENSOR1,
 	CORE0,
 	CORE1
 } amdsensor_t;
@@ -62,11 +63,10 @@ struct amdtemp_softc {
 	int		sc_ncores;
 	int		sc_ntemps;
 	int		sc_flags;
-#define	AMDTEMP_FLAG_DO_QUIRK	0x01	/* DiodeOffset may be incorrect. */
-#define	AMDTEMP_FLAG_DO_ZERO	0x02	/* DiodeOffset starts from 0C. */
-#define	AMDTEMP_FLAG_DO_SIGN	0x04	/* DiodeOffsetSignBit is present. */
-#define	AMDTEMP_FLAG_CS_SWAP	0x08	/* ThermSenseCoreSel is inverted. */
-#define	AMDTEMP_FLAG_CT_10BIT	0x10	/* CurTmp is 10-bit wide. */
+#define	AMDTEMP_FLAG_CS_SWAP	0x01	/* ThermSenseCoreSel is inverted. */
+#define	AMDTEMP_FLAG_CT_10BIT	0x02	/* CurTmp is 10-bit wide. */
+#define	AMDTEMP_FLAG_ALT_OFFSET	0x04	/* CurTmp starts at -28C. */
+	int32_t		sc_offset;
 	int32_t		(*sc_gettemp)(device_t, amdsensor_t);
 	struct sysctl_oid *sc_sysctl_cpu[MAXCPU];
 	struct intr_config_hook sc_ich;
@@ -76,6 +76,8 @@ struct amdtemp_softc {
 #define	DEVICEID_AMD_MISC0F	0x1103
 #define	DEVICEID_AMD_MISC10	0x1203
 #define	DEVICEID_AMD_MISC11	0x1303
+#define	DEVICEID_AMD_MISC14	0x1703
+#define	DEVICEID_AMD_MISC15	0x1603
 
 static struct amdtemp_product {
 	uint16_t	amdtemp_vendorid;
@@ -84,20 +86,28 @@ static struct amdtemp_product {
 	{ VENDORID_AMD,	DEVICEID_AMD_MISC0F },
 	{ VENDORID_AMD,	DEVICEID_AMD_MISC10 },
 	{ VENDORID_AMD,	DEVICEID_AMD_MISC11 },
+	{ VENDORID_AMD,	DEVICEID_AMD_MISC14 },
+	{ VENDORID_AMD,	DEVICEID_AMD_MISC15 },
 	{ 0, 0 }
 };
 
 /*
- * Reported Temperature Control Register (Family 10h/11h only)
+ * Reported Temperature Control Register
  */
 #define	AMDTEMP_REPTMP_CTRL	0xa4
 
 /*
- * Thermaltrip Status Register
+ * Thermaltrip Status Register (Family 0Fh only)
  */
 #define	AMDTEMP_THERMTP_STAT	0xe4
-#define	AMDTEMP_TTSR_SELCORE	0x04	/* Family 0Fh only */
-#define	AMDTEMP_TTSR_SELSENSOR	0x40	/* Family 0Fh only */
+#define	AMDTEMP_TTSR_SELCORE	0x04
+#define	AMDTEMP_TTSR_SELSENSOR	0x40
+
+/*
+ * DRAM Configuration High Register
+ */
+#define	AMDTEMP_DRAM_CONF_HIGH	0x94	/* Function 2 */
+#define	AMDTEMP_DRAM_MODE_DDR3	0x0100
 
 /*
  * CPU Family/Model Register
@@ -189,6 +199,9 @@ amdtemp_probe(device_t dev)
 		break;
 	case 0x10:
 	case 0x11:
+	case 0x12:
+	case 0x14:
+	case 0x15:
 		break;
 	default:
 		return (ENXIO);
@@ -201,26 +214,23 @@ amdtemp_probe(device_t dev)
 static int
 amdtemp_attach(device_t dev)
 {
+	char tn[32];
+	u_int regs[4];
 	struct amdtemp_softc *sc = device_get_softc(dev);
 	struct sysctl_ctx_list *sysctlctx;
 	struct sysctl_oid *sysctlnode;
-	uint32_t regs[4];
 	uint32_t cpuid, family, model;
+	u_int bid;
+	int erratum319, unit;
 
-	/*
-	 * Errata #154: Incorect Diode Offset
-	 */
-	if (cpu_id == 0x20f32) {
-		do_cpuid(0x80000001, regs);
-		if ((regs[1] & 0xfff) == 0x2c)
-			sc->sc_flags |= AMDTEMP_FLAG_DO_QUIRK;
-	}
+	erratum319 = 0;
 
 	/*
 	 * CPUID Register is available from Revision F.
 	 */
-	family = CPUID_TO_FAMILY(cpu_id);
-	model = CPUID_TO_MODEL(cpu_id);
+	cpuid = cpu_id;
+	family = CPUID_TO_FAMILY(cpuid);
+	model = CPUID_TO_MODEL(cpuid);
 	if (family != 0x0f || model >= 0x40) {
 		cpuid = pci_read_config(dev, AMDTEMP_CPUID, 4);
 		family = CPUID_TO_FAMILY(cpuid);
@@ -231,11 +241,6 @@ amdtemp_attach(device_t dev)
 	case 0x0f:
 		/*
 		 * Thermaltrip Status Register
-		 *
-		 * - DiodeOffsetSignBit
-		 *
-		 * Revision D & E:	bit 24
-		 * Other:		N/A
 		 *
 		 * - ThermSenseCoreSel
 		 *
@@ -254,15 +259,37 @@ amdtemp_attach(device_t dev)
 		 * ThermSenseCoreSel work in undocumented cases as well.
 		 * In fact, the Linux driver suggests it may not work but
 		 * we just assume it does until we find otherwise.
+		 *
+		 * XXX According to Linux, CurTmp starts at -28C on
+		 * Socket AM2 Revision G processors, which is not
+		 * documented anywhere.
 		 */
-		if (model < 0x40) {
-			sc->sc_flags |= AMDTEMP_FLAG_DO_ZERO;
-			if (model >= 0x10)
-				sc->sc_flags |= AMDTEMP_FLAG_DO_SIGN;
-		} else {
+		if (model >= 0x40)
 			sc->sc_flags |= AMDTEMP_FLAG_CS_SWAP;
-			if (model >= 0x60 && model != 0xc1)
-				sc->sc_flags |= AMDTEMP_FLAG_CT_10BIT;
+		if (model >= 0x60 && model != 0xc1) {
+			do_cpuid(0x80000001, regs);
+			bid = (regs[1] >> 9) & 0x1f;
+			switch (model) {
+			case 0x68: /* Socket S1g1 */
+			case 0x6c:
+			case 0x7c:
+				break;
+			case 0x6b: /* Socket AM2 and ASB1 (2 cores) */
+				if (bid != 0x0b && bid != 0x0c)
+					sc->sc_flags |=
+					    AMDTEMP_FLAG_ALT_OFFSET;
+				break;
+			case 0x6f: /* Socket AM2 and ASB1 (1 core) */
+			case 0x7f:
+				if (bid != 0x07 && bid != 0x09 &&
+				    bid != 0x0c)
+					sc->sc_flags |=
+					    AMDTEMP_FLAG_ALT_OFFSET;
+				break;
+			default:
+				sc->sc_flags |= AMDTEMP_FLAG_ALT_OFFSET;
+			}
+			sc->sc_flags |= AMDTEMP_FLAG_CT_10BIT;
 		}
 
 		/*
@@ -273,7 +300,31 @@ amdtemp_attach(device_t dev)
 		sc->sc_gettemp = amdtemp_gettemp0f;
 		break;
 	case 0x10:
+		/*
+		 * Erratum 319 Inaccurate Temperature Measurement
+		 *
+		 * http://support.amd.com/us/Processor_TechDocs/41322.pdf
+		 */
+		do_cpuid(0x80000001, regs);
+		switch ((regs[1] >> 28) & 0xf) {
+		case 0:	/* Socket F */
+			erratum319 = 1;
+			break;
+		case 1:	/* Socket AM2+ or AM3 */
+			if ((pci_cfgregread(pci_get_bus(dev),
+			    pci_get_slot(dev), 2, AMDTEMP_DRAM_CONF_HIGH, 2) &
+			    AMDTEMP_DRAM_MODE_DDR3) != 0 || model > 0x04 ||
+			    (model == 0x04 && (cpuid & CPUID_STEPPING) >= 3))
+				break;
+			/* XXX 00100F42h (RB-C2) exists in both formats. */
+			erratum319 = 1;
+			break;
+		}
+		/* FALLTHROUGH */
 	case 0x11:
+	case 0x12:
+	case 0x14:
+	case 0x15:
 		/*
 		 * There is only one sensor per package.
 		 */
@@ -289,6 +340,9 @@ amdtemp_attach(device_t dev)
 	if (sc->sc_ncores > MAXCPU)
 		return (ENXIO);
 
+	if (erratum319)
+		device_printf(dev,
+		    "Erratum 319: temperature measurement may be inaccurate\n");
 	if (bootverbose)
 		device_printf(dev, "Found %d cores and %d sensors.\n",
 		    sc->sc_ncores,
@@ -297,41 +351,49 @@ amdtemp_attach(device_t dev)
 	/*
 	 * dev.amdtemp.N tree.
 	 */
+	unit = device_get_unit(dev);
+	snprintf(tn, sizeof(tn), "dev.amdtemp.%d.sensor_offset", unit);
+	TUNABLE_INT_FETCH(tn, &sc->sc_offset);
+
 	sysctlctx = device_get_sysctl_ctx(dev);
+	SYSCTL_ADD_INT(sysctlctx,
+	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
+	    "sensor_offset", CTLFLAG_RW, &sc->sc_offset, 0,
+	    "Temperature sensor offset");
 	sysctlnode = SYSCTL_ADD_NODE(sysctlctx,
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-	    "sensor0", CTLFLAG_RD, 0, "Sensor 0");
+	    "core0", CTLFLAG_RD, 0, "Core 0");
 
 	SYSCTL_ADD_PROC(sysctlctx,
 	    SYSCTL_CHILDREN(sysctlnode),
-	    OID_AUTO, "core0", CTLTYPE_INT | CTLFLAG_RD,
-	    dev, SENSOR0_CORE0, amdtemp_sysctl, "IK",
-	    "Sensor 0 / Core 0 temperature");
+	    OID_AUTO, "sensor0", CTLTYPE_INT | CTLFLAG_RD,
+	    dev, CORE0_SENSOR0, amdtemp_sysctl, "IK",
+	    "Core 0 / Sensor 0 temperature");
 
 	if (sc->sc_ntemps > 1) {
-		if (sc->sc_ncores > 1)
-			SYSCTL_ADD_PROC(sysctlctx,
-			    SYSCTL_CHILDREN(sysctlnode),
-			    OID_AUTO, "core1", CTLTYPE_INT | CTLFLAG_RD,
-			    dev, SENSOR0_CORE1, amdtemp_sysctl, "IK",
-			    "Sensor 0 / Core 1 temperature");
-
-		sysctlnode = SYSCTL_ADD_NODE(sysctlctx,
-		    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)), OID_AUTO,
-		    "sensor1", CTLFLAG_RD, 0, "Sensor 1");
-
 		SYSCTL_ADD_PROC(sysctlctx,
 		    SYSCTL_CHILDREN(sysctlnode),
-		    OID_AUTO, "core0", CTLTYPE_INT | CTLFLAG_RD,
-		    dev, SENSOR1_CORE0, amdtemp_sysctl, "IK",
-		    "Sensor 1 / Core 0 temperature");
+		    OID_AUTO, "sensor1", CTLTYPE_INT | CTLFLAG_RD,
+		    dev, CORE0_SENSOR1, amdtemp_sysctl, "IK",
+		    "Core 0 / Sensor 1 temperature");
 
-		if (sc->sc_ncores > 1)
+		if (sc->sc_ncores > 1) {
+			sysctlnode = SYSCTL_ADD_NODE(sysctlctx,
+			    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
+			    OID_AUTO, "core1", CTLFLAG_RD, 0, "Core 1");
+
 			SYSCTL_ADD_PROC(sysctlctx,
 			    SYSCTL_CHILDREN(sysctlnode),
-			    OID_AUTO, "core1", CTLTYPE_INT | CTLFLAG_RD,
-			    dev, SENSOR1_CORE1, amdtemp_sysctl, "IK",
-			    "Sensor 1 / Core 1 temperature");
+			    OID_AUTO, "sensor0", CTLTYPE_INT | CTLFLAG_RD,
+			    dev, CORE1_SENSOR0, amdtemp_sysctl, "IK",
+			    "Core 1 / Sensor 0 temperature");
+
+			SYSCTL_ADD_PROC(sysctlctx,
+			    SYSCTL_CHILDREN(sysctlnode),
+			    OID_AUTO, "sensor1", CTLTYPE_INT | CTLFLAG_RD,
+			    dev, CORE1_SENSOR1, amdtemp_sysctl, "IK",
+			    "Core 1 / Sensor 1 temperature");
+		}
 	}
 
 	/*
@@ -377,7 +439,7 @@ amdtemp_intrhook(void *arg)
 			sysctlctx = device_get_sysctl_ctx(cpu);
 
 			sensor = sc->sc_ntemps > 1 ?
-			    (i == 0 ? CORE0 : CORE1) : SENSOR0_CORE0;
+			    (i == 0 ? CORE0 : CORE1) : CORE0_SENSOR0;
 			sc->sc_sysctl_cpu[i] = SYSCTL_ADD_PROC(sysctlctx,
 			    SYSCTL_CHILDREN(device_get_sysctl_tree(cpu)),
 			    OID_AUTO, "temperature", CTLTYPE_INT | CTLFLAG_RD,
@@ -415,13 +477,13 @@ amdtemp_sysctl(SYSCTL_HANDLER_ARGS)
 
 	switch (sensor) {
 	case CORE0:
-		auxtemp[0] = sc->sc_gettemp(dev, SENSOR0_CORE0);
-		auxtemp[1] = sc->sc_gettemp(dev, SENSOR1_CORE0);
+		auxtemp[0] = sc->sc_gettemp(dev, CORE0_SENSOR0);
+		auxtemp[1] = sc->sc_gettemp(dev, CORE0_SENSOR1);
 		temp = imax(auxtemp[0], auxtemp[1]);
 		break;
 	case CORE1:
-		auxtemp[0] = sc->sc_gettemp(dev, SENSOR0_CORE1);
-		auxtemp[1] = sc->sc_gettemp(dev, SENSOR1_CORE1);
+		auxtemp[0] = sc->sc_gettemp(dev, CORE1_SENSOR0);
+		auxtemp[1] = sc->sc_gettemp(dev, CORE1_SENSOR1);
 		temp = imax(auxtemp[0], auxtemp[1]);
 		break;
 	default:
@@ -439,53 +501,36 @@ static int32_t
 amdtemp_gettemp0f(device_t dev, amdsensor_t sensor)
 {
 	struct amdtemp_softc *sc = device_get_softc(dev);
-	uint32_t mask, temp;
-	int32_t diode_offset, offset;
-	uint8_t cfg, sel;
+	uint32_t mask, offset, temp;
 
 	/* Set Sensor/Core selector. */
-	sel = 0;
+	temp = pci_read_config(dev, AMDTEMP_THERMTP_STAT, 1);
+	temp &= ~(AMDTEMP_TTSR_SELCORE | AMDTEMP_TTSR_SELSENSOR);
 	switch (sensor) {
-	case SENSOR1_CORE0:
-		sel |= AMDTEMP_TTSR_SELSENSOR;
+	case CORE0_SENSOR1:
+		temp |= AMDTEMP_TTSR_SELSENSOR;
 		/* FALLTHROUGH */
-	case SENSOR0_CORE0:
+	case CORE0_SENSOR0:
 	case CORE0:
 		if ((sc->sc_flags & AMDTEMP_FLAG_CS_SWAP) != 0)
-			sel |= AMDTEMP_TTSR_SELCORE;
+			temp |= AMDTEMP_TTSR_SELCORE;
 		break;
-	case SENSOR1_CORE1:
-		sel |= AMDTEMP_TTSR_SELSENSOR;
+	case CORE1_SENSOR1:
+		temp |= AMDTEMP_TTSR_SELSENSOR;
 		/* FALLTHROUGH */
-	case SENSOR0_CORE1:
+	case CORE1_SENSOR0:
 	case CORE1:
 		if ((sc->sc_flags & AMDTEMP_FLAG_CS_SWAP) == 0)
-			sel |= AMDTEMP_TTSR_SELCORE;
+			temp |= AMDTEMP_TTSR_SELCORE;
 		break;
 	}
-	cfg = pci_read_config(dev, AMDTEMP_THERMTP_STAT, 1);
-	cfg &= ~(AMDTEMP_TTSR_SELSENSOR | AMDTEMP_TTSR_SELCORE);
-	pci_write_config(dev, AMDTEMP_THERMTP_STAT, cfg | sel, 1);
-
-	/* CurTmp starts from -49C. */
-	offset = AMDTEMP_ZERO_C_TO_K - 490;
-
-	/* Adjust offset if DiodeOffset is set and valid. */
-	temp = pci_read_config(dev, AMDTEMP_THERMTP_STAT, 4);
-	diode_offset = (temp >> 8) & 0x3f;
-	if ((sc->sc_flags & AMDTEMP_FLAG_DO_ZERO) != 0) {
-		if ((sc->sc_flags & AMDTEMP_FLAG_DO_SIGN) != 0 &&
-		    ((temp >> 24) & 0x1) != 0)
-			diode_offset *= -1;
-		if ((sc->sc_flags & AMDTEMP_FLAG_DO_QUIRK) != 0 &&
-		    ((temp >> 25) & 0xf) <= 2)
-			diode_offset += 10;
-		offset += diode_offset * 10;
-	} else if (diode_offset != 0)
-		offset += (diode_offset - 11) * 10;
+	pci_write_config(dev, AMDTEMP_THERMTP_STAT, temp, 1);
 
 	mask = (sc->sc_flags & AMDTEMP_FLAG_CT_10BIT) != 0 ? 0x3ff : 0x3fc;
-	temp = ((temp >> 14) & mask) * 5 / 2 + offset;
+	offset = (sc->sc_flags & AMDTEMP_FLAG_ALT_OFFSET) != 0 ? 28 : 49;
+	temp = pci_read_config(dev, AMDTEMP_THERMTP_STAT, 4);
+	temp = ((temp >> 14) & mask) * 5 / 2;
+	temp += AMDTEMP_ZERO_C_TO_K + (sc->sc_offset - offset) * 10;
 
 	return (temp);
 }
@@ -493,20 +538,12 @@ amdtemp_gettemp0f(device_t dev, amdsensor_t sensor)
 static int32_t
 amdtemp_gettemp(device_t dev, amdsensor_t sensor)
 {
+	struct amdtemp_softc *sc = device_get_softc(dev);
 	uint32_t temp;
-	int32_t diode_offset, offset;
-
-	/* CurTmp starts from 0C. */
-	offset = AMDTEMP_ZERO_C_TO_K;
-
-	/* Adjust offset if DiodeOffset is set and valid. */
-	temp = pci_read_config(dev, AMDTEMP_THERMTP_STAT, 4);
-	diode_offset = (temp >> 8) & 0x7f;
-	if (diode_offset > 0 && diode_offset < 0x40)
-		offset += (diode_offset - 11) * 10;
 
 	temp = pci_read_config(dev, AMDTEMP_REPTMP_CTRL, 4);
-	temp = ((temp >> 21) & 0x7ff) * 5 / 4 + offset;
+	temp = ((temp >> 21) & 0x7ff) * 5 / 4;
+	temp += AMDTEMP_ZERO_C_TO_K + sc->sc_offset * 10;
 
 	return (temp);
 }

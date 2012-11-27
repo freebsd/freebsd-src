@@ -2447,7 +2447,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 	CURVNET_SET(so->so_vnet);
 	error = 0;
 	if (sopt->sopt_level != SOL_SOCKET) {
-		if (so->so_proto && so->so_proto->pr_ctloutput) {
+		if (so->so_proto->pr_ctloutput != NULL) {
 			error = (*so->so_proto->pr_ctloutput)(so, sopt);
 			CURVNET_RESTORE();
 			return (error);
@@ -2504,21 +2504,19 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 		case SO_SETFIB:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 					    sizeof optval);
+			if (error)
+				goto bad;
+
 			if (optval < 0 || optval >= rt_numfibs) {
 				error = EINVAL;
 				goto bad;
 			}
-			if (so->so_proto != NULL &&
-			   ((so->so_proto->pr_domain->dom_family == PF_INET) ||
+			if (((so->so_proto->pr_domain->dom_family == PF_INET) ||
 			   (so->so_proto->pr_domain->dom_family == PF_INET6) ||
-			   (so->so_proto->pr_domain->dom_family == PF_ROUTE))) {
+			   (so->so_proto->pr_domain->dom_family == PF_ROUTE)))
 				so->so_fibnum = optval;
-				/* Note: ignore error */
-				if (so->so_proto->pr_ctloutput)
-					(*so->so_proto->pr_ctloutput)(so, sopt);
-			} else {
+			else
 				so->so_fibnum = 0;
-			}
 			break;
 
 		case SO_USER_COOKIE:
@@ -2641,11 +2639,8 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 			error = ENOPROTOOPT;
 			break;
 		}
-		if (error == 0 && so->so_proto != NULL &&
-		    so->so_proto->pr_ctloutput != NULL) {
-			(void) ((*so->so_proto->pr_ctloutput)
-				  (so, sopt));
-		}
+		if (error == 0 && so->so_proto->pr_ctloutput != NULL)
+			(void)(*so->so_proto->pr_ctloutput)(so, sopt);
 	}
 bad:
 	CURVNET_RESTORE();
@@ -2695,7 +2690,7 @@ sogetopt(struct socket *so, struct sockopt *sopt)
 	CURVNET_SET(so->so_vnet);
 	error = 0;
 	if (sopt->sopt_level != SOL_SOCKET) {
-		if (so->so_proto && so->so_proto->pr_ctloutput)
+		if (so->so_proto->pr_ctloutput != NULL)
 			error = (*so->so_proto->pr_ctloutput)(so, sopt);
 		else
 			error = ENOPROTOOPT;
@@ -2735,6 +2730,10 @@ integer:
 
 		case SO_TYPE:
 			optval = so->so_type;
+			goto integer;
+
+		case SO_PROTOCOL:
+			optval = so->so_proto->pr_protocol;
 			goto integer;
 
 		case SO_ERROR:

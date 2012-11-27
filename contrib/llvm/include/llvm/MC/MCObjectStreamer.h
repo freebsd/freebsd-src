@@ -34,6 +34,8 @@ class MCObjectStreamer : public MCStreamer {
   MCSectionData *CurSectionData;
 
   virtual void EmitInstToData(const MCInst &Inst) = 0;
+  virtual void EmitCFIStartProcImpl(MCDwarfFrameInfo &Frame);
+  virtual void EmitCFIEndProcImpl(MCDwarfFrameInfo &Frame);
 
 protected:
   MCObjectStreamer(MCContext &Context, MCAsmBackend &TAB,
@@ -70,14 +72,15 @@ public:
   virtual void ChangeSection(const MCSection *Section);
   virtual void EmitInstruction(const MCInst &Inst);
   virtual void EmitInstToFragment(const MCInst &Inst);
-  virtual void EmitValueToOffset(const MCExpr *Offset, unsigned char Value);
+  virtual bool EmitValueToOffset(const MCExpr *Offset, unsigned char Value);
   virtual void EmitDwarfAdvanceLineAddr(int64_t LineDelta,
                                         const MCSymbol *LastLabel,
                                         const MCSymbol *Label,
                                         unsigned PointerSize);
   virtual void EmitDwarfAdvanceFrameAddr(const MCSymbol *LastLabel,
                                          const MCSymbol *Label);
-  virtual void Finish();
+  virtual void EmitGPRel32Value(const MCExpr *Value);
+  virtual void FinishImpl();
 
   /// @}
 };

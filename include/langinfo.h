@@ -130,6 +130,10 @@ typedef	__nl_item	nl_item;
 
 __BEGIN_DECLS
 char	*nl_langinfo(nl_item);
+
+#if __POSIX_VISIBLE >= 200809 || defined(_XLOCALE_H_)
+#include <xlocale/_langinfo.h>
+#endif
 __END_DECLS
 
 #endif /* !_LANGINFO_H_ */

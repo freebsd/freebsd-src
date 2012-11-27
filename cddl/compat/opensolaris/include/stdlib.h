@@ -27,10 +27,10 @@
  *
  */
 
+#include_next <stdlib.h>
+
 #ifndef _COMPAT_OPENSOLARIS_STDLIB_H_
 #define _COMPAT_OPENSOLARIS_STDLIB_H_
-
-#include_next <stdlib.h>
 
 #define getexecname	getprogname
 

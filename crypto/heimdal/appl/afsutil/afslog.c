@@ -1,46 +1,43 @@
 /*
- * Copyright (c) 1997-2003 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997-2003 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: afslog.c 16438 2006-01-03 09:27:54Z lha $");
+RCSID("$Id$");
 #endif
 #include <ctype.h>
 #ifdef KRB5
 #include <krb5.h>
-#endif
-#ifdef KRB4
-#include <krb.h>
 #endif
 #include <kafs.h>
 #include <roken.h>
@@ -54,9 +51,6 @@ static char *realm;
 static getarg_strings files;
 static int unlog_flag;
 static int verbose;
-#ifdef KRB4
-static int use_krb4 = 1;
-#endif
 #ifdef KRB5
 static char *client_string;
 static char *cache_string;
@@ -68,9 +62,6 @@ struct getargs args[] = {
     { "file",	'p', arg_strings, &files, "files to get tokens for", "path" },
     { "realm",	'k', arg_string, &realm, "realm for afs cell", "realm" },
     { "unlog",	'u', arg_flag, &unlog_flag, "remove tokens" },
-#ifdef KRB4
-    { "v4",	 0, arg_negative_flag, &use_krb4, "don't use Kerberos 4" },
-#endif
 #ifdef KRB5
     { "principal",'P',arg_string,&client_string,"principal to use","principal"},
     { "cache",   0,  arg_string, &cache_string, "ccache to use", "cache"},
@@ -189,9 +180,9 @@ afslog_file(const char *path)
 static int
 do_afslog(const char *cell)
 {
-    int k5ret, k4ret;
+    int k5ret;
 
-    k5ret = k4ret = 0;
+    k5ret = 0;
 
 #ifdef KRB5
     if(context != NULL && id != NULL && use_krb5) {
@@ -200,24 +191,13 @@ do_afslog(const char *cell)
 	    return 0;
     }
 #endif
-#if KRB4
-    if (use_krb4) {
-	k4ret = krb_afslog(cell, realm);
-	if(k4ret == 0)
-	    return 0;
-    }
-#endif
     if (cell == NULL)
 	cell = "<default cell>";
 #ifdef KRB5
     if (k5ret)
-	warnx("krb5_afslog(%s): %s", cell, krb5_get_err_text(context, k5ret));
+	krb5_warn(context, k5ret, "krb5_afslog(%s)", cell);
 #endif
-#ifdef KRB4
-    if (k4ret)
-	warnx("krb_afslog(%s): %s", cell, krb_get_err_text(k4ret));
-#endif
-    if (k5ret || k4ret)
+    if (k5ret)
 	return 1;
     return 0;
 }
@@ -237,7 +217,7 @@ main(int argc, char **argv)
     int ret = 0;
     int failed = 0;
     struct cell_list *p;
-    
+
     setprogname(argv[0]);
 
     if(getarg(args, num_args, argc, argv, &optind))
@@ -266,7 +246,7 @@ main(int argc, char **argv)
 
 	    ret = krb5_parse_name(context, client_string, &client);
 	    if (ret == 0)
-		ret = krb5_cc_cache_match(context, client, NULL, &id);
+		ret = krb5_cc_cache_match(context, client, &id);
 	    if (ret)
 		id = NULL;
 	}
@@ -306,7 +286,7 @@ main(int argc, char **argv)
 	    afslog_file(argv[i]);
 	else
 	    afslog_cell(argv[i], 1);
-    }    
+    }
     if(num == 0) {
 	if(do_afslog(NULL))
 	    failed++;

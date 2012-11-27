@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: md5.c,v 1.16 2009-02-06 23:47:42 tbox Exp $ */
+/* $Id: md5.c,v 1.16 2009/02/06 23:47:42 tbox Exp $ */
 
 /*! \file
  * This code implements the MD5 message-digest algorithm.

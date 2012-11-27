@@ -51,6 +51,7 @@ namespace MBlazeII {
     FRRRR,
     FRI,
     FC,
+    FRR,
     FormMask = 63
 
     //===------------------------------------------------------------------===//
@@ -95,7 +96,6 @@ static inline bool isSpecialMBlazeRegister(unsigned Reg) {
     default:
       return false;
   }
-  return false; // Not reached
 }
 
 /// getMBlazeRegisterNumbering - Given the enum value for some register, e.g.
@@ -160,7 +160,6 @@ static inline unsigned getMBlazeRegisterNumbering(unsigned RegEnum) {
     case MBlaze::RPVR11 : return 0x200B;
     default: llvm_unreachable("Unknown register number!");
   }
-  return 0; // Not reached
 }
 
 /// getRegisterFromNumbering - Given the enum value for some register, e.g.
@@ -201,7 +200,6 @@ static inline unsigned getMBlazeRegisterFromNumbering(unsigned Reg) {
     case 31 : return MBlaze::R31;
     default: llvm_unreachable("Unknown register number!");
   }
-  return 0; // Not reached
 }
 
 static inline unsigned getSpecialMBlazeRegisterFromNumbering(unsigned Reg) {
@@ -232,7 +230,6 @@ static inline unsigned getSpecialMBlazeRegisterFromNumbering(unsigned Reg) {
     case 0x200B : return MBlaze::RPVR11;
     default: llvm_unreachable("Unknown register number!");
   }
-  return 0; // Not reached
 }
 
 } // end namespace llvm;

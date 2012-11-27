@@ -99,7 +99,7 @@ static int
 ata_marvell_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static struct ata_chip_id ids[] =
+    static const struct ata_chip_id const ids[] =
     {{ ATA_M88SX5040, 0, 4, MV_50XX, ATA_SA150, "88SX5040" },
      { ATA_M88SX5041, 0, 4, MV_50XX, ATA_SA150, "88SX5041" },
      { ATA_M88SX5080, 0, 8, MV_50XX, ATA_SA150, "88SX5080" },
@@ -108,12 +108,12 @@ ata_marvell_probe(device_t dev)
      { ATA_M88SX6042, 0, 4, MV_6042, ATA_SA300, "88SX6042" },
      { ATA_M88SX6081, 0, 8, MV_60XX, ATA_SA300, "88SX6081" },
      { ATA_M88SX7042, 0, 4, MV_7042, ATA_SA300, "88SX7042" },
-     { ATA_M88SX6101, 0, 0, MV_61XX, ATA_UDMA6, "88SX6101" },
-     { ATA_M88SX6102, 0, 0, MV_61XX, ATA_UDMA6, "88SX6102" },
-     { ATA_M88SX6111, 0, 1, MV_61XX, ATA_UDMA6, "88SX6111" },
-     { ATA_M88SX6121, 0, 2, MV_61XX, ATA_UDMA6, "88SX6121" },
-     { ATA_M88SX6141, 0, 4, MV_61XX, ATA_UDMA6, "88SX6141" },
-     { ATA_M88SX6145, 0, 4, MV_61XX, ATA_UDMA6, "88SX6145" },
+     { ATA_M88SE6101, 0, 0, MV_61XX, ATA_UDMA6, "88SE6101" },
+     { ATA_M88SE6102, 0, 0, MV_61XX, ATA_UDMA6, "88SE6102" },
+     { ATA_M88SE6111, 0, 1, MV_61XX, ATA_UDMA6, "88SE6111" },
+     { ATA_M88SE6121, 0, 2, MV_61XX, ATA_UDMA6, "88SE6121" },
+     { ATA_M88SE6141, 0, 4, MV_61XX, ATA_UDMA6, "88SE6141" },
+     { ATA_M88SE6145, 0, 4, MV_61XX, ATA_UDMA6, "88SE6145" },
      { 0x91a41b4b,    0, 0, MV_91XX, ATA_UDMA6, "88SE912x" },
      { 0, 0, 0, 0, 0, 0}};
 

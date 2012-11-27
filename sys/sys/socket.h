@@ -138,6 +138,8 @@ typedef	__uid_t		uid_t;
 #define	SO_LISTENINCQLEN	0x1013	/* socket's incomplete queue length */
 #define	SO_SETFIB	0x1014		/* use this FIB to route */
 #define	SO_USER_COOKIE	0x1015		/* user cookie (dummynet etc.) */
+#define	SO_PROTOCOL	0x1016		/* get socket protocol (Linux name) */
+#define	SO_PROTOTYPE	SO_PROTOCOL	/* alias for SO_PROTOCOL (SunOS name) */
 #endif
 
 /*

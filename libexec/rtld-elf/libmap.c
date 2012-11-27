@@ -2,12 +2,16 @@
  * $FreeBSD$
  */
 
-#include <stdio.h>
-#include <ctype.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/queue.h>
+#include <sys/types.h>
 #include <sys/param.h>
+#include <sys/fcntl.h>
+#include <sys/mman.h>
+#include <sys/queue.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <errno.h>
+#include <stdlib.h>
+#include <string.h>
 
 #include "debug.h"
 #include "rtld.h"
@@ -26,7 +30,6 @@ TAILQ_HEAD(lm_list, lm);
 struct lm {
 	char *f;
 	char *t;
-
 	TAILQ_ENTRY(lm)	lm_link;
 };
 
@@ -38,76 +41,198 @@ struct lmp {
 	TAILQ_ENTRY(lmp) lmp_link;
 };
 
-static int	lm_count;
+static TAILQ_HEAD(lmc_list, lmc) lmc_head = TAILQ_HEAD_INITIALIZER(lmc_head);
+struct lmc {
+	char *path;
+	TAILQ_ENTRY(lmc) next;
+};
 
-static void		lmc_parse	(FILE *);
-static void		lm_add		(const char *, const char *, const char *);
-static void		lm_free		(struct lm_list *);
-static char *		lml_find	(struct lm_list *, const char *);
-static struct lm_list *	lmp_find	(const char *);
-static struct lm_list *	lmp_init	(char *);
-static const char * quickbasename	(const char *);
-static int	readstrfn	(void * cookie, char *buf, int len);
-static int	closestrfn	(void * cookie);
+static int lm_count;
+
+static void lmc_parse(char *, size_t);
+static void lmc_parse_file(char *);
+static void lmc_parse_dir(char *);
+static void lm_add(const char *, const char *, const char *);
+static void lm_free(struct lm_list *);
+static char *lml_find(struct lm_list *, const char *);
+static struct lm_list *lmp_find(const char *);
+static struct lm_list *lmp_init(char *);
+static const char *quickbasename(const char *);
 
 #define	iseol(c)	(((c) == '#') || ((c) == '\0') || \
 			 ((c) == '\n') || ((c) == '\r'))
 
+/*
+ * Do not use ctype.h macros, which rely on working TLS.  It is
+ * too early to have thread-local variables functional.
+ */
+#define	rtld_isspace(c)	((c) == ' ' || (c) == '\t')
+
 int
-lm_init (char *libmap_override)
+lm_init(char *libmap_override)
 {
-	FILE	*fp;
+	char *p;
 
-	dbg("%s(\"%s\")", __func__, libmap_override);
-
+	dbg("lm_init(\"%s\")", libmap_override);
 	TAILQ_INIT(&lmp_head);
 
-	fp = fopen(_PATH_LIBMAP_CONF, "r");
-	if (fp) {
-		lmc_parse(fp);
-		fclose(fp);
-	}
+	lmc_parse_file(_PATH_LIBMAP_CONF);
 
 	if (libmap_override) {
-		char	*p;
-		/* do some character replacement to make $LIBMAP look like a
-		   text file, then "open" it with funopen */
+		/*
+		 * Do some character replacement to make $LIBMAP look
+		 * like a text file, then parse it.
+		 */
 		libmap_override = xstrdup(libmap_override);
-
 		for (p = libmap_override; *p; p++) {
 			switch (*p) {
-				case '=':
-					*p = ' '; break;
-				case ',':
-					*p = '\n'; break;
+			case '=':
+				*p = ' ';
+				break;
+			case ',':
+				*p = '\n';
+				break;
 			}
 		}
-		fp = funopen(libmap_override, readstrfn, NULL, NULL, closestrfn);
-		if (fp) {
-			lmc_parse(fp);
-			fclose(fp);
-		}
+		lmc_parse(p, strlen(p));
+		free(p);
 	}
 
 	return (lm_count == 0);
 }
 
 static void
-lmc_parse (FILE *fp)
+lmc_parse_file(char *path)
 {
-	char	*cp;
-	char	*f, *t, *c, *p;
-	char	prog[MAXPATHLEN];
-	char	line[MAXPATHLEN + 2];
+	struct lmc *p;
+	struct stat st;
+	int fd;
+	char *rpath;
+	char *lm_map;
 
-	dbg("%s(%p)", __func__, fp);
-	
+	rpath = realpath(path, NULL);
+	if (rpath == NULL)
+		return;
+
+	TAILQ_FOREACH(p, &lmc_head, next) {
+		if (strcmp(p->path, rpath) == 0) {
+			free(rpath);
+			return;
+		}
+	}
+
+	fd = open(path, O_RDONLY);
+	if (fd == -1) {
+		dbg("lm_init: open(\"%s\") failed, %s", path,
+		    rtld_strerror(errno));
+		free(rpath);
+		return;
+	}
+	if (fstat(fd, &st) == -1) {
+		close(fd);
+		dbg("lm_init: fstat(\"%s\") failed, %s", path,
+		    rtld_strerror(errno));
+		free(rpath);
+		return;
+	}
+	lm_map = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+	if (lm_map == (const char *)MAP_FAILED) {
+		close(fd);
+		dbg("lm_init: mmap(\"%s\") failed, %s", path,
+		    rtld_strerror(errno));
+		free(rpath);
+		return;
+	}
+	close(fd);
+	p = xmalloc(sizeof(struct lmc));
+	p->path = rpath;
+	TAILQ_INSERT_HEAD(&lmc_head, p, next);
+	lmc_parse(lm_map, st.st_size);
+	munmap(lm_map, st.st_size);
+}
+
+static void
+lmc_parse_dir(char *idir)
+{
+	DIR *d;
+	struct dirent *dp;
+	struct lmc *p;
+	char conffile[MAXPATHLEN];
+	char *ext;
+	char *rpath;
+
+	rpath = realpath(idir, NULL);
+	if (rpath == NULL)
+		return;
+
+	TAILQ_FOREACH(p, &lmc_head, next) {
+		if (strcmp(p->path, rpath) == 0) {
+			free(rpath);
+			return;
+		}
+	}
+	d = opendir(idir);
+	if (d == NULL) {
+		free(rpath);
+		return;
+	}
+
+	p = xmalloc(sizeof(struct lmc));
+	p->path = rpath;
+	TAILQ_INSERT_HEAD(&lmc_head, p, next);
+
+	while ((dp = readdir(d)) != NULL) {
+		if (dp->d_ino == 0)
+			continue;
+		if (dp->d_type != DT_REG)
+			continue;
+		ext = strrchr(dp->d_name, '.');
+		if (ext == NULL)
+			continue;
+		if (strcmp(ext, ".conf") != 0)
+			continue;
+		if (strlcpy(conffile, idir, MAXPATHLEN) >= MAXPATHLEN)
+			continue; /* too long */
+		if (strlcat(conffile, "/", MAXPATHLEN) >= MAXPATHLEN)
+			continue; /* too long */
+		if (strlcat(conffile, dp->d_name, MAXPATHLEN) >= MAXPATHLEN)
+			continue; /* too long */
+		lmc_parse_file(conffile);
+	}
+	closedir(d);
+}
+
+static void
+lmc_parse(char *lm_p, size_t lm_len)
+{
+	char *cp, *f, *t, *c, *p;
+	char prog[MAXPATHLEN];
+	/* allow includedir + full length path */
+	char line[MAXPATHLEN + 13];
+	size_t cnt;
+	int i;
+
+	cnt = 0;
 	p = NULL;
-	while ((cp = fgets(line, MAXPATHLEN + 1, fp)) != NULL) {
+	while (cnt < lm_len) {
+		i = 0;
+		while (lm_p[cnt] != '\n' && cnt < lm_len &&
+		    i < sizeof(line) - 1) {
+			line[i] = lm_p[cnt];
+			cnt++;
+			i++;
+		}
+		line[i] = '\0';
+		while (lm_p[cnt] != '\n' && cnt < lm_len)
+			cnt++;
+		/* skip over nl */
+		cnt++;
+
+		cp = &line[0];
 		t = f = c = NULL;
 
 		/* Skip over leading space */
-		while (isspace(*cp)) cp++;
+		while (rtld_isspace(*cp)) cp++;
 
 		/* Found a comment or EOL */
 		if (iseol(*cp)) continue;
@@ -117,7 +242,7 @@ lmc_parse (FILE *fp)
 			cp++;
 
 			/* Skip leading space */
-			while (isspace(*cp)) cp++;
+			while (rtld_isspace(*cp)) cp++;
 
 			/* Found comment, EOL or end of selector */
 			if  (iseol(*cp) || *cp == ']')
@@ -125,11 +250,11 @@ lmc_parse (FILE *fp)
 
 			c = cp++;
 			/* Skip to end of word */
-			while (!isspace(*cp) && !iseol(*cp) && *cp != ']')
+			while (!rtld_isspace(*cp) && !iseol(*cp) && *cp != ']')
 				cp++;
 
 			/* Skip and zero out trailing space */
-			while (isspace(*cp)) *cp++ = '\0';
+			while (rtld_isspace(*cp)) *cp++ = '\0';
 
 			/* Check if there is a closing brace */
 			if (*cp != ']') continue;
@@ -141,36 +266,42 @@ lmc_parse (FILE *fp)
 			 * There should be nothing except whitespace or comment
 			  from this point to the end of the line.
 			 */
-			while(isspace(*cp)) cp++;
+			while(rtld_isspace(*cp)) cp++;
 			if (!iseol(*cp)) continue;
 
-			strcpy(prog, c);
+			if (strlcpy(prog, c, sizeof prog) >= sizeof prog)
+				continue;
 			p = prog;
 			continue;
 		}
 
 		/* Parse the 'from' candidate. */
 		f = cp++;
-		while (!isspace(*cp) && !iseol(*cp)) cp++;
+		while (!rtld_isspace(*cp) && !iseol(*cp)) cp++;
 
 		/* Skip and zero out the trailing whitespace */
-		while (isspace(*cp)) *cp++ = '\0';
+		while (rtld_isspace(*cp)) *cp++ = '\0';
 
 		/* Found a comment or EOL */
 		if (iseol(*cp)) continue;
 
 		/* Parse 'to' mapping */
 		t = cp++;
-		while (!isspace(*cp) && !iseol(*cp)) cp++;
+		while (!rtld_isspace(*cp) && !iseol(*cp)) cp++;
 
 		/* Skip and zero out the trailing whitespace */
-		while (isspace(*cp)) *cp++ = '\0';
+		while (rtld_isspace(*cp)) *cp++ = '\0';
 
 		/* Should be no extra tokens at this point */
 		if (!iseol(*cp)) continue;
 
 		*cp = '\0';
-		lm_add(p, f, t);
+		if (strcmp(f, "includedir") == 0)
+			lmc_parse_dir(t);
+		else if (strcmp(f, "include") == 0)
+			lmc_parse_file(t);
+		else
+			lm_add(p, f, t);
 	}
 }
 
@@ -195,8 +326,16 @@ void
 lm_fini (void)
 {
 	struct lmp *lmp;
+	struct lmc *p;
 
 	dbg("%s()", __func__);
+
+	while (!TAILQ_EMPTY(&lmc_head)) {
+		p = TAILQ_FIRST(&lmc_head);
+		TAILQ_REMOVE(&lmc_head, p, next);
+		free(p->path);
+		free(p);
+	}
 
 	while (!TAILQ_EMPTY(&lmp_head)) {
 		lmp = TAILQ_FIRST(&lmp_head);
@@ -338,32 +477,4 @@ quickbasename (const char *path)
 			p = path+1;
 	}
 	return (p);
-}
-
-static int
-readstrfn(void * cookie, char *buf, int len)
-{
-	static char	*current;
-	static int	left;
-	int 	copied;
-	
-	copied = 0;
-	if (!current) {
-		current = cookie;
-		left = strlen(cookie);
-	}
-	while (*current && left && len) {
-		*buf++ = *current++;
-		left--;
-		len--;
-		copied++;
-	}
-	return copied;
-}
-
-static int
-closestrfn(void * cookie)
-{
-	free(cookie);
-	return 0;
 }

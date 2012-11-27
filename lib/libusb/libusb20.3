@@ -235,7 +235,6 @@ applications should consider using
 .
 .Sh USB TRANSFER OPERATIONS
 .
-.Pp
 .
 .Fn libusb20_tr_close
 will release all kernel resources associated with an USB
@@ -534,7 +533,6 @@ with an USB transfer.
 .
 .Sh USB DEVICE OPERATIONS
 .
-.Pp
 .
 .Fn libusb20_dev_get_backend_name
 returns a zero terminated string describing the backend used.
@@ -542,7 +540,7 @@ returns a zero terminated string describing the backend used.
 .Pp
 .
 .Fn libusb20_dev_get_info
-retrieves the BSD specific usb_device_info structure into the memory location given by 
+retrieves the BSD specific usb_device_info structure into the memory location given by
 .Fa pinfo .
 The USB device given by
 .Fa pdev
@@ -1000,7 +998,6 @@ The buffer pointer cannot be NULL.
 .
 .
 .Sh USB DEBUGGING
-.Pp
 .Ft const char *
 .Fn libusb20_strerror "int code"
 Get the ASCII representation of the error given by the

@@ -60,12 +60,12 @@ DEFINE_TEST(test_read_format_isorr_new_bz2)
 	struct archive *a;
 	const void *p;
 	size_t size;
-	off_t offset;
+	int64_t offset;
 	int i;
 
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
-	assertEqualInt(0, archive_read_support_compression_all(a));
+	assertEqualInt(0, archive_read_support_filter_all(a));
 	assertEqualInt(0, archive_read_support_format_all(a));
 	assertEqualInt(ARCHIVE_OK,
 	    archive_read_open_filename(a, refname, 10240));
@@ -197,8 +197,8 @@ DEFINE_TEST(test_read_format_isorr_new_bz2)
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_ISO9660_ROCKRIDGE);
 
 	/* Close the archive. */
-	assertEqualInt(0, archive_read_close(a));
-	assertEqualInt(0, archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 

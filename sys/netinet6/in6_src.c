@@ -129,10 +129,10 @@ VNET_DEFINE(int, ip6_prefer_tempaddr) = 0;
 
 static int selectroute __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
-	struct rtentry **, int, int));
+	struct rtentry **, int, u_int));
 static int in6_selectif __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *ro, struct ifnet **,
-	struct ifnet *, int));
+	struct ifnet *, u_int));
 
 static struct in6_addrpolicy *lookup_addrsel_policy(struct sockaddr_in6 *);
 
@@ -518,7 +518,7 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 static int
 selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
     struct ip6_moptions *mopts, struct route_in6 *ro,
-    struct ifnet **retifp, struct rtentry **retrt, int norouteok, int fibnum)
+    struct ifnet **retifp, struct rtentry **retrt, int norouteok, u_int fibnum)
 {
 	int error = 0;
 	struct ifnet *ifp = NULL;
@@ -630,7 +630,7 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 			*satosin6(&ron->ro_dst) = *sin6_next;
 		}
 		if (ron->ro_rt == NULL) {
-			in6_rtalloc(ron); /* multi path case? */
+			in6_rtalloc(ron, fibnum); /* multi path case? */
 			if (ron->ro_rt == NULL ||
 			    !(ron->ro_rt->rt_flags & RTF_LLINFO)) {
 				if (ron->ro_rt) {
@@ -761,7 +761,7 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 static int
 in6_selectif(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
     struct ip6_moptions *mopts, struct route_in6 *ro, struct ifnet **retifp,
-    struct ifnet *oifp, int fibnum)
+    struct ifnet *oifp, u_int fibnum)
 {
 	int error;
 	struct route_in6 sro;
@@ -836,7 +836,7 @@ in6_selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 int
 in6_selectroute_fib(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
     struct ip6_moptions *mopts, struct route_in6 *ro,
-    struct ifnet **retifp, struct rtentry **retrt, int fibnum)
+    struct ifnet **retifp, struct rtentry **retrt, u_int fibnum)
 {
 
 	return (selectroute(dstsock, opts, mopts, ro, retifp,
@@ -867,8 +867,7 @@ in6_selecthlim(struct inpcb *in6p, struct ifnet *ifp)
 		ro6.ro_dst.sin6_family = AF_INET6;
 		ro6.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
 		ro6.ro_dst.sin6_addr = in6p->in6p_faddr;
-		in6_rtalloc(&ro6, in6p ? in6p->inp_inc.inc_fibnum :
-		    RT_DEFAULT_FIB);
+		in6_rtalloc(&ro6, in6p->inp_inc.inc_fibnum);
 		if (ro6.ro_rt) {
 			lifp = ro6.ro_rt->rt_ifp;
 			RTFREE(ro6.ro_rt);

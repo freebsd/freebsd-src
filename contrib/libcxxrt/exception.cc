@@ -1,3 +1,29 @@
+/* 
+ * Copyright 2010-2011 PathScale, Inc. All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice,
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice,
+ *    this list of conditions and the following disclaimer in the documentation
+ *    and/or other materials provided with the distribution.
+ * 
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS ``AS
+ * IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
+ * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
+ * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
+ * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+ * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
 #include <stdlib.h>
 #include <dlfcn.h>
 #include <stdio.h>
@@ -12,12 +38,6 @@
 #pragma weak pthread_setspecific
 #pragma weak pthread_getspecific
 #pragma weak pthread_once
-#pragma weak pthread_once
-#pragma weak pthread_cond_signal
-#pragma weak pthread_cond_wait
-#pragma weak pthread_mutex_lock
-#pragma weak pthread_mutex_unlock
-
 
 using namespace ABI_NAMESPACE;
 
@@ -403,10 +423,7 @@ static char *emergency_malloc(size_t size)
 	// Only 4 emergency buffers allowed per thread!
 	if (info->emergencyBuffersHeld > 3) { return 0; }
 
-	if (pthread_mutex_lock)
-	{
-		pthread_mutex_lock(&emergency_malloc_lock);
-	}
+	pthread_mutex_lock(&emergency_malloc_lock);
 	int buffer = -1;
 	while (buffer < 0)
 	{
@@ -417,10 +434,7 @@ static char *emergency_malloc(size_t size)
 		void *m = calloc(1, size);
 		if (0 != m)
 		{
-			if (pthread_mutex_unlock)
-			{
-				pthread_mutex_unlock(&emergency_malloc_lock);
-			}
+			pthread_mutex_unlock(&emergency_malloc_lock);
 			return (char*)m;
 		}
 		for (int i=0 ; i<16 ; i++)
@@ -437,24 +451,10 @@ static char *emergency_malloc(size_t size)
 		// of the emergency buffers.
 		if (buffer < 0)
 		{
-			// If we don't have pthread_cond_wait, then there is only one
-			// thread and it's already used all of the emergency buffers, so we
-			// have no alternative but to die.  Calling abort() instead of
-			// terminate, because terminate can throw exceptions, which can
-			// bring us back here and infinite loop.
-			if (!pthread_cond_wait)
-			{
-				fputs("Terminating while out of memory trying to throw an exception",
-				      stderr);
-				abort();
-			}
 			pthread_cond_wait(&emergency_malloc_wait, &emergency_malloc_lock);
 		}
 	}
-	if (pthread_mutex_unlock)
-	{
-		pthread_mutex_unlock(&emergency_malloc_lock);
-	}
+	pthread_mutex_unlock(&emergency_malloc_lock);
 	info->emergencyBuffersHeld++;
 	return emergency_buffer + (1024 * buffer);
 }
@@ -487,19 +487,13 @@ static void emergency_malloc_free(char *ptr)
 	memset((void*)ptr, 0, 1024);
 	// Signal the condition variable to wake up any threads that are blocking
 	// waiting for some space in the emergency buffer
-	if (pthread_mutex_lock)
-	{
-		pthread_mutex_lock(&emergency_malloc_lock);
-	}
+	pthread_mutex_lock(&emergency_malloc_lock);
 	// In theory, we don't need to do this with the lock held.  In practice,
 	// our array of bools will probably be updated using 32-bit or 64-bit
 	// memory operations, so this update may clobber adjacent values.
 	buffer_allocated[buffer] = false;
-	if (pthread_cond_signal && pthread_mutex_unlock)
-	{
-		pthread_cond_signal(&emergency_malloc_wait);
-		pthread_mutex_unlock(&emergency_malloc_lock);
-	}
+	pthread_cond_signal(&emergency_malloc_wait);
+	pthread_mutex_unlock(&emergency_malloc_lock);
 }
 
 static char *alloc_or_die(size_t size)
@@ -853,14 +847,11 @@ static bool check_type_signature(__cxa_exception *ex,
                                  const std::type_info *type,
                                  void *&adjustedPtr)
 {
-	// TODO: For compatibility with the GNU implementation, we should move this
-	// out into a __do_catch() virtual function in std::type_info
 	void *exception_ptr = (void*)(ex+1);
-    const std::type_info *ex_type = ex->exceptionType;
+	const std::type_info *ex_type = ex->exceptionType;
 
-	const __pointer_type_info *ptr_type =
-		dynamic_cast<const __pointer_type_info*>(ex_type);
-	if (0 != ptr_type)
+	bool is_ptr = ex_type->__is_pointer_p();
+	if (is_ptr)
 	{
 		exception_ptr = *(void**)exception_ptr;
 	}
@@ -868,11 +859,6 @@ static bool check_type_signature(__cxa_exception *ex,
 	//
 	// Note: A 0 here is a catchall, not a cleanup, so we return true to
 	// indicate that we found a catch.
-	//
-	// TODO: Provide a class for matching against foreign exceptions.  This is
-	// already done in libobjc2, allowing C++ exceptions to be boxed as
-	// Objective-C objects.  We should do something similar, allowing foreign
-	// exceptions to be wrapped in a C++ exception and delivered.
 	if (0 == type)
 	{
 		if (ex)
@@ -884,28 +870,6 @@ static bool check_type_signature(__cxa_exception *ex,
 
 	if (0 == ex) { return false; }
 
-	const __pointer_type_info *target_ptr_type =
-		dynamic_cast<const __pointer_type_info*>(type);
-
-	if (0 != ptr_type && 0 != target_ptr_type)
-	{
-		if (ptr_type->__flags & ~target_ptr_type->__flags)
-		{
-			// Handler pointer is less qualified
-			return false;
-		}
-
-		// Special case for void* handler.  
-		if(*target_ptr_type->__pointee == typeid(void))
-		{
-			adjustedPtr = exception_ptr;
-			return true;
-		}
-
-		ex_type = ptr_type->__pointee;
-		type = target_ptr_type->__pointee;
-	}
-
 	// If the types are the same, no casting is needed.
 	if (*type == *ex_type)
 	{
@@ -913,18 +877,13 @@ static bool check_type_signature(__cxa_exception *ex,
 		return true;
 	}
 
-	const __class_type_info *cls_type =
-		dynamic_cast<const __class_type_info*>(ex_type);
-	const __class_type_info *target_cls_type =
-		dynamic_cast<const __class_type_info*>(type);
 
-	if (0 != cls_type &&
-		0 != target_cls_type &&
-		cls_type->can_cast_to(target_cls_type))
+	if (type->__do_catch(ex_type, &exception_ptr, 1))
 	{
-		adjustedPtr = cls_type->cast_to(exception_ptr, target_cls_type);
+		adjustedPtr = exception_ptr;
 		return true;
 	}
+
 	return false;
 }
 /**

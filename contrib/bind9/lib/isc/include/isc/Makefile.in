@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2009  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2009, 2012  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2001, 2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: Makefile.in,v 1.68 2009-12-05 23:31:41 each Exp $
+# $Id$
 
 srcdir =	@srcdir@
 VPATH =		@srcdir@
@@ -29,7 +29,7 @@ top_srcdir =	@top_srcdir@
 HEADERS =	app.h assertions.h base64.h bind9.h bitstring.h boolean.h \
 		buffer.h bufferlist.h commandline.h entropy.h error.h event.h \
 		eventclass.h file.h formatcheck.h fsaccess.h \
-		hash.h heap.h hex.h hmacmd5.h \
+		hash.h heap.h hex.h hmacmd5.h hmacsha.h \
 		httpd.h \
 		interfaceiter.h @ISC_IPV6_H@ iterated_hash.h lang.h lex.h \
 		lfsr.h lib.h list.h log.h \

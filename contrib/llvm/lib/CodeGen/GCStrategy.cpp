@@ -10,8 +10,8 @@
 // This file implements target- and collector-independent garbage collection
 // infrastructure.
 //
-// MachineCodeAnalysis identifies the GC safe points in the machine code. Roots
-// are identified in SelectionDAGISel.
+// GCMachineCodeAnalysis identifies the GC safe points in the machine code.
+// Roots are identified in SelectionDAGISel.
 //
 //===----------------------------------------------------------------------===//
 
@@ -35,9 +35,9 @@
 using namespace llvm;
 
 namespace {
-  
+
   /// LowerIntrinsics - This pass rewrites calls to the llvm.gcread or
-  /// llvm.gcwrite intrinsics, replacing them with simple loads and stores as 
+  /// llvm.gcwrite intrinsics, replacing them with simple loads and stores as
   /// directed by the GCStrategy. It also performs automatic root initialization
   /// and custom intrinsic lowering.
   class LowerIntrinsics : public FunctionPass {
@@ -47,47 +47,46 @@ namespace {
     bool PerformDefaultLowering(Function &F, GCStrategy &Coll);
     static bool InsertRootInitializers(Function &F,
                                        AllocaInst **Roots, unsigned Count);
-    
+
   public:
     static char ID;
-    
+
     LowerIntrinsics();
     const char *getPassName() const;
     void getAnalysisUsage(AnalysisUsage &AU) const;
-    
+
     bool doInitialization(Module &M);
     bool runOnFunction(Function &F);
   };
-  
-  
-  /// MachineCodeAnalysis - This is a target-independent pass over the machine 
+
+
+  /// GCMachineCodeAnalysis - This is a target-independent pass over the machine
   /// function representation to identify safe points for the garbage collector
   /// in the machine code. It inserts labels at safe points and populates a
   /// GCMetadata record for each function.
-  class MachineCodeAnalysis : public MachineFunctionPass {
+  class GCMachineCodeAnalysis : public MachineFunctionPass {
     const TargetMachine *TM;
     GCFunctionInfo *FI;
     MachineModuleInfo *MMI;
     const TargetInstrInfo *TII;
-    
+
     void FindSafePoints(MachineFunction &MF);
     void VisitCallPoint(MachineBasicBlock::iterator MI);
-    MCSymbol *InsertLabel(MachineBasicBlock &MBB, 
+    MCSymbol *InsertLabel(MachineBasicBlock &MBB,
                           MachineBasicBlock::iterator MI,
                           DebugLoc DL) const;
-    
+
     void FindStackOffsets(MachineFunction &MF);
-    
+
   public:
     static char ID;
-    
-    MachineCodeAnalysis();
-    const char *getPassName() const;
+
+    GCMachineCodeAnalysis();
     void getAnalysisUsage(AnalysisUsage &AU) const;
-    
+
     bool runOnMachineFunction(MachineFunction &MF);
   };
-  
+
 }
 
 // -----------------------------------------------------------------------------
@@ -97,6 +96,7 @@ GCStrategy::GCStrategy() :
   CustomReadBarriers(false),
   CustomWriteBarriers(false),
   CustomRoots(false),
+  CustomSafePoints(false),
   InitRoots(true),
   UsesMetadata(false)
 {}
@@ -104,17 +104,23 @@ GCStrategy::GCStrategy() :
 GCStrategy::~GCStrategy() {
   for (iterator I = begin(), E = end(); I != E; ++I)
     delete *I;
-  
+
   Functions.clear();
 }
- 
+
 bool GCStrategy::initializeCustomLowering(Module &M) { return false; }
- 
+
 bool GCStrategy::performCustomLowering(Function &F) {
   dbgs() << "gc " << getName() << " must override performCustomLowering.\n";
-  llvm_unreachable(0);
-  return 0;
+  llvm_unreachable("must override performCustomLowering");
 }
+
+
+bool GCStrategy::findCustomSafePoints(GCFunctionInfo& FI, MachineFunction &F) {
+  dbgs() << "gc " << getName() << " must override findCustomSafePoints.\n";
+  llvm_unreachable(0);
+}
+
 
 GCFunctionInfo *GCStrategy::insertFunctionInfo(const Function &F) {
   GCFunctionInfo *FI = new GCFunctionInfo(F, *this);
@@ -132,7 +138,7 @@ INITIALIZE_PASS_END(LowerIntrinsics, "gc-lowering", "GC Lowering", false, false)
 FunctionPass *llvm::createGCLoweringPass() {
   return new LowerIntrinsics();
 }
- 
+
 char LowerIntrinsics::ID = 0;
 
 LowerIntrinsics::LowerIntrinsics()
@@ -143,7 +149,7 @@ LowerIntrinsics::LowerIntrinsics()
 const char *LowerIntrinsics::getPassName() const {
   return "Lower Garbage Collection Instructions";
 }
-    
+
 void LowerIntrinsics::getAnalysisUsage(AnalysisUsage &AU) const {
   FunctionPass::getAnalysisUsage(AU);
   AU.addRequired<GCModuleInfo>();
@@ -161,22 +167,22 @@ bool LowerIntrinsics::doInitialization(Module &M) {
   for (Module::iterator I = M.begin(), E = M.end(); I != E; ++I)
     if (!I->isDeclaration() && I->hasGC())
       MI->getFunctionInfo(*I); // Instantiate the GC strategy.
-  
+
   bool MadeChange = false;
   for (GCModuleInfo::iterator I = MI->begin(), E = MI->end(); I != E; ++I)
     if (NeedsCustomLoweringPass(**I))
       if ((*I)->initializeCustomLowering(M))
         MadeChange = true;
-  
+
   return MadeChange;
 }
 
-bool LowerIntrinsics::InsertRootInitializers(Function &F, AllocaInst **Roots, 
+bool LowerIntrinsics::InsertRootInitializers(Function &F, AllocaInst **Roots,
                                                           unsigned Count) {
   // Scroll past alloca instructions.
   BasicBlock::iterator IP = F.getEntryBlock().begin();
   while (isa<AllocaInst>(IP)) ++IP;
-  
+
   // Search for initializers in the initial BB.
   SmallPtrSet<AllocaInst*,16> InitedRoots;
   for (; !CouldBecomeSafePoint(IP); ++IP)
@@ -184,10 +190,10 @@ bool LowerIntrinsics::InsertRootInitializers(Function &F, AllocaInst **Roots,
       if (AllocaInst *AI =
           dyn_cast<AllocaInst>(SI->getOperand(1)->stripPointerCasts()))
         InitedRoots.insert(AI);
-  
+
   // Add root initializers.
   bool MadeChange = false;
-  
+
   for (AllocaInst **I = Roots, **E = Roots + Count; I != E; ++I)
     if (!InitedRoots.count(*I)) {
       StoreInst* SI = new StoreInst(ConstantPointerNull::get(cast<PointerType>(
@@ -196,7 +202,7 @@ bool LowerIntrinsics::InsertRootInitializers(Function &F, AllocaInst **Roots,
       SI->insertAfter(*I);
       MadeChange = true;
     }
-  
+
   return MadeChange;
 }
 
@@ -220,26 +226,26 @@ bool LowerIntrinsics::NeedsCustomLoweringPass(const GCStrategy &C) {
 bool LowerIntrinsics::CouldBecomeSafePoint(Instruction *I) {
   // The natural definition of instructions which could introduce safe points
   // are:
-  // 
+  //
   //   - call, invoke (AfterCall, BeforeCall)
   //   - phis (Loops)
   //   - invoke, ret, unwind (Exit)
-  // 
+  //
   // However, instructions as seemingly inoccuous as arithmetic can become
   // libcalls upon lowering (e.g., div i64 on a 32-bit platform), so instead
   // it is necessary to take a conservative approach.
-  
+
   if (isa<AllocaInst>(I) || isa<GetElementPtrInst>(I) ||
       isa<StoreInst>(I) || isa<LoadInst>(I))
     return false;
-  
+
   // llvm.gcroot is safe because it doesn't do anything at runtime.
   if (CallInst *CI = dyn_cast<CallInst>(I))
     if (Function *F = CI->getCalledFunction())
       if (unsigned IID = F->getIntrinsicID())
         if (IID == Intrinsic::gcroot)
           return false;
-  
+
   return true;
 }
 
@@ -249,15 +255,15 @@ bool LowerIntrinsics::runOnFunction(Function &F) {
   // Quick exit for functions that do not use GC.
   if (!F.hasGC())
     return false;
-  
+
   GCFunctionInfo &FI = getAnalysis<GCModuleInfo>().getFunctionInfo(F);
   GCStrategy &S = FI.getStrategy();
-  
+
   bool MadeChange = false;
-  
+
   if (NeedsDefaultLoweringPass(S))
     MadeChange |= PerformDefaultLowering(F, S);
-  
+
   bool UseCustomLoweringPass = NeedsCustomLoweringPass(S);
   if (UseCustomLoweringPass)
     MadeChange |= S.performCustomLowering(F);
@@ -275,9 +281,9 @@ bool LowerIntrinsics::PerformDefaultLowering(Function &F, GCStrategy &S) {
   bool LowerWr = !S.customWriteBarrier();
   bool LowerRd = !S.customReadBarrier();
   bool InitRoots = S.initializeRoots();
-  
+
   SmallVector<AllocaInst*, 32> Roots;
-  
+
   bool MadeChange = false;
   for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {
     for (BasicBlock::iterator II = BB->begin(), E = BB->end(); II != E;) {
@@ -313,104 +319,104 @@ bool LowerIntrinsics::PerformDefaultLowering(Function &F, GCStrategy &S) {
         default:
           continue;
         }
-        
+
         MadeChange = true;
       }
     }
   }
-  
+
   if (Roots.size())
     MadeChange |= InsertRootInitializers(F, Roots.begin(), Roots.size());
-  
+
   return MadeChange;
 }
 
 // -----------------------------------------------------------------------------
 
-FunctionPass *llvm::createGCMachineCodeAnalysisPass() {
-  return new MachineCodeAnalysis();
-}
+char GCMachineCodeAnalysis::ID = 0;
+char &llvm::GCMachineCodeAnalysisID = GCMachineCodeAnalysis::ID;
 
-char MachineCodeAnalysis::ID = 0;
+INITIALIZE_PASS(GCMachineCodeAnalysis, "gc-analysis",
+                "Analyze Machine Code For Garbage Collection", false, false)
 
-MachineCodeAnalysis::MachineCodeAnalysis()
+GCMachineCodeAnalysis::GCMachineCodeAnalysis()
   : MachineFunctionPass(ID) {}
 
-const char *MachineCodeAnalysis::getPassName() const {
-  return "Analyze Machine Code For Garbage Collection";
-}
-
-void MachineCodeAnalysis::getAnalysisUsage(AnalysisUsage &AU) const {
+void GCMachineCodeAnalysis::getAnalysisUsage(AnalysisUsage &AU) const {
   MachineFunctionPass::getAnalysisUsage(AU);
   AU.setPreservesAll();
   AU.addRequired<MachineModuleInfo>();
   AU.addRequired<GCModuleInfo>();
 }
 
-MCSymbol *MachineCodeAnalysis::InsertLabel(MachineBasicBlock &MBB, 
-                                           MachineBasicBlock::iterator MI,
-                                           DebugLoc DL) const {
+MCSymbol *GCMachineCodeAnalysis::InsertLabel(MachineBasicBlock &MBB,
+                                             MachineBasicBlock::iterator MI,
+                                             DebugLoc DL) const {
   MCSymbol *Label = MBB.getParent()->getContext().CreateTempSymbol();
   BuildMI(MBB, MI, DL, TII->get(TargetOpcode::GC_LABEL)).addSym(Label);
   return Label;
 }
 
-void MachineCodeAnalysis::VisitCallPoint(MachineBasicBlock::iterator CI) {
+void GCMachineCodeAnalysis::VisitCallPoint(MachineBasicBlock::iterator CI) {
   // Find the return address (next instruction), too, so as to bracket the call
   // instruction.
-  MachineBasicBlock::iterator RAI = CI; 
-  ++RAI;                                
-  
+  MachineBasicBlock::iterator RAI = CI;
+  ++RAI;
+
   if (FI->getStrategy().needsSafePoint(GC::PreCall)) {
     MCSymbol* Label = InsertLabel(*CI->getParent(), CI, CI->getDebugLoc());
     FI->addSafePoint(GC::PreCall, Label, CI->getDebugLoc());
   }
-  
+
   if (FI->getStrategy().needsSafePoint(GC::PostCall)) {
     MCSymbol* Label = InsertLabel(*CI->getParent(), RAI, CI->getDebugLoc());
     FI->addSafePoint(GC::PostCall, Label, CI->getDebugLoc());
   }
 }
 
-void MachineCodeAnalysis::FindSafePoints(MachineFunction &MF) {
+void GCMachineCodeAnalysis::FindSafePoints(MachineFunction &MF) {
   for (MachineFunction::iterator BBI = MF.begin(),
                                  BBE = MF.end(); BBI != BBE; ++BBI)
     for (MachineBasicBlock::iterator MI = BBI->begin(),
                                      ME = BBI->end(); MI != ME; ++MI)
-      if (MI->getDesc().isCall())
+      if (MI->isCall())
         VisitCallPoint(MI);
 }
 
-void MachineCodeAnalysis::FindStackOffsets(MachineFunction &MF) {
+void GCMachineCodeAnalysis::FindStackOffsets(MachineFunction &MF) {
   const TargetFrameLowering *TFI = TM->getFrameLowering();
   assert(TFI && "TargetRegisterInfo not available!");
-  
+
   for (GCFunctionInfo::roots_iterator RI = FI->roots_begin(),
                                       RE = FI->roots_end(); RI != RE; ++RI)
     RI->StackOffset = TFI->getFrameIndexOffset(MF, RI->Num);
 }
 
-bool MachineCodeAnalysis::runOnMachineFunction(MachineFunction &MF) {
+bool GCMachineCodeAnalysis::runOnMachineFunction(MachineFunction &MF) {
   // Quick exit for functions that do not use GC.
   if (!MF.getFunction()->hasGC())
     return false;
-  
+
   FI = &getAnalysis<GCModuleInfo>().getFunctionInfo(*MF.getFunction());
   if (!FI->getStrategy().needsSafePoints())
     return false;
-  
+
   TM = &MF.getTarget();
   MMI = &getAnalysis<MachineModuleInfo>();
   TII = TM->getInstrInfo();
-  
+
   // Find the size of the stack frame.
   FI->setFrameSize(MF.getFrameInfo()->getStackSize());
-  
+
   // Find all safe points.
-  FindSafePoints(MF);
-  
+  if (FI->getStrategy().customSafePoints()) {
+    FI->getStrategy().findCustomSafePoints(*FI, MF);
+  } else {
+    FindSafePoints(MF);
+  }
+
   // Find the stack offsets for all roots.
   FindStackOffsets(MF);
-  
+
   return false;
 }

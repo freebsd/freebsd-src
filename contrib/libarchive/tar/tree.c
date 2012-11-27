@@ -104,9 +104,9 @@ struct tree_entry {
 /* Definitions for tree_entry.flags bitmap. */
 #define	isDir 1 /* This entry is a regular directory. */
 #define	isDirLink 2 /* This entry is a symbolic link to a directory. */
-#define needsFirstVisit 4 /* This is an initial entry. */
+#define	needsFirstVisit 4 /* This is an initial entry. */
 #define	needsDescent 8 /* This entry needs to be previsited. */
-#define needsOpen 16 /* This is a directory that needs to be opened. */
+#define	needsOpen 16 /* This is a directory that needs to be opened. */
 #define	needsAscent 32 /* This entry needs to be postvisited. */
 
 /*
@@ -122,15 +122,15 @@ struct tree_entry {
 struct tree {
 	struct tree_entry	*stack;
 	struct tree_entry	*current;
-#if defined(HAVE_WINDOWS_H) && !defined(__CYGWIN__)
+#if defined(_WIN32) && !defined(__CYGWIN__)
 	HANDLE d;
 	BY_HANDLE_FILE_INFORMATION fileInfo;
-#define INVALID_DIR_HANDLE INVALID_HANDLE_VALUE
+#define	INVALID_DIR_HANDLE INVALID_HANDLE_VALUE
 	WIN32_FIND_DATA _findData;
 	WIN32_FIND_DATA *findData;
 #else
 	DIR	*d;
-#define INVALID_DIR_HANDLE NULL
+#define	INVALID_DIR_HANDLE NULL
 	struct dirent *de;
 #endif
 	int	 flags;
@@ -154,8 +154,8 @@ struct tree {
 };
 
 /* Definitions for tree.flags bitmap. */
-#define hasStat 16  /* The st entry is valid. */
-#define hasLstat 32 /* The lst entry is valid. */
+#define	hasStat 16  /* The st entry is valid. */
+#define	hasLstat 32 /* The lst entry is valid. */
 #define	hasFileInfo 64 /* The Windows fileInfo entry is valid. */
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
@@ -168,9 +168,9 @@ tree_dir_next_posix(struct tree *t);
 
 #ifdef HAVE_DIRENT_D_NAMLEN
 /* BSD extension; avoids need for a strlen() call. */
-#define D_NAMELEN(dp)	(dp)->d_namlen
+#define	D_NAMELEN(dp)	(dp)->d_namlen
 #else
-#define D_NAMELEN(dp)	(strlen((dp)->d_name))
+#define	D_NAMELEN(dp)	(strlen((dp)->d_name))
 #endif
 
 #include <stdio.h>
@@ -289,15 +289,42 @@ tree_open(const char *path)
 #elif defined(_WIN32) && !defined(__CYGWIN__)
 	struct tree *t;
 	char *cwd = _getcwd(NULL, 0);
-	char *pathname = strdup(path), *p, *base;
+	char *pathname, *p, *base;
+	wchar_t *wcs, *wp;
+	size_t l, wlen;
 
+	/* Take care of '\' character in multi-byte character-set.
+	 * Some multi-byte character-set have been using '\' character
+	 * for a part of its character code. */
+	l = MultiByteToWideChar(CP_OEMCP, 0, path, strlen(path), NULL, 0);
+	if (l == 0)
+		abort();
+	wcs = malloc(sizeof(*wcs) * (l+1));
+	if (wcs == NULL)
+		abort();
+	l = MultiByteToWideChar(CP_OEMCP, 0, path, strlen(path), wcs, l);
+	wcs[l] = L'\0';
+	wlen = l;
+	for (wp = wcs; *wp != L'\0'; ++wp) {
+		if (*wp == L'\\')
+			*wp = L'/';
+	}
+	l = WideCharToMultiByte(CP_OEMCP, 0, wcs, wlen, NULL, 0, NULL, NULL);
+	if (l == 0)
+		abort();
+	pathname = malloc(l+1);
 	if (pathname == NULL)
 		abort();
-	for (p = pathname; *p != '\0'; ++p) {
-		if (*p == '\\')
-			*p = '/';
-	}
+	l = WideCharToMultiByte(CP_OEMCP, 0, wcs, wlen, pathname, l, NULL, NULL);
+	pathname[l] = '\0';
+	free(wcs);
 	base = pathname;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* ASCII version APIs do not accept the path which begin with
+	 * "//?/" prefix. */
+	if (strncmp(base, "//?/", 4) == 0)
+		base += 4;
+#endif
 
 	t = malloc(sizeof(*t));
 	memset(t, 0, sizeof(*t));
@@ -305,8 +332,8 @@ tree_open(const char *path)
 	/* printf("Looking for wildcard in %s\n", path); */
 	/* TODO: wildcard detection here screws up on \\?\c:\ UNC names */
 	if (strchr(base, '*') || strchr(base, '?')) {
-		// It has a wildcard in it...
-		// Separate the last element.
+		/* It has a wildcard in it... */
+		/* Separate the last element. */
 		p = strrchr(base, '/');
 		if (p != NULL) {
 			*p = '\0';
@@ -428,13 +455,13 @@ tree_next(struct tree *t)
 					continue;
 				return (r);
 			}
-			// Not a pattern, handle it as-is...
+			/* Not a pattern, handle it as-is... */
 #endif
 			/* Top stack item needs a regular visit. */
 			t->current = t->stack;
 			tree_append(t, t->stack->name, strlen(t->stack->name));
-			//t->dirname_length = t->path_length;
-			//tree_pop(t);
+			/* t->dirname_length = t->path_length; */
+			/* tree_pop(t); */
 			t->stack->flags &= ~needsFirstVisit;
 			return (t->visit_type = TREE_REGULAR);
 		} else if (t->stack->flags & needsDescent) {
@@ -611,7 +638,7 @@ tree_current_stat(struct tree *t)
 	return (&t->st);
 }
 
-#if defined(HAVE_WINDOWS_H) && !defined(__CYGWIN__)
+#if defined(_WIN32) && !defined(__CYGWIN__)
 const BY_HANDLE_FILE_INFORMATION *
 tree_current_file_information(struct tree *t)
 {
@@ -740,7 +767,7 @@ tree_current_is_physical_link(struct tree *t)
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #ifndef IO_REPARSE_TAG_SYMLINK
 /* Old SDKs do not provide IO_REPARSE_TAG_SYMLINK */
-#define IO_REPARSE_TAG_SYMLINK 0xA000000CL
+#define	IO_REPARSE_TAG_SYMLINK 0xA000000CL
 #endif
 	if (t->findData)
 		return ((t->findData->dwFileAttributes & FILE_ATTRIBUTE_REPARSE_POINT)

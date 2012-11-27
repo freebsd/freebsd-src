@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,7 +49,7 @@
  * This file is resposible for including all system dependent
  * headers for the cvmx-* files.
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
 */
 
 #ifndef __CVMX_PLATFORM_H__
@@ -219,6 +219,7 @@ static inline void cvmx_linux_enable_xkphys_access(int32_t warn_count)
 
 #elif defined(CVMX_BUILD_FOR_TOOLCHAIN)
 
+    #ifndef __ASSEMBLY__
     #include <stddef.h>
     #include <stdint.h>
     #include <stdio.h>
@@ -226,6 +227,8 @@ static inline void cvmx_linux_enable_xkphys_access(int32_t warn_count)
     #include <stdarg.h>
     #include <string.h>
     #include <assert.h>
+    #endif
+    #include "rename-cvmx.h"
 
 #elif defined(CVMX_BUILD_FOR_FREEBSD_KERNEL)
 

@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -48,12 +48,14 @@
  *
  * This is file defines ASM primitives for the executive.
 
- * <hr>$Revision: 52004 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  *
  *
  */
 #ifndef __CVMX_ASM_H__
 #define __CVMX_ASM_H__
+
+#define CVMX_MAX_CORES  (32)
 
 #define COP0_INDEX	$0,0	/* TLB read/write index */
 #define COP0_RANDOM	$1,0	/* TLB random index */
@@ -111,8 +113,6 @@
    things under !__ASSEMBLER__.  */
 #ifndef __ASSEMBLER__
 
-#include "octeon-model.h"
-
 #ifdef	__cplusplus
 extern "C" {
 #endif
@@ -121,10 +121,9 @@ extern "C" {
 #define CVMX_TMP_STR(x) CVMX_TMP_STR2(x)
 #define CVMX_TMP_STR2(x) #x
 
-#if !OCTEON_IS_COMMON_BINARY()
- #if CVMX_COMPILED_FOR(OCTEON_CN63XX)
-   #define CVMX_CAVIUM_OCTEON2
- #endif
+/* Since sync is required for Octeon2. */
+#ifdef _MIPS_ARCH_OCTEON2
+#define CVMX_CAVIUM_OCTEON2   1
 #endif
 
 /* other useful stuff */
@@ -139,9 +138,7 @@ extern "C" {
 #endif /* CVMX_CAVIUM_OCTEON2 */
 
 #ifdef __OCTEON__
-    #define CVMX_SYNCIO asm volatile ("nop")   /* Deprecated, will be removed in future release */
     #define CVMX_SYNCIOBDMA asm volatile ("synciobdma" : : :"memory")
-    #define CVMX_SYNCIOALL asm volatile ("nop")   /* Deprecated, will be removed in future release */
     /* We actually use two syncw instructions in a row when we need a write
         memory barrier. This is because the CN3XXX series of Octeons have
         errata Core-401. This can cause a single syncw to not enforce
@@ -187,9 +184,7 @@ extern "C" {
 #endif
 #else /* !__OCTEON__ */
     /* Not using a Cavium compiler, always use the slower sync so the assembler stays happy */
-    #define CVMX_SYNCIO asm volatile ("nop")   /* Deprecated, will be removed in future release */
     #define CVMX_SYNCIOBDMA asm volatile ("sync" : : :"memory")
-    #define CVMX_SYNCIOALL asm volatile ("nop")   /* Deprecated, will be removed in future release */
     #define CVMX_SYNCW asm volatile ("sync" : : :"memory")
     #define CVMX_SYNCWS CVMX_SYNCW
     #define CVMX_SYNCS  CVMX_SYNC

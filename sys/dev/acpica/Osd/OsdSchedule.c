@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2000 Michael Smith
  * Copyright (c) 2000 BSDi
- * Copyright (c) 2007-2009 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2007-2012 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -248,8 +248,8 @@ AcpiOsGetTimer(void)
     KASSERT(cold == 0, ("acpi: timer op not yet supported during boot"));
 
     binuptime(&bt);
-    t = ((UINT64)10000000 * (uint32_t)(bt.frac >> 32)) >> 32;
-    t += bt.sec * 10000000;
+    t = (uint64_t)bt.sec * 10000000;
+    t += ((uint64_t)10000000 * (uint32_t)(bt.frac >> 32)) >> 32;
 
     return (t);
 }

@@ -9,4 +9,10 @@ __FBSDID("$FreeBSD$");
  */
 #define _EXTERNALIZE_CTYPE_INLINES_
 
+/*
+ * Also make sure <runetype.h> does not generate an inline definition
+ * of __getCurrentRuneLocale().
+ */
+#define __RUNETYPE_INTERNAL
+
 #include <ctype.h>

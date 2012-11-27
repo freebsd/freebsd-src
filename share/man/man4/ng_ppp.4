@@ -132,9 +132,9 @@ Compression is supported via two hooks,
 .Dv compress
 and
 .Dv decompress .
-Compression and decompression can be enabled by toggling the 
+Compression and decompression can be enabled by toggling the
 .Vt enableCompression
-and 
+and
 .Vt enableDecompression
 fields of the node configuration structure.
 (See below.)
@@ -143,23 +143,23 @@ If
 is set to
 .Dv NG_PPP_COMPRESS_SIMPLE ,
 then all outgoing frames are sent to the
-.Dv compress     
+.Dv compress
 hook and all packets received on this hook are expected to be
 compressed, so the COMPD tag is put on them unconditionally.
 If
 .Vt enableCompression
 is set to
 .Dv NG_PPP_COMPRESS_FULL ,
-then packets received on the 
-.Dv compress    
+then packets received on the
+.Dv compress
 hook are resent as is.
 The compressor node should put the tag, if the packet was compressed.
-If 
+If
 .Vt enableDecompression
-is set to 
+is set to
 .Dv NG_PPP_DECOMPRESS_SIMPLE ,
 then the node will sent to the
-.Dv decompress 
+.Dv decompress
 hook only those frames, that are marked with the COMPD tag.
 If
 .Vt enableDecompression
@@ -396,7 +396,7 @@ Here
 .Dv NG_PPP_BUNDLE_LINKNUM
 is a valid link number corresponding to the multi-link bundle.
 .It Dv NGM_PPP_GET_LINK_STATS64
-Same as NGM_PPP_GET_LINK_STATS but returns 
+Same as NGM_PPP_GET_LINK_STATS but returns
 .Dv "struct ng_ppp_link_stat64"
 containing 64bit counters.
 .It Dv NGM_PPP_CLR_LINK_STATS
@@ -407,7 +407,7 @@ Same as
 .Dv NGM_PPP_GET_LINK_STATS ,
 but also atomically clears the statistics as well.
 .It Dv NGM_PPP_GETCLR_LINK_STATS64
-Same as NGM_PPP_GETCLR_LINK_STATS but returns 
+Same as NGM_PPP_GETCLR_LINK_STATS but returns
 .Dv "struct ng_ppp_link_stat64"
 containing 64bit counters.
 .El

@@ -1,4 +1,4 @@
-//===- Thumb1InstrInfo.h - Thumb-1 Instruction Information ------*- C++ -*-===//
+//===-- Thumb1InstrInfo.h - Thumb-1 Instruction Information -----*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,9 +14,8 @@
 #ifndef THUMB1INSTRUCTIONINFO_H
 #define THUMB1INSTRUCTIONINFO_H
 
-#include "llvm/Target/TargetInstrInfo.h"
 #include "ARM.h"
-#include "ARMInstrInfo.h"
+#include "ARMBaseInstrInfo.h"
 #include "Thumb1RegisterInfo.h"
 
 namespace llvm {
@@ -26,6 +25,9 @@ class Thumb1InstrInfo : public ARMBaseInstrInfo {
   Thumb1RegisterInfo RI;
 public:
   explicit Thumb1InstrInfo(const ARMSubtarget &STI);
+
+  /// getNoopForMachoTarget - Return the noop instruction to use for a noop.
+  void getNoopForMachoTarget(MCInst &NopInst) const;
 
   // Return the non-pre/post incrementing version of 'Opc'. Return 0
   // if there is not such an opcode.

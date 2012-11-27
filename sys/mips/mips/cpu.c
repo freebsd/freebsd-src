@@ -27,8 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_cputype.h"
-
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
@@ -96,7 +94,7 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	cpuinfo->icache_virtual = cfg0 & MIPS_CONFIG0_VI;
 
 	/* If config register selection 1 does not exist, exit. */
-	if (!(cfg0 & MIPS3_CONFIG_CM))
+	if (!(cfg0 & MIPS_CONFIG_CM))
 		return;
 
 	/* Learn TLB size and L1 cache geometry. */
@@ -274,7 +272,7 @@ cpu_identify(void)
 
 	cfg0 = mips_rd_config();
 	/* If config register selection 1 does not exist, exit. */
-	if (!(cfg0 & MIPS3_CONFIG_CM))
+	if (!(cfg0 & MIPS_CONFIG_CM))
 		return;
 
 	cfg1 = mips_rd_config1();
@@ -282,7 +280,7 @@ cpu_identify(void)
 	    "\20\7COP2\6MDMX\5PerfCount\4WatchRegs\3MIPS16\2EJTAG\1FPU");
 
 	/* If config register selection 2 does not exist, exit. */
-	if (!(cfg1 & MIPS3_CONFIG_CM))
+	if (!(cfg1 & MIPS_CONFIG_CM))
 		return;
 	cfg2 = mips_rd_config2();
 	/* 
@@ -291,7 +289,7 @@ cpu_identify(void)
 	 */
 
 	/* If config register selection 3 does not exist, exit. */
-	if (!(cfg2 & MIPS3_CONFIG_CM))
+	if (!(cfg2 & MIPS_CONFIG_CM))
 		return;
 	cfg3 = mips_rd_config3();
 

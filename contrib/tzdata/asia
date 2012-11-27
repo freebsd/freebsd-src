@@ -1,4 +1,4 @@
-# @(#)asia	8.69
+# @(#)asia	8.70
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -77,10 +77,6 @@ Rule RussiaAsia	1993	max	-	Mar	lastSun	 2:00s	1:00	S
 Rule RussiaAsia	1993	1995	-	Sep	lastSun	 2:00s	0	-
 Rule RussiaAsia	1996	max	-	Oct	lastSun	 2:00s	0	-
 
-# From Arthur David Olson (2011-06-15):
-# While Russia abandoned DST in 2011, Armenia may choose to
-# follow Russia's "old" rules.
-
 # Afghanistan
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Kabul	4:36:48 -	LMT	1890
@@ -97,6 +93,21 @@ Zone	Asia/Kabul	4:36:48 -	LMT	1890
 # in 1996, though it did use DST in 1995.  IATA SSIM (1991/1998) reports that
 # Armenia switched from 3:00 to 4:00 in 1998 and observed DST after 1991,
 # but started switching at 3:00s in 1998.
+
+# From Arthur David Olson (2011-06-15):
+# While Russia abandoned DST in 2011, Armenia may choose to
+# follow Russia's "old" rules.
+
+# From Alexander Krivenyshev (2012-02-10):
+# According to News Armenia, on Feb 9, 2012,
+# http://newsarmenia.ru/society/20120209/42609695.html
+# 
+# The Armenia National Assembly adopted final reading of Amendments to the
+# Law "On procedure of calculation time on the territory of the Republic of
+# Armenia" according to which Armenia [is] abolishing Daylight Saving Time.
+# or
+# (brief)
+# http://www.worldtimezone.com/dst_news/dst_news_armenia03.html
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Asia/Yerevan	2:58:00 -	LMT	1924 May  2
 			3:00	-	YERT	1957 Mar    # Yerevan Time
@@ -104,7 +115,8 @@ Zone	Asia/Yerevan	2:58:00 -	LMT	1924 May  2
 			3:00	1:00	YERST	1991 Sep 23 # independence
 			3:00 RussiaAsia	AM%sT	1995 Sep 24 2:00s
 			4:00	-	AMT	1997
-			4:00 RussiaAsia	AM%sT
+			4:00 RussiaAsia	AM%sT	2012 Mar 25 2:00s
+			4:00	-	AMT
 
 # Azerbaijan
 # From Rustam Aliyev of the Azerbaijan Internet Forum (2005-10-23):

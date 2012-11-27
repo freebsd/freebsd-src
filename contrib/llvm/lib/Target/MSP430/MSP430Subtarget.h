@@ -1,4 +1,4 @@
-//====-- MSP430Subtarget.h - Define Subtarget for the MSP430 ---*- C++ -*--===//
+//===-- MSP430Subtarget.h - Define Subtarget for the MSP430 ----*- C++ -*--===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -15,16 +15,16 @@
 #define LLVM_TARGET_MSP430_SUBTARGET_H
 
 #include "llvm/Target/TargetSubtargetInfo.h"
+#include <string>
 
 #define GET_SUBTARGETINFO_HEADER
 #include "MSP430GenSubtargetInfo.inc"
-
-#include <string>
 
 namespace llvm {
 class StringRef;
 
 class MSP430Subtarget : public MSP430GenSubtargetInfo {
+  virtual void anchor();
   bool ExtendedInsts;
 public:
   /// This constructor initializes the data members to match that

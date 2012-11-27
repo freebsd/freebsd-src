@@ -105,6 +105,10 @@ struct	namecache {
 /*
  * struct namecache_ts repeats struct namecache layout up to the
  * nc_nlen member.
+ * struct namecache_ts is used in place of struct namecache when time(s) need
+ * to be stored.  The nc_dotdottime field is used when a cache entry is mapping
+ * both a non-dotdot directory name plus dotdot for the directory's
+ * parent.
  */
 struct	namecache_ts {
 	LIST_ENTRY(namecache) nc_hash;	/* hash chain */
@@ -115,6 +119,7 @@ struct	namecache_ts {
 	u_char	nc_flag;		/* flag bits */
 	u_char	nc_nlen;		/* length of name */
 	struct	timespec nc_time;	/* timespec provided by fs */
+	struct	timespec nc_dotdottime;	/* dotdot timespec provided by fs */
 	int	nc_ticks;		/* ticks value when entry was added */
 	char	nc_name[0];		/* segment name + nul */
 };
@@ -125,6 +130,7 @@ struct	namecache_ts {
 #define NCF_WHITE	0x01
 #define NCF_ISDOTDOT	0x02
 #define	NCF_TS		0x04
+#define	NCF_DTS		0x08
 
 /*
  * Name caching works as follows:
@@ -190,6 +196,7 @@ RW_SYSINIT(vfscache, &cache_lock, "Name Cache");
 static uma_zone_t cache_zone_small;
 static uma_zone_t cache_zone_small_ts;
 static uma_zone_t cache_zone_large;
+static uma_zone_t cache_zone_large_ts;
 
 #define	CACHE_PATH_CUTOFF	35
 
@@ -197,8 +204,12 @@ static struct namecache *
 cache_alloc(int len, int ts)
 {
 
-	if (len > CACHE_PATH_CUTOFF)
-		return (uma_zalloc(cache_zone_large, M_WAITOK));
+	if (len > CACHE_PATH_CUTOFF) {
+		if (ts)
+			return (uma_zalloc(cache_zone_large_ts, M_WAITOK));
+		else
+			return (uma_zalloc(cache_zone_large, M_WAITOK));
+	}
 	if (ts)
 		return (uma_zalloc(cache_zone_small_ts, M_WAITOK));
 	else
@@ -218,7 +229,9 @@ cache_free(struct namecache *ncp)
 			uma_zfree(cache_zone_small_ts, ncp);
 		else
 			uma_zfree(cache_zone_small, ncp);
-	} else
+	} else if (ts)
+		uma_zfree(cache_zone_large_ts, ncp);
+	else
 		uma_zfree(cache_zone_large, ncp);
 }
 
@@ -369,7 +382,7 @@ sysctl_debug_hashstat_nchash(SYSCTL_HANDLER_ARGS)
 			maxlength = count;
 	}
 	n_nchash = nchash + 1;
-	pct = (used * 100 * 100) / n_nchash;
+	pct = (used * 100) / (n_nchash / 100);
 	error = SYSCTL_OUT(req, &n_nchash, sizeof(n_nchash));
 	if (error)
 		return (error);
@@ -386,7 +399,7 @@ sysctl_debug_hashstat_nchash(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_debug_hashstat, OID_AUTO, nchash, CTLTYPE_INT|CTLFLAG_RD|
     CTLFLAG_MPSAFE, 0, 0, sysctl_debug_hashstat_nchash, "I",
-    "nchash chain lengths");
+    "nchash statistics (number of total/used buckets, maximum chain length, usage percentage)");
 #endif
 
 /*
@@ -521,6 +534,10 @@ retry_wlocked:
 			SDT_PROBE(vfs, namecache, lookup, hit, dvp, "..",
 			    *vpp, 0, 0);
 			cache_out_ts(ncp, tsp, ticksp);
+			if ((ncp->nc_flag & (NCF_ISDOTDOT | NCF_DTS)) ==
+			    NCF_DTS && tsp != NULL)
+				*tsp = ((struct namecache_ts *)ncp)->
+				    nc_dotdottime;
 			goto success;
 		}
 	}
@@ -686,11 +703,12 @@ unlock:
  * Add an entry to the cache.
  */
 void
-cache_enter_time(dvp, vp, cnp, tsp)
+cache_enter_time(dvp, vp, cnp, tsp, dtsp)
 	struct vnode *dvp;
 	struct vnode *vp;
 	struct componentname *cnp;
 	struct timespec *tsp;
+	struct timespec *dtsp;
 {
 	struct namecache *ncp, *n2;
 	struct namecache_ts *n3;
@@ -769,6 +787,10 @@ cache_enter_time(dvp, vp, cnp, tsp)
 		n3->nc_time = *tsp;
 		n3->nc_ticks = ticks;
 		n3->nc_flag |= NCF_TS;
+		if (dtsp != NULL) {
+			n3->nc_dotdottime = *dtsp;
+			n3->nc_flag |= NCF_DTS;
+		}
 	}
 	len = ncp->nc_nlen = cnp->cn_namelen;
 	hash = fnv_32_buf(cnp->cn_nameptr, len, FNV1_32_INIT);
@@ -794,6 +816,12 @@ cache_enter_time(dvp, vp, cnp, tsp)
 				    ((struct namecache_ts *)ncp)->nc_time;
 				n3->nc_ticks =
 				    ((struct namecache_ts *)ncp)->nc_ticks;
+				if (dtsp != NULL) {
+					n3->nc_dotdottime =
+					    ((struct namecache_ts *)ncp)->
+					    nc_dotdottime;
+					n3->nc_flag |= NCF_DTS;
+				}
 			}
 			CACHE_WUNLOCK();
 			cache_free(ncp);
@@ -823,6 +851,11 @@ cache_enter_time(dvp, vp, cnp, tsp)
 			ncp->nc_flag |= NCF_WHITE;
 	} else if (vp->v_type == VDIR) {
 		if (flag != NCF_ISDOTDOT) {
+			/*
+			 * For this case, the cache entry maps both the
+			 * directory name in it and the name ".." for the
+			 * directory's parent.
+			 */
 			if ((n2 = vp->v_cache_dd) != NULL &&
 			    (n2->nc_flag & NCF_ISDOTDOT) != 0)
 				cache_zap(n2);
@@ -886,6 +919,9 @@ nchinit(void *dummy __unused)
 	    sizeof(struct namecache_ts) + CACHE_PATH_CUTOFF + 1,
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
 	cache_zone_large = uma_zcreate("L VFS Cache",
+	    sizeof(struct namecache) + NAME_MAX + 1,
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
+	cache_zone_large_ts = uma_zcreate("LTS VFS Cache",
 	    sizeof(struct namecache_ts) + NAME_MAX + 1,
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
 
@@ -1382,7 +1418,7 @@ void
 cache_enter(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 {
 
-	cache_enter_time(dvp, vp, cnp, NULL);
+	cache_enter_time(dvp, vp, cnp, NULL, NULL);
 }
 
 /*

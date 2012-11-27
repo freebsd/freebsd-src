@@ -38,7 +38,7 @@ SYMBOL_MAPS=${.CURDIR}/kse.map
 
 PRECIOUSLIB=
 
-.path: ${.CURDIR}/arch/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}
+.PATH: ${.CURDIR}/arch/${MACHINE_CPUARCH}/${MACHINE_CPUARCH}
 
 .include "${.CURDIR}/arch/${MACHINE_CPUARCH}/Makefile.inc"
 .include "${.CURDIR}/support/Makefile.inc"

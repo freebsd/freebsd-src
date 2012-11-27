@@ -1221,7 +1221,7 @@ upgt_eeprom_parse_freq3(struct upgt_softc *sc, uint8_t *data, int len)
 
 	for (i = 0; i < elements; i++) {
 		channel = ieee80211_mhz2ieee(le16toh(freq3[i].freq), 0);
-		if (!(channel >= 0 && channel < IEEE80211_CHAN_MAX))
+		if (channel >= IEEE80211_CHAN_MAX)
 			continue;
 
 		sc->sc_eeprom_freq3[channel] = freq3[i];
@@ -1254,7 +1254,7 @@ upgt_eeprom_parse_freq4(struct upgt_softc *sc, uint8_t *data, int len)
 
 	for (i = 0; i < elements; i++) {
 		channel = ieee80211_mhz2ieee(le16toh(freq4_1[i].freq), 0);
-		if (!(channel >= 0 && channel < IEEE80211_CHAN_MAX))
+		if (channel >= IEEE80211_CHAN_MAX)
 			continue;
 
 		freq4_2 = (struct upgt_eeprom_freq4_2 *)freq4_1[i].data;
@@ -1282,7 +1282,7 @@ upgt_eeprom_parse_freq6(struct upgt_softc *sc, uint8_t *data, int len)
 
 	for (i = 0; i < elements; i++) {
 		channel = ieee80211_mhz2ieee(le16toh(freq6[i].freq), 0);
-		if (!(channel >= 0 && channel < IEEE80211_CHAN_MAX))
+		if (channel >= IEEE80211_CHAN_MAX)
 			continue;
 
 		sc->sc_eeprom_freq6[channel] = freq6[i];
@@ -1403,7 +1403,7 @@ upgt_rxeof(struct usb_xfer *xfer, struct upgt_data *data, int *rssi)
 		return (NULL);
 	}
 
-	if (actlen < UPGT_RX_MINSZ)
+	if (actlen < (int)UPGT_RX_MINSZ)
 		return (NULL);
 
 	/*
@@ -1461,7 +1461,7 @@ upgt_rxeof(struct usb_xfer *xfer, struct upgt_data *data, int *rssi)
 static uint32_t
 upgt_chksum_le(const uint32_t *buf, size_t size)
 {
-	int i;
+	size_t i;
 	uint32_t crc = 0;
 
 	for (i = 0; i < size; i += sizeof(uint32_t)) {
@@ -1602,7 +1602,10 @@ upgt_fw_load(struct upgt_softc *sc)
 	struct upgt_data *data_cmd;
 	struct upgt_fw_x2_header *x2;
 	char start_fwload_cmd[] = { 0x3c, 0x0d };
-	int error = 0, offset, bsize, n;
+	int error = 0;
+	size_t offset;
+	int bsize;
+	int n;
 	uint32_t crc32;
 
 	fw = firmware_get(upgt_fwname);
@@ -1783,7 +1786,9 @@ upgt_fw_verify(struct upgt_softc *sc)
 	const uint8_t *p;
 	const uint32_t *uc;
 	uint32_t bra_option_type, bra_option_len;
-	int offset, bra_end = 0, error = 0;
+	size_t offset;
+	int bra_end = 0;
+	int error = 0;
 
 	fw = firmware_get(upgt_fwname);
 	if (fw == NULL) {
@@ -2382,9 +2387,9 @@ static device_method_t upgt_methods[] = {
 };
 
 static driver_t upgt_driver = {
-        "upgt",
-        upgt_methods,
-        sizeof(struct upgt_softc)
+	.name = "upgt",
+	.methods = upgt_methods,
+	.size = sizeof(struct upgt_softc)
 };
 
 static devclass_t upgt_devclass;

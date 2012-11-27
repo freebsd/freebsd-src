@@ -193,7 +193,12 @@ FBSD_1.3 {
 	wcstoul_l;
 	wcstoull_l;
 	wcstoumax_l;
+	__sbistype_l;
+	__maskrune_l;
+	__sbmaskrune_l;
+	__istype_l;
 	__runes_for_locale;
+	_ThreadRuneLocale;
 };
 
 FBSDprivate_1.0 {

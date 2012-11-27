@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: matroska,v 1.6 2010/09/20 21:11:35 rrt Exp $
 # matroska:  file(1) magic for Matroska files
 #
 # See http://www.matroska.org/
@@ -11,4 +12,12 @@
 >5		beshort		0x4282
 # DocType contents:
 >>8		string		matroska	Matroska data
+!:mime  video/x-matroska
 
+# EBML id:
+0		belong		0x1a45dfa3
+# DocType id:
+>0		search/4096 	\x42\x82
+# DocType contents:
+>>&1		string		webm	WebM
+!:mime  video/webm

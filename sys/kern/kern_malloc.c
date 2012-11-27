@@ -418,7 +418,7 @@ malloc_type_freed(struct malloc_type *mtp, unsigned long size)
 void *
 contigmalloc(unsigned long size, struct malloc_type *type, int flags,
     vm_paddr_t low, vm_paddr_t high, unsigned long alignment,
-    unsigned long boundary)
+    vm_paddr_t boundary)
 {
 	void *ret;
 

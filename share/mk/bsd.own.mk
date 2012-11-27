@@ -419,12 +419,14 @@ __DEFAULT_NO_OPTIONS = \
     BIND_SIGCHASE \
     BIND_XML \
     CLANG_EXTRAS \
+    CLANG_IS_CC \
     CTF \
     HESIOD \
     ICONV \
     IDEA \
     LIBCPLUSPLUS \
-    OFED
+    OFED \
+    SHARED_TOOLCHAIN
 
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately
@@ -440,7 +442,8 @@ __T=${TARGET_ARCH}
 __T=${MACHINE_ARCH}
 .endif
 # Clang is only for x86 and powerpc right now, by default.
-.if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
+# XXX: Temporarily disabled for 32-bit powerpc, due to a binutils bug.
+.if ${__T} == "amd64" || ${__T} == "i386" || ${__T} == "powerpc64"
 __DEFAULT_YES_OPTIONS+=CLANG
 .else
 __DEFAULT_NO_OPTIONS+=CLANG
@@ -572,6 +575,10 @@ MK_BINUTILS:=	no
 MK_CLANG:=	no
 MK_GCC:=	no
 MK_GDB:=	no
+.endif
+
+.if ${MK_CLANG} == "no"
+MK_CLANG_IS_CC:= no
 .endif
 
 #

@@ -130,7 +130,7 @@ clear_pcb_flags(struct pcb *pcb, const u_int flags)
 }
 
 void	makectx(struct trapframe *, struct pcb *);
-int	savectx(struct pcb *);
+int	savectx(struct pcb *) __returns_twice;
 
 #endif
 

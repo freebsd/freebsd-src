@@ -147,7 +147,7 @@ newfs_command(const char *fstype, char *command, int use_default)
 				strcat(command, "-F 32 ");
 			else if (strcmp(items[i].name, "FAT16") == 0)
 				strcat(command, "-F 16 ");
-			else if (strcmp(items[i].name, "SUJ") == 0)
+			else if (strcmp(items[i].name, "FAT12") == 0)
 				strcat(command, "-F 12 ");
 		}
 	} else {

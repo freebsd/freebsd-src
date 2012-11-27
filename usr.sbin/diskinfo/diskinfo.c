@@ -99,13 +99,13 @@ main(int argc, char **argv)
 		}
 		error = ioctl(fd, DIOCGMEDIASIZE, &mediasize);
 		if (error) {
-			warn("%s: ioctl(DIOCGMEDIASIZE) failed, probably not a disk.", argv[i]);
+			warnx("%s: ioctl(DIOCGMEDIASIZE) failed, probably not a disk.", argv[i]);
 			exitval = 1;
 			goto out;
 		}
 		error = ioctl(fd, DIOCGSECTORSIZE, &sectorsize);
 		if (error) {
-			warn("%s: DIOCGSECTORSIZE failed, probably not a disk.", argv[i]);
+			warnx("%s: ioctl(DIOCGSECTORSIZE) failed, probably not a disk.", argv[i]);
 			exitval = 1;
 			goto out;
 		}
@@ -178,8 +178,10 @@ rdsect(int fd, off_t blockno, u_int sectorsize)
 
 	lseek(fd, (off_t)blockno * sectorsize, SEEK_SET);
 	error = read(fd, sector, sectorsize);
+	if (error == -1)
+		err(1, "read");
 	if (error != (int)sectorsize)
-		err(1, "read error or disk too small for test.");
+		errx(1, "disk too small for test.");
 }
 
 static void
@@ -188,8 +190,10 @@ rdmega(int fd)
 	int error;
 
 	error = read(fd, mega, sizeof(mega));
+	if (error == -1)
+		err(1, "read");
 	if (error != sizeof(mega))
-		err(1, "read error or disk too small for test.");
+		errx(1, "disk too small for test.");
 }
 
 static struct timeval tv1, tv2;

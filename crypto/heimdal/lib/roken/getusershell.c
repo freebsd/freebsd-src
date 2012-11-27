@@ -27,11 +27,7 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
-
-RCSID("$Id: getusershell.c 21005 2007-06-08 01:54:35Z lha $");
 
 #ifndef HAVE_GETUSERSHELL
 
@@ -85,7 +81,7 @@ static char **initshells (void);
 /*
  * Get a list of shells from _PATH_SHELLS, if it exists.
  */
-char * ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION char * ROKEN_LIB_CALL
 getusershell()
 {
     char *ret;
@@ -98,7 +94,7 @@ getusershell()
     return (ret);
 }
 
-void ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION void ROKEN_LIB_CALL
 endusershell()
 {
     if (shells != NULL)
@@ -110,7 +106,7 @@ endusershell()
     curshell = NULL;
 }
 
-void ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION void ROKEN_LIB_CALL
 setusershell()
 {
     curshell = initshells();

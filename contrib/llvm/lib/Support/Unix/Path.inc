@@ -60,6 +60,11 @@
 #include <mach-o/dyld.h>
 #endif
 
+// For GNU Hurd
+#if defined(__GNU__) && !defined(MAXPATHLEN)
+# define MAXPATHLEN 4096
+#endif
+
 // Put in a hack for Cygwin which falsely reports that the mkdtemp function
 // is available when it is not.
 #ifdef __CYGWIN__
@@ -235,11 +240,6 @@ Path::GetBitcodeLibraryPaths(std::vector<sys::Path>& Paths) {
 }
 
 Path
-Path::GetLLVMDefaultConfigDir() {
-  return Path("/etc/llvm/");
-}
-
-Path
 Path::GetUserHomeDirectory() {
   const char* home = getenv("HOME");
   Path result;
@@ -261,7 +261,7 @@ Path::GetCurrentDirectory() {
 }
 
 #if defined(__FreeBSD__) || defined (__NetBSD__) || \
-    defined(__OpenBSD__) || defined(__minix)
+    defined(__OpenBSD__) || defined(__minix) || defined(__FreeBSD_kernel__)
 static int
 test_dir(char buf[PATH_MAX], char ret[PATH_MAX],
     const char *dir, const char *bin)
@@ -313,7 +313,7 @@ getprogpath(char ret[PATH_MAX], const char *bin)
   free(pv);
   return (NULL);
 }
-#endif // __FreeBSD__ || __NetBSD__
+#endif // __FreeBSD__ || __NetBSD__ || __FreeBSD_kernel__
 
 /// GetMainExecutable - Return the path to the main executable, given the
 /// value of argv[0] from program startup.
@@ -330,7 +330,7 @@ Path Path::GetMainExecutable(const char *argv0, void *MainAddr) {
       return Path(link_path);
   }
 #elif defined(__FreeBSD__) || defined (__NetBSD__) || \
-      defined(__OpenBSD__) || defined(__minix)
+      defined(__OpenBSD__) || defined(__minix) || defined(__FreeBSD_kernel__)
   char exe_path[PATH_MAX];
 
   if (getprogpath(exe_path, argv0) != NULL)

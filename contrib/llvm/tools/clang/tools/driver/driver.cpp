@@ -12,17 +12,21 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/Driver/ArgList.h"
+#include "clang/Driver/CC1Options.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/Option.h"
+#include "clang/Driver/OptTable.h"
+#include "clang/Frontend/CompilerInvocation.h"
 #include "clang/Frontend/DiagnosticOptions.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
+#include "clang/Frontend/Utils.h"
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/OwningPtr.h"
-#include "llvm/Config/config.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
@@ -187,7 +191,7 @@ static void ExpandArgsFromBuf(const char *Arg,
                               SmallVectorImpl<const char*> &ArgVector,
                               std::set<std::string> &SavedStrings) {
   const char *FName = Arg + 1;
-  llvm::OwningPtr<llvm::MemoryBuffer> MemBuf;
+  OwningPtr<llvm::MemoryBuffer> MemBuf;
   if (llvm::MemoryBuffer::getFile(FName, MemBuf)) {
     ArgVector.push_back(SaveStringInSet(SavedStrings, Arg));
     return;
@@ -272,7 +276,7 @@ static void ParseProgName(SmallVectorImpl<const char *> &ArgVector,
   // the function tries to identify a target as prefix. E.g.
   // "x86_64-linux-clang" as interpreted as suffix "clang" with
   // target prefix "x86_64-linux". If such a target prefix is found,
-  // is gets added via -ccc-host-triple as implicit first argument.
+  // is gets added via -target as implicit first argument.
   static const struct {
     const char *Suffix;
     bool IsCXX;
@@ -332,7 +336,7 @@ static void ParseProgName(SmallVectorImpl<const char *> &ArgVector,
       ++it;
     ArgVector.insert(it, SaveStringInSet(SavedStrings, Prefix));
     ArgVector.insert(it,
-      SaveStringInSet(SavedStrings, std::string("-ccc-host-triple")));
+      SaveStringInSet(SavedStrings, std::string("-target")));
   }
 }
 
@@ -371,25 +375,41 @@ int main(int argc_, const char **argv_) {
 
   llvm::sys::Path Path = GetExecutablePath(argv[0], CanonicalPrefixes);
 
+  DiagnosticOptions DiagOpts;
+  {
+    // Note that ParseDiagnosticArgs() uses the cc1 option table.
+    OwningPtr<OptTable> CC1Opts(createCC1OptTable());
+    unsigned MissingArgIndex, MissingArgCount;
+    OwningPtr<InputArgList> Args(CC1Opts->ParseArgs(argv.begin()+1, argv.end(),
+                                            MissingArgIndex, MissingArgCount));
+    // We ignore MissingArgCount and the return value of ParseDiagnosticArgs.
+    // Any errors that would be diagnosed here will also be diagnosed later,
+    // when the DiagnosticsEngine actually exists.
+    (void) ParseDiagnosticArgs(DiagOpts, *Args);
+  }
+  // Now we can create the DiagnosticsEngine with a properly-filled-out
+  // DiagnosticOptions instance.
   TextDiagnosticPrinter *DiagClient
-    = new TextDiagnosticPrinter(llvm::errs(), DiagnosticOptions());
+    = new TextDiagnosticPrinter(llvm::errs(), DiagOpts);
   DiagClient->setPrefix(llvm::sys::path::stem(Path.str()));
-  llvm::IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
+  IntrusiveRefCntPtr<DiagnosticIDs> DiagID(new DiagnosticIDs());
+
   DiagnosticsEngine Diags(DiagID, DiagClient);
+  ProcessWarningOptions(Diags, DiagOpts);
 
 #ifdef CLANG_IS_PRODUCTION
   const bool IsProduction = true;
 #else
   const bool IsProduction = false;
 #endif
-  Driver TheDriver(Path.str(), llvm::sys::getHostTriple(),
+  Driver TheDriver(Path.str(), llvm::sys::getDefaultTargetTriple(),
                    "a.out", IsProduction, Diags);
 
   // Attempt to find the original path used to invoke the driver, to determine
   // the installed path. We do this manually, because we want to support that
   // path being a symlink.
   {
-    llvm::SmallString<128> InstalledPath(argv[0]);
+    SmallString<128> InstalledPath(argv[0]);
 
     // Do a PATH lookup, if there are no directory components.
     if (llvm::sys::path::filename(InstalledPath) == InstalledPath) {
@@ -449,7 +469,7 @@ int main(int argc_, const char **argv_) {
     argv.insert(&argv[1], ExtraArgs.begin(), ExtraArgs.end());
   }
 
-  llvm::OwningPtr<Compilation> C(TheDriver.BuildCompilation(argv));
+  OwningPtr<Compilation> C(TheDriver.BuildCompilation(argv));
   int Res = 0;
   const Command *FailingCommand = 0;
   if (C.get())

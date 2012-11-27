@@ -23,7 +23,7 @@ syscalls.h:	syscalls.master
 		${.CURDIR}/i386.conf
 
 ioctl.c: ${.CURDIR}/../kdump/mkioctls
-	env MACHINE=${MACHINE} \
+	env MACHINE=${MACHINE} CPP="${CPP}" \
 		/bin/sh ${.CURDIR}/../kdump/mkioctls return ${DESTDIR}/usr/include > ${.TARGET}
 
 .if ${MACHINE_CPUARCH} == "i386"

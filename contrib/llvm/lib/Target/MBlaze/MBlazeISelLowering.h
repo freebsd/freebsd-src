@@ -15,11 +15,11 @@
 #ifndef MBlazeISELLOWERING_H
 #define MBlazeISELLOWERING_H
 
+#include "MBlaze.h"
+#include "MBlazeSubtarget.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/Target/TargetLowering.h"
-#include "MBlaze.h"
-#include "MBlazeSubtarget.h"
 
 namespace llvm {
   namespace MBlazeCC {
@@ -134,7 +134,7 @@ namespace llvm {
     virtual SDValue
       LowerCall(SDValue Chain, SDValue Callee,
                 CallingConv::ID CallConv, bool isVarArg,
-                bool &isTailCall,
+                bool doesNotRet, bool &isTailCall,
                 const SmallVectorImpl<ISD::OutputArg> &Outs,
                 const SmallVectorImpl<SDValue> &OutVals,
                 const SmallVectorImpl<ISD::InputArg> &Ins,

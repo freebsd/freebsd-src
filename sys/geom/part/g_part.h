@@ -69,6 +69,9 @@ enum g_part_alias {
 	G_PART_ALIAS_EBR,		/* A EBR partition entry. */
 	G_PART_ALIAS_MS_FAT32,		/* A Microsoft FAT32 partition entry. */
 	G_PART_ALIAS_BIOS_BOOT,		/* A GRUB 2 boot partition entry. */
+	G_PART_ALIAS_VMFS,		/* A VMware VMFS partition entry */
+	G_PART_ALIAS_VMKDIAG,		/* A VMware vmkDiagnostic partition entry */
+	G_PART_ALIAS_VMRESERVED,	/* A VMware reserved partition entry */
 	/* Keep the following last */
 	G_PART_ALIAS_COUNT
 };
@@ -208,6 +211,7 @@ int g_part_modevent(module_t, int, struct g_part_scheme *);
 	name##_modevent,					\
 	&name##_scheme						\
     };								\
-    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_ANY)
+    DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_ANY); \
+    MODULE_DEPEND(name, g_part, 0, 0, 0)
 
 #endif /* !_GEOM_PART_H_ */

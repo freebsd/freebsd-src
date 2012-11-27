@@ -297,7 +297,7 @@ struct ctl_page_index {
 #define	CTL_PAGE_DEFAULT	0x02
 #define	CTL_PAGE_SAVED		0x03
 
-static struct ctl_page_index page_index_template[] = {
+static const struct ctl_page_index page_index_template[] = {
 	{SMS_FORMAT_DEVICE_PAGE, 0, sizeof(struct scsi_format_page), NULL,
 	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
 	{SMS_RIGID_DISK_PAGE, 0, sizeof(struct scsi_rigid_disk_page), NULL,
@@ -421,6 +421,9 @@ struct ctl_softc {
 	int num_luns;
 	ctl_gen_flags flags;
 	ctl_ha_mode ha_mode;
+	int inquiry_pq_no_lun;
+	struct sysctl_ctx_list sysctl_ctx;
+	struct sysctl_oid *sysctl_tree;
 	struct ctl_ioctl_info ioctl_info;
 	struct ctl_lun lun;
 	struct ctl_io_pool *internal_pool;

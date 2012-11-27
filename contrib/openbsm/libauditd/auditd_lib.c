@@ -520,6 +520,7 @@ auditd_expire_trails(int (*warn_expired)(char *))
 				}
 
 		}
+		closedir(dirp);
 	}
 
 	oldest_time = current_time - expire_age;

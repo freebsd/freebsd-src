@@ -125,9 +125,10 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_getAckCTSRate		= ar5212GetAckCTSRate,
 	.ah_setCTSTimeout		= ar5212SetCTSTimeout,
 	.ah_getCTSTimeout		= ar5212GetCTSTimeout,
-	.ah_setDecompMask               = ar5212SetDecompMask,
-	.ah_setCoverageClass            = ar5212SetCoverageClass,
+	.ah_setDecompMask		= ar5212SetDecompMask,
+	.ah_setCoverageClass		= ar5212SetCoverageClass,
 	.ah_setQuiet			= ar5212SetQuiet,
+	.ah_getMibCycleCounts		= ar5212GetMibCycleCounts,
 
 	/* DFS Functions */
 	.ah_enableDfs			= ar5212EnableDfs,

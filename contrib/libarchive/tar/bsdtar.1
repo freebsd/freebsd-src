@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .\"
 .Dd Oct 12, 2009
-.Dt BSDTAR 1
+.Dt TAR 1
 .Os
 .Sh NAME
 .Nm tar
@@ -51,8 +51,8 @@
 .Nm
 creates and manipulates streaming archive files.
 This implementation can extract from tar, pax, cpio, zip, jar, ar, xar,
-rpm and ISO 9660 cdrom images and can create tar, pax, cpio, ar, zip,
-and shar archives.
+rpm, 7-zip, and ISO 9660 cdrom images and can create tar, pax, cpio, ar, zip,
+7-zip, and shar archives.
 .Pp
 The first synopsis form shows a
 .Dq bundled
@@ -153,7 +153,7 @@ Specify the block size, in 512-byte records, for tape drive I/O.
 As a rule, this argument is only needed when reading from or writing
 to tape drives, and usually not even then as the default block size of
 20 records (10240 bytes) is very common.
-.It Fl C Ar directory
+.It Fl C Ar directory , Fl Fl cd Ar directory , Fl Fl directory Ar directory
 In c and r mode, this changes the directory before adding
 the following files.
 In x mode, change directories after opening the archive
@@ -473,7 +473,7 @@ Attempt to restore the full permissions, including owner, file modes, file
 flags and ACLs, if available, for each item extracted from the archive.
 This is the default, if
 .Nm
-is being run by root and can be overriden by also specifying
+is being run by root and can be overridden by also specifying
 .Fl Fl no-same-owner
 and
 .Fl Fl no-same-permissions .
@@ -496,25 +496,11 @@ Extract files as sparse files.
 For every block on disk, check first if it contains only NULL bytes and seek
 over it otherwise.
 This works similar to the conv=sparse option of dd.
-.It Fl Fl same-owner
-(x mode only)
-Extract owner and group IDs.
-This is the reverse of
-.Fl Fl no-same-owner
-and the default behavior if
-.Nm
-is run as root.
-.It Fl Fl strip-components Ar count
-(x mode only)
-Remove the specified number of leading path elements.
-Pathnames with fewer elements will be silently skipped.
-Note that the pathname is edited after checking inclusion/exclusion patterns
-but before security checks.
 .It Fl s Ar pattern
 Modify file or archive member names according to
 .Pa pattern .
 The pattern has the format
-.Ar /old/new/ Ns Op gps
+.Ar /old/new/ Ns Op ghHprRsS
 where
 .Ar old
 is a basic regular expression,
@@ -530,12 +516,35 @@ Within
 ~ is substituted with the match, \e1 to \e9 with the content of
 the corresponding captured group.
 The optional trailing g specifies that matching should continue
-after the matched part and stopped on the first unmatched pattern.
+after the matched part and stop on the first unmatched pattern.
 The optional trailing s specifies that the pattern applies to the value
 of symbolic links.
 The optional trailing p specifies that after a successful substitution
 the original path name and the new path name should be printed to
 standard error.
+Optional trailing H, R, or S characters suppress substitutions
+for hardlink targets, regular filenames, or symlink targets,
+respectively.
+Optional trailing h, r, or s characters enable substitutions
+for hardlink targets, regular filenames, or symlink targets,
+respectively.
+The default is
+.Ar hrs
+which applies substitutions to all names.
+In particular, it is never necessary to specify h, r, or s.
+.It Fl Fl same-owner
+(x mode only)
+Extract owner and group IDs.
+This is the reverse of
+.Fl Fl no-same-owner
+and the default behavior if
+.Nm
+is run as root.
+.It Fl Fl strip-components Ar count
+Remove the specified number of leading path elements.
+Pathnames with fewer elements will be silently skipped.
+Note that the pathname is edited after checking inclusion/exclusion patterns
+but before security checks.
 .It Fl T Ar filename , Fl Fl files-from Ar filename
 In x or t mode,
 .Nm

@@ -1,4 +1,4 @@
-@c $Id: misc.texi 12197 2003-05-04 13:32:37Z lha $
+@c $Id$
 
 @node Things in search for a better place, Kerberos 4 issues, Applications, Top
 @chapter Things in search for a better place

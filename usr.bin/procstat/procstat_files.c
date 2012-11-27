@@ -440,13 +440,6 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 			printf(" ");
 		}
 		switch (fst->fs_type) {
-		case PS_FST_TYPE_VNODE:
-		case PS_FST_TYPE_FIFO:
-		case PS_FST_TYPE_PTS:
-			printf("%-3s ", "-");
-			printf("%-18s", fst->fs_path != NULL ? fst->fs_path : "-");
-			break;
-
 		case PS_FST_TYPE_SOCKET:
 			error = procstat_get_socket_info(procstat, fst, &sock, NULL);
 			if (error != 0)
@@ -477,7 +470,8 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 			break;
 
 		default:
-			printf("%-18s", "-");
+			printf("%-3s ", "-");
+			printf("%-18s", fst->fs_path != NULL ? fst->fs_path : "-");
 		}
 
 		printf("\n");

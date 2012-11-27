@@ -918,7 +918,7 @@ tr_setup:
 		if (m == NULL)
 			break;
 
-		if (m->m_pkthdr.len > (MCLBYTES - ETHER_HDR_LEN +
+		if (m->m_pkthdr.len > (int)(MCLBYTES - ETHER_HDR_LEN +
 		    ETHER_CRC_LEN - sizeof(sc->sc_txd))) {
 			DPRINTF("packet len is too big: %d\n",
 			    m->m_pkthdr.len);

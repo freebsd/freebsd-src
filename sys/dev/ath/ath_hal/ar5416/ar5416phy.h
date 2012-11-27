@@ -21,6 +21,42 @@
 
 #include "ar5212/ar5212phy.h"
 
+#define	AR_BT_COEX_MODE            0x8170
+#define	AR_BT_TIME_EXTEND          0x000000ff
+#define	AR_BT_TIME_EXTEND_S        0
+#define	AR_BT_TXSTATE_EXTEND       0x00000100
+#define	AR_BT_TXSTATE_EXTEND_S     8
+#define	AR_BT_TX_FRAME_EXTEND      0x00000200
+#define	AR_BT_TX_FRAME_EXTEND_S    9
+#define	AR_BT_MODE                 0x00000c00
+#define	AR_BT_MODE_S               10
+#define	AR_BT_QUIET                0x00001000
+#define	AR_BT_QUIET_S              12
+#define	AR_BT_QCU_THRESH           0x0001e000
+#define	AR_BT_QCU_THRESH_S         13
+#define	AR_BT_RX_CLEAR_POLARITY    0x00020000
+#define	AR_BT_RX_CLEAR_POLARITY_S  17
+#define	AR_BT_PRIORITY_TIME        0x00fc0000
+#define	AR_BT_PRIORITY_TIME_S      18
+#define	AR_BT_FIRST_SLOT_TIME      0xff000000
+#define	AR_BT_FIRST_SLOT_TIME_S    24
+
+#define	AR_BT_COEX_WEIGHT          0x8174
+#define	AR_BT_BT_WGHT              0x0000ffff
+#define	AR_BT_BT_WGHT_S            0
+#define	AR_BT_WL_WGHT              0xffff0000
+#define	AR_BT_WL_WGHT_S            16
+
+#define	AR_BT_COEX_MODE2           0x817c
+#define	AR_BT_BCN_MISS_THRESH      0x000000ff
+#define	AR_BT_BCN_MISS_THRESH_S    0
+#define	AR_BT_BCN_MISS_CNT         0x0000ff00
+#define	AR_BT_BCN_MISS_CNT_S       8
+#define	AR_BT_HOLD_RX_CLEAR        0x00010000
+#define	AR_BT_HOLD_RX_CLEAR_S      16
+#define	AR_BT_DISABLE_BT_ANT       0x00100000
+#define	AR_BT_DISABLE_BT_ANT_S     20
+
 /* For AR_PHY_RADAR0 */
 #define	AR_PHY_RADAR_0_FFT_ENA		0x80000000
 

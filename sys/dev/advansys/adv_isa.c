@@ -226,9 +226,8 @@ adv_isa_probe(device_t dev)
 		 * Allocate a parent dmatag for all tags created
 		 * by the MI portions of the advansys driver
 		 */
-		/* XXX Should be a child of the ISA bus dma tag */ 
 		error = bus_dma_tag_create(
-				/* parent	*/ NULL,
+				/* parent	*/ bus_get_dma_tag(dev),
 				/* alignemnt	*/ 1,
 				/* boundary	*/ 0,
 				/* lowaddr	*/ lowaddr,

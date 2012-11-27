@@ -83,7 +83,7 @@ Sets the TFTP blksize2 option in TFTP Read Request or Write Request packets
 to
 .Ar [size] .
 Values are restricted to powers of 2 between 8 and 32768.  This is a
-non-standard TFTP option. 
+non-standard TFTP option.
 .Pp
 .It Cm connect Ar host Op Ar port
 Set the
@@ -109,7 +109,7 @@ or
 commands.
 .Pp
 .It Cm debug Ar level
-Enable or disable debugging levels during verbose output.  The value of 
+Enable or disable debugging levels during verbose output.  The value of
 .Ar level
 can be one of
 .Cm packet, simple, options,
@@ -186,7 +186,7 @@ are
 .Cm off
 (disable RFC 2347 options), and
 .Cm extra
-(toggle support for non-RFC defined options).   
+(toggle support for non-RFC defined options).
 .Pp
 .It Cm quit
 Exit
@@ -222,24 +222,19 @@ Toggle verbose mode.
 .Pp
 The following RFC's are supported:
 .Rs
-RFC 1350
-.%T The TFTP Protocol (Revision 2)
+.%T RFC 1350: The TFTP Protocol (Revision 2)
 .Re
 .Rs
-RFC 2347
-.%T TFTP Option Extension
+.%T RFC 2347: TFTP Option Extension
 .Re
 .Rs
-RFC 2348
-.%T TFTP Blocksize Option
+.%T RFC 2348: TFTP Blocksize Option
 .Re
 .Rs
-RFC 2349
-.%T TFTP Timeout Interval and Transfer Size Options
+.%T RFC 2349: TFTP Timeout Interval and Transfer Size Options
 .Re
 .Rs
-RFC 3617
-.%T Uniform Resource Identifier (URI) Scheme and Applicability Statement for the Trivial File Transfer Protocol (TFTP) 
+.%T RFC 3617: Uniform Resource Identifier (URI) Scheme and Applicability Statement for the Trivial File Transfer Protocol (TFTP)
 .Re
 .Pp
 The non-standard

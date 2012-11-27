@@ -12,7 +12,7 @@
 .\"    ("Disclaimer") and any redistribution must be conditioned upon
 .\"    including a substantially similar Disclaimer requirement for further
 .\"    binary redistribution.
-.\" 
+.\"
 .\" NO WARRANTY
 .\" THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 .\" "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
@@ -25,14 +25,14 @@
 .\" STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGES.
-.\" 
+.\"
 .\" Authors: Alan Somers         (Spectra Logic Corporation)
-.\" 
+.\"
 .\" $FreeBSD$
-.\" 
+.\"
 .Dd January 6, 2012
 .Dt XNB 4
-.Os 
+.Os
 .Sh NAME
 .Nm xnb
 .Nd "Xen Paravirtualized Backend Ethernet Driver"
@@ -84,6 +84,27 @@ Runs a builtin suite of unit tests and displays the results.
 Does not affect the operation of the driver in any way.
 Note that the test suite simulates error conditions; this will result in
 error messages being printed to the system system log.
+.El
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netintro 4 ,
+.Xr ng_ether 4 ,
+.Xr xen 4 ,
+.Xr ifconfig 8
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Fx 10.0 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Alan Somers
+.Aq alans@spectralogic.com
+and
+.An John Suykerbuyk
+.Aq johns@spectralogic.com
 .Sh CAVEATS
 Packets sent through Xennet pass over shared memory, so the protocol includes
 no form of link-layer checksum or CRC.
@@ -110,26 +131,6 @@ is bridged to a physcal interface, then transmit checksum offloading should be
 disabled on the netfront.
 The Xennet protocol does not have any mechanism for the netback to request
 the netfront to do this; the operator must do it manually.
-.Sh SEE ALSO
-.Xr arp 4 ,
-.Xr netintro 4 ,
-.Xr ng_ether 4 ,
-.Xr xen 4 ,
-.Xr ifconfig 8
-.Sh HISTORY
-The
-.Nm
-device driver first appeared in
-.Fx 10.0 .
-.Sh AUTHORS
-The
-.Nm
-driver was written by
-.An Alan Somers
-.Aq alans@spectralogic.com
-and
-.An John Suykerbuyk
-.Aq johns@spectralogic.com
 .Sh BUGS
 The
 .Nm

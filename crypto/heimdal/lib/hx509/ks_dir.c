@@ -1,38 +1,37 @@
 /*
- * Copyright (c) 2006 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2006 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "hx_locl.h"
-RCSID("$Id: ks_dir.c 19778 2007-01-09 10:52:13Z lha $");
 #include <dirent.h>
 
 /*
@@ -55,7 +54,7 @@ struct dircursor {
 
 static int
 dir_init(hx509_context context,
-	 hx509_certs certs, void **data, int flags, 
+	 hx509_certs certs, void **data, int flags,
 	 const char *residue, hx509_lock lock)
 {
     *data = NULL;
@@ -71,7 +70,7 @@ dir_init(hx509_context context,
 	    return ENOENT;
 	}
 
-	if ((sb.st_mode & S_IFDIR) == 0) {
+	if (!S_ISDIR(sb.st_mode)) {
 	    hx509_set_error_string(context, 0, ENOTDIR,
 				   "%s is not a directory", residue);
 	    return ENOTDIR;
@@ -94,9 +93,7 @@ dir_free(hx509_certs certs, void *data)
     return 0;
 }
 
-
-
-static int 
+static int
 dir_iter_start(hx509_context context,
 	       hx509_certs certs, void *data, void **cursor)
 {
@@ -116,6 +113,7 @@ dir_iter_start(hx509_context context,
 	free(d);
 	return errno;
     }
+    rk_cloexec_dir(d->dir);
     d->certs = NULL;
     d->iter = NULL;
 
@@ -129,7 +127,7 @@ dir_iter(hx509_context context,
 {
     struct dircursor *d = iter;
     int ret = 0;
-    
+
     *cert = NULL;
 
     do {
@@ -160,10 +158,10 @@ dir_iter(hx509_context context,
 	}
 	if (strcmp(dir->d_name, ".") == 0 || strcmp(dir->d_name, "..") == 0)
 	    continue;
-	
+
 	if (asprintf(&fn, "FILE:%s/%s", (char *)data, dir->d_name) == -1)
 	    return ENOMEM;
-	
+
 	ret = hx509_certs_init(context, fn, 0, NULL, &d->certs);
 	if (ret == 0) {
 

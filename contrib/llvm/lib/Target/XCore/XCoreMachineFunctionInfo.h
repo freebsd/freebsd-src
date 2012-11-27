@@ -1,4 +1,4 @@
-//====- XCoreMachineFuctionInfo.h - XCore machine function info -*- C++ -*-===//
+//===-- XCoreMachineFuctionInfo.h - XCore machine function info -*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -26,7 +26,7 @@ class Function;
 /// XCoreFunctionInfo - This class is derived from MachineFunction private
 /// XCore target-specific information for each MachineFunction.
 class XCoreFunctionInfo : public MachineFunctionInfo {
-private:
+  virtual void anchor();
   bool UsesLR;
   int LRSpillSlot;
   int FPSpillSlot;

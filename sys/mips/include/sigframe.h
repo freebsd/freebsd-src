@@ -32,6 +32,10 @@
 #ifndef _MACHINE_SIGFRAME_H_
 #define	_MACHINE_SIGFRAME_H_
 
+#if defined(_KERNEL) && !defined(KLD_MODULE) && !defined(_STANDALONE)
+#include "opt_compat.h"
+#endif
+
 /*
  * WARNING: code in locore.s assumes the layout shown for sf_signum
  * thru sf_addr so... don't alter them!
@@ -45,5 +49,19 @@ struct sigframe {
 	siginfo_t	sf_si;		/* = *sf_siginfo (SA_SIGINFO case) */
 	unsigned long	__spare__[2];
 };
+
+#if (defined(__mips_n32) || defined(__mips_n64)) && defined(COMPAT_FREEBSD32)
+#include <compat/freebsd32/freebsd32_signal.h>
+
+struct sigframe32 {
+	int32_t		sf_signum;
+	int32_t		sf_siginfo;	/* code or pointer to sf_si */
+	int32_t		sf_ucontext;	/* points to sf_uc */
+	int32_t		sf_addr;	/* undocumented 4th arg */
+	ucontext32_t	sf_uc;		/* = *sf_ucontext */
+	struct siginfo32	sf_si;	/* = *sf_siginfo (SA_SIGINFO case) */
+	uint32_t	__spare__[2];
+};
+#endif
 
 #endif /* !_MACHINE_SIGFRAME_H_ */

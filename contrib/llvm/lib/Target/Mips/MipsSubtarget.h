@@ -1,4 +1,4 @@
-//=====-- MipsSubtarget.h - Define Subtarget for the Mips -----*- C++ -*--====//
+//===-- MipsSubtarget.h - Define Subtarget for the Mips ---------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -25,6 +25,7 @@ namespace llvm {
 class StringRef;
 
 class MipsSubtarget : public MipsGenSubtargetInfo {
+  virtual void anchor();
 
 public:
   // NOTE: O64 will not be supported.
@@ -88,6 +89,9 @@ protected:
   InstrItineraryData InstrItins;
 
 public:
+  virtual bool enablePostRAScheduler(CodeGenOpt::Level OptLevel,
+                                     AntiDepBreakMode& Mode,
+                                     RegClassVector& CriticalPathRCs) const;
 
   /// Only O32 and EABI supported right now.
   bool isABI_EABI() const { return MipsABI == EABI; }
@@ -110,6 +114,8 @@ public:
                                    MipsArchVersion == Mips64r2; }
   bool hasMips64() const { return MipsArchVersion >= Mips64; }
   bool hasMips64r2() const { return MipsArchVersion == Mips64r2; }
+
+  bool hasMips32r2Or64() const { return hasMips32r2() || hasMips64(); }
 
   bool isLittle() const { return IsLittle; }
   bool isFP64bit() const { return IsFP64bit; }

@@ -819,8 +819,6 @@ init_secondary(void)
  * We tell the I/O APIC code about all the CPUs we want to receive
  * interrupts.  If we don't want certain CPUs to receive IRQs we
  * can simply not tell the I/O APIC code about them in this function.
- * We also do not tell it about the BSP since it tells itself about
- * the BSP internally to work with UP kernels and on UP machines.
  */
 static void
 set_interrupt_apic_ids(void)
@@ -830,8 +828,6 @@ set_interrupt_apic_ids(void)
 	for (i = 0; i < MAXCPU; i++) {
 		apic_id = cpu_apic_ids[i];
 		if (apic_id == -1)
-			continue;
-		if (cpu_info[apic_id].cpu_bsp)
 			continue;
 		if (cpu_info[apic_id].cpu_disabled)
 			continue;
@@ -1534,6 +1530,8 @@ mp_ipi_intrcnt(void *dummy)
 		intrcnt_add(buf, &ipi_invlrng_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d:invlpg", i);
 		intrcnt_add(buf, &ipi_invlpg_counts[i]);
+		snprintf(buf, sizeof(buf), "cpu%d:invlcache", i);
+		intrcnt_add(buf, &ipi_invlcache_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d:preempt", i);
 		intrcnt_add(buf, &ipi_preempt_counts[i]);
 		snprintf(buf, sizeof(buf), "cpu%d:ast", i);

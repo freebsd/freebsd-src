@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sdb.c,v 1.76.8.1 2011-03-14 13:40:14 fdupont Exp $ */
+/* $Id$ */
 
 /*! \file */
 

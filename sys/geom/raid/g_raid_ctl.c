@@ -88,7 +88,7 @@ g_raid_ctl_label(struct gctl_req *req, struct g_class *mp)
 		gctl_error(req, "No format recieved.");
 		return;
 	}
-	crstatus = g_raid_create_node_format(format, &geom);
+	crstatus = g_raid_create_node_format(format, req, &geom);
 	if (crstatus == G_RAID_MD_TASTE_FAIL) {
 		gctl_error(req, "Failed to create array with format '%s'.",
 		    format);

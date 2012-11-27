@@ -111,6 +111,7 @@
 #if __BSD_VISIBLE
 #define	SIGTHR		32	/* reserved by thread library. */
 #define	SIGLWP		SIGTHR
+#define	SIGLIBRT	33	/* reserved by real-time library. */
 #endif
 
 #define	SIGRTMIN	65

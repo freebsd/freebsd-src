@@ -1,41 +1,41 @@
 /*
- * Copyright (c) 1997 - 2004 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2004 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "rsh_locl.h"
-RCSID("$Id: rsh.c 21516 2007-07-12 12:47:23Z lha $");
+RCSID("$Id$");
 
 enum auth_method auth_method;
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
 int do_encrypt       = -1;
 #endif
 #ifdef KRB5
@@ -48,19 +48,12 @@ krb5_context context;
 krb5_keyblock *keyblock;
 krb5_crypto crypto;
 #endif
-#ifdef KRB4
-des_key_schedule schedule;
-des_cblock iv;
-#endif
 int sock_debug	     = 0;
 
-#ifdef KRB4
-static int use_v4 = -1;
-#endif
 #ifdef KRB5
 static int use_v5 = -1;
 #endif
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
 static int use_only_broken = 0;
 #else
 static int use_only_broken = 1;
@@ -95,7 +88,7 @@ rsh_loop (int s, int errsock)
 
     if (s >= FD_SETSIZE || (errsock != -1 && errsock >= FD_SETSIZE))
 	errx (1, "fd too large");
-    
+
     FD_ZERO(&real_readset);
     FD_SET(s, &real_readset);
     if (errsock != -1) {
@@ -156,50 +149,6 @@ rsh_loop (int s, int errsock)
     }
 }
 
-#ifdef KRB4
-static int
-send_krb4_auth(int s,
-	       struct sockaddr *thisaddr,
-	       struct sockaddr *thataddr,
-	       const char *hostname,
-	       const char *remote_user,
-	       const char *local_user,
-	       size_t cmd_len,
-	       const char *cmd)
-{
-    KTEXT_ST text;
-    CREDENTIALS cred;
-    MSG_DAT msg;
-    int status;
-    size_t len;
-
-    /* the normal default for krb4 should be to disable encryption */
-    status = krb_sendauth ((do_encrypt == 1) ? KOPT_DO_MUTUAL : 0,
-			   s, &text, "rcmd",
-			   (char *)hostname, krb_realmofhost (hostname),
-			   getpid(), &msg, &cred, schedule,
-			   (struct sockaddr_in *)thisaddr,
-			   (struct sockaddr_in *)thataddr,
-			   KCMD_OLD_VERSION);
-    if (status != KSUCCESS) {
-	warnx("%s: %s", hostname, krb_get_err_text(status));
-	return 1;
-    }
-    memcpy (iv, cred.session, sizeof(iv));
-
-    len = strlen(remote_user) + 1;
-    if (net_write (s, remote_user, len) != len) {
-	warn("write");
-	return 1;
-    }
-    if (net_write (s, cmd, cmd_len) != cmd_len) {
-	warn("write");
-	return 1;
-    }
-    return 0;
-}
-#endif /* KRB4 */
-
 #ifdef KRB5
 /*
  * Send forward information on `s' for host `hostname', them being
@@ -236,17 +185,16 @@ krb5_forward_cred (krb5_auth_context auth_context,
     }
 
     creds.client = principal;
-    
-    ret = krb5_build_principal (context,
-				&creds.server,
-				strlen(principal->realm),
-				principal->realm,
-				"krbtgt",
-				principal->realm,
-				NULL);
+
+    ret = krb5_make_principal(context,
+			      &creds.server,
+			      principal->realm,
+			      "krbtgt",
+			      principal->realm,
+			      NULL);
 
     if (ret) {
-	warnx ("could not forward creds: krb5_build_principal: %s",
+	warnx ("could not forward creds: krb5_make_principal: %s",
 	       krb5_get_err_text (context, ret));
 	return 1;
     }
@@ -313,10 +261,10 @@ send_krb5_auth(int s,
     }
 
     if(do_encrypt == -1) {
-	krb5_appdefault_boolean(context, NULL, 
-				krb5_principal_get_realm(context, server), 
-				"encrypt", 
-				FALSE, 
+	krb5_appdefault_boolean(context, NULL,
+				krb5_principal_get_realm(context, server),
+				"encrypt",
+				FALSE,
 				&do_encrypt);
     }
 
@@ -349,7 +297,7 @@ send_krb5_auth(int s,
     default:
 	abort();
     }
-	
+
     status = krb5_sendauth (context,
 			    &auth_context,
 			    &s,
@@ -369,19 +317,19 @@ send_krb5_auth(int s,
 	krb5_const_realm realm = krb5_principal_get_realm(context, server);
 	if (do_forwardable == -1)
 	    krb5_appdefault_boolean(context, NULL, realm,
-				    "forwardable", FALSE, 
+				    "forwardable", FALSE,
 				    &do_forwardable);
 	if (do_forward == -1)
 	    krb5_appdefault_boolean(context, NULL, realm,
-				    "forward", FALSE, 
+				    "forward", FALSE,
 				    &do_forward);
     }
-    
+
     krb5_free_principal(context, server);
     krb5_data_free(&cksum_data);
 
     if (status) {
-	if(status == KRB5_SENDAUTH_REJECTED && 
+	if(status == KRB5_SENDAUTH_REJECTED &&
 	   protocol_version == 2 && protocol_version_str == NULL)
 	    sendauth_version_error = 1;
 	else
@@ -593,7 +541,7 @@ proto (int s, int errsock,
 		     cmd_len, cmd)) {
 	close (errsock2);
 	return 1;
-    } 
+    }
 
     ret = net_read (s, &reply, 1);
     if (ret < 0) {
@@ -625,7 +573,7 @@ proto (int s, int errsock,
 		       (void *)&one, sizeof(one)) < 0)
 	    warn("setsockopt stderr");
     }
-    
+
     return rsh_loop (s, errsock2);
 }
 
@@ -666,11 +614,11 @@ print_addr (const struct sockaddr *sa)
     const char *as = NULL;
 
     if(sa->sa_family == AF_INET)
-	as = inet_ntop (sa->sa_family, &((struct sockaddr_in*)sa)->sin_addr, 
+	as = inet_ntop (sa->sa_family, &((struct sockaddr_in*)sa)->sin_addr,
 			addr_str, sizeof(addr_str));
 #ifdef HAVE_INET6
     else if(sa->sa_family == AF_INET6)
-	as = inet_ntop (sa->sa_family, &((struct sockaddr_in6*)sa)->sin6_addr, 
+	as = inet_ntop (sa->sa_family, &((struct sockaddr_in6*)sa)->sin6_addr,
 			addr_str, sizeof(addr_str));
 #endif
     if(as == NULL)
@@ -697,7 +645,7 @@ doit_broken (int argc,
 
     if (connect (priv_socket1, ai->ai_addr, ai->ai_addrlen) < 0) {
 	int save_errno = errno;
-	
+
 	close(priv_socket1);
 	close(priv_socket2);
 
@@ -754,7 +702,7 @@ doit_broken (int argc,
     }
 }
 
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
 static int
 doit (const char *hostname,
       struct addrinfo *ai,
@@ -778,12 +726,12 @@ doit (const char *hostname,
 	int errsock;
 
 	s = socket (a->ai_family, a->ai_socktype, a->ai_protocol);
-	if (s < 0) 
+	if (s < 0)
 	    continue;
 	socketfailed = 0;
 	if (connect (s, a->ai_addr, a->ai_addrlen) < 0) {
 	    char addr[128];
-	    if(getnameinfo(a->ai_addr, a->ai_addrlen, 
+	    if(getnameinfo(a->ai_addr, a->ai_addrlen,
 			   addr, sizeof(addr), NULL, 0, NI_NUMERICHOST) == 0)
 		warn ("connect(%s [%s])", hostname, addr);
 	    else
@@ -820,7 +768,7 @@ doit (const char *hostname,
 	    freeaddrinfo (eai);
 	} else
 	    errsock = -1;
-    
+
 	ret = proto (s, errsock,
 		     hostname,
 		     local_user, remote_user,
@@ -832,12 +780,9 @@ doit (const char *hostname,
 	warnx ("failed to contact %s", hostname);
     return -1;
 }
-#endif /* KRB4 || KRB5 */
+#endif /* KRB5 */
 
 struct getargs args[] = {
-#ifdef KRB4
-    { "krb4",	'4', arg_flag,		&use_v4,	"Use Kerberos V4" },
-#endif
 #ifdef KRB5
     { "krb5",	'5', arg_flag,		&use_v5,	"Use Kerberos V5" },
     { "forward", 'f', arg_flag,		&do_forward,	"Forward credentials [krb5]"},
@@ -848,11 +793,11 @@ struct getargs args[] = {
       "Use unique remote credentials cache [krb5]" },
     { "tkfile", 'U', arg_string,  &unique_tkfile,
       "Specifies remote credentials cache [krb5]" },
-    { "protocol", 'P', arg_string,      &protocol_version_str, 
+    { "protocol", 'P', arg_string,      &protocol_version_str,
       "Protocol version [krb5]", "protocol" },
 #endif
     { "broken", 'K', arg_flag,		&use_only_broken, "Use only priv port" },
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
     { "encrypt", 'x', arg_flag,		&do_encrypt,	"Encrypt connection" },
     { NULL, 	'z', arg_negative_flag,      &do_encrypt,
       "Don't encrypt connection", NULL },
@@ -909,14 +854,14 @@ main(int argc, char **argv)
     uid = getuid ();
     if (setuid (uid) || (uid != 0 && setuid(0) == 0))
 	err (1, "setuid");
-    
+
     setprogname (argv[0]);
 
     if (argc >= 2 && argv[1][0] != '-') {
 	host = argv[host_index = 1];
 	argindex = 1;
     }
-    
+
     if (getarg (args, sizeof(args) / sizeof(args[0]), argc, argv,
 		&argindex))
 	usage (1);
@@ -940,7 +885,7 @@ main(int argc, char **argv)
 	    int v;
 	    v = strtol(protocol_version_str, &end, 0);
 	    if(*end != '\0' || (v != 1 && v != 2)) {
-		errx(1, "unknown protocol version \"%s\"", 
+		errx(1, "unknown protocol version \"%s\"",
 		     protocol_version_str);
 	    }
 	    protocol_version = v;
@@ -962,17 +907,7 @@ main(int argc, char **argv)
 
 #endif
 
-#if defined(KRB4) && defined(KRB5)
-    if(use_v4 == -1 && use_v5 == 1)
-	use_v4 = 0;
-    if(use_v5 == -1 && use_v4 == 1)
-	use_v5 = 0;
-#endif    
-
     if (use_only_broken) {
-#ifdef KRB4
-	use_v4 = 0;
-#endif
 #ifdef KRB5
 	use_v5 = 0;
 #endif
@@ -984,7 +919,7 @@ main(int argc, char **argv)
 	use_broken = 0;
     }
 
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
     if (do_encrypt == 1 && use_only_broken)
 	errx (1, "encryption not supported with old style authentication");
 #endif
@@ -1013,7 +948,7 @@ main(int argc, char **argv)
 	else
 	    host = argv[host_index = argindex++];
     }
-    
+
     if((tmp = strchr(host, '@')) != NULL) {
 	*tmp++ = '\0';
 	user = host;
@@ -1036,7 +971,7 @@ main(int argc, char **argv)
 	user = local_user;
 
     cmd_len = construct_command(&cmd, argc - argindex, argv + argindex);
-    
+
     /*
      * Try all different authentication methods
      */
@@ -1061,38 +996,11 @@ main(int argc, char **argv)
       again:
 	ret = doit (host, ai, user, local_user, cmd, cmd_len,
 		    send_krb5_auth);
-	if(ret != 0 && sendauth_version_error && 
+	if(ret != 0 && sendauth_version_error &&
 	   protocol_version == 2) {
 	    protocol_version = 1;
 	    goto again;
 	}
-	freeaddrinfo(ai);
-    }
-#endif
-#ifdef KRB4
-    if (ret && use_v4) {
-	memset (&hints, 0, sizeof(hints));
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = IPPROTO_TCP;
-
-	if(port_str == NULL) {
-	    if(do_encrypt) {
-		error = getaddrinfo(host, "ekshell", &hints, &ai);
-		if(error == EAI_NONAME)
-		    error = getaddrinfo(host, "545", &hints, &ai);
-	    } else {
-		error = getaddrinfo(host, "kshell", &hints, &ai);
-		if(error == EAI_NONAME)
-		    error = getaddrinfo(host, "544", &hints, &ai);
-	    }
-	} else
-	    error = getaddrinfo(host, port_str, &hints, &ai);
-
-	if(error)
-	    errx (1, "getaddrinfo: %s", gai_strerror(error));
-	auth_method = AUTH_KRB4;
-	ret = doit (host, ai, user, local_user, cmd, cmd_len,
-		    send_krb4_auth);
 	freeaddrinfo(ai);
     }
 #endif

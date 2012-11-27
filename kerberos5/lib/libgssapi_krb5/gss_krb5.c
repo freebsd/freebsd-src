@@ -33,6 +33,7 @@
 
 #include <krb5.h>
 #include <roken.h>
+#include <der.h>
 
 OM_uint32
 gss_krb5_copy_ccache(OM_uint32 *minor_status,

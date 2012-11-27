@@ -30,11 +30,9 @@
  * SUCH DAMAGE.
  */
 
-#include "krb5/gsskrb5_locl.h"
+#include "gsskrb5_locl.h"
 
-RCSID("$Id: inquire_cred_by_oid.c 19031 2006-11-13 18:02:57Z lha $");
-
-OM_uint32 _gsskrb5_inquire_cred_by_oid
+OM_uint32 GSSAPI_CALLCONV _gsskrb5_inquire_cred_by_oid
 	   (OM_uint32 * minor_status,
 	    const gss_cred_id_t cred_handle,
 	    const gss_OID desired_object,

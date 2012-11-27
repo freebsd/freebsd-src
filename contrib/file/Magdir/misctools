@@ -1,14 +1,23 @@
+
 #-----------------------------------------------------------------------------
+# $File: misctools,v 1.12 2010/09/29 18:36:49 rrt Exp $
 # misctools:  file(1) magic for miscellaneous UNIX tools.
 #
 0	search/1	%%!!			X-Post-It-Note text
 0	string/c	BEGIN:VCALENDAR		vCalendar calendar file
+!:mime	text/calendar
 0	string/c	BEGIN:VCARD		vCard visiting card
 !:mime	text/x-vcard
 
 # From: Alex Beregszaszi <alex@fsn.hu>
 4	string	gtktalog		GNOME Catalogue (gtktalog)
 >13	string	>\0			version %s
+
+# Summary: GStreamer binary registry
+# Extension: .bin
+# Submitted by: Josh Triplett <josh@joshtriplett.org>
+0	belong	0xc0def00d		GStreamer binary registry
+>4	string	x			\b, version %s
 
 # Summary: Libtool library file
 # Extension: .la
@@ -19,3 +28,6 @@
 # Extension: .lo
 # Submitted by: Abel Cheung <abelcheung@gmail.com>
 0	search/80	.lo\ -\ a\ libtool\ object\ file	libtool object file
+
+# From: Daniel Novotny <dnovotny@redhat.com>
+0	string		MDMP\x93\xA7				MDMP crash report data

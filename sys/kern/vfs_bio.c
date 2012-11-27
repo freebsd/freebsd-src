@@ -782,21 +782,6 @@ bremfreel(struct buf *bp)
 	}
 }
 
-
-/*
- * Get a buffer with the specified data.  Look in the cache first.  We
- * must clear BIO_ERROR and B_INVAL prior to initiating I/O.  If B_CACHE
- * is set, the buffer is valid and we do not have to do anything ( see
- * getblk() ).  This is really just a special case of breadn().
- */
-int
-bread(struct vnode * vp, daddr_t blkno, int size, struct ucred * cred,
-    struct buf **bpp)
-{
-
-	return (breadn(vp, blkno, size, 0, 0, 0, cred, bpp));
-}
-
 /*
  * Attempt to initiate asynchronous I/O on read-ahead blocks.  We must
  * clear BIO_ERROR and B_INVAL prior to initiating I/O . If B_CACHE is set,
@@ -834,19 +819,28 @@ breada(struct vnode * vp, daddr_t * rablkno, int * rabsize,
 }
 
 /*
- * Operates like bread, but also starts asynchronous I/O on
- * read-ahead blocks.
+ * Entry point for bread() and breadn() via #defines in sys/buf.h.
+ *
+ * Get a buffer with the specified data.  Look in the cache first.  We
+ * must clear BIO_ERROR and B_INVAL prior to initiating I/O.  If B_CACHE
+ * is set, the buffer is valid and we do not have to do anything, see
+ * getblk(). Also starts asynchronous I/O on read-ahead blocks.
  */
 int
-breadn(struct vnode * vp, daddr_t blkno, int size,
-    daddr_t * rablkno, int *rabsize,
-    int cnt, struct ucred * cred, struct buf **bpp)
+breadn_flags(struct vnode * vp, daddr_t blkno, int size,
+    daddr_t * rablkno, int *rabsize, int cnt,
+    struct ucred * cred, int flags, struct buf **bpp)
 {
 	struct buf *bp;
 	int rv = 0, readwait = 0;
 
 	CTR3(KTR_BUF, "breadn(%p, %jd, %d)", vp, blkno, size);
-	*bpp = bp = getblk(vp, blkno, size, 0, 0, 0);
+	/*
+	 * Can only return NULL if GB_LOCK_NOWAIT flag is specified.
+	 */
+	*bpp = bp = getblk(vp, blkno, size, 0, 0, flags);
+	if (bp == NULL)
+		return (EBUSY);
 
 	/* if not found in cache, do some I/O */
 	if ((bp->b_flags & B_CACHE) == 0) {
@@ -3062,7 +3056,7 @@ allocbuf(struct buf *bp, int size)
 
 				/*
 				 * We must allocate system pages since blocking
-				 * here could intefere with paging I/O, no
+				 * here could interfere with paging I/O, no
 				 * matter which process we are.
 				 *
 				 * We can only test VPO_BUSY here.  Blocking on

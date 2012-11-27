@@ -272,7 +272,7 @@ The default is \fBdes-cbc\fP.
 The ability to decrypt packets is only present if \fItcpdump\fP was compiled
 with cryptography enabled.
 .IP
-\fIsecret\fP is the ASCII text for ESP secret key. 
+\fIsecret\fP is the ASCII text for ESP secret key.
 If preceded by 0x, then a hex value will be read.
 .IP
 The option assumes RFC2406 ESP, not RFC1827 ESP.
@@ -284,7 +284,7 @@ you make it visible to others, via
 and other occasions.
 .IP
 In addition to the above syntax, the syntax \fIfile name\fP may be used
-to have tcpdump read the provided file in. The file is opened upon 
+to have tcpdump read the provided file in. The file is opened upon
 receiving the first ESP packet, so any special permissions that tcpdump
 may have been given should already have been given up.
 .TP
@@ -540,16 +540,16 @@ See
 for a description of the file format.
 .TP
 .B \-W
-Used in conjunction with the 
-.B \-C 
+Used in conjunction with the
+.B \-C
 option, this will limit the number
 of files created to the specified number, and begin overwriting files
-from the beginning, thus creating a 'rotating' buffer. 
+from the beginning, thus creating a 'rotating' buffer.
 In addition, it will name
 the files with enough leading 0s to support the maximum number of
 files, allowing them to sort correctly.
 .IP
-Used in conjunction with the 
+Used in conjunction with the
 .B \-G
 option, this will limit the number of rotated dump files that get
 created, exiting with status 0 when reaching the limit. If used with
@@ -559,7 +559,7 @@ as well, the behavior will result in cyclical files per timeslice.
 .B \-x
 When parsing and printing,
 in addition to printing the headers of each packet, print the data of
-each packet (minus its link level header) in hex. 
+each packet (minus its link level header) in hex.
 The smaller of the entire packet or
 .I snaplen
 bytes will be printed.  Note that this is the entire link-layer
@@ -1156,7 +1156,7 @@ tcp-push, tcp-act, tcp-urg.
 .PP
 This can be demonstrated as:
 .RS
-.B 
+.B
      tcpdump -i xl0 'tcp[tcpflags] & tcp-push != 0'
 .RE
 .PP

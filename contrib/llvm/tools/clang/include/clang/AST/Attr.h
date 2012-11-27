@@ -23,6 +23,7 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/raw_ostream.h"
 #include <cassert>
 #include <cstring>
 #include <algorithm>
@@ -39,19 +40,17 @@ namespace clang {
 
 // Defined in ASTContext.h
 void *operator new(size_t Bytes, const clang::ASTContext &C,
-                   size_t Alignment = 16) throw ();
+                   size_t Alignment = 16);
 // FIXME: Being forced to not have a default argument here due to redeclaration
 //        rules on default arguments sucks
 void *operator new[](size_t Bytes, const clang::ASTContext &C,
-                     size_t Alignment) throw ();
+                     size_t Alignment);
 
 // It is good practice to pair new/delete operators.  Also, MSVC gives many
 // warnings if a matching delete overload is not declared, even though the
 // throw() spec guarantees it will not be implicitly called.
-void operator delete(void *Ptr, const clang::ASTContext &C, size_t)
-              throw ();
-void operator delete[](void *Ptr, const clang::ASTContext &C, size_t)
-              throw ();
+void operator delete(void *Ptr, const clang::ASTContext &C, size_t);
+void operator delete[](void *Ptr, const clang::ASTContext &C, size_t);
 
 namespace clang {
 
@@ -103,11 +102,17 @@ public:
   // Clone this attribute.
   virtual Attr* clone(ASTContext &C) const = 0;
 
+  virtual bool isLateParsed() const { return false; }
+
+  // Pretty print this attribute.
+  virtual void printPretty(llvm::raw_ostream &OS, ASTContext &C) const = 0;
+
   // Implement isa/cast/dyncast/etc.
   static bool classof(const Attr *) { return true; }
 };
 
 class InheritableAttr : public Attr {
+  virtual void anchor();
 protected:
   InheritableAttr(attr::Kind AK, SourceRange R)
     : Attr(AK, R) {}
@@ -123,6 +128,7 @@ public:
 };
 
 class InheritableParamAttr : public InheritableAttr {
+  virtual void anchor();
 protected:
   InheritableParamAttr(attr::Kind AK, SourceRange R)
     : InheritableAttr(AK, R) {}

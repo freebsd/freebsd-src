@@ -101,6 +101,7 @@ struct mmc_ivars {
 	uint32_t tran_speed;	/* Max speed in normal mode */
 	uint32_t hs_tran_speed;	/* Max speed in high speed mode */
 	uint32_t erase_sector;	/* Card native erase sector size */
+	char card_id_string[64];/* Formatted CID info (serial, MFG, etc) */
 };
 
 #define CMD_RETRIES	3
@@ -140,6 +141,7 @@ static void mmc_app_decode_scr(uint32_t *raw_scr, struct mmc_scr *scr);
 static int mmc_send_ext_csd(struct mmc_softc *sc, uint8_t *rawextcsd);
 static void mmc_scan(struct mmc_softc *sc);
 static int mmc_delete_cards(struct mmc_softc *sc);
+static void mmc_format_card_id_string(struct mmc_ivars *ivar);
 
 static void
 mmc_ms_delay(int ms)
@@ -606,6 +608,13 @@ mmc_set_card_bus_width(struct mmc_softc *sc, uint16_t rca, int width)
 
 	if (mmcbr_get_mode(sc->dev) == mode_sd) {
 		memset(&cmd, 0, sizeof(struct mmc_command));
+		cmd.opcode = ACMD_SET_CLR_CARD_DETECT;
+		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
+		cmd.arg = SD_CLR_CARD_DETECT;
+		err = mmc_wait_for_app_cmd(sc, rca, &cmd, CMD_RETRIES);
+		if (err != 0)
+			return (err);
+		memset(&cmd, 0, sizeof(struct mmc_command));
 		cmd.opcode = ACMD_SET_BUS_WIDTH;
 		cmd.flags = MMC_RSP_R1 | MMC_CMD_AC;
 		switch (width) {
@@ -788,15 +797,52 @@ mmc_decode_cid_mmc(uint32_t *raw_cid, struct mmc_cid *cid)
 	cid->mdt_year = mmc_get_bits(raw_cid, 128, 8, 4) + 1997;
 }
 
+static void
+mmc_format_card_id_string(struct mmc_ivars *ivar)
+{
+	char oidstr[8];
+	uint8_t c1;
+	uint8_t c2;
+
+	/*
+	 * Format a card ID string for use by the mmcsd driver, it's what
+	 * appears between the <> in the following:
+	 * mmcsd0: 968MB <SD SD01G 8.0 SN 2686905 Mfg 08/2008 by 3 TN> at mmc0
+	 * 22.5MHz/4bit/128-block
+	 *
+	 * The card_id_string in mmc_ivars is currently allocated as 64 bytes,
+	 * and our max formatted length is currently 55 bytes if every field
+	 * contains the largest value.
+	 *
+	 * Sometimes the oid is two printable ascii chars; when it's not,
+	 * format it as 0xnnnn instead.
+	 */
+	c1 = (ivar->cid.oid >> 8) & 0x0ff;
+	c2 = ivar->cid.oid & 0x0ff;
+	if (c1 > 0x1f && c1 < 0x7f && c2 > 0x1f && c2 < 0x7f)
+		snprintf(oidstr, sizeof(oidstr), "%c%c", c1, c2);
+	else
+		snprintf(oidstr, sizeof(oidstr), "0x%04x", ivar->cid.oid);
+	snprintf(ivar->card_id_string, sizeof(ivar->card_id_string),
+	    "%s%s %s %d.%d SN %d MFG %02d/%04d by %d %s",
+	    ivar->mode == mode_sd ? "SD" : "MMC", ivar->high_cap ? "HC" : "",
+	    ivar->cid.pnm, ivar->cid.prv >> 4, ivar->cid.prv & 0x0f,
+	    ivar->cid.psn, ivar->cid.mdt_month, ivar->cid.mdt_year,
+	    ivar->cid.mid, oidstr);
+}
+
 static const int exp[8] = {
 	1, 10, 100, 1000, 10000, 100000, 1000000, 10000000
 };
+
 static const int mant[16] = {
-	10, 12, 13, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80
+	0, 10, 12, 13, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 70, 80
 };
+
 static const int cur_min[8] = {
 	500, 1000, 5000, 10000, 25000, 35000, 60000, 100000
 };
+
 static const int cur_max[8] = {
 	1000, 5000, 10000, 25000, 35000, 45000, 800000, 200000
 };
@@ -1080,13 +1126,7 @@ mmc_log_card(device_t dev, struct mmc_ivars *ivar, int newcard)
 {
 	device_printf(dev, "Card at relative address %d%s:\n",
 	    ivar->rca, newcard ? " added" : "");
-	device_printf(dev, " card: %s%s (0x%x/0x%x/\"%s\" rev %d.%d "
-	    "m/d %02d.%04d s/n %08x)\n",
-	    ivar->mode == mode_sd ? "SD" : "MMC",
-	    ivar->high_cap ? " High Capacity" : "", 
-	    ivar->cid.mid, ivar->cid.oid,
-	    ivar->cid.pnm, ivar->cid.prv >> 4, ivar->cid.prv & 0x0f,
-	    ivar->cid.mdt_month, ivar->cid.mdt_year, ivar->cid.psn);
+	device_printf(dev, " card: %s\n", ivar->card_id_string);
 	device_printf(dev, " bus: %ubit, %uMHz%s\n",
 	    (ivar->bus_width == bus_width_1 ? 1 :
 	    (ivar->bus_width == bus_width_4 ? 4 : 8)),
@@ -1188,6 +1228,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 			if ((mmcbr_get_caps(sc->dev) & MMC_CAP_4_BIT_DATA) &&
 			    (ivar->scr.bus_widths & SD_SCR_BUS_WIDTH_4))
 				ivar->bus_width = bus_width_4;
+			mmc_format_card_id_string(ivar);
 			if (bootverbose || mmc_debug)
 				mmc_log_card(sc->dev, ivar, newcard);
 			if (newcard) {
@@ -1245,6 +1286,7 @@ mmc_discover_cards(struct mmc_softc *sc)
 			ivar->bus_width = bus_width_1;
 			ivar->timing = bus_timing_normal;
 		}
+		mmc_format_card_id_string(ivar);
 		if (bootverbose || mmc_debug)
 			mmc_log_card(sc->dev, ivar, newcard);
 		if (newcard) {
@@ -1477,6 +1519,9 @@ mmc_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 	case MMC_IVAR_MAX_DATA:
 		*result = mmcbr_get_max_data(bus);
 		break;
+	case MMC_IVAR_CARD_ID_STRING:
+		*(char **)result = ivar->card_id_string;
+		break;
 	}
 	return (0);
 }
@@ -1527,7 +1572,7 @@ static device_method_t mmc_methods[] = {
 	DEVMETHOD(mmcbus_acquire_bus, mmc_acquire_bus),
 	DEVMETHOD(mmcbus_release_bus, mmc_release_bus),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t mmc_driver = {
@@ -1536,7 +1581,6 @@ static driver_t mmc_driver = {
 	sizeof(struct mmc_softc),
 };
 static devclass_t mmc_devclass;
-
 
 DRIVER_MODULE(mmc, at91_mci, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, sdhci, mmc_driver, mmc_devclass, NULL, NULL);

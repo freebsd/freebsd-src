@@ -76,7 +76,7 @@ is enabled,
 will assert that the tx queue lock is held when it is called.
 .Pp
 The
-.Fn drbr_free 
+.Fn drbr_free
 function frees all the enqueued mbufs and then frees the buf_ring.
 .Pp
 The
@@ -106,7 +106,7 @@ The
 .Fn drbr_flush
 function frees all mbufs enqueued in the buf_ring and the ifnet's IFQ.
 .Pp
-The 
+The
 .Fn drbr_empty
 function returns
 .Dv TRUE
@@ -118,7 +118,7 @@ The
 .Fn drbr_inuse
 function returns the number of mbufs enqueued.
 Note to users that this is intrinsically racy as there is no guarantee that
-there will not be more mbufs when 
+there will not be more mbufs when
 .Fn drbr_dequeue
 is actually called.
 Provided the tx queue lock is held there will not be less.
@@ -137,7 +137,7 @@ on success.
 .Pp
 The
 .Fn drbr_dequeue
-and 
+and
 .Fn drbr_dequeue_cond
 functions return an mbuf on success and
 .Dv NULL

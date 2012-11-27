@@ -45,23 +45,21 @@
 using namespace llvm;
 
 char PEI::ID = 0;
+char &llvm::PrologEpilogCodeInserterID = PEI::ID;
 
 INITIALIZE_PASS_BEGIN(PEI, "prologepilog",
                 "Prologue/Epilogue Insertion", false, false)
 INITIALIZE_PASS_DEPENDENCY(MachineLoopInfo)
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
+INITIALIZE_PASS_DEPENDENCY(TargetPassConfig)
 INITIALIZE_PASS_END(PEI, "prologepilog",
-                "Prologue/Epilogue Insertion", false, false)
+                    "Prologue/Epilogue Insertion & Frame Finalization",
+                    false, false)
 
 STATISTIC(NumVirtualFrameRegs, "Number of virtual frame regs encountered");
 STATISTIC(NumScavengedRegs, "Number of frame index regs scavenged");
 STATISTIC(NumBytesStackSpace,
           "Number of bytes used for stack in all functions");
-
-/// createPrologEpilogCodeInserter - This function returns a pass that inserts
-/// prolog and epilog code, and eliminates abstract frame references.
-///
-FunctionPass *llvm::createPrologEpilogCodeInserter() { return new PEI(); }
 
 /// runOnMachineFunction - Insert prolog/epilog code and replace abstract
 /// frame indexes with appropriate references.
@@ -70,6 +68,8 @@ bool PEI::runOnMachineFunction(MachineFunction &Fn) {
   const Function* F = Fn.getFunction();
   const TargetRegisterInfo *TRI = Fn.getTarget().getRegisterInfo();
   const TargetFrameLowering *TFI = Fn.getTarget().getFrameLowering();
+
+  assert(!Fn.getRegInfo().getNumVirtRegs() && "Regalloc must assign all vregs");
 
   RS = TRI->requiresRegisterScavenging(Fn) ? new RegScavenger() : NULL;
   FrameIndexVirtualScavenging = TRI->requiresFrameIndexScavenging(Fn);
@@ -124,6 +124,9 @@ bool PEI::runOnMachineFunction(MachineFunction &Fn) {
   // inserted.
   if (TRI->requiresRegisterScavenging(Fn) && FrameIndexVirtualScavenging)
     scavengeFrameVirtualRegs(Fn);
+
+  // Clear any vregs created by virtual scavenging.
+  Fn.getRegInfo().clearVirtRegs();
 
   delete RS;
   clearAllSets();
@@ -207,7 +210,7 @@ void PEI::calculateCalleeSavedRegisters(MachineFunction &Fn) {
   MachineFrameInfo *MFI = Fn.getFrameInfo();
 
   // Get the callee saved register list...
-  const unsigned *CSRegs = RegInfo->getCalleeSavedRegs(&Fn);
+  const uint16_t *CSRegs = RegInfo->getCalleeSavedRegs(&Fn);
 
   // These are used to keep track the callee-save area. Initialize them.
   MinCSFrameIndex = INT_MAX;
@@ -224,17 +227,9 @@ void PEI::calculateCalleeSavedRegisters(MachineFunction &Fn) {
   std::vector<CalleeSavedInfo> CSI;
   for (unsigned i = 0; CSRegs[i]; ++i) {
     unsigned Reg = CSRegs[i];
-    if (Fn.getRegInfo().isPhysRegUsed(Reg)) {
+    if (Fn.getRegInfo().isPhysRegOrOverlapUsed(Reg)) {
       // If the reg is modified, save it!
       CSI.push_back(CalleeSavedInfo(Reg));
-    } else {
-      for (const unsigned *AliasSet = RegInfo->getAliasSet(Reg);
-           *AliasSet; ++AliasSet) {  // Check alias registers too.
-        if (Fn.getRegInfo().isPhysRegUsed(*AliasSet)) {
-          CSI.push_back(CalleeSavedInfo(Reg));
-          break;
-        }
-      }
     }
   }
 
@@ -332,7 +327,7 @@ void PEI::insertCSRSpillsAndRestores(MachineFunction &Fn) {
       // Skip over all terminator instructions, which are part of the return
       // sequence.
       MachineBasicBlock::iterator I2 = I;
-      while (I2 != MBB->begin() && (--I2)->getDesc().isTerminator())
+      while (I2 != MBB->begin() && (--I2)->isTerminator())
         I = I2;
 
       bool AtStart = I == MBB->begin();
@@ -426,11 +421,11 @@ void PEI::insertCSRSpillsAndRestores(MachineFunction &Fn) {
 
       // Skip over all terminator instructions, which are part of the
       // return sequence.
-      if (! I->getDesc().isTerminator()) {
+      if (! I->isTerminator()) {
         ++I;
       } else {
         MachineBasicBlock::iterator I2 = I;
-        while (I2 != MBB->begin() && (--I2)->getDesc().isTerminator())
+        while (I2 != MBB->begin() && (--I2)->isTerminator())
           I = I2;
       }
     }
@@ -698,7 +693,7 @@ void PEI::insertPrologEpilogCode(MachineFunction &Fn) {
   // Add epilogue to restore the callee-save registers in each exiting block
   for (MachineFunction::iterator I = Fn.begin(), E = Fn.end(); I != E; ++I) {
     // If last instruction is a return instruction, add an epilogue
-    if (!I->empty() && I->back().getDesc().isReturn())
+    if (!I->empty() && I->back().isReturn())
       TFI.emitEpilogue(Fn, *I);
   }
 
@@ -706,7 +701,7 @@ void PEI::insertPrologEpilogCode(MachineFunction &Fn) {
   // we've been asked for it.  This, when linked with a runtime with support
   // for segmented stacks (libgcc is one), will result in allocating stack
   // space in small chunks instead of one large contiguous block.
-  if (EnableSegmentedStacks)
+  if (Fn.getTarget().Options.EnableSegmentedStacks)
     TFI.adjustForSegmentedStacks(Fn);
 }
 
@@ -813,6 +808,10 @@ void PEI::replaceFrameIndices(MachineFunction &Fn) {
 /// scavengeFrameVirtualRegs - Replace all frame index virtual registers
 /// with physical registers. Use the register scavenger to find an
 /// appropriate register to use.
+///
+/// FIXME: Iterating over the instruction stream is unnecessary. We can simply
+/// iterate over the vreg use list, which at this point only contains machine
+/// operands for which eliminateFrameIndex need a new scratch reg.
 void PEI::scavengeFrameVirtualRegs(MachineFunction &Fn) {
   // Run through the instructions and find any virtual registers.
   for (MachineFunction::iterator BB = Fn.begin(),

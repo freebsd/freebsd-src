@@ -1549,31 +1549,13 @@ __elfN(putnote)(void *dst, size_t *off, const char *name, int type,
 	*off += roundup2(note.n_descsz, sizeof(Elf_Size));
 }
 
-/*
- * Try to find the appropriate ABI-note section for checknote,
- * fetch the osreldate for binary from the ELF OSABI-note. Only the
- * first page of the image is searched, the same as for headers.
- */
 static boolean_t
-__elfN(check_note)(struct image_params *imgp, Elf_Brandnote *checknote,
-    int32_t *osrel)
+__elfN(parse_notes)(struct image_params *imgp, Elf_Brandnote *checknote,
+    int32_t *osrel, const Elf_Phdr *pnote)
 {
 	const Elf_Note *note, *note0, *note_end;
-	const Elf_Phdr *phdr, *pnote;
-	const Elf_Ehdr *hdr;
 	const char *note_name;
 	int i;
-
-	pnote = NULL;
-	hdr = (const Elf_Ehdr *)imgp->image_header;
-	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
-
-	for (i = 0; i < hdr->e_phnum; i++) {
-		if (phdr[i].p_type == PT_NOTE) {
-			pnote = &phdr[i];
-			break;
-		}
-	}
 
 	if (pnote == NULL || pnote->p_offset >= PAGE_SIZE ||
 	    pnote->p_offset + pnote->p_filesz >= PAGE_SIZE)
@@ -1610,6 +1592,31 @@ nextnote:
 	}
 
 	return (FALSE);
+}
+
+/*
+ * Try to find the appropriate ABI-note section for checknote,
+ * fetch the osreldate for binary from the ELF OSABI-note. Only the
+ * first page of the image is searched, the same as for headers.
+ */
+static boolean_t
+__elfN(check_note)(struct image_params *imgp, Elf_Brandnote *checknote,
+    int32_t *osrel)
+{
+	const Elf_Phdr *phdr;
+	const Elf_Ehdr *hdr;
+	int i;
+
+	hdr = (const Elf_Ehdr *)imgp->image_header;
+	phdr = (const Elf_Phdr *)(imgp->image_header + hdr->e_phoff);
+
+	for (i = 0; i < hdr->e_phnum; i++) {
+		if (phdr[i].p_type == PT_NOTE &&
+		    __elfN(parse_notes)(imgp, checknote, osrel, &phdr[i]))
+			return (TRUE);
+	}
+	return (FALSE);
+
 }
 
 /*

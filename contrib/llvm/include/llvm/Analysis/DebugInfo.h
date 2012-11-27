@@ -43,6 +43,7 @@ namespace llvm {
   class DILexicalBlockFile;
   class DIVariable;
   class DIType;
+  class DIObjCProperty;
 
   /// DIDescriptor - A thin wraper around MDNode to access encoded debug info.
   /// This should not be stored in a container, because underly MDNode may
@@ -128,6 +129,7 @@ namespace llvm {
     bool isUnspecifiedParameter() const;
     bool isTemplateTypeParameter() const;
     bool isTemplateValueParameter() const;
+    bool isObjCProperty() const;
   };
 
   /// DISubrange - This is used to represent ranges, for array bounds.
@@ -135,8 +137,8 @@ namespace llvm {
   public:
     explicit DISubrange(const MDNode *N = 0) : DIDescriptor(N) {}
 
-    int64_t getLo() const { return (int64_t)getUInt64Field(1); }
-    int64_t getHi() const { return (int64_t)getUInt64Field(2); }
+    uint64_t getLo() const { return getUInt64Field(1); }
+    uint64_t getHi() const { return getUInt64Field(2); }
   };
 
   /// DIArray - This descriptor holds an array of descriptors.
@@ -153,6 +155,7 @@ namespace llvm {
 
   /// DIScope - A base class for various scopes.
   class DIScope : public DIDescriptor {
+    virtual void anchor();
   public:
     explicit DIScope(const MDNode *N = 0) : DIDescriptor (N) {}
     virtual ~DIScope() {}
@@ -163,6 +166,7 @@ namespace llvm {
 
   /// DICompileUnit - A wrapper for a compile unit.
   class DICompileUnit : public DIScope {
+    virtual void anchor();
   public:
     explicit DICompileUnit(const MDNode *N = 0) : DIScope(N) {}
 
@@ -202,6 +206,7 @@ namespace llvm {
 
   /// DIFile - This is a wrapper for a file.
   class DIFile : public DIScope {
+    virtual void anchor();
   public:
     explicit DIFile(const MDNode *N = 0) : DIScope(N) {
       if (DbgNode && !isFile())
@@ -230,7 +235,7 @@ namespace llvm {
   /// FIXME: Types should be factored much better so that CV qualifiers and
   /// others do not require a huge and empty descriptor full of zeros.
   class DIType : public DIScope {
-  public:
+    virtual void anchor();
   protected:
     // This ctor is used when the Tag has already been validated by a derived
     // ctor.
@@ -240,7 +245,6 @@ namespace llvm {
 
     /// Verify - Verify that a type descriptor is well formed.
     bool Verify() const;
-  public:
     explicit DIType(const MDNode *N);
     explicit DIType() {}
     virtual ~DIType() {}
@@ -320,6 +324,7 @@ namespace llvm {
 
   /// DIBasicType - A basic type, like 'int' or 'float'.
   class DIBasicType : public DIType {
+    virtual void anchor();
   public:
     explicit DIBasicType(const MDNode *N = 0) : DIType(N) {}
 
@@ -338,6 +343,7 @@ namespace llvm {
   /// DIDerivedType - A simple derived type, like a const qualified type,
   /// a typedef, a pointer or reference, etc.
   class DIDerivedType : public DIType {
+    virtual void anchor();
   protected:
     explicit DIDerivedType(const MDNode *N, bool, bool)
       : DIType(N, true, true) {}
@@ -351,29 +357,45 @@ namespace llvm {
     /// return base type size.
     uint64_t getOriginalTypeSize() const;
 
-    StringRef getObjCPropertyName() const { return getStringField(10); }
+    /// getObjCProperty - Return property node, if this ivar is 
+    /// associated with one.
+    MDNode *getObjCProperty() const;
+
+    StringRef getObjCPropertyName() const { 
+      if (getVersion() > LLVMDebugVersion11)
+        return StringRef();
+      return getStringField(10); 
+    }
     StringRef getObjCPropertyGetterName() const {
+      assert (getVersion() <= LLVMDebugVersion11  && "Invalid Request");
       return getStringField(11);
     }
     StringRef getObjCPropertySetterName() const {
+      assert (getVersion() <= LLVMDebugVersion11  && "Invalid Request");
       return getStringField(12);
     }
     bool isReadOnlyObjCProperty() {
+      assert (getVersion() <= LLVMDebugVersion11  && "Invalid Request");
       return (getUnsignedField(13) & dwarf::DW_APPLE_PROPERTY_readonly) != 0;
     }
     bool isReadWriteObjCProperty() {
+      assert (getVersion() <= LLVMDebugVersion11  && "Invalid Request");
       return (getUnsignedField(13) & dwarf::DW_APPLE_PROPERTY_readwrite) != 0;
     }
     bool isAssignObjCProperty() {
+      assert (getVersion() <= LLVMDebugVersion11  && "Invalid Request");
       return (getUnsignedField(13) & dwarf::DW_APPLE_PROPERTY_assign) != 0;
     }
     bool isRetainObjCProperty() {
+      assert (getVersion() <= LLVMDebugVersion11  && "Invalid Request");
       return (getUnsignedField(13) & dwarf::DW_APPLE_PROPERTY_retain) != 0;
     }
     bool isCopyObjCProperty() {
+      assert (getVersion() <= LLVMDebugVersion11  && "Invalid Request");
       return (getUnsignedField(13) & dwarf::DW_APPLE_PROPERTY_copy) != 0;
     }
     bool isNonAtomicObjCProperty() {
+      assert (getVersion() <= LLVMDebugVersion11  && "Invalid Request");
       return (getUnsignedField(13) & dwarf::DW_APPLE_PROPERTY_nonatomic) != 0;
     }
 
@@ -391,6 +413,7 @@ namespace llvm {
   /// other types, like a function or struct.
   /// FIXME: Why is this a DIDerivedType??
   class DICompositeType : public DIDerivedType {
+    virtual void anchor();
   public:
     explicit DICompositeType(const MDNode *N = 0)
       : DIDerivedType(N, true, true) {
@@ -454,6 +477,7 @@ namespace llvm {
 
   /// DISubprogram - This is a wrapper for a subprogram (e.g. a function).
   class DISubprogram : public DIScope {
+    virtual void anchor();
   public:
     explicit DISubprogram(const MDNode *N = 0) : DIScope(N) {}
 
@@ -495,6 +519,7 @@ namespace llvm {
     DICompositeType getContainingType() const {
       return getFieldAs<DICompositeType>(13);
     }
+
     unsigned isArtificial() const    { 
       if (getVersion() <= llvm::LLVMDebugVersion8)
         return getUnsignedField(14); 
@@ -542,6 +567,11 @@ namespace llvm {
 
       return getFieldAs<DIFile>(6).getDirectory(); 
     }
+
+    /// getScopeLineNumber - Get the beginning of the scope of the
+    /// function, not necessarily where the name of the program
+    /// starts.
+    unsigned getScopeLineNumber() const { return getUnsignedField(20); }
 
     /// Verify - Verify that a subprogram descriptor is well formed.
     bool Verify() const;
@@ -621,7 +651,7 @@ namespace llvm {
 
     DIScope getContext() const          { return getFieldAs<DIScope>(1); }
     StringRef getName() const           { return getStringField(2);     }
-    DICompileUnit getCompileUnit() const{ 
+    DICompileUnit getCompileUnit() const { 
       assert (getVersion() <= LLVMDebugVersion10 && "Invalid getCompileUnit!");
       if (getVersion() == llvm::LLVMDebugVersion7)
         return getFieldAs<DICompileUnit>(3);
@@ -687,6 +717,7 @@ namespace llvm {
 
   /// DILexicalBlock - This is a wrapper for a lexical block.
   class DILexicalBlock : public DIScope {
+    virtual void anchor();
   public:
     explicit DILexicalBlock(const MDNode *N = 0) : DIScope(N) {}
     DIScope getContext() const       { return getFieldAs<DIScope>(1);      }
@@ -705,6 +736,7 @@ namespace llvm {
   /// DILexicalBlockFile - This is a wrapper for a lexical block with
   /// a filename change.
   class DILexicalBlockFile : public DIScope {
+    virtual void anchor();
   public:
     explicit DILexicalBlockFile(const MDNode *N = 0) : DIScope(N) {}
     DIScope getContext() const { return getScope().getContext(); }
@@ -724,6 +756,7 @@ namespace llvm {
 
   /// DINameSpace - A wrapper for a C++ style name space.
   class DINameSpace : public DIScope { 
+    virtual void anchor();
   public:
     explicit DINameSpace(const MDNode *N = 0) : DIScope(N) {}
     DIScope getContext() const     { return getFieldAs<DIScope>(1);      }
@@ -758,6 +791,51 @@ namespace llvm {
     StringRef getFilename() const    { return getScope().getFilename(); }
     StringRef getDirectory() const   { return getScope().getDirectory(); }
     bool Verify() const;
+  };
+
+  class DIObjCProperty : public DIDescriptor {
+  public:
+    explicit DIObjCProperty(const MDNode *N) : DIDescriptor(N) { }
+
+    StringRef getObjCPropertyName() const { return getStringField(1); }
+    DIFile getFile() const { return getFieldAs<DIFile>(2); }
+    unsigned getLineNumber() const { return getUnsignedField(3); }
+
+    StringRef getObjCPropertyGetterName() const {
+      return getStringField(4);
+    }
+    StringRef getObjCPropertySetterName() const {
+      return getStringField(5);
+    }
+    bool isReadOnlyObjCProperty() {
+      return (getUnsignedField(6) & dwarf::DW_APPLE_PROPERTY_readonly) != 0;
+    }
+    bool isReadWriteObjCProperty() {
+      return (getUnsignedField(6) & dwarf::DW_APPLE_PROPERTY_readwrite) != 0;
+    }
+    bool isAssignObjCProperty() {
+      return (getUnsignedField(6) & dwarf::DW_APPLE_PROPERTY_assign) != 0;
+    }
+    bool isRetainObjCProperty() {
+      return (getUnsignedField(6) & dwarf::DW_APPLE_PROPERTY_retain) != 0;
+    }
+    bool isCopyObjCProperty() {
+      return (getUnsignedField(6) & dwarf::DW_APPLE_PROPERTY_copy) != 0;
+    }
+    bool isNonAtomicObjCProperty() {
+      return (getUnsignedField(6) & dwarf::DW_APPLE_PROPERTY_nonatomic) != 0;
+    }
+
+    DIType getType() const { return getFieldAs<DIType>(7); }
+
+    /// Verify - Verify that a derived type descriptor is well formed.
+    bool Verify() const;
+
+    /// print - print derived type.
+    void print(raw_ostream &OS) const;
+
+    /// dump - print derived type to dbgs() with a newline.
+    void dump() const;
   };
 
   /// getDISubprogram - Find subprogram that is enclosing this scope.
@@ -816,7 +894,7 @@ namespace llvm {
     /// addGlobalVariable - Add global variable into GVs.
     bool addGlobalVariable(DIGlobalVariable DIG);
 
-    // addSubprogram - Add subprgoram into SPs.
+    // addSubprogram - Add subprogram into SPs.
     bool addSubprogram(DISubprogram SP);
 
     /// addType - Add type into Tys.

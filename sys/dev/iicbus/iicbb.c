@@ -76,6 +76,7 @@ static int iicbb_stop(device_t);
 static int iicbb_write(device_t, const char *, int, int *, int);
 static int iicbb_read(device_t, char *, int, int *, int, int);
 static int iicbb_reset(device_t, u_char, u_char, u_char *);
+static int iicbb_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs);
 
 static device_method_t iicbb_methods[] = {
 	/* device interface */
@@ -95,7 +96,7 @@ static device_method_t iicbb_methods[] = {
 	DEVMETHOD(iicbus_write,		iicbb_write),
 	DEVMETHOD(iicbus_read,		iicbb_read),
 	DEVMETHOD(iicbus_reset,		iicbb_reset),
-	DEVMETHOD(iicbus_transfer,	iicbus_transfer_gen),
+	DEVMETHOD(iicbus_transfer,	iicbb_transfer),
 
 	{ 0, 0 }
 };
@@ -422,6 +423,21 @@ iicbb_read(device_t dev, char * buf, int len, int *read, int last, int delay)
 
 	*read = bytes;
 	return (0);
+}
+
+static int
+iicbb_transfer(device_t dev, struct iic_msg *msgs, uint32_t nmsgs)
+{
+	int error;
+
+	error = IICBB_PRE_XFER(device_get_parent(dev));
+	if (error)
+		return (error);
+
+	error = iicbus_transfer_gen(dev, msgs, nmsgs);
+
+	IICBB_POST_XFER(device_get_parent(dev));
+	return (error);
 }
 
 DRIVER_MODULE(iicbus, iicbb, iicbus_driver, iicbus_devclass, 0, 0);

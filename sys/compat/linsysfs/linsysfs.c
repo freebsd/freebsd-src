@@ -280,5 +280,5 @@ linsysfs_uninit(PFS_INIT_ARGS)
 	return (0);
 }
 
-PSEUDOFS(linsysfs, 1);
+PSEUDOFS(linsysfs, 1, 0);
 MODULE_DEPEND(linsysfs, linux, 1, 1, 1);

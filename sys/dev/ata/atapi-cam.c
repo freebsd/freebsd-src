@@ -122,7 +122,7 @@ static device_method_t atapi_cam_methods[] = {
 	DEVMETHOD(device_attach,        atapi_cam_attach),
 	DEVMETHOD(device_detach,        atapi_cam_detach),
 	DEVMETHOD(ata_reinit,           atapi_cam_reinit),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t atapi_cam_driver = {

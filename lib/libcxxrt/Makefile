@@ -21,5 +21,6 @@ SRCS+=        libelftc_dem_gnu3.c\
 
 WARNS=        0
 CFLAGS+=      -I${SRCDIR}
+VERSION_MAP=  ${.CURDIR}/Version.map
 
 .include <bsd.lib.mk>

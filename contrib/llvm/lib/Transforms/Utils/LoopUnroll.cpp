@@ -135,7 +135,8 @@ static BasicBlock *FoldBlockIntoPredecessor(BasicBlock *BB, LoopInfo* LI,
 /// This utility preserves LoopInfo. If DominatorTree or ScalarEvolution are
 /// available it must also preserve those analyses.
 bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount,
-                      unsigned TripMultiple, LoopInfo *LI, LPPassManager *LPM) {
+                      bool AllowRuntime, unsigned TripMultiple,
+                      LoopInfo *LI, LPPassManager *LPM) {
   BasicBlock *Preheader = L->getLoopPreheader();
   if (!Preheader) {
     DEBUG(dbgs() << "  Can't unroll; loop preheader-insertion failed.\n");
@@ -145,6 +146,12 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount,
   BasicBlock *LatchBlock = L->getLoopLatch();
   if (!LatchBlock) {
     DEBUG(dbgs() << "  Can't unroll; loop exit-block-insertion failed.\n");
+    return false;
+  }
+
+  // Loops with indirectbr cannot be cloned.
+  if (!L->isSafeToClone()) {
+    DEBUG(dbgs() << "  Can't unroll; Loop body cannot be cloned.\n");
     return false;
   }
 
@@ -165,12 +172,6 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount,
     return false;
   }
 
-  // Notify ScalarEvolution that the loop will be substantially changed,
-  // if not outright eliminated.
-  ScalarEvolution *SE = LPM->getAnalysisIfAvailable<ScalarEvolution>();
-  if (SE)
-    SE->forgetLoop(L);
-
   if (TripCount != 0)
     DEBUG(dbgs() << "  Trip Count = " << TripCount << "\n");
   if (TripMultiple != 1)
@@ -181,12 +182,31 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount,
   if (TripCount != 0 && Count > TripCount)
     Count = TripCount;
 
+  // Don't enter the unroll code if there is nothing to do. This way we don't
+  // need to support "partial unrolling by 1".
+  if (TripCount == 0 && Count < 2)
+    return false;
+
   assert(Count > 0);
   assert(TripMultiple > 0);
   assert(TripCount == 0 || TripCount % TripMultiple == 0);
 
   // Are we eliminating the loop control altogether?
   bool CompletelyUnroll = Count == TripCount;
+
+  // We assume a run-time trip count if the compiler cannot
+  // figure out the loop trip count and the unroll-runtime
+  // flag is specified.
+  bool RuntimeTripCount = (TripCount == 0 && Count > 0 && AllowRuntime);
+
+  if (RuntimeTripCount && !UnrollRuntimeLoopProlog(L, Count, LI, LPM))
+    return false;
+
+  // Notify ScalarEvolution that the loop will be substantially changed,
+  // if not outright eliminated.
+  ScalarEvolution *SE = LPM->getAnalysisIfAvailable<ScalarEvolution>();
+  if (SE)
+    SE->forgetLoop(L);
 
   // If we know the trip count, we know the multiple...
   unsigned BreakoutTrip = 0;
@@ -209,6 +229,8 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount,
       DEBUG(dbgs() << " with a breakout at trip " << BreakoutTrip);
     } else if (TripMultiple != 1) {
       DEBUG(dbgs() << " with " << TripMultiple << " trips per branch");
+    } else if (RuntimeTripCount) {
+      DEBUG(dbgs() << " with run-time trip count");
     }
     DEBUG(dbgs() << "!\n");
   }
@@ -331,6 +353,10 @@ bool llvm::UnrollLoop(Loop *L, unsigned Count, unsigned TripCount,
     unsigned j = (i + 1) % e;
     BasicBlock *Dest = Headers[j];
     bool NeedConditional = true;
+
+    if (RuntimeTripCount && j != 0) {
+      NeedConditional = false;
+    }
 
     // For a complete unroll, make the last iteration end with a branch
     // to the exit block.

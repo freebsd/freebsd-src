@@ -16,7 +16,7 @@ namespace clang {
   namespace diag {
     enum {
 #define DIAG(ENUM,FLAGS,DEFAULT_MAPPING,DESC,GROUP,\
-             SFINAE,ACCESS,NOWERROR,SHOWINSYSHEADER,CATEGORY,BRIEF,FULL) ENUM,
+             SFINAE,ACCESS,NOWERROR,SHOWINSYSHEADER,CATEGORY) ENUM,
 #define ASTSTART
 #include "clang/Basic/DiagnosticASTKinds.inc"
 #undef DIAG
@@ -44,7 +44,7 @@ namespace clang {
       unsigned NumPrevArgs,
       SmallVectorImpl<char> &Output,
       void *Cookie,
-      SmallVectorImpl<intptr_t> &QualTypeVals);
+      ArrayRef<intptr_t> QualTypeVals);
 }  // end namespace clang
 
 #endif

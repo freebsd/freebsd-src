@@ -106,17 +106,10 @@ char	verbosehelp[] =	"toggle verbose mode";
 
 char	prothelp[] = 	"set protection level";
 char	prothelp_c[] =	"set command protection level";
-#ifdef KRB4
-char	kauthhelp[] = 	"get remote tokens";
-#endif
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
 char	klisthelp[] =	"show remote tickets";
 #endif
-#ifdef KRB4
-char	kdestroyhelp[] = "destroy remote tickets";
-char	krbtkfilehelp[] = "set filename of remote tickets";
-#endif
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
 char	afsloghelp[] = 	"obtain remote AFS tokens";
 #endif
 
@@ -197,20 +190,13 @@ struct cmd cmdtab[] = {
 	{ "protect", 	prothelp, 	0, 	1, 	0,	sec_prot },
 	/* what MIT uses */
 	{ "cprotect",	prothelp_c,	0,	1,	1,	sec_prot_command },
-#ifdef KRB4
-	{ "kauth", 	kauthhelp, 	0, 	1, 	0,	kauth },
-#endif
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
 	{ "klist", 	klisthelp, 	0, 	1, 	0,	klist },
 #endif
-#ifdef KRB4
-	{ "kdestroy",	kdestroyhelp,	0,	1,	0,	kdestroy },
-	{ "krbtkfile",	krbtkfilehelp,	0,	1,	0,	krbtkfile },
-#endif
-#if defined(KRB4) || defined(KRB5)
+#if defined(KRB5)
 	{ "afslog",	afsloghelp,	0,	1,	0,	afslog },
 #endif
-	
+
 	{ 0 },
 };
 

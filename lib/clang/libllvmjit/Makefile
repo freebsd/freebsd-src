@@ -3,12 +3,9 @@
 LIB=	llvmjit
 
 SRCDIR=	lib/ExecutionEngine/JIT
-SRCS=	Intercept.cpp \
-	JIT.cpp \
-	JITDebugRegisterer.cpp \
+SRCS=	JIT.cpp \
 	JITDwarfEmitter.cpp \
 	JITEmitter.cpp \
-	JITMemoryManager.cpp \
-	OProfileJITEventListener.cpp
+	JITMemoryManager.cpp
 
 .include "../clang.lib.mk"

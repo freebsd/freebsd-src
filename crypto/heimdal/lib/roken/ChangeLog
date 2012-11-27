@@ -1,8 +1,41 @@
-2008-01-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2008-07-12  Love HÃ¶rnquist Ã…strand  <lha@kth.se>
+
+	* rkpty.c: Always print output for status.
+
+2008-04-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+	
+	* getaddrinfo-test.c: drop )
+
+	* Makefile.am: Add rkpty.
+
+	* rkpty.c: More includes.
+
+	* rkpty.c: Add timeout, add password command, add diffrent
+	verbosity levels.
+
+2008-04-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* rkpty.c: pty testing application
+
+2008-04-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* resolve.c: Use unsigned where appropriate.
+
+2008-02-23  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* Makefile.am: make AM_CPPFLAGS +=
+
+2008-02-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
+
+	* Makefile.am: Use AM_CPPFLAGS instead, not really right, but
+	definatly better then CPPFLAGS. Thanks to Mike Whitton for
+	pointing this out.
+
+2008-01-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: add missing files.
 
-2007-08-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-08-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* strftime.c: rewrite str[pf]time for testing.
 
@@ -10,7 +43,7 @@
 
 	* Makefile.am: add TEST_STRPFTIME
 	
-2007-07-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ndbm_wrap.c (dbm_get): set dsize to 0 on failure.
 
@@ -18,7 +51,7 @@
 
 	* ndbm_wrap.c (dbm_fetch): set dsize to 0 on failure.
 
-2007-07-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* socket_wrapper.c: Implement swrap_dup too.
 
@@ -26,19 +59,19 @@
 
 	* socket_wrapper.h: Add dup(dummy stub) and dup2(real).
 
-2007-07-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: New library version.
 
-2007-06-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken_gethostby.c: set proxy_port to 0 to pacify BEAM.
 
-2007-06-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* use "roken.h" consitantly
 
-2007-06-03  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-03  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test-readenv.c: Free environment.
 
@@ -48,20 +81,20 @@
 	* roken-common.h (free_environment): free result of
 	read_environment().
 	
-2007-05-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-05-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* fnmatch.c: Do recursive call to rk_fnmatch
 	
-2007-01-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-01-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* resolve.c: Try harder to call res_ndestroy().
 	
-2006-12-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* Makefile.am: make sure built headers are copied to the
 	${build_topdir}/include
 	
-2006-12-15  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-15  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* unvis.c: Use internal version of rk_unvis
 
@@ -73,11 +106,11 @@
 	
 	* unvis.c: prefix unvis functions with rk_, and prototypes.
 	
-2006-12-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* vis.c: Provide some prototypes for the rk_vis functions.
 	
-2006-12-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* ifaddrs.hin: Prefix getifaddrs functions with rk_ and do symbol
 	renaming.
@@ -93,11 +126,11 @@
 	* Makefile.am: Install extra posix headers in <roken/...> to avoid
 	dup headers.
 	
-2006-11-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* socket_wrapper.c (swrap_sendto): fail on to unknown si->type
 	
-2006-11-06  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-11-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* socket_wrapper.c: A few fixes to have Heimdal pass the make
 	check under socket_wrapper. The first is a missing 'break' before
@@ -107,11 +140,11 @@
 	unix stream sockets, but not for TCP sockets. The alternate fix
 	would be to have the KDC use 'send()' in this case. Andrew Bartlett.
 
-2006-10-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: split dist and nondist HEADERS
 	
-2006-10-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* roken.h.in: Add timegm glue.
 
@@ -123,7 +156,7 @@
 	* socket_wrapper.c: Maybe include <sys/time.h> and/or maybe
 	include <time.h>.
 	
-2006-10-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken.h.in: Revert prevois for now, the problem is that we have
 	to include symbols unconditionally, even for those that just needs
@@ -133,7 +166,7 @@
 
 	* socket_wrapper.c: Maybe include <sys/filio.h>.
 	
-2006-10-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* socket_wrapper.c: more consitity check, remove dead code, add
 	socket length code, add missing break, make diffrent chars of type
@@ -145,7 +178,7 @@
 	* socket_wrapper.c: Force no socket wrapper for socket_wrapper
 	itself.
 	
-2006-10-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* socket_wrapper.c: Maybe include <config.h>.
 
@@ -158,7 +191,7 @@
 	* socket_wrapper.[ch]: Include socket wrapper from samba4 (rev
 	19179).
 	
-2006-10-07 Love Hörnquist Åstrand <lha@it.su.se>
+2006-10-07 Love HÃ¶rnquist Ã…strand <lha@it.su.se>
 
 	* Makefile.am: Add build_HEADERZ to EXTRA_DIST
 
@@ -166,13 +199,13 @@
 
 	* Makefile.am: Add to all objects BUILD_ROKEN_LIB.
 	
-2006-09-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken.h.in: Add samba socket wrapper fragment.
 
 	* Makefile.am: Add samba socket wrapper fragment.
 	
-2006-09-05  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-09-05  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* snprintf.c: reapply patch that went away in last commit
 	
@@ -182,7 +215,7 @@
 
 	* snprintf-test.c: add tests for size_t printf formater
 	
-2006-06-30  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-06-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rtbl.h: Add extern "C" for C++.
 
@@ -190,7 +223,7 @@
 
 	* rtbl.h: Add rtbl_add_column_entryv functions, printf like
 	
-2006-06-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-06-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* glob.hin: Add extern "C" for C++. From joerg at britannica dot
 	bec dot de
@@ -198,18 +231,18 @@
 	* fnmatch.hin: Add extern "C" for C++. From joerg at britannica
 	dot bec dot de
 	
-2006-04-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* fnmatch.hin (fnmatch): CPP rename to rk_fnmatch
 	
-2006-04-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* resolve.c (dns_srv_order): change a if (ptr == NULL) continue
 	into a assert(ptr != NULL) since it could never happen, found by
 	the IBM code checker (beam).  Thanks to Florian Krohm for
 	explaining it.
 	
-2006-04-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-04-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken_gethostby.c (roken_gethostby): make addr_list one larger
 	to avoid a off-by-one error. Found by IBM checker.
@@ -217,11 +250,11 @@
 	* resolve.c: Plug memory leak found by IBM checker (and try to
 	please it).
 	
-2006-02-06  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-02-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* resolve.c: Spelling, from Alexey Dobriyan, via Jason McIntyre
 	
-2006-01-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-01-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* getcap.c: Don't use db support unless its build into libc but we
 	dont check for that now, so just disable the code. This removes
@@ -231,7 +264,7 @@
 	application calls getpwnamn() and it linked to roken, it craches
 	in the nss functions.
 	
-2006-01-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-01-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hex.c (hex_decode): support decoding odd number of characters,
 	in the odd len case, the first character ends up in the first byte
@@ -239,12 +272,12 @@
 
 	* hex-test.c: Check that we can decode single character hex chars.
 
-2005-12-12  Love Hörnquist Åstrand <lha@it.su.se>
+2005-12-12  Love HÃ¶rnquist Ã…strand <lha@it.su.se>
 
 	* getifaddrs.c: Try handle HP/UX 11.nn, its diffrent from Solaris
 	large SIOCGIFCONF.
 	
-2005-09-28  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-09-28  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken-common.h: Move rk_UNCONST to roken.h.in since it might use
 	uintptr_t depending on avaibility.
@@ -252,46 +285,46 @@
 	* roken.h.in: Include <stdint.h> if it exists.  If avaiable, use
 	uintptr_t to define rk_UNCONST.
 	
-2005-09-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-09-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken-common.h: Add rk_dumpdata.
 	
 	* dumpdata.c: Add rk_dumpdata() that write a chunk of data into a
 	file for later processing by some other tool (like asn1_print).
 	
-2005-09-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-09-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* strptime.c: cast to unsigned char to make sure its not negative
 	when passing it to is* functions
 	
-2005-09-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-09-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* socket.c: Add socket_set_ipv6only.
 
 	* roken-common.h: Add socket_set_ipv6only, remove some argument
 	names.
 	
-2005-08-25  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-08-25  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* strpool.c (rk_strpoolprintf): remove debug printf, plug memory
 	leak
 	
-2005-08-23  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-08-23  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* setprogname.c (setprogname): const poision
 	
 	* print_version.c: Removed, moved to libvers.
 
-2005-08-22  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-08-22  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* resolve.c (dns_lookup_int): if we have res_ndestroy, prefeer
 	that before res_nclose
 
-2005-08-12 Love Hörnquist Åstrand  <lha@it.su.se>
+2005-08-12 Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* getaddrinfo-test.c: Rename optind to optidx to avoid shadowing.
 
-2005-08-05  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-08-05  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gai_strerror.c: sprinkel more const
 	
@@ -299,21 +332,21 @@
 	const to match SUSv3.  Prompted by Stefan Metzmacher change to
 	Samba.
 
-2005-07-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken.h.in: Remove parameter names to avoid shadow warnings.
 
-2005-07-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* getifaddrs.c (nl_getlist): poll to get messages from kernel, and
 	retry if the message was lost
 	(free_nlmsglist): free all linked elements, not just the first one
 
-2005-07-08  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-08  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* snprintf-test.c: Check a very simple format string
 	
-2005-07-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken.h.in: If we have <strings.h> include it, its needed for
 	strcasecmp() on those platforms that are SUS3/iso c99 strict (like
@@ -321,15 +354,15 @@
 
 	* roken-common.h: remove duplicate ;
 	
-2005-07-06  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken-common.h: rk_strpoolprintf first variable identifier is 3
 
-2005-06-30  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-06-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* base64.h: remove variable names
 	
-2005-06-29  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-06-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken-common.h: fix format attribute
 
@@ -341,11 +374,11 @@
 	* strpool.c: add strpool, a printf collector to make it eaiser to
 	collect strings into one string
 
-2005-06-23  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-06-23  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* base64.c: Add const, from Andrew Abartlet <abartlet@samba.org>
 
-2005-06-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-06-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* strpftime-test.c: test for "%Y%m"
 
@@ -355,7 +388,7 @@
 	to limit that amount of numbers used, with this strptime can
 	handle strptime("200505", "%Y%m", &tm);
 
-2005-06-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-06-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* getaddrinfo.c: avoid shadowing sin
 	
@@ -376,13 +409,13 @@
 	
 	* environment.c: rename index to idx to avoid shadowing
 
-2005-05-29  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-05-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* parse_reply-test.c: avoid signedness warnings
 
 	* test-mem.c: avoid signedness warnings
 
-2005-05-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-05-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hex.c: include "roken.h" to avoid undefined size_t/ssize_t
 
@@ -390,12 +423,12 @@
 
 	* Makefile.am (snprintf_test_SOURCES): Add snprintf-test.h.
 
-2005-05-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-05-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* environment.c (rk_read_env_file): move assignment to later to
 	make pre c99 compiler happy
 
-2005-05-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-05-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* strptime.c: use english spelling of March
 
@@ -409,7 +442,7 @@
 	
 	* environment.c: eliminate duplicates
 	
-2005-05-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-05-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* issuid.c (issuid): change the #ifdef order to avoid unreachable
 	code warning.
@@ -432,7 +465,7 @@
 	* test-mem.c: Add member fd to map.
 	(rk_test_mem_alloc, rk_test_mem_free): Use it.
 
-2005-04-30  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* getifaddrs.c: add break on default: statements, from Douglas
 	E. Engert
@@ -445,7 +478,7 @@
 
 	* parse_time-test.c: Include <err.h>.
 	
-2005-04-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* parse_time-test.c: improve testing
 	
@@ -459,7 +492,7 @@
 
 	* getusershell.c: Include roken.h
 
-2005-04-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* unvis.c: cast to unsigned char to make sure its not negative
 	when passing it to is* functions
@@ -467,7 +500,7 @@
 	* strptime.c: cast to unsigned char to make sure its not negative
 	when passing it to to* functions
 
-2005-04-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* simple_exec.c: don't close stderr, close all fd that is num 3
 	and larger
@@ -476,19 +509,19 @@
 
 	* add closefrom
 
-2005-04-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* add ROKEN_LIB_FUNCTION to all exported functions
 
-2005-04-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* resolve-test.c: print DS
 
-2005-04-07  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-07  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* parse_time-test.c: remove unused variable
 	
-2005-04-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* strpftime-test.c: print size_t by casting to unsigned long
 	
@@ -498,12 +531,12 @@
 	
 	* resolve-test.c: print size_t by casting to unsigned long
 	
-2005-04-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* snprintf-test.c (try): reset va_list argument between reuse,
 	from Peter Kruty <xkruty@fi.muni.cz>
 
-2005-03-30  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-03-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken_gethostby.c (roken_gethostby): s/sin/addr/ to avoid
 	shadowing
@@ -512,20 +545,20 @@
 
 	* parse_units.c: avoid shadowing div
 
-2005-03-26  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-03-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* snprintf.c: use defined(TEST_SNPRINTF) like on all other places
 	in the same file
 
-2005-03-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-03-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* hex.c: check for overflows
 
-2005-03-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-03-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* vis.c: use RCSID instead of __RCSID
 
-2005-03-06  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-03-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: check_PROGRAMS += hex-test
 	
@@ -534,13 +567,13 @@
 	* hex.c: fix decodeing, it processed to much data and thus
 	returned the wrong length
 
-2005-03-04  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-03-04  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: add hex.[ch]
 
 	* hex.c: add hex encoder/decoder
 
-2005-03-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-03-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* daemon.c fnmatch.c fnmatch.hin getcap.c getopt.c getusershell.c
 	glob.c glob.hin iruserok.c unvis.c vis.hin:
@@ -556,7 +589,7 @@
 	
 	* vis.c: Update new revision from NetBSD (copyright update)
 
-2005-02-24  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-02-24  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: bump version to 17:0:1
 
@@ -565,7 +598,7 @@
 	* getusershell.c: Include ctype.h, cast argument to isspace to
 	unsigned char.
 
-2004-10-31  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-10-31  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* parse_time.3, parse_units.c: Change the behavior of the
 	parse_unit code to return the number of bytes needed to print the
@@ -574,7 +607,7 @@
 
 	* parse_time-test.c Makefile.am test-mem.c test-mem.h: test parse_time
 
-2004-10-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-10-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* resolve.c: put dns_type_to_string and dns_string_to_type in the
 	abi
@@ -583,20 +616,20 @@
 	
 	* resolve.h: add ds_record
 	
-2004-10-06  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-10-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ndbm_wrap.c: undefine open so this works on solaris with large
 	file support From netbsd's pkgsrc via Gavan Fantom
 	
-2004-09-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-09-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* resolve-test.c: add --version/--help
 	
-2004-09-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-09-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: make resolve-test a noinst program
 	
-2004-09-11  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-09-11  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* resolve-test.c: test program for libroken resolve from resolve.c
 	
@@ -614,7 +647,7 @@
 
 	* Makefile.am: always clean generated headers
 
-2004-06-26  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-06-26  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* rtbl.3: use .In for header, remove trailing space
 	
@@ -630,20 +663,20 @@
 	  - ability to end a row
 	  - don't extend last column to full width
 	
-2004-06-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-06-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* resolve.[ch]: add and use and bind9 version of rr type
 	(rk_ns_t_XXX) instead of the old bind4 version (T_XXX)
 
-2004-05-25  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-05-25  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* resolve.c (stot): add AAAA
 	
-2004-02-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-02-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* getarg.c (add_string): catch error from realloc
 	
-2004-02-12  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-02-12  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* roken-common.h: add simple_execve_timed
 	
@@ -651,11 +684,11 @@
 	
 	* simple_exec.c: add timed simple_exec
 	
-2004-01-05  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-01-05  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* gai_strerror.c: correct ifdef for EAI_ADDRFAMILY
 
-2003-12-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-12-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* resolve.c: parse dns header, add support for SSHFP
 	
@@ -663,35 +696,35 @@
 	
 	* resolve.h: add SSHFP, clean up the the dns_header
 	
-2003-12-14  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-12-14  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* resolve.h: remove HEADER (only used for crays)
 	
 	* resolve.c: number-of fields no longer stored in network order
 	
-2003-12-13  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-12-13  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* resolve.c: remove depency on c99 types in resolv.h
 	
 	* resolve.h: remove depency on c99 types
 	
-2003-12-06  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-12-06  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* resolv.h: add more T_ types and inline the dns headers, all this
 	for bind9 resolvers
 
-2003-12-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-12-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* gai_strerror.c: EAI_ADDRFAMILY and EAI_NODATA is deprecated
 	
 	* roken-common.h: use EAI_NONAME instead of EAI_ADDRFAMILY to
 	check for if we need EAI_ macros
 
-2003-10-04   Love Hörnquist Åstrand  <lha@it.su.se>
+2003-10-04   Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* strptime.c: let t and n match zero or more whitespaces
 	
-2003-08-29  Love Hörnquist Åstrand  <lha@it.su.se>
+2003-08-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* ndbm_wrap.c: patch for working with DB4 on heimdal-discuss
 	From: Luke Howard <lukeh@PADL.COM>

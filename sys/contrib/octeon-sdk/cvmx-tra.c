@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -53,9 +53,11 @@
 #include <linux/module.h>
 #include <asm/octeon/cvmx.h>
 #include <asm/octeon/cvmx-tra.h>
+#include <asm/octeon/cvmx-l2c.h>
 #else
 #include "cvmx.h"
 #include "cvmx-tra.h"
+#include "cvmx-l2c.h"
 #endif
 
 static const char *TYPE_ARRAY[] = {
@@ -192,7 +194,23 @@ static const char *SOURCE_ARRAY[] = {
     "RSVD28",
     "RSVD29",
     "RSVD30",
-    "RSVD31"
+    "RSVD31",
+    "PP16",
+    "PP17",
+    "PP18",
+    "PP19",
+    "PP20",
+    "PP21",
+    "PP22",
+    "PP23",
+    "PP24",
+    "PP25",
+    "PP26",
+    "PP27",
+    "PP28",
+    "PP29",
+    "PP30",
+    "PP31"
 };
 
 static const char *DEST_ARRAY[] = {
@@ -229,6 +247,8 @@ static const char *DEST_ARRAY[] = {
     "FAU",
     "RSVD31"
 };
+
+int _cvmx_tra_unit = 0;
 
 #define CVMX_TRA_SOURCE_MASK       (OCTEON_IS_MODEL(OCTEON_CN63XX) ? 0xf00ff : 0xfffff)
 #define CVMX_TRA_DESTINATION_MASK  0xfffffffful
@@ -302,6 +322,7 @@ static uint64_t __cvmx_tra_set_filter_cmd_mask(cvmx_tra_filt_t filter)
 
         filter_command.cn63xx.reserved_60_61 = 0;
         filter_command.cn63xx.reserved_56_57 = 0;
+        filter_command.cn63xx.reserved_27_27 = 0;
         filter_command.cn63xx.reserved_10_14 = 0;
         filter_command.cn63xx.reserved_6_7 = 0;
     }
@@ -329,22 +350,98 @@ void cvmx_tra_setup(cvmx_tra_ctl_t control, cvmx_tra_filt_t filter,
     cvmx_tra_filt_cmd_t filt_cmd;
     cvmx_tra_filt_sid_t filt_sid;
     cvmx_tra_filt_did_t filt_did;
+    int tad;
 
     filt_cmd.u64 = __cvmx_tra_set_filter_cmd_mask(filter);
     filt_sid.u64 = source_filter & CVMX_TRA_SOURCE_MASK;
     filt_did.u64 = dest_filter & CVMX_TRA_DESTINATION_MASK;
 
-    cvmx_write_csr(CVMX_TRA_CTL,            control.u64);
-    cvmx_write_csr(CVMX_TRA_FILT_CMD,       filt_cmd.u64);
-    cvmx_write_csr(CVMX_TRA_FILT_SID,       filt_sid.u64);
-    cvmx_write_csr(CVMX_TRA_FILT_DID,       filt_did.u64);
-    cvmx_write_csr(CVMX_TRA_FILT_ADR_ADR,   address);
-    cvmx_write_csr(CVMX_TRA_FILT_ADR_MSK,   address_mask);
+    /* Address filtering does not work when IOBDMA filter command is enabled
+       because of some caveats.  Disable the IOBDMA filter command. */
+    if ((OCTEON_IS_MODEL(OCTEON_CN6XXX) || OCTEON_IS_MODEL(OCTEON_CNF7XXX)) 
+        && ((filt_cmd.u64 & CVMX_TRA_FILT_IOBDMA) == CVMX_TRA_FILT_IOBDMA)
+        && address_mask != 0)
+    {
+        cvmx_dprintf("The address-based filtering does not work with IOBDMAs, disabling the filter command.\n");
+        filt_cmd.u64 &= ~(CVMX_TRA_FILT_IOBDMA);
+    } 
+
+    /* In OcteonII pass2, the mode bit is added to enable reading the trace 
+       buffer data from different registers for lower and upper 64-bit value.
+       This bit is reserved in other Octeon models. */
+    control.s.rdat_md = 1;
+
+    for (tad = 0; tad < CVMX_L2C_TADS; tad++)
+    {
+        cvmx_write_csr(CVMX_TRAX_CTL(tad),            control.u64);
+        cvmx_write_csr(CVMX_TRAX_FILT_CMD(tad),       filt_cmd.u64);
+        cvmx_write_csr(CVMX_TRAX_FILT_SID(tad),       filt_sid.u64);
+        cvmx_write_csr(CVMX_TRAX_FILT_DID(tad),       filt_did.u64);
+        cvmx_write_csr(CVMX_TRAX_FILT_ADR_ADR(tad),   address);
+        cvmx_write_csr(CVMX_TRAX_FILT_ADR_MSK(tad),   address_mask);
+    }
 }
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
 EXPORT_SYMBOL(cvmx_tra_setup);
 #endif
 
+/**
+ * Setup each TRA buffer for use
+ *
+ * @param tra     Which TRA buffer to use (0-3)
+ * @param control TRA control setup
+ * @param filter  Which events to log
+ * @param source_filter
+ *                Source match
+ * @param dest_filter
+ *                Destination match
+ * @param address Address compare
+ * @param address_mask
+ *                Address mask
+ */
+void cvmx_tra_setup_v2(int tra, cvmx_tra_ctl_t control, cvmx_tra_filt_t filter,
+                    cvmx_tra_sid_t source_filter, cvmx_tra_did_t dest_filter,
+                    uint64_t address, uint64_t address_mask)
+{
+    cvmx_tra_filt_cmd_t filt_cmd;
+    cvmx_tra_filt_sid_t filt_sid;
+    cvmx_tra_filt_did_t filt_did;
+
+    if ((tra + 1) > CVMX_L2C_TADS)
+    {
+        cvmx_dprintf("cvmx_tra_setup_per_tra: Invalid tra(%d), max allowed (%d)\n", tra, CVMX_L2C_TADS - 1);
+        tra = 0;
+    }
+
+    filt_cmd.u64 = __cvmx_tra_set_filter_cmd_mask(filter);
+    filt_sid.u64 = source_filter & CVMX_TRA_SOURCE_MASK;
+    filt_did.u64 = dest_filter & CVMX_TRA_DESTINATION_MASK;
+
+    /* Address filtering does not work when IOBDMA filter command is enabled
+       because of some caveats.  Disable the IOBDMA filter command. */
+    if ((OCTEON_IS_MODEL(OCTEON_CN6XXX) || OCTEON_IS_MODEL(OCTEON_CNF7XXX)) 
+        && ((filt_cmd.u64 & CVMX_TRA_FILT_IOBDMA) == CVMX_TRA_FILT_IOBDMA)
+        && address_mask != 0)
+    {
+        cvmx_dprintf("The address-based filtering does not work with IOBDMAs, disabling the filter command.\n");
+        filt_cmd.u64 &= ~(CVMX_TRA_FILT_IOBDMA);
+    } 
+
+    /* In OcteonII pass2, the mode bit is added to enable reading the trace 
+       buffer data from different registers for lower and upper 64-bit value.
+       This bit is reserved in other Octeon models. */
+    control.s.rdat_md = 1;
+
+    cvmx_write_csr(CVMX_TRAX_CTL(tra),            control.u64);
+    cvmx_write_csr(CVMX_TRAX_FILT_CMD(tra),       filt_cmd.u64);
+    cvmx_write_csr(CVMX_TRAX_FILT_SID(tra),       filt_sid.u64);
+    cvmx_write_csr(CVMX_TRAX_FILT_DID(tra),       filt_did.u64);
+    cvmx_write_csr(CVMX_TRAX_FILT_ADR_ADR(tra),   address);
+    cvmx_write_csr(CVMX_TRAX_FILT_ADR_MSK(tra),   address_mask);
+}
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+EXPORT_SYMBOL(cvmx_tra_setup_v2);
+#endif
 
 /**
  * Setup a TRA trigger. How the triggers are used should be
@@ -367,21 +464,81 @@ void cvmx_tra_trig_setup(uint64_t trigger, cvmx_tra_filt_t filter,
     cvmx_tra_filt_cmd_t tra_filt_cmd;
     cvmx_tra_filt_sid_t tra_filt_sid;
     cvmx_tra_filt_did_t tra_filt_did;
+    int tad;
 
     tra_filt_cmd.u64 = __cvmx_tra_set_filter_cmd_mask(filter);
     tra_filt_sid.u64 = source_filter & CVMX_TRA_SOURCE_MASK;
     tra_filt_did.u64 = dest_filter & CVMX_TRA_DESTINATION_MASK;
 
-    cvmx_write_csr(CVMX_TRA_TRIG0_CMD + trigger * 64,       tra_filt_cmd.u64);
-    cvmx_write_csr(CVMX_TRA_TRIG0_SID + trigger * 64,       tra_filt_sid.u64);
-    cvmx_write_csr(CVMX_TRA_TRIG0_DID + trigger * 64,       tra_filt_did.u64);
-    cvmx_write_csr(CVMX_TRA_TRIG0_ADR_ADR + trigger * 64,   address);
-    cvmx_write_csr(CVMX_TRA_TRIG0_ADR_MSK + trigger * 64,   address_mask);
+    /* Address filtering does not work when IOBDMA filter command is enabled
+       because of some caveats.  Disable the IOBDMA filter command. */
+    if ((OCTEON_IS_MODEL(OCTEON_CN6XXX) || OCTEON_IS_MODEL(OCTEON_CNF7XXX)) 
+        && ((tra_filt_cmd.u64 & CVMX_TRA_FILT_IOBDMA) == CVMX_TRA_FILT_IOBDMA)
+        && address_mask != 0)
+    {
+        cvmx_dprintf("The address-based filtering does not work with IOBDMAs, disabling the filter command.\n");
+        tra_filt_cmd.u64 &= ~(CVMX_TRA_FILT_IOBDMA);
+    }
+
+    for (tad = 0; tad < CVMX_L2C_TADS; tad++)
+    {
+        cvmx_write_csr(CVMX_TRAX_TRIG0_CMD(tad) + trigger * 64,       tra_filt_cmd.u64);
+        cvmx_write_csr(CVMX_TRAX_TRIG0_SID(tad) + trigger * 64,       tra_filt_sid.u64);
+        cvmx_write_csr(CVMX_TRAX_TRIG0_DID(tad) + trigger * 64,       tra_filt_did.u64);
+        cvmx_write_csr(CVMX_TRAX_TRIG0_ADR_ADR(tad) + trigger * 64,   address);
+        cvmx_write_csr(CVMX_TRAX_TRIG0_ADR_MSK(tad) + trigger * 64,   address_mask);
+    }
 }
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
 EXPORT_SYMBOL(cvmx_tra_trig_setup);
 #endif
 
+/**
+ * Setup each TRA trigger. How the triggers are used should be
+ * setup using cvmx_tra_setup.
+ *
+ * @param tra     Which TRA buffer to use (0-3)
+ * @param trigger Trigger to setup (0 or 1)
+ * @param filter  Which types of events to trigger on
+ * @param source_filter
+ *                Source trigger match
+ * @param dest_filter
+ *                Destination trigger match
+ * @param address Trigger address compare
+ * @param address_mask
+ *                Trigger address mask
+ */
+void cvmx_tra_trig_setup_v2(int tra, uint64_t trigger, cvmx_tra_filt_t filter,
+                         cvmx_tra_sid_t source_filter, cvmx_tra_did_t dest_filter,
+                         uint64_t address, uint64_t address_mask)
+{
+    cvmx_tra_filt_cmd_t tra_filt_cmd;
+    cvmx_tra_filt_sid_t tra_filt_sid;
+    cvmx_tra_filt_did_t tra_filt_did;
+
+    tra_filt_cmd.u64 = __cvmx_tra_set_filter_cmd_mask(filter);
+    tra_filt_sid.u64 = source_filter & CVMX_TRA_SOURCE_MASK;
+    tra_filt_did.u64 = dest_filter & CVMX_TRA_DESTINATION_MASK;
+
+    /* Address filtering does not work when IOBDMA filter command is enabled
+       because of some caveats.  Disable the IOBDMA filter command. */
+    if ((OCTEON_IS_MODEL(OCTEON_CN6XXX) || OCTEON_IS_MODEL(OCTEON_CNF7XXX)) 
+        && ((tra_filt_cmd.u64 & CVMX_TRA_FILT_IOBDMA) == CVMX_TRA_FILT_IOBDMA)
+        && address_mask != 0)
+    {
+        cvmx_dprintf("The address-based filtering does not work with IOBDMAs, disabling the filter command.\n");
+        tra_filt_cmd.u64 &= ~(CVMX_TRA_FILT_IOBDMA);
+    }
+
+    cvmx_write_csr(CVMX_TRAX_TRIG0_CMD(tra) + trigger * 64,       tra_filt_cmd.u64);
+    cvmx_write_csr(CVMX_TRAX_TRIG0_SID(tra) + trigger * 64,       tra_filt_sid.u64);
+    cvmx_write_csr(CVMX_TRAX_TRIG0_DID(tra) + trigger * 64,       tra_filt_did.u64);
+    cvmx_write_csr(CVMX_TRAX_TRIG0_ADR_ADR(tra) + trigger * 64,   address);
+    cvmx_write_csr(CVMX_TRAX_TRIG0_ADR_MSK(tra) + trigger * 64,   address_mask);
+}
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+EXPORT_SYMBOL(cvmx_tra_trig_setup_v2);
+#endif
 
 /**
  * Read an entry from the TRA buffer
@@ -393,13 +550,20 @@ cvmx_tra_data_t cvmx_tra_read(void)
     uint64_t address = CVMX_TRA_READ_DAT;
     cvmx_tra_data_t result;
 
-    /* The trace buffer format is wider than 64-bits in Octeon2 model,
+    /* The trace buffer format is wider than 64-bits in OcteonII model,
        read the register again to get the second part of the data. */
-    if (!OCTEON_IS_MODEL(OCTEON_CN3XXX) && !OCTEON_IS_MODEL(OCTEON_CN5XXX))
+    if (OCTEON_IS_MODEL(OCTEON_CN63XX_PASS1_X))
     {
         /* These reads need to be as close as possible to each other */
         result.u128.data = cvmx_read_csr(address);
         result.u128.datahi = cvmx_read_csr(address);
+    }
+    else if (!OCTEON_IS_MODEL(OCTEON_CN3XXX) && !OCTEON_IS_MODEL(OCTEON_CN5XXX))
+    {
+        /* OcteonII pass2 uses different trace buffer data register for reading
+           lower and upper 64-bit values */
+        result.u128.data = cvmx_read_csr(address);
+        result.u128.datahi = cvmx_read_csr(CVMX_TRA_READ_DAT_HI);
     }
     else
     {
@@ -409,6 +573,23 @@ cvmx_tra_data_t cvmx_tra_read(void)
 
     return result;
 }
+
+/**
+ * Read an entry from the TRA buffer from a given TRA unit.
+ *
+ * @param tra_unit  Trace buffer unit to read
+ *
+ * @return Value return. High bit will be zero if there wasn't any data
+ */
+cvmx_tra_data_t cvmx_tra_read_v2(int tra_unit)
+{
+    cvmx_tra_data_t result;
+
+    result.u128.data = cvmx_read_csr(CVMX_TRAX_READ_DAT(tra_unit));
+    result.u128.datahi = cvmx_read_csr(CVMX_TRAX_READ_DAT_HI(tra_unit));
+
+    return result;
+} 
 
 /**
  * Decode a TRA entry into human readable output
@@ -494,6 +675,7 @@ void cvmx_tra_decode_text(cvmx_tra_ctl_t tra_ctl, cvmx_tra_data_t data)
     else
     {
         int type;
+        int srcId;
 
         type = data.cmn2.type;
 
@@ -515,18 +697,40 @@ void cvmx_tra_decode_text(cvmx_tra_ctl_t tra_ctl, cvmx_tra_data_t data)
             case CVMX_TRA_FILT_SET32:
             case CVMX_TRA_FILT_SET16:
             case CVMX_TRA_FILT_SET8:
+            case CVMX_TRA_FILT_LCKL2:
+            case CVMX_TRA_FILT_WBIL2:
+            case CVMX_TRA_FILT_INVL2:
+            case CVMX_TRA_FILT_STGL2I:
+            case CVMX_TRA_FILT_LTGL2I:
+            case CVMX_TRA_FILT_WBIL2I:
             case CVMX_TRA_FILT_WBL2:
             case CVMX_TRA_FILT_DWB:
             case CVMX_TRA_FILT_RPL2:
             case CVMX_TRA_FILT_PL2:
             case CVMX_TRA_FILT_LDI:
             case CVMX_TRA_FILT_LDT:
+                /* CN68XX has 32 cores which are distributed to use different
+                   trace buffers, decode the core that has data */
+                if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+                {
+                    if (data.cmn2.source <= 7)
+                    {
+                        srcId = _cvmx_tra_unit + (data.cmn2.source * 4);
+                        if (srcId >= 16)
+                            srcId += 16;
+                    }
+                    else
+                        srcId = (data.cmn2.source);
+                }
+                else
+                        srcId = (data.cmn2.source);
+                
                 cvmx_dprintf("0x%016llx%016llx %c%+10d %s %s 0x%016llx%llx\n",
                    (unsigned long long)data.u128.datahi, (unsigned long long)data.u128.data,
                    (data.cmn2.discontinuity) ? 'D' : ' ',
                    data.cmn2.timestamp << (tra_ctl.s.time_grn*3),
                    TYPE_ARRAY2[type],
-                   SOURCE_ARRAY[data.cmn2.source],
+                   SOURCE_ARRAY[srcId],
                    (unsigned long long)data.cmn2.addresshi,
                    (unsigned long long)data.cmn2.addresslo);
                 break;
@@ -542,12 +746,30 @@ void cvmx_tra_decode_text(cvmx_tra_ctl_t tra_ctl, cvmx_tra_data_t data)
             case CVMX_TRA_FILT_STF:
             case CVMX_TRA_FILT_STP:
             case CVMX_TRA_FILT_STT:
+            case CVMX_TRA_FILT_STTIL1:
+            case CVMX_TRA_FILT_STFIL1:
+                /* CN68XX has 32 cores which are distributed to use different
+                   trace buffers, decode the core that has data */
+                if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+                {
+                    if (data.store2.source <= 7)
+                    {
+                        srcId = _cvmx_tra_unit + (data.store2.source * 4);
+                        if (srcId >= 16)
+                            srcId += 16;
+                    }
+                    else
+                        srcId = data.store2.source;
+                }
+                else
+                        srcId = data.store2.source;
+
                 cvmx_dprintf("0x%016llx%016llx %c%+10d %s %s mask=0x%02x 0x%016llx%llx\n",
                    (unsigned long long)data.u128.datahi, (unsigned long long)data.u128.data,
                    (data.cmn2.discontinuity) ? 'D' : ' ',
                    data.cmn2.timestamp << (tra_ctl.s.time_grn*3),
                    TYPE_ARRAY2[type],
-                   SOURCE_ARRAY[data.store2.source],
+                   SOURCE_ARRAY[srcId],
                    (unsigned int)data.store2.mask,
                    (unsigned long long)data.store2.addresshi,
                    (unsigned long long)data.store2.addresslo);
@@ -560,24 +782,56 @@ void cvmx_tra_decode_text(cvmx_tra_ctl_t tra_ctl, cvmx_tra_data_t data)
             case CVMX_TRA_FILT_IOBLD32:
             case CVMX_TRA_FILT_IOBLD16:
             case CVMX_TRA_FILT_IOBLD8:
+                /* CN68XX has 32 cores which are distributed to use different
+                   trace buffers, decode the core that has data */
+                if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+                {
+                    if (data.iobld2.source <= 7)
+                    {
+                        srcId = _cvmx_tra_unit + (data.iobld2.source * 4);
+                        if (srcId >= 16)
+                            srcId += 16;
+                    }
+                    else
+                        srcId = data.iobld2.source;
+                }
+                else
+                        srcId = data.iobld2.source;
+
                 cvmx_dprintf("0x%016llx%016llx %c%+10d %s %s->%s subdid=0x%x 0x%016llx%llx\n",
                    (unsigned long long)data.u128.datahi, (unsigned long long)data.u128.data,
                    (data.cmn2.discontinuity) ? 'D' : ' ',
                    data.cmn2.timestamp << (tra_ctl.s.time_grn*3),
                    TYPE_ARRAY2[type],
-                   SOURCE_ARRAY[data.iobld2.source],
+                   SOURCE_ARRAY[srcId],
                    DEST_ARRAY[data.iobld2.dest],
                    (unsigned int)data.iobld2.subid,
                    (unsigned long long)data.iobld2.addresshi,
                    (unsigned long long)data.iobld2.addresslo);
                 break;
             case CVMX_TRA_FILT_IOBDMA:
+                /* CN68XX has 32 cores which are distributed to use different
+                   trace buffers, decode the core that has data */
+                if (OCTEON_IS_MODEL(OCTEON_CN68XX))
+                {
+                    if (data.iob2.source <= 7)
+                    {
+                        srcId = _cvmx_tra_unit + (data.iob2.source * 4);
+                        if (srcId >= 16)
+                            srcId += 16;
+                    }
+                    else
+                        srcId = data.iob2.source;
+                }
+                else
+                        srcId = data.iob2.source;
+
                 cvmx_dprintf("0x%016llx%016llx %c%+10d %s %s->%s len=0x%x 0x%016llx%llx\n",
                    (unsigned long long)data.u128.datahi, (unsigned long long)data.u128.data,
                    (data.iob2.discontinuity) ? 'D' : ' ',
                    data.iob2.timestamp << (tra_ctl.s.time_grn*3),
                    TYPE_ARRAY2[type],
-                   SOURCE_ARRAY[data.iob2.source],
+                   SOURCE_ARRAY[srcId],
                    DEST_ARRAY[data.iob2.dest],
                    (unsigned int)data.iob2.mask,
                    (unsigned long long)data.iob2.addresshi << 3,
@@ -601,27 +855,89 @@ void cvmx_tra_decode_text(cvmx_tra_ctl_t tra_ctl, cvmx_tra_data_t data)
  */
 void cvmx_tra_display(void)
 {
-    cvmx_tra_ctl_t tra_ctl;
-    cvmx_tra_data_t data;
     int valid = 0;
 
-    tra_ctl.u64 = cvmx_read_csr(CVMX_TRA_CTL);
-
-    do
+    /* Collect data from each TRA unit for decoding */
+    if (CVMX_L2C_TADS > 1)
     {
-        data = cvmx_tra_read();
-        if ((OCTEON_IS_MODEL(OCTEON_CN3XXX) || OCTEON_IS_MODEL(OCTEON_CN5XXX)) && data.cmn.valid)
-            valid = 1;
-        else if (data.cmn2.valid)
-            valid = 1;
-        else
+        cvmx_trax_ctl_t tra_ctl;
+        cvmx_tra_data_t data[4];
+        int tad;
+        do 
+        {
             valid = 0;
+            for (tad = 0; tad < CVMX_L2C_TADS; tad++)
+                data[tad] = cvmx_tra_read_v2(tad);
 
-        if (valid)
-            cvmx_tra_decode_text(tra_ctl, data);
+            for (tad = 0; tad < CVMX_L2C_TADS; tad++)
+            {
+                tra_ctl.u64 = cvmx_read_csr(CVMX_TRAX_CTL(tad));
 
-    } while (valid);
+                if (data[tad].cmn2.valid)
+                {
+                    _cvmx_tra_unit = tad;
+                    cvmx_tra_decode_text(tra_ctl, data[tad]);
+                    valid = 1;
+                }
+            }
+        } while (valid);
+    }
+    else
+    {
+        cvmx_tra_ctl_t tra_ctl;
+        cvmx_tra_data_t data;
+
+        tra_ctl.u64 = cvmx_read_csr(CVMX_TRA_CTL);
+
+        do
+        {
+            data = cvmx_tra_read();
+            if ((OCTEON_IS_MODEL(OCTEON_CN3XXX) || OCTEON_IS_MODEL(OCTEON_CN5XXX)) && data.cmn.valid)
+                valid = 1;
+            else if (data.cmn2.valid)
+                valid = 1;
+            else
+                valid = 0;
+    
+            if (valid)
+                cvmx_tra_decode_text(tra_ctl, data);
+
+        } while (valid);
+    }
 }
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
 EXPORT_SYMBOL(cvmx_tra_display);
+#endif
+
+/**
+ * Display the entire trace buffer. It is advised that you
+ * disable the trace buffer before calling this routine
+ * otherwise it could infinitely loop displaying trace data
+ * that it created.
+ *
+ * @param tra_unit   Which TRA buffer to use.
+ */
+void cvmx_tra_display_v2(int tra_unit)
+{
+    int valid = 0;
+
+    cvmx_trax_ctl_t tra_ctl;
+    cvmx_tra_data_t data;
+
+    valid = 0;
+    tra_ctl.u64 = cvmx_read_csr(CVMX_TRAX_CTL(tra_unit));
+
+    do 
+    {
+        data = cvmx_tra_read_v2(tra_unit);
+        if (data.cmn2.valid)
+        {
+            _cvmx_tra_unit = tra_unit; 
+            cvmx_tra_decode_text(tra_ctl, data);
+            valid = 1;
+        }
+    } while (valid);
+}
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+EXPORT_SYMBOL(cvmx_tra_display_v2);
 #endif

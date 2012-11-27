@@ -1143,6 +1143,14 @@ ixgbe_init_locked(struct adapter *adapter)
 		txdctl |= IXGBE_TXDCTL_ENABLE;
 		/* Set WTHRESH to 8, burst writeback */
 		txdctl |= (8 << 16);
+		/*
+		 * When the internal queue falls below PTHRESH (32),
+		 * start prefetching as long as there are at least
+		 * HTHRESH (1) buffers ready. The values are taken
+		 * from the Intel linux driver 3.8.21.
+		 * Prefetching enables tx line rate even with 1 queue.
+		 */
+		txdctl |= (16 << 0) | (1 << 8);
 		IXGBE_WRITE_REG(hw, IXGBE_TXDCTL(i), txdctl);
 	}
 
@@ -2879,7 +2887,8 @@ ixgbe_allocate_transmit_buffers(struct tx_ring *txr)
 	/*
 	 * Setup DMA descriptor areas.
 	 */
-	if ((error = bus_dma_tag_create(NULL,		/* parent */
+	if ((error = bus_dma_tag_create(
+			       bus_get_dma_tag(adapter->dev),	/* parent */
 			       1, 0,		/* alignment, bounds */
 			       BUS_SPACE_MAXADDR,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */
@@ -2970,10 +2979,10 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 		 * kring->nkr_hwofs positions "ahead" wrt the
 		 * corresponding slot in the NIC ring. In some drivers
 		 * (not here) nkr_hwofs can be negative. Function
-		 * netmap_tidx_n2k() handles wraparounds properly.
+		 * netmap_idx_n2k() handles wraparounds properly.
 		 */
 		if (slot) {
-			int si = netmap_tidx_n2k(na, txr->me, i);
+			int si = netmap_idx_n2k(&na->tx_rings[txr->me], i);
 			netmap_load_map(txr->txtag, txbuf->map, NMB(slot + si));
 		}
 #endif /* DEV_NETMAP */
@@ -3491,7 +3500,7 @@ ixgbe_txeof(struct tx_ring *txr)
 			selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
 			IXGBE_TX_UNLOCK(txr);
 			IXGBE_CORE_LOCK(adapter);
-			selwakeuppri(&na->tx_rings[na->num_queues + 1].si, PI_NET);
+			selwakeuppri(&na->tx_si, PI_NET);
 			IXGBE_CORE_UNLOCK(adapter);
 			IXGBE_TX_LOCK(txr);
 		}
@@ -3803,6 +3812,9 @@ ixgbe_setup_hw_rsc(struct rx_ring *rxr)
 
 	rdrxctl = IXGBE_READ_REG(hw, IXGBE_RDRXCTL);
 	rdrxctl &= ~IXGBE_RDRXCTL_RSCFRSTSIZE;
+#ifdef DEV_NETMAP /* crcstrip is optional in netmap */
+	if (adapter->ifp->if_capenable & IFCAP_NETMAP && !ix_crcstrip)
+#endif /* DEV_NETMAP */
 	rdrxctl |= IXGBE_RDRXCTL_CRCSTRIP;
 	rdrxctl |= IXGBE_RDRXCTL_RSCACKC;
 	IXGBE_WRITE_REG(hw, IXGBE_RDRXCTL, rdrxctl);
@@ -3922,7 +3934,7 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 		 * an mbuf, so end the block with a continue;
 		 */
 		if (slot) {
-			int sj = netmap_ridx_n2k(na, rxr->me, j);
+			int sj = netmap_idx_n2k(&na->rx_rings[rxr->me], j);
 			uint64_t paddr;
 			void *addr;
 
@@ -4095,6 +4107,13 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 		hlreg |= IXGBE_HLREG0_JUMBOEN;
 	else
 		hlreg &= ~IXGBE_HLREG0_JUMBOEN;
+#ifdef DEV_NETMAP
+	/* crcstrip is conditional in netmap (in RDRXCTL too ?) */
+	if (ifp->if_capenable & IFCAP_NETMAP && !ix_crcstrip)
+		hlreg &= ~IXGBE_HLREG0_RXCRCSTRP;
+	else
+		hlreg |= IXGBE_HLREG0_RXCRCSTRP;
+#endif /* DEV_NETMAP */
 	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hlreg);
 
 	bufsz = (adapter->rx_mbuf_sz +
@@ -4376,7 +4395,7 @@ ixgbe_rxeof(struct ix_queue *que, int count)
 		selwakeuppri(&na->rx_rings[rxr->me].si, PI_NET);
 		IXGBE_RX_UNLOCK(rxr);
 		IXGBE_CORE_LOCK(adapter);
-		selwakeuppri(&na->rx_rings[na->num_queues + 1].si, PI_NET);
+		selwakeuppri(&na->rx_si, PI_NET);
 		IXGBE_CORE_UNLOCK(adapter);
 		return (FALSE);
 	}

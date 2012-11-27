@@ -251,7 +251,7 @@ const _RuneLocale _DefaultRuneLocale = {
 };
 
 #undef _CurrentRuneLocale
-_RuneLocale *_CurrentRuneLocale = (_RuneLocale*)&_DefaultRuneLocale;
+const _RuneLocale *_CurrentRuneLocale = &_DefaultRuneLocale;
 
 _RuneLocale *
 __runes_for_locale(locale_t locale, int *mb_sb_limit)

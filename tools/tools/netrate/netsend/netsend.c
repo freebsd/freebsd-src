@@ -147,6 +147,7 @@ timing_loop(struct _a *a)
 	long minres_ns = 20000;
 	int ic, gettimeofday_cycles;
 	int cur_port;
+	uint64_t n, ns;
 
 	if (clock_getres(CLOCK_REALTIME, &tmptime) == -1) {
 		perror("clock_getres");
@@ -257,6 +258,13 @@ done:
 	printf("send errors:       %ld\n", send_errors);
 	printf("approx send rate:  %ld pps\n", (send_calls - send_errors) /
 	    a->duration);
+	n = send_calls - send_errors;
+	if (n > 0) {
+		ns = (tmptime.tv_sec - starttime.tv_sec) * 1000000000UL +
+			(tmptime.tv_nsec - starttime.tv_nsec);
+		n = ns / n;
+	}
+	printf("time/packet:       %u ns\n", (u_int)n);
 	printf("approx error rate: %ld\n", (send_errors / send_calls));
 	printf("waited:            %lld\n", waited);
 	printf("approx waits/sec:  %lld\n", (long long)(waited / a->duration));

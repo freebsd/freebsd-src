@@ -122,7 +122,7 @@ LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
 .if ${TARGET_CPUARCH} == mips
 LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
 # ABIs other than o32 need this
-.if ${TARGET_ARCH:Mmipse[lb]} == ""
+.if ${TARGET_ARCH} != "mips" && ${TARGET_ARCH} != "mipsel"
 LIB2FUNCS_EXTRA+= floatdidf.c fixunsdfsi.c
 LIB2FUNCS_EXTRA+= floatdisf.c floatundidf.c
 LIB2FUNCS_EXTRA+= fixsfdi.c floatundisf.c
@@ -276,7 +276,7 @@ ${ASM_S}: ${LIB1ASMSRC}
 ${ASM_V}: ${LIB1ASMSRC}
 	${CC} -x assembler-with-cpp -c ${CFLAGS} -DL${.PREFIX} \
 	    -o ${.PREFIX}.vo ${.ALLSRC:N*.h}
-	( nm -pg ${.PREFIX}.vo | \
+	( ${NM} -pg ${.PREFIX}.vo | \
 		awk 'NF == 3 && $$2 !~ /^[UN]$$/ { print "\t.hidden ", $$3 }'\
 	) > ${.TARGET}
 
@@ -325,7 +325,7 @@ SHLIB_MAPFILES   = ${GCCDIR}/libgcc-std.ver
 VERSION_MAP      = libgcc.map
 
 libgcc.map: ${SHLIB_MKMAP} ${SHLIB_MAPFILES} ${SOBJS} ${OBJS:R:S/$/.So/}
-	(  nm -pg ${SOBJS};echo %% ; \
+	(  ${NM} -pg ${SOBJS};echo %% ; \
 	  cat ${SHLIB_MAPFILES} \
 	    | sed -e '/^[   ]*#/d' \
 	          -e 's/^%\(if\|else\|elif\|endif\|define\)/#\1/' \

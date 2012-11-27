@@ -29,7 +29,7 @@
 .Dt IEEE80211 9
 .Os
 .Sh NAME
-.Nm IEEE80211 
+.Nm IEEE80211
 .Nd 802.11 network layer
 .Sh SYNOPSIS
 .In net80211/ieee80211_var.h
@@ -164,7 +164,7 @@ Table of channels the device is capable of operating on.
 This is initially provided by the driver but may be changed
 through calls that change the regulatory state.
 .It Dv ic_nchan
-Number of entries in 
+Number of entries in
 .Dv ic_channels .
 .El
 .Pp
@@ -221,7 +221,7 @@ There is no default method; the pointer may be NULL in which case
 it will not be used.
 .It Dv ic_node_alloc
 Allocate and initialize a
-.Vt ieee80211_node 
+.Vt ieee80211_node
 structure.
 This method cannot sleep.
 The default method allocates zero'd memory using
@@ -232,7 +232,7 @@ Memory allocated by the driver must be tagged with
 .Dv M_80211_NODE
 to balance the memory allocation statistics.
 .It Dv ic_node_free
-Reclaim storage of a node allocated by 
+Reclaim storage of a node allocated by
 .Dv ic_node_alloc  .
 Drivers are expected to
 .Em interpose
@@ -302,7 +302,7 @@ and must initiate the work to scan a channel and schedule a timer
 to advance to the next channel in the scan list.
 This callback is done in a sleepable context.
 The default method handles active scan work (e.g. sending ProbeRequest
-frames), and schedules a call to 
+frames), and schedules a call to
 .Xr ieee80211_scan_next 9
 according to the maximum dwell time for the channel.
 Drivers that off-load scan work to firmware typically use this method
@@ -354,7 +354,7 @@ Terminate receipt of A-MPDU data from the specified station for the TID.
 .El
 .Pp
 Once the
-.Nm 
+.Nm
 layer is attached to a driver there are two more steps typically done
 to complete the work:
 .Bl -enum
@@ -405,7 +405,7 @@ The following general capabilities are defined:
 Device is capable of operating in station (aka Infrastructure) mode.
 .It Dv IEEE80211_C_8023ENCAP
 Device requires 802.3-encapsulated frames be passed for transmit.
-By default 
+By default
 .Nm
 will encapsulate all outbound frames as 802.11 frames (without a PLCP header).
 .It Dv IEEE80211_C_FF
@@ -529,16 +529,16 @@ Device supports L-SIG TXOP protection.
 .It Dv IEEE80211_HTC_AMPDU
 Device supports A-MPDU aggregation.
 Note that any 802.11n compliant device must support A-MPDU receive
-so this implicitly means support for 
+so this implicitly means support for
 .Em transmit
 of A-MPDU frames.
 .It Dv IEEE80211_HTC_AMSDU
 Device supports A-MSDU aggregation.
 Note that any 802.11n compliant device must support A-MSDU receive
-so this implicitly means support for 
+so this implicitly means support for
 .Em transmit
 of A-MSDU frames.
-.It Dv IEEE80211_HTC_HT 
+.It Dv IEEE80211_HTC_HT
 Device supports High Throughput (HT) operation.
 This capability must be set to enable 802.11n functionality
 in

@@ -19,7 +19,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: acconfig.h,v 1.53 2008-12-01 23:47:44 tbox Exp $ */
+/* $Id: acconfig.h,v 1.53 2008/12/01 23:47:44 tbox Exp $ */
 
 /*! \file */
 
@@ -396,6 +396,9 @@ int sigwait(const unsigned int *set, int *sig);
 /* Sets which flag to pass to open/fcntl to make non-blocking
    (O_NDELAY/O_NONBLOCK). */
 #define PORT_NONBLOCK O_NONBLOCK
+
+/* The size of `void *', as computed by sizeof. */
+#define SIZEOF_VOID_P 8
 
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1

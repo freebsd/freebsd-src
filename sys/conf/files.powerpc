@@ -14,6 +14,9 @@ font.h				optional	sc			\
 	no-obj no-implicit-rule before-depend				\
 	clean	"font.h ${SC_DFLT_FONT}-8x14 ${SC_DFLT_FONT}-8x16 ${SC_DFLT_FONT}-8x8"
 #
+# There is only an asm version on ppc64.
+cddl/compat/opensolaris/kern/opensolaris_atomic.c			optional zfs powerpc compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/common/atomic/powerpc64/opensolaris_atomic.S	optional zfs powerpc64 compile-with "${ZFS_S}"
 crypto/blowfish/bf_enc.c	optional	crypto | ipsec
 crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
 dev/bm/if_bm.c			optional	bm powermac
@@ -145,6 +148,7 @@ powerpc/ofw/rtas.c		optional	aim
 powerpc/powermac/ata_kauai.c	optional	powermac ata | powermac atamacio
 powerpc/powermac/ata_macio.c	optional	powermac ata | powermac atamacio
 powerpc/powermac/ata_dbdma.c	optional	powermac ata | powermac atamacio
+powerpc/powermac/atibl.c	optional	powermac atibl
 powerpc/powermac/cuda.c		optional	powermac cuda
 powerpc/powermac/cpcht.c	optional	powermac pci
 powerpc/powermac/dbdma.c	optional	powermac pci
@@ -166,7 +170,6 @@ powerpc/powermac/uninorthpci.c	optional	powermac pci
 powerpc/powermac/vcoregpio.c	optional	powermac 
 powerpc/powermac/windtunnel.c	optional	powermac windtunnel
 powerpc/powerpc/altivec.c	optional	aim
-powerpc/powerpc/atomic.S	standard
 powerpc/powerpc/autoconf.c	standard
 powerpc/powerpc/bcopy.c		standard
 powerpc/powerpc/bus_machdep.c	standard

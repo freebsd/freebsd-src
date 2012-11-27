@@ -190,9 +190,6 @@ tsc_pcpu_fini(struct pmc_mdep *md, int cpu)
 
 	ri = md->pmd_classdep[PMC_MDEP_CLASS_INDEX_TSC].pcd_ri;
 
-	KASSERT(ri == 0 && ri < TSC_NPMCS, ("[tsc,%d] ri=%d", __LINE__,
-	    ri));
-
 	pc = pmc_pcpu[cpu];
 	pc->pc_hwpmcs[ri] = NULL;
 

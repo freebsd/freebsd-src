@@ -652,7 +652,8 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 	      scan->bintval <= IEEE80211_BINTVAL_MAX)) {
 		IEEE80211_DISCARD(vap,
 		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_INPUT,
-		    wh, NULL, "bogus beacon interval", scan->bintval);
+		    wh, NULL, "bogus beacon interval (%d TU)",
+		    (int) scan->bintval);
 		vap->iv_stats.is_rx_badbintval++;
 		scan->status |= IEEE80211_BPARSE_BINTVAL_INVALID;
 	}
@@ -759,6 +760,57 @@ ieee80211_parse_action(struct ieee80211_node *ni, struct mbuf *m)
 			break;
 		}
 		break;
+#ifdef IEEE80211_SUPPORT_MESH
+	case IEEE80211_ACTION_CAT_MESH:
+		switch (ia->ia_action) {
+		case IEEE80211_ACTION_MESH_LMETRIC:
+			/*
+			 * XXX: verification is true only if we are using
+			 * Airtime link metric (default)
+			 */
+			IEEE80211_VERIFY_LENGTH(efrm - frm,
+			    sizeof(struct ieee80211_meshlmetric_ie),
+			    return EINVAL);
+			break;
+		case IEEE80211_ACTION_MESH_HWMP:
+			/* verify something */
+			break;
+		case IEEE80211_ACTION_MESH_GANN:
+		case IEEE80211_ACTION_MESH_CC:
+		case IEEE80211_ACTION_MESH_MCCA_SREQ:
+		case IEEE80211_ACTION_MESH_MCCA_SREP:
+		case IEEE80211_ACTION_MESH_MCCA_AREQ:
+		case IEEE80211_ACTION_MESH_MCCA_ADVER:
+		case IEEE80211_ACTION_MESH_MCCA_TRDOWN:
+		case IEEE80211_ACTION_MESH_TBTT_REQ:
+		case IEEE80211_ACTION_MESH_TBTT_RES:
+			/* reject these early on, not implemented */
+			IEEE80211_DISCARD(vap,
+			    IEEE80211_MSG_ELEMID | IEEE80211_MSG_INPUT,
+			    wh, NULL, "not implemented yet, act=0x%02X",
+			    ia->ia_action);
+			return EINVAL;
+		}
+		break;
+	case IEEE80211_ACTION_CAT_SELF_PROT:
+		/* If TA or RA group address discard silently */
+		if (IEEE80211_IS_MULTICAST(wh->i_addr1) ||
+			IEEE80211_IS_MULTICAST(wh->i_addr2))
+			return EINVAL;
+		/*
+		 * XXX: Should we verify complete length now or it is
+		 * to varying in sizes?
+		 */
+		switch (ia->ia_action) {
+		case IEEE80211_ACTION_MESHPEERING_CONFIRM:
+		case IEEE80211_ACTION_MESHPEERING_CLOSE:
+			/* is not a peering candidate (yet) */
+			if (ni == vap->iv_bss)
+				return EINVAL;
+			break;
+		}
+		break;
+#endif
 	}
 	return 0;
 }

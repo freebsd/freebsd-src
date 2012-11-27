@@ -14,6 +14,7 @@ TESTS=	\
 	test_basic.c				\
 	test_format_newc.c			\
 	test_gcpio_compat.c			\
+	test_option_0.c				\
 	test_option_B_upper.c			\
 	test_option_C_upper.c			\
 	test_option_J_upper.c			\

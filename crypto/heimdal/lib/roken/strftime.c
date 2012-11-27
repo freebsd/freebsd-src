@@ -1,18 +1,18 @@
 /*
- * Copyright (c) 1999 - 2002 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1999 - 2002 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * 3. Neither the name of KTH nor the names of its contributors may be
  *    used to endorse or promote products derived from this software without
@@ -30,15 +30,11 @@
  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-#endif
+#include "roken.h"
 #ifdef TEST_STRPFTIME
 #include "strpftime-test.h"
 #endif
-#include "roken.h"
-
-RCSID("$Id: strftime.c 21896 2007-08-09 08:46:08Z lha $");
 
 static const char *abb_weekdays[] = {
     "Sun",
@@ -155,7 +151,7 @@ week_number_mon4 (const struct tm *tm)
     int wday  = (tm->tm_wday + 6) % 7;
     int w1day = (wday - tm->tm_yday % 7 + 7) % 7;
     int ret;
-    
+
     ret = (tm->tm_yday + w1day) / 7;
     if (w1day >= 4)
 	--ret;
@@ -170,7 +166,7 @@ week_number_mon4 (const struct tm *tm)
  *
  */
 
-size_t ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION size_t ROKEN_LIB_CALL
 strftime (char *buf, size_t maxsize, const char *format,
 	  const struct tm *tm)
 {
@@ -290,7 +286,7 @@ strftime (char *buf, size_t maxsize, const char *format,
 				"%02d:%02d",
 				tm->tm_hour,
 				tm->tm_min);
-		    
+		break;
 	    case 's' :
 		ret = snprintf (buf, maxsize - n,
 				"%d", (int)mktime(rk_UNCONST(tm)));
@@ -358,7 +354,7 @@ strftime (char *buf, size_t maxsize, const char *format,
 				(long)timezone
 #else
 #error Where in timezone chaos are you?
-#endif    
+#endif
 				);
 		break;
 	    case 'Z' :
@@ -386,7 +382,7 @@ strftime (char *buf, size_t maxsize, const char *format,
 				"%%%c", *format);
 		break;
 	    }
-	    if (ret < 0 || ret >= maxsize - n)
+	    if (ret < 0 || ret >= (int)(maxsize - n))
 		return 0;
 	    n   += ret;
 	    buf += ret;
@@ -396,6 +392,6 @@ strftime (char *buf, size_t maxsize, const char *format,
 	    ++n;
 	}
     }
-    *buf++ = '\0';
+    *buf = '\0';
     return n;
 }

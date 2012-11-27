@@ -7,8 +7,8 @@ SRCDIR=	${.CURDIR}/../../../contrib/libstdc++/libsupc++
 
 .PATH: ${SRCDIR} ${GCCLIB}/libiberty
 
-# Static only.
 LIB=	supc++
+SHLIB_MAJOR=1
 SRCS+=	del_op.cc del_opnt.cc del_opv.cc del_opvnt.cc eh_alloc.cc eh_arm.cc \
 	eh_aux_runtime.cc eh_call.cc eh_catch.cc eh_exception.cc eh_globals.cc \
 	eh_personality.cc eh_term_handler.cc eh_terminate.cc eh_throw.cc \
@@ -35,5 +35,10 @@ unwind.h: ${GCCDIR}/unwind-generic.h
 
 SRCS+=		unwind.h
 CLEANFILES+=	unwind.h
+
+# Symbol versioning
+
+VERSION_MAP=	${.CURDIR}/Version.map
+
 
 .include <bsd.lib.mk>

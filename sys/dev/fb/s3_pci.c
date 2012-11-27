@@ -513,7 +513,7 @@ s3pci_attach(device_t dev)
 	/* Attach the driver to the VGA/VESA framework
 	 */
 	for (i = 0; (adp = vid_get_adapter(i)) != NULL; ++i) {
-		if ((adp->va_type == KD_VGA))
+		if (adp->va_type == KD_VGA)
 			break;
 	}
 

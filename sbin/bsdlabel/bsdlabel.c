@@ -1194,7 +1194,8 @@ checklabel(struct disklabel *lp)
 			lp->d_interleave = vl->d_interleave;
 		if (lp->d_secpercyl == 0)
 			lp->d_secpercyl = vl->d_secpercyl;
-		if (lp->d_secperunit == 0)
+		if (lp->d_secperunit == 0 ||
+		    lp->d_secperunit > vl->d_secperunit)
 			lp->d_secperunit = vl->d_secperunit;
 		if (lp->d_bbsize == 0)
 			lp->d_bbsize = vl->d_bbsize;

@@ -39,7 +39,7 @@ program.
 It contains declarations and parameter/key-options.
 The syntax is very simple,
 .D1 Li variable = value;
-and they can be grouped via a 
+and they can be grouped via a
 .Em block
 declaration:
 .Bf Li
@@ -60,7 +60,7 @@ currently only supported authentication method is CHAP, with
 digest either MD5 or SHA.
 Default is none.
 .It Cm HeaderDigest
-a 
+a
 .Em digest
 is calculated on the header of all iSCSI PDUs, and
 checked.
@@ -113,7 +113,7 @@ bytes it can receive in an iSCSI PDU, default is 8192.
 .It Cm MaxOutstandingR2T
 is used to calculate/negotiate the
 .Em tag opening ,
-can be overriden by the
+can be overridden by the
 .Sy tag
 option.
 .It Cm DataPDUInOrder
@@ -141,7 +141,7 @@ to the value specified.
 .It Cm maxluns
 overrides the compiled value of
 .Sy luns ,
-see 
+see
 .Xr iscsi_initiator 4 .
 This value can only be reduced.
 .It Cm sockbufsize
@@ -185,7 +185,7 @@ myiscsi { # nickname
    targetaddress	= iscsi1
    targetname		= iqn.1900.com.com:sn.123456
 }
-chaptest { 
+chaptest {
    targetaddress= 10.0.0.1;
    targetname	= iqn.1900.com.com:sn.123456
    initiatorname= iqn.2005-01.il.ac.huji.cs:nobody

@@ -117,6 +117,7 @@ struct ipw_softc {
 	int				sc_tx_timer;
 	int				sc_scan_timer;
 
+	bus_dma_tag_t			parent_dmat;
 	bus_dma_tag_t			tbd_dmat;
 	bus_dma_tag_t			rbd_dmat;
 	bus_dma_tag_t			status_dmat;

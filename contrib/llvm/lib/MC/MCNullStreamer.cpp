@@ -55,6 +55,7 @@ namespace {
     virtual void EmitCOFFSymbolStorageClass(int StorageClass) {}
     virtual void EmitCOFFSymbolType(int Type) {}
     virtual void EndCOFFSymbolDef() {}
+    virtual void EmitCOFFSecRel32(MCSymbol const *Symbol) {}
 
     virtual void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) {}
     virtual void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
@@ -79,11 +80,12 @@ namespace {
     virtual void EmitCodeAlignment(unsigned ByteAlignment,
                                    unsigned MaxBytesToEmit = 0) {}
 
-    virtual void EmitValueToOffset(const MCExpr *Offset,
-                                   unsigned char Value = 0) {}
+    virtual bool EmitValueToOffset(const MCExpr *Offset,
+                                   unsigned char Value = 0) { return false; }
     
     virtual void EmitFileDirective(StringRef Filename) {}
-    virtual bool EmitDwarfFileDirective(unsigned FileNo,StringRef Filename) {
+    virtual bool EmitDwarfFileDirective(unsigned FileNo, StringRef Directory,
+                                        StringRef Filename) {
       return false;
     }
     virtual void EmitDwarfLocDirective(unsigned FileNo, unsigned Line,
@@ -92,7 +94,11 @@ namespace {
                                        StringRef FileName) {}
     virtual void EmitInstruction(const MCInst &Inst) {}
 
-    virtual void Finish() {}
+    virtual void FinishImpl() {}
+
+    virtual void EmitCFIEndProcImpl(MCDwarfFrameInfo &Frame) {
+      RecordProcEnd(Frame);
+    }
     
     /// @}
   };

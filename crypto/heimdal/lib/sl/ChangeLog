@@ -1,14 +1,18 @@
-2007-07-17  Love Hörnquist Åstrand  <lha@it.su.se>
+2008-05-05  Love HÃ¶rnquist Ã…strand  <lha@vit.local>
+
+	* drop libss and make_cmds
+
+2007-07-17  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: roken_rename.h is a dist_ source k
 
 	* Makefile.am: split source files in dist and nodist.
 
-2007-07-10  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-07-10  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: New library version.
 
-2007-06-18  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-18  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* sl.c: make compile.
 
@@ -17,25 +21,25 @@
 	* sl.c (sl_make_argv): use memmove since we are dealing with
 	overlapping strings.
 
-2007-06-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: don't clean yacc/lex files in CLEANFILES,
 	maintainers clean will do that for us.
 	
-2007-06-01  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-06-01  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* slc-gram.y (main): also fclose yyin.
 	
-2007-04-20  Love Hörnquist Åstrand  <lha@it.su.se>
+2007-04-20  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am: Add dependency on slc-gram.h for slc-lex.c, breaks
 	in disttree with make -j
 	
-2006-12-29  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-29  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* test_sl.c: Fix caseing for case-sensitive filesystems
 	
-2006-12-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* test_sl.c: catch test that should fail but didn't
 
@@ -47,32 +51,32 @@
 
 	* sl.c (sl_make_argv): Add quoting support (both "" and \ style).
 	
-2006-12-05  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-12-05  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* sl.c: Use strcspn to remove \n from fgets result. Prompted by
-	change by Ray Lai of OpenBSD via Björn Sandell.
+	change by Ray Lai of OpenBSD via BjÃ¶rn Sandell.
 	
-2006-10-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-10-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* Makefile.am (ES): add roken_rename.h
 	
-2006-08-30  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-08-30  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* sl.c (sl_slc_help): remove return
 	
-2006-08-28  Love Hörnquist Åstrand  <lha@it.su.se>
+2006-08-28  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* sl.h: Add sl_slc_help.
 
 	* sl.c: Add sl_slc_help.
 	
-2005-07-27  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-07-27  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 	
 	* slc-gram.y (gen_wrapper): use the generated version of name for
 	function, if no function is is used, also use the generated name
 	for the structure name.
 	
-2005-06-16  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-06-16  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* slc-gram.y: fix a merge error
 	
@@ -90,7 +94,7 @@
 
 	* slc-lex.l: Include <stdlib.h>.
 
-2005-05-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-05-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* sl.c (sl_command_loop): new return code -2 for EOF
 	(sl_loop): treat all return value from sl_command_loop >= 0 as ok, and
@@ -100,7 +104,7 @@
 
 	* Makefile.am (LDADD): Add libsl.la.
 
-2005-04-19  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-04-19  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* slc-gram.y: include <config.h> since defines _GNU_SOURCE if
 	needed, avoid asprintf warning
@@ -109,7 +113,7 @@
 
 	* slc-gram.y: include <roken.h>
 
-2005-01-09  Love Hörnquist Åstrand  <lha@it.su.se>
+2005-01-09  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* slc-gram.y: cast argument to isalnum to unsigned char
 
@@ -122,11 +126,11 @@
 
 	* slc-gram.y: add min_args/max_args checking
 	
-2004-06-21  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-06-21  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* slc-gram.y: pull in <stdlib.h> and <vers.h> to avoid warnings
 	
-2004-03-02  Love Hörnquist Åstrand  <lha@it.su.se>
+2004-03-02  Love HÃ¶rnquist Ã…strand  <lha@it.su.se>
 
 	* sl.h: make it possible to use libsl from c++
 	From: Mattias Amnefelt <mattiasa@kth.se>

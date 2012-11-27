@@ -23,11 +23,12 @@
 #include <string>
 
 namespace llvm {
-  class Serializer;
   class Deserializer;
   class FoldingSetNodeID;
-  class raw_ostream;
+  class Serializer;
   class StringRef;
+  class hash_code;
+  class raw_ostream;
 
   template<typename T>
   class SmallVectorImpl;
@@ -497,15 +498,13 @@ public:
     if (loBitsSet == APINT_BITS_PER_WORD)
       return APInt(numBits, -1ULL);
     // For small values, return quickly.
-    if (numBits < APINT_BITS_PER_WORD)
-      return APInt(numBits, (1ULL << loBitsSet) - 1);
+    if (loBitsSet <= APINT_BITS_PER_WORD)
+      return APInt(numBits, -1ULL >> (APINT_BITS_PER_WORD - loBitsSet));
     return getAllOnesValue(numBits).lshr(numBits - loBitsSet);
   }
 
-  /// The hash value is computed as the sum of the words and the bit width.
-  /// @returns A hash value computed from the sum of the APInt words.
-  /// @brief Get a hash value based on this APInt
-  uint64_t getHashValue() const;
+  /// \brief Overload to compute a hash_code for an APInt value.
+  friend hash_code hash_value(const APInt &Arg);
 
   /// This function returns a pointer to the internal storage of the APInt.
   /// This is useful for writing out the APInt in binary form without any
@@ -562,7 +561,15 @@ public:
   /// Performs logical negation operation on this APInt.
   /// @returns true if *this is zero, false otherwise.
   /// @brief Logical negation operator.
-  bool operator!() const;
+  bool operator!() const {
+    if (isSingleWord())
+      return !VAL;
+
+    for (unsigned i = 0; i != getNumWords(); ++i)
+      if (pVal[i])
+        return false;
+    return true;
+  }
 
   /// @}
   /// @name Assignment Operators
@@ -835,7 +842,11 @@ public:
 
   /// @returns the bit value at bitPosition
   /// @brief Array-indexing support.
-  bool operator[](unsigned bitPosition) const;
+  bool operator[](unsigned bitPosition) const {
+    assert(bitPosition < getBitWidth() && "Bit position out of bounds!");
+    return (maskBit(bitPosition) &
+            (isSingleWord() ? VAL : pVal[whichWord(bitPosition)])) != 0;
+  }
 
   /// @}
   /// @name Comparison Operators
@@ -1055,6 +1066,16 @@ public:
   /// extended, truncated, or left alone to make it that width.
   /// @brief Zero extend or truncate to width
   APInt zextOrTrunc(unsigned width) const;
+
+  /// Make this APInt have the bit width given by \p width. The value is sign
+  /// extended, or left alone to make it that width.
+  /// @brief Sign extend or truncate to width
+  APInt sextOrSelf(unsigned width) const;
+
+  /// Make this APInt have the bit width given by \p width. The value is zero
+  /// extended, or left alone to make it that width.
+  /// @brief Zero extend or truncate to width
+  APInt zextOrSelf(unsigned width) const;
 
   /// @}
   /// @name Bit Manipulation Operators

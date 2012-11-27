@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: cfg.h,v 1.46 2010-08-13 23:47:04 tbox Exp $ */
+/* $Id: cfg.h,v 1.46 2010/08/13 23:47:04 tbox Exp $ */
 
 #ifndef ISCCFG_CFG_H
 #define ISCCFG_CFG_H 1

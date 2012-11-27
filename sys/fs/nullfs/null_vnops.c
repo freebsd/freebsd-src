@@ -678,7 +678,6 @@ static int
 null_inactive(struct vop_inactive_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
-	struct thread *td = ap->a_td;
 
 	vp->v_object = NULL;
 
@@ -686,7 +685,7 @@ null_inactive(struct vop_inactive_args *ap)
 	 * If this is the last reference, then free up the vnode
 	 * so as not to tie up the lower vnodes.
 	 */
-	vrecycle(vp, td);
+	vrecycle(vp);
 
 	return (0);
 }
@@ -697,12 +696,18 @@ null_inactive(struct vop_inactive_args *ap)
 static int
 null_reclaim(struct vop_reclaim_args *ap)
 {
-	struct vnode *vp = ap->a_vp;
-	struct null_node *xp = VTONULL(vp);
-	struct vnode *lowervp = xp->null_lowervp;
+	struct vnode *vp;
+	struct null_node *xp;
+	struct vnode *lowervp;
 
-	if (lowervp)
-		null_hashrem(xp);
+	vp = ap->a_vp;
+	xp = VTONULL(vp);
+	lowervp = xp->null_lowervp;
+
+	KASSERT(lowervp != NULL && vp->v_vnlock != &vp->v_lock,
+	    ("Reclaiming inclomplete null vnode %p", vp));
+
+	null_hashrem(xp);
 	/*
 	 * Use the interlock to protect the clearing of v_data to
 	 * prevent faults in null_lock().
@@ -713,10 +718,7 @@ null_reclaim(struct vop_reclaim_args *ap)
 	vp->v_object = NULL;
 	vp->v_vnlock = &vp->v_lock;
 	VI_UNLOCK(vp);
-	if (lowervp)
-		vput(lowervp);
-	else
-		panic("null_reclaim: reclaiming a node with no lowervp");
+	vput(lowervp);
 	free(xp, M_NULLFSNODE);
 
 	return (0);

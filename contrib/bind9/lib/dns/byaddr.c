@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: byaddr.c,v 1.41 2009-09-02 23:48:02 tbox Exp $ */
+/* $Id: byaddr.c,v 1.41 2009/09/02 23:48:02 tbox Exp $ */
 
 /*! \file */
 

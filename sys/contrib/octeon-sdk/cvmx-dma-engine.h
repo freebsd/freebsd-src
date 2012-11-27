@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,11 +49,17 @@
  * Interface to the PCI / PCIe DMA engines. These are only avialable
  * on chips with PCI / PCIe.
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 
 #ifndef __CVMX_DMA_ENGINES_H__
 #define __CVMX_DMA_ENGINES_H__
+
+#ifdef CVMX_BUILD_FOR_LINUX_KERNEL
+#include <asm/octeon/cvmx-dpi-defs.h>
+#else
+#include "cvmx-dpi-defs.h"
+#endif
 
 #ifdef	__cplusplus
 extern "C" {
@@ -264,13 +270,13 @@ int cvmx_dma_engine_shutdown(void);
 int cvmx_dma_engine_get_num(void);
 
 /**
- * Submit a series of DMA comamnd to the DMA engines.
+ * Submit a series of DMA command to the DMA engines.
  *
  * @param engine  Engine to submit to (0 to cvmx_dma_engine_get_num()-1)
  * @param header  Command header
  * @param num_buffers
  *                The number of data pointers
- * @param buffers Comamnd data pointers
+ * @param buffers Command data pointers
  *
  * @return Zero on success, negative on failure
  */
@@ -323,6 +329,44 @@ static inline int cvmx_dma_engine_memcpy(int engine, void *dest, void *source, i
     cvmx_dma_engine_header_t header;
     header.u64 = 0;
     header.s.type = CVMX_DMA_ENGINE_TRANSFER_INTERNAL;
+    return cvmx_dma_engine_transfer(engine, header, cvmx_ptr_to_phys(source),
+                                    cvmx_ptr_to_phys(dest), length);
+}
+
+/**
+ * Simplified interface to the DMA engines to emulate memcpy()
+ * When dici_mode is enabled, send zero byte.
+ *
+ * @param engine Engine to submit to (0 to cvmx_dma_engine_get_num()-1)
+ * @param dest   Pointer to the destination memory. cvmx_ptr_to_phys() will be
+ *               used to turn this into a physical address. It cannot be a local
+ *               or CVMX_SHARED block.
+ * @param source Pointer to the source memory.
+ *               cvmx_ptr_to_phys() will be used to turn this
+ *               into a physical address. It cannot be a local
+ *               or CVMX_SHARED block.
+ * @param length Number of bytes to copy
+ * @param core   core number for zero byte write
+ *
+ * @return Zero on success, negative on failure
+ */
+static inline int cvmx_dma_engine_memcpy_zero_byte(int engine, void *dest, void *source, int length, int core)
+{
+    cvmx_dma_engine_header_t header;
+    header.u64 = 0;
+    header.s.type = CVMX_DMA_ENGINE_TRANSFER_INTERNAL;
+    /* If dici_mode is set, DPI increments the DPI_DMA_PPn_CNT[CNT], where the
+       value of core n is PTR<5:0>-1 when WQP=0 and PTR != 0 && PTR < 64. */
+    if (octeon_has_feature(OCTEON_FEATURE_DICI_MODE))
+    {
+        cvmx_dpi_dma_control_t dma_control;
+        dma_control.u64 = cvmx_read_csr(CVMX_DPI_DMA_CONTROL);
+        if (dma_control.s.dici_mode)
+        {
+           header.s.wqp = 0;           // local memory pointer
+           header.s.addr = core + 1;
+        }
+    }
     return cvmx_dma_engine_transfer(engine, header, cvmx_ptr_to_phys(source),
                                     cvmx_ptr_to_phys(dest), length);
 }

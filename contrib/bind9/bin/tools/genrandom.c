@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: genrandom.c,v 1.7 2010-05-17 23:51:04 tbox Exp $ */
+/* $Id: genrandom.c,v 1.7 2010/05/17 23:51:04 tbox Exp $ */
 
 /*! \file */
 #include <config.h>

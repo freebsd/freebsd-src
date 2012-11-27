@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: asterix,v 1.5 2009/09/19 16:28:08 christos Exp $
 # asterix:  file(1) magic for Aster*x; SunOS 5.5.1 gave the 4-character
 # strings as "long" - we assume they're just strings:
 # From: guy@netapp.com (Guy Harris)

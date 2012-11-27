@@ -52,6 +52,7 @@ Elf_Addr reloc_jmpslot(Elf_Addr *, Elf_Addr, const struct Struct_Obj_Entry *,
 		       const struct Struct_Obj_Entry *, const Elf_Rel *);
 void *make_function_pointer(const Elf_Sym *, const struct Struct_Obj_Entry *);
 void call_initfini_pointer(const struct Struct_Obj_Entry *, Elf_Addr);
+void call_init_pointer(const struct Struct_Obj_Entry *, Elf_Addr);
 
 #define	TLS_TCB_SIZE	16
 

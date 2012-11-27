@@ -397,7 +397,7 @@ glxsb_dma_alloc(struct glxsb_softc *sc)
 	dma->dma_size = GLXSB_MAX_AES_LEN * 2;
 
 	/* Setup DMA descriptor area */
-	rc = bus_dma_tag_create(NULL,			/* parent */
+	rc = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev),	/* parent */
 				SB_AES_ALIGN, 0,	/* alignments, bounds */
 				BUS_SPACE_MAXADDR_32BIT,/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */

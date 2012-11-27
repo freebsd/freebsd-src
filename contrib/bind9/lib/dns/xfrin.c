@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2008, 2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2008, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: xfrin.c,v 1.166.522.4 2011-03-11 06:47:06 marka Exp $ */
+/* $Id$ */
 
 /*! \file */
 

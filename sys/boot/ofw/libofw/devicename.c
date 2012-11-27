@@ -28,6 +28,8 @@
 __FBSDID("$FreeBSD$");
 
 #include <stand.h>
+
+#include "bootstrap.h"
 #include "libofw.h"
 
 static int ofw_parsedev(struct ofw_devdesc **, const char *, const char **);
@@ -76,6 +78,7 @@ ofw_parsedev(struct ofw_devdesc **dev, const char *devspec, const char **path)
     phandle_t		handle;
     const char		*p;
     const char		*s;
+    char		*ep;
     char		name[256];
     char		type[64];
     int			len;
@@ -87,9 +90,10 @@ ofw_parsedev(struct ofw_devdesc **dev, const char *devspec, const char **path)
 	len = s - devspec;
 	bcopy(devspec, name, len);
 	name[len] = '\0';
-	if ((handle = OF_finddevice(name)) == -1)
-	    break;
-	if (OF_getprop(handle, "device_type", type, sizeof(type)) == -1)
+	if ((handle = OF_finddevice(name)) == -1) {
+	    bcopy(name, type, len);
+	    type[len] = '\0';
+	} else if (OF_getprop(handle, "device_type", type, sizeof(type)) == -1)
 	    continue;
 	for (i = 0; (dv = devsw[i]) != NULL; i++) {
 	    if (strncmp(dv->dv_name, type, strlen(dv->dv_name)) == 0)
@@ -109,6 +113,18 @@ found:
     strcpy(idev->d_path, name);
     idev->d_dev = dv;
     idev->d_type = dv->dv_type;
+    if (idev->d_type == DEVT_ZFS) {
+	idev->d_unit = 0;
+	p = name + strlen(dv->dv_name);
+	if (*p && (*p != ':')) {
+	    idev->d_unit = strtol(p, &ep, 0);
+	    if (ep == p) {
+		free(idev);
+		return (EUNIT);
+	    }
+	}
+    }
+
     if (dev == NULL) {
 	free(idev);
     } else {

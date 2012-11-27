@@ -142,7 +142,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	p = td->td_proc;
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(1, 0);
+		ktrcsw(1, 0, wmesg);
 #endif
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Sleeping on \"%s\"", wmesg);
@@ -236,7 +236,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	}
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(0, 0);
+		ktrcsw(0, 0, wmesg);
 #endif
 	PICKUP_GIANT();
 	if (lock != NULL && lock != &Giant.lock_object && !(priority & PDROP)) {
@@ -298,7 +298,7 @@ msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW)) {
 		sleepq_release(ident);
-		ktrcsw(1, 0);
+		ktrcsw(1, 0, wmesg);
 		sleepq_lock(ident);
 	}
 #endif
@@ -316,7 +316,7 @@ msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
 	}
 #ifdef KTRACE
 	if (KTRPOINT(td, KTR_CSW))
-		ktrcsw(0, 0);
+		ktrcsw(0, 0, wmesg);
 #endif
 	PICKUP_GIANT();
 	mtx_lock_spin(mtx);

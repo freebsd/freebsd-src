@@ -19,6 +19,7 @@
 #include "llvm/CodeGen/MachineOperand.h"
 #include "llvm/MC/MCInstrDesc.h"
 #include "llvm/Target/TargetOpcodes.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/ilist.h"
 #include "llvm/ADT/ilist_node.h"
 #include "llvm/ADT/STLExtras.h"
@@ -53,9 +54,11 @@ public:
   };
 
   enum MIFlag {
-    NoFlags    = 0,
-    FrameSetup = 1 << 0                 // Instruction is used as a part of
+    NoFlags      = 0,
+    FrameSetup   = 1 << 0,              // Instruction is used as a part of
                                         // function frame setup code.
+    InsideBundle = 1 << 1               // Instruction is inside a bundle (not
+                                        // the first MI in a bundle)
   };
 private:
   const MCInstrDesc *MCID;              // Instruction descriptor.
@@ -71,9 +74,10 @@ private:
                                         // anything other than to convey comment
                                         // information to AsmPrinter.
 
+  uint16_t NumMemRefs;                  // information on memory references
+  mmo_iterator MemRefs;
+
   std::vector<MachineOperand> Operands; // the operands
-  mmo_iterator MemRefs;                 // information on memory references
-  mmo_iterator MemRefsEnd;
   MachineBasicBlock *Parent;            // Pointer to the owning basic block.
   DebugLoc debugLoc;                    // Source line information.
 
@@ -148,6 +152,12 @@ public:
     AsmPrinterFlags |= (uint8_t)Flag;
   }
 
+  /// clearAsmPrinterFlag - clear specific AsmPrinter flags
+  ///
+  void clearAsmPrinterFlag(CommentFlag Flag) {
+    AsmPrinterFlags &= ~Flag;
+  }
+
   /// getFlags - Return the MI flags bitvector.
   uint8_t getFlags() const {
     return Flags;
@@ -167,11 +177,63 @@ public:
     Flags = flags;
   }
 
-  /// clearAsmPrinterFlag - clear specific AsmPrinter flags
-  ///
-  void clearAsmPrinterFlag(CommentFlag Flag) {
-    AsmPrinterFlags &= ~Flag;
+  /// clearFlag - Clear a MI flag.
+  void clearFlag(MIFlag Flag) {
+    Flags &= ~((uint8_t)Flag);
   }
+
+  /// isInsideBundle - Return true if MI is in a bundle (but not the first MI
+  /// in a bundle).
+  ///
+  /// A bundle looks like this before it's finalized:
+  ///   ----------------
+  ///   |      MI      |
+  ///   ----------------
+  ///          |
+  ///   ----------------
+  ///   |      MI    * |
+  ///   ----------------
+  ///          |
+  ///   ----------------
+  ///   |      MI    * |
+  ///   ----------------
+  /// In this case, the first MI starts a bundle but is not inside a bundle, the
+  /// next 2 MIs are considered "inside" the bundle.
+  ///
+  /// After a bundle is finalized, it looks like this:
+  ///   ----------------
+  ///   |    Bundle    |
+  ///   ----------------
+  ///          |
+  ///   ----------------
+  ///   |      MI    * |
+  ///   ----------------
+  ///          |
+  ///   ----------------
+  ///   |      MI    * |
+  ///   ----------------
+  ///          |
+  ///   ----------------
+  ///   |      MI    * |
+  ///   ----------------
+  /// The first instruction has the special opcode "BUNDLE". It's not "inside"
+  /// a bundle, but the next three MIs are.
+  bool isInsideBundle() const {
+    return getFlag(InsideBundle);
+  }
+
+  /// setIsInsideBundle - Set InsideBundle bit.
+  ///
+  void setIsInsideBundle(bool Val = true) {
+    if (Val)
+      setFlag(InsideBundle);
+    else
+      clearFlag(InsideBundle);
+  }
+
+  /// isBundled - Return true if this instruction part of a bundle. This is true
+  /// if either itself or its following instruction is marked "InsideBundle".
+  bool isBundled() const;
 
   /// getDebugLoc - Returns the debug location id of this MachineInstr.
   ///
@@ -223,14 +285,284 @@ public:
 
   /// Access to memory operands of the instruction
   mmo_iterator memoperands_begin() const { return MemRefs; }
-  mmo_iterator memoperands_end() const { return MemRefsEnd; }
-  bool memoperands_empty() const { return MemRefsEnd == MemRefs; }
+  mmo_iterator memoperands_end() const { return MemRefs + NumMemRefs; }
+  bool memoperands_empty() const { return NumMemRefs == 0; }
 
   /// hasOneMemOperand - Return true if this instruction has exactly one
   /// MachineMemOperand.
   bool hasOneMemOperand() const {
-    return MemRefsEnd - MemRefs == 1;
+    return NumMemRefs == 1;
   }
+
+  /// API for querying MachineInstr properties. They are the same as MCInstrDesc
+  /// queries but they are bundle aware.
+
+  enum QueryType {
+    IgnoreBundle,    // Ignore bundles
+    AnyInBundle,     // Return true if any instruction in bundle has property
+    AllInBundle      // Return true if all instructions in bundle have property
+  };
+
+  /// hasProperty - Return true if the instruction (or in the case of a bundle,
+  /// the instructions inside the bundle) has the specified property.
+  /// The first argument is the property being queried.
+  /// The second argument indicates whether the query should look inside
+  /// instruction bundles.
+  bool hasProperty(unsigned MCFlag, QueryType Type = AnyInBundle) const {
+    // Inline the fast path.
+    if (Type == IgnoreBundle || !isBundle())
+      return getDesc().getFlags() & (1 << MCFlag);
+
+    // If we have a bundle, take the slow path.
+    return hasPropertyInBundle(1 << MCFlag, Type);
+  }
+
+  /// isVariadic - Return true if this instruction can have a variable number of
+  /// operands.  In this case, the variable operands will be after the normal
+  /// operands but before the implicit definitions and uses (if any are
+  /// present).
+  bool isVariadic(QueryType Type = IgnoreBundle) const {
+    return hasProperty(MCID::Variadic, Type);
+  }
+
+  /// hasOptionalDef - Set if this instruction has an optional definition, e.g.
+  /// ARM instructions which can set condition code if 's' bit is set.
+  bool hasOptionalDef(QueryType Type = IgnoreBundle) const {
+    return hasProperty(MCID::HasOptionalDef, Type);
+  }
+
+  /// isPseudo - Return true if this is a pseudo instruction that doesn't
+  /// correspond to a real machine instruction.
+  ///
+  bool isPseudo(QueryType Type = IgnoreBundle) const {
+    return hasProperty(MCID::Pseudo, Type);
+  }
+
+  bool isReturn(QueryType Type = AnyInBundle) const {
+    return hasProperty(MCID::Return, Type);
+  }
+
+  bool isCall(QueryType Type = AnyInBundle) const {
+    return hasProperty(MCID::Call, Type);
+  }
+
+  /// isBarrier - Returns true if the specified instruction stops control flow
+  /// from executing the instruction immediately following it.  Examples include
+  /// unconditional branches and return instructions.
+  bool isBarrier(QueryType Type = AnyInBundle) const {
+    return hasProperty(MCID::Barrier, Type);
+  }
+
+  /// isTerminator - Returns true if this instruction part of the terminator for
+  /// a basic block.  Typically this is things like return and branch
+  /// instructions.
+  ///
+  /// Various passes use this to insert code into the bottom of a basic block,
+  /// but before control flow occurs.
+  bool isTerminator(QueryType Type = AnyInBundle) const {
+    return hasProperty(MCID::Terminator, Type);
+  }
+
+  /// isBranch - Returns true if this is a conditional, unconditional, or
+  /// indirect branch.  Predicates below can be used to discriminate between
+  /// these cases, and the TargetInstrInfo::AnalyzeBranch method can be used to
+  /// get more information.
+  bool isBranch(QueryType Type = AnyInBundle) const {
+    return hasProperty(MCID::Branch, Type);
+  }
+
+  /// isIndirectBranch - Return true if this is an indirect branch, such as a
+  /// branch through a register.
+  bool isIndirectBranch(QueryType Type = AnyInBundle) const {
+    return hasProperty(MCID::IndirectBranch, Type);
+  }
+
+  /// isConditionalBranch - Return true if this is a branch which may fall
+  /// through to the next instruction or may transfer control flow to some other
+  /// block.  The TargetInstrInfo::AnalyzeBranch method can be used to get more
+  /// information about this branch.
+  bool isConditionalBranch(QueryType Type = AnyInBundle) const {
+    return isBranch(Type) & !isBarrier(Type) & !isIndirectBranch(Type);
+  }
+
+  /// isUnconditionalBranch - Return true if this is a branch which always
+  /// transfers control flow to some other block.  The
+  /// TargetInstrInfo::AnalyzeBranch method can be used to get more information
+  /// about this branch.
+  bool isUnconditionalBranch(QueryType Type = AnyInBundle) const {
+    return isBranch(Type) & isBarrier(Type) & !isIndirectBranch(Type);
+  }
+
+  // isPredicable - Return true if this instruction has a predicate operand that
+  // controls execution.  It may be set to 'always', or may be set to other
+  /// values.   There are various methods in TargetInstrInfo that can be used to
+  /// control and modify the predicate in this instruction.
+  bool isPredicable(QueryType Type = AllInBundle) const {
+    // If it's a bundle than all bundled instructions must be predicable for this
+    // to return true.
+    return hasProperty(MCID::Predicable, Type);
+  }
+
+  /// isCompare - Return true if this instruction is a comparison.
+  bool isCompare(QueryType Type = IgnoreBundle) const {
+    return hasProperty(MCID::Compare, Type);
+  }
+
+  /// isMoveImmediate - Return true if this instruction is a move immediate
+  /// (including conditional moves) instruction.
+  bool isMoveImmediate(QueryType Type = IgnoreBundle) const {
+    return hasProperty(MCID::MoveImm, Type);
+  }
+
+  /// isBitcast - Return true if this instruction is a bitcast instruction.
+  ///
+  bool isBitcast(QueryType Type = IgnoreBundle) const {
+    return hasProperty(MCID::Bitcast, Type);
+  }
+
+  /// isNotDuplicable - Return true if this instruction cannot be safely
+  /// duplicated.  For example, if the instruction has a unique labels attached
+  /// to it, duplicating it would cause multiple definition errors.
+  bool isNotDuplicable(QueryType Type = AnyInBundle) const {
+    return hasProperty(MCID::NotDuplicable, Type);
+  }
+
+  /// hasDelaySlot - Returns true if the specified instruction has a delay slot
+  /// which must be filled by the code generator.
+  bool hasDelaySlot(QueryType Type = AnyInBundle) const {
+    return hasProperty(MCID::DelaySlot, Type);
+  }
+
+  /// canFoldAsLoad - Return true for instructions that can be folded as
+  /// memory operands in other instructions. The most common use for this
+  /// is instructions that are simple loads from memory that don't modify
+  /// the loaded value in any way, but it can also be used for instructions
+  /// that can be expressed as constant-pool loads, such as V_SETALLONES
+  /// on x86, to allow them to be folded when it is beneficial.
+  /// This should only be set on instructions that return a value in their
+  /// only virtual register definition.
+  bool canFoldAsLoad(QueryType Type = IgnoreBundle) const {
+    return hasProperty(MCID::FoldableAsLoad, Type);
+  }
+
+  //===--------------------------------------------------------------------===//
+  // Side Effect Analysis
+  //===--------------------------------------------------------------------===//
+
+  /// mayLoad - Return true if this instruction could possibly read memory.
+  /// Instructions with this flag set are not necessarily simple load
+  /// instructions, they may load a value and modify it, for example.
+  bool mayLoad(QueryType Type = AnyInBundle) const {
+    return hasProperty(MCID::MayLoad, Type);
+  }
+
+
+  /// mayStore - Return true if this instruction could possibly modify memory.
+  /// Instructions with this flag set are not necessarily simple store
+  /// instructions, they may store a modified value based on their operands, or
+  /// may not actually modify anything, for example.
+  bool mayStore(QueryType Type = AnyInBundle) const {
+    return hasProperty(MCID::MayStore, Type);
+  }
+
+  //===--------------------------------------------------------------------===//
+  // Flags that indicate whether an instruction can be modified by a method.
+  //===--------------------------------------------------------------------===//
+
+  /// isCommutable - Return true if this may be a 2- or 3-address
+  /// instruction (of the form "X = op Y, Z, ..."), which produces the same
+  /// result if Y and Z are exchanged.  If this flag is set, then the
+  /// TargetInstrInfo::commuteInstruction method may be used to hack on the
+  /// instruction.
+  ///
+  /// Note that this flag may be set on instructions that are only commutable
+  /// sometimes.  In these cases, the call to commuteInstruction will fail.
+  /// Also note that some instructions require non-trivial modification to
+  /// commute them.
+  bool isCommutable(QueryType Type = IgnoreBundle) const {
+    return hasProperty(MCID::Commutable, Type);
+  }
+
+  /// isConvertibleTo3Addr - Return true if this is a 2-address instruction
+  /// which can be changed into a 3-address instruction if needed.  Doing this
+  /// transformation can be profitable in the register allocator, because it
+  /// means that the instruction can use a 2-address form if possible, but
+  /// degrade into a less efficient form if the source and dest register cannot
+  /// be assigned to the same register.  For example, this allows the x86
+  /// backend to turn a "shl reg, 3" instruction into an LEA instruction, which
+  /// is the same speed as the shift but has bigger code size.
+  ///
+  /// If this returns true, then the target must implement the
+  /// TargetInstrInfo::convertToThreeAddress method for this instruction, which
+  /// is allowed to fail if the transformation isn't valid for this specific
+  /// instruction (e.g. shl reg, 4 on x86).
+  ///
+  bool isConvertibleTo3Addr(QueryType Type = IgnoreBundle) const {
+    return hasProperty(MCID::ConvertibleTo3Addr, Type);
+  }
+
+  /// usesCustomInsertionHook - Return true if this instruction requires
+  /// custom insertion support when the DAG scheduler is inserting it into a
+  /// machine basic block.  If this is true for the instruction, it basically
+  /// means that it is a pseudo instruction used at SelectionDAG time that is
+  /// expanded out into magic code by the target when MachineInstrs are formed.
+  ///
+  /// If this is true, the TargetLoweringInfo::InsertAtEndOfBasicBlock method
+  /// is used to insert this into the MachineBasicBlock.
+  bool usesCustomInsertionHook(QueryType Type = IgnoreBundle) const {
+    return hasProperty(MCID::UsesCustomInserter, Type);
+  }
+
+  /// hasPostISelHook - Return true if this instruction requires *adjustment*
+  /// after instruction selection by calling a target hook. For example, this
+  /// can be used to fill in ARM 's' optional operand depending on whether
+  /// the conditional flag register is used.
+  bool hasPostISelHook(QueryType Type = IgnoreBundle) const {
+    return hasProperty(MCID::HasPostISelHook, Type);
+  }
+
+  /// isRematerializable - Returns true if this instruction is a candidate for
+  /// remat.  This flag is deprecated, please don't use it anymore.  If this
+  /// flag is set, the isReallyTriviallyReMaterializable() method is called to
+  /// verify the instruction is really rematable.
+  bool isRematerializable(QueryType Type = AllInBundle) const {
+    // It's only possible to re-mat a bundle if all bundled instructions are
+    // re-materializable.
+    return hasProperty(MCID::Rematerializable, Type);
+  }
+
+  /// isAsCheapAsAMove - Returns true if this instruction has the same cost (or
+  /// less) than a move instruction. This is useful during certain types of
+  /// optimizations (e.g., remat during two-address conversion or machine licm)
+  /// where we would like to remat or hoist the instruction, but not if it costs
+  /// more than moving the instruction into the appropriate register. Note, we
+  /// are not marking copies from and to the same register class with this flag.
+  bool isAsCheapAsAMove(QueryType Type = AllInBundle) const {
+    // Only returns true for a bundle if all bundled instructions are cheap.
+    // FIXME: This probably requires a target hook.
+    return hasProperty(MCID::CheapAsAMove, Type);
+  }
+
+  /// hasExtraSrcRegAllocReq - Returns true if this instruction source operands
+  /// have special register allocation requirements that are not captured by the
+  /// operand register classes. e.g. ARM::STRD's two source registers must be an
+  /// even / odd pair, ARM::STM registers have to be in ascending order.
+  /// Post-register allocation passes should not attempt to change allocations
+  /// for sources of instructions with this flag.
+  bool hasExtraSrcRegAllocReq(QueryType Type = AnyInBundle) const {
+    return hasProperty(MCID::ExtraSrcRegAllocReq, Type);
+  }
+
+  /// hasExtraDefRegAllocReq - Returns true if this instruction def operands
+  /// have special register allocation requirements that are not captured by the
+  /// operand register classes. e.g. ARM::LDRD's two def registers must be an
+  /// even / odd pair, ARM::LDM registers have to be in ascending order.
+  /// Post-register allocation passes should not attempt to change allocations
+  /// for definitions of instructions with this flag.
+  bool hasExtraDefRegAllocReq(QueryType Type = AnyInBundle) const {
+    return hasProperty(MCID::ExtraDefRegAllocReq, Type);
+  }
+
 
   enum MICheckType {
     CheckDefs,      // Check all operands for equality
@@ -281,6 +613,9 @@ public:
   bool isRegSequence() const {
     return getOpcode() == TargetOpcode::REG_SEQUENCE;
   }
+  bool isBundle() const {
+    return getOpcode() == TargetOpcode::BUNDLE;
+  }
   bool isCopy() const {
     return getOpcode() == TargetOpcode::COPY;
   }
@@ -299,6 +634,9 @@ public:
     return isCopy() && getOperand(0).getReg() == getOperand(1).getReg() &&
       getOperand(0).getSubReg() == getOperand(1).getSubReg();
   }
+
+  /// getBundleSize - Return the number of instructions inside the MI bundle.
+  unsigned getBundleSize() const;
 
   /// readsRegister - Return true if the MachineInstr reads the specified
   /// register. If TargetRegisterInfo is passed, then it also checks if there
@@ -372,6 +710,7 @@ public:
   /// that are not dead are skipped. If Overlap is true, then it also looks for
   /// defs that merely overlap the specified register. If TargetRegisterInfo is
   /// non-null, then it also checks if there is a def of a super-register.
+  /// This may also return a register mask operand when Overlap is true.
   int findRegisterDefOperandIdx(unsigned Reg,
                                 bool isDead = false, bool Overlap = false,
                                 const TargetRegisterInfo *TRI = NULL) const;
@@ -416,7 +755,7 @@ public:
   /// isRegTiedToUseOperand - Given the index of a register def operand,
   /// check if the register def is tied to a source operand, due to either
   /// two-address elimination or inline assembly constraints. Returns the
-  /// first tied use operand index by reference is UseOpIdx is not null.
+  /// first tied use operand index by reference if UseOpIdx is not null.
   bool isRegTiedToUseOperand(unsigned DefOpIdx, unsigned *UseOpIdx = 0) const;
 
   /// isRegTiedToDefOperand - Return true if the use operand of the specified
@@ -448,6 +787,10 @@ public:
                          const TargetRegisterInfo *RegInfo,
                          bool AddIfNotFound = false);
 
+  /// clearRegisterKills - Clear all kill flags affecting Reg.  If RegInfo is
+  /// provided, this includes super-register kills.
+  void clearRegisterKills(unsigned Reg, const TargetRegisterInfo *RegInfo);
+
   /// addRegisterDead - We have determined MI defined a register without a use.
   /// Look for the operand that defines it and mark it as IsDead. If
   /// AddIfNotFound is true, add a implicit operand if it's not found. Returns
@@ -462,7 +805,10 @@ public:
 
   /// setPhysRegsDeadExcept - Mark every physreg used by this instruction as
   /// dead except those in the UsedRegs list.
-  void setPhysRegsDeadExcept(const SmallVectorImpl<unsigned> &UsedRegs,
+  ///
+  /// On instructions with register mask operands, also add implicit-def
+  /// operands for all registers in UsedRegs.
+  void setPhysRegsDeadExcept(ArrayRef<unsigned> UsedRegs,
                              const TargetRegisterInfo &TRI);
 
   /// isSafeToMove - Return true if it is safe to move this instruction. If
@@ -550,7 +896,7 @@ public:
   /// list. This does not transfer ownership.
   void setMemRefs(mmo_iterator NewMemRefs, mmo_iterator NewMemRefsEnd) {
     MemRefs = NewMemRefs;
-    MemRefsEnd = NewMemRefsEnd;
+    NumMemRefs = NewMemRefsEnd - NewMemRefs;
   }
 
 private:
@@ -572,6 +918,10 @@ private:
   /// this instruction from their respective use lists.  This requires that the
   /// operands not be on their use lists yet.
   void AddRegOperandsToUseLists(MachineRegisterInfo &RegInfo);
+
+  /// hasPropertyInBundle - Slow path for hasProperty when we're dealing with a
+  /// bundle.
+  bool hasPropertyInBundle(unsigned Mask, QueryType Type) const;
 };
 
 /// MachineInstrExpressionTrait - Special DenseMapInfo traits to compare

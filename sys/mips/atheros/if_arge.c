@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_device_polling.h"
 #endif
 
+#include "opt_arge.h"
+
 #include <sys/param.h>
 #include <sys/endian.h>
 #include <sys/systm.h>
@@ -72,8 +74,18 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
+#include "opt_arge.h"
+
+#if defined(ARGE_MDIO)
+#include <dev/etherswitch/mdio.h>
+#include <dev/etherswitch/miiproxy.h>
+#include "mdio_if.h"
+#endif
+
+
 MODULE_DEPEND(arge, ether, 1, 1, 1);
 MODULE_DEPEND(arge, miibus, 1, 1, 1);
+MODULE_VERSION(arge, 1);
 
 #include "miibus_if.h"
 
@@ -89,7 +101,16 @@ typedef enum {
 	ARGE_DBG_RX	=	0x00000008,
 	ARGE_DBG_ERR	=	0x00000010,
 	ARGE_DBG_RESET	=	0x00000020,
+	ARGE_DBG_PLL	=	0x00000040,
 } arge_debug_flags;
+
+static const char * arge_miicfg_str[] = {
+	"NONE",
+	"GMII",
+	"MII",
+	"RGMII",
+	"RMII"
+};
 
 #ifdef ARGE_DEBUG
 #define	ARGEDEBUG(_sc, _m, ...) 					\
@@ -110,6 +131,7 @@ static int arge_ioctl(struct ifnet *, u_long, caddr_t);
 static void arge_init(void *);
 static void arge_init_locked(struct arge_softc *);
 static void arge_link_task(void *, int);
+static void arge_update_link_locked(struct arge_softc *sc);
 static void arge_set_pll(struct arge_softc *, int, int);
 static int arge_miibus_readreg(device_t, int, int);
 static void arge_miibus_statchg(device_t);
@@ -118,6 +140,7 @@ static int arge_probe(device_t);
 static void arge_reset_dma(struct arge_softc *);
 static int arge_resume(device_t);
 static int arge_rx_ring_init(struct arge_softc *);
+static void arge_rx_ring_free(struct arge_softc *sc);
 static int arge_tx_ring_init(struct arge_softc *);
 #ifdef DEVICE_POLLING
 static int arge_poll(struct ifnet *, enum poll_cmd, int);
@@ -133,6 +156,8 @@ static void arge_tx_locked(struct arge_softc *);
 static void arge_intr(void *);
 static int arge_intr_filter(void *);
 static void arge_tick(void *);
+
+static void arge_hinted_child(device_t bus, const char *dname, int dunit);
 
 /*
  * ifmedia callbacks for multiPHY MAC
@@ -160,6 +185,10 @@ static device_method_t arge_methods[] = {
 	DEVMETHOD(miibus_writereg,	arge_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	arge_miibus_statchg),
 
+	/* bus interface */
+	DEVMETHOD(bus_add_child,	device_add_child_ordered),
+	DEVMETHOD(bus_hinted_child,	arge_hinted_child),
+
 	DEVMETHOD_END
 };
 
@@ -174,8 +203,39 @@ static devclass_t arge_devclass;
 DRIVER_MODULE(arge, nexus, arge_driver, arge_devclass, 0, 0);
 DRIVER_MODULE(miibus, arge, miibus_driver, miibus_devclass, 0, 0);
 
+#if defined(ARGE_MDIO)
+static int argemdio_probe(device_t);
+static int argemdio_attach(device_t);
+static int argemdio_detach(device_t);
+
 /*
- * RedBoot passes MAC address to entry point as environment 
+ * Declare an additional, separate driver for accessing the MDIO bus.
+ */
+static device_method_t argemdio_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		argemdio_probe),
+	DEVMETHOD(device_attach,	argemdio_attach),
+	DEVMETHOD(device_detach,	argemdio_detach),
+
+	/* bus interface */
+	DEVMETHOD(bus_add_child,	device_add_child_ordered),
+	
+	/* MDIO access */
+	DEVMETHOD(mdio_readreg,		arge_miibus_readreg),
+	DEVMETHOD(mdio_writereg,	arge_miibus_writereg),
+};
+
+DEFINE_CLASS_0(argemdio, argemdio_driver, argemdio_methods,
+    sizeof(struct arge_softc));
+static devclass_t argemdio_devclass;
+
+DRIVER_MODULE(miiproxy, arge, miiproxy_driver, miiproxy_devclass, 0, 0);
+DRIVER_MODULE(argemdio, nexus, argemdio_driver, argemdio_devclass, 0, 0);
+DRIVER_MODULE(mdio, argemdio, mdio_driver, mdio_devclass, 0, 0);
+#endif
+
+/*
+ * RedBoot passes MAC address to entry point as environment
  * variable. platfrom_start parses it and stores in this variable
  */
 extern uint32_t ar711_base_mac[ETHER_ADDR_LEN];
@@ -184,9 +244,8 @@ static struct mtx miibus_mtx;
 
 MTX_SYSINIT(miibus_mtx, &miibus_mtx, "arge mii lock", MTX_DEF);
 
-
 /*
- * Flushes all 
+ * Flushes all
  */
 static void
 arge_flush_ddr(struct arge_softc *sc)
@@ -195,7 +254,7 @@ arge_flush_ddr(struct arge_softc *sc)
 	ar71xx_device_flush_ddr_ge(sc->arge_mac_unit);
 }
 
-static int 
+static int
 arge_probe(device_t dev)
 {
 
@@ -221,8 +280,8 @@ arge_attach_sysctl(device_t dev)
 		"number of TX aligned packets");
 
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"tx_pkts_unaligned", CTLFLAG_RW, &sc->stats.tx_pkts_unaligned, 0,
-		"number of TX unaligned packets");
+		"tx_pkts_unaligned", CTLFLAG_RW, &sc->stats.tx_pkts_unaligned,
+		0, "number of TX unaligned packets");
 
 #ifdef	ARGE_DEBUG
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "tx_prod",
@@ -234,17 +293,84 @@ arge_attach_sysctl(device_t dev)
 #endif
 }
 
+static void
+arge_reset_mac(struct arge_softc *sc)
+{
+	uint32_t reg;
+
+	/* Step 1. Soft-reset MAC */
+	ARGE_SET_BITS(sc, AR71XX_MAC_CFG1, MAC_CFG1_SOFT_RESET);
+	DELAY(20);
+
+	/* Step 2. Punt the MAC core from the central reset register */
+	ar71xx_device_stop(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC :
+	    RST_RESET_GE1_MAC);
+	DELAY(100);
+	ar71xx_device_start(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC :
+	    RST_RESET_GE1_MAC);
+
+	/* Step 3. Reconfigure MAC block */
+	ARGE_WRITE(sc, AR71XX_MAC_CFG1,
+		MAC_CFG1_SYNC_RX | MAC_CFG1_RX_ENABLE |
+		MAC_CFG1_SYNC_TX | MAC_CFG1_TX_ENABLE);
+
+	reg = ARGE_READ(sc, AR71XX_MAC_CFG2);
+	reg |= MAC_CFG2_ENABLE_PADCRC | MAC_CFG2_LENGTH_FIELD ;
+	ARGE_WRITE(sc, AR71XX_MAC_CFG2, reg);
+
+	ARGE_WRITE(sc, AR71XX_MAC_MAX_FRAME_LEN, 1536);
+}
+
+static void
+arge_reset_miibus(struct arge_softc *sc)
+{
+
+	/* Reset MII bus */
+	ARGE_WRITE(sc, AR71XX_MAC_MII_CFG, MAC_MII_CFG_RESET);
+	DELAY(100);
+	ARGE_WRITE(sc, AR71XX_MAC_MII_CFG, MAC_MII_CFG_CLOCK_DIV_28);
+	DELAY(100);
+}
+
+static void
+arge_fetch_pll_config(struct arge_softc *sc)
+{
+	long int val;
+
+	if (resource_long_value(device_get_name(sc->arge_dev),
+	    device_get_unit(sc->arge_dev),
+	    "pll_10", &val) == 0) {
+		sc->arge_pllcfg.pll_10 = val;
+		device_printf(sc->arge_dev, "%s: pll_10 = 0x%x\n",
+		    __func__, (int) val);
+	}
+	if (resource_long_value(device_get_name(sc->arge_dev),
+	    device_get_unit(sc->arge_dev),
+	    "pll_100", &val) == 0) {
+		sc->arge_pllcfg.pll_100 = val;
+		device_printf(sc->arge_dev, "%s: pll_100 = 0x%x\n",
+		    __func__, (int) val);
+	}
+	if (resource_long_value(device_get_name(sc->arge_dev),
+	    device_get_unit(sc->arge_dev),
+	    "pll_1000", &val) == 0) {
+		sc->arge_pllcfg.pll_1000 = val;
+		device_printf(sc->arge_dev, "%s: pll_1000 = 0x%x\n",
+		    __func__, (int) val);
+	}
+}
+
 static int
 arge_attach(device_t dev)
 {
-	uint8_t			eaddr[ETHER_ADDR_LEN];
 	struct ifnet		*ifp;
 	struct arge_softc	*sc;
-	int			error = 0, rid, phymask;
-	uint32_t		reg, rnd;
-	int			is_base_mac_empty, i, phys_total;
+	int			error = 0, rid;
+	uint32_t		rnd;
+	int			is_base_mac_empty, i;
 	uint32_t		hint;
 	long			eeprom_mac_addr = 0;
+	int			miicfg = 0;
 
 	sc = device_get_softc(dev);
 	sc->arge_dev = dev;
@@ -260,42 +386,59 @@ arge_attach(device_t dev)
 	 * in CPU address space.
 	 */
 	if (sc->arge_mac_unit == 0 &&
-	    resource_long_value(device_get_name(dev), device_get_unit(dev), 
+	    resource_long_value(device_get_name(dev), device_get_unit(dev),
 	    "eeprommac", &eeprom_mac_addr) == 0) {
 		int i;
-		const char *mac = (const char *) MIPS_PHYS_TO_KSEG1(eeprom_mac_addr);
+		const char *mac =
+		    (const char *) MIPS_PHYS_TO_KSEG1(eeprom_mac_addr);
 		device_printf(dev, "Overriding MAC from EEPROM\n");
 		for (i = 0; i < 6; i++) {
 			ar711_base_mac[i] = mac[i];
 		}
 	}
 
-	KASSERT(((sc->arge_mac_unit == 0) || (sc->arge_mac_unit == 1)), 
+	KASSERT(((sc->arge_mac_unit == 0) || (sc->arge_mac_unit == 1)),
 	    ("if_arge: Only MAC0 and MAC1 supported"));
+
+	/*
+	 * Fetch the PLL configuration.
+	 */
+	arge_fetch_pll_config(sc);
+
+	/*
+	 * Get the MII configuration, if applicable.
+	 */
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "miimode", &miicfg) == 0) {
+		/* XXX bounds check? */
+		device_printf(dev, "%s: overriding MII mode to '%s'\n",
+		    __func__, arge_miicfg_str[miicfg]);
+		sc->arge_miicfg = miicfg;
+	}
 
 	/*
 	 *  Get which PHY of 5 available we should use for this unit
 	 */
 	if (resource_int_value(device_get_name(dev), device_get_unit(dev), 
-	    "phymask", &phymask) != 0) {
+	    "phymask", &sc->arge_phymask) != 0) {
 		/*
-		 * Use port 4 (WAN) for GE0. For any other port use 
-		 * its PHY the same as its unit number 
+		 * Use port 4 (WAN) for GE0. For any other port use
+		 * its PHY the same as its unit number
 		 */
 		if (sc->arge_mac_unit == 0)
-			phymask = (1 << 4);
+			sc->arge_phymask = (1 << 4);
 		else
 			/* Use all phys up to 4 */
-			phymask = (1 << 4) - 1;
+			sc->arge_phymask = (1 << 4) - 1;
 
-		device_printf(dev, "No PHY specified, using mask %d\n", phymask);
+		device_printf(dev, "No PHY specified, using mask %d\n", sc->arge_phymask);
 	}
 
 	/*
-	 *  Get default media & duplex mode, by default its Base100T 
+	 *  Get default media & duplex mode, by default its Base100T
 	 *  and full duplex
 	 */
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev), 
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "media", &hint) != 0)
 		hint = 0;
 
@@ -304,7 +447,7 @@ arge_attach(device_t dev)
 	else
 		sc->arge_media_type = IFM_100_TX;
 
-	if (resource_int_value(device_get_name(dev), device_get_unit(dev), 
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
 	    "fduplex", &hint) != 0)
 		hint = 1;
 
@@ -312,8 +455,6 @@ arge_attach(device_t dev)
 		sc->arge_duplex_mode = IFM_FDX;
 	else
 		sc->arge_duplex_mode = 0;
-
-	sc->arge_phymask = phymask;
 
 	mtx_init(&sc->arge_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
@@ -323,7 +464,7 @@ arge_attach(device_t dev)
 	/* Map control/status registers. */
 	sc->arge_rid = 0;
 	sc->arge_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, 
-	    &sc->arge_rid, RF_ACTIVE);
+	    &sc->arge_rid, RF_ACTIVE | RF_SHAREABLE);
 
 	if (sc->arge_res == NULL) {
 		device_printf(dev, "couldn't map memory\n");
@@ -333,7 +474,7 @@ arge_attach(device_t dev)
 
 	/* Allocate interrupts */
 	rid = 0;
-	sc->arge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid, 
+	sc->arge_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &rid,
 	    RF_SHAREABLE | RF_ACTIVE);
 
 	if (sc->arge_irq == NULL) {
@@ -371,8 +512,8 @@ arge_attach(device_t dev)
 
 	is_base_mac_empty = 1;
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
-		eaddr[i] = ar711_base_mac[i] & 0xff;
-		if (eaddr[i] != 0)
+		sc->arge_eaddr[i] = ar711_base_mac[i] & 0xff;
+		if (sc->arge_eaddr[i] != 0)
 			is_base_mac_empty = 0;
 	}
 
@@ -381,63 +522,50 @@ arge_attach(device_t dev)
 		 * No MAC address configured. Generate the random one.
 		 */
 		if  (bootverbose)
-			device_printf(dev, 
+			device_printf(dev,
 			    "Generating random ethernet address.\n");
 
 		rnd = arc4random();
-		eaddr[0] = 'b';
-		eaddr[1] = 's';
-		eaddr[2] = 'd';
-		eaddr[3] = (rnd >> 24) & 0xff;
-		eaddr[4] = (rnd >> 16) & 0xff;
-		eaddr[5] = (rnd >> 8) & 0xff;
+		sc->arge_eaddr[0] = 'b';
+		sc->arge_eaddr[1] = 's';
+		sc->arge_eaddr[2] = 'd';
+		sc->arge_eaddr[3] = (rnd >> 24) & 0xff;
+		sc->arge_eaddr[4] = (rnd >> 16) & 0xff;
+		sc->arge_eaddr[5] = (rnd >> 8) & 0xff;
 	}
-
 	if (sc->arge_mac_unit != 0)
-		eaddr[5] +=  sc->arge_mac_unit;
+		sc->arge_eaddr[5] +=  sc->arge_mac_unit;
 
 	if (arge_dma_alloc(sc) != 0) {
 		error = ENXIO;
 		goto fail;
 	}
 
-	/* Initialize the MAC block */
-	
-	/* Step 1. Soft-reset MAC */
-	ARGE_SET_BITS(sc, AR71XX_MAC_CFG1, MAC_CFG1_SOFT_RESET);
-	DELAY(20);
-
-	/* Step 2. Punt the MAC core from the central reset register */
-	ar71xx_device_stop(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC : RST_RESET_GE1_MAC);
-	DELAY(100);
-	ar71xx_device_start(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC : RST_RESET_GE1_MAC);
-
-	/* Step 3. Reconfigure MAC block */
-	ARGE_WRITE(sc, AR71XX_MAC_CFG1, 
-		MAC_CFG1_SYNC_RX | MAC_CFG1_RX_ENABLE |
-		MAC_CFG1_SYNC_TX | MAC_CFG1_TX_ENABLE);
-
-	reg = ARGE_READ(sc, AR71XX_MAC_CFG2);
-	reg |= MAC_CFG2_ENABLE_PADCRC | MAC_CFG2_LENGTH_FIELD ;
-	ARGE_WRITE(sc, AR71XX_MAC_CFG2, reg);
-
-	ARGE_WRITE(sc, AR71XX_MAC_MAX_FRAME_LEN, 1536);
-
-	/* Reset MII bus */
-	ARGE_WRITE(sc, AR71XX_MAC_MII_CFG, MAC_MII_CFG_RESET);
-	DELAY(100);
-	ARGE_WRITE(sc, AR71XX_MAC_MII_CFG, MAC_MII_CFG_CLOCK_DIV_28);
-	DELAY(100);
-
-	/* 
-	 * Set all Ethernet address registers to the same initial values
-	 * set all four addresses to 66-88-aa-cc-dd-ee 
+	/*
+	 * Don't do this for the MDIO bus case - it's already done
+	 * as part of the MDIO bus attachment.
 	 */
-	ARGE_WRITE(sc, AR71XX_MAC_STA_ADDR1, 
-	    (eaddr[2] << 24) | (eaddr[3] << 16) | (eaddr[4] << 8)  | eaddr[5]);
-	ARGE_WRITE(sc, AR71XX_MAC_STA_ADDR2, (eaddr[0] << 8) | eaddr[1]);
+#if !defined(ARGE_MDIO)
+	/* Initialize the MAC block */
+	arge_reset_mac(sc);
+	arge_reset_miibus(sc);
+#endif
 
-	ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG0, 
+	/* Configure MII mode, just for convienence */
+	if (sc->arge_miicfg != 0)
+		ar71xx_device_set_mii_if(sc->arge_mac_unit, sc->arge_miicfg);
+
+	/*
+	 * Set all Ethernet address registers to the same initial values
+	 * set all four addresses to 66-88-aa-cc-dd-ee
+	 */
+	ARGE_WRITE(sc, AR71XX_MAC_STA_ADDR1, (sc->arge_eaddr[2] << 24)
+	    | (sc->arge_eaddr[3] << 16) | (sc->arge_eaddr[4] << 8)
+	    | sc->arge_eaddr[5]);
+	ARGE_WRITE(sc, AR71XX_MAC_STA_ADDR2, (sc->arge_eaddr[0] << 8)
+	    | sc->arge_eaddr[1]);
+
+	ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG0,
 	    FIFO_CFG0_ALL << FIFO_CFG0_ENABLE_SHIFT);
 
 	switch (ar71xx_soc) {
@@ -452,41 +580,40 @@ arge_attach(device_t dev)
 			ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG2, 0x00001fff);
 	}
 
-	ARGE_WRITE(sc, AR71XX_MAC_FIFO_RX_FILTMATCH, 
+	ARGE_WRITE(sc, AR71XX_MAC_FIFO_RX_FILTMATCH,
 	    FIFO_RX_FILTMATCH_DEFAULT);
 
-	ARGE_WRITE(sc, AR71XX_MAC_FIFO_RX_FILTMASK, 
+	ARGE_WRITE(sc, AR71XX_MAC_FIFO_RX_FILTMASK,
 	    FIFO_RX_FILTMASK_DEFAULT);
 
-	/* 
-	 * Check if we have single-PHY MAC or multi-PHY
-	 */
-	phys_total = 0;
-	for (i = 0; i < ARGE_NPHY; i++)
-		if (phymask & (1 << i))
-			phys_total ++;
+#if defined(ARGE_MDIO)
+	sc->arge_miiproxy = mii_attach_proxy(sc->arge_dev);
+#endif
 
-	if (phys_total == 0) {
-		error = EINVAL;
-		goto fail;
-	}
-
-	if (phys_total == 1) {
-		/* Do MII setup. */
-		error = mii_attach(dev, &sc->arge_miibus, ifp,
-		    arge_ifmedia_upd, arge_ifmedia_sts, BMSR_DEFCAPMASK,
-		    MII_PHY_ANY, MII_OFFSET_ANY, 0);
-		if (error != 0) {
-			device_printf(dev, "attaching PHYs failed\n");
-			goto fail;
+	device_printf(sc->arge_dev, "finishing attachment, phymask %04x"
+	    ", proxy %s \n", sc->arge_phymask, sc->arge_miiproxy == NULL ?
+	    "null" : "set");
+	for (i = 0; i < ARGE_NPHY; i++) {
+		if (((1 << i) & sc->arge_phymask) != 0) {
+			error = mii_attach(sc->arge_miiproxy != NULL ?
+			    sc->arge_miiproxy : sc->arge_dev,
+			    &sc->arge_miibus, sc->arge_ifp,
+			    arge_ifmedia_upd, arge_ifmedia_sts,
+			    BMSR_DEFCAPMASK, i, MII_OFFSET_ANY, 0);
+			if (error != 0) {
+				device_printf(sc->arge_dev, "unable to attach"
+				    " PHY %d: %d\n", i, error);
+				goto fail;
+			}
 		}
 	}
-	else {
+	if (sc->arge_miibus == NULL) {
+		/* no PHY, so use hard-coded values */
 		ifmedia_init(&sc->arge_ifmedia, 0, 
 		    arge_multiphy_mediachange,
 		    arge_multiphy_mediastatus);
 		ifmedia_add(&sc->arge_ifmedia,
-		    IFM_ETHER | sc->arge_media_type  | sc->arge_duplex_mode, 
+		    IFM_ETHER | sc->arge_media_type  | sc->arge_duplex_mode,
 		    0, NULL);
 		ifmedia_set(&sc->arge_ifmedia,
 		    IFM_ETHER | sc->arge_media_type  | sc->arge_duplex_mode);
@@ -494,20 +621,20 @@ arge_attach(device_t dev)
 	}
 
 	/* Call MI attach routine. */
-	ether_ifattach(ifp, eaddr);
+	ether_ifattach(sc->arge_ifp, sc->arge_eaddr);
 
 	/* Hook interrupt last to avoid having to lock softc */
-	error = bus_setup_intr(dev, sc->arge_irq, INTR_TYPE_NET | INTR_MPSAFE,
+	error = bus_setup_intr(sc->arge_dev, sc->arge_irq, INTR_TYPE_NET | INTR_MPSAFE,
 	    arge_intr_filter, arge_intr, sc, &sc->arge_intrhand);
 
 	if (error) {
-		device_printf(dev, "couldn't set up irq\n");
-		ether_ifdetach(ifp);
+		device_printf(sc->arge_dev, "couldn't set up irq\n");
+		ether_ifdetach(sc->arge_ifp);
 		goto fail;
 	}
 
 	/* setup sysctl variables */
-	arge_attach_sysctl(dev);
+	arge_attach_sysctl(sc->arge_dev);
 
 fail:
 	if (error) 
@@ -522,7 +649,8 @@ arge_detach(device_t dev)
 	struct arge_softc	*sc = device_get_softc(dev);
 	struct ifnet		*ifp = sc->arge_ifp;
 
-	KASSERT(mtx_initialized(&sc->arge_mtx), ("arge mutex not initialized"));
+	KASSERT(mtx_initialized(&sc->arge_mtx),
+	    ("arge mutex not initialized"));
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
@@ -542,13 +670,16 @@ arge_detach(device_t dev)
 	if (sc->arge_miibus)
 		device_delete_child(dev, sc->arge_miibus);
 
+	if (sc->arge_miiproxy)
+		device_delete_child(dev, sc->arge_miiproxy);
+
 	bus_generic_detach(dev);
 
 	if (sc->arge_intrhand)
 		bus_teardown_intr(dev, sc->arge_irq, sc->arge_intrhand);
 
 	if (sc->arge_res)
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->arge_rid, 
+		bus_release_resource(dev, SYS_RES_MEMORY, sc->arge_rid,
 		    sc->arge_res);
 
 	if (ifp)
@@ -592,24 +723,28 @@ arge_shutdown(device_t dev)
 	return (0);
 }
 
+static void
+arge_hinted_child(device_t bus, const char *dname, int dunit)
+{
+	BUS_ADD_CHILD(bus, 0, dname, dunit);
+	device_printf(bus, "hinted child %s%d\n", dname, dunit);
+}
+
 static int
 arge_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct arge_softc * sc = device_get_softc(dev);
 	int i, result;
-	uint32_t addr = (phy << MAC_MII_PHY_ADDR_SHIFT) 
+	uint32_t addr = (phy << MAC_MII_PHY_ADDR_SHIFT)
 	    | (reg & MAC_MII_REG_MASK);
 
-	if ((sc->arge_phymask  & (1 << phy)) == 0)
-		return (0);
-
 	mtx_lock(&miibus_mtx);
-	ARGE_MII_WRITE(AR71XX_MAC_MII_CMD, MAC_MII_CMD_WRITE);
-	ARGE_MII_WRITE(AR71XX_MAC_MII_ADDR, addr);
-	ARGE_MII_WRITE(AR71XX_MAC_MII_CMD, MAC_MII_CMD_READ);
+	ARGE_MDIO_WRITE(sc, AR71XX_MAC_MII_CMD, MAC_MII_CMD_WRITE);
+	ARGE_MDIO_WRITE(sc, AR71XX_MAC_MII_ADDR, addr);
+	ARGE_MDIO_WRITE(sc, AR71XX_MAC_MII_CMD, MAC_MII_CMD_READ);
 
 	i = ARGE_MII_TIMEOUT;
-	while ((ARGE_MII_READ(AR71XX_MAC_MII_INDICATOR) & 
+	while ((ARGE_MDIO_READ(sc, AR71XX_MAC_MII_INDICATOR) & 
 	    MAC_MII_INDICATOR_BUSY) && (i--))
 		DELAY(5);
 
@@ -620,12 +755,13 @@ arge_miibus_readreg(device_t dev, int phy, int reg)
 		return (-1);
 	}
 
-	result = ARGE_MII_READ(AR71XX_MAC_MII_STATUS) & MAC_MII_STATUS_MASK;
-	ARGE_MII_WRITE(AR71XX_MAC_MII_CMD, MAC_MII_CMD_WRITE);
+	result = ARGE_MDIO_READ(sc, AR71XX_MAC_MII_STATUS) & MAC_MII_STATUS_MASK;
+	ARGE_MDIO_WRITE(sc, AR71XX_MAC_MII_CMD, MAC_MII_CMD_WRITE);
 	mtx_unlock(&miibus_mtx);
 
-	ARGEDEBUG(sc, ARGE_DBG_MII, "%s: phy=%d, reg=%02x, value[%08x]=%04x\n", __func__, 
-		 phy, reg, addr, result);
+	ARGEDEBUG(sc, ARGE_DBG_MII,
+	    "%s: phy=%d, reg=%02x, value[%08x]=%04x\n",
+	    __func__, phy, reg, addr, result);
 
 	return (result);
 }
@@ -635,22 +771,18 @@ arge_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct arge_softc * sc = device_get_softc(dev);
 	int i;
-	uint32_t addr = 
+	uint32_t addr =
 	    (phy << MAC_MII_PHY_ADDR_SHIFT) | (reg & MAC_MII_REG_MASK);
-
-
-	if ((sc->arge_phymask  & (1 << phy)) == 0)
-		return (-1);
 
 	ARGEDEBUG(sc, ARGE_DBG_MII, "%s: phy=%d, reg=%02x, value=%04x\n", __func__, 
 	    phy, reg, data);
 
 	mtx_lock(&miibus_mtx);
-	ARGE_MII_WRITE(AR71XX_MAC_MII_ADDR, addr);
-	ARGE_MII_WRITE(AR71XX_MAC_MII_CONTROL, data);
+	ARGE_MDIO_WRITE(sc, AR71XX_MAC_MII_ADDR, addr);
+	ARGE_MDIO_WRITE(sc, AR71XX_MAC_MII_CONTROL, data);
 
 	i = ARGE_MII_TIMEOUT;
-	while ((ARGE_MII_READ(AR71XX_MAC_MII_INDICATOR) & 
+	while ((ARGE_MDIO_READ(sc, AR71XX_MAC_MII_INDICATOR) & 
 	    MAC_MII_INDICATOR_BUSY) && (i--))
 		DELAY(5);
 
@@ -668,7 +800,7 @@ arge_miibus_writereg(device_t dev, int phy, int reg, int data)
 static void
 arge_miibus_statchg(device_t dev)
 {
-	struct arge_softc		*sc;
+	struct arge_softc	*sc;
 
 	sc = device_get_softc(dev);
 	taskqueue_enqueue(taskqueue_swi, &sc->arge_link_task);
@@ -678,46 +810,56 @@ static void
 arge_link_task(void *arg, int pending)
 {
 	struct arge_softc	*sc;
+	sc = (struct arge_softc *)arg;
+
+	ARGE_LOCK(sc);
+	arge_update_link_locked(sc);
+	ARGE_UNLOCK(sc);
+}
+
+static void
+arge_update_link_locked(struct arge_softc *sc)
+{
 	struct mii_data		*mii;
 	struct ifnet		*ifp;
 	uint32_t		media, duplex;
 
-	sc = (struct arge_softc *)arg;
-
-	ARGE_LOCK(sc);
 	mii = device_get_softc(sc->arge_miibus);
 	ifp = sc->arge_ifp;
 	if (mii == NULL || ifp == NULL ||
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		ARGE_UNLOCK(sc);
 		return;
 	}
 
 	if (mii->mii_media_status & IFM_ACTIVE) {
 
 		media = IFM_SUBTYPE(mii->mii_media_active);
-
 		if (media != IFM_NONE) {
 			sc->arge_link_status = 1;
 			duplex = mii->mii_media_active & IFM_GMASK;
+			ARGEDEBUG(sc, ARGE_DBG_MII, "%s: media=%d, duplex=%d\n",
+			    __func__,
+			    media,
+			    duplex);
 			arge_set_pll(sc, media, duplex);
 		}
-	} else
+	} else {
 		sc->arge_link_status = 0;
-
-	ARGE_UNLOCK(sc);
+	}
 }
 
 static void
 arge_set_pll(struct arge_softc *sc, int media, int duplex)
 {
 	uint32_t		cfg, ifcontrol, rx_filtmask;
-	uint32_t		fifo_tx;
+	uint32_t		fifo_tx, pll;
 	int if_speed;
 
+	ARGEDEBUG(sc, ARGE_DBG_PLL, "set_pll(%04x, %s)\n", media,
+	    duplex == IFM_FDX ? "full" : "half");
 	cfg = ARGE_READ(sc, AR71XX_MAC_CFG2);
-	cfg &= ~(MAC_CFG2_IFACE_MODE_1000 
-	    | MAC_CFG2_IFACE_MODE_10_100 
+	cfg &= ~(MAC_CFG2_IFACE_MODE_1000
+	    | MAC_CFG2_IFACE_MODE_10_100
 	    | MAC_CFG2_FULL_DUPLEX);
 
 	if (duplex == IFM_FDX)
@@ -725,7 +867,7 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 
 	ifcontrol = ARGE_READ(sc, AR71XX_MAC_IFCONTROL);
 	ifcontrol &= ~MAC_IFCONTROL_SPEED;
-	rx_filtmask = 
+	rx_filtmask =
 	    ARGE_READ(sc, AR71XX_MAC_FIFO_RX_FILTMASK);
 	rx_filtmask &= ~FIFO_RX_MASK_BYTE_MODE;
 
@@ -747,9 +889,11 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 		break;
 	default:
 		if_speed = 100;
-		device_printf(sc->arge_dev, 
+		device_printf(sc->arge_dev,
 		    "Unknown media %d\n", media);
 	}
+
+	ARGEDEBUG(sc, ARGE_DBG_PLL, "%s: if_speed=%d\n", __func__, if_speed);
 
 	switch (ar71xx_soc) {
 		case AR71XX_SOC_AR7240:
@@ -767,12 +911,40 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 
 	ARGE_WRITE(sc, AR71XX_MAC_CFG2, cfg);
 	ARGE_WRITE(sc, AR71XX_MAC_IFCONTROL, ifcontrol);
-	ARGE_WRITE(sc, AR71XX_MAC_FIFO_RX_FILTMASK, 
+	ARGE_WRITE(sc, AR71XX_MAC_FIFO_RX_FILTMASK,
 	    rx_filtmask);
 	ARGE_WRITE(sc, AR71XX_MAC_FIFO_TX_THRESHOLD, fifo_tx);
 
-	/* set PLL registers */
-	ar71xx_device_set_pll_ge(sc->arge_mac_unit, if_speed);
+	/* fetch PLL registers */
+	pll = ar71xx_device_get_eth_pll(sc->arge_mac_unit, if_speed);
+	ARGEDEBUG(sc, ARGE_DBG_PLL, "%s: pll=0x%x\n", __func__, pll);
+
+	/* Override if required by platform data */
+	if (if_speed == 10 && sc->arge_pllcfg.pll_10 != 0)
+		pll = sc->arge_pllcfg.pll_10;
+	else if (if_speed == 100 && sc->arge_pllcfg.pll_100 != 0)
+		pll = sc->arge_pllcfg.pll_100;
+	else if (if_speed == 1000 && sc->arge_pllcfg.pll_1000 != 0)
+		pll = sc->arge_pllcfg.pll_1000;
+	ARGEDEBUG(sc, ARGE_DBG_PLL, "%s: final pll=0x%x\n", __func__, pll);
+
+	/* XXX ensure pll != 0 */
+	ar71xx_device_set_pll_ge(sc->arge_mac_unit, if_speed, pll);
+
+	/* set MII registers */
+	/*
+	 * This was introduced to match what the Linux ag71xx ethernet
+	 * driver does.  For the AR71xx case, it does set the port
+	 * MII speed.  However, if this is done, non-gigabit speeds
+	 * are not at all reliable when speaking via RGMII through
+	 * 'bridge' PHY port that's pretending to be a local PHY.
+	 *
+	 * Until that gets root caused, and until an AR71xx + normal
+	 * PHY board is tested, leave this disabled.
+	 */
+#if 0
+	ar71xx_device_set_mii_speed(sc->arge_mac_unit, if_speed);
+#endif
 }
 
 
@@ -789,19 +961,25 @@ arge_reset_dma(struct arge_softc *sc)
 	while(ARGE_READ(sc, AR71XX_DMA_RX_STATUS) & DMA_RX_STATUS_PKT_RECVD)
 		ARGE_WRITE(sc, AR71XX_DMA_RX_STATUS, DMA_RX_STATUS_PKT_RECVD);
 
-	/* 
+	/*
 	 * Clear all possible TX interrupts
 	 */
 	while(ARGE_READ(sc, AR71XX_DMA_TX_STATUS) & DMA_TX_STATUS_PKT_SENT)
 		ARGE_WRITE(sc, AR71XX_DMA_TX_STATUS, DMA_TX_STATUS_PKT_SENT);
 
-	/* 
+	/*
 	 * Now Rx/Tx errors
 	 */
-	ARGE_WRITE(sc, AR71XX_DMA_RX_STATUS, 
+	ARGE_WRITE(sc, AR71XX_DMA_RX_STATUS,
 	    DMA_RX_STATUS_BUS_ERROR | DMA_RX_STATUS_OVERFLOW);
-	ARGE_WRITE(sc, AR71XX_DMA_TX_STATUS, 
+	ARGE_WRITE(sc, AR71XX_DMA_TX_STATUS,
 	    DMA_TX_STATUS_BUS_ERROR | DMA_TX_STATUS_UNDERRUN);
+
+	/*
+	 * Force a DDR flush so any pending data is properly
+	 * flushed to RAM before underlying buffers are freed.
+	 */
+	arge_flush_ddr(sc);
 }
 
 
@@ -839,9 +1017,7 @@ arge_init_locked(struct arge_softc *sc)
 
 	arge_reset_dma(sc);
 
-
 	if (sc->arge_miibus) {
-		sc->arge_link_status = 0;
 		mii = device_get_softc(sc->arge_miibus);
 		mii_mediachg(mii);
 	}
@@ -855,8 +1031,10 @@ arge_init_locked(struct arge_softc *sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	if (sc->arge_miibus)
+	if (sc->arge_miibus) {
 		callout_reset(&sc->arge_stat_callout, hz, arge_tick, sc);
+		arge_update_link_locked(sc);
+	}
 
 	ARGE_WRITE(sc, AR71XX_DMA_TX_DESC, ARGE_TX_RING_ADDR(sc, 0));
 	ARGE_WRITE(sc, AR71XX_DMA_RX_DESC, ARGE_RX_RING_ADDR(sc, 0));
@@ -923,7 +1101,7 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 
 	prod = sc->arge_cdata.arge_tx_prod;
 	txd = &sc->arge_cdata.arge_txdesc[prod];
-	error = bus_dmamap_load_mbuf_sg(sc->arge_cdata.arge_tx_tag, 
+	error = bus_dmamap_load_mbuf_sg(sc->arge_cdata.arge_tx_tag,
 	    txd->tx_dmamap, *m_head, txsegs, &nsegs, BUS_DMA_NOWAIT);
 
 	if (error == EFBIG) {
@@ -947,7 +1125,7 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	bus_dmamap_sync(sc->arge_cdata.arge_tx_tag, txd->tx_dmamap,
 	    BUS_DMASYNC_PREWRITE);
 
-	/* 
+	/*
 	 * Make a list of descriptors for this packet. DMA controller will
 	 * walk through it while arge_link is not zero.
 	 */
@@ -961,7 +1139,7 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 			panic("TX packet address unaligned\n");
 
 		desc->packet_addr = txsegs[i].ds_addr;
-		
+
 		/* link with previous descriptor */
 		if (prev_desc)
 			prev_desc->packet_ctrl |= ARGE_DESC_MORE;
@@ -980,7 +1158,8 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	/* Start transmitting */
-	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: setting DMA_TX_CONTROL_EN\n", __func__);
+	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: setting DMA_TX_CONTROL_EN\n",
+	    __func__);
 	ARGE_WRITE(sc, AR71XX_DMA_TX_CONTROL, DMA_TX_CONTROL_EN);
 	return (0);
 }
@@ -1023,8 +1202,10 @@ arge_start_locked(struct ifnet *ifp)
 	 */
 	if (sc->arge_cdata.arge_tx_cnt >= ARGE_TX_RING_COUNT - 2) {
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-		ARGEDEBUG(sc, ARGE_DBG_ERR, "%s: tx_cnt %d >= max %d; setting IFF_DRV_OACTIVE\n",
-		    __func__, sc->arge_cdata.arge_tx_cnt, ARGE_TX_RING_COUNT - 2);
+		ARGEDEBUG(sc, ARGE_DBG_ERR,
+		    "%s: tx_cnt %d >= max %d; setting IFF_DRV_OACTIVE\n",
+		    __func__, sc->arge_cdata.arge_tx_cnt,
+		    ARGE_TX_RING_COUNT - 2);
 		return;
 	}
 
@@ -1055,7 +1236,8 @@ arge_start_locked(struct ifnet *ifp)
 		 */
 		ETHER_BPF_MTAP(ifp, m_head);
 	}
-	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: finished; queued %d packets\n", __func__, enq);
+	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: finished; queued %d packets\n",
+	    __func__, enq);
 }
 
 static void
@@ -1074,6 +1256,10 @@ arge_stop(struct arge_softc *sc)
 	ARGE_WRITE(sc, AR71XX_DMA_INTR, 0);
 
 	arge_reset_dma(sc);
+
+	/* Flush FIFO and free any existing mbufs */
+	arge_flush_ddr(sc);
+	arge_rx_ring_free(sc);
 }
 
 
@@ -1097,7 +1283,7 @@ arge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				    & (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
 					/* XXX: handle promisc & multi flags */
 				}
-					
+
 			} else {
 				if (!sc->arge_detach)
 					arge_init_locked(sc);
@@ -1119,10 +1305,12 @@ arge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFMEDIA:
 		if (sc->arge_miibus) {
 			mii = device_get_softc(sc->arge_miibus);
-			error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
+			error = ifmedia_ioctl(ifp, ifr, &mii->mii_media,
+			    command);
 		}
-		else 
-			error = ifmedia_ioctl(ifp, ifr, &sc->arge_ifmedia, command);
+		else
+			error = ifmedia_ioctl(ifp, ifr, &sc->arge_ifmedia,
+			    command);
 		break;
 	case SIOCSIFCAP:
 		/* XXX: Check other capabilities */
@@ -1232,7 +1420,8 @@ arge_dma_alloc(struct arge_softc *sc)
 	    NULL, NULL,			/* lockfunc, lockarg */
 	    &sc->arge_cdata.arge_parent_tag);
 	if (error != 0) {
-		device_printf(sc->arge_dev, "failed to create parent DMA tag\n");
+		device_printf(sc->arge_dev,
+		    "failed to create parent DMA tag\n");
 		goto fail;
 	}
 	/* Create tag for Tx ring. */
@@ -1249,7 +1438,8 @@ arge_dma_alloc(struct arge_softc *sc)
 	    NULL, NULL,			/* lockfunc, lockarg */
 	    &sc->arge_cdata.arge_tx_ring_tag);
 	if (error != 0) {
-		device_printf(sc->arge_dev, "failed to create Tx ring DMA tag\n");
+		device_printf(sc->arge_dev,
+		    "failed to create Tx ring DMA tag\n");
 		goto fail;
 	}
 
@@ -1267,7 +1457,8 @@ arge_dma_alloc(struct arge_softc *sc)
 	    NULL, NULL,			/* lockfunc, lockarg */
 	    &sc->arge_cdata.arge_rx_ring_tag);
 	if (error != 0) {
-		device_printf(sc->arge_dev, "failed to create Rx ring DMA tag\n");
+		device_printf(sc->arge_dev,
+		    "failed to create Rx ring DMA tag\n");
 		goto fail;
 	}
 
@@ -1310,7 +1501,8 @@ arge_dma_alloc(struct arge_softc *sc)
 	/* Allocate DMA'able memory and load the DMA map for Tx ring. */
 	error = bus_dmamem_alloc(sc->arge_cdata.arge_tx_ring_tag,
 	    (void **)&sc->arge_rdata.arge_tx_ring, BUS_DMA_WAITOK |
-	    BUS_DMA_COHERENT | BUS_DMA_ZERO, &sc->arge_cdata.arge_tx_ring_map);
+	    BUS_DMA_COHERENT | BUS_DMA_ZERO,
+	    &sc->arge_cdata.arge_tx_ring_map);
 	if (error != 0) {
 		device_printf(sc->arge_dev,
 		    "failed to allocate DMA'able memory for Tx ring\n");
@@ -1331,7 +1523,8 @@ arge_dma_alloc(struct arge_softc *sc)
 	/* Allocate DMA'able memory and load the DMA map for Rx ring. */
 	error = bus_dmamem_alloc(sc->arge_cdata.arge_rx_ring_tag,
 	    (void **)&sc->arge_rdata.arge_rx_ring, BUS_DMA_WAITOK |
-	    BUS_DMA_COHERENT | BUS_DMA_ZERO, &sc->arge_cdata.arge_rx_ring_map);
+	    BUS_DMA_COHERENT | BUS_DMA_ZERO,
+	    &sc->arge_cdata.arge_rx_ring_map);
 	if (error != 0) {
 		device_printf(sc->arge_dev,
 		    "failed to allocate DMA'able memory for Rx ring\n");
@@ -1515,6 +1708,12 @@ arge_rx_ring_init(struct arge_softc *sc)
 	bzero(rd->arge_rx_ring, sizeof(rd->arge_rx_ring));
 	for (i = 0; i < ARGE_RX_RING_COUNT; i++) {
 		rxd = &sc->arge_cdata.arge_rxdesc[i];
+		if (rxd->rx_m != NULL) {
+			device_printf(sc->arge_dev,
+			    "%s: ring[%d] rx_m wasn't free?\n",
+			    __func__,
+			    i);
+		}
 		rxd->rx_m = NULL;
 		rxd->desc = &rd->arge_rx_ring[i];
 		if (i == ARGE_RX_RING_COUNT - 1)
@@ -1532,6 +1731,32 @@ arge_rx_ring_init(struct arge_softc *sc)
 	    BUS_DMASYNC_PREWRITE);
 
 	return (0);
+}
+
+/*
+ * Free all the buffers in the RX ring.
+ *
+ * TODO: ensure that DMA is disabled and no pending DMA
+ * is lurking in the FIFO.
+ */
+static void
+arge_rx_ring_free(struct arge_softc *sc)
+{
+	int i;
+	struct arge_rxdesc	*rxd;
+
+	ARGE_LOCK_ASSERT(sc);
+
+	for (i = 0; i < ARGE_RX_RING_COUNT; i++) {
+		rxd = &sc->arge_cdata.arge_rxdesc[i];
+		/* Unmap the mbuf */
+		if (rxd->rx_m != NULL) {
+			bus_dmamap_unload(sc->arge_cdata.arge_rx_tag,
+			    rxd->rx_dmamap);
+			m_free(rxd->rx_m);
+			rxd->rx_m = NULL;
+		}
+	}
 }
 
 /*
@@ -1633,7 +1858,8 @@ arge_tx_locked(struct arge_softc *sc)
 	cons = sc->arge_cdata.arge_tx_cons;
 	prod = sc->arge_cdata.arge_tx_prod;
 
-	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: cons=%d, prod=%d\n", __func__, cons, prod);
+	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: cons=%d, prod=%d\n", __func__, cons,
+	    prod);
 
 	if (cons == prod)
 		return;
@@ -1701,14 +1927,14 @@ arge_rx_locked(struct arge_softc *sc)
 	    sc->arge_cdata.arge_rx_ring_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
-	for (prog = 0; prog < ARGE_RX_RING_COUNT; 
+	for (prog = 0; prog < ARGE_RX_RING_COUNT;
 	    ARGE_INC(cons, ARGE_RX_RING_COUNT)) {
 		cur_rx = &sc->arge_rdata.arge_rx_ring[cons];
 		rxd = &sc->arge_cdata.arge_rxdesc[cons];
 		m = rxd->rx_m;
 
 		if ((cur_rx->packet_ctrl & ARGE_DESC_EMPTY) != 0)
-		       break;	
+		       break;
 
 		ARGE_WRITE(sc, AR71XX_DMA_RX_STATUS, DMA_RX_STATUS_PKT_RECVD);
 
@@ -1737,7 +1963,7 @@ arge_rx_locked(struct arge_softc *sc)
 		i = sc->arge_cdata.arge_rx_cons;
 		for (; prog > 0 ; prog--) {
 			if (arge_newbuf(sc, i) != 0) {
-				device_printf(sc->arge_dev, 
+				device_printf(sc->arge_dev,
 				    "Failed to allocate buffer\n");
 				break;
 			}
@@ -1766,7 +1992,7 @@ arge_intr_filter(void *arg)
 	ARGEDEBUG(sc, ARGE_DBG_INTR, "int mask(filter) = %b\n", ints,
 	    "\20\10RX_BUS_ERROR\7RX_OVERFLOW\5RX_PKT_RCVD"
 	    "\4TX_BUS_ERROR\2TX_UNDERRUN\1TX_PKT_SENT");
-	ARGEDEBUG(sc, ARGE_DBG_INTR, "status(filter) = %b\n", status, 
+	ARGEDEBUG(sc, ARGE_DBG_INTR, "status(filter) = %b\n", status,
 	    "\20\10RX_BUS_ERROR\7RX_OVERFLOW\5RX_PKT_RCVD"
 	    "\4TX_BUS_ERROR\2TX_UNDERRUN\1TX_PKT_SENT");
 
@@ -1774,7 +2000,7 @@ arge_intr_filter(void *arg)
 		sc->arge_intr_status |= status;
 		ARGE_WRITE(sc, AR71XX_DMA_INTR, 0);
 		return (FILTER_SCHEDULE_THREAD);
-	} 
+	}
 
 	sc->arge_intr_status = 0;
 	return (FILTER_STRAY);
@@ -1790,12 +2016,12 @@ arge_intr(void *arg)
 	status = ARGE_READ(sc, AR71XX_DMA_INTR_STATUS);
 	status |= sc->arge_intr_status;
 
-	ARGEDEBUG(sc, ARGE_DBG_INTR, "int status(intr) = %b\n", status, 
+	ARGEDEBUG(sc, ARGE_DBG_INTR, "int status(intr) = %b\n", status,
 	    "\20\10\7RX_OVERFLOW\5RX_PKT_RCVD"
 	    "\4TX_BUS_ERROR\2TX_UNDERRUN\1TX_PKT_SENT");
 
-	/* 
-	 * Is it our interrupt at all? 
+	/*
+	 * Is it our interrupt at all?
 	 */
 	if (status == 0)
 		return;
@@ -1817,9 +2043,9 @@ arge_intr(void *arg)
 	if (status & DMA_INTR_RX_PKT_RCVD)
 		arge_rx_locked(sc);
 
-	/* 
-	 * RX overrun disables the receiver. 
-	 * Clear indication and re-enable rx. 
+	/*
+	 * RX overrun disables the receiver.
+	 * Clear indication and re-enable rx.
 	 */
 	if ( status & DMA_INTR_RX_OVERFLOW) {
 		ARGE_WRITE(sc, AR71XX_DMA_RX_STATUS, DMA_RX_STATUS_OVERFLOW);
@@ -1829,16 +2055,17 @@ arge_intr(void *arg)
 
 	if (status & DMA_INTR_TX_PKT_SENT)
 		arge_tx_locked(sc);
-	/* 
-	 * Underrun turns off TX. Clear underrun indication. 
-	 * If there's anything left in the ring, reactivate the tx. 
+	/*
+	 * Underrun turns off TX. Clear underrun indication.
+	 * If there's anything left in the ring, reactivate the tx.
 	 */
 	if (status & DMA_INTR_TX_UNDERRUN) {
 		ARGE_WRITE(sc, AR71XX_DMA_TX_STATUS, DMA_TX_STATUS_UNDERRUN);
 		sc->stats.tx_underflow++;
-		ARGEDEBUG(sc, ARGE_DBG_TX, "%s: TX underrun; tx_cnt=%d\n", __func__, sc->arge_cdata.arge_tx_cnt);
+		ARGEDEBUG(sc, ARGE_DBG_TX, "%s: TX underrun; tx_cnt=%d\n",
+		    __func__, sc->arge_cdata.arge_tx_cnt);
 		if (sc->arge_cdata.arge_tx_cnt > 0 ) {
-			ARGE_WRITE(sc, AR71XX_DMA_TX_CONTROL, 
+			ARGE_WRITE(sc, AR71XX_DMA_TX_CONTROL,
 			    DMA_TX_CONTROL_EN);
 		}
 	}
@@ -1870,7 +2097,7 @@ arge_intr(void *arg)
 	sc->arge_intr_status = 0;
 	ARGE_UNLOCK(sc);
 	/*
-	 * re-enable all interrupts 
+	 * re-enable all interrupts
 	 */
 	ARGE_WRITE(sc, AR71XX_DMA_INTR, DMA_INTR_ALL);
 }
@@ -1902,7 +2129,7 @@ arge_multiphy_mediachange(struct ifnet *ifp)
 		return (EINVAL);
 
 	if (IFM_SUBTYPE(ife->ifm_media) == IFM_AUTO) {
-		device_printf(sc->arge_dev, 
+		device_printf(sc->arge_dev,
 		    "AUTO is not supported for multiphy MAC");
 		return (EINVAL);
 	}
@@ -1919,7 +2146,52 @@ arge_multiphy_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 	struct arge_softc *sc = ifp->if_softc;
 
 	ifmr->ifm_status = IFM_AVALID | IFM_ACTIVE;
-	ifmr->ifm_active = IFM_ETHER | sc->arge_media_type | 
+	ifmr->ifm_active = IFM_ETHER | sc->arge_media_type |
 	    sc->arge_duplex_mode;
 }
 
+#if defined(ARGE_MDIO)
+static int
+argemdio_probe(device_t dev)
+{
+	device_set_desc(dev, "Atheros AR71xx built-in ethernet interface, MDIO controller");
+	return (0);
+}
+
+static int
+argemdio_attach(device_t dev)
+{
+	struct arge_softc	*sc;
+	int			error = 0;
+
+	sc = device_get_softc(dev);
+	sc->arge_dev = dev;
+	sc->arge_mac_unit = device_get_unit(dev);
+	sc->arge_rid = 0;
+	sc->arge_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, 
+	    &sc->arge_rid, RF_ACTIVE | RF_SHAREABLE);
+	if (sc->arge_res == NULL) {
+		device_printf(dev, "couldn't map memory\n");
+		error = ENXIO;
+		goto fail;
+	}
+
+	/* Reset MAC - required for AR71xx MDIO to successfully occur */
+	arge_reset_mac(sc);
+	/* Reset MII bus */
+	arge_reset_miibus(sc);
+
+	bus_generic_probe(dev);
+	bus_enumerate_hinted_children(dev);
+	error = bus_generic_attach(dev);
+fail:
+	return (error);
+}
+
+static int
+argemdio_detach(device_t dev)
+{
+	return (0);
+}
+
+#endif

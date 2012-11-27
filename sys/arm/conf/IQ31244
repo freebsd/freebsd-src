@@ -82,7 +82,6 @@ device		pass		# Passthrough device (direct ATA/SCSI access)
 
 # SCSI Controllers
 
-device		pty
 device		iopwdog			# I80321 Watchdog
 device		dma			# I80321 DMA Controller
 device		aau			# I80321 Application Accelerator Unit

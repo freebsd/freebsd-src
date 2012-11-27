@@ -266,8 +266,8 @@ int cvm_oct_spi_init(struct ifnet *ifp)
 
 		rid = 0;
 		sc->sc_spi_irq = bus_alloc_resource(sc->sc_dev, SYS_RES_IRQ,
-						    &rid, CVMX_IRQ_RML,
-						    CVMX_IRQ_RML, 1,
+						    &rid, OCTEON_IRQ_RML,
+						    OCTEON_IRQ_RML, 1,
 						    RF_ACTIVE);
 		if (sc->sc_spi_irq == NULL) {
 			device_printf(sc->sc_dev, "could not allocate SPI irq");

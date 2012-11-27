@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: nitpicker,v 1.4 2009/09/19 16:28:11 christos Exp $
 # nitpicker:  file(1) magic for Flowfiles.
 # From: Christian Jachmann <C.Jachmann@gmx.net> http://www.nitpicker.de
 0	string	NPFF	NItpicker Flow File 

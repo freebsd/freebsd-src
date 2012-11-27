@@ -146,23 +146,22 @@ driver.
 Note that wide and twin channel features, although always supported
 by a particular chip, may be disabled in a particular motherboard or card
 design.
-.Pp
 .Bd -ragged -offset indent
-.Bl -column "aic7770 " "10 " "EISA/VL  " "10MHz " "16bit " "SCBs " Features
-.Em "Chip       MIPS    Bus      MaxSync   MaxWidth  SCBs  Features"
-aic7770     10    EISA/VL    10MHz     16Bit     4    1
-aic7850     10    PCI/32     10MHz      8Bit     3
-aic7860     10    PCI/32     20MHz      8Bit     3
-aic7870     10    PCI/32     10MHz     16Bit    16
-aic7880     10    PCI/32     20MHz     16Bit    16
-aic7890     20    PCI/32     40MHz     16Bit    16        3 4 5 6 7 8
-aic7891     20    PCI/64     40MHz     16Bit    16        3 4 5 6 7 8
-aic7892     20    PCI/64     80MHz     16Bit    16        3 4 5 6 7 8
-aic7895     15    PCI/32     20MHz     16Bit    16      2 3 4 5
-aic7895C    15    PCI/32     20MHz     16Bit    16      2 3 4 5     8
-aic7896     20    PCI/32     40MHz     16Bit    16      2 3 4 5 6 7 8
-aic7897     20    PCI/64     40MHz     16Bit    16      2 3 4 5 6 7 8
-aic7899     20    PCI/64     80MHz     16Bit    16      2 3 4 5 6 7 8
+.Bl -column "aic7895CX" "MIPSX" "EISA/VLX" "MaxSyncX" "MaxWidthX" "SCBsX" "2 3 4 5 6 7 8X"
+.It Em "Chip" Ta "MIPS" Ta "Bus" Ta "MaxSync" Ta "MaxWidth" Ta "SCBs" Ta "Features"
+.It "aic7770" Ta "10" Ta "EISA/VL" Ta "10MHz" Ta "16Bit" Ta "4" Ta "1"
+.It "aic7850" Ta "10" Ta "PCI/32" Ta "10MHz" Ta "8Bit" Ta "3" Ta ""
+.It "aic7860" Ta "10" Ta "PCI/32" Ta "20MHz" Ta "8Bit" Ta "3" Ta ""
+.It "aic7870" Ta "10" Ta "PCI/32" Ta "10MHz" Ta "16Bit" Ta "16" Ta ""
+.It "aic7880" Ta "10" Ta "PCI/32" Ta "20MHz" Ta "16Bit" Ta "16" Ta ""
+.It "aic7890" Ta "20" Ta "PCI/32" Ta "40MHz" Ta "16Bit" Ta "16" Ta "3 4 5 6 7 8"
+.It "aic7891" Ta "20" Ta "PCI/64" Ta "40MHz" Ta "16Bit" Ta "16" Ta "3 4 5 6 7 8"
+.It "aic7892" Ta "20" Ta "PCI/64" Ta "80MHz" Ta "16Bit" Ta "16" Ta "3 4 5 6 7 8"
+.It "aic7895" Ta "15" Ta "PCI/32" Ta "20MHz" Ta "16Bit" Ta "16" Ta "2 3 4 5"
+.It "aic7895C" Ta "15" Ta "PCI/32" Ta "20MHz" Ta "16Bit" Ta "16" Ta "2 3 4 5 8"
+.It "aic7896" Ta "20" Ta "PCI/32" Ta "40MHz" Ta "16Bit" Ta "16" Ta "2 3 4 5 6 7 8"
+.It "aic7897" Ta "20" Ta "PCI/64" Ta "40MHz" Ta "16Bit" Ta "16" Ta "2 3 4 5 6 7 8"
+.It "aic7899" Ta "20" Ta "PCI/64" Ta "80MHz" Ta "16Bit" Ta "16" Ta "2 3 4 5 6 7 8"
 .El
 .Pp
 .Bl -enum -compact

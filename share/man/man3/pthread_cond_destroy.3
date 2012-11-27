@@ -44,6 +44,9 @@ The
 .Fn pthread_cond_destroy
 function frees the resources allocated by the condition variable
 .Fa cond .
+.Sh IMPLEMENTATION NOTES
+A condition variable can be destroyed immediately after all the threads that
+are blocked on it are awakened.
 .Sh RETURN VALUES
 If successful, the
 .Fn pthread_cond_destroy

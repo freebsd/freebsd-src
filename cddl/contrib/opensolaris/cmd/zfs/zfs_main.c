@@ -217,7 +217,7 @@ get_usage(zfs_help_t idx)
 		return (gettext("\tclone [-p] [-o property=value] ... "
 		    "<snapshot> <filesystem|volume>\n"));
 	case HELP_CREATE:
-		return (gettext("\tcreate [-p] [-o property=value] ... "
+		return (gettext("\tcreate [-pu] [-o property=value] ... "
 		    "<filesystem>\n"
 		    "\tcreate [-ps] [-b blocksize] [-o property=value] ... "
 		    "-V <size> <volume>\n"));
@@ -227,7 +227,8 @@ get_usage(zfs_help_t idx)
 		    "<snapshot>[%<snapname>][,...]\n"));
 	case HELP_GET:
 		return (gettext("\tget [-rHp] [-d max] "
-		    "[-o \"all\" | field[,...]] [-s source[,...]]\n"
+		    "[-o \"all\" | field[,...]] [-t type[,...]] "
+		    "[-s source[,...]]\n"
 		    "\t    <\"all\" | property[,...]> "
 		    "[filesystem|volume|snapshot] ...\n"));
 	case HELP_INHERIT:
@@ -680,7 +681,7 @@ usage:
 }
 
 /*
- * zfs create [-p] [-o prop=value] ... fs
+ * zfs create [-pu] [-o prop=value] ... fs
  * zfs create [-ps] [-b blocksize] [-o prop=value] ... -V vol size
  *
  * Create a new dataset.  This command can be used to create filesystems
@@ -693,6 +694,8 @@ usage:
  * SPA_VERSION_REFRESERVATION, we set a refreservation instead.
  *
  * The '-p' flag creates all the non-existing ancestors of the target first.
+ *
+ * The '-u' flag prevents mounting of newly created file system.
  */
 static int
 zfs_do_create(int argc, char **argv)
@@ -704,6 +707,7 @@ zfs_do_create(int argc, char **argv)
 	boolean_t noreserve = B_FALSE;
 	boolean_t bflag = B_FALSE;
 	boolean_t parents = B_FALSE;
+	boolean_t nomount = B_FALSE;
 	int ret = 1;
 	nvlist_t *props;
 	uint64_t intval;
@@ -713,7 +717,7 @@ zfs_do_create(int argc, char **argv)
 		nomem();
 
 	/* check options */
-	while ((c = getopt(argc, argv, ":V:b:so:p")) != -1) {
+	while ((c = getopt(argc, argv, ":V:b:so:pu")) != -1) {
 		switch (c) {
 		case 'V':
 			type = ZFS_TYPE_VOLUME;
@@ -753,6 +757,9 @@ zfs_do_create(int argc, char **argv)
 		case 's':
 			noreserve = B_TRUE;
 			break;
+		case 'u':
+			nomount = B_TRUE;
+			break;
 		case ':':
 			(void) fprintf(stderr, gettext("missing size "
 			    "argument\n"));
@@ -768,6 +775,11 @@ zfs_do_create(int argc, char **argv)
 	if ((bflag || noreserve) && type != ZFS_TYPE_VOLUME) {
 		(void) fprintf(stderr, gettext("'-s' and '-b' can only be "
 		    "used when creating a volume\n"));
+		goto badusage;
+	}
+	if (nomount && type != ZFS_TYPE_FILESYSTEM) {
+		(void) fprintf(stderr, gettext("'-u' can only be "
+		    "used when creating a file system\n"));
 		goto badusage;
 	}
 
@@ -852,7 +864,7 @@ zfs_do_create(int argc, char **argv)
 	 * verbose error message to let the user know that their filesystem was
 	 * in fact created, even if we failed to mount or share it.
 	 */
-	if (canmount == ZFS_CANMOUNT_ON) {
+	if (!nomount && canmount == ZFS_CANMOUNT_ON) {
 		if (zfs_mount(zhp, NULL, 0) != 0) {
 			(void) fprintf(stderr, gettext("filesystem "
 			    "successfully created, but not mounted\n"));
@@ -1473,6 +1485,7 @@ zfs_do_get(int argc, char **argv)
 {
 	zprop_get_cbdata_t cb = { 0 };
 	int i, c, flags = ZFS_ITER_ARGS_CAN_BE_PATHS;
+	int types = ZFS_TYPE_DATASET;
 	char *value, *fields;
 	int ret = 0;
 	int limit = 0;
@@ -1489,7 +1502,7 @@ zfs_do_get(int argc, char **argv)
 	cb.cb_type = ZFS_TYPE_DATASET;
 
 	/* check options */
-	while ((c = getopt(argc, argv, ":d:o:s:rHp")) != -1) {
+	while ((c = getopt(argc, argv, ":d:o:s:rt:Hp")) != -1) {
 		switch (c) {
 		case 'p':
 			cb.cb_literal = B_TRUE;
@@ -1607,6 +1620,37 @@ zfs_do_get(int argc, char **argv)
 			}
 			break;
 
+		case 't':
+			types = 0;
+			flags &= ~ZFS_ITER_PROP_LISTSNAPS;
+			while (*optarg != '\0') {
+				static char *type_subopts[] = { "filesystem",
+				    "volume", "snapshot", "all", NULL };
+
+				switch (getsubopt(&optarg, type_subopts,
+				    &value)) {
+				case 0:
+					types |= ZFS_TYPE_FILESYSTEM;
+					break;
+				case 1:
+					types |= ZFS_TYPE_VOLUME;
+					break;
+				case 2:
+					types |= ZFS_TYPE_SNAPSHOT;
+					break;
+				case 3:
+					types = ZFS_TYPE_DATASET;
+					break;
+
+				default:
+					(void) fprintf(stderr,
+					    gettext("invalid type '%s'\n"),
+					    value);
+					usage(B_FALSE);
+				}
+			}
+			break;
+
 		case '?':
 			(void) fprintf(stderr, gettext("invalid option '%c'\n"),
 			    optopt);
@@ -1650,7 +1694,7 @@ zfs_do_get(int argc, char **argv)
 	cb.cb_first = B_TRUE;
 
 	/* run for each object */
-	ret = zfs_for_each(argc, argv, flags, ZFS_TYPE_DATASET, NULL,
+	ret = zfs_for_each(argc, argv, flags, types, NULL,
 	    &cb.cb_proplist, limit, get_callback, &cb);
 
 	if (cb.cb_proplist == &fake_name)

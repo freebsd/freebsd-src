@@ -703,7 +703,7 @@ do_recycle(void *context, int pending __unused)
 {
 	struct vnode *vp = (struct vnode *)context;
 
-	vrecycle(vp, curthread);
+	vrecycle(vp);
 	vdrop(vp);
 }
 
@@ -1065,7 +1065,7 @@ mqfs_inactive(struct vop_inactive_args *ap)
 	struct mqfs_node *pn = VTON(ap->a_vp);
 
 	if (pn->mn_deleted)
-		vrecycle(ap->a_vp, ap->a_td);
+		vrecycle(ap->a_vp);
 	return (0);
 }
 

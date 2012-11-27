@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <mips/cavium/obiovar.h>
 
 #include <contrib/octeon-sdk/cvmx.h>
-#include <contrib/octeon-sdk/cvmx-interrupt.h>
+#include <mips/cavium/octeon_irq.h>
 
 extern struct bus_space octeon_uart_tag;
 
@@ -107,7 +107,7 @@ obio_attach(device_t dev)
 	 * manages IRQs for UART0 and UART1.
 	 */
 	if (rman_init(&sc->oba_irq_rman) != 0 ||
-	    rman_manage_region(&sc->oba_irq_rman, CVMX_IRQ_UART0, CVMX_IRQ_UART1) != 0)
+	    rman_manage_region(&sc->oba_irq_rman, OCTEON_IRQ_UART0, OCTEON_IRQ_UART1) != 0)
 		panic("obio_attach: failed to set up IRQ rman");
 
 	device_add_child(dev, "uart", 1);  /* Setup Uart-1 first. */
@@ -131,10 +131,10 @@ obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	case SYS_RES_IRQ:
 		switch (device_get_unit(child)) {
 		case 0:
-			start = end = CVMX_IRQ_UART0;
+			start = end = OCTEON_IRQ_UART0;
 			break;
 		case 1:
-			start = end = CVMX_IRQ_UART1;
+			start = end = OCTEON_IRQ_UART1;
 			break;
 		default:
 			return (NULL);

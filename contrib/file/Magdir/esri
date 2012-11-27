@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: esri,v 1.4 2009/09/19 16:28:09 christos Exp $
 # ESRI Shapefile format (.shp .shx .dbf=DBaseIII)
 # Based on info from
 # <URL:http://www.esri.com/library/whitepapers/pdfs/shapefile.pdf>

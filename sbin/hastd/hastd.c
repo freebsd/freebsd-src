@@ -66,6 +66,8 @@ const char *cfgpath = HAST_CONFIG;
 static struct hastd_config *cfg;
 /* Was SIGINT or SIGTERM signal received? */
 bool sigexit_received = false;
+/* Path to pidfile. */
+static const char *pidfile;
 /* PID file handle. */
 struct pidfh *pfh;
 /* Do we run in foreground? */
@@ -537,7 +539,8 @@ hastd_reload(void)
 	/*
 	 * Check if pidfile's path has changed.
 	 */
-	if (!foreground && strcmp(cfg->hc_pidfile, newcfg->hc_pidfile) != 0) {
+	if (!foreground && pidfile == NULL &&
+	    strcmp(cfg->hc_pidfile, newcfg->hc_pidfile) != 0) {
 		newpfh = pidfile_open(newcfg->hc_pidfile, 0600, &otherpid);
 		if (newpfh == NULL) {
 			if (errno == EEXIST) {
@@ -1163,14 +1166,12 @@ int
 main(int argc, char *argv[])
 {
 	struct hastd_listen *lst;
-	const char *pidfile;
 	pid_t otherpid;
 	int debuglevel;
 	sigset_t mask;
 
 	foreground = false;
 	debuglevel = 0;
-	pidfile = NULL;
 
 	for (;;) {
 		int ch;
@@ -1230,7 +1231,7 @@ main(int argc, char *argv[])
 		}
 	}
 
-	if (!foreground) {
+	if (pidfile != NULL || !foreground) {
 		pfh = pidfile_open(cfg->hc_pidfile, 0600, &otherpid);
 		if (pfh == NULL) {
 			if (errno == EEXIST) {
@@ -1291,7 +1292,8 @@ main(int argc, char *argv[])
 
 		/* Start logging to syslog. */
 		pjdlog_mode_set(PJDLOG_MODE_SYSLOG);
-
+	}
+	if (pidfile != NULL || !foreground) {
 		/* Write PID to a file. */
 		if (pidfile_write(pfh) == -1) {
 			pjdlog_errno(LOG_WARNING,

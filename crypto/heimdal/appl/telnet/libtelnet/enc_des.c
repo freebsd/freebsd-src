@@ -33,7 +33,7 @@
 
 #include <config.h>
 
-RCSID("$Id: enc_des.c 14681 2005-03-23 16:19:31Z lha $");
+RCSID("$Id$");
 
 #if	defined(AUTHENTICATION) && defined(ENCRYPTION) && defined(DES_ENCRYPTION)
 #include <arpa/telnet.h>
@@ -83,7 +83,6 @@ struct fb {
 	int need_start;
 	int state[2];
 	int keyid[2];
-	int once;
 	struct stinfo streams[2];
 };
 
@@ -124,8 +123,8 @@ int fb64_reply (unsigned char *, int, struct fb *);
 static void fb64_session (Session_Key *, int, struct fb *);
 void fb64_stream_key (DES_cblock, struct stinfo *);
 int fb64_keyid (int, unsigned char *, int *, struct fb *);
-void fb64_printsub(unsigned char *, int ,
-		   unsigned char *, int , char *);
+void fb64_printsub(unsigned char *, size_t ,
+		   unsigned char *, size_t , char *);
 
 void cfb64_init(int server)
 {
@@ -210,22 +209,13 @@ static int fb64_start(struct fb *fbp, int dir, int server)
 		/*
 		 * Create a random feed and send it over.
 		 */
-#ifndef OLD_DES_RANDOM_KEY
-		DES_random_key(&fbp->temp_feed);
-#else
-		/*
-		 * From des_cryp.man "If the des_check_key flag is non-zero,
-		 *  des_set_key will check that the key passed is
-		 *  of odd parity and is not a week or semi-weak key."
-		 */
 		do {
-			DES_random_key(fbp->temp_feed);
-			DES_set_odd_parity(fbp->temp_feed);
-		} while (DES_is_weak_key(fbp->temp_feed));
-#endif
-		DES_ecb_encrypt(&fbp->temp_feed,
-				&fbp->temp_feed,
-				&fbp->krbdes_sched, 1);
+		    if (RAND_bytes(fbp->temp_feed,
+				   sizeof(*fbp->temp_feed)) != 1)
+			abort();
+		    DES_set_odd_parity(&fbp->temp_feed);
+		} while(DES_is_weak_key(&fbp->temp_feed));
+
 		p = fbp->fb_feed + 3;
 		*p++ = ENCRYPT_IS;
 		p++;
@@ -405,18 +395,13 @@ static void fb64_session(Session_Key *key, int server, struct fb *fbp)
 	fb64_stream_key(fbp->krbdes_key, &fbp->streams[DIR_ENCRYPT-1]);
 	fb64_stream_key(fbp->krbdes_key, &fbp->streams[DIR_DECRYPT-1]);
 
-	if (fbp->once == 0) {
-#if !defined(OLD_DES_RANDOM_KEY) && !defined(HAVE_OPENSSL)
-		DES_init_random_number_generator(&fbp->krbdes_key);
-#endif
-		fbp->once = 1;
-	}
+	RAND_seed(key->data, key->length);
+
 	DES_set_key_checked((DES_cblock *)&fbp->krbdes_key,
 			    &fbp->krbdes_sched);
 	/*
-	 * Now look to see if krbdes_start() was was waiting for
-	 * the key to show up.  If so, go ahead an call it now
-	 * that we have the key.
+	 * Now look to see if krbdes_start() was waiting for the key to
+	 * show up.  If so, go ahead an call it now that we have the key.
 	 */
 	if (fbp->need_start) {
 		fbp->need_start = 0;
@@ -456,8 +441,8 @@ int fb64_keyid(int dir, unsigned char *kp, int *lenp, struct fb *fbp)
 	return(fbp->state[dir-1] = state);
 }
 
-void fb64_printsub(unsigned char *data, int cnt, 
-		   unsigned char *buf, int buflen, char *type)
+void fb64_printsub(unsigned char *data, size_t cnt,
+		   unsigned char *buf, size_t buflen, char *type)
 {
 	char lbuf[32];
 	int i;
@@ -497,14 +482,14 @@ void fb64_printsub(unsigned char *data, int cnt,
 	}
 }
 
-void cfb64_printsub(unsigned char *data, int cnt, 
-		    unsigned char *buf, int buflen)
+void cfb64_printsub(unsigned char *data, size_t cnt,
+		    unsigned char *buf, size_t buflen)
 {
 	fb64_printsub(data, cnt, buf, buflen, "CFB64");
 }
 
-void ofb64_printsub(unsigned char *data, int cnt,
-		    unsigned char *buf, int buflen)
+void ofb64_printsub(unsigned char *data, size_t cnt,
+		    unsigned char *buf, size_t buflen)
 {
 	fb64_printsub(data, cnt, buf, buflen, "OFB64");
 }
@@ -540,7 +525,7 @@ void fb64_stream_key(DES_cblock key, struct stinfo *stp)
  *  INPUT --(--------->(+)+---> DATA
  *          |             |
  *	    +-------------+
- *         
+ *
  *
  * Given:
  *	iV: Initial vector, 64 bits (8 bytes) long.
@@ -596,7 +581,7 @@ int cfb64_decrypt(int data)
 		DES_ecb_encrypt(&stp->str_output,&b, &stp->str_sched, 1);
 		memcpy(stp->str_feed, b, sizeof(DES_cblock));
 		stp->str_index = 1;	/* Next time will be 1 */
-		index = 0;		/* But now use 0 */ 
+		index = 0;		/* But now use 0 */
 	}
 
 	/* On decryption we store (data) which is cypher. */
@@ -665,7 +650,7 @@ int ofb64_decrypt(int data)
 		DES_ecb_encrypt(&stp->str_feed,&b,&stp->str_sched, 1);
 		memcpy(stp->str_feed, b, sizeof(DES_cblock));
 		stp->str_index = 1;	/* Next time will be 1 */
-		index = 0;		/* But now use 0 */ 
+		index = 0;		/* But now use 0 */
 	}
 
 	return(data ^ stp->str_feed[index]);

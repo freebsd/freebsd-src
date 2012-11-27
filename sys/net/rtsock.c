@@ -1884,10 +1884,10 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		for (error = 0; error == 0 && i <= lim; i++) {
 			rnh = rt_tables_get_rnh(req->td->td_proc->p_fibnum, i);
 			if (rnh != NULL) {
-				RADIX_NODE_HEAD_LOCK(rnh); 
+				RADIX_NODE_HEAD_RLOCK(rnh); 
 			    	error = rnh->rnh_walktree(rnh,
 				    sysctl_dumpentry, &w);
-				RADIX_NODE_HEAD_UNLOCK(rnh);
+				RADIX_NODE_HEAD_RUNLOCK(rnh);
 			} else if (af != 0)
 				error = EAFNOSUPPORT;
 		}

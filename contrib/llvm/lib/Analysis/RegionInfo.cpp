@@ -186,18 +186,16 @@ std::string Region::getNameStr() const {
     raw_string_ostream OS(entryName);
 
     WriteAsOperand(OS, getEntry(), false);
-    entryName = OS.str();
   } else
-    entryName = getEntry()->getNameStr();
+    entryName = getEntry()->getName();
 
   if (getExit()) {
     if (getExit()->getName().empty()) {
       raw_string_ostream OS(exitName);
 
       WriteAsOperand(OS, getExit(), false);
-      exitName = OS.str();
     } else
-      exitName = getExit()->getNameStr();
+      exitName = getExit()->getName();
   } else
     exitName = "<Function Return>";
 
@@ -652,7 +650,7 @@ void RegionInfo::buildRegionsTree(DomTreeNode *N, Region *region) {
   // This basic block is a start block of a region. It is already in the
   // BBtoRegion relation. Only the child basic blocks have to be updated.
   if (it != BBtoRegion.end()) {
-    Region *newRegion = it->second;;
+    Region *newRegion = it->second;
     region->addSubRegion(getTopMostParent(newRegion));
     region = newRegion;
   } else {

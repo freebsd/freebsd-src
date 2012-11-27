@@ -37,9 +37,16 @@ static int fetch_files(int nfiles, char **urls);
 int
 main(void)
 {
-	char *diststring = strdup(getenv("DISTRIBUTIONS"));
+	char *diststring;
 	char **urls;
 	int i, nfetched, ndists = 0;
+
+	if (getenv("DISTRIBUTIONS") == NULL) {
+		fprintf(stderr, "DISTRIBUTIONS variable is not set\n");
+		return (1);
+	}
+
+	diststring = strdup(getenv("DISTRIBUTIONS"));
 	for (i = 0; diststring[i] != 0; i++)
 		if (isspace(diststring[i]) && !isspace(diststring[i+1]))
 			ndists++;

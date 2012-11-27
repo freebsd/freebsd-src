@@ -517,7 +517,7 @@ ng_patch_rcvdata(hook_p hook, item_p item)
 			return (ENOMEM);
 		}
 		do_patch(priv, m);
-		m->m_flags |= priv->config->csum_flags;
+		m->m_pkthdr.csum_flags |= priv->config->csum_flags;
 	}
 
 	target = NULL;

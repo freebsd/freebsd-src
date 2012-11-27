@@ -79,6 +79,7 @@ NOASM=
 .include "${.CURDIR}/resolv/Makefile.inc"
 .include "${.CURDIR}/stdio/Makefile.inc"
 .include "${.CURDIR}/stdlib/Makefile.inc"
+.include "${.CURDIR}/stdlib/jemalloc/Makefile.inc"
 .include "${.CURDIR}/stdtime/Makefile.inc"
 .include "${.CURDIR}/string/Makefile.inc"
 .include "${.CURDIR}/sys/Makefile.inc"

@@ -98,6 +98,12 @@ however, all functions in that address range will
 have their execution time measured.
 Profiling begins on return from
 .Fn monstartup .
+.Sh ENVIRONMENT
+The following environment variables affect the execution of
+.Nm :
+.Bl -tag -width ".Ev PROFIL_USE_PID"
+.It PROFIL_USE_PID
+If set, the pid of the process is inserted into the filename.
 .Sh FILES
 .Bl -tag -width progname.gmon -compact
 .It Pa progname.gmon

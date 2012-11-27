@@ -59,15 +59,6 @@ static char *rcsid = "$FreeBSD$";
 #include <sys/param.h>
 #include <sys/mman.h>
 #include "rtld_printf.h"
-#ifndef BSD
-#define MAP_COPY	MAP_PRIVATE
-#define MAP_FILE	0
-#define MAP_ANON	0
-#endif
-
-#ifndef BSD		/* Need do better than this */
-#define NEED_DEV_ZERO	1
-#endif
 
 static void morecore();
 static int findbucket();
@@ -492,12 +483,6 @@ int	n;
 	int	fd = -1;
 	int	offset;
 
-#ifdef NEED_DEV_ZERO
-	fd = open(_PATH_DEVZERO, O_RDWR, 0);
-	if (fd == -1)
-		perror(_PATH_DEVZERO);
-#endif
-
 	if (pagepool_end - pagepool_start > pagesz) {
 		caddr_t	addr = (caddr_t)
 			(((long)pagepool_start + pagesz - 1) & ~(pagesz - 1));
@@ -517,8 +502,5 @@ int	n;
 	pagepool_end = pagepool_start + n * pagesz;
 	pagepool_start += offset;
 
-#ifdef NEED_DEV_ZERO
-	close(fd);
-#endif
 	return n;
 }

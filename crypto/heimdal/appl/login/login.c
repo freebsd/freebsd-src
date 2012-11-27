@@ -1,34 +1,34 @@
 /*
- * Copyright (c) 1997 - 2006 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2006 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "login_locl.h"
@@ -42,7 +42,7 @@
 #include <crypt.h>
 #endif
 
-RCSID("$Id: login.c 16498 2006-01-09 16:26:25Z joda $");
+RCSID("$Id$");
 
 static int login_timeout = 60;
 
@@ -100,7 +100,7 @@ start_logout_process(void)
 		execle(prog, argv0, NULL, env);
 		err(1, "exec %s", prog);
 	    }
-	} else if(ret < 0) 
+	} else if(ret < 0)
 	    err(1, "waitpid");
     }
 }
@@ -110,7 +110,7 @@ exec_shell(const char *shell, int fallback)
 {
     char *sh;
     const char *p;
-    
+
     extend_env(NULL);
     if(start_login_process() < 0)
 	warn("login process");
@@ -125,7 +125,7 @@ exec_shell(const char *shell, int fallback)
 	errx(1, "Out of memory");
     execle(shell, sh, NULL, env);
     if(fallback){
-	warnx("Can't exec %s, trying %s", 
+	warnx("Can't exec %s, trying %s",
 	      shell, _PATH_BSHELL);
 	execle(_PATH_BSHELL, "-sh", NULL, env);
 	err(1, "%s", _PATH_BSHELL);
@@ -133,11 +133,7 @@ exec_shell(const char *shell, int fallback)
     err(1, "%s", shell);
 }
 
-static enum { NONE = 0, AUTH_KRB4 = 1, AUTH_KRB5 = 2, AUTH_OTP = 3 } auth;
-
-#ifdef KRB4
-static krb5_boolean get_v4_tgt = FALSE;
-#endif
+static enum { NONE = 0, AUTH_KRB5 = 2, AUTH_OTP = 3 } auth;
 
 #ifdef OTP
 static OtpContext otp_ctx;
@@ -165,87 +161,20 @@ krb5_verify(struct passwd *pwd, const char *password)
     ret = krb5_parse_name(context, pwd->pw_name, &princ);
     if(ret)
 	return 1;
-    ret = krb5_cc_gen_new(context, &krb5_mcc_ops, &id);
+    ret = krb5_cc_new_unique(context, krb5_cc_type_memory, NULL, &id);
     if(ret) {
 	krb5_free_principal(context, princ);
 	return 1;
     }
     ret = krb5_verify_user_lrealm(context,
-				  princ, 
+				  princ,
 				  id,
-				  password, 
+				  password,
 				  1,
 				  NULL);
     krb5_free_principal(context, princ);
     return ret;
 }
-
-#ifdef KRB4
-static krb5_error_code
-krb5_to4 (krb5_ccache id)
-{
-    krb5_error_code ret;
-    krb5_principal princ;
-
-    ret = krb5_cc_get_principal(context, id, &princ);
-    if(ret == 0) {
-	krb5_appdefault_boolean(context, "login", 
-				krb5_principal_get_realm(context, princ), 
-				"krb4_get_tickets", FALSE, &get_v4_tgt);
-	krb5_free_principal(context, princ);
-    } else {
-	krb5_realm realm = NULL;
-	krb5_get_default_realm(context, &realm);
-	krb5_appdefault_boolean(context, "login", 
-				realm, 
-				"krb4_get_tickets", FALSE, &get_v4_tgt);
-	free(realm);
-    }
-
-    if (get_v4_tgt) {
-        CREDENTIALS c;
-        krb5_creds mcred, cred;
-        char krb4tkfile[MAXPATHLEN];
-	krb5_error_code ret;
-	krb5_principal princ;
-
-	krb5_cc_clear_mcred(&mcred);
-
-	ret = krb5_cc_get_principal (context, id, &princ);
-	if (ret)
-	    return ret;
-
-	ret = krb5_make_principal(context, &mcred.server,
-				  princ->realm,
-				  "krbtgt",
-				  princ->realm,
-				  NULL);
-	if (ret) {
-	    krb5_free_principal(context, princ);
-	    return ret;
-	}
-	mcred.client = princ;
-
-	ret = krb5_cc_retrieve_cred(context, id, 0, &mcred, &cred);
-	if(ret == 0) {
-	    ret = krb524_convert_creds_kdc_ccache(context, id, &cred, &c);
-	    if(ret == 0) {
-		snprintf(krb4tkfile,sizeof(krb4tkfile),"%s%d",TKT_ROOT,
-			 getuid());
-		krb_set_tkt_string(krb4tkfile);
-		tf_setup(&c, c.pname, c.pinst);
-	    }
-	    memset(&c, 0, sizeof(c));
-	    krb5_free_cred_contents(context, &cred);
-	}
-	if (ret != 0)
-	    get_v4_tgt = FALSE;
-	krb5_free_principal(context, mcred.server);
-	krb5_free_principal(context, mcred.client);
-    }
-    return 0;
-}
-#endif /* KRB4 */
 
 static int
 krb5_start_session (const struct passwd *pwd)
@@ -254,7 +183,7 @@ krb5_start_session (const struct passwd *pwd)
     char residual[64];
 
     /* copy credentials to file cache */
-    snprintf(residual, sizeof(residual), "FILE:/tmp/krb5cc_%u", 
+    snprintf(residual, sizeof(residual), "FILE:/tmp/krb5cc_%u",
 	     (unsigned)pwd->pw_uid);
     krb5_cc_resolve(context, residual, &id2);
     ret = krb5_cc_copy_cache(context, id, id2);
@@ -264,9 +193,6 @@ krb5_start_session (const struct passwd *pwd)
 	krb5_cc_destroy (context, id2);
 	return ret;
     }
-#ifdef KRB4
-    krb5_to4 (id2);
-#endif
     krb5_cc_close(context, id2);
     krb5_cc_destroy(context, id);
     return 0;
@@ -289,7 +215,7 @@ krb5_get_afs_tokens (const struct passwd *pwd)
 	return;
 
     ret = krb5_cc_default(context, &id2);
- 
+
     if (ret == 0) {
 	pw_dir = pwd->pw_dir;
 
@@ -308,63 +234,6 @@ krb5_get_afs_tokens (const struct passwd *pwd)
 }
 
 #endif /* KRB5 */
-
-#ifdef KRB4
-
-static int
-krb4_verify(struct passwd *pwd, const char *password)
-{
-    char lrealm[REALM_SZ];
-    int ret;
-    char ticket_file[MaxPathLen];
-
-    ret = krb_get_lrealm (lrealm, 1);
-    if (ret)
-	return 1;
-
-    snprintf (ticket_file, sizeof(ticket_file),
-	      "%s%u_%u",
-	      TKT_ROOT, (unsigned)pwd->pw_uid, (unsigned)getpid());
-
-    krb_set_tkt_string (ticket_file);
-
-    ret = krb_verify_user (pwd->pw_name, "", lrealm, (char *)password,
-			   KRB_VERIFY_SECURE_FAIL, NULL);
-    if (ret)
-	return 1;
-
-    if (chown (ticket_file, pwd->pw_uid, pwd->pw_gid) < 0) {
-	dest_tkt();
-	return 1;
-    }
-	
-    add_env ("KRBTKFILE", ticket_file);
-    return 0;
-}
-
-static void
-krb4_get_afs_tokens (const struct passwd *pwd)
-{
-    char cell[64];
-    char *pw_dir;
-
-    if (!k_hasafs ())
-	return;
-
-    pw_dir = pwd->pw_dir;
-
-    if (!pag_set) {
-	k_setpag();
-	pag_set = 1;
-    }
-
-    if(k_afs_cell_of_file(pw_dir, cell, sizeof(cell)) == 0)
-	krb_afslog_uid_home (cell, NULL, pwd->pw_uid, pwd->pw_dir);
-
-    krb_afslog_uid_home (NULL, NULL, pwd->pw_uid, pwd->pw_dir);
-}
-
-#endif /* KRB4 */
 
 static int f_flag;
 static int p_flag;
@@ -436,7 +305,7 @@ show_file(const char *file)
     fclose(f);
 }
 
-/* 
+/*
  * Actually log in the user.  `pwd' contains all the relevant
  * information about the user.  `ttyn' is the complete name of the tty
  * and `tty' the short name.
@@ -456,7 +325,7 @@ do_login(const struct passwd *pwd, char *tty, char *ttyn)
 
     if(!rootlogin)
 	checknologin();
-    
+
 #ifdef HAVE_GETSPNAM
     sp = getspnam(pwd->pw_name);
 #endif
@@ -496,7 +365,7 @@ do_login(const struct passwd *pwd, char *tty, char *ttyn)
 
 	read_limits_conf(file, pwd);
     }
-	    
+
 #ifdef HAVE_SETPCRED
     if (setpcred (pwd->pw_name, NULL) == -1)
 	warn("setpcred(%s)", pwd->pw_name);
@@ -523,7 +392,7 @@ do_login(const struct passwd *pwd, char *tty, char *ttyn)
 
     /* make sure signals are set to default actions, apparently some
        OS:es like to ignore SIGINT, which is not very convenient */
-    
+
     for (i = 1; i < NSIG; ++i)
 	signal(i, SIG_DFL);
 
@@ -600,28 +469,11 @@ do_login(const struct passwd *pwd, char *tty, char *ttyn)
     if (auth == AUTH_KRB5) {
 	krb5_start_session (pwd);
     }
-#ifdef KRB4
-    else if (auth == 0) {
-	krb5_error_code ret;
-	krb5_ccache id;
-
-	ret = krb5_cc_default (context, &id);
-	if (ret == 0) {
-	    krb5_to4 (id);
-	    krb5_cc_close (context, id);
-	}
-    }
-#endif /* KRB4 */
 
     krb5_get_afs_tokens (pwd);
 
     krb5_finish ();
 #endif /* KRB5 */
-
-#ifdef KRB4
-    if (auth == AUTH_KRB4 || get_v4_tgt)
-	krb4_get_afs_tokens (pwd);
-#endif /* KRB4 */
 
     add_env("PATH", _PATH_DEFPATH);
 
@@ -682,12 +534,6 @@ check_password(struct passwd *pwd, const char *password)
 	return 0;
     }
 #endif
-#ifdef KRB4
-    if (krb4_verify (pwd, password) == 0) {
-	auth = AUTH_KRB4;
-	return 0;
-    }
-#endif
 #ifdef OTP
     if (otp_verify (pwd, password) == 0) {
        auth = AUTH_OTP;
@@ -726,7 +572,7 @@ main(int argc, char **argv)
 
     int ask = 1;
     struct sigaction sa;
-    
+
     setprogname(argv[0]);
 
 #ifdef KRB5
@@ -753,7 +599,7 @@ main(int argc, char **argv)
 	print_version (NULL);
 	return 0;
     }
-	
+
     if (geteuid() != 0)
 	errx(1, "only root may use login, use su");
 
@@ -841,7 +687,7 @@ main(int argc, char **argv)
                   sig_handler(0);
             }
          }
-	
+
 	if(pwd == NULL){
 	    fprintf(stderr, "Login incorrect.\n");
 	    ask = 1;
@@ -862,7 +708,7 @@ main(int argc, char **argv)
 	    tty = ttyn + strlen(_PATH_DEV);
 	else
 	    tty = ttyn;
-    
+
 	if (login_access (pwd, remote_host ? remote_host : tty) == 0) {
 	    fprintf(stderr, "Permission denied\n");
 	    if (remote_host)

@@ -99,7 +99,6 @@ struct td_sched {
 	u_int		ts_slptime;	/* Number of ticks we vol. slept */
 	u_int		ts_runtime;	/* Number of ticks we were running */
 	int		ts_ltick;	/* Last tick that we were running on */
-	int		ts_incrtick;	/* Last tick that we incremented on */
 	int		ts_ftick;	/* First tick that we were running on */
 	int		ts_ticks;	/* Tick count */
 #ifdef KTR
@@ -212,7 +211,7 @@ static int preempt_thresh = 0;
 #endif
 static int static_boost = PRI_MIN_BATCH;
 static int sched_idlespins = 10000;
-static int sched_idlespinthresh = 16;
+static int sched_idlespinthresh = -1;
 
 /*
  * tdq - per processor runqs and statistics.  All fields are protected by the
@@ -258,7 +257,6 @@ struct cpu_group *cpu_top;		/* CPU topology */
 static int rebalance = 1;
 static int balance_interval = 128;	/* Default set in sched_initticks(). */
 static int affinity;
-static int steal_htt = 1;
 static int steal_idle = 1;
 static int steal_thresh = 2;
 
@@ -268,6 +266,7 @@ static int steal_thresh = 2;
 static struct tdq	tdq_cpu[MAXCPU];
 static struct tdq	*balance_tdq;
 static int balance_ticks;
+static DPCPU_DEFINE(uint32_t, randomval);
 
 #define	TDQ_SELF()	(&tdq_cpu[PCPU_GET(cpuid)])
 #define	TDQ_CPU(x)	(&tdq_cpu[(x)])
@@ -291,7 +290,7 @@ static void sched_thread_priority(struct thread *, u_char);
 static int sched_interact_score(struct thread *);
 static void sched_interact_update(struct thread *);
 static void sched_interact_fork(struct thread *);
-static void sched_pctcpu_update(struct td_sched *);
+static void sched_pctcpu_update(struct td_sched *, int);
 
 /* Operations on per processor queues */
 static struct thread *tdq_choose(struct tdq *);
@@ -553,9 +552,11 @@ tdq_setlowpri(struct tdq *tdq, struct thread *ctd)
 #ifdef SMP
 struct cpu_search {
 	cpuset_t cs_mask;
-	u_int	cs_load;
-	u_int	cs_cpu;
-	int	cs_limit;	/* Min priority for low min load for high. */
+	u_int	cs_prefer;
+	int	cs_pri;		/* Min priority for low. */
+	int	cs_limit;	/* Max load for low, min load for high. */
+	int	cs_cpu;
+	int	cs_load;
 };
 
 #define	CPU_SEARCH_LOWEST	0x1
@@ -566,42 +567,12 @@ struct cpu_search {
 	for ((cpu) = 0; (cpu) <= mp_maxid; (cpu)++)		\
 		if (CPU_ISSET(cpu, &mask))
 
-static __inline int cpu_search(struct cpu_group *cg, struct cpu_search *low,
+static __inline int cpu_search(const struct cpu_group *cg, struct cpu_search *low,
     struct cpu_search *high, const int match);
-int cpu_search_lowest(struct cpu_group *cg, struct cpu_search *low);
-int cpu_search_highest(struct cpu_group *cg, struct cpu_search *high);
-int cpu_search_both(struct cpu_group *cg, struct cpu_search *low,
+int cpu_search_lowest(const struct cpu_group *cg, struct cpu_search *low);
+int cpu_search_highest(const struct cpu_group *cg, struct cpu_search *high);
+int cpu_search_both(const struct cpu_group *cg, struct cpu_search *low,
     struct cpu_search *high);
-
-/*
- * This routine compares according to the match argument and should be
- * reduced in actual instantiations via constant propagation and dead code
- * elimination.
- */ 
-static __inline int
-cpu_compare(int cpu, struct cpu_search *low, struct cpu_search *high,
-    const int match)
-{
-	struct tdq *tdq;
-
-	tdq = TDQ_CPU(cpu);
-	if (match & CPU_SEARCH_LOWEST)
-		if (CPU_ISSET(cpu, &low->cs_mask) &&
-		    tdq->tdq_load < low->cs_load &&
-		    tdq->tdq_lowpri > low->cs_limit) {
-			low->cs_cpu = cpu;
-			low->cs_load = tdq->tdq_load;
-		}
-	if (match & CPU_SEARCH_HIGHEST)
-		if (CPU_ISSET(cpu, &high->cs_mask) &&
-		    tdq->tdq_load >= high->cs_limit && 
-		    tdq->tdq_load > high->cs_load &&
-		    tdq->tdq_transferable) {
-			high->cs_cpu = cpu;
-			high->cs_load = tdq->tdq_load;
-		}
-	return (tdq->tdq_load);
-}
 
 /*
  * Search the tree of cpu_groups for the lowest or highest loaded cpu
@@ -615,33 +586,44 @@ cpu_compare(int cpu, struct cpu_search *low, struct cpu_search *high,
  * also recursive to the depth of the tree.
  */
 static __inline int
-cpu_search(struct cpu_group *cg, struct cpu_search *low,
+cpu_search(const struct cpu_group *cg, struct cpu_search *low,
     struct cpu_search *high, const int match)
 {
-	int total;
+	struct cpu_search lgroup;
+	struct cpu_search hgroup;
+	cpuset_t cpumask;
+	struct cpu_group *child;
+	struct tdq *tdq;
+	int cpu, i, hload, lload, load, total, rnd, *rndptr;
 
 	total = 0;
-	if (cg->cg_children) {
-		struct cpu_search lgroup;
-		struct cpu_search hgroup;
-		struct cpu_group *child;
-		u_int lload;
-		int hload;
-		int load;
-		int i;
+	cpumask = cg->cg_mask;
+	if (match & CPU_SEARCH_LOWEST) {
+		lload = INT_MAX;
+		lgroup = *low;
+	}
+	if (match & CPU_SEARCH_HIGHEST) {
+		hload = INT_MIN;
+		hgroup = *high;
+	}
 
-		lload = -1;
-		hload = -1;
-		for (i = 0; i < cg->cg_children; i++) {
-			child = &cg->cg_child[i];
-			if (match & CPU_SEARCH_LOWEST) {
-				lgroup = *low;
-				lgroup.cs_load = -1;
-			}
-			if (match & CPU_SEARCH_HIGHEST) {
-				hgroup = *high;
-				lgroup.cs_load = 0;
-			}
+	/* Iterate through the child CPU groups and then remaining CPUs. */
+	for (i = cg->cg_children, cpu = mp_maxid; i >= 0; ) {
+		if (i == 0) {
+			while (cpu >= 0 && !CPU_ISSET(cpu, &cpumask))
+				cpu--;
+			if (cpu < 0)
+				break;
+			child = NULL;
+		} else
+			child = &cg->cg_child[i - 1];
+
+		if (match & CPU_SEARCH_LOWEST)
+			lgroup.cs_cpu = -1;
+		if (match & CPU_SEARCH_HIGHEST)
+			hgroup.cs_cpu = -1;
+		if (child) {			/* Handle child CPU group. */
+			CPU_NAND(&cpumask, &child->cg_mask);
 			switch (match) {
 			case CPU_SEARCH_LOWEST:
 				load = cpu_search_lowest(child, &lgroup);
@@ -653,23 +635,56 @@ cpu_search(struct cpu_group *cg, struct cpu_search *low,
 				load = cpu_search_both(child, &lgroup, &hgroup);
 				break;
 			}
-			total += load;
-			if (match & CPU_SEARCH_LOWEST)
-				if (load < lload || low->cs_cpu == -1) {
-					*low = lgroup;
-					lload = load;
+		} else {			/* Handle child CPU. */
+			tdq = TDQ_CPU(cpu);
+			load = tdq->tdq_load * 256;
+			rndptr = DPCPU_PTR(randomval);
+			rnd = (*rndptr = *rndptr * 69069 + 5) >> 26;
+			if (match & CPU_SEARCH_LOWEST) {
+				if (cpu == low->cs_prefer)
+					load -= 64;
+				/* If that CPU is allowed and get data. */
+				if (tdq->tdq_lowpri > lgroup.cs_pri &&
+				    tdq->tdq_load <= lgroup.cs_limit &&
+				    CPU_ISSET(cpu, &lgroup.cs_mask)) {
+					lgroup.cs_cpu = cpu;
+					lgroup.cs_load = load - rnd;
 				}
-			if (match & CPU_SEARCH_HIGHEST) 
-				if (load > hload || high->cs_cpu == -1) {
-					hload = load;
-					*high = hgroup;
+			}
+			if (match & CPU_SEARCH_HIGHEST)
+				if (tdq->tdq_load >= hgroup.cs_limit &&
+				    tdq->tdq_transferable &&
+				    CPU_ISSET(cpu, &hgroup.cs_mask)) {
+					hgroup.cs_cpu = cpu;
+					hgroup.cs_load = load - rnd;
 				}
 		}
-	} else {
-		int cpu;
+		total += load;
 
-		CPUSET_FOREACH(cpu, cg->cg_mask)
-			total += cpu_compare(cpu, low, high, match);
+		/* We have info about child item. Compare it. */
+		if (match & CPU_SEARCH_LOWEST) {
+			if (lgroup.cs_cpu >= 0 &&
+			    (load < lload ||
+			     (load == lload && lgroup.cs_load < low->cs_load))) {
+				lload = load;
+				low->cs_cpu = lgroup.cs_cpu;
+				low->cs_load = lgroup.cs_load;
+			}
+		}
+		if (match & CPU_SEARCH_HIGHEST)
+			if (hgroup.cs_cpu >= 0 &&
+			    (load > hload ||
+			     (load == hload && hgroup.cs_load > high->cs_load))) {
+				hload = load;
+				high->cs_cpu = hgroup.cs_cpu;
+				high->cs_load = hgroup.cs_load;
+			}
+		if (child) {
+			i--;
+			if (i == 0 && CPU_EMPTY(&cpumask))
+				break;
+		} else
+			cpu--;
 	}
 	return (total);
 }
@@ -679,19 +694,19 @@ cpu_search(struct cpu_group *cg, struct cpu_search *low,
  * optimization.
  */
 int
-cpu_search_lowest(struct cpu_group *cg, struct cpu_search *low)
+cpu_search_lowest(const struct cpu_group *cg, struct cpu_search *low)
 {
 	return cpu_search(cg, low, NULL, CPU_SEARCH_LOWEST);
 }
 
 int
-cpu_search_highest(struct cpu_group *cg, struct cpu_search *high)
+cpu_search_highest(const struct cpu_group *cg, struct cpu_search *high)
 {
 	return cpu_search(cg, NULL, high, CPU_SEARCH_HIGHEST);
 }
 
 int
-cpu_search_both(struct cpu_group *cg, struct cpu_search *low,
+cpu_search_both(const struct cpu_group *cg, struct cpu_search *low,
     struct cpu_search *high)
 {
 	return cpu_search(cg, low, high, CPU_SEARCH_BOTH);
@@ -703,14 +718,16 @@ cpu_search_both(struct cpu_group *cg, struct cpu_search *low,
  * acceptable.
  */
 static inline int
-sched_lowest(struct cpu_group *cg, cpuset_t mask, int pri)
+sched_lowest(const struct cpu_group *cg, cpuset_t mask, int pri, int maxload,
+    int prefer)
 {
 	struct cpu_search low;
 
 	low.cs_cpu = -1;
-	low.cs_load = -1;
+	low.cs_prefer = prefer;
 	low.cs_mask = mask;
-	low.cs_limit = pri;
+	low.cs_pri = pri;
+	low.cs_limit = maxload;
 	cpu_search_lowest(cg, &low);
 	return low.cs_cpu;
 }
@@ -719,12 +736,11 @@ sched_lowest(struct cpu_group *cg, cpuset_t mask, int pri)
  * Find the cpu with the highest load via the highest loaded path.
  */
 static inline int
-sched_highest(struct cpu_group *cg, cpuset_t mask, int minload)
+sched_highest(const struct cpu_group *cg, cpuset_t mask, int minload)
 {
 	struct cpu_search high;
 
 	high.cs_cpu = -1;
-	high.cs_load = 0;
 	high.cs_mask = mask;
 	high.cs_limit = minload;
 	cpu_search_highest(cg, &high);
@@ -735,17 +751,17 @@ sched_highest(struct cpu_group *cg, cpuset_t mask, int minload)
  * Simultaneously find the highest and lowest loaded cpu reachable via
  * cg.
  */
-static inline void 
-sched_both(struct cpu_group *cg, cpuset_t mask, int *lowcpu, int *highcpu)
+static inline void
+sched_both(const struct cpu_group *cg, cpuset_t mask, int *lowcpu, int *highcpu)
 {
 	struct cpu_search high;
 	struct cpu_search low;
 
 	low.cs_cpu = -1;
-	low.cs_limit = -1;
-	low.cs_load = -1;
+	low.cs_prefer = -1;
+	low.cs_pri = -1;
+	low.cs_limit = INT_MAX;
 	low.cs_mask = mask;
-	high.cs_load = 0;
 	high.cs_cpu = -1;
 	high.cs_limit = -1;
 	high.cs_mask = mask;
@@ -758,30 +774,45 @@ sched_both(struct cpu_group *cg, cpuset_t mask, int *lowcpu, int *highcpu)
 static void
 sched_balance_group(struct cpu_group *cg)
 {
-	cpuset_t mask;
-	int high;
-	int low;
-	int i;
+	cpuset_t hmask, lmask;
+	int high, low, anylow;
 
-	CPU_FILL(&mask);
+	CPU_FILL(&hmask);
 	for (;;) {
-		sched_both(cg, mask, &low, &high);
-		if (low == high || low == -1 || high == -1)
+		high = sched_highest(cg, hmask, 1);
+		/* Stop if there is no more CPU with transferrable threads. */
+		if (high == -1)
 			break;
-		if (sched_balance_pair(TDQ_CPU(high), TDQ_CPU(low)))
+		CPU_CLR(high, &hmask);
+		CPU_COPY(&hmask, &lmask);
+		/* Stop if there is no more CPU left for low. */
+		if (CPU_EMPTY(&lmask))
 			break;
-		/*
-		 * If we failed to move any threads determine which cpu
-		 * to kick out of the set and try again.
-	 	 */
-		if (TDQ_CPU(high)->tdq_transferable == 0)
-			CPU_CLR(high, &mask);
-		else
-			CPU_CLR(low, &mask);
+		anylow = 1;
+nextlow:
+		low = sched_lowest(cg, lmask, -1,
+		    TDQ_CPU(high)->tdq_load - 1, high);
+		/* Stop if we looked well and found no less loaded CPU. */
+		if (anylow && low == -1)
+			break;
+		/* Go to next high if we found no less loaded CPU. */
+		if (low == -1)
+			continue;
+		/* Transfer thread from high to low. */
+		if (sched_balance_pair(TDQ_CPU(high), TDQ_CPU(low))) {
+			/* CPU that got thread can no longer be a donor. */
+			CPU_CLR(low, &hmask);
+		} else {
+			/*
+			 * If failed, then there is no threads on high
+			 * that can run on this low. Drop low from low
+			 * mask and look for different one.
+			 */
+			CPU_CLR(low, &lmask);
+			anylow = 0;
+			goto nextlow;
+		}
 	}
-
-	for (i = 0; i < cg->cg_children; i++)
-		sched_balance_group(&cg->cg_child[i]);
 }
 
 static void
@@ -834,32 +865,17 @@ tdq_unlock_pair(struct tdq *one, struct tdq *two)
 static int
 sched_balance_pair(struct tdq *high, struct tdq *low)
 {
-	int transferable;
-	int high_load;
-	int low_load;
 	int moved;
-	int move;
 	int cpu;
-	int diff;
-	int i;
 
 	tdq_lock_pair(high, low);
-	transferable = high->tdq_transferable;
-	high_load = high->tdq_load;
-	low_load = low->tdq_load;
 	moved = 0;
 	/*
 	 * Determine what the imbalance is and then adjust that to how many
 	 * threads we actually have to give up (transferable).
 	 */
-	if (transferable != 0) {
-		diff = high_load - low_load;
-		move = diff / 2;
-		if (diff & 0x1)
-			move++;
-		move = min(move, transferable);
-		for (i = 0; i < move; i++)
-			moved += tdq_move(high, low);
+	if (high->tdq_transferable != 0 && high->tdq_load > low->tdq_load &&
+	    (moved = tdq_move(high, low)) > 0) {
 		/*
 		 * In case the target isn't the current cpu IPI it to force a
 		 * reschedule with the new workload.
@@ -1003,8 +1019,7 @@ runq_steal_from(struct runq *rq, int cpu, u_char start)
 {
 	struct rqbits *rqb;
 	struct rqhead *rqh;
-	struct thread *td;
-	int first;
+	struct thread *td, *first;
 	int bit;
 	int pri;
 	int i;
@@ -1012,7 +1027,7 @@ runq_steal_from(struct runq *rq, int cpu, u_char start)
 	rqb = &rq->rq_status;
 	bit = start & (RQB_BPW -1);
 	pri = 0;
-	first = 0;
+	first = NULL;
 again:
 	for (i = RQB_WORD(start); i < RQB_LEN; bit = 0, i++) {
 		if (rqb->rqb_bits[i] == 0)
@@ -1031,7 +1046,7 @@ again:
 			if (first && THREAD_CAN_MIGRATE(td) &&
 			    THREAD_CAN_SCHED(td, cpu))
 				return (td);
-			first = 1;
+			first = td;
 		}
 	}
 	if (start != 0) {
@@ -1039,6 +1054,9 @@ again:
 		goto again;
 	}
 
+	if (first && THREAD_CAN_MIGRATE(first) &&
+	    THREAD_CAN_SCHED(first, cpu))
+		return (first);
 	return (NULL);
 }
 
@@ -1140,13 +1158,11 @@ SCHED_STAT_DEFINE(pickcpu_migration, "Selection may have caused migration");
 static int
 sched_pickcpu(struct thread *td, int flags)
 {
-	struct cpu_group *cg;
+	struct cpu_group *cg, *ccg;
 	struct td_sched *ts;
 	struct tdq *tdq;
 	cpuset_t mask;
-	int self;
-	int pri;
-	int cpu;
+	int cpu, pri, self;
 
 	self = PCPU_GET(cpuid);
 	ts = td->td_sched;
@@ -1161,52 +1177,77 @@ sched_pickcpu(struct thread *td, int flags)
 	 * Prefer to run interrupt threads on the processors that generate
 	 * the interrupt.
 	 */
+	pri = td->td_priority;
 	if (td->td_priority <= PRI_MAX_ITHD && THREAD_CAN_SCHED(td, self) &&
 	    curthread->td_intr_nesting_level && ts->ts_cpu != self) {
 		SCHED_STAT_INC(pickcpu_intrbind);
 		ts->ts_cpu = self;
-	}
-	/*
-	 * If the thread can run on the last cpu and the affinity has not
-	 * expired or it is idle run it there.
-	 */
-	pri = td->td_priority;
-	tdq = TDQ_CPU(ts->ts_cpu);
-	if (THREAD_CAN_SCHED(td, ts->ts_cpu)) {
-		if (tdq->tdq_lowpri > PRI_MIN_IDLE) {
-			SCHED_STAT_INC(pickcpu_idle_affinity);
-			return (ts->ts_cpu);
-		}
-		if (SCHED_AFFINITY(ts, CG_SHARE_L2) && tdq->tdq_lowpri > pri) {
+		if (TDQ_CPU(self)->tdq_lowpri > pri) {
 			SCHED_STAT_INC(pickcpu_affinity);
 			return (ts->ts_cpu);
 		}
 	}
 	/*
-	 * Search for the highest level in the tree that still has affinity.
+	 * If the thread can run on the last cpu and the affinity has not
+	 * expired or it is idle run it there.
 	 */
-	cg = NULL;
-	for (cg = tdq->tdq_cg; cg != NULL; cg = cg->cg_parent)
-		if (SCHED_AFFINITY(ts, cg->cg_level))
-			break;
+	tdq = TDQ_CPU(ts->ts_cpu);
+	cg = tdq->tdq_cg;
+	if (THREAD_CAN_SCHED(td, ts->ts_cpu) &&
+	    tdq->tdq_lowpri >= PRI_MIN_IDLE &&
+	    SCHED_AFFINITY(ts, CG_SHARE_L2)) {
+		if (cg->cg_flags & CG_FLAG_THREAD) {
+			CPUSET_FOREACH(cpu, cg->cg_mask) {
+				if (TDQ_CPU(cpu)->tdq_lowpri < PRI_MIN_IDLE)
+					break;
+			}
+		} else
+			cpu = INT_MAX;
+		if (cpu > mp_maxid) {
+			SCHED_STAT_INC(pickcpu_idle_affinity);
+			return (ts->ts_cpu);
+		}
+	}
+	/*
+	 * Search for the last level cache CPU group in the tree.
+	 * Skip caches with expired affinity time and SMT groups.
+	 * Affinity to higher level caches will be handled less aggressively.
+	 */
+	for (ccg = NULL; cg != NULL; cg = cg->cg_parent) {
+		if (cg->cg_flags & CG_FLAG_THREAD)
+			continue;
+		if (!SCHED_AFFINITY(ts, cg->cg_level))
+			continue;
+		ccg = cg;
+	}
+	if (ccg != NULL)
+		cg = ccg;
 	cpu = -1;
+	/* Search the group for the less loaded idle CPU we can run now. */
 	mask = td->td_cpuset->cs_mask;
-	if (cg)
-		cpu = sched_lowest(cg, mask, pri);
+	if (cg != NULL && cg != cpu_top &&
+	    CPU_CMP(&cg->cg_mask, &cpu_top->cg_mask) != 0)
+		cpu = sched_lowest(cg, mask, max(pri, PRI_MAX_TIMESHARE),
+		    INT_MAX, ts->ts_cpu);
+	/* Search globally for the less loaded CPU we can run now. */
 	if (cpu == -1)
-		cpu = sched_lowest(cpu_top, mask, -1);
+		cpu = sched_lowest(cpu_top, mask, pri, INT_MAX, ts->ts_cpu);
+	/* Search globally for the less loaded CPU. */
+	if (cpu == -1)
+		cpu = sched_lowest(cpu_top, mask, -1, INT_MAX, ts->ts_cpu);
+	KASSERT(cpu != -1, ("sched_pickcpu: Failed to find a cpu."));
 	/*
 	 * Compare the lowest loaded cpu to current cpu.
 	 */
 	if (THREAD_CAN_SCHED(td, self) && TDQ_CPU(self)->tdq_lowpri > pri &&
-	    TDQ_CPU(cpu)->tdq_lowpri < PRI_MIN_IDLE) {
+	    TDQ_CPU(cpu)->tdq_lowpri < PRI_MIN_IDLE &&
+	    TDQ_CPU(self)->tdq_load <= TDQ_CPU(cpu)->tdq_load + 1) {
 		SCHED_STAT_INC(pickcpu_local);
 		cpu = self;
 	} else
 		SCHED_STAT_INC(pickcpu_lowest);
 	if (cpu != ts->ts_cpu)
 		SCHED_STAT_INC(pickcpu_migration);
-	KASSERT(cpu != -1, ("sched_pickcpu: Failed to find a cpu."));
 	return (cpu);
 }
 #endif
@@ -1352,6 +1393,8 @@ sched_initticks(void *dummy)
 	steal_thresh = min(fls(mp_ncpus) - 1, 3);
 	affinity = SCHED_AFFINITY_DEFAULT;
 #endif
+	if (sched_idlespinthresh < 0)
+		sched_idlespinthresh = max(16, 2 * hz / realstathz);
 }
 
 
@@ -1550,24 +1593,21 @@ sched_rr_interval(void)
  * mechanism since it happens with less regular and frequent events.
  */
 static void
-sched_pctcpu_update(struct td_sched *ts)
+sched_pctcpu_update(struct td_sched *ts, int run)
 {
+	int t = ticks;
 
-	if (ts->ts_ticks == 0)
-		return;
-	if (ticks - (hz / 10) < ts->ts_ltick &&
-	    SCHED_TICK_TOTAL(ts) < SCHED_TICK_MAX)
-		return;
-	/*
-	 * Adjust counters and watermark for pctcpu calc.
-	 */
-	if (ts->ts_ltick > ticks - SCHED_TICK_TARG)
-		ts->ts_ticks = (ts->ts_ticks / (ticks - ts->ts_ftick)) *
-			    SCHED_TICK_TARG;
-	else
+	if (t - ts->ts_ltick >= SCHED_TICK_TARG) {
 		ts->ts_ticks = 0;
-	ts->ts_ltick = ticks;
-	ts->ts_ftick = ts->ts_ltick - SCHED_TICK_TARG;
+		ts->ts_ftick = t - SCHED_TICK_TARG;
+	} else if (t - ts->ts_ftick >= SCHED_TICK_MAX) {
+		ts->ts_ticks = (ts->ts_ticks / (ts->ts_ltick - ts->ts_ftick)) *
+		    (ts->ts_ltick - (t - SCHED_TICK_TARG));
+		ts->ts_ftick = t - SCHED_TICK_TARG;
+	}
+	if (run)
+		ts->ts_ticks += (t - ts->ts_ltick) << SCHED_TICK_SHIFT;
+	ts->ts_ltick = t;
 }
 
 /*
@@ -1786,6 +1826,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	tdq = TDQ_CPU(cpuid);
 	ts = td->td_sched;
 	mtx = td->td_lock;
+	sched_pctcpu_update(ts, 1);
 	ts->ts_rltick = ticks;
 	td->td_lastcpu = td->td_oncpu;
 	td->td_oncpu = NOCPU;
@@ -1840,6 +1881,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 #endif
 		lock_profile_release_lock(&TDQ_LOCKPTR(tdq)->lock_object);
 		TDQ_LOCKPTR(tdq)->mtx_lock = (uintptr_t)newtd;
+		sched_pctcpu_update(newtd->td_sched, 0);
 
 #ifdef KDTRACE_HOOKS
 		/*
@@ -1934,12 +1976,9 @@ sched_wakeup(struct thread *td)
 	slptick = td->td_slptick;
 	td->td_slptick = 0;
 	if (slptick && slptick != ticks) {
-		u_int hzticks;
-
-		hzticks = (ticks - slptick) << SCHED_TICK_SHIFT;
-		ts->ts_slptime += hzticks;
+		ts->ts_slptime += (ticks - slptick) << SCHED_TICK_SHIFT;
 		sched_interact_update(td);
-		sched_pctcpu_update(ts);
+		sched_pctcpu_update(ts, 0);
 	}
 	/* Reset the slice value after we sleep. */
 	ts->ts_slice = sched_slice;
@@ -1954,6 +1993,7 @@ void
 sched_fork(struct thread *td, struct thread *child)
 {
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	sched_pctcpu_update(td->td_sched, 1);
 	sched_fork_thread(td, child);
 	/*
 	 * Penalize the parent and child for forking.
@@ -1989,7 +2029,6 @@ sched_fork_thread(struct thread *td, struct thread *child)
 	 */
 	ts2->ts_ticks = ts->ts_ticks;
 	ts2->ts_ltick = ts->ts_ltick;
-	ts2->ts_incrtick = ts->ts_incrtick;
 	ts2->ts_ftick = ts->ts_ftick;
 	/*
 	 * Do not inherit any borrowed priority from the parent.
@@ -2146,6 +2185,7 @@ sched_clock(struct thread *td)
 			tdq->tdq_ridx = tdq->tdq_idx;
 	}
 	ts = td->td_sched;
+	sched_pctcpu_update(ts, 1);
 	if (td->td_pri_class & PRI_FIFO_BIT)
 		return;
 	if (PRI_BASE(td->td_pri_class) == PRI_TIMESHARE) {
@@ -2170,31 +2210,12 @@ sched_clock(struct thread *td)
 }
 
 /*
- * Called once per hz tick.  Used for cpu utilization information.  This
- * is easier than trying to scale based on stathz.
+ * Called once per hz tick.
  */
 void
 sched_tick(int cnt)
 {
-	struct td_sched *ts;
 
-	ts = curthread->td_sched;
-	/*
-	 * Ticks is updated asynchronously on a single cpu.  Check here to
-	 * avoid incrementing ts_ticks multiple times in a single tick.
-	 */
-	if (ts->ts_incrtick == ticks)
-		return;
-	/* Adjust ticks for pctcpu */
-	ts->ts_ticks += cnt << SCHED_TICK_SHIFT;
-	ts->ts_ltick = ticks;
-	ts->ts_incrtick = ticks;
-	/*
-	 * Update if we've exceeded our desired tick threshold by over one
-	 * second.
-	 */
-	if (ts->ts_ftick + SCHED_TICK_MAX < ts->ts_ltick)
-		sched_pctcpu_update(ts);
 }
 
 /*
@@ -2236,7 +2257,6 @@ sched_choose(void)
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
 	td = tdq_choose(tdq);
 	if (td) {
-		td->td_sched->ts_ltick = ticks;
 		tdq_runq_rem(tdq, td);
 		tdq->tdq_lowpri = td->td_priority;
 		return (td);
@@ -2382,10 +2402,10 @@ sched_pctcpu(struct thread *td)
 		return (0);
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	sched_pctcpu_update(ts, TD_IS_RUNNING(td));
 	if (ts->ts_ticks) {
 		int rtick;
 
-		sched_pctcpu_update(ts);
 		/* How many rtick per second ? */
 		rtick = min(SCHED_TICK_HZ(ts) / SCHED_TICK_SECS, hz);
 		pctcpu = (FSCALE * ((FSCALE * rtick)/hz)) >> FSHIFT;
@@ -2646,6 +2666,17 @@ sched_tdname(struct thread *td)
 #endif
 }
 
+#ifdef KTR
+void
+sched_clear_tdname(struct thread *td)
+{
+	struct td_sched *ts;
+
+	ts = td->td_sched;
+	ts->ts_name[0] = '\0';
+}
+#endif
+
 #ifdef SMP
 
 /*
@@ -2750,8 +2781,6 @@ SYSCTL_INT(_kern_sched, OID_AUTO, balance, CTLFLAG_RW, &rebalance, 0,
 SYSCTL_INT(_kern_sched, OID_AUTO, balance_interval, CTLFLAG_RW,
     &balance_interval, 0,
     "Average frequency in stathz ticks to run the long-term balancer");
-SYSCTL_INT(_kern_sched, OID_AUTO, steal_htt, CTLFLAG_RW, &steal_htt, 0,
-    "Steals work from another hyper-threaded core on idle");
 SYSCTL_INT(_kern_sched, OID_AUTO, steal_idle, CTLFLAG_RW, &steal_idle, 0,
     "Attempts to steal work from other cores before idling");
 SYSCTL_INT(_kern_sched, OID_AUTO, steal_thresh, CTLFLAG_RW, &steal_thresh, 0,

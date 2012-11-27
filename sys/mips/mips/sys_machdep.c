@@ -53,25 +53,21 @@ struct sysarch_args {
 #endif
 
 int
-sysarch(td, uap)
-	struct thread *td;
-	register struct sysarch_args *uap;
+sysarch(struct thread *td, struct sysarch_args *uap)
 {
 	int error;
 	void *tlsbase;
 
 	switch (uap->op) {
-	case MIPS_SET_TLS : 
-		td->td_md.md_tls = (void*)uap->parms;
-		error = 0;
-		break;
-
-	case MIPS_GET_TLS : 
+	case MIPS_SET_TLS:
+		td->td_md.md_tls = uap->parms;
+		return (0);
+	case MIPS_GET_TLS: 
 		tlsbase = td->td_md.md_tls;
 		error = copyout(&tlsbase, uap->parms, sizeof(tlsbase));
-		break;
+		return (error);
 	default:
-		error = EINVAL;
+		break;
 	}
-	return (error);
+	return (EINVAL);
 }

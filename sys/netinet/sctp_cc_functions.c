@@ -1594,9 +1594,7 @@ sctp_hs_cwnd_increase(struct sctp_tcb *stcb, struct sctp_nets *net)
 
 	cur_val = net->cwnd >> 10;
 	indx = SCTP_HS_TABLE_SIZE - 1;
-#ifdef SCTP_DEBUG
-	printf("HS CC CAlled.\n");
-#endif
+
 	if (cur_val < sctp_cwnd_adjust[0].cwnd) {
 		/* normal mode */
 		if (net->net_ack > net->mtu) {

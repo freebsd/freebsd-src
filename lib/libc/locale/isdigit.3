@@ -46,15 +46,18 @@
 .Fn isdigit "int c"
 .Ft int
 .Fn isnumber "int c"
+.Ft int
+.Fn isdigit_l "int c" "locale_t loc"
+.Ft int
+.Fn isnumber_l "int c" "locale_t loc"
 .Sh DESCRIPTION
 The
 .Fn isdigit
 function tests for a decimal digit character.
 Regardless of locale, this includes the following characters only:
-.Pp
 .Bl -column \&``0''______ \&``0''______ \&``0''______ \&``0''______ \&``0''______
-.It "\&``0''\t``1''\t``2''\t``3''\t``4''"
-.It "\&``5''\t``6''\t``7''\t``8''\t``9''"
+.It "\&``0''" Ta "``1''" Ta "``2''" Ta "``3''" Ta "``4''"
+.It "\&``5''" Ta "``6''" Ta "``7''" Ta "``8''" Ta "``9''"
 .El
 .Pp
 The
@@ -68,6 +71,9 @@ The value of the argument must be representable as an
 .Vt "unsigned char"
 or the value of
 .Dv EOF .
+.Pp
+The _l-suffixed versions take an explicit locale argument, whereas the
+non-suffixed versions use the current global or per-thread locale.
 .Sh RETURN VALUES
 The
 .Fn isdigit
@@ -89,12 +95,17 @@ function should be used instead.
 .Xr ctype 3 ,
 .Xr iswdigit 3 ,
 .Xr multibyte 3 ,
+.Xr xlocale 3 ,
 .Xr ascii 7
 .Sh STANDARDS
 The
 .Fn isdigit
 function conforms to
 .St -isoC .
+The
+.Fn isdigit_l
+function conforms to
+.St -p1003.1-2008 .
 .Sh HISTORY
 The
 .Fn isnumber

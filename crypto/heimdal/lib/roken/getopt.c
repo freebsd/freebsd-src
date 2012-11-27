@@ -34,6 +34,9 @@ static char sccsid[] = "@(#)getopt.c	8.1 (Berkeley) 6/4/93";
 #ifndef __STDC__
 #define const
 #endif
+#include <config.h>
+#include "roken.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -41,21 +44,18 @@ static char sccsid[] = "@(#)getopt.c	8.1 (Berkeley) 6/4/93";
 /*
  * get option letter from argument vector
  */
-int	opterr = 1,		/* if error message should be printed */
-	optind = 1,		/* index into parent argv vector */
-	optopt,			/* character checked for validity */
-	optreset;		/* reset getopt */
-char	*optarg;		/* argument associated with option */
+ROKEN_LIB_VARIABLE int opterr = 1; /* if error message should be printed */
+ROKEN_LIB_VARIABLE int optind = 1; /* index into parent argv vector */
+ROKEN_LIB_VARIABLE int optopt;   /* character checked for validity */
+int	optreset;                /* reset getopt */
+ROKEN_LIB_VARIABLE char	*optarg; /* argument associated with option */
 
 #define	BADCH	(int)'?'
 #define	BADARG	(int)':'
 #define	EMSG	""
 
-int ROKEN_LIB_FUNCTION
-getopt(nargc, nargv, ostr)
-	int nargc;
-	char * const *nargv;
-	const char *ostr;
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
+getopt(int nargc, char * const *nargv, const char *ostr)
 {
 	static char *place = EMSG;		/* option letter processing */
 	char *oli;			/* option letter list index */

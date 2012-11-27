@@ -484,12 +484,14 @@ do_entry(struct conf_entry * ent)
 	fk_entry free_or_keep;
 	double diffsecs;
 	char temp_reason[REASON_MAX];
+	int oversized;
 
 	free_or_keep = FREE_ENT;
 	if (verbose)
 		printf("%s <%d%s>: ", ent->log, ent->numlogs,
 		    compress_type[ent->compress].flag);
 	ent->fsize = sizefile(ent->log);
+	oversized = ((ent->trsize > 0) && (ent->fsize >= ent->trsize));
 	modtime = age_old_log(ent->log);
 	ent->rotate = 0;
 	ent->firstcreate = 0;
@@ -518,7 +520,8 @@ do_entry(struct conf_entry * ent)
 			printf("does not exist, skipped%s.\n", temp_reason);
 		}
 	} else {
-		if (ent->flags & CE_TRIMAT && !force && !rotatereq) {
+		if (ent->flags & CE_TRIMAT && !force && !rotatereq &&
+		    !oversized) {
 			diffsecs = ptimeget_diff(timenow, ent->trim_at);
 			if (diffsecs < 0.0) {
 				/* trim_at is some time in the future. */
@@ -574,7 +577,7 @@ do_entry(struct conf_entry * ent)
 		} else if (force) {
 			ent->rotate = 1;
 			snprintf(temp_reason, REASON_MAX, " due to -F request");
-		} else if ((ent->trsize > 0) && (ent->fsize >= ent->trsize)) {
+		} else if (oversized) {
 			ent->rotate = 1;
 			snprintf(temp_reason, REASON_MAX, " due to size>%dK",
 			    ent->trsize);

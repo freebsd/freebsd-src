@@ -6,7 +6,6 @@ files		"../adm5120/files.adm5120"
 
 machine		mips mipsel
 cpu		CPU_MIPS4KC
-options		ISA_MIPS32
 
 # device 	admpci
 device		admsw

@@ -413,7 +413,8 @@ struct netflow {
 	struct flow_hash_entry	*hash6;
 #endif
 	/* Multiple FIB support */
-	fib_export_p		fib_data[RT_NUMFIBS]; /* array of pointers to fib-specific data */
+	fib_export_p		*fib_data; /* array of pointers to per-fib data */
+	uint16_t		maxfibs; /* number of allocated fibs */
 
 	/*
 	 * RFC 3954 clause 7.3

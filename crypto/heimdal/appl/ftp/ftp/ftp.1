@@ -53,8 +53,8 @@ file transfer program
 .Op Fl t
 .Op Fl v
 .Op Fl x
-.Op Fl -no-gss-bindings
-.Op Fl -no-gss-delegate
+.Op Fl Fl no-gss-bindings
+.Op Fl Fl no-gss-delegate
 .Op Ar host
 .Sh DESCRIPTION
 .Nm
@@ -103,10 +103,10 @@ Turn on passive mode.
 Enables debugging.
 .It Fl g
 Disables file name globbing.
- .It Fl -no-gss-bindings
+ .It Fl Fl no-gss-bindings
 Don't use GSS-API bindings when talking to peer. IP addresses will not
 be checked to ensure they match.
-.It Fl -no-gss-delegate
+.It Fl Fl no-gss-delegate
 Disable delegation of GSSAPI credentials.
 .It Fl l
 Disables command line editing.

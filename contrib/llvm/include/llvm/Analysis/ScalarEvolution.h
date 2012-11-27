@@ -41,6 +41,7 @@ namespace llvm {
   class Type;
   class ScalarEvolution;
   class TargetData;
+  class TargetLibraryInfo;
   class LLVMContext;
   class Loop;
   class LoopInfo;
@@ -118,6 +119,10 @@ namespace llvm {
     ///
     bool isAllOnesValue() const;
 
+    /// isNonConstantNegative - Return true if the specified scev is negated,
+    /// but not a constant.
+    bool isNonConstantNegative() const;
+
     /// print - Print out the internal representation of this scalar to the
     /// specified stream.  This should really only be used for debugging
     /// purposes.
@@ -135,7 +140,7 @@ namespace llvm {
       ID = X.FastID;
     }
     static bool Equals(const SCEV &X, const FoldingSetNodeID &ID,
-                       FoldingSetNodeID &TempID) {
+                       unsigned IDHash, FoldingSetNodeID &TempID) {
       return ID == X.FastID;
     }
     static unsigned ComputeHash(const SCEV &X, FoldingSetNodeID &TempID) {
@@ -223,6 +228,10 @@ namespace llvm {
     /// TD - The target data information for the target we are targeting.
     ///
     TargetData *TD;
+
+    /// TLI - The target library information for the target we are targeting.
+    ///
+    TargetLibraryInfo *TLI;
 
     /// DT - The dominator tree.
     ///
@@ -721,16 +730,21 @@ namespace llvm {
                                      const SCEV *LHS, const SCEV *RHS);
 
     /// getSmallConstantTripCount - Returns the maximum trip count of this loop
-    /// as a normal unsigned value, if possible. Returns 0 if the trip count is
-    /// unknown or not constant.
-    unsigned getSmallConstantTripCount(Loop *L, BasicBlock *ExitBlock);
+    /// as a normal unsigned value. Returns 0 if the trip count is unknown or
+    /// not constant. This "trip count" assumes that control exits via
+    /// ExitingBlock. More precisely, it is the number of times that control may
+    /// reach ExitingBlock before taking the branch. For loops with multiple
+    /// exits, it may not be the number times that the loop header executes if
+    /// the loop exits prematurely via another branch.
+    unsigned getSmallConstantTripCount(Loop *L, BasicBlock *ExitingBlock);
 
     /// getSmallConstantTripMultiple - Returns the largest constant divisor of
     /// the trip count of this loop as a normal unsigned value, if
     /// possible. This means that the actual trip count is always a multiple of
     /// the returned value (don't forget the trip count could very well be zero
-    /// as well!).
-    unsigned getSmallConstantTripMultiple(Loop *L, BasicBlock *ExitBlock);
+    /// as well!). As explained in the comments for getSmallConstantTripCount,
+    /// this assumes that control exits the loop via ExitingBlock.
+    unsigned getSmallConstantTripMultiple(Loop *L, BasicBlock *ExitingBlock);
 
     // getExitCount - Get the expression for the number of loop iterations for
     // which this loop is guaranteed not to exit via ExitingBlock. Otherwise

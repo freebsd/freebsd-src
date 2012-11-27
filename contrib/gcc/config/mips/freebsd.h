@@ -351,4 +351,5 @@ Boston, MA 02110-1301, USA.  */
 #endif
 
 /************************[  Debugger stuff  ]*********************************/
-
+#undef DBX_DEBUGGING_INFO
+#undef MIPS_DEBUGGING_INFO

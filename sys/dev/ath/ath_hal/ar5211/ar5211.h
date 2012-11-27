@@ -276,6 +276,9 @@ extern	HAL_BOOL ar5211SetCapability(struct ath_hal *, HAL_CAPABILITY_TYPE,
 extern	HAL_BOOL ar5211GetDiagState(struct ath_hal *ah, int request,
 		const void *args, uint32_t argsize,
 		void **result, uint32_t *resultsize);
+extern	uint32_t ar5211Get11nExtBusy(struct ath_hal *);
+extern	HAL_BOOL ar5211GetMibCycleCounts(struct ath_hal *,
+		HAL_SURVEY_SAMPLE *);
 
 extern	u_int ar5211GetKeyCacheSize(struct ath_hal *);
 extern	HAL_BOOL ar5211IsKeyCacheEntryValid(struct ath_hal *, uint16_t);

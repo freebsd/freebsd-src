@@ -29,12 +29,16 @@ class ConstantInt;
 class DbgVariable;
 
 //===----------------------------------------------------------------------===//
-/// CompileUnit - This dwarf writer support class manages information associate
+/// CompileUnit - This dwarf writer support class manages information associated
 /// with a source file.
 class CompileUnit {
   /// ID - File identifier for source.
   ///
   unsigned ID;
+
+  /// Language - The DW_AT_language of the compile unit
+  ///
+  unsigned Language;
 
   /// Die - Compile unit debug information entry.
   ///
@@ -56,13 +60,16 @@ class CompileUnit {
   /// descriptors to debug information entries using a DIEEntry proxy.
   DenseMap<const MDNode *, DIEEntry *> MDNodeToDIEEntryMap;
 
-  /// Globals - A map of globally visible named entities for this unit.
-  ///
-  StringMap<DIE*> Globals;
-
   /// GlobalTypes - A map of globally visible types for this unit.
   ///
   StringMap<DIE*> GlobalTypes;
+
+  /// AccelNames - A map of names for the name accelerator table.
+  ///
+  StringMap<std::vector<DIE*> > AccelNames;
+  StringMap<std::vector<DIE*> > AccelObjC;
+  StringMap<std::vector<DIE*> > AccelNamespace;
+  StringMap<std::vector<std::pair<DIE*, unsigned> > > AccelTypes;
 
   /// DIEBlocks - A list of all the DIEBlocks in use.
   std::vector<DIEBlock *> DIEBlocks;
@@ -73,27 +80,56 @@ class CompileUnit {
   DenseMap<DIE *, const MDNode *> ContainingTypeMap;
 
 public:
-  CompileUnit(unsigned I, DIE *D, AsmPrinter *A, DwarfDebug *DW);
+  CompileUnit(unsigned I, unsigned L, DIE *D, AsmPrinter *A, DwarfDebug *DW);
   ~CompileUnit();
 
   // Accessors.
   unsigned getID()                  const { return ID; }
+  unsigned getLanguage()            const { return Language; }
   DIE* getCUDie()                   const { return CUDie.get(); }
-  const StringMap<DIE*> &getGlobals()     const { return Globals; }
   const StringMap<DIE*> &getGlobalTypes() const { return GlobalTypes; }
 
+  const StringMap<std::vector<DIE*> > &getAccelNames() const {
+    return AccelNames;
+  }
+  const StringMap<std::vector<DIE*> > &getAccelObjC() const {
+    return AccelObjC;
+  }
+  const StringMap<std::vector<DIE*> > &getAccelNamespace() const {
+    return AccelNamespace;
+  }
+  const StringMap<std::vector<std::pair<DIE*, unsigned > > >
+  &getAccelTypes() const {
+    return AccelTypes;
+  }
+  
   /// hasContent - Return true if this compile unit has something to write out.
   ///
   bool hasContent() const { return !CUDie->getChildren().empty(); }
-
-  /// addGlobal - Add a new global entity to the compile unit.
-  ///
-  void addGlobal(StringRef Name, DIE *Die) { Globals[Name] = Die; }
 
   /// addGlobalType - Add a new global type to the compile unit.
   ///
   void addGlobalType(DIType Ty);
 
+
+  /// addAccelName - Add a new name to the name accelerator table.
+  void addAccelName(StringRef Name, DIE *Die) {
+    std::vector<DIE*> &DIEs = AccelNames[Name];
+    DIEs.push_back(Die);
+  }
+  void addAccelObjC(StringRef Name, DIE *Die) {
+    std::vector<DIE*> &DIEs = AccelObjC[Name];
+    DIEs.push_back(Die);
+  }
+  void addAccelNamespace(StringRef Name, DIE *Die) {
+    std::vector<DIE*> &DIEs = AccelNamespace[Name];
+    DIEs.push_back(Die);
+  }
+  void addAccelType(StringRef Name, std::pair<DIE *, unsigned> Die) {
+    std::vector<std::pair<DIE*, unsigned > > &DIEs = AccelTypes[Name];
+    DIEs.push_back(Die);
+  }
+  
   /// getDIE - Returns the debug information entry map slot for the
   /// specified debug variable.
   DIE *getDIE(const MDNode *N) { return MDNodeToDieMap.lookup(N); }
@@ -150,8 +186,7 @@ public:
 
   /// addString - Add a string attribute data and value.
   ///
-  void addString(DIE *Die, unsigned Attribute, unsigned Form,
-                 const StringRef Str);
+  void addString(DIE *Die, unsigned Attribute, const StringRef Str);
 
   /// addLabel - Add a Dwarf label attribute data and value.
   ///
@@ -178,6 +213,7 @@ public:
   void addSourceLine(DIE *Die, DISubprogram SP);
   void addSourceLine(DIE *Die, DIType Ty);
   void addSourceLine(DIE *Die, DINameSpace NS);
+  void addSourceLine(DIE *Die, DIObjCProperty Ty);
 
   /// addAddress - Add an address attribute to a die based on the location
   /// provided.
@@ -225,8 +261,10 @@ public:
   /// addToContextOwner - Add Die into the list of its context owner's children.
   void addToContextOwner(DIE *Die, DIDescriptor Context);
 
-  /// addType - Add a new type attribute to the specified entity.
-  void addType(DIE *Entity, DIType Ty);
+  /// addType - Add a new type attribute to the specified entity. This takes
+  /// and attribute parameter because DW_AT_friend attributes are also
+  /// type references.
+  void addType(DIE *Entity, DIType Ty, unsigned Attribute = dwarf::DW_AT_type);
 
   /// getOrCreateNameSpace - Create a DIE for DINameSpace.
   DIE *getOrCreateNameSpace(DINameSpace NS);

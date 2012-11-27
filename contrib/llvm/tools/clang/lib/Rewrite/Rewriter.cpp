@@ -17,6 +17,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/Lex/Lexer.h"
 #include "clang/Basic/SourceManager.h"
+#include "llvm/ADT/SmallString.h"
 using namespace clang;
 
 raw_ostream &RewriteBuffer::write(raw_ostream &os) const {
@@ -235,7 +236,7 @@ bool Rewriter::InsertText(SourceLocation Loc, StringRef Str,
   FileID FID;
   unsigned StartOffs = getLocationOffsetAndFileID(Loc, FID);
 
-  llvm::SmallString<128> indentedStr;
+  SmallString<128> indentedStr;
   if (indentNewLines && Str.find('\n') != StringRef::npos) {
     StringRef MB = SourceMgr->getBufferData(FID);
 

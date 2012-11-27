@@ -288,7 +288,7 @@ safe_attach(device_t dev)
 	/*
 	 * Setup DMA descriptor area.
 	 */
-	if (bus_dma_tag_create(NULL,			/* parent */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 			       1,			/* alignment */
 			       SAFE_DMA_BOUNDARY,	/* boundary */
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
@@ -303,7 +303,7 @@ safe_attach(device_t dev)
 		device_printf(dev, "cannot allocate DMA tag\n");
 		goto bad4;
 	}
-	if (bus_dma_tag_create(NULL,			/* parent */
+	if (bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 			       1,			/* alignment */
 			       SAFE_MAX_DSIZE,		/* boundary */
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
@@ -1803,7 +1803,7 @@ safe_dma_malloc(
 {
 	int r;
 
-	r = bus_dma_tag_create(NULL,			/* parent */
+	r = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev),	/* parent */
 			       sizeof(u_int32_t), 0,	/* alignment, bounds */
 			       BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
 			       BUS_SPACE_MAXADDR,	/* highaddr */

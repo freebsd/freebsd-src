@@ -65,7 +65,6 @@ map_object(int fd, const char *path, const struct stat *sb)
     Elf_Phdr *phtls;
     caddr_t mapbase;
     size_t mapsize;
-    Elf_Off base_offset;
     Elf_Addr base_vaddr;
     Elf_Addr base_vlimit;
     caddr_t base_addr;
@@ -86,6 +85,8 @@ map_object(int fd, const char *path, const struct stat *sb)
     Elf_Word stack_flags;
     Elf_Addr relro_page;
     size_t relro_size;
+    Elf_Addr note_start;
+    Elf_Addr note_end;
 
     hdr = get_elf_header(fd, path);
     if (hdr == NULL)
@@ -104,6 +105,8 @@ map_object(int fd, const char *path, const struct stat *sb)
     phdr_vaddr = 0;
     relro_page = 0;
     relro_size = 0;
+    note_start = 0;
+    note_end = 0;
     segs = alloca(sizeof(segs[0]) * hdr->e_phnum);
     stack_flags = RTLD_DEFAULT_STACK_PF_EXEC | PF_R | PF_W;
     while (phdr < phlimit) {
@@ -143,6 +146,15 @@ map_object(int fd, const char *path, const struct stat *sb)
 	    relro_page = phdr->p_vaddr;
 	    relro_size = phdr->p_memsz;
 	    break;
+
+	case PT_NOTE:
+	    if (phdr->p_offset > PAGE_SIZE ||
+	      phdr->p_offset + phdr->p_filesz > PAGE_SIZE)
+		break;
+	    note_start = (Elf_Addr)(char *)hdr + phdr->p_offset;
+	    note_end = note_start + phdr->p_filesz;
+	    digest_notes(obj, note_start, note_end);
+	    break;
 	}
 
 	++phdr;
@@ -161,7 +173,6 @@ map_object(int fd, const char *path, const struct stat *sb)
      * Map the entire address space of the object, to stake out our
      * contiguous region, and to establish the base address for relocation.
      */
-    base_offset = trunc_page(segs[0]->p_offset);
     base_vaddr = trunc_page(segs[0]->p_vaddr);
     base_vlimit = round_page(segs[nsegs]->p_vaddr + segs[nsegs]->p_memsz);
     mapsize = base_vlimit - base_vaddr;
@@ -171,7 +182,7 @@ map_object(int fd, const char *path, const struct stat *sb)
       MAP_NOCORE, -1, 0);
     if (mapbase == (caddr_t) -1) {
 	_rtld_error("%s: mmap of entire address space failed: %s",
-	  path, strerror(errno));
+	  path, rtld_strerror(errno));
 	return NULL;
     }
     if (base_addr != NULL && mapbase != base_addr) {
@@ -191,7 +202,8 @@ map_object(int fd, const char *path, const struct stat *sb)
 	data_flags = convert_flags(segs[i]->p_flags) | MAP_FIXED;
 	if (mmap(data_addr, data_vlimit - data_vaddr, data_prot,
 	  data_flags, fd, data_offset) == (caddr_t) -1) {
-	    _rtld_error("%s: mmap of data failed: %s", path, strerror(errno));
+	    _rtld_error("%s: mmap of data failed: %s", path,
+		rtld_strerror(errno));
 	    return NULL;
 	}
 
@@ -208,7 +220,7 @@ map_object(int fd, const char *path, const struct stat *sb)
 		if ((data_prot & PROT_WRITE) == 0 && -1 ==
 		     mprotect(clear_page, PAGE_SIZE, data_prot|PROT_WRITE)) {
 			_rtld_error("%s: mprotect failed: %s", path,
-			    strerror(errno));
+			    rtld_strerror(errno));
 			return NULL;
 		}
 
@@ -227,7 +239,7 @@ map_object(int fd, const char *path, const struct stat *sb)
 		if (mmap(bss_addr, bss_vlimit - bss_vaddr, data_prot,
 		    data_flags | MAP_ANON, -1, 0) == (caddr_t)-1) {
 		    _rtld_error("%s: mmap of bss failed: %s", path,
-			strerror(errno));
+			rtld_strerror(errno));
 		    return NULL;
 		}
 	    }
@@ -294,7 +306,7 @@ get_elf_header (int fd, const char *path)
     ssize_t nbytes;
 
     if ((nbytes = pread(fd, u.buf, PAGE_SIZE, 0)) == -1) {
-	_rtld_error("%s: read error: %s", path, strerror(errno));
+	_rtld_error("%s: read error: %s", path, rtld_strerror(errno));
 	return NULL;
     }
 

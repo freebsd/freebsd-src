@@ -130,8 +130,8 @@ Mutexes are not allowed to be held across calls to these functions.
 A filter runs in primary interrupt context.
 In this context, normal mutexes cannot be used.
 Only the spin lock version of these can be used (specified by passing
-.Dv MTX_SPIN 
-to 
+.Dv MTX_SPIN
+to
 .Fn mtx_init
 when initializing the mutex).
 .Xr wakeup 9

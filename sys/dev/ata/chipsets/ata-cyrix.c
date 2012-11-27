@@ -101,10 +101,12 @@ ata_cyrix_setmode(device_t dev, int target, int mode)
 	struct ata_channel *ch = device_get_softc(dev);
 	int devno = (ch->unit << 1) + target;
 	int piomode;
-	u_int32_t piotiming[] = 
+	static const uint32_t piotiming[] = 
 	    { 0x00009172, 0x00012171, 0x00020080, 0x00032010, 0x00040010 };
-	u_int32_t dmatiming[] = { 0x00077771, 0x00012121, 0x00002020 };
-	u_int32_t udmatiming[] = { 0x00921250, 0x00911140, 0x00911030 };
+	static const uint32_t dmatiming[] =
+	    { 0x00077771, 0x00012121, 0x00002020 };
+	static const uint32_t udmatiming[] =
+	    { 0x00921250, 0x00911140, 0x00911030 };
 
 	mode = min(mode, ATA_UDMA2);
 	/* dont try to set the mode if we dont have the resource */

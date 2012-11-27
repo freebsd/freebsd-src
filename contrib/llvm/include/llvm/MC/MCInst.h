@@ -19,12 +19,14 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DataTypes.h"
+#include "llvm/Support/SMLoc.h"
 
 namespace llvm {
 class raw_ostream;
 class MCAsmInfo;
 class MCInstPrinter;
 class MCExpr;
+class MCInst;
 
 /// MCOperand - Instances of this class represent operands of the MCInst class.
 /// This is a simple discriminated union.
@@ -34,7 +36,8 @@ class MCOperand {
     kRegister,                ///< Register operand.
     kImmediate,               ///< Immediate operand.
     kFPImmediate,             ///< Floating-point immediate operand.
-    kExpr                     ///< Relocatable immediate operand.
+    kExpr,                    ///< Relocatable immediate operand.
+    kInst                     ///< Sub-instruction operand.
   };
   unsigned char Kind;
 
@@ -43,6 +46,7 @@ class MCOperand {
     int64_t ImmVal;
     double FPImmVal;
     const MCExpr *ExprVal;
+    const MCInst *InstVal;
   };
 public:
 
@@ -53,6 +57,7 @@ public:
   bool isImm() const { return Kind == kImmediate; }
   bool isFPImm() const { return Kind == kFPImmediate; }
   bool isExpr() const { return Kind == kExpr; }
+  bool isInst() const { return Kind == kInst; }
 
   /// getReg - Returns the register number.
   unsigned getReg() const {
@@ -94,6 +99,15 @@ public:
     ExprVal = Val;
   }
 
+  const MCInst *getInst() const {
+    assert(isInst() && "This is not a sub-instruction");
+    return InstVal;
+  }
+  void setInst(const MCInst *Val) {
+    assert(isInst() && "This is not a sub-instruction");
+    InstVal = Val;
+  }
+
   static MCOperand CreateReg(unsigned Reg) {
     MCOperand Op;
     Op.Kind = kRegister;
@@ -118,23 +132,33 @@ public:
     Op.ExprVal = Val;
     return Op;
   }
+  static MCOperand CreateInst(const MCInst *Val) {
+    MCOperand Op;
+    Op.Kind = kInst;
+    Op.InstVal = Val;
+    return Op;
+  }
 
   void print(raw_ostream &OS, const MCAsmInfo *MAI) const;
   void dump() const;
 };
 
+template <> struct isPodLike<MCOperand> { static const bool value = true; };
 
 /// MCInst - Instances of this class represent a single low-level machine
 /// instruction.
 class MCInst {
   unsigned Opcode;
+  SMLoc Loc;
   SmallVector<MCOperand, 8> Operands;
 public:
   MCInst() : Opcode(0) {}
 
   void setOpcode(unsigned Op) { Opcode = Op; }
-
   unsigned getOpcode() const { return Opcode; }
+
+  void setLoc(SMLoc loc) { Loc = loc; }
+  SMLoc getLoc() const { return Loc; }
 
   const MCOperand &getOperand(unsigned i) const { return Operands[i]; }
   MCOperand &getOperand(unsigned i) { return Operands[i]; }

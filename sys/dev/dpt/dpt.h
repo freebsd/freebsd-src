@@ -142,7 +142,7 @@ typedef void *physaddr;
  */
 #define DPT_NO_CACHE		       	0
 #define DPT_CACHE_WRITETHROUGH		1
-#define DPT_CACHE_WRITEBACK			-2
+#define DPT_CACHE_WRITEBACK		2
 
 #define min(a,b) ((a<b)?(a):(b))
 

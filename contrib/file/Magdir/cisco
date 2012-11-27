@@ -1,4 +1,6 @@
+
 #------------------------------------------------------------------------------
+# $File: cisco,v 1.4 2009/09/19 16:28:08 christos Exp $
 # cisco:  file(1) magic for cisco Systems routers
 #
 # Most cisco file-formats are covered by the generic elf code

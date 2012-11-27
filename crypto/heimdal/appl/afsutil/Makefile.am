@@ -1,4 +1,4 @@
-# $Id: Makefile.am 20466 2007-04-20 08:29:05Z lha $
+# $Id$
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -19,4 +19,4 @@ LDADD = $(LIB_kafs) \
 	$(LIB_hcrypto) \
 	$(LIB_roken)
 
-EXTRA_DIST = $(man_MANS)
+EXTRA_DIST = NTMakefile $(man_MANS)

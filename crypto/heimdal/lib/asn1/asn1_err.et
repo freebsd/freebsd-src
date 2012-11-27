@@ -3,7 +3,7 @@
 #
 # This might look like a com_err file, but is not
 #
-id "$Id: asn1_err.et 21394 2007-07-02 10:14:43Z lha $"
+id "$Id$"
 
 error_table asn1
 prefix ASN1
@@ -22,4 +22,8 @@ error_code BAD_CHARACTER,	"ASN.1 invalid character in string"
 error_code MIN_CONSTRAINT,	"ASN.1 too few elements"
 error_code MAX_CONSTRAINT,	"ASN.1 too many elements"
 error_code EXACT_CONSTRAINT,	"ASN.1 wrong number of elements"
+error_code INDEF_OVERRUN,   	"ASN.1 BER indefinte encoding overrun"
+error_code INDEF_UNDERRUN,   	"ASN.1 BER indefinte encoding underun"
+error_code GOT_BER,		"ASN.1 got BER encoded when expected DER"
+error_code INDEF_EXTRA_DATA,	"ASN.1 EoC tag contained data"
 end

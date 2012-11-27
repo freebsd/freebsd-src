@@ -57,24 +57,52 @@ mount_partition()
     # Check if we have multiple zfs mounts specified
     for ZMNT in `echo ${MNTPOINT} | sed 's|,| |g'`
     do
+      # Check for any ZFS specific mount options
+      ZMNTOPTS="`echo $ZMNT | cut -d '(' -f 2 | cut -d ')' -f 1`" 
+      if [ "$ZMNTOPTS" = "$ZMNT" ] ; then ZMNTOPTS="" ; fi
+
+      # Reset ZMNT with options removed
+      ZMNT="`echo $ZMNT | cut -d '(' -f 1`"
+
       # First make sure we create the mount point
       if [ ! -d "${FSMNT}${ZMNT}" ] ; then
         mkdir -p ${FSMNT}${ZMNT} >>${LOGOUT} 2>>${LOGOUT}
       fi
 
+      # Check for any volsize args
+      zcopt=""
+      for ZOPT in `echo $ZMNTOPTS | sed 's/|/ /g'`
+      do
+        echo "$ZOPT" | grep -q volsize
+        if [ $? -eq 0 ] ; then
+          volsize=`echo $ZOPT | cut -d '=' -f 2`
+          zcopt="-V $volsize"
+        fi
+      done
+
       if [ "${ZMNT}" = "/" ] ; then
         ZNAME=""
       else
         ZNAME="${ZMNT}"
-        echo_log "zfs create -p ${ZPOOLNAME}${ZNAME}"
-        rc_halt "zfs create -p ${ZPOOLNAME}${ZNAME}"
+        echo_log "zfs create $zcopt -p ${ZPOOLNAME}${ZNAME}"
+        rc_halt "zfs create $zcopt -p ${ZPOOLNAME}${ZNAME}"
       fi
       sleep 2
-      rc_halt "zfs set mountpoint=${FSMNT}${ZNAME} ${ZPOOLNAME}${ZNAME}"
+      if [ -z "$zcopt" ] ; then
+        rc_halt "zfs set mountpoint=${FSMNT}${ZNAME} ${ZPOOLNAME}${ZNAME}"
+      fi
 
-      # Disable atime for this zfs partition, speed increase
-      rc_nohalt "zfs set atime=off ${ZPOOLNAME}${ZNAME}"
-    done 
+      # If no ZFS options, we can skip
+      if [ -z "$ZMNTOPTS" ] ; then continue ; fi
+
+      # Parse any ZFS options now
+      for ZOPT in `echo $ZMNTOPTS | sed 's/|/ /g'`
+      do
+        echo "$ZOPT" | grep -q volsize
+        if [ $? -eq 0 ] ; then continue ; fi
+        rc_halt "zfs set $ZOPT ${ZPOOLNAME}${ZNAME}"
+      done
+    done # End of adding ZFS mounts
 
   else
     # If we are not on ZFS, lets do the mount now
@@ -107,9 +135,9 @@ mount_all_filesystems()
       exit_err "ERROR: The partition ${PARTDEV} does not exist. Failure in bsdlabel?"
     fi 
 
-    PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
-    PARTMNT="`cat ${PARTDIR}/${PART} | cut -d ':' -f 2`"
-    PARTENC="`cat ${PARTDIR}/${PART} | cut -d ':' -f 3`"
+    PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
+    PARTMNT="`cat ${PARTDIR}/${PART} | cut -d '#' -f 2`"
+    PARTENC="`cat ${PARTDIR}/${PART} | cut -d '#' -f 3`"
 
     if [ "${PARTENC}" = "ON" ]
     then
@@ -144,9 +172,9 @@ mount_all_filesystems()
       exit_err "ERROR: The partition ${PARTDEV} does not exist. Failure in bsdlabel?"
     fi 
      
-    PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
-    PARTMNT="`cat ${PARTDIR}/${PART} | cut -d ':' -f 2`"
-    PARTENC="`cat ${PARTDIR}/${PART} | cut -d ':' -f 3`"
+    PARTFS="`cat ${PARTDIR}/${PART} | cut -d '#' -f 1`"
+    PARTMNT="`cat ${PARTDIR}/${PART} | cut -d '#' -f 2`"
+    PARTENC="`cat ${PARTDIR}/${PART} | cut -d '#' -f 3`"
 
     if [ "${PARTENC}" = "ON" ]
     then

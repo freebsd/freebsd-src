@@ -847,8 +847,6 @@ set_source(struct ai_order *aio, struct policyhead *ph)
 		struct in6_ifreq ifr6;
 		u_int32_t flags6;
 
-		/* XXX: interface name should not be hardcoded */
-		strncpy(ifr6.ifr_name, "lo0", sizeof(ifr6.ifr_name));
 		memset(&ifr6, 0, sizeof(ifr6));
 		memcpy(&ifr6.ifr_addr, ai.ai_addr, ai.ai_addrlen);
 		if (_ioctl(s, SIOCGIFAFLAG_IN6, &ifr6) == 0) {

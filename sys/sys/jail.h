@@ -223,7 +223,11 @@ struct prison_racct {
 #define	PR_ALLOW_MOUNT			0x0010
 #define	PR_ALLOW_QUOTAS			0x0020
 #define	PR_ALLOW_SOCKET_AF		0x0040
-#define	PR_ALLOW_ALL			0x007f
+#define	PR_ALLOW_MOUNT_DEVFS		0x0080
+#define	PR_ALLOW_MOUNT_NULLFS		0x0100
+#define	PR_ALLOW_MOUNT_ZFS		0x0200
+#define	PR_ALLOW_MOUNT_PROCFS		0x0400
+#define	PR_ALLOW_ALL			0x07ff
 
 /*
  * OSD methods
@@ -338,6 +342,8 @@ SYSCTL_DECL(_security_jail_param);
 	sysctl_jail_param, fmt, descr)
 #define	SYSCTL_JAIL_PARAM_NODE(module, descr)				\
     SYSCTL_NODE(_security_jail_param, OID_AUTO, module, 0, 0, descr)
+#define	SYSCTL_JAIL_PARAM_SUBNODE(parent, module, descr)		\
+    SYSCTL_NODE(_security_jail_param_##parent, OID_AUTO, module, 0, 0, descr)
 #define	SYSCTL_JAIL_PARAM_SYS_NODE(module, access, descr)		\
     SYSCTL_JAIL_PARAM_NODE(module, descr);				\
     SYSCTL_JAIL_PARAM(_##module, , CTLTYPE_INT | (access), "E,jailsys",	\

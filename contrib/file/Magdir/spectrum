@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: spectrum,v 1.7 2010/09/20 18:55:20 rrt Exp $
 # spectrum:  file(1) magic for Spectrum emulator files.
 #
 # John Elliott <jce@seasip.demon.co.uk>
@@ -19,13 +20,17 @@
 # Tape file. This assumes the .TAP starts with a Spectrum-format header,
 # which nearly all will.
 #
-0       string          \023\000\000    Spectrum .TAP data
->4      string          x               "%-10.10s"
->3      byte            0               - BASIC program
->3      byte            1               - number array
->3      byte            2               - character array
->3      byte            3               - memory block
->>14    belong          0x001B0040      (screen)
+# Update: Sanity-check string contents to be printable.
+#  -Adam Buchbinder <adam.buchbinder@gmail.com>
+#
+0       string          \023\000\000
+>4      string          >\0
+>>4     string          <\177           Spectrum .TAP data "%-10.10s"
+>>>3    byte            0               - BASIC program
+>>>3    byte            1               - number array
+>>>3    byte            2               - character array
+>>>3    byte            3               - memory block
+>>>>14  belong          0x001B0040      (screen)
 
 # The following three blocks are from pak21-spectrum@srcf.ucam.org
 # TZX tape images

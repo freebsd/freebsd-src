@@ -162,12 +162,14 @@ static const unsigned int at91_mainf_tbl[] = {
 static inline uint32_t
 RD4(struct at91_pmc_softc *sc, bus_size_t off)
 {
+
 	return (bus_read_4(sc->mem_res, off));
 }
 
 static inline void
 WR4(struct at91_pmc_softc *sc, bus_size_t off, uint32_t val)
 {
+
 	bus_write_4(sc->mem_res, off, val);
 }
 
@@ -180,9 +182,8 @@ at91_pmc_set_pllb_mode(struct at91_pmc_clock *clk, int on)
 	if (on) {
 		on = PMC_IER_LOCKB;
 		value = sc->pllb_init;
-	} else {
+	} else
 		value = 0;
-	}
 
 	/* Workaround RM9200 Errata #26 */
 	if (at91_is_rm92() &&
@@ -226,18 +227,19 @@ at91_pmc_set_periph_mode(struct at91_pmc_clock *clk, int on)
 }
 
 struct at91_pmc_clock *
-at91_pmc_clock_add(const char *name, uint32_t irq, struct at91_pmc_clock *parent)
+at91_pmc_clock_add(const char *name, uint32_t irq,
+    struct at91_pmc_clock *parent)
 {
 	struct at91_pmc_clock *clk;
 	int i, buflen;
 
 	clk = malloc(sizeof(*clk), M_PMC, M_NOWAIT | M_ZERO);
-	if (clk == NULL) 
+	if (clk == NULL)
 		goto err;
 
 	buflen = strlen(name) + 1;
 	clk->name = malloc(buflen, M_PMC, M_NOWAIT);
-	if (clk->name == NULL) 
+	if (clk->name == NULL)
 		goto err;
 
 	strlcpy(clk->name, name, buflen);
@@ -256,7 +258,7 @@ at91_pmc_clock_add(const char *name, uint32_t irq, struct at91_pmc_clock *parent
 	}
 err:
 	if (clk != NULL) {
-		if (clk->name != NULL) 
+		if (clk->name != NULL)
 			free(clk->name, M_PMC);
 		free(clk, M_PMC);
 	}
@@ -300,11 +302,13 @@ at91_pmc_clock_ref(const char *name)
 void
 at91_pmc_clock_deref(struct at91_pmc_clock *clk)
 {
+
 }
 
 void
 at91_pmc_clock_enable(struct at91_pmc_clock *clk)
 {
+
 	/* XXX LOCKING? XXX */
 	if (clk->parent)
 		at91_pmc_clock_enable(clk->parent);
@@ -315,6 +319,7 @@ at91_pmc_clock_enable(struct at91_pmc_clock *clk)
 void
 at91_pmc_clock_disable(struct at91_pmc_clock *clk)
 {
+
 	/* XXX LOCKING? XXX */
 	if (--clk->refcnt == 0 && clk->set_mode)
 		clk->set_mode(clk, 0);
@@ -331,17 +336,17 @@ at91_pmc_pll_rate(struct at91_pmc_clock *clk, uint32_t reg)
 	div = (reg >> clk->pll_div_shift) & clk->pll_div_mask;
 	mul = (reg >> clk->pll_mul_shift) & clk->pll_mul_mask;
 
-//	printf("pll = (%d /  %d) * %d = %d\n",
-//	    freq, div ,mul + 1, (freq/div) * (mul+1));
+#if 0
+	printf("pll = (%d /  %d) * %d = %d\n",
+	    freq, div, mul + 1, (freq/div) * (mul+1));
+#endif
 
 	if (div != 0 && mul != 0) {
 		freq /= div;
 		freq *= mul + 1;
-	} else {
+	} else
 		freq = 0;
-	}
 	clk->hz = freq;
-
 
 	return (freq);
 }
@@ -402,7 +407,7 @@ at91_pmc_init_clock(struct at91_pmc_softc *sc, unsigned int main_clock)
 	uint32_t mckr;
 	uint32_t mdiv;
 
-	if (at91_is_sam9()) {
+	if (at91_is_sam9() || at91_is_sam9xe()) {
 		uhpck.pmc_mask = PMC_SCER_UHP_SAM9;
 		udpck.pmc_mask = PMC_SCER_UDP_SAM9;
 	}
@@ -431,9 +436,8 @@ at91_pmc_init_clock(struct at91_pmc_softc *sc, unsigned int main_clock)
 	if (at91_is_rm92()) {
 		WR4(sc, PMC_SCDR, PMC_SCER_UHP | PMC_SCER_UDP);
 		WR4(sc, PMC_SCER, PMC_SCER_MCKUDP);
-	} else {
+	} else
 		WR4(sc, PMC_SCDR, PMC_SCER_UHP_SAM9 | PMC_SCER_UDP_SAM9);
-	}
 	WR4(sc, CKGR_PLLBR, 0);
 
 	/*
@@ -443,15 +447,14 @@ at91_pmc_init_clock(struct at91_pmc_softc *sc, unsigned int main_clock)
 	mck.parent = clock_list[mckr & 0x3];
 	mck.parent->refcnt++;
 
-	cpu.hz = 
-	mck.hz = mck.parent->hz /
-  	     (1 << ((mckr & PMC_MCKR_PRES_MASK) >> 2));
+	cpu.hz = mck.hz = mck.parent->hz /
+	    (1 << ((mckr & PMC_MCKR_PRES_MASK) >> 2));
 
 	mdiv = (mckr & PMC_MCKR_MDIV_MASK) >> 8;
-	if (at91_is_sam9()) {
+	if (at91_is_sam9() || at91_is_sam9xe()) {
 		if (mdiv > 0)
 			mck.hz /= mdiv * 2;
-	} else 
+	} else
 		mck.hz /= (1 + mdiv);
 
 	/* Only found on SAM9G20 */
@@ -488,7 +491,6 @@ at91_pmc_deactivate(device_t dev)
 		bus_release_resource(dev, SYS_RES_IOPORT,
 		    rman_get_rid(sc->mem_res), sc->mem_res);
 	sc->mem_res = 0;
-	return;
 }
 
 static int
@@ -574,7 +576,7 @@ at91_pmc_attach(device_t dev)
 static device_method_t at91_pmc_methods[] = {
 	DEVMETHOD(device_probe, at91_pmc_probe),
 	DEVMETHOD(device_attach, at91_pmc_attach),
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t at91_pmc_driver = {
@@ -584,4 +586,5 @@ static driver_t at91_pmc_driver = {
 };
 static devclass_t at91_pmc_devclass;
 
-DRIVER_MODULE(at91_pmc, atmelarm, at91_pmc_driver, at91_pmc_devclass, 0, 0);
+DRIVER_MODULE(at91_pmc, atmelarm, at91_pmc_driver, at91_pmc_devclass, NULL,
+    NULL);

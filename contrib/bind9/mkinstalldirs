@@ -4,7 +4,7 @@
 # Created: 1993-05-16
 # Public domain
 
-# $Id: mkinstalldirs,v 1.1 2000-09-20 19:05:51 gson Exp $
+# $Id$
 
 errstatus=0
 

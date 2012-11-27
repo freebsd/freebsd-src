@@ -112,6 +112,8 @@ Pass *createLICMPass();
 //
 Pass *createLoopStrengthReducePass(const TargetLowering *TLI = 0);
 
+Pass *createGlobalMergePass(const TargetLowering *TLI = 0);
+
 //===----------------------------------------------------------------------===//
 //
 // LoopUnswitch - This pass is a simple loop unswitching pass.
@@ -307,12 +309,6 @@ extern char &InstructionNamerID;
   
 //===----------------------------------------------------------------------===//
 //
-// GEPSplitter - Split complex GEPs into simple ones
-//
-FunctionPass *createGEPSplitterPass();
-
-//===----------------------------------------------------------------------===//
-//
 // Sink - Code Sinking
 //
 FunctionPass *createSinkingPass();
@@ -328,6 +324,12 @@ Pass *createLowerAtomicPass();
 // ValuePropagation - Propagate CFG-derived value information
 //
 Pass *createCorrelatedValuePropagationPass();
+
+//===----------------------------------------------------------------------===//
+//
+// ObjCARCAPElim - ObjC ARC autorelease pool elimination.
+//
+Pass *createObjCARCAPElimPass();
 
 //===----------------------------------------------------------------------===//
 //

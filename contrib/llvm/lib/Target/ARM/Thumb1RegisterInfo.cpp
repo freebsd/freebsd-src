@@ -1,4 +1,4 @@
-//===- Thumb1RegisterInfo.cpp - Thumb-1 Register Information ----*- C++ -*-===//
+//===-- Thumb1RegisterInfo.cpp - Thumb-1 Register Information -------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,12 +12,11 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "Thumb1RegisterInfo.h"
 #include "ARM.h"
 #include "ARMBaseInstrInfo.h"
 #include "ARMMachineFunctionInfo.h"
 #include "ARMSubtarget.h"
-#include "Thumb1InstrInfo.h"
-#include "Thumb1RegisterInfo.h"
 #include "MCTargetDesc/ARMAddressingModes.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
@@ -28,6 +27,7 @@
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/Target/TargetFrameLowering.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Support/CommandLine.h"
@@ -570,6 +570,11 @@ Thumb1RegisterInfo::saveScavengerRegister(MachineBasicBlock &MBB,
     // If this instruction affects R12, adjust our restore point.
     for (unsigned i = 0, e = II->getNumOperands(); i != e; ++i) {
       const MachineOperand &MO = II->getOperand(i);
+      if (MO.isRegMask() && MO.clobbersPhysReg(ARM::R12)) {
+        UseMI = II;
+        done = true;
+        break;
+      }
       if (!MO.isReg() || MO.isUndef() || !MO.getReg() ||
           TargetRegisterInfo::isVirtualRegister(MO.getReg()))
         continue;
@@ -624,6 +629,21 @@ Thumb1RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
       FrameReg = BasePtr;
   }
 
+  // PEI::scavengeFrameVirtualRegs() cannot accurately track SPAdj because the
+  // call frame setup/destroy instructions have already been eliminated.  That
+  // means the stack pointer cannot be used to access the emergency spill slot
+  // when !hasReservedCallFrame().
+#ifndef NDEBUG
+  if (RS && FrameReg == ARM::SP && FrameIndex == RS->getScavengingFrameIndex()){
+    assert(MF.getTarget().getFrameLowering()->hasReservedCallFrame(MF) &&
+           "Cannot use SP to access the emergency spill slot in "
+           "functions without a reserved call frame");
+    assert(!MF.getFrameInfo()->hasVarSizedObjects() &&
+           "Cannot use SP to access the emergency spill slot in "
+           "functions with variable sized frame objects");
+  }
+#endif // NDEBUG
+
   // Special handling of dbg_value instructions.
   if (MI.isDebugValue()) {
     MI.getOperand(i).  ChangeToRegister(FrameReg, false /*isDef*/);
@@ -643,14 +663,13 @@ Thumb1RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   assert(Offset && "This code isn't needed if offset already handled!");
 
   unsigned Opcode = MI.getOpcode();
-  const MCInstrDesc &Desc = MI.getDesc();
 
   // Remove predicate first.
   int PIdx = MI.findFirstPredOperandIdx();
   if (PIdx != -1)
     removeOperands(MI, PIdx);
 
-  if (Desc.mayLoad()) {
+  if (MI.mayLoad()) {
     // Use the destination register to materialize sp + offset.
     unsigned TmpReg = MI.getOperand(0).getReg();
     bool UseRR = false;
@@ -673,7 +692,7 @@ Thumb1RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
       // Use [reg, reg] addrmode. Replace the immediate operand w/ the frame
       // register. The offset is already handled in the vreg value.
       MI.getOperand(i+1).ChangeToRegister(FrameReg, false, false, false);
-  } else if (Desc.mayStore()) {
+  } else if (MI.mayStore()) {
       VReg = MF.getRegInfo().createVirtualRegister(ARM::tGPRRegisterClass);
       bool UseRR = false;
 
@@ -695,11 +714,11 @@ Thumb1RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
         // register. The offset is already handled in the vreg value.
         MI.getOperand(i+1).ChangeToRegister(FrameReg, false, false, false);
   } else {
-    assert(false && "Unexpected opcode!");
+    llvm_unreachable("Unexpected opcode!");
   }
 
   // Add predicate back if it's needed.
-  if (MI.getDesc().isPredicable()) {
+  if (MI.isPredicable()) {
     MachineInstrBuilder MIB(&MI);
     AddDefaultPred(MIB);
   }

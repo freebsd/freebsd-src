@@ -30,9 +30,7 @@
  * SUCH DAMAGE.
  */
 
-#include "spnego/spnego_locl.h"
-
-RCSID("$Id: compat.c 21866 2007-08-08 11:31:29Z lha $");
+#include "spnego_locl.h"
 
 /*
  * Apparently Microsoft got the OID wrong, and used
@@ -43,16 +41,17 @@ RCSID("$Id: compat.c 21866 2007-08-08 11:31:29Z lha $");
  * Kerberos mechanism.
  */
 gss_OID_desc _gss_spnego_mskrb_mechanism_oid_desc =
-	{9, (void *)"\x2a\x86\x48\x82\xf7\x12\x01\x02\x02"};
+    {9, rk_UNCONST("\x2a\x86\x48\x82\xf7\x12\x01\x02\x02")};
 
 gss_OID_desc _gss_spnego_krb5_mechanism_oid_desc =
-	{9, (void *)"\x2a\x86\x48\x86\xf7\x12\x01\x02\x02"};
+    {9, rk_UNCONST("\x2a\x86\x48\x86\xf7\x12\x01\x02\x02")};
 
 /*
  * Allocate a SPNEGO context handle
  */
-OM_uint32 _gss_spnego_alloc_sec_context (OM_uint32 * minor_status,
-					 gss_ctx_id_t *context_handle)
+OM_uint32 GSSAPI_CALLCONV
+_gss_spnego_alloc_sec_context (OM_uint32 * minor_status,
+			       gss_ctx_id_t *context_handle)
 {
     gssspnego_ctx ctx;
 
@@ -76,7 +75,6 @@ OM_uint32 _gss_spnego_alloc_sec_context (OM_uint32 * minor_status,
     ctx->mech_flags = 0;
     ctx->mech_time_rec = 0;
     ctx->mech_src_name = GSS_C_NO_NAME;
-    ctx->delegated_cred_id = GSS_C_NO_CREDENTIAL;
 
     ctx->open = 0;
     ctx->local = 0;
@@ -94,7 +92,7 @@ OM_uint32 _gss_spnego_alloc_sec_context (OM_uint32 * minor_status,
  * Free a SPNEGO context handle. The caller must have acquired
  * the lock before this is called.
  */
-OM_uint32 _gss_spnego_internal_delete_sec_context
+OM_uint32 GSSAPI_CALLCONV _gss_spnego_internal_delete_sec_context
            (OM_uint32 *minor_status,
             gss_ctx_id_t *context_handle,
             gss_buffer_t output_token
@@ -124,8 +122,6 @@ OM_uint32 _gss_spnego_internal_delete_sec_context
     if (ctx->initiator_mech_types.val != NULL)
 	free_MechTypeList(&ctx->initiator_mech_types);
 
-    _gss_spnego_release_cred(&minor, &ctx->delegated_cred_id);
-
     gss_release_oid(&minor, &ctx->preferred_mech_type);
     ctx->negotiated_mech_type = GSS_C_NO_OID;
 
@@ -145,7 +141,6 @@ OM_uint32 _gss_spnego_internal_delete_sec_context
     HEIMDAL_MUTEX_destroy(&ctx->ctx_id_mutex);
 
     free(ctx);
-    *context_handle = NULL;
 
     return ret;
 }
@@ -156,7 +151,7 @@ OM_uint32 _gss_spnego_internal_delete_sec_context
  * a non-preferred mechanism was negotiated
  */
 
-OM_uint32
+OM_uint32 GSSAPI_CALLCONV
 _gss_spnego_require_mechlist_mic(OM_uint32 *minor_status,
 				 gssspnego_ctx ctx,
 				 int *require_mic)
@@ -234,26 +229,26 @@ add_mech_type(gss_OID mech_type,
 }
 
 
-OM_uint32
+OM_uint32 GSSAPI_CALLCONV
 _gss_spnego_indicate_mechtypelist (OM_uint32 *minor_status,
 				   gss_name_t target_name,
 				   OM_uint32 (*func)(gss_name_t, gss_OID),
 				   int includeMSCompatOID,
-				   const gssspnego_cred cred_handle,
+				   const gss_cred_id_t cred_handle,
 				   MechTypeList *mechtypelist,
 				   gss_OID *preferred_mech)
 {
     gss_OID_set supported_mechs = GSS_C_NO_OID_SET;
     gss_OID first_mech = GSS_C_NO_OID;
     OM_uint32 ret;
-    int i;
+    size_t i;
 
     mechtypelist->len = 0;
     mechtypelist->val = NULL;
 
-    if (cred_handle != NULL) {
+    if (cred_handle) {
 	ret = gss_inquire_cred(minor_status,
-			       cred_handle->negotiated_cred_id,
+			       cred_handle,
 			       NULL,
 			       NULL,
 			       NULL,

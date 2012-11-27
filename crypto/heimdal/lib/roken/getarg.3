@@ -1,35 +1,35 @@
-.\" Copyright (c) 1999 - 2002 Kungliga Tekniska Högskolan
-.\" (Royal Institute of Technology, Stockholm, Sweden). 
-.\" All rights reserved. 
+.\" Copyright (c) 1999 - 2002 Kungliga Tekniska HÃ¶gskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden).
+.\" All rights reserved.
 .\"
-.\" Redistribution and use in source and binary forms, with or without 
-.\" modification, are permitted provided that the following conditions 
-.\" are met: 
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
 .\"
-.\" 1. Redistributions of source code must retain the above copyright 
-.\"    notice, this list of conditions and the following disclaimer. 
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
 .\"
-.\" 2. Redistributions in binary form must reproduce the above copyright 
-.\"    notice, this list of conditions and the following disclaimer in the 
-.\"    documentation and/or other materials provided with the distribution. 
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
 .\"
-.\" 3. Neither the name of the Institute nor the names of its contributors 
-.\"    may be used to endorse or promote products derived from this software 
-.\"    without specific prior written permission. 
+.\" 3. Neither the name of the Institute nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
 .\"
-.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
-.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
-.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
-.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
-.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
-.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
-.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
-.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
-.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
-.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
-.\" SUCH DAMAGE. 
-.\" 
-.\" $Id: getarg.3 13380 2004-02-17 12:04:59Z lha $
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $Id$
 .Dd September 24, 1999
 .Dt GETARG 3
 .Os ROKEN
@@ -246,20 +246,20 @@ or
 .Pp
 Long option names are prefixed with -- (double dash), and the value
 with a = (equal),
-.Fl -foo= Ns Ar bar .
+.Fl Fl foo= Ns Ar bar .
 Long option flags can either be specified as they are
-.Pf ( Fl -help ) ,
+.Pf ( Fl Fl help ) ,
 or with an (boolean parsable) option
-.Pf ( Fl -help= Ns Ar yes ,
-.Fl -help= Ns Ar true ,
+.Pf ( Fl Fl help= Ns Ar yes ,
+.Fl Fl help= Ns Ar true ,
 or similar), or they can also be negated
-.Pf ( Fl -no-help
+.Pf ( Fl Fl no-help
 is the same as
-.Fl -help= Ns no ) ,
+.Fl Fl help= Ns no ) ,
 and if you're really confused you can do it multiple times
-.Pf ( Fl -no-no-help= Ns Ar false ,
+.Pf ( Fl Fl no-no-help= Ns Ar false ,
 or even
-.Fl -no-no-help= Ns Ar maybe ) .
+.Fl Fl no-no-help= Ns Ar maybe ) .
 .Sh EXAMPLE
 .Bd -literal
 #include <stdio.h>

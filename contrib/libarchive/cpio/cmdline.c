@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Short options for cpio.  Please keep this sorted.
  */
-static const char *short_options = "0AaBC:cdE:F:f:H:hI:iJjLlmnO:opR:rtuvW:yZz";
+static const char *short_options = "0AaBC:cdE:F:f:H:hI:iJjLlmnO:opR:rtuVvW:yZz";
 
 /*
  * Long options for cpio.  Please keep this sorted.
@@ -62,6 +62,7 @@ static const struct option {
 	int equivalent;	/* Equivalent short option. */
 } cpio_longopts[] = {
 	{ "create",			0, 'o' },
+	{ "dot",			0, 'V' },
 	{ "extract",			0, 'i' },
 	{ "file",			1, 'F' },
 	{ "format",             	1, 'H' },
@@ -109,7 +110,7 @@ cpio_getopt(struct cpio *cpio)
 	int opt = '?';
 	int required = 0;
 
-	cpio->optarg = NULL;
+	cpio->argument = NULL;
 
 	/* First time through, initialize everything. */
 	if (state == state_start) {
@@ -188,7 +189,7 @@ cpio_getopt(struct cpio *cpio)
 				long_prefix = "-W "; /* For clearer errors. */
 			} else {
 				state = state_next_word;
-				cpio->optarg = opt_word;
+				cpio->argument = opt_word;
 			}
 		}
 	}
@@ -202,7 +203,7 @@ cpio_getopt(struct cpio *cpio)
 		p = strchr(opt_word, '=');
 		if (p != NULL) {
 			optlength = (size_t)(p - opt_word);
-			cpio->optarg = (char *)(uintptr_t)(p + 1);
+			cpio->argument = (char *)(uintptr_t)(p + 1);
 		} else {
 			optlength = strlen(opt_word);
 		}
@@ -241,9 +242,9 @@ cpio_getopt(struct cpio *cpio)
 		/* We've found a unique match; does it need an argument? */
 		if (match->required) {
 			/* Argument required: get next word if necessary. */
-			if (cpio->optarg == NULL) {
-				cpio->optarg = *cpio->argv;
-				if (cpio->optarg == NULL) {
+			if (cpio->argument == NULL) {
+				cpio->argument = *cpio->argv;
+				if (cpio->argument == NULL) {
 					lafe_warnc(0,
 					    "Option %s%s requires an argument",
 					    long_prefix, match->name);
@@ -254,7 +255,7 @@ cpio_getopt(struct cpio *cpio)
 			}
 		} else {
 			/* Argument forbidden: fail if there is one. */
-			if (cpio->optarg != NULL) {
+			if (cpio->argument != NULL) {
 				lafe_warnc(0,
 				    "Option %s%s does not allow an argument",
 				    long_prefix, match->name);
@@ -340,7 +341,7 @@ owner_parse(const char *spec, int *uid, int *gid)
 		} else {
 			char *end;
 			errno = 0;
-			*uid = strtoul(user, &end, 10);
+			*uid = (int)strtoul(user, &end, 10);
 			if (errno || *end != '\0') {
 				snprintf(errbuff, sizeof(errbuff),
 				    "Couldn't lookup user ``%s''", user);
@@ -358,7 +359,7 @@ owner_parse(const char *spec, int *uid, int *gid)
 		} else {
 			char *end;
 			errno = 0;
-			*gid = strtoul(g, &end, 10);
+			*gid = (int)strtoul(g, &end, 10);
 			if (errno || *end != '\0') {
 				snprintf(errbuff, sizeof(errbuff),
 				    "Couldn't lookup group ``%s''", g);

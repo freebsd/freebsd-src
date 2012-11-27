@@ -46,11 +46,14 @@ struct bsdtar {
 	const char	 *create_format; /* -F format */
 	char		 *pending_chdir; /* -C dir */
 	const char	 *names_from_file; /* -T file */
+	int		  newer_ctime_filter; /* --newer/--newer-than */
 	time_t		  newer_ctime_sec; /* --newer/--newer-than */
 	long		  newer_ctime_nsec; /* --newer/--newer-than */
+	int		  newer_mtime_filter; /* --newer-mtime/--newer-mtime-than */
 	time_t		  newer_mtime_sec; /* --newer-mtime */
 	long		  newer_mtime_nsec; /* --newer-mtime-than */
 	int		  bytes_per_block; /* -b block_size */
+	int		  bytes_in_last_block; /* See -b handling. */
 	int		  verbose;   /* -v */
 	int		  extract_flags; /* Flags for extract operation */
 	int		  strip_components; /* Remove this many leading dirs */
@@ -71,12 +74,18 @@ struct bsdtar {
 	char		  option_interactive; /* -w */
 	char		  option_no_owner; /* -o */
 	char		  option_no_subdirs; /* -n */
+	char		  option_numeric_owner; /* --numeric-owner */
 	char		  option_null; /* --null */
 	char		  option_stdout; /* -O */
 	char		  option_totals; /* --totals */
 	char		  option_unlink_first; /* -U */
 	char		  option_warn_links; /* --check-links */
 	char		  day_first; /* show day before month in -tv output */
+	char		  enable_copyfile; /* For Mac OS */
+
+	/* Option parser state */
+	int		  getopt_state;
+	char		 *getopt_word;
 
 	/* If >= 0, then close this when done. */
 	int		  fd;
@@ -84,7 +93,7 @@ struct bsdtar {
 	/* Miscellaneous state information */
 	int		  argc;
 	char		**argv;
-	const char	 *optarg;
+	const char	 *argument;
 	size_t		  gs_width; /* For 'list_item' in read.c */
 	size_t		  u_width; /* for 'list_item' in read.c */
 	uid_t		  user_uid; /* UID running this program */
@@ -101,6 +110,7 @@ struct bsdtar {
 	struct archive_dir	*archive_dir;	/* for write.c */
 	struct name_cache	*gname_cache;	/* for write.c */
 	char			*buff;		/* for write.c */
+	size_t			 buff_size;	/* for write.c */
 	struct lafe_matching	*matching;	/* for matching.c */
 	struct security		*security;	/* for read.c */
 	struct name_cache	*uname_cache;	/* for write.c */
@@ -112,6 +122,7 @@ struct bsdtar {
 enum {
 	OPTION_CHECK_LINKS = 1,
 	OPTION_CHROOT,
+	OPTION_DISABLE_COPYFILE,
 	OPTION_EXCLUDE,
 	OPTION_FORMAT,
 	OPTION_GID,
@@ -119,6 +130,7 @@ enum {
 	OPTION_HELP,
 	OPTION_INCLUDE,
 	OPTION_KEEP_NEWER_FILES,
+	OPTION_LZIP,
 	OPTION_LZMA,
 	OPTION_NEWER_CTIME,
 	OPTION_NEWER_CTIME_THAN,
@@ -141,7 +153,6 @@ enum {
 	OPTION_VERSION
 };
 
-
 int	bsdtar_getopt(struct bsdtar *);
 void	do_chdir(struct bsdtar *);
 int	edit_pathname(struct bsdtar *, struct archive_entry *);
@@ -160,6 +171,6 @@ int	yes(const char *fmt, ...);
 
 #if HAVE_REGEX_H
 void	add_substitution(struct bsdtar *, const char *);
-int	apply_substitution(struct bsdtar *, const char *, char **, int);
+int	apply_substitution(struct bsdtar *, const char *, char **, int, int);
 void	cleanup_substitution(struct bsdtar *);
 #endif

@@ -56,11 +56,11 @@ is used to receive a message from another SCTP endpoint.
 The
 .Fn sctp_recvmsg
 call is used by one-to-one (SOCK_STREAM) type sockets after a
-successful 
+successful
 .Fn connect
-call or after the application has performed a 
-.Fn listen 
-followed by a successful 
+call or after the application has performed a
+.Fn listen
+followed by a successful
 .Fn accept .
 For a one-to-many (SOCK_SEQPACKET) type socket, an endpoint may call
 .Fn sctp_recvmsg
@@ -77,7 +77,7 @@ with a positive backlog to enable the reception of new associations.
 .Pp
 The address of the sender is held in the
 .Fa from
-argument with 
+argument with
 .Fa fromlen
 specifying its size.
 At the completion of a successful
@@ -88,16 +88,16 @@ will hold the address of the peer and
 .Fa fromlen
 will hold the length of that address.
 Note that
-the address is bounded by the initial value of 
+the address is bounded by the initial value of
 .Fa fromlen
 which is used as an in/out variable.
 .Pp
-The length of the message 
+The length of the message
 .Fa msg
 to be received is bounded by
 .Fa len .
 If the message is too long to fit in the users
-receive buffer, then the 
+receive buffer, then the
 .Fa flags
 argument will
 .Em not
@@ -105,16 +105,16 @@ have the
 .Dv MSG_EOF
 flag applied.
 If the message is a complete message then
-the 
+the
 .Fa flags
 argument will have
 .Dv MSG_EOF
 set.
-Locally detected errors are 
+Locally detected errors are
 indicated by a return value of -1 with
 .Va errno
 set accordingly.
-The 
+The
 .Fa flags
 argument may also hold the value
 .Dv MSG_NOTIFICATION .
@@ -141,7 +141,7 @@ The
 system call may be used to determine when it is possible to
 receive a message.
 .Pp
-The 
+The
 .Fa sinfo
 argument is defined as follows.
 .Bd -literal
@@ -161,7 +161,7 @@ struct sctp_sndrcvinfo {
 The
 .Fa sinfo->sinfo_ppid
 field is an opaque 32 bit value that is passed transparently
-through the stack from the peer endpoint. 
+through the stack from the peer endpoint.
 Note that the stack passes this value without regard to byte
 order.
 .Pp
@@ -182,7 +182,7 @@ was delivered in order within the stream it was received.
 .Pp
 The
 .Fa sinfo->sinfo_stream
-field is the SCTP stream that the message was received on. 
+field is the SCTP stream that the message was received on.
 Streams in SCTP are reliable (or partially reliable) flows of ordered
 messages.
 .Pp
@@ -194,7 +194,7 @@ context with the
 socket option.
 Optionally a user process can use this value to index some application
 specific data structure for all data coming from a specific
-association. 
+association.
 .Pp
 The
 .Fa sinfo->sinfo_ssn
@@ -230,12 +230,12 @@ sockets this value can be used to send data to the peer without
 the use of an address field.
 It is also quite useful in
 setting various socket options on the specific association
-(see 
+(see
 .Xr sctp 4 ) .
 .Pp
 The
 .Fa sinfo->info_timetolive
-field is not used by 
+field is not used by
 .Fn sctp_recvmsg .
 .Sh RETURN VALUES
 The call returns the number of bytes received, or -1

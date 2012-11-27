@@ -75,7 +75,6 @@ ENTRY(__longjmp)
 	mr	%r6,%r4			/* save val param */
 	mtlr	%r11			/* r11 -> link reg */
 	mtcr	%r12			/* r12 -> condition reg */
-	mr	%r2,%r9			/* r9  -> global ptr */
 	mr	%r1,%r10		/* r10 -> stackptr */
 	mr	%r4,%r3
 	li	%r3,3			/* SIG_SETMASK */

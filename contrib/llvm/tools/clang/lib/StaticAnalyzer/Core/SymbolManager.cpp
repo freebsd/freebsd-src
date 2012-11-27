@@ -21,6 +21,8 @@
 using namespace clang;
 using namespace ento;
 
+void SymExpr::anchor() { }
+
 void SymExpr::dump() const {
   dumpToStream(llvm::errs());
 }
@@ -57,12 +59,27 @@ void SymIntExpr::dumpToStream(raw_ostream &os) const {
   if (getRHS().isUnsigned()) os << 'U';
 }
 
+void IntSymExpr::dumpToStream(raw_ostream &os) const {
+  os << ' ' << getLHS().getZExtValue();
+  if (getLHS().isUnsigned()) os << 'U';
+  print(os, getOpcode());
+  os << '(';
+  getRHS()->dumpToStream(os);
+  os << ") ";
+}
+
 void SymSymExpr::dumpToStream(raw_ostream &os) const {
   os << '(';
   getLHS()->dumpToStream(os);
   os << ") ";
   os << '(';
   getRHS()->dumpToStream(os);
+  os << ')';
+}
+
+void SymbolCast::dumpToStream(raw_ostream &os) const {
+  os << '(' << ToTy.getAsString() << ") (";
+  Operand->dumpToStream(os);
   os << ')';
 }
 
@@ -84,8 +101,67 @@ void SymbolMetadata::dumpToStream(raw_ostream &os) const {
      << getRegion() << ',' << T.getAsString() << '}';
 }
 
+void SymbolData::anchor() { }
+
 void SymbolRegionValue::dumpToStream(raw_ostream &os) const {
   os << "reg_$" << getSymbolID() << "<" << R << ">";
+}
+
+bool SymExpr::symbol_iterator::operator==(const symbol_iterator &X) const {
+  return itr == X.itr;
+}
+
+bool SymExpr::symbol_iterator::operator!=(const symbol_iterator &X) const {
+  return itr != X.itr;
+}
+
+SymExpr::symbol_iterator::symbol_iterator(const SymExpr *SE) {
+  itr.push_back(SE);
+  while (!isa<SymbolData>(itr.back())) expand();
+}
+
+SymExpr::symbol_iterator &SymExpr::symbol_iterator::operator++() {
+  assert(!itr.empty() && "attempting to iterate on an 'end' iterator");
+  assert(isa<SymbolData>(itr.back()));
+  itr.pop_back();
+  if (!itr.empty())
+    while (!isa<SymbolData>(itr.back())) expand();
+  return *this;
+}
+
+SymbolRef SymExpr::symbol_iterator::operator*() {
+  assert(!itr.empty() && "attempting to dereference an 'end' iterator");
+  return cast<SymbolData>(itr.back());
+}
+
+void SymExpr::symbol_iterator::expand() {
+  const SymExpr *SE = itr.back();
+  itr.pop_back();
+
+  switch (SE->getKind()) {
+    case SymExpr::RegionValueKind:
+    case SymExpr::ConjuredKind:
+    case SymExpr::DerivedKind:
+    case SymExpr::ExtentKind:
+    case SymExpr::MetadataKind:
+      return;
+    case SymExpr::CastSymbolKind:
+      itr.push_back(cast<SymbolCast>(SE)->getOperand());
+      return;
+    case SymExpr::SymIntKind:
+      itr.push_back(cast<SymIntExpr>(SE)->getLHS());
+      return;
+    case SymExpr::IntSymKind:
+      itr.push_back(cast<IntSymExpr>(SE)->getRHS());
+      return;
+    case SymExpr::SymSymKind: {
+      const SymSymExpr *x = cast<SymSymExpr>(SE);
+      itr.push_back(x->getLHS());
+      itr.push_back(x->getRHS());
+      return;
+    }
+  }
+  llvm_unreachable("unhandled expansion case");
 }
 
 const SymbolRegionValue*
@@ -105,16 +181,17 @@ SymbolManager::getRegionValueSymbol(const TypedValueRegion* R) {
 }
 
 const SymbolConjured*
-SymbolManager::getConjuredSymbol(const Stmt *E, QualType T, unsigned Count,
+SymbolManager::getConjuredSymbol(const Stmt *E, const LocationContext *LCtx,
+                                 QualType T, unsigned Count,
                                  const void *SymbolTag) {
 
   llvm::FoldingSetNodeID profile;
-  SymbolConjured::Profile(profile, E, T, Count, SymbolTag);
+  SymbolConjured::Profile(profile, E, T, Count, LCtx, SymbolTag);
   void *InsertPos;
   SymExpr *SD = DataSet.FindNodeOrInsertPos(profile, InsertPos);
   if (!SD) {
     SD = (SymExpr*) BPAlloc.Allocate<SymbolConjured>();
-    new (SD) SymbolConjured(SymbolCounter, E, T, Count, SymbolTag);
+    new (SD) SymbolConjured(SymbolCounter, E, LCtx, T, Count, SymbolTag);
     DataSet.InsertNode(SD, InsertPos);
     ++SymbolCounter;
   }
@@ -174,6 +251,22 @@ SymbolManager::getMetadataSymbol(const MemRegion* R, const Stmt *S, QualType T,
   return cast<SymbolMetadata>(SD);
 }
 
+const SymbolCast*
+SymbolManager::getCastSymbol(const SymExpr *Op,
+                             QualType From, QualType To) {
+  llvm::FoldingSetNodeID ID;
+  SymbolCast::Profile(ID, Op, From, To);
+  void *InsertPos;
+  SymExpr *data = DataSet.FindNodeOrInsertPos(ID, InsertPos);
+  if (!data) {
+    data = (SymbolCast*) BPAlloc.Allocate<SymbolCast>();
+    new (data) SymbolCast(Op, From, To);
+    DataSet.InsertNode(data, InsertPos);
+  }
+
+  return cast<SymbolCast>(data);
+}
+
 const SymIntExpr *SymbolManager::getSymIntExpr(const SymExpr *lhs,
                                                BinaryOperator::Opcode op,
                                                const llvm::APSInt& v,
@@ -190,6 +283,24 @@ const SymIntExpr *SymbolManager::getSymIntExpr(const SymExpr *lhs,
   }
 
   return cast<SymIntExpr>(data);
+}
+
+const IntSymExpr *SymbolManager::getIntSymExpr(const llvm::APSInt& lhs,
+                                               BinaryOperator::Opcode op,
+                                               const SymExpr *rhs,
+                                               QualType t) {
+  llvm::FoldingSetNodeID ID;
+  IntSymExpr::Profile(ID, lhs, op, rhs, t);
+  void *InsertPos;
+  SymExpr *data = DataSet.FindNodeOrInsertPos(ID, InsertPos);
+
+  if (!data) {
+    data = (IntSymExpr*) BPAlloc.Allocate<IntSymExpr>();
+    new (data) IntSymExpr(lhs, op, rhs, t);
+    DataSet.InsertNode(data, InsertPos);
+  }
+
+  return cast<IntSymExpr>(data);
 }
 
 const SymSymExpr *SymbolManager::getSymSymExpr(const SymExpr *lhs,
@@ -381,7 +492,16 @@ bool SymbolReaper::isLive(SymbolRef sym) {
   return isa<SymbolRegionValue>(sym);
 }
 
-bool SymbolReaper::isLive(const Stmt *ExprVal) const {
+bool
+SymbolReaper::isLive(const Stmt *ExprVal, const LocationContext *ELCtx) const {
+  if (LCtx != ELCtx) {
+    // If the reaper's location context is a parent of the expression's
+    // location context, then the expression value is now "out of scope".
+    if (LCtx->isParentOf(ELCtx))
+      return false;
+    return true;
+  }
+
   return LCtx->getAnalysis<RelaxedLiveVariables>()->isLive(Loc, ExprVal);
 }
 

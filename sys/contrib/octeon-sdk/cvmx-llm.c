@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -48,7 +48,7 @@
  *
  * Configuration functions for low latency memory.
  *
- * <hr>$Revision: 52372 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 #include "cvmx-config.h"
 #include "cvmx.h"
@@ -153,31 +153,6 @@ int cvmx_llm_get_default_descriptor(llm_descriptor_t *llm_desc_ptr)
         llm_desc_ptr->rld1_bunks = 2;
         llm_desc_ptr->rld0_mbytes = 128;
         llm_desc_ptr->rld1_mbytes = 128;
-    }
-    else if (sys_ptr->board_type == CVMX_BOARD_TYPE_NAC38)
-    {
-        if (sys_ptr->board_rev_major == 1 && sys_ptr->board_rev_minor == 0)
-        {
-            strcpy(llm_desc_ptr->addr_rld0_fb_str, "22 21 20 00 08 07 06 05 04 13 02 01 03 09 18 17 16 15 14 10 12 11 19");
-            strcpy(llm_desc_ptr->addr_rld0_bb_str, "22 21 20 00 08 07 06 05 04 13 02 01 03 09 18 17 16 15 14 10 12 11 19");
-            strcpy(llm_desc_ptr->addr_rld1_fb_str, "22 21 20 00 08 07 06 05 04 13 02 01 03 09 18 17 16 15 14 10 12 11 19");
-            strcpy(llm_desc_ptr->addr_rld1_bb_str, "22 21 20 00 08 07 06 05 04 13 02 01 03 09 18 17 16 15 14 10 12 11 19");
-            llm_desc_ptr->rld0_bunks = 2;
-            llm_desc_ptr->rld1_bunks = 2;
-            llm_desc_ptr->rld0_mbytes = 128;
-            llm_desc_ptr->rld1_mbytes = 128;
-        }
-        else
-        {   /* Asus new recommendation  */
-            strcpy(llm_desc_ptr->addr_rld0_fb_str, "22 21 09 11 04 06 05 08 15 20 16 18 12 13 00 01 07 02 19 17 10 14 03");
-            strcpy(llm_desc_ptr->addr_rld0_bb_str, "22 21 11 09 00 01 07 02 19 17 10 14 03 13 04 06 05 08 15 20 16 18 12");
-            strcpy(llm_desc_ptr->addr_rld1_fb_str, "22 21 08 13 14 00 04 12 16 11 19 10 07 02 01 05 03 06 17 18 20 09 15");
-            strcpy(llm_desc_ptr->addr_rld1_bb_str, "22 21 13 08 01 05 03 06 17 18 20 09 15 02 14 00 04 12 16 11 19 10 07");
-            llm_desc_ptr->rld0_bunks = 2;
-            llm_desc_ptr->rld1_bunks = 2;
-            llm_desc_ptr->rld0_mbytes = 128;
-            llm_desc_ptr->rld1_mbytes = 128;
-        }
     }
     else if (sys_ptr->board_type == CVMX_BOARD_TYPE_THUNDER)
     {

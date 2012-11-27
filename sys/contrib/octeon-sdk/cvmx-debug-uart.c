@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -55,17 +55,17 @@ int cvmx_debug_uart = 1;
 #include "cvmx-debug.h"
 #include "cvmx-uart.h"
 #include "cvmx-spinlock.h"
-
-#ifndef __OCTEON_NEWLIB__
-#include "../../bootloader/u-boot/include/octeon_mem_map.h"
-#else
 #include "octeon-boot-info.h"
 #endif
 
-#endif
+/* 
+ * NOTE: CARE SHOULD BE TAKEN USING STD C LIBRARY FUNCTIONS IN
+ * THIS FILE IF SOMEONE PUTS A BREAKPOINT ON THOSE FUNCTIONS
+ * DEBUGGING WILL FAIL.
+ */
 
 
-#ifdef __OCTEON_NEWLIB__
+#ifdef CVMX_BUILD_FOR_TOOLCHAIN
 #pragma weak cvmx_uart_enable_intr
 int cvmx_debug_uart = 1;
 #endif
@@ -127,11 +127,28 @@ static void cvmx_debug_uart_init(void)
 static void cvmx_debug_uart_install_break_handler(void)
 {
 #ifndef CVMX_BUILD_FOR_LINUX_KERNEL
-#ifdef __OCTEON_NEWLIB__
+#ifdef CVMX_BUILD_FOR_TOOLCHAIN
     if (cvmx_uart_enable_intr)
 #endif
         cvmx_uart_enable_intr(cvmx_debug_uart, cvmx_debug_uart_process_debug_interrupt);
 #endif
+}
+
+/**
+ * Routines to handle hex data
+ *
+ * @param ch
+ * @return
+ */
+static inline int cvmx_debug_uart_hex(char ch)
+{
+    if ((ch >= 'a') && (ch <= 'f'))
+        return(ch - 'a' + 10);
+    if ((ch >= '0') && (ch <= '9'))
+        return(ch - '0');
+    if ((ch >= 'A') && (ch <= 'F'))
+        return(ch - 'A' + 10);
+    return(-1);
 }
 
 /* Get a packet from the UART, return 0 on failure and 1 on success. */
@@ -174,20 +191,31 @@ static int cvmx_debug_uart_getpacket(char *buffer, size_t size)
 
         if (ch == '#')
         {
-	    char csumchars[2];
+	    char csumchars0, csumchars1;
 	    unsigned xmitcsum;
-	    int n;
+	    int n0, n1;
 
-            csumchars[0] = cvmx_uart_read_byte(cvmx_debug_uart);
-            csumchars[1] = cvmx_uart_read_byte(cvmx_debug_uart);
-	    n = sscanf(csumchars, "%2x", &xmitcsum);
-	    if (n != 1)
-		return 1;
+            csumchars0 = cvmx_uart_read_byte(cvmx_debug_uart);
+            csumchars1 = cvmx_uart_read_byte(cvmx_debug_uart);
+            n0 = cvmx_debug_uart_hex(csumchars0);
+            n1 = cvmx_debug_uart_hex(csumchars1);
+	    if (n0 == -1 || n1 == -1)
+		return 0;
 
+            xmitcsum = (n0 << 4) | n1;
             return checksum == xmitcsum;
         }
     }
     return 0;
+}
+
+/* Put the hex value of t into str. */
+static void cvmx_debug_uart_strhex(char *str, unsigned char t)
+{
+  char hexchar[] = "0123456789ABCDEF";
+  str[0] = hexchar[(t>>4)];
+  str[1] = hexchar[t&0xF];
+  str[2] = 0;
 }
 
 static int cvmx_debug_uart_putpacket(char *packet)
@@ -199,7 +227,7 @@ static int cvmx_debug_uart_putpacket(char *packet)
 
     for (csum = 0, i = 0; ptr[i]; i++)
       csum += ptr[i];
-    sprintf(csumstr, "%02x", csum);
+    cvmx_debug_uart_strhex(csumstr, csum);
 
     cvmx_spinlock_lock(&cvmx_debug_uart_lock);
     cvmx_uart_write_byte(cvmx_debug_uart, '$');
@@ -217,12 +245,12 @@ static void cvmx_debug_uart_change_core(int oldcore, int newcore)
     cvmx_ciu_intx0_t irq_control;
 
     irq_control.u64 = cvmx_read_csr(CVMX_CIU_INTX_EN0(newcore * 2));
-    irq_control.s.uart |= (1<<cvmx_debug_uart);
+    irq_control.s.uart |= (1u<<cvmx_debug_uart);
     cvmx_write_csr(CVMX_CIU_INTX_EN0(newcore * 2), irq_control.u64);
 
     /* Disable interrupts to this core since he is about to die */
     irq_control.u64 = cvmx_read_csr(CVMX_CIU_INTX_EN0(oldcore * 2));
-    irq_control.s.uart &= ~(1<<cvmx_debug_uart);
+    irq_control.s.uart &= ~(1u<<cvmx_debug_uart);
     cvmx_write_csr(CVMX_CIU_INTX_EN0(oldcore* 2), irq_control.u64);
 #endif
 }

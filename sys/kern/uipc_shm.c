@@ -468,6 +468,7 @@ shm_insert(char *path, Fnv32_t fnv, struct shmfd *shmfd)
 	map->sm_path = path;
 	map->sm_fnv = fnv;
 	map->sm_shmfd = shm_hold(shmfd);
+	shmfd->shm_path = path;
 	LIST_INSERT_HEAD(SHM_HASH(fnv), map, sm_link);
 }
 
@@ -490,6 +491,7 @@ shm_remove(char *path, Fnv32_t fnv, struct ucred *ucred)
 			    FREAD | FWRITE);
 			if (error)
 				return (error);
+			map->sm_shmfd->shm_path = NULL;
 			LIST_REMOVE(map, sm_link);
 			shm_drop(map->sm_shmfd);
 			free(map->sm_path, M_SHMFD);
@@ -843,4 +845,16 @@ shm_unmap(struct file *fp, void *mem, size_t size)
 	shmfd->shm_kmappings--;
 	VM_OBJECT_UNLOCK(obj);
 	return (0);
+}
+
+void
+shm_path(struct shmfd *shmfd, char *path, size_t size)
+{
+
+	if (shmfd->shm_path == NULL)
+		return;
+	sx_slock(&shm_dict_lock);
+	if (shmfd->shm_path != NULL)
+		strlcpy(path, shmfd->shm_path, size);
+	sx_sunlock(&shm_dict_lock);
 }

@@ -688,3 +688,24 @@ ar5211GetDiagState(struct ath_hal *ah, int request,
 	}
 	return AH_FALSE;
 }
+
+/*
+ * Return what percentage of the extension channel is busy.
+ * This is always disabled for AR5211 series NICs.
+ */
+uint32_t
+ar5211Get11nExtBusy(struct ath_hal *ah)
+{
+	return (0);
+}
+
+
+/*
+ * There's no channel survey support for the AR5211.
+ */
+HAL_BOOL
+ar5211GetMibCycleCounts(struct ath_hal *ah, HAL_SURVEY_SAMPLE *hsample)
+{
+
+	return (AH_FALSE);
+}

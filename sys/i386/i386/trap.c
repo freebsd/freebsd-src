@@ -73,6 +73,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
+PMC_SOFT_DEFINE( , , page_fault, all);
+PMC_SOFT_DEFINE( , , page_fault, read);
+PMC_SOFT_DEFINE( , , page_fault, write);
 #endif
 #include <security/audit/audit.h>
 
@@ -251,8 +254,7 @@ trap(struct trapframe *frame)
 #endif
 
 	if (type == T_MCHK) {
-		if (!mca_intr())
-			trap_fatal(frame, 0);
+		mca_intr();
 		goto out;
 	}
 
@@ -304,8 +306,9 @@ trap(struct trapframe *frame)
 			uprintf(
 			    "pid %ld (%s): trap %d with interrupts disabled\n",
 			    (long)curproc->p_pid, curthread->td_name, type);
-		else if (type != T_BPTFLT && type != T_TRCTRAP &&
-			 frame->tf_eip != (int)cpu_switch_load_gs) {
+		else if (type != T_NMI && type != T_BPTFLT &&
+		    type != T_TRCTRAP &&
+		    frame->tf_eip != (int)cpu_switch_load_gs) {
 			/*
 			 * XXX not quite right, since this may be for a
 			 * multiple fault in user mode.
@@ -315,9 +318,9 @@ trap(struct trapframe *frame)
 			/*
 			 * Page faults need interrupts disabled until later,
 			 * and we shouldn't enable interrupts while holding
-			 * a spin lock or if servicing an NMI.
+			 * a spin lock.
 			 */
-			if (type != T_NMI && type != T_PAGEFLT &&
+			if (type != T_PAGEFLT &&
 			    td->td_md.md_spinlock_count == 0)
 				enable_intr();
 		}
@@ -329,28 +332,13 @@ trap(struct trapframe *frame)
 		 * For some Cyrix CPUs, %cr2 is clobbered by
 		 * interrupts.  This problem is worked around by using
 		 * an interrupt gate for the pagefault handler.  We
-		 * are finally ready to read %cr2 and then must
-		 * reenable interrupts.
-		 *
-		 * If we get a page fault while in a critical section, then
-		 * it is most likely a fatal kernel page fault.  The kernel
-		 * is already going to panic trying to get a sleep lock to
-		 * do the VM lookup, so just consider it a fatal trap so the
-		 * kernel can print out a useful trap message and even get
-		 * to the debugger.
-		 *
-		 * If we get a page fault while holding a non-sleepable
-		 * lock, then it is most likely a fatal kernel page fault.
-		 * If WITNESS is enabled, then it's going to whine about
-		 * bogus LORs with various VM locks, so just skip to the
-		 * fatal trap handling directly.
+		 * are finally ready to read %cr2 and conditionally
+		 * reenable interrupts.  If we hold a spin lock, then
+		 * we must not reenable interrupts.  This might be a
+		 * spurious page fault.
 		 */
 		eva = rcr2();
-		if (td->td_critnest != 0 ||
-		    WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL,
-		    "Kernel page fault") != 0)
-			trap_fatal(frame, eva);
-		else
+		if (td->td_md.md_spinlock_count == 0)
 			enable_intr();
 	}
 
@@ -796,13 +784,57 @@ trap_pfault(frame, usermode, eva)
 	vm_offset_t eva;
 {
 	vm_offset_t va;
-	struct vmspace *vm = NULL;
+	struct vmspace *vm;
 	vm_map_t map;
 	int rv = 0;
 	vm_prot_t ftype;
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
 
+	if (__predict_false((td->td_pflags & TDP_NOFAULTING) != 0)) {
+		/*
+		 * Due to both processor errata and lazy TLB invalidation when
+		 * access restrictions are removed from virtual pages, memory
+		 * accesses that are allowed by the physical mapping layer may
+		 * nonetheless cause one spurious page fault per virtual page. 
+		 * When the thread is executing a "no faulting" section that
+		 * is bracketed by vm_fault_{disable,enable}_pagefaults(),
+		 * every page fault is treated as a spurious page fault,
+		 * unless it accesses the same virtual address as the most
+		 * recent page fault within the same "no faulting" section.
+		 */
+		if (td->td_md.md_spurflt_addr != eva ||
+		    (td->td_pflags & TDP_RESETSPUR) != 0) {
+			/*
+			 * Do nothing to the TLB.  A stale TLB entry is
+			 * flushed automatically by a page fault.
+			 */
+			td->td_md.md_spurflt_addr = eva;
+			td->td_pflags &= ~TDP_RESETSPUR;
+			return (0);
+		}
+	} else {
+		/*
+		 * If we get a page fault while in a critical section, then
+		 * it is most likely a fatal kernel page fault.  The kernel
+		 * is already going to panic trying to get a sleep lock to
+		 * do the VM lookup, so just consider it a fatal trap so the
+		 * kernel can print out a useful trap message and even get
+		 * to the debugger.
+		 *
+		 * If we get a page fault while holding a non-sleepable
+		 * lock, then it is most likely a fatal kernel page fault.
+		 * If WITNESS is enabled, then it's going to whine about
+		 * bogus LORs with various VM locks, so just skip to the
+		 * fatal trap handling directly.
+		 */
+		if (td->td_critnest != 0 ||
+		    WITNESS_CHECK(WARN_SLEEPOK | WARN_GIANTOK, NULL,
+		    "Kernel page fault") != 0) {
+			trap_fatal(frame, eva);
+			return (-1);
+		}
+	}
 	va = trunc_page(eva);
 	if (va >= KERNBASE) {
 		/*
@@ -815,7 +847,7 @@ trap_pfault(frame, usermode, eva)
 		 */
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
 		if ((eva == (unsigned int)&idt[6]) && has_f00f_bug)
-			return -2;
+			return (-2);
 #endif
 		if (usermode)
 			goto nogo;
@@ -823,17 +855,21 @@ trap_pfault(frame, usermode, eva)
 		map = kernel_map;
 	} else {
 		/*
-		 * This is a fault on non-kernel virtual memory.
-		 * vm is initialized above to NULL. If curproc is NULL
-		 * or curproc->p_vmspace is NULL the fault is fatal.
+		 * This is a fault on non-kernel virtual memory.  If either
+		 * p or p->p_vmspace is NULL, then the fault is fatal.
 		 */
-		if (p != NULL)
-			vm = p->p_vmspace;
-
-		if (vm == NULL)
+		if (p == NULL || (vm = p->p_vmspace) == NULL)
 			goto nogo;
 
 		map = &vm->vm_map;
+
+		/*
+		 * When accessing a user-space address, kernel must be
+		 * ready to accept the page fault, and provide a
+		 * handling routine.  Since accessing the address
+		 * without the handler is a bug, do not try to handle
+		 * it normally, and panic immediately.
+		 */
 		if (!usermode && (td->td_intr_nesting_level != 0 ||
 		    PCPU_GET(curpcb)->pcb_onfault == NULL)) {
 			trap_fatal(frame, eva);
@@ -876,8 +912,20 @@ trap_pfault(frame, usermode, eva)
 		 */
 		rv = vm_fault(map, va, ftype, VM_FAULT_NORMAL);
 	}
-	if (rv == KERN_SUCCESS)
+	if (rv == KERN_SUCCESS) {
+#ifdef HWPMC_HOOKS
+		if (ftype == VM_PROT_READ || ftype == VM_PROT_WRITE) {
+			PMC_SOFT_CALL_TF( , , page_fault, all, frame);
+			if (ftype == VM_PROT_READ)
+				PMC_SOFT_CALL_TF( , , page_fault, read,
+				    frame);
+			else
+				PMC_SOFT_CALL_TF( , , page_fault, write,
+				    frame);
+		}
+#endif
 		return (0);
+	}
 nogo:
 	if (!usermode) {
 		if (td->td_intr_nesting_level == 0 &&
@@ -888,8 +936,7 @@ nogo:
 		trap_fatal(frame, eva);
 		return (-1);
 	}
-
-	return((rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV);
+	return ((rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV);
 }
 
 static void

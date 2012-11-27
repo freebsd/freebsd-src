@@ -34,7 +34,7 @@ gname_cleanup(void *d)
 }
 
 static const char *
-gname_lookup(void *d, gid_t g)
+gname_lookup(void *d, int64_t g)
 {
 	int *mp = d;
 	assertEqualInt(*mp, 0x13579);
@@ -52,7 +52,7 @@ uname_cleanup(void *d)
 }
 
 static const char *
-uname_lookup(void *d, uid_t u)
+uname_lookup(void *d, int64_t u)
 {
 	int *mp = d;
 	assertEqualInt(*mp, 0x1234);
@@ -164,7 +164,7 @@ DEFINE_TEST(test_read_disk)
 			   &umagic, &uname_lookup, &uname_cleanup));
 
 	/* Destroy the archive. */
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/* Verify our cleanup functions got called. */
 	assertEqualInt(gmagic, 0x2468);

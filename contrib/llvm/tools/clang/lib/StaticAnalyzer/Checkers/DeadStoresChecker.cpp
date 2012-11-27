@@ -23,6 +23,7 @@
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ParentMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/SmallString.h"
 
 using namespace clang;
 using namespace ento;
@@ -67,22 +68,37 @@ void ReachableCode::computeReachableBlocks() {
   }
 }
 
+static const Expr *LookThroughTransitiveAssignments(const Expr *Ex) {
+  while (Ex) {
+    const BinaryOperator *BO =
+      dyn_cast<BinaryOperator>(Ex->IgnoreParenCasts());
+    if (!BO)
+      break;
+    if (BO->getOpcode() == BO_Assign) {
+      Ex = BO->getRHS();
+      continue;
+    }
+    break;
+  }
+  return Ex;
+}
+
 namespace {
 class DeadStoreObs : public LiveVariables::Observer {
   const CFG &cfg;
   ASTContext &Ctx;
   BugReporter& BR;
-  AnalysisContext* AC;
+  AnalysisDeclContext* AC;
   ParentMap& Parents;
   llvm::SmallPtrSet<const VarDecl*, 20> Escaped;
-  llvm::OwningPtr<ReachableCode> reachableCode;
+  OwningPtr<ReachableCode> reachableCode;
   const CFGBlock *currentBlock;
 
   enum DeadStoreKind { Standard, Enclosing, DeadIncrement, DeadInit };
 
 public:
   DeadStoreObs(const CFG &cfg, ASTContext &ctx,
-               BugReporter& br, AnalysisContext* ac, ParentMap& parents,
+               BugReporter& br, AnalysisDeclContext* ac, ParentMap& parents,
                llvm::SmallPtrSet<const VarDecl*, 20> &escaped)
     : cfg(cfg), Ctx(ctx), BR(br), AC(ac), Parents(parents),
       Escaped(escaped), currentBlock(0) {}
@@ -104,14 +120,11 @@ public:
     if (!reachableCode->isReachable(currentBlock))
       return;
 
-    llvm::SmallString<64> buf;
+    SmallString<64> buf;
     llvm::raw_svector_ostream os(buf);
     const char *BugType = 0;
 
     switch (dsk) {
-      default:
-        llvm_unreachable("Impossible dead store type.");
-
       case DeadInit:
         BugType = "Dead initialization";
         os << "Value stored to '" << *V
@@ -132,7 +145,7 @@ public:
         return;
     }
 
-    BR.EmitBasicReport(BugType, "Dead store", os.str(), L, R);
+    BR.EmitBasicReport(AC->getDecl(), BugType, "Dead store", os.str(), L, R);
   }
 
   void CheckVarDecl(const VarDecl *VD, const Expr *Ex, const Expr *Val,
@@ -202,17 +215,18 @@ public:
         if (VarDecl *VD = dyn_cast<VarDecl>(DR->getDecl())) {
           // Special case: check for assigning null to a pointer.
           //  This is a common form of defensive programming.
+          const Expr *RHS = LookThroughTransitiveAssignments(B->getRHS());
+          
           QualType T = VD->getType();
           if (T->isPointerType() || T->isObjCObjectPointerType()) {
-            if (B->getRHS()->isNullPointerConstant(Ctx,
-                                              Expr::NPC_ValueDependentIsNull))
+            if (RHS->isNullPointerConstant(Ctx, Expr::NPC_ValueDependentIsNull))
               return;
           }
 
-          Expr *RHS = B->getRHS()->IgnoreParenCasts();
+          RHS = RHS->IgnoreParenCasts();
           // Special case: self-assignments.  These are often used to shut up
           //  "unused variable" compiler warnings.
-          if (DeclRefExpr *RhsDR = dyn_cast<DeclRefExpr>(RHS))
+          if (const DeclRefExpr *RhsDR = dyn_cast<DeclRefExpr>(RHS))
             if (VD == dyn_cast<VarDecl>(RhsDR->getDecl()))
               return;
 
@@ -254,9 +268,14 @@ public:
           if (V->getType()->getAs<ReferenceType>())
             return;
             
-          if (Expr *E = V->getInit()) {
-            while (ExprWithCleanups *exprClean = dyn_cast<ExprWithCleanups>(E))
+          if (const Expr *E = V->getInit()) {
+            while (const ExprWithCleanups *exprClean =
+                    dyn_cast<ExprWithCleanups>(E))
               E = exprClean->getSubExpr();
+            
+            // Look through transitive assignments, e.g.:
+            // int x = y = 0;
+            E = LookThroughTransitiveAssignments(E);
             
             // Don't warn on C++ objects (yet) until we can show that their
             // constructors/destructors don't have side effects.
@@ -274,11 +293,12 @@ public:
               // If x is EVER assigned a new value later, don't issue
               // a warning.  This is because such initialization can be
               // due to defensive programming.
-              if (E->isConstantInitializer(Ctx, false))
+              if (E->isEvaluatable(Ctx))
                 return;
 
-              if (DeclRefExpr *DRE=dyn_cast<DeclRefExpr>(E->IgnoreParenCasts()))
-                if (VarDecl *VD = dyn_cast<VarDecl>(DRE->getDecl())) {
+              if (const DeclRefExpr *DRE =
+                  dyn_cast<DeclRefExpr>(E->IgnoreParenCasts()))
+                if (const VarDecl *VD = dyn_cast<VarDecl>(DRE->getDecl())) {
                   // Special case: check for initialization from constant
                   //  variables.
                   //
@@ -350,7 +370,7 @@ public:
                         BugReporter &BR) const {
     if (LiveVariables *L = mgr.getAnalysis<LiveVariables>(D)) {
       CFG &cfg = *mgr.getCFG(D);
-      AnalysisContext *AC = mgr.getAnalysisContext(D);
+      AnalysisDeclContext *AC = mgr.getAnalysisDeclContext(D);
       ParentMap &pmap = mgr.getParentMap(D);
       FindEscaped FS(&cfg);
       FS.getCFG().VisitBlockStmts(FS);

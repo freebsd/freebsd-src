@@ -119,7 +119,7 @@ option in your
 .Xr loader.conf 5
 configuration file you will get up to five DSP devices, one for each
 sound card output.
-You can use additional software (like 
+You can use additional software (like
 .Em audio/pulseaudio
 from
 .Em The Ports Collection )
@@ -164,7 +164,6 @@ DSP inputs 0..8:
 .It +0x3E
 sync substream (0xc0de)
 .El
-.Pp
 .Ss Audigy substream map (in byte offsets, each substream is 2 bytes LE)
 .Bl -tag -width ".Dv +0x00..+0x3E"
 .It Dv Offset
@@ -286,7 +285,6 @@ The
 device driver and this manual page were written by
 .An Yuriy Tsibizov .
 .Sh BUGS
-.Pp
 The driver does not detect lost S/PDIF signals and produces noise when
 S/PDIF is not connected and S/PDIF volume is not zero.
 .Pp

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: print.h,v 1.26 2007-06-19 23:47:18 tbox Exp $ */
+/* $Id: print.h,v 1.26 2007/06/19 23:47:18 tbox Exp $ */
 
 #ifndef ISC_PRINT_H
 #define ISC_PRINT_H 1

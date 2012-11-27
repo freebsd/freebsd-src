@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: gringotts,v 1.5 2009/09/19 16:28:09 christos Exp $
 # gringotts:  file(1) magic for Gringotts
 # http://devel.pluto.linux.it/projects/Gringotts/
 # author: Germano Rizzo <mano@pluto.linux.it>

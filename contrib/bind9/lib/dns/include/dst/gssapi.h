@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: gssapi.h,v 1.16 2011-01-08 23:47:01 tbox Exp $ */
+/* $Id: gssapi.h,v 1.16 2011/01/08 23:47:01 tbox Exp $ */
 
 #ifndef DST_GSSAPI_H
 #define DST_GSSAPI_H 1

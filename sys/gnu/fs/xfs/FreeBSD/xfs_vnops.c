@@ -46,8 +46,6 @@
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 
-#include <fs/fifofs/fifo.h>
-
 #define NO_VFS_MACROS
 #include "xfs.h"
 #include "xfs_types.h"

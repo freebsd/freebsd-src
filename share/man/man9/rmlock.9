@@ -80,7 +80,7 @@ Read mostly locks are designed to be efficient for locks almost exclusively
 used as reader locks and as such should be used for protecting data that
 rarely changes.
 Acquiring an exclusive lock after the lock had been locked for shared access
-is an expensive operation. 
+is an expensive operation.
 .Pp
 Although reader/writer locks look very similar to
 .Xr sx 9
@@ -196,9 +196,9 @@ This function releases a shared lock previously acquired by
 .Fn rm_rlock .
 The
 .Fa tracker
-argument must match the 
-.Fa tracker 
-argument used for acquiring the shared lock 
+argument must match the
+.Fa tracker
+argument used for acquiring the shared lock
 .It Fn rm_wunlock "struct rmlock *rm"
 This function releases an exclusive lock previously acquired by
 .Fn rm_wlock .
@@ -248,7 +248,7 @@ The
 implementation uses a single per CPU list shared by all
 rmlocks in the system.
 If rmlocks become popular, hashing to multiple per CPU queues may
-be needed to speed up the writer lock process. 
+be needed to speed up the writer lock process.
 .Pp
 The
 .Nm

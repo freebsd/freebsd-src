@@ -1,8 +1,8 @@
 .\" $FreeBSD$
 .\"
 .Dd December 26, 1996
-.Os
 .Dt WLCONFIG 8 i386
+.Os
 .Sh NAME
 .Nm wlconfig
 .Nd read/write wavelan config parameters
@@ -97,12 +97,12 @@ utility should then be used to reconfigure the card to a sensible
 value.
 .Sh EXAMPLES
 Set the NWID to 0x1234:
-.Bd -literal -offset
+.Bd -literal -offset indent
 # wlconfig wl0 nwid 0x1234
 .Ed
 .Pp
 Show the current settings:
-.Bd -literal -offset
+.Bd -literal -offset indent
 # wlconfig wl0
 Board type            : ISA
 Base address options  : 0x300, 0x390, 0x3c0, 0x3e0
@@ -128,7 +128,7 @@ CRC status            : OK
 .Ed
 .Pp
 Print a scaled version of the signal strength cache:
-.Bd -literal -offset
+.Bd -literal -offset indent
 # wlconfig wl0 cache scale
 .Ed
 .Sh SEE ALSO

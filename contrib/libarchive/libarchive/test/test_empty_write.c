@@ -60,8 +60,8 @@ DEFINE_TEST(test_empty_write)
 		assertEqualIntA(a, 0, archive_write_data(a, "", 0));
 
 		/* Close out the archive. */
-		assertA(0 == archive_write_close(a));
-		assertA(0 == archive_write_finish(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 	}
 
 	/*
@@ -90,8 +90,8 @@ DEFINE_TEST(test_empty_write)
 		assertEqualIntA(a, 0, archive_write_data(a, "", 0));
 
 		/* Close out the archive. */
-		assertA(0 == archive_write_close(a));
-		assertA(0 == archive_write_finish(a));
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+		assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 	}
 
 	/*
@@ -115,6 +115,6 @@ DEFINE_TEST(test_empty_write)
 	assertEqualIntA(a, 0, archive_write_data(a, "", 0));
 
 	/* Close out the archive. */
-	assertA(0 == archive_write_close(a));
-	assertA(0 == archive_write_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 }

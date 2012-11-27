@@ -18,7 +18,6 @@
 #include "MCTargetDesc/PPCPredicates.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/CodeGen/MachineFunctionAnalysis.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
@@ -211,13 +210,13 @@ void PPCDAGToDAGISel::InsertVRSaveCode(MachineFunction &Fn) {
 
   // Find all return blocks, outputting a restore in each epilog.
   for (MachineFunction::iterator BB = Fn.begin(), E = Fn.end(); BB != E; ++BB) {
-    if (!BB->empty() && BB->back().getDesc().isReturn()) {
+    if (!BB->empty() && BB->back().isReturn()) {
       IP = BB->end(); --IP;
 
       // Skip over all terminator instructions, which are part of the return
       // sequence.
       MachineBasicBlock::iterator I2 = IP;
-      while (I2 != BB->begin() && (--I2)->getDesc().isTerminator())
+      while (I2 != BB->begin() && (--I2)->isTerminator())
         IP = I2;
 
       // Emit: MTVRSAVE InVRSave
@@ -378,8 +377,8 @@ SDNode *PPCDAGToDAGISel::SelectBitfieldInsert(SDNode *N) {
   DebugLoc dl = N->getDebugLoc();
 
   APInt LKZ, LKO, RKZ, RKO;
-  CurDAG->ComputeMaskedBits(Op0, APInt::getAllOnesValue(32), LKZ, LKO);
-  CurDAG->ComputeMaskedBits(Op1, APInt::getAllOnesValue(32), RKZ, RKO);
+  CurDAG->ComputeMaskedBits(Op0, LKZ, LKO);
+  CurDAG->ComputeMaskedBits(Op1, RKZ, RKO);
 
   unsigned TargetMask = LKZ.getZExtValue();
   unsigned InsertMask = RKZ.getZExtValue();
@@ -603,7 +602,6 @@ static unsigned getCRIdxForSetCC(ISD::CondCode CC, bool &Invert, int &Other) {
   case ISD::SETULT: return 0;
   case ISD::SETUGT: return 1;
   }
-  return 0;
 }
 
 SDNode *PPCDAGToDAGISel::SelectSETCC(SDNode *N) {
@@ -1067,7 +1065,7 @@ SDNode *PPCDAGToDAGISel::Select(SDNode *N) {
     SDValue Target = N->getOperand(1);
     unsigned Opc = Target.getValueType() == MVT::i32 ? PPC::MTCTR : PPC::MTCTR8;
     unsigned Reg = Target.getValueType() == MVT::i32 ? PPC::BCTR : PPC::BCTR8;
-    Chain = SDValue(CurDAG->getMachineNode(Opc, dl, MVT::Other, Target,
+    Chain = SDValue(CurDAG->getMachineNode(Opc, dl, MVT::Glue, Target,
                                            Chain), 0);
     return CurDAG->SelectNodeTo(N, Reg, MVT::Other, Chain);
   }

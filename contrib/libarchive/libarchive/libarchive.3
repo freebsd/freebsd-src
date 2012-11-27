@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 17, 2010
+.Dd February 6, 2010
 .Dt LIBARCHIVE 3
 .Os
 .Sh NAME
@@ -36,10 +36,13 @@
 The
 .Nm
 library provides a flexible interface for reading and writing
-streaming archive files such as tar and cpio.
+archives in various formats such as tar and cpio.
+.Nm
+also supports reading and writing archives compressed using
+various compression filters such as gzip and bzip2.
 The library is inherently stream-oriented; readers serially iterate through
 the archive, writers serially add things to the archive.
-In particular, note that there is no built-in support for
+In particular, note that there is currently no built-in support for
 random access nor for in-place modification.
 .Pp
 When reading an archive, the library automatically detects the
@@ -114,131 +117,15 @@ The rest of this manual page provides an overview of the library
 operation.
 More detailed information can be found in the individual manual
 pages for each API or utility function.
+.\"
 .Sh READING AN ARCHIVE
-To read an archive, you must first obtain an initialized
-.Tn struct archive
-object from
-.Fn archive_read_new .
-You can then modify this object for the desired operations with the
-various
-.Fn archive_read_set_XXX
-and
-.Fn archive_read_support_XXX
-functions.
-In particular, you will need to invoke appropriate
-.Fn archive_read_support_XXX
-functions to enable the corresponding compression and format
-support.
-Note that these latter functions perform two distinct operations:
-they cause the corresponding support code to be linked into your
-program, and they enable the corresponding auto-detect code.
-Unless you have specific constraints, you will generally want
-to invoke
-.Fn archive_read_support_compression_all
-and
-.Fn archive_read_support_format_all
-to enable auto-detect for all formats and compression types
-currently supported by the library.
-.Pp
-Once you have prepared the
-.Tn struct archive
-object, you call
-.Fn archive_read_open
-to actually open the archive and prepare it for reading.
-There are several variants of this function;
-the most basic expects you to provide pointers to several
-functions that can provide blocks of bytes from the archive.
-There are convenience forms that allow you to
-specify a filename, file descriptor,
-.Ft "FILE *"
-object, or a block of memory from which to read the archive data.
-Note that the core library makes no assumptions about the
-size of the blocks read;
-callback functions are free to read whatever block size is
-most appropriate for the medium.
-.Pp
-Each archive entry consists of a header followed by a certain
-amount of data.
-You can obtain the next header with
-.Fn archive_read_next_header ,
-which returns a pointer to an
-.Tn struct archive_entry
-structure with information about the current archive element.
-If the entry is a regular file, then the header will be followed
-by the file data.
-You can use
-.Fn archive_read_data
-(which works much like the
-.Xr read 2
-system call)
-to read this data from the archive, or
-.Fn archive_read_data_block
-which provides a slightly more efficient interface.
-You may prefer to use the higher-level
-.Fn archive_read_data_skip ,
-which reads and discards the data for this entry,
-.Fn archive_read_data_to_file ,
-which copies the data to the provided file descriptor, or
-.Fn archive_read_extract ,
-which recreates the specified entry on disk and copies data
-from the archive.
-In particular, note that
-.Fn archive_read_extract
-uses the
-.Tn struct archive_entry
-structure that you provide it, which may differ from the
-entry just read from the archive.
-In particular, many applications will want to override the
-pathname, file permissions, or ownership.
-.Pp
-Once you have finished reading data from the archive, you
-should call
-.Fn archive_read_close
-to close the archive, then call
-.Fn archive_read_free
-to release all resources, including all memory allocated by the library.
-.Pp
-The
-.Xr archive_read 3
-manual page provides more detailed calling information for this API.
+See
+.Xr libarchive_read 3 .
+.\"
 .Sh WRITING AN ARCHIVE
-You use a similar process to write an archive.
-The
-.Fn archive_write_new
-function creates an archive object useful for writing,
-the various
-.Fn archive_write_set_XXX
-functions are used to set parameters for writing the archive, and
-.Fn archive_write_open
-completes the setup and opens the archive for writing.
-.Pp
-Individual archive entries are written in a three-step
-process:
-You first initialize a
-.Tn struct archive_entry
-structure with information about the new entry.
-At a minimum, you should set the pathname of the
-entry and provide a
-.Va struct stat
-with a valid
-.Va st_mode
-field, which specifies the type of object and
-.Va st_size
-field, which specifies the size of the data portion of the object.
-The
-.Fn archive_write_header
-function actually writes the header data to the archive.
-You can then use
-.Fn archive_write_data
-to write the actual data.
-.Pp
-After all entries have been written, use the
-.Fn archive_write_free
-function to release all resources.
-.Pp
-The
-.Xr archive_write 3
-manual page provides more detailed calling information for this API.
+See
+.Xr libarchive_write 3 .
+.\"
 .Sh WRITING ENTRIES TO DISK
 The
 .Xr archive_write_disk 3

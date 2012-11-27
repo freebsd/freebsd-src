@@ -5,6 +5,7 @@ LDFLAGS= -Wl,-Bsymbolic -Wl,--no-undefined
 LDADD=	-lgssapi -lkrb5 -lhx509 -lcrypto -lroken -lasn1 -lcom_err -lcrypt
 DPADD=	${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBCRYPTO} ${LIBROKEN} ${LIBASN1} \
 	${LIBCOM_ERR} ${LIBCRYPT}
+SHLIB_MAJOR=	10
 
 INCS=	${KRB5DIR}/lib/gssapi/gssapi/gssapi_krb5.h
 INCSDIR= ${INCLUDEDIR}/gssapi
@@ -14,7 +15,9 @@ SRCS=	8003.c \
 	acquire_cred.c \
 	add_cred.c \
 	address_to_krb5addr.c \
+	aeap.c \
 	arcfour.c \
+	authorize_localname.c \
 	canonicalize_name.c \
 	ccache_name.c \
 	cfx.c \
@@ -22,6 +25,7 @@ SRCS=	8003.c \
 	compat.c \
 	context_time.c \
 	copy_ccache.c \
+	creds.c \
 	decapsulate.c \
 	delete_sec_context.c \
 	display_name.c \
@@ -34,6 +38,8 @@ SRCS=	8003.c \
 	get_mic.c \
 	gkrb5_err.c \
 	gkrb5_err.h \
+	gsskrb5-private.h \
+	gsskrb5_locl.h \
 	import_name.c \
 	import_sec_context.c \
 	indicate_mechs.c \
@@ -56,11 +62,13 @@ SRCS=	8003.c \
 	sequence.c \
 	set_cred_option.c \
 	set_sec_context_option.c \
+	store_cred.c \
+	ticket_flags.c \
 	unwrap.c \
-	v1.c \
 	verify_mic.c \
 	wrap.c \
-	gss_krb5.c
+	gss_krb5.c \
+	gss_oid.c
 
 #SRCS+=	gss_add_oid_set_member.c \
 #	gss_create_empty_oid_set.c \
@@ -71,6 +79,7 @@ SRCS=	8003.c \
 
 CFLAGS+=-I${KRB5DIR}/lib/gssapi
 CFLAGS+=-I${KRB5DIR}/lib/gssapi/krb5
+CFLAGS+=-I${KRB5DIR}/lib/gssapi/gssapi
 CFLAGS+=-I${KRB5DIR}/lib/krb5
 CFLAGS+=-I${KRB5DIR}/lib/asn1
 CFLAGS+=-I${KRB5DIR}/lib/roken -I.

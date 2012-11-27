@@ -1,4 +1,4 @@
-# $Id: Makefile.am 22413 2008-01-12 05:58:14Z lha $
+# $Id$
 
 include $(top_srcdir)/Makefile.am.common
 
@@ -20,6 +20,7 @@ subst = sed	-e "s!@PACKAGE\@!$(PACKAGE)!g" \
 		-e "s!@exec_prefix\@!$(exec_prefix)!g" \
 		-e "s!@libdir\@!$(libdir)!g" \
 		-e "s!@includedir\@!$(includedir)!g" \
+		-e "s!@PTHREAD_LIBADD\@!$(PTHREAD_LIBADD)!g" \
 		-e "s!@LIB_crypt\@!$(LIB_crypt)!g" \
 		-e "s!@LIB_dbopen\@!$(LIB_dbopen)!g" \
 		-e "s!@INCLUDE_hcrypto\@!$(INCLUDE_hcrypto)!g" \
@@ -39,8 +40,8 @@ heimdal-gssapi.pc: heimdal-gssapi.pc.in
 	mv $@.new $@
 
 EXTRA_DIST = \
+	NTMakefile \
 	$(man_MANS) \
-	heimdal-build.sh \
 	krb5-config.in \
 	heimdal-gssapi.pc.in \
 	kdc-log-analyze.pl

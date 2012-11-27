@@ -47,6 +47,17 @@ public:
   /// debugging, and may be turned on by default in debug mode.
   virtual void setPoisonMemory(bool poison) = 0;
 
+  /// getPointerToNamedFunction - This method returns the address of the
+  /// specified function. As such it is only useful for resolving library
+  /// symbols, not code generated symbols.
+  ///
+  /// If AbortOnFailure is false and no function with the given name is
+  /// found, this function silently returns a null pointer. Otherwise,
+  /// it prints a message to stderr and aborts.
+  ///
+  virtual void *getPointerToNamedFunction(const std::string &Name,
+                                          bool AbortOnFailure = true) = 0;
+
   //===--------------------------------------------------------------------===//
   // Global Offset Table Management
   //===--------------------------------------------------------------------===//
@@ -100,6 +111,22 @@ public:
   /// and remember where it is in case the client wants to deallocate it.
   virtual void endFunctionBody(const Function *F, uint8_t *FunctionStart,
                                uint8_t *FunctionEnd) = 0;
+
+  /// allocateCodeSection - Allocate a memory block of (at least) the given
+  /// size suitable for executable code. The SectionID is a unique identifier
+  /// assigned by the JIT and passed through to the memory manager for
+  /// the instance class to use if it needs to communicate to the JIT about
+  /// a given section after the fact.
+  virtual uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
+                                       unsigned SectionID) = 0;
+
+  /// allocateDataSection - Allocate a memory block of (at least) the given
+  /// size suitable for data. The SectionID is a unique identifier
+  /// assigned by the JIT and passed through to the memory manager for
+  /// the instance class to use if it needs to communicate to the JIT about
+  /// a given section after the fact.
+  virtual uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment,
+                                       unsigned SectionID) = 0;
 
   /// allocateSpace - Allocate a memory block of the given size.  This method
   /// cannot be called between calls to startFunctionBody and endFunctionBody.

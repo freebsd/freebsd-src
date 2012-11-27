@@ -2080,13 +2080,8 @@ struct ohci_config_desc ohci_confd =
 static const
 struct usb_hub_descriptor ohci_hubd =
 {
-	0,				/* dynamic length */
-	UDESC_HUB,
-	0,
-	{0, 0},
-	0,
-	0,
-	{0},
+	.bDescLength = 0,	/* dynamic length */
+	.bDescriptorType = UDESC_HUB,
 };
 
 static usb_error_t

@@ -1,23 +1,23 @@
 /*
- * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska Högskolan
+ * Copyright (c) 1995, 1996, 1997 Kungliga Tekniska HÃ¶gskolan
  * (Royal Institute of Technology, Stockholm, Sweden).
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright
  *    notice, this list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -31,13 +31,11 @@
  * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: concat.c 14773 2005-04-12 11:29:18Z lha $");
-#endif
+
 #include "roken.h"
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 roken_concat (char *s, size_t len, ...)
 {
     int ret;
@@ -49,7 +47,7 @@ roken_concat (char *s, size_t len, ...)
     return ret;
 }
 
-int ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION int ROKEN_LIB_CALL
 roken_vconcat (char *s, size_t len, va_list args)
 {
     const char *a;
@@ -67,7 +65,7 @@ roken_vconcat (char *s, size_t len, va_list args)
     return 0;
 }
 
-size_t ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION size_t ROKEN_LIB_CALL
 roken_vmconcat (char **s, size_t max_len, va_list args)
 {
     const char *a;
@@ -80,7 +78,7 @@ roken_vmconcat (char **s, size_t max_len, va_list args)
     len = 1;
     while ((a = va_arg(args, const char*))) {
 	size_t n = strlen (a);
-	
+
 	if(max_len && len + n > max_len){
 	    free(p);
 	    return 0;
@@ -99,10 +97,10 @@ roken_vmconcat (char **s, size_t max_len, va_list args)
     return len;
 }
 
-size_t ROKEN_LIB_FUNCTION
+ROKEN_LIB_FUNCTION size_t ROKEN_LIB_CALL
 roken_mconcat (char **s, size_t max_len, ...)
 {
-    int ret;
+    size_t ret;
     va_list args;
 
     va_start(args, max_len);

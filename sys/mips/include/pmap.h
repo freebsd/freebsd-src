@@ -99,7 +99,7 @@ typedef struct pmap *pmap_t;
 #ifdef	_KERNEL
 
 pt_entry_t *pmap_pte(pmap_t, vm_offset_t);
-vm_offset_t pmap_kextract(vm_offset_t va);
+vm_paddr_t pmap_kextract(vm_offset_t va);
 
 #define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 #define	pmap_asid(pmap)	(pmap)->pm_asid[PCPU_GET(cpuid)].asid
@@ -163,7 +163,6 @@ void pmap_kenter_attr(vm_offset_t va, vm_paddr_t pa, int attr);
 void pmap_kremove(vm_offset_t va);
 void *pmap_kenter_temporary(vm_paddr_t pa, int i);
 void pmap_kenter_temporary_free(vm_paddr_t pa);
-int pmap_compute_pages_to_dump(void);
 void pmap_flush_pvcache(vm_page_t m);
 int pmap_emulate_modified(pmap_t pmap, vm_offset_t va);
 void pmap_grow_direct_page_cache(void);

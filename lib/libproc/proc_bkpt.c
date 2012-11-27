@@ -44,6 +44,9 @@ __FBSDID("$FreeBSD$");
 #if defined(__i386__) || defined(__amd64__)
 #define BREAKPOINT_INSTR	0xcc	/* int 0x3 */
 #define	BREAKPOINT_INSTR_SZ	1
+#elif defined(__mips__)
+#define BREAKPOINT_INSTR	0xd	/* break */
+#define	BREAKPOINT_INSTR_SZ	4
 #else
 #error "Add support for your architecture"
 #endif

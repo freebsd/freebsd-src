@@ -65,6 +65,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -78,7 +79,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma.h>
 
 #ifdef DDB
-#include <sys/kdb.h>
 #include <ddb/ddb.h>
 #include <sys/lockmgr.h>
 #include <sys/sx.h>
@@ -143,7 +143,7 @@ static SYSCTL_NODE(_debug, OID_AUTO, turnstile, CTLFLAG_RD, 0,
 static SYSCTL_NODE(_debug_turnstile, OID_AUTO, chains, CTLFLAG_RD, 0,
     "turnstile chain stats");
 SYSCTL_UINT(_debug_turnstile, OID_AUTO, max_depth, CTLFLAG_RD,
-    &turnstile_max_depth, 0, "maxmimum depth achieved of a single chain");
+    &turnstile_max_depth, 0, "maximum depth achieved of a single chain");
 #endif
 static struct mtx td_contested_lock;
 static struct turnstile_chain turnstile_chains[TC_TABLESIZE];
@@ -217,9 +217,7 @@ propagate_priority(struct thread *td)
 			printf(
 		"Sleeping thread (tid %d, pid %d) owns a non-sleepable lock\n",
 			    td->td_tid, td->td_proc->p_pid);
-#ifdef DDB
-			db_trace_thread(td, -1);
-#endif
+			kdb_backtrace_thread(td);
 			panic("sleeping thread");
 		}
 

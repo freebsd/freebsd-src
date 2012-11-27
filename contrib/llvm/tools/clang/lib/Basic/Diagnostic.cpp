@@ -14,7 +14,7 @@
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/IdentifierTable.h"
 #include "clang/Basic/PartialDiagnostic.h"
-#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/SmallString.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/CrashRecoveryContext.h"
 
@@ -27,14 +27,14 @@ static void DummyArgToStringFn(DiagnosticsEngine::ArgumentKind AK, intptr_t QT,
                                unsigned NumPrevArgs,
                                SmallVectorImpl<char> &Output,
                                void *Cookie,
-                               SmallVectorImpl<intptr_t> &QualTypeVals) {
+                               ArrayRef<intptr_t> QualTypeVals) {
   const char *Str = "<can't format argument>";
   Output.append(Str, Str+strlen(Str));
 }
 
 
 DiagnosticsEngine::DiagnosticsEngine(
-                       const llvm::IntrusiveRefCntPtr<DiagnosticIDs> &diags,
+                       const IntrusiveRefCntPtr<DiagnosticIDs> &diags,
                        DiagnosticConsumer *client, bool ShouldOwnClient)
   : Diags(diags), Client(client), OwnsDiagClient(ShouldOwnClient),
     SourceMgr(0) {
@@ -53,6 +53,7 @@ DiagnosticsEngine::DiagnosticsEngine(
 
   ErrorLimit = 0;
   TemplateBacktraceLimit = 0;
+  ConstexprBacktraceLimit = 0;
 
   Reset();
 }
@@ -118,7 +119,7 @@ void DiagnosticsEngine::Reset() {
 }
 
 void DiagnosticsEngine::SetDelayedDiagnostic(unsigned DiagID, StringRef Arg1,
-                                      StringRef Arg2) {
+                                             StringRef Arg2) {
   if (DelayedDiagID)
     return;
 
@@ -161,7 +162,7 @@ DiagnosticsEngine::GetDiagStatePointForLoc(SourceLocation L) const {
 /// \param The source location that this change of diagnostic state should
 /// take affect. It can be null if we are setting the latest state.
 void DiagnosticsEngine::setDiagnosticMapping(diag::kind Diag, diag::Mapping Map,
-                                      SourceLocation L) {
+                                             SourceLocation L) {
   assert(Diag < diag::DIAG_UPPER_LIMIT &&
          "Can only map builtin diagnostics");
   assert((Diags->isBuiltinWarningOrExtension(Diag) ||
@@ -169,18 +170,16 @@ void DiagnosticsEngine::setDiagnosticMapping(diag::kind Diag, diag::Mapping Map,
          "Cannot map errors into warnings!");
   assert(!DiagStatePoints.empty());
 
-  bool isPragma = L.isValid();
   FullSourceLoc Loc(L, *SourceMgr);
   FullSourceLoc LastStateChangePos = DiagStatePoints.back().Loc;
-  DiagnosticMappingInfo MappingInfo = DiagnosticMappingInfo::Make(
-    Map, /*IsUser=*/true, isPragma);
-
-  // If this is a pragma mapping, then set the diagnostic mapping flags so that
-  // we override command line options.
-  if (isPragma) {
-    MappingInfo.setNoWarningAsError(true);
-    MappingInfo.setNoErrorAsFatal(true);
+  // Don't allow a mapping to a warning override an error/fatal mapping.
+  if (Map == diag::MAP_WARNING) {
+    DiagnosticMappingInfo &Info = GetCurDiagState()->getOrAddMappingInfo(Diag);
+    if (Info.getMapping() == diag::MAP_ERROR ||
+        Info.getMapping() == diag::MAP_FATAL)
+      Map = Info.getMapping();
   }
+  DiagnosticMappingInfo MappingInfo = makeMappingInfo(Map, L);
 
   // Common case; setting all the diagnostics of a group in one place.
   if (Loc.isInvalid() || Loc == LastStateChangePos) {
@@ -244,6 +243,24 @@ bool DiagnosticsEngine::setDiagnosticGroupMapping(
   return false;
 }
 
+void DiagnosticsEngine::setDiagnosticWarningAsError(diag::kind Diag,
+                                                    bool Enabled) {
+  // If we are enabling this feature, just set the diagnostic mappings to map to
+  // errors.
+  if (Enabled) 
+    setDiagnosticMapping(Diag, diag::MAP_ERROR, SourceLocation());
+
+  // Otherwise, we want to set the diagnostic mapping's "no Werror" bit, and
+  // potentially downgrade anything already mapped to be a warning.
+  DiagnosticMappingInfo &Info = GetCurDiagState()->getOrAddMappingInfo(Diag);
+
+  if (Info.getMapping() == diag::MAP_ERROR ||
+      Info.getMapping() == diag::MAP_FATAL)
+    Info.setMapping(diag::MAP_WARNING);
+
+  Info.setNoWarningAsError(true);
+}
+
 bool DiagnosticsEngine::setDiagnosticGroupWarningAsError(StringRef Group,
                                                          bool Enabled) {
   // If we are enabling this feature, just set the diagnostic mappings to map to
@@ -272,6 +289,23 @@ bool DiagnosticsEngine::setDiagnosticGroupWarningAsError(StringRef Group,
   }
 
   return false;
+}
+
+void DiagnosticsEngine::setDiagnosticErrorAsFatal(diag::kind Diag,
+                                                  bool Enabled) {
+  // If we are enabling this feature, just set the diagnostic mappings to map to
+  // errors.
+  if (Enabled)
+    setDiagnosticMapping(Diag, diag::MAP_FATAL, SourceLocation());
+  
+  // Otherwise, we want to set the diagnostic mapping's "no Werror" bit, and
+  // potentially downgrade anything already mapped to be a warning.
+  DiagnosticMappingInfo &Info = GetCurDiagState()->getOrAddMappingInfo(Diag);
+  
+  if (Info.getMapping() == diag::MAP_FATAL)
+    Info.setMapping(diag::MAP_ERROR);
+  
+  Info.setNoErrorAsFatal(true);
 }
 
 bool DiagnosticsEngine::setDiagnosticGroupErrorAsFatal(StringRef Group,
@@ -303,6 +337,18 @@ bool DiagnosticsEngine::setDiagnosticGroupErrorAsFatal(StringRef Group,
   return false;
 }
 
+void DiagnosticsEngine::setMappingToAllDiagnostics(diag::Mapping Map,
+                                                   SourceLocation Loc) {
+  // Get all the diagnostics.
+  llvm::SmallVector<diag::kind, 64> AllDiags;
+  Diags->getAllDiagnostics(AllDiags);
+
+  // Set the mapping.
+  for (unsigned i = 0, e = AllDiags.size(); i != e; ++i)
+    if (Diags->isBuiltinWarningOrExtension(AllDiags[i]))
+      setDiagnosticMapping(AllDiags[i], Map, Loc);
+}
+
 void DiagnosticsEngine::Report(const StoredDiagnostic &storedDiag) {
   assert(CurDiagID == ~0U && "Multiple diagnostics in flight at once!");
 
@@ -311,7 +357,7 @@ void DiagnosticsEngine::Report(const StoredDiagnostic &storedDiag) {
   NumDiagArgs = 0;
 
   NumDiagRanges = storedDiag.range_size();
-  assert(NumDiagRanges < sizeof(DiagRanges)/sizeof(DiagRanges[0]) &&
+  assert(NumDiagRanges < DiagnosticsEngine::MaxRanges &&
          "Too many arguments to diagnostic!");
   unsigned i = 0;
   for (StoredDiagnostic::range_iterator
@@ -319,14 +365,13 @@ void DiagnosticsEngine::Report(const StoredDiagnostic &storedDiag) {
          RE = storedDiag.range_end(); RI != RE; ++RI)
     DiagRanges[i++] = *RI;
 
-  NumFixItHints = storedDiag.fixit_size();
-  assert(NumFixItHints < DiagnosticsEngine::MaxFixItHints &&
-      "Too many fix-it hints!");
-  i = 0;
+  assert(NumDiagRanges < DiagnosticsEngine::MaxFixItHints &&
+         "Too many arguments to diagnostic!");
+  NumDiagFixItHints = 0;
   for (StoredDiagnostic::fixit_iterator
          FI = storedDiag.fixit_begin(),
          FE = storedDiag.fixit_end(); FI != FE; ++FI)
-    FixItHints[i++] = *FI;
+    DiagFixItHints[NumDiagFixItHints++] = *FI;
 
   assert(Client && "DiagnosticConsumer not set!");
   Level DiagLevel = storedDiag.getLevel();
@@ -340,35 +385,18 @@ void DiagnosticsEngine::Report(const StoredDiagnostic &storedDiag) {
   CurDiagID = ~0U;
 }
 
-void DiagnosticBuilder::FlushCounts() {
-  DiagObj->NumDiagArgs = NumArgs;
-  DiagObj->NumDiagRanges = NumRanges;
-  DiagObj->NumFixItHints = NumFixItHints;
-}
-
-bool DiagnosticBuilder::Emit() {
-  // If DiagObj is null, then its soul was stolen by the copy ctor
-  // or the user called Emit().
-  if (DiagObj == 0) return false;
-
-  // When emitting diagnostics, we set the final argument count into
-  // the DiagnosticsEngine object.
-  FlushCounts();
-
+bool DiagnosticsEngine::EmitCurrentDiagnostic() {
   // Process the diagnostic, sending the accumulated information to the
   // DiagnosticConsumer.
-  bool Emitted = DiagObj->ProcessDiag();
+  bool Emitted = ProcessDiag();
 
   // Clear out the current diagnostic object.
-  unsigned DiagID = DiagObj->CurDiagID;
-  DiagObj->Clear();
+  unsigned DiagID = CurDiagID;
+  Clear();
 
   // If there was a delayed diagnostic, emit it now.
-  if (DiagObj->DelayedDiagID && DiagObj->DelayedDiagID != DiagID)
-    DiagObj->ReportDelayed();
-
-  // This diagnostic is dead.
-  DiagObj = 0;
+  if (DelayedDiagID && DelayedDiagID != DiagID)
+    ReportDelayed();
 
   return Emitted;
 }
@@ -802,7 +830,7 @@ StoredDiagnostic::StoredDiagnostic(DiagnosticsEngine::Level Level,
        "Valid source location without setting a source manager for diagnostic");
   if (Info.getLocation().isValid())
     Loc = FullSourceLoc(Info.getLocation(), Info.getSourceManager());
-  llvm::SmallString<64> Message;
+  SmallString<64> Message;
   Info.FormatDiagnostic(Message);
   this->Message.assign(Message.begin(), Message.end());
 
@@ -833,6 +861,8 @@ StoredDiagnostic::~StoredDiagnostic() { }
 ///  reported by DiagnosticsEngine.
 bool DiagnosticConsumer::IncludeInDiagnosticCounts() const { return true; }
 
+void IgnoringDiagConsumer::anchor() { }
+
 PartialDiagnostic::StorageAllocator::StorageAllocator() {
   for (unsigned I = 0; I != NumCached; ++I)
     FreeList[I] = Cached + I;
@@ -840,7 +870,9 @@ PartialDiagnostic::StorageAllocator::StorageAllocator() {
 }
 
 PartialDiagnostic::StorageAllocator::~StorageAllocator() {
-  // Don't assert if we are in a CrashRecovery context, as this
-  // invariant may be invalidated during a crash.
-  assert((NumFreeListEntries == NumCached || llvm::CrashRecoveryContext::isRecoveringFromCrash()) && "A partial is on the lamb");
+  // Don't assert if we are in a CrashRecovery context, as this invariant may
+  // be invalidated during a crash.
+  assert((NumFreeListEntries == NumCached || 
+          llvm::CrashRecoveryContext::isRecoveringFromCrash()) && 
+         "A partial is on the lamb");
 }

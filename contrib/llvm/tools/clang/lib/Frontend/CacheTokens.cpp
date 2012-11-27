@@ -467,7 +467,7 @@ void PTHWriter::GeneratePTH(const std::string &MainFile) {
   // Iterate over all the files in SourceManager.  Create a lexer
   // for each file and cache the tokens.
   SourceManager &SM = PP.getSourceManager();
-  const LangOptions &LOpts = PP.getLangOptions();
+  const LangOptions &LOpts = PP.getLangOpts();
 
   for (SourceManager::fileinfo_iterator I = SM.fileinfo_begin(),
        E = SM.fileinfo_end(); I != E; ++I) {
@@ -540,7 +540,7 @@ void clang::CacheTokens(Preprocessor &PP, llvm::raw_fd_ostream* OS) {
   // Get the name of the main file.
   const SourceManager &SrcMgr = PP.getSourceManager();
   const FileEntry *MainFile = SrcMgr.getFileEntryForID(SrcMgr.getMainFileID());
-  llvm::SmallString<128> MainFilePath(MainFile->getName());
+  SmallString<128> MainFilePath(MainFile->getName());
 
   llvm::sys::fs::make_absolute(MainFilePath);
 

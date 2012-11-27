@@ -31,6 +31,7 @@
 
 #include <sys/types.h>
 #include <machine/atomic.h>
+#include <machine/tls.h>
 
 struct Struct_Obj_Entry;
 
@@ -48,18 +49,8 @@ Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
 #define call_initfini_pointer(obj, target) \
 	(((InitFunc)(target))())
 
-/*
- * TLS
- */
-
-#define TLS_TP_OFFSET	0x7000
-#define TLS_DTP_OFFSET	0x8000
-
-#ifdef __mips_n64
-#define TLS_TCB_SIZE	16
-#else
-#define TLS_TCB_SIZE	8
-#endif
+#define call_init_pointer(obj, target) \
+	(((InitArrFunc)(target))(main_argc, main_argv, environ))
 
 typedef struct {
 	unsigned long ti_module;

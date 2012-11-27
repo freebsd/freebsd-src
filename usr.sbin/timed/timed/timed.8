@@ -86,20 +86,20 @@ If it finds an untrusted host claiming to be master,
 will suppress incoming messages from that host
 and call for a new election.
 .It
-Use real host names (resolvable by RDNS) not aliases (eg in 
+Use real host names (resolvable by RDNS) not aliases (eg in
 .Xr named 8
 parlance: use A names, not C names).
 .It
 Use full names eg time1.domain.com not time1.
 .It
 .Fl F
-automatically includes the functionality of 
+automatically includes the functionality of
 .Fl M
 (so
 .Fl M
 does not need to asserted).
 .It
-If 
+If
 .Fl F
 is not specified,
 all hosts on connected networks are treated as trustworthy.

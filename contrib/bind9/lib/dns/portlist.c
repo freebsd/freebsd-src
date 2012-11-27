@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: portlist.c,v 1.13 2007-06-19 23:47:16 tbox Exp $ */
+/* $Id: portlist.c,v 1.13 2007/06/19 23:47:16 tbox Exp $ */
 
 /*! \file */
 

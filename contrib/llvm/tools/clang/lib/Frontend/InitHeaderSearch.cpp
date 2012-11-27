@@ -11,10 +11,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifdef HAVE_CLANG_CONFIG_H
-# include "clang/Config/config.h"
-#endif
-
 #include "clang/Frontend/Utils.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/LangOptions.h"
@@ -30,10 +26,9 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Config/config.h"
-#ifndef CLANG_PREFIX
-#define CLANG_PREFIX
-#endif
+
+#include "clang/Config/config.h" // C_INCLUDE_DIRS
+
 using namespace clang;
 using namespace clang::frontend;
 
@@ -112,7 +107,7 @@ void InitHeaderSearch::AddPath(const Twine &Path,
   FileManager &FM = Headers.getFileMgr();
 
   // Compute the actual path, taking into consideration -isysroot.
-  llvm::SmallString<256> MappedPathStorage;
+  SmallString<256> MappedPathStorage;
   StringRef MappedPathStr = Path.toStringRef(MappedPathStorage);
 
   // Handle isysroot.
@@ -321,7 +316,7 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
     }
     break;
   case llvm::Triple::FreeBSD:
-    AddPath(CLANG_PREFIX "/usr/include/clang/" CLANG_VERSION_STRING,
+    AddPath("/usr/include/clang/" CLANG_VERSION_STRING,
       System, false, false, false);
     break;
       
@@ -330,25 +325,12 @@ void InitHeaderSearch::AddDefaultCIncludePaths(const llvm::Triple &triple,
   }
 
   if ( os != llvm::Triple::RTEMS )
-    AddPath(CLANG_PREFIX "/usr/include", System, false, false, false);
+    AddPath("/usr/include", System, false, false, false);
 }
 
 void InitHeaderSearch::
 AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple, const HeaderSearchOptions &HSOpts) {
   llvm::Triple::OSType os = triple.getOS();
-  StringRef CxxIncludeRoot(CXX_INCLUDE_ROOT);
-  if (CxxIncludeRoot != "") {
-    StringRef CxxIncludeArch(CXX_INCLUDE_ARCH);
-    if (CxxIncludeArch == "")
-      AddGnuCPlusPlusIncludePaths(CxxIncludeRoot, triple.str().c_str(),
-                                  CXX_INCLUDE_32BIT_DIR, CXX_INCLUDE_64BIT_DIR,
-                                  triple);
-    else
-      AddGnuCPlusPlusIncludePaths(CxxIncludeRoot, CXX_INCLUDE_ARCH,
-                                  CXX_INCLUDE_32BIT_DIR, CXX_INCLUDE_64BIT_DIR,
-                                  triple);
-    return;
-  }
   // FIXME: temporary hack: hard-coded paths.
 
   if (triple.isOSDarwin()) {
@@ -391,11 +373,10 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple, const HeaderSearchOp
 
   case llvm::Triple::Cygwin:
     // Cygwin-1.7
+    AddMinGWCPlusPlusIncludePaths("/usr/lib/gcc", "i686-pc-cygwin", "4.5.3");
     AddMinGWCPlusPlusIncludePaths("/usr/lib/gcc", "i686-pc-cygwin", "4.3.4");
     // g++-4 / Cygwin-1.5
     AddMinGWCPlusPlusIncludePaths("/usr/lib/gcc", "i686-pc-cygwin", "4.3.2");
-    // FIXME: Do we support g++-3.4.4?
-    AddMinGWCPlusPlusIncludePaths("/usr/lib/gcc", "i686-pc-cygwin", "3.4.4");
     break;
   case llvm::Triple::MinGW32:
     // mingw-w64 C++ include paths (i686-w64-mingw32 and x86_64-w64-mingw32)
@@ -403,12 +384,17 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple, const HeaderSearchOp
     AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.5.1");
     AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.5.2");
     AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.5.3");
+    AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.5.4");
     AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.6.0");
     AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.6.1");
     AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.6.2");
+    AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.6.3");
     AddMinGW64CXXPaths(HSOpts.ResourceDir, "4.7.0");
     // mingw.org C++ include paths
     AddMinGWCPlusPlusIncludePaths("/mingw/lib/gcc", "mingw32", "4.5.2"); //MSYS
+    AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.6.2");
+    AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.6.1");
+    AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.5.2");
     AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.5.0");
     AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.4.0");
     AddMinGWCPlusPlusIncludePaths("c:/MinGW/lib/gcc", "mingw32", "4.3.0");
@@ -419,9 +405,8 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple, const HeaderSearchOp
   case llvm::Triple::FreeBSD:
     // FreeBSD 8.0
     // FreeBSD 7.3
-    AddGnuCPlusPlusIncludePaths(CLANG_PREFIX "/usr/include/c++/4.2",
-                                "", "", "", triple);
-    AddGnuCPlusPlusIncludePaths(CLANG_PREFIX "/usr/include/c++/4.2/backward",
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.2", "", "", "", triple);
+    AddGnuCPlusPlusIncludePaths("/usr/include/c++/4.2/backward",
                                 "", "", "", triple);
     break;
   case llvm::Triple::NetBSD:
@@ -440,6 +425,8 @@ AddDefaultCPlusPlusIncludePaths(const llvm::Triple &triple, const HeaderSearchOp
                                 "", "", "", triple);
     break;
   case llvm::Triple::Solaris:
+    AddGnuCPlusPlusIncludePaths("/usr/gcc/4.5/include/c++/4.5.2/",
+                                "i386-pc-solaris2.11", "", "", triple);
     // Solaris - Fall though..
   case llvm::Triple::AuroraUX:
     // AuroraUX
@@ -484,6 +471,11 @@ void InitHeaderSearch::AddDefaultIncludePaths(const LangOptions &Lang,
           AddPath(P.str(), CXXSystem, true, false, false, true);
         }
       }
+      // On Solaris, include the support directory for things like xlocale and
+      // fudged system headers.
+      if (triple.getOS() == llvm::Triple::Solaris) 
+        AddPath("/usr/include/c++/v1/support/solaris", CXXSystem, true, false,
+            false);
       
       AddPath("/usr/include/c++/v1", CXXSystem, true, false, false);
     } else {
@@ -674,6 +666,14 @@ void clang::ApplyHeaderSearchOptions(HeaderSearch &HS,
   }
 
   Init.AddDefaultIncludePaths(Lang, Triple, HSOpts);
+
+  if (HSOpts.UseBuiltinIncludes) {
+    // Set up the builtin include directory in the module map.
+    llvm::sys::Path P(HSOpts.ResourceDir);
+    P.appendComponent("include");
+    if (const DirectoryEntry *Dir = HS.getFileMgr().getDirectory(P.str()))
+      HS.getModuleMap().setBuiltinIncludeDir(Dir);
+  }
 
   Init.Realize(Lang);
 }

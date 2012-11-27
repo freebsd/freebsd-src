@@ -1,41 +1,41 @@
 /*
- * Copyright (c) 1997-2005 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997-2005 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "gen_locl.h"
 #include <getarg.h>
 #include "lex.h"
 
-RCSID("$Id: main.c 20858 2007-06-03 18:56:41Z lha $");
+RCSID("$Id$");
 
 extern FILE *yyin;
 
@@ -62,15 +62,22 @@ seq_type(const char *p)
     return 0;
 }
 
-int dce_fix;
+int support_ber;
+int template_flag;
 int rfc1510_bitstring;
+int one_code_file;
+char *option_file;
 int version_flag;
 int help_flag;
 struct getargs args[] = {
+    { "template", 0, arg_flag, &template_flag },
     { "encode-rfc1510-bit-string", 0, arg_flag, &rfc1510_bitstring },
-    { "decode-dce-ber", 0, arg_flag, &dce_fix },
+    { "decode-dce-ber", 0, arg_flag, &support_ber },
+    { "support-ber", 0, arg_flag, &support_ber },
     { "preserve-binary", 0, arg_strings, &preserve },
     { "sequence", 0, arg_strings, &seq },
+    { "one-code-file", 0, arg_flag, &one_code_file },
+    { "option-file", 0, arg_string, &option_file },
     { "version", 0, arg_flag, &version_flag },
     { "help", 0, arg_flag, &help_flag }
 };
@@ -92,6 +99,8 @@ main(int argc, char **argv)
     const char *file;
     const char *name = NULL;
     int optidx = 0;
+    char **arg = NULL;
+    size_t len = 0, i;
 
     setprogname(argv[0]);
     if(getarg(args, num_args, argc, argv, &optidx))
@@ -121,7 +130,62 @@ main(int argc, char **argv)
 	    name = argv[optidx + 1];
     }
 
+    /*
+     * Parse extra options file
+     */
+    if (option_file) {
+	char buf[1024];
+	FILE *opt;
+
+	opt = fopen(option_file, "r");
+	if (opt == NULL) {
+	    perror("open");
+	    exit(1);
+	}
+
+	arg = calloc(2, sizeof(arg[0]));
+	if (arg == NULL) {
+	    perror("calloc");
+	    exit(1);
+	}
+	arg[0] = option_file;
+	arg[1] = NULL;
+	len = 1;
+
+	while (fgets(buf, sizeof(buf), opt) != NULL) {
+	    buf[strcspn(buf, "\n\r")] = '\0';
+
+	    arg = realloc(arg, (len + 2) * sizeof(arg[0]));
+	    if (arg == NULL) {
+		perror("malloc");
+		exit(1);
+	    }
+	    arg[len] = strdup(buf);
+	    if (arg[len] == NULL) {
+		perror("strdup");
+		exit(1);
+	    }
+	    arg[len + 1] = NULL;
+	    len++;
+	}
+	fclose(opt);
+
+	optidx = 0;
+	if(getarg(args, num_args, len, arg, &optidx))
+	    usage(1);
+
+	if (len != optidx) {
+	    fprintf(stderr, "extra args");
+	    exit(1);
+	}
+    }
+
+
     init_generate (file, name);
+
+    if (one_code_file)
+	generate_header_of_codefile(name);
+
     initsym ();
     ret = yyparse ();
     if(ret != 0 || error_flag != 0)
@@ -129,5 +193,15 @@ main(int argc, char **argv)
     close_generate ();
     if (argc != optidx)
 	fclose(yyin);
+
+    if (one_code_file)
+	close_codefile();
+
+    if (arg) {
+	for (i = 1; i < len; i++)
+	    free(arg[i]);
+	free(arg);
+    }
+
     return 0;
 }

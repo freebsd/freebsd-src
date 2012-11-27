@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsap-ptr_23.c,v 1.40 2009-12-04 22:06:37 tbox Exp $ */
+/* $Id: nsap-ptr_23.c,v 1.40 2009/12/04 22:06:37 tbox Exp $ */
 
 /* Reviewed: Fri Mar 17 10:16:02 PST 2000 by gson */
 

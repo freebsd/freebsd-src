@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2011  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: name.c,v 1.174.8.1 2011-03-11 06:47:04 marka Exp $ */
+/* $Id$ */
 
 /*! \file */
 

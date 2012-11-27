@@ -245,8 +245,8 @@ in6_pcbbind(register struct inpcb *inp, struct sockaddr *nam,
 				if (tw == NULL ||
 				    (reuseport & tw->tw_so_options) == 0)
 					return (EADDRINUSE);
-			} else if (t && (reuseport & t->inp_socket->so_options)
-			    == 0) {
+			} else if (t && (reuseport == 0 ||
+			    (t->inp_flags2 & INP_REUSEPORT) == 0)) {
 				return (EADDRINUSE);
 			}
 #ifdef INET

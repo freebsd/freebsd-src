@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/rwlock.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/unistd.h>
@@ -1869,6 +1870,7 @@ knlist_remove_inevent(struct knlist *knl, struct knote *kn)
 int
 knlist_empty(struct knlist *knl)
 {
+
 	KNL_ASSERT_LOCKED(knl);
 	return SLIST_EMPTY(&knl->kl_list);
 }
@@ -1882,25 +1884,57 @@ static void knlist_mtx_unlock(void *arg);
 static void
 knlist_mtx_lock(void *arg)
 {
+
 	mtx_lock((struct mtx *)arg);
 }
 
 static void
 knlist_mtx_unlock(void *arg)
 {
+
 	mtx_unlock((struct mtx *)arg);
 }
 
 static void
 knlist_mtx_assert_locked(void *arg)
 {
+
 	mtx_assert((struct mtx *)arg, MA_OWNED);
 }
 
 static void
 knlist_mtx_assert_unlocked(void *arg)
 {
+
 	mtx_assert((struct mtx *)arg, MA_NOTOWNED);
+}
+
+static void
+knlist_rw_rlock(void *arg)
+{
+
+	rw_rlock((struct rwlock *)arg);
+}
+
+static void
+knlist_rw_runlock(void *arg)
+{
+
+	rw_runlock((struct rwlock *)arg);
+}
+
+static void
+knlist_rw_assert_locked(void *arg)
+{
+
+	rw_assert((struct rwlock *)arg, RA_LOCKED);
+}
+
+static void
+knlist_rw_assert_unlocked(void *arg)
+{
+
+	rw_assert((struct rwlock *)arg, RA_UNLOCKED);
 }
 
 void
@@ -1939,6 +1973,14 @@ knlist_init_mtx(struct knlist *knl, struct mtx *lock)
 {
 
 	knlist_init(knl, lock, NULL, NULL, NULL, NULL);
+}
+
+void
+knlist_init_rw_reader(struct knlist *knl, struct rwlock *lock)
+{
+
+	knlist_init(knl, lock, knlist_rw_rlock, knlist_rw_runlock,
+	    knlist_rw_assert_locked, knlist_rw_assert_unlocked);
 }
 
 void

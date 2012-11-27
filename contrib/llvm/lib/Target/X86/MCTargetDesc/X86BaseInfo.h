@@ -19,7 +19,7 @@
 
 #include "X86MCTargetDesc.h"
 #include "llvm/Support/DataTypes.h"
-#include <cassert>
+#include "llvm/Support/ErrorHandling.h"
 
 namespace llvm {
 
@@ -164,7 +164,13 @@ namespace X86II {
     /// is some TLS offset from the picbase.
     ///
     /// This is the 32-bit TLS offset for Darwin TLS in PIC mode.
-    MO_TLVP_PIC_BASE
+    MO_TLVP_PIC_BASE,
+
+    /// MO_SECREL - On a symbol operand this indicates that the immediate is
+    /// the offset from beginning of section.
+    ///
+    /// This is the TLS offset for the COFF/Windows TLS mechanism.
+    MO_SECREL
   };
 
   enum {
@@ -223,19 +229,13 @@ namespace X86II {
     // destinations are the same register.
     MRMInitReg = 32,
 
-    //// MRM_C1 - A mod/rm byte of exactly 0xC1.
-    MRM_C1 = 33,
-    MRM_C2 = 34,
-    MRM_C3 = 35,
-    MRM_C4 = 36,
-    MRM_C8 = 37,
-    MRM_C9 = 38,
-    MRM_E8 = 39,
-    MRM_F0 = 40,
-    MRM_F8 = 41,
-    MRM_F9 = 42,
-    MRM_D0 = 45,
-    MRM_D1 = 46,
+    //// MRM_XX - A mod/rm byte of exactly 0xXX.
+    MRM_C1 = 33, MRM_C2 = 34, MRM_C3 = 35, MRM_C4 = 36,
+    MRM_C8 = 37, MRM_C9 = 38, MRM_E8 = 39, MRM_F0 = 40,
+    MRM_F8 = 41, MRM_F9 = 42, MRM_D0 = 45, MRM_D1 = 46,
+    MRM_D4 = 47, MRM_D8 = 48, MRM_D9 = 49, MRM_DA = 50,
+    MRM_DB = 51, MRM_DC = 52, MRM_DD = 53, MRM_DE = 54,
+    MRM_DF = 55,
 
     /// RawFrmImm8 - This is used for the ENTER instruction, which has two
     /// immediates, the first of which is a 16-bit immediate (specified by
@@ -295,8 +295,20 @@ namespace X86II {
     T8 = 13 << Op0Shift,  TA = 14 << Op0Shift,
     A6 = 15 << Op0Shift,  A7 = 16 << Op0Shift,
 
-    // TF - Prefix before and after 0x0F
-    TF = 17 << Op0Shift,
+    // T8XD - Prefix before and after 0x0F. Combination of T8 and XD.
+    T8XD = 17 << Op0Shift,
+
+    // T8XS - Prefix before and after 0x0F. Combination of T8 and XS.
+    T8XS = 18 << Op0Shift,
+
+    // TAXD - Prefix before and after 0x0F. Combination of TA and XD.
+    TAXD = 19 << Op0Shift,
+
+    // XOP8 - Prefix to include use of imm byte.
+    XOP8 = 20 << Op0Shift,
+
+    // XOP9 - Prefix to exclude use of imm byte.
+    XOP9 = 21 << Op0Shift,
 
     //===------------------------------------------------------------------===//
     // REX_W - REX prefixes are instruction prefixes used in 64-bit mode.
@@ -387,20 +399,24 @@ namespace X86II {
     /// and the additional register is encoded in VEX_VVVV prefix.
     VEX_4V      = 1U << 2,
 
+    /// VEX_4VOp3 - Similar to VEX_4V, but used on instructions that encode
+    /// operand 3 with VEX.vvvv.
+    VEX_4VOp3   = 1U << 3,
+
     /// VEX_I8IMM - Specifies that the last register used in a AVX instruction,
     /// must be encoded in the i8 immediate field. This usually happens in
     /// instructions with 4 operands.
-    VEX_I8IMM   = 1U << 3,
+    VEX_I8IMM   = 1U << 4,
 
     /// VEX_L - Stands for a bit in the VEX opcode prefix meaning the current
     /// instruction uses 256-bit wide registers. This is usually auto detected
     /// if a VR256 register is used, but some AVX instructions also have this
     /// field marked when using a f256 memory references.
-    VEX_L       = 1U << 4,
+    VEX_L       = 1U << 5,
 
     // VEX_LIG - Specifies that this instruction ignores the L-bit in the VEX
     // prefix. Usually used for scalar instructions. Needed by disassembler.
-    VEX_LIG     = 1U << 5,
+    VEX_LIG     = 1U << 6,
 
     /// Has3DNow0F0FOpcode - This flag indicates that the instruction uses the
     /// wacky 0x0F 0x0F prefix for 3DNow! instructions.  The manual documents
@@ -408,7 +424,15 @@ namespace X86II {
     /// storing a classifier in the imm8 field.  To simplify our implementation,
     /// we handle this by storeing the classifier in the opcode field and using
     /// this flag to indicate that the encoder should do the wacky 3DNow! thing.
-    Has3DNow0F0FOpcode = 1U << 6
+    Has3DNow0F0FOpcode = 1U << 7,
+
+    /// MemOp4 - Used to indicate swapping of operand 3 and 4 to be encoded in
+    /// ModRM or I8IMM. This is used for FMA4 and XOP instructions.
+    MemOp4 = 1U << 8,
+
+    /// XOP - Opcode prefix used by XOP instructions.
+    XOP = 1U << 9
+
   };
 
   // getBaseOpcodeFor - This function returns the "base" X86 opcode for the
@@ -426,7 +450,7 @@ namespace X86II {
   /// of the specified instruction.
   static inline unsigned getSizeOfImm(uint64_t TSFlags) {
     switch (TSFlags & X86II::ImmMask) {
-    default: assert(0 && "Unknown immediate size");
+    default: llvm_unreachable("Unknown immediate size");
     case X86II::Imm8:
     case X86II::Imm8PCRel:  return 1;
     case X86II::Imm16:
@@ -441,7 +465,7 @@ namespace X86II {
   /// TSFlags indicates that it is pc relative.
   static inline unsigned isImmPCRel(uint64_t TSFlags) {
     switch (TSFlags & X86II::ImmMask) {
-    default: assert(0 && "Unknown immediate size");
+    default: llvm_unreachable("Unknown immediate size");
     case X86II::Imm8PCRel:
     case X86II::Imm16PCRel:
     case X86II::Imm32PCRel:
@@ -462,10 +486,10 @@ namespace X86II {
   /// is duplicated in the MCInst (e.g. "EAX = addl EAX, [mem]") it is only
   /// counted as one operand.
   ///
-  static inline int getMemoryOperandNo(uint64_t TSFlags) {
+  static inline int getMemoryOperandNo(uint64_t TSFlags, unsigned Opcode) {
     switch (TSFlags & X86II::FormMask) {
-    case X86II::MRMInitReg:  assert(0 && "FIXME: Remove this form");
-    default: assert(0 && "Unknown FormMask value in getMemoryOperandNo!");
+    case X86II::MRMInitReg:  llvm_unreachable("FIXME: Remove this form");
+    default: llvm_unreachable("Unknown FormMask value in getMemoryOperandNo!");
     case X86II::Pseudo:
     case X86II::RawFrm:
     case X86II::AddRegFrm:
@@ -478,9 +502,12 @@ namespace X86II {
       return 0;
     case X86II::MRMSrcMem: {
       bool HasVEX_4V = (TSFlags >> X86II::VEXShift) & X86II::VEX_4V;
+      bool HasMemOp4 = (TSFlags >> X86II::VEXShift) & X86II::MemOp4;
       unsigned FirstMemOp = 1;
       if (HasVEX_4V)
         ++FirstMemOp;// Skip the register source (which is encoded in VEX_VVVV).
+      if (HasMemOp4)
+        ++FirstMemOp;// Skip the register source (which is encoded in I8IMM).
 
       // FIXME: Maybe lea should have its own form?  This is a horrible hack.
       //if (Opcode == X86::LEA64r || Opcode == X86::LEA64_32r ||
@@ -495,20 +522,24 @@ namespace X86II {
     case X86II::MRM0m: case X86II::MRM1m:
     case X86II::MRM2m: case X86II::MRM3m:
     case X86II::MRM4m: case X86II::MRM5m:
-    case X86II::MRM6m: case X86II::MRM7m:
-      return 0;
-    case X86II::MRM_C1:
-    case X86II::MRM_C2:
-    case X86II::MRM_C3:
-    case X86II::MRM_C4:
-    case X86II::MRM_C8:
-    case X86II::MRM_C9:
-    case X86II::MRM_E8:
-    case X86II::MRM_F0:
-    case X86II::MRM_F8:
-    case X86II::MRM_F9:
-    case X86II::MRM_D0:
-    case X86II::MRM_D1:
+    case X86II::MRM6m: case X86II::MRM7m: {
+      bool HasVEX_4V = (TSFlags >> X86II::VEXShift) & X86II::VEX_4V;
+      unsigned FirstMemOp = 0;
+      if (HasVEX_4V)
+        ++FirstMemOp;// Skip the register dest (which is encoded in VEX_VVVV).
+      return FirstMemOp;
+    }
+    case X86II::MRM_C1: case X86II::MRM_C2:
+    case X86II::MRM_C3: case X86II::MRM_C4:
+    case X86II::MRM_C8: case X86II::MRM_C9:
+    case X86II::MRM_E8: case X86II::MRM_F0:
+    case X86II::MRM_F8: case X86II::MRM_F9:
+    case X86II::MRM_D0: case X86II::MRM_D1:
+    case X86II::MRM_D4: case X86II::MRM_D8:
+    case X86II::MRM_D9: case X86II::MRM_DA:
+    case X86II::MRM_DB: case X86II::MRM_DC:
+    case X86II::MRM_DD: case X86II::MRM_DE:
+    case X86II::MRM_DF:
       return -1;
     }
   }

@@ -157,7 +157,7 @@ ofw_bus_is_compatible(device_t dev, const char *onecompat)
 	if ((compat = ofw_bus_get_compat(dev)) == NULL)
 		return (0);
 
-	if ((node = ofw_bus_get_node(dev)) == 0)
+	if ((node = ofw_bus_get_node(dev)) == -1)
 		return (0);
 
 	/* Get total 'compatible' prop len */

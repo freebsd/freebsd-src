@@ -219,6 +219,7 @@ send_greeting()
 	# The latter is needed to allow indvidiual less specific later rules
 	# from test cases to just disallow any IPv6 traffic on a matching FIB.
 	ipfw -f flush > /dev/null 2>&1
+	ipfw add 65000 permit ip from any to any > /dev/null 2>&1
 	ipfw add 5 permit ipv6-icmp from any to any icmp6types 135,136 fib 0 \
 	    via ${IFACE} out > /dev/null 2>&1
 
@@ -255,7 +256,7 @@ EOI
 	PEERLINKLOCAL=${_linklocal}
 
 	# Swap the zoneid to the local interface scope.
-	PEERLINKLOCAL="${PEERLINKLOCAL%%\%*}%${IFACE}"
+	PEERLINKLOCAL=${PEERLINKLOCAL%%\%*}"%${IFACE}"
 
 	print_debug "Successfully exchanged greeting. Peer at ${PEERLINKLOCAL}"
 }
@@ -409,7 +410,7 @@ testtx_ulp6_connected()
 	*) _f="SETFIB" ;;
 	esac
 
-	if test "${_o}" == "-i" -a "${_f}" == "SO_SETFIB"; then
+	if test "${_o}" = "-i" -a "${_f}" = "SO_SETFIB"; then
 		print_debug "Skipping icmp6 tests for SO_SETFIB."
 		return 0
 	fi
@@ -510,21 +511,21 @@ testtx_udp6_connected()
 #
 testtx_ulp6_connected_blackhole()
 {
-	local _fib i _n _o
+	local fib i _n _o
 	_n="$1"
 	_o="$2"
 
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
 
-		print_debug "${_n} ${_fib}"
+		print_debug "${_n} ${fib}"
 
 		# Setup expected return values.
 		i=0
 		while test ${i} -lt ${RT_NUMFIBS}; do
 			ipfw delete $((100 + i)) > /dev/null 2>&1 || true
 			case ${i} in
-			${_fib})
+			${fib})
 				eval rc_${i}_l=0
 				eval rc_${i}_a=0
 				;;
@@ -538,17 +539,17 @@ testtx_ulp6_connected_blackhole()
 			i=$((i + 1))
 		done
 
-		testtx_ulp6_connected "${_n}${_fib}" "${_o}" ${_fib}
+		testtx_ulp6_connected "${_n}${fib}" "${_o}" ${fib}
 		case ${DEBUG} in
 		''|0)	;;
 		*)	ipfw show ;;
 		esac
-		_fib=$((_fib + 1))
+		fib=$((fib + 1))
 	done
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		ipfw delete $((100 + _fib)) > /dev/null 2>&1 || true
-		_fib=$((_fib + 1))
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		ipfw delete $((100 + fib)) > /dev/null 2>&1 || true
+		fib=$((fib + 1))
 	done
 }
 
@@ -584,50 +585,50 @@ testtx_udp6_connected_blackhole()
 #
 testtx_ulp6_connected_transfernets()
 {
-	local _fib i _n _o _p
+	local fib i _n _o _p
 	_n="$1"
 	_o="$2"
 
 	# Setup transfer networks and firewall.
 	ipfw delete 10 > /dev/null 2>&1 || true
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		ifconfig ${IFACE} inet6 2001:2:${_fib}::1/64 -alias \
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		ifconfig ${IFACE} inet6 2001:2:${fib}::1/64 -alias \
 		    > /dev/null 2>&1 || true
-		ifconfig ${IFACE} inet6 2001:2:${_fib}::1/64 alias
-		ipfw add 10 setfib ${_fib} ipv6-icmp from 2001:2:${_fib}::/64 \
+		ifconfig ${IFACE} inet6 2001:2:${fib}::1/64 alias
+		ipfw add 10 setfib ${fib} ipv6-icmp from 2001:2:${fib}::/64 \
 		    to any ip6 icmp6types 135,136 via ${IFACE} in \
 		    > /dev/null 2>&1
 		# Remove connected routes from all but matching FIB.
 		i=0
 		while test ${i} -lt ${RT_NUMFIBS}; do
 			case ${i} in
-			${_fib});;
+			${fib});;
 			*)	setfib -F${i} route delete -inet6 \
-				    -net 2001:2:${_fib}:: > /dev/null 2>&1
+				    -net 2001:2:${fib}:: > /dev/null 2>&1
 				;;
 			esac
 			i=$((i + 1))
 		done
-		_fib=$((_fib + 1))
+		fib=$((fib + 1))
 	done
 
 	# Save PEERADDR
 	_p=${PEERADDR}
 
 	# Run tests.
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		PEERADDR=2001:2:${_fib}::2
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		PEERADDR=2001:2:${fib}::2
 
-		print_debug "${_n} ${_fib}"
+		print_debug "${_n} ${fib}"
 
 		# Setup expected return values.
 		i=0
 		while test ${i} -lt ${RT_NUMFIBS}; do
 			eval rc_${i}_l=0
 			case ${i} in
-			${_fib})
+			${fib})
 				eval rc_${i}_a=0
 				;;
 			*)	eval rc_${i}_a=1
@@ -636,18 +637,18 @@ testtx_ulp6_connected_transfernets()
 			i=$((i + 1))
 		done
 
-		testtx_ulp6_connected "${_n}${_fib}" "${_o}" ${_fib}
-		_fib=$((_fib + 1))
+		testtx_ulp6_connected "${_n}${fib}" "${_o}" ${fib}
+		fib=$((fib + 1))
 	done
 
 	# Restore PEERADDR
 	PEERADDR=${_p}
 
 	# Cleanup transfer networks and firewall.
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		ifconfig ${IFACE} inet6 2001:2:${_fib}::1/64 -alias
-		_fib=$((_fib + 1))
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		ifconfig ${IFACE} inet6 2001:2:${fib}::1/64 -alias
+		fib=$((fib + 1))
 	done
 	ipfw delete 10 > /dev/null 2>&1
 }
@@ -684,46 +685,46 @@ testtx_udp6_connected_transfernets()
 #
 testtx_ulp6_connected_ifconfig_transfernets()
 {
-	local _fib i _n _o _p
+	local fib i _n _o _p
 	_n="$1"
 	_o="$2"
 
 	# Setup transfer networks.
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		ifconfig ${IFACE} inet6 2001:2:${_fib}::1/64 -alias \
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		ifconfig ${IFACE} inet6 2001:2:${fib}::1/64 -alias \
 		    > /dev/null 2>&1 || true
-		ifconfig ${IFACE} inet6 2001:2:${_fib}::1/64 alias
+		ifconfig ${IFACE} inet6 2001:2:${fib}::1/64 alias
 		# Remove connected routes from all but matching FIB.
 		i=0
 		while test ${i} -lt ${RT_NUMFIBS}; do
 			case ${i} in
-			${_fib});;
+			${fib});;
 			*)	setfib -F${i} route delete -inet6 \
-				    -net 2001:2:${_fib}:: > /dev/null 2>&1
+				    -net 2001:2:${fib}:: > /dev/null 2>&1
 				;;
 			esac
 			i=$((i + 1))
 		done
-		_fib=$((_fib + 1))
+		fib=$((fib + 1))
 	done
 
 	# Save PEERADDR
 	_p=${PEERADDR}
 
 	# Run tests.
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		PEERADDR=2001:2:${_fib}::2
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		PEERADDR=2001:2:${fib}::2
 
-		print_debug "${_n} ${_fib}"
+		print_debug "${_n} ${fib}"
 
 		# Setup expected return values.
 		i=0
 		while test ${i} -lt ${RT_NUMFIBS}; do
 			eval rc_${i}_l=0
 			case ${i} in
-			${_fib})
+			${fib})
 				eval rc_${i}_a=0
 				;;
 			*)	eval rc_${i}_a=1
@@ -732,20 +733,20 @@ testtx_ulp6_connected_ifconfig_transfernets()
 			i=$((i + 1))
 		done
 
-		ifconfig ${IFACE} fib ${_fib}
+		ifconfig ${IFACE} fib ${fib}
 
-		testtx_ulp6_connected "${_n}${_fib}" "${_o}" ${_fib}
-		_fib=$((_fib + 1))
+		testtx_ulp6_connected "${_n}${fib}" "${_o}" ${fib}
+		fib=$((fib + 1))
 	done
 
 	# Restore PEERADDR
 	PEERADDR=${_p}
 
 	# Cleanup transfer networks.
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		ifconfig ${IFACE} inet6 2001:2:${_fib}::1/64 -alias
-		_fib=$((_fib + 1))
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		ifconfig ${IFACE} inet6 2001:2:${fib}::1/64 -alias
+		fib=$((fib + 1))
 	done
 	ifconfig ${IFACE} fib 0
 }
@@ -779,23 +780,23 @@ testtx_udp6_connected_ifconfig_transfernets()
 #
 testtx_ulp6_gateway()
 {
-	local _fib i _n _o _p
+	local fib i _n _o _p
 	_n="$1"
 	_o="$2"
 
 	# Setup default gateway and expected error codes.
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		setfib -F${_fib} route delete -inet6 -net default \
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		setfib -F${fib} route delete -inet6 -net default \
 		    > /dev/null 2>&1 || true
-		setfib -F${_fib} route add -inet6 -net default ${PEERADDR} \
+		setfib -F${fib} route add -inet6 -net default ${PEERADDR} \
 		    > /dev/null 2>&1
 		case "${_o}" in
-		-i) eval rc_${_fib}_l=0 ;;	# ICMPv6 will succeed
-		*)  eval rc_${_fib}_l=1 ;;
+		-i) eval rc_${fib}_l=0 ;;	# ICMPv6 will succeed
+		*)  eval rc_${fib}_l=1 ;;
 		esac
-		eval rc_${_fib}_a=0
-		_fib=$((_fib + 1))
+		eval rc_${fib}_a=0
+		fib=$((fib + 1))
 	done
 
 	# Save PEERADDR
@@ -810,11 +811,11 @@ testtx_ulp6_gateway()
 	PEERADDR=${_p}
 
 	# Cleanup transfer networks.
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		setfib -F${_fib} route delete -inet6 -net default \
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		setfib -F${fib} route delete -inet6 -net default \
 		    > /dev/null 2>&1
-		_fib=$((_fib + 1))
+		fib=$((fib + 1))
 	done
 }
 
@@ -851,38 +852,38 @@ testtx_udp6_gateway()
 #
 testtx_ulp6_transfernets_gateways()
 {
-	local _fib i _n _o _p
+	local fib i _n _o _p
 	_n="$1"
 	_o="$2"
 
 	# Setup transfer networks, default routes, and firewall.
-	_fib=0
+	fib=0
 	ipfw delete 10 > /dev/null 2>&1 || true
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		ifconfig ${IFACE} inet6 2001:2:${_fib}::1/64 -alias \
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		ifconfig ${IFACE} inet6 2001:2:${fib}::1/64 -alias \
 		    > /dev/null 2>&1 || true
-		ifconfig ${IFACE} inet6 2001:2:${_fib}::1/64 alias \
+		ifconfig ${IFACE} inet6 2001:2:${fib}::1/64 alias \
 		    > /dev/null 2>&1
-		ipfw add 10 setfib ${_fib} ipv6-icmp \
-		    from 2001:2:${_fib}::/64 to any ip6 icmp6types 135,136 \
+		ipfw add 10 setfib ${fib} ipv6-icmp \
+		    from 2001:2:${fib}::/64 to any ip6 icmp6types 135,136 \
 		    via ${IFACE} in > /dev/null 2>&1
 		# Remove connected routes from all but matching FIB.
 		i=0
 		while test ${i} -lt ${RT_NUMFIBS}; do
 			case ${i} in
-			${_fib});;
+			${fib});;
 			*)	setfib -F${i} route delete -inet6 \
-				    -net 2001:2:${_fib}:: > /dev/null 2>&1
+				    -net 2001:2:${fib}:: > /dev/null 2>&1
 				;;
 			esac
 			i=$((i + 1))
 		done
 		# Add default route.
-		setfib -F${_fib} route delete -inet6 -net default \
+		setfib -F${fib} route delete -inet6 -net default \
 		    > /dev/null 2>&1 || true
-		setfib -F${_fib} route add -inet6 -net default \
-		    2001:2:${_fib}::2 > /dev/null 2>&1
-		_fib=$((_fib + 1))
+		setfib -F${fib} route add -inet6 -net default \
+		    2001:2:${fib}::2 > /dev/null 2>&1
+		fib=$((fib + 1))
 	done
 
 	# Save PEERADDR
@@ -908,13 +909,13 @@ testtx_ulp6_transfernets_gateways()
 	PEERADDR=${_p}
 
 	# Cleanup default routes, transfer networks, and firewall.
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		setfib -F${_fib} route delete -inet6 -net default \
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		setfib -F${fib} route delete -inet6 -net default \
 		    > /dev/null 2>&1
-		ifconfig ${IFACE} inet6 2001:2:${_fib}::1/64 -alias \
+		ifconfig ${IFACE} inet6 2001:2:${fib}::1/64 -alias \
 		    > /dev/null 2>&1
-		_fib=$((_fib + 1))
+		fib=$((fib + 1))
 	done
 	ipfw delete 10 > /dev/null 2>&1
 }
@@ -954,33 +955,33 @@ testtx_udp6_transfernets_gateways()
 #
 testtx_ulp6_transfernets_gateway()
 {
-	local _fib i _n _o _p
+	local fib i _n _o _p
 	_n="$1"
 	_o="$2"
 
 	# Setup transfer networks, default routes, and firewall.
-	_fib=0
+	fib=0
 	ipfw delete 10 > /dev/null 2>&1 || true
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		ifconfig ${IFACE} inet6 2001:2:${_fib}::1/64 -alias \
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		ifconfig ${IFACE} inet6 2001:2:${fib}::1/64 -alias \
 		    > /dev/null 2>&1 || true
-		ifconfig ${IFACE} inet6 2001:2:${_fib}::1/64 alias \
+		ifconfig ${IFACE} inet6 2001:2:${fib}::1/64 alias \
 		    > /dev/null 2>&1
-		ipfw add 10 setfib ${_fib} ipv6-icmp \
-		    from 2001:2:${_fib}::/64 to any ip6 icmp6types 135,136 \
+		ipfw add 10 setfib ${fib} ipv6-icmp \
+		    from 2001:2:${fib}::/64 to any ip6 icmp6types 135,136 \
 		    via ${IFACE} in > /dev/null 2>&1
 		# Remove connected routes from all but matching FIB.
 		i=0
 		while test ${i} -lt ${RT_NUMFIBS}; do
 			case ${i} in
-			${_fib});;
+			${fib});;
 			*)	setfib -F${i} route delete -inet6 \
-				    -net 2001:2:${_fib}:: > /dev/null 2>&1
+				    -net 2001:2:${fib}:: > /dev/null 2>&1
 				;;
 			esac
 			i=$((i + 1))
 		done
-		_fib=$((_fib + 1))
+		fib=$((fib + 1))
 	done
 
 	# Save PEERADDR
@@ -988,10 +989,10 @@ testtx_ulp6_transfernets_gateway()
 	PEERADDR="2001:2:ff01::2"
 
 	# Run tests.
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
 
-		print_debug "${_n} ${_fib}"
+		print_debug "${_n} ${fib}"
 
 		# Setup expected return values.
 		i=0
@@ -1001,7 +1002,7 @@ testtx_ulp6_transfernets_gateway()
 			*)  eval rc_${i}_l=1 ;;
 			esac
 			case ${i} in
-			${_fib})
+			${fib})
 				eval rc_${i}_a=0
 				;;
 			*)	eval rc_${i}_a=1
@@ -1011,30 +1012,30 @@ testtx_ulp6_transfernets_gateway()
 		done
 
 		# Add default route.
-		setfib -F${_fib} route delete -inet6 -net default \
+		setfib -F${fib} route delete -inet6 -net default \
 		    > /dev/null 2>&1 || true
-		setfib -F${_fib} route add -inet6 -net default \
-		    2001:2:${_fib}::2 > /dev/null 2>&1
+		setfib -F${fib} route add -inet6 -net default \
+		    2001:2:${fib}::2 > /dev/null 2>&1
 
-		testtx_ulp6_connected "${_n}${_fib}" "${_o}" ${_fib}
+		testtx_ulp6_connected "${_n}${fib}" "${_o}" ${fib}
 
 		# Delete default route again.
-		setfib -F${_fib} route delete -inet6 -net default \
+		setfib -F${fib} route delete -inet6 -net default \
 		    > /dev/null 2>&1
-		_fib=$((_fib + 1))
+		fib=$((fib + 1))
 	done
 
 	# Restore PEERADDR
 	PEERADDR=${_p}
 
 	# Cleanup default routes, transfer networks, and firewall.
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		setfib -F${_fib} route delete -inet6 -net default \
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		setfib -F${fib} route delete -inet6 -net default \
 		    > /dev/null 2>&1
-		ifconfig ${IFACE} inet6 2001:2:${_fib}::1/64 -alias \
+		ifconfig ${IFACE} inet6 2001:2:${fib}::1/64 -alias \
 		    > /dev/null 2>&1
-		_fib=$((_fib + 1))
+		fib=$((fib + 1))
 	done
 	ipfw delete 10 > /dev/null 2>&1
 }
@@ -1356,7 +1357,7 @@ testrx_main_setup_rc()
 
 testrx_main()
 {
-	local _n _o s t _fib _instances _destructive _transfer
+	local _n _o s t fib _instances _destructive _transfer
 	_n="$1"
 	_o="$2"
 	_instances=$3
@@ -1369,14 +1370,14 @@ testrx_main()
 			for t in ipfw ifconfig; do
 
 				print_debug "${_n}_${t}"
-				_fib=0
-				while test ${_fib} -lt ${RT_NUMFIBS}; do
+				fib=0
+				while test ${fib} -lt ${RT_NUMFIBS}; do
 
 					testrx_main_setup_rc "${_n}" "${t}" \
-					    ${_fib} "${_o}" ${_instances} \
+					    ${fib} "${_o}" ${_instances} \
 					    ${_destructive} ${_transfer}
 
-					_fib=$((_fib + 1))
+					fib=$((fib + 1))
 				done
 			done
 		done
@@ -1432,10 +1433,14 @@ testrx_udp6_same_addr_all_fibs_a_time()
 #
 # Prereqs.
 #
-kldload ipfw > /dev/null 2>&1 || kldstat -v | grep -q ipfw 
+if test `sysctl -n security.jail.jailed` -eq 0; then
+	kldload ipfw > /dev/null 2>&1 || kldstat -v | grep -q ipfw 
 
-# Reduce the time we wait in case of no reply to 2s.
-sysctl net.inet.tcp.keepinit=2000 > /dev/null 2>&1
+	# Reduce the time we wait in case of no reply to 2s.
+	sysctl net.inet.tcp.keepinit=2000 > /dev/null 2>&1
+fi
+ipfw -f flush > /dev/null 2>&1 || die "please load ipfw in base system"
+ipfw add 65000 permit ip from any to any > /dev/null 2>&1
 
 ################################################################################
 #
@@ -1491,7 +1496,7 @@ for uso in 0 1; do
 	testtx_udp6_transfernets_gateway && sleep 1
 done
 
-# Receiver testering.
+# Receiver testing.
 for uso in 0 1; do
 
 	USE_SOSETFIB=${uso}

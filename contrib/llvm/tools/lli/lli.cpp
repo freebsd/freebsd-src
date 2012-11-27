@@ -23,6 +23,7 @@
 #include "llvm/ExecutionEngine/Interpreter.h"
 #include "llvm/ExecutionEngine/JIT.h"
 #include "llvm/ExecutionEngine/JITEventListener.h"
+#include "llvm/ExecutionEngine/JITMemoryManager.h"
 #include "llvm/ExecutionEngine/MCJIT.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/IRReader.h"
@@ -94,12 +95,12 @@ namespace {
                      "of the executable"),
             cl::value_desc("function"),
             cl::init("main"));
-  
+
   cl::opt<std::string>
   FakeArgv0("fake-argv0",
             cl::desc("Override the 'argv[0]' value passed into the executing"
                      " program"), cl::value_desc("executable"));
-  
+
   cl::opt<bool>
   DisableCoreFiles("disable-core-files", cl::Hidden,
                    cl::desc("Disable emission of core files if possible"));
@@ -140,6 +141,28 @@ namespace {
                                 "Large code model"),
                      clEnumValEnd));
 
+  cl::opt<bool>
+  EnableJITExceptionHandling("jit-enable-eh",
+    cl::desc("Emit exception handling information"),
+    cl::init(false));
+
+  cl::opt<bool>
+// In debug builds, make this default to true.
+#ifdef NDEBUG
+#define EMIT_DEBUG false
+#else
+#define EMIT_DEBUG true
+#endif
+  EmitJitDebugInfo("jit-emit-debug",
+    cl::desc("Emit debug information to debugger"),
+    cl::init(EMIT_DEBUG));
+#undef EMIT_DEBUG
+
+  static cl::opt<bool>
+  EmitJitDebugInfoToDisk("jit-emit-debug-to-disk",
+    cl::Hidden,
+    cl::desc("Emit debug info objfiles to disk"),
+    cl::init(false));
 }
 
 static ExecutionEngine *EE = 0;
@@ -158,7 +181,7 @@ static void do_shutdown() {
 int main(int argc, char **argv, char * const *envp) {
   sys::PrintStackTraceOnErrorSignal();
   PrettyStackTraceProgram X(argc, argv);
-  
+
   LLVMContext &Context = getGlobalContext();
   atexit(do_shutdown);  // Call llvm_shutdown() on exit.
 
@@ -173,12 +196,12 @@ int main(int argc, char **argv, char * const *envp) {
   // If the user doesn't want core files, disable them.
   if (DisableCoreFiles)
     sys::Process::PreventCoreFiles();
-  
+
   // Load the bitcode...
   SMDiagnostic Err;
   Module *Mod = ParseIRFile(InputFile, Err, Context);
   if (!Mod) {
-    Err.Print(argv[0], errs());
+    Err.print(argv[0], errs());
     return 1;
   }
 
@@ -199,6 +222,8 @@ int main(int argc, char **argv, char * const *envp) {
   builder.setRelocationModel(RelocModel);
   builder.setCodeModel(CMModel);
   builder.setErrorStr(&ErrorMsg);
+  builder.setJITMemoryManager(ForceInterpreter ? 0 :
+                              JITMemoryManager::CreateDefaultMemManager());
   builder.setEngineKind(ForceInterpreter
                         ? EngineKind::Interpreter
                         : EngineKind::JIT);
@@ -207,9 +232,11 @@ int main(int argc, char **argv, char * const *envp) {
   if (!TargetTriple.empty())
     Mod->setTargetTriple(Triple::normalize(TargetTriple));
 
-  // Enable MCJIT, if desired.
-  if (UseMCJIT)
+  // Enable MCJIT if desired.
+  if (UseMCJIT && !ForceInterpreter) {
     builder.setUseMCJIT(true);
+    builder.setJITMemoryManager(JITMemoryManager::CreateDefaultMemManager());
+  }
 
   CodeGenOpt::Level OLvl = CodeGenOpt::Default;
   switch (OptLevel) {
@@ -224,6 +251,12 @@ int main(int argc, char **argv, char * const *envp) {
   }
   builder.setOptLevel(OLvl);
 
+  TargetOptions Options;
+  Options.JITExceptionHandling = EnableJITExceptionHandling;
+  Options.JITEmitDebugInfo = EmitJitDebugInfo;
+  Options.JITEmitDebugInfoToDisk = EmitJitDebugInfoToDisk;
+  builder.setTargetOptions(Options);
+
   EE = builder.create();
   if (!EE) {
     if (!ErrorMsg.empty())
@@ -233,7 +266,12 @@ int main(int argc, char **argv, char * const *envp) {
     exit(1);
   }
 
-  EE->RegisterJITEventListener(createOProfileJITEventListener());
+  // The following functions have no effect if their respective profiling
+  // support wasn't enabled in the build configuration.
+  EE->RegisterJITEventListener(
+                JITEventListener::createOProfileJITEventListener());
+  EE->RegisterJITEventListener(
+                JITEventListener::createIntelJITEventListener());
 
   EE->DisableLazyCompilation(NoLazyCompilation);
 
@@ -262,15 +300,15 @@ int main(int argc, char **argv, char * const *envp) {
     return -1;
   }
 
-  // If the program doesn't explicitly call exit, we will need the Exit 
-  // function later on to make an explicit call, so get the function now. 
+  // If the program doesn't explicitly call exit, we will need the Exit
+  // function later on to make an explicit call, so get the function now.
   Constant *Exit = Mod->getOrInsertFunction("exit", Type::getVoidTy(Context),
                                                     Type::getInt32Ty(Context),
                                                     NULL);
-  
+
   // Reset errno to zero on entry to main.
   errno = 0;
- 
+
   // Run static constructors.
   EE->runStaticConstructorsDestructors(false);
 
@@ -287,8 +325,8 @@ int main(int argc, char **argv, char * const *envp) {
 
   // Run static destructors.
   EE->runStaticConstructorsDestructors(true);
-  
-  // If the program didn't call exit explicitly, we should call it now. 
+
+  // If the program didn't call exit explicitly, we should call it now.
   // This ensures that any atexit handlers get called correctly.
   if (Function *ExitF = dyn_cast<Function>(Exit)) {
     std::vector<GenericValue> Args;

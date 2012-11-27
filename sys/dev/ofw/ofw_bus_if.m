@@ -89,7 +89,7 @@ CODE {
 	ofw_bus_default_get_node(device_t bus, device_t dev)
 	{
 
-		return (0);
+		return (-1);
 	}
 
 	static const char *

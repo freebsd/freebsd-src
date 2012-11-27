@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: main.c,v 1.180.14.3 2011-03-11 06:47:00 marka Exp $ */
+/* $Id: main.c,v 1.180.14.4 2011/11/05 00:45:52 each Exp $ */
 
 /*! \file */
 
@@ -792,6 +792,25 @@ setup(void) {
 
 	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
 		      ISC_LOG_NOTICE, "built with %s", ns_g_configargs);
+
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
+		      ISC_LOG_NOTICE,
+		      "----------------------------------------------------");
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
+		      ISC_LOG_NOTICE,
+		      "BIND 9 is maintained by Internet Systems Consortium,");
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
+		      ISC_LOG_NOTICE,
+		      "Inc. (ISC), a non-profit 501(c)(3) public-benefit ");
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
+		      ISC_LOG_NOTICE,
+		      "corporation.  Support and training for BIND 9 are ");
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
+		      ISC_LOG_NOTICE,
+		      "available at https://www.isc.org/support");
+	isc_log_write(ns_g_lctx, NS_LOGCATEGORY_GENERAL, NS_LOGMODULE_MAIN,
+		      ISC_LOG_NOTICE,
+		      "----------------------------------------------------");
 
 	dump_symboltable();
 

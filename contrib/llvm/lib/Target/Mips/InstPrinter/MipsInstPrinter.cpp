@@ -13,14 +13,15 @@
 
 #define DEBUG_TYPE "asm-printer"
 #include "MipsInstPrinter.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/MC/MCInstrInfo.h"
+#include "llvm/MC/MCSymbol.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/StringExtras.h"
 using namespace llvm;
 
-#define GET_INSTRUCTION_NAME
 #include "MipsGenAsmWriter.inc"
 
 const char* Mips::MipsFCCToString(Mips::CondCode CC) {
@@ -61,18 +62,67 @@ const char* Mips::MipsFCCToString(Mips::CondCode CC) {
   llvm_unreachable("Impossible condition code!");
 }
 
-StringRef MipsInstPrinter::getOpcodeName(unsigned Opcode) const {
-  return getInstructionName(Opcode);
-}
-
 void MipsInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
-  OS << '$' << LowercaseString(getRegisterName(RegNo));
+  OS << '$' << StringRef(getRegisterName(RegNo)).lower();
 }
 
 void MipsInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
                                 StringRef Annot) {
   printInstruction(MI, O);
   printAnnotation(O, Annot);
+}
+
+static void printExpr(const MCExpr *Expr, raw_ostream &OS) {
+  int Offset = 0;
+  const MCSymbolRefExpr *SRE;
+
+  if (const MCBinaryExpr *BE = dyn_cast<MCBinaryExpr>(Expr)) {
+    SRE = dyn_cast<MCSymbolRefExpr>(BE->getLHS());
+    const MCConstantExpr *CE = dyn_cast<MCConstantExpr>(BE->getRHS());
+    assert(SRE && CE && "Binary expression must be sym+const.");
+    Offset = CE->getValue();
+  }
+  else if (!(SRE = dyn_cast<MCSymbolRefExpr>(Expr)))
+    assert(false && "Unexpected MCExpr type.");
+
+  MCSymbolRefExpr::VariantKind Kind = SRE->getKind();
+
+  switch (Kind) {
+  default:                                 llvm_unreachable("Invalid kind!");
+  case MCSymbolRefExpr::VK_None:           break;
+  case MCSymbolRefExpr::VK_Mips_GPREL:     OS << "%gp_rel("; break;
+  case MCSymbolRefExpr::VK_Mips_GOT_CALL:  OS << "%call16("; break;
+  case MCSymbolRefExpr::VK_Mips_GOT16:     OS << "%got(";    break;
+  case MCSymbolRefExpr::VK_Mips_GOT:       OS << "%got(";    break;
+  case MCSymbolRefExpr::VK_Mips_ABS_HI:    OS << "%hi(";     break;
+  case MCSymbolRefExpr::VK_Mips_ABS_LO:    OS << "%lo(";     break;
+  case MCSymbolRefExpr::VK_Mips_TLSGD:     OS << "%tlsgd(";  break;
+  case MCSymbolRefExpr::VK_Mips_TLSLDM:    OS << "%tlsldm(";  break;
+  case MCSymbolRefExpr::VK_Mips_DTPREL_HI: OS << "%dtprel_hi(";  break;
+  case MCSymbolRefExpr::VK_Mips_DTPREL_LO: OS << "%dtprel_lo(";  break;
+  case MCSymbolRefExpr::VK_Mips_GOTTPREL:  OS << "%gottprel("; break;
+  case MCSymbolRefExpr::VK_Mips_TPREL_HI:  OS << "%tprel_hi("; break;
+  case MCSymbolRefExpr::VK_Mips_TPREL_LO:  OS << "%tprel_lo("; break;
+  case MCSymbolRefExpr::VK_Mips_GPOFF_HI:  OS << "%hi(%neg(%gp_rel("; break;
+  case MCSymbolRefExpr::VK_Mips_GPOFF_LO:  OS << "%lo(%neg(%gp_rel("; break;
+  case MCSymbolRefExpr::VK_Mips_GOT_DISP:  OS << "%got_disp("; break;
+  case MCSymbolRefExpr::VK_Mips_GOT_PAGE:  OS << "%got_page("; break;
+  case MCSymbolRefExpr::VK_Mips_GOT_OFST:  OS << "%got_ofst("; break;
+  }
+
+  OS << SRE->getSymbol();
+
+  if (Offset) {
+    if (Offset > 0)
+      OS << '+';
+    OS << Offset;
+  }
+
+  if ((Kind == MCSymbolRefExpr::VK_Mips_GPOFF_HI) ||
+      (Kind == MCSymbolRefExpr::VK_Mips_GPOFF_LO))
+    OS << ")))";
+  else if (Kind != MCSymbolRefExpr::VK_None)
+    OS << ')';
 }
 
 void MipsInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
@@ -82,14 +132,14 @@ void MipsInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
     printRegName(O, Op.getReg());
     return;
   }
-  
+
   if (Op.isImm()) {
     O << Op.getImm();
     return;
   }
-  
+
   assert(Op.isExpr() && "unknown operand kind in printOperand");
-  O << *Op.getExpr();
+  printExpr(Op.getExpr(), O);
 }
 
 void MipsInstPrinter::printUnsignedImm(const MCInst *MI, int opNum,

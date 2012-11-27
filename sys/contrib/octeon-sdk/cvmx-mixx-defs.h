@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,8 +49,8 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_MIXX_TYPEDEFS_H__
-#define __CVMX_MIXX_TYPEDEFS_H__
+#ifndef __CVMX_MIXX_DEFS_H__
+#define __CVMX_MIXX_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_MIXX_BIST(unsigned long offset)
@@ -58,7 +58,10 @@ static inline uint64_t CVMX_MIXX_BIST(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_MIXX_BIST(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001070000100078ull) + ((offset) & 1) * 2048;
 }
@@ -71,7 +74,10 @@ static inline uint64_t CVMX_MIXX_CTL(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_MIXX_CTL(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001070000100020ull) + ((offset) & 1) * 2048;
 }
@@ -84,7 +90,10 @@ static inline uint64_t CVMX_MIXX_INTENA(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_MIXX_INTENA(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001070000100050ull) + ((offset) & 1) * 2048;
 }
@@ -97,7 +106,10 @@ static inline uint64_t CVMX_MIXX_IRCNT(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_MIXX_IRCNT(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001070000100030ull) + ((offset) & 1) * 2048;
 }
@@ -110,7 +122,10 @@ static inline uint64_t CVMX_MIXX_IRHWM(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_MIXX_IRHWM(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001070000100028ull) + ((offset) & 1) * 2048;
 }
@@ -123,7 +138,10 @@ static inline uint64_t CVMX_MIXX_IRING1(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_MIXX_IRING1(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001070000100010ull) + ((offset) & 1) * 2048;
 }
@@ -136,7 +154,10 @@ static inline uint64_t CVMX_MIXX_IRING2(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_MIXX_IRING2(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001070000100018ull) + ((offset) & 1) * 2048;
 }
@@ -149,7 +170,10 @@ static inline uint64_t CVMX_MIXX_ISR(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_MIXX_ISR(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001070000100048ull) + ((offset) & 1) * 2048;
 }
@@ -162,7 +186,10 @@ static inline uint64_t CVMX_MIXX_ORCNT(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_MIXX_ORCNT(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001070000100040ull) + ((offset) & 1) * 2048;
 }
@@ -175,7 +202,10 @@ static inline uint64_t CVMX_MIXX_ORHWM(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_MIXX_ORHWM(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001070000100038ull) + ((offset) & 1) * 2048;
 }
@@ -188,7 +218,10 @@ static inline uint64_t CVMX_MIXX_ORING1(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_MIXX_ORING1(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001070000100000ull) + ((offset) & 1) * 2048;
 }
@@ -201,7 +234,10 @@ static inline uint64_t CVMX_MIXX_ORING2(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_MIXX_ORING2(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001070000100008ull) + ((offset) & 1) * 2048;
 }
@@ -214,7 +250,10 @@ static inline uint64_t CVMX_MIXX_REMCNT(unsigned long offset)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((offset <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((offset == 0))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_MIXX_REMCNT(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001070000100058ull) + ((offset) & 1) * 2048;
 }
@@ -225,7 +264,10 @@ static inline uint64_t CVMX_MIXX_REMCNT(unsigned long offset)
 static inline uint64_t CVMX_MIXX_TSCTL(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_MIXX_TSCTL(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001070000100068ull) + ((offset) & 1) * 2048;
 }
@@ -236,7 +278,10 @@ static inline uint64_t CVMX_MIXX_TSCTL(unsigned long offset)
 static inline uint64_t CVMX_MIXX_TSTAMP(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((offset == 0)))))
 		cvmx_warn("CVMX_MIXX_TSTAMP(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x0001070000100060ull) + ((offset) & 1) * 2048;
 }
@@ -252,12 +297,10 @@ static inline uint64_t CVMX_MIXX_TSTAMP(unsigned long offset)
  * Description:
  *  NOTE: To read the MIX_BIST register, a device would issue an IOBLD64 directed at the MIO.
  */
-union cvmx_mixx_bist
-{
+union cvmx_mixx_bist {
 	uint64_t u64;
-	struct cvmx_mixx_bist_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_bist_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_6_63                : 58;
 	uint64_t opfdat                       : 1;  /**< Bist Results for AGO OPF Buffer RAM
                                                          - 0: GOOD (or bist in progress/never run)
@@ -287,9 +330,8 @@ union cvmx_mixx_bist
 	uint64_t reserved_6_63                : 58;
 #endif
 	} s;
-	struct cvmx_mixx_bist_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_bist_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t mrqdat                       : 1;  /**< Bist Results for NBR CSR RdReq RAM
                                                          - 0: GOOD (or bist in progress/never run)
@@ -314,8 +356,12 @@ union cvmx_mixx_bist
 	struct cvmx_mixx_bist_cn52xx          cn52xxp1;
 	struct cvmx_mixx_bist_cn52xx          cn56xx;
 	struct cvmx_mixx_bist_cn52xx          cn56xxp1;
+	struct cvmx_mixx_bist_s               cn61xx;
 	struct cvmx_mixx_bist_s               cn63xx;
 	struct cvmx_mixx_bist_s               cn63xxp1;
+	struct cvmx_mixx_bist_s               cn66xx;
+	struct cvmx_mixx_bist_s               cn68xx;
+	struct cvmx_mixx_bist_s               cn68xxp1;
 };
 typedef union cvmx_mixx_bist cvmx_mixx_bist_t;
 
@@ -328,12 +374,10 @@ typedef union cvmx_mixx_bist cvmx_mixx_bist_t;
  *  NOTE: To write to the MIX_CTL register, a device would issue an IOBST directed at the MIO.
  *        To read the MIX_CTL register, a device would issue an IOBLD64 directed at the MIO.
  */
-union cvmx_mixx_ctl
-{
+union cvmx_mixx_ctl {
 	uint64_t u64;
-	struct cvmx_mixx_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_12_63               : 52;
 	uint64_t ts_thresh                    : 4;  /**< TimeStamp Interrupt Threshold
                                                          When the \#of pending Timestamp interrupts (MIX_TSCTL[TSCNT]
@@ -373,7 +417,11 @@ union cvmx_mixx_ctl
                                                           However, the values of the CSR fields will be effected by
                                                           soft reset (except MIX_CTL[RESET] itself).
                                                           NOTE: After power-on, the MII-AGL/MIX are held in reset
-                                                          until the MIX_CTL[RESET] is written to zero.
+                                                          until the MIX_CTL[RESET] is written to zero. SW MUST also
+                                                          perform a MIX_CTL CSR read after this write to ensure the
+                                                          soft reset de-assertion has had sufficient time to propagate
+                                                          to all MIO-MIX internal logic before any subsequent MIX CSR
+                                                          accesses are issued.
                                                           The intended "soft reset" sequence is: (please also
                                                           refer to HRM Section 12.6.2 on MIX/AGL Block Reset).
                                                              1) Write MIX_CTL[EN]=0
@@ -422,9 +470,8 @@ union cvmx_mixx_ctl
 	uint64_t reserved_12_63               : 52;
 #endif
 	} s;
-	struct cvmx_mixx_ctl_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_ctl_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t crc_strip                    : 1;  /**< HW CRC Strip Enable
                                                          When enabled, the last 4 bytes(CRC) of the ingress packet
@@ -456,7 +503,11 @@ union cvmx_mixx_ctl
                                                           However, the values of the CSR fields will be effected by
                                                           soft reset (except MIX_CTL[RESET] itself).
                                                           NOTE: After power-on, the MII-AGL/MIX are held in reset
-                                                          until the MIX_CTL[RESET] is written to zero.
+                                                          until the MIX_CTL[RESET] is written to zero. SW MUST also
+                                                          perform a MIX_CTL CSR read after this write to ensure the
+                                                          soft reset de-assertion has had sufficient time to propagate
+                                                          to all MIO-MIX internal logic before any subsequent MIX CSR
+                                                          accesses are issued.
                                                           The intended "soft reset" sequence is: (please also
                                                           refer to HRM Section 12.6.2 on MIX/AGL Block Reset).
                                                              1) Write MIX_CTL[EN]=0
@@ -507,8 +558,12 @@ union cvmx_mixx_ctl
 	struct cvmx_mixx_ctl_cn52xx           cn52xxp1;
 	struct cvmx_mixx_ctl_cn52xx           cn56xx;
 	struct cvmx_mixx_ctl_cn52xx           cn56xxp1;
+	struct cvmx_mixx_ctl_s                cn61xx;
 	struct cvmx_mixx_ctl_s                cn63xx;
 	struct cvmx_mixx_ctl_s                cn63xxp1;
+	struct cvmx_mixx_ctl_s                cn66xx;
+	struct cvmx_mixx_ctl_s                cn68xx;
+	struct cvmx_mixx_ctl_s                cn68xxp1;
 };
 typedef union cvmx_mixx_ctl cvmx_mixx_ctl_t;
 
@@ -521,50 +576,48 @@ typedef union cvmx_mixx_ctl cvmx_mixx_ctl_t;
  *  NOTE: To write to the MIX_INTENA register, a device would issue an IOBST directed at the MIO.
  *        To read the MIX_INTENA register, a device would issue an IOBLD64 directed at the MIO.
  */
-union cvmx_mixx_intena
-{
+union cvmx_mixx_intena {
 	uint64_t u64;
-	struct cvmx_mixx_intena_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_intena_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t tsena                        : 1;  /**< TimeStamp Interrupt Enable
-                                                         If both the global interrupt mask bits (CIU_INTx_EN*[MII])
+                                                         If both the global interrupt mask bits (CIU2_EN_xx_yy_PKT[MII])
                                                          and this local interrupt mask bit is set, than an
                                                          interrupt is reported for an Outbound Ring with Timestamp
                                                          event (see: MIX_ISR[TS]). */
 	uint64_t orunena                      : 1;  /**< ORCNT UnderFlow Detected Enable
-                                                         If both the global interrupt mask bits (CIU_INTx_EN*[MII])
+                                                         If both the global interrupt mask bits (CIU2_EN_xx_yy_PKT[MII])
                                                          and this local interrupt mask bit is set, than an
                                                          interrupt is reported for an ORCNT underflow condition
                                                          MIX_ISR[ORUN]. */
 	uint64_t irunena                      : 1;  /**< IRCNT UnderFlow Interrupt Enable
-                                                         If both the global interrupt mask bits (CIU_INTx_EN*[MII])
+                                                         If both the global interrupt mask bits (CIU2_EN_xx_yy_PKT[MII])
                                                          and this local interrupt mask bit is set, than an
                                                          interrupt is reported for an IRCNT underflow condition
                                                          MIX_ISR[IRUN]. */
 	uint64_t data_drpena                  : 1;  /**< Data was dropped due to RX FIFO full Interrupt
                                                          enable. If both the global interrupt mask bits
-                                                         (CIU_INTx_EN*[MII]) and the local interrupt mask
+                                                         (CIU2_EN_xx_yy_PKT[MII]) and the local interrupt mask
                                                          bit(DATA_DRPENA) is set, than an interrupt is
                                                          reported for this event. */
 	uint64_t ithena                       : 1;  /**< Inbound Ring Threshold Exceeded Interrupt Enable
-                                                         If both the global interrupt mask bits (CIU_INTx_EN*[MII])
+                                                         If both the global interrupt mask bits (CIU2_EN_xx_yy_PKT[MII])
                                                          and this local interrupt mask bit is set, than an
                                                          interrupt is reported for an Inbound Ring Threshold
                                                          Exceeded event(IRTHRESH). */
 	uint64_t othena                       : 1;  /**< Outbound Ring Threshold Exceeded Interrupt Enable
-                                                         If both the global interrupt mask bits (CIU_INTx_EN*[MII])
+                                                         If both the global interrupt mask bits (CIU2_EN_xx_yy_PKT[MII])
                                                          and this local interrupt mask bit is set, than an
                                                          interrupt is reported for an Outbound Ring Threshold
                                                          Exceeded event(ORTHRESH). */
 	uint64_t ivfena                       : 1;  /**< Inbound DoorBell(IDBELL) Overflow Detected
-                                                         If both the global interrupt mask bits (CIU_INTx_EN*[MII])
+                                                         If both the global interrupt mask bits (CIU2_EN_xx_yy_PKT[MII])
                                                          and this local interrupt mask bit is set, than an
                                                          interrupt is reported for an Inbound Doorbell Overflow
                                                          event(IDBOVF). */
 	uint64_t ovfena                       : 1;  /**< Outbound DoorBell(ODBELL) Overflow Interrupt Enable
-                                                         If both the global interrupt mask bits (CIU_INTx_EN*[MII])
+                                                         If both the global interrupt mask bits (CIU2_EN_xx_yy_PKT[MII])
                                                          and this local interrupt mask bit is set, than an
                                                          interrupt is reported for an Outbound Doorbell Overflow
                                                          event(ODBOVF). */
@@ -580,9 +633,8 @@ union cvmx_mixx_intena
 	uint64_t reserved_8_63                : 56;
 #endif
 	} s;
-	struct cvmx_mixx_intena_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_intena_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_7_63                : 57;
 	uint64_t orunena                      : 1;  /**< ORCNT UnderFlow Detected
                                                          If both the global interrupt mask bits (CIU_INTx_EN*[MII])
@@ -633,8 +685,12 @@ union cvmx_mixx_intena
 	struct cvmx_mixx_intena_cn52xx        cn52xxp1;
 	struct cvmx_mixx_intena_cn52xx        cn56xx;
 	struct cvmx_mixx_intena_cn52xx        cn56xxp1;
+	struct cvmx_mixx_intena_s             cn61xx;
 	struct cvmx_mixx_intena_s             cn63xx;
 	struct cvmx_mixx_intena_s             cn63xxp1;
+	struct cvmx_mixx_intena_s             cn66xx;
+	struct cvmx_mixx_intena_s             cn68xx;
+	struct cvmx_mixx_intena_s             cn68xxp1;
 };
 typedef union cvmx_mixx_intena cvmx_mixx_intena_t;
 
@@ -647,12 +703,10 @@ typedef union cvmx_mixx_intena cvmx_mixx_intena_t;
  *  NOTE: To write to the MIX_IRCNT register, a device would issue an IOBST directed at the MIO.
  *        To read the MIX_IRCNT register, a device would issue an IOBLD64 directed at the MIO.
  */
-union cvmx_mixx_ircnt
-{
+union cvmx_mixx_ircnt {
 	uint64_t u64;
-	struct cvmx_mixx_ircnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_ircnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t ircnt                        : 20; /**< Pending \# of I-Ring Packets.
                                                          Whenever HW writes a completion code of Done, Trunc,
@@ -679,8 +733,12 @@ union cvmx_mixx_ircnt
 	struct cvmx_mixx_ircnt_s              cn52xxp1;
 	struct cvmx_mixx_ircnt_s              cn56xx;
 	struct cvmx_mixx_ircnt_s              cn56xxp1;
+	struct cvmx_mixx_ircnt_s              cn61xx;
 	struct cvmx_mixx_ircnt_s              cn63xx;
 	struct cvmx_mixx_ircnt_s              cn63xxp1;
+	struct cvmx_mixx_ircnt_s              cn66xx;
+	struct cvmx_mixx_ircnt_s              cn68xx;
+	struct cvmx_mixx_ircnt_s              cn68xxp1;
 };
 typedef union cvmx_mixx_ircnt cvmx_mixx_ircnt_t;
 
@@ -693,12 +751,10 @@ typedef union cvmx_mixx_ircnt cvmx_mixx_ircnt_t;
  *  NOTE: To write to the MIX_IHWM register, a device would issue an IOBST directed at the MIO.
  *        To read the MIX_IHWM register, a device would issue an IOBLD64 directed at the MIO.
  */
-union cvmx_mixx_irhwm
-{
+union cvmx_mixx_irhwm {
 	uint64_t u64;
-	struct cvmx_mixx_irhwm_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_irhwm_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_40_63               : 24;
 	uint64_t ibplwm                       : 20; /**< I-Ring BackPressure Low Water Mark Threshold.
                                                          When the \#of available I-Ring Entries (IDBELL)
@@ -712,7 +768,7 @@ union cvmx_mixx_irhwm
                                                          Used to determine when the \# of Inbound packets
                                                          in system memory(MIX_IRCNT[IRCNT]) exceeds this IRHWM
                                                          threshold.
-                                                         NOTE: The power-on value of the CIU_INTx_EN*[MII]
+                                                         NOTE: The power-on value of the CIU2_EN_xx_yy_PKT[MII]
                                                          interrupt enable bits is zero and must be enabled
                                                          to allow interrupts to be reported. */
 #else
@@ -725,8 +781,12 @@ union cvmx_mixx_irhwm
 	struct cvmx_mixx_irhwm_s              cn52xxp1;
 	struct cvmx_mixx_irhwm_s              cn56xx;
 	struct cvmx_mixx_irhwm_s              cn56xxp1;
+	struct cvmx_mixx_irhwm_s              cn61xx;
 	struct cvmx_mixx_irhwm_s              cn63xx;
 	struct cvmx_mixx_irhwm_s              cn63xxp1;
+	struct cvmx_mixx_irhwm_s              cn66xx;
+	struct cvmx_mixx_irhwm_s              cn68xx;
+	struct cvmx_mixx_irhwm_s              cn68xxp1;
 };
 typedef union cvmx_mixx_irhwm cvmx_mixx_irhwm_t;
 
@@ -739,12 +799,10 @@ typedef union cvmx_mixx_irhwm cvmx_mixx_irhwm_t;
  *  NOTE: To write to the MIX_IRING1 register, a device would issue an IOBST directed at the MIO.
  *        To read the MIX_IRING1 register, a device would issue an IOBLD64 directed at the MIO.
  */
-union cvmx_mixx_iring1
-{
+union cvmx_mixx_iring1 {
 	uint64_t u64;
-	struct cvmx_mixx_iring1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_iring1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_60_63               : 4;
 	uint64_t isize                        : 20; /**< Represents the Inbound Ring Buffer's Size(in 8B
                                                          words). The ring can be as large as 1M entries.
@@ -762,9 +820,8 @@ union cvmx_mixx_iring1
 	uint64_t reserved_60_63               : 4;
 #endif
 	} s;
-	struct cvmx_mixx_iring1_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_iring1_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_60_63               : 4;
 	uint64_t isize                        : 20; /**< Represents the Inbound Ring Buffer's Size(in 8B
                                                          words). The ring can be as large as 1M entries.
@@ -787,8 +844,12 @@ union cvmx_mixx_iring1
 	struct cvmx_mixx_iring1_cn52xx        cn52xxp1;
 	struct cvmx_mixx_iring1_cn52xx        cn56xx;
 	struct cvmx_mixx_iring1_cn52xx        cn56xxp1;
+	struct cvmx_mixx_iring1_s             cn61xx;
 	struct cvmx_mixx_iring1_s             cn63xx;
 	struct cvmx_mixx_iring1_s             cn63xxp1;
+	struct cvmx_mixx_iring1_s             cn66xx;
+	struct cvmx_mixx_iring1_s             cn68xx;
+	struct cvmx_mixx_iring1_s             cn68xxp1;
 };
 typedef union cvmx_mixx_iring1 cvmx_mixx_iring1_t;
 
@@ -801,12 +862,10 @@ typedef union cvmx_mixx_iring1 cvmx_mixx_iring1_t;
  *  NOTE: To write to the MIX_IRING2 register, a device would issue an IOBST directed at the MIO.
  *        To read the MIX_IRING2 register, a device would issue an IOBLD64 directed at the MIO.
  */
-union cvmx_mixx_iring2
-{
+union cvmx_mixx_iring2 {
 	uint64_t u64;
-	struct cvmx_mixx_iring2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_iring2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_52_63               : 12;
 	uint64_t itlptr                       : 20; /**< The Inbound Ring Tail Pointer selects the I-Ring
                                                          Entry that the HW will process next. After the HW
@@ -838,8 +897,12 @@ union cvmx_mixx_iring2
 	struct cvmx_mixx_iring2_s             cn52xxp1;
 	struct cvmx_mixx_iring2_s             cn56xx;
 	struct cvmx_mixx_iring2_s             cn56xxp1;
+	struct cvmx_mixx_iring2_s             cn61xx;
 	struct cvmx_mixx_iring2_s             cn63xx;
 	struct cvmx_mixx_iring2_s             cn63xxp1;
+	struct cvmx_mixx_iring2_s             cn66xx;
+	struct cvmx_mixx_iring2_s             cn68xx;
+	struct cvmx_mixx_iring2_s             cn68xxp1;
 };
 typedef union cvmx_mixx_iring2 cvmx_mixx_iring2_t;
 
@@ -852,18 +915,16 @@ typedef union cvmx_mixx_iring2 cvmx_mixx_iring2_t;
  *  NOTE: To write to the MIX_ISR register, a device would issue an IOBST directed at the MIO.
  *        To read the MIX_ISR register, a device would issue an IOBLD64 directed at the MIO.
  */
-union cvmx_mixx_isr
-{
+union cvmx_mixx_isr {
 	uint64_t u64;
-	struct cvmx_mixx_isr_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_isr_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_8_63                : 56;
 	uint64_t ts                           : 1;  /**< TimeStamp Interrupt
                                                          When the \#of pending Timestamp Interrupts (MIX_TSCTL[TSCNT])
                                                          is greater than the TimeStamp Interrupt Threshold
                                                          (MIX_CTL[TS_THRESH]) value this interrupt bit is set.
-                                                         If both the global interrupt mask bits (CIU_INTx_EN*[MII])
+                                                         If both the global interrupt mask bits (CIU2_EN_xx_yy_PKT[MII])
                                                          and this local interrupt mask bit is set, than an
                                                          interrupt is reported for an Outbound Ring with Timestamp
                                                          event (see: MIX_INTENA[TSENA]). */
@@ -887,26 +948,26 @@ union cvmx_mixx_isr
                                                          software reset sequence (see: MIX_CTL[RESET] */
 	uint64_t data_drp                     : 1;  /**< Data was dropped due to RX FIFO full
                                                          If this does occur, the DATA_DRP is set and the
-                                                         CIU_INTx_SUM0,4[MII] bits are set.
-                                                         If both the global interrupt mask bits (CIU_INTx_EN*[MII])
+                                                         CIU2_RAW_PKT[MII] bit is set.
+                                                         If both the global interrupt mask bits (CIU2_EN_xx_yy_PKT[MII])
                                                          and the local interrupt mask bit(DATA_DRPENA) is set, than an
                                                          interrupt is reported for this event. */
 	uint64_t irthresh                     : 1;  /**< Inbound Ring Packet Threshold Exceeded
                                                          When the pending \#inbound packets in system
                                                          memory(IRCNT) has exceeded a programmable threshold
                                                          (IRHWM), then this bit is set. If this does occur,
-                                                         the IRTHRESH is set and the CIU_INTx_SUM0,4[MII] bits
-                                                         are set if ((MIX_ISR & MIX_INTENA) != 0)).
-                                                         If both the global interrupt mask bits (CIU_INTx_EN*[MII])
+                                                         the IRTHRESH is set and the CIU2_RAW_PKT[MII] bit
+                                                         is set if ((MIX_ISR & MIX_INTENA) != 0)).
+                                                         If both the global interrupt mask bits (CIU2_EN_xx_yy_PKT[MII])
                                                          and the local interrupt mask bit(ITHENA) is set, than an
                                                          interrupt is reported for this event. */
 	uint64_t orthresh                     : 1;  /**< Outbound Ring Packet Threshold Exceeded
                                                          When the pending \#outbound packets in system
                                                          memory(ORCNT) has exceeded a programmable threshold
                                                          (ORHWM), then this bit is set. If this does occur,
-                                                         the ORTHRESH is set and the CIU_INTx_SUM0,4[MII] bits
-                                                         are set if ((MIX_ISR & MIX_INTENA) != 0)).
-                                                         If both the global interrupt mask bits (CIU_INTx_EN*[MII])
+                                                         the ORTHRESH is set and the CIU2_RAW_PKT[MII] bit
+                                                         is set if ((MIX_ISR & MIX_INTENA) != 0)).
+                                                         If both the global interrupt mask bits (CIU2_EN_xx_yy_PKT[MII])
                                                          and the local interrupt mask bit(OTHENA) is set, than an
                                                          interrupt is reported for this event. */
 	uint64_t idblovf                      : 1;  /**< Inbound DoorBell(IDBELL) Overflow Detected
@@ -915,9 +976,9 @@ union cvmx_mixx_isr
                                                          I-Ring Buffer Entries (MIX_REMCNT[IREMCNT]), then
                                                          the following occurs:
                                                          1) The  MIX_IRING2[IDBELL] write is IGNORED
-                                                         2) The ODBLOVF is set and the CIU_INTx_SUM0,4[MII]
-                                                            bits are set if ((MIX_ISR & MIX_INTENA) != 0)).
-                                                         If both the global interrupt mask bits (CIU_INTx_EN*[MII])
+                                                         2) The ODBLOVF is set and the CIU2_RAW_PKT[MII]
+                                                            bit is set if ((MIX_ISR & MIX_INTENA) != 0)).
+                                                         If both the global interrupt mask bits (CIU2_EN_xx_yy_PKT[MII])
                                                          and the local interrupt mask bit(IVFENA) is set, than an
                                                          interrupt is reported for this event.
                                                          SW should keep track of the \#I-Ring Entries in use
@@ -940,9 +1001,9 @@ union cvmx_mixx_isr
                                                          O-Ring Buffer Entries (MIX_REMCNT[OREMCNT]), then
                                                          the following occurs:
                                                          1) The  MIX_ORING2[ODBELL] write is IGNORED
-                                                         2) The ODBLOVF is set and the CIU_INTx_SUM0,4[MII]
-                                                            bits are set if ((MIX_ISR & MIX_INTENA) != 0)).
-                                                         If both the global interrupt mask bits (CIU_INTx_EN*[MII])
+                                                         2) The ODBLOVF is set and the CIU2_RAW_PKT[MII]
+                                                            bit is set if ((MIX_ISR & MIX_INTENA) != 0)).
+                                                         If both the global interrupt mask bits (CIU2_EN_xx_yy_PKT[MII])
                                                          and the local interrupt mask bit(OVFENA) is set, than an
                                                          interrupt is reported for this event.
                                                          SW should keep track of the \#I-Ring Entries in use
@@ -967,9 +1028,8 @@ union cvmx_mixx_isr
 	uint64_t reserved_8_63                : 56;
 #endif
 	} s;
-	struct cvmx_mixx_isr_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_isr_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_7_63                : 57;
 	uint64_t orun                         : 1;  /**< ORCNT UnderFlow Detected
                                                          If SW writes a larger value than what is currently
@@ -1073,8 +1133,12 @@ union cvmx_mixx_isr
 	struct cvmx_mixx_isr_cn52xx           cn52xxp1;
 	struct cvmx_mixx_isr_cn52xx           cn56xx;
 	struct cvmx_mixx_isr_cn52xx           cn56xxp1;
+	struct cvmx_mixx_isr_s                cn61xx;
 	struct cvmx_mixx_isr_s                cn63xx;
 	struct cvmx_mixx_isr_s                cn63xxp1;
+	struct cvmx_mixx_isr_s                cn66xx;
+	struct cvmx_mixx_isr_s                cn68xx;
+	struct cvmx_mixx_isr_s                cn68xxp1;
 };
 typedef union cvmx_mixx_isr cvmx_mixx_isr_t;
 
@@ -1087,12 +1151,10 @@ typedef union cvmx_mixx_isr cvmx_mixx_isr_t;
  *  NOTE: To write to the MIX_ORCNT register, a device would issue an IOBST directed at the MIO.
  *        To read the MIX_ORCNT register, a device would issue an IOBLD64 directed at the MIO.
  */
-union cvmx_mixx_orcnt
-{
+union cvmx_mixx_orcnt {
 	uint64_t u64;
-	struct cvmx_mixx_orcnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_orcnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t orcnt                        : 20; /**< Pending \# of O-Ring Packets.
                                                          Whenever HW removes a packet from the O-Ring, it
@@ -1116,8 +1178,12 @@ union cvmx_mixx_orcnt
 	struct cvmx_mixx_orcnt_s              cn52xxp1;
 	struct cvmx_mixx_orcnt_s              cn56xx;
 	struct cvmx_mixx_orcnt_s              cn56xxp1;
+	struct cvmx_mixx_orcnt_s              cn61xx;
 	struct cvmx_mixx_orcnt_s              cn63xx;
 	struct cvmx_mixx_orcnt_s              cn63xxp1;
+	struct cvmx_mixx_orcnt_s              cn66xx;
+	struct cvmx_mixx_orcnt_s              cn68xx;
+	struct cvmx_mixx_orcnt_s              cn68xxp1;
 };
 typedef union cvmx_mixx_orcnt cvmx_mixx_orcnt_t;
 
@@ -1130,18 +1196,16 @@ typedef union cvmx_mixx_orcnt cvmx_mixx_orcnt_t;
  *  NOTE: To write to the MIX_ORHWM register, a device would issue an IOBST directed at the MIO.
  *        To read the MIX_ORHWM register, a device would issue an IOBLD64 directed at the MIO.
  */
-union cvmx_mixx_orhwm
-{
+union cvmx_mixx_orhwm {
 	uint64_t u64;
-	struct cvmx_mixx_orhwm_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_orhwm_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_20_63               : 44;
 	uint64_t orhwm                        : 20; /**< O-Ring Entry High Water Mark Threshold.
                                                          Used to determine when the \# of Outbound packets
                                                          in system memory that can be reclaimed
                                                          (MIX_ORCNT[ORCNT]) exceeds this ORHWM threshold.
-                                                         NOTE: The power-on value of the CIU_INTx_EN*[MII]
+                                                         NOTE: The power-on value of the CIU2_EN_xx_yy_PKT[MII]
                                                          interrupt enable bits is zero and must be enabled
                                                          to allow interrupts to be reported. */
 #else
@@ -1153,8 +1217,12 @@ union cvmx_mixx_orhwm
 	struct cvmx_mixx_orhwm_s              cn52xxp1;
 	struct cvmx_mixx_orhwm_s              cn56xx;
 	struct cvmx_mixx_orhwm_s              cn56xxp1;
+	struct cvmx_mixx_orhwm_s              cn61xx;
 	struct cvmx_mixx_orhwm_s              cn63xx;
 	struct cvmx_mixx_orhwm_s              cn63xxp1;
+	struct cvmx_mixx_orhwm_s              cn66xx;
+	struct cvmx_mixx_orhwm_s              cn68xx;
+	struct cvmx_mixx_orhwm_s              cn68xxp1;
 };
 typedef union cvmx_mixx_orhwm cvmx_mixx_orhwm_t;
 
@@ -1167,12 +1235,10 @@ typedef union cvmx_mixx_orhwm cvmx_mixx_orhwm_t;
  *  NOTE: To write to the MIX_ORING1 register, a device would issue an IOBST directed at the MIO.
  *        To read the MIX_ORING1 register, a device would issue an IOBLD64 directed at the MIO.
  */
-union cvmx_mixx_oring1
-{
+union cvmx_mixx_oring1 {
 	uint64_t u64;
-	struct cvmx_mixx_oring1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_oring1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_60_63               : 4;
 	uint64_t osize                        : 20; /**< Represents the Outbound Ring Buffer's Size(in 8B
                                                          words). The ring can be as large as 1M entries.
@@ -1190,9 +1256,8 @@ union cvmx_mixx_oring1
 	uint64_t reserved_60_63               : 4;
 #endif
 	} s;
-	struct cvmx_mixx_oring1_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_oring1_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_60_63               : 4;
 	uint64_t osize                        : 20; /**< Represents the Outbound Ring Buffer's Size(in 8B
                                                          words). The ring can be as large as 1M entries.
@@ -1215,8 +1280,12 @@ union cvmx_mixx_oring1
 	struct cvmx_mixx_oring1_cn52xx        cn52xxp1;
 	struct cvmx_mixx_oring1_cn52xx        cn56xx;
 	struct cvmx_mixx_oring1_cn52xx        cn56xxp1;
+	struct cvmx_mixx_oring1_s             cn61xx;
 	struct cvmx_mixx_oring1_s             cn63xx;
 	struct cvmx_mixx_oring1_s             cn63xxp1;
+	struct cvmx_mixx_oring1_s             cn66xx;
+	struct cvmx_mixx_oring1_s             cn68xx;
+	struct cvmx_mixx_oring1_s             cn68xxp1;
 };
 typedef union cvmx_mixx_oring1 cvmx_mixx_oring1_t;
 
@@ -1229,12 +1298,10 @@ typedef union cvmx_mixx_oring1 cvmx_mixx_oring1_t;
  *  NOTE: To write to the MIX_ORING2 register, a device would issue an IOBST directed at the MIO.
  *        To read the MIX_ORING2 register, a device would issue an IOBLD64 directed at the MIO.
  */
-union cvmx_mixx_oring2
-{
+union cvmx_mixx_oring2 {
 	uint64_t u64;
-	struct cvmx_mixx_oring2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_oring2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_52_63               : 12;
 	uint64_t otlptr                       : 20; /**< The Outbound Ring Tail Pointer selects the O-Ring
                                                          Entry that the HW will process next. After the HW
@@ -1268,8 +1335,12 @@ union cvmx_mixx_oring2
 	struct cvmx_mixx_oring2_s             cn52xxp1;
 	struct cvmx_mixx_oring2_s             cn56xx;
 	struct cvmx_mixx_oring2_s             cn56xxp1;
+	struct cvmx_mixx_oring2_s             cn61xx;
 	struct cvmx_mixx_oring2_s             cn63xx;
 	struct cvmx_mixx_oring2_s             cn63xxp1;
+	struct cvmx_mixx_oring2_s             cn66xx;
+	struct cvmx_mixx_oring2_s             cn68xx;
+	struct cvmx_mixx_oring2_s             cn68xxp1;
 };
 typedef union cvmx_mixx_oring2 cvmx_mixx_oring2_t;
 
@@ -1281,12 +1352,10 @@ typedef union cvmx_mixx_oring2 cvmx_mixx_oring2_t;
  * Description:
  *  NOTE: To read the MIX_REMCNT register, a device would issue an IOBLD64 directed at the MIO.
  */
-union cvmx_mixx_remcnt
-{
+union cvmx_mixx_remcnt {
 	uint64_t u64;
-	struct cvmx_mixx_remcnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_remcnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_52_63               : 12;
 	uint64_t iremcnt                      : 20; /**< Remaining I-Ring Buffer Count
                                                          Reflects the \# of unused/remaining I-Ring Entries
@@ -1326,8 +1395,12 @@ union cvmx_mixx_remcnt
 	struct cvmx_mixx_remcnt_s             cn52xxp1;
 	struct cvmx_mixx_remcnt_s             cn56xx;
 	struct cvmx_mixx_remcnt_s             cn56xxp1;
+	struct cvmx_mixx_remcnt_s             cn61xx;
 	struct cvmx_mixx_remcnt_s             cn63xx;
 	struct cvmx_mixx_remcnt_s             cn63xxp1;
+	struct cvmx_mixx_remcnt_s             cn66xx;
+	struct cvmx_mixx_remcnt_s             cn68xx;
+	struct cvmx_mixx_remcnt_s             cn68xxp1;
 };
 typedef union cvmx_mixx_remcnt cvmx_mixx_remcnt_t;
 
@@ -1354,12 +1427,10 @@ typedef union cvmx_mixx_remcnt cvmx_mixx_remcnt_t;
  *
  * SWNOTE: A MIX_TSCTL write when MIX_TSCTL[TSCNT]=0 (ie: TimeStamp Fifo empty), then the write is ignored.
  */
-union cvmx_mixx_tsctl
-{
+union cvmx_mixx_tsctl {
 	uint64_t u64;
-	struct cvmx_mixx_tsctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_tsctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_21_63               : 43;
 	uint64_t tsavl                        : 5;  /**< # of MIX TimeStamp Entries Available for use
                                                          For o63: TSAVL MAX=4 (implementation
@@ -1382,8 +1453,12 @@ union cvmx_mixx_tsctl
 	uint64_t reserved_21_63               : 43;
 #endif
 	} s;
+	struct cvmx_mixx_tsctl_s              cn61xx;
 	struct cvmx_mixx_tsctl_s              cn63xx;
 	struct cvmx_mixx_tsctl_s              cn63xxp1;
+	struct cvmx_mixx_tsctl_s              cn66xx;
+	struct cvmx_mixx_tsctl_s              cn68xx;
+	struct cvmx_mixx_tsctl_s              cn68xxp1;
 };
 typedef union cvmx_mixx_tsctl cvmx_mixx_tsctl_t;
 
@@ -1395,12 +1470,10 @@ typedef union cvmx_mixx_tsctl cvmx_mixx_tsctl_t;
  * Description:
  *  NOTE: To read the MIX_TSTAMP register, a device would issue an IOBLD64 directed at the MIO.
  */
-union cvmx_mixx_tstamp
-{
+union cvmx_mixx_tstamp {
 	uint64_t u64;
-	struct cvmx_mixx_tstamp_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_mixx_tstamp_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t tstamp                       : 64; /**< MIX TimeStamp Value
                                                           When SW sets up an ORING Entry with [47]=1(TSTAMP),
                                                           The packet is tagged with a specal SOP w/TSTAMP flag
@@ -1439,8 +1512,12 @@ union cvmx_mixx_tstamp
 	uint64_t tstamp                       : 64;
 #endif
 	} s;
+	struct cvmx_mixx_tstamp_s             cn61xx;
 	struct cvmx_mixx_tstamp_s             cn63xx;
 	struct cvmx_mixx_tstamp_s             cn63xxp1;
+	struct cvmx_mixx_tstamp_s             cn66xx;
+	struct cvmx_mixx_tstamp_s             cn68xx;
+	struct cvmx_mixx_tstamp_s             cn68xxp1;
 };
 typedef union cvmx_mixx_tstamp cvmx_mixx_tstamp_t;
 

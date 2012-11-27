@@ -519,7 +519,7 @@ ucycom_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct usb_page_cache *pc;
 	uint8_t buf[2];
 	uint32_t offset;
-	uint32_t len;
+	int len;
 	int actlen;
 
 	usbd_xfer_status(xfer, &actlen, NULL, NULL, NULL);

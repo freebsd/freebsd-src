@@ -455,11 +455,9 @@ fetch_read(conn_t *conn, char *buf, size_t len)
 	struct timeval now, timeout, delta;
 	fd_set readfds;
 	ssize_t rlen, total;
-	int r;
 	char *start;
 
-	if (fetchTimeout) {
-		FD_ZERO(&readfds);
+	if (fetchTimeout > 0) {
 		gettimeofday(&timeout, NULL);
 		timeout.tv_sec += fetchTimeout;
 	}
@@ -523,23 +521,21 @@ fetch_read(conn_t *conn, char *buf, size_t len)
 			return (-1);
 		}
 		// assert(rlen == FETCH_READ_WAIT);
-		while (fetchTimeout && !FD_ISSET(conn->sd, &readfds)) {
+		FD_ZERO(&readfds);
+		while (!FD_ISSET(conn->sd, &readfds)) {
 			FD_SET(conn->sd, &readfds);
-			gettimeofday(&now, NULL);
-			delta.tv_sec = timeout.tv_sec - now.tv_sec;
-			delta.tv_usec = timeout.tv_usec - now.tv_usec;
-			if (delta.tv_usec < 0) {
-				delta.tv_usec += 1000000;
-				delta.tv_sec--;
-			}
-			if (delta.tv_sec < 0) {
-				errno = ETIMEDOUT;
-				fetch_syserr();
-				return (-1);
+			if (fetchTimeout > 0) {
+				gettimeofday(&now, NULL);
+				if (!timercmp(&timeout, &now, >)) {
+					errno = ETIMEDOUT;
+					fetch_syserr();
+					return (-1);
+				}
+				timersub(&timeout, &now, &delta);
 			}
 			errno = 0;
-			r = select(conn->sd + 1, &readfds, NULL, NULL, &delta);
-			if (r == -1) {
+			if (select(conn->sd + 1, &readfds, NULL, NULL,
+				fetchTimeout > 0 ? &delta : NULL) < 0) {
 				if (errno == EINTR) {
 					if (fetchRestartCalls)
 						continue;

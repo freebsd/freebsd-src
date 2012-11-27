@@ -58,7 +58,7 @@ static const char *short_options
  * a small change to the code below.
  */
 
-static struct option {
+static const struct bsdtar_option {
 	const char *name;
 	int required;      /* 1 if this option requires an argument. */
 	int equivalent;    /* Equivalent short option. */
@@ -77,6 +77,7 @@ static struct option {
 	{ "create",               0, 'c' },
 	{ "dereference",	  0, 'L' },
 	{ "directory",            1, 'C' },
+	{ "disable-copyfile",	  0, OPTION_DISABLE_COPYFILE },
 	{ "exclude",              1, OPTION_EXCLUDE },
 	{ "exclude-from",         1, 'X' },
 	{ "extract",              0, 'x' },
@@ -90,11 +91,12 @@ static struct option {
 	{ "gzip",                 0, 'z' },
 	{ "help",                 0, OPTION_HELP },
 	{ "include",              1, OPTION_INCLUDE },
-	{ "interactive",          0, 'w' },
 	{ "insecure",             0, 'P' },
+	{ "interactive",          0, 'w' },
 	{ "keep-newer-files",     0, OPTION_KEEP_NEWER_FILES },
 	{ "keep-old-files",       0, 'k' },
 	{ "list",                 0, 't' },
+	{ "lzip",                 0, OPTION_LZIP },
 	{ "lzma",                 0, OPTION_LZMA },
 	{ "modification-time",    0, 'm' },
 	{ "newer",		  1, OPTION_NEWER_CTIME },
@@ -103,11 +105,11 @@ static struct option {
 	{ "newer-mtime",	  1, OPTION_NEWER_MTIME },
 	{ "newer-mtime-than",	  1, OPTION_NEWER_MTIME_THAN },
 	{ "newer-than",		  1, OPTION_NEWER_CTIME_THAN },
-	{ "nodump",               0, OPTION_NODUMP },
-	{ "norecurse",            0, 'n' },
 	{ "no-recursion",         0, 'n' },
 	{ "no-same-owner",	  0, OPTION_NO_SAME_OWNER },
 	{ "no-same-permissions",  0, OPTION_NO_SAME_PERMISSIONS },
+	{ "nodump",               0, OPTION_NODUMP },
+	{ "norecurse",            0, 'n' },
 	{ "null",		  0, OPTION_NULL },
 	{ "numeric-owner",	  0, OPTION_NUMERIC_OWNER },
 	{ "one-file-system",	  0, OPTION_ONE_FILE_SYSTEM },
@@ -171,7 +173,7 @@ static struct option {
  *
  * TODO: If we want to support arbitrary command-line options from -T
  * input (as GNU tar does), we may need to extend this to handle option
- * words from sources other than argv/arc.  I'm not really sure if I
+ * words from sources other than argv/argc.  I'm not really sure if I
  * like that feature of GNU tar, so it's certainly not a priority.
  */
 
@@ -180,19 +182,17 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 {
 	enum { state_start = 0, state_old_tar, state_next_word,
 	       state_short, state_long };
-	static int state = state_start;
-	static char *opt_word;
 
-	const struct option *popt, *match = NULL, *match2 = NULL;
+	const struct bsdtar_option *popt, *match = NULL, *match2 = NULL;
 	const char *p, *long_prefix = "--";
 	size_t optlength;
 	int opt = '?';
 	int required = 0;
 
-	bsdtar->optarg = NULL;
+	bsdtar->argument = NULL;
 
 	/* First time through, initialize everything. */
-	if (state == state_start) {
+	if (bsdtar->getopt_state == state_start) {
 		/* Skip program name. */
 		++bsdtar->argv;
 		--bsdtar->argc;
@@ -200,10 +200,10 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 			return (-1);
 		/* Decide between "new style" and "old style" arguments. */
 		if (bsdtar->argv[0][0] == '-') {
-			state = state_next_word;
+			bsdtar->getopt_state = state_next_word;
 		} else {
-			state = state_old_tar;
-			opt_word = *bsdtar->argv++;
+			bsdtar->getopt_state = state_old_tar;
+			bsdtar->getopt_word = *bsdtar->argv++;
 			--bsdtar->argc;
 		}
 	}
@@ -211,20 +211,20 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 	/*
 	 * We're parsing old-style tar arguments
 	 */
-	if (state == state_old_tar) {
+	if (bsdtar->getopt_state == state_old_tar) {
 		/* Get the next option character. */
-		opt = *opt_word++;
+		opt = *bsdtar->getopt_word++;
 		if (opt == '\0') {
 			/* New-style args can follow old-style. */
-			state = state_next_word;
+			bsdtar->getopt_state = state_next_word;
 		} else {
 			/* See if it takes an argument. */
 			p = strchr(short_options, opt);
 			if (p == NULL)
 				return ('?');
 			if (p[1] == ':') {
-				bsdtar->optarg = *bsdtar->argv;
-				if (bsdtar->optarg == NULL) {
+				bsdtar->argument = *bsdtar->argv;
+				if (bsdtar->argument == NULL) {
 					lafe_warnc(0,
 					    "Option %c requires an argument",
 					    opt);
@@ -239,7 +239,7 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 	/*
 	 * We're ready to look at the next word in argv.
 	 */
-	if (state == state_next_word) {
+	if (bsdtar->getopt_state == state_next_word) {
 		/* No more arguments, so no more options. */
 		if (bsdtar->argv[0] == NULL)
 			return (-1);
@@ -253,28 +253,28 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 			return (-1);
 		}
 		/* Get next word for parsing. */
-		opt_word = *bsdtar->argv++;
+		bsdtar->getopt_word = *bsdtar->argv++;
 		--bsdtar->argc;
-		if (opt_word[1] == '-') {
+		if (bsdtar->getopt_word[1] == '-') {
 			/* Set up long option parser. */
-			state = state_long;
-			opt_word += 2; /* Skip leading '--' */
+			bsdtar->getopt_state = state_long;
+			bsdtar->getopt_word += 2; /* Skip leading '--' */
 		} else {
 			/* Set up short option parser. */
-			state = state_short;
-			++opt_word;  /* Skip leading '-' */
+			bsdtar->getopt_state = state_short;
+			++bsdtar->getopt_word;  /* Skip leading '-' */
 		}
 	}
 
 	/*
 	 * We're parsing a group of POSIX-style single-character options.
 	 */
-	if (state == state_short) {
+	if (bsdtar->getopt_state == state_short) {
 		/* Peel next option off of a group of short options. */
-		opt = *opt_word++;
+		opt = *bsdtar->getopt_word++;
 		if (opt == '\0') {
 			/* End of this group; recurse to get next option. */
-			state = state_next_word;
+			bsdtar->getopt_state = state_next_word;
 			return bsdtar_getopt(bsdtar);
 		}
 
@@ -287,11 +287,11 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 
 		/* If it takes an argument, parse that. */
 		if (required) {
-			/* If arg is run-in, opt_word already points to it. */
-			if (opt_word[0] == '\0') {
+			/* If arg is run-in, bsdtar->getopt_word already points to it. */
+			if (bsdtar->getopt_word[0] == '\0') {
 				/* Otherwise, pick up the next word. */
-				opt_word = *bsdtar->argv;
-				if (opt_word == NULL) {
+				bsdtar->getopt_word = *bsdtar->argv;
+				if (bsdtar->getopt_word == NULL) {
 					lafe_warnc(0,
 					    "Option -%c requires an argument",
 					    opt);
@@ -301,36 +301,36 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 				--bsdtar->argc;
 			}
 			if (opt == 'W') {
-				state = state_long;
+				bsdtar->getopt_state = state_long;
 				long_prefix = "-W "; /* For clearer errors. */
 			} else {
-				state = state_next_word;
-				bsdtar->optarg = opt_word;
+				bsdtar->getopt_state = state_next_word;
+				bsdtar->argument = bsdtar->getopt_word;
 			}
 		}
 	}
 
 	/* We're reading a long option, including -W long=arg convention. */
-	if (state == state_long) {
+	if (bsdtar->getopt_state == state_long) {
 		/* After this long option, we'll be starting a new word. */
-		state = state_next_word;
+		bsdtar->getopt_state = state_next_word;
 
 		/* Option name ends at '=' if there is one. */
-		p = strchr(opt_word, '=');
+		p = strchr(bsdtar->getopt_word, '=');
 		if (p != NULL) {
-			optlength = (size_t)(p - opt_word);
-			bsdtar->optarg = (char *)(uintptr_t)(p + 1);
+			optlength = (size_t)(p - bsdtar->getopt_word);
+			bsdtar->argument = (char *)(uintptr_t)(p + 1);
 		} else {
-			optlength = strlen(opt_word);
+			optlength = strlen(bsdtar->getopt_word);
 		}
 
 		/* Search the table for an unambiguous match. */
 		for (popt = tar_longopts; popt->name != NULL; popt++) {
 			/* Short-circuit if first chars don't match. */
-			if (popt->name[0] != opt_word[0])
+			if (popt->name[0] != bsdtar->getopt_word[0])
 				continue;
 			/* If option is a prefix of name in table, record it.*/
-			if (strncmp(opt_word, popt->name, optlength) == 0) {
+			if (strncmp(bsdtar->getopt_word, popt->name, optlength) == 0) {
 				match2 = match; /* Record up to two matches. */
 				match = popt;
 				/* If it's an exact match, we're done. */
@@ -345,22 +345,22 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 		if (match == NULL) {
 			lafe_warnc(0,
 			    "Option %s%s is not supported",
-			    long_prefix, opt_word);
+			    long_prefix, bsdtar->getopt_word);
 			return ('?');
 		}
 		if (match2 != NULL) {
 			lafe_warnc(0,
 			    "Ambiguous option %s%s (matches --%s and --%s)",
-			    long_prefix, opt_word, match->name, match2->name);
+			    long_prefix, bsdtar->getopt_word, match->name, match2->name);
 			return ('?');
 		}
 
 		/* We've found a unique match; does it need an argument? */
 		if (match->required) {
 			/* Argument required: get next word if necessary. */
-			if (bsdtar->optarg == NULL) {
-				bsdtar->optarg = *bsdtar->argv;
-				if (bsdtar->optarg == NULL) {
+			if (bsdtar->argument == NULL) {
+				bsdtar->argument = *bsdtar->argv;
+				if (bsdtar->argument == NULL) {
 					lafe_warnc(0,
 					    "Option %s%s requires an argument",
 					    long_prefix, match->name);
@@ -371,7 +371,7 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 			}
 		} else {
 			/* Argument forbidden: fail if there is one. */
-			if (bsdtar->optarg != NULL) {
+			if (bsdtar->argument != NULL) {
 				lafe_warnc(0,
 				    "Option %s%s does not allow an argument",
 				    long_prefix, match->name);

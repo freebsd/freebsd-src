@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lex.c,v 1.86 2007-09-17 09:56:29 shane Exp $ */
+/* $Id: lex.c,v 1.86 2007/09/17 09:56:29 shane Exp $ */
 
 /*! \file */
 

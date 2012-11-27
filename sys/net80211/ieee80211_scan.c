@@ -960,6 +960,19 @@ scan_task(void *arg, int pending)
 	IEEE80211_LOCK(ic);
 
 	/*
+	 * Since a cancellation may have occured during one of the
+	 * driver calls (whilst unlocked), update scandone.
+	 */
+	if (scandone == 0 &&
+	    ((SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL) != 0)) {
+		/* XXX printf? */
+		if_printf(vap->iv_ifp,
+		    "%s: OOPS! scan cancelled during driver call!\n",
+		    __func__);
+	}
+	scandone |= ((SCAN_PRIVATE(ss)->ss_iflags & ISCAN_CANCEL) != 0);
+
+	/*
 	 * Record scan complete time.  Note that we also do
 	 * this when canceled so any background scan will
 	 * not be restarted for a while.

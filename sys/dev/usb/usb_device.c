@@ -1496,7 +1496,6 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	struct usb_device *adev;
 	struct usb_device *hub;
 	uint8_t *scratch_ptr;
-	size_t scratch_size;
 	usb_error_t err;
 	uint8_t device_index;
 	uint8_t config_index;
@@ -1721,7 +1720,6 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	 * simply disable all USB strings.
 	 */
 	scratch_ptr = udev->bus->scratch[0].data;
-	scratch_size = sizeof(udev->bus->scratch[0].data);
 
 	if (udev->ddesc.iManufacturer ||
 	    udev->ddesc.iProduct ||

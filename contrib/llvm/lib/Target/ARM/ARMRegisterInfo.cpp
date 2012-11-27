@@ -1,4 +1,4 @@
-//===- ARMRegisterInfo.cpp - ARM Register Information -----------*- C++ -*-===//
+//===-- ARMRegisterInfo.cpp - ARM Register Information --------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,10 +11,12 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "ARMRegisterInfo.h"
 #include "ARM.h"
 #include "ARMBaseInstrInfo.h"
-#include "ARMRegisterInfo.h"
 using namespace llvm;
+
+void ARMRegisterInfo::anchor() { }
 
 ARMRegisterInfo::ARMRegisterInfo(const ARMBaseInstrInfo &tii,
                                  const ARMSubtarget &sti)

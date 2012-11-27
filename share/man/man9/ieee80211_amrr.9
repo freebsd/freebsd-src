@@ -86,7 +86,7 @@ rate for each frame.
 To maximize throughput algorithms try to use the highest rate that
 is appropriate for the operating conditions.
 The rate will vary as conditions change; the distance between two stations
-may change, transient noise may be present that affects signal quality, 
+may change, transient noise may be present that affects signal quality,
 etc.
 .Nm
 uses very simple information from a driver to do it's job:
@@ -119,8 +119,8 @@ The
 .Vt amrr
 structure member holds the per-vap state for
 .Nm
-and 
-.Xr ral 4 
+and
+.Xr ral 4
 initializes it in the vap create method with:
 .Bd -literal -offset indent
 ieee80211_amrr_init(&rvp->amrr, vap,

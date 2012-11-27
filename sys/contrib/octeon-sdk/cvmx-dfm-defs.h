@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,14 +49,14 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_DFM_TYPEDEFS_H__
-#define __CVMX_DFM_TYPEDEFS_H__
+#ifndef __CVMX_DFM_DEFS_H__
+#define __CVMX_DFM_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 #define CVMX_DFM_CHAR_CTL CVMX_DFM_CHAR_CTL_FUNC()
 static inline uint64_t CVMX_DFM_CHAR_CTL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_CHAR_CTL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D4000220ull);
 }
@@ -67,7 +67,7 @@ static inline uint64_t CVMX_DFM_CHAR_CTL_FUNC(void)
 #define CVMX_DFM_CHAR_MASK0 CVMX_DFM_CHAR_MASK0_FUNC()
 static inline uint64_t CVMX_DFM_CHAR_MASK0_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_CHAR_MASK0 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D4000228ull);
 }
@@ -78,7 +78,7 @@ static inline uint64_t CVMX_DFM_CHAR_MASK0_FUNC(void)
 #define CVMX_DFM_CHAR_MASK2 CVMX_DFM_CHAR_MASK2_FUNC()
 static inline uint64_t CVMX_DFM_CHAR_MASK2_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_CHAR_MASK2 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D4000238ull);
 }
@@ -89,7 +89,7 @@ static inline uint64_t CVMX_DFM_CHAR_MASK2_FUNC(void)
 #define CVMX_DFM_CHAR_MASK4 CVMX_DFM_CHAR_MASK4_FUNC()
 static inline uint64_t CVMX_DFM_CHAR_MASK4_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_CHAR_MASK4 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D4000318ull);
 }
@@ -100,7 +100,7 @@ static inline uint64_t CVMX_DFM_CHAR_MASK4_FUNC(void)
 #define CVMX_DFM_COMP_CTL2 CVMX_DFM_COMP_CTL2_FUNC()
 static inline uint64_t CVMX_DFM_COMP_CTL2_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_COMP_CTL2 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D40001B8ull);
 }
@@ -111,7 +111,7 @@ static inline uint64_t CVMX_DFM_COMP_CTL2_FUNC(void)
 #define CVMX_DFM_CONFIG CVMX_DFM_CONFIG_FUNC()
 static inline uint64_t CVMX_DFM_CONFIG_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_CONFIG not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D4000188ull);
 }
@@ -122,7 +122,7 @@ static inline uint64_t CVMX_DFM_CONFIG_FUNC(void)
 #define CVMX_DFM_CONTROL CVMX_DFM_CONTROL_FUNC()
 static inline uint64_t CVMX_DFM_CONTROL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_CONTROL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D4000190ull);
 }
@@ -133,7 +133,7 @@ static inline uint64_t CVMX_DFM_CONTROL_FUNC(void)
 #define CVMX_DFM_DLL_CTL2 CVMX_DFM_DLL_CTL2_FUNC()
 static inline uint64_t CVMX_DFM_DLL_CTL2_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_DLL_CTL2 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D40001C8ull);
 }
@@ -144,7 +144,7 @@ static inline uint64_t CVMX_DFM_DLL_CTL2_FUNC(void)
 #define CVMX_DFM_DLL_CTL3 CVMX_DFM_DLL_CTL3_FUNC()
 static inline uint64_t CVMX_DFM_DLL_CTL3_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_DLL_CTL3 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D4000218ull);
 }
@@ -155,7 +155,7 @@ static inline uint64_t CVMX_DFM_DLL_CTL3_FUNC(void)
 #define CVMX_DFM_FCLK_CNT CVMX_DFM_FCLK_CNT_FUNC()
 static inline uint64_t CVMX_DFM_FCLK_CNT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_FCLK_CNT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D40001E0ull);
 }
@@ -166,7 +166,7 @@ static inline uint64_t CVMX_DFM_FCLK_CNT_FUNC(void)
 #define CVMX_DFM_FNT_BIST CVMX_DFM_FNT_BIST_FUNC()
 static inline uint64_t CVMX_DFM_FNT_BIST_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_FNT_BIST not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D40007F8ull);
 }
@@ -177,7 +177,7 @@ static inline uint64_t CVMX_DFM_FNT_BIST_FUNC(void)
 #define CVMX_DFM_FNT_CTL CVMX_DFM_FNT_CTL_FUNC()
 static inline uint64_t CVMX_DFM_FNT_CTL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_FNT_CTL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D4000400ull);
 }
@@ -188,7 +188,7 @@ static inline uint64_t CVMX_DFM_FNT_CTL_FUNC(void)
 #define CVMX_DFM_FNT_IENA CVMX_DFM_FNT_IENA_FUNC()
 static inline uint64_t CVMX_DFM_FNT_IENA_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_FNT_IENA not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D4000410ull);
 }
@@ -199,7 +199,7 @@ static inline uint64_t CVMX_DFM_FNT_IENA_FUNC(void)
 #define CVMX_DFM_FNT_SCLK CVMX_DFM_FNT_SCLK_FUNC()
 static inline uint64_t CVMX_DFM_FNT_SCLK_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_FNT_SCLK not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D4000418ull);
 }
@@ -210,7 +210,7 @@ static inline uint64_t CVMX_DFM_FNT_SCLK_FUNC(void)
 #define CVMX_DFM_FNT_STAT CVMX_DFM_FNT_STAT_FUNC()
 static inline uint64_t CVMX_DFM_FNT_STAT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_FNT_STAT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D4000408ull);
 }
@@ -221,7 +221,7 @@ static inline uint64_t CVMX_DFM_FNT_STAT_FUNC(void)
 #define CVMX_DFM_IFB_CNT CVMX_DFM_IFB_CNT_FUNC()
 static inline uint64_t CVMX_DFM_IFB_CNT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_IFB_CNT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D40001D0ull);
 }
@@ -232,7 +232,7 @@ static inline uint64_t CVMX_DFM_IFB_CNT_FUNC(void)
 #define CVMX_DFM_MODEREG_PARAMS0 CVMX_DFM_MODEREG_PARAMS0_FUNC()
 static inline uint64_t CVMX_DFM_MODEREG_PARAMS0_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_MODEREG_PARAMS0 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D40001A8ull);
 }
@@ -243,7 +243,7 @@ static inline uint64_t CVMX_DFM_MODEREG_PARAMS0_FUNC(void)
 #define CVMX_DFM_MODEREG_PARAMS1 CVMX_DFM_MODEREG_PARAMS1_FUNC()
 static inline uint64_t CVMX_DFM_MODEREG_PARAMS1_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_MODEREG_PARAMS1 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D4000260ull);
 }
@@ -254,7 +254,7 @@ static inline uint64_t CVMX_DFM_MODEREG_PARAMS1_FUNC(void)
 #define CVMX_DFM_OPS_CNT CVMX_DFM_OPS_CNT_FUNC()
 static inline uint64_t CVMX_DFM_OPS_CNT_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_OPS_CNT not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D40001D8ull);
 }
@@ -265,7 +265,7 @@ static inline uint64_t CVMX_DFM_OPS_CNT_FUNC(void)
 #define CVMX_DFM_PHY_CTL CVMX_DFM_PHY_CTL_FUNC()
 static inline uint64_t CVMX_DFM_PHY_CTL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_PHY_CTL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D4000210ull);
 }
@@ -276,7 +276,7 @@ static inline uint64_t CVMX_DFM_PHY_CTL_FUNC(void)
 #define CVMX_DFM_RESET_CTL CVMX_DFM_RESET_CTL_FUNC()
 static inline uint64_t CVMX_DFM_RESET_CTL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_RESET_CTL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D4000180ull);
 }
@@ -287,7 +287,7 @@ static inline uint64_t CVMX_DFM_RESET_CTL_FUNC(void)
 #define CVMX_DFM_RLEVEL_CTL CVMX_DFM_RLEVEL_CTL_FUNC()
 static inline uint64_t CVMX_DFM_RLEVEL_CTL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_RLEVEL_CTL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D40002A0ull);
 }
@@ -298,7 +298,7 @@ static inline uint64_t CVMX_DFM_RLEVEL_CTL_FUNC(void)
 #define CVMX_DFM_RLEVEL_DBG CVMX_DFM_RLEVEL_DBG_FUNC()
 static inline uint64_t CVMX_DFM_RLEVEL_DBG_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_RLEVEL_DBG not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D40002A8ull);
 }
@@ -309,7 +309,8 @@ static inline uint64_t CVMX_DFM_RLEVEL_DBG_FUNC(void)
 static inline uint64_t CVMX_DFM_RLEVEL_RANKX(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1)))))
 		cvmx_warn("CVMX_DFM_RLEVEL_RANKX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800D4000280ull) + ((offset) & 1) * 8;
 }
@@ -320,7 +321,7 @@ static inline uint64_t CVMX_DFM_RLEVEL_RANKX(unsigned long offset)
 #define CVMX_DFM_RODT_MASK CVMX_DFM_RODT_MASK_FUNC()
 static inline uint64_t CVMX_DFM_RODT_MASK_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_RODT_MASK not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D4000268ull);
 }
@@ -331,7 +332,7 @@ static inline uint64_t CVMX_DFM_RODT_MASK_FUNC(void)
 #define CVMX_DFM_SLOT_CTL0 CVMX_DFM_SLOT_CTL0_FUNC()
 static inline uint64_t CVMX_DFM_SLOT_CTL0_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_SLOT_CTL0 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D40001F8ull);
 }
@@ -342,7 +343,7 @@ static inline uint64_t CVMX_DFM_SLOT_CTL0_FUNC(void)
 #define CVMX_DFM_SLOT_CTL1 CVMX_DFM_SLOT_CTL1_FUNC()
 static inline uint64_t CVMX_DFM_SLOT_CTL1_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_SLOT_CTL1 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D4000200ull);
 }
@@ -353,7 +354,7 @@ static inline uint64_t CVMX_DFM_SLOT_CTL1_FUNC(void)
 #define CVMX_DFM_TIMING_PARAMS0 CVMX_DFM_TIMING_PARAMS0_FUNC()
 static inline uint64_t CVMX_DFM_TIMING_PARAMS0_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_TIMING_PARAMS0 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D4000198ull);
 }
@@ -364,7 +365,7 @@ static inline uint64_t CVMX_DFM_TIMING_PARAMS0_FUNC(void)
 #define CVMX_DFM_TIMING_PARAMS1 CVMX_DFM_TIMING_PARAMS1_FUNC()
 static inline uint64_t CVMX_DFM_TIMING_PARAMS1_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_TIMING_PARAMS1 not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D40001A0ull);
 }
@@ -375,7 +376,7 @@ static inline uint64_t CVMX_DFM_TIMING_PARAMS1_FUNC(void)
 #define CVMX_DFM_WLEVEL_CTL CVMX_DFM_WLEVEL_CTL_FUNC()
 static inline uint64_t CVMX_DFM_WLEVEL_CTL_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_WLEVEL_CTL not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D4000300ull);
 }
@@ -386,7 +387,7 @@ static inline uint64_t CVMX_DFM_WLEVEL_CTL_FUNC(void)
 #define CVMX_DFM_WLEVEL_DBG CVMX_DFM_WLEVEL_DBG_FUNC()
 static inline uint64_t CVMX_DFM_WLEVEL_DBG_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_WLEVEL_DBG not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D4000308ull);
 }
@@ -397,7 +398,8 @@ static inline uint64_t CVMX_DFM_WLEVEL_DBG_FUNC(void)
 static inline uint64_t CVMX_DFM_WLEVEL_RANKX(unsigned long offset)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((offset <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((offset <= 1)))))
 		cvmx_warn("CVMX_DFM_WLEVEL_RANKX(%lu) is invalid on this chip\n", offset);
 	return CVMX_ADD_IO_SEG(0x00011800D40002B0ull) + ((offset) & 1) * 8;
 }
@@ -408,7 +410,7 @@ static inline uint64_t CVMX_DFM_WLEVEL_RANKX(unsigned long offset)
 #define CVMX_DFM_WODT_MASK CVMX_DFM_WODT_MASK_FUNC()
 static inline uint64_t CVMX_DFM_WODT_MASK_FUNC(void)
 {
-	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX)))
+	if (!(OCTEON_IS_MODEL(OCTEON_CN63XX) || OCTEON_IS_MODEL(OCTEON_CN66XX)))
 		cvmx_warn("CVMX_DFM_WODT_MASK not supported on this chip\n");
 	return CVMX_ADD_IO_SEG(0x00011800D40001B0ull);
 }
@@ -421,13 +423,36 @@ static inline uint64_t CVMX_DFM_WODT_MASK_FUNC(void)
  *
  * DFM_CHAR_CTL = DFM Characterization Control
  * This register is an assortment of various control fields needed to charecterize the DDR3 interface
+ *
+ * Notes:
+ * DR bit applies on the DQ port
+ *
  */
-union cvmx_dfm_char_ctl
-{
+union cvmx_dfm_char_ctl {
 	uint64_t u64;
-	struct cvmx_dfm_char_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_char_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint64_t reserved_44_63               : 20;
+	uint64_t dr                           : 1;  /**< Pattern at Data Rate (not Clock Rate) */
+	uint64_t skew_on                      : 1;  /**< Skew adjacent bits */
+	uint64_t en                           : 1;  /**< Enable characterization */
+	uint64_t sel                          : 1;  /**< Pattern select
+                                                         0 = PRBS
+                                                         1 = Programmable pattern */
+	uint64_t prog                         : 8;  /**< Programmable pattern */
+	uint64_t prbs                         : 32; /**< PRBS Polynomial */
+#else
+	uint64_t prbs                         : 32;
+	uint64_t prog                         : 8;
+	uint64_t sel                          : 1;
+	uint64_t en                           : 1;
+	uint64_t skew_on                      : 1;
+	uint64_t dr                           : 1;
+	uint64_t reserved_44_63               : 20;
+#endif
+	} s;
+	struct cvmx_dfm_char_ctl_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_42_63               : 22;
 	uint64_t en                           : 1;  /**< Enable characterization */
 	uint64_t sel                          : 1;  /**< Pattern select
@@ -442,9 +467,9 @@ union cvmx_dfm_char_ctl
 	uint64_t en                           : 1;
 	uint64_t reserved_42_63               : 22;
 #endif
-	} s;
-	struct cvmx_dfm_char_ctl_s            cn63xx;
-	struct cvmx_dfm_char_ctl_s            cn63xxp1;
+	} cn63xx;
+	struct cvmx_dfm_char_ctl_cn63xx       cn63xxp1;
+	struct cvmx_dfm_char_ctl_s            cn66xx;
 };
 typedef union cvmx_dfm_char_ctl cvmx_dfm_char_ctl_t;
 
@@ -454,12 +479,10 @@ typedef union cvmx_dfm_char_ctl cvmx_dfm_char_ctl_t;
  * DFM_CHAR_MASK0 = DFM Characterization Control Mask0
  * This register is an assortment of various control fields needed to charecterize the DDR3 interface
  */
-union cvmx_dfm_char_mask0
-{
+union cvmx_dfm_char_mask0 {
 	uint64_t u64;
-	struct cvmx_dfm_char_mask0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_char_mask0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t mask                         : 16; /**< Mask for DQ0[15:0] */
 #else
@@ -469,6 +492,7 @@ union cvmx_dfm_char_mask0
 	} s;
 	struct cvmx_dfm_char_mask0_s          cn63xx;
 	struct cvmx_dfm_char_mask0_s          cn63xxp1;
+	struct cvmx_dfm_char_mask0_s          cn66xx;
 };
 typedef union cvmx_dfm_char_mask0 cvmx_dfm_char_mask0_t;
 
@@ -478,12 +502,10 @@ typedef union cvmx_dfm_char_mask0 cvmx_dfm_char_mask0_t;
  * DFM_CHAR_MASK2 = DFM Characterization Control Mask2
  * This register is an assortment of various control fields needed to charecterize the DDR3 interface
  */
-union cvmx_dfm_char_mask2
-{
+union cvmx_dfm_char_mask2 {
 	uint64_t u64;
-	struct cvmx_dfm_char_mask2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_char_mask2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_16_63               : 48;
 	uint64_t mask                         : 16; /**< Mask for DQ1[15:0] */
 #else
@@ -493,6 +515,7 @@ union cvmx_dfm_char_mask2
 	} s;
 	struct cvmx_dfm_char_mask2_s          cn63xx;
 	struct cvmx_dfm_char_mask2_s          cn63xxp1;
+	struct cvmx_dfm_char_mask2_s          cn66xx;
 };
 typedef union cvmx_dfm_char_mask2 cvmx_dfm_char_mask2_t;
 
@@ -502,12 +525,10 @@ typedef union cvmx_dfm_char_mask2 cvmx_dfm_char_mask2_t;
  * DFM_CHAR_MASK4 = DFM Characterization Mask4
  * This register is an assortment of various control fields needed to charecterize the DDR3 interface
  */
-union cvmx_dfm_char_mask4
-{
+union cvmx_dfm_char_mask4 {
 	uint64_t u64;
-	struct cvmx_dfm_char_mask4_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_char_mask4_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_33_63               : 31;
 	uint64_t reset_n_mask                 : 1;  /**< Mask for RESET_N */
 	uint64_t a_mask                       : 16; /**< Mask for A[15:0] */
@@ -539,6 +560,7 @@ union cvmx_dfm_char_mask4
 #endif
 	} s;
 	struct cvmx_dfm_char_mask4_s          cn63xx;
+	struct cvmx_dfm_char_mask4_s          cn66xx;
 };
 typedef union cvmx_dfm_char_mask4 cvmx_dfm_char_mask4_t;
 
@@ -548,12 +570,10 @@ typedef union cvmx_dfm_char_mask4 cvmx_dfm_char_mask4_t;
  * DFM_COMP_CTL2 = DFM Compensation control2
  *
  */
-union cvmx_dfm_comp_ctl2
-{
+union cvmx_dfm_comp_ctl2 {
 	uint64_t u64;
-	struct cvmx_dfm_comp_ctl2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_comp_ctl2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_34_63               : 30;
 	uint64_t ddr__ptune                   : 4;  /**< DDR pctl from compensation circuit
                                                          The encoded value provides debug information for the
@@ -617,6 +637,7 @@ union cvmx_dfm_comp_ctl2
 	} s;
 	struct cvmx_dfm_comp_ctl2_s           cn63xx;
 	struct cvmx_dfm_comp_ctl2_s           cn63xxp1;
+	struct cvmx_dfm_comp_ctl2_s           cn66xx;
 };
 typedef union cvmx_dfm_comp_ctl2 cvmx_dfm_comp_ctl2_t;
 
@@ -658,12 +679,10 @@ typedef union cvmx_dfm_comp_ctl2 cvmx_dfm_comp_ctl2_t;
  *       ]
  *    ]
  */
-union cvmx_dfm_config
-{
+union cvmx_dfm_config {
 	uint64_t u64;
-	struct cvmx_dfm_config_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_config_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_59_63               : 5;
 	uint64_t early_unload_d1_r1           : 1;  /**< Reserved */
 	uint64_t early_unload_d1_r0           : 1;  /**< Reserved */
@@ -893,9 +912,8 @@ union cvmx_dfm_config
 #endif
 	} s;
 	struct cvmx_dfm_config_s              cn63xx;
-	struct cvmx_dfm_config_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_config_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_55_63               : 9;
 	uint64_t init_status                  : 4;  /**< Indicates status of initialization
                                                          INIT_STATUS[n] = 1 implies rank n has been initialized
@@ -1098,6 +1116,7 @@ union cvmx_dfm_config
 	uint64_t reserved_55_63               : 9;
 #endif
 	} cn63xxp1;
+	struct cvmx_dfm_config_s              cn66xx;
 };
 typedef union cvmx_dfm_config cvmx_dfm_config_t;
 
@@ -1107,12 +1126,10 @@ typedef union cvmx_dfm_config cvmx_dfm_config_t;
  * DFM_CONTROL = DFM Control
  * This register is an assortment of various control fields needed by the memory controller
  */
-union cvmx_dfm_control
-{
+union cvmx_dfm_control {
 	uint64_t u64;
-	struct cvmx_dfm_control_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_control_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_24_63               : 40;
 	uint64_t rodt_bprch                   : 1;  /**< When set, the turn-off time for the ODT pin during a
                                                          RD cmd is delayed an additional DCLK cycle. */
@@ -1187,9 +1204,8 @@ union cvmx_dfm_control
 #endif
 	} s;
 	struct cvmx_dfm_control_s             cn63xx;
-	struct cvmx_dfm_control_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_control_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_22_63               : 42;
 	uint64_t bprch                        : 2;  /**< Back Porch Enable: When set, the turn-on time for
                                                          the default DDR_DQ/DQS drivers is delayed an additional BPRCH FCLK
@@ -1257,6 +1273,7 @@ union cvmx_dfm_control
 	uint64_t reserved_22_63               : 42;
 #endif
 	} cn63xxp1;
+	struct cvmx_dfm_control_s             cn66xx;
 };
 typedef union cvmx_dfm_control cvmx_dfm_control_t;
 
@@ -1284,12 +1301,10 @@ typedef union cvmx_dfm_control cvmx_dfm_control_t;
  * 8. Write 0 to DFM_DLL_CTL2[DRESET].  DFM_DLL_CTL2[DRESET] must not change after this point without restarting the DFM and/or
  *    DRESET initialization sequence.
  */
-union cvmx_dfm_dll_ctl2
-{
+union cvmx_dfm_dll_ctl2 {
 	uint64_t u64;
-	struct cvmx_dfm_dll_ctl2_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_dll_ctl2_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_15_63               : 49;
 	uint64_t dll_bringup                  : 1;  /**< DLL Bringup */
 	uint64_t dreset                       : 1;  /**< Fclk domain reset.  The reset signal that is used by the
@@ -1320,6 +1335,7 @@ union cvmx_dfm_dll_ctl2
 	} s;
 	struct cvmx_dfm_dll_ctl2_s            cn63xx;
 	struct cvmx_dfm_dll_ctl2_s            cn63xxp1;
+	struct cvmx_dfm_dll_ctl2_s            cn66xx;
 };
 typedef union cvmx_dfm_dll_ctl2 cvmx_dfm_dll_ctl2_t;
 
@@ -1329,12 +1345,10 @@ typedef union cvmx_dfm_dll_ctl2 cvmx_dfm_dll_ctl2_t;
  * DFM_DLL_CTL3 = DFM DLL control and FCLK reset
  *
  */
-union cvmx_dfm_dll_ctl3
-{
+union cvmx_dfm_dll_ctl3 {
 	uint64_t u64;
-	struct cvmx_dfm_dll_ctl3_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_dll_ctl3_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_29_63               : 35;
 	uint64_t dll_fast                     : 1;  /**< DLL lock
                                                          0 = DLL locked */
@@ -1387,6 +1401,7 @@ union cvmx_dfm_dll_ctl3
 	} s;
 	struct cvmx_dfm_dll_ctl3_s            cn63xx;
 	struct cvmx_dfm_dll_ctl3_s            cn63xxp1;
+	struct cvmx_dfm_dll_ctl3_s            cn66xx;
 };
 typedef union cvmx_dfm_dll_ctl3 cvmx_dfm_dll_ctl3_t;
 
@@ -1396,12 +1411,10 @@ typedef union cvmx_dfm_dll_ctl3 cvmx_dfm_dll_ctl3_t;
  * DFM_FCLK_CNT  = Performance Counters
  *
  */
-union cvmx_dfm_fclk_cnt
-{
+union cvmx_dfm_fclk_cnt {
 	uint64_t u64;
-	struct cvmx_dfm_fclk_cnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_fclk_cnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t fclkcnt                      : 64; /**< Performance Counter that counts fclks
                                                          64-bit counter. */
 #else
@@ -1410,6 +1423,7 @@ union cvmx_dfm_fclk_cnt
 	} s;
 	struct cvmx_dfm_fclk_cnt_s            cn63xx;
 	struct cvmx_dfm_fclk_cnt_s            cn63xxp1;
+	struct cvmx_dfm_fclk_cnt_s            cn66xx;
 };
 typedef union cvmx_dfm_fclk_cnt cvmx_dfm_fclk_cnt_t;
 
@@ -1420,12 +1434,10 @@ typedef union cvmx_dfm_fclk_cnt cvmx_dfm_fclk_cnt_t;
  *
  * This register contains Bist Status for DFM Front
  */
-union cvmx_dfm_fnt_bist
-{
+union cvmx_dfm_fnt_bist {
 	uint64_t u64;
-	struct cvmx_dfm_fnt_bist_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_fnt_bist_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_5_63                : 59;
 	uint64_t cab                          : 1;  /**< Bist Results for CAB RAM
                                                          - 0: GOOD (or bist in progress/never run)
@@ -1452,9 +1464,8 @@ union cvmx_dfm_fnt_bist
 #endif
 	} s;
 	struct cvmx_dfm_fnt_bist_s            cn63xx;
-	struct cvmx_dfm_fnt_bist_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_fnt_bist_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t mrq                          : 1;  /**< Bist Results for MRQ RAM
                                                          - 0: GOOD (or bist in progress/never run)
@@ -1476,6 +1487,7 @@ union cvmx_dfm_fnt_bist
 	uint64_t reserved_4_63                : 60;
 #endif
 	} cn63xxp1;
+	struct cvmx_dfm_fnt_bist_s            cn66xx;
 };
 typedef union cvmx_dfm_fnt_bist cvmx_dfm_fnt_bist_t;
 
@@ -1488,12 +1500,10 @@ typedef union cvmx_dfm_fnt_bist cvmx_dfm_fnt_bist_t;
  *
  * This register contains control registers for the DFM Front Section of Logic.
  */
-union cvmx_dfm_fnt_ctl
-{
+union cvmx_dfm_fnt_ctl {
 	uint64_t u64;
-	struct cvmx_dfm_fnt_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_fnt_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t sbe_ena                      : 1;  /**< If SBE_ENA=1 & RECC_ENA=1 then all single bit errors
                                                          which have been detected/corrected during GWALK reads,
@@ -1558,6 +1568,7 @@ union cvmx_dfm_fnt_ctl
 	} s;
 	struct cvmx_dfm_fnt_ctl_s             cn63xx;
 	struct cvmx_dfm_fnt_ctl_s             cn63xxp1;
+	struct cvmx_dfm_fnt_ctl_s             cn66xx;
 };
 typedef union cvmx_dfm_fnt_ctl cvmx_dfm_fnt_ctl_t;
 
@@ -1568,12 +1579,10 @@ typedef union cvmx_dfm_fnt_ctl cvmx_dfm_fnt_ctl_t;
  *
  * This register contains error interrupt enable information for the DFM Front Section of Logic.
  */
-union cvmx_dfm_fnt_iena
-{
+union cvmx_dfm_fnt_iena {
 	uint64_t u64;
-	struct cvmx_dfm_fnt_iena_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_fnt_iena_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_2_63                : 62;
 	uint64_t dbe_intena                   : 1;  /**< OWECC Double Error Detected(DED) Interrupt Enable
                                                          When set, the memory controller raises a processor
@@ -1592,6 +1601,7 @@ union cvmx_dfm_fnt_iena
 	} s;
 	struct cvmx_dfm_fnt_iena_s            cn63xx;
 	struct cvmx_dfm_fnt_iena_s            cn63xxp1;
+	struct cvmx_dfm_fnt_iena_s            cn66xx;
 };
 typedef union cvmx_dfm_fnt_iena cvmx_dfm_fnt_iena_t;
 
@@ -1605,12 +1615,10 @@ typedef union cvmx_dfm_fnt_iena cvmx_dfm_fnt_iena_t;
  * to start a software BiST sequence for the DFM sub-block. (note: the DFM has conditional clocks which
  * prevent BiST to run under reset automatically).
  */
-union cvmx_dfm_fnt_sclk
-{
+union cvmx_dfm_fnt_sclk {
 	uint64_t u64;
-	struct cvmx_dfm_fnt_sclk_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_fnt_sclk_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_3_63                : 61;
 	uint64_t clear_bist                   : 1;  /**< When START_BIST is written 0->1, if CLEAR_BIST=1, all
                                                          previous BiST state is cleared.
@@ -1642,6 +1650,7 @@ union cvmx_dfm_fnt_sclk
 	} s;
 	struct cvmx_dfm_fnt_sclk_s            cn63xx;
 	struct cvmx_dfm_fnt_sclk_s            cn63xxp1;
+	struct cvmx_dfm_fnt_sclk_s            cn66xx;
 };
 typedef union cvmx_dfm_fnt_sclk cvmx_dfm_fnt_sclk_t;
 
@@ -1652,12 +1661,10 @@ typedef union cvmx_dfm_fnt_sclk cvmx_dfm_fnt_sclk_t;
  *
  * This register contains error status information for the DFM Front Section of Logic.
  */
-union cvmx_dfm_fnt_stat
-{
+union cvmx_dfm_fnt_stat {
 	uint64_t u64;
-	struct cvmx_dfm_fnt_stat_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_fnt_stat_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_42_63               : 22;
 	uint64_t fsyn                         : 10; /**< Failing Syndrome
                                                          If SBE_ERR=1, the FSYN code determines which bit was
@@ -1699,6 +1706,7 @@ union cvmx_dfm_fnt_stat
 	} s;
 	struct cvmx_dfm_fnt_stat_s            cn63xx;
 	struct cvmx_dfm_fnt_stat_s            cn63xxp1;
+	struct cvmx_dfm_fnt_stat_s            cn66xx;
 };
 typedef union cvmx_dfm_fnt_stat cvmx_dfm_fnt_stat_t;
 
@@ -1708,21 +1716,21 @@ typedef union cvmx_dfm_fnt_stat cvmx_dfm_fnt_stat_t;
  * DFM_IFB_CNT  = Performance Counters
  *
  */
-union cvmx_dfm_ifb_cnt
-{
+union cvmx_dfm_ifb_cnt {
 	uint64_t u64;
-	struct cvmx_dfm_ifb_cnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_ifb_cnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t ifbcnt                       : 64; /**< Performance Counter
                                                          64-bit counter that increments every
-                                                         cycle there is something in the in-flight buffer. */
+                                                         cycle there is something in the in-flight buffer.
+                                                         Before using, clear counter via DFM_CONTROL.BWCNT. */
 #else
 	uint64_t ifbcnt                       : 64;
 #endif
 	} s;
 	struct cvmx_dfm_ifb_cnt_s             cn63xx;
 	struct cvmx_dfm_ifb_cnt_s             cn63xxp1;
+	struct cvmx_dfm_ifb_cnt_s             cn66xx;
 };
 typedef union cvmx_dfm_ifb_cnt cvmx_dfm_ifb_cnt_t;
 
@@ -1733,12 +1741,10 @@ typedef union cvmx_dfm_ifb_cnt cvmx_dfm_ifb_cnt_t;
  * These parameters are written into the DDR3 MR0, MR1, MR2 and MR3 registers.
  *
  */
-union cvmx_dfm_modereg_params0
-{
+union cvmx_dfm_modereg_params0 {
 	uint64_t u64;
-	struct cvmx_dfm_modereg_params0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_modereg_params0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_25_63               : 39;
 	uint64_t ppd                          : 1;  /**< DLL Control for precharge powerdown
                                                          0 = Slow exit (DLL off)
@@ -1751,14 +1757,14 @@ union cvmx_dfm_modereg_params0
 	uint64_t wrp                          : 3;  /**< Write recovery for auto precharge
                                                          Should be programmed to be equal to or greater than
                                                          RNDUP[tWR(ns)/tCYC(ns)]
-                                                         000 = Reserved
+                                                         000 = 5
                                                          001 = 5
                                                          010 = 6
                                                          011 = 7
                                                          100 = 8
                                                          101 = 10
                                                          110 = 12
-                                                         111 = Reserved
+                                                         111 = 14
                                                          DFM writes this value to MR0[WR] in the selected DDR3 parts
                                                          during power-up/init instruction sequencing.
                                                          See DFM_CONFIG[SEQUENCE,INIT_START,RANKMASK].
@@ -1791,7 +1797,12 @@ union cvmx_dfm_modereg_params0
                                                          1010 = 9
                                                          1100 = 10
                                                          1110 = 11
-                                                         0000, ???1 = Reserved
+                                                         0001 = 12
+                                                         0011 = 13
+                                                         0101 = 14
+                                                         0111 = 15
+                                                         1001 = 16
+                                                         0000, 1011, 1101, 1111 = Reserved
                                                          DFM writes this value to MR0[CAS Latency / CL] in the selected DDR3 parts
                                                          during power-up/init instruction sequencing.
                                                          See DFM_CONFIG[SEQUENCE,INIT_START,RANKMASK].
@@ -1887,7 +1898,10 @@ union cvmx_dfm_modereg_params0
                                                          - 001: 6
                                                          - 010: 7
                                                          - 011: 8
-                                                         1xx: Reserved
+                                                         - 100: 9
+                                                         - 101: 10
+                                                         - 110: 11
+                                                         - 111: 12
                                                          DFM writes this value to MR2[CWL] in the selected DDR3 parts
                                                          during power-up/init instruction sequencing.
                                                          If DFM_CONFIG[SREF_WITH_DLL] is set, DFM also writes
@@ -1918,6 +1932,7 @@ union cvmx_dfm_modereg_params0
 	} s;
 	struct cvmx_dfm_modereg_params0_s     cn63xx;
 	struct cvmx_dfm_modereg_params0_s     cn63xxp1;
+	struct cvmx_dfm_modereg_params0_s     cn66xx;
 };
 typedef union cvmx_dfm_modereg_params0 cvmx_dfm_modereg_params0_t;
 
@@ -1928,12 +1943,10 @@ typedef union cvmx_dfm_modereg_params0 cvmx_dfm_modereg_params0_t;
  * These parameters are written into the DDR3 MR0, MR1, MR2 and MR3 registers.
  *
  */
-union cvmx_dfm_modereg_params1
-{
+union cvmx_dfm_modereg_params1 {
 	uint64_t u64;
-	struct cvmx_dfm_modereg_params1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_modereg_params1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_48_63               : 16;
 	uint64_t rtt_nom_11                   : 3;  /**< Must be zero */
 	uint64_t dic_11                       : 2;  /**< Must be zero */
@@ -2073,6 +2086,7 @@ union cvmx_dfm_modereg_params1
 	} s;
 	struct cvmx_dfm_modereg_params1_s     cn63xx;
 	struct cvmx_dfm_modereg_params1_s     cn63xxp1;
+	struct cvmx_dfm_modereg_params1_s     cn66xx;
 };
 typedef union cvmx_dfm_modereg_params1 cvmx_dfm_modereg_params1_t;
 
@@ -2082,15 +2096,14 @@ typedef union cvmx_dfm_modereg_params1 cvmx_dfm_modereg_params1_t;
  * DFM_OPS_CNT  = Performance Counters
  *
  */
-union cvmx_dfm_ops_cnt
-{
+union cvmx_dfm_ops_cnt {
 	uint64_t u64;
-	struct cvmx_dfm_ops_cnt_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_ops_cnt_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t opscnt                       : 64; /**< Performance Counter
                                                          64-bit counter that increments when the DDR3 data bus
-                                                         is being used.
+                                                         is being used.  Before using, clear counter via
+                                                         DFM_CONTROL.BWCNT
                                                            DRAM bus utilization = DFM_OPS_CNT/DFM_FCLK_CNT */
 #else
 	uint64_t opscnt                       : 64;
@@ -2098,6 +2111,7 @@ union cvmx_dfm_ops_cnt
 	} s;
 	struct cvmx_dfm_ops_cnt_s             cn63xx;
 	struct cvmx_dfm_ops_cnt_s             cn63xxp1;
+	struct cvmx_dfm_ops_cnt_s             cn66xx;
 };
 typedef union cvmx_dfm_ops_cnt cvmx_dfm_ops_cnt_t;
 
@@ -2107,12 +2121,10 @@ typedef union cvmx_dfm_ops_cnt cvmx_dfm_ops_cnt_t;
  * DFM_PHY_CTL = DFM PHY Control
  *
  */
-union cvmx_dfm_phy_ctl
-{
+union cvmx_dfm_phy_ctl {
 	uint64_t u64;
-	struct cvmx_dfm_phy_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_phy_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_15_63               : 49;
 	uint64_t rx_always_on                 : 1;  /**< Disable dynamic DDR3 IO Rx power gating */
 	uint64_t lv_mode                      : 1;  /**< Low Voltage Mode (1.35V) */
@@ -2149,9 +2161,8 @@ union cvmx_dfm_phy_ctl
 #endif
 	} s;
 	struct cvmx_dfm_phy_ctl_s             cn63xx;
-	struct cvmx_dfm_phy_ctl_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_phy_ctl_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_14_63               : 50;
 	uint64_t lv_mode                      : 1;  /**< Low Voltage Mode (1.35V) */
 	uint64_t ck_tune1                     : 1;  /**< Clock Tune
@@ -2185,6 +2196,7 @@ union cvmx_dfm_phy_ctl
 	uint64_t reserved_14_63               : 50;
 #endif
 	} cn63xxp1;
+	struct cvmx_dfm_phy_ctl_s             cn66xx;
 };
 typedef union cvmx_dfm_phy_ctl cvmx_dfm_phy_ctl_t;
 
@@ -2198,9 +2210,9 @@ typedef union cvmx_dfm_phy_ctl cvmx_dfm_phy_ctl_t;
  * DDR3RST - DDR3 DRAM parts have a new RESET#
  * pin that wasn't present in DDR2 parts. The
  * DDR3RST CSR field controls the assertion of
- * the new 63xx pin that attaches to RESET#.
- * When DDR3RST is set, 63xx asserts RESET#.
- * When DDR3RST is clear, 63xx de-asserts
+ * the new 6xxx pin that attaches to RESET#.
+ * When DDR3RST is set, 6xxx asserts RESET#.
+ * When DDR3RST is clear, 6xxx de-asserts
  * RESET#.
  *
  * DDR3RST is set on a cold reset. Warm and
@@ -2208,12 +2220,10 @@ typedef union cvmx_dfm_phy_ctl cvmx_dfm_phy_ctl_t;
  * value. Outside of cold reset, only software
  * CSR writes change the DDR3RST value.
  */
-union cvmx_dfm_reset_ctl
-{
+union cvmx_dfm_reset_ctl {
 	uint64_t u64;
-	struct cvmx_dfm_reset_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_reset_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_4_63                : 60;
 	uint64_t ddr3psv                      : 1;  /**< Must be zero */
 	uint64_t ddr3psoft                    : 1;  /**< Must be zero */
@@ -2231,18 +2241,17 @@ union cvmx_dfm_reset_ctl
 	} s;
 	struct cvmx_dfm_reset_ctl_s           cn63xx;
 	struct cvmx_dfm_reset_ctl_s           cn63xxp1;
+	struct cvmx_dfm_reset_ctl_s           cn66xx;
 };
 typedef union cvmx_dfm_reset_ctl cvmx_dfm_reset_ctl_t;
 
 /**
  * cvmx_dfm_rlevel_ctl
  */
-union cvmx_dfm_rlevel_ctl
-{
+union cvmx_dfm_rlevel_ctl {
 	uint64_t u64;
-	struct cvmx_dfm_rlevel_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_rlevel_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_22_63               : 42;
 	uint64_t delay_unload_3               : 1;  /**< When set, unload the PHY silo one cycle later
                                                          during read-leveling if DFM_RLEVEL_RANKi[BYTE*<1:0>] = 3
@@ -2283,9 +2292,8 @@ union cvmx_dfm_rlevel_ctl
 #endif
 	} s;
 	struct cvmx_dfm_rlevel_ctl_s          cn63xx;
-	struct cvmx_dfm_rlevel_ctl_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_rlevel_ctl_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_9_63                : 55;
 	uint64_t offset_en                    : 1;  /**< Use DFM_RLEVEL_CTL[OFFSET] to calibrate read
                                                          level dskew settings */
@@ -2302,6 +2310,7 @@ union cvmx_dfm_rlevel_ctl
 	uint64_t reserved_9_63                : 55;
 #endif
 	} cn63xxp1;
+	struct cvmx_dfm_rlevel_ctl_s          cn66xx;
 };
 typedef union cvmx_dfm_rlevel_ctl cvmx_dfm_rlevel_ctl_t;
 
@@ -2317,12 +2326,10 @@ typedef union cvmx_dfm_rlevel_ctl cvmx_dfm_rlevel_ctl_t;
  * if you run read-leveling separately for each rank, probing DFM_RLEVEL_DBG between each
  * read-leveling.
  */
-union cvmx_dfm_rlevel_dbg
-{
+union cvmx_dfm_rlevel_dbg {
 	uint64_t u64;
-	struct cvmx_dfm_rlevel_dbg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_rlevel_dbg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t bitmask                      : 64; /**< Bitmask generated during deskew settings sweep
                                                          BITMASK[n]=0 means deskew setting n failed
                                                          BITMASK[n]=1 means deskew setting n passed
@@ -2333,6 +2340,7 @@ union cvmx_dfm_rlevel_dbg
 	} s;
 	struct cvmx_dfm_rlevel_dbg_s          cn63xx;
 	struct cvmx_dfm_rlevel_dbg_s          cn63xxp1;
+	struct cvmx_dfm_rlevel_dbg_s          cn66xx;
 };
 typedef union cvmx_dfm_rlevel_dbg cvmx_dfm_rlevel_dbg_t;
 
@@ -2353,12 +2361,10 @@ typedef union cvmx_dfm_rlevel_dbg cvmx_dfm_rlevel_dbg_t;
  * SW initiates a HW read-leveling sequence by programming DFM_RLEVEL_CTL and writing INIT_START=1 with SEQUENCE=1 in DFM_CONFIG.
  * See DFM_RLEVEL_CTL.
  */
-union cvmx_dfm_rlevel_rankx
-{
+union cvmx_dfm_rlevel_rankx {
 	uint64_t u64;
-	struct cvmx_dfm_rlevel_rankx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_rlevel_rankx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_56_63               : 8;
 	uint64_t status                       : 2;  /**< Indicates status of the read-levelling and where
                                                          the BYTE* programmings in <35:0> came from:
@@ -2379,6 +2385,7 @@ union cvmx_dfm_rlevel_rankx
 	} s;
 	struct cvmx_dfm_rlevel_rankx_s        cn63xx;
 	struct cvmx_dfm_rlevel_rankx_s        cn63xxp1;
+	struct cvmx_dfm_rlevel_rankx_s        cn66xx;
 };
 typedef union cvmx_dfm_rlevel_rankx cvmx_dfm_rlevel_rankx_t;
 
@@ -2422,12 +2429,10 @@ typedef union cvmx_dfm_rlevel_rankx cvmx_dfm_rlevel_rankx_t;
  * Note that it may be necessary to force DFM to space back-to-back 128-bit reads
  * to different ranks apart by at least 6+DFM_CONTROL[RODT_BPRCH] CK's to prevent DDR3 ODTH8 violations.
  */
-union cvmx_dfm_rodt_mask
-{
+union cvmx_dfm_rodt_mask {
 	uint64_t u64;
-	struct cvmx_dfm_rodt_mask_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_rodt_mask_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t rodt_d3_r1                   : 8;  /**< Must be zero. */
 	uint64_t rodt_d3_r0                   : 8;  /**< Must be zero. */
 	uint64_t rodt_d2_r1                   : 8;  /**< Must be zero. */
@@ -2453,6 +2458,7 @@ union cvmx_dfm_rodt_mask
 	} s;
 	struct cvmx_dfm_rodt_mask_s           cn63xx;
 	struct cvmx_dfm_rodt_mask_s           cn63xxp1;
+	struct cvmx_dfm_rodt_mask_s           cn66xx;
 };
 typedef union cvmx_dfm_rodt_mask cvmx_dfm_rodt_mask_t;
 
@@ -2468,12 +2474,10 @@ typedef union cvmx_dfm_rodt_mask cvmx_dfm_rodt_mask_t;
  * have valid data.
  * R2W_INIT has 1 extra CK cycle built in for odt settling/channel turnaround time.
  */
-union cvmx_dfm_slot_ctl0
-{
+union cvmx_dfm_slot_ctl0 {
 	uint64_t u64;
-	struct cvmx_dfm_slot_ctl0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_slot_ctl0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_24_63               : 40;
 	uint64_t w2w_init                     : 6;  /**< Write-to-write spacing control
                                                          for back to back accesses to the same rank and dimm */
@@ -2493,6 +2497,7 @@ union cvmx_dfm_slot_ctl0
 	} s;
 	struct cvmx_dfm_slot_ctl0_s           cn63xx;
 	struct cvmx_dfm_slot_ctl0_s           cn63xxp1;
+	struct cvmx_dfm_slot_ctl0_s           cn66xx;
 };
 typedef union cvmx_dfm_slot_ctl0 cvmx_dfm_slot_ctl0_t;
 
@@ -2508,12 +2513,10 @@ typedef union cvmx_dfm_slot_ctl0 cvmx_dfm_slot_ctl0_t;
  * have valid data.
  * R2W_XRANK_INIT, W2R_XRANK_INIT have 1 extra CK cycle built in for odt settling/channel turnaround time.
  */
-union cvmx_dfm_slot_ctl1
-{
+union cvmx_dfm_slot_ctl1 {
 	uint64_t u64;
-	struct cvmx_dfm_slot_ctl1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_slot_ctl1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_24_63               : 40;
 	uint64_t w2w_xrank_init               : 6;  /**< Write-to-write spacing control
                                                          for back to back accesses across ranks of the same dimm */
@@ -2533,18 +2536,17 @@ union cvmx_dfm_slot_ctl1
 	} s;
 	struct cvmx_dfm_slot_ctl1_s           cn63xx;
 	struct cvmx_dfm_slot_ctl1_s           cn63xxp1;
+	struct cvmx_dfm_slot_ctl1_s           cn66xx;
 };
 typedef union cvmx_dfm_slot_ctl1 cvmx_dfm_slot_ctl1_t;
 
 /**
  * cvmx_dfm_timing_params0
  */
-union cvmx_dfm_timing_params0
-{
+union cvmx_dfm_timing_params0 {
 	uint64_t u64;
-	struct cvmx_dfm_timing_params0_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_timing_params0_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_47_63               : 17;
 	uint64_t trp_ext                      : 1;  /**< Indicates tRP constraints.
                                                          Set [TRP_EXT[0:0], TRP[3:0]] (CSR field) = RNDUP[tRP(ns)/tCYC(ns)]
@@ -2559,7 +2561,7 @@ union cvmx_dfm_timing_params0
                                                          is the DDR clock frequency (not data rate).
                                                          TYP=max(5nCK, 10ns) */
 	uint64_t trp                          : 4;  /**< Indicates tRP constraints.
-                                                         Set TRP (CSR field) = RNDUP[tRP(ns)/tCYC(ns)]
+                                                         Set [TRP_EXT[0:0], TRP[3:0]] (CSR field) = RNDUP[tRP(ns)/tCYC(ns)]
                                                          + (RNDUP[tRTP(ns)/tCYC(ns)])-4)-1,
                                                          where tRP, tRTP are from the DDR3 spec, and tCYC(ns)
                                                          is the DDR clock frequency (not data rate).
@@ -2618,9 +2620,8 @@ union cvmx_dfm_timing_params0
 	uint64_t reserved_47_63               : 17;
 #endif
 	} s;
-	struct cvmx_dfm_timing_params0_cn63xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_timing_params0_cn63xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_47_63               : 17;
 	uint64_t trp_ext                      : 1;  /**< Indicates tRP constraints.
                                                          Set [TRP_EXT[0:0], TRP[3:0]] (CSR field) = RNDUP[tRP(ns)/tCYC(ns)]
@@ -2694,9 +2695,8 @@ union cvmx_dfm_timing_params0
 	uint64_t reserved_47_63               : 17;
 #endif
 	} cn63xx;
-	struct cvmx_dfm_timing_params0_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_timing_params0_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_46_63               : 18;
 	uint64_t tcksre                       : 4;  /**< Indicates tCKSRE constraints.
                                                          Set TCKSRE (CSR field) = RNDUP[tCKSRE(ns)/tCYC(ns)]-1,
@@ -2762,18 +2762,17 @@ union cvmx_dfm_timing_params0
 	uint64_t reserved_46_63               : 18;
 #endif
 	} cn63xxp1;
+	struct cvmx_dfm_timing_params0_cn63xx cn66xx;
 };
 typedef union cvmx_dfm_timing_params0 cvmx_dfm_timing_params0_t;
 
 /**
  * cvmx_dfm_timing_params1
  */
-union cvmx_dfm_timing_params1
-{
+union cvmx_dfm_timing_params1 {
 	uint64_t u64;
-	struct cvmx_dfm_timing_params1_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_timing_params1_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_47_63               : 17;
 	uint64_t tras_ext                     : 1;  /**< Indicates tRAS constraints.
                                                          Set [TRAS_EXT[0:0], TRAS[4:0]] (CSR field) = RNDUP[tRAS(ns)/tCYC(ns)]-1,
@@ -2857,15 +2856,15 @@ union cvmx_dfm_timing_params1
                                                          In 2T mode, make this register TRCD-1, not going
                                                          below 2. */
 	uint64_t tras                         : 5;  /**< Indicates tRAS constraints.
-                                                         Set TRAS (CSR field) = RNDUP[tRAS(ns)/tCYC(ns)]-1,
+                                                         Set [TRAS_EXT[0:0], TRAS[4:0]] (CSR field) = RNDUP[tRAS(ns)/tCYC(ns)]-1,
                                                          where tRAS is from the DDR3 spec, and tCYC(ns)
                                                          is the DDR clock frequency (not data rate).
                                                          TYP=35ns-9*tREFI
-                                                             - 00000: RESERVED
-                                                             - 00001: 2 tCYC
-                                                             - 00010: 3 tCYC
+                                                             - 000000: RESERVED
+                                                             - 000001: 2 tCYC
+                                                             - 000010: 3 tCYC
                                                              - ...
-                                                             - 11111: 32 tCYC */
+                                                             - 111111: 64 tCYC */
 	uint64_t tmprr                        : 4;  /**< Indicates tMPRR constraints.
                                                          Set TMPRR (CSR field) = RNDUP[tMPRR(ns)/tCYC(ns)]-1,
                                                          where tMPRR is from the DDR3 spec, and tCYC(ns)
@@ -2888,9 +2887,8 @@ union cvmx_dfm_timing_params1
 #endif
 	} s;
 	struct cvmx_dfm_timing_params1_s      cn63xx;
-	struct cvmx_dfm_timing_params1_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_timing_params1_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_46_63               : 18;
 	uint64_t txpdll                       : 5;  /**< Indicates tXPDLL constraints.
                                                          Set TXPDLL (CSR field) = RNDUP[tXPDLL(ns)/tCYC(ns)]-1,
@@ -2993,18 +2991,17 @@ union cvmx_dfm_timing_params1
 	uint64_t reserved_46_63               : 18;
 #endif
 	} cn63xxp1;
+	struct cvmx_dfm_timing_params1_s      cn66xx;
 };
 typedef union cvmx_dfm_timing_params1 cvmx_dfm_timing_params1_t;
 
 /**
  * cvmx_dfm_wlevel_ctl
  */
-union cvmx_dfm_wlevel_ctl
-{
+union cvmx_dfm_wlevel_ctl {
 	uint64_t u64;
-	struct cvmx_dfm_wlevel_ctl_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_wlevel_ctl_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_22_63               : 42;
 	uint64_t rtt_nom                      : 3;  /**< RTT_NOM
                                                          DFM writes a decoded value to MR1[Rtt_Nom] of the rank during
@@ -3039,9 +3036,8 @@ union cvmx_dfm_wlevel_ctl
 #endif
 	} s;
 	struct cvmx_dfm_wlevel_ctl_s          cn63xx;
-	struct cvmx_dfm_wlevel_ctl_cn63xxp1
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_wlevel_ctl_cn63xxp1 {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_10_63               : 54;
 	uint64_t sset                         : 1;  /**< Run write-leveling on the current setting only. */
 	uint64_t lanemask                     : 9;  /**< One-hot mask to select byte lane to be leveled by
@@ -3055,6 +3051,7 @@ union cvmx_dfm_wlevel_ctl
 	uint64_t reserved_10_63               : 54;
 #endif
 	} cn63xxp1;
+	struct cvmx_dfm_wlevel_ctl_s          cn66xx;
 };
 typedef union cvmx_dfm_wlevel_ctl cvmx_dfm_wlevel_ctl_t;
 
@@ -3070,12 +3067,10 @@ typedef union cvmx_dfm_wlevel_ctl cvmx_dfm_wlevel_ctl_t;
  * if you run write-leveling separately for each rank, probing DFM_WLEVEL_DBG between each
  * write-leveling.
  */
-union cvmx_dfm_wlevel_dbg
-{
+union cvmx_dfm_wlevel_dbg {
 	uint64_t u64;
-	struct cvmx_dfm_wlevel_dbg_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_wlevel_dbg_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_12_63               : 52;
 	uint64_t bitmask                      : 8;  /**< Bitmask generated during deskew settings sweep
                                                          if DFM_WLEVEL_CTL[SSET]=0
@@ -3096,6 +3091,7 @@ union cvmx_dfm_wlevel_dbg
 	} s;
 	struct cvmx_dfm_wlevel_dbg_s          cn63xx;
 	struct cvmx_dfm_wlevel_dbg_s          cn63xxp1;
+	struct cvmx_dfm_wlevel_dbg_s          cn66xx;
 };
 typedef union cvmx_dfm_wlevel_dbg cvmx_dfm_wlevel_dbg_t;
 
@@ -3121,12 +3117,10 @@ typedef union cvmx_dfm_wlevel_dbg cvmx_dfm_wlevel_dbg_t;
  * set DFM_WLEVEL_RANKn[BYTE*<2:0>] to 4.
  * See DFM_WLEVEL_CTL.
  */
-union cvmx_dfm_wlevel_rankx
-{
+union cvmx_dfm_wlevel_rankx {
 	uint64_t u64;
-	struct cvmx_dfm_wlevel_rankx_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_wlevel_rankx_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t reserved_47_63               : 17;
 	uint64_t status                       : 2;  /**< Indicates status of the write-leveling and where
                                                          the BYTE* programmings in <44:0> came from:
@@ -3150,6 +3144,7 @@ union cvmx_dfm_wlevel_rankx
 	} s;
 	struct cvmx_dfm_wlevel_rankx_s        cn63xx;
 	struct cvmx_dfm_wlevel_rankx_s        cn63xxp1;
+	struct cvmx_dfm_wlevel_rankx_s        cn66xx;
 };
 typedef union cvmx_dfm_wlevel_rankx cvmx_dfm_wlevel_rankx_t;
 
@@ -3188,12 +3183,10 @@ typedef union cvmx_dfm_wlevel_rankx cvmx_dfm_wlevel_rankx_t;
  * cycles of this second word write). Note that it may be necessary to force DFM to space back-to-back
  * word writes to different ranks apart by at least 6 cycles to prevent DDR3 ODTH8 violations.
  */
-union cvmx_dfm_wodt_mask
-{
+union cvmx_dfm_wodt_mask {
 	uint64_t u64;
-	struct cvmx_dfm_wodt_mask_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_dfm_wodt_mask_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint64_t wodt_d3_r1                   : 8;  /**< Not used by DFM. */
 	uint64_t wodt_d3_r0                   : 8;  /**< Not used by DFM. */
 	uint64_t wodt_d2_r1                   : 8;  /**< Not used by DFM. */
@@ -3218,6 +3211,7 @@ union cvmx_dfm_wodt_mask
 	} s;
 	struct cvmx_dfm_wodt_mask_s           cn63xx;
 	struct cvmx_dfm_wodt_mask_s           cn63xxp1;
+	struct cvmx_dfm_wodt_mask_s           cn66xx;
 };
 typedef union cvmx_dfm_wodt_mask cvmx_dfm_wodt_mask_t;
 

@@ -64,7 +64,7 @@ public:
 
   // getBinaryCodeForInstr - TableGen'erated function for getting the
   // binary encoding for an instruction.
-  unsigned getBinaryCodeForInstr(const MCInst &MI,
+  uint64_t getBinaryCodeForInstr(const MCInst &MI,
                                  SmallVectorImpl<MCFixup> &Fixups) const;
 
   /// getMachineOpValue - Return binary encoding of operand. If the machine
@@ -118,8 +118,10 @@ public:
   /// branch target.
   uint32_t getARMBranchTargetOpValue(const MCInst &MI, unsigned OpIdx,
                                      SmallVectorImpl<MCFixup> &Fixups) const;
+  uint32_t getARMBLTargetOpValue(const MCInst &MI, unsigned OpIdx,
+                                 SmallVectorImpl<MCFixup> &Fixups) const;
   uint32_t getARMBLXTargetOpValue(const MCInst &MI, unsigned OpIdx,
-                                     SmallVectorImpl<MCFixup> &Fixups) const;
+                                  SmallVectorImpl<MCFixup> &Fixups) const;
 
   /// getAdrLabelOpValue - Return encoding info for 12-bit immediate
   /// ADR label target.
@@ -166,7 +168,7 @@ public:
                                SmallVectorImpl<MCFixup> &Fixups) const {
     ARM_AM::AMSubMode Mode = (ARM_AM::AMSubMode)MI.getOperand(OpIdx).getImm();
     switch (Mode) {
-    default: assert(0 && "Unknown addressing sub-mode!");
+    default: llvm_unreachable("Unknown addressing sub-mode!");
     case ARM_AM::da: return 0;
     case ARM_AM::ia: return 1;
     case ARM_AM::db: return 2;
@@ -177,7 +179,6 @@ public:
   ///
   unsigned getShiftOp(ARM_AM::ShiftOpc ShOpc) const {
     switch (ShOpc) {
-    default: llvm_unreachable("Unknown shift opc!");
     case ARM_AM::no_shift:
     case ARM_AM::lsl: return 0;
     case ARM_AM::lsr: return 1;
@@ -185,7 +186,7 @@ public:
     case ARM_AM::ror:
     case ARM_AM::rrx: return 3;
     }
-    return 0;
+    llvm_unreachable("Invalid ShiftOpc!");
   }
 
   /// getAddrMode2OpValue - Return encoding for addrmode2 operands.
@@ -423,7 +424,6 @@ getMachineOpValue(const MCInst &MI, const MCOperand &MO,
   }
 
   llvm_unreachable("Unable to encode MCOperand!");
-  return 0;
 }
 
 /// getAddrModeImmOpValue - Return encoding info for 'reg +/- imm' operand.
@@ -466,7 +466,7 @@ static uint32_t getBranchTargetOpValue(const MCInst &MI, unsigned OpIdx,
   assert(MO.isExpr() && "Unexpected branch target type!");
   const MCExpr *Expr = MO.getExpr();
   MCFixupKind Kind = MCFixupKind(FixupKind);
-  Fixups.push_back(MCFixup::Create(0, Expr, Kind));
+  Fixups.push_back(MCFixup::Create(0, Expr, Kind, MI.getLoc()));
 
   // All of the information is in the fixup.
   return 0;
@@ -594,16 +594,25 @@ getARMBranchTargetOpValue(const MCInst &MI, unsigned OpIdx,
 }
 
 uint32_t ARMMCCodeEmitter::
-getARMBLXTargetOpValue(const MCInst &MI, unsigned OpIdx,
+getARMBLTargetOpValue(const MCInst &MI, unsigned OpIdx,
                           SmallVectorImpl<MCFixup> &Fixups) const {
   const MCOperand MO = MI.getOperand(OpIdx);
   if (MO.isExpr()) {
     if (HasConditionalBranch(MI))
-      return ::getBranchTargetOpValue(MI, OpIdx,
-                                      ARM::fixup_arm_condbranch, Fixups);
-    return ::getBranchTargetOpValue(MI, OpIdx,
-                                    ARM::fixup_arm_uncondbranch, Fixups);
+      return ::getBranchTargetOpValue(MI, OpIdx, 
+                                      ARM::fixup_arm_condbl, Fixups);
+    return ::getBranchTargetOpValue(MI, OpIdx, ARM::fixup_arm_uncondbl, Fixups);
   }
+
+  return MO.getImm() >> 2;
+}
+
+uint32_t ARMMCCodeEmitter::
+getARMBLXTargetOpValue(const MCInst &MI, unsigned OpIdx,
+                          SmallVectorImpl<MCFixup> &Fixups) const {
+  const MCOperand MO = MI.getOperand(OpIdx);
+  if (MO.isExpr())
+    return ::getBranchTargetOpValue(MI, OpIdx, ARM::fixup_arm_blx, Fixups);
 
   return MO.getImm() >> 1;
 }
@@ -718,12 +727,13 @@ getAddrModeImm12OpValue(const MCInst &MI, unsigned OpIdx,
         Kind = MCFixupKind(ARM::fixup_t2_ldst_pcrel_12);
       else
         Kind = MCFixupKind(ARM::fixup_arm_ldst_pcrel_12);
-      Fixups.push_back(MCFixup::Create(0, Expr, Kind));
+      Fixups.push_back(MCFixup::Create(0, Expr, Kind, MI.getLoc()));
 
       ++MCNumCPRelocations;
     } else {
       Reg = ARM::PC;
       int32_t Offset = MO.getImm();
+      // FIXME: Handle #-0.
       if (Offset < 0) {
         Offset *= -1;
         isAdd = false;
@@ -791,8 +801,8 @@ getT2AddrModeImm8s4OpValue(const MCInst &MI, unsigned OpIdx,
 
     assert(MO.isExpr() && "Unexpected machine operand type!");
     const MCExpr *Expr = MO.getExpr();
-    MCFixupKind Kind = MCFixupKind(ARM::fixup_arm_pcrel_10);
-    Fixups.push_back(MCFixup::Create(0, Expr, Kind));
+    MCFixupKind Kind = MCFixupKind(ARM::fixup_t2_pcrel_10);
+    Fixups.push_back(MCFixup::Create(0, Expr, Kind, MI.getLoc()));
 
     ++MCNumCPRelocations;
   } else
@@ -833,7 +843,7 @@ getT2AddrModeImm0_1020s4OpValue(const MCInst &MI, unsigned OpIdx,
 // but this is good enough for now.
 static bool EvaluateAsPCRel(const MCExpr *Expr) {
   switch (Expr->getKind()) {
-  default: assert(0 && "Unexpected expression type");
+  default: llvm_unreachable("Unexpected expression type");
   case MCExpr::SymbolRef: return false;
   case MCExpr::Binary: return true;
   }
@@ -857,7 +867,7 @@ ARMMCCodeEmitter::getHiLo16ImmOpValue(const MCInst &MI, unsigned OpIdx,
 
     MCFixupKind Kind;
     switch (ARM16Expr->getKind()) {
-    default: assert(0 && "Unsupported ARMFixup");
+    default: llvm_unreachable("Unsupported ARMFixup");
     case ARMMCExpr::VK_ARM_HI16:
       if (!isTargetDarwin() && EvaluateAsPCRel(E))
         Kind = MCFixupKind(isThumb2()
@@ -879,12 +889,11 @@ ARMMCCodeEmitter::getHiLo16ImmOpValue(const MCInst &MI, unsigned OpIdx,
                            : ARM::fixup_arm_movw_lo16);
       break;
     }
-    Fixups.push_back(MCFixup::Create(0, E, Kind));
+    Fixups.push_back(MCFixup::Create(0, E, Kind, MI.getLoc()));
     return 0;
   };
 
   llvm_unreachable("Unsupported MCExpr type in MCOperand!");
-  return 0;
 }
 
 uint32_t ARMMCCodeEmitter::
@@ -993,6 +1002,19 @@ getAddrMode3OpValue(const MCInst &MI, unsigned OpIdx,
   const MCOperand &MO = MI.getOperand(OpIdx);
   const MCOperand &MO1 = MI.getOperand(OpIdx+1);
   const MCOperand &MO2 = MI.getOperand(OpIdx+2);
+
+  // If The first operand isn't a register, we have a label reference.
+  if (!MO.isReg()) {
+    unsigned Rn = getARMRegisterNumbering(ARM::PC);   // Rn is PC.
+
+    assert(MO.isExpr() && "Unexpected machine operand type!");
+    const MCExpr *Expr = MO.getExpr();
+    MCFixupKind Kind = MCFixupKind(ARM::fixup_arm_pcrel_10_unscaled);
+    Fixups.push_back(MCFixup::Create(0, Expr, Kind, MI.getLoc()));
+
+    ++MCNumCPRelocations;
+    return (Rn << 9) | (1 << 13);
+  }
   unsigned Rn = getARMRegisterNumbering(MO.getReg());
   unsigned Imm = MO2.getImm();
   bool isAdd = ARM_AM::getAM3Op(Imm) == ARM_AM::add;
@@ -1066,7 +1088,7 @@ getAddrMode5OpValue(const MCInst &MI, unsigned OpIdx,
       Kind = MCFixupKind(ARM::fixup_t2_pcrel_10);
     else
       Kind = MCFixupKind(ARM::fixup_arm_pcrel_10);
-    Fixups.push_back(MCFixup::Create(0, Expr, Kind));
+    Fixups.push_back(MCFixup::Create(0, Expr, Kind, MI.getLoc()));
 
     ++MCNumCPRelocations;
   } else {
@@ -1312,8 +1334,8 @@ getRegisterListOpValue(const MCInst &MI, unsigned Op,
   // LDM/STM:
   //   {15-0}  = Bitfield of GPRs.
   unsigned Reg = MI.getOperand(Op).getReg();
-  bool SPRRegs = llvm::ARMMCRegisterClasses[ARM::SPRRegClassID].contains(Reg);
-  bool DPRRegs = llvm::ARMMCRegisterClasses[ARM::DPRRegClassID].contains(Reg);
+  bool SPRRegs = ARMMCRegisterClasses[ARM::SPRRegClassID].contains(Reg);
+  bool DPRRegs = ARMMCRegisterClasses[ARM::DPRRegClassID].contains(Reg);
 
   unsigned Binary = 0;
 
@@ -1372,11 +1394,11 @@ getAddrMode6OneLane32AddressOpValue(const MCInst &MI, unsigned Op,
 
   switch (Imm.getImm()) {
   default: break;
-  case 2:
-  case 4:
   case 8:
-  case 16: Align = 0x00; break;
-  case 32: Align = 0x03; break;
+  case 16:
+  case 32: // Default '0' value for invalid alignments of 8, 16, 32 bytes.
+  case 2: Align = 0x00; break;
+  case 4: Align = 0x03; break;
   }
 
   return RegNo | (Align << 4);
@@ -1412,7 +1434,7 @@ getAddrMode6OffsetOpValue(const MCInst &MI, unsigned Op,
                           SmallVectorImpl<MCFixup> &Fixups) const {
   const MCOperand &MO = MI.getOperand(Op);
   if (MO.getReg() == 0) return 0x0D;
-  return MO.getReg();
+  return getARMRegisterNumbering(MO.getReg());
 }
 
 unsigned ARMMCCodeEmitter::

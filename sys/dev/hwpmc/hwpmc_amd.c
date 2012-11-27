@@ -687,7 +687,8 @@ amd_intr(int cpu, struct trapframe *tf)
 		wrmsr(perfctr, AMD_RELOAD_COUNT_TO_PERFCTR_VALUE(v));
 
 		/* Restart the counter if logging succeeded. */
-		error = pmc_process_interrupt(cpu, pm, tf, TRAPF_USERMODE(tf));
+		error = pmc_process_interrupt(cpu, PMC_HR, pm, tf,
+		    TRAPF_USERMODE(tf));
 		if (error == 0)
 			wrmsr(evsel, config | AMD_PMC_ENABLE);
 	}
@@ -874,7 +875,7 @@ amd_pcpu_fini(struct pmc_mdep *md, int cpu)
 struct pmc_mdep *
 pmc_amd_initialize(void)
 {
-	int classindex, error, i, nclasses, ncpus;
+	int classindex, error, i, ncpus;
 	struct pmc_classdep *pcd;
 	enum pmc_cputype cputype;
 	struct pmc_mdep *pmc_mdep;
@@ -926,12 +927,9 @@ pmc_amd_initialize(void)
 	 * These processors have two classes of PMCs: the TSC and
 	 * programmable PMCs.
 	 */
-	nclasses = 2;
-	pmc_mdep = malloc(sizeof(struct pmc_mdep) + nclasses * sizeof (struct pmc_classdep),
-	    M_PMC, M_WAITOK|M_ZERO);
+	pmc_mdep = pmc_mdep_alloc(2);
 
 	pmc_mdep->pmd_cputype = cputype;
-	pmc_mdep->pmd_nclass  = nclasses;
 
 	ncpus = pmc_cpu_max();
 

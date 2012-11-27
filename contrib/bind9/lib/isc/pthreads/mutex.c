@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: mutex.c,v 1.18 2011-01-04 23:47:14 tbox Exp $ */
+/* $Id: mutex.c,v 1.18 2011/01/04 23:47:14 tbox Exp $ */
 
 /*! \file */
 

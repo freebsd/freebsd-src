@@ -344,6 +344,8 @@ ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
 	    sc->sc_aggr_stats.aggr_aggr_pkt);
 	printf("aggr single packet low hwq: %d\n",
 	    sc->sc_aggr_stats.aggr_low_hwq_single_pkt);
+	printf("aggr single packet RTS aggr limited: %d\n",
+	    sc->sc_aggr_stats.aggr_rts_aggr_limited);
 	printf("aggr sched, no work: %d\n",
 	    sc->sc_aggr_stats.aggr_sched_nopkt);
 	for (i = 0; i < 64; i++) {
@@ -605,6 +607,17 @@ ath_sysctlattach(struct ath_softc *sc)
 		"tid_hwq_hi", CTLFLAG_RW, &sc->sc_tid_hwq_hi, 0,
 		"");
 
+#if 0
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"txq_data_minfree", CTLFLAG_RW, &sc->sc_txq_data_minfree,
+		0, "Minimum free buffers before adding a data frame"
+		" to the TX queue");
+#endif
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"txq_mcastq_maxdepth", CTLFLAG_RW,
+		&sc->sc_txq_mcastq_maxdepth, 0,
+		"Maximum buffer depth for multicast/broadcast frames");
+
 #ifdef IEEE80211_SUPPORT_TDMA
 	if (ath_hal_macversion(ah) > 0x78) {
 		sc->sc_tdmadbaprep = 2;
@@ -642,6 +655,7 @@ ath_sysctl_clearstats(SYSCTL_HANDLER_ARGS)
 		return 0;       /* Not clearing the stats is still valid */
 	memset(&sc->sc_stats, 0, sizeof(sc->sc_stats));
 	memset(&sc->sc_aggr_stats, 0, sizeof(sc->sc_aggr_stats));
+	memset(&sc->sc_intr_stats, 0, sizeof(sc->sc_intr_stats));
 
 	val = 0;
 	return 0;
@@ -661,6 +675,26 @@ ath_sysctl_stats_attach_rxphyerr(struct ath_softc *sc, struct sysctl_oid_list *p
 	for (i = 0; i < 64; i++) {
 		snprintf(sn, sizeof(sn), "%d", i);
 		SYSCTL_ADD_UINT(ctx, child, OID_AUTO, sn, CTLFLAG_RD, &sc->sc_stats.ast_rx_phy[i], 0, "");
+	}
+}
+
+static void
+ath_sysctl_stats_attach_intr(struct ath_softc *sc,
+    struct sysctl_oid_list *parent)
+{
+	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
+	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
+	struct sysctl_oid_list *child = SYSCTL_CHILDREN(tree);
+	int i;
+	char sn[8];
+
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "sync_intr",
+	    CTLFLAG_RD, NULL, "Sync interrupt statistics");
+	child = SYSCTL_CHILDREN(tree);
+	for (i = 0; i < 32; i++) {
+		snprintf(sn, sizeof(sn), "%d", i);
+		SYSCTL_ADD_UINT(ctx, child, OID_AUTO, sn, CTLFLAG_RD,
+		    &sc->sc_intr_stats.sync_intr[i], 0, "");
 	}
 }
 
@@ -885,9 +919,15 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_rx_intr, 0, "RX interrupts");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_intr", CTLFLAG_RD,
 	    &sc->sc_stats.ast_tx_intr, 0, "TX interrupts");
-
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_mcastq_overflow",
+	    CTLFLAG_RD, &sc->sc_stats.ast_tx_mcastq_overflow, 0,
+	    "Number of multicast frames exceeding maximum mcast queue depth");
+	
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);
+
+	/* Attach the interrupt statistics array */
+	ath_sysctl_stats_attach_intr(sc, child);
 }
 
 /*
@@ -912,7 +952,7 @@ ath_sysctl_hal_attach(struct ath_softc *sc)
 	sc->sc_ah->ah_config.ah_ar5416_biasadj = 0;
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "ar5416_biasadj", CTLFLAG_RW,
 	    &sc->sc_ah->ah_config.ah_ar5416_biasadj, 0,
-	    "Enable 2ghz AR5416 direction sensitivity bias adjust");
+	    "Enable 2GHz AR5416 direction sensitivity bias adjust");
 
 	sc->sc_ah->ah_config.ah_dma_beacon_response_time = 2;
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "dma_brt", CTLFLAG_RW,

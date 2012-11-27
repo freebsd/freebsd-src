@@ -18,6 +18,7 @@
 #include "clang/Frontend/FrontendDiagnostic.h"
 #include "clang/Frontend/FrontendOptions.h"
 #include "clang/Frontend/PreprocessorOptions.h"
+#include "clang/Lex/HeaderSearch.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
@@ -48,39 +49,19 @@ static void DefineBuiltinMacro(MacroBuilder &Builder, StringRef Macro,
   }
 }
 
-std::string clang::NormalizeDashIncludePath(StringRef File,
-                                            FileManager &FileMgr) {
-  // Implicit include paths should be resolved relative to the current
-  // working directory first, and then use the regular header search
-  // mechanism. The proper way to handle this is to have the
-  // predefines buffer located at the current working directory, but
-  // it has no file entry. For now, workaround this by using an
-  // absolute path if we find the file here, and otherwise letting
-  // header search handle it.
-  llvm::SmallString<128> Path(File);
-  llvm::sys::fs::make_absolute(Path);
-  bool exists;
-  if (llvm::sys::fs::exists(Path.str(), exists) || !exists)
-    Path = File;
-  else if (exists)
-    FileMgr.getFile(File);
-
-  return Lexer::Stringify(Path.str());
-}
-
 /// AddImplicitInclude - Add an implicit #include of the specified file to the
 /// predefines buffer.
 static void AddImplicitInclude(MacroBuilder &Builder, StringRef File,
                                FileManager &FileMgr) {
-  Builder.append("#include \"" +
-                 Twine(NormalizeDashIncludePath(File, FileMgr)) + "\"");
+  Builder.append(Twine("#include \"") +
+                 HeaderSearch::NormalizeDashIncludePath(File, FileMgr) + "\"");
 }
 
 static void AddImplicitIncludeMacros(MacroBuilder &Builder,
                                      StringRef File,
                                      FileManager &FileMgr) {
-  Builder.append("#__include_macros \"" +
-                 Twine(NormalizeDashIncludePath(File, FileMgr)) + "\"");
+  Builder.append(Twine("#__include_macros \"") +
+                 HeaderSearch::NormalizeDashIncludePath(File, FileMgr) + "\"");
   // Marker token to stop the __include_macros fetch loop.
   Builder.append("##"); // ##?
 }
@@ -146,7 +127,7 @@ static void DefineFloatMacros(MacroBuilder &Builder, StringRef Prefix,
                "1.79769313486231580793728971405301e+308L",
                "1.18973149535723176508575932662800702e+4932L");
 
-  llvm::SmallString<32> DefPrefix;
+  SmallString<32> DefPrefix;
   DefPrefix = "__";
   DefPrefix += Prefix;
   DefPrefix += "_";
@@ -221,6 +202,20 @@ static void DefineExactWidthIntType(TargetInfo::IntType Ty,
                         ConstSuffix);
 }
 
+/// Get the value the ATOMIC_*_LOCK_FREE macro should have for a type with
+/// the specified properties.
+static const char *getLockFreeValue(unsigned TypeWidth, unsigned TypeAlign,
+                                    unsigned InlineWidth) {
+  // Fully-aligned, power-of-2 sizes no larger than the inline
+  // width will be inlined as lock-free operations.
+  if (TypeWidth == TypeAlign && (TypeWidth & (TypeWidth - 1)) == 0 &&
+      TypeWidth <= InlineWidth)
+    return "2"; // "always lock free"
+  // We cannot be certain what operations the lib calls might be
+  // able to implement as lock-free on future processors.
+  return "1"; // "sometimes lock free"
+}
+
 /// \brief Add definitions required for a smooth interaction between
 /// Objective-C++ automated reference counting and libstdc++ (4.2).
 static void AddObjCXXARCLibstdcxxDefines(const LangOptions &LangOpts, 
@@ -278,7 +273,7 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
                                                const LangOptions &LangOpts,
                                                const FrontendOptions &FEOpts,
                                                MacroBuilder &Builder) {
-  if (!LangOpts.MicrosoftExt && !LangOpts.TraditionalCPP)
+  if (!LangOpts.MicrosoftMode && !LangOpts.TraditionalCPP)
     Builder.defineMacro("__STDC__");
   if (LangOpts.Freestanding)
     Builder.defineMacro("__STDC_HOSTED__", "0");
@@ -286,7 +281,9 @@ static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
     Builder.defineMacro("__STDC_HOSTED__");
 
   if (!LangOpts.CPlusPlus) {
-    if (LangOpts.C99)
+    if (LangOpts.C11)
+      Builder.defineMacro("__STDC_VERSION__", "201112L");
+    else if (LangOpts.C99)
       Builder.defineMacro("__STDC_VERSION__", "199901L");
     else if (!LangOpts.GNUMode && LangOpts.Digraphs)
       Builder.defineMacro("__STDC_VERSION__", "199409L");
@@ -336,11 +333,25 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
                       + getClangFullRepositoryVersion() + ")\"");
 #undef TOSTR
 #undef TOSTR2
-  // Currently claim to be compatible with GCC 4.2.1-5621.
-  Builder.defineMacro("__GNUC_MINOR__", "2");
-  Builder.defineMacro("__GNUC_PATCHLEVEL__", "1");
-  Builder.defineMacro("__GNUC__", "4");
-  Builder.defineMacro("__GXX_ABI_VERSION", "1002");
+  if (!LangOpts.MicrosoftMode) {
+    // Currently claim to be compatible with GCC 4.2.1-5621, but only if we're
+    // not compiling for MSVC compatibility
+    Builder.defineMacro("__GNUC_MINOR__", "2");
+    Builder.defineMacro("__GNUC_PATCHLEVEL__", "1");
+    Builder.defineMacro("__GNUC__", "4");
+    Builder.defineMacro("__GXX_ABI_VERSION", "1002");
+  }
+
+  // Define macros for the C11 / C++11 memory orderings
+  Builder.defineMacro("__ATOMIC_RELAXED", "0");
+  Builder.defineMacro("__ATOMIC_CONSUME", "1");
+  Builder.defineMacro("__ATOMIC_ACQUIRE", "2");
+  Builder.defineMacro("__ATOMIC_RELEASE", "3");
+  Builder.defineMacro("__ATOMIC_ACQ_REL", "4");
+  Builder.defineMacro("__ATOMIC_SEQ_CST", "5");
+
+  // Support for #pragma redefine_extname (Sun compatibility)
+  Builder.defineMacro("__PRAGMA_REDEFINE_EXTNAME", "1");
 
   // As sad as it is, enough software depends on the __VERSION__ for version
   // checks that it is necessary to report 4.2.1 (the base GCC version we claim
@@ -427,6 +438,9 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
     Builder.defineMacro("__OPTIMIZE__");
   if (LangOpts.OptimizeSize)
     Builder.defineMacro("__OPTIMIZE_SIZE__");
+
+  if (LangOpts.FastMath)
+    Builder.defineMacro("__FAST_MATH__");
 
   // Initialize target-specific preprocessor defines.
 
@@ -521,16 +535,46 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   else
     Builder.defineMacro("__GNUC_STDC_INLINE__");
 
-  if (LangOpts.NoInline)
+  // The value written by __atomic_test_and_set.
+  // FIXME: This is target-dependent.
+  Builder.defineMacro("__GCC_ATOMIC_TEST_AND_SET_TRUEVAL", "1");
+
+  // Used by libstdc++ to implement ATOMIC_<foo>_LOCK_FREE.
+  unsigned InlineWidthBits = TI.getMaxAtomicInlineWidth();
+#define DEFINE_LOCK_FREE_MACRO(TYPE, Type) \
+  Builder.defineMacro("__GCC_ATOMIC_" #TYPE "_LOCK_FREE", \
+                      getLockFreeValue(TI.get##Type##Width(), \
+                                       TI.get##Type##Align(), \
+                                       InlineWidthBits));
+  DEFINE_LOCK_FREE_MACRO(BOOL, Bool);
+  DEFINE_LOCK_FREE_MACRO(CHAR, Char);
+  DEFINE_LOCK_FREE_MACRO(CHAR16_T, Char16);
+  DEFINE_LOCK_FREE_MACRO(CHAR32_T, Char32);
+  DEFINE_LOCK_FREE_MACRO(WCHAR_T, WChar);
+  DEFINE_LOCK_FREE_MACRO(SHORT, Short);
+  DEFINE_LOCK_FREE_MACRO(INT, Int);
+  DEFINE_LOCK_FREE_MACRO(LONG, Long);
+  DEFINE_LOCK_FREE_MACRO(LLONG, LongLong);
+  Builder.defineMacro("__GCC_ATOMIC_POINTER_LOCK_FREE",
+                      getLockFreeValue(TI.getPointerWidth(0),
+                                       TI.getPointerAlign(0),
+                                       InlineWidthBits));
+#undef DEFINE_LOCK_FREE_MACRO
+
+  if (LangOpts.NoInlineDefine)
     Builder.defineMacro("__NO_INLINE__");
 
   if (unsigned PICLevel = LangOpts.PICLevel) {
     Builder.defineMacro("__PIC__", Twine(PICLevel));
     Builder.defineMacro("__pic__", Twine(PICLevel));
   }
+  if (unsigned PIELevel = LangOpts.PIELevel) {
+    Builder.defineMacro("__PIE__", Twine(PIELevel));
+    Builder.defineMacro("__pie__", Twine(PIELevel));
+  }
 
   // Macros to control C99 numerics and <float.h>
-  Builder.defineMacro("__FLT_EVAL_METHOD__", "0");
+  Builder.defineMacro("__FLT_EVAL_METHOD__", Twine(TI.getFloatEvalMethod()));
   Builder.defineMacro("__FLT_RADIX__", "2");
   int Dig = PickFP(&TI.getLongDoubleFormat(), -1/*FIXME*/, 17, 21, 33, 36);
   Builder.defineMacro("__DECIMAL_DIG__", Twine(Dig));
@@ -632,7 +676,7 @@ void clang::InitializePreprocessor(Preprocessor &PP,
                                    const PreprocessorOptions &InitOpts,
                                    const HeaderSearchOptions &HSOpts,
                                    const FrontendOptions &FEOpts) {
-  const LangOptions &LangOpts = PP.getLangOptions();
+  const LangOptions &LangOpts = PP.getLangOpts();
   std::string PredefineBuffer;
   PredefineBuffer.reserve(4080);
   llvm::raw_string_ostream Predefines(PredefineBuffer);
@@ -641,14 +685,10 @@ void clang::InitializePreprocessor(Preprocessor &PP,
   InitializeFileRemapping(PP.getDiagnostics(), PP.getSourceManager(),
                           PP.getFileManager(), InitOpts);
 
-  // Specify whether the preprocessor should replace #include/#import with
-  // module imports when plausible.
-  PP.setAutoModuleImport(InitOpts.AutoModuleImport);
-
   // Emit line markers for various builtin sections of the file.  We don't do
   // this in asm preprocessor mode, because "# 4" is not a line marker directive
   // in this mode.
-  if (!PP.getLangOptions().AsmPreprocessor)
+  if (!PP.getLangOpts().AsmPreprocessor)
     Builder.append("# 1 \"<built-in>\" 3");
 
   // Install things like __POWERPC__, __GNUC__, etc into the macro table.
@@ -673,12 +713,12 @@ void clang::InitializePreprocessor(Preprocessor &PP,
   // Even with predefines off, some macros are still predefined.
   // These should all be defined in the preprocessor according to the
   // current language configuration.
-  InitializeStandardPredefinedMacros(PP.getTargetInfo(), PP.getLangOptions(),
+  InitializeStandardPredefinedMacros(PP.getTargetInfo(), PP.getLangOpts(),
                                      FEOpts, Builder);
 
   // Add on the predefines from the driver.  Wrap in a #line directive to report
   // that they come from the command line.
-  if (!PP.getLangOptions().AsmPreprocessor)
+  if (!PP.getLangOpts().AsmPreprocessor)
     Builder.append("# 1 \"<command line>\" 1");
 
   // Process #define's and #undef's in the order they are given.
@@ -706,7 +746,7 @@ void clang::InitializePreprocessor(Preprocessor &PP,
   }
 
   // Exit the command line and go back to <built-in> (2 is LC_LEAVE).
-  if (!PP.getLangOptions().AsmPreprocessor)
+  if (!PP.getLangOpts().AsmPreprocessor)
     Builder.append("# 1 \"<built-in>\" 2");
 
   // Instruct the preprocessor to skip the preamble.
@@ -718,6 +758,6 @@ void clang::InitializePreprocessor(Preprocessor &PP,
   
   // Initialize the header search object.
   ApplyHeaderSearchOptions(PP.getHeaderSearchInfo(), HSOpts,
-                           PP.getLangOptions(),
+                           PP.getLangOpts(),
                            PP.getTargetInfo().getTriple());
 }

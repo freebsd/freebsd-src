@@ -612,10 +612,11 @@ hdaa_sense_init(struct hdaa_devinfo *devinfo)
 		if (w == NULL || w->enable == 0 || w->type !=
 		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
 			continue;
-		if (HDA_PARAM_AUDIO_WIDGET_CAP_UNSOL_CAP(w->param.widget_cap) &&
-		    w->unsol < 0) {
-			w->unsol = HDAC_UNSOL_ALLOC(
-			    device_get_parent(devinfo->dev), devinfo->dev, w->nid);
+		if (HDA_PARAM_AUDIO_WIDGET_CAP_UNSOL_CAP(w->param.widget_cap)) {
+			if (w->unsol < 0)
+				w->unsol = HDAC_UNSOL_ALLOC(
+				    device_get_parent(devinfo->dev),
+				    devinfo->dev, w->nid);
 			hda_command(devinfo->dev,
 			    HDA_CMD_SET_UNSOLICITED_RESPONSE(0, w->nid,
 			    HDA_CMD_SET_UNSOLICITED_RESPONSE_ENABLE | w->unsol));

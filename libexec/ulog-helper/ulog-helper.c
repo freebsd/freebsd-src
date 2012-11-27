@@ -46,6 +46,28 @@ __FBSDID("$FreeBSD$");
  * username.  It does allow users to log arbitrary hostnames.
  */
 
+static const char *
+get_username(void)
+{
+	const struct passwd *pw;
+	const char *login;
+	uid_t uid;
+
+	/*
+	 * Attempt to determine the username corresponding to this login
+	 * session.  First, validate the results of getlogin() against
+	 * the password database.  If getlogin() returns invalid data,
+	 * return an arbitrary username corresponding to this uid.
+	 */
+	uid = getuid();
+	if ((login = getlogin()) != NULL && (pw = getpwnam(login)) != NULL &&
+	    pw->pw_uid == uid)
+		return (login);
+	if ((pw = getpwuid(uid)) != NULL)
+		return (pw->pw_name);
+	return (NULL);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -57,7 +79,7 @@ main(int argc, char *argv[])
 
 	if ((argc == 2 || argc == 3) && strcmp(argv[1], "login") == 0) {
 		/* Username. */
-		user = user_from_uid(getuid(), 1);
+		user = get_username();
 		if (user == NULL)
 			return (EX_OSERR);
 

@@ -67,8 +67,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_object.h>
 
-#include <fs/fifofs/fifo.h>
-
 #include <nfs/nfsproto.h>
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsnode.h>
@@ -912,7 +910,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	struct vnode *dvp = ap->a_dvp;
 	struct vnode **vpp = ap->a_vpp;
 	struct mount *mp = dvp->v_mount;
-	struct vattr vattr;
+	struct vattr dvattr, vattr;
 	struct timespec nctime;
 	int flags = cnp->cn_flags;
 	struct vnode *newvp;
@@ -1129,7 +1127,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 	}
 	if (v3) {
 		nfsm_postop_attr_va(newvp, attrflag, &vattr);
-		nfsm_postop_attr(dvp, dattrflag);
+		nfsm_postop_attr_va(dvp, dattrflag, &dvattr);
 	} else {
 		nfsm_loadattr(newvp, &vattr);
 		attrflag = 1;
@@ -1137,9 +1135,10 @@ nfs_lookup(struct vop_lookup_args *ap)
 	if (cnp->cn_nameiop != LOOKUP && (flags & ISLASTCN))
 		cnp->cn_flags |= SAVENAME;
 	if ((cnp->cn_flags & MAKEENTRY) &&
-	    (cnp->cn_nameiop != DELETE || !(flags & ISLASTCN)) && attrflag) {
-		cache_enter_time(dvp, newvp, cnp, &vattr.va_ctime);
-	}
+	    (cnp->cn_nameiop != DELETE || !(flags & ISLASTCN)) &&
+	    attrflag != 0 && (newvp->v_type != VDIR || dattrflag != 0))
+		cache_enter_time(dvp, newvp, cnp, &vattr.va_ctime,
+		    newvp->v_type != VDIR ? NULL : &dvattr.va_ctime);
 	*vpp = newvp;
 	m_freem(mrep);
 nfsmout:
@@ -1181,7 +1180,7 @@ nfsmout:
 			    &vattr.va_mtime, ==)) {
 				mtx_unlock(&np->n_mtx);
 				cache_enter_time(dvp, NULL, cnp,
-				    &vattr.va_mtime);
+				    &vattr.va_mtime, NULL);
 			} else
 				mtx_unlock(&np->n_mtx);
 		}
@@ -2463,11 +2462,11 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 	nfsuint64 cookie;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	struct nfsnode *dnp = VTONFS(vp), *np;
-	struct vattr vattr;
+	struct vattr vattr, dvattr;
 	nfsfh_t *fhp;
 	u_quad_t fileno;
 	int error = 0, tlen, more_dirs = 1, blksiz = 0, doit, bigenough = 1, i;
-	int attrflag, fhsize;
+	int attrflag, dattrflag, fhsize;
 
 #ifndef nolint
 	dp = NULL;
@@ -2513,7 +2512,7 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 		*tl++ = txdr_unsigned(nmp->nm_readdirsize);
 		*tl = txdr_unsigned(nmp->nm_rsize);
 		nfsm_request(vp, NFSPROC_READDIRPLUS, uiop->uio_td, cred);
-		nfsm_postop_attr(vp, attrflag);
+		nfsm_postop_attr_va(vp, dattrflag, &dvattr);
 		if (error) {
 			m_freem(mrep);
 			goto nfsmout;
@@ -2649,8 +2648,11 @@ nfs_readdirplusrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 				md = mdsav2;
 				dp->d_type = IFTODT(VTTOIF(vattr.va_type));
 				ndp->ni_vp = newvp;
-			        cache_enter_time(ndp->ni_dvp, ndp->ni_vp, cnp,
-				    &vattr.va_ctime);
+				if (newvp->v_type != VDIR || dattrflag != 0)
+				    cache_enter_time(ndp->ni_dvp, ndp->ni_vp,
+					cnp, &vattr.va_ctime,
+					newvp->v_type != VDIR ? NULL :
+					&dvattr.va_ctime);
 			    }
 			} else {
 			    /* Just skip over the file handle */

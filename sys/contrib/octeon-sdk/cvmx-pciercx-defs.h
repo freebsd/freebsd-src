@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2012  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,8 +49,8 @@
  * <hr>$Revision$<hr>
  *
  */
-#ifndef __CVMX_PCIERCX_TYPEDEFS_H__
-#define __CVMX_PCIERCX_TYPEDEFS_H__
+#ifndef __CVMX_PCIERCX_DEFS_H__
+#define __CVMX_PCIERCX_DEFS_H__
 
 #if CVMX_ENABLE_CSR_ADDRESS_CHECKING
 static inline uint64_t CVMX_PCIERCX_CFG000(unsigned long block_id)
@@ -58,7 +58,11 @@ static inline uint64_t CVMX_PCIERCX_CFG000(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG000(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000000ull;
 }
@@ -71,7 +75,11 @@ static inline uint64_t CVMX_PCIERCX_CFG001(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG001(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000004ull;
 }
@@ -84,7 +92,11 @@ static inline uint64_t CVMX_PCIERCX_CFG002(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG002(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000008ull;
 }
@@ -97,7 +109,11 @@ static inline uint64_t CVMX_PCIERCX_CFG003(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG003(%lu) is invalid on this chip\n", block_id);
 	return 0x000000000000000Cull;
 }
@@ -110,7 +126,11 @@ static inline uint64_t CVMX_PCIERCX_CFG004(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG004(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000010ull;
 }
@@ -123,7 +143,11 @@ static inline uint64_t CVMX_PCIERCX_CFG005(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG005(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000014ull;
 }
@@ -136,7 +160,11 @@ static inline uint64_t CVMX_PCIERCX_CFG006(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG006(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000018ull;
 }
@@ -149,7 +177,11 @@ static inline uint64_t CVMX_PCIERCX_CFG007(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG007(%lu) is invalid on this chip\n", block_id);
 	return 0x000000000000001Cull;
 }
@@ -162,7 +194,11 @@ static inline uint64_t CVMX_PCIERCX_CFG008(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG008(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000020ull;
 }
@@ -175,7 +211,11 @@ static inline uint64_t CVMX_PCIERCX_CFG009(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG009(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000024ull;
 }
@@ -188,7 +228,11 @@ static inline uint64_t CVMX_PCIERCX_CFG010(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG010(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000028ull;
 }
@@ -201,7 +245,11 @@ static inline uint64_t CVMX_PCIERCX_CFG011(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG011(%lu) is invalid on this chip\n", block_id);
 	return 0x000000000000002Cull;
 }
@@ -214,7 +262,11 @@ static inline uint64_t CVMX_PCIERCX_CFG012(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG012(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000030ull;
 }
@@ -227,7 +279,11 @@ static inline uint64_t CVMX_PCIERCX_CFG013(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG013(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000034ull;
 }
@@ -240,7 +296,11 @@ static inline uint64_t CVMX_PCIERCX_CFG014(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG014(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000038ull;
 }
@@ -253,7 +313,11 @@ static inline uint64_t CVMX_PCIERCX_CFG015(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG015(%lu) is invalid on this chip\n", block_id);
 	return 0x000000000000003Cull;
 }
@@ -266,7 +330,11 @@ static inline uint64_t CVMX_PCIERCX_CFG016(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG016(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000040ull;
 }
@@ -279,7 +347,11 @@ static inline uint64_t CVMX_PCIERCX_CFG017(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG017(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000044ull;
 }
@@ -292,7 +364,11 @@ static inline uint64_t CVMX_PCIERCX_CFG020(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG020(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000050ull;
 }
@@ -305,7 +381,11 @@ static inline uint64_t CVMX_PCIERCX_CFG021(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG021(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000054ull;
 }
@@ -318,7 +398,11 @@ static inline uint64_t CVMX_PCIERCX_CFG022(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG022(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000058ull;
 }
@@ -331,7 +415,11 @@ static inline uint64_t CVMX_PCIERCX_CFG023(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG023(%lu) is invalid on this chip\n", block_id);
 	return 0x000000000000005Cull;
 }
@@ -344,7 +432,11 @@ static inline uint64_t CVMX_PCIERCX_CFG028(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG028(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000070ull;
 }
@@ -357,7 +449,11 @@ static inline uint64_t CVMX_PCIERCX_CFG029(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG029(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000074ull;
 }
@@ -370,7 +466,11 @@ static inline uint64_t CVMX_PCIERCX_CFG030(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG030(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000078ull;
 }
@@ -383,7 +483,11 @@ static inline uint64_t CVMX_PCIERCX_CFG031(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG031(%lu) is invalid on this chip\n", block_id);
 	return 0x000000000000007Cull;
 }
@@ -396,7 +500,11 @@ static inline uint64_t CVMX_PCIERCX_CFG032(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG032(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000080ull;
 }
@@ -409,7 +517,11 @@ static inline uint64_t CVMX_PCIERCX_CFG033(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG033(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000084ull;
 }
@@ -422,7 +534,11 @@ static inline uint64_t CVMX_PCIERCX_CFG034(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG034(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000088ull;
 }
@@ -435,7 +551,11 @@ static inline uint64_t CVMX_PCIERCX_CFG035(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG035(%lu) is invalid on this chip\n", block_id);
 	return 0x000000000000008Cull;
 }
@@ -448,7 +568,11 @@ static inline uint64_t CVMX_PCIERCX_CFG036(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG036(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000090ull;
 }
@@ -461,7 +585,11 @@ static inline uint64_t CVMX_PCIERCX_CFG037(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG037(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000094ull;
 }
@@ -474,7 +602,11 @@ static inline uint64_t CVMX_PCIERCX_CFG038(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG038(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000098ull;
 }
@@ -487,7 +619,11 @@ static inline uint64_t CVMX_PCIERCX_CFG039(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG039(%lu) is invalid on this chip\n", block_id);
 	return 0x000000000000009Cull;
 }
@@ -500,7 +636,11 @@ static inline uint64_t CVMX_PCIERCX_CFG040(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG040(%lu) is invalid on this chip\n", block_id);
 	return 0x00000000000000A0ull;
 }
@@ -513,7 +653,11 @@ static inline uint64_t CVMX_PCIERCX_CFG041(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG041(%lu) is invalid on this chip\n", block_id);
 	return 0x00000000000000A4ull;
 }
@@ -526,7 +670,11 @@ static inline uint64_t CVMX_PCIERCX_CFG042(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG042(%lu) is invalid on this chip\n", block_id);
 	return 0x00000000000000A8ull;
 }
@@ -539,7 +687,11 @@ static inline uint64_t CVMX_PCIERCX_CFG064(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG064(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000100ull;
 }
@@ -552,7 +704,11 @@ static inline uint64_t CVMX_PCIERCX_CFG065(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG065(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000104ull;
 }
@@ -565,7 +721,11 @@ static inline uint64_t CVMX_PCIERCX_CFG066(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG066(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000108ull;
 }
@@ -578,7 +738,11 @@ static inline uint64_t CVMX_PCIERCX_CFG067(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG067(%lu) is invalid on this chip\n", block_id);
 	return 0x000000000000010Cull;
 }
@@ -591,7 +755,11 @@ static inline uint64_t CVMX_PCIERCX_CFG068(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG068(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000110ull;
 }
@@ -604,7 +772,11 @@ static inline uint64_t CVMX_PCIERCX_CFG069(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG069(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000114ull;
 }
@@ -617,7 +789,11 @@ static inline uint64_t CVMX_PCIERCX_CFG070(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG070(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000118ull;
 }
@@ -630,7 +806,11 @@ static inline uint64_t CVMX_PCIERCX_CFG071(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG071(%lu) is invalid on this chip\n", block_id);
 	return 0x000000000000011Cull;
 }
@@ -643,7 +823,11 @@ static inline uint64_t CVMX_PCIERCX_CFG072(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG072(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000120ull;
 }
@@ -656,7 +840,11 @@ static inline uint64_t CVMX_PCIERCX_CFG073(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG073(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000124ull;
 }
@@ -669,7 +857,11 @@ static inline uint64_t CVMX_PCIERCX_CFG074(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG074(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000128ull;
 }
@@ -682,7 +874,11 @@ static inline uint64_t CVMX_PCIERCX_CFG075(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG075(%lu) is invalid on this chip\n", block_id);
 	return 0x000000000000012Cull;
 }
@@ -695,7 +891,11 @@ static inline uint64_t CVMX_PCIERCX_CFG076(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG076(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000130ull;
 }
@@ -708,7 +908,11 @@ static inline uint64_t CVMX_PCIERCX_CFG077(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG077(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000134ull;
 }
@@ -721,7 +925,11 @@ static inline uint64_t CVMX_PCIERCX_CFG448(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG448(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000700ull;
 }
@@ -734,7 +942,11 @@ static inline uint64_t CVMX_PCIERCX_CFG449(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG449(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000704ull;
 }
@@ -747,7 +959,11 @@ static inline uint64_t CVMX_PCIERCX_CFG450(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG450(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000708ull;
 }
@@ -760,7 +976,11 @@ static inline uint64_t CVMX_PCIERCX_CFG451(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG451(%lu) is invalid on this chip\n", block_id);
 	return 0x000000000000070Cull;
 }
@@ -773,7 +993,11 @@ static inline uint64_t CVMX_PCIERCX_CFG452(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG452(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000710ull;
 }
@@ -786,7 +1010,11 @@ static inline uint64_t CVMX_PCIERCX_CFG453(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG453(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000714ull;
 }
@@ -799,7 +1027,11 @@ static inline uint64_t CVMX_PCIERCX_CFG454(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG454(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000718ull;
 }
@@ -812,7 +1044,11 @@ static inline uint64_t CVMX_PCIERCX_CFG455(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG455(%lu) is invalid on this chip\n", block_id);
 	return 0x000000000000071Cull;
 }
@@ -825,7 +1061,11 @@ static inline uint64_t CVMX_PCIERCX_CFG456(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG456(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000720ull;
 }
@@ -838,7 +1078,11 @@ static inline uint64_t CVMX_PCIERCX_CFG458(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG458(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000728ull;
 }
@@ -851,7 +1095,11 @@ static inline uint64_t CVMX_PCIERCX_CFG459(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG459(%lu) is invalid on this chip\n", block_id);
 	return 0x000000000000072Cull;
 }
@@ -864,7 +1112,11 @@ static inline uint64_t CVMX_PCIERCX_CFG460(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG460(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000730ull;
 }
@@ -877,7 +1129,11 @@ static inline uint64_t CVMX_PCIERCX_CFG461(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG461(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000734ull;
 }
@@ -890,7 +1146,11 @@ static inline uint64_t CVMX_PCIERCX_CFG462(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG462(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000738ull;
 }
@@ -903,7 +1163,11 @@ static inline uint64_t CVMX_PCIERCX_CFG463(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG463(%lu) is invalid on this chip\n", block_id);
 	return 0x000000000000073Cull;
 }
@@ -916,7 +1180,11 @@ static inline uint64_t CVMX_PCIERCX_CFG464(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG464(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000740ull;
 }
@@ -929,7 +1197,11 @@ static inline uint64_t CVMX_PCIERCX_CFG465(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG465(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000744ull;
 }
@@ -942,7 +1214,11 @@ static inline uint64_t CVMX_PCIERCX_CFG466(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG466(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000748ull;
 }
@@ -955,7 +1231,11 @@ static inline uint64_t CVMX_PCIERCX_CFG467(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG467(%lu) is invalid on this chip\n", block_id);
 	return 0x000000000000074Cull;
 }
@@ -968,7 +1248,11 @@ static inline uint64_t CVMX_PCIERCX_CFG468(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG468(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000750ull;
 }
@@ -981,7 +1265,11 @@ static inline uint64_t CVMX_PCIERCX_CFG490(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG490(%lu) is invalid on this chip\n", block_id);
 	return 0x00000000000007A8ull;
 }
@@ -994,7 +1282,11 @@ static inline uint64_t CVMX_PCIERCX_CFG491(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG491(%lu) is invalid on this chip\n", block_id);
 	return 0x00000000000007ACull;
 }
@@ -1007,7 +1299,11 @@ static inline uint64_t CVMX_PCIERCX_CFG492(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG492(%lu) is invalid on this chip\n", block_id);
 	return 0x00000000000007B0ull;
 }
@@ -1018,7 +1314,11 @@ static inline uint64_t CVMX_PCIERCX_CFG492(unsigned long block_id)
 static inline uint64_t CVMX_PCIERCX_CFG515(unsigned long block_id)
 {
 	if (!(
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG515(%lu) is invalid on this chip\n", block_id);
 	return 0x000000000000080Cull;
 }
@@ -1031,7 +1331,11 @@ static inline uint64_t CVMX_PCIERCX_CFG516(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG516(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000810ull;
 }
@@ -1044,7 +1348,11 @@ static inline uint64_t CVMX_PCIERCX_CFG517(unsigned long block_id)
 	if (!(
 	      (OCTEON_IS_MODEL(OCTEON_CN52XX) && ((block_id <= 1))) ||
 	      (OCTEON_IS_MODEL(OCTEON_CN56XX) && ((block_id <= 1))) ||
-	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1)))))
+	      (OCTEON_IS_MODEL(OCTEON_CN61XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN63XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN66XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CN68XX) && ((block_id <= 1))) ||
+	      (OCTEON_IS_MODEL(OCTEON_CNF71XX) && ((block_id <= 1)))))
 		cvmx_warn("CVMX_PCIERCX_CFG517(%lu) is invalid on this chip\n", block_id);
 	return 0x0000000000000814ull;
 }
@@ -1058,12 +1366,10 @@ static inline uint64_t CVMX_PCIERCX_CFG517(unsigned long block_id)
  * PCIE_CFG000 = First 32-bits of PCIE type 1 config space (Device ID and Vendor ID Register)
  *
  */
-union cvmx_pciercx_cfg000
-{
+union cvmx_pciercx_cfg000 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg000_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg000_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t devid                        : 16; /**< Device ID, writable through PEM(0..1)_CFG_WR
                                                          However, the application must not change this field. */
 	uint32_t vendid                       : 16; /**< Vendor ID, writable through PEM(0..1)_CFG_WR
@@ -1077,8 +1383,13 @@ union cvmx_pciercx_cfg000
 	struct cvmx_pciercx_cfg000_s          cn52xxp1;
 	struct cvmx_pciercx_cfg000_s          cn56xx;
 	struct cvmx_pciercx_cfg000_s          cn56xxp1;
+	struct cvmx_pciercx_cfg000_s          cn61xx;
 	struct cvmx_pciercx_cfg000_s          cn63xx;
 	struct cvmx_pciercx_cfg000_s          cn63xxp1;
+	struct cvmx_pciercx_cfg000_s          cn66xx;
+	struct cvmx_pciercx_cfg000_s          cn68xx;
+	struct cvmx_pciercx_cfg000_s          cn68xxp1;
+	struct cvmx_pciercx_cfg000_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg000 cvmx_pciercx_cfg000_t;
 
@@ -1088,12 +1399,10 @@ typedef union cvmx_pciercx_cfg000 cvmx_pciercx_cfg000_t;
  * PCIE_CFG001 = Second 32-bits of PCIE type 1 config space (Command/Status Register)
  *
  */
-union cvmx_pciercx_cfg001
-{
+union cvmx_pciercx_cfg001 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg001_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg001_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t dpe                          : 1;  /**< Detected Parity Error */
 	uint32_t sse                          : 1;  /**< Signaled System Error */
 	uint32_t rma                          : 1;  /**< Received Master Abort */
@@ -1159,8 +1468,13 @@ union cvmx_pciercx_cfg001
 	struct cvmx_pciercx_cfg001_s          cn52xxp1;
 	struct cvmx_pciercx_cfg001_s          cn56xx;
 	struct cvmx_pciercx_cfg001_s          cn56xxp1;
+	struct cvmx_pciercx_cfg001_s          cn61xx;
 	struct cvmx_pciercx_cfg001_s          cn63xx;
 	struct cvmx_pciercx_cfg001_s          cn63xxp1;
+	struct cvmx_pciercx_cfg001_s          cn66xx;
+	struct cvmx_pciercx_cfg001_s          cn68xx;
+	struct cvmx_pciercx_cfg001_s          cn68xxp1;
+	struct cvmx_pciercx_cfg001_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg001 cvmx_pciercx_cfg001_t;
 
@@ -1170,12 +1484,10 @@ typedef union cvmx_pciercx_cfg001 cvmx_pciercx_cfg001_t;
  * PCIE_CFG002 = Third 32-bits of PCIE type 1 config space (Revision ID/Class Code Register)
  *
  */
-union cvmx_pciercx_cfg002
-{
+union cvmx_pciercx_cfg002 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg002_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg002_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t bcc                          : 8;  /**< Base Class Code, writable through PEM(0..1)_CFG_WR
                                                          However, the application must not change this field. */
 	uint32_t sc                           : 8;  /**< Subclass Code, writable through PEM(0..1)_CFG_WR
@@ -1195,8 +1507,13 @@ union cvmx_pciercx_cfg002
 	struct cvmx_pciercx_cfg002_s          cn52xxp1;
 	struct cvmx_pciercx_cfg002_s          cn56xx;
 	struct cvmx_pciercx_cfg002_s          cn56xxp1;
+	struct cvmx_pciercx_cfg002_s          cn61xx;
 	struct cvmx_pciercx_cfg002_s          cn63xx;
 	struct cvmx_pciercx_cfg002_s          cn63xxp1;
+	struct cvmx_pciercx_cfg002_s          cn66xx;
+	struct cvmx_pciercx_cfg002_s          cn68xx;
+	struct cvmx_pciercx_cfg002_s          cn68xxp1;
+	struct cvmx_pciercx_cfg002_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg002 cvmx_pciercx_cfg002_t;
 
@@ -1206,12 +1523,10 @@ typedef union cvmx_pciercx_cfg002 cvmx_pciercx_cfg002_t;
  * PCIE_CFG003 = Fourth 32-bits of PCIE type 1 config space (Cache Line Size/Master Latency Timer/Header Type Register/BIST Register)
  *
  */
-union cvmx_pciercx_cfg003
-{
+union cvmx_pciercx_cfg003 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg003_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg003_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t bist                         : 8;  /**< The BIST register functions are not supported.
                                                          All 8 bits of the BIST register are hardwired to 0. */
 	uint32_t mfd                          : 1;  /**< Multi Function Device
@@ -1238,8 +1553,13 @@ union cvmx_pciercx_cfg003
 	struct cvmx_pciercx_cfg003_s          cn52xxp1;
 	struct cvmx_pciercx_cfg003_s          cn56xx;
 	struct cvmx_pciercx_cfg003_s          cn56xxp1;
+	struct cvmx_pciercx_cfg003_s          cn61xx;
 	struct cvmx_pciercx_cfg003_s          cn63xx;
 	struct cvmx_pciercx_cfg003_s          cn63xxp1;
+	struct cvmx_pciercx_cfg003_s          cn66xx;
+	struct cvmx_pciercx_cfg003_s          cn68xx;
+	struct cvmx_pciercx_cfg003_s          cn68xxp1;
+	struct cvmx_pciercx_cfg003_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg003 cvmx_pciercx_cfg003_t;
 
@@ -1249,12 +1569,10 @@ typedef union cvmx_pciercx_cfg003 cvmx_pciercx_cfg003_t;
  * PCIE_CFG004 = Fifth 32-bits of PCIE type 1 config space (Base Address Register 0 - Low)
  *
  */
-union cvmx_pciercx_cfg004
-{
+union cvmx_pciercx_cfg004 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg004_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg004_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_0_31                : 32;
 #else
 	uint32_t reserved_0_31                : 32;
@@ -1264,8 +1582,13 @@ union cvmx_pciercx_cfg004
 	struct cvmx_pciercx_cfg004_s          cn52xxp1;
 	struct cvmx_pciercx_cfg004_s          cn56xx;
 	struct cvmx_pciercx_cfg004_s          cn56xxp1;
+	struct cvmx_pciercx_cfg004_s          cn61xx;
 	struct cvmx_pciercx_cfg004_s          cn63xx;
 	struct cvmx_pciercx_cfg004_s          cn63xxp1;
+	struct cvmx_pciercx_cfg004_s          cn66xx;
+	struct cvmx_pciercx_cfg004_s          cn68xx;
+	struct cvmx_pciercx_cfg004_s          cn68xxp1;
+	struct cvmx_pciercx_cfg004_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg004 cvmx_pciercx_cfg004_t;
 
@@ -1275,12 +1598,10 @@ typedef union cvmx_pciercx_cfg004 cvmx_pciercx_cfg004_t;
  * PCIE_CFG005 = Sixth 32-bits of PCIE type 1 config space (Base Address Register 0 - High)
  *
  */
-union cvmx_pciercx_cfg005
-{
+union cvmx_pciercx_cfg005 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg005_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg005_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_0_31                : 32;
 #else
 	uint32_t reserved_0_31                : 32;
@@ -1290,8 +1611,13 @@ union cvmx_pciercx_cfg005
 	struct cvmx_pciercx_cfg005_s          cn52xxp1;
 	struct cvmx_pciercx_cfg005_s          cn56xx;
 	struct cvmx_pciercx_cfg005_s          cn56xxp1;
+	struct cvmx_pciercx_cfg005_s          cn61xx;
 	struct cvmx_pciercx_cfg005_s          cn63xx;
 	struct cvmx_pciercx_cfg005_s          cn63xxp1;
+	struct cvmx_pciercx_cfg005_s          cn66xx;
+	struct cvmx_pciercx_cfg005_s          cn68xx;
+	struct cvmx_pciercx_cfg005_s          cn68xxp1;
+	struct cvmx_pciercx_cfg005_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg005 cvmx_pciercx_cfg005_t;
 
@@ -1301,12 +1627,10 @@ typedef union cvmx_pciercx_cfg005 cvmx_pciercx_cfg005_t;
  * PCIE_CFG006 = Seventh 32-bits of PCIE type 1 config space (Bus Number Registers)
  *
  */
-union cvmx_pciercx_cfg006
-{
+union cvmx_pciercx_cfg006 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg006_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg006_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t slt                          : 8;  /**< Secondary Latency Timer
                                                          Not applicable to PCI Express, hardwired to 0x00. */
 	uint32_t subbnum                      : 8;  /**< Subordinate Bus Number */
@@ -1323,8 +1647,13 @@ union cvmx_pciercx_cfg006
 	struct cvmx_pciercx_cfg006_s          cn52xxp1;
 	struct cvmx_pciercx_cfg006_s          cn56xx;
 	struct cvmx_pciercx_cfg006_s          cn56xxp1;
+	struct cvmx_pciercx_cfg006_s          cn61xx;
 	struct cvmx_pciercx_cfg006_s          cn63xx;
 	struct cvmx_pciercx_cfg006_s          cn63xxp1;
+	struct cvmx_pciercx_cfg006_s          cn66xx;
+	struct cvmx_pciercx_cfg006_s          cn68xx;
+	struct cvmx_pciercx_cfg006_s          cn68xxp1;
+	struct cvmx_pciercx_cfg006_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg006 cvmx_pciercx_cfg006_t;
 
@@ -1334,12 +1663,10 @@ typedef union cvmx_pciercx_cfg006 cvmx_pciercx_cfg006_t;
  * PCIE_CFG007 = Eighth 32-bits of PCIE type 1 config space (IO Base and IO Limit/Secondary Status Register)
  *
  */
-union cvmx_pciercx_cfg007
-{
+union cvmx_pciercx_cfg007 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg007_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg007_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t dpe                          : 1;  /**< Detected Parity Error */
 	uint32_t sse                          : 1;  /**< Signaled System Error */
 	uint32_t rma                          : 1;  /**< Received Master Abort */
@@ -1391,8 +1718,13 @@ union cvmx_pciercx_cfg007
 	struct cvmx_pciercx_cfg007_s          cn52xxp1;
 	struct cvmx_pciercx_cfg007_s          cn56xx;
 	struct cvmx_pciercx_cfg007_s          cn56xxp1;
+	struct cvmx_pciercx_cfg007_s          cn61xx;
 	struct cvmx_pciercx_cfg007_s          cn63xx;
 	struct cvmx_pciercx_cfg007_s          cn63xxp1;
+	struct cvmx_pciercx_cfg007_s          cn66xx;
+	struct cvmx_pciercx_cfg007_s          cn68xx;
+	struct cvmx_pciercx_cfg007_s          cn68xxp1;
+	struct cvmx_pciercx_cfg007_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg007 cvmx_pciercx_cfg007_t;
 
@@ -1402,12 +1734,10 @@ typedef union cvmx_pciercx_cfg007 cvmx_pciercx_cfg007_t;
  * PCIE_CFG008 = Ninth 32-bits of PCIE type 1 config space (Memory Base and Memory Limit Register)
  *
  */
-union cvmx_pciercx_cfg008
-{
+union cvmx_pciercx_cfg008 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg008_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg008_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t ml_addr                      : 12; /**< Memory Limit Address */
 	uint32_t reserved_16_19               : 4;
 	uint32_t mb_addr                      : 12; /**< Memory Base Address */
@@ -1423,8 +1753,13 @@ union cvmx_pciercx_cfg008
 	struct cvmx_pciercx_cfg008_s          cn52xxp1;
 	struct cvmx_pciercx_cfg008_s          cn56xx;
 	struct cvmx_pciercx_cfg008_s          cn56xxp1;
+	struct cvmx_pciercx_cfg008_s          cn61xx;
 	struct cvmx_pciercx_cfg008_s          cn63xx;
 	struct cvmx_pciercx_cfg008_s          cn63xxp1;
+	struct cvmx_pciercx_cfg008_s          cn66xx;
+	struct cvmx_pciercx_cfg008_s          cn68xx;
+	struct cvmx_pciercx_cfg008_s          cn68xxp1;
+	struct cvmx_pciercx_cfg008_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg008 cvmx_pciercx_cfg008_t;
 
@@ -1434,12 +1769,10 @@ typedef union cvmx_pciercx_cfg008 cvmx_pciercx_cfg008_t;
  * PCIE_CFG009 = Tenth 32-bits of PCIE type 1 config space (Prefetchable Memory Base and Limit Register)
  *
  */
-union cvmx_pciercx_cfg009
-{
+union cvmx_pciercx_cfg009 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg009_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg009_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t lmem_limit                   : 12; /**< Upper 12 bits of 32-bit Prefetchable Memory End Address */
 	uint32_t reserved_17_19               : 3;
 	uint32_t mem64b                       : 1;  /**< 64-Bit Memory Addressing
@@ -1468,8 +1801,13 @@ union cvmx_pciercx_cfg009
 	struct cvmx_pciercx_cfg009_s          cn52xxp1;
 	struct cvmx_pciercx_cfg009_s          cn56xx;
 	struct cvmx_pciercx_cfg009_s          cn56xxp1;
+	struct cvmx_pciercx_cfg009_s          cn61xx;
 	struct cvmx_pciercx_cfg009_s          cn63xx;
 	struct cvmx_pciercx_cfg009_s          cn63xxp1;
+	struct cvmx_pciercx_cfg009_s          cn66xx;
+	struct cvmx_pciercx_cfg009_s          cn68xx;
+	struct cvmx_pciercx_cfg009_s          cn68xxp1;
+	struct cvmx_pciercx_cfg009_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg009 cvmx_pciercx_cfg009_t;
 
@@ -1479,12 +1817,10 @@ typedef union cvmx_pciercx_cfg009 cvmx_pciercx_cfg009_t;
  * PCIE_CFG010 = Eleventh 32-bits of PCIE type 1 config space (Prefetchable Base Upper 32 Bits Register)
  *
  */
-union cvmx_pciercx_cfg010
-{
+union cvmx_pciercx_cfg010 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg010_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg010_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t umem_base                    : 32; /**< Upper 32 Bits of Base Address of Prefetchable Memory Space
                                                          Used only when 64-bit prefetchable memory addressing is
                                                          enabled. */
@@ -1496,8 +1832,13 @@ union cvmx_pciercx_cfg010
 	struct cvmx_pciercx_cfg010_s          cn52xxp1;
 	struct cvmx_pciercx_cfg010_s          cn56xx;
 	struct cvmx_pciercx_cfg010_s          cn56xxp1;
+	struct cvmx_pciercx_cfg010_s          cn61xx;
 	struct cvmx_pciercx_cfg010_s          cn63xx;
 	struct cvmx_pciercx_cfg010_s          cn63xxp1;
+	struct cvmx_pciercx_cfg010_s          cn66xx;
+	struct cvmx_pciercx_cfg010_s          cn68xx;
+	struct cvmx_pciercx_cfg010_s          cn68xxp1;
+	struct cvmx_pciercx_cfg010_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg010 cvmx_pciercx_cfg010_t;
 
@@ -1507,12 +1848,10 @@ typedef union cvmx_pciercx_cfg010 cvmx_pciercx_cfg010_t;
  * PCIE_CFG011 = Twelfth 32-bits of PCIE type 1 config space (Prefetchable Limit Upper 32 Bits Register)
  *
  */
-union cvmx_pciercx_cfg011
-{
+union cvmx_pciercx_cfg011 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg011_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg011_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t umem_limit                   : 32; /**< Upper 32 Bits of Limit Address of Prefetchable Memory Space
                                                          Used only when 64-bit prefetchable memory addressing is
                                                          enabled. */
@@ -1524,8 +1863,13 @@ union cvmx_pciercx_cfg011
 	struct cvmx_pciercx_cfg011_s          cn52xxp1;
 	struct cvmx_pciercx_cfg011_s          cn56xx;
 	struct cvmx_pciercx_cfg011_s          cn56xxp1;
+	struct cvmx_pciercx_cfg011_s          cn61xx;
 	struct cvmx_pciercx_cfg011_s          cn63xx;
 	struct cvmx_pciercx_cfg011_s          cn63xxp1;
+	struct cvmx_pciercx_cfg011_s          cn66xx;
+	struct cvmx_pciercx_cfg011_s          cn68xx;
+	struct cvmx_pciercx_cfg011_s          cn68xxp1;
+	struct cvmx_pciercx_cfg011_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg011 cvmx_pciercx_cfg011_t;
 
@@ -1535,12 +1879,10 @@ typedef union cvmx_pciercx_cfg011 cvmx_pciercx_cfg011_t;
  * PCIE_CFG012 = Thirteenth 32-bits of PCIE type 1 config space (IO Base and Limit Upper 16 Bits Register)
  *
  */
-union cvmx_pciercx_cfg012
-{
+union cvmx_pciercx_cfg012 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg012_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg012_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t uio_limit                    : 16; /**< Upper 16 Bits of I/O Limit (if 32-bit I/O decoding is supported
                                                          for devices on the secondary side) */
 	uint32_t uio_base                     : 16; /**< Upper 16 Bits of I/O Base (if 32-bit I/O decoding is supported
@@ -1554,8 +1896,13 @@ union cvmx_pciercx_cfg012
 	struct cvmx_pciercx_cfg012_s          cn52xxp1;
 	struct cvmx_pciercx_cfg012_s          cn56xx;
 	struct cvmx_pciercx_cfg012_s          cn56xxp1;
+	struct cvmx_pciercx_cfg012_s          cn61xx;
 	struct cvmx_pciercx_cfg012_s          cn63xx;
 	struct cvmx_pciercx_cfg012_s          cn63xxp1;
+	struct cvmx_pciercx_cfg012_s          cn66xx;
+	struct cvmx_pciercx_cfg012_s          cn68xx;
+	struct cvmx_pciercx_cfg012_s          cn68xxp1;
+	struct cvmx_pciercx_cfg012_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg012 cvmx_pciercx_cfg012_t;
 
@@ -1565,12 +1912,10 @@ typedef union cvmx_pciercx_cfg012 cvmx_pciercx_cfg012_t;
  * PCIE_CFG013 = Fourteenth 32-bits of PCIE type 1 config space (Capability Pointer Register)
  *
  */
-union cvmx_pciercx_cfg013
-{
+union cvmx_pciercx_cfg013 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg013_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg013_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_8_31                : 24;
 	uint32_t cp                           : 8;  /**< First Capability Pointer.
                                                          Points to Power Management Capability structure by
@@ -1585,8 +1930,13 @@ union cvmx_pciercx_cfg013
 	struct cvmx_pciercx_cfg013_s          cn52xxp1;
 	struct cvmx_pciercx_cfg013_s          cn56xx;
 	struct cvmx_pciercx_cfg013_s          cn56xxp1;
+	struct cvmx_pciercx_cfg013_s          cn61xx;
 	struct cvmx_pciercx_cfg013_s          cn63xx;
 	struct cvmx_pciercx_cfg013_s          cn63xxp1;
+	struct cvmx_pciercx_cfg013_s          cn66xx;
+	struct cvmx_pciercx_cfg013_s          cn68xx;
+	struct cvmx_pciercx_cfg013_s          cn68xxp1;
+	struct cvmx_pciercx_cfg013_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg013 cvmx_pciercx_cfg013_t;
 
@@ -1596,12 +1946,10 @@ typedef union cvmx_pciercx_cfg013 cvmx_pciercx_cfg013_t;
  * PCIE_CFG014 = Fifteenth 32-bits of PCIE type 1 config space (Expansion ROM Base Address Register)
  *
  */
-union cvmx_pciercx_cfg014
-{
+union cvmx_pciercx_cfg014 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg014_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg014_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_0_31                : 32;
 #else
 	uint32_t reserved_0_31                : 32;
@@ -1611,8 +1959,13 @@ union cvmx_pciercx_cfg014
 	struct cvmx_pciercx_cfg014_s          cn52xxp1;
 	struct cvmx_pciercx_cfg014_s          cn56xx;
 	struct cvmx_pciercx_cfg014_s          cn56xxp1;
+	struct cvmx_pciercx_cfg014_s          cn61xx;
 	struct cvmx_pciercx_cfg014_s          cn63xx;
 	struct cvmx_pciercx_cfg014_s          cn63xxp1;
+	struct cvmx_pciercx_cfg014_s          cn66xx;
+	struct cvmx_pciercx_cfg014_s          cn68xx;
+	struct cvmx_pciercx_cfg014_s          cn68xxp1;
+	struct cvmx_pciercx_cfg014_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg014 cvmx_pciercx_cfg014_t;
 
@@ -1622,12 +1975,10 @@ typedef union cvmx_pciercx_cfg014 cvmx_pciercx_cfg014_t;
  * PCIE_CFG015 = Sixteenth 32-bits of PCIE type 1 config space (Interrupt Line Register/Interrupt Pin/Bridge Control Register)
  *
  */
-union cvmx_pciercx_cfg015
-{
+union cvmx_pciercx_cfg015 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg015_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg015_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_28_31               : 4;
 	uint32_t dtsees                       : 1;  /**< Discard Timer SERR Enable Status
                                                          Not applicable to PCI Express, hardwired to 0. */
@@ -1682,8 +2033,13 @@ union cvmx_pciercx_cfg015
 	struct cvmx_pciercx_cfg015_s          cn52xxp1;
 	struct cvmx_pciercx_cfg015_s          cn56xx;
 	struct cvmx_pciercx_cfg015_s          cn56xxp1;
+	struct cvmx_pciercx_cfg015_s          cn61xx;
 	struct cvmx_pciercx_cfg015_s          cn63xx;
 	struct cvmx_pciercx_cfg015_s          cn63xxp1;
+	struct cvmx_pciercx_cfg015_s          cn66xx;
+	struct cvmx_pciercx_cfg015_s          cn68xx;
+	struct cvmx_pciercx_cfg015_s          cn68xxp1;
+	struct cvmx_pciercx_cfg015_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg015 cvmx_pciercx_cfg015_t;
 
@@ -1695,12 +2051,10 @@ typedef union cvmx_pciercx_cfg015 cvmx_pciercx_cfg015_t;
  * Power Management Next Item Pointer/
  * Power Management Capabilities Register)
  */
-union cvmx_pciercx_cfg016
-{
+union cvmx_pciercx_cfg016 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg016_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg016_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t pmes                         : 5;  /**< PME_Support
                                                          A value of 0 for any bit indicates that the
                                                          device (or function) is not capable of generating PME Messages
@@ -1745,8 +2099,13 @@ union cvmx_pciercx_cfg016
 	struct cvmx_pciercx_cfg016_s          cn52xxp1;
 	struct cvmx_pciercx_cfg016_s          cn56xx;
 	struct cvmx_pciercx_cfg016_s          cn56xxp1;
+	struct cvmx_pciercx_cfg016_s          cn61xx;
 	struct cvmx_pciercx_cfg016_s          cn63xx;
 	struct cvmx_pciercx_cfg016_s          cn63xxp1;
+	struct cvmx_pciercx_cfg016_s          cn66xx;
+	struct cvmx_pciercx_cfg016_s          cn68xx;
+	struct cvmx_pciercx_cfg016_s          cn68xxp1;
+	struct cvmx_pciercx_cfg016_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg016 cvmx_pciercx_cfg016_t;
 
@@ -1756,12 +2115,10 @@ typedef union cvmx_pciercx_cfg016 cvmx_pciercx_cfg016_t;
  * PCIE_CFG017 = Eighteenth 32-bits of PCIE type 1 config space (Power Management Control and Status Register)
  *
  */
-union cvmx_pciercx_cfg017
-{
+union cvmx_pciercx_cfg017 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg017_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg017_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t pmdia                        : 8;  /**< Data register for additional information (not supported) */
 	uint32_t bpccee                       : 1;  /**< Bus Power/Clock Control Enable, hardwired to 0 */
 	uint32_t bd3h                         : 1;  /**< B2/B3 Support, hardwired to 0 */
@@ -1804,8 +2161,13 @@ union cvmx_pciercx_cfg017
 	struct cvmx_pciercx_cfg017_s          cn52xxp1;
 	struct cvmx_pciercx_cfg017_s          cn56xx;
 	struct cvmx_pciercx_cfg017_s          cn56xxp1;
+	struct cvmx_pciercx_cfg017_s          cn61xx;
 	struct cvmx_pciercx_cfg017_s          cn63xx;
 	struct cvmx_pciercx_cfg017_s          cn63xxp1;
+	struct cvmx_pciercx_cfg017_s          cn66xx;
+	struct cvmx_pciercx_cfg017_s          cn68xx;
+	struct cvmx_pciercx_cfg017_s          cn68xxp1;
+	struct cvmx_pciercx_cfg017_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg017 cvmx_pciercx_cfg017_t;
 
@@ -1817,13 +2179,12 @@ typedef union cvmx_pciercx_cfg017 cvmx_pciercx_cfg017_t;
  *  MSI Next Item Pointer/
  *  MSI Control Register)
  */
-union cvmx_pciercx_cfg020
-{
+union cvmx_pciercx_cfg020 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg020_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
-	uint32_t reserved_24_31               : 8;
+	struct cvmx_pciercx_cfg020_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_25_31               : 7;
+	uint32_t pvm                          : 1;  /**< Per-vector masking capable */
 	uint32_t m64                          : 1;  /**< 64-bit Address Capable, writable through PEM(0..1)_CFG_WR
                                                          However, the application must not change this field. */
 	uint32_t mme                          : 3;  /**< Multiple Message Enabled
@@ -1849,15 +2210,51 @@ union cvmx_pciercx_cfg020
 	uint32_t mmc                          : 3;
 	uint32_t mme                          : 3;
 	uint32_t m64                          : 1;
-	uint32_t reserved_24_31               : 8;
+	uint32_t pvm                          : 1;
+	uint32_t reserved_25_31               : 7;
 #endif
 	} s;
-	struct cvmx_pciercx_cfg020_s          cn52xx;
-	struct cvmx_pciercx_cfg020_s          cn52xxp1;
-	struct cvmx_pciercx_cfg020_s          cn56xx;
-	struct cvmx_pciercx_cfg020_s          cn56xxp1;
-	struct cvmx_pciercx_cfg020_s          cn63xx;
-	struct cvmx_pciercx_cfg020_s          cn63xxp1;
+	struct cvmx_pciercx_cfg020_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_24_31               : 8;
+	uint32_t m64                          : 1;  /**< 64-bit Address Capable, writable through PESC(0..1)_CFG_WR
+                                                         However, the application must not change this field. */
+	uint32_t mme                          : 3;  /**< Multiple Message Enabled
+                                                         Indicates that multiple Message mode is enabled by system
+                                                         software. The number of Messages enabled must be less than
+                                                         or equal to the Multiple Message Capable value. */
+	uint32_t mmc                          : 3;  /**< Multiple Message Capable, writable through PESC(0..1)_CFG_WR
+                                                         However, the application must not change this field. */
+	uint32_t msien                        : 1;  /**< MSI Enabled
+                                                         When set, INTx must be disabled.
+                                                         This bit must never be set, as internal-MSI is not supported in
+                                                         RC mode. (Note that this has no effect on external MSI, which
+                                                         will be commonly used in RC mode.) */
+	uint32_t ncp                          : 8;  /**< Next Capability Pointer
+                                                         Points to PCI Express Capabilities by default,
+                                                         writable through PESC(0..1)_CFG_WR.
+                                                         However, the application must not change this field. */
+	uint32_t msicid                       : 8;  /**< MSI Capability ID */
+#else
+	uint32_t msicid                       : 8;
+	uint32_t ncp                          : 8;
+	uint32_t msien                        : 1;
+	uint32_t mmc                          : 3;
+	uint32_t mme                          : 3;
+	uint32_t m64                          : 1;
+	uint32_t reserved_24_31               : 8;
+#endif
+	} cn52xx;
+	struct cvmx_pciercx_cfg020_cn52xx     cn52xxp1;
+	struct cvmx_pciercx_cfg020_cn52xx     cn56xx;
+	struct cvmx_pciercx_cfg020_cn52xx     cn56xxp1;
+	struct cvmx_pciercx_cfg020_s          cn61xx;
+	struct cvmx_pciercx_cfg020_cn52xx     cn63xx;
+	struct cvmx_pciercx_cfg020_cn52xx     cn63xxp1;
+	struct cvmx_pciercx_cfg020_cn52xx     cn66xx;
+	struct cvmx_pciercx_cfg020_cn52xx     cn68xx;
+	struct cvmx_pciercx_cfg020_cn52xx     cn68xxp1;
+	struct cvmx_pciercx_cfg020_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg020 cvmx_pciercx_cfg020_t;
 
@@ -1867,12 +2264,10 @@ typedef union cvmx_pciercx_cfg020 cvmx_pciercx_cfg020_t;
  * PCIE_CFG021 = Twenty-second 32-bits of PCIE type 1 config space (MSI Lower 32 Bits Address Register)
  *
  */
-union cvmx_pciercx_cfg021
-{
+union cvmx_pciercx_cfg021 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg021_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg021_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t lmsi                         : 30; /**< Lower 32-bit Address */
 	uint32_t reserved_0_1                 : 2;
 #else
@@ -1884,8 +2279,13 @@ union cvmx_pciercx_cfg021
 	struct cvmx_pciercx_cfg021_s          cn52xxp1;
 	struct cvmx_pciercx_cfg021_s          cn56xx;
 	struct cvmx_pciercx_cfg021_s          cn56xxp1;
+	struct cvmx_pciercx_cfg021_s          cn61xx;
 	struct cvmx_pciercx_cfg021_s          cn63xx;
 	struct cvmx_pciercx_cfg021_s          cn63xxp1;
+	struct cvmx_pciercx_cfg021_s          cn66xx;
+	struct cvmx_pciercx_cfg021_s          cn68xx;
+	struct cvmx_pciercx_cfg021_s          cn68xxp1;
+	struct cvmx_pciercx_cfg021_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg021 cvmx_pciercx_cfg021_t;
 
@@ -1895,12 +2295,10 @@ typedef union cvmx_pciercx_cfg021 cvmx_pciercx_cfg021_t;
  * PCIE_CFG022 = Twenty-third 32-bits of PCIE type 1 config space (MSI Upper 32 bits Address Register)
  *
  */
-union cvmx_pciercx_cfg022
-{
+union cvmx_pciercx_cfg022 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg022_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg022_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t umsi                         : 32; /**< Upper 32-bit Address */
 #else
 	uint32_t umsi                         : 32;
@@ -1910,8 +2308,13 @@ union cvmx_pciercx_cfg022
 	struct cvmx_pciercx_cfg022_s          cn52xxp1;
 	struct cvmx_pciercx_cfg022_s          cn56xx;
 	struct cvmx_pciercx_cfg022_s          cn56xxp1;
+	struct cvmx_pciercx_cfg022_s          cn61xx;
 	struct cvmx_pciercx_cfg022_s          cn63xx;
 	struct cvmx_pciercx_cfg022_s          cn63xxp1;
+	struct cvmx_pciercx_cfg022_s          cn66xx;
+	struct cvmx_pciercx_cfg022_s          cn68xx;
+	struct cvmx_pciercx_cfg022_s          cn68xxp1;
+	struct cvmx_pciercx_cfg022_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg022 cvmx_pciercx_cfg022_t;
 
@@ -1921,12 +2324,10 @@ typedef union cvmx_pciercx_cfg022 cvmx_pciercx_cfg022_t;
  * PCIE_CFG023 = Twenty-fourth 32-bits of PCIE type 1 config space (MSI Data Register)
  *
  */
-union cvmx_pciercx_cfg023
-{
+union cvmx_pciercx_cfg023 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg023_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg023_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_16_31               : 16;
 	uint32_t msimd                        : 16; /**< MSI Data
                                                          Pattern assigned by system software, bits [4:0] are Or-ed with
@@ -1940,8 +2341,13 @@ union cvmx_pciercx_cfg023
 	struct cvmx_pciercx_cfg023_s          cn52xxp1;
 	struct cvmx_pciercx_cfg023_s          cn56xx;
 	struct cvmx_pciercx_cfg023_s          cn56xxp1;
+	struct cvmx_pciercx_cfg023_s          cn61xx;
 	struct cvmx_pciercx_cfg023_s          cn63xx;
 	struct cvmx_pciercx_cfg023_s          cn63xxp1;
+	struct cvmx_pciercx_cfg023_s          cn66xx;
+	struct cvmx_pciercx_cfg023_s          cn68xx;
+	struct cvmx_pciercx_cfg023_s          cn68xxp1;
+	struct cvmx_pciercx_cfg023_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg023 cvmx_pciercx_cfg023_t;
 
@@ -1952,12 +2358,10 @@ typedef union cvmx_pciercx_cfg023 cvmx_pciercx_cfg023_t;
  * (PCI Express Capabilities List Register/
  *  PCI Express Capabilities Register)
  */
-union cvmx_pciercx_cfg028
-{
+union cvmx_pciercx_cfg028 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg028_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg028_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_30_31               : 2;
 	uint32_t imn                          : 5;  /**< Interrupt Message Number
                                                          Updated by hardware, writable through PEM(0..1)_CFG_WR.
@@ -1987,8 +2391,13 @@ union cvmx_pciercx_cfg028
 	struct cvmx_pciercx_cfg028_s          cn52xxp1;
 	struct cvmx_pciercx_cfg028_s          cn56xx;
 	struct cvmx_pciercx_cfg028_s          cn56xxp1;
+	struct cvmx_pciercx_cfg028_s          cn61xx;
 	struct cvmx_pciercx_cfg028_s          cn63xx;
 	struct cvmx_pciercx_cfg028_s          cn63xxp1;
+	struct cvmx_pciercx_cfg028_s          cn66xx;
+	struct cvmx_pciercx_cfg028_s          cn68xx;
+	struct cvmx_pciercx_cfg028_s          cn68xxp1;
+	struct cvmx_pciercx_cfg028_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg028 cvmx_pciercx_cfg028_t;
 
@@ -1998,12 +2407,10 @@ typedef union cvmx_pciercx_cfg028 cvmx_pciercx_cfg028_t;
  * PCIE_CFG029 = Thirtieth 32-bits of PCIE type 1 config space (Device Capabilities Register)
  *
  */
-union cvmx_pciercx_cfg029
-{
+union cvmx_pciercx_cfg029 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg029_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg029_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_28_31               : 4;
 	uint32_t cspls                        : 2;  /**< Captured Slot Power Limit Scale
                                                          Not applicable for RC port, upstream port only. */
@@ -2046,8 +2453,13 @@ union cvmx_pciercx_cfg029
 	struct cvmx_pciercx_cfg029_s          cn52xxp1;
 	struct cvmx_pciercx_cfg029_s          cn56xx;
 	struct cvmx_pciercx_cfg029_s          cn56xxp1;
+	struct cvmx_pciercx_cfg029_s          cn61xx;
 	struct cvmx_pciercx_cfg029_s          cn63xx;
 	struct cvmx_pciercx_cfg029_s          cn63xxp1;
+	struct cvmx_pciercx_cfg029_s          cn66xx;
+	struct cvmx_pciercx_cfg029_s          cn68xx;
+	struct cvmx_pciercx_cfg029_s          cn68xxp1;
+	struct cvmx_pciercx_cfg029_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg029 cvmx_pciercx_cfg029_t;
 
@@ -2057,16 +2469,13 @@ typedef union cvmx_pciercx_cfg029 cvmx_pciercx_cfg029_t;
  * PCIE_CFG030 = Thirty-first 32-bits of PCIE type 1 config space
  * (Device Control Register/Device Status Register)
  */
-union cvmx_pciercx_cfg030
-{
+union cvmx_pciercx_cfg030 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg030_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg030_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_22_31               : 10;
 	uint32_t tp                           : 1;  /**< Transaction Pending
-                                                         Set to 1 when Non-Posted Requests are not yet completed
-                                                         and clear when they are completed. */
+                                                         Hard-wired to 0. */
 	uint32_t ap_d                         : 1;  /**< Aux Power Detected
                                                          Set to 1 if Aux power detected. */
 	uint32_t ur_d                         : 1;  /**< Unsupported Request Detected
@@ -2126,7 +2535,8 @@ union cvmx_pciercx_cfg030
                                                                for Peer-to-Peer to function properly.
                                                          Note: DPI_SLI_PRT#_CFG[MPS] must also be set to the same
                                                                value for proper functionality. */
-	uint32_t ro_en                        : 1;  /**< Enable Relaxed Ordering */
+	uint32_t ro_en                        : 1;  /**< Enable Relaxed Ordering
+                                                         This bit is not used. */
 	uint32_t ur_en                        : 1;  /**< Unsupported Request Reporting Enable */
 	uint32_t fe_en                        : 1;  /**< Fatal Error Reporting Enable */
 	uint32_t nfe_en                       : 1;  /**< Non-Fatal Error Reporting Enable */
@@ -2157,8 +2567,13 @@ union cvmx_pciercx_cfg030
 	struct cvmx_pciercx_cfg030_s          cn52xxp1;
 	struct cvmx_pciercx_cfg030_s          cn56xx;
 	struct cvmx_pciercx_cfg030_s          cn56xxp1;
+	struct cvmx_pciercx_cfg030_s          cn61xx;
 	struct cvmx_pciercx_cfg030_s          cn63xx;
 	struct cvmx_pciercx_cfg030_s          cn63xxp1;
+	struct cvmx_pciercx_cfg030_s          cn66xx;
+	struct cvmx_pciercx_cfg030_s          cn68xx;
+	struct cvmx_pciercx_cfg030_s          cn68xxp1;
+	struct cvmx_pciercx_cfg030_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg030 cvmx_pciercx_cfg030_t;
 
@@ -2168,16 +2583,18 @@ typedef union cvmx_pciercx_cfg030 cvmx_pciercx_cfg030_t;
  * PCIE_CFG031 = Thirty-second 32-bits of PCIE type 1 config space
  * (Link Capabilities Register)
  */
-union cvmx_pciercx_cfg031
-{
+union cvmx_pciercx_cfg031 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg031_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
-	uint32_t pnum                         : 8;  /**< Port Number, writable through PEM(0..1)_CFG_WR
+	struct cvmx_pciercx_cfg031_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t pnum                         : 8;  /**< Port Number
+                                                         writable through PEM(0..1)_CFG_WR, however the application
+                                                         must not change this field. */
+	uint32_t reserved_23_23               : 1;
+	uint32_t aspm                         : 1;  /**< ASPM Optionality Compliance */
+	uint32_t lbnc                         : 1;  /**< Link Bandwidth Notification Capability
+                                                         Set to 1 for Root Complex devices. writable through PEM(0..1)_CFG_WR.
                                                          However, the application must not change this field. */
-	uint32_t reserved_22_23               : 2;
-	uint32_t lbnc                         : 1;  /**< Link Bandwith Notification Capability */
 	uint32_t dllarc                       : 1;  /**< Data Link Layer Active Reporting Capable
                                                          Set to 1 for Root Complex devices and 0 for Endpoint devices. */
 	uint32_t sderc                        : 1;  /**< Surprise Down Error Reporting Capable
@@ -2200,13 +2617,67 @@ union cvmx_pciercx_cfg031
                                                          However, the application must not change this field. */
 	uint32_t mlw                          : 6;  /**< Maximum Link Width
                                                          The default value is the value you specify during hardware
-                                                         configuration (x1, x4, x8, or x16), writable through PEM(0..1)_CFG_WR. */
+                                                         configuration (x1 or x2) writable through PEM(0..1)_CFG_WR. */
 	uint32_t mls                          : 4;  /**< Maximum Link Speed
-                                                         The following values are accepted:
-                                                         0001b: 2.5 GHz supported
-                                                         0010b: 5.0 GHz and 2.5 GHz supported
+                                                         The reset value of this field is controlled by a value sent from
+                                                         the lsb of the MIO_QLM#_SPD register.
+                                                         qlm#_spd[0]   RST_VALUE   NOTE
+                                                         1             0001b       2.5 GHz supported
+                                                         0             0010b       5.0 GHz and 2.5 GHz supported
                                                          This field is writable through PEM(0..1)_CFG_WR.
                                                          However, the application must not change this field. */
+#else
+	uint32_t mls                          : 4;
+	uint32_t mlw                          : 6;
+	uint32_t aslpms                       : 2;
+	uint32_t l0el                         : 3;
+	uint32_t l1el                         : 3;
+	uint32_t cpm                          : 1;
+	uint32_t sderc                        : 1;
+	uint32_t dllarc                       : 1;
+	uint32_t lbnc                         : 1;
+	uint32_t aspm                         : 1;
+	uint32_t reserved_23_23               : 1;
+	uint32_t pnum                         : 8;
+#endif
+	} s;
+	struct cvmx_pciercx_cfg031_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t pnum                         : 8;  /**< Port Number, writable through PESC(0..1)_CFG_WR
+                                                         However, the application must not change this field. */
+	uint32_t reserved_22_23               : 2;
+	uint32_t lbnc                         : 1;  /**< Link Bandwith Notification Capability */
+	uint32_t dllarc                       : 1;  /**< Data Link Layer Active Reporting Capable
+                                                         Set to 1 for Root Complex devices and 0 for Endpoint devices. */
+	uint32_t sderc                        : 1;  /**< Surprise Down Error Reporting Capable
+                                                         Not supported, hardwired to 0x0. */
+	uint32_t cpm                          : 1;  /**< Clock Power Management
+                                                         The default value is the value you specify during hardware
+                                                         configuration, writable through PESC(0..1)_CFG_WR.
+                                                         However, the application must not change this field. */
+	uint32_t l1el                         : 3;  /**< L1 Exit Latency
+                                                         The default value is the value you specify during hardware
+                                                         configuration, writable through PESC(0..1)_CFG_WR.
+                                                         However, the application must not change this field. */
+	uint32_t l0el                         : 3;  /**< L0s Exit Latency
+                                                         The default value is the value you specify during hardware
+                                                         configuration, writable through PESC(0..1)_CFG_WR.
+                                                         However, the application must not change this field. */
+	uint32_t aslpms                       : 2;  /**< Active State Link PM Support
+                                                         The default value is the value you specify during hardware
+                                                         configuration, writable through PESC(0..1)_CFG_WR.
+                                                         However, the application must not change this field. */
+	uint32_t mlw                          : 6;  /**< Maximum Link Width
+                                                         The default value is the value you specify during hardware
+                                                         configuration (x1, x4, x8, or x16), writable through PESC(0..1)_CFG_WR.
+                                                         The SW needs to set this to 0x4 or 0x2 depending on the max
+                                                         number of lanes (QLM_CFG == 1 set to 0x4 else 0x2). */
+	uint32_t mls                          : 4;  /**< Maximum Link Speed
+                                                         Default value is 0x1 for 2.5 Gbps Link.
+                                                         This field is writable through PESC(0..1)_CFG_WR.
+                                                         However, 0x1 is the
+                                                         only supported value. Therefore, the application must not write
+                                                         any value other than 0x1 to this field. */
 #else
 	uint32_t mls                          : 4;
 	uint32_t mlw                          : 6;
@@ -2220,13 +2691,17 @@ union cvmx_pciercx_cfg031
 	uint32_t reserved_22_23               : 2;
 	uint32_t pnum                         : 8;
 #endif
-	} s;
-	struct cvmx_pciercx_cfg031_s          cn52xx;
-	struct cvmx_pciercx_cfg031_s          cn52xxp1;
-	struct cvmx_pciercx_cfg031_s          cn56xx;
-	struct cvmx_pciercx_cfg031_s          cn56xxp1;
-	struct cvmx_pciercx_cfg031_s          cn63xx;
-	struct cvmx_pciercx_cfg031_s          cn63xxp1;
+	} cn52xx;
+	struct cvmx_pciercx_cfg031_cn52xx     cn52xxp1;
+	struct cvmx_pciercx_cfg031_cn52xx     cn56xx;
+	struct cvmx_pciercx_cfg031_cn52xx     cn56xxp1;
+	struct cvmx_pciercx_cfg031_s          cn61xx;
+	struct cvmx_pciercx_cfg031_cn52xx     cn63xx;
+	struct cvmx_pciercx_cfg031_cn52xx     cn63xxp1;
+	struct cvmx_pciercx_cfg031_s          cn66xx;
+	struct cvmx_pciercx_cfg031_s          cn68xx;
+	struct cvmx_pciercx_cfg031_cn52xx     cn68xxp1;
+	struct cvmx_pciercx_cfg031_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg031 cvmx_pciercx_cfg031_t;
 
@@ -2236,14 +2711,26 @@ typedef union cvmx_pciercx_cfg031 cvmx_pciercx_cfg031_t;
  * PCIE_CFG032 = Thirty-third 32-bits of PCIE type 1 config space
  * (Link Control Register/Link Status Register)
  */
-union cvmx_pciercx_cfg032
-{
+union cvmx_pciercx_cfg032 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg032_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
-	uint32_t lab                          : 1;  /**< Link Autonomous Bandwidth Status */
-	uint32_t lbm                          : 1;  /**< Link Bandwidth Management Status */
+	struct cvmx_pciercx_cfg032_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t lab                          : 1;  /**< Link Autonomous Bandwidth Status
+                                                         this bit is set to indicate that hardware has autonomously
+                                                         changed Link speed or width, without the Port transitioning
+                                                         through DL_Down status, for reasons other than to attempt
+                                                         to correct unreliable Link operation. */
+	uint32_t lbm                          : 1;  /**< Link Bandwidth Management Status
+                                                         This bit is set to indicate either of the following has
+                                                         occurred without the Port transitioning through DL_DOWN status
+                                                         o A link retraining has completed following a write of 1b to
+                                                           the Retrain Link bit
+                                                         o Hardware has changed the Link speed or width to attempt to
+                                                           correct unreliable Link operation, either through a LTSSM
+                                                           timeout of higher level process.  This bit must be set if
+                                                           the Physical Layer reports a speed or width change was
+                                                           inititiated by the Downstream component tha was not
+                                                           indicated as an autonomous change */
 	uint32_t dlla                         : 1;  /**< Data Link Layer Active */
 	uint32_t scc                          : 1;  /**< Slot Clock Configuration
                                                          Indicates that the component uses the same physical reference
@@ -2254,16 +2741,19 @@ union cvmx_pciercx_cfg032
 	uint32_t lt                           : 1;  /**< Link Training */
 	uint32_t reserved_26_26               : 1;
 	uint32_t nlw                          : 6;  /**< Negotiated Link Width
-                                                         Set automatically by hardware after Link initialization. */
+                                                         Set automatically by hardware after Link initialization.
+                                                         Value is undefined when link is not up. */
 	uint32_t ls                           : 4;  /**< Link Speed
-                                                         The negotiated Link speed: 2.5 Gbps */
+                                                         0001 == The negotiated Link speed: 2.5 Gbps
+                                                         0010 == The negotiated Link speed: 5.0 Gbps
+                                                         0100 == The negotiated Link speed: 8.0 Gbps (Not Supported) */
 	uint32_t reserved_12_15               : 4;
 	uint32_t lab_int_enb                  : 1;  /**< Link Autonomous Bandwidth Interrupt Enable
-                                                         This interrupt is for Gen2 and is not supported. This bit should
-                                                         always be written to zero. */
+                                                         When set, enables the generation of an interrupt to indicate
+                                                         that the Link Autonomous Bandwidth Status bit has been set. */
 	uint32_t lbm_int_enb                  : 1;  /**< Link Bandwidth Management Interrupt Enable
-                                                         This interrupt is for Gen2 and is not supported. This bit should
-                                                         always be written to zero. */
+                                                         When set, enables the generation of an interrupt to indicate
+                                                         that the Link Bandwidth Management Status bit has been set. */
 	uint32_t hawd                         : 1;  /**< Hardware Autonomous Width Disable
                                                          (Not Supported) */
 	uint32_t ecpm                         : 1;  /**< Enable Clock Power Management
@@ -2305,8 +2795,13 @@ union cvmx_pciercx_cfg032
 	struct cvmx_pciercx_cfg032_s          cn52xxp1;
 	struct cvmx_pciercx_cfg032_s          cn56xx;
 	struct cvmx_pciercx_cfg032_s          cn56xxp1;
+	struct cvmx_pciercx_cfg032_s          cn61xx;
 	struct cvmx_pciercx_cfg032_s          cn63xx;
 	struct cvmx_pciercx_cfg032_s          cn63xxp1;
+	struct cvmx_pciercx_cfg032_s          cn66xx;
+	struct cvmx_pciercx_cfg032_s          cn68xx;
+	struct cvmx_pciercx_cfg032_s          cn68xxp1;
+	struct cvmx_pciercx_cfg032_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg032 cvmx_pciercx_cfg032_t;
 
@@ -2316,12 +2811,10 @@ typedef union cvmx_pciercx_cfg032 cvmx_pciercx_cfg032_t;
  * PCIE_CFG033 = Thirty-fourth 32-bits of PCIE type 1 config space
  * (Slot Capabilities Register)
  */
-union cvmx_pciercx_cfg033
-{
+union cvmx_pciercx_cfg033 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg033_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg033_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t ps_num                       : 13; /**< Physical Slot Number, writable through PEM(0..1)_CFG_WR
                                                          However, the application must not change this field. */
 	uint32_t nccs                         : 1;  /**< No Command Complete Support, writable through PEM(0..1)_CFG_WR
@@ -2363,8 +2856,13 @@ union cvmx_pciercx_cfg033
 	struct cvmx_pciercx_cfg033_s          cn52xxp1;
 	struct cvmx_pciercx_cfg033_s          cn56xx;
 	struct cvmx_pciercx_cfg033_s          cn56xxp1;
+	struct cvmx_pciercx_cfg033_s          cn61xx;
 	struct cvmx_pciercx_cfg033_s          cn63xx;
 	struct cvmx_pciercx_cfg033_s          cn63xxp1;
+	struct cvmx_pciercx_cfg033_s          cn66xx;
+	struct cvmx_pciercx_cfg033_s          cn68xx;
+	struct cvmx_pciercx_cfg033_s          cn68xxp1;
+	struct cvmx_pciercx_cfg033_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg033 cvmx_pciercx_cfg033_t;
 
@@ -2374,12 +2872,10 @@ typedef union cvmx_pciercx_cfg033 cvmx_pciercx_cfg033_t;
  * PCIE_CFG034 = Thirty-fifth 32-bits of PCIE type 1 config space
  * (Slot Control Register/Slot Status Register)
  */
-union cvmx_pciercx_cfg034
-{
+union cvmx_pciercx_cfg034 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg034_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg034_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_25_31               : 7;
 	uint32_t dlls_c                       : 1;  /**< Data Link Layer State Changed */
 	uint32_t emis                         : 1;  /**< Electromechanical Interlock Status */
@@ -2431,8 +2927,13 @@ union cvmx_pciercx_cfg034
 	struct cvmx_pciercx_cfg034_s          cn52xxp1;
 	struct cvmx_pciercx_cfg034_s          cn56xx;
 	struct cvmx_pciercx_cfg034_s          cn56xxp1;
+	struct cvmx_pciercx_cfg034_s          cn61xx;
 	struct cvmx_pciercx_cfg034_s          cn63xx;
 	struct cvmx_pciercx_cfg034_s          cn63xxp1;
+	struct cvmx_pciercx_cfg034_s          cn66xx;
+	struct cvmx_pciercx_cfg034_s          cn68xx;
+	struct cvmx_pciercx_cfg034_s          cn68xxp1;
+	struct cvmx_pciercx_cfg034_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg034 cvmx_pciercx_cfg034_t;
 
@@ -2442,12 +2943,10 @@ typedef union cvmx_pciercx_cfg034 cvmx_pciercx_cfg034_t;
  * PCIE_CFG035 = Thirty-sixth 32-bits of PCIE type 1 config space
  * (Root Control Register/Root Capabilities Register)
  */
-union cvmx_pciercx_cfg035
-{
+union cvmx_pciercx_cfg035 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg035_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg035_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_17_31               : 15;
 	uint32_t crssv                        : 1;  /**< CRS Software Visibility
                                                          Not supported, hardwired to 0x0. */
@@ -2473,8 +2972,13 @@ union cvmx_pciercx_cfg035
 	struct cvmx_pciercx_cfg035_s          cn52xxp1;
 	struct cvmx_pciercx_cfg035_s          cn56xx;
 	struct cvmx_pciercx_cfg035_s          cn56xxp1;
+	struct cvmx_pciercx_cfg035_s          cn61xx;
 	struct cvmx_pciercx_cfg035_s          cn63xx;
 	struct cvmx_pciercx_cfg035_s          cn63xxp1;
+	struct cvmx_pciercx_cfg035_s          cn66xx;
+	struct cvmx_pciercx_cfg035_s          cn68xx;
+	struct cvmx_pciercx_cfg035_s          cn68xxp1;
+	struct cvmx_pciercx_cfg035_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg035 cvmx_pciercx_cfg035_t;
 
@@ -2484,12 +2988,10 @@ typedef union cvmx_pciercx_cfg035 cvmx_pciercx_cfg035_t;
  * PCIE_CFG036 = Thirty-seventh 32-bits of PCIE type 1 config space
  * (Root Status Register)
  */
-union cvmx_pciercx_cfg036
-{
+union cvmx_pciercx_cfg036 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg036_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg036_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_18_31               : 14;
 	uint32_t pme_pend                     : 1;  /**< PME Pending */
 	uint32_t pme_stat                     : 1;  /**< PME Status */
@@ -2505,8 +3007,13 @@ union cvmx_pciercx_cfg036
 	struct cvmx_pciercx_cfg036_s          cn52xxp1;
 	struct cvmx_pciercx_cfg036_s          cn56xx;
 	struct cvmx_pciercx_cfg036_s          cn56xxp1;
+	struct cvmx_pciercx_cfg036_s          cn61xx;
 	struct cvmx_pciercx_cfg036_s          cn63xx;
 	struct cvmx_pciercx_cfg036_s          cn63xxp1;
+	struct cvmx_pciercx_cfg036_s          cn66xx;
+	struct cvmx_pciercx_cfg036_s          cn68xx;
+	struct cvmx_pciercx_cfg036_s          cn68xxp1;
+	struct cvmx_pciercx_cfg036_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg036 cvmx_pciercx_cfg036_t;
 
@@ -2516,12 +3023,47 @@ typedef union cvmx_pciercx_cfg036 cvmx_pciercx_cfg036_t;
  * PCIE_CFG037 = Thirty-eighth 32-bits of PCIE type 1 config space
  * (Device Capabilities 2 Register)
  */
-union cvmx_pciercx_cfg037
-{
+union cvmx_pciercx_cfg037 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg037_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg037_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_20_31               : 12;
+	uint32_t obffs                        : 2;  /**< Optimized Buffer Flush Fill (OBFF) Supported
+                                                         (Not Supported) */
+	uint32_t reserved_12_17               : 6;
+	uint32_t ltrs                         : 1;  /**< Latency Tolerance Reporting (LTR) Mechanism Supported
+                                                         (Not Supported) */
+	uint32_t noroprpr                     : 1;  /**< No RO-enabled PR-PR Passing
+                                                         When set, the routing element never carries out the passing
+                                                         permitted in the Relaxed Ordering Model. */
+	uint32_t atom128s                     : 1;  /**< 128-bit AtomicOp Supported
+                                                         (Not Supported) */
+	uint32_t atom64s                      : 1;  /**< 64-bit AtomicOp Supported
+                                                         (Not Supported) */
+	uint32_t atom32s                      : 1;  /**< 32-bit AtomicOp Supported
+                                                         (Not Supported) */
+	uint32_t atom_ops                     : 1;  /**< AtomicOp Routing Supported
+                                                         (Not Supported) */
+	uint32_t reserved_5_5                 : 1;
+	uint32_t ctds                         : 1;  /**< Completion Timeout Disable Supported */
+	uint32_t ctrs                         : 4;  /**< Completion Timeout Ranges Supported */
+#else
+	uint32_t ctrs                         : 4;
+	uint32_t ctds                         : 1;
+	uint32_t reserved_5_5                 : 1;
+	uint32_t atom_ops                     : 1;
+	uint32_t atom32s                      : 1;
+	uint32_t atom64s                      : 1;
+	uint32_t atom128s                     : 1;
+	uint32_t noroprpr                     : 1;
+	uint32_t ltrs                         : 1;
+	uint32_t reserved_12_17               : 6;
+	uint32_t obffs                        : 2;
+	uint32_t reserved_20_31               : 12;
+#endif
+	} s;
+	struct cvmx_pciercx_cfg037_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_5_31                : 27;
 	uint32_t ctds                         : 1;  /**< Completion Timeout Disable Supported */
 	uint32_t ctrs                         : 4;  /**< Completion Timeout Ranges Supported
@@ -2533,13 +3075,125 @@ union cvmx_pciercx_cfg037
 	uint32_t ctds                         : 1;
 	uint32_t reserved_5_31                : 27;
 #endif
-	} s;
-	struct cvmx_pciercx_cfg037_s          cn52xx;
-	struct cvmx_pciercx_cfg037_s          cn52xxp1;
-	struct cvmx_pciercx_cfg037_s          cn56xx;
-	struct cvmx_pciercx_cfg037_s          cn56xxp1;
-	struct cvmx_pciercx_cfg037_s          cn63xx;
-	struct cvmx_pciercx_cfg037_s          cn63xxp1;
+	} cn52xx;
+	struct cvmx_pciercx_cfg037_cn52xx     cn52xxp1;
+	struct cvmx_pciercx_cfg037_cn52xx     cn56xx;
+	struct cvmx_pciercx_cfg037_cn52xx     cn56xxp1;
+	struct cvmx_pciercx_cfg037_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_14_31               : 18;
+	uint32_t tph                          : 2;  /**< TPH Completer Supported
+                                                         (Not Supported) */
+	uint32_t reserved_11_11               : 1;
+	uint32_t noroprpr                     : 1;  /**< No RO-enabled PR-PR Passing
+                                                         When set, the routing element never carries out the passing
+                                                         permitted in the Relaxed Ordering Model. */
+	uint32_t atom128s                     : 1;  /**< 128-bit AtomicOp Supported
+                                                         (Not Supported) */
+	uint32_t atom64s                      : 1;  /**< 64-bit AtomicOp Supported
+                                                         (Not Supported) */
+	uint32_t atom32s                      : 1;  /**< 32-bit AtomicOp Supported
+                                                         (Not Supported) */
+	uint32_t atom_ops                     : 1;  /**< AtomicOp Routing Supported
+                                                         (Not Supported) */
+	uint32_t ari_fw                       : 1;  /**< ARI Forwarding Supported
+                                                         (Not Supported) */
+	uint32_t ctds                         : 1;  /**< Completion Timeout Disable Supported */
+	uint32_t ctrs                         : 4;  /**< Completion Timeout Ranges Supported */
+#else
+	uint32_t ctrs                         : 4;
+	uint32_t ctds                         : 1;
+	uint32_t ari_fw                       : 1;
+	uint32_t atom_ops                     : 1;
+	uint32_t atom32s                      : 1;
+	uint32_t atom64s                      : 1;
+	uint32_t atom128s                     : 1;
+	uint32_t noroprpr                     : 1;
+	uint32_t reserved_11_11               : 1;
+	uint32_t tph                          : 2;
+	uint32_t reserved_14_31               : 18;
+#endif
+	} cn61xx;
+	struct cvmx_pciercx_cfg037_cn52xx     cn63xx;
+	struct cvmx_pciercx_cfg037_cn52xx     cn63xxp1;
+	struct cvmx_pciercx_cfg037_cn66xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_14_31               : 18;
+	uint32_t tph                          : 2;  /**< TPH Completer Supported
+                                                         (Not Supported) */
+	uint32_t reserved_11_11               : 1;
+	uint32_t noroprpr                     : 1;  /**< No RO-enabled PR-PR Passing
+                                                         When set, the routing element never carries out the passing
+                                                         permitted in the Relaxed Ordering Model. */
+	uint32_t atom128s                     : 1;  /**< 128-bit AtomicOp Supported
+                                                         (Not Supported) */
+	uint32_t atom64s                      : 1;  /**< 64-bit AtomicOp Supported
+                                                         (Not Supported) */
+	uint32_t atom32s                      : 1;  /**< 32-bit AtomicOp Supported
+                                                         (Not Supported) */
+	uint32_t atom_ops                     : 1;  /**< AtomicOp Routing Supported
+                                                         (Not Supported) */
+	uint32_t ari                          : 1;  /**< Alternate Routing ID Forwarding Supported
+                                                         (Not Supported) */
+	uint32_t ctds                         : 1;  /**< Completion Timeout Disable Supported */
+	uint32_t ctrs                         : 4;  /**< Completion Timeout Ranges Supported */
+#else
+	uint32_t ctrs                         : 4;
+	uint32_t ctds                         : 1;
+	uint32_t ari                          : 1;
+	uint32_t atom_ops                     : 1;
+	uint32_t atom32s                      : 1;
+	uint32_t atom64s                      : 1;
+	uint32_t atom128s                     : 1;
+	uint32_t noroprpr                     : 1;
+	uint32_t reserved_11_11               : 1;
+	uint32_t tph                          : 2;
+	uint32_t reserved_14_31               : 18;
+#endif
+	} cn66xx;
+	struct cvmx_pciercx_cfg037_cn66xx     cn68xx;
+	struct cvmx_pciercx_cfg037_cn66xx     cn68xxp1;
+	struct cvmx_pciercx_cfg037_cnf71xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_20_31               : 12;
+	uint32_t obffs                        : 2;  /**< Optimized Buffer Flush Fill (OBFF) Supported
+                                                         (Not Supported) */
+	uint32_t reserved_14_17               : 4;
+	uint32_t tphs                         : 2;  /**< TPH Completer Supported
+                                                         (Not Supported) */
+	uint32_t ltrs                         : 1;  /**< Latency Tolerance Reporting (LTR) Mechanism Supported
+                                                         (Not Supported) */
+	uint32_t noroprpr                     : 1;  /**< No RO-enabled PR-PR Passing
+                                                         When set, the routing element never carries out the passing
+                                                         permitted in the Relaxed Ordering Model. */
+	uint32_t atom128s                     : 1;  /**< 128-bit AtomicOp Supported
+                                                         (Not Supported) */
+	uint32_t atom64s                      : 1;  /**< 64-bit AtomicOp Supported
+                                                         (Not Supported) */
+	uint32_t atom32s                      : 1;  /**< 32-bit AtomicOp Supported
+                                                         (Not Supported) */
+	uint32_t atom_ops                     : 1;  /**< AtomicOp Routing Supported
+                                                         (Not Supported) */
+	uint32_t ari_fw                       : 1;  /**< ARI Forwarding Supported
+                                                         (Not Supported) */
+	uint32_t ctds                         : 1;  /**< Completion Timeout Disable Supported */
+	uint32_t ctrs                         : 4;  /**< Completion Timeout Ranges Supported */
+#else
+	uint32_t ctrs                         : 4;
+	uint32_t ctds                         : 1;
+	uint32_t ari_fw                       : 1;
+	uint32_t atom_ops                     : 1;
+	uint32_t atom32s                      : 1;
+	uint32_t atom64s                      : 1;
+	uint32_t atom128s                     : 1;
+	uint32_t noroprpr                     : 1;
+	uint32_t ltrs                         : 1;
+	uint32_t tphs                         : 2;
+	uint32_t reserved_14_17               : 4;
+	uint32_t obffs                        : 2;
+	uint32_t reserved_20_31               : 12;
+#endif
+	} cnf71xx;
 };
 typedef union cvmx_pciercx_cfg037 cvmx_pciercx_cfg037_t;
 
@@ -2549,12 +3203,54 @@ typedef union cvmx_pciercx_cfg037 cvmx_pciercx_cfg037_t;
  * PCIE_CFG038 = Thirty-ninth 32-bits of PCIE type 1 config space
  * (Device Control 2 Register)
  */
-union cvmx_pciercx_cfg038
-{
+union cvmx_pciercx_cfg038 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg038_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg038_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_15_31               : 17;
+	uint32_t obffe                        : 2;  /**< Optimized Buffer Flush Fill (OBFF) Enable
+                                                         (Not Supported) */
+	uint32_t reserved_11_12               : 2;
+	uint32_t ltre                         : 1;  /**< Latency Tolerance Reporting (LTR) Mechanism Enable
+                                                         (Not Supported) */
+	uint32_t id0_cp                       : 1;  /**< ID Based Ordering Completion Enable
+                                                         (Not Supported) */
+	uint32_t id0_rq                       : 1;  /**< ID Based Ordering Request Enable
+                                                         (Not Supported) */
+	uint32_t atom_op_eb                   : 1;  /**< AtomicOp Egress Blocking
+                                                         (Not Supported)m */
+	uint32_t atom_op                      : 1;  /**< AtomicOp Requester Enable
+                                                         (Not Supported) */
+	uint32_t ari                          : 1;  /**< Alternate Routing ID Forwarding Supported
+                                                         (Not Supported) */
+	uint32_t ctd                          : 1;  /**< Completion Timeout Disable */
+	uint32_t ctv                          : 4;  /**< Completion Timeout Value
+                                                         o 0000b Default range: 16 ms to 55 ms
+                                                         o 0001b 50 us to 100 us
+                                                         o 0010b 1 ms to 10 ms
+                                                         o 0101b 16 ms to 55 ms
+                                                         o 0110b 65 ms to 210 ms
+                                                         o 1001b 260 ms to 900 ms
+                                                         o 1010b 1 s to 3.5 s
+                                                         o 1101b 4 s to 13 s
+                                                         o 1110b 17 s to 64 s
+                                                         Values not defined are reserved */
+#else
+	uint32_t ctv                          : 4;
+	uint32_t ctd                          : 1;
+	uint32_t ari                          : 1;
+	uint32_t atom_op                      : 1;
+	uint32_t atom_op_eb                   : 1;
+	uint32_t id0_rq                       : 1;
+	uint32_t id0_cp                       : 1;
+	uint32_t ltre                         : 1;
+	uint32_t reserved_11_12               : 2;
+	uint32_t obffe                        : 2;
+	uint32_t reserved_15_31               : 17;
+#endif
+	} s;
+	struct cvmx_pciercx_cfg038_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_5_31                : 27;
 	uint32_t ctd                          : 1;  /**< Completion Timeout Disable */
 	uint32_t ctv                          : 4;  /**< Completion Timeout Value
@@ -2565,13 +3261,52 @@ union cvmx_pciercx_cfg038
 	uint32_t ctd                          : 1;
 	uint32_t reserved_5_31                : 27;
 #endif
-	} s;
-	struct cvmx_pciercx_cfg038_s          cn52xx;
-	struct cvmx_pciercx_cfg038_s          cn52xxp1;
-	struct cvmx_pciercx_cfg038_s          cn56xx;
-	struct cvmx_pciercx_cfg038_s          cn56xxp1;
-	struct cvmx_pciercx_cfg038_s          cn63xx;
-	struct cvmx_pciercx_cfg038_s          cn63xxp1;
+	} cn52xx;
+	struct cvmx_pciercx_cfg038_cn52xx     cn52xxp1;
+	struct cvmx_pciercx_cfg038_cn52xx     cn56xx;
+	struct cvmx_pciercx_cfg038_cn52xx     cn56xxp1;
+	struct cvmx_pciercx_cfg038_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_10_31               : 22;
+	uint32_t id0_cp                       : 1;  /**< ID Based Ordering Completion Enable
+                                                         (Not Supported) */
+	uint32_t id0_rq                       : 1;  /**< ID Based Ordering Request Enable
+                                                         (Not Supported) */
+	uint32_t atom_op_eb                   : 1;  /**< AtomicOp Egress Blocking
+                                                         (Not Supported)m */
+	uint32_t atom_op                      : 1;  /**< AtomicOp Requester Enable
+                                                         (Not Supported) */
+	uint32_t ari                          : 1;  /**< Alternate Routing ID Forwarding Supported
+                                                         (Not Supported) */
+	uint32_t ctd                          : 1;  /**< Completion Timeout Disable */
+	uint32_t ctv                          : 4;  /**< Completion Timeout Value
+                                                         o 0000b Default range: 16 ms to 55 ms
+                                                         o 0001b 50 us to 100 us
+                                                         o 0010b 1 ms to 10 ms
+                                                         o 0101b 16 ms to 55 ms
+                                                         o 0110b 65 ms to 210 ms
+                                                         o 1001b 260 ms to 900 ms
+                                                         o 1010b 1 s to 3.5 s
+                                                         o 1101b 4 s to 13 s
+                                                         o 1110b 17 s to 64 s
+                                                         Values not defined are reserved */
+#else
+	uint32_t ctv                          : 4;
+	uint32_t ctd                          : 1;
+	uint32_t ari                          : 1;
+	uint32_t atom_op                      : 1;
+	uint32_t atom_op_eb                   : 1;
+	uint32_t id0_rq                       : 1;
+	uint32_t id0_cp                       : 1;
+	uint32_t reserved_10_31               : 22;
+#endif
+	} cn61xx;
+	struct cvmx_pciercx_cfg038_cn52xx     cn63xx;
+	struct cvmx_pciercx_cfg038_cn52xx     cn63xxp1;
+	struct cvmx_pciercx_cfg038_cn61xx     cn66xx;
+	struct cvmx_pciercx_cfg038_cn61xx     cn68xx;
+	struct cvmx_pciercx_cfg038_cn61xx     cn68xxp1;
+	struct cvmx_pciercx_cfg038_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg038 cvmx_pciercx_cfg038_t;
 
@@ -2581,23 +3316,52 @@ typedef union cvmx_pciercx_cfg038 cvmx_pciercx_cfg038_t;
  * PCIE_CFG039 = Fourtieth 32-bits of PCIE type 1 config space
  * (Link Capabilities 2 Register)
  */
-union cvmx_pciercx_cfg039
-{
+union cvmx_pciercx_cfg039 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg039_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg039_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_9_31                : 23;
+	uint32_t cls                          : 1;  /**< Crosslink Supported */
+	uint32_t slsv                         : 7;  /**< Supported Link Speeds Vector
+                                                         Indicates the supported Link speeds of the associated Port.
+                                                         For each bit, a value of 1b indicates that the cooresponding
+                                                         Link speed is supported; otherwise, the Link speed is not
+                                                         supported.
+                                                         Bit definitions are:
+                                                         Bit 1 2.5 GT/s
+                                                         Bit 2 5.0 GT/s
+                                                         Bit 3 8.0 GT/s (Not Supported)
+                                                         Bits 7:4 reserved
+                                                         The reset value of this field is controlled by a value sent from
+                                                         the lsb of the MIO_QLM#_SPD register
+                                                         qlm#_spd[0]   RST_VALUE   NOTE
+                                                         1             0001b       2.5 GHz supported
+                                                         0             0011b       5.0 GHz and 2.5 GHz supported */
+	uint32_t reserved_0_0                 : 1;
+#else
+	uint32_t reserved_0_0                 : 1;
+	uint32_t slsv                         : 7;
+	uint32_t cls                          : 1;
+	uint32_t reserved_9_31                : 23;
+#endif
+	} s;
+	struct cvmx_pciercx_cfg039_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_0_31                : 32;
 #else
 	uint32_t reserved_0_31                : 32;
 #endif
-	} s;
-	struct cvmx_pciercx_cfg039_s          cn52xx;
-	struct cvmx_pciercx_cfg039_s          cn52xxp1;
-	struct cvmx_pciercx_cfg039_s          cn56xx;
-	struct cvmx_pciercx_cfg039_s          cn56xxp1;
+	} cn52xx;
+	struct cvmx_pciercx_cfg039_cn52xx     cn52xxp1;
+	struct cvmx_pciercx_cfg039_cn52xx     cn56xx;
+	struct cvmx_pciercx_cfg039_cn52xx     cn56xxp1;
+	struct cvmx_pciercx_cfg039_s          cn61xx;
 	struct cvmx_pciercx_cfg039_s          cn63xx;
-	struct cvmx_pciercx_cfg039_s          cn63xxp1;
+	struct cvmx_pciercx_cfg039_cn52xx     cn63xxp1;
+	struct cvmx_pciercx_cfg039_s          cn66xx;
+	struct cvmx_pciercx_cfg039_s          cn68xx;
+	struct cvmx_pciercx_cfg039_s          cn68xxp1;
+	struct cvmx_pciercx_cfg039_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg039 cvmx_pciercx_cfg039_t;
 
@@ -2607,12 +3371,10 @@ typedef union cvmx_pciercx_cfg039 cvmx_pciercx_cfg039_t;
  * PCIE_CFG040 = Fourty-first 32-bits of PCIE type 1 config space
  * (Link Control 2 Register/Link Status 2 Register)
  */
-union cvmx_pciercx_cfg040
-{
+union cvmx_pciercx_cfg040 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg040_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg040_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_17_31               : 15;
 	uint32_t cdl                          : 1;  /**< Current De-emphasis Level
                                                          When the Link is operating at 5 GT/s speed, this bit
@@ -2642,7 +3404,7 @@ union cvmx_pciercx_cfg040
                                                          Compliance state. */
 	uint32_t tm                           : 3;  /**< Transmit Margin
                                                          This field controls the value of the non-de-emphasized
-                                                         voltage level at the Transmitter pins:
+                                                         voltage level at the Transmitter signals:
                                                           - 000: 800-1200 mV for full swing 400-600 mV for half-swing
                                                           - 001-010: values must be monotonic with a non-zero slope
                                                           - 011: 200-400 mV for full-swing and 100-200 mV for halfswing
@@ -2678,6 +3440,7 @@ union cvmx_pciercx_cfg040
                                                          the upstream component in its training sequences:
                                                            - 0001: 2.5Gb/s Target Link Speed
                                                            - 0010: 5Gb/s Target Link Speed
+                                                           - 0100: 8Gb/s Target Link Speed (Not Supported)
                                                          All other encodings are reserved.
                                                          If a value is written to this field that does not correspond to
                                                          a speed included in the Supported Link Speeds field, the
@@ -2686,8 +3449,11 @@ union cvmx_pciercx_cfg040
                                                          used to set the target compliance mode speed when
                                                          software is using the Enter Compliance bit to force a link
                                                          into compliance mode.
-                                                         Out of reset this will have a value of 1 or 2 which is
-                                                         selected by qlmCfgx[1]. */
+                                                         The reset value of this field is controlled by a value sent from
+                                                         the lsb of the MIO_QLM#_SPD register.
+                                                         qlm#_spd[0]   RST_VALUE   NOTE
+                                                         1             0001b       2.5 GHz supported
+                                                         0             0010b       5.0 GHz and 2.5 GHz supported */
 #else
 	uint32_t tls                          : 4;
 	uint32_t ec                           : 1;
@@ -2702,9 +3468,8 @@ union cvmx_pciercx_cfg040
 	uint32_t reserved_17_31               : 15;
 #endif
 	} s;
-	struct cvmx_pciercx_cfg040_cn52xx
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg040_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_0_31                : 32;
 #else
 	uint32_t reserved_0_31                : 32;
@@ -2713,8 +3478,13 @@ union cvmx_pciercx_cfg040
 	struct cvmx_pciercx_cfg040_cn52xx     cn52xxp1;
 	struct cvmx_pciercx_cfg040_cn52xx     cn56xx;
 	struct cvmx_pciercx_cfg040_cn52xx     cn56xxp1;
+	struct cvmx_pciercx_cfg040_s          cn61xx;
 	struct cvmx_pciercx_cfg040_s          cn63xx;
 	struct cvmx_pciercx_cfg040_s          cn63xxp1;
+	struct cvmx_pciercx_cfg040_s          cn66xx;
+	struct cvmx_pciercx_cfg040_s          cn68xx;
+	struct cvmx_pciercx_cfg040_s          cn68xxp1;
+	struct cvmx_pciercx_cfg040_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg040 cvmx_pciercx_cfg040_t;
 
@@ -2724,12 +3494,10 @@ typedef union cvmx_pciercx_cfg040 cvmx_pciercx_cfg040_t;
  * PCIE_CFG041 = Fourty-second 32-bits of PCIE type 1 config space
  * (Slot Capabilities 2 Register)
  */
-union cvmx_pciercx_cfg041
-{
+union cvmx_pciercx_cfg041 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg041_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg041_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_0_31                : 32;
 #else
 	uint32_t reserved_0_31                : 32;
@@ -2739,8 +3507,13 @@ union cvmx_pciercx_cfg041
 	struct cvmx_pciercx_cfg041_s          cn52xxp1;
 	struct cvmx_pciercx_cfg041_s          cn56xx;
 	struct cvmx_pciercx_cfg041_s          cn56xxp1;
+	struct cvmx_pciercx_cfg041_s          cn61xx;
 	struct cvmx_pciercx_cfg041_s          cn63xx;
 	struct cvmx_pciercx_cfg041_s          cn63xxp1;
+	struct cvmx_pciercx_cfg041_s          cn66xx;
+	struct cvmx_pciercx_cfg041_s          cn68xx;
+	struct cvmx_pciercx_cfg041_s          cn68xxp1;
+	struct cvmx_pciercx_cfg041_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg041 cvmx_pciercx_cfg041_t;
 
@@ -2750,12 +3523,10 @@ typedef union cvmx_pciercx_cfg041 cvmx_pciercx_cfg041_t;
  * PCIE_CFG042 = Fourty-third 32-bits of PCIE type 1 config space
  * (Slot Control 2 Register/Slot Status 2 Register)
  */
-union cvmx_pciercx_cfg042
-{
+union cvmx_pciercx_cfg042 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg042_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg042_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_0_31                : 32;
 #else
 	uint32_t reserved_0_31                : 32;
@@ -2765,8 +3536,13 @@ union cvmx_pciercx_cfg042
 	struct cvmx_pciercx_cfg042_s          cn52xxp1;
 	struct cvmx_pciercx_cfg042_s          cn56xx;
 	struct cvmx_pciercx_cfg042_s          cn56xxp1;
+	struct cvmx_pciercx_cfg042_s          cn61xx;
 	struct cvmx_pciercx_cfg042_s          cn63xx;
 	struct cvmx_pciercx_cfg042_s          cn63xxp1;
+	struct cvmx_pciercx_cfg042_s          cn66xx;
+	struct cvmx_pciercx_cfg042_s          cn68xx;
+	struct cvmx_pciercx_cfg042_s          cn68xxp1;
+	struct cvmx_pciercx_cfg042_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg042 cvmx_pciercx_cfg042_t;
 
@@ -2774,14 +3550,12 @@ typedef union cvmx_pciercx_cfg042 cvmx_pciercx_cfg042_t;
  * cvmx_pcierc#_cfg064
  *
  * PCIE_CFG064 = Sixty-fifth 32-bits of PCIE type 1 config space
- * (PCI Express Enhanced Capability Header)
+ * (PCI Express Extended Capability Header)
  */
-union cvmx_pciercx_cfg064
-{
+union cvmx_pciercx_cfg064 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg064_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg064_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t nco                          : 12; /**< Next Capability Offset */
 	uint32_t cv                           : 4;  /**< Capability Version */
 	uint32_t pcieec                       : 16; /**< PCIE Express Extended Capability */
@@ -2795,8 +3569,13 @@ union cvmx_pciercx_cfg064
 	struct cvmx_pciercx_cfg064_s          cn52xxp1;
 	struct cvmx_pciercx_cfg064_s          cn56xx;
 	struct cvmx_pciercx_cfg064_s          cn56xxp1;
+	struct cvmx_pciercx_cfg064_s          cn61xx;
 	struct cvmx_pciercx_cfg064_s          cn63xx;
 	struct cvmx_pciercx_cfg064_s          cn63xxp1;
+	struct cvmx_pciercx_cfg064_s          cn66xx;
+	struct cvmx_pciercx_cfg064_s          cn68xx;
+	struct cvmx_pciercx_cfg064_s          cn68xxp1;
+	struct cvmx_pciercx_cfg064_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg064 cvmx_pciercx_cfg064_t;
 
@@ -2806,12 +3585,51 @@ typedef union cvmx_pciercx_cfg064 cvmx_pciercx_cfg064_t;
  * PCIE_CFG065 = Sixty-sixth 32-bits of PCIE type 1 config space
  * (Uncorrectable Error Status Register)
  */
-union cvmx_pciercx_cfg065
-{
+union cvmx_pciercx_cfg065 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg065_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg065_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_25_31               : 7;
+	uint32_t uatombs                      : 1;  /**< Unsupported AtomicOp Egress Blocked Status */
+	uint32_t reserved_23_23               : 1;
+	uint32_t ucies                        : 1;  /**< Uncorrectable Internal Error Status */
+	uint32_t reserved_21_21               : 1;
+	uint32_t ures                         : 1;  /**< Unsupported Request Error Status */
+	uint32_t ecrces                       : 1;  /**< ECRC Error Status */
+	uint32_t mtlps                        : 1;  /**< Malformed TLP Status */
+	uint32_t ros                          : 1;  /**< Receiver Overflow Status */
+	uint32_t ucs                          : 1;  /**< Unexpected Completion Status */
+	uint32_t cas                          : 1;  /**< Completer Abort Status */
+	uint32_t cts                          : 1;  /**< Completion Timeout Status */
+	uint32_t fcpes                        : 1;  /**< Flow Control Protocol Error Status */
+	uint32_t ptlps                        : 1;  /**< Poisoned TLP Status */
+	uint32_t reserved_6_11                : 6;
+	uint32_t sdes                         : 1;  /**< Surprise Down Error Status (not supported) */
+	uint32_t dlpes                        : 1;  /**< Data Link Protocol Error Status */
+	uint32_t reserved_0_3                 : 4;
+#else
+	uint32_t reserved_0_3                 : 4;
+	uint32_t dlpes                        : 1;
+	uint32_t sdes                         : 1;
+	uint32_t reserved_6_11                : 6;
+	uint32_t ptlps                        : 1;
+	uint32_t fcpes                        : 1;
+	uint32_t cts                          : 1;
+	uint32_t cas                          : 1;
+	uint32_t ucs                          : 1;
+	uint32_t ros                          : 1;
+	uint32_t mtlps                        : 1;
+	uint32_t ecrces                       : 1;
+	uint32_t ures                         : 1;
+	uint32_t reserved_21_21               : 1;
+	uint32_t ucies                        : 1;
+	uint32_t reserved_23_23               : 1;
+	uint32_t uatombs                      : 1;
+	uint32_t reserved_25_31               : 7;
+#endif
+	} s;
+	struct cvmx_pciercx_cfg065_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_21_31               : 11;
 	uint32_t ures                         : 1;  /**< Unsupported Request Error Status */
 	uint32_t ecrces                       : 1;  /**< ECRC Error Status */
@@ -2842,13 +3660,53 @@ union cvmx_pciercx_cfg065
 	uint32_t ures                         : 1;
 	uint32_t reserved_21_31               : 11;
 #endif
-	} s;
-	struct cvmx_pciercx_cfg065_s          cn52xx;
-	struct cvmx_pciercx_cfg065_s          cn52xxp1;
-	struct cvmx_pciercx_cfg065_s          cn56xx;
-	struct cvmx_pciercx_cfg065_s          cn56xxp1;
-	struct cvmx_pciercx_cfg065_s          cn63xx;
-	struct cvmx_pciercx_cfg065_s          cn63xxp1;
+	} cn52xx;
+	struct cvmx_pciercx_cfg065_cn52xx     cn52xxp1;
+	struct cvmx_pciercx_cfg065_cn52xx     cn56xx;
+	struct cvmx_pciercx_cfg065_cn52xx     cn56xxp1;
+	struct cvmx_pciercx_cfg065_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_25_31               : 7;
+	uint32_t uatombs                      : 1;  /**< Unsupported AtomicOp Egress Blocked Status */
+	uint32_t reserved_21_23               : 3;
+	uint32_t ures                         : 1;  /**< Unsupported Request Error Status */
+	uint32_t ecrces                       : 1;  /**< ECRC Error Status */
+	uint32_t mtlps                        : 1;  /**< Malformed TLP Status */
+	uint32_t ros                          : 1;  /**< Receiver Overflow Status */
+	uint32_t ucs                          : 1;  /**< Unexpected Completion Status */
+	uint32_t cas                          : 1;  /**< Completer Abort Status */
+	uint32_t cts                          : 1;  /**< Completion Timeout Status */
+	uint32_t fcpes                        : 1;  /**< Flow Control Protocol Error Status */
+	uint32_t ptlps                        : 1;  /**< Poisoned TLP Status */
+	uint32_t reserved_6_11                : 6;
+	uint32_t sdes                         : 1;  /**< Surprise Down Error Status (not supported) */
+	uint32_t dlpes                        : 1;  /**< Data Link Protocol Error Status */
+	uint32_t reserved_0_3                 : 4;
+#else
+	uint32_t reserved_0_3                 : 4;
+	uint32_t dlpes                        : 1;
+	uint32_t sdes                         : 1;
+	uint32_t reserved_6_11                : 6;
+	uint32_t ptlps                        : 1;
+	uint32_t fcpes                        : 1;
+	uint32_t cts                          : 1;
+	uint32_t cas                          : 1;
+	uint32_t ucs                          : 1;
+	uint32_t ros                          : 1;
+	uint32_t mtlps                        : 1;
+	uint32_t ecrces                       : 1;
+	uint32_t ures                         : 1;
+	uint32_t reserved_21_23               : 3;
+	uint32_t uatombs                      : 1;
+	uint32_t reserved_25_31               : 7;
+#endif
+	} cn61xx;
+	struct cvmx_pciercx_cfg065_cn52xx     cn63xx;
+	struct cvmx_pciercx_cfg065_cn52xx     cn63xxp1;
+	struct cvmx_pciercx_cfg065_cn61xx     cn66xx;
+	struct cvmx_pciercx_cfg065_cn61xx     cn68xx;
+	struct cvmx_pciercx_cfg065_cn52xx     cn68xxp1;
+	struct cvmx_pciercx_cfg065_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg065 cvmx_pciercx_cfg065_t;
 
@@ -2858,12 +3716,51 @@ typedef union cvmx_pciercx_cfg065 cvmx_pciercx_cfg065_t;
  * PCIE_CFG066 = Sixty-seventh 32-bits of PCIE type 1 config space
  * (Uncorrectable Error Mask Register)
  */
-union cvmx_pciercx_cfg066
-{
+union cvmx_pciercx_cfg066 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg066_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg066_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_25_31               : 7;
+	uint32_t uatombm                      : 1;  /**< Unsupported AtomicOp Egress Blocked Mask */
+	uint32_t reserved_23_23               : 1;
+	uint32_t uciem                        : 1;  /**< Uncorrectable Internal Error Mask */
+	uint32_t reserved_21_21               : 1;
+	uint32_t urem                         : 1;  /**< Unsupported Request Error Mask */
+	uint32_t ecrcem                       : 1;  /**< ECRC Error Mask */
+	uint32_t mtlpm                        : 1;  /**< Malformed TLP Mask */
+	uint32_t rom                          : 1;  /**< Receiver Overflow Mask */
+	uint32_t ucm                          : 1;  /**< Unexpected Completion Mask */
+	uint32_t cam                          : 1;  /**< Completer Abort Mask */
+	uint32_t ctm                          : 1;  /**< Completion Timeout Mask */
+	uint32_t fcpem                        : 1;  /**< Flow Control Protocol Error Mask */
+	uint32_t ptlpm                        : 1;  /**< Poisoned TLP Mask */
+	uint32_t reserved_6_11                : 6;
+	uint32_t sdem                         : 1;  /**< Surprise Down Error Mask (not supported) */
+	uint32_t dlpem                        : 1;  /**< Data Link Protocol Error Mask */
+	uint32_t reserved_0_3                 : 4;
+#else
+	uint32_t reserved_0_3                 : 4;
+	uint32_t dlpem                        : 1;
+	uint32_t sdem                         : 1;
+	uint32_t reserved_6_11                : 6;
+	uint32_t ptlpm                        : 1;
+	uint32_t fcpem                        : 1;
+	uint32_t ctm                          : 1;
+	uint32_t cam                          : 1;
+	uint32_t ucm                          : 1;
+	uint32_t rom                          : 1;
+	uint32_t mtlpm                        : 1;
+	uint32_t ecrcem                       : 1;
+	uint32_t urem                         : 1;
+	uint32_t reserved_21_21               : 1;
+	uint32_t uciem                        : 1;
+	uint32_t reserved_23_23               : 1;
+	uint32_t uatombm                      : 1;
+	uint32_t reserved_25_31               : 7;
+#endif
+	} s;
+	struct cvmx_pciercx_cfg066_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_21_31               : 11;
 	uint32_t urem                         : 1;  /**< Unsupported Request Error Mask */
 	uint32_t ecrcem                       : 1;  /**< ECRC Error Mask */
@@ -2894,13 +3791,53 @@ union cvmx_pciercx_cfg066
 	uint32_t urem                         : 1;
 	uint32_t reserved_21_31               : 11;
 #endif
-	} s;
-	struct cvmx_pciercx_cfg066_s          cn52xx;
-	struct cvmx_pciercx_cfg066_s          cn52xxp1;
-	struct cvmx_pciercx_cfg066_s          cn56xx;
-	struct cvmx_pciercx_cfg066_s          cn56xxp1;
-	struct cvmx_pciercx_cfg066_s          cn63xx;
-	struct cvmx_pciercx_cfg066_s          cn63xxp1;
+	} cn52xx;
+	struct cvmx_pciercx_cfg066_cn52xx     cn52xxp1;
+	struct cvmx_pciercx_cfg066_cn52xx     cn56xx;
+	struct cvmx_pciercx_cfg066_cn52xx     cn56xxp1;
+	struct cvmx_pciercx_cfg066_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_25_31               : 7;
+	uint32_t uatombm                      : 1;  /**< Unsupported AtomicOp Egress Blocked Mask */
+	uint32_t reserved_21_23               : 3;
+	uint32_t urem                         : 1;  /**< Unsupported Request Error Mask */
+	uint32_t ecrcem                       : 1;  /**< ECRC Error Mask */
+	uint32_t mtlpm                        : 1;  /**< Malformed TLP Mask */
+	uint32_t rom                          : 1;  /**< Receiver Overflow Mask */
+	uint32_t ucm                          : 1;  /**< Unexpected Completion Mask */
+	uint32_t cam                          : 1;  /**< Completer Abort Mask */
+	uint32_t ctm                          : 1;  /**< Completion Timeout Mask */
+	uint32_t fcpem                        : 1;  /**< Flow Control Protocol Error Mask */
+	uint32_t ptlpm                        : 1;  /**< Poisoned TLP Mask */
+	uint32_t reserved_6_11                : 6;
+	uint32_t sdem                         : 1;  /**< Surprise Down Error Mask (not supported) */
+	uint32_t dlpem                        : 1;  /**< Data Link Protocol Error Mask */
+	uint32_t reserved_0_3                 : 4;
+#else
+	uint32_t reserved_0_3                 : 4;
+	uint32_t dlpem                        : 1;
+	uint32_t sdem                         : 1;
+	uint32_t reserved_6_11                : 6;
+	uint32_t ptlpm                        : 1;
+	uint32_t fcpem                        : 1;
+	uint32_t ctm                          : 1;
+	uint32_t cam                          : 1;
+	uint32_t ucm                          : 1;
+	uint32_t rom                          : 1;
+	uint32_t mtlpm                        : 1;
+	uint32_t ecrcem                       : 1;
+	uint32_t urem                         : 1;
+	uint32_t reserved_21_23               : 3;
+	uint32_t uatombm                      : 1;
+	uint32_t reserved_25_31               : 7;
+#endif
+	} cn61xx;
+	struct cvmx_pciercx_cfg066_cn52xx     cn63xx;
+	struct cvmx_pciercx_cfg066_cn52xx     cn63xxp1;
+	struct cvmx_pciercx_cfg066_cn61xx     cn66xx;
+	struct cvmx_pciercx_cfg066_cn61xx     cn68xx;
+	struct cvmx_pciercx_cfg066_cn52xx     cn68xxp1;
+	struct cvmx_pciercx_cfg066_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg066 cvmx_pciercx_cfg066_t;
 
@@ -2910,12 +3847,51 @@ typedef union cvmx_pciercx_cfg066 cvmx_pciercx_cfg066_t;
  * PCIE_CFG067 = Sixty-eighth 32-bits of PCIE type 1 config space
  * (Uncorrectable Error Severity Register)
  */
-union cvmx_pciercx_cfg067
-{
+union cvmx_pciercx_cfg067 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg067_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg067_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_25_31               : 7;
+	uint32_t uatombs                      : 1;  /**< Unsupported AtomicOp Egress Blocked Severity */
+	uint32_t reserved_23_23               : 1;
+	uint32_t ucies                        : 1;  /**< Uncorrectable Internal Error Severity */
+	uint32_t reserved_21_21               : 1;
+	uint32_t ures                         : 1;  /**< Unsupported Request Error Severity */
+	uint32_t ecrces                       : 1;  /**< ECRC Error Severity */
+	uint32_t mtlps                        : 1;  /**< Malformed TLP Severity */
+	uint32_t ros                          : 1;  /**< Receiver Overflow Severity */
+	uint32_t ucs                          : 1;  /**< Unexpected Completion Severity */
+	uint32_t cas                          : 1;  /**< Completer Abort Severity */
+	uint32_t cts                          : 1;  /**< Completion Timeout Severity */
+	uint32_t fcpes                        : 1;  /**< Flow Control Protocol Error Severity */
+	uint32_t ptlps                        : 1;  /**< Poisoned TLP Severity */
+	uint32_t reserved_6_11                : 6;
+	uint32_t sdes                         : 1;  /**< Surprise Down Error Severity (not supported) */
+	uint32_t dlpes                        : 1;  /**< Data Link Protocol Error Severity */
+	uint32_t reserved_0_3                 : 4;
+#else
+	uint32_t reserved_0_3                 : 4;
+	uint32_t dlpes                        : 1;
+	uint32_t sdes                         : 1;
+	uint32_t reserved_6_11                : 6;
+	uint32_t ptlps                        : 1;
+	uint32_t fcpes                        : 1;
+	uint32_t cts                          : 1;
+	uint32_t cas                          : 1;
+	uint32_t ucs                          : 1;
+	uint32_t ros                          : 1;
+	uint32_t mtlps                        : 1;
+	uint32_t ecrces                       : 1;
+	uint32_t ures                         : 1;
+	uint32_t reserved_21_21               : 1;
+	uint32_t ucies                        : 1;
+	uint32_t reserved_23_23               : 1;
+	uint32_t uatombs                      : 1;
+	uint32_t reserved_25_31               : 7;
+#endif
+	} s;
+	struct cvmx_pciercx_cfg067_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_21_31               : 11;
 	uint32_t ures                         : 1;  /**< Unsupported Request Error Severity */
 	uint32_t ecrces                       : 1;  /**< ECRC Error Severity */
@@ -2946,13 +3922,53 @@ union cvmx_pciercx_cfg067
 	uint32_t ures                         : 1;
 	uint32_t reserved_21_31               : 11;
 #endif
-	} s;
-	struct cvmx_pciercx_cfg067_s          cn52xx;
-	struct cvmx_pciercx_cfg067_s          cn52xxp1;
-	struct cvmx_pciercx_cfg067_s          cn56xx;
-	struct cvmx_pciercx_cfg067_s          cn56xxp1;
-	struct cvmx_pciercx_cfg067_s          cn63xx;
-	struct cvmx_pciercx_cfg067_s          cn63xxp1;
+	} cn52xx;
+	struct cvmx_pciercx_cfg067_cn52xx     cn52xxp1;
+	struct cvmx_pciercx_cfg067_cn52xx     cn56xx;
+	struct cvmx_pciercx_cfg067_cn52xx     cn56xxp1;
+	struct cvmx_pciercx_cfg067_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_25_31               : 7;
+	uint32_t uatombs                      : 1;  /**< Unsupported AtomicOp Egress Blocked Severity */
+	uint32_t reserved_21_23               : 3;
+	uint32_t ures                         : 1;  /**< Unsupported Request Error Severity */
+	uint32_t ecrces                       : 1;  /**< ECRC Error Severity */
+	uint32_t mtlps                        : 1;  /**< Malformed TLP Severity */
+	uint32_t ros                          : 1;  /**< Receiver Overflow Severity */
+	uint32_t ucs                          : 1;  /**< Unexpected Completion Severity */
+	uint32_t cas                          : 1;  /**< Completer Abort Severity */
+	uint32_t cts                          : 1;  /**< Completion Timeout Severity */
+	uint32_t fcpes                        : 1;  /**< Flow Control Protocol Error Severity */
+	uint32_t ptlps                        : 1;  /**< Poisoned TLP Severity */
+	uint32_t reserved_6_11                : 6;
+	uint32_t sdes                         : 1;  /**< Surprise Down Error Severity (not supported) */
+	uint32_t dlpes                        : 1;  /**< Data Link Protocol Error Severity */
+	uint32_t reserved_0_3                 : 4;
+#else
+	uint32_t reserved_0_3                 : 4;
+	uint32_t dlpes                        : 1;
+	uint32_t sdes                         : 1;
+	uint32_t reserved_6_11                : 6;
+	uint32_t ptlps                        : 1;
+	uint32_t fcpes                        : 1;
+	uint32_t cts                          : 1;
+	uint32_t cas                          : 1;
+	uint32_t ucs                          : 1;
+	uint32_t ros                          : 1;
+	uint32_t mtlps                        : 1;
+	uint32_t ecrces                       : 1;
+	uint32_t ures                         : 1;
+	uint32_t reserved_21_23               : 3;
+	uint32_t uatombs                      : 1;
+	uint32_t reserved_25_31               : 7;
+#endif
+	} cn61xx;
+	struct cvmx_pciercx_cfg067_cn52xx     cn63xx;
+	struct cvmx_pciercx_cfg067_cn52xx     cn63xxp1;
+	struct cvmx_pciercx_cfg067_cn61xx     cn66xx;
+	struct cvmx_pciercx_cfg067_cn61xx     cn68xx;
+	struct cvmx_pciercx_cfg067_cn52xx     cn68xxp1;
+	struct cvmx_pciercx_cfg067_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg067 cvmx_pciercx_cfg067_t;
 
@@ -2962,12 +3978,35 @@ typedef union cvmx_pciercx_cfg067 cvmx_pciercx_cfg067_t;
  * PCIE_CFG068 = Sixty-ninth 32-bits of PCIE type 1 config space
  * (Correctable Error Status Register)
  */
-union cvmx_pciercx_cfg068
-{
+union cvmx_pciercx_cfg068 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg068_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg068_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_15_31               : 17;
+	uint32_t cies                         : 1;  /**< Corrected Internal Error Status */
+	uint32_t anfes                        : 1;  /**< Advisory Non-Fatal Error Status */
+	uint32_t rtts                         : 1;  /**< Replay Timer Timeout Status */
+	uint32_t reserved_9_11                : 3;
+	uint32_t rnrs                         : 1;  /**< REPLAY_NUM Rollover Status */
+	uint32_t bdllps                       : 1;  /**< Bad DLLP Status */
+	uint32_t btlps                        : 1;  /**< Bad TLP Status */
+	uint32_t reserved_1_5                 : 5;
+	uint32_t res                          : 1;  /**< Receiver Error Status */
+#else
+	uint32_t res                          : 1;
+	uint32_t reserved_1_5                 : 5;
+	uint32_t btlps                        : 1;
+	uint32_t bdllps                       : 1;
+	uint32_t rnrs                         : 1;
+	uint32_t reserved_9_11                : 3;
+	uint32_t rtts                         : 1;
+	uint32_t anfes                        : 1;
+	uint32_t cies                         : 1;
+	uint32_t reserved_15_31               : 17;
+#endif
+	} s;
+	struct cvmx_pciercx_cfg068_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_14_31               : 18;
 	uint32_t anfes                        : 1;  /**< Advisory Non-Fatal Error Status */
 	uint32_t rtts                         : 1;  /**< Replay Timer Timeout Status */
@@ -2988,13 +4027,17 @@ union cvmx_pciercx_cfg068
 	uint32_t anfes                        : 1;
 	uint32_t reserved_14_31               : 18;
 #endif
-	} s;
-	struct cvmx_pciercx_cfg068_s          cn52xx;
-	struct cvmx_pciercx_cfg068_s          cn52xxp1;
-	struct cvmx_pciercx_cfg068_s          cn56xx;
-	struct cvmx_pciercx_cfg068_s          cn56xxp1;
-	struct cvmx_pciercx_cfg068_s          cn63xx;
-	struct cvmx_pciercx_cfg068_s          cn63xxp1;
+	} cn52xx;
+	struct cvmx_pciercx_cfg068_cn52xx     cn52xxp1;
+	struct cvmx_pciercx_cfg068_cn52xx     cn56xx;
+	struct cvmx_pciercx_cfg068_cn52xx     cn56xxp1;
+	struct cvmx_pciercx_cfg068_cn52xx     cn61xx;
+	struct cvmx_pciercx_cfg068_cn52xx     cn63xx;
+	struct cvmx_pciercx_cfg068_cn52xx     cn63xxp1;
+	struct cvmx_pciercx_cfg068_cn52xx     cn66xx;
+	struct cvmx_pciercx_cfg068_cn52xx     cn68xx;
+	struct cvmx_pciercx_cfg068_cn52xx     cn68xxp1;
+	struct cvmx_pciercx_cfg068_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg068 cvmx_pciercx_cfg068_t;
 
@@ -3004,12 +4047,35 @@ typedef union cvmx_pciercx_cfg068 cvmx_pciercx_cfg068_t;
  * PCIE_CFG069 = Seventieth 32-bits of PCIE type 1 config space
  * (Correctable Error Mask Register)
  */
-union cvmx_pciercx_cfg069
-{
+union cvmx_pciercx_cfg069 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg069_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg069_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_15_31               : 17;
+	uint32_t ciem                         : 1;  /**< Corrected Internal Error Mask */
+	uint32_t anfem                        : 1;  /**< Advisory Non-Fatal Error Mask */
+	uint32_t rttm                         : 1;  /**< Replay Timer Timeout Mask */
+	uint32_t reserved_9_11                : 3;
+	uint32_t rnrm                         : 1;  /**< REPLAY_NUM Rollover Mask */
+	uint32_t bdllpm                       : 1;  /**< Bad DLLP Mask */
+	uint32_t btlpm                        : 1;  /**< Bad TLP Mask */
+	uint32_t reserved_1_5                 : 5;
+	uint32_t rem                          : 1;  /**< Receiver Error Mask */
+#else
+	uint32_t rem                          : 1;
+	uint32_t reserved_1_5                 : 5;
+	uint32_t btlpm                        : 1;
+	uint32_t bdllpm                       : 1;
+	uint32_t rnrm                         : 1;
+	uint32_t reserved_9_11                : 3;
+	uint32_t rttm                         : 1;
+	uint32_t anfem                        : 1;
+	uint32_t ciem                         : 1;
+	uint32_t reserved_15_31               : 17;
+#endif
+	} s;
+	struct cvmx_pciercx_cfg069_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_14_31               : 18;
 	uint32_t anfem                        : 1;  /**< Advisory Non-Fatal Error Mask */
 	uint32_t rttm                         : 1;  /**< Replay Timer Timeout Mask */
@@ -3030,13 +4096,17 @@ union cvmx_pciercx_cfg069
 	uint32_t anfem                        : 1;
 	uint32_t reserved_14_31               : 18;
 #endif
-	} s;
-	struct cvmx_pciercx_cfg069_s          cn52xx;
-	struct cvmx_pciercx_cfg069_s          cn52xxp1;
-	struct cvmx_pciercx_cfg069_s          cn56xx;
-	struct cvmx_pciercx_cfg069_s          cn56xxp1;
-	struct cvmx_pciercx_cfg069_s          cn63xx;
-	struct cvmx_pciercx_cfg069_s          cn63xxp1;
+	} cn52xx;
+	struct cvmx_pciercx_cfg069_cn52xx     cn52xxp1;
+	struct cvmx_pciercx_cfg069_cn52xx     cn56xx;
+	struct cvmx_pciercx_cfg069_cn52xx     cn56xxp1;
+	struct cvmx_pciercx_cfg069_cn52xx     cn61xx;
+	struct cvmx_pciercx_cfg069_cn52xx     cn63xx;
+	struct cvmx_pciercx_cfg069_cn52xx     cn63xxp1;
+	struct cvmx_pciercx_cfg069_cn52xx     cn66xx;
+	struct cvmx_pciercx_cfg069_cn52xx     cn68xx;
+	struct cvmx_pciercx_cfg069_cn52xx     cn68xxp1;
+	struct cvmx_pciercx_cfg069_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg069 cvmx_pciercx_cfg069_t;
 
@@ -3046,12 +4116,10 @@ typedef union cvmx_pciercx_cfg069 cvmx_pciercx_cfg069_t;
  * PCIE_CFG070 = Seventy-first 32-bits of PCIE type 1 config space
  * (Advanced Capabilities and Control Register)
  */
-union cvmx_pciercx_cfg070
-{
+union cvmx_pciercx_cfg070 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg070_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg070_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_9_31                : 23;
 	uint32_t ce                           : 1;  /**< ECRC Check Enable */
 	uint32_t cc                           : 1;  /**< ECRC Check Capable */
@@ -3071,8 +4139,13 @@ union cvmx_pciercx_cfg070
 	struct cvmx_pciercx_cfg070_s          cn52xxp1;
 	struct cvmx_pciercx_cfg070_s          cn56xx;
 	struct cvmx_pciercx_cfg070_s          cn56xxp1;
+	struct cvmx_pciercx_cfg070_s          cn61xx;
 	struct cvmx_pciercx_cfg070_s          cn63xx;
 	struct cvmx_pciercx_cfg070_s          cn63xxp1;
+	struct cvmx_pciercx_cfg070_s          cn66xx;
+	struct cvmx_pciercx_cfg070_s          cn68xx;
+	struct cvmx_pciercx_cfg070_s          cn68xxp1;
+	struct cvmx_pciercx_cfg070_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg070 cvmx_pciercx_cfg070_t;
 
@@ -3084,12 +4157,10 @@ typedef union cvmx_pciercx_cfg070 cvmx_pciercx_cfg070_t;
  *
  * The Header Log registers collect the header for the TLP corresponding to a detected error.
  */
-union cvmx_pciercx_cfg071
-{
+union cvmx_pciercx_cfg071 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg071_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg071_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t dword1                       : 32; /**< Header Log Register (first DWORD) */
 #else
 	uint32_t dword1                       : 32;
@@ -3099,8 +4170,13 @@ union cvmx_pciercx_cfg071
 	struct cvmx_pciercx_cfg071_s          cn52xxp1;
 	struct cvmx_pciercx_cfg071_s          cn56xx;
 	struct cvmx_pciercx_cfg071_s          cn56xxp1;
+	struct cvmx_pciercx_cfg071_s          cn61xx;
 	struct cvmx_pciercx_cfg071_s          cn63xx;
 	struct cvmx_pciercx_cfg071_s          cn63xxp1;
+	struct cvmx_pciercx_cfg071_s          cn66xx;
+	struct cvmx_pciercx_cfg071_s          cn68xx;
+	struct cvmx_pciercx_cfg071_s          cn68xxp1;
+	struct cvmx_pciercx_cfg071_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg071 cvmx_pciercx_cfg071_t;
 
@@ -3112,12 +4188,10 @@ typedef union cvmx_pciercx_cfg071 cvmx_pciercx_cfg071_t;
  *
  * The Header Log registers collect the header for the TLP corresponding to a detected error.
  */
-union cvmx_pciercx_cfg072
-{
+union cvmx_pciercx_cfg072 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg072_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg072_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t dword2                       : 32; /**< Header Log Register (second DWORD) */
 #else
 	uint32_t dword2                       : 32;
@@ -3127,8 +4201,13 @@ union cvmx_pciercx_cfg072
 	struct cvmx_pciercx_cfg072_s          cn52xxp1;
 	struct cvmx_pciercx_cfg072_s          cn56xx;
 	struct cvmx_pciercx_cfg072_s          cn56xxp1;
+	struct cvmx_pciercx_cfg072_s          cn61xx;
 	struct cvmx_pciercx_cfg072_s          cn63xx;
 	struct cvmx_pciercx_cfg072_s          cn63xxp1;
+	struct cvmx_pciercx_cfg072_s          cn66xx;
+	struct cvmx_pciercx_cfg072_s          cn68xx;
+	struct cvmx_pciercx_cfg072_s          cn68xxp1;
+	struct cvmx_pciercx_cfg072_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg072 cvmx_pciercx_cfg072_t;
 
@@ -3140,12 +4219,10 @@ typedef union cvmx_pciercx_cfg072 cvmx_pciercx_cfg072_t;
  *
  * The Header Log registers collect the header for the TLP corresponding to a detected error.
  */
-union cvmx_pciercx_cfg073
-{
+union cvmx_pciercx_cfg073 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg073_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg073_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t dword3                       : 32; /**< Header Log Register (third DWORD) */
 #else
 	uint32_t dword3                       : 32;
@@ -3155,8 +4232,13 @@ union cvmx_pciercx_cfg073
 	struct cvmx_pciercx_cfg073_s          cn52xxp1;
 	struct cvmx_pciercx_cfg073_s          cn56xx;
 	struct cvmx_pciercx_cfg073_s          cn56xxp1;
+	struct cvmx_pciercx_cfg073_s          cn61xx;
 	struct cvmx_pciercx_cfg073_s          cn63xx;
 	struct cvmx_pciercx_cfg073_s          cn63xxp1;
+	struct cvmx_pciercx_cfg073_s          cn66xx;
+	struct cvmx_pciercx_cfg073_s          cn68xx;
+	struct cvmx_pciercx_cfg073_s          cn68xxp1;
+	struct cvmx_pciercx_cfg073_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg073 cvmx_pciercx_cfg073_t;
 
@@ -3168,12 +4250,10 @@ typedef union cvmx_pciercx_cfg073 cvmx_pciercx_cfg073_t;
  *
  * The Header Log registers collect the header for the TLP corresponding to a detected error.
  */
-union cvmx_pciercx_cfg074
-{
+union cvmx_pciercx_cfg074 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg074_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg074_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t dword4                       : 32; /**< Header Log Register (fourth DWORD) */
 #else
 	uint32_t dword4                       : 32;
@@ -3183,8 +4263,13 @@ union cvmx_pciercx_cfg074
 	struct cvmx_pciercx_cfg074_s          cn52xxp1;
 	struct cvmx_pciercx_cfg074_s          cn56xx;
 	struct cvmx_pciercx_cfg074_s          cn56xxp1;
+	struct cvmx_pciercx_cfg074_s          cn61xx;
 	struct cvmx_pciercx_cfg074_s          cn63xx;
 	struct cvmx_pciercx_cfg074_s          cn63xxp1;
+	struct cvmx_pciercx_cfg074_s          cn66xx;
+	struct cvmx_pciercx_cfg074_s          cn68xx;
+	struct cvmx_pciercx_cfg074_s          cn68xxp1;
+	struct cvmx_pciercx_cfg074_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg074 cvmx_pciercx_cfg074_t;
 
@@ -3194,12 +4279,10 @@ typedef union cvmx_pciercx_cfg074 cvmx_pciercx_cfg074_t;
  * PCIE_CFG075 = Seventy-sixth 32-bits of PCIE type 1 config space
  * (Root Error Command Register)
  */
-union cvmx_pciercx_cfg075
-{
+union cvmx_pciercx_cfg075 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg075_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg075_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_3_31                : 29;
 	uint32_t fere                         : 1;  /**< Fatal Error Reporting Enable */
 	uint32_t nfere                        : 1;  /**< Non-Fatal Error Reporting Enable */
@@ -3215,8 +4298,13 @@ union cvmx_pciercx_cfg075
 	struct cvmx_pciercx_cfg075_s          cn52xxp1;
 	struct cvmx_pciercx_cfg075_s          cn56xx;
 	struct cvmx_pciercx_cfg075_s          cn56xxp1;
+	struct cvmx_pciercx_cfg075_s          cn61xx;
 	struct cvmx_pciercx_cfg075_s          cn63xx;
 	struct cvmx_pciercx_cfg075_s          cn63xxp1;
+	struct cvmx_pciercx_cfg075_s          cn66xx;
+	struct cvmx_pciercx_cfg075_s          cn68xx;
+	struct cvmx_pciercx_cfg075_s          cn68xxp1;
+	struct cvmx_pciercx_cfg075_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg075 cvmx_pciercx_cfg075_t;
 
@@ -3226,12 +4314,10 @@ typedef union cvmx_pciercx_cfg075 cvmx_pciercx_cfg075_t;
  * PCIE_CFG076 = Seventy-seventh 32-bits of PCIE type 1 config space
  * (Root Error Status Register)
  */
-union cvmx_pciercx_cfg076
-{
+union cvmx_pciercx_cfg076 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg076_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg076_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t aeimn                        : 5;  /**< Advanced Error Interrupt Message Number,
                                                          writable through PEM(0..1)_CFG_WR */
 	uint32_t reserved_7_26                : 20;
@@ -3258,8 +4344,13 @@ union cvmx_pciercx_cfg076
 	struct cvmx_pciercx_cfg076_s          cn52xxp1;
 	struct cvmx_pciercx_cfg076_s          cn56xx;
 	struct cvmx_pciercx_cfg076_s          cn56xxp1;
+	struct cvmx_pciercx_cfg076_s          cn61xx;
 	struct cvmx_pciercx_cfg076_s          cn63xx;
 	struct cvmx_pciercx_cfg076_s          cn63xxp1;
+	struct cvmx_pciercx_cfg076_s          cn66xx;
+	struct cvmx_pciercx_cfg076_s          cn68xx;
+	struct cvmx_pciercx_cfg076_s          cn68xxp1;
+	struct cvmx_pciercx_cfg076_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg076 cvmx_pciercx_cfg076_t;
 
@@ -3269,12 +4360,10 @@ typedef union cvmx_pciercx_cfg076 cvmx_pciercx_cfg076_t;
  * PCIE_CFG077 = Seventy-eighth 32-bits of PCIE type 1 config space
  * (Error Source Identification Register)
  */
-union cvmx_pciercx_cfg077
-{
+union cvmx_pciercx_cfg077 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg077_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg077_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t efnfsi                       : 16; /**< ERR_FATAL/NONFATAL Source Identification */
 	uint32_t ecsi                         : 16; /**< ERR_COR Source Identification */
 #else
@@ -3286,8 +4375,13 @@ union cvmx_pciercx_cfg077
 	struct cvmx_pciercx_cfg077_s          cn52xxp1;
 	struct cvmx_pciercx_cfg077_s          cn56xx;
 	struct cvmx_pciercx_cfg077_s          cn56xxp1;
+	struct cvmx_pciercx_cfg077_s          cn61xx;
 	struct cvmx_pciercx_cfg077_s          cn63xx;
 	struct cvmx_pciercx_cfg077_s          cn63xxp1;
+	struct cvmx_pciercx_cfg077_s          cn66xx;
+	struct cvmx_pciercx_cfg077_s          cn68xx;
+	struct cvmx_pciercx_cfg077_s          cn68xxp1;
+	struct cvmx_pciercx_cfg077_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg077 cvmx_pciercx_cfg077_t;
 
@@ -3297,22 +4391,26 @@ typedef union cvmx_pciercx_cfg077 cvmx_pciercx_cfg077_t;
  * PCIE_CFG448 = Four hundred forty-ninth 32-bits of PCIE type 1 config space
  * (Ack Latency Timer and Replay Timer Register)
  */
-union cvmx_pciercx_cfg448
-{
+union cvmx_pciercx_cfg448 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg448_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg448_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t rtl                          : 16; /**< Replay Time Limit
                                                          The replay timer expires when it reaches this limit. The PCI
                                                          Express bus initiates a replay upon reception of a Nak or when
                                                          the replay timer expires.
-                                                         The default is then updated based on the Negotiated Link Width
-                                                         and Max_Payload_Size. */
+                                                         This value will be set correctly by the hardware out of reset
+                                                         or when the negotiated Link-Width or Payload-Size changes. If
+                                                         the user changes this value through a CSR write or by an
+                                                         EEPROM load then they should refer to the PCIe Specification
+                                                         for the correct value. */
 	uint32_t rtltl                        : 16; /**< Round Trip Latency Time Limit
                                                          The Ack/Nak latency timer expires when it reaches this limit.
-                                                         The default is then updated based on the Negotiated Link Width
-                                                         and Max_Payload_Size. */
+                                                         This value will be set correctly by the hardware out of reset
+                                                         or when the negotiated Link-Width or Payload-Size changes. If
+                                                         the user changes this value through a CSR write or by an
+                                                         EEPROM load then they should refer to the PCIe Specification
+                                                         for the correct value. */
 #else
 	uint32_t rtltl                        : 16;
 	uint32_t rtl                          : 16;
@@ -3322,8 +4420,13 @@ union cvmx_pciercx_cfg448
 	struct cvmx_pciercx_cfg448_s          cn52xxp1;
 	struct cvmx_pciercx_cfg448_s          cn56xx;
 	struct cvmx_pciercx_cfg448_s          cn56xxp1;
+	struct cvmx_pciercx_cfg448_s          cn61xx;
 	struct cvmx_pciercx_cfg448_s          cn63xx;
 	struct cvmx_pciercx_cfg448_s          cn63xxp1;
+	struct cvmx_pciercx_cfg448_s          cn66xx;
+	struct cvmx_pciercx_cfg448_s          cn68xx;
+	struct cvmx_pciercx_cfg448_s          cn68xxp1;
+	struct cvmx_pciercx_cfg448_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg448 cvmx_pciercx_cfg448_t;
 
@@ -3333,12 +4436,10 @@ typedef union cvmx_pciercx_cfg448 cvmx_pciercx_cfg448_t;
  * PCIE_CFG449 = Four hundred fiftieth 32-bits of PCIE type 1 config space
  * (Other Message Register)
  */
-union cvmx_pciercx_cfg449
-{
+union cvmx_pciercx_cfg449 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg449_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg449_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t omr                          : 32; /**< Other Message Register
                                                          This register can be used for either of the following purposes:
                                                          o To send a specific PCI Express Message, the application
@@ -3359,8 +4460,13 @@ union cvmx_pciercx_cfg449
 	struct cvmx_pciercx_cfg449_s          cn52xxp1;
 	struct cvmx_pciercx_cfg449_s          cn56xx;
 	struct cvmx_pciercx_cfg449_s          cn56xxp1;
+	struct cvmx_pciercx_cfg449_s          cn61xx;
 	struct cvmx_pciercx_cfg449_s          cn63xx;
 	struct cvmx_pciercx_cfg449_s          cn63xxp1;
+	struct cvmx_pciercx_cfg449_s          cn66xx;
+	struct cvmx_pciercx_cfg449_s          cn68xx;
+	struct cvmx_pciercx_cfg449_s          cn68xxp1;
+	struct cvmx_pciercx_cfg449_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg449 cvmx_pciercx_cfg449_t;
 
@@ -3370,12 +4476,10 @@ typedef union cvmx_pciercx_cfg449 cvmx_pciercx_cfg449_t;
  * PCIE_CFG450 = Four hundred fifty-first 32-bits of PCIE type 1 config space
  * (Port Force Link Register)
  */
-union cvmx_pciercx_cfg450
-{
+union cvmx_pciercx_cfg450 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg450_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg450_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t lpec                         : 8;  /**< Low Power Entrance Count
                                                          The Power Management state will wait for this many clock cycles
                                                          for the associated completion of a CfgWr to PCIE_CFG017 register
@@ -3441,8 +4545,13 @@ union cvmx_pciercx_cfg450
 	struct cvmx_pciercx_cfg450_s          cn52xxp1;
 	struct cvmx_pciercx_cfg450_s          cn56xx;
 	struct cvmx_pciercx_cfg450_s          cn56xxp1;
+	struct cvmx_pciercx_cfg450_s          cn61xx;
 	struct cvmx_pciercx_cfg450_s          cn63xx;
 	struct cvmx_pciercx_cfg450_s          cn63xxp1;
+	struct cvmx_pciercx_cfg450_s          cn66xx;
+	struct cvmx_pciercx_cfg450_s          cn68xx;
+	struct cvmx_pciercx_cfg450_s          cn68xxp1;
+	struct cvmx_pciercx_cfg450_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg450 cvmx_pciercx_cfg450_t;
 
@@ -3452,12 +4561,63 @@ typedef union cvmx_pciercx_cfg450 cvmx_pciercx_cfg450_t;
  * PCIE_CFG451 = Four hundred fifty-second 32-bits of PCIE type 1 config space
  * (Ack Frequency Register)
  */
-union cvmx_pciercx_cfg451
-{
+union cvmx_pciercx_cfg451 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg451_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg451_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_31_31               : 1;
+	uint32_t easpml1                      : 1;  /**< Enter ASPM L1 without receive in L0s
+                                                         Allow core to enter ASPM L1 even when link partner did
+                                                         not go to L0s (receive is not in L0s).
+                                                         When not set, core goes to ASPM L1 only after idle period
+                                                         during which both receive and transmit are in L0s. */
+	uint32_t l1el                         : 3;  /**< L1 Entrance Latency
+                                                         Values correspond to:
+                                                         o 000: 1 ms
+                                                         o 001: 2 ms
+                                                         o 010: 4 ms
+                                                         o 011: 8 ms
+                                                         o 100: 16 ms
+                                                         o 101: 32 ms
+                                                         o 110 or 111: 64 ms */
+	uint32_t l0el                         : 3;  /**< L0s Entrance Latency
+                                                         Values correspond to:
+                                                         o 000: 1 ms
+                                                         o 001: 2 ms
+                                                         o 010: 3 ms
+                                                         o 011: 4 ms
+                                                         o 100: 5 ms
+                                                         o 101: 6 ms
+                                                         o 110 or 111: 7 ms */
+	uint32_t n_fts_cc                     : 8;  /**< N_FTS when common clock is used.
+                                                         The number of Fast Training Sequence ordered sets to be
+                                                         transmitted when transitioning from L0s to L0. The maximum
+                                                         number of FTS ordered-sets that a component can request is 255.
+                                                          Note: The core does not support a value of zero; a value of
+                                                                zero can cause the LTSSM to go into the recovery state
+                                                                when exiting from L0s. */
+	uint32_t n_fts                        : 8;  /**< N_FTS
+                                                         The number of Fast Training Sequence ordered sets to be
+                                                         transmitted when transitioning from L0s to L0. The maximum
+                                                         number of FTS ordered-sets that a component can request is 255.
+                                                         Note: The core does not support a value of zero; a value of
+                                                               zero can cause the LTSSM to go into the recovery state
+                                                               when exiting from L0s. */
+	uint32_t ack_freq                     : 8;  /**< Ack Frequency
+                                                         The number of pending Ack's specified here (up to 255) before
+                                                         sending an Ack. */
+#else
+	uint32_t ack_freq                     : 8;
+	uint32_t n_fts                        : 8;
+	uint32_t n_fts_cc                     : 8;
+	uint32_t l0el                         : 3;
+	uint32_t l1el                         : 3;
+	uint32_t easpml1                      : 1;
+	uint32_t reserved_31_31               : 1;
+#endif
+	} s;
+	struct cvmx_pciercx_cfg451_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_30_31               : 2;
 	uint32_t l1el                         : 3;  /**< L1 Entrance Latency
                                                          Values correspond to:
@@ -3502,13 +4662,17 @@ union cvmx_pciercx_cfg451
 	uint32_t l1el                         : 3;
 	uint32_t reserved_30_31               : 2;
 #endif
-	} s;
-	struct cvmx_pciercx_cfg451_s          cn52xx;
-	struct cvmx_pciercx_cfg451_s          cn52xxp1;
-	struct cvmx_pciercx_cfg451_s          cn56xx;
-	struct cvmx_pciercx_cfg451_s          cn56xxp1;
-	struct cvmx_pciercx_cfg451_s          cn63xx;
-	struct cvmx_pciercx_cfg451_s          cn63xxp1;
+	} cn52xx;
+	struct cvmx_pciercx_cfg451_cn52xx     cn52xxp1;
+	struct cvmx_pciercx_cfg451_cn52xx     cn56xx;
+	struct cvmx_pciercx_cfg451_cn52xx     cn56xxp1;
+	struct cvmx_pciercx_cfg451_s          cn61xx;
+	struct cvmx_pciercx_cfg451_cn52xx     cn63xx;
+	struct cvmx_pciercx_cfg451_cn52xx     cn63xxp1;
+	struct cvmx_pciercx_cfg451_s          cn66xx;
+	struct cvmx_pciercx_cfg451_s          cn68xx;
+	struct cvmx_pciercx_cfg451_s          cn68xxp1;
+	struct cvmx_pciercx_cfg451_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg451 cvmx_pciercx_cfg451_t;
 
@@ -3518,18 +4682,79 @@ typedef union cvmx_pciercx_cfg451 cvmx_pciercx_cfg451_t;
  * PCIE_CFG452 = Four hundred fifty-third 32-bits of PCIE type 1 config space
  * (Port Link Control Register)
  */
-union cvmx_pciercx_cfg452
-{
+union cvmx_pciercx_cfg452 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg452_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg452_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_26_31               : 6;
 	uint32_t eccrc                        : 1;  /**< Enable Corrupted CRC
                                                          Causes corrupt LCRC for TLPs when set,
                                                          using the pattern contained in the Other Message register.
                                                          This is a test feature, not to be used in normal operation. */
 	uint32_t reserved_22_24               : 3;
+	uint32_t lme                          : 6;  /**< Link Mode Enable
+                                                         o 000001: x1
+                                                         o 000011: x2
+                                                         o 000111: x4  (not supported)
+                                                         o 001111: x8  (not supported)
+                                                         o 011111: x16 (not supported)
+                                                         o 111111: x32 (not supported)
+                                                         This field indicates the MAXIMUM number of lanes supported
+                                                         by the PCIe port. The value can be set less than 0x3
+                                                         to limit the number of lanes the PCIe will attempt to use.
+                                                         The programming of this field needs to be done by SW BEFORE
+                                                         enabling the link. See also MLW.
+                                                         (Note: The value of this field does NOT indicate the number
+                                                          of lanes in use by the PCIe. LME sets the max number of lanes
+                                                          in the PCIe core that COULD be used. As per the PCIe specs,
+                                                          the PCIe core can negotiate a smaller link width, so
+                                                          x1 is also supported when LME=0x3, for example.) */
+	uint32_t reserved_8_15                : 8;
+	uint32_t flm                          : 1;  /**< Fast Link Mode
+                                                         Sets all internal timers to fast mode for simulation purposes. */
+	uint32_t reserved_6_6                 : 1;
+	uint32_t dllle                        : 1;  /**< DLL Link Enable
+                                                         Enables Link initialization. If DLL Link Enable = 0, the PCI
+                                                         Express bus does not transmit InitFC DLLPs and does not
+                                                         establish a Link. */
+	uint32_t reserved_4_4                 : 1;
+	uint32_t ra                           : 1;  /**< Reset Assert
+                                                         Triggers a recovery and forces the LTSSM to the Hot Reset
+                                                         state (downstream port only). */
+	uint32_t le                           : 1;  /**< Loopback Enable
+                                                         Initiate loopback mode as a master. On a 0->1 transition,
+                                                         the PCIe core sends TS ordered sets with the loopback bit set
+                                                         to cause the link partner to enter into loopback mode as a
+                                                         slave. Normal transmission is not possible when LE=1. To exit
+                                                         loopback mode, take the link through a reset sequence. */
+	uint32_t sd                           : 1;  /**< Scramble Disable
+                                                         Turns off data scrambling. */
+	uint32_t omr                          : 1;  /**< Other Message Request
+                                                         When software writes a `1' to this bit, the PCI Express bus
+                                                         transmits the Message contained in the Other Message register. */
+#else
+	uint32_t omr                          : 1;
+	uint32_t sd                           : 1;
+	uint32_t le                           : 1;
+	uint32_t ra                           : 1;
+	uint32_t reserved_4_4                 : 1;
+	uint32_t dllle                        : 1;
+	uint32_t reserved_6_6                 : 1;
+	uint32_t flm                          : 1;
+	uint32_t reserved_8_15                : 8;
+	uint32_t lme                          : 6;
+	uint32_t reserved_22_24               : 3;
+	uint32_t eccrc                        : 1;
+	uint32_t reserved_26_31               : 6;
+#endif
+	} s;
+	struct cvmx_pciercx_cfg452_s          cn52xx;
+	struct cvmx_pciercx_cfg452_s          cn52xxp1;
+	struct cvmx_pciercx_cfg452_s          cn56xx;
+	struct cvmx_pciercx_cfg452_s          cn56xxp1;
+	struct cvmx_pciercx_cfg452_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_22_31               : 10;
 	uint32_t lme                          : 6;  /**< Link Mode Enable
                                                          o 000001: x1
                                                          o 000011: x2
@@ -3582,17 +4807,15 @@ union cvmx_pciercx_cfg452
 	uint32_t flm                          : 1;
 	uint32_t reserved_8_15                : 8;
 	uint32_t lme                          : 6;
-	uint32_t reserved_22_24               : 3;
-	uint32_t eccrc                        : 1;
-	uint32_t reserved_26_31               : 6;
+	uint32_t reserved_22_31               : 10;
 #endif
-	} s;
-	struct cvmx_pciercx_cfg452_s          cn52xx;
-	struct cvmx_pciercx_cfg452_s          cn52xxp1;
-	struct cvmx_pciercx_cfg452_s          cn56xx;
-	struct cvmx_pciercx_cfg452_s          cn56xxp1;
+	} cn61xx;
 	struct cvmx_pciercx_cfg452_s          cn63xx;
 	struct cvmx_pciercx_cfg452_s          cn63xxp1;
+	struct cvmx_pciercx_cfg452_cn61xx     cn66xx;
+	struct cvmx_pciercx_cfg452_cn61xx     cn68xx;
+	struct cvmx_pciercx_cfg452_cn61xx     cn68xxp1;
+	struct cvmx_pciercx_cfg452_cn61xx     cnf71xx;
 };
 typedef union cvmx_pciercx_cfg452 cvmx_pciercx_cfg452_t;
 
@@ -3602,12 +4825,10 @@ typedef union cvmx_pciercx_cfg452 cvmx_pciercx_cfg452_t;
  * PCIE_CFG453 = Four hundred fifty-fourth 32-bits of PCIE type 1 config space
  * (Lane Skew Register)
  */
-union cvmx_pciercx_cfg453
-{
+union cvmx_pciercx_cfg453 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg453_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg453_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t dlld                         : 1;  /**< Disable Lane-to-Lane Deskew
                                                          Disables the internal Lane-to-Lane deskew logic. */
 	uint32_t reserved_26_30               : 5;
@@ -3633,8 +4854,13 @@ union cvmx_pciercx_cfg453
 	struct cvmx_pciercx_cfg453_s          cn52xxp1;
 	struct cvmx_pciercx_cfg453_s          cn56xx;
 	struct cvmx_pciercx_cfg453_s          cn56xxp1;
+	struct cvmx_pciercx_cfg453_s          cn61xx;
 	struct cvmx_pciercx_cfg453_s          cn63xx;
 	struct cvmx_pciercx_cfg453_s          cn63xxp1;
+	struct cvmx_pciercx_cfg453_s          cn66xx;
+	struct cvmx_pciercx_cfg453_s          cn68xx;
+	struct cvmx_pciercx_cfg453_s          cn68xxp1;
+	struct cvmx_pciercx_cfg453_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg453 cvmx_pciercx_cfg453_t;
 
@@ -3644,12 +4870,37 @@ typedef union cvmx_pciercx_cfg453 cvmx_pciercx_cfg453_t;
  * PCIE_CFG454 = Four hundred fifty-fifth 32-bits of PCIE type 1 config space
  * (Symbol Number Register)
  */
-union cvmx_pciercx_cfg454
-{
+union cvmx_pciercx_cfg454 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg454_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg454_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t cx_nfunc                     : 3;  /**< Number of Functions (minus 1)
+                                                         Configuration Requests targeted at function numbers above this
+                                                         value will be returned with unsupported request */
+	uint32_t tmfcwt                       : 5;  /**< Timer Modifier for Flow Control Watchdog Timer
+                                                         Increases the timer value for the Flow Control watchdog timer,
+                                                         in increments of 16 clock cycles. */
+	uint32_t tmanlt                       : 5;  /**< Timer Modifier for Ack/Nak Latency Timer
+                                                         Increases the timer value for the Ack/Nak latency timer, in
+                                                         increments of 64 clock cycles. */
+	uint32_t tmrt                         : 5;  /**< Timer Modifier for Replay Timer
+                                                         Increases the timer value for the replay timer, in increments
+                                                         of 64 clock cycles. */
+	uint32_t reserved_11_13               : 3;
+	uint32_t nskps                        : 3;  /**< Number of SKP Symbols */
+	uint32_t reserved_0_7                 : 8;
+#else
+	uint32_t reserved_0_7                 : 8;
+	uint32_t nskps                        : 3;
+	uint32_t reserved_11_13               : 3;
+	uint32_t tmrt                         : 5;
+	uint32_t tmanlt                       : 5;
+	uint32_t tmfcwt                       : 5;
+	uint32_t cx_nfunc                     : 3;
+#endif
+	} s;
+	struct cvmx_pciercx_cfg454_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_29_31               : 3;
 	uint32_t tmfcwt                       : 5;  /**< Timer Modifier for Flow Control Watchdog Timer
                                                          Increases the timer value for the Flow Control watchdog timer,
@@ -3676,13 +4927,41 @@ union cvmx_pciercx_cfg454
 	uint32_t tmfcwt                       : 5;
 	uint32_t reserved_29_31               : 3;
 #endif
-	} s;
-	struct cvmx_pciercx_cfg454_s          cn52xx;
-	struct cvmx_pciercx_cfg454_s          cn52xxp1;
-	struct cvmx_pciercx_cfg454_s          cn56xx;
-	struct cvmx_pciercx_cfg454_s          cn56xxp1;
-	struct cvmx_pciercx_cfg454_s          cn63xx;
-	struct cvmx_pciercx_cfg454_s          cn63xxp1;
+	} cn52xx;
+	struct cvmx_pciercx_cfg454_cn52xx     cn52xxp1;
+	struct cvmx_pciercx_cfg454_cn52xx     cn56xx;
+	struct cvmx_pciercx_cfg454_cn52xx     cn56xxp1;
+	struct cvmx_pciercx_cfg454_cn61xx {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t cx_nfunc                     : 3;  /**< Number of Functions (minus 1)
+                                                         Configuration Requests targeted at function numbers above this
+                                                         value will be returned with unsupported request */
+	uint32_t tmfcwt                       : 5;  /**< Timer Modifier for Flow Control Watchdog Timer
+                                                         Increases the timer value for the Flow Control watchdog timer,
+                                                         in increments of 16 clock cycles. */
+	uint32_t tmanlt                       : 5;  /**< Timer Modifier for Ack/Nak Latency Timer
+                                                         Increases the timer value for the Ack/Nak latency timer, in
+                                                         increments of 64 clock cycles. */
+	uint32_t tmrt                         : 5;  /**< Timer Modifier for Replay Timer
+                                                         Increases the timer value for the replay timer, in increments
+                                                         of 64 clock cycles. */
+	uint32_t reserved_8_13                : 6;
+	uint32_t mfuncn                       : 8;  /**< Max Number of Functions Supported */
+#else
+	uint32_t mfuncn                       : 8;
+	uint32_t reserved_8_13                : 6;
+	uint32_t tmrt                         : 5;
+	uint32_t tmanlt                       : 5;
+	uint32_t tmfcwt                       : 5;
+	uint32_t cx_nfunc                     : 3;
+#endif
+	} cn61xx;
+	struct cvmx_pciercx_cfg454_cn52xx     cn63xx;
+	struct cvmx_pciercx_cfg454_cn52xx     cn63xxp1;
+	struct cvmx_pciercx_cfg454_cn61xx     cn66xx;
+	struct cvmx_pciercx_cfg454_cn61xx     cn68xx;
+	struct cvmx_pciercx_cfg454_cn52xx     cn68xxp1;
+	struct cvmx_pciercx_cfg454_cn61xx     cnf71xx;
 };
 typedef union cvmx_pciercx_cfg454 cvmx_pciercx_cfg454_t;
 
@@ -3692,12 +4971,10 @@ typedef union cvmx_pciercx_cfg454 cvmx_pciercx_cfg454_t;
  * PCIE_CFG455 = Four hundred fifty-sixth 32-bits of PCIE type 1 config space
  * (Symbol Timer Register/Filter Mask Register 1)
  */
-union cvmx_pciercx_cfg455
-{
+union cvmx_pciercx_cfg455 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg455_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg455_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t m_cfg0_filt                  : 1;  /**< Mask filtering of received Configuration Requests (RC mode only) */
 	uint32_t m_io_filt                    : 1;  /**< Mask filtering of received I/O Requests (RC mode only) */
 	uint32_t msg_ctrl                     : 1;  /**< Message Control
@@ -3744,8 +5021,13 @@ union cvmx_pciercx_cfg455
 	struct cvmx_pciercx_cfg455_s          cn52xxp1;
 	struct cvmx_pciercx_cfg455_s          cn56xx;
 	struct cvmx_pciercx_cfg455_s          cn56xxp1;
+	struct cvmx_pciercx_cfg455_s          cn61xx;
 	struct cvmx_pciercx_cfg455_s          cn63xx;
 	struct cvmx_pciercx_cfg455_s          cn63xxp1;
+	struct cvmx_pciercx_cfg455_s          cn66xx;
+	struct cvmx_pciercx_cfg455_s          cn68xx;
+	struct cvmx_pciercx_cfg455_s          cn68xxp1;
+	struct cvmx_pciercx_cfg455_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg455 cvmx_pciercx_cfg455_t;
 
@@ -3755,12 +5037,25 @@ typedef union cvmx_pciercx_cfg455 cvmx_pciercx_cfg455_t;
  * PCIE_CFG456 = Four hundred fifty-seventh 32-bits of PCIE type 1 config space
  * (Filter Mask Register 2)
  */
-union cvmx_pciercx_cfg456
-{
+union cvmx_pciercx_cfg456 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg456_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg456_s {
+#ifdef __BIG_ENDIAN_BITFIELD
+	uint32_t reserved_4_31                : 28;
+	uint32_t m_handle_flush               : 1;  /**< Mask Core Filter to handle flush request */
+	uint32_t m_dabort_4ucpl               : 1;  /**< Mask DLLP abort for unexpected CPL */
+	uint32_t m_vend1_drp                  : 1;  /**< Mask Vendor MSG Type 1 dropped silently */
+	uint32_t m_vend0_drp                  : 1;  /**< Mask Vendor MSG Type 0 dropped with UR error reporting. */
+#else
+	uint32_t m_vend0_drp                  : 1;
+	uint32_t m_vend1_drp                  : 1;
+	uint32_t m_dabort_4ucpl               : 1;
+	uint32_t m_handle_flush               : 1;
+	uint32_t reserved_4_31                : 28;
+#endif
+	} s;
+	struct cvmx_pciercx_cfg456_cn52xx {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_2_31                : 30;
 	uint32_t m_vend1_drp                  : 1;  /**< Mask Vendor MSG Type 1 dropped silently */
 	uint32_t m_vend0_drp                  : 1;  /**< Mask Vendor MSG Type 0 dropped with UR error reporting. */
@@ -3769,13 +5064,17 @@ union cvmx_pciercx_cfg456
 	uint32_t m_vend1_drp                  : 1;
 	uint32_t reserved_2_31                : 30;
 #endif
-	} s;
-	struct cvmx_pciercx_cfg456_s          cn52xx;
-	struct cvmx_pciercx_cfg456_s          cn52xxp1;
-	struct cvmx_pciercx_cfg456_s          cn56xx;
-	struct cvmx_pciercx_cfg456_s          cn56xxp1;
-	struct cvmx_pciercx_cfg456_s          cn63xx;
-	struct cvmx_pciercx_cfg456_s          cn63xxp1;
+	} cn52xx;
+	struct cvmx_pciercx_cfg456_cn52xx     cn52xxp1;
+	struct cvmx_pciercx_cfg456_cn52xx     cn56xx;
+	struct cvmx_pciercx_cfg456_cn52xx     cn56xxp1;
+	struct cvmx_pciercx_cfg456_s          cn61xx;
+	struct cvmx_pciercx_cfg456_cn52xx     cn63xx;
+	struct cvmx_pciercx_cfg456_cn52xx     cn63xxp1;
+	struct cvmx_pciercx_cfg456_s          cn66xx;
+	struct cvmx_pciercx_cfg456_s          cn68xx;
+	struct cvmx_pciercx_cfg456_cn52xx     cn68xxp1;
+	struct cvmx_pciercx_cfg456_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg456 cvmx_pciercx_cfg456_t;
 
@@ -3785,12 +5084,10 @@ typedef union cvmx_pciercx_cfg456 cvmx_pciercx_cfg456_t;
  * PCIE_CFG458 = Four hundred fifty-ninth 32-bits of PCIE type 1 config space
  * (Debug Register 0)
  */
-union cvmx_pciercx_cfg458
-{
+union cvmx_pciercx_cfg458 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg458_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg458_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t dbg_info_l32                 : 32; /**< The value on cxpl_debug_info[31:0]. */
 #else
 	uint32_t dbg_info_l32                 : 32;
@@ -3800,8 +5097,13 @@ union cvmx_pciercx_cfg458
 	struct cvmx_pciercx_cfg458_s          cn52xxp1;
 	struct cvmx_pciercx_cfg458_s          cn56xx;
 	struct cvmx_pciercx_cfg458_s          cn56xxp1;
+	struct cvmx_pciercx_cfg458_s          cn61xx;
 	struct cvmx_pciercx_cfg458_s          cn63xx;
 	struct cvmx_pciercx_cfg458_s          cn63xxp1;
+	struct cvmx_pciercx_cfg458_s          cn66xx;
+	struct cvmx_pciercx_cfg458_s          cn68xx;
+	struct cvmx_pciercx_cfg458_s          cn68xxp1;
+	struct cvmx_pciercx_cfg458_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg458 cvmx_pciercx_cfg458_t;
 
@@ -3811,12 +5113,10 @@ typedef union cvmx_pciercx_cfg458 cvmx_pciercx_cfg458_t;
  * PCIE_CFG459 = Four hundred sixtieth 32-bits of PCIE type 1 config space
  * (Debug Register 1)
  */
-union cvmx_pciercx_cfg459
-{
+union cvmx_pciercx_cfg459 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg459_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg459_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t dbg_info_u32                 : 32; /**< The value on cxpl_debug_info[63:32]. */
 #else
 	uint32_t dbg_info_u32                 : 32;
@@ -3826,8 +5126,13 @@ union cvmx_pciercx_cfg459
 	struct cvmx_pciercx_cfg459_s          cn52xxp1;
 	struct cvmx_pciercx_cfg459_s          cn56xx;
 	struct cvmx_pciercx_cfg459_s          cn56xxp1;
+	struct cvmx_pciercx_cfg459_s          cn61xx;
 	struct cvmx_pciercx_cfg459_s          cn63xx;
 	struct cvmx_pciercx_cfg459_s          cn63xxp1;
+	struct cvmx_pciercx_cfg459_s          cn66xx;
+	struct cvmx_pciercx_cfg459_s          cn68xx;
+	struct cvmx_pciercx_cfg459_s          cn68xxp1;
+	struct cvmx_pciercx_cfg459_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg459 cvmx_pciercx_cfg459_t;
 
@@ -3837,12 +5142,10 @@ typedef union cvmx_pciercx_cfg459 cvmx_pciercx_cfg459_t;
  * PCIE_CFG460 = Four hundred sixty-first 32-bits of PCIE type 1 config space
  * (Transmit Posted FC Credit Status)
  */
-union cvmx_pciercx_cfg460
-{
+union cvmx_pciercx_cfg460 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg460_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg460_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_20_31               : 12;
 	uint32_t tphfcc                       : 8;  /**< Transmit Posted Header FC Credits
                                                          The Posted Header credits advertised by the receiver at the
@@ -3860,8 +5163,13 @@ union cvmx_pciercx_cfg460
 	struct cvmx_pciercx_cfg460_s          cn52xxp1;
 	struct cvmx_pciercx_cfg460_s          cn56xx;
 	struct cvmx_pciercx_cfg460_s          cn56xxp1;
+	struct cvmx_pciercx_cfg460_s          cn61xx;
 	struct cvmx_pciercx_cfg460_s          cn63xx;
 	struct cvmx_pciercx_cfg460_s          cn63xxp1;
+	struct cvmx_pciercx_cfg460_s          cn66xx;
+	struct cvmx_pciercx_cfg460_s          cn68xx;
+	struct cvmx_pciercx_cfg460_s          cn68xxp1;
+	struct cvmx_pciercx_cfg460_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg460 cvmx_pciercx_cfg460_t;
 
@@ -3871,12 +5179,10 @@ typedef union cvmx_pciercx_cfg460 cvmx_pciercx_cfg460_t;
  * PCIE_CFG461 = Four hundred sixty-second 32-bits of PCIE type 1 config space
  * (Transmit Non-Posted FC Credit Status)
  */
-union cvmx_pciercx_cfg461
-{
+union cvmx_pciercx_cfg461 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg461_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg461_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_20_31               : 12;
 	uint32_t tchfcc                       : 8;  /**< Transmit Non-Posted Header FC Credits
                                                          The Non-Posted Header credits advertised by the receiver at the
@@ -3894,8 +5200,13 @@ union cvmx_pciercx_cfg461
 	struct cvmx_pciercx_cfg461_s          cn52xxp1;
 	struct cvmx_pciercx_cfg461_s          cn56xx;
 	struct cvmx_pciercx_cfg461_s          cn56xxp1;
+	struct cvmx_pciercx_cfg461_s          cn61xx;
 	struct cvmx_pciercx_cfg461_s          cn63xx;
 	struct cvmx_pciercx_cfg461_s          cn63xxp1;
+	struct cvmx_pciercx_cfg461_s          cn66xx;
+	struct cvmx_pciercx_cfg461_s          cn68xx;
+	struct cvmx_pciercx_cfg461_s          cn68xxp1;
+	struct cvmx_pciercx_cfg461_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg461 cvmx_pciercx_cfg461_t;
 
@@ -3905,12 +5216,10 @@ typedef union cvmx_pciercx_cfg461 cvmx_pciercx_cfg461_t;
  * PCIE_CFG462 = Four hundred sixty-third 32-bits of PCIE type 1 config space
  * (Transmit Completion FC Credit Status )
  */
-union cvmx_pciercx_cfg462
-{
+union cvmx_pciercx_cfg462 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg462_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg462_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_20_31               : 12;
 	uint32_t tchfcc                       : 8;  /**< Transmit Completion Header FC Credits
                                                          The Completion Header credits advertised by the receiver at the
@@ -3928,8 +5237,13 @@ union cvmx_pciercx_cfg462
 	struct cvmx_pciercx_cfg462_s          cn52xxp1;
 	struct cvmx_pciercx_cfg462_s          cn56xx;
 	struct cvmx_pciercx_cfg462_s          cn56xxp1;
+	struct cvmx_pciercx_cfg462_s          cn61xx;
 	struct cvmx_pciercx_cfg462_s          cn63xx;
 	struct cvmx_pciercx_cfg462_s          cn63xxp1;
+	struct cvmx_pciercx_cfg462_s          cn66xx;
+	struct cvmx_pciercx_cfg462_s          cn68xx;
+	struct cvmx_pciercx_cfg462_s          cn68xxp1;
+	struct cvmx_pciercx_cfg462_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg462 cvmx_pciercx_cfg462_t;
 
@@ -3939,12 +5253,10 @@ typedef union cvmx_pciercx_cfg462 cvmx_pciercx_cfg462_t;
  * PCIE_CFG463 = Four hundred sixty-fourth 32-bits of PCIE type 1 config space
  * (Queue Status)
  */
-union cvmx_pciercx_cfg463
-{
+union cvmx_pciercx_cfg463 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg463_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg463_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_3_31                : 29;
 	uint32_t rqne                         : 1;  /**< Received Queue Not Empty
                                                          Indicates there is data in one or more of the receive buffers. */
@@ -3966,8 +5278,13 @@ union cvmx_pciercx_cfg463
 	struct cvmx_pciercx_cfg463_s          cn52xxp1;
 	struct cvmx_pciercx_cfg463_s          cn56xx;
 	struct cvmx_pciercx_cfg463_s          cn56xxp1;
+	struct cvmx_pciercx_cfg463_s          cn61xx;
 	struct cvmx_pciercx_cfg463_s          cn63xx;
 	struct cvmx_pciercx_cfg463_s          cn63xxp1;
+	struct cvmx_pciercx_cfg463_s          cn66xx;
+	struct cvmx_pciercx_cfg463_s          cn68xx;
+	struct cvmx_pciercx_cfg463_s          cn68xxp1;
+	struct cvmx_pciercx_cfg463_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg463 cvmx_pciercx_cfg463_t;
 
@@ -3977,12 +5294,10 @@ typedef union cvmx_pciercx_cfg463 cvmx_pciercx_cfg463_t;
  * PCIE_CFG464 = Four hundred sixty-fifth 32-bits of PCIE type 1 config space
  * (VC Transmit Arbitration Register 1)
  */
-union cvmx_pciercx_cfg464
-{
+union cvmx_pciercx_cfg464 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg464_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg464_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t wrr_vc3                      : 8;  /**< WRR Weight for VC3 */
 	uint32_t wrr_vc2                      : 8;  /**< WRR Weight for VC2 */
 	uint32_t wrr_vc1                      : 8;  /**< WRR Weight for VC1 */
@@ -3998,8 +5313,13 @@ union cvmx_pciercx_cfg464
 	struct cvmx_pciercx_cfg464_s          cn52xxp1;
 	struct cvmx_pciercx_cfg464_s          cn56xx;
 	struct cvmx_pciercx_cfg464_s          cn56xxp1;
+	struct cvmx_pciercx_cfg464_s          cn61xx;
 	struct cvmx_pciercx_cfg464_s          cn63xx;
 	struct cvmx_pciercx_cfg464_s          cn63xxp1;
+	struct cvmx_pciercx_cfg464_s          cn66xx;
+	struct cvmx_pciercx_cfg464_s          cn68xx;
+	struct cvmx_pciercx_cfg464_s          cn68xxp1;
+	struct cvmx_pciercx_cfg464_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg464 cvmx_pciercx_cfg464_t;
 
@@ -4009,12 +5329,10 @@ typedef union cvmx_pciercx_cfg464 cvmx_pciercx_cfg464_t;
  * PCIE_CFG465 = Four hundred sixty-sixth 32-bits of config space
  * (VC Transmit Arbitration Register 2)
  */
-union cvmx_pciercx_cfg465
-{
+union cvmx_pciercx_cfg465 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg465_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg465_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t wrr_vc7                      : 8;  /**< WRR Weight for VC7 */
 	uint32_t wrr_vc6                      : 8;  /**< WRR Weight for VC6 */
 	uint32_t wrr_vc5                      : 8;  /**< WRR Weight for VC5 */
@@ -4030,8 +5348,13 @@ union cvmx_pciercx_cfg465
 	struct cvmx_pciercx_cfg465_s          cn52xxp1;
 	struct cvmx_pciercx_cfg465_s          cn56xx;
 	struct cvmx_pciercx_cfg465_s          cn56xxp1;
+	struct cvmx_pciercx_cfg465_s          cn61xx;
 	struct cvmx_pciercx_cfg465_s          cn63xx;
 	struct cvmx_pciercx_cfg465_s          cn63xxp1;
+	struct cvmx_pciercx_cfg465_s          cn66xx;
+	struct cvmx_pciercx_cfg465_s          cn68xx;
+	struct cvmx_pciercx_cfg465_s          cn68xxp1;
+	struct cvmx_pciercx_cfg465_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg465 cvmx_pciercx_cfg465_t;
 
@@ -4041,12 +5364,10 @@ typedef union cvmx_pciercx_cfg465 cvmx_pciercx_cfg465_t;
  * PCIE_CFG466 = Four hundred sixty-seventh 32-bits of PCIE type 1 config space
  * (VC0 Posted Receive Queue Control)
  */
-union cvmx_pciercx_cfg466
-{
+union cvmx_pciercx_cfg466 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg466_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg466_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t rx_queue_order               : 1;  /**< VC Ordering for Receive Queues
                                                          Determines the VC ordering rule for the receive queues, used
                                                          only in the segmented-buffer configuration,
@@ -4098,8 +5419,13 @@ union cvmx_pciercx_cfg466
 	struct cvmx_pciercx_cfg466_s          cn52xxp1;
 	struct cvmx_pciercx_cfg466_s          cn56xx;
 	struct cvmx_pciercx_cfg466_s          cn56xxp1;
+	struct cvmx_pciercx_cfg466_s          cn61xx;
 	struct cvmx_pciercx_cfg466_s          cn63xx;
 	struct cvmx_pciercx_cfg466_s          cn63xxp1;
+	struct cvmx_pciercx_cfg466_s          cn66xx;
+	struct cvmx_pciercx_cfg466_s          cn68xx;
+	struct cvmx_pciercx_cfg466_s          cn68xxp1;
+	struct cvmx_pciercx_cfg466_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg466 cvmx_pciercx_cfg466_t;
 
@@ -4109,12 +5435,10 @@ typedef union cvmx_pciercx_cfg466 cvmx_pciercx_cfg466_t;
  * PCIE_CFG467 = Four hundred sixty-eighth 32-bits of PCIE type 1 config space
  * (VC0 Non-Posted Receive Queue Control)
  */
-union cvmx_pciercx_cfg467
-{
+union cvmx_pciercx_cfg467 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg467_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg467_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_24_31               : 8;
 	uint32_t queue_mode                   : 3;  /**< VC0 Non-Posted TLP Queue Mode
                                                          The operating mode of the Non-Posted receive queue for VC0,
@@ -4148,8 +5472,13 @@ union cvmx_pciercx_cfg467
 	struct cvmx_pciercx_cfg467_s          cn52xxp1;
 	struct cvmx_pciercx_cfg467_s          cn56xx;
 	struct cvmx_pciercx_cfg467_s          cn56xxp1;
+	struct cvmx_pciercx_cfg467_s          cn61xx;
 	struct cvmx_pciercx_cfg467_s          cn63xx;
 	struct cvmx_pciercx_cfg467_s          cn63xxp1;
+	struct cvmx_pciercx_cfg467_s          cn66xx;
+	struct cvmx_pciercx_cfg467_s          cn68xx;
+	struct cvmx_pciercx_cfg467_s          cn68xxp1;
+	struct cvmx_pciercx_cfg467_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg467 cvmx_pciercx_cfg467_t;
 
@@ -4159,12 +5488,10 @@ typedef union cvmx_pciercx_cfg467 cvmx_pciercx_cfg467_t;
  * PCIE_CFG468 = Four hundred sixty-ninth 32-bits of PCIE type 1 config space
  * (VC0 Completion Receive Queue Control)
  */
-union cvmx_pciercx_cfg468
-{
+union cvmx_pciercx_cfg468 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg468_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg468_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_24_31               : 8;
 	uint32_t queue_mode                   : 3;  /**< VC0 Completion TLP Queue Mode
                                                          The operating mode of the Completion receive queue for VC0,
@@ -4198,8 +5525,13 @@ union cvmx_pciercx_cfg468
 	struct cvmx_pciercx_cfg468_s          cn52xxp1;
 	struct cvmx_pciercx_cfg468_s          cn56xx;
 	struct cvmx_pciercx_cfg468_s          cn56xxp1;
+	struct cvmx_pciercx_cfg468_s          cn61xx;
 	struct cvmx_pciercx_cfg468_s          cn63xx;
 	struct cvmx_pciercx_cfg468_s          cn63xxp1;
+	struct cvmx_pciercx_cfg468_s          cn66xx;
+	struct cvmx_pciercx_cfg468_s          cn68xx;
+	struct cvmx_pciercx_cfg468_s          cn68xxp1;
+	struct cvmx_pciercx_cfg468_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg468 cvmx_pciercx_cfg468_t;
 
@@ -4209,12 +5541,10 @@ typedef union cvmx_pciercx_cfg468 cvmx_pciercx_cfg468_t;
  * PCIE_CFG490 = Four hundred ninety-first 32-bits of PCIE type 1 config space
  * (VC0 Posted Buffer Depth)
  */
-union cvmx_pciercx_cfg490
-{
+union cvmx_pciercx_cfg490 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg490_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg490_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_26_31               : 6;
 	uint32_t header_depth                 : 10; /**< VC0 Posted Header Queue Depth
                                                          Sets the number of entries in the Posted header queue for VC0
@@ -4238,8 +5568,13 @@ union cvmx_pciercx_cfg490
 	struct cvmx_pciercx_cfg490_s          cn52xxp1;
 	struct cvmx_pciercx_cfg490_s          cn56xx;
 	struct cvmx_pciercx_cfg490_s          cn56xxp1;
+	struct cvmx_pciercx_cfg490_s          cn61xx;
 	struct cvmx_pciercx_cfg490_s          cn63xx;
 	struct cvmx_pciercx_cfg490_s          cn63xxp1;
+	struct cvmx_pciercx_cfg490_s          cn66xx;
+	struct cvmx_pciercx_cfg490_s          cn68xx;
+	struct cvmx_pciercx_cfg490_s          cn68xxp1;
+	struct cvmx_pciercx_cfg490_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg490 cvmx_pciercx_cfg490_t;
 
@@ -4249,12 +5584,10 @@ typedef union cvmx_pciercx_cfg490 cvmx_pciercx_cfg490_t;
  * PCIE_CFG491 = Four hundred ninety-second 32-bits of PCIE type 1 config space
  * (VC0 Non-Posted Buffer Depth)
  */
-union cvmx_pciercx_cfg491
-{
+union cvmx_pciercx_cfg491 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg491_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg491_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_26_31               : 6;
 	uint32_t header_depth                 : 10; /**< VC0 Non-Posted Header Queue Depth
                                                          Sets the number of entries in the Non-Posted header queue for
@@ -4278,8 +5611,13 @@ union cvmx_pciercx_cfg491
 	struct cvmx_pciercx_cfg491_s          cn52xxp1;
 	struct cvmx_pciercx_cfg491_s          cn56xx;
 	struct cvmx_pciercx_cfg491_s          cn56xxp1;
+	struct cvmx_pciercx_cfg491_s          cn61xx;
 	struct cvmx_pciercx_cfg491_s          cn63xx;
 	struct cvmx_pciercx_cfg491_s          cn63xxp1;
+	struct cvmx_pciercx_cfg491_s          cn66xx;
+	struct cvmx_pciercx_cfg491_s          cn68xx;
+	struct cvmx_pciercx_cfg491_s          cn68xxp1;
+	struct cvmx_pciercx_cfg491_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg491 cvmx_pciercx_cfg491_t;
 
@@ -4289,12 +5627,10 @@ typedef union cvmx_pciercx_cfg491 cvmx_pciercx_cfg491_t;
  * PCIE_CFG492 = Four hundred ninety-third 32-bits of PCIE type 1 config space
  * (VC0 Completion Buffer Depth)
  */
-union cvmx_pciercx_cfg492
-{
+union cvmx_pciercx_cfg492 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg492_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg492_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_26_31               : 6;
 	uint32_t header_depth                 : 10; /**< VC0 Completion Header Queue Depth
                                                          Sets the number of entries in the Completion header queue for
@@ -4318,8 +5654,13 @@ union cvmx_pciercx_cfg492
 	struct cvmx_pciercx_cfg492_s          cn52xxp1;
 	struct cvmx_pciercx_cfg492_s          cn56xx;
 	struct cvmx_pciercx_cfg492_s          cn56xxp1;
+	struct cvmx_pciercx_cfg492_s          cn61xx;
 	struct cvmx_pciercx_cfg492_s          cn63xx;
 	struct cvmx_pciercx_cfg492_s          cn63xxp1;
+	struct cvmx_pciercx_cfg492_s          cn66xx;
+	struct cvmx_pciercx_cfg492_s          cn68xx;
+	struct cvmx_pciercx_cfg492_s          cn68xxp1;
+	struct cvmx_pciercx_cfg492_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg492 cvmx_pciercx_cfg492_t;
 
@@ -4329,12 +5670,10 @@ typedef union cvmx_pciercx_cfg492 cvmx_pciercx_cfg492_t;
  * PCIE_CFG515 = Five hundred sixteenth 32-bits of PCIE type 1 config space
  * (Port Logic Register (Gen2))
  */
-union cvmx_pciercx_cfg515
-{
+union cvmx_pciercx_cfg515 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg515_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg515_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t reserved_21_31               : 11;
 	uint32_t s_d_e                        : 1;  /**< SEL_DE_EMPHASIS
                                                          Used to set the de-emphasis level for upstream ports. */
@@ -4345,8 +5684,8 @@ union cvmx_pciercx_cfg515
                                                          Indicates the voltage level the PHY should drive. When set to
                                                          1, indicates Full Swing. When set to 0, indicates Low Swing */
 	uint32_t dsc                          : 1;  /**< Directed Speed Change
-                                                         Indicates to the LTSSM whether or not to initiate a speed
-                                                         change. */
+                                                         o a write of '1' will initiate a speed change
+                                                         o always reads a zero */
 	uint32_t le                           : 9;  /**< Lane Enable
                                                          Indicates the number of lanes to check for exit from electrical
                                                          idle in Polling.Active and Polling.Compliance. 1 = x1, 2 = x2,
@@ -4372,8 +5711,13 @@ union cvmx_pciercx_cfg515
 	uint32_t reserved_21_31               : 11;
 #endif
 	} s;
+	struct cvmx_pciercx_cfg515_s          cn61xx;
 	struct cvmx_pciercx_cfg515_s          cn63xx;
 	struct cvmx_pciercx_cfg515_s          cn63xxp1;
+	struct cvmx_pciercx_cfg515_s          cn66xx;
+	struct cvmx_pciercx_cfg515_s          cn68xx;
+	struct cvmx_pciercx_cfg515_s          cn68xxp1;
+	struct cvmx_pciercx_cfg515_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg515 cvmx_pciercx_cfg515_t;
 
@@ -4383,12 +5727,10 @@ typedef union cvmx_pciercx_cfg515 cvmx_pciercx_cfg515_t;
  * PCIE_CFG516 = Five hundred seventeenth 32-bits of PCIE type 1 config space
  * (PHY Status Register)
  */
-union cvmx_pciercx_cfg516
-{
+union cvmx_pciercx_cfg516 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg516_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg516_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t phy_stat                     : 32; /**< PHY Status */
 #else
 	uint32_t phy_stat                     : 32;
@@ -4398,8 +5740,13 @@ union cvmx_pciercx_cfg516
 	struct cvmx_pciercx_cfg516_s          cn52xxp1;
 	struct cvmx_pciercx_cfg516_s          cn56xx;
 	struct cvmx_pciercx_cfg516_s          cn56xxp1;
+	struct cvmx_pciercx_cfg516_s          cn61xx;
 	struct cvmx_pciercx_cfg516_s          cn63xx;
 	struct cvmx_pciercx_cfg516_s          cn63xxp1;
+	struct cvmx_pciercx_cfg516_s          cn66xx;
+	struct cvmx_pciercx_cfg516_s          cn68xx;
+	struct cvmx_pciercx_cfg516_s          cn68xxp1;
+	struct cvmx_pciercx_cfg516_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg516 cvmx_pciercx_cfg516_t;
 
@@ -4409,12 +5756,10 @@ typedef union cvmx_pciercx_cfg516 cvmx_pciercx_cfg516_t;
  * PCIE_CFG517 = Five hundred eighteenth 32-bits of PCIE type 1 config space
  * (PHY Control Register)
  */
-union cvmx_pciercx_cfg517
-{
+union cvmx_pciercx_cfg517 {
 	uint32_t u32;
-	struct cvmx_pciercx_cfg517_s
-	{
-#if __BYTE_ORDER == __BIG_ENDIAN
+	struct cvmx_pciercx_cfg517_s {
+#ifdef __BIG_ENDIAN_BITFIELD
 	uint32_t phy_ctrl                     : 32; /**< PHY Control */
 #else
 	uint32_t phy_ctrl                     : 32;
@@ -4424,8 +5769,13 @@ union cvmx_pciercx_cfg517
 	struct cvmx_pciercx_cfg517_s          cn52xxp1;
 	struct cvmx_pciercx_cfg517_s          cn56xx;
 	struct cvmx_pciercx_cfg517_s          cn56xxp1;
+	struct cvmx_pciercx_cfg517_s          cn61xx;
 	struct cvmx_pciercx_cfg517_s          cn63xx;
 	struct cvmx_pciercx_cfg517_s          cn63xxp1;
+	struct cvmx_pciercx_cfg517_s          cn66xx;
+	struct cvmx_pciercx_cfg517_s          cn68xx;
+	struct cvmx_pciercx_cfg517_s          cn68xxp1;
+	struct cvmx_pciercx_cfg517_s          cnf71xx;
 };
 typedef union cvmx_pciercx_cfg517 cvmx_pciercx_cfg517_t;
 

@@ -80,6 +80,8 @@ static int	ffs_mountfs(struct vnode *, struct mount *, struct thread *);
 static void	ffs_oldfscompat_read(struct fs *, struct ufsmount *,
 		    ufs2_daddr_t);
 static void	ffs_ifree(struct ufsmount *ump, struct inode *ip);
+static int	ffs_sync_lazy(struct mount *mp);
+
 static vfs_init_t ffs_init;
 static vfs_uninit_t ffs_uninit;
 static vfs_extattrctl_t ffs_extattrctl;
@@ -673,8 +675,14 @@ ffs_reload(struct mount *mp, struct thread *td)
 	/*
 	 * Step 3: re-read summary information from disk.
 	 */
-	blks = howmany(fs->fs_cssize, fs->fs_fsize);
-	space = fs->fs_csp;
+	size = fs->fs_cssize;
+	blks = howmany(size, fs->fs_fsize);
+	if (fs->fs_contigsumsize > 0)
+		size += fs->fs_ncg * sizeof(int32_t);
+	size += fs->fs_ncg * sizeof(u_int8_t);
+	free(fs->fs_csp, M_UFSMNT);
+	space = malloc((u_long)size, M_UFSMNT, M_WAITOK);
+	fs->fs_csp = space;
 	for (i = 0; i < blks; i += fs->fs_frag) {
 		size = fs->fs_bsize;
 		if (i + fs->fs_frag > blks)
@@ -691,25 +699,22 @@ ffs_reload(struct mount *mp, struct thread *td)
 	 * We no longer know anything about clusters per cylinder group.
 	 */
 	if (fs->fs_contigsumsize > 0) {
-		lp = fs->fs_maxcluster;
+		fs->fs_maxcluster = lp = space;
 		for (i = 0; i < fs->fs_ncg; i++)
 			*lp++ = fs->fs_contigsumsize;
+		space = lp;
 	}
+	size = fs->fs_ncg * sizeof(u_int8_t);
+	fs->fs_contigdirs = (u_int8_t *)space;
+	bzero(fs->fs_contigdirs, size);
 
 loop:
-	MNT_ILOCK(mp);
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		VI_LOCK(vp);
-		if (vp->v_iflag & VI_DOOMED) {
-			VI_UNLOCK(vp);
-			continue;
-		}
-		MNT_IUNLOCK(mp);
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		/*
 		 * Step 4: invalidate all cached file data.
 		 */
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
-			MNT_VNODE_FOREACH_ABORT(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			goto loop;
 		}
 		if (vinvalbuf(vp, 0, 0, 0))
@@ -724,7 +729,7 @@ loop:
 		if (error) {
 			VOP_UNLOCK(vp, 0);
 			vrele(vp);
-			MNT_VNODE_FOREACH_ABORT(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			return (error);
 		}
 		ffs_load_inode(bp, ip, fs, ip->i_number);
@@ -732,9 +737,7 @@ loop:
 		brelse(bp);
 		VOP_UNLOCK(vp, 0);
 		vrele(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 	return (0);
 }
 
@@ -1048,6 +1051,8 @@ ffs_mountfs(devvp, mp, td)
 			ffs_flushfiles(mp, FORCECLOSE, td);
 			goto out;
 		}
+		if (devvp->v_type == VCHR && devvp->v_rdev != NULL)
+			devvp->v_rdev->si_mountpt = mp;
 		if (fs->fs_snapinum[0] != 0)
 			ffs_snapshot_mount(mp);
 		fs->fs_fmod = 1;
@@ -1293,6 +1298,8 @@ ffs_unmount(mp, mntflags)
 	g_vfs_close(ump->um_cp);
 	g_topology_unlock();
 	PICKUP_GIANT();
+	if (ump->um_devvp->v_type == VCHR && ump->um_devvp->v_rdev != NULL)
+		ump->um_devvp->v_rdev->si_mountpt = NULL;
 	vrele(ump->um_devvp);
 	dev_rel(ump->um_dev);
 	mtx_destroy(UFS_MTX(ump));
@@ -1411,11 +1418,70 @@ ffs_statfs(mp, sbp)
 }
 
 /*
+ * For a lazy sync, we only care about access times, quotas and the
+ * superblock.  Other filesystem changes are already converted to
+ * cylinder group blocks or inode blocks updates and are written to
+ * disk by syncer.
+ */
+static int
+ffs_sync_lazy(mp)
+     struct mount *mp;
+{
+	struct vnode *mvp, *vp;
+	struct inode *ip;
+	struct thread *td;
+	int allerror, error;
+
+	allerror = 0;
+	td = curthread;
+	if ((mp->mnt_flag & MNT_NOATIME) != 0)
+		goto qupdate;
+	MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) {
+		if (vp->v_type == VNON) {
+			VI_UNLOCK(vp);
+			continue;
+		}
+		ip = VTOI(vp);
+
+		/*
+		 * The IN_ACCESS flag is converted to IN_MODIFIED by
+		 * ufs_close() and ufs_getattr() by the calls to
+		 * ufs_itimes_locked(), without subsequent UFS_UPDATE().
+		 * Test also all the other timestamp flags too, to pick up
+		 * any other cases that could be missed.
+		 */
+		if ((ip->i_flag & (IN_ACCESS | IN_CHANGE | IN_MODIFIED |
+		    IN_UPDATE)) == 0) {
+			VI_UNLOCK(vp);
+			continue;
+		}
+		if ((error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK,
+		    td)) != 0)
+			continue;
+		error = ffs_update(vp, 0);
+		if (error != 0)
+			allerror = error;
+		vput(vp);
+	}
+
+qupdate:
+#ifdef QUOTA
+	qsync(mp);
+#endif
+
+	if (VFSTOUFS(mp)->um_fs->fs_fmod != 0 &&
+	    (error = ffs_sbupdate(VFSTOUFS(mp), MNT_LAZY, 0)) != 0)
+		allerror = error;
+	return (allerror);
+}
+
+/*
  * Go through the disk queues to initiate sandbagged IO;
  * go through the inodes to write those that have been modified;
  * initiate the writing of the super block if it has been modified.
  *
- * Note: we are always called with the filesystem marked `MPBUSY'.
+ * Note: we are always called with the filesystem marked busy using
+ * vfs_busy().
  */
 static int
 ffs_sync(mp, waitfor)
@@ -1444,15 +1510,9 @@ ffs_sync(mp, waitfor)
 	if (fs->fs_fmod != 0 && fs->fs_ronly != 0 && ump->um_fsckpid == 0)
 		panic("%s: ffs_sync: modification on read-only filesystem",
 		    fs->fs_fsmnt);
-	/*
-	 * For a lazy sync, we just care about the filesystem metadata.
-	 */
-	if (waitfor == MNT_LAZY) {
-		secondary_accwrites = 0;
-		secondary_writes = 0;
-		lockreq = 0;
-		goto metasync;
-	}
+	if (waitfor == MNT_LAZY)
+		return (ffs_sync_lazy(mp));
+
 	/*
 	 * Write back each (modified) inode.
 	 */
@@ -1466,51 +1526,45 @@ ffs_sync(mp, waitfor)
 		lockreq = LK_EXCLUSIVE;
 	}
 	lockreq |= LK_INTERLOCK | LK_SLEEPFAIL;
-	MNT_ILOCK(mp);
 loop:
 	/* Grab snapshot of secondary write counts */
+	MNT_ILOCK(mp);
 	secondary_writes = mp->mnt_secondary_writes;
 	secondary_accwrites = mp->mnt_secondary_accwrites;
+	MNT_IUNLOCK(mp);
 
 	/* Grab snapshot of softdep dependency counts */
-	MNT_IUNLOCK(mp);
 	softdep_get_depcounts(mp, &softdep_deps, &softdep_accdeps);
-	MNT_ILOCK(mp);
 
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		/*
-		 * Depend on the mntvnode_slock to keep things stable enough
+		 * Depend on the vnode interlock to keep things stable enough
 		 * for a quick test.  Since there might be hundreds of
 		 * thousands of vnodes, we cannot afford even a subroutine
 		 * call unless there's a good chance that we have work to do.
 		 */
-		VI_LOCK(vp);
-		if (vp->v_iflag & VI_DOOMED) {
+		if (vp->v_type == VNON) {
 			VI_UNLOCK(vp);
 			continue;
 		}
 		ip = VTOI(vp);
-		if (vp->v_type == VNON || ((ip->i_flag &
+		if ((ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
-		    vp->v_bufobj.bo_dirty.bv_cnt == 0)) {
+		    vp->v_bufobj.bo_dirty.bv_cnt == 0) {
 			VI_UNLOCK(vp);
 			continue;
 		}
-		MNT_IUNLOCK(mp);
 		if ((error = vget(vp, lockreq, td)) != 0) {
-			MNT_ILOCK(mp);
 			if (error == ENOENT || error == ENOLCK) {
-				MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+				MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 				goto loop;
 			}
 			continue;
 		}
-		if ((error = ffs_syncvnode(vp, waitfor)) != 0)
+		if ((error = ffs_syncvnode(vp, waitfor, 0)) != 0)
 			allerror = error;
 		vput(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 	/*
 	 * Force stale filesystem control information to be flushed.
 	 */
@@ -1518,16 +1572,13 @@ loop:
 		if ((error = softdep_flushworklist(ump->um_mountp, &count, td)))
 			allerror = error;
 		/* Flushed work items may create new vnodes to clean */
-		if (allerror == 0 && count) {
-			MNT_ILOCK(mp);
+		if (allerror == 0 && count)
 			goto loop;
-		}
 	}
 #ifdef QUOTA
 	qsync(mp);
 #endif
 
-metasync:
 	devvp = ump->um_devvp;
 	bo = &devvp->v_bufobj;
 	BO_LOCK(bo);
@@ -1537,18 +1588,18 @@ metasync:
 		if ((error = VOP_FSYNC(devvp, waitfor, td)) != 0)
 			allerror = error;
 		VOP_UNLOCK(devvp, 0);
-		if (allerror == 0 && waitfor == MNT_WAIT) {
-			MNT_ILOCK(mp);
+		if (allerror == 0 && waitfor == MNT_WAIT)
 			goto loop;
-		}
 	} else if (suspend != 0) {
 		if (softdep_check_suspend(mp,
 					  devvp,
 					  softdep_deps,
 					  softdep_accdeps,
 					  secondary_writes,
-					  secondary_accwrites) != 0)
+					  secondary_accwrites) != 0) {
+			MNT_IUNLOCK(mp);
 			goto loop;	/* More work needed */
+		}
 		mtx_assert(MNT_MTX(mp), MA_OWNED);
 		mp->mnt_kern_flag |= MNTK_SUSPEND2 | MNTK_SUSPENDED;
 		MNT_IUNLOCK(mp);

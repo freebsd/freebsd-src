@@ -52,13 +52,6 @@ enum CastKind {
   /// conversion is always unqualified.
   CK_LValueToRValue,
 
-  /// CK_GetObjCProperty - A conversion which calls an Objective-C
-  /// property getter.  The operand is an OK_ObjCProperty l-value; the
-  /// result will generally be an r-value, but could be an ordinary
-  /// gl-value if the property reference is to an implicit property
-  /// for a method that returns a reference type.
-  CK_GetObjCProperty,
-    
   /// CK_NoOp - A conversion which does not affect the type other than
   /// (possibly) adding qualifiers.
   ///   int    -> int
@@ -123,6 +116,15 @@ enum CastKind {
   /// CK_MemberPointerToBoolean - Member pointer to boolean.  A check
   /// against the null member pointer.
   CK_MemberPointerToBoolean,
+
+  /// CK_ReinterpretMemberPointer - Reinterpret a member pointer as a
+  /// different kind of member pointer.  C++ forbids this from
+  /// crossing between function and object types, but otherwise does
+  /// not restrict it.  However, the only operation that is permitted
+  /// on a "punned" member pointer is casting it back to the original
+  /// type, which is required to be a lossless operation (although
+  /// many ABIs do not guarantee this on all possible intermediate types).
+  CK_ReinterpretMemberPointer,
 
   /// CK_UserDefinedConversion - Conversion using a user defined type
   /// conversion function.
@@ -274,7 +276,19 @@ enum CastKind {
   /// in ARC cause blocks to be copied; this is for cases where that
   /// would not otherwise be guaranteed, such as when casting to a
   /// non-block pointer type.
-  CK_ARCExtendBlockObject
+  CK_ARCExtendBlockObject,
+
+  /// \brief Converts from _Atomic(T) to T.
+  CK_AtomicToNonAtomic,
+  /// \brief Converts from T to _Atomic(T).
+  CK_NonAtomicToAtomic,
+  
+  /// \brief Causes a block literal to by copied to the heap and then 
+  /// autoreleased.
+  ///
+  /// This particular cast kind is used for the conversion from a C++11
+  /// lambda expression to a block pointer.
+  CK_CopyAndAutoreleaseBlockObject
 };
 
 #define CK_Invalid ((CastKind) -1)

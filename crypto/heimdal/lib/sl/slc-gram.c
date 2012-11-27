@@ -81,42 +81,39 @@
 #line 1 "slc-gram.y"
 
 /*
- * Copyright (c) 2004-2006 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2004-2006 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
-#ifdef HAVE_CONFIG_H
 #include <config.h>
-RCSID("$Id: slc-gram.y 20767 2007-06-01 11:24:52Z lha $");
-#endif
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -130,6 +127,12 @@ RCSID("$Id: slc-gram.y 20767 2007-06-01 11:24:52Z lha $");
 #include "slc.h"
 extern FILE *yyin;
 extern struct assignment *assignment;
+
+/* Declarations for Bison:
+ */
+#define YYMALLOC        malloc
+#define YYFREE          free
+
 
 
 /* Enabling traces.  */
@@ -152,13 +155,13 @@ extern struct assignment *assignment;
 
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 typedef union YYSTYPE
-#line 54 "slc-gram.y"
+#line 57 "slc-gram.y"
 {
 	char *string;
 	struct assignment *assignment;
 }
 /* Line 193 of yacc.c.  */
-#line 162 "slc-gram.c"
+#line 165 "slc-gram.c"
 	YYSTYPE;
 # define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
@@ -171,7 +174,7 @@ typedef union YYSTYPE
 
 
 /* Line 216 of yacc.c.  */
-#line 175 "slc-gram.c"
+#line 178 "slc-gram.c"
 
 #ifdef short
 # undef short
@@ -453,7 +456,7 @@ static const yytype_int8 yyrhs[] =
 /* YYRLINE[YYN] -- source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
-       0,    67,    67,    73,    78,    81,    90
+       0,    70,    70,    76,    81,    84,    93
 };
 #endif
 
@@ -1353,14 +1356,14 @@ yyreduce:
   switch (yyn)
     {
         case 2:
-#line 68 "slc-gram.y"
+#line 71 "slc-gram.y"
     {
 			assignment = (yyvsp[(1) - (1)].assignment);
 		}
     break;
 
   case 3:
-#line 74 "slc-gram.y"
+#line 77 "slc-gram.y"
     {
 			(yyvsp[(1) - (2)].assignment)->next = (yyvsp[(2) - (2)].assignment);
 			(yyval.assignment) = (yyvsp[(1) - (2)].assignment);
@@ -1368,7 +1371,7 @@ yyreduce:
     break;
 
   case 5:
-#line 82 "slc-gram.y"
+#line 85 "slc-gram.y"
     {
 			(yyval.assignment) = malloc(sizeof(*(yyval.assignment)));
 			(yyval.assignment)->name = (yyvsp[(1) - (3)].string);
@@ -1380,7 +1383,7 @@ yyreduce:
     break;
 
   case 6:
-#line 91 "slc-gram.y"
+#line 94 "slc-gram.y"
     {
 			(yyval.assignment) = malloc(sizeof(*(yyval.assignment)));
 			(yyval.assignment)->name = (yyvsp[(1) - (5)].string);
@@ -1393,7 +1396,7 @@ yyreduce:
 
 
 /* Line 1267 of yacc.c.  */
-#line 1397 "slc-gram.c"
+#line 1400 "slc-gram.c"
       default: break;
     }
   YY_SYMBOL_PRINT ("-> $$ =", yyr1[yyn], &yyval, &yyloc);
@@ -1607,7 +1610,7 @@ yyreturn:
 }
 
 
-#line 101 "slc-gram.y"
+#line 104 "slc-gram.y"
 
 char *filename;
 FILE *cfile, *hfile;
@@ -1633,6 +1636,7 @@ check_option(struct assignment *as)
 {
     struct assignment *a;
     int seen_long = 0;
+    int seen_name = 0;
     int seen_short = 0;
     int seen_type = 0;
     int seen_argument = 0;
@@ -1645,6 +1649,8 @@ check_option(struct assignment *as)
 	    seen_long++;
 	else if(strcmp(a->name, "short") == 0)
 	    seen_short++;
+	else if(strcmp(a->name, "name") == 0)
+	    seen_name++;
 	else if(strcmp(a->name, "type") == 0)
 	    seen_type++;
 	else if(strcmp(a->name, "argument") == 0)
@@ -1654,12 +1660,16 @@ check_option(struct assignment *as)
 	else if(strcmp(a->name, "default") == 0)
 	    seen_default++;
 	else {
-	    ex(a, "unknown name");
+	    ex(a, "unknown name %s", a->name);
 	    ret++;
 	}
     }
     if(seen_long == 0 && seen_short == 0) {
 	ex(as, "neither long nor short option");
+	ret++;
+    }
+    if (seen_long == 0 && seen_name == 0) {
+	ex(as, "either of long or name option must be used");
 	ret++;
     }
     if(seen_long > 1) {
@@ -1716,7 +1726,7 @@ check_command(struct assignment *as)
 		} else if(strcmp(a->name, "max_args") == 0) {
 			seen_maxargs++;
 		} else {
-			ex(a, "unknown name");
+			ex(a, "unknown name: %s", a->name);
 			ret++;
 		}
 	}
@@ -1744,7 +1754,7 @@ check_command(struct assignment *as)
 		ex(as, "multiple max_args strings");
 		ret++;
 	}
-	
+
 	return ret;
 }
 
@@ -1866,7 +1876,7 @@ make_name(struct assignment *as)
 	lopt = find(as, "name");
     if(lopt == NULL)
 	return NULL;
-    
+
     type = find(as, "type");
     if(strcmp(type->u.value, "-flag") == 0)
 	asprintf(&s, "%s_flag", lopt->u.value);
@@ -1884,10 +1894,17 @@ static void defval_int(const char *name, struct assignment *defval)
     else
 	cprint(1, "opt.%s = 0;\n", name);
 }
-static void defval_string(const char *name, struct assignment *defval) 
+static void defval_neg_flag(const char *name, struct assignment *defval)
 {
     if(defval != NULL)
-	cprint(1, "opt.%s = \"%s\";\n", name, defval->u.value);
+	cprint(1, "opt.%s = %s;\n", name, defval->u.value);
+    else
+	cprint(1, "opt.%s = 1;\n", name);
+}
+static void defval_string(const char *name, struct assignment *defval)
+{
+    if(defval != NULL)
+	cprint(1, "opt.%s = (char *)(unsigned long)\"%s\";\n", name, defval->u.value);
     else
 	cprint(1, "opt.%s = NULL;\n", name);
 }
@@ -1936,7 +1953,7 @@ struct type_handler {
 	{ "-flag",
 	  "int",
 	  "arg_negative_flag",
-	  defval_int,
+	  defval_neg_flag,
 	  NULL
 	},
 	{ NULL }
@@ -1959,13 +1976,13 @@ gen_options(struct assignment *opt1, const char *name)
 
     hprint(0, "struct %s_options {\n", name);
 
-    for(tmp = opt1; 
-	tmp != NULL; 
+    for(tmp = opt1;
+	tmp != NULL;
 	tmp = find_next(tmp, "option")) {
 	struct assignment *type;
 	struct type_handler *th;
 	char *s;
-	
+
 	s = make_name(tmp->u.assignment);
 	type = find(tmp->u.assignment, "type");
 	th = find_handler(type);
@@ -1985,19 +2002,22 @@ gen_wrapper(struct assignment *as)
     struct assignment *tmp;
     char *n, *f;
     int nargs = 0;
+    int narguments = 0;
 
     name = find(as, "name");
     n = strdup(name->u.value);
     gen_name(n);
     arg = find(as, "argument");
+    if (arg)
+        narguments++;
     opt1 = find(as, "option");
     function = find(as, "function");
     if(function)
 	f = function->u.value;
     else
 	f = n;
-    
-       
+
+
     if(opt1 != NULL) {
 	gen_options(opt1, n);
 	hprint(0, "int %s(struct %s_options*, int, char **);\n", f, n);
@@ -2013,8 +2033,8 @@ gen_wrapper(struct assignment *as)
     cprint(1, "int ret;\n");
     cprint(1, "int optidx = 0;\n");
     cprint(1, "struct getargs args[] = {\n");
-    for(tmp = find(as, "option"); 
-	tmp != NULL; 
+    for(tmp = find(as, "option");
+	tmp != NULL;
 	tmp = find_next(tmp, "option")) {
 	struct assignment *type = find(tmp->u.assignment, "type");
 	struct assignment *lopt = find(tmp->u.assignment, "long");
@@ -2023,7 +2043,7 @@ gen_wrapper(struct assignment *as)
 	struct assignment *help = find(tmp->u.assignment, "help");
 
 	struct type_handler *th;
-	
+
 	cprint(2, "{ ");
 	if(lopt)
 	    fprintf(cfile, "\"%s\", ", lopt->u.value);
@@ -2040,9 +2060,10 @@ gen_wrapper(struct assignment *as)
 	    fprintf(cfile, "\"%s\", ", help->u.value);
 	else
 	    fprintf(cfile, "NULL, ");
-	if(aarg)
+	if(aarg) {
 	    fprintf(cfile, "\"%s\"", aarg->u.value);
-	else
+            narguments++;
+	} else
 	    fprintf(cfile, "NULL");
 	fprintf(cfile, " },\n");
     }
@@ -2050,8 +2071,8 @@ gen_wrapper(struct assignment *as)
     cprint(1, "};\n");
     cprint(1, "int help_flag = 0;\n");
 
-    for(tmp = find(as, "option"); 
-	tmp != NULL; 
+    for(tmp = find(as, "option");
+	tmp != NULL;
 	tmp = find_next(tmp, "option")) {
 	char *s;
 	struct assignment *type = find(tmp->u.assignment, "type");
@@ -2059,15 +2080,15 @@ gen_wrapper(struct assignment *as)
 	struct assignment *defval = find(tmp->u.assignment, "default");
 
 	struct type_handler *th;
-	
+
 	s = make_name(tmp->u.assignment);
 	th = find_handler(type);
 	(*th->defval)(s, defval);
 	free(s);
     }
 
-    for(tmp = find(as, "option"); 
-	tmp != NULL; 
+    for(tmp = find(as, "option");
+	tmp != NULL;
 	tmp = find_next(tmp, "option")) {
 	char *s;
 	s = make_name(tmp->u.assignment);
@@ -2082,7 +2103,7 @@ gen_wrapper(struct assignment *as)
 	int min_args = -1;
 	int max_args = -1;
 	char *end;
-	if(arg == NULL) {
+	if(narguments == 0) {
 	    max_args = 0;
 	} else {
 	    if((tmp = find(as, "min_args")) != NULL) {
@@ -2110,7 +2131,7 @@ gen_wrapper(struct assignment *as)
 	}
 	if(min_args != -1 || max_args != -1) {
 	    if(min_args == max_args) {
-		cprint(1, "if(argc - optidx != %d) {\n", 
+		cprint(1, "if(argc - optidx != %d) {\n",
 		       min_args);
 		cprint(2, "fprintf(stderr, \"Need exactly %u parameters (%%u given).\\n\\n\", argc - optidx);\n", min_args);
 		cprint(2, "goto usage;\n");
@@ -2131,16 +2152,16 @@ gen_wrapper(struct assignment *as)
 	    }
 	}
     }
-    
+
     cprint(1, "if(help_flag)\n");
     cprint(2, "goto usage;\n");
 
-    cprint(1, "ret = %s(%s, argc - optidx, argv + optidx);\n", 
+    cprint(1, "ret = %s(%s, argc - optidx, argv + optidx);\n",
 	   f, opt1 ? "&opt": "NULL");
-    
+
     /* free allocated data */
-    for(tmp = find(as, "option"); 
-	tmp != NULL; 
+    for(tmp = find(as, "option");
+	tmp != NULL;
 	tmp = find_next(tmp, "option")) {
 	char *s;
 	struct assignment *type = find(tmp->u.assignment, "type");
@@ -2155,11 +2176,11 @@ gen_wrapper(struct assignment *as)
     cprint(1, "return ret;\n");
 
     cprint(0, "usage:\n");
-    cprint(1, "arg_printusage (args, %d, \"%s\", \"%s\");\n", nargs, 
+    cprint(1, "arg_printusage (args, %d, \"%s\", \"%s\");\n", nargs,
 	   name->u.value, arg ? arg->u.value : "");
     /* free allocated data */
-    for(tmp = find(as, "option"); 
-	tmp != NULL; 
+    for(tmp = find(as, "option");
+	tmp != NULL;
 	tmp = find_next(tmp, "option")) {
 	char *s;
 	struct assignment *type = find(tmp->u.assignment, "type");
@@ -2236,7 +2257,7 @@ main(int argc, char **argv)
 	print_version(NULL);
 	exit(0);
     }
-    
+
     if(argc == optidx)
 	usage(1);
 

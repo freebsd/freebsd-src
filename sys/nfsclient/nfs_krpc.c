@@ -603,13 +603,15 @@ tryagain:
 		if (error == ESTALE)
 			nfs_purgecache(vp);
 		/*
-		 * Skip wcc data on NFS errors for now.  NetApp filers
-		 * return corrupt postop attrs in the wcc data for NFS
-		 * err EROFS.  Not sure if they could return corrupt
-		 * postop attrs for others errors.
+		 * Skip wcc data on non-ENOENT NFS errors for now.
+		 * NetApp filers return corrupt postop attrs in the
+		 * wcc data for NFS err EROFS.  Not sure if they could
+		 * return corrupt postop attrs for others errors.
+		 * Blocking ENOENT post-op attributes breaks negative
+		 * name caching, so always allow it through.
 		 */
 		if ((nmp->nm_flag & NFSMNT_NFSV3) &&
-		    !nfs_skip_wcc_data_onerr) {
+		    (!nfs_skip_wcc_data_onerr || error == ENOENT)) {
 			*mrp = mrep;
 			*mdp = md;
 			*dposp = dpos;

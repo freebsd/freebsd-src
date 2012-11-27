@@ -1,4 +1,4 @@
-//===-- PTXMCTargetDesc.cpp - PTX Target Descriptions -----------*- C++ -*-===//
+//===-- PTXMCTargetDesc.cpp - PTX Target Descriptions ---------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -52,18 +52,21 @@ static MCSubtargetInfo *createPTXMCSubtargetInfo(StringRef TT, StringRef CPU,
 }
 
 static MCCodeGenInfo *createPTXMCCodeGenInfo(StringRef TT, Reloc::Model RM,
-                                             CodeModel::Model CM) {
+                                             CodeModel::Model CM,
+                                             CodeGenOpt::Level OL) {
   MCCodeGenInfo *X = new MCCodeGenInfo();
-  X->InitMCCodeGenInfo(RM, CM);
+  X->InitMCCodeGenInfo(RM, CM, OL);
   return X;
 }
 
 static MCInstPrinter *createPTXMCInstPrinter(const Target &T,
                                              unsigned SyntaxVariant,
                                              const MCAsmInfo &MAI,
+                                             const MCInstrInfo &MII,
+                                             const MCRegisterInfo &MRI,
                                              const MCSubtargetInfo &STI) {
   assert(SyntaxVariant == 0 && "We only have one syntax variant");
-  return new PTXInstPrinter(MAI, STI);
+  return new PTXInstPrinter(MAI, MII, MRI, STI);
 }
 
 extern "C" void LLVMInitializePTXTargetMC() {

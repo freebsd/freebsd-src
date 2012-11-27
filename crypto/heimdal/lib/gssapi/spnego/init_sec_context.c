@@ -1,42 +1,40 @@
 /*
- * Copyright (c) 1997 - 2004 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
+ * Copyright (c) 1997 - 2004 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
  * Portions Copyright (c) 2004 PADL Software Pty Ltd.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
-#include "spnego/spnego_locl.h"
-
-RCSID("$Id: init_sec_context.c 19411 2006-12-18 15:42:03Z lha $");
+#include "spnego_locl.h"
 
 /*
- * Is target_name an sane target for `mech´.
+ * Is target_name an sane target for `mechÂ´.
  */
 
 static OM_uint32
@@ -45,7 +43,7 @@ initiator_approved(gss_name_t target_name, gss_OID mech)
     OM_uint32 min_stat, maj_stat;
     gss_ctx_id_t ctx = GSS_C_NO_CONTEXT;
     gss_buffer_desc out;
-    
+
     maj_stat = gss_init_sec_context(&min_stat,
 				    GSS_C_NO_CREDENTIAL,
 				    &ctx,
@@ -59,8 +57,10 @@ initiator_approved(gss_name_t target_name, gss_OID mech)
 				    &out,
 				    NULL,
 				    NULL);
-    if (GSS_ERROR(maj_stat))
+    if (GSS_ERROR(maj_stat)) {
+	gss_mg_collect_error(mech, maj_stat, min_stat);
 	return GSS_S_BAD_MECH;
+    }
     gss_release_buffer(&min_stat, &out);
     gss_delete_sec_context(&min_stat, &ctx, NULL);
 
@@ -177,7 +177,7 @@ spnego_reply_internal(OM_uint32 *minor_status,
 static OM_uint32
 spnego_initial
            (OM_uint32 * minor_status,
-	    gssspnego_cred cred,
+	    gss_cred_id_t cred,
             gss_ctx_id_t * context_handle,
             const gss_name_t target_name,
             const gss_OID mech_type,
@@ -230,7 +230,7 @@ spnego_initial
 	return sub;
     }
 
-    sub = _gss_spnego_indicate_mechtypelist(&minor, 
+    sub = _gss_spnego_indicate_mechtypelist(&minor,
 					    ctx->target_name,
 					    initiator_approved,
 					    0,
@@ -252,8 +252,7 @@ spnego_initial
 
     /* generate optimistic token */
     sub = gss_init_sec_context(&minor,
-			       (cred != NULL) ? cred->negotiated_cred_id :
-			          GSS_C_NO_CREDENTIAL,
+			       cred,
 			       &ctx->negotiated_ctx_id,
 			       ctx->target_name,
 			       ctx->preferred_mech_type,
@@ -268,6 +267,7 @@ spnego_initial
     if (GSS_ERROR(sub)) {
 	free_NegTokenInit(&ni);
 	*minor_status = minor;
+	gss_mg_collect_error(ctx->preferred_mech_type, sub, minor);
 	_gss_spnego_internal_delete_sec_context(&minor, &context, GSS_C_NO_BUFFER);
 	return sub;
     }
@@ -344,7 +344,7 @@ spnego_initial
     ctx->initiator_mech_types.val = ni.mechTypes.val;
     ni.mechTypes.len = 0;
     ni.mechTypes.val = NULL;
- 
+
     free_NegTokenInit(&ni);
 
     sub = gss_encapsulate_token(&data,
@@ -374,7 +374,7 @@ spnego_initial
 static OM_uint32
 spnego_reply
            (OM_uint32 * minor_status,
-	    const gssspnego_cred cred,
+	    const gss_cred_id_t cred,
             gss_ctx_id_t * context_handle,
             const gss_name_t target_name,
             const gss_OID mech_type,
@@ -389,11 +389,10 @@ spnego_reply
     )
 {
     OM_uint32 ret, minor;
-    NegTokenResp resp;
-    size_t len, taglen;
+    NegotiationToken resp;
     gss_OID_desc mech;
     int require_mic;
-    size_t buf_len;
+    size_t buf_len = 0;
     gss_buffer_desc mic_buf, mech_buf;
     gss_buffer_desc mech_output_token;
     gssspnego_ctx ctx;
@@ -411,27 +410,23 @@ spnego_reply
     mech_buf.value = NULL;
     mech_buf.length = 0;
 
-    ret = der_match_tag_and_length(input_token->value, input_token->length,
-				   ASN1_C_CONTEXT, CONS, 1, &len, &taglen);
+    ret = decode_NegotiationToken(input_token->value, input_token->length,
+				  &resp, NULL);
     if (ret)
-	return ret;
+      return ret;
 
-    if (len > input_token->length - taglen)
-	return ASN1_OVERRUN;
-
-    ret = decode_NegTokenResp((const unsigned char *)input_token->value+taglen,
-			      len, &resp, NULL);
-    if (ret) {
-	*minor_status = ENOMEM;
-	return GSS_S_FAILURE;
+    if (resp.element != choice_NegotiationToken_negTokenResp) {
+	free_NegotiationToken(&resp);
+	*minor_status = 0;
+	return GSS_S_BAD_MECH;
     }
 
-    if (resp.negResult == NULL
-	|| *(resp.negResult) == reject
-	/* || resp.supportedMech == NULL */
+    if (resp.u.negTokenResp.negResult == NULL
+	|| *(resp.u.negTokenResp.negResult) == reject
+	/* || resp.u.negTokenResp.supportedMech == NULL */
 	)
     {
-	free_NegTokenResp(&resp);
+	free_NegotiationToken(&resp);
 	return GSS_S_BAD_MECH;
     }
 
@@ -442,16 +437,16 @@ spnego_reply
 
     HEIMDAL_MUTEX_lock(&ctx->ctx_id_mutex);
 
-    if (resp.supportedMech) {
+    if (resp.u.negTokenResp.supportedMech) {
 
 	if (ctx->oidlen) {
-	    free_NegTokenResp(&resp);
+	    free_NegotiationToken(&resp);
 	    HEIMDAL_MUTEX_unlock(&ctx->ctx_id_mutex);
 	    return GSS_S_BAD_MECH;
 	}
 	ret = der_put_oid(ctx->oidbuf + sizeof(ctx->oidbuf) - 1,
 			  sizeof(ctx->oidbuf),
-			  resp.supportedMech,
+			  resp.u.negTokenResp.supportedMech,
 			  &ctx->oidlen);
 	/* Avoid recursively embedded SPNEGO */
 	if (ret || (ctx->oidlen == GSS_SPNEGO_MECHANISM->length &&
@@ -459,7 +454,7 @@ spnego_reply
 			   GSS_SPNEGO_MECHANISM->elements,
 			   ctx->oidlen) == 0))
 	{
-	    free_NegTokenResp(&resp);
+	    free_NegotiationToken(&resp);
 	    HEIMDAL_MUTEX_unlock(&ctx->ctx_id_mutex);
 	    return GSS_S_BAD_MECH;
 	}
@@ -470,23 +465,24 @@ spnego_reply
 		   ctx->preferred_mech_type->elements,
 		   ctx->oidlen) != 0)
 	{
-	    gss_delete_sec_context(&minor, &ctx->negotiated_ctx_id, 
+	    gss_delete_sec_context(&minor, &ctx->negotiated_ctx_id,
 				   GSS_C_NO_BUFFER);
 	    ctx->negotiated_ctx_id = GSS_C_NO_CONTEXT;
 	}
     } else if (ctx->oidlen == 0) {
-	free_NegTokenResp(&resp);
+	free_NegotiationToken(&resp);
 	HEIMDAL_MUTEX_unlock(&ctx->ctx_id_mutex);
 	return GSS_S_BAD_MECH;
     }
 
-    if (resp.responseToken != NULL || 
+    /* if a token (of non zero length), or no context, pass to underlaying mech */
+    if ((resp.u.negTokenResp.responseToken != NULL && resp.u.negTokenResp.responseToken->length) ||
 	ctx->negotiated_ctx_id == GSS_C_NO_CONTEXT) {
 	gss_buffer_desc mech_input_token;
 
-	if (resp.responseToken) {
-	    mech_input_token.length = resp.responseToken->length;
-	    mech_input_token.value  = resp.responseToken->data;
+	if (resp.u.negTokenResp.responseToken) {
+	    mech_input_token.length = resp.u.negTokenResp.responseToken->length;
+	    mech_input_token.value  = resp.u.negTokenResp.responseToken->data;
 	} else {
 	    mech_input_token.length = 0;
 	    mech_input_token.value = NULL;
@@ -499,8 +495,7 @@ spnego_reply
 	/* Fall through as if the negotiated mechanism
 	   was requested explicitly */
 	ret = gss_init_sec_context(&minor,
-				   (cred != NULL) ? cred->negotiated_cred_id :
-				       GSS_C_NO_CREDENTIAL,
+				   cred,
 				   &ctx->negotiated_ctx_id,
 				   ctx->target_name,
 				   &mech,
@@ -514,19 +509,20 @@ spnego_reply
 				   &ctx->mech_time_rec);
 	if (GSS_ERROR(ret)) {
 	    HEIMDAL_MUTEX_unlock(&ctx->ctx_id_mutex);
-	    free_NegTokenResp(&resp);
+	    free_NegotiationToken(&resp);
+	    gss_mg_collect_error(&mech, ret, minor);
 	    *minor_status = minor;
 	    return ret;
 	}
 	if (ret == GSS_S_COMPLETE) {
 	    ctx->open = 1;
 	}
-    } else if (*(resp.negResult) == accept_completed) {
+    } else if (*(resp.u.negTokenResp.negResult) == accept_completed) {
 	if (ctx->maybe_open)
 	    ctx->open = 1;
     }
 
-    if (*(resp.negResult) == request_mic) {
+    if (*(resp.u.negTokenResp.negResult) == request_mic) {
 	ctx->require_mic = 1;
     }
 
@@ -535,14 +531,14 @@ spnego_reply
 	 * Verify the mechListMIC if one was provided or CFX was
 	 * used and a non-preferred mechanism was selected
 	 */
-	if (resp.mechListMIC != NULL) {
+	if (resp.u.negTokenResp.mechListMIC != NULL) {
 	    require_mic = 1;
 	} else {
 	    ret = _gss_spnego_require_mechlist_mic(minor_status, ctx,
 						   &require_mic);
 	    if (ret) {
 		HEIMDAL_MUTEX_unlock(&ctx->ctx_id_mutex);
-		free_NegTokenResp(&resp);
+		free_NegotiationToken(&resp);
 		gss_release_buffer(&minor, &mech_output_token);
 		return ret;
 	    }
@@ -556,23 +552,25 @@ spnego_reply
 			   &ctx->initiator_mech_types, &buf_len, ret);
 	if (ret) {
 	    HEIMDAL_MUTEX_unlock(&ctx->ctx_id_mutex);
-	    free_NegTokenResp(&resp);
+	    free_NegotiationToken(&resp);
 	    gss_release_buffer(&minor, &mech_output_token);
 	    *minor_status = ret;
 	    return GSS_S_FAILURE;
 	}
-	if (mech_buf.length != buf_len)
+	if (mech_buf.length != buf_len) {
 	    abort();
+            UNREACHABLE(return GSS_S_FAILURE);
+        }
 
-	if (resp.mechListMIC == NULL) {
+	if (resp.u.negTokenResp.mechListMIC == NULL) {
 	    HEIMDAL_MUTEX_unlock(&ctx->ctx_id_mutex);
 	    free(mech_buf.value);
-	    free_NegTokenResp(&resp);
+	    free_NegotiationToken(&resp);
 	    *minor_status = 0;
 	    return GSS_S_DEFECTIVE_TOKEN;
 	}
-	mic_buf.length = resp.mechListMIC->length;
-	mic_buf.value  = resp.mechListMIC->data;
+	mic_buf.length = resp.u.negTokenResp.mechListMIC->length;
+	mic_buf.value  = resp.u.negTokenResp.mechListMIC->data;
 
 	if (mech_output_token.length == 0) {
 	    ret = gss_verify_mic(minor_status,
@@ -584,7 +582,7 @@ spnego_reply
 		HEIMDAL_MUTEX_unlock(&ctx->ctx_id_mutex);
 		free(mech_buf.value);
 		gss_release_buffer(&minor, &mech_output_token);
-		free_NegTokenResp(&resp);
+		free_NegotiationToken(&resp);
 		return GSS_S_DEFECTIVE_TOKEN;
 	    }
 	    ctx->verified_mic = 1;
@@ -599,7 +597,7 @@ spnego_reply
     if (mech_buf.value != NULL)
 	free(mech_buf.value);
 
-    free_NegTokenResp(&resp);
+    free_NegotiationToken(&resp);
     gss_release_buffer(&minor, &mech_output_token);
 
     if (actual_mech_type)
@@ -613,7 +611,8 @@ spnego_reply
     return ret;
 }
 
-OM_uint32 _gss_spnego_init_sec_context
+OM_uint32 GSSAPI_CALLCONV
+_gss_spnego_init_sec_context
            (OM_uint32 * minor_status,
             const gss_cred_id_t initiator_cred_handle,
             gss_ctx_id_t * context_handle,
@@ -629,11 +628,9 @@ OM_uint32 _gss_spnego_init_sec_context
             OM_uint32 * time_rec
            )
 {
-    gssspnego_cred cred = (gssspnego_cred)initiator_cred_handle;
-
     if (*context_handle == GSS_C_NO_CONTEXT)
 	return spnego_initial (minor_status,
-			       cred,
+			       initiator_cred_handle,
 			       context_handle,
 			       target_name,
 			       mech_type,
@@ -647,7 +644,7 @@ OM_uint32 _gss_spnego_init_sec_context
 			       time_rec);
     else
 	return spnego_reply (minor_status,
-			     cred,
+			     initiator_cred_handle,
 			     context_handle,
 			     target_name,
 			     mech_type,

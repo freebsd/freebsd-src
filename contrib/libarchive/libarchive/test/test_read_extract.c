@@ -111,13 +111,13 @@ DEFINE_TEST(test_read_extract)
 		archive_entry_free(ae);
 	}
 	/* Close out the archive. */
-	assertA(0 == archive_write_close(a));
-	assertA(0 == archive_write_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/* Extract the entries to disk. */
 	assert((a = archive_read_new()) != NULL);
 	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
+	assertA(0 == archive_read_support_filter_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, BUFF_SIZE));
 	/* Restore first entry with _EXTRACT_PERM. */
 	failure("Error reading first entry", i);
@@ -132,8 +132,8 @@ DEFINE_TEST(test_read_extract)
 		assertA(0 == archive_read_extract(a, ae, 0));
 	}
 	assertA(ARCHIVE_EOF == archive_read_next_header(a, &ae));
-	assert(0 == archive_read_close(a));
-	assert(0 == archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/* Test the entries on disk. */
 	/* This first entry was extracted with ARCHIVE_EXTRACT_PERM,

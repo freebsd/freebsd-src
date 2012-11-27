@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: dnsconf.h,v 1.3 2009-09-02 23:48:03 tbox Exp $ */
+/* $Id: dnsconf.h,v 1.3 2009/09/02 23:48:03 tbox Exp $ */
 
 #ifndef ISCCFG_NAMEDCONF_H
 #define ISCCFG_NAMEDCONF_H 1

@@ -1,39 +1,41 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 1997 - 2000 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Portions Copyright (c) 2009 Apple Inc. All rights reserved.
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "kadm5_locl.h"
 
-RCSID("$Id: ent_setup.c 18823 2006-10-22 10:15:53Z lha $");
+RCSID("$Id$");
 
 #define set_value(X, V) do { if((X) == NULL) (X) = malloc(sizeof(*(X))); *(X) = V; } while(0)
 #define set_null(X)     do { if((X) != NULL) free((X)); (X) = NULL; } while (0)
@@ -66,7 +68,7 @@ attr_to_flags(unsigned attr, HDBFlags *flags)
 static kadm5_ret_t
 perform_tl_data(krb5_context context,
 		HDB *db,
-		hdb_entry_ex *ent, 
+		hdb_entry_ex *ent,
 		const krb5_tl_data *tl_data)
 {
     kadm5_ret_t ret = 0;
@@ -101,13 +103,24 @@ perform_tl_data(krb5_context context,
 				   NULL);
 	if (ret)
 	    return KADM5_BAD_TL_TYPE;
-	
+
 	ret = hdb_replace_extension(context, &ent->entry, &ext);
 	free_HDB_extension(&ext);
     } else {
 	return KADM5_BAD_TL_TYPE;
     }
     return ret;
+}
+
+static void
+default_flags(hdb_entry_ex *ent, int server)
+{
+    ent->entry.flags.client      = 1;
+    ent->entry.flags.server      = !!server;
+    ent->entry.flags.forwardable = 1;
+    ent->entry.flags.proxiable   = 1;
+    ent->entry.flags.renewable   = 1;
+    ent->entry.flags.postdate    = 1;
 }
 
 
@@ -121,7 +134,7 @@ kadm5_ret_t
 _kadm5_setup_entry(kadm5_server_context *context,
 		   hdb_entry_ex *ent,
 		   uint32_t mask,
-		   kadm5_principal_ent_t princ, 
+		   kadm5_principal_ent_t princ,
 		   uint32_t princ_mask,
 		   kadm5_principal_ent_t def,
 		   uint32_t def_mask)
@@ -147,14 +160,10 @@ _kadm5_setup_entry(kadm5_server_context *context,
 	    attr_to_flags(def->attributes, &ent->entry.flags);
 	    ent->entry.flags.invalid = 0;
 	} else {
-	    ent->entry.flags.client      = 1;
-	    ent->entry.flags.server      = 1;
-	    ent->entry.flags.forwardable = 1;
-	    ent->entry.flags.proxiable   = 1;
-	    ent->entry.flags.renewable   = 1;
-	    ent->entry.flags.postdate    = 1;
+	    default_flags(ent, 1);
 	}
     }
+
     if(mask & KADM5_MAX_LIFE) {
 	if(princ_mask & KADM5_MAX_LIFE) {
 	    if(princ->max_life)

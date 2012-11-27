@@ -157,7 +157,7 @@ cesa_alloc_dma_mem(struct cesa_softc *sc, struct cesa_dma_mem *cdm,
 	KASSERT(cdm->cdm_vaddr == NULL,
 	    ("%s(): DMA memory descriptor in use.", __func__));
 
-	error = bus_dma_tag_create(NULL,	/* parent */
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->sc_dev),	/* parent */
 	    PAGE_SIZE, 0,			/* alignment, boundary */
 	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,			/* highaddr */
@@ -1046,7 +1046,7 @@ cesa_attach(device_t dev)
 	}
 
 	/* Create DMA tag for processed data */
-	error = bus_dma_tag_create(NULL,	/* parent */
+	error = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
 	    1, 0,				/* alignment, boundary */
 	    BUS_SPACE_MAXADDR_32BIT,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,			/* highaddr */

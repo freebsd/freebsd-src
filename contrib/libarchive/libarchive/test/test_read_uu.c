@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
- * Copyright (c) 2009 Michihiro NAKAJIMA
+ * Copyright (c) 2009-2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -70,29 +70,43 @@ static const char extradata[] = {
 };
 
 static void
-test_read_uu_sub(const char *uudata, size_t uusize)
+test_read_uu_sub(const char *uudata, size_t uusize, int no_nl)
 {
 	struct archive_entry *ae;
 	struct archive *a;
 	char *buff;
+	char extradata_no_nl[sizeof(extradata)];
+	const char *extradata_ptr;
 	int extra;
+	size_t size;
 
-	assert(NULL != (buff = malloc(uusize + 64 * 1024)));
+	if (no_nl) {
+		/* Remove '\n' from extra data to make a very long line. */
+		char *p;
+		memcpy(extradata_no_nl, extradata, sizeof(extradata));
+		extradata_ptr = extradata_no_nl;
+		for (p = extradata_no_nl;
+		    *p && (p = strchr(p, '\n')) != NULL; p++)
+			*p = ' ';/* Replace '\n' with ' ' a space character. */
+	} else
+		extradata_ptr = extradata;
+
+	assert(NULL != (buff = malloc(uusize + 1024 * 1024)));
 	if (buff == NULL)
 		return;
 	for (extra = 0; extra <= 64; extra = extra==0?1:extra*2) {
-		size_t size = extra * 1024;
 		char *p = buff;
 
+		size = extra * 1024;
 		/* Add extra text size of which is from 1K bytes to
 		 * 64Kbytes before uuencoded data. */
 		while (size) {
 			if (size > sizeof(extradata)-1) {
-				memcpy(p, extradata, sizeof(extradata)-1);
+				memcpy(p, extradata_ptr, sizeof(extradata)-1);
 				p += sizeof(extradata)-1;
 				size -= sizeof(extradata)-1;
 			} else {
-				memcpy(p, extradata, size-1);
+				memcpy(p, extradata_ptr, size-1);
 				p += size-1;
 				*p++ = '\n';/* the last of extra text must have
 					     * '\n' character. */
@@ -104,31 +118,58 @@ test_read_uu_sub(const char *uudata, size_t uusize)
 
 		assert((a = archive_read_new()) != NULL);
 		assertEqualIntA(a, ARCHIVE_OK,
-		    archive_read_support_compression_all(a));
+		    archive_read_support_filter_all(a));
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_support_format_all(a));
 		assertEqualIntA(a, ARCHIVE_OK,
 		    read_open_memory(a, buff, size, 2));
 		assertEqualIntA(a, ARCHIVE_OK,
 		    archive_read_next_header(a, &ae));
-		failure("archive_compression_name(a)=\"%s\"",
-		    archive_compression_name(a));
+		failure("archive_compression_name(a)=\"%s\""
+		    "extra %d, NL %d",
+		    archive_compression_name(a), extra, !no_nl);
 		assertEqualInt(archive_compression(a),
 		    ARCHIVE_COMPRESSION_COMPRESS);
-		failure("archive_format_name(a)=\"%s\"",
-		    archive_format_name(a));
-		assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
+		failure("archive_format_name(a)=\"%s\""
+		    "extra %d, NL %d",
+		    archive_format_name(a), extra, !no_nl);
+		assertEqualInt(archive_format(a),
+		    ARCHIVE_FORMAT_TAR_USTAR);
 		assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-		assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+		assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	}
+
+	/* UUdecode bidder shouldn't scan too much data; make sure it
+	 * fails if we put 512k of data before the start. */
+	size = 512 * 1024;
+	for (extra = 0; (size_t)extra < size; ++extra)
+		buff[extra + 1024] = buff[extra];
+	buff[size - 1] = '\n';
+	memcpy(buff + size, uudata, uusize);
+	size += uusize;
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_FATAL,
+	    read_open_memory(a, buff, size, 2));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+
 	free(buff);
 }
 
 DEFINE_TEST(test_read_uu)
 {
 	/* Read the traditional uuencoded data. */
-	test_read_uu_sub(archive, sizeof(archive)-1);
+	test_read_uu_sub(archive, sizeof(archive)-1, 0);
 	/* Read the Base64 uuencoded data. */
-	test_read_uu_sub(archive64, sizeof(archive64)-1);
+	test_read_uu_sub(archive64, sizeof(archive64)-1, 0);
+	/* Read the traditional uuencoded data with very long line extra
+	 * data in front of it. */
+	test_read_uu_sub(archive, sizeof(archive)-1, 1);
+	/* Read the Base64 uuencoded data with very long line extra data
+	 * in front of it. */
+	test_read_uu_sub(archive64, sizeof(archive64)-1, 1);
 }
 

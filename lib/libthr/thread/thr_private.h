@@ -80,7 +80,7 @@ typedef TAILQ_HEAD(atfork_head, pthread_atfork) atfork_head;
 TAILQ_HEAD(mutex_queue, pthread_mutex);
 
 /* Signal to do cancellation */
-#define	SIGCANCEL		32
+#define	SIGCANCEL		SIGTHR
 
 /*
  * Kernel fatal error handler macro.
@@ -182,9 +182,11 @@ struct pthread_cond_attr {
 struct pthread_barrier {
 	struct umutex		b_lock;
 	struct ucond		b_cv;
-	volatile int64_t	b_cycle;
-	volatile int		b_count;
-	volatile int		b_waiters;
+	int64_t			b_cycle;
+	int			b_count;
+	int			b_waiters;
+	int			b_refcount;
+	int			b_destroying;
 };
 
 struct pthread_barrierattr {
@@ -708,6 +710,7 @@ extern size_t	_thr_stack_initial __hidden;
 extern int	_thr_page_size __hidden;
 extern int	_thr_spinloops __hidden;
 extern int	_thr_yieldloops __hidden;
+extern int	_thr_queuefifo __hidden;
 
 /* Garbage thread count. */
 extern int	_gc_count __hidden;
@@ -831,8 +834,6 @@ ssize_t __sys_read(int, void *, size_t);
 ssize_t __sys_write(int, const void *, size_t);
 void	__sys_exit(int);
 #endif
-
-int	_umtx_op_err(void *, int op, u_long, void *, void *) __hidden;
 
 static inline int
 _thr_isthreaded(void)

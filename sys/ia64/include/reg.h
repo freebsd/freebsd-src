@@ -31,14 +31,39 @@
 
 #include <machine/_regset.h>
 
-#if defined(_KERNEL) && !defined(_STANDALONE)
-#include "opt_compat.h"
-#endif
+struct reg32 {
+	unsigned int	r_fs;
+	unsigned int	r_es;
+	unsigned int	r_ds;
+	unsigned int	r_edi;
+	unsigned int	r_esi;
+	unsigned int	r_ebp;
+	unsigned int	r_isp;
+	unsigned int	r_ebx;
+	unsigned int	r_edx;
+	unsigned int	r_ecx;
+	unsigned int	r_eax;
+	unsigned int	r_trapno;
+	unsigned int	r_err;
+	unsigned int	r_eip;
+	unsigned int	r_cs;
+	unsigned int	r_eflags;
+	unsigned int	r_esp;
+	unsigned int	r_ss;
+	unsigned int	r_gs;
+};
 
 struct reg {
 	struct _special		r_special;
 	struct _callee_saved	r_preserved;
 	struct _caller_saved	r_scratch;
+};
+
+struct fpreg32 {
+	unsigned int	fpr_env[7];
+	unsigned char	fpr_acc[8][10];
+	unsigned int	fpr_ex_sw;
+	unsigned char	fpr_pad[64];
 };
 
 struct fpreg {
@@ -47,15 +72,14 @@ struct fpreg {
 	struct _high_fp		fpr_high;
 };
 
+struct dbreg32 {
+	unsigned int	dr[8];
+};
+
 struct dbreg {
 	unsigned long	dbr_data[8];
 	unsigned long	dbr_inst[8];
 };
-
-#ifdef COMPAT_FREEBSD32
-#include <machine/fpu.h>
-#include <compat/ia32/ia32_reg.h>
-#endif
 
 #ifdef _KERNEL
 struct thread;
@@ -67,6 +91,14 @@ int	fill_fpregs(struct thread *, struct fpreg *);
 int	set_fpregs(struct thread *, struct fpreg *);
 int	fill_dbregs(struct thread *, struct dbreg *);
 int	set_dbregs(struct thread *, struct dbreg *);
+#ifdef COMPAT_FREEBSD32
+int	fill_regs32(struct thread *, struct reg32 *);
+int	set_regs32(struct thread *, struct reg32 *);
+int	fill_fpregs32(struct thread *, struct fpreg32 *);
+int	set_fpregs32(struct thread *, struct fpreg32 *);
+int	fill_dbregs32(struct thread *, struct dbreg32 *);
+int	set_dbregs32(struct thread *, struct dbreg32 *);
+#endif
 #endif
 
 #endif /* _MACHINE_REG_H_ */

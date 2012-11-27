@@ -1,4 +1,4 @@
-//======-- MSP430FrameLowering.cpp - MSP430 Frame Information -------=========//
+//===-- MSP430FrameLowering.cpp - MSP430 Frame Information ----------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -29,7 +29,7 @@ using namespace llvm;
 bool MSP430FrameLowering::hasFP(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
 
-  return (DisableFramePointerElim(MF) ||
+  return (MF.getTarget().Options.DisableFramePointerElim(MF) ||
           MF.getFrameInfo()->hasVarSizedObjects() ||
           MFI->isFrameAddressTaken());
 }
@@ -140,7 +140,7 @@ void MSP430FrameLowering::emitEpilogue(MachineFunction &MF,
   while (MBBI != MBB.begin()) {
     MachineBasicBlock::iterator PI = prior(MBBI);
     unsigned Opc = PI->getOpcode();
-    if (Opc != MSP430::POP16r && !PI->getDesc().isTerminator())
+    if (Opc != MSP430::POP16r && !PI->isTerminator())
       break;
     --MBBI;
   }

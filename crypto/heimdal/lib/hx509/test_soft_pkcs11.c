@@ -1,34 +1,34 @@
 /*
- * Copyright (c) 2006 - 2008 Kungliga Tekniska Högskolan
- * (Royal Institute of Technology, Stockholm, Sweden). 
- * All rights reserved. 
+ * Copyright (c) 2006 - 2008 Kungliga Tekniska HÃ¶gskolan
+ * (Royal Institute of Technology, Stockholm, Sweden).
+ * All rights reserved.
  *
- * Redistribution and use in source and binary forms, with or without 
- * modification, are permitted provided that the following conditions 
- * are met: 
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
  *
- * 1. Redistributions of source code must retain the above copyright 
- *    notice, this list of conditions and the following disclaimer. 
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
  *
- * 2. Redistributions in binary form must reproduce the above copyright 
- *    notice, this list of conditions and the following disclaimer in the 
- *    documentation and/or other materials provided with the distribution. 
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- * 3. Neither the name of the Institute nor the names of its contributors 
- *    may be used to endorse or promote products derived from this software 
- *    without specific prior written permission. 
+ * 3. Neither the name of the Institute nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
- * SUCH DAMAGE. 
+ * THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include "hx_locl.h"
@@ -39,9 +39,9 @@ static CK_FUNCTION_LIST_PTR func;
 
 
 static CK_RV
-find_object(CK_SESSION_HANDLE session, 
+find_object(CK_SESSION_HANDLE session,
 	    char *id,
-	    CK_OBJECT_CLASS key_class, 
+	    CK_OBJECT_CLASS key_class,
 	    CK_OBJECT_HANDLE_PTR object)
 {
     CK_ULONG object_count;
@@ -119,11 +119,11 @@ main(int argc, char **argv)
     if ((slot_info.flags & CKF_TOKEN_PRESENT) == 0)
 	errx(1, "no token present");
 
-    ret = (*func->C_OpenSession)(slot, CKF_SERIAL_SESSION, 
+    ret = (*func->C_OpenSession)(slot, CKF_SERIAL_SESSION,
 				 NULL, NULL, &session);
     if (ret != CKR_OK)
 	errx(1, "C_OpenSession failed: %d", (int)ret);
-    
+
     ret = (*func->C_GetTokenInfo)(slot, &token_info);
     if (ret)
 	errx(1, "C_GetTokenInfo1 failed: %d", (int)ret);
@@ -159,7 +159,7 @@ main(int argc, char **argv)
 	ret = (*func->C_SignInit)(session, &mechanism, private);
 	if (ret != CKR_OK)
 	    return 1;
-	
+
 	ck_sigsize = sizeof(signature);
 	ret = (*func->C_Sign)(session, (CK_BYTE *)sighash, strlen(sighash),
 			      (CK_BYTE *)signature, &ck_sigsize);
@@ -172,7 +172,7 @@ main(int argc, char **argv)
 	if (ret != CKR_OK)
 	    return 1;
 
-	ret = (*func->C_Verify)(session, (CK_BYTE *)signature, ck_sigsize, 
+	ret = (*func->C_Verify)(session, (CK_BYTE *)signature, ck_sigsize,
 				(CK_BYTE *)sighash, strlen(sighash));
 	if (ret != CKR_OK) {
 	    printf("message: %d\n", (int)ret);
@@ -192,7 +192,7 @@ main(int argc, char **argv)
 	ret = (*func->C_EncryptInit)(session, &mechanism, public);
 	if (ret != CKR_OK)
 	    return 1;
-	
+
 	ck_sigsize = sizeof(signature);
 	ret = (*func->C_Encrypt)(session, (CK_BYTE *)sighash, strlen(sighash),
 				 (CK_BYTE *)signature, &ck_sigsize);
@@ -206,14 +206,14 @@ main(int argc, char **argv)
 	    return 1;
 
 	outsize = sizeof(outdata);
-	ret = (*func->C_Decrypt)(session, (CK_BYTE *)signature, ck_sigsize, 
+	ret = (*func->C_Decrypt)(session, (CK_BYTE *)signature, ck_sigsize,
 				 (CK_BYTE *)outdata, &outsize);
 	if (ret != CKR_OK) {
 	    printf("message: %d\n", (int)ret);
 	    return 1;
 	}
 
-	if (memcmp(sighash, outdata, strlen(sighash)) != 0)
+	if (ct_memcmp(sighash, outdata, strlen(sighash)) != 0)
 	    return 1;
     }
 #endif

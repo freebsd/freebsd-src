@@ -29,16 +29,6 @@
 #ifndef _MACHINE_CPUFUNC_H_
 #define	_MACHINE_CPUFUNC_H_
 
-/*
- * Required for user-space atomic.h includes
- */
-static __inline void
-powerpc_mb(void)
-{
-
-	__asm __volatile("eieio; sync" : : : "memory");
-}
-
 #ifdef _KERNEL
 
 #include <sys/types.h>
@@ -176,21 +166,21 @@ static __inline void
 eieio(void)
 {
 
-	__asm __volatile ("eieio");
+	__asm __volatile ("eieio" : : : "memory");
 }
 
 static __inline void
 isync(void)
 {
 
-	__asm __volatile ("isync");
+	__asm __volatile ("isync" : : : "memory");
 }
 
 static __inline void
 powerpc_sync(void)
 {
 
-	__asm __volatile ("sync");
+	__asm __volatile ("sync" : : : "memory");
 }
 
 static __inline register_t

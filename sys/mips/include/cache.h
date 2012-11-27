@@ -217,7 +217,6 @@ do {									\
 struct mips_cpuinfo;
 
 void    mips_config_cache(struct mips_cpuinfo *);
-void    mips_dcache_compute_align(void);
 
 #include <machine/cache_mipsNN.h>
 #endif	/* _MACHINE_CACHE_H_ */

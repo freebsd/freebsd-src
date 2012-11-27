@@ -16,6 +16,7 @@
 #define LLVM_CLANG_AST_DECLFRIEND_H
 
 #include "clang/AST/DeclCXX.h"
+#include "llvm/Support/Compiler.h"
 
 namespace clang {
 
@@ -35,6 +36,7 @@ namespace clang {
 ///
 /// The semantic context of a friend decl is its declaring class.
 class FriendDecl : public Decl {
+  virtual void anchor();
 public:
   typedef llvm::PointerUnion<NamedDecl*,TypeSourceInfo*> FriendUnion;
 
@@ -77,7 +79,7 @@ public:
   static FriendDecl *Create(ASTContext &C, DeclContext *DC,
                             SourceLocation L, FriendUnion Friend_,
                             SourceLocation FriendL);
-  static FriendDecl *Create(ASTContext &C, EmptyShell Empty);
+  static FriendDecl *CreateDeserialized(ASTContext &C, unsigned ID);
 
   /// If this friend declaration names an (untemplated but possibly
   /// dependent) type, return the type; otherwise return null.  This
@@ -99,7 +101,7 @@ public:
   }
 
   /// Retrieves the source range for the friend declaration.
-  SourceRange getSourceRange() const {
+  SourceRange getSourceRange() const LLVM_READONLY {
     /* FIXME: consider the case of templates wrt start of range. */
     if (NamedDecl *ND = getFriendDecl())
       return SourceRange(getFriendLoc(), ND->getLocEnd());

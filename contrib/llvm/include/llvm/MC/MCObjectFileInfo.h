@@ -14,15 +14,14 @@
 #ifndef LLVM_MC_MCBJECTFILEINFO_H
 #define LLVM_MC_MCBJECTFILEINFO_H
 
-#include "llvm/MC/MCCodeGenInfo.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/MC/SectionKind.h"
+#include "llvm/Support/CodeGen.h"
 
 namespace llvm {
-class MCContext;
-class MCSection;
-class Triple;
-  
+  class MCContext;
+  class MCSection;
+  class StringRef;
+  class Triple;
+
 class MCObjectFileInfo {  
 protected:
   /// CommDirectiveSupportsAlignment - True if .comm supports alignment.  This
@@ -47,6 +46,9 @@ protected:
   unsigned FDEEncoding;
   unsigned FDECFIEncoding;
   unsigned TTypeEncoding;
+  // Section flags for eh_frame
+  unsigned EHSectionType;
+  unsigned EHSectionFlags;
 
   /// TextSection - Section directive for standard text.
   ///
@@ -82,13 +84,20 @@ protected:
   /// this is the section to emit them into.
   const MCSection *CompactUnwindSection;
 
+  /// DwarfAccelNamesSection, DwarfAccelObjCSection
+  /// If we use the DWARF accelerated hash tables then we want toe emit these
+  /// sections.
+  const MCSection *DwarfAccelNamesSection;
+  const MCSection *DwarfAccelObjCSection;
+  const MCSection *DwarfAccelNamespaceSection;
+  const MCSection *DwarfAccelTypesSection;
+
   // Dwarf sections for debug info.  If a target supports debug info, these must
   // be set.
   const MCSection *DwarfAbbrevSection;
   const MCSection *DwarfInfoSection;
   const MCSection *DwarfLineSection;
   const MCSection *DwarfFrameSection;
-  const MCSection *DwarfPubNamesSection;
   const MCSection *DwarfPubTypesSection;
   const MCSection *DwarfDebugInlineSection;
   const MCSection *DwarfStrSection;
@@ -102,7 +111,7 @@ protected:
   const MCSection *TLSExtraDataSection;
   
   /// TLSDataSection - Section directive for Thread Local data.
-  /// ELF and MachO only.
+  /// ELF, MachO and COFF.
   const MCSection *TLSDataSection;        // Defaults to ".tdata".
 
   /// TLSBSSSection - Section directive for Thread Local uninitialized data.
@@ -156,7 +165,7 @@ protected:
   const MCSection *DrectveSection;
   const MCSection *PDataSection;
   const MCSection *XDataSection;
-  
+
 public:
   void InitMCObjectFileInfo(StringRef TT, Reloc::Model RM, CodeModel::Model CM,
                             MCContext &ctx);
@@ -181,17 +190,26 @@ public:
   const MCSection *getTextSection() const { return TextSection; }
   const MCSection *getDataSection() const { return DataSection; }
   const MCSection *getBSSSection() const { return BSSSection; }
-  const MCSection *getStaticCtorSection() const { return StaticCtorSection; }
-  const MCSection *getStaticDtorSection() const { return StaticDtorSection; }
   const MCSection *getLSDASection() const { return LSDASection; }
   const MCSection *getCompactUnwindSection() const{
     return CompactUnwindSection;
+  }
+  const MCSection *getDwarfAccelNamesSection() const {
+    return DwarfAccelNamesSection;
+  }
+  const MCSection *getDwarfAccelObjCSection() const {
+    return DwarfAccelObjCSection;
+  }
+  const MCSection *getDwarfAccelNamespaceSection() const {
+    return DwarfAccelNamespaceSection;
+  }
+  const MCSection *getDwarfAccelTypesSection() const {
+    return DwarfAccelTypesSection;
   }
   const MCSection *getDwarfAbbrevSection() const { return DwarfAbbrevSection; }
   const MCSection *getDwarfInfoSection() const { return DwarfInfoSection; }
   const MCSection *getDwarfLineSection() const { return DwarfLineSection; }
   const MCSection *getDwarfFrameSection() const { return DwarfFrameSection; }
-  const MCSection *getDwarfPubNamesSection() const{return DwarfPubNamesSection;}
   const MCSection *getDwarfPubTypesSection() const{return DwarfPubTypesSection;}
   const MCSection *getDwarfDebugInlineSection() const {
     return DwarfDebugInlineSection;

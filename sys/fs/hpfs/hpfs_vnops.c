@@ -528,7 +528,7 @@ hpfs_setattr(ap)
 		}
 
 		if (vap->va_size < hp->h_fn.fn_size) {
-			error = vtruncbuf(vp, cred, td, vap->va_size, DEV_BSIZE);
+			error = vtruncbuf(vp, cred, vap->va_size, DEV_BSIZE);
 			if (error)
 				return (error);
 			error = hpfs_truncate(hp, vap->va_size);
@@ -576,7 +576,7 @@ hpfs_inactive(ap)
 	}
 
 	if (hp->h_flag & H_INVAL) {
-		vrecycle(vp, ap->a_td);
+		vrecycle(vp);
 		return (0);
 	}
 

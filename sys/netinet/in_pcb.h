@@ -364,6 +364,7 @@ struct inpcbinfo {
 	void 			*ipi_pspare[2];
 };
 
+#ifdef _KERNEL
 /*
  * Connection groups hold sets of connections that have similar CPU/thread
  * affinity.  Each connection belongs to exactly one connection group.
@@ -406,7 +407,6 @@ struct inpcbgroup {
 #define	INP_WLOCK_ASSERT(inp)	rw_assert(&(inp)->inp_lock, RA_WLOCKED)
 #define	INP_UNLOCK_ASSERT(inp)	rw_assert(&(inp)->inp_lock, RA_UNLOCKED)
 
-#ifdef _KERNEL
 /*
  * These locking functions are for inpcb consumers outside of sys/netinet,
  * more specifically, they were added for the benefit of TOE drivers. The

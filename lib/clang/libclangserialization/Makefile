@@ -10,7 +10,6 @@ SRCS=	ASTCommon.cpp \
 	ASTWriter.cpp \
 	ASTWriterDecl.cpp \
 	ASTWriterStmt.cpp \
-	ChainedIncludesSource.cpp \
 	GeneratePCH.cpp \
 	Module.cpp \
 	ModuleManager.cpp
@@ -18,11 +17,13 @@ SRCS=	ASTCommon.cpp \
 TGHDRS=	AttrList \
 	AttrPCHRead \
 	AttrPCHWrite \
+	AttrParsedAttrList \
 	Attrs \
 	DeclNodes \
 	DiagnosticCommonKinds \
 	DiagnosticFrontendKinds \
 	DiagnosticSemaKinds \
+	DiagnosticSerializationKinds \
 	StmtNodes
 
 .include "../clang.lib.mk"

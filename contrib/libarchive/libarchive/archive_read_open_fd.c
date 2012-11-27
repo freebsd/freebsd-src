@@ -53,17 +53,13 @@ __FBSDID("$FreeBSD$");
 struct read_fd_data {
 	int	 fd;
 	size_t	 block_size;
-	char	 can_skip;
+	char	 use_lseek;
 	void	*buffer;
 };
 
 static int	file_close(struct archive *, void *);
 static ssize_t	file_read(struct archive *, void *, const void **buff);
-#if ARCHIVE_API_VERSION < 2
-static ssize_t	file_skip(struct archive *, void *, size_t request);
-#else
-static off_t	file_skip(struct archive *, void *, off_t request);
-#endif
+static int64_t	file_skip(struct archive *, void *, int64_t request);
 
 int
 archive_read_open_fd(struct archive *a, int fd, size_t block_size)
@@ -78,7 +74,7 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 		return (ARCHIVE_FATAL);
 	}
 
-	mine = (struct read_fd_data *)malloc(sizeof(*mine));
+	mine = (struct read_fd_data *)calloc(1, sizeof(*mine));
 	b = malloc(block_size);
 	if (mine == NULL || b == NULL) {
 		archive_set_error(a, ENOMEM, "No memory");
@@ -98,15 +94,17 @@ archive_read_open_fd(struct archive *a, int fd, size_t block_size)
 	 */
 	if (S_ISREG(st.st_mode)) {
 		archive_read_extract_set_skip_file(a, st.st_dev, st.st_ino);
-		mine->can_skip = 1;
-	} else
-		mine->can_skip = 0;
+		mine->use_lseek = 1;
+	}
 #if defined(__CYGWIN__) || defined(_WIN32)
 	setmode(mine->fd, O_BINARY);
 #endif
 
-	return (archive_read_open2(a, mine,
-		NULL, file_read, file_skip, file_close));
+	archive_read_set_read_callback(a, file_read);
+	archive_read_set_skip_callback(a, file_skip);
+	archive_read_set_close_callback(a, file_close);
+	archive_read_set_callback_data(a, mine);
+	return (archive_read_open1(a));
 }
 
 static ssize_t
@@ -127,55 +125,48 @@ file_read(struct archive *a, void *client_data, const void **buff)
 	}
 }
 
-#if ARCHIVE_API_VERSION < 2
-static ssize_t
-file_skip(struct archive *a, void *client_data, size_t request)
-#else
-static off_t
-file_skip(struct archive *a, void *client_data, off_t request)
-#endif
+static int64_t
+file_skip(struct archive *a, void *client_data, int64_t request)
 {
 	struct read_fd_data *mine = (struct read_fd_data *)client_data;
+	off_t skip = (off_t)request;
 	off_t old_offset, new_offset;
+	int skip_bits = sizeof(skip) * 8 - 1;  /* off_t is a signed type. */
 
-	if (!mine->can_skip)
+	if (!mine->use_lseek)
 		return (0);
+
+	/* Reduce a request that would overflow the 'skip' variable. */
+	if (sizeof(request) > sizeof(skip)) {
+		int64_t max_skip =
+		    (((int64_t)1 << (skip_bits - 1)) - 1) * 2 + 1;
+		if (request > max_skip)
+			skip = max_skip;
+	}
 
 	/* Reduce request to the next smallest multiple of block_size */
 	request = (request / mine->block_size) * mine->block_size;
 	if (request == 0)
 		return (0);
 
-	/*
-	 * Hurray for lazy evaluation: if the first lseek fails, the second
-	 * one will not be executed.
-	 */
-	if (((old_offset = lseek(mine->fd, 0, SEEK_CUR)) < 0) ||
-	    ((new_offset = lseek(mine->fd, request, SEEK_CUR)) < 0))
-	{
-		/* If seek failed once, it will probably fail again. */
-		mine->can_skip = 0;
+	if (((old_offset = lseek(mine->fd, 0, SEEK_CUR)) >= 0) &&
+	    ((new_offset = lseek(mine->fd, skip, SEEK_CUR)) >= 0))
+		return (new_offset - old_offset);
 
-		if (errno == ESPIPE)
-		{
-			/*
-			 * Failure to lseek() can be caused by the file
-			 * descriptor pointing to a pipe, socket or FIFO.
-			 * Return 0 here, so the compression layer will use
-			 * read()s instead to advance the file descriptor.
-			 * It's slower of course, but works as well.
-			 */
-			return (0);
-		}
-		/*
-		 * There's been an error other than ESPIPE. This is most
-		 * likely caused by a programmer error (too large request)
-		 * or a corrupted archive file.
-		 */
-		archive_set_error(a, errno, "Error seeking");
-		return (-1);
-	}
-	return (new_offset - old_offset);
+	/* If seek failed once, it will probably fail again. */
+	mine->use_lseek = 0;
+
+	/* Let libarchive recover with read+discard. */
+	if (errno == ESPIPE)
+		return (0);
+
+	/*
+	 * There's been an error other than ESPIPE. This is most
+	 * likely caused by a programmer error (too large request)
+	 * or a corrupted archive file.
+	 */
+	archive_set_error(a, errno, "Error seeking");
+	return (-1);
 }
 
 static int

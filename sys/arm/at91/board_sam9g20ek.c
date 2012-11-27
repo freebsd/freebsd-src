@@ -25,11 +25,7 @@
 
 /* 
  * This board file can be used for both:
- * Atmel AT91SAM9260-B Development Card and
- * Atmel AT91SAM9G20-EK Rev. B Development Card 
- * 
- * Since the AT91SAM9260 and AT91SAM9G20 have identical memory maps and 
- * pin configurations we can use the same file for both.
+ * Atmel SAM9G20-EK Development Card 
  */
 
 #include <sys/cdefs.h>

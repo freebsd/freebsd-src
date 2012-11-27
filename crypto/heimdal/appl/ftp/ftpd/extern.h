@@ -63,7 +63,7 @@
 void	abor(void);
 void	blkfree(char **);
 char  **copyblk(char **);
-void	cwd(char *);
+void	cwd(const char *);
 void	do_delete(char *);
 void	dologout(int);
 void	eprt(char *);
@@ -129,6 +129,7 @@ extern	struct sockaddr *data_dest;
 extern	int logged_in;
 extern	struct passwd *pw;
 extern	int guest;
+extern  int dochroot;
 extern	int logging;
 extern	int type;
 extern off_t file_size;
@@ -144,5 +145,6 @@ extern	char hostname[], remotehost[];
 extern	char proctitle[];
 extern	int usedefault;
 extern  char tmpline[];
+extern  int paranoid;
 
 #endif /* _EXTERN_H_ */

@@ -20,6 +20,7 @@
 #include "llvm/Config/config.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/system_error.h"
 #include "llvm/ADT/STLExtras.h"
 #include <cctype>
 #include <cerrno>
@@ -623,6 +624,19 @@ raw_ostream &raw_fd_ostream::resetColor() {
   if (sys::Process::ColorNeedsFlush())
     flush();
   const char *colorcode = sys::Process::ResetColor();
+  if (colorcode) {
+    size_t len = strlen(colorcode);
+    write(colorcode, len);
+    // don't account colors towards output characters
+    pos -= len;
+  }
+  return *this;
+}
+
+raw_ostream &raw_fd_ostream::reverseColor() {
+  if (sys::Process::ColorNeedsFlush())
+    flush();
+  const char *colorcode = sys::Process::OutputReverse();
   if (colorcode) {
     size_t len = strlen(colorcode);
     write(colorcode, len);

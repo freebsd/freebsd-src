@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -48,7 +48,7 @@
  *
  * Helper functions for common, but complicated tasks.
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 
 #ifndef __CVMX_HELPER_H__
@@ -65,9 +65,59 @@
 #include "cvmx-fpa.h"
 #include "cvmx-wqe.h"
 
-#ifdef	__cplusplus
+#ifdef  __cplusplus
 extern "C" {
 #endif
+
+/* Max number of GMXX */
+#define CVMX_HELPER_MAX_GMX             (OCTEON_IS_MODEL(OCTEON_CN68XX) ? 5 : 2)
+
+#define CVMX_HELPER_CSR_INIT0           0       /* Do not change as 
+                                                   CVMX_HELPER_WRITE_CSR()
+                                                   assumes it */
+#define CVMX_HELPER_CSR_INIT_READ       -1
+
+/*
+ * CVMX_HELPER_WRITE_CSR--set a field in a CSR with a value.
+ *
+ * @param chcsr_init    intial value of the csr (CVMX_HELPER_CSR_INIT_READ
+ *                      means to use the existing csr value as the
+ *                      initial value.)
+ * @param chcsr_csr     the name of the csr
+ * @param chcsr_type    the type of the csr (see the -defs.h)
+ * @param chcsr_chip    the chip for the csr/field
+ * @param chcsr_fld     the field in the csr
+ * @param chcsr_val     the value for field
+ */
+#define CVMX_HELPER_WRITE_CSR(chcsr_init, chcsr_csr, chcsr_type,        \
+    chcsr_chip, chcsr_fld, chcsr_val)                                   \
+        do {                                                            \
+                chcsr_type csr;                                         \
+                if ((chcsr_init) == CVMX_HELPER_CSR_INIT_READ)          \
+                        csr.u64 = cvmx_read_csr(chcsr_csr);             \
+                else                                                    \
+                        csr.u64 = (chcsr_init);                         \
+                csr.chcsr_chip.chcsr_fld = (chcsr_val);                 \
+                cvmx_write_csr((chcsr_csr), csr.u64);                   \
+        } while(0)
+
+/*
+ * CVMX_HELPER_WRITE_CSR0--set a field in a CSR with the initial value of 0
+ */
+#define CVMX_HELPER_WRITE_CSR0(chcsr_csr, chcsr_type, chcsr_chip,       \
+    chcsr_fld, chcsr_val)                                               \
+        CVMX_HELPER_WRITE_CSR(CVMX_HELPER_CSR_INIT0, chcsr_csr,         \
+            chcsr_type, chcsr_chip, chcsr_fld, chcsr_val)
+
+/*
+ * CVMX_HELPER_WRITE_CSR1--set a field in a CSR with the initial value of
+ *                      the CSR's current value.
+ */
+#define CVMX_HELPER_WRITE_CSR1(chcsr_csr, chcsr_type, chcsr_chip,       \
+    chcsr_fld, chcsr_val)                                               \
+        CVMX_HELPER_WRITE_CSR(CVMX_HELPER_CSR_INIT_READ, chcsr_csr,     \
+            chcsr_type, chcsr_chip, chcsr_fld, chcsr_val)
+
 
 typedef enum
 {
@@ -82,6 +132,8 @@ typedef enum
     CVMX_HELPER_INTERFACE_MODE_NPI,
     CVMX_HELPER_INTERFACE_MODE_LOOP,
     CVMX_HELPER_INTERFACE_MODE_SRIO,
+    CVMX_HELPER_INTERFACE_MODE_ILK,
+    CVMX_HELPER_INTERFACE_MODE_RXAUI,
 } cvmx_helper_interface_mode_t;
 
 typedef union
@@ -101,6 +153,7 @@ typedef union
 #ifdef CVMX_ENABLE_PKO_FUNCTIONS
 
 #include "cvmx-helper-errata.h"
+#include "cvmx-helper-ilk.h"
 #include "cvmx-helper-loop.h"
 #include "cvmx-helper-npi.h"
 #include "cvmx-helper-rgmii.h"
@@ -116,17 +169,17 @@ typedef union
  * number. Users should set this pointer to a function before
  * calling any cvmx-helper operations.
  */
-extern void (*cvmx_override_pko_queue_priority)(int pko_port, uint64_t priorities[16]);
+extern CVMX_SHARED void (*cvmx_override_pko_queue_priority)(int ipd_port, uint64_t *priorities);
 
 /**
  * cvmx_override_ipd_port_setup(int ipd_port) is a function
- * pointer. It is meant to allow customization of the IPD port
+ * pointer. It is meant to allow customization of the IPD port/port kind
  * setup before packet input/output comes online. It is called
  * after cvmx-helper does the default IPD configuration, but
  * before IPD is enabled. Users should set this pointer to a
  * function before calling any cvmx-helper operations.
  */
-extern void (*cvmx_override_ipd_port_setup)(int ipd_port);
+extern CVMX_SHARED void (*cvmx_override_ipd_port_setup)(int ipd_port);
 
 /**
  * This function enables the IPD and also enables the packet interfaces.
@@ -139,6 +192,26 @@ extern void (*cvmx_override_ipd_port_setup)(int ipd_port);
  *         -1 on failure
  */
 extern int cvmx_helper_ipd_and_packet_input_enable(void);
+
+/**
+ * Initialize and allocate memory for the SSO.
+ *
+ * @param wqe_entries The maximum number of work queue entries to be
+ * supported.
+ *
+ * @return Zero on success, non-zero on failure.
+ */
+extern int cvmx_helper_initialize_sso(int wqe_entries);
+
+/**
+ * Undo the effect of cvmx_helper_initialize_sso().
+ *
+ * Warning: since cvmx_bootmem_alloc() memory cannot be freed, the
+ * memory allocated by cvmx_helper_initialize_sso() will be leaked.
+ *
+ * @return Zero on success, non-zero on failure.
+ */
+extern int cvmx_helper_uninitialize_sso(void);
 
 /**
  * Initialize the PIP, IPD, and PKO hardware to support
@@ -252,17 +325,27 @@ extern int cvmx_helper_link_set(int ipd_port, cvmx_helper_link_info_t link_info)
 
 
 /**
- * This function probes an interface to determine the actual
- * number of hardware ports connected to it. It doesn't setup the
- * ports or enable them. The main goal here is to set the global
- * interface_port_count[interface] correctly. Hardware setup of the
- * ports will be performed later.
+ * This function probes an interface to determine the actual number of
+ * hardware ports connected to it. It does some setup the ports but
+ * doesn't enable them. The main goal here is to set the global
+ * interface_port_count[interface] correctly. Final hardware setup of
+ * the ports will be performed later.
  *
  * @param interface Interface to probe
  *
  * @return Zero on success, negative on failure
  */
 extern int cvmx_helper_interface_probe(int interface);
+
+/**
+ * Determine the actual number of hardware ports connected to an
+ * interface. It doesn't setup the ports or enable them.
+ *
+ * @param interface Interface to enumerate
+ *
+ * @return Zero on success, negative on failure
+ */
+extern int cvmx_helper_interface_enumerate(int interface);
 
 /**
  * Configure a port for internal and/or external loopback. Internal loopback
@@ -283,7 +366,7 @@ extern int cvmx_helper_configure_loopback(int ipd_port, int enable_internal, int
 
 #endif /* CVMX_ENABLE_PKO_FUNCTIONS */
 
-#ifdef	__cplusplus
+#ifdef  __cplusplus
 }
 #endif
 

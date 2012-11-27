@@ -1,4 +1,4 @@
-//=====-- SparcSubtarget.h - Define Subtarget for the SPARC ----*- C++ -*-====//
+//===-- SparcSubtarget.h - Define Subtarget for the SPARC -------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -24,6 +24,7 @@ namespace llvm {
 class StringRef;
 
 class SparcSubtarget : public SparcGenSubtargetInfo {
+  virtual void anchor();
   bool IsV9;
   bool V8DeprecatedInsts;
   bool IsVIS;

@@ -45,7 +45,7 @@ DEFINE_TEST(test_compat_solaris_tar_acl)
 	extract_reference_file(reference1);
 	assert(NULL != (a = archive_read_new()));
 	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
+	assertA(0 == archive_read_support_filter_all(a));
 	assertA(0 == archive_read_open_filename(a, reference1, 512));
 
 	/* Archive has 1 entry with some ACLs set on it. */
@@ -124,5 +124,5 @@ DEFINE_TEST(test_compat_solaris_tar_acl)
 
 	/* Close the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

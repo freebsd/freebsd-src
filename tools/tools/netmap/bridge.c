@@ -48,7 +48,7 @@ int verbose = 0;
 	} while (0)
 
 
-char *version = "$Id: bridge.c 9642 2011-11-07 21:39:47Z luigi $";
+char *version = "$Id: bridge.c 10857 2012-04-06 12:18:22Z luigi $";
 
 static int do_abort = 0;
 
@@ -136,6 +136,7 @@ netmap_open(struct my_ring *me, int ringid)
 	bzero(&req, sizeof(req));
 	strncpy(req.nr_name, me->ifname, sizeof(req.nr_name));
 	req.nr_ringid = ringid;
+	req.nr_version = NETMAP_API;
 	err = ioctl(fd, NIOCGINFO, &req);
 	if (err) {
 		D("cannot get info on %s", me->ifname);
@@ -162,17 +163,22 @@ netmap_open(struct my_ring *me, int ringid)
 	me->nifp = NETMAP_IF(me->mem, req.nr_offset);
 	me->queueid = ringid;
 	if (ringid & NETMAP_SW_RING) {
-		me->begin = req.nr_numrings;
+		me->begin = req.nr_rx_rings;
 		me->end = me->begin + 1;
+		me->tx = NETMAP_TXRING(me->nifp, req.nr_tx_rings);
+		me->rx = NETMAP_RXRING(me->nifp, req.nr_rx_rings);
 	} else if (ringid & NETMAP_HW_RING) {
+		D("XXX check multiple threads");
 		me->begin = ringid & NETMAP_RING_MASK;
 		me->end = me->begin + 1;
+		me->tx = NETMAP_TXRING(me->nifp, me->begin);
+		me->rx = NETMAP_RXRING(me->nifp, me->begin);
 	} else {
 		me->begin = 0;
-		me->end = req.nr_numrings;
+		me->end = req.nr_rx_rings; // XXX max of the two
+		me->tx = NETMAP_TXRING(me->nifp, 0);
+		me->rx = NETMAP_RXRING(me->nifp, 0);
 	}
-	me->tx = NETMAP_TXRING(me->nifp, me->begin);
-	me->rx = NETMAP_RXRING(me->nifp, me->begin);
 	return (0);
 error:
 	close(me->fd);
@@ -294,10 +300,18 @@ howmany(struct my_ring *me, int tx)
 	if (0 && verbose && tot && !tx)
 		D("ring %s %s %s has %d avail at %d",
 			me->ifname, tx ? "tx": "rx",
-			me->end > me->nifp->ni_num_queues ?
+			me->end >= me->nifp->ni_tx_rings ? // XXX who comes first ?
 				"host":"net",
 			tot, NETMAP_TXRING(me->nifp, me->begin)->cur);
 	return tot;
+}
+
+static void
+usage(void)
+{
+	fprintf(stderr,
+	    "usage: bridge [-v] [-i ifa] [-i ifb] [-b burst] [-w wait_time] [iface]\n");
+	exit(1);
 }
 
 /*
@@ -311,36 +325,74 @@ int
 main(int argc, char **argv)
 {
 	struct pollfd pollfd[2];
-	int i;
-	u_int burst = 1024;
+	int i, ch;
+	u_int burst = 1024, wait_link = 4;
 	struct my_ring me[2];
+	char *ifa = NULL, *ifb = NULL;
 
 	fprintf(stderr, "%s %s built %s %s\n",
 		argv[0], version, __DATE__, __TIME__);
 
 	bzero(me, sizeof(me));
 
-	while (argc > 1 && !strcmp(argv[1], "-v")) {
-		verbose++;
-		argv++;
-		argc--;
-	}
+	while ( (ch = getopt(argc, argv, "b:i:vw:")) != -1) {
+		switch (ch) {
+			D("bad option %c %s", ch, optarg);
+			usage();
+			break;
+		case 'b':	/* burst */
+			burst = atoi(optarg);
+			break;
+		case 'i':	/* interface */
+			if (ifa == NULL)
+				ifa = optarg;
+			else if (ifb == NULL)
+				ifb = optarg;
+			else
+				D("%s ignored, already have 2 interfaces",
+					optarg);
+			break;
+		case 'v':
+			verbose++;
+			break;
+		case 'w':
+			wait_link = atoi(optarg);
+			break;
+		}
 
-	if (argc < 2 || argc > 4) {
-		D("Usage: %s IFNAME1 [IFNAME2 [BURST]]", argv[0]);
-		return (1);
 	}
+	argc -= optind;
+	argv += optind;
 
+	if (argc > 1)
+		ifa = argv[1];
+	if (argc > 2)
+		ifb = argv[2];
+	if (argc > 3)
+		burst = atoi(argv[3]);
+	if (!ifb)
+		ifb = ifa;
+	if (!ifa) {
+		D("missing interface");
+		usage();
+	}
+	if (burst < 1 || burst > 8192) {
+		D("invalid burst %d, set to 1024", burst);
+		burst = 1024;
+	}
+	if (wait_link > 100) {
+		D("invalid wait_link %d, set to 4", wait_link);
+		wait_link = 4;
+	}
 	/* setup netmap interface #1. */
-	me[0].ifname = argv[1];
-	if (argc == 2 || !strcmp(argv[1], argv[2])) {
+	me[0].ifname = ifa;
+	me[1].ifname = ifb;
+	if (!strcmp(ifa, ifb)) {
 		D("same interface, endpoint 0 goes to host");
 		i = NETMAP_SW_RING;
-		me[1].ifname = argv[1];
 	} else {
 		/* two different interfaces. Take all rings on if1 */
 		i = 0;	// all hw rings
-		me[1].ifname = argv[2];
 	}
 	if (netmap_open(me, i))
 		return (1);
@@ -379,8 +431,6 @@ main(int argc, char **argv)
 	me[1].if_reqcap = me[1].if_curcap;
 	me[1].if_reqcap &= ~(IFCAP_HWCSUM | IFCAP_TSO | IFCAP_TOE);
 	do_ioctl(me+1, SIOCSIFCAP);
-	if (argc > 3)
-		burst = atoi(argv[3]);	/* packets burst size. */
 
 	/* setup poll(2) variables. */
 	memset(pollfd, 0, sizeof(pollfd));
@@ -389,11 +439,11 @@ main(int argc, char **argv)
 		pollfd[i].events = (POLLIN);
 	}
 
-	D("Wait 2 secs for link to come up...");
-	sleep(2);
+	D("Wait %d secs for link to come up...", wait_link);
+	sleep(wait_link);
 	D("Ready to go, %s 0x%x/%d <-> %s 0x%x/%d.",
-		me[0].ifname, me[0].queueid, me[0].nifp->ni_num_queues,
-		me[1].ifname, me[1].queueid, me[1].nifp->ni_num_queues);
+		me[0].ifname, me[0].queueid, me[0].nifp->ni_rx_rings,
+		me[1].ifname, me[1].queueid, me[1].nifp->ni_rx_rings);
 
 	/* main loop */
 	signal(SIGINT, sigint_h);

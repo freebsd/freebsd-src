@@ -1,4 +1,4 @@
-# Copyright (C) 2004-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
+# Copyright (C) 2004-2009, 2011, 2012  Internet Systems Consortium, Inc. ("ISC")
 # Copyright (C) 1998-2003  Internet Software Consortium.
 #
 # Permission to use, copy, modify, and/or distribute this software for any
@@ -13,7 +13,7 @@
 # OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 # PERFORMANCE OF THIS SOFTWARE.
 
-# $Id: rules.in,v 1.68.346.2 2011-02-28 01:20:04 tbox Exp $
+# $Id$
 
 ###
 ### Common Makefile rules for BIND 9.
@@ -214,7 +214,21 @@ FINALBUILDCMD = if [ X"${MKSYMTBL_PROGRAM}" = X -o X"$${MAKE_SYMTABLE:-${ALWAYS_
 		-o $@tmp2 $${BASEOBJS} $@-symtbl.@O@ $${LIBS0} ${NOSYMLIBS}; \
 		${MKSYMTBL_PROGRAM} ${top_srcdir}/util/mksymtbl.pl \
 		-o $@-symtbl2.c $@tmp2; \
-		diff $@-symtbl.c $@-symtbl2.c || exit 1;\
+		count=0; \
+		until diff $@-symtbl.c $@-symtbl2.c > /dev/null ; \
+		do \
+			count=`expr $$count + 1` ; \
+			test $$count = 42 && exit 1 ; \
+			rm -f $@-symtbl.c $@-symtbl.@O@; \
+			${MKSYMTBL_PROGRAM} ${top_srcdir}/util/mksymtbl.pl \
+			-o $@-symtbl.c $@tmp2 || exit 1; \
+			$(MAKE) $@-symtbl.@O@ || exit 1; \
+			${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} \
+			${LDFLAGS} -o $@tmp2 $${BASEOBJS} $@-symtbl.@O@ \
+			$${LIBS0} ${NOSYMLIBS}; \
+			${MKSYMTBL_PROGRAM} ${top_srcdir}/util/mksymtbl.pl \
+			-o $@-symtbl2.c $@tmp2; \
+		done ; \
 		mv $@tmp2 $@; \
 		rm -f $@tmp0 $@tmp1 $@tmp2 $@-symtbl2.c; \
 	fi
@@ -236,20 +250,20 @@ depend:
 			(cd $$i; ${MAKE} ${MAKEDEFS} DESTDIR="${DESTDIR}" $@) || exit 1; \
 		fi; \
 	done
-	@if [ X"${VPATH}" != X ] ; then \
+	@if [ X"${srcdir}" != X. ] ; then \
 		if [ X"${SRCS}" != X -a X"${PSRCS}" != X ] ; then \
-			echo ${MKDEP} -vpath ${VPATH} ${ALL_CPPFLAGS} ${ALL_CFLAGS} ${SRCS}; \
-			${MKDEP} -vpath ${VPATH} ${ALL_CPPFLAGS} ${ALL_CFLAGS} ${SRCS}; \
-			echo ${MKDEP} -vpath ${VPATH} -ap ${ALL_CPPFLAGS} ${ALL_CFLAGS} ${PSRCS}; \
-			${MKDEP} -vpath ${VPATH} -ap ${ALL_CPPFLAGS} ${ALL_CFLAGS} ${PSRCS}; \
+			echo ${MKDEP} -vpath ${srcdir} ${ALL_CPPFLAGS} ${ALL_CFLAGS} ${SRCS}; \
+			${MKDEP} -vpath ${srcdir} ${ALL_CPPFLAGS} ${ALL_CFLAGS} ${SRCS}; \
+			echo ${MKDEP} -vpath ${srcdir} -ap ${ALL_CPPFLAGS} ${ALL_CFLAGS} ${PSRCS}; \
+			${MKDEP} -vpath ${srcdir} -ap ${ALL_CPPFLAGS} ${ALL_CFLAGS} ${PSRCS}; \
 			${DEPENDEXTRA} \
 		elif [ X"${SRCS}" != X ] ; then \
-			echo ${MKDEP} -vpath ${VPATH} ${ALL_CPPFLAGS} ${ALL_CFLAGS} ${SRCS}; \
-			${MKDEP} -vpath ${VPATH} ${ALL_CPPFLAGS} ${ALL_CFLAGS} ${SRCS}; \
+			echo ${MKDEP} -vpath ${srcdir} ${ALL_CPPFLAGS} ${ALL_CFLAGS} ${SRCS}; \
+			${MKDEP} -vpath ${srcdir} ${ALL_CPPFLAGS} ${ALL_CFLAGS} ${SRCS}; \
 			${DEPENDEXTRA} \
 		elif [ X"${PSRCS}" != X ] ; then \
-			echo ${MKDEP} -vpath ${VPATH} ${ALL_CPPFLAGS} ${ALL_CFLAGS} ${PSRCS}; \
-			${MKDEP} -vpath ${VPATH} -p ${ALL_CPPFLAGS} ${ALL_CFLAGS} ${PSRCS}; \
+			echo ${MKDEP} -vpath ${srcdir} ${ALL_CPPFLAGS} ${ALL_CFLAGS} ${PSRCS}; \
+			${MKDEP} -vpath ${srcdir} -p ${ALL_CPPFLAGS} ${ALL_CFLAGS} ${PSRCS}; \
 			${DEPENDEXTRA} \
 		fi \
 	else \

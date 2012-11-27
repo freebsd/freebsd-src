@@ -40,7 +40,7 @@
 #define	virt_to_page(x)	PHYS_TO_VM_PAGE(vtophys((x)))
 
 #define	clear_page(page)		memset((page), 0, PAGE_SIZE)
-#define	pgprot_noncached(prot)		VM_MEMATTR_UNCACHED
+#define	pgprot_noncached(prot)		VM_MEMATTR_UNCACHEABLE
 #define	pgprot_writecombine(prot)	VM_MEMATTR_WRITE_COMBINING
 
 #undef	PAGE_MASK

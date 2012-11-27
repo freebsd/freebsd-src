@@ -28,7 +28,7 @@
 .\"     @(#)fts.3	8.5 (Berkeley) 4/16/94
 .\" $FreeBSD$
 .\"
-.Dd November 25, 2009
+.Dd March 18, 2012
 .Dt FTS 3
 .Os
 .Sh NAME
@@ -419,14 +419,17 @@ be provided to the
 .Fn fts_open
 function.
 .It Dv FTS_NOCHDIR
-As a performance optimization, the
+To allow descending to arbitrary depths
+(independent of
+.Brq Dv PATH_MAX )
+and improve performance, the
 .Nm
 functions change directories as they walk the file hierarchy.
 This has the side-effect that an application cannot rely on being
 in any particular directory during the traversal.
 The
 .Dv FTS_NOCHDIR
-option turns off this optimization, and the
+option turns off this feature, and the
 .Nm
 functions will not change the current directory.
 Note that applications should not themselves change their current directory
@@ -798,3 +801,13 @@ functions were introduced in
 principally to provide for alternative interfaces to the
 .Nm
 functionality using different data structures.
+.Sh BUGS
+The
+.Fn fts_open
+function will automatically set the
+.Dv FTS_NOCHDIR
+option if the
+.Dv FTS_LOGICAL
+option is provided, or if it cannot
+.Xr open 2
+the current directory.

@@ -41,6 +41,7 @@ static char sccsid[] = "@(#)vsnprintf.c	8.1 (Berkeley) 6/4/93";
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <errno.h>
 #include <limits.h>
 #include <stdio.h>
 #include "local.h"
@@ -59,8 +60,11 @@ vsnprintf_l(char * __restrict str, size_t n, locale_t locale,
 	on = n;
 	if (n != 0)
 		n--;
-	if (n > INT_MAX)
-		n = INT_MAX;
+	if (n > INT_MAX) {
+		errno = EOVERFLOW;
+		*str = '\0';
+		return (EOF);
+	}
 	/* Stdio internals do not deal correctly with zero length buffer */
 	if (n == 0) {
 		if (on > 0)

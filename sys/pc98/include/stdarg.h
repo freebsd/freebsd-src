@@ -3,4 +3,4 @@
  */
 /* $FreeBSD$ */
 
-#include <i386/stdarg.h>
+#include <x86/stdarg.h>

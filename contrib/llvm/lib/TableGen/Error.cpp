@@ -20,12 +20,28 @@ namespace llvm {
 
 SourceMgr SrcMgr;
 
+void PrintWarning(SMLoc WarningLoc, const Twine &Msg) {
+  SrcMgr.PrintMessage(WarningLoc, SourceMgr::DK_Warning, Msg);
+}
+
+void PrintWarning(const char *Loc, const Twine &Msg) {
+  SrcMgr.PrintMessage(SMLoc::getFromPointer(Loc), SourceMgr::DK_Warning, Msg);
+}
+
+void PrintWarning(const Twine &Msg) {
+  errs() << "warning:" << Msg << "\n";
+}
+
+void PrintWarning(const TGError &Warning) {
+  PrintWarning(Warning.getLoc(), Warning.getMessage());
+}
+
 void PrintError(SMLoc ErrorLoc, const Twine &Msg) {
-  SrcMgr.PrintMessage(ErrorLoc, Msg, "error");
+  SrcMgr.PrintMessage(ErrorLoc, SourceMgr::DK_Error, Msg);
 }
 
 void PrintError(const char *Loc, const Twine &Msg) {
-  SrcMgr.PrintMessage(SMLoc::getFromPointer(Loc), Msg, "error");
+  SrcMgr.PrintMessage(SMLoc::getFromPointer(Loc), SourceMgr::DK_Error, Msg);
 }
 
 void PrintError(const Twine &Msg) {

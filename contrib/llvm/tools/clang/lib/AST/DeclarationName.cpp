@@ -53,7 +53,7 @@ public:
   void *FETokenInfo;
 };
 
-/// CXXLiberalOperatorName - Contains the actual identifier that makes up the
+/// CXXLiteralOperatorName - Contains the actual identifier that makes up the
 /// name.
 ///
 /// This identifier is stored here rather than directly in DeclarationName so as
@@ -63,6 +63,10 @@ class CXXLiteralOperatorIdName
   : public DeclarationNameExtra, public llvm::FoldingSetNode {
 public:
   IdentifierInfo *ID;
+
+  /// FETokenInfo - Extra information associated with this operator
+  /// name that can be used by the front end.
+  void *FETokenInfo;
 
   void Profile(llvm::FoldingSetNodeID &FSID) {
     FSID.AddPointer(ID);
@@ -125,8 +129,8 @@ int DeclarationName::compare(DeclarationName LHS, DeclarationName RHS) {
   case DeclarationName::CXXUsingDirective:
     return 0;
   }
-              
-  return 0;
+
+  llvm_unreachable("Invalid DeclarationName Kind!");
 }
 
 } // end namespace clang
@@ -189,7 +193,6 @@ DeclarationName::NameKind DeclarationName::getNameKind() const {
 
       return ObjCMultiArgSelector;
     }
-    break;
   }
 
   // Can't actually get here.
@@ -334,7 +337,7 @@ void *DeclarationName::getFETokenInfoAsVoid() const {
     return getAsCXXOperatorIdName()->FETokenInfo;
 
   case CXXLiteralOperatorName:
-    return getCXXLiteralIdentifier()->getFETokenInfo<void>();
+    return getAsCXXLiteralOperatorIdName()->FETokenInfo;
 
   default:
     llvm_unreachable("Declaration name has no FETokenInfo");
@@ -358,7 +361,7 @@ void DeclarationName::setFETokenInfo(void *T) {
     break;
 
   case CXXLiteralOperatorName:
-    getCXXLiteralIdentifier()->setFETokenInfo(T);
+    getAsCXXLiteralOperatorIdName()->FETokenInfo = T;
     break;
 
   default:
@@ -472,6 +475,7 @@ DeclarationNameTable::getCXXLiteralOperatorName(IdentifierInfo *II) {
   CXXLiteralOperatorIdName *LiteralName = new (Ctx) CXXLiteralOperatorIdName;
   LiteralName->ExtraKindOrNumArgs = DeclarationNameExtra::CXXLiteralOperator;
   LiteralName->ID = II;
+  LiteralName->FETokenInfo = 0;
 
   LiteralNames->InsertNode(LiteralName, InsertPos);
   return DeclarationName(LiteralName);

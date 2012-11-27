@@ -1,7 +1,11 @@
 /*-
  * Copyright (c) 2003 Silicon Graphics International Corp.
  * Copyright (c) 2009-2011 Spectra Logic Corporation
+ * Copyright (c) 2012 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Edward Tomasz Napierala
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -249,6 +253,12 @@ static int ctl_be_block_open(struct ctl_be_block_softc *softc,
 static int ctl_be_block_create(struct ctl_be_block_softc *softc,
 			       struct ctl_lun_req *req);
 static int ctl_be_block_rm(struct ctl_be_block_softc *softc,
+			   struct ctl_lun_req *req);
+static int ctl_be_block_modify_file(struct ctl_be_block_lun *be_lun,
+				  struct ctl_lun_req *req);
+static int ctl_be_block_modify_dev(struct ctl_be_block_lun *be_lun,
+				 struct ctl_lun_req *req);
+static int ctl_be_block_modify(struct ctl_be_block_softc *softc,
 			   struct ctl_lun_req *req);
 static void ctl_be_block_lun_shutdown(void *be_lun);
 static void ctl_be_block_lun_config_status(void *be_lun,
@@ -1263,6 +1273,9 @@ ctl_be_block_ioctl(struct cdev *dev, u_long cmd, caddr_t addr,
 		case CTL_LUNREQ_RM:
 			error = ctl_be_block_rm(softc, lun_req);
 			break;
+		case CTL_LUNREQ_MODIFY:
+			error = ctl_be_block_modify(softc, lun_req);
+			break;
 		default:
 			lun_req->status = CTL_LUN_ERROR;
 			snprintf(lun_req->error_str, sizeof(lun_req->error_str),
@@ -1321,7 +1334,10 @@ ctl_be_block_open_file(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 
 
 	file_data->cred = crhold(curthread->td_ucred);
-	be_lun->size_bytes = vattr.va_size;
+	if (params->lun_size_bytes != 0)
+		be_lun->size_bytes = params->lun_size_bytes;
+	else
+		be_lun->size_bytes = vattr.va_size;
 	/*
 	 * We set the multi thread flag for file operations because all
 	 * filesystems (in theory) are capable of allowing multiple readers
@@ -1446,15 +1462,27 @@ ctl_be_block_open_dev(struct ctl_be_block_lun *be_lun, struct ctl_lun_req *req)
 			       curthread);
 	if (error) {
 		snprintf(req->error_str, sizeof(req->error_str),
-			 "%s: error %d returned for DIOCGMEDIASIZE ioctl "
-			 "on %s!", __func__, error, be_lun->dev_path);
+			 "%s: error %d returned for DIOCGMEDIASIZE "
+			 " ioctl on %s!", __func__, error,
+			 be_lun->dev_path);
 		return (error);
 	}
 
+	if (params->lun_size_bytes != 0) {
+		if (params->lun_size_bytes > be_lun->size_bytes) {
+			snprintf(req->error_str, sizeof(req->error_str),
+				 "%s: requested LUN size %ju > backing device "
+				 "size %ju", __func__,
+				 (uintmax_t)params->lun_size_bytes,
+				 (uintmax_t)be_lun->size_bytes);
+			return (EINVAL);
+		}
+
+		be_lun->size_bytes = params->lun_size_bytes;
+	}
+
 	return (0);
-
 }
-
 
 static int
 ctl_be_block_close(struct ctl_be_block_lun *be_lun)
@@ -1599,7 +1627,6 @@ ctl_be_block_open(struct ctl_be_block_softc *softc,
 	be_lun->size_blocks = be_lun->size_bytes >> be_lun->blocksize_shift;
 
 	return (0);
-
 }
 
 static int
@@ -2002,6 +2029,155 @@ ctl_be_block_rm(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
 
 bailout_error:
 
+	req->status = CTL_LUN_ERROR;
+
+	return (0);
+}
+
+static int
+ctl_be_block_modify_file(struct ctl_be_block_lun *be_lun,
+			 struct ctl_lun_req *req)
+{
+	struct vattr vattr;
+	int error;
+	struct ctl_lun_modify_params *params;
+
+	params = &req->reqdata.modify;
+
+	if (params->lun_size_bytes != 0) {
+		be_lun->size_bytes = params->lun_size_bytes;
+	} else  {
+		error = VOP_GETATTR(be_lun->vn, &vattr, curthread->td_ucred);
+		if (error != 0) {
+			snprintf(req->error_str, sizeof(req->error_str),
+				 "error calling VOP_GETATTR() for file %s",
+				 be_lun->dev_path);
+			return (error);
+		}
+
+		be_lun->size_bytes = vattr.va_size;
+	}
+
+	return (0);
+}
+
+static int
+ctl_be_block_modify_dev(struct ctl_be_block_lun *be_lun,
+			struct ctl_lun_req *req)
+{
+	struct cdev *dev;
+	struct cdevsw *devsw;
+	int error;
+	struct ctl_lun_modify_params *params;
+	uint64_t size_bytes;
+
+	params = &req->reqdata.modify;
+
+	dev = be_lun->vn->v_rdev;
+	devsw = dev->si_devsw;
+	if (!devsw->d_ioctl) {
+		snprintf(req->error_str, sizeof(req->error_str),
+			 "%s: no d_ioctl for device %s!", __func__,
+			 be_lun->dev_path);
+		return (ENODEV);
+	}
+
+	error = devsw->d_ioctl(dev, DIOCGMEDIASIZE,
+			       (caddr_t)&size_bytes, FREAD,
+			       curthread);
+	if (error) {
+		snprintf(req->error_str, sizeof(req->error_str),
+			 "%s: error %d returned for DIOCGMEDIASIZE ioctl "
+			 "on %s!", __func__, error, be_lun->dev_path);
+		return (error);
+	}
+
+	if (params->lun_size_bytes != 0) {
+		if (params->lun_size_bytes > size_bytes) {
+			snprintf(req->error_str, sizeof(req->error_str),
+				 "%s: requested LUN size %ju > backing device "
+				 "size %ju", __func__,
+				 (uintmax_t)params->lun_size_bytes,
+				 (uintmax_t)size_bytes);
+			return (EINVAL);
+		}
+
+		be_lun->size_bytes = params->lun_size_bytes;
+	} else {
+		be_lun->size_bytes = size_bytes;
+	}
+
+	return (0);
+}
+
+static int
+ctl_be_block_modify(struct ctl_be_block_softc *softc, struct ctl_lun_req *req)
+{
+	struct ctl_lun_modify_params *params;
+	struct ctl_be_block_lun *be_lun;
+	int vfs_is_locked, error;
+
+	params = &req->reqdata.modify;
+
+	mtx_lock(&softc->lock);
+
+	be_lun = NULL;
+
+	STAILQ_FOREACH(be_lun, &softc->lun_list, links) {
+		if (be_lun->ctl_be_lun.lun_id == params->lun_id)
+			break;
+	}
+	mtx_unlock(&softc->lock);
+
+	if (be_lun == NULL) {
+		snprintf(req->error_str, sizeof(req->error_str),
+			 "%s: LUN %u is not managed by the block backend",
+			 __func__, params->lun_id);
+		goto bailout_error;
+	}
+
+	if (params->lun_size_bytes != 0) {
+		if (params->lun_size_bytes < be_lun->blocksize) {
+			snprintf(req->error_str, sizeof(req->error_str),
+				"%s: LUN size %ju < blocksize %u", __func__,
+				params->lun_size_bytes, be_lun->blocksize);
+			goto bailout_error;
+		}
+	}
+
+	vfs_is_locked = VFS_LOCK_GIANT(be_lun->vn->v_mount);
+	vn_lock(be_lun->vn, LK_SHARED | LK_RETRY);
+
+	if (be_lun->vn->v_type == VREG)
+		error = ctl_be_block_modify_file(be_lun, req);
+	else
+		error = ctl_be_block_modify_dev(be_lun, req);
+
+	VOP_UNLOCK(be_lun->vn, 0);
+	VFS_UNLOCK_GIANT(vfs_is_locked);
+
+	if (error != 0)
+		goto bailout_error;
+
+	be_lun->size_blocks = be_lun->size_bytes >> be_lun->blocksize_shift;
+
+	/*
+	 * The maximum LBA is the size - 1.
+	 *
+	 * XXX: Note that this field is being updated without locking,
+	 * 	which might cause problems on 32-bit architectures.
+	 */
+	be_lun->ctl_be_lun.maxlba = be_lun->size_blocks - 1;
+	ctl_lun_capacity_changed(&be_lun->ctl_be_lun);
+
+	/* Tell the user the exact size we ended up using */
+	params->lun_size_bytes = be_lun->size_bytes;
+
+	req->status = CTL_LUN_OK;
+
+	return (0);
+
+bailout_error:
 	req->status = CTL_LUN_ERROR;
 
 	return (0);

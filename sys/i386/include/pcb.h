@@ -84,7 +84,7 @@ struct pcb {
 struct trapframe;
 
 void	makectx(struct trapframe *, struct pcb *);
-void	savectx(struct pcb *);
+void	savectx(struct pcb *) __returns_twice;
 #endif
 
 #endif /* _I386_PCB_H_ */

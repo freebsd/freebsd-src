@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: efi,v 1.4 2009/09/19 16:28:09 christos Exp $
 # efi:  file(1) magic for Universal EFI binaries
 
 0	lelong	0x0ef1fab9

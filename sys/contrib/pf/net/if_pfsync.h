@@ -265,7 +265,7 @@ struct pfsyncreq {
 	char		 pfsyncr_syncdev[IFNAMSIZ];
 	struct in_addr	 pfsyncr_syncpeer;
 	int		 pfsyncr_maxupdates;
-	int		 pfsyncr_authlevel;
+	int		 pfsyncr_defer;
 };
 
 #ifdef __FreeBSD__

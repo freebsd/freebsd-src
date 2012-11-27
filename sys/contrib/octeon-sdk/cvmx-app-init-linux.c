@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -61,7 +61,7 @@
  * -# Most hardware can only be initialized once. Unless you're very careful,
  *      this also means you Linux application can only run once.
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70129 $<hr>
  *
  */
 #define _GNU_SOURCE
@@ -88,6 +88,7 @@
 #include "cvmx-coremask.h"
 #include "cvmx-spinlock.h"
 #include "cvmx-bootmem.h"
+#include "cvmx-helper-cfg.h"
 
 int octeon_model_version_check(uint32_t chip_id);
 
@@ -326,7 +327,6 @@ int main(int argc, const char *argv[])
     int firstcore = 0;
 
     cvmx_linux_enable_xkphys_access(0);
-
     cvmx_sysinfo_linux_userspace_initialize();
 
     if (sizeof(void*) == 4)
@@ -349,6 +349,10 @@ int main(int argc, const char *argv[])
     /* Check to make sure the Chip version matches the configured version */
     octeon_model_version_check(cvmx_get_proc_id());
 
+    /* Initialize configuration to set bpid, pkind, pko_port for all the 
+       available ports connected. */
+    __cvmx_helper_cfg_init();
+
     /* Get the list of logical cpus we should run on */
     if (sched_getaffinity(0, sizeof(cpumask), (cpu_set_t*)&cpumask))
     {
@@ -362,7 +366,7 @@ int main(int argc, const char *argv[])
 
     /* Get the lowest logical cpu */
     firstcore = ffsl(cpumask) - 1;
-    cpumask ^= (1<<(firstcore));
+    cpumask ^= (1ull<<(firstcore));
     while (1)
     {
         if (cpumask == 0)
@@ -373,9 +377,9 @@ int main(int argc, const char *argv[])
         }
         cpu = ffsl(cpumask) - 1;
         /* Turn off the bit for this CPU number. We've counted him */
-        cpumask ^= (1<<cpu);
+        cpumask ^= (1ull<<cpu);
         /* Increment the number of CPUs running this app */
-         cvmx_atomic_add32(&pending_fork, 1);
+        cvmx_atomic_add32(&pending_fork, 1);
         /* Flush all IO streams before the fork. Otherwise any buffered
            data in the C library will be duplicated. This results in
            duplicate output from a single print */
@@ -406,7 +410,9 @@ int main(int argc, const char *argv[])
     system_info->core_mask |= 1<<cvmx_get_core_num();
     cvmx_atomic_add32(&pending_fork, -1);
     if (cvmx_atomic_get32(&pending_fork) == 0)
+    {
         cvmx_dprintf("Active coremask = 0x%x\n", system_info->core_mask);
+    }
     if (firstcpu)
         system_info->init_core = cvmx_get_core_num();
     cvmx_spinlock_unlock(&mask_lock);

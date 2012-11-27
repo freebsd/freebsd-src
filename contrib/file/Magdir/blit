@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: blit,v 1.8 2009/09/19 16:28:08 christos Exp $
 # blit:  file(1) magic for 68K Blit stuff as seen from 680x0 machine
 #
 # Note that this 0407 conflicts with several other a.out formats...

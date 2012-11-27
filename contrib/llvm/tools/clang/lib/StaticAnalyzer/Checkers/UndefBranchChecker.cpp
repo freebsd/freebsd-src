@@ -24,12 +24,14 @@ using namespace ento;
 namespace {
 
 class UndefBranchChecker : public Checker<check::BranchCondition> {
-  mutable llvm::OwningPtr<BuiltinBug> BT;
+  mutable OwningPtr<BuiltinBug> BT;
 
   struct FindUndefExpr {
-    const ProgramState *St;
+    ProgramStateRef St;
+    const LocationContext *LCtx;
 
-    FindUndefExpr(const ProgramState *S) : St(S) {}
+    FindUndefExpr(ProgramStateRef S, const LocationContext *L) 
+      : St(S), LCtx(L) {}
 
     const Expr *FindExpr(const Expr *Ex) {
       if (!MatchesCriteria(Ex))
@@ -45,25 +47,25 @@ class UndefBranchChecker : public Checker<check::BranchCondition> {
       return Ex;
     }
 
-    bool MatchesCriteria(const Expr *Ex) { return St->getSVal(Ex).isUndef(); }
+    bool MatchesCriteria(const Expr *Ex) { 
+      return St->getSVal(Ex, LCtx).isUndef();
+    }
   };
 
 public:
-  void checkBranchCondition(const Stmt *Condition, BranchNodeBuilder &Builder,
-                            ExprEngine &Eng) const;
+  void checkBranchCondition(const Stmt *Condition, CheckerContext &Ctx) const;
 };
 
 }
 
 void UndefBranchChecker::checkBranchCondition(const Stmt *Condition,
-                                              BranchNodeBuilder &Builder,
-                                              ExprEngine &Eng) const {
-  const ProgramState *state = Builder.getState();
-  SVal X = state->getSVal(Condition);
+                                              CheckerContext &Ctx) const {
+  SVal X = Ctx.getState()->getSVal(Condition, Ctx.getLocationContext());
   if (X.isUndef()) {
-    ExplodedNode *N = Builder.generateNode(Condition, state);
+    // Generate a sink node, which implicitly marks both outgoing branches as
+    // infeasible.
+    ExplodedNode *N = Ctx.generateSink();
     if (N) {
-      N->markAsSink();
       if (!BT)
         BT.reset(
                new BuiltinBug("Branch condition evaluates to a garbage value"));
@@ -86,25 +88,22 @@ void UndefBranchChecker::checkBranchCondition(const Stmt *Condition,
       const Expr *Ex = cast<Expr>(Condition);
       ExplodedNode *PrevN = *N->pred_begin();
       ProgramPoint P = PrevN->getLocation();
-      const ProgramState *St = N->getState();
+      ProgramStateRef St = N->getState();
 
       if (PostStmt *PS = dyn_cast<PostStmt>(&P))
         if (PS->getStmt() == Ex)
           St = PrevN->getState();
 
-      FindUndefExpr FindIt(St);
+      FindUndefExpr FindIt(St, Ctx.getLocationContext());
       Ex = FindIt.FindExpr(Ex);
 
       // Emit the bug report.
       BugReport *R = new BugReport(*BT, BT->getDescription(), N);
-      R->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, Ex));
+      R->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, Ex, R));
       R->addRange(Ex->getSourceRange());
 
-      Eng.getBugReporter().EmitReport(R);
+      Ctx.EmitReport(R);
     }
-
-    Builder.markInfeasible(true);
-    Builder.markInfeasible(false);
   }
 }
 

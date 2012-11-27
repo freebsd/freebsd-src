@@ -1092,14 +1092,20 @@ SYSCTL_DECL(_net_bpf);
 
 /*
  * Descriptor associated with each attached hardware interface.
+ * FIXME: this structure is exposed to external callers to speed up
+ * bpf_peers_present() call. However we cover all fields not needed by
+ * this function via BPF_INTERNAL define
  */
 struct bpf_if {
 	LIST_ENTRY(bpf_if)	bif_next;	/* list of all interfaces */
 	LIST_HEAD(, bpf_d)	bif_dlist;	/* descriptor list */
+#ifdef BPF_INTERNAL
 	u_int bif_dlt;				/* link layer type */
 	u_int bif_hdrlen;		/* length of link header */
 	struct ifnet *bif_ifp;		/* corresponding interface */
-	struct mtx	bif_mtx;	/* mutex for interface */
+	struct rwlock bif_lock;		/* interface lock */
+	LIST_HEAD(, bpf_d)	bif_wlist;	/* writer-only list */
+#endif
 };
 
 void	 bpf_bufheld(struct bpf_d *d);

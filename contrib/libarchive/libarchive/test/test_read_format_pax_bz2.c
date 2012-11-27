@@ -47,7 +47,7 @@ DEFINE_TEST(test_read_format_pax_bz2)
 	int r;
 
 	assert((a = archive_read_new()) != NULL);
-	r = archive_read_support_compression_bzip2(a);
+	r = archive_read_support_filter_bzip2(a);
 	if (r != ARCHIVE_OK) {
 		archive_read_close(a);
 		skipping("Bzip2 unavailable");
@@ -57,10 +57,11 @@ DEFINE_TEST(test_read_format_pax_bz2)
 	assertEqualIntA(a,ARCHIVE_OK,
 	    archive_read_open_memory(a, archive, sizeof(archive)));
 	assertEqualIntA(a,ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualInt(1, archive_file_count(a));
 	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_BZIP2);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_PAX_INTERCHANGE);
 	assertEqualIntA(a,ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 

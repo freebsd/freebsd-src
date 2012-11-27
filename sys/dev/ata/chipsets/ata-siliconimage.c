@@ -87,7 +87,7 @@ static int
 ata_sii_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static struct ata_chip_id ids[] =
+    static const struct ata_chip_id const ids[] =
     {{ ATA_SII3114,   0x00, SII_MEMIO, SII_4CH,    ATA_SA150, "3114" },
      { ATA_SII3512,   0x02, SII_MEMIO, 0,          ATA_SA150, "3512" },
      { ATA_SII3112,   0x02, SII_MEMIO, 0,          ATA_SA150, "3112" },
@@ -272,10 +272,11 @@ ata_cmd_setmode(device_t dev, int target, int mode)
 	int treg = 0x54 + ((devno < 3) ? (devno << 1) : 7);
 	int ureg = ch->unit ? 0x7b : 0x73;
 	int piomode;
-	uint8_t piotimings[] = { 0xa9, 0x57, 0x44, 0x32, 0x3f, 0x87, 0x32, 0x3f };
-	uint8_t udmatimings[][2] = { { 0x31,  0xc2 }, { 0x21,  0x82 },
-				     { 0x11,  0x42 }, { 0x25,  0x8a },
-				     { 0x15,  0x4a }, { 0x05,  0x0a } };
+	static const uint8_t piotimings[] =
+	    { 0xa9, 0x57, 0x44, 0x32, 0x3f, 0x87, 0x32, 0x3f };
+	static const uint8_t udmatimings[][2] =
+	    { { 0x31,  0xc2 }, { 0x21,  0x82 }, { 0x11,  0x42 },
+	      { 0x25,  0x8a }, { 0x15,  0x4a }, { 0x05,  0x0a } };
 
 	mode = min(mode, ctlr->chip->max_dma);
 	if (mode >= ATA_UDMA0) {        
@@ -410,9 +411,11 @@ ata_sii_setmode(device_t dev, int target, int mode)
 	u_int8_t preg = 0xa4 + rego;
 	u_int8_t dreg = 0xa8 + rego;
 	u_int8_t ureg = 0xac + rego;
-	u_int16_t piotimings[] = { 0x328a, 0x2283, 0x1104, 0x10c3, 0x10c1 };
-	u_int16_t dmatimings[] = { 0x2208, 0x10c2, 0x10c1 };
-	u_int8_t udmatimings[] = { 0xf, 0xb, 0x7, 0x5, 0x3, 0x2, 0x1 };
+	static const uint16_t piotimings[] =
+	    { 0x328a, 0x2283, 0x1104, 0x10c3, 0x10c1 };
+	static const uint16_t dmatimings[] = { 0x2208, 0x10c2, 0x10c1 };
+	static const uint8_t udmatimings[] =
+	    { 0xf, 0xb, 0x7, 0x5, 0x3, 0x2, 0x1 };
 
 	mode = min(mode, ctlr->chip->max_dma);
 

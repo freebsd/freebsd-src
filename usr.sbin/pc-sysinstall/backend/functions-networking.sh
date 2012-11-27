@@ -104,7 +104,10 @@ enable_dhcp_all()
       then
         # We have a wifi device, setup a wlan* entry for it
         WLAN="wlan${WLANCOUNT}"
-        echo "wlans_${NIC}=\"${WLAN}\"" >>${FSMNT}/etc/rc.conf
+	cat ${FSMNT}/etc/rc.conf | grep -q "wlans_${NIC}="
+	if [ $? -ne 0 ] ; then
+          echo "wlans_${NIC}=\"${WLAN}\"" >>${FSMNT}/etc/rc.conf
+	fi
         echo "ifconfig_${WLAN}=\"DHCP\"" >>${FSMNT}/etc/rc.conf
         CNIC="${WLAN}"
         WLANCOUNT=$((WLANCOUNT+1))
@@ -138,7 +141,7 @@ enable_slaac_all()
     do
       NIC="`echo $line | cut -d ':' -f 1`"
       DESC="`echo $line | cut -d ':' -f 2`"
-      echo_log "Setting $NIC to acceptign RAs on the system."
+      echo_log "Setting $NIC to accepting RAs on the system."
       check_is_wifi ${NIC}
       if [ $? -eq 0 ]
       then
@@ -146,9 +149,12 @@ enable_slaac_all()
         # Given we cannot have DHCP and SLAAC the same time currently
 	# it's save to just duplicate.
         WLAN="wlan${WLANCOUNT}"
-        echo "wlans_${NIC}=\"${WLAN}\"" >>${FSMNT}/etc/rc.conf
+	cat ${FSMNT}/etc/rc.conf | grep -q "wlans_${NIC}="
+	if [ $? -ne 0 ] ; then
+          echo "wlans_${NIC}=\"${WLAN}\"" >>${FSMNT}/etc/rc.conf
+	fi
 	#echo "ifconfig_${NIC}=\"up\"" >>${FSMNT}/etc/rc.conf
-        echo "ifconfig_${WLAN}=\"inet6 accept_rtadv\"" >>${FSMNT}/etc/rc.conf
+        echo "ifconfig_${WLAN}_ipv6=\"inet6 accept_rtadv\"" >>${FSMNT}/etc/rc.conf
         CNIC="${WLAN}"
         WLANCOUNT=$((WLANCOUNT+1))
       else
@@ -186,7 +192,7 @@ save_manual_nic()
   # Get the target nic
   NIC="$1"
 
-  get_value_from_cfg netSaveIP
+  get_value_from_cfg netSaveIP_${NIC}
   NETIP="${VAL}"
  
   if [ "$NETIP" = "DHCP" ]
@@ -206,7 +212,7 @@ save_manual_nic()
     IFARGS="inet ${NETIP}"
 
     # Check if we have a netmask to set
-    get_value_from_cfg netSaveMask
+    get_value_from_cfg netSaveMask_${NIC}
     NETMASK="${VAL}"
     if [ -n "${NETMASK}" ]
     then
@@ -214,7 +220,7 @@ save_manual_nic()
     fi
   fi
 
-  get_value_from_cfg netSaveIPv6
+  get_value_from_cfg netSaveIPv6_${NIC}
   NETIP6="${VAL}"
   if [ -n "${NETIP6}" ]
   then
@@ -233,6 +239,12 @@ save_manual_nic()
     echo "ifconfig_${NIC}_ipv6=\"${IF6ARGS}\"" >>${FSMNT}/etc/rc.conf
   fi
 
+};
+
+# Function which saves a manual gateway router setup to the installed system
+save_manual_router()
+{
+
   # Check if we have a default router to set
   get_value_from_cfg netSaveDefaultRouter
   NETROUTE="${VAL}"
@@ -247,19 +259,30 @@ save_manual_nic()
     echo "ipv6_defaultrouter=\"${NETROUTE}\"" >>${FSMNT}/etc/rc.conf
   fi
 
+};
+
+save_manual_nameserver()
+{
   # Check if we have a nameserver to enable
   : > ${FSMNT}/etc/resolv.conf
-  get_value_from_cfg netSaveNameServer
-  NAMESERVER="${VAL}"
-  if [ -n "${NAMESERVER}" ]
+  get_value_from_cfg_with_spaces netSaveNameServer
+  NAMESERVERLIST="${VAL}"
+  if [ ! -z "${NAMESERVERLIST}" ]
   then
-    echo "nameserver ${NAMESERVER}" >>${FSMNT}/etc/resolv.conf
+    for NAMESERVER in ${NAMESERVERLIST}
+    do
+      echo "nameserver ${NAMESERVER}" >>${FSMNT}/etc/resolv.conf
+    done
   fi
-  get_value_from_cfg netSaveIPv6NameServer
-  NAMESERVER="${VAL}"
-  if [ -n "${NAMESERVER}" ]
+
+  get_value_from_cfg_with_spaces netSaveIPv6NameServer
+  NAMESERVERLIST="${VAL}"
+  if [ ! -z "${NAMESERVERLIST}" ]
   then
-    echo "nameserver ${NAMESERVER}" >>${FSMNT}/etc/resolv.conf
+    for NAMESERVER in ${NAMESERVERLIST}
+    do
+      echo "nameserver ${NAMESERVER}" >>${FSMNT}/etc/resolv.conf
+    done
   fi
 
 };
@@ -448,25 +471,30 @@ save_networking_install()
 {
 
   # Check if we have any networking requested to save
-  get_value_from_cfg netSaveDev
+  get_value_from_cfg_with_spaces netSaveDev
   if [ -z "${VAL}" ]
   then
     return 0
   fi
 
-  NETDEV="${VAL}"
-  if [ "$NETDEV" = "AUTO-DHCP" ]
+  NETDEVLIST="${VAL}"
+  if [ "$NETDEVLIST" = "AUTO-DHCP" ]
   then
     save_auto_dhcp
-  elif [ "$NETDEV" = "IPv6-SLAAC" ]
+  elif [ "$NETDEVLIST" = "IPv6-SLAAC" ]
   then
     save_auto_slaac
-  elif [ "$NETDEV" = "AUTO-DHCP-SLAAC" ]
+  elif [ "$NETDEVLIST" = "AUTO-DHCP-SLAAC" ]
   then
     save_auto_dhcp
     save_auto_slaac
   else
-    save_manual_nic ${NETDEV}
+    for NETDEV in ${NETDEVLIST}
+    do
+      save_manual_nic ${NETDEV}
+    done
+    save_manual_router
+    save_manual_nameserver
   fi
 
 };

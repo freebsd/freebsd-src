@@ -26,6 +26,7 @@
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/ProfileInfo.h"
 #include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Transforms/Utils/AddrModeMatcher.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
@@ -64,11 +65,17 @@ static cl::opt<bool> DisableBranchOpts(
   "disable-cgp-branch-opts", cl::Hidden, cl::init(false),
   cl::desc("Disable branch optimizations in CodeGenPrepare"));
 
+// FIXME: Remove this abomination once all of the tests pass without it!
+static cl::opt<bool> DisableDeleteDeadBlocks(
+  "disable-cgp-delete-dead-blocks", cl::Hidden, cl::init(false),
+  cl::desc("Disable deleting dead blocks in CodeGenPrepare"));
+
 namespace {
   class CodeGenPrepare : public FunctionPass {
     /// TLI - Keep a pointer of a TargetLowering to consult for determining
     /// transformation profitability.
     const TargetLowering *TLI;
+    const TargetLibraryInfo *TLInfo;
     DominatorTree *DT;
     ProfileInfo *PFI;
     
@@ -97,6 +104,7 @@ namespace {
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addPreserved<DominatorTree>();
       AU.addPreserved<ProfileInfo>();
+      AU.addRequired<TargetLibraryInfo>();
     }
 
   private:
@@ -116,7 +124,10 @@ namespace {
 }
 
 char CodeGenPrepare::ID = 0;
-INITIALIZE_PASS(CodeGenPrepare, "codegenprepare",
+INITIALIZE_PASS_BEGIN(CodeGenPrepare, "codegenprepare",
+                "Optimize for code generation", false, false)
+INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfo)
+INITIALIZE_PASS_END(CodeGenPrepare, "codegenprepare",
                 "Optimize for code generation", false, false)
 
 FunctionPass *llvm::createCodeGenPreparePass(const TargetLowering *TLI) {
@@ -127,6 +138,7 @@ bool CodeGenPrepare::runOnFunction(Function &F) {
   bool EverMadeChange = false;
 
   ModifiedDT = false;
+  TLInfo = &getAnalysis<TargetLibraryInfo>();
   DT = getAnalysisIfAvailable<DominatorTree>();
   PFI = getAnalysisIfAvailable<ProfileInfo>();
 
@@ -153,8 +165,22 @@ bool CodeGenPrepare::runOnFunction(Function &F) {
 
   if (!DisableBranchOpts) {
     MadeChange = false;
-    for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB)
+    SmallPtrSet<BasicBlock*, 8> WorkList;
+    for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {
+      SmallVector<BasicBlock*, 2> Successors(succ_begin(BB), succ_end(BB));
       MadeChange |= ConstantFoldTerminator(BB, true);
+      if (!MadeChange) continue;
+
+      for (SmallVectorImpl<BasicBlock*>::iterator
+             II = Successors.begin(), IE = Successors.end(); II != IE; ++II)
+        if (pred_begin(*II) == pred_end(*II))
+          WorkList.insert(*II);
+    }
+
+    if (!DisableDeleteDeadBlocks)
+      for (SmallPtrSet<BasicBlock*, 8>::iterator
+             I = WorkList.begin(), E = WorkList.end(); I != E; ++I)
+        DeleteDeadBlock(*I);
 
     if (MadeChange)
       ModifiedDT = true;
@@ -541,8 +567,8 @@ bool CodeGenPrepare::OptimizeCallInst(CallInst *CI) {
     // happens.
     WeakVH IterHandle(CurInstIterator);
     
-    ReplaceAndSimplifyAllUses(CI, RetVal, TLI ? TLI->getTargetData() : 0,
-                              ModifiedDT ? 0 : DT);
+    replaceAndRecursivelySimplify(CI, RetVal, TLI ? TLI->getTargetData() : 0,
+                                  TLInfo, ModifiedDT ? 0 : DT);
 
     // If the iterator instruction was recursively deleted, start over at the
     // start of the block.
@@ -551,6 +577,15 @@ bool CodeGenPrepare::OptimizeCallInst(CallInst *CI) {
       SunkAddrs.clear();
     }
     return true;
+  }
+
+  if (II && TLI) {
+    SmallVector<Value*, 2> PtrOps;
+    Type *AccessTy;
+    if (TLI->GetAddrModeArguments(II, PtrOps, AccessTy))
+      while (!PtrOps.empty())
+        if (OptimizeMemoryInst(II, PtrOps.pop_back_val(), AccessTy))
+          return true;
   }
 
   // From here on out we're working with named functions.
@@ -612,7 +647,7 @@ bool CodeGenPrepare::DupRetToEnableTailCallOpts(ReturnInst *RI) {
   // It's not safe to eliminate the sign / zero extension of the return value.
   // See llvm::isInTailCallPosition().
   const Function *F = BB->getParent();
-  unsigned CallerRetAttr = F->getAttributes().getRetAttributes();
+  Attributes CallerRetAttr = F->getAttributes().getRetAttributes();
   if ((CallerRetAttr & Attribute::ZExt) || (CallerRetAttr & Attribute::SExt))
     return false;
 
@@ -667,7 +702,7 @@ bool CodeGenPrepare::DupRetToEnableTailCallOpts(ReturnInst *RI) {
 
     // Conservatively require the attributes of the call to match those of the
     // return. Ignore noalias because it doesn't affect the call sequence.
-    unsigned CalleeRetAttr = CS.getAttributes().getRetAttributes();
+    Attributes CalleeRetAttr = CS.getAttributes().getRetAttributes();
     if ((CalleeRetAttr ^ CallerRetAttr) & ~Attribute::NoAlias)
       continue;
 

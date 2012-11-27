@@ -33,8 +33,6 @@ options 	TICK_USE_YAMON_FREQ=defined
 
 include		"../malta/std.malta"
 
-options		ISA_MIPS32
-
 hints		"MALTA.hints"		#Default places to look for devices.
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols

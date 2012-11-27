@@ -512,22 +512,27 @@ full:
 void
 vm86_prepcall(struct vm86frame *vmf)
 {
-	uintptr_t addr[] = { 0xA00, 0x1000 };	/* code, stack */
-	u_char intcall[] = {
-		CLI, INTn, 0x00, STI, HLT
-	};
 	struct vm86_kernel *vm86;
+	uint32_t *stack;
+	uint8_t *code;
 
+	code = (void *)0xa00;
+	stack = (void *)(0x1000 - 2);	/* keep aligned */
 	if ((vmf->vmf_trapno & PAGE_MASK) <= 0xff) {
 		/* interrupt call requested */
-		intcall[2] = (u_char)(vmf->vmf_trapno & 0xff);
-		memcpy((void *)addr[0], (void *)intcall, sizeof(intcall));
-		vmf->vmf_ip = addr[0];
+		code[0] = INTn;
+		code[1] = vmf->vmf_trapno & 0xff;
+		code[2] = HLT;
+		vmf->vmf_ip = (uintptr_t)code;
 		vmf->vmf_cs = 0;
+	} else {
+		code[0] = HLT;
+		stack--;
+		stack[0] = MAKE_VEC(0, (uintptr_t)code);
 	}
-	vmf->vmf_sp = addr[1] - 2;              /* keep aligned */
-	vmf->kernel_fs = vmf->kernel_es = vmf->kernel_ds = 0;
+	vmf->vmf_sp = (uintptr_t)stack;
 	vmf->vmf_ss = 0;
+	vmf->kernel_fs = vmf->kernel_es = vmf->kernel_ds = 0;
 	vmf->vmf_eflags = PSL_VIF | PSL_VM | PSL_USER;
 
 	vm86 = &PCPU_GET(curpcb)->pcb_ext->ext_vm86;

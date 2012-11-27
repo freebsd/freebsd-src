@@ -1,5 +1,5 @@
 /***********************license start***************
- * Copyright (c) 2003-2010  Cavium Networks (support@cavium.com). All rights
+ * Copyright (c) 2003-2010  Cavium Inc. (support@cavium.com). All rights
  * reserved.
  *
  *
@@ -15,7 +15,7 @@
  *     disclaimer in the documentation and/or other materials provided
  *     with the distribution.
 
- *   * Neither the name of Cavium Networks nor the names of
+ *   * Neither the name of Cavium Inc. nor the names of
  *     its contributors may be used to endorse or promote products
  *     derived from this software without specific prior written
  *     permission.
@@ -26,7 +26,7 @@
  * countries.
 
  * TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS PROVIDED "AS IS"
- * AND WITH ALL FAULTS AND CAVIUM  NETWORKS MAKES NO PROMISES, REPRESENTATIONS OR
+ * AND WITH ALL FAULTS AND CAVIUM INC. MAKES NO PROMISES, REPRESENTATIONS OR
  * WARRANTIES, EITHER EXPRESS, IMPLIED, STATUTORY, OR OTHERWISE, WITH RESPECT TO
  * THE SOFTWARE, INCLUDING ITS CONDITION, ITS CONFORMITY TO ANY REPRESENTATION OR
  * DESCRIPTION, OR THE EXISTENCE OF ANY LATENT OR PATENT DEFECTS, AND CAVIUM
@@ -49,7 +49,7 @@
  * Functions for LOOP initialization, configuration,
  * and monitoring.
  *
- * <hr>$Revision: 49448 $<hr>
+ * <hr>$Revision: 70030 $<hr>
  */
 #ifdef CVMX_BUILD_FOR_LINUX_KERNEL
 #include <asm/octeon/cvmx.h>
@@ -74,6 +74,12 @@
 #endif
 #ifdef CVMX_ENABLE_PKO_FUNCTIONS
 
+
+int __cvmx_helper_loop_enumerate(int interface)
+{
+	return (OCTEON_IS_MODEL(OCTEON_CN68XX) ? 8 : 4);
+}
+
 /**
  * @INTERNAL
  * Probe a LOOP interface and determine the number of ports
@@ -86,27 +92,7 @@
  */
 int __cvmx_helper_loop_probe(int interface)
 {
-    cvmx_ipd_sub_port_fcs_t ipd_sub_port_fcs;
-    int num_ports = 4;
-    int port;
-
-    /* We need to disable length checking so packet < 64 bytes and jumbo
-        frames don't get errors */
-    for (port=0; port<num_ports; port++)
-    {
-        cvmx_pip_prt_cfgx_t port_cfg;
-        int ipd_port = cvmx_helper_get_ipd_port(interface, port);
-        port_cfg.u64 = cvmx_read_csr(CVMX_PIP_PRT_CFGX(ipd_port));
-        port_cfg.s.maxerr_en = 0;
-        port_cfg.s.minerr_en = 0;
-        cvmx_write_csr(CVMX_PIP_PRT_CFGX(ipd_port), port_cfg.u64);
-    }
-
-    /* Disable FCS stripping for loopback ports */
-    ipd_sub_port_fcs.u64 = cvmx_read_csr(CVMX_IPD_SUB_PORT_FCS);
-    ipd_sub_port_fcs.s.port_bit2 = 0;
-    cvmx_write_csr(CVMX_IPD_SUB_PORT_FCS, ipd_sub_port_fcs.u64);
-    return num_ports;
+	return __cvmx_helper_loop_enumerate(interface);
 }
 
 
@@ -122,7 +108,37 @@ int __cvmx_helper_loop_probe(int interface)
  */
 int __cvmx_helper_loop_enable(int interface)
 {
-    /* Do nothing. */
+    cvmx_pip_prt_cfgx_t port_cfg;
+    int num_ports, index;
+    unsigned long offset;
+
+    num_ports = __cvmx_helper_get_num_ipd_ports(interface);
+
+    /* 
+     * We need to disable length checking so packet < 64 bytes and jumbo
+     * frames don't get errors
+     */
+    for (index = 0; index < num_ports; index++) {
+        offset = ((octeon_has_feature(OCTEON_FEATURE_PKND)) ?
+	    cvmx_helper_get_pknd(interface, index) :
+            cvmx_helper_get_ipd_port(interface, index));
+
+        port_cfg.u64 = cvmx_read_csr(CVMX_PIP_PRT_CFGX(offset));
+        port_cfg.s.maxerr_en = 0;
+        port_cfg.s.minerr_en = 0;
+        cvmx_write_csr(CVMX_PIP_PRT_CFGX(offset), port_cfg.u64);
+    }
+
+    /*
+     * Disable FCS stripping for loopback ports
+     */
+    if (!octeon_has_feature(OCTEON_FEATURE_PKND)) {
+        cvmx_ipd_sub_port_fcs_t ipd_sub_port_fcs;
+        ipd_sub_port_fcs.u64 = cvmx_read_csr(CVMX_IPD_SUB_PORT_FCS);
+        ipd_sub_port_fcs.s.port_bit2 = 0;
+        cvmx_write_csr(CVMX_IPD_SUB_PORT_FCS, ipd_sub_port_fcs.u64);
+    }
+
     return 0;
 }
 
