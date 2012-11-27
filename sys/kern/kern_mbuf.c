@@ -96,6 +96,7 @@ __FBSDID("$FreeBSD$");
  *
  */
 
+int nmbufs;			/* limits number of mbufs */
 int nmbclusters;		/* limits number of mbuf clusters */
 int nmbjumbop;			/* limits number of page size jumbo clusters */
 int nmbjumbo9;			/* limits number of 9k jumbo clusters */
@@ -147,9 +148,11 @@ sysctl_nmbclusters(SYSCTL_HANDLER_ARGS)
 	newnmbclusters = nmbclusters;
 	error = sysctl_handle_int(oidp, &newnmbclusters, 0, req); 
 	if (error == 0 && req->newptr) {
-		if (newnmbclusters > nmbclusters) {
+		if (newnmbclusters > nmbclusters &&
+		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbclusters = newnmbclusters;
 			uma_zone_set_max(zone_clust, nmbclusters);
+			nmbclusters = uma_zone_get_max(zone_clust);
 			EVENTHANDLER_INVOKE(nmbclusters_change);
 		} else
 			error = EINVAL;
@@ -168,9 +171,11 @@ sysctl_nmbjumbop(SYSCTL_HANDLER_ARGS)
 	newnmbjumbop = nmbjumbop;
 	error = sysctl_handle_int(oidp, &newnmbjumbop, 0, req); 
 	if (error == 0 && req->newptr) {
-		if (newnmbjumbop> nmbjumbop) {
+		if (newnmbjumbop > nmbjumbop &&
+		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbjumbop = newnmbjumbop;
 			uma_zone_set_max(zone_jumbop, nmbjumbop);
+			nmbjumbop = uma_zone_get_max(zone_jumbop);
 		} else
 			error = EINVAL;
 	}
@@ -189,9 +194,11 @@ sysctl_nmbjumbo9(SYSCTL_HANDLER_ARGS)
 	newnmbjumbo9 = nmbjumbo9;
 	error = sysctl_handle_int(oidp, &newnmbjumbo9, 0, req); 
 	if (error == 0 && req->newptr) {
-		if (newnmbjumbo9> nmbjumbo9) {
+		if (newnmbjumbo9 > nmbjumbo9&&
+		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbjumbo9 = newnmbjumbo9;
 			uma_zone_set_max(zone_jumbo9, nmbjumbo9);
+			nmbjumbo9 = uma_zone_get_max(zone_jumbo9);
 		} else
 			error = EINVAL;
 	}
@@ -209,9 +216,11 @@ sysctl_nmbjumbo16(SYSCTL_HANDLER_ARGS)
 	newnmbjumbo16 = nmbjumbo16;
 	error = sysctl_handle_int(oidp, &newnmbjumbo16, 0, req); 
 	if (error == 0 && req->newptr) {
-		if (newnmbjumbo16> nmbjumbo16) {
+		if (newnmbjumbo16 > nmbjumbo16 &&
+		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
 			nmbjumbo16 = newnmbjumbo16;
 			uma_zone_set_max(zone_jumbo16, nmbjumbo16);
+			nmbjumbo16 = uma_zone_get_max(zone_jumbo16);
 		} else
 			error = EINVAL;
 	}
@@ -221,6 +230,27 @@ SYSCTL_PROC(_kern_ipc, OID_AUTO, nmbjumbo16, CTLTYPE_INT|CTLFLAG_RW,
 &nmbjumbo16, 0, sysctl_nmbjumbo16, "IU",
     "Maximum number of mbuf 16k jumbo clusters allowed");
 
+static int
+sysctl_nmbufs(SYSCTL_HANDLER_ARGS)
+{
+	int error, newnmbufs;
+
+	newnmbufs = nmbufs;
+	error = sysctl_handle_int(oidp, &newnmbufs, 0, req); 
+	if (error == 0 && req->newptr) {
+		if (newnmbufs > nmbufs) {
+			nmbufs = newnmbufs;
+			uma_zone_set_max(zone_mbuf, nmbufs);
+			nmbclusters = uma_zone_get_max(zone_mbuf);
+			EVENTHANDLER_INVOKE(nmbufs_change);
+		} else
+			error = EINVAL;
+	}
+	return (error);
+}
+SYSCTL_PROC(_kern_ipc, OID_AUTO, nmbuf, CTLTYPE_INT|CTLFLAG_RW,
+&nmbufs, 0, sysctl_nmbufs, "IU",
+    "Maximum number of mbufs allowed");
 
 
 SYSCTL_STRUCT(_kern_ipc, OID_AUTO, mbstat, CTLFLAG_RD, &mbstat, mbstat,
@@ -275,6 +305,10 @@ mbuf_init(void *dummy)
 	    NULL, NULL,
 #endif
 	    MSIZE - 1, UMA_ZONE_MAXBUCKET);
+	if (nmbufs > 0) {
+		uma_zone_set_max(zone_mbuf, nmbufs);
+		nmbufs = uma_zone_get_max(zone_mbuf);
+	}
 
 	zone_clust = uma_zcreate(MBUF_CLUSTER_MEM_NAME, MCLBYTES,
 	    mb_ctor_clust, mb_dtor_clust,
@@ -284,8 +318,10 @@ mbuf_init(void *dummy)
 	    NULL, NULL,
 #endif
 	    UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
-	if (nmbclusters > 0)
+	if (nmbclusters > 0) {
 		uma_zone_set_max(zone_clust, nmbclusters);
+		nmbclusters = uma_zone_get_max(zone_clust);
+	}
 
 	zone_pack = uma_zsecond_create(MBUF_PACKET_MEM_NAME, mb_ctor_pack,
 	    mb_dtor_pack, mb_zinit_pack, mb_zfini_pack, zone_mbuf);
@@ -299,8 +335,10 @@ mbuf_init(void *dummy)
 	    NULL, NULL,
 #endif
 	    UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
-	if (nmbjumbop > 0)
+	if (nmbjumbop > 0) {
 		uma_zone_set_max(zone_jumbop, nmbjumbop);
+		nmbjumbop = uma_zone_get_max(zone_jumbop);
+	}
 
 	zone_jumbo9 = uma_zcreate(MBUF_JUMBO9_MEM_NAME, MJUM9BYTES,
 	    mb_ctor_clust, mb_dtor_clust,
@@ -310,9 +348,11 @@ mbuf_init(void *dummy)
 	    NULL, NULL,
 #endif
 	    UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
-	if (nmbjumbo9 > 0)
-		uma_zone_set_max(zone_jumbo9, nmbjumbo9);
 	uma_zone_set_allocf(zone_jumbo9, mbuf_jumbo_alloc);
+	if (nmbjumbo9 > 0) {
+		uma_zone_set_max(zone_jumbo9, nmbjumbo9);
+		nmbjumbo9 = uma_zone_get_max(zone_jumbo9);
+	}
 
 	zone_jumbo16 = uma_zcreate(MBUF_JUMBO16_MEM_NAME, MJUM16BYTES,
 	    mb_ctor_clust, mb_dtor_clust,
@@ -322,9 +362,11 @@ mbuf_init(void *dummy)
 	    NULL, NULL,
 #endif
 	    UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
-	if (nmbjumbo16 > 0)
-		uma_zone_set_max(zone_jumbo16, nmbjumbo16);
 	uma_zone_set_allocf(zone_jumbo16, mbuf_jumbo_alloc);
+	if (nmbjumbo16 > 0) {
+		uma_zone_set_max(zone_jumbo16, nmbjumbo16);
+		nmbjumbo16 = uma_zone_get_max(zone_jumbo16);
+	}
 
 	zone_ext_refcnt = uma_zcreate(MBUF_EXTREFCNT_MEM_NAME, sizeof(u_int),
 	    NULL, NULL,
