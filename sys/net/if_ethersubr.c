@@ -593,6 +593,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 			CURVNET_RESTORE();
 			return;
 		}
+		eh = mtod(m, struct ether_header *);
 	}
 
 	/*
@@ -607,6 +608,7 @@ ether_input_internal(struct ifnet *ifp, struct mbuf *m)
 			CURVNET_RESTORE();
 			return;
 		}
+		eh = mtod(m, struct ether_header *);
 	}
 
 #if defined(INET) || defined(INET6)
