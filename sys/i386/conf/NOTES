@@ -577,8 +577,6 @@ hint.mse.0.irq="5"
 # mlx4ib: Mellanox ConnectX HCA InfiniBand
 # mlxen: Mellanox ConnectX HCA Ethernet
 # mthca: Mellanox HCA InfiniBand
-# mwl:	Marvell 88W8363 IEEE 802.11 adapter
-#	Requires the mwl firmware module
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
 # nve:	nVidia nForce MCP on-board Ethernet Networking
 # sbni: Granch SBNI12-xx ISA and PCI adapters
@@ -624,7 +622,6 @@ hint.le.0.drq="0"
 device  	mlx4ib		# Mellanox ConnectX HCA InfiniBand
 device  	mlxen		# Mellanox ConnectX HCA Ethernet
 device  	mthca		# Mellanox HCA InfiniBand
-device		mwl		# Marvell 88W8363 802.11n wireless NICs.
 device		nfe		# nVidia nForce MCP on-board Ethernet
 device		nve		# nVidia nForce MCP on-board Ethernet Networking
 device		sbni
@@ -659,7 +656,6 @@ device		wpi		# Intel 3945ABG wireless NICs.
 #   iwn5150fw:		Specific module for the 5150 only
 #   iwn6000fw:		Specific module for the 6000 only
 #   iwn6050fw:		Specific module for the 6050 only
-# mwlfw:	Marvell 88W8363 firmware
 # wpifw:	Intel 3945ABG Wireless LAN Controller firmware
 
 device		iwifw
@@ -677,7 +673,6 @@ device		iwn5000fw
 device		iwn5150fw
 device		iwn6000fw
 device		iwn6050fw
-device		mwlfw
 device		wpifw
 
 #

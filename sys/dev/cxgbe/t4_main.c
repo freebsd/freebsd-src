@@ -288,6 +288,7 @@ static int cxgbe_init_locked(struct port_info *);
 static int cxgbe_init_synchronized(struct port_info *);
 static int cxgbe_uninit_locked(struct port_info *);
 static int cxgbe_uninit_synchronized(struct port_info *);
+static int setup_intr_handlers(struct adapter *);
 static int adapter_full_init(struct adapter *);
 static int adapter_full_uninit(struct adapter *);
 static int port_full_init(struct port_info *);
@@ -381,8 +382,8 @@ CTASSERT(offsetof(struct sge_ofld_rxq, fl) == offsetof(struct sge_rxq, fl));
 #endif
 
 /* No easy way to include t4_msg.h before adapter.h so we check this way */
-CTASSERT(ARRAY_SIZE(((struct adapter *)0)->cpl_handler) == NUM_CPL_CMDS);
-CTASSERT(ARRAY_SIZE(((struct adapter *)0)->fw_msg_handler) == NUM_FW6_TYPES);
+CTASSERT(nitems(((struct adapter *)0)->cpl_handler) == NUM_CPL_CMDS);
+CTASSERT(nitems(((struct adapter *)0)->fw_msg_handler) == NUM_FW6_TYPES);
 
 static int
 t4_probe(device_t dev)
@@ -399,7 +400,7 @@ t4_probe(device_t dev)
 	if (d == 0xa000 && f != 0)
 		return (ENXIO);
 
-	for (i = 0; i < ARRAY_SIZE(t4_pciids); i++) {
+	for (i = 0; i < nitems(t4_pciids); i++) {
 		if (d == t4_pciids[i].device) {
 			device_set_desc(dev, t4_pciids[i].desc);
 			return (BUS_PROBE_DEFAULT);
@@ -459,9 +460,9 @@ t4_attach(device_t dev)
 
 	memset(sc->chan_map, 0xff, sizeof(sc->chan_map));
 	sc->an_handler = an_not_handled;
-	for (i = 0; i < ARRAY_SIZE(sc->cpl_handler); i++)
+	for (i = 0; i < nitems(sc->cpl_handler); i++)
 		sc->cpl_handler[i] = cpl_not_handled;
-	for (i = 0; i < ARRAY_SIZE(sc->fw_msg_handler); i++)
+	for (i = 0; i < nitems(sc->fw_msg_handler); i++)
 		sc->fw_msg_handler[i] = fw_msg_not_handled;
 	t4_register_cpl_handler(sc, CPL_SET_TCB_RPL, t4_filter_rpl);
 
@@ -701,6 +702,13 @@ t4_attach(device_t dev)
 #endif
 	}
 
+	rc = setup_intr_handlers(sc);
+	if (rc != 0) {
+		device_printf(dev,
+		    "failed to setup interrupt handlers: %d\n", rc);
+		goto done;
+	}
+
 	rc = bus_generic_attach(dev);
 	if (rc != 0) {
 		device_printf(dev,
@@ -759,6 +767,9 @@ t4_detach(device_t dev)
 		    "failed to detach child devices: %d\n", rc);
 		return (rc);
 	}
+
+	for (i = 0; i < sc->intr_count; i++)
+		t4_free_irq(sc, &sc->irq[i]);
 
 	for (i = 0; i < MAX_NPORTS; i++) {
 		pi = sc->port[i];
@@ -1839,12 +1850,7 @@ get_params__pre_init(struct adapter *sc)
 	}
 
 	sc->params.portvec = val[0];
-	sc->params.nports = 0;
-	while (val[0]) {
-		sc->params.nports++;
-		val[0] &= val[0] - 1;
-	}
-
+	sc->params.nports = bitcount32(val[0]);
 	sc->params.vpd.cclk = val[1];
 
 	/* Read device log parameters. */
@@ -2365,16 +2371,14 @@ cxgbe_uninit_synchronized(struct port_info *pi)
 	return (0);
 }
 
-#define T4_ALLOC_IRQ(sc, irq, rid, handler, arg, name) do { \
-	rc = t4_alloc_irq(sc, irq, rid, handler, arg, name); \
-	if (rc != 0) \
-		goto done; \
-} while (0)
-
+/*
+ * It is ok for this function to fail midway and return right away.  t4_detach
+ * will walk the entire sc->irq list and clean up whatever is valid.
+ */
 static int
-adapter_full_init(struct adapter *sc)
+setup_intr_handlers(struct adapter *sc)
 {
-	int rc, i, rid, p, q;
+	int rc, rid, p, q;
 	char s[8];
 	struct irq *irq;
 	struct port_info *pi;
@@ -2382,30 +2386,6 @@ adapter_full_init(struct adapter *sc)
 #ifdef TCP_OFFLOAD
 	struct sge_ofld_rxq *ofld_rxq;
 #endif
-
-	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
-	KASSERT((sc->flags & FULL_INIT_DONE) == 0,
-	    ("%s: FULL_INIT_DONE already", __func__));
-
-	/*
-	 * queues that belong to the adapter (not any particular port).
-	 */
-	rc = t4_setup_adapter_queues(sc);
-	if (rc != 0)
-		goto done;
-
-	for (i = 0; i < ARRAY_SIZE(sc->tq); i++) {
-		sc->tq[i] = taskqueue_create("t4 taskq", M_NOWAIT,
-		    taskqueue_thread_enqueue, &sc->tq[i]);
-		if (sc->tq[i] == NULL) {
-			device_printf(sc->dev,
-			    "failed to allocate task queue %d\n", i);
-			rc = ENOMEM;
-			goto done;
-		}
-		taskqueue_start_threads(&sc->tq[i], 1, PI_NET, "%s tq%d",
-		    device_get_nameunit(sc->dev), i);
-	}
 
 	/*
 	 * Setup interrupts.
@@ -2416,19 +2396,26 @@ adapter_full_init(struct adapter *sc)
 		KASSERT(!(sc->flags & INTR_DIRECT),
 		    ("%s: single interrupt && INTR_DIRECT?", __func__));
 
-		T4_ALLOC_IRQ(sc, irq, rid, t4_intr_all, sc, "all");
+		rc = t4_alloc_irq(sc, irq, rid, t4_intr_all, sc, "all");
+		if (rc != 0)
+			return (rc);
 	} else {
 		/* Multiple interrupts. */
 		KASSERT(sc->intr_count >= T4_EXTRA_INTR + sc->params.nports,
 		    ("%s: too few intr.", __func__));
 
 		/* The first one is always error intr */
-		T4_ALLOC_IRQ(sc, irq, rid, t4_intr_err, sc, "err");
+		rc = t4_alloc_irq(sc, irq, rid, t4_intr_err, sc, "err");
+		if (rc != 0)
+			return (rc);
 		irq++;
 		rid++;
 
 		/* The second one is always the firmware event queue */
-		T4_ALLOC_IRQ(sc, irq, rid, t4_intr_evt, &sc->sge.fwq, "evt");
+		rc = t4_alloc_irq(sc, irq, rid, t4_intr_evt, &sc->sge.fwq,
+		    "evt");
+		if (rc != 0)
+			return (rc);
 		irq++;
 		rid++;
 
@@ -2455,7 +2442,10 @@ adapter_full_init(struct adapter *sc)
 			rxq = &sc->sge.rxq[pi->first_rxq];
 			for (q = 0; q < pi->nrxq; q++, rxq++) {
 				snprintf(s, sizeof(s), "%d.%d", p, q);
-				T4_ALLOC_IRQ(sc, irq, rid, t4_intr, rxq, s);
+				rc = t4_alloc_irq(sc, irq, rid, t4_intr, rxq,
+				    s);
+				if (rc != 0)
+					return (rc);
 				irq++;
 				rid++;
 			}
@@ -2471,12 +2461,47 @@ ofld_queues:
 			ofld_rxq = &sc->sge.ofld_rxq[pi->first_ofld_rxq];
 			for (q = 0; q < pi->nofldrxq; q++, ofld_rxq++) {
 				snprintf(s, sizeof(s), "%d,%d", p, q);
-				T4_ALLOC_IRQ(sc, irq, rid, t4_intr, ofld_rxq, s);
+				rc = t4_alloc_irq(sc, irq, rid, t4_intr,
+				    ofld_rxq, s);
+				if (rc != 0)
+					return (rc);
 				irq++;
 				rid++;
 			}
 #endif
 		}
+	}
+
+	return (0);
+}
+
+static int
+adapter_full_init(struct adapter *sc)
+{
+	int rc, i;
+
+	ADAPTER_LOCK_ASSERT_NOTOWNED(sc);
+	KASSERT((sc->flags & FULL_INIT_DONE) == 0,
+	    ("%s: FULL_INIT_DONE already", __func__));
+
+	/*
+	 * queues that belong to the adapter (not any particular port).
+	 */
+	rc = t4_setup_adapter_queues(sc);
+	if (rc != 0)
+		goto done;
+
+	for (i = 0; i < nitems(sc->tq); i++) {
+		sc->tq[i] = taskqueue_create("t4 taskq", M_NOWAIT,
+		    taskqueue_thread_enqueue, &sc->tq[i]);
+		if (sc->tq[i] == NULL) {
+			device_printf(sc->dev,
+			    "failed to allocate task queue %d\n", i);
+			rc = ENOMEM;
+			goto done;
+		}
+		taskqueue_start_threads(&sc->tq[i], 1, PI_NET, "%s tq%d",
+		    device_get_nameunit(sc->dev), i);
 	}
 
 	t4_intr_enable(sc);
@@ -2487,7 +2512,6 @@ done:
 
 	return (rc);
 }
-#undef T4_ALLOC_IRQ
 
 static int
 adapter_full_uninit(struct adapter *sc)
@@ -2498,10 +2522,7 @@ adapter_full_uninit(struct adapter *sc)
 
 	t4_teardown_adapter_queues(sc);
 
-	for (i = 0; i < sc->intr_count; i++)
-		t4_free_irq(sc, &sc->irq[i]);
-
-	for (i = 0; i < ARRAY_SIZE(sc->tq) && sc->tq[i]; i++) {
+	for (i = 0; i < nitems(sc->tq) && sc->tq[i]; i++) {
 		taskqueue_free(sc->tq[i]);
 		sc->tq[i] = NULL;
 	}
@@ -2925,7 +2946,7 @@ t4_get_regs(struct adapter *sc, struct t4_regdump *regs, uint8_t *buf)
 	};
 
 	regs->version = 4 | (sc->params.rev << 10);
-	for (i = 0; i < ARRAY_SIZE(reg_ranges); i += 2)
+	for (i = 0; i < nitems(reg_ranges); i += 2)
 		reg_block_dump(sc, buf, reg_ranges[i], reg_ranges[i + 1]);
 }
 
@@ -3001,7 +3022,7 @@ t4_register_cpl_handler(struct adapter *sc, int opcode, cpl_handler_t h)
 {
 	uintptr_t *loc, new;
 
-	if (opcode >= ARRAY_SIZE(sc->cpl_handler))
+	if (opcode >= nitems(sc->cpl_handler))
 		return (EINVAL);
 
 	new = h ? (uintptr_t)h : (uintptr_t)cpl_not_handled;
@@ -3055,7 +3076,7 @@ t4_register_fw_msg_handler(struct adapter *sc, int type, fw_msg_handler_t h)
 {
 	uintptr_t *loc, new;
 
-	if (type >= ARRAY_SIZE(sc->fw_msg_handler))
+	if (type >= nitems(sc->fw_msg_handler))
 		return (EINVAL);
 
 	new = h ? (uintptr_t)h : (uintptr_t)fw_msg_not_handled;
@@ -3829,9 +3850,9 @@ sysctl_devlog(SYSCTL_HANDLER_ARGS)
 
 		sbuf_printf(sb, "%10d  %15ju  %8s  %8s  ",
 		    e->seqno, e->timestamp,
-		    (e->level < ARRAY_SIZE(devlog_level_strings) ?
+		    (e->level < nitems(devlog_level_strings) ?
 			devlog_level_strings[e->level] : "UNKNOWN"),
-		    (e->facility < ARRAY_SIZE(devlog_facility_strings) ?
+		    (e->facility < nitems(devlog_facility_strings) ?
 			devlog_facility_strings[e->facility] : "UNKNOWN"));
 		sbuf_printf(sb, e->fmt, e->params[0], e->params[1],
 		    e->params[2], e->params[3], e->params[4],
@@ -3973,7 +3994,7 @@ sysctl_lb_stats(SYSCTL_HANDLER_ARGS)
 		sbuf_printf(sb, "%s                       Loopback %u"
 		    "           Loopback %u", i == 0 ? "" : "\n", i, i + 1);
 
-		for (j = 0; j < ARRAY_SIZE(stat_name); j++)
+		for (j = 0; j < nitems(stat_name); j++)
 			sbuf_printf(sb, "\n%-17s %20ju %20ju", stat_name[j],
 				   *p0++, *p1++);
 	}
@@ -4028,7 +4049,7 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 		"ULPTX state:", "On-chip queues:"
 	};
 	struct mem_desc avail[3];
-	struct mem_desc mem[ARRAY_SIZE(region) + 3];	/* up to 3 holes */
+	struct mem_desc mem[nitems(region) + 3];	/* up to 3 holes */
 	struct mem_desc *md = mem;
 
 	rc = sysctl_wire_old_buffer(req, 0);
@@ -4039,7 +4060,7 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	if (sb == NULL)
 		return (ENOMEM);
 
-	for (i = 0; i < ARRAY_SIZE(mem); i++) {
+	for (i = 0; i < nitems(mem); i++) {
 		mem[i].limit = 0;
 		mem[i].idx = i;
 	}
@@ -4101,7 +4122,7 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 		md->limit = (sc->tids.ntids - hi) * 16 + md->base - 1;
 	} else {
 		md->base = 0;
-		md->idx = ARRAY_SIZE(region);  /* hide it */
+		md->idx = nitems(region);  /* hide it */
 	}
 	md++;
 
@@ -4130,7 +4151,7 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 	if (sc->vres.ocq.size)
 		md->limit = md->base + sc->vres.ocq.size - 1;
 	else
-		md->idx = ARRAY_SIZE(region);  /* hide it */
+		md->idx = nitems(region);  /* hide it */
 	md++;
 
 	/* add any address-space holes, there can be up to 3 */
@@ -4149,7 +4170,7 @@ sysctl_meminfo(SYSCTL_HANDLER_ARGS)
 
 	sbuf_printf(sb, "\n");
 	for (i = 0; i < n; i++) {
-		if (mem[i].idx >= ARRAY_SIZE(region))
+		if (mem[i].idx >= nitems(region))
 			continue;                        /* skip holes */
 		if (!mem[i].limit)
 			mem[i].limit = i < n - 1 ? mem[i + 1].base - 1 : ~0;
@@ -5197,7 +5218,7 @@ t4_os_portmod_changed(const struct adapter *sc, int idx)
 		if_printf(pi->ifp, "unknown transceiver inserted.\n");
 	else if (pi->mod_type == FW_PORT_MOD_TYPE_NOTSUPPORTED)
 		if_printf(pi->ifp, "unsupported transceiver inserted.\n");
-	else if (pi->mod_type > 0 && pi->mod_type < ARRAY_SIZE(mod_str)) {
+	else if (pi->mod_type > 0 && pi->mod_type < nitems(mod_str)) {
 		if_printf(pi->ifp, "%s transceiver inserted.\n",
 		    mod_str[pi->mod_type]);
 	} else {

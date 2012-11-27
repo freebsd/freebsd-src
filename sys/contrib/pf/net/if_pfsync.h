@@ -182,7 +182,7 @@ struct pfsync_del_c {
 	u_int32_t			creatorid;
 } __packed;
 
-/* 
+/*
  * INS_F, DEL_F
  */
 
@@ -256,6 +256,9 @@ struct pfsyncstats {
 	u_int64_t	pfsyncs_opackets6;	/* total output packets, IPv6 */
 	u_int64_t	pfsyncs_onomem;		/* no memory for an mbuf */
 	u_int64_t	pfsyncs_oerrors;	/* ip output error */
+
+	u_int64_t	pfsyncs_iacts[PFSYNC_ACT_MAX];
+	u_int64_t	pfsyncs_oacts[PFSYNC_ACT_MAX];
 };
 
 /*
@@ -268,10 +271,8 @@ struct pfsyncreq {
 	int		 pfsyncr_defer;
 };
 
-#ifdef __FreeBSD__
 #define	SIOCSETPFSYNC   _IOW('i', 247, struct ifreq)
 #define	SIOCGETPFSYNC   _IOWR('i', 248, struct ifreq)
-#endif
 
 #ifdef _KERNEL
 
@@ -288,37 +289,10 @@ struct pfsyncreq {
 #define	PFSYNC_S_DEFER	0xfe
 #define	PFSYNC_S_NONE	0xff
 
-#ifdef __FreeBSD__
-void			pfsync_input(struct mbuf *, __unused int);
-#else
-void			pfsync_input(struct mbuf *, ...);
-#endif
-int			pfsync_sysctl(int *, u_int,  void *, size_t *,
-			    void *, size_t);
-
 #define	PFSYNC_SI_IOCTL		0x01
 #define	PFSYNC_SI_CKSUM		0x02
 #define	PFSYNC_SI_ACK		0x04
-int			pfsync_state_import(struct pfsync_state *, u_int8_t);
-#ifndef __FreeBSD__
-void			pfsync_state_export(struct pfsync_state *,
-			    struct pf_state *);
-#endif
 
-void			pfsync_insert_state(struct pf_state *);
-void			pfsync_update_state(struct pf_state *);
-void			pfsync_delete_state(struct pf_state *);
-void			pfsync_clear_states(u_int32_t, const char *);
-
-#ifdef notyet
-void			pfsync_update_tdb(struct tdb *, int);
-void			pfsync_delete_tdb(struct tdb *);
-#endif
-
-int			pfsync_defer(struct pf_state *, struct mbuf *);
-
-int			pfsync_up(void);
-int			pfsync_state_in_use(struct pf_state *);
-#endif
+#endif /* _KERNEL */
 
 #endif /* _NET_IF_PFSYNC_H_ */

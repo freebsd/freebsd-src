@@ -1604,6 +1604,19 @@ spa_init(int mode)
 
 	spa_mode_global = mode;
 
+#ifdef illumos
+#ifndef _KERNEL
+	if (spa_mode_global != FREAD && dprintf_find_string("watch")) {
+		arc_procfd = open("/proc/self/ctl", O_WRONLY);
+		if (arc_procfd == -1) {
+			perror("could not enable watchpoints: "
+			    "opening /proc/self/ctl failed: ");
+		} else {
+			arc_watch = B_TRUE;
+		}
+	}
+#endif
+#endif /* illumos */
 	refcount_sysinit();
 	unique_init();
 	zio_init();

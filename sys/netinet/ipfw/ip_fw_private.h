@@ -270,10 +270,6 @@ int ipfw_ctl(struct sockopt *sopt);
 int ipfw_chk(struct ip_fw_args *args);
 void ipfw_reap_rules(struct ip_fw *head);
 
-/* In ip_fw_pfil */
-int ipfw_check_hook(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
-     struct inpcb *inp);
-
 /* In ip_fw_table.c */
 struct radix_node;
 int ipfw_lookup_table(struct ip_fw_chain *ch, uint16_t tbl, in_addr_t addr,

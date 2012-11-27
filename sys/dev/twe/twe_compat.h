@@ -49,6 +49,7 @@
 #include <sys/sysctl.h>
 #include <sys/sx.h>
 
+#include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
@@ -60,6 +61,8 @@
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+
+#include <geom/geom_disk.h>
 
 #define TWE_DRIVER_NAME		twe
 #define TWED_DRIVER_NAME	twed
@@ -107,27 +110,6 @@
  */
 #define twe_printf(sc, fmt, args...)	device_printf(sc->twe_dev, fmt , ##args)
 #define twed_printf(twed, fmt, args...)	device_printf(twed->twed_dev, fmt , ##args)
-
-# include <sys/bio.h>
-# include <geom/geom_disk.h>
-typedef struct bio			twe_bio;
-typedef struct bio_queue_head		twe_bioq;
-# define TWE_BIO_QINIT(bq)		bioq_init(&bq);
-# define TWE_BIO_QINSERT(bq, bp)	bioq_insert_tail(&bq, bp)
-# define TWE_BIO_QFIRST(bq)		bioq_first(&bq)
-# define TWE_BIO_QREMOVE(bq, bp)	bioq_remove(&bq, bp)
-# define TWE_BIO_IS_READ(bp)		((bp)->bio_cmd == BIO_READ)
-# define TWE_BIO_DATA(bp)		(bp)->bio_data
-# define TWE_BIO_LENGTH(bp)		(bp)->bio_bcount
-# define TWE_BIO_LBA(bp)		(bp)->bio_pblkno
-# define TWE_BIO_SOFTC(bp)		(bp)->bio_disk->d_drv1
-# define TWE_BIO_UNIT(bp)		*(int *)(bp->bio_driver1)
-# define TWE_BIO_SET_ERROR(bp, err)	do { (bp)->bio_error = err; (bp)->bio_flags |= BIO_ERROR;} while(0)
-# define TWE_BIO_HAS_ERROR(bp)		((bp)->bio_flags & BIO_ERROR)
-# define TWE_BIO_RESID(bp)		(bp)->bio_resid
-# define TWE_BIO_DONE(bp)		biodone(bp)
-# define TWE_BIO_STATS_START(bp)
-# define TWE_BIO_STATS_END(bp)
 
 #define	TWE_IO_LOCK(sc)			mtx_lock(&(sc)->twe_io_lock)
 #define	TWE_IO_UNLOCK(sc)		mtx_unlock(&(sc)->twe_io_lock)

@@ -720,9 +720,9 @@ twed_open(struct disk *dp)
  * Handle an I/O request.
  */
 static void
-twed_strategy(twe_bio *bp)
+twed_strategy(struct bio *bp)
 {
-    struct twed_softc	*sc = (struct twed_softc *)TWE_BIO_SOFTC(bp);
+    struct twed_softc	*sc = bp->bio_disk->d_drv1;
 
     debug_called(4);
 
@@ -731,15 +731,13 @@ twed_strategy(twe_bio *bp)
 
     /* bogus disk? */
     if (sc == NULL || sc->twed_drive->td_disk == NULL) {
-	TWE_BIO_SET_ERROR(bp, EINVAL);
+	bp->bio_error = EINVAL;
+	bp->bio_flags |= BIO_ERROR;
 	printf("twe: bio for invalid disk!\n");
-	TWE_BIO_DONE(bp);
+	biodone(bp);
 	TWED_BIO_OUT;
 	return;
     }
-
-    /* perform accounting */
-    TWE_BIO_STATS_START(bp);
 
     /* queue the bio on the controller */
     TWE_IO_LOCK(sc->twed_controller);
@@ -779,16 +777,15 @@ twed_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t l
  * Handle completion of an I/O request.
  */
 void
-twed_intr(twe_bio *bp)
+twed_intr(struct bio *bp)
 {
     debug_called(4);
 
     /* if no error, transfer completed */
-    if (!TWE_BIO_HAS_ERROR(bp))
-	TWE_BIO_RESID(bp) = 0;
+    if (!(bp->bio_flags & BIO_ERROR))
+	bp->bio_resid = 0;
 
-    TWE_BIO_STATS_END(bp);
-    TWE_BIO_DONE(bp);
+    biodone(bp);
     TWED_BIO_OUT;
 }
 

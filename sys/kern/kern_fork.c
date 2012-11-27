@@ -1055,5 +1055,4 @@ fork_return(struct thread *td, struct trapframe *frame)
 	if (KTRPOINT(td, KTR_SYSRET))
 		ktrsysret(SYS_fork, 0, 0);
 #endif
-	mtx_assert(&Giant, MA_NOTOWNED);
 }

@@ -124,13 +124,6 @@ struct	md_page {
 	TAILQ_HEAD(,pv_entry)	pv_list;
 };
 
-#define	VM_MDPAGE_INIT(pg)						\
-do {									\
-	TAILQ_INIT(&pg->pv_list);					\
-	mtx_init(&(pg)->md_page.pvh_mtx, "MDPAGE Mutex", NULL, MTX_DEV);\
-	(pg)->mdpage.pvh_attrs = 0;					\
-} while (/*CONSTCOND*/0)
-
 struct l1_ttable;
 struct l2_dtable;
 

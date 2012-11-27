@@ -431,7 +431,10 @@ fdt_reg_to_rl(phandle_t node, struct resource_list *rl)
 
 	if (fdt_addrsize_cells(OF_parent(node), &addr_cells, &size_cells) != 0)
 		return (ENXIO);
-	fdt_get_range(OF_parent(node), 0, &busaddr, &bussize);
+	if (fdt_get_range(OF_parent(node), 0, &busaddr, &bussize)) {
+		busaddr = 0;
+		bussize = 0;
+	}
 
 	tuple_size = sizeof(pcell_t) * (addr_cells + size_cells);
 	tuples = OF_getprop_alloc(node, "reg", tuple_size, (void **)&reg);
@@ -693,4 +696,15 @@ fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, uint32_t *memsize)
 	rv = 0;
 out:
 	return (rv);
+}
+
+int
+fdt_get_unit(device_t dev)
+{
+	const char * name;
+
+	name = ofw_bus_get_name(dev);
+	name = strchr(name, '@') + 1;
+
+	return (strtol(name,NULL,0));
 }

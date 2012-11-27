@@ -291,8 +291,8 @@ struct psm_softc {		/* Driver status information */
 	struct timeval	lastinputerr;	/* time last sync error happened */
 	struct timeval	taptimeout;	/* tap timeout for touchpads */
 	int		watchdog;	/* watchdog timer flag */
-	struct callout_handle callout;	/* watchdog timer call out */
-	struct callout_handle softcallout; /* buffer timer call out */
+	struct callout	callout;	/* watchdog timer call out */
+	struct callout	softcallout; /* buffer timer call out */
 	struct cdev	*dev;
 	struct cdev	*bdev;
 	int		lasterr;
@@ -960,7 +960,7 @@ doopen(struct psm_softc *sc, int command_byte)
 
 	/* start the watchdog timer */
 	sc->watchdog = FALSE;
-	sc->callout = timeout(psmtimeout, (void *)(uintptr_t)sc, hz*2);
+	callout_reset(&sc->callout, hz * 2, psmtimeout, sc);
 
 	return (0);
 }
@@ -979,8 +979,7 @@ reinitialize(struct psm_softc *sc, int doinit)
 
 	/* block our watchdog timer */
 	sc->watchdog = FALSE;
-	untimeout(psmtimeout, (void *)(uintptr_t)sc, sc->callout);
-	callout_handle_init(&sc->callout);
+	callout_stop(&sc->callout);
 
 	/* save the current controller command byte */
 	empty_both_buffers(sc->kbdc, 10);
@@ -1418,7 +1417,8 @@ psmattach(device_t dev)
 
 	/* Setup initial state */
 	sc->state = PSM_VALID;
-	callout_handle_init(&sc->callout);
+	callout_init(&sc->callout, 0);
+	callout_init(&sc->softcallout, 0);
 
 	/* Setup our interrupt handler */
 	rid = KBDC_RID_AUX;
@@ -1486,6 +1486,9 @@ psmdetach(device_t dev)
 
 	destroy_dev(sc->dev);
 	destroy_dev(sc->bdev);
+
+	callout_drain(&sc->callout);
+	callout_drain(&sc->softcallout);
 
 	return (0);
 }
@@ -1615,8 +1618,7 @@ psmclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 	splx(s);
 
 	/* stop the watchdog timer */
-	untimeout(psmtimeout, (void *)(uintptr_t)sc, sc->callout);
-	callout_handle_init(&sc->callout);
+	callout_stop(&sc->callout);
 
 	/* remove anything left in the output buffer */
 	empty_aux_buffer(sc->kbdc, 10);
@@ -1839,7 +1841,7 @@ dropqueue(struct psm_softc *sc)
 	sc->queue.tail = 0;
 	if ((sc->state & PSM_SOFTARMED) != 0) {
 		sc->state &= ~PSM_SOFTARMED;
-		untimeout(psmsoftintr, (void *)(uintptr_t)sc, sc->softcallout);
+		callout_stop(&sc->softcallout);
 	}
 	sc->pqueue_start = sc->pqueue_end;
 }
@@ -2255,7 +2257,7 @@ psmtimeout(void *arg)
 	}
 	sc->watchdog = TRUE;
 	splx(s);
-	sc->callout = timeout(psmtimeout, (void *)(uintptr_t)sc, hz);
+	callout_reset(&sc->callout, hz, psmtimeout, sc);
 }
 
 /* Add all sysctls under the debug.psm and hw.psm nodes */
@@ -2437,13 +2439,13 @@ next:
 		    (sc->pqueue_end == sc->pqueue_start)) {
 			if ((sc->state & PSM_SOFTARMED) != 0) {
 				sc->state &= ~PSM_SOFTARMED;
-				untimeout(psmsoftintr, arg, sc->softcallout);
+				callout_stop(&sc->softcallout);
 			}
 			psmsoftintr(arg);
 		} else if ((sc->state & PSM_SOFTARMED) == 0) {
 			sc->state |= PSM_SOFTARMED;
-			sc->softcallout = timeout(psmsoftintr, arg,
-			    psmhz < 1 ? 1 : (hz/psmhz));
+			callout_reset(&sc->softcallout,
+			    psmhz < 1 ? 1 : (hz/psmhz), psmsoftintr, arg);
 		}
 	}
 }

@@ -4055,10 +4055,12 @@ key_cmpsaidx(
 		/*
 		 * If NAT-T is enabled, check ports for tunnel mode.
 		 * Do not check ports if they are set to zero in the SPD.
-		 * Also do not do it for transport mode, as there is no
-		 * port information available in the SP.
+		 * Also do not do it for native transport mode, as there
+		 * is no port information available in the SP.
 		 */
-		if (saidx1->mode == IPSEC_MODE_TUNNEL &&
+		if ((saidx1->mode == IPSEC_MODE_TUNNEL ||
+		     (saidx1->mode == IPSEC_MODE_TRANSPORT &&
+		      saidx1->proto == IPPROTO_ESP)) &&
 		    saidx1->src.sa.sa_family == AF_INET &&
 		    saidx1->dst.sa.sa_family == AF_INET &&
 		    ((const struct sockaddr_in *)(&saidx1->src))->sin_port &&

@@ -775,7 +775,6 @@ trap(struct trapframe *frame)
 
 user:
 	userret(td, frame);
-	mtx_assert(&Giant, MA_NOTOWNED);
 	KASSERT(PCB_USER_FPU(td->td_pcb),
 	    ("Return from trap with kernel FPU ctx leaked"));
 userout:

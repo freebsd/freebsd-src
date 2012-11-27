@@ -1604,8 +1604,11 @@ sa_replace_all_by_template(sa_handle_t *hdl, sa_bulk_attr_t *attr_desc,
 }
 
 /*
- * add/remove/replace a single attribute and then rewrite the entire set
+ * Add/remove a single attribute or replace a variable-sized attribute value
+ * with a value of a different size, and then rewrite the entire set
  * of attributes.
+ * Same-length attribute value replacement (including fixed-length attributes)
+ * is handled more efficiently by the upper layers.
  */
 static int
 sa_modify_attrs(sa_handle_t *hdl, sa_attr_type_t newattr,
@@ -1687,18 +1690,19 @@ sa_modify_attrs(sa_handle_t *hdl, sa_attr_type_t newattr,
 
 			attr = idx_tab->sa_layout->lot_attrs[i];
 			if (attr == newattr) {
-				if (action == SA_REMOVE) {
-					j++;
-					continue;
+				/* duplicate attributes are not allowed */
+				ASSERT(action == SA_REPLACE ||
+				    action == SA_REMOVE);
+				/* must be variable-sized to be replaced here */
+				if (action == SA_REPLACE) {
+					ASSERT(SA_REGISTERED_LEN(sa, attr) == 0);
+					SA_ADD_BULK_ATTR(attr_desc, j, attr,
+					    locator, datastart, buflen);
 				}
-				ASSERT(SA_REGISTERED_LEN(sa, attr) == 0);
-				ASSERT(action == SA_REPLACE);
-				SA_ADD_BULK_ATTR(attr_desc, j, attr,
-				    locator, datastart, buflen);
 			} else {
 				length = SA_REGISTERED_LEN(sa, attr);
 				if (length == 0) {
-					length = hdr->sa_lengths[length_idx++];
+					length = hdr->sa_lengths[length_idx];
 				}
 
 				SA_ADD_BULK_ATTR(attr_desc, j, attr,
@@ -1706,6 +1710,8 @@ sa_modify_attrs(sa_handle_t *hdl, sa_attr_type_t newattr,
 				    (TOC_OFF(idx_tab->sa_idx_tab[attr]) +
 				    (uintptr_t)old_data[k]), length);
 			}
+			if (SA_REGISTERED_LEN(sa, attr) == 0)
+				length_idx++;
 		}
 		if (k == 0 && hdl->sa_spill) {
 			hdr = SA_GET_HDR(hdl, SA_SPILL);
@@ -1723,6 +1729,7 @@ sa_modify_attrs(sa_handle_t *hdl, sa_attr_type_t newattr,
 		SA_ADD_BULK_ATTR(attr_desc, j, newattr, locator,
 		    datastart, buflen);
 	}
+	ASSERT3U(j, ==, attr_count);
 
 	error = sa_build_layouts(hdl, attr_desc, attr_count, tx);
 

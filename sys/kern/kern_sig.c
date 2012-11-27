@@ -2134,6 +2134,8 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	 * We try do the per-process part here.
 	 */
 	if (P_SHOULDSTOP(p)) {
+		KASSERT(!(p->p_flag & P_WEXIT),
+		    ("signal to stopped but exiting process"));
 		if (sig == SIGKILL) {
 			/*
 			 * If traced process is already stopped,
@@ -2248,7 +2250,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		MPASS(action == SIG_DFL);
 
 		if (prop & SA_STOP) {
-			if (p->p_flag & P_PPWAIT)
+			if (p->p_flag & (P_PPWAIT|P_WEXIT))
 				goto out;
 			p->p_flag |= P_STOPPED_SIG;
 			p->p_xstat = sig;
@@ -2410,6 +2412,7 @@ ptracestop(struct thread *td, int sig)
 	struct proc *p = td->td_proc;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	KASSERT(!(p->p_flag & P_WEXIT), ("Stopping exiting process"));
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
 	    &p->p_mtx.lock_object, "Stopping for traced signal");
 
@@ -2648,7 +2651,7 @@ issignal(struct thread *td, int stop_allowed)
 			 * process group, ignore tty stop signals.
 			 */
 			if (prop & SA_STOP) {
-				if (p->p_flag & P_TRACED ||
+				if (p->p_flag & (P_TRACED|P_WEXIT) ||
 		    		    (p->p_pgrp->pg_jobc == 0 &&
 				     prop & SA_TTYSTOP))
 					break;	/* == ignore */

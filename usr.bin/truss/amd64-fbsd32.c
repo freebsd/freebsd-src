@@ -43,8 +43,8 @@ static const char rcsid[] =
  */
 
 #include <sys/types.h>
-#include <sys/syscall.h>
 #include <sys/ptrace.h>
+#include <sys/syscall.h>
 
 #include <machine/reg.h>
 #include <machine/psl.h>
@@ -90,21 +90,21 @@ static struct freebsd32_syscall {
 
 /* Clear up and free parts of the fsc structure. */
 static __inline void
-clear_fsc(void) {
-  if (fsc.args) {
-    free(fsc.args);
-  }
-  if (fsc.args32) {
-    free(fsc.args32);
-  }
-  if (fsc.s_args) {
-    int i;
-    for (i = 0; i < fsc.nargs; i++)
-      if (fsc.s_args[i])
-	free(fsc.s_args[i]);
-    free(fsc.s_args);
-  }
-  memset(&fsc, 0, sizeof(fsc));
+clear_fsc(void)
+{
+	int i;
+
+	if (fsc.args)
+		free(fsc.args);
+	if (fsc.args32)
+		free(fsc.args32);
+	if (fsc.s_args) {
+		for (i = 0; i < fsc.nargs; i++)
+			if (fsc.s_args[i])
+				free(fsc.s_args[i]);
+		free(fsc.s_args);
+	}
+	memset(&fsc, 0, sizeof(fsc));
 }
 
 /*
@@ -115,145 +115,143 @@ clear_fsc(void) {
  */
 
 void
-amd64_fbsd32_syscall_entry(struct trussinfo *trussinfo, int nargs) {
-  struct reg regs;
-  int syscall_num;
-  int i;
-  unsigned long parm_offset;
-  struct syscall *sc = NULL;
-  struct ptrace_io_desc iorequest;
-  cpid = trussinfo->curthread->tid;
+amd64_fbsd32_syscall_entry(struct trussinfo *trussinfo, int nargs)
+{
+	struct ptrace_io_desc iorequest;
+	struct reg regs;
+	struct syscall *sc;
+	unsigned long parm_offset;
+	int i, syscall_num;
 
-  clear_fsc();
-  
-  if (ptrace(PT_GETREGS, cpid, (caddr_t)&regs, 0) < 0)
-  {
-    fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
-    return;
-  }
-  parm_offset = regs.r_rsp + sizeof(int);
+	clear_fsc();
 
-  /*
-   * FreeBSD has two special kinds of system call redirctions --
-   * SYS_syscall, and SYS___syscall.  The former is the old syscall()
-   * routine, basically; the latter is for quad-aligned arguments.
-   */
-  syscall_num = regs.r_rax;
-  switch (syscall_num) {
-  case SYS_syscall:
-    syscall_num = ptrace(PT_READ_D, cpid, (caddr_t)parm_offset, 0);
-    parm_offset += sizeof(int);
-    break;
-  case SYS___syscall:
-    syscall_num = ptrace(PT_READ_D, cpid, (caddr_t)parm_offset, 0);
-    parm_offset += sizeof(quad_t);
-    break;
-  }
+	cpid = trussinfo->curthread->tid;
 
-  fsc.number = syscall_num;
-  fsc.name =
-    (syscall_num < 0 || syscall_num >= nsyscalls) ? NULL :
-      freebsd32_syscallnames[syscall_num];
-  if (!fsc.name) {
-    fprintf(trussinfo->outfile, "-- UNKNOWN SYSCALL %d --\n", syscall_num);
-  }
+	if (ptrace(PT_GETREGS, cpid, (caddr_t)&regs, 0) < 0) {
+		fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
+		return;
+	}
+	parm_offset = regs.r_rsp + sizeof(int);
 
-  if (fsc.name && (trussinfo->flags & FOLLOWFORKS)
-   && ((!strcmp(fsc.name, "fork")
-    || !strcmp(fsc.name, "rfork")
-    || !strcmp(fsc.name, "vfork"))))
-  {
-    trussinfo->curthread->in_fork = 1;
-  }
+	/*
+	 * FreeBSD has two special kinds of system call redirctions --
+	 * SYS_syscall, and SYS___syscall.  The former is the old syscall()
+	 * routine, basically; the latter is for quad-aligned arguments.
+	 */
+	syscall_num = regs.r_rax;
+	switch (syscall_num) {
+	case SYS_syscall:
+		syscall_num = ptrace(PT_READ_D, cpid, (caddr_t)parm_offset, 0);
+		parm_offset += sizeof(int);
+		break;
+	case SYS___syscall:
+		syscall_num = ptrace(PT_READ_D, cpid, (caddr_t)parm_offset, 0);
+		parm_offset += sizeof(quad_t);
+		break;
+	}
 
-  if (nargs == 0)
-    return;
+	fsc.number = syscall_num;
+	fsc.name = (syscall_num < 0 || syscall_num >= nsyscalls) ?
+	    NULL : freebsd32_syscallnames[syscall_num];
+	if (!fsc.name) {
+		fprintf(trussinfo->outfile, "-- UNKNOWN SYSCALL %d --\n",
+		    syscall_num);
+	}
 
-  fsc.args32 = malloc((1+nargs) * sizeof(unsigned int));
-  iorequest.piod_op = PIOD_READ_D;
-  iorequest.piod_offs = (void *)parm_offset;
-  iorequest.piod_addr = fsc.args32;
-  iorequest.piod_len = (1+nargs) * sizeof(unsigned int);
-  ptrace(PT_IO, cpid, (caddr_t)&iorequest, 0);
-  if (iorequest.piod_len == 0)
-    return;
+	if (fsc.name && (trussinfo->flags & FOLLOWFORKS) &&
+	    (strcmp(fsc.name, "fork") == 0 ||
+	    strcmp(fsc.name, "rfork") == 0||
+	    strcmp(fsc.name, "vfork") == 0))
+		trussinfo->curthread->in_fork = 1;
 
-  fsc.args = malloc((1+nargs) * sizeof(unsigned long));
-  for (i = 0; i < nargs + 1; i++) 
-     fsc.args[i] = fsc.args32[i];
+	if (nargs == 0)
+		return;
 
-  if (fsc.name)
-  	sc = get_syscall(fsc.name);
-  if (sc) {
-    fsc.nargs = sc->nargs;
-  } else {
+	fsc.args32 = malloc((1 + nargs) * sizeof(unsigned int));
+	iorequest.piod_op = PIOD_READ_D;
+	iorequest.piod_offs = (void *)parm_offset;
+	iorequest.piod_addr = fsc.args32;
+	iorequest.piod_len = (1 + nargs) * sizeof(unsigned int);
+	ptrace(PT_IO, cpid, (caddr_t)&iorequest, 0);
+	if (iorequest.piod_len == 0)
+		return;
+
+	fsc.args = malloc((1 + nargs) * sizeof(unsigned long));
+	for (i = 0; i < nargs + 1; i++)
+		 fsc.args[i] = fsc.args32[i];
+
+	sc = NULL;
+	if (fsc.name)
+		sc = get_syscall(fsc.name);
+	if (sc)
+		fsc.nargs = sc->nargs;
+	else {
 #if DEBUG
-    fprintf(trussinfo->outfile, "unknown syscall %s -- setting args to %d\n",
-	   fsc.name, nargs);
+		fprintf(trussinfo->outfile, "unknown syscall %s -- setting "
+		    "args to %d\n", fsc.name, nargs);
 #endif
-    fsc.nargs = nargs;
-  }
+		fsc.nargs = nargs;
+	}
 
-  fsc.s_args = calloc(1, (1+fsc.nargs) * sizeof(char*));
-  fsc.sc = sc;
+	fsc.s_args = calloc(1, (1 + fsc.nargs) * sizeof(char *));
+	fsc.sc = sc;
 
-  /*
-   * At this point, we set up the system call arguments.
-   * We ignore any OUT ones, however -- those are arguments that
-   * are set by the system call, and so are probably meaningless
-   * now.  This doesn't currently support arguments that are
-   * passed in *and* out, however.
-   */
+	/*
+	 * At this point, we set up the system call arguments.
+	 * We ignore any OUT ones, however -- those are arguments that
+	 * are set by the system call, and so are probably meaningless
+	 * now.	This doesn't currently support arguments that are
+	 * passed in *and* out, however.
+	 */
 
-  if (fsc.name) {
-
+	if (fsc.name) {
 #if DEBUG
-    fprintf(stderr, "syscall %s(", fsc.name);
+		fprintf(stderr, "syscall %s(", fsc.name);
 #endif
-    for (i = 0; i < fsc.nargs; i++) {
+		for (i = 0; i < fsc.nargs; i++) {
 #if DEBUG
-      fprintf(stderr, "0x%x%s",
-	      sc
-	      ? fsc.args[sc->args[i].offset]
-	      : fsc.args[i],
-	      i < (fsc.nargs - 1) ? "," : "");
+			fprintf(stderr, "0x%x%s", sc ?
+			    fsc.args[sc->args[i].offset] : fsc.args[i],
+			    i < (fsc.nargs - 1) ? "," : "");
 #endif
-      if (sc && !(sc->args[i].type & OUT)) {
-	fsc.s_args[i] = print_arg(&sc->args[i], fsc.args, 0, trussinfo);
-      }
-    }
+			if (sc && !(sc->args[i].type & OUT)) {
+				fsc.s_args[i] = print_arg(&sc->args[i],
+				    fsc.args, 0, trussinfo);
+			}
+		}
 #if DEBUG
-    fprintf(stderr, ")\n");
+		fprintf(stderr, ")\n");
 #endif
-  }
+	}
 
 #if DEBUG
-  fprintf(trussinfo->outfile, "\n");
+	fprintf(trussinfo->outfile, "\n");
 #endif
 
-  if (fsc.name != NULL &&
-      (!strcmp(fsc.name, "freebsd32_execve") || !strcmp(fsc.name, "exit"))) {
+	if (fsc.name != NULL && (strcmp(fsc.name, "freebsd32_execve") == 0||
+	    strcmp(fsc.name, "exit") == 0)) {
+		/*
+		 * XXX
+		 * This could be done in a more general
+		 * manner but it still wouldn't be very pretty.
+		 */
+		if (strcmp(fsc.name, "freebsd32_execve") == 0) {
+			if ((trussinfo->flags & EXECVEARGS) == 0) {
+				if (fsc.s_args[1]) {
+					free(fsc.s_args[1]);
+					fsc.s_args[1] = NULL;
+				}
+			}
+			if ((trussinfo->flags & EXECVEENVS) == 0) {
+				if (fsc.s_args[2]) {
+					free(fsc.s_args[2]);
+					fsc.s_args[2] = NULL;
+				}
+			}
+		}
+	}
 
-    /* XXX
-     * This could be done in a more general
-     * manner but it still wouldn't be very pretty.
-     */
-    if (!strcmp(fsc.name, "freebsd32_execve")) {
-        if ((trussinfo->flags & EXECVEARGS) == 0)
-          if (fsc.s_args[1]) {
-            free(fsc.s_args[1]);
-            fsc.s_args[1] = NULL;
-          }
-        if ((trussinfo->flags & EXECVEENVS) == 0)
-          if (fsc.s_args[2]) {
-            free(fsc.s_args[2]);
-            fsc.s_args[2] = NULL;
-          }
-    }
-
-  }
-
-  return;
+	return;
 }
 
 /*
@@ -266,68 +264,69 @@ amd64_fbsd32_syscall_entry(struct trussinfo *trussinfo, int nargs) {
 long
 amd64_fbsd32_syscall_exit(struct trussinfo *trussinfo, int syscall_num __unused)
 {
-  struct reg regs;
-  long retval;
-  int i;
-  int errorp;
-  struct syscall *sc;
+	struct reg regs;
+	struct syscall *sc;
+	long retval;
+	int errorp, i;
 
-  if (fsc.name == NULL)
-    return (-1);
-  cpid = trussinfo->curthread->tid;
+	if (fsc.name == NULL)
+		return (-1);
 
-  if (ptrace(PT_GETREGS, cpid, (caddr_t)&regs, 0) < 0)
-  {
-    fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
-    return (-1);
-  }
-  
-  retval = regs.r_rax;
-  errorp = !!(regs.r_rflags & PSL_C);
+	cpid = trussinfo->curthread->tid;
 
-  /*
-   * This code, while simpler than the initial versions I used, could
-   * stand some significant cleaning.
-   */
+	if (ptrace(PT_GETREGS, cpid, (caddr_t)&regs, 0) < 0) {
+		fprintf(trussinfo->outfile, "-- CANNOT READ REGISTERS --\n");
+		return (-1);
+	}
 
-  sc = fsc.sc;
-  if (!sc) {
-    for (i = 0; i < fsc.nargs; i++)
-      asprintf(&fsc.s_args[i], "0x%lx", fsc.args[i]);
-  } else {
-    /*
-     * Here, we only look for arguments that have OUT masked in --
-     * otherwise, they were handled in the syscall_entry function.
-     */
-    for (i = 0; i < sc->nargs; i++) {
-      char *temp;
-      if (sc->args[i].type & OUT) {
+	retval = regs.r_rax;
+	errorp = !!(regs.r_rflags & PSL_C);
+
 	/*
-	 * If an error occurred, then don't bother getting the data;
-	 * it may not be valid.
+	 * This code, while simpler than the initial versions I used, could
+	 * stand some significant cleaning.
 	 */
-	if (errorp)
-	  asprintf(&temp, "0x%lx", fsc.args[sc->args[i].offset]);
-	else
-	  temp = print_arg(&sc->args[i], fsc.args, retval, trussinfo);
-	fsc.s_args[i] = temp;
-      }
-    }
-  }
 
-  if (fsc.name != NULL &&
-      (!strcmp(fsc.name, "freebsd32_execve") || !strcmp(fsc.name, "exit"))) {
-	trussinfo->curthread->in_syscall = 1;
-  }
+	sc = fsc.sc;
+	if (!sc) {
+		for (i = 0; i < fsc.nargs; i++)
+			asprintf(&fsc.s_args[i], "0x%lx", fsc.args[i]);
+	} else {
+		/*
+		 * Here, we only look for arguments that have OUT masked in --
+		 * otherwise, they were handled in the syscall_entry function.
+		 */
+		for (i = 0; i < sc->nargs; i++) {
+			char *temp;
+			if (sc->args[i].type & OUT) {
+				/*
+				 * If an error occurred, then don't bother
+				 * getting the data; it may not be valid.
+				 */
+				if (errorp) {
+					asprintf(&temp, "0x%lx",
+					    fsc.args[sc->args[i].offset]);
+				} else {
+					temp = print_arg(&sc->args[i],
+					    fsc.args, retval, trussinfo);
+				}
+				fsc.s_args[i] = temp;
+			}
+		}
+	}
 
-  /*
-   * It would probably be a good idea to merge the error handling,
-   * but that complicates things considerably.
-   */
+	if (fsc.name != NULL && (strcmp(fsc.name, "freebsd32_execve") == 0 ||
+	    strcmp(fsc.name, "exit") == 0))
+		trussinfo->curthread->in_syscall = 1;
 
-  print_syscall_ret(trussinfo, fsc.name, fsc.nargs, fsc.s_args, errorp,
-		    retval, fsc.sc);
-  clear_fsc();
+	/*
+	 * It would probably be a good idea to merge the error handling,
+	 * but that complicates things considerably.
+	 */
 
-  return (retval);
+	print_syscall_ret(trussinfo, fsc.name, fsc.nargs, fsc.s_args, errorp,
+	    retval, fsc.sc);
+	clear_fsc();
+
+	return (retval);
 }

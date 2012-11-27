@@ -1723,20 +1723,30 @@ do {								\
 
 			case O_ALTQ: {
 				struct pf_mtag *at;
+				struct m_tag *mtag;
 				ipfw_insn_altq *altq = (ipfw_insn_altq *)cmd;
 
+				/*
+				 * ALTQ uses mbuf tags from another
+				 * packet filtering system - pf(4).
+				 * We allocate a tag in its format
+				 * and fill it in, pretending to be pf(4).
+				 */
 				match = 1;
 				at = pf_find_mtag(m);
 				if (at != NULL && at->qid != 0)
 					break;
-				at = pf_get_mtag(m);
-				if (at == NULL) {
+				mtag = m_tag_get(PACKET_TAG_PF,
+				    sizeof(struct pf_mtag), M_NOWAIT | M_ZERO);
+				if (mtag == NULL) {
 					/*
 					 * Let the packet fall back to the
 					 * default ALTQ.
 					 */
 					break;
 				}
+				m_tag_prepend(m, mtag);
+				at = (struct pf_mtag *)(mtag + 1);
 				at->qid = altq->qid;
 				at->hdr = ip;
 				break;
@@ -2701,10 +2711,9 @@ vnet_ipfw_init(const void *unused)
 	V_ipfw_vnet_ready = 1;		/* Open for business */
 
 	/*
-	 * Hook the sockopt handler, and the layer2 (V_ip_fw_chk_ptr)
-	 * and pfil hooks for ipv4 and ipv6. Even if the latter two fail
-	 * we still keep the module alive because the sockopt and
-	 * layer2 paths are still useful.
+	 * Hook the sockopt handler and pfil hooks for ipv4 and ipv6.
+	 * Even if the latter two fail we still keep the module alive
+	 * because the sockopt and layer2 paths are still useful.
 	 * ipfw[6]_hook return 0 on success, ENOENT on failure,
 	 * so we can ignore the exact return value and just set a flag.
 	 *
@@ -2715,7 +2724,6 @@ vnet_ipfw_init(const void *unused)
 	 * is checked on each packet because there are no pfil hooks.
 	 */
 	V_ip_fw_ctl_ptr = ipfw_ctl;
-	V_ip_fw_chk_ptr = ipfw_chk;
 	error = ipfw_attach_hooks(1);
 	return (error);
 }
@@ -2737,7 +2745,6 @@ vnet_ipfw_uninit(const void *unused)
 	 * sure the update is propagated and nobody will be in.
 	 */
 	(void)ipfw_attach_hooks(0 /* detach */);
-	V_ip_fw_chk_ptr = NULL;
 	V_ip_fw_ctl_ptr = NULL;
 	IPFW_UH_WLOCK(chain);
 	IPFW_UH_WUNLOCK(chain);

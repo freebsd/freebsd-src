@@ -125,6 +125,7 @@ static struct g_raid_md_class g_raid_md_ddf_class = {
 	"DDF",
 	g_raid_md_ddf_methods,
 	sizeof(struct g_raid_md_ddf_object),
+	.mdc_enable = 1,
 	.mdc_priority = 100
 };
 
@@ -3065,4 +3066,4 @@ g_raid_md_free_ddf(struct g_raid_md_object *md)
 	return (0);
 }
 
-G_RAID_MD_DECLARE(g_raid_md_ddf);
+G_RAID_MD_DECLARE(ddf, "DDF");

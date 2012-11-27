@@ -911,9 +911,9 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	else
 		pCap->halKeyCacheSize = AR5416_KEYTABLE_SIZE;
 
-	/* XXX not needed */
-	pCap->halChanHalfRate = AH_FALSE;	/* XXX ? */
-	pCap->halChanQuarterRate = AH_FALSE;	/* XXX ? */
+	/* XXX Which chips? */
+	pCap->halChanHalfRate = AH_TRUE;
+	pCap->halChanQuarterRate = AH_TRUE;
 
 	pCap->halTstampPrecision = 32;
 	pCap->halHwPhyCounterSupport = AH_TRUE;

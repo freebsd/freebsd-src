@@ -35,15 +35,14 @@
  *
  */
 
-#ifdef __FreeBSD__
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-#endif
 
 #include <sys/param.h>
 #include <sys/socket.h>
 #ifdef _KERNEL
 # include <sys/systm.h>
+# include <sys/refcount.h>
 #endif /* _KERNEL */
 #include <sys/mbuf.h>
 
@@ -61,20 +60,10 @@ __FBSDID("$FreeBSD$");
 
 
 #ifdef _KERNEL
-#ifdef __FreeBSD__
 #define DPFPRINTF(format, x...)				\
 	if (V_pf_status.debug >= PF_DEBUG_NOISY)	\
 		printf(format , ##x)
-#else
-#define DPFPRINTF(format, x...)				\
-	if (pf_status.debug >= PF_DEBUG_NOISY)		\
-		printf(format , ##x)
-#endif
-#ifdef __FreeBSD__
 #define rs_malloc(x)		malloc(x, M_TEMP, M_NOWAIT|M_ZERO)
-#else
-#define rs_malloc(x)		malloc(x, M_TEMP, M_WAITOK|M_CANFAIL|M_ZERO)
-#endif
 #define rs_free(x)		free(x, M_TEMP)
 
 #else
@@ -96,23 +85,21 @@ __FBSDID("$FreeBSD$");
 #endif /* PFDEBUG */
 #endif /* _KERNEL */
 
-#if defined(__FreeBSD__) && !defined(_KERNEL)
-#undef V_pf_anchors
-#define V_pf_anchors		 pf_anchors
-
-#undef pf_main_ruleset
-#define pf_main_ruleset		 pf_main_anchor.ruleset
-#endif
-
-#if defined(__FreeBSD__) && defined(_KERNEL)
+#ifdef _KERNEL
 VNET_DEFINE(struct pf_anchor_global,	pf_anchors);
 VNET_DEFINE(struct pf_anchor,		pf_main_anchor);
-#else
+#else /* ! _KERNEL */
 struct pf_anchor_global	 pf_anchors;
 struct pf_anchor	 pf_main_anchor;
-#endif
+#undef V_pf_anchors
+#define V_pf_anchors		 pf_anchors
+#undef pf_main_ruleset
+#define pf_main_ruleset		 pf_main_anchor.ruleset
+#endif /* _KERNEL */
 
 static __inline int pf_anchor_compare(struct pf_anchor *, struct pf_anchor *);
+
+static struct pf_anchor		*pf_find_anchor(const char *);
 
 RB_GENERATE(pf_anchor_global, pf_anchor, entry_global, pf_anchor_compare);
 RB_GENERATE(pf_anchor_node, pf_anchor, entry_node, pf_anchor_compare);
@@ -169,7 +156,7 @@ pf_init_ruleset(struct pf_ruleset *ruleset)
 	}
 }
 
-struct pf_anchor *
+static struct pf_anchor *
 pf_find_anchor(const char *path)
 {
 	struct pf_anchor	*key, *found;
@@ -178,11 +165,7 @@ pf_find_anchor(const char *path)
 	if (key == NULL)
 		return (NULL);
 	strlcpy(key->path, path, sizeof(key->path));
-#ifdef __FreeBSD__
 	found = RB_FIND(pf_anchor_global, &V_pf_anchors, key);
-#else
-	found = RB_FIND(pf_anchor_global, &pf_anchors, key);
-#endif
 	rs_free(key);
 	return (found);
 }
@@ -208,11 +191,7 @@ pf_find_or_create_ruleset(const char *path)
 {
 	char			*p, *q, *r;
 	struct pf_ruleset	*ruleset;
-#ifdef __FreeBSD__
 	struct pf_anchor	*anchor = NULL, *dup, *parent = NULL;
-#else
-	struct pf_anchor	*anchor, *dup, *parent = NULL;
-#endif
 
 	if (path[0] == 0)
 		return (&pf_main_ruleset);
@@ -263,11 +242,7 @@ pf_find_or_create_ruleset(const char *path)
 			strlcat(anchor->path, "/", sizeof(anchor->path));
 		}
 		strlcat(anchor->path, anchor->name, sizeof(anchor->path));
-#ifdef __FreeBSD__
 		if ((dup = RB_INSERT(pf_anchor_global, &V_pf_anchors, anchor)) !=
-#else
-		if ((dup = RB_INSERT(pf_anchor_global, &pf_anchors, anchor)) !=
-#endif
 		    NULL) {
 			printf("pf_find_or_create_ruleset: RB_INSERT1 "
 			    "'%s' '%s' collides with '%s' '%s'\n",
@@ -284,11 +259,7 @@ pf_find_or_create_ruleset(const char *path)
 				    "RB_INSERT2 '%s' '%s' collides with "
 				    "'%s' '%s'\n", anchor->path, anchor->name,
 				    dup->path, dup->name);
-#ifdef __FreeBSD__
 				RB_REMOVE(pf_anchor_global, &V_pf_anchors,
-#else
-				RB_REMOVE(pf_anchor_global, &pf_anchors,
-#endif
 				    anchor);
 				rs_free(anchor);
 				rs_free(p);
@@ -324,11 +295,7 @@ pf_remove_if_empty_ruleset(struct pf_ruleset *ruleset)
 			    !TAILQ_EMPTY(ruleset->rules[i].inactive.ptr) ||
 			    ruleset->rules[i].inactive.open)
 				return;
-#ifdef __FreeBSD__
 		RB_REMOVE(pf_anchor_global, &V_pf_anchors, ruleset->anchor);
-#else
-		RB_REMOVE(pf_anchor_global, &pf_anchors, ruleset->anchor);
-#endif
 		if ((parent = ruleset->anchor->parent) != NULL)
 			RB_REMOVE(pf_anchor_node, &parent->children,
 			    ruleset->anchor);

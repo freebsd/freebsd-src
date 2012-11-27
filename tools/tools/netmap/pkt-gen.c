@@ -892,7 +892,7 @@ main(int arc, char **argv)
 	fd = open("/dev/netmap", O_RDWR);
 	if (fd == -1) {
 		D("Unable to open /dev/netmap");
-		// fail later
+		exit(1);
 	} else {
 		if ((ioctl(fd, NIOCGINFO, &nmr)) == -1) {
 			D("Unable to get if info without name");

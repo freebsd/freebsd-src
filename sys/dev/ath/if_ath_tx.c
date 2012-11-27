@@ -377,6 +377,11 @@ ath_tx_chaindesclist(struct ath_softc *sc, struct ath_buf *bf)
 			, i == bf->bf_nseg - 1	/* last segment */
 			, (struct ath_desc *) ds0	/* first descriptor */
 		);
+
+		/* Make sure the 11n aggregate fields are cleared */
+		if (ath_tx_is_11n(sc))
+			ath_hal_clr11n_aggr(sc->sc_ah, (struct ath_desc *) ds);
+
 		isFirstDesc = 0;
 #ifdef	ATH_DEBUG
 		if (sc->sc_debug & ATH_DEBUG_XMIT)
@@ -2528,6 +2533,25 @@ ath_tx_xmit_aggr(struct ath_softc *sc, struct ath_node *an,
 		return;
 	}
 
+	/*
+	 * This is a temporary check and should be removed once
+	 * all the relevant code paths have been fixed.
+	 *
+	 * During aggregate retries, it's possible that the head
+	 * frame will fail (which has the bfs_aggr and bfs_nframes
+	 * fields set for said aggregate) and will be retried as
+	 * a single frame.  In this instance, the values should
+	 * be reset or the completion code will get upset with you.
+	 */
+	if (bf->bf_state.bfs_aggr != 0 || bf->bf_state.bfs_nframes > 1) {
+		device_printf(sc->sc_dev, "%s: bfs_aggr=%d, bfs_nframes=%d\n",
+		    __func__,
+		    bf->bf_state.bfs_aggr,
+		    bf->bf_state.bfs_nframes);
+		bf->bf_state.bfs_aggr = 0;
+		bf->bf_state.bfs_nframes = 1;
+	}
+
 	/* Direct dispatch to hardware */
 	ath_tx_do_ratelookup(sc, bf);
 	ath_tx_calc_duration(sc, bf);
@@ -2624,6 +2648,16 @@ ath_tx_swq(struct ath_softc *sc, struct ieee80211_node *ni, struct ath_txq *txq,
 		if (txq->axq_depth < sc->sc_hwq_limit) {
 			bf = TAILQ_FIRST(&atid->axq_q);
 			ATH_TXQ_REMOVE(atid, bf, bf_list);
+
+			/*
+			 * Ensure it's definitely treated as a non-AMPDU
+			 * frame - this information may have been left
+			 * over from a previous attempt.
+			 */
+			bf->bf_state.bfs_aggr = 0;
+			bf->bf_state.bfs_nframes = 1;
+
+			/* Queue to the hardware */
 			ath_tx_xmit_aggr(sc, an, txq, bf);
 			DPRINTF(sc, ATH_DEBUG_SW_TX,
 			    "%s: xmit_aggr\n",
@@ -3430,6 +3464,7 @@ ath_tx_retry_subframe(struct ath_softc *sc, struct ath_buf *bf,
 
 	ATH_TXQ_LOCK_ASSERT(sc->sc_ac2q[atid->ac]);
 
+	/* XXX clr11naggr should be done for all subframes */
 	ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
 	ath_hal_set11nburstduration(sc->sc_ah, bf->bf_desc, 0);
 	/* ath_hal_set11n_virtualmorefrag(sc->sc_ah, bf->bf_desc, 0); */
@@ -3469,6 +3504,11 @@ ath_tx_retry_subframe(struct ath_softc *sc, struct ath_buf *bf,
 
 	ath_tx_set_retry(sc, bf);
 	bf->bf_next = NULL;		/* Just to make sure */
+
+	/* Clear the aggregate state */
+	bf->bf_state.bfs_aggr = 0;
+	bf->bf_state.bfs_ndelim = 0;	/* ??? needed? */
+	bf->bf_state.bfs_nframes = 1;
 
 	TAILQ_INSERT_TAIL(bf_q, bf, bf_list);
 	return 0;
@@ -4018,7 +4058,23 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			    "%s: non-baw packet\n",
 			    __func__);
 			ATH_TXQ_REMOVE(tid, bf, bf_list);
+
+			if (bf->bf_state.bfs_nframes > 1)
+				device_printf(sc->sc_dev,
+				    "%s: aggr=%d, nframes=%d\n",
+				    __func__,
+				    bf->bf_state.bfs_aggr,
+				    bf->bf_state.bfs_nframes);
+
+			/*
+			 * This shouldn't happen - such frames shouldn't
+			 * ever have been queued as an aggregate in the
+			 * first place.  However, make sure the fields
+			 * are correctly setup just to be totally sure.
+			 */
 			bf->bf_state.bfs_aggr = 0;
+			bf->bf_state.bfs_nframes = 1;
+
 			ath_tx_do_ratelookup(sc, bf);
 			ath_tx_calc_duration(sc, bf);
 			ath_tx_calc_protection(sc, bf);
@@ -4082,6 +4138,7 @@ ath_tx_tid_hw_queue_aggr(struct ath_softc *sc, struct ath_node *an,
 			DPRINTF(sc, ATH_DEBUG_SW_TX_AGGR,
 			    "%s: single-frame aggregate\n", __func__);
 			bf->bf_state.bfs_aggr = 0;
+			bf->bf_state.bfs_ndelim = 0;
 			ath_tx_setds(sc, bf);
 			ath_hal_clr11n_aggr(sc->sc_ah, bf->bf_desc);
 			if (status == ATH_AGGR_BAW_CLOSED)

@@ -76,6 +76,7 @@ MLINKS+=	queue.3 LIST_EMPTY.3 \
 		queue.3 LIST_INSERT_BEFORE.3 \
 		queue.3 LIST_INSERT_HEAD.3 \
 		queue.3 LIST_NEXT.3 \
+		queue.3 LIST_PREV.3 \
 		queue.3 LIST_REMOVE.3 \
 		queue.3 LIST_SWAP.3 \
 		queue.3 SLIST_EMPTY.3 \

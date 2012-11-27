@@ -130,7 +130,6 @@ cam/ctl/ctl_util.c		optional ctl
 cam/ctl/scsi_ctl.c		optional ctl
 cam/scsi/scsi_da.c		optional da
 cam/scsi/scsi_low.c		optional ct | ncv | nsp | stg
-cam/scsi/scsi_low_pisa.c	optional ct | ncv | nsp | stg
 cam/scsi/scsi_pass.c		optional pass
 cam/scsi/scsi_pt.c		optional pt
 cam/scsi/scsi_sa.c		optional sa
@@ -1091,6 +1090,40 @@ dev/cxgbe/t4_l2t.c		optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
 dev/cxgbe/common/t4_hw.c	optional cxgbe pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgbe"
+t4fw_cfg.c		optional cxgbe					\
+	compile-with	"${AWK} -f $S/tools/fw_stub.awk t4fw_cfg.fw:t4fw_cfg t4fw_cfg_uwire.fw:t4fw_cfg_uwire t4fw.fw:t4fw -mt4fw_cfg -c${.TARGET}" \
+	no-implicit-rule before-depend local				\
+	clean		"t4fw_cfg.c"
+t4fw_cfg.fwo		optional cxgbe					\
+	dependency	"t4fw_cfg.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"t4fw_cfg.fwo"
+t4fw_cfg.fw		optional cxgbe					\
+	dependency	"$S/dev/cxgbe/firmware/t4fw_cfg.txt"		\
+	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
+	no-obj no-implicit-rule						\
+	clean		"t4fw_cfg.fw"
+t4fw_cfg_uwire.fwo	optional cxgbe					\
+	dependency	"t4fw_cfg_uwire.fw"				\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"t4fw_cfg_uwire.fwo"
+t4fw_cfg_uwire.fw	optional cxgbe					\
+	dependency	"$S/dev/cxgbe/firmware/t4fw_cfg_uwire.txt"	\
+	compile-with	"${CP} ${.ALLSRC} ${.TARGET}"			\
+	no-obj no-implicit-rule						\
+	clean		"t4fw_cfg_uwire.fw"
+t4fw.fwo		optional cxgbe					\
+	dependency	"t4fw.fw"					\
+	compile-with	"${NORMAL_FWO}"					\
+	no-implicit-rule						\
+	clean		"t4fw.fwo"
+t4fw.fw			optional cxgbe					\
+	dependency	"$S/dev/cxgbe/firmware/t4fw-1.6.2.0.bin.uu"	\
+	compile-with	"${NORMAL_FW}"					\
+	no-obj no-implicit-rule						\
+	clean		"t4fw.fw"
 dev/cy/cy.c			optional cy
 dev/cy/cy_isa.c			optional cy isa
 dev/cy/cy_pci.c			optional cy pci
@@ -2082,6 +2115,7 @@ dev/usb/controller/at91dci.c		optional at91dci
 dev/usb/controller/at91dci_atmelarm.c	optional at91dci at91rm9200
 dev/usb/controller/musb_otg.c		optional musb
 dev/usb/controller/musb_otg_atmelarm.c	optional musb at91rm9200
+dev/usb/controller/dwc_otg.c		optional dwcotg
 dev/usb/controller/ehci.c		optional ehci
 dev/usb/controller/ehci_pci.c		optional ehci pci
 dev/usb/controller/ohci.c		optional ohci
@@ -2797,6 +2831,7 @@ libkern/inet_aton.c		standard
 libkern/inet_ntoa.c		standard
 libkern/inet_ntop.c		standard
 libkern/inet_pton.c		standard
+libkern/jenkins_hash.c		standard
 libkern/mcount.c		optional profiling-routine
 libkern/memcchr.c		standard
 libkern/memcmp.c		standard
@@ -3608,7 +3643,7 @@ xdr/xdr_reference.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | 
 xdr/xdr_sizeof.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 #
 gnu/fs/xfs/xfs_alloc.c		optional xfs \
-	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs" \
+	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs" \
 	warning "kernel contains GPL contaminated xfs filesystem"
 gnu/fs/xfs/xfs_alloc_btree.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
@@ -3627,7 +3662,7 @@ gnu/fs/xfs/xfs_da_btree.c	optional xfs \
 gnu/fs/xfs/xfs_dir.c		optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/xfs_dir2.c		optional xfs \
-	compile-with "${NORMAL_C} ${NO_WARRAY_BOUNDS} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
+	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/xfs_dir2_block.c	optional xfs \
 	compile-with "${NORMAL_C} ${NO_WARRAY_BOUNDS} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/xfs_dir2_data.c	optional xfs \
@@ -3685,7 +3720,7 @@ gnu/fs/xfs/xfs_trans_item.c	optional xfs \
 gnu/fs/xfs/xfs_utils.c		optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/xfs_vfsops.c		optional xfs \
-	compile-with "${NORMAL_C} ${NO_WFORMAT_SECURITY} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
+	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/xfs_vnodeops.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/xfs_rw.c		optional xfs \
@@ -3715,9 +3750,9 @@ gnu/fs/xfs/FreeBSD/xfs_globals.c	optional xfs \
 gnu/fs/xfs/FreeBSD/xfs_dmistubs.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/xfs_super.c	optional xfs \
-	compile-with "${NORMAL_C} ${NO_WFORMAT_SECURITY} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
+	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/xfs_stats.c	optional xfs \
-	compile-with "${NORMAL_C} ${NO_WFORMAT_SECURITY} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
+	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/xfs_vfs.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/xfs_vnode.c	optional xfs \
@@ -3727,7 +3762,7 @@ gnu/fs/xfs/FreeBSD/xfs_sysctl.c	optional xfs \
 gnu/fs/xfs/FreeBSD/xfs_fs_subr.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/xfs_ioctl.c	optional xfs \
-	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
+	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/support/debug.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/support/ktrace.c	optional xfs \

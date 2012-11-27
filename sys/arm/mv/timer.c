@@ -311,15 +311,19 @@ mv_watchdog_enable(void)
 	irq_cause &= IRQ_TIMER_WD_CLR;
 	write_cpu_ctrl(BRIDGE_IRQ_CAUSE, irq_cause);
 
-#if !defined(SOC_MV_ARMADAXP)
+#if defined(SOC_MV_ARMADAXP)
+	val = read_cpu_mp_clocks(WD_RSTOUTn_MASK);
+	val |= (WD_GLOBAL_MASK | WD_CPU0_MASK);
+	write_cpu_mp_clocks(WD_RSTOUTn_MASK, val);
+#else
 	irq_mask = read_cpu_ctrl(BRIDGE_IRQ_MASK);
 	irq_mask |= IRQ_TIMER_WD_MASK;
 	write_cpu_ctrl(BRIDGE_IRQ_MASK, irq_mask);
-#endif
 
 	val = read_cpu_ctrl(RSTOUTn_MASK);
 	val |= WD_RST_OUT_EN;
 	write_cpu_ctrl(RSTOUTn_MASK, val);
+#endif
 
 	val = mv_get_timer_control();
 	val |= CPU_TIMER_WD_EN | CPU_TIMER_WD_AUTO;
@@ -338,11 +342,15 @@ mv_watchdog_disable(void)
 	val &= ~(CPU_TIMER_WD_EN | CPU_TIMER_WD_AUTO);
 	mv_set_timer_control(val);
 
+#if defined(SOC_MV_ARMADAXP)
+	val = read_cpu_mp_clocks(WD_RSTOUTn_MASK);
+	val &= ~(WD_GLOBAL_MASK | WD_CPU0_MASK);
+	write_cpu_mp_clocks(WD_RSTOUTn_MASK, val);
+#else
 	val = read_cpu_ctrl(RSTOUTn_MASK);
 	val &= ~WD_RST_OUT_EN;
 	write_cpu_ctrl(RSTOUTn_MASK, val);
 
-#if !defined(SOC_MV_ARMADAXP)
 	irq_mask = read_cpu_ctrl(BRIDGE_IRQ_MASK);
 	irq_mask &= ~(IRQ_TIMER_WD_MASK);
 	write_cpu_ctrl(BRIDGE_IRQ_MASK, irq_mask);

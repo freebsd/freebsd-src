@@ -1968,6 +1968,8 @@ device		xmphy		# XaQti XMAC II
 #	SMC TigerCard 1000 (SMC9462SX), and some Addtron cards.
 # malo: Marvell Libertas wireless NICs.
 # mwl:  Marvell 88W8363 802.11n wireless NICs.
+#	Requires the mwl firmware module
+# mwlfw: Marvell 88W8363 firmware
 # msk:	Support for gigabit ethernet adapters based on the Marvell/SysKonnect
 #	Yukon II Gigabit controllers, including 88E8021, 88E8022, 88E8061,
 #	88E8062, 88E8035, 88E8036, 88E8038, 88E8050, 88E8052, 88E8053,
@@ -2163,6 +2165,7 @@ device		bwi		# Broadcom BCM430* BCM431*
 device		bwn		# Broadcom BCM43xx
 device		malo		# Marvell Libertas wireless NICs.
 device		mwl		# Marvell 88W8363 802.11n wireless NICs.
+device		mwlfw
 device		ral		# Ralink Technology RT2500 wireless NICs.
 
 # Use sf_buf(9) interface for jumbo buffers on ti(4) controllers.

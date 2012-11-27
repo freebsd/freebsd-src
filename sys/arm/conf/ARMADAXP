@@ -96,7 +96,10 @@ options		HZ=1000
 options		DEVICE_POLLING
 device		vlan
 
+#PCI/PCIE
+device		pci
+
 #FDT
 options 	FDT
 options 	FDT_DTB_STATIC
-makeoptions	FDT_DTS_FILE=db88f78160.dts
+makeoptions	FDT_DTS_FILE=db78460.dts

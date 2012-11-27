@@ -740,7 +740,6 @@ at91dci_vbus_interrupt(struct at91dci_softc *sc, uint8_t is_on)
 {
 	DPRINTFN(5, "vbus = %u\n", is_on);
 
-	USB_BUS_LOCK(&sc->sc_bus);
 	if (is_on) {
 		if (!sc->sc_flags.status_vbus) {
 			sc->sc_flags.status_vbus = 1;
@@ -760,7 +759,6 @@ at91dci_vbus_interrupt(struct at91dci_softc *sc, uint8_t is_on)
 			at91dci_root_intr(sc);
 		}
 	}
-	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
 void

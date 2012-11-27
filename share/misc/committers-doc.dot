@@ -15,7 +15,7 @@ digraph doc {
 #   foo [label="Foo Bar\nfoo@FreeBSD.org\n????/??/??"]
 #
 # ????/??/?? is the date when the commit bit was obtained, usually the one you
-# can find looking at CVS logs for the access (or avail) file under CVSROOT.
+# can find looking at svn logs for the svnadmin/access file.
 # Use YYYY/MM/DD format.
 #
 # For returned commit bits, the node definition will follow this example:
@@ -23,7 +23,7 @@ digraph doc {
 #   foo [label="Foo Bar\nfoo@FreeBSD.org\n????/??/??\n????/??/??"]
 #
 # The first date is the same as for an active committer, the second date is
-# the date when the commit bit has been returned. Again, check CVS logs.
+# the date when the commit bit has been returned. Again, check svn logs.
 
 node [color=grey62, style=filled, bgcolor=black];
 

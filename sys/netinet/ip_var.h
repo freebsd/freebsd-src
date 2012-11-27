@@ -292,9 +292,7 @@ enum {
 struct ip_fw_args;
 typedef int	(*ip_fw_chk_ptr_t)(struct ip_fw_args *args);
 typedef int	(*ip_fw_ctl_ptr_t)(struct sockopt *);
-VNET_DECLARE(ip_fw_chk_ptr_t, ip_fw_chk_ptr);
 VNET_DECLARE(ip_fw_ctl_ptr_t, ip_fw_ctl_ptr);
-#define	V_ip_fw_chk_ptr		VNET(ip_fw_chk_ptr)
 #define	V_ip_fw_ctl_ptr		VNET(ip_fw_ctl_ptr)
 
 /* Divert hooks. */

@@ -68,7 +68,7 @@ static int	twe_del_unit(struct twe_softc *sc, int unit);
 /*
  * Command I/O to controller.
  */
-static void	twe_done(struct twe_softc *sc);
+static void	twe_done(struct twe_softc *sc, int startio);
 static void	twe_complete(struct twe_softc *sc);
 static int	twe_wait_status(struct twe_softc *sc, u_int32_t status, int timeout);
 static int	twe_drain_response_queue(struct twe_softc *sc);
@@ -388,7 +388,7 @@ twe_intr(struct twe_softc *sc)
     if (status_reg & TWE_STATUS_COMMAND_INTERRUPT)
 	twe_command_intr(sc);
     if (status_reg & TWE_STATUS_RESPONSE_INTERRUPT)
-	twe_done(sc);
+	twe_done(sc, 1);
 };
 
 /********************************************************************************
@@ -400,7 +400,7 @@ twe_startio(struct twe_softc *sc)
 {
     struct twe_request	*tr;
     TWE_Command		*cmd;
-    twe_bio		*bp;
+    struct bio		*bp;
     int			error;
 
     debug_called(4);
@@ -431,10 +431,10 @@ twe_startio(struct twe_softc *sc)
 	    /* connect the bio to the command */
 	    tr->tr_complete = twe_completeio;
 	    tr->tr_private = bp;
-	    tr->tr_data = TWE_BIO_DATA(bp);
-	    tr->tr_length = TWE_BIO_LENGTH(bp);
+	    tr->tr_data = bp->bio_data;
+	    tr->tr_length = bp->bio_bcount;
 	    cmd = TWE_FIND_COMMAND(tr);
-	    if (TWE_BIO_IS_READ(bp)) {
+	    if (bp->bio_cmd == BIO_READ) {
 		tr->tr_flags |= TWE_CMD_DATAIN;
 		cmd->io.opcode = TWE_OP_READ;
 	    } else {
@@ -444,9 +444,9 @@ twe_startio(struct twe_softc *sc)
 	
 	    /* build a suitable I/O command (assumes 512-byte rounded transfers) */
 	    cmd->io.size = 3;
-	    cmd->io.unit = TWE_BIO_UNIT(bp);
+	    cmd->io.unit = *(int *)(bp->bio_driver1);
 	    cmd->io.block_count = (tr->tr_length + TWE_BLOCK_SIZE - 1) / TWE_BLOCK_SIZE;
-	    cmd->io.lba = TWE_BIO_LBA(bp);
+	    cmd->io.lba = bp->bio_pblkno;
 	}
 	
 	/* did we find something to do? */
@@ -461,8 +461,9 @@ twe_startio(struct twe_softc *sc)
 		break;
 	    tr->tr_status = TWE_CMD_ERROR;
 	    if (tr->tr_private != NULL) {
-		bp = (twe_bio *)(tr->tr_private);
-		TWE_BIO_SET_ERROR(bp, error);
+		bp = (struct bio *)(tr->tr_private);
+		bp->bio_error = error;
+		bp->bio_flags |= BIO_ERROR;
 		tr->tr_private = NULL;
 		twed_intr(bp);
 	        twe_release_request(tr);
@@ -996,7 +997,7 @@ twe_immediate_request(struct twe_request *tr, int usetmp)
     /* Wait up to 5 seconds for the command to complete */
     while ((count++ < 5000) && (tr->tr_status == TWE_CMD_BUSY)){
 	DELAY(1000);
-	twe_done(sc);
+	twe_done(sc, 1);
     }
     if (usetmp && (tr->tr_data != NULL))
 	bcopy(sc->twe_immediate, tr->tr_data, tr->tr_length);
@@ -1012,15 +1013,17 @@ twe_completeio(struct twe_request *tr)
 {
     TWE_Command		*cmd = TWE_FIND_COMMAND(tr);
     struct twe_softc	*sc = tr->tr_sc;
-    twe_bio		*bp = (twe_bio *)tr->tr_private;
+    struct bio		*bp = tr->tr_private;
 
     debug_called(4);
 
     if (tr->tr_status == TWE_CMD_COMPLETE) {
 
 	if (cmd->generic.status)
-	    if (twe_report_request(tr))
-		TWE_BIO_SET_ERROR(bp, EIO);
+	    if (twe_report_request(tr)) {
+		bp->bio_error = EIO;
+		bp->bio_flags |= BIO_ERROR;
+	    }
 
     } else {
 	twe_panic(sc, "twe_completeio on incomplete command");
@@ -1144,7 +1147,8 @@ twe_start(struct twe_request *tr)
 	    }
 #endif
 	    return(0);
-	}
+	} else if (!(status_reg & TWE_STATUS_RESPONSE_QUEUE_EMPTY) && i > 1)
+	    twe_done(sc, 0);
     }
 
     /* 
@@ -1162,7 +1166,7 @@ twe_start(struct twe_request *tr)
  * Can be called at any interrupt level, with or without interrupts enabled.
  */
 static void
-twe_done(struct twe_softc *sc)
+twe_done(struct twe_softc *sc, int startio)
 {
     TWE_Response_Queue	rq;
     TWE_Command		*cmd;
@@ -1198,7 +1202,7 @@ twe_done(struct twe_softc *sc)
     }
 
     /* if we've completed any commands, try posting some more */
-    if (found)
+    if (found && startio)
 	twe_startio(sc);
 
     /* handle completion and timeouts */
@@ -1768,7 +1772,6 @@ twe_check_bits(struct twe_softc *sc, u_int32_t status_reg)
 static char *
 twe_format_aen(struct twe_softc *sc, u_int16_t aen)
 {
-    static char	buf[80];
     device_t	child;
     char	*code, *msg;
 
@@ -1785,25 +1788,28 @@ twe_format_aen(struct twe_softc *sc, u_int16_t aen)
 
     case 'c':
 	if ((child = sc->twe_drive[TWE_AEN_UNIT(aen)].td_disk) != NULL) {
-	    sprintf(buf, "twed%d: %s", device_get_unit(child), msg);
+	    snprintf(sc->twe_aen_buf, sizeof(sc->twe_aen_buf), "twed%d: %s",
+		device_get_unit(child), msg);
 	} else {
-	    sprintf(buf, "twe%d: %s for unknown unit %d", device_get_unit(sc->twe_dev),
-		    msg, TWE_AEN_UNIT(aen));
+	    snprintf(sc->twe_aen_buf, sizeof(sc->twe_aen_buf),
+		"twe%d: %s for unknown unit %d", device_get_unit(sc->twe_dev),
+		msg, TWE_AEN_UNIT(aen));
 	}
-	return(buf);
+	return(sc->twe_aen_buf);
 
     case 'p':
-	sprintf(buf, "twe%d: port %d: %s", device_get_unit(sc->twe_dev), TWE_AEN_UNIT(aen),
-		msg);
-	return(buf);
+	snprintf(sc->twe_aen_buf, sizeof(sc->twe_aen_buf),
+	    "twe%d: port %d: %s", device_get_unit(sc->twe_dev),
+	    TWE_AEN_UNIT(aen), msg);
+	return(sc->twe_aen_buf);
 
 	
     case 'x':
     default:
 	break;
     }
-    sprintf(buf, "unknown AEN 0x%x", aen);
-    return(buf);
+    snprintf(sc->twe_aen_buf, sizeof(sc->twe_aen_buf), "unknown AEN 0x%x", aen);
+    return(sc->twe_aen_buf);
 }
 
 /********************************************************************************

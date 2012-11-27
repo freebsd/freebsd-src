@@ -59,6 +59,7 @@ options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+#options 	ROOTDEVNAME=\"ufs:/dev/da0s1a\"
 
 options 	PREEMPTION
 
@@ -85,15 +86,20 @@ options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required
 device		md
 device		random		# Entropy device
 
-# Not yet: USB support
-# device		usb
-# options 	USB_DEBUG
+# USB support
+device		usb
+options 	USB_DEBUG
+device		dwcotg		#DWC OTG controller
 
+# USB storage support
+device		scbus
+device		da
+device		umass
 
-# Not yet: USB Ethernet support, requires miibus
-# device		mii
-# device		smc
-# device		smcphy
+# USB ethernet support
+device		smcphy
+device		mii
+device		smsc
 
 # Flattened Device Tree
 options         FDT

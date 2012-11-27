@@ -4,6 +4,7 @@
 # of the definitions that need to be before %BEFORE_DEPEND.
 
 .include <bsd.own.mk>
+.include <bsd.compiler.mk>
 
 # backwards compat option for older systems.
 MACHINE_CPUARCH?=${MACHINE_ARCH:C/mips(n32|64)?(el)?/mips/:C/arm(v6)?(eb)?/arm/:C/powerpc64/powerpc/}
@@ -18,6 +19,7 @@ LDSCRIPT?=	$S/conf/${LDSCRIPT_NAME}
 M=		${MACHINE_CPUARCH}
 
 AWK?=		awk
+CP?=		cp
 LINT?=		lint
 NM?=		nm
 OBJCOPY?=	objcopy
@@ -34,7 +36,7 @@ _MINUS_O=	-O2
 .endif
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
-.if ${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang"
+.if ${COMPILER_TYPE} != "clang"
 COPTFLAGS?=-O2 -frename-registers -pipe
 .else
 COPTFLAGS?=-O2 -pipe
@@ -84,7 +86,7 @@ INCLUDES+= -I$S/dev/cxgb -I$S/dev/cxgbe
 
 CFLAGS=	${COPTFLAGS} ${C_DIALECT} ${DEBUG} ${CWARNFLAGS}
 CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
-.if ${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang"
+.if ${COMPILER_TYPE} != "clang"
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
 .if ${MACHINE_CPUARCH} != "mips"
 CFLAGS+= --param inline-unit-growth=100
@@ -101,7 +103,7 @@ WERROR?= -Werror
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
-.if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
+.if ${COMPILER_TYPE} == "clang"
 CLANG_NO_IAS= -no-integrated-as
 .endif
 
@@ -189,3 +191,8 @@ MKMODULESENV+=	WITHOUT_MODULES="${WITHOUT_MODULES}"
 .if defined(DEBUG)
 MKMODULESENV+=	DEBUG_FLAGS="${DEBUG}"
 .endif
+
+# Are various things configured?
+DDB_ENABLED!=	grep DDB opt_ddb.h || true ; echo
+DTR_ENABLED!=	grep KDTRACE_FRAME opt_kdtrace.h || true ; echo
+HWPMC_ENABLED!=	grep HWPMC opt_hwpmc_hooks.h || true ; echo

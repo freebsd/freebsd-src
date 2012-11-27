@@ -31,8 +31,16 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#define	UAUDIO_VERSION		0x100
+#ifndef _UAUDIOREG_H_
+#define	_UAUDIOREG_H_
 
+#define	UAUDIO_VERSION		0x0100
+#define	UAUDIO_VERSION_20	0x0200
+
+#define	UAUDIO_PROTOCOL_20	0x20
+
+#define	UDESC_CS_UNDEFINED	0x20
+#define	UDESC_CS_DEVICE		0x21
 #define	UDESC_CS_CONFIG		0x22
 #define	UDESC_CS_STRING		0x23
 #define	UDESC_CS_INTERFACE	0x24
@@ -46,6 +54,14 @@
 #define	UDESCSUB_AC_FEATURE	6
 #define	UDESCSUB_AC_PROCESSING	7
 #define	UDESCSUB_AC_EXTENSION	8
+/* ==== USB audio 2.0 ==== */
+#define	UDESCSUB_AC_EFFECT	7
+#define	UDESCSUB_AC_PROCESSING_V2 8
+#define	UDESCSUB_AC_EXTENSION_V2 9
+#define	UDESCSUB_AC_CLOCK_SRC	10
+#define	UDESCSUB_AC_CLOCK_SEL	11
+#define	UDESCSUB_AC_CLOCK_MUL	12
+#define	UDESCSUB_AC_SAMPLE_RT	13
 
 /* These macros check if the endpoint descriptor has additional fields */
 #define	UEP_MINSIZE	7
@@ -250,6 +266,7 @@ struct usb_audio_extension_unit_0 {
 	uByte	baSourceId[0];		/* [bNrInPins] */
 	/* struct usb_audio_extension_unit_1 */
 } __packed;
+
 struct usb_audio_extension_unit_1 {
 	uByte	bNrChannels;
 	uWord	wChannelConfig;
@@ -348,6 +365,13 @@ struct usb_audio_extension_unit_1 {
 #define	DELAY_CONTROL	0x08
 #define	BASS_BOOST_CONTROL 0x09
 #define	LOUDNESS_CONTROL 0x0a
+/* ==== USB audio 2.0 ==== */
+#define	INPUT_GAIN_CONTROL 0x0b
+#define	INPUT_GAIN_PAD_CONTROL 0x0c
+#define	PHASE_INVERTER_CONTROL 0x0d
+#define	UNDERFLOW_CONTROL 0x0e
+#define	OVERFLOW_CONTROL 0x0f
+#define	LATENCY_CONTROL 0x10
 
 #define	FU_MASK(u) (1 << ((u)-1))
 
@@ -356,6 +380,9 @@ struct usb_audio_extension_unit_1 {
 #define	AS_GENERAL	1
 #define	FORMAT_TYPE	2
 #define	FORMAT_SPECIFIC 3
+/* ==== USB audio 2.0 ==== */
+#define	FORMAT_ENCODER	3
+#define	FORMAT_DECODER	4
 
 #define	UA_FMT_PCM	1
 #define	UA_FMT_PCM8	2
@@ -402,3 +429,369 @@ struct usb_audio_extension_unit_1 {
 #define	DR_THRESHOLD_CONTROL			4
 #define	DR_ATTACK_TIME_CONTROL			5
 #define	DR_RELEASE_TIME_CONTROL		6
+
+/*------------------------------------------------------------------------*
+ * USB audio v2.0 definitions
+ *------------------------------------------------------------------------*/
+
+struct usb_audio20_as_iface_descriptor {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDescriptorSubtype;
+	uByte	bTerminalLink;
+	uByte	bmControls;
+	uByte	bFormatType;
+	uDWord	bmFormats;
+	uByte	bNrChannels;
+	uDWord	bmChannelConfig;
+	uByte	iChannelNames;
+} __packed;
+
+struct usb_audio20_encoder_descriptor {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDescriptorSubtype;
+	uByte	bEncoderID;
+	uByte	bEncoder;
+	uDWord	bmControls;
+	uByte	iParam1;
+	uByte	iParam2;
+	uByte	iParam3;
+	uByte	iParam4;
+	uByte	iParam5;
+	uByte	iParam6;
+	uByte	iParam7;
+	uByte	iParam8;
+	uByte	iEncoder;
+} __packed;
+
+struct usb_audio20_streaming_endpoint_descriptor {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDescriptorSubtype;
+	uByte	bmAttributes;
+#define	UA20_MPS_ONLY		0x80
+	uByte	bmControls;
+#define	UA20_PITCH_CONTROL_MASK	0x03
+#define	UA20_DATA_OVERRUN_MASK	0x0C
+#define	UA20_DATA_UNDERRUN_MASK	0x30
+	uByte	bLockDelayUnits;
+	uWord	wLockDelay;
+} __packed;
+
+struct usb_audio20_feedback_endpoint_descriptor {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bEndpointAddress;
+	uByte	bmAttributes;
+	uWord	wMaxPacketSize;
+	uByte	bInterval;
+} __packed;
+
+#define	UA20_GET_CUR	0x81
+#define	UA20_SET_CUR	0x01
+#define	UA20_GET_RANGE	0x82
+#define	UA20_SET_RANGE	0x02
+#define	UA20_GET_MEM	0x83
+#define	UA20_SET_MEM	0x03
+
+struct usb_audio20_cur1_parameter {
+	uByte	bCur;
+} __packed;
+
+struct usb_audio20_ctl1_range_sub {
+	uByte	bMIN;
+	uByte	bMAX;
+	uByte	bRES;
+} __packed;
+
+struct usb_audio20_ctl1_range {
+	uWord	wNumSubRanges;
+	struct usb_audio20_ctl1_range_sub sub[1];
+} __packed;
+
+struct usb_audio20_cur2_parameter {
+	uWord	wCur;
+} __packed;
+
+struct usb_audio20_ctl2_range_sub {
+	uWord	wMIN;
+	uWord	wMAX;
+	uWord	wRES;
+} __packed;
+
+struct usb_audio20_ctl2_range {
+	uWord	wNumSubRanges;
+	struct usb_audio20_ctl2_range_sub sub[1];
+} __packed;
+
+struct usb_audio20_cur4_parameter {
+	uDWord	dCur;
+} __packed;
+
+struct usb_audio20_ctl4_range_sub {
+	uDWord	dMIN;
+	uDWord	dMAX;
+	uDWord	dRES;
+} __packed;
+
+struct usb_audio20_ctl4_range {
+	uWord	wNumSubRanges;
+	struct usb_audio20_ctl4_range_sub sub[1];
+} __packed;
+
+struct usb_audio20_cc_cluster_descriptor {
+	uByte	bNrChannels;
+	uDWord	bmChannelConfig;
+	uByte	iChannelNames;
+} __packed;
+
+struct usb_audio20_streaming_type1_descriptor {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDescriptorSubtype;
+	uByte	bFormatType;
+	uByte	bSubslotSize;
+	uByte	bBitResolution;
+} __packed;
+
+#define	UA20_EERROR_NONE	0
+#define	UA20_EERROR_MEMORY	1
+#define	UA20_EERROR_BANDWIDTH	2
+#define	UA20_EERROR_CPU		3
+#define	UA20_EERROR_FORMATFR_ER	4
+#define	UA20_EERROR_FORMATFR_SM	5
+#define	UA20_EERROR_FORMATFR_LG	6
+#define	UA20_EERROR_DATAFORMAT	7
+#define	UA20_EERROR_NUMCHANNELS	8
+#define	UA20_EERROR_SAMPLERATE	9
+#define	UA20_EERROR_BITRATE	10
+#define	UA20_EERROR_PARAM	11
+#define	UA20_EERROR_NREADY	12
+#define	UA20_EERROR_BUSY	13
+
+struct usb_audio20_cc_alt_setting {
+	uByte	bControlSize;
+	uDWord	bmValidAltSettings;
+} __packed;
+
+struct usb_audio20_interrupt_message {
+	uByte	bInfo;
+	uByte	bAttribute;
+	uDWord	wValue;
+	uDWord	wIndex;
+} __packed;
+
+/* UDESCSUB_AC_CLOCK_SRC */
+struct usb_audio20_clock_source_unit {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDescriptorSubtype;
+	uByte	bClockId;
+	uByte	bmAttributes;
+	uByte	bmControls;
+	uByte	bAssocTerminal;
+	uByte	iClockSource;
+} __packed;
+
+/* UDESCSUB_AC_CLOCK_SEL */
+struct usb_audio20_clock_selector_unit {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDescriptorSubtype;
+	uByte	bClockId;
+	uByte	bNrInPins;
+} __packed;
+
+/* UDESCSUB_AC_CLOCK_MUL */
+struct usb_audio20_clock_multiplier_unit {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDescriptorSubtype;
+	uByte	bClockId;
+	uByte	bCSourceId;
+	uByte	bmControls;
+	uByte	iClockMultiplier;
+} __packed;
+
+/* UDESCSUB_AC_INPUT */
+struct usb_audio20_input_terminal {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDescriptorSubtype;
+	uByte	bTerminalId;
+	uWord	wTerminalType;
+	uByte	bAssocTerminal;
+	uByte	bCSourceId;
+	uByte	bNrChannels;
+	uDWord	bmChannelConfig;
+	uByte	iCHannelNames;
+	uWord	bmControls;
+	uByte	iTerminal;
+} __packed;
+
+/* UDESCSUB_AC_OUTPUT */
+struct usb_audio20_output_terminal {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDescriptorSubtype;
+	uByte	bTerminalId;
+	uWord	wTerminalType;
+	uByte	bAssocTerminal;
+	uByte	bSourceId;
+	uByte	bCSourceId;
+	uWord	bmControls;
+	uByte	iTerminal;
+} __packed;
+
+/* UDESCSUB_AC_MIXER */
+struct usb_audio20_mixer_unit_0 {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDescriptorSubtype;
+	uByte	bUnitId;
+	uByte	bNrInPins;
+	uByte	baSourceId[0];
+	/* struct usb_audio20_mixer_unit_1 */
+} __packed;
+
+struct usb_audio20_mixer_unit_1 {
+	uByte	bNrChannels;
+	uDWord	bmChannelConfig;
+	uByte	iChannelNames;
+	uByte	bmControls[0];
+	/* uByte	iMixer; */
+} __packed;
+
+/* UDESCSUB_AC_SELECTOR */
+struct usb_audio20_selector_unit {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDescriptorSubtype;
+	uByte	bUnitId;
+	uByte	bNrInPins;
+	uByte	baSourceId[0];
+	/* uByte	iSelector; */
+} __packed;
+
+/* UDESCSUB_AC_FEATURE */
+struct usb_audio20_feature_unit {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDescriptorSubtype;
+	uByte	bUnitId;
+	uByte	bSourceId;
+	uDWord	bmaControls[0];
+	/* uByte	iFeature; */
+} __packed;
+
+/* UDESCSUB_AC_SAMPLE_RT */
+struct usb_audio20_sample_rate_unit {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDescriptorSubtype;
+	uByte	bUnitId;
+	uByte	bSourceId;
+	uByte	bSourceInId;
+	uByte	bSourceOutId;
+	uByte	iSrc;
+} __packed;
+
+/* UDESCSUB_AC_EFFECT */
+struct usb_audio20_effect_unit {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDescriptorSubtype;
+	uByte	bUnitId;
+	uWord	wEffectType;
+	uByte	bSourceId;
+	uDWord	bmaControls[0];
+	uByte	iEffects;
+} __packed;
+
+/* UDESCSUB_AC_PROCESSING_V2 */
+struct usb_audio20_processing_unit_0 {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDescriptorSubtype;
+	uByte	bUnitId;
+	uWord	wProcessType;
+	uByte	bNrInPins;
+	uByte	baSourceId[0];		/* [bNrInPins] */
+} __packed;
+
+struct usb_audio20_processing_unit_1 {
+	uByte	bNrChannels;
+	uDWord	bmChannelConfig;
+	uByte	iChannelNames;
+	uWord	bmControls;
+	uByte	iProcessing;
+} __packed;
+
+/* UDESCSUB_AC_EXTENSION_V2 */
+struct usb_audio20_extension_unit_0 {
+	uByte	bLength;
+	uByte	bDescriptorType;
+	uByte	bDescriptorSubtype;
+	uByte	bUnitId;
+	uWord	wExtensionCode;
+	uByte	bNrInPins;
+	uByte	baSourceId[0];
+} __packed;
+
+struct usb_audio20_extension_unit_1 {
+	uByte	bNrChannels;
+	uDWord	bmChannelConfig;
+	uByte	iChannelNames;
+	uByte	bmControls;
+	uByte	iExtension;
+} __packed;
+
+struct usb_audio20_cluster {
+	uByte	bNrChannels;
+	uDWord	bmChannelConfig;
+	uByte	iChannelNames;
+} __packed;
+
+#define	UA20_TF_UNDEFINED		0x00
+#define	UA20_TF_DESKTOP_SPEAKER		0x01
+#define	UA20_TF_HOME_THEATER		0x02
+#define	UA20_TF_MICROPHONE		0x03
+#define	UA20_TF_HEADSET			0x04
+#define	UA20_TF_TELEPHONE		0x05
+#define	UA20_TF_CONVERTER		0x06
+#define	UA20_TF_SOUND_RECORDER		0x07
+#define	UA20_TF_IO_BOX			0x08
+#define	UA20_TF_MUSICAL_INSTRUMENT	0x09
+#define	UA20_TF_PRO_AUDIO		0x0A
+#define	UA20_TF_AV			0x0B
+#define	UA20_TF_CONTROL_PANEL		0x0C
+#define	UA20_TF_OTHER			0xFF
+
+#define	UA20_EP_GENERAL			0x01
+
+#define	UA20_CS_SAM_FREQ_CONTROL	0x01
+#define	UA20_CS_CLOCK_VALID_CONTROL 	0x02
+
+#define	UA20_TE_COPY_PROTECT_CONTROL	0x01
+#define	UA20_TE_CONNECTOR_CONTROL	0x02
+#define	UA20_TE_OVERLOAD_CONTROL	0x03
+#define	UA20_TE_CLUSTER_CONTROL		0x04
+#define	UA20_TE_UNDERFLOW_CONTROL	0x05
+#define	UA20_TE_OVERFLOW_CONTROL	0x06
+#define	UA20_TE_LATENCY_CONTROL		0x07
+
+#define	UA20_MU_MIXER_CONTROL		0x01
+#define	UA20_MU_CLUSTER_CONTROL		0x02
+#define	UA20_MU_UNDERFLOW_CONTROL	0x03
+#define	UA20_MU_OVERFLOW_CONTROL	0x04
+#define	UA20_MU_LATENCY_CONTROL		0x05
+
+#define	UA20_FMT_PCM	(1U << 0)
+#define	UA20_FMT_PCM8	(1U << 1)
+#define	UA20_FMT_FLOAT	(1U << 2)
+#define	UA20_FMT_ALAW	(1U << 3)
+#define	UA20_FMT_MULAW	(1U << 4)
+#define	UA20_FMT_RAW	(1U << 31)
+
+#endif					/* _UAUDIOREG_H_ */

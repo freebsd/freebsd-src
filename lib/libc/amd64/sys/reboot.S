@@ -45,15 +45,8 @@ __FBSDID("$FreeBSD$");
 ENTRY(__sys_reboot)
 	mov	$SYS_reboot,%rax
 	KERNCALL
-	jb	1f
+	jb	HIDENAME(cerror)
 	iretq
-1:
-#ifdef PIC
-	movq	PIC_GOT(HIDENAME(cerror)),%rdx
-	jmp	*%rdx
-#else
-	jmp	HIDENAME(cerror)
-#endif
 END(__sys_reboot)
 
 	.section .note.GNU-stack,"",%progbits

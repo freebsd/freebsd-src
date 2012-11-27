@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/route.h>
+#include <net/ethernet.h>
 #include <net/pfil.h>
 #include <net/vnet.h>
 
@@ -72,10 +73,17 @@ static VNET_DEFINE(int, fw6_enable) = 1;
 #define V_fw6_enable	VNET(fw6_enable)
 #endif
 
+static VNET_DEFINE(int, fwlink_enable) = 0;
+#define V_fwlink_enable	VNET(fwlink_enable)
+
 int ipfw_chg_hook(SYSCTL_HANDLER_ARGS);
 
 /* Forward declarations. */
 static int ipfw_divert(struct mbuf **, int, struct ipfw_rule_ref *, int);
+static int ipfw_check_packet(void *, struct mbuf **, struct ifnet *, int,
+	struct inpcb *);
+static int ipfw_check_frame(void *, struct mbuf **, struct ifnet *, int,
+	struct inpcb *);
 
 #ifdef SYSCTL_NODE
 
@@ -92,6 +100,11 @@ SYSCTL_VNET_PROC(_net_inet6_ip6_fw, OID_AUTO, enable,
     ipfw_chg_hook, "I", "Enable ipfw+6");
 #endif /* INET6 */
 
+SYSCTL_DECL(_net_link_ether);
+SYSCTL_VNET_PROC(_net_link_ether, OID_AUTO, ipfw,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE3, &VNET_NAME(fwlink_enable), 0,
+    ipfw_chg_hook, "I", "Pass ether pkts through firewall");
+
 SYSEND
 
 #endif /* SYSCTL_NODE */
@@ -101,8 +114,8 @@ SYSEND
  * dummynet, divert, netgraph or other modules.
  * The packet may be consumed.
  */
-int
-ipfw_check_hook(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
+static int
+ipfw_check_packet(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir,
     struct inpcb *inp)
 {
 	struct ip_fw_args args;
@@ -278,6 +291,111 @@ again:
 	return ret;
 }
 
+/*
+ * ipfw processing for ethernet packets (in and out).
+ * Inteface is NULL from ether_demux, and ifp from
+ * ether_output_frame.
+ */
+static int
+ipfw_check_frame(void *arg, struct mbuf **m0, struct ifnet *dst, int dir,
+    struct inpcb *inp)
+{
+	struct ether_header *eh;
+	struct ether_header save_eh;
+	struct mbuf *m;
+	int i, ret;
+	struct ip_fw_args args;
+	struct m_tag *mtag;
+
+	/* fetch start point from rule, if any */
+	mtag = m_tag_locate(*m0, MTAG_IPFW_RULE, 0, NULL);
+	if (mtag == NULL) {
+		args.rule.slot = 0;
+	} else {
+		/* dummynet packet, already partially processed */
+		struct ipfw_rule_ref *r;
+
+		/* XXX can we free it after use ? */
+		mtag->m_tag_id = PACKET_TAG_NONE;
+		r = (struct ipfw_rule_ref *)(mtag + 1);
+		if (r->info & IPFW_ONEPASS)
+			return (0);
+		args.rule = *r;
+	}
+
+	/* I need some amt of data to be contiguous */
+	m = *m0;
+	i = min(m->m_pkthdr.len, max_protohdr);
+	if (m->m_len < i) {
+		m = m_pullup(m, i);
+		if (m == NULL) {
+			*m0 = m;
+			return (0);
+		}
+	}
+	eh = mtod(m, struct ether_header *);
+	save_eh = *eh;			/* save copy for restore below */
+	m_adj(m, ETHER_HDR_LEN);	/* strip ethernet header */
+
+	args.m = m;		/* the packet we are looking at		*/
+	args.oif = dst;		/* destination, if any			*/
+	args.next_hop = NULL;	/* we do not support forward yet	*/
+	args.next_hop6 = NULL;	/* we do not support forward yet	*/
+	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
+	args.inp = NULL;	/* used by ipfw uid/gid/jail rules	*/
+	i = ipfw_chk(&args);
+	m = args.m;
+	if (m != NULL) {
+		/*
+		 * Restore Ethernet header, as needed, in case the
+		 * mbuf chain was replaced by ipfw.
+		 */
+		M_PREPEND(m, ETHER_HDR_LEN, M_DONTWAIT);
+		if (m == NULL) {
+			*m0 = NULL;
+			return (0);
+		}
+		if (eh != mtod(m, struct ether_header *))
+			bcopy(&save_eh, mtod(m, struct ether_header *),
+				ETHER_HDR_LEN);
+	}
+	*m0 = m;
+
+	ret = 0;
+	/* Check result of ipfw_chk() */
+	switch (i) {
+	case IP_FW_PASS:
+		break;
+
+	case IP_FW_DENY:
+		ret = EACCES;
+		break; /* i.e. drop */
+
+	case IP_FW_DUMMYNET:
+		ret = EACCES;
+		int dir;
+
+		if (ip_dn_io_ptr == NULL)
+			break; /* i.e. drop */
+
+		*m0 = NULL;
+		dir = PROTO_LAYER2 | (dst ? DIR_OUT : DIR_IN);
+		ip_dn_io_ptr(&m, dir, &args);
+		return 0;
+
+	default:
+		KASSERT(0, ("%s: unknown retval", __func__));
+	}
+
+	if (ret != 0) {
+		if (*m0)
+			FREE_PKT(*m0);
+		*m0 = NULL;
+	}
+
+	return ret;
+}
+
 /* do the divert, return 1 on error 0 on success */
 static int
 ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
@@ -379,13 +497,16 @@ static int
 ipfw_hook(int onoff, int pf)
 {
 	struct pfil_head *pfh;
+	void *hook_func;
 
 	pfh = pfil_head_get(PFIL_TYPE_AF, pf);
 	if (pfh == NULL)
 		return ENOENT;
 
+	hook_func = (pf == AF_LINK) ? ipfw_check_frame : ipfw_check_packet;
+
 	(void) (onoff ? pfil_add_hook : pfil_remove_hook)
-	    (ipfw_check_hook, NULL, PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh);
+	    (hook_func, NULL, PFIL_IN | PFIL_OUT | PFIL_WAITOK, pfh);
 
 	return 0;
 }
@@ -409,51 +530,58 @@ ipfw_attach_hooks(int arg)
                 printf("ipfw6_hook() error\n");
         }
 #endif
+	if (arg == 0) /* detach */
+		ipfw_hook(0, AF_LINK);
+	else if (V_fwlink_enable && ipfw_hook(1, AF_LINK) != 0) {
+                error = ENOENT;
+                printf("ipfw_link_hook() error\n");
+        }
 	return error;
 }
 
 int
 ipfw_chg_hook(SYSCTL_HANDLER_ARGS)
 {
-	int enable;
-	int oldenable;
+	int *enable;
+	int newval;
 	int error;
 	int af;
 
 	if (arg1 == &VNET_NAME(fw_enable)) {
-		enable = V_fw_enable;
+		enable = &V_fw_enable;
 		af = AF_INET;
 	}
 #ifdef INET6
 	else if (arg1 == &VNET_NAME(fw6_enable)) {
-		enable = V_fw6_enable;
+		enable = &V_fw6_enable;
 		af = AF_INET6;
 	}
 #endif
+	else if (arg1 == &VNET_NAME(fwlink_enable)) {
+		enable = &V_fwlink_enable;
+		af = AF_LINK;
+	}
 	else 
 		return (EINVAL);
 
-	oldenable = enable;
+	newval = *enable;
 
-	error = sysctl_handle_int(oidp, &enable, 0, req);
+	/* Handle sysctl change */
+	error = sysctl_handle_int(oidp, &newval, 0, req);
 
 	if (error)
 		return (error);
 
-	enable = (enable) ? 1 : 0;
+	/* Formalize new value */
+	newval = (newval) ? 1 : 0;
 
-	if (enable == oldenable)
+	if (*enable == newval)
 		return (0);
 
-	error = ipfw_hook(enable, af);
+	error = ipfw_hook(newval, af);
 	if (error)
 		return (error);
-	if (af == AF_INET)
-		V_fw_enable = enable;
-#ifdef INET6
-	else if (af == AF_INET6)
-		V_fw6_enable = enable;
-#endif
+	*enable = newval;
 
 	return (0);
 }

@@ -1,10 +1,10 @@
 /*	$OpenBSD: if_pflog.c,v 1.26 2007/10/18 21:58:18 mpf Exp $	*/
 /*
  * The authors of this code are John Ioannidis (ji@tla.org),
- * Angelos D. Keromytis (kermit@csd.uch.gr) and 
+ * Angelos D. Keromytis (kermit@csd.uch.gr) and
  * Niels Provos (provos@physnet.uni-hamburg.de).
  *
- * This code was written by John Ioannidis for BSD/OS in Athens, Greece, 
+ * This code was written by John Ioannidis for BSD/OS in Athens, Greece,
  * in November 1995.
  *
  * Ported to OpenBSD and NetBSD, with additional transforms, in December 1996,
@@ -20,7 +20,7 @@
  * Permission to use, copy, and modify this software with or without fee
  * is hereby granted, provided that this entire notice is included in
  * all copies of any software which is or includes a copy or
- * modification of this software. 
+ * modification of this software.
  * You may use this code under the GNU public license if you so wish. Please
  * contribute changes back to the authors under this freer than GPL license
  * so that we may further the use of strong encryption without limitations to
@@ -33,61 +33,34 @@
  * PURPOSE.
  */
 
-#ifdef __FreeBSD__
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_bpf.h"
 #include "opt_pf.h"
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
-#ifdef DEV_BPF
-#define	NBPFILTER	DEV_BPF
-#else
-#define	NBPFILTER	0
-#endif
-
-#ifdef DEV_PFLOG
-#define	NPFLOG		DEV_PFLOG
-#else
-#define	NPFLOG		0
-#endif
-
-#else /* ! __FreeBSD__ */
-#include "bpfilter.h"
-#include "pflog.h"
-#endif /* __FreeBSD__ */
-
 #include <sys/param.h>
-#include <sys/systm.h>
+#include <sys/kernel.h>
 #include <sys/mbuf.h>
+#include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/socket.h>
-#ifdef __FreeBSD__
-#include <sys/kernel.h>
-#include <sys/limits.h>
-#include <sys/malloc.h>
-#include <sys/module.h>
 #include <sys/sockio.h>
-#else
-#include <sys/ioctl.h>
-#endif
 
-#include <net/if.h>
-#ifdef __FreeBSD__
-#include <net/if_clone.h>
-#endif
-#include <net/if_types.h>
-#include <net/route.h>
 #include <net/bpf.h>
+#include <net/if.h>
+#include <net/if_clone.h>
+#include <net/if_pflog.h>
+#include <net/if_types.h>
+#include <net/pfvar.h>
 
 #if defined(INET) || defined(INET6)
 #include <netinet/in.h>
 #endif
 #ifdef	INET
 #include <netinet/in_var.h>
-#include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #endif
 
@@ -96,14 +69,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #endif /* INET6 */
 
-#include <net/pfvar.h>
-#include <net/if_pflog.h>
-
-#ifdef __FreeBSD__
 #ifdef INET
 #include <machine/in_cksum.h>
 #endif /* INET */
-#endif /* __FreeBSD__ */
 
 #define PFLOGMTU	(32768 + MHLEN + MLEN)
 
@@ -113,170 +81,82 @@ __FBSDID("$FreeBSD$");
 #define DPRINTF(x)
 #endif
 
-void	pflogattach(int);
-int	pflogoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
-#ifdef __FreeBSD__
-	    struct route *);
-#else
-	    struct rtentry *);
-#endif
-int	pflogioctl(struct ifnet *, u_long, caddr_t);
-void	pflogstart(struct ifnet *);
-#ifdef __FreeBSD__
-static int pflog_clone_create(struct if_clone *, int, caddr_t);
-static void pflog_clone_destroy(struct ifnet *);
-#else
-int	pflog_clone_create(struct if_clone *, int);
-int	pflog_clone_destroy(struct ifnet *);
-#endif
+static int	pflogoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
+		    struct route *);
+static void	pflogattach(int);
+static int	pflogioctl(struct ifnet *, u_long, caddr_t);
+static void	pflogstart(struct ifnet *);
+static int	pflog_clone_create(struct if_clone *, int, caddr_t);
+static void	pflog_clone_destroy(struct ifnet *);
 
-LIST_HEAD(, pflog_softc)	pflogif_list;
-#ifdef __FreeBSD__
 IFC_SIMPLE_DECLARE(pflog, 1);
-#else
-struct if_clone	pflog_cloner =
-    IF_CLONE_INITIALIZER("pflog", pflog_clone_create, pflog_clone_destroy);
-#endif
 
 struct ifnet	*pflogifs[PFLOGIFS_MAX];	/* for fast access */
 
-void
+static void
 pflogattach(int npflog)
 {
 	int	i;
-	LIST_INIT(&pflogif_list);
 	for (i = 0; i < PFLOGIFS_MAX; i++)
 		pflogifs[i] = NULL;
 	if_clone_attach(&pflog_cloner);
 }
 
-#ifdef __FreeBSD__
 static int
 pflog_clone_create(struct if_clone *ifc, int unit, caddr_t param)
-#else
-int
-pflog_clone_create(struct if_clone *ifc, int unit)
-#endif
 {
 	struct ifnet *ifp;
-	struct pflog_softc *pflogif;
-	int s;
 
 	if (unit >= PFLOGIFS_MAX)
 		return (EINVAL);
 
-	if ((pflogif = malloc(sizeof(*pflogif),
-	    M_DEVBUF, M_NOWAIT|M_ZERO)) == NULL)
-		return (ENOMEM);
-
-	pflogif->sc_unit = unit;
-#ifdef __FreeBSD__
-	ifp = pflogif->sc_ifp = if_alloc(IFT_PFLOG);
+	ifp = if_alloc(IFT_PFLOG);
 	if (ifp == NULL) {
-		free(pflogif, M_DEVBUF);
 		return (ENOSPC);
 	}
 	if_initname(ifp, ifc->ifc_name, unit);
-#else
-	ifp = &pflogif->sc_if;
-	snprintf(ifp->if_xname, sizeof ifp->if_xname, "pflog%d", unit);
-#endif
-	ifp->if_softc = pflogif;
 	ifp->if_mtu = PFLOGMTU;
 	ifp->if_ioctl = pflogioctl;
 	ifp->if_output = pflogoutput;
 	ifp->if_start = pflogstart;
-#ifndef __FreeBSD__
-	ifp->if_type = IFT_PFLOG;
-#endif
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_hdrlen = PFLOG_HDRLEN;
 	if_attach(ifp);
-#ifndef __FreeBSD__
-	if_alloc_sadl(ifp);
-#endif
 
-#if NBPFILTER > 0
-#ifdef __FreeBSD__
 	bpfattach(ifp, DLT_PFLOG, PFLOG_HDRLEN);
-#else
-	bpfattach(&pflogif->sc_if.if_bpf, ifp, DLT_PFLOG, PFLOG_HDRLEN);
-#endif
-#endif
 
-	s = splnet();
-#ifdef __FreeBSD__
-	/* XXX: Why pf(4) lock?! Better add a pflog lock?! */
-	PF_LOCK();
-#endif
-	LIST_INSERT_HEAD(&pflogif_list, pflogif, sc_list);
 	pflogifs[unit] = ifp;
-#ifdef __FreeBSD__
-	PF_UNLOCK();
-#endif
-	splx(s);
 
 	return (0);
 }
 
-#ifdef __FreeBSD__
 static void
 pflog_clone_destroy(struct ifnet *ifp)
-#else
-int
-pflog_clone_destroy(struct ifnet *ifp)
-#endif
 {
-	struct pflog_softc	*pflogif = ifp->if_softc;
-	int			 s;
+	int i;
 
-	s = splnet();
-#ifdef __FreeBSD__
-	PF_LOCK();
-#endif
-	pflogifs[pflogif->sc_unit] = NULL;
-	LIST_REMOVE(pflogif, sc_list);
-#ifdef __FreeBSD__
-	PF_UNLOCK();
-#endif
-	splx(s);
+	for (i = 0; i < PFLOGIFS_MAX; i++)
+		if (pflogifs[i] == ifp)
+			pflogifs[i] = NULL;
 
-#if NBPFILTER > 0
 	bpfdetach(ifp);
-#endif
 	if_detach(ifp);
-#ifdef __FreeBSD__
 	if_free(ifp);
-#endif
-	free(pflogif, M_DEVBUF);
-#ifndef __FreeBSD__
-	return (0);
-#endif
 }
 
 /*
  * Start output on the pflog interface.
  */
-void
+static void
 pflogstart(struct ifnet *ifp)
 {
 	struct mbuf *m;
-#ifndef __FreeBSD__
-	int s;
-#endif
 
 	for (;;) {
-#ifdef __FreeBSD__
 		IF_LOCK(&ifp->if_snd);
 		_IF_DROP(&ifp->if_snd);
 		_IF_DEQUEUE(&ifp->if_snd, m);
 		IF_UNLOCK(&ifp->if_snd);
-#else
-		s = splnet();
-		IF_DROP(&ifp->if_snd);
-		IF_DEQUEUE(&ifp->if_snd, m);
-		splx(s);
-#endif
 
 		if (m == NULL)
 			return;
@@ -285,35 +165,24 @@ pflogstart(struct ifnet *ifp)
 	}
 }
 
-int
+static int
 pflogoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
-#ifdef __FreeBSD__
 	struct route *rt)
-#else
-	struct rtentry *rt)
-#endif
 {
 	m_freem(m);
 	return (0);
 }
 
 /* ARGSUSED */
-int
+static int
 pflogioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	switch (cmd) {
 	case SIOCSIFFLAGS:
-#ifdef __FreeBSD__
 		if (ifp->if_flags & IFF_UP)
 			ifp->if_drv_flags |= IFF_DRV_RUNNING;
 		else
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-#else
-		if (ifp->if_flags & IFF_UP)
-			ifp->if_flags |= IFF_RUNNING;
-		else
-			ifp->if_flags &= ~IFF_RUNNING;
-#endif
 		break;
 	default:
 		return (ENOTTY);
@@ -322,12 +191,11 @@ pflogioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	return (0);
 }
 
-int
+static int
 pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
     u_int8_t reason, struct pf_rule *rm, struct pf_rule *am,
-    struct pf_ruleset *ruleset, struct pf_pdesc *pd)
+    struct pf_ruleset *ruleset, struct pf_pdesc *pd, int lookupsafe)
 {
-#if NBPFILTER > 0
 	struct ifnet *ifn;
 	struct pfloghdr hdr;
 
@@ -354,23 +222,18 @@ pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 			strlcpy(hdr.ruleset, ruleset->anchor->name,
 			    sizeof(hdr.ruleset));
 	}
-	if (rm->log & PF_LOG_SOCKET_LOOKUP && !pd->lookup.done)
-#ifdef __FreeBSD__
-		/*
-		 * XXX: This should not happen as we force an early lookup
-		 * via debug.pfugidhack
-		 */
-		; /* empty */
-#else
-		pd->lookup.done = pf_socket_lookup(dir, pd);
-#endif
-	if (pd->lookup.done > 0) {
+	/*
+	 * XXXGL: we avoid pf_socket_lookup() when we are holding
+	 * state lock, since this leads to unsafe LOR.
+	 * These conditions are very very rare, however.
+	 */
+	if (rm->log & PF_LOG_SOCKET_LOOKUP && !pd->lookup.done && lookupsafe)
+		pd->lookup.done = pf_socket_lookup(dir, pd, m);
+	if (pd->lookup.done > 0)
 		hdr.uid = pd->lookup.uid;
-		hdr.pid = pd->lookup.pid;
-	} else {
+	else
 		hdr.uid = UID_MAX;
-		hdr.pid = NO_PID;
-	}
+	hdr.pid = NO_PID;
 	hdr.rule_uid = rm->cuid;
 	hdr.rule_pid = rm->cpid;
 	hdr.dir = dir;
@@ -387,18 +250,11 @@ pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
 
 	ifn->if_opackets++;
 	ifn->if_obytes += m->m_pkthdr.len;
-#ifdef __FreeBSD__
 	BPF_MTAP2(ifn, &hdr, PFLOG_HDRLEN, m);
-#else
-	bpf_mtap_hdr(ifn->if_bpf, (char *)&hdr, PFLOG_HDRLEN, m,
-	    BPF_DIRECTION_OUT);
-#endif
-#endif
 
 	return (0);
 }
 
-#ifdef __FreeBSD__
 static int
 pflog_modevent(module_t mod, int type, void *data)
 {
@@ -407,14 +263,14 @@ pflog_modevent(module_t mod, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		pflogattach(1);
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		pflog_packet_ptr = pflog_packet;
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		break;
 	case MOD_UNLOAD:
-		PF_LOCK();
+		PF_RULES_WLOCK();
 		pflog_packet_ptr = NULL;
-		PF_UNLOCK();
+		PF_RULES_WUNLOCK();
 		if_clone_detach(&pflog_cloner);
 		break;
 	default:
@@ -432,4 +288,3 @@ static moduledata_t pflog_mod = { "pflog", pflog_modevent, 0 };
 DECLARE_MODULE(pflog, pflog_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_VERSION(pflog, PFLOG_MODVER);
 MODULE_DEPEND(pflog, pf, PF_MODVER, PF_MODVER, PF_MODVER);
-#endif /* __FreeBSD__ */

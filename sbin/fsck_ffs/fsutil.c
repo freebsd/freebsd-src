@@ -245,7 +245,7 @@ flush(int fd, struct bufarea *bp)
 		    (bp->b_errs == bp->b_size / dev_bsize) ? "" : "PARTIALLY ",
 		    (long long)bp->b_bno);
 	bp->b_errs = 0;
-	blwrite(fd, bp->b_un.b_buf, bp->b_bno, (long)bp->b_size);
+	blwrite(fd, bp->b_un.b_buf, bp->b_bno, bp->b_size);
 	if (bp != &sblk)
 		return;
 	for (i = 0, j = 0; i < sblock.fs_cssize; i += sblock.fs_bsize, j++) {
@@ -392,7 +392,7 @@ blread(int fd, char *buf, ufs2_daddr_t blk, long size)
 }
 
 void
-blwrite(int fd, char *buf, ufs2_daddr_t blk, long size)
+blwrite(int fd, char *buf, ufs2_daddr_t blk, ssize_t size)
 {
 	int i;
 	char *cp;
@@ -404,7 +404,7 @@ blwrite(int fd, char *buf, ufs2_daddr_t blk, long size)
 	offset *= dev_bsize;
 	if (lseek(fd, offset, 0) < 0)
 		rwerror("SEEK BLK", blk);
-	else if (write(fd, buf, (int)size) == size) {
+	else if (write(fd, buf, size) == size) {
 		fsmodified = 1;
 		return;
 	}
@@ -414,7 +414,7 @@ blwrite(int fd, char *buf, ufs2_daddr_t blk, long size)
 		rwerror("SEEK BLK", blk);
 	printf("THE FOLLOWING SECTORS COULD NOT BE WRITTEN:");
 	for (cp = buf, i = 0; i < size; i += dev_bsize, cp += dev_bsize)
-		if (write(fd, cp, (int)dev_bsize) != dev_bsize) {
+		if (write(fd, cp, dev_bsize) != dev_bsize) {
 			(void)lseek(fd, offset + i + dev_bsize, 0);
 			printf(" %jd,", (intmax_t)blk + i / dev_bsize);
 		}

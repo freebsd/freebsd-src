@@ -29,16 +29,6 @@
 
 #define	PFLOGIFS_MAX	16
 
-struct pflog_softc {
-#ifdef __FreeBSD__
-	struct ifnet		*sc_ifp;	/* the interface pointer */
-#else
-	struct ifnet		sc_if;		/* the interface */
-#endif
-	int			sc_unit;
-	LIST_ENTRY(pflog_softc)	sc_list;
-};
-
 #define	PFLOG_RULESET_NAME_SIZE	16
 
 struct pfloghdr {
@@ -62,40 +52,15 @@ struct pfloghdr {
 /* minus pad, also used as a signature */
 #define	PFLOG_REAL_HDRLEN	offsetof(struct pfloghdr, pad)
 
-/* XXX remove later when old format logs are no longer needed */
-struct old_pfloghdr {
-	u_int32_t af;
-	char ifname[IFNAMSIZ];
-	short rnr;
-	u_short reason;
-	u_short action;
-	u_short dir;
-};
-#define	OLD_PFLOG_HDRLEN	sizeof(struct old_pfloghdr)
-
 #ifdef _KERNEL
-#ifdef __FreeBSD__
 struct pf_rule;
 struct pf_ruleset;
 struct pfi_kif;
 struct pf_pdesc;
 
-#if 0
-typedef int pflog_packet_t(struct pfi_kif *, struct mbuf *, sa_family_t,
-    u_int8_t, u_int8_t, struct pf_rule *, struct pf_rule *,
-    struct pf_ruleset *, struct pf_pdesc *);
-extern pflog_packet_t *pflog_packet_ptr;
-#endif
-#define	PFLOG_PACKET(i,x,a,b,c,d,e,f,g,h) do {		\
+#define	PFLOG_PACKET(i,a,b,c,d,e,f,g,h,di) do {		\
 	if (pflog_packet_ptr != NULL)			\
-		pflog_packet_ptr(i,a,b,c,d,e,f,g,h);    \
+		pflog_packet_ptr(i,a,b,c,d,e,f,g,h,di);	\
 } while (0)
-#else /* ! __FreeBSD__ */
-#if NPFLOG > 0
-#define	PFLOG_PACKET(i,x,a,b,c,d,e,f,g,h) pflog_packet(i,a,b,c,d,e,f,g,h)
-#else
-#define	PFLOG_PACKET(i,x,a,b,c,d,e,f,g,h) ((void)0)
-#endif /* NPFLOG > 0 */
-#endif
 #endif /* _KERNEL */
 #endif /* _NET_IF_PFLOG_H_ */

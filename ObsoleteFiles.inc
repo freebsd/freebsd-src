@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20120908: pf cleanup
+OLD_FILES+=usr/include/net/if_pflow.h
 # 20120816: new clang import which bumps version from 3.1 to 3.2
 OLD_FILES+=usr/bin/llvm-ld
 OLD_FILES+=usr/bin/llvm-stub

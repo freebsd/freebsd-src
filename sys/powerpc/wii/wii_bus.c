@@ -104,6 +104,7 @@ DRIVER_MODULE(wiibus, nexus, wiibus_driver, wiibus_devclass, 0, 0);
 static void
 wiibus_identify(driver_t *driver, device_t parent)
 {
+
 	if (strcmp(installed_platform(), "wii") != 0)
 		return;
 
@@ -115,7 +116,6 @@ wiibus_identify(driver_t *driver, device_t parent)
 static int
 wiibus_probe(device_t dev)
 {
-        /* Do not attach to any OF nodes that may be present */
 
 	device_set_desc(dev, "Nintendo Wii System Bus");
 
@@ -127,6 +127,7 @@ wiibus_init_device_resources(struct rman *rm, struct wiibus_devinfo *dinfo,
     unsigned int rid, uintptr_t addr, size_t len, unsigned int irq)
 
 {
+
 	if (!dinfo->di_init) {
 		resource_list_init(&dinfo->di_resources);
 		dinfo->di_init++;
@@ -246,7 +247,9 @@ wiibus_alloc_resource(device_t bus, device_t child, int type,
 		}
 		rman_set_rid(rv, *rid);
 		break;
-	/* XXX IRQ */
+	case SYS_RES_IRQ:
+		return (resource_list_alloc(&dinfo->di_resources, bus, child,
+		    type, rid, start, end, count, flags));
 	default:
 		device_printf(bus, "unknown resource request from %s\n",
 		    device_get_nameunit(child));
@@ -280,7 +283,8 @@ wiibus_activate_resource(device_t bus, device_t child, int type, int rid,
 		rman_set_bustag(res, &bs_be_tag);
 		rman_set_bushandle(res, (unsigned long)p);
 		break;
-	/* XXX IRQ */
+	case SYS_RES_IRQ:
+		return (bus_activate_resource(bus, type, rid, res));
 	default:
 		device_printf(bus,
 		    "unknown activate resource request from %s\n",

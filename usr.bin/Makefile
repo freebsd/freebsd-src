@@ -68,7 +68,7 @@ SUBDIR=	alias \
 	ipcs \
 	join \
 	jot \
-	kdump \
+	${_kdump} \
 	keylogin \
 	keylogout \
 	killall \
@@ -163,7 +163,7 @@ SUBDIR=	alias \
 	tr \
 	true \
 	truncate \
-	truss \
+	${_truss} \
 	tset \
 	tsort \
 	tty \
@@ -243,6 +243,11 @@ SUBDIR+=	hesinfo
 _iconv=		iconv
 _mkcsmapper=	mkcsmapper
 _mkesdb=	mkesdb
+.endif
+
+.if ${MK_KDUMP} != "no"
+SUBDIR+=        kdump
+SUBDIR+=        truss
 .endif
 
 .if ${MK_KERBEROS_SUPPORT} != "no"

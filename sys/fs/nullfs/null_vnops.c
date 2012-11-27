@@ -665,33 +665,18 @@ null_unlock(struct vop_unlock_args *ap)
 }
 
 /*
- * There is no way to tell that someone issued remove/rmdir operation
- * on the underlying filesystem. For now we just have to release lowervp
- * as soon as possible.
- *
- * Note, we can't release any resources nor remove vnode from hash before 
- * appropriate VXLOCK stuff is done because other process can find this
- * vnode in hash during inactivation and may be sitting in vget() and waiting
- * for null_inactive to unlock vnode. Thus we will do all those in VOP_RECLAIM.
+ * XXXKIB
  */
 static int
-null_inactive(struct vop_inactive_args *ap)
+null_inactive(struct vop_inactive_args *ap __unused)
 {
-	struct vnode *vp = ap->a_vp;
-
-	vp->v_object = NULL;
-
-	/*
-	 * If this is the last reference, then free up the vnode
-	 * so as not to tie up the lower vnodes.
-	 */
-	vrecycle(vp);
 
 	return (0);
 }
 
 /*
- * Now, the VXLOCK is in force and we're free to destroy the null vnode.
+ * Now, the nullfs vnode and, due to the sharing lock, the lower
+ * vnode, are exclusively locked, and we shall destroy the null vnode.
  */
 static int
 null_reclaim(struct vop_reclaim_args *ap)

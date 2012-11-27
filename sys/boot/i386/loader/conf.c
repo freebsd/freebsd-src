@@ -70,6 +70,9 @@ struct devsw *devsw[] = {
 };
 
 struct fs_ops *file_system[] = {
+#if defined(LOADER_ZFS_SUPPORT)
+    &zfs_fsops,
+#endif
     &ufs_fsops,
     &ext2fs_fsops,
     &dosfs_fsops,
@@ -78,9 +81,6 @@ struct fs_ops *file_system[] = {
     &nandfs_fsops,
 #endif
     &splitfs_fsops,
-#if defined(LOADER_ZFS_SUPPORT)
-    &zfs_fsops,
-#endif
 #ifdef LOADER_GZIP_SUPPORT
     &gzipfs_fsops,
 #endif

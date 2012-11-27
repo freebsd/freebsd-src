@@ -130,11 +130,23 @@ zio_init(void)
 		while (p2 & (p2 - 1))
 			p2 &= p2 - 1;
 
+#ifdef illumos
+#ifndef _KERNEL
+		/*
+		 * If we are using watchpoints, put each buffer on its own page,
+		 * to eliminate the performance overhead of trapping to the
+		 * kernel when modifying a non-watched buffer that shares the
+		 * page with a watched buffer.
+		 */
+		if (arc_watch && !IS_P2ALIGNED(size, PAGESIZE))
+			continue;
+#endif
+#endif /* illumos */
 		if (size <= 4 * SPA_MINBLOCKSIZE) {
 			align = SPA_MINBLOCKSIZE;
-		} else if (P2PHASE(size, PAGESIZE) == 0) {
+		} else if (IS_P2ALIGNED(size, PAGESIZE)) {
 			align = PAGESIZE;
-		} else if (P2PHASE(size, p2 >> 2) == 0) {
+		} else if (IS_P2ALIGNED(size, p2 >> 2)) {
 			align = p2 >> 2;
 		}
 
@@ -2159,7 +2171,7 @@ zio_dva_allocate(zio_t *zio)
 	}
 
 	ASSERT(BP_IS_HOLE(bp));
-	ASSERT3U(BP_GET_NDVAS(bp), ==, 0);
+	ASSERT0(BP_GET_NDVAS(bp));
 	ASSERT3U(zio->io_prop.zp_copies, >, 0);
 	ASSERT3U(zio->io_prop.zp_copies, <=, spa_max_replication(spa));
 	ASSERT3U(zio->io_size, ==, BP_GET_PSIZE(bp));

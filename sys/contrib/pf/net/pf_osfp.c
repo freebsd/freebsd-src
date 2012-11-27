@@ -17,23 +17,14 @@
  *
  */
 
-#ifdef __FreeBSD__
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-#endif
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/socket.h>
-#ifdef _KERNEL
-#include <sys/systm.h>
-#ifndef __FreeBSD__
-#include <sys/pool.h>
-#endif
-#endif /* _KERNEL */
-#include <sys/mbuf.h>
 
 #include <netinet/in.h>
-#include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 
@@ -41,77 +32,31 @@ __FBSDID("$FreeBSD$");
 #include <net/pfvar.h>
 
 #include <netinet/ip6.h>
-#ifdef _KERNEL
 #include <netinet6/in6_var.h>
-#endif
 
-
-#ifdef _KERNEL
-#ifdef __FreeBSD__
+static MALLOC_DEFINE(M_PFOSFP, "pf_osfp", "pf(4) operating system fingerprints");
 #define	DPFPRINTF(format, x...)		\
 	if (V_pf_status.debug >= PF_DEBUG_NOISY)	\
 		printf(format , ##x)
-#else
-#define	DPFPRINTF(format, x...)		\
-	if (pf_status.debug >= PF_DEBUG_NOISY)	\
-		printf(format , ##x)
-#endif
-#ifdef __FreeBSD__
-typedef uma_zone_t pool_t;
-#else
-typedef struct pool pool_t;
-#endif
 
-#else
-/* Userland equivalents so we can lend code to tcpdump et al. */
-
-#include <arpa/inet.h>
-#include <errno.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <netdb.h>
-#define	pool_t			int
-#define	pool_get(pool, flags)	malloc(*(pool))
-#define	pool_put(pool, item)	free(item)
-#define	pool_init(pool, size, a, ao, f, m, p)	(*(pool)) = (size)
-
-#ifdef __FreeBSD__
-#define	NTOHS(x) (x) = ntohs((u_int16_t)(x))
-#endif
-
-#ifdef PFDEBUG
-#include <sys/stdarg.h>
-#define	DPFPRINTF(format, x...)	fprintf(stderr, format , ##x)
-#else
-#define	DPFPRINTF(format, x...)	((void)0)
-#endif /* PFDEBUG */
-#endif /* _KERNEL */
-
-
-#ifdef __FreeBSD__
 SLIST_HEAD(pf_osfp_list, pf_os_fingerprint);
-VNET_DEFINE(struct pf_osfp_list,	pf_osfp_list);
+static VNET_DEFINE(struct pf_osfp_list,	pf_osfp_list) =
+	SLIST_HEAD_INITIALIZER();
 #define	V_pf_osfp_list			VNET(pf_osfp_list)
-VNET_DEFINE(pool_t,			pf_osfp_entry_pl);
-#define	pf_osfp_entry_pl		VNET(pf_osfp_entry_pl)
-VNET_DEFINE(pool_t,			pf_osfp_pl);
-#define	pf_osfp_pl			VNET(pf_osfp_pl)
-#else
-SLIST_HEAD(pf_osfp_list, pf_os_fingerprint) pf_osfp_list;
-pool_t pf_osfp_entry_pl;
-pool_t pf_osfp_pl;
+
+static struct pf_osfp_enlist	*pf_osfp_fingerprint_hdr(const struct ip *,
+				    const struct ip6_hdr *,
+				    const struct tcphdr *);
+static struct pf_os_fingerprint	*pf_osfp_find(struct pf_osfp_list *,
+				    struct pf_os_fingerprint *, u_int8_t);
+static struct pf_os_fingerprint	*pf_osfp_find_exact(struct pf_osfp_list *,
+				    struct pf_os_fingerprint *);
+static void			 pf_osfp_insert(struct pf_osfp_list *,
+				    struct pf_os_fingerprint *);
+#ifdef PFDEBUG
+static struct pf_os_fingerprint	*pf_osfp_validate(void);
 #endif
 
-struct pf_os_fingerprint	*pf_osfp_find(struct pf_osfp_list *,
-				    struct pf_os_fingerprint *, u_int8_t);
-struct pf_os_fingerprint	*pf_osfp_find_exact(struct pf_osfp_list *,
-				    struct pf_os_fingerprint *);
-void				 pf_osfp_insert(struct pf_osfp_list *,
-				    struct pf_os_fingerprint *);
-
-
-#ifdef _KERNEL
 /*
  * Passively fingerprint the OS of the host (IPv4 TCP SYN packets only)
  * Returns the list of possible OSes.
@@ -140,19 +85,14 @@ pf_osfp_fingerprint(struct pf_pdesc *pd, struct mbuf *m, int off,
 
 	return (pf_osfp_fingerprint_hdr(ip, ip6, (struct tcphdr *)hdr));
 }
-#endif /* _KERNEL */
 
-struct pf_osfp_enlist *
+static struct pf_osfp_enlist *
 pf_osfp_fingerprint_hdr(const struct ip *ip, const struct ip6_hdr *ip6, const struct tcphdr *tcp)
 {
 	struct pf_os_fingerprint fp, *fpresult;
 	int cnt, optlen = 0;
 	const u_int8_t *optp;
-#ifdef _KERNEL
 	char srcname[128];
-#else
-	char srcname[NI_MAXHOST];
-#endif
 
 	if ((tcp->th_flags & (TH_SYN|TH_ACK)) != TH_SYN)
 		return (NULL);
@@ -164,49 +104,21 @@ pf_osfp_fingerprint_hdr(const struct ip *ip, const struct ip6_hdr *ip6, const st
 	memset(&fp, 0, sizeof(fp));
 
 	if (ip) {
-#ifndef _KERNEL
-		struct sockaddr_in sin;
-#endif
-
 		fp.fp_psize = ntohs(ip->ip_len);
 		fp.fp_ttl = ip->ip_ttl;
 		if (ip->ip_off & htons(IP_DF))
 			fp.fp_flags |= PF_OSFP_DF;
-#ifdef _KERNEL
 		strlcpy(srcname, inet_ntoa(ip->ip_src), sizeof(srcname));
-#else
-		memset(&sin, 0, sizeof(sin));
-		sin.sin_family = AF_INET;
-		sin.sin_len = sizeof(struct sockaddr_in);
-		sin.sin_addr = ip->ip_src;
-		(void)getnameinfo((struct sockaddr *)&sin,
-		    sizeof(struct sockaddr_in), srcname, sizeof(srcname),
-		    NULL, 0, NI_NUMERICHOST);
-#endif
 	}
 #ifdef INET6
 	else if (ip6) {
-#ifndef _KERNEL
-		struct sockaddr_in6 sin6;
-#endif
-
 		/* jumbo payload? */
 		fp.fp_psize = sizeof(struct ip6_hdr) + ntohs(ip6->ip6_plen);
 		fp.fp_ttl = ip6->ip6_hlim;
 		fp.fp_flags |= PF_OSFP_DF;
 		fp.fp_flags |= PF_OSFP_INET6;
-#ifdef _KERNEL
 		strlcpy(srcname, ip6_sprintf((struct in6_addr *)&ip6->ip6_src),
 		    sizeof(srcname));
-#else
-		memset(&sin6, 0, sizeof(sin6));
-		sin6.sin6_family = AF_INET6;
-		sin6.sin6_len = sizeof(struct sockaddr_in6);
-		sin6.sin6_addr = ip6->ip6_src;
-		(void)getnameinfo((struct sockaddr *)&sin6,
-		    sizeof(struct sockaddr_in6), srcname, sizeof(srcname),
-		    NULL, 0, NI_NUMERICHOST);
-#endif
 	}
 #endif
 	else
@@ -284,11 +196,7 @@ pf_osfp_fingerprint_hdr(const struct ip *ip, const struct ip6_hdr *ip6, const st
 	    (fp.fp_flags & PF_OSFP_WSCALE_DC) ? "*" : "",
 	    fp.fp_wscale);
 
-#ifdef __FreeBSD__
 	if ((fpresult = pf_osfp_find(&V_pf_osfp_list, &fp,
-#else
-	if ((fpresult = pf_osfp_find(&pf_osfp_list, &fp,
-#endif
 	    PF_OSFP_MAXTTL_OFFSET)))
 		return (&fpresult->fp_oses);
 	return (NULL);
@@ -324,52 +232,6 @@ pf_osfp_match(struct pf_osfp_enlist *list, pf_osfp_t os)
 	return (0);
 }
 
-/* Initialize the OS fingerprint system */
-#ifdef __FreeBSD__
-int
-#else
-void
-#endif
-pf_osfp_initialize(void)
-{
-#if defined(__FreeBSD__) && defined(_KERNEL)
-	int error = ENOMEM;
-
-	do {
-		pf_osfp_entry_pl = pf_osfp_pl = NULL;
-		UMA_CREATE(pf_osfp_entry_pl, struct pf_osfp_entry, "pfospfen");
-		UMA_CREATE(pf_osfp_pl, struct pf_os_fingerprint, "pfosfp");
-		error = 0;
-	} while(0);
-
-	SLIST_INIT(&V_pf_osfp_list);
-#else
-	pool_init(&pf_osfp_entry_pl, sizeof(struct pf_osfp_entry), 0, 0, 0,
-	    "pfosfpen", &pool_allocator_nointr);
-	pool_init(&pf_osfp_pl, sizeof(struct pf_os_fingerprint), 0, 0, 0,
-	    "pfosfp", &pool_allocator_nointr);
-	SLIST_INIT(&pf_osfp_list);
-#endif
-
-#ifdef __FreeBSD__
-#ifdef _KERNEL
-	return (error);
-#else
-	return (0);
-#endif
-#endif
-}
-
-#if defined(__FreeBSD__) && (_KERNEL)
-void
-pf_osfp_cleanup(void)
-{
-
-	UMA_DESTROY(pf_osfp_entry_pl);
-	UMA_DESTROY(pf_osfp_pl);
-}
-#endif
-
 /* Flush the fingerprint list */
 void
 pf_osfp_flush(void)
@@ -377,18 +239,13 @@ pf_osfp_flush(void)
 	struct pf_os_fingerprint *fp;
 	struct pf_osfp_entry *entry;
 
-#ifdef __FreeBSD__
 	while ((fp = SLIST_FIRST(&V_pf_osfp_list))) {
 		SLIST_REMOVE_HEAD(&V_pf_osfp_list, fp_next);
-#else
-	while ((fp = SLIST_FIRST(&pf_osfp_list))) {
-		SLIST_REMOVE_HEAD(&pf_osfp_list, fp_next);
-#endif
 		while ((entry = SLIST_FIRST(&fp->fp_oses))) {
 			SLIST_REMOVE_HEAD(&fp->fp_oses, fp_entry);
-			pool_put(&pf_osfp_entry_pl, entry);
+			free(entry, M_PFOSFP);
 		}
-		pool_put(&pf_osfp_pl, fp);
+		free(fp, M_PFOSFP);
 	}
 }
 
@@ -399,6 +256,8 @@ pf_osfp_add(struct pf_osfp_ioctl *fpioc)
 {
 	struct pf_os_fingerprint *fp, fpadd;
 	struct pf_osfp_entry *entry;
+
+	PF_RULES_WASSERT();
 
 	memset(&fpadd, 0, sizeof(fpadd));
 	fpadd.fp_tcpopts = fpioc->fp_tcpopts;
@@ -436,31 +295,18 @@ pf_osfp_add(struct pf_osfp_ioctl *fpioc)
 	    fpioc->fp_os.fp_os);
 #endif
 
-#ifdef __FreeBSD__
 	if ((fp = pf_osfp_find_exact(&V_pf_osfp_list, &fpadd))) {
-#else
-	if ((fp = pf_osfp_find_exact(&pf_osfp_list, &fpadd))) {
-#endif
 		 SLIST_FOREACH(entry, &fp->fp_oses, fp_entry) {
 			if (PF_OSFP_ENTRY_EQ(entry, &fpioc->fp_os))
 				return (EEXIST);
 		}
-		if ((entry = pool_get(&pf_osfp_entry_pl,
-#ifdef __FreeBSD__
-		    PR_NOWAIT)) == NULL)
-#else
-		    PR_WAITOK|PR_LIMITFAIL)) == NULL)
-#endif
+		if ((entry = malloc(sizeof(*entry), M_PFOSFP, M_NOWAIT))
+		    == NULL)
 			return (ENOMEM);
 	} else {
-		if ((fp = pool_get(&pf_osfp_pl,
-#ifdef __FreeBSD__
-		    PR_NOWAIT)) == NULL)
-#else
-		    PR_WAITOK|PR_LIMITFAIL)) == NULL)
-#endif
+		if ((fp = malloc(sizeof(*fp), M_PFOSFP, M_ZERO | M_NOWAIT))
+		    == NULL)
 			return (ENOMEM);
-		memset(fp, 0, sizeof(*fp));
 		fp->fp_tcpopts = fpioc->fp_tcpopts;
 		fp->fp_wsize = fpioc->fp_wsize;
 		fp->fp_psize = fpioc->fp_psize;
@@ -470,20 +316,12 @@ pf_osfp_add(struct pf_osfp_ioctl *fpioc)
 		fp->fp_wscale = fpioc->fp_wscale;
 		fp->fp_ttl = fpioc->fp_ttl;
 		SLIST_INIT(&fp->fp_oses);
-		if ((entry = pool_get(&pf_osfp_entry_pl,
-#ifdef __FreeBSD__
-		    PR_NOWAIT)) == NULL) {
-#else
-		    PR_WAITOK|PR_LIMITFAIL)) == NULL) {
-#endif
-			pool_put(&pf_osfp_pl, fp);
+		if ((entry = malloc(sizeof(*entry), M_PFOSFP, M_NOWAIT))
+		    == NULL) {
+			free(fp, M_PFOSFP);
 			return (ENOMEM);
 		}
-#ifdef __FreeBSD__
 		pf_osfp_insert(&V_pf_osfp_list, fp);
-#else
-		pf_osfp_insert(&pf_osfp_list, fp);
-#endif
 	}
 	memcpy(entry, &fpioc->fp_os, sizeof(*entry));
 
@@ -503,7 +341,7 @@ pf_osfp_add(struct pf_osfp_ioctl *fpioc)
 
 
 /* Find a fingerprint in the list */
-struct pf_os_fingerprint *
+static struct pf_os_fingerprint *
 pf_osfp_find(struct pf_osfp_list *list, struct pf_os_fingerprint *find,
     u_int8_t ttldiff)
 {
@@ -578,7 +416,7 @@ pf_osfp_find(struct pf_osfp_list *list, struct pf_os_fingerprint *find,
 }
 
 /* Find an exact fingerprint in the list */
-struct pf_os_fingerprint *
+static struct pf_os_fingerprint *
 pf_osfp_find_exact(struct pf_osfp_list *list, struct pf_os_fingerprint *find)
 {
 	struct pf_os_fingerprint *f;
@@ -599,7 +437,7 @@ pf_osfp_find_exact(struct pf_osfp_list *list, struct pf_os_fingerprint *find)
 }
 
 /* Insert a fingerprint into the list */
-void
+static void
 pf_osfp_insert(struct pf_osfp_list *list, struct pf_os_fingerprint *ins)
 {
 	struct pf_os_fingerprint *f, *prev = NULL;
@@ -625,11 +463,7 @@ pf_osfp_get(struct pf_osfp_ioctl *fpioc)
 
 
 	memset(fpioc, 0, sizeof(*fpioc));
-#ifdef __FreeBSD__
 	SLIST_FOREACH(fp, &V_pf_osfp_list, fp_next) {
-#else
-	SLIST_FOREACH(fp, &pf_osfp_list, fp_next) {
-#endif
 		SLIST_FOREACH(entry, &fp->fp_oses, fp_entry) {
 			if (i++ == num) {
 				fpioc->fp_mss = fp->fp_mss;
@@ -650,17 +484,14 @@ pf_osfp_get(struct pf_osfp_ioctl *fpioc)
 }
 
 
+#ifdef PFDEBUG
 /* Validate that each signature is reachable */
-struct pf_os_fingerprint *
+static struct pf_os_fingerprint *
 pf_osfp_validate(void)
 {
 	struct pf_os_fingerprint *f, *f2, find;
 
-#ifdef __FreeBSD__
 	SLIST_FOREACH(f, &V_pf_osfp_list, fp_next) {
-#else
-	SLIST_FOREACH(f, &pf_osfp_list, fp_next) {
-#endif
 		memcpy(&find, f, sizeof(find));
 
 		/* We do a few MSS/th_win percolations to make things unique */
@@ -672,11 +503,7 @@ pf_osfp_validate(void)
 			find.fp_wsize *= (find.fp_mss + 40);
 		else if (f->fp_flags & PF_OSFP_WSIZE_MOD)
 			find.fp_wsize *= 2;
-#ifdef __FreeBSD__
 		if (f != (f2 = pf_osfp_find(&V_pf_osfp_list, &find, 0))) {
-#else
-		if (f != (f2 = pf_osfp_find(&pf_osfp_list, &find, 0))) {
-#endif
 			if (f2)
 				printf("Found \"%s %s %s\" instead of "
 				    "\"%s %s %s\"\n",
@@ -696,3 +523,4 @@ pf_osfp_validate(void)
 	}
 	return (NULL);
 }
+#endif /* PFDEBUG */

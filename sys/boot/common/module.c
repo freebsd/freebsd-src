@@ -396,7 +396,7 @@ file_loadraw(char *type, char *name)
     
     /* Looks OK so far; create & populate control structure */
     fp = file_alloc();
-    fp->f_name = name;
+    fp->f_name = strdup(name);
     fp->f_type = strdup(type);
     fp->f_args = NULL;
     fp->f_metadata = NULL;

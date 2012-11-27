@@ -254,6 +254,7 @@ WITHOUT_${var}=
     INFO \
     IPFILTER \
     IPX \
+    KDUMP \
     KERBEROS \
     LIB32 \
     LIBPTHREAD \
@@ -357,6 +358,7 @@ __DEFAULT_YES_OPTIONS = \
     IPFW \
     IPX \
     JAIL \
+    KDUMP \
     KERBEROS \
     KERNEL_SYMBOLS \
     KVM \

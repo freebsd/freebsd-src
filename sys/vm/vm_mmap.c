@@ -1050,8 +1050,7 @@ sys_mlock(td, uap)
 		return (ENOMEM);
 	proc = td->td_proc;
 	PROC_LOCK(proc);
-	nsize = ptoa(npages +
-	    pmap_wired_count(vm_map_pmap(&proc->p_vmspace->vm_map)));
+	nsize = ptoa(npages + vmspace_wired_count(proc->p_vmspace));
 	if (nsize > lim_cur(proc, RLIMIT_MEMLOCK)) {
 		PROC_UNLOCK(proc);
 		return (ENOMEM);
@@ -1072,7 +1071,7 @@ sys_mlock(td, uap)
 	if (error != KERN_SUCCESS) {
 		PROC_LOCK(proc);
 		racct_set(proc, RACCT_MEMLOCK,
-		    ptoa(pmap_wired_count(vm_map_pmap(&proc->p_vmspace->vm_map))));
+		    ptoa(vmspace_wired_count(proc->p_vmspace)));
 		PROC_UNLOCK(proc);
 	}
 #endif
@@ -1148,7 +1147,7 @@ sys_mlockall(td, uap)
 	if (error != KERN_SUCCESS) {
 		PROC_LOCK(td->td_proc);
 		racct_set(td->td_proc, RACCT_MEMLOCK,
-		    ptoa(pmap_wired_count(vm_map_pmap(&td->td_proc->p_vmspace->vm_map))));
+		    ptoa(vmspace_wired_count(td->td_proc->p_vmspace)));
 		PROC_UNLOCK(td->td_proc);
 	}
 #endif

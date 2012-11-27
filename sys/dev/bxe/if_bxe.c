@@ -3554,8 +3554,14 @@ bxe_shutdown(device_t dev)
 	sc = device_get_softc(dev);
 	DBENTER(BXE_INFO_LOAD | BXE_INFO_RESET | BXE_INFO_UNLOAD);
 
+	/* Stop the controller, but only if it was ever started.
+	 * Stopping an uninitialized controller can cause
+	 * IPMI bus errors on some systems.
+	 */
 	BXE_CORE_LOCK(sc);
-	bxe_stop_locked(sc, UNLOAD_NORMAL);
+	if (sc->state != BXE_STATE_CLOSED) {
+		bxe_stop_locked(sc, UNLOAD_NORMAL);
+	}
 	BXE_CORE_UNLOCK(sc);
 
 	DBEXIT(BXE_INFO_LOAD | BXE_INFO_RESET | BXE_INFO_UNLOAD);
