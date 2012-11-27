@@ -87,8 +87,8 @@ extern FILE                 *AcpiGbl_OutputFile;
 #define ACPI_MSG_WARNING        "ACPI Warning: "
 #define ACPI_MSG_INFO           "ACPI: "
 
-#define ACPI_MSG_BIOS_ERROR     "ACPI Firmware Error: "
-#define ACPI_MSG_BIOS_WARNING   "ACPI Firmware Warning: "
+#define ACPI_MSG_BIOS_ERROR     "ACPI BIOS Bug: Error: "
+#define ACPI_MSG_BIOS_WARNING   "ACPI BIOS Bug: Warning: "
 
 /*
  * Common message suffix

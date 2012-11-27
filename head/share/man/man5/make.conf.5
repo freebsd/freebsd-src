@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 2, 2012
+.Dd September 9, 2012
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -200,14 +200,6 @@ value, use
 .Dq Li +=
 instead of
 .Dq Li = .
-.It Va DOCSUPFILE
-.Pq Vt str
-The documentation
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-For example,
-.Pa /usr/share/examples/cvsup/doc-supfile .
 .It Va INSTALL
 .Pq Vt str
 the default install command.
@@ -320,9 +312,9 @@ The hostname of the sup server to use when doing
 Set this to use
 .Xr csup 1
 to update your
-.Pa src , ports , doc
+.Pa src ,
 and
-.Pa www
+.Pa ports
 trees with
 .Dq Li "make update" .
 .It Va SVN_UPDATE
@@ -339,14 +331,6 @@ you will need to set
 to the full path of a
 .Xr svn 1
 binary.
-.It Va WWWSUPFILE
-.Pq Vt str
-The www
-.Ar supfile
-to use when doing a
-.Dq Li "make update" .
-For example,
-.Pa /usr/share/examples/cvsup/www-supfile .
 .El
 .Ss "BUILDING THE KERNEL"
 The following list provides a name and short description for variables

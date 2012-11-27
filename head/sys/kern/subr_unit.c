@@ -63,7 +63,7 @@
  *      in the usermode test program included, the worst case usage
  *	was 798 bytes on i386 for 5000 allocated and 5000 free units.
  *    * The worst case is where every other unit number is allocated and
- *	the the rest are free.  In that case 44 + N/4 bytes are used where
+ *	the rest are free.  In that case 44 + N/4 bytes are used where
  *	N is the number of the highest unit allocated.
  */
 

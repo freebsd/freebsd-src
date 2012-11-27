@@ -628,7 +628,8 @@ namespace {
   public:
     explicit NodeUpdateListener(DAGTypeLegalizer &dtl,
                                 SmallSetVector<SDNode*, 16> &nta)
-      : DTL(dtl), NodesToAnalyze(nta) {}
+      : SelectionDAG::DAGUpdateListener(dtl.getDAG()),
+        DTL(dtl), NodesToAnalyze(nta) {}
 
     virtual void NodeDeleted(SDNode *N, SDNode *E) {
       assert(N->getNodeId() != DAGTypeLegalizer::ReadyToProcess &&
@@ -680,7 +681,7 @@ void DAGTypeLegalizer::ReplaceValueWith(SDValue From, SDValue To) {
   SmallSetVector<SDNode*, 16> NodesToAnalyze;
   NodeUpdateListener NUL(*this, NodesToAnalyze);
   do {
-    DAG.ReplaceAllUsesOfValueWith(From, To, &NUL);
+    DAG.ReplaceAllUsesOfValueWith(From, To);
 
     // The old node may still be present in a map like ExpandedIntegers or
     // PromotedIntegers.  Inform maps about the replacement.
@@ -709,7 +710,7 @@ void DAGTypeLegalizer::ReplaceValueWith(SDValue From, SDValue To) {
           SDValue NewVal(M, i);
           if (M->getNodeId() == Processed)
             RemapValue(NewVal);
-          DAG.ReplaceAllUsesOfValueWith(OldVal, NewVal, &NUL);
+          DAG.ReplaceAllUsesOfValueWith(OldVal, NewVal);
           // OldVal may be a target of the ReplacedValues map which was marked
           // NewNode to force reanalysis because it was updated.  Ensure that
           // anything that ReplacedValues mapped to OldVal will now be mapped
@@ -950,7 +951,7 @@ SDValue DAGTypeLegalizer::DisintegrateMERGE_VALUES(SDNode *N, unsigned ResNo) {
   for (unsigned i = 0, e = N->getNumValues(); i != e; ++i)
     if (i != ResNo)
       ReplaceValueWith(SDValue(N, i), SDValue(N->getOperand(i)));
-  return SDValue(N, ResNo);
+  return SDValue(N->getOperand(ResNo));
 }
 
 /// GetSplitDestVTs - Compute the VTs needed for the low/hi parts of a type
@@ -1054,12 +1055,14 @@ SDValue DAGTypeLegalizer::MakeLibCall(RTLIB::Libcall LC, EVT RetVT,
                                          TLI.getPointerTy());
 
   Type *RetTy = RetVT.getTypeForEVT(*DAG.getContext());
-  std::pair<SDValue,SDValue> CallInfo =
-    TLI.LowerCallTo(DAG.getEntryNode(), RetTy, isSigned, !isSigned, false,
+  TargetLowering::
+  CallLoweringInfo CLI(DAG.getEntryNode(), RetTy, isSigned, !isSigned, false,
                     false, 0, TLI.getLibcallCallingConv(LC),
                     /*isTailCall=*/false,
                     /*doesNotReturn=*/false, /*isReturnValueUsed=*/true,
                     Callee, Args, DAG, dl);
+  std::pair<SDValue,SDValue> CallInfo = TLI.LowerCallTo(CLI);
+
   return CallInfo.first;
 }
 
@@ -1086,11 +1089,12 @@ DAGTypeLegalizer::ExpandChainLibCall(RTLIB::Libcall LC,
                                          TLI.getPointerTy());
 
   Type *RetTy = Node->getValueType(0).getTypeForEVT(*DAG.getContext());
-  std::pair<SDValue, SDValue> CallInfo =
-    TLI.LowerCallTo(InChain, RetTy, isSigned, !isSigned, false, false,
+  TargetLowering::
+  CallLoweringInfo CLI(InChain, RetTy, isSigned, !isSigned, false, false,
                     0, TLI.getLibcallCallingConv(LC), /*isTailCall=*/false,
                     /*doesNotReturn=*/false, /*isReturnValueUsed=*/true,
                     Callee, Args, DAG, Node->getDebugLoc());
+  std::pair<SDValue, SDValue> CallInfo = TLI.LowerCallTo(CLI);
 
   return CallInfo;
 }

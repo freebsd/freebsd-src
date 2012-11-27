@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2010 Nexenta Systems, Inc. All rights reserved.
+ * Copyright 2012 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2011 by Delphix. All rights reserved.
  * Copyright (c) 2012 DEY Storage Systems, Inc.  All rights reserved.
  * Copyright (c) 2011-2012 Pawel Jakub Dawidek <pawel@dawidek.net>.
@@ -609,6 +609,22 @@ zfs_open(libzfs_handle_t *hdl, const char *path, int types)
 	if ((zhp = make_dataset_handle(hdl, path)) == NULL) {
 		(void) zfs_standard_error(hdl, errno, errbuf);
 		return (NULL);
+	}
+
+	if (zhp == NULL) {
+		char *at = strchr(path, '@');
+
+		if (at != NULL)
+			*at = '\0';
+		errno = 0;
+		if ((zhp = make_dataset_handle(hdl, path)) == NULL) {
+			(void) zfs_standard_error(hdl, errno, errbuf);
+			return (NULL);
+		}
+		if (at != NULL)
+			*at = '@';
+		(void) strlcpy(zhp->zfs_name, path, sizeof (zhp->zfs_name));
+		zhp->zfs_type = ZFS_TYPE_SNAPSHOT;
 	}
 
 	if (!(types & zhp->zfs_type)) {
@@ -3138,7 +3154,8 @@ zfs_create(libzfs_handle_t *hdl, const char *path, zfs_type_t type,
 
 /*
  * Destroys the given dataset.  The caller must make sure that the filesystem
- * isn't mounted, and that there are no active dependents.
+ * isn't mounted, and that there are no active dependents. If the file system
+ * does not exist this function does nothing.
  */
 int
 zfs_destroy(zfs_handle_t *zhp, boolean_t defer)
@@ -3154,7 +3171,8 @@ zfs_destroy(zfs_handle_t *zhp, boolean_t defer)
 	}
 
 	zc.zc_defer_destroy = defer;
-	if (zfs_ioctl(zhp->zfs_hdl, ZFS_IOC_DESTROY, &zc) != 0) {
+	if (zfs_ioctl(zhp->zfs_hdl, ZFS_IOC_DESTROY, &zc) != 0 &&
+	    errno != ENOENT) {
 		return (zfs_standard_error_fmt(zhp->zfs_hdl, errno,
 		    dgettext(TEXT_DOMAIN, "cannot destroy '%s'"),
 		    zhp->zfs_name));
@@ -3544,7 +3562,7 @@ zfs_rollback(zfs_handle_t *zhp, zfs_handle_t *snap, boolean_t force)
 	    zhp->zfs_type == ZFS_TYPE_VOLUME);
 
 	/*
-	 * Destroy all recent snapshots and its dependends.
+	 * Destroy all recent snapshots and their dependents.
 	 */
 	cb.cb_force = force;
 	cb.cb_target = snap->zfs_name;
@@ -3612,7 +3630,8 @@ zfs_rollback(zfs_handle_t *zhp, zfs_handle_t *snap, boolean_t force)
  * Renames the given dataset.
  */
 int
-zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
+zfs_rename(zfs_handle_t *zhp, const char *source, const char *target,
+    renameflags_t flags)
 {
 	int ret;
 	zfs_cmd_t zc = { 0 };
@@ -3631,6 +3650,18 @@ zfs_rename(zfs_handle_t *zhp, const char *target, renameflags_t flags)
 
 	(void) snprintf(errbuf, sizeof (errbuf), dgettext(TEXT_DOMAIN,
 	    "cannot rename to '%s'"), target);
+
+	if (source != NULL) {
+		/*
+		 * This is recursive snapshots rename, put snapshot name
+		 * (that might not exist) into zfs_name.
+		 */
+		assert(flags.recurse);
+
+		(void) strlcat(zhp->zfs_name, "@", sizeof(zhp->zfs_name));
+		(void) strlcat(zhp->zfs_name, source, sizeof(zhp->zfs_name));
+		zhp->zfs_type = ZFS_TYPE_SNAPSHOT;
+	}
 
 	/*
 	 * Make sure the target name is valid
@@ -4075,35 +4106,40 @@ zfs_userspace(zfs_handle_t *zhp, zfs_userquota_prop_t type,
     zfs_userspace_cb_t func, void *arg)
 {
 	zfs_cmd_t zc = { 0 };
-	int error;
 	zfs_useracct_t buf[100];
+	libzfs_handle_t *hdl = zhp->zfs_hdl;
+	int ret;
 
 	(void) strlcpy(zc.zc_name, zhp->zfs_name, sizeof (zc.zc_name));
 
 	zc.zc_objset_type = type;
 	zc.zc_nvlist_dst = (uintptr_t)buf;
 
-	/* CONSTCOND */
-	while (1) {
+	for (;;) {
 		zfs_useracct_t *zua = buf;
 
 		zc.zc_nvlist_dst_size = sizeof (buf);
-		error = ioctl(zhp->zfs_hdl->libzfs_fd,
-		    ZFS_IOC_USERSPACE_MANY, &zc);
-		if (error || zc.zc_nvlist_dst_size == 0)
+		if (zfs_ioctl(hdl, ZFS_IOC_USERSPACE_MANY, &zc) != 0) {
+			char errbuf[ZFS_MAXNAMELEN + 32];
+
+			(void) snprintf(errbuf, sizeof (errbuf),
+			    dgettext(TEXT_DOMAIN,
+			    "cannot get used/quota for %s"), zc.zc_name);
+			return (zfs_standard_error_fmt(hdl, errno, errbuf));
+		}
+		if (zc.zc_nvlist_dst_size == 0)
 			break;
 
 		while (zc.zc_nvlist_dst_size > 0) {
-			error = func(arg, zua->zu_domain, zua->zu_rid,
-			    zua->zu_space);
-			if (error != 0)
-				return (error);
+			if ((ret = func(arg, zua->zu_domain, zua->zu_rid,
+			    zua->zu_space)) != 0)
+				return (ret);
 			zua++;
 			zc.zc_nvlist_dst_size -= sizeof (zfs_useracct_t);
 		}
 	}
 
-	return (error);
+	return (0);
 }
 
 int

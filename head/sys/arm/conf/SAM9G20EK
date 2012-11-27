@@ -50,7 +50,7 @@ options 	NFSCL			#New Network Filesystem Client
 
 options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s1a\"
 
-options		ALT_BREAK_TO_DEBUGGER
+options 	ALT_BREAK_TO_DEBUGGER
 
 #options 	MSDOSFS			#MSDOS Filesystem
 #options 	CD9660			#ISO 9660 Filesystem
@@ -85,7 +85,6 @@ device		uart			# Serial Ports
 
 # Ethernet
 device		ate		        # Ethernet Driver	
-#device		macb			# Alternate Ethernet driver
 device		mii
 option 		AT91_ATE_USE_RMII
 
@@ -106,7 +105,7 @@ device		at91_mci
 device		mmc
 device		mmcsd
 option		AT91_MCI_SLOT_B
-option		AT91_MCI_HAS_4WIRE
+#option		AT91_MCI_HAS_4WIRE
 
 # iic
 device		iic

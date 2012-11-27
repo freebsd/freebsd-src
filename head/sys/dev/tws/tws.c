@@ -197,7 +197,7 @@ tws_attach(device_t dev)
     mtx_init( &sc->q_lock, "tws_q_lock", NULL, MTX_DEF);
     mtx_init( &sc->sim_lock,  "tws_sim_lock", NULL, MTX_DEF);
     mtx_init( &sc->gen_lock,  "tws_gen_lock", NULL, MTX_DEF);
-    mtx_init( &sc->io_lock,  "tws_io_lock", NULL, MTX_DEF);
+    mtx_init( &sc->io_lock,  "tws_io_lock", NULL, MTX_DEF | MTX_RECURSE);
 
     if ( tws_init_trace_q(sc) == FAILURE )
         printf("trace init failure\n");

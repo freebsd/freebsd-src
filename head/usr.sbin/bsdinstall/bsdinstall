@@ -34,11 +34,10 @@
 
 VERB=$1; shift
 
-if [ -z $VERB ]; then
+if [ -z "$VERB" ]; then
 	VERB=auto
 fi
 
 test -d "$BSDINSTALL_TMPETC" || mkdir "$BSDINSTALL_TMPETC"
-echo Running installation step: $VERB $@ >> "$BSDINSTALL_LOG"
-exec /usr/libexec/bsdinstall/$VERB $@ 2>>"$BSDINSTALL_LOG"
-
+echo "Running installation step: $VERB $@" >> "$BSDINSTALL_LOG"
+exec "/usr/libexec/bsdinstall/$VERB" "$@" 2>>"$BSDINSTALL_LOG"

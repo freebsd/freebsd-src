@@ -24,6 +24,40 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20121006:
+	The pfil(9) API/ABI for AF_INET family has been changed. Packet
+	filtering modules: pf(4), ipfw(4), ipfilter(4) need to be recompiled
+	with new kernel.
+
+20121001:
+	The net80211(4) ABI has been changed to allow for improved driver
+	PS-POLL and power-save support.  All wireless drivers need to be
+	recompiled to work with the new kernel.
+
+20120913:
+	The random(4) support for the VIA hardware random number
+	generator (`PADLOCK') is no longer enabled unconditionally.
+	Add the PADLOCK_RNG option in the custom kernel config if
+	needed.  The GENERIC kernels on i386 and amd64 do include the
+	option, so the change only affects the custom kernel
+	configurations.
+
+20120908:
+	The pf(4) packet filter ABI has been changed. pfctl(8) and
+	snmp_pf module need to be recompiled to work with new kernel.
+
+20120828:
+	A new ZFS feature flag "com.delphix:empty_bpobj" has been merged
+	to -HEAD. Pools that have empty_bpobj in active state can not be
+	imported read-write with ZFS implementations that do not support
+	this feature. For more information read the zpool-features(5)
+	manual page.
+
+20120727:
+	The sparc64 ZFS loader has been changed to no longer try to auto-
+	detect ZFS providers based on diskN aliases but now requires these
+	to be explicitly listed in the OFW boot-device environment variable. 
+
 20120712:
 	The OpenSSL has been upgraded to 1.0.1c.  Any binaries requiring
 	libcrypto.so.6 or libssl.so.6 must be recompiled.  Also, there are

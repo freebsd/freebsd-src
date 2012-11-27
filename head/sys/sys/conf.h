@@ -59,10 +59,7 @@ struct cdev {
 #define	SI_NAMED	0x0004	/* make_dev{_alias} has been called */
 #define	SI_CHEAPCLONE	0x0008	/* can be removed_dev'ed when vnode reclaims */
 #define	SI_CHILD	0x0010	/* child of another struct cdev **/
-#define	SI_DEVOPEN	0x0020	/* opened by device */
-#define	SI_CONSOPEN	0x0040	/* opened by console */
 #define	SI_DUMPDEV	0x0080	/* is kernel dumpdev */
-#define	SI_CANDELETE	0x0100	/* can do BIO_DELETE */
 #define	SI_CLONELIST	0x0200	/* on a clone list */
 	struct timespec	si_atime;
 	struct timespec	si_ctime;

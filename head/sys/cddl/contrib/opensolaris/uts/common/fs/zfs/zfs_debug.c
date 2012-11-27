@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -48,12 +49,12 @@ zfs_dbgmsg_fini(void)
 		zfs_dbgmsg_size -= size;
 	}
 	mutex_destroy(&zfs_dbgmsgs_lock);
-	ASSERT3U(zfs_dbgmsg_size, ==, 0);
+	ASSERT0(zfs_dbgmsg_size);
 }
 
 /*
  * Print these messages by running:
- * 	echo ::zfs_dbgmsg | mdb -k
+ * echo ::zfs_dbgmsg | mdb -k
  *
  * Monitor these messages by running:
  * 	dtrace -q -n 'zfs-dbgmsg{printf("%s\n", stringof(arg0))}'

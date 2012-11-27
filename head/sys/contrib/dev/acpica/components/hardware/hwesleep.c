@@ -99,7 +99,6 @@ AcpiHwExecuteSleepMethod (
  * FUNCTION:    AcpiHwExtendedSleep
  *
  * PARAMETERS:  SleepState          - Which sleep state to enter
- *              Flags               - ACPI_EXECUTE_GTS to run optional method
  *
  * RETURN:      Status
  *
@@ -111,8 +110,7 @@ AcpiHwExecuteSleepMethod (
 
 ACPI_STATUS
 AcpiHwExtendedSleep (
-    UINT8                   SleepState,
-    UINT8                   Flags)
+    UINT8                   SleepState)
 {
     ACPI_STATUS             Status;
     UINT8                   SleepTypeValue;
@@ -139,13 +137,6 @@ AcpiHwExtendedSleep (
     }
 
     AcpiGbl_SystemAwakeAndRunning = FALSE;
-
-    /* Optionally execute _GTS (Going To Sleep) */
-
-    if (Flags & ACPI_EXECUTE_GTS)
-    {
-        AcpiHwExecuteSleepMethod (METHOD_PATHNAME__GTS, SleepState);
-    }
 
     /* Flush caches, as per ACPI specification */
 
@@ -191,7 +182,6 @@ AcpiHwExtendedSleep (
  * FUNCTION:    AcpiHwExtendedWakePrep
  *
  * PARAMETERS:  SleepState          - Which sleep state we just exited
- *              Flags               - ACPI_EXECUTE_BFS to run optional method
  *
  * RETURN:      Status
  *
@@ -202,8 +192,7 @@ AcpiHwExtendedSleep (
 
 ACPI_STATUS
 AcpiHwExtendedWakePrep (
-    UINT8                   SleepState,
-    UINT8                   Flags)
+    UINT8                   SleepState)
 {
     ACPI_STATUS             Status;
     UINT8                   SleepTypeValue;
@@ -223,12 +212,6 @@ AcpiHwExtendedWakePrep (
             &AcpiGbl_FADT.SleepControl);
     }
 
-    /* Optionally execute _BFS (Back From Sleep) */
-
-    if (Flags & ACPI_EXECUTE_BFS)
-    {
-        AcpiHwExecuteSleepMethod (METHOD_PATHNAME__BFS, SleepState);
-    }
     return_ACPI_STATUS (AE_OK);
 }
 
@@ -238,7 +221,6 @@ AcpiHwExtendedWakePrep (
  * FUNCTION:    AcpiHwExtendedWake
  *
  * PARAMETERS:  SleepState          - Which sleep state we just exited
- *              Flags               - Reserved, set to zero
  *
  * RETURN:      Status
  *
@@ -249,8 +231,7 @@ AcpiHwExtendedWakePrep (
 
 ACPI_STATUS
 AcpiHwExtendedWake (
-    UINT8                   SleepState,
-    UINT8                   Flags)
+    UINT8                   SleepState)
 {
     ACPI_FUNCTION_TRACE (HwExtendedWake);
 

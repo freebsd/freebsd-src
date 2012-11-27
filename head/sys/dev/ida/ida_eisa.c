@@ -282,6 +282,8 @@ ida_eisa_attach(device_t dev)
 	board = ida_eisa_match(eisa_get_id(dev));
 	ida->cmd = *board->accessor;
 	ida->flags = board->flags;
+	mtx_init(&ida->lock, "ida", NULL, MTX_DEF);
+	callout_init_mtx(&ida->ch, &ida->lock, 0);
 
 	ida->regs_res_type = SYS_RES_IOPORT;
 	ida->regs_res_id = 0;
@@ -293,7 +295,7 @@ ida_eisa_attach(device_t dev)
 	}
 
 	error = bus_dma_tag_create(
-		/* parent	*/	NULL,
+		/* parent	*/	bus_get_dma_tag(dev),
 		/* alignment	*/	0,
 		/* boundary	*/	0,
 		/* lowaddr	*/	BUS_SPACE_MAXADDR_32BIT,
@@ -323,7 +325,7 @@ ida_eisa_attach(device_t dev)
 		return (ENOMEM);
 	}
 
-	error = bus_setup_intr(dev, ida->irq, INTR_TYPE_BIO | INTR_ENTROPY,
+	error = bus_setup_intr(dev, ida->irq, INTR_TYPE_BIO | INTR_ENTROPY | INTR_MPSAFE,
 	    NULL, ida_intr, ida, &ida->ih);
 	if (error) {
 		device_printf(dev, "can't setup interrupt\n");
@@ -336,9 +338,6 @@ ida_eisa_attach(device_t dev)
 		ida_free(ida);
 		return (error);
 	}
-
-	ida_attach(ida);
-	ida->flags |= IDA_ATTACHED;
 
 	return (0);
 }

@@ -12,6 +12,7 @@
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/edit_distance.h"
+
 #include <bitset>
 
 using namespace llvm;
@@ -230,6 +231,31 @@ StringRef::size_type StringRef::find_last_of(StringRef Chars,
   return npos;
 }
 
+/// find_last_not_of - Find the last character in the string that is not
+/// \arg C, or npos if not found.
+StringRef::size_type StringRef::find_last_not_of(char C, size_t From) const {
+  for (size_type i = min(From, Length) - 1, e = -1; i != e; --i)
+    if (Data[i] != C)
+      return i;
+  return npos;
+}
+
+/// find_last_not_of - Find the last character in the string that is not in
+/// \arg Chars, or npos if not found.
+///
+/// Note: O(size() + Chars.size())
+StringRef::size_type StringRef::find_last_not_of(StringRef Chars,
+                                                 size_t From) const {
+  std::bitset<1 << CHAR_BIT> CharBits;
+  for (size_type i = 0, e = Chars.size(); i != e; ++i)
+    CharBits.set((unsigned char)Chars[i]);
+
+  for (size_type i = min(From, Length) - 1, e = -1; i != e; --i)
+    if (!CharBits.test((unsigned char)Data[i]))
+      return i;
+  return npos;
+}
+
 void StringRef::split(SmallVectorImpl<StringRef> &A,
                       StringRef Separators, int MaxSplit,
                       bool KeepEmpty) const {
@@ -272,14 +298,22 @@ static unsigned GetAutoSenseRadix(StringRef &Str) {
   if (Str.startswith("0x")) {
     Str = Str.substr(2);
     return 16;
-  } else if (Str.startswith("0b")) {
+  }
+  
+  if (Str.startswith("0b")) {
     Str = Str.substr(2);
     return 2;
-  } else if (Str.startswith("0")) {
-    return 8;
-  } else {
-    return 10;
   }
+
+  if (Str.startswith("0o")) {
+    Str = Str.substr(2);
+    return 8;
+  }
+
+  if (Str.startswith("0"))
+    return 8;
+  
+  return 10;
 }
 
 
@@ -383,7 +417,7 @@ bool StringRef::getAsInteger(unsigned Radix, APInt &Result) const {
   unsigned BitWidth = Log2Radix * Str.size();
   if (BitWidth < Result.getBitWidth())
     BitWidth = Result.getBitWidth(); // don't shrink the result
-  else
+  else if (BitWidth > Result.getBitWidth())
     Result = Result.zext(BitWidth);
 
   APInt RadixAP, CharAP; // unused unless !IsPowerOf2Radix

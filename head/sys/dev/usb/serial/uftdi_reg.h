@@ -39,6 +39,7 @@
 #define	UFTDI_TYPE_MASK		0x000000ff
 #define	UFTDI_TYPE_SIO		0x00000001
 #define	UFTDI_TYPE_8U232AM	0x00000002
+#define	UFTDI_TYPE_AUTO		(UFTDI_TYPE_SIO | UFTDI_TYPE_8U232AM)
 #define	UFTDI_FLAG_MASK		0x0000ff00
 #define	UFTDI_FLAG_JTAG		0x00000100
 
@@ -175,7 +176,7 @@ enum {
  *   BmRequestType:  0100 0000b
  *   bRequest:       FTDI_SIO_SET_FLOW_CTRL
  *   wValue:         Xoff/Xon
- *   wIndex:         Protocol/Port - hIndex is protocl / lIndex is port
+ *   wIndex:         Protocol/Port - hIndex is protocol / lIndex is port
  *   wLength:        0
  *   Data:           None
  *

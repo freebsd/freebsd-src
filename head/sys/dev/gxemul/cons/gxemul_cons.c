@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kdb.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/reboot.h>
 #include <sys/tty.h>
 
 #include <ddb/ddb.h>
@@ -218,8 +219,8 @@ static void
 gxemul_cons_cnprobe(struct consdev *cp)
 {
 
-	sprintf(cp->cn_name, "gxcons");
-	cp->cn_pri = CN_NORMAL;
+	sprintf(cp->cn_name, "ttyu0");
+	cp->cn_pri = (boothowto & RB_SERIAL) ? CN_REMOTE : CN_NORMAL;
 }
 
 static void
@@ -279,7 +280,7 @@ gxemul_cons_ttyinit(void *unused)
 
 	tp = tty_alloc(&gxemul_cons_ttydevsw, NULL);
 	tty_init_console(tp, 0);
-	tty_makedev(tp, NULL, "%s", "gxcons");
+	tty_makedev(tp, NULL, "%s", "ttyu0");
 	callout_init(&gxemul_cons_callout, CALLOUT_MPSAFE);
 	callout_reset(&gxemul_cons_callout, gxemul_cons_polltime,
 	    gxemul_cons_timeout, tp);

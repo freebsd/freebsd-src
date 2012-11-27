@@ -82,6 +82,14 @@ __FBSDID("$FreeBSD$");
 #define BOOTP_SETTLE_DELAY 3
 #endif
 
+/* 
+ * Wait 10 seconds for interface appearance
+ * USB ethernet adapters might require some time to pop up
+ */
+#ifndef	BOOTP_IFACE_WAIT_TIMEOUT
+#define	BOOTP_IFACE_WAIT_TIMEOUT	10
+#endif
+
 /*
  * What is the longest we will wait before re-sending a request?
  * Note this is also the frequency of "RPC timeout" messages.
@@ -1515,6 +1523,11 @@ bootpc_init(void)
 #endif
 	struct nfsv3_diskless *nd;
 	struct thread *td;
+	int timeout;
+	int delay;
+
+	timeout = BOOTP_IFACE_WAIT_TIMEOUT * hz;
+	delay = hz / 10;
 
 	nd = &nfsv3_diskless;
 	td = curthread;
@@ -1567,6 +1580,7 @@ bootpc_init(void)
 		allocifctx(gctx);
 #endif
 
+retry:
 	ifctx = STAILQ_FIRST(&gctx->interfaces);
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
@@ -1613,6 +1627,11 @@ bootpc_init(void)
 
 	if (STAILQ_EMPTY(&gctx->interfaces) ||
 	    STAILQ_FIRST(&gctx->interfaces)->ifp == NULL) {
+		if (timeout > 0) {
+			pause("bootpc", delay);
+			timeout -= delay;
+			goto retry;
+		}
 #ifdef BOOTP_WIRED_TO
 		panic("%s: Could not find interface specified "
 		      "by BOOTP_WIRED_TO: "

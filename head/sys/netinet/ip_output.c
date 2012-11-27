@@ -124,8 +124,9 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 	int n;	/* scratchpad */
 	int error = 0;
 	struct sockaddr_in *dst;
-	struct in_ifaddr *ia = NULL;
-	int isbroadcast, sw_csum;
+	struct in_ifaddr *ia;
+	int isbroadcast;
+	uint16_t ip_len, ip_off, sw_csum;
 	struct route iproute;
 	struct rtentry *rte;	/* cache for ro->ro_rt */
 	struct in_addr odst;
@@ -198,6 +199,7 @@ ip_output(struct mbuf *m, struct mbuf *opt, struct route *ro, int flags,
 
 	dst = (struct sockaddr_in *)&ro->ro_dst;
 again:
+	ia = NULL;
 	/*
 	 * If there is a cached route,
 	 * check that it is to the same destination
@@ -500,6 +502,12 @@ sendit:
 	hlen = ip->ip_hl << 2;
 #endif /* IPSEC */
 
+	/*
+	 * To network byte order. pfil(9) hooks and ip_fragment() expect this.
+	 */
+	ip->ip_len = htons(ip->ip_len);
+	ip->ip_off = htons(ip->ip_off);
+
 	/* Jump over all PFIL processing if hooks are not active. */
 	if (!PFIL_HOOKED(&V_inet_pfil_hook))
 		goto passout;
@@ -533,8 +541,13 @@ sendit:
 #endif
 			error = netisr_queue(NETISR_IP, m);
 			goto done;
-		} else
+		} else {
+			if (ia != NULL)
+				ifa_free(&ia->ia_ifa);
+			ip->ip_len = ntohs(ip->ip_len);
+			ip->ip_off = ntohs(ip->ip_off);
 			goto again;	/* Redo the routing table lookup. */
+		}
 	}
 
 #ifdef IPFIREWALL_FORWARD
@@ -564,11 +577,18 @@ sendit:
 		bcopy((fwd_tag+1), dst, sizeof(struct sockaddr_in));
 		m->m_flags |= M_SKIP_FIREWALL;
 		m_tag_delete(m, fwd_tag);
+		if (ia != NULL)
+			ifa_free(&ia->ia_ifa);
+		ip->ip_len = ntohs(ip->ip_len);
+		ip->ip_off = ntohs(ip->ip_off);
 		goto again;
 	}
 #endif /* IPFIREWALL_FORWARD */
 
 passout:
+	ip_len = ntohs(ip->ip_len);
+	ip_off = ntohs(ip->ip_off);
+
 	/* 127/8 must not appear on wire - RFC1122. */
 	if ((ntohl(ip->ip_dst.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET ||
 	    (ntohl(ip->ip_src.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET) {
@@ -597,11 +617,9 @@ passout:
 	 * If small enough for interface, or the interface will take
 	 * care of the fragmentation for us, we can just send directly.
 	 */
-	if (ip->ip_len <= mtu ||
+	if (ip_len <= mtu ||
 	    (m->m_pkthdr.csum_flags & ifp->if_hwassist & CSUM_TSO) != 0 ||
-	    ((ip->ip_off & IP_DF) == 0 && (ifp->if_hwassist & CSUM_FRAGMENT))) {
-		ip->ip_len = htons(ip->ip_len);
-		ip->ip_off = htons(ip->ip_off);
+	    ((ip_off & IP_DF) == 0 && (ifp->if_hwassist & CSUM_FRAGMENT))) {
 		ip->ip_sum = 0;
 		if (sw_csum & CSUM_DELAY_IP)
 			ip->ip_sum = in_cksum(m, hlen);
@@ -635,7 +653,7 @@ passout:
 	}
 
 	/* Balk when DF bit is set or the interface didn't support TSO. */
-	if ((ip->ip_off & IP_DF) || (m->m_pkthdr.csum_flags & CSUM_TSO)) {
+	if ((ip_off & IP_DF) || (m->m_pkthdr.csum_flags & CSUM_TSO)) {
 		error = EMSGSIZE;
 		IPSTAT_INC(ips_cantfrag);
 		goto bad;
@@ -704,8 +722,12 @@ ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 	int firstlen;
 	struct mbuf **mnext;
 	int nfrags;
+	uint16_t ip_len, ip_off;
 
-	if (ip->ip_off & IP_DF) {	/* Fragmentation not allowed */
+	ip_len = ntohs(ip->ip_len);
+	ip_off = ntohs(ip->ip_off);
+
+	if (ip_off & IP_DF) {	/* Fragmentation not allowed */
 		IPSTAT_INC(ips_cantfrag);
 		return EMSGSIZE;
 	}
@@ -779,7 +801,7 @@ smart_frag_failure:
 	 * The fragments are linked off the m_nextpkt of the original
 	 * packet, which after processing serves as the first fragment.
 	 */
-	for (nfrags = 1; off < ip->ip_len; off += len, nfrags++) {
+	for (nfrags = 1; off < ip_len; off += len, nfrags++) {
 		struct ip *mhip;	/* ip header on the fragment */
 		struct mbuf *m;
 		int mhlen = sizeof (struct ip);
@@ -805,10 +827,10 @@ smart_frag_failure:
 			mhip->ip_hl = mhlen >> 2;
 		}
 		m->m_len = mhlen;
-		/* XXX do we need to add ip->ip_off below ? */
-		mhip->ip_off = ((off - hlen) >> 3) + ip->ip_off;
-		if (off + len >= ip->ip_len) {	/* last fragment */
-			len = ip->ip_len - off;
+		/* XXX do we need to add ip_off below ? */
+		mhip->ip_off = ((off - hlen) >> 3) + ip_off;
+		if (off + len >= ip_len) {	/* last fragment */
+			len = ip_len - off;
 			m->m_flags |= M_LASTFRAG;
 		} else
 			mhip->ip_off |= IP_MF;
@@ -843,11 +865,10 @@ smart_frag_failure:
 	 * Update first fragment by trimming what's been copied out
 	 * and updating header.
 	 */
-	m_adj(m0, hlen + firstlen - ip->ip_len);
+	m_adj(m0, hlen + firstlen - ip_len);
 	m0->m_pkthdr.len = hlen + firstlen;
 	ip->ip_len = htons((u_short)m0->m_pkthdr.len);
-	ip->ip_off |= IP_MF;
-	ip->ip_off = htons(ip->ip_off);
+	ip->ip_off = htons(ip_off | IP_MF);
 	ip->ip_sum = 0;
 	if (sw_csum & CSUM_DELAY_IP)
 		ip->ip_sum = in_cksum(m0, hlen);
@@ -1273,6 +1294,8 @@ ip_ctloutput(struct socket *so, struct sockopt *sopt)
  * calls the output routine of the loopback "driver", but with an interface
  * pointer that might NOT be a loopback interface -- evil, but easier than
  * replicating that code here.
+ *
+ * IP header in host byte order.
  */
 static void
 ip_mloopback(struct ifnet *ifp, struct mbuf *m, struct sockaddr_in *dst,

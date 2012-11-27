@@ -252,7 +252,7 @@ nfsvno_accchk(struct vnode *vp, accmode_t accmode, struct ucred *cred,
 		 * the inode, try to free it up once.  If
 		 * we fail, we can't allow writing.
 		 */
-		if ((vp->v_vflag & VV_TEXT) != 0 && error == 0)
+		if (VOP_IS_TEXT(vp) && error == 0)
 			error = ETXTBSY;
 	}
 	if (error != 0) {
@@ -2437,7 +2437,8 @@ nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 				goto nfsmout;
 			}
 			if (!nd->nd_repstat) {
-				nd->nd_repstat = nfsv4_strtouid(cp,j,&uid,p);
+				nd->nd_repstat = nfsv4_strtouid(nd, cp, j, &uid,
+				    p);
 				if (!nd->nd_repstat)
 					nvap->na_uid = uid;
 			}
@@ -2463,7 +2464,8 @@ nfsv4_sattr(struct nfsrv_descript *nd, struct nfsvattr *nvap,
 				goto nfsmout;
 			}
 			if (!nd->nd_repstat) {
-				nd->nd_repstat = nfsv4_strtogid(cp,j,&gid,p);
+				nd->nd_repstat = nfsv4_strtogid(nd, cp, j, &gid,
+				    p);
 				if (!nd->nd_repstat)
 					nvap->na_gid = gid;
 			}

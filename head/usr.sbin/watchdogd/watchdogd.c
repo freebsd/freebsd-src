@@ -118,6 +118,8 @@ main(int argc, char *argv[])
 		pidfile_write(pfh);
 		if (madvise(0, 0, MADV_PROTECT) != 0)
 			warn("madvise failed");
+		if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0)
+			warn("mlockall failed");
 
 		watchdog_loop();
 

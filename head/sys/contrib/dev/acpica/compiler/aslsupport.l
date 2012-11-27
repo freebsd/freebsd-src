@@ -343,14 +343,14 @@ AslInsertLineBuffer (
         *Gbl_LineBufPtr = (UINT8) SourceChar;
         Gbl_LineBufPtr++;
 
-        if (Gbl_LineBufPtr > (Gbl_CurrentLineBuffer + (ASL_LINE_BUFFER_SIZE - 1)))
+        if (Gbl_LineBufPtr > (Gbl_CurrentLineBuffer + (Gbl_LineBufferSize - 1)))
         {
 #if 0
             /*
              * Warning if we have split a long source line.
              * <Probably overkill>
              */
-            sprintf (MsgBuffer, "Max %u", ASL_LINE_BUFFER_SIZE);
+            sprintf (MsgBuffer, "Max %u", Gbl_LineBufferSize);
             AslCommonError (ASL_WARNING, ASL_MSG_LONG_LINE,
                             Gbl_CurrentLineNumber, Gbl_LogicalLineNumber,
                             Gbl_CurrentLineOffset, Gbl_CurrentColumn,

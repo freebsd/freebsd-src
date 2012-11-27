@@ -136,17 +136,30 @@ userret(struct thread *td, struct trapframe *frame)
 	 * Let the scheduler adjust our priority etc.
 	 */
 	sched_userret(td);
+#ifdef XEN
+	PT_UPDATES_FLUSH();
+#endif
+
+	/*
+	 * Check for misbehavior.
+	 */
+	WITNESS_WARN(WARN_PANIC, NULL, "userret: returning");
+	KASSERT(td->td_critnest == 0,
+	    ("userret: Returning in a critical section"));
 	KASSERT(td->td_locks == 0,
-	    ("userret: Returning with %d locks held.", td->td_locks));
+	    ("userret: Returning with %d locks held", td->td_locks));
+	KASSERT((td->td_pflags & TDP_NOFAULTING) == 0,
+	    ("userret: Returning with pagefaults disabled"));
+	KASSERT((td->td_pflags & TDP_NOSLEEPING) == 0,
+	    ("userret: Returning with sleep disabled"));
+	KASSERT(td->td_pinned == 0,
+	    ("userret: Returning with with pinned thread"));
 #ifdef VIMAGE
 	/* Unfortunately td_vnet_lpush needs VNET_DEBUG. */
 	VNET_ASSERT(curvnet == NULL,
 	    ("%s: Returning on td %p (pid %d, %s) with vnet %p set in %s",
 	    __func__, td, p->p_pid, td->td_name, curvnet,
 	    (td->td_vnet_lpush != NULL) ? td->td_vnet_lpush : "N/A"));
-#endif
-#ifdef XEN
-	PT_UPDATES_FLUSH();
 #endif
 }
 
@@ -260,7 +273,6 @@ ast(struct trapframe *framep)
 	}
 
 	userret(td, framep);
-	mtx_assert(&Giant, MA_NOTOWNED);
 }
 
 const char *

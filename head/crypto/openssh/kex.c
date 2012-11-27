@@ -91,7 +91,7 @@ kex_names_valid(const char *names)
 	return 1;
 }
 
-/* Put algorithm proposal into buffer. */
+/* put algorithm proposal into buffer. */
 #ifndef NONE_CIPHER_ENABLED
 static void
 #else

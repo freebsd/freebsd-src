@@ -58,11 +58,14 @@ public:
 private:
   /// StoredNameKind - The kind of name that is actually stored in the
   /// upper bits of the Ptr field. This is only used internally.
+  ///
+  /// Note: The entries here are synchronized with the entries in Selector,
+  /// for efficient translation between the two.
   enum StoredNameKind {
     StoredIdentifier = 0,
-    StoredObjCZeroArgSelector,
-    StoredObjCOneArgSelector,
-    StoredDeclarationNameExtra,
+    StoredObjCZeroArgSelector = 0x01,
+    StoredObjCOneArgSelector = 0x02,
+    StoredDeclarationNameExtra = 0x03,
     PtrMask = 0x03
   };
 
@@ -106,8 +109,8 @@ private:
   /// CXXSpecialName, returns a pointer to it. Otherwise, returns
   /// a NULL pointer.
   CXXSpecialName *getAsCXXSpecialName() const {
-    if (getNameKind() >= CXXConstructorName &&
-        getNameKind() <= CXXConversionFunctionName)
+    NameKind Kind = getNameKind();
+    if (Kind >= CXXConstructorName && Kind <= CXXConversionFunctionName)
       return reinterpret_cast<CXXSpecialName *>(Ptr & ~PtrMask);
     return 0;
   }
@@ -153,9 +156,9 @@ private:
   friend class DeclarationNameTable;
   friend class NamedDecl;
 
-  /// getFETokenInfoAsVoid - Retrieves the front end-specified pointer
-  /// for this name as a void pointer.
-  void *getFETokenInfoAsVoid() const;
+  /// getFETokenInfoAsVoidSlow - Retrieves the front end-specified pointer
+  /// for this name as a void pointer if it's not an identifier.
+  void *getFETokenInfoAsVoidSlow() const;
 
 public:
   /// DeclarationName - Used to create an empty selector.
@@ -168,7 +171,7 @@ public:
   }
 
   // Construct a declaration name from an Objective-C selector.
-  DeclarationName(Selector Sel);
+  DeclarationName(Selector Sel) : Ptr(Sel.InfoPtr) { }
 
   /// getUsingDirectiveName - Return name for all using-directives.
   static DeclarationName getUsingDirectiveName();
@@ -251,14 +254,24 @@ public:
 
   /// getObjCSelector - Get the Objective-C selector stored in this
   /// declaration name.
-  Selector getObjCSelector() const;
+  Selector getObjCSelector() const {
+    assert((getNameKind() == ObjCZeroArgSelector ||
+            getNameKind() == ObjCOneArgSelector ||
+            getNameKind() == ObjCMultiArgSelector ||
+            Ptr == 0) && "Not a selector!");
+    return Selector(Ptr);
+  }
 
   /// getFETokenInfo/setFETokenInfo - The language front-end is
   /// allowed to associate arbitrary metadata with some kinds of
   /// declaration names, including normal identifiers and C++
   /// constructors, destructors, and conversion functions.
   template<typename T>
-  T *getFETokenInfo() const { return static_cast<T*>(getFETokenInfoAsVoid()); }
+  T *getFETokenInfo() const {
+    if (const IdentifierInfo *Info = getAsIdentifierInfo())
+      return Info->getFETokenInfo<T>();
+    return static_cast<T*>(getFETokenInfoAsVoidSlow());
+  }
 
   void setFETokenInfo(void *T);
 
@@ -564,7 +577,9 @@ struct DenseMapInfo<clang::DeclarationName> {
     return clang::DeclarationName::getTombstoneMarker();
   }
 
-  static unsigned getHashValue(clang::DeclarationName);
+  static unsigned getHashValue(clang::DeclarationName Name) {
+    return DenseMapInfo<void*>::getHashValue(Name.getAsOpaquePtr());
+  }
 
   static inline bool
   isEqual(clang::DeclarationName LHS, clang::DeclarationName RHS) {

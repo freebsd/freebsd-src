@@ -3896,7 +3896,7 @@ nfsrv_access(struct vnode *vp, accmode_t accmode, struct ucred *cred,
 		 * If there's shared text associated with
 		 * the inode, we can't allow writing.
 		 */
-		if (vp->v_vflag & VV_TEXT)
+		if (VOP_IS_TEXT(vp))
 			return (ETXTBSY);
 	}
 

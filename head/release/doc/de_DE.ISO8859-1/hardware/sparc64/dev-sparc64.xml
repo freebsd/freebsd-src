@@ -1,0 +1,209 @@
+<!--
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/sparc64/dev-sparc64.xml,v 1.4 2003/01/13 20:30:50 ue Exp $
+  $Id: dev-sparc64.xml,v 1.4 2002/03/10 15:37:16 ue Exp $
+  basiert auf: 1.3
+-->
+
+<sect1 id="support-dev">
+  <sect1info>
+    <pubdate>$FreeBSD$</pubdate>
+  </sect1info>
+
+  <title>Unterst&uuml;tzte Ger&auml;te</title>
+
+  <para>Dieses Kapitel enth&auml;lt alle Ger&auml;te, die auf jeden
+    Fall von &os; auf &arch; Systemen unterst&uuml;tzt werden.  Andere
+    Konfigurationen k&ouml;nnen auch funktionieren, allerdings wurden
+    sie noch nicht getestet.  R&uuml;ckmeldungen, Erg&auml;nzungen und
+    Korrekturen werden dankend angenommen.</para>
+
+  <para>Wenn m&ouml;glich, wird der zum jeweiligen Ger&auml;t bzw. zur
+    jeweiligen Ger&auml;teklasse passende Treiber aufgef&uuml;hrt.
+    Wenn es unter &os; eine Online-Hilfe f&uuml;r den betreffenden
+    Treiber gibt (das ist der Normalfall), wird sie ebenfalls
+    aufgef&uuml;hrt.</para>
+
+  <sect2>
+    <title>PCI Hardware</title>
+
+    <para>Rein theoretisch sollte jedes Ger&auml;t, f&uuml;r das es
+      einen Treiber gibt, auch auf sparc64 funktionieren.  In der
+      Praxis funktionieren einige Treiber sofort, andere m&uuml;ssen
+      angepa&szlig;t werden (hier zeigt sich, da&szlig; dies die erste
+      <quote>big endian</quote> Architektur ist, die von FreeBSD
+      unterst&uuml;tzt wird).</para>
+
+    <para>Bei den folgenden Ger&auml;ten sind wir sicher, da&szlig; sie
+      unterst&uuml;tzt werden und funktionieren:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para><literal>apb</literal> (Sun PCI-PCI Bridge)</para>
+      </listitem>
+
+      <listitem>
+        <para>alle Arten von PCI-PCI Bridges</para>
+      </listitem>
+
+      <listitem>
+        <para>&man.ahc.4; (jetzt sehr bald).</para>
+      </listitem>
+
+      <listitem>
+        <para>&man.ata.4;, <devicename>atadisk</devicename>,
+          <devicename>atapicd</devicename> (allerdings weder atapift
+          noch atapist)</para>
+      </listitem>
+
+      <listitem>
+        <para><devicename>gem</devicename> (Sun GEM/ERI Ethernet, ist
+          in der Blade 100 eingebaut)</para>
+      </listitem>
+
+      <listitem>
+        <para><literal>hme</literal> (Sun HME Ethernet, ist in der
+          Ultra 5 und Ultra 10 eingebaut)</para>
+      </listitem>
+
+      <listitem>
+        <para>&man.sio.4;</para>
+      </listitem>
+
+      <listitem>
+        <para>&man.sym.4;</para>
+      </listitem>
+    </itemizedlist>
+  </sect2>
+
+  <sect2>
+    <title>SBus Hardware</title>
+
+    <para>Die folgenden Treiber wurden an SBus
+      angepa&szlig;t:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para><literal>hme</literal> Ethernet</para>
+      </listitem>
+
+      <listitem>
+        <para><literal>mk48txx</literal> ('eeprom' Ger&auml;t,
+          Systemuhr)</para>
+      </listitem>
+    </itemizedlist>
+  </sect2>
+
+  <sect2>
+    <title>ISA Hardware</title>
+
+    <para>Die Angaben &uuml;ber die Treiber f&uuml;r PCI Hardware
+      gelten auch f&uuml;r die Treiber f&uuml;r ISA-Karten, allerdings
+      gibt es eine wichtige Einschr&auml;nkung: ISA DMA wird noch nicht
+      unterst&uuml;tzt.  Hierbei handelt es sich in der Regel um
+      eingebaute Ger&auml;te, uns ist kein einzige UltraSPARC System
+      bekannt, das &uuml;ber einen ISA Steckplatz verf&uuml;gt.</para>
+
+    <para>Bei den folgenden Ger&auml;ten sind wir sicher, da&szlig;
+      sie unterst&uuml;tzt werden und funktionieren:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>&man.sio.4;</para>
+      </listitem>
+    </itemizedlist>
+  </sect2>
+
+  <sect2>
+    <title>EBus Hardware</title>
+
+    <para>Der EBus gibt es nur in Suns, daher m&uuml;ssen die Treiber
+      um Unterst&uuml;tzung f&uuml;r diese Art von Ger&auml;ten
+      erweitert werden.  Der EBus ist ISA sehr &auml;hnlich, daher
+      k&ouml;nnen ISA-Treiber in der Regel sehr einfach umgeschrieben
+      werden, wenn Sie das <quote>bus space interface</quote> und
+      nicht die <quote>in[bwl]/out[bwl]</quote> Funktionen nutzen.
+      DMA wird noch nicht unterst&uuml;tzt.</para>
+
+    <para>Bei den folgenden Ger&auml;ten sind wir sicher, da&szlig;
+      sie unterst&uuml;tzt werden und funktionieren:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>&man.sio.4;</para>
+      </listitem>
+
+      <listitem>
+        <para><literal>mk48txx</literal> ('eeprom' Ger&auml;t,
+          Systemuhr)</para>
+      </listitem>
+    </itemizedlist>
+  </sect2>
+
+  <sect2>
+    <title>Nicht unterst&uuml;tzte Ger&auml;te</title>
+
+    <para>Die folgenden Ger&auml;te, die alle Bestandteile von Sun
+      UltraSPARC System sind, werden zur Zeit noch nicht
+      unterst&uuml;tzt:</para>
+
+    <itemizedlist>
+      <listitem>
+        <para>Graphikkarten/Bildschirmspeicher, Tastatur (au&szlig;er
+          der indirekten Unterst&uuml;tzung im Textmodus durch den
+          <devicename>ofw_console</devicename> Treiber)</para>
+      </listitem>
+
+      <listitem>
+        <para>Serielle Schnittstellen mit Siemens sab82532 (Ultra
+          5/10; die Anschl&uuml;sse f&uuml;r Tastatur und Maus sind
+          auch RS232-Anschl&uuml;sse und werden daher vom &man.sio.4;
+          Treiber unterst&uuml;tzt; ein Treiber mit dem Namen 'se' ist
+          in Arbeit).</para>
+      </listitem>
+
+      <listitem>
+        <para>serielle Tastaturen (au&szlig;er der indirekten
+          Unterst&uuml;tzung durch den
+          <devicename>ofw_console</devicename> Treiber)</para>
+      </listitem>
+
+      <listitem>
+        <para>serielle Anschl&uuml;sse mit Zilog z8530 (Tastatur/Maus,
+          ttya und ttyb bei der Ultra 1 und Ultra 2 boxen)</para>
+      </listitem>
+
+      <listitem>
+        <para>fas (Fast SCSI Controller, der in den meisten Ultra 1
+          und Ultra 2 Maschinen eingebaut ist)</para>
+      </listitem>
+
+      <listitem>
+        <para>USB Anschl&uuml;sse (hier gibt es Probleme, es sollte
+          aber relativ einfach sein, diese zu beheben)</para>
+      </listitem>
+
+      <listitem>
+        <para>alle Diskettenlaufwerke und Controller
+          daf&uuml;r</para>
+      </listitem>
+
+      <listitem>
+        <para>Chipkarten-Leser (die Blade 100 besitzt einen,
+          allerdings gibt es nur wenige Informationen
+          dar&uuml;ber)</para>
+      </listitem>
+
+      <listitem>
+        <para>FireWire/IEEE1394</para>
+      </listitem>
+
+      <listitem>
+        <para>Soundkarten</para>
+      </listitem>
+
+      <listitem>
+        <para>parallele Anschl&uuml;sse</para>
+      </listitem>
+    </itemizedlist>
+  </sect2>
+</sect1>

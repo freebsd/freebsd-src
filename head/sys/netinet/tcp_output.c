@@ -180,7 +180,7 @@ tcp_output(struct tcpcb *tp)
 	int idle, sendalot;
 	int sack_rxmit, sack_bytes_rxmt;
 	struct sackhole *p;
-	int tso;
+	int tso, mtu;
 	struct tcpopt to;
 #if 0
 	int maxburst = TCP_MAXBURST;
@@ -226,6 +226,7 @@ again:
 		tcp_sack_adjust(tp);
 	sendalot = 0;
 	tso = 0;
+	mtu = 0;
 	off = tp->snd_nxt - tp->snd_una;
 	sendwin = min(tp->snd_wnd, tp->snd_cwnd);
 
@@ -1209,6 +1210,9 @@ timer:
 	 */
 #ifdef INET6
 	if (isipv6) {
+		struct route_in6 ro;
+
+		bzero(&ro, sizeof(ro));
 		/*
 		 * we separately set hoplimit for every segment, since the
 		 * user might want to change the value via setsockopt.
@@ -1218,10 +1222,13 @@ timer:
 		ip6->ip6_hlim = in6_selecthlim(tp->t_inpcb, NULL);
 
 		/* TODO: IPv6 IP6TOS_ECT bit on */
-		error = ip6_output(m,
-			    tp->t_inpcb->in6p_outputopts, NULL,
-			    ((so->so_options & SO_DONTROUTE) ?
-			    IP_ROUTETOIF : 0), NULL, NULL, tp->t_inpcb);
+		error = ip6_output(m, tp->t_inpcb->in6p_outputopts, &ro,
+		    ((so->so_options & SO_DONTROUTE) ?  IP_ROUTETOIF : 0),
+		    NULL, NULL, tp->t_inpcb);
+
+		if (error == EMSGSIZE && ro.ro_rt != NULL)
+			mtu = ro.ro_rt->rt_rmx.rmx_mtu;
+		RO_RTFREE(&ro);
 	}
 #endif /* INET6 */
 #if defined(INET) && defined(INET6)
@@ -1229,6 +1236,9 @@ timer:
 #endif
 #ifdef INET
     {
+	struct route ro;
+
+	bzero(&ro, sizeof(ro));
 	ip->ip_len = m->m_pkthdr.len;
 #ifdef INET6
 	if (tp->t_inpcb->inp_vflag & INP_IPV6PROTO)
@@ -1245,9 +1255,13 @@ timer:
 	if (V_path_mtu_discovery && tp->t_maxopd > V_tcp_minmss)
 		ip->ip_off |= IP_DF;
 
-	error = ip_output(m, tp->t_inpcb->inp_options, NULL,
+	error = ip_output(m, tp->t_inpcb->inp_options, &ro,
 	    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0), 0,
 	    tp->t_inpcb);
+
+	if (error == EMSGSIZE && ro.ro_rt != NULL)
+		mtu = ro.ro_rt->rt_rmx.rmx_mtu;
+	RO_RTFREE(&ro);
     }
 #endif /* INET */
 	if (error) {
@@ -1294,21 +1308,18 @@ out:
 			 * For some reason the interface we used initially
 			 * to send segments changed to another or lowered
 			 * its MTU.
-			 *
-			 * tcp_mtudisc() will find out the new MTU and as
-			 * its last action, initiate retransmission, so it
-			 * is important to not do so here.
-			 *
 			 * If TSO was active we either got an interface
 			 * without TSO capabilits or TSO was turned off.
-			 * Disable it for this connection as too and
-			 * immediatly retry with MSS sized segments generated
-			 * by this function.
+			 * If we obtained mtu from ip_output() then update
+			 * it and try again.
 			 */
 			if (tso)
 				tp->t_flags &= ~TF_TSO;
-			tcp_mtudisc(tp->t_inpcb, -1);
-			return (0);
+			if (mtu != 0) {
+				tcp_mss_update(tp, -1, mtu, NULL, NULL);
+				goto again;
+			}
+			return (error);
 		case EHOSTDOWN:
 		case EHOSTUNREACH:
 		case ENETDOWN:

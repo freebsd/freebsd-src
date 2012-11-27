@@ -1,0 +1,414 @@
+#!/bin/sh
+#-
+# Copyright (c) 2012 Devin Teske
+# All Rights Reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/sysrc.subr
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="140.startup"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
+[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+
+############################################################ GLOBALS
+
+#
+# Operating environment
+#
+UNAME_P=$( uname -p ) # Processor Architecture (i.e. i386)
+
+############################################################ FUNCTIONS
+
+# dialog_menu_main
+#
+# Display the dialog(1)-based application main menu.
+#
+dialog_menu_main()
+{
+	local menu_list var_list size
+	local hline="$hline_arrows_tab_enter"
+	local prompt="$msg_miscellaneous_menu_text"
+
+	menu_list="
+		'X <<< $msg_exit' '$msg_exit_this_menu'
+	" # END-QUOTE
+
+	var_list="
+		accounting_enable
+		local_startup
+		lpd_enable
+		named_enable
+		named_flags
+		nis_client_enable
+		nis_server_enable
+		nisdomainname
+		startup_dirs
+	" # END-QUOTE
+
+	if [ "$UNAME_P" = "i386" ]; then
+		var_list="$var_list
+			apm_enable
+			ibcs2_enable
+			svr4_enable
+		" # END-QUOTE
+	fi
+
+	menu_list="$menu_list $(
+		. "$RC_DEFAULTS"
+		source_rc_confs
+		export $var_list
+		export msg_apm            msg_apm_desc
+		export msg_startup_dirs   msg_startup_dirs_desc
+		export msg_named          msg_named_desc
+		export msg_named_flags    msg_named_flags_desc
+		export msg_nis_client     msg_nis_client_desc
+		export msg_nis_domainname msg_nis_domainname_desc
+		export msg_nis_server     msg_nis_server_desc
+		export msg_accounting     msg_accounting_desc
+		export msg_lpd            msg_lpd_desc
+		export msg_sco            msg_sco_desc
+		export msg_svr4           msg_svr4_desc
+		:| awk \
+			-v uname_p="$UNAME_P"             \
+			-v menu_tags="$DIALOG_MENU_TAGS"  \
+			-v menu_fmt="'%c [%c] %s' '%s'\n" \
+			-v sep_fmt="' ' ' -- '\n"         \
+		'END {
+			i = 1
+			if ( uname_p == "i386" )
+			{
+				#
+				# APM: Auto-power management services
+				#      (typically laptops)
+				#
+				printf menu_fmt, substr(menu_tags, i++, 1),
+					( ENVIRON["apm_enable"] ~ \
+					  /^[Yy][Ee][Ss]$/ ? "X" : " " ),
+					ENVIRON["msg_apm"],
+					ENVIRON["msg_apm_desc"]
+			}
+
+			# Separator
+			printf sep_fmt
+
+			#
+			# Startup dirs: Set the list of dirs to look for
+			#               startup scripts
+			#
+			printf menu_fmt, substr(menu_tags, i++, 1),
+				( length(ENVIRON["local_startup"]) > 0 \
+				  ? "X" : " " ),
+				ENVIRON["msg_startup_dirs"],
+				ENVIRON["msg_startup_dirs_desc"]
+
+			#
+			# named: Run a local name server on this host
+			#
+			printf menu_fmt, substr(menu_tags, i++, 1),
+				( ENVIRON["named_enable"] ~ \
+				  /^[Yy][Ee][Ss]$/ ? "X" : " " ),
+				ENVIRON["msg_named"],
+				ENVIRON["msg_named_desc"]
+
+			#
+			# named flags: Set default flags to named (if enabled)
+			#
+			printf menu_fmt, substr(menu_tags, i++, 1),
+				( length(ENVIRON["named_flags"]) > 0 \
+				  ? "X" : " " ),
+				ENVIRON["msg_named_flags"],
+				ENVIRON["msg_named_flags_desc"]
+
+			#
+			# NIS client: This host wishes to be an NIS client.
+			#
+			printf menu_fmt, substr(menu_tags, i++, 1),
+				( ENVIRON["nis_client_enable"] ~ \
+				  /^[Yy][Ee][Ss]$/ ? "X" : " " ),
+				ENVIRON["msg_nis_client"],
+				ENVIRON["msg_nis_client_desc"]
+
+			#
+			# NIS domainname: Set NIS domainname (if enabled)
+			#
+			printf menu_fmt, substr(menu_tags, i++, 1),
+				( length(ENVIRON["nisdomainname"]) > 0 \
+				  ? "X" : " " ),
+				ENVIRON["msg_nis_domainname"],
+				ENVIRON["msg_nis_domainname_desc"]
+
+			#
+			# NIS server: This host wishes to be an NIS server.
+			#
+			printf menu_fmt, substr(menu_tags, i++, 1),
+				( ENVIRON["nis_server_enable"] ~ \
+				  /^[Yy][Ee][Ss]$/ ? "X" : " " ),
+				ENVIRON["msg_nis_server"],
+				ENVIRON["msg_nis_server_desc"]
+
+			# Separator
+			printf sep_fmt
+
+			#
+			# Accounting: This host wishes to run process
+			#             accounting.
+			#
+			printf menu_fmt, substr(menu_tags, i++, 1),
+				( ENVIRON["accounting_enable"] ~ \
+				  /^[Yy][Ee][Ss]$/ ? "X" : " " ),
+				ENVIRON["msg_accounting"],
+				ENVIRON["msg_accounting_desc"]
+
+			#
+			# lpd: This host has a printer and wants to run lpd.
+			#
+			printf menu_fmt, substr(menu_tags, i++, 1),
+				( ENVIRON["lpd_enable"] ~ \
+				  /^[Yy][Ee][Ss]$/ ? "X" : " " ),
+				ENVIRON["msg_lpd"],
+				ENVIRON["msg_lpd_desc"]
+
+			if ( uname_p == "i386" )
+			{
+				#
+				# SCO: This host wants to be able to run IBCS2
+				#      binaries.
+				#
+				printf menu_fmt, substr(menu_tags, i++, 1),
+					( ENVIRON["ibcs2_enable"] ~ \
+					  /^[Yy][Ee][Ss]$/ ? "X" : " " ),
+					ENVIRON["msg_sco"],
+					ENVIRON["msg_sco_desc"]
+
+				#
+				# SVR4: This host wants to be able to run SVR4
+				#       binaries.
+				#
+				printf menu_fmt, substr(menu_tags, i++, 1),
+					( ENVIRON["svr4_enable"] ~ \
+					  /^[Yy][Ee][Ss]$/ ? "X" : " " ),
+					ENVIRON["msg_svr4"],
+					ENVIRON["msg_svr4_desc"]
+			}
+		}'
+	)"
+
+	size=$( eval f_dialog_menu_size \
+	        	\"\$DIALOG_TITLE\"     \
+	        	\"\$DIALOG_BACKTITLE\" \
+	                \"\$prompt\"           \
+	        	\"\$hline\"            \
+	        	$menu_list             )
+
+	local dialog_menu
+	dialog_menu=$( eval $DIALOG \
+		--clear --title \"\$DIALOG_TITLE\" \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--menu \"\$prompt\" $size          \
+		$menu_list                         \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+	local retval=$?
+	setvar DIALOG_MENU_$$ "$dialog_menu"
+	return $retval
+}
+
+# dialog_input_value [ $prompt [ $init ] ]
+#
+# Prompt the user to input a value. If the user does not cancel or press ESC,
+# the return value is zero ($SUCCESS) and $value holds the user's input.
+#
+dialog_input_value()
+{
+	local hline="$hline_alnum_tab_enter"
+	local size prompt="$1" _input="$2"
+
+	f_dialog_title "$msg_value_required"
+
+	size=$( f_dialog_inputbox_size \
+	        	"$DIALOG_TITLE"     \
+	        	"$DIALOG_BACKTITLE" \
+	        	"$prompt"           \
+	        	"$_input"           \
+	        	"$hline"            )
+
+	local dialog_inputbox
+	dialog_inputbox=$( eval $DIALOG \
+		--title \"\$DIALOG_TITLE\"         \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--inputbox \"\$prompt\" $size      \
+		\"\$_input\"                       \
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
+
+	retval=$?
+	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
+	_input=$( f_dialog_inputstr )
+
+	f_dialog_title_restore
+
+	# Return if user has either pressed ESC or chosen Cancel/No
+	[ $retval -eq $SUCCESS ] || return $retval
+
+	value="$_input"
+	return $SUCCESS
+}
+
+############################################################ MAIN
+
+# Incorporate rc-file if it exists
+[ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
+
+#
+# Process command-line arguments
+#
+while getopts hSX flag; do
+	case "$flag" in
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+#
+# Initialize
+#
+f_dialog_init
+f_dialog_title "$msg_miscellaneous_startup_services"
+f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
+f_mustberoot_init
+
+#
+# Launch application main menu
+#
+while :; do
+	dialog_menu_main
+	retval=$?
+	mtag=$( f_dialog_menutag )
+
+	[ $retval -eq 0 ] || f_die
+
+	case "$mtag" in
+	"X <<< $msg_exit") break ;;
+	?" ["?"] $msg_apm")
+		case "$mtag" in
+		?" [X] "*) err=$( f_sysrc_set apm_enable NO 2>&1 ) ;;
+		?" [ ] "*) err=$( f_sysrc_set apm_enable YES 2>&1 ) ;;
+		esac
+		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+	?" ["?"] $msg_startup_dirs")
+		dialog_input_value \
+			"$msg_startup_dirs_desc" \
+			"$( f_sysrc_get local_startup )"
+		if [ $? -eq $SUCCESS ]; then
+			err=$( f_sysrc_set local_startup "$value" ) ||
+				f_show_msg "%s\n" "$err"
+		fi
+		;;
+	?" ["?"] $msg_named")
+		case "$mtag" in
+		?" [X] "*) err=$( f_sysrc_set named_enable NO 2>&1 ) ;;
+		?" [ ] "*) err=$( f_sysrc_set named_enable YES 2>&1 ) ;;
+		esac
+		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+	?" ["?"] $msg_named_flags")
+		dialog_input_value \
+			"$msg_named_flags_desc" \
+			"$( f_sysrc_get named_flags )"
+		if [ $? -eq $SUCCESS ]; then
+			err=$( f_sysrc_set named_flags "$value" ) ||
+				f_show_msg "%s\n" "$err"
+		fi
+		;;
+	?" ["?"] $msg_nis_client")
+		case "$mtag" in
+		?" [X] "*) err=$( f_sysrc_set nis_client_enable NO 2>&1 ) ;;
+		?" [ ] "*)
+			err=$( f_sysrc_set nis_client_enable YES 2>&1 ) \
+			&& err=$( f_sysrc_set rpcbind_enable YES 2>&1 ) ;;
+		esac
+		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+	?" ["?"] $msg_nis_domainname")
+		dialog_input_value \
+			"$msg_nis_domainname_desc" \
+			"$( f_sysrc_get nisdomainname )"
+		if [ $? -eq $SUCCESS ]; then
+			err=$( f_sysrc_set nisdomainname "$value" ) ||
+				f_show_msg "%s\n" "$err"
+		fi
+		;;
+	?" ["?"] $msg_nis_server")
+		case "$mtag" in
+		?" [X] "*) err=$( f_sysrc_set nis_server_enable NO 2>&1 ) ;;
+		?" [ ] "*)
+			err=$( f_sysrc_set nis_server_enable YES 2>&1 ) \
+			&& err=$( f_sysrc_set rpcbind_enable YES 2>&1 ) ;;
+		esac
+		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+	?" ["?"] $msg_accounting")
+		case "$mtag" in
+		?" [X] "*) err=$( f_sysrc_set accounting_enable NO 2>&1 ) ;;
+		?" [ ] "*) err=$( f_sysrc_set accounting_enable YES 2>&1 ) ;;
+		esac
+		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+	?" ["?"] $msg_lpd")
+		case "$mtag" in
+		?" [X] "*) err=$( f_sysrc_set lpd_enable NO 2>&1 ) ;;
+		?" [ ] "*) err=$( f_sysrc_set lpd_enable YES 2>&1 ) ;;
+		esac
+		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+	?" ["?"] $msg_sco")
+		case "$mtag" in
+		?" [X] "*) err=$( f_sysrc_set ibcs2_enable NO 2>&1 ) ;;
+		?" [ ] "*) err=$( f_sysrc_set ibcs2_enable YES 2>&1 ) ;;
+		esac
+		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+	?" ["?"] $msg_svr4")
+		case "$mtag" in
+		?" [X] "*) err=$( f_sysrc_set svr4_enable NO 2>&1 ) ;;
+		?" [ ] "*) err=$( f_sysrc_set svr4_enable YES 2>&1 ) ;;
+		esac
+		[ $? -eq $SUCCESS ] || f_show_msg "%s\n" "$err" ;;
+	esac
+done
+
+exit $SUCCESS
+
+################################################################################
+# END
+################################################################################

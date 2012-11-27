@@ -185,7 +185,7 @@ iwi_node_alloc(struct ieee80211vap *vap,
 {
         struct iwi_node *in;
 
-        in = malloc(sizeof (struct iwi_node), M_80211_NODE,
+        in = malloc(sizeof(struct iwi_node), M_80211_NODE,
 		M_NOWAIT | M_ZERO);
         if (in == NULL)
                 return NULL;

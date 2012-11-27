@@ -14,15 +14,16 @@
 #ifndef LLVM_CLANG_GR_FUNCTIONSUMMARY_H
 #define LLVM_CLANG_GR_FUNCTIONSUMMARY_H
 
+#include <deque>
 #include "clang/AST/Decl.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/SmallPtrSet.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/BitVector.h"
 
 namespace clang {
 namespace ento {
-typedef llvm::SmallPtrSet<Decl*, 24> SetOfDecls;
-typedef llvm::SmallPtrSet<const Decl*, 24> SetOfConstDecls;
+typedef std::deque<Decl*> SetOfDecls;
+typedef llvm::DenseSet<const Decl*> SetOfConstDecls;
 
 class FunctionSummariesTy {
   struct FunctionSummary {

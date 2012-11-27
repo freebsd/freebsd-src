@@ -9,6 +9,10 @@ SRCS=	cc1_main.cpp \
 	cc1as_main.cpp \
 	driver.cpp
 
+.if ${MK_SHARED_TOOLCHAIN} == "no"
+NO_SHARED?= yes
+.endif
+
 LINKS=	${BINDIR}/clang ${BINDIR}/clang++ \
 	${BINDIR}/clang ${BINDIR}/clang-cpp
 MLINKS=	clang.1 clang++.1 \
@@ -23,7 +27,6 @@ MLINKS+= clang.1 cc.1 \
 .endif
 
 TGHDRS=	CC1AsOptions \
-	CC1Options \
 	DiagnosticCommonKinds \
 	DiagnosticDriverKinds \
 	DiagnosticFrontendKinds \
@@ -55,23 +58,23 @@ LIBDEPS=clangfrontendtool \
 	llvmbitwriter \
 	llvmbitreader \
 	llvmasmparser \
-	llvmmipsasmparser \
-	llvmmipscodegen \
-	llvmmipsdesc \
-	llvmmipsinfo \
-	llvmmipsinstprinter \
 	llvmarmdisassembler \
 	llvmarmasmparser \
 	llvmarmcodegen \
 	llvmarmdesc \
 	llvmarminfo \
 	llvmarminstprinter \
+	llvmmipscodegen \
+	llvmmipsdisassembler \
+	llvmmipsasmparser \
+	llvmmipsdesc \
+	llvmmipsinfo \
+	llvmmipsinstprinter \
 	llvmpowerpccodegen \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \
 	llvmpowerpcinstprinter \
 	llvmx86asmparser \
-	llvmx86disassembler \
 	llvmx86codegen \
 	llvmselectiondag \
 	llvmasmprinter \
@@ -82,6 +85,7 @@ LIBDEPS=clangfrontendtool \
 	llvmtransformutils \
 	llvmipa \
 	llvmanalysis \
+	llvmx86disassembler \
 	llvmx86desc \
 	llvmx86info \
 	llvmtarget \

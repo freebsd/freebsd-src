@@ -1006,22 +1006,20 @@ flags_to_rights(int flags)
 {
 	cap_rights_t rights = 0;
 
-	switch ((flags & O_ACCMODE)) {
-	case O_RDONLY:
-		rights |= CAP_READ;
-		break;
-
-	case O_RDWR:
-		rights |= CAP_READ;
-		/* fall through */
-
-	case O_WRONLY:
-		rights |= CAP_WRITE;
-		break;
-
-	case O_EXEC:
+	if (flags & O_EXEC) {
 		rights |= CAP_FEXECVE;
-		break;
+	} else {
+		switch ((flags & O_ACCMODE)) {
+		case O_RDONLY:
+			rights |= CAP_READ;
+			break;
+		case O_RDWR:
+			rights |= CAP_READ;
+			/* FALLTHROUGH */
+		case O_WRONLY:
+			rights |= CAP_WRITE;
+			break;
+		}
 	}
 
 	if (flags & O_CREAT)
@@ -1093,8 +1091,7 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	struct file *fp;
 	struct vnode *vp;
 	int cmode;
-	int type, indx = -1, error;
-	struct flock lf;
+	int indx = -1, error;
 	struct nameidata nd;
 	int vfslocked;
 	cap_rights_t rights_needed = CAP_LOOKUP;
@@ -1180,26 +1177,11 @@ kern_openat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	if (fp->f_ops == &badfileops) {
 		KASSERT(vp->v_type != VFIFO, ("Unexpected fifo."));
 		fp->f_seqcount = 1;
-		finit(fp, flags & FMASK, DTYPE_VNODE, vp, &vnops);
+		finit(fp, (flags & FMASK) | (fp->f_flag & FHASLOCK), DTYPE_VNODE,
+		    vp, &vnops);
 	}
 
 	VOP_UNLOCK(vp, 0);
-	if (fp->f_type == DTYPE_VNODE && (flags & (O_EXLOCK | O_SHLOCK)) != 0) {
-		lf.l_whence = SEEK_SET;
-		lf.l_start = 0;
-		lf.l_len = 0;
-		if (flags & O_EXLOCK)
-			lf.l_type = F_WRLCK;
-		else
-			lf.l_type = F_RDLCK;
-		type = F_FLOCK;
-		if ((flags & FNONBLOCK) == 0)
-			type |= F_WAIT;
-		if ((error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf,
-		    type)) != 0)
-			goto bad;
-		atomic_set_int(&fp->f_flag, FHASLOCK);
-	}
 	if (flags & O_TRUNC) {
 		error = fo_truncate(fp, 0, td->td_ucred, td);
 		if (error)
@@ -1352,7 +1334,7 @@ restart:
 	bwillwrite();
 	NDINIT_ATRIGHTS(&nd, CREATE,
 	    LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE1, pathseg, path, fd,
-	    CAP_MKFIFO, td);
+	    CAP_MKNOD, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
@@ -1476,8 +1458,9 @@ kern_mkfifoat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	AUDIT_ARG_MODE(mode);
 restart:
 	bwillwrite();
-	NDINIT_AT(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE1,
-	    pathseg, path, fd, td);
+	NDINIT_ATRIGHTS(&nd, CREATE,
+	    LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE1, pathseg, path, fd,
+	    CAP_MKFIFO, td);
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	vfslocked = NDHASGIANT(&nd);
@@ -1640,8 +1623,8 @@ kern_linkat(struct thread *td, int fd1, int fd2, char *path1, char *path2,
 		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
-	NDINIT_AT(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE2,
-	    segflg, path2, fd2, td);
+	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE |
+	    AUDITVNODE2, segflg, path2, fd2, CAP_CREATE, td);
 	if ((error = namei(&nd)) == 0) {
 		lvfslocked = NDHASGIANT(&nd);
 		if (nd.ni_vp != NULL) {
@@ -1737,8 +1720,8 @@ kern_symlinkat(struct thread *td, char *path1, int fd, char *path2,
 	AUDIT_ARG_TEXT(syspath);
 restart:
 	bwillwrite();
-	NDINIT_AT(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE | AUDITVNODE1,
-	    segflg, path2, fd, td);
+	NDINIT_ATRIGHTS(&nd, CREATE, LOCKPARENT | SAVENAME | MPSAFE |
+	    AUDITVNODE1, segflg, path2, fd, CAP_CREATE, td);
 	if ((error = namei(&nd)) != 0)
 		goto out;
 	vfslocked = NDHASGIANT(&nd);
@@ -1899,8 +1882,8 @@ kern_unlinkat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 
 restart:
 	bwillwrite();
-	NDINIT_AT(&nd, DELETE, LOCKPARENT | LOCKLEAF | MPSAFE | AUDITVNODE1,
-	    pathseg, path, fd, td);
+	NDINIT_ATRIGHTS(&nd, DELETE, LOCKPARENT | LOCKLEAF | MPSAFE |
+	    AUDITVNODE1, pathseg, path, fd, CAP_DELETE, td);
 	if ((error = namei(&nd)) != 0)
 		return (error == EINVAL ? EPERM : error);
 	vfslocked = NDHASGIANT(&nd);
@@ -4483,9 +4466,8 @@ sys_fhopen(td, uap)
 	struct mount *mp;
 	struct vnode *vp;
 	struct fhandle fhp;
-	struct flock lf;
 	struct file *fp;
-	int fmode, error, type;
+	int fmode, error;
 	int vfslocked;
 	int indx;
 
@@ -4542,24 +4524,9 @@ sys_fhopen(td, uap)
 #endif
 	fp->f_vnode = vp;
 	fp->f_seqcount = 1;
-	finit(fp, fmode & FMASK, DTYPE_VNODE, vp, &vnops);
+	finit(fp, (fmode & FMASK) | (fp->f_flag & FHASLOCK), DTYPE_VNODE, vp,
+	    &vnops);
 	VOP_UNLOCK(vp, 0);
-	if (fmode & (O_EXLOCK | O_SHLOCK)) {
-		lf.l_whence = SEEK_SET;
-		lf.l_start = 0;
-		lf.l_len = 0;
-		if (fmode & O_EXLOCK)
-			lf.l_type = F_WRLCK;
-		else
-			lf.l_type = F_RDLCK;
-		type = F_FLOCK;
-		if ((fmode & FNONBLOCK) == 0)
-			type |= F_WAIT;
-		if ((error = VOP_ADVLOCK(vp, (caddr_t)fp, F_SETLK, &lf,
-		    type)) != 0)
-			goto bad;
-		atomic_set_int(&fp->f_flag, FHASLOCK);
-	}
 	if (fmode & O_TRUNC) {
 		error = fo_truncate(fp, 0, td->td_ucred, td);
 		if (error)

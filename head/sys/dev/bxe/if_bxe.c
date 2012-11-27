@@ -3554,8 +3554,14 @@ bxe_shutdown(device_t dev)
 	sc = device_get_softc(dev);
 	DBENTER(BXE_INFO_LOAD | BXE_INFO_RESET | BXE_INFO_UNLOAD);
 
+	/* Stop the controller, but only if it was ever started.
+	 * Stopping an uninitialized controller can cause
+	 * IPMI bus errors on some systems.
+	 */
 	BXE_CORE_LOCK(sc);
-	bxe_stop_locked(sc, UNLOAD_NORMAL);
+	if (sc->state != BXE_STATE_CLOSED) {
+		bxe_stop_locked(sc, UNLOAD_NORMAL);
+	}
 	BXE_CORE_UNLOCK(sc);
 
 	DBEXIT(BXE_INFO_LOAD | BXE_INFO_RESET | BXE_INFO_UNLOAD);
@@ -9550,6 +9556,11 @@ bxe_tx_mq_start_locked(struct ifnet *ifp,
 
 		/* The transmit frame was enqueued successfully. */
 		tx_count++;
+
+		/* Update stats */
+		ifp->if_obytes += next->m_pkthdr.len;
+		if (next->m_flags & M_MCAST)
+			ifp->if_omcasts++;
 
 		/* Send a copy of the frame to any BPF listeners. */
 		BPF_MTAP(ifp, next);

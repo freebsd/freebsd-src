@@ -1,0 +1,41 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: postrandom
+# REQUIRE: initrandom random FILESYSTEMS
+# BEFORE: LOGIN
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="postrandom"
+start_cmd="${name}_start"
+stop_cmd=":"
+
+# This will remove old ${entropy_file} and generate a new one.
+# According to Bruce Schneier, this is strongly recommended in order
+# to avoid using same ${entropy_file} across reboots.
+# Reference: Chapter 10.6, Practical Cryptography, ISBN: 0-471-22357-3
+
+postrandom_start()
+{
+	/etc/rc.d/random fastsaveseed
+
+	case ${entropy_dir} in
+	[Nn][Oo])
+		;;
+	*)
+		entropy_dir=${entropy_dir:-/var/db/entropy}
+		if [ -d "${entropy_dir}" ]; then
+			if [ -w /dev/random ]; then
+				rm -f ${entropy_dir}/*
+			fi
+		fi
+		;;
+	esac
+}
+
+load_rc_config random
+run_rc_command "$1"

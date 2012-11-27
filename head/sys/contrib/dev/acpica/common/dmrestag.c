@@ -469,6 +469,11 @@ AcpiDmCheckResourceReference (
     /* Get the Index term, must be an integer constant to convert */
 
     IndexOp = BufferNameOp->Common.Next;
+
+    /* Major cheat: The Node field is also used for the Tag ptr. Clear it now */
+
+    IndexOp->Common.Node = NULL;
+
     OpInfo = AcpiPsGetOpcodeInfo (IndexOp->Common.AmlOpcode);
     if (OpInfo->ObjectType != ACPI_TYPE_INTEGER)
     {

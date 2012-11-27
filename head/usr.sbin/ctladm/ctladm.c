@@ -1026,7 +1026,7 @@ static int
 cctl_error_inject(int fd, uint32_t target, uint32_t lun, int argc, char **argv, 
 		  char *combinedopt)
 {
-	int retval;
+	int retval = 0;
 	struct ctl_error_desc err_desc;
 	uint64_t lba = 0;
 	uint32_t len = 0;

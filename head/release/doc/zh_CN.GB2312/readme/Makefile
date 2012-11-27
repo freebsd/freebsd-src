@@ -21,7 +21,7 @@ INSTALL_ONLY_COMPRESSED?=
 #
 
 # SGML content
-SRCS+=	article.sgml
+SRCS+=	article.xml
 
 .include "${RELN_ROOT}/share/mk/doc.relnotes.mk"
 .include "${DOC_PREFIX}/share/mk/doc.project.mk"

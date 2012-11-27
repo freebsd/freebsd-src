@@ -380,20 +380,18 @@ ip_input(struct mbuf *m)
 	struct ifaddr *ifa;
 	struct ifnet *ifp;
 	int    checkif, hlen = 0;
-	u_short sum;
+	uint16_t sum, ip_len;
 	int dchg = 0;				/* dest changed after fw */
 	struct in_addr odst;			/* original dst address */
 
 	M_ASSERTPKTHDR(m);
 
 	if (m->m_flags & M_FASTFWD_OURS) {
-		/*
-		 * Firewall or NAT changed destination to local.
-		 * We expect ip_len and ip_off to be in host byte order.
-		 */
 		m->m_flags &= ~M_FASTFWD_OURS;
 		/* Set up some basics that will be used later. */
 		ip = mtod(m, struct ip *);
+		ip->ip_len = ntohs(ip->ip_len);
+		ip->ip_off = ntohs(ip->ip_off);
 		hlen = ip->ip_hl << 2;
 		goto ours;
 	}
@@ -458,15 +456,11 @@ ip_input(struct mbuf *m)
 		return;
 #endif
 
-	/*
-	 * Convert fields to host representation.
-	 */
-	ip->ip_len = ntohs(ip->ip_len);
-	if (ip->ip_len < hlen) {
+	ip_len = ntohs(ip->ip_len);
+	if (ip_len < hlen) {
 		IPSTAT_INC(ips_badlen);
 		goto bad;
 	}
-	ip->ip_off = ntohs(ip->ip_off);
 
 	/*
 	 * Check that the amount of data in the buffers
@@ -474,17 +468,17 @@ ip_input(struct mbuf *m)
 	 * Trim mbufs if longer than we expect.
 	 * Drop packet if shorter than we expect.
 	 */
-	if (m->m_pkthdr.len < ip->ip_len) {
+	if (m->m_pkthdr.len < ip_len) {
 tooshort:
 		IPSTAT_INC(ips_tooshort);
 		goto bad;
 	}
-	if (m->m_pkthdr.len > ip->ip_len) {
+	if (m->m_pkthdr.len > ip_len) {
 		if (m->m_len == m->m_pkthdr.len) {
-			m->m_len = ip->ip_len;
-			m->m_pkthdr.len = ip->ip_len;
+			m->m_len = ip_len;
+			m->m_pkthdr.len = ip_len;
 		} else
-			m_adj(m, ip->ip_len - m->m_pkthdr.len);
+			m_adj(m, ip_len - m->m_pkthdr.len);
 	}
 #ifdef IPSEC
 	/*
@@ -519,6 +513,8 @@ tooshort:
 #ifdef IPFIREWALL_FORWARD
 	if (m->m_flags & M_FASTFWD_OURS) {
 		m->m_flags &= ~M_FASTFWD_OURS;
+		ip->ip_len = ntohs(ip->ip_len);
+		ip->ip_off = ntohs(ip->ip_off);
 		goto ours;
 	}
 	if ((dchg = (m_tag_find(m, PACKET_TAG_IPFORWARD, NULL) != NULL)) != 0) {
@@ -527,12 +523,21 @@ tooshort:
 		 * packets originally destined to us to some other directly
 		 * connected host.
 		 */
+		ip->ip_len = ntohs(ip->ip_len);
+		ip->ip_off = ntohs(ip->ip_off);
 		ip_forward(m, dchg);
 		return;
 	}
 #endif /* IPFIREWALL_FORWARD */
 
 passin:
+	/*
+	 *  From now and up to output pfil(9) processing in ip_output()
+	 *  the header is in host byte order.
+	 */
+	ip->ip_len = ntohs(ip->ip_len);
+	ip->ip_off = ntohs(ip->ip_off);
+
 	/*
 	 * Process options and, if not destined for us,
 	 * ship it on.  ip_dooptions returns 1 when an
@@ -1360,6 +1365,8 @@ u_char inetctlerrmap[PRC_NCMDS] = {
  *
  * The srcrt parameter indicates whether the packet is being forwarded
  * via a source route.
+ *
+ * IP header in host byte order.
  */
 void
 ip_forward(struct mbuf *m, int srcrt)

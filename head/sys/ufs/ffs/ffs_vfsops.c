@@ -142,7 +142,7 @@ ffs_mount(struct mount *mp)
 {
 	struct vnode *devvp;
 	struct thread *td;
-	struct ufsmount *ump = 0;
+	struct ufsmount *ump = NULL;
 	struct fs *fs;
 	pid_t fsckpid = 0;
 	int error, flags;

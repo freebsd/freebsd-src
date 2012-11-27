@@ -63,6 +63,7 @@ FlParseInputPathname (
 #endif
 
 
+
 /*******************************************************************************
  *
  * FUNCTION:    AslAbort
@@ -370,6 +371,42 @@ FlCloseFile (
     }
 
     Gbl_Files[FileId].Handle = NULL;
+    return;
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    FlDeleteFile
+ *
+ * PARAMETERS:  FileId              - Index into file info array
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Delete a file.
+ *
+ ******************************************************************************/
+
+void
+FlDeleteFile (
+    UINT32                  FileId)
+{
+    ASL_FILE_INFO           *Info = &Gbl_Files[FileId];
+
+
+    if (!Info->Filename)
+    {
+        return;
+    }
+
+    if (remove (Info->Filename))
+    {
+        printf ("%s (%s file) ",
+            Info->Filename, Info->Description);
+        perror ("Could not delete");
+    }
+
+    Info->Filename = NULL;
     return;
 }
 

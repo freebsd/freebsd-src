@@ -335,8 +335,8 @@ SATI_STATUS sati_unmap_initial_processing(
       sati_scsi_sense_data_construct(
          sequence,
          scsi_io,
-         SCSI_STATUS_CHECK_CONDITION,
-         SCSI_SENSE_ABORTED_COMMAND,
+         SCSI_STATUS_BUSY,
+         SCSI_SENSE_NO_SENSE,
          SCSI_ASC_NO_ADDITIONAL_SENSE,
          SCSI_ASCQ_NO_ADDITIONAL_SENSE
       );

@@ -42,8 +42,6 @@ __FBSDID("$FreeBSD$");
 #include "geom/raid/g_raid.h"
 #include "g_raid_tr_if.h"
 
-SYSCTL_DECL(_kern_geom_raid);
-
 static MALLOC_DEFINE(M_TR_RAID5, "tr_raid5_data", "GEOM_RAID RAID5 data");
 
 #define TR_RAID5_NONE 0
@@ -95,6 +93,7 @@ static struct g_raid_tr_class g_raid_tr_raid5_class = {
 	"RAID5",
 	g_raid_tr_raid5_methods,
 	sizeof(struct g_raid_tr_raid5_object),
+	.trc_enable = 1,
 	.trc_priority = 100
 };
 
@@ -419,4 +418,4 @@ g_raid_tr_free_raid5(struct g_raid_tr_object *tr)
 	return (0);
 }
 
-G_RAID_TR_DECLARE(g_raid_tr_raid5);
+G_RAID_TR_DECLARE(raid5, "RAID5");

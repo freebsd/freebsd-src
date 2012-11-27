@@ -41,6 +41,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_ddb.h"
 #include "opt_watchdog.h"
 
@@ -2687,6 +2688,58 @@ vgone(struct vnode *vp)
 	VI_UNLOCK(vp);
 }
 
+static void
+vgonel_reclaim_lowervp_vfs(struct mount *mp __unused,
+    struct vnode *lowervp __unused)
+{
+}
+
+/*
+ * Notify upper mounts about reclaimed vnode.
+ */
+static void
+vgonel_reclaim_lowervp(struct vnode *vp)
+{
+	static struct vfsops vgonel_vfsops = {
+		.vfs_reclaim_lowervp = vgonel_reclaim_lowervp_vfs
+	};
+	struct mount *mp, *ump, *mmp;
+
+	mp = vp->v_mount;
+	if (mp == NULL)
+		return;
+
+	MNT_ILOCK(mp);
+	if (TAILQ_EMPTY(&mp->mnt_uppers))
+		goto unlock;
+	MNT_IUNLOCK(mp);
+	mmp = malloc(sizeof(struct mount), M_TEMP, M_WAITOK | M_ZERO);
+	mmp->mnt_op = &vgonel_vfsops;
+	mmp->mnt_kern_flag |= MNTK_MARKER;
+	MNT_ILOCK(mp);
+	mp->mnt_kern_flag |= MNTK_VGONE_UPPER;
+	for (ump = TAILQ_FIRST(&mp->mnt_uppers); ump != NULL;) {
+		if ((ump->mnt_kern_flag & MNTK_MARKER) != 0) {
+			ump = TAILQ_NEXT(ump, mnt_upper_link);
+			continue;
+		}
+		TAILQ_INSERT_AFTER(&mp->mnt_uppers, ump, mmp, mnt_upper_link);
+		MNT_IUNLOCK(mp);
+		VFS_RECLAIM_LOWERVP(ump, vp);
+		MNT_ILOCK(mp);
+		ump = TAILQ_NEXT(mmp, mnt_upper_link);
+		TAILQ_REMOVE(&mp->mnt_uppers, mmp, mnt_upper_link);
+	}
+	free(mmp, M_TEMP);
+	mp->mnt_kern_flag &= ~MNTK_VGONE_UPPER;
+	if ((mp->mnt_kern_flag & MNTK_VGONE_WAITER) != 0) {
+		mp->mnt_kern_flag &= ~MNTK_VGONE_WAITER;
+		wakeup(&mp->mnt_uppers);
+	}
+unlock:
+	MNT_IUNLOCK(mp);
+}
+
 /*
  * vgone, with the vp interlock held.
  */
@@ -2711,6 +2764,7 @@ vgonel(struct vnode *vp)
 	if (vp->v_iflag & VI_DOOMED)
 		return;
 	vp->v_iflag |= VI_DOOMED;
+
 	/*
 	 * Check to see if the vnode is in use.  If so, we have to call
 	 * VOP_CLOSE() and VOP_INACTIVE().
@@ -2718,6 +2772,8 @@ vgonel(struct vnode *vp)
 	active = vp->v_usecount;
 	oweinact = (vp->v_iflag & VI_OWEINACT);
 	VI_UNLOCK(vp);
+	vgonel_reclaim_lowervp(vp);
+
 	/*
 	 * Clean out any buffers associated with the vnode.
 	 * If the flush fails, just toss the buffers.
@@ -3111,21 +3167,49 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 /*
  * Fill in a struct xvfsconf based on a struct vfsconf.
  */
-static void
-vfsconf2x(struct vfsconf *vfsp, struct xvfsconf *xvfsp)
+static int
+vfsconf2x(struct sysctl_req *req, struct vfsconf *vfsp)
 {
+	struct xvfsconf xvfsp;
 
-	strcpy(xvfsp->vfc_name, vfsp->vfc_name);
-	xvfsp->vfc_typenum = vfsp->vfc_typenum;
-	xvfsp->vfc_refcount = vfsp->vfc_refcount;
-	xvfsp->vfc_flags = vfsp->vfc_flags;
+	bzero(&xvfsp, sizeof(xvfsp));
+	strcpy(xvfsp.vfc_name, vfsp->vfc_name);
+	xvfsp.vfc_typenum = vfsp->vfc_typenum;
+	xvfsp.vfc_refcount = vfsp->vfc_refcount;
+	xvfsp.vfc_flags = vfsp->vfc_flags;
 	/*
 	 * These are unused in userland, we keep them
 	 * to not break binary compatibility.
 	 */
-	xvfsp->vfc_vfsops = NULL;
-	xvfsp->vfc_next = NULL;
+	xvfsp.vfc_vfsops = NULL;
+	xvfsp.vfc_next = NULL;
+	return (SYSCTL_OUT(req, &xvfsp, sizeof(xvfsp)));
 }
+
+#ifdef COMPAT_FREEBSD32
+struct xvfsconf32 {
+	uint32_t	vfc_vfsops;
+	char		vfc_name[MFSNAMELEN];
+	int32_t		vfc_typenum;
+	int32_t		vfc_refcount;
+	int32_t		vfc_flags;
+	uint32_t	vfc_next;
+};
+
+static int
+vfsconf2x32(struct sysctl_req *req, struct vfsconf *vfsp)
+{
+	struct xvfsconf32 xvfsp;
+
+	strcpy(xvfsp.vfc_name, vfsp->vfc_name);
+	xvfsp.vfc_typenum = vfsp->vfc_typenum;
+	xvfsp.vfc_refcount = vfsp->vfc_refcount;
+	xvfsp.vfc_flags = vfsp->vfc_flags;
+	xvfsp.vfc_vfsops = 0;
+	xvfsp.vfc_next = 0;
+	return (SYSCTL_OUT(req, &xvfsp, sizeof(xvfsp)));
+}
+#endif
 
 /*
  * Top level filesystem related information gathering.
@@ -3134,14 +3218,16 @@ static int
 sysctl_vfs_conflist(SYSCTL_HANDLER_ARGS)
 {
 	struct vfsconf *vfsp;
-	struct xvfsconf xvfsp;
 	int error;
 
 	error = 0;
 	TAILQ_FOREACH(vfsp, &vfsconf, vfc_list) {
-		bzero(&xvfsp, sizeof(xvfsp));
-		vfsconf2x(vfsp, &xvfsp);
-		error = SYSCTL_OUT(req, &xvfsp, sizeof xvfsp);
+#ifdef COMPAT_FREEBSD32
+		if (req->flags & SCTL_MASK32)
+			error = vfsconf2x32(req, vfsp);
+		else
+#endif
+			error = vfsconf2x(req, vfsp);
 		if (error)
 			break;
 	}
@@ -3161,7 +3247,6 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 	int *name = (int *)arg1 - 1;	/* XXX */
 	u_int namelen = arg2 + 1;	/* XXX */
 	struct vfsconf *vfsp;
-	struct xvfsconf xvfsp;
 
 	log(LOG_WARNING, "userland calling deprecated sysctl, "
 	    "please rebuild world\n");
@@ -3185,9 +3270,12 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 				break;
 		if (vfsp == NULL)
 			return (EOPNOTSUPP);
-		bzero(&xvfsp, sizeof(xvfsp));
-		vfsconf2x(vfsp, &xvfsp);
-		return (SYSCTL_OUT(req, &xvfsp, sizeof(xvfsp)));
+#ifdef COMPAT_FREEBSD32
+		if (req->flags & SCTL_MASK32)
+			return (vfsconf2x32(req, vfsp));
+		else
+#endif
+			return (vfsconf2x(req, vfsp));
 	}
 	return (EOPNOTSUPP);
 }
@@ -3328,7 +3416,6 @@ vfs_unmountall(void)
 	struct thread *td;
 	int error;
 
-	KASSERT(curthread != NULL, ("vfs_unmountall: NULL curthread"));
 	CTR1(KTR_VFS, "%s: unmounting all filesystems", __func__);
 	td = curthread;
 

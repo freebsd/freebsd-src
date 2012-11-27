@@ -1095,10 +1095,6 @@ SATI_STATUS sati_translate_command_response(
          status = sati_unmap_translate_response(
                      sequence, scsi_io, ata_io
                   );
-         if(status == SATI_COMPLETE)
-         {
-            status = sati_check_data_io(sequence);
-         }
       break;
 #endif // !defined(DISABLE_SATI_UNMAP)
 
@@ -1240,7 +1236,7 @@ void sati_sequence_terminate(
 )
 {
    // Decode the sequence type to determine how to handle the termination
-   // of the the translation method.
+   // of the translation method.
    switch (sequence->type)
    {
    case SATI_SEQUENCE_UNMAP:

@@ -397,8 +397,7 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	 */
 	vp = ITOV(ip);
 	bp = getblk(vp, lbn, (int)fs->e2fs_bsize, 0, 0, 0);
-	if (bp->b_flags & (B_DONE | B_DELWRI)) {
-	} else {
+	if ((bp->b_flags & (B_DONE | B_DELWRI)) == 0) {
 		bp->b_iocmd = BIO_READ;
 		if (bp->b_bcount > bp->b_bufsize)
 			panic("ext2_indirtrunc: bad buffer size");

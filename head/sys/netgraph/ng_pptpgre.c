@@ -562,7 +562,7 @@ ng_pptpgre_xmit(hpriv_p hpriv, item_p item)
 		}
 
 		/* Sanity check frame length */
-		if (m != NULL && m->m_pkthdr.len > PPTP_MAX_PAYLOAD) {
+		if (m->m_pkthdr.len > PPTP_MAX_PAYLOAD) {
 			priv->stats.xmitTooBig++;
 			ERROUT(EMSGSIZE);
 		}

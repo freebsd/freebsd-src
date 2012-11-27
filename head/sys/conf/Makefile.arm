@@ -35,22 +35,9 @@ INCLUDES+= -I$S/contrib/libfdt
 SYSTEM_LD:= ${SYSTEM_LD:$S/conf/ldscript.$M=ldscript.$M}
 SYSTEM_DEP:= ${SYSTEM_DEP:$S/conf/ldscript.$M=ldscript.$M}
 
-.if defined(ARM_BIG_ENDIAN)
-CC += -mbig-endian
-SYSTEM_LD += -EB
-LD += -EB
-.else
-CC += -mlittle-endian
-SYSTEM_LD += -EL
-LD += -EL
-.endif
-
-
 .if !defined(DEBUG) && !defined(PROFLEVEL)
 STRIP_FLAGS = -S
 .endif
-
-DDB_ENABLED!=	grep DDB opt_ddb.h || true
 
 .if empty(DDB_ENABLED)
 CFLAGS += -mno-apcs-frame
@@ -75,7 +62,9 @@ FILES_CPU_FUNC =	$S/$M/$M/cpufunc_asm_arm7tdmi.S \
 	$S/$M/$M/cpufunc_asm_sa1.S $S/$M/$M/cpufunc_asm_arm10.S \
 	$S/$M/$M/cpufunc_asm_xscale.S $S/$M/$M/cpufunc_asm.S \
 	$S/$M/$M/cpufunc_asm_xscale_c3.S $S/$M/$M/cpufunc_asm_armv5_ec.S \
-	$S/$M/$M/cpufunc_asm_sheeva.S $S/$M/$M/cpufunc_asm_fa526.S
+	$S/$M/$M/cpufunc_asm_fa526.S $S/$M/$M/cpufunc_asm_sheeva.S \
+	$S/$M/$M/cpufunc_asm_pj4b.S $S/$M/$M/cpufunc_asm_armv7.S
+
 KERNEL_EXTRA=trampoline
 KERNEL_EXTRA_INSTALL=kernel.gz.tramp
 trampoline: ${KERNEL_KO}.tramp
@@ -105,7 +94,7 @@ ${KERNEL_KO}.tramp: ${KERNEL_KO} $S/$M/$M/inckern.S $S/$M/$M/elf_trampoline.c
 	>opt_kernname.h 
 	eval $$(stat -s ${KERNEL_KO}.tmp) && \
 	echo "#define KERNSIZE $$st_size" >>opt_kernname.h
-	gzip -9 ${KERNEL_KO}.tmp
+	gzip -f9 ${KERNEL_KO}.tmp
 	eval $$(stat -s ${KERNEL_KO}.tmp.gz) && \
 	echo "#define KERNCOMPSIZE $$st_size" >>opt_kernname.h
 	${CC} -O2 -ffreestanding -DKZIP -I. -I$S -c $S/kern/inflate.c -o \

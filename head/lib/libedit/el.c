@@ -473,30 +473,6 @@ el_get(EditLine *el, int op, ...)
 	return (rv);
 }
 
-/* el_data_get():
- *	Set user private data.
- */
-public void
-el_data_set (el, data)
-    EditLine *el;
-    void *data;
-{
-    el->el_data = data;
-
-    return;
-}
-
-/* el_data_get():
- *	Return user private data.
- */
-public void *
-el_data_get (el)
-    EditLine *el;
-{
-    if (el->el_data)
-	return (el->el_data);
-    return (NULL);
-}
 
 /* el_line():
  *	Return editing info

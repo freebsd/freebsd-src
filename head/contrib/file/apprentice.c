@@ -648,7 +648,6 @@ set_test_type(struct magic *mstart, struct magic *m)
 		break;
 	case FILE_REGEX:
 	case FILE_SEARCH:
-#ifndef COMPILE_ONLY
 		/* Check for override */
 		if (mstart->str_flags & STRING_BINTEST)
 			mstart->flag |= BINTEST;
@@ -664,7 +663,6 @@ set_test_type(struct magic *mstart, struct magic *m)
 			mstart->flag |= BINTEST;
 		else
 			mstart->flag |= TEXTTEST;
-#endif
 		break;
 	case FILE_DEFAULT:
 		/* can't deduce anything; we shouldn't see this at the

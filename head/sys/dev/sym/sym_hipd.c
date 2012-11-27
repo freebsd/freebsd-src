@@ -8537,8 +8537,8 @@ sym_pci_attach(device_t dev)
 	 */
 	if (bus_dma_tag_create(np->bus_dmat, 1, SYM_CONF_DMA_BOUNDARY,
 	    BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL,
-	    BUS_SPACE_MAXSIZE, SYM_CONF_MAX_SG, SYM_CONF_DMA_BOUNDARY,
-	    BUS_DMA_ALLOCNOW, busdma_lock_mutex, &np->mtx, &np->data_dmat)) {
+	    BUS_SPACE_MAXSIZE_32BIT, SYM_CONF_MAX_SG, SYM_CONF_DMA_BOUNDARY,
+	    0, busdma_lock_mutex, &np->mtx, &np->data_dmat)) {
 		device_printf(dev, "failed to create DMA tag.\n");
 		goto attach_failed;
 	}

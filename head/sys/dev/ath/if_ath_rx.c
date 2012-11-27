@@ -534,6 +534,14 @@ ath_rx_pkt(struct ath_softc *sc, struct ath_rx_status *rs, HAL_STATUS status,
 				goto rx_accept;
 			sc->sc_stats.ast_rx_badcrypt++;
 		}
+		/*
+		 * Similar as above - if the failure was a keymiss
+		 * just punt it up to the upper layers for now.
+		 */
+		if (rs->rs_status & HAL_RXERR_KEYMISS) {
+			sc->sc_stats.ast_rx_keymiss++;
+			goto rx_accept;
+		}
 		if (rs->rs_status & HAL_RXERR_MIC) {
 			sc->sc_stats.ast_rx_badmic++;
 			/*
@@ -892,7 +900,7 @@ rx_proc_next:
 	if (ngood)
 		sc->sc_lastrx = tsf;
 
-	CTR2(ATH_KTR_INTR, "ath_rx_proc: npkts=%d, ngood=%d", npkts, ngood);
+	ATH_KTR(sc, ATH_KTR_RXPROC, 2, "ath_rx_proc: npkts=%d, ngood=%d", npkts, ngood);
 	/* Queue DFS tasklet if needed */
 	if (resched && ath_dfs_tasklet_needed(sc, sc->sc_curchan))
 		taskqueue_enqueue(sc->sc_tq, &sc->sc_dfstask);
@@ -904,7 +912,7 @@ rx_proc_next:
 	 */
 	ATH_PCU_LOCK(sc);
 	if (resched && sc->sc_kickpcu) {
-		CTR0(ATH_KTR_ERR, "ath_rx_proc: kickpcu");
+		ATH_KTR(sc, ATH_KTR_ERROR, 0, "ath_rx_proc: kickpcu");
 		device_printf(sc->sc_dev, "%s: kickpcu; handled %d packets\n",
 		    __func__, npkts);
 
@@ -949,7 +957,7 @@ ath_legacy_rx_tasklet(void *arg, int npending)
 {
 	struct ath_softc *sc = arg;
 
-	CTR1(ATH_KTR_INTR, "ath_rx_proc: pending=%d", npending);
+	ATH_KTR(sc, ATH_KTR_RXPROC, 1, "ath_rx_proc: pending=%d", npending);
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
 	ATH_PCU_LOCK(sc);
 	if (sc->sc_inreset_cnt > 0) {
@@ -1064,10 +1072,8 @@ ath_legacy_dma_rxsetup(struct ath_softc *sc)
 {
 	int error;
 
-	device_printf(sc->sc_dev, "%s: called\n", __func__);
-
 	error = ath_descdma_setup(sc, &sc->sc_rxdma, &sc->sc_rxbuf,
-	    "rx", ath_rxbuf, 1);
+	    "rx", sizeof(struct ath_desc), ath_rxbuf, 1);
 	if (error != 0)
 		return (error);
 
@@ -1078,8 +1084,6 @@ static int
 ath_legacy_dma_rxteardown(struct ath_softc *sc)
 {
 
-	device_printf(sc->sc_dev, "%s: called\n", __func__);
-	
 	if (sc->sc_rxdma.dd_desc_len != 0)
 		ath_descdma_cleanup(sc, &sc->sc_rxdma, &sc->sc_rxbuf);
 	return (0);
@@ -1089,7 +1093,8 @@ void
 ath_recv_setup_legacy(struct ath_softc *sc)
 {
 
-	device_printf(sc->sc_dev, "DMA setup: legacy\n");
+	/* Sensible legacy defaults */
+	sc->sc_rx_statuslen = 0;
 
 	sc->sc_rx.recv_start = ath_legacy_startrecv;
 	sc->sc_rx.recv_stop = ath_legacy_stoprecv;

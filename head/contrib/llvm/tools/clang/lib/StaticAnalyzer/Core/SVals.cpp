@@ -133,9 +133,9 @@ const MemRegion *SVal::getAsRegion() const {
   return 0;
 }
 
-const MemRegion *loc::MemRegionVal::stripCasts() const {
+const MemRegion *loc::MemRegionVal::stripCasts(bool StripBaseCasts) const {
   const MemRegion *R = getRegion();
-  return R ?  R->StripCasts() : NULL;
+  return R ?  R->StripCasts(StripBaseCasts) : NULL;
 }
 
 const void *nonloc::LazyCompoundVal::getStore() const {
@@ -309,22 +309,6 @@ void Loc::dumpToStream(raw_ostream &os) const {
     case loc::MemRegionKind:
       os << '&' << cast<loc::MemRegionVal>(this)->getRegion()->getString();
       break;
-    case loc::ObjCPropRefKind: {
-      const ObjCPropertyRefExpr *E = cast<loc::ObjCPropRef>(this)->getPropRefExpr();
-      os << "objc-prop{";
-      if (E->isSuperReceiver())
-        os << "super.";
-      else if (E->getBase())
-        os << "<base>.";
-
-      if (E->isImplicitProperty())
-        os << E->getImplicitPropertyGetter()->getSelector().getAsString();
-      else
-        os << E->getExplicitProperty()->getName();
-
-      os << "}";
-      break;
-    }
     default:
       llvm_unreachable("Pretty-printing not implemented for this Loc.");
   }
