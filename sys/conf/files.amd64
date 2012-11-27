@@ -135,7 +135,7 @@ amd64/amd64/support.S		standard
 amd64/amd64/sys_machdep.c	standard
 amd64/amd64/trap.c		standard
 amd64/amd64/uio_machdep.c	standard
-amd64/amd64/uma_machdep.c	standard
+amd64/amd64/uma_machdep.c	optional	native
 amd64/amd64/vm_machdep.c	standard
 amd64/pci/pci_cfgreg.c		optional	pci
 amd64/xen/clock.c		optional xen

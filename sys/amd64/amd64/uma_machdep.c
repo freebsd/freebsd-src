@@ -68,12 +68,6 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	if ((wait & M_NODUMP) == 0)
 		dump_add_page(pa);
 	va = (void *)PHYS_TO_DMAP(pa);
-#ifdef XEN
-	/* XXX: temp fix, dmap not yet implemented. */
-	vm_offset_t vaddr = (vm_offset_t) va;
-	pmap_map(&vaddr, pa, pa + roundup(bytes, PAGE_SIZE),
-		 VM_PROT_READ | VM_PROT_WRITE);
-#endif
 	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
 		pagezero(va);
 	return (va);
