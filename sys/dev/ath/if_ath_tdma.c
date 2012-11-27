@@ -328,6 +328,16 @@ ath_tdma_config(struct ath_softc *sc, struct ieee80211vap *vap)
  * beacon timers so we follow their schedule.  Note that
  * by using the rx timestamp we implicitly include the
  * propagation delay in our schedule.
+ *
+ * XXX TODO: since the changes for the AR5416 and later chips
+ * involved changing the TSF/TU calculations, we need to make
+ * sure that various calculations wrap consistently.
+ *
+ * A lot of the problems stemmed from the calculations wrapping
+ * at 65,535 TU.  Since a lot of the math is still being done in
+ * TU, please audit it to ensure that when the TU values programmed
+ * into the timers wrap at (2^31)-1 TSF, all the various terms
+ * wrap consistently.
  */
 void
 ath_tdma_update(struct ieee80211_node *ni,
@@ -541,8 +551,8 @@ ath_tdma_update(struct ieee80211_node *ni,
 			struct if_ath_alq_tdma_tsf_adjust t;
 
 			t.tsfdelta = htobe32(tsfdelta);
-			t.tsf64_old = htobe64(tsf_1);
-			t.tsf64_new = htobe64(tsf_1 + tsfdelta);
+			t.tsf64_old = htobe64(tsf);
+			t.tsf64_new = htobe64(tsf + tsfdelta);
 			if_ath_alq_post(&sc->sc_alq, ATH_ALQ_TDMA_TSF_ADJUST,
 			    sizeof(t), (char *) &t);
 		}
