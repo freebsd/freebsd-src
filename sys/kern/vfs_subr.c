@@ -4755,7 +4755,7 @@ __mnt_vnode_first_active(struct vnode **mvp, struct mount *mp)
 	MNT_REF(mp);
 	(*mvp)->v_type = VMARKER;
 
-	vp = TAILQ_NEXT(*mvp, v_actfreelist);
+	vp = TAILQ_FIRST(&mp->mnt_activevnodelist);
 	while (vp != NULL) {
 		VI_LOCK(vp);
 		if (vp->v_mount == mp && vp->v_type != VMARKER &&
