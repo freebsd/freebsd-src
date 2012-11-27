@@ -107,36 +107,38 @@ struct mbstat mbstat;
  * tunable_mbinit() has to be run before init_maxsockets() thus
  * the SYSINIT order below is SI_ORDER_MIDDLE while init_maxsockets()
  * runs at SI_ORDER_ANY.
+ *
+ * NB: This has to be done before VM init.
  */
 static void
 tunable_mbinit(void *dummy)
 {
 
-	/* This has to be done before VM init. */
 	TUNABLE_INT_FETCH("kern.ipc.nmbclusters", &nmbclusters);
-	if (nmbclusters == 0) {
-#ifdef VM_AUTOTUNE_NMBCLUSTERS
-		nmbclusters = VM_AUTOTUNE_NMBCLUSTERS;
-#else
-		nmbclusters = 1024 + maxusers * 64;
-#endif
-#ifdef VM_MAX_AUTOTUNE_NMBCLUSTERS
-		if (nmbclusters > VM_MAX_AUTOTUNE_NMBCLUSTERS)
-			nmbclusters = VM_MAX_AUTOTUNE_NMBCLUSTERS;
-#endif
-	}
+	if (nmbclusters == 0)
+		nmbclusters = maxmbufmem / MCLBYTES / 4;
 
 	TUNABLE_INT_FETCH("kern.ipc.nmbjumbop", &nmbjumbop);
 	if (nmbjumbop == 0)
-		nmbjumbop = nmbclusters / 2;
+		nmbjumbop = maxmbufmem / MJUMPAGESIZE / 4;
 
 	TUNABLE_INT_FETCH("kern.ipc.nmbjumbo9", &nmbjumbo9);
 	if (nmbjumbo9 == 0)
-		nmbjumbo9 = nmbclusters / 4;
+		nmbjumbo9 = maxmbufmem / MJUM9BYTES / 6;
 
 	TUNABLE_INT_FETCH("kern.ipc.nmbjumbo16", &nmbjumbo16);
 	if (nmbjumbo16 == 0)
-		nmbjumbo16 = nmbclusters / 8;
+		nmbjumbo16 = maxmbufmem / MJUM16BYTES / 6;
+
+	/*
+	 * We need at least as many mbufs as we have clusters of
+	 * the various types added together.
+	 */
+	TUNABLE_INT_FETCH("kern.ipc.nmbufs", &nmbufs);
+	if (nmbufs < nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16)
+		nmbufs = lmax(maxmbufmem / MSIZE / 5,
+			      nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16);
+
 }
 SYSINIT(tunable_mbinit, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, tunable_mbinit, NULL);
 
@@ -241,7 +243,7 @@ sysctl_nmbufs(SYSCTL_HANDLER_ARGS)
 		if (newnmbufs > nmbufs) {
 			nmbufs = newnmbufs;
 			uma_zone_set_max(zone_mbuf, nmbufs);
-			nmbclusters = uma_zone_get_max(zone_mbuf);
+			nmbufs = uma_zone_get_max(zone_mbuf);
 			EVENTHANDLER_INVOKE(nmbufs_change);
 		} else
 			error = EINVAL;
