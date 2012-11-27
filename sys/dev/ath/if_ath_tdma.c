@@ -115,6 +115,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
 
+#ifdef	ATH_DEBUG_ALQ
+#include <dev/ath/if_ath_alq.h>
+#endif
+
 #ifdef IEEE80211_SUPPORT_TDMA
 #include <dev/ath/if_ath_tdma.h>
 
@@ -138,6 +142,43 @@ ath_tdma_settimers(struct ath_softc *sc, u_int32_t nexttbtt, u_int32_t bintval)
 	bt.bt_nextatim = nexttbtt+1;
 	/* Enables TBTT, DBA, SWBA timers by default */
 	bt.bt_flags = 0;
+#if 0
+	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
+	    "%s: intval=%d (0x%08x) nexttbtt=%u (0x%08x), nextdba=%u (0x%08x), nextswba=%u (0x%08x),nextatim=%u (0x%08x)\n",
+	    __func__,
+	    bt.bt_intval,
+	    bt.bt_intval,
+	    bt.bt_nexttbtt,
+	    bt.bt_nexttbtt,
+	    bt.bt_nextdba,
+	    bt.bt_nextdba,
+	    bt.bt_nextswba,
+	    bt.bt_nextswba,
+	    bt.bt_nextatim,
+	    bt.bt_nextatim);
+#endif
+
+	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_TDMA_TIMER_SET)) {
+		struct if_ath_alq_tdma_timer_set t;
+		t.bt_intval = htobe32(bt.bt_intval);
+		t.bt_nexttbtt = htobe32(bt.bt_nexttbtt);
+		t.bt_nextdba = htobe32(bt.bt_nextdba);
+		t.bt_nextswba = htobe32(bt.bt_nextswba);
+		t.bt_nextatim = htobe32(bt.bt_nextatim);
+		t.bt_flags = htobe32(bt.bt_flags);
+		t.sc_tdmadbaprep = htobe32(sc->sc_tdmadbaprep);
+		t.sc_tdmaswbaprep = htobe32(sc->sc_tdmaswbaprep);
+		if_ath_alq_post(&sc->sc_alq, ATH_ALQ_TDMA_TIMER_SET,
+		    sizeof(t), (char *) &t);
+	}
+
+	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
+	    "%s: nexttbtt=%u (0x%08x), nexttbtt tsf=%lld (0x%08llx)\n",
+	    __func__,
+	    bt.bt_nexttbtt,
+	    bt.bt_nexttbtt,
+	    (long long) ( ((u_int64_t) (bt.bt_nexttbtt)) << 10),
+	    (long long) ( ((u_int64_t) (bt.bt_nexttbtt)) << 10));
 	ath_hal_beaconsettimers(ah, &bt);
 }
 
@@ -258,6 +299,23 @@ ath_tdma_config(struct ath_softc *sc, struct ieee80211vap *vap)
 	    tdma->tdma_slot, tdma->tdma_slotlen, tdma->tdma_slotcnt,
 	    tdma->tdma_bintval, sc->sc_tdmaguard, sc->sc_tdmabintval,
 	    sc->sc_tdmadbaprep);
+
+#ifdef	ATH_DEBUG_ALQ
+	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_TDMA_TIMER_CONFIG)) {
+		struct if_ath_alq_tdma_timer_config t;
+
+		t.tdma_slot = htobe32(tdma->tdma_slot);
+		t.tdma_slotlen = htobe32(tdma->tdma_slotlen);
+		t.tdma_slotcnt = htobe32(tdma->tdma_slotcnt);
+		t.tdma_bintval = htobe32(tdma->tdma_bintval);
+		t.tdma_guard = htobe32(sc->sc_tdmaguard);
+		t.tdma_scbintval = htobe32(sc->sc_tdmabintval);
+		t.tdma_dbaprep = htobe32(sc->sc_tdmadbaprep);
+
+		if_ath_alq_post(&sc->sc_alq, ATH_ALQ_TDMA_TIMER_CONFIG,
+		    sizeof(t), (char *) &t);
+	}
+#endif	/* ATH_DEBUG_ALQ */
 }
 
 /*
@@ -326,11 +384,33 @@ ath_tdma_update(struct ieee80211_node *ni,
 	    rt->info[rix].shortPreamble);
 	/* NB: << 9 is to cvt to TU and /2 */
 	nextslot = (rstamp - txtime) + (sc->sc_tdmabintval << 9);
+
 	/*
 	 * For 802.11n chips: nextslottu needs to be the full TSF space,
 	 * not just 0..65535 TU.
 	 */
 	nextslottu = TSF_TO_TU(nextslot>>32, nextslot);
+	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
+	    "rs->rstamp %llu rstamp %llu tsf %llu txtime %d, nextslot %llu, nextslottu %d, nextslottume %d\n",
+	    (unsigned long long) rs->rs_tstamp, rstamp, tsf, txtime, nextslot, nextslottu, TSF_TO_TU(nextslot >> 32, nextslot));
+	DPRINTF(sc, ATH_DEBUG_TDMA,
+	    "  beacon tstamp: %llu (0x%016llx)\n",
+	    le64toh(ni->ni_tstamp.tsf),
+	    le64toh(ni->ni_tstamp.tsf));
+
+#ifdef	ATH_DEBUG_ALQ
+	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_TDMA_BEACON_STATE)) {
+		struct if_ath_alq_tdma_beacon_state t;
+		t.rx_tsf = htobe64(rstamp);
+		t.beacon_tsf = htobe64(le64toh(ni->ni_tstamp.tsf));
+		t.tsf64 = htobe64(tsf);
+		t.nextslot_tsf = htobe64(nextslot);
+		t.nextslot_tu = htobe32(nextslottu);
+		t.txtime = htobe32(txtime);
+		if_ath_alq_post(&sc->sc_alq, ATH_ALQ_TDMA_BEACON_STATE,
+		    sizeof(t), (char *) &t);
+	}
+#endif
 
 	/*
 	 * Retrieve the hardware NextTBTT in usecs
@@ -354,7 +434,7 @@ ath_tdma_update(struct ieee80211_node *ni,
 	 * value, tsfdelta ends up becoming very negative and all
 	 * of the adjustments get very messed up.
 	 */
-	
+
 	/*
 	 * We need to track the full nexttbtt rather than having it
 	 * truncated at HAL_BEACON_PERIOD, as programming the
@@ -367,8 +447,26 @@ ath_tdma_update(struct ieee80211_node *ni,
 	tsfdelta = (int32_t)((nextslot % TU_TO_TSF(HAL_BEACON_PERIOD + 1)) - nexttbtt);
 
 	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
-	    "tsfdelta %d avg +%d/-%d\n", tsfdelta,
+	    "nexttbtt %llu (0x%08llx) tsfdelta %d avg +%d/-%d\n",
+	    nexttbtt,
+	    (long long) nexttbtt,
+	    tsfdelta,
 	    TDMA_AVG(sc->sc_avgtsfdeltap), TDMA_AVG(sc->sc_avgtsfdeltam));
+
+#ifdef	ATH_DEBUG_ALQ
+	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_TDMA_SLOT_CALC)) {
+		struct if_ath_alq_tdma_slot_calc t;
+
+		t.nexttbtt = htobe64(nexttbtt_full);
+		t.next_slot = htobe64(nextslot);
+		t.tsfdelta = htobe32(tsfdelta);
+		t.avg_plus = htobe32(TDMA_AVG(sc->sc_avgtsfdeltap));
+		t.avg_minus = htobe32(TDMA_AVG(sc->sc_avgtsfdeltam));
+
+		if_ath_alq_post(&sc->sc_alq, ATH_ALQ_TDMA_SLOT_CALC,
+		    sizeof(t), (char *) &t);
+	}
+#endif
 
 	if (tsfdelta < 0) {
 		TDMA_SAMPLE(sc->sc_avgtsfdeltap, 0);
@@ -415,6 +513,11 @@ ath_tdma_update(struct ieee80211_node *ni,
 	 * This basically filters out jumps due to missed beacons.
 	 */
 	if (tudelta != 0 && (tudelta > 0 || -tudelta < sc->sc_tdmabintval)) {
+		DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
+		    "%s: calling ath_tdma_settimers; nextslottu=%d, bintval=%d\n",
+		    __func__,
+		    nextslottu,
+		    sc->sc_tdmabintval);
 		ath_tdma_settimers(sc, nextslottu, sc->sc_tdmabintval);
 		sc->sc_stats.ast_tdma_timers++;
 	}
@@ -424,6 +527,24 @@ ath_tdma_update(struct ieee80211_node *ni,
 		/* XXX should just teach ath_hal_adjusttsf() to do this */
 		tsf = ath_hal_gettsf64(ah);
 		ath_hal_settsf64(ah, tsf + tsfdelta);
+		DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
+		    "%s: calling ath_hal_adjusttsf: TSF=%llu, tsfdelta=%d\n",
+		    __func__,
+		    tsf_1,
+		    tsfdelta);
+
+#ifdef	ATH_DEBUG_ALQ
+		if (if_ath_alq_checkdebug(&sc->sc_alq,
+		    ATH_ALQ_TDMA_TSF_ADJUST)) {
+			struct if_ath_alq_tdma_tsf_adjust t;
+
+			t.tsfdelta = htobe32(tsfdelta);
+			t.tsf64_old = htobe64(tsf_1);
+			t.tsf64_new = htobe64(tsf_1 + tsfdelta);
+			if_ath_alq_post(&sc->sc_alq, ATH_ALQ_TDMA_TSF_ADJUST,
+			    sizeof(t), (char *) &t);
+		}
+#endif	/* ATH_DEBUG_ALQ */
 		sc->sc_stats.ast_tdma_tsf++;
 	}
 	ath_tdma_beacon_send(sc, vap);		/* prepare response */
