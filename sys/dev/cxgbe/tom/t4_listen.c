@@ -271,13 +271,13 @@ send_reset_synqe(struct toedev *tod, struct synq_entry *synqe)
 	struct ifnet *ifp = m->m_pkthdr.rcvif;
 	struct port_info *pi = ifp->if_softc;
 	struct l2t_entry *e = &sc->l2t->l2tab[synqe->l2e_idx];
-        struct wrqe *wr;
-        struct fw_flowc_wr *flowc;
+	struct wrqe *wr;
+	struct fw_flowc_wr *flowc;
 	struct cpl_abort_req *req;
 	int txqid, rxqid, flowclen;
 	struct sge_wrq *ofld_txq;
 	struct sge_ofld_rxq *ofld_rxq;
-	const int nparams = 4;
+	const int nparams = 6;
 	unsigned int pfvf = G_FW_VIID_PFN(pi->viid) << S_FW_VIID_PFN;
 
 	INP_WLOCK_ASSERT(synqe->lctx->inp);
@@ -312,13 +312,17 @@ send_reset_synqe(struct toedev *tod, struct synq_entry *synqe)
 	flowc->flowid_len16 = htonl(V_FW_WR_LEN16(howmany(flowclen, 16)) |
 	    V_FW_WR_FLOWID(synqe->tid));
 	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_PFNVFN;
-        flowc->mnemval[0].val = htobe32(pfvf);
-        flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
-        flowc->mnemval[1].val = htobe32(pi->tx_chan);
-        flowc->mnemval[2].mnemonic = FW_FLOWC_MNEM_PORT;
-        flowc->mnemval[2].val = htobe32(pi->tx_chan);
-        flowc->mnemval[3].mnemonic = FW_FLOWC_MNEM_IQID;
-        flowc->mnemval[3].val = htobe32(ofld_rxq->iq.abs_id);
+	flowc->mnemval[0].val = htobe32(pfvf);
+	flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
+	flowc->mnemval[1].val = htobe32(pi->tx_chan);
+	flowc->mnemval[2].mnemonic = FW_FLOWC_MNEM_PORT;
+	flowc->mnemval[2].val = htobe32(pi->tx_chan);
+	flowc->mnemval[3].mnemonic = FW_FLOWC_MNEM_IQID;
+	flowc->mnemval[3].val = htobe32(ofld_rxq->iq.abs_id);
+ 	flowc->mnemval[4].mnemonic = FW_FLOWC_MNEM_SNDBUF;
+ 	flowc->mnemval[4].val = htobe32(512);
+ 	flowc->mnemval[5].mnemonic = FW_FLOWC_MNEM_MSS;
+ 	flowc->mnemval[5].val = htobe32(512);
 	synqe->flags |= TPF_FLOWC_WR_SENT;
 
 	/* ... then ABORT request */
@@ -555,8 +559,10 @@ t4_syncache_respond(struct toedev *tod, void *arg, struct mbuf *m)
 	struct tcphdr *th = (void *)(ip + 1);
 
 	wr = (struct wrqe *)atomic_readandclear_ptr(&synqe->wr);
-	if (wr == NULL)
+	if (wr == NULL) {
+		m_freem(m);
 		return (EALREADY);
+	}
 
 	bzero(&to, sizeof(to));
 	tcp_dooptions(&to, (void *)(th + 1), (th->th_off << 2) - sizeof(*th),
@@ -1198,6 +1204,7 @@ do_pass_accept_req(struct sge_iq *iq, const struct rss_header *rss,
 		if (m)
 			m->m_pkthdr.rcvif = ifp;
 
+		remove_tid(sc, synqe->tid);
 		release_synqe(synqe);	/* about to exit function */
 		free(wr, M_CXGBE);
 		REJECT_PASS_ACCEPT();

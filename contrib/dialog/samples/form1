@@ -1,5 +1,5 @@
 #! /bin/sh
-# $Id: form1,v 1.14 2010/01/13 10:53:11 tom Exp $
+# $Id: form1,v 1.15 2011/10/04 23:36:53 tom Exp $
 
 . ./setup-vars
 
@@ -63,8 +63,8 @@ $show" 10 40
 		echo "Button 3 (Extra) pressed."
 		exit
 		;;
-	$DIALOG_ERR)
-		echo "ERROR!"
+	$DIALOG_ERROR)
+		echo "ERROR!$value"
 		exit
 		;;
 	$DIALOG_ESC)

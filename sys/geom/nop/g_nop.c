@@ -215,7 +215,7 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 			return (EEXIST);
 		}
 	}
-	gp = g_new_geomf(mp, name);
+	gp = g_new_geomf(mp, "%s", name);
 	sc = g_malloc(sizeof(*sc), M_WAITOK);
 	sc->sc_offset = offset;
 	sc->sc_explicitsize = explicitsize;
@@ -233,7 +233,7 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	gp->access = g_nop_access;
 	gp->dumpconf = g_nop_dumpconf;
 
-	newpp = g_new_providerf(gp, gp->name);
+	newpp = g_new_providerf(gp, "%s", gp->name);
 	newpp->mediasize = size;
 	newpp->sectorsize = secsize;
 

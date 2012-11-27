@@ -289,7 +289,6 @@
  *
  * #define BCE_DEBUG
  * #define BCE_NVRAM_WRITE_SUPPORT
- * #define BCE_JUMBO_HDRSPLIT
  */
 
 /****************************************************************************/

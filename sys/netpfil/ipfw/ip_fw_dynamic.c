@@ -258,8 +258,12 @@ hash_packet(struct ipfw_flow_id *id)
 	return i;
 }
 
-static __inline void
-unlink_dyn_rule_print(struct ipfw_flow_id *id)
+/**
+ * Print customizable flow id description via log(9) facility.
+ */
+static void
+print_dyn_rule_flags(struct ipfw_flow_id *id, int dyn_type, int log_flags,
+    char *prefix, char *postfix)
 {
 	struct in_addr da;
 #ifdef INET6
@@ -280,9 +284,13 @@ unlink_dyn_rule_print(struct ipfw_flow_id *id)
 		da.s_addr = htonl(id->dst_ip);
 		inet_ntop(AF_INET, &da, dst, sizeof(dst));
 	}
-	printf("ipfw: unlink entry %s %d -> %s %d, %d left\n",
-	    src, id->src_port, dst, id->dst_port, V_dyn_count - 1);
+	log(log_flags, "ipfw: %s type %d %s %d -> %s %d, %d %s\n",
+	    prefix, dyn_type, src, id->src_port, dst,
+	    id->dst_port, V_dyn_count, postfix);
 }
+
+#define	print_dyn_rule(id, dtype, prefix, postfix)	\
+	print_dyn_rule_flags(id, dtype, LOG_DEBUG, prefix, postfix)
 
 /**
  * unlink a dynamic rule from a chain. prev is a pointer to
@@ -296,12 +304,12 @@ unlink_dyn_rule_print(struct ipfw_flow_id *id)
 	/* remove a refcount to the parent */				\
 	if (q->dyn_type == O_LIMIT)					\
 		q->parent->count--;					\
-	DEB(unlink_dyn_rule_print(&q->id);)				\
+	V_dyn_count--;							\
+	DEB(print_dyn_rule(&q->id, q->dyn_type, "unlink entry", "left");) \
 	if (prev != NULL)						\
 		prev->next = q = q->next;				\
 	else								\
 		head = q = q->next;					\
-	V_dyn_count--;							\
 	uma_zfree(ipfw_dyn_rule_zone, old_q); }
 
 #define TIME_LEQ(a,b)       ((int)((a)-(b)) <= 0)
@@ -639,32 +647,7 @@ add_dyn_rule(struct ipfw_flow_id *id, u_int8_t dyn_type, struct ip_fw *rule)
 	r->next = V_ipfw_dyn_v[i];
 	V_ipfw_dyn_v[i] = r;
 	V_dyn_count++;
-	DEB({
-		struct in_addr da;
-#ifdef INET6
-		char src[INET6_ADDRSTRLEN];
-		char dst[INET6_ADDRSTRLEN];
-#else
-		char src[INET_ADDRSTRLEN];
-		char dst[INET_ADDRSTRLEN];
-#endif
-
-#ifdef INET6
-		if (IS_IP6_FLOW_ID(&(r->id))) {
-			ip6_sprintf(src, &r->id.src_ip6);
-			ip6_sprintf(dst, &r->id.dst_ip6);
-		} else
-#endif
-		{
-			da.s_addr = htonl(r->id.src_ip);
-			inet_ntop(AF_INET, &da, src, sizeof(src));
-			da.s_addr = htonl(r->id.dst_ip);
-			inet_ntop(AF_INET, &da, dst, sizeof(dst));
-		}
-		printf("ipfw: add dyn entry ty %d %s %d -> %s %d, total %d\n",
-		    dyn_type, src, r->id.src_port, dst, r->id.dst_port,
-		    V_dyn_count);
-	})
+	DEB(print_dyn_rule(id, dyn_type, "add dyn entry", "total");)
 	return r;
 }
 
@@ -701,7 +684,8 @@ lookup_dyn_parent(struct ipfw_flow_id *pkt, struct ip_fw *rule)
 			    )
 			) {
 				q->expire = time_uptime + V_dyn_short_lifetime;
-				DEB(printf("ipfw: lookup_dyn_parent found 0x%p\n",q);)
+				DEB(print_dyn_rule(pkt, q->dyn_type,
+				    "lookup_dyn_parent found", "");)
 				return q;
 			}
 	}
@@ -720,37 +704,10 @@ ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 {
 	static int last_log;
 	ipfw_dyn_rule *q;
-	struct in_addr da;
-#ifdef INET6
-	char src[INET6_ADDRSTRLEN + 2], dst[INET6_ADDRSTRLEN + 2];
-#else
-	char src[INET_ADDRSTRLEN], dst[INET_ADDRSTRLEN];
-#endif
 
-	src[0] = '\0';
-	dst[0] = '\0';
+	DEB(print_dyn_rule(&args->f_id, cmd->o.opcode, "install_state", "");)
 
 	IPFW_DYN_LOCK();
-
-	DEB(
-#ifdef INET6
-	if (IS_IP6_FLOW_ID(&(args->f_id))) {
-		ip6_sprintf(src, &args->f_id.src_ip6);
-		ip6_sprintf(dst, &args->f_id.dst_ip6);
-	} else
-#endif
-	{
-		da.s_addr = htonl(args->f_id.src_ip);
-		inet_ntop(AF_INET, &da, src, sizeof(src));
-		da.s_addr = htonl(args->f_id.dst_ip);
-		inet_ntop(AF_INET, &da, dst, sizeof(dst));
-	}
-	printf("ipfw: %s: type %d %s %u -> %s %u\n",
-	    __func__, cmd->o.opcode, src, args->f_id.src_port,
-	    dst, args->f_id.dst_port);
-	src[0] = '\0';
-	dst[0] = '\0';
-	)
 
 	q = lookup_dyn_rule_locked(&args->f_id, NULL, NULL);
 
@@ -833,38 +790,15 @@ ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 			if (parent->count >= conn_limit) {
 				if (V_fw_verbose && last_log != time_uptime) {
 					last_log = time_uptime;
-#ifdef INET6
-					/*
-					 * XXX IPv6 flows are not
-					 * supported yet.
-					 */
-					if (IS_IP6_FLOW_ID(&(args->f_id))) {
-						char ip6buf[INET6_ADDRSTRLEN];
-						snprintf(src, sizeof(src),
-						    "[%s]", ip6_sprintf(ip6buf,
-							&args->f_id.src_ip6));
-						snprintf(dst, sizeof(dst),
-						    "[%s]", ip6_sprintf(ip6buf,
-							&args->f_id.dst_ip6));
-					} else
-#endif
-					{
-						da.s_addr =
-						    htonl(args->f_id.src_ip);
-						inet_ntop(AF_INET, &da, src,
-						    sizeof(src));
-						da.s_addr =
-						    htonl(args->f_id.dst_ip);
-						inet_ntop(AF_INET, &da, dst,
-						    sizeof(dst));
-					}
-					log(LOG_SECURITY | LOG_DEBUG,
-					    "ipfw: %d %s %s:%u -> %s:%u, %s\n",
-					    parent->rule->rulenum,
-					    "drop session",
-					    src, (args->f_id.src_port),
-					    dst, (args->f_id.dst_port),
-					    "too many entries");
+					char sbuf[24];
+					last_log = time_uptime;
+					snprintf(sbuf, sizeof(sbuf),
+					    "%d drop session",
+					    parent->rule->rulenum);
+					print_dyn_rule_flags(&args->f_id,
+					    cmd->o.opcode,
+					    LOG_SECURITY | LOG_DEBUG,
+					    sbuf, "too many entries");
 				}
 				IPFW_DYN_UNLOCK();
 				return (1);
@@ -1016,9 +950,8 @@ ipfw_send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
 		h->ip_v = 4;
 		h->ip_hl = sizeof(*h) >> 2;
 		h->ip_tos = IPTOS_LOWDELAY;
-		h->ip_off = 0;
-		/* ip_len must be in host format for ip_output */
-		h->ip_len = len;
+		h->ip_off = htons(0);
+		h->ip_len = htons(len);
 		h->ip_ttl = V_ip_defttl;
 		h->ip_sum = 0;
 		break;
@@ -1038,6 +971,31 @@ ipfw_send_pkt(struct mbuf *replyto, struct ipfw_flow_id *id, u_int32_t seq,
 }
 
 /*
+ * Queue keepalive packets for given dynamic rule
+ */
+static struct mbuf **
+ipfw_dyn_send_ka(struct mbuf **mtailp, ipfw_dyn_rule *q)
+{
+	struct mbuf *m_rev, *m_fwd;
+
+	m_rev = (q->state & ACK_REV) ? NULL :
+	    ipfw_send_pkt(NULL, &(q->id), q->ack_rev - 1, q->ack_fwd, TH_SYN);
+	m_fwd = (q->state & ACK_FWD) ? NULL :
+	    ipfw_send_pkt(NULL, &(q->id), q->ack_fwd - 1, q->ack_rev, 0);
+
+	if (m_rev != NULL) {
+		*mtailp = m_rev;
+		mtailp = &(*mtailp)->m_nextpkt;
+	}
+	if (m_fwd != NULL) {
+		*mtailp = m_fwd;
+		mtailp = &(*mtailp)->m_nextpkt;
+	}
+
+	return (mtailp);
+}
+
+/*
  * This procedure is only used to handle keepalives. It is invoked
  * every dyn_keepalive_period
  */
@@ -1045,9 +1003,7 @@ static void
 ipfw_tick(void * vnetx) 
 {
 	struct mbuf *m0, *m, *mnext, **mtailp;
-#ifdef INET6
-	struct mbuf *m6, **m6_tailp;
-#endif
+	struct ip *h;
 	int i;
 	ipfw_dyn_rule *q;
 #ifdef VIMAGE
@@ -1066,15 +1022,14 @@ ipfw_tick(void * vnetx)
 	 */
 	m0 = NULL;
 	mtailp = &m0;
-#ifdef INET6
-	m6 = NULL;
-	m6_tailp = &m6;
-#endif
 	IPFW_DYN_LOCK();
 	for (i = 0 ; i < V_curr_dyn_buckets ; i++) {
 		for (q = V_ipfw_dyn_v[i] ; q ; q = q->next ) {
 			if (q->dyn_type == O_LIMIT_PARENT)
 				continue;
+			if (TIME_LEQ(q->expire, time_uptime))
+				continue;	/* too late, rule expired */
+
 			if (q->id.proto != IPPROTO_TCP)
 				continue;
 			if ( (q->state & BOTH_SYN) != BOTH_SYN)
@@ -1082,55 +1037,24 @@ ipfw_tick(void * vnetx)
 			if (TIME_LEQ(time_uptime + V_dyn_keepalive_interval,
 			    q->expire))
 				continue;	/* too early */
-			if (TIME_LEQ(q->expire, time_uptime))
-				continue;	/* too late, rule expired */
 
-			m = (q->state & ACK_REV) ? NULL :
-			    ipfw_send_pkt(NULL, &(q->id), q->ack_rev - 1,
-			    q->ack_fwd, TH_SYN);
-			mnext = (q->state & ACK_FWD) ? NULL :
-			    ipfw_send_pkt(NULL, &(q->id), q->ack_fwd - 1,
-			    q->ack_rev, 0);
-
-			switch (q->id.addr_type) {
-			case 4:
-				if (m != NULL) {
-					*mtailp = m;
-					mtailp = &(*mtailp)->m_nextpkt;
-				}
-				if (mnext != NULL) {
-					*mtailp = mnext;
-					mtailp = &(*mtailp)->m_nextpkt;
-				}
-				break;
-#ifdef INET6
-			case 6:
-				if (m != NULL) {
-					*m6_tailp = m;
-					m6_tailp = &(*m6_tailp)->m_nextpkt;
-				}
-				if (mnext != NULL) {
-					*m6_tailp = mnext;
-					m6_tailp = &(*m6_tailp)->m_nextpkt;
-				}
-				break;
-#endif
-			}
+			mtailp = ipfw_dyn_send_ka(mtailp, q);
 		}
 	}
 	IPFW_DYN_UNLOCK();
+
+	/* Send keepalive packets if any */
 	for (m = m0; m != NULL; m = mnext) {
 		mnext = m->m_nextpkt;
 		m->m_nextpkt = NULL;
-		ip_output(m, NULL, NULL, 0, NULL, NULL);
-	}
+		h = mtod(m, struct ip *);
+		if (h->ip_v == 4)
+			ip_output(m, NULL, NULL, 0, NULL, NULL);
 #ifdef INET6
-	for (m = m6; m != NULL; m = mnext) {
-		mnext = m->m_nextpkt;
-		m->m_nextpkt = NULL;
-		ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
-	}
+		else
+			ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
 #endif
+	}
 done:
 	callout_reset_on(&V_ipfw_timeout, V_dyn_keepalive_period * hz,
 		      ipfw_tick, vnetx, 0);

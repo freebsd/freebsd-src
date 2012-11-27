@@ -149,6 +149,7 @@ boolean_t	zio_taskq_sysdc = B_TRUE;	/* use SDC scheduling class */
 uint_t		zio_taskq_basedc = 80;		/* base duty cycle */
 
 boolean_t	spa_create_process = B_TRUE;	/* no process ==> no sysdc */
+extern int	zfs_sync_pass_deferred_free;
 
 /*
  * This (illegal) pool name is used when temporarily importing a spa_t in order
@@ -3560,8 +3561,8 @@ spa_create(const char *pool, nvlist_t *nvroot, nvlist_t *props,
 	return (0);
 }
 
-#if defined(sun)
 #ifdef _KERNEL
+#if defined(sun)
 /*
  * Get the root pool information from the root disk, then import the root pool
  * during the system boot up time.
@@ -3763,8 +3764,203 @@ out:
 	return (error);
 }
 
-#endif
+#else
+
+extern int vdev_geom_read_pool_label(const char *name, nvlist_t ***configs,
+    uint64_t *count);
+
+static nvlist_t *
+spa_generate_rootconf(const char *name)
+{
+	nvlist_t **configs, **tops;
+	nvlist_t *config;
+	nvlist_t *best_cfg, *nvtop, *nvroot;
+	uint64_t *holes;
+	uint64_t best_txg;
+	uint64_t nchildren;
+	uint64_t pgid;
+	uint64_t count;
+	uint64_t i;
+	uint_t   nholes;
+
+	if (vdev_geom_read_pool_label(name, &configs, &count) != 0)
+		return (NULL);
+
+	ASSERT3U(count, !=, 0);
+	best_txg = 0;
+	for (i = 0; i < count; i++) {
+		uint64_t txg;
+
+		VERIFY(nvlist_lookup_uint64(configs[i], ZPOOL_CONFIG_POOL_TXG,
+		    &txg) == 0);
+		if (txg > best_txg) {
+			best_txg = txg;
+			best_cfg = configs[i];
+		}
+	}
+
+	/*
+	 * Multi-vdev root pool configuration discovery is not supported yet.
+	 */
+	nchildren = 0;
+	VERIFY(nvlist_lookup_uint64(best_cfg, ZPOOL_CONFIG_VDEV_CHILDREN,
+	    &nchildren) == 0);
+	holes = NULL;
+	nvlist_lookup_uint64_array(best_cfg, ZPOOL_CONFIG_HOLE_ARRAY,
+	    &holes, &nholes);
+
+	tops = kmem_alloc(nchildren * sizeof(void *), KM_SLEEP | KM_ZERO);
+	for (i = 0; i < nchildren; i++) {
+		if (i >= count)
+			break;
+		if (configs[i] == NULL)
+			continue;
+		VERIFY(nvlist_lookup_nvlist(configs[i], ZPOOL_CONFIG_VDEV_TREE,
+		    &nvtop) == 0);
+		nvlist_dup(nvtop, &tops[i], KM_SLEEP);
+	}
+	for (i = 0; holes != NULL && i < nholes; i++) {
+		if (i >= nchildren)
+			continue;
+		if (tops[holes[i]] != NULL)
+			continue;
+		nvlist_alloc(&tops[holes[i]], NV_UNIQUE_NAME, KM_SLEEP);
+		VERIFY(nvlist_add_string(tops[holes[i]], ZPOOL_CONFIG_TYPE,
+		    VDEV_TYPE_HOLE) == 0);
+		VERIFY(nvlist_add_uint64(tops[holes[i]], ZPOOL_CONFIG_ID,
+		    holes[i]) == 0);
+		VERIFY(nvlist_add_uint64(tops[holes[i]], ZPOOL_CONFIG_GUID,
+		    0) == 0);
+	}
+	for (i = 0; i < nchildren; i++) {
+		if (tops[i] != NULL)
+			continue;
+		nvlist_alloc(&tops[i], NV_UNIQUE_NAME, KM_SLEEP);
+		VERIFY(nvlist_add_string(tops[i], ZPOOL_CONFIG_TYPE,
+		    VDEV_TYPE_MISSING) == 0);
+		VERIFY(nvlist_add_uint64(tops[i], ZPOOL_CONFIG_ID,
+		    i) == 0);
+		VERIFY(nvlist_add_uint64(tops[i], ZPOOL_CONFIG_GUID,
+		    0) == 0);
+	}
+
+	/*
+	 * Create pool config based on the best vdev config.
+	 */
+	nvlist_dup(best_cfg, &config, KM_SLEEP);
+
+	/*
+	 * Put this pool's top-level vdevs into a root vdev.
+	 */
+	VERIFY(nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_GUID,
+	    &pgid) == 0);
+	VERIFY(nvlist_alloc(&nvroot, NV_UNIQUE_NAME, KM_SLEEP) == 0);
+	VERIFY(nvlist_add_string(nvroot, ZPOOL_CONFIG_TYPE,
+	    VDEV_TYPE_ROOT) == 0);
+	VERIFY(nvlist_add_uint64(nvroot, ZPOOL_CONFIG_ID, 0ULL) == 0);
+	VERIFY(nvlist_add_uint64(nvroot, ZPOOL_CONFIG_GUID, pgid) == 0);
+	VERIFY(nvlist_add_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN,
+	    tops, nchildren) == 0);
+
+	/*
+	 * Replace the existing vdev_tree with the new root vdev in
+	 * this pool's configuration (remove the old, add the new).
+	 */
+	VERIFY(nvlist_add_nvlist(config, ZPOOL_CONFIG_VDEV_TREE, nvroot) == 0);
+
+	/*
+	 * Drop vdev config elements that should not be present at pool level.
+	 */
+	nvlist_remove(config, ZPOOL_CONFIG_GUID, DATA_TYPE_UINT64);
+	nvlist_remove(config, ZPOOL_CONFIG_TOP_GUID, DATA_TYPE_UINT64);
+
+	for (i = 0; i < count; i++)
+		nvlist_free(configs[i]);
+	kmem_free(configs, count * sizeof(void *));
+	for (i = 0; i < nchildren; i++)
+		nvlist_free(tops[i]);
+	kmem_free(tops, nchildren * sizeof(void *));
+	nvlist_free(nvroot);
+	return (config);
+}
+
+int
+spa_import_rootpool(const char *name)
+{
+	spa_t *spa;
+	vdev_t *rvd, *bvd, *avd = NULL;
+	nvlist_t *config, *nvtop;
+	uint64_t txg;
+	char *pname;
+	int error;
+
+	/*
+	 * Read the label from the boot device and generate a configuration.
+	 */
+	config = spa_generate_rootconf(name);
+
+	mutex_enter(&spa_namespace_lock);
+	if (config != NULL) {
+		VERIFY(nvlist_lookup_string(config, ZPOOL_CONFIG_POOL_NAME,
+		    &pname) == 0 && strcmp(name, pname) == 0);
+		VERIFY(nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_TXG, &txg)
+		    == 0);
+
+		if ((spa = spa_lookup(pname)) != NULL) {
+			/*
+			 * Remove the existing root pool from the namespace so
+			 * that we can replace it with the correct config
+			 * we just read in.
+			 */
+			spa_remove(spa);
+		}
+		spa = spa_add(pname, config, NULL);
+
+		/*
+		 * Set spa_ubsync.ub_version as it can be used in vdev_alloc()
+		 * via spa_version().
+		 */
+		if (nvlist_lookup_uint64(config, ZPOOL_CONFIG_VERSION,
+		    &spa->spa_ubsync.ub_version) != 0)
+			spa->spa_ubsync.ub_version = SPA_VERSION_INITIAL;
+	} else if ((spa = spa_lookup(name)) == NULL) {
+		cmn_err(CE_NOTE, "Cannot find the pool label for '%s'",
+		    name);
+		return (EIO);
+	} else {
+		VERIFY(nvlist_dup(spa->spa_config, &config, KM_SLEEP) == 0);
+	}
+	spa->spa_is_root = B_TRUE;
+	spa->spa_import_flags = ZFS_IMPORT_VERBATIM;
+
+	/*
+	 * Build up a vdev tree based on the boot device's label config.
+	 */
+	VERIFY(nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE,
+	    &nvtop) == 0);
+	spa_config_enter(spa, SCL_ALL, FTAG, RW_WRITER);
+	error = spa_config_parse(spa, &rvd, nvtop, NULL, 0,
+	    VDEV_ALLOC_ROOTPOOL);
+	spa_config_exit(spa, SCL_ALL, FTAG);
+	if (error) {
+		mutex_exit(&spa_namespace_lock);
+		nvlist_free(config);
+		cmn_err(CE_NOTE, "Can not parse the config for pool '%s'",
+		    pname);
+		return (error);
+	}
+
+	spa_config_enter(spa, SCL_ALL, FTAG, RW_WRITER);
+	vdev_free(rvd);
+	spa_config_exit(spa, SCL_ALL, FTAG);
+	mutex_exit(&spa_namespace_lock);
+
+	nvlist_free(config);
+	return (0);
+}
+
 #endif	/* sun */
+#endif
 
 /*
  * Import a non-root pool into the system.
@@ -5817,6 +6013,14 @@ spa_sync_config_object(spa_t *spa, dmu_tx_t *tx)
 	config = spa_config_generate(spa, spa->spa_root_vdev,
 	    dmu_tx_get_txg(tx), B_FALSE);
 
+	/*
+	 * If we're upgrading the spa version then make sure that
+	 * the config object gets updated with the correct version.
+	 */
+	if (spa->spa_ubsync.ub_version < spa->spa_uberblock.ub_version)
+		fnvlist_add_uint64(config, ZPOOL_CONFIG_VERSION,
+		    spa->spa_uberblock.ub_version);
+
 	spa_config_exit(spa, SCL_STATE, FTAG);
 
 	if (spa->spa_config_syncing)
@@ -6135,7 +6339,7 @@ spa_sync(spa_t *spa, uint64_t txg)
 		spa_errlog_sync(spa, txg);
 		dsl_pool_sync(dp, txg);
 
-		if (pass <= SYNC_PASS_DEFERRED_FREE) {
+		if (pass < zfs_sync_pass_deferred_free) {
 			zio_t *zio = zio_root(spa, NULL, NULL, 0);
 			bplist_iterate(free_bpl, spa_free_sync_cb,
 			    zio, tx);

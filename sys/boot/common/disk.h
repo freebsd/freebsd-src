@@ -93,7 +93,8 @@ struct disk_devdesc
  * Parse disk metadata and initialise dev->d_offset.
  */
 extern int disk_open(struct disk_devdesc *dev, off_t mediasize,
-    u_int sectorsize);
+    u_int sectorsize, u_int flags);
+#define	DISK_F_NOCACHE	0x0001		/* Do not use metadata caching */
 extern int disk_close(struct disk_devdesc *dev);
 extern void disk_cleanup(const struct devsw *d_dev);
 

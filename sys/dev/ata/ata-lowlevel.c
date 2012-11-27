@@ -116,6 +116,7 @@ ata_begin_transaction(struct ata_request *request)
 		} while (request->status & ATA_S_BUSY && timeout--);
 		if (request->status & ATA_S_ERROR)
 		    request->error = ATA_IDX_INB(ch, ATA_ERROR);
+		ch->hw.tf_read(request);
 		goto begin_finished;
 	    }
 
@@ -253,8 +254,9 @@ ata_end_transaction(struct ata_request *request)
 	if (request->flags & ATA_R_TIMEOUT)
 	    goto end_finished;
 
-	/* on control commands read back registers to the request struct */
-	if (request->flags & ATA_R_CONTROL) {
+	/* Read back registers to the request struct. */
+	if ((request->status & ATA_S_ERROR) ||
+	    (request->flags & (ATA_R_CONTROL | ATA_R_NEEDRESULT))) {
 	    ch->hw.tf_read(request);
 	}
 
@@ -331,6 +333,12 @@ ata_end_transaction(struct ata_request *request)
 	    request->status |= ATA_S_ERROR;
 	else if (!(request->flags & ATA_R_TIMEOUT))
 	    request->donecount = request->bytecount;
+
+	/* Read back registers to the request struct. */
+	if ((request->status & ATA_S_ERROR) ||
+	    (request->flags & (ATA_R_CONTROL | ATA_R_NEEDRESULT))) {
+	    ch->hw.tf_read(request);
+	}
 
 	/* release SG list etc */
 	ch->dma.unload(request);

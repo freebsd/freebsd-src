@@ -3475,9 +3475,7 @@ pf_check_in(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 {
 	int chk;
 
-	CURVNET_SET(ifp->if_vnet);
 	chk = pf_test(PF_IN, ifp, m, inp);
-	CURVNET_RESTORE();
 	if (chk && *m) {
 		m_freem(*m);
 		*m = NULL;
@@ -3498,9 +3496,7 @@ pf_check_out(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 		(*m)->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
 
-	CURVNET_SET(ifp->if_vnet);
 	chk = pf_test(PF_OUT, ifp, m, inp);
-	CURVNET_RESTORE();
 	if (chk && *m) {
 		m_freem(*m);
 		*m = NULL;

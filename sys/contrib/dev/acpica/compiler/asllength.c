@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: asllength - Tree walk to determine package and opcode lengths
@@ -80,7 +79,7 @@ LnAdjustLengthToRoot (
  * RETURN:      Status
  *
  * DESCRIPTION: Walk callback to initialize (and re-initialize) the node
- *              subtree length(s) to zero.  The Subtree lengths are bubbled
+ *              subtree length(s) to zero. The Subtree lengths are bubbled
  *              up to the root node in order to get a total AML length.
  *
  ******************************************************************************/
@@ -112,7 +111,7 @@ LnInitLengthsWalk (
  *                 them all into the parent subtree length.
  *
  * Note:  The SubtreeLength represents the total AML length of all child nodes
- *        in all subtrees under a given node.  Therefore, once this walk is
+ *        in all subtrees under a given node. Therefore, once this walk is
  *        complete, the Root Node subtree length is the AML length of the entire
  *        tree (and thus, the entire ACPI table)
  *
@@ -426,7 +425,7 @@ CgGenerateAmlLengths (
  * RETURN:      None.
  *
  * DESCRIPTION: Change the Subtree length of the given node, and bubble the
- *              change all the way up to the root node.  This allows for
+ *              change all the way up to the root node. This allows for
  *              last second changes to a package length (for example, if the
  *              package length encoding gets shorter or longer.)
  *
@@ -454,5 +453,3 @@ LnAdjustLengthToRoot (
     Gbl_TableLength -= LengthDelta;
 }
 #endif
-
-

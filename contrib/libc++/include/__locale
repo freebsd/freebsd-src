@@ -31,17 +31,24 @@
 
 _LIBCPP_BEGIN_NAMESPACE_STD
 
-class locale;
+class _LIBCPP_VISIBLE locale;
 
-template <class _Facet> bool has_facet(const locale&) _NOEXCEPT;
-template <class _Facet> const _Facet& use_facet(const locale&);
+template <class _Facet>
+_LIBCPP_INLINE_VISIBILITY
+bool
+has_facet(const locale&) _NOEXCEPT;
+
+template <class _Facet>
+_LIBCPP_INLINE_VISIBILITY
+const _Facet&
+use_facet(const locale&);
 
 class _LIBCPP_VISIBLE locale
 {
 public:
     // types:
-    class facet;
-    class id;
+    class _LIBCPP_VISIBLE facet;
+    class _LIBCPP_VISIBLE id;
 
     typedef int category;
     static const category // values assigned here are for exposition only
@@ -119,7 +126,7 @@ class _LIBCPP_VISIBLE locale::id
 
     static int32_t __next_id;
 public:
-    _LIBCPP_INLINE_VISIBILITY id() {}
+    _LIBCPP_INLINE_VISIBILITY _LIBCPP_CONSTEXPR id() :__id_(0) {}
 private:
     void __init();
     void operator=(const id&); // = delete;
@@ -247,8 +254,8 @@ collate<_CharT>::do_hash(const char_type* __lo, const char_type* __hi) const
     return static_cast<long>(__h);
 }
 
-extern template class _LIBCPP_VISIBLE collate<char>;
-extern template class _LIBCPP_VISIBLE collate<wchar_t>;
+_LIBCPP_EXTERN_TEMPLATE(class _LIBCPP_VISIBLE collate<char>)
+_LIBCPP_EXTERN_TEMPLATE(class _LIBCPP_VISIBLE collate<wchar_t>)
 
 // template <class CharT> class collate_byname;
 
@@ -1128,10 +1135,10 @@ codecvt_byname<_InternT, _ExternT, _StateT>::~codecvt_byname()
 {
 }
 
-extern template class codecvt_byname<char, char, mbstate_t>;
-extern template class codecvt_byname<wchar_t, char, mbstate_t>;
-extern template class codecvt_byname<char16_t, char, mbstate_t>;
-extern template class codecvt_byname<char32_t, char, mbstate_t>;
+_LIBCPP_EXTERN_TEMPLATE(class codecvt_byname<char, char, mbstate_t>)
+_LIBCPP_EXTERN_TEMPLATE(class codecvt_byname<wchar_t, char, mbstate_t>)
+_LIBCPP_EXTERN_TEMPLATE(class codecvt_byname<char16_t, char, mbstate_t>)
+_LIBCPP_EXTERN_TEMPLATE(class codecvt_byname<char32_t, char, mbstate_t>)
 
 _LIBCPP_VISIBLE void __throw_runtime_error(const char*);
 

@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exsystem - Interface to OS services
@@ -62,7 +61,7 @@
  * RETURN:      Status
  *
  * DESCRIPTION: Implements a semaphore wait with a check to see if the
- *              semaphore is available immediately.  If it is not, the
+ *              semaphore is available immediately. If it is not, the
  *              interpreter is released before waiting.
  *
  ******************************************************************************/
@@ -115,7 +114,7 @@ AcpiExSystemWaitSemaphore (
  * RETURN:      Status
  *
  * DESCRIPTION: Implements a mutex wait with a check to see if the
- *              mutex is available immediately.  If it is not, the
+ *              mutex is available immediately. If it is not, the
  *              interpreter is released before waiting.
  *
  ******************************************************************************/
@@ -170,7 +169,7 @@ AcpiExSystemWaitMutex (
  * DESCRIPTION: Suspend running thread for specified amount of time.
  *              Note: ACPI specification requires that Stall() does not
  *              relinquish the processor, and delays longer than 100 usec
- *              should use Sleep() instead.  We allow stalls up to 255 usec
+ *              should use Sleep() instead. We allow stalls up to 255 usec
  *              for compatibility with other interpreters and existing BIOSs.
  *
  ******************************************************************************/
@@ -290,7 +289,7 @@ AcpiExSystemSignalEvent (
  * RETURN:      Status
  *
  * DESCRIPTION: Provides an access point to perform synchronization operations
- *              within the AML.  This operation is a request to wait for an
+ *              within the AML. This operation is a request to wait for an
  *              event.
  *
  ******************************************************************************/
@@ -352,4 +351,3 @@ AcpiExSystemResetEvent (
 
     return (Status);
 }
-

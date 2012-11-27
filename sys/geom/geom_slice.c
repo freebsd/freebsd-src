@@ -390,7 +390,7 @@ g_slice_config(struct g_geom *gp, u_int idx, int how, off_t offset, off_t length
 	sbuf_vprintf(sb, fmt, ap);
 	va_end(ap);
 	sbuf_finish(sb);
-	pp = g_new_providerf(gp, sbuf_data(sb));
+	pp = g_new_providerf(gp, "%s", sbuf_data(sb));
 	pp2 = LIST_FIRST(&gp->consumer)->provider;
 	pp->stripesize = pp2->stripesize;
 	pp->stripeoffset = pp2->stripeoffset + offset;

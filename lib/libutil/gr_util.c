@@ -63,6 +63,7 @@ static const char group_line_format[] = "%s:%s:%ju:";
 int
 gr_init(const char *dir, const char *group)
 {
+
 	if (dir == NULL) {
 		strcpy(group_dir, _PATH_ETC);
 	} else {
@@ -88,6 +89,7 @@ gr_init(const char *dir, const char *group)
 		}
 		strcpy(group_file, group);
 	}
+
 	initialized = 1;
 	return (0);
 }
@@ -316,6 +318,9 @@ gr_copy(int ffd, int tfd, const struct group *gr, struct group *old_gr)
 int
 gr_mkdb(void)
 {
+	if (chmod(tempname, 0644) != 0)
+		return (-1);
+
 	return (rename(tempname, group_file));
 }
 

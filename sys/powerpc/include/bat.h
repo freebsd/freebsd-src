@@ -71,10 +71,12 @@
 #ifndef	_MACHINE_BAT_H_
 #define	_MACHINE_BAT_H_
 
+#ifndef LOCORE
 struct bat {
 	u_int32_t batu;
 	u_int32_t batl;
 };
+#endif
 
 /* Lower BAT bits (all but PowerPC 601): */
 #define	BAT_PBS		0xfffe0000	/* physical block start */
@@ -165,7 +167,7 @@ struct bat {
 #define	BATL601(pa, size, v)						\
 	(((pa) & BAT601_PBN) | (v) | (size))
 
-#ifdef _KERNEL
+#if defined(_KERNEL) && !defined(LOCORE)
 extern struct bat battable[16];
 #endif
 

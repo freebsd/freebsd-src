@@ -75,7 +75,7 @@ static int
 ata_nvidia_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static const struct ata_chip_id const ids[] =
+    static const struct ata_chip_id ids[] =
     {{ ATA_NFORCE1,         0, 0,       0, ATA_UDMA5, "nForce" },
      { ATA_NFORCE2,         0, 0,       0, ATA_UDMA6, "nForce2" },
      { ATA_NFORCE2_PRO,     0, 0,       0, ATA_UDMA6, "nForce2 Pro" },

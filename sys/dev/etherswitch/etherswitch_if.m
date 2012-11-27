@@ -11,11 +11,40 @@
 INTERFACE etherswitch;
 
 #
+# Default implementation
+#
+CODE {
+	static void
+	null_etherswitch_lock(device_t dev)
+	{
+	}
+
+	static void
+	null_etherswitch_unlock(device_t dev)
+	{
+	}
+};
+
+#
 # Return device info
 #
 METHOD etherswitch_info_t* getinfo {
 	device_t	dev;
 }
+
+#
+# Lock access to switch registers
+#
+METHOD void lock {
+	device_t	dev;
+} DEFAULT null_etherswitch_lock;
+
+#
+# Unlock access to switch registers
+#
+METHOD void unlock {
+	device_t	dev;
+} DEFAULT null_etherswitch_unlock;
 
 #
 # Read switch register

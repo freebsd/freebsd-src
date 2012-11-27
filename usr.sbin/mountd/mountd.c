@@ -246,6 +246,7 @@ static int	mallocd_svcport = 0;
 static int	*sock_fd;
 static int	sock_fdcnt;
 static int	sock_fdpos;
+static int	suspend_nfsd = 0;
 
 int opt_flags;
 static int have_v6 = 1;
@@ -311,7 +312,7 @@ main(int argc, char **argv)
 	else
 		close(s);
 
-	while ((c = getopt(argc, argv, "2deh:lnop:r")) != -1)
+	while ((c = getopt(argc, argv, "2deh:lnop:rS")) != -1)
 		switch (c) {
 		case '2':
 			force_v2 = 1;
@@ -362,6 +363,9 @@ main(int argc, char **argv)
 				free(hosts);
 				out_of_mem();
 			}
+			break;
+		case 'S':
+			suspend_nfsd = 1;
 			break;
 		default:
 			usage();
@@ -921,7 +925,7 @@ usage(void)
 {
 	fprintf(stderr,
 		"usage: mountd [-2] [-d] [-e] [-l] [-n] [-p <port>] [-r] "
-		"[-h <bindip>] [export_file ...]\n");
+		"[-S] [-h <bindip>] [export_file ...]\n");
 	exit(1);
 }
 
@@ -1659,6 +1663,8 @@ get_exportlist(void)
 	int done;
 	struct nfsex_args eargs;
 
+	if (suspend_nfsd != 0)
+		(void)nfssvc(NFSSVC_SUSPENDNFSD, NULL);
 	v4root_dirpath[0] = '\0';
 	bzero(&export, sizeof(export));
 	export.ex_flags = MNT_DELEXPORT;
@@ -1787,6 +1793,9 @@ get_exportlist(void)
 	 */
 	if (run_v4server > 0 && has_publicfh == 0)
 		(void) nfssvc(NFSSVC_NOPUBLICFH, NULL);
+
+	/* Resume the nfsd. If they weren't suspended, this is harmless. */
+	(void)nfssvc(NFSSVC_RESUMENFSD, NULL);
 }
 
 /*

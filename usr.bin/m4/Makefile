@@ -5,7 +5,7 @@
 # 	if you want the paste & spaste macros.
 
 PROG=	m4
-CFLAGS+=-DEXTENDED -I${.CURDIR}/lib
+CFLAGS+=-DEXTENDED -I${.CURDIR} -I${.CURDIR}/lib
 LDADD=	-ly -ll -lm
 # clang needs 1 while with gcc we can use 2
 #WARNS=	1

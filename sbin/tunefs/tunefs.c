@@ -70,14 +70,16 @@ __FBSDID("$FreeBSD$");
 /* the optimization warning string template */
 #define	OPTWARN	"should optimize for %s with minfree %s %d%%"
 
+static int blocks;
+static char clrbuf[MAXBSIZE];
 static struct uufsd disk;
 #define	sblock disk.d_fs
 
-void usage(void);
-void printfs(void);
-int journal_alloc(int64_t size);
-void journal_clear(void);
-void sbdirty(void);
+static void usage(void);
+static void printfs(void);
+static int journal_alloc(int64_t size);
+static void journal_clear(void);
+static void sbdirty(void);
 
 int
 main(int argc, char *argv[])
@@ -545,15 +547,12 @@ err:
 		err(12, "%s", special);
 }
 
-void
+static void
 sbdirty(void)
 {
 	disk.d_fs.fs_flags |= FS_UNCLEAN | FS_NEEDSFSCK;
 	disk.d_fs.fs_clean = 0;
 }
-
-static int blocks;
-static char clrbuf[MAXBSIZE];
 
 static ufs2_daddr_t
 journal_balloc(void)
@@ -880,7 +879,7 @@ indir_fill(ufs2_daddr_t blk, int level, int *resid)
 /*
  * Clear the flag bits so the journal can be removed.
  */
-void
+static void
 journal_clear(void)
 {
 	struct ufs1_dinode *dp1;
@@ -911,7 +910,7 @@ journal_clear(void)
 	}
 }
 
-int
+static int
 journal_alloc(int64_t size)
 {
 	struct ufs1_dinode *dp1;
@@ -1060,7 +1059,7 @@ out:
 	return (-1);
 }
 
-void
+static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n%s\n",
@@ -1073,7 +1072,7 @@ usage(void)
 	exit(2);
 }
 
-void
+static void
 printfs(void)
 {
 	warnx("POSIX.1e ACLs: (-a)                                %s",

@@ -652,6 +652,14 @@ pciereg_findelem(vm_paddr_t papage)
 	return (elem);
 }
 
+/*
+ * AMD BIOS And Kernel Developer's Guides for CPU families starting with 10h
+ * have a requirement that all accesses to the memory mapped PCI configuration
+ * space are done using AX class of registers.
+ * Since other vendors do not currently have any contradicting requirements
+ * the AMD access pattern is applied universally.
+ */
+
 static int
 pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
     unsigned bytes)
@@ -673,13 +681,16 @@ pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
 
 	switch (bytes) {
 	case 4:
-		data = *(volatile uint32_t *)(va);
+		__asm __volatile("mov %1, %%eax" : "=a" (data)
+		    : "m" (*(uint32_t *)va));
 		break;
 	case 2:
-		data = *(volatile uint16_t *)(va);
+		__asm __volatile("movzwl %1, %%eax" : "=a" (data)
+		    : "m" (*(uint16_t *)va));
 		break;
 	case 1:
-		data = *(volatile uint8_t *)(va);
+		__asm __volatile("movzbl %1, %%eax" : "=a" (data)
+		    : "m" (*(uint8_t *)va));
 		break;
 	}
 
@@ -707,13 +718,16 @@ pciereg_cfgwrite(int bus, unsigned slot, unsigned func, unsigned reg, int data,
 
 	switch (bytes) {
 	case 4:
-		*(volatile uint32_t *)(va) = data;
+		__asm __volatile("mov %%eax, %0" : "=m" (*(uint32_t *)va)
+		    : "a" (data));
 		break;
 	case 2:
-		*(volatile uint16_t *)(va) = data;
+		__asm __volatile("mov %%ax, %0" : "=m" (*(uint16_t *)va)
+		    : "a" (data));
 		break;
 	case 1:
-		*(volatile uint8_t *)(va) = data;
+		__asm __volatile("mov %%al, %0" : "=m" (*(uint8_t *)va)
+		    : "a" (data));
 		break;
 	}
 

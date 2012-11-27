@@ -223,9 +223,13 @@ isci_detach(device_t device)
 		if (controller->remote_device_memory != NULL)
 			free(controller->remote_device_memory, M_ISCI);
 
-		for (phy = 0; phy < SCI_MAX_PHYS; phy++)
-			if (controller->led[phy].cdev)
-				led_destroy(controller->led[phy].cdev);
+		for (phy = 0; phy < SCI_MAX_PHYS; phy++) {
+			if (controller->phys[phy].cdev_fault)
+				led_destroy(controller->phys[phy].cdev_fault);
+
+			if (controller->phys[phy].cdev_locate)
+				led_destroy(controller->phys[phy].cdev_locate);
+		}
 
 		while (1) {
 			sci_pool_get(controller->unmap_buffer_pool, unmap_buffer);

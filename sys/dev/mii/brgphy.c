@@ -918,6 +918,15 @@ brgphy_reset(struct mii_softc *sc)
 			break;
 		}
 		break;
+	case MII_OUI_BROADCOM3:
+		switch (sc->mii_mpd_model) {
+		case MII_MODEL_BROADCOM3_BCM5717C:
+		case MII_MODEL_BROADCOM3_BCM5719C:
+		case MII_MODEL_BROADCOM3_BCM5720C:
+		case MII_MODEL_BROADCOM3_BCM57765:
+			return;
+		}
+		break;
 	}
 
 	ifp = sc->mii_pdata->mii_ifp;

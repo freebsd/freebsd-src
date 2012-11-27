@@ -117,6 +117,8 @@ danish.cp865.kbd:fr:Danois Code page 865
 danish.cp865.kbd:pt:DinamarquÍs Codepage 865
 danish.cp865.kbd:es:DanÈs Codepage 865
 
+danish.iso.macbook.kbd:Danish ISO-8859-1 (macbook)
+
 dutch.iso.acc.kbd:en:Dutch ISO keymap (accent keys)
 
 eee_nordic.kbd:en:Nordic layout on Asus eeePC
@@ -379,6 +381,10 @@ ru.koi8-r.win.kbd:es:Ruso koi8-r (winkeys)
 ru.koi8-r.win.kbd:uk:Úœ”¶ ”ÿÀ¡ koi8-r (winkeys)
 
 spanish.dvorak.kbd:en:Spanish Dvorak
+spanish.dvorak.kbd:de:Spanisch Dvorak
+spanish.dvorak.kbd:fr:Espagnol Dvorak
+spanish.dvorak.kbd:pt:Espanhol Dvorak
+spanish.dvorak.kbd:es:EspaÒol Dvorak
 
 spanish.iso.kbd:en:Spanish ISO-8859-1
 spanish.iso.kbd:de:Spanisch ISO-8859-1

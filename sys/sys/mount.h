@@ -385,7 +385,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */
 #define	MNTK_SUSPEND2	0x04000000	/* block secondary writes */
 #define	MNTK_SUSPENDED	0x10000000	/* write operations are suspended */
-#define	MNTK_MPSAFE	0x20000000	/* Filesystem is MPSAFE. */
+#define	MNTK_UNUSED25	0x20000000	/*  --available-- */
 #define MNTK_LOOKUP_SHARED	0x40000000 /* FS supports shared lock lookups */
 #define	MNTK_NOKNOTE	0x80000000	/* Don't send KNOTEs from VOP hooks */
 
@@ -682,41 +682,6 @@ vfs_statfs_t	__vfs_statfs;
 	({if (*(MP)->mnt_op->vfs_reclaim_lowervp != NULL)	\
 		(*(MP)->mnt_op->vfs_reclaim_lowervp)((MP), (VP)); })
 
-#define	VFS_NEEDSGIANT_(MP)						\
-    ((MP) != NULL && ((MP)->mnt_kern_flag & MNTK_MPSAFE) == 0)
-
-#define	VFS_NEEDSGIANT(MP) __extension__				\
-({									\
-	struct mount *_mp;						\
-	_mp = (MP);							\
-	VFS_NEEDSGIANT_(_mp);						\
-})
-
-#define	VFS_LOCK_GIANT(MP) __extension__				\
-({									\
-	int _locked;							\
-	struct mount *_mp;						\
-	_mp = (MP);							\
-	if (VFS_NEEDSGIANT_(_mp)) {					\
-		mtx_lock(&Giant);					\
-		_locked = 1;						\
-	} else								\
-		_locked = 0;						\
-	_locked;							\
-})
-#define	VFS_UNLOCK_GIANT(locked) do					\
-{									\
-	if ((locked))							\
-		mtx_unlock(&Giant);					\
-} while (0)
-#define	VFS_ASSERT_GIANT(MP) do						\
-{									\
-	struct mount *_mp;						\
-	_mp = (MP);							\
-	if (VFS_NEEDSGIANT_(_mp))					\
-		mtx_assert(&Giant, MA_OWNED);				\
-} while (0)
-
 #define VFS_KNOTE_LOCKED(vp, hint) do					\
 {									\
 	if (((vp)->v_vflag & VV_NOKNOTE) == 0)				\
@@ -735,7 +700,8 @@ vfs_statfs_t	__vfs_statfs;
  * Version numbers.
  */
 #define VFS_VERSION_00	0x19660120
-#define VFS_VERSION	VFS_VERSION_00
+#define VFS_VERSION_01	0x20121030
+#define VFS_VERSION	VFS_VERSION_01
 
 #define VFS_SET(vfsops, fsname, flags) \
 	static struct vfsconf fsname ## _vfsconf = {		\

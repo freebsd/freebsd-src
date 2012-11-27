@@ -708,23 +708,14 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 			goto check_action;
 
 		case O_FORWARD_IP:
-#ifdef	IPFIREWALL_FORWARD
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_sa))
 				goto bad_size;
 			goto check_action;
-#else
-			return EINVAL;
-#endif
-
 #ifdef INET6
 		case O_FORWARD_IP6:
-#ifdef IPFIREWALL_FORWARD
 			if (cmdlen != F_INSN_SIZE(ipfw_insn_sa6))
 				goto bad_size;
 			goto check_action;
-#else
-			return (EINVAL);
-#endif
 #endif /* INET6 */
 
 		case O_DIVERT:

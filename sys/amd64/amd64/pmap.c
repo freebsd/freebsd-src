@@ -225,16 +225,7 @@ u_int64_t		KPML4phys;	/* phys addr of kernel level 4 */
 static u_int64_t	DMPDphys;	/* phys addr of direct mapped level 2 */
 static u_int64_t	DMPDPphys;	/* phys addr of direct mapped level 3 */
 
-/*
- * Isolate the global pv list lock from data and other locks to prevent false
- * sharing within the cache.
- */
-static struct {
-	struct rwlock	lock;
-	char		padding[CACHE_LINE_SIZE - sizeof(struct rwlock)];
-} pvh_global __aligned(CACHE_LINE_SIZE);
-
-#define	pvh_global_lock	pvh_global.lock
+static struct rwlock_padalign pvh_global_lock;
 
 /*
  * Data for the pv entry allocation mechanism
@@ -622,6 +613,8 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	/* XXX do %cr0 as well */
 	load_cr4(rcr4() | CR4_PGE | CR4_PSE);
 	load_cr3(KPML4phys);
+	if (cpu_stdext_feature & CPUID_STDEXT_SMEP)
+		load_cr4(rcr4() | CR4_SMEP);
 
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).

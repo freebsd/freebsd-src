@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 5, 2012
+.Dd November 26, 2012
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -760,7 +760,7 @@ If no inheritable
 .Tn ACE Ns s
 exist that affect the mode, then the mode is set in accordance to the requested
 mode from the application.
-.It Sy aclmode Ns = Ns Cm discard | groupmask | passthrough
+.It Sy aclmode Ns = Ns Cm discard | groupmask | passthrough | restricted
 Controls how an
 .Tn ACL
 is modified during
@@ -790,6 +790,32 @@ indicates that no changes are made to the
 other than creating or updating the necessary
 .Tn ACL
 entries to represent the new mode of the file or directory.
+An
+.Sy aclmode
+property of
+.Cm restricted
+will cause the
+.Xr chmod 2
+operation to return an error when used on any file or directory which has
+a non-trivial
+.Tn ACL
+whose entries can not be represented by a mode.
+.Xr chmod 2
+is required to change the set user ID, set group ID, or sticky bits on a file
+or directory, as they do not have equivalent
+.Tn ACL
+entries.
+In order to use
+.Xr chmod 2
+on a file or directory with a non-trivial
+.Tn ACL
+when
+.Sy aclmode
+is set to
+.Cm restricted ,
+you must first remove all
+.Tn ACL
+entries which do not represent the current mode.
 .It Sy atime Ns = Ns Cm on | off
 Controls whether the access time for files is updated when they are read.
 Turning this property off avoids producing write traffic when reading files and
@@ -830,7 +856,7 @@ command or unmounted by the
 command.
 .Pp
 This property is not inherited.
-.It Sy checksum Ns = Ns Cm on | off | fletcher2 | fletcher4
+.It Sy checksum Ns = Ns Cm on | off | fletcher2 | fletcher4 | sha256
 Controls the checksum used to verify data integrity. The default value is
 .Cm on ,
 which automatically selects an appropriate algorithm (currently,

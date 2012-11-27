@@ -197,12 +197,6 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 		FREE((caddr_t)nfhp, M_NFSFH);
 		return (0);
 	}
-
-	/*
-	 * Allocate before getnewvnode since doing so afterward
-	 * might cause a bogus v_data pointer to get dereferenced
-	 * elsewhere if zalloc should block.
-	 */
 	np = uma_zalloc(newnfsnode_zone, M_WAITOK | M_ZERO);
 
 	error = getnewvnode("newnfs", mntp, &newnfs_vnodeops, &nvp);
@@ -1147,31 +1141,6 @@ nfscl_maperr(struct thread *td, int error, uid_t uid, gid_t gid)
 		tprintf(p, LOG_INFO, "nfsv4 err=%d\n", error);
 		return (EIO);
 	};
-}
-
-/*
- * Locate a process by number; return only "live" processes -- i.e., neither
- * zombies nor newly born but incompletely initialized processes.  By not
- * returning processes in the PRS_NEW state, we allow callers to avoid
- * testing for that condition to avoid dereferencing p_ucred, et al.
- * Identical to pfind() in kern_proc.c, except it assume the list is
- * already locked.
- */
-static struct proc *
-pfind_locked(pid_t pid)
-{
-	struct proc *p;
-
-	LIST_FOREACH(p, PIDHASH(pid), p_hash)
-		if (p->p_pid == pid) {
-			PROC_LOCK(p);
-			if (p->p_state == PRS_NEW) {
-				PROC_UNLOCK(p);
-				p = NULL;
-			}
-			break;
-		}
-	return (p);
 }
 
 /*

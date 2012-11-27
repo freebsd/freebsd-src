@@ -181,7 +181,7 @@ AcpiDmDumpMethodInfo (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Short display of an internal object.  Numbers/Strings/Buffers.
+ * DESCRIPTION: Short display of an internal object. Numbers/Strings/Buffers.
  *
  ******************************************************************************/
 
@@ -585,5 +585,3 @@ AcpiDmDisplayArguments (
 }
 
 #endif
-
-

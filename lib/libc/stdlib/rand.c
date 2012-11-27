@@ -130,10 +130,9 @@ sranddev()
 
 	if (!done) {
 		struct timeval tv;
-		unsigned long junk;
 
 		gettimeofday(&tv, NULL);
-		srand((getpid() << 16) ^ tv.tv_sec ^ tv.tv_usec ^ junk);
+		srand((getpid() << 16) ^ tv.tv_sec ^ tv.tv_usec);
 	}
 }
 

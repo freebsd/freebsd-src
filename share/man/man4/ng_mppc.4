@@ -64,16 +64,15 @@ node type hook of the same name.
 Each direction of traffic flow is independent of the other.
 .Sh HOOKS
 This node type supports the following hooks:
-.Pp
-.Bl -tag -compact -width vjc_vjuncomp
-.It Dv comp
+.Bl -tag -width ".Va decomp"
+.It Va comp
 Connection to
 .Xr ng_ppp 4
 .Dv "comp"
 hook.
 Incoming frames are compressed and/or encrypted, and sent
 back out the same hook.
-.It Dv decomp
+.It Va decomp
 Connection to
 .Xr ng_ppp 4
 .Dv "decomp"

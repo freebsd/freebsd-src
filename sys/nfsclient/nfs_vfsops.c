@@ -1193,7 +1193,7 @@ nfs_mount(struct mount *mp)
 out:
 	if (!error) {
 		MNT_ILOCK(mp);
-		mp->mnt_kern_flag |= (MNTK_MPSAFE|MNTK_LOOKUP_SHARED);
+		mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED;
 		MNT_IUNLOCK(mp);
 	}
 	return (error);

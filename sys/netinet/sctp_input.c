@@ -311,6 +311,13 @@ sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb)
 			if (chk->rec.data.stream_number >= newcnt) {
 				TAILQ_REMOVE(&asoc->send_queue, chk, sctp_next);
 				asoc->send_queue_cnt--;
+				if (asoc->strmout[chk->rec.data.stream_number].chunks_on_queues > 0) {
+					asoc->strmout[chk->rec.data.stream_number].chunks_on_queues--;
+#ifdef INVARIANTS
+				} else {
+					panic("No chunks on the queues for sid %u.", chk->rec.data.stream_number);
+#endif
+				}
 				if (chk->data != NULL) {
 					sctp_free_bufspace(stcb, asoc, chk, 1);
 					sctp_ulp_notify(SCTP_NOTIFY_UNSENT_DG_FAIL, stcb,
@@ -1941,8 +1948,9 @@ sctp_process_cookie_existing(struct mbuf *m, int iphlen, int offset,
 
 		sctp_report_all_outbound(stcb, 0, 1, SCTP_SO_NOT_LOCKED);
 		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
+			stcb->asoc.strmout[i].chunks_on_queues = 0;
 			stcb->asoc.strmout[i].stream_no = i;
-			stcb->asoc.strmout[i].next_sequence_sent = 0;
+			stcb->asoc.strmout[i].next_sequence_send = 0;
 			stcb->asoc.strmout[i].last_msg_incomplete = 0;
 		}
 		/* process the INIT-ACK info (my info) */
@@ -3489,7 +3497,7 @@ sctp_reset_out_streams(struct sctp_tcb *stcb, int number_entries, uint16_t * lis
 
 	if (number_entries == 0) {
 		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
-			stcb->asoc.strmout[i].next_sequence_sent = 0;
+			stcb->asoc.strmout[i].next_sequence_send = 0;
 		}
 	} else if (number_entries) {
 		for (i = 0; i < number_entries; i++) {
@@ -3500,7 +3508,7 @@ sctp_reset_out_streams(struct sctp_tcb *stcb, int number_entries, uint16_t * lis
 				/* no such stream */
 				continue;
 			}
-			stcb->asoc.strmout[temp].next_sequence_sent = 0;
+			stcb->asoc.strmout[temp].next_sequence_send = 0;
 		}
 	}
 	sctp_ulp_notify(SCTP_NOTIFY_STR_RESET_SEND, stcb, number_entries, (void *)list, SCTP_SO_NOT_LOCKED);
@@ -6038,7 +6046,7 @@ sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 	dst.sin_len = sizeof(struct sockaddr_in);
 	dst.sin_port = sh->dest_port;
 	dst.sin_addr = ip->ip_dst;
-	length = ip->ip_len + iphlen;
+	length = ntohs(ip->ip_len);
 	/* Validate mbuf chain length with IP payload length. */
 	if (SCTP_HEADER_LEN(m) != length) {
 		SCTPDBG(SCTP_DEBUG_INPUT1,

@@ -35,7 +35,7 @@
 .\" $FreeBSD$
 .\" $Whistle: ng_ppp.8,v 1.3 1999/01/25 23:46:27 archie Exp $
 .\"
-.Dd September 24, 2012
+.Dd November 13, 2012
 .Dt NG_PPP 4
 .Os
 .Sh NAME
@@ -290,55 +290,54 @@ and the PPP node simply fragments frames into equal sized portions
 across all of the links.
 .Sh HOOKS
 This node type supports the following hooks:
-.Pp
-.Bl -tag -compact -width vjc_vjuncomp
-.It Dv link<N>
+.Bl -tag -width ".Va vjc_vjuncomp"
+.It Va link<N>
 Individual PPP link number
 .Dv <N>
-.It Dv compress
+.It Va compress
 Connection to compression engine
-.It Dv decompress
+.It Va decompress
 Connection to decompression engine
-.It Dv encrypt
+.It Va encrypt
 Connection to encryption engine
-.It Dv decrypt
+.It Va decrypt
 Connection to decryption engine
-.It Dv vjc_ip
+.It Va vjc_ip
 Connection to
 .Xr ng_vjc 4
 .Dv ip
 hook
-.It Dv vjc_vjcomp
+.It Va vjc_vjcomp
 Connection to
 .Xr ng_vjc 4
 .Dv vjcomp
 hook
-.It Dv vjc_vjuncomp
+.It Va vjc_vjuncomp
 Connection to
 .Xr ng_vjc 4
 .Dv vjuncomp
 hook
-.It Dv vjc_vjip
+.It Va vjc_vjip
 Connection to
 .Xr ng_vjc 4
 .Dv vjip
 hook
-.It Dv inet
+.It Va inet
 IP packet data
-.It Dv ipv6
+.It Va ipv6
 IPv6 packet data
-.It Dv atalk
+.It Va atalk
 AppleTalk packet data
-.It Dv ipx
+.It Va ipx
 IPX packet data
-.It Dv bypass
+.It Va bypass
 Bypass hook; frames have a four byte header consisting of
 a link number and a PPP protocol number.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
 .Bl -tag -width foo
-.It Dv NGM_PPP_SET_CONFIG
+.It Dv NGM_PPP_SET_CONFIG Pq Ic setconfig
 This command configures all aspects of the node.
 This includes enabling
 multi-link PPP, encryption, compression, Van Jacobson compression, and IP,
@@ -359,7 +358,7 @@ struct ng_ppp_link_conf {
   u_char    enableACFComp;  /* enable addr/ctrl field compression */
   uint16_t  mru;            /* peer MRU */
   uint32_t  latency;        /* link latency (in milliseconds) */
-  uint32_t  bandwidth;      /* link bandwidth (in bytes/second) */
+  uint32_t  bandwidth;      /* link bandwidth (in bytes/sec/10) */
 };
 
 /* Bundle config structure */
@@ -387,28 +386,28 @@ struct ng_ppp_node_conf {
 };
 .Ed
 .Pp
-.It Dv NGM_PPP_GET_CONFIG
+.It Dv NGM_PPP_GET_CONFIG Pq Ic getconfig
 Returns the current configuration as a
 .Dv "struct ng_ppp_node_conf" .
-.It Dv NGM_PPP_GET_LINK_STATS
+.It Dv NGM_PPP_GET_LINK_STATS Pq Ic getstats
 This command takes a two byte link number as an argument and returns a
 .Dv "struct ng_ppp_link_stat"
 containing statistics for the corresponding link.
 Here
 .Dv NG_PPP_BUNDLE_LINKNUM
 is a valid link number corresponding to the multi-link bundle.
-.It Dv NGM_PPP_GET_LINK_STATS64
+.It Dv NGM_PPP_GET_LINK_STATS64 Pq Ic getstats64
 Same as NGM_PPP_GET_LINK_STATS but returns
 .Dv "struct ng_ppp_link_stat64"
 containing 64bit counters.
-.It Dv NGM_PPP_CLR_LINK_STATS
+.It Dv NGM_PPP_CLR_LINK_STATS Pq Ic clrstats
 This command takes a two byte link number as an argument and
 clears the statistics for that link.
-.It Dv NGM_PPP_GETCLR_LINK_STATS
+.It Dv NGM_PPP_GETCLR_LINK_STATS Pq Ic getclrstats
 Same as
 .Dv NGM_PPP_GET_LINK_STATS ,
 but also atomically clears the statistics as well.
-.It Dv NGM_PPP_GETCLR_LINK_STATS64
+.It Dv NGM_PPP_GETCLR_LINK_STATS64 Pq Ic getclrstats64
 Same as NGM_PPP_GETCLR_LINK_STATS but returns
 .Dv "struct ng_ppp_link_stat64"
 containing 64bit counters.

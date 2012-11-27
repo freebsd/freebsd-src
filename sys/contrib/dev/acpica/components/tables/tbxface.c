@@ -268,22 +268,23 @@ AcpiGetTableHeader (
                             sizeof (ACPI_TABLE_HEADER));
                 if (!Header)
                 {
-                    return AE_NO_MEMORY;
+                    return (AE_NO_MEMORY);
                 }
 
-                ACPI_MEMCPY (OutTableHeader, Header, sizeof(ACPI_TABLE_HEADER));
-                AcpiOsUnmapMemory (Header, sizeof(ACPI_TABLE_HEADER));
+                ACPI_MEMCPY (OutTableHeader, Header,
+                    sizeof (ACPI_TABLE_HEADER));
+                AcpiOsUnmapMemory (Header, sizeof (ACPI_TABLE_HEADER));
             }
             else
             {
-                return AE_NOT_FOUND;
+                return (AE_NOT_FOUND);
             }
         }
         else
         {
             ACPI_MEMCPY (OutTableHeader,
                 AcpiGbl_RootTableList.Tables[i].Pointer,
-                sizeof(ACPI_TABLE_HEADER));
+                sizeof (ACPI_TABLE_HEADER));
         }
 
         return (AE_OK);
@@ -522,4 +523,3 @@ Cleanup:
 }
 
 ACPI_EXPORT_SYMBOL (AcpiRemoveTableHandler)
-

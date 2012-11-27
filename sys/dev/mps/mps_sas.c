@@ -918,7 +918,7 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = sassc->sc->facts->MaxTargets - 1;
 		cpi->max_lun = 255;
-		cpi->initiator_id = 255;
+		cpi->initiator_id = sassc->sc->facts->MaxTargets - 1;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "LSILogic", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
@@ -2020,7 +2020,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		if (cm->cm_flags & MPS_CM_FLAGS_DATAIN)
 			dir = BUS_DMASYNC_POSTREAD;
 		else if (cm->cm_flags & MPS_CM_FLAGS_DATAOUT)
-			dir = BUS_DMASYNC_POSTWRITE;;
+			dir = BUS_DMASYNC_POSTWRITE;
 		bus_dmamap_sync(sc->buffer_dmat, cm->cm_dmamap, dir);
 		bus_dmamap_unload(sc->buffer_dmat, cm->cm_dmamap);
 	}

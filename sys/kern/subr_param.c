@@ -278,9 +278,17 @@ init_param2(long physpages)
 		maxusers = physpages / (2 * 1024 * 1024 / PAGE_SIZE);
 		if (maxusers < 32)
 			maxusers = 32;
-		if (maxusers > 384)
-			maxusers = 384;
-	}
+#ifdef VM_MAX_AUTOTUNE_MAXUSERS
+                if (maxusers > VM_MAX_AUTOTUNE_MAXUSERS)
+                        maxusers = VM_MAX_AUTOTUNE_MAXUSERS;
+#endif
+                /*
+                 * Scales down the function in which maxusers grows once
+                 * we hit 384.
+                 */
+                if (maxusers > 384)
+                        maxusers = 384 + ((maxusers - 384) / 8);
+        }
 
 	/*
 	 * The following can be overridden after boot via sysctl.  Note:

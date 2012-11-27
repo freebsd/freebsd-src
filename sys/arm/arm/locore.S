@@ -181,7 +181,7 @@ Lunmapped:
 #if defined(CPU_ARM11) || defined(CPU_CORTEXA) || defined(CPU_MV_PJ4B)
 	orr	r0, r0, #CPU_CONTROL_V6_EXTPAGE
 #endif
-	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE)
+	orr	r0, r0, #(CPU_CONTROL_MMU_ENABLE)
 	mcr	p15, 0, r0, c1, c0, 0
 	nop
 	nop

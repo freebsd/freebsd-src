@@ -228,6 +228,7 @@ typedef void if_init_f_t(void *);
 #define	if_metric	if_data.ifi_metric
 #define	if_link_state	if_data.ifi_link_state
 #define	if_baudrate	if_data.ifi_baudrate
+#define	if_baudrate_pf	if_data.ifi_baudrate_pf
 #define	if_hwassist	if_data.ifi_hwassist
 #define	if_ipackets	if_data.ifi_ipackets
 #define	if_ierrors	if_data.ifi_ierrors
@@ -273,7 +274,7 @@ void	if_maddr_runlock(struct ifnet *ifp);	/* if_multiaddrs */
  * Output queues (ifp->if_snd) and slow device input queues (*ifp->if_slowq)
  * are queues of messages stored on ifqueue structures
  * (defined above).  Entries are added to and deleted from these structures
- * by these macros, which should be called with ipl raised to splimp().
+ * by these macros.
  */
 #define IF_LOCK(ifq)		mtx_lock(&(ifq)->ifq_mtx)
 #define IF_UNLOCK(ifq)		mtx_unlock(&(ifq)->ifq_mtx)
@@ -590,6 +591,18 @@ do {									\
 } while (0)
 
 #ifdef _KERNEL
+static __inline void
+if_initbaudrate(struct ifnet *ifp, uintmax_t baud)
+{
+
+	ifp->if_baudrate_pf = 0;
+	while (baud > (u_long)(~0UL)) {
+		baud /= 10;
+		ifp->if_baudrate_pf++;
+	}
+	ifp->if_baudrate = baud;
+}
+
 static __inline int
 drbr_enqueue(struct ifnet *ifp, struct buf_ring *br, struct mbuf *m)
 {	

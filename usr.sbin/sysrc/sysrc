@@ -251,7 +251,7 @@ shift $(( $OPTIND - 1 ))
 # Taint-check all rc.conf(5) files
 #
 errmsg="$pgm: Exiting due to previous syntax errors"
-if ( : ${RC_CONFS?} ) > /dev/null 2>&1; then
+if [ "${RC_CONFS+set}" ]; then
 	( for i in $RC_CONFS; do
 	  	[ -e "$i" ] || continue
 	  	/bin/sh -n "$i" || exit $FAILURE
@@ -311,7 +311,7 @@ if [ "$JAIL" -o "$ROOTDIR" ]; then
 		$( [ "$SHOW_VALUE" ] || echo \ -N )
 		$( [ "$SHOW_FILE"  ] && echo \ -F )
 	"
-	if ( : ${RC_CONFS?} ) > /dev/null 2>&1; then
+	if [ "${RC_CONFS+set}" ]; then
 		args="$args -f '$RC_CONFS'"
 	fi
 	for arg in "$@"; do
@@ -437,8 +437,7 @@ if [ "$SHOW_ALL" ]; then
 			# explicit value, modifying the default behavior of
 			# source_rc_confs().
 			#
-			( : ${RC_CONFS?} ) > /dev/null 2>&1 &&
-				rc_conf_files="$RC_CONFS"
+			[ "${RC_CONFS+set}" ] && rc_conf_files="$RC_CONFS"
 
 			source_rc_confs
 

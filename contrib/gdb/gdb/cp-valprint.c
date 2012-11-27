@@ -361,8 +361,7 @@ cp_print_value_fields (struct type *type, struct type *real_type, char *valaddr,
 		    (TYPE_FIELD_TYPE (type, i), 
 		     unpack_field_as_long (type, valaddr + offset, i));
 
-		  val_print (TYPE_FIELD_TYPE (type, i), VALUE_CONTENTS (v),
-			     0, 0, stream, format, 0, recurse + 1, pretty);
+		  common_val_print (v, stream, format, 0, recurse + 1, pretty);
 		}
 	    }
 	  else
@@ -426,8 +425,7 @@ cp_print_value_fields (struct type *type, struct type *real_type, char *valaddr,
       v = value_from_pointer (lookup_pointer_type (builtin_type_unsigned_long),
 			      *(unsigned long *) (valaddr + offset));
 
-      val_print (VALUE_TYPE (v), VALUE_CONTENTS (v), 0, 0,
-		 stream, format, 0, recurse + 1, pretty);
+      common_val_print (v, stream, format, 0, recurse + 1, pretty);
       fields_seen = 1;
 
       if (vtblprint)
@@ -791,8 +789,7 @@ cp_print_hpacc_virtual_table_entries (struct type *type, int *vfuncs,
 	  VALUE_TYPE (vf) = VALUE_TYPE (v);	/* make it a pointer */
 
 	  /* print out the entry */
-	  val_print (VALUE_TYPE (vf), VALUE_CONTENTS (vf), 0, 0,
-		     stream, format, 0, recurse + 1, pretty);
+	  common_val_print (vf, stream, format, 0, recurse + 1, pretty);
 	  field_physname
 	    = TYPE_FN_FIELD_PHYSNAME (TYPE_FN_FIELDLIST1 (type, fn), oi);
 	  /* pai: (temp) FIXME Maybe this should be DMGL_ANSI */

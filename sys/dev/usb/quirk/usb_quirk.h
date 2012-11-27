@@ -54,7 +54,6 @@ enum {
 	UQ_MS_LEADING_BYTE,	/* mouse sends an unknown leading byte */
 	UQ_MS_REVZ,		/* mouse has Z-axis reversed */
 	UQ_NO_STRINGS,		/* string descriptors are broken */
-	UQ_OPEN_CLEARSTALL,	/* device needs clear endpoint stall */
 	UQ_POWER_CLAIM,		/* hub lies about power status */
 	UQ_SPUR_BUT_UP,		/* spurious mouse button up events */
 	UQ_SWAP_UNICODE,	/* has some Unicode strings swapped */
@@ -75,6 +74,7 @@ enum {
 	UQ_MSC_NO_GETMAXLUN,		/* does not support get max LUN */
 	UQ_MSC_NO_INQUIRY,		/* fake generic inq response */
 	UQ_MSC_NO_INQUIRY_EVPD,		/* does not support inq EVPD */
+	UQ_MSC_NO_PREVENT_ALLOW,	/* does not support medium removal */ 
 	UQ_MSC_NO_SYNC_CACHE,		/* does not support sync cache */ 
 	UQ_MSC_SHUTTLE_INIT,		/* requires Shuttle init sequence */
 	UQ_MSC_ALT_IFACE_1,		/* switch to alternate interface 1 */

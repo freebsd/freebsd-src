@@ -74,7 +74,13 @@ __FBSDID("$FreeBSD$");
 #include <arm/xscale/i80321/i80321var.h>
 #endif
 
-#if defined(CPU_XSCALE_81342)
+/*
+ * Some definitions in i81342reg.h clash with i80321reg.h.
+ * This only happens for the LINT kernel. As it happens,
+ * we don't need anything from i81342reg.h that we already
+ * got from somewhere else during a LINT compile.
+ */
+#if defined(CPU_XSCALE_81342) && !defined(COMPILING_LINT)
 #include <arm/xscale/i8134x/i81342reg.h>
 #endif
 
@@ -1047,7 +1053,7 @@ struct cpu_functions cortexa_cpufuncs = {
 	
 	/* TLB functions */
 	
-	arm11_tlb_flushID,              /* tlb_flushID          */
+	armv7_tlb_flushID,              /* tlb_flushID          */
 	armv7_tlb_flushID_SE,           /* tlb_flushID_SE       */
 	arm11_tlb_flushI,               /* tlb_flushI           */
 	arm11_tlb_flushI_SE,            /* tlb_flushI_SE        */
@@ -1067,7 +1073,8 @@ struct cpu_functions cortexa_cpufuncs = {
 	armv7_idcache_wbinv_all,        /* idcache_wbinv_all    */
 	armv7_idcache_wbinv_range,      /* idcache_wbinv_range  */
 	
-	/* Note: From OMAP4 the L2 ops are filled in when the
+	/* 
+	 * Note: For CPUs using the PL310 the L2 ops are filled in when the
 	 * L2 cache controller is actually enabled.
 	 */
 	cpufunc_nullop,                 /* l2cache_wbinv_all    */

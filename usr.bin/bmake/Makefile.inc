@@ -7,8 +7,12 @@
 .export SRCTOP
 .endif
 
-.if defined(MK_BMAKE)
+.if ${MK_BMAKE} != "no"
 PROG= make
+.endif
+
+.if ${MK_SHARED_TOOLCHAIN} == "no"
+NO_SHARED?=     YES
 .endif
 
 WARNS=3

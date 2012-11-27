@@ -535,6 +535,18 @@ ffs_reallocblks_ufs1(ap)
 			panic("ffs_reallocblks: non-physical cluster %d", i);
 #endif
 	/*
+	 * If the cluster crosses the boundary for the first indirect
+	 * block, leave space for the indirect block. Indirect blocks
+	 * are initially laid out in a position after the last direct
+	 * block. Block reallocation would usually destroy locality by
+	 * moving the indirect block out of the way to make room for
+	 * data blocks if we didn't compensate here. We should also do
+	 * this for other indirect block boundaries, but it is only
+	 * important for the first one.
+	 */
+	if (start_lbn < NDADDR && end_lbn >= NDADDR)
+		return (ENOSPC);
+	/*
 	 * If the latest allocation is in a new cylinder group, assume that
 	 * the filesystem has decided to move and do not force it back to
 	 * the previous cylinder group.
@@ -744,6 +756,18 @@ ffs_reallocblks_ufs2(ap)
 			panic("ffs_reallocblks: non-physical cluster %d", i);
 #endif
 	/*
+	 * If the cluster crosses the boundary for the first indirect
+	 * block, do not move anything in it. Indirect blocks are
+	 * usually initially laid out in a position between the data
+	 * blocks. Block reallocation would usually destroy locality by
+	 * moving the indirect block out of the way to make room for
+	 * data blocks if we didn't compensate here. We should also do
+	 * this for other indirect block boundaries, but it is only
+	 * important for the first one.
+	 */
+	if (start_lbn < NDADDR && end_lbn >= NDADDR)
+		return (ENOSPC);
+	/*
 	 * If the latest allocation is in a new cylinder group, assume that
 	 * the filesystem has decided to move and do not force it back to
 	 * the previous cylinder group.
@@ -790,6 +814,15 @@ ffs_reallocblks_ufs2(ap)
 	 */
 	UFS_LOCK(ump);
 	pref = ffs_blkpref_ufs2(ip, start_lbn, soff, sbap);
+	/*
+	 * Skip a block for the first indirect block.  Indirect blocks are
+	 * usually initially laid out in a good position between the data
+	 * blocks, but block reallocation would usually destroy locality by
+	 * moving them out of the way to make room for data blocks if we
+	 * didn't compensate here.
+	 */
+	if (start_lbn == NDADDR)
+		pref += fs->fs_frag;
 	/*
 	 * Search the block map looking for an allocation of the desired size.
 	 */
@@ -1185,9 +1218,25 @@ ffs_blkpref_ufs1(ip, lbn, indx, bap)
 	struct fs *fs;
 	u_int cg;
 	u_int avgbfree, startcg;
+	ufs2_daddr_t pref;
 
 	mtx_assert(UFS_MTX(ip->i_ump), MA_OWNED);
 	fs = ip->i_fs;
+	/*
+	 * If we are allocating the first indirect block, try to place it
+	 * immediately following the last direct block.
+	 *
+	 * If we are allocating the first data block in the first indirect
+	 * block, try to place it immediately following the indirect block.
+	 */
+	if (lbn == NDADDR) {
+		pref = ip->i_din1->di_db[NDADDR - 1];
+		if (bap == NULL && pref != 0)
+			return (pref + fs->fs_frag);
+		pref = ip->i_din1->di_ib[0];
+		if (pref != 0)
+			return (pref + fs->fs_frag);
+	}
 	if (indx % fs->fs_maxbpg == 0 || bap[indx - 1] == 0) {
 		if (lbn < NDADDR + NINDIR(fs)) {
 			cg = ino_to_cg(fs, ip->i_number);
@@ -1235,9 +1284,25 @@ ffs_blkpref_ufs2(ip, lbn, indx, bap)
 	struct fs *fs;
 	u_int cg;
 	u_int avgbfree, startcg;
+	ufs2_daddr_t pref;
 
 	mtx_assert(UFS_MTX(ip->i_ump), MA_OWNED);
 	fs = ip->i_fs;
+	/*
+	 * If we are allocating the first indirect block, try to place it
+	 * immediately following the last direct block.
+	 *
+	 * If we are allocating the first data block in the first indirect
+	 * block, try to place it immediately following the indirect block.
+	 */
+	if (lbn == NDADDR) {
+		pref = ip->i_din1->di_db[NDADDR - 1];
+		if (bap == NULL && pref != 0)
+			return (pref + fs->fs_frag);
+		pref = ip->i_din1->di_ib[0];
+		if (pref != 0)
+			return (pref + fs->fs_frag);
+	}
 	if (indx % fs->fs_maxbpg == 0 || bap[indx - 1] == 0) {
 		if (lbn < NDADDR + NINDIR(fs)) {
 			cg = ino_to_cg(fs, ip->i_number);
@@ -2465,7 +2530,7 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 	long blkcnt, blksize;
 	struct filedesc *fdp;
 	struct file *fp, *vfp;
-	int vfslocked, filetype, error;
+	int filetype, error;
 	static struct fileops *origops, bufferedops;
 
 	if (req->newlen > sizeof cmd)
@@ -2670,23 +2735,18 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 #endif /* DEBUG */
 		if ((error = ffs_vget(mp, (ino_t)cmd.value, LK_SHARED, &vp)))
 			break;
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		AUDIT_ARG_VNODE1(vp);
 		if ((error = change_dir(vp, td)) != 0) {
 			vput(vp);
-			VFS_UNLOCK_GIANT(vfslocked);
 			break;
 		}
 		VOP_UNLOCK(vp, 0);
-		VFS_UNLOCK_GIANT(vfslocked);
 		fdp = td->td_proc->p_fd;
 		FILEDESC_XLOCK(fdp);
 		vpold = fdp->fd_cdir;
 		fdp->fd_cdir = vp;
 		FILEDESC_XUNLOCK(fdp);
-		vfslocked = VFS_LOCK_GIANT(vpold->v_mount);
 		vrele(vpold);
-		VFS_UNLOCK_GIANT(vfslocked);
 		break;
 
 	case FFS_SET_DOTDOT:
@@ -2759,7 +2819,6 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 #endif /* DEBUG */
 		if ((error = ffs_vget(mp, (ino_t)cmd.value, LK_EXCLUSIVE, &vp)))
 			break;
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		AUDIT_ARG_VNODE1(vp);
 		ip = VTOI(vp);
 		if (ip->i_ump->um_fstype == UFS1)
@@ -2770,13 +2829,11 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 			    sizeof(struct ufs2_dinode));
 		if (error) {
 			vput(vp);
-			VFS_UNLOCK_GIANT(vfslocked);
 			break;
 		}
 		ip->i_flag |= IN_CHANGE | IN_MODIFIED;
 		error = ffs_update(vp, 1);
 		vput(vp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		break;
 
 	case FFS_SET_BUFOUTPUT:
@@ -2853,7 +2910,7 @@ buffered_write(fp, uio, active_cred, flags, td)
 	struct inode *ip;
 	struct buf *bp;
 	struct fs *fs;
-	int error, vfslocked;
+	int error;
 	daddr_t lbn;
 
 	/*
@@ -2868,7 +2925,6 @@ buffered_write(fp, uio, active_cred, flags, td)
 		return (EINVAL);
 	fs = ip->i_fs;
 	foffset_lock_uio(fp, uio, flags);
-	vfslocked = VFS_LOCK_GIANT(ip->i_vnode->v_mount);
 	vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 #ifdef DEBUG
 	if (fsckcmds) {
@@ -2896,7 +2952,6 @@ buffered_write(fp, uio, active_cred, flags, td)
 	error = bwrite(bp);
 out:
 	VOP_UNLOCK(devvp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
 	foffset_unlock_uio(fp, uio, flags | FOF_NEXTOFF);
 	return (error);
 }
