@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2012
+.Dd October 25, 2012
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -764,11 +764,6 @@ This makes the
 .Xr netstat 1
 entry look rather weird but is intended for
 use with transparent proxy servers.
-.Pp
-To enable
-.Cm fwd
-a custom kernel needs to be compiled with the option
-.Cd "options IPFIREWALL_FORWARD" .
 .It Cm nat Ar nat_nr | tablearg
 Pass packet to a
 nat instance
