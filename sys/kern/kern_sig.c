@@ -2838,10 +2838,10 @@ killproc(p, why)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	CTR3(KTR_PROC, "killproc: proc %p (pid %d, %s)",
-		p, p->p_pid, p->p_comm);
-	log(LOG_ERR, "pid %d (%s), uid %d, was killed: %s\n", p->p_pid, p->p_comm,
-		p->p_ucred ? p->p_ucred->cr_uid : -1, why);
+	CTR3(KTR_PROC, "killproc: proc %p (pid %d, %s)", p, p->p_pid,
+	    p->p_comm);
+	log(LOG_ERR, "pid %d (%s), uid %d, was killed: %s\n", p->p_pid,
+	    p->p_comm, p->p_ucred ? p->p_ucred->cr_uid : -1, why);
 	p->p_flag |= P_WKILLED;
 	kern_psignal(p, SIGKILL);
 }
