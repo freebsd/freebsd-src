@@ -73,9 +73,6 @@ INCLUDES+= -I$S/contrib/ngatm
 # ... and the same for twa
 INCLUDES+= -I$S/dev/twa
 
-# ... and the same for XFS
-INCLUDES+= -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs
-
 # ... and the same for cxgb and cxgbe
 INCLUDES+= -I$S/dev/cxgb -I$S/dev/cxgbe
 
@@ -105,12 +102,18 @@ CLANG_NO_IAS= -no-integrated-as
 .endif
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
-CFLAGS+=	-DGPROF -falign-functions=16
+CFLAGS+=	-DGPROF
+.if ${COMPILER_TYPE} != "clang"
+CFLAGS+=	-falign-functions=16
+.endif
 .if ${PROFLEVEL} >= 2
 CFLAGS+=	-DGPROF4 -DGUPROF
-PROF=	-pg -mprofiler-epilogue
+PROF=		-pg
+.if ${COMPILER_TYPE} != "clang"
+PROF+=		-mprofiler-epilogue
+.endif
 .else
-PROF=	-pg
+PROF=		-pg
 .endif
 .endif
 DEFINED_PROF=	${PROF}

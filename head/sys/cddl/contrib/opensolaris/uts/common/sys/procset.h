@@ -51,6 +51,7 @@ extern "C" {
 #define	P_INITUID	0
 #define	P_INITPGID	0
 
+#ifndef _IDTYPE_T_DECLARED
 
 /*
  *	The following defines the values for an identifier type.  It
@@ -81,6 +82,9 @@ typedef enum
 	P_PSETID	/* Processor set identifier		*/
 } idtype_t;
 
+#define	_IDTYPE_T_DECLARED
+
+#endif
 
 /*
  *	The following defines the operations which can be performed to

@@ -47,8 +47,8 @@ ar5416AniSetup(struct ath_hal *ah)
 		.coarseHigh		= { -14, -14, -14, -14, -12 },
 		.coarseLow		= { -64, -64, -64, -64, -70 },
 		.firpwr			= { -78, -78, -78, -78, -80 },
-		.maxSpurImmunityLevel	= 2,
-		.cycPwrThr1		= { 2, 4, 6 },
+		.maxSpurImmunityLevel	= 7,
+		.cycPwrThr1		= { 2, 4, 6, 8, 10, 12, 14, 16 },
 		.maxFirstepLevel	= 2,	/* levels 0..2 */
 		.firstep		= { 0, 4, 8 },
 		.ofdmTrigHigh		= 500,
@@ -142,6 +142,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_gpioSet			= ar5416GpioSet;
 	ah->ah_gpioSetIntr		= ar5416GpioSetIntr;
 	ah->ah_getTsf64			= ar5416GetTsf64;
+	ah->ah_setTsf64			= ar5416SetTsf64;
 	ah->ah_resetTsf			= ar5416ResetTsf;
 	ah->ah_getRfGain		= ar5416GetRfgain;
 	ah->ah_setAntennaSwitch		= ar5416SetAntennaSwitch;

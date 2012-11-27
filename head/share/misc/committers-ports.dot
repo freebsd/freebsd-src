@@ -58,6 +58,7 @@ avilla [label="Alberto Villa\navilla@FreeBSD.org\n2010/01/24"]
 avl [label="Alexander Logvinov\navl@FreeBSD.org\n2009/05/27"]
 az [label="Andrej Zverev\naz@FreeBSD.org\n2005/10/03"]
 bapt [label="Baptiste Daroussin\nbapt@FreeBSD.org\n2010/07/27"]
+bar [label="Barbara Guida\nbar@FreeBSD.org\n2012/11/25"]
 bdrewery [label="Bryan Drewery\nbdrewery@FreeBSD.org\n2012/07/31"]
 beat [label="Beat Gaetzi\nbeat@FreeBSD.org\n2009/01/28"]
 beech [label="Beech Rintoul\nbeech@FreeBSD.org\n2007/05/30"]
@@ -94,6 +95,7 @@ flz [label="Florent Thoumie\nflz@FreeBSD.org\n2005/03/01"]
 gabor [label="Gabor Kovesdan\ngabor@FreeBSD.org\n2006/12/05"]
 gahr [label="Pietro Cerutti\ngahr@FreeBSD.org\n2008/02/20"]
 garga [label="Renato Botelho\ngarga@FreeBSD.org\n2005/07/11"]
+gblach [label="Grzegorz Blach\ngblach@FreeBSD.org\n2012/11/03"]
 gerald [label="Gerald Pfeifer\ngerald@FreeBSD.org\n2002/04/03"]
 gjb [label="Glen Barber\ngjb@FreeBSD.org\n2012/06/19"]
 glarkin [label="Greg Larkin\nglarkin@FreeBSD.org\n2008/07/17"]
@@ -255,6 +257,7 @@ clsung -> tabthorpe
 crees -> gjb
 crees -> jgh
 crees -> madpilot
+crees -> gblach
 
 culot -> jase
 
@@ -295,6 +298,7 @@ fjoe -> flo
 fjoe -> krion
 fjoe -> osa
 
+flo -> bar
 flo -> jase
 
 flz -> garga
@@ -435,6 +439,7 @@ philip -> koitsu
 
 rafan -> chinsan
 
+rene -> bar
 rene -> crees
 rene -> jgh
 rene -> olivierd
@@ -476,6 +481,7 @@ tabthorpe -> madpilot
 tabthorpe -> pgj
 tabthorpe -> rene
 tabthorpe -> zi
+tabthorpe -> gblach
 
 thierry -> jadawin
 

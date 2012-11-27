@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 9, 2012
+.Dd November 18, 2012
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@ Each
 .Em port
 contains any patches necessary to make the original
 application source code compile and run on
-.Bx .
+.Fx .
 Compiling an
 application is as simple as typing
 .Nm make Cm build
@@ -55,19 +55,6 @@ If all goes well,
 simply type
 .Nm make Cm install
 to install the application.
-.Pp
-It is possible to download and use ports from the
-.Fx
-repository
-that are newer than the installed system; however it is important to
-install the appropriate
-.Dq "Upgrade Kit"
-from
-.Pa http://www.FreeBSD.org/ports/
-first!
-The
-.Xr portcheckout 1 Pq Pa ports/ports-mgmt/portcheckout
-script (also a port, of course!) will help to download new ports.
 .Pp
 For more information about using ports, see
 .Dq "Packages and Ports"

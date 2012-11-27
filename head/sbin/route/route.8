@@ -28,7 +28,7 @@
 .\"     @(#)route.8	8.3 (Berkeley) 3/19/94
 .\" $FreeBSD$
 .\"
-.Dd March 24, 2012
+.Dd November 17, 2012
 .Dt ROUTE 8
 .Os
 .Sh NAME
@@ -118,16 +118,14 @@ The monitor command has the syntax:
 .Bd -ragged -offset indent -compact
 .Nm
 .Op Fl n
-.Cm monitor
+.Cm monitor Op Fl fib Ar number
 .Ed
 .Pp
 The flush command has the syntax:
 .Pp
 .Bd -ragged -offset indent -compact
 .Nm
-.Op Fl n
-.Cm flush
-.Op Ar family
+.Oo Fl n Cm flush Oc Oo Ar family Oc Op Fl fib Ar number
 .Ed
 .Pp
 If the
@@ -144,6 +142,11 @@ or
 .Fl inet
 modifiers, only routes having destinations with addresses in the
 delineated family will be deleted.
+When a
+.Fl fib
+option is specified, the operation will be applied to
+the specified FIB
+.Pq routing table .
 .Pp
 The other commands have the following syntax:
 .Pp
@@ -154,6 +157,7 @@ The other commands have the following syntax:
 .Op Fl net No \&| Fl host
 .Ar destination gateway
 .Op Ar netmask
+.Op Fl fib Ar number
 .Ed
 .Pp
 where
@@ -210,9 +214,15 @@ A
 .Ar destination
 of
 .Ar default
-is a synonym for
-.Fl net Li 0.0.0.0 ,
-which is the default route.
+is a synonym for the default route.
+For
+.Li IPv4
+it is
+.Fl net Fl inet Li 0.0.0.0 ,
+and for
+.Li IPv6
+it is
+.Fl net Fl inet6 Li :: .
 .Pp
 If the destination is directly reachable
 via an interface requiring
@@ -313,6 +323,33 @@ meta-modifier, or one can
 specify that all ensuing metrics may be locked by the
 .Fl lockrest
 meta-modifier.
+.Pp
+The optional modifier
+.Fl fib Ar number
+specifies that the command will be applied to a non-default FIB.
+The
+.Ar number
+must be smaller than the
+.Va net.fibs
+.Xr sysctl 8
+MIB.
+When this modifier is not specified,
+or a negative number is specified,
+the default FIB shown in the
+.Va net.my_fibnum
+.Xr sysctl 8
+MIB will be used.
+.Pp
+The
+.Ar number
+allows multiple FIBs by a comma-separeted list and/or range
+specification.
+The
+.Qq Fl fib Li 2,4,6
+means the FIB number 2, 4, and 6.
+The
+.Qq Fl fib Li 1,3-5,6
+means the 1, 3, 4, 5, and 6.
 .Pp
 In a
 .Cm change

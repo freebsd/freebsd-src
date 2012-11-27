@@ -4,6 +4,5 @@
 SUBDIR+=	acpi
 .endif
 SUBDIR+=	kgmon
-SUBDIR+=	mount_smbfs
 SUBDIR:=	${SUBDIR:Nuathload}
 SUBDIR+=	zzz

@@ -274,12 +274,24 @@ void isci_controller_construct(struct ISCI_CONTROLLER *controller,
 	sci_pool_initialize(controller->unmap_buffer_pool);
 }
 
-static void isci_led_func(void *priv, int onoff)
+static void isci_led_fault_func(void *priv, int onoff)
 {
-	struct ISCI_LED *led = priv;
+	struct ISCI_PHY *phy = priv;
+
+	/* map onoff to the fault LED */
+	phy->led_fault = onoff;
+	scic_sgpio_update_led_state(phy->handle, 1 << phy->index, 
+		phy->led_fault, phy->led_locate, 0);
+}
+
+static void isci_led_locate_func(void *priv, int onoff)
+{
+	struct ISCI_PHY *phy = priv;
 
 	/* map onoff to the locate LED */
-	scic_sgpio_update_led_state(led->handle, 1 << led->index, 0, onoff, 0);
+	phy->led_locate = onoff;
+	scic_sgpio_update_led_state(phy->handle, 1 << phy->index, 
+		phy->led_fault, phy->led_locate, 0);
 }
 
 SCI_STATUS isci_controller_initialize(struct ISCI_CONTROLLER *controller)
@@ -368,12 +380,20 @@ SCI_STATUS isci_controller_initialize(struct ISCI_CONTROLLER *controller)
 	mtx_unlock(&controller->lock);
 
 	for (i = 0; i < SCI_MAX_PHYS; i++) {
-		controller->led[i].handle = scic_controller_handle;
-		controller->led[i].index = i;
-		sprintf(led_name, "isci.bus%d.port%d.locate",
-		    controller->index, i);
-		controller->led[i].cdev = led_create(isci_led_func,
-		    &controller->led[i], led_name);
+		controller->phys[i].handle = scic_controller_handle;
+		controller->phys[i].index = i;
+
+		/* fault */
+		controller->phys[i].led_fault = 0;
+		sprintf(led_name, "isci.bus%d.port%d.fault", controller->index, i);
+		controller->phys[i].cdev_fault = led_create(isci_led_fault_func,
+		    &controller->phys[i], led_name);
+			
+		/* locate */
+		controller->phys[i].led_locate = 0;
+		sprintf(led_name, "isci.bus%d.port%d.locate", controller->index, i);
+		controller->phys[i].cdev_locate = led_create(isci_led_locate_func,
+		    &controller->phys[i], led_name);
 	}
 
 	return (scif_controller_initialize(controller->scif_controller_handle));

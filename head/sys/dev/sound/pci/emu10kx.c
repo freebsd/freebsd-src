@@ -3050,11 +3050,6 @@ emu_pci_attach(device_t dev)
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 
-	if (resource_disabled("emu10kx", unit)) {
-		device_printf(dev, "disabled by kernel hints\n");
-		return (ENXIO); /* XXX to avoid unit reuse */
-	}
-
 	/* Get configuration */
 
 	sc->ctx = device_get_sysctl_ctx(dev);
@@ -3173,7 +3168,7 @@ emu_pci_attach(device_t dev)
 		sc->output_base = 0x20;
 		/*
 		 * XXX 5.1 Analog outputs are inside efxc address space!
-		 * They use ouput+0x11/+0x12 (=efxc+1/+2).
+		 * They use output+0x11/+0x12 (=efxc+1/+2).
 		 * Don't use this efx registers for recording on SB Live! 5.1!
 		 */
 		sc->efxc_base = 0x30;

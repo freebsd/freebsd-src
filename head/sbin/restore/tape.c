@@ -164,7 +164,11 @@ setinput(char *source, int ispipecommand)
 		}
 		pipein++;
 	}
-	setuid(getuid());	/* no longer need or want root privileges */
+	/* no longer need or want root privileges */
+	if (setuid(getuid()) != 0) {
+		fprintf(stderr, "setuid failed\n");
+		done(1);
+	}
 	magtape = strdup(source);
 	if (magtape == NULL) {
 		fprintf(stderr, "Cannot allocate space for magtape buffer\n");

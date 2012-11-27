@@ -44,8 +44,6 @@ __FBSDID("$FreeBSD$");
 #include "wrapper-cvmx-includes.h"
 #include "ethernet-headers.h"
 
-extern int octeon_is_simulation(void);
-
 static uint64_t cvm_oct_mac_addr = 0;
 static uint32_t cvm_oct_mac_addr_offset = 0;
 
@@ -243,7 +241,7 @@ int cvm_oct_common_open(struct ifnet *ifp)
 	/*
 	 * Set the link state unless we are using MII.
 	 */
-        if (!octeon_is_simulation() && priv->miibus == NULL) {
+        if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_SIM && priv->miibus == NULL) {
              link_info = cvmx_helper_link_get(priv->port);
              if (!link_info.s.link_up)  
 		if_link_state_change(ifp, LINK_STATE_DOWN);
@@ -282,7 +280,7 @@ void cvm_oct_common_poll(struct ifnet *ifp)
 	/*
 	 * If this is a simulation, do nothing.
 	 */
-	if (octeon_is_simulation())
+	if (cvmx_sysinfo_get()->board_type == CVMX_BOARD_TYPE_SIM)
 		return;
 
 	/*

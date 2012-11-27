@@ -102,7 +102,7 @@ static struct rwlock log_if_lock;
 #define	LOGIF_WLOCK(x)		rw_wlock(&log_if_lock)
 #define	LOGIF_WUNLOCK(x)	rw_wunlock(&log_if_lock)
 
-#define	IPFWNAME	"ipfw"
+static const char ipfwname[] = "ipfw";
 
 /* we use this dummy function for all ifnet callbacks */
 static int
@@ -133,7 +133,7 @@ static int
 ipfw_log_clone_match(struct if_clone *ifc, const char *name)
 {
 
-	return (strncmp(name, IPFWNAME, sizeof(IPFWNAME) - 1) == 0);
+	return (strncmp(name, ipfwname, sizeof(ipfwname) - 1) == 0);
 }
 
 static int
@@ -157,9 +157,9 @@ ipfw_log_clone_create(struct if_clone *ifc, char *name, size_t len,
 		ifc_free_unit(ifc, unit);
 		return (ENOSPC);
 	}
-	ifp->if_dname = IPFWNAME;
+	ifp->if_dname = ipfwname;
 	ifp->if_dunit = unit;
-	snprintf(ifp->if_xname, IFNAMSIZ, "%s%d", IPFWNAME, unit);
+	snprintf(ifp->if_xname, IFNAMSIZ, "%s%d", ipfwname, unit);
 	strlcpy(name, ifp->if_xname, len);
 	ifp->if_mtu = 65536;
 	ifp->if_flags = IFF_UP | IFF_SIMPLEX | IFF_MULTICAST;
@@ -214,9 +214,7 @@ ipfw_log_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 	return (0);
 }
 
-static struct if_clone ipfw_log_cloner = IFC_CLONE_INITIALIZER(
-    IPFWNAME, NULL, IF_MAXUNIT,
-    NULL, ipfw_log_clone_match, ipfw_log_clone_create, ipfw_log_clone_destroy);
+static struct if_clone *ipfw_log_cloner;
 
 void
 ipfw_log_bpf(int onoff)
@@ -224,9 +222,11 @@ ipfw_log_bpf(int onoff)
 
 	if (onoff) {
 		LOGIF_LOCK_INIT();
-		if_clone_attach(&ipfw_log_cloner);
+		ipfw_log_cloner = if_clone_advanced(ipfwname, 0,
+		    ipfw_log_clone_match, ipfw_log_clone_create,
+		    ipfw_log_clone_destroy);
 	} else {
-		if_clone_detach(&ipfw_log_cloner);
+		if_clone_detach(ipfw_log_cloner);
 		LOGIF_LOCK_DESTROY();
 	}
 }

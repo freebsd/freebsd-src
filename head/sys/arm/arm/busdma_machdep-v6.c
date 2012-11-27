@@ -1463,7 +1463,6 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 	struct bounce_zone *bz;
 	struct bounce_page *bpage;
 
-	printf("add bounce page\n");
 	KASSERT(dmat->bounce_zone != NULL, ("no bounce zone in dma tag"));
 	KASSERT(map != NULL,
 	    ("add_bounce_page: bad map %p", map));

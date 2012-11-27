@@ -114,7 +114,7 @@ __FBSDID("$FreeBSD$");
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uath, CTLFLAG_RW, 0, "USB Atheros");
 
 static	int uath_countrycode = CTRY_DEFAULT;	/* country code */
-SYSCTL_INT(_hw_usb_uath, OID_AUTO, countrycode, CTLFLAG_RW, &uath_countrycode,
+SYSCTL_INT(_hw_usb_uath, OID_AUTO, countrycode, CTLFLAG_RW | CTLFLAG_TUN, &uath_countrycode,
     0, "country code");
 TUNABLE_INT("hw.usb.uath.countrycode", &uath_countrycode);
 static	int uath_regdomain = 0;			/* regulatory domain */
@@ -123,7 +123,7 @@ SYSCTL_INT(_hw_usb_uath, OID_AUTO, regdomain, CTLFLAG_RD, &uath_regdomain,
 
 #ifdef UATH_DEBUG
 int uath_debug = 0;
-SYSCTL_INT(_hw_usb_uath, OID_AUTO, debug, CTLFLAG_RW, &uath_debug, 0,
+SYSCTL_INT(_hw_usb_uath, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN, &uath_debug, 0,
     "uath debug level");
 TUNABLE_INT("hw.usb.uath.debug", &uath_debug);
 enum {

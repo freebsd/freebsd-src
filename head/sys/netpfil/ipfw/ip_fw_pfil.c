@@ -138,11 +138,8 @@ again:
 	if (tag != NULL) {
 		args.rule = *((struct ipfw_rule_ref *)(tag+1));
 		m_tag_delete(*m0, tag);
-		if (args.rule.info & IPFW_ONEPASS) {
-			if (mtod(*m0, struct ip *)->ip_v == 4)
-				SET_HOST_IPLEN(mtod(*m0, struct ip *));
+		if (args.rule.info & IPFW_ONEPASS)
 			return (0);
-		}
 	}
 
 	args.m = *m0;
@@ -162,7 +159,7 @@ again:
 		/* next_hop may be set by ipfw_chk */
 		if (args.next_hop == NULL && args.next_hop6 == NULL)
 			break; /* pass */
-#if !defined(IPFIREWALL_FORWARD) || (!defined(INET6) && !defined(INET))
+#if (!defined(INET6) && !defined(INET))
 		ret = EACCES;
 #else
 	    {
@@ -202,6 +199,7 @@ again:
 			bcopy(args.next_hop6, (fwd_tag+1), len);
 			if (in6_localip(&args.next_hop6->sin6_addr))
 				(*m0)->m_flags |= M_FASTFWD_OURS;
+			(*m0)->m_flags |= M_IP6_NEXTHOP;
 		}
 #endif
 #ifdef INET
@@ -209,11 +207,12 @@ again:
 			bcopy(args.next_hop, (fwd_tag+1), len);
 			if (in_localip(args.next_hop->sin_addr))
 				(*m0)->m_flags |= M_FASTFWD_OURS;
+			(*m0)->m_flags |= M_IP_NEXTHOP;
 		}
 #endif
 		m_tag_prepend(*m0, fwd_tag);
 	    }
-#endif /* IPFIREWALL_FORWARD */
+#endif /* INET || INET6 */
 		break;
 
 	case IP_FW_DENY:
@@ -434,7 +433,6 @@ ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
 		int hlen;
 		struct mbuf *reass;
 
-		SET_HOST_IPLEN(ip); /* ip_reass wants host order */
 		reass = ip_reass(clone); /* Reassemble packet. */
 		if (reass == NULL)
 			return 0; /* not an error */
@@ -445,7 +443,6 @@ ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
 		 */
 		ip = mtod(reass, struct ip *);
 		hlen = ip->ip_hl << 2;
-		SET_NET_IPLEN(ip);
 		ip->ip_sum = 0;
 		if (hlen == sizeof(struct ip))
 			ip->ip_sum = in_cksum_hdr(ip);

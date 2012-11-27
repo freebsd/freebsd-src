@@ -105,7 +105,7 @@ static int
 ata_intel_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static const struct ata_chip_id const ids[] =
+    static const struct ata_chip_id ids[] =
     {{ ATA_I82371FB,     0,          0, 2, ATA_WDMA2, "PIIX" },
      { ATA_I82371SB,     0,          0, 2, ATA_WDMA2, "PIIX3" },
      { ATA_I82371AB,     0,          0, 2, ATA_UDMA2, "PIIX4" },

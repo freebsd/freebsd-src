@@ -244,26 +244,18 @@ vdev_geom_detach(void *arg)
 	}
 }
 
-static void
-nvlist_get_guids(nvlist_t *list, uint64_t *pguid, uint64_t *vguid)
+static uint64_t
+nvlist_get_guid(nvlist_t *list, uint64_t *pguid)
 {
-	nvpair_t *elem = NULL;
+	uint64_t value;
 
-	*vguid = 0;
-	*pguid = 0;
-	while ((elem = nvlist_next_nvpair(list, elem)) != NULL) {
-		if (nvpair_type(elem) != DATA_TYPE_UINT64)
-			continue;
-
-		if (strcmp(nvpair_name(elem), ZPOOL_CONFIG_POOL_GUID) == 0) {
-			VERIFY(nvpair_value_uint64(elem, pguid) == 0);
-		} else if (strcmp(nvpair_name(elem), ZPOOL_CONFIG_GUID) == 0) {
-			VERIFY(nvpair_value_uint64(elem, vguid) == 0);
-		}
-
-		if (*pguid != 0 && *vguid != 0)
-			break;
+	value = 0;
+	nvlist_lookup_uint64(list, ZPOOL_CONFIG_GUID, &value);
+	if (pguid) {
+		*pguid = 0;
+		nvlist_lookup_uint64(list, ZPOOL_CONFIG_POOL_GUID, pguid);
 	}
+	return (value);
 }
 
 static int
@@ -302,7 +294,15 @@ vdev_geom_io(struct g_consumer *cp, int cmd, void *data, off_t offset, off_t siz
 }
 
 static void
-vdev_geom_read_guids(struct g_consumer *cp, uint64_t *pguid, uint64_t *vguid)
+vdev_geom_taste_orphan(struct g_consumer *cp)
+{
+
+	KASSERT(1 == 0, ("%s called while tasting %s.", __func__,
+	    cp->provider->name));
+}
+
+static int
+vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 {
 	struct g_provider *pp;
 	vdev_label_t *label;
@@ -310,14 +310,13 @@ vdev_geom_read_guids(struct g_consumer *cp, uint64_t *pguid, uint64_t *vguid)
 	size_t buflen;
 	uint64_t psize;
 	off_t offset, size;
+	uint64_t guid, state, txg;
 	int error, l, len;
 
 	g_topology_assert_not();
 
-	*pguid = 0;
-	*vguid = 0;
 	pp = cp->provider;
-	ZFS_LOG(1, "Reading guids from %s...", pp->name);
+	ZFS_LOG(1, "Reading config from %s...", pp->name);
 
 	psize = pp->mediasize;
 	psize = P2ALIGN(psize, (uint64_t)sizeof(vdev_label_t));
@@ -325,11 +324,12 @@ vdev_geom_read_guids(struct g_consumer *cp, uint64_t *pguid, uint64_t *vguid)
 	size = sizeof(*label) + pp->sectorsize -
 	    ((sizeof(*label) - 1) % pp->sectorsize) - 1;
 
+	guid = 0;
 	label = kmem_alloc(size, KM_SLEEP);
 	buflen = sizeof(label->vl_vdev_phys.vp_nvlist);
 
+	*config = NULL;
 	for (l = 0; l < VDEV_LABELS; l++) {
-		nvlist_t *config = NULL;
 
 		offset = vdev_label_offset(psize, l, 0);
 		if ((offset % pp->sectorsize) != 0)
@@ -339,27 +339,196 @@ vdev_geom_read_guids(struct g_consumer *cp, uint64_t *pguid, uint64_t *vguid)
 			continue;
 		buf = label->vl_vdev_phys.vp_nvlist;
 
-		if (nvlist_unpack(buf, buflen, &config, 0) != 0)
+		if (nvlist_unpack(buf, buflen, config, 0) != 0)
 			continue;
 
-		nvlist_get_guids(config, pguid, vguid);
-		nvlist_free(config);
-		if (*pguid != 0 && *vguid != 0)
-			break;
+		if (nvlist_lookup_uint64(*config, ZPOOL_CONFIG_POOL_STATE,
+		    &state) != 0 || state == POOL_STATE_DESTROYED ||
+		    state > POOL_STATE_L2CACHE) {
+			nvlist_free(*config);
+			*config = NULL;
+			continue;
+		}
+
+		if (state != POOL_STATE_SPARE && state != POOL_STATE_L2CACHE &&
+		    (nvlist_lookup_uint64(*config, ZPOOL_CONFIG_POOL_TXG,
+		    &txg) != 0 || txg == 0)) {
+			nvlist_free(*config);
+			*config = NULL;
+			continue;
+		}
+
+		break;
 	}
 
 	kmem_free(label, size);
-	if (*pguid != 0 && *vguid != 0)
-		ZFS_LOG(1, "guids for %s are %ju:%ju", pp->name,
-		    (uintmax_t)*pguid, (uintmax_t)*vguid);
+	return (*config == NULL ? ENOENT : 0);
 }
 
 static void
-vdev_geom_taste_orphan(struct g_consumer *cp)
+resize_configs(nvlist_t ***configs, uint64_t *count, uint64_t id)
 {
+	nvlist_t **new_configs;
+	uint64_t i;
 
-	KASSERT(1 == 0, ("%s called while tasting %s.", __func__,
-	    cp->provider->name));
+	if (id < *count)
+		return;
+	new_configs = kmem_alloc((id + 1) * sizeof(nvlist_t *),
+	    KM_SLEEP | KM_ZERO);
+	for (i = 0; i < *count; i++)
+		new_configs[i] = (*configs)[i];
+	if (*configs != NULL)
+		kmem_free(*configs, *count * sizeof(void *));
+	*configs = new_configs;
+	*count = id + 1;
+}
+
+static void
+process_vdev_config(nvlist_t ***configs, uint64_t *count, nvlist_t *cfg,
+    const char *name, uint64_t* known_pool_guid)
+{
+	nvlist_t *vdev_tree;
+	uint64_t pool_guid;
+	uint64_t vdev_guid, known_guid;
+	uint64_t id, txg, known_txg;
+	char *pname;
+	int i;
+
+	if (nvlist_lookup_string(cfg, ZPOOL_CONFIG_POOL_NAME, &pname) != 0 ||
+	    strcmp(pname, name) != 0)
+		goto ignore;
+
+	if (nvlist_lookup_uint64(cfg, ZPOOL_CONFIG_POOL_GUID, &pool_guid) != 0)
+		goto ignore;
+
+	if (nvlist_lookup_uint64(cfg, ZPOOL_CONFIG_TOP_GUID, &vdev_guid) != 0)
+		goto ignore;
+
+	if (nvlist_lookup_nvlist(cfg, ZPOOL_CONFIG_VDEV_TREE, &vdev_tree) != 0)
+		goto ignore;
+
+	if (nvlist_lookup_uint64(vdev_tree, ZPOOL_CONFIG_ID, &id) != 0)
+		goto ignore;
+
+	VERIFY(nvlist_lookup_uint64(cfg, ZPOOL_CONFIG_POOL_TXG, &txg) == 0);
+
+	if (*known_pool_guid != 0) {
+		if (pool_guid != *known_pool_guid)
+			goto ignore;
+	} else
+		*known_pool_guid = pool_guid;
+
+	resize_configs(configs, count, id);
+
+	if ((*configs)[id] != NULL) {
+		VERIFY(nvlist_lookup_uint64((*configs)[id],
+		    ZPOOL_CONFIG_POOL_TXG, &known_txg) == 0);
+		if (txg <= known_txg)
+			goto ignore;
+		nvlist_free((*configs)[id]);
+	}
+
+	(*configs)[id] = cfg;
+	return;
+
+ignore:
+	nvlist_free(cfg);
+}
+
+static int
+vdev_geom_attach_taster(struct g_consumer *cp, struct g_provider *pp)
+{
+	int error;
+
+	if (pp->flags & G_PF_WITHER)
+		return (EINVAL);
+	if (pp->sectorsize > VDEV_PAD_SIZE || !ISP2(pp->sectorsize))
+		return (EINVAL);
+	g_attach(cp, pp);
+	error = g_access(cp, 1, 0, 0);
+	if (error != 0)
+		g_detach(cp);
+	return (error);
+}
+
+static void
+vdev_geom_detach_taster(struct g_consumer *cp)
+{
+	g_access(cp, -1, 0, 0);
+	g_detach(cp);
+}
+
+int
+vdev_geom_read_pool_label(const char *name,
+    nvlist_t ***configs, uint64_t *count)
+{
+	struct g_class *mp;
+	struct g_geom *gp, *zgp;
+	struct g_provider *pp;
+	struct g_consumer *zcp;
+	nvlist_t *vdev_cfg;
+	uint64_t pool_guid;
+	int error;
+
+	DROP_GIANT();
+	g_topology_lock();
+
+	zgp = g_new_geomf(&zfs_vdev_class, "zfs::vdev::taste");
+	/* This orphan function should be never called. */
+	zgp->orphan = vdev_geom_taste_orphan;
+	zcp = g_new_consumer(zgp);
+
+	*configs = NULL;
+	*count = 0;
+	pool_guid = 0;
+	LIST_FOREACH(mp, &g_classes, class) {
+		if (mp == &zfs_vdev_class)
+			continue;
+		LIST_FOREACH(gp, &mp->geom, geom) {
+			if (gp->flags & G_GEOM_WITHER)
+				continue;
+			LIST_FOREACH(pp, &gp->provider, provider) {
+				if (pp->flags & G_PF_WITHER)
+					continue;
+				if (vdev_geom_attach_taster(zcp, pp) != 0)
+					continue;
+				g_topology_unlock();
+				error = vdev_geom_read_config(zcp, &vdev_cfg);
+				g_topology_lock();
+				vdev_geom_detach_taster(zcp);
+				if (error)
+					continue;
+				ZFS_LOG(1, "successfully read vdev config");
+
+				process_vdev_config(configs, count,
+				    vdev_cfg, name, &pool_guid);
+			}
+		}
+	}
+
+	g_destroy_consumer(zcp);
+	g_destroy_geom(zgp);
+	g_topology_unlock();
+	PICKUP_GIANT();
+
+	return (*count > 0 ? 0 : ENOENT);
+}
+
+static uint64_t
+vdev_geom_read_guid(struct g_consumer *cp, uint64_t *pguid)
+{
+	nvlist_t *config;
+	uint64_t guid;
+
+	g_topology_assert_not();
+
+	guid = 0;
+	if (vdev_geom_read_config(cp, &config) == 0) {
+		guid = nvlist_get_guid(config, pguid);
+		nvlist_free(config);
+	} else if (pguid)
+		*pguid = 0;
+	return (guid);
 }
 
 static struct g_consumer *
@@ -387,18 +556,12 @@ vdev_geom_attach_by_guids(vdev_t *vd)
 			if (gp->flags & G_GEOM_WITHER)
 				continue;
 			LIST_FOREACH(pp, &gp->provider, provider) {
-				if (pp->flags & G_PF_WITHER)
+				if (vdev_geom_attach_taster(zcp, pp) != 0)
 					continue;
-				g_attach(zcp, pp);
-				if (g_access(zcp, 1, 0, 0) != 0) {
-					g_detach(zcp);
-					continue;
-				}
 				g_topology_unlock();
-				vdev_geom_read_guids(zcp, &pguid, &vguid);
+				vguid = vdev_geom_read_guid(zcp, &pguid);
 				g_topology_lock();
-				g_access(zcp, -1, 0, 0);
-				g_detach(zcp);
+				vdev_geom_detach_taster(zcp);
 				if (pguid != spa_guid(vd->vdev_spa) ||
 				    vguid != vd->vdev_guid)
 					continue;
@@ -472,7 +635,7 @@ vdev_geom_open_by_path(vdev_t *vd, int check_guid)
 		if (cp != NULL && check_guid && ISP2(pp->sectorsize) &&
 		    pp->sectorsize <= VDEV_PAD_SIZE) {
 			g_topology_unlock();
-			vdev_geom_read_guids(cp, &pguid, &vguid);
+			vguid = vdev_geom_read_guid(cp, &pguid);
 			g_topology_lock();
 			if (pguid != spa_guid(vd->vdev_spa) ||
 			    vguid != vd->vdev_guid) {

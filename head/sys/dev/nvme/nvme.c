@@ -32,6 +32,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/conf.h>
 #include <sys/module.h>
 
+#include <vm/uma.h>
+
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
@@ -43,6 +45,8 @@ struct nvme_consumer {
 };
 
 struct nvme_consumer nvme_consumer[NVME_MAX_CONSUMERS];
+
+uma_zone_t nvme_request_zone;
 
 MALLOC_DEFINE(M_NVME, "nvme", "nvme(4) memory allocations");
 
@@ -108,6 +112,23 @@ nvme_probe (device_t device)
 
 	return (ENXIO);
 }
+
+static void
+nvme_init(void)
+{
+	nvme_request_zone = uma_zcreate("nvme_request",
+	    sizeof(struct nvme_request), NULL, NULL, NULL, NULL, 0, 0);
+}
+
+SYSINIT(nvme_register, SI_SUB_DRIVERS, SI_ORDER_SECOND, nvme_init, NULL);
+
+static void
+nvme_uninit(void)
+{
+	uma_zdestroy(nvme_request_zone);
+}
+
+SYSUNINIT(nvme_unregister, SI_SUB_DRIVERS, SI_ORDER_SECOND, nvme_uninit, NULL);
 
 static void
 nvme_load(void)
@@ -209,15 +230,10 @@ nvme_dump_completion(struct nvme_completion *cpl)
 void
 nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 {
-	struct nvme_tracker 	*tr;
-	struct nvme_qpair 	*qpair;
-	struct nvme_prp_list	*prp_list;
+	struct nvme_tracker 	*tr = arg;
 	uint32_t		cur_nseg;
 
 	KASSERT(error == 0, ("nvme_payload_map error != 0\n"));
-
-	tr = (struct nvme_tracker *)arg;
-	qpair = tr->qpair;
 
 	/*
 	 * Note that we specified PAGE_SIZE for alignment and max
@@ -225,64 +241,21 @@ nvme_payload_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 	 *  we can safely just transfer each segment to its
 	 *  associated PRP entry.
 	 */
-	tr->cmd.prp1 = seg[0].ds_addr;
+	tr->req->cmd.prp1 = seg[0].ds_addr;
 
 	if (nseg == 2) {
-		tr->cmd.prp2 = seg[1].ds_addr;
+		tr->req->cmd.prp2 = seg[1].ds_addr;
 	} else if (nseg > 2) {
-		KASSERT(tr->prp_list,
-		    ("prp_list needed but not attached to tracker\n"));
 		cur_nseg = 1;
-		prp_list = tr->prp_list;
-		tr->cmd.prp2 = (uint64_t)prp_list->bus_addr;
+		tr->req->cmd.prp2 = (uint64_t)tr->prp_bus_addr;
 		while (cur_nseg < nseg) {
-			prp_list->prp[cur_nseg-1] =
+			tr->prp[cur_nseg-1] =
 			    (uint64_t)seg[cur_nseg].ds_addr;
 			cur_nseg++;
 		}
 	}
 
-	nvme_qpair_submit_cmd(qpair, tr);
-}
-
-struct nvme_tracker *
-nvme_allocate_tracker(struct nvme_controller *ctrlr, boolean_t is_admin,
-    nvme_cb_fn_t cb_fn, void *cb_arg, uint32_t payload_size, void *payload)
-{
-	struct nvme_tracker 	*tr;
-	struct nvme_qpair	*qpair;
-	uint32_t 		modulo, offset, num_prps;
-	boolean_t		alloc_prp_list = FALSE;
-
-	if (is_admin) {
-		qpair = &ctrlr->adminq;
-	} else {
-		if (ctrlr->per_cpu_io_queues)
-			qpair = &ctrlr->ioq[curcpu];
-		else
-			qpair = &ctrlr->ioq[0];
-	}
-
-	num_prps = payload_size / PAGE_SIZE;
-	modulo = payload_size % PAGE_SIZE;
-	offset = (uint32_t)((uintptr_t)payload % PAGE_SIZE);
-
-	if (modulo || offset)
-		num_prps += 1 + (modulo + offset - 1) / PAGE_SIZE;
-
-	if (num_prps > 2)
-		alloc_prp_list = TRUE;
-
-	tr = nvme_qpair_allocate_tracker(qpair, alloc_prp_list);
-
-	memset(&tr->cmd, 0, sizeof(tr->cmd));
-
-	tr->qpair = qpair;
-	tr->cb_fn = cb_fn;
-	tr->cb_arg = cb_arg;
-	tr->payload_size = payload_size;
-
-	return (tr);
+	nvme_qpair_submit_cmd(tr->qpair, tr);
 }
 
 static int

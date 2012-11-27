@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslstartup - Compiler startup routines, called from main
@@ -231,8 +230,12 @@ AslDetectSourceFileType (
     if (ACPI_FAILURE (Status))
     {
         printf ("Non-ascii input file - %s\n", Info->Filename);
-        Type = ASL_INPUT_TYPE_BINARY;
-        goto Cleanup;
+
+        if (!Gbl_IgnoreErrors)
+        {
+            Type = ASL_INPUT_TYPE_BINARY;
+            goto Cleanup;
+        }
     }
 
     /*
@@ -333,6 +336,13 @@ AslDoOneFile (
         {
             return (Status);
         }
+
+#if 0
+        /* TBD: Handle additional output files for disassembler */
+
+        Status = FlOpenMiscOutputFiles (Gbl_OutputFilenamePrefix);
+        LsDisplayNamespace ();
+#endif
 
         /* Shutdown compiler and ACPICA subsystem */
 

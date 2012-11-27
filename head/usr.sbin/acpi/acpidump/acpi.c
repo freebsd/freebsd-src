@@ -340,12 +340,13 @@ acpi_print_local_nmi(u_int lint, uint16_t mps_flags)
 	acpi_print_mps_flags(mps_flags);
 }
 
-const char *apic_types[] = { "Local APIC", "IO APIC", "INT Override", "NMI",
-			     "Local APIC NMI", "Local APIC Override",
-			     "IO SAPIC", "Local SAPIC", "Platform Interrupt",
-			     "Local X2APIC", "Local X2APIC NMI" };
-const char *platform_int_types[] = { "0 (unknown)", "PMI", "INIT",
-				     "Corrected Platform Error" };
+static const char *apic_types[] = { "Local APIC", "IO APIC", "INT Override",
+				    "NMI", "Local APIC NMI",
+				    "Local APIC Override", "IO SAPIC",
+				    "Local SAPIC", "Platform Interrupt",
+				    "Local X2APIC", "Local X2APIC NMI" };
+static const char *platform_int_types[] = { "0 (unknown)", "PMI", "INIT",
+					    "Corrected Platform Error" };
 
 static void
 acpi_print_madt(ACPI_SUBTABLE_HEADER *mp)
@@ -747,7 +748,7 @@ acpi_print_srat_memory(ACPI_SRAT_MEM_AFFINITY *mp)
 	printf("\tProximity Domain=%d\n", mp->ProximityDomain);
 }
 
-const char *srat_types[] = { "CPU", "Memory", "X2APIC" };
+static const char *srat_types[] = { "CPU", "Memory", "X2APIC" };
 
 static void
 acpi_print_srat(ACPI_SUBTABLE_HEADER *srat)

@@ -106,6 +106,7 @@ struct mfi_command {
 #define MFI_ON_MFIQ_READY	(1<<6)
 #define MFI_ON_MFIQ_BUSY	(1<<7)
 #define MFI_ON_MFIQ_MASK	((1<<5)|(1<<6)|(1<<7))
+#define MFI_CMD_SCSI		(1<<8)
 	uint8_t			retry_for_fw_reset;
 	void			(* cm_complete)(struct mfi_command *cm);
 	void			*cm_private;
@@ -126,6 +127,11 @@ struct mfi_disk {
 #define	MFI_DISK_FLAGS_DISABLED	0x02
 };
 
+struct mfi_disk_pending {
+	TAILQ_ENTRY(mfi_disk_pending)	ld_link;
+	int		ld_id;
+};
+
 struct mfi_system_pd {
 	TAILQ_ENTRY(mfi_system_pd) pd_link;
 	device_t	pd_dev;
@@ -135,6 +141,11 @@ struct mfi_system_pd {
 	struct mfi_pd_info *pd_info;
 	struct disk	*pd_disk;
 	int		pd_flags;
+};
+
+struct mfi_system_pending {
+	TAILQ_ENTRY(mfi_system_pending) pd_link;
+	int		pd_id;
 };
 
 struct mfi_evt_queue_elm {
@@ -285,11 +296,15 @@ struct mfi_softc {
 
 	TAILQ_HEAD(,mfi_disk)		mfi_ld_tqh;
 	TAILQ_HEAD(,mfi_system_pd)	mfi_syspd_tqh;
+	TAILQ_HEAD(,mfi_disk_pending)	mfi_ld_pend_tqh;
+	TAILQ_HEAD(,mfi_system_pending)	mfi_syspd_pend_tqh;
 	eventhandler_tag		mfi_eh;
 	struct cdev			*mfi_cdev;
 
 	TAILQ_HEAD(, ccb_hdr)		mfi_cam_ccbq;
 	struct mfi_command *		(* mfi_cam_start)(void *);
+	void				(*mfi_cam_rescan_cb)(struct mfi_softc *,
+					    uint32_t);
 	struct callout			mfi_watchdog_callout;
 	struct mtx			mfi_io_lock;
 	struct sx			mfi_config_lock;
@@ -303,6 +318,7 @@ struct mfi_softc {
 		    uint32_t frame_cnt);
 	int	(*mfi_adp_reset)(struct mfi_softc *sc);
 	int	(*mfi_adp_check_reset)(struct mfi_softc *sc);
+	void				(*mfi_intr_ptr)(void *sc);
 
 	/* ThunderBolt */
 	uint32_t			mfi_tbolt;
@@ -421,7 +437,8 @@ extern int mfi_tbolt_reset(struct mfi_softc *sc);
 extern void mfi_tbolt_sync_map_info(struct mfi_softc *sc);
 extern void mfi_handle_map_sync(void *context, int pending);
 extern int mfi_dcmd_command(struct mfi_softc *, struct mfi_command **,
-		    uint32_t, void **, size_t);
+     uint32_t, void **, size_t);
+extern int mfi_build_cdb(int, uint8_t, u_int64_t, u_int32_t, uint8_t *);
 
 #define MFIQ_ADD(sc, qname)					\
 	do {							\

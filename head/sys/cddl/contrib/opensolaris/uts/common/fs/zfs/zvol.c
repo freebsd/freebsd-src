@@ -78,6 +78,7 @@
 #include <sys/vdev_impl.h>
 #include <sys/zvol.h>
 #include <sys/zil_impl.h>
+#include <sys/dbuf.h>
 #include <geom/geom.h>
 
 #include "zfs_namecheck.h"
@@ -475,6 +476,7 @@ zvol_create_minor(const char *name)
 	zvol_state_t *zv;
 	objset_t *os;
 	dmu_object_info_t doi;
+	uint64_t volsize;
 	int error;
 
 	ZFS_LOG(1, "Creating ZVOL %s...", name);
@@ -535,9 +537,20 @@ zvol_create_minor(const char *name)
 	zv = zs->zss_data = kmem_zalloc(sizeof (zvol_state_t), KM_SLEEP);
 #else	/* !sun */
 
+	error = zap_lookup(os, ZVOL_ZAP_OBJ, "size", 8, 1, &volsize);
+	if (error) {
+		ASSERT(error == 0);
+		dmu_objset_disown(os, zvol_tag);
+		mutex_exit(&spa_namespace_lock);
+		return (error);
+	}
+
 	DROP_GIANT();
 	g_topology_lock();
 	zv = zvol_geom_create(name);
+	zv->zv_volsize = volsize;
+	zv->zv_provider->mediasize = zv->zv_volsize;
+
 #endif	/* !sun */
 
 	(void) strlcpy(zv->zv_name, name, MAXPATHLEN);
@@ -1039,6 +1052,12 @@ zvol_get_data(void *arg, lr_write_t *lr, char *buf, zio_t *zio)
 		error = dmu_buf_hold(os, object, offset, zgd, &db,
 		    DMU_READ_NO_PREFETCH);
 		if (error == 0) {
+			blkptr_t *obp = dmu_buf_get_blkptr(db);
+			if (obp) {
+				ASSERT(BP_IS_HOLE(bp));
+				*bp = *obp;
+			}
+
 			zgd->zgd_db = db;
 			zgd->zgd_bp = bp;
 

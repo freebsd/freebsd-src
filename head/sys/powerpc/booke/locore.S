@@ -126,9 +126,11 @@ __start:
 	bl	tlb1_find_current	/* the entry found is returned in r29 */
 
 	bl	tlb1_inval_all_but_current
+
 /*
  * Create temporary mapping in AS=1 and switch to it
  */
+	addi	%r3, %r29, 1
 	bl	tlb1_temp_mapping_as1
 
 	mfmsr	%r3
@@ -242,19 +244,21 @@ done_mapping:
 __boot_page:
 	bl	1f
 
-	.globl	bp_trace
-bp_trace:
+	.globl	bp_ntlb1s
+bp_ntlb1s:
 	.long	0
 
-	.globl	bp_kernload
-bp_kernload:
-	.long	0
+	.globl	bp_tlb1
+bp_tlb1:
+	.space	4 * 3 * 16
+
+	.globl	bp_tlb1_end
+bp_tlb1_end:
 
 /*
  * Initial configuration
  */
-1:
-	mflr    %r31		/* r31 hold the address of bp_trace */
+1:	mflr	%r31		/* r31 hold the address of bp_ntlb1s */
 
 	/* Set HIDs */
 	lis	%r3, HID0_E500_DEFAULT_SET@h
@@ -283,9 +287,11 @@ bp_kernload:
 	bl	tlb1_find_current	/* the entry number found is in r29 */
 
 	bl	tlb1_inval_all_but_current
+
 /*
  * Create temporary translation in AS=1 and switch to it
  */
+	lwz	%r3, 0(%r31)
 	bl	tlb1_temp_mapping_as1
 
 	mfmsr	%r3
@@ -306,44 +312,34 @@ bp_kernload:
 /*
  * Setup final mapping in TLB1[1] and switch to it
  */
-	/* Final kernel mapping, map in 16 MB of RAM */
-	lis	%r3, MAS0_TLBSEL1@h	/* Select TLB1 */
-	li	%r4, 0			/* Entry 0 */
-	rlwimi	%r3, %r4, 16, 4, 15
+	lwz	%r6, 0(%r31)
+	addi	%r5, %r31, 4
+	li	%r4, 0
+
+4:	lis	%r3, MAS0_TLBSEL1@h
+	rlwimi	%r3, %r4, 16, 12, 15
 	mtspr	SPR_MAS0, %r3
 	isync
-
-	li	%r3, (TLB_SIZE_16M << MAS1_TSIZE_SHIFT)@l
-	oris	%r3, %r3, (MAS1_VALID | MAS1_IPROT)@h
-	mtspr	SPR_MAS1, %r3		/* note TS was not filled, so it's TS=0 */
+	lwz	%r3, 0(%r5)
+	mtspr	SPR_MAS1, %r3
 	isync
-
-	lis	%r3, KERNBASE@h
-	ori	%r3, %r3, KERNBASE@l	/* EPN = KERNBASE */
-	ori	%r3, %r3, MAS2_M@l	/* WIMGE = 0b00100 */
+	lwz	%r3, 4(%r5)
 	mtspr	SPR_MAS2, %r3
 	isync
-
-	/* Retrieve kernel load [physical] address from bp_kernload */
-	bl	4f
-4:	mflr	%r3
-	rlwinm	%r3, %r3, 0, 0, 19
-	lis	%r4, bp_kernload@h
-	ori	%r4, %r4, bp_kernload@l
-	lis	%r5, __boot_page@h
-	ori	%r5, %r5, __boot_page@l
-	sub	%r4, %r4, %r5	/* offset of bp_kernload within __boot_page */
-	lwzx	%r3, %r4, %r3
-
-	/* Set RPN and protection */
-	ori	%r3, %r3, (MAS3_SX | MAS3_SW | MAS3_SR)@l
+	lwz	%r3, 8(%r5)
 	mtspr	SPR_MAS3, %r3
 	isync
 	tlbwe
 	isync
 	msync
+	addi	%r5, %r5, 12
+	addi	%r4, %r4, 1
+	cmpw	%r4, %r6
+	blt	4b
 
 	/* Switch to the final mapping */
+	lis	%r5, __boot_page@ha
+	ori	%r5, %r5, __boot_page@l
 	bl	5f
 5:	mflr	%r3
 	rlwinm	%r3, %r3, 0, 0xfff	/* Offset from boot page start */
@@ -460,11 +456,14 @@ tlb1_inval_entry:
 	blr
 
 /*
- * r29		current entry number
- * r28		returned temp entry
- * r3-r5	scratched
+ * r3		entry of temp translation
+ * r29		entry of current translation
+ * r28		returns temp entry passed in r3
+ * r4-r5	scratched
  */
 tlb1_temp_mapping_as1:
+	mr	%r28, %r3
+
 	/* Read our current translation */
 	lis	%r3, MAS0_TLBSEL1@h	/* Select TLB1 */
 	rlwimi	%r3, %r29, 16, 12, 15	/* Select our current entry */
@@ -472,14 +471,8 @@ tlb1_temp_mapping_as1:
 	isync
 	tlbre
 
-	/*
-	 * Prepare and write temp entry
-	 *
-	 * FIXME this is not robust against overflow i.e. when the current
-	 * entry is the last in TLB1
-	 */
+	/* Prepare and write temp entry */
 	lis	%r3, MAS0_TLBSEL1@h	/* Select TLB1 */
-	addi	%r28, %r29, 1		/* Use next entry. */
 	rlwimi	%r3, %r28, 16, 12, 15	/* Select temp entry */
 	mtspr	SPR_MAS0, %r3
 	isync

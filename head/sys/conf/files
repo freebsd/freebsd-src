@@ -214,6 +214,7 @@ cddl/contrib/opensolaris/uts/common/fs/zfs/spa_errlog.c			optional zfs compile-w
 cddl/contrib/opensolaris/uts/common/fs/zfs/spa_history.c		optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/spa_misc.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/space_map.c			optional zfs compile-with "${ZFS_C}"
+cddl/contrib/opensolaris/uts/common/fs/zfs/trim_map.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/txg.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/uberblock.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/fs/zfs/unique.c			optional zfs compile-with "${ZFS_C}"
@@ -269,20 +270,18 @@ cddl/contrib/opensolaris/uts/common/zmod/trees.c			optional zfs compile-with "${
 cddl/contrib/opensolaris/uts/common/zmod/zmod.c				optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/zmod/zmod_subr.c			optional zfs compile-with "${ZFS_C}"
 cddl/contrib/opensolaris/uts/common/zmod/zutil.c			optional zfs compile-with "${ZFS_C}"
-contrib/altq/altq/altq_cbq.c	optional altq \
-	compile-with "${NORMAL_C}"
-contrib/altq/altq/altq_cdnr.c	optional altq
-contrib/altq/altq/altq_hfsc.c	optional altq \
-	compile-with "${NORMAL_C}"
-contrib/altq/altq/altq_priq.c	optional altq \
-	compile-with "${NORMAL_C}"
-contrib/altq/altq/altq_red.c	optional altq \
-	compile-with "${NORMAL_C}"
-contrib/altq/altq/altq_rio.c	optional altq \
-	compile-with "${NORMAL_C}"
-contrib/altq/altq/altq_rmclass.c optional altq
-contrib/altq/altq/altq_subr.c	optional altq \
-	compile-with "${NORMAL_C}"
+compat/freebsd32/freebsd32_ioctl.c	optional compat_freebsd32
+compat/freebsd32/freebsd32_misc.c	optional compat_freebsd32
+compat/freebsd32/freebsd32_syscalls.c	optional compat_freebsd32
+compat/freebsd32/freebsd32_sysent.c	optional compat_freebsd32
+contrib/altq/altq/altq_cbq.c		optional altq
+contrib/altq/altq/altq_cdnr.c		optional altq
+contrib/altq/altq/altq_hfsc.c		optional altq
+contrib/altq/altq/altq_priq.c		optional altq
+contrib/altq/altq/altq_red.c		optional altq
+contrib/altq/altq/altq_rio.c		optional altq
+contrib/altq/altq/altq_rmclass.c	optional altq
+contrib/altq/altq/altq_subr.c		optional altq
 contrib/dev/acpica/components/debugger/dbcmds.c		optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbdisply.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbexec.c		optional acpi acpi_debug
@@ -295,6 +294,7 @@ contrib/dev/acpica/components/debugger/dbstats.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbutils.c	optional acpi acpi_debug
 contrib/dev/acpica/components/debugger/dbxface.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmbuffer.c	optional acpi acpi_debug
+contrib/dev/acpica/components/disassembler/dmdeferred.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmnames.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmopcode.c	optional acpi acpi_debug
 contrib/dev/acpica/components/disassembler/dmobject.c	optional acpi acpi_debug
@@ -463,12 +463,12 @@ contrib/ipfilter/netinet/ip_sync.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/mlfk_ipl.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
-contrib/libfdt/fdt.c			optional	fdt
-contrib/libfdt/fdt_ro.c			optional	fdt
-contrib/libfdt/fdt_rw.c			optional	fdt
-contrib/libfdt/fdt_strerror.c		optional	fdt
-contrib/libfdt/fdt_sw.c			optional	fdt
-contrib/libfdt/fdt_wip.c		optional	fdt
+contrib/libfdt/fdt.c		optional fdt
+contrib/libfdt/fdt_ro.c		optional fdt
+contrib/libfdt/fdt_rw.c		optional fdt
+contrib/libfdt/fdt_strerror.c	optional fdt
+contrib/libfdt/fdt_sw.c		optional fdt
+contrib/libfdt/fdt_wip.c	optional fdt
 contrib/ngatm/netnatm/api/cc_conn.c optional ngatm_ccatm \
 	compile-with "${NORMAL_C_NOWERROR} -I$S/contrib/ngatm"
 contrib/ngatm/netnatm/api/cc_data.c optional ngatm_ccatm \
@@ -513,12 +513,12 @@ contrib/ngatm/netnatm/sig/sig_unimsgcpy.c optional ngatm_uni \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
 contrib/ngatm/netnatm/sig/sig_verify.c optional ngatm_uni \
 	compile-with "${NORMAL_C} -I$S/contrib/ngatm"
-crypto/blowfish/bf_ecb.c	optional ipsec 
-crypto/blowfish/bf_skey.c	optional crypto | ipsec 
-crypto/camellia/camellia.c	optional crypto | ipsec 
-crypto/camellia/camellia-api.c	optional crypto | ipsec 
-crypto/des/des_ecb.c		optional crypto | ipsec | netsmb
-crypto/des/des_setkey.c		optional crypto | ipsec | netsmb
+crypto/blowfish/bf_ecb.c	optional ipsec
+crypto/blowfish/bf_skey.c	optional crypto | ipsec
+crypto/camellia/camellia.c	optional crypto | ipsec
+crypto/camellia/camellia-api.c	optional crypto | ipsec
+crypto/des/des_ecb.c		optional crypto | ipsec
+crypto/des/des_setkey.c		optional crypto | ipsec
 crypto/rc4/rc4.c		optional netgraph_mppc_encryption | kgssapi
 crypto/rijndael/rijndael-alg-fst.c optional crypto | geom_bde | \
 					 ipsec | random | wlan_ccmp
@@ -528,26 +528,26 @@ crypto/sha1.c			optional carp | crypto | ipsec | \
 					 netgraph_mppc_encryption | sctp
 crypto/sha2/sha2.c		optional crypto | geom_bde | ipsec | random | \
 					 sctp | zfs
-ddb/db_access.c			optional	ddb
-ddb/db_break.c			optional	ddb
-ddb/db_capture.c		optional	ddb
-ddb/db_command.c		optional	ddb
-ddb/db_examine.c		optional	ddb
-ddb/db_expr.c			optional	ddb
-ddb/db_input.c			optional	ddb
-ddb/db_lex.c			optional	ddb
-ddb/db_main.c			optional	ddb
-ddb/db_output.c			optional	ddb
-ddb/db_print.c			optional	ddb
-ddb/db_ps.c			optional	ddb
-ddb/db_run.c			optional	ddb
-ddb/db_script.c			optional	ddb
-ddb/db_sym.c			optional	ddb
-ddb/db_thread.c			optional	ddb
-ddb/db_textdump.c		optional	ddb
-ddb/db_variables.c		optional	ddb
-ddb/db_watch.c			optional	ddb
-ddb/db_write_cmd.c		optional	ddb
+ddb/db_access.c			optional ddb
+ddb/db_break.c			optional ddb
+ddb/db_capture.c		optional ddb
+ddb/db_command.c		optional ddb
+ddb/db_examine.c		optional ddb
+ddb/db_expr.c			optional ddb
+ddb/db_input.c			optional ddb
+ddb/db_lex.c			optional ddb
+ddb/db_main.c			optional ddb
+ddb/db_output.c			optional ddb
+ddb/db_print.c			optional ddb
+ddb/db_ps.c			optional ddb
+ddb/db_run.c			optional ddb
+ddb/db_script.c			optional ddb
+ddb/db_sym.c			optional ddb
+ddb/db_thread.c			optional ddb
+ddb/db_textdump.c		optional ddb
+ddb/db_variables.c		optional ddb
+ddb/db_watch.c			optional ddb
+ddb/db_write_cmd.c		optional ddb
 #dev/dpt/dpt_control.c		optional dpt
 dev/aac/aac.c			optional aac
 dev/aac/aac_cam.c		optional aacp aac
@@ -612,7 +612,7 @@ dev/advansys/adwmcode.c		optional adw
 dev/ae/if_ae.c			optional ae pci
 dev/age/if_age.c		optional age pci
 dev/agp/agp.c			optional agp pci
-dev/agp/agp_if.m			optional agp pci
+dev/agp/agp_if.m		optional agp pci
 dev/aha/aha.c			optional aha
 dev/aha/aha_isa.c		optional aha isa
 dev/aha/aha_mca.c		optional aha mca
@@ -702,9 +702,8 @@ dev/ath/if_ath_pci.c		optional ath_pci pci \
 dev/ath/if_ath_ahb.c		optional ath_ahb \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 #
-# XXX Work around clang warning, until maintainer approves fix.
 dev/ath/if_ath.c		optional ath \
-	compile-with "${NORMAL_C} ${NO_WSOMETIMES_UNINITIALIZED} -I$S/dev/ath"
+	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_beacon.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_debug.c		optional ath \
@@ -934,30 +933,30 @@ dev/ath/ath_hal/ar9001/ar9160_attach.c optional ath_hal | ath_ar9160 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 # ar9280 (depends on ar5416)
 dev/ath/ath_hal/ar9002/ar9280_attach.c optional ath_hal | ath_ar9280 | \
-	ath_ar9285 \ 
+	ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar9002/ar9280_olc.c optional ath_hal | ath_ar9280 | \
-	ath_ar9285 \ 
+	ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 # ar9285 (depends on ar5416 and ar9280)
-dev/ath/ath_hal/ar9002/ar9285_attach.c optional ath_hal | ath_ar9285 \ 
+dev/ath/ath_hal/ar9002/ar9285_attach.c optional ath_hal | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar9002/ar9285_reset.c optional ath_hal | ath_ar9285 \ 
+dev/ath/ath_hal/ar9002/ar9285_reset.c optional ath_hal | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar9002/ar9285_cal.c optional ath_hal | ath_ar9285 \ 
+dev/ath/ath_hal/ar9002/ar9285_cal.c optional ath_hal | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar9002/ar9285_phy.c optional ath_hal | ath_ar9285 \ 
+dev/ath/ath_hal/ar9002/ar9285_phy.c optional ath_hal | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar9002/ar9285_diversity.c optional ath_hal | ath_ar9285 \ 
+dev/ath/ath_hal/ar9002/ar9285_diversity.c optional ath_hal | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 # ar9287 (depends on ar5416)
-dev/ath/ath_hal/ar9002/ar9287_attach.c optional ath_hal | ath_ar9287 \ 
+dev/ath/ath_hal/ar9002/ar9287_attach.c optional ath_hal | ath_ar9287 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar9002/ar9287_reset.c optional ath_hal | ath_ar9287 \ 
+dev/ath/ath_hal/ar9002/ar9287_reset.c optional ath_hal | ath_ar9287 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar9002/ar9287_cal.c optional ath_hal | ath_ar9287 \ 
+dev/ath/ath_hal/ar9002/ar9287_cal.c optional ath_hal | ath_ar9287 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar9002/ar9287_olc.c optional ath_hal | ath_ar9287 \ 
+dev/ath/ath_hal/ar9002/ar9287_olc.c optional ath_hal | ath_ar9287 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 
 # rf backends
@@ -992,9 +991,9 @@ dev/ath/ath_rate/onoe/onoe.c	optional ath_rate_onoe \
 dev/ath/ath_rate/sample/sample.c	optional ath_rate_sample \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 # ath DFS modules
-dev/ath/ath_dfs/null/dfs_null.c	optional	ath \
+dev/ath/ath_dfs/null/dfs_null.c	optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
-# 
+#
 dev/bce/if_bce.c		optional bce
 dev/bfe/if_bfe.c		optional bfe
 dev/bge/if_bge.c		optional bge
@@ -1056,7 +1055,7 @@ dev/cxgb/common/cxgb_xgmac.c	optional cxgb pci \
 dev/cxgb/common/cxgb_t3_hw.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/common/cxgb_tn1010.c	optional cxgb pci \
-	compile-with "${NORMAL_C} -I$S/dev/cxgb"	
+	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/sys/uipc_mvec.c	optional cxgb pci \
 	compile-with "${NORMAL_C} -I$S/dev/cxgb"
 dev/cxgb/cxgb_t3fw.c		optional cxgb cxgb_t3fw \
@@ -1158,15 +1157,14 @@ dev/drm/mach64_state.c		optional mach64drm
 dev/drm/mga_dma.c		optional mgadrm
 dev/drm/mga_drv.c		optional mgadrm
 dev/drm/mga_irq.c		optional mgadrm
-dev/drm/mga_state.c		optional mgadrm \
-	compile-with "${NORMAL_C} -finline-limit=13500"
+dev/drm/mga_state.c		optional mgadrm
 dev/drm/mga_warp.c		optional mgadrm
 dev/drm/r128_cce.c		optional r128drm \
 	compile-with "${NORMAL_C} ${NO_WUNUSED_VALUE} ${NO_WCONSTANT_CONVERSION}"
 dev/drm/r128_drv.c		optional r128drm
 dev/drm/r128_irq.c		optional r128drm
 dev/drm/r128_state.c		optional r128drm \
-	compile-with "${NORMAL_C} ${NO_WUNUSED_VALUE} -finline-limit=13500"
+	compile-with "${NORMAL_C} ${NO_WUNUSED_VALUE}"
 dev/drm/r300_cmdbuf.c		optional radeondrm
 dev/drm/r600_blit.c		optional radeondrm
 dev/drm/r600_cp.c		optional radeondrm \
@@ -1250,6 +1248,19 @@ dev/ep/if_ep_mca.c		optional ep mca
 dev/ep/if_ep_pccard.c		optional ep pccard
 dev/esp/esp_pci.c		optional esp pci
 dev/esp/ncr53c9x.c		optional esp
+dev/etherswitch/arswitch/arswitch.c		optional arswitch
+dev/etherswitch/arswitch/arswitch_reg.c		optional arswitch
+dev/etherswitch/arswitch/arswitch_phy.c		optional arswitch
+dev/etherswitch/arswitch/arswitch_8216.c	optional arswitch
+dev/etherswitch/arswitch/arswitch_8226.c	optional arswitch
+dev/etherswitch/arswitch/arswitch_8316.c	optional arswitch
+dev/etherswitch/arswitch/arswitch_7240.c	optional arswitch
+dev/etherswitch/etherswitch.c		optional etherswitch
+dev/etherswitch/etherswitch_if.m	optional etherswitch
+dev/etherswitch/mdio_if.m		optional miiproxy
+dev/etherswitch/mdio.c			optional miiproxy
+dev/etherswitch/miiproxy.c		optional miiproxy
+dev/etherswitch/rtl8366/rtl8366rb.c	optional rtl8366rb
 dev/ex/if_ex.c			optional ex
 dev/ex/if_ex_isa.c		optional ex isa
 dev/ex/if_ex_pccard.c		optional ex pccard
@@ -1758,6 +1769,12 @@ dev/oce/oce_mbox.c		optional oce pci
 dev/oce/oce_queue.c		optional oce pci
 dev/oce/oce_sysctl.c		optional oce pci
 dev/oce/oce_util.c		optional oce pci
+dev/ofw/ofw_bus_if.m		optional fdt
+dev/ofw/ofw_bus_subr.c		optional fdt
+dev/ofw/ofw_fdt.c		optional fdt
+dev/ofw/ofw_if.m		optional fdt
+dev/ofw/openfirm.c		optional fdt
+dev/ofw/openfirmio.c		optional fdt
 dev/patm/if_patm.c		optional patm pci
 dev/patm/if_patm_attach.c	optional patm pci
 dev/patm/if_patm_intr.c		optional patm pci
@@ -1905,7 +1922,9 @@ dev/scc/scc_dev_sab82532.c	optional scc
 dev/scc/scc_dev_z8530.c		optional scc
 dev/scd/scd.c			optional scd isa
 dev/scd/scd_isa.c		optional scd isa
-dev/sdhci/sdhci.c		optional sdhci pci
+dev/sdhci/sdhci.c		optional sdhci
+dev/sdhci/sdhci_if.m		optional sdhci
+dev/sdhci/sdhci_pci.c		optional sdhci pci
 dev/sf/if_sf.c			optional sf pci
 dev/sge/if_sge.c		optional sge pci
 dev/si/si.c			optional si
@@ -1914,8 +1933,11 @@ dev/si/si3_t225.c		optional si
 dev/si/si_eisa.c		optional si eisa
 dev/si/si_isa.c			optional si isa
 dev/si/si_pci.c			optional si pci
+dev/siba/siba.c			optional siba
 dev/siba/siba_bwn.c		optional siba_bwn pci
-dev/siba/siba_core.c		optional siba_bwn pci
+dev/siba/siba_cc.c		optional siba
+dev/siba/siba_core.c		optional siba | siba_bwn pci
+dev/siba/siba_pcib.c		optional siba pci
 dev/siis/siis.c			optional siis pci
 dev/sis/if_sis.c		optional sis pci
 dev/sk/if_sk.c			optional sk pci
@@ -2300,14 +2322,18 @@ wpi.fw			optional wpifw					\
 	clean		"wpi.fw"
 dev/xe/if_xe.c			optional xe
 dev/xe/if_xe_pccard.c		optional xe pccard
+dev/xen/balloon/balloon.c	optional xen | xenhvm
+dev/xen/blkfront/blkfront.c	optional xen | xenhvm
+dev/xen/blkback/blkback.c	optional xen | xenhvm
+dev/xen/console/console.c	optional xen
+dev/xen/console/xencons_ring.c	optional xen
+dev/xen/control/control.c	optional xen | xenhvm
+dev/xen/netback/netback.c	optional xen | xenhvm
+dev/xen/netfront/netfront.c	optional xen | xenhvm
+dev/xen/xenpci/xenpci.c		optional xenpci
+dev/xen/xenpci/evtchn.c         optional xenpci
 dev/xl/if_xl.c			optional xl pci
 dev/xl/xlphy.c			optional xl pci
-fs/coda/coda_fbsd.c		optional vcoda
-fs/coda/coda_psdev.c		optional vcoda
-fs/coda/coda_subr.c		optional vcoda
-fs/coda/coda_venus.c		optional vcoda
-fs/coda/coda_vfsops.c		optional vcoda
-fs/coda/coda_vnops.c		optional vcoda
 fs/deadfs/dead_vnops.c		standard
 fs/devfs/devfs_devs.c		standard
 fs/devfs/devfs_dir.c		standard
@@ -2317,11 +2343,15 @@ fs/devfs/devfs_vnops.c		standard
 fs/fdescfs/fdesc_vfsops.c	optional fdescfs
 fs/fdescfs/fdesc_vnops.c	optional fdescfs
 fs/fifofs/fifo_vnops.c		standard
-fs/hpfs/hpfs_alsubr.c		optional hpfs
-fs/hpfs/hpfs_lookup.c		optional hpfs
-fs/hpfs/hpfs_subr.c		optional hpfs
-fs/hpfs/hpfs_vfsops.c		optional hpfs
-fs/hpfs/hpfs_vnops.c		optional hpfs
+fs/fuse/fuse_device.c		optional fuse
+fs/fuse/fuse_file.c		optional fuse
+fs/fuse/fuse_internal.c		optional fuse
+fs/fuse/fuse_io.c		optional fuse
+fs/fuse/fuse_ipc.c		optional fuse
+fs/fuse/fuse_main.c		optional fuse
+fs/fuse/fuse_node.c		optional fuse
+fs/fuse/fuse_vfsops.c		optional fuse
+fs/fuse/fuse_vnops.c		optional fuse
 fs/msdosfs/msdosfs_conv.c	optional msdosfs
 fs/msdosfs/msdosfs_denode.c	optional msdosfs
 fs/msdosfs/msdosfs_fat.c	optional msdosfs
@@ -2366,23 +2396,9 @@ fs/nfsserver/nfs_nfsdkrpc.c	optional nfsd inet
 fs/nfsserver/nfs_nfsdserv.c	optional nfsd inet
 fs/nfsserver/nfs_nfsdport.c	optional nfsd inet
 fs/nfsserver/nfs_nfsdcache.c	optional nfsd inet
-fs/ntfs/ntfs_compr.c		optional ntfs
-fs/ntfs/ntfs_iconv.c		optional ntfs_iconv
-fs/ntfs/ntfs_ihash.c		optional ntfs
-fs/ntfs/ntfs_subr.c		optional ntfs
-fs/ntfs/ntfs_vfsops.c		optional ntfs
-fs/ntfs/ntfs_vnops.c		optional ntfs
 fs/nullfs/null_subr.c		optional nullfs
 fs/nullfs/null_vfsops.c		optional nullfs
 fs/nullfs/null_vnops.c		optional nullfs
-fs/nwfs/nwfs_io.c		optional nwfs
-fs/nwfs/nwfs_ioctl.c		optional nwfs
-fs/nwfs/nwfs_node.c		optional nwfs
-fs/nwfs/nwfs_subr.c		optional nwfs
-fs/nwfs/nwfs_vfsops.c		optional nwfs
-fs/nwfs/nwfs_vnops.c		optional nwfs
-fs/portalfs/portal_vfsops.c	optional portalfs
-fs/portalfs/portal_vnops.c	optional portalfs
 fs/procfs/procfs.c		optional procfs
 fs/procfs/procfs_ctl.c		optional procfs
 fs/procfs/procfs_dbregs.c	optional procfs
@@ -2400,12 +2416,6 @@ fs/pseudofs/pseudofs.c		optional pseudofs
 fs/pseudofs/pseudofs_fileno.c	optional pseudofs
 fs/pseudofs/pseudofs_vncache.c	optional pseudofs
 fs/pseudofs/pseudofs_vnops.c	optional pseudofs
-fs/smbfs/smbfs_io.c		optional smbfs
-fs/smbfs/smbfs_node.c		optional smbfs
-fs/smbfs/smbfs_smb.c		optional smbfs
-fs/smbfs/smbfs_subr.c		optional smbfs
-fs/smbfs/smbfs_vfsops.c		optional smbfs
-fs/smbfs/smbfs_vnops.c		optional smbfs
 fs/udf/osta.c			optional udf
 fs/udf/udf_iconv.c		optional udf_iconv
 fs/udf/udf_vfsops.c		optional udf
@@ -2563,6 +2573,7 @@ kern/clock_if.m			standard
 kern/cpufreq_if.m		standard
 kern/device_if.m		standard
 kern/imgact_elf.c		standard
+kern/imgact_elf32.c		optional compat_freebsd32
 kern/imgact_shell.c		standard
 kern/inflate.c			optional gzip
 kern/init_main.c		standard
@@ -2641,7 +2652,6 @@ kern/kern_uuid.c		standard
 kern/kern_xxx.c			standard
 kern/link_elf.c			standard
 kern/linker_if.m		standard
-kern/md4c.c			optional netsmb
 kern/md5c.c			standard
 kern/p1003_1b.c			standard
 kern/posix4_mib.c		standard
@@ -2711,7 +2721,7 @@ kern/tty_pts.c			standard
 kern/tty_tty.c			standard
 kern/tty_ttydisc.c		standard
 kern/uipc_accf.c		optional inet
-kern/uipc_cow.c			optional zero_copy_sockets
+kern/uipc_cow.c			optional socket_send_cow
 kern/uipc_debug.c		optional ddb
 kern/uipc_domain.c		standard
 kern/uipc_mbuf.c		standard
@@ -3143,21 +3153,12 @@ netipx/spx_usrreq.c		optional ipx
 netnatm/natm.c			optional natm
 netnatm/natm_pcb.c		optional natm
 netnatm/natm_proto.c		optional natm
-netncp/ncp_conn.c		optional ncp
-netncp/ncp_crypt.c		optional ncp
-netncp/ncp_login.c		optional ncp
-netncp/ncp_mod.c		optional ncp
-netncp/ncp_ncp.c		optional ncp
-netncp/ncp_nls.c		optional ncp
-netncp/ncp_rq.c			optional ncp
-netncp/ncp_sock.c		optional ncp
-netncp/ncp_subr.c		optional ncp
 netpfil/ipfw/dn_heap.c		optional inet dummynet
 netpfil/ipfw/dn_sched_fifo.c	optional inet dummynet
 netpfil/ipfw/dn_sched_prio.c	optional inet dummynet
-netpfil/ipfw/dn_sched_qfq.c	optional inet dummynet 
+netpfil/ipfw/dn_sched_qfq.c	optional inet dummynet
 netpfil/ipfw/dn_sched_rr.c	optional inet dummynet
-netpfil/ipfw/dn_sched_wf2q.c	optional inet dummynet 
+netpfil/ipfw/dn_sched_wf2q.c	optional inet dummynet
 netpfil/ipfw/ip_dummynet.c	optional inet dummynet
 netpfil/ipfw/ip_dn_io.c		optional inet dummynet
 netpfil/ipfw/ip_dn_glue.c	optional inet dummynet
@@ -3179,15 +3180,6 @@ netpfil/pf/pf_osfp.c		optional pf inet
 netpfil/pf/pf_ruleset.c		optional pf inet
 netpfil/pf/pf_table.c		optional pf inet
 netpfil/pf/in4_cksum.c		optional pf inet
-netsmb/smb_conn.c		optional netsmb
-netsmb/smb_crypt.c		optional netsmb
-netsmb/smb_dev.c		optional netsmb
-netsmb/smb_iod.c		optional netsmb
-netsmb/smb_rq.c			optional netsmb
-netsmb/smb_smb.c		optional netsmb
-netsmb/smb_subr.c		optional netsmb
-netsmb/smb_trantcp.c		optional netsmb
-netsmb/smb_usr.c		optional netsmb
 nfs/bootp_subr.c		optional bootp nfsclient | bootp nfscl
 nfs/krpc_subr.c			optional bootp nfsclient | bootp nfscl
 nfs/nfs_common.c		optional nfsclient | nfsserver
@@ -3222,7 +3214,7 @@ ofed/include/linux/linux_radix.c		optional ofed		\
 	no-depend compile-with "${OFED_C}"
 ofed/drivers/infiniband/core/addr.c		optional ofed		\
 	no-depend							\
-	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"	
+	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
 ofed/drivers/infiniband/core/agent.c		optional ofed		\
 	no-depend							\
 	compile-with "${OFED_C} -I$S/ofed/drivers/infiniband/core/"
@@ -3564,9 +3556,9 @@ security/mac/mac_sysv_sem.c	optional mac
 security/mac/mac_sysv_shm.c	optional mac
 security/mac/mac_vfs.c		optional mac
 security/mac_biba/mac_biba.c	optional mac_biba
-security/mac_bsdextended/mac_bsdextended.c optional mac_bsdextended
-security/mac_bsdextended/ugidfw_system.c optional mac_bsdextended
-security/mac_bsdextended/ugidfw_vnode.c optional mac_bsdextended
+security/mac_bsdextended/mac_bsdextended.c	optional mac_bsdextended
+security/mac_bsdextended/ugidfw_system.c	optional mac_bsdextended
+security/mac_bsdextended/ugidfw_vnode.c		optional mac_bsdextended
 security/mac_ifoff/mac_ifoff.c	optional mac_ifoff
 security/mac_lomac/mac_lomac.c	optional mac_lomac
 security/mac_mls/mac_mls.c	optional mac_mls
@@ -3587,6 +3579,7 @@ ufs/ffs/ffs_tables.c		optional ffs
 ufs/ffs/ffs_vfsops.c		optional ffs
 ufs/ffs/ffs_vnops.c		optional ffs
 ufs/ffs/ffs_rawread.c		optional directio
+ufs/ffs/ffs_suspend.c		optional ffs
 ufs/ufs/ufs_acl.c		optional ffs
 ufs/ufs/ufs_bmap.c		optional ffs
 ufs/ufs/ufs_dirhash.c		optional ffs
@@ -3622,149 +3615,6 @@ vm/vm_reserv.c			standard
 vm/vm_unix.c			standard
 vm/vm_zeroidle.c		standard
 vm/vnode_pager.c		standard
-xdr/xdr.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-xdr/xdr_array.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-xdr/xdr_mbuf.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-xdr/xdr_mem.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-xdr/xdr_reference.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-xdr/xdr_sizeof.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-#
-gnu/fs/xfs/xfs_alloc.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs" \
-	warning "kernel contains GPL contaminated xfs filesystem"
-gnu/fs/xfs/xfs_alloc_btree.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_bit.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_bmap.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_bmap_btree.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_btree.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_buf_item.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_da_btree.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_dir.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_dir2.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_dir2_block.c	optional xfs \
-	compile-with "${NORMAL_C} ${NO_WARRAY_BOUNDS} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_dir2_data.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_dir2_leaf.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_dir2_node.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_dir2_sf.c	optional xfs \
-	compile-with "${NORMAL_C} ${NO_WARRAY_BOUNDS} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_dir2_trace.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_dir_leaf.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_error.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_extfree_item.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_fsops.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_ialloc.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_ialloc_btree.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_inode.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_inode_item.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_iocore.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_itable.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_dfrag.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_log.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_log_recover.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_mount.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_rename.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_trans.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_trans_ail.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_trans_buf.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_trans_extfree.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_trans_inode.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_trans_item.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_utils.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_vfsops.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_vnodeops.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_rw.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_attr_leaf.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_attr.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_dmops.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_qmops.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_iget.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/xfs_freebsd_iget.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/xfs_mountops.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/xfs_vnops.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/xfs_frw.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/xfs_buf.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/xfs_globals.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/xfs_dmistubs.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/xfs_super.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/xfs_stats.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/xfs_vfs.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/xfs_vnode.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/xfs_sysctl.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/xfs_fs_subr.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/xfs_ioctl.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/support/debug.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/support/ktrace.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/support/mrlock.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/support/uuid.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/FreeBSD/support/kmem.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_iomap.c		optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-gnu/fs/xfs/xfs_behavior.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
-
 xen/gnttab.c			optional xen | xenhvm
 xen/features.c			optional xen | xenhvm
 xen/evtchn/evtchn.c		optional xen
@@ -3777,30 +3627,9 @@ xen/xenbus/xenbusb_front.c	optional xen | xenhvm
 xen/xenbus/xenbusb_back.c	optional xen | xenhvm
 xen/xenstore/xenstore.c		optional xen | xenhvm
 xen/xenstore/xenstore_dev.c	optional xen | xenhvm
-dev/xen/balloon/balloon.c	optional xen | xenhvm
-dev/xen/blkfront/blkfront.c	optional xen | xenhvm
-dev/xen/blkback/blkback.c	optional xen | xenhvm
-dev/xen/console/console.c	optional xen
-dev/xen/console/xencons_ring.c	optional xen
-dev/xen/control/control.c	optional xen | xenhvm
-dev/xen/netback/netback.c	optional xen | xenhvm
-dev/xen/netfront/netfront.c	optional xen | xenhvm
-dev/xen/xenpci/xenpci.c		optional xenpci
-dev/xen/xenpci/evtchn.c         optional xenpci
-
-dev/etherswitch/mdio_if.m	optional miiproxy
-dev/etherswitch/mdio.c		optional miiproxy
-dev/etherswitch/miiproxy.c	optional miiproxy
-
-dev/etherswitch/etherswitch.c	optional etherswitch
-dev/etherswitch/etherswitch_if.m	optional etherswitch
-
-dev/etherswitch/rtl8366/rtl8366rb.c		optional rtl8366rb
-
-dev/etherswitch/arswitch/arswitch.c		optional arswitch
-dev/etherswitch/arswitch/arswitch_reg.c		optional arswitch
-dev/etherswitch/arswitch/arswitch_phy.c		optional arswitch
-dev/etherswitch/arswitch/arswitch_8216.c	optional arswitch
-dev/etherswitch/arswitch/arswitch_8226.c	optional arswitch
-dev/etherswitch/arswitch/arswitch_8316.c	optional arswitch
-dev/etherswitch/arswitch/arswitch_7240.c	optional arswitch
+xdr/xdr.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_array.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_mbuf.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_mem.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_reference.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+xdr/xdr_sizeof.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd

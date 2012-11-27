@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 
 #include <ctype.h>
 #include <dirent.h>	/* just for MAXNAMLEN, for job_cfname in lp.h! */
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -147,9 +148,9 @@ touch_jqe(void *myinfo, struct jobqueue *jq, struct jobspec *jspec)
 	touch_info = myinfo;
 	tvp[0].tv_sec = tvp[1].tv_sec = ++touch_info->newtime;
 	tvp[0].tv_usec = tvp[1].tv_usec = 0;
-	seteuid(euid);
+	PRIV_START
 	ret = utimes(jq->job_cfname, tvp);
-	seteuid(uid);
+	PRIV_END
 
 	if (ret == 0) {
 		if (jspec->matcheduser)

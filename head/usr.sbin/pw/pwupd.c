@@ -34,7 +34,10 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 #include <stdarg.h>
+#include <pwd.h>
+#include <libutil.h>
 #include <errno.h>
+#include <err.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/param.h>
@@ -71,7 +74,7 @@ getpwpath(char const * file)
 	return pathbuf;
 }
 
-int
+static int
 pwdb(char *arg,...)
 {
 	int             i = 0;
@@ -106,43 +109,10 @@ pwdb(char *arg,...)
 	return i;
 }
 
-int
-fmtpwentry(char *buf, struct passwd * pwd, int type)
-{
-	int             l;
-	char           *pw;
-
-	pw = (type == PWF_MASTER) ?
-	    ((pwd->pw_passwd == NULL) ? "" : pwd->pw_passwd) : "*";
-
-	if (type == PWF_PASSWD)
-		l = sprintf(buf, "%s:*:%ld:%ld:%s:%s:%s\n",
-		       pwd->pw_name, (long) pwd->pw_uid, (long) pwd->pw_gid,
-			    pwd->pw_gecos ? pwd->pw_gecos : "User &",
-			    pwd->pw_dir, pwd->pw_shell);
-	else
-		l = sprintf(buf, "%s:%s:%ld:%ld:%s:%lu:%lu:%s:%s:%s\n",
-		   pwd->pw_name, pw, (long) pwd->pw_uid, (long) pwd->pw_gid,
-			    pwd->pw_class ? pwd->pw_class : "",
-			    (unsigned long) pwd->pw_change,
-			    (unsigned long) pwd->pw_expire,
-			    pwd->pw_gecos, pwd->pw_dir, pwd->pw_shell);
-	return l;
-}
-
-
-int
-fmtpwent(char *buf, struct passwd * pwd)
-{
-	return fmtpwentry(buf, pwd, PWF_STANDARD);
-}
-
 static int
-pw_update(struct passwd * pwd, char const * user, int mode)
+pw_update(struct passwd * pwd, char const * user)
 {
 	int             rc = 0;
-
-	ENDPWENT();
 
 	/*
 	 * First, let's check the see if the database is alright
@@ -154,61 +124,57 @@ pw_update(struct passwd * pwd, char const * user, int mode)
 #else
 	{				/* No -C */
 #endif
-		char            pfx[PWBUFSZ];
-		char            pwbuf[PWBUFSZ];
-		int             l = snprintf(pfx, PWBUFSZ, "%s:", user);
-#ifdef HAVE_PWDB_U
-		int		isrename = pwd!=NULL && strcmp(user, pwd->pw_name);
-#endif
+		int pfd, tfd;
+		struct passwd *pw = NULL;
+		struct passwd *old_pw = NULL;
 
-		/*
-		 * Update the passwd file first
-		 */
-		if (pwd == NULL)
-			*pwbuf = '\0';
-		else
-			fmtpwentry(pwbuf, pwd, PWF_PASSWD);
+	       	if (pwd != NULL)
+		       pw = pw_dup(pwd);
 
-		if (l < 0)
-			l = 0;
-		rc = fileupdate(getpwpath(_PASSWD), 0644, pwbuf, pfx, l, mode);
-		if (rc == 0) {
+		if (user != NULL)
+			old_pw = GETPWNAM(user);
 
-			/*
-			 * Then the master.passwd file
-			 */
-			if (pwd != NULL)
-				fmtpwentry(pwbuf, pwd, PWF_MASTER);
-			rc = fileupdate(getpwpath(_MASTERPASSWD), 0600, pwbuf, pfx, l, mode);
-			if (rc == 0) {
-#ifdef HAVE_PWDB_U
-				if (mode == UPD_DELETE || isrename)
-#endif
-					rc = pwdb(NULL);
-#ifdef HAVE_PWDB_U
-				else
-					rc = pwdb("-u", user, (char *)NULL);
-#endif
-			}
+		if (pw_init(pwpath, NULL))
+			err(1, "pw_init()");
+		if ((pfd = pw_lock()) == -1) {
+			pw_fini();
+			err(1, "pw_lock()");
 		}
+		if ((tfd = pw_tmp(-1)) == -1) {
+			pw_fini();
+			err(1, "pw_tmp()");
+		}
+		if (pw_copy(pfd, tfd, pw, old_pw) == -1) {
+			pw_fini();
+			err(1, "pw_copy()");
+		}
+		if (pw_mkdb(user) == -1) {
+			pw_fini();
+			err(1, "pw_mkdb()");
+		}
+		free(pw);
+		pw_fini();
 	}
-	return rc;
+	return 0;
 }
 
 int
 addpwent(struct passwd * pwd)
 {
-	return pw_update(pwd, pwd->pw_name, UPD_CREATE);
+	return pw_update(pwd, NULL);
 }
 
 int
 chgpwent(char const * login, struct passwd * pwd)
 {
-	return pw_update(pwd, login, UPD_REPLACE);
+	return pw_update(pwd, login);
 }
 
 int
 delpwent(struct passwd * pwd)
 {
-	return pw_update(NULL, pwd->pw_name, UPD_DELETE);
+	char login[MAXLOGNAME];
+	
+	strlcpy(login, pwd->pw_name, MAXLOGNAME);
+	return pw_update(NULL, login);
 }

@@ -148,16 +148,7 @@ vm_offset_t kernel_vm_end = VM_MIN_KERNEL_ADDRESS;
 
 static void pmap_asid_alloc(pmap_t pmap);
 
-/*
- * Isolate the global pv list lock from data and other locks to prevent false
- * sharing within the cache.
- */
-static struct {
-	struct rwlock	lock;
-	char		padding[CACHE_LINE_SIZE - sizeof(struct rwlock)];
-} pvh_global __aligned(CACHE_LINE_SIZE);
-
-#define	pvh_global_lock	pvh_global.lock
+static struct rwlock_padalign pvh_global_lock;
 
 /*
  * Data for the pv entry allocation mechanism
@@ -172,6 +163,7 @@ static vm_page_t pmap_pv_reclaim(pmap_t locked_pmap);
 static void pmap_pvh_free(struct md_page *pvh, pmap_t pmap, vm_offset_t va);
 static pv_entry_t pmap_pvh_remove(struct md_page *pvh, pmap_t pmap,
     vm_offset_t va);
+static vm_page_t pmap_alloc_direct_page(unsigned int index, int req);
 static vm_page_t pmap_enter_quick_locked(pmap_t pmap, vm_offset_t va,
     vm_page_t m, vm_prot_t prot, vm_page_t mpte);
 static int pmap_remove_pte(struct pmap *pmap, pt_entry_t *ptq, vm_offset_t va,
@@ -239,8 +231,7 @@ pmap_lmem_map1(vm_paddr_t phys)
 	sysm = &sysmap_lmem[cpu];
 	sysm->saved_intr = intr;
 	va = sysm->base;
-	npte = TLBLO_PA_TO_PFN(phys) |
-	    PTE_D | PTE_V | PTE_G | PTE_W | PTE_C_CACHE;
+	npte = TLBLO_PA_TO_PFN(phys) | PTE_C_CACHE | PTE_D | PTE_V | PTE_G;
 	pte = pmap_pte(kernel_pmap, va);
 	*pte = npte;
 	sysm->valid1 = 1;
@@ -262,12 +253,10 @@ pmap_lmem_map2(vm_paddr_t phys1, vm_paddr_t phys2)
 	sysm->saved_intr = intr;
 	va1 = sysm->base;
 	va2 = sysm->base + PAGE_SIZE;
-	npte = TLBLO_PA_TO_PFN(phys1) |
-	    PTE_D | PTE_V | PTE_G | PTE_W | PTE_C_CACHE;
+	npte = TLBLO_PA_TO_PFN(phys1) | PTE_C_CACHE | PTE_D | PTE_V | PTE_G;
 	pte = pmap_pte(kernel_pmap, va1);
 	*pte = npte;
-	npte =  TLBLO_PA_TO_PFN(phys2) |
-	    PTE_D | PTE_V | PTE_G | PTE_W | PTE_C_CACHE;
+	npte = TLBLO_PA_TO_PFN(phys2) | PTE_C_CACHE | PTE_D | PTE_V | PTE_G;
 	pte = pmap_pte(kernel_pmap, va2);
 	*pte = npte;
 	sysm->valid1 = 1;
@@ -1053,7 +1042,7 @@ pmap_grow_direct_page_cache()
 #endif
 }
 
-vm_page_t
+static vm_page_t
 pmap_alloc_direct_page(unsigned int index, int req)
 {
 	vm_page_t m;
@@ -1437,13 +1426,12 @@ pmap_pv_reclaim(pmap_t locked_pmap)
 				    ("pmap_pv_reclaim: pde"));
 				pte = pmap_pde_to_pte(pde, va);
 				oldpte = *pte;
-				KASSERT(!pte_test(&oldpte, PTE_W),
-				    ("wired pte for unwired page"));
+				if (pte_test(&oldpte, PTE_W))
+					continue;
 				if (is_kernel_pmap(pmap))
 					*pte = PTE_G;
 				else
 					*pte = 0;
-				pmap_invalidate_page(pmap, va);
 				m = PHYS_TO_VM_PAGE(TLBLO_PTE_TO_PA(oldpte));
 				if (pte_test(&oldpte, PTE_D))
 					vm_page_dirty(m);
@@ -1916,9 +1904,11 @@ pmap_remove_all(vm_page_t m)
 void
 pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 {
-	pt_entry_t *pte;
+	pt_entry_t pbits, *pte;
 	pd_entry_t *pde, *pdpe;
-	vm_offset_t va_next;
+	vm_offset_t va, va_next;
+	vm_paddr_t pa;
+	vm_page_t m;
 
 	if ((prot & VM_PROT_READ) == VM_PROT_NONE) {
 		pmap_remove(pmap, sva, eva);
@@ -1930,10 +1920,6 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	rw_wlock(&pvh_global_lock);
 	PMAP_LOCK(pmap);
 	for (; sva < eva; sva = va_next) {
-		pt_entry_t pbits;
-		vm_page_t m;
-		vm_paddr_t pa;
-
 		pdpe = pmap_segmap(pmap, sva);
 #ifdef __mips_n64
 		if (*pdpe == 0) {
@@ -1950,29 +1936,52 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		pde = pmap_pdpe_to_pde(pdpe, sva);
 		if (*pde == NULL)
 			continue;
+
+		/*
+		 * Limit our scan to either the end of the va represented
+		 * by the current page table page, or to the end of the
+		 * range being write protected.
+		 */
 		if (va_next > eva)
 			va_next = eva;
 
+		va = va_next;
 		for (pte = pmap_pde_to_pte(pde, sva); sva != va_next; pte++,
-		     sva += PAGE_SIZE) {
-
-			/* Skip invalid PTEs */
-			if (!pte_test(pte, PTE_V))
-				continue;
+		    sva += PAGE_SIZE) {
 			pbits = *pte;
-			if (pte_test(&pbits, PTE_MANAGED | PTE_D)) {
-				pa = TLBLO_PTE_TO_PA(pbits);
-				m = PHYS_TO_VM_PAGE(pa);
-				vm_page_dirty(m);
+			if (!pte_test(&pbits, PTE_V) || pte_test(&pbits,
+			    PTE_RO)) {
+				if (va != va_next) {
+					pmap_invalidate_range(pmap, va, sva);
+					va = va_next;
+				}
+				continue;
 			}
-			pte_clear(&pbits, PTE_D);
 			pte_set(&pbits, PTE_RO);
-			
-			if (pbits != *pte) {
-				*pte = pbits;
-				pmap_update_page(pmap, sva, pbits);
+			if (pte_test(&pbits, PTE_D)) {
+				pte_clear(&pbits, PTE_D);
+				if (pte_test(&pbits, PTE_MANAGED)) {
+					pa = TLBLO_PTE_TO_PA(pbits);
+					m = PHYS_TO_VM_PAGE(pa);
+					vm_page_dirty(m);
+				}
+				if (va == va_next)
+					va = sva;
+			} else {
+				/*
+				 * Unless PTE_D is set, any TLB entries
+				 * mapping "sva" don't allow write access, so
+				 * they needn't be invalidated.
+				 */
+				if (va != va_next) {
+					pmap_invalidate_range(pmap, va, sva);
+					va = va_next;
+				}
 			}
+			*pte = pbits;
 		}
+		if (va != va_next)
+			pmap_invalidate_range(pmap, va, sva);
 	}
 	rw_wunlock(&pvh_global_lock);
 	PMAP_UNLOCK(pmap);
@@ -2329,7 +2338,8 @@ pmap_kenter_temporary(vm_paddr_t pa, int i)
 		cpu = PCPU_GET(cpuid);
 		sysm = &sysmap_lmem[cpu];
 		/* Since this is for the debugger, no locks or any other fun */
-		npte = TLBLO_PA_TO_PFN(pa) | PTE_D | PTE_V | PTE_G | PTE_W | PTE_C_CACHE;
+		npte = TLBLO_PA_TO_PFN(pa) | PTE_C_CACHE | PTE_D | PTE_V |
+		    PTE_G;
 		pte = pmap_pte(kernel_pmap, sysm->base);
 		*pte = npte;
 		sysm->valid1 = 1;

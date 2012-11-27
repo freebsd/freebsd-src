@@ -101,7 +101,7 @@ u64 mlx4_en_mac_to_u64(u8 *addr)
 
 static int mlx4_en_cache_mclist(struct net_device *dev, u64 **mcaddrp)
 {
-	struct ifmultiaddr *ifma;;
+	struct ifmultiaddr *ifma;
 	u64 *mcaddr;
 	int cnt;
 	int i;

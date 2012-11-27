@@ -460,7 +460,7 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 {
 	caddr_t base;
 	uint32_t len;
-	int i, error, ns;
+	int i, error;
 	struct imush im;
 
 	/*
@@ -511,10 +511,9 @@ isp_sbus_mbxdma(ispsoftc_t *isp)
 	len = ISP_QUEUE_SIZE(RQUEST_QUEUE_LEN(isp));
 	len += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
 
-	ns = (len / PAGE_SIZE) + 1;
 	if (isp_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN,
 	    BUS_SPACE_MAXADDR_24BIT+1, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR_32BIT, NULL, NULL, len, ns,
+	    BUS_SPACE_MAXADDR_32BIT, NULL, NULL, len, 1,
 	    BUS_SPACE_MAXADDR_24BIT, 0, &isp->isp_osinfo.cdmat)) {
 		isp_prt(isp, ISP_LOGERR,
 		    "cannot create a dma tag for control spaces");

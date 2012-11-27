@@ -124,8 +124,8 @@ static struct sockaddr_in6 all1_sa;
 
 int	(*send_sendso_input_hook)(struct mbuf *, struct ifnet *, int, int);
 
-static int nd6_is_new_addr_neighbor __P((struct sockaddr_in6 *,
-	struct ifnet *));
+static int nd6_is_new_addr_neighbor(struct sockaddr_in6 *,
+	struct ifnet *);
 static void nd6_setmtu0(struct ifnet *, struct nd_ifinfo *);
 static void nd6_slowtimo(void *);
 static int regen_tmpaddr(struct in6_ifaddr *);
@@ -575,7 +575,6 @@ void
 nd6_timer(void *arg)
 {
 	CURVNET_SET((struct vnet *) arg);
-	int s;
 	struct nd_defrouter *dr, *ndr;
 	struct nd_prefix *pr, *npr;
 	struct in6_ifaddr *ia6, *nia6;
@@ -584,7 +583,6 @@ nd6_timer(void *arg)
 	    nd6_timer, curvnet);
 
 	/* expire default router list */
-	s = splnet();
 	TAILQ_FOREACH_SAFE(dr, &V_nd_defrouter, dr_entry, ndr) {
 		if (dr->expire && dr->expire < time_second)
 			defrtrlist_del(dr);
@@ -679,7 +677,6 @@ nd6_timer(void *arg)
 			prelist_remove(pr);
 		}
 	}
-	splx(s);
 	CURVNET_RESTORE();
 }
 
@@ -978,12 +975,12 @@ nd6_is_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 	 * Even if the address matches none of our addresses, it might be
 	 * in the neighbor cache.
 	 */
-	IF_AFDATA_LOCK(ifp);
+	IF_AFDATA_RLOCK(ifp);
 	if ((lle = nd6_lookup(&addr->sin6_addr, 0, ifp)) != NULL) {
 		LLE_RUNLOCK(lle);
 		rc = 1;
 	}
-	IF_AFDATA_UNLOCK(ifp);
+	IF_AFDATA_RUNLOCK(ifp);
 	return (rc);
 }
 
@@ -1216,7 +1213,6 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 	struct nd_defrouter *dr;
 	struct nd_prefix *pr;
 	int i = 0, error = 0;
-	int s;
 
 	switch (cmd) {
 	case SIOCGDRLST_IN6:
@@ -1224,7 +1220,6 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		 * obsolete API, use sysctl under net.inet6.icmp6
 		 */
 		bzero(drl, sizeof(*drl));
-		s = splnet();
 		TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
 			if (i >= DRLSTSIZ)
 				break;
@@ -1237,7 +1232,6 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			drl->defrouter[i].if_index = dr->ifp->if_index;
 			i++;
 		}
-		splx(s);
 		break;
 	case SIOCGPRLST_IN6:
 		/*
@@ -1253,7 +1247,6 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		 * how about separating ioctls into two?
 		 */
 		bzero(oprl, sizeof(*oprl));
-		s = splnet();
 		LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
 			struct nd_pfxrouter *pfr;
 			int j;
@@ -1299,7 +1292,6 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 
 			i++;
 		}
-		splx(s);
 
 		break;
 	case OSIOCGIFINFO_IN6:
@@ -1448,7 +1440,6 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		/* flush all the prefix advertised by routers */
 		struct nd_prefix *pr, *next;
 
-		s = splnet();
 		LIST_FOREACH_SAFE(pr, &V_nd_prefix, ndpr_entry, next) {
 			struct in6_ifaddr *ia, *ia_next;
 
@@ -1467,7 +1458,6 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			}
 			prelist_remove(pr);
 		}
-		splx(s);
 		break;
 	}
 	case SIOCSRTRFLUSH_IN6:
@@ -1475,13 +1465,11 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		/* flush all the default routers */
 		struct nd_defrouter *dr, *next;
 
-		s = splnet();
 		defrouter_reset();
 		TAILQ_FOREACH_SAFE(dr, &V_nd_defrouter, dr_entry, next) {
 			defrtrlist_del(dr);
 		}
 		defrouter_select();
-		splx(s);
 		break;
 	}
 	case SIOCGNBRINFO_IN6:
@@ -1492,9 +1480,9 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		if ((error = in6_setscope(&nb_addr, ifp, NULL)) != 0)
 			return (error);
 
-		IF_AFDATA_LOCK(ifp);
+		IF_AFDATA_RLOCK(ifp);
 		ln = nd6_lookup(&nb_addr, 0, ifp);
-		IF_AFDATA_UNLOCK(ifp);
+		IF_AFDATA_RUNLOCK(ifp);
 
 		if (ln == NULL) {
 			error = EINVAL;
@@ -2210,9 +2198,9 @@ nd6_storelladdr(struct ifnet *ifp, struct mbuf *m,
 	/*
 	 * the entry should have been created in nd6_store_lladdr
 	 */
-	IF_AFDATA_LOCK(ifp);
+	IF_AFDATA_RLOCK(ifp);
 	ln = lla_lookup(LLTABLE6(ifp), 0, dst);
-	IF_AFDATA_UNLOCK(ifp);
+	IF_AFDATA_RUNLOCK(ifp);
 	if ((ln == NULL) || !(ln->la_flags & LLE_VALID)) {
 		if (ln != NULL)
 			LLE_RUNLOCK(ln);

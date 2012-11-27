@@ -1,5 +1,3 @@
-
-
 /******************************************************************************
  *
  * Module Name: aslglobal.h - Global variable definitions
@@ -49,7 +47,7 @@
 
 
 /*
- * Global variables.  Defined in aslmain.c only, externed in all other files
+ * Global variables. Defined in aslmain.c only, externed in all other files
  */
 
 #undef ASL_EXTERN
@@ -139,7 +137,6 @@ ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_PreprocessOnly, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_PreprocessFlag, TRUE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_DisassembleAll, FALSE);
 
-ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_Acpi2, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_UseDefaultAmlFilename, TRUE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_NsOutputFlag, FALSE);
 ASL_EXTERN BOOLEAN                  ASL_INIT_GLOBAL (Gbl_PreprocessorOutputFlag, FALSE);
@@ -254,4 +251,3 @@ ASL_EXTERN char                     StringBuffer2[ASL_MSG_BUFFER_SIZE];
 
 
 #endif /* __ASLGLOBAL_H */
-

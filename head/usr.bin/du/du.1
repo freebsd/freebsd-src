@@ -28,7 +28,7 @@
 .\"	@(#)du.1	8.2 (Berkeley) 4/1/94
 .\" $FreeBSD$
 .\"
-.Dd July 18, 2012
+.Dd November 4, 2012
 .Dt DU 1
 .Os
 .Sh NAME
@@ -191,6 +191,24 @@ or
 options are not specified, the block counts will be displayed in 512-byte
 blocks.
 .El
+.Sh EXAMPLES
+Show disk usage for all files in the current directory.
+Output is in human-readable form:
+.Pp
+.Dl # du -ah
+.Pp
+Summarize disk usage in the current directory:
+.Pp
+.Dl # du -hs
+.Pp
+Summarize disk usage for a specific directory:
+.Pp
+.Dl # du -hs /home
+.Pp
+Show name and size of all C files in a specific directory.
+Also display a grand total at the end:
+.Pp
+.Dl # du -ch /usr/src/sys/kern/*.c
 .Sh SEE ALSO
 .Xr df 1 ,
 .Xr chflags 2 ,

@@ -73,9 +73,9 @@ VNET_DECLARE(int, tcp_autorcvbuf_max);
 void
 send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 {
-        struct wrqe *wr;
-        struct fw_flowc_wr *flowc;
-	unsigned int nparams = ftxp ? 8 : 4, flowclen;
+	struct wrqe *wr;
+	struct fw_flowc_wr *flowc;
+	unsigned int nparams = ftxp ? 8 : 6, flowclen;
 	struct port_info *pi = toep->port;
 	struct adapter *sc = pi->adapter;
 	unsigned int pfvf = G_FW_VIID_PFN(pi->viid) << S_FW_VIID_PFN;
@@ -102,13 +102,13 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 	    V_FW_WR_FLOWID(toep->tid));
 
 	flowc->mnemval[0].mnemonic = FW_FLOWC_MNEM_PFNVFN;
-        flowc->mnemval[0].val = htobe32(pfvf);
-        flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
-        flowc->mnemval[1].val = htobe32(pi->tx_chan);
-        flowc->mnemval[2].mnemonic = FW_FLOWC_MNEM_PORT;
-        flowc->mnemval[2].val = htobe32(pi->tx_chan);
-        flowc->mnemval[3].mnemonic = FW_FLOWC_MNEM_IQID;
-        flowc->mnemval[3].val = htobe32(toep->ofld_rxq->iq.abs_id);
+	flowc->mnemval[0].val = htobe32(pfvf);
+	flowc->mnemval[1].mnemonic = FW_FLOWC_MNEM_CH;
+	flowc->mnemval[1].val = htobe32(pi->tx_chan);
+	flowc->mnemval[2].mnemonic = FW_FLOWC_MNEM_PORT;
+	flowc->mnemval[2].val = htobe32(pi->tx_chan);
+	flowc->mnemval[3].mnemonic = FW_FLOWC_MNEM_IQID;
+	flowc->mnemval[3].val = htobe32(toep->ofld_rxq->iq.abs_id);
 	if (ftxp) {
 		uint32_t sndbuf = min(ftxp->snd_space, sc->tt.sndbuf);
 
@@ -120,6 +120,11 @@ send_flowc_wr(struct toepcb *toep, struct flowc_tx_params *ftxp)
 		flowc->mnemval[6].val = htobe32(sndbuf);
 		flowc->mnemval[7].mnemonic = FW_FLOWC_MNEM_MSS;
 		flowc->mnemval[7].val = htobe32(ftxp->mss);
+	} else {
+		flowc->mnemval[4].mnemonic = FW_FLOWC_MNEM_SNDBUF;
+		flowc->mnemval[4].val = htobe32(512);
+		flowc->mnemval[5].mnemonic = FW_FLOWC_MNEM_MSS;
+		flowc->mnemval[5].val = htobe32(512);
 	}
 
 	txsd->tx_credits = howmany(flowclen, 16);
@@ -977,7 +982,6 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct sge_wrq *ofld_txq = toep->ofld_txq;
 	struct inpcb *inp;
 	struct tcpcb *tp;
-	struct socket *so;
 #ifdef INVARIANTS
 	unsigned int opcode = G_CPL_OPCODE(be32toh(OPCODE_TID(cpl)));
 #endif
@@ -1003,7 +1007,6 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	INP_WLOCK(inp);
 
 	tp = intotcpcb(inp);
-	so = inp->inp_socket;
 
 	CTR6(KTR_CXGBE,
 	    "%s: tid %d (%s), toep_flags 0x%x, inp_flags 0x%x, status %d",
@@ -1021,10 +1024,16 @@ do_abort_req(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	}
 	toep->flags |= TPF_ABORT_SHUTDOWN;
 
-	so_error_set(so, abort_status_to_errno(tp, cpl->status));
-	tp = tcp_close(tp);
-	if (tp == NULL)
-		INP_WLOCK(inp);	/* re-acquire */
+	if ((inp->inp_flags & (INP_DROPPED | INP_TIMEWAIT)) == 0) {
+		struct socket *so = inp->inp_socket;
+
+		if (so != NULL)
+			so_error_set(so, abort_status_to_errno(tp,
+			    cpl->status));
+		tp = tcp_close(tp);
+		if (tp == NULL)
+			INP_WLOCK(inp);	/* re-acquire */
+	}
 
 	final_cpl_received(toep);
 done:

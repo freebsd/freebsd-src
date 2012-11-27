@@ -59,7 +59,7 @@ struct policyqueue {
 	struct in6_addrpolicy pc_policy;
 };
 TAILQ_HEAD(policyhead, policyqueue);
-struct policyhead policyhead;
+static struct policyhead policyhead;
 
 static void usage(void);
 static void get_policy(void);

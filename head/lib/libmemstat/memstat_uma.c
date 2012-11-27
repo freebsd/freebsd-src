@@ -254,7 +254,7 @@ kread(kvm_t *kvm, void *kvm_pointer, void *address, size_t size,
 }
 
 static int
-kread_string(kvm_t *kvm, void *kvm_pointer, char *buffer, int buflen)
+kread_string(kvm_t *kvm, const void *kvm_pointer, char *buffer, int buflen)
 {
 	ssize_t ret;
 	int i;

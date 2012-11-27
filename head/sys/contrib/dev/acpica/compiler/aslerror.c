@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslerror - Error handling and statistics
@@ -95,7 +94,7 @@ AeClearErrorLog (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Add a new error node to the error log.  The error log is
+ * DESCRIPTION: Add a new error node to the error log. The error log is
  *              ordered by the "logical" line number (cumulative line number
  *              including all include files.)
  *
@@ -295,7 +294,7 @@ AePrintException (
                         else
                         {
                             RActual = fread (&SourceByte, 1, 1, SourceFile);
-                            if (!RActual)
+                            if (RActual != 1)
                             {
                                 fprintf (OutputFile,
                                     "[*** iASL: Read error on source code temp file %s ***]",
@@ -305,8 +304,20 @@ AePrintException (
                             {
                                 while (RActual && SourceByte && (SourceByte != '\n') && (Total < 256))
                                 {
-                                    fwrite (&SourceByte, 1, 1, OutputFile);
+                                    if (fwrite (&SourceByte, 1, 1, OutputFile) != 1)
+                                    {
+                                        printf ("[*** iASL: Write error on output file ***]\n");
+                                        return;
+                                    }
+
                                     RActual = fread (&SourceByte, 1, 1, SourceFile);
+                                    if (RActual != 1)
+                                    {
+                                        fprintf (OutputFile,
+                                            "[*** iASL: Read error on source code temp file %s ***]",
+                                            Gbl_Files[ASL_FILE_SOURCE_OUTPUT].Filename);
+                                        return;
+                                    }
                                     Total++;
                                 }
 
@@ -783,5 +794,5 @@ AslCompilererror (
         Gbl_CurrentColumn, Gbl_Files[ASL_FILE_INPUT].Filename,
         ACPI_CAST_PTR (char, CompilerMessage));
 
-    return 0;
+    return (0);
 }

@@ -1492,6 +1492,8 @@ ata_cam_begin_transaction(device_t dev, union ccb *ccb)
 		request->u.ata.lba |= ((uint64_t)ccb->ataio.cmd.lba_high << 16) |
 				      ((uint64_t)ccb->ataio.cmd.lba_mid << 8) |
 				       (uint64_t)ccb->ataio.cmd.lba_low;
+		if (ccb->ataio.cmd.flags & CAM_ATAIO_NEEDRESULT)
+			request->flags |= ATA_R_NEEDRESULT;
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE &&
 		    ccb->ataio.cmd.flags & CAM_ATAIO_DMA)
 			request->flags |= ATA_R_DMA;
@@ -1499,6 +1501,14 @@ ata_cam_begin_transaction(device_t dev, union ccb *ccb)
 			request->flags |= ATA_R_READ;
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
 			request->flags |= ATA_R_WRITE;
+		if (ccb->ataio.cmd.command == ATA_READ_MUL ||
+		    ccb->ataio.cmd.command == ATA_READ_MUL48 ||
+		    ccb->ataio.cmd.command == ATA_WRITE_MUL ||
+		    ccb->ataio.cmd.command == ATA_WRITE_MUL48) {
+			request->transfersize = min(request->bytecount,
+			    ch->curr[ccb->ccb_h.target_id].bytecount);
+		} else
+			request->transfersize = min(request->bytecount, 512);
 	} else {
 		request->data = ccb->csio.data_ptr;
 		request->bytecount = ccb->csio.dxfer_len;
@@ -1515,9 +1525,9 @@ ata_cam_begin_transaction(device_t dev, union ccb *ccb)
 			request->flags |= ATA_R_READ;
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_OUT)
 			request->flags |= ATA_R_WRITE;
+		request->transfersize = min(request->bytecount,
+		    ch->curr[ccb->ccb_h.target_id].bytecount);
 	}
-	request->transfersize = min(request->bytecount,
-	    ch->curr[ccb->ccb_h.target_id].bytecount);
 	request->retries = 0;
 	request->timeout = (ccb->ccb_h.timeout + 999) / 1000;
 	callout_init_mtx(&request->callout, &ch->state_mtx, CALLOUT_RETURNUNLOCKED);

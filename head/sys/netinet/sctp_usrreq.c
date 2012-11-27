@@ -180,7 +180,7 @@ sctp_notify_mbuf(struct sctp_inpcb *inp,
 		SCTP_TCB_UNLOCK(stcb);
 		return;
 	}
-	totsz = ip->ip_len;
+	totsz = ntohs(ip->ip_len);
 
 	nxtsz = ntohs(icmph->icmp_nextmtu);
 	if (nxtsz == 0) {
@@ -971,7 +971,8 @@ sctp_shutdown(struct socket *so)
 	}
 	SCTP_INP_RLOCK(inp);
 	/* For UDP model this is a invalid call */
-	if (inp->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE) {
+	if (!((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+	    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL))) {
 		/* Restore the flags that the soshutdown took away. */
 		SOCKBUF_LOCK(&so->so_rcv);
 		so->so_rcv.sb_state &= ~SBS_CANTRCVMORE;

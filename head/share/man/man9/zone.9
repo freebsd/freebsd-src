@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 25, 2012
+.Dd October 28, 2012
 .Dt ZONE 9
 .Os
 .Sh NAME
@@ -145,7 +145,7 @@ or
 .Dv NULL
 in the rare case where all items in the zone are in use and the
 allocator is unable to grow the zone
-or when
+and
 .Dv M_NOWAIT
 is specified.
 .Pp
@@ -218,8 +218,10 @@ The
 .Fn uma_zalloc
 function returns a pointer to an item, or
 .Dv NULL
-if the zone ran out of unused items and the allocator was unable to
-enlarge it.
+if the zone ran out of unused items
+and
+.Dv M_NOWAIT
+was specified.
 .Sh SEE ALSO
 .Xr malloc 9
 .Sh HISTORY

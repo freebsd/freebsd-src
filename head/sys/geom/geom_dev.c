@@ -176,7 +176,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 
 	g_trace(G_T_TOPOLOGY, "dev_taste(%s,%s)", mp->name, pp->name);
 	g_topology_assert();
-	gp = g_new_geomf(mp, pp->name);
+	gp = g_new_geomf(mp, "%s", pp->name);
 	cp = g_new_consumer(gp);
 	error = g_attach(cp, pp);
 	KASSERT(error == 0,
@@ -359,7 +359,7 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 	case DIOCSKERNELDUMP:
 		u = *((u_int *)data);
 		if (!u) {
-			set_dumper(NULL);
+			set_dumper(NULL, NULL);
 			error = 0;
 			break;
 		}
@@ -368,7 +368,7 @@ g_dev_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int fflag, struct thread
 		i = sizeof kd;
 		error = g_io_getattr("GEOM::kerneldump", cp, &i, &kd);
 		if (!error) {
-			error = set_dumper(&kd.di);
+			error = set_dumper(&kd.di, devtoname(dev));
 			if (!error)
 				dev->si_flags |= SI_DUMPDEV;
 		}
@@ -526,7 +526,7 @@ g_dev_orphan(struct g_consumer *cp)
 
 	/* Reset any dump-area set on this device */
 	if (dev->si_flags & SI_DUMPDEV)
-		set_dumper(NULL);
+		set_dumper(NULL, NULL);
 
 	/* Destroy the struct cdev *so we get no more requests */
 	destroy_dev(dev);

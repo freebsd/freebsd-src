@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 28, 2010
+.Dd November 10, 2012
 .Dt MINISTAT 1
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Nd statistics utility
 .Sh SYNOPSIS
 .Nm
-.Op Fl ns
+.Op Fl Ans
 .Op Fl C Ar column
 .Op Fl c Ar confidence_level
 .Op Fl d Ar delimiter
@@ -47,6 +47,9 @@ in the specified files or, if no file is specified, standard input.
 .Pp
 The options are as follows:
 .Bl -tag -width Fl
+.It Fl A
+Just report the statistics of the input and relative comparisons,
+suppress the ASCII-art plot.
 .It Fl n
 Just report the raw statistics of the input, suppress the ASCII-art plot
 and the relative comparisons.

@@ -23,7 +23,7 @@ case "$daily_status_pkg_changes_enable" in
 	    if [ -f $bak/pkg_info.bak ]; then
 	    	mv -f $bak/pkg_info.bak $bak/pkg_info.bak2
 	    fi
-	    /usr/sbin/pkg_info > $bak/pkg_info.bak
+	    ${pkg_info:-/usr/sbin/pkg_info} > $bak/pkg_info.bak
 
 	    cmp -sz $bak/pkg_info.bak $bak/pkg_info.bak2
 	    if [ $? -eq 1 ]; then

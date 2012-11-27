@@ -142,12 +142,6 @@ deget(pmp, dirclust, diroffset, depp)
 		KASSERT((*depp)->de_diroffset == diroffset, ("wrong diroffset"));
 		return (0);
 	}
-
-	/*
-	 * Do the malloc before the getnewvnode since doing so afterward
-	 * might cause a bogus v_data pointer to get dereferenced
-	 * elsewhere if malloc should block.
-	 */
 	ldep = malloc(sizeof(struct denode), M_MSDOSFSNODE, M_WAITOK | M_ZERO);
 
 	/*

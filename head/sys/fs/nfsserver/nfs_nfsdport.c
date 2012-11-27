@@ -57,6 +57,7 @@ extern struct mount nfsv4root_mnt;
 extern struct nfsrv_stablefirst nfsrv_stablefirst;
 extern void (*nfsd_call_servertimer)(void);
 extern SVCPOOL	*nfsrvd_pool;
+extern struct nfsv4lock nfsd_suspend_lock;
 struct vfsoptlist nfsv4root_opt, nfsv4root_newopt;
 NFSDLOCKMUTEX;
 struct mtx nfs_cache_mutex;
@@ -2059,8 +2060,7 @@ again:
 						cn.cn_nameptr = dp->d_name;
 						cn.cn_namelen = nlen;
 						cn.cn_flags = ISLASTCN |
-						    NOFOLLOW | LOCKLEAF |
-						    MPSAFE;
+						    NOFOLLOW | LOCKLEAF;
 						if (nlen == 2 &&
 						    dp->d_name[0] == '.' &&
 						    dp->d_name[1] == '.')
@@ -2646,10 +2646,7 @@ nfsvno_fhtovp(struct mount *mp, fhandle_t *fhp, struct sockaddr *nam,
 
 	*credp = NULL;
 	exp->nes_numsecflavor = 0;
-	if (VFS_NEEDSGIANT(mp))
-		error = ESTALE;
-	else
-		error = VFS_FHTOVP(mp, &fhp->fh_fid, lktype, vpp);
+	error = VFS_FHTOVP(mp, &fhp->fh_fid, lktype, vpp);
 	if (error != 0)
 		/* Make sure the server replies ESTALE to the client. */
 		error = ESTALE;
@@ -2824,7 +2821,7 @@ nfsrv_v4rootexport(void *argp, struct ucred *cred, struct thread *p)
 		/*
 		 * If fspec != NULL, this is the v4root path.
 		 */
-		NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_USERSPACE,
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE,
 		    nfsexargp->fspec, p);
 		if ((error = namei(&nd)) != 0)
 			goto out;
@@ -3095,8 +3092,9 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 	struct nfsd_dumplocks *dumplocks;
 	struct nameidata nd;
 	vnode_t vp;
-	int error = EINVAL;
+	int error = EINVAL, igotlock;
 	struct proc *procp;
+	static int suspend_nfsd = 0;
 
 	if (uap->flag & NFSSVC_PUBLICFH) {
 		NFSBZERO((caddr_t)&nfs_pubfh.nfsrvfh_data,
@@ -3175,6 +3173,26 @@ nfssvc_srvcall(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 		nfsd_master_start = procp->p_stats->p_start;
 		nfsd_master_proc = procp;
 		PROC_UNLOCK(procp);
+	} else if ((uap->flag & NFSSVC_SUSPENDNFSD) != 0) {
+		NFSLOCKV4ROOTMUTEX();
+		if (suspend_nfsd == 0) {
+			/* Lock out all nfsd threads */
+			do {
+				igotlock = nfsv4_lock(&nfsd_suspend_lock, 1,
+				    NULL, NFSV4ROOTLOCKMUTEXPTR, NULL);
+			} while (igotlock == 0 && suspend_nfsd == 0);
+			suspend_nfsd = 1;
+		}
+		NFSUNLOCKV4ROOTMUTEX();
+		error = 0;
+	} else if ((uap->flag & NFSSVC_RESUMENFSD) != 0) {
+		NFSLOCKV4ROOTMUTEX();
+		if (suspend_nfsd != 0) {
+			nfsv4_unlock(&nfsd_suspend_lock, 0);
+			suspend_nfsd = 0;
+		}
+		NFSUNLOCKV4ROOTMUTEX();
+		error = 0;
 	}
 
 	NFSEXITCODE(error);

@@ -750,17 +750,15 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	int symstrindex;
 	int symcnt;
 	int strcnt;
-	int vfslocked;
 
 	shdr = NULL;
 	lf = NULL;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, filename, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, filename, td);
 	flags = FREAD;
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error != 0)
 		return (error);
-	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_vp->v_type != VREG) {
 		error = ENOEXEC;
@@ -1047,7 +1045,6 @@ nosyms:
 out:
 	VOP_UNLOCK(nd.ni_vp, 0);
 	vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 	if (error != 0 && lf != NULL)
 		linker_file_unload(lf, LINKER_UNLOAD_FORCE);
 	if (shdr != NULL)

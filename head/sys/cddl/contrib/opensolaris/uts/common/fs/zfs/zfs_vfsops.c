@@ -1132,9 +1132,9 @@ zfs_domount(vfs_t *vfsp, char *osname)
 
 	vfsp->vfs_data = zfsvfs;
 	vfsp->mnt_flag |= MNT_LOCAL;
-	vfsp->mnt_kern_flag |= MNTK_MPSAFE;
 	vfsp->mnt_kern_flag |= MNTK_LOOKUP_SHARED;
 	vfsp->mnt_kern_flag |= MNTK_SHARED_WRITES;
+	vfsp->mnt_kern_flag |= MNTK_EXTENDED_SHARED;
 
 	/*
 	 * The fsid is 64 bits, composed of an 8-bit fs type, which
@@ -1539,6 +1539,25 @@ out:
 }
 #endif	/* OPENSOLARIS_MOUNTROOT */
 
+static int
+getpoolname(const char *osname, char *poolname)
+{
+	char *p;
+
+	p = strchr(osname, '/');
+	if (p == NULL) {
+		if (strlen(osname) >= MAXNAMELEN)
+			return (ENAMETOOLONG);
+		(void) strcpy(poolname, osname);
+	} else {
+		if (p - osname >= MAXNAMELEN)
+			return (ENAMETOOLONG);
+		(void) strncpy(poolname, osname, p - osname);
+		poolname[p - osname] = '\0';
+	}
+	return (0);
+}
+
 /*ARGSUSED*/
 static int
 zfs_mount(vfs_t *vfsp)
@@ -1632,6 +1651,17 @@ zfs_mount(vfs_t *vfsp)
 		goto out;
 	}
 
+	/* Initial root mount: try hard to import the requested root pool. */
+	if ((vfsp->vfs_flag & MNT_ROOTFS) != 0 &&
+	    (vfsp->vfs_flag & MNT_UPDATE) == 0) {
+		char pname[MAXNAMELEN];
+
+		error = getpoolname(osname, pname);
+		if (error == 0)
+			error = spa_import_rootpool(pname);
+		if (error)
+			goto out;
+	}
 	DROP_GIANT();
 	error = zfs_domount(vfsp, osname);
 	PICKUP_GIANT();
@@ -1714,15 +1744,7 @@ zfs_vnode_lock(vnode_t *vp, int flags)
 
 	ASSERT(vp != NULL);
 
-	/*
-	 * Check if the file system wasn't forcibly unmounted in the meantime.
-	 */
 	error = vn_lock(vp, flags);
-	if (error == 0 && (vp->v_iflag & VI_DOOMED) != 0) {
-		VOP_UNLOCK(vp, 0);
-		error = ENOENT;
-	}
-
 	return (error);
 }
 
@@ -1825,18 +1847,6 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 		zfsvfs->z_unmounted = B_TRUE;
 		rrw_exit(&zfsvfs->z_teardown_lock, FTAG);
 		rw_exit(&zfsvfs->z_teardown_inactive_lock);
-
-#ifdef __FreeBSD__
-		/*
-		 * Some znodes might not be fully reclaimed, wait for them.
-		 */
-		mutex_enter(&zfsvfs->z_znodes_lock);
-		while (list_head(&zfsvfs->z_all_znodes) != NULL) {
-			msleep(zfsvfs, &zfsvfs->z_znodes_lock, 0,
-			    "zteardown", 0);
-		}
-		mutex_exit(&zfsvfs->z_znodes_lock);
-#endif
 	}
 
 	/*
@@ -1948,10 +1958,6 @@ zfs_umount(vfs_t *vfsp, int fflag)
 			    zfsvfs->z_ctldir->v_count > 1)
 				return (EBUSY);
 		}
-	} else {
-		MNT_ILOCK(vfsp);
-		vfsp->mnt_kern_flag |= MNTK_UNMOUNTF;
-		MNT_IUNLOCK(vfsp);
 	}
 
 	VERIFY(zfsvfs_teardown(zfsvfs, B_TRUE) == 0);
@@ -2105,7 +2111,7 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 			VN_HOLD(*vpp);
 		}
 		ZFS_EXIT(zfsvfs);
-		err = zfs_vnode_lock(*vpp, flags | LK_RETRY);
+		err = zfs_vnode_lock(*vpp, flags);
 		if (err != 0)
 			*vpp = NULL;
 		return (err);
