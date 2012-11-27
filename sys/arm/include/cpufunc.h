@@ -681,20 +681,36 @@ __set_cpsr_c(u_int bic, u_int eor)
 	return ret;
 }
 
+#define	ARM_CPSR_F32	(1 << 6)	/* FIQ disable */
+#define	ARM_CPSR_I32	(1 << 7)	/* IRQ disable */
+
 #define disable_interrupts(mask)					\
-	(__set_cpsr_c((mask) & (I32_bit | F32_bit), \
-		      (mask) & (I32_bit | F32_bit)))
+	(__set_cpsr_c((mask) & (ARM_CPSR_I32 | ARM_CPSR_F32),		\
+		      (mask) & (ARM_CPSR_I32 | ARM_CPSR_F32)))
 
 #define enable_interrupts(mask)						\
-	(__set_cpsr_c((mask) & (I32_bit | F32_bit), 0))
+	(__set_cpsr_c((mask) & (ARM_CPSR_I32 | ARM_CPSR_F32), 0))
 
 #define restore_interrupts(old_cpsr)					\
-	(__set_cpsr_c((I32_bit | F32_bit), (old_cpsr) & (I32_bit | F32_bit)))
+	(__set_cpsr_c((ARM_CPSR_I32 | ARM_CPSR_F32),			\
+		      (old_cpsr) & (ARM_CPSR_I32 | ARM_CPSR_F32)))
 
-#define intr_disable()	\
-    disable_interrupts(I32_bit | F32_bit)
-#define intr_restore(s)	\
-    restore_interrupts(s)
+static __inline register_t
+intr_disable(void)
+{
+	register_t s;
+
+	s = disable_interrupts(ARM_CPSR_I32 | ARM_CPSR_F32);
+	return (s);
+}
+
+static __inline void
+intr_restore(register_t s)
+{
+
+	restore_interrupts(s);
+}
+
 /* Functions to manipulate the CPSR. */
 u_int	SetCPSR(u_int bic, u_int eor);
 u_int	GetCPSR(void);
