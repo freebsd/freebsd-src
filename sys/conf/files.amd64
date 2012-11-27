@@ -126,6 +126,7 @@ amd64/amd64/mpboot.S		optional	native smp
 amd64/xen/mpboot.c		optional	xen smp
 amd64/amd64/pmap.c		optional	native
 amd64/xen/pmap.c		optional	xen
+amd64/xen/pmap_pv.c		optional	xen
 amd64/xen/mmu_map.c		optional	xen
 amd64/amd64/prof_machdep.c	optional	profiling-routine
 amd64/amd64/ptrace_machdep.c	standard

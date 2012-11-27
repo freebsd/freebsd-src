@@ -147,6 +147,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/xen/xenvar.h>
 
 #include <amd64/xen/mmu_map.h>
+#include <amd64/xen/pmap_pv.h>
 
 extern vm_offset_t pa_index; /* from machdep.c */
 extern unsigned long physfree; /* from machdep.c */
@@ -187,14 +188,8 @@ static uma_zone_t xen_pagezone;
 static size_t tsz; /* mmu_map.h opaque cookie size */
 static uintptr_t (*ptmb_mappedalloc)(void) = NULL;
 static void (*ptmb_mappedfree)(uintptr_t) = NULL;
-static uintptr_t ptmb_ptov(vm_paddr_t p)
-{
-	return PTOV(p);
-}
-static vm_paddr_t ptmb_vtop(uintptr_t v)
-{
-	return VTOP(v);
-}
+static uintptr_t (*ptmb_ptov)(vm_paddr_t) = NULL;
+static vm_paddr_t (*ptmb_vtop)(uintptr_t) = NULL;
 
 extern uint64_t xenstack; /* The stack Xen gives us at boot */
 extern char *console_page; /* The shared ring for console i/o */
@@ -455,8 +450,19 @@ pmap_xen_bootpages(vm_paddr_t *firstaddr)
 	va = vallocpages(firstaddr, 1);
 	PT_SET_MA(va, ma | PG_RW | PG_V | PG_U);
 
-
 	HYPERVISOR_shared_info = (void *) va;
+}
+
+/* Boot time ptov - xen guarantees bootpages to be offset */
+static uintptr_t boot_ptov(vm_paddr_t p)
+{
+	return PTOV(p);
+}
+
+/* Boot time vtop - xen guarantees bootpages to be offset */
+static vm_paddr_t boot_vtop(uintptr_t v)
+{
+	return VTOP(v);
 }
 
 /* alloc from linear mapped boot time virtual address space */
@@ -486,6 +492,8 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	/* setup mmu_map backend function pointers for boot */
 	ptmb_mappedalloc = mmu_alloc;
 	ptmb_mappedfree = NULL;
+	ptmb_ptov = boot_ptov;
+	ptmb_vtop = boot_vtop;
 
 	create_boot_pagetables(firstaddr);
 
@@ -509,7 +517,7 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 
 	dump_avail[pa_index + 1] = phys_avail[pa_index] = VTOP(xen_start_info->pt_base);
 	dump_avail[pa_index + 2] = phys_avail[pa_index + 1] = phys_avail[pa_index] +
-		ptoa(xen_start_info->nr_pt_frames - 1);
+		ptoa(xen_start_info->nr_pt_frames);
 	pa_index += 2;
 
 	/* Map in Xen related pages into VA space */
@@ -538,7 +546,8 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	kernel_pmap->pm_pml4 = (pdp_entry_t *)KPML4phys;
 	kernel_pmap->pm_root = NULL;
 	CPU_FILL(&kernel_pmap->pm_active);	/* don't allow deactivation */
-	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
+	pmap_pv_init();
+	pmap_pv_pmap_init(kernel_pmap);
 
 	tsz = mmu_map_t_size();
 
@@ -552,11 +561,13 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	bzero(msgbufp, round_page(msgbufsize));
 }
 
+/*
+ *	Initialize a vm_page's machine-dependent fields.
+ */
 void
 pmap_page_init(vm_page_t m)
 {
-	/* XXX: TODO - pv_lists */
-
+	pmap_pv_vm_page_init(m);
 }
 
 /* 
@@ -601,15 +612,34 @@ pmap_growkernel(uintptr_t addr)
 	mmu_map_t_fini(tptr);
 }
 
+/*
+ *	Initialize the pmap module.
+ *	Called by vm_init, to initialize any structures that the pmap
+ *	system needs to map virtual memory.
+ */
+
 void
 pmap_init(void)
 {
 	uintptr_t va;
 
 	/* XXX: review the use of gdtset for the purpose below */
-	gdtset = 1; /* xpq may assert for locking sanity from this point onwards */
 
-	/* XXX: switch the mmu_map.c backend to something more sane */
+	/*
+	 * At this point we initialise the pv mappings of all PAs that
+	 * have been mapped into the kernel VA by pmap_bootstrap()
+	 */
+
+	vm_paddr_t pa;
+
+	for (pa = phys_avail[0]; pa < VTOP(virtual_avail); pa += PAGE_SIZE) {
+		vm_page_t m;
+		m = PHYS_TO_VM_PAGE(pa);
+		if (m == NULL) continue;
+		pmap_put_pv_entry(kernel_pmap, PTOV(pa), m);
+	}
+
+	gdtset = 1; /* xpq may assert for locking sanity from this point onwards */
 
 	/* Get a va for console and map the console mfn into it */
 	vm_paddr_t console_ma = xen_start_info->console.domU.mfn << PAGE_SHIFT;
@@ -629,7 +659,7 @@ pmap_pinit0(pmap_t pmap)
 	pmap->pm_root = NULL;
 	CPU_ZERO(&pmap->pm_active);
 	PCPU_SET(curpmap, pmap);
-	TAILQ_INIT(&pmap->pm_pvchunk);
+	pmap_pv_pmap_init(pmap);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 }
 
@@ -665,7 +695,7 @@ pmap_pinit(pmap_t pmap)
 
 	pmap->pm_root = NULL;
 	CPU_ZERO(&pmap->pm_active);
-	TAILQ_INIT(&pmap->pm_pvchunk);
+	pmap_pv_pmap_init(pmap);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 
 	return 1;
@@ -806,6 +836,10 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	    VM_OBJECT_LOCKED(m->object),
 	    ("pmap_enter: page %p is not busy", m));
 
+	KASSERT(pmap == kernel_pmap, ("XXX: TODO: Userland pmap\n"));
+	KASSERT(VM_PAGE_TO_PHYS(m) != 0,
+		("VM_PAGE_TO_PHYS(m) == 0x%lx\n", VM_PAGE_TO_PHYS(m)));
+
 	pmap_kenter(va, VM_PAGE_TO_PHYS(m)); /* Shim to keep bootup
 					      * happy for now */
 
@@ -922,6 +956,18 @@ nomapping:
 void 
 pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 {
+
+	vm_page_t m;
+
+	m = PHYS_TO_VM_PAGE(pa);
+
+	if (gdtset == 1 && m != NULL) {
+		/*
+		 * Enter on the PV list if part of our managed memory.
+		 */
+		
+		pmap_put_pv_entry(kernel_pmap, va, m);
+	}
 	pmap_kenter_ma(va, xpmap_ptom(pa));
 }
 
@@ -1220,6 +1266,39 @@ pmap_change_attr(vm_offset_t va, vm_size_t size, int mode)
 }
 
 static uintptr_t
+xen_vm_ptov(vm_paddr_t pa)
+{
+	vm_page_t m;
+
+	m = PHYS_TO_VM_PAGE(pa);
+
+	/* Assert for valid PA *after* the VM has been init-ed */
+	KASSERT(gdtset == 1 && m != NULL || pa < physfree, ("Stray PA 0x%lx passed\n", pa));
+
+	if (m == NULL) { /* Early boottime page - obeys early mapping rules */
+		return PTOV(pa);
+	}
+
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
+		("%s: page %p is not managed", __func__, m));
+
+	return pmap_pv_vm_page_to_v(kernel_pmap, m);
+}
+
+static vm_paddr_t
+xen_vm_vtop(uintptr_t va)
+{
+	vm_page_t m;
+	KASSERT((va >= VM_MIN_KERNEL_ADDRESS &&
+		 va <= VM_MAX_KERNEL_ADDRESS),
+		("Invalid kernel virtual address"));
+
+	m = vm_page_lookup(kernel_object, va - VM_MIN_KERNEL_ADDRESS);
+
+	return VM_PAGE_TO_PHYS(m);
+}
+
+static uintptr_t
 xen_pagezone_alloc(void)
 {
 	uintptr_t ret;
@@ -1270,9 +1349,11 @@ setup_xen_pagezone(void *dummy __unused)
 {
 
 	xen_pagezone = uma_zcreate("XEN PAGEZONE", PAGE_SIZE, NULL, NULL,
-	     xen_pagezone_init, xen_pagezone_fini, UMA_ALIGN_PTR, UMA_ZONE_ZINIT);
+	     xen_pagezone_init, xen_pagezone_fini, UMA_ALIGN_PTR, 0);
 	ptmb_mappedalloc = xen_pagezone_alloc;
 	ptmb_mappedfree = xen_pagezone_free;
+	ptmb_vtop = xen_vm_vtop;
+	ptmb_ptov = xen_vm_ptov;
 }
 SYSINIT(setup_xen_pagezone, SI_SUB_VM_CONF, SI_ORDER_ANY, setup_xen_pagezone,
     NULL);
