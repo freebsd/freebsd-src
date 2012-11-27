@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-.PATH: ${.CURDIR}/../../netpfil/ipfw
+.PATH: ${.CURDIR}/../../netinet/ipfw
 
 KMOD=	ipfw
 SRCS=	ip_fw2.c ip_fw_pfil.c
@@ -11,6 +11,7 @@ SRCS+=	ip_fw_sockopt.c ip_fw_table.c
 SRCS+=	opt_inet.h opt_inet6.h opt_ipdivert.h opt_ipfw.h opt_ipsec.h
 
 CFLAGS+= -DIPFIREWALL
+CFLAGS+= -I${.CURDIR}/../../contrib/pf
 #
 #If you want it verbose
 #CFLAGS+= -DIPFIREWALL_VERBOSE

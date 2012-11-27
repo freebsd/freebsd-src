@@ -2,11 +2,13 @@
 
 .include <bsd.own.mk>
 
-.PATH: ${.CURDIR}/../../netpfil/pf
+.PATH: ${.CURDIR}/../../contrib/pf/net
 
 KMOD=	pflog
 SRCS=	if_pflog.c \
 	opt_pf.h opt_inet.h opt_inet6.h opt_bpf.h
+
+CFLAGS+= -I${.CURDIR}/../../contrib/pf
 SRCS+=	bus_if.h device_if.h
 
 .if defined(KERNBUILDDIR)
