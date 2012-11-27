@@ -2436,9 +2436,10 @@ ptracestop(struct thread *td, int sig)
 		}
 stopme:
 		thread_suspend_switch(td);
-		if (!(p->p_flag & P_TRACED)) {
+		if (p->p_xthread == td)
+			p->p_xthread = NULL;
+		if (!(p->p_flag & P_TRACED))
 			break;
-		}
 		if (td->td_dbgflags & TDB_SUSPEND) {
 			if (p->p_flag & P_SINGLE_EXIT)
 				break;
@@ -3313,7 +3314,7 @@ nosys(td, args)
 	struct proc *p = td->td_proc;
 
 	PROC_LOCK(p);
-	kern_psignal(p, SIGSYS);
+	tdsignal(td, SIGSYS);
 	PROC_UNLOCK(p);
 	return (ENOSYS);
 }

@@ -1,0 +1,261 @@
+#!/usr/bin/ksh
+#
+# iopending - Print a plot for the number of pending disk I/O events.
+#             Written using DTrace (Solaris 10 3/05).
+#
+# This is measuring disk events that have made it past system caches.
+# By plotting a distribution graph of the number of pending events, the
+# "serialness" or "parallelness" of disk behaviour can be distinguished.
+#
+# $Id: iopending 3 2007-08-01 10:50:08Z brendan $
+#
+# USAGE:	iopending [-c] [-d device] [-f filename] 
+#		          [-m mount_point] [interval [count]]
+#
+#		-c		# clear the screen
+#		-d device	# instance name to snoop (eg, dad0)
+#		-f filename	# full pathname of file to snoop
+#		-m mount_point	# this FS only (will skip raw events)
+#	eg,
+#		iopending   	# default output, 5 second intervals
+#		iopending 1  	# 1 second samples
+#		iopending -c	# clear the screen
+#		iopending 5 12	# print 12 x 5 second samples
+# 	
+# FIELDS:
+#		value		number of pending events, 0 == idle
+#		count		number of samples @ 1000 Hz
+#		load		1 min load average
+#		disk_r		total disk read Kbytes for sample
+#		disk_w		total disk write Kbytes for sample
+# 
+# SEE ALSO: iosnoop, iotop
+#
+# IDEA: Dr Rex di Bona (Sydney, Australia)
+#
+# COPYRIGHT: Copyright (c) 2005, 2006 Brendan Gregg.
+#
+# CDDL HEADER START
+#
+#  The contents of this file are subject to the terms of the
+#  Common Development and Distribution License, Version 1.0 only
+#  (the "License").  You may not use this file except in compliance
+#  with the License.
+#
+#  You can obtain a copy of the license at Docs/cddl1.txt
+#  or http://www.opensolaris.org/os/licensing.
+#  See the License for the specific language governing permissions
+#  and limitations under the License.
+#
+# CDDL HEADER END
+#
+# Author: Brendan Gregg  [Sydney, Australia]
+#
+# 01-Nov-2005	Brendan Gregg	Created this.
+# 20-Apr-2006	   "      "	Last update.
+#
+
+
+##############################
+# --- Process Arguments ---
+#
+
+### default variables
+opt_device=0; opt_file=0; opt_mount=0; opt_clear=0; 
+opt_def=1; filter=0; device=.; filename=.; mount=.
+interval=5; count=-1
+
+### process options
+while getopts cd:f:hm: name
+do
+	case $name in
+	c)	opt_clear=1 ;;
+	d)	opt_device=1; device=$OPTARG ;;
+	f)	opt_file=1; filename=$OPTARG ;;
+	m)	opt_mount=1; mount=$OPTARG ;;
+	h|?)	cat <<-END >&2
+		USAGE: iopending [-c] [-d device] [-f filename]
+		                 [-m mount_point] [interval [count]]
+ 
+		                -c              # clear the screen
+		                -d device       # instance name to snoop 
+		                -f filename     # snoop this file only
+		                -m mount_point  # this FS only 
+		   eg,
+		        iopending         # default output, 5 second samples
+		        iopending 1       # 1 second samples
+		        iopending -m /    # snoop events on filesystem / only
+		        iopending 5 12    # print 12 x 5 second samples
+		END
+		exit 1
+	esac
+done
+
+shift $(( $OPTIND - 1 ))
+
+### option logic
+if [[ "$1" > 0 ]]; then
+        interval=$1; shift
+fi
+if [[ "$1" > 0 ]]; then
+        count=$1; shift
+fi
+if (( opt_device || opt_mount || opt_file )); then
+	filter=1
+fi
+if (( opt_clear )); then
+        clearstr=`clear`
+else
+        clearstr=.
+fi
+
+
+
+#################################
+# --- Main Program, DTrace ---
+#
+/usr/sbin/dtrace -n '
+ /*
+  * Command line arguments
+  */
+ inline int OPT_def 	= '$opt_def';
+ inline int OPT_clear 	= '$opt_clear';
+ inline int OPT_device 	= '$opt_device';
+ inline int OPT_mount 	= '$opt_mount';
+ inline int OPT_file 	= '$opt_file';
+ inline int INTERVAL 	= '$interval';
+ inline int COUNTER 	= '$count';
+ inline int FILTER 	= '$filter';
+ inline string DEVICE 	= "'$device'";
+ inline string FILENAME = "'$filename'";
+ inline string MOUNT 	= "'$mount'";
+ inline string CLEAR 	= "'$clearstr'";
+
+ inline int MAX_PENDING = 32;	/* max pending value */
+ 
+ #pragma D option quiet
+
+ /*
+  * Print header
+  */
+ dtrace:::BEGIN 
+ {
+        /* starting values */
+        counts = COUNTER;
+        secs = INTERVAL;
+        disk_r = 0;
+        disk_w = 0;
+        pending = 0;
+
+        printf("Tracing... Please wait.\n");
+ }
+
+ /*
+  * Check event is being traced
+  */
+ io:genunix::start,
+ io:genunix::done 
+ { 
+	/* default is to trace unless filtering, */
+	this->ok = FILTER ? 0 : 1;
+
+	/* check each filter, */
+	(OPT_device == 1 && DEVICE == args[1]->dev_statname)? this->ok = 1 : 1;
+	(OPT_file == 1 && FILENAME == args[2]->fi_pathname) ? this->ok = 1 : 1;
+	(OPT_mount == 1 && MOUNT == args[2]->fi_mount)  ? this->ok = 1 : 1;
+ }
+
+ /*
+  * Store entry details
+  */
+ io:genunix::start
+ /this->ok/
+ {
+	/* track bytes */
+	disk_r += args[0]->b_flags & B_READ ? args[0]->b_bcount : 0;
+	disk_w += args[0]->b_flags & B_READ ? 0 : args[0]->b_bcount;
+
+	/* increase event pending count */
+	pending++;
+ }
+
+ /*
+  * Process and Print completion
+  */
+ io:genunix::done
+ /this->ok/
+ {
+	/* decrease event pending count */
+	pending--;
+ }
+
+ /*
+  * Prevent pending from underflowing
+  * this can happen if this program is started during disk events.
+  */
+ io:genunix::done
+ /pending < 0/
+ {
+	pending = 0;
+ }
+
+ /*
+  * Timer
+  */
+ profile:::tick-1sec
+ {
+	secs--;
+ }
+
+ profile:::profile-1000hz
+ {
+	@out = lquantize(pending, 0, MAX_PENDING, 1);
+ }
+
+ /*
+  * Print Report
+  */
+ profile:::tick-1sec
+ /secs == 0/
+ {
+	/* fetch 1 min load average */
+	this->load1a  = `hp_avenrun[0] / 65536;
+	this->load1b  = ((`hp_avenrun[0] % 65536) * 100) / 65536;
+
+	/* convert counters to Kbytes */
+	disk_r /= 1024;
+	disk_w /= 1024;
+
+	/* print status */
+	OPT_clear ? printf("%s", CLEAR) : 1;
+	printf("%Y,  load: %d.%02d,  disk_r: %6d KB,  disk_w: %6d KB",
+	    walltimestamp, this->load1a, this->load1b, disk_r, disk_w);
+
+	/* print output */
+	printa(@out);
+
+	/* clear data */
+	trunc(@out);
+	disk_r = 0;
+	disk_w = 0;
+	secs = INTERVAL;
+	counts--;
+ }
+
+ /*
+  * End of program
+  */
+ profile:::tick-1sec
+ /counts == 0/
+ {
+	exit(0);
+ }
+
+ /*
+  * Cleanup for Ctrl-C
+  */
+ dtrace:::END
+ {
+	trunc(@out);
+ }
+'

@@ -7,6 +7,9 @@ NEWVERSWHAT=	"U-Boot loader" ${MACHINE_ARCH}
 BINDIR?=	/boot
 INSTALLFLAGS=	-b
 WARNS?=		1
+# Address at which ubldr will be loaded.
+# This varies for different boards and SOCs.
+UBLDR_LOADADDR?=	0x1000000
 
 # Architecture-specific loader code
 SRCS=		start.S conf.c vers.c
@@ -15,6 +18,11 @@ LOADER_DISK_SUPPORT?=	yes
 LOADER_UFS_SUPPORT?=	yes
 LOADER_CD9660_SUPPORT?=	no
 LOADER_EXT2FS_SUPPORT?=	no
+.if ${MK_NAND} != "no"
+LOADER_NANDFS_SUPPORT?= yes
+.else
+LOADER_NANDFS_SUPPORT?= no
+.endif
 LOADER_NET_SUPPORT?=	yes
 LOADER_NFS_SUPPORT?=	yes
 LOADER_TFTP_SUPPORT?=	no
@@ -37,6 +45,9 @@ CFLAGS+=	-DLOADER_CD9660_SUPPORT
 .endif
 .if ${LOADER_EXT2FS_SUPPORT} == "yes"
 CFLAGS+=	-DLOADER_EXT2FS_SUPPORT
+.endif
+.if ${LOADER_NANDFS_SUPPORT} == "yes"
+CFLAGS+=	-DLOADER_NANDFS_SUPPORT
 .endif
 .if ${LOADER_GZIP_SUPPORT} == "yes"
 CFLAGS+=	-DLOADER_GZIP_SUPPORT
@@ -77,7 +88,9 @@ CLEANFILES+=	vers.c loader.help
 
 CFLAGS+=	-ffreestanding
 
-LDFLAGS=	-nostdlib -static -T ${.CURDIR}/ldscript.${MACHINE_CPUARCH}
+LDFLAGS=	-nostdlib -static
+LDFLAGS+=	-T ldscript.generated
+LDFLAGS+=	-T ${.CURDIR}/ldscript.${MACHINE_CPUARCH}
 
 # Pull in common loader code
 .PATH:		${.CURDIR}/../../uboot/common
@@ -101,6 +114,18 @@ vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 loader.help: help.common help.uboot
 	cat ${.ALLSRC} | \
 	    awk -f ${.CURDIR}/../../common/merge_help.awk > ${.TARGET}
+
+${PROG}: ldscript.generated ${.CURDIR}/ldscript.${MACHINE_CPUARCH}
+
+ldscript.generated::
+	rm -f ldscript.generated.tmp
+	echo "UBLDR_LOADADDR = ${UBLDR_LOADADDR};" >ldscript.generated.tmp
+	if diff ldscript.generated ldscript.generated.tmp > /dev/null; then \
+		true; \
+	else \
+		rm -f ldscript.generated; \
+		mv ldscript.generated.tmp ldscript.generated; \
+	fi
 
 .PATH: ${.CURDIR}/../../forth
 FILES=	loader.help

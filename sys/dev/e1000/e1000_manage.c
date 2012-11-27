@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2012, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -71,23 +71,20 @@ u8 e1000_calculate_checksum(u8 *buffer, u32 length)
 s32 e1000_mng_enable_host_if_generic(struct e1000_hw *hw)
 {
 	u32 hicr;
-	s32 ret_val = E1000_SUCCESS;
 	u8 i;
 
 	DEBUGFUNC("e1000_mng_enable_host_if_generic");
 
-	if (!(hw->mac.arc_subsystem_valid)) {
+	if (!hw->mac.arc_subsystem_valid) {
 		DEBUGOUT("ARC subsystem not valid.\n");
-		ret_val = -E1000_ERR_HOST_INTERFACE_COMMAND;
-		goto out;
+		return -E1000_ERR_HOST_INTERFACE_COMMAND;
 	}
 
 	/* Check that the host interface is enabled. */
 	hicr = E1000_READ_REG(hw, E1000_HICR);
-	if ((hicr & E1000_HICR_EN) == 0) {
+	if (!(hicr & E1000_HICR_EN)) {
 		DEBUGOUT("E1000_HOST_EN bit disabled.\n");
-		ret_val = -E1000_ERR_HOST_INTERFACE_COMMAND;
-		goto out;
+		return -E1000_ERR_HOST_INTERFACE_COMMAND;
 	}
 	/* check the previous command is completed */
 	for (i = 0; i < E1000_MNG_DHCP_COMMAND_TIMEOUT; i++) {
@@ -99,12 +96,10 @@ s32 e1000_mng_enable_host_if_generic(struct e1000_hw *hw)
 
 	if (i == E1000_MNG_DHCP_COMMAND_TIMEOUT) {
 		DEBUGOUT("Previous command timeout failed .\n");
-		ret_val = -E1000_ERR_HOST_INTERFACE_COMMAND;
-		goto out;
+		return -E1000_ERR_HOST_INTERFACE_COMMAND;
 	}
 
-out:
-	return ret_val;
+	return E1000_SUCCESS;
 }
 
 /**
@@ -122,7 +117,7 @@ bool e1000_check_mng_mode_generic(struct e1000_hw *hw)
 
 
 	return (fwsm & E1000_FWSM_MODE_MASK) ==
-	        (E1000_MNG_IAMT_MODE << E1000_FWSM_MODE_SHIFT);
+		(E1000_MNG_IAMT_MODE << E1000_FWSM_MODE_SHIFT);
 }
 
 /**
@@ -147,7 +142,7 @@ bool e1000_enable_tx_pkt_filtering_generic(struct e1000_hw *hw)
 	/* No manageability, no filtering */
 	if (!hw->mac.ops.check_mng_mode(hw)) {
 		hw->mac.tx_pkt_filtering = FALSE;
-		goto out;
+		return hw->mac.tx_pkt_filtering;
 	}
 
 	/*
@@ -157,7 +152,7 @@ bool e1000_enable_tx_pkt_filtering_generic(struct e1000_hw *hw)
 	ret_val = hw->mac.ops.mng_enable_host_if(hw);
 	if (ret_val != E1000_SUCCESS) {
 		hw->mac.tx_pkt_filtering = FALSE;
-		goto out;
+		return hw->mac.tx_pkt_filtering;
 	}
 
 	/* Read in the header.  Length and offset are in dwords. */
@@ -165,11 +160,11 @@ bool e1000_enable_tx_pkt_filtering_generic(struct e1000_hw *hw)
 	offset = E1000_MNG_DHCP_COOKIE_OFFSET >> 2;
 	for (i = 0; i < len; i++)
 		*(buffer + i) = E1000_READ_REG_ARRAY_DWORD(hw, E1000_HOST_IF,
-		                                           offset + i);
+							   offset + i);
 	hdr_csum = hdr->checksum;
 	hdr->checksum = 0;
 	csum = e1000_calculate_checksum((u8 *)hdr,
-	                                E1000_MNG_DHCP_COOKIE_LENGTH);
+					E1000_MNG_DHCP_COOKIE_LENGTH);
 	/*
 	 * If either the checksums or signature don't match, then
 	 * the cookie area isn't considered valid, in which case we
@@ -177,64 +172,14 @@ bool e1000_enable_tx_pkt_filtering_generic(struct e1000_hw *hw)
 	 */
 	if ((hdr_csum != csum) || (hdr->signature != E1000_IAMT_SIGNATURE)) {
 		hw->mac.tx_pkt_filtering = TRUE;
-		goto out;
+		return hw->mac.tx_pkt_filtering;
 	}
 
 	/* Cookie area is valid, make the final check for filtering. */
-	if (!(hdr->status & E1000_MNG_DHCP_COOKIE_STATUS_PARSING)) {
+	if (!(hdr->status & E1000_MNG_DHCP_COOKIE_STATUS_PARSING))
 		hw->mac.tx_pkt_filtering = FALSE;
-		goto out;
-	}
 
-out:
 	return hw->mac.tx_pkt_filtering;
-}
-
-/**
- *  e1000_mng_write_dhcp_info_generic - Writes DHCP info to host interface
- *  @hw: pointer to the HW structure
- *  @buffer: pointer to the host interface
- *  @length: size of the buffer
- *
- *  Writes the DHCP information to the host interface.
- **/
-s32 e1000_mng_write_dhcp_info_generic(struct e1000_hw *hw, u8 *buffer,
-                                      u16 length)
-{
-	struct e1000_host_mng_command_header hdr;
-	s32 ret_val;
-	u32 hicr;
-
-	DEBUGFUNC("e1000_mng_write_dhcp_info_generic");
-
-	hdr.command_id = E1000_MNG_DHCP_TX_PAYLOAD_CMD;
-	hdr.command_length = length;
-	hdr.reserved1 = 0;
-	hdr.reserved2 = 0;
-	hdr.checksum = 0;
-
-	/* Enable the host interface */
-	ret_val = hw->mac.ops.mng_enable_host_if(hw);
-	if (ret_val)
-		goto out;
-
-	/* Populate the host interface with the contents of "buffer". */
-	ret_val = hw->mac.ops.mng_host_if_write(hw, buffer, length,
-	                                  sizeof(hdr), &(hdr.checksum));
-	if (ret_val)
-		goto out;
-
-	/* Write the manageability command header */
-	ret_val = hw->mac.ops.mng_write_cmd_header(hw, &hdr);
-	if (ret_val)
-		goto out;
-
-	/* Tell the ARC a new command is pending. */
-	hicr = E1000_READ_REG(hw, E1000_HICR);
-	E1000_WRITE_REG(hw, E1000_HICR, hicr | E1000_HICR_C);
-
-out:
-	return ret_val;
 }
 
 /**
@@ -245,7 +190,7 @@ out:
  *  Writes the command header after does the checksum calculation.
  **/
 s32 e1000_mng_write_cmd_header_generic(struct e1000_hw *hw,
-                                    struct e1000_host_mng_command_header *hdr)
+				      struct e1000_host_mng_command_header *hdr)
 {
 	u16 i, length = sizeof(struct e1000_host_mng_command_header);
 
@@ -259,7 +204,7 @@ s32 e1000_mng_write_cmd_header_generic(struct e1000_hw *hw,
 	/* Write the relevant command block into the ram area. */
 	for (i = 0; i < length; i++) {
 		E1000_WRITE_REG_ARRAY_DWORD(hw, E1000_HOST_IF, i,
-		                            *((u32 *) hdr + i));
+					    *((u32 *) hdr + i));
 		E1000_WRITE_FLUSH(hw);
 	}
 
@@ -279,22 +224,19 @@ s32 e1000_mng_write_cmd_header_generic(struct e1000_hw *hw,
  *  way.  Also fills up the sum of the buffer in *buffer parameter.
  **/
 s32 e1000_mng_host_if_write_generic(struct e1000_hw *hw, u8 *buffer,
-                                    u16 length, u16 offset, u8 *sum)
+				    u16 length, u16 offset, u8 *sum)
 {
 	u8 *tmp;
 	u8 *bufptr = buffer;
 	u32 data = 0;
-	s32 ret_val = E1000_SUCCESS;
 	u16 remaining, i, j, prev_bytes;
 
 	DEBUGFUNC("e1000_mng_host_if_write_generic");
 
 	/* sum = only sum of the data and it is not checksum */
 
-	if (length == 0 || offset + length > E1000_HI_MAX_MNG_DATA_LENGTH) {
-		ret_val = -E1000_ERR_PARAM;
-		goto out;
-	}
+	if (length == 0 || offset + length > E1000_HI_MAX_MNG_DATA_LENGTH)
+		return -E1000_ERR_PARAM;
 
 	tmp = (u8 *)&data;
 	prev_bytes = offset & 0x3;
@@ -328,7 +270,7 @@ s32 e1000_mng_host_if_write_generic(struct e1000_hw *hw, u8 *buffer,
 		}
 
 		E1000_WRITE_REG_ARRAY_DWORD(hw, E1000_HOST_IF, offset + i,
-		                            data);
+					    data);
 	}
 	if (remaining) {
 		for (j = 0; j < sizeof(u32); j++) {
@@ -339,11 +281,57 @@ s32 e1000_mng_host_if_write_generic(struct e1000_hw *hw, u8 *buffer,
 
 			*sum += *(tmp + j);
 		}
-		E1000_WRITE_REG_ARRAY_DWORD(hw, E1000_HOST_IF, offset + i, data);
+		E1000_WRITE_REG_ARRAY_DWORD(hw, E1000_HOST_IF, offset + i,
+					    data);
 	}
 
-out:
-	return ret_val;
+	return E1000_SUCCESS;
+}
+
+/**
+ *  e1000_mng_write_dhcp_info_generic - Writes DHCP info to host interface
+ *  @hw: pointer to the HW structure
+ *  @buffer: pointer to the host interface
+ *  @length: size of the buffer
+ *
+ *  Writes the DHCP information to the host interface.
+ **/
+s32 e1000_mng_write_dhcp_info_generic(struct e1000_hw *hw, u8 *buffer,
+				      u16 length)
+{
+	struct e1000_host_mng_command_header hdr;
+	s32 ret_val;
+	u32 hicr;
+
+	DEBUGFUNC("e1000_mng_write_dhcp_info_generic");
+
+	hdr.command_id = E1000_MNG_DHCP_TX_PAYLOAD_CMD;
+	hdr.command_length = length;
+	hdr.reserved1 = 0;
+	hdr.reserved2 = 0;
+	hdr.checksum = 0;
+
+	/* Enable the host interface */
+	ret_val = hw->mac.ops.mng_enable_host_if(hw);
+	if (ret_val)
+		return ret_val;
+
+	/* Populate the host interface with the contents of "buffer". */
+	ret_val = hw->mac.ops.mng_host_if_write(hw, buffer, length,
+						sizeof(hdr), &(hdr.checksum));
+	if (ret_val)
+		return ret_val;
+
+	/* Write the manageability command header */
+	ret_val = hw->mac.ops.mng_write_cmd_header(hw, &hdr);
+	if (ret_val)
+		return ret_val;
+
+	/* Tell the ARC a new command is pending. */
+	hicr = E1000_READ_REG(hw, E1000_HICR);
+	E1000_WRITE_REG(hw, E1000_HICR, hicr | E1000_HICR_C);
+
+	return E1000_SUCCESS;
 }
 
 /**
@@ -357,17 +345,16 @@ bool e1000_enable_mng_pass_thru(struct e1000_hw *hw)
 {
 	u32 manc;
 	u32 fwsm, factps;
-	bool ret_val = FALSE;
 
 	DEBUGFUNC("e1000_enable_mng_pass_thru");
 
 	if (!hw->mac.asf_firmware_present)
-		goto out;
+		return FALSE;
 
 	manc = E1000_READ_REG(hw, E1000_MANC);
 
 	if (!(manc & E1000_MANC_RCV_TCO_EN))
-		goto out;
+		return FALSE;
 
 	if (hw->mac.has_fwsm) {
 		fwsm = E1000_READ_REG(hw, E1000_FWSM);
@@ -375,10 +362,8 @@ bool e1000_enable_mng_pass_thru(struct e1000_hw *hw)
 
 		if (!(factps & E1000_FACTPS_MNGCG) &&
 		    ((fwsm & E1000_FWSM_MODE_MASK) ==
-		     (e1000_mng_mode_pt << E1000_FWSM_MODE_SHIFT))) {
-			ret_val = TRUE;
-			goto out;
-		}
+		     (e1000_mng_mode_pt << E1000_FWSM_MODE_SHIFT)))
+			return TRUE;
 	} else if ((hw->mac.type == e1000_82574) ||
 		   (hw->mac.type == e1000_82583)) {
 		u16 data;
@@ -388,18 +373,14 @@ bool e1000_enable_mng_pass_thru(struct e1000_hw *hw)
 
 		if (!(factps & E1000_FACTPS_MNGCG) &&
 		    ((data & E1000_NVM_INIT_CTRL2_MNGM) ==
-		     (e1000_mng_mode_pt << 13))) {
-			ret_val = TRUE;
-			goto out;
-		}
+		     (e1000_mng_mode_pt << 13)))
+			return TRUE;
 	} else if ((manc & E1000_MANC_SMBUS_EN) &&
-		    !(manc & E1000_MANC_ASF_EN)) {
-			ret_val = TRUE;
-			goto out;
+		   !(manc & E1000_MANC_ASF_EN)) {
+			return TRUE;
 	}
 
-out:
-	return ret_val;
+	return FALSE;
 }
 
 /**
@@ -414,33 +395,30 @@ out:
 s32 e1000_host_interface_command(struct e1000_hw *hw, u8 *buffer, u32 length)
 {
 	u32 hicr, i;
-	s32 ret_val = E1000_SUCCESS;
 
 	DEBUGFUNC("e1000_host_interface_command");
 
 	if (!(hw->mac.arc_subsystem_valid)) {
 		DEBUGOUT("Hardware doesn't support host interface command.\n");
-		goto out;
+		return E1000_SUCCESS;
 	}
 
 	if (!hw->mac.asf_firmware_present) {
 		DEBUGOUT("Firmware is not present.\n");
-		goto out;
+		return E1000_SUCCESS;
 	}
 
 	if (length == 0 || length & 0x3 ||
 	    length > E1000_HI_MAX_BLOCK_BYTE_LENGTH) {
 		DEBUGOUT("Buffer length failure.\n");
-		ret_val = -E1000_ERR_HOST_INTERFACE_COMMAND;
-		goto out;
+		return -E1000_ERR_HOST_INTERFACE_COMMAND;
 	}
 
 	/* Check that the host interface is enabled. */
 	hicr = E1000_READ_REG(hw, E1000_HICR);
-	if ((hicr & E1000_HICR_EN) == 0) {
+	if (!(hicr & E1000_HICR_EN)) {
 		DEBUGOUT("E1000_HOST_EN bit disabled.\n");
-		ret_val = -E1000_ERR_HOST_INTERFACE_COMMAND;
-		goto out;
+		return -E1000_ERR_HOST_INTERFACE_COMMAND;
 	}
 
 	/* Calculate length in DWORDs */
@@ -451,10 +429,8 @@ s32 e1000_host_interface_command(struct e1000_hw *hw, u8 *buffer, u32 length)
 	 * into the ram area.
 	 */
 	for (i = 0; i < length; i++)
-		E1000_WRITE_REG_ARRAY_DWORD(hw,
-		                            E1000_HOST_IF,
-		                            i,
-		                            *((u32 *)buffer + i));
+		E1000_WRITE_REG_ARRAY_DWORD(hw, E1000_HOST_IF, i,
+					    *((u32 *)buffer + i));
 
 	/* Setting this bit tells the ARC that a new command is pending. */
 	E1000_WRITE_REG(hw, E1000_HICR, hicr | E1000_HICR_C);
@@ -470,16 +446,134 @@ s32 e1000_host_interface_command(struct e1000_hw *hw, u8 *buffer, u32 length)
 	if (i == E1000_HI_COMMAND_TIMEOUT ||
 	    (!(E1000_READ_REG(hw, E1000_HICR) & E1000_HICR_SV))) {
 		DEBUGOUT("Command has failed with no status valid.\n");
-		ret_val = -E1000_ERR_HOST_INTERFACE_COMMAND;
-		goto out;
+		return -E1000_ERR_HOST_INTERFACE_COMMAND;
 	}
 
 	for (i = 0; i < length; i++)
 		*((u32 *)buffer + i) = E1000_READ_REG_ARRAY_DWORD(hw,
-		                                                  E1000_HOST_IF,
-		                                                  i);
+								  E1000_HOST_IF,
+								  i);
 
-out:
-	return ret_val;
+	return E1000_SUCCESS;
 }
+/**
+ *  e1000_load_firmware - Writes proxy FW code buffer to host interface
+ *                        and execute.
+ *  @hw: pointer to the HW structure
+ *  @buffer: contains a firmware to write
+ *  @length: the byte length of the buffer, must be multiple of 4 bytes
+ *
+ *  Upon success returns E1000_SUCCESS, returns E1000_ERR_CONFIG if not enabled
+ *  in HW else returns E1000_ERR_HOST_INTERFACE_COMMAND.
+ **/
+s32 e1000_load_firmware(struct e1000_hw *hw, u8 *buffer, u32 length)
+{
+	u32 hicr, hibba, fwsm, icr, i;
+
+	DEBUGFUNC("e1000_load_firmware");
+
+	if (hw->mac.type < e1000_i210) {
+		DEBUGOUT("Hardware doesn't support loading FW by the driver\n");
+		return -E1000_ERR_CONFIG;
+	}
+
+	/* Check that the host interface is enabled. */
+	hicr = E1000_READ_REG(hw, E1000_HICR);
+	if (!(hicr & E1000_HICR_EN)) {
+		DEBUGOUT("E1000_HOST_EN bit disabled.\n");
+		return -E1000_ERR_CONFIG;
+	}
+	if (!(hicr & E1000_HICR_MEMORY_BASE_EN)) {
+		DEBUGOUT("E1000_HICR_MEMORY_BASE_EN bit disabled.\n");
+		return -E1000_ERR_CONFIG;
+	}
+
+	if (length == 0 || length & 0x3 || length > E1000_HI_FW_MAX_LENGTH) {
+		DEBUGOUT("Buffer length failure.\n");
+		return -E1000_ERR_INVALID_ARGUMENT;
+	}
+
+	/* Clear notification from ROM-FW by reading ICR register */
+	icr = E1000_READ_REG(hw, E1000_ICR_V2);
+
+	/* Reset ROM-FW */
+	hicr = E1000_READ_REG(hw, E1000_HICR);
+	hicr |= E1000_HICR_FW_RESET_ENABLE;
+	E1000_WRITE_REG(hw, E1000_HICR, hicr);
+	hicr |= E1000_HICR_FW_RESET;
+	E1000_WRITE_REG(hw, E1000_HICR, hicr);
+	E1000_WRITE_FLUSH(hw);
+
+	/* Wait till MAC notifies about its readiness after ROM-FW reset */
+	for (i = 0; i < (E1000_HI_COMMAND_TIMEOUT * 2); i++) {
+		icr = E1000_READ_REG(hw, E1000_ICR_V2);
+		if (icr & E1000_ICR_MNG)
+			break;
+		msec_delay(1);
+	}
+
+	/* Check for timeout */
+	if (i == E1000_HI_COMMAND_TIMEOUT) {
+		DEBUGOUT("FW reset failed.\n");
+		return -E1000_ERR_HOST_INTERFACE_COMMAND;
+	}
+
+	/* Wait till MAC is ready to accept new FW code */
+	for (i = 0; i < E1000_HI_COMMAND_TIMEOUT; i++) {
+		fwsm = E1000_READ_REG(hw, E1000_FWSM);
+		if ((fwsm & E1000_FWSM_FW_VALID) &&
+		    ((fwsm & E1000_FWSM_MODE_MASK) >> E1000_FWSM_MODE_SHIFT ==
+		    E1000_FWSM_HI_EN_ONLY_MODE))
+			break;
+		msec_delay(1);
+	}
+
+	/* Check for timeout */
+	if (i == E1000_HI_COMMAND_TIMEOUT) {
+		DEBUGOUT("FW reset failed.\n");
+		return -E1000_ERR_HOST_INTERFACE_COMMAND;
+	}
+
+	/* Calculate length in DWORDs */
+	length >>= 2;
+
+	/*
+	 * The device driver writes the relevant FW code block
+	 * into the ram area in DWORDs via 1kB ram addressing window.
+	 */
+	for (i = 0; i < length; i++) {
+		if (!(i % E1000_HI_FW_BLOCK_DWORD_LENGTH)) {
+			/* Point to correct 1kB ram window */
+			hibba = E1000_HI_FW_BASE_ADDRESS +
+				((E1000_HI_FW_BLOCK_DWORD_LENGTH << 2) *
+				(i / E1000_HI_FW_BLOCK_DWORD_LENGTH));
+
+			E1000_WRITE_REG(hw, E1000_HIBBA, hibba);
+		}
+
+		E1000_WRITE_REG_ARRAY_DWORD(hw, E1000_HOST_IF,
+					    i % E1000_HI_FW_BLOCK_DWORD_LENGTH,
+					    *((u32 *)buffer + i));
+	}
+
+	/* Setting this bit tells the ARC that a new FW is ready to execute. */
+	hicr = E1000_READ_REG(hw, E1000_HICR);
+	E1000_WRITE_REG(hw, E1000_HICR, hicr | E1000_HICR_C);
+
+	for (i = 0; i < E1000_HI_COMMAND_TIMEOUT; i++) {
+		hicr = E1000_READ_REG(hw, E1000_HICR);
+		if (!(hicr & E1000_HICR_C))
+			break;
+		msec_delay(1);
+	}
+
+	/* Check for successful FW start. */
+	if (i == E1000_HI_COMMAND_TIMEOUT) {
+		DEBUGOUT("New FW did not start within timeout period.\n");
+		return -E1000_ERR_HOST_INTERFACE_COMMAND;
+	}
+
+	return E1000_SUCCESS;
+}
+
 

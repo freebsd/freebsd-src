@@ -2127,11 +2127,14 @@ hdaa_audio_ctl_dev_volume(struct hdaa_pcm_devinfo *pdevinfo, unsigned dev)
 		w = hdaa_widget_get(devinfo, i);
 		if (w == NULL || w->enable == 0)
 			continue;
-		if (w->bindas < 0 && pdevinfo->index != 0)
-			continue;
-		if (w->bindas != pdevinfo->playas &&
-		    w->bindas != pdevinfo->recas)
-			continue;
+		if (w->bindas < 0) {
+			if (pdevinfo->index != 0)
+				continue;
+		} else {
+			if (w->bindas != pdevinfo->playas &&
+			    w->bindas != pdevinfo->recas)
+				continue;
+		}
 		if (dev == SOUND_MIXER_RECLEV &&
 		    w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_INPUT) {
 			hdaa_audio_ctl_dest_volume(pdevinfo, dev,
@@ -3068,8 +3071,7 @@ hdaa_audio_trace_adc(struct hdaa_devinfo *devinfo, int as, int seq, nid_t nid,
 		if ((only == 0 || only == w->nid) && (w->nid >= min) &&
 		    (onlylength == 0 || onlylength == depth)) {
 			m = w->nid;
-			if (length != NULL)
-				*length = depth;
+			*length = depth;
 		}
 		break;
 	case HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX:
@@ -3092,12 +3094,12 @@ hdaa_audio_trace_adc(struct hdaa_devinfo *devinfo, int as, int seq, nid_t nid,
 				    j, mixed, min, only, depth + 1,
 				    length, onlylength)) != 0) {
 					if (m == 0 || ret < m ||
-					    (ret == m && length != NULL &&
-					     *length < lm)) {
+					    (ret == m && *length < lm)) {
 						m = ret;
 						im = i;
 						lm = *length;
-					}
+					} else
+						*length = lm;
 					if (only)
 						break;
 				}
@@ -6203,12 +6205,14 @@ hdaa_resume(device_t dev)
 static int
 hdaa_probe(device_t dev)
 {
+	const char *pdesc;
 	char buf[128];
 
 	if (hda_get_node_type(dev) != HDA_PARAM_FCT_GRP_TYPE_NODE_TYPE_AUDIO)
 		return (ENXIO);
-	snprintf(buf, sizeof(buf), "%s Audio Function Group",
-	    device_get_desc(device_get_parent(dev)));
+	pdesc = device_get_desc(device_get_parent(dev));
+	snprintf(buf, sizeof(buf), "%.*s Audio Function Group",
+	    (int)(strlen(pdesc) - 10), pdesc);
 	device_set_desc_copy(dev, buf);
 	return (BUS_PROBE_DEFAULT);
 }
@@ -6565,6 +6569,7 @@ hdaa_pcm_probe(device_t dev)
 	struct hdaa_pcm_devinfo *pdevinfo =
 	    (struct hdaa_pcm_devinfo *)device_get_ivars(dev);
 	struct hdaa_devinfo *devinfo = pdevinfo->devinfo;
+	const char *pdesc;
 	char chans1[8], chans2[8];
 	char buf[128];
 	int loc1, loc2, t1, t2;
@@ -6610,8 +6615,9 @@ hdaa_pcm_probe(device_t dev)
 		t1 = -2;
 	if (pdevinfo->digital)
 		t1 = -2;
-	snprintf(buf, sizeof(buf), "%s PCM (%s%s%s%s%s%s%s%s%s)",
-	    device_get_desc(device_get_parent(device_get_parent(dev))),
+	pdesc = device_get_desc(device_get_parent(dev));
+	snprintf(buf, sizeof(buf), "%.*s (%s%s%s%s%s%s%s%s%s)",
+	    (int)(strlen(pdesc) - 21), pdesc,
 	    loc1 >= 0 ? HDA_LOCS[loc1] : "", loc1 >= 0 ? " " : "",
 	    (pdevinfo->digital == 0x7)?"HDMI/DP":
 	    ((pdevinfo->digital == 0x5)?"DisplayPort":

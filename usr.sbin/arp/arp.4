@@ -113,13 +113,13 @@ MIB variable
 .Va net.link.ether.inet.proxyall
 to 1.
 .Sh MIB Variables
-The ARP protocol implements a number of configrable variables in
+The ARP protocol implements a number of configurable variables in
 .Va net.link.ether.inet
 branch
 of the
 .Xr sysctl 3
 MIB.
-.Bl -tag
+.Bl -tag -width "useloopback"
 .It Va max_age
 How long an ARP entry is held in the cache until it needs to be refreshed.
 .It Va maxtries

@@ -6,8 +6,6 @@
 
 KMOD=	 xfs
 
-WERROR=
-
 SRCS =  vnode_if.h \
 	xfs_alloc.c \
 	xfs_alloc_btree.c \
@@ -86,5 +84,12 @@ CFLAGS+= -I${.CURDIR}/../../gnu/fs/xfs/FreeBSD \
 	 -I${.CURDIR}/../../gnu/fs/xfs/FreeBSD/support \
 	 -I${.CURDIR}/../../gnu/fs/xfs
 
+CWARNFLAGS.xfs_alloc.c=		${NO_WSOMETIMES_UNINITIALIZED}
+CWARNFLAGS.xfs_dir2.c=		${NO_WARRAY_BOUNDS}
+CWARNFLAGS.xfs_dir2_block.c=	${NO_WARRAY_BOUNDS}
+CWARNFLAGS.xfs_dir2_sf.c=	${NO_WARRAY_BOUNDS}
 CWARNFLAGS.xfs_ioctl.c=		${NO_WSELF_ASSIGN}
+CWARNFLAGS.xfs_stats.c=		${NO_WFORMAT_SECURITY}
+CWARNFLAGS.xfs_super.c=		${NO_WFORMAT_SECURITY}
+CWARNFLAGS.xfs_vfsops.c=	${NO_WFORMAT_SECURITY}
 CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}

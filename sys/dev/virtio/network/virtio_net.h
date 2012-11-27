@@ -31,8 +31,6 @@
 #ifndef _VIRTIO_NET_H
 #define _VIRTIO_NET_H
 
-#include <sys/types.h>
-
 /* The feature bitmap for virtio net */
 #define VIRTIO_NET_F_CSUM	0x00001 /* Host handles pkts w/ partial csum */
 #define VIRTIO_NET_F_GUEST_CSUM 0x00002 /* Guest handles pkts w/ partial csum*/

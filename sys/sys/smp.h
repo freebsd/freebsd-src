@@ -75,6 +75,7 @@ extern int smp_active;
 extern int smp_cpus;
 extern volatile cpuset_t started_cpus;
 extern volatile cpuset_t stopped_cpus;
+extern volatile cpuset_t suspended_cpus;
 extern cpuset_t hlt_cpus_mask;
 extern cpuset_t logical_cpus_mask;
 #endif /* SMP */
@@ -163,7 +164,7 @@ void	forward_signal(struct thread *);
 int	restart_cpus(cpuset_t);
 int	stop_cpus(cpuset_t);
 int	stop_cpus_hard(cpuset_t);
-#if defined(__amd64__)
+#if defined(__amd64__) || defined(__i386__)
 int	suspend_cpus(cpuset_t);
 #endif
 void	smp_rendezvous_action(void);

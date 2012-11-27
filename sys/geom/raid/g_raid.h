@@ -278,7 +278,13 @@ struct g_raid_volume {
 	u_int			 v_raid_level;	/* Array RAID level. */
 	u_int			 v_raid_level_qualifier; /* RAID level det. */
 	u_int			 v_disks_count;	/* Number of disks in array. */
+	u_int			 v_mdf_pdisks;	/* Number of parity disks
+						   in RAIDMDF array. */
+	uint16_t		 v_mdf_polynomial; /* Polynomial for RAIDMDF. */
+	uint8_t			 v_mdf_method;	/* Generation method for RAIDMDF. */
 	u_int			 v_strip_size;	/* Array strip size. */
+	u_int			 v_rotate_parity; /* Rotate RAID5R parity
+						   after numer of stripes. */
 	u_int			 v_sectorsize;	/* Volume sector size. */
 	off_t			 v_mediasize;	/* Volume media size.  */
 	struct bio_queue_head	 v_inflight;	/* In-flight write requests. */

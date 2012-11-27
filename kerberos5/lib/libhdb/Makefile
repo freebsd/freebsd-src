@@ -48,8 +48,6 @@ SRCS=	common.c \
 	hdb-sqlite.c \
 	hdb-keytab.c \
 	hdb-mitdb.c \
-	hdb_locl.h \
-	hdb-private.h \
 	keys.c \
 	keytab.c \
 	mkey.c \
@@ -85,8 +83,6 @@ GEN=	asn1_Salt.x \
 
 CLEANFILES=	${GEN} ${GEN:S/.x$/.c/:S/.hx$/.h/} hdb_asn1_files \
 		hdb_asn1-template.[ch]*
-
-ASN1_COMPILE=	asn1_compile
 
 ${GEN}: hdb.asn1
 	${ASN1_COMPILE} ${.ALLSRC:M*.asn1} hdb_asn1

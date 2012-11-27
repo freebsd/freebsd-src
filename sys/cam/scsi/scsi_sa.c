@@ -1482,10 +1482,6 @@ saregister(struct cam_periph *periph, void *arg)
 		softc->quirks = ((struct sa_quirk_entry *)match)->quirks;
 		softc->last_media_blksize =
 		    ((struct sa_quirk_entry *)match)->prefblk;
-#ifdef	CAMDEBUG
-		xpt_print(periph->path, "found quirk entry %d\n",
-		    (int) (((struct sa_quirk_entry *) match) - sa_quirk_table));
-#endif
 	} else
 		softc->quirks = SA_QUIRK_NONE;
 
@@ -1798,13 +1794,11 @@ sadone(struct cam_periph *periph, union ccb *done_ccb)
 		 */
 		if (error || (softc->flags & SA_FLAG_ERR_PENDING))
 			cam_release_devq(done_ccb->ccb_h.path, 0, 0, 0, 0);
-#ifdef	CAMDEBUG
 		if (error || bp->bio_resid) {
 			CAM_DEBUG(periph->path, CAM_DEBUG_INFO,
 			    	  ("error %d resid %ld count %ld\n", error,
 				  bp->bio_resid, bp->bio_bcount));
 		}
-#endif
 		biofinish(bp, softc->device_stats, 0);
 		break;
 	}

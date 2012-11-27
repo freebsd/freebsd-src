@@ -298,7 +298,7 @@ init_zone_var(void)
 	V_pf_altq_pl = V_pf_pooladdr_pl = NULL;
 	V_pf_frent_pl = V_pf_frag_pl = V_pf_cache_pl = V_pf_cent_pl = NULL;
 	V_pf_state_scrub_pl = NULL;
-	V_pfr_ktable_pl = V_pfr_kentry_pl = NULL;
+	V_pfr_ktable_pl = V_pfr_kentry_pl = V_pfr_kcounters_pl = NULL;
 }
 
 void
@@ -317,6 +317,7 @@ cleanup_pf_zone(void)
 	UMA_DESTROY(V_pf_cent_pl);
 	UMA_DESTROY(V_pfr_ktable_pl);
 	UMA_DESTROY(V_pfr_kentry_pl);
+	UMA_DESTROY(V_pfr_kcounters_pl);
 	UMA_DESTROY(V_pf_state_scrub_pl);
 	UMA_DESTROY(V_pfi_addr_pl);
 }
@@ -337,6 +338,7 @@ pfattach(void)
 		UMA_CREATE(V_pf_pooladdr_pl,	struct pf_pooladdr, "pfpooladdrpl");
 		UMA_CREATE(V_pfr_ktable_pl,	struct pfr_ktable, "pfrktable");
 		UMA_CREATE(V_pfr_kentry_pl,	struct pfr_kentry, "pfrkentry");
+		UMA_CREATE(V_pfr_kcounters_pl,	struct pfr_kcounters, "pfrkcounters");
 		UMA_CREATE(V_pf_frent_pl,	struct pf_frent, "pffrent");
 		UMA_CREATE(V_pf_frag_pl,	struct pf_fragment, "pffrag");
 		UMA_CREATE(V_pf_cache_pl,	struct pf_fragment, "pffrcache");

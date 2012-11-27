@@ -1,0 +1,32 @@
+The following is a demonstration of the vmbypid.d command,
+
+   # vmbypid.d 
+   Tracing... Hit Ctrl-C to end.
+   ^C
+               EXEC      PID                     VM    VALUE
+               find    19216             prot_fault        1
+               bash    19216                   zfod        1
+             dtrace    19215                 pgfrec        3
+             dtrace    19215                  pgrec        3
+               bash    19216                 pgfrec        5
+               bash    19216                  pgrec        5
+               find    19216              cow_fault        6
+               find    19216                 pgfrec        6
+               find    19216                  pgrec        6
+               bash    19216             prot_fault       10
+               bash    19216              cow_fault       15
+               bash    19155             prot_fault       30
+             dtrace    19215                   zfod       52
+               find    19216                   zfod       54
+             dtrace    19215               as_fault       56
+               bash    19216               as_fault       74
+               find    19216               as_fault       91
+               find    19216                 fspgin      315
+               find    19216                   pgin      315
+               find    19216                 pgpgin      315
+               find    19216              maj_fault      315
+
+In the above output, the find command at PID 19211 triggered 315 maj_faults -
+major faults, that would require disk activity to satisfy (as confirmed by the
+pgpgin value for pages paged in).
+

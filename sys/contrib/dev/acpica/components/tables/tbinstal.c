@@ -157,8 +157,9 @@ AcpiTbAddTable (
        (!ACPI_COMPARE_NAME (TableDesc->Pointer->Signature, ACPI_SIG_SSDT)) &&
        (ACPI_STRNCMP (TableDesc->Pointer->Signature, "OEM", 3)))
     {
-        ACPI_ERROR ((AE_INFO,
-            "Table has invalid signature [%4.4s] (0x%8.8X), must be SSDT or OEMx",
+        ACPI_BIOS_ERROR ((AE_INFO,
+            "Table has invalid signature [%4.4s] (0x%8.8X), "
+            "must be SSDT or OEMx",
             AcpiUtValidAcpiName (*(UINT32 *) TableDesc->Pointer->Signature) ?
                 TableDesc->Pointer->Signature : "????",
             *(UINT32 *) TableDesc->Pointer->Signature));

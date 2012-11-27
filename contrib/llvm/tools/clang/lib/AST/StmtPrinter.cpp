@@ -12,6 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/StmtVisitor.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
@@ -29,17 +30,15 @@ using namespace clang;
 namespace  {
   class StmtPrinter : public StmtVisitor<StmtPrinter> {
     raw_ostream &OS;
-    ASTContext &Context;
     unsigned IndentLevel;
     clang::PrinterHelper* Helper;
     PrintingPolicy Policy;
 
   public:
-    StmtPrinter(raw_ostream &os, ASTContext &C, PrinterHelper* helper,
+    StmtPrinter(raw_ostream &os, PrinterHelper* helper,
                 const PrintingPolicy &Policy,
                 unsigned Indentation = 0)
-      : OS(os), Context(C), IndentLevel(Indentation), Helper(helper),
-        Policy(Policy) {}
+      : OS(os), IndentLevel(Indentation), Helper(helper), Policy(Policy) {}
 
     void PrintStmt(Stmt *S) {
       PrintStmt(S, Policy.Indentation);
@@ -172,15 +171,15 @@ void StmtPrinter::VisitLabelStmt(LabelStmt *Node) {
 void StmtPrinter::VisitAttributedStmt(AttributedStmt *Node) {
   OS << "[[";
   bool first = true;
-  for (AttrVec::const_iterator it = Node->getAttrs().begin(),
-                               end = Node->getAttrs().end();
-                               it != end; ++it) {
+  for (ArrayRef<const Attr*>::iterator it = Node->getAttrs().begin(),
+                                       end = Node->getAttrs().end();
+                                       it != end; ++it) {
     if (!first) {
       OS << ", ";
       first = false;
     }
     // TODO: check this
-    (*it)->printPretty(OS, Context);
+    (*it)->printPretty(OS, Policy);
   }
   OS << "]] ";
   PrintStmt(Node->getSubStmt(), 0);
@@ -429,6 +428,16 @@ void StmtPrinter::VisitAsmStmt(AsmStmt *Node) {
   OS << ");\n";
 }
 
+void StmtPrinter::VisitMSAsmStmt(MSAsmStmt *Node) {
+  // FIXME: Implement MS style inline asm statement printer.
+  Indent() << "__asm ";
+  if (Node->hasBraces())
+    OS << "{\n";
+  OS << *(Node->getAsmString()) << "\n";
+  if (Node->hasBraces())
+    Indent() << "}\n";
+}
+
 void StmtPrinter::VisitObjCAtTryStmt(ObjCAtTryStmt *Node) {
   Indent() << "@try";
   if (CompoundStmt *TS = dyn_cast<CompoundStmt>(Node->getTryBody())) {
@@ -638,6 +647,9 @@ void StmtPrinter::VisitPredefinedExpr(PredefinedExpr *Node) {
     case PredefinedExpr::Function:
       OS << "__FUNCTION__";
       break;
+    case PredefinedExpr::LFunction:
+      OS << "L__FUNCTION__";
+      break;
     case PredefinedExpr::PrettyFunction:
       OS << "__PRETTY_FUNCTION__";
       break;
@@ -734,93 +746,7 @@ void StmtPrinter::VisitImaginaryLiteral(ImaginaryLiteral *Node) {
 }
 
 void StmtPrinter::VisitStringLiteral(StringLiteral *Str) {
-  switch (Str->getKind()) {
-  case StringLiteral::Ascii: break; // no prefix.
-  case StringLiteral::Wide:  OS << 'L'; break;
-  case StringLiteral::UTF8:  OS << "u8"; break;
-  case StringLiteral::UTF16: OS << 'u'; break;
-  case StringLiteral::UTF32: OS << 'U'; break;
-  }
-  OS << '"';
-  static char Hex[] = "0123456789ABCDEF";
-
-  unsigned LastSlashX = Str->getLength();
-  for (unsigned I = 0, N = Str->getLength(); I != N; ++I) {
-    switch (uint32_t Char = Str->getCodeUnit(I)) {
-    default:
-      // FIXME: Convert UTF-8 back to codepoints before rendering.
-
-      // Convert UTF-16 surrogate pairs back to codepoints before rendering.
-      // Leave invalid surrogates alone; we'll use \x for those.
-      if (Str->getKind() == StringLiteral::UTF16 && I != N - 1 &&
-          Char >= 0xd800 && Char <= 0xdbff) {
-        uint32_t Trail = Str->getCodeUnit(I + 1);
-        if (Trail >= 0xdc00 && Trail <= 0xdfff) {
-          Char = 0x10000 + ((Char - 0xd800) << 10) + (Trail - 0xdc00);
-          ++I;
-        }
-      }
-
-      if (Char > 0xff) {
-        // If this is a wide string, output characters over 0xff using \x
-        // escapes. Otherwise, this is a UTF-16 or UTF-32 string, and Char is a
-        // codepoint: use \x escapes for invalid codepoints.
-        if (Str->getKind() == StringLiteral::Wide ||
-            (Char >= 0xd800 && Char <= 0xdfff) || Char >= 0x110000) {
-          // FIXME: Is this the best way to print wchar_t?
-          OS << "\\x";
-          int Shift = 28;
-          while ((Char >> Shift) == 0)
-            Shift -= 4;
-          for (/**/; Shift >= 0; Shift -= 4)
-            OS << Hex[(Char >> Shift) & 15];
-          LastSlashX = I;
-          break;
-        }
-
-        if (Char > 0xffff)
-          OS << "\\U00"
-             << Hex[(Char >> 20) & 15]
-             << Hex[(Char >> 16) & 15];
-        else
-          OS << "\\u";
-        OS << Hex[(Char >> 12) & 15]
-           << Hex[(Char >>  8) & 15]
-           << Hex[(Char >>  4) & 15]
-           << Hex[(Char >>  0) & 15];
-        break;
-      }
-
-      // If we used \x... for the previous character, and this character is a
-      // hexadecimal digit, prevent it being slurped as part of the \x.
-      if (LastSlashX + 1 == I) {
-        switch (Char) {
-          case '0': case '1': case '2': case '3': case '4':
-          case '5': case '6': case '7': case '8': case '9':
-          case 'a': case 'b': case 'c': case 'd': case 'e': case 'f':
-          case 'A': case 'B': case 'C': case 'D': case 'E': case 'F':
-            OS << "\"\"";
-        }
-      }
-
-      if (Char <= 0xff && isprint(Char))
-        OS << (char)Char;
-      else  // Output anything hard as an octal escape.
-        OS << '\\'
-           << (char)('0' + ((Char >> 6) & 7))
-           << (char)('0' + ((Char >> 3) & 7))
-           << (char)('0' + ((Char >> 0) & 7));
-      break;
-    // Handle some common non-printable cases to make dumps prettier.
-    case '\\': OS << "\\\\"; break;
-    case '"': OS << "\\\""; break;
-    case '\n': OS << "\\n"; break;
-    case '\t': OS << "\\t"; break;
-    case '\a': OS << "\\a"; break;
-    case '\b': OS << "\\b"; break;
-    }
-  }
-  OS << '"';
+  Str->outputString(OS);
 }
 void StmtPrinter::VisitParenExpr(ParenExpr *Node) {
   OS << "(";
@@ -892,7 +818,12 @@ void StmtPrinter::VisitUnaryExprOrTypeTraitExpr(UnaryExprOrTypeTraitExpr *Node){
     OS << "sizeof";
     break;
   case UETT_AlignOf:
-    OS << "__alignof";
+    if (Policy.LangOpts.CPlusPlus)
+      OS << "alignof";
+    else if (Policy.LangOpts.C11)
+      OS << "_Alignof";
+    else
+      OS << "__alignof";
     break;
   case UETT_VecStep:
     OS << "vec_step";
@@ -1275,7 +1206,7 @@ void StmtPrinter::VisitUserDefinedLiteral(UserDefinedLiteral *Node) {
     const TemplateArgument &Pack = Args->get(0);
     for (TemplateArgument::pack_iterator I = Pack.pack_begin(),
                                          E = Pack.pack_end(); I != E; ++I) {
-      char C = (char)I->getAsIntegral()->getZExtValue();
+      char C = (char)I->getAsIntegral().getZExtValue();
       OS << C;
     }
     break;
@@ -1462,7 +1393,7 @@ void StmtPrinter::VisitCXXNewExpr(CXXNewExpr *E) {
   std::string TypeS;
   if (Expr *Size = E->getArraySize()) {
     llvm::raw_string_ostream s(TypeS);
-    Size->printPretty(s, Context, Helper, Policy);
+    Size->printPretty(s, Helper, Policy);
     s.flush();
     TypeS = "[" + TypeS + "]";
   }
@@ -1727,9 +1658,9 @@ void StmtPrinter::VisitObjCStringLiteral(ObjCStringLiteral *Node) {
   VisitStringLiteral(Node->getString());
 }
 
-void StmtPrinter::VisitObjCNumericLiteral(ObjCNumericLiteral *E) {
+void StmtPrinter::VisitObjCBoxedExpr(ObjCBoxedExpr *E) {
   OS << "@";
-  Visit(E->getNumber());
+  Visit(E->getSubExpr());
 }
 
 void StmtPrinter::VisitObjCArrayLiteral(ObjCArrayLiteral *E) {
@@ -1871,13 +1802,12 @@ void StmtPrinter::VisitAsTypeExpr(AsTypeExpr *Node) {
 // Stmt method implementations
 //===----------------------------------------------------------------------===//
 
-void Stmt::dumpPretty(ASTContext& Context) const {
-  printPretty(llvm::errs(), Context, 0,
-              PrintingPolicy(Context.getLangOpts()));
+void Stmt::dumpPretty(ASTContext &Context) const {
+  printPretty(llvm::errs(), 0, PrintingPolicy(Context.getLangOpts()));
 }
 
-void Stmt::printPretty(raw_ostream &OS, ASTContext& Context,
-                       PrinterHelper* Helper,
+void Stmt::printPretty(raw_ostream &OS,
+                       PrinterHelper *Helper,
                        const PrintingPolicy &Policy,
                        unsigned Indentation) const {
   if (this == 0) {
@@ -1885,12 +1815,12 @@ void Stmt::printPretty(raw_ostream &OS, ASTContext& Context,
     return;
   }
 
-  if (Policy.Dump && &Context) {
-    dump(OS, Context.getSourceManager());
+  if (Policy.DumpSourceManager) {
+    dump(OS, *Policy.DumpSourceManager);
     return;
   }
 
-  StmtPrinter P(OS, Context, Helper, Policy, Indentation);
+  StmtPrinter P(OS, Helper, Policy, Indentation);
   P.Visit(const_cast<Stmt*>(this));
 }
 

@@ -16,6 +16,7 @@
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/Scope.h"
 #include "clang/AST/DeclTemplate.h"
+#include "RAIIObjectsForParser.h"
 using namespace clang;
 
 /// ParseCXXInlineMethodDef - We parsed and verified that the specified
@@ -45,7 +46,7 @@ Decl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS,
   else {
     FnD = Actions.ActOnCXXMemberDeclarator(getCurScope(), AS, D,
                                            move(TemplateParams), 0, 
-                                           VS, /*HasDeferredInit=*/false);
+                                           VS, ICIS_NoInit);
     if (FnD) {
       Actions.ProcessDeclAttributeList(getCurScope(), FnD, AccessAttrs,
                                        false, true);
@@ -108,6 +109,7 @@ Decl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS,
   // or if we are about to parse function member template then consume
   // the tokens and store them for parsing at the end of the translation unit.
   if (getLangOpts().DelayedTemplateParsing && 
+      DefinitionKind == FDK_Definition && 
       ((Actions.CurContext->isDependentContext() ||
         TemplateInfo.Kind != ParsedTemplateInfo::NonTemplate) && 
         !Actions.IsInsideALocalClassWithinATemplateFunction())) {
@@ -348,77 +350,7 @@ void Parser::ParseLexedMethodDeclaration(LateParsedMethodDeclaration &LM) {
       LM.DefaultArgs[I].Toks = 0;
     }
   }
-  
-  // Parse a delayed exception-specification, if there is one.
-  if (CachedTokens *Toks = LM.ExceptionSpecTokens) {
-    // Save the current token position.
-    SourceLocation origLoc = Tok.getLocation();
-    
-    // Parse the default argument from its saved token stream.
-    Toks->push_back(Tok); // So that the current token doesn't get lost
-    PP.EnterTokenStream(&Toks->front(), Toks->size(), true, false);
-    
-    // Consume the previously-pushed token.
-    ConsumeAnyToken();
-    
-    // C++11 [expr.prim.general]p3:
-    //   If a declaration declares a member function or member function 
-    //   template of a class X, the expression this is a prvalue of type 
-    //   "pointer to cv-qualifier-seq X" between the optional cv-qualifer-seq
-    //   and the end of the function-definition, member-declarator, or 
-    //   declarator.
-    CXXMethodDecl *Method;
-    if (FunctionTemplateDecl *FunTmpl
-          = dyn_cast<FunctionTemplateDecl>(LM.Method))
-      Method = cast<CXXMethodDecl>(FunTmpl->getTemplatedDecl());
-    else
-      Method = cast<CXXMethodDecl>(LM.Method);
-    
-    Sema::CXXThisScopeRAII ThisScope(Actions, Method->getParent(),
-                                     Method->getTypeQualifiers(),
-                                     getLangOpts().CPlusPlus0x);
 
-    // Parse the exception-specification.
-    SourceRange SpecificationRange;
-    SmallVector<ParsedType, 4> DynamicExceptions;
-    SmallVector<SourceRange, 4> DynamicExceptionRanges;
-    ExprResult NoexceptExpr;
-    CachedTokens *ExceptionSpecTokens;
-    
-    ExceptionSpecificationType EST
-      = tryParseExceptionSpecification(/*Delayed=*/false, SpecificationRange,
-                                       DynamicExceptions,
-                                       DynamicExceptionRanges, NoexceptExpr,
-                                       ExceptionSpecTokens);
-
-    // Clean up the remaining tokens.
-    if (Tok.is(tok::cxx_exceptspec_end))
-      ConsumeToken();
-    else if (EST != EST_None)
-      Diag(Tok.getLocation(), diag::err_except_spec_unparsed);
-
-    // Attach the exception-specification to the method.
-    if (EST != EST_None)
-      Actions.actOnDelayedExceptionSpecification(LM.Method, EST,
-                                                 SpecificationRange,
-                                                 DynamicExceptions,
-                                                 DynamicExceptionRanges,
-                                                 NoexceptExpr.isUsable()?
-                                                   NoexceptExpr.get() : 0);
-          
-    assert(!PP.getSourceManager().isBeforeInTranslationUnit(origLoc,
-                                                            Tok.getLocation()) &&
-           "tryParseExceptionSpecification went over the exception tokens!");
-        
-    // There could be leftover tokens (e.g. because of an error).
-    // Skip through until we reach the original token position.
-    while (Tok.getLocation() != origLoc && Tok.isNot(tok::eof))
-      ConsumeAnyToken();
-    
-    delete LM.ExceptionSpecTokens;
-    LM.ExceptionSpecTokens = 0;    
-  }
-  
   PrototypeScope.Exit();
 
   // Finish the delayed C++ method declaration.
@@ -528,7 +460,7 @@ void Parser::ParseLexedMemberInitializers(ParsingClass &Class) {
     Actions.ActOnStartDelayedMemberDeclarations(getCurScope(),
                                                 Class.TagOrTemplate);
 
-  {
+  if (!Class.LateParsedDeclarations.empty()) {
     // C++11 [expr.prim.general]p4:
     //   Otherwise, if a member-declarator declares a non-static data member 
     //  (9.2) of a class X, the expression this is a prvalue of type "pointer
@@ -562,7 +494,7 @@ void Parser::ParseLexedMemberInitializer(LateParsedMemberInitializer &MI) {
   ConsumeAnyToken();
 
   SourceLocation EqualLoc;
-    
+
   ExprResult Init = ParseCXXMemberInitializer(MI.Field, /*IsFunction=*/false, 
                                               EqualLoc);
 

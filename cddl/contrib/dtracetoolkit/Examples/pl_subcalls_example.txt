@@ -1,0 +1,53 @@
+The following are examples of pl_subcalls.d.
+
+This is a simple script to count executed Perl subroutines. Here it traces
+an example program, Code/Perl/func_abc.pl.
+
+   # pl_subcalls.d 
+   Tracing... Hit Ctrl-C to end.
+   ^C
+    FILE                             SUB                                 CALLS
+    func_abc.pl                      func_a                                  1
+    func_abc.pl                      func_b                                  1
+    func_abc.pl                      func_c                                  1
+
+While tracing, func_a() from the program "func_abc.pl" was executed once,
+along with func_b() and func_c().
+
+
+
+The following traces a Perl network interface statistics tool, "nicstat"
+version 0.99,
+
+   # pl_subcalls.d
+   Tracing... Hit Ctrl-C to end.
+   ^C
+    FILE                             SUB                                 CALLS
+    Config.pm                        DESTROY                                 1
+    Config.pm                        TIEHASH                                 1
+    Config.pm                        import                                  1
+    DynaLoader.pm                    bootstrap                               1
+    DynaLoader.pm                    dl_load_flags                           1
+    Std.pm                           getopts                                 1
+    nicstat                          fetch_net_data                          1
+    nicstat                          find_nets                               1
+    register.pm                      import                                  1
+    warnings.pm                      BEGIN                                   1
+    Config.pm                        BEGIN                                   2
+    DynaLoader.pm                    BEGIN                                   2
+    Exporter.pm                      import                                  2
+    register.pm                      mkMask                                  2
+    vars.pm                          import                                  2
+    Kstat.pm                         BEGIN                                   3
+    nicstat                          BEGIN                                   3
+    vars.pm                          BEGIN                                   3
+    Config.pm                        FETCH                                   4
+    strict.pm                        unimport                                4
+    strict.pm                        import                                  5
+    AutoLoader.pm                    BEGIN                                   6
+    strict.pm                        bits                                    6
+    nicstat                          print_neat                             18
+
+The number of subroutines called by nicstat can be seen above, which includes
+subroutines from libraries and modules that the program used.
+

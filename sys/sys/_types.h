@@ -80,14 +80,13 @@ typedef int		__cpusetid_t;	/* cpuset identifier. */
  * ANSI C), but they use __ct_rune_t instead of int.
  *
  * NOTE: rune_t is not covered by ANSI nor other standards, and should not
- * be instantiated outside of lib/libc/locale.  Use wchar_t.  wchar_t and
- * rune_t must be the same type.  Also, wint_t must be no narrower than
- * wchar_t, and should be able to hold all members of the largest
- * character set plus one extra value (WEOF), and must be at least 16 bits.
+ * be instantiated outside of lib/libc/locale.  Use wchar_t.  wint_t and
+ * rune_t must be the same type.  Also, wint_t should be able to hold all
+ * members of the largest character set plus one extra value (WEOF), and
+ * must be at least 16 bits.
  */
 typedef	int		__ct_rune_t;	/* arg type for ctype funcs */
 typedef	__ct_rune_t	__rune_t;	/* rune_t (see above) */
-typedef	__ct_rune_t	__wchar_t;	/* wchar_t (see above) */
 typedef	__ct_rune_t	__wint_t;	/* wint_t (see above) */
 
 typedef	__uint32_t	__dev_t;	/* device number */

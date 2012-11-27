@@ -464,6 +464,12 @@ setup_disk_slice()
       # Found our flag to commit this disk setup / lets do sanity check and do it
       if [ ! -z "${DISK}" -a ! -z "${PTYPE}" ]
       then
+	# Make sure we are only installing ppc to full disk
+	if [ `uname -m` = "powerpc" -o `uname -m` = "powerpc64" ]; then
+	  if [ "$PTYPE" != "all" ] ; then
+	    exit_err "powerpc can only be installed to a full disk"
+	  fi
+	fi
 
         case ${PTYPE} in
           all)
@@ -487,6 +493,12 @@ setup_disk_slice()
             else
               tmpSLICE="${DISK}p1"  
             fi
+
+	    if [ `uname -m` = "powerpc" -o `uname -m` = "powerpc64" ]
+	    then
+              PSCHEME="APM"
+              tmpSLICE="${DISK}s1"  
+	    fi
 
             run_gpart_full "${DISK}" "${BMANAGER}" "${PSCHEME}"
             ;;
@@ -597,6 +609,30 @@ clear_backup_gpt_table()
   rc_nohalt "dd if=/dev/zero of=${1} bs=1m oseek=`diskinfo ${1} | awk '{print int($3 / (1024*1024)) - 4;}'`"
 } ;
 
+# Function which runs gpart and creates a single large APM partition scheme
+init_apm_full_disk()
+{
+  _intDISK=$1
+ 
+  # Set our sysctl so we can overwrite any geom using drives
+  sysctl kern.geom.debugflags=16 >>${LOGOUT} 2>>${LOGOUT}
+
+  # Stop any journaling
+  stop_gjournal "${_intDISK}"
+
+  # Remove any existing partitions
+  delete_all_gpart "${_intDISK}"
+
+  sleep 2
+
+  echo_log "Running gpart on ${_intDISK}"
+  rc_halt "gpart create -s APM ${_intDISK}"
+  rc_halt "gpart add -s 800k -t freebsd-boot ${_intDISK}"
+  
+  echo_log "Stamping boot sector on ${_intDISK}"
+  rc_halt "gpart bootcode -p /boot/boot1.hfs -i 1 ${_intDISK}"
+
+}
 
 # Function which runs gpart and creates a single large GPT partition scheme
 init_gpt_full_disk()
@@ -653,6 +689,9 @@ init_mbr_full_disk()
   echo_log "Cleaning up ${_intDISK}s1"
   rc_halt "dd if=/dev/zero of=${_intDISK}s1 count=1024"
   
+  # Make the partition active
+  rc_halt "gpart set -a active -i 1 ${_intDISK}"
+
   if [ "$_intBOOT" = "bsd" ] ; then
     echo_log "Stamping boot0 on ${_intDISK}"
     rc_halt "gpart bootcode -b /boot/boot0 ${_intDISK}"
@@ -670,7 +709,10 @@ run_gpart_full()
   BOOT=$2
   SCHEME=$3
 
-  if [ "$SCHEME" = "MBR" ] ; then
+  if [ "$SCHEME" = "APM" ] ; then
+    init_apm_full_disk "$DISK"
+    slice=`echo "${DISK}:1:apm" | sed 's|/|-|g'`
+  elif [ "$SCHEME" = "MBR" ] ; then
     init_mbr_full_disk "$DISK" "$BOOT"
     slice=`echo "${DISK}:1:mbr" | sed 's|/|-|g'`
   else
@@ -726,6 +768,10 @@ run_gpart_gpt_part()
 
   # Init the MBR partition
   rc_halt "gpart create -s BSD ${DISK}p${slicenum}"
+
+  # Stamp the bootloader
+  sleep 4
+  rc_halt "gpart bootcode -b /boot/boot ${DISK}p${slicenum}"
 
   # Set the slice to the format we'll be using for gpart later
   slice=`echo "${1}:${3}:gptslice" | sed 's|/|-|g'`

@@ -242,7 +242,7 @@ char *
 clnt_spcreateerror(s)
 	const char *s;
 {
-	char *str;
+	char *str, *err;
 	size_t len, i;
 
 	assert(s != NULL);
@@ -258,8 +258,21 @@ clnt_spcreateerror(s)
 	switch (rpc_createerr.cf_stat) {
 	case RPC_PMAPFAILURE:
 		(void) strncat(str, " - ", len - 1);
-		(void) strncat(str,
-		    clnt_sperrno(rpc_createerr.cf_error.re_status), len - 4);
+		 err = clnt_sperrno(rpc_createerr.cf_error.re_status);
+		if (err)
+			(void) strncat(str, err+5, len-5);
+		switch(rpc_createerr.cf_error.re_status) {
+		case RPC_CANTSEND:
+		case RPC_CANTRECV:
+			i = strlen(str);
+			len -= i;
+			snprintf(str+i, len, ": errno %d (%s)", 
+				rpc_createerr.cf_error.re_errno,
+				strerror(rpc_createerr.cf_error.re_errno)); 
+			break;
+		default:
+			break;
+		}
 		break;
 
 	case RPC_SYSTEMERROR:

@@ -290,7 +290,7 @@ static device_method_t fxp_methods[] = {
 	DEVMETHOD(miibus_writereg,	fxp_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	fxp_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t fxp_driver = {
@@ -301,8 +301,9 @@ static driver_t fxp_driver = {
 
 static devclass_t fxp_devclass;
 
-DRIVER_MODULE(fxp, pci, fxp_driver, fxp_devclass, 0, 0);
-DRIVER_MODULE(miibus, fxp, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE_ORDERED(fxp, pci, fxp_driver, fxp_devclass, NULL, NULL,
+    SI_ORDER_ANY);
+DRIVER_MODULE(miibus, fxp, miibus_driver, miibus_devclass, NULL, NULL);
 
 static struct resource_spec fxp_res_spec_mem[] = {
 	{ SYS_RES_MEMORY,	FXP_PCI_MMBA,	RF_ACTIVE },

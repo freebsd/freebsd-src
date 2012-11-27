@@ -517,7 +517,9 @@ static const arch_entry cpu_arch[] =
   {".sse4a", PROCESSOR_UNKNOWN,
    CpuMMX|CpuMMX2|CpuSSE|CpuSSE2|CpuSSE3|CpuSSE4a},
   {".abm", PROCESSOR_UNKNOWN,
-   CpuABM}
+   CpuABM},
+  {".xsave", PROCESSOR_UNKNOWN,
+   CpuXSAVE}
 };
 
 const pseudo_typeS md_pseudo_table[] =
@@ -3988,6 +3990,16 @@ output_insn (void)
 	      goto check_prefix;
 	    }
 	}
+      else if (i.tm.base_opcode == 0x660f3880 || i.tm.base_opcode == 0x660f3881)
+	{
+	  /* invept and invvpid are 3 byte instructions with a
+	     mandatory prefix. */
+	  if (i.tm.base_opcode & 0xff000000)
+	    {
+	      prefix = (i.tm.base_opcode >> 24) & 0xff;
+	      add_prefix (prefix);
+	    }
+	}
       else if ((i.tm.base_opcode & 0xff0000) != 0)
 	{
 	  prefix = (i.tm.base_opcode >> 16) & 0xff;
@@ -4023,6 +4035,12 @@ output_insn (void)
 	{
 	  if ((i.tm.cpu_flags & (CpuSSSE3 | CpuSSE4)) != 0
 	      && (i.tm.cpu_flags & CpuABM) == 0)
+	    {
+	      p = frag_more (3);
+	      *p++ = (i.tm.base_opcode >> 16) & 0xff;
+	    }
+	  else if (i.tm.base_opcode == 0x660f3880 ||
+		   i.tm.base_opcode == 0x660f3881)
 	    {
 	      p = frag_more (3);
 	      *p++ = (i.tm.base_opcode >> 16) & 0xff;

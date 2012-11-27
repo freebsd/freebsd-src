@@ -222,12 +222,12 @@ extern void requeue(struct cfjail *j, struct cfjails *queue);
 
 extern void yyerror(const char *);
 extern int yylex(void);
-extern int yyparse(void);
 
 extern struct cfjails cfjails;
 extern struct cfjails ready;
 extern struct cfjails depend;
 extern const char *cfname;
+extern int iflag;
 extern int note_remove;
 extern int paralimit;
 extern int verbose;

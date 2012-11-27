@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2008-2009 Semihalf, Rafal Jaworowski
+ * Copyright (c) 2008-2012 Semihalf.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -56,7 +56,8 @@ __FBSDID("$FreeBSD$");
 #ifdef SMP
 extern void *ap_pcpu;
 extern uint8_t __boot_page[];		/* Boot page body */
-extern uint32_t kernload_ap;		/* Kernel physical load address */
+extern uint32_t bp_kernload;		/* Kernel physical load address */
+extern uint32_t bp_trace;		/* AP boot trace field */
 #endif
 
 extern uint32_t *bootinfo;
@@ -72,10 +73,10 @@ static int bare_smp_next_cpu(platform_t, struct cpuref *cpuref);
 static int bare_smp_get_bsp(platform_t, struct cpuref *cpuref);
 static int bare_smp_start_cpu(platform_t, struct pcpu *cpu);
 
-static void e500_reset(platform_t);
+static void booke_reset(platform_t);
 
 static platform_method_t bare_methods[] = {
-	PLATFORMMETHOD(platform_probe, 		bare_probe),
+	PLATFORMMETHOD(platform_probe,		bare_probe),
 	PLATFORMMETHOD(platform_mem_regions,	bare_mem_regions),
 	PLATFORMMETHOD(platform_timebase_freq,	bare_timebase_freq),
 
@@ -84,7 +85,7 @@ static platform_method_t bare_methods[] = {
 	PLATFORMMETHOD(platform_smp_get_bsp,	bare_smp_get_bsp),
 	PLATFORMMETHOD(platform_smp_start_cpu,	bare_smp_start_cpu),
 
-	PLATFORMMETHOD(platform_reset,		e500_reset),
+	PLATFORMMETHOD(platform_reset,		booke_reset),
 
 	{ 0, 0 }
 };
@@ -100,26 +101,16 @@ PLATFORM_DEF(bare_platform);
 static int
 bare_probe(platform_t plat)
 {
-	uint32_t ver, sr;
+	phandle_t cpus, child;
+	uint32_t sr;
 	int i, law_max, tgt;
 
-	ver = SVR_VER(mfspr(SPR_SVR));
-	switch (ver & ~0x0008) {	/* Mask Security Enabled bit */
-	case SVR_P4080:
-		maxcpu = 8;
-		break;
-	case SVR_P4040:
-		maxcpu = 4;
-		break;
-	case SVR_MPC8572:
-	case SVR_P1020:
-	case SVR_P2020:
-		maxcpu = 2;
-		break;
-	default:
+	if ((cpus = OF_finddevice("/cpus")) != 0) {
+		for (maxcpu = 0, child = OF_child(cpus); child != 0;
+		    child = OF_peer(child), maxcpu++)
+			;
+	} else
 		maxcpu = 1;
-		break;
-	}
 
 	/*
 	 * Clear local access windows. Skip DRAM entries, so we don't shoot
@@ -152,9 +143,9 @@ bare_mem_regions(platform_t plat, struct mem_region **phys, int *physsz,
 	int i, rv;
 
 	rv = fdt_get_mem_regions(avail_regions, availsz, &memsize);
-
 	if (rv != 0)
-		return;
+		panic("%s: could not retrieve mem regions from the 'memory' "
+		    "node, error: %d", __func__, rv);
 
 	for (i = 0; i < *availsz; i++) {
 		if (avail_regions[i].mr_start < 1048576) {
@@ -262,8 +253,8 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 
 	eebpcr = ccsr_read4(OCP85XX_EEBPCR);
 	if ((eebpcr & (1 << (pc->pc_cpuid + 24))) != 0) {
-		printf("%s: CPU=%d already out of hold-off state!\n",
-		    __func__, pc->pc_cpuid);
+		printf("SMP: CPU %d already out of hold-off state!\n",
+		    pc->pc_cpuid);
 		return (ENXIO);
 	}
 
@@ -273,12 +264,13 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	/*
 	 * Set BPTR to the physical address of the boot page
 	 */
-	bptr = ((uint32_t)__boot_page - KERNBASE) + kernload_ap;
+	bptr = ((uint32_t)__boot_page - KERNBASE) + bp_kernload;
 	ccsr_write4(OCP85XX_BPTR, (bptr >> 12) | 0x80000000);
 
 	/*
 	 * Release AP from hold-off state
 	 */
+	bp_trace = 0;
 	eebpcr |= (1 << (pc->pc_cpuid + 24));
 	ccsr_write4(OCP85XX_EEBPCR, eebpcr);
 	__asm __volatile("isync; msync");
@@ -287,6 +279,16 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 	while (!pc->pc_awake && timeout--)
 		DELAY(1000);	/* wait 1ms */
 
+	/*
+	 * Disable boot page translation so that the 4K page at the default
+	 * address (= 0xfffff000) isn't permanently remapped and thus not
+	 * usable otherwise.
+	 */
+	ccsr_write4(OCP85XX_BPTR, 0);
+
+	if (!pc->pc_awake)
+		printf("SMP: CPU %d didn't wake up (trace code %#x).\n",
+		    pc->pc_awake, bp_trace);
 	return ((pc->pc_awake) ? 0 : EBUSY);
 #else
 	/* No SMP support */
@@ -295,7 +297,7 @@ bare_smp_start_cpu(platform_t plat, struct pcpu *pc)
 }
 
 static void
-e500_reset(platform_t plat)
+booke_reset(platform_t plat)
 {
 
 	/*
@@ -316,6 +318,7 @@ e500_reset(platform_t plat)
 	mtspr(SPR_DBCR0, mfspr(SPR_DBCR0) | DBCR0_IDM | DBCR0_RST_SYSTEM);
 
 	printf("Reset failed...\n");
-	while (1);
+	while (1)
+		;
 }
 

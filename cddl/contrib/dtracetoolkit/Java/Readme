@@ -1,0 +1,17 @@
+Java - DTracing Java
+
+   These scripts trace the JVM, and require the Java hotspot provider which
+   was shipped with Java starting with version 1.6.0.
+
+   Some of these scripts measure method and object events, and require
+   the Java process to be run using the "+ExtendedDTraceProbes" flag.
+   For example,
+
+	java -XX:+ExtendedDTraceProbes classfile
+
+   The ExtendedDTraceProbes flag is not on by default to avoid the additional
+   overhead for maintaining these additional probes. When this flag is
+   enabled, the JVM may execute slightly slower than before; when the probes
+   are also enabled (especially method probes), the JVM may execute
+   significantly slower.
+

@@ -294,6 +294,25 @@ libusb_free_config_descriptor(struct libusb_config_descriptor *config)
 }
 
 int
+libusb_get_string_descriptor(libusb_device_handle *pdev,
+    uint8_t desc_index, uint16_t langid, unsigned char *data,
+    int length)
+{
+	if (pdev == NULL || data == NULL || length < 1)
+		return (LIBUSB_ERROR_INVALID_PARAM);
+
+	if (length > 65535)
+		length = 65535;
+
+	/* put some default data into the destination buffer */
+	data[0] = 0;
+
+	return (libusb_control_transfer(pdev, LIBUSB_ENDPOINT_IN,
+	    LIBUSB_REQUEST_GET_DESCRIPTOR, (LIBUSB_DT_STRING << 8) | desc_index,
+	    langid, data, length, 1000));
+}
+
+int
 libusb_get_string_descriptor_ascii(libusb_device_handle *pdev,
     uint8_t desc_index, unsigned char *data, int length)
 {

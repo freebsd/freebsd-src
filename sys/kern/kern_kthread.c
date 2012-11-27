@@ -271,7 +271,6 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 
 	bzero(&newtd->td_startzero,
 	    __rangeof(struct thread, td_startzero, td_endzero));
-/* XXX check if we should zero. */
 	bcopy(&oldtd->td_startcopy, &newtd->td_startcopy,
 	    __rangeof(struct thread, td_startcopy, td_endcopy));
 
@@ -295,7 +294,6 @@ kthread_add(void (*func)(void *), void *arg, struct proc *p,
 	/* this code almost the same as create_thread() in kern_thr.c */
 	PROC_LOCK(p);
 	p->p_flag |= P_HADTHREADS;
-	newtd->td_sigmask = oldtd->td_sigmask; /* XXX dubious */
 	thread_link(newtd, p);
 	thread_lock(oldtd);
 	/* let the scheduler know about these things. */

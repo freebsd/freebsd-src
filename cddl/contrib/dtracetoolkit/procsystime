@@ -1,0 +1,233 @@
+#!/bin/sh
+#
+# procsystime - print process system call time details.
+#               Written using DTrace (Solaris 10 3/05).
+#
+# $Id: procsystime 4 2007-08-01 11:01:38Z brendan $
+#
+# USAGE:	procsystime [-acehoT] [ -p PID | -n name | command ]
+#
+#		-p PID          # examine this PID
+#		-n name         # examine this process name
+#		-a              # print all details
+#		-c              # print syscall counts
+#		-e              # print elapsed times
+#		-o              # print CPU times
+#		-T              # print totals
+#         eg,
+#		procsystime -p 1871     # examine PID 1871
+#		procsystime -n tar      # examine processes called "tar"
+#		procsystime -aTn bash   # print all details for bash shells
+#		procsystime df -h       # run and examine "df -h"
+#
+# The elapsed times are interesting, to help identify syscalls that take
+# some time to complete (during which the process may have slept). CPU time
+# helps us identify syscalls that are consuming CPU cycles to run.
+#
+# FIELDS:
+#		SYSCALL         System call name
+#		TIME (ns)       Total time, nanoseconds
+#		COUNT           Number of occurrences
+#
+# COPYRIGHT: Copyright (c) 2005 Brendan Gregg.
+#
+# CDDL HEADER START
+#
+#  The contents of this file are subject to the terms of the
+#  Common Development and Distribution License, Version 1.0 only
+#  (the "License").  You may not use this file except in compliance
+#  with the License.
+#
+#  You can obtain a copy of the license at Docs/cddl1.txt
+#  or http://www.opensolaris.org/os/licensing.
+#  See the License for the specific language governing permissions
+#  and limitations under the License.
+#
+# CDDL HEADER END
+#
+# Author: Brendan Gregg  [Sydney, Australia]
+#
+# 27-Apr-2005   Brendan Gregg   Created this.
+# 08-Jun-2005	   "      "	Added command option.
+# 22-Sep-2005	   "      "	Allowed systemwide tracing.
+# 22-Sep-2005	   "      "	Last update.
+#
+
+
+##############################
+# --- Process Arguments ---
+#
+
+### Default variables
+opt_filter=0; opt_pid=0; opt_name=0; pid=0; pname=".";
+opt_elapsed=0; opt_cpu=0; opt_counts=0; opt_totals=0
+opt_command=0; command="";
+
+### Process options
+while getopts acehn:op:T name
+do
+        case $name in
+        p)      opt_filter=1; opt_pid=1; pid=$OPTARG ;;
+        n)      opt_filter=1; opt_name=1; pname=$OPTARG ;;
+	a)	opt_totals=1; opt_elapsed=1; opt_cpu=1; opt_counts=1 ;;
+	e)	opt_elapsed=1 ;;
+	c)	opt_counts=1 ;;
+	o)	opt_cpu=1 ;;
+	T)	opt_totals=1 ;;
+        h|?)    cat <<-END >&2
+		USAGE: procsystime [-aceho] [ -p PID | -n name | command ]
+		                  -p PID          # examine this PID
+		                  -n name         # examine this process name
+		                  -a              # print all details
+		                  -e              # print elapsed times
+		                  -c              # print syscall counts
+		                  -o              # print CPU times
+		                  -T              # print totals
+		  eg,
+		       procsystime -p 1871     # examine PID 1871
+		       procsystime -n tar      # examine processes called "tar"
+		       procsystime -aTn bash   # print all details for bash
+		       procsystime df -h       # run and examine "df -h"
+		END
+		exit 1
+        esac
+done
+shift `expr $OPTIND - 1`
+
+### Option logic
+if [ $opt_pid -eq 0 -a $opt_name -eq 0 -a "$*" != "" ]; then
+	opt_filter=1
+	opt_command=1
+	command="$*"
+fi
+if [ $opt_elapsed -eq 0 -a $opt_cpu -eq 0 -a $opt_counts -eq 0 ]; then
+	opt_elapsed=1;
+fi
+
+
+#################################
+# --- Main Program, DTrace ---
+#
+dtrace='
+ #pragma D option quiet
+
+ /*
+  * Command line arguments
+  */
+ inline int OPT_elapsed  = '$opt_elapsed';
+ inline int OPT_cpu      = '$opt_cpu';
+ inline int OPT_counts   = '$opt_counts';
+ inline int OPT_filter   = '$opt_filter';
+ inline int OPT_pid      = '$opt_pid';
+ inline int OPT_name     = '$opt_name';
+ inline int OPT_totals   = '$opt_totals';
+ inline int OPT_command  = '$opt_command';
+ inline int PID          = '$pid';
+ inline string NAME      = "'$pname'";
+ inline string COMMAND   = "'$command'";
+
+ dtrace:::BEGIN 
+ {
+	self->start = 0;
+	self->vstart = 0;
+ }
+ dtrace:::BEGIN 
+ /! OPT_command/
+ {
+	printf("Tracing... Hit Ctrl-C to end...\n");
+ }
+
+ /*
+  * Set start timestamp and counts
+  */
+ syscall:::entry
+ /(! OPT_filter) ||
+  (OPT_pid && pid == PID) ||
+  (OPT_name && execname == NAME) ||
+  (OPT_command && pid == $target)/
+ {
+	self->ok = 1;
+ }
+ syscall:::entry
+ /self->ok/
+ {
+	OPT_counts ? @Counts[probefunc] = count() : 1;
+	(OPT_counts && OPT_totals) ? @Counts["TOTAL:"] = count() : 1;
+	OPT_elapsed ? self->start = timestamp : 1;
+	OPT_cpu ? self->vstart = vtimestamp : 1;
+	self->ok = 0;
+ }
+
+ /*
+  * Calculate time deltas
+  */
+ syscall:::return
+ /self->start/
+ {
+	this->elapsed = timestamp - self->start;
+	@Elapsed[probefunc] = sum(this->elapsed);
+	OPT_totals ? @Elapsed["TOTAL:"] = sum(this->elapsed) : 1;
+	self->start = 0;
+ }
+ syscall:::return
+ /self->vstart/
+ {
+	this->cpu = vtimestamp - self->vstart;
+	@CPU[probefunc] = sum(this->cpu);
+	OPT_totals ? @CPU["TOTAL:"] = sum(this->cpu) : 1;
+	self->vstart = 0;
+ }
+
+ /*
+  * Elapsed time report
+  */
+ dtrace:::END 
+ /OPT_elapsed/
+ {
+	printf("\nElapsed Times for ");
+	OPT_pid ? printf("PID %d,\n\n",PID) : 1;
+	OPT_name ? printf("processes %s,\n\n",NAME) : 1;
+	OPT_command ? printf("command %s,\n\n",COMMAND) : 1;
+	(! OPT_filter) ? printf("all processes,\n\n") : 1;
+	printf("%16s %18s\n","SYSCALL","TIME (ns)");
+	printa("%16s %@18d\n",@Elapsed);
+ }
+
+ /*
+  * CPU time report
+  */
+ dtrace:::END 
+ /OPT_cpu/
+ {
+	printf("\nCPU Times for ");
+	OPT_pid ? printf("PID %d,\n\n",PID) : 1;
+	OPT_name ? printf("processes %s,\n\n",NAME) : 1;
+	OPT_command ? printf("command %s,\n\n",COMMAND) : 1;
+	(! OPT_filter) ? printf("all processes,\n\n") : 1;
+	printf("%16s %18s\n","SYSCALL","TIME (ns)");
+	printa("%16s %@18d\n",@CPU);
+ }
+
+ /*
+  * Syscall count report
+  */
+ dtrace:::END 
+ /OPT_counts/
+ {
+	printf("\nSyscall Counts for ");
+	OPT_pid ? printf("PID %d,\n\n",PID) : 1;
+	OPT_name ? printf("processes %s,\n\n",NAME) : 1;
+	OPT_command ? printf("command %s,\n\n",COMMAND) : 1;
+	(! OPT_filter) ? printf("all processes,\n\n") : 1;
+	printf("%16s %18s\n","SYSCALL","COUNT");
+	OPT_counts ? printa("%16s %@18d\n",@Counts) : 1;
+ }
+'
+
+### Run DTrace
+if [ $opt_command -eq 1 ]; then
+	/usr/sbin/dtrace -n "$dtrace" -x evaltime=exec -c "$command" >&2
+else
+	/usr/sbin/dtrace -n "$dtrace" >&2
+fi
+

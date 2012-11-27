@@ -164,7 +164,7 @@ get_list(char *list)
 	 * set a byte in the positions array to indicate if a field or
 	 * column is to be selected; use +1, it's 1-based, not 0-based.
 	 * Numbers and number ranges may be overlapping, repeated, and in
-	 * any order. We handle "-3-5" although there's no real reason too.
+	 * any order. We handle "-3-5" although there's no real reason to.
 	 */
 	for (; (p = strsep(&list, ", \t")) != NULL;) {
 		setautostart = start = stop = 0;
@@ -187,9 +187,9 @@ get_list(char *list)
 			}
 		}
 		if (*p)
-			errx(1, "[-cf] list: illegal list value");
+			errx(1, "[-bcf] list: illegal list value");
 		if (!stop || !start)
-			errx(1, "[-cf] list: values may not include zero");
+			errx(1, "[-bcf] list: values may not include zero");
 		if (maxval < stop) {
 			maxval = stop;
 			needpos(maxval + 1);

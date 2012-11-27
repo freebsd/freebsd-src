@@ -21,6 +21,17 @@ feed_dev_random()
 	fi
 }
 
+better_than_nothing()
+{
+	# XXX temporary until we can improve the entropy
+	# harvesting rate.
+	# Entropy below is not great, but better than nothing.
+	# This unblocks the generator at startup
+	( ps -fauxww; sysctl -a; date; df -ib; dmesg; ps -fauxww ) \
+	    | dd of=/dev/random bs=8k 2>/dev/null
+	cat /bin/ls | dd of=/dev/random bs=8k 2>/dev/null
+}
+
 initrandom_start()
 {
 	soft_random_generator=`sysctl kern.random 2>/dev/null`
@@ -52,14 +63,6 @@ initrandom_start()
 			fi
 		fi
 
-		# XXX temporary until we can improve the entropy
-		# harvesting rate.
-		# Entropy below is not great, but better than nothing.
-		# This unblocks the generator at startup
-		( ps -fauxww; sysctl -a; date; df -ib; dmesg; ps -fauxww ) \
-		    | dd of=/dev/random bs=8k 2>/dev/null
-		cat /bin/ls | dd of=/dev/random bs=8k 2>/dev/null
-
 		# First pass at reseeding /dev/random.
 		#
 		case ${entropy_file} in
@@ -71,6 +74,8 @@ initrandom_start()
 			fi
 			;;
 		esac
+
+		better_than_nothing
 
 		echo -n ' kickstart'
 	fi

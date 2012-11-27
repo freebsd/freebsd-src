@@ -112,10 +112,11 @@ g_raid_tr_taste_raid5(struct g_raid_tr_object *tr, struct g_raid_volume *vol)
 	} else if ((tr->tro_volume->v_raid_level == G_RAID_VOLUME_RL_RAID5 ||
 	     tr->tro_volume->v_raid_level == G_RAID_VOLUME_RL_RAID5E ||
 	     tr->tro_volume->v_raid_level == G_RAID_VOLUME_RL_RAID5EE ||
+	     tr->tro_volume->v_raid_level == G_RAID_VOLUME_RL_RAID5R ||
 	     tr->tro_volume->v_raid_level == G_RAID_VOLUME_RL_RAID6 ||
 	     tr->tro_volume->v_raid_level == G_RAID_VOLUME_RL_RAIDMDF) &&
 	    qual >= 0 && qual <= 3) {
-		/* RAID5/5E/5EE/6/MDF */
+		/* RAID5/5E/5EE/5R/6/MDF */
 	} else
 		return (G_RAID_TR_TASTE_FAIL);
 	trs->trso_starting = 1;
@@ -210,7 +211,7 @@ g_raid_tr_iostart_raid5_read(struct g_raid_tr_object *tr, struct bio *bp)
 	struct bio *cbp;
 	char *addr;
 	off_t offset, start, length, nstripe, remain;
-	int no, pno, ddisks, pdisks;
+	int no, pno, ddisks, pdisks, protate, pleft;
 	u_int strip_size, lvl, qual;
 
 	vol = tr->tro_volume;
@@ -218,6 +219,7 @@ g_raid_tr_iostart_raid5_read(struct g_raid_tr_object *tr, struct bio *bp)
 	strip_size = vol->v_strip_size;
 	lvl = tr->tro_volume->v_raid_level;
 	qual = tr->tro_volume->v_raid_level_qualifier;
+	protate = tr->tro_volume->v_rotate_parity;
 
 	/* Stripe number. */
 	nstripe = bp->bio_offset / strip_size;
@@ -225,7 +227,7 @@ g_raid_tr_iostart_raid5_read(struct g_raid_tr_object *tr, struct bio *bp)
 	start = bp->bio_offset % strip_size;
 	/* Number of data and parity disks. */
 	if (lvl == G_RAID_VOLUME_RL_RAIDMDF)
-		pdisks = 3;
+		pdisks = tr->tro_volume->v_mdf_pdisks;
 	else if (lvl == G_RAID_VOLUME_RL_RAID5EE ||
 	    lvl == G_RAID_VOLUME_RL_RAID6)
 		pdisks = 2;
@@ -238,8 +240,10 @@ g_raid_tr_iostart_raid5_read(struct g_raid_tr_object *tr, struct bio *bp)
 			pno = 0;
 		else			/* PN */
 			pno = ddisks;
+		pleft = -1;
 	} else {
-		pno = (nstripe / ddisks) % vol->v_disks_count;
+		pno = (nstripe / (ddisks * protate)) % vol->v_disks_count;
+		pleft = protate - (nstripe / ddisks) % protate;
 		if (qual >= 2) {	/* PN/Left */
 			pno = ddisks - pno;
 			if (pno < 0)
@@ -281,11 +285,14 @@ g_raid_tr_iostart_raid5_read(struct g_raid_tr_object *tr, struct bio *bp)
 		} else if (qual & 1) {	/* Continuation/Symmetric */
 			no %= vol->v_disks_count;
 			if (no == pno) {
-				if (qual < 2)	/* P0/Right */
-					pno++;
-				else		/* PN/Left */
-					pno += vol->v_disks_count - 1;
-				pno %= vol->v_disks_count;
+				if ((--pleft) <= 0) {
+					pleft += protate;
+					if (qual < 2)	/* P0/Right */
+						pno++;
+					else		/* PN/Left */
+						pno += vol->v_disks_count - 1;
+					pno %= vol->v_disks_count;
+				}
 				no = (pno + pdisks) % vol->v_disks_count;
 				offset += strip_size;
 			}
@@ -294,11 +301,14 @@ g_raid_tr_iostart_raid5_read(struct g_raid_tr_object *tr, struct bio *bp)
 				no += pdisks;
 			if (no >= vol->v_disks_count) {
 				no -= vol->v_disks_count;
-				if (qual < 2)	/* P0/Right */
-					pno++;
-				else		/* PN/Left */
-					pno += vol->v_disks_count - 1;
-				pno %= vol->v_disks_count;
+				if ((--pleft) <= 0) {
+					pleft += protate;
+					if (qual < 2)	/* P0/Right */
+						pno++;
+					else		/* PN/Left */
+						pno += vol->v_disks_count - 1;
+					pno %= vol->v_disks_count;
+				}
 				if (no == pno)
 					no += pdisks;
 				else

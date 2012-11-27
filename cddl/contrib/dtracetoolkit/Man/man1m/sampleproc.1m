@@ -1,0 +1,55 @@
+.TH sampleproc 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+sampleproc \- sample processes on the CPUs. Uses DTrace.
+.SH SYNOPSIS
+.B sampleproc [hertz]
+.SH DESCRIPTION
+This program samples which process is on each CPU, at a particular
+configurable rate. This can be used as an estimate for which process
+is consuming the most CPU time.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+unstable - uses the ncpus_online kernel symbol.
+.SH EXAMPLES
+.TP
+Sample at 100 hertz,
+# 
+.B sampleproc 
+.TP
+Sample at 400 hertz,
+# 
+.B sampleproc
+400
+.PP
+.SH FIELDS
+.TP
+PID
+process ID
+.TP
+COMMAND
+command name
+.TP
+COUNT
+number of samples
+.TP
+PERCENT
+percent of CPU usage
+.PP
+.SH BASED ON
+/usr/demo/dtrace/prof.d
+.PP
+.SH DOCUMENTATION
+DTrace Guide "profile Provider" chapter (docs.sun.com)
+
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+sampleproc will sample until Ctrl\-C is hit. 
+.SH SEE ALSO
+dtrace(1M)
+

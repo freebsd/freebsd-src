@@ -33,7 +33,8 @@ static HAL_BOOL ar5211GetChannelEdges(struct ath_hal *ah,
 static HAL_BOOL ar5211GetChipPowerLimits(struct ath_hal *ah,
 		struct ieee80211_channel *chan);
 
-static void ar5211ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
+static void ar5211ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore,
+		HAL_BOOL power_off);
 static void ar5211DisablePCIE(struct ath_hal *ah);
 
 static const struct ath_hal_private ar5211hal = {{
@@ -74,6 +75,9 @@ static const struct ath_hal_private ar5211hal = {{
 	.ah_getTxIntrQueue		= ar5211GetTxIntrQueue,
 	.ah_reqTxIntrDesc 		= ar5211IntrReqTxDesc,
 	.ah_getTxCompletionRates	= ar5211GetTxCompletionRates,
+	.ah_setTxDescLink		= ar5211SetTxDescLink,
+	.ah_getTxDescLink		= ar5211GetTxDescLink,
+	.ah_getTxDescLinkPtr		= ar5211GetTxDescLinkPtr,
 
 	/* RX Functions */
 	.ah_getRxDP			= ar5211GetRxDP,
@@ -133,6 +137,10 @@ static const struct ath_hal_private ar5211hal = {{
 	.ah_setCoverageClass		= ar5211SetCoverageClass,
 	.ah_get11nExtBusy		= ar5211Get11nExtBusy,
 	.ah_getMibCycleCounts		= ar5211GetMibCycleCounts,
+	.ah_enableDfs			= ar5211EnableDfs,
+	.ah_getDfsThresh		= ar5211GetDfsThresh,
+	/* XXX procRadarEvent */
+	/* XXX isFastClockEnabled */
 
 	/* Key Cache Functions */
 	.ah_getKeyCacheSize		= ar5211GetKeyCacheSize,
@@ -451,7 +459,7 @@ ar5211GetChipPowerLimits(struct ath_hal *ah, struct ieee80211_channel *chan)
 }
 
 static void
-ar5211ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
+ar5211ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore, HAL_BOOL power_off)
 {
 }
 
@@ -488,6 +496,8 @@ ar5211FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halSleepAfterBeaconBroken = AH_TRUE;
 	pCap->halPSPollBroken = AH_TRUE;
 	pCap->halVEOLSupport = AH_TRUE;
+	pCap->halNumMRRetries = 1;	/* No hardware MRR support */
+	pCap->halNumTxMaps = 1;		/* Single TX ptr per descr */
 
 	pCap->halTotalQueues = HAL_NUM_TX_QUEUES;
 	pCap->halKeyCacheSize = 128;

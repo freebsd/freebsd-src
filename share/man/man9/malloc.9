@@ -197,7 +197,7 @@ MALLOC_DEFINE(M_FOOBUF, "foobuffers", "Buffers to foo data into the ether");
 /* sys/something/foo_subr.c */
 
 \&...
-buf = malloc(sizeof *buf, M_FOOBUF, M_NOWAIT);
+buf = malloc(sizeof(*buf), M_FOOBUF, M_NOWAIT);
 
 .Ed
 .Pp

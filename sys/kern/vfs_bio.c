@@ -2640,8 +2640,8 @@ loop:
 	if (bp != NULL) {
 		int lockflags;
 		/*
-		 * Buffer is in-core.  If the buffer is not busy, it must
-		 * be on a queue.
+		 * Buffer is in-core.  If the buffer is not busy nor managed,
+		 * it must be on a queue.
 		 */
 		lockflags = LK_EXCLUSIVE | LK_SLEEPFAIL | LK_INTERLOCK;
 
@@ -2671,9 +2671,13 @@ loop:
 			bp->b_flags &= ~B_CACHE;
 		else if ((bp->b_flags & (B_VMIO | B_INVAL)) == 0)
 			bp->b_flags |= B_CACHE;
-		BO_LOCK(bo);
-		bremfree(bp);
-		BO_UNLOCK(bo);
+		if (bp->b_flags & B_MANAGED)
+			MPASS(bp->b_qindex == QUEUE_NONE);
+		else {
+			BO_LOCK(bo);
+			bremfree(bp);
+			BO_UNLOCK(bo);
+		}
 
 		/*
 		 * check for size inconsistancies for non-VMIO case.
@@ -3991,7 +3995,9 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 	}
 
 	db_printf("buf at %p\n", bp);
-	db_printf("b_flags = 0x%b\n", (u_int)bp->b_flags, PRINT_BUF_FLAGS);
+	db_printf("b_flags = 0x%b, b_xflags=0x%b, b_vflags=0x%b\n",
+	    (u_int)bp->b_flags, PRINT_BUF_FLAGS, (u_int)bp->b_xflags,
+	    PRINT_BUF_XFLAGS, (u_int)bp->b_vflags, PRINT_BUF_VFLAGS);
 	db_printf(
 	    "b_error = %d, b_bufsize = %ld, b_bcount = %ld, b_resid = %ld\n"
 	    "b_bufobj = (%p), b_data = %p, b_blkno = %jd, b_lblkno = %jd, "

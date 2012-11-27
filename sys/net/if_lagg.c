@@ -516,8 +516,13 @@ lagg_port_create(struct lagg_softc *sc, struct ifnet *ifp)
 		return (ENOSPC);
 
 	/* Check if port has already been associated to a lagg */
-	if (ifp->if_lagg != NULL)
+	if (ifp->if_lagg != NULL) {
+		/* Port is already in the current lagg? */
+		lp = (struct lagg_port *)ifp->if_lagg;
+		if (lp->lp_softc == sc)
+			return (EEXIST);
 		return (EBUSY);
+	}
 
 	/* XXX Disallow non-ethernet interfaces (this should be any of 802) */
 	if (ifp->if_type != IFT_ETHER)
@@ -791,6 +796,9 @@ lagg_port_ifdetach(void *arg __unused, struct ifnet *ifp)
 	struct lagg_softc *sc;
 
 	if ((lp = ifp->if_lagg) == NULL)
+		return;
+	/* If the ifnet is just being renamed, don't do anything. */
+	if (ifp->if_flags & IFF_RENAMING)
 		return;
 
 	sc = lp->lp_softc;

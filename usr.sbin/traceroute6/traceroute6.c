@@ -1448,7 +1448,8 @@ usage()
 {
 
 	fprintf(stderr,
-"usage: traceroute6 [-dIlnNrUv] [-f firsthop] [-g gateway] [-m hoplimit]\n"
-"       [-p port] [-q probes] [-s src] [-w waittime] target [datalen]\n");
+"usage: traceroute6 [-adIlnNrUv] [-A as_server] [-f firsthop] [-g gateway]\n"
+"       [-m hoplimit] [-p port] [-q probes] [-s src] [-w waittime] target\n"
+"       [datalen]\n");
 	exit(1);
 }

@@ -34,7 +34,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd December 18, 2011
+.Dd May 26, 2012
 .Dt PAM_END 3
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@
 .Fn pam_end "pam_handle_t *pamh" "int status"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn pam_end
 function terminates a PAM transaction and destroys the
 corresponding PAM context, releasing all resources allocated to it.
 .Pp
@@ -57,11 +57,10 @@ The
 .Fa status
 argument should be set to the error code returned by the
 last API call before the call to
-.Nm
-.
+.Fn pam_end .
 .Sh RETURN VALUES
 The
-.Nm
+.Fn pam_end
 function returns one of the following values:
 .Bl -tag -width 18n
 .It Bq Er PAM_SYSTEM_ERR
@@ -77,11 +76,11 @@ System error.
 .Re
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were developed for the
+.Fn pam_end
+function and this manual page were
+developed for the
 .Fx
-Project by
-ThinkSec AS and Network Associates Laboratories, the
+Project by ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,

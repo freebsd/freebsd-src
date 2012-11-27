@@ -322,11 +322,11 @@ to output the full file name and line number in a standard,
 recognizable fashion each time a stack frame is displayed (which
 includes each time the program stops).  This recognizable format looks
 like two `\|\c
-.B \032\c
+.B \e032\c
 \&\|' characters, followed by the file name, line number
 and character position separated by colons, and a newline.  The
 Emacs-to-GDB interface program uses the two `\|\c
-.B \032\c
+.B \e032\c
 \&\|' characters as
 a signal to display the source code for the frame.
 

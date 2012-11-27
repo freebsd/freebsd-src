@@ -1,0 +1,966 @@
+The following are examples of py_cpudist.d.
+
+This script traces the on-CPU time of Python functions and prints a report
+in the form of a histogram.  Here it traces the example program,
+Code/Python/func_slow.py
+
+# py_cpudist.d
+Tracing... Hit Ctrl-C to end.
+^C
+
+Exclusive function on-CPU times (us),
+   UserDict.py, func, IterableUserDict 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               2 |                                         0        
+
+   __init__.py, func, CodecRegistryError 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               2 |                                         0        
+
+   ascii.py, func, StreamReader 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               2 |                                         0        
+
+   ascii.py, func, StreamWriter 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               2 |                                         0        
+
+   ascii.py, func, getregentry 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               2 |                                         0        
+
+   site.py, func, aliasmbcs 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               2 |                                         0        
+
+   site.py, func, sethelper 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               2 |                                         0        
+
+   types.py, func, _C 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               2 |                                         0        
+
+   warnings.py, func, _OptionError 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               2 |                                         0        
+
+   UserDict.py, func, __init__ 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   ascii.py, func, Codec 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   ascii.py, func, StreamConverter 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   codecs.py, func, Codec 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   codecs.py, func, StreamWriter 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   os.py, func, _Environ 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   posixpath.py, func, basename 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   posixpath.py, func, dirname 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   site.py, func, _Helper 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   site.py, func, _Printer 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   site.py, func, setencoding 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   site.py, func, setquit 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   warnings.py, func, _processoptions 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   copy_reg.py, func, constructor 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+               2 |                                         0        
+
+   codecs.py, func, StreamReader 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               8 |                                         0        
+
+   codecs.py, func, StreamReaderWriter 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               8 |                                         0        
+
+   codecs.py, func, StreamRecoder 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               8 |                                         0        
+
+   func_slow.py, func, ? 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               8 |                                         0        
+
+   os.py, func, __init__ 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               8 |                                         0        
+
+   site.py, func, __init__ 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+               4 |                                         0        
+
+   stat.py, func, S_IFMT 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 6        
+               2 |                                         0        
+
+   warnings.py, func, simplefilter 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@                     1        
+               4 |@@@@@@@@@@@@@@@@@@@@                     1        
+               8 |                                         0        
+
+   __init__.py, func, normalize_encoding 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   copy_reg.py, func, pickle 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@              2        
+               4 |@@@@@@@@@@@@@                            1        
+               8 |                                         0        
+
+   linecache.py, func, ? 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   posixpath.py, func, split 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+               8 |                                         0        
+
+   stat.py, func, ? 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   stat.py, func, S_ISDIR 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 6        
+               4 |                                         0        
+
+   posixpath.py, func, normcase 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 14       
+               2 |                                         0        
+
+   UserDict.py, func, ? 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   UserDict.py, func, UserDict 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   site.py, func, _init_pathinfo 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   site.py, func, addsitepackages 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   site.py, func, setcopyright 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   <string>, func, ? 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@                       5        
+               2 |@@@@@@@@@@@@@@@@@@                       5        
+               4 |@@@@                                     1        
+               8 |                                         0        
+
+   posixpath.py, func, isabs 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@     20       
+               2 |@@@@                                     2        
+               4 |                                         0        
+
+   aliases.py, func, ? 
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   ascii.py, func, ? 
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   posixpath.py, func, exists 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   site.py, func, abs__file__ 
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   site.py, func, removeduppaths 
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   site.py, func, makepath 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 14       
+               8 |                                         0        
+
+   posixpath.py, func, join 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@                 12       
+               2 |@@@@@@@@@@                               5        
+               4 |@@@@                                     2        
+               8 |                                         0        
+              16 |                                         0        
+              32 |@@                                       1        
+              64 |                                         0        
+
+   codecs.py, func, ? 
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   site.py, func, main 
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   types.py, func, ? 
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   posixpath.py, func, abspath 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 22       
+               8 |                                         0        
+
+   UserDict.py, func, DictMixin 
+           value  ------------- Distribution ------------- count    
+              64 |                                         0        
+             128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             256 |                                         0        
+
+   __init__.py, func, search_function 
+           value  ------------- Distribution ------------- count    
+              64 |                                         0        
+             128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             256 |                                         0        
+
+   copy_reg.py, func, ? 
+           value  ------------- Distribution ------------- count    
+              64 |                                         0        
+             128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             256 |                                         0        
+
+   os.py, func, _get_exports_list 
+           value  ------------- Distribution ------------- count    
+              64 |                                         0        
+             128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             256 |                                         0        
+
+   posixpath.py, func, ? 
+           value  ------------- Distribution ------------- count    
+              64 |                                         0        
+             128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             256 |                                         0        
+
+   warnings.py, func, ? 
+           value  ------------- Distribution ------------- count    
+              64 |                                         0        
+             128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             256 |                                         0        
+
+   posixpath.py, func, isdir 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@                                    1        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@           6        
+              32 |                                         0        
+              64 |@@@@@                                    1        
+             128 |                                         0        
+
+   posixpath.py, func, normpath 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@                                       1        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@   21       
+              16 |                                         0        
+
+   site.py, func, addpackage 
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@              2        
+             128 |@@@@@@@@@@@@@                            1        
+             256 |                                         0        
+
+   site.py, func, addsitedir 
+           value  ------------- Distribution ------------- count    
+              64 |                                         0        
+             128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+             256 |                                         0        
+
+   site.py, func, ? 
+           value  ------------- Distribution ------------- count    
+             256 |                                         0        
+             512 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            1024 |                                         0        
+
+   site.py, func, execsitecustomize 
+           value  ------------- Distribution ------------- count    
+             256 |                                         0        
+             512 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            1024 |                                         0        
+
+   os.py, func, _exists 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@     9        
+              32 |                                         0        
+              64 |                                         0        
+             128 |                                         0        
+             256 |                                         0        
+             512 |@@@@                                     1        
+            1024 |                                         0        
+
+   __init__.py, func, ? 
+           value  ------------- Distribution ------------- count    
+             512 |                                         0        
+            1024 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            2048 |                                         0        
+
+   os.py, func, ? 
+           value  ------------- Distribution ------------- count    
+             512 |                                         0        
+            1024 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            2048 |                                         0        
+
+   func_slow.py, func, func_a 
+           value  ------------- Distribution ------------- count    
+           65536 |                                         0        
+          131072 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+          262144 |                                         0        
+
+   func_slow.py, func, func_b 
+           value  ------------- Distribution ------------- count    
+          131072 |                                         0        
+          262144 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+          524288 |                                         0        
+
+   func_slow.py, func, func_c 
+           value  ------------- Distribution ------------- count    
+          262144 |                                         0        
+          524288 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+         1048576 |                                         0        
+
+
+Inclusive function on-CPU times (us),
+   UserDict.py, func, IterableUserDict 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               2 |                                         0        
+
+   __init__.py, func, CodecRegistryError 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               2 |                                         0        
+
+   ascii.py, func, StreamReader 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               2 |                                         0        
+
+   ascii.py, func, StreamWriter 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               2 |                                         0        
+
+   ascii.py, func, getregentry 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               2 |                                         0        
+
+   site.py, func, aliasmbcs 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               2 |                                         0        
+
+   site.py, func, sethelper 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               2 |                                         0        
+
+   types.py, func, _C 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               2 |                                         0        
+
+   warnings.py, func, _OptionError 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               2 |                                         0        
+
+   UserDict.py, func, __init__ 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   ascii.py, func, Codec 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   ascii.py, func, StreamConverter 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   codecs.py, func, Codec 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   codecs.py, func, StreamWriter 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   os.py, func, _Environ 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   site.py, func, _Helper 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   site.py, func, _Printer 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   site.py, func, setencoding 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   site.py, func, setquit 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   warnings.py, func, _processoptions 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               4 |                                         0        
+
+   copy_reg.py, func, constructor 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+               2 |                                         0        
+
+   codecs.py, func, StreamReader 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               8 |                                         0        
+
+   codecs.py, func, StreamReaderWriter 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               8 |                                         0        
+
+   codecs.py, func, StreamRecoder 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+               8 |                                         0        
+
+   site.py, func, __init__ 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+               4 |                                         0        
+
+   stat.py, func, S_IFMT 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 6        
+               2 |                                         0        
+
+   warnings.py, func, simplefilter 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@                     1        
+               4 |@@@@@@@@@@@@@@@@@@@@                     1        
+               8 |                                         0        
+
+   __init__.py, func, normalize_encoding 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   linecache.py, func, ? 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   os.py, func, __init__ 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   posixpath.py, func, basename 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   posixpath.py, func, dirname 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   posixpath.py, func, split 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+               8 |                                         0        
+
+   stat.py, func, ? 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              16 |                                         0        
+
+   copy_reg.py, func, pickle 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+               8 |                                         0        
+
+   posixpath.py, func, normcase 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 14       
+               2 |                                         0        
+
+   UserDict.py, func, UserDict 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              32 |                                         0        
+
+   stat.py, func, S_ISDIR 
+           value  ------------- Distribution ------------- count    
+               1 |                                         0        
+               2 |@@@@@@@@@@@@@@@@@@@@@@@@@@@              4        
+               4 |@@@@@@@@@@@@@                            2        
+               8 |                                         0        
+
+   posixpath.py, func, isabs 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@     20       
+               2 |@@@@                                     2        
+               4 |                                         0        
+
+   aliases.py, func, ? 
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   ascii.py, func, ? 
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   posixpath.py, func, exists 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 2        
+              32 |                                         0        
+
+   site.py, func, setcopyright 
+           value  ------------- Distribution ------------- count    
+              16 |                                         0        
+              32 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+              64 |                                         0        
+
+   posixpath.py, func, join 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@@@@@@@                 12       
+               2 |@@@@@@@@@@                               5        
+               4 |@@@@                                     2        
+               8 |                                         0        
+              16 |                                         0        
+              32 |@@                                       1        
+              64 |                                         0        
+
+   codecs.py, func, ? 
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   types.py, func, ? 
+           value  ------------- Distribution ------------- count    
+              32 |                                         0        
+              64 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             128 |                                         0        
+
+   UserDict.py, func, ? 
+           value  ------------- Distribution ------------- count    
+              64 |                                         0        
+             128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             256 |                                         0        
+
+   UserDict.py, func, DictMixin 
+           value  ------------- Distribution ------------- count    
+              64 |                                         0        
+             128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             256 |                                         0        
+
+   __init__.py, func, search_function 
+           value  ------------- Distribution ------------- count    
+              64 |                                         0        
+             128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             256 |                                         0        
+
+   os.py, func, _get_exports_list 
+           value  ------------- Distribution ------------- count    
+              64 |                                         0        
+             128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             256 |                                         0        
+
+   posixpath.py, func, ? 
+           value  ------------- Distribution ------------- count    
+              64 |                                         0        
+             128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             256 |                                         0        
+
+   site.py, func, abs__file__ 
+           value  ------------- Distribution ------------- count    
+              64 |                                         0        
+             128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             256 |                                         0        
+
+   site.py, func, removeduppaths 
+           value  ------------- Distribution ------------- count    
+              64 |                                         0        
+             128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             256 |                                         0        
+
+   warnings.py, func, ? 
+           value  ------------- Distribution ------------- count    
+              64 |                                         0        
+             128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             256 |                                         0        
+
+   posixpath.py, func, normpath 
+           value  ------------- Distribution ------------- count    
+               2 |                                         0        
+               4 |@@                                       1        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@   21       
+              16 |                                         0        
+
+   posixpath.py, func, isdir 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@      7        
+              32 |                                         0        
+              64 |@@@@@                                    1        
+             128 |                                         0        
+
+   posixpath.py, func, abspath 
+           value  ------------- Distribution ------------- count    
+               4 |                                         0        
+               8 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@          17       
+              16 |@@@@@@@@@                                5        
+              32 |                                         0        
+
+   copy_reg.py, func, ? 
+           value  ------------- Distribution ------------- count    
+             128 |                                         0        
+             256 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             512 |                                         0        
+
+   site.py, func, _init_pathinfo 
+           value  ------------- Distribution ------------- count    
+             128 |                                         0        
+             256 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             512 |                                         0        
+
+   site.py, func, makepath 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@    13       
+              32 |                                         0        
+              64 |@@@                                      1        
+             128 |                                         0        
+
+   site.py, func, execsitecustomize 
+           value  ------------- Distribution ------------- count    
+             256 |                                         0        
+             512 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            1024 |                                         0        
+
+   <string>, func, ? 
+           value  ------------- Distribution ------------- count    
+               0 |                                         0        
+               1 |@@@@@@@@@@@@@@@@@@                       5        
+               2 |@@@@@@@@@@@@@@@@@@                       5        
+               4 |                                         0        
+               8 |                                         0        
+              16 |                                         0        
+              32 |                                         0        
+              64 |                                         0        
+             128 |                                         0        
+             256 |                                         0        
+             512 |@@@@                                     1        
+            1024 |                                         0        
+
+   os.py, func, _exists 
+           value  ------------- Distribution ------------- count    
+               8 |                                         0        
+              16 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@         8        
+              32 |@@@@                                     1        
+              64 |                                         0        
+             128 |                                         0        
+             256 |                                         0        
+             512 |@@@@                                     1        
+            1024 |                                         0        
+
+   site.py, func, addpackage 
+           value  ------------- Distribution ------------- count    
+              64 |                                         0        
+             128 |@@@@@@@@@@@@@@@@@@@@@@@@@@@              2        
+             256 |                                         0        
+             512 |@@@@@@@@@@@@@                            1        
+            1024 |                                         0        
+
+   __init__.py, func, ? 
+           value  ------------- Distribution ------------- count    
+             512 |                                         0        
+            1024 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            2048 |                                         0        
+
+   site.py, func, addsitepackages 
+           value  ------------- Distribution ------------- count    
+             512 |                                         0        
+            1024 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            2048 |                                         0        
+
+   site.py, func, addsitedir 
+           value  ------------- Distribution ------------- count    
+             256 |                                         0        
+             512 |@@@@@@@@@@@@@@@@@@@@                     1        
+            1024 |@@@@@@@@@@@@@@@@@@@@                     1        
+            2048 |                                         0        
+
+   os.py, func, ? 
+           value  ------------- Distribution ------------- count    
+            1024 |                                         0        
+            2048 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            4096 |                                         0        
+
+   site.py, func, main 
+           value  ------------- Distribution ------------- count    
+            1024 |                                         0        
+            2048 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            4096 |                                         0        
+
+   site.py, func, ? 
+           value  ------------- Distribution ------------- count    
+            2048 |                                         0        
+            4096 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+            8192 |                                         0        
+
+   func_slow.py, func, func_c 
+           value  ------------- Distribution ------------- count    
+          262144 |                                         0        
+          524288 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+         1048576 |                                         0        
+
+   func_slow.py, func, ? 
+           value  ------------- Distribution ------------- count    
+          524288 |                                         0        
+         1048576 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+         2097152 |                                         0        
+
+   func_slow.py, func, func_a 
+           value  ------------- Distribution ------------- count    
+          524288 |                                         0        
+         1048576 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+         2097152 |                                         0        
+
+   func_slow.py, func, func_b 
+           value  ------------- Distribution ------------- count    
+          524288 |                                         0        
+         1048576 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+         2097152 |                                         0        
+
+The first section, Exclusive function on-CPU times, shows us the time spent
+on-CPU by various functions, not including time spent in subroutines.  You can
+see here that func_a had one instance of being on-CPU between 0.13 seconds and
+0.25 seconds. 
+
+The second section, Inclusive function on-CPU times, shows us the time spent
+on-CPU by various functions, including that time spent in subroutines called
+by those functions.  You can see that here func_a had an instance of being
+on-CPU between 1.0 seconds and 2.1 seconds.
+
+It is important to pay close attention to the third column, "count" as this
+will indicate if there were any instances in a particular timeframe, even if
+the number is too small to show up on the histogram clearly.
+

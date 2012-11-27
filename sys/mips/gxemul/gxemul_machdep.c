@@ -62,6 +62,13 @@ __FBSDID("$FreeBSD$");
 #include <machine/pmap.h>
 #include <machine/trap.h>
 
+#ifdef SMP
+#include <sys/smp.h>
+#include <machine/smp.h>
+#endif
+
+#include <mips/gxemul/mpreg.h>
+
 extern int	*edata;
 extern int	*end;
 
@@ -123,7 +130,6 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 	int argc = a0;
 	char **argv = (char **)a1;
 	char **envp = (char **)a2;
-	unsigned int memsize = a3;
 	int i;
 
 	/* clear the BSS and SBSS segments */
@@ -152,15 +158,81 @@ platform_start(__register_t a0, __register_t a1,  __register_t a2,
 			printf("%s ", argv[i]);
 		printf("\n");
 
-		printf("envp:\n");
-		for (i = 0; envp[i]; i += 2)
-			printf("\t%s = %s\n", envp[i], envp[i+1]);
-
-		printf("memsize = %08x\n", memsize);
+		if (envp != NULL) {
+			printf("envp:\n");
+			for (i = 0; envp[i]; i += 2)
+				printf("\t%s = %s\n", envp[i], envp[i+1]);
+		} else {
+			printf("no envp.\n");
+		}
 	}
 
-	realmem = btoc(memsize);
+	realmem = btoc(GXEMUL_MP_DEV_READ(GXEMUL_MP_DEV_MEMORY));
 	mips_init();
 
 	mips_timer_init_params(platform_counter_freq, 0);
 }
+
+#ifdef SMP
+void
+platform_ipi_send(int cpuid)
+{
+	GXEMUL_MP_DEV_WRITE(GXEMUL_MP_DEV_IPI_ONE, (1 << 16) | cpuid);
+}
+
+void
+platform_ipi_clear(void)
+{
+	GXEMUL_MP_DEV_WRITE(GXEMUL_MP_DEV_IPI_READ, 0);
+}
+
+int
+platform_ipi_intrnum(void)
+{
+	return (GXEMUL_MP_DEV_IPI_INTERRUPT - 2);
+}
+
+struct cpu_group *
+platform_smp_topo(void)
+{
+	return (smp_topo_none());
+}
+
+void
+platform_init_ap(int cpuid)
+{
+	int ipi_int_mask, clock_int_mask;
+
+	/*
+	 * Unmask the clock and ipi interrupts.
+	 */
+	clock_int_mask = hard_int_mask(5);
+	ipi_int_mask = hard_int_mask(platform_ipi_intrnum());
+	set_intr_mask(ipi_int_mask | clock_int_mask);
+}
+
+void
+platform_cpu_mask(cpuset_t *mask)
+{
+	unsigned i, n;
+
+	n = GXEMUL_MP_DEV_READ(GXEMUL_MP_DEV_NCPUS);
+	CPU_ZERO(mask);
+	for (i = 0; i < n; i++)
+		CPU_SET(i, mask);
+}
+
+int
+platform_processor_id(void)
+{
+	return (GXEMUL_MP_DEV_READ(GXEMUL_MP_DEV_WHOAMI));
+}
+
+int
+platform_start_ap(int cpuid)
+{
+	GXEMUL_MP_DEV_WRITE(GXEMUL_MP_DEV_STARTADDR, (intptr_t)mpentry);
+	GXEMUL_MP_DEV_WRITE(GXEMUL_MP_DEV_START, cpuid);
+	return (0);
+}
+#endif	/* SMP */

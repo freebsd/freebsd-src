@@ -72,7 +72,7 @@
  *
  * XScale core 3 assembly functions for CPU / MMU / TLB specific operations
  */
- 
+
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
@@ -339,7 +339,7 @@ ENTRY(xscalec3_setttb)
 #else
 	ldr	r3, .Lblock_userspace_access
 	ldr	r2, [r3]
-	orr	r1, r2, #1 
+	orr	r1, r2, #1
 	str	r1, [r3]
 #endif
 	stmfd	sp!, {r0-r3, lr}
@@ -354,7 +354,7 @@ ENTRY(xscalec3_setttb)
 #ifdef ARM_USE_L2_CACHE
 	orr	r0, r0, #0x18	/* cache the page table in L2 */
 #endif
-	/* Write the TTB */ 
+	/* Write the TTB */
 	mcr	p15, 0, r0, c2, c0, 0
 
 	/* If we have updated the TTB we must flush the TLB */

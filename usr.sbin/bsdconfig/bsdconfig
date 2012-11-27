@@ -1,0 +1,313 @@
+#!/bin/sh
+#-
+# Copyright (c) 2012 Ron McDowell
+# Copyright (c) 2012 Devin Teske
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+. $BSDCFG_LIBE/include/common.subr || exit 1
+f_include $BSDCFG_LIBE/include/dialog.subr
+f_include $BSDCFG_LIBE/include/mustberoot.subr
+f_include $BSDCFG_LIBE/include/strings.subr
+f_include_lang $BSDCFG_LIBE/include/messages.subr
+
+############################################################ FUNCTIONS
+
+# usage
+#
+# display usage and exit
+#
+usage()
+{
+	local index="INDEX" cmd_list=""
+
+	cd $BSDCFG_LIBE
+
+	# Test for language-specific indices
+	f_quietly ls */"$index.${LANG:-$LC_ALL}" &&
+		index="$index.${LANG:-$LC_ALL}"
+
+	cmd_list=$(
+		awk '/^menu_selection="/ {
+			sub(/\|.*/, "")
+			sub(/^menu_selection="/, "")
+			print
+		}' */$index | sort
+	)
+
+	#
+	# Determine the longest command-length (in characters)
+	#
+	local longest_cmd
+	longest_cmd=$( echo "$cmd_list" | f_longest_line_length )
+	f_dprintf "longest_cmd=[$longest_cmd]"
+
+	#
+	# Determine the maximum width of terminal/console
+	#
+	local max_size max_width
+	max_size=$( stty size 2> /dev/null )
+	: ${max_size:="24 80"}
+	max_width="${max_size#*[$IFS]}"
+	f_dprintf "max_width=[$max_width]"
+
+	#
+	# Using the longest command-length as the width of a single column,
+	# determine if we can use more than one column to display commands.
+	#
+	local x=$longest_cmd ncols=1
+	x=$(( $x + 8 )) # Accomodate leading tab character
+	x=$(( $x + 3 + $longest_cmd )) # Preload end of next column
+	while [ $x -lt $max_width ]; do
+		ncols=$(( $ncols + 1 ))
+		x=$(( $x + 3 + $longest_cmd ))
+	done
+	f_dprintf "ncols=[$ncols] x=[$x]"
+
+	#
+	# Re-format the command-list into multiple columns
+	#
+	cmd_list=$( eval "$( echo "$cmd_list" |
+		awk -v ncols=$ncols -v size=$longest_cmd '
+		BEGIN {
+			n = 0
+			row_item[1] = ""
+		}
+		function print_row()
+		{
+			fmt = "printf \"\\t%-" size "s"
+			for (i = 1; i < cur_col; i++)
+				fmt = fmt "   %-" size "s"
+			fmt = fmt "\\n\""
+			printf "%s", fmt
+			for (i = 1; i <= cur_col; i++)
+				printf " \"%s\"", row_item[i]
+			print ""
+		}
+		{
+			n++
+			cur_col = (( n - 1 ) % ncols ) + 1
+			printf "f_dprintf \"row_item[%u]=[%s]\"\n", cur_col, $0
+			row_item[cur_col] = $0
+			if ( cur_col == ncols ) print_row()
+		}
+		END {
+			if ( cur_col < ncols ) print_row()
+		}' )"
+	)
+
+	f_usage $BSDCFG_LIBE/USAGE \
+	        "PROGRAM_NAME" "$pgm" \
+	        "COMMAND_LIST" "$cmd_list"
+}
+
+# dialog_menu_main
+#
+# Display the dialog(1)-based application main menu.
+#
+dialog_menu_main()
+{
+	local title="$DIALOG_TITLE"
+	local btitle="$DIALOG_BACKTITLE"
+	local prompt="$msg_menu_text"
+	local menu_list size
+
+	menu_list="
+		'X' '$msg_exit' '$msg_exit_bsdconfig'
+	" # END-QUOTE
+
+	local sanitize_awk="{ gsub(/'/, \"'\\\\''\"); print }"
+
+	local menuitem menu_title menu_help menu_selection index=1
+	for menuitem in $( ls -d [0-9][0-9][0-9].* ); do
+		[ $index -lt ${#DIALOG_MENU_TAGS} ] || break
+		tag=$( f_substr "$DIALOG_MENU_TAGS" $index 1 )
+
+		menu_program=
+		menu_title=
+		menu_help=
+		f_include_lang $menuitem/INDEX
+		[ "$menu_program" ] || continue
+
+		case "$menu_program" in
+		/*) : already fully qualified ;;
+		*)
+			menu_program="$menuitem/$menu_program"
+		esac
+
+		menu_title=$( echo "$menu_title" | awk "$sanitize_awk" )
+		menu_help=$( echo "$menu_help" | awk "$sanitize_awk" )
+		setvar "menu_program$tag" "$menu_program"
+		menu_list="$menu_list '$tag' '$menu_title' '$menu_help'"
+
+		index=$(( $index + 1 ))
+	done
+
+	size=$( eval f_dialog_menu_with_help_size \
+	        	\"\$title\"  \
+	        	\"\$btitle\" \
+	        	\"\$prompt\" \
+	        	\"\"         \
+	        	$menu_list   )
+
+	eval $DIALOG \
+		--clear                                 \
+		--title \"\$title\"                     \
+		--backtitle \"\$btitle\"                \
+		--item-help                             \
+		--ok-label \"\$msg_ok\"                 \
+		--cancel-label \"\$msg_exit_bsdconfig\" \
+		--menu \"\$prompt\" $size $menu_list    \
+		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+}
+
+############################################################ MAIN
+
+#
+# Process command-line arguments
+#
+while getopts hSX flag; do
+	case "$flag" in
+	h|\?) usage;;
+	esac
+done
+shift $(( $OPTIND -1 ))
+
+#
+# Initialize
+#
+f_dialog_init
+f_dialog_title "$msg_main_menu"
+
+[ "$SECURE" ] && f_mustberoot_init
+
+# Incorporate rc-file if it exists
+[ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
+
+#
+# Log our operating environment for debugging purposes
+#
+export UNAME_S="$(uname -s)" # Operating System (i.e. FreeBSD)
+export UNAME_P="$(uname -p)" # Processor Architecture (i.e. i386)
+export UNAME_R="$(uname -r)" # Release Level (i.e. X.Y-RELEASE)
+f_dprintf "UNAME_S=[$UNAME_S] UNAME_P=[$UNAME_P] UNAME_R=[$UNAME_R]"
+
+cd $BSDCFG_LIBE || f_die 1 "$msg_directory_not_found" "$BSDCFG_LIBE"
+
+#
+# If a non-option argument was passed, process it as a menuitem selection...
+#
+if [ "$1" ]; then
+	#
+	# ...unless it's a long-option for usage.
+	#
+	case "$1" in
+	-help|--help|-\?) usage;;
+	esac
+
+	#
+	# Find the INDEX (possibly i18n) claiming this keyword
+	#
+	lang="${LANG:-$LC_ALL}"
+	if [ "$lang" ]; then
+		sel=$( grep "^menu_selection=\"$1|" */INDEX.$lang \
+		       		2> /dev/null | tail -1 )
+
+		# Fall-back to non-i18n sources if nothing was found
+		[ "$sel" ] ||
+			sel=$( grep "^menu_selection=\"$1|" */INDEX | tail -1 )
+	else
+		sel=$( grep "^menu_selection=\"$1|" */INDEX | tail -1 )
+	fi
+
+	#
+	# If no matches, display usage (which shows valid keywords)
+	#
+	if [ ! "$sel" ]; then
+		f_err "%s: %s: $msg_not_found\n" "$pgm" "$1"
+		usage
+	fi
+
+	#
+	# The command to execute is after the pipe-character (|) in the
+	# menu_selection property of the INDEX file for the menuitem.
+	#
+	cmd="${sel#*|}"
+	cmd="${cmd%\"}"
+	if [ ! "$cmd" ]; then
+		echo "$pgm: $1: $msg_not_found"
+		usage
+	fi
+	shift
+
+	#
+	# If the command pathname is not fully qualified fix-up/force to be
+	# relative to the menuitem directory.
+	#
+	case "$cmd" in
+	/*) : already fully qualified ;;
+	*)
+		dir="${sel%%/*}"
+		cmd="$dir/$cmd"
+	esac
+
+	exec $cmd ${USE_XDIALOG:+-X} "$@" || exit 1
+fi
+
+[ -f "$HOME/.bsdconfigrc" ] || f_dialog_msgbox "$msg_help_text"
+
+#
+# Launch application main menu
+#
+while :; do
+	dialog_menu_main
+	retval=$?
+	mtag=$( f_dialog_menutag )
+	f_dprintf "retval=$retval mtag=[$mtag]"
+
+	[ $retval -eq 0 ] || f_die
+
+	case "$mtag" in
+	X) # Exit
+	   break
+	   ;;
+
+	*) # Dynamically loaded menuitem
+	   cmd=$( eval echo \"\$menu_program$mtag\" )
+	   f_dprintf "cmd=[$cmd]"
+	   $cmd ${USE_XDIALOG:+-X}
+	   ;;
+
+	esac
+done
+
+exit $SUCCESS
+
+################################################################################
+# END
+################################################################################

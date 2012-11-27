@@ -157,7 +157,7 @@ dtrace_optval_t	dtrace_dof_maxsize = (256 * 1024);
 size_t		dtrace_global_maxsize = (16 * 1024);
 size_t		dtrace_actions_max = (16 * 1024);
 size_t		dtrace_retain_max = 1024;
-dtrace_optval_t	dtrace_helper_actions_max = 32;
+dtrace_optval_t	dtrace_helper_actions_max = 128;
 dtrace_optval_t	dtrace_helper_providers_max = 32;
 dtrace_optval_t	dtrace_dstate_defsize = (1 * 1024 * 1024);
 size_t		dtrace_strsize_default = 256;
@@ -1911,6 +1911,75 @@ dtrace_aggregate_lquantize(uint64_t *lquanta, uint64_t nval, uint64_t incr)
 	 * This is an overflow.
 	 */
 	lquanta[levels + 1] += incr;
+}
+
+static int
+dtrace_aggregate_llquantize_bucket(uint16_t factor, uint16_t low,
+    uint16_t high, uint16_t nsteps, int64_t value)
+{
+	int64_t this = 1, last, next;
+	int base = 1, order;
+
+	ASSERT(factor <= nsteps);
+	ASSERT(nsteps % factor == 0);
+
+	for (order = 0; order < low; order++)
+		this *= factor;
+
+	/*
+	 * If our value is less than our factor taken to the power of the
+	 * low order of magnitude, it goes into the zeroth bucket.
+	 */
+	if (value < (last = this))
+		return (0);
+
+	for (this *= factor; order <= high; order++) {
+		int nbuckets = this > nsteps ? nsteps : this;
+
+		if ((next = this * factor) < this) {
+			/*
+			 * We should not generally get log/linear quantizations
+			 * with a high magnitude that allows 64-bits to
+			 * overflow, but we nonetheless protect against this
+			 * by explicitly checking for overflow, and clamping
+			 * our value accordingly.
+			 */
+			value = this - 1;
+		}
+
+		if (value < this) {
+			/*
+			 * If our value lies within this order of magnitude,
+			 * determine its position by taking the offset within
+			 * the order of magnitude, dividing by the bucket
+			 * width, and adding to our (accumulated) base.
+			 */
+			return (base + (value - last) / (this / nbuckets));
+		}
+
+		base += nbuckets - (nbuckets / factor);
+		last = this;
+		this = next;
+	}
+
+	/*
+	 * Our value is greater than or equal to our factor taken to the
+	 * power of one plus the high magnitude -- return the top bucket.
+	 */
+	return (base);
+}
+
+static void
+dtrace_aggregate_llquantize(uint64_t *llquanta, uint64_t nval, uint64_t incr)
+{
+	uint64_t arg = *llquanta++;
+	uint16_t factor = DTRACE_LLQUANTIZE_FACTOR(arg);
+	uint16_t low = DTRACE_LLQUANTIZE_LOW(arg);
+	uint16_t high = DTRACE_LLQUANTIZE_HIGH(arg);
+	uint16_t nsteps = DTRACE_LLQUANTIZE_NSTEP(arg);
+
+	llquanta[dtrace_aggregate_llquantize_bucket(factor,
+	    low, high, nsteps, nval)] += incr;
 }
 
 /*ARGSUSED*/
@@ -9853,6 +9922,35 @@ dtrace_ecb_aggregation_create(dtrace_ecb_t *ecb, dtrace_actdesc_t *desc)
 		break;
 	}
 
+	case DTRACEAGG_LLQUANTIZE: {
+		uint16_t factor = DTRACE_LLQUANTIZE_FACTOR(desc->dtad_arg);
+		uint16_t low = DTRACE_LLQUANTIZE_LOW(desc->dtad_arg);
+		uint16_t high = DTRACE_LLQUANTIZE_HIGH(desc->dtad_arg);
+		uint16_t nsteps = DTRACE_LLQUANTIZE_NSTEP(desc->dtad_arg);
+		int64_t v;
+
+		agg->dtag_initial = desc->dtad_arg;
+		agg->dtag_aggregate = dtrace_aggregate_llquantize;
+
+		if (factor < 2 || low >= high || nsteps < factor)
+			goto err;
+
+		/*
+		 * Now check that the number of steps evenly divides a power
+		 * of the factor.  (This assures both integer bucket size and
+		 * linearity within each magnitude.)
+		 */
+		for (v = factor; v < nsteps; v *= factor)
+			continue;
+
+		if ((v % nsteps) || (nsteps % factor))
+			goto err;
+
+		size = (dtrace_aggregate_llquantize_bucket(factor,
+		    low, high, nsteps, INT64_MAX) + 2) * sizeof (uint64_t);
+		break;
+	}
+
 	case DTRACEAGG_AVG:
 		agg->dtag_aggregate = dtrace_aggregate_avg;
 		size = sizeof (uint64_t) * 2;
@@ -15244,10 +15342,7 @@ dtrace_attach(dev_info_t *devi, ddi_attach_cmd_t cmd)
 
 #if !defined(sun)
 #if __FreeBSD_version >= 800039
-static void
-dtrace_dtr(void *data __unused)
-{
-}
+static void dtrace_dtr(void *);
 #endif
 #endif
 
@@ -15372,11 +15467,15 @@ dtrace_open(struct cdev *dev, int oflags, int devtype, struct thread *td)
 }
 
 /*ARGSUSED*/
-static int
 #if defined(sun)
+static int
 dtrace_close(dev_t dev, int flag, int otyp, cred_t *cred_p)
-#else
+#elif __FreeBSD_version < 800039
+static int
 dtrace_close(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
+#else
+static void
+dtrace_dtr(void *data)
 #endif
 {
 #if defined(sun)
@@ -15395,8 +15494,7 @@ dtrace_close(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 	if (dev2unit(dev) == 0)
 		return (0);
 #else
-	dtrace_state_t *state;
-	devfs_get_cdevpriv((void **) &state);
+	dtrace_state_t *state = data;
 #endif
 
 #endif
@@ -15419,8 +15517,6 @@ dtrace_close(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 		kmem_free(state, 0);
 #if __FreeBSD_version < 800039
 		dev->si_drv1 = NULL;
-#else
-		devfs_clear_cdevpriv();
 #endif
 #endif
 	}
@@ -15441,7 +15537,9 @@ dtrace_close(struct cdev *dev, int flags, int fmt __unused, struct thread *td)
 	destroy_dev_sched(dev);
 #endif
 
+#if defined(sun) || __FreeBSD_version < 800039
 	return (0);
+#endif
 }
 
 #if defined(sun)
@@ -16488,8 +16586,10 @@ void dtrace_invop_uninit(void);
 
 static struct cdevsw dtrace_cdevsw = {
 	.d_version	= D_VERSION,
+#if __FreeBSD_version < 800039
 	.d_flags	= D_TRACKCLOSE | D_NEEDMINOR,
 	.d_close	= dtrace_close,
+#endif
 	.d_ioctl	= dtrace_ioctl,
 	.d_open		= dtrace_open,
 	.d_name		= "dtrace",
@@ -16497,7 +16597,6 @@ static struct cdevsw dtrace_cdevsw = {
 
 static struct cdevsw helper_cdevsw = {
 	.d_version	= D_VERSION,
-	.d_flags	= D_TRACKCLOSE | D_NEEDMINOR,
 	.d_ioctl	= dtrace_ioctl_helper,
 	.d_name		= "helper",
 };

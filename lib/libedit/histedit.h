@@ -131,10 +131,10 @@ unsigned char	_el_fn_sh_complete(EditLine *, int);
 #define	EL_GETCFN	13	/* , el_rfunc_t);		*/
 #define	EL_CLIENTDATA	14	/* , void *);			*/
 #define	EL_UNBUFFERED	15	/* , int);			*/
-#define	EL_PREP_TERM    16      /* , int);                      */
+#define	EL_PREP_TERM    16	/* , int);                      */
 #define	EL_GETTC	17	/* , const char *, ..., NULL);	*/
-#define	EL_GETFP	18	/* , int, FILE **)		*/
-#define	EL_SETFP	19	/* , int, FILE *)		*/
+#define	EL_GETFP	18	/* , int, FILE **);		*/
+#define	EL_SETFP	19	/* , int, FILE *);		*/
 #define	EL_REFRESH	20	/* , void);			      set     */
 #define	EL_PROMPT_ESC	21	/* , prompt_func, Char);	      set/get */
 #define	EL_RPROMPT_ESC	22	/* , prompt_func, Char);	      set/get */
@@ -153,13 +153,6 @@ int		el_source(EditLine *, const char *);
  * of the application
  */
 void		 el_resize(EditLine *);
-
-
-/*
- * Set user private data.
- */
-void            el_data_set(EditLine *, void *);
-void *          el_data_get(EditLine *);
 
 /*
  * User-defined function interface.

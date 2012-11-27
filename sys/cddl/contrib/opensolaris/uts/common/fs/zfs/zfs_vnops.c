@@ -71,6 +71,7 @@
 #include <sys/sf_buf.h>
 #include <sys/sched.h>
 #include <sys/acl.h>
+#include <vm/vm_param.h>
 #include <vm/vm_pageout.h>
 
 /*
@@ -836,6 +837,12 @@ zfs_write(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 		 * so that we can re-write the block safely.
 		 */
 		rl = zfs_range_lock(zp, woff, n, RL_WRITER);
+	}
+
+	if (vn_rlimit_fsize(vp, uio, uio->uio_td)) {
+		zfs_range_unlock(rl);
+		ZFS_EXIT(zfsvfs);
+		return (EFBIG);
 	}
 
 	if (woff >= limit) {
@@ -5695,9 +5702,6 @@ zfs_freebsd_write(ap)
 		struct ucred *a_cred;
 	} */ *ap;
 {
-
-	if (vn_rlimit_fsize(ap->a_vp, ap->a_uio, ap->a_uio->uio_td))
-		return (EFBIG);
 
 	return (zfs_write(ap->a_vp, ap->a_uio, ioflags(ap->a_ioflag),
 	    ap->a_cred, NULL));

@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Atsushi Onoe's rate control algorithm.
  */
+#include "opt_ath.h"
 #include "opt_inet.h"
 #include "opt_wlan.h"
 
@@ -404,6 +405,14 @@ ath_rate_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"rate_raise_threshold", CTLFLAG_RW, &ath_rate_raise_threshold,0,
 		"rate control: # good periods before raising rate");
+}
+
+static int
+ath_rate_fetch_node_stats(struct ath_softc *sc, struct ath_node *an,
+    struct ath_rateioctl *re)
+{
+
+	return (EINVAL);
 }
 
 struct ath_ratectrl *

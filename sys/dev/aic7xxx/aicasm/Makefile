@@ -24,8 +24,7 @@ WARNS?=	5
 DEPENDFILE=	.depend_aicasm
 .endif
 
-NOSTDINC=	-nostdinc
-CFLAGS+= ${NOSTDINC} -I/usr/include -I.
+CFLAGS+= -I.
 .ifdef MAKESRCPATH
 CFLAGS+= -I${MAKESRCPATH}
 .endif

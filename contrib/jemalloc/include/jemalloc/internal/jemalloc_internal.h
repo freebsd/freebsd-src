@@ -3,23 +3,34 @@
 #include "libc_private.h"
 #include "namespace.h"
 
-#include <sys/mman.h>
-#include <sys/param.h>
-#include <sys/syscall.h>
-#if !defined(SYS_write) && defined(__NR_write)
-#define	SYS_write __NR_write
+#include <math.h>
+#ifdef _WIN32
+#  include <windows.h>
+#  define ENOENT ERROR_PATH_NOT_FOUND
+#  define EINVAL ERROR_BAD_ARGUMENTS
+#  define EAGAIN ERROR_OUTOFMEMORY
+#  define EPERM  ERROR_WRITE_FAULT
+#  define EFAULT ERROR_INVALID_ADDRESS
+#  define ENOMEM ERROR_NOT_ENOUGH_MEMORY
+#  undef ERANGE
+#  define ERANGE ERROR_INVALID_DATA
+#else
+#  include <sys/param.h>
+#  include <sys/mman.h>
+#  include <sys/syscall.h>
+#  if !defined(SYS_write) && defined(__NR_write)
+#    define SYS_write __NR_write
+#  endif
+#  include <sys/uio.h>
+#  include <pthread.h>
+#  include <errno.h>
 #endif
-#include <sys/time.h>
 #include <sys/types.h>
-#include <sys/uio.h>
 
-#include <errno.h>
 #include <limits.h>
 #ifndef SIZE_T_MAX
 #  define SIZE_T_MAX	SIZE_MAX
 #endif
-#include <pthread.h>
-#include <sched.h>
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -33,10 +44,18 @@
 #include <string.h>
 #include <strings.h>
 #include <ctype.h>
-#include <unistd.h>
+#ifdef _MSC_VER
+#  include <io.h>
+typedef intptr_t ssize_t;
+#  define PATH_MAX 1024
+#  define STDERR_FILENO 2
+#  define __func__ __FUNCTION__
+/* Disable warnings about deprecated system functions */
+#  pragma warning(disable: 4996)
+#else
+#  include <unistd.h>
+#endif
 #include <fcntl.h>
-#include <pthread.h>
-#include <math.h>
 
 #include "un-namespace.h"
 #include "libc_private.h"
@@ -82,13 +101,7 @@ static const bool config_fill =
     false
 #endif
     ;
-static const bool config_lazy_lock =
-#ifdef JEMALLOC_LAZY_LOCK
-    true
-#else
-    false
-#endif
-    ;
+static const bool config_lazy_lock = true;
 static const bool config_prof =
 #ifdef JEMALLOC_PROF
     true
@@ -105,6 +118,13 @@ static const bool config_prof_libgcc =
     ;
 static const bool config_prof_libunwind =
 #ifdef JEMALLOC_PROF_LIBUNWIND
+    true
+#else
+    false
+#endif
+    ;
+static const bool config_mremap =
+#ifdef JEMALLOC_MREMAP
     true
 #else
     false
@@ -218,6 +238,9 @@ static const bool config_ivsalloc =
 #else
 #  define JEMALLOC_ENABLE_INLINE
 #  define JEMALLOC_INLINE static inline
+#  ifdef _MSC_VER
+#    define inline _inline
+#  endif
 #endif
 
 /* Smallest size class to support. */
@@ -229,7 +252,7 @@ static const bool config_ivsalloc =
  * classes).
  */
 #ifndef LG_QUANTUM
-#  ifdef __i386__
+#  if (defined(__i386__) || defined(_M_IX86))
 #    define LG_QUANTUM		4
 #  endif
 #  ifdef __ia64__
@@ -241,7 +264,7 @@ static const bool config_ivsalloc =
 #  ifdef __sparc64__
 #    define LG_QUANTUM		4
 #  endif
-#  if (defined(__amd64__) || defined(__x86_64__))
+#  if (defined(__amd64__) || defined(__x86_64__) || defined(_M_X64))
 #    define LG_QUANTUM		4
 #  endif
 #  ifdef __arm__
@@ -291,9 +314,12 @@ static const bool config_ivsalloc =
 /*
  * Maximum size of L1 cache line.  This is used to avoid cache line aliasing.
  * In addition, this controls the spacing of cacheline-spaced size classes.
+ *
+ * CACHELINE cannot be based on LG_CACHELINE because __declspec(align()) can
+ * only handle raw constants.
  */
 #define	LG_CACHELINE		6
-#define	CACHELINE		((size_t)(1U << LG_CACHELINE))
+#define	CACHELINE		64
 #define	CACHELINE_MASK		(CACHELINE - 1)
 
 /* Return the smallest cacheline multiple that is >= s. */
@@ -323,6 +349,20 @@ static const bool config_ivsalloc =
 /* Return the smallest alignment multiple that is >= s. */
 #define	ALIGNMENT_CEILING(s, alignment)					\
 	(((s) + (alignment - 1)) & (-(alignment)))
+
+/* Declare a variable length array */
+#if __STDC_VERSION__ < 199901L
+#  ifdef _MSC_VER
+#    include <malloc.h>
+#    define alloca _alloca
+#  else
+#    include <alloca.h>
+#  endif
+#  define VARIABLE_ARRAY(type, name, count) \
+	type *name = alloca(sizeof(type) * count)
+#else
+#  define VARIABLE_ARRAY(type, name, count) type name[count]
+#endif
 
 #ifdef JEMALLOC_VALGRIND
 /*
@@ -655,8 +695,17 @@ choose_arena(arena_t *arena)
 
 #include "jemalloc/internal/bitmap.h"
 #include "jemalloc/internal/rtree.h"
-#include "jemalloc/internal/tcache.h"
+/*
+ * Include arena.h twice in order to resolve circular dependencies with
+ * tcache.h.
+ */
+#define	JEMALLOC_ARENA_INLINE_A
 #include "jemalloc/internal/arena.h"
+#undef JEMALLOC_ARENA_INLINE_A
+#include "jemalloc/internal/tcache.h"
+#define	JEMALLOC_ARENA_INLINE_B
+#include "jemalloc/internal/arena.h"
+#undef JEMALLOC_ARENA_INLINE_B
 #include "jemalloc/internal/hash.h"
 #include "jemalloc/internal/quarantine.h"
 

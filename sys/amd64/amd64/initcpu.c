@@ -91,11 +91,17 @@ init_amd(void)
 	 *
 	 * http://support.amd.com/us/Processor_TechDocs/41322_10h_Rev_Gd.pdf
 	 * http://support.amd.com/us/Processor_TechDocs/44739_12h_Rev_Gd.pdf
+	 *
+	 * Hypervisors do not provide access to the errata MSR,
+	 * causing #GP exception on attempt to apply the errata.  The
+	 * MSR write shall be done on host and persist globally
+	 * anyway, so do not try to do it when under virtualization.
 	 */
 	switch (CPUID_TO_FAMILY(cpu_id)) {
 	case 0x10:
 	case 0x12:
-		wrmsr(0xc0011029, rdmsr(0xc0011029) | 1);
+		if ((cpu_feature2 & CPUID2_HV) == 0)
+			wrmsr(0xc0011029, rdmsr(0xc0011029) | 1);
 		break;
 	}
 }

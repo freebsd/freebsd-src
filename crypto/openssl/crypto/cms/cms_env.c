@@ -60,18 +60,18 @@
 #include <openssl/rand.h>
 #include <openssl/aes.h>
 #include "cms_lcl.h"
+#include "asn1_locl.h"
 
 /* CMS EnvelopedData Utilities */
 
 DECLARE_ASN1_ITEM(CMS_EnvelopedData)
-DECLARE_ASN1_ITEM(CMS_RecipientInfo)
 DECLARE_ASN1_ITEM(CMS_KeyTransRecipientInfo)
 DECLARE_ASN1_ITEM(CMS_KEKRecipientInfo)
 DECLARE_ASN1_ITEM(CMS_OtherKeyAttribute)
 
 DECLARE_STACK_OF(CMS_RecipientInfo)
 
-static CMS_EnvelopedData *cms_get0_enveloped(CMS_ContentInfo *cms)
+CMS_EnvelopedData *cms_get0_enveloped(CMS_ContentInfo *cms)
 	{
 	if (OBJ_obj2nid(cms->contentType) != NID_pkcs7_enveloped)
 		{
@@ -151,7 +151,7 @@ CMS_RecipientInfo *CMS_add1_recipient_cert(CMS_ContentInfo *cms,
 	CMS_KeyTransRecipientInfo *ktri;
 	CMS_EnvelopedData *env;
 	EVP_PKEY *pk = NULL;
-	int type;
+	int i, type;
 	env = cms_get0_enveloped(cms);
 	if (!env)
 		goto err;
@@ -200,21 +200,22 @@ CMS_RecipientInfo *CMS_add1_recipient_cert(CMS_ContentInfo *cms,
 	if (!cms_set1_SignerIdentifier(ktri->rid, recip, type))
 		goto err;
 
-	/* Since we have no EVP_PKEY_ASN1_METHOD in OpenSSL 0.9.8,
-	 * hard code algorithm parameters.
-	 */
-
-	if (pk->type == EVP_PKEY_RSA)
+	if (pk->ameth && pk->ameth->pkey_ctrl)
 		{
-		X509_ALGOR_set0(ktri->keyEncryptionAlgorithm,
-					OBJ_nid2obj(NID_rsaEncryption), 
-					V_ASN1_NULL, 0);
-		}
-	else
-		{
-		CMSerr(CMS_F_CMS_ADD1_RECIPIENT_CERT,
+		i = pk->ameth->pkey_ctrl(pk, ASN1_PKEY_CTRL_CMS_ENVELOPE,
+						0, ri);
+		if (i == -2)
+			{
+			CMSerr(CMS_F_CMS_ADD1_RECIPIENT_CERT,
 				CMS_R_NOT_SUPPORTED_FOR_THIS_KEY_TYPE);
-		goto err;
+			goto err;
+			}
+		if (i <= 0)
+			{
+			CMSerr(CMS_F_CMS_ADD1_RECIPIENT_CERT,
+				CMS_R_CTRL_FAILURE);
+			goto err;
+			}
 		}
 
 	if (!sk_CMS_RecipientInfo_push(env->recipientInfos, ri))
@@ -301,8 +302,9 @@ static int cms_RecipientInfo_ktri_encrypt(CMS_ContentInfo *cms,
 	{
 	CMS_KeyTransRecipientInfo *ktri;
 	CMS_EncryptedContentInfo *ec;
+	EVP_PKEY_CTX *pctx = NULL;
 	unsigned char *ek = NULL;
-	int eklen;
+	size_t eklen;
 
 	int ret = 0;
 
@@ -315,7 +317,22 @@ static int cms_RecipientInfo_ktri_encrypt(CMS_ContentInfo *cms,
 	ktri = ri->d.ktri;
 	ec = cms->d.envelopedData->encryptedContentInfo;
 
-	eklen = EVP_PKEY_size(ktri->pkey);
+	pctx = EVP_PKEY_CTX_new(ktri->pkey, NULL);
+	if (!pctx)
+		return 0;
+
+	if (EVP_PKEY_encrypt_init(pctx) <= 0)
+		goto err;
+
+	if (EVP_PKEY_CTX_ctrl(pctx, -1, EVP_PKEY_OP_ENCRYPT,
+				EVP_PKEY_CTRL_CMS_ENCRYPT, 0, ri) <= 0)
+		{
+		CMSerr(CMS_F_CMS_RECIPIENTINFO_KTRI_ENCRYPT, CMS_R_CTRL_ERROR);
+		goto err;
+		}
+
+	if (EVP_PKEY_encrypt(pctx, NULL, &eklen, ec->key, ec->keylen) <= 0)
+		goto err;
 
 	ek = OPENSSL_malloc(eklen);
 
@@ -326,9 +343,7 @@ static int cms_RecipientInfo_ktri_encrypt(CMS_ContentInfo *cms,
 		goto err;
 		}
 
-	eklen = EVP_PKEY_encrypt(ek, ec->key, ec->keylen, ktri->pkey);
-
-	if (eklen <= 0)
+	if (EVP_PKEY_encrypt(pctx, ek, &eklen, ec->key, ec->keylen) <= 0)
 		goto err;
 
 	ASN1_STRING_set0(ktri->encryptedKey, ek, eklen);
@@ -337,6 +352,8 @@ static int cms_RecipientInfo_ktri_encrypt(CMS_ContentInfo *cms,
 	ret = 1;
 
 	err:
+	if (pctx)
+		EVP_PKEY_CTX_free(pctx);
 	if (ek)
 		OPENSSL_free(ek);
 	return ret;
@@ -349,9 +366,12 @@ static int cms_RecipientInfo_ktri_decrypt(CMS_ContentInfo *cms,
 							CMS_RecipientInfo *ri)
 	{
 	CMS_KeyTransRecipientInfo *ktri = ri->d.ktri;
+	EVP_PKEY_CTX *pctx = NULL;
 	unsigned char *ek = NULL;
-	int eklen;
+	size_t eklen;
 	int ret = 0;
+	CMS_EncryptedContentInfo *ec;
+	ec = cms->d.envelopedData->encryptedContentInfo;
 
 	if (ktri->pkey == NULL)
 		{
@@ -360,7 +380,24 @@ static int cms_RecipientInfo_ktri_decrypt(CMS_ContentInfo *cms,
 		return 0;
 		}
 
-	eklen = EVP_PKEY_size(ktri->pkey);
+	pctx = EVP_PKEY_CTX_new(ktri->pkey, NULL);
+	if (!pctx)
+		return 0;
+
+	if (EVP_PKEY_decrypt_init(pctx) <= 0)
+		goto err;
+
+	if (EVP_PKEY_CTX_ctrl(pctx, -1, EVP_PKEY_OP_DECRYPT,
+				EVP_PKEY_CTRL_CMS_DECRYPT, 0, ri) <= 0)
+		{
+		CMSerr(CMS_F_CMS_RECIPIENTINFO_KTRI_DECRYPT, CMS_R_CTRL_ERROR);
+		goto err;
+		}
+
+	if (EVP_PKEY_decrypt(pctx, NULL, &eklen,
+				ktri->encryptedKey->data,
+				ktri->encryptedKey->length) <= 0)
+		goto err;
 
 	ek = OPENSSL_malloc(eklen);
 
@@ -371,10 +408,9 @@ static int cms_RecipientInfo_ktri_decrypt(CMS_ContentInfo *cms,
 		goto err;
 		}
 
-	eklen = EVP_PKEY_decrypt(ek, 
+	if (EVP_PKEY_decrypt(pctx, ek, &eklen,
 				ktri->encryptedKey->data,
-				ktri->encryptedKey->length, ktri->pkey);
-	if (eklen <= 0)
+				ktri->encryptedKey->length) <= 0)
 		{
 		CMSerr(CMS_F_CMS_RECIPIENTINFO_KTRI_DECRYPT, CMS_R_CMS_LIB);
 		goto err;
@@ -382,10 +418,18 @@ static int cms_RecipientInfo_ktri_decrypt(CMS_ContentInfo *cms,
 
 	ret = 1;
 
-	cms->d.envelopedData->encryptedContentInfo->key = ek;
-	cms->d.envelopedData->encryptedContentInfo->keylen = eklen;
+	if (ec->key)
+		{
+		OPENSSL_cleanse(ec->key, ec->keylen);
+		OPENSSL_free(ec->key);
+		}
+
+	ec->key = ek;
+	ec->keylen = eklen;
 
 	err:
+	if (pctx)
+		EVP_PKEY_CTX_free(pctx);
 	if (!ret && ek)
 		OPENSSL_free(ek);
 
@@ -749,6 +793,9 @@ int CMS_RecipientInfo_decrypt(CMS_ContentInfo *cms, CMS_RecipientInfo *ri)
 		case CMS_RECIPINFO_KEK:
 		return cms_RecipientInfo_kekri_decrypt(cms, ri);
 
+		case CMS_RECIPINFO_PASS:
+		return cms_RecipientInfo_pwri_crypt(cms, ri, 0);
+
 		default:
 		CMSerr(CMS_F_CMS_RECIPIENTINFO_DECRYPT,
 			CMS_R_UNSUPPORTED_RECPIENTINFO_TYPE);
@@ -790,6 +837,10 @@ BIO *cms_EnvelopedData_init_bio(CMS_ContentInfo *cms)
 
 			case CMS_RECIPINFO_KEK:
 			r = cms_RecipientInfo_kekri_encrypt(cms, ri);
+			break;
+
+			case CMS_RECIPINFO_PASS:
+			r = cms_RecipientInfo_pwri_crypt(cms, ri, 1);
 			break;
 
 			default:

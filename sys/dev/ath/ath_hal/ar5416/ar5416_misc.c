@@ -493,36 +493,6 @@ ar5416GetDiagState(struct ath_hal *ah, int request,
 	    args, argsize, result, resultsize);
 }
 
-typedef struct {
-	uint32_t dma_dbg_3;
-	uint32_t dma_dbg_4;
-	uint32_t dma_dbg_5;
-	uint32_t dma_dbg_6;
-} mac_dbg_regs_t;
-
-typedef enum {
-	dcu_chain_state		= 0x1,
-	dcu_complete_state	= 0x2,
-	qcu_state		= 0x4,
-	qcu_fsp_ok		= 0x8,
-	qcu_fsp_state		= 0x10,
-	qcu_stitch_state	= 0x20,
-	qcu_fetch_state		= 0x40,
-	qcu_complete_state	= 0x80
-} hal_mac_hangs_t;
-
-typedef struct {
-	int states;
-	uint8_t dcu_chain_state;
-	uint8_t dcu_complete_state;
-	uint8_t qcu_state;
-	uint8_t qcu_fsp_ok;
-	uint8_t qcu_fsp_state;
-	uint8_t qcu_stitch_state;
-	uint8_t qcu_fetch_state;
-	uint8_t qcu_complete_state;
-} hal_mac_hang_check_t;
-
 HAL_BOOL
 ar5416SetRifsDelay(struct ath_hal *ah, const struct ieee80211_channel *chan,
     HAL_BOOL enable)

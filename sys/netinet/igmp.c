@@ -2285,13 +2285,11 @@ igmp_change_state(struct in_multi *inm)
 	 */
 	KASSERT(inm->inm_ifma != NULL, ("%s: no ifma", __func__));
 	ifp = inm->inm_ifma->ifma_ifp;
-	if (ifp != NULL) {
-		/*
-		 * Sanity check that netinet's notion of ifp is the
-		 * same as net's.
-		 */
-		KASSERT(inm->inm_ifp == ifp, ("%s: bad ifp", __func__));
-	}
+	/*
+	 * Sanity check that netinet's notion of ifp is the
+	 * same as net's.
+	 */
+	KASSERT(inm->inm_ifp == ifp, ("%s: bad ifp", __func__));
 
 	IGMP_LOCK();
 

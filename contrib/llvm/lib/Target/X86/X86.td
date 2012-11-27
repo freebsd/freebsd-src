@@ -17,14 +17,14 @@
 include "llvm/Target/Target.td"
 
 //===----------------------------------------------------------------------===//
-// X86 Subtarget state.
+// X86 Subtarget state
 //
 
 def Mode64Bit : SubtargetFeature<"64bit-mode", "In64BitMode", "true",
                                   "64-bit mode (x86_64)">;
 
 //===----------------------------------------------------------------------===//
-// X86 Subtarget features.
+// X86 Subtarget features
 //===----------------------------------------------------------------------===//
 
 def FeatureCMOV    : SubtargetFeature<"cmov","HasCMov", "true",
@@ -86,21 +86,24 @@ def FeatureAVX     : SubtargetFeature<"avx", "X86SSELevel", "AVX",
 def FeatureAVX2    : SubtargetFeature<"avx2", "X86SSELevel", "AVX2",
                                       "Enable AVX2 instructions",
                                       [FeatureAVX]>;
-def FeatureCLMUL   : SubtargetFeature<"clmul", "HasCLMUL", "true",
-                               "Enable carry-less multiplication instructions">;
-def FeatureFMA3    : SubtargetFeature<"fma3", "HasFMA3", "true",
+def FeaturePCLMUL  : SubtargetFeature<"pclmul", "HasPCLMUL", "true",
+                         "Enable packed carry-less multiplication instructions",
+                               [FeatureSSE2]>;
+def FeatureFMA     : SubtargetFeature<"fma", "HasFMA", "true",
                                       "Enable three-operand fused multiple-add",
                                       [FeatureAVX]>;
 def FeatureFMA4    : SubtargetFeature<"fma4", "HasFMA4", "true",
                                       "Enable four-operand fused multiple-add",
-                                      [FeatureAVX]>;
+                                      [FeatureAVX, FeatureSSE4A]>;
 def FeatureXOP     : SubtargetFeature<"xop", "HasXOP", "true",
-                                      "Enable XOP instructions">;
+                                      "Enable XOP instructions",
+                                      [FeatureFMA4]>;
 def FeatureVectorUAMem : SubtargetFeature<"vector-unaligned-mem",
                                           "HasVectorUAMem", "true",
                  "Allow unaligned memory operands on vector/SIMD instructions">;
 def FeatureAES     : SubtargetFeature<"aes", "HasAES", "true",
-                                      "Enable AES instructions">;
+                                      "Enable AES instructions",
+                                      [FeatureSSE2]>;
 def FeatureMOVBE   : SubtargetFeature<"movbe", "HasMOVBE", "true",
                                       "Support MOVBE instruction">;
 def FeatureRDRAND  : SubtargetFeature<"rdrand", "HasRDRAND", "true",
@@ -128,10 +131,10 @@ def ProcIntelAtom : SubtargetFeature<"atom", "X86ProcFamily", "IntelAtom",
                     "Intel Atom processors">;
 
 class Proc<string Name, list<SubtargetFeature> Features>
- : Processor<Name, GenericItineraries, Features>;
+ : ProcessorModel<Name, GenericModel, Features>;
 
 class AtomProc<string Name, list<SubtargetFeature> Features>
- : Processor<Name, AtomItineraries, Features>;
+ : ProcessorModel<Name, AtomModel, Features>;
 
 def : Proc<"generic",         []>;
 def : Proc<"i386",            []>;
@@ -169,25 +172,23 @@ def : Proc<"nehalem",         [FeatureSSE42,  FeatureCMPXCHG16B,
 // Westmere is the corei3/i5/i7 path from nehalem to sandybridge
 def : Proc<"westmere",        [FeatureSSE42, FeatureCMPXCHG16B,
                                FeatureSlowBTMem, FeatureFastUAMem,
-                               FeaturePOPCNT, FeatureAES, FeatureCLMUL]>;
+                               FeaturePOPCNT, FeatureAES, FeaturePCLMUL]>;
 // Sandy Bridge
 // SSE is not listed here since llvm treats AVX as a reimplementation of SSE,
 // rather than a superset.
-// FIXME: Disabling AVX for now since it's not ready.
-def : Proc<"corei7-avx",      [FeatureSSE42, FeatureCMPXCHG16B, FeaturePOPCNT,
-                               FeatureAES, FeatureCLMUL]>;
+def : Proc<"corei7-avx",      [FeatureAVX, FeatureCMPXCHG16B, FeaturePOPCNT,
+                               FeatureAES, FeaturePCLMUL]>;
 // Ivy Bridge
-def : Proc<"core-avx-i",      [FeatureSSE42, FeatureCMPXCHG16B, FeaturePOPCNT,
-                               FeatureAES, FeatureCLMUL,
+def : Proc<"core-avx-i",      [FeatureAVX, FeatureCMPXCHG16B, FeaturePOPCNT,
+                               FeatureAES, FeaturePCLMUL,
                                FeatureRDRAND, FeatureF16C, FeatureFSGSBase]>;
 
 // Haswell
-// FIXME: Disabling AVX/AVX2/FMA3 for now since it's not ready.
-def : Proc<"core-avx2",       [FeatureSSE42, FeatureCMPXCHG16B, FeaturePOPCNT,
-                               FeatureAES, FeatureCLMUL, FeatureRDRAND,
+def : Proc<"core-avx2",       [FeatureAVX2, FeatureCMPXCHG16B, FeaturePOPCNT,
+                               FeatureAES, FeaturePCLMUL, FeatureRDRAND,
                                FeatureF16C, FeatureFSGSBase,
                                FeatureMOVBE, FeatureLZCNT, FeatureBMI,
-                               FeatureBMI2]>;
+                               FeatureBMI2, FeatureFMA]>;
 
 def : Proc<"k6",              [FeatureMMX]>;
 def : Proc<"k6-2",            [Feature3DNow]>;
@@ -211,22 +212,21 @@ def : Proc<"opteron-sse3",    [FeatureSSE3,   Feature3DNowA, FeatureCMPXCHG16B,
                                FeatureSlowBTMem]>;
 def : Proc<"athlon64-sse3",   [FeatureSSE3,   Feature3DNowA, FeatureCMPXCHG16B,
                                FeatureSlowBTMem]>;
-def : Proc<"amdfam10",        [FeatureSSE3,   FeatureSSE4A,
+def : Proc<"amdfam10",        [FeatureSSE4A,
                                Feature3DNowA, FeatureCMPXCHG16B, FeatureLZCNT,
                                FeaturePOPCNT, FeatureSlowBTMem]>;
 // Bobcat
 def : Proc<"btver1",          [FeatureSSSE3, FeatureSSE4A, FeatureCMPXCHG16B,
                                FeatureLZCNT, FeaturePOPCNT]>;
-// FIXME: Disabling AVX/FMA4 for now since it's not ready.
 // Bulldozer
-def : Proc<"bdver1",          [FeatureSSE42, FeatureSSE4A, FeatureCMPXCHG16B,
-                               FeatureAES, FeatureCLMUL,
-                               FeatureXOP, FeatureLZCNT, FeaturePOPCNT]>;
+def : Proc<"bdver1",          [FeatureXOP, FeatureFMA4, FeatureCMPXCHG16B,
+                               FeatureAES, FeaturePCLMUL,
+                               FeatureLZCNT, FeaturePOPCNT]>;
 // Enhanced Bulldozer
-def : Proc<"bdver2",          [FeatureSSE42, FeatureSSE4A, FeatureCMPXCHG16B,
-                               FeatureAES, FeatureCLMUL,
-                               FeatureXOP, FeatureF16C, FeatureLZCNT,
-                               FeaturePOPCNT, FeatureBMI]>;
+def : Proc<"bdver2",          [FeatureXOP, FeatureFMA4, FeatureCMPXCHG16B,
+                               FeatureAES, FeaturePCLMUL,
+                               FeatureF16C, FeatureLZCNT,
+                               FeaturePOPCNT, FeatureBMI, FeatureFMA]>;
 
 def : Proc<"winchip-c6",      [FeatureMMX]>;
 def : Proc<"winchip2",        [Feature3DNow]>;

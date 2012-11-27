@@ -55,7 +55,7 @@ public:
 
   const MemoryBuffer& getBuffer() const { return *InputData; }
 
-  // Methods for type inquiry through isa, cast, and dyn_cast
+  // Methods for type inquiry through isa, cast and dyn_cast
   static inline bool classof(const Binary *v) {
     return (isa<ELFObjectFile<target_endianness, is64Bits> >(v)
             && classof(cast<ELFObjectFile<target_endianness, is64Bits> >(v)));
@@ -208,10 +208,9 @@ void RuntimeDyldELF::resolveX86_64Relocation(uint8_t *LocalAddress,
   case ELF::R_X86_64_32:
   case ELF::R_X86_64_32S: {
     Value += Addend;
-    // FIXME: Handle the possibility of this assertion failing
-    assert((Type == ELF::R_X86_64_32 && !(Value & 0xFFFFFFFF00000000ULL)) ||
-           (Type == ELF::R_X86_64_32S &&
-            (Value & 0xFFFFFFFF00000000ULL) == 0xFFFFFFFF00000000ULL));
+    assert((Type == ELF::R_X86_64_32 && (Value <= UINT32_MAX)) ||
+           (Type == ELF::R_X86_64_32S && 
+             ((int64_t)Value <= INT32_MAX && (int64_t)Value >= INT32_MIN)));
     uint32_t TruncatedAddr = (Value & 0xFFFFFFFF);
     uint32_t *Target = reinterpret_cast<uint32_t*>(LocalAddress);
     *Target = TruncatedAddr;
@@ -220,7 +219,7 @@ void RuntimeDyldELF::resolveX86_64Relocation(uint8_t *LocalAddress,
   case ELF::R_X86_64_PC32: {
     uint32_t *Placeholder = reinterpret_cast<uint32_t*>(LocalAddress);
     int64_t RealOffset = *Placeholder + Value + Addend - FinalAddress;
-    assert(RealOffset <= 214783647 && RealOffset >= -214783648);
+    assert(RealOffset <= INT32_MAX && RealOffset >= INT32_MIN);
     int32_t TruncOffset = (RealOffset & 0xFFFFFFFF);
     *Placeholder = TruncOffset;
     break;
@@ -248,7 +247,7 @@ void RuntimeDyldELF::resolveX86Relocation(uint8_t *LocalAddress,
     }
     default:
       // There are other relocation types, but it appears these are the
-      //  only ones currently used by the LLVM ELF object writer
+      // only ones currently used by the LLVM ELF object writer
       llvm_unreachable("Relocation type not implemented yet!");
       break;
   }
@@ -334,28 +333,31 @@ void RuntimeDyldELF::resolveRelocation(uint8_t *LocalAddress,
 void RuntimeDyldELF::processRelocationRef(const ObjRelocationInfo &Rel,
                                           ObjectImage &Obj,
                                           ObjSectionToIDMap &ObjSectionToID,
-                                          LocalSymbolMap &Symbols,
+                                          const SymbolTableMap &Symbols,
                                           StubMap &Stubs) {
 
   uint32_t RelType = (uint32_t)(Rel.Type & 0xffffffffL);
   intptr_t Addend = (intptr_t)Rel.AdditionalInfo;
-  RelocationValueRef Value;
-  StringRef TargetName;
   const SymbolRef &Symbol = Rel.Symbol;
+
+  // Obtain the symbol name which is referenced in the relocation
+  StringRef TargetName;
   Symbol.getName(TargetName);
   DEBUG(dbgs() << "\t\tRelType: " << RelType
                << " Addend: " << Addend
                << " TargetName: " << TargetName
                << "\n");
-  // First look the symbol in object file symbols.
-  LocalSymbolMap::iterator lsi = Symbols.find(TargetName.data());
+  RelocationValueRef Value;
+  // First search for the symbol in the local symbol table
+  SymbolTableMap::const_iterator lsi = Symbols.find(TargetName.data());
   if (lsi != Symbols.end()) {
     Value.SectionID = lsi->second.first;
     Value.Addend = lsi->second.second;
   } else {
-    // Second look the symbol in global symbol table.
-    StringMap<SymbolLoc>::iterator gsi = SymbolTable.find(TargetName.data());
-    if (gsi != SymbolTable.end()) {
+    // Search for the symbol in the global symbol table
+    SymbolTableMap::const_iterator gsi =
+        GlobalSymbolTable.find(TargetName.data());
+    if (gsi != GlobalSymbolTable.end()) {
       Value.SectionID = gsi->second.first;
       Value.Addend = gsi->second.second;
     } else {
@@ -366,7 +368,7 @@ void RuntimeDyldELF::processRelocationRef(const ObjRelocationInfo &Rel,
           // TODO: Now ELF SymbolRef::ST_Debug = STT_SECTION, it's not obviously
           // and can be changed by another developers. Maybe best way is add
           // a new symbol type ST_Section to SymbolRef and use it.
-          section_iterator si = Obj.end_sections();
+          section_iterator si(Obj.end_sections());
           Symbol.getSection(si);
           if (si == Obj.end_sections())
             llvm_unreachable("Symbol section not found, bad object file format!");
@@ -410,14 +412,24 @@ void RuntimeDyldELF::processRelocationRef(const ObjRelocationInfo &Rel,
       Stubs[Value] = Section.StubOffset;
       uint8_t *StubTargetAddr = createStubFunction(Section.Address +
                                                    Section.StubOffset);
-      AddRelocation(Value, Rel.SectionID,
-                    StubTargetAddr - Section.Address, ELF::R_ARM_ABS32);
+      RelocationEntry RE(Rel.SectionID, StubTargetAddr - Section.Address,
+                         ELF::R_ARM_ABS32, Value.Addend);
+      if (Value.SymbolName)
+        addRelocationForSymbol(RE, Value.SymbolName);
+      else
+        addRelocationForSection(RE, Value.SectionID);
+
       resolveRelocation(Target, (uint64_t)Target, (uint64_t)Section.Address +
                         Section.StubOffset, RelType, 0);
       Section.StubOffset += getMaxStubSize();
     }
-  } else
-    AddRelocation(Value, Rel.SectionID, Rel.Offset, RelType);
+  } else {
+    RelocationEntry RE(Rel.SectionID, Rel.Offset, RelType, Value.Addend);
+    if (Value.SymbolName)
+      addRelocationForSymbol(RE, Value.SymbolName);
+    else
+      addRelocationForSection(RE, Value.SectionID);
+  }
 }
 
 bool RuntimeDyldELF::isCompatibleFormat(const MemoryBuffer *InputBuffer) const {

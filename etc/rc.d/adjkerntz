@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: adjkerntz
-# REQUIRE: FILESYSTEMS random
+# REQUIRE: FILESYSTEMS postrandom
 # BEFORE: netif
 # KEYWORD: nojail
 

@@ -1746,13 +1746,26 @@ ParseModifier(VarParser *vp, char startc, Var *v, Boolean *freeResult)
 		case 'C':
 			newStr = modifier_C(vp, value, v);
 			break;
+		case 't':
+			/* :tl :tu for OSF ODE & NetBSD make compatibility */
+			switch (vp->ptr[1]) {
+			case 'l':
+				vp->ptr++;
+				goto mod_lower;
+				break;
+			case 'u':
+				vp->ptr++;
+				goto mod_upper;
+				break;
+			}
+			/* FALLTHROUGH */
 		default:
 			if (vp->ptr[1] != endc && vp->ptr[1] != ':') {
 #ifdef SUNSHCMD
 				if ((vp->ptr[0] == 's') &&
 				    (vp->ptr[1] == 'h') &&
 				    (vp->ptr[2] == endc || vp->ptr[2] == ':')) {
-					const char	*error;
+					const char	*error = NULL;
 
 					if (vp->execute) {
 						newStr = Buf_Peel(
@@ -1774,6 +1787,7 @@ ParseModifier(VarParser *vp, char startc, Var *v, Boolean *freeResult)
 
 			switch (vp->ptr[0]) {
 			case 'L':
+			mod_lower:
 				{
 				const char	*cp;
 				Buffer		*buf;
@@ -1799,6 +1813,7 @@ ParseModifier(VarParser *vp, char startc, Var *v, Boolean *freeResult)
 				vp->ptr++;
 				break;
 			case 'U':
+			mod_upper:
 				{
 				const char	*cp;
 				Buffer		*buf;
@@ -2578,7 +2593,7 @@ void
 Var_Print(Lst *vlist, Boolean expandVars)
 {
 	LstNode		*n;
-	const char	*name;
+	char		*name;
 
 	LST_FOREACH(n, vlist) {
 		name = Lst_Datum(n);
@@ -2586,13 +2601,17 @@ Var_Print(Lst *vlist, Boolean expandVars)
 			char *value;
 			char *v;
 
-			v = emalloc(strlen(name) + 1 + 3);
-			sprintf(v, "${%s}", name);
-
+			if (*name == '$') {
+				v = name;
+			} else {
+				v = emalloc(strlen(name) + 1 + 3);
+				sprintf(v, "${%s}", name);
+			}
 			value = Buf_Peel(Var_Subst(v, VAR_GLOBAL, FALSE));
 			printf("%s\n", value);
 
-			free(v);
+			if (v != name)
+				free(v);
 			free(value);
 		} else {
 			const char *value = Var_Value(name, VAR_GLOBAL);

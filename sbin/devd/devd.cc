@@ -807,7 +807,7 @@ create_socket(const char *name)
 	unlink(name);
 	if (fcntl(fd, F_SETFL, O_NONBLOCK) < 0)
 	    	err(1, "fcntl");
-	if (bind(fd, (struct sockaddr *) & sun, slen) < 0)
+	if (::bind(fd, (struct sockaddr *) & sun, slen) < 0)
 		err(1, "bind");
 	listen(fd, 4);
 	chown(name, 0, 0);	/* XXX - root.wheel */

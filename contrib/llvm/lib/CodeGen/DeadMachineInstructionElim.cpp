@@ -171,9 +171,8 @@ bool DeadMachineInstructionElim::runOnMachineFunction(MachineFunction &MF) {
             // Check the subreg set, not the alias set, because a def
             // of a super-register may still be partially live after
             // this def.
-            for (const uint16_t *SubRegs = TRI->getSubRegisters(Reg);
-                 *SubRegs; ++SubRegs)
-              LivePhysRegs.reset(*SubRegs);
+            for (MCSubRegIterator SR(Reg, TRI); SR.isValid(); ++SR)
+              LivePhysRegs.reset(*SR);
           }
         } else if (MO.isRegMask()) {
           // Register mask of preserved registers. All clobbers are dead.
@@ -187,10 +186,8 @@ bool DeadMachineInstructionElim::runOnMachineFunction(MachineFunction &MF) {
         if (MO.isReg() && MO.isUse()) {
           unsigned Reg = MO.getReg();
           if (TargetRegisterInfo::isPhysicalRegister(Reg)) {
-            LivePhysRegs.set(Reg);
-            for (const uint16_t *AliasSet = TRI->getAliasSet(Reg);
-                 *AliasSet; ++AliasSet)
-              LivePhysRegs.set(*AliasSet);
+            for (MCRegAliasIterator AI(Reg, TRI, true); AI.isValid(); ++AI)
+              LivePhysRegs.set(*AI);
           }
         }
       }

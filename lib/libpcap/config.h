@@ -22,6 +22,9 @@
 /* define if you have streams capable DAG API */
 /* #undef HAVE_DAG_STREAMS_API */
 
+/* define if you have vdag_set_device_info() */
+/* #undef HAVE_DAG_VDAG */
+
 /* Define to 1 if you have the declaration of `ether_hostton', and to 0 if you
    don't. */
 #define HAVE_DECL_ETHER_HOSTTON 1
@@ -56,11 +59,29 @@
 /* if libnl exists */
 /* #undef HAVE_LIBNL */
 
+/* if libnl exists and is version 2.x */
+/* #undef HAVE_LIBNL_2_x */
+
 /* Define to 1 if you have the <limits.h> header file. */
 #define HAVE_LIMITS_H 1
 
+/* Define to 1 if you have the <linux/compiler.h> header file. */
+/* #undef HAVE_LINUX_COMPILER_H */
+
+/* Define to 1 if you have the <linux/ethtool.h> header file. */
+/* #undef HAVE_LINUX_ETHTOOL_H */
+
+/* Define to 1 if you have the <linux/if_packet.h> header file. */
+/* #undef HAVE_LINUX_IF_PACKET_H */
+
+/* Define to 1 if you have the <linux/net_tstamp.h> header file. */
+/* #undef HAVE_LINUX_NET_TSTAMP_H */
+
 /* if tp_vlan_tci exists */
 /* #undef HAVE_LINUX_TPACKET_AUXDATA_TP_VLAN_TCI */
+
+/* Define to 1 if you have the <linux/types.h> header file. */
+/* #undef HAVE_LINUX_TYPES_H */
 
 /* Define to 1 if you have the <linux/usbdevice_fs.h> header file. */
 /* #undef HAVE_LINUX_USBDEVICE_FS_H */
@@ -76,6 +97,12 @@
 
 /* Define to 1 if you have the <netinet/if_ether.h> header file. */
 #define HAVE_NETINET_IF_ETHER_H 1
+
+/* Define to 1 if you have the <netpacket/if_packet.h> header file. */
+/* #undef HAVE_NETPACKET_IF_PACKET_H */
+
+/* Define to 1 if you have the <netpacket/packet.h> header file. */
+/* #undef HAVE_NETPACKET_PACKET_H */
 
 /* Define to 1 if you have the <net/if_media.h> header file. */
 #define HAVE_NET_IF_MEDIA_H 1
@@ -175,7 +202,7 @@
 #define HAVE_VSNPRINTF 1
 
 /* define if the system supports zerocopy BPF */
-#define	HAVE_ZEROCOPY_BPF 1
+#define HAVE_ZEROCOPY_BPF 1
 
 /* define if your compiler has __attribute__ */
 #define HAVE___ATTRIBUTE__ 1
@@ -223,6 +250,9 @@
 /* target host supports CAN sniffing */
 /* #undef PCAP_SUPPORT_CAN */
 
+/* target host supports netfilter sniffing */
+/* #undef PCAP_SUPPORT_NETFILTER */
+
 /* target host supports USB sniffing */
 /* #undef PCAP_SUPPORT_USB */
 
@@ -241,7 +271,7 @@
 /* needed on HP-UX */
 /* #undef _HPUX_SOURCE */
 
-/* Define to 1 to make fseeko visible on some hosts (e.g. glibc 2.2).  */
+/* Define to 1 to make fseeko visible on some hosts (e.g. glibc 2.2). */
 /* #undef _LARGEFILE_SOURCE */
 
 /* Define for large files, on AIX-style hosts. */

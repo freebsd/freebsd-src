@@ -1,0 +1,69 @@
+.TH tcl_insflow.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+tcl_insflow.d - snoop Tcl execution showing procedure flow and delta times.
+.SH SYNOPSIS
+.B tcl_insflow.d
+
+.SH DESCRIPTION
+This traces activity from all Tcl processes on the system with DTrace
+provider support (tcl8.4.16).
+
+This watches Tcl method entries and returns, and indents child
+method calls.
+.SH OS
+Any
+.SH STABILITY
+Evolving - uses the DTrace Tcl provider, which may change 
+as additional features are introduced. Check Tcl/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B tcl_insflow.d
+.PP
+.SH FIELDS
+.TP
+C
+CPU-id
+.TP
+PID
+Process ID
+.TP
+TIME(us)
+Time since boot, us
+.TP
+DELTA(us)
+Elapsed time from previous line to this line
+.TP
+TYPE
+Type of call (proc/cmd/inst)
+.TP
+CALL
+Tcl command or procedure name
+.SH LEGEND
+.TP
+proc
+procedure
+.TP
+cmd
+command
+.TP
+inst
+instruction
+.SH WARNING
+Watch the first column carefully, it prints the CPU-id. If it
+changes, then it is very likely that the output has been shuffled.
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+tcl_insflow.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

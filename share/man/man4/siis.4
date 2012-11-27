@@ -57,12 +57,13 @@ controls SATA interface Power Management for the specified channel,
 allowing some power to be saved at the cost of additional command
 latency.
 Possible values:
-.Bl -tag -compact
+.Bl -tag -width 2n -offset indent
 .It 0
 interface Power Management is disabled (default);
 .It 1
 device is allowed to initiate PM state change, host is passive.
 .El
+.Pp
 Note that interface Power Management is not compatible with
 device presence detection.
 A manual bus reset is needed on device hot-plug.
@@ -107,6 +108,7 @@ given precedence as the more functional of the two.
 The
 .Nm
 driver supports the following controller chips:
+.Pp
 .Bl -bullet -compact
 .It
 SiI3124 (PCI-X 133MHz/64bit, 4 ports)

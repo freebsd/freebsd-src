@@ -47,12 +47,23 @@ __FBSDID("$FreeBSD$");
 
 #include <net80211/ieee80211_var.h>
 
-static int radiotap_offset(struct ieee80211_radiotap_header *, int);
+static int radiotap_offset(struct ieee80211_radiotap_header *, int, int);
 
 void
 ieee80211_radiotap_attach(struct ieee80211com *ic,
 	struct ieee80211_radiotap_header *th, int tlen, uint32_t tx_radiotap,
 	struct ieee80211_radiotap_header *rh, int rlen, uint32_t rx_radiotap)
+{
+	ieee80211_radiotap_attachv(ic, th, tlen, 0, tx_radiotap,
+	    rh, rlen, 0, rx_radiotap);
+}
+
+void
+ieee80211_radiotap_attachv(struct ieee80211com *ic,
+	struct ieee80211_radiotap_header *th,
+	int tlen, int n_tx_v, uint32_t tx_radiotap,
+	struct ieee80211_radiotap_header *rh,
+	int rlen, int n_rx_v, uint32_t rx_radiotap)
 {
 #define	B(_v)	(1<<(_v))
 	int off;
@@ -63,9 +74,9 @@ ieee80211_radiotap_attach(struct ieee80211com *ic,
 	/* calculate offset to channel data */
 	off = -1;
 	if (tx_radiotap & B(IEEE80211_RADIOTAP_CHANNEL))
-		off = radiotap_offset(th, IEEE80211_RADIOTAP_CHANNEL);
+		off = radiotap_offset(th, n_tx_v, IEEE80211_RADIOTAP_CHANNEL);
 	else if (tx_radiotap & B(IEEE80211_RADIOTAP_XCHANNEL))
-		off = radiotap_offset(th, IEEE80211_RADIOTAP_XCHANNEL);
+		off = radiotap_offset(th, n_tx_v, IEEE80211_RADIOTAP_XCHANNEL);
 	if (off == -1) {
 		if_printf(ic->ic_ifp, "%s: no tx channel, radiotap 0x%x\n",
 		    __func__, tx_radiotap);
@@ -79,9 +90,9 @@ ieee80211_radiotap_attach(struct ieee80211com *ic,
 	/* calculate offset to channel data */
 	off = -1;
 	if (rx_radiotap & B(IEEE80211_RADIOTAP_CHANNEL))
-		off = radiotap_offset(rh, IEEE80211_RADIOTAP_CHANNEL);
+		off = radiotap_offset(rh, n_rx_v, IEEE80211_RADIOTAP_CHANNEL);
 	else if (rx_radiotap & B(IEEE80211_RADIOTAP_XCHANNEL))
-		off = radiotap_offset(rh, IEEE80211_RADIOTAP_XCHANNEL);
+		off = radiotap_offset(rh, n_rx_v, IEEE80211_RADIOTAP_XCHANNEL);
 	if (off == -1) {
 		if_printf(ic->ic_ifp, "%s: no rx channel, radiotap 0x%x\n",
 		    __func__, rx_radiotap);
@@ -260,7 +271,8 @@ ieee80211_radiotap_rx_all(struct ieee80211com *ic, struct mbuf *m)
  * known -1 is returned.
  */
 static int
-radiotap_offset(struct ieee80211_radiotap_header *rh, int item)
+radiotap_offset(struct ieee80211_radiotap_header *rh,
+    int n_vendor_attributes, int item)
 {
 	static const struct {
 		size_t	align, width;
@@ -334,6 +346,8 @@ radiotap_offset(struct ieee80211_radiotap_header *rh, int item)
 	int off, i;
 
 	off = sizeof(struct ieee80211_radiotap_header);
+	off += n_vendor_attributes * (sizeof(uint32_t));
+
 	for (i = 0; i < IEEE80211_RADIOTAP_EXT; i++) {
 		if ((present & (1<<i)) == 0)
 			continue;

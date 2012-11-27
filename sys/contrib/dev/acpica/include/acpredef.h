@@ -512,14 +512,14 @@ static const ACPI_PREDEFINED_INFO     PredefinedNames[] =
     {{"_TMP", 0, ACPI_RTYPE_INTEGER}},
     {{"_TPC", 0, ACPI_RTYPE_INTEGER}},
     {{"_TPT", 1, 0}},
-    {{"_TRT", 0, ACPI_RTYPE_PACKAGE}}, /* Variable-length (Pkgs) each 2Ref/6Int */
+    {{"_TRT", 0, ACPI_RTYPE_PACKAGE}}, /* Variable-length (Pkgs) each 2 Ref/6 Int */
                     {{{ACPI_PTYPE2, ACPI_RTYPE_REFERENCE, 2, ACPI_RTYPE_INTEGER}, 6, 0}},
 
-    {{"_TSD", 0, ACPI_RTYPE_PACKAGE}}, /* Variable-length (Pkgs) each 5Int with count */
+    {{"_TSD", 0, ACPI_RTYPE_PACKAGE}}, /* Variable-length (Pkgs) each 5 Int with count */
                     {{{ACPI_PTYPE2_COUNT,ACPI_RTYPE_INTEGER, 5,0}, 0,0}},
 
     {{"_TSP", 0, ACPI_RTYPE_INTEGER}},
-    {{"_TSS", 0, ACPI_RTYPE_PACKAGE}}, /* Variable-length (Pkgs) each 5Int */
+    {{"_TSS", 0, ACPI_RTYPE_PACKAGE}}, /* Variable-length (Pkgs) each 5 Int */
                     {{{ACPI_PTYPE2, ACPI_RTYPE_INTEGER, 5,0}, 0,0}},
 
     {{"_TST", 0, ACPI_RTYPE_INTEGER}},

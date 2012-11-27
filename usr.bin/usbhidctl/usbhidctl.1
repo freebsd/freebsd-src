@@ -28,7 +28,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd August 01, 2011
+.Dd August 1, 2011
 .Dt USBHIDCTL 1
 .Os
 .Sh NAME
@@ -47,6 +47,7 @@
 .Op Fl l
 .Op Fl v
 .Op Fl x
+.Op Fl z
 .Fl a
 .Nm
 .Fl f Ar device
@@ -55,6 +56,7 @@
 .Op Fl n
 .Op Fl v
 .Op Fl x
+.Op Fl z
 .Ar item ...
 .Nm
 .Fl f Ar device
@@ -99,9 +101,8 @@ Only 'output' and 'feature' kinds can be set with this option.
 .It Fl x
 Dump data in hexadecimal as well as decimal.
 .It Fl z
-Reset reports to zero before processing
-.Fl w
-arguments. If not specified, current values will be requested from device.
+Reset reports to zero before processing other arguments.
+If not specified, current values will be requested from device.
 .El
 .Sh SYNTAX
 .Nm

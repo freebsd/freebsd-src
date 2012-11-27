@@ -13,8 +13,12 @@ DPADD=	${LIBKADM5SRV} ${LIBHDB} ${LIBKRB5} ${LIBASN1} ${LIBCRYPTO} \
 LDADD=	-lkadm5srv -lhdb -lkrb5 -lasn1 -lcrypto -lcrypt ${LIBSL} -lroken \
 	${LIBVERS} -ledit
 
-iprop-commands.c iprop-commands.h: iprop-commands.in
-	slc ${.ALLSRC:M*.in}
+iprop-commands.h: iprop-commands.in
+	${SLC} ${.ALLSRC:M*.in}
+
+.for ext in c o
+iprop-commands.${ext}: iprop-commands.h
+.endfor
 
 .include <bsd.prog.mk>
 

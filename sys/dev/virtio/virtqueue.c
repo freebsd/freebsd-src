@@ -127,6 +127,7 @@ static uint16_t	vq_ring_enqueue_segments(struct virtqueue *,
 static int	vq_ring_use_indirect(struct virtqueue *, int);
 static void	vq_ring_enqueue_indirect(struct virtqueue *, void *,
 		    struct sglist *, int, int);
+static int 	vq_ring_enable_interrupt(struct virtqueue *, uint16_t);
 static int	vq_ring_must_notify_host(struct virtqueue *);
 static void	vq_ring_notify_host(struct virtqueue *);
 static void	vq_ring_free_chain(struct virtqueue *, uint16_t);
@@ -311,7 +312,7 @@ virtqueue_reinit(struct virtqueue *vq, uint16_t size)
 	/* Warn if the virtqueue was not properly cleaned up. */
 	if (vq->vq_free_cnt != vq->vq_nentries) {
 		device_printf(vq->vq_dev,
-		    "%s: warning, '%s' virtqueue not empty, "
+		    "%s: warning '%s' virtqueue not empty, "
 		    "leaking %d entries\n", __func__, vq->vq_name,
 		    vq->vq_nentries - vq->vq_free_cnt);
 	}
@@ -390,6 +391,7 @@ virtqueue_full(struct virtqueue *vq)
 void
 virtqueue_notify(struct virtqueue *vq)
 {
+
 	/* Ensure updated avail->idx is visible to host. */
 	mb();
 
@@ -428,58 +430,22 @@ int
 virtqueue_enable_intr(struct virtqueue *vq)
 {
 
-	/*
-	 * Enable interrupts, making sure we get the latest
-	 * index of what's already been consumed.
-	 */
-	vq->vq_ring.avail->flags &= ~VRING_AVAIL_F_NO_INTERRUPT;
-	if (vq->vq_flags & VIRTQUEUE_FLAG_EVENT_IDX)
-		vring_used_event(&vq->vq_ring) = vq->vq_used_cons_idx;
-       else
-	       vq->vq_ring.avail->flags &= ~VRING_AVAIL_F_NO_INTERRUPT;
-
-	mb();
-
-	/*
-	 * Additional items may have been consumed in the time between
-	 * since we last checked and enabled interrupts above. Let our
-	 * caller know so it processes the new entries.
-	 */
-	if (vq->vq_used_cons_idx != vq->vq_ring.used->idx)
-		return (1);
-
-	return (0);
+	return (vq_ring_enable_interrupt(vq, 0));
 }
 
 int
 virtqueue_postpone_intr(struct virtqueue *vq)
 {
-	uint16_t ndesc;
+	uint16_t ndesc, avail_idx;
 
 	/*
-	 * Postpone until at least half of the available descriptors
-	 * have been consumed.
-	 *
-	 * XXX Adaptive factor? (Linux uses 3/4)
+	 * Request the next interrupt be postponed until at least half
+	 * of the available descriptors have been consumed.
 	 */
-	ndesc = (uint16_t)(vq->vq_ring.avail->idx - vq->vq_used_cons_idx) / 2;
+	avail_idx = vq->vq_ring.avail->idx;
+	ndesc = (uint16_t)(avail_idx - vq->vq_used_cons_idx) / 2;
 
-	if (vq->vq_flags & VIRTQUEUE_FLAG_EVENT_IDX)
-		vring_used_event(&vq->vq_ring) = vq->vq_used_cons_idx + ndesc;
-	else
-		vq->vq_ring.avail->flags &= ~VRING_AVAIL_F_NO_INTERRUPT;
-
-	mb();
-
-	/*
-	 * Enough items may have already been consumed to meet our
-	 * threshold since we last checked. Let our caller know so
-	 * it processes the new entries.
-	 */
-	if (virtqueue_nused(vq) > ndesc)
-		return (1);
-
-	return (0);
+	return (vq_ring_enable_interrupt(vq, ndesc));
 }
 
 void
@@ -752,6 +718,32 @@ vq_ring_enqueue_indirect(struct virtqueue *vq, void *cookie,
 }
 
 static int
+vq_ring_enable_interrupt(struct virtqueue *vq, uint16_t ndesc)
+{
+
+	/*
+	 * Enable interrupts, making sure we get the latest index of
+	 * what's already been consumed.
+	 */
+	if (vq->vq_flags & VIRTQUEUE_FLAG_EVENT_IDX)
+		vring_used_event(&vq->vq_ring) = vq->vq_used_cons_idx + ndesc;
+	else
+		vq->vq_ring.avail->flags &= ~VRING_AVAIL_F_NO_INTERRUPT;
+
+	mb();
+
+	/*
+	 * Enough items may have already been consumed to meet our threshold
+	 * since we last checked. Let our caller know so it processes the new
+	 * entries.
+	 */
+	if (virtqueue_nused(vq) > ndesc)
+		return (1);
+
+	return (0);
+}
+
+static int
 vq_ring_must_notify_host(struct virtqueue *vq)
 {
 	uint16_t new_idx, prev_idx, event_idx;
@@ -788,8 +780,8 @@ vq_ring_free_chain(struct virtqueue *vq, uint16_t desc_idx)
 		VQ_RING_ASSERT_CHAIN_TERM(vq);
 
 	vq->vq_free_cnt += dxp->ndescs;
-	dxp->ndescs--;
 
+#ifdef INVARIANTS
 	if ((dp->flags & VRING_DESC_F_INDIRECT) == 0) {
 		while (dp->flags & VRING_DESC_F_NEXT) {
 			VQ_RING_ASSERT_VALID_IDX(vq, dp->next);
@@ -797,7 +789,10 @@ vq_ring_free_chain(struct virtqueue *vq, uint16_t desc_idx)
 			dxp->ndescs--;
 		}
 	}
-	VQASSERT(vq, dxp->ndescs == 0, "failed to free entire desc chain");
+	VQASSERT(vq, dxp->ndescs == 1,
+	    "failed to free entire desc chain, remaining: %d", dxp->ndescs);
+#endif
+	dxp->ndescs = 0;
 
 	/*
 	 * We must append the existing free chain, if any, to the end of

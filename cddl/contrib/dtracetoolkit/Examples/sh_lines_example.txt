@@ -1,0 +1,32 @@
+The following are examples of sh_lines.d.
+
+This is a simple script to count Bourne shell line execution. Here it traces an
+example program, Code/Shell/func_slow.sh.
+
+   # sh_lines.d 
+   Tracing... Hit Ctrl-C to end.
+   ^C
+   
+                                FILE:LINE        COUNT
+                        func_slow.sh:5               1
+                        func_slow.sh:6               1
+                        func_slow.sh:15              1
+                        func_slow.sh:16              1
+                        func_slow.sh:21              1
+                        func_slow.sh:26              1
+                        func_slow.sh:27              1
+                        func_slow.sh:32              1
+                        func_slow.sh:35              1
+                        func_slow.sh:30            100
+                        func_slow.sh:28            101
+                        func_slow.sh:19            200
+                        func_slow.sh:17            201
+                        func_slow.sh:9             300
+                        func_slow.sh:7             301
+                        func_slow.sh:1             600
+
+The most frequently executed line was line 1 of func_slow.sh - which is actually
+line 1 of func_slow.sh subshells (command substitution, ` `). Apart from
+this slight confusion, the rest of the output should make sense (and most
+scripts only call one line in command substitution anyway).
+

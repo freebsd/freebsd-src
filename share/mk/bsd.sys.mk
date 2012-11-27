@@ -61,7 +61,8 @@ CWARNFLAGS+=	-Wno-uninitialized
 CWARNFLAGS+=	-Wno-pointer-sign
 # Clang has more warnings enabled by default, and when using -Wall, so if WARNS
 # is set to low values, these have to be disabled explicitly.
-.if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
+.if (${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang") && \
+    !defined(EARLY_BUILD)
 .if ${WARNS} <= 6
 CWARNFLAGS+=	-Wno-empty-body -Wno-string-plus-int
 .endif # WARNS <= 6
@@ -88,7 +89,8 @@ WFORMAT=	1
 .if ${WFORMAT} > 0
 #CWARNFLAGS+=	-Wformat-nonliteral -Wformat-security -Wno-format-extra-args
 CWARNFLAGS+=	-Wformat=2 -Wno-format-extra-args
-.if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
+.if (${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang") && \
+    !defined(EARLY_BUILD)
 .if ${WARNS} <= 3
 CWARNFLAGS+=	-Wno-format-nonliteral
 .endif # WARNS <= 3
@@ -109,7 +111,8 @@ CWARNFLAGS+=	-Wno-format
 CWARNFLAGS+=	-Wno-unknown-pragmas
 .endif # IGNORE_PRAGMA
 
-.if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
+.if (${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang") && \
+    !defined(EARLY_BUILD)
 CLANG_NO_IAS=	 -no-integrated-as
 CLANG_OPT_SMALL= -mstack-alignment=8 -mllvm -inline-threshold=3\
 		 -mllvm -enable-load-pre=false -mllvm -simplifycfg-dup-ret

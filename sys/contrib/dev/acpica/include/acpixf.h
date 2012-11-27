@@ -48,11 +48,12 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20120420
+#define ACPI_CA_VERSION                 0x20120816
 
 #include <contrib/dev/acpica/include/acconfig.h>
 #include <contrib/dev/acpica/include/actypes.h>
 #include <contrib/dev/acpica/include/actbl.h>
+#include <contrib/dev/acpica/include/acbuffer.h>
 
 /*
  * Globals that are publically available
@@ -183,6 +184,11 @@ AcpiCheckAddressRange (
     ACPI_SIZE               Length,
     BOOLEAN                 Warn);
 
+ACPI_STATUS
+AcpiDecodePldBuffer (
+    UINT8                   *InBuffer,
+    ACPI_SIZE               Length,
+    ACPI_PLD_INFO           **ReturnBuffer);
 
 /*
  * ACPI Memory management
@@ -201,6 +207,22 @@ AcpiFree (
 
 
 /*
+ * ACPI table load/unload interfaces
+ */
+ACPI_STATUS
+AcpiLoadTable (
+    ACPI_TABLE_HEADER       *Table);
+
+ACPI_STATUS
+AcpiUnloadParentTable (
+    ACPI_HANDLE             Object);
+
+ACPI_STATUS
+AcpiLoadTables (
+    void);
+
+
+/*
  * ACPI table manipulation interfaces
  */
 ACPI_STATUS
@@ -210,10 +232,6 @@ AcpiReallocateRootTable (
 ACPI_STATUS
 AcpiFindRootPointer (
     ACPI_SIZE               *RsdpAddress);
-
-ACPI_STATUS
-AcpiLoadTables (
-    void);
 
 ACPI_STATUS
 AcpiGetTableHeader (
@@ -674,8 +692,7 @@ AcpiEnterSleepStatePrep (
 
 ACPI_STATUS
 AcpiEnterSleepState (
-    UINT8                   SleepState,
-    UINT8                   Flags);
+    UINT8                   SleepState);
 
 ACPI_HW_DEPENDENT_RETURN_STATUS (
 ACPI_STATUS
@@ -684,8 +701,7 @@ AcpiEnterSleepStateS4bios (
 
 ACPI_STATUS
 AcpiLeaveSleepStatePrep (
-    UINT8                   SleepState,
-    UINT8                   Flags);
+    UINT8                   SleepState);
 
 ACPI_STATUS
 AcpiLeaveSleepState (
@@ -752,6 +768,20 @@ AcpiWarning (
 
 void ACPI_INTERNAL_VAR_XFACE
 AcpiInfo (
+    const char              *ModuleName,
+    UINT32                  LineNumber,
+    const char              *Format,
+    ...) ACPI_PRINTF_LIKE(3);
+
+void ACPI_INTERNAL_VAR_XFACE
+AcpiBiosError (
+    const char              *ModuleName,
+    UINT32                  LineNumber,
+    const char              *Format,
+    ...) ACPI_PRINTF_LIKE(3);
+
+void ACPI_INTERNAL_VAR_XFACE
+AcpiBiosWarning (
     const char              *ModuleName,
     UINT32                  LineNumber,
     const char              *Format,

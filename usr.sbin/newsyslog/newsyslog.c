@@ -1451,7 +1451,7 @@ static void
 delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 {
 	char *logfname, *s, *dir, errbuf[80];
-	int dirfd, i, logcnt, max_logcnt, valid;
+	int dir_fd, i, logcnt, max_logcnt, valid;
 	struct oldlog_entry *oldlogs;
 	size_t logfname_len;
 	struct dirent *dp;
@@ -1486,7 +1486,7 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 	/* First we create a 'list' of all archived logfiles */
 	if ((dirp = opendir(dir)) == NULL)
 		err(1, "Cannot open log directory '%s'", dir);
-	dirfd = dirfd(dirp);
+	dir_fd = dirfd(dirp);
 	while ((dp = readdir(dirp)) != NULL) {
 		if (dp->d_type != DT_REG)
 			continue;
@@ -1578,7 +1578,7 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 			if (noaction)
 				printf("\trm -f %s/%s\n", dir,
 				    oldlogs[i].fname);
-			else if (unlinkat(dirfd, oldlogs[i].fname, 0) != 0) {
+			else if (unlinkat(dir_fd, oldlogs[i].fname, 0) != 0) {
 				snprintf(errbuf, sizeof(errbuf),
 				    "Could not delet old logfile '%s'",
 				    oldlogs[i].fname);
@@ -1972,7 +1972,8 @@ do_zipwork(struct zipwork_entry *zwork)
 	else
 		pgm_name++;
 
-	if (zwork->zw_swork != NULL && zwork->zw_swork->sw_pidok <= 0) {
+	if (zwork->zw_swork != NULL && zwork->zw_swork->run_cmd == 0 &&
+	    zwork->zw_swork->sw_pidok <= 0) {
 		warnx(
 		    "log %s not compressed because daemon(s) not notified",
 		    zwork->zw_fname);

@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,17 +29,17 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-/*	$KAME: sctp6_usrreq.c,v 1.38 2005/08/24 08:08:56 suz Exp $	*/
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
 #include <netinet/sctp_os.h>
+#ifdef INET6
 #include <sys/proc.h>
 #include <netinet/sctp_pcb.h>
 #include <netinet/sctp_header.h>
 #include <netinet/sctp_var.h>
-#if defined(INET6)
+#ifdef INET6
 #include <netinet6/sctp6_var.h>
 #endif
 #include <netinet/sctp_sysctl.h>
@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef IPSEC
 #include <netipsec/ipsec.h>
-#if defined(INET6)
+#ifdef INET6
 #include <netipsec/ipsec6.h>
 #endif				/* INET6 */
 #endif				/* IPSEC */
@@ -69,232 +69,128 @@ int
 sctp6_input(struct mbuf **i_pak, int *offp, int proto)
 {
 	struct mbuf *m;
+	int iphlen;
+	uint32_t vrf_id;
+	uint8_t ecn_bits;
+	struct sockaddr_in6 src, dst;
 	struct ip6_hdr *ip6;
 	struct sctphdr *sh;
-	struct sctp_inpcb *in6p = NULL;
-	struct sctp_nets *net;
-	int refcount_up = 0;
-	uint32_t vrf_id = 0;
-
-#ifdef IPSEC
-	struct inpcb *in6p_ip;
-
-#endif
 	struct sctp_chunkhdr *ch;
-	int length, offset, iphlen;
-	uint8_t ecn_bits;
-	struct sctp_tcb *stcb = NULL;
-	int pkt_len = 0;
+	int length, offset;
 
 #if !defined(SCTP_WITH_NO_CSUM)
-	uint32_t check, calc_check;
+	uint8_t compute_crc;
 
 #endif
-	int off = *offp;
+	uint32_t mflowid;
+	uint8_t use_mflowid;
 	uint16_t port = 0;
 
-	/* get the VRF and table id's */
+	iphlen = *offp;
 	if (SCTP_GET_PKT_VRFID(*i_pak, vrf_id)) {
 		SCTP_RELEASE_PKT(*i_pak);
-		return (-1);
+		return (IPPROTO_DONE);
 	}
 	m = SCTP_HEADER_TO_CHAIN(*i_pak);
-	pkt_len = SCTP_HEADER_LEN((*i_pak));
+#ifdef SCTP_MBUF_LOGGING
+	/* Log in any input mbufs */
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
+		struct mbuf *mat;
 
-#ifdef  SCTP_PACKET_LOGGING
-	sctp_packet_log(m, pkt_len);
+		for (mat = m; mat; mat = SCTP_BUF_NEXT(mat)) {
+			if (SCTP_BUF_IS_EXTENDED(mat)) {
+				sctp_log_mb(mat, SCTP_MBUF_INPUT);
+			}
+		}
+	}
 #endif
+#ifdef SCTP_PACKET_LOGGING
+	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LAST_PACKET_TRACING) {
+		sctp_packet_log(m);
+	}
+#endif
+	SCTPDBG(SCTP_DEBUG_CRCOFFLOAD,
+	    "sctp6_input(): Packet of length %d received on %s with csum_flags 0x%x.\n",
+	    m->m_pkthdr.len,
+	    if_name(m->m_pkthdr.rcvif),
+	    m->m_pkthdr.csum_flags);
+	if (m->m_flags & M_FLOWID) {
+		mflowid = m->m_pkthdr.flowid;
+		use_mflowid = 1;
+	} else {
+		mflowid = 0;
+		use_mflowid = 0;
+	}
+	SCTP_STAT_INCR(sctps_recvpackets);
+	SCTP_STAT_INCR_COUNTER64(sctps_inpackets);
+	/* Get IP, SCTP, and first chunk header together in the first mbuf. */
+	offset = iphlen + sizeof(struct sctphdr) + sizeof(struct sctp_chunkhdr);
 	ip6 = mtod(m, struct ip6_hdr *);
-	/* Ensure that (sctphdr + sctp_chunkhdr) in a row. */
-	IP6_EXTHDR_GET(sh, struct sctphdr *, m, off,
-	    (int)(sizeof(*sh) + sizeof(*ch)));
+	IP6_EXTHDR_GET(sh, struct sctphdr *, m, iphlen,
+	    (int)(sizeof(struct sctphdr) + sizeof(struct sctp_chunkhdr)));
 	if (sh == NULL) {
 		SCTP_STAT_INCR(sctps_hdrops);
 		return (IPPROTO_DONE);
 	}
 	ch = (struct sctp_chunkhdr *)((caddr_t)sh + sizeof(struct sctphdr));
-	iphlen = off;
-	offset = iphlen + sizeof(*sh) + sizeof(*ch);
-	SCTPDBG(SCTP_DEBUG_INPUT1,
-	    "sctp6_input() length:%d iphlen:%d\n", pkt_len, iphlen);
-
-
-#if defined(NFAITH) && NFAITH > 0
-
-	if (faithprefix_p != NULL && (*faithprefix_p) (&ip6->ip6_dst)) {
+	offset -= sizeof(struct sctp_chunkhdr);
+	memset(&src, 0, sizeof(struct sockaddr_in6));
+	src.sin6_family = AF_INET6;
+	src.sin6_len = sizeof(struct sockaddr_in6);
+	src.sin6_port = sh->src_port;
+	src.sin6_addr = ip6->ip6_src;
+	if (in6_setscope(&src.sin6_addr, m->m_pkthdr.rcvif, NULL) != 0) {
+		goto out;
+	}
+	memset(&dst, 0, sizeof(struct sockaddr_in6));
+	dst.sin6_family = AF_INET6;
+	dst.sin6_len = sizeof(struct sockaddr_in6);
+	dst.sin6_port = sh->dest_port;
+	dst.sin6_addr = ip6->ip6_dst;
+	if (in6_setscope(&dst.sin6_addr, m->m_pkthdr.rcvif, NULL) != 0) {
+		goto out;
+	}
+	if (faithprefix_p != NULL && (*faithprefix_p) (&dst.sin6_addr)) {
 		/* XXX send icmp6 host/port unreach? */
-		goto bad;
+		goto out;
 	}
-#endif				/* NFAITH defined and > 0 */
-	SCTP_STAT_INCR(sctps_recvpackets);
-	SCTP_STAT_INCR_COUNTER64(sctps_inpackets);
-	SCTPDBG(SCTP_DEBUG_INPUT1, "V6 input gets a packet iphlen:%d pktlen:%d\n",
-	    iphlen, pkt_len);
+	length = ntohs(ip6->ip6_plen) + iphlen;
+	/* Validate mbuf chain length with IP payload length. */
+	if (SCTP_HEADER_LEN(m) != length) {
+		SCTPDBG(SCTP_DEBUG_INPUT1,
+		    "sctp6_input() length:%d reported length:%d\n", length, SCTP_HEADER_LEN(m));
+		SCTP_STAT_INCR(sctps_hdrops);
+		goto out;
+	}
 	if (IN6_IS_ADDR_MULTICAST(&ip6->ip6_dst)) {
-		/* No multi-cast support in SCTP */
-		goto bad;
+		goto out;
 	}
-	/* destination port of 0 is illegal, based on RFC2960. */
-	if (sh->dest_port == 0)
-		goto bad;
-
-	SCTPDBG(SCTP_DEBUG_CRCOFFLOAD,
-	    "sctp_input(): Packet of length %d received on %s with csum_flags 0x%x.\n",
-	    m->m_pkthdr.len,
-	    if_name(m->m_pkthdr.rcvif),
-	    m->m_pkthdr.csum_flags);
+	ecn_bits = ((ntohl(ip6->ip6_flow) >> 20) & 0x000000ff);
 #if defined(SCTP_WITH_NO_CSUM)
 	SCTP_STAT_INCR(sctps_recvnocrc);
 #else
 	if (m->m_pkthdr.csum_flags & CSUM_SCTP_VALID) {
 		SCTP_STAT_INCR(sctps_recvhwcrc);
-		goto sctp_skip_csum;
+		compute_crc = 0;
+	} else {
+		SCTP_STAT_INCR(sctps_recvswcrc);
+		compute_crc = 1;
 	}
-	check = sh->checksum;	/* save incoming checksum */
-	if ((check == 0) && (SCTP_BASE_SYSCTL(sctp_no_csum_on_loopback)) &&
-	    (IN6_ARE_ADDR_EQUAL(&ip6->ip6_src, &ip6->ip6_dst))) {
-		SCTP_STAT_INCR(sctps_recvnocrc);
-		goto sctp_skip_csum;
-	}
-	sh->checksum = 0;	/* prepare for calc */
-	calc_check = sctp_calculate_cksum(m, iphlen);
-	SCTP_STAT_INCR(sctps_recvswcrc);
-	if (calc_check != check) {
-		SCTPDBG(SCTP_DEBUG_INPUT1, "Bad CSUM on SCTP packet calc_check:%x check:%x  m:%p phlen:%d\n",
-		    calc_check, check, m, iphlen);
-		stcb = sctp_findassociation_addr(m, offset - sizeof(*ch),
-		    sh, ch, &in6p, &net, vrf_id);
-		if ((net) && (port)) {
-			if (net->port == 0) {
-				sctp_pathmtu_adjustment(stcb, net->mtu - sizeof(struct udphdr));
-			}
-			net->port = port;
-		}
-		if ((net != NULL) && (m->m_flags & M_FLOWID)) {
-			net->flowid = m->m_pkthdr.flowid;
-#ifdef INVARIANTS
-			net->flowidset = 1;
 #endif
-		}
-		/* in6p's ref-count increased && stcb locked */
-		if ((in6p) && (stcb)) {
-			sctp_send_packet_dropped(stcb, net, m, iphlen, 1);
-			sctp_chunk_output((struct sctp_inpcb *)in6p, stcb, SCTP_OUTPUT_FROM_INPUT_ERROR, SCTP_SO_NOT_LOCKED);
-		} else if ((in6p != NULL) && (stcb == NULL)) {
-			refcount_up = 1;
-		}
-		SCTP_STAT_INCR(sctps_badsum);
-		SCTP_STAT_INCR_COUNTER32(sctps_checksumerrors);
-		goto bad;
-	}
-	sh->checksum = calc_check;
-
-sctp_skip_csum:
+	sctp_common_input_processing(&m, iphlen, offset, length,
+	    (struct sockaddr *)&src,
+	    (struct sockaddr *)&dst,
+	    sh, ch,
+#if !defined(SCTP_WITH_NO_CSUM)
+	    compute_crc,
 #endif
-	net = NULL;
-	/*
-	 * Locate pcb and tcb for datagram sctp_findassociation_addr() wants
-	 * IP/SCTP/first chunk header...
-	 */
-	stcb = sctp_findassociation_addr(m, offset - sizeof(*ch),
-	    sh, ch, &in6p, &net, vrf_id);
-	if ((net) && (port)) {
-		if (net->port == 0) {
-			sctp_pathmtu_adjustment(stcb, net->mtu - sizeof(struct udphdr));
-		}
-		net->port = port;
-	}
-	if ((net != NULL) && (m->m_flags & M_FLOWID)) {
-		net->flowid = m->m_pkthdr.flowid;
-#ifdef INVARIANTS
-		net->flowidset = 1;
-#endif
-	}
-	/* in6p's ref-count increased */
-	if (in6p == NULL) {
-		struct sctp_init_chunk *init_chk, chunk_buf;
-
-		SCTP_STAT_INCR(sctps_noport);
-		if (ch->chunk_type == SCTP_INITIATION) {
-			/*
-			 * we do a trick here to get the INIT tag, dig in
-			 * and get the tag from the INIT and put it in the
-			 * common header.
-			 */
-			init_chk = (struct sctp_init_chunk *)sctp_m_getptr(m,
-			    iphlen + sizeof(*sh), sizeof(*init_chk),
-			    (uint8_t *) & chunk_buf);
-			if (init_chk)
-				sh->v_tag = init_chk->init.initiate_tag;
-			else
-				sh->v_tag = 0;
-		}
-		if (ch->chunk_type == SCTP_SHUTDOWN_ACK) {
-			sctp_send_shutdown_complete2(m, sh, vrf_id, port);
-			goto bad;
-		}
-		if (ch->chunk_type == SCTP_SHUTDOWN_COMPLETE) {
-			goto bad;
-		}
-		if (ch->chunk_type != SCTP_ABORT_ASSOCIATION) {
-			if ((SCTP_BASE_SYSCTL(sctp_blackhole) == 0) ||
-			    ((SCTP_BASE_SYSCTL(sctp_blackhole) == 1) &&
-			    (ch->chunk_type != SCTP_INIT))) {
-				sctp_send_abort(m, iphlen, sh, 0, NULL, vrf_id, port);
-			}
-		}
-		goto bad;
-	} else if (stcb == NULL) {
-		refcount_up = 1;
-	}
-#ifdef IPSEC
-	/*
-	 * Check AH/ESP integrity.
-	 */
-	in6p_ip = (struct inpcb *)in6p;
-	if (in6p_ip && (ipsec6_in_reject(m, in6p_ip))) {
-/* XXX */
-		MODULE_GLOBAL(ipsec6stat).in_polvio++;
-		goto bad;
-	}
-#endif				/* IPSEC */
-
-	/*
-	 * CONTROL chunk processing
-	 */
-	offset -= sizeof(*ch);
-	ecn_bits = ((ntohl(ip6->ip6_flow) >> 20) & 0x000000ff);
-
-	/* Length now holds the total packet length payload + iphlen */
-	length = ntohs(ip6->ip6_plen) + iphlen;
-
-	/* sa_ignore NO_NULL_CHK */
-	sctp_common_input_processing(&m, iphlen, offset, length, sh, ch,
-	    in6p, stcb, net, ecn_bits, vrf_id, port);
-	/* inp's ref-count reduced && stcb unlocked */
-	/* XXX this stuff below gets moved to appropriate parts later... */
-	if (m)
+	    ecn_bits,
+	    use_mflowid, mflowid,
+	    vrf_id, port);
+out:
+	if (m) {
 		sctp_m_freem(m);
-	if ((in6p) && refcount_up) {
-		/* reduce ref-count */
-		SCTP_INP_WLOCK(in6p);
-		SCTP_INP_DECR_REF(in6p);
-		SCTP_INP_WUNLOCK(in6p);
 	}
-	return (IPPROTO_DONE);
-
-bad:
-	if (stcb) {
-		SCTP_TCB_UNLOCK(stcb);
-	}
-	if ((in6p) && refcount_up) {
-		/* reduce ref-count */
-		SCTP_INP_WLOCK(in6p);
-		SCTP_INP_DECR_REF(in6p);
-		SCTP_INP_WUNLOCK(in6p);
-	}
-	if (m)
-		sctp_m_freem(m);
 	return (IPPROTO_DONE);
 }
 
@@ -384,14 +280,12 @@ sctp6_notify(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb,
     struct sctp_nets *net)
 {
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
 
 #endif
+
 	/* protection */
-	int reason;
-
-
 	if ((inp == NULL) || (stcb == NULL) || (net == NULL) ||
 	    (sh == NULL) || (to == NULL)) {
 		if (stcb)
@@ -428,8 +322,7 @@ sctp6_notify(struct sctp_inpcb *inp,
 			net->dest_state &= ~SCTP_ADDR_REACHABLE;
 			net->dest_state &= ~SCTP_ADDR_PF;
 			sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN,
-			    stcb, SCTP_FAILED_THRESHOLD,
-			    (void *)net, SCTP_SO_NOT_LOCKED);
+			    stcb, 0, (void *)net, SCTP_SO_NOT_LOCKED);
 		}
 		SCTP_TCB_UNLOCK(stcb);
 	} else if ((icmph->icmp6_code == ICMP_UNREACH_PROTOCOL) ||
@@ -441,9 +334,8 @@ sctp6_notify(struct sctp_inpcb *inp,
 		 * now is dead. In either case treat it like a OOTB abort
 		 * with no TCB
 		 */
-		reason = SCTP_PEER_FAULTY;
-		sctp_abort_notification(stcb, reason, SCTP_SO_NOT_LOCKED);
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+		sctp_abort_notification(stcb, 1, 0, NULL, SCTP_SO_NOT_LOCKED);
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		so = SCTP_INP_SO(inp);
 		atomic_add_int(&stcb->asoc.refcnt, 1);
 		SCTP_TCB_UNLOCK(stcb);
@@ -452,7 +344,7 @@ sctp6_notify(struct sctp_inpcb *inp,
 		atomic_subtract_int(&stcb->asoc.refcnt, 1);
 #endif
 		(void)sctp_free_assoc(inp, stcb, SCTP_NORMAL_PROC, SCTP_FROM_SCTP_USRREQ + SCTP_LOC_2);
-#if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
+#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		SCTP_SOCKET_UNLOCK(so, 1);
 		/* SCTP_TCB_UNLOCK(stcb); MT: I think this is not needed. */
 #endif
@@ -516,8 +408,8 @@ sctp6_ctlinput(int cmd, struct sockaddr *pktdst, void *d)
 		final.sin6_family = AF_INET6;
 		final.sin6_addr = ((struct sockaddr_in6 *)pktdst)->sin6_addr;
 		final.sin6_port = sh.dest_port;
-		stcb = sctp_findassociation_addr_sa((struct sockaddr *)ip6cp->ip6c_src,
-		    (struct sockaddr *)&final,
+		stcb = sctp_findassociation_addr_sa((struct sockaddr *)&final,
+		    (struct sockaddr *)ip6cp->ip6c_src,
 		    &inp, &net, 1, vrf_id);
 		/* inp's ref-count increased && stcb locked */
 		if (stcb != NULL && inp && (inp->sctp_socket != NULL)) {
@@ -584,8 +476,8 @@ sctp6_getcred(SYSCTL_HANDLER_ARGS)
 	if (error)
 		return (error);
 
-	stcb = sctp_findassociation_addr_sa(sin6tosa(&addrs[0]),
-	    sin6tosa(&addrs[1]),
+	stcb = sctp_findassociation_addr_sa(sin6tosa(&addrs[1]),
+	    sin6tosa(&addrs[0]),
 	    &inp, &net, 1, vrf_id);
 	if (stcb == NULL || inp == NULL || inp->sctp_socket == NULL) {
 		if ((inp != NULL) && (stcb == NULL)) {
@@ -1349,3 +1241,5 @@ struct pr_usrreqs sctp6_usrreqs = {
 	.pru_sosend = sctp_sosend,
 	.pru_soreceive = sctp_soreceive
 };
+
+#endif

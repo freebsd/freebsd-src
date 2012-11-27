@@ -50,8 +50,8 @@ xfs_buf_read_flags(xfs_buftarg_t *target, xfs_daddr_t blkno, size_t len, int fla
 	KASSERT((target != NULL), ("got NULL buftarg_t"));
 
 	if (bread(target->specvp, blkno, BBTOB(len), NOCRED, &bp)) {
-		printf("bread failed specvp %p blkno %qd BBTOB(len) %ld\n",
-		       target->specvp, blkno, (long)BBTOB(len));
+		printf("bread failed specvp %p blkno %jd BBTOB(len) %ld\n",
+		       target->specvp, (intmax_t)blkno, (long)BBTOB(len));
 		bp = NULL;
 	}
 

@@ -195,7 +195,6 @@ errout:
 	kmem_free(dd, sizeof (dsl_dir_t));
 	dmu_buf_rele(dbuf, tag);
 	return (err);
-
 }
 
 void
@@ -229,7 +228,7 @@ dsl_dir_name(dsl_dir_t *dd, char *buf)
 	}
 }
 
-/* Calculate name legnth, avoiding all the strcat calls of dsl_dir_name */
+/* Calculate name length, avoiding all the strcat calls of dsl_dir_name */
 int
 dsl_dir_namelen(dsl_dir_t *dd)
 {
@@ -593,8 +592,6 @@ dsl_dir_sync(dsl_dir_t *dd, dmu_tx_t *tx)
 {
 	ASSERT(dmu_tx_is_syncing(tx));
 
-	dmu_buf_will_dirty(dd->dd_dbuf, tx);
-
 	mutex_enter(&dd->dd_lock);
 	ASSERT3U(dd->dd_tempreserved[tx->tx_txg&TXG_MASK], ==, 0);
 	dprintf_dd(dd, "txg=%llu towrite=%lluK\n", tx->tx_txg,
@@ -951,8 +948,6 @@ dsl_dir_diduse_space(dsl_dir_t *dd, dd_used_t type,
 	ASSERT(dmu_tx_is_syncing(tx));
 	ASSERT(type < DD_USED_NUM);
 
-	dsl_dir_dirty(dd, tx);
-
 	if (needlock)
 		mutex_enter(&dd->dd_lock);
 	accounted_delta = parent_delta(dd, dd->dd_phys->dd_used_bytes, used);
@@ -961,6 +956,7 @@ dsl_dir_diduse_space(dsl_dir_t *dd, dd_used_t type,
 	    dd->dd_phys->dd_compressed_bytes >= -compressed);
 	ASSERT(uncompressed >= 0 ||
 	    dd->dd_phys->dd_uncompressed_bytes >= -uncompressed);
+	dmu_buf_will_dirty(dd->dd_dbuf, tx);
 	dd->dd_phys->dd_used_bytes += used;
 	dd->dd_phys->dd_uncompressed_bytes += uncompressed;
 	dd->dd_phys->dd_compressed_bytes += compressed;
@@ -1002,13 +998,13 @@ dsl_dir_transfer_space(dsl_dir_t *dd, int64_t delta,
 	if (delta == 0 || !(dd->dd_phys->dd_flags & DD_FLAG_USED_BREAKDOWN))
 		return;
 
-	dsl_dir_dirty(dd, tx);
 	if (needlock)
 		mutex_enter(&dd->dd_lock);
 	ASSERT(delta > 0 ?
 	    dd->dd_phys->dd_used_breakdown[oldtype] >= delta :
 	    dd->dd_phys->dd_used_breakdown[newtype] >= -delta);
 	ASSERT(dd->dd_phys->dd_used_bytes >= ABS(delta));
+	dmu_buf_will_dirty(dd->dd_dbuf, tx);
 	dd->dd_phys->dd_used_breakdown[oldtype] -= delta;
 	dd->dd_phys->dd_used_breakdown[newtype] += delta;
 	if (needlock)
@@ -1065,10 +1061,6 @@ dsl_dir_set_quota_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 	mutex_enter(&dd->dd_lock);
 	dd->dd_phys->dd_quota = effective_value;
 	mutex_exit(&dd->dd_lock);
-
-	spa_history_log_internal(LOG_DS_QUOTA, dd->dd_pool->dp_spa,
-	    tx, "%lld dataset = %llu ",
-	    (longlong_t)effective_value, dd->dd_phys->dd_head_dataset_obj);
 }
 
 int
@@ -1181,10 +1173,6 @@ dsl_dir_set_reservation_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 		    delta, 0, 0, tx);
 	}
 	mutex_exit(&dd->dd_lock);
-
-	spa_history_log_internal(LOG_DS_RESERVATION, dd->dd_pool->dp_spa,
-	    tx, "%lld dataset = %llu",
-	    (longlong_t)effective_value, dd->dd_phys->dd_head_dataset_obj);
 }
 
 int

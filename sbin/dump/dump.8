@@ -51,16 +51,6 @@
 .Ar filesystem
 .Nm
 .Fl W | Fl w
-.Pp
-.Nm rdump
-is an alternate name for
-.Nm .
-.Pp
-.in \" XXX
-(The
-.Bx 4.3
-option syntax is implemented for backward compatibility, but
-is not documented here.)
 .Sh DESCRIPTION
 The
 .Nm
@@ -96,6 +86,14 @@ The file system to be dumped is specified by the argument
 as either its device-special file or its mount point
 (if that is in a standard entry in
 .Pa /etc/fstab ) .
+.Pp
+.Nm
+may also be invoked as
+.Nm rdump .
+The
+.Bx 4.3
+option syntax is implemented for backward compatibility, but
+is not documented here.
 .Pp
 The following options are supported by
 .Nm :

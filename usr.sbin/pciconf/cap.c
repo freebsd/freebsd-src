@@ -630,3 +630,59 @@ list_ecaps(int fd, struct pci_conf *p)
 		ecap = read_config(fd, &p->pc_sel, ptr, 4);
 	}
 }
+
+/* Find offset of a specific capability.  Returns 0 on failure. */
+uint8_t
+pci_find_cap(int fd, struct pci_conf *p, uint8_t id)
+{
+	uint16_t sta;
+	uint8_t ptr, cap;
+
+	/* Are capabilities present for this device? */
+	sta = read_config(fd, &p->pc_sel, PCIR_STATUS, 2);
+	if (!(sta & PCIM_STATUS_CAPPRESENT))
+		return (0);
+
+	switch (p->pc_hdr & PCIM_HDRTYPE) {
+	case PCIM_HDRTYPE_NORMAL:
+	case PCIM_HDRTYPE_BRIDGE:
+		ptr = PCIR_CAP_PTR;
+		break;
+	case PCIM_HDRTYPE_CARDBUS:
+		ptr = PCIR_CAP_PTR_2;
+		break;
+	default:
+		return (0);
+	}
+
+	ptr = read_config(fd, &p->pc_sel, ptr, 1);
+	while (ptr != 0 && ptr != 0xff) {
+		cap = read_config(fd, &p->pc_sel, ptr + PCICAP_ID, 1);
+		if (cap == id)
+			return (ptr);
+		ptr = read_config(fd, &p->pc_sel, ptr + PCICAP_NEXTPTR, 1);
+	}
+	return (0);
+}
+
+/* Find offset of a specific extended capability.  Returns 0 on failure. */
+uint16_t
+pcie_find_cap(int fd, struct pci_conf *p, uint16_t id)
+{
+	uint32_t ecap;
+	uint16_t ptr;
+
+	ptr = PCIR_EXTCAP;
+	ecap = read_config(fd, &p->pc_sel, ptr, 4);
+	if (ecap == 0xffffffff || ecap == 0)
+		return (0);
+	for (;;) {
+		if (PCI_EXTCAP_ID(ecap) == id)
+			return (ptr);
+		ptr = PCI_EXTCAP_NEXTPTR(ecap);
+		if (ptr == 0)
+			break;
+		ecap = read_config(fd, &p->pc_sel, ptr, 4);
+	}
+	return (0);
+}

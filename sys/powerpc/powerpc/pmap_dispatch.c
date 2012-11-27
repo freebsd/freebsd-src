@@ -76,6 +76,20 @@ vm_offset_t virtual_end;
 
 int pmap_bootstrapped;
 
+#ifdef AIM
+int
+pvo_vaddr_compare(struct pvo_entry *a, struct pvo_entry *b)
+{
+	if (PVO_VADDR(a) < PVO_VADDR(b))
+		return (-1);
+	else if (PVO_VADDR(a) > PVO_VADDR(b))
+		return (1);
+	return (0);
+}
+RB_GENERATE(pvo_tree, pvo_entry, pvo_plink, pvo_vaddr_compare);
+#endif
+	
+
 void
 pmap_change_wiring(pmap_t pmap, vm_offset_t va, boolean_t wired)
 {
@@ -426,7 +440,7 @@ pmap_cpu_bootstrap(int ap)
 }
 
 void *
-pmap_mapdev(vm_offset_t pa, vm_size_t size)
+pmap_mapdev(vm_paddr_t pa, vm_size_t size)
 {
 
 	CTR3(KTR_PMAP, "%s(%#x, %#x)", __func__, pa, size);
@@ -457,7 +471,7 @@ pmap_unmapdev(vm_offset_t va, vm_size_t size)
 	MMU_UNMAPDEV(mmu_obj, va, size);
 }
 
-vm_offset_t
+vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
 
@@ -466,7 +480,7 @@ pmap_kextract(vm_offset_t va)
 }
 
 void
-pmap_kenter(vm_offset_t va, vm_offset_t pa)
+pmap_kenter(vm_offset_t va, vm_paddr_t pa)
 {
 
 	CTR3(KTR_PMAP, "%s(%#x, %#x)", __func__, va, pa);
@@ -482,7 +496,7 @@ pmap_kenter_attr(vm_offset_t va, vm_offset_t pa, vm_memattr_t ma)
 }
 
 boolean_t
-pmap_dev_direct_mapped(vm_offset_t pa, vm_size_t size)
+pmap_dev_direct_mapped(vm_paddr_t pa, vm_size_t size)
 {
 
 	CTR3(KTR_PMAP, "%s(%#x, %#x)", __func__, pa, size);

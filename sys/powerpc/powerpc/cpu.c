@@ -75,13 +75,13 @@
 #include <machine/spr.h>
 
 static void	cpu_6xx_setup(int cpuid, uint16_t vers);
-static void	cpu_e500_setup(int cpuid, uint16_t vers);
 static void	cpu_970_setup(int cpuid, uint16_t vers);
+static void	cpu_booke_setup(int cpuid, uint16_t vers);
 
 int powerpc_pow_enabled;
 void (*cpu_idle_hook)(void) = NULL;
 static void	cpu_idle_60x(void);
-static void	cpu_idle_e500(void);
+static void	cpu_idle_booke(void);
 
 struct cputab {
 	const char	*name;
@@ -146,9 +146,13 @@ static const struct cputab models[] = {
         { "Motorola PowerPC 8245",	MPC8245,	REVFMT_MAJMIN,
 	   PPC_FEATURE_HAS_FPU, cpu_6xx_setup },
         { "Freescale e500v1 core",	FSL_E500v1,	REVFMT_MAJMIN,
-	   0, cpu_e500_setup },
+	   0, cpu_booke_setup },
         { "Freescale e500v2 core",	FSL_E500v2,	REVFMT_MAJMIN,
-	   0, cpu_e500_setup },
+	   0, cpu_booke_setup },
+	{ "Freescale e500mc core",	FSL_E500mc,	REVFMT_MAJMIN,
+	   0, cpu_booke_setup },
+	{ "Freescale e5500 core",	FSL_E5500,	REVFMT_MAJMIN,
+	   0, cpu_booke_setup },
         { "IBM Cell Broadband Engine",	IBMCELLBE,	REVFMT_MAJMIN,
 	   PPC_FEATURE_64 | PPC_FEATURE_HAS_ALTIVEC | PPC_FEATURE_HAS_FPU,
 	   NULL},
@@ -191,6 +195,8 @@ cpu_setup(u_int cpuid)
 			break;
 		case FSL_E500v1:
 		case FSL_E500v2:
+		case FSL_E500mc:
+		case FSL_E5500:
 			maj = (pvr >>  4) & 0xf;
 			min = (pvr >>  0) & 0xf;
 			break;
@@ -438,8 +444,9 @@ cpu_6xx_print_cacheinfo(u_int cpuid, uint16_t vers)
 }
 
 static void
-cpu_e500_setup(int cpuid, uint16_t vers)
+cpu_booke_setup(int cpuid, uint16_t vers)
 {
+#ifdef BOOKE_E500
 	register_t hid0;
 
 	hid0 = mfspr(SPR_HID0);
@@ -451,9 +458,10 @@ cpu_e500_setup(int cpuid, uint16_t vers)
 	mtspr(SPR_HID0, hid0);
 
 	printf("cpu%d: HID0 %b\n", cpuid, (int)hid0, HID0_E500_BITMASK);
+#endif
 
 	if (cpu_idle_hook == NULL)
-		cpu_idle_hook = cpu_idle_e500;
+		cpu_idle_hook = cpu_idle_booke;
 }
 
 static void
@@ -519,6 +527,7 @@ cpu_idle(int busy)
 
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
 	    busy, curcpu);
+
 	if (cpu_idle_hook != NULL) {
 		if (!busy) {
 			critical_enter();
@@ -530,6 +539,7 @@ cpu_idle(int busy)
 			critical_exit();
 		}
 	}
+
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d done",
 	    busy, curcpu);
 }
@@ -576,7 +586,7 @@ cpu_idle_60x(void)
 }
 
 static void
-cpu_idle_e500(void)
+cpu_idle_booke(void)
 {
 	register_t msr;
 

@@ -1,0 +1,41 @@
+The following are examples of pl_who.d.
+
+This is a simple script to see who is executing Perl subroutines. Here it
+traces as a few examples programs are executed (from Code/Perl/*.pl).
+
+   # pl_who.d 
+   Tracing... Hit Ctrl-C to end.
+   ^C
+         PID    UID   SUBS FILE
+       30817    100      3 ./func_abc.pl
+       30818    100      3 ./func_slow.pl
+       30819    100      3 ./func_slow.pl
+
+While tracing, the user with UID 100 executed three Perl programs;
+"func_abc.pl" once getting PID 130817, and "func_slow.pl" twice. All
+programs called three subroutines.
+
+
+
+The following traces a Perl network interface statistics tool, "nicstat"
+version 0.99,
+
+   # pl_who.d
+   Tracing... Hit Ctrl-C to end.
+   ^C
+         PID    UID   SUBS FILE
+       14977    100      1 lib/Getopt/Std.pm
+       14977    100      1 lib/warnings.pm
+       14977    100      2 lib/Exporter.pm
+       14977    100      3 /usr/perl5/5.8.4/lib/Sun/Solaris/Kstat.pm
+       14977    100      3 lib/warnings/register.pm
+       14977    100      4 lib/DynaLoader.pm
+       14977    100      5 lib/vars.pm
+       14977    100      6 lib/AutoLoader.pm
+       14977    100      9 lib/Config.pm
+       14977    100     15 lib/strict.pm
+       14977    100     23 /tmp/nicstat
+
+This shows the location of libraries and modules from where subroutines were
+called.
+

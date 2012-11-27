@@ -227,7 +227,7 @@ AslDetectSourceFileType (
 
     /* Check for 100% ASCII source file (comments are ignored) */
 
-    Status = FlCheckForAscii (Info);
+    Status = FlCheckForAscii (Info->Handle, Info->Filename, TRUE);
     if (ACPI_FAILURE (Status))
     {
         printf ("Non-ascii input file - %s\n", Info->Filename);

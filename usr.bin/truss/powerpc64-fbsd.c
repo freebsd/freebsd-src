@@ -110,12 +110,11 @@ clear_fsc(void) {
 
 void
 powerpc64_syscall_entry(struct trussinfo *trussinfo, int nargs) {
-  char buf[32];
   struct reg regs;
   void *args;
   int syscall_num;
   int i;
-  unsigned int regargs;
+  int regargs;
   struct syscall *sc;
 
   cpid = trussinfo->curthread->tid;

@@ -130,9 +130,9 @@ According to RFC 1918, unregistered source addresses are 10.0.0.0/8,
 172.16.0.0/12 and 192.168.0.0/16.
 .It Fl redirect_port Ar proto Xo
 .Ar targetIP Ns : Ns Xo
-.Ar targetPORT Ns Op - Ns Ar targetPORT Xc
-.Op Ar aliasIP Ns : Ns Xo
-.Ar aliasPORT Ns Op - Ns Ar aliasPORT Xc
+.Ar targetPORT Ns Oo - Ns Ar targetPORT Oc Xc
+.Oo Ar aliasIP Ns : Oc Ns Xo
+.Ar aliasPORT Ns Oo - Ns Ar aliasPORT Oc Xc
 .Oo Ar remoteIP Ns Oo : Ns
 .Ar remotePORT Ns Op - Ns Ar remotePORT
 .Oc Oc
@@ -247,10 +247,8 @@ to appear from the specified
 .Ar targetIP Ns : Ns Xo
 .Ar targetPORT Ns Oo , Ns
 .Ar ...\&
-.Oc Oc
-.Xc
-.Xc
-.Op Ar aliasIP Ns : Ns Xo
+.Oc Xc Oc Xc
+.Oo Ar aliasIP Ns : Oc Ns Xo
 .Ar aliasPORT
 .Xc
 .Oo Ar remoteIP Ns
@@ -787,7 +785,7 @@ ipfw add      allow ip from any to any
 .Pp
 Here the packet from internal network to Internet goes out via
 .Ql sis0
-(rule number 2000) and gets catched by the
+(rule number 2000) and gets caught by the
 .Ic globalport
 socket (3000).
 After that, either a match is found in a translation table

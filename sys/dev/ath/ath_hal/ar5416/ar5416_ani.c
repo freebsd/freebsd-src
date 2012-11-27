@@ -422,7 +422,7 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 			 * If weak sig detect is already off, as last resort,
 			 * raise firstep level 
 			 */
-			if (aniState->firstepLevel+1 < params->maxFirstepLevel) {
+			if (aniState->firstepLevel < params->maxFirstepLevel) {
 				if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
 						 aniState->firstepLevel + 1))
 					return;
@@ -436,7 +436,7 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 				ar5416AniControl(ah,
 				    HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION,
 				    AH_TRUE);
-			if (aniState->firstepLevel+1 < params->maxFirstepLevel)
+			if (aniState->firstepLevel < params->maxFirstepLevel)
 				if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
 				     aniState->firstepLevel + 1))
 				return;
@@ -490,7 +490,7 @@ ar5416AniCckErrTrigger(struct ath_hal *ah)
 			 * Beacon signal in mid and high range,
 			 * raise firstep level.
 			 */
-			if (aniState->firstepLevel+1 < params->maxFirstepLevel)
+			if (aniState->firstepLevel < params->maxFirstepLevel)
 				ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
 						 aniState->firstepLevel + 1);
 		} else {
@@ -954,6 +954,8 @@ ar5416AniPoll(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	if (listenTime < 0) {
 		ahp->ah_stats.ast_ani_lneg++;
 		/* restart ANI period if listenTime is invalid */
+		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: invalid listenTime\n",
+		    __func__);
 		ar5416AniRestart(ah, aniState);
 	}
 	/* XXX beware of overflow? */
@@ -973,6 +975,8 @@ ar5416AniPoll(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		    aniState->cckPhyErrCount <= aniState->listenTime *
 		    params->cckTrigLow/1000)
 			ar5416AniLowerImmunity(ah);
+		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: lower immunity\n",
+		    __func__);
 		ar5416AniRestart(ah, aniState);
 	} else if (aniState->listenTime > params->period) {
 		updateMIBStats(ah, aniState);
@@ -988,7 +992,7 @@ ar5416AniPoll(struct ath_hal *ah, const struct ieee80211_channel *chan)
 			   params->cckTrigHigh / 1000) {
                         HALDEBUG(ah, HAL_DEBUG_ANI,
                             "%s: CCK err %u listenTime %u\n", __func__,
-                            aniState->ofdmPhyErrCount, aniState->listenTime);
+                            aniState->cckPhyErrCount, aniState->listenTime);
 			ar5416AniCckErrTrigger(ah);
 			ar5416AniRestart(ah, aniState);
 		}

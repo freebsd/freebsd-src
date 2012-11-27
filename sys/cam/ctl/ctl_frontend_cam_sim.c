@@ -119,6 +119,7 @@ struct cfcs_softc cfcs_softc;
  * amount of SCSI sense data that we will report to CAM.
  */
 static int cfcs_max_sense = sizeof(struct scsi_sense_data);
+extern int ctl_disable;
 
 SYSINIT(cfcs_init, SI_SUB_CONFIGURE, SI_ORDER_FOURTH, cfcs_init, NULL);
 SYSCTL_NODE(_kern_cam, OID_AUTO, ctl2cam, CTLFLAG_RD, 0,
@@ -137,6 +138,10 @@ cfcs_init(void)
 	char wwnn[8];
 #endif
 	int retval;
+
+	/* Don't continue if CTL is disabled */
+	if (ctl_disable != 0)
+		return (0);
 
 	softc = &cfcs_softc;
 	retval = 0;

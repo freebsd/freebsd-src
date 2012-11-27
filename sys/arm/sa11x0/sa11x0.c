@@ -88,12 +88,12 @@ struct sa11x0_softc *sa11x0_softc; /* There can be only one. */
 
 static int
 sa1110_setup_intr(device_t dev, device_t child,
-        struct resource *ires,  int flags, driver_filter_t *filt, 
+        struct resource *ires,  int flags, driver_filter_t *filt,
 	driver_intr_t *intr, void *arg, void **cookiep)
 {
 	int saved_cpsr;
 	
-	if (flags & INTR_TYPE_TTY) 
+	if (flags & INTR_TYPE_TTY)
 		rman_set_start(ires, 15);
 	else if (flags & INTR_TYPE_CLK) {
 		if (rman_get_start(ires) == 0)
@@ -101,10 +101,10 @@ sa1110_setup_intr(device_t dev, device_t child,
 		else
 			rman_set_start(ires, 27);
 	}
-	saved_cpsr = SetCPSR(I32_bit, I32_bit);                 
+	saved_cpsr = SetCPSR(I32_bit, I32_bit);
 
 	SetCPSR(I32_bit, saved_cpsr & I32_bit);
-	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, filt, 
+	BUS_SETUP_INTR(device_get_parent(dev), child, ires, flags, filt,
 	    intr, arg, cookiep);
 	return (0);
 }

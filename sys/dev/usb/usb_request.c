@@ -228,6 +228,7 @@ usb_do_clear_stall_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct usb_endpoint *ep;
 	struct usb_endpoint *ep_end;
 	struct usb_endpoint *ep_first;
+	usb_stream_t x;
 	uint8_t to;
 
 	udev = xfer->xroot->udev;
@@ -255,9 +256,11 @@ tr_transferred:
 			ep->is_stalled = 0;
 			/* some hardware needs a callback to clear the data toggle */
 			usbd_clear_stall_locked(udev, ep);
-			/* start up the current or next transfer, if any */
-			usb_command_wrapper(&ep->endpoint_q,
-			    ep->endpoint_q.curr);
+			for (x = 0; x != USB_MAX_EP_STREAMS; x++) {
+				/* start the current or next transfer, if any */
+				usb_command_wrapper(&ep->endpoint_q[x],
+				    ep->endpoint_q[x].curr);
+			}
 		}
 		ep++;
 

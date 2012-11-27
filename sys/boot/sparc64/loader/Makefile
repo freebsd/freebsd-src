@@ -37,6 +37,7 @@ CFLAGS+=	-DLOADER_CD9660_SUPPORT
 CFLAGS+=	-DLOADER_ZFS_SUPPORT
 CFLAGS+=	-I${.CURDIR}/../../zfs
 CFLAGS+=	-I${.CURDIR}/../../../cddl/boot/zfs
+LIBZFSBOOT=	${.OBJDIR}/../../zfs/libzfsboot.a
 .endif
 .if ${LOADER_GZIP_SUPPORT} == "yes"
 CFLAGS+=	-DLOADER_GZIP_SUPPORT
@@ -83,8 +84,8 @@ CFLAGS+=	-I${.CURDIR}/../../ofw/libofw/
 # where to get libstand from
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
-DPADD=		${LIBFICL} ${LIBOFW} ${LIBSTAND}
-LDADD=		${LIBFICL} ${LIBOFW} -lstand
+DPADD=		${LIBFICL} ${LIBZFSBOOT} ${LIBOFW} ${LIBSTAND}
+LDADD=		${LIBFICL} ${LIBZFSBOOT} ${LIBOFW} -lstand
 
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../loader/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/../loader/version \

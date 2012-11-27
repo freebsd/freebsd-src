@@ -1,11 +1,10 @@
 /*
- * Copyright (C) 1984-2011  Mark Nudelman
+ * Copyright (C) 1984-2012  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
- * For more information about less, or for information on how to 
- * contact the author, see the README file.
+ * For more information, see the README file.
  */
 
 
@@ -112,6 +111,7 @@ struct cmdname cmdnames[] =
 	{ "flush-repaint",        A_FREPAINT },
 	{ "forw-bracket",         A_F_BRACKET },
 	{ "forw-forever",         A_F_FOREVER },
+	{ "forw-until-hilite",    A_F_UNTIL_HILITE },
 	{ "forw-line",            A_F_LINE },
 	{ "forw-line-force",      A_FF_LINE },
 	{ "forw-screen",          A_F_SCREEN },
@@ -449,7 +449,7 @@ tstr(pp, xlate)
 		}
 	case '^':
 		/*
-		 * Carat means CONTROL.
+		 * Caret means CONTROL.
 		 */
 		*pp = p+2;
 		buf[0] = CONTROL(p[1]);

@@ -243,6 +243,20 @@ AcpiDsLoad2BeginOp (
             WalkState->ScopeInfo->Common.Value = ACPI_TYPE_ANY;
             break;
 
+        case ACPI_TYPE_METHOD:
+
+            /*
+             * Allow scope change to root during execution of module-level
+             * code. Root is typed METHOD during this time.
+             */
+            if ((Node == AcpiGbl_RootNode) &&
+                (WalkState->ParseFlags & ACPI_PARSE_MODULE_LEVEL))
+            {
+                break;
+            }
+
+            /*lint -fallthrough */
+
         default:
 
             /* All other types are an error */

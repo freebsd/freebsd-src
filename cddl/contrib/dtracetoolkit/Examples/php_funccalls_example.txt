@@ -1,0 +1,17 @@
+The following are examples of php_funccalls.d.
+
+This is a simple script to count executed PHP functions. Here it traces
+an example program, Code/Php/func_abc.php
+
+# php_funccalls.d 
+Tracing... Hit Ctrl-C to end.
+^C
+ FILE                             FUNC                                CALLS
+ func_abc.php                     func_a                                  1
+ func_abc.php                     func_b                                  1
+ func_abc.php                     func_c                                  1
+ func_abc.php                     sleep                                   3
+
+While tracing, func_a() from the program "func_abc.php" was executed once,
+as were func_b() and func_c().  sleep was executed three times.
+

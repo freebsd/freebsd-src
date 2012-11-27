@@ -13,7 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Driver/ArgList.h"
-#include "clang/Driver/CC1Options.h"
+#include "clang/Driver/Options.h"
 #include "clang/Driver/Compilation.h"
 #include "clang/Driver/Driver.h"
 #include "clang/Driver/Option.h"
@@ -378,7 +378,7 @@ int main(int argc_, const char **argv_) {
   DiagnosticOptions DiagOpts;
   {
     // Note that ParseDiagnosticArgs() uses the cc1 option table.
-    OwningPtr<OptTable> CC1Opts(createCC1OptTable());
+    OwningPtr<OptTable> CC1Opts(createDriverOptTable());
     unsigned MissingArgIndex, MissingArgCount;
     OwningPtr<InputArgList> Args(CC1Opts->ParseArgs(argv.begin()+1, argv.end(),
                                             MissingArgIndex, MissingArgCount));
@@ -475,6 +475,10 @@ int main(int argc_, const char **argv_) {
   if (C.get())
     Res = TheDriver.ExecuteCompilation(*C, FailingCommand);
 
+  // Force a crash to test the diagnostics.
+  if(::getenv("FORCE_CLANG_DIAGNOSTICS_CRASH"))
+     Res = -1;
+
   // If result status is < 0, then the driver command signalled an error.
   // In this case, generate additional diagnostic information if possible.
   if (Res < 0)
@@ -485,6 +489,14 @@ int main(int argc_, const char **argv_) {
   llvm::TimerGroup::printAll(llvm::errs());
   
   llvm::llvm_shutdown();
+
+#ifdef _WIN32
+  // Exit status should not be negative on Win32, unless abnormal termination.
+  // Once abnormal termiation was caught, negative status should not be
+  // propagated.
+  if (Res < 0)
+    Res = 1;
+#endif
 
   return Res;
 }

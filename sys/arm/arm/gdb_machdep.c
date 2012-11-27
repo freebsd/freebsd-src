@@ -54,8 +54,12 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 	*regsz = gdb_cpu_regsz(regnum);
 
 	if (kdb_thread == curthread) {
-		if (regnum < 15)
+		if (regnum < 13)
 			return (&kdb_frame->tf_r0 + regnum);
+		if (regnum == 13)
+			return (&kdb_frame->tf_svc_sp);
+		if (regnum == 14)
+			return (&kdb_frame->tf_svc_lr);
 		if (regnum == 15)
 			return (&kdb_frame->tf_pc);
 		if (regnum == 25)
@@ -70,8 +74,8 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 	case 12:  return (&kdb_thrctx->un_32.pcb32_r12);
 	case 13:  stacktest = kdb_thrctx->un_32.pcb32_sp + 5 * 4;
 		  return (&stacktest);
-	case 15: 
-		  /* 
+	case 15:
+		  /*
 		   * On context switch, the PC is not put in the PCB, but
 		   * we can retrieve it from the stack.
 		   */

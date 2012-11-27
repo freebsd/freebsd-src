@@ -1098,7 +1098,7 @@ LkNamespaceLocateBegin (
 
             if (Message)
             {
-                sprintf (MsgBuffer, "Tag: %u bit%s, Field: %u bit%s",
+                sprintf (MsgBuffer, "Size mismatch, Tag: %u bit%s, Field: %u bit%s",
                     TagBitLength, (TagBitLength > 1) ? "s" : "",
                     FieldBitLength, (FieldBitLength > 1) ? "s" : "");
 

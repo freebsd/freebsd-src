@@ -91,6 +91,7 @@ void	doreti_popl_fs(void) __asm(__STRING(doreti_popl_fs));
 void	doreti_popl_fs_fault(void) __asm(__STRING(doreti_popl_fs_fault));
 void	dump_add_page(vm_paddr_t);
 void	dump_drop_page(vm_paddr_t);
+void	initializecpu(void);
 void	enable_sse(void);
 void	fillw(int /*u_short*/ pat, void *base, size_t cnt);
 void	i686_pagezero(void *addr);

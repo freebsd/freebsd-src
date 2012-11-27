@@ -37,6 +37,14 @@ typedef struct prof_tdata_s prof_tdata_t;
  */
 #define	PROF_NCTX_LOCKS			1024
 
+/*
+ * prof_tdata pointers close to NULL are used to encode state information that
+ * is used for cleaning up during thread shutdown.
+ */
+#define	PROF_TDATA_STATE_REINCARNATED	((prof_tdata_t *)(uintptr_t)1)
+#define	PROF_TDATA_STATE_PURGATORY	((prof_tdata_t *)(uintptr_t)2)
+#define	PROF_TDATA_STATE_MAX		PROF_TDATA_STATE_PURGATORY
+
 #endif /* JEMALLOC_H_TYPES */
 /******************************************************************************/
 #ifdef JEMALLOC_H_STRUCTS
@@ -113,8 +121,18 @@ struct prof_ctx_s {
 	/* Associated backtrace. */
 	prof_bt_t		*bt;
 
-	/* Protects cnt_merged and cnts_ql. */
+	/* Protects nlimbo, cnt_merged, and cnts_ql. */
 	malloc_mutex_t		*lock;
+
+	/*
+	 * Number of threads that currently cause this ctx to be in a state of
+	 * limbo due to one of:
+	 *   - Initializing per thread counters associated with this ctx.
+	 *   - Preparing to destroy this ctx.
+	 * nlimbo must be 1 (single destroyer) in order to safely destroy the
+	 * ctx.
+	 */
+	unsigned		nlimbo;
 
 	/* Temporary storage for summation during dump. */
 	prof_cnt_t		cnt_summed;
@@ -152,6 +170,11 @@ struct prof_tdata_s {
 	uint64_t		prng_state;
 	uint64_t		threshold;
 	uint64_t		accum;
+
+	/* State used to avoid dumping while operating on prof internals. */
+	bool			enq;
+	bool			enq_idump;
+	bool			enq_gdump;
 };
 
 #endif /* JEMALLOC_H_STRUCTS */
@@ -211,13 +234,13 @@ bool	prof_boot2(void);
 									\
 	assert(size == s2u(size));					\
 									\
-	prof_tdata = *prof_tdata_tsd_get();				\
-	if (prof_tdata == NULL) {					\
-		prof_tdata = prof_tdata_init();				\
-		if (prof_tdata == NULL) {				\
+	prof_tdata = prof_tdata_get();					\
+	if ((uintptr_t)prof_tdata <= (uintptr_t)PROF_TDATA_STATE_MAX) {	\
+		if (prof_tdata != NULL)					\
+			ret = (prof_thr_cnt_t *)(uintptr_t)1U;		\
+		else							\
 			ret = NULL;					\
-			break;						\
-		}							\
+		break;							\
 	}								\
 									\
 	if (opt_prof_active == false) {					\
@@ -260,6 +283,7 @@ bool	prof_boot2(void);
 #ifndef JEMALLOC_ENABLE_INLINE
 malloc_tsd_protos(JEMALLOC_ATTR(unused), prof_tdata, prof_tdata_t *)
 
+prof_tdata_t	*prof_tdata_get(void);
 void	prof_sample_threshold_update(prof_tdata_t *prof_tdata);
 prof_ctx_t	*prof_ctx_get(const void *ptr);
 void	prof_ctx_set(const void *ptr, prof_ctx_t *ctx);
@@ -275,6 +299,22 @@ void	prof_free(const void *ptr, size_t size);
 malloc_tsd_externs(prof_tdata, prof_tdata_t *)
 malloc_tsd_funcs(JEMALLOC_INLINE, prof_tdata, prof_tdata_t *, NULL,
     prof_tdata_cleanup)
+
+JEMALLOC_INLINE prof_tdata_t *
+prof_tdata_get(void)
+{
+	prof_tdata_t *prof_tdata;
+
+	cassert(config_prof);
+
+	prof_tdata = *prof_tdata_tsd_get();
+	if ((uintptr_t)prof_tdata <= (uintptr_t)PROF_TDATA_STATE_MAX) {
+		if (prof_tdata == NULL)
+			prof_tdata = prof_tdata_init();
+	}
+
+	return (prof_tdata);
+}
 
 JEMALLOC_INLINE void
 prof_sample_threshold_update(prof_tdata_t *prof_tdata)
@@ -355,7 +395,8 @@ prof_sample_accum_update(size_t size)
 	assert(opt_lg_prof_sample != 0);
 
 	prof_tdata = *prof_tdata_tsd_get();
-	assert(prof_tdata != NULL);
+	if ((uintptr_t)prof_tdata <= (uintptr_t)PROF_TDATA_STATE_MAX)
+		return (true);
 
 	/* Take care to avoid integer overflow. */
 	if (size >= prof_tdata->threshold - prof_tdata->accum) {
@@ -501,8 +542,9 @@ prof_free(const void *ptr, size_t size)
 	cassert(config_prof);
 
 	if ((uintptr_t)ctx > (uintptr_t)1) {
+		prof_thr_cnt_t *tcnt;
 		assert(size == isalloc(ptr, true));
-		prof_thr_cnt_t *tcnt = prof_lookup(ctx->bt);
+		tcnt = prof_lookup(ctx->bt);
 
 		if (tcnt != NULL) {
 			tcnt->epoch++;

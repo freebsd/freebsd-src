@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 1, 2006
+.Dd May 11, 2012
 .Dt FIREWIRE 4
 .Os
 .Sh NAME
@@ -82,12 +82,20 @@ manager, are dynamically assigned, after bus reset is initiated.
 On the
 .Nm
 bus, every device is identified by an EUI 64 address.
+.Pp
+Debugging over the firewire interace is possible with the
+.Xr dcons 4
+driver.
+Please see
+.Pa http://wiki.freebsd.org/DebugWithDcons
+for details on how to setup debugging with firewire.
 .Sh FILES
-.Bl -tag -compact
+.Bl -tag -width "Pa /dev/fwmem0.0" -compact
 .It Pa /dev/fw0.0
 .It Pa /dev/fwmem0.0
 .El
 .Sh SEE ALSO
+.Xr dcons 4 ,
 .Xr fwe 4 ,
 .Xr fwip 4 ,
 .Xr fwohci 4 ,

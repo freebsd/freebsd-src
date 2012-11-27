@@ -23,7 +23,7 @@ NIL=
 SMAKE=	MAKEFLAGS= ${MAKE} -C ${.CURDIR}
 
 all:
-	@echo '1..17'
+	@echo '1..16'
 	@${SMAKE} C_check || { cd ${.CURDIR} ; ${MAKE} failure ; }
 	@echo "ok 1 - C_check # Test of -C flag existence detected no regression."
 	@echo 1:${DATA1} 2:${DATA2} 3:${DATA3} 4:${DATA4} 5:${DATA5} | \
@@ -40,26 +40,24 @@ all:
 	@echo "ok 6 - notdef # Test notdef detected no regression."
 	@${SMAKE} modifiers || ${SMAKE} failure
 	@echo "ok 7 - modifiers # Test modifiers detected no regression."
-	@${SMAKE} funny_targets || ${SMAKE} failure
-	@echo "ok 8 funny_targets # Test funny_targets detected no regression."
 	@${SMAKE} arith_expr || ${SMAKE} failure
-	@echo "ok 9 arith_expr # Test arith_expr detected no regression."
+	@echo "ok 8 arith_expr # Test arith_expr detected no regression."
 	@${SMAKE} PATH_exists || ${SMAKE} failure
-	@echo "ok 10 PATH_exists # Test PATH_exists detected no regression."
+	@echo "ok 9 PATH_exists # Test PATH_exists detected no regression."
 	@${SMAKE} double_quotes || ${SMAKE} failure
-	@echo "ok 11 double_quotes # Test double_quotes detected no regression."
+	@echo "ok 10 double_quotes # Test double_quotes detected no regression."
 	@! ${SMAKE} double_quotes2 >/dev/null 2>&1 && true || ${SMAKE} failure
-	@echo "ok 12 double_quotes2 # Test double_quotes2 detected no regression."
+	@echo "ok 11 double_quotes2 # Test double_quotes2 detected no regression."
 	@${SMAKE} pass_cmd_vars || ${SMAKE} failure
-	@echo "ok 13 pass_cmd_vars # Test pass_cmd_vars detected no regression."
+	@echo "ok 12 pass_cmd_vars # Test pass_cmd_vars detected no regression."
 	@${SMAKE} plus_flag || ${SMAKE} failure
-	@echo "ok 14 plus_flag # Test plus_flag detected no regression."
+	@echo "ok 13 plus_flag # Test plus_flag detected no regression."
 	@! ${SMAKE} shell >/dev/null 2>&1 && true || ${SMAKE} failure
-	@echo "ok 15 shell # Test shell detected no regression."
+	@echo "ok 14 shell # Test shell detected no regression."
 	@${SMAKE} shell_1 || ${SMAKE} failure
-	@echo "ok 16 shell_1 # Test shell_1 detected no regression."
+	@echo "ok 15 shell_1 # Test shell_1 detected no regression."
 	@${SMAKE} shell_2 || ${SMAKE} failure
-	@echo "ok 17 shell_2 # Test shell_2 detected no regression."
+	@echo "ok 16 shell_2 # Test shell_2 detected no regression."
 
 .if make(C_check)
 C_check:
@@ -105,12 +103,6 @@ modifiers:
 	    grep -q "Unknown modifier 'C'"; then \
 		false; \
 	fi
-.endif
-
-.if make(funny_targets)
-funny_targets: colons::target exclamation!target
-colons::target:
-exclamation!target: 
 .endif
 
 .if make(arith_expr)

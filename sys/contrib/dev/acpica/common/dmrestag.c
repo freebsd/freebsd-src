@@ -73,6 +73,7 @@ AcpiDmGetResourceTag (
 
 static char *
 AcpiGetTagPathname (
+    ACPI_PARSE_OBJECT       *Op,
     ACPI_NAMESPACE_NODE     *BufferNode,
     ACPI_NAMESPACE_NODE     *ResourceNode,
     UINT32                  BitIndex);
@@ -443,7 +444,6 @@ AcpiDmCheckResourceReference (
     ACPI_NAMESPACE_NODE     *BufferNode;
     ACPI_NAMESPACE_NODE     *ResourceNode;
     const ACPI_OPCODE_INFO  *OpInfo;
-    char                    *Pathname;
     UINT32                  BitIndex;
 
 
@@ -519,14 +519,7 @@ AcpiDmCheckResourceReference (
 
     /* Translate the Index to a resource tag pathname */
 
-    Pathname = AcpiGetTagPathname (BufferNode, ResourceNode, BitIndex);
-    if (Pathname)
-    {
-        /* Complete the conversion of the Index to a symbol */
-
-        IndexOp->Common.AmlOpcode = AML_INT_NAMEPATH_OP;
-        IndexOp->Common.Value.String = Pathname;
-    }
+    AcpiGetTagPathname (IndexOp, BufferNode, ResourceNode, BitIndex);
 }
 
 
@@ -597,6 +590,7 @@ AcpiDmGetResourceNode (
 
 static char *
 AcpiGetTagPathname (
+    ACPI_PARSE_OBJECT       *IndexOp,
     ACPI_NAMESPACE_NODE     *BufferNode,
     ACPI_NAMESPACE_NODE     *ResourceNode,
     UINT32                  BitIndex)
@@ -689,6 +683,15 @@ AcpiGetTagPathname (
 
     AcpiNsInternalizeName (Pathname, &InternalPath);
     ACPI_FREE (Pathname);
+
+    /* Update the Op with the symbol */
+
+    AcpiPsInitOp (IndexOp, AML_INT_NAMEPATH_OP);
+    IndexOp->Common.Value.String = InternalPath;
+
+    /* We will need the tag later. Cheat by putting it in the Node field */
+
+    IndexOp->Common.Node = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, Tag);
     return (InternalPath);
 }
 

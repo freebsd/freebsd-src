@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: projects/diffused_head/lib/libz/Makefile 243577 2012-11-27 00:42:30Z lstewart $
 #
 
 LIB=		z
@@ -35,12 +35,12 @@ SRCS+=		uncompr.c
 SRCS+=		zopen.c
 SRCS+=		zutil.c
 
-.if ${MACHINE_ARCH} == "i386" && ${MACHINE_CPU:M*i686*}
-.PATH:		${.CURDIR}/contrib/asm686
-SRCS+=		match.S
-CFLAGS+=	-DASMV -DNO_UNDERLINE
-ACFLAGS+=	-Wa,--noexecstack
-.endif
+#.if ${MACHINE_ARCH} == "i386" && ${MACHINE_CPU:M*i686*}
+#.PATH:		${.CURDIR}/contrib/asm686
+#SRCS+=		match.S
+#CFLAGS+=	-DASMV -DNO_UNDERLINE
+#ACFLAGS+=	-Wa,--noexecstack
+#.endif
 
 #.if ${MACHINE_ARCH} == "amd64"
 #.PATH:		${.CURDIR}/contrib/gcc_gvmat64

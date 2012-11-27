@@ -803,7 +803,6 @@ updcsloc(time_t modtime, int fsi, int fso, unsigned int Nflag)
 	DBG_FUNC("updcsloc")
 	struct csum *cs;
 	int ocscg, ncscg;
-	int blocks;
 	ufs2_daddr_t d;
 	int lcs = 0;
 	int block;
@@ -820,8 +819,6 @@ updcsloc(time_t modtime, int fsi, int fso, unsigned int Nflag)
 	}
 	ocscg = dtog(&osblock, osblock.fs_csaddr);
 	cs = fscs + ocscg;
-	blocks = 1 + howmany(sblock.fs_cssize, sblock.fs_bsize) -
-	    howmany(osblock.fs_cssize, osblock.fs_bsize);
 
 	/*
 	 * Read original cylinder group from disk, and make a copy.
@@ -1567,9 +1564,9 @@ main(int argc, char **argv)
 	testbuf = malloc(sblock.fs_fsize);
 	if (testbuf == NULL)
 		err(1, "malloc");
-	rdfs((ufs2_daddr_t)((size / DEV_BSIZE) - sblock.fs_fsize),
+	rdfs((ufs2_daddr_t)((size - sblock.fs_fsize) / DEV_BSIZE),
 	    sblock.fs_fsize, testbuf, fsi);
-	wtfs((ufs2_daddr_t)((size / DEV_BSIZE) - sblock.fs_fsize),
+	wtfs((ufs2_daddr_t)((size - sblock.fs_fsize) / DEV_BSIZE),
 	    sblock.fs_fsize, testbuf, fso, Nflag);
 	free(testbuf);
 

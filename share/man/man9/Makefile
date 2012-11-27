@@ -26,6 +26,8 @@ MAN=	accept_filter.9 \
 	bus_alloc_resource.9 \
 	BUS_BIND_INTR.9 \
 	bus_child_present.9 \
+	BUS_CHILD_DELETED.9 \
+	BUS_CHILD_DETACHED.9 \
 	BUS_CONFIG_INTR.9 \
 	BUS_DESCRIBE_INTR.9 \
 	bus_dma.9 \
@@ -628,6 +630,9 @@ MLINKS+=drbr.9 drbr_free.9 \
 	drbr.9 drbr_empty.9 \
 	drbr.9 drbr_inuse.9 \
 	drbr.9 drbr_stats_update.9
+MLINKS+=DRIVER_MODULE.9 DRIVER_MODULE_ORDERED.9 \
+	DRIVER_MODULE.9 EARLY_DRIVER_MODULE.9 \
+	DRIVER_MODULE.9 EARLY_DRIVER_MODULE_ORDERED.9
 MLINKS+=EVENTHANDLER.9 EVENTHANDLER_DECLARE.9 \
 	EVENTHANDLER.9 EVENTHANDLER_DEREGISTER.9 \
 	EVENTHANDLER.9 eventhandler_deregister.9 \

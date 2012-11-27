@@ -1,0 +1,50 @@
+The following is a demonstration of the syscallbypid.d script,
+
+
+Here we run syscallbypid.d for a few seconds then hit Ctrl-C,
+
+   # syscallbypid.d
+   Tracing... Hit Ctrl-C to end.
+   ^C
+      PID CMD                      SYSCALL                     COUNT
+    11039 dtrace                   setcontext                      1
+    11039 dtrace                   lwp_sigmask                     1
+        7 svc.startd               portfs                          1
+      357 poold                    lwp_cond_wait                   1
+    27328 java_vm                  lwp_cond_wait                   1
+     1532 Xorg                     writev                          1
+    11039 dtrace                   lwp_park                        1
+    11039 dtrace                   schedctl                        1
+    11039 dtrace                   mmap                            1
+      361 sendmail                 pollsys                         1
+    11039 dtrace                   fstat64                         1
+    11039 dtrace                   sigaction                       2
+    11039 dtrace                   write                           2
+      361 sendmail                 lwp_sigmask                     2
+     1659 mozilla-bin              yield                           2
+    11039 dtrace                   sysconfig                       3
+      361 sendmail                 pset                            3
+    20317 sshd                     read                            4
+      361 sendmail                 gtime                           4
+    20317 sshd                     write                           4
+    27328 java_vm                  ioctl                           6
+    11039 dtrace                   brk                             8
+     1532 Xorg                     setcontext                      8
+     1532 Xorg                     lwp_sigmask                     8
+    20317 sshd                     pollsys                         8
+      357 poold                    pollsys                        13
+     1659 mozilla-bin              read                           16
+    20317 sshd                     lwp_sigmask                    16
+     1532 Xorg                     setitimer                      17
+    27328 java_vm                  pollsys                        18
+     1532 Xorg                     pollsys                        19
+    11039 dtrace                   p_online                       21
+     1532 Xorg                     read                           22
+     1659 mozilla-bin              write                          25
+     1659 mozilla-bin              lwp_park                       26
+    11039 dtrace                   ioctl                          36
+     1659 mozilla-bin              pollsys                       155
+     1659 mozilla-bin              ioctl                         306
+
+In the above output, we can see that "mozilla-bin" with PID 1659 made the
+most system calls - 306 ioctl()s.

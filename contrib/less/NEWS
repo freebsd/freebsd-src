@@ -7,8 +7,34 @@
       http://www.greenwoodsoftware.com/less
   You can also download the latest version of less from there.
 
-  To report bugs, suggestions or comments, send email to 
-  bug-less@gnu.org or markn@greenwoodsoftware.com.
+  To report bugs, suggestions or comments, send email to bug-less@gnu.org.
+
+======================================================================
+
+	Major changes between "less" versions 444 and 451
+
+* Add ESC-F command to keep reading data until a pattern is found.
+
+* Use exit code of LESSOPEN script if LESSOPEN starts with "||".
+
+* When up/down arrow is used on the command line immediately after
+  typing text, the next command starting with that text is found.
+
+* Add support for GNU regex.
+
+* Add configure option --with-regex=none and fix compile errors
+  when compiling with no regex library.
+
+* Fix bugs handling SGR sequences in Win32.
+
+* Fix possible crashes caused by malformed LESSOPEN or 
+  LESSCLOSE variables.
+
+* Fix bug highlighting text which is discontiguous in the file 
+  due to backspace processing.
+
+* Fix bug in displaying status column when scrolling backwards 
+  with -J and -S in effect.
 
 ======================================================================
 

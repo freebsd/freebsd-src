@@ -34,6 +34,7 @@ class MachineFrameInfo;
 class MachineRegisterInfo;
 class TargetData;
 class TargetInstrInfo;
+class TargetLibraryInfo;
 class TargetLowering;
 class TargetMachine;
 class TargetRegisterClass;
@@ -57,6 +58,7 @@ protected:
   const TargetInstrInfo &TII;
   const TargetLowering &TLI;
   const TargetRegisterInfo &TRI;
+  const TargetLibraryInfo *LibInfo;
 
   /// The position of the last instruction for materializing constants
   /// for use in the current block. It resets to EmitStartPt when it
@@ -144,7 +146,8 @@ public:
   virtual ~FastISel();
 
 protected:
-  explicit FastISel(FunctionLoweringInfo &funcInfo);
+  explicit FastISel(FunctionLoweringInfo &funcInfo,
+                    const TargetLibraryInfo *libInfo);
 
   /// TargetSelectInstruction - This method is called by target-independent
   /// code when the normal FastISel process fails to select an instruction.
@@ -298,6 +301,15 @@ protected:
                             unsigned Op0, bool Op0IsKill,
                             unsigned Op1, bool Op1IsKill,
                             uint64_t Imm);
+
+  /// FastEmitInst_rrii - Emit a MachineInstr with two register operands,
+  /// two immediates operands, and a result register in the given register
+  /// class.
+  unsigned FastEmitInst_rrii(unsigned MachineInstOpcode,
+                             const TargetRegisterClass *RC,
+                             unsigned Op0, bool Op0IsKill,
+                             unsigned Op1, bool Op1IsKill,
+                             uint64_t Imm1, uint64_t Imm2);
 
   /// FastEmitInst_i - Emit a MachineInstr with a single immediate
   /// operand, and a result register in the given register class.

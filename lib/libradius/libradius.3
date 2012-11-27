@@ -108,8 +108,7 @@ allows clients to perform authentication and accounting by means of
 network requests to remote servers.
 .Ss Initialization
 To use the library, an application must first call
-.Fn rad_auth_open
-,
+.Fn rad_auth_open ,
 .Fn rad_acct_open
 or
 .Fn rad_server_open
@@ -119,8 +118,7 @@ which provides the context for subsequent operations.
 The former function is used for RADIUS authentication and the
 latter is used for RADIUS accounting.
 Calls to
-.Fn rad_auth_open
-,
+.Fn rad_auth_open ,
 .Fn rad_acct_open
 and
 .Fn rad_server_open
@@ -487,7 +485,7 @@ To respond to the request you should call
 .Fn rad_create_response
 and fill response content with same packet writing functions as for client.
 When packet is ready, it should be sent with
-.Fn rad_send_response
+.Fn rad_send_response .
 .Sh RETURN VALUES
 The following functions return a non-negative value on success.
 If

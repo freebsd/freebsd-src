@@ -92,7 +92,9 @@ extern ih_func_t *intr_handlers[];
 extern struct intr_vector intr_vectors[];
 
 void	intr_add_cpu(u_int cpu);
+#ifdef SMP
 int	intr_bind(int vec, u_char cpu);
+#endif
 int	intr_describe(int vec, void *ih, const char *descr);
 void	intr_setup(int level, ih_func_t *ihf, int pri, iv_func_t *ivf,
 	    void *iva);

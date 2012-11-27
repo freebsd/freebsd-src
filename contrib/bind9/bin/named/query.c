@@ -3354,6 +3354,11 @@ query_addwildcardproof(ns_client_t *client, dns_db_t *db,
 		dns_name_copy(name, cname, NULL);
 		while (result == DNS_R_NXDOMAIN) {
 			labels = dns_name_countlabels(cname) - 1;
+			/*
+			 * Sanity check.
+			 */
+			if (labels == 0U)
+				goto cleanup;
 			dns_name_split(cname, labels, NULL, cname);
 			result = dns_db_find(db, cname, version,
 					     dns_rdatatype_nsec,

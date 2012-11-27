@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2006 Semihalf, Marian Balakowicz <m8@semihalf.com>
+ * Copyright (C) 2006-2012 Semihalf
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -129,6 +129,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/mmuvar.h>
 #include <machine/sigframe.h>
+#include <machine/machdep.h>
 #include <machine/metadata.h>
 #include <machine/platform.h>
 
@@ -137,8 +138,6 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
-
-#include <powerpc/mpc85xx/mpc85xx.h>
 
 #ifdef DDB
 extern vm_offset_t ksym_start, ksym_end;
@@ -157,11 +156,6 @@ extern unsigned char __bss_start[];
 extern unsigned char __sbss_start[];
 extern unsigned char __sbss_end[];
 extern unsigned char _end[];
-
-extern void dcache_enable(void);
-extern void dcache_inval(void);
-extern void icache_enable(void);
-extern void icache_inval(void);
 
 /*
  * Bootinfo is passed to us by legacy loaders. Save the address of the
@@ -185,8 +179,8 @@ SYSCTL_INT(_machdep, CPU_CACHELINE, cacheline_size,
 
 int hw_direct_map = 0;
 
-static void cpu_e500_startup(void *);
-SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_e500_startup, NULL);
+static void cpu_booke_startup(void *);
+SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_booke_startup, NULL);
 
 void print_kernel_section_addr(void);
 void print_kenv(void);
@@ -195,7 +189,7 @@ u_int booke_init(uint32_t, uint32_t);
 extern int elf32_nxstack;
 
 static void
-cpu_e500_startup(void *dummy)
+cpu_booke_startup(void *dummy)
 {
 	int indx, size;
 
@@ -286,7 +280,6 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	struct pcpu *pc;
 	void *kmdp, *mdp;
 	vm_offset_t dtbp, end;
-	uint32_t csr;
 
 	kmdp = NULL;
 
@@ -359,9 +352,9 @@ booke_init(uint32_t arg1, uint32_t arg2)
 		while (1);
 
 	OF_interpret("perform-fixup", 0);
-
-	/* Initialize TLB1 handling */
-	tlb1_init(fdt_immr_pa);
+	
+	/* Set up TLB initially */
+	booke_init_tlb(fdt_immr_pa);
 
 	/* Reset Time Base */
 	mttb(0);
@@ -392,20 +385,20 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	debugf(" boothowto = 0x%08x\n", boothowto);
 	debugf(" kernel ccsrbar = 0x%08x\n", CCSRBAR_VA);
 	debugf(" MSR = 0x%08x\n", mfmsr());
+#if defined(BOOKE_E500)
 	debugf(" HID0 = 0x%08x\n", mfspr(SPR_HID0));
 	debugf(" HID1 = 0x%08x\n", mfspr(SPR_HID1));
 	debugf(" BUCSR = 0x%08x\n", mfspr(SPR_BUCSR));
-
-	__asm __volatile("msync; isync");
-	csr = ccsr_read4(OCP85XX_L2CTL);
-	debugf(" L2CTL = 0x%08x\n", csr);
+#endif
 
 	debugf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
 
 	print_kernel_section_addr();
 	print_kenv();
+#if defined(BOOKE_E500)
 	//tlb1_print_entries();
 	//tlb1_print_tlbentries();
+#endif
 
 	kdb_init();
 
@@ -421,8 +414,10 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	pmap_mmu_install(MMU_TYPE_BOOKE, 0);
 	pmap_bootstrap((uintptr_t)kernel_text, end);
 	debugf("MSR = 0x%08x\n", mfmsr());
+#if defined(BOOKE_E500)
 	//tlb1_print_entries();
 	//tlb1_print_tlbentries();
+#endif
 
 	/* Initialize params/tunables that are derived from memsize. */
 	init_param2(physmem);
@@ -441,29 +436,8 @@ booke_init(uint32_t arg1, uint32_t arg2)
 	mtmsr(mfmsr() | PSL_ME);
 	isync();
 
-	/* Enable D-cache if applicable */
-	csr = mfspr(SPR_L1CSR0);
-	if ((csr & L1CSR0_DCE) == 0) {
-		dcache_inval();
-		dcache_enable();
-	}
-
-	csr = mfspr(SPR_L1CSR0);
-	if ((boothowto & RB_VERBOSE) != 0 || (csr & L1CSR0_DCE) == 0)
-		printf("L1 D-cache %sabled\n",
-		    (csr & L1CSR0_DCE) ? "en" : "dis");
-
-	/* Enable L1 I-cache if applicable. */
-	csr = mfspr(SPR_L1CSR1);
-	if ((csr & L1CSR1_ICE) == 0) {
-		icache_inval();
-		icache_enable();
-	}
-
-	csr = mfspr(SPR_L1CSR1);
-	if ((boothowto & RB_VERBOSE) != 0 || (csr & L1CSR1_ICE) == 0)
-		printf("L1 I-cache %sabled\n",
-		    (csr & L1CSR1_ICE) ? "en" : "dis");
+	/* Enable L1 caches */
+	booke_enable_l1_cache();
 
 	debugf("%s: SP = 0x%08x\n", __func__,
 	    ((uintptr_t)thread0.td_pcb - 16) & ~15);
@@ -499,7 +473,24 @@ cpu_pcpu_init(struct pcpu *pcpu, int cpuid, size_t sz)
 void
 cpu_flush_dcache(void *ptr, size_t len)
 {
-	/* TBD */
+	register_t addr, off;
+
+	/*
+	 * Align the address to a cacheline and adjust the length
+	 * accordingly. Then round the length to a multiple of the
+	 * cacheline for easy looping.
+	 */
+	addr = (uintptr_t)ptr;
+	off = addr & (cacheline_size - 1);
+	addr -= off;
+	len = (len + off + cacheline_size - 1) & ~(cacheline_size - 1);
+
+	while (len > 0) {
+		__asm __volatile ("dcbf 0,%0" :: "r"(addr));
+		__asm __volatile ("sync");
+		addr += cacheline_size;
+		len -= cacheline_size;
+	}
 }
 
 void
@@ -538,7 +529,8 @@ cpu_halt(void)
 {
 
 	mtmsr(mfmsr() & ~(PSL_CE | PSL_EE | PSL_ME | PSL_DE));
-	while (1);
+	while (1)
+		;
 }
 
 int

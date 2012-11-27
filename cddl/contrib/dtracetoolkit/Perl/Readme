@@ -1,0 +1,38 @@
+Perl - DTracing Perl
+
+   These scripts trace the Perl programming language, and require a version
+   of Perl to be built with the DTrace probes patch applied.
+
+   The Perl DTrace provider was originally written by Alan Burlison, and
+   later rewritten by Richard Dawe. These scripts were written and tested
+   with Richard's patch to perl, which can be found in the comments on
+   Alan's original blog entry,
+
+	http://blogs.sun.com/alanbur/entry/dtrace_and_perl
+   
+   To get this and these scripts working, the rough steps are,
+
+	1. Download and extract perl 5.8.8 (www.cpan.org)
+	2. Download Richard's patch
+	3. Apply Richard's patch (gpatch -p1 -i patchfile)
+	4. sh Configure
+	5. make perldtrace.h
+	6. /usr/sbin/dtrace -h -s perldtrace.d -o perldtrace.h
+	7. make
+
+   If things go awry, you might find help by asking on the
+   dtrace-discuss@opensolaris.org mailing list.
+
+   Since the DTrace Perl provider may be developed further, there is a chance
+   that it has changed slightly by the time you are reading this, causing
+   these scripts to either break or behave oddly. Firstly, check for newer
+   versions of the DTraceToolkit; if it hasn't been updated and you need
+   to use these scripts immediately, then updating them shouldn't take
+   too long. The following was the state of the provider when these scripts
+   were written - check for changes and update the scripts accordingly,
+
+	provider perl {
+	    probe sub-entry(subroutine, file, lineno)
+	    probe sub-return(subroutine, file, lineno)
+	};
+

@@ -33,18 +33,21 @@
  */
 
 #include <unistd.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/ioctl.h>
-#include SESINC
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_enc.h>
 
 int
 main(int a, char **v)
 {
 	int fd;
 	int i;
-	ses_objstat obj;
+	encioc_elm_status_t obj;
 	long cvt;
 	char *x;
 
@@ -64,7 +67,7 @@ usage:
 	if (x == v[2]) {
 		goto usage;
 	}
-	obj.obj_id = cvt;
+	obj.elm_idx = cvt;
 	for (i = 0; i < 4; i++) {
 		x = v[3 + i];
 		cvt = strtol(v[3 + i],  &x, 0);
@@ -73,8 +76,8 @@ usage:
 		}
 		obj.cstat[i] = cvt;
 	}
-	if (ioctl(fd, SESIOC_SETOBJSTAT, (caddr_t) &obj) < 0) {
-		perror("SESIOC_SETOBJSTAT");
+	if (ioctl(fd, ENCIOC_SETELMSTAT, (caddr_t) &obj) < 0) {
+		perror("ENCIOC_SETELMSTAT");
 	}
 	(void) close(fd);
 	return (0);

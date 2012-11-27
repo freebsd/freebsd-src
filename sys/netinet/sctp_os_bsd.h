@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2006-2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,10 +29,12 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-#ifndef __sctp_os_bsd_h__
-#define __sctp_os_bsd_h__
+
+#ifndef _NETINET_SCTP_OS_BSD_H_
+#define _NETINET_SCTP_OS_BSD_H_
 /*
  * includes
  */
@@ -175,18 +177,9 @@ MALLOC_DECLARE(SCTP_M_MCORE);
 	}								\
     } while (0);							\
 }
-#define SCTPDBG_PKT(level, iph, sh)					\
-{									\
-    do {								\
-	    if (SCTP_BASE_SYSCTL(sctp_debug_on) & level) {		\
-		    sctp_print_address_pkt(iph, sh);			\
-	    }								\
-    } while (0);							\
-}
 #else
 #define SCTPDBG(level, params...)
 #define SCTPDBG_ADDR(level, addr)
-#define SCTPDBG_PKT(level, iph, sh)
 #endif
 
 #ifdef SCTP_LTRACE_CHUNKS
@@ -363,7 +356,7 @@ typedef struct callout sctp_os_timer_t;
  */
 #define SCTP_HEADER_TO_CHAIN(m) (m)
 #define SCTP_DETACH_HEADER_FROM_CHAIN(m)
-#define SCTP_HEADER_LEN(m) (m->m_pkthdr.len)
+#define SCTP_HEADER_LEN(m) ((m)->m_pkthdr.len)
 #define SCTP_GET_HEADER_FOR_OUTPUT(o_pak) 0
 #define SCTP_RELEASE_HEADER(m)
 #define SCTP_RELEASE_PKT(m)	sctp_m_freem(m)
@@ -391,10 +384,6 @@ typedef struct callout sctp_os_timer_t;
  * into the chain of data holders, for BSD
  * its a NOP.
  */
-
-/* Macro's for getting length from V6/V4 header */
-#define SCTP_GET_IPV4_LENGTH(iph) (iph->ip_len)
-#define SCTP_GET_IPV6_LENGTH(ip6) (ntohs(ip6->ip6_plen))
 
 /* get the v6 hop limit */
 #define SCTP_GET_HLIM(inp, ro)	in6_selecthlim((struct in6pcb *)&inp->ip_inp.inp, (ro ? (ro->ro_rt ? (ro->ro_rt->rt_ifp) : (NULL)) : (NULL)));

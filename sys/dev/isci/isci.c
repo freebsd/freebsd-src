@@ -185,6 +185,7 @@ isci_detach(device_t device)
 	for (i = 0; i < isci->controller_count; i++) {
 		struct ISCI_CONTROLLER *controller = &isci->controllers[i];
 		SCI_STATUS status;
+		void *unmap_buffer;
 
 		if (controller->scif_controller_handle != NULL) {
 			scic_controller_disable_interrupts(
@@ -218,6 +219,13 @@ isci_detach(device_t device)
 
 		if (controller->remote_device_memory != NULL)
 			free(controller->remote_device_memory, M_ISCI);
+
+		while (1) {
+			sci_pool_get(controller->unmap_buffer_pool, unmap_buffer);
+			if (unmap_buffer == NULL)
+				break;
+			contigfree(unmap_buffer, PAGE_SIZE, M_ISCI);
+		}
 	}
 
 	/* The SCIF controllers have been stopped, so we can now

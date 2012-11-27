@@ -1,0 +1,365 @@
+#!/bin/sh
+#-
+# Copyright (c) 2012 Devin Teske
+# All Rights Reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+############################################################ INCLUDES
+
+BSDCFG_LIBE="/usr/libexec/bsdconfig"
+. $BSDCFG_LIBE/include/common.subr || exit 1
+f_include $BSDCFG_LIBE/include/dialog.subr
+f_include $BSDCFG_LIBE/include/mustberoot.subr
+f_include $BSDCFG_LIBE/include/sysrc.subr
+
+APP_DIR="080.console"
+f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
+
+ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
+[ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
+
+############################################################ CONFIGURATION
+
+#
+# List of keymap names
+#
+KEYMAP_NAMES="
+	belgian                  brazil_cp850             brazil_iso
+	brazil_iso_accent        bulgarian_bds            bulgarian_phonetic
+	central_european_iso     croatian_iso             czech_iso_accent
+	danish_cp865             danish_iso               estonian_cp850
+	estonian_iso             estonian_iso_15          finnish_cp850
+	finnish_iso              french_iso               french_iso_accent
+	french_iso_macbook       german_cp850             german_iso
+	greek_101                greek_104                greek_elot
+	hungarian_101            hungarian_102            icelandic
+	icelandic_accent         italian                  japanese_106
+	latin_american           latin_american_accent    norway_iso
+	polish_iso               portuguese               portuguese_accent
+	russia_koi8_r            slovak                   slovenian
+	spanish                  spanish_accent           swedish_cp850
+	swedish_iso              swiss_french_cp850       swiss_french_iso
+	swiss_french_iso_accent  swiss_german_cp850       swiss_german_iso
+	swiss_german_iso_accent  uk_cp850                 uk_iso
+	ukrainian_koi8_u         ukrainian_koi8_u_koi8_r  usa_capslock_ctrl
+	usa_dvorak               usa_dvorak_left          usa_dvorak_right
+	usa_emacs                usa_iso                  usa_unix
+" # END-QUOTE
+
+############################################################ FUNCTIONS
+
+# dialog_menu_main
+#
+# Display the dialog(1)-based application main menu.
+#
+dialog_menu_main()
+{
+	local menu_list size
+	local hline="$hline_choose_a_keyboard_map"
+	local prompt="$msg_keymap_menu_text"
+
+	#
+	# Export variables for awk(1) ENVIRON visibility
+	#
+	local name
+	for name in $KEYMAP_NAMES; do
+		export msg_$name msg_${name}_desc
+	done
+
+	#
+	# Generate a sorted list of keymaps. If the first letter of the keymap
+	# name is unique (case-insensitive) then it is used as the tag to allow
+	# the user to jump to that entry.
+	#
+	menu_list=$(
+		for name in $KEYMAP_NAMES; do
+			eval echo \"\$msg_$name\" msg_$name
+		done | sort | awk 'BEGIN { prefix = "" }
+		{
+			cur_prefix = tolower(substr(ENVIRON[$NF], 1, 1))
+			printf "'\''"
+			if ( prefix != cur_prefix )
+				prefix = cur_prefix
+			else
+				printf " "
+			printf "%s'\'' '\''%s'\''\n",
+			       ENVIRON[$NF], ENVIRON[$NF"_desc"]
+		}'
+	)
+
+	size=$( eval f_dialog_menu_size \
+	        	\"\$DIALOG_TITLE\"     \
+	        	\"\$DIALOG_BACKTITLE\" \
+	                \"\$prompt\"           \
+	        	\"\$hline\"            \
+	        	$menu_list             )
+
+	eval $DIALOG \
+		--clear --title \"\$DIALOG_TITLE\" \
+		--backtitle \"\$DIALOG_BACKTITLE\" \
+		--hline \"\$hline\"                \
+		--ok-label \"\$msg_ok\"            \
+		--cancel-label \"\$msg_cancel\"    \
+		--menu \"\$prompt\" $size          \
+		$menu_list                         \
+		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+}
+
+############################################################ MAIN
+
+# Incorporate rc-file if it exists
+[ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
+
+#
+# Process command-line arguments
+#
+while getopts hSX flag; do
+	case "$flag" in
+	h|\?) f_usage $BSDCFG_LIBE/$APP_DIR/USAGE "PROGRAM_NAME" "$pgm";;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+#
+# Initialize
+#
+f_dialog_init
+f_dialog_title "$msg_system_console_keymap"
+f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
+f_mustberoot_init
+
+#
+# Launch application main menu
+#
+while :; do
+	dialog_menu_main
+	retval=$?
+	mtag=$( f_dialog_menutag )
+
+	[ $retval -eq 0 ] || f_die
+
+	#
+	# Reverse the users choice into the variable name
+	#
+	keymap_name=
+	mtag="${mtag# }" # remove single leading-space if-present
+	for name in $KEYMAP_NAMES; do
+		if [ "$( eval echo \"\$msg_$name\" )" = "$mtag" ]; then
+			keymap_name="$name"
+			break
+		fi
+	done
+
+	[ "$keymap_name" ] || continue
+
+	case "$keymap_name" in
+	belgian)
+		f_sysrc_set keymap "be.iso" || f_die
+		break ;;
+	brazil_cp850)
+		f_sysrc_set keymap "br275.cp850" || f_die
+		break ;;
+	brazil_iso)
+		f_sysrc_set keymap "br275.iso" || f_die
+		break ;;
+	brazil_iso_accent)
+		f_sysrc_set keymap "br275.iso.acc" || f_die
+		break ;;
+	bulgarian_bds)
+		f_sysrc_set keymap "bg.bds.ctrlcaps" || f_die
+		break ;;
+	bulgarian_phonetic)
+		f_sysrc_set keymap "bg.phonetic.ctrlcaps" || f_die
+		break ;;
+	central_european_iso)
+		f_sysrc_set keymap "ce.iso2" || f_die
+		break ;;
+	croatian_iso)
+		f_sysrc_set keymap "hr.iso" || f_die
+		break ;;
+	czech_iso_accent)
+		f_sysrc_set keymap "cs.latin2.qwertz" || f_die
+		break ;;
+	danish_cp865)
+		f_sysrc_set keymap "danish.cp865" || f_die
+		break ;;
+	danish_iso)
+		f_sysrc_set keymap "danish.iso" || f_die
+		break ;;
+	estonian_cp850)
+		f_sysrc_set keymap "estonian.cp850" || f_die
+		break ;;
+	estonian_iso)
+		f_sysrc_set keymap "estonian.iso" || f_die
+		break ;;
+	estonian_iso_15)
+		f_sysrc_set keymap "estonian.iso15" || f_die
+		break ;;
+	finnish_cp850)
+		f_sysrc_set keymap "finnish.cp850" || f_die
+		break ;;
+	finnish_iso)
+		f_sysrc_set keymap "finnish.iso" || f_die
+		break ;;
+	french_iso)
+		f_sysrc_set keymap "fr.iso" || f_die
+		break ;;
+	french_iso_accent)
+		f_sysrc_set keymap "fr.iso.acc" || f_die
+		break ;;
+	french_iso_macbook)
+		f_sysrc_set keymap "fr.macbook.acc" || f_die
+		break ;;
+	german_cp850)
+		f_sysrc_set keymap "german.cp850" || f_die
+		break ;;
+	german_iso)
+		f_sysrc_set keymap "german.iso" || f_die
+		break ;;
+	greek_101)
+		f_sysrc_set keymap "gr.us101.acc" || f_die
+		break ;;
+	greek_104)
+		f_sysrc_set keymap "el.iso07" || f_die
+		break ;;
+	greek_elot)
+		f_sysrc_set keymap "gr.elot.acc" || f_die
+		break ;;
+	hungarian_101)
+		f_sysrc_set keymap "hu.iso2.101keys" || f_die
+		break ;;
+	hungarian_102)
+		f_sysrc_set keymap "hu.iso2.102keys" || f_die
+		break ;;
+	icelandic)
+		f_sysrc_set keymap "icelandic.iso" || f_die
+		break ;;
+	icelandic_accent)
+		f_sysrc_set keymap "icelandic.iso.acc" || f_die
+		break ;;
+	italian)
+		f_sysrc_set keymap "it.iso" || f_die
+		break ;;
+	japanese_106)
+		f_sysrc_set keymap "jp.106" || f_die
+		break ;;
+	latin_american)
+		f_sysrc_set keymap "latinamerican" || f_die
+		break ;;
+	latin_american_accent)
+		f_sysrc_set keymap "latinamerican.iso.acc" || f_die
+		break ;;
+	norway_iso)
+		f_sysrc_set keymap "norwegian.iso" || f_die
+		break ;;
+	polish_iso)
+		f_sysrc_set keymap "pl_PL.ISO8859-2" || f_die
+		break ;;
+	portuguese)
+		f_sysrc_set keymap "pt.iso" || f_die
+		break ;;
+	portuguese_accent)
+		f_sysrc_set keymap "pt.iso.acc" || f_die
+		break ;;
+	russia_koi8_r)
+		f_sysrc_set keymap "ru.koi8-r" || f_die
+		break ;;
+	slovak) 
+		f_sysrc_set keymap "sk.iso2" || f_die
+		break ;;
+	slovenian)
+		f_sysrc_set keymap "si.iso" || f_die
+		break ;;
+	spanish)
+		f_sysrc_set keymap "spanish.iso" || f_die
+		break ;;
+	spanish_accent)
+		f_sysrc_set keymap "spanish.iso.acc" || f_die
+		break ;;
+	swedish_cp850)
+		f_sysrc_set keymap "swedish.cp850" || f_die
+		break ;;
+	swedish_iso)
+		f_sysrc_set keymap "swedish.iso" || f_die
+		break ;;
+	swiss_french_cp850)
+		f_sysrc_set keymap "swissfrench.cp850" || f_die
+		break ;;
+	swiss_french_iso)
+		f_sysrc_set keymap "swissfrench.iso" || f_die
+		break ;;
+	swiss_french_iso_accent)
+		f_sysrc_set keymap "swissfrench.iso.acc" || f_die
+		break ;;
+	swiss_german_cp850)
+		f_sysrc_set keymap "swissgerman.cp850" || f_die
+		break ;;
+	swiss_german_iso)
+		f_sysrc_set keymap "swissgerman.iso" || f_die
+		break ;;
+	swiss_german_iso_accent)
+		f_sysrc_set keymap "swissgerman.iso.acc" || f_die
+		break ;;
+	uk_cp850)
+		f_sysrc_set keymap "uk.cp850" || f_die
+		break ;;
+	uk_iso)
+		f_sysrc_set keymap "uk.iso" || f_die
+		break ;;
+	ukrainian_koi8_u)
+		f_sysrc_set keymap "ua.koi8-u" || f_die
+		break ;;
+	ukrainian_koi8_u_koi8_r)
+		f_sysrc_set keymap "ua.koi8-u.shift.alt" || f_die
+		break ;;
+	usa_capslock_ctrl)
+		f_sysrc_set keymap "us.pc-ctrl" || f_die
+		break ;;
+	usa_dvorak)
+		f_sysrc_set keymap "us.dvorak" || f_die
+		break ;;
+	usa_dvorak_left)
+		f_sysrc_set keymap "us.dvorakl" || f_die
+		break ;;
+	usa_dvorak_right)
+		f_sysrc_set keymap "us.dvorakr" || f_die
+		break ;;
+	usa_emacs)
+		f_sysrc_set keymap "us.emacs" || f_die
+		break ;;
+	usa_iso)
+		f_sysrc_set keymap "us.iso" || f_die
+		break ;;
+	usa_unix)
+		f_sysrc_set keymap "us.unix" || f_die
+		break ;;
+	esac
+done
+
+exit $SUCCESS
+
+################################################################################
+# END
+################################################################################

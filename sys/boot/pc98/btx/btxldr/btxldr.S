@@ -15,6 +15,8 @@
  * $FreeBSD$
  */
 
+#include <bootargs.h>
+
 /*
  * Prototype BTX loader program, written in a couple of hours.  The
  * real thing should probably be more flexible, and in C.
@@ -105,7 +107,7 @@ gdcwait.2:	inb $0x60,%al
 		call hexout			#  stack
 		call putstr			#  pointer
 		movl $m_args,%esi		# Format string
-		leal 0x4(%esp,1),%ebx		# First argument
+		leal 0x4(%esp),%ebx		# First argument
 		movl $0x6,%ecx			# Count
 start.1:	movl (%ebx),%eax		# Get argument and
 		addl $0x4,%ebx			#  bump pointer
@@ -113,24 +115,28 @@ start.1:	movl (%ebx),%eax		# Get argument and
 		loop start.1			# Till done
 		call putstr			# End message
 #endif
-		movl $0x48,%ecx 		# Allocate space
-		subl %ecx,%ebp			#  for bootinfo
-		movl 0x18(%esp,1),%esi		# Source: bootinfo
+		movl BA_BOOTINFO+4(%esp),%esi	# Source: bootinfo
 		cmpl $0x0, %esi			# If the bootinfo pointer
 		je start_null_bi		#  is null, don't copy it
+		movl BI_SIZE(%esi),%ecx 	# Allocate space
+		subl %ecx,%ebp			#  for bootinfo
 		movl %ebp,%edi			# Destination
 		rep				# Copy
 		movsb				#  it
-		movl %ebp,0x18(%esp,1)		# Update pointer
+		movl %ebp,BA_BOOTINFO+4(%esp)	# Update pointer
+		movl %edi,%ebp			# Restore base pointer
 #ifdef BTXLDR_VERBOSE
 		movl $m_rel_bi,%esi		# Display
 		movl %ebp,%eax			#  bootinfo
 		call hexout			#  relocation
 		call putstr			#  message
 #endif
-start_null_bi:	movl $0x18,%ecx 		# Allocate space
-		subl %ecx,%ebp			#  for arguments
-		leal 0x4(%esp,1),%esi		# Source
+start_null_bi:	movl $BOOTARGS_SIZE,%ecx 	# Fixed size of arguments
+		testl $KARGS_FLAGS_EXTARG, BA_BOOTFLAGS+4(%esp) # Check for extra data
+		jz start_fixed			# Skip if the flag is not set
+		addl BOOTARGS_SIZE+4(%esp),%ecx	# Add size of variable args
+start_fixed:	subl $ARGOFF,%ebp		# Place args at fixed offset
+		leal 0x4(%esp),%esi		# Source
 		movl %ebp,%edi			# Destination
 		rep				# Copy
 		movsb				#  them

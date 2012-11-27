@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
  * via the firmware.
  */
 
+#include "opt_wlan.h"
+
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <sys/sockio.h>

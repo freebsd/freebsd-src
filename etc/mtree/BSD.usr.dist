@@ -200,6 +200,10 @@
                 ..
             ..
         ..
+        dtrace
+            toolkit
+            ..
+        ..  
         examples
             BSD_daemon
             ..
@@ -209,8 +213,8 @@
             ..
             bootforth
             ..
-	    csh
-	    	..
+            csh
+            ..
             cvs
                 contrib
                 ..
@@ -266,6 +270,8 @@
                     test
                     ..
                 ..
+            ..
+            libusb20
             ..
             libvgl
             ..

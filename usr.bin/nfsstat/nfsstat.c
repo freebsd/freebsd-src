@@ -995,7 +995,6 @@ exp_sidewaysintpr(u_int interval, int clientOnly, int serverOnly)
 			    );
 		    }
 		    printf("\n");
-		    lastst = nfsstats;
 		}
 		if (serverOnly) {
 		    printf("%s %6d %6d %6d %6d %6d %6d %6d %6d",
@@ -1019,8 +1018,8 @@ exp_sidewaysintpr(u_int interval, int clientOnly, int serverOnly)
 			(nfsstats.srvrpccnt[NFSV4OP_READDIRPLUS] -
 			 lastst.srvrpccnt[NFSV4OP_READDIRPLUS]));
 		    printf("\n");
-		    lastst = nfsstats;
 		}
+		lastst = nfsstats;
 		fflush(stdout);
 		sleep(interval);
 	}

@@ -55,6 +55,7 @@
 #include <dev/pci/pcireg.h>
 
 #define ASSERT(x) if(!(x)) panic("IXGBE: x")
+#define EWARN(H, W, S) printf(W)
 
 /* The happy-fun DELAY macro is defined in /usr/src/sys/i386/include/clock.h */
 #define usec_delay(x) DELAY(x)
@@ -110,6 +111,14 @@ typedef uint64_t	u64;
 typedef boolean_t	bool;
 #endif
 
+/* shared code requires this */
+#define __le16  u16
+#define __le32  u32
+#define __le64  u64
+#define __be16  u16
+#define __be32  u32
+#define __be64  u64
+
 #define le16_to_cpu 
 
 #if __FreeBSD_version < 800000
@@ -133,6 +142,25 @@ void prefetch(void *x)
 #else
 #define prefetch(x)
 #endif
+
+/*
+ * Optimized bcopy thanks to Luigi Rizzo's investigative work.  Assumes
+ * non-overlapping regions and 32-byte padding on both src and dst.
+ */
+static __inline int
+ixgbe_bcopy(void *_src, void *_dst, int l)
+{
+	uint64_t *src = _src;
+	uint64_t *dst = _dst;
+
+	for (; l > 0; l -= 32) {
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+		*dst++ = *src++;
+	}
+	return (0);
+}
 
 struct ixgbe_osdep
 {

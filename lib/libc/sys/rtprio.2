@@ -132,7 +132,8 @@ RTP_PRIO_NORMAL for normal priorities, and RTP_PRIO_IDLE for idle priorities.
 The priority specified by the
 .Va prio
 field ranges between 0 and
-.Dv RTP_PRIO_MAX (usually 31) .
+.Dv RTP_PRIO_MAX
+.Pq usually 31 .
 0 is the highest possible priority.
 .Pp
 Realtime and idle priority is inherited through fork() and exec().
@@ -149,7 +150,7 @@ Threads of equal real/idle priority are run round-robin.
 The
 .Fn rtprio
 system call
-will fail if
+will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The specified
@@ -175,7 +176,7 @@ The specified process or thread was not found or visible.
 .Xr setpriority 2 ,
 .Xr nice 3 ,
 .Xr renice 8 ,
-.Xr p_cansee 9 .
+.Xr p_cansee 9
 .Sh AUTHORS
 .An -nosplit
 The original author was

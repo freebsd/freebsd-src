@@ -79,6 +79,11 @@ typedef enum {
 } HAL_PHYDIAG_CAPS;
 
 /*
+ * Enable/disable strong signal fast diversity
+ */
+#define	HAL_CAP_STRONG_DIV		2
+
+/*
  * Each chip or class of chips registers to offer support.
  */
 struct ath_hal_chip {
@@ -212,10 +217,26 @@ typedef struct {
 			halBssidMatchSupport		: 1,
 			hal4kbSplitTransSupport		: 1,
 			halHasRxSelfLinkedTail		: 1,
-			halSupportsFastClock5GHz	: 1,	/* Hardware supports 5ghz fast clock; check eeprom/channel before using */
+			halSupportsFastClock5GHz	: 1,
 			halHasLongRxDescTsf		: 1,
 			halHasBBReadWar			: 1,
-			halSerialiseRegWar		: 1;
+			halSerialiseRegWar		: 1,
+			halMciSupport			: 1,
+			halRxTxAbortSupport		: 1,
+			halPaprdEnabled			: 1,
+			halHasUapsdSupport		: 1,
+			halWpsPushButtonSupport		: 1,
+			halBtCoexApsmWar		: 1,
+			halGenTimerSupport		: 1,
+			halLDPCSupport			: 1,
+			halHwBeaconProcSupport		: 1,
+			halEnhancedDmaSupport		: 1;
+	uint32_t	halIsrRacSupport		: 1,
+			halApmEnable			: 1,
+			halIntrMitigation		: 1,
+			hal49GhzSupport			: 1,
+			halAntDivCombSupport		: 1;
+
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;
 	uint16_t	halKeyCacheSize;
@@ -231,9 +252,23 @@ typedef struct {
 	uint32_t	halIntrMask;
 	uint8_t		halTxStreams;
 	uint8_t		halRxStreams;
+	HAL_MFP_OPT_T	halMfpSupport;
+	int		halNumTxMaps;
+	int		halTxDescLen;
+	int		halTxStatusLen;
+	int		halRxStatusLen;
+	int		halRxHpFifoDepth;
+	int		halRxLpFifoDepth;
+	int		halNumMRRetries;
 } HAL_CAPABILITIES;
 
 struct regDomain;
+
+/*
+ * Definitions for ah_flags in ath_hal_private
+ */
+#define		AH_USE_EEPROM	0x1
+#define		AH_IS_HB63	0x2
 
 /*
  * The ``private area'' follows immediately after the ``public area''
@@ -294,7 +329,9 @@ struct ath_hal_private {
 	uint16_t	ah_phyRev;		/* PHY revision */
 	uint16_t	ah_analog5GhzRev;	/* 2GHz radio revision */
 	uint16_t	ah_analog2GhzRev;	/* 5GHz radio revision */
+	uint32_t	ah_flags;		/* misc flags */
 	uint8_t		ah_ispcie;		/* PCIE, special treatment */
+	uint8_t		ah_devType;		/* card type - CB, PCI, PCIe */
 
 	HAL_OPMODE	ah_opmode;		/* operating mode from reset */
 	const struct ieee80211_channel *ah_curchan;/* operating channel */
@@ -355,12 +392,19 @@ struct ath_hal_private {
 	AH_PRIVATE(_ah)->ah_getNfAdjust(_ah, _c)
 #define	ath_hal_getNoiseFloor(_ah, _nfArray) \
 	AH_PRIVATE(_ah)->ah_getNoiseFloor(_ah, _nfArray)
-#define	ath_hal_configPCIE(_ah, _reset) \
-	(_ah)->ah_configPCIE(_ah, _reset)
+#define	ath_hal_configPCIE(_ah, _reset, _poweroff) \
+	(_ah)->ah_configPCIE(_ah, _reset, _poweroff)
 #define	ath_hal_disablePCIE(_ah) \
 	(_ah)->ah_disablePCIE(_ah)
 #define	ath_hal_setInterrupts(_ah, _mask) \
 	(_ah)->ah_setInterrupts(_ah, _mask)
+
+#define ath_hal_isrfkillenabled(_ah)  \
+    (ath_hal_getcapability(_ah, HAL_CAP_RFSILENT, 1, AH_NULL) == HAL_OK)
+#define ath_hal_enable_rfkill(_ah, _v) \
+    ath_hal_setcapability(_ah, HAL_CAP_RFSILENT, 1, _v, AH_NULL)
+#define ath_hal_hasrfkill_int(_ah)  \
+    (ath_hal_getcapability(_ah, HAL_CAP_RFSILENT, 3, AH_NULL) == HAL_OK)
 
 #define	ath_hal_eepromDetach(_ah) do {				\
 	if (AH_PRIVATE(_ah)->ah_eepromDetach != AH_NULL)	\
@@ -483,7 +527,10 @@ isBigEndian(void)
 
 /* Analog register writes may require a delay between each one (eg Merlin?) */
 #define	OS_A_REG_RMW_FIELD(_a, _r, _f, _v) \
-	do { OS_REG_WRITE(_a, _r, (OS_REG_READ(_a, _r) &~ (_f)) | (((_v) << _f##_S) & (_f))) ; OS_DELAY(100); } while (0)
+	do { OS_REG_WRITE(_a, _r, (OS_REG_READ(_a, _r) &~ (_f)) | \
+	    (((_v) << _f##_S) & (_f))) ; OS_DELAY(100); } while (0)
+#define	OS_A_REG_WRITE(_a, _r, _v) \
+	do { OS_REG_WRITE(_a, _r, _v); OS_DELAY(100); } while (0)
 
 /* wait for the register contents to have the specified value */
 extern	HAL_BOOL ath_hal_wait(struct ath_hal *, u_int reg,
@@ -625,6 +672,46 @@ extern	HAL_BOOL ath_hal_setcapability(struct ath_hal *ah,
 
 /* The diagnostic codes used to be internally defined here -adrian */
 #include "ah_diagcodes.h"
+
+/*
+ * The AR5416 and later HALs have MAC and baseband hang checking.
+ */
+typedef struct {
+	uint32_t hang_reg_offset;
+	uint32_t hang_val;
+	uint32_t hang_mask;
+	uint32_t hang_offset;
+} hal_hw_hang_check_t;
+
+typedef struct {
+	uint32_t dma_dbg_3;
+	uint32_t dma_dbg_4;
+	uint32_t dma_dbg_5;
+	uint32_t dma_dbg_6;
+} mac_dbg_regs_t;
+
+typedef enum {
+	dcu_chain_state		= 0x1,
+	dcu_complete_state	= 0x2,
+	qcu_state		= 0x4,
+	qcu_fsp_ok		= 0x8,
+	qcu_fsp_state		= 0x10,
+	qcu_stitch_state	= 0x20,
+	qcu_fetch_state		= 0x40,
+	qcu_complete_state	= 0x80
+} hal_mac_hangs_t;
+
+typedef struct {
+	int states;
+	uint8_t dcu_chain_state;
+	uint8_t dcu_complete_state;
+	uint8_t qcu_state;
+	uint8_t qcu_fsp_ok;
+	uint8_t qcu_fsp_state;
+	uint8_t qcu_stitch_state;
+	uint8_t qcu_fetch_state;
+	uint8_t qcu_complete_state;
+} hal_mac_hang_check_t;
 
 enum {
     HAL_BB_HANG_DFS		= 0x0001,

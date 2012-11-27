@@ -145,6 +145,14 @@ void scif_cb_controller_stop_complete(SCI_CONTROLLER_HANDLE_T controller,
 	isci_controller->is_started = FALSE;
 }
 
+static void
+isci_single_map(void *arg, bus_dma_segment_t *seg, int nseg, int error)
+{
+	SCI_PHYSICAL_ADDRESS *phys_addr = arg;
+
+	*phys_addr = seg[0].ds_addr;
+}
+
 /**
  * @brief This method will be invoked to allocate memory dynamically.
  *
@@ -159,7 +167,29 @@ void scif_cb_controller_stop_complete(SCI_CONTROLLER_HANDLE_T controller,
 void scif_cb_controller_allocate_memory(SCI_CONTROLLER_HANDLE_T controller,
     SCI_PHYSICAL_MEMORY_DESCRIPTOR_T *mde)
 {
+	struct ISCI_CONTROLLER *isci_controller = (struct ISCI_CONTROLLER *)
+	    sci_object_get_association(controller);
 
+	/*
+	 * Note this routine is only used for buffers needed to translate
+	 * SCSI UNMAP commands to ATA DSM commands for SATA disks.
+	 *
+	 * We first try to pull a buffer from the controller's pool, and only
+	 * call contigmalloc if one isn't there.
+	 */
+	if (!sci_pool_empty(isci_controller->unmap_buffer_pool)) {
+		sci_pool_get(isci_controller->unmap_buffer_pool,
+		    mde->virtual_address);
+	} else
+		mde->virtual_address = contigmalloc(PAGE_SIZE,
+		    M_ISCI, M_NOWAIT, 0, BUS_SPACE_MAXADDR,
+		    mde->constant_memory_alignment, 0);
+
+	if (mde->virtual_address != NULL)
+		bus_dmamap_load(isci_controller->buffer_dma_tag,
+		    NULL, mde->virtual_address, PAGE_SIZE,
+		    isci_single_map, &mde->physical_address,
+		    BUS_DMA_NOWAIT);
 }
 
 /**
@@ -176,7 +206,16 @@ void scif_cb_controller_allocate_memory(SCI_CONTROLLER_HANDLE_T controller,
 void scif_cb_controller_free_memory(SCI_CONTROLLER_HANDLE_T controller,
     SCI_PHYSICAL_MEMORY_DESCRIPTOR_T * mde)
 {
+	struct ISCI_CONTROLLER *isci_controller = (struct ISCI_CONTROLLER *)
+	    sci_object_get_association(controller);
 
+	/*
+	 * Put the buffer back into the controller's buffer pool, rather
+	 * than invoking configfree.  This helps reduce chance we won't
+	 * have buffers available when system is under memory pressure.
+	 */ 
+	sci_pool_put(isci_controller->unmap_buffer_pool,
+	    mde->virtual_address);
 }
 
 void isci_controller_construct(struct ISCI_CONTROLLER *controller,
@@ -201,6 +240,7 @@ void isci_controller_construct(struct ISCI_CONTROLLER *controller,
 
 	controller->is_started = FALSE;
 	controller->is_frozen = FALSE;
+	controller->release_queued_ccbs = FALSE;
 	controller->sim = NULL;
 	controller->initial_discovery_mask = 0;
 
@@ -227,6 +267,8 @@ void isci_controller_construct(struct ISCI_CONTROLLER *controller,
 	for ( int i = 0; i < SCI_MAX_TIMERS; i++ ) {
 		sci_pool_put(controller->timer_pool, timer++);
 	}
+
+	sci_pool_initialize(controller->unmap_buffer_pool);
 }
 
 SCI_STATUS isci_controller_initialize(struct ISCI_CONTROLLER *controller)
@@ -431,6 +473,8 @@ int isci_controller_allocate_memory(struct ISCI_CONTROLLER *controller)
 		sci_fast_list_element_init(remote_device,
 		    &remote_device->pending_device_reset_element);
 		TAILQ_INIT(&remote_device->queued_ccbs);
+		remote_device->release_queued_ccb = FALSE;
+		remote_device->queued_ccb_in_progress = NULL;
 
 		/*
 		 * For the first SCI_MAX_DOMAINS device objects, do not put
@@ -694,3 +738,47 @@ void isci_action(struct cam_sim *sim, union ccb *ccb)
 	}
 }
 
+/*
+ * Unfortunately, SCIL doesn't cleanly handle retry conditions.
+ *  CAM_REQUEUE_REQ works only when no one is using the pass(4) interface.  So
+ *  when SCIL denotes an I/O needs to be retried (typically because of mixing
+ *  tagged/non-tagged ATA commands, or running out of NCQ slots), we queue
+ *  these I/O internally.  Once SCIL completes an I/O to this device, or we get
+ *  a ready notification, we will retry the first I/O on the queue.
+ *  Unfortunately, SCIL also doesn't cleanly handle starting the new I/O within
+ *  the context of the completion handler, so we need to retry these I/O after
+ *  the completion handler is done executing.
+ */
+void
+isci_controller_release_queued_ccbs(struct ISCI_CONTROLLER *controller)
+{
+	struct ISCI_REMOTE_DEVICE *dev;
+	struct ccb_hdr *ccb_h;
+	int dev_idx;
+
+	KASSERT(mtx_owned(&controller->lock), ("controller lock not owned"));
+
+	controller->release_queued_ccbs = FALSE;
+	for (dev_idx = 0;
+	     dev_idx < SCI_MAX_REMOTE_DEVICES;
+	     dev_idx++) {
+
+		dev = controller->remote_device[dev_idx];
+		if (dev != NULL &&
+		    dev->release_queued_ccb == TRUE &&
+		    dev->queued_ccb_in_progress == NULL) {
+			dev->release_queued_ccb = FALSE;
+			ccb_h = TAILQ_FIRST(&dev->queued_ccbs);
+
+			if (ccb_h == NULL)
+				continue;
+
+			isci_log_message(1, "ISCI", "release %p %x\n", ccb_h,
+			    ((union ccb *)ccb_h)->csio.cdb_io.cdb_bytes[0]);
+
+			dev->queued_ccb_in_progress = (union ccb *)ccb_h;
+			isci_io_request_execute_scsi_io(
+			    (union ccb *)ccb_h, controller);
+		}
+	}
+}

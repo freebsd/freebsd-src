@@ -218,6 +218,8 @@ g_raid_subdisk_event2str(int event)
 	switch (event) {
 	case G_RAID_SUBDISK_E_NEW:
 		return ("NEW");
+	case G_RAID_SUBDISK_E_FAILED:
+		return ("FAILED");
 	case G_RAID_SUBDISK_E_DISCONNECTED:
 		return ("DISCONNECTED");
 	default:
@@ -1856,6 +1858,7 @@ g_raid_create_volume(struct g_raid_softc *sc, const char *name, int id)
 	vol->v_state = G_RAID_VOLUME_S_STARTING;
 	vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
 	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_UNKNOWN;
+	vol->v_rotate_parity = 1;
 	bioq_init(&vol->v_inflight);
 	bioq_init(&vol->v_locked);
 	LIST_INIT(&vol->v_locks);

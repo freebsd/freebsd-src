@@ -89,12 +89,12 @@ __FBSDID("$FreeBSD$");
 #ifdef ATH_DEBUG
 #include <dev/ath/if_ath_debug.h>
 
-int ath_debug = 0;
+uint64_t ath_debug = 0;
 
 SYSCTL_DECL(_hw_ath);
-SYSCTL_INT(_hw_ath, OID_AUTO, debug, CTLFLAG_RW, &ath_debug,
+SYSCTL_QUAD(_hw_ath, OID_AUTO, debug, CTLFLAG_RW, &ath_debug,
 	    0, "control debugging printfs");
-TUNABLE_INT("hw.ath.debug", &ath_debug);
+TUNABLE_QUAD("hw.ath.debug", &ath_debug);
 
 void
 ath_printrxbuf(struct ath_softc *sc, const struct ath_buf *bf,
@@ -118,12 +118,84 @@ ath_printrxbuf(struct ath_softc *sc, const struct ath_buf *bf,
 			    ds->ds_hw[2], ds->ds_hw[3], ds->ds_hw[4],
 			    ds->ds_hw[5], ds->ds_hw[6], ds->ds_hw[7],
 			    ds->ds_hw[8]);
+		} else if (ah->ah_magic == 0x19741014) {
+			printf("        %08x %08x %08x %08x %08x %08x %08x\n",
+			    ds->ds_hw[2], ds->ds_hw[3], ds->ds_hw[4],
+			    ds->ds_hw[5], ds->ds_hw[6], ds->ds_hw[7],
+			    ds->ds_hw[8]);
+
+			printf("        %08x %08x %08x %08x %08x %08x %08x\n",
+			    ds->ds_hw[9], ds->ds_hw[10], ds->ds_hw[11],
+			    ds->ds_hw[12], ds->ds_hw[13], ds->ds_hw[14],
+			    ds->ds_hw[15]);
 		}
 	}
 }
 
-void
-ath_printtxbuf(struct ath_softc *sc, const struct ath_buf *first_bf,
+static void
+ath_printtxbuf_edma(struct ath_softc *sc, const struct ath_buf *first_bf,
+	u_int qnum, u_int ix, int done)
+{
+	const struct ath_tx_status *ts =
+	    &first_bf->bf_last->bf_status.ds_txstat;
+	const struct ath_buf *bf = first_bf;
+	const char *ds;
+	const struct ath_desc_txedma *eds;
+	int i, n;
+
+	/*
+	 * Assume the TX map size is 4 for now and only walk
+	 * the appropriate number of segments.
+	 */
+	n = (bf->bf_nseg / 4) + 1;
+
+	printf("Q%u[%3u] (nseg=%d)", qnum, ix, bf->bf_nseg);
+	while (bf != NULL) {
+		/*
+		 * XXX For now, assume the txmap size is 4.
+		 */
+		for (i = 0, ds = (const char *) bf->bf_desc;
+		    i < n;
+		    i ++, ds += sc->sc_tx_desclen) {
+			eds = (const struct ath_desc_txedma *) ds;
+			printf(" (DS.V:%p DS.P:%p) I: %08x L:%08x F:%04x%s\n",
+			    eds, (const struct ath_desc *)bf->bf_daddr + i,
+			    eds->ds_info, eds->ds_link,
+			    bf->bf_state.bfs_txflags,
+			    !done ? "" : (ts->ts_status == 0) ? " *" : " !");
+			printf(" (D[0] = %08x(%08x), D[1] = %08x(%08x)\n",
+			    eds->ds_hw[0], eds->ds_hw[1],
+			    eds->ds_hw[2], eds->ds_hw[3]);
+			printf(" (D[2] = %08x(%08x), D[3] = %08x(%08x)\n",
+			    eds->ds_hw[4], eds->ds_hw[5],
+			    eds->ds_hw[6], eds->ds_hw[7]);
+			printf("        Seq: %d swtry: %d ADDBAW?: %d DOBAW?: %d\n",
+			    bf->bf_state.bfs_seqno,
+			    bf->bf_state.bfs_retries,
+			    bf->bf_state.bfs_addedbaw,
+			    bf->bf_state.bfs_dobaw);
+			printf("        %08x %08x %08x %08x %08x %08x\n",
+			    eds->ds_hw[8], eds->ds_hw[9],
+			    eds->ds_hw[10], eds->ds_hw[11],
+			    eds->ds_hw[12], eds->ds_hw[13]);
+			printf("        %08x %08x %08x %08x %08x %08x %08x\n",
+			    eds->ds_hw[14], eds->ds_hw[15], eds->ds_hw[16],
+			    eds->ds_hw[17], eds->ds_hw[18], eds->ds_hw[19],
+			    eds->ds_hw[20]);
+#if 0
+			printf("        %08x %08x %08x %08x %08x %08x %08x %08x\n",
+			    ds->ds_hw[22],ds->ds_hw[23],ds->ds_hw[24],
+			    ds->ds_hw[25],ds->ds_hw[26],ds->ds_hw[27],
+			    ds->ds_hw[28], ds->ds_hw[29]);
+#endif
+		}
+		printf("  [end]\n");
+		bf = bf->bf_next;
+	}
+}
+
+static void
+ath_printtxbuf_legacy(struct ath_softc *sc, const struct ath_buf *first_bf,
 	u_int qnum, u_int ix, int done)
 {
 	const struct ath_tx_status *ts = &first_bf->bf_last->bf_status.ds_txstat;
@@ -144,9 +216,6 @@ ath_printtxbuf(struct ath_softc *sc, const struct ath_buf *first_bf,
 			    bf->bf_state.bfs_retries,
 			    bf->bf_state.bfs_addedbaw,
 			    bf->bf_state.bfs_dobaw);
-			printf("        SEQNO_ASSIGNED: %d, NEED_SEQNO: %d\n",
-			    bf->bf_state.bfs_seqno_assigned,
-			    bf->bf_state.bfs_need_seqno);
 			printf("        %08x %08x %08x %08x %08x %08x\n",
 			    ds->ds_ctl0, ds->ds_ctl1,
 			    ds->ds_hw[0], ds->ds_hw[1],
@@ -165,6 +234,16 @@ ath_printtxbuf(struct ath_softc *sc, const struct ath_buf *first_bf,
 		printf("  [end]\n");
 		bf = bf->bf_next;
 	}
+}
+
+void
+ath_printtxbuf(struct ath_softc *sc, const struct ath_buf *first_bf,
+	u_int qnum, u_int ix, int done)
+{
+	if (sc->sc_ah->ah_magic == 0x19741014)
+		ath_printtxbuf_edma(sc, first_bf, qnum, ix, done);
+	else
+		ath_printtxbuf_legacy(sc, first_bf, qnum, ix, done);
 }
 
 #endif	/* ATH_DEBUG */

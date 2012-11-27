@@ -2295,6 +2295,10 @@ db_print_inpflags(int inp_flags)
 		db_printf("%sINP_DONTFRAG", comma ? ", " : "");
 		comma = 1;
 	}
+	if (inp_flags & INP_RECVTOS) {
+		db_printf("%sINP_RECVTOS", comma ? ", " : "");
+		comma = 1;
+	}
 	if (inp_flags & IN6P_IPV6_V6ONLY) {
 		db_printf("%sIN6P_IPV6_V6ONLY", comma ? ", " : "");
 		comma = 1;

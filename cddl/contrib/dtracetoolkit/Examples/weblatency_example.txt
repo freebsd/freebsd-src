@@ -1,0 +1,127 @@
+The following is a demonstration of the weblatency.d script.
+
+Here we run weblatency.d while a mozilla browser loads the 
+http://www.planetsolaris.org website. After the website was loaded, Ctrl-C
+was hit to print the following report,
+
+   # weblatency.d
+   Tracing... Hit Ctrl-C to end.
+   ^C
+   HOST                                     NUM
+   static.flickr.com                          1
+   images.pegasosppc.com                      1
+   www.planetsolaris.org                      5
+   blogs.sun.com                              7
+   
+   HOST                             AVGTIME(ms)
+   static.flickr.com                         65
+   blogs.sun.com                            285
+   images.pegasosppc.com                    491
+   www.planetsolaris.org                    757
+   
+   HOST                             MAXTIME(ms)
+   static.flickr.com                         65
+   images.pegasosppc.com                    491
+   blogs.sun.com                            962
+   www.planetsolaris.org                   3689
+
+This gives us an understanding on which hosts were responsible for the 
+time endured while loading the website. It turns out that requests to
+www.planetsolaris.org were the slowest, with a maximum time of 3.7 seconds
+(probably the first request, which incurred a DNS lookup).
+
+
+
+The following shows the same google lookup performed on a number of sites,
+
+   # weblatency.d
+   Tracing... Hit Ctrl-C to end.
+   ^C
+   HOST                                     NUM
+   www.google.com.au                          3
+   www.google.co.uk                           3
+   www.google.com                             3
+   www.google.co.nz                           3
+   
+   HOST                             AVGTIME(ms)
+   www.google.co.nz                         450
+   www.google.com.au                        502
+   www.google.com                           567
+   www.google.co.uk                         595
+   
+   HOST                             MAXTIME(ms)
+   www.google.co.nz                         544
+   www.google.com.au                        559
+   www.google.com                           744
+   www.google.co.uk                         763
+
+From the average time you would guess that I was running this from 
+New Zealand (the fastest), with times to the other hosts following suit
+(Australia, USA, UK). I was actually running this from Australia - it's
+interesting that the New Zealand server responded slightly faster.
+
+
+
+
+Now several websites are loaded as a larger demonstration,
+
+   # weblatency.d
+   Tracing... Hit Ctrl-C to end.
+   ^C
+   HOST                                     NUM
+   shop.abc.net.au                            1
+   static.technorati.com                      1
+   sunopensolaris.112.2o7.net                 1
+   www.theage.com.au                          1
+   ffxcam.smh.com.au                          1
+   sunglobal.112.2o7.net                      2
+   embed.technorati.com                       2
+   technorati.com                             2
+   fdimages.fairfax.com.au                    4
+   blogs.sun.com                              5
+   bugs.opensolaris.org                       7
+   www.abc.net.au                            34
+   www.smh.com.au                            51
+   
+   HOST                             AVGTIME(ms)
+   ffxcam.smh.com.au                          0
+   sunglobal.112.2o7.net                      0
+   www.abc.net.au                            56
+   www.theage.com.au                         64
+   shop.abc.net.au                           65
+   www.smh.com.au                            73
+   fdimages.fairfax.com.au                   88
+   blogs.sun.com                            130
+   bugs.opensolaris.org                     162
+   static.technorati.com                    350
+   technorati.com                           352
+   embed.technorati.com                     632
+   sunopensolaris.112.2o7.net               900
+   
+   HOST                             MAXTIME(ms)
+   ffxcam.smh.com.au                          0
+   sunglobal.112.2o7.net                      0
+   www.theage.com.au                         64
+   shop.abc.net.au                           65
+   fdimages.fairfax.com.au                  243
+   www.smh.com.au                           244
+   blogs.sun.com                            293
+   www.abc.net.au                           315
+   static.technorati.com                    350
+   technorati.com                           356
+   bugs.opensolaris.org                     560
+   sunopensolaris.112.2o7.net               900
+   embed.technorati.com                     973
+
+It's interesting that the most common host (www.smh.com.au, NUM == 51),
+responded with a fast AVGTIME (73 ms). The reason for this may be due to
+cacheing by my proxy server. Less common hosts such as embed.technorati.com
+were quite slow.
+
+
+
+The results from weblatency.d are interesting, but they don't point the
+finger at one single cause for website latency. The value here is the response
+time experienced by the client - which is a combination of many response 
+times (link speeds, proxy server, DNS server, web server).
+

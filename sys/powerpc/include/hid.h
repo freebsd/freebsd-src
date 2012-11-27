@@ -78,6 +78,8 @@
 #define HID0_E500_SEL_TBCLK	0x00002000 /* Select Time Base clock */
 #define HID0_E500_MAS7UPDEN	0x00000080 /* Enable MAS7 update (e500v2) */
 
+#define HID0_E500MC_L2MMU_MHD	0x40000000 /* L2MMU Multiple Hit Detection */
+
 #define HID0_BITMASK							\
     "\20"								\
     "\040EMCP\037DBP\036EBA\035EBD\034BCLK\033EICE\032ECLK\031PAR"	\
@@ -104,6 +106,20 @@
     "\040ONEPPC\037SINGLE\036ISYNCSC\035SERGP\031DEEPNAP\030DOZE"	\
     "\027NAP\025DPM\023TG\022HANGDETECT\021NHR\020INORDER"		\
     "\016TBCTRL\015TBEN\012CIABREN\011HDICEEN\001ENATTN"		
+
+#define HID0_E500MC_BITMASK						\
+    "\20"								\
+    "\040EMCP\037EN_L2MMU_MHD\036b2\035b3\034b4\033b5\032b6\031b7"	\
+    "\030b8\027b9\026b10\025b11\024b12\023b13\022b14\021b15"		\
+    "\020b16\017b17\016b18\015b19\014b20\013b21\012b22\011b23"		\
+    "\010EN_MAS7_UPDATE\007DCFA\006b26\005CIGLSO\004b28\003b29\002b30\001NOPTI"
+
+#define HID0_E5500_BITMASK						\
+    "\20"								\
+    "\040EMCP\037EN_L2MMU_MHD\036b2\035b3\034b4\033b5\032b6\031b7"	\
+    "\030b8\027b9\026b10\025b11\024b12\023b13\022b14\021b15"		\
+    "\020b16\017b17\016b18\015b19\014b20\013b21\012b22\011b23"		\
+    "\010b24\007DCFA\006b26\005CIGLSO\004b28\003b29\002b30\001NOPTI"
 
 /*
  *  HID0 bit definitions per cpu model
@@ -142,6 +158,40 @@
  *  30	-	-	-	NOPDST	NOPDST	NOPDST	NOPDST	-
  *  31	NOOPTI	-	NOOPTI	NOPTI	NOPTI	NOPTI	NOPTI	NOPTI
  *
+ * bit	e500mc		e5500
+ *   0	EMCP		EMCP
+ *   1	EN_L2MMU_MHD	EN_L2MMU_MHD
+ *   2	-		-
+ *   3	-		-
+ *   4	-		-
+ *   5	-		-
+ *   6	-		-
+ *   7	-		-
+ *   8	-		-
+ *   9	-		-
+ *  10	-		-
+ *  11	-		-
+ *  12	-		-
+ *  13	-		-
+ *  14	-		-
+ *  15	-		-
+ *  16	-		-
+ *  17	-		-
+ *  18	-		-
+ *  19	-		-
+ *  20	-		-
+ *  21	-		-
+ *  22	-		-
+ *  23	-		-
+ *  24	EN_MAS7_UPDATE	-
+ *  25	DCFA		DCFA
+ *  26	-		-
+ *  27	CIGLSO		CIGLSO
+ *  28	-		-
+ *  29	-		-
+ *  30	-		-
+ *  31	NOPTI		NOPTI
+ *
  *  604: ECP = Enable cache parity checking
  *  604: SIE = Serial instruction execution disable
  * 7450: TBEN = Time Base Enable
@@ -160,6 +210,9 @@
 
 #define HID0_E500_DEFAULT_SET	(HID0_EMCP | HID0_E500_TBEN)
 #define HID1_E500_DEFAULT_SET	(HID1_E500_ABE | HID1_E500_ASTME)
+#define HID0_E500MC_DEFAULT_SET	(HID0_EMCP | HID0_E500MC_L2MMU_MHD | \
+				 HID0_E500_MAS7UPDEN)
+#define HID0_E5500_DEFAULT_SET	(HID0_EMCP | HID0_E500MC_L2MMU_MHD)
 
 #define HID5_970_DCBZ_SIZE_HI	0x00000080UL	/* dcbz does a 32-byte store */
 #define HID4_970_DISABLE_LG_PG	0x00000004ULL	/* disables large pages */

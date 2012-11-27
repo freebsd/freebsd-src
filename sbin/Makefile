@@ -20,6 +20,7 @@ SUBDIR=adjkerntz \
 	dump \
 	dumpfs \
 	dumpon \
+	etherswitchcfg \
 	ffsinfo \
 	fsck \
 	fsck_ffs \
@@ -89,6 +90,11 @@ SUBDIR+=	ipf
 .if ${MK_IPFW} != "no"
 SUBDIR+=	ipfw
 SUBDIR+=	natd
+.endif
+
+.if ${MK_NAND} != "no"
+SUBDIR+=	nandfs
+SUBDIR+=	newfs_nandfs
 .endif
 
 .if ${MK_PF} != "no"

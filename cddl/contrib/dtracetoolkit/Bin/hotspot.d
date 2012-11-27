@@ -1,0 +1,1 @@
+../Disk/hotspot.d

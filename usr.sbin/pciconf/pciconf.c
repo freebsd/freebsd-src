@@ -68,7 +68,7 @@ struct pci_vendor_info
 TAILQ_HEAD(,pci_vendor_info)	pci_vendors;
 
 static void list_bars(int fd, struct pci_conf *p);
-static void list_devs(int verbose, int bars, int caps);
+static void list_devs(int verbose, int bars, int caps, int errors);
 static void list_verbose(struct pci_conf *p);
 static const char *guess_class(struct pci_conf *p);
 static const char *guess_subclass(struct pci_conf *p);
@@ -83,7 +83,7 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n%s\n",
-		"usage: pciconf -l [-bcv]",
+		"usage: pciconf -l [-bcev]",
 		"       pciconf -a selector",
 		"       pciconf -r [-b | -h] selector addr[:addr2]",
 		"       pciconf -w [-b | -h] selector addr value");
@@ -94,12 +94,14 @@ int
 main(int argc, char **argv)
 {
 	int c;
-	int listmode, readmode, writemode, attachedmode, bars, caps, verbose;
+	int listmode, readmode, writemode, attachedmode;
+	int bars, caps, errors, verbose;
 	int byte, isshort;
 
-	listmode = readmode = writemode = attachedmode = bars = caps = verbose = byte = isshort = 0;
+	listmode = readmode = writemode = attachedmode = 0;
+	bars = caps = errors = verbose = byte = isshort = 0;
 
-	while ((c = getopt(argc, argv, "abchlrwv")) != -1) {
+	while ((c = getopt(argc, argv, "abcehlrwv")) != -1) {
 		switch(c) {
 		case 'a':
 			attachedmode = 1;
@@ -112,6 +114,10 @@ main(int argc, char **argv)
 
 		case 'c':
 			caps = 1;
+			break;
+
+		case 'e':
+			errors = 1;
 			break;
 
 		case 'h':
@@ -146,7 +152,7 @@ main(int argc, char **argv)
 		usage();
 
 	if (listmode) {
-		list_devs(verbose, bars, caps);
+		list_devs(verbose, bars, caps, errors);
 	} else if (attachedmode) {
 		chkattached(argv[optind]);
 	} else if (readmode) {
@@ -163,7 +169,7 @@ main(int argc, char **argv)
 }
 
 static void
-list_devs(int verbose, int bars, int caps)
+list_devs(int verbose, int bars, int caps, int errors)
 {
 	int fd;
 	struct pci_conf_io pc;
@@ -173,7 +179,7 @@ list_devs(int verbose, int bars, int caps)
 	if (verbose)
 		load_vendors();
 
-	fd = open(_PATH_DEVPCI, caps ? O_RDWR : O_RDONLY, 0);
+	fd = open(_PATH_DEVPCI, (caps || errors) ? O_RDWR : O_RDONLY, 0);
 	if (fd < 0)
 		err(1, "%s", _PATH_DEVPCI);
 
@@ -223,6 +229,8 @@ list_devs(int verbose, int bars, int caps)
 				list_bars(fd, p);
 			if (caps)
 				list_caps(fd, p);
+			if (errors)
+				list_errors(fd, p);
 		}
 	} while (pc.status == PCI_GETCONF_MORE_DEVS);
 

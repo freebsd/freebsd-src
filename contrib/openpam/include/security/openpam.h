@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam.h 455 2011-10-29 18:31:11Z des $
+ * $Id: openpam.h 605 2012-04-20 11:05:10Z des $
  */
 
 #ifndef SECURITY_OPENPAM_H_INCLUDED
@@ -157,12 +157,49 @@ openpam_readline(FILE *_f,
 	int *_lineno,
 	size_t *_lenp)
 	OPENPAM_NONNULL((1));
+
+char **
+openpam_readlinev(FILE *_f,
+	int *_lineno,
+	int *_lenp)
+	OPENPAM_NONNULL((1));
+
+char *
+openpam_readword(FILE *_f,
+	int *_lineno,
+	size_t *_lenp)
+	OPENPAM_NONNULL((1));
 #endif
+
+int
+openpam_straddch(char **_str,
+	size_t *_sizep,
+	size_t *_lenp,
+	int ch)
+	OPENPAM_NONNULL((1));
+
+/*
+ * Enable / disable optional features
+ */
+enum {
+	OPENPAM_RESTRICT_SERVICE_NAME,
+	OPENPAM_VERIFY_POLICY_FILE,
+	OPENPAM_RESTRICT_MODULE_NAME,
+	OPENPAM_VERIFY_MODULE_FILE,
+	OPENPAM_NUM_FEATURES
+};
+
+int
+openpam_set_feature(int _feature, int _onoff);
+
+int
+openpam_get_feature(int _feature, int *_onoff);
 
 /*
  * Log levels
  */
 enum {
+	PAM_LOG_LIBDEBUG = -1,
 	PAM_LOG_DEBUG,
 	PAM_LOG_VERBOSE,
 	PAM_LOG_NOTICE,
@@ -196,8 +233,8 @@ _openpam_log(int _level,
 void
 openpam_log(int _level,
 	const char *_format,
- 	...)
- 	OPENPAM_FORMAT ((__printf__, 2, 3))
+	...)
+	OPENPAM_FORMAT ((__printf__, 2, 3))
 	OPENPAM_NONNULL((2));
 #endif
 

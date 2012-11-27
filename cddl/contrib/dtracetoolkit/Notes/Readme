@@ -1,0 +1,21 @@
+Notes - Discussion about tools and their output
+
+   This directory contains files that provide deeper discussions about
+   tools and their output.
+
+   Files are either named,
+
+	ALL*_notes.txt	- notes that cover a collection of tools
+	*_notes.txt	- notes that cover a specific tool
+
+   These files are exist as an informal place to dump "stuff". This might
+   range from caveats to bear in mind when interpreting tool output, to
+   general or bizzare knowledge. Tool documentation is placed in,
+
+	/Man		- formal man pages
+	/Examples	- demos and how to read the output
+	*.d		- implementation notes within the code itself
+	/Notes		- everything else
+
+   Many of the scripts and man pages refer to files in this directory.
+

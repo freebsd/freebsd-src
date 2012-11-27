@@ -320,6 +320,7 @@ arp_print(netdissect_options *ndo,
             return;
         case ARPHRD_FRELAY:
             linkaddr = LINKADDR_FRELAY;
+            break;
         default:
             linkaddr = LINKADDR_ETHER;
             break;

@@ -90,7 +90,7 @@ if_nametoindex(const char *ifname)
 		if (ifa->ifa_addr &&
 		    ifa->ifa_addr->sa_family == AF_LINK &&
 		    strcmp(ifa->ifa_name, ifname) == 0) {
-			ni = ((struct sockaddr_dl*)ifa->ifa_addr)->sdl_index;
+			ni = LLINDEX((struct sockaddr_dl*)ifa->ifa_addr);
 			break;
 		}
 	}

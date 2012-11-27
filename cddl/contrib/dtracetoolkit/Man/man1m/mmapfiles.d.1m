@@ -1,0 +1,42 @@
+.TH mmapfiles.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+mmapfiles.d \- mmap'd files by process. Uses DTrace.
+.SH SYNOPSIS
+.B mmapfiles.d
+.SH DESCRIPTION
+This prints statistics on the pathnames that were mmap'd by processes.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the syscall provider.
+.SH EXAMPLES
+.TP
+This samples until Ctrl\-C is hit.
+# 
+.B mmapfiles.d
+.PP
+.SH FIELDS
+.TP
+MMAPS
+number of mmaps
+.TP
+CMD
+process name
+.TP
+PATHNAME
+pathname of mmap'd file
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+mmapfiles.d will sample until Ctrl\-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+dtrace(1M)

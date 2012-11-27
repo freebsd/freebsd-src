@@ -507,6 +507,20 @@ const struct puc_cfg puc_pci_devices[] = {
 	    .config_function = puc_config_quatech
 	},
 
+	{   0x1393, 0x1024, 0xffff, 0,
+	    "Moxa Technologies, Smartio CP-102E/PCIe",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S, 0x14, 0, -1,
+	        .config_function = puc_config_moxa
+	},
+
+	{   0x1393, 0x1025, 0xffff, 0,
+	    "Moxa Technologies, Smartio CP-102EL/PCIe",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S, 0x14, 0, -1,
+	        .config_function = puc_config_moxa
+	},
+
 	{   0x1393, 0x1040, 0xffff, 0,
 	    "Moxa Technologies, Smartio C104H/PCI",
 	    DEFAULT_RCLK * 8,
@@ -550,6 +564,20 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_4S, 0x18, 0, 8,
 	},
 
+	{   0x1393, 0x1144, 0xffff, 0,
+	    "Moxa Technologies, Smartio CP-114EL/PCIe",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_4S, 0x14, 0, -1,
+		.config_function = puc_config_moxa
+	},
+
+	{   0x1393, 0x1182, 0xffff, 0,
+	    "Moxa Technologies, Smartio CP-118EL-A/PCIe",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_8S, 0x14, 0, -1,
+		.config_function = puc_config_moxa
+	},
+
 	{   0x1393, 0x1680, 0xffff, 0,
 	    "Moxa Technologies, C168H/PCI",
 	    DEFAULT_RCLK * 8,
@@ -566,6 +594,13 @@ const struct puc_cfg puc_pci_devices[] = {
 	    "Moxa Technologies, CP-168EL/PCIe",
 	    DEFAULT_RCLK * 8,
 	    PUC_PORT_8S, 0x18, 0, 8,
+	},
+
+	{   0x1393, 0x1683, 0xffff, 0,
+	    "Moxa Technologies, Smartio CP-168EL-A/PCIe",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_8S, 0x14, 0, -1,
+		.config_function = puc_config_moxa
 	},
 
 	{   0x13a8, 0x0152, 0xffff, 0,
@@ -702,6 +737,12 @@ const struct puc_cfg puc_pci_devices[] = {
 	    PUC_PORT_2S, 0x10, 0, 8,
 	},
 
+	{   0x1415, 0x950a, 0x131f, 0x2032,
+	    "SIIG Cyber Serial Dual PCI 16C850",
+	    DEFAULT_RCLK * 10,
+	    PUC_PORT_4S, 0x10, 0, 8,
+	},
+
 	{   0x1415, 0x950a, 0xffff, 0,
 	    "Oxford Semiconductor OX16PCI954 UARTs",
 	    DEFAULT_RCLK,
@@ -733,10 +774,35 @@ const struct puc_cfg puc_pci_devices[] = {
 	 */
 
 	{   0x155f, 0x0331, 0xffff, 0,
+	    "Perle Ultraport4 Express",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_4S, 0x10, 0, 8,
+	},
+
+	{   0x155f, 0xB012, 0xffff, 0,
+	    "Perle Speed2 LE",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S, 0x10, 0, 8,
+	},
+
+	{   0x155f, 0xB022, 0xffff, 0,
+	    "Perle Speed2 LE",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S, 0x10, 0, 8,
+	},
+
+	{   0x155f, 0xB004, 0xffff, 0,
 	    "Perle Speed4 LE",
 	    DEFAULT_RCLK * 8,
 	    PUC_PORT_4S, 0x10, 0, 8,
 	},
+
+	{   0x155f, 0xB008, 0xffff, 0,
+	    "Perle Speed8 LE",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_8S, 0x10, 0, 8,
+	},
+
 
 	/*
 	 * Oxford Semiconductor PCI Express Expresso family
@@ -899,6 +965,18 @@ const struct puc_cfg puc_pci_devices[] = {
 	    DEFAULT_RCLK,
 	    PUC_PORT_4S1P, 0x10, 0, -1,
 	    .config_function = puc_config_syba
+	},
+
+	{   0x1fd4, 0x1999, 0xffff, 0,
+	    "Sunix SER5437A",
+	    DEFAULT_RCLK * 8,
+	    PUC_PORT_2S, 0x10, 0, 8,
+	},
+
+	{    0x5372, 0x6873, 0xffff, 0,
+	     "Sun 1040 PCI Quad Serial",
+	     DEFAULT_RCLK,
+	     PUC_PORT_4S, 0x10, 4, 0,
 	},
 
 	{   0x6666, 0x0001, 0xffff, 0,
@@ -1115,10 +1193,13 @@ static int
 puc_config_moxa(struct puc_softc *sc, enum puc_cfg_cmd cmd, int port,
     intptr_t *res)
 {
-	const struct puc_cfg *cfg = sc->sc_cfg;
-	
-	if (cmd == PUC_CFG_GET_OFS && cfg->device == 0x1045) {
-		*res = ((port == 3) ? 7 : port) * 0x200;
+	if (cmd == PUC_CFG_GET_OFS) {
+		const struct puc_cfg *cfg = sc->sc_cfg;
+
+		if (port == 3 && (cfg->device == 0x1045 || cfg->device == 0x1144))
+			port = 7;
+		*res = port * 0x200;
+
 		return 0;
 	}
 	return (ENXIO);

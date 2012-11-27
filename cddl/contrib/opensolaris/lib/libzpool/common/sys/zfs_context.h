@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  */
 
 #ifndef _SYS_ZFS_CONTEXT_H
@@ -228,6 +229,7 @@ struct proc {
 };
 
 extern struct proc p0;
+#define	curproc		(&p0)
 
 #define	PS_NONE		-1
 

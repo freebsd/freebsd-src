@@ -134,7 +134,7 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
        *  @brief  Default constructor creates no elements.
        */
       multiset()
-      : _M_t(_Compare(), allocator_type()) { }
+      : _M_t() { }
 
       explicit
       multiset(const _Compare& __comp,
@@ -152,7 +152,7 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
        */
       template <class _InputIterator>
         multiset(_InputIterator __first, _InputIterator __last)
-	: _M_t(_Compare(), allocator_type())
+	: _M_t()
         { _M_t._M_insert_equal(__first, __last); }
 
       /**
@@ -180,7 +180,7 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
        *  The newly-created %multiset uses a copy of the allocation object used
        *  by @a x.
        */
-      multiset(const multiset<_Key,_Compare,_Alloc>& __x)
+      multiset(const multiset& __x)
       : _M_t(__x._M_t) { }
 
       /**
@@ -190,8 +190,8 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
        *  All the elements of @a x are copied, but unlike the copy constructor,
        *  the allocator object is not copied.
        */
-      multiset<_Key,_Compare,_Alloc>&
-      operator=(const multiset<_Key,_Compare,_Alloc>& __x)
+      multiset&
+      operator=(const multiset& __x)
       {
 	_M_t = __x._M_t;
 	return *this;
@@ -275,7 +275,7 @@ _GLIBCXX_BEGIN_NESTED_NAMESPACE(std, _GLIBCXX_STD)
        *  std::swap(s1,s2) will feed to this function.
        */
       void
-      swap(multiset<_Key, _Compare, _Alloc>& __x)
+      swap(multiset& __x)
       { _M_t.swap(__x._M_t); }
 
       // insert/erase

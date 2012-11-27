@@ -413,8 +413,10 @@ void
 closelog(void)
 {
 	THREAD_LOCK();
-	(void)_close(LogFile);
-	LogFile = -1;
+	if (LogFile != -1) {
+		(void)_close(LogFile);
+		LogFile = -1;
+	}
 	LogTag = NULL;
 	status = NOCONN;
 	THREAD_UNLOCK();

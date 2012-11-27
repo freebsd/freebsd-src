@@ -32,6 +32,8 @@
  * mjacob@feral.com
  */
 #include <unistd.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <fcntl.h>
@@ -39,7 +41,8 @@
 #include <string.h>
 #include <syslog.h>
 #include <sys/ioctl.h>
-#include SESINC
+#include <cam/scsi/scsi_all.h>
+#include <cam/scsi/scsi_enc.h>
 
 #define	ALLSTAT (SES_ENCSTAT_UNRECOV | SES_ENCSTAT_CRITICAL | \
 	SES_ENCSTAT_NONCRITICAL | SES_ENCSTAT_INFO)
@@ -54,7 +57,7 @@ main(int a, char **v)
 	static const char *usage =
 	    "usage: %s [ -d ] [ -t pollinterval ] device [ device ]\n";
 	int fd, polltime, dev, devbase, nodaemon;
-	ses_encstat stat, *carray;
+	encioc_enc_status_t stat, *carray;
 
 	if (a < 2) {
 		fprintf(stderr, usage, *v);
@@ -83,7 +86,7 @@ main(int a, char **v)
 		return (1);
 	}
 	for (dev = devbase; dev < a; dev++)
-		carray[dev] = (ses_encstat) -1;
+		carray[dev] = (encioc_enc_status_t) -1;
 
 	/*
 	 * Check to make sure we can open all devices
@@ -94,8 +97,8 @@ main(int a, char **v)
 			perror(v[dev]);
 			return (1);
 		}
-		if (ioctl(fd, SESIOC_INIT, NULL) < 0) {
-			fprintf(stderr, "%s: SESIOC_INIT fails- %s\n",
+		if (ioctl(fd, ENCIOC_INIT, NULL) < 0) {
+			fprintf(stderr, "%s: ENCIOC_INIT fails- %s\n",
 			    v[dev], strerror(errno));
 			return (1);
 		}
@@ -122,9 +125,9 @@ main(int a, char **v)
 			/*
 			 * Get the actual current enclosure status.
 			 */
-			if (ioctl(fd, SESIOC_GETENCSTAT, (caddr_t) &stat) < 0) {
+			if (ioctl(fd, ENCIOC_GETENCSTAT, (caddr_t) &stat) < 0) {
 				syslog(LOG_ERR,
-				    "%s: SESIOC_GETENCSTAT- %m", v[dev]);
+				    "%s: ENCIOC_GETENCSTAT- %m", v[dev]);
 				(void) close(fd);
 				continue;
 			}

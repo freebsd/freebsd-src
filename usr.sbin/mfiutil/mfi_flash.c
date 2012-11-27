@@ -150,7 +150,7 @@ flash_adapter(int ac, char **av)
 		goto error;
 	}
 
-	fd = mfi_open(mfi_unit);
+	fd = mfi_open(mfi_unit, O_RDWR);
 	if (fd < 0) {
 		error = errno;
 		warn("mfi_open");

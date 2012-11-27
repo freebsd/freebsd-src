@@ -190,7 +190,7 @@ RecordARMScatteredHalfRelocation(MachObjectWriter *Writer,
   //      0 - arm instructions
   //      1 - thumb instructions
   // the other half of the relocated expression is in the following pair
-  // relocation entry in the the low 16 bits of r_address field.
+  // relocation entry in the low 16 bits of r_address field.
   unsigned ThumbBit = 0;
   unsigned MovtBit = 0;
   switch ((unsigned)Fixup.getKind()) {
@@ -408,15 +408,22 @@ void ARMMachObjectWriter::RecordRelocation(MachObjectWriter *Writer,
   // Even when it's not a scattered relocation, movw/movt always uses
   // a PAIR relocation.
   if (Type == macho::RIT_ARM_Half) {
-    // The other-half value only gets populated for the movt relocation.
+    // The other-half value only gets populated for the movt and movw
+    // relocation entries.
     uint32_t Value = 0;;
     switch ((unsigned)Fixup.getKind()) {
     default: break;
+    case ARM::fixup_arm_movw_lo16:
+    case ARM::fixup_arm_movw_lo16_pcrel:
+    case ARM::fixup_t2_movw_lo16:
+    case ARM::fixup_t2_movw_lo16_pcrel:
+      Value = (FixedValue >> 16) & 0xffff;
+      break;
     case ARM::fixup_arm_movt_hi16:
     case ARM::fixup_arm_movt_hi16_pcrel:
     case ARM::fixup_t2_movt_hi16:
     case ARM::fixup_t2_movt_hi16_pcrel:
-      Value = FixedValue;
+      Value = FixedValue & 0xffff;
       break;
     }
     macho::RelocationEntry MREPair;

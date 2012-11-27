@@ -545,17 +545,6 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 		}
 	}
 
-	/* Add the new handler to the event in priority order. */
-	TAILQ_FOREACH(temp_ih, &ie->ie_handlers, ih_next) {
-		if (temp_ih->ih_pri > ih->ih_pri)
-			break;
-	}
-	if (temp_ih == NULL)
-		TAILQ_INSERT_TAIL(&ie->ie_handlers, ih, ih_next);
-	else
-		TAILQ_INSERT_BEFORE(temp_ih, ih, ih_next);
-	intr_event_update(ie);
-
 	/* Create a thread if we need one. */
 	while (ie->ie_thread == NULL && handler != NULL) {
 		if (ie->ie_flags & IE_ADDING_THREAD)
@@ -572,6 +561,18 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 			wakeup(ie);
 		}
 	}
+
+	/* Add the new handler to the event in priority order. */
+	TAILQ_FOREACH(temp_ih, &ie->ie_handlers, ih_next) {
+		if (temp_ih->ih_pri > ih->ih_pri)
+			break;
+	}
+	if (temp_ih == NULL)
+		TAILQ_INSERT_TAIL(&ie->ie_handlers, ih, ih_next);
+	else
+		TAILQ_INSERT_BEFORE(temp_ih, ih, ih_next);
+	intr_event_update(ie);
+
 	CTR3(KTR_INTR, "%s: added %s to %s", __func__, ih->ih_name,
 	    ie->ie_name);
 	mtx_unlock(&ie->ie_lock);
@@ -618,23 +619,12 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 		}
 	}
 
-	/* Add the new handler to the event in priority order. */
-	TAILQ_FOREACH(temp_ih, &ie->ie_handlers, ih_next) {
-		if (temp_ih->ih_pri > ih->ih_pri)
-			break;
-	}
-	if (temp_ih == NULL)
-		TAILQ_INSERT_TAIL(&ie->ie_handlers, ih, ih_next);
-	else
-		TAILQ_INSERT_BEFORE(temp_ih, ih, ih_next);
-	intr_event_update(ie);
-
 	/* For filtered handlers, create a private ithread to run on. */
-	if (filter != NULL && handler != NULL) { 
+	if (filter != NULL && handler != NULL) {
 		mtx_unlock(&ie->ie_lock);
-		it = ithread_create("intr: newborn", ih);		
+		it = ithread_create("intr: newborn", ih);
 		mtx_lock(&ie->ie_lock);
-		it->it_event = ie; 
+		it->it_event = ie;
 		ih->ih_thread = it;
 		ithread_update(it); /* XXX - do we really need this?!?!? */
 	} else { /* Create the global per-event thread if we need one. */
@@ -654,6 +644,18 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 			}
 		}
 	}
+
+	/* Add the new handler to the event in priority order. */
+	TAILQ_FOREACH(temp_ih, &ie->ie_handlers, ih_next) {
+		if (temp_ih->ih_pri > ih->ih_pri)
+			break;
+	}
+	if (temp_ih == NULL)
+		TAILQ_INSERT_TAIL(&ie->ie_handlers, ih, ih_next);
+	else
+		TAILQ_INSERT_BEFORE(temp_ih, ih, ih_next);
+	intr_event_update(ie);
+
 	CTR3(KTR_INTR, "%s: added %s to %s", __func__, ih->ih_name,
 	    ie->ie_name);
 	mtx_unlock(&ie->ie_lock);

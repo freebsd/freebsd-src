@@ -266,6 +266,7 @@ struct ata_pci_controller {
 #define ATA_JMICRON_ID          0x197b
 #define ATA_JMB360              0x2360197b
 #define ATA_JMB361              0x2361197b
+#define ATA_JMB362              0x2362197b
 #define ATA_JMB363              0x2363197b
 #define ATA_JMB365              0x2365197b
 #define ATA_JMB366              0x2366197b

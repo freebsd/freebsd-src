@@ -17,6 +17,7 @@ options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem
+options 	NANDFS			#NAND Filesystem
 options 	NFSCL			#New Network Filesystem Client
 options 	NFSLOCKD		#Network Lock Manager
 options 	NFS_ROOT		#NFS usable as /, requires NFSCL
@@ -71,6 +72,9 @@ device		umass
 device		scbus
 device		pass
 device		da
+
+# NAND
+device		nand
 
 # Flattened Device Tree
 options 	FDT

@@ -52,6 +52,8 @@ struct ipspec {
 extern FILE *yyin;
 extern int yynerrs;
 
+extern int yyparse(void);
+
 struct cfjails cfjails = TAILQ_HEAD_INITIALIZER(cfjails);
 
 static void free_param(struct cfparams *pp, struct cfparam *p);
@@ -596,7 +598,7 @@ check_intparams(struct cfjail *j)
 					error = -1;	
 				}
 				*cs = '\0';
-				s->len = cs - s->s + 1;
+				s->len = cs - s->s;
 			}
 		}
 	}
@@ -620,7 +622,7 @@ check_intparams(struct cfjail *j)
 					error = -1;	
 				}
 				*cs = '\0';
-				s->len = cs - s->s + 1;
+				s->len = cs - s->s;
 			}
 		}
 	}
@@ -712,12 +714,11 @@ import_params(struct cfjail *j)
 			value = alloca(vallen);
 			cs = value;
 			TAILQ_FOREACH_SAFE(s, &p->val, tq, ts) {
-				strcpy(cs, s->s);
-				if (ts != NULL) {
-					cs += s->len + 1;
-					cs[-1] = ',';
-				}
+				memcpy(cs, s->s, s->len);
+				cs += s->len + 1;
+				cs[-1] = ',';
 			}
+			value[vallen - 1] = '\0';
 		}
 		if (jailparam_import(jp, value) < 0) {
 			error = -1;

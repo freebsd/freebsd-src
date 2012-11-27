@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 26, 2012
+.Dd May 23, 2012
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -78,12 +78,12 @@ perform:
 .Bl -tag -width indent
 .It Fl c
 Create a new jail.
-The jail 
+The jail
 .Va jid
 and
 .Va name
 parameters (if specified) on the command line,
-or any jails 
+or any jails
 must not refer to an existing jail.
 .It Fl m
 Modify an existing jail.
@@ -204,7 +204,7 @@ and
 options can also remove running jails that aren't in the
 .Xr jail.conf 5
 file, specified by name or jid.
-.P
+.Pp
 An argument of
 .Dq *
 is a wildcard that will operate on all jails, regardless of whether
@@ -215,7 +215,7 @@ this is the surest way for
 to remove all jails.
 If hierarchical jails exist, a partial-matching wildcard definition may
 be specified.
-For example, an argument of 
+For example, an argument of
 .Dq foo.*
 would apply to jails with names like
 .Dq foo.bar
@@ -255,7 +255,7 @@ They can also be given the values
 .Dq true
 and
 .Dq false .
-Other partameters may have more than one value, specified as a
+Other parameters may have more than one value, specified as a
 comma-separated list or with
 .Dq +=
 in the configuration file (see
@@ -269,7 +269,7 @@ parameters that are passed to the kernel when the jail is created,
 can be seen with
 .Xr jls 8 ,
 and can (usually) be changed with
-.Dq Nm Fl m.
+.Dq Nm Fl m .
 Then there are pseudo-parameters that are only used by
 .Nm
 itself.
@@ -429,7 +429,7 @@ See the
 .Sx "Hierarchical Jails"
 section for more information.
 .It Va children.cur
-The number of descendents of this jail, including its own child jails
+The number of descendants of this jail, including its own child jails
 and any jails created under them.
 .It Va enforce_statfs
 This determines which information processes in a jail are able to get
@@ -580,7 +580,7 @@ command parameters are
 command lines that are run in either the system or prison environment.
 They may be given multiple values, which run would the specified
 commands in sequence.
-All commands must succed (return a zero exit status), or the jail will
+All commands must succeed (return a zero exit status), or the jail will
 not be created or removed.
 .Pp
 The pseudo-parameters are:
@@ -657,7 +657,8 @@ The maximum amount of time to wait for a prison's processes to exit
 after sending them a
 .Dv SIGTERM
 signal (which happens after the
-.Va exec.stop commands have completed).
+.Va exec.stop
+commands have completed).
 After this many seconds have passed, the prison will be removed, which
 will kill any remaining processes.
 If this is set to zero, no
@@ -1183,7 +1184,7 @@ utility appeared in
 Hierarchical/extensible jails were introduced in
 .Fx 8.0 .
 The configuration file was introduced in
-.Fx 10.0 .
+.Fx 9.1 .
 .Sh AUTHORS
 .An -nosplit
 The jail feature was written by

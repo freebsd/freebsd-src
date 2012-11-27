@@ -956,6 +956,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	int ipflags;
 	u_short fport, lport;
 	int unlock_udbinfo;
+	u_char tos;
 
 	/*
 	 * udp_output() may need to temporarily bind or connect the current
@@ -971,12 +972,15 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	}
 
 	src.sin_family = 0;
+	INP_RLOCK(inp);
+	tos = inp->inp_ip_tos;
 	if (control != NULL) {
 		/*
 		 * XXX: Currently, we assume all the optional information is
 		 * stored in a single mbuf.
 		 */
 		if (control->m_next) {
+			INP_RUNLOCK(inp);
 			m_freem(control);
 			m_freem(m);
 			return (EINVAL);
@@ -1008,6 +1012,14 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 				    *(struct in_addr *)CMSG_DATA(cm);
 				break;
 
+			case IP_TOS:
+				if (cm->cmsg_len != CMSG_LEN(sizeof(u_char))) {
+					error = EINVAL;
+					break;
+				}
+				tos = *(u_char *)CMSG_DATA(cm);
+				break;
+
 			default:
 				error = ENOPROTOOPT;
 				break;
@@ -1018,6 +1030,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		m_freem(control);
 	}
 	if (error) {
+		INP_RUNLOCK(inp);
 		m_freem(m);
 		return (error);
 	}
@@ -1039,7 +1052,6 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	 * XXXRW: Check that hash locking update here is correct.
 	 */
 	sin = (struct sockaddr_in *)addr;
-	INP_RLOCK(inp);
 	if (sin != NULL &&
 	    (inp->inp_laddr.s_addr == INADDR_ANY && inp->inp_lport == 0)) {
 		INP_RUNLOCK(inp);
@@ -1223,7 +1235,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 		ui->ui_sum = 0;
 	((struct ip *)ui)->ip_len = sizeof (struct udpiphdr) + len;
 	((struct ip *)ui)->ip_ttl = inp->inp_ip_ttl;	/* XXX */
-	((struct ip *)ui)->ip_tos = inp->inp_ip_tos;	/* XXX */
+	((struct ip *)ui)->ip_tos = tos;		/* XXX */
 	UDPSTAT_INC(udps_opackets);
 
 	if (unlock_udbinfo == UH_WLOCKED)

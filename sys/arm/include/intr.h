@@ -50,6 +50,10 @@
 #elif defined(CPU_ARM9) || defined(SOC_MV_KIRKWOOD) || \
     defined(CPU_XSCALE_IXP435)
 #define NIRQ		64
+#elif defined(CPU_CORTEXA)
+#define NIRQ		128
+#elif defined(CPU_ARM11)
+#define NIRQ		128
 #else
 #define NIRQ		32
 #endif
@@ -59,8 +63,11 @@
 int arm_get_next_irq(int);
 void arm_mask_irq(uintptr_t);
 void arm_unmask_irq(uintptr_t);
-void arm_setup_irqhandler(const char *, int (*)(void*), void (*)(void*), 
-    void *, int, int, void **);    
+void arm_setup_irqhandler(const char *, int (*)(void*), void (*)(void*),
+    void *, int, int, void **);
 int arm_remove_irqhandler(int, void *);
 extern void (*arm_post_filter)(void *);
+
+void gic_init_secondary(void);
+
 #endif	/* _MACHINE_INTR_H */

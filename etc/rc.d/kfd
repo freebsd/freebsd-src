@@ -4,16 +4,14 @@
 #
 
 # PROVIDE: kfd
-# BEFORE: DAEMON
+# REQUIRE: NETWORK
+# KEYWORD: shutdown
 
 . /etc/rc.subr
 
-name="kfd"
+name=kfd
+rcvar=kfd_enable
 load_rc_config $name
-rcvar="kfd_server_enable"
-unset start_cmd
-command="${kfd_server}"
-kfd_flags="-i"
-command_args="&"
+command_args="-i &"
 
 run_rc_command "$1"

@@ -13,7 +13,7 @@ const char	*__malloc_options_1_0 = NULL;
 __sym_compat(_malloc_options, __malloc_options_1_0, FBSD_1.0);
 
 /* Runtime configuration options. */
-const char	*je_malloc_conf JEMALLOC_ATTR(visibility("default"));
+const char	*je_malloc_conf;
 #ifdef JEMALLOC_DEBUG
 bool	opt_abort = true;
 #  ifdef JEMALLOC_FILL
@@ -56,7 +56,26 @@ static bool			malloc_initializer = NO_INITIALIZER;
 #endif
 
 /* Used to avoid initialization races. */
+#ifdef _WIN32
+static malloc_mutex_t	init_lock;
+
+JEMALLOC_ATTR(constructor)
+static void WINAPI
+_init_init_lock(void)
+{
+
+	malloc_mutex_init(&init_lock);
+}
+
+#ifdef _MSC_VER
+#  pragma section(".CRT$XCU", read)
+JEMALLOC_SECTION(".CRT$XCU") JEMALLOC_ATTR(used)
+static const void (WINAPI *init_init_lock)(void) = _init_init_lock;
+#endif
+
+#else
 static malloc_mutex_t	init_lock = MALLOC_MUTEX_INITIALIZER;
+#endif
 
 typedef struct {
 	void	*p;	/* Input pointer (as in realloc(p, s)). */
@@ -233,11 +252,17 @@ malloc_ncpus(void)
 	unsigned ret;
 	long result;
 
+#ifdef _WIN32
+	SYSTEM_INFO si;
+	GetSystemInfo(&si);
+	result = si.dwNumberOfProcessors;
+#else
 	result = sysconf(_SC_NPROCESSORS_ONLN);
 	if (result == -1) {
 		/* Error. */
 		ret = 1;
 	}
+#endif
 	ret = (unsigned)result;
 
 	return (ret);
@@ -373,13 +398,14 @@ malloc_conf_init(void)
 			}
 			break;
 		case 1: {
+#ifndef _WIN32
 			int linklen;
 			const char *linkname =
-#ifdef JEMALLOC_PREFIX
+#  ifdef JEMALLOC_PREFIX
 			    "/etc/"JEMALLOC_PREFIX"malloc.conf"
-#else
+#  else
 			    "/etc/malloc.conf"
-#endif
+#  endif
 			    ;
 
 			if ((linklen = readlink(linkname, buf,
@@ -390,7 +416,9 @@ malloc_conf_init(void)
 				 */
 				buf[linklen] = '\0';
 				opts = buf;
-			} else {
+			} else
+#endif
+			{
 				/* No configuration specified. */
 				buf[0] = '\0';
 				opts = buf;
@@ -456,9 +484,9 @@ malloc_conf_init(void)
 				uintmax_t um;				\
 				char *end;				\
 									\
-				errno = 0;				\
+				set_errno(0);				\
 				um = malloc_strtoumax(v, &end, 0);	\
-				if (errno != 0 || (uintptr_t)end -	\
+				if (get_errno() != 0 || (uintptr_t)end -\
 				    (uintptr_t)v != vlen) {		\
 					malloc_conf_error(		\
 					    "Invalid conf value",	\
@@ -477,9 +505,9 @@ malloc_conf_init(void)
 				long l;					\
 				char *end;				\
 									\
-				errno = 0;				\
+				set_errno(0);				\
 				l = strtol(v, &end, 0);			\
-				if (errno != 0 || (uintptr_t)end -	\
+				if (get_errno() != 0 || (uintptr_t)end -\
 				    (uintptr_t)v != vlen) {		\
 					malloc_conf_error(		\
 					    "Invalid conf value",	\
@@ -615,7 +643,8 @@ malloc_init_hard(void)
 
 	malloc_conf_init();
 
-#if (!defined(JEMALLOC_MUTEX_INIT_CB) && !defined(JEMALLOC_ZONE))
+#if (!defined(JEMALLOC_MUTEX_INIT_CB) && !defined(JEMALLOC_ZONE) \
+    && !defined(_WIN32))
 	/* Register fork handlers. */
 	if (pthread_atfork(jemalloc_prefork, jemalloc_postfork_parent,
 	    jemalloc_postfork_child) != 0) {
@@ -770,13 +799,11 @@ malloc_init_hard(void)
  * Begin malloc(3)-compatible functions.
  */
 
-JEMALLOC_ATTR(malloc)
-JEMALLOC_ATTR(visibility("default"))
 void *
 je_malloc(size_t size)
 {
 	void *ret;
-	size_t usize;
+	size_t usize JEMALLOC_CC_SILENCE_INIT(0);
 	prof_thr_cnt_t *cnt JEMALLOC_CC_SILENCE_INIT(NULL);
 
 	if (malloc_init()) {
@@ -814,7 +841,7 @@ label_oom:
 			    "out of memory\n");
 			abort();
 		}
-		errno = ENOMEM;
+		set_errno(ENOMEM);
 	}
 	if (config_prof && opt_prof && ret != NULL)
 		prof_malloc(ret, usize, cnt);
@@ -921,8 +948,6 @@ label_return:
 	return (ret);
 }
 
-JEMALLOC_ATTR(nonnull(1))
-JEMALLOC_ATTR(visibility("default"))
 int
 je_posix_memalign(void **memptr, size_t alignment, size_t size)
 {
@@ -932,8 +957,6 @@ je_posix_memalign(void **memptr, size_t alignment, size_t size)
 	return (ret);
 }
 
-JEMALLOC_ATTR(malloc)
-JEMALLOC_ATTR(visibility("default"))
 void *
 je_aligned_alloc(size_t alignment, size_t size)
 {
@@ -942,21 +965,19 @@ je_aligned_alloc(size_t alignment, size_t size)
 
 	if ((err = imemalign(&ret, alignment, size, 1)) != 0) {
 		ret = NULL;
-		errno = err;
+		set_errno(err);
 	}
 	JEMALLOC_VALGRIND_MALLOC(err == 0, ret, isalloc(ret, config_prof),
 	    false);
 	return (ret);
 }
 
-JEMALLOC_ATTR(malloc)
-JEMALLOC_ATTR(visibility("default"))
 void *
 je_calloc(size_t num, size_t size)
 {
 	void *ret;
 	size_t num_size;
-	size_t usize;
+	size_t usize JEMALLOC_CC_SILENCE_INIT(0);
 	prof_thr_cnt_t *cnt JEMALLOC_CC_SILENCE_INIT(NULL);
 
 	if (malloc_init()) {
@@ -1012,7 +1033,7 @@ label_return:
 			    "memory\n");
 			abort();
 		}
-		errno = ENOMEM;
+		set_errno(ENOMEM);
 	}
 
 	if (config_prof && opt_prof && ret != NULL)
@@ -1026,12 +1047,11 @@ label_return:
 	return (ret);
 }
 
-JEMALLOC_ATTR(visibility("default"))
 void *
 je_realloc(void *ptr, size_t size)
 {
 	void *ret;
-	size_t usize;
+	size_t usize JEMALLOC_CC_SILENCE_INIT(0);
 	size_t old_size = 0;
 	size_t old_rzsize JEMALLOC_CC_SILENCE_INIT(0);
 	prof_thr_cnt_t *cnt JEMALLOC_CC_SILENCE_INIT(NULL);
@@ -1113,7 +1133,7 @@ label_oom:
 				    "out of memory\n");
 				abort();
 			}
-			errno = ENOMEM;
+			set_errno(ENOMEM);
 		}
 	} else {
 		/* realloc(NULL, size) is equivalent to malloc(size). */
@@ -1155,7 +1175,7 @@ label_oom:
 				    "out of memory\n");
 				abort();
 			}
-			errno = ENOMEM;
+			set_errno(ENOMEM);
 		}
 	}
 
@@ -1174,7 +1194,6 @@ label_return:
 	return (ret);
 }
 
-JEMALLOC_ATTR(visibility("default"))
 void
 je_free(void *ptr)
 {
@@ -1209,8 +1228,6 @@ je_free(void *ptr)
  */
 
 #ifdef JEMALLOC_OVERRIDE_MEMALIGN
-JEMALLOC_ATTR(malloc)
-JEMALLOC_ATTR(visibility("default"))
 void *
 je_memalign(size_t alignment, size_t size)
 {
@@ -1222,8 +1239,6 @@ je_memalign(size_t alignment, size_t size)
 #endif
 
 #ifdef JEMALLOC_OVERRIDE_VALLOC
-JEMALLOC_ATTR(malloc)
-JEMALLOC_ATTR(visibility("default"))
 void *
 je_valloc(size_t size)
 {
@@ -1252,17 +1267,12 @@ je_valloc(size_t size)
  * passed an extra argument for the caller return address, which will be
  * ignored.
  */
-JEMALLOC_ATTR(visibility("default"))
-void (* const __free_hook)(void *ptr) = je_free;
-
-JEMALLOC_ATTR(visibility("default"))
-void *(* const __malloc_hook)(size_t size) = je_malloc;
-
-JEMALLOC_ATTR(visibility("default"))
-void *(* const __realloc_hook)(void *ptr, size_t size) = je_realloc;
-
-JEMALLOC_ATTR(visibility("default"))
-void *(* const __memalign_hook)(size_t alignment, size_t size) = je_memalign;
+JEMALLOC_EXPORT void (* const __free_hook)(void *ptr) = je_free;
+JEMALLOC_EXPORT void *(* const __malloc_hook)(size_t size) = je_malloc;
+JEMALLOC_EXPORT void *(* const __realloc_hook)(void *ptr, size_t size) =
+    je_realloc;
+JEMALLOC_EXPORT void *(* const __memalign_hook)(size_t alignment, size_t size) =
+    je_memalign;
 #endif
 
 /*
@@ -1273,7 +1283,6 @@ void *(* const __memalign_hook)(size_t alignment, size_t size) = je_memalign;
  * Begin non-standard functions.
  */
 
-JEMALLOC_ATTR(visibility("default"))
 size_t
 je_malloc_usable_size(const void *ptr)
 {
@@ -1289,7 +1298,6 @@ je_malloc_usable_size(const void *ptr)
 	return (ret);
 }
 
-JEMALLOC_ATTR(visibility("default"))
 void
 je_malloc_stats_print(void (*write_cb)(void *, const char *), void *cbopaque,
     const char *opts)
@@ -1298,7 +1306,6 @@ je_malloc_stats_print(void (*write_cb)(void *, const char *), void *cbopaque,
 	stats_print(write_cb, cbopaque, opts);
 }
 
-JEMALLOC_ATTR(visibility("default"))
 int
 je_mallctl(const char *name, void *oldp, size_t *oldlenp, void *newp,
     size_t newlen)
@@ -1310,7 +1317,6 @@ je_mallctl(const char *name, void *oldp, size_t *oldlenp, void *newp,
 	return (ctl_byname(name, oldp, oldlenp, newp, newlen));
 }
 
-JEMALLOC_ATTR(visibility("default"))
 int
 je_mallctlnametomib(const char *name, size_t *mibp, size_t *miblenp)
 {
@@ -1321,7 +1327,6 @@ je_mallctlnametomib(const char *name, size_t *mibp, size_t *miblenp)
 	return (ctl_nametomib(name, mibp, miblenp));
 }
 
-JEMALLOC_ATTR(visibility("default"))
 int
 je_mallctlbymib(const size_t *mib, size_t miblen, void *oldp, size_t *oldlenp,
   void *newp, size_t newlen)
@@ -1357,8 +1362,6 @@ iallocm(size_t usize, size_t alignment, bool zero)
 		return (imalloc(usize));
 }
 
-JEMALLOC_ATTR(nonnull(1))
-JEMALLOC_ATTR(visibility("default"))
 int
 je_allocm(void **ptr, size_t *rsize, size_t size, int flags)
 {
@@ -1367,7 +1370,6 @@ je_allocm(void **ptr, size_t *rsize, size_t size, int flags)
 	size_t alignment = (ZU(1) << (flags & ALLOCM_LG_ALIGN_MASK)
 	    & (SIZE_T_MAX-1));
 	bool zero = flags & ALLOCM_ZERO;
-	prof_thr_cnt_t *cnt;
 
 	assert(ptr != NULL);
 	assert(size != 0);
@@ -1380,6 +1382,8 @@ je_allocm(void **ptr, size_t *rsize, size_t size, int flags)
 		goto label_oom;
 
 	if (config_prof && opt_prof) {
+		prof_thr_cnt_t *cnt;
+
 		PROF_ALLOC_PREP(1, usize, cnt);
 		if (cnt == NULL)
 			goto label_oom;
@@ -1426,8 +1430,6 @@ label_oom:
 	return (ALLOCM_ERR_OOM);
 }
 
-JEMALLOC_ATTR(nonnull(1))
-JEMALLOC_ATTR(visibility("default"))
 int
 je_rallocm(void **ptr, size_t *rsize, size_t size, size_t extra, int flags)
 {
@@ -1439,7 +1441,6 @@ je_rallocm(void **ptr, size_t *rsize, size_t size, size_t extra, int flags)
 	    & (SIZE_T_MAX-1));
 	bool zero = flags & ALLOCM_ZERO;
 	bool no_move = flags & ALLOCM_NO_MOVE;
-	prof_thr_cnt_t *cnt;
 
 	assert(ptr != NULL);
 	assert(*ptr != NULL);
@@ -1449,6 +1450,8 @@ je_rallocm(void **ptr, size_t *rsize, size_t size, size_t extra, int flags)
 
 	p = *ptr;
 	if (config_prof && opt_prof) {
+		prof_thr_cnt_t *cnt;
+
 		/*
 		 * usize isn't knowable before iralloc() returns when extra is
 		 * non-zero.  Therefore, compute its maximum possible value and
@@ -1536,8 +1539,6 @@ label_oom:
 	return (ALLOCM_ERR_OOM);
 }
 
-JEMALLOC_ATTR(nonnull(1))
-JEMALLOC_ATTR(visibility("default"))
 int
 je_sallocm(const void *ptr, size_t *rsize, int flags)
 {
@@ -1557,8 +1558,6 @@ je_sallocm(const void *ptr, size_t *rsize, int flags)
 	return (ALLOCM_SUCCESS);
 }
 
-JEMALLOC_ATTR(nonnull(1))
-JEMALLOC_ATTR(visibility("default"))
 int
 je_dallocm(void *ptr, int flags)
 {
@@ -1586,7 +1585,6 @@ je_dallocm(void *ptr, int flags)
 	return (ALLOCM_SUCCESS);
 }
 
-JEMALLOC_ATTR(visibility("default"))
 int
 je_nallocm(size_t *rsize, size_t size, int flags)
 {
@@ -1622,12 +1620,17 @@ je_nallocm(size_t *rsize, size_t size, int flags)
 void
 jemalloc_prefork(void)
 #else
-JEMALLOC_ATTR(visibility("default"))
-void
+JEMALLOC_EXPORT void
 _malloc_prefork(void)
 #endif
 {
 	unsigned i;
+
+#ifdef JEMALLOC_MUTEX_INIT_CB
+	if (malloc_initialized == false)
+		return;
+#endif
+	assert(malloc_initialized);
 
 	/* Acquire all mutexes in a safe order. */
 	malloc_mutex_prefork(&arenas_lock);
@@ -1644,12 +1647,17 @@ _malloc_prefork(void)
 void
 jemalloc_postfork_parent(void)
 #else
-JEMALLOC_ATTR(visibility("default"))
-void
+JEMALLOC_EXPORT void
 _malloc_postfork(void)
 #endif
 {
 	unsigned i;
+
+#ifdef JEMALLOC_MUTEX_INIT_CB
+	if (malloc_initialized == false)
+		return;
+#endif
+	assert(malloc_initialized);
 
 	/* Release all mutexes, now that fork() has completed. */
 	chunk_dss_postfork_parent();
@@ -1666,6 +1674,8 @@ void
 jemalloc_postfork_child(void)
 {
 	unsigned i;
+
+	assert(malloc_initialized);
 
 	/* Release all mutexes, now that fork() has completed. */
 	chunk_dss_postfork_child();

@@ -1,11 +1,10 @@
 /*
- * Copyright (C) 1984-2011  Mark Nudelman
+ * Copyright (C) 1984-2012  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
  *
- * For more information about less, or for information on how to 
- * contact the author, see the README file.
+ * For more information, see the README file.
  */
 
 
@@ -343,7 +342,7 @@ v201   7/27/94  Check for no memcpy; add casts to calloc;
                 look for regcmp in libgen.a.
                 (thanks to Kaveh Ghazi).
 v202   7/28/94  Fix bug in edit_next/edit_prev with 
-                non-existant files.
+                non-existent files.
 v203   8/2/94   Fix a variety of configuration bugs on
                 various systems. (thanks to Sakai
                 Kiyotaka, Harald Koenig, Bjorn Brox,
@@ -743,6 +742,17 @@ v442  3/2/11    Fix search bug.
                 Add ctrl-G line edit command.
 v443  4/9/11    Fix Windows build.
 v444  6/8/11    Fix ungetc bug; remove vestiges of obsolete -l option.
+-----------------------------------------------------------------
+v445  10/19/11  Fix hilite bug in backwards scroll with -J.
+                Fix hilite bug with backspaces.
+                Fix bugs handling SGR sequences in Win32 (thanks to Eric Lee).
+                Add support for GNU regex (thanks to Reuben Thomas).
+v446  5/15/12   Up/down arrows in cmd editing search for matching cmd.
+v447  5/21/12   Add ESC-F command, two-pipe LESSOPEN syntax.
+v448  6/15/12   Print name of regex library in version message.
+v449  6/23/12   Allow config option --with-regex=none.
+v450  7/4/12    Fix EOF bug with ESC-F.
+v451  7/20/12   Fix typo.
 */
 
-char version[] = "444";
+char version[] = "451";

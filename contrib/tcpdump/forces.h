@@ -585,7 +585,7 @@ int pkeyitlv_print(register const u_char * pptr, register u_int len,
 		   u_int16_t op_msk, int indent);
 
 int pdatacnt_print(register const u_char * pptr, register u_int len,
-	       u_int32_t IDcnt, u_int16_t op_msk, int indent);
+	       u_int16_t IDcnt, u_int16_t op_msk, int indent);
 int pdata_print(register const u_char * pptr, register u_int len,
 	    u_int16_t op_msk, int indent);
 

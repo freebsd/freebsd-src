@@ -29,8 +29,10 @@
  * Get the RXDP.
  */
 uint32_t
-ar5212GetRxDP(struct ath_hal *ath)
+ar5212GetRxDP(struct ath_hal *ath, HAL_RX_QUEUE qtype)
 {
+
+	HALASSERT(qtype == HAL_RX_QUEUE_HP);
 	return OS_REG_READ(ath, AR_RXDP);
 }
 
@@ -38,8 +40,10 @@ ar5212GetRxDP(struct ath_hal *ath)
  * Set the RxDP.
  */
 void
-ar5212SetRxDP(struct ath_hal *ah, uint32_t rxdp)
+ar5212SetRxDP(struct ath_hal *ah, uint32_t rxdp, HAL_RX_QUEUE qtype)
 {
+
+	HALASSERT(qtype == HAL_RX_QUEUE_HP);
 	OS_REG_WRITE(ah, AR_RXDP, rxdp);
 	HALASSERT(OS_REG_READ(ah, AR_RXDP) == rxdp);
 }
@@ -272,6 +276,14 @@ ar5212ProcRxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	rs->rs_antenna  = MS(ads->ds_rxstatus0, AR_RcvAntenna);
 	rs->rs_more = (ads->ds_rxstatus0 & AR_More) ? 1 : 0;
 
+	/*
+	 * The AR5413 (at least) sometimes sets both AR_CRCErr and
+	 * AR_PHYErr when reporting radar pulses.  In this instance
+	 * set HAL_RXERR_PHY as well as HAL_RXERR_CRC and
+	 * let the driver layer figure out what to do.
+	 *
+	 * See PR kern/169362.
+	 */
 	if ((ads->ds_rxstatus1 & AR_FrmRcvOK) == 0) {
 		/*
 		 * These four bits should not be set together.  The
@@ -282,9 +294,7 @@ ar5212ProcRxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		 * Consequently we filter them out here so we don't
 		 * confuse and/or complicate drivers.
 		 */
-		if (ads->ds_rxstatus1 & AR_CRCErr)
-			rs->rs_status |= HAL_RXERR_CRC;
-		else if (ads->ds_rxstatus1 & AR_PHYErr) {
+		if (ads->ds_rxstatus1 & AR_PHYErr) {
 			u_int phyerr;
 
 			rs->rs_status |= HAL_RXERR_PHY;
@@ -293,7 +303,11 @@ ar5212ProcRxDesc(struct ath_hal *ah, struct ath_desc *ds,
 			if (!AH5212(ah)->ah_hasHwPhyCounters &&
 			    phyerr != HAL_PHYERR_RADAR)
 				ar5212AniPhyErrReport(ah, rs);
-		} else if (ads->ds_rxstatus1 & AR_DecryptCRCErr)
+		}
+
+		if (ads->ds_rxstatus1 & AR_CRCErr)
+			rs->rs_status |= HAL_RXERR_CRC;
+		else if (ads->ds_rxstatus1 & AR_DecryptCRCErr)
 			rs->rs_status |= HAL_RXERR_DECRYPT;
 		else if (ads->ds_rxstatus1 & AR_MichaelErr)
 			rs->rs_status |= HAL_RXERR_MIC;

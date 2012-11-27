@@ -189,7 +189,7 @@ synthesize_ino_value(struct cpio *cpio, struct archive_entry *entry)
 
 	/* Don't store a mapping if we don't need to. */
 	if (archive_entry_nlink(entry) < 2) {
-		return ++cpio->ino_next;
+		return (int)(++cpio->ino_next);
 	}
 
 	/* Look up old ino; if we have it, this is a hardlink
@@ -200,7 +200,7 @@ synthesize_ino_value(struct cpio *cpio, struct archive_entry *entry)
 	}
 
 	/* Assign a new index number. */
-	ino_new = ++cpio->ino_next;
+	ino_new = (int)(++cpio->ino_next);
 
 	/* Ensure space for the new mapping. */
 	if (cpio->ino_list_size <= cpio->ino_list_next) {
@@ -421,7 +421,7 @@ archive_write_cpio_data(struct archive_write *a, const void *buff, size_t s)
 
 	cpio = (struct cpio *)a->format_data;
 	if (s > cpio->entry_bytes_remaining)
-		s = cpio->entry_bytes_remaining;
+		s = (size_t)cpio->entry_bytes_remaining;
 
 	ret = __archive_write_output(a, buff, s);
 	cpio->entry_bytes_remaining -= s;
@@ -457,7 +457,7 @@ format_octal_recursive(int64_t v, char *p, int s)
 	if (s == 0)
 		return (v);
 	v = format_octal_recursive(v, p+1, s-1);
-	*p = '0' + (v & 7);
+	*p = '0' + ((char)v & 7);
 	return (v >> 3);
 }
 
@@ -495,5 +495,6 @@ archive_write_cpio_finish_entry(struct archive_write *a)
 	struct cpio *cpio;
 
 	cpio = (struct cpio *)a->format_data;
-	return (__archive_write_nulls(a, cpio->entry_bytes_remaining));
+	return (__archive_write_nulls(a,
+		(size_t)cpio->entry_bytes_remaining));
 }
