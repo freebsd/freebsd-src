@@ -559,8 +559,10 @@ t4_syncache_respond(struct toedev *tod, void *arg, struct mbuf *m)
 	struct tcphdr *th = (void *)(ip + 1);
 
 	wr = (struct wrqe *)atomic_readandclear_ptr(&synqe->wr);
-	if (wr == NULL)
+	if (wr == NULL) {
+		m_freem(m);
 		return (EALREADY);
+	}
 
 	bzero(&to, sizeof(to));
 	tcp_dooptions(&to, (void *)(th + 1), (th->th_off << 2) - sizeof(*th),
