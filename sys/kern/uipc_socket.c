@@ -556,7 +556,7 @@ sonewconn(struct socket *head, int connstatus)
 	 * The accept socket may be tearing down but we just
 	 * won a race on the ACCEPT_LOCK.
 	 */
-	if (!(so->so_options & SO_ACCEPTCONN)) {
+	if (!(head->so_options & SO_ACCEPTCONN)) {
 		SOCK_LOCK(so);
 		so->so_head = NULL;
 		sofree(so);		/* NB: returns ACCEPT_UNLOCK'ed. */
