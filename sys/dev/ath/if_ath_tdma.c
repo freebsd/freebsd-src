@@ -532,7 +532,7 @@ ath_tdma_update(struct ieee80211_node *ni,
 		DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
 		    "%s: calling ath_hal_adjusttsf: TSF=%llu, tsfdelta=%d\n",
 		    __func__,
-		    tsf_1,
+		    tsf,
 		    tsfdelta);
 
 #ifdef	ATH_DEBUG_ALQ
