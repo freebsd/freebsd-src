@@ -147,7 +147,8 @@ struct nameidata {
 #define	AUDITVNODE1	0x04000000 /* audit the looked up vnode information */
 #define	AUDITVNODE2 	0x08000000 /* audit the looked up vnode information */
 #define	TRAILINGSLASH	0x10000000 /* path ended in a slash */
-#define	PARAMASK	0x1ffffe00 /* mask of parameter descriptors */
+#define	NOCAPCHECK	0x20000000 /* do not perform capability checks */
+#define	PARAMASK	0x3ffffe00 /* mask of parameter descriptors */
 
 /*
  * Initialization of a nameidata structure.

@@ -183,7 +183,7 @@ namei(struct nameidata *ndp)
 	 * not an absolute path, and not containing '..' components) to
 	 * a real file descriptor, not the pseudo-descriptor AT_FDCWD.
 	 */
-	if (IN_CAPABILITY_MODE(td)) {
+	if (IN_CAPABILITY_MODE(td) && (cnp->cn_flags & NOCAPCHECK) == 0) {
 		ndp->ni_strictrelative = 1;
 		if (ndp->ni_dirfd == AT_FDCWD) {
 #ifdef KTRACE
