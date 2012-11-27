@@ -107,7 +107,7 @@ f_validate_ipaddr()
 # f_dialog_iperror $error $ipaddr
 #
 # Display a msgbox with the appropriate error message for an error returned by
-# f_validate_ipaddr above.
+# the f_validate_ipaddr function above.
 #
 f_dialog_iperror()
 {
@@ -285,7 +285,7 @@ f_validate_ipaddr6()
 # f_dialog_ip6error $error $ipv6_addr
 #
 # Display a msgbox with the appropriate error message for an error returned by
-# f_validate_ipaddr6 above.
+# the f_validate_ipaddr6 function above.
 #
 f_dialog_ip6error()
 {
