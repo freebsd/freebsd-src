@@ -281,7 +281,7 @@ ath_tdma_update(struct ieee80211_node *ni,
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 	struct ath_hal *ah = sc->sc_ah;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
-	u_int64_t tsf, rstamp, nextslot, nexttbtt;
+	u_int64_t tsf, rstamp, nextslot, nexttbtt, nexttbtt_full;
 	u_int32_t txtime, nextslottu;
 	int32_t tudelta, tsfdelta;
 	const struct ath_rx_status *rs;
@@ -326,7 +326,11 @@ ath_tdma_update(struct ieee80211_node *ni,
 	    rt->info[rix].shortPreamble);
 	/* NB: << 9 is to cvt to TU and /2 */
 	nextslot = (rstamp - txtime) + (sc->sc_tdmabintval << 9);
-	nextslottu = TSF_TO_TU(nextslot>>32, nextslot) & HAL_BEACON_PERIOD;
+	/*
+	 * For 802.11n chips: nextslottu needs to be the full TSF space,
+	 * not just 0..65535 TU.
+	 */
+	nextslottu = TSF_TO_TU(nextslot>>32, nextslot);
 
 	/*
 	 * Retrieve the hardware NextTBTT in usecs
@@ -350,7 +354,16 @@ ath_tdma_update(struct ieee80211_node *ni,
 	 * value, tsfdelta ends up becoming very negative and all
 	 * of the adjustments get very messed up.
 	 */
-	nexttbtt = ath_hal_getnexttbtt(ah) % (TU_TO_TSF(HAL_BEACON_PERIOD + 1));
+	
+	/*
+	 * We need to track the full nexttbtt rather than having it
+	 * truncated at HAL_BEACON_PERIOD, as programming the
+	 * nexttbtt (and related) registers for the 11n chips is
+	 * actually going to take the full 32 bit space, rather than
+	 * just 0..65535 TU.
+	 */
+	nexttbtt_full = ath_hal_getnexttbtt(ah);
+	nexttbtt = nexttbtt_full % (TU_TO_TSF(HAL_BEACON_PERIOD + 1));
 	tsfdelta = (int32_t)((nextslot % TU_TO_TSF(HAL_BEACON_PERIOD + 1)) - nexttbtt);
 
 	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
@@ -371,7 +384,7 @@ ath_tdma_update(struct ieee80211_node *ni,
 		TDMA_SAMPLE(sc->sc_avgtsfdeltap, 0);
 		TDMA_SAMPLE(sc->sc_avgtsfdeltam, 0);
 	}
-	tudelta = nextslottu - TSF_TO_TU(nexttbtt >> 32, nexttbtt);
+	tudelta = nextslottu - TSF_TO_TU(nexttbtt_full >> 32, nexttbtt_full);
 
 	/*
 	 * Copy sender's timetstamp into tdma ie so they can
