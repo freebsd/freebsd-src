@@ -158,6 +158,7 @@ ath_tdma_settimers(struct ath_softc *sc, u_int32_t nexttbtt, u_int32_t bintval)
 	    bt.bt_nextatim);
 #endif
 
+#ifdef	ATH_DEBUG_ALQ
 	if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_TDMA_TIMER_SET)) {
 		struct if_ath_alq_tdma_timer_set t;
 		t.bt_intval = htobe32(bt.bt_intval);
@@ -171,6 +172,7 @@ ath_tdma_settimers(struct ath_softc *sc, u_int32_t nexttbtt, u_int32_t bintval)
 		if_ath_alq_post(&sc->sc_alq, ATH_ALQ_TDMA_TIMER_SET,
 		    sizeof(t), (char *) &t);
 	}
+#endif
 
 	DPRINTF(sc, ATH_DEBUG_TDMA_TIMER,
 	    "%s: nexttbtt=%u (0x%08x), nexttbtt tsf=%lld (0x%08llx)\n",
