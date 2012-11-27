@@ -516,22 +516,22 @@ tooshort:
 	dchg = (odst.s_addr != ip->ip_dst.s_addr);
 	ifp = m->m_pkthdr.rcvif;
 
-#ifdef IPFIREWALL_FORWARD
 	if (m->m_flags & M_FASTFWD_OURS) {
 		m->m_flags &= ~M_FASTFWD_OURS;
 		goto ours;
 	}
-	if ((dchg = (m_tag_find(m, PACKET_TAG_IPFORWARD, NULL) != NULL)) != 0) {
-		/*
-		 * Directly ship the packet on.  This allows forwarding
-		 * packets originally destined to us to some other directly
-		 * connected host.
-		 */
-		ip_forward(m, dchg);
-		return;
+	if (m->m_flags & M_IP_NEXTHOP) {
+		dchg = (m_tag_find(m, PACKET_TAG_IPFORWARD, NULL) != NULL);
+		if (dchg != 0) {
+			/*
+			 * Directly ship the packet on.  This allows
+			 * forwarding packets originally destined to us
+			 * to some other directly connected host.
+			 */
+			ip_forward(m, 1);
+			return;
+		}
 	}
-#endif /* IPFIREWALL_FORWARD */
-
 passin:
 	/*
 	 * Process options and, if not destined for us,
