@@ -498,7 +498,7 @@ isf_disk_ioctl(struct disk *disk, u_long cmd, void *data, int fflag,
 static void
 isf_disk_strategy(struct bio *bp)
 {
-	struct isf_softc *sc = bp->bio_disk->d_drv1;;
+	struct isf_softc *sc = bp->bio_disk->d_drv1;
 
 	/*
 	 * We advertise a block size and maximum I/O size up the stack; catch

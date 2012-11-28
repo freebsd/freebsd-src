@@ -29,16 +29,16 @@
 #
 ############################################################ INCLUDES
 
-BSDCFG_LIBE="/usr/libexec/bsdconfig"
-. $BSDCFG_LIBE/include/common.subr || exit 1
-f_include $BSDCFG_LIBE/include/dialog.subr
-f_include $BSDCFG_LIBE/include/mustberoot.subr
+BSDCFG_SHARE="/usr/share/bsdconfig"
+. $BSDCFG_SHARE/common.subr || exit 1
+f_include $BSDCFG_SHARE/dialog.subr
+f_include $BSDCFG_SHARE/mustberoot.subr
+f_include $BSDCFG_SHARE/usermgmt/group_input.subr
 
-APP_DIR="070.usermgmt"
-f_include $BSDCFG_LIBE/$APP_DIR/include/group_input.subr
+BSDCFG_LIBE="/usr/libexec/bsdconfig" APP_DIR="070.usermgmt"
 f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 
-ipgm=$( f_index_menu_selection $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
+ipgm=$( f_index_menusel_keyword $BSDCFG_LIBE/$APP_DIR/INDEX "$pgm" )
 [ $? -eq $SUCCESS -a "$ipgm" ] && pgm="$ipgm"
 
 ############################################################ CONFIGURATION
@@ -228,7 +228,7 @@ while :; do
 	        	\"\$hline\"            \
 	        	$menu_items            )
 
-	eval $DIALOG \
+	dialog_menu=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -236,9 +236,11 @@ while :; do
 		--cancel-label \"\$msg_cancel\"    \
 		--menu \"\$menu_text\" $size       \
 		$menu_items                        \
-		2> $DIALOG_TMPDIR/dialog.menu.$$
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
 
 	retval=$?
+	setvar DIALOG_MENU_$$ "$dialog_menu"
 	mtag=$( f_dialog_menutag )
 	f_dprintf "retval=$retval mtag=[$mtag]"
 

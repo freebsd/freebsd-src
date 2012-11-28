@@ -58,7 +58,7 @@ static void		 pf_hash(struct pf_addr *, struct pf_addr *,
 static struct pf_rule	*pf_match_translation(struct pf_pdesc *, struct mbuf *,
 			    int, int, struct pfi_kif *,
 			    struct pf_addr *, u_int16_t, struct pf_addr *,
-			    u_int16_t, int);
+			    uint16_t, int, struct pf_anchor_stackframe *);
 static int		 pf_get_sport(sa_family_t, u_int8_t, struct pf_rule *,
 			    struct pf_addr *, struct pf_addr *, u_int16_t,
 			    struct pf_addr *, u_int16_t*, u_int16_t, u_int16_t,
@@ -124,7 +124,8 @@ pf_hash(struct pf_addr *inaddr, struct pf_addr *hash,
 static struct pf_rule *
 pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
     int direction, struct pfi_kif *kif, struct pf_addr *saddr, u_int16_t sport,
-    struct pf_addr *daddr, u_int16_t dport, int rs_num)
+    struct pf_addr *daddr, uint16_t dport, int rs_num,
+    struct pf_anchor_stackframe *anchor_stack)
 {
 	struct pf_rule		*r, *rm = NULL;
 	struct pf_ruleset	*ruleset = NULL;
@@ -189,12 +190,12 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 			if (r->anchor == NULL) {
 				rm = r;
 			} else
-				pf_step_into_anchor(&asd, &ruleset, rs_num,
-				    &r, NULL, NULL);
+				pf_step_into_anchor(anchor_stack, &asd,
+				    &ruleset, rs_num, &r, NULL, NULL);
 		}
 		if (r == NULL)
-			pf_step_out_of_anchor(&asd, &ruleset, rs_num, &r,
-			    NULL, NULL);
+			pf_step_out_of_anchor(anchor_stack, &asd, &ruleset,
+			    rs_num, &r, NULL, NULL);
 	}
 
 	if (tag > 0 && pf_tag_packet(m, pd, tag))
@@ -499,7 +500,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
     struct pfi_kif *kif, struct pf_src_node **sn,
     struct pf_state_key **skp, struct pf_state_key **nkp,
     struct pf_addr *saddr, struct pf_addr *daddr,
-    u_int16_t sport, u_int16_t dport)
+    uint16_t sport, uint16_t dport, struct pf_anchor_stackframe *anchor_stack)
 {
 	struct pf_rule	*r = NULL;
 	struct pf_addr	*naddr;
@@ -511,16 +512,18 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 
 	if (direction == PF_OUT) {
 		r = pf_match_translation(pd, m, off, direction, kif, saddr,
-		    sport, daddr, dport, PF_RULESET_BINAT);
+		    sport, daddr, dport, PF_RULESET_BINAT, anchor_stack);
 		if (r == NULL)
 			r = pf_match_translation(pd, m, off, direction, kif,
-			    saddr, sport, daddr, dport, PF_RULESET_NAT);
+			    saddr, sport, daddr, dport, PF_RULESET_NAT,
+			    anchor_stack);
 	} else {
 		r = pf_match_translation(pd, m, off, direction, kif, saddr,
-		    sport, daddr, dport, PF_RULESET_RDR);
+		    sport, daddr, dport, PF_RULESET_RDR, anchor_stack);
 		if (r == NULL)
 			r = pf_match_translation(pd, m, off, direction, kif,
-			    saddr, sport, daddr, dport, PF_RULESET_BINAT);
+			    saddr, sport, daddr, dport, PF_RULESET_BINAT,
+			    anchor_stack);
 	}
 
 	if (r == NULL)

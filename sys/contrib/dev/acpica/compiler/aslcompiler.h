@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslcompiler.h - common include file for iASL
@@ -87,10 +86,6 @@
 /*
  * Main ASL parser - generated from flex/bison, lex/yacc, etc.
  */
-int
-AslCompilerparse(
-    void);
-
 ACPI_PARSE_OBJECT *
 AslDoError (
     void);
@@ -661,6 +656,10 @@ FlPrintFile (
     ...);
 
 void
+FlDeleteFile (
+    UINT32                  FileId);
+
+void
 FlSetLineNumber (
     UINT32                  LineNumber);
 
@@ -778,6 +777,10 @@ UtSetParseOpName (
 char *
 UtGetStringBuffer (
     UINT32                  Length);
+
+void
+UtExpandLineBuffers (
+    void);
 
 ACPI_STATUS
 UtInternalizeName (
@@ -1120,4 +1123,3 @@ DtCreateTemplates (
     char                    *Signature);
 
 #endif /*  __ASLCOMPILER_H */
-

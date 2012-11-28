@@ -35,10 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/socket.h>
-#ifdef __FreeBSD__
 #include <sys/endian.h>
-#define	betoh64	be64toh
-#endif
 #include <net/if.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
@@ -46,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <arpa/inet.h>
 #include <netdb.h>
 
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -318,18 +316,11 @@ print_state(struct pfsync_state *s, int opts)
 		bcopy(s->packets[1], &packets[1], sizeof(u_int64_t));
 		bcopy(s->bytes[0], &bytes[0], sizeof(u_int64_t));
 		bcopy(s->bytes[1], &bytes[1], sizeof(u_int64_t));
-		printf(", %llu:%llu pkts, %llu:%llu bytes",
-#ifdef __FreeBSD__
-		    (unsigned long long)betoh64(packets[0]),
-		    (unsigned long long)betoh64(packets[1]),
-		    (unsigned long long)betoh64(bytes[0]),
-		    (unsigned long long)betoh64(bytes[1]));
-#else
-		    betoh64(packets[0]),
-		    betoh64(packets[1]),
-		    betoh64(bytes[0]),
-		    betoh64(bytes[1]));
-#endif
+		printf(", %ju:%ju pkts, %ju:%ju bytes",
+		    (uintmax_t )be64toh(packets[0]),
+		    (uintmax_t )be64toh(packets[1]),
+		    (uintmax_t )be64toh(bytes[0]),
+		    (uintmax_t )be64toh(bytes[1]));
 		if (ntohl(s->anchor) != -1)
 			printf(", anchor %u", ntohl(s->anchor));
 		if (ntohl(s->rule) != -1)
@@ -346,12 +337,8 @@ print_state(struct pfsync_state *s, int opts)
 		u_int64_t id;
 
 		bcopy(&s->id, &id, sizeof(u_int64_t));
-		printf("   id: %016llx creatorid: %08x",
-#ifdef __FreeBSD__
-		    (unsigned long long)betoh64(id), ntohl(s->creatorid));
-#else
-		    betoh64(id), ntohl(s->creatorid));
-#endif
+		printf("   id: %016jx creatorid: %08x",
+		    (uintmax_t )be64toh(id), ntohl(s->creatorid));
 		printf("\n");
 	}
 }

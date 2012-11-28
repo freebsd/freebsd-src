@@ -1053,7 +1053,7 @@ ath_hal_getChanNoise(struct ath_hal *ah, const struct ieee80211_channel *chan)
  * populated with values from NOISE_FLOOR[] + ath_hal_getNfAdjust().
  *
  * The caller must supply ctl/ext NF arrays which are at least
- * AH_MIMO_MAX_CHAINS entries long.
+ * AH_MAX_CHAINS entries long.
  */
 int
 ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
@@ -1069,7 +1069,7 @@ ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
 		HALDEBUG(ah, HAL_DEBUG_NFCAL,
 		    "%s: invalid channel %u/0x%x; no mapping\n",
 		    __func__, chan->ic_freq, chan->ic_flags);
-		for (i = 0; i < AH_MIMO_MAX_CHAINS; i++) {
+		for (i = 0; i < AH_MAX_CHAINS; i++) {
 			nf_ctl[i] = nf_ext[i] = 0;
 		}
 		return 0;
@@ -1077,7 +1077,7 @@ ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
 
 	/* Return 0 if there's no valid MIMO values (yet) */
 	if (! (ichan->privFlags & CHANNEL_MIMO_NF_VALID)) {
-		for (i = 0; i < AH_MIMO_MAX_CHAINS; i++) {
+		for (i = 0; i < AH_MAX_CHAINS; i++) {
 			nf_ctl[i] = nf_ext[i] = 0;
 		}
 		return 0;
@@ -1090,7 +1090,7 @@ ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
 		 * stations which have a very low RSSI, below the
 		 * 'normalised' NF values in NOISE_FLOOR[].
 		 */
-		for (i = 0; i < AH_MIMO_MAX_CHAINS; i++) {
+		for (i = 0; i < AH_MAX_CHAINS; i++) {
 			nf_ctl[i] = nf_ext[i] = NOISE_FLOOR[mode] +
 			    ath_hal_getNfAdjust(ah, ichan);
 		}
@@ -1109,7 +1109,7 @@ ath_hal_get_mimo_chan_noise(struct ath_hal *ah,
 		 * don't "wrap" when RSSI is less than the "adjusted" NF value.
 		 * ("Adjust" here is via ichan->noiseFloorAdjust.)
 		 */
-		for (i = 0; i < AH_MIMO_MAX_CHAINS; i++) {
+		for (i = 0; i < AH_MAX_CHAINS; i++) {
 			nf_ctl[i] = ichan->noiseFloorCtl[i] + ath_hal_getNfAdjust(ah, ichan);
 			nf_ext[i] = ichan->noiseFloorExt[i] + ath_hal_getNfAdjust(ah, ichan);
 		}

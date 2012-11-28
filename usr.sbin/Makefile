@@ -46,7 +46,6 @@ SUBDIR=	adduser \
 	mixer \
 	mlxcontrol \
 	mountd \
-	mount_portalfs \
 	mptutil \
 	mtest \
 	mtree \
@@ -147,6 +146,7 @@ SUBDIR+=	bluetooth
 
 .if ${MK_BSDCONFIG} != "no"
 SUBDIR+=	bsdconfig
+SUBDIR+=	sysrc
 .endif
 
 .if ${MK_BSNMP} != "no"

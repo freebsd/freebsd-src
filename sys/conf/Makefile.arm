@@ -127,12 +127,10 @@ MKMODULESENV+=	MACHINE=${MACHINE}
 
 CLEAN+=	ldscript.$M ${KERNEL_KO}.bin ldscript.$M.noheader
 
-.if ${DDB_ENABLED} != ""
 CLEAN+= ${KERNEL_KO}.tramp ${KERNEL_KO}.tramp.bin ldscript.$M.tramp \
 	ldscript.$M.tramp.noheader ${KERNEL_KO}.gz.tramp \
 	${KERNEL_KO}.gz.tramp.bin
 
-.endif
 ldscript.$M: $S/conf/ldscript.$M
 	cat $S/conf/ldscript.$M|sed s/KERNPHYSADDR/${KERNPHYSADDR}/g| \
 	  sed s/KERNVIRTADDR/${KERNVIRTADDR}/g > ldscript.$M

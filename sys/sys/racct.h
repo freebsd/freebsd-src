@@ -68,7 +68,8 @@ struct ucred;
 #define	RACCT_NSHM		17
 #define	RACCT_SHMSIZE		18
 #define	RACCT_WALLCLOCK		19
-#define	RACCT_MAX		RACCT_WALLCLOCK
+#define	RACCT_PCTCPU		20
+#define	RACCT_MAX		RACCT_PCTCPU
 
 /*
  * Resource properties.
@@ -78,6 +79,7 @@ struct ucred;
 #define	RACCT_INHERITABLE	0x04
 #define	RACCT_DENIABLE		0x08
 #define	RACCT_SLOPPY		0x10
+#define	RACCT_DECAYING		0x20
 
 extern int racct_types[];
 
@@ -89,7 +91,9 @@ extern int racct_types[];
 #define	RACCT_IS_IN_MILLIONS(X)	(racct_types[X] & RACCT_IN_MILLIONS)
 
 /*
- * Resource usage can drop, as opposed to only grow.
+ * Resource usage can drop, as opposed to only grow.  When the process
+ * terminates, its resource usage is freed from the respective
+ * per-credential racct containers.
  */
 #define	RACCT_IS_RECLAIMABLE(X)	(racct_types[X] & RACCT_RECLAIMABLE)
 
@@ -111,6 +115,20 @@ extern int racct_types[];
  * freed using credentials.
  */
 #define	RACCT_IS_SLOPPY(X)		(racct_types[X] & RACCT_SLOPPY)
+
+/*
+ * When a process terminates, its resource usage is not automatically
+ * subtracted from per-credential racct containers.  Instead, the resource
+ * usage of per-credential racct containers decays in time.
+ * Resource usage can olso drop for such resource.
+ * So far, the only such resource is RACCT_PCTCPU.
+ */
+#define RACCT_IS_DECAYING(X)		(racct_types[X] & RACCT_DECAYING)
+
+/*
+ * Resource usage can drop, as opposed to only grow.
+ */
+#define RACCT_CAN_DROP(X)		(RACCT_IS_RECLAIMABLE(X) | RACCT_IS_DECAYING(X))
 
 /*
  * The 'racct' structure defines resource consumption for a particular

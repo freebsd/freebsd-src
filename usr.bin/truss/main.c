@@ -163,6 +163,7 @@ strsig(int sig)
 int
 main(int ac, char **av)
 {
+	struct timespec timediff;
 	struct sigaction sa;
 	struct ex_types *funcs;
 	struct trussinfo *trussinfo;
@@ -170,7 +171,7 @@ main(int ac, char **av)
 	char *signame;
 	char **command;
 	pid_t childpid;
-	int c, i, initial_open, status;
+	int c, initial_open, status;
 
 	fname = NULL;
 	initial_open = 1;
@@ -286,18 +287,17 @@ START_TRACE:
 	clock_gettime(CLOCK_REALTIME, &trussinfo->start_time);
 
 	do {
-		struct timespec timediff;
 		waitevent(trussinfo);
 
-		switch (i = trussinfo->pr_why) {
+		switch (trussinfo->pr_why) {
 		case S_SCE:
 			funcs->enter_syscall(trussinfo, MAXARGS);
 			clock_gettime(CLOCK_REALTIME,
-			    &trussinfo->before);
+			    &trussinfo->curthread->before);
 			break;
 		case S_SCX:
 			clock_gettime(CLOCK_REALTIME,
-			    &trussinfo->after);
+			    &trussinfo->curthread->after);
 
 			if (trussinfo->curthread->in_fork &&
 			    (trussinfo->flags & FOLLOWFORKS)) {
@@ -326,15 +326,15 @@ START_TRACE:
 				fprintf(trussinfo->outfile, "%5d: ",
 				    trussinfo->pid);
 			if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
-				timespecsubt(&trussinfo->after,
+				timespecsubt(&trussinfo->curthread->after,
 				    &trussinfo->start_time, &timediff);
 				fprintf(trussinfo->outfile, "%ld.%09ld ",
 				    (long)timediff.tv_sec,
 				    timediff.tv_nsec);
 			}
 			if (trussinfo->flags & RELATIVETIMESTAMPS) {
-				timespecsubt(&trussinfo->after,
-				    &trussinfo->before, &timediff);
+				timespecsubt(&trussinfo->curthread->after,
+				    &trussinfo->curthread->before, &timediff);
 				fprintf(trussinfo->outfile, "%ld.%09ld ",
 				    (long)timediff.tv_sec,
 				    timediff.tv_nsec);
@@ -352,15 +352,15 @@ START_TRACE:
 				fprintf(trussinfo->outfile, "%5d: ",
 				    trussinfo->pid);
 			if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
-				timespecsubt(&trussinfo->after,
+				timespecsubt(&trussinfo->curthread->after,
 				    &trussinfo->start_time, &timediff);
 				fprintf(trussinfo->outfile, "%ld.%09ld ",
 				    (long)timediff.tv_sec,
 				    timediff.tv_nsec);
 			}
 			if (trussinfo->flags & RELATIVETIMESTAMPS) {
-				timespecsubt(&trussinfo->after,
-				    &trussinfo->before, &timediff);
+				timespecsubt(&trussinfo->curthread->after,
+				    &trussinfo->curthread->before, &timediff);
 				fprintf(trussinfo->outfile, "%ld.%09ld ",
 				    (long)timediff.tv_sec, timediff.tv_nsec);
 			}

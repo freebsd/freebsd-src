@@ -217,5 +217,6 @@ MLINKS+=timer_settime.2 timer_getoverrun.2 timer_settime.2 timer_gettime.2
 MLINKS+=truncate.2 ftruncate.2
 MLINKS+=unlink.2 unlinkat.2
 MLINKS+=utimes.2 futimes.2 utimes.2 futimesat.2 utimes.2 lutimes.2
-MLINKS+=wait.2 wait3.2 wait.2 wait4.2 wait.2 waitpid.2
+MLINKS+=wait.2 wait3.2 wait.2 wait4.2 wait.2 waitpid.2 \
+	wait.2 waitid.2 wait.2 wait6.2
 MLINKS+=write.2 pwrite.2 write.2 pwritev.2 write.2 writev.2

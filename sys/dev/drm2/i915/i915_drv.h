@@ -889,7 +889,7 @@ struct drm_i915_gem_object {
 	int pending_flip;
 };
 
-#define	to_intel_bo(x) member2struct(drm_i915_gem_object, base, (x))
+#define	to_intel_bo(x) __containerof(x, struct drm_i915_gem_object, base)
 
 /**
  * Request queue structure.

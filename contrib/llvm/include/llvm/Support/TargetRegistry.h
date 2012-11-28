@@ -93,7 +93,9 @@ namespace llvm {
                                                   CodeGenOpt::Level OL);
     typedef AsmPrinter *(*AsmPrinterCtorTy)(TargetMachine &TM,
                                             MCStreamer &Streamer);
-    typedef MCAsmBackend *(*MCAsmBackendCtorTy)(const Target &T, StringRef TT);
+    typedef MCAsmBackend *(*MCAsmBackendCtorTy)(const Target &T,
+                                                StringRef TT,
+                                                StringRef CPU);
     typedef MCTargetAsmLexer *(*MCAsmLexerCtorTy)(const Target &T,
                                                   const MCRegisterInfo &MRI,
                                                   const MCAsmInfo &MAI);
@@ -353,10 +355,10 @@ namespace llvm {
     ///
     /// \arg Triple - The target triple string.
     /// \arg Backend - The target independent assembler object.
-    MCAsmBackend *createMCAsmBackend(StringRef Triple) const {
+    MCAsmBackend *createMCAsmBackend(StringRef Triple, StringRef CPU) const {
       if (!MCAsmBackendCtorFn)
         return 0;
-      return MCAsmBackendCtorFn(*this, Triple);
+      return MCAsmBackendCtorFn(*this, Triple, CPU);
     }
 
     /// createMCAsmLexer - Create a target specific assembly lexer.
@@ -1063,8 +1065,9 @@ namespace llvm {
     }
 
   private:
-    static MCAsmBackend *Allocator(const Target &T, StringRef Triple) {
-      return new MCAsmBackendImpl(T, Triple);
+    static MCAsmBackend *Allocator(const Target &T, StringRef Triple,
+                                   StringRef CPU) {
+      return new MCAsmBackendImpl(T, Triple, CPU);
     }
   };
 

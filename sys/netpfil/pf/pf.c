@@ -127,15 +127,6 @@ VNET_DEFINE(int,			 pf_tcp_secret_init);
 VNET_DEFINE(int,			 pf_tcp_iss_off);
 #define	V_pf_tcp_iss_off		 VNET(pf_tcp_iss_off)
 
-struct pf_anchor_stackframe {
-	struct pf_ruleset		*rs;
-	struct pf_rule			*r;
-	struct pf_anchor_node		*parent;
-	struct pf_anchor		*child;
-};
-VNET_DEFINE(struct pf_anchor_stackframe, pf_anchor_stack[64]);
-#define	V_pf_anchor_stack		 VNET(pf_anchor_stack)
-
 /*
  * Queue for pf_intr() sends.
  */
@@ -172,25 +163,25 @@ static struct mtx pf_sendqueue_mtx;
 #define	PF_SENDQ_UNLOCK()	mtx_unlock(&pf_sendqueue_mtx)
 
 /*
- * Queue for pf_flush_task() tasks.
+ * Queue for pf_overload_task() tasks.
  */
-struct pf_flush_entry {
-	SLIST_ENTRY(pf_flush_entry)	next;
+struct pf_overload_entry {
+	SLIST_ENTRY(pf_overload_entry)	next;
 	struct pf_addr  		addr;
 	sa_family_t			af;
 	uint8_t				dir;
-	struct pf_rule  		*rule;  /* never dereferenced */
+	struct pf_rule  		*rule;
 };
 
-SLIST_HEAD(pf_flush_head, pf_flush_entry);
-static VNET_DEFINE(struct pf_flush_head, pf_flushqueue);
-#define V_pf_flushqueue	VNET(pf_flushqueue)
-static VNET_DEFINE(struct task, pf_flushtask);
-#define	V_pf_flushtask	VNET(pf_flushtask)
+SLIST_HEAD(pf_overload_head, pf_overload_entry);
+static VNET_DEFINE(struct pf_overload_head, pf_overloadqueue);
+#define V_pf_overloadqueue	VNET(pf_overloadqueue)
+static VNET_DEFINE(struct task, pf_overloadtask);
+#define	V_pf_overloadtask	VNET(pf_overloadtask)
 
-static struct mtx pf_flushqueue_mtx;
-#define	PF_FLUSHQ_LOCK()	mtx_lock(&pf_flushqueue_mtx)
-#define	PF_FLUSHQ_UNLOCK()	mtx_unlock(&pf_flushqueue_mtx)
+static struct mtx pf_overloadqueue_mtx;
+#define	PF_OVERLOADQ_LOCK()	mtx_lock(&pf_overloadqueue_mtx)
+#define	PF_OVERLOADQ_UNLOCK()	mtx_unlock(&pf_overloadqueue_mtx)
 
 VNET_DEFINE(struct pf_rulequeue, pf_unlinked_rules);
 struct mtx pf_unlnkdrules_mtx;
@@ -288,10 +279,10 @@ static int		 pf_addr_wrap_neq(struct pf_addr_wrap *,
 static struct pf_state	*pf_find_state(struct pfi_kif *,
 			    struct pf_state_key_cmp *, u_int);
 static int		 pf_src_connlimit(struct pf_state **);
-static void		 pf_flush_task(void *c, int pending);
+static void		 pf_overload_task(void *c, int pending);
 static int		 pf_insert_src_node(struct pf_src_node **,
 			    struct pf_rule *, struct pf_addr *, sa_family_t);
-static int		 pf_purge_expired_states(int);
+static u_int		 pf_purge_expired_states(u_int, int);
 static void		 pf_purge_unlinked_rules(void);
 static int		 pf_mtag_init(void *, int, int);
 static void		 pf_mtag_free(struct m_tag *);
@@ -396,6 +387,27 @@ pf_hashkey(struct pf_state_key *sk)
 	return (h & V_pf_hashmask);
 }
 
+static __inline uint32_t
+pf_hashsrc(struct pf_addr *addr, sa_family_t af)
+{
+	uint32_t h;
+
+	switch (af) {
+	case AF_INET:
+		h = jenkins_hash32((uint32_t *)&addr->v4,
+		    sizeof(addr->v4)/sizeof(uint32_t), V_pf_hashseed);
+		break;
+	case AF_INET6:
+		h = jenkins_hash32((uint32_t *)&addr->v6,
+		    sizeof(addr->v6)/sizeof(uint32_t), V_pf_hashseed);
+		break;
+	default:
+		panic("%s: unknown address family %u", __func__, af);
+	}
+
+	return (h & V_pf_srchashmask);
+}
+
 #ifdef INET6
 void
 pf_addrcpy(struct pf_addr *dst, struct pf_addr *src, sa_family_t af)
@@ -449,8 +461,7 @@ pf_check_threshold(struct pf_threshold *threshold)
 static int
 pf_src_connlimit(struct pf_state **state)
 {
-	struct pfr_addr p;
-	struct pf_flush_entry *pffe;
+	struct pf_overload_entry *pfoe;
 	int bad = 0;
 
 	PF_STATE_LOCK_ASSERT(*state);
@@ -482,69 +493,79 @@ pf_src_connlimit(struct pf_state **state)
 	if ((*state)->rule.ptr->overload_tbl == NULL)
 		return (1);
 
-	V_pf_status.lcounters[LCNT_OVERLOAD_TABLE]++;
-	if (V_pf_status.debug >= PF_DEBUG_MISC) {
-		printf("%s: blocking address ", __func__);
-		pf_print_host(&(*state)->src_node->addr, 0,
-		    (*state)->key[PF_SK_WIRE]->af);
-		printf("\n");
-	}
-
-	bzero(&p, sizeof(p));
-	p.pfra_af = (*state)->key[PF_SK_WIRE]->af;
-	switch ((*state)->key[PF_SK_WIRE]->af) {
-#ifdef INET
-	case AF_INET:
-		p.pfra_net = 32;
-		p.pfra_ip4addr = (*state)->src_node->addr.v4;
-		break;
-#endif /* INET */
-#ifdef INET6
-	case AF_INET6:
-		p.pfra_net = 128;
-		p.pfra_ip6addr = (*state)->src_node->addr.v6;
-		break;
-#endif /* INET6 */
-	}
-
-	pfr_insert_kentry((*state)->rule.ptr->overload_tbl, &p, time_second);
-
-	if ((*state)->rule.ptr->flush == 0)
-		return (1);
-
-	/* Schedule flushing task. */
-	pffe = malloc(sizeof(*pffe), M_PFTEMP, M_NOWAIT);
-	if (pffe == NULL)
+	/* Schedule overloading and flushing task. */
+	pfoe = malloc(sizeof(*pfoe), M_PFTEMP, M_NOWAIT);
+	if (pfoe == NULL)
 		return (1);	/* too bad :( */
 
-	bcopy(&(*state)->src_node->addr, &pffe->addr, sizeof(pffe->addr));
-	pffe->af = (*state)->key[PF_SK_WIRE]->af;
-	pffe->dir = (*state)->direction;
-	if ((*state)->rule.ptr->flush & PF_FLUSH_GLOBAL)
-		pffe->rule = NULL;
-	else
-		pffe->rule = (*state)->rule.ptr;
-	PF_FLUSHQ_LOCK();
-	SLIST_INSERT_HEAD(&V_pf_flushqueue, pffe, next);
-	PF_FLUSHQ_UNLOCK();
-	taskqueue_enqueue(taskqueue_swi, &V_pf_flushtask);
+	bcopy(&(*state)->src_node->addr, &pfoe->addr, sizeof(pfoe->addr));
+	pfoe->af = (*state)->key[PF_SK_WIRE]->af;
+	pfoe->rule = (*state)->rule.ptr;
+	pfoe->dir = (*state)->direction;
+	PF_OVERLOADQ_LOCK();
+	SLIST_INSERT_HEAD(&V_pf_overloadqueue, pfoe, next);
+	PF_OVERLOADQ_UNLOCK();
+	taskqueue_enqueue(taskqueue_swi, &V_pf_overloadtask);
 
 	return (1);
 }
 
 static void
-pf_flush_task(void *c, int pending)
+pf_overload_task(void *c, int pending)
 {
-	struct pf_flush_head queue;
-	struct pf_flush_entry *pffe, *pffe1;
+	struct pf_overload_head queue;
+	struct pfr_addr p;
+	struct pf_overload_entry *pfoe, *pfoe1;
 	uint32_t killed = 0;
 
-	PF_FLUSHQ_LOCK();
-	queue = *(struct pf_flush_head *)c;
-	SLIST_INIT((struct pf_flush_head *)c);
-	PF_FLUSHQ_UNLOCK();
+	PF_OVERLOADQ_LOCK();
+	queue = *(struct pf_overload_head *)c;
+	SLIST_INIT((struct pf_overload_head *)c);
+	PF_OVERLOADQ_UNLOCK();
 
-	V_pf_status.lcounters[LCNT_OVERLOAD_FLUSH]++;
+	bzero(&p, sizeof(p));
+	SLIST_FOREACH(pfoe, &queue, next) {
+		V_pf_status.lcounters[LCNT_OVERLOAD_TABLE]++;
+		if (V_pf_status.debug >= PF_DEBUG_MISC) {
+			printf("%s: blocking address ", __func__);
+			pf_print_host(&pfoe->addr, 0, pfoe->af);
+			printf("\n");
+		}
+
+		p.pfra_af = pfoe->af;
+		switch (pfoe->af) {
+#ifdef INET
+		case AF_INET:
+			p.pfra_net = 32;
+			p.pfra_ip4addr = pfoe->addr.v4;
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
+			p.pfra_net = 128;
+			p.pfra_ip6addr = pfoe->addr.v6;
+			break;
+#endif
+		}
+
+		PF_RULES_WLOCK();
+		pfr_insert_kentry(pfoe->rule->overload_tbl, &p, time_second);
+		PF_RULES_WUNLOCK();
+	}
+
+	/*
+	 * Remove those entries, that don't need flushing.
+	 */
+	SLIST_FOREACH_SAFE(pfoe, &queue, next, pfoe1)
+		if (pfoe->rule->flush == 0) {
+			SLIST_REMOVE(&queue, pfoe, pf_overload_entry, next);
+			free(pfoe, M_PFTEMP);
+		} else
+			V_pf_status.lcounters[LCNT_OVERLOAD_FLUSH]++;
+
+	/* If nothing to flush, return. */
+	if (SLIST_EMPTY(&queue))
+		return;
 
 	for (int i = 0; i <= V_pf_hashmask; i++) {
 		struct pf_idhash *ih = &V_pf_idhash[i];
@@ -554,13 +575,14 @@ pf_flush_task(void *c, int pending)
 		PF_HASHROW_LOCK(ih);
 		LIST_FOREACH(s, &ih->states, entry) {
 		    sk = s->key[PF_SK_WIRE];
-		    SLIST_FOREACH(pffe, &queue, next)
-			if (sk->af == pffe->af && (pffe->rule == NULL ||
-			    pffe->rule == s->rule.ptr) &&
-			    ((pffe->dir == PF_OUT &&
-			    PF_AEQ(&pffe->addr, &sk->addr[1], sk->af)) ||
-			    (pffe->dir == PF_IN &&
-			    PF_AEQ(&pffe->addr, &sk->addr[0], sk->af)))) {
+		    SLIST_FOREACH(pfoe, &queue, next)
+			if (sk->af == pfoe->af &&
+			    ((pfoe->rule->flush & PF_FLUSH_GLOBAL) ||
+			    pfoe->rule == s->rule.ptr) &&
+			    ((pfoe->dir == PF_OUT &&
+			    PF_AEQ(&pfoe->addr, &sk->addr[1], sk->af)) ||
+			    (pfoe->dir == PF_IN &&
+			    PF_AEQ(&pfoe->addr, &sk->addr[0], sk->af)))) {
 				s->timeout = PFTM_PURGE;
 				s->src.state = s->dst.state = TCPS_CLOSED;
 				killed++;
@@ -568,8 +590,8 @@ pf_flush_task(void *c, int pending)
 		}
 		PF_HASHROW_UNLOCK(ih);
 	}
-	SLIST_FOREACH_SAFE(pffe, &queue, next, pffe1)
-		free(pffe, M_PFTEMP);
+	SLIST_FOREACH_SAFE(pfoe, &queue, next, pfoe1)
+		free(pfoe, M_PFTEMP);
 	if (V_pf_status.debug >= PF_DEBUG_MISC)
 		printf("%s: %u states killed", __func__, killed);
 }
@@ -661,6 +683,11 @@ pf_remove_src_node(struct pf_src_node *src)
 	PF_HASHROW_LOCK(sh);
 	LIST_REMOVE(src, entry);
 	PF_HASHROW_UNLOCK(sh);
+
+	V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
+	V_pf_status.src_nodes--;
+
+	uma_zfree(V_pf_sources_z, src);
 }
 
 /* Data storage structures initialization. */
@@ -725,12 +752,13 @@ pf_initialize()
 	    sizeof(struct pf_mtag), NULL, NULL, pf_mtag_init, NULL,
 	    UMA_ALIGN_PTR, 0);
 
-	/* Send & flush queues. */
+	/* Send & overload+flush queues. */
 	STAILQ_INIT(&V_pf_sendqueue);
-	SLIST_INIT(&V_pf_flushqueue);
-	TASK_INIT(&V_pf_flushtask, 0, pf_flush_task, &V_pf_flushqueue);
+	SLIST_INIT(&V_pf_overloadqueue);
+	TASK_INIT(&V_pf_overloadtask, 0, pf_overload_task, &V_pf_overloadqueue);
 	mtx_init(&pf_sendqueue_mtx, "pf send queue", NULL, MTX_DEF);
-	mtx_init(&pf_flushqueue_mtx, "pf flush queue", NULL, MTX_DEF);
+	mtx_init(&pf_overloadqueue_mtx, "pf overload/flush queue", NULL,
+	    MTX_DEF);
 
 	/* Unlinked, but may be referenced rules. */
 	TAILQ_INIT(&V_pf_unlinked_rules);
@@ -771,7 +799,7 @@ pf_cleanup()
 	}
 
 	mtx_destroy(&pf_sendqueue_mtx);
-	mtx_destroy(&pf_flushqueue_mtx);
+	mtx_destroy(&pf_overloadqueue_mtx);
 	mtx_destroy(&pf_unlnkdrules_mtx);
 
 	uma_zdestroy(V_pf_mtag_z);
@@ -1279,7 +1307,7 @@ pf_intr(void *v)
 void
 pf_purge_thread(void *v)
 {
-	int fullrun;
+	u_int idx = 0;
 
 	CURVNET_SET((struct vnet *)v);
 
@@ -1301,7 +1329,7 @@ pf_purge_thread(void *v)
 			/*
 			 * Now purge everything.
 			 */
-			pf_purge_expired_states(V_pf_hashmask + 1);
+			pf_purge_expired_states(0, V_pf_hashmask);
 			pf_purge_expired_fragments();
 			pf_purge_expired_src_nodes();
 
@@ -1324,11 +1352,11 @@ pf_purge_thread(void *v)
 		PF_RULES_RUNLOCK();
 
 		/* Process 1/interval fraction of the state table every run. */
-		fullrun = pf_purge_expired_states(V_pf_hashmask /
+		idx = pf_purge_expired_states(idx, V_pf_hashmask /
 			    (V_pf_default_rule.timeout[PFTM_INTERVAL] * 10));
 
 		/* Purge other expired types every PFTM_INTERVAL seconds. */
-		if (fullrun) {
+		if (idx == 0) {
 			/*
 			 * Order is important:
 			 * - states and src nodes reference rules
@@ -1505,14 +1533,11 @@ pf_free_state(struct pf_state *cur)
 /*
  * Called only from pf_purge_thread(), thus serialized.
  */
-static int
-pf_purge_expired_states(int maxcheck)
+static u_int
+pf_purge_expired_states(u_int i, int maxcheck)
 {
-	static u_int i = 0;
-
 	struct pf_idhash *ih;
 	struct pf_state *s;
-	int rv = 0;
 
 	V_pf_status.states = uma_zone_get_cur(V_pf_state_z);
 
@@ -1520,12 +1545,6 @@ pf_purge_expired_states(int maxcheck)
 	 * Go through hash and unlink states that expire now.
 	 */
 	while (maxcheck > 0) {
-
-		/* Wrap to start of hash when we hit the end. */
-		if (i > V_pf_hashmask) {
-			i = 0;
-			rv = 1;
-		}
 
 		ih = &V_pf_idhash[i];
 relock:
@@ -1546,13 +1565,19 @@ relock:
 				s->rt_kif->pfik_flags |= PFI_IFLAG_REFS;
 		}
 		PF_HASHROW_UNLOCK(ih);
-		i++;
+
+		/* Return when we hit end of hash. */
+		if (++i > V_pf_hashmask) {
+			V_pf_status.states = uma_zone_get_cur(V_pf_state_z);
+			return (0);
+		}
+
 		maxcheck--;
 	}
 
 	V_pf_status.states = uma_zone_get_cur(V_pf_state_z);
 
-	return (rv);
+	return (i);
 }
 
 static void
@@ -1560,6 +1585,19 @@ pf_purge_unlinked_rules()
 {
 	struct pf_rulequeue tmpq;
 	struct pf_rule *r, *r1;
+
+	/*
+	 * If we have overloading task pending, then we'd
+	 * better skip purging this time. There is a tiny
+	 * probability that overloading task references
+	 * an already unlinked rule.
+	 */
+	PF_OVERLOADQ_LOCK();
+	if (!SLIST_EMPTY(&V_pf_overloadqueue)) {
+		PF_OVERLOADQ_UNLOCK();
+		return;
+	}
+	PF_OVERLOADQ_UNLOCK();
 
 	/*
 	 * Do naive mark-and-sweep garbage collecting of old rules.
@@ -2214,8 +2252,8 @@ pf_send_tcp(struct mbuf *replyto, const struct pf_rule *r, sa_family_t af,
 		h->ip_v = 4;
 		h->ip_hl = sizeof(*h) >> 2;
 		h->ip_tos = IPTOS_LOWDELAY;
-		h->ip_off = V_path_mtu_discovery ? IP_DF : 0;
-		h->ip_len = len;
+		h->ip_off = htons(V_path_mtu_discovery ? IP_DF : 0);
+		h->ip_len = htons(len);
 		h->ip_ttl = ttl ? ttl : V_ip_defttl;
 		h->ip_sum = 0;
 
@@ -2278,17 +2316,8 @@ pf_send_icmp(struct mbuf *m, u_int8_t type, u_int8_t code, sa_family_t af,
 	switch (af) {
 #ifdef INET
 	case AF_INET:
-	    {
-		struct ip *ip;
-
-		/* icmp_error() expects host byte ordering */
-		ip = mtod(m0, struct ip *);
-		NTOHS(ip->ip_len);
-		NTOHS(ip->ip_off);
-
 		pfse->pfse_type = PFSE_ICMP;
 		break;
-	    }
 #endif /* INET */
 #ifdef INET6
 	case AF_INET6:
@@ -2461,37 +2490,56 @@ pf_tag_packet(struct mbuf *m, struct pf_pdesc *pd, int tag)
 	return (0);
 }
 
+#define	PF_ANCHOR_STACKSIZE	32
+struct pf_anchor_stackframe {
+	struct pf_ruleset	*rs;
+	struct pf_rule		*r;	/* XXX: + match bit */
+	struct pf_anchor	*child;
+};
+
+/*
+ * XXX: We rely on malloc(9) returning pointer aligned addresses.
+ */
+#define	PF_ANCHORSTACK_MATCH	0x00000001
+#define	PF_ANCHORSTACK_MASK	(PF_ANCHORSTACK_MATCH)
+
+#define	PF_ANCHOR_MATCH(f)	((uintptr_t)(f)->r & PF_ANCHORSTACK_MATCH)
+#define	PF_ANCHOR_RULE(f)	(struct pf_rule *)			\
+				((uintptr_t)(f)->r & ~PF_ANCHORSTACK_MASK)
+#define	PF_ANCHOR_SET_MATCH(f)	do { (f)->r = (void *) 			\
+				((uintptr_t)(f)->r | PF_ANCHORSTACK_MATCH);  \
+} while (0)
+
 void
-pf_step_into_anchor(int *depth, struct pf_ruleset **rs, int n,
-    struct pf_rule **r, struct pf_rule **a, int *match)
+pf_step_into_anchor(struct pf_anchor_stackframe *stack, int *depth,
+    struct pf_ruleset **rs, int n, struct pf_rule **r, struct pf_rule **a,
+    int *match)
 {
 	struct pf_anchor_stackframe	*f;
 
 	PF_RULES_RASSERT();
 
-	(*r)->anchor->match = 0;
 	if (match)
 		*match = 0;
-	if (*depth >= sizeof(V_pf_anchor_stack) /
-	    sizeof(V_pf_anchor_stack[0])) {
-		printf("pf_step_into_anchor: stack overflow\n");
+	if (*depth >= PF_ANCHOR_STACKSIZE) {
+		printf("%s: anchor stack overflow on %s\n",
+		    __func__, (*r)->anchor->name);
 		*r = TAILQ_NEXT(*r, entries);
 		return;
 	} else if (*depth == 0 && a != NULL)
 		*a = *r;
-	f = V_pf_anchor_stack + (*depth)++;
+	f = stack + (*depth)++;
 	f->rs = *rs;
 	f->r = *r;
 	if ((*r)->anchor_wildcard) {
-		f->parent = &(*r)->anchor->children;
-		if ((f->child = RB_MIN(pf_anchor_node, f->parent)) ==
-		    NULL) {
+		struct pf_anchor_node *parent = &(*r)->anchor->children;
+
+		if ((f->child = RB_MIN(pf_anchor_node, parent)) == NULL) {
 			*r = NULL;
 			return;
 		}
 		*rs = &f->child->ruleset;
 	} else {
-		f->parent = NULL;
 		f->child = NULL;
 		*rs = &(*r)->anchor->ruleset;
 	}
@@ -2499,10 +2547,12 @@ pf_step_into_anchor(int *depth, struct pf_ruleset **rs, int n,
 }
 
 int
-pf_step_out_of_anchor(int *depth, struct pf_ruleset **rs, int n,
-    struct pf_rule **r, struct pf_rule **a, int *match)
+pf_step_out_of_anchor(struct pf_anchor_stackframe *stack, int *depth,
+    struct pf_ruleset **rs, int n, struct pf_rule **r, struct pf_rule **a,
+    int *match)
 {
 	struct pf_anchor_stackframe	*f;
+	struct pf_rule *fr;
 	int quick = 0;
 
 	PF_RULES_RASSERT();
@@ -2510,14 +2560,26 @@ pf_step_out_of_anchor(int *depth, struct pf_ruleset **rs, int n,
 	do {
 		if (*depth <= 0)
 			break;
-		f = V_pf_anchor_stack + *depth - 1;
-		if (f->parent != NULL && f->child != NULL) {
-			if (f->child->match ||
-			    (match != NULL && *match)) {
-				f->r->anchor->match = 1;
+		f = stack + *depth - 1;
+		fr = PF_ANCHOR_RULE(f);
+		if (f->child != NULL) {
+			struct pf_anchor_node *parent;
+
+			/*
+			 * This block traverses through
+			 * a wildcard anchor.
+			 */
+			parent = &fr->anchor->children;
+			if (match != NULL && *match) {
+				/*
+				 * If any of "*" matched, then
+				 * "foo/ *" matched, mark frame
+				 * appropriately.
+				 */
+				PF_ANCHOR_SET_MATCH(f);
 				*match = 0;
 			}
-			f->child = RB_NEXT(pf_anchor_node, f->parent, f->child);
+			f->child = RB_NEXT(pf_anchor_node, parent, f->child);
 			if (f->child != NULL) {
 				*rs = &f->child->ruleset;
 				*r = TAILQ_FIRST((*rs)->rules[n].active.ptr);
@@ -2531,9 +2593,9 @@ pf_step_out_of_anchor(int *depth, struct pf_ruleset **rs, int n,
 		if (*depth == 0 && a != NULL)
 			*a = NULL;
 		*rs = f->rs;
-		if (f->r->anchor->match || (match != NULL && *match))
-			quick = f->r->quick;
-		*r = TAILQ_NEXT(f->r, entries);
+		if (PF_ANCHOR_MATCH(f) || (match != NULL && *match))
+			quick = fr->quick;
+		*r = TAILQ_NEXT(fr, entries);
 	} while (*r == NULL);
 
 	return (quick);
@@ -2887,6 +2949,7 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 	u_int16_t		 sport = 0, dport = 0;
 	u_int16_t		 bproto_sum = 0, bip_sum = 0;
 	u_int8_t		 icmptype = 0, icmpcode = 0;
+	struct pf_anchor_stackframe	anchor_stack[PF_ANCHOR_STACKSIZE];
 
 	PF_RULES_RASSERT();
 
@@ -2950,7 +3013,7 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 
 	/* check packet for BINAT/NAT/RDR */
 	if ((nr = pf_get_translation(pd, m, off, direction, kif, &nsn, &sk,
-	    &nk, saddr, daddr, sport, dport)) != NULL) {
+	    &nk, saddr, daddr, sport, dport, anchor_stack)) != NULL) {
 		KASSERT(sk != NULL, ("%s: null sk", __func__));
 		KASSERT(nk != NULL, ("%s: null nk", __func__));
 
@@ -3150,11 +3213,12 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 					break;
 				r = TAILQ_NEXT(r, entries);
 			} else
-				pf_step_into_anchor(&asd, &ruleset,
-				    PF_RULESET_FILTER, &r, &a, &match);
+				pf_step_into_anchor(anchor_stack, &asd,
+				    &ruleset, PF_RULESET_FILTER, &r, &a,
+				    &match);
 		}
-		if (r == NULL && pf_step_out_of_anchor(&asd, &ruleset,
-		    PF_RULESET_FILTER, &r, &a, &match))
+		if (r == NULL && pf_step_out_of_anchor(anchor_stack, &asd,
+		    &ruleset, PF_RULESET_FILTER, &r, &a, &match))
 			break;
 	}
 	r = *rm;
@@ -3500,18 +3564,12 @@ csfailed:
 	if (nk != NULL)
 		uma_zfree(V_pf_state_key_z, nk);
 
-	if (sn != NULL && sn->states == 0 && sn->expire == 0) {
+	if (sn != NULL && sn->states == 0 && sn->expire == 0)
 		pf_remove_src_node(sn);
-		V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
-		V_pf_status.src_nodes--;
-		uma_zfree(V_pf_sources_z, sn);
-	}
-	if (nsn != sn && nsn != NULL && nsn->states == 0 && nsn->expire == 0) {
+
+	if (nsn != sn && nsn != NULL && nsn->states == 0 && nsn->expire == 0)
 		pf_remove_src_node(nsn);
-		V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
-		V_pf_status.src_nodes--;
-		uma_zfree(V_pf_sources_z, nsn);
-	}
+
 	return (PF_DROP);
 }
 
@@ -3527,6 +3585,7 @@ pf_test_fragment(struct pf_rule **rm, int direction, struct pfi_kif *kif,
 	int			 tag = -1;
 	int			 asd = 0;
 	int			 match = 0;
+	struct pf_anchor_stackframe	anchor_stack[PF_ANCHOR_STACKSIZE];
 
 	PF_RULES_RASSERT();
 
@@ -3577,11 +3636,12 @@ pf_test_fragment(struct pf_rule **rm, int direction, struct pfi_kif *kif,
 					break;
 				r = TAILQ_NEXT(r, entries);
 			} else
-				pf_step_into_anchor(&asd, &ruleset,
-				    PF_RULESET_FILTER, &r, &a, &match);
+				pf_step_into_anchor(anchor_stack, &asd,
+				    &ruleset, PF_RULESET_FILTER, &r, &a,
+				    &match);
 		}
-		if (r == NULL && pf_step_out_of_anchor(&asd, &ruleset,
-		    PF_RULESET_FILTER, &r, &a, &match))
+		if (r == NULL && pf_step_out_of_anchor(anchor_stack, &asd,
+		    &ruleset, PF_RULESET_FILTER, &r, &a, &match))
 			break;
 	}
 	r = *rm;
@@ -5080,7 +5140,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	struct pf_addr		 naddr;
 	struct pf_src_node	*sn = NULL;
 	int			 error = 0;
-	int sw_csum;
+	uint16_t		 ip_len, ip_off;
 
 	KASSERT(m && *m && r && oifp, ("%s: invalid parameters", __func__));
 	KASSERT(dir == PF_IN || dir == PF_OUT, ("%s: invalid direction",
@@ -5175,44 +5235,41 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 	if (ifp->if_flags & IFF_LOOPBACK)
 		m0->m_flags |= M_SKIP_FIREWALL;
 
-	/* Back to host byte order. */
-	ip->ip_len = ntohs(ip->ip_len);
-	ip->ip_off = ntohs(ip->ip_off);
+	ip_len = ntohs(ip->ip_len);
+	ip_off = ntohs(ip->ip_off);
 
 	/* Copied from FreeBSD 10.0-CURRENT ip_output. */
 	m0->m_pkthdr.csum_flags |= CSUM_IP;
-	sw_csum = m0->m_pkthdr.csum_flags & ~ifp->if_hwassist;
-	if (sw_csum & CSUM_DELAY_DATA) {
+	if (m0->m_pkthdr.csum_flags & CSUM_DELAY_DATA & ~ifp->if_hwassist) {
 		in_delayed_cksum(m0);
-		sw_csum &= ~CSUM_DELAY_DATA;
+		m0->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
 #ifdef SCTP
-	if (sw_csum & CSUM_SCTP) {
+	if (m0->m_pkthdr.csum_flags & CSUM_SCTP & ~ifp->if_hwassist) {
 		sctp_delayed_cksum(m, (uint32_t)(ip->ip_hl << 2));
-		sw_csum &= ~CSUM_SCTP;
+		m0->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 	}
 #endif
-	m0->m_pkthdr.csum_flags &= ifp->if_hwassist;
 
 	/*
 	 * If small enough for interface, or the interface will take
 	 * care of the fragmentation for us, we can just send directly.
 	 */
-	if (ip->ip_len <= ifp->if_mtu ||
+	if (ip_len <= ifp->if_mtu ||
 	    (m0->m_pkthdr.csum_flags & ifp->if_hwassist & CSUM_TSO) != 0 ||
-	    ((ip->ip_off & IP_DF) == 0 && (ifp->if_hwassist & CSUM_FRAGMENT))) {
-		ip->ip_len = htons(ip->ip_len);
-		ip->ip_off = htons(ip->ip_off);
+	    ((ip_off & IP_DF) == 0 && (ifp->if_hwassist & CSUM_FRAGMENT))) {
 		ip->ip_sum = 0;
-		if (sw_csum & CSUM_DELAY_IP)
+		if (m0->m_pkthdr.csum_flags & CSUM_IP & ~ifp->if_hwassist) {
 			ip->ip_sum = in_cksum(m0, ip->ip_hl << 2);
+			m0->m_pkthdr.csum_flags &= ~CSUM_IP;
+		}
 		m0->m_flags &= ~(M_PROTOFLAGS);
 		error = (*ifp->if_output)(ifp, m0, sintosa(&dst), NULL);
 		goto done;
 	}
 
 	/* Balk when DF bit is set or the interface didn't support TSO. */
-	if ((ip->ip_off & IP_DF) || (m0->m_pkthdr.csum_flags & CSUM_TSO)) {
+	if ((ip_off & IP_DF) || (m0->m_pkthdr.csum_flags & CSUM_TSO)) {
 		error = EMSGSIZE;
 		KMOD_IPSTAT_INC(ips_cantfrag);
 		if (r->rt != PF_DUPTO) {
@@ -5223,7 +5280,7 @@ pf_route(struct mbuf **m, struct pf_rule *r, int dir, struct ifnet *oifp,
 			goto bad;
 	}
 
-	error = ip_fragment(ip, &m0, ifp->if_mtu, ifp->if_hwassist, sw_csum);
+	error = ip_fragment(ip, &m0, ifp->if_mtu, ifp->if_hwassist);
 	if (error)
 		goto bad;
 
@@ -5550,13 +5607,6 @@ pf_test(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 
 	if (m->m_flags & M_SKIP_FIREWALL)
 		return (PF_PASS);
-
-	if (m->m_pkthdr.len < (int)sizeof(struct ip)) {
-		action = PF_DROP;
-		REASON_SET(&reason, PFRES_SHORT);
-		log = 1;
-		goto done;
-	}
 
 	pd.pf_mtag = pf_find_mtag(m);
 
@@ -5922,13 +5972,6 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0, struct inpcb *inp)
 	}
 	if (kif->pfik_flags & PFI_IFLAG_SKIP)
 		return (PF_PASS);
-
-	if (m->m_pkthdr.len < (int)sizeof(*h)) {
-		action = PF_DROP;
-		REASON_SET(&reason, PFRES_SHORT);
-		log = 1;
-		goto done;
-	}
 
 	PF_RULES_RLOCK();
 

@@ -205,7 +205,7 @@ static inline struct tom_data *
 tod_td(struct toedev *tod)
 {
 
-	return (member2struct(tom_data, tod, tod));
+	return (__containerof(tod, struct tom_data, tod));
 }
 
 static inline struct adapter *

@@ -607,7 +607,7 @@ AcpiDbExecuteSetup (
     AcpiDbPrepNamestring (Info->Pathname);
 
     AcpiDbSetOutputDestination (ACPI_DB_DUPLICATE_OUTPUT);
-    AcpiOsPrintf ("Executing %s\n", Info->Pathname);
+    AcpiOsPrintf ("Evaluating %s\n", Info->Pathname);
 
     if (Info->Flags & EX_SINGLE_STEP)
     {
@@ -674,7 +674,7 @@ AcpiDbGetOutstandingAllocations (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Execute a control method.  Name is relative to the current
+ * DESCRIPTION: Execute a control method. Name is relative to the current
  *              scope.
  *
  ******************************************************************************/
@@ -701,7 +701,7 @@ AcpiDbExecutionWalk (
     ReturnObj.Pointer = NULL;
     ReturnObj.Length = ACPI_ALLOCATE_BUFFER;
 
-    AcpiNsPrintNodePathname (Node, "Execute");
+    AcpiNsPrintNodePathname (Node, "Evaluating");
 
     /* Do the actual method execution */
 
@@ -710,7 +710,7 @@ AcpiDbExecutionWalk (
 
     Status = AcpiEvaluateObject (Node, NULL, NULL, &ReturnObj);
 
-    AcpiOsPrintf ("[%4.4s] returned %s\n", AcpiUtGetNodeName (Node),
+    AcpiOsPrintf ("Evaluation of [%4.4s] returned %s\n", AcpiUtGetNodeName (Node),
             AcpiFormatException (Status));
     AcpiGbl_MethodExecuting = FALSE;
 
@@ -862,8 +862,8 @@ AcpiDbDumpPldBuffer (
     {
         AcpiOsPrintf ("Converted _PLD buffer does not compare. New:\n");
 
-        AcpiUtDumpBuffer2 (NewBuffer,
-            BufferDesc->Buffer.Length, DB_BYTE_DISPLAY);
+        AcpiUtDumpBuffer (NewBuffer,
+            BufferDesc->Buffer.Length, DB_BYTE_DISPLAY, 0);
     }
 
     /* First 32-bit dword */
@@ -924,7 +924,7 @@ AcpiDbDumpPldBuffer (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Execute a control method.  Name is relative to the current
+ * DESCRIPTION: Execute a control method. Name is relative to the current
  *              scope.
  *
  ******************************************************************************/
@@ -1009,14 +1009,14 @@ AcpiDbExecute (
 
     if (Allocations > 0)
     {
-        AcpiOsPrintf ("Outstanding: 0x%X allocations after execution\n",
-                        Allocations);
+        AcpiOsPrintf ("0x%X Outstanding allocations after evaluation of %s\n",
+                        Allocations, AcpiGbl_DbMethodInfo.Pathname);
     }
 #endif
 
     if (ACPI_FAILURE (Status))
     {
-        AcpiOsPrintf ("Execution of %s failed with status %s\n",
+        AcpiOsPrintf ("Evaluation of %s failed with status %s\n",
             AcpiGbl_DbMethodInfo.Pathname, AcpiFormatException (Status));
     }
     else
@@ -1025,7 +1025,8 @@ AcpiDbExecute (
 
         if (ReturnObj.Length)
         {
-            AcpiOsPrintf ("Execution of %s returned object %p Buflen %X\n",
+            AcpiOsPrintf (
+                "Evaluation of %s returned object %p, external buffer length %X\n",
                 AcpiGbl_DbMethodInfo.Pathname, ReturnObj.Pointer,
                 (UINT32) ReturnObj.Length);
             AcpiDbDumpExternalObject (ReturnObj.Pointer, 1);
@@ -1040,7 +1041,7 @@ AcpiDbExecute (
         }
         else
         {
-            AcpiOsPrintf ("No return object from execution of %s\n",
+            AcpiOsPrintf ("No object was returned from evaluation of %s\n",
                 AcpiGbl_DbMethodInfo.Pathname);
         }
     }
@@ -1057,7 +1058,7 @@ AcpiDbExecute (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Debugger execute thread.  Waits for a command line, then
+ * DESCRIPTION: Debugger execute thread. Waits for a command line, then
  *              simply dispatches it.
  *
  ******************************************************************************/
@@ -1111,7 +1112,7 @@ AcpiDbMethodThread (
         Status = AcpiDbExecuteMethod (&LocalInfo, &ReturnObj);
         if (ACPI_FAILURE (Status))
         {
-            AcpiOsPrintf ("%s During execution of %s at iteration %X\n",
+            AcpiOsPrintf ("%s During evaluation of %s at iteration %X\n",
                 AcpiFormatException (Status), Info->Pathname, i);
             if (Status == AE_ABORT_METHOD)
             {
@@ -1122,12 +1123,12 @@ AcpiDbMethodThread (
 #if 0
         if ((i % 100) == 0)
         {
-            AcpiOsPrintf ("%u executions, Thread 0x%x\n", i, AcpiOsGetThreadId ());
+            AcpiOsPrintf ("%u loops, Thread 0x%x\n", i, AcpiOsGetThreadId ());
         }
 
         if (ReturnObj.Length)
         {
-            AcpiOsPrintf ("Execution of %s returned object %p Buflen %X\n",
+            AcpiOsPrintf ("Evaluation of %s returned object %p Buflen %X\n",
                 Info->Pathname, ReturnObj.Pointer, (UINT32) ReturnObj.Length);
             AcpiDbDumpExternalObject (ReturnObj.Pointer, 1);
         }
@@ -1328,5 +1329,3 @@ CleanupAndExit:
 }
 
 #endif /* ACPI_DEBUGGER */
-
-

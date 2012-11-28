@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/reboot.h>
+#include <sys/rwlock.h>
 #include <sys/sysproto.h>
 
 #include <machine/xen/xen-os.h>
@@ -428,13 +429,15 @@ _xen_machphys_update(vm_paddr_t mfn, vm_paddr_t pfn, char *file, int line)
 		critical_exit();
 }
 
+extern struct rwlock pvh_global_lock;
+
 void
 _xen_queue_pt_update(vm_paddr_t ptr, vm_paddr_t val, char *file, int line)
 {
 	SET_VCPU();
 
 	if (__predict_true(gdtset))	
-		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
+		rw_assert(&pvh_global_lock, RA_WLOCKED);
 
 	KASSERT((ptr & 7) == 0, ("misaligned update"));
 	

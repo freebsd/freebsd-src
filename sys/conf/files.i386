@@ -122,7 +122,7 @@ crypto/aesni/aesencdec_i386.S	optional aesni
 crypto/aesni/aeskeys_i386.S	optional aesni
 crypto/aesni/aesni.c		optional aesni
 crypto/aesni/aesni_wrap.c	optional aesni
-crypto/des/arch/i386/des_enc.S	optional crypto | ipsec | netsmb
+crypto/des/arch/i386/des_enc.S	optional crypto | ipsec
 crypto/via/padlock.c		optional padlock
 crypto/via/padlock_cipher.c	optional padlock
 crypto/via/padlock_hash.c	optional padlock
@@ -224,7 +224,17 @@ dev/lindev/lindev.c		optional lindev
 dev/mse/mse.c			optional mse
 dev/mse/mse_isa.c		optional mse isa
 dev/nfe/if_nfe.c		optional nfe pci
+dev/nvd/nvd.c			optional nvd nvme
 dev/nve/if_nve.c		optional nve pci
+dev/nvme/nvme.c			optional nvme
+dev/nvme/nvme_ctrlr.c		optional nvme
+dev/nvme/nvme_ctrlr_cmd.c	optional nvme
+dev/nvme/nvme_ns.c		optional nvme
+dev/nvme/nvme_ns_cmd.c		optional nvme
+dev/nvme/nvme_qpair.c		optional nvme
+dev/nvme/nvme_sysctl.c		optional nvme
+dev/nvme/nvme_test.c		optional nvme
+dev/nvme/nvme_uio.c		optional nvme
 dev/nvram/nvram.c		optional nvram isa
 dev/pcf/pcf_isa.c		optional pcf
 dev/random/ivy.c		optional random rdrand_rng

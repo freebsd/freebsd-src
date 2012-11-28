@@ -469,6 +469,11 @@ AcpiDmCheckResourceReference (
     /* Get the Index term, must be an integer constant to convert */
 
     IndexOp = BufferNameOp->Common.Next;
+
+    /* Major cheat: The Node field is also used for the Tag ptr. Clear it now */
+
+    IndexOp->Common.Node = NULL;
+
     OpInfo = AcpiPsGetOpcodeInfo (IndexOp->Common.AmlOpcode);
     if (OpInfo->ObjectType != ACPI_TYPE_INTEGER)
     {
@@ -620,7 +625,7 @@ AcpiGetTagPathname (
     Aml = ACPI_CAST_PTR (AML_RESOURCE,
             &Op->Named.Data[ResourceNode->Value]);
 
-    Status = AcpiUtValidateResource (Aml, &ResourceTableIndex);
+    Status = AcpiUtValidateResource (NULL, Aml, &ResourceTableIndex);
     if (ACPI_FAILURE (Status))
     {
         return (NULL);
@@ -933,7 +938,7 @@ AcpiDmFindResources (
                  * resource descriptors to the namespace, as children of the
                  * buffer node.
                  */
-                if (ACPI_SUCCESS (AcpiDmIsResourceTemplate (Op)))
+                if (ACPI_SUCCESS (AcpiDmIsResourceTemplate (NULL, Op)))
                 {
                     Op->Common.DisasmOpcode = ACPI_DASM_RESOURCE;
                     AcpiDmAddResourcesToNamespace (Parent->Common.Node, Op);
@@ -986,7 +991,7 @@ AcpiDmAddResourcesToNamespace (
      * Insert each resource into the namespace
      * NextOp contains the Aml pointer and the Aml length
      */
-    AcpiUtWalkAmlResources ((UINT8 *) NextOp->Named.Data,
+    AcpiUtWalkAmlResources (NULL, (UINT8 *) NextOp->Named.Data,
         (ACPI_SIZE) NextOp->Common.Value.Integer,
         AcpiDmAddResourceToNamespace, BufferNode);
 }
@@ -1045,4 +1050,3 @@ AcpiDmAddResourceToNamespace (
     Node->Length = Length;
     return (AE_OK);
 }
-

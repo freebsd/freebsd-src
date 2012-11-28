@@ -2140,7 +2140,7 @@ bxe_attach(device_t dev)
 	ifp->if_capabilities = BXE_IF_CAPABILITIES;
 	/* TPA not enabled by default. */
 	ifp->if_capenable = BXE_IF_CAPABILITIES & ~IFCAP_LRO;
-	ifp->if_baudrate = IF_Gbps(10UL);
+	if_initbaudrate(ifp, IF_Gbps(10));
 
 	ifp->if_snd.ifq_drv_maxlen = sc->tx_ring_size;
 
@@ -9557,6 +9557,11 @@ bxe_tx_mq_start_locked(struct ifnet *ifp,
 		/* The transmit frame was enqueued successfully. */
 		tx_count++;
 
+		/* Update stats */
+		ifp->if_obytes += next->m_pkthdr.len;
+		if (next->m_flags & M_MCAST)
+			ifp->if_omcasts++;
+
 		/* Send a copy of the frame to any BPF listeners. */
 		BPF_MTAP(ifp, next);
 
@@ -16276,7 +16281,7 @@ void bxe_dump_mbuf(struct bxe_softc *sc, struct mbuf *m)
 			    "\15M_FIRSTFRAG\16M_LASTFRAG\21M_VLANTAG"
 			    "\22M_PROMISC\23M_NOFREE",
 			    m->m_pkthdr.csum_flags,
-			    "\20\1CSUM_IP\2CSUM_TCP\3CSUM_UDP\4CSUM_IP_FRAGS"
+			    "\20\1CSUM_IP\2CSUM_TCP\3CSUM_UDP"
 			    "\5CSUM_FRAGMENT\6CSUM_TSO\11CSUM_IP_CHECKED"
 			    "\12CSUM_IP_VALID\13CSUM_DATA_VALID"
 			    "\14CSUM_PSEUDO_HDR");

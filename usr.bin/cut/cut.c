@@ -58,6 +58,7 @@ static int	dflag;
 static int	fflag;
 static int	nflag;
 static int	sflag;
+static int	wflag;
 
 static size_t	autostart, autostop, maxval;
 static char *	positions;
@@ -67,6 +68,7 @@ static int	b_n_cut(FILE *, const char *);
 static int	c_cut(FILE *, const char *);
 static int	f_cut(FILE *, const char *);
 static void	get_list(char *);
+static int	is_delim(wchar_t);
 static void	needpos(size_t);
 static void	usage(void);
 
@@ -84,7 +86,7 @@ main(int argc, char *argv[])
 	dchar = '\t';			/* default delimiter is \t */
 	strcpy(dcharmb, "\t");
 
-	while ((ch = getopt(argc, argv, "b:c:d:f:sn")) != -1)
+	while ((ch = getopt(argc, argv, "b:c:d:f:snw")) != -1)
 		switch(ch) {
 		case 'b':
 			get_list(optarg);
@@ -111,6 +113,9 @@ main(int argc, char *argv[])
 		case 'n':
 			nflag = 1;
 			break;
+		case 'w':
+			wflag = 1;
+			break;
 		case '?':
 		default:
 			usage();
@@ -119,9 +124,9 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	if (fflag) {
-		if (bflag || cflag || nflag)
+		if (bflag || cflag || nflag || (wflag && dflag))
 			usage();
-	} else if (!(bflag || cflag) || dflag || sflag)
+	} else if (!(bflag || cflag) || dflag || sflag || wflag)
 		usage();
 	else if (!bflag && nflag)
 		usage();
@@ -359,18 +364,30 @@ out:
 }
 
 static int
+is_delim(wchar_t ch)
+{
+	if (wflag) {
+		if (ch == ' ' || ch == '\t')
+			return 1;
+	} else {
+		if (ch == dchar)
+			return 1;
+	}
+	return 0;
+}
+
+static int
 f_cut(FILE *fp, const char *fname)
 {
 	wchar_t ch;
 	int field, i, isdelim;
 	char *pos, *p;
-	wchar_t sep;
 	int output;
 	char *lbuf, *mlbuf;
 	size_t clen, lbuflen, reallen;
 
 	mlbuf = NULL;
-	for (sep = dchar; (lbuf = fgetln(fp, &lbuflen)) != NULL;) {
+	while ((lbuf = fgetln(fp, &lbuflen)) != NULL) {
 		reallen = lbuflen;
 		/* Assert EOL has a newline. */
 		if (*(lbuf + lbuflen - 1) != '\n') {
@@ -394,7 +411,7 @@ f_cut(FILE *fp, const char *fname)
 			if (clen == 0)
 				clen = 1;
 			/* this should work if newline is delimiter */
-			if (ch == sep)
+			if (is_delim(ch))
 				isdelim = 1;
 			if (ch == '\n') {
 				if (!isdelim && !sflag)
@@ -421,8 +438,13 @@ f_cut(FILE *fp, const char *fname)
 				if (clen == 0)
 					clen = 1;
 				p += clen;
-				if (ch == '\n' || ch == sep)
+				if (ch == '\n' || is_delim(ch)) {
+					/* compress whitespace */
+					if (wflag && ch != '\n')
+						while (is_delim(*p))
+							p++;
 					break;
+				}
 				if (*pos)
 					for (i = 0; i < (int)clen; i++)
 						putchar(p[i - clen]);
@@ -452,6 +474,6 @@ usage(void)
 	(void)fprintf(stderr, "%s\n%s\n%s\n",
 		"usage: cut -b list [-n] [file ...]",
 		"       cut -c list [file ...]",
-		"       cut -f list [-s] [-d delim] [file ...]");
+		"       cut -f list [-s] [-w | -d delim] [file ...]");
 	exit(1);
 }

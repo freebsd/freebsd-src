@@ -126,26 +126,15 @@ device		ath		# Atheros NICs
 device		ath_pci		# Atheros pci/cardbus glue
 options 	ATH_DEBUG
 options 	ATH_DIAGAPI
+options 	ATH_ENABLE_DFS
+options 	ATH_ENABLE_11N
 #options 	ATH_TX99_DIAG
 device		ath_rate_sample	# SampleRate tx rate control for ath
 
-#options 	AH_DEBUG
-#options 	AH_ASSERT
+options 	AH_DEBUG
 options 	AH_PRIVATE_DIAG
-#device		ath_ar5210
-#device		ath_ar5211
-#
-device		ath_ar5212
-#device		ath_rf2413
-#device		ath_rf2425		# NB:supports 2417 too
-#device		ath_rf5111
-device		ath_rf5112
-device		ath_rf5413
-#
-#device		ath_ar5416
 options 	AH_SUPPORT_AR5416	# NB: for 11n descriptor format
-#device		ath_ar9160
-#device		ath_ar9280
+device		ath_hal
 
 # NB: 2 USB 2.0 ports standard
 device		usb

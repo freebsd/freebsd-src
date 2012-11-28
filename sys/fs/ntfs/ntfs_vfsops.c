@@ -639,9 +639,9 @@ ntfs_vgetex(
 	struct vnode *vp;
 	enum vtype f_type;
 
-	dprintf(("ntfs_vgetex: ino: %d, attr: 0x%x:%s, lkf: 0x%lx, f: 0x%lx\n",
-		ino, attrtype, attrname?attrname:"", (u_long)lkflags,
-		(u_long)flags));
+	dprintf(("ntfs_vgetex: ino: %ju, attr: 0x%x:%s, lkf: 0x%lx, f: 0x%lx\n",
+	    (uintmax_t)ino, attrtype, attrname ? attrname : "", lkflags,
+	    (u_long)flags));
 
 	ntmp = VFSTONTFS(mp);
 	*vpp = NULL;
@@ -657,8 +657,8 @@ ntfs_vgetex(
 	if (!(flags & VG_DONTLOADIN) && !(ip->i_flag & IN_LOADED)) {
 		error = ntfs_loadntnode(ntmp, ip);
 		if(error) {
-			printf("ntfs_vget: CAN'T LOAD ATTRIBUTES FOR INO: %d\n",
-			       ip->i_number);
+			printf("ntfs_vget: CAN'T LOAD ATTRIBUTES FOR INO: %ju\n",
+			    (uintmax_t)ip->i_number);
 			ntfs_ntput(ip);
 			return (error);
 		}
@@ -713,7 +713,7 @@ ntfs_vgetex(
 		ntfs_ntput(ip);
 		return (error);
 	}
-	dprintf(("ntfs_vget: vnode: %p for ntnode: %d\n", vp,ino));
+	dprintf(("ntfs_vget: vnode: %p for ntnode: %ju\n", vp, (uintmax_t)ino));
 
 	fp->f_vp = vp;
 	vp->v_data = fp;

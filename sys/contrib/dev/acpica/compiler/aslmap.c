@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslmap - parser to AML opcode mapping table
@@ -100,7 +99,7 @@ AslMapNamedOpcodeToDataType (
  *
  * DATA STRUCTURE:  AslKeywordMapping
  *
- * DESCRIPTION:     Maps the ParseOpcode to the actual AML opcode.  The parse
+ * DESCRIPTION:     Maps the ParseOpcode to the actual AML opcode. The parse
  *                  opcodes are generated from Bison, and this table must
  *                  track any additions to them.
  *
@@ -451,5 +450,3 @@ const ASL_MAPPING_ENTRY     AslKeywordMapping [] =
 /*! [End] no source code translation !*/
 
 };
-
-

@@ -922,7 +922,9 @@ em_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
                         break;
 		}
 		enq++;
-		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
+		ifp->if_obytes += next->m_pkthdr.len;
+		if (next->m_flags & M_MCAST)
+			ifp->if_omcasts++;
 		ETHER_BPF_MTAP(ifp, next);
 		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
                         break;
@@ -4436,7 +4438,7 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 
 		if ((cur->errors & E1000_RXD_ERR_FRAME_ERR_MASK) ||
 		    (rxr->discard == TRUE)) {
-			ifp->if_ierrors++;
+			adapter->dropped_pkts++;
 			++rxr->rx_discarded;
 			if (!eop) /* Catch subsequent segs */
 				rxr->discard = TRUE;
@@ -5113,13 +5115,13 @@ em_disable_aspm(struct adapter *adapter)
 	}
 	if (pci_find_cap(dev, PCIY_EXPRESS, &base) != 0)
 		return;
-	reg = base + PCIR_EXPRESS_LINK_CAP;
+	reg = base + PCIER_LINK_CAP;
 	link_cap = pci_read_config(dev, reg, 2);
-	if ((link_cap & PCIM_LINK_CAP_ASPM) == 0)
+	if ((link_cap & PCIEM_LINK_CAP_ASPM) == 0)
 		return;
-	reg = base + PCIR_EXPRESS_LINK_CTL;
+	reg = base + PCIER_LINK_CTL;
 	link_ctrl = pci_read_config(dev, reg, 2);
-	link_ctrl &= 0xFFFC; /* turn off bit 1 and 2 */
+	link_ctrl &= ~PCIEM_LINK_CTL_ASPMC;
 	pci_write_config(dev, reg, link_ctrl, 2);
 	return;
 }

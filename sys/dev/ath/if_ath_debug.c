@@ -143,17 +143,18 @@ ath_printtxbuf_edma(struct ath_softc *sc, const struct ath_buf *first_bf,
 	const struct ath_desc_txedma *eds;
 	int i, n;
 
-	/*
-	 * Assume the TX map size is 4 for now and only walk
-	 * the appropriate number of segments.
-	 */
-	n = (bf->bf_nseg / 4) + 1;
-
 	printf("Q%u[%3u] (nseg=%d)", qnum, ix, bf->bf_nseg);
 	while (bf != NULL) {
 		/*
 		 * XXX For now, assume the txmap size is 4.
 		 */
+
+		/*
+		 * Assume the TX map size is 4 for now and only walk
+		 * the appropriate number of segments.
+		 */
+		n = ((bf->bf_nseg - 1) / 4) + 1;
+
 		for (i = 0, ds = (const char *) bf->bf_desc;
 		    i < n;
 		    i ++, ds += sc->sc_tx_desclen) {
@@ -198,7 +199,7 @@ static void
 ath_printtxbuf_legacy(struct ath_softc *sc, const struct ath_buf *first_bf,
 	u_int qnum, u_int ix, int done)
 {
-	const struct ath_tx_status *ts = &first_bf->bf_last->bf_status.ds_txstat;
+	const struct ath_tx_status *ts = &first_bf->bf_status.ds_txstat;
 	const struct ath_buf *bf = first_bf;
 	struct ath_hal *ah = sc->sc_ah;
 	const struct ath_desc *ds;
@@ -206,16 +207,17 @@ ath_printtxbuf_legacy(struct ath_softc *sc, const struct ath_buf *first_bf,
 
 	printf("Q%u[%3u]", qnum, ix);
 	while (bf != NULL) {
+		printf("    (bf=%p, lastds=%p)\n", bf, first_bf->bf_lastds);
+		printf("        Seq: %d swtry: %d ADDBAW?: %d DOBAW?: %d\n",
+		    bf->bf_state.bfs_seqno,
+		    bf->bf_state.bfs_retries,
+		    bf->bf_state.bfs_addedbaw,
+		    bf->bf_state.bfs_dobaw);
 		for (i = 0, ds = bf->bf_desc; i < bf->bf_nseg; i++, ds++) {
 			printf(" (DS.V:%p DS.P:%p) L:%08x D:%08x F:%04x%s\n",
 			    ds, (const struct ath_desc *)bf->bf_daddr + i,
 			    ds->ds_link, ds->ds_data, bf->bf_state.bfs_txflags,
 			    !done ? "" : (ts->ts_status == 0) ? " *" : " !");
-			printf("        Seq: %d swtry: %d ADDBAW?: %d DOBAW?: %d\n",
-			    bf->bf_state.bfs_seqno,
-			    bf->bf_state.bfs_retries,
-			    bf->bf_state.bfs_addedbaw,
-			    bf->bf_state.bfs_dobaw);
 			printf("        %08x %08x %08x %08x %08x %08x\n",
 			    ds->ds_ctl0, ds->ds_ctl1,
 			    ds->ds_hw[0], ds->ds_hw[1],
@@ -244,6 +246,18 @@ ath_printtxbuf(struct ath_softc *sc, const struct ath_buf *first_bf,
 		ath_printtxbuf_edma(sc, first_bf, qnum, ix, done);
 	else
 		ath_printtxbuf_legacy(sc, first_bf, qnum, ix, done);
+}
+
+void
+ath_printtxstatbuf(struct ath_softc *sc, const struct ath_buf *first_bf,
+	const uint32_t *ds, u_int qnum, u_int ix, int done)
+{
+
+	printf("Q%u[%3u] ", qnum, ix);
+	printf("        %08x %08x %08x %08x %08x %08x\n",
+	    ds[0], ds[1], ds[2], ds[3], ds[4], ds[5]);
+	printf("        %08x %08x %08x %08x %08x\n",
+	    ds[6], ds[7], ds[8], ds[9], ds[10]);
 }
 
 #endif	/* ATH_DEBUG */

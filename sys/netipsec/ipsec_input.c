@@ -328,7 +328,10 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 	}
 
 	if (skip != 0) {
-		/* Fix IPv4 header */
+		/*
+		 * Fix IPv4 header
+		 * XXXGL: do we need this entire block?
+		 */
 		if (m->m_len < skip && (m = m_pullup(m, skip)) == NULL) {
 			DPRINTF(("%s: processing failed for SA %s/%08lx\n",
 			    __func__, ipsec_address(&sav->sah->saidx.dst),
@@ -341,7 +344,6 @@ ipsec4_common_input_cb(struct mbuf *m, struct secasvar *sav,
 
 		ip = mtod(m, struct ip *);
 		ip->ip_len = htons(m->m_pkthdr.len);
-		ip->ip_off = htons(ip->ip_off);
 		ip->ip_sum = 0;
 		ip->ip_sum = in_cksum(m, ip->ip_hl << 2);
 	} else {

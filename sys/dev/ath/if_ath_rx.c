@@ -115,6 +115,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
 
+#ifdef	ATH_DEBUG_ALQ
+#include <dev/ath/if_ath_alq.h>
+#endif
+
 /*
  * Calculate the receive filter according to the
  * operating mode and state:
@@ -797,6 +801,8 @@ rx_next:
 	return (is_good);
 }
 
+#define	ATH_RX_MAX		128
+
 static void
 ath_rx_proc(struct ath_softc *sc, int resched)
 {
@@ -832,6 +838,15 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 	sc->sc_stats.ast_rx_noise = nf;
 	tsf = ath_hal_gettsf64(ah);
 	do {
+		/*
+		 * Don't process too many packets at a time; give the
+		 * TX thread time to also run - otherwise the TX
+		 * latency can jump by quite a bit, causing throughput
+		 * degredation.
+		 */
+		if (npkts >= ATH_RX_MAX)
+			break;
+
 		bf = TAILQ_FIRST(&sc->sc_rxbuf);
 		if (sc->sc_rxslink && bf == NULL) {	/* NB: shouldn't happen */
 			if_printf(ifp, "%s: no buffer!\n", __func__);
@@ -880,6 +895,13 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		if (sc->sc_debug & ATH_DEBUG_RECV_DESC)
 			ath_printrxbuf(sc, bf, 0, status == HAL_OK);
 #endif
+
+#ifdef	ATH_DEBUG_ALQ
+		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_RXSTATUS))
+		    if_ath_alq_post(&sc->sc_alq, ATH_ALQ_EDMA_RXSTATUS,
+		    sc->sc_rx_statuslen, (char *) ds);
+#endif	/* ATH_DEBUG_ALQ */
+
 		if (status == HAL_EINPROGRESS)
 			break;
 
@@ -900,7 +922,7 @@ rx_proc_next:
 	if (ngood)
 		sc->sc_lastrx = tsf;
 
-	CTR2(ATH_KTR_INTR, "ath_rx_proc: npkts=%d, ngood=%d", npkts, ngood);
+	ATH_KTR(sc, ATH_KTR_RXPROC, 2, "ath_rx_proc: npkts=%d, ngood=%d", npkts, ngood);
 	/* Queue DFS tasklet if needed */
 	if (resched && ath_dfs_tasklet_needed(sc, sc->sc_curchan))
 		taskqueue_enqueue(sc->sc_tq, &sc->sc_dfstask);
@@ -912,7 +934,7 @@ rx_proc_next:
 	 */
 	ATH_PCU_LOCK(sc);
 	if (resched && sc->sc_kickpcu) {
-		CTR0(ATH_KTR_ERR, "ath_rx_proc: kickpcu");
+		ATH_KTR(sc, ATH_KTR_ERROR, 0, "ath_rx_proc: kickpcu");
 		device_printf(sc->sc_dev, "%s: kickpcu; handled %d packets\n",
 		    __func__, npkts);
 
@@ -942,10 +964,21 @@ rx_proc_next:
 	}
 #undef PA2DESC
 
+	/*
+	 * If we hit the maximum number of frames in this round,
+	 * reschedule for another immediate pass.  This gives
+	 * the TX and TX completion routines time to run, which
+	 * will reduce latency.
+	 */
+	if (npkts >= ATH_RX_MAX)
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+
 	ATH_PCU_LOCK(sc);
 	sc->sc_rxproc_cnt--;
 	ATH_PCU_UNLOCK(sc);
 }
+
+#undef	ATH_RX_MAX
 
 /*
  * Only run the RX proc if it's not already running.
@@ -957,7 +990,7 @@ ath_legacy_rx_tasklet(void *arg, int npending)
 {
 	struct ath_softc *sc = arg;
 
-	CTR1(ATH_KTR_INTR, "ath_rx_proc: pending=%d", npending);
+	ATH_KTR(sc, ATH_KTR_RXPROC, 1, "ath_rx_proc: pending=%d", npending);
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
 	ATH_PCU_LOCK(sc);
 	if (sc->sc_inreset_cnt > 0) {
@@ -1094,7 +1127,11 @@ ath_recv_setup_legacy(struct ath_softc *sc)
 {
 
 	/* Sensible legacy defaults */
-	sc->sc_rx_statuslen = 0;
+	/*
+	 * XXX this should be changed to properly support the
+	 * exact RX descriptor size for each HAL.
+	 */
+	sc->sc_rx_statuslen = sizeof(struct ath_desc);
 
 	sc->sc_rx.recv_start = ath_legacy_startrecv;
 	sc->sc_rx.recv_stop = ath_legacy_stoprecv;

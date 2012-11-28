@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/route.h>
 #include <net/pf_mtag.h>
+#include <net/pfil.h>
 #include <net/vnet.h>
 
 #include <netinet/in.h>
@@ -632,8 +633,6 @@ send_reject(struct ip_fw_args *args, int code, int iplen, struct ip *ip)
 		m_adj(m, args->L3offset);
 #endif
 	if (code != ICMP_REJECT_RST) { /* Send an ICMP unreach */
-		/* We need the IP header in host order for icmp_error(). */
-		SET_HOST_IPLEN(ip);
 		icmp_error(args->m, ICMP_UNREACH, code, 0L, 0);
 	} else if (args->f_id.proto == IPPROTO_TCP) {
 		struct tcphdr *const tcp =
@@ -2442,11 +2441,6 @@ do {								\
 				/* if not fragmented, go to next rule */
 				if ((ip_off & (IP_MF | IP_OFFMASK)) == 0)
 				    break;
-				/* 
-				 * ip_reass() expects len & off in host
-				 * byte order.
-				 */
-				SET_HOST_IPLEN(ip);
 
 				args->m = m = ip_reass(m);
 
@@ -2460,7 +2454,6 @@ do {								\
 
 				    ip = mtod(m, struct ip *);
 				    hlen = ip->ip_hl << 2;
-				    SET_NET_IPLEN(ip);
 				    ip->ip_sum = 0;
 				    if (hlen == sizeof(struct ip))
 					ip->ip_sum = in_cksum_hdr(ip);
@@ -2597,12 +2590,6 @@ ipfw_init(void)
 		"(+ipv6) "
 #endif
 		"initialized, divert %s, nat %s, "
-		"rule-based forwarding "
-#ifdef IPFIREWALL_FORWARD
-		"enabled, "
-#else
-		"disabled, "
-#endif
 		"default to %s, logging ",
 #ifdef IPDIVERT
 		"enabled",

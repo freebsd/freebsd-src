@@ -347,6 +347,13 @@ AcpiDbDisassembleMethod (
         return (AE_BAD_PARAMETER);
     }
 
+    if (Method->Type != ACPI_TYPE_METHOD)
+    {
+        ACPI_ERROR ((AE_INFO, "%s (%s): Object must be a control method",
+            Name, AcpiUtGetTypeName (Method->Type)));
+        return (AE_BAD_PARAMETER);
+    }
+
     ObjDesc = Method->Object;
 
     Op = AcpiPsCreateScopeOp ();
@@ -364,23 +371,48 @@ AcpiDbDisassembleMethod (
     }
 
     Status = AcpiDsInitAmlWalk (WalkState, Op, NULL,
-                    ObjDesc->Method.AmlStart,
-                    ObjDesc->Method.AmlLength, NULL, ACPI_IMODE_LOAD_PASS1);
+        ObjDesc->Method.AmlStart,
+        ObjDesc->Method.AmlLength, NULL, ACPI_IMODE_LOAD_PASS1);
     if (ACPI_FAILURE (Status))
     {
         return (Status);
     }
 
-    /* Parse the AML */
+    Status = AcpiUtAllocateOwnerId (&ObjDesc->Method.OwnerId);
+    WalkState->OwnerId = ObjDesc->Method.OwnerId;
+
+    /* Push start scope on scope stack and make it current */
+
+    Status = AcpiDsScopeStackPush (Method,
+        Method->Type, WalkState);
+    if (ACPI_FAILURE (Status))
+    {
+        return (Status);
+    }
+
+    /* Parse the entire method AML including deferred operators */
 
     WalkState->ParseFlags &= ~ACPI_PARSE_DELETE_TREE;
     WalkState->ParseFlags |= ACPI_PARSE_DISASSEMBLE;
-    Status = AcpiPsParseAml (WalkState);
 
+    Status = AcpiPsParseAml (WalkState);
+    AcpiDmParseDeferredOps (Op);
+
+    /* Now we can disassemble the method */
+
+    AcpiGbl_DbOpt_verbose = FALSE;
 #ifdef ACPI_DISASSEMBLER
     AcpiDmDisassemble (NULL, Op, 0);
 #endif
+    AcpiGbl_DbOpt_verbose = TRUE;
+
     AcpiPsDeleteParseTree (Op);
+
+    /* Method cleanup */
+
+    AcpiNsDeleteNamespaceSubtree (Method);
+    AcpiNsDeleteNamespaceByOwner (ObjDesc->Method.OwnerId);
+    AcpiUtReleaseOwnerId (&ObjDesc->Method.OwnerId);
     return (AE_OK);
 }
 
@@ -406,7 +438,7 @@ AcpiDbWalkForExecute (
     void                    **ReturnValue)
 {
     ACPI_NAMESPACE_NODE     *Node = (ACPI_NAMESPACE_NODE *) ObjHandle;
-    ACPI_EXECUTE_WALK       *Info = (ACPI_EXECUTE_WALK *) Context;
+    ACPI_DB_EXECUTE_WALK    *Info = (ACPI_DB_EXECUTE_WALK *) Context;
     ACPI_BUFFER             ReturnObj;
     ACPI_STATUS             Status;
     char                    *Pathname;
@@ -506,7 +538,7 @@ void
 AcpiDbBatchExecute (
     char                    *CountArg)
 {
-    ACPI_EXECUTE_WALK       Info;
+    ACPI_DB_EXECUTE_WALK    Info;
 
 
     Info.Count = 0;
@@ -523,7 +555,7 @@ AcpiDbBatchExecute (
     (void) AcpiWalkNamespace (ACPI_TYPE_ANY, ACPI_ROOT_OBJECT, ACPI_UINT32_MAX,
                 AcpiDbWalkForExecute, NULL, (void *) &Info, NULL);
 
-    AcpiOsPrintf ("Executed %u predefined names in the namespace\n", Info.Count);
+    AcpiOsPrintf ("Evaluated %u predefined names in the namespace\n", Info.Count);
 }
 
 #endif /* ACPI_DEBUGGER */

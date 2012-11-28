@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslfiles - file I/O suppoert
@@ -71,7 +70,7 @@ FlParseInputPathname (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Dump the error log and abort the compiler.  Used for serious
+ * DESCRIPTION: Dump the error log and abort the compiler. Used for serious
  *              I/O errors
  *
  ******************************************************************************/
@@ -144,15 +143,14 @@ FlOpenFile (
 
 
     File = fopen (Filename, Mode);
-
-    Gbl_Files[FileId].Filename = Filename;
-    Gbl_Files[FileId].Handle   = File;
-
     if (!File)
     {
         FlFileError (FileId, ASL_MSG_OPEN);
         AslAbort ();
     }
+
+    Gbl_Files[FileId].Filename = Filename;
+    Gbl_Files[FileId].Handle   = File;
 }
 
 
@@ -198,7 +196,7 @@ FlGetFileSize (
  *              Buffer              - Where to place the data
  *              Length              - Amount to read
  *
- * RETURN:      Status.  AE_ERROR indicates EOF.
+ * RETURN:      Status. AE_ERROR indicates EOF.
  *
  * DESCRIPTION: Read data from an open file.
  *              NOTE: Aborts compiler on any error.
@@ -217,7 +215,7 @@ FlReadFile (
     /* Read and check for error */
 
     Actual = fread (Buffer, 1, Length, Gbl_Files[FileId].Handle);
-    if (Actual != Length)
+    if (Actual < Length)
     {
         if (feof (Gbl_Files[FileId].Handle))
         {
@@ -346,7 +344,7 @@ FlSeekFile (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Close an open file.  Aborts compiler on error
+ * DESCRIPTION: Close an open file. Aborts compiler on error
  *
  ******************************************************************************/
 
@@ -370,6 +368,42 @@ FlCloseFile (
     }
 
     Gbl_Files[FileId].Handle = NULL;
+    return;
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    FlDeleteFile
+ *
+ * PARAMETERS:  FileId              - Index into file info array
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Delete a file.
+ *
+ ******************************************************************************/
+
+void
+FlDeleteFile (
+    UINT32                  FileId)
+{
+    ASL_FILE_INFO           *Info = &Gbl_Files[FileId];
+
+
+    if (!Info->Filename)
+    {
+        return;
+    }
+
+    if (remove (Info->Filename))
+    {
+        printf ("%s (%s file) ",
+            Info->Filename, Info->Description);
+        perror ("Could not delete");
+    }
+
+    Info->Filename = NULL;
     return;
 }
 
@@ -624,16 +658,17 @@ FlOpenIncludeWithPrefix (
     /* Attempt to open the file, push if successful */
 
     IncludeFile = fopen (Pathname, "r");
-    if (IncludeFile)
+    if (!IncludeFile)
     {
-        /* Push the include file on the open input file stack */
-
-        AslPushInputFileStack (IncludeFile, Pathname);
-        return (IncludeFile);
+        fprintf (stderr, "Could not open include file %s\n", Pathname);
+        ACPI_FREE (Pathname);
+        return (NULL);
     }
 
-    ACPI_FREE (Pathname);
-    return (NULL);
+    /* Push the include file on the open input file stack */
+
+    AslPushInputFileStack (IncludeFile, Pathname);
+    return (IncludeFile);
 }
 
 
@@ -769,7 +804,7 @@ FlOpenInputFile (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Create the output filename (*.AML) and open the file.  The file
+ * DESCRIPTION: Create the output filename (*.AML) and open the file. The file
  *              is created in the same directory as the parent input file.
  *
  ******************************************************************************/
@@ -917,7 +952,7 @@ FlOpenMiscOutputFiles (
         return (AE_OK);
     }
 
-   /* Create/Open a combined source output file */
+    /* Create/Open a combined source output file */
 
     Filename = FlGenerateFilename (FilenamePrefix, FILE_SUFFIX_SOURCE);
     if (!Filename)
@@ -1110,5 +1145,3 @@ FlParseInputPathname (
     return (AE_OK);
 }
 #endif
-
-

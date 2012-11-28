@@ -58,6 +58,7 @@ main(int argc, char **argv)
 {
     int ch, cmp = 0;
 
+    warnpkgng();
     if (argc == 4 && !strcmp(argv[1], "-t")) {
 	cmp = version_cmp(argv[2], argv[3]);
 	printf(cmp > 0 ? ">\n" : (cmp < 0 ? "<\n" : "=\n"));

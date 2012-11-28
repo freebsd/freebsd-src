@@ -50,21 +50,21 @@ __FBSDID("$FreeBSD$");
 #define	SEQPACKET_SNDBUF	(131072-16)
 
 #define	FAILERR(str)		err(-1, "%s: %s", __func__, str)
-#define	FAILNERR(str, n)	err(-1, "%s %d: %s", __func__, n, str)
-#define	FAILNMERR(str, n, m)	err(-1, "%s %d %d: %s", __func__, n, m, str)
+#define	FAILNERR(str, n)	err(-1, "%s %zd: %s", __func__, n, str)
+#define	FAILNMERR(str, n, m)	err(-1, "%s %zd %d: %s", __func__, n, m, str)
 #define	FAILERRX(str)		errx(-1, "%s: %s", __func__, str)
-#define	FAILNERRX(str, n)	errx(-1, "%s %d: %s", __func__, n, str)
-#define	FAILNMERRX(str, n, m)	errx(-1, "%s %d %d: %s", __func__, n, m, str)
+#define	FAILNERRX(str, n)	errx(-1, "%s %zd: %s", __func__, n, str)
+#define	FAILNMERRX(str, n, m)	errx(-1, "%s %zd %d: %s", __func__, n, m, str)
 
 static int ann = 0;
 
 #define	ANN()		(ann ? warnx("%s: start", __func__) : 0)
-#define	ANNN(n)		(ann ? warnx("%s %d: start", __func__, (n)) : 0)
-#define	ANNNM(n, m)	(ann ? warnx("%s %d %d: start", __func__, (n), (m)) : 0)
+#define	ANNN(n)		(ann ? warnx("%s %zd: start", __func__, (n)) : 0)
+#define	ANNNM(n, m)	(ann ? warnx("%s %zd %d: start", __func__, (n), (m)):0)
 
 #define	OK()		warnx("%s: ok", __func__)
-#define	OKN(n)		warnx("%s %d: ok", __func__, (n))
-#define	OKNM(n, m)	warnx("%s %d %d: ok", __func__, (n), (m))
+#define	OKN(n)		warnx("%s %zd: ok", __func__, (n))
+#define	OKNM(n, m)	warnx("%s %zd %d: ok", __func__, (n), (m))
 
 #ifdef SO_NOSIGPIPE
 #define	NEW_SOCKET(s) do {						\
@@ -168,7 +168,7 @@ server(int s_listen)
 					break;
 				}
 				if (ssize_send != ssize_recv)
-					warnx("server: recv %d sent %d",
+					warnx("server: recv %zd sent %zd",
 					    ssize_recv, ssize_send);
 			} while (1);
 			close(s_accept);

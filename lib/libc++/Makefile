@@ -53,7 +53,9 @@ cxxrt_${_S}:
 
 WARNS=		0
 CFLAGS+=	-I${HDRDIR} -I${LIBCXXRTDIR} -nostdlib -DLIBCXXRT
+.if empty(CXXFLAGS:M-std=*)
 CXXFLAGS+=	-std=c++0x
+.endif
 
 DPADD=		${LIBCXXRT}
 LDADD=		-lcxxrt

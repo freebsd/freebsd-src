@@ -1,3 +1,19 @@
+Friday  April 3, 2011.  mcr@sandelman.ca.
+  Summary for 4.3.0 tcpdump release
+        fixes for forces: SPARSE data (per RFC 5810)
+        some more test cases added
+        updates to documentation on -l, -U and -w flags.
+        Fix printing of BGP optional headers.
+        Tried to include DLT_PFSYNC support, failed due to headers required.
+        added TIPC support.
+        Fix LLDP Network Policy bit definitions.
+        fixes for IGMPv3's Max Response Time: it is in units of 0.1 second.
+        SIGUSR1 can be used rather than SIGINFO for stats
+        permit -n flag to affect print-ip for protocol numbers
+        ND_OPT_ADVINTERVAL is in milliseconds, not seconds
+        Teach PPPoE parser about RFC 4638
+
+
 Friday  December 9, 2011.  guy@alum.mit.edu.
   Summary for 4.2.1 tcpdump release
 	Only build the Babel printer if IPv6 is enabled.

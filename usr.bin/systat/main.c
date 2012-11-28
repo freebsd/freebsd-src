@@ -64,7 +64,7 @@ kvm_t *kd;
 sig_t	sigtstpdfl;
 double avenrun[3];
 int     col;
-int	naptime = 5;
+unsigned int	delay = 5000000;	/* in microseconds */
 int     verbose = 1;                    /* to report kvm read errs */
 struct	clockinfo clkinfo;
 double	hertz;
@@ -82,6 +82,7 @@ main(int argc, char **argv)
 {
 	char errbuf[_POSIX2_LINE_MAX], dummy;
 	size_t	size;
+	double t;
 
 	(void) setlocale(LC_ALL, "");
 
@@ -97,9 +98,9 @@ main(int argc, char **argv)
 				errx(1, "%s: unknown request", &argv[0][1]);
 			curcmd = p;
 		} else {
-			naptime = atoi(argv[0]);
-			if (naptime <= 0)
-				naptime = 5;
+			t = strtod(argv[0], NULL) * 1000000.0;
+			if (t > 0 && t < (double)UINT_MAX)
+				delay = (unsigned int)t;
 		}
 		argc--, argv++;
 	}
@@ -166,8 +167,7 @@ main(int argc, char **argv)
 
 	dellave = 0.0;
 
-	signal(SIGALRM, display);
-	display(0);
+	display();
 	noecho();
 	crmode();
 	keyboard();
@@ -192,7 +192,7 @@ labels(void)
 }
 
 void
-display(int signo __unused)
+display()
 {
 	int i, j;
 
@@ -223,7 +223,6 @@ display(int signo __unused)
 	wrefresh(wnd);
 	move(CMDLINE, col);
 	refresh();
-	alarm(naptime);
 }
 
 void

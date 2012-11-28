@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 22, 2012
+.Dd October 27, 2012
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -179,6 +179,11 @@ Run the service under this user account.
 .Pq Vt str
 Run the chrooted service under this system group. Unlike the _user
 setting, this setting has no effect if the service is not chrooted.
+.It Ao Ar name Ac Ns Va _fib
+.Pq Vt int
+The
+.Xr setfib 1
+value to run the service under.
 .It Ao Ar name Ac Ns Va _nice
 .Pq Vt int
 The

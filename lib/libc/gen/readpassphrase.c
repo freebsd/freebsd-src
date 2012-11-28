@@ -68,7 +68,7 @@ restart:
 	 * stdin and write to stderr unless a tty is required.
 	 */
 	if ((flags & RPP_STDIN) ||
-	    (input = output = _open(_PATH_TTY, O_RDWR)) == -1) {
+	    (input = output = _open(_PATH_TTY, O_RDWR | O_CLOEXEC)) == -1) {
 		if (flags & RPP_REQUIRE_TTY) {
 			errno = ENOTTY;
 			return(NULL);

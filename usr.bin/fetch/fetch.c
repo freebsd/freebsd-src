@@ -51,47 +51,47 @@ __FBSDID("$FreeBSD$");
 #define TIMEOUT		120
 
 /* Option flags */
-int	 A_flag;	/*    -A: do not follow 302 redirects */
-int	 a_flag;	/*    -a: auto retry */
-off_t	 B_size;	/*    -B: buffer size */
-int	 b_flag;	/*!   -b: workaround TCP bug */
-char    *c_dirname;	/*    -c: remote directory */
-int	 d_flag;	/*    -d: direct connection */
-int	 F_flag;	/*    -F: restart without checking mtime  */
-char	*f_filename;	/*    -f: file to fetch */
-char	*h_hostname;	/*    -h: host to fetch from */
-int	 i_flag;	/*    -i: specify input file for mtime comparison */
-char	*i_filename;	/*        name of input file */
-int	 l_flag;	/*    -l: link rather than copy file: URLs */
-int	 m_flag;	/* -[Mm]: mirror mode */
-char	*N_filename;	/*    -N: netrc file name */
-int	 n_flag;	/*    -n: do not preserve modification time */
-int	 o_flag;	/*    -o: specify output file */
-int	 o_directory;	/*        output file is a directory */
-char	*o_filename;	/*        name of output file */
-int	 o_stdout;	/*        output file is stdout */
-int	 once_flag;	/*    -1: stop at first successful file */
-int	 p_flag;	/* -[Pp]: use passive FTP */
-int	 R_flag;	/*    -R: don't delete partially transferred files */
-int	 r_flag;	/*    -r: restart previously interrupted transfer */
-off_t	 S_size;        /*    -S: require size to match */
-int	 s_flag;        /*    -s: show size, don't fetch */
-long	 T_secs;	/*    -T: transfer timeout in seconds */
-int	 t_flag;	/*!   -t: workaround TCP bug */
-int	 U_flag;	/*    -U: do not use high ports */
-int	 v_level = 1;	/*    -v: verbosity level */
-int	 v_tty;		/*        stdout is a tty */
-pid_t	 pgrp;		/*        our process group */
-long	 w_secs;	/*    -w: retry delay */
-int	 family = PF_UNSPEC;	/* -[46]: address family to use */
+static int	 A_flag;	/*    -A: do not follow 302 redirects */
+static int	 a_flag;	/*    -a: auto retry */
+static off_t	 B_size;	/*    -B: buffer size */
+static int	 b_flag;	/*!   -b: workaround TCP bug */
+static char    *c_dirname;	/*    -c: remote directory */
+static int	 d_flag;	/*    -d: direct connection */
+static int	 F_flag;	/*    -F: restart without checking mtime  */
+static char	*f_filename;	/*    -f: file to fetch */
+static char	*h_hostname;	/*    -h: host to fetch from */
+static int	 i_flag;	/*    -i: specify file for mtime comparison */
+static char	*i_filename;	/*        name of input file */
+static int	 l_flag;	/*    -l: link rather than copy file: URLs */
+static int	 m_flag;	/* -[Mm]: mirror mode */
+static char	*N_filename;	/*    -N: netrc file name */
+static int	 n_flag;	/*    -n: do not preserve modification time */
+static int	 o_flag;	/*    -o: specify output file */
+static int	 o_directory;	/*        output file is a directory */
+static char	*o_filename;	/*        name of output file */
+static int	 o_stdout;	/*        output file is stdout */
+static int	 once_flag;	/*    -1: stop at first successful file */
+static int	 p_flag;	/* -[Pp]: use passive FTP */
+static int	 R_flag;	/*    -R: don't delete partial files */
+static int	 r_flag;	/*    -r: restart previous transfer */
+static off_t	 S_size;        /*    -S: require size to match */
+static int	 s_flag;        /*    -s: show size, don't fetch */
+static long	 T_secs;	/*    -T: transfer timeout in seconds */
+static int	 t_flag;	/*!   -t: workaround TCP bug */
+static int	 U_flag;	/*    -U: do not use high ports */
+static int	 v_level = 1;	/*    -v: verbosity level */
+static int	 v_tty;		/*        stdout is a tty */
+static pid_t	 pgrp;		/*        our process group */
+static long	 w_secs;	/*    -w: retry delay */
+static int	 family = PF_UNSPEC;	/* -[46]: address family to use */
 
-int	 sigalrm;	/* SIGALRM received */
-int	 siginfo;	/* SIGINFO received */
-int	 sigint;	/* SIGINT received */
+static int	 sigalrm;	/* SIGALRM received */
+static int	 siginfo;	/* SIGINFO received */
+static int	 sigint;	/* SIGINT received */
 
-long	 ftp_timeout = TIMEOUT;		/* default timeout for FTP transfers */
-long	 http_timeout = TIMEOUT;	/* default timeout for HTTP transfers */
-char	*buf;		/* transfer buffer */
+static long	 ftp_timeout = TIMEOUT;	/* default timeout for FTP transfers */
+static long	 http_timeout = TIMEOUT;/* default timeout for HTTP transfers */
+static char	*buf;		/* transfer buffer */
 
 
 /*
@@ -115,11 +115,13 @@ sig_handler(int sig)
 
 struct xferstat {
 	char		 name[64];
-	struct timeval	 start;
-	struct timeval	 last;
-	off_t		 size;
-	off_t		 offset;
-	off_t		 rcvd;
+	struct timeval	 start;		/* start of transfer */
+	struct timeval	 last;		/* time of last update */
+	struct timeval	 last2;		/* time of previous last update */
+	off_t		 size;		/* size of file per HTTP hdr */
+	off_t		 offset;	/* starting offset in file */
+	off_t		 rcvd;		/* bytes already received */
+	off_t		 lastrcvd;	/* bytes received since last update */
 };
 
 /*
@@ -139,9 +141,12 @@ stat_eta(struct xferstat *xs)
 	if (eta > 3600)
 		snprintf(str, sizeof str, "%02ldh%02ldm",
 		    eta / 3600, (eta % 3600) / 60);
-	else
+	else if (eta > 0)
 		snprintf(str, sizeof str, "%02ldm%02lds",
 		    eta / 60, eta % 60);
+	else
+		snprintf(str, sizeof str, "%02ldm%02lds",
+		    elapsed / 60, elapsed % 60);
 	return (str);
 }
 
@@ -173,11 +178,12 @@ stat_bps(struct xferstat *xs)
 	double delta, bps;
 
 	delta = (xs->last.tv_sec + (xs->last.tv_usec / 1.e6))
-	    - (xs->start.tv_sec + (xs->start.tv_usec / 1.e6));
+	    - (xs->last2.tv_sec + (xs->last2.tv_usec / 1.e6));
+
 	if (delta == 0.0) {
 		snprintf(str, sizeof str, "?? Bps");
 	} else {
-		bps = (xs->rcvd - xs->offset) / delta;
+		bps = (xs->rcvd - xs->lastrcvd - xs->offset) / delta;
 		snprintf(str, sizeof str, "%sps", stat_bytes((off_t)bps));
 	}
 	return (str);
@@ -200,6 +206,7 @@ stat_display(struct xferstat *xs, int force)
 	gettimeofday(&now, NULL);
 	if (!force && now.tv_sec <= xs->last.tv_sec)
 		return;
+	xs->last2 = xs->last;
 	xs->last = now;
 
 	fprintf(stderr, "\r%-46.46s", xs->name);
@@ -214,10 +221,16 @@ stat_display(struct xferstat *xs, int force)
 		    (int)((100.0 * xs->rcvd) / xs->size),
 		    stat_bytes(xs->size));
 	}
+	if (force == 2) {
+		xs->lastrcvd = xs->offset;
+		xs->last2 = xs->start;
+	}
 	fprintf(stderr, " %s", stat_bps(xs));
-	if (xs->size > 0 && xs->rcvd > 0 &&
-	    xs->last.tv_sec >= xs->start.tv_sec + 10)
+	if ((xs->size > 0 && xs->rcvd > 0 &&
+	     xs->last.tv_sec >= xs->start.tv_sec + 3) ||
+	    force == 2)
 		fprintf(stderr, " %s", stat_eta(xs));
+	xs->lastrcvd = xs->rcvd;
 }
 
 /*
@@ -232,6 +245,7 @@ stat_start(struct xferstat *xs, const char *name, off_t size, off_t offset)
 	xs->size = size;
 	xs->offset = offset;
 	xs->rcvd = offset;
+	xs->lastrcvd = offset;
 	if (v_tty && v_level > 0)
 		stat_display(xs, 1);
 	else if (v_level > 0)
@@ -257,7 +271,7 @@ stat_end(struct xferstat *xs)
 {
 	gettimeofday(&xs->last, NULL);
 	if (v_tty && v_level > 0) {
-		stat_display(xs, 1);
+		stat_display(xs, 2);
 		putc('\n', stderr);
 	} else if (v_level > 0) {
 		fprintf(stderr, "        %s %s\n",

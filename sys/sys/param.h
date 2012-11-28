@@ -58,7 +58,7 @@
  *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 1000018	/* Master, propagated to newvers */
+#define __FreeBSD_version 1000025	/* Master, propagated to newvers */
 
 /*
  * __FreeBSD_kernel__ indicates that this system uses the kernel of FreeBSD,
@@ -96,7 +96,7 @@
 
 #define	MAXCOMLEN	19		/* max command name remembered */
 #define	MAXINTERP	PATH_MAX	/* max interpreter file name length */
-#define	MAXLOGNAME	17		/* max login name length (incl. NUL) */
+#define	MAXLOGNAME	33		/* max login name length (incl. NUL) */
 #define	MAXUPRC		CHILD_MAX	/* max simultaneous processes */
 #define	NCARGS		ARG_MAX		/* max bytes for an exec function */
 #define	NGROUPS		(NGROUPS_MAX+1)	/* max number groups */
@@ -275,6 +275,7 @@
 #endif
 #define	nitems(x)	(sizeof((x)) / sizeof((x)[0]))
 #define	rounddown(x, y)	(((x)/(y))*(y))
+#define	rounddown2(x, y) ((x)&(~((y)-1)))          /* if y is power of two */
 #define	roundup(x, y)	((((x)+((y)-1))/(y))*(y))  /* to any y */
 #define	roundup2(x, y)	(((x)+((y)-1))&(~((y)-1))) /* if y is powers of two */
 #define powerof2(x)	((((x)-1)&(x))==0)

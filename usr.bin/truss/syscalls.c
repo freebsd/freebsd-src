@@ -1120,20 +1120,21 @@ print_syscall(struct trussinfo *trussinfo, const char *name, int nargs,
 	if (trussinfo->flags & FOLLOWFORKS)
 		len += fprintf(trussinfo->outfile, "%5d: ", trussinfo->pid);
 
-	if (name != NULL && (strcmp(name, "execve") == 0||
+	if (name != NULL && (strcmp(name, "execve") == 0 ||
 	    strcmp(name, "exit") == 0)) {
-		clock_gettime(CLOCK_REALTIME, &trussinfo->after);
+		clock_gettime(CLOCK_REALTIME, &trussinfo->curthread->after);
 	}
 
 	if (trussinfo->flags & ABSOLUTETIMESTAMPS) {
-		timespecsubt(&trussinfo->after, &trussinfo->start_time,
-		    &timediff);
+		timespecsubt(&trussinfo->curthread->after,
+		    &trussinfo->start_time, &timediff);
 		len += fprintf(trussinfo->outfile, "%ld.%09ld ",
 		    (long)timediff.tv_sec, timediff.tv_nsec);
 	}
 
 	if (trussinfo->flags & RELATIVETIMESTAMPS) {
-		timespecsubt(&trussinfo->after, &trussinfo->before, &timediff);
+		timespecsubt(&trussinfo->curthread->after,
+		    &trussinfo->curthread->before, &timediff);
 		len += fprintf(trussinfo->outfile, "%ld.%09ld ",
 		    (long)timediff.tv_sec, timediff.tv_nsec);
 	}
@@ -1163,8 +1164,9 @@ print_syscall_ret(struct trussinfo *trussinfo, const char *name, int nargs,
 	if (trussinfo->flags & COUNTONLY) {
 		if (!sc)
 			return;
-		clock_gettime(CLOCK_REALTIME, &trussinfo->after);
-		timespecsubt(&trussinfo->after, &trussinfo->before, &timediff);
+		clock_gettime(CLOCK_REALTIME, &trussinfo->curthread->after);
+		timespecsubt(&trussinfo->curthread->after,
+		    &trussinfo->curthread->before, &timediff);
 		timespecadd(&sc->time, &timediff, &sc->time);
 		sc->ncalls++;
 		if (errorp)

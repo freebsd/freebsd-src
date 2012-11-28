@@ -41,6 +41,9 @@ struct threadinfo
 	lwpid_t tid;
 	int in_syscall;
 	int in_fork;
+	void *fsc;
+	struct timespec before;
+	struct timespec after;
 };
 
 struct trussinfo
@@ -53,8 +56,6 @@ struct trussinfo
 	FILE *outfile;
 
 	struct timespec start_time;
-	struct timespec before;
-	struct timespec after;
 
 	struct threadinfo *curthread;
 

@@ -1,5 +1,3 @@
-/*	$OpenBSD: pfvar.h,v 1.282 2009/01/29 15:12:28 pyr Exp $ */
-
 /*
  * Copyright (c) 2001 Daniel Hartmeier
  * All rights reserved.
@@ -28,6 +26,8 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
+ *	$OpenBSD: pfvar.h,v 1.282 2009/01/29 15:12:28 pyr Exp $
+ *	$FreeBSD$
  */
 
 #ifndef _NET_PFVAR_H_
@@ -989,7 +989,7 @@ struct pf_anchor {
 	char			 path[MAXPATHLEN];
 	struct pf_ruleset	 ruleset;
 	int			 refcnt;	/* anchor rules */
-	int			 match;
+	int			 match;	/* XXX: used for pfctl black magic */
 };
 RB_PROTOTYPE(pf_anchor_global, pf_anchor, entry_global, pf_anchor_compare);
 RB_PROTOTYPE(pf_anchor_node, pf_anchor, entry_node, pf_anchor_compare);
@@ -1018,6 +1018,8 @@ RB_PROTOTYPE(pf_anchor_node, pf_anchor, entry_node, pf_anchor_compare);
 				 PFR_TFLAG_REFERENCED	| \
 				 PFR_TFLAG_REFDANCHOR	| \
 				 PFR_TFLAG_COUNTERS)
+
+struct pf_anchor_stackframe;
 
 struct pfr_table {
 	char			 pfrt_anchor[MAXPATHLEN];
@@ -1728,27 +1730,6 @@ extern int			 pf_state_insert(struct pfi_kif *,
 				    struct pf_state *);
 extern void			 pf_free_state(struct pf_state *);
 
-static __inline u_int
-pf_hashsrc(struct pf_addr *addr, sa_family_t af)
-{
-	u_int h;
-
-#define	ADDR_HASH(a)	((a) ^ ((a) >> 16))
-
-	switch (af) {
-	case AF_INET:
-		h = ADDR_HASH(addr->v4.s_addr);
-		break;
-	case AF_INET6:
-		h = ADDR_HASH(addr->v6.__u6_addr.__u6_addr32[3]);
-	default:
-		panic("%s: unknown address family %u", __func__, af);
-	}
-#undef ADDR_HASH
-
-	return (h & V_pf_srchashmask);
-}
-
 static __inline void
 pf_ref_state(struct pf_state *s)
 {
@@ -1938,11 +1919,12 @@ int	pf_osfp_match(struct pf_osfp_enlist *, pf_osfp_t);
 #ifdef _KERNEL
 void			 pf_print_host(struct pf_addr *, u_int16_t, u_int8_t);
 
-void			 pf_step_into_anchor(int *, struct pf_ruleset **, int,
-			    struct pf_rule **, struct pf_rule **, int *);
-int			 pf_step_out_of_anchor(int *, struct pf_ruleset **,
-			    int, struct pf_rule **, struct pf_rule **,
-			    int *);
+void			 pf_step_into_anchor(struct pf_anchor_stackframe *, int *,
+			    struct pf_ruleset **, int, struct pf_rule **,
+			    struct pf_rule **, int *);
+int			 pf_step_out_of_anchor(struct pf_anchor_stackframe *, int *,
+			    struct pf_ruleset **, int, struct pf_rule **,
+			    struct pf_rule **, int *);
 
 int			 pf_map_addr(u_int8_t, struct pf_rule *,
 			    struct pf_addr *, struct pf_addr *,
@@ -1951,7 +1933,7 @@ struct pf_rule		*pf_get_translation(struct pf_pdesc *, struct mbuf *,
 			    int, int, struct pfi_kif *, struct pf_src_node **,
 			    struct pf_state_key **, struct pf_state_key **,
 			    struct pf_addr *, struct pf_addr *,
-			    u_int16_t, u_int16_t);
+			    uint16_t, uint16_t, struct pf_anchor_stackframe *);
 
 struct pf_state_key	*pf_state_key_setup(struct pf_pdesc *, struct pf_addr *,
 			    struct pf_addr *, u_int16_t, u_int16_t);

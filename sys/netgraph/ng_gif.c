@@ -163,8 +163,6 @@ NETGRAPH_INIT(gif, &ng_gif_typestruct);
 /*
  * Handle a packet that has come in on an interface. We get to
  * look at it here before any upper layer protocols do.
- *
- * NOTE: this function will get called at splimp()
  */
 static void
 ng_gif_input(struct ifnet *ifp, struct mbuf **mp, int af)
@@ -181,8 +179,6 @@ ng_gif_input(struct ifnet *ifp, struct mbuf **mp, int af)
 /*
  * Handle a packet that has come in on an interface, and which
  * does not match any of our known protocols (an ``orphan'').
- *
- * NOTE: this function will get called at splimp()
  */
 static void
 ng_gif_input_orphan(struct ifnet *ifp, struct mbuf *m, int af)
@@ -203,8 +199,6 @@ ng_gif_input_orphan(struct ifnet *ifp, struct mbuf *m, int af)
 /*
  * Handle a packet that has come in on a gif interface.
  * Attach the address family to the mbuf for later use.
- *
- * NOTE: this function will get called at splimp()
  */
 static void
 ng_gif_input2(node_p node, struct mbuf **mp, int af)
@@ -543,9 +537,7 @@ ng_gif_mod_event(module_t mod, int event, void *data)
 	VNET_ITERATOR_DECL(vnet_iter);
 	struct ifnet *ifp;
 	int error = 0;
-	int s;
 
-	s = splnet();
 	switch (event) {
 	case MOD_LOAD:
 
@@ -597,7 +589,6 @@ ng_gif_mod_event(module_t mod, int event, void *data)
 		error = EOPNOTSUPP;
 		break;
 	}
-	splx(s);
 	return (error);
 }
 

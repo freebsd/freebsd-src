@@ -114,6 +114,7 @@ brooks [label="Brooks Davis\nbrooks@FreeBSD.org\n2001/06/21"]
 brucec [label="Bruce Cran\nbrucec@FreeBSD.org\n2010/01/29"]
 brueffer [label="Christian Brueffer\nbrueffer@FreeBSD.org\n2006/02/28"]
 bruno [label="Bruno Ducrot\nbruno@FreeBSD.org\n2005/07/18"]
+bryanv [label="Bryan Venteicher\nbryanv@FreeBSD.org\n2012/11/03"]
 bschmidt [label="Bernhard Schmidt\nbschmidt@FreeBSD.org\n2010/02/06"]
 bz [label="Bjoern A. Zeeb\nbz@FreeBSD.org\n2004/07/27"]
 cognet [label="Olivier Houchard\ncognet@FreeBSD.org\n2002/10/09"]
@@ -215,6 +216,7 @@ obrien [label="David E. O'Brien\nobrien@FreeBSD.org\n1996/10/29"]
 olli [label="Oliver Fromme\nolli@FreeBSD.org\n2008/02/14"]
 peadar [label="Peter Edwards\npeadar@FreeBSD.org\n2004/03/08"]
 peter [label="Peter Wemm\npeter@FreeBSD.org\n????/??/??"]
+peterj [label="Peter Jeremy\npeterj@FreeBSD.org\n2012/09/14"]
 pfg [label="Pedro Giffuni\npfg@FreeBSD.org\n2011/12/01"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2004/01/21"]
 phk [label="Poul-Henning Kamp\nphk@FreeBSD.org\n1994/02/21"]
@@ -246,6 +248,7 @@ scottl [label="Scott Long\nscottl@FreeBSD.org\n2000/09/28"]
 sephe [label="Sepherosa Ziehau\nsephe@FreeBSD.org\n2007/03/28"]
 sepotvin [label="Stephane E. Potvin\nsepotvin@FreeBSD.org\n2007/02/15"]
 simon [label="Simon L. Nielsen\nsimon@FreeBSD.org\n2006/03/07"]
+sjg [label="Simon J. Gerraty\nsjg@FreeBSD.org\n2012/10/23"]
 sobomax [label="Maxim Sobolev\nsobomax@FreeBSD.org\n2001/07/25"]
 sos [label="Soren Schmidt\nsos@FreeBSD.org\n????/??/??"]
 sson [label="Stacey Son\nsson@FreeBSD.org\n2008/07/08"]
@@ -394,8 +397,11 @@ gnn -> lstewart
 gnn -> np
 gnn -> davide
 
+grehan -> bryanv
+
 grog -> edwin
 grog -> le
+grog -> peterj
 
 imp -> akiyama
 imp -> ambrisko
@@ -439,9 +445,11 @@ jhb -> arr
 jhb -> avg
 jhb -> jeff
 jhb -> kbyanc
-jhb -> rnoland
+jhb -> peterj
 jhb -> pfg
+jhb -> rnoland
 
+jkh -> grog
 jkh -> imp
 jkh -> jlemon
 jkh -> joerg
@@ -492,6 +500,7 @@ marcel -> art
 marcel -> arun
 marcel -> marius
 marcel -> nwhitehorn
+marcel -> sjg
 
 markm -> jasone
 markm -> sheldonh

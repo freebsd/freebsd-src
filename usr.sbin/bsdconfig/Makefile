@@ -12,6 +12,7 @@ SUBDIR=	console \
 	networking \
 	password \
 	security \
+	share \
 	startup \
 	timezone \
 	ttys \

@@ -381,7 +381,6 @@ public:
 class xml_writer : public writer {
     ostream_ptr m_os;
 
-    size_t m_curtp, m_ntps;
     std::string m_tcname, m_tpname;
 
     static

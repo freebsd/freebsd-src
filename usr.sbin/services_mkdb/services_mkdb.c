@@ -49,12 +49,12 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <stringlist.h>
 
+#include "extern.h"
+
 static char tname[MAXPATHLEN];
 
 #define	PMASK		0xffff
 #define PROTOMAX	5
-
-extern void	uniq(const char *);
 
 static void	add(DB *, StringList *, size_t, const char *, size_t *, int);
 static StringList ***parseservices(const char *, StringList *);

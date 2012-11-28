@@ -427,7 +427,6 @@ vm_object_vndeallocate(vm_object_t object)
 {
 	struct vnode *vp = (struct vnode *) object->handle;
 
-	VFS_ASSERT_GIANT(vp->v_mount);
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	KASSERT(object->type == OBJT_VNODE,
 	    ("vm_object_vndeallocate: not a vnode object"));
@@ -456,7 +455,7 @@ vm_object_vndeallocate(vm_object_t object)
 			VOP_UNLOCK(vp, 0);
 		} else {
 			if (object->ref_count == 0)
-				vp->v_vflag &= ~VV_TEXT;
+				VOP_UNSET_TEXT(vp);
 			VM_OBJECT_UNLOCK(object);
 			vput(vp);
 		}
@@ -480,38 +479,11 @@ vm_object_deallocate(vm_object_t object)
 	vm_object_t temp;
 
 	while (object != NULL) {
-		int vfslocked;
-
-		vfslocked = 0;
-	restart:
 		VM_OBJECT_LOCK(object);
 		if (object->type == OBJT_VNODE) {
-			struct vnode *vp = (struct vnode *) object->handle;
-
-			/*
-			 * Conditionally acquire Giant for a vnode-backed
-			 * object.  We have to be careful since the type of
-			 * a vnode object can change while the object is
-			 * unlocked.
-			 */
-			if (VFS_NEEDSGIANT(vp->v_mount) && !vfslocked) {
-				vfslocked = 1;
-				if (!mtx_trylock(&Giant)) {
-					VM_OBJECT_UNLOCK(object);
-					mtx_lock(&Giant);
-					goto restart;
-				}
-			}
 			vm_object_vndeallocate(object);
-			VFS_UNLOCK_GIANT(vfslocked);
 			return;
-		} else
-			/*
-			 * This is to handle the case that the object
-			 * changed type while we dropped its lock to
-			 * obtain Giant.
-			 */
-			VFS_UNLOCK_GIANT(vfslocked);
+		}
 
 		KASSERT(object->ref_count != 0,
 			("vm_object_deallocate: object deallocated too many times: %d", object->type));
@@ -820,7 +792,6 @@ vm_object_page_clean(vm_object_t object, vm_ooffset_t start, vm_ooffset_t end,
 	int curgeneration, n, pagerflags;
 	boolean_t clearobjflags, eio, res;
 
-	mtx_assert(&vm_page_queue_mtx, MA_NOTOWNED);
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	KASSERT(object->type == OBJT_VNODE, ("Not a vnode object"));
 	if ((object->flags & OBJ_MIGHTBEDIRTY) == 0 ||
@@ -906,7 +877,6 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int pagerflags,
 	vm_page_t ma[vm_pageout_page_count], p_first, tp;
 	int count, i, mreq, runlen;
 
-	mtx_assert(&vm_page_queue_mtx, MA_NOTOWNED);
 	vm_page_lock_assert(p, MA_NOTOWNED);
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 
@@ -989,11 +959,9 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 	 */
 	if (object->type == OBJT_VNODE &&
 	    (object->flags & OBJ_MIGHTBEDIRTY) != 0) {
-		int vfslocked;
 		vp = object->handle;
 		VM_OBJECT_UNLOCK(object);
 		(void) vn_start_write(vp, &mp, V_WAIT);
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		if (syncio && !invalidate && offset == 0 &&
 		    OFF_TO_IDX(size) == object->size) {
@@ -1017,7 +985,6 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 		if (fsync_after)
 			error = VOP_FSYNC(vp, MNT_WAIT, curthread);
 		VOP_UNLOCK(vp, 0);
-		VFS_UNLOCK_GIANT(vfslocked);
 		vn_finished_write(mp);
 		if (error != 0)
 			res = FALSE;
@@ -1918,8 +1885,13 @@ again:
 		if ((options & OBJPR_NOTMAPPED) == 0) {
 			pmap_remove_all(p);
 			/* Account for removal of wired mappings. */
-			if (wirings != 0)
-				p->wire_count -= wirings;
+			if (wirings != 0) {
+				KASSERT(p->wire_count == wirings,
+				    ("inconsistent wire count %d %d %p",
+				    p->wire_count, wirings, p));
+				p->wire_count = 0;
+				atomic_subtract_int(&cnt.v_wire_count, 1);
+			}
 		}
 		vm_page_free(p);
 		vm_page_unlock(p);

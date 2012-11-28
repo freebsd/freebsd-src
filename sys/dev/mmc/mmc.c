@@ -878,7 +878,7 @@ mmc_format_card_id_string(struct mmc_ivars *ivar)
 	else
 		snprintf(oidstr, sizeof(oidstr), "0x%04x", ivar->cid.oid);
 	snprintf(ivar->card_id_string, sizeof(ivar->card_id_string),
-	    "%s%s %s %d.%d SN %d MFG %02d/%04d by %d %s",
+	    "%s%s %s %d.%d SN %u MFG %02d/%04d by %d %s",
 	    ivar->mode == mode_sd ? "SD" : "MMC", ivar->high_cap ? "HC" : "",
 	    ivar->cid.pnm, ivar->cid.prv >> 4, ivar->cid.prv & 0x0f,
 	    ivar->cid.psn, ivar->cid.mdt_month, ivar->cid.mdt_year,
@@ -1261,8 +1261,6 @@ mmc_discover_cards(struct mmc_softc *sc)
 		if (newcard) {
 			ivar = malloc(sizeof(struct mmc_ivars), M_DEVBUF,
 			    M_WAITOK | M_ZERO);
-			if (!ivar)
-				return;
 			memcpy(ivar->raw_cid, raw_cid, sizeof(raw_cid));
 		}
 		if (mmcbr_get_ro(sc->dev))
@@ -1732,4 +1730,5 @@ static devclass_t mmc_devclass;
 
 DRIVER_MODULE(mmc, ti_mmchs, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, at91_mci, mmc_driver, mmc_devclass, NULL, NULL);
-DRIVER_MODULE(mmc, sdhci, mmc_driver, mmc_devclass, NULL, NULL);
+DRIVER_MODULE(mmc, sdhci_pci, mmc_driver, mmc_devclass, NULL, NULL);
+DRIVER_MODULE(mmc, sdhci_bcm, mmc_driver, mmc_devclass, NULL, NULL);

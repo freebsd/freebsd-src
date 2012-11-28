@@ -10,6 +10,7 @@ FILES=	INDEX.keymaps \
 	cs.latin2.qwertz.kbd \
 	cz.iso2.kbd \
 	danish.iso.kbd danish.iso.acc.kbd danish.cp865.kbd \
+	danish.iso.macbook.kbd \
 	dutch.iso.acc.kbd \
 	eee_nordic.kbd el.iso07.kbd \
 	estonian.iso.kbd estonian.iso15.kbd estonian.cp850.kbd \

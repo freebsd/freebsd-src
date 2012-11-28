@@ -251,6 +251,7 @@ struct sockopt;	/* used by tcp_var.h */
 	rw_destroy(&(_chain)->uh_lock);			\
 	} while (0)
 
+#define	IPFW_RLOCK_ASSERT(_chain)	rw_assert(&(_chain)->rwmtx, RA_RLOCKED)
 #define	IPFW_WLOCK_ASSERT(_chain)	rw_assert(&(_chain)->rwmtx, RA_WLOCKED)
 
 #define IPFW_RLOCK(p) rw_rlock(&(p)->rwmtx)

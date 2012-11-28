@@ -651,7 +651,6 @@ audit_arg_file(struct proc *p, struct file *fp)
 	struct socket *so;
 	struct inpcb *pcb;
 	struct vnode *vp;
-	int vfslocked;
 
 	ar = currecord();
 	if (ar == NULL)
@@ -664,11 +663,9 @@ audit_arg_file(struct proc *p, struct file *fp)
 		 * XXXAUDIT: Only possibly to record as first vnode?
 		 */
 		vp = fp->f_vnode;
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vn_lock(vp, LK_SHARED | LK_RETRY);
 		audit_arg_vnode1(vp);
 		VOP_UNLOCK(vp, 0);
-		VFS_UNLOCK_GIANT(vfslocked);
 		break;
 
 	case DTYPE_SOCKET:
@@ -768,11 +765,6 @@ audit_arg_vnode(struct vnode *vp, struct vnode_au_info *vnp)
 	struct vattr vattr;
 	int error;
 
-	/*
-	 * Assume that if the caller is calling audit_arg_vnode() on a
-	 * non-MPSAFE vnode, then it will have acquired Giant.
-	 */
-	VFS_ASSERT_GIANT(vp->v_mount);
 	ASSERT_VOP_LOCKED(vp, "audit_arg_vnode");
 
 	error = VOP_GETATTR(vp, &vattr, curthread->td_ucred);
@@ -889,7 +881,6 @@ audit_sysclose(struct thread *td, int fd)
 	struct kaudit_record *ar;
 	struct vnode *vp;
 	struct file *fp;
-	int vfslocked;
 
 	KASSERT(td != NULL, ("audit_sysclose: td == NULL"));
 
@@ -903,10 +894,8 @@ audit_sysclose(struct thread *td, int fd)
 		return;
 
 	vp = fp->f_vnode;
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	audit_arg_vnode1(vp);
 	VOP_UNLOCK(vp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
 	fdrop(fp, td);
 }

@@ -952,7 +952,8 @@ siftr_chkpkt(void *arg, struct mbuf **m, struct ifnet *ifp, int dir,
 			 * the mbuf cluster "at" at offset "offset" bytes from
 			 * the beginning of the "at" mbuf's data pointer.
 			 */
-			th->th_sum = in_cksum_skip(*m, ip->ip_len, ip_hl);
+			th->th_sum = in_cksum_skip(*m, ntohs(ip->ip_len),
+			    ip_hl);
 		}
 
 		/*

@@ -145,9 +145,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
+#include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
 #include <sys/msgbuf.h>
+#include <sys/mutex.h>
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
 #include <sys/rwlock.h>
@@ -163,9 +165,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_phys.h>
 #include <vm/vm_extern.h>
-#include <sys/lock.h>
-#include <sys/mutex.h>
+
 #include <machine/md_var.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
@@ -197,6 +199,7 @@ static pv_entry_t pmap_get_pv_entry(void);
 
 static void		pmap_enter_locked(pmap_t, vm_offset_t, vm_page_t,
     vm_prot_t, boolean_t, int);
+static vm_paddr_t	pmap_extract_locked(pmap_t pmap, vm_offset_t va);
 static void		pmap_fix_cache(struct vm_page *, pmap_t, vm_offset_t);
 static void		pmap_alloc_l1(pmap_t);
 static void		pmap_free_l1(pmap_t);
@@ -215,7 +218,6 @@ vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
 vm_offset_t pmap_curmaxkvaddr;
 vm_paddr_t kernel_l1pa;
 
-extern void *end;
 vm_offset_t kernel_vm_end = 0;
 
 struct pmap kernel_pmap_store;
@@ -255,12 +257,6 @@ pt_entry_t	pte_l2_s_proto;
 
 void		(*pmap_copy_page_func)(vm_paddr_t, vm_paddr_t);
 void		(*pmap_zero_page_func)(vm_paddr_t, int, int);
-/*
- * Which pmap is currently 'live' in the cache
- *
- * XXXSCW: Fix for SMP ...
- */
-union pmap_cache_state *pmap_cache_state;
 
 struct msgbuf *msgbufp = 0;
 
@@ -364,14 +360,6 @@ struct l2_dtable {
  * virtual address required to drop into the next L2 bucket.
  */
 #define	L2_NEXT_BUCKET(va)	(((va) & L1_S_FRAME) + L1_S_SIZE)
-
-/*
- * L2 allocation.
- */
-#define	pmap_alloc_l2_dtable()		\
-		(void*)uma_zalloc(l2table_zone, M_NOWAIT|M_USE_RESERVE)
-#define	pmap_free_l2_dtable(l2)		\
-		uma_zfree(l2table_zone, l2)
 
 /*
  * We try to map the page tables write-through, if possible.  However, not
@@ -875,10 +863,9 @@ pmap_alloc_l2_bucket(pmap_t pm, vm_offset_t va)
 		 * no entry in the L1 table.
 		 * Need to allocate a new l2_dtable.
 		 */
-again_l2table:
 		PMAP_UNLOCK(pm);
 		rw_wunlock(&pvh_global_lock);
-		if ((l2 = pmap_alloc_l2_dtable()) == NULL) {
+		if ((l2 = uma_zalloc(l2table_zone, M_NOWAIT)) == NULL) {
 			rw_wlock(&pvh_global_lock);
 			PMAP_LOCK(pm);
 			return (NULL);
@@ -886,18 +873,12 @@ again_l2table:
 		rw_wlock(&pvh_global_lock);
 		PMAP_LOCK(pm);
 		if (pm->pm_l2[L2_IDX(l1idx)] != NULL) {
-			PMAP_UNLOCK(pm);
-			rw_wunlock(&pvh_global_lock);
-			uma_zfree(l2table_zone, l2);
-			rw_wlock(&pvh_global_lock);
-			PMAP_LOCK(pm);
-			l2 = pm->pm_l2[L2_IDX(l1idx)];
-			if (l2 == NULL)
-				goto again_l2table;
 			/*
 			 * Someone already allocated the l2_dtable while
 			 * we were doing the same.
 			 */
+			uma_zfree(l2table_zone, l2);
+			l2 = pm->pm_l2[L2_IDX(l1idx)];
 		} else {
 			bzero(l2, sizeof(*l2));
 			/*
@@ -919,21 +900,14 @@ again_l2table:
 		 * No L2 page table has been allocated. Chances are, this
 		 * is because we just allocated the l2_dtable, above.
 		 */
-again_ptep:
 		PMAP_UNLOCK(pm);
 		rw_wunlock(&pvh_global_lock);
-		ptep = (void*)uma_zalloc(l2zone, M_NOWAIT|M_USE_RESERVE);
+		ptep = uma_zalloc(l2zone, M_NOWAIT);
 		rw_wlock(&pvh_global_lock);
 		PMAP_LOCK(pm);
 		if (l2b->l2b_kva != 0) {
 			/* We lost the race. */
-			PMAP_UNLOCK(pm);
-			rw_wunlock(&pvh_global_lock);
 			uma_zfree(l2zone, ptep);
-			rw_wlock(&pvh_global_lock);
-			PMAP_LOCK(pm);
-			if (l2b->l2b_kva == 0)
-				goto again_ptep;
 			return (l2b);
 		}
 		l2b->l2b_phys = vtophys(ptep);
@@ -945,7 +919,7 @@ again_ptep:
 			 */
 			if (l2->l2_occupancy == 0) {
 				pm->pm_l2[L2_IDX(l1idx)] = NULL;
-				pmap_free_l2_dtable(l2);
+				uma_zfree(l2table_zone, l2);
 			}
 			return (NULL);
 		}
@@ -1066,7 +1040,7 @@ pmap_free_l2_bucket(pmap_t pm, struct l2_bucket *l2b, u_int count)
 	 * the pointer in the parent pmap and free the l2_dtable.
 	 */
 	pm->pm_l2[L2_IDX(l1idx)] = NULL;
-	pmap_free_l2_dtable(l2);
+	uma_zfree(l2table_zone, l2);
 }
 
 /*
@@ -1834,28 +1808,25 @@ pmap_init(void)
 
 	PDEBUG(1, printf("pmap_init: phys_start = %08x\n", PHYSADDR));
 
+	l2zone = uma_zcreate("L2 Table", L2_TABLE_SIZE_REAL, pmap_l2ptp_ctor,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
+	l2table_zone = uma_zcreate("L2 Table", sizeof(struct l2_dtable), NULL,
+	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
+
 	/*
-	 * init the pv free list
+	 * Initialize the PV entry allocator.
 	 */
 	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
+	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
+	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
+	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
+	pv_entry_high_water = 9 * (pv_entry_max / 10);
+
 	/*
 	 * Now it is safe to enable pv_table recording.
 	 */
 	PDEBUG(1, printf("pmap_init: done!\n"));
-
-	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
-	
-	pv_entry_max = shpgperproc * maxproc + cnt.v_page_count;
-	pv_entry_high_water = 9 * (pv_entry_max / 10);
-	l2zone = uma_zcreate("L2 Table", L2_TABLE_SIZE_REAL, pmap_l2ptp_ctor,
-	    NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM | UMA_ZONE_NOFREE);
-	l2table_zone = uma_zcreate("L2 Table", sizeof(struct l2_dtable),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
-	    UMA_ZONE_VM | UMA_ZONE_NOFREE);
-
-	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
-
 }
 
 int
@@ -2866,6 +2837,13 @@ pmap_kenter_user(vm_offset_t va, vm_paddr_t pa)
 	pmap_fault_fixup(pmap_kernel(), va, VM_PROT_READ|VM_PROT_WRITE, 1);
 }
 
+vm_paddr_t
+pmap_kextract(vm_offset_t va)
+{
+
+	return (pmap_extract_locked(kernel_pmap, va));
+}
+
 /*
  * remove a page from the kernel pagetables
  */
@@ -3302,7 +3280,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 }
 
 /*
- *	The page queues and pmap must be locked.
+ *	The pvh global and pmap locks must be held.
  */
 static void
 pmap_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
@@ -3670,22 +3648,34 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr,
  *		with the given map/virtual_address pair.
  */
 vm_paddr_t
-pmap_extract(pmap_t pm, vm_offset_t va)
+pmap_extract(pmap_t pmap, vm_offset_t va)
+{
+	vm_paddr_t pa;
+
+	PMAP_LOCK(pmap);
+	pa = pmap_extract_locked(pmap, va);
+	PMAP_UNLOCK(pmap);
+	return (pa);
+}
+
+static vm_paddr_t
+pmap_extract_locked(pmap_t pmap, vm_offset_t va)
 {
 	struct l2_dtable *l2;
 	pd_entry_t l1pd;
 	pt_entry_t *ptep, pte;
 	vm_paddr_t pa;
 	u_int l1idx;
-	l1idx = L1_IDX(va);
 
-	PMAP_LOCK(pm);
-	l1pd = pm->pm_l1->l1_kva[l1idx];
+	if (pmap != kernel_pmap)
+		PMAP_ASSERT_LOCKED(pmap);
+	l1idx = L1_IDX(va);
+	l1pd = pmap->pm_l1->l1_kva[l1idx];
 	if (l1pte_section_p(l1pd)) {
 		/*
-		 * These should only happen for pmap_kernel()
+		 * These should only happen for the kernel pmap.
 		 */
-		KASSERT(pm == pmap_kernel(), ("huh"));
+		KASSERT(pmap == kernel_pmap, ("unexpected section"));
 		/* XXX: what to do about the bits > 32 ? */
 		if (l1pd & L1_S_SUPERSEC)
 			pa = (l1pd & L1_SUP_FRAME) | (va & L1_SUP_OFFSET);
@@ -3697,34 +3687,22 @@ pmap_extract(pmap_t pm, vm_offset_t va)
 		 * descriptor as an indication that a mapping exists.
 		 * We have to look it up in the L2 dtable.
 		 */
-		l2 = pm->pm_l2[L2_IDX(l1idx)];
-
+		l2 = pmap->pm_l2[L2_IDX(l1idx)];
 		if (l2 == NULL ||
-		    (ptep = l2->l2_bucket[L2_BUCKET(l1idx)].l2b_kva) == NULL) {
-			PMAP_UNLOCK(pm);
+		    (ptep = l2->l2_bucket[L2_BUCKET(l1idx)].l2b_kva) == NULL)
 			return (0);
-		}
-
-		ptep = &ptep[l2pte_index(va)];
-		pte = *ptep;
-
-		if (pte == 0) {
-			PMAP_UNLOCK(pm);
+		pte = ptep[l2pte_index(va)];
+		if (pte == 0)
 			return (0);
-		}
-
 		switch (pte & L2_TYPE_MASK) {
 		case L2_TYPE_L:
 			pa = (pte & L2_L_FRAME) | (va & L2_L_OFFSET);
 			break;
-
 		default:
 			pa = (pte & L2_S_FRAME) | (va & L2_S_OFFSET);
 			break;
 		}
 	}
-
-	PMAP_UNLOCK(pm);
 	return (pa);
 }
 
@@ -4579,13 +4557,13 @@ retry:
                 managed = true;
 	if (managed) {
 		/*
-		 * the ARM pmap tries to maintain a per-mapping
+		 * The ARM pmap tries to maintain a per-mapping
 		 * reference bit.  The trouble is that it's kept in
 		 * the PV entry, not the PTE, so it's costly to access
-		 * here.  You would need to acquire the page queues
+		 * here.  You would need to acquire the pvh global
 		 * lock, call pmap_find_pv(), and introduce a custom
 		 * version of vm_page_pa_tryrelock() that releases and
-		 * reacquires the page queues lock.  In the end, I
+		 * reacquires the pvh global lock.  In the end, I
 		 * doubt it's worthwhile.  This may falsely report
 		 * the given address as referenced.
 		 */

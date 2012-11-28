@@ -286,10 +286,8 @@ mpt_modevent(module_t mod, int type, void *data)
 	}
 	case MOD_SHUTDOWN:
 		break;
-#if __FreeBSD_version >= 500000
 	case MOD_QUIESCE:
 		break;
-#endif
 	case MOD_UNLOAD:
 		error = pers->unload(pers);
 		mpt_personalities[pers->id] = NULL;
@@ -1471,15 +1469,9 @@ mpt_recv_handshake_reply(struct mpt_softc *mpt, size_t reply_len, void *reply)
 	 */
 	if ((reply_len >> 1) != hdr->MsgLength &&
 	    (hdr->Function != MPI_FUNCTION_IOC_FACTS)){
-#if __FreeBSD_version >= 500000
 		mpt_prt(mpt, "reply length does not match message length: "
 			"got %x; expected %zx for function %x\n",
 			hdr->MsgLength << 2, reply_len << 1, hdr->Function);
-#else
-		mpt_prt(mpt, "reply length does not match message length: "
-			"got %x; expected %x for function %x\n",
-			hdr->MsgLength << 2, reply_len << 1, hdr->Function);
-#endif
 	}
 
 	/* Get rest of the reply; but don't overflow the provided buffer */
@@ -2155,7 +2147,6 @@ mpt_disable_ints(struct mpt_softc *mpt)
 static void
 mpt_sysctl_attach(struct mpt_softc *mpt)
 {
-#if __FreeBSD_version >= 500000
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(mpt->dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(mpt->dev);
 
@@ -2169,7 +2160,6 @@ mpt_sysctl_attach(struct mpt_softc *mpt)
 	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		       "failure_id", CTLFLAG_RW, &mpt->failure_id, -1,
 		       "Next Target to Fail");
-#endif
 #endif
 }
 

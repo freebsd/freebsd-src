@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: asltree - parse tree management
@@ -121,7 +120,7 @@ TrAllocateNode (
     Op->Asl.Column            = Gbl_CurrentColumn;
 
     UtSetParseOpName (Op);
-    return Op;
+    return (Op);
 }
 
 
@@ -171,7 +170,7 @@ TrUpdateNode (
 
     if (!Op)
     {
-        return NULL;
+        return (NULL);
     }
 
     DbgPrint (ASL_PARSE_OUTPUT,
@@ -234,7 +233,7 @@ TrUpdateNode (
         break;
     }
 
-    return Op;
+    return (Op);
 }
 
 
@@ -336,7 +335,7 @@ TrSetNodeFlags (
 
     if (!Op)
     {
-        return NULL;
+        return (NULL);
     }
 
     Op->Asl.CompileFlags |= Flags;
@@ -370,7 +369,7 @@ TrSetNodeAmlLength (
 
     if (!Op)
     {
-        return NULL;
+        return (NULL);
     }
 
     Op->Asl.AmlLength = Length;
@@ -434,7 +433,7 @@ TrCreateLeafNode (
         "\nCreateLeafNode  Ln/Col %u/%u NewNode %p  Op %s\n\n",
         Op->Asl.LineNumber, Op->Asl.Column, Op, UtGetOpName(ParseOpcode));
 
-    return Op;
+    return (Op);
 }
 
 
@@ -580,7 +579,7 @@ TrCreateValuedLeafNode (
     }
 
     DbgPrint (ASL_PARSE_OUTPUT, "\n\n");
-    return Op;
+    return (Op);
 }
 
 
@@ -702,7 +701,7 @@ TrCreateNode (
     va_end(ap);
 
     DbgPrint (ASL_PARSE_OUTPUT, "\n\n");
-    return Op;
+    return (Op);
 }
 
 
@@ -776,7 +775,7 @@ TrLinkChildren (
         {
             AslError (ASL_WARNING, ASL_MSG_COMPILER_INTERNAL, Child,
                 "Child node list invalid");
-            return Op;
+            return (Op);
         }
 
         DbgPrint (ASL_PARSE_OUTPUT, "%p, ", Child);
@@ -825,7 +824,7 @@ TrLinkChildren (
     va_end(ap);
 
     DbgPrint (ASL_PARSE_OUTPUT, "\n\n");
-    return Op;
+    return (Op);
 }
 
 
@@ -859,19 +858,19 @@ TrLinkPeerNode (
     if ((!Op1) && (!Op2))
     {
         DbgPrint (ASL_PARSE_OUTPUT, "\nTwo Null nodes!\n");
-        return Op1;
+        return (Op1);
     }
 
     /* If one of the nodes is null, just return the non-null node */
 
     if (!Op2)
     {
-        return Op1;
+        return (Op1);
     }
 
     if (!Op1)
     {
-        return Op2;
+        return (Op2);
     }
 
     if (Op1 == Op2)
@@ -881,7 +880,7 @@ TrLinkPeerNode (
             Op1);
         AslError (ASL_WARNING, ASL_MSG_COMPILER_INTERNAL, Op1,
             "Linking node to itself");
-        return Op1;
+        return (Op1);
     }
 
     Op1->Asl.Parent = Op2->Asl.Parent;
@@ -898,7 +897,7 @@ TrLinkPeerNode (
     }
 
     Next->Asl.Next = Op2;
-    return Op1;
+    return (Op1);
 }
 
 
@@ -994,7 +993,7 @@ TrLinkChildNode (
 
     if (!Op1 || !Op2)
     {
-        return Op1;
+        return (Op1);
     }
 
     Op1->Asl.Child = Op2;
@@ -1008,7 +1007,7 @@ TrLinkChildNode (
         Next = Next->Asl.Next;
     }
 
-    return Op1;
+    return (Op1);
 }
 
 
@@ -1236,5 +1235,3 @@ TrWalkParseTree (
 
     return (AE_OK);
 }
-
-

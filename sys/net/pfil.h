@@ -64,6 +64,8 @@ typedef	TAILQ_HEAD(pfil_list, packet_filter_hook) pfil_list_t;
 #define	PFIL_TYPE_AF		1	/* key is AF_* type */
 #define	PFIL_TYPE_IFNET		2	/* key is ifnet pointer */
 
+#define	PFIL_FLAG_PRIVATE_LOCK	0x01	/* Personal lock instead of global */
+
 struct pfil_head {
 	pfil_list_t	ph_in;
 	pfil_list_t	ph_out;
@@ -72,7 +74,9 @@ struct pfil_head {
 #if defined( __linux__ ) || defined( _WIN32 )
 	rwlock_t	ph_mtx;
 #else
-	struct rmlock	ph_lock;
+	struct rmlock	*ph_plock;	/* Pointer to the used lock */
+	struct rmlock	ph_lock;	/* Private lock storage */
+	int		flags;
 #endif
 	union {
 		u_long		phu_val;
@@ -90,21 +94,43 @@ int	pfil_remove_hook(int (*func)(void *, struct mbuf **, struct ifnet *,
 int	pfil_run_hooks(struct pfil_head *, struct mbuf **, struct ifnet *,
 	    int, struct inpcb *inp);
 
+struct rm_priotracker;	/* Do not require including rmlock header */
+int pfil_try_rlock(struct pfil_head *, struct rm_priotracker *);
+void pfil_rlock(struct pfil_head *, struct rm_priotracker *);
+void pfil_runlock(struct pfil_head *, struct rm_priotracker *);
+void pfil_wlock(struct pfil_head *);
+void pfil_wunlock(struct pfil_head *);
+int pfil_wowned(struct pfil_head *ph);
+
 int	pfil_head_register(struct pfil_head *);
 int	pfil_head_unregister(struct pfil_head *);
 
 struct pfil_head *pfil_head_get(int, u_long);
 
 #define	PFIL_HOOKED(p) ((p)->ph_nhooks > 0)
-#define	PFIL_LOCK_INIT(p) \
-    rm_init_flags(&(p)->ph_lock, "PFil hook read/write mutex", RM_RECURSE)
-#define	PFIL_LOCK_DESTROY(p) rm_destroy(&(p)->ph_lock)
-#define PFIL_RLOCK(p, t) rm_rlock(&(p)->ph_lock, (t))
-#define PFIL_WLOCK(p) rm_wlock(&(p)->ph_lock)
-#define PFIL_RUNLOCK(p, t) rm_runlock(&(p)->ph_lock, (t))
-#define PFIL_WUNLOCK(p) rm_wunlock(&(p)->ph_lock)
-#define PFIL_LIST_LOCK() mtx_lock(&pfil_global_lock)
-#define PFIL_LIST_UNLOCK() mtx_unlock(&pfil_global_lock)
+#define	PFIL_LOCK_INIT_REAL(l, t)	\
+	rm_init_flags(l, "PFil " t " rmlock", RM_RECURSE)
+#define	PFIL_LOCK_DESTROY_REAL(l)	\
+	rm_destroy(l)
+#define	PFIL_LOCK_INIT(p)	do {			\
+	if ((p)->flags & PFIL_FLAG_PRIVATE_LOCK) {	\
+		PFIL_LOCK_INIT_REAL(&(p)->ph_lock, "private");	\
+		(p)->ph_plock = &(p)->ph_lock;		\
+	} else						\
+		(p)->ph_plock = &V_pfil_lock;		\
+} while (0)
+#define	PFIL_LOCK_DESTROY(p)	do {			\
+	if ((p)->flags & PFIL_FLAG_PRIVATE_LOCK)	\
+		PFIL_LOCK_DESTROY_REAL((p)->ph_plock);	\
+} while (0)
+#define PFIL_TRY_RLOCK(p, t)	rm_try_rlock((p)->ph_plock, (t))
+#define PFIL_RLOCK(p, t)	rm_rlock((p)->ph_plock, (t))
+#define PFIL_WLOCK(p)		rm_wlock((p)->ph_plock)
+#define PFIL_RUNLOCK(p, t)	rm_runlock((p)->ph_plock, (t))
+#define PFIL_WUNLOCK(p)		rm_wunlock((p)->ph_plock)
+#define PFIL_WOWNED(p)		rm_wowned((p)->ph_plock)
+#define PFIL_LIST_LOCK()	mtx_lock(&pfil_global_lock)
+#define PFIL_LIST_UNLOCK()	mtx_unlock(&pfil_global_lock)
 
 static __inline struct packet_filter_hook *
 pfil_hook_get(int dir, struct pfil_head *ph)

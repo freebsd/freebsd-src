@@ -869,7 +869,7 @@ UNI_DECLARE_CAUSE_VALUES
 enum uni_diag
 uni_diag(enum uni_cause cause, enum uni_coding code)
 {
-	if (cause >= 128)
+	if ((int)cause >= 128)
 		return (UNI_DIAG_NONE);
 
 	if (code == UNI_CODING_NET)
@@ -925,9 +925,9 @@ print_cause(struct unicx *cx, struct uni_ie_cause *ie,
 	if (uni_print_iehdr("cause", &ie->h, cx))
 		return;
 
-	if (ie->cause < 128 && tab1[ie->cause].str)
+	if ((int)ie->cause < 128 && tab1[ie->cause].str)
 		strcpy(buf, tab1[ie->cause].str);
-	else if (ie->cause < 128 && tab2 != NULL && tab2[ie->cause].str != NULL)
+	else if ((int)ie->cause < 128 && tab2 != NULL && tab2[ie->cause].str != NULL)
 		strcpy(buf, tab2[ie->cause].str);
 	else {
 		sprintf(buf, "UNKNOWN-%u", ie->cause);
@@ -1059,7 +1059,7 @@ check_cause(struct uni_ie_cause *ie, struct unicx *cx,
 
 	const struct causetab *ptr;
 
-	if (ie->cause >= 128)
+	if ((int)ie->cause >= 128)
 		return (-1);
 
 	switch (ie->loc) {

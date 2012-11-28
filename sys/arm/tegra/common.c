@@ -47,9 +47,11 @@ void
 cpu_reset(void)
 {
 	bus_space_handle_t bsh;
-	printf("Restetting...\n");
+	printf("Resetting...\n");
 	bus_space_map(fdtbus_bs_tag,TEGRA2_CLK_RST_PA_BASE, 0x1000, 0, &bsh);
 	bus_space_write_4(fdtbus_bs_tag, bsh, 4, 4);
+
+	while(1);
 }
 
 struct fdt_fixup_entry fdt_fixup_table[] = {

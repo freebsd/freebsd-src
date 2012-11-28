@@ -1203,6 +1203,8 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 
 		ret = recv_stream(pi);
 	} else {
+		struct in_addr *laddr;
+
 		memset(cbuf, 0, CMSG_SPACE(sizeof(struct in_addr)));
 		msg.msg_control = cbuf;
 		msg.msg_controllen = CMSG_SPACE(sizeof(struct in_addr));
@@ -1210,8 +1212,14 @@ snmpd_input(struct port_input *pi, struct tport *tport)
 		cmsgp->cmsg_len = CMSG_LEN(sizeof(struct in_addr));
 		cmsgp->cmsg_level = IPPROTO_IP;
 		cmsgp->cmsg_type = IP_SENDSRCADDR;
+		laddr = (struct in_addr *)CMSG_DATA(cmsgp);
 		
-		ret = recv_dgram(pi, (struct in_addr *)CMSG_DATA(cmsgp));
+		ret = recv_dgram(pi, laddr);
+
+		if (laddr->s_addr == 0) {
+			msg.msg_control = NULL;
+			msg.msg_controllen = 0;
+		}
 	}
 
 	if (ret == -1)

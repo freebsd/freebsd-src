@@ -9,6 +9,10 @@
     ..
     arpa
     ..
+    atf-c
+    ..
+    atf-c++
+    ..
     bsm
     ..
     bsnmp
@@ -126,6 +130,8 @@
         ..
         nand
         ..
+        nvme
+        ..
         ofw
         ..
         pbio
@@ -162,17 +168,11 @@
         ..
         nfs
         ..
-        ntfs
-        ..
         nullfs
-        ..
-        nwfs
         ..
         portalfs
         ..
         procfs
-        ..
-        smbfs
         ..
         udf
         ..
@@ -286,8 +286,6 @@
         ..
         sig
         ..
-    ..
-    netncp
     ..
     netsmb
     ..

@@ -25,6 +25,14 @@ hint.arge.1.phymask=0x10
 hint.arge.1.miimode=3		# RGMII
 hint.arge.1.mdio=mdioproxy1	# off the switch mdiobus
 
+# AR8316 switch on MDIO0
+hint.arswitch.0.at="mdio0"
+hint.arswitch.0.is_7240=0
+hint.arswitch.0.numphys=4
+hint.arswitch.0.phy4cpu=1
+hint.arswitch.0.is_rgmii=1
+hint.arswitch.0.is_gmii=0
+
 # ath0 - slot 17
 hint.pcib.0.bus.0.17.0.ath_fixup_addr=0x1fff1000
 hint.pcib.0.bus.0.17.0.ath_fixup_size=4096

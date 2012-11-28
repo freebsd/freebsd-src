@@ -65,7 +65,7 @@ device		bpf
 device		lpe
 
 # USB
-options		USB_DEBUG
+options 	USB_DEBUG
 device		usb
 device		ohci
 device		umass

@@ -766,7 +766,26 @@ zfs_secpolicy_rename_perms(const char *from, const char *to, cred_t *cr)
 static int
 zfs_secpolicy_rename(zfs_cmd_t *zc, cred_t *cr)
 {
-	return (zfs_secpolicy_rename_perms(zc->zc_name, zc->zc_value, cr));
+	char *at = NULL;
+	int error;
+
+	if ((zc->zc_cookie & 1) != 0) {
+		/*
+		 * This is recursive rename, so the starting snapshot might
+		 * not exist. Check file system or volume permission instead.
+		 */
+		at = strchr(zc->zc_name, '@');
+		if (at == NULL)
+			return (EINVAL);
+		*at = '\0';
+	}
+
+	error = zfs_secpolicy_rename_perms(zc->zc_name, zc->zc_value, cr);
+
+	if (at != NULL)
+		*at = '@';
+
+	return (error);
 }
 
 static int
@@ -3226,6 +3245,7 @@ zfs_ioc_destroy_snaps_nvl(zfs_cmd_t *zc)
 		}
 
 		(void) zfs_unmount_snap(name, NULL);
+		(void) zvol_remove_minor(name);
 	}
 
 	err = dmu_snapshots_destroy_nvl(nvl, zc->zc_defer_destroy,
@@ -3816,6 +3836,12 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 		error = 1;
 	}
 #endif
+
+#ifdef __FreeBSD__
+	if (error == 0)
+		zvol_create_minors(tofs);
+#endif
+
 	/*
 	 * On error, restore the original props.
 	 */

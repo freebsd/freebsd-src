@@ -272,12 +272,29 @@ pick_sample_rate(struct sample_softc *ssc , struct ath_node *an,
 			continue;
 		}
 
+		/*
+		 * The following code stops trying to sample
+		 * non-MCS rates when speaking to an MCS node.
+		 * However, at least for CCK rates in 2.4GHz mode,
+		 * the non-MCS rates MAY actually provide better
+		 * PER at the very far edge of reception.
+		 *
+		 * However! Until ath_rate_form_aggr() grows
+		 * some logic to not form aggregates if the
+		 * selected rate is non-MCS, this won't work.
+		 *
+		 * So don't disable this code until you've taught
+		 * ath_rate_form_aggr() to drop out if any of
+		 * the selected rates are non-MCS.
+		 */
+#if 1
 		/* if the node is HT and the rate isn't HT, don't bother sample */
 		if ((an->an_node.ni_flags & IEEE80211_NODE_HT) &&
 		    (rt->info[rix].phy != IEEE80211_T_HT)) {
 			mask &= ~((uint64_t) 1<<rix);
 			goto nextrate;
 		}
+#endif
 
 		/* this bit-rate is always worse than the current one */
 		if (sn->stats[size_bin][rix].perfect_tx_time > current_tt) {
@@ -293,26 +310,16 @@ pick_sample_rate(struct sample_softc *ssc , struct ath_node *an,
 		}
 
 		/*
-		 * When doing aggregation, successive failures don't happen
-		 * as often, as sometimes some of the sub-frames get through.
-		 *
-		 * If the sample rix average tx time is greater than the
-		 * average tx time of the current rix, don't immediately use
-		 * the rate for sampling.
+		 * For HT, only sample a few rates on either side of the
+		 * current rix; there's quite likely a lot of them.
 		 */
 		if (an->an_node.ni_flags & IEEE80211_NODE_HT) {
-			if ((sn->stats[size_bin][rix].average_tx_time * 10 >
-			    sn->stats[size_bin][current_rix].average_tx_time * 9) &&
-			    (ticks - sn->stats[size_bin][rix].last_tx < ssc->stale_failure_timeout)) {
+			if (rix < (current_rix - 3) ||
+			    rix > (current_rix + 3)) {
 				mask &= ~((uint64_t) 1<<rix);
 				goto nextrate;
 			}
 		}
-
-		/*
-		 * XXX TODO
-		 * For HT, limit sample somehow?
-		 */
 
 		/* Don't sample more than 2 rates higher for rates > 11M for non-HT rates */
 		if (! (an->an_node.ni_flags & IEEE80211_NODE_HT)) {
@@ -1420,7 +1427,7 @@ ath_rate_attach(struct ath_softc *sc)
 	if (ssc == NULL)
 		return NULL;
 	ssc->arc.arc_space = sizeof(struct sample_node);
-	ssc->smoothing_rate = 95;		/* ewma percentage ([0..99]) */
+	ssc->smoothing_rate = 75;		/* ewma percentage ([0..99]) */
 	ssc->smoothing_minpackets = 100 / (100 - ssc->smoothing_rate);
 	ssc->sample_rate = 10;			/* %time to try diff tx rates */
 	ssc->max_successive_failures = 3;	/* threshold for rate sampling*/

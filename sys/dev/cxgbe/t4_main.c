@@ -349,6 +349,7 @@ static int set_filter_wr(struct adapter *, int);
 static int del_filter_wr(struct adapter *, int);
 static int get_sge_context(struct adapter *, struct t4_sge_context *);
 static int read_card_mem(struct adapter *, struct t4_mem_range *);
+static int read_i2c(struct adapter *, struct t4_i2c_data *);
 #ifdef TCP_OFFLOAD
 static int toe_capability(struct port_info *, int);
 #endif
@@ -429,9 +430,9 @@ t4_attach(device_t dev)
 		uint32_t v;
 
 		pci_set_max_read_req(dev, 4096);
-		v = pci_read_config(dev, i + PCIR_EXPRESS_DEVICE_CTL, 2);
-		v |= PCIM_EXP_CTL_RELAXED_ORD_ENABLE;
-		pci_write_config(dev, i + PCIR_EXPRESS_DEVICE_CTL, v, 2);
+		v = pci_read_config(dev, i + PCIER_DEVICE_CTL, 2);
+		v |= PCIEM_CTL_RELAXED_ORD_ENABLE;
+		pci_write_config(dev, i + PCIER_DEVICE_CTL, v, 2);
 	}
 
 	snprintf(sc->lockname, sizeof(sc->lockname), "%s",
@@ -526,10 +527,6 @@ t4_attach(device_t dev)
 		t4_write_reg(sc, A_ULP_RX_TDDP_PSZ, V_HPZ0(0) | V_HPZ1(2) |
 		    V_HPZ2(4) | V_HPZ3(6));
 		t4_set_reg_field(sc, A_ULP_RX_CTL, F_TDDPTAGTCB, F_TDDPTAGTCB);
-		t4_set_reg_field(sc, A_TP_PARA_REG3, F_TUNNELCNGDROP0 |
-		    F_TUNNELCNGDROP1 | F_TUNNELCNGDROP2 | F_TUNNELCNGDROP3,
-		    F_TUNNELCNGDROP0 | F_TUNNELCNGDROP1 | F_TUNNELCNGDROP2 |
-		    F_TUNNELCNGDROP3);
 		t4_set_reg_field(sc, A_TP_PARA_REG5,
 		    V_INDICATESIZE(M_INDICATESIZE) |
 		    F_REARMDDPOFFSET | F_RESETDDPOFFSET,
@@ -2995,7 +2992,7 @@ cxgbe_vlan_config(void *arg, struct ifnet *ifp, uint16_t vid)
 {
 	struct ifnet *vlan;
 
-	if (arg != ifp)
+	if (arg != ifp || ifp->if_type != IFT_ETHER)
 		return;
 
 	vlan = VLAN_DEVAT(ifp, vid);
@@ -3060,8 +3057,8 @@ t4_register_an_handler(struct adapter *sc, an_handler_t h)
 static int
 fw_msg_not_handled(struct adapter *sc, const __be64 *rpl)
 {
-	__be64 *r = __DECONST(__be64 *, rpl);
-	struct cpl_fw6_msg *cpl = member2struct(cpl_fw6_msg, data, r);
+	const struct cpl_fw6_msg *cpl =
+	    __containerof(rpl, struct cpl_fw6_msg, data[0]);
 
 #ifdef INVARIANTS
 	panic("%s: fw_msg type %d", __func__, cpl->type);
@@ -5170,6 +5167,27 @@ proceed:
 	return (rc);
 }
 
+static int
+read_i2c(struct adapter *sc, struct t4_i2c_data *i2cd)
+{
+	int rc;
+
+	ADAPTER_LOCK_ASSERT_OWNED(sc);	/* for mbox */
+
+	if (i2cd->len == 0 || i2cd->port_id >= sc->params.nports)
+		return (EINVAL);
+
+	if (i2cd->len > 1) {
+		/* XXX: need fw support for longer reads in one go */
+		return (ENOTSUP);
+	}
+
+	rc = -t4_i2c_rd(sc, sc->mbox, i2cd->port_id, i2cd->dev_addr,
+	    i2cd->offset, &i2cd->data[0]);
+
+	return (rc);
+}
+
 int
 t4_os_find_pci_capability(struct adapter *sc, int cap)
 {
@@ -5373,6 +5391,20 @@ t4_ioctl(struct cdev *dev, unsigned long cmd, caddr_t data, int fflag,
 	case CHELSIO_T4_GET_MEM:
 		rc = read_card_mem(sc, (struct t4_mem_range *)data);
 		break;
+	case CHELSIO_T4_GET_I2C:
+		ADAPTER_LOCK(sc);
+		rc = read_i2c(sc, (struct t4_i2c_data *)data);
+		ADAPTER_UNLOCK(sc);
+		break;
+	case CHELSIO_T4_CLEAR_STATS: {
+		u_int port_id = *(uint32_t *)data;
+
+		if (port_id >= sc->params.nports)
+			return (EINVAL);
+
+		t4_clr_port_stats(sc, port_id);
+		break;
+	}
 	default:
 		rc = EINVAL;
 	}
