@@ -277,7 +277,7 @@ f_authenticate_some_user()
 	#
 	# Secure-mode has been requested.
 	#
- 
+
 	[ "$USE_XDIALOG" ] || f_die 1 "$msg_secure_mode_requires_x11"
 	[ "$(id -u)" = "0" ] || f_die 1 "$msg_secure_mode_requires_root"
 

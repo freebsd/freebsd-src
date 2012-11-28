@@ -522,6 +522,16 @@ ath_tx_set_ratectrl(struct ath_softc *sc, struct ieee80211_node *ni,
 	if (! bf->bf_state.bfs_ismrr)
 		rc[1].tries = rc[2].tries = rc[3].tries = 0;
 
+#if 0
+	/*
+	 * If NOACK is set, just set ntries=1.
+	 */
+	else if (bf->bf_state.bfs_txflags & HAL_TXDESC_NOACK) {
+		rc[1].tries = rc[2].tries = rc[3].tries = 0;
+		rc[0].tries = 1;
+	}
+#endif
+
 	/*
 	 * Always call - that way a retried descriptor will
 	 * have the MRR fields overwritten.

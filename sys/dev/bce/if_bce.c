@@ -9880,7 +9880,7 @@ bce_dump_mbuf(struct bce_softc *sc, struct mbuf *m)
 			    "\15M_FIRSTFRAG\16M_LASTFRAG\21M_VLANTAG"
 			    "\22M_PROMISC\23M_NOFREE",
 			    mp->m_pkthdr.csum_flags,
-			    "\20\1CSUM_IP\2CSUM_TCP\3CSUM_UDP\4CSUM_IP_FRAGS"
+			    "\20\1CSUM_IP\2CSUM_TCP\3CSUM_UDP"
 			    "\5CSUM_FRAGMENT\6CSUM_TSO\11CSUM_IP_CHECKED"
 			    "\12CSUM_IP_VALID\13CSUM_DATA_VALID"
 			    "\14CSUM_PSEUDO_HDR");

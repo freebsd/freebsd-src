@@ -777,6 +777,11 @@ typedef struct {
 	uint32_t	bs_nexttbtt;		/* next beacon in TU */
 	uint32_t	bs_nextdtim;		/* next DTIM in TU */
 	uint32_t	bs_intval;		/* beacon interval+flags */
+/*
+ * HAL_BEACON_PERIOD, HAL_BEACON_ENA and HAL_BEACON_RESET_TSF
+ * are all 1:1 correspondances with the pre-11n chip AR_BEACON
+ * register.
+ */
 #define	HAL_BEACON_PERIOD	0x0000ffff	/* beacon interval period */
 #define	HAL_BEACON_PERIOD_TU8	0x0007ffff	/* beacon interval, tu/8 */
 #define	HAL_BEACON_ENA		0x00800000	/* beacon xmit enable */

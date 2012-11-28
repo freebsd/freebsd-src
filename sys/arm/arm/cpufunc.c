@@ -74,7 +74,13 @@ __FBSDID("$FreeBSD$");
 #include <arm/xscale/i80321/i80321var.h>
 #endif
 
-#if defined(CPU_XSCALE_81342)
+/*
+ * Some definitions in i81342reg.h clash with i80321reg.h.
+ * This only happens for the LINT kernel. As it happens,
+ * we don't need anything from i81342reg.h that we already
+ * got from somewhere else during a LINT compile.
+ */
+#if defined(CPU_XSCALE_81342) && !defined(COMPILING_LINT)
 #include <arm/xscale/i8134x/i81342reg.h>
 #endif
 

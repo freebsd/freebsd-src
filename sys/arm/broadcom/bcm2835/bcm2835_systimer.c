@@ -102,7 +102,7 @@ static struct bcm_systimer_softc *bcm_systimer_sc = NULL;
 static unsigned bcm_systimer_tc_get_timecount(struct timecounter *);
 
 static struct timecounter bcm_systimer_tc = {
-	.tc_name           = "BCM2835 Timecouter",
+	.tc_name           = "BCM2835 Timecounter",
 	.tc_get_timecount  = bcm_systimer_tc_get_timecount,
 	.tc_poll_pps       = NULL,
 	.tc_counter_mask   = ~0u,

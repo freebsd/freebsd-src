@@ -3979,10 +3979,13 @@ assert_vi_unlocked(struct vnode *vp, const char *str)
 void
 assert_vop_locked(struct vnode *vp, const char *str)
 {
+	int locked;
 
-	if (!IGNORE_LOCK(vp) &&
-	    (VOP_ISLOCKED(vp) == 0 || VOP_ISLOCKED(vp) == LK_EXCLOTHER))
-		vfs_badlock("is not locked but should be", str, vp);
+	if (!IGNORE_LOCK(vp)) {
+		locked = VOP_ISLOCKED(vp);
+		if (locked == 0 || locked == LK_EXCLOTHER)
+			vfs_badlock("is not locked but should be", str, vp);
+	}
 }
 
 void
@@ -4752,7 +4755,7 @@ __mnt_vnode_first_active(struct vnode **mvp, struct mount *mp)
 	MNT_REF(mp);
 	(*mvp)->v_type = VMARKER;
 
-	vp = TAILQ_NEXT(*mvp, v_actfreelist);
+	vp = TAILQ_FIRST(&mp->mnt_activevnodelist);
 	while (vp != NULL) {
 		VI_LOCK(vp);
 		if (vp->v_mount == mp && vp->v_type != VMARKER &&

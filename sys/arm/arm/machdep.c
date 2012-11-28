@@ -1038,18 +1038,6 @@ print_kenv(void)
 }
 
 static void
-print_kernel_section_addr(void)
-{
-
-	debugf("kernel image addresses:\n");
-	debugf(" kernbase       = 0x%08x\n", (uint32_t)kernbase);
-	debugf(" _etext (sdata) = 0x%08x\n", (uint32_t)_etext);
-	debugf(" _edata         = 0x%08x\n", (uint32_t)_edata);
-	debugf(" __bss_start    = 0x%08x\n", (uint32_t)__bss_start);
-	debugf(" _end           = 0x%08x\n", (uint32_t)_end);
-}
-
-static void
 physmap_init(struct mem_region *availmem_regions, int availmem_regions_sz)
 {
 	int i, j, cnt;
@@ -1344,7 +1332,6 @@ initarm(struct arm_boot_params *abp)
 	debugf(" arg1 kmdp = 0x%08x\n", (uint32_t)kmdp);
 	debugf(" boothowto = 0x%08x\n", boothowto);
 	debugf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
-	print_kernel_section_addr();
 	print_kenv();
 
 	env = getenv("kernelname");
