@@ -18,57 +18,98 @@ menu-init     \ initialize the menu area (see `menu.4th')
 \ Initialize main menu constructs (see `menu.4th')
 \ NOTE: To use the `ansi' variants, add `loader_color=1' to loader.conf(5)
 
-set menu_caption[1]="Boot [Enter]"
-set menu_command[1]="boot"
-set ansi_caption[1]="[1mB[37moot [1m[Enter][37m"
-set menu_keycode[1]="98"
+\ 
+\ MAIN MENU
+\ 
 
-set menu_caption[2]="[Esc]ape to loader prompt"
-set menu_command[2]="goto_prompt"
-set menu_keycode[2]="27"
-set ansi_caption[2]="[1mEsc[37mape to loader prompt"
+set menuset_name1="main"
+
+set mainmenu_init[1]="init_boot"
+set mainmenu_caption[1]="Boot Multi User [Enter]"
+set maintoggled_text[1]="Boot [S]ingle User [Enter]"
+set mainmenu_command[1]="boot"
+set mainansi_caption[1]="[1mB[37moot Multi User [1m[Enter][37m"
+set maintoggled_ansi[1]="Boot [1mS[37mingle User [1m[Enter][37m"
+\ keycode set by init_boot
+
+set mainmenu_init[2]="init_altboot"
+set mainmenu_caption[2]="Boot [S]ingle User"
+set maintoggled_text[2]="Boot [M]ulti User"
+set mainmenu_command[2]="altboot"
+set mainansi_caption[2]="Boot [1mS[37mingle User"
+set maintoggled_ansi[2]="Boot [1mM[37multi User"
+\ keycode set by init_altboot
+
+set mainmenu_caption[3]="[Esc]ape to loader prompt"
+set mainmenu_command[3]="goto_prompt"
+set mainmenu_keycode[3]=27
+set mainansi_caption[3]="[1mEsc[37mape to loader prompt"
 
 \ Enable built-in "Reboot" trailing menuitem
 \ NOTE: appears before menu_options if configured
 \ 
-set menu_reboot
+set mainmenu_reboot
 
 \ Enable "Options:" separator. When set to a numerical value (1-8), a visual
 \ separator is inserted before that menuitem number.
 \ 
-set menu_options=4
+set mainmenu_options=5
 
-set menu_caption[4]="[A]CPI Support off"
-set toggled_text[4]="[A]CPI Support On"
-set menu_command[4]="toggle_acpi"
-set menu_keycode[4]="97"
-set menu_acpi=4
-set ansi_caption[4]="[1mA[37mCPI Support [34;1mOff[37m"
-set toggled_ansi[4]="[1mA[37mCPI Support [32;7mOn[0;37m"
+set mainmenu_caption[5]="Configure Boot [O]ptions..."
+set mainmenu_command[5]="2 goto_menu"
+set mainmenu_keycode[5]=111
+set mainansi_caption[5]="Configure Boot [1mO[37mptions..."
 
-set menu_caption[5]="Safe [M]ode... off"
-set toggled_text[5]="Safe [M]ode... On"
-set menu_init[5]="init_safemode"
-set menu_command[5]="toggle_safemode"
-set menu_keycode[5]="109"
-set ansi_caption[5]="Safe [1mM[37mode... [34;1mOff[37m"
-set toggled_ansi[5]="Safe [1mM[37mode... [32;7mOn[0;37m"
+\ 
+\ BOOT OPTIONS MENU
+\ 
 
-set menu_caption[6]="[S]ingle User. off"
-set toggled_text[6]="[S]ingle User. On"
-set menu_init[6]="init_singleuser"
-set menu_command[6]="toggle_singleuser"
-set menu_keycode[6]="115"
-set ansi_caption[6]="[1mS[37mingle User. [34;1mOff[37m"
-set toggled_ansi[6]="[1mS[37mingle User. [32;7mOn[0;37m"
+set menuset_name2="options"
 
-set menu_caption[7]="[V]erbose..... off"
-set toggled_text[7]="[V]erbose..... On"
-set menu_init[7]="init_verbose"
-set menu_command[7]="toggle_verbose"
-set menu_keycode[7]="118"
-set ansi_caption[7]="[1mV[37merbose..... [34;1mOff[37m"
-set toggled_ansi[7]="[1mV[37merbose..... [32;7mOn[0;37m"
+set optionsmenu_caption[1]="Back to Main Menu [Backspace]"
+set optionsmenu_command[1]="1 goto_menu"
+set optionsmenu_keycode[1]=8
+set optionsansi_caption[1]="Back to Main Menu [1m[Backspace][37m"
+
+set optionsmenu_caption[2]="Load System [D]efaults"
+set optionsmenu_command[2]="set_default_boot_options"
+set optionsmenu_keycode[2]=100
+set optionsansi_caption[2]="Load System [1mD[37mefaults"
+
+set optionsmenu_options=3
+set optionsmenu_optionstext="Boot Options:"
+
+set optionsmenu_acpi=3
+set optionsmenu_caption[3]="[A]CPI Support off"
+set optionstoggled_text[3]="[A]CPI Support On"
+set optionsmenu_command[3]="toggle_acpi"
+set optionsmenu_keycode[3]=97
+set optionsansi_caption[3]="[1mA[37mCPI Support [34;1mOff[37m"
+set optionstoggled_ansi[3]="[1mA[37mCPI Support [32;7mOn[0;37m"
+
+set optionsmenu_init[4]="init_safemode"
+set optionsmenu_caption[4]="Safe [M]ode... off"
+set optionstoggled_text[4]="Safe [M]ode... On"
+set optionsmenu_command[4]="toggle_safemode"
+set optionsmenu_keycode[4]=109
+set optionsansi_caption[4]="Safe [1mM[37mode... [34;1mOff[37m"
+set optionstoggled_ansi[4]="Safe [1mM[37mode... [32;7mOn[0;37m"
+
+set optionsmenu_init[5]="init_singleuser"
+set optionsmenu_caption[5]="[S]ingle User. off"
+set optionstoggled_text[5]="[S]ingle User. On"
+set optionsmenu_command[5]="toggle_singleuser"
+set optionsmenu_keycode[5]=115
+set optionsansi_caption[5]="[1mS[37mingle User. [34;1mOff[37m"
+set optionstoggled_ansi[5]="[1mS[37mingle User. [32;7mOn[0;37m"
+
+set optionsmenu_init[6]="init_verbose"
+set optionsmenu_caption[6]="[V]erbose..... off"
+set optionstoggled_text[6]="[V]erbose..... On"
+set optionsmenu_command[6]="toggle_verbose"
+set optionsmenu_keycode[6]=118
+set optionsansi_caption[6]="[1mV[37merbose..... [34;1mOff[37m"
+set optionstoggled_ansi[6]="[1mV[37merbose..... [32;7mOn[0;37m"
 
 \ Enable automatic booting (add ``autoboot_delay=N'' to loader.conf(5) to
 \ customize the timeout; default is 10-seconds)
@@ -76,4 +117,6 @@ set toggled_ansi[7]="[1mV[37merbose..... [32;7mOn[0;37m"
 set menu_timeout_command="boot"
 
 \ Display the main menu (see `menu.4th')
+set menuset_initial=1
+menuset-loadinitial
 menu-display
