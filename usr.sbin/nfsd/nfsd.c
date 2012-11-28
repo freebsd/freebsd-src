@@ -224,6 +224,10 @@ main(int argc, char **argv)
 		udpflag = 1;
 	argv += optind;
 	argc -= optind;
+	if (minthreads_set && maxthreads_set && minthreads > maxthreads)
+		errx(EX_USAGE,
+		    "error: minthreads(%d) can't be greater than "
+		    "maxthreads(%d)", minthreads, maxthreads);
 
 	/*
 	 * XXX
