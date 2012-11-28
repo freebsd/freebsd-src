@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../../netinet/ipfw
+.PATH:	${.CURDIR}/../../../netpfil/ipfw
 
 KMOD=	diffuse_feature_skype
 SRCS=	diffuse_feature_skype.c

@@ -50,6 +50,8 @@ MAN=	acct.5 \
 	passwd.5 \
 	pbm.5 \
 	periodic.conf.5 \
+	pf.conf.5 \
+	pf.os.5 \
 	phones.5 \
 	portindex.5 \
 	portsnap.conf.5 \

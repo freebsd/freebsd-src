@@ -186,9 +186,6 @@ copies:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/netinet
 .endif
-	cd ${.CURDIR}/../sys/contrib/pf/net; \
-	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
-	    ${DESTDIR}${INCLUDEDIR}/net
 	cd ${.CURDIR}/../sys/crypto; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 rijndael/rijndael.h \
 	    ${DESTDIR}${INCLUDEDIR}/crypto
@@ -222,7 +219,7 @@ copies:
 	cd ${.CURDIR}/../sys/rpc; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 types.h \
 	    ${DESTDIR}${INCLUDEDIR}/rpc
-	cd ${.CURDIR}/../sys/netinet/ipfw; \
+	cd ${.CURDIR}/../sys/netpfil/ipfw; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 diffuse_feature*.h \
 	    ${DESTDIR}${INCLUDEDIR}/netinet/ipfw; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 diffuse_classifier*.h \
@@ -281,11 +278,6 @@ symlinks:
 		    ${DESTDIR}${INCLUDEDIR}/netinet; \
 	done
 .endif
-	cd ${.CURDIR}/../sys/contrib/pf/net; \
-	for h in *.h; do \
-		ln -fs ../../../sys/contrib/pf/net/$$h \
-		    ${DESTDIR}${INCLUDEDIR}/net; \
-	done
 	cd ${.CURDIR}/../sys/crypto; \
 	for h in rijndael/rijndael.h; do \
 		ln -fs ../../../sys/crypto/$$h \
@@ -338,12 +330,12 @@ symlinks:
 		ln -fs ../../../sys/rpc/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/rpc; \
 	done
-	cd ${.CURDIR}/../sys/netinet/ipfw; \
+	cd ${.CURDIR}/../sys/netpfil/ipfw; \
 	for h in diffuse_classifier*.h diffuse_feature*.h; do \
-		ln -fs ../../../../sys/netinet/ipfw/$$h \
+		ln -fs ../../../../sys/netpfil/ipfw/$$h \
 			${DESTDIR}${INCLUDEDIR}/netinet/ipfw; \
 	done; \
-	ln -fs ../../../../sys/netinet/ipfw/diffuse_common.h \
+	ln -fs ../../../../sys/netpfil/ipfw/diffuse_common.h \
 	    ${DESTDIR}${INCLUDEDIR}/netinet/ipfw; \
-	ln -fs ../../../../sys/netinet/ipfw/diffuse_user_compat.h \
+	ln -fs ../../../../sys/netpfil/ipfw/diffuse_user_compat.h \
 	    ${DESTDIR}${INCLUDEDIR}/netinet/ipfw

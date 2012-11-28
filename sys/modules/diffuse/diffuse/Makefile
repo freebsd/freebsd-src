@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-.PATH:	${.CURDIR}/../../../netinet/ipfw
+.PATH:	${.CURDIR}/../../../netpfil/ipfw
 
 KMOD=	diffuse
 SRCS=	diffuse_export.c \
