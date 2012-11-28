@@ -41,32 +41,6 @@ __FBSDID("$FreeBSD$");
 #include "vmm_lapic.h"
 #include "vlapic.h"
 
-static int
-lapic_write(struct vlapic *vlapic, u_int offset, uint64_t val)
-{
-	int handled;
-
-	if (vlapic_op_mem_write(vlapic, offset, DWORD, val) == 0)
-		handled = 1;
-	else
-		handled = 0;
-
-	return (handled);
-}
-
-static int
-lapic_read(struct vlapic *vlapic, u_int offset, uint64_t *rv)
-{
-	int handled;
-
-	if (vlapic_op_mem_read(vlapic, offset, DWORD, rv) == 0)
-		handled = 1;
-	else
-		handled = 0;
-
-	return (handled);
-}
-
 int
 lapic_pending_intr(struct vm *vm, int cpu)
 {
@@ -145,35 +119,41 @@ lapic_msr(u_int msr)
 int
 lapic_rdmsr(struct vm *vm, int cpu, u_int msr, uint64_t *rval)
 {
-	int handled;
+	int error;
+	u_int offset;
 	struct vlapic *vlapic;
 
 	vlapic = vm_lapic(vm, cpu);
 
 	if (msr == MSR_APICBASE) {
 		*rval = vlapic_get_apicbase(vlapic);
-		handled = 1;
-	} else
-		handled = lapic_read(vlapic, x2apic_msr_to_regoff(msr), rval);
+		error = 0;
+	} else {
+		offset = x2apic_msr_to_regoff(msr);
+		error = vlapic_op_mem_read(vlapic, offset, DWORD, rval);
+	}
 
-	return (handled);
+	return (error);
 }
 
 int
 lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t val)
 {
-	int handled;
+	int error;
+	u_int offset;
 	struct vlapic *vlapic;
 
 	vlapic = vm_lapic(vm, cpu);
 
 	if (msr == MSR_APICBASE) {
 		vlapic_set_apicbase(vlapic, val);
-		handled = 1;
-	} else
-		handled = lapic_write(vlapic, x2apic_msr_to_regoff(msr), val);
+		error = 0;
+	} else {
+		offset = x2apic_msr_to_regoff(msr);
+		error = vlapic_op_mem_write(vlapic, offset, DWORD, val);
+	}
 
-	return (handled);
+	return (error);
 }
 
 int

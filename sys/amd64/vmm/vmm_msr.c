@@ -41,7 +41,7 @@ __FBSDID("$FreeBSD$");
 
 #define	VMM_MSR_F_EMULATE	0x01
 #define	VMM_MSR_F_READONLY	0x02
-#define VMM_MSR_F_INVALID	0x04
+#define VMM_MSR_F_INVALID	0x04  /* guest_msr_valid() can override this */
 
 struct vmm_msr {
 	int		num;
@@ -137,20 +137,15 @@ msr_num_to_idx(u_int num)
 int
 emulate_wrmsr(struct vm *vm, int cpu, u_int num, uint64_t val)
 {
-	int handled, idx;
+	int idx;
 	uint64_t *guest_msrs;
-
-	handled = 0;
 
 	if (lapic_msr(num))
 		return (lapic_wrmsr(vm, cpu, num, val));
 
 	idx = msr_num_to_idx(num);
-	if (idx < 0)
-		goto done;
-
-	if (invalid_msr(idx))
-		goto done;
+	if (idx < 0 || invalid_msr(idx))
+		return (EINVAL);
 
 	if (!readonly_msr(idx)) {
 		guest_msrs = vm_guest_msrs(vm, cpu);
@@ -163,31 +158,26 @@ emulate_wrmsr(struct vm *vm, int cpu, u_int num, uint64_t val)
 			wrmsr(vmm_msr[idx].num, val);
 	}
 
-	handled = 1;
-done:
-	return (handled);
+	return (0);
 }
 
 int
 emulate_rdmsr(struct vm *vm, int cpu, u_int num)
 {
-	int error, handled, idx;
+	int error, idx;
 	uint32_t eax, edx;
 	uint64_t result, *guest_msrs;
 
-	handled = 0;
-
 	if (lapic_msr(num)) {
-		handled = lapic_rdmsr(vm, cpu, num, &result);
+		error = lapic_rdmsr(vm, cpu, num, &result);
 		goto done;
 	}
 
 	idx = msr_num_to_idx(num);
-	if (idx < 0)
+	if (idx < 0 || invalid_msr(idx)) {
+		error = EINVAL;
 		goto done;
-
-	if (invalid_msr(idx))
-		goto done;
+	}
 
 	guest_msrs = vm_guest_msrs(vm, cpu);
 	result = guest_msrs[idx];
@@ -202,10 +192,10 @@ emulate_rdmsr(struct vm *vm, int cpu, u_int num)
 		      result, rdmsr(num));
 	}
 
-	handled = 1;
+	error = 0;
 
 done:
-	if (handled) {
+	if (error == 0) {
 		eax = result;
 		edx = result >> 32;
 		error = vm_set_register(vm, cpu, VM_REG_GUEST_RAX, eax);
@@ -215,7 +205,7 @@ done:
 		if (error)
 			panic("vm_set_register(rdx) error %d", error);
 	}
-	return (handled);
+	return (error);
 }
 
 void
