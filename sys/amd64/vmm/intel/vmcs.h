@@ -67,6 +67,7 @@ uint64_t vmcs_read(uint32_t encoding);
 #define	vmcs_exit_qualification()	vmcs_read(VMCS_EXIT_QUALIFICATION)
 #define	vmcs_guest_cr3()		vmcs_read(VMCS_GUEST_CR3)
 #define	vmcs_gpa()			vmcs_read(VMCS_GUEST_PHYSICAL_ADDRESS)
+#define	vmcs_gla()			vmcs_read(VMCS_GUEST_LINEAR_ADDRESS)
 
 #endif	/* _KERNEL */
 

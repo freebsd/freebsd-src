@@ -57,7 +57,6 @@ __FBSDID("$FreeBSD$");
 #include "mptbl.h"
 #include "pci_emul.h"
 #include "xmsr.h"
-#include "instruction_emul.h"
 #include "ioapic.h"
 #include "spinup_ap.h"
 
@@ -455,7 +454,8 @@ vmexit_paging(struct vmctx *ctx, struct vm_exit *vmexit, int *pvcpu)
 	stats.vmexit_paging++;
 
 	err = emulate_mem(ctx, *pvcpu, vmexit->u.paging.gpa, vmexit->rip,
-			  vmexit->u.paging.cr3, vmexit->u.paging.rwx);
+			  vmexit->u.paging.cr3, vmexit->u.paging.rwx,
+			  &vmexit->u.paging.vie);
 
 	if (err) {
 		if (err == EINVAL) {

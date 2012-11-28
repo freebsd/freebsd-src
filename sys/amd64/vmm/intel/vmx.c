@@ -63,7 +63,6 @@ __FBSDID("$FreeBSD$");
 #include "vmx.h"
 #include "x86.h"
 #include "vmx_controls.h"
-#include "vmm_instruction_emul.h"
 
 #define	PINBASED_CTLS_ONE_SETTING					\
 	(PINBASED_EXTINT_EXITING	|				\
@@ -1150,23 +1149,11 @@ vmx_emulate_cr_access(struct vmx *vmx, int vcpu, uint64_t exitqual)
 }
 
 static int
-vmx_lapic_fault(struct vm *vm, int cpu,
-		uint64_t gpa, uint64_t rip, int inst_length,
-		uint64_t cr3, uint64_t ept_qual)
+vmx_ept_fault(struct vm *vm, int cpu,
+	      uint64_t gla, uint64_t gpa, uint64_t rip, int inst_length,
+	      uint64_t cr3, uint64_t ept_qual, struct vie *vie)
 {
-	int read, write, handled;
-	struct vie vie;
-
-	/*
-	 * For this to be a legitimate access to the local apic:
-	 * - the GPA in the local apic page
-	 * - the GPA must be aligned on a 16 byte boundary
-	 */
-	if (gpa < DEFAULT_APIC_BASE || gpa >= DEFAULT_APIC_BASE + PAGE_SIZE)
-		return (UNHANDLED);
-
-	if ((gpa & 0xF) != 0)
-		return (UNHANDLED);
+	int read, write, error;
 
 	/* EPT violation on an instruction fetch doesn't make sense here */
 	if (ept_qual & EPT_VIOLATION_INST_FETCH)
@@ -1188,15 +1175,22 @@ vmx_lapic_fault(struct vm *vm, int cpu,
 	}
 
 	/* Fetch, decode and emulate the faulting instruction */
-	if (vmm_fetch_instruction(vm, rip, inst_length, cr3, &vie) != 0)
+	if (vmm_fetch_instruction(vm, cpu, rip, inst_length, cr3, vie) != 0)
 		return (UNHANDLED);
 
-	if (vmm_decode_instruction(&vie) != 0)
+	if (vmm_decode_instruction(vm, cpu, gla, vie) != 0)
 		return (UNHANDLED);
 
-	handled = lapic_mmio(vm, cpu, gpa - DEFAULT_APIC_BASE, read, &vie);
+	/*
+	 * Check if this is a local apic access
+	 */
+	if (gpa < DEFAULT_APIC_BASE || gpa >= DEFAULT_APIC_BASE + PAGE_SIZE)
+		return (UNHANDLED);
 
-	return (handled);
+	error = vmm_emulate_instruction(vm, cpu, gpa, vie,
+					lapic_mmio_read, lapic_mmio_write, 0);
+
+	return (error ? UNHANDLED : HANDLED);
 }
 
 static int
@@ -1206,7 +1200,7 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 	struct vmcs *vmcs;
 	struct vmxctx *vmxctx;
 	uint32_t eax, ecx, edx;
-	uint64_t qual, gpa, cr3, intr_info;
+	uint64_t qual, gla, gpa, cr3, intr_info;
 
 	handled = 0;
 	vmcs = &vmx->vmcs[vcpu];
@@ -1299,11 +1293,12 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		handled = vmx_handle_cpuid(vmx->vm, vcpu, vmxctx);
 		break;
 	case EXIT_REASON_EPT_FAULT:
+		gla = vmcs_gla();
 		gpa = vmcs_gpa();
 		cr3 = vmcs_guest_cr3();
-		handled = vmx_lapic_fault(vmx->vm, vcpu,
-					  gpa, vmexit->rip, vmexit->inst_length,
-					  cr3, qual);
+		handled = vmx_ept_fault(vmx->vm, vcpu, gla, gpa,
+					vmexit->rip, vmexit->inst_length,
+					cr3, qual, &vmexit->u.paging.vie);
 		if (!handled) {
 			vmexit->exitcode = VM_EXITCODE_PAGING;
 			vmexit->u.paging.cr3 = cr3;

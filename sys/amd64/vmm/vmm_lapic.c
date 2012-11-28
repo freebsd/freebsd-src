@@ -34,12 +34,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/smp.h>
 
 #include <x86/specialreg.h>
+#include <x86/apicreg.h>
 
 #include <machine/vmm.h>
 #include "vmm_ipi.h"
 #include "vmm_lapic.h"
 #include "vlapic.h"
-#include "vmm_instruction_emul.h"
 
 static int
 lapic_write(struct vlapic *vlapic, u_int offset, uint64_t val)
@@ -177,64 +177,45 @@ lapic_wrmsr(struct vm *vm, int cpu, u_int msr, uint64_t val)
 }
 
 int
-lapic_mmio(struct vm *vm, int cpu, u_int offset, int read, struct vie *vie)
+lapic_mmio_write(void *vm, int cpu, uint64_t gpa, uint64_t wval, int size,
+		 void *arg)
 {
-	int handled, error;
-	uint64_t val;
+	int error;
+	uint64_t off;
 	struct vlapic *vlapic;
 
-	const int UNHANDLED = 0;
-
-	vlapic = vm_lapic(vm, cpu);
-
-	/* Only 32-bit accesses to local apic */
-	if (vie->op_size != VIE_OP_SIZE_32BIT)
-		return (UNHANDLED);
+	off = gpa - DEFAULT_APIC_BASE;
 
 	/*
-	 * XXX
-	 * The operand register in which we store the result of the
-	 * read must be a GPR that we can modify even if the vcpu
-	 * is "running". All the GPRs qualify except for %rsp.
-	 *
-	 * This is a limitation of the vm_set_register() API
-	 * and can be fixed if necessary.
+	 * Memory mapped local apic accesses must be 4 bytes wide and
+	 * aligned on a 16-byte boundary.
 	 */
-	if (vie->operand_register == VM_REG_GUEST_RSP)
-		return (UNHANDLED);
+	if (size != 4 || off & 0xf)
+		return (EINVAL);
 
-	if (read) {
-		if ((vie->opcode_flags & VIE_F_TO_REG) == 0)
-			return (UNHANDLED);
+	vlapic = vm_lapic(vm, cpu);
+	error = vlapic_op_mem_write(vlapic, off, DWORD, wval);
+	return (error);
+}
 
-		if (vie->operand_register >= VM_REG_LAST)
-			return (UNHANDLED);
+int
+lapic_mmio_read(void *vm, int cpu, uint64_t gpa, uint64_t *rval, int size,
+		void *arg)
+{
+	int error;
+	uint64_t off;
+	struct vlapic *vlapic;
 
-		handled = lapic_read(vlapic, offset, &val);
-		if (handled) {
-			error = vm_set_register(vm, cpu, vie->operand_register,
-						val);
-			if (error)
-				panic("lapic_mmio: error %d setting gpr %d",
-				      error, vie->operand_register);
-		}
-	} else {
-		if ((vie->opcode_flags & VIE_F_FROM_REG) &&
-		    (vie->operand_register < VM_REG_LAST)) {
-			error = vm_get_register(vm, cpu, vie->operand_register,
-						&val);
-			if (error) {
-				panic("lapic_mmio: error %d getting gpr %d",
-				      error, vie->operand_register);
-			}
-		} else if (vie->opcode_flags & VIE_F_FROM_IMM) {
-			val = vie->immediate;
-		} else {
-			return (UNHANDLED);
-		}
+	off = gpa - DEFAULT_APIC_BASE;
 
-		handled = lapic_write(vlapic, offset, val);
-	}
+	/*
+	 * Memory mapped local apic accesses must be 4 bytes wide and
+	 * aligned on a 16-byte boundary.
+	 */
+	if (size != 4 || off & 0xf)
+		return (EINVAL);
 
-	return (handled);
+	vlapic = vm_lapic(vm, cpu);
+	error = vlapic_op_mem_read(vlapic, off, DWORD, rval);
+	return (error);
 }
