@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <vmmapi.h>
 #include "pci_emul.h"
 #include "mem.h"
-#include "instruction_emul.h"
 
 #ifndef _PATH_DEVPCI
 #define	_PATH_DEVPCI	"/dev/pci"

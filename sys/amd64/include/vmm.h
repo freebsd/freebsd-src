@@ -150,6 +150,8 @@ void vm_interrupt_hostcpu(struct vm *vm, int vcpu);
 
 #endif	/* KERNEL */
 
+#include <machine/vmm_instruction_emul.h>
+
 #define	VM_MAXCPU	8			/* maximum virtual cpus */
 
 /*
@@ -268,6 +270,7 @@ struct vm_exit {
 			uint64_t	cr3;
 			uint64_t	gpa;
 			int		rwx;
+			struct vie	vie;
 		} paging;
 		/*
 		 * VMX specific payload. Used when there is no "better"

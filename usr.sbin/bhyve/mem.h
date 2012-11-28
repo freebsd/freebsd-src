@@ -51,7 +51,7 @@ struct mem_range {
 
 void	init_mem(void);
 int     emulate_mem(struct vmctx *, int vcpu, uint64_t paddr, uint64_t rip,
-		    uint64_t cr3, int mode);
+		    uint64_t cr3, int mode, struct vie *vie);
 		    
 int	register_mem(struct mem_range *memp);
 

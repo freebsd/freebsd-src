@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include <assert.h>
 
 #include "mem.h"
-#include "instruction_emul.h"
 
 struct mmio_rb_range {
 	RB_ENTRY(mmio_rb_range)	mr_link;	/* RB tree links */
@@ -134,14 +133,34 @@ mmio_rb_dump(void)
 
 RB_GENERATE(mmio_rb_tree, mmio_rb_range, mr_link, mmio_rb_range_compare);
 
+static int
+mem_read(void *ctx, int vcpu, uint64_t gpa, uint64_t *rval, int size, void *arg)
+{
+	int error;
+	struct mem_range *mr = arg;
+
+	error = (*mr->handler)(ctx, vcpu, MEM_F_READ, gpa, size,
+			       rval, mr->arg1, mr->arg2);
+	return (error);
+}
+
+static int
+mem_write(void *ctx, int vcpu, uint64_t gpa, uint64_t wval, int size, void *arg)
+{
+	int error;
+	struct mem_range *mr = arg;
+
+	error = (*mr->handler)(ctx, vcpu, MEM_F_WRITE, gpa, size,
+			       &wval, mr->arg1, mr->arg2);
+	return (error);
+}
+
 int
 emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, uint64_t rip,
-	    uint64_t cr3, int mode)
+	    uint64_t cr3, int mode, struct vie *vie)
 {
 	struct mmio_rb_range *entry;
 	int err;
-
-	err = 0;
 
 	/*
 	 * First check the per-vCPU cache
@@ -149,18 +168,22 @@ emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, uint64_t rip,
 	if (mmio_hint[vcpu] &&
 	    paddr >= mmio_hint[vcpu]->mr_base &&
 	    paddr <= mmio_hint[vcpu]->mr_end) {
-		err = emulate_instruction(ctx, vcpu, rip, cr3, paddr, mode,
-					  &mmio_hint[vcpu]->mr_param);
-	} else {
-		if (mmio_rb_lookup(paddr, &entry)) {
-			err = ENOENT;
-		} else {
-			mmio_hint[vcpu] = entry;
-			err = emulate_instruction(ctx, vcpu, rip, cr3, paddr,
-						  mode, &entry->mr_param);
-		}
+		entry = mmio_hint[vcpu];
+	} else
+		entry = NULL;
+
+	if (entry == NULL) {
+		if (mmio_rb_lookup(paddr, &entry))
+			return (ESRCH);
+
+		/* Update the per-vCPU cache */
+		mmio_hint[vcpu] = entry;
 	}
 
+	assert(entry != NULL && entry == mmio_hint[vcpu]);
+
+	err = vmm_emulate_instruction(ctx, vcpu, paddr, vie,
+				      mem_read, mem_write, &entry->mr_param);
 	return (err);
 }
 

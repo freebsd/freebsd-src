@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 
 #include "inout.h"
 #include "mem.h"
-#include "instruction_emul.h"
 #include "fbsdrun.h"
 
 #include <stdio.h>
