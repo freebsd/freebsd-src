@@ -156,8 +156,7 @@ mem_write(void *ctx, int vcpu, uint64_t gpa, uint64_t wval, int size, void *arg)
 }
 
 int
-emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, uint64_t rip,
-	    uint64_t cr3, int mode, struct vie *vie)
+emulate_mem(struct vmctx *ctx, int vcpu, uint64_t paddr, struct vie *vie)
 {
 	struct mmio_rb_range *entry;
 	int err;
