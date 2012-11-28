@@ -918,11 +918,16 @@ bad2:
 bad:
 	if (ah)
 		ath_hal_detach(ah);
-	if (ifp != NULL) {
+
+	/*
+	 * To work around scoping issues with CURVNET_SET/CURVNET_RESTORE..
+	 */
+	if (ifp != NULL && ifp->if_vnet) {
 		CURVNET_SET(ifp->if_vnet);
 		if_free(ifp);
 		CURVNET_RESTORE();
-	}
+	} else if (ifp != NULL)
+		if_free(ifp);
 	sc->sc_invalid = 1;
 	return error;
 }
