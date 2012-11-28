@@ -431,7 +431,7 @@ main(int argc, char **argv)
 			nfsdcnt = DEFNFSDCNT;
 		}
 		if (nfsdcnt > MAXNFSDCNT) {
-			warnx("nfsd counta too high %d; reset to %d", nfsdcnt,
+			warnx("nfsd count too high %d; reset to %d", nfsdcnt,
 			    DEFNFSDCNT);
 			nfsdcnt = MAXNFSDCNT;
 		}
