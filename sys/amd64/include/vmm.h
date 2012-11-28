@@ -267,9 +267,7 @@ struct vm_exit {
 			uint32_t	eax;		/* valid for out */
 		} inout;
 		struct {
-			uint64_t	cr3;
 			uint64_t	gpa;
-			int		rwx;
 			struct vie	vie;
 		} paging;
 		/*
