@@ -1214,23 +1214,25 @@ vmx_exit_process(struct vmx *vmx, int vcpu, struct vm_exit *vmexit)
 		break;
 	case EXIT_REASON_RDMSR:
 		ecx = vmxctx->guest_rcx;
-		handled = emulate_rdmsr(vmx->vm, vcpu, ecx);
-		if (!handled) {
+		error = emulate_rdmsr(vmx->vm, vcpu, ecx);
+		if (error) {
 			vmexit->exitcode = VM_EXITCODE_RDMSR;
 			vmexit->u.msr.code = ecx;
-		}
+		} else
+			handled = 1;
 		break;
 	case EXIT_REASON_WRMSR:
 		eax = vmxctx->guest_rax;
 		ecx = vmxctx->guest_rcx;
 		edx = vmxctx->guest_rdx;
-		handled = emulate_wrmsr(vmx->vm, vcpu, ecx,
+		error = emulate_wrmsr(vmx->vm, vcpu, ecx,
 					(uint64_t)edx << 32 | eax);
-		if (!handled) {
+		if (error) {
 			vmexit->exitcode = VM_EXITCODE_WRMSR;
 			vmexit->u.msr.code = ecx;
 			vmexit->u.msr.wval = (uint64_t)edx << 32 | eax;
-		}
+		} else
+			handled = 1;
 		break;
 	case EXIT_REASON_HLT:
 		vmm_stat_incr(vmx->vm, vcpu, VMEXIT_HLT, 1);
