@@ -415,17 +415,21 @@ template <unsigned> struct __static_assert_check {};
 #endif
 
 #ifdef _LIBCPP_HAS_NO_STRONG_ENUMS
-#define _LIBCPP_DECLARE_STRONG_ENUM(x) struct _LIBCPP_VISIBLE x { enum _
+#define _LIBCPP_DECLARE_STRONG_ENUM(x) struct _LIBCPP_VISIBLE x { enum __lx
 #define _LIBCPP_DECLARE_STRONG_ENUM_EPILOG(x) \
-    _ __v_; \
-    _LIBCPP_ALWAYS_INLINE x(_ __v) : __v_(__v) {} \
-    _LIBCPP_ALWAYS_INLINE explicit x(int __v) : __v_(static_cast<_>(__v)) {} \
+    __lx __v_; \
+    _LIBCPP_ALWAYS_INLINE x(__lx __v) : __v_(__v) {} \
+    _LIBCPP_ALWAYS_INLINE explicit x(int __v) : __v_(static_cast<__lx>(__v)) {} \
     _LIBCPP_ALWAYS_INLINE operator int() const {return __v_;} \
     };
 #else  // _LIBCPP_HAS_NO_STRONG_ENUMS
 #define _LIBCPP_DECLARE_STRONG_ENUM(x) enum class _LIBCPP_VISIBLE x
 #define _LIBCPP_DECLARE_STRONG_ENUM_EPILOG(x)
 #endif  // _LIBCPP_HAS_NO_STRONG_ENUMS
+
+#ifndef _LIBCPP_EXTERN_TEMPLATE
+#define _LIBCPP_EXTERN_TEMPLATE(...) extern template __VA_ARGS__;
+#endif
 
 #if __APPLE__ || __FreeBSD__ || _WIN32 || __sun__
 #define _LIBCPP_LOCALE__L_EXTENSIONS 1
