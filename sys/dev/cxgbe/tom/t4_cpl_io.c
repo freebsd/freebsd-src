@@ -786,6 +786,29 @@ do_peer_close(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	KASSERT(opcode == CPL_PEER_CLOSE,
 	    ("%s: unexpected opcode 0x%x", __func__, opcode));
 	KASSERT(m == NULL, ("%s: wasn't expecting payload", __func__));
+
+	if (__predict_false(toep->flags & TPF_SYNQE)) {
+#ifdef INVARIANTS
+		struct synq_entry *synqe = (void *)toep;
+
+		INP_WLOCK(synqe->lctx->inp);
+		if (synqe->flags & TPF_SYNQE_HAS_L2TE) {
+			KASSERT(synqe->flags & TPF_ABORT_SHUTDOWN,
+			    ("%s: listen socket closed but tid %u not aborted.",
+			    __func__, tid));
+		} else {
+			/*
+			 * do_pass_accept_req is still running and will
+			 * eventually take care of this tid.
+			 */
+		}
+		INP_WUNLOCK(synqe->lctx->inp);
+#endif
+		CTR4(KTR_CXGBE, "%s: tid %u, synqe %p (0x%x)", __func__, tid,
+		    toep, toep->flags);
+		return (0);
+	}
+
 	KASSERT(toep->tid == tid, ("%s: toep tid mismatch", __func__));
 
 	INP_INFO_WLOCK(&V_tcbinfo);
@@ -1092,13 +1115,24 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	int len;
 
 	if (__predict_false(toep->flags & TPF_SYNQE)) {
-		/*
-		 * do_pass_establish failed and must be attempting to abort the
-		 * synqe's tid.  Meanwhile, the T4 has sent us data for such a
-		 * connection.
-		 */
-		KASSERT(toep->flags & TPF_ABORT_SHUTDOWN,
-		    ("%s: synqe and tid isn't being aborted.", __func__));
+#ifdef INVARIANTS
+		struct synq_entry *synqe = (void *)toep;
+
+		INP_WLOCK(synqe->lctx->inp);
+		if (synqe->flags & TPF_SYNQE_HAS_L2TE) {
+			KASSERT(synqe->flags & TPF_ABORT_SHUTDOWN,
+			    ("%s: listen socket closed but tid %u not aborted.",
+			    __func__, tid));
+		} else {
+			/*
+			 * do_pass_accept_req is still running and will
+			 * eventually take care of this tid.
+			 */
+		}
+		INP_WUNLOCK(synqe->lctx->inp);
+#endif
+		CTR4(KTR_CXGBE, "%s: tid %u, synqe %p (0x%x)", __func__, tid,
+		    toep, toep->flags);
 		m_freem(m);
 		return (0);
 	}
