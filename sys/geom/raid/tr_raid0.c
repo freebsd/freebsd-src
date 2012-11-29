@@ -234,7 +234,8 @@ g_raid_tr_iostart_raid0(struct g_raid_tr_object *tr, struct bio *bp)
 			offset += strip_size;
 		}
 		remain -= length;
-		addr += length;
+		if (bp->bio_cmd != BIO_DELETE)
+			addr += length;
 		start = 0;
 	} while (remain > 0);
 	for (cbp = bioq_first(&queue); cbp != NULL;

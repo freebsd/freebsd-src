@@ -830,7 +830,7 @@ g_raid_md_taste_nvidia(struct g_raid_md_object *md, struct g_class *mp,
 	struct nvidia_raid_conf *meta;
 	struct g_raid_md_nvidia_perdisk *pd;
 	struct g_geom *geom;
-	int error, result, spare, len;
+	int result, spare, len;
 	char name[32];
 	uint16_t vendor;
 
@@ -939,14 +939,7 @@ search:
 	disk->d_consumer = rcp;
 	rcp->private = disk;
 
-	/* Read kernel dumping information. */
-	disk->d_kd.offset = 0;
-	disk->d_kd.length = OFF_MAX;
-	len = sizeof(disk->d_kd);
-	error = g_io_getattr("GEOM::kerneldump", rcp, &len, &disk->d_kd);
-	if (disk->d_kd.di.dumper == NULL)
-		G_RAID_DEBUG1(2, sc, "Dumping not supported by %s: %d.", 
-		    rcp->provider->name, error);
+	g_raid_get_disk_info(disk);
 
 	g_raid_md_nvidia_new_disk(disk);
 
@@ -1117,15 +1110,7 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 			cp->private = disk;
 			g_topology_unlock();
 
-			/* Read kernel dumping information. */
-			disk->d_kd.offset = 0;
-			disk->d_kd.length = OFF_MAX;
-			len = sizeof(disk->d_kd);
-			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
-			if (disk->d_kd.di.dumper == NULL)
-				G_RAID_DEBUG1(2, sc,
-				    "Dumping not supported by %s.",
-				    cp->provider->name);
+			g_raid_get_disk_info(disk);
 
 			pd->pd_disk_size = pp->mediasize;
 			if (size > pp->mediasize)
@@ -1377,15 +1362,7 @@ g_raid_md_ctl_nvidia(struct g_raid_md_object *md,
 			cp->private = disk;
 			g_topology_unlock();
 
-			/* Read kernel dumping information. */
-			disk->d_kd.offset = 0;
-			disk->d_kd.length = OFF_MAX;
-			len = sizeof(disk->d_kd);
-			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
-			if (disk->d_kd.di.dumper == NULL)
-				G_RAID_DEBUG1(2, sc,
-				    "Dumping not supported by %s.",
-				    cp->provider->name);
+			g_raid_get_disk_info(disk);
 
 			/* Welcome the "new" disk. */
 			update += g_raid_md_nvidia_start_disk(disk);
