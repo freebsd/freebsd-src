@@ -1113,6 +1113,7 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 	struct socket *so;
 	struct sockbuf *sb;
 	int len;
+	uint32_t ddp_placed = 0;
 
 	if (__predict_false(toep->flags & TPF_SYNQE)) {
 #ifdef INVARIANTS
@@ -1154,13 +1155,8 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 
 	tp = intotcpcb(inp);
 
-#ifdef INVARIANTS
-	if (__predict_false(tp->rcv_nxt != be32toh(cpl->seq))) {
-		log(LOG_ERR,
-		    "%s: unexpected seq# %x for TID %u, rcv_nxt %x\n",
-		    __func__, be32toh(cpl->seq), toep->tid, tp->rcv_nxt);
-	}
-#endif
+	if (__predict_false(tp->rcv_nxt != be32toh(cpl->seq)))
+		ddp_placed = be32toh(cpl->seq) - tp->rcv_nxt;
 
 	tp->rcv_nxt += len;
 	KASSERT(tp->rcv_wnd >= len, ("%s: negative window size", __func__));
@@ -1207,12 +1203,20 @@ do_rx_data(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		int changed = !(toep->ddp_flags & DDP_ON) ^ cpl->ddp_off;
 
 		if (changed) {
-			if (__predict_false(!(toep->ddp_flags & DDP_SC_REQ))) {
-				/* XXX: handle this if legitimate */
-				panic("%s: unexpected DDP state change %d",
-				    __func__, cpl->ddp_off);
+			if (toep->ddp_flags & DDP_SC_REQ)
+				toep->ddp_flags ^= DDP_ON | DDP_SC_REQ;
+			else {
+				KASSERT(cpl->ddp_off == 1,
+				    ("%s: DDP switched on by itself.",
+				    __func__));
+
+				/* Fell out of DDP mode */
+				toep->ddp_flags &= ~(DDP_ON | DDP_BUF0_ACTIVE |
+				    DDP_BUF1_ACTIVE);
+
+				if (ddp_placed)
+					insert_ddp_data(toep, ddp_placed);
 			}
-			toep->ddp_flags ^= DDP_ON | DDP_SC_REQ;
 		}
 
 		if ((toep->ddp_flags & DDP_OK) == 0 &&
