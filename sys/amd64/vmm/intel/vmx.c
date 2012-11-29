@@ -1159,15 +1159,16 @@ vmx_ept_fault(struct vm *vm, int cpu,
 	if (ept_qual & EPT_VIOLATION_INST_FETCH)
 		return (UNHANDLED);
 
-	/* EPT violation must be a read fault or a write fault but not both */
+	/* EPT violation must be a read fault or a write fault */
 	read = ept_qual & EPT_VIOLATION_DATA_READ ? 1 : 0;
 	write = ept_qual & EPT_VIOLATION_DATA_WRITE ? 1 : 0;
-	if ((read ^ write) == 0)
+	if ((read | write) == 0)
 		return (UNHANDLED);
 
 	/*
-	 * The EPT violation must have been caused by accessing a guest-physical
-	 * address that is a translation of a guest-linear address.
+	 * The EPT violation must have been caused by accessing a
+	 * guest-physical address that is a translation of a guest-linear
+	 * address.
 	 */
 	if ((ept_qual & EPT_VIOLATION_GLA_VALID) == 0 ||
 	    (ept_qual & EPT_VIOLATION_XLAT_VALID) == 0) {
