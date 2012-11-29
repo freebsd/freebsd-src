@@ -395,7 +395,7 @@ struct mbstat {
  *
  * The rest of it is defined in kern/kern_mbuf.c
  */
-extern long		maxmbufmem;
+extern quad_t		maxmbufmem;
 extern uma_zone_t	zone_mbuf;
 extern uma_zone_t	zone_clust;
 extern uma_zone_t	zone_pack;
