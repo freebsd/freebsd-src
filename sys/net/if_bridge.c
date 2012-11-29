@@ -615,7 +615,7 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	 */
 	fb = 0;
 	getcredhostid(curthread->td_ucred, &hostid);
-	for (retry = 1; retry != 0;) {
+	do {
 		if (fb || hostid == 0) {
 			arc4rand(sc->sc_defaddr, ETHER_ADDR_LEN, 1);
 			sc->sc_defaddr[0] &= ~1;/* clear multicast bit */
@@ -635,11 +635,13 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		LIST_FOREACH(sc2, &bridge_list, sc_list) {
 			bifp = sc2->sc_ifp;
 			if (memcmp(sc->sc_defaddr,
-			    IF_LLADDR(bifp), ETHER_ADDR_LEN) == 0)
+			    IF_LLADDR(bifp), ETHER_ADDR_LEN) == 0) {
 				retry = 1;
+				break;
+			}
 		}
 		mtx_unlock(&bridge_list_mtx);
-	}
+	} while (retry == 1);
 
 	bstp_attach(&sc->sc_stp, &bridge_ops);
 	ether_ifattach(ifp, sc->sc_defaddr);
