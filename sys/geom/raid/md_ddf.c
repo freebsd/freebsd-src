@@ -2087,7 +2087,7 @@ g_raid_md_taste_ddf(struct g_raid_md_object *md, struct g_class *mp,
 	struct g_raid_md_ddf_perdisk *pd;
 	struct g_raid_md_ddf_object *mdi;
 	struct g_geom *geom;
-	int error, result, len, be;
+	int error, result, be;
 	char name[16];
 
 	G_RAID_DEBUG(1, "Tasting DDF on %s", cp->provider->name);
@@ -2154,14 +2154,7 @@ g_raid_md_taste_ddf(struct g_raid_md_object *md, struct g_class *mp,
 	disk->d_consumer = rcp;
 	rcp->private = disk;
 
-	/* Read kernel dumping information. */
-	disk->d_kd.offset = 0;
-	disk->d_kd.length = OFF_MAX;
-	len = sizeof(disk->d_kd);
-	error = g_io_getattr("GEOM::kerneldump", rcp, &len, &disk->d_kd);
-	if (disk->d_kd.di.dumper == NULL)
-		G_RAID_DEBUG1(2, sc, "Dumping not supported by %s: %d.", 
-		    rcp->provider->name, error);
+	g_raid_get_disk_info(disk);
 
 	g_raid_md_ddf_new_disk(disk);
 
@@ -2348,15 +2341,7 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 				ddf_meta_update(&mdi->mdio_meta, &pd->pd_meta);
 			g_topology_unlock();
 
-			/* Read kernel dumping information. */
-			disk->d_kd.offset = 0;
-			disk->d_kd.length = OFF_MAX;
-			len = sizeof(disk->d_kd);
-			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
-			if (disk->d_kd.di.dumper == NULL)
-				G_RAID_DEBUG1(2, sc,
-				    "Dumping not supported by %s.",
-				    cp->provider->name);
+			g_raid_get_disk_info(disk);
 
 			/* Reserve some space for metadata. */
 			size = MIN(size, GET64(&pd->pd_meta,
@@ -2675,15 +2660,7 @@ g_raid_md_ctl_ddf(struct g_raid_md_object *md,
 			disk->d_md_data = (void *)pd;
 			cp->private = disk;
 
-			/* Read kernel dumping information. */
-			disk->d_kd.offset = 0;
-			disk->d_kd.length = OFF_MAX;
-			len = sizeof(disk->d_kd);
-			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
-			if (disk->d_kd.di.dumper == NULL)
-				G_RAID_DEBUG1(2, sc,
-				    "Dumping not supported by %s.",
-				    cp->provider->name);
+			g_raid_get_disk_info(disk);
 
 			/* Welcome the "new" disk. */
 			g_raid_change_disk_state(disk, G_RAID_DISK_S_SPARE);

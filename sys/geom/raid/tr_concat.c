@@ -248,7 +248,8 @@ g_raid_tr_iostart_concat(struct g_raid_tr_object *tr, struct bio *bp)
 		cbp->bio_caller1 = sd;
 		bioq_insert_tail(&queue, cbp);
 		remain -= length;
-		addr += length;
+		if (bp->bio_cmd != BIO_DELETE)
+			addr += length;
 		offset = 0;
 		no++;
 		KASSERT(no < vol->v_disks_count || remain == 0,

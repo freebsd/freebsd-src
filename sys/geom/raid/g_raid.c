@@ -499,6 +499,34 @@ g_raid_get_diskname(struct g_raid_disk *disk)
 }
 
 void
+g_raid_get_disk_info(struct g_raid_disk *disk)
+{
+	struct g_consumer *cp = disk->d_consumer;
+	int error, len;
+
+	/* Read kernel dumping information. */
+	disk->d_kd.offset = 0;
+	disk->d_kd.length = OFF_MAX;
+	len = sizeof(disk->d_kd);
+	error = g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
+	if (error)
+		disk->d_kd.di.dumper = NULL;
+	if (disk->d_kd.di.dumper == NULL)
+		G_RAID_DEBUG1(2, disk->d_softc,
+		    "Dumping not supported by %s: %d.", 
+		    cp->provider->name, error);
+
+	/* Read BIO_DELETE support. */
+	error = g_getattr("GEOM::candelete", cp, &disk->d_candelete);
+	if (error)
+		disk->d_candelete = 0;
+	if (!disk->d_candelete)
+		G_RAID_DEBUG1(2, disk->d_softc,
+		    "BIO_DELETE not supported by %s: %d.", 
+		    cp->provider->name, error);
+}
+
+void
 g_raid_report_disk_state(struct g_raid_disk *disk)
 {
 	struct g_raid_subdisk *sd;
@@ -1052,6 +1080,31 @@ g_raid_kerneldump(struct g_raid_softc *sc, struct bio *bp)
 }
 
 static void
+g_raid_candelete(struct g_raid_softc *sc, struct bio *bp)
+{
+	struct g_provider *pp;
+	struct g_raid_volume *vol;
+	struct g_raid_subdisk *sd;
+	int *val;
+	int i;
+
+	val = (int *)bp->bio_data;
+	pp = bp->bio_to;
+	vol = pp->private;
+	*val = 0;
+	for (i = 0; i < vol->v_disks_count; i++) {
+		sd = &vol->v_subdisks[i];
+		if (sd->sd_state == G_RAID_SUBDISK_S_NONE)
+			continue;
+		if (sd->sd_disk->d_candelete) {
+			*val = 1;
+			break;
+		}
+	}
+	g_io_deliver(bp, 0);
+}
+
+static void
 g_raid_start(struct bio *bp)
 {
 	struct g_raid_softc *sc;
@@ -1073,7 +1126,9 @@ g_raid_start(struct bio *bp)
 	case BIO_FLUSH:
 		break;
 	case BIO_GETATTR:
-		if (!strcmp(bp->bio_attribute, "GEOM::kerneldump"))
+		if (!strcmp(bp->bio_attribute, "GEOM::candelete"))
+			g_raid_candelete(sc, bp);
+		else if (!strcmp(bp->bio_attribute, "GEOM::kerneldump"))
 			g_raid_kerneldump(sc, bp);
 		else
 			g_io_deliver(bp, EOPNOTSUPP);
