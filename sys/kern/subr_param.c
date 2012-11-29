@@ -93,7 +93,7 @@ int	ncallout;			/* maximum # of timer events */
 int	nbuf;
 int	ngroups_max;			/* max # groups per process */
 int	nswbuf;
-long	maxmbufmem;			/* max mbuf memory */
+quad_t	maxmbufmem;			/* max mbuf memory */
 pid_t	pid_max = PID_MAX;
 long	maxswzone;			/* max swmeta KVA storage */
 long	maxbcache;			/* max buffer cache KVA storage */
@@ -271,7 +271,7 @@ init_param1(void)
 void
 init_param2(long physpages)
 {
-	long realmem;
+	quad_t realmem;
 
 	/* Base parameters */
 	maxusers = MAXUSERS;
@@ -332,10 +332,10 @@ init_param2(long physpages)
 	 * available kernel memory (physical or kmem).
 	 * At most it can be 3/4 of available kernel memory.
 	 */
-	realmem = lmin(physpages * PAGE_SIZE,
+	realmem = qmin(physpages * PAGE_SIZE,
 			VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS);
 	maxmbufmem = realmem / 2;
-	TUNABLE_LONG_FETCH("kern.maxmbufmem", &maxmbufmem);
+	TUNABLE_QUAD_FETCH("kern.maxmbufmem", &maxmbufmem);
 	if (maxmbufmem > (realmem / 4) * 3)
 		maxmbufmem = (realmem / 4) * 3;
 
