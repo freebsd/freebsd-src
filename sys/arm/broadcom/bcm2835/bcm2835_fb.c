@@ -751,7 +751,7 @@ bcmfb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 	p = sc->font + c*BCMFB_FONT_HEIGHT;
 	addr = (uint8_t *)sc->fb_addr
 	    + (row + sc->ymargin)*(sc->stride)
-	    + 3 * (col + sc->xmargin);
+	    + (sc->depth/8) * (col + sc->xmargin);
 
 	fg = a & 0xf ;
 	bg = (a >> 8) & 0xf;
