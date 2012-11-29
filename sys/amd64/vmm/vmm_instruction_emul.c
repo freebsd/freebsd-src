@@ -81,6 +81,11 @@ static const struct vie_op one_byte_opcodes[256] = {
 	[0x23] = {
 		.op_byte = 0x23,
 		.op_type = VIE_OP_TYPE_AND,
+	},
+	[0x81] = {
+		.op_byte = 0x81,
+		.op_type = VIE_OP_TYPE_AND,
+		.op_flags = VIE_OP_F_IMM,
 	}
 };
 
@@ -298,6 +303,30 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		/* perform the operation and write the result */
 		val1 &= val2;
 		error = vie_update_register(vm, vcpuid, reg, val1, size);
+		break;
+	case 0x81:
+		printf("0x81 AND\n");
+		/*
+		 * AND reg (ModRM:reg) with immediate and store the
+		 * result in reg
+		 *
+		 * 81/          and r/m32, imm32
+		 * REX.W + 81/  and r/m64, imm32 sign-extended to 64
+		 */
+		if (vie->rex_w)
+			size = 8;
+		
+		/* get the first operand */
+                error = memread(vm, vcpuid, gpa, &val1, size, arg);
+                if (error)
+			break;
+
+                /*
+		 * perform the operation with the pre-fetched immediate
+		 * operand and write the result
+		 */
+                val1 &= vie->immediate;
+                error = memwrite(vm, vcpuid, gpa, val1, size, arg);
 		break;
 	default:
 		break;
