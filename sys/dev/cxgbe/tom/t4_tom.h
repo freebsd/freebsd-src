@@ -67,6 +67,7 @@ enum {
 	TPF_SYNQE_NEEDFREE = (1 << 9),	/* synq_entry was malloc'd separately */
 	TPF_SYNQE_TCPDDP   = (1 << 10),	/* ulp_mode TCPDDP in toepcb */
 	TPF_SYNQE_EXPANDED = (1 << 11),	/* toepcb ready, tid context updated */
+	TPF_SYNQE_HAS_L2TE = (1 << 12),	/* we've replied to PASS_ACCEPT_REQ */
 };
 
 enum {
