@@ -9,6 +9,16 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20121129:
+	A new version of ZFS (pool version 5000) has been merged to 9-STABLE.
+	Starting with this version the old system of ZFS pool versioning
+	is superseded by "feature flags". This concept enables forward
+	compatibility against certain future changes in functionality of ZFS
+	pools. The first two read-only compatible "feature flags" for ZFS
+	pools are "com.delphix:async_destroy" and "com.delphix:empty_bpobj".
+	For more information read the new zpool-features(7) manual page.
+        Please refer to the "ZFS notes" section of this file for information
+        on upgrading boot ZFS pools.
 
 20121102:
 	The IPFIREWALL_FORWARD kernel option has been removed. Its
