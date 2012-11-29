@@ -305,7 +305,6 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		error = vie_update_register(vm, vcpuid, reg, val1, size);
 		break;
 	case 0x81:
-		printf("0x81 AND\n");
 		/*
 		 * AND reg (ModRM:reg) with immediate and store the
 		 * result in reg
