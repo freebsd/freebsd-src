@@ -47,7 +47,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.5.0 - 7";
+char ixgbe_driver_version[] = "2.5.0 - 8";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -164,7 +164,7 @@ static int	ixgbe_dma_malloc(struct adapter *, bus_size_t,
 		    struct ixgbe_dma_alloc *, int);
 static void     ixgbe_dma_free(struct adapter *, struct ixgbe_dma_alloc *);
 static void	ixgbe_add_process_limit(struct adapter *, const char *,
-		    const char *, int *, int);
+		    const char *, u16 *, u16);
 static bool	ixgbe_tx_ctx_setup(struct tx_ring *, struct mbuf *);
 static bool	ixgbe_tso_setup(struct tx_ring *, struct mbuf *, u32 *, u32 *);
 static void	ixgbe_set_ivar(struct adapter *, u8, u8, s8);
@@ -1787,19 +1787,19 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 		    *m_headp, segs, &nsegs, BUS_DMA_NOWAIT);
 
 		if (error == ENOMEM) {
-			adapter->no_tx_dma_setup++;
+			txr->no_tx_dma_setup++;
 			return (error);
 		} else if (error != 0) {
-			adapter->no_tx_dma_setup++;
+			txr->no_tx_dma_setup++;
 			m_freem(*m_headp);
 			*m_headp = NULL;
 			return (error);
 		}
 	} else if (error == ENOMEM) {
-		adapter->no_tx_dma_setup++;
+		txr->no_tx_dma_setup++;
 		return (error);
 	} else if (error != 0) {
-		adapter->no_tx_dma_setup++;
+		txr->no_tx_dma_setup++;
 		m_freem(*m_headp);
 		*m_headp = NULL;
 		return (error);
@@ -1822,7 +1822,7 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 			cmd_type_len |= IXGBE_ADVTXD_DCMD_TSE;
 			olinfo_status |= IXGBE_TXD_POPTS_TXSM << 8;
 			olinfo_status |= paylen << IXGBE_ADVTXD_PAYLEN_SHIFT;
-			++adapter->tso_tx;
+			++txr->tso_tx;
 		} else
 			return (ENXIO);
 	} else if (ixgbe_tx_ctx_setup(txr, m_head))
@@ -1859,7 +1859,7 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 		txd->read.olinfo_status = htole32(olinfo_status);
 		last = i; /* descriptor that will get completion IRQ */
 
-		if (++i == adapter->num_tx_desc)
+		if (++i == txr->num_desc)
 			i = 0;
 
 		txbuf->m_head = NULL;
@@ -2816,6 +2816,7 @@ ixgbe_allocate_queues(struct adapter *adapter)
 		txr = &adapter->tx_rings[i];
 		txr->adapter = adapter;
 		txr->me = i;
+		txr->num_desc = adapter->num_tx_desc;
 
 		/* Initialize the TX side lock */
 		snprintf(txr->mtx_name, sizeof(txr->mtx_name), "%s:tx(%d)",
@@ -2862,6 +2863,7 @@ ixgbe_allocate_queues(struct adapter *adapter)
 		/* Set up some basics */
 		rxr->adapter = adapter;
 		rxr->me = i;
+		rxr->num_desc = adapter->num_rx_desc;
 
 		/* Initialize the RX side lock */
 		snprintf(rxr->mtx_name, sizeof(rxr->mtx_name), "%s:rx(%d)",
@@ -3007,7 +3009,7 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 
 	/* Free any existing tx buffers. */
         txbuf = txr->tx_buffers;
-	for (i = 0; i < adapter->num_tx_desc; i++, txbuf++) {
+	for (i = 0; i < txr->num_desc; i++, txbuf++) {
 		if (txbuf->m_head != NULL) {
 			bus_dmamap_sync(txr->txtag, txbuf->map,
 			    BUS_DMASYNC_POSTWRITE);
@@ -3226,7 +3228,6 @@ ixgbe_free_transmit_buffers(struct tx_ring *txr)
 static bool
 ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
 {
-	struct adapter *adapter = txr->adapter;
 	struct ixgbe_adv_tx_context_desc *TXD;
 	struct ixgbe_tx_buf        *tx_buffer;
 	u32 vlan_macip_lens = 0, type_tucmd_mlhl = 0;
@@ -3329,7 +3330,7 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
 	tx_buffer->eop_index = -1;
 
 	/* We've consumed the first desc, adjust counters */
-	if (++ctxd == adapter->num_tx_desc)
+	if (++ctxd == txr->num_desc)
 		ctxd = 0;
 	txr->next_avail_desc = ctxd;
 	--txr->tx_avail;
@@ -3347,7 +3348,6 @@ static bool
 ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *paylen,
     u32 *olinfo_status)
 {
-	struct adapter *adapter = txr->adapter;
 	struct ixgbe_adv_tx_context_desc *TXD;
 	struct ixgbe_tx_buf        *tx_buffer;
 	u32 vlan_macip_lens = 0, type_tucmd_mlhl = 0;
@@ -3450,7 +3450,7 @@ ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *paylen,
 	tx_buffer->m_head = NULL;
 	tx_buffer->eop_index = -1;
 
-	if (++ctxd == adapter->num_tx_desc)
+	if (++ctxd == txr->num_desc)
 		ctxd = 0;
 
 	txr->tx_avail--;
@@ -3595,7 +3595,7 @@ ixgbe_txeof(struct tx_ring *txr)
 	}
 #endif /* DEV_NETMAP */
 
-	if (txr->tx_avail == adapter->num_tx_desc) {
+	if (txr->tx_avail == txr->num_desc) {
 		txr->queue_status = IXGBE_QUEUE_IDLE;
 		return FALSE;
 	}
@@ -3683,7 +3683,7 @@ ixgbe_txeof(struct tx_ring *txr)
 	if ((!processed) && ((ticks - txr->watchdog_time) > IXGBE_WATCHDOG))
 		txr->queue_status = IXGBE_QUEUE_HUNG;
 
-	if (txr->tx_avail == adapter->num_tx_desc) {
+	if (txr->tx_avail == txr->num_desc) {
 		txr->queue_status = IXGBE_QUEUE_IDLE;
 		return (FALSE);
 	}
@@ -3712,20 +3712,20 @@ ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 
 	i = j = rxr->next_to_refresh;
 	/* Control the loop with one beyond */
-	if (++j == adapter->num_rx_desc)
+	if (++j == rxr->num_desc)
 		j = 0;
 
 	while (j != limit) {
 		rxbuf = &rxr->rx_buffers[i];
 		if (rxbuf->buf == NULL) {
 			mp = m_getjcl(M_DONTWAIT, MT_DATA,
-			    M_PKTHDR, adapter->rx_mbuf_sz);
+			    M_PKTHDR, rxr->mbuf_sz);
 			if (mp == NULL)
 				goto update;
 		} else
 			mp = rxbuf->buf;
 
-		mp->m_pkthdr.len = mp->m_len = adapter->rx_mbuf_sz;
+		mp->m_pkthdr.len = mp->m_len = rxr->mbuf_sz;
 
 		/* If we're dealing with an mbuf that was copied rather
 		 * than replaced, there's no need to go through busdma.
@@ -3755,7 +3755,7 @@ ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 		/* Next is precalculated */
 		i = j;
 		rxr->next_to_refresh = i;
-		if (++j == adapter->num_rx_desc)
+		if (++j == rxr->num_desc)
 			j = 0;
 	}
 update:
@@ -3781,7 +3781,7 @@ ixgbe_allocate_receive_buffers(struct rx_ring *rxr)
 	struct ixgbe_rx_buf 	*rxbuf;
 	int             	i, bsize, error;
 
-	bsize = sizeof(struct ixgbe_rx_buf) * adapter->num_rx_desc;
+	bsize = sizeof(struct ixgbe_rx_buf) * rxr->num_desc;
 	if (!(rxr->rx_buffers =
 	    (struct ixgbe_rx_buf *) malloc(bsize,
 	    M_DEVBUF, M_NOWAIT | M_ZERO))) {
@@ -3806,7 +3806,7 @@ ixgbe_allocate_receive_buffers(struct rx_ring *rxr)
 		goto fail;
 	}
 
-	for (i = 0; i < adapter->num_rx_desc; i++, rxbuf++) {
+	for (i = 0; i < rxr->num_desc; i++, rxbuf++) {
 		rxbuf = &rxr->rx_buffers[i];
 		error = bus_dmamap_create(rxr->tag,
 		    BUS_DMA_NOWAIT, &rxbuf->map);
@@ -3875,11 +3875,11 @@ ixgbe_setup_hw_rsc(struct rx_ring *rxr)
 	** Limit the total number of descriptors that
 	** can be combined, so it does not exceed 64K
 	*/
-	if (adapter->rx_mbuf_sz == MCLBYTES)
+	if (rxr->mbuf_sz == MCLBYTES)
 		rscctrl |= IXGBE_RSCCTL_MAXDESC_16;
-	else if (adapter->rx_mbuf_sz == MJUMPAGESIZE)
+	else if (rxr->mbuf_sz == MJUMPAGESIZE)
 		rscctrl |= IXGBE_RSCCTL_MAXDESC_8;
-	else if (adapter->rx_mbuf_sz == MJUM9BYTES)
+	else if (rxr->mbuf_sz == MJUM9BYTES)
 		rscctrl |= IXGBE_RSCCTL_MAXDESC_4;
 	else  /* Using 16K cluster */
 		rscctrl |= IXGBE_RSCCTL_MAXDESC_1;
@@ -3902,12 +3902,10 @@ ixgbe_setup_hw_rsc(struct rx_ring *rxr)
 static void     
 ixgbe_free_receive_ring(struct rx_ring *rxr)
 { 
-	struct  adapter         *adapter;
 	struct ixgbe_rx_buf       *rxbuf;
 	int i;
 
-	adapter = rxr->adapter;
-	for (i = 0; i < adapter->num_rx_desc; i++) {
+	for (i = 0; i < rxr->num_desc; i++) {
 		rxbuf = &rxr->rx_buffers[i];
 		if (rxbuf->buf != NULL) {
 			bus_dmamap_sync(rxr->tag, rxbuf->map,
@@ -3954,12 +3952,14 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 	rsize = roundup2(adapter->num_rx_desc *
 	    sizeof(union ixgbe_adv_rx_desc), DBA_ALIGN);
 	bzero((void *)rxr->rx_base, rsize);
+	/* Cache the size */
+	rxr->mbuf_sz = adapter->rx_mbuf_sz;
 
 	/* Free current RX buffer structs and their mbufs */
 	ixgbe_free_receive_ring(rxr);
 
 	/* Now replenish the mbufs */
-	for (int j = 0; j != adapter->num_rx_desc; ++j) {
+	for (int j = 0; j != rxr->num_desc; ++j) {
 		struct mbuf	*mp;
 
 		rxbuf = &rxr->rx_buffers[j];
@@ -3990,7 +3990,7 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
                         goto fail;
 		}
 		mp = rxbuf->buf;
-		mp->m_pkthdr.len = mp->m_len = adapter->rx_mbuf_sz;
+		mp->m_pkthdr.len = mp->m_len = rxr->mbuf_sz;
 		/* Get the memory mapping */
 		error = bus_dmamap_load_mbuf_sg(rxr->tag,
 		    rxbuf->map, mp, seg,
@@ -4359,7 +4359,7 @@ ixgbe_rxeof(struct ix_queue *que)
 	struct lro_entry	*queued;
 	int			i, nextp, processed = 0;
 	u32			staterr = 0;
-	u32			count = rxr->process_limit;
+	u16			count = rxr->process_limit;
 	union ixgbe_adv_rx_desc	*cur;
 	struct ixgbe_rx_buf	*rbuf, *nbuf;
 
@@ -4540,7 +4540,7 @@ next_desc:
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 		/* Advance our pointers to the next descriptor. */
-		if (++i == adapter->num_rx_desc)
+		if (++i == rxr->num_desc)
 			i = 0;
 
 		/* Now send to the stack or do LRO */
@@ -5286,15 +5286,9 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "mbuf_defrag_failed",
 			CTLFLAG_RD, &adapter->mbuf_defrag_failed,
 			"m_defrag() failed");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "no_tx_dma_setup",
-			CTLFLAG_RD, &adapter->no_tx_dma_setup,
-			"Driver tx dma failure in xmit");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "watchdog_events",
 			CTLFLAG_RD, &adapter->watchdog_events,
 			"Watchdog timeouts");
-	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "tso_tx",
-			CTLFLAG_RD, &adapter->tso_tx,
-			"TSO");
 	SYSCTL_ADD_ULONG(ctx, child, OID_AUTO, "link_irq",
 			CTLFLAG_RD, &adapter->link_irq,
 			"Link MSIX IRQ Handled");
@@ -5321,6 +5315,12 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 				CTLTYPE_UINT | CTLFLAG_RD, txr, sizeof(txr),
 				ixgbe_sysctl_tdt_handler, "IU",
 				"Transmit Descriptor Tail");
+		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "tso_tx",
+				CTLFLAG_RD, &txr->tso_tx,
+				"TSO");
+		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "no_tx_dma_setup",
+				CTLFLAG_RD, &txr->no_tx_dma_setup,
+				"Driver tx dma failure in xmit");
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "no_desc_avail",
 				CTLFLAG_RD, &txr->no_desc_avail,
 				"Queue No Descriptor Available");
@@ -5552,7 +5552,7 @@ ixgbe_set_flowcntl(SYSCTL_HANDLER_ARGS)
 
 static void
 ixgbe_add_process_limit(struct adapter *adapter, const char *name,
-        const char *description, int *limit, int value)
+        const char *description, u16 *limit, u16 value)
 {
         *limit = value;
         SYSCTL_ADD_UINT(device_get_sysctl_ctx(adapter->dev),
