@@ -324,15 +324,15 @@ pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
 
 	switch (bytes) {
 	case 4:
-		__asm __volatile("mov %1, %%eax" : "=a" (data)
+		__asm __volatile("movl %1, %0" : "=a" (data)
 		    : "m" (*(uint32_t *)va));
 		break;
 	case 2:
-		__asm __volatile("movzwl %1, %%eax" : "=a" (data)
+		__asm __volatile("movzwl %1, %0" : "=a" (data)
 		    : "m" (*(uint16_t *)va));
 		break;
 	case 1:
-		__asm __volatile("movzbl %1, %%eax" : "=a" (data)
+		__asm __volatile("movzbl %1, %0" : "=a" (data)
 		    : "m" (*(uint8_t *)va));
 		break;
 	}
@@ -354,16 +354,16 @@ pciereg_cfgwrite(int bus, unsigned slot, unsigned func, unsigned reg, int data,
 
 	switch (bytes) {
 	case 4:
-		__asm __volatile("mov %%eax, %0" : "=m" (*(uint32_t *)va)
+		__asm __volatile("movl %1, %0" : "=m" (*(uint32_t *)va)
 		    : "a" (data));
 		break;
 	case 2:
-		__asm __volatile("mov %%ax, %0" : "=m" (*(uint16_t *)va)
-		    : "a" (data));
+		__asm __volatile("movw %1, %0" : "=m" (*(uint16_t *)va)
+		    : "a" ((uint16_t)data));
 		break;
 	case 1:
-		__asm __volatile("mov %%al, %0" : "=m" (*(uint8_t *)va)
-		    : "a" (data));
+		__asm __volatile("movb %1, %0" : "=m" (*(uint8_t *)va)
+		    : "a" ((uint8_t)data));
 		break;
 	}
 }
