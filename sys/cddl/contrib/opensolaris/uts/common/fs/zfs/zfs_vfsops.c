@@ -49,6 +49,7 @@
 #include <sys/spa.h>
 #include <sys/zap.h>
 #include <sys/sa.h>
+#include <sys/sa_impl.h>
 #include <sys/varargs.h>
 #include <sys/policy.h>
 #include <sys/atomic.h>
@@ -59,7 +60,6 @@
 #include <sys/dnlc.h>
 #include <sys/dmu_objset.h>
 #include <sys/spa_boot.h>
-#include <sys/sa.h>
 #include "zfs_comutil.h"
 
 struct mtx zfs_debug_mtx;
@@ -549,7 +549,6 @@ static int
 zfs_space_delta_cb(dmu_object_type_t bonustype, void *data,
     uint64_t *userp, uint64_t *groupp)
 {
-	znode_phys_t *znp = data;
 	int error = 0;
 
 	/*
@@ -568,20 +567,18 @@ zfs_space_delta_cb(dmu_object_type_t bonustype, void *data,
 		return (EEXIST);
 
 	if (bonustype == DMU_OT_ZNODE) {
+		znode_phys_t *znp = data;
 		*userp = znp->zp_uid;
 		*groupp = znp->zp_gid;
 	} else {
 		int hdrsize;
+		sa_hdr_phys_t *sap = data;
+		sa_hdr_phys_t sa = *sap;
+		boolean_t swap = B_FALSE;
 
 		ASSERT(bonustype == DMU_OT_SA);
-		hdrsize = sa_hdrsize(data);
 
-		if (hdrsize != 0) {
-			*userp = *((uint64_t *)((uintptr_t)data + hdrsize +
-			    SA_UID_OFFSET));
-			*groupp = *((uint64_t *)((uintptr_t)data + hdrsize +
-			    SA_GID_OFFSET));
-		} else {
+		if (sa.sa_magic == 0) {
 			/*
 			 * This should only happen for newly created
 			 * files that haven't had the znode data filled
@@ -589,6 +586,25 @@ zfs_space_delta_cb(dmu_object_type_t bonustype, void *data,
 			 */
 			*userp = 0;
 			*groupp = 0;
+			return (0);
+		}
+		if (sa.sa_magic == BSWAP_32(SA_MAGIC)) {
+			sa.sa_magic = SA_MAGIC;
+			sa.sa_layout_info = BSWAP_16(sa.sa_layout_info);
+			swap = B_TRUE;
+		} else {
+			VERIFY3U(sa.sa_magic, ==, SA_MAGIC);
+		}
+
+		hdrsize = sa_hdrsize(&sa);
+		VERIFY3U(hdrsize, >=, sizeof (sa_hdr_phys_t));
+		*userp = *((uint64_t *)((uintptr_t)data + hdrsize +
+		    SA_UID_OFFSET));
+		*groupp = *((uint64_t *)((uintptr_t)data + hdrsize +
+		    SA_GID_OFFSET));
+		if (swap) {
+			*userp = BSWAP_64(*userp);
+			*groupp = BSWAP_64(*groupp);
 		}
 	}
 	return (error);
@@ -1870,9 +1886,9 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 	/*
 	 * Evict cached data
 	 */
-	if (dmu_objset_is_dirty_anywhere(zfsvfs->z_os))
-		if (!(zfsvfs->z_vfs->vfs_flag & VFS_RDONLY))
-			txg_wait_synced(dmu_objset_pool(zfsvfs->z_os), 0);
+	if (dsl_dataset_is_dirty(dmu_objset_ds(zfsvfs->z_os)) &&
+	    !(zfsvfs->z_vfs->vfs_flag & VFS_RDONLY))
+		txg_wait_synced(dmu_objset_pool(zfsvfs->z_os), 0);
 	(void) dmu_objset_evict_dbufs(zfsvfs->z_os);
 
 	return (0);
@@ -2305,7 +2321,7 @@ void
 zfs_init(void)
 {
 
-	printf("ZFS filesystem version " ZPL_VERSION_STRING "\n");
+	printf("ZFS filesystem version: " ZPL_VERSION_STRING "\n");
 
 	/*
 	 * Initialize .zfs directory structures
@@ -2389,7 +2405,7 @@ zfs_set_version(zfsvfs_t *zfsvfs, uint64_t newvers)
 
 		error = zap_add(os, MASTER_NODE_OBJ,
 		    ZFS_SA_ATTRS, 8, 1, &sa_obj, tx);
-		ASSERT3U(error, ==, 0);
+		ASSERT0(error);
 
 		VERIFY(0 == sa_set_sa_object(os, sa_obj));
 		sa_register_update_callback(os, zfs_sa_upgrade);

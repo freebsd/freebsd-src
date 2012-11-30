@@ -61,7 +61,7 @@ enum zio_stage {
 	ZIO_STAGE_READY			= 1 << 15,	/* RWFCI */
 
 	ZIO_STAGE_VDEV_IO_START		= 1 << 16,	/* RW--I */
-	ZIO_STAGE_VDEV_IO_DONE		= 1 << 17,	/* RW--I */
+	ZIO_STAGE_VDEV_IO_DONE		= 1 << 17,	/* RW--- */
 	ZIO_STAGE_VDEV_IO_ASSESS	= 1 << 18,	/* RW--I */
 
 	ZIO_STAGE_CHECKSUM_VERIFY	= 1 << 19,	/* R---- */

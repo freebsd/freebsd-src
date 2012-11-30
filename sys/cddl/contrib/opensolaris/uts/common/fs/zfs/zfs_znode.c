@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 /* Portions Copyright 2007 Jeremy Teo */
@@ -835,7 +836,7 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 			err = zap_create_claim_norm(zfsvfs->z_os, obj,
 			    zfsvfs->z_norm, DMU_OT_DIRECTORY_CONTENTS,
 			    obj_type, bonuslen, tx);
-			ASSERT3U(err, ==, 0);
+			ASSERT0(err);
 		} else {
 			obj = zap_create_norm(zfsvfs->z_os,
 			    zfsvfs->z_norm, DMU_OT_DIRECTORY_CONTENTS,
@@ -846,7 +847,7 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 			err = dmu_object_claim(zfsvfs->z_os, obj,
 			    DMU_OT_PLAIN_FILE_CONTENTS, 0,
 			    obj_type, bonuslen, tx);
-			ASSERT3U(err, ==, 0);
+			ASSERT0(err);
 		} else {
 			obj = dmu_object_alloc(zfsvfs->z_os,
 			    DMU_OT_PLAIN_FILE_CONTENTS, 0,
@@ -1028,7 +1029,7 @@ zfs_mknode(znode_t *dzp, vattr_t *vap, dmu_tx_t *tx, cred_t *cr,
 	if (obj_type == DMU_OT_ZNODE ||
 	    acl_ids->z_aclp->z_version < ZFS_ACL_VERSION_FUID) {
 		err = zfs_aclset_common(*zpp, acl_ids->z_aclp, cr, tx);
-		ASSERT3P(err, ==, 0);
+		ASSERT0(err);
 	}
 	if (!(flag & IS_ROOT_NODE)) {
 		vnode_t *vp;
@@ -1524,7 +1525,7 @@ zfs_grow_blocksize(znode_t *zp, uint64_t size, dmu_tx_t *tx)
 
 	if (error == ENOTSUP)
 		return;
-	ASSERT3U(error, ==, 0);
+	ASSERT0(error);
 
 	/* What blocksize did we actually get? */
 	dmu_object_size_from_db(sa_get_db(zp->z_sa_hdl), &zp->z_blksz, &dummy);
@@ -2048,13 +2049,16 @@ zfs_release_sa_handle(sa_handle_t *hdl, dmu_buf_t *db, void *tag)
  * or not the object is an extended attribute directory.
  */
 static int
-zfs_obj_to_pobj(sa_handle_t *hdl, sa_attr_type_t *sa_table, uint64_t *pobjp,
-    int *is_xattrdir)
+zfs_obj_to_pobj(objset_t *osp, sa_handle_t *hdl, sa_attr_type_t *sa_table,
+    uint64_t *pobjp, int *is_xattrdir)
 {
 	uint64_t parent;
 	uint64_t pflags;
 	uint64_t mode;
+	uint64_t parent_mode;
 	sa_bulk_attr_t bulk[3];
+	sa_handle_t *sa_hdl;
+	dmu_buf_t *sa_db;
 	int count = 0;
 	int error;
 
@@ -2068,8 +2072,31 @@ zfs_obj_to_pobj(sa_handle_t *hdl, sa_attr_type_t *sa_table, uint64_t *pobjp,
 	if ((error = sa_bulk_lookup(hdl, bulk, count)) != 0)
 		return (error);
 
-	*pobjp = parent;
+	/*
+	 * When a link is removed its parent pointer is not changed and will
+	 * be invalid.  There are two cases where a link is removed but the
+	 * file stays around, when it goes to the delete queue and when there
+	 * are additional links.
+	 */
+	error = zfs_grab_sa_handle(osp, parent, &sa_hdl, &sa_db, FTAG);
+	if (error != 0)
+		return (error);
+
+	error = sa_lookup(sa_hdl, ZPL_MODE, &parent_mode, sizeof (parent_mode));
+	zfs_release_sa_handle(sa_hdl, sa_db, FTAG);
+	if (error != 0)
+		return (error);
+
 	*is_xattrdir = ((pflags & ZFS_XATTR) != 0) && S_ISDIR(mode);
+
+	/*
+	 * Extended attributes can be applied to files, directories, etc.
+	 * Otherwise the parent must be a directory.
+	 */
+	if (!*is_xattrdir && !S_ISDIR(parent_mode))
+		return (EINVAL);
+
+	*pobjp = parent;
 
 	return (0);
 }
@@ -2119,7 +2146,7 @@ zfs_obj_to_path_impl(objset_t *osp, uint64_t obj, sa_handle_t *hdl,
 		if (prevdb)
 			zfs_release_sa_handle(prevhdl, prevdb, FTAG);
 
-		if ((error = zfs_obj_to_pobj(sa_hdl, sa_table, &pobj,
+		if ((error = zfs_obj_to_pobj(osp, sa_hdl, sa_table, &pobj,
 		    &is_xattrdir)) != 0)
 			break;
 

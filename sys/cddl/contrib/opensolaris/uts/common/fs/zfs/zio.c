@@ -126,11 +126,23 @@ zio_init(void)
 		while (p2 & (p2 - 1))
 			p2 &= p2 - 1;
 
+#ifdef illumos
+#ifndef _KERNEL
+		/*
+		 * If we are using watchpoints, put each buffer on its own page,
+		 * to eliminate the performance overhead of trapping to the
+		 * kernel when modifying a non-watched buffer that shares the
+		 * page with a watched buffer.
+		 */
+		if (arc_watch && !IS_P2ALIGNED(size, PAGESIZE))
+			continue;
+#endif
+#endif /* illumos */
 		if (size <= 4 * SPA_MINBLOCKSIZE) {
 			align = SPA_MINBLOCKSIZE;
-		} else if (P2PHASE(size, PAGESIZE) == 0) {
+		} else if (IS_P2ALIGNED(size, PAGESIZE)) {
 			align = PAGESIZE;
-		} else if (P2PHASE(size, p2 >> 2) == 0) {
+		} else if (IS_P2ALIGNED(size, p2 >> 2)) {
 			align = p2 >> 2;
 		}
 
@@ -635,7 +647,7 @@ zio_write(zio_t *pio, spa_t *spa, uint64_t txg, blkptr_t *bp,
 	    zp->zp_checksum < ZIO_CHECKSUM_FUNCTIONS &&
 	    zp->zp_compress >= ZIO_COMPRESS_OFF &&
 	    zp->zp_compress < ZIO_COMPRESS_FUNCTIONS &&
-	    zp->zp_type < DMU_OT_NUMTYPES &&
+	    DMU_OT_IS_VALID(zp->zp_type) &&
 	    zp->zp_level < 32 &&
 	    zp->zp_copies > 0 &&
 	    zp->zp_copies <= spa_max_replication(spa) &&
@@ -919,7 +931,7 @@ zio_read_bp_init(zio_t *zio)
 		zio_push_transform(zio, cbuf, psize, psize, zio_decompress);
 	}
 
-	if (!dmu_ot[BP_GET_TYPE(bp)].ot_metadata && BP_GET_LEVEL(bp) == 0)
+	if (!DMU_OT_IS_METADATA(BP_GET_TYPE(bp)) && BP_GET_LEVEL(bp) == 0)
 		zio->io_flags |= ZIO_FLAG_DONT_CACHE;
 
 	if (BP_GET_TYPE(bp) == DMU_OT_DDT_ZAP)
@@ -2154,7 +2166,7 @@ zio_dva_allocate(zio_t *zio)
 	}
 
 	ASSERT(BP_IS_HOLE(bp));
-	ASSERT3U(BP_GET_NDVAS(bp), ==, 0);
+	ASSERT0(BP_GET_NDVAS(bp));
 	ASSERT3U(zio->io_prop.zp_copies, >, 0);
 	ASSERT3U(zio->io_prop.zp_copies, <=, spa_max_replication(spa));
 	ASSERT3U(zio->io_size, ==, BP_GET_PSIZE(bp));
@@ -3010,3 +3022,45 @@ static zio_pipe_stage_t *zio_pipeline[] = {
 	zio_checksum_verify,
 	zio_done
 };
+
+/* dnp is the dnode for zb1->zb_object */
+boolean_t
+zbookmark_is_before(const dnode_phys_t *dnp, const zbookmark_t *zb1,
+    const zbookmark_t *zb2)
+{
+	uint64_t zb1nextL0, zb2thisobj;
+
+	ASSERT(zb1->zb_objset == zb2->zb_objset);
+	ASSERT(zb2->zb_level == 0);
+
+	/*
+	 * A bookmark in the deadlist is considered to be after
+	 * everything else.
+	 */
+	if (zb2->zb_object == DMU_DEADLIST_OBJECT)
+		return (B_TRUE);
+
+	/* The objset_phys_t isn't before anything. */
+	if (dnp == NULL)
+		return (B_FALSE);
+
+	zb1nextL0 = (zb1->zb_blkid + 1) <<
+	    ((zb1->zb_level) * (dnp->dn_indblkshift - SPA_BLKPTRSHIFT));
+
+	zb2thisobj = zb2->zb_object ? zb2->zb_object :
+	    zb2->zb_blkid << (DNODE_BLOCK_SHIFT - DNODE_SHIFT);
+
+	if (zb1->zb_object == DMU_META_DNODE_OBJECT) {
+		uint64_t nextobj = zb1nextL0 *
+		    (dnp->dn_datablkszsec << SPA_MINBLOCKSHIFT) >> DNODE_SHIFT;
+		return (nextobj <= zb2thisobj);
+	}
+
+	if (zb1->zb_object < zb2thisobj)
+		return (B_TRUE);
+	if (zb1->zb_object > zb2thisobj)
+		return (B_FALSE);
+	if (zb2->zb_object == DMU_META_DNODE_OBJECT)
+		return (B_FALSE);
+	return (zb1nextL0 <= zb2->zb_blkid);
+}

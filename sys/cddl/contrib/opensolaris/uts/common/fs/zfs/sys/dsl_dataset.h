@@ -22,7 +22,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  * Copyright (c) 2012, Joyent, Inc. All rights reserved.
  */
 
@@ -88,7 +88,12 @@ typedef struct dsl_dataset_phys {
 	uint64_t ds_creation_time;	/* seconds since 1970 */
 	uint64_t ds_creation_txg;
 	uint64_t ds_deadlist_obj;	/* DMU_OT_DEADLIST */
-	uint64_t ds_used_bytes;
+	/*
+	 * ds_referenced_bytes, ds_compressed_bytes, and ds_uncompressed_bytes
+	 * include all blocks referenced by this dataset, including those
+	 * shared with any other datasets.
+	 */
+	uint64_t ds_referenced_bytes;
 	uint64_t ds_compressed_bytes;
 	uint64_t ds_uncompressed_bytes;
 	uint64_t ds_unique_bytes;	/* only relevant to snapshots */
@@ -266,6 +271,7 @@ int dsl_dataset_space_written(dsl_dataset_t *oldsnap, dsl_dataset_t *new,
     uint64_t *usedp, uint64_t *compp, uint64_t *uncompp);
 int dsl_dataset_space_wouldfree(dsl_dataset_t *firstsnap, dsl_dataset_t *last,
     uint64_t *usedp, uint64_t *compp, uint64_t *uncompp);
+boolean_t dsl_dataset_is_dirty(dsl_dataset_t *ds);
 
 int dsl_dsobj_to_dsname(char *pname, uint64_t obj, char *buf);
 
