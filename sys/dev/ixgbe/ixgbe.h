@@ -198,10 +198,6 @@
 #define IXGBE_VFTA_SIZE			128
 #define IXGBE_BR_SIZE			4096
 #define IXGBE_QUEUE_MIN_FREE		32
-#define IXGBE_QUEUE_IDLE		1
-#define IXGBE_QUEUE_WORKING		2
-#define IXGBE_QUEUE_HUNG		4
-#define IXGBE_QUEUE_DEPLETED		8
 
 /* Offload bits in mbuf flag */
 #if __FreeBSD_version >= 800000
@@ -299,7 +295,11 @@ struct tx_ring {
         struct adapter		*adapter;
 	struct mtx		tx_mtx;
 	u32			me;
-	int			queue_status;
+	enum {
+	    IXGBE_QUEUE_IDLE,
+	    IXGBE_QUEUE_WORKING,
+	    IXGBE_QUEUE_HUNG,
+	}			queue_status;
 	int			watchdog_time;
 	union ixgbe_adv_tx_desc	*tx_base;
 	struct ixgbe_dma_alloc	txdma;
