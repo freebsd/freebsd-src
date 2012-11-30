@@ -47,7 +47,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.5.0 - 3";
+char ixgbe_driver_version[] = "2.5.0 - 4";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -5388,16 +5388,18 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "rec_len_errs",
 			CTLFLAG_RD, &stats->rlec,
 			"Receive Length Errors");
-	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "link_xon_txd",
+
+	/* Flow Control stats */
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "xon_txd",
 			CTLFLAG_RD, &stats->lxontxc,
 			"Link XON Transmitted");
-	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "link_xon_rcvd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "xon_recvd",
 			CTLFLAG_RD, &stats->lxonrxc,
 			"Link XON Received");
-	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "link_xoff_txd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "xoff_txd",
 			CTLFLAG_RD, &stats->lxofftxc,
 			"Link XOFF Transmitted");
-	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "link_xoff_rcvd",
+	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "xoff_recvd",
 			CTLFLAG_RD, &stats->lxoffrxc,
 			"Link XOFF Received");
 
@@ -5497,29 +5499,6 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "tx_frames_1024_1522",
 			CTLFLAG_RD, &stats->ptc1522,
 			"1024-1522 byte frames transmitted");
-
-	/* FC Stats */
-	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_crc",
-		CTLFLAG_RD, &stats->fccrc,
-		"FC CRC Errors");
-	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_last",
-		CTLFLAG_RD, &stats->fclast,
-		"FC Last Error");
-	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_drpd",
-		CTLFLAG_RD, &stats->fcoerpdc,
-		"FCoE Packets Dropped");
-	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_pkts_rcvd",
-		CTLFLAG_RD, &stats->fcoeprc,
-		"FCoE Packets Received");
-	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_pkts_txd",
-		CTLFLAG_RD, &stats->fcoeptc,
-		"FCoE Packets Transmitted");
-	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_dword_rcvd",
-		CTLFLAG_RD, &stats->fcoedwrc,
-		"FCoE DWords Received");
-	SYSCTL_ADD_UQUAD(ctx, stat_list, OID_AUTO, "fc_dword_txd",
-		CTLFLAG_RD, &stats->fcoedwtc,
-		"FCoE DWords Transmitted");
 }
 
 /*
