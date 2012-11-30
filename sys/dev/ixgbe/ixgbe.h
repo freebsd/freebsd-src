@@ -39,7 +39,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#if __FreeBSD_version >= 800000
+#ifndef IXGBE_LEGACY_TX
 #include <sys/buf_ring.h>
 #endif
 #include <sys/mbuf.h>
@@ -205,16 +205,6 @@
 #define CSUM_OFFLOAD		(CSUM_IP|CSUM_TCP|CSUM_UDP)
 #endif
 
-/* For 6.X code compatibility */
-#if !defined(ETHER_BPF_MTAP)
-#define ETHER_BPF_MTAP		BPF_MTAP
-#endif
-
-#if __FreeBSD_version < 700000
-#define CSUM_TSO		0
-#define IFCAP_TSO4		0
-#endif
-
 /*
  * Interrupt Moderation parameters 
  */
@@ -316,7 +306,7 @@ struct tx_ring {
 	u32			txd_cmd;
 	bus_dma_tag_t		txtag;
 	char			mtx_name[16];
-#if __FreeBSD_version >= 800000
+#ifndef IXGBE_LEGACY_TX
 	struct buf_ring		*br;
 	struct task		txq_task;
 #endif
