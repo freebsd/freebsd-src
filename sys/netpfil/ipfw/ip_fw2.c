@@ -2034,8 +2034,7 @@ do {								\
 					 * the parent rule by setting
 					 * f, cmd, l and clearing cmdlen.
 					 */
-					q->pcnt++;
-					q->bcnt += pktlen;
+					IPFW_INC_DYN_COUNTER(q, pktlen);
 					/* XXX we would like to have f_pos
 					 * readily accessible in the dynamic
 				         * rule, instead of having to
@@ -2096,16 +2095,12 @@ do {								\
 				break;
 
 			case O_COUNT:
-				f->pcnt++;	/* update stats */
-				f->bcnt += pktlen;
-				f->timestamp = time_uptime;
+				IPFW_INC_RULE_COUNTER(f, pktlen);
 				l = 0;		/* exit inner loop */
 				break;
 
 			case O_SKIPTO:
-			    f->pcnt++;	/* update stats */
-			    f->bcnt += pktlen;
-			    f->timestamp = time_uptime;
+			    IPFW_INC_RULE_COUNTER(f, pktlen);
 			    /* If possible use cached f_pos (in f->next_rule),
 			     * whose version is written in f->next_rule
 			     * (horrible hacks to avoid changing the ABI).
@@ -2202,9 +2197,7 @@ do {								\
 					break;
 				}
 
-				f->pcnt++;	/* update stats */
-				f->bcnt += pktlen;
-				f->timestamp = time_uptime;
+				IPFW_INC_RULE_COUNTER(f, pktlen);
 				stack = (uint16_t *)(mtag + 1);
 
 				/*
@@ -2357,9 +2350,7 @@ do {								\
 			case O_SETFIB: {
 				uint32_t fib;
 
-				f->pcnt++;	/* update stats */
-				f->bcnt += pktlen;
-				f->timestamp = time_uptime;
+				IPFW_INC_RULE_COUNTER(f, pktlen);
 				fib = (cmd->arg1 == IP_FW_TABLEARG) ? tablearg:
 				    cmd->arg1;
 				if (fib >= rt_numfibs)
@@ -2409,8 +2400,7 @@ do {								\
 			case O_REASS: {
 				int ip_off;
 
-				f->pcnt++;
-				f->bcnt += pktlen;
+				IPFW_INC_RULE_COUNTER(f, pktlen);
 				l = 0;	/* in any case exit inner loop */
 				ip_off = ntohs(ip->ip_off);
 
@@ -2473,9 +2463,7 @@ do {								\
 	if (done) {
 		struct ip_fw *rule = chain->map[f_pos];
 		/* Update statistics */
-		rule->pcnt++;
-		rule->bcnt += pktlen;
-		rule->timestamp = time_uptime;
+		IPFW_INC_RULE_COUNTER(rule, pktlen);
 	} else {
 		retval = IP_FW_DENY;
 		printf("ipfw: ouch!, skip past end of rules, denying packet\n");
