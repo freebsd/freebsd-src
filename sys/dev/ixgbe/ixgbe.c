@@ -47,7 +47,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.5.0 - 1";
+char ixgbe_driver_version[] = "2.5.0 - 2";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -736,17 +736,14 @@ ixgbe_start_locked(struct tx_ring *txr, struct ifnet * ifp)
 
 	IXGBE_TX_LOCK_ASSERT(txr);
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING|IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING)
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 	if (!adapter->link_active)
 		return;
 
 	while (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-		if (txr->tx_avail <= IXGBE_QUEUE_MIN_FREE) {
-			txr->queue_status |= IXGBE_QUEUE_DEPLETED;
+		if (txr->tx_avail <= IXGBE_QUEUE_MIN_FREE)
 			break;
-                }
 
 		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
 		if (m_head == NULL)
@@ -755,8 +752,6 @@ ixgbe_start_locked(struct tx_ring *txr, struct ifnet * ifp)
 		if (ixgbe_xmit(txr, &m_head)) {
 			if (m_head != NULL)
 				IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
-			if (txr->tx_avail <= IXGBE_QUEUE_MIN_FREE)
-				txr->queue_status |= IXGBE_QUEUE_DEPLETED;
 			break;
 		}
 		/* Send a copy of the frame to the BPF listener */
@@ -811,8 +806,7 @@ ixgbe_mq_start(struct ifnet *ifp, struct mbuf *m)
 	txr = &adapter->tx_rings[i];
 	que = &adapter->queues[i];
 
-	if (((txr->queue_status & IXGBE_QUEUE_DEPLETED) == 0) &&
-	    IXGBE_TX_TRYLOCK(txr)) {
+	if (IXGBE_TX_TRYLOCK(txr)) {
 		err = ixgbe_mq_start_locked(ifp, txr, m);
 		IXGBE_TX_UNLOCK(txr);
 	} else {
@@ -831,7 +825,6 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
         int             enqueued, err = 0;
 
 	if (((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) ||
-	    (txr->queue_status == IXGBE_QUEUE_DEPLETED) ||
 	    adapter->link_active == 0) {
 		if (m != NULL)
 			err = drbr_enqueue(ifp, txr->br, m);
@@ -862,16 +855,12 @@ ixgbe_mq_start_locked(struct ifnet *ifp, struct tx_ring *txr, struct mbuf *m)
 			break;
 		if (txr->tx_avail < IXGBE_TX_OP_THRESHOLD)
 			ixgbe_txeof(txr);
-		if (txr->tx_avail < IXGBE_TX_OP_THRESHOLD) {
-			txr->queue_status |= IXGBE_QUEUE_DEPLETED;
-			break;
-		}
 		next = drbr_dequeue(ifp, txr->br);
 	}
 
 	if (enqueued > 0) {
 		/* Set watchdog on */
-		txr->queue_status |= IXGBE_QUEUE_WORKING;
+		txr->queue_status = IXGBE_QUEUE_WORKING;
 		txr->watchdog_time = ticks;
 	}
 
@@ -1316,7 +1305,6 @@ ixgbe_init_locked(struct adapter *adapter)
 
 	/* Now inform the stack we're ready */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
-	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	return;
 }
@@ -2018,13 +2006,11 @@ ixgbe_local_timer(void *arg)
 {
 	struct adapter	*adapter = arg;
 	device_t	dev = adapter->dev;
-	struct ifnet	*ifp = adapter->ifp;
 	struct ix_queue *que = adapter->queues;
 	struct tx_ring	*txr = adapter->tx_rings;
-	int		hung, busy, paused;
+	int		hung = 0, paused = 0;
 
 	mtx_assert(&adapter->core_mtx, MA_OWNED);
-	hung = busy = paused = 0;
 
 	/* Check for pluggable optics */
 	if (adapter->sfp_probe)
@@ -2046,23 +2032,15 @@ ixgbe_local_timer(void *arg)
 	**      - watchdog only if all queues show hung
 	*/          
 	for (int i = 0; i < adapter->num_queues; i++, que++, txr++) {
-		if ((txr->queue_status & IXGBE_QUEUE_HUNG) &&
+		if ((txr->queue_status == IXGBE_QUEUE_HUNG) &&
 		    (paused == 0))
 			++hung;
-		if (txr->queue_status & IXGBE_QUEUE_DEPLETED)
-			++busy;
-		if ((txr->queue_status & IXGBE_QUEUE_IDLE) == 0)
+		else if (txr->queue_status == IXGBE_QUEUE_WORKING)
 			taskqueue_enqueue(que->tq, &que->que_task);
         }
 	/* Only truely watchdog if all queues show hung */
         if (hung == adapter->num_queues)
                 goto watchdog;
-	/* Only turn off the stack flow when ALL are depleted */
-        if (busy == adapter->num_queues)
-                ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-        else if ((ifp->if_drv_flags & IFF_DRV_OACTIVE) &&
-            (busy < adapter->num_queues))
-                ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 out:
 	ixgbe_rearm_queues(adapter, adapter->que_mask);
@@ -2091,7 +2069,6 @@ static void
 ixgbe_update_link_status(struct adapter *adapter)
 {
 	struct ifnet	*ifp = adapter->ifp;
-	struct tx_ring *txr = adapter->tx_rings;
 	device_t dev = adapter->dev;
 
 
@@ -2112,9 +2089,6 @@ ixgbe_update_link_status(struct adapter *adapter)
 				device_printf(dev,"Link is Down\n");
 			if_link_state_change(ifp, LINK_STATE_DOWN);
 			adapter->link_active = FALSE;
-			for (int i = 0; i < adapter->num_queues;
-			    i++, txr++)
-				txr->queue_status = IXGBE_QUEUE_IDLE;
 		}
 	}
 
@@ -2145,7 +2119,6 @@ ixgbe_stop(void *arg)
 
 	/* Let the stack know...*/
 	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-	ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 
 	ixgbe_reset_hw(hw);
 	hw->adapter_stopped = FALSE;
@@ -3693,10 +3666,6 @@ ixgbe_txeof(struct tx_ring *txr)
 	*/
 	if ((!processed) && ((ticks - txr->watchdog_time) > IXGBE_WATCHDOG))
 		txr->queue_status = IXGBE_QUEUE_HUNG;
-
-	/* With a minimum free clear the depleted state bit.  */
-	if (txr->tx_avail > IXGBE_TX_CLEANUP_THRESHOLD)
-		txr->queue_status &= ~IXGBE_QUEUE_DEPLETED;
 
 	if (txr->tx_avail == adapter->num_tx_desc) {
 		txr->queue_status = IXGBE_QUEUE_IDLE;
