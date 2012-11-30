@@ -56,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/intr.h>
 
+#include <dev/fdt/fdt_common.h>
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
@@ -65,6 +66,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/sdhci/sdhci.h>
 #include "sdhci_if.h"
+
+#define	BCM2835_DEFAULT_SDHCI_FREQ	50
 
 #define	DEBUG
 
@@ -129,9 +132,19 @@ bcm_sdhci_attach(device_t dev)
 {
 	struct bcm_sdhci_softc *sc = device_get_softc(dev);
 	int rid, err;
+	phandle_t node;
+	pcell_t cell;
+	int default_freq;
 
 	sc->sc_dev = dev;
 	sc->sc_req = NULL;
+
+	default_freq = BCM2835_DEFAULT_SDHCI_FREQ;
+	node = ofw_bus_get_node(sc->sc_dev);
+	if ((OF_getprop(node, "clock-frequency", &cell, sizeof(cell))) > 0)
+		default_freq = (int)fdt32_to_cpu(cell)/1000000;
+
+	dprintf("SDHCI frequency: %dMHz\n", default_freq);
 
 	mtx_init(&sc->sc_mtx, "bcm sdhci", "sdhci", MTX_DEF);
 
@@ -168,7 +181,7 @@ bcm_sdhci_attach(device_t dev)
 	}
 
 	sc->sc_slot.caps = SDHCI_CAN_VDD_330 | SDHCI_CAN_VDD_180 | SDHCI_CAN_DO_HISPD;
-	sc->sc_slot.caps |= (50 << SDHCI_CLOCK_BASE_SHIFT);
+	sc->sc_slot.caps |= (default_freq << SDHCI_CLOCK_BASE_SHIFT);
 	sc->sc_slot.quirks = SDHCI_QUIRK_DATA_TIMEOUT_USES_SDCLK 
 		| SDHCI_QUIRK_BROKEN_TIMEOUT_VAL
 		| SDHCI_QUIRK_MISSING_CAPS;
