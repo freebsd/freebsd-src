@@ -133,7 +133,7 @@ audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
 	error = VFS_STATFS(vp->v_mount, mnt_stat);
 	if (error)
 		goto fail;
-	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 	error = VOP_GETATTR(vp, &vattr, cred);
 	VOP_UNLOCK(vp, 0);
 	if (error)
