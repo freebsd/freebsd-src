@@ -47,7 +47,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.5.0 - 6";
+char ixgbe_driver_version[] = "2.5.0 - 7";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -150,7 +150,7 @@ static void     ixgbe_enable_intr(struct adapter *);
 static void     ixgbe_disable_intr(struct adapter *);
 static void     ixgbe_update_stats_counters(struct adapter *);
 static bool	ixgbe_txeof(struct tx_ring *);
-static bool	ixgbe_rxeof(struct ix_queue *, int);
+static bool	ixgbe_rxeof(struct ix_queue *);
 static void	ixgbe_rx_checksum(u32, struct mbuf *, u32);
 static void     ixgbe_set_promisc(struct adapter *);
 static void     ixgbe_set_multi(struct adapter *);
@@ -163,7 +163,7 @@ static int	ixgbe_set_thermal_test(SYSCTL_HANDLER_ARGS);
 static int	ixgbe_dma_malloc(struct adapter *, bus_size_t,
 		    struct ixgbe_dma_alloc *, int);
 static void     ixgbe_dma_free(struct adapter *, struct ixgbe_dma_alloc *);
-static void	ixgbe_add_rx_process_limit(struct adapter *, const char *,
+static void	ixgbe_add_process_limit(struct adapter *, const char *,
 		    const char *, int *, int);
 static bool	ixgbe_tx_ctx_setup(struct tx_ring *, struct mbuf *);
 static bool	ixgbe_tso_setup(struct tx_ring *, struct mbuf *, u32 *, u32 *);
@@ -246,8 +246,12 @@ static int ixgbe_max_interrupt_rate = (4000000 / IXGBE_LOW_LATENCY);
 TUNABLE_INT("hw.ixgbe.max_interrupt_rate", &ixgbe_max_interrupt_rate);
 
 /* How many packets rxeof tries to clean at a time */
-static int ixgbe_rx_process_limit = 128;
+static int ixgbe_rx_process_limit = 256;
 TUNABLE_INT("hw.ixgbe.rx_process_limit", &ixgbe_rx_process_limit);
+
+/* How many packets txeof tries to clean at a time */
+static int ixgbe_tx_process_limit = 256;
+TUNABLE_INT("hw.ixgbe.tx_process_limit", &ixgbe_tx_process_limit);
 
 /*
 ** Smart speed setting, default to on
@@ -562,11 +566,6 @@ ixgbe_attach(device_t dev)
 	/* Setup OS specific network interface */
 	if (ixgbe_setup_interface(dev, adapter) != 0)
 		goto err_late;
-
-	/* Sysctl for limiting the amount of work done in the taskqueue */
-	ixgbe_add_rx_process_limit(adapter, "rx_processing_limit",
-	    "max number of rx packets to process", &adapter->rx_process_limit,
-	    ixgbe_rx_process_limit);
 
 	/* Initialize statistics */
 	ixgbe_update_stats_counters(adapter);
@@ -1410,7 +1409,7 @@ ixgbe_handle_que(void *context, int pending)
 	bool		more;
 
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		more = ixgbe_rxeof(que, adapter->rx_process_limit);
+		more = ixgbe_rxeof(que);
 		IXGBE_TX_LOCK(txr);
 		ixgbe_txeof(txr);
 #ifndef IXGBE_LEGACY_TX
@@ -1458,7 +1457,7 @@ ixgbe_legacy_irq(void *arg)
 		return;
 	}
 
-	more_rx = ixgbe_rxeof(que, adapter->rx_process_limit);
+	more_rx = ixgbe_rxeof(que);
 
 	IXGBE_TX_LOCK(txr);
 	do {
@@ -1504,7 +1503,7 @@ ixgbe_msix_que(void *arg)
 	ixgbe_disable_queue(adapter, que->msix);
 	++que->irqs;
 
-	more_rx = ixgbe_rxeof(que, adapter->rx_process_limit);
+	more_rx = ixgbe_rxeof(que);
 
 	IXGBE_TX_LOCK(txr);
 	more_tx = ixgbe_txeof(txr);
@@ -3083,6 +3082,11 @@ ixgbe_initialize_transmit_units(struct adapter *adapter)
 		u64	tdba = txr->txdma.dma_paddr;
 		u32	txctrl;
 
+		/* Sysctl for limiting work done in tx clean */
+		ixgbe_add_process_limit(adapter, "tx_processing_limit",
+		    "max number of packets to process", &txr->process_limit,
+		    ixgbe_tx_process_limit);
+
 		IXGBE_WRITE_REG(hw, IXGBE_TDBAL(i),
 		       (tdba & 0x00000000ffffffffULL));
 		IXGBE_WRITE_REG(hw, IXGBE_TDBAH(i), (tdba >> 32));
@@ -4122,6 +4126,11 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
 		u64 rdba = rxr->rxdma.dma_paddr;
 
+		/* Sysctl for limiting work done in rx clean */
+		ixgbe_add_process_limit(adapter, "rx_processing_limit",
+		    "max number of packets to process", &rxr->process_limit,
+		    ixgbe_rx_process_limit);
+
 		/* Setup the Base and Length of the Rx Descriptor Ring */
 		IXGBE_WRITE_REG(hw, IXGBE_RDBAL(i),
 			       (rdba & 0x00000000ffffffffULL));
@@ -4341,7 +4350,7 @@ ixgbe_rx_discard(struct rx_ring *rxr, int i)
  *  Return TRUE for more work, FALSE for all clean.
  *********************************************************************/
 static bool
-ixgbe_rxeof(struct ix_queue *que, int count)
+ixgbe_rxeof(struct ix_queue *que)
 {
 	struct adapter		*adapter = que->adapter;
 	struct rx_ring		*rxr = que->rxr;
@@ -4350,6 +4359,7 @@ ixgbe_rxeof(struct ix_queue *que, int count)
 	struct lro_entry	*queued;
 	int			i, nextp, processed = 0;
 	u32			staterr = 0;
+	u32			count = rxr->process_limit;
 	union ixgbe_adv_rx_desc	*cur;
 	struct ixgbe_rx_buf	*rbuf, *nbuf;
 
@@ -5541,13 +5551,13 @@ ixgbe_set_flowcntl(SYSCTL_HANDLER_ARGS)
 }
 
 static void
-ixgbe_add_rx_process_limit(struct adapter *adapter, const char *name,
+ixgbe_add_process_limit(struct adapter *adapter, const char *name,
         const char *description, int *limit, int value)
 {
         *limit = value;
-        SYSCTL_ADD_INT(device_get_sysctl_ctx(adapter->dev),
+        SYSCTL_ADD_UINT(device_get_sysctl_ctx(adapter->dev),
             SYSCTL_CHILDREN(device_get_sysctl_tree(adapter->dev)),
-            OID_AUTO, name, CTLTYPE_INT|CTLFLAG_RW, limit, value, description);
+            OID_AUTO, name, CTLTYPE_UINT|CTLFLAG_RW, limit, value, description);
 }
 
 /*

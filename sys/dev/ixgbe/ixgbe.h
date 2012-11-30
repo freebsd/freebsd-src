@@ -296,6 +296,7 @@ struct tx_ring {
 	    IXGBE_QUEUE_WORKING,
 	    IXGBE_QUEUE_HUNG,
 	}			queue_status;
+	u32			process_limit;
 	int			watchdog_time;
 	union ixgbe_adv_tx_desc	*tx_base;
 	struct ixgbe_dma_alloc	txdma;
@@ -338,6 +339,7 @@ struct rx_ring {
 	bool			vtag_strip;
         u32			next_to_refresh;
         u32 			next_to_check;
+	u32			process_limit;
 	char			mtx_name[16];
 	struct ixgbe_rx_buf	*rx_buffers;
 	bus_dma_tag_t		tag;
@@ -444,7 +446,6 @@ struct adapter {
 	struct rx_ring		*rx_rings;
 	int			num_rx_desc;
 	u64			que_mask;
-	u32			rx_process_limit;
 
 	/* Multicast array memory */
 	u8			*mta;
