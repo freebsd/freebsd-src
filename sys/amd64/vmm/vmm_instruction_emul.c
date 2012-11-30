@@ -83,6 +83,7 @@ static const struct vie_op one_byte_opcodes[256] = {
 		.op_type = VIE_OP_TYPE_AND,
 	},
 	[0x81] = {
+		/* XXX Group 1 extended opcode - not just AND */
 		.op_byte = 0x81,
 		.op_type = VIE_OP_TYPE_AND,
 		.op_flags = VIE_OP_F_IMM,
@@ -311,7 +312,13 @@ emulate_and(void *vm, int vcpuid, uint64_t gpa, struct vie *vie,
 		 *
 		 * 81/          and r/m32, imm32
 		 * REX.W + 81/  and r/m64, imm32 sign-extended to 64
+		 *
+		 * Currently, only the AND operation of the 0x81 opcode
+		 * is implemented (ModRM:reg = b100).
 		 */
+		if ((vie->reg & 7) != 4)
+			break;
+
 		if (vie->rex_w)
 			size = 8;
 		
