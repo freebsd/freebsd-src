@@ -665,7 +665,7 @@ pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
     unsigned bytes)
 {
 	struct pcie_cfg_elem *elem;
-	volatile vm_offset_t va;
+	vm_offset_t va;
 	vm_paddr_t pa, papage;
 	int data = -1;
 
@@ -681,16 +681,16 @@ pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
 
 	switch (bytes) {
 	case 4:
-		__asm __volatile("movl %1, %0" : "=a" (data)
-		    : "m" (*(uint32_t *)va));
+		__asm("movl %1, %0" : "=a" (data)
+		    : "m" (*(volatile uint32_t *)va));
 		break;
 	case 2:
-		__asm __volatile("movzwl %1, %0" : "=a" (data)
-		    : "m" (*(uint16_t *)va));
+		__asm("movzwl %1, %0" : "=a" (data)
+		    : "m" (*(volatile uint16_t *)va));
 		break;
 	case 1:
-		__asm __volatile("movzbl %1, %0" : "=a" (data)
-		    : "m" (*(uint8_t *)va));
+		__asm("movzbl %1, %0" : "=a" (data)
+		    : "m" (*(volatile uint8_t *)va));
 		break;
 	}
 
@@ -703,7 +703,7 @@ pciereg_cfgwrite(int bus, unsigned slot, unsigned func, unsigned reg, int data,
     unsigned bytes)
 {
 	struct pcie_cfg_elem *elem;
-	volatile vm_offset_t va;
+	vm_offset_t va;
 	vm_paddr_t pa, papage;
 
 	if (bus < pcie_minbus || bus > pcie_maxbus || slot > PCI_SLOTMAX ||
@@ -718,15 +718,15 @@ pciereg_cfgwrite(int bus, unsigned slot, unsigned func, unsigned reg, int data,
 
 	switch (bytes) {
 	case 4:
-		__asm __volatile("movl %1, %0" : "=m" (*(uint32_t *)va)
+		__asm("movl %1, %0" : "=m" (*(volatile uint32_t *)va)
 		    : "a" (data));
 		break;
 	case 2:
-		__asm __volatile("movw %1, %0" : "=m" (*(uint16_t *)va)
+		__asm("movw %1, %0" : "=m" (*(volatile uint16_t *)va)
 		    : "a" ((uint16_t)data));
 		break;
 	case 1:
-		__asm __volatile("movb %1, %0" : "=m" (*(uint8_t *)va)
+		__asm("movb %1, %0" : "=m" (*(volatile uint8_t *)va)
 		    : "a" ((uint8_t)data));
 		break;
 	}
