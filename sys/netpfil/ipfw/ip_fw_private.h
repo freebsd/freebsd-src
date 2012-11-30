@@ -236,6 +236,28 @@ struct ip_fw_chain {
 
 struct sockopt;	/* used by tcp_var.h */
 
+/* Macro for working with various counters */
+#define	IPFW_INC_RULE_COUNTER(_cntr, _bytes)	do {	\
+	(_cntr)->pcnt++;				\
+	(_cntr)->bcnt += _bytes;			\
+	(_cntr)->timestamp = time_uptime;		\
+	} while (0)
+
+#define	IPFW_INC_DYN_COUNTER(_cntr, _bytes)	do {		\
+	(_cntr)->pcnt++;				\
+	(_cntr)->bcnt += _bytes;			\
+	} while (0)
+
+#define	IPFW_ZERO_RULE_COUNTER(_cntr) do {		\
+	(_cntr)->pcnt = 0;				\
+	(_cntr)->bcnt = 0;				\
+	(_cntr)->timestamp = 0;				\
+	} while (0)
+
+#define	IPFW_ZERO_DYN_COUNTER(_cntr) do {		\
+	(_cntr)->pcnt = 0;				\
+	(_cntr)->bcnt = 0;				\
+	} while (0)
 /*
  * The lock is heavily used by ip_fw2.c (the main file) and ip_fw_nat.c
  * so the variable and the macros must be here.
