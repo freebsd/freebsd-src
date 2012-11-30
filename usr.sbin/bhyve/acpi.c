@@ -40,11 +40,12 @@
  *  Layout
  *  ------
  *   RSDP  ->   0xf0400    (36 bytes fixed)
- *   RSDT  ->   0xf0440    (36 bytes + 4*N table addrs, 2 used)
- *     MADT  ->   0xf04a0  (depends on #CPUs)
- *     FADT  ->   0xf0600  (268 bytes)
- *        FACS  ->   0xf0780 (64 bytes)
- *        DSDT  ->   0xf0800 (variable - can go up to 0x100000)
+ *     RSDT  ->   0xf0440    (36 bytes + 4*N table addrs, 2 used)
+ *     XSDT  ->   0xf0480    (36 bytes + 8*N table addrs, 2 used)
+ *       MADT  ->   0xf0500  (depends on #CPUs)
+ *       FADT  ->   0xf0600  (268 bytes)
+ *         FACS  ->   0xf0780 (64 bytes)
+ *         DSDT  ->   0xf0800 (variable - can go up to 0x100000)
  */
 
 #include <sys/cdefs.h>
@@ -69,7 +70,8 @@ __FBSDID("$FreeBSD$");
  */
 #define BHYVE_ACPI_BASE		0xf0400
 #define RSDT_OFFSET		0x040
-#define MADT_OFFSET		0x0a0
+#define XSDT_OFFSET		0x080
+#define MADT_OFFSET		0x100
 #define FADT_OFFSET		0x200
 #define FACS_OFFSET		0x380
 #define DSDT_OFFSET		0x400
@@ -121,7 +123,8 @@ basl_fwrite_rsdp(FILE *fp)
 	EFPRINTF(fp, "[0004]\t\tRSDT Address : %08X\n",
 	    basl_acpi_base + RSDT_OFFSET);
 	EFPRINTF(fp, "[0004]\t\tLength : 00000024\n");
-	EFPRINTF(fp, "[0008]\t\tXSDT Address : 0000000000000000\n");
+	EFPRINTF(fp, "[0008]\t\tXSDT Address : 00000000%08X\n",
+	    basl_acpi_base + XSDT_OFFSET);
 	EFPRINTF(fp, "[0001]\t\tExtended Checksum : 00\n");
 	EFPRINTF(fp, "[0003]\t\tReserved : 000000\n");
 
@@ -159,6 +162,42 @@ basl_fwrite_rsdt(FILE *fp)
 	EFPRINTF(fp, "[0004]\t\tACPI Table Address 0 : %08X\n",
 	    basl_acpi_base + MADT_OFFSET);
 	EFPRINTF(fp, "[0004]\t\tACPI Table Address 1 : %08X\n",
+	    basl_acpi_base + FADT_OFFSET);
+
+	EFFLUSH(fp);
+
+	return (0);
+
+err_exit:
+	return (errno);
+}
+
+static int
+basl_fwrite_xsdt(FILE *fp)
+{
+	int err;
+
+	err = 0;
+
+	EFPRINTF(fp, "/*\n");
+	EFPRINTF(fp, " * bhyve XSDT template\n");
+	EFPRINTF(fp, " */\n");
+	EFPRINTF(fp, "[0004]\t\tSignature : \"XSDT\"\n");
+	EFPRINTF(fp, "[0004]\t\tTable Length : 00000000\n");
+	EFPRINTF(fp, "[0001]\t\tRevision : 01\n");
+	EFPRINTF(fp, "[0001]\t\tChecksum : 00\n");
+	EFPRINTF(fp, "[0006]\t\tOem ID : \"BHYVE \"\n");
+	EFPRINTF(fp, "[0008]\t\tOem Table ID : \"BVXSDT  \"\n");
+	EFPRINTF(fp, "[0004]\t\tOem Revision : 00000001\n");
+	/* iasl will fill in the compiler ID/revision fields */
+	EFPRINTF(fp, "[0004]\t\tAsl Compiler ID : \"xxxx\"\n");
+	EFPRINTF(fp, "[0004]\t\tAsl Compiler Revision : 00000000\n");
+	EFPRINTF(fp, "\n");
+
+	/* Add in pointers to the MADT and FADT */
+	EFPRINTF(fp, "[0004]\t\tACPI Table Address 0 : 00000000%08X\n",
+	    basl_acpi_base + MADT_OFFSET);
+	EFPRINTF(fp, "[0004]\t\tACPI Table Address 1 : 00000000%08X\n",
 	    basl_acpi_base + FADT_OFFSET);
 
 	EFFLUSH(fp);
@@ -491,7 +530,7 @@ basl_fwrite_dsdt(FILE *fp)
 	EFPRINTF(fp, " * bhyve DSDT template\n");
 	EFPRINTF(fp, " */\n");
 	EFPRINTF(fp, "DefinitionBlock (\"bhyve_dsdt.aml\", \"DSDT\", 2,"
-		 "\"BHYV\", \"BVDSDT\", 0x00000001)\n");
+		 "\"BHYVE \", \"BVDSDT  \", 0x00000001)\n");
 	EFPRINTF(fp, "{\n");
 	EFPRINTF(fp, "  Scope (_SB)\n");
 	EFPRINTF(fp, "  {\n");
@@ -752,6 +791,7 @@ static struct {
 {
 	{ basl_fwrite_rsdp, 0},
 	{ basl_fwrite_rsdt, RSDT_OFFSET },
+	{ basl_fwrite_xsdt, XSDT_OFFSET },
 	{ basl_fwrite_madt, MADT_OFFSET },
 	{ basl_fwrite_fadt, FADT_OFFSET },
 	{ basl_fwrite_facs, FACS_OFFSET },
