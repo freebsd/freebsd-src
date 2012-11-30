@@ -776,11 +776,11 @@ bcmfb_putc(video_adapter_t *adp, vm_offset_t off, uint8_t c, uint8_t a)
 				addr[3*j+2] = bcmfb_palette[color].b;
 				break;
 			case 16:
-				rgb = (bcmfb_palette[color].r >> 3) << 10;
-				rgb |= (bcmfb_palette[color].g >> 3) << 5;
+				rgb = (bcmfb_palette[color].r >> 3) << 11;
+				rgb |= (bcmfb_palette[color].g >> 2) << 5;
 				rgb |= (bcmfb_palette[color].b >> 3);
-				addr[2*j] = (rgb >> 8) & 0xff;
-				addr[2*j + 1] = rgb & 0xff;
+				addr[2*j] = rgb & 0xff;
+				addr[2*j + 1] = (rgb >> 8) & 0xff;
 			default:
 				/* Not supported yet */
 				break;
