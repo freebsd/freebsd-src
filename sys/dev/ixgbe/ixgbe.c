@@ -47,7 +47,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.5.0 - 8";
+char ixgbe_driver_version[] = "2.5.0 - 9";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -1740,6 +1740,7 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	u32		paylen = 0;
 	int             i, j, error, nsegs;
 	int		first, last = 0;
+	bool		remap = TRUE;
 	struct mbuf	*m_head;
 	bus_dma_segment_t segs[adapter->num_segs];
 	bus_dmamap_t	map;
@@ -1767,42 +1768,38 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	/*
 	 * Map the packet for DMA.
 	 */
+retry:
 	error = bus_dmamap_load_mbuf_sg(txr->txtag, map,
 	    *m_headp, segs, &nsegs, BUS_DMA_NOWAIT);
 
-	if (error == EFBIG) {
+	if (__predict_false(error)) {
 		struct mbuf *m;
 
-		m = m_defrag(*m_headp, M_DONTWAIT);
-		if (m == NULL) {
-			adapter->mbuf_defrag_failed++;
-			m_freem(*m_headp);
-			*m_headp = NULL;
-			return (ENOBUFS);
-		}
-		*m_headp = m;
-
-		/* Try it again */
-		error = bus_dmamap_load_mbuf_sg(txr->txtag, map,
-		    *m_headp, segs, &nsegs, BUS_DMA_NOWAIT);
-
-		if (error == ENOMEM) {
+		switch (error) {
+		case EFBIG:
+			/* Try it again? - one try */
+			if (remap == TRUE) {
+				remap = FALSE;
+				m = m_defrag(*m_headp, M_NOWAIT);
+				if (m == NULL) {
+					adapter->mbuf_defrag_failed++;
+					m_freem(*m_headp);
+					*m_headp = NULL;
+					return (ENOBUFS);
+				}
+				*m_headp = m;
+				goto retry;
+			} else
+				return (error);
+		case ENOMEM:
 			txr->no_tx_dma_setup++;
 			return (error);
-		} else if (error != 0) {
+		default:
 			txr->no_tx_dma_setup++;
 			m_freem(*m_headp);
 			*m_headp = NULL;
 			return (error);
 		}
-	} else if (error == ENOMEM) {
-		txr->no_tx_dma_setup++;
-		return (error);
-	} else if (error != 0) {
-		txr->no_tx_dma_setup++;
-		m_freem(*m_headp);
-		*m_headp = NULL;
-		return (error);
 	}
 
 	/* Make certain there are enough descriptors */
