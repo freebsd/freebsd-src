@@ -21,7 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2010 Nexenta Systems, Inc. All rights reserved.
+ * Copyright 2012 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2011 by Delphix. All rights reserved.
  * Copyright (c) 2012 DEY Storage Systems, Inc.  All rights reserved.
  * Copyright (c) 2011-2012 Pawel Jakub Dawidek <pawel@dawidek.net>.
@@ -1430,7 +1430,7 @@ zfs_prop_set(zfs_handle_t *zhp, const char *propname, const char *propval)
 	libzfs_handle_t *hdl = zhp->zfs_hdl;
 	nvlist_t *nvl = NULL, *realprops;
 	zfs_prop_t prop;
-	boolean_t do_prefix;
+	boolean_t do_prefix = B_TRUE;
 	uint64_t idx;
 	int added_resv;
 
@@ -1484,14 +1484,17 @@ zfs_prop_set(zfs_handle_t *zhp, const char *propname, const char *propval)
 	}
 
 	/*
-	 * If the dataset's canmount property is being set to noauto,
-	 * or being set to on and the dataset is already mounted,
-	 * then we want to prevent unmounting & remounting it.
+	 * We don't want to unmount & remount the dataset when changing
+	 * its canmount property to 'on' or 'noauto'.  We only use
+	 * the changelist logic to unmount when setting canmount=off.
 	 */
-	do_prefix = !((prop == ZFS_PROP_CANMOUNT) &&
-	    (zprop_string_to_index(prop, propval, &idx,
-	    ZFS_TYPE_DATASET) == 0) && (idx == ZFS_CANMOUNT_NOAUTO ||
-	    (idx == ZFS_CANMOUNT_ON && zfs_is_mounted(zhp, NULL))));
+	if (prop == ZFS_PROP_CANMOUNT) {
+		uint64_t idx;
+		int err = zprop_string_to_index(prop, propval, &idx,
+		    ZFS_TYPE_DATASET);
+		if (err == 0 && idx != ZFS_CANMOUNT_OFF)
+			do_prefix = B_FALSE;
+	}
 
 	if (do_prefix && (ret = changelist_prefix(cl)) != 0)
 		goto error;
@@ -3135,7 +3138,8 @@ zfs_create(libzfs_handle_t *hdl, const char *path, zfs_type_t type,
 
 /*
  * Destroys the given dataset.  The caller must make sure that the filesystem
- * isn't mounted, and that there are no active dependents.
+ * isn't mounted, and that there are no active dependents. If the file system
+ * does not exist this function does nothing.
  */
 int
 zfs_destroy(zfs_handle_t *zhp, boolean_t defer)
@@ -3151,7 +3155,8 @@ zfs_destroy(zfs_handle_t *zhp, boolean_t defer)
 	}
 
 	zc.zc_defer_destroy = defer;
-	if (zfs_ioctl(zhp->zfs_hdl, ZFS_IOC_DESTROY, &zc) != 0) {
+	if (zfs_ioctl(zhp->zfs_hdl, ZFS_IOC_DESTROY, &zc) != 0 &&
+	    errno != ENOENT) {
 		return (zfs_standard_error_fmt(zhp->zfs_hdl, errno,
 		    dgettext(TEXT_DOMAIN, "cannot destroy '%s'"),
 		    zhp->zfs_name));
@@ -3541,7 +3546,7 @@ zfs_rollback(zfs_handle_t *zhp, zfs_handle_t *snap, boolean_t force)
 	    zhp->zfs_type == ZFS_TYPE_VOLUME);
 
 	/*
-	 * Destroy all recent snapshots and its dependends.
+	 * Destroy all recent snapshots and their dependents.
 	 */
 	cb.cb_force = force;
 	cb.cb_target = snap->zfs_name;
@@ -4072,35 +4077,40 @@ zfs_userspace(zfs_handle_t *zhp, zfs_userquota_prop_t type,
     zfs_userspace_cb_t func, void *arg)
 {
 	zfs_cmd_t zc = { 0 };
-	int error;
 	zfs_useracct_t buf[100];
+	libzfs_handle_t *hdl = zhp->zfs_hdl;
+	int ret;
 
 	(void) strlcpy(zc.zc_name, zhp->zfs_name, sizeof (zc.zc_name));
 
 	zc.zc_objset_type = type;
 	zc.zc_nvlist_dst = (uintptr_t)buf;
 
-	/* CONSTCOND */
-	while (1) {
+	for (;;) {
 		zfs_useracct_t *zua = buf;
 
 		zc.zc_nvlist_dst_size = sizeof (buf);
-		error = ioctl(zhp->zfs_hdl->libzfs_fd,
-		    ZFS_IOC_USERSPACE_MANY, &zc);
-		if (error || zc.zc_nvlist_dst_size == 0)
+		if (zfs_ioctl(hdl, ZFS_IOC_USERSPACE_MANY, &zc) != 0) {
+			char errbuf[ZFS_MAXNAMELEN + 32];
+
+			(void) snprintf(errbuf, sizeof (errbuf),
+			    dgettext(TEXT_DOMAIN,
+			    "cannot get used/quota for %s"), zc.zc_name);
+			return (zfs_standard_error_fmt(hdl, errno, errbuf));
+		}
+		if (zc.zc_nvlist_dst_size == 0)
 			break;
 
 		while (zc.zc_nvlist_dst_size > 0) {
-			error = func(arg, zua->zu_domain, zua->zu_rid,
-			    zua->zu_space);
-			if (error != 0)
-				return (error);
+			if ((ret = func(arg, zua->zu_domain, zua->zu_rid,
+			    zua->zu_space)) != 0)
+				return (ret);
 			zua++;
 			zc.zc_nvlist_dst_size -= sizeof (zfs_useracct_t);
 		}
 	}
 
-	return (error);
+	return (0);
 }
 
 int

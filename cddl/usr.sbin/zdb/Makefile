@@ -26,4 +26,7 @@ LDADD=	-lgeom -lm -lnvpair -lpthread -lumem -luutil -lzfs -lzpool
 
 CSTD=	c99
 
+CFLAGS+=	-DDEBUG=1
+#DEBUG_FLAGS+=	-g
+
 .include <bsd.prog.mk>

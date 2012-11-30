@@ -15,6 +15,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20121130:
+	A new version of ZFS (pool version 5000) has been merged to 8-STABLE.
+	Starting with this version the old system of ZFS pool versioning
+	is superseded by "feature flags". This concept enables forward
+	compatibility against certain future changes in functionality of ZFS
+	pools. The first two read-only compatible "feature flags" for ZFS
+	pools are "com.delphix:async_destroy" and "com.delphix:empty_bpobj".
+	For more information read the new zpool-features(7) manual page.
+	Please refer to the "ZFS notes" section of this file for information
+	on upgrading boot ZFS pools.
+
 20121018:
 	WITH_CTF can now be specified in src.conf (not recommended, there
 	are some problems with static executables), make.conf (would also
