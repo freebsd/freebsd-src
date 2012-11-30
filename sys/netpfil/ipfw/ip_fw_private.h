@@ -175,7 +175,9 @@ enum { /* result for matching dynamic rules */
  * and only to release the result of lookup_dyn_rule().
  * Eventually we may implement it with a callback on the function.
  */
-void ipfw_dyn_unlock(void);
+struct ip_fw_chain;
+void ipfw_expire_dyn_rules(struct ip_fw_chain *, struct ip_fw *, int);
+void ipfw_dyn_unlock(ipfw_dyn_rule *q);
 
 struct tcphdr;
 struct mbuf *ipfw_send_pkt(struct mbuf *, struct ipfw_flow_id *,
@@ -185,11 +187,9 @@ int ipfw_install_state(struct ip_fw *rule, ipfw_insn_limit *cmd,
 ipfw_dyn_rule *ipfw_lookup_dyn_rule(struct ipfw_flow_id *pkt,
 	int *match_direction, struct tcphdr *tcp);
 void ipfw_remove_dyn_children(struct ip_fw *rule);
-void ipfw_get_dynamic(char **bp, const char *ep);
+void ipfw_get_dynamic(struct ip_fw_chain *chain, char **bp, const char *ep);
 
-void ipfw_dyn_attach(void);	/* uma_zcreate .... */
-void ipfw_dyn_detach(void);	/* uma_zdestroy ... */
-void ipfw_dyn_init(void);	/* per-vnet initialization */
+void ipfw_dyn_init(struct ip_fw_chain *);	/* per-vnet initialization */
 void ipfw_dyn_uninit(int);	/* per-vnet deinitialization */
 int ipfw_dyn_len(void);
 
@@ -258,6 +258,9 @@ struct sockopt;	/* used by tcp_var.h */
 #define IPFW_RUNLOCK(p) rw_runlock(&(p)->rwmtx)
 #define IPFW_WLOCK(p) rw_wlock(&(p)->rwmtx)
 #define IPFW_WUNLOCK(p) rw_wunlock(&(p)->rwmtx)
+
+#define	IPFW_UH_RLOCK_ASSERT(_chain)	rw_assert(&(_chain)->uh_lock, RA_RLOCKED)
+#define	IPFW_UH_WLOCK_ASSERT(_chain)	rw_assert(&(_chain)->uh_lock, RA_WLOCKED)
 
 #define IPFW_UH_RLOCK(p) rw_rlock(&(p)->uh_lock)
 #define IPFW_UH_RUNLOCK(p) rw_runlock(&(p)->uh_lock)
