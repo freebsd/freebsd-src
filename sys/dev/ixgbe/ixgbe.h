@@ -291,19 +291,20 @@ struct tx_ring {
         struct adapter		*adapter;
 	struct mtx		tx_mtx;
 	u32			me;
+	int			watchdog_time;
+	union ixgbe_adv_tx_desc	*tx_base;
+	struct ixgbe_tx_buf	*tx_buffers;
+	struct ixgbe_dma_alloc	txdma;
+	volatile u16		tx_avail;
+	u16			next_avail_desc;
+	u16			next_to_clean;
+	u16			process_limit;
+	u16			num_desc;
 	enum {
 	    IXGBE_QUEUE_IDLE,
 	    IXGBE_QUEUE_WORKING,
 	    IXGBE_QUEUE_HUNG,
 	}			queue_status;
-	u32			process_limit;
-	int			watchdog_time;
-	union ixgbe_adv_tx_desc	*tx_base;
-	struct ixgbe_dma_alloc	txdma;
-	u32			next_avail_desc;
-	u32			next_to_clean;
-	struct ixgbe_tx_buf	*tx_buffers;
-	volatile u16		tx_avail;
 	u32			txd_cmd;
 	bus_dma_tag_t		txtag;
 	char			mtx_name[16];
@@ -318,6 +319,9 @@ struct tx_ring {
 	u32			bytes;  /* used for AIM */
 	u32			packets;
 	/* Soft Stats */
+	unsigned long   	tso_tx;
+	unsigned long   	no_tx_map_avail;
+	unsigned long   	no_tx_dma_setup;
 	u64			no_desc_avail;
 	u64			total_packets;
 };
@@ -337,9 +341,11 @@ struct rx_ring {
 	bool			hw_rsc;
 	bool			discard;
 	bool			vtag_strip;
-        u32			next_to_refresh;
-        u32 			next_to_check;
-	u32			process_limit;
+        u16			next_to_refresh;
+        u16 			next_to_check;
+	u16			num_desc;
+	u16			mbuf_sz;
+	u16			process_limit;
 	char			mtx_name[16];
 	struct ixgbe_rx_buf	*rx_buffers;
 	bus_dma_tag_t		tag;
@@ -437,15 +443,15 @@ struct adapter {
 	 *	Allocated at run time, an array of rings.
 	 */
 	struct tx_ring		*tx_rings;
-	int			num_tx_desc;
+	u32			num_tx_desc;
 
 	/*
 	 * Receive rings:
 	 *	Allocated at run time, an array of rings.
 	 */
 	struct rx_ring		*rx_rings;
-	int			num_rx_desc;
 	u64			que_mask;
+	u32			num_rx_desc;
 
 	/* Multicast array memory */
 	u8			*mta;
@@ -455,10 +461,7 @@ struct adapter {
 	unsigned long   	mbuf_defrag_failed;
 	unsigned long   	mbuf_header_failed;
 	unsigned long   	mbuf_packet_failed;
-	unsigned long   	no_tx_map_avail;
-	unsigned long   	no_tx_dma_setup;
 	unsigned long   	watchdog_events;
-	unsigned long   	tso_tx;
 	unsigned long		link_irq;
 
 	struct ixgbe_hw_stats 	stats;
@@ -522,12 +525,10 @@ drbr_needs_enqueue(struct ifnet *ifp, struct buf_ring *br)
 static inline u16
 ixgbe_rx_unrefreshed(struct rx_ring *rxr)
 {       
-	struct adapter  *adapter = rxr->adapter;
-        
 	if (rxr->next_to_check > rxr->next_to_refresh)
 		return (rxr->next_to_check - rxr->next_to_refresh - 1);
 	else
-		return ((adapter->num_rx_desc + rxr->next_to_check) -
+		return ((rxr->num_desc + rxr->next_to_check) -
 		    rxr->next_to_refresh - 1);
 }       
 
