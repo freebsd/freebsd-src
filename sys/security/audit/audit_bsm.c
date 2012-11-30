@@ -724,13 +724,6 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		 */
 		break;
 
-	case AUE_MKFIFO:
-		if (ARG_IS_VALID(kar, ARG_MODE)) {
-			tok = au_to_arg32(2, "mode", ar->ar_arg_mode);
-			kau_write(rec, tok);
-		}
-		/* FALLTHROUGH */
-
 	case AUE_CHDIR:
 	case AUE_CHROOT:
 	case AUE_FSTATAT:
@@ -743,6 +736,7 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 	case AUE_LPATHCONF:
 	case AUE_PATHCONF:
 	case AUE_READLINK:
+	case AUE_READLINKAT:
 	case AUE_REVOKE:
 	case AUE_RMDIR:
 	case AUE_SEARCHFS:
@@ -762,6 +756,8 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 
 	case AUE_ACCESS:
 	case AUE_EACCESS:
+	case AUE_FACCESSAT:
+		ATFD1_TOKENS(1);
 		UPATH1_VNODE1_TOKENS;
 		if (ARG_IS_VALID(kar, ARG_VALUE)) {
 			tok = au_to_arg32(2, "mode", ar->ar_arg_value);
@@ -1059,6 +1055,10 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_MKDIR:
+	case AUE_MKDIRAT:
+	case AUE_MKFIFO:
+	case AUE_MKFIFOAT:
+		ATFD1_TOKENS(1);
 		if (ARG_IS_VALID(kar, ARG_MODE)) {
 			tok = au_to_arg32(2, "mode", ar->ar_arg_mode);
 			kau_write(rec, tok);
@@ -1067,6 +1067,8 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_MKNOD:
+	case AUE_MKNODAT:
+		ATFD1_TOKENS(1);
 		if (ARG_IS_VALID(kar, ARG_MODE)) {
 			tok = au_to_arg32(2, "mode", ar->ar_arg_mode);
 			kau_write(rec, tok);
@@ -1546,10 +1548,12 @@ kaudit_to_bsm(struct kaudit_record *kar, struct au_record **pau)
 		break;
 
 	case AUE_SYMLINK:
+	case AUE_SYMLINKAT:
 		if (ARG_IS_VALID(kar, ARG_TEXT)) {
 			tok = au_to_text(ar->ar_arg_text);
 			kau_write(rec, tok);
 		}
+		ATFD1_TOKENS(1);
 		UPATH1_VNODE1_TOKENS;
 		break;
 
