@@ -16,4 +16,4 @@
 
 <!-- Files to be included -->
 
-<!ENTITY art SYSTEM "../common/new.xml">
+<!ENTITY art SYSTEM "../common/new.sgml">

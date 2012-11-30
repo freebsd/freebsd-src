@@ -1,0 +1,12 @@
+  -- FreeBSD SGML Public Identifiers --
+  -- Language-specific --
+
+  -- $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/share/sgml/catalog,v 1.3 2005/03/10 11:04:21 den Exp $ --
+  -- $FreeBSD$ --
+
+  -- Original revision: 1.1 --
+
+PUBLIC "-//FreeBSD//DOCUMENT Release Notes DocBook Stylesheet//EN"
+       "release.dsl"
+PUBLIC "-//FreeBSD//ENTITIES Auto Generated Device Lists//RU"
+       "dev-auto-ru.sgml"

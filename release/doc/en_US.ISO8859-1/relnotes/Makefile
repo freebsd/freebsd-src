@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 RELN_ROOT?= ${.CURDIR}/../..
+LANGCODE=	en_US.ISO8859-1
 
 .ifdef NO_LANGCODE_IN_DESTDIR
 DESTDIR?=	${DOCDIR}/relnotes
@@ -16,7 +17,7 @@ INSTALL_ONLY_COMPRESSED?=
 JADEFLAGS+=	-V %generate-article-toc%
 
 # SGML content
-SRCS+=	article.xml
+SRCS+=	article.sgml
 
 URL_RELPREFIX?=	../../../..
 

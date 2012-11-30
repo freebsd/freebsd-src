@@ -16,11 +16,11 @@ INSTALL_ONLY_COMPRESSED?=
 JADEFLAGS+=	-V %generate-article-toc%
 
 # SGML content
-SRCS+=	article.xml 
-SRCS+=	proc-pc98.xml 
+SRCS+=	article.sgml 
+SRCS+=	proc-pc98.sgml 
 SRCS+=	../common/hw.ent
-SRCS+=	../common/artheader.xml
-SRCS+=	../common/dev.xml
+SRCS+=	../common/artheader.sgml
+SRCS+=	../common/dev.sgml
 
 .include "${RELN_ROOT}/share/mk/doc.relnotes.mk"
 .include "${DOC_PREFIX}/share/mk/doc.project.mk"

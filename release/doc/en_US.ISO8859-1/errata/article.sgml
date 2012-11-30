@@ -1,0 +1,211 @@
+<!--
+	FreeBSD errata document.  Unlike some of the other RELNOTESng
+	files, this file should remain as a single SGML file, so that
+	the dollar FreeBSD dollar header has a meaningful modification
+	time.  This file is all but useless without a datestamp on it,
+	so we'll take some extra care to make sure it has one.
+
+	(If we didn't do this, then the file with the datestamp might
+	not be the one that received the last change in the document.)
+
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
+
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+]>
+
+<article>
+  <articleinfo>
+    <title>&os;
+<![ %release.type.current [
+    &release.current;
+]]>
+<![ %release.type.snapshot [
+    &release.prev;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
+    Errata</title>
+
+    <corpauthor>
+    The &os; Project
+    </corpauthor>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2012</year>
+      <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+    </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.intel;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
+  </articleinfo>
+
+  <abstract>
+    <para>This document lists errata items for &os;
+<![ %release.type.current [
+      &release.current;,
+]]>
+<![ %release.type.snapshot [
+      &release.prev;,
+]]>
+<![ %release.type.release [
+      &release.current;,
+]]>
+      containing significant information discovered after the release
+      or too late in the release cycle to be otherwise included in the
+      release documentation.
+      This information includes security advisories, as well as news
+      relating to the software or documentation that could affect its
+      operation or usability.  An up-to-date version of this document
+      should always be consulted before installing this version of
+      &os;.</para>
+
+    <para>This errata document for &os;
+<![ %release.type.current [
+      &release.current;
+]]>
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+      &release.current;
+]]>
+      will be maintained until the release of &os; &release.next;.</para>
+  </abstract>
+
+  <sect1 id="intro">
+    <title>Introduction</title>
+
+    <para>This errata document contains <quote>late-breaking news</quote>
+      about &os;
+<![ %release.type.current [
+      &release.current;.
+]]>
+<![ %release.type.snapshot [
+      &release.prev;.
+]]>
+<![ %release.type.release [
+      &release.current;.
+]]>
+      Before installing this version, it is important to consult this
+      document to learn about any post-release discoveries or problems
+      that may already have been found and fixed.</para>
+
+    <para>Any version of this errata document actually distributed
+      with the release (for example, on a CDROM distribution) will be
+      out of date by definition, but other copies are kept updated on
+      the Internet and should be consulted as the <quote>current
+      errata</quote> for this release.  These other copies of the
+      errata are located at <ulink
+      url="http://www.FreeBSD.org/releases/"></ulink>, plus any sites
+      which keep up-to-date mirrors of this location.</para>
+
+    <para>Source and binary snapshots of &os; &release.branch; also
+      contain up-to-date copies of this document (as of the time of
+      the snapshot).</para>
+
+    <para>For a list of all &os; CERT security advisories, see <ulink
+      url="http://www.FreeBSD.org/security/"></ulink> or <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+
+  </sect1>
+
+  <sect1 id="security">
+    <title>Security Advisories</title>
+
+    <para>Problems described in the following security advisories have
+      been fixed in &release.current;.  For more information, consult
+      the individual advisories available from <ulink
+	url="http://security.FreeBSD.org/"></ulink>.</para>
+
+    <informaltable frame="none" pgwide="1">
+      <tgroup cols="3">
+	<colspec colwidth="1*">
+	<colspec colwidth="1*">
+	<colspec colwidth="3*">
+	<thead>
+	  <row>
+	    <entry>Advisory</entry>
+	    <entry>Date</entry>
+	    <entry>Topic</entry>
+	  </row>
+	</thead>
+
+	<tbody>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:01.openssl.asc"
+		>SA-12:01.openssl</ulink></entry>
+	    <entry>3&nbsp;May&nbsp;2012</entry>
+	    <entry><para>OpenSSL multiple vulnerabilities</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:02.crypt.asc"
+		>SA-12:02.crypt</ulink></entry>
+	    <entry>30&nbsp;May&nbsp;2012</entry>
+	    <entry><para>Incorrect <function>crypt()</function> hashing</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:03.bind.asc"
+		>SA-12:03.bind</ulink></entry>
+	    <entry>12&nbsp;June&nbsp;2012</entry>
+	    <entry><para>Incorrect handling of zero-length RDATA fields in &man.named.8;</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:04.sysret.asc"
+		>SA-12:04.sysret</ulink></entry>
+	    <entry>12&nbsp;June&nbsp;2012</entry>
+	    <entry><para>Privilege escalation when returning from kernel</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:05.bind.asc"
+		>SA-12:05.bind</ulink></entry>
+	    <entry>6&nbsp;August&nbsp;2012</entry>
+	    <entry><para>&man.named.8; DNSSEC validation Denial of Service</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:06.bind.asc"
+		>SA-12:06.bind</ulink></entry>
+	    <entry>22&nbsp;November&nbsp;2012</entry>
+	    <entry><para>Multiple Denial of Service vulnerabilities with &man.named.8;</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:07.hostapd.asc"
+		>SA-12:07.hostapd</ulink></entry>
+	    <entry>22&nbsp;November&nbsp;2012</entry>
+	    <entry><para>Insufficient message length validation for EAP-TLS messages</para></entry>
+	  </row>
+
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-12:08.linux.asc"
+		>SA-12:08.linux</ulink></entry>
+	    <entry>22&nbsp;November&nbsp;2012</entry>
+	    <entry><para>Linux compatibility layer input validation error</para></entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
+  </sect1>
+
+  <sect1 id="late-news">
+    <title>Late-Breaking News</title>
+
+    <para>No news.</para>
+  </sect1>
+</article>

@@ -11,9 +11,9 @@ INSTALL_ONLY_COMPRESSED?=
 JADEFLAGS+=	-V %generate-article-toc%
 
 # SGML content
-SRCS+=	article.xml
+SRCS+=	article.sgml
 SRCS+=	../common/relnotes.ent
-SRCS+=	../common/new.xml
+SRCS+=	../common/new.sgml
 
 URL_RELPREFIX?=	../../../..
 

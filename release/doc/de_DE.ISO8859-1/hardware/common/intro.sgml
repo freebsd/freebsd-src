@@ -1,0 +1,30 @@
+<!--
+  $FreeBSD$
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/common/intro.sgml,v 1.6 2003/05/24 21:35:15 ue Exp $
+  basiert auf: 1.6
+-->
+
+<sect1 id="intro">
+  <title>Einf&uuml;hrung</title>
+
+  <para>Dieses Dokument enth&auml;lt die Liste der unterst&uuml;tzen
+    Ger&auml;te f&uuml;r &os; &release.current; auf &arch.print;
+    Systemen (meistens einfach &os;/&arch; &release.current; genannt).
+    Hier finden Sie zum einen alle die Ger&auml;te, von denen wir
+    wissen, da&szlig; Sie funktionieren; zum anderen finden Sie hier
+    Hinweise, wie Sie den Kernel anpassen k&ouml;nnen, wenn Sie ein
+    bisher noch nicht unterst&uuml;tztes Ger&auml;t verwenden
+    wollen.</para>
+
+  <note>
+    <para>Dieses Dokument enth&auml;lt Informationen f&uuml;r
+      &arch.print; Systeme.  Andere Versionen dieses Dokumentes, die
+      f&uuml;r andere Plattformen gedacht sind, werden in vielen
+      Punkten von diesem Dokument abweichen.</para>
+  </note>
+
+  <para arch="ia64">Weitergehende Informationen &uuml;ber &os;/&arch;
+    finden Sie auf den Webseiten des <ulink
+    url="http://www.FreeBSD.org/platforms/ia64/index.html">&os;/&arch;
+    Project</ulink>.</para>
+</sect1>

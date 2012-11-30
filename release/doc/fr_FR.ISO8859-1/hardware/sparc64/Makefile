@@ -17,11 +17,11 @@ INSTALL_ONLY_COMPRESSED?=
 JADEFLAGS+=	-V %generate-article-toc%
 
 # SGML content
-SRCS+=	article.xml 
-SRCS+=	proc-sparc64.xml 
-SRCS+=	dev-sparc64.xml 
+SRCS+=	article.sgml 
+SRCS+=	proc-sparc64.sgml 
+SRCS+=	dev-sparc64.sgml 
 SRCS+=	../common/hw.ent
-SRCS+=	../common/artheader.xml
+SRCS+=	../common/artheader.sgml
 
 .include "${RELN_ROOT}/share/mk/doc.relnotes.mk"
 .include "${DOC_PREFIX}/share/mk/doc.project.mk"
