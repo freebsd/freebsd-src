@@ -2046,7 +2046,7 @@ do {								\
 						f->rulenum, f->id);
 					cmd = ACTION_PTR(f);
 					l = f->cmd_len - f->act_ofs;
-					ipfw_dyn_unlock();
+					ipfw_dyn_unlock(q);
 					cmdlen = 0;
 					match = 1;
 					break;
@@ -2525,7 +2525,6 @@ ipfw_init(void)
 {
 	int error = 0;
 
-	ipfw_dyn_attach();
 	/*
  	 * Only print out this stuff the first time around,
 	 * when called from the sysinit code.
@@ -2579,7 +2578,6 @@ ipfw_destroy(void)
 {
 
 	ipfw_log_bpf(0); /* uninit */
-	ipfw_dyn_detach();
 	printf("IP firewall unloaded\n");
 }
 
@@ -2637,7 +2635,7 @@ vnet_ipfw_init(const void *unused)
 	chain->id = rule->id = 1;
 
 	IPFW_LOCK_INIT(chain);
-	ipfw_dyn_init();
+	ipfw_dyn_init(chain);
 
 	/* First set up some values that are compile time options */
 	V_ipfw_vnet_ready = 1;		/* Open for business */
