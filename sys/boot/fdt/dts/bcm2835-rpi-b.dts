@@ -471,6 +471,13 @@
 			reg-shift = <2>;
 		};
 
+		vchiq {
+			compatible = "broadcom,bcm2835-vchiq";
+			reg = <0xB800 0x50>;
+			interrupts = <2>;
+			interrupt-parent = <&intc>;
+		};
+
 		usb {
 			compatible = "broadcom,bcm2835-usb", "broadcom,bcm2708-usb", "synopsys,designware-hs-otg2";
 			reg = <0x980000 0x20000>;
