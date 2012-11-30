@@ -27,10 +27,10 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/audit_submit.3#17 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/audit_submit.3#18 $
 .\"
 .Dd January 18, 2008
-.Dt audit_submit 3
+.Dt AUDIT_SUBMIT 3
 .Os
 .Sh NAME
 .Nm audit_submit
@@ -88,6 +88,13 @@ subject will be retrieved from the kernel via
 .Xr getaudit 2 ,
 or
 .Xr getaudit_addr 2 .
+.Sh RETURN VALUES
+If successful,
+.Nm
+will return zero.
+Otherwise a -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
 .Sh EXAMPLES
 .Bd -literal -offset indent
 #include <bsm/audit.h>
@@ -131,13 +138,6 @@ text,bad su from from csjp to root
 return,failure : Operation not permitted,1
 trailer,94
 .Ed
-.Sh RETURN VALUES
-If successful,
-.Nm
-will return zero.
-Otherwise a -1 is returned and the global variable
-.Va errno
-is set to indicate the error.
 .Sh SEE ALSO
 .Xr auditon 2 ,
 .Xr getaudit 2 ,

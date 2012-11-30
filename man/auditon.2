@@ -26,7 +26,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/man/auditon.2#16 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/man/auditon.2#18 $
 .\"
 .Dd January 29, 2009
 .Dt AUDITON 2
@@ -73,25 +73,25 @@ and
 .Dv AUDIT_ARGE .
 If
 .Dv AUDIT_CNT is set, the system will continue even if it becomes low
-on space and discontinue logging events until the low space condition is 
+on space and discontinue logging events until the low space condition is
 remedied.
-If it is not set, audited events will block until the low space 
+If it is not set, audited events will block until the low space
 condition is remedied.
 Unaudited events, however, are unaffected.
-If 
-.Dv AUDIT_AHLT is set, a 
+If
+.Dv AUDIT_AHLT is set, a
 .Xr panic 9
 if it cannot write an event to the global audit log file.
-If 
+If
 .Dv AUDIT_ARGV
-is set, then the argument list passed to the 
-.Xr execve 2 
+is set, then the argument list passed to the
+.Xr execve 2
 system call will be audited.  If
 .Dv AUDIT_ARGE
 is set, then the environment variables passed to the
 .Xr execve 2
 system call will be audited.  The default policy is none of the audit policy
-control flags set. 
+control flags set.
 .It Dv A_SETKAUDIT
 Set the host information.
 The
@@ -102,7 +102,7 @@ must point to a
 structure containing the host IP address information.
 After setting, audit records
 that are created as a result of kernel events will contain
-this information. 
+this information.
 .It Dv A_SETKMASK
 Set the kernel preselection masks (success and failure).
 The
@@ -110,9 +110,9 @@ The
 argument
 must point to a
 .Vt au_mask_t
-structure containing the mask values as defined in 
+structure containing the mask values as defined in
 .In bsm/audit.h .
-These masks are used for non-attributable audit event preselection. 
+These masks are used for non-attributable audit event preselection.
 The field
 .Fa am_success
 specifies which classes of successful audit events are to be logged to the
@@ -197,14 +197,14 @@ audit condition, one of
 .Dv AUC_NOAUDIT ,
 or
 .Dv AUC_DISABLED .
-If 
-.Dv AUC_NOAUDIT 
-is set, then auditing is temporarily suspended. If 
+If
+.Dv AUC_NOAUDIT
+is set, then auditing is temporarily suspended. If
 .Dv AUC_AUDITING
-is set, auditing is resumed. If 
-.Dv AUC_DISABLED 
+is set, auditing is resumed. If
+.Dv AUC_DISABLED
 is set, the auditing system will
-shutdown, draining all audit records and closing out the audit trail file. 
+shutdown, draining all audit records and closing out the audit trail file.
 .It Dv A_SETCLASS
 Set the event class preselection mask for an audit event.
 The
@@ -215,7 +215,7 @@ must point to a
 structure containing the audit event and mask.
 The field
 .Fa ec_number
-is the audit event and 
+is the audit event and
 .Fa ec_class
 is the audit class mask. See
 .Xr audit_event 5
@@ -237,7 +237,7 @@ The field
 must point to a
 .Fa au_mask_t
 structure which holds the preselection masks as described in the
-.Da A_SETKMASK
+.Dv A_SETKMASK
 section above.
 .It Dv A_SETFSIZE
 Set the maximum size of the audit log file.
@@ -259,7 +259,7 @@ argument
 must point to a
 .Vt au_evclass_map_t
 structure. See the
-.Dv A_SETCLASS 
+.Dv A_SETCLASS
 section above for more information.
 .It Dv A_GETKAUDIT
 Get the current host information.
@@ -277,23 +277,23 @@ argument
 must point to a
 .Vt auditpinfo_t
 structure which will be set to contain
-.Fa ap_auid 
-(the audit ID), 
+.Fa ap_auid
+(the audit ID),
 .Fa ap_mask
 (the preselection mask),
 .Fa ap_termid
 (the terminal ID), and
-.Fa ap_asid 
+.Fa ap_asid
 (the audit session ID)
 of the given target process.
-The process ID of the target process is passed 
+The process ID of the target process is passed
 into the kernel using the
 .Fa ap_pid
 field.
 See the section
 .Dv A_SETPMASK
-above and 
-.Xr getaudit 2 
+above and
+.Xr getaudit 2
 for more information.
 .It Dv A_GETPINFO_ADDR
 Return the extended audit settings for a process.
@@ -302,20 +302,20 @@ The
 argument
 must point to a
 .Vt auditpinfo_addr_t
-structure which is similar to the 
+structure which is similar to the
 .Vt auditpinfo_addr_t
-structure described above. 
-The exception is the 
+structure described above.
+The exception is the
 .Fa ap_termid
 (the terminal ID) field which points to a
-.Vt au_tid_addr_t 
-structure can hold much a larger terminal address and an address type. 
+.Vt au_tid_addr_t
+structure can hold much a larger terminal address and an address type.
 The process ID of the target process is passed into the kernel using the
 .Fa ap_pid
 field.
-See the section 
+See the section
 .Dv A_SETPMASK
-above and 
+above and
 .Xr getaudit 2
 for more information.
 .It Dv A_GETSINFO_ADDR
@@ -326,10 +326,10 @@ argument
 must point to a
 .Vt auditinfo_addr_t
 structure.
-The audit session ID of the target session is passed 
+The audit session ID of the target session is passed
 into the kernel using the
 .Fa ai_asid
-field.  See 
+field.  See
 .Xr getaudit_addr 2
 for more information about the
 .Vt auditinfo_addr_t
@@ -353,8 +353,8 @@ must point to a
 value which will be set to
 one of the current audit policy flags.
 The audit policy flags are
-described in the 
-.Dv A_SETPOLICY 
+described in the
+.Dv A_SETPOLICY
 section above.
 .It Dv A_GETQCTRL
 Return the current kernel audit queue control parameters.
@@ -411,12 +411,12 @@ argument
 must point to a
 .Vt int
 value which will be set to
-the current audit condition, one of 
+the current audit condition, one of
 .Dv AUC_AUDITING ,
-.Dv AUC_NOAUDIT 
+.Dv AUC_NOAUDIT
 or
 .Dv AUC_DISABLED .
-See the 
+See the
 .Dv A_SETCOND
 section above for more information.
 .It Dv A_SENDTRIGGER
