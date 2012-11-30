@@ -47,7 +47,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.5.0 - 5";
+char ixgbe_driver_version[] = "2.5.0 - 6";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -104,16 +104,16 @@ static int      ixgbe_probe(device_t);
 static int      ixgbe_attach(device_t);
 static int      ixgbe_detach(device_t);
 static int      ixgbe_shutdown(device_t);
-#if __FreeBSD_version >= 800000
+#ifdef IXGBE_LEGACY_TX
+static void     ixgbe_start(struct ifnet *);
+static void     ixgbe_start_locked(struct tx_ring *, struct ifnet *);
+#else /* ! IXGBE_LEGACY_TX */
 static int	ixgbe_mq_start(struct ifnet *, struct mbuf *);
 static int	ixgbe_mq_start_locked(struct ifnet *,
                     struct tx_ring *, struct mbuf *);
 static void	ixgbe_qflush(struct ifnet *);
 static void	ixgbe_deferred_mq_start(void *, int);
-#else
-static void     ixgbe_start(struct ifnet *);
-static void     ixgbe_start_locked(struct tx_ring *, struct ifnet *);
-#endif
+#endif /* IXGBE_LEGACY_TX */
 static int      ixgbe_ioctl(struct ifnet *, u_long, caddr_t);
 static void	ixgbe_init(void *);
 static void	ixgbe_init_locked(struct adapter *);
@@ -541,7 +541,6 @@ ixgbe_attach(device_t dev)
 	case IXGBE_ERR_SFP_NOT_SUPPORTED:
 		device_printf(dev,"Unsupported SFP+ Module\n");
 		error = EIO;
-		device_printf(dev,"Hardware Initialization Failure\n");
 		goto err_late;
 	case IXGBE_ERR_SFP_NOT_PRESENT:
 		device_printf(dev,"No SFP+ Module found\n");
@@ -653,7 +652,7 @@ ixgbe_detach(device_t dev)
 
 	for (int i = 0; i < adapter->num_queues; i++, que++, txr++) {
 		if (que->tq) {
-#if __FreeBSD_version >= 800000
+#ifdef IXGBE_LEGACY_TX
 			taskqueue_drain(que->tq, &txr->txq_task);
 #endif
 			taskqueue_drain(que->tq, &que->que_task);
@@ -717,7 +716,7 @@ ixgbe_shutdown(device_t dev)
 }
 
 
-#if __FreeBSD_version < 800000
+#ifdef IXGBE_LEGACY_TX
 /*********************************************************************
  *  Transmit entry point
  *
@@ -784,7 +783,8 @@ ixgbe_start(struct ifnet *ifp)
 	return;
 }
 
-#else
+#else /* ! IXGBE_LEGACY_TX */
+
 /*
 ** Multiqueue Transmit driver
 **
@@ -904,7 +904,7 @@ ixgbe_qflush(struct ifnet *ifp)
 	}
 	if_qflush(ifp);
 }
-#endif /* __FreeBSD_version >= 800000 */
+#endif /* IXGBE_LEGACY_TX */
 
 /*********************************************************************
  *  Ioctl entry point
@@ -1413,7 +1413,7 @@ ixgbe_handle_que(void *context, int pending)
 		more = ixgbe_rxeof(que, adapter->rx_process_limit);
 		IXGBE_TX_LOCK(txr);
 		ixgbe_txeof(txr);
-#if __FreeBSD_version >= 800000
+#ifndef IXGBE_LEGACY_TX
 		if (!drbr_empty(ifp, txr->br))
 			ixgbe_mq_start_locked(ifp, txr, NULL);
 #else
@@ -1513,7 +1513,7 @@ ixgbe_msix_que(void *arg)
 	** has anything queued the task gets
 	** scheduled to handle it.
 	*/
-#if __FreeBSD_version < 800000
+#ifdef IXGBE_LEGACY_TX
 	if (!IFQ_DRV_IS_EMPTY(&adapter->ifp->if_snd))
 #else
 	if (!drbr_empty(adapter->ifp, txr->br))
@@ -1809,15 +1809,14 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	/* Make certain there are enough descriptors */
 	if (nsegs > txr->tx_avail - 2) {
 		txr->no_desc_avail++;
-		error = ENOBUFS;
-		goto xmit_fail;
+		bus_dmamap_unload(txr->txtag, map);
+		return (ENOBUFS);
 	}
 	m_head = *m_headp;
 
 	/*
 	** Set up the appropriate offload context
-	** this becomes the first descriptor of 
-	** a packet.
+	** this will consume the first descriptor
 	*/
 	if (m_head->m_pkthdr.csum_flags & CSUM_TSO) {
 		if (ixgbe_tso_setup(txr, m_head, &paylen, &olinfo_status)) {
@@ -1874,7 +1873,12 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	txr->next_avail_desc = i;
 
 	txbuf->m_head = m_head;
-	/* Swap the dma map between the first and last descriptor */
+	/*
+	** Here we swap the map so the last descriptor,
+	** which gets the completion interrupt has the
+	** real map, and the first descriptor gets the
+	** unused map from this descriptor.
+	*/
 	txr->tx_buffers[first].map = txbuf->map;
 	txbuf->map = map;
 	bus_dmamap_sync(txr->txtag, map, BUS_DMASYNC_PREWRITE);
@@ -1893,10 +1897,6 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	IXGBE_WRITE_REG(&adapter->hw, IXGBE_TDT(txr->me), i);
 
 	return (0);
-
-xmit_fail:
-	bus_dmamap_unload(txr->txtag, txbuf->map);
-	return (error);
 
 }
 
@@ -2240,12 +2240,12 @@ ixgbe_setup_optics(struct adapter *adapter)
 static int
 ixgbe_allocate_legacy(struct adapter *adapter)
 {
-	device_t dev = adapter->dev;
+	device_t	dev = adapter->dev;
 	struct		ix_queue *que = adapter->queues;
-#if __FreeBSD_version >= 800000
+#ifndef IXGBE_LEGACY_TX
 	struct tx_ring		*txr = adapter->tx_rings;
 #endif
-	int error, rid = 0;
+	int		error, rid = 0;
 
 	/* MSI RID at 1 */
 	if (adapter->msix == 1)
@@ -2264,7 +2264,7 @@ ixgbe_allocate_legacy(struct adapter *adapter)
 	 * Try allocating a fast interrupt and the associated deferred
 	 * processing contexts.
 	 */
-#if __FreeBSD_version >= 800000
+#ifndef IXGBE_LEGACY_TX
 	TASK_INIT(&txr->txq_task, 0, ixgbe_deferred_mq_start, txr);
 #endif
 	TASK_INIT(&que->que_task, 0, ixgbe_handle_que, que);
@@ -2346,7 +2346,7 @@ ixgbe_allocate_msix(struct adapter *adapter)
 		if (adapter->num_queues > 1)
 			bus_bind_intr(dev, que->res, i);
 
-#if __FreeBSD_version >= 800000
+#ifdef IXGBE_LEGACY_TX
 		TASK_INIT(&txr->txq_task, 0, ixgbe_deferred_mq_start, txr);
 #endif
 		TASK_INIT(&que->que_task, 0, ixgbe_handle_que, que);
@@ -2592,7 +2592,7 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ixgbe_ioctl;
-#if __FreeBSD_version >= 800000
+#ifndef IXGBE_LEGACY_TX
 	ifp->if_transmit = ixgbe_mq_start;
 	ifp->if_qflush = ixgbe_qflush;
 #else
@@ -2840,7 +2840,7 @@ ixgbe_allocate_queues(struct adapter *adapter)
 			error = ENOMEM;
 			goto err_tx_desc;
         	}
-#if __FreeBSD_version >= 800000
+#ifndef IXGBE_LEGACY_TX
 		/* Allocate a buf ring */
 		txr->br = buf_ring_alloc(IXGBE_BR_SIZE, M_DEVBUF,
 		    M_WAITOK, &txr->tx_mtx);
@@ -3198,7 +3198,7 @@ ixgbe_free_transmit_buffers(struct tx_ring *txr)
 			tx_buffer->map = NULL;
 		}
 	}
-#if __FreeBSD_version >= 800000
+#ifdef IXGBE_LEGACY_TX
 	if (txr->br != NULL)
 		buf_ring_free(txr->br, M_DEVBUF);
 #endif
@@ -3245,7 +3245,8 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
 
 	/*
 	** In advanced descriptors the vlan tag must 
-	** be placed into the descriptor itself.
+	** be placed into the context descriptor. Hence
+	** we need to make one even if not doing offloads.
 	*/
 	if (mp->m_flags & M_VLANTAG) {
 		vtag = htole16(mp->m_pkthdr.ether_vtag);
@@ -3576,7 +3577,8 @@ ixgbe_txeof(struct tx_ring *txr)
 		 */
 		if (!netmap_mitigate ||
 		    (kring->nr_kflags < kring->nkr_num_slots &&
-		     tx_desc[kring->nr_kflags].upper.fields.status & IXGBE_TXD_STAT_DD)) {
+		    tx_desc[kring->nr_kflags].upper.fields.status &
+		    IXGBE_TXD_STAT_DD)) {
 			kring->nr_kflags = kring->nkr_num_slots;
 			selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
 			IXGBE_TX_UNLOCK(txr);
