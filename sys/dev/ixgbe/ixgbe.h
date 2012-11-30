@@ -253,14 +253,12 @@ struct ixgbe_tx_buf {
 };
 
 struct ixgbe_rx_buf {
-	struct mbuf	*m_head;
-	struct mbuf	*m_pack;
+	struct mbuf	*buf;
 	struct mbuf	*fmp;
-	bus_dmamap_t	hmap;
-	bus_dmamap_t	pmap;
+	bus_dmamap_t	map;
 	u_int		flags;
 #define IXGBE_RX_COPY	0x01
-	uint64_t	paddr;
+	uint64_t	addr;
 };
 
 /*
@@ -339,7 +337,6 @@ struct rx_ring {
 	struct ixgbe_dma_alloc	rxdma;
 	struct lro_ctrl		lro;
 	bool			lro_enabled;
-	bool			hdr_split;
 	bool			hw_rsc;
 	bool			discard;
 	bool			vtag_strip;
@@ -347,15 +344,13 @@ struct rx_ring {
         u32 			next_to_check;
 	char			mtx_name[16];
 	struct ixgbe_rx_buf	*rx_buffers;
-	bus_dma_tag_t		htag;
-	bus_dma_tag_t		ptag;
+	bus_dma_tag_t		tag;
 
 	u32			bytes; /* Used for AIM calc */
 	u32			packets;
 
 	/* Soft stats */
 	u64			rx_irq;
-	u64			rx_split_packets;
 	u64			rx_copies;
 	u64			rx_packets;
 	u64 			rx_bytes;

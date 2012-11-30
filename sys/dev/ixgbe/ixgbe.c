@@ -47,7 +47,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.4.11";
+char ixgbe_driver_version[] = "2.5.0 - 1";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -264,15 +264,6 @@ static int ixgbe_smart_speed = ixgbe_smart_speed_on;
  */
 static int ixgbe_enable_msix = 1;
 TUNABLE_INT("hw.ixgbe.enable_msix", &ixgbe_enable_msix);
-
-/*
- * Header split: this causes the hardware to DMA
- * the header into a separate mbuf from the payload,
- * it can be a performance win in some workloads, but
- * in others it actually hurts, its off by default. 
- */
-static int ixgbe_header_split = FALSE;
-TUNABLE_INT("hw.ixgbe.hdr_split", &ixgbe_header_split);
 
 /*
  * Number of Queues, can be set to 0,
@@ -1117,7 +1108,7 @@ ixgbe_init_locked(struct adapter *adapter)
 
 	/*
 	** Determine the correct mbuf pool
-	** for doing jumbo/headersplit
+	** for doing jumbo frames
 	*/
 	if (adapter->max_frame_size <= 2048)
 		adapter->rx_mbuf_sz = MCLBYTES;
@@ -3728,10 +3719,9 @@ static void
 ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 {
 	struct adapter		*adapter = rxr->adapter;
-	bus_dma_segment_t	hseg[1];
-	bus_dma_segment_t	pseg[1];
+	bus_dma_segment_t	seg[1];
 	struct ixgbe_rx_buf	*rxbuf;
-	struct mbuf		*mh, *mp;
+	struct mbuf		*mp;
 	int			i, j, nsegs, error;
 	bool			refreshed = FALSE;
 
@@ -3742,43 +3732,13 @@ ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 
 	while (j != limit) {
 		rxbuf = &rxr->rx_buffers[i];
-		if (rxr->hdr_split == FALSE)
-			goto no_split;
-
-		if (rxbuf->m_head == NULL) {
-			mh = m_gethdr(M_DONTWAIT, MT_DATA);
-			if (mh == NULL)
-				goto update;
-		} else
-			mh = rxbuf->m_head;
-
-		mh->m_pkthdr.len = mh->m_len = MHLEN;
-		mh->m_len = MHLEN;
-		mh->m_flags |= M_PKTHDR;
-		/* Get the memory mapping */
-		error = bus_dmamap_load_mbuf_sg(rxr->htag,
-		    rxbuf->hmap, mh, hseg, &nsegs, BUS_DMA_NOWAIT);
-		if (error != 0) {
-			printf("Refresh mbufs: hdr dmamap load"
-			    " failure - %d\n", error);
-			m_free(mh);
-			rxbuf->m_head = NULL;
-			goto update;
-		}
-		rxbuf->m_head = mh;
-		bus_dmamap_sync(rxr->htag, rxbuf->hmap,
-		    BUS_DMASYNC_PREREAD);
-		rxr->rx_base[i].read.hdr_addr =
-		    htole64(hseg[0].ds_addr);
-
-no_split:
-		if (rxbuf->m_pack == NULL) {
+		if (rxbuf->buf == NULL) {
 			mp = m_getjcl(M_DONTWAIT, MT_DATA,
 			    M_PKTHDR, adapter->rx_mbuf_sz);
 			if (mp == NULL)
 				goto update;
 		} else
-			mp = rxbuf->m_pack;
+			mp = rxbuf->buf;
 
 		mp->m_pkthdr.len = mp->m_len = adapter->rx_mbuf_sz;
 
@@ -3787,22 +3747,22 @@ no_split:
 		 */
 		if ((rxbuf->flags & IXGBE_RX_COPY) == 0) {
 			/* Get the memory mapping */
-			error = bus_dmamap_load_mbuf_sg(rxr->ptag,
-			    rxbuf->pmap, mp, pseg, &nsegs, BUS_DMA_NOWAIT);
+			error = bus_dmamap_load_mbuf_sg(rxr->tag,
+			    rxbuf->map, mp, seg, &nsegs, BUS_DMA_NOWAIT);
 			if (error != 0) {
 				printf("Refresh mbufs: payload dmamap load"
 				    " failure - %d\n", error);
 				m_free(mp);
-				rxbuf->m_pack = NULL;
+				rxbuf->buf = NULL;
 				goto update;
 			}
-			rxbuf->m_pack = mp;
-			bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
+			rxbuf->buf = mp;
+			bus_dmamap_sync(rxr->tag, rxbuf->map,
 			    BUS_DMASYNC_PREREAD);
-			rxbuf->paddr = rxr->rx_base[i].read.pkt_addr =
-			    htole64(pseg[0].ds_addr);
+			rxbuf->addr = rxr->rx_base[i].read.pkt_addr =
+			    htole64(seg[0].ds_addr);
 		} else {
-			rxr->rx_base[i].read.pkt_addr = rxbuf->paddr;
+			rxr->rx_base[i].read.pkt_addr = rxbuf->addr;
 			rxbuf->flags &= ~IXGBE_RX_COPY;
 		}
 
@@ -3850,45 +3810,23 @@ ixgbe_allocate_receive_buffers(struct rx_ring *rxr)
 				   BUS_SPACE_MAXADDR,	/* lowaddr */
 				   BUS_SPACE_MAXADDR,	/* highaddr */
 				   NULL, NULL,		/* filter, filterarg */
-				   MSIZE,		/* maxsize */
-				   1,			/* nsegments */
-				   MSIZE,		/* maxsegsize */
-				   0,			/* flags */
-				   NULL,		/* lockfunc */
-				   NULL,		/* lockfuncarg */
-				   &rxr->htag))) {
-		device_printf(dev, "Unable to create RX DMA tag\n");
-		goto fail;
-	}
-
-	if ((error = bus_dma_tag_create(bus_get_dma_tag(dev),	/* parent */
-				   1, 0,	/* alignment, bounds */
-				   BUS_SPACE_MAXADDR,	/* lowaddr */
-				   BUS_SPACE_MAXADDR,	/* highaddr */
-				   NULL, NULL,		/* filter, filterarg */
 				   MJUM16BYTES,		/* maxsize */
 				   1,			/* nsegments */
 				   MJUM16BYTES,		/* maxsegsize */
 				   0,			/* flags */
 				   NULL,		/* lockfunc */
 				   NULL,		/* lockfuncarg */
-				   &rxr->ptag))) {
+				   &rxr->tag))) {
 		device_printf(dev, "Unable to create RX DMA tag\n");
 		goto fail;
 	}
 
 	for (i = 0; i < adapter->num_rx_desc; i++, rxbuf++) {
 		rxbuf = &rxr->rx_buffers[i];
-		error = bus_dmamap_create(rxr->htag,
-		    BUS_DMA_NOWAIT, &rxbuf->hmap);
+		error = bus_dmamap_create(rxr->tag,
+		    BUS_DMA_NOWAIT, &rxbuf->map);
 		if (error) {
-			device_printf(dev, "Unable to create RX head map\n");
-			goto fail;
-		}
-		error = bus_dmamap_create(rxr->ptag,
-		    BUS_DMA_NOWAIT, &rxbuf->pmap);
-		if (error) {
-			device_printf(dev, "Unable to create RX pkt map\n");
+			device_printf(dev, "Unable to create RX dma map\n");
 			goto fail;
 		}
 	}
@@ -3986,22 +3924,14 @@ ixgbe_free_receive_ring(struct rx_ring *rxr)
 	adapter = rxr->adapter;
 	for (i = 0; i < adapter->num_rx_desc; i++) {
 		rxbuf = &rxr->rx_buffers[i];
-		if (rxbuf->m_head != NULL) {
-			bus_dmamap_sync(rxr->htag, rxbuf->hmap,
+		if (rxbuf->buf != NULL) {
+			bus_dmamap_sync(rxr->tag, rxbuf->map,
 			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(rxr->htag, rxbuf->hmap);
-			rxbuf->m_head->m_flags |= M_PKTHDR;
-			m_freem(rxbuf->m_head);
+			bus_dmamap_unload(rxr->tag, rxbuf->map);
+			rxbuf->buf->m_flags |= M_PKTHDR;
+			m_freem(rxbuf->buf);
+			rxbuf->buf = NULL;
 		}
-		if (rxbuf->m_pack != NULL) {
-			bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
-			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(rxr->ptag, rxbuf->pmap);
-			rxbuf->m_pack->m_flags |= M_PKTHDR;
-			m_freem(rxbuf->m_pack);
-		}
-		rxbuf->m_head = NULL;
-		rxbuf->m_pack = NULL;
 	}
 }
 
@@ -4018,7 +3948,7 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 	struct ifnet		*ifp;
 	device_t		dev;
 	struct ixgbe_rx_buf	*rxbuf;
-	bus_dma_segment_t	pseg[1], hseg[1];
+	bus_dma_segment_t	seg[1];
 	struct lro_ctrl		*lro = &rxr->lro;
 	int			rsize, nsegs, error = 0;
 #ifdef DEV_NETMAP
@@ -4043,13 +3973,9 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 	/* Free current RX buffer structs and their mbufs */
 	ixgbe_free_receive_ring(rxr);
 
-	/* Configure header split? */
-	if (ixgbe_header_split)
-		rxr->hdr_split = TRUE;
-
 	/* Now replenish the mbufs */
 	for (int j = 0; j != adapter->num_rx_desc; ++j) {
-		struct mbuf	*mh, *mp;
+		struct mbuf	*mp;
 
 		rxbuf = &rxr->rx_buffers[j];
 #ifdef DEV_NETMAP
@@ -4066,60 +3992,30 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 			void *addr;
 
 			addr = PNMB(slot + sj, &paddr);
-			netmap_load_map(rxr->ptag, rxbuf->pmap, addr);
+			netmap_load_map(rxr->tag, rxbuf->map, addr);
 			/* Update descriptor */
 			rxr->rx_base[j].read.pkt_addr = htole64(paddr);
 			continue;
 		}
 #endif /* DEV_NETMAP */
-		/*
-		** Don't allocate mbufs if not
-		** doing header split, its wasteful
-		*/ 
-		if (rxr->hdr_split == FALSE)
-			goto skip_head;
-
-		/* First the header */
-		rxbuf->m_head = m_gethdr(M_NOWAIT, MT_DATA);
-		if (rxbuf->m_head == NULL) {
-			error = ENOBUFS;
-			goto fail;
-		}
-		m_adj(rxbuf->m_head, ETHER_ALIGN);
-		mh = rxbuf->m_head;
-		mh->m_len = mh->m_pkthdr.len = MHLEN;
-		mh->m_flags |= M_PKTHDR;
-		/* Get the memory mapping */
-		error = bus_dmamap_load_mbuf_sg(rxr->htag,
-		    rxbuf->hmap, rxbuf->m_head, hseg,
-		    &nsegs, BUS_DMA_NOWAIT);
-		if (error != 0) /* Nothing elegant to do here */
-			goto fail;
-		bus_dmamap_sync(rxr->htag,
-		    rxbuf->hmap, BUS_DMASYNC_PREREAD);
-		/* Update descriptor */
-		rxr->rx_base[j].read.hdr_addr = htole64(hseg[0].ds_addr);
-
-skip_head:
-		/* Now the payload cluster */
-		rxbuf->m_pack = m_getjcl(M_NOWAIT, MT_DATA,
+		rxbuf->buf = m_getjcl(M_NOWAIT, MT_DATA,
 		    M_PKTHDR, adapter->rx_mbuf_sz);
-		if (rxbuf->m_pack == NULL) {
+		if (rxbuf->buf == NULL) {
 			error = ENOBUFS;
                         goto fail;
 		}
-		mp = rxbuf->m_pack;
+		mp = rxbuf->buf;
 		mp->m_pkthdr.len = mp->m_len = adapter->rx_mbuf_sz;
 		/* Get the memory mapping */
-		error = bus_dmamap_load_mbuf_sg(rxr->ptag,
-		    rxbuf->pmap, mp, pseg,
+		error = bus_dmamap_load_mbuf_sg(rxr->tag,
+		    rxbuf->map, mp, seg,
 		    &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0)
                         goto fail;
-		bus_dmamap_sync(rxr->ptag,
-		    rxbuf->pmap, BUS_DMASYNC_PREREAD);
+		bus_dmamap_sync(rxr->tag,
+		    rxbuf->map, BUS_DMASYNC_PREREAD);
 		/* Update descriptor */
-		rxr->rx_base[j].read.pkt_addr = htole64(pseg[0].ds_addr);
+		rxr->rx_base[j].read.pkt_addr = htole64(seg[0].ds_addr);
 	}
 
 
@@ -4127,7 +4023,6 @@ skip_head:
 	rxr->next_to_check = 0;
 	rxr->next_to_refresh = 0;
 	rxr->lro_enabled = FALSE;
-	rxr->rx_split_packets = 0;
 	rxr->rx_copies = 0;
 	rxr->rx_bytes = 0;
 	rxr->discard = FALSE;
@@ -4258,14 +4153,7 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 		srrctl &= ~IXGBE_SRRCTL_BSIZEHDR_MASK;
 		srrctl &= ~IXGBE_SRRCTL_BSIZEPKT_MASK;
 		srrctl |= bufsz;
-		if (rxr->hdr_split) {
-			/* Use a standard mbuf for the header */
-			srrctl |= ((IXGBE_RX_HDR <<
-			    IXGBE_SRRCTL_BSIZEHDRSIZE_SHIFT)
-			    & IXGBE_SRRCTL_BSIZEHDR_MASK);
-			srrctl |= IXGBE_SRRCTL_DESCTYPE_HDR_SPLIT_ALWAYS;
-		} else
-			srrctl |= IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF;
+		srrctl |= IXGBE_SRRCTL_DESCTYPE_ADV_ONEBUF;
 		IXGBE_WRITE_REG(hw, IXGBE_SRRCTL(i), srrctl);
 
 		/* Setup the HW Rx Head and Tail Descriptor Pointers */
@@ -4371,29 +4259,17 @@ ixgbe_free_receive_buffers(struct rx_ring *rxr)
 	if (rxr->rx_buffers != NULL) {
 		for (int i = 0; i < adapter->num_rx_desc; i++) {
 			rxbuf = &rxr->rx_buffers[i];
-			if (rxbuf->m_head != NULL) {
-				bus_dmamap_sync(rxr->htag, rxbuf->hmap,
+			if (rxbuf->buf != NULL) {
+				bus_dmamap_sync(rxr->tag, rxbuf->map,
 				    BUS_DMASYNC_POSTREAD);
-				bus_dmamap_unload(rxr->htag, rxbuf->hmap);
-				rxbuf->m_head->m_flags |= M_PKTHDR;
-				m_freem(rxbuf->m_head);
+				bus_dmamap_unload(rxr->tag, rxbuf->map);
+				rxbuf->buf->m_flags |= M_PKTHDR;
+				m_freem(rxbuf->buf);
 			}
-			if (rxbuf->m_pack != NULL) {
-				bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
-				    BUS_DMASYNC_POSTREAD);
-				bus_dmamap_unload(rxr->ptag, rxbuf->pmap);
-				rxbuf->m_pack->m_flags |= M_PKTHDR;
-				m_freem(rxbuf->m_pack);
-			}
-			rxbuf->m_head = NULL;
-			rxbuf->m_pack = NULL;
-			if (rxbuf->hmap != NULL) {
-				bus_dmamap_destroy(rxr->htag, rxbuf->hmap);
-				rxbuf->hmap = NULL;
-			}
-			if (rxbuf->pmap != NULL) {
-				bus_dmamap_destroy(rxr->ptag, rxbuf->pmap);
-				rxbuf->pmap = NULL;
+			rxbuf->buf = NULL;
+			if (rxbuf->map != NULL) {
+				bus_dmamap_destroy(rxr->tag, rxbuf->map);
+				rxbuf->map = NULL;
 			}
 		}
 		if (rxr->rx_buffers != NULL) {
@@ -4402,13 +4278,9 @@ ixgbe_free_receive_buffers(struct rx_ring *rxr)
 		}
 	}
 
-	if (rxr->htag != NULL) {
-		bus_dma_tag_destroy(rxr->htag);
-		rxr->htag = NULL;
-	}
-	if (rxr->ptag != NULL) {
-		bus_dma_tag_destroy(rxr->ptag);
-		rxr->ptag = NULL;
+	if (rxr->tag != NULL) {
+		bus_dma_tag_destroy(rxr->tag);
+		rxr->tag = NULL;
 	}
 
 	return;
@@ -4467,16 +4339,11 @@ ixgbe_rx_discard(struct rx_ring *rxr, int i)
 	** the normal refresh path to get new buffers
 	** and mapping.
 	*/
-	if (rbuf->m_head) {
-		m_free(rbuf->m_head);
-		rbuf->m_head = NULL;
+	if (rbuf->buf) {
+		m_free(rbuf->buf);
+		rbuf->buf = NULL;
 	}
  
-	if (rbuf->m_pack) {
-		m_free(rbuf->m_pack);
-		rbuf->m_pack = NULL;
-	}
-
 	return;
 }
 
@@ -4527,9 +4394,9 @@ ixgbe_rxeof(struct ix_queue *que, int count)
 	}
 #endif /* DEV_NETMAP */
 	for (i = rxr->next_to_check; count != 0;) {
-		struct mbuf	*sendmp, *mh, *mp;
+		struct mbuf	*sendmp, *mp;
 		u32		rsc, ptype;
-		u16		hlen, plen, hdr;
+		u16		len;
 		u16		vtag = 0;
 		bool		eop;
  
@@ -4551,18 +4418,12 @@ ixgbe_rxeof(struct ix_queue *que, int count)
 		rsc = 0;
 		cur->wb.upper.status_error = 0;
 		rbuf = &rxr->rx_buffers[i];
-		mh = rbuf->m_head;
-		mp = rbuf->m_pack;
+		mp = rbuf->buf;
 
-		plen = le16toh(cur->wb.upper.length);
+		len = le16toh(cur->wb.upper.length);
 		ptype = le32toh(cur->wb.lower.lo_dword.data) &
 		    IXGBE_RXDADV_PKTTYPE_MASK;
-		hdr = le16toh(cur->wb.lower.lo_dword.hs_rss.hdr_info);
 		eop = ((staterr & IXGBE_RXD_STAT_EOP) != 0);
-
-		/* Process vlan info */
-		if ((rxr->vtag_strip) && (staterr & IXGBE_RXD_STAT_VP))
-			vtag = le16toh(cur->wb.upper.vlan);
 
 		/* Make sure bad packets are discarded */
 		if (((staterr & IXGBE_RXDADV_ERR_FRAME_ERR_MASK) != 0) ||
@@ -4611,130 +4472,71 @@ ixgbe_rxeof(struct ix_queue *que, int count)
 			prefetch(nbuf);
 		}
 		/*
-		** The header mbuf is ONLY used when header 
-		** split is enabled, otherwise we get normal 
-		** behavior, ie, both header and payload
-		** are DMA'd into the payload buffer.
-		**
 		** Rather than using the fmp/lmp global pointers
 		** we now keep the head of a packet chain in the
 		** buffer struct and pass this along from one
 		** descriptor to the next, until we get EOP.
 		*/
-		if (rxr->hdr_split && (rbuf->fmp == NULL)) {
-			/* This must be an initial descriptor */
-			hlen = (hdr & IXGBE_RXDADV_HDRBUFLEN_MASK) >>
-			    IXGBE_RXDADV_HDRBUFLEN_SHIFT;
-			if (hlen > IXGBE_RX_HDR)
-				hlen = IXGBE_RX_HDR;
-			mh->m_len = hlen;
-			mh->m_flags |= M_PKTHDR;
-			mh->m_next = NULL;
-			mh->m_pkthdr.len = mh->m_len;
-			/* Null buf pointer so it is refreshed */
-			rbuf->m_head = NULL;
-			/*
-			** Check the payload length, this
-			** could be zero if its a small
-			** packet.
-			*/
-			if (plen > 0) {
-				mp->m_len = plen;
-				mp->m_next = NULL;
-				mp->m_flags &= ~M_PKTHDR;
-				mh->m_next = mp;
-				mh->m_pkthdr.len += mp->m_len;
-				/* Null buf pointer so it is refreshed */
-				rbuf->m_pack = NULL;
-				rxr->rx_split_packets++;
-			}
-			/*
-			** Now create the forward
-			** chain so when complete 
-			** we wont have to.
-			*/
-                        if (eop == 0) {
-				/* stash the chain head */
-                                nbuf->fmp = mh;
-				/* Make forward chain */
-                                if (plen)
-                                        mp->m_next = nbuf->m_pack;
-                                else
-                                        mh->m_next = nbuf->m_pack;
-                        } else {
-				/* Singlet, prepare to send */
-                                sendmp = mh;
-				/* If hardware handled vtag */
-                                if (vtag) {
-                                        sendmp->m_pkthdr.ether_vtag = vtag;
-                                        sendmp->m_flags |= M_VLANTAG;
-                                }
-                        }
+		mp->m_len = len;
+		/*
+		** See if there is a stored head
+		** that determines what we are
+		*/
+		sendmp = rbuf->fmp;
+		if (sendmp != NULL) {  /* secondary frag */
+			rbuf->buf = rbuf->fmp = NULL;
+			mp->m_flags &= ~M_PKTHDR;
+			sendmp->m_pkthdr.len += mp->m_len;
 		} else {
 			/*
-			** Either no header split, or a
-			** secondary piece of a fragmented
-			** split packet.
-			*/
-			mp->m_len = plen;
-			/*
-			** See if there is a stored head
-			** that determines what we are
-			*/
-			sendmp = rbuf->fmp;
-
-			if (sendmp != NULL) {  /* secondary frag */
-				rbuf->m_pack = rbuf->fmp = NULL;
-				mp->m_flags &= ~M_PKTHDR;
-				sendmp->m_pkthdr.len += mp->m_len;
-			} else {
-				/*
-				 * Optimize.  This might be a small packet,
-				 * maybe just a TCP ACK.  Do a fast copy that
-				 * is cache aligned into a new mbuf, and
-				 * leave the old mbuf+cluster for re-use.
-				 */
-				if (eop && plen <= IXGBE_RX_COPY_LEN) {
-					sendmp = m_gethdr(M_DONTWAIT, MT_DATA);
-					if (sendmp != NULL) {
-						sendmp->m_data +=
-						    IXGBE_RX_COPY_ALIGN;
-						ixgbe_bcopy(mp->m_data,
-						    sendmp->m_data, plen);
-						sendmp->m_len = plen;
-						rxr->rx_copies++;
-						rbuf->flags |= IXGBE_RX_COPY;
-					}
+			 * Optimize.  This might be a small packet,
+			 * maybe just a TCP ACK.  Do a fast copy that
+			 * is cache aligned into a new mbuf, and
+			 * leave the old mbuf+cluster for re-use.
+			 */
+			if (eop && len <= IXGBE_RX_COPY_LEN) {
+				sendmp = m_gethdr(M_NOWAIT, MT_DATA);
+				if (sendmp != NULL) {
+					sendmp->m_data +=
+					    IXGBE_RX_COPY_ALIGN;
+					ixgbe_bcopy(mp->m_data,
+					    sendmp->m_data, len);
+					sendmp->m_len = len;
+					rxr->rx_copies++;
+					rbuf->flags |= IXGBE_RX_COPY;
 				}
-				if (sendmp == NULL) {
-					rbuf->m_pack = rbuf->fmp = NULL;
-					sendmp = mp;
-				}
-
-				/* first desc of a non-ps chain */
-				sendmp->m_flags |= M_PKTHDR;
-				sendmp->m_pkthdr.len = mp->m_len;
-                                if (vtag) {
-					sendmp->m_pkthdr.ether_vtag = vtag;
-					sendmp->m_flags |= M_VLANTAG;
-				}
-                        }
-			/* Pass the head pointer on */
-			if (eop == 0) {
-				nbuf->fmp = sendmp;
-				sendmp = NULL;
-				mp->m_next = nbuf->m_pack;
 			}
+			if (sendmp == NULL) {
+				rbuf->buf = rbuf->fmp = NULL;
+				sendmp = mp;
+			}
+
+			/* first desc of a non-ps chain */
+			sendmp->m_flags |= M_PKTHDR;
+			sendmp->m_pkthdr.len = mp->m_len;
 		}
 		++processed;
-		/* Sending this frame? */
-		if (eop) {
+
+		/* Pass the head pointer on */
+		if (eop == 0) {
+			nbuf->fmp = sendmp;
+			sendmp = NULL;
+			mp->m_next = nbuf->buf;
+		} else { /* Sending this frame */
 			sendmp->m_pkthdr.rcvif = ifp;
 			ifp->if_ipackets++;
 			rxr->rx_packets++;
 			/* capture data for AIM */
 			rxr->bytes += sendmp->m_pkthdr.len;
 			rxr->rx_bytes += sendmp->m_pkthdr.len;
+			/* Process vlan info */
+			if ((rxr->vtag_strip) &&
+			    (staterr & IXGBE_RXD_STAT_VP))
+				vtag = le16toh(cur->wb.upper.vlan);
+			if (vtag) {
+				sendmp->m_pkthdr.ether_vtag = vtag;
+				sendmp->m_flags |= M_VLANTAG;
+			}
 			if ((ifp->if_capenable & IFCAP_RXCSUM) != 0)
 				ixgbe_rx_checksum(staterr, sendmp, ptype);
 #if __FreeBSD_version >= 800000
