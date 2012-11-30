@@ -189,11 +189,11 @@ audit_record_write(struct vnode *vp, struct ucred *cred, void *data,
 	 * to the daemon.  This is only approximate, which is fine as more
 	 * records may be generated before the daemon rotates the file.
 	 */
-	if ((audit_fstat.af_filesz != 0) && (audit_file_rotate_wait == 0) &&
-	    (audit_size >= audit_fstat.af_filesz)) {
+	if (audit_fstat.af_filesz != 0 &&
+	    audit_size >= audit_fstat.af_filesz * (audit_file_rotate_wait + 1)) {
 		AUDIT_WORKER_LOCK_ASSERT();
 
-		audit_file_rotate_wait = 1;
+		audit_file_rotate_wait++;
 		(void)audit_send_trigger(AUDIT_TRIGGER_ROTATE_KERNEL);
 	}
 
