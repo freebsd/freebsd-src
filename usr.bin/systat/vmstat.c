@@ -236,7 +236,7 @@ initkre(void)
 		intrloc = calloc(nintr, sizeof (long));
 		intrname = calloc(nintr, sizeof (char *));
 		intrnamebuf = sysctl_dynread("hw.intrnames", NULL);
-		if (intrnamebuf == NULL || intrname == NULL || 
+		if (intrnamebuf == NULL || intrname == NULL ||
 		    intrloc == NULL) {
 			error("Out of memory");
 			if (intrnamebuf)
@@ -863,7 +863,7 @@ dinfo(int dn, int lc, struct statinfo *now, struct statinfo *then)
 		elapsed_time = now->snap_time - then->snap_time;
 	} else {
 		/* Calculate relative to device creation */
-	        elapsed_time = now->snap_time - devstat_compute_etime(
+		elapsed_time = now->snap_time - devstat_compute_etime(
 		    &now->dinfo->devices[di].creation_time, NULL);
 	}
 

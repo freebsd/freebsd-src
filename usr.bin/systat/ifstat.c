@@ -43,7 +43,7 @@
 #include "extern.h"
 #include "convtbl.h"
 
-                                /* Column numbers */
+				/* Column numbers */
 
 #define C1	0		/*  0-19 */
 #define C2	20		/* 20-39 */
@@ -121,9 +121,9 @@ static	 u_int getifnum(void);
 } while (0)
 
 #define DOPUTTOTAL(c, r, d)	do {					\
- 	CLEAR_COLUMN((r), (c));						\
- 	mvprintw((r), (c), "%12.3f %s  ",				\
- 		 convert(d##_##c, SC_AUTO),				\
+	CLEAR_COLUMN((r), (c));						\
+	mvprintw((r), (c), "%12.3f %s  ",				\
+		 convert(d##_##c, SC_AUTO),				\
 		 get_string(d##_##c, SC_AUTO));				\
 } while (0)
 
@@ -255,8 +255,8 @@ fetchifstat(void)
 		(void)getifmibdata(ifp->if_row, &ifp->if_mib);
 
 
-                new_inb = ifp->if_mib.ifmd_data.ifi_ibytes;
-                new_outb = ifp->if_mib.ifmd_data.ifi_obytes;
+		new_inb = ifp->if_mib.ifmd_data.ifi_ibytes;
+		new_outb = ifp->if_mib.ifmd_data.ifi_obytes;
 
 		/* Display interface if it's received some traffic. */
 		if (new_inb > 0 && old_inb == 0) {
@@ -269,9 +269,9 @@ fetchifstat(void)
 		 * for our current traffic rates, and while we're there,
 		 * see if we have new peak rates.
 		 */
-                old_tv = ifp->tv;
-                timersub(&new_tv, &old_tv, &tv);
-                elapsed = tv.tv_sec + (tv.tv_usec * 1e-6);
+		old_tv = ifp->tv;
+		timersub(&new_tv, &old_tv, &tv);
+		elapsed = tv.tv_sec + (tv.tv_usec * 1e-6);
 
 		ifp->if_in_curtraffic = new_inb - old_inb;
 		ifp->if_out_curtraffic = new_outb - old_outb;
@@ -281,8 +281,8 @@ fetchifstat(void)
 		 * and line, we divide by ``elapsed'' as this is likely
 		 * to be more accurate.
 		 */
-                ifp->if_in_curtraffic /= elapsed;
-                ifp->if_out_curtraffic /= elapsed;
+		ifp->if_in_curtraffic /= elapsed;
+		ifp->if_out_curtraffic /= elapsed;
 
 		if (ifp->if_in_curtraffic > ifp->if_in_traffic_peak)
 			ifp->if_in_traffic_peak = ifp->if_in_curtraffic;
