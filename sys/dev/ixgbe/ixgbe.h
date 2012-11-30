@@ -89,10 +89,6 @@
 #include <sys/smp.h>
 #include <machine/smp.h>
 
-#ifdef IXGBE_IEEE1588
-#include <sys/ieee1588.h>
-#endif
-
 #include "ixgbe_api.h"
 
 /* Tunables */

@@ -47,7 +47,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.5.0 - 4";
+char ixgbe_driver_version[] = "2.5.0 - 5";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -1829,12 +1829,6 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 			return (ENXIO);
 	} else if (ixgbe_tx_ctx_setup(txr, m_head))
 		olinfo_status |= IXGBE_TXD_POPTS_TXSM << 8;
-
-#ifdef IXGBE_IEEE1588
-        /* This is changing soon to an mtag detection */
-        if (we detect this mbuf has a TSTAMP mtag)
-                cmd_type_len |= IXGBE_ADVTXD_MAC_TSTAMP;
-#endif
 
 #ifdef IXGBE_FDIR
 	/* Do the flow director magic */
