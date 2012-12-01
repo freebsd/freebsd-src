@@ -163,8 +163,6 @@ static int	ixgbe_set_thermal_test(SYSCTL_HANDLER_ARGS);
 static int	ixgbe_dma_malloc(struct adapter *, bus_size_t,
 		    struct ixgbe_dma_alloc *, int);
 static void     ixgbe_dma_free(struct adapter *, struct ixgbe_dma_alloc *);
-static void	ixgbe_add_process_limit(struct adapter *, const char *,
-		    const char *, u16 *, u16);
 static int	ixgbe_tx_ctx_setup(struct tx_ring *,
 		    struct mbuf *, u32 *, u32 *);
 static int	ixgbe_tso_setup(struct tx_ring *,
@@ -3070,11 +3068,6 @@ ixgbe_initialize_transmit_units(struct adapter *adapter)
 		u64	tdba = txr->txdma.dma_paddr;
 		u32	txctrl;
 
-		/* Sysctl for limiting work done in tx clean */
-		ixgbe_add_process_limit(adapter, "tx_processing_limit",
-		    "max number of packets to process", &txr->process_limit,
-		    ixgbe_tx_process_limit);
-
 		IXGBE_WRITE_REG(hw, IXGBE_TDBAL(i),
 		       (tdba & 0x00000000ffffffffULL));
 		IXGBE_WRITE_REG(hw, IXGBE_TDBAH(i), (tdba >> 32));
@@ -4118,11 +4111,6 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 
 	for (int i = 0; i < adapter->num_queues; i++, rxr++) {
 		u64 rdba = rxr->rxdma.dma_paddr;
-
-		/* Sysctl for limiting work done in rx clean */
-		ixgbe_add_process_limit(adapter, "rx_processing_limit",
-		    "max number of packets to process", &rxr->process_limit,
-		    ixgbe_rx_process_limit);
 
 		/* Setup the Base and Length of the Rx Descriptor Ring */
 		IXGBE_WRITE_REG(hw, IXGBE_RDBAL(i),
@@ -5185,6 +5173,23 @@ ixgbe_sysctl_tdt_handler(SYSCTL_HANDLER_ARGS)
 	return 0;
 }
 
+/** ixgbe_sysctl_tx_process_limit - Handler function
+ *  Set the limit value for TX processing
+ */
+static int 
+ixgbe_sysctl_tx_process_limit(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	struct tx_ring *txr = ((struct tx_ring *)oidp->oid_arg1);
+	if (!txr) return 0;
+
+	error = sysctl_handle_int(oidp, &ixgbe_tx_process_limit, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return 0;
+}
+
 /** ixgbe_sysctl_rdh_handler - Handler function
  *  Retrieves the RDH value from the hardware
  */
@@ -5216,6 +5221,23 @@ ixgbe_sysctl_rdt_handler(SYSCTL_HANDLER_ARGS)
 
 	unsigned val = IXGBE_READ_REG(&rxr->adapter->hw, IXGBE_RDT(rxr->me));
 	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	return 0;
+}
+
+/** ixgbe_sysctl_rx_process_limit - Handler function
+ *  Set the limit value for RX processing
+ */
+static int 
+ixgbe_sysctl_rx_process_limit(SYSCTL_HANDLER_ARGS)
+{
+	int error;
+
+	struct rx_ring *rxr = ((struct rx_ring *)oidp->oid_arg1);
+	if (!rxr) return 0;
+
+	error = sysctl_handle_int(oidp, &ixgbe_rx_process_limit, 0, req);
 	if (error || !req->newptr)
 		return error;
 	return 0;
@@ -5308,6 +5330,10 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 				CTLTYPE_UINT | CTLFLAG_RD, txr, sizeof(txr),
 				ixgbe_sysctl_tdt_handler, "IU",
 				"Transmit Descriptor Tail");
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "tx_process_limit", 
+				CTLTYPE_UINT | CTLFLAG_RD, txr, sizeof(txr),
+				ixgbe_sysctl_tx_process_limit, "IU",
+				"Transmit Process Limit");
 		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "tso_tx",
 				CTLFLAG_RD, &txr->tso_tx,
 				"TSO");
@@ -5343,6 +5369,10 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 				CTLTYPE_UINT | CTLFLAG_RD, rxr, sizeof(rxr),
 				ixgbe_sysctl_rdt_handler, "IU",
 				"Receive Descriptor Tail");
+		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rx_process_limit", 
+				CTLTYPE_UINT | CTLFLAG_RD, rxr, sizeof(rxr),
+				ixgbe_sysctl_rx_process_limit, "IU",
+				"Receive Process Limit");
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_packets",
 				CTLFLAG_RD, &rxr->rx_packets,
 				"Queue Packets Received");
@@ -5541,16 +5571,6 @@ ixgbe_set_flowcntl(SYSCTL_HANDLER_ARGS)
 	adapter->hw.fc.disable_fc_autoneg = TRUE;
 	ixgbe_fc_enable(&adapter->hw);
 	return error;
-}
-
-static void
-ixgbe_add_process_limit(struct adapter *adapter, const char *name,
-        const char *description, u16 *limit, u16 value)
-{
-        *limit = value;
-        SYSCTL_ADD_UINT(device_get_sysctl_ctx(adapter->dev),
-            SYSCTL_CHILDREN(device_get_sysctl_tree(adapter->dev)),
-            OID_AUTO, name, CTLTYPE_UINT|CTLFLAG_RW, limit, value, description);
 }
 
 /*
