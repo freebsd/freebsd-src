@@ -47,7 +47,7 @@ int             ixgbe_display_debug_stats = 0;
 /*********************************************************************
  *  Driver version
  *********************************************************************/
-char ixgbe_driver_version[] = "2.5.0 - 10";
+char ixgbe_driver_version[] = "2.5.0";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -1740,7 +1740,7 @@ ixgbe_xmit(struct tx_ring *txr, struct mbuf **m_headp)
 	struct adapter  *adapter = txr->adapter;
 	u32		olinfo_status = 0, cmd_type_len;
 	int             i, j, error, nsegs;
-	int		first, last = 0;
+	int		first;
 	bool		remap = TRUE;
 	struct mbuf	*m_head;
 	bus_dma_segment_t segs[adapter->num_segs];
@@ -1847,13 +1847,9 @@ retry:
 		txd->read.cmd_type_len = htole32(txr->txd_cmd |
 		    cmd_type_len |seglen);
 		txd->read.olinfo_status = htole32(olinfo_status);
-		last = i; /* descriptor that will get completion IRQ */
 
 		if (++i == txr->num_desc)
 			i = 0;
-
-		txbuf->m_head = NULL;
-		txbuf->eop_index = -1;
 	}
 
 	txd->read.cmd_type_len |=
@@ -1872,9 +1868,9 @@ retry:
 	txbuf->map = map;
 	bus_dmamap_sync(txr->txtag, map, BUS_DMASYNC_PREWRITE);
 
-        /* Set the index of the descriptor that will be marked done */
+        /* Set the EOP descriptor that will be marked done */
         txbuf = &txr->tx_buffers[first];
-	txbuf->eop_index = last;
+	txbuf->eop = txd;
 
         bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
             BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
@@ -3023,8 +3019,8 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 			netmap_load_map(txr->txtag, txbuf->map, NMB(slot + si));
 		}
 #endif /* DEV_NETMAP */
-		/* Clear the EOP index */
-		txbuf->eop_index = -1;
+		/* Clear the EOP descriptor pointer */
+		txbuf->eop = NULL;
         }
 
 #ifdef IXGBE_FDIR
@@ -3083,7 +3079,7 @@ ixgbe_initialize_transmit_units(struct adapter *adapter)
 		       (tdba & 0x00000000ffffffffULL));
 		IXGBE_WRITE_REG(hw, IXGBE_TDBAH(i), (tdba >> 32));
 		IXGBE_WRITE_REG(hw, IXGBE_TDLEN(i),
-		    adapter->num_tx_desc * sizeof(struct ixgbe_legacy_tx_desc));
+		    adapter->num_tx_desc * sizeof(union ixgbe_adv_tx_desc));
 
 		/* Setup the HW Tx Head and Tail descriptor pointers */
 		IXGBE_WRITE_REG(hw, IXGBE_TDH(i), 0);
@@ -3320,8 +3316,8 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp,
 		*olinfo_status |= IXGBE_TXD_POPTS_TXSM << 8;
 
 	/* Now copy bits into descriptor */
-	TXD->vlan_macip_lens |= htole32(vlan_macip_lens);
-	TXD->type_tucmd_mlhl |= htole32(type_tucmd_mlhl);
+	TXD->vlan_macip_lens = htole32(vlan_macip_lens);
+	TXD->type_tucmd_mlhl = htole32(type_tucmd_mlhl);
 	TXD->seqnum_seed = htole32(0);
 	TXD->mss_l4len_idx = htole32(0);
 
@@ -3423,12 +3419,12 @@ ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp,
 
 	vlan_macip_lens |= ehdrlen << IXGBE_ADVTXD_MACLEN_SHIFT;
 	vlan_macip_lens |= ip_hlen;
-	TXD->vlan_macip_lens |= htole32(vlan_macip_lens);
+	TXD->vlan_macip_lens = htole32(vlan_macip_lens);
 
 	/* ADV DTYPE TUCMD */
 	type_tucmd_mlhl |= IXGBE_ADVTXD_DCMD_DEXT | IXGBE_ADVTXD_DTYP_CTXT;
 	type_tucmd_mlhl |= IXGBE_ADVTXD_TUCMD_L4T_TCP;
-	TXD->type_tucmd_mlhl |= htole32(type_tucmd_mlhl);
+	TXD->type_tucmd_mlhl = htole32(type_tucmd_mlhl);
 
 	/* MSS L4LEN IDX */
 	mss_l4len_idx |= (mp->m_pkthdr.tso_segsz << IXGBE_ADVTXD_MSS_SHIFT);
@@ -3535,11 +3531,12 @@ ixgbe_atr(struct tx_ring *txr, struct mbuf *mp)
 static bool
 ixgbe_txeof(struct tx_ring *txr)
 {
-	struct adapter	*adapter = txr->adapter;
-	struct ifnet	*ifp = adapter->ifp;
-	u32	first, last, done, processed;
-	struct ixgbe_tx_buf *tx_buffer;
-	struct ixgbe_legacy_tx_desc *tx_desc, *eop_desc;
+	struct adapter		*adapter = txr->adapter;
+	struct ifnet		*ifp = adapter->ifp;
+	u32			work, processed = 0;
+	u16			limit = txr->process_limit;
+	struct ixgbe_tx_buf	*buf;
+	union ixgbe_adv_tx_desc *txd;
 
 	mtx_assert(&txr->tx_mtx, MA_OWNED);
 
@@ -3547,9 +3544,7 @@ ixgbe_txeof(struct tx_ring *txr)
 	if (ifp->if_capenable & IFCAP_NETMAP) {
 		struct netmap_adapter *na = NA(ifp);
 		struct netmap_kring *kring = &na->tx_rings[txr->me];
-
-		tx_desc = (struct ixgbe_legacy_tx_desc *)txr->tx_base;
-
+		txd = txr->tx_base;
 		bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
 		    BUS_DMASYNC_POSTREAD);
 		/*
@@ -3572,8 +3567,7 @@ ixgbe_txeof(struct tx_ring *txr)
 		 */
 		if (!netmap_mitigate ||
 		    (kring->nr_kflags < kring->nkr_num_slots &&
-		    tx_desc[kring->nr_kflags].upper.fields.status &
-		    IXGBE_TXD_STAT_DD)) {
+		    txd[kring->nr_kflags].wb.status & IXGBE_TXD_STAT_DD)) {
 			kring->nr_kflags = kring->nkr_num_slots;
 			selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
 			IXGBE_TX_UNLOCK(txr);
@@ -3591,79 +3585,87 @@ ixgbe_txeof(struct tx_ring *txr)
 		return FALSE;
 	}
 
-	processed = 0;
-	first = txr->next_to_clean;
-	tx_buffer = &txr->tx_buffers[first];
-	/* For cleanup we just use legacy struct */
-	tx_desc = (struct ixgbe_legacy_tx_desc *)&txr->tx_base[first];
-	last = tx_buffer->eop_index;
-	if (last == -1)
-		return FALSE;
-	eop_desc = (struct ixgbe_legacy_tx_desc *)&txr->tx_base[last];
-
-	/*
-	** Get the index of the first descriptor
-	** BEYOND the EOP and call that 'done'.
-	** I do this so the comparison in the
-	** inner while loop below can be simple
-	*/
-	if (++last == adapter->num_tx_desc) last = 0;
-	done = last;
-
+	/* Get work starting point */
+	work = txr->next_to_clean;
+	buf = &txr->tx_buffers[work];
+	txd = &txr->tx_base[work];
+	work -= txr->num_desc; /* The distance to ring end */
         bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
             BUS_DMASYNC_POSTREAD);
-	/*
-	** Only the EOP descriptor of a packet now has the DD
-	** bit set, this is what we look for...
-	*/
-	while (eop_desc->upper.fields.status & IXGBE_TXD_STAT_DD) {
-		/* We clean the range of the packet */
-		while (first != done) {
-			tx_desc->upper.data = 0;
-			tx_desc->lower.data = 0;
-			tx_desc->buffer_addr = 0;
-			++txr->tx_avail;
-			++processed;
 
-			if (tx_buffer->m_head) {
+	do {
+		union ixgbe_adv_tx_desc *eop= buf->eop;
+		if (eop == NULL) /* No work */
+			break;
+
+		if ((eop->wb.status & IXGBE_TXD_STAT_DD) == 0)
+			break;	/* I/O not complete */
+
+		if (buf->m_head) {
+			txr->bytes +=
+			    buf->m_head->m_pkthdr.len;
+			bus_dmamap_sync(txr->txtag,
+			    buf->map,
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(txr->txtag,
+			    buf->map);
+			m_freem(buf->m_head);
+			buf->m_head = NULL;
+			buf->map = NULL;
+		}
+		buf->eop = NULL;
+		++txr->tx_avail;
+
+		/* We clean the range if multi segment */
+		while (txd != eop) {
+			++txd;
+			++buf;
+			++work;
+			/* wrap the ring? */
+			if (__predict_false(!work)) {
+				work -= txr->num_desc;
+				buf = txr->tx_buffers;
+				txd = txr->tx_base;
+			}
+			if (buf->m_head) {
 				txr->bytes +=
-				    tx_buffer->m_head->m_pkthdr.len;
+				    buf->m_head->m_pkthdr.len;
 				bus_dmamap_sync(txr->txtag,
-				    tx_buffer->map,
+				    buf->map,
 				    BUS_DMASYNC_POSTWRITE);
 				bus_dmamap_unload(txr->txtag,
-				    tx_buffer->map);
-				m_freem(tx_buffer->m_head);
-				tx_buffer->m_head = NULL;
-				tx_buffer->map = NULL;
+				    buf->map);
+				m_freem(buf->m_head);
+				buf->m_head = NULL;
+				buf->map = NULL;
 			}
-			tx_buffer->eop_index = -1;
-			txr->watchdog_time = ticks;
+			++txr->tx_avail;
+			buf->eop = NULL;
 
-			if (++first == adapter->num_tx_desc)
-				first = 0;
-
-			tx_buffer = &txr->tx_buffers[first];
-			tx_desc =
-			    (struct ixgbe_legacy_tx_desc *)&txr->tx_base[first];
 		}
 		++txr->packets;
+		++processed;
 		++ifp->if_opackets;
-		/* See if there is more work now */
-		last = tx_buffer->eop_index;
-		if (last != -1) {
-			eop_desc =
-			    (struct ixgbe_legacy_tx_desc *)&txr->tx_base[last];
-			/* Get next done point */
-			if (++last == adapter->num_tx_desc) last = 0;
-			done = last;
-		} else
-			break;
-	}
+		txr->watchdog_time = ticks;
+
+		/* Try the next packet */
+		++txd;
+		++buf;
+		++work;
+		/* reset with a wrap */
+		if (__predict_false(!work)) {
+			work -= txr->num_desc;
+			buf = txr->tx_buffers;
+			txd = txr->tx_base;
+		}
+		prefetch(txd);
+	} while (__predict_true(--limit));
+
 	bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-	txr->next_to_clean = first;
+	work += txr->num_desc;
+	txr->next_to_clean = work;
 
 	/*
 	** Watchdog calculation, we know there's
