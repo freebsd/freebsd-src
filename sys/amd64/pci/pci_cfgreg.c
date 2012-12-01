@@ -295,6 +295,13 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
 	return (1);
 }
 
+#define PCIE_VADDR(base, reg, bus, slot, func)	\
+	((base)				+	\
+	((((bus) & 0xff) << 20)		|	\
+	(((slot) & 0x1f) << 15)		|	\
+	(((func) & 0x7) << 12)		|	\
+	((reg) & 0xfff)))
+
 /*
  * AMD BIOS And Kernel Developer's Guides for CPU families starting with 10h
  * have a requirement that all accesses to the memory mapped PCI configuration
@@ -302,12 +309,6 @@ pcie_cfgregopen(uint64_t base, uint8_t minbus, uint8_t maxbus)
  * Since other vendors do not currently have any contradicting requirements
  * the AMD access pattern is applied universally.
  */
-#define PCIE_VADDR(base, reg, bus, slot, func)	\
-	((base)				+	\
-	((((bus) & 0xff) << 20)		|	\
-	(((slot) & 0x1f) << 15)		|	\
-	(((func) & 0x7) << 12)		|	\
-	((reg) & 0xfff)))
 
 static int
 pciereg_cfgread(int bus, unsigned slot, unsigned func, unsigned reg,
