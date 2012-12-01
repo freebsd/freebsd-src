@@ -394,7 +394,7 @@ struct xhci_hw_dev {
 	uint8_t			state;
 	uint8_t			nports;
 	uint8_t			tt;
-	uint8_t			reserved;
+	uint8_t			context_num;
 };
 
 struct xhci_hw_softc {
