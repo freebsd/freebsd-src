@@ -26,10 +26,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/receiver.c#1 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/receiver.c#3 $
  */
 
-#include "config.h"
+#include <config/config.h>
 
 #include <sys/param.h>
 #if defined(HAVE_SYS_ENDIAN_H) && defined(HAVE_BSWAP)
@@ -78,9 +78,8 @@
 #include "renameat.h"
 #endif
 
-#include <pjdlog.h>
-
 #include "auditdistd.h"
+#include "pjdlog.h"
 #include "proto.h"
 #include "sandbox.h"
 #include "subr.h"

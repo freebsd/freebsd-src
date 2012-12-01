@@ -27,10 +27,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/parse.y#3 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/parse.y#5 $
  */
 
-#include "config.h"
+#include <config/config.h>
 
 #include <sys/types.h>
 #include <sys/queue.h>
@@ -48,9 +48,8 @@
 #include <compat/strlcpy.h>
 #endif
 
-#include <pjdlog.h>
-
 #include "auditdistd.h"
+#include "pjdlog.h"
 
 extern int depth;
 extern int lineno;

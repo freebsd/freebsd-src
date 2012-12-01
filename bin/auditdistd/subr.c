@@ -23,10 +23,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/subr.c#1 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/subr.c#3 $
  */
 
-#include "config.h"
+#include <config/config.h>
 
 #ifdef HAVE_KQUEUE
 #include <sys/types.h>
@@ -48,9 +48,8 @@
 #include <compat/strlcat.h>
 #endif
 
-#include <pjdlog.h>
-
 #include "auditdistd.h"
+#include "pjdlog.h"
 #include "subr.h"
 
 int
