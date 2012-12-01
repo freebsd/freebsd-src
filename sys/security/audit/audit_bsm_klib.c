@@ -468,7 +468,7 @@ audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 	char *rbuf, *fbuf, *copy;
 	struct filedesc *fdp;
 	struct sbuf sbf;
-	int error, needslash, vfslocked;
+	int error, needslash;
 
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL, "%s: at %s:%d",
 	    __func__,  __FILE__, __LINE__);
@@ -504,9 +504,7 @@ audit_canon_path(struct thread *td, int dirfd, char *path, char *cpath)
 				return;
 			}
 			vhold(cvnp);
-			vfslocked = VFS_LOCK_GIANT(cvnp->v_mount);
 			vrele(cvnp);
-			VFS_UNLOCK_GIANT(vfslocked);
 		}
 		needslash = (fdp->fd_rdir != cvnp);
 	} else {
