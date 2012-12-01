@@ -211,9 +211,9 @@ namei(struct nameidata *ndp)
 	 * If we are auditing the kernel pathname, save the user pathname.
 	 */
 	if (cnp->cn_flags & AUDITVNODE1)
-		AUDIT_ARG_UPATH1(td, ndp->ni_dirfd, , cnp->cn_pnbuf);
+		AUDIT_ARG_UPATH1(td, ndp->ni_dirfd, cnp->cn_pnbuf);
 	if (cnp->cn_flags & AUDITVNODE2)
-		AUDIT_ARG_UPATH2(td, ndp->ni_dirfd, , cnp->cn_pnbuf);
+		AUDIT_ARG_UPATH2(td, ndp->ni_dirfd, cnp->cn_pnbuf);
 
 	dp = NULL;
 	if (cnp->cn_pnbuf[0] != '/') {
