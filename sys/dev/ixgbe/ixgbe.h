@@ -239,7 +239,7 @@ struct ixgbe_i2c_req {
 };
 
 struct ixgbe_tx_buf {
-	u32		eop_index;
+	union ixgbe_adv_tx_desc	*eop;
 	struct mbuf	*m_head;
 	bus_dmamap_t	map;
 };
