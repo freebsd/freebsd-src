@@ -718,13 +718,8 @@ globextend(const Char *path, glob_t *pglob, size_t *limit)
 	pathv = pglob->gl_pathv ?
 		    realloc((char *)pglob->gl_pathv, newsize) :
 		    malloc(newsize);
-	if (pathv == NULL) {
-		if (pglob->gl_pathv) {
-			free(pglob->gl_pathv);
-			pglob->gl_pathv = NULL;
-		}
+	if (pathv == NULL)
 		return (GLOB_NOSPACE);
-	}
 
 	if (pglob->gl_pathv == NULL && pglob->gl_offs > 0) {
 		/* first time around -- clear initial gl_offs items */
