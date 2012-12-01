@@ -715,9 +715,8 @@ globextend(const Char *path, glob_t *pglob, size_t *limit)
 	}
 
 	newsize = sizeof(*pathv) * (2 + pglob->gl_pathc + pglob->gl_offs);
-	pathv = pglob->gl_pathv ?
-		    realloc((char *)pglob->gl_pathv, newsize) :
-		    malloc(newsize);
+	/* realloc(NULL, newsize) is equivalent to malloc(newsize). */
+	pathv = realloc((void *)pglob->gl_pathv, newsize);
 	if (pathv == NULL)
 		return (GLOB_NOSPACE);
 
