@@ -311,12 +311,12 @@ ioapic_program_intpin(struct ioapic_intsrc *intpin)
 	}
 
 	/* Write the values to the APIC. */
-	intpin->io_lowreg = low;
-	ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(intpin->io_intpin), low);
 	value = ioapic_read(io->io_addr, IOAPIC_REDTBL_HI(intpin->io_intpin));
 	value &= ~IOART_DEST;
 	value |= high;
 	ioapic_write(io->io_addr, IOAPIC_REDTBL_HI(intpin->io_intpin), value);
+	intpin->io_lowreg = low;
+	ioapic_write(io->io_addr, IOAPIC_REDTBL_LO(intpin->io_intpin), low);
 }
 
 static int
