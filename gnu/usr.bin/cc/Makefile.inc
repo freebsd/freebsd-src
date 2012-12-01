@@ -26,7 +26,7 @@ CSTD?=	gnu89
 CFLAGS+=	-DCROSS_COMPILE
 .endif
 
-.if ${TARGET_CPUARCH} == "arm"
+.if ${TARGET_CPUARCH} == "arm" && ${MK_ARM_EABI} != "no"
 CFLAGS+=	-DTARGET_ARM_EABI
 .endif
 

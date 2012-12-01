@@ -304,6 +304,7 @@ __DEFAULT_YES_OPTIONS = \
     ACPI \
     AMD \
     APM \
+    ARM_EABI \
     ASSERT_DEBUG \
     AT \
     ATF \
