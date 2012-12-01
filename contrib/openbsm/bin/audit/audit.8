@@ -25,7 +25,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.8#15 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/bin/audit/audit.8#16 $
 .\"
 .Dd January 29, 2009
 .Dt AUDIT 8
@@ -46,18 +46,18 @@ One of the following flags is required as an argument to
 .It Fl e
 Forces the audit system to immediately remove audit log files that
 meet the expiration criteria specified in the audit control file without
-doing a log rotation. 
+doing a log rotation.
 .It Fl i
 Initializes and starts auditing.
 This option is currently for Mac OS X only
 and requires
 .Xr auditd 8
-to be configured to run under 
+to be configured to run under
 .Xr launchd 8 .
 .It Fl n
 Forces the audit system to close the existing audit log file and rotate to
 a new log file in a location specified in the audit control file.
-Also, audit log files that meet the expiration criteria specified in the 
+Also, audit log files that meet the expiration criteria specified in the
 audit control file will be removed.
 .It Fl s
 Specifies that the audit system should [re]synchronize its
@@ -77,7 +77,7 @@ on-demand by
 .Xr launchd 8
 (Mac OS X only).
 The
-.Nm 
+.Nm
 utility requires audit administrator privileges for successful operation.
 .Sh FILES
 .Bl -tag -width ".Pa /etc/security/audit_control" -compact

@@ -27,7 +27,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_control.c#34 $
+ * $P4: //depot/projects/trustedbsd/openbsm/libbsm/bsm_control.c#41 $
  */
 
 #include <config/config.h>
@@ -37,6 +37,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <string.h>
+#include <strings.h>
 #ifdef HAVE_PTHREAD_MUTEX_LOCK
 #include <pthread.h>
 #endif
@@ -71,8 +72,8 @@ static pthread_mutex_t	mutex = PTHREAD_MUTEX_INITIALIZER;
  * Audit policy string token table for au_poltostr() and au_strtopol().
  */
 struct audit_polstr {
-	long 		 ap_policy;
-	const char 	*ap_str;	
+	long		 ap_policy;
+	const char	*ap_str;
 };
 
 static struct audit_polstr au_polstr[] = {
@@ -100,7 +101,7 @@ static struct audit_polstr au_polstr[] = {
  * Must be called with mutex held.
  */
 static int
-getstrfromtype_locked(char *name, char **str)
+getstrfromtype_locked(const char *name, char **str)
 {
 	char *type, *nl;
 	char *tokptr;
@@ -183,7 +184,7 @@ au_timetosec(time_t *seconds, u_long value, char mult)
 }
 
 /*
- * Convert a given disk space value with a multiplier (bytes, kilobytes, 
+ * Convert a given disk space value with a multiplier (bytes, kilobytes,
  * megabytes, gigabytes) to bytes.  Return 0 on success.
  */
 static int
@@ -397,6 +398,43 @@ getacdir(char *name, int len)
 }
 
 /*
+ * Return 1 if dist value is set to 'yes' or 'on'.
+ * Return 0 if dist value is set to something else.
+ * Return negative value on error.
+ */
+int
+getacdist(void)
+{
+	char *str;
+	int ret;
+
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
+	pthread_mutex_lock(&mutex);
+#endif
+	setac_locked();
+	if (getstrfromtype_locked(DIST_CONTROL_ENTRY, &str) < 0) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
+		pthread_mutex_unlock(&mutex);
+#endif
+		return (-2);
+	}
+	if (str == NULL) {
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
+		pthread_mutex_unlock(&mutex);
+#endif
+		return (0);
+	}
+	if (strcasecmp(str, "on") == 0 || strcasecmp(str, "yes") == 0)
+		ret = 1;
+	else
+		ret = 0;
+#ifdef HAVE_PTHREAD_MUTEX_LOCK
+	pthread_mutex_unlock(&mutex);
+#endif
+	return (ret);
+}
+
+/*
  * Return the minimum free diskspace value from the audit control file.
  */
 int
@@ -418,7 +456,7 @@ getacmin(int *min_val)
 #ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
 #endif
-		return (1);
+		return (-1);
 	}
 	*min_val = atoi(min);
 #ifdef HAVE_PTHREAD_MUTEX_LOCK
@@ -453,7 +491,7 @@ getacfilesz(size_t *filesz_val)
 		pthread_mutex_unlock(&mutex);
 #endif
 		errno = EINVAL;
-		return (1);
+		return (-1);
 	}
 
 	/* Trim off any leading white space. */
@@ -498,11 +536,8 @@ getacfilesz(size_t *filesz_val)
 	return (0);
 }
 
-/*
- * Return the system audit value from the audit contol file.
- */
-int
-getacflg(char *auditstr, int len)
+static int
+getaccommon(const char *name, char *auditstr, int len)
 {
 	char *str;
 
@@ -510,81 +545,7 @@ getacflg(char *auditstr, int len)
 	pthread_mutex_lock(&mutex);
 #endif
 	setac_locked();
-	if (getstrfromtype_locked(FLAGS_CONTROL_ENTRY, &str) < 0) {
-#ifdef HAVE_PTHREAD_MUTEX_LOCK
-		pthread_mutex_unlock(&mutex);
-#endif
-		return (-2);
-	}
-	if (str == NULL) {
-#ifdef HAVE_PTHREAD_MUTEX_LOCK
-		pthread_mutex_unlock(&mutex);
-#endif
-		return (1);
-	}
-	if (strlen(str) >= (size_t)len) {
-#ifdef HAVE_PTHREAD_MUTEX_LOCK
-		pthread_mutex_unlock(&mutex);
-#endif
-		return (-3);
-	}
-	strlcpy(auditstr, str, len);
-#ifdef HAVE_PTHREAD_MUTEX_LOCK
-	pthread_mutex_unlock(&mutex);
-#endif
-	return (0);
-}
-
-/*
- * Return the non attributable flags from the audit contol file.
- */
-int
-getacna(char *auditstr, int len)
-{
-	char *str;
-
-#ifdef HAVE_PTHREAD_MUTEX_LOCK
-	pthread_mutex_lock(&mutex);
-#endif
-	setac_locked();
-	if (getstrfromtype_locked(NA_CONTROL_ENTRY, &str) < 0) {
-#ifdef HAVE_PTHREAD_MUTEX_LOCK
-		pthread_mutex_unlock(&mutex);
-#endif
-		return (-2);
-	}
-	if (str == NULL) {
-#ifdef HAVE_PTHREAD_MUTEX_LOCK
-		pthread_mutex_unlock(&mutex);
-#endif
-		return (1);
-	}
-	if (strlen(str) >= (size_t)len) {
-#ifdef HAVE_PTHREAD_MUTEX_LOCK
-		pthread_mutex_unlock(&mutex);
-#endif
-		return (-3);
-	}
-	strlcpy(auditstr, str, len);
-#ifdef HAVE_PTHREAD_MUTEX_LOCK
-	pthread_mutex_unlock(&mutex);
-#endif
-	return (0);
-}
-
-/*
- * Return the policy field from the audit control file.
- */
-int
-getacpol(char *auditstr, size_t len)
-{
-	char *str;
-
-#ifdef HAVE_PTHREAD_MUTEX_LOCK
-	pthread_mutex_lock(&mutex);
-#endif
-	setac_locked();
-	if (getstrfromtype_locked(POLICY_CONTROL_ENTRY, &str) < 0) {
+	if (getstrfromtype_locked(name, &str) < 0) {
 #ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
 #endif
@@ -596,7 +557,7 @@ getacpol(char *auditstr, size_t len)
 #endif
 		return (-1);
 	}
-	if (strlen(str) >= len) {
+	if (strlen(str) >= (size_t)len) {
 #ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
 #endif
@@ -609,38 +570,41 @@ getacpol(char *auditstr, size_t len)
 	return (0);
 }
 
+/*
+ * Return the system audit value from the audit contol file.
+ */
+int
+getacflg(char *auditstr, int len)
+{
+
+	return (getaccommon(FLAGS_CONTROL_ENTRY, auditstr, len));
+}
+
+/*
+ * Return the non attributable flags from the audit contol file.
+ */
+int
+getacna(char *auditstr, int len)
+{
+
+	return (getaccommon(NA_CONTROL_ENTRY, auditstr, len));
+}
+
+/*
+ * Return the policy field from the audit control file.
+ */
+int
+getacpol(char *auditstr, size_t len)
+{
+
+	return (getaccommon(POLICY_CONTROL_ENTRY, auditstr, len));
+}
+
 int
 getachost(char *auditstr, size_t len)
 {
-	char *str;
 
-#ifdef HAVE_PTHREAD_MUTEX_LOCK
-	pthread_mutex_lock(&mutex);
-#endif
-	setac_locked();
-	if (getstrfromtype_locked(AUDIT_HOST_CONTROL_ENTRY, &str) < 0) {
-#ifdef HAVE_PTHREAD_MUTEX_LOCK
-		pthread_mutex_unlock(&mutex);
-#endif
-		return (-2);
-	}
-	if (str == NULL) {
-#ifdef HAVE_PTHREAD_MUTEX_LOCK
-		pthread_mutex_unlock(&mutex);
-#endif
-		return (1);
-	}
-	if (strlen(str) >= len) {
-#ifdef HAVE_PTHREAD_MUTEX_LOCK
-		pthread_mutex_unlock(&mutex);
-#endif
-		return (-3);
-	}
-	strlcpy(auditstr, str, len);
-#ifdef HAVE_PTHREAD_MUTEX_LOCK
-	pthread_mutex_unlock(&mutex);
-#endif
-	return (0);
+	return (getaccommon(HOST_CONTROL_ENTRY, auditstr, len));
 }
 
 /*
@@ -686,12 +650,12 @@ getacexpire(int *andflg, time_t *age, size_t *size)
 #ifdef HAVE_PTHREAD_MUTEX_LOCK
 		pthread_mutex_unlock(&mutex);
 #endif
-		return (1);
+		return (-1);
 	}
 
 	/* First, trim off any leading white space. */
 	while (*str == ' ' || *str == '\t')
-		str++;				 
+		str++;
 
 	nparsed = sscanf(str, "%lu%c%[ \tadnorADNOR]%lu%c", &val1, &mult1,
 	    andor, &val2, &mult2);
@@ -713,7 +677,7 @@ getacexpire(int *andflg, time_t *age, size_t *size)
 
 	case 5:
 		/* Two expiration conditions. */
-		if (setexpirecond(age, size, val1, mult1) != 0 || 
+		if (setexpirecond(age, size, val1, mult1) != 0 ||
 		    setexpirecond(age, size, val2, mult2) != 0) {
 #ifdef HAVE_PTHREAD_MUTEX_LOCK
 			pthread_mutex_unlock(&mutex);

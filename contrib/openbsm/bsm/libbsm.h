@@ -26,7 +26,7 @@
  * IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#45 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bsm/libbsm.h#50 $
  */
 
 #ifndef _LIBBSM_H_
@@ -77,12 +77,13 @@
 #define	AUDIT_USER_FILE		"/etc/security/audit_user"
 
 #define	DIR_CONTROL_ENTRY		"dir"
-#define	MINFREE_CONTROL_ENTRY		"minfree"
+#define	DIST_CONTROL_ENTRY		"dist"
 #define	FILESZ_CONTROL_ENTRY		"filesz"
 #define	FLAGS_CONTROL_ENTRY		"flags"
+#define	HOST_CONTROL_ENTRY		"host"
+#define	MINFREE_CONTROL_ENTRY		"minfree"
 #define	NA_CONTROL_ENTRY		"naflags"
 #define	POLICY_CONTROL_ENTRY		"policy"
-#define	AUDIT_HOST_CONTROL_ENTRY	"host"
 #define	EXPIRE_AFTER_CONTROL_ENTRY	"expire-after"
 
 #define	AU_CLASS_NAME_MAX	8
@@ -99,6 +100,15 @@
  */
 #define	AU_TO_NO_WRITE		0	/* Abandon audit record. */
 #define	AU_TO_WRITE		1	/* Commit audit record. */
+
+/*
+ * Output format flags for au_print_flags_tok().
+ */
+#define	AU_OFLAG_NONE		0x0000	/* Default form. */
+#define	AU_OFLAG_RAW		0x0001	/* Raw, numeric form. */
+#define	AU_OFLAG_SHORT		0x0002	/* Short form. */
+#define	AU_OFLAG_XML		0x0004	/* XML form. */
+#define	AU_OFLAG_NORESOLVE	0x0008	/* No user/group name resolution. */
 
 __BEGIN_DECLS
 struct au_event_ent {
@@ -215,7 +225,7 @@ typedef struct {
  */
 typedef struct {
 	u_int32_t	mode;
-   	u_int32_t	uid;
+	u_int32_t	uid;
 	u_int32_t	gid;
 	u_int32_t	fsid;
 	u_int64_t	nid;
@@ -224,7 +234,7 @@ typedef struct {
 
 typedef struct {
 	u_int32_t	mode;
-   	u_int32_t	uid;
+	u_int32_t	uid;
 	u_int32_t	gid;
 	u_int32_t	fsid;
 	u_int64_t	nid;
@@ -662,6 +672,31 @@ typedef struct {
 } au_text_t;
 
 /*
+ * upriv status         1 byte
+ * privstr len          2 bytes
+ * privstr              N bytes + 1 (\0 byte)
+ */
+typedef struct {
+	u_int8_t	 sorf;
+	u_int16_t	 privstrlen;
+	char		*priv;
+} au_priv_t;
+
+/*
+* privset
+* privtstrlen		2 bytes
+* privtstr		N Bytes + 1
+* privstrlen		2 bytes
+* privstr		N Bytes + 1
+*/
+typedef struct {
+	u_int16_t	 privtstrlen;
+	char		*privtstr;
+	u_int16_t	 privstrlen;
+	char		*privstr;
+} au_privset_t;
+
+/*
  * zonename length	2 bytes
  * zonename text	N bytes + 1 NULL terminator
  */
@@ -739,6 +774,8 @@ struct tokenstr {
 		au_invalid_t		invalid;
 		au_trailer_t		trail;
 		au_zonename_t		zonename;
+		au_priv_t		priv;
+		au_privset_t		privset;
 	} tt; /* The token is one of the above types */
 };
 
@@ -767,13 +804,14 @@ struct au_class_ent	*getauclassnum_r(au_class_ent_t *class_int,
 void			 setac(void);
 void			 endac(void);
 int			 getacdir(char *name, int len);
-int			 getacmin(int *min_val);
+int			 getacdist(void);
+int			 getacexpire(int *andflg, time_t *age, size_t *size);
 int			 getacfilesz(size_t *size_val);
 int			 getacflg(char *auditstr, int len);
+int			 getachost(char *auditstr, size_t len);
+int			 getacmin(int *min_val);
 int			 getacna(char *auditstr, int len);
 int			 getacpol(char *auditstr, size_t len);
-int			 getachost(char *auditstr, size_t len);
-int			 getacexpire(int *andflg, time_t *age, size_t *size);
 int			 getauditflagsbin(char *auditstr, au_mask_t *masks);
 int			 getauditflagschar(char *auditstr, au_mask_t *masks,
 			    int verbose);
@@ -821,6 +859,8 @@ int			 au_fetch_tok(tokenstr_t *tok, u_char *buf, int len);
 //XXX The following interface has different prototype from BSM
 void			 au_print_tok(FILE *outfp, tokenstr_t *tok,
 			    char *del, char raw, char sfrm);
+void			 au_print_flags_tok(FILE *outfp, tokenstr_t *tok,
+			    char *del, int oflags);
 void			 au_print_tok_xml(FILE *outfp, tokenstr_t *tok,
 			    char *del, char raw, char sfrm);
 
@@ -842,7 +882,7 @@ int	 au_bsm_to_socket_type(u_short bsm_socket_type,
 	    int *local_socket_typep);
 u_short	 au_domain_to_bsm(int local_domain);
 u_char	 au_errno_to_bsm(int local_errno);
-u_short	 au_fcntl_cmd_to_bsm(int local_fcntl_command); 
+u_short	 au_fcntl_cmd_to_bsm(int local_fcntl_command);
 u_short	 au_socket_type_to_bsm(int local_socket_type);
 
 const char	 *au_strerror(u_char bsm_error);
