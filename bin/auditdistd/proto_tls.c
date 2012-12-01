@@ -26,12 +26,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/proto_tls.c#1 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/proto_tls.c#2 $
  */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <config/config.h>
 
 #include <sys/param.h>	/* MAXHOSTNAMELEN */
 #include <sys/socket.h>

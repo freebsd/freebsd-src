@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/sigtimedwait.h#1 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/sigtimedwait.h#2 $
  */
 
 #ifndef	_SIGTIMEDWAIT_H_
@@ -42,7 +42,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#include <pjdlog.h>
+#include "pjdlog.h"
 
 static int
 sigtimedwait(const sigset_t *set, siginfo_t *info,

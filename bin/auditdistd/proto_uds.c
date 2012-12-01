@@ -26,14 +26,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/proto_uds.c#1 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/proto_uds.c#2 $
  */
 
 /* UDS - UNIX Domain Socket */
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include <config/config.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>

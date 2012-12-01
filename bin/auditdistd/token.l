@@ -27,10 +27,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/token.l#1 $
+ * $P4: //depot/projects/trustedbsd/openbsm/bin/auditdistd/token.l#2 $
  */
 
-#include "config.h"
+#include <config/config.h>
 
 #include <stdio.h>
 #include <string.h>
