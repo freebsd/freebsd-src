@@ -70,27 +70,32 @@
 #include <openssl/dh.h>
 #endif
 
+#ifdef OPENSSL_FIPS
+#include <openssl/fips.h>
+#endif
+
 const char DSA_version[]="DSA" OPENSSL_VERSION_PTEXT;
 
 static const DSA_METHOD *default_DSA_method = NULL;
 
 void DSA_set_default_method(const DSA_METHOD *meth)
 	{
-#ifdef OPENSSL_FIPS
-	if (FIPS_mode() && !(meth->flags & DSA_FLAG_FIPS_METHOD))
-		{
-		DSAerr(DSA_F_DSA_SET_DEFAULT_METHOD, DSA_R_NON_FIPS_METHOD);
-		return;
-		}
-#endif
-		
 	default_DSA_method = meth;
 	}
 
 const DSA_METHOD *DSA_get_default_method(void)
 	{
 	if(!default_DSA_method)
+		{
+#ifdef OPENSSL_FIPS
+		if (FIPS_mode())
+			return FIPS_dsa_openssl();
+		else
+			return DSA_OpenSSL();
+#else
 		default_DSA_method = DSA_OpenSSL();
+#endif
+		}
 	return default_DSA_method;
 	}
 
@@ -104,13 +109,6 @@ int DSA_set_method(DSA *dsa, const DSA_METHOD *meth)
 	/* NB: The caller is specifically setting a method, so it's not up to us
 	 * to deal with which ENGINE it comes from. */
         const DSA_METHOD *mtmp;
-#ifdef OPENSSL_FIPS
-	if (FIPS_mode() && !(meth->flags & DSA_FLAG_FIPS_METHOD))
-		{
-		DSAerr(DSA_F_DSA_SET_METHOD, DSA_R_NON_FIPS_METHOD);
-		return 0;
-		}
-#endif
         mtmp = dsa->meth;
         if (mtmp->finish) mtmp->finish(dsa);
 #ifndef OPENSSL_NO_ENGINE
@@ -160,18 +158,6 @@ DSA *DSA_new_method(ENGINE *engine)
 			OPENSSL_free(ret);
 			return NULL;
 			}
-		}
-#endif
-#ifdef OPENSSL_FIPS
-	if (FIPS_mode() && !(ret->meth->flags & DSA_FLAG_FIPS_METHOD))
-		{
-		DSAerr(DSA_F_DSA_NEW_METHOD, DSA_R_NON_FIPS_METHOD);
-#ifndef OPENSSL_NO_ENGINE
-		if (ret->engine)
-			ENGINE_finish(ret->engine);
-#endif
-		OPENSSL_free(ret);
-		return NULL;
 		}
 #endif
 
@@ -260,6 +246,28 @@ int DSA_up_ref(DSA *r)
 	return ((i > 1) ? 1 : 0);
 	}
 
+int DSA_size(const DSA *r)
+	{
+	int ret,i;
+	ASN1_INTEGER bs;
+	unsigned char buf[4];	/* 4 bytes looks really small.
+				   However, i2d_ASN1_INTEGER() will not look
+				   beyond the first byte, as long as the second
+				   parameter is NULL. */
+
+	i=BN_num_bits(r->q);
+	bs.length=(i+7)/8;
+	bs.data=buf;
+	bs.type=V_ASN1_INTEGER;
+	/* If the top bit is set the asn1 encoding is 1 larger. */
+	buf[0]=0xff;	
+
+	i=i2d_ASN1_INTEGER(&bs,NULL);
+	i+=i; /* r and s */
+	ret=ASN1_object_size(1,i,V_ASN1_SEQUENCE);
+	return(ret);
+	}
+
 int DSA_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
 	     CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func)
         {
@@ -281,7 +289,8 @@ void *DSA_get_ex_data(DSA *d, int idx)
 DH *DSA_dup_DH(const DSA *r)
 	{
 	/* DSA has p, q, g, optional pub_key, optional priv_key.
-	 * DH has p, optional length, g, optional pub_key, optional priv_key.
+	 * DH has p, optional length, g, optional pub_key, optional priv_key,
+	 * optional q.
 	 */ 
 
 	DH *ret = NULL;
@@ -295,7 +304,11 @@ DH *DSA_dup_DH(const DSA *r)
 		if ((ret->p = BN_dup(r->p)) == NULL)
 			goto err;
 	if (r->q != NULL)
+		{
 		ret->length = BN_num_bits(r->q);
+		if ((ret->q = BN_dup(r->q)) == NULL)
+			goto err;
+		}
 	if (r->g != NULL)
 		if ((ret->g = BN_dup(r->g)) == NULL)
 			goto err;

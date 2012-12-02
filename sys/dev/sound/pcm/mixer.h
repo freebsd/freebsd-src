@@ -27,6 +27,9 @@
  * $FreeBSD$
  */
 
+#ifndef _PCM_MIXER_H_
+#define	_PCM_MIXER_H_
+
 struct snd_mixer *mixer_create(device_t dev, kobj_class_t cls, void *devinfo,
     const char *desc);
 int mixer_delete(struct snd_mixer *m);
@@ -75,3 +78,5 @@ extern int mixer_count;
 			    sizeof(oss_mixer_enuminfo))
 
 #define MIXER_DECLARE(name) static DEFINE_CLASS(name, name ## _methods, MIXER_SIZE)
+
+#endif				/* _PCM_MIXER_H_ */

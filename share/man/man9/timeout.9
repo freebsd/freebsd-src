@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 2, 2008
+.Dd November 1, 2012
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -42,7 +42,11 @@
 .Nm callout_stop ,
 .Nm callout_drain ,
 .Nm callout_reset ,
+.Nm callout_reset_on ,
+.Nm callout_reset_curcpu ,
 .Nm callout_schedule ,
+.Nm callout_schedule_on ,
+.Nm callout_schedule_curcpu ,
 .Nm callout_pending ,
 .Nm callout_active ,
 .Nm callout_deactivate
@@ -75,7 +79,17 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
 .Ft int
 .Fn callout_reset "struct callout *c" "int ticks" "timeout_t *func" "void *arg"
 .Ft int
+.Fn callout_reset_on "struct callout *c" "int ticks" "timeout_t *func" \
+"void *arg" "int cpu"
+.Ft int
+.Fn callout_reset_curcpu "struct callout *c" "int ticks" "timeout_t *func" \
+"void *arg"
+.Ft int
 .Fn callout_schedule "struct callout *c" "int ticks"
+.Ft int
+.Fn callout_schedule_on "struct callout *c" "int ticks" "int cpu"
+.Ft int
+.Fn callout_schedule_curcpu "struct callout *c" "int ticks"
 .Ft int
 .Fn callout_pending "struct callout *c"
 .Ft int
@@ -301,6 +315,26 @@ and
 .Fa arg
 parameters extracted from the callout structure (though possibly with
 lower overhead).
+.Pp
+The functions
+.Fn callout_reset_on
+and
+.Fn callout_schedule_on
+are equivalent to
+.Fn callout_reset
+and
+.Fn callout_schedule
+but take an extra parameter specifying the target CPU for the callout.
+.Pp
+The functions
+.Fn callout_reset_curcpu
+and
+.Fn callout_schedule_curcpu
+are wrappers for
+.Fn callout_reset_on
+and
+.Fn callout_schedule_on
+using the current CPU as the target CPU.
 .Pp
 The macros
 .Fn callout_pending ,

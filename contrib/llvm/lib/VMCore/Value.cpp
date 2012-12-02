@@ -66,7 +66,7 @@ Value::~Value() {
   // a <badref>
   //
   if (!use_empty()) {
-    dbgs() << "While deleting: " << *VTy << " %" << getNameStr() << "\n";
+    dbgs() << "While deleting: " << *VTy << " %" << getName() << "\n";
     for (use_iterator I = use_begin(), E = use_end(); I != E; ++I)
       dbgs() << "Use still stuck around after Def is destroyed:"
            << **I << "\n";
@@ -76,7 +76,7 @@ Value::~Value() {
 
   // If this value is named, destroy the name.  This should not be in a symtab
   // at this point.
-  if (Name)
+  if (Name && SubclassID != MDStringVal)
     Name->Destroy();
 
   // There should be no uses of this object anymore, remove it.
@@ -108,6 +108,19 @@ bool Value::hasNUsesOrMore(unsigned N) const {
 /// isUsedInBasicBlock - Return true if this value is used in the specified
 /// basic block.
 bool Value::isUsedInBasicBlock(const BasicBlock *BB) const {
+  // Start by scanning over the instructions looking for a use before we start
+  // the expensive use iteration.
+  unsigned MaxBlockSize = 3;
+  for (BasicBlock::const_iterator I = BB->begin(), E = BB->end(); I != E; ++I) {
+    if (std::find(I->op_begin(), I->op_end(), this) != I->op_end())
+      return true;
+    if (MaxBlockSize-- == 0) // If the block is larger fall back to use_iterator
+      break;
+  }
+
+  if (MaxBlockSize != 0) // We scanned the entire block and found no use.
+    return false;
+
   for (const_use_iterator I = use_begin(), E = use_end(); I != E; ++I) {
     const Instruction *User = dyn_cast<Instruction>(*I);
     if (User && User->getParent() == BB)
@@ -156,11 +169,10 @@ StringRef Value::getName() const {
   return Name->getKey();
 }
 
-std::string Value::getNameStr() const {
-  return getName().str();
-}
-
 void Value::setName(const Twine &NewName) {
+  assert(SubclassID != MDStringVal &&
+         "Cannot set the name of MDString with this method!");
+
   // Fast path for common IRBuilder case of setName("") when there is no name.
   if (NewName.isTriviallyEmpty() && !hasName())
     return;
@@ -219,6 +231,8 @@ void Value::setName(const Twine &NewName) {
 /// takeName - transfer the name from V to this value, setting V's name to
 /// empty.  It is an error to call V->takeName(V).
 void Value::takeName(Value *V) {
+  assert(SubclassID != MDStringVal && "Cannot take the name of an MDString!");
+
   ValueSymbolTable *ST = 0;
   // If this value has a name, drop it.
   if (hasName()) {
@@ -308,20 +322,40 @@ void Value::replaceAllUsesWith(Value *New) {
     BB->replaceSuccessorsPhiUsesWith(cast<BasicBlock>(New));
 }
 
-Value *Value::stripPointerCasts() {
-  if (!getType()->isPointerTy())
-    return this;
+namespace {
+// Various metrics for how much to strip off of pointers.
+enum PointerStripKind {
+  PSK_ZeroIndices,
+  PSK_InBoundsConstantIndices,
+  PSK_InBounds
+};
+
+template <PointerStripKind StripKind>
+static Value *stripPointerCastsAndOffsets(Value *V) {
+  if (!V->getType()->isPointerTy())
+    return V;
 
   // Even though we don't look through PHI nodes, we could be called on an
   // instruction in an unreachable block, which may be on a cycle.
   SmallPtrSet<Value *, 4> Visited;
 
-  Value *V = this;
   Visited.insert(V);
   do {
     if (GEPOperator *GEP = dyn_cast<GEPOperator>(V)) {
-      if (!GEP->hasAllZeroIndices())
-        return V;
+      switch (StripKind) {
+      case PSK_ZeroIndices:
+        if (!GEP->hasAllZeroIndices())
+          return V;
+        break;
+      case PSK_InBoundsConstantIndices:
+        if (!GEP->hasAllConstantIndices())
+          return V;
+        // fallthrough
+      case PSK_InBounds:
+        if (!GEP->isInBounds())
+          return V;
+        break;
+      }
       V = GEP->getPointerOperand();
     } else if (Operator::getOpcode(V) == Instruction::BitCast) {
       V = cast<Operator>(V)->getOperand(0);
@@ -337,10 +371,24 @@ Value *Value::stripPointerCasts() {
 
   return V;
 }
+} // namespace
+
+Value *Value::stripPointerCasts() {
+  return stripPointerCastsAndOffsets<PSK_ZeroIndices>(this);
+}
+
+Value *Value::stripInBoundsConstantOffsets() {
+  return stripPointerCastsAndOffsets<PSK_InBoundsConstantIndices>(this);
+}
+
+Value *Value::stripInBoundsOffsets() {
+  return stripPointerCastsAndOffsets<PSK_InBounds>(this);
+}
 
 /// isDereferenceablePointer - Test if this value is always a pointer to
 /// allocated and suitably aligned memory for a simple load or store.
-bool Value::isDereferenceablePointer() const {
+static bool isDereferenceablePointer(const Value *V,
+                                     SmallPtrSet<const Value *, 32> &Visited) {
   // Note that it is not safe to speculate into a malloc'd region because
   // malloc may return null.
   // It's also not always safe to follow a bitcast, for example:
@@ -349,20 +397,22 @@ bool Value::isDereferenceablePointer() const {
   // be handled using TargetData to check sizes and alignments though.
 
   // These are obviously ok.
-  if (isa<AllocaInst>(this)) return true;
+  if (isa<AllocaInst>(V)) return true;
 
   // Global variables which can't collapse to null are ok.
-  if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(this))
+  if (const GlobalVariable *GV = dyn_cast<GlobalVariable>(V))
     return !GV->hasExternalWeakLinkage();
 
   // byval arguments are ok.
-  if (const Argument *A = dyn_cast<Argument>(this))
+  if (const Argument *A = dyn_cast<Argument>(V))
     return A->hasByValAttr();
-  
+
   // For GEPs, determine if the indexing lands within the allocated object.
-  if (const GEPOperator *GEP = dyn_cast<GEPOperator>(this)) {
+  if (const GEPOperator *GEP = dyn_cast<GEPOperator>(V)) {
     // Conservatively require that the base pointer be fully dereferenceable.
-    if (!GEP->getOperand(0)->isDereferenceablePointer())
+    if (!Visited.insert(GEP->getOperand(0)))
+      return false;
+    if (!isDereferenceablePointer(GEP->getOperand(0), Visited))
       return false;
     // Check the indices.
     gep_type_iterator GTI = gep_type_begin(GEP);
@@ -396,6 +446,13 @@ bool Value::isDereferenceablePointer() const {
   return false;
 }
 
+/// isDereferenceablePointer - Test if this value is always a pointer to
+/// allocated and suitably aligned memory for a simple load or store.
+bool Value::isDereferenceablePointer() const {
+  SmallPtrSet<const Value *, 32> Visited;
+  return ::isDereferenceablePointer(this, Visited);
+}
+
 /// DoPHITranslation - If this value is a PHI node with CurBB as its parent,
 /// return the value in the PHI node corresponding to PredBB.  If not, return
 /// ourself.  This is useful if you want to know the value something has in a
@@ -425,7 +482,7 @@ void ValueHandleBase::AddToExistingUseList(ValueHandleBase **List) {
   setPrevPtr(List);
   if (Next) {
     Next->setPrevPtr(&Next);
-    assert(VP == Next->VP && "Added to wrong list?");
+    assert(VP.getPointer() == Next->VP.getPointer() && "Added to wrong list?");
   }
 }
 
@@ -441,14 +498,14 @@ void ValueHandleBase::AddToExistingUseListAfter(ValueHandleBase *List) {
 
 /// AddToUseList - Add this ValueHandle to the use list for VP.
 void ValueHandleBase::AddToUseList() {
-  assert(VP && "Null pointer doesn't have a use list!");
+  assert(VP.getPointer() && "Null pointer doesn't have a use list!");
 
-  LLVMContextImpl *pImpl = VP->getContext().pImpl;
+  LLVMContextImpl *pImpl = VP.getPointer()->getContext().pImpl;
 
-  if (VP->HasValueHandle) {
+  if (VP.getPointer()->HasValueHandle) {
     // If this value already has a ValueHandle, then it must be in the
     // ValueHandles map already.
-    ValueHandleBase *&Entry = pImpl->ValueHandles[VP];
+    ValueHandleBase *&Entry = pImpl->ValueHandles[VP.getPointer()];
     assert(Entry != 0 && "Value doesn't have any handles?");
     AddToExistingUseList(&Entry);
     return;
@@ -462,10 +519,10 @@ void ValueHandleBase::AddToUseList() {
   DenseMap<Value*, ValueHandleBase*> &Handles = pImpl->ValueHandles;
   const void *OldBucketPtr = Handles.getPointerIntoBucketsArray();
 
-  ValueHandleBase *&Entry = Handles[VP];
+  ValueHandleBase *&Entry = Handles[VP.getPointer()];
   assert(Entry == 0 && "Value really did already have handles?");
   AddToExistingUseList(&Entry);
-  VP->HasValueHandle = true;
+  VP.getPointer()->HasValueHandle = true;
 
   // If reallocation didn't happen or if this was the first insertion, don't
   // walk the table.
@@ -477,14 +534,16 @@ void ValueHandleBase::AddToUseList() {
   // Okay, reallocation did happen.  Fix the Prev Pointers.
   for (DenseMap<Value*, ValueHandleBase*>::iterator I = Handles.begin(),
        E = Handles.end(); I != E; ++I) {
-    assert(I->second && I->first == I->second->VP && "List invariant broken!");
+    assert(I->second && I->first == I->second->VP.getPointer() &&
+           "List invariant broken!");
     I->second->setPrevPtr(&I->second);
   }
 }
 
 /// RemoveFromUseList - Remove this ValueHandle from its current use list.
 void ValueHandleBase::RemoveFromUseList() {
-  assert(VP && VP->HasValueHandle && "Pointer doesn't have a use list!");
+  assert(VP.getPointer() && VP.getPointer()->HasValueHandle &&
+         "Pointer doesn't have a use list!");
 
   // Unlink this from its use list.
   ValueHandleBase **PrevPtr = getPrevPtr();
@@ -500,11 +559,11 @@ void ValueHandleBase::RemoveFromUseList() {
   // If the Next pointer was null, then it is possible that this was the last
   // ValueHandle watching VP.  If so, delete its entry from the ValueHandles
   // map.
-  LLVMContextImpl *pImpl = VP->getContext().pImpl;
+  LLVMContextImpl *pImpl = VP.getPointer()->getContext().pImpl;
   DenseMap<Value*, ValueHandleBase*> &Handles = pImpl->ValueHandles;
   if (Handles.isPointerIntoBucketsArray(PrevPtr)) {
-    Handles.erase(VP);
-    VP->HasValueHandle = false;
+    Handles.erase(VP.getPointer());
+    VP.getPointer()->HasValueHandle = false;
   }
 }
 
@@ -554,7 +613,7 @@ void ValueHandleBase::ValueIsDeleted(Value *V) {
   // All callbacks, weak references, and assertingVHs should be dropped by now.
   if (V->HasValueHandle) {
 #ifndef NDEBUG      // Only in +Asserts mode...
-    dbgs() << "While deleting: " << *V->getType() << " %" << V->getNameStr()
+    dbgs() << "While deleting: " << *V->getType() << " %" << V->getName()
            << "\n";
     if (pImpl->ValueHandles[V]->getKind() == Assert)
       llvm_unreachable("An asserting value handle still pointed to this"
@@ -617,8 +676,8 @@ void ValueHandleBase::ValueIsRAUWd(Value *Old, Value *New) {
       case Tracking:
       case Weak:
         dbgs() << "After RAUW from " << *Old->getType() << " %"
-          << Old->getNameStr() << " to " << *New->getType() << " %"
-          << New->getNameStr() << "\n";
+               << Old->getName() << " to " << *New->getType() << " %"
+               << New->getName() << "\n";
         llvm_unreachable("A tracking or weak value handle still pointed to the"
                          " old value!\n");
       default:
@@ -627,6 +686,9 @@ void ValueHandleBase::ValueIsRAUWd(Value *Old, Value *New) {
 #endif
 }
 
-/// ~CallbackVH. Empty, but defined here to avoid emitting the vtable
-/// more than once.
-CallbackVH::~CallbackVH() {}
+// Default implementation for CallbackVH.
+void CallbackVH::allUsesReplacedWith(Value *) {}
+
+void CallbackVH::deleted() {
+  setValPtr(NULL);
+}

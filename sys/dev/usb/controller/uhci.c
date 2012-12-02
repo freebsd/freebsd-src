@@ -86,12 +86,11 @@ static int uhcidebug = 0;
 static int uhcinoloop = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, uhci, CTLFLAG_RW, 0, "USB uhci");
-SYSCTL_INT(_hw_usb_uhci, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_uhci, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
     &uhcidebug, 0, "uhci debug level");
-SYSCTL_INT(_hw_usb_uhci, OID_AUTO, loop, CTLFLAG_RW,
-    &uhcinoloop, 0, "uhci noloop");
-
 TUNABLE_INT("hw.usb.uhci.debug", &uhcidebug);
+SYSCTL_INT(_hw_usb_uhci, OID_AUTO, loop, CTLFLAG_RW | CTLFLAG_TUN,
+    &uhcinoloop, 0, "uhci noloop");
 TUNABLE_INT("hw.usb.uhci.loop", &uhcinoloop);
 
 static void uhci_dumpregs(uhci_softc_t *sc);
@@ -2393,7 +2392,7 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index)
 	UWRITE2(sc, port, x | UHCI_PORTSC_PR);
 
 	usb_pause_mtx(&sc->sc_bus.bus_mtx,
-	    USB_MS_TO_TICKS(USB_PORT_ROOT_RESET_DELAY));
+	    USB_MS_TO_TICKS(usb_port_root_reset_delay));
 
 	DPRINTFN(4, "uhci port %d reset, status0 = 0x%04x\n",
 	    index, UREAD2(sc, port));
@@ -2421,7 +2420,7 @@ uhci_portreset(uhci_softc_t *sc, uint16_t index)
 	for (lim = 0; lim < 12; lim++) {
 
 		usb_pause_mtx(&sc->sc_bus.bus_mtx,
-		    USB_MS_TO_TICKS(USB_PORT_RESET_DELAY));
+		    USB_MS_TO_TICKS(usb_port_reset_delay));
 
 		x = UREAD2(sc, port);
 
@@ -3030,10 +3029,6 @@ uhci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 	    edesc->bEndpointAddress, udev->flags.usb_mode,
 	    sc->sc_addr);
 
-	if (udev->flags.usb_mode != USB_MODE_HOST) {
-		/* not supported */
-		return;
-	}
 	if (udev->device_index != sc->sc_addr) {
 		switch (edesc->bmAttributes & UE_XFERTYPE) {
 		case UE_CONTROL:

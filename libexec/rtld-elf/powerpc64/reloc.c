@@ -287,7 +287,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	const Elf_Rela *relalim;
 	const Elf_Rela *rela;
 	SymCache *cache;
-	int bytes = obj->nchains * sizeof(SymCache);
+	int bytes = obj->dynsymcount * sizeof(SymCache);
 	int r = -1;
 
 	/*

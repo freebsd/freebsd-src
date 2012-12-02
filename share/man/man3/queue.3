@@ -32,7 +32,7 @@
 .\"	@(#)queue.3	8.2 (Berkeley) 1/24/94
 .\" $FreeBSD$
 .\"
-.Dd May 13, 2011
+.Dd Sep 12, 2012
 .Dt QUEUE 3
 .Os
 .Sh NAME
@@ -81,6 +81,7 @@
 .Nm LIST_INSERT_BEFORE ,
 .Nm LIST_INSERT_HEAD ,
 .Nm LIST_NEXT ,
+.Nm LIST_PREV ,
 .Nm LIST_REMOVE ,
 .Nm LIST_SWAP ,
 .Nm TAILQ_CONCAT ,
@@ -155,6 +156,7 @@ lists and tail queues
 .Fn LIST_INSERT_BEFORE "TYPE *listelm" "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_INSERT_HEAD "LIST_HEAD *head" "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_NEXT "TYPE *elm" "LIST_ENTRY NAME"
+.Fn LIST_PREV "TYPE *elm" "LIST_HEAD *head" "TYPE" "LIST_ENTRY NAME"
 .Fn LIST_REMOVE "TYPE *elm" "LIST_ENTRY NAME"
 .Fn LIST_SWAP "LIST_HEAD *head1" "LIST_HEAD *head2" "TYPE" "LIST_ENTRY NAME"
 .\"
@@ -248,8 +250,18 @@ Code size and execution time of operations (except for removal) is about
 twice that of the singly-linked data-structures.
 .El
 .Pp
-Linked lists are the simplest of the doubly linked data structures and support
-only the above functionality over singly-linked lists.
+Linked lists are the simplest of the doubly linked data structures.
+They add the following functionality over the above:
+.Bl -enum -compact -offset indent
+.It
+They may be traversed backwards.
+.El
+However:
+.Bl -enum -compact -offset indent
+.It
+To traverse backwards, an entry to begin the traversal and the list in
+which it is contained must be specified.
+.El
 .Pp
 Tail queues add the following functionality:
 .Bl -enum -compact -offset indent
@@ -761,6 +773,14 @@ before the element
 The macro
 .Nm LIST_NEXT
 returns the next element in the list, or NULL if this is the last.
+.Pp
+The macro
+.Nm LIST_PREV
+returns the previous element in the list, or NULL if this is the first.
+List
+.Fa head
+must contain element
+.Fa elm .
 .Pp
 The macro
 .Nm LIST_REMOVE

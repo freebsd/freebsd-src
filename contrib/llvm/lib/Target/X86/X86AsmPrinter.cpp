@@ -13,18 +13,17 @@
 //===----------------------------------------------------------------------===//
 
 #include "X86AsmPrinter.h"
-#include "InstPrinter/X86ATTInstPrinter.h"
-#include "InstPrinter/X86IntelInstPrinter.h"
 #include "X86MCInstLower.h"
 #include "X86.h"
 #include "X86COFFMachineModuleInfo.h"
 #include "X86MachineFunctionInfo.h"
 #include "X86TargetMachine.h"
+#include "InstPrinter/X86ATTInstPrinter.h"
 #include "llvm/CallingConv.h"
+#include "llvm/DebugInfo.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Module.h"
 #include "llvm/Type.h"
-#include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCContext.h"
@@ -187,10 +186,14 @@ void X86AsmPrinter::printSymbolOperand(const MachineOperand &MO,
     O << '-' << *MF->getPICBaseSymbol();
     break;
   case X86II::MO_TLSGD:     O << "@TLSGD";     break;
+  case X86II::MO_TLSLD:     O << "@TLSLD";     break;
+  case X86II::MO_TLSLDM:    O << "@TLSLDM";    break;
   case X86II::MO_GOTTPOFF:  O << "@GOTTPOFF";  break;
   case X86II::MO_INDNTPOFF: O << "@INDNTPOFF"; break;
   case X86II::MO_TPOFF:     O << "@TPOFF";     break;
+  case X86II::MO_DTPOFF:    O << "@DTPOFF";    break;
   case X86II::MO_NTPOFF:    O << "@NTPOFF";    break;
+  case X86II::MO_GOTNTPOFF: O << "@GOTNTPOFF"; break;
   case X86II::MO_GOTPCREL:  O << "@GOTPCREL";  break;
   case X86II::MO_GOT:       O << "@GOT";       break;
   case X86II::MO_GOTOFF:    O << "@GOTOFF";    break;
@@ -199,6 +202,7 @@ void X86AsmPrinter::printSymbolOperand(const MachineOperand &MO,
   case X86II::MO_TLVP_PIC_BASE:
     O << "@TLVP" << '-' << *MF->getPICBaseSymbol();
     break;
+  case X86II::MO_SECREL:      O << "@SECREL";      break;
   }
 }
 
@@ -264,16 +268,40 @@ void X86AsmPrinter::printOperand(const MachineInstr *MI, unsigned OpNo,
 void X86AsmPrinter::printSSECC(const MachineInstr *MI, unsigned Op,
                                raw_ostream &O) {
   unsigned char value = MI->getOperand(Op).getImm();
-  assert(value <= 7 && "Invalid ssecc argument!");
   switch (value) {
-  case 0: O << "eq"; break;
-  case 1: O << "lt"; break;
-  case 2: O << "le"; break;
-  case 3: O << "unord"; break;
-  case 4: O << "neq"; break;
-  case 5: O << "nlt"; break;
-  case 6: O << "nle"; break;
-  case 7: O << "ord"; break;
+  default: llvm_unreachable("Invalid ssecc argument!");
+  case    0: O << "eq"; break;
+  case    1: O << "lt"; break;
+  case    2: O << "le"; break;
+  case    3: O << "unord"; break;
+  case    4: O << "neq"; break;
+  case    5: O << "nlt"; break;
+  case    6: O << "nle"; break;
+  case    7: O << "ord"; break;
+  case    8: O << "eq_uq"; break;
+  case    9: O << "nge"; break;
+  case  0xa: O << "ngt"; break;
+  case  0xb: O << "false"; break;
+  case  0xc: O << "neq_oq"; break;
+  case  0xd: O << "ge"; break;
+  case  0xe: O << "gt"; break;
+  case  0xf: O << "true"; break;
+  case 0x10: O << "eq_os"; break;
+  case 0x11: O << "lt_oq"; break;
+  case 0x12: O << "le_oq"; break;
+  case 0x13: O << "unord_s"; break;
+  case 0x14: O << "neq_us"; break;
+  case 0x15: O << "nlt_uq"; break;
+  case 0x16: O << "nle_uq"; break;
+  case 0x17: O << "ord_s"; break;
+  case 0x18: O << "eq_us"; break;
+  case 0x19: O << "nge_uq"; break;
+  case 0x1a: O << "ngt_uq"; break;
+  case 0x1b: O << "false_os"; break;
+  case 0x1c: O << "neq_os"; break;
+  case 0x1d: O << "ge_oq"; break;
+  case 0x1e: O << "gt_oq"; break;
+  case 0x1f: O << "true_us"; break;
   }
 }
 
@@ -379,7 +407,9 @@ bool X86AsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
     const MachineOperand &MO = MI->getOperand(OpNo);
 
     switch (ExtraCode[0]) {
-    default: return true;  // Unknown modifier.
+    default:
+      // See if this is a generic print operand
+      return AsmPrinter::PrintAsmOperand(MI, OpNo, AsmVariant, ExtraCode, O);
     case 'a': // This is an address.  Currently only 'i' and 'r' are expected.
       if (MO.isImm()) {
         O << MO.getImm();
@@ -575,7 +605,7 @@ void X86AsmPrinter::EmitEndOfAsmFile(Module &M) {
   }
 
   if (Subtarget->isTargetWindows() && !Subtarget->isTargetCygMing() &&
-      MMI->callsExternalVAFunctionWithFloatingPointArguments()) {
+      MMI->usesVAFloatArgument()) {
     StringRef SymbolName = Subtarget->is64Bit() ? "_fltused" : "__fltused";
     MCSymbol *S = MMI->getContext().GetOrCreateSymbol(SymbolName);
     OutStreamer.EmitSymbolAttribute(S, MCSA_Global);

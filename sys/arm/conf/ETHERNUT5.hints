@@ -1,0 +1,51 @@
+# $FreeBSD$
+
+# Atmel AT45DB21D
+hint.at45d.0.at="spibus0"
+hint.at45d.0.cs=0
+# user 132 kbytes
+hint.map.0.at="flash/spi0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x00020fff
+hint.map.0.name="user"
+hint.map.0.readonly=1
+# setup 132 kbytes
+hint.map.1.at="flash/spi0"
+hint.map.1.start=0x00021000
+hint.map.1.end=0x00041fff
+hint.map.1.name="setup"
+hint.map.1.readonly=1
+# uboot 528 kbytes
+hint.map.2.at="flash/spi0"
+hint.map.2.start=0x00042000
+hint.map.2.end=0x000c5fff
+hint.map.2.name="uboot"
+hint.map.2.readonly=1
+# kernel 2640 kbytes
+hint.map.3.at="flash/spi0"
+hint.map.3.start=0x000c6000
+hint.map.3.end=0x00359fff
+hint.map.3.name="kernel"
+#hint.map.3.readonly=1
+# nutos 528 kbytes
+hint.map.4.at="flash/spi0"
+hint.map.4.start=0x0035a000
+hint.map.4.end=0x003ddfff
+hint.map.4.name="nutos"
+hint.map.4.readonly=1
+# env 132 kbytes
+hint.map.5.at="flash/spi0"
+hint.map.5.start=0x003de000
+hint.map.5.end=0x003fefff
+hint.map.5.name="env"
+hint.map.5.readonly=1
+# env 132 kbytes
+hint.map.6.at="flash/spi0"
+hint.map.6.start=0x003ff000
+hint.map.6.end=0x0041ffff
+hint.map.6.name="nutoscfg"
+hint.map.6.readonly=1
+
+# NXP PCF8563 clock/calendar
+hint.pcf8563_rtc.0.at="iicbus0"
+hint.pcf8563_rtc.0.addr=0xa2

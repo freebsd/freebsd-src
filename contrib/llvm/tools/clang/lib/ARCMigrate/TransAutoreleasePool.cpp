@@ -29,6 +29,7 @@
 
 #include "Transforms.h"
 #include "Internals.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/Sema/SemaDiagnostic.h"
 #include "clang/Basic/SourceManager.h"
 #include <map>
@@ -75,7 +76,7 @@ public:
                                                  &pass.Ctx.Idents.get("drain"));
   }
 
-  void transformBody(Stmt *body) {
+  void transformBody(Stmt *body, Decl *ParentD) {
     Body = body;
     TraverseStmt(body);
   }
@@ -260,10 +261,6 @@ private:
     }
 
     bool VisitDeclRefExpr(DeclRefExpr *E) {
-      return checkRef(E->getLocation(), E->getDecl()->getLocation());
-    }
-
-    bool VisitBlockDeclRefExpr(BlockDeclRefExpr *E) {
       return checkRef(E->getLocation(), E->getDecl()->getLocation());
     }
 

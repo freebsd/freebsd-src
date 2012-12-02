@@ -27,19 +27,14 @@
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/TargetLoweringObjectFileImpl.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/ADT/VectorExtras.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/raw_ostream.h"
-#include <map>
 
 using namespace llvm;
 
-// Used in getTargetNodeName() below
 namespace {
-  std::map<unsigned, const char *> node_names;
-
   // Byte offset of the preferred slot (counted from the MSB)
   int prefslotOffset(EVT VT) {
     int retval=0;
@@ -82,11 +77,14 @@ namespace {
     // Splice the libcall in wherever FindInputOutputChains tells us to.
     Type *RetTy =
                 Op.getNode()->getValueType(0).getTypeForEVT(*DAG.getContext());
-    std::pair<SDValue, SDValue> CallInfo =
-            TLI.LowerCallTo(InChain, RetTy, isSigned, !isSigned, false, false,
-                            0, TLI.getLibcallCallingConv(LC), false,
-                            /*isReturnValueUsed=*/true,
+    TargetLowering::CallLoweringInfo CLI(InChain, RetTy, isSigned, !isSigned,
+                                         false, false,
+                            0, TLI.getLibcallCallingConv(LC),
+                            /*isTailCall=*/false,
+                                         /*doesNotRet=*/false,
+                                         /*isReturnValueUsed=*/true,
                             Callee, Args, DAG, Op.getDebugLoc());
+    std::pair<SDValue, SDValue> CallInfo = TLI.LowerCallTo(CLI);
 
     return CallInfo.first;
   }
@@ -104,13 +102,13 @@ SPUTargetLowering::SPUTargetLowering(SPUTargetMachine &TM)
   setLibcallName(RTLIB::DIV_F64, "__fast_divdf3");
 
   // Set up the SPU's register classes:
-  addRegisterClass(MVT::i8,   SPU::R8CRegisterClass);
-  addRegisterClass(MVT::i16,  SPU::R16CRegisterClass);
-  addRegisterClass(MVT::i32,  SPU::R32CRegisterClass);
-  addRegisterClass(MVT::i64,  SPU::R64CRegisterClass);
-  addRegisterClass(MVT::f32,  SPU::R32FPRegisterClass);
-  addRegisterClass(MVT::f64,  SPU::R64FPRegisterClass);
-  addRegisterClass(MVT::i128, SPU::GPRCRegisterClass);
+  addRegisterClass(MVT::i8,   &SPU::R8CRegClass);
+  addRegisterClass(MVT::i16,  &SPU::R16CRegClass);
+  addRegisterClass(MVT::i32,  &SPU::R32CRegClass);
+  addRegisterClass(MVT::i64,  &SPU::R64CRegClass);
+  addRegisterClass(MVT::f32,  &SPU::R32FPRegClass);
+  addRegisterClass(MVT::f64,  &SPU::R64FPRegClass);
+  addRegisterClass(MVT::i128, &SPU::GPRCRegClass);
 
   // SPU has no sign or zero extended loads for i1, i8, i16:
   setLoadExtAction(ISD::EXTLOAD,  MVT::i1, Promote);
@@ -296,12 +294,22 @@ SPUTargetLowering::SPUTargetLowering(SPUTargetMachine &TM)
   setOperationAction(ISD::CTTZ , MVT::i32,   Expand);
   setOperationAction(ISD::CTTZ , MVT::i64,   Expand);
   setOperationAction(ISD::CTTZ , MVT::i128,  Expand);
+  setOperationAction(ISD::CTTZ_ZERO_UNDEF, MVT::i8,    Expand);
+  setOperationAction(ISD::CTTZ_ZERO_UNDEF, MVT::i16,   Expand);
+  setOperationAction(ISD::CTTZ_ZERO_UNDEF, MVT::i32,   Expand);
+  setOperationAction(ISD::CTTZ_ZERO_UNDEF, MVT::i64,   Expand);
+  setOperationAction(ISD::CTTZ_ZERO_UNDEF, MVT::i128,  Expand);
 
   setOperationAction(ISD::CTLZ , MVT::i8,    Promote);
   setOperationAction(ISD::CTLZ , MVT::i16,   Promote);
   setOperationAction(ISD::CTLZ , MVT::i32,   Legal);
   setOperationAction(ISD::CTLZ , MVT::i64,   Expand);
   setOperationAction(ISD::CTLZ , MVT::i128,  Expand);
+  setOperationAction(ISD::CTLZ_ZERO_UNDEF, MVT::i8,    Expand);
+  setOperationAction(ISD::CTLZ_ZERO_UNDEF, MVT::i16,   Expand);
+  setOperationAction(ISD::CTLZ_ZERO_UNDEF, MVT::i32,   Expand);
+  setOperationAction(ISD::CTLZ_ZERO_UNDEF, MVT::i64,   Expand);
+  setOperationAction(ISD::CTLZ_ZERO_UNDEF, MVT::i128,  Expand);
 
   // SPU has a version of select that implements (a&~c)|(b&c), just like
   // select ought to work:
@@ -391,12 +399,12 @@ SPUTargetLowering::SPUTargetLowering(SPUTargetMachine &TM)
 
   // First set operation action for all vector types to expand. Then we
   // will selectively turn on ones that can be effectively codegen'd.
-  addRegisterClass(MVT::v16i8, SPU::VECREGRegisterClass);
-  addRegisterClass(MVT::v8i16, SPU::VECREGRegisterClass);
-  addRegisterClass(MVT::v4i32, SPU::VECREGRegisterClass);
-  addRegisterClass(MVT::v2i64, SPU::VECREGRegisterClass);
-  addRegisterClass(MVT::v4f32, SPU::VECREGRegisterClass);
-  addRegisterClass(MVT::v2f64, SPU::VECREGRegisterClass);
+  addRegisterClass(MVT::v16i8, &SPU::VECREGRegClass);
+  addRegisterClass(MVT::v8i16, &SPU::VECREGRegClass);
+  addRegisterClass(MVT::v4i32, &SPU::VECREGRegClass);
+  addRegisterClass(MVT::v2i64, &SPU::VECREGRegClass);
+  addRegisterClass(MVT::v4f32, &SPU::VECREGRegClass);
+  addRegisterClass(MVT::v2f64, &SPU::VECREGRegClass);
 
   for (unsigned i = (unsigned)MVT::FIRST_VECTOR_VALUETYPE;
        i <= (unsigned)MVT::LAST_VECTOR_VALUETYPE; ++i) {
@@ -424,6 +432,13 @@ SPUTargetLowering::SPUTargetLowering(SPUTargetMachine &TM)
     setOperationAction(ISD::UDIV,    VT, Expand);
     setOperationAction(ISD::UREM,    VT, Expand);
 
+    // Expand all trunc stores
+    for (unsigned j = (unsigned)MVT::FIRST_VECTOR_VALUETYPE;
+         j <= (unsigned)MVT::LAST_VECTOR_VALUETYPE; ++j) {
+      MVT::SimpleValueType TargetVT = (MVT::SimpleValueType)j;
+    setTruncStoreAction(VT, TargetVT, Expand);
+    }
+
     // Custom lower build_vector, constant pool spills, insert and
     // extract vector elements:
     setOperationAction(ISD::BUILD_VECTOR, VT, Custom);
@@ -433,6 +448,8 @@ SPUTargetLowering::SPUTargetLowering(SPUTargetMachine &TM)
     setOperationAction(ISD::INSERT_VECTOR_ELT, VT, Custom);
     setOperationAction(ISD::VECTOR_SHUFFLE, VT, Custom);
   }
+
+  setOperationAction(ISD::SHL, MVT::v2i64, Expand);
 
   setOperationAction(ISD::AND, MVT::v16i8, Custom);
   setOperationAction(ISD::OR,  MVT::v16i8, Custom);
@@ -462,40 +479,34 @@ SPUTargetLowering::SPUTargetLowering(SPUTargetMachine &TM)
   setSchedulingPreference(Sched::RegPressure);
 }
 
-const char *
-SPUTargetLowering::getTargetNodeName(unsigned Opcode) const
-{
-  if (node_names.empty()) {
-    node_names[(unsigned) SPUISD::RET_FLAG] = "SPUISD::RET_FLAG";
-    node_names[(unsigned) SPUISD::Hi] = "SPUISD::Hi";
-    node_names[(unsigned) SPUISD::Lo] = "SPUISD::Lo";
-    node_names[(unsigned) SPUISD::PCRelAddr] = "SPUISD::PCRelAddr";
-    node_names[(unsigned) SPUISD::AFormAddr] = "SPUISD::AFormAddr";
-    node_names[(unsigned) SPUISD::IndirectAddr] = "SPUISD::IndirectAddr";
-    node_names[(unsigned) SPUISD::LDRESULT] = "SPUISD::LDRESULT";
-    node_names[(unsigned) SPUISD::CALL] = "SPUISD::CALL";
-    node_names[(unsigned) SPUISD::SHUFB] = "SPUISD::SHUFB";
-    node_names[(unsigned) SPUISD::SHUFFLE_MASK] = "SPUISD::SHUFFLE_MASK";
-    node_names[(unsigned) SPUISD::CNTB] = "SPUISD::CNTB";
-    node_names[(unsigned) SPUISD::PREFSLOT2VEC] = "SPUISD::PREFSLOT2VEC";
-    node_names[(unsigned) SPUISD::VEC2PREFSLOT] = "SPUISD::VEC2PREFSLOT";
-    node_names[(unsigned) SPUISD::SHL_BITS] = "SPUISD::SHL_BITS";
-    node_names[(unsigned) SPUISD::SHL_BYTES] = "SPUISD::SHL_BYTES";
-    node_names[(unsigned) SPUISD::VEC_ROTL] = "SPUISD::VEC_ROTL";
-    node_names[(unsigned) SPUISD::VEC_ROTR] = "SPUISD::VEC_ROTR";
-    node_names[(unsigned) SPUISD::ROTBYTES_LEFT] = "SPUISD::ROTBYTES_LEFT";
-    node_names[(unsigned) SPUISD::ROTBYTES_LEFT_BITS] =
-            "SPUISD::ROTBYTES_LEFT_BITS";
-    node_names[(unsigned) SPUISD::SELECT_MASK] = "SPUISD::SELECT_MASK";
-    node_names[(unsigned) SPUISD::SELB] = "SPUISD::SELB";
-    node_names[(unsigned) SPUISD::ADD64_MARKER] = "SPUISD::ADD64_MARKER";
-    node_names[(unsigned) SPUISD::SUB64_MARKER] = "SPUISD::SUB64_MARKER";
-    node_names[(unsigned) SPUISD::MUL64_MARKER] = "SPUISD::MUL64_MARKER";
+const char *SPUTargetLowering::getTargetNodeName(unsigned Opcode) const {
+  switch (Opcode) {
+  default: return 0;
+  case SPUISD::RET_FLAG: return "SPUISD::RET_FLAG";
+  case SPUISD::Hi: return "SPUISD::Hi";
+  case SPUISD::Lo: return "SPUISD::Lo";
+  case SPUISD::PCRelAddr: return "SPUISD::PCRelAddr";
+  case SPUISD::AFormAddr: return "SPUISD::AFormAddr";
+  case SPUISD::IndirectAddr: return "SPUISD::IndirectAddr";
+  case SPUISD::LDRESULT: return "SPUISD::LDRESULT";
+  case SPUISD::CALL: return "SPUISD::CALL";
+  case SPUISD::SHUFB: return "SPUISD::SHUFB";
+  case SPUISD::SHUFFLE_MASK: return "SPUISD::SHUFFLE_MASK";
+  case SPUISD::CNTB: return "SPUISD::CNTB";
+  case SPUISD::PREFSLOT2VEC: return "SPUISD::PREFSLOT2VEC";
+  case SPUISD::VEC2PREFSLOT: return "SPUISD::VEC2PREFSLOT";
+  case SPUISD::SHL_BITS: return "SPUISD::SHL_BITS";
+  case SPUISD::SHL_BYTES: return "SPUISD::SHL_BYTES";
+  case SPUISD::VEC_ROTL: return "SPUISD::VEC_ROTL";
+  case SPUISD::VEC_ROTR: return "SPUISD::VEC_ROTR";
+  case SPUISD::ROTBYTES_LEFT: return "SPUISD::ROTBYTES_LEFT";
+  case SPUISD::ROTBYTES_LEFT_BITS: return "SPUISD::ROTBYTES_LEFT_BITS";
+  case SPUISD::SELECT_MASK: return "SPUISD::SELECT_MASK";
+  case SPUISD::SELB: return "SPUISD::SELB";
+  case SPUISD::ADD64_MARKER: return "SPUISD::ADD64_MARKER";
+  case SPUISD::SUB64_MARKER: return "SPUISD::SUB64_MARKER";
+  case SPUISD::MUL64_MARKER: return "SPUISD::MUL64_MARKER";
   }
-
-  std::map<unsigned, const char *>::iterator i = node_names.find(Opcode);
-
-  return ((i != node_names.end()) ? i->second : 0);
 }
 
 //===----------------------------------------------------------------------===//
@@ -658,7 +669,7 @@ LowerLOAD(SDValue Op, SelectionDAG &DAG, const SPUSubtarget *ST) {
   // Do the load as a i128 to allow possible shifting
   SDValue low = DAG.getLoad(MVT::i128, dl, the_chain, basePtr,
                        lowMemPtr,
-                       LN->isVolatile(), LN->isNonTemporal(), 16);
+                       LN->isVolatile(), LN->isNonTemporal(), false, 16);
 
   // When the size is not greater than alignment we get all data with just
   // one load
@@ -695,7 +706,8 @@ LowerLOAD(SDValue Op, SelectionDAG &DAG, const SPUSubtarget *ST) {
                                            basePtr,
                                            DAG.getConstant(16, PtrVT)),
                                highMemPtr,
-                               LN->isVolatile(), LN->isNonTemporal(), 16);
+                               LN->isVolatile(), LN->isNonTemporal(), false, 
+                               16);
 
     the_chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, low.getValue(1),
                                                               high.getValue(1));
@@ -850,7 +862,8 @@ LowerSTORE(SDValue Op, SelectionDAG &DAG, const SPUSubtarget *ST) {
 
   // Load the lower part of the memory to which to store.
   SDValue low = DAG.getLoad(vecVT, dl, the_chain, basePtr,
-                          lowMemPtr, SN->isVolatile(), SN->isNonTemporal(), 16);
+                          lowMemPtr, SN->isVolatile(), SN->isNonTemporal(),
+                            false, 16);
 
   // if we don't need to store over the 16 byte boundary, one store suffices
   if (alignment >= StVT.getSizeInBits()/8) {
@@ -950,7 +963,8 @@ LowerSTORE(SDValue Op, SelectionDAG &DAG, const SPUSubtarget *ST) {
                                DAG.getNode(ISD::ADD, dl, PtrVT, basePtr,
                                            DAG.getConstant( 16, PtrVT)),
                                highMemPtr,
-                               SN->isVolatile(), SN->isNonTemporal(), 16);
+                               SN->isVolatile(), SN->isNonTemporal(), 
+                               false, 16);
     the_chain = DAG.getNode(ISD::TokenFactor, dl, MVT::Other, low.getValue(1),
                                                               hi.getValue(1));
 
@@ -1017,7 +1031,6 @@ LowerConstantPool(SDValue Op, SelectionDAG &DAG, const SPUSubtarget *ST) {
 
   llvm_unreachable("LowerConstantPool: Relocation model other than static"
                    " not supported.");
-  return SDValue();
 }
 
 //! Alternate entry point for generating the address of a constant pool entry
@@ -1048,7 +1061,6 @@ LowerJumpTable(SDValue Op, SelectionDAG &DAG, const SPUSubtarget *ST) {
 
   llvm_unreachable("LowerJumpTable: Relocation model other than static"
                    " not supported.");
-  return SDValue();
 }
 
 static SDValue
@@ -1076,8 +1088,6 @@ LowerGlobalAddress(SDValue Op, SelectionDAG &DAG, const SPUSubtarget *ST) {
                       "not supported.");
     /*NOTREACHED*/
   }
-
-  return SDValue();
 }
 
 //! Custom lower double precision floating point constants
@@ -1125,7 +1135,7 @@ SPUTargetLowering::LowerFormalArguments(SDValue Chain,
 
   SmallVector<CCValAssign, 16> ArgLocs;
   CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
-		 getTargetMachine(), ArgLocs, *DAG.getContext());
+                 getTargetMachine(), ArgLocs, *DAG.getContext());
   // FIXME: allow for other calling conventions
   CCInfo.AnalyzeFormalArguments(Ins, CCC_SPU);
 
@@ -1185,7 +1195,7 @@ SPUTargetLowering::LowerFormalArguments(SDValue Chain,
       int FI = MFI->CreateFixedObject(ObjSize, ArgOffset, true);
       SDValue FIN = DAG.getFrameIndex(FI, PtrVT);
       ArgVal = DAG.getLoad(ObjectVT, dl, Chain, FIN, MachinePointerInfo(),
-                           false, false, 0);
+                           false, false, false, 0);
       ArgOffset += StackSlotSize;
     }
 
@@ -1198,7 +1208,7 @@ SPUTargetLowering::LowerFormalArguments(SDValue Chain,
   if (isVarArg) {
     // FIXME: we should be able to query the argument registers from
     //        tablegen generated code.
-    static const unsigned ArgRegs[] = {
+    static const uint16_t ArgRegs[] = {
       SPU::R3,  SPU::R4,  SPU::R5,  SPU::R6,  SPU::R7,  SPU::R8,  SPU::R9,
       SPU::R10, SPU::R11, SPU::R12, SPU::R13, SPU::R14, SPU::R15, SPU::R16,
       SPU::R17, SPU::R18, SPU::R19, SPU::R20, SPU::R21, SPU::R22, SPU::R23,
@@ -1212,7 +1222,7 @@ SPUTargetLowering::LowerFormalArguments(SDValue Chain,
       SPU::R73, SPU::R74, SPU::R75, SPU::R76, SPU::R77, SPU::R78, SPU::R79
     };
     // size of ArgRegs array
-    unsigned NumArgRegs = 77;
+    const unsigned NumArgRegs = 77;
 
     // We will spill (79-3)+1 registers to the stack
     SmallVector<SDValue, 79-3+1> MemOps;
@@ -1255,14 +1265,19 @@ static SDNode *isLSAAddress(SDValue Op, SelectionDAG &DAG) {
 }
 
 SDValue
-SPUTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
-                             CallingConv::ID CallConv, bool isVarArg,
-                             bool &isTailCall,
-                             const SmallVectorImpl<ISD::OutputArg> &Outs,
-                             const SmallVectorImpl<SDValue> &OutVals,
-                             const SmallVectorImpl<ISD::InputArg> &Ins,
-                             DebugLoc dl, SelectionDAG &DAG,
+SPUTargetLowering::LowerCall(TargetLowering::CallLoweringInfo &CLI,
                              SmallVectorImpl<SDValue> &InVals) const {
+  SelectionDAG &DAG                     = CLI.DAG;
+  DebugLoc &dl                          = CLI.DL;
+  SmallVector<ISD::OutputArg, 32> &Outs = CLI.Outs;
+  SmallVector<SDValue, 32> &OutVals     = CLI.OutVals;
+  SmallVector<ISD::InputArg, 32> &Ins   = CLI.Ins;
+  SDValue Chain                         = CLI.Chain;
+  SDValue Callee                        = CLI.Callee;
+  bool &isTailCall                      = CLI.IsTailCall;
+  CallingConv::ID CallConv              = CLI.CallConv;
+  bool isVarArg                         = CLI.IsVarArg;
+
   // CellSPU target does not yet support tail call optimization.
   isTailCall = false;
 
@@ -1272,7 +1287,7 @@ SPUTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
 
   SmallVector<CCValAssign, 16> ArgLocs;
   CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
-		 getTargetMachine(), ArgLocs, *DAG.getContext());
+                 getTargetMachine(), ArgLocs, *DAG.getContext());
   // FIXME: allow for other calling conventions
   CCInfo.AnalyzeCallOperands(Outs, CCC_SPU);
 
@@ -1433,7 +1448,7 @@ SPUTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
   // Now handle the return value(s)
   SmallVector<CCValAssign, 16> RVLocs;
   CCState CCRetInfo(CallConv, isVarArg, DAG.getMachineFunction(),
-		    getTargetMachine(), RVLocs, *DAG.getContext());
+                    getTargetMachine(), RVLocs, *DAG.getContext());
   CCRetInfo.AnalyzeCallResult(Ins, CCC_SPU);
 
 
@@ -1460,7 +1475,7 @@ SPUTargetLowering::LowerReturn(SDValue Chain,
 
   SmallVector<CCValAssign, 16> RVLocs;
   CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
-		 getTargetMachine(), RVLocs, *DAG.getContext());
+                 getTargetMachine(), RVLocs, *DAG.getContext());
   CCInfo.AnalyzeReturn(Outs, RetCC_SPU);
 
   // If this is the first return lowered for this function, add the regs to the
@@ -1675,7 +1690,6 @@ LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) {
     SDValue T = DAG.getConstant(Value32, MVT::i32);
     return DAG.getNode(ISD::BITCAST, dl, MVT::v4f32,
                        DAG.getNode(ISD::BUILD_VECTOR, dl, MVT::v4i32, T,T,T,T));
-    break;
   }
   case MVT::v2f64: {
     uint64_t f64val = uint64_t(SplatBits);
@@ -1685,7 +1699,6 @@ LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) {
     SDValue T = DAG.getConstant(f64val, MVT::i64);
     return DAG.getNode(ISD::BITCAST, dl, MVT::v2f64,
                        DAG.getNode(ISD::BUILD_VECTOR, dl, MVT::v2i64, T, T));
-    break;
   }
   case MVT::v16i8: {
    // 8-bit constants have to be expanded to 16-bits
@@ -1712,8 +1725,6 @@ LowerBUILD_VECTOR(SDValue Op, SelectionDAG &DAG) {
     return SPU::LowerV2I64Splat(VT, DAG, SplatBits, dl);
   }
   }
-
-  return SDValue();
 }
 
 /*!
@@ -1743,9 +1754,11 @@ SPU::LowerV2I64Splat(EVT OpVT, SelectionDAG& DAG, uint64_t SplatVal,
 
     // Both upper and lower are special, lower to a constant pool load:
     if (lower_special && upper_special) {
-      SDValue SplatValCN = DAG.getConstant(SplatVal, MVT::i64);
-      return DAG.getNode(ISD::BUILD_VECTOR, dl, MVT::v2i64,
-                         SplatValCN, SplatValCN);
+      SDValue UpperVal = DAG.getConstant(upper, MVT::i32);
+      SDValue LowerVal = DAG.getConstant(lower, MVT::i32);
+      SDValue BV = DAG.getNode(ISD::BUILD_VECTOR, dl, MVT::v4i32,
+                         UpperVal, LowerVal, UpperVal, LowerVal);
+      return DAG.getNode(ISD::BITCAST, dl, OpVT, BV);
     }
 
     SDValue LO32;
@@ -1985,8 +1998,6 @@ static SDValue LowerSCALAR_TO_VECTOR(SDValue Op, SelectionDAG &DAG) {
       return DAG.getNode(SPUISD::PREFSLOT2VEC, dl, Op.getValueType(), Op0, Op0);
     }
   }
-
-  return SDValue();
 }
 
 static SDValue LowerEXTRACT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) {
@@ -2020,8 +2031,7 @@ static SDValue LowerEXTRACT_VECTOR_ELT(SDValue Op, SelectionDAG &DAG) {
     int elt_byte = EltNo * VT.getSizeInBits() / 8;
 
     switch (VT.getSimpleVT().SimpleTy) {
-    default:
-      assert(false && "Invalid value type!");
+    default: llvm_unreachable("Invalid value type!");
     case MVT::i8: {
       prefslot_begin = prefslot_end = 3;
       break;
@@ -2199,8 +2209,6 @@ static SDValue LowerI8Math(SDValue Op, SelectionDAG &DAG, unsigned Opc,
   switch (Opc) {
   default:
     llvm_unreachable("Unhandled i8 math operator");
-    /*NOTREACHED*/
-    break;
   case ISD::ADD: {
     // 8-bit addition: Promote the arguments up to 16-bits and truncate
     // the result:
@@ -2285,11 +2293,8 @@ static SDValue LowerI8Math(SDValue Op, SelectionDAG &DAG, unsigned Opc,
     N1 = DAG.getNode(ISD::SIGN_EXTEND, dl, MVT::i16, N1);
     return DAG.getNode(ISD::TRUNCATE, dl, MVT::i8,
                        DAG.getNode(Opc, dl, MVT::i16, N0, N1));
-    break;
   }
   }
-
-  return SDValue();
 }
 
 //! Lower byte immediate operations for v16i8 vectors:
@@ -2354,8 +2359,7 @@ static SDValue LowerCTPOP(SDValue Op, SelectionDAG &DAG) {
   DebugLoc dl = Op.getDebugLoc();
 
   switch (VT.getSimpleVT().SimpleTy) {
-  default:
-    assert(false && "Invalid value type!");
+  default: llvm_unreachable("Invalid value type!");
   case MVT::i8: {
     SDValue N = Op.getOperand(0);
     SDValue Elt0 = DAG.getConstant(0, MVT::i32);
@@ -3142,16 +3146,16 @@ SPUTargetLowering::getRegForInlineAsmConstraint(const std::string &Constraint,
     case 'b':   // R1-R31
     case 'r':   // R0-R31
       if (VT == MVT::i64)
-        return std::make_pair(0U, SPU::R64CRegisterClass);
-      return std::make_pair(0U, SPU::R32CRegisterClass);
+        return std::make_pair(0U, &SPU::R64CRegClass);
+      return std::make_pair(0U, &SPU::R32CRegClass);
     case 'f':
       if (VT == MVT::f32)
-        return std::make_pair(0U, SPU::R32FPRegisterClass);
-      else if (VT == MVT::f64)
-        return std::make_pair(0U, SPU::R64FPRegisterClass);
+        return std::make_pair(0U, &SPU::R32FPRegClass);
+      if (VT == MVT::f64)
+        return std::make_pair(0U, &SPU::R64FPRegClass);
       break;
     case 'v':
-      return std::make_pair(0U, SPU::GPRCRegisterClass);
+      return std::make_pair(0U, &SPU::GPRCRegClass);
     }
   }
 
@@ -3161,7 +3165,6 @@ SPUTargetLowering::getRegForInlineAsmConstraint(const std::string &Constraint,
 //! Compute used/known bits for a SPU operand
 void
 SPUTargetLowering::computeMaskedBitsForTargetNode(const SDValue Op,
-                                                  const APInt &Mask,
                                                   APInt &KnownZero,
                                                   APInt &KnownOne,
                                                   const SelectionDAG &DAG,
@@ -3227,7 +3230,7 @@ bool SPUTargetLowering::isLegalAddressImmediate(int64_t V,
   return (V > -(1 << 18) && V < (1 << 18) - 1);
 }
 
-bool SPUTargetLowering::isLegalAddressImmediate(llvm::GlobalValue* GV) const {
+bool SPUTargetLowering::isLegalAddressImmediate(GlobalValue* GV) const {
   return false;
 }
 

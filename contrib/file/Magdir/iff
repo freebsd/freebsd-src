@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: iff,v 1.13 2011/09/06 11:00:06 christos Exp $
 # iff:	file(1) magic for Interchange File Format (see also "audio" & "images")
 #
 # Daniel Quinlan (quinlan@yggdrasil.com) -- IFF was designed by Electronic
@@ -51,6 +52,13 @@
 >8	string		AMFF		\b, AMFF AmigaMetaFile format
 >8	string		WZRD		\b, WZRD StormWIZARD resource
 >8	string		DOC\ 		\b, DOC desktop publishing document
+>8	string		WVQA 		\b, Westwood Studios VQA Multimedia,
+>>24	leshort		x		%d video frames,
+>>26	leshort		x		%d x
+>>28	leshort		x		%d
+>8	string		MOVE		\b, Wing Commander III Video
+>>12	string		_PC_		\b, PC version
+>>12	string		3DO_		\b, 3DO version
 
 # These go at the end of the iff rules
 #

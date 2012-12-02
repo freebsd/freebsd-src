@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -30,13 +30,11 @@
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-/* $KAME: sctp_indata.h,v 1.9 2005/03/06 16:04:17 itojun Exp $	 */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifndef __sctp_indata_h__
-#define __sctp_indata_h__
+#ifndef _NETINET_SCTP_INDATA_H_
+#define _NETINET_SCTP_INDATA_H_
 
 #if defined(_KERNEL) || defined(__Userspace__)
 
@@ -113,9 +111,13 @@ void
      sctp_update_acked(struct sctp_tcb *, struct sctp_shutdown_chunk *, int *);
 
 int
-sctp_process_data(struct mbuf **, int, int *, int, struct sctphdr *,
+sctp_process_data(struct mbuf **, int, int *, int,
+    struct sockaddr *src, struct sockaddr *dst,
+    struct sctphdr *,
     struct sctp_inpcb *, struct sctp_tcb *,
-    struct sctp_nets *, uint32_t *);
+    struct sctp_nets *, uint32_t *,
+    uint8_t, uint32_t,
+    uint32_t, uint16_t);
 
 void sctp_slide_mapping_arrays(struct sctp_tcb *stcb);
 

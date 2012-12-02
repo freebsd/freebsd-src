@@ -128,9 +128,36 @@ ar5416GetTsf64(struct ath_hal *ah)
 	return (((uint64_t) u32) << 32) | ((uint64_t) low2);
 }
 
+/*
+ * Update the TSF.
+ *
+ * The full TSF is only updated once the upper 32 bits have
+ * been written.  Writing only the lower 32 bits of the TSF
+ * will not actually correctly update the TSF.
+ *
+ * The #if 0'ed code is to check whether the previous TSF
+ * reset or write has completed before writing to the
+ * TSF.  Strictly speaking, it should be also checked before
+ * reading the TSF as the write/reset may not have completed.
+ */
 void
 ar5416SetTsf64(struct ath_hal *ah, uint64_t tsf64)
 {
+	/* XXX check if this is correct! */
+#if 0
+	int i;
+	uint32_t v;
+
+	for (i = 0; i < 10; i++) {
+		v = OS_REG_READ(ah, AR_SLP32_MODE);
+		if ((v & AR_SLP32_TSF_WRITE_STATUS) == 0)
+			break;
+		OS_DELAY(10);
+	}
+	if (i == 10)
+		ath_hal_printf(ah, "%s: couldn't slew things right!\n", __func__);
+#endif
+
 	OS_REG_WRITE(ah, AR_TSF_L32, tsf64 & 0xffffffff);
 	OS_REG_WRITE(ah, AR_TSF_U32, (tsf64 >> 32) & 0xffffffff);
 }
@@ -178,18 +205,18 @@ ar5416SetDecompMask(struct ath_hal *ah, uint16_t keyidx, int en)
 void
 ar5416SetCoverageClass(struct ath_hal *ah, uint8_t coverageclass, int now)
 {
-	AH_PRIVATE(ah)->ah_coverageClass = coverageclass;
+
+	ar5212SetCoverageClass(ah, coverageclass, now);
 }
 
 /*
  * Return the busy for rx_frame, rx_clear, and tx_frame
  */
-uint32_t
-ar5416GetMibCycleCountsPct(struct ath_hal *ah, uint32_t *rxc_pcnt,
-    uint32_t *extc_pcnt, uint32_t *rxf_pcnt, uint32_t *txf_pcnt)
+HAL_BOOL
+ar5416GetMibCycleCounts(struct ath_hal *ah, HAL_SURVEY_SAMPLE *hsample)
 {
 	struct ath_hal_5416 *ahp = AH5416(ah);
-	u_int32_t good = 1;
+	u_int32_t good = AH_TRUE;
 
 	/* XXX freeze/unfreeze mib counters */
 	uint32_t rc = OS_REG_READ(ah, AR_RCCNT);
@@ -206,36 +233,34 @@ ar5416GetMibCycleCountsPct(struct ath_hal *ah, uint32_t *rxc_pcnt,
 		 */
 		HALDEBUG(ah, HAL_DEBUG_ANY,
 			    "%s: cycle counter wrap. ExtBusy = 0\n", __func__);
-			good = 0;
+			good = AH_FALSE;
 	} else {
-		uint32_t cc_d = cc - ahp->ah_cycleCount;
-		uint32_t rc_d = rc - ahp->ah_ctlBusy;
-		uint32_t ec_d = ec - ahp->ah_extBusy;
-		uint32_t rf_d = rf - ahp->ah_rxBusy;
-		uint32_t tf_d = tf - ahp->ah_txBusy;
-
-		if (cc_d != 0) {
-			*rxc_pcnt = rc_d * 100 / cc_d;
-			*rxf_pcnt = rf_d * 100 / cc_d;
-			*txf_pcnt = tf_d * 100 / cc_d;
-			*extc_pcnt = ec_d * 100 / cc_d;
-		} else {
-			good = 0;
-		}
+		hsample->cycle_count = cc - ahp->ah_cycleCount;
+		hsample->chan_busy = rc - ahp->ah_ctlBusy;
+		hsample->ext_chan_busy = ec - ahp->ah_extBusy;
+		hsample->rx_busy = rf - ahp->ah_rxBusy;
+		hsample->tx_busy = tf - ahp->ah_txBusy;
 	}
+
+	/*
+	 * Keep a copy of the MIB results so the next sample has something
+	 * to work from.
+	 */
 	ahp->ah_cycleCount = cc;
 	ahp->ah_rxBusy = rf;
 	ahp->ah_ctlBusy = rc;
 	ahp->ah_txBusy = tf;
 	ahp->ah_extBusy = ec;
 
-	return good;
+	return (good);
 }
 
 /*
  * Return approximation of extension channel busy over an time interval
  * 0% (clear) -> 100% (busy)
  *
+ * XXX TODO: update this to correctly sample all the counters,
+ *           rather than a subset of it.
  */
 uint32_t
 ar5416Get11nExtBusy(struct ath_hal *ah)
@@ -426,6 +451,10 @@ ar5416GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 			HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_DIVERSITY:		/* disable classic fast diversity */
 		return HAL_ENXIO;
+	case HAL_CAP_ENFORCE_TXOP:
+		(*result) =
+		    !! (AH5212(ah)->ah_miscMode & AR_PCU_TXOP_TBTT_LIMIT_ENA);
+		return (HAL_OK);
 	default:
 		break;
 	}
@@ -454,6 +483,19 @@ ar5416SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 			pCap->halTxStreams = 2;
 		else
 			pCap->halTxStreams = 1;
+		return AH_TRUE;
+	case HAL_CAP_ENFORCE_TXOP:
+		if (setting) {
+			AH5212(ah)->ah_miscMode
+			    |= AR_PCU_TXOP_TBTT_LIMIT_ENA;
+			OS_REG_SET_BIT(ah, AR_MISC_MODE,
+			    AR_PCU_TXOP_TBTT_LIMIT_ENA);
+		} else {
+			AH5212(ah)->ah_miscMode
+			    &= ~AR_PCU_TXOP_TBTT_LIMIT_ENA;
+			OS_REG_CLR_BIT(ah, AR_MISC_MODE,
+			    AR_PCU_TXOP_TBTT_LIMIT_ENA);
+		}
 		return AH_TRUE;
 	default:
 		break;
@@ -495,36 +537,6 @@ ar5416GetDiagState(struct ath_hal *ah, int request,
 	return ar5212GetDiagState(ah, request,
 	    args, argsize, result, resultsize);
 }
-
-typedef struct {
-	uint32_t dma_dbg_3;
-	uint32_t dma_dbg_4;
-	uint32_t dma_dbg_5;
-	uint32_t dma_dbg_6;
-} mac_dbg_regs_t;
-
-typedef enum {
-	dcu_chain_state		= 0x1,
-	dcu_complete_state	= 0x2,
-	qcu_state		= 0x4,
-	qcu_fsp_ok		= 0x8,
-	qcu_fsp_state		= 0x10,
-	qcu_stitch_state	= 0x20,
-	qcu_fetch_state		= 0x40,
-	qcu_complete_state	= 0x80
-} hal_mac_hangs_t;
-
-typedef struct {
-	int states;
-	uint8_t dcu_chain_state;
-	uint8_t dcu_complete_state;
-	uint8_t qcu_state;
-	uint8_t qcu_fsp_ok;
-	uint8_t qcu_fsp_state;
-	uint8_t qcu_stitch_state;
-	uint8_t qcu_fetch_state;
-	uint8_t qcu_complete_state;
-} hal_mac_hang_check_t;
 
 HAL_BOOL
 ar5416SetRifsDelay(struct ath_hal *ah, const struct ieee80211_channel *chan,

@@ -13,8 +13,8 @@
 
 #include "llvm/MC/SubtargetFeature.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/Format.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/ADT/StringExtras.h"
 #include <algorithm>
 #include <cassert>
 #include <cctype>
@@ -92,7 +92,7 @@ static void Split(std::vector<std::string> &V, const StringRef S) {
 static std::string Join(const std::vector<std::string> &V) {
   // Start with empty string.
   std::string Result;
-  // If the vector is not empty 
+  // If the vector is not empty
   if (!V.empty()) {
     // Start with the first feature
     Result = V[0];
@@ -104,7 +104,7 @@ static std::string Join(const std::vector<std::string> &V) {
       Result += V[i];
     }
   }
-  // Return the features string 
+  // Return the features string
   return Result;
 }
 
@@ -114,7 +114,7 @@ void SubtargetFeatures::AddFeature(const StringRef String,
   // Don't add empty features
   if (!String.empty()) {
     // Convert to lowercase, prepend flag and add to vector
-    Features.push_back(PrependFlag(LowercaseString(String), IsEnabled));
+    Features.push_back(PrependFlag(String.lower(), IsEnabled));
   }
 }
 
@@ -154,21 +154,19 @@ static void Help(const SubtargetFeatureKV *CPUTable, size_t CPUTableSize,
   // Print the CPU table.
   errs() << "Available CPUs for this target:\n\n";
   for (size_t i = 0; i != CPUTableSize; i++)
-    errs() << "  " << CPUTable[i].Key
-         << std::string(MaxCPULen - std::strlen(CPUTable[i].Key), ' ')
-         << " - " << CPUTable[i].Desc << ".\n";
-  errs() << "\n";
-  
+    errs() << format("  %-*s - %s.\n",
+                     MaxCPULen, CPUTable[i].Key, CPUTable[i].Desc);
+  errs() << '\n';
+
   // Print the Feature table.
   errs() << "Available features for this target:\n\n";
   for (size_t i = 0; i != FeatTableSize; i++)
-    errs() << "  " << FeatTable[i].Key
-         << std::string(MaxFeatLen - std::strlen(FeatTable[i].Key), ' ')
-         << " - " << FeatTable[i].Desc << ".\n";
-  errs() << "\n";
-  
+    errs() << format("  %-*s - %s.\n",
+                     MaxFeatLen, FeatTable[i].Key, FeatTable[i].Desc);
+  errs() << '\n';
+
   errs() << "Use +feature to enable a feature, or -feature to disable it.\n"
-       << "For example, llc -mcpu=mycpu -mattr=+feature1,-feature2\n";
+            "For example, llc -mcpu=mycpu -mattr=+feature1,-feature2\n";
   std::exit(1);
 }
 
@@ -207,7 +205,7 @@ void SetImpliedBits(uint64_t &Bits, const SubtargetFeatureKV *FeatureEntry,
 
 /// ClearImpliedBits - For each feature that (transitively) implies this
 /// feature, clear it.
-/// 
+///
 static
 void ClearImpliedBits(uint64_t &Bits, const SubtargetFeatureKV *FeatureEntry,
                       const SubtargetFeatureKV *FeatureTable,
@@ -254,7 +252,7 @@ SubtargetFeatures::ToggleFeature(uint64_t Bits, const StringRef Feature,
 
   return Bits;
 }
-           
+
 
 /// getFeatureBits - Get feature bits a CPU.
 ///
@@ -281,7 +279,7 @@ uint64_t SubtargetFeatures::getFeatureBits(const StringRef CPU,
   // Check if help is needed
   if (CPU == "help")
     Help(CPUTable, CPUTableSize, FeatureTable, FeatureTableSize);
-  
+
   // Find CPU entry if CPU name is specified.
   if (!CPU.empty()) {
     const SubtargetFeatureKV *CPUEntry = Find(CPU, CPUTable, CPUTableSize);
@@ -306,11 +304,11 @@ uint64_t SubtargetFeatures::getFeatureBits(const StringRef CPU,
   // Iterate through each feature
   for (size_t i = 0, E = Features.size(); i < E; i++) {
     const StringRef Feature = Features[i];
-    
+
     // Check for help
     if (Feature == "+help")
       Help(CPUTable, CPUTableSize, FeatureTable, FeatureTableSize);
-    
+
     // Find feature in table.
     const SubtargetFeatureKV *FeatureEntry =
                        Find(StripFlag(Feature), FeatureTable, FeatureTableSize);
@@ -351,7 +349,7 @@ void *SubtargetFeatures::getItinerary(const StringRef CPU,
 
   // Find entry
   const SubtargetInfoKV *Entry = Find(CPU, Table, TableSize);
-  
+
   if (Entry) {
     return Entry->Value;
   } else {

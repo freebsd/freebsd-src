@@ -48,12 +48,54 @@
 #include <smmintrin.h>
 #endif
 
-#if defined (__AES__) || defined (__PCLMUL__)
+#if defined (__AES__)
 #include <wmmintrin.h>
 #endif
 
 #ifdef __AVX__
 #include <avxintrin.h>
 #endif
+
+#ifdef __AVX2__
+#include <avx2intrin.h>
+#endif
+
+#ifdef __BMI__
+#include <bmiintrin.h>
+#endif
+
+#ifdef __BMI2__
+#include <bmi2intrin.h>
+#endif
+
+#ifdef __LZCNT__
+#include <lzcntintrin.h>
+#endif
+
+#ifdef __FMA__
+#include <fmaintrin.h>
+#endif
+
+#ifdef __RDRND__
+static __inline__ int __attribute__((__always_inline__, __nodebug__))
+_rdrand16_step(unsigned short *__p)
+{
+  return __builtin_ia32_rdrand16_step(__p);
+}
+
+static __inline__ int __attribute__((__always_inline__, __nodebug__))
+_rdrand32_step(unsigned int *__p)
+{
+  return __builtin_ia32_rdrand32_step(__p);
+}
+
+#ifdef __x86_64__
+static __inline__ int __attribute__((__always_inline__, __nodebug__))
+_rdrand64_step(unsigned long long *__p)
+{
+  return __builtin_ia32_rdrand64_step(__p);
+}
+#endif
+#endif /* __RDRND__ */
 
 #endif /* __IMMINTRIN_H */

@@ -74,6 +74,10 @@ namespace ISD {
   /// ISD::SCALAR_TO_VECTOR node or a BUILD_VECTOR node where only the low
   /// element is not an undef.
   bool isScalarToVector(const SDNode *N);
+
+  /// allOperandsUndef - Return true if the node has at least one operand
+  /// and all operands of the specified node are ISD::UNDEF.
+  bool allOperandsUndef(const SDNode *N);
 }  // end llvm:ISD namespace
 
 //===----------------------------------------------------------------------===//
@@ -142,7 +146,8 @@ public:
   inline bool isMachineOpcode() const;
   inline unsigned getMachineOpcode() const;
   inline const DebugLoc getDebugLoc() const;
-
+  inline void dump() const;
+  inline void dumpr() const;
 
   /// reachesChainWithoutSideEffects - Return true if this operand (which must
   /// be a chain) reaches the specified operand without crossing any
@@ -802,7 +807,12 @@ inline bool SDValue::hasOneUse() const {
 inline const DebugLoc SDValue::getDebugLoc() const {
   return Node->getDebugLoc();
 }
-
+inline void SDValue::dump() const {
+  return Node->dump();
+}
+inline void SDValue::dumpr() const {
+  return Node->dumpr();
+}
 // Define inline functions from the SDUse class.
 
 inline void SDUse::set(const SDValue &V) {
@@ -917,12 +927,13 @@ public:
   // with MachineMemOperand information.
   bool isVolatile() const { return (SubclassData >> 5) & 1; }
   bool isNonTemporal() const { return (SubclassData >> 6) & 1; }
+  bool isInvariant() const { return (SubclassData >> 7) & 1; }
 
   AtomicOrdering getOrdering() const {
-    return AtomicOrdering((SubclassData >> 7) & 15);
+    return AtomicOrdering((SubclassData >> 8) & 15);
   }
   SynchronizationScope getSynchScope() const {
-    return SynchronizationScope((SubclassData >> 11) & 1);
+    return SynchronizationScope((SubclassData >> 12) & 1);
   }
 
   /// Returns the SrcValue and offset that describes the location of the access
@@ -931,6 +942,9 @@ public:
 
   /// Returns the TBAAInfo that describes the dereference.
   const MDNode *getTBAAInfo() const { return MMO->getTBAAInfo(); }
+
+  /// Returns the Ranges that describes the dereference.
+  const MDNode *getRanges() const { return MMO->getRanges(); }
 
   /// getMemoryVT - Return the type of the in-memory value.
   EVT getMemoryVT() const { return MemoryVT; }
@@ -993,8 +1007,8 @@ class AtomicSDNode : public MemSDNode {
            "Ordering may not require more than 4 bits!");
     assert((SynchScope & 1) == SynchScope &&
            "SynchScope may not require more than 1 bit!");
-    SubclassData |= Ordering << 7;
-    SubclassData |= SynchScope << 11;
+    SubclassData |= Ordering << 8;
+    SubclassData |= SynchScope << 12;
     assert(getOrdering() == Ordering && "Ordering encoding error!");
     assert(getSynchScope() == SynchScope && "Synch-scope encoding error!");
 
@@ -1113,11 +1127,9 @@ protected:
   }
 public:
 
-  void getMask(SmallVectorImpl<int> &M) const {
+  ArrayRef<int> getMask() const {
     EVT VT = getValueType(0);
-    M.clear();
-    for (unsigned i = 0, e = VT.getVectorNumElements(); i != e; ++i)
-      M.push_back(Mask[i]);
+    return makeArrayRef(Mask, VT.getVectorNumElements());
   }
   int getMaskElt(unsigned Idx) const {
     assert(Idx < getValueType(0).getVectorNumElements() && "Idx out of range!");
@@ -1337,6 +1349,29 @@ public:
   }
 };
 
+/// Completely target-dependent object reference.
+class TargetIndexSDNode : public SDNode {
+  unsigned char TargetFlags;
+  int Index;
+  int64_t Offset;
+  friend class SelectionDAG;
+public:
+
+  TargetIndexSDNode(int Idx, EVT VT, int64_t Ofs, unsigned char TF)
+    : SDNode(ISD::TargetIndex, DebugLoc(), getSDVTList(VT)),
+      TargetFlags(TF), Index(Idx), Offset(Ofs) {}
+public:
+
+  unsigned char getTargetFlags() const { return TargetFlags; }
+  int getIndex() const { return Index; }
+  int64_t getOffset() const { return Offset; }
+
+  static bool classof(const TargetIndexSDNode*) { return true; }
+  static bool classof(const SDNode *N) {
+    return N->getOpcode() == ISD::TargetIndex;
+  }
+};
+
 class BasicBlockSDNode : public SDNode {
   MachineBasicBlock *MBB;
   friend class SelectionDAG;
@@ -1431,6 +1466,23 @@ public:
   static bool classof(const RegisterSDNode *) { return true; }
   static bool classof(const SDNode *N) {
     return N->getOpcode() == ISD::Register;
+  }
+};
+
+class RegisterMaskSDNode : public SDNode {
+  // The memory for RegMask is not owned by the node.
+  const uint32_t *RegMask;
+  friend class SelectionDAG;
+  RegisterMaskSDNode(const uint32_t *mask)
+    : SDNode(ISD::RegisterMask, DebugLoc(), getSDVTList(MVT::Untyped)),
+      RegMask(mask) {}
+public:
+
+  const uint32_t *getRegMask() const { return RegMask; }
+
+  static bool classof(const RegisterMaskSDNode *) { return true; }
+  static bool classof(const SDNode *N) {
+    return N->getOpcode() == ISD::RegisterMask;
   }
 };
 
@@ -1684,6 +1736,8 @@ public:
   /// setMemRefs - Assign this MachineSDNodes's memory reference descriptor
   /// list. This does not transfer ownership.
   void setMemRefs(mmo_iterator NewMemRefs, mmo_iterator NewMemRefsEnd) {
+    for (mmo_iterator MMI = NewMemRefs, MME = NewMemRefsEnd; MMI != MME; ++MMI)
+      assert(*MMI && "Null mem ref detected!");
     MemRefs = NewMemRefs;
     MemRefsEnd = NewMemRefsEnd;
   }

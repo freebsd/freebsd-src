@@ -1,6 +1,6 @@
 /* crypto/rsa/rsa_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2007 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2011 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -70,9 +70,16 @@
 
 static ERR_STRING_DATA RSA_str_functs[]=
 	{
-{ERR_FUNC(RSA_F_FIPS_RSA_SIGN),	"FIPS_RSA_SIGN"},
-{ERR_FUNC(RSA_F_FIPS_RSA_VERIFY),	"FIPS_RSA_VERIFY"},
+{ERR_FUNC(RSA_F_CHECK_PADDING_MD),	"CHECK_PADDING_MD"},
+{ERR_FUNC(RSA_F_DO_RSA_PRINT),	"DO_RSA_PRINT"},
+{ERR_FUNC(RSA_F_INT_RSA_VERIFY),	"INT_RSA_VERIFY"},
 {ERR_FUNC(RSA_F_MEMORY_LOCK),	"MEMORY_LOCK"},
+{ERR_FUNC(RSA_F_OLD_RSA_PRIV_DECODE),	"OLD_RSA_PRIV_DECODE"},
+{ERR_FUNC(RSA_F_PKEY_RSA_CTRL),	"PKEY_RSA_CTRL"},
+{ERR_FUNC(RSA_F_PKEY_RSA_CTRL_STR),	"PKEY_RSA_CTRL_STR"},
+{ERR_FUNC(RSA_F_PKEY_RSA_SIGN),	"PKEY_RSA_SIGN"},
+{ERR_FUNC(RSA_F_PKEY_RSA_VERIFY),	"PKEY_RSA_VERIFY"},
+{ERR_FUNC(RSA_F_PKEY_RSA_VERIFYRECOVER),	"PKEY_RSA_VERIFYRECOVER"},
 {ERR_FUNC(RSA_F_RSA_BUILTIN_KEYGEN),	"RSA_BUILTIN_KEYGEN"},
 {ERR_FUNC(RSA_F_RSA_CHECK_KEY),	"RSA_check_key"},
 {ERR_FUNC(RSA_F_RSA_EAY_PRIVATE_DECRYPT),	"RSA_EAY_PRIVATE_DECRYPT"},
@@ -80,6 +87,8 @@ static ERR_STRING_DATA RSA_str_functs[]=
 {ERR_FUNC(RSA_F_RSA_EAY_PUBLIC_DECRYPT),	"RSA_EAY_PUBLIC_DECRYPT"},
 {ERR_FUNC(RSA_F_RSA_EAY_PUBLIC_ENCRYPT),	"RSA_EAY_PUBLIC_ENCRYPT"},
 {ERR_FUNC(RSA_F_RSA_GENERATE_KEY),	"RSA_generate_key"},
+{ERR_FUNC(RSA_F_RSA_GENERATE_KEY_EX),	"RSA_generate_key_ex"},
+{ERR_FUNC(RSA_F_RSA_ITEM_VERIFY),	"RSA_ITEM_VERIFY"},
 {ERR_FUNC(RSA_F_RSA_MEMORY_LOCK),	"RSA_memory_lock"},
 {ERR_FUNC(RSA_F_RSA_NEW_METHOD),	"RSA_new_method"},
 {ERR_FUNC(RSA_F_RSA_NULL),	"RSA_NULL"},
@@ -91,6 +100,7 @@ static ERR_STRING_DATA RSA_str_functs[]=
 {ERR_FUNC(RSA_F_RSA_PADDING_ADD_NONE),	"RSA_padding_add_none"},
 {ERR_FUNC(RSA_F_RSA_PADDING_ADD_PKCS1_OAEP),	"RSA_padding_add_PKCS1_OAEP"},
 {ERR_FUNC(RSA_F_RSA_PADDING_ADD_PKCS1_PSS),	"RSA_padding_add_PKCS1_PSS"},
+{ERR_FUNC(RSA_F_RSA_PADDING_ADD_PKCS1_PSS_MGF1),	"RSA_padding_add_PKCS1_PSS_mgf1"},
 {ERR_FUNC(RSA_F_RSA_PADDING_ADD_PKCS1_TYPE_1),	"RSA_padding_add_PKCS1_type_1"},
 {ERR_FUNC(RSA_F_RSA_PADDING_ADD_PKCS1_TYPE_2),	"RSA_padding_add_PKCS1_type_2"},
 {ERR_FUNC(RSA_F_RSA_PADDING_ADD_SSLV23),	"RSA_padding_add_SSLv23"},
@@ -103,16 +113,20 @@ static ERR_STRING_DATA RSA_str_functs[]=
 {ERR_FUNC(RSA_F_RSA_PADDING_CHECK_X931),	"RSA_padding_check_X931"},
 {ERR_FUNC(RSA_F_RSA_PRINT),	"RSA_print"},
 {ERR_FUNC(RSA_F_RSA_PRINT_FP),	"RSA_print_fp"},
+{ERR_FUNC(RSA_F_RSA_PRIVATE_DECRYPT),	"RSA_private_decrypt"},
 {ERR_FUNC(RSA_F_RSA_PRIVATE_ENCRYPT),	"RSA_private_encrypt"},
+{ERR_FUNC(RSA_F_RSA_PRIV_DECODE),	"RSA_PRIV_DECODE"},
+{ERR_FUNC(RSA_F_RSA_PRIV_ENCODE),	"RSA_PRIV_ENCODE"},
 {ERR_FUNC(RSA_F_RSA_PUBLIC_DECRYPT),	"RSA_public_decrypt"},
+{ERR_FUNC(RSA_F_RSA_PUBLIC_ENCRYPT),	"RSA_public_encrypt"},
+{ERR_FUNC(RSA_F_RSA_PUB_DECODE),	"RSA_PUB_DECODE"},
 {ERR_FUNC(RSA_F_RSA_SETUP_BLINDING),	"RSA_setup_blinding"},
-{ERR_FUNC(RSA_F_RSA_SET_DEFAULT_METHOD),	"RSA_set_default_method"},
-{ERR_FUNC(RSA_F_RSA_SET_METHOD),	"RSA_set_method"},
 {ERR_FUNC(RSA_F_RSA_SIGN),	"RSA_sign"},
 {ERR_FUNC(RSA_F_RSA_SIGN_ASN1_OCTET_STRING),	"RSA_sign_ASN1_OCTET_STRING"},
 {ERR_FUNC(RSA_F_RSA_VERIFY),	"RSA_verify"},
 {ERR_FUNC(RSA_F_RSA_VERIFY_ASN1_OCTET_STRING),	"RSA_verify_ASN1_OCTET_STRING"},
 {ERR_FUNC(RSA_F_RSA_VERIFY_PKCS1_PSS),	"RSA_verify_PKCS1_PSS"},
+{ERR_FUNC(RSA_F_RSA_VERIFY_PKCS1_PSS_MGF1),	"RSA_verify_PKCS1_PSS_mgf1"},
 {0,NULL}
 	};
 
@@ -136,20 +150,30 @@ static ERR_STRING_DATA RSA_str_reasons[]=
 {ERR_REASON(RSA_R_DMQ1_NOT_CONGRUENT_TO_D),"dmq1 not congruent to d"},
 {ERR_REASON(RSA_R_D_E_NOT_CONGRUENT_TO_1),"d e not congruent to 1"},
 {ERR_REASON(RSA_R_FIRST_OCTET_INVALID)   ,"first octet invalid"},
+{ERR_REASON(RSA_R_ILLEGAL_OR_UNSUPPORTED_PADDING_MODE),"illegal or unsupported padding mode"},
+{ERR_REASON(RSA_R_INVALID_DIGEST_LENGTH) ,"invalid digest length"},
 {ERR_REASON(RSA_R_INVALID_HEADER)        ,"invalid header"},
+{ERR_REASON(RSA_R_INVALID_KEYBITS)       ,"invalid keybits"},
 {ERR_REASON(RSA_R_INVALID_MESSAGE_LENGTH),"invalid message length"},
+{ERR_REASON(RSA_R_INVALID_MGF1_MD)       ,"invalid mgf1 md"},
 {ERR_REASON(RSA_R_INVALID_PADDING)       ,"invalid padding"},
+{ERR_REASON(RSA_R_INVALID_PADDING_MODE)  ,"invalid padding mode"},
+{ERR_REASON(RSA_R_INVALID_PSS_PARAMETERS),"invalid pss parameters"},
+{ERR_REASON(RSA_R_INVALID_PSS_SALTLEN)   ,"invalid pss saltlen"},
+{ERR_REASON(RSA_R_INVALID_SALT_LENGTH)   ,"invalid salt length"},
 {ERR_REASON(RSA_R_INVALID_TRAILER)       ,"invalid trailer"},
+{ERR_REASON(RSA_R_INVALID_X931_DIGEST)   ,"invalid x931 digest"},
 {ERR_REASON(RSA_R_IQMP_NOT_INVERSE_OF_Q) ,"iqmp not inverse of q"},
 {ERR_REASON(RSA_R_KEY_SIZE_TOO_SMALL)    ,"key size too small"},
 {ERR_REASON(RSA_R_LAST_OCTET_INVALID)    ,"last octet invalid"},
 {ERR_REASON(RSA_R_MODULUS_TOO_LARGE)     ,"modulus too large"},
-{ERR_REASON(RSA_R_NON_FIPS_METHOD)       ,"non fips method"},
+{ERR_REASON(RSA_R_NON_FIPS_RSA_METHOD)   ,"non fips rsa method"},
 {ERR_REASON(RSA_R_NO_PUBLIC_EXPONENT)    ,"no public exponent"},
 {ERR_REASON(RSA_R_NULL_BEFORE_BLOCK_MISSING),"null before block missing"},
 {ERR_REASON(RSA_R_N_DOES_NOT_EQUAL_P_Q)  ,"n does not equal p q"},
 {ERR_REASON(RSA_R_OAEP_DECODING_ERROR)   ,"oaep decoding error"},
 {ERR_REASON(RSA_R_OPERATION_NOT_ALLOWED_IN_FIPS_MODE),"operation not allowed in fips mode"},
+{ERR_REASON(RSA_R_OPERATION_NOT_SUPPORTED_FOR_THIS_KEYTYPE),"operation not supported for this keytype"},
 {ERR_REASON(RSA_R_PADDING_CHECK_FAILED)  ,"padding check failed"},
 {ERR_REASON(RSA_R_P_NOT_PRIME)           ,"p not prime"},
 {ERR_REASON(RSA_R_Q_NOT_PRIME)           ,"q not prime"},
@@ -159,7 +183,13 @@ static ERR_STRING_DATA RSA_str_reasons[]=
 {ERR_REASON(RSA_R_SSLV3_ROLLBACK_ATTACK) ,"sslv3 rollback attack"},
 {ERR_REASON(RSA_R_THE_ASN1_OBJECT_IDENTIFIER_IS_NOT_KNOWN_FOR_THIS_MD),"the asn1 object identifier is not known for this md"},
 {ERR_REASON(RSA_R_UNKNOWN_ALGORITHM_TYPE),"unknown algorithm type"},
+{ERR_REASON(RSA_R_UNKNOWN_MASK_DIGEST)   ,"unknown mask digest"},
 {ERR_REASON(RSA_R_UNKNOWN_PADDING_TYPE)  ,"unknown padding type"},
+{ERR_REASON(RSA_R_UNKNOWN_PSS_DIGEST)    ,"unknown pss digest"},
+{ERR_REASON(RSA_R_UNSUPPORTED_MASK_ALGORITHM),"unsupported mask algorithm"},
+{ERR_REASON(RSA_R_UNSUPPORTED_MASK_PARAMETER),"unsupported mask parameter"},
+{ERR_REASON(RSA_R_UNSUPPORTED_SIGNATURE_TYPE),"unsupported signature type"},
+{ERR_REASON(RSA_R_VALUE_MISSING)         ,"value missing"},
 {ERR_REASON(RSA_R_WRONG_SIGNATURE_LENGTH),"wrong signature length"},
 {0,NULL}
 	};

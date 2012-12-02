@@ -71,4 +71,8 @@ typedef	__uintmax_t		uintmax_t;
 #define	__WORDSIZE		32
 #endif
 
+/* Limits of wchar_t. */
+#define	WCHAR_MIN	__WCHAR_MIN
+#define	WCHAR_MAX	__WCHAR_MAX
+
 #endif /* !_SYS_STDINT_H_ */

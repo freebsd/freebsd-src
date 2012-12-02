@@ -1,0 +1,42 @@
+.TH stacksize.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+stacksize.d \- measure stack size for running threads. Uses DTrace.
+.SH SYNOPSIS
+.B stacksize.d
+.SH DESCRIPTION
+This samples the user stack size by process name, and prints a 
+distribution plot so that the average stack size can be easily
+identified.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the sched provider.
+.SH EXAMPLES
+.TP
+This samples until Ctrl\-C is hit.
+# 
+.B stacksize.d
+.PP
+.SH FIELDS
+.TP
+value
+size of the user stack
+.TP
+count
+number of samples at this size
+.PP
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+stacksize.d will sample until Ctrl\-C is hit.
+.SH AUTHOR
+Jonathan Adams
+.SH SEE ALSO
+pmap(1), dtrace(1M)
+

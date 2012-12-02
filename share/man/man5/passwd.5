@@ -35,7 +35,7 @@
 .\"     From: @(#)passwd.5	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd May 8, 2007
+.Dd June 23, 2012
 .Dt PASSWD 5
 .Os
 .Sh NAME
@@ -203,7 +203,8 @@ field is the number of seconds from the epoch,
 .Dv UTC ,
 until the
 password for the account must be changed.
-This field may be left empty to turn off the password aging feature.
+This field may be left empty to turn off the password aging feature;
+a value of zero is equivalent to leaving the field empty.
 .Pp
 The
 .Ar expire
@@ -211,7 +212,8 @@ field is the number of seconds from the epoch,
 .Dv UTC ,
 until the
 account expires.
-This field may be left empty to turn off the account aging feature.
+This field may be left empty to turn off the account aging feature;
+a value of zero is equivalent to leaving the field empty.
 .Pp
 The
 .Ar gecos
@@ -271,7 +273,8 @@ as it is done for system accounts,
 is to set its
 .Ar shell
 to
-.Xr nologin 8 .
+.Pa /sbin/nologin
+.Pq see Xr nologin 8 .
 .Sh HESIOD SUPPORT
 If
 .Sq Li dns
@@ -363,7 +366,7 @@ fields, the specified numbers will override the information retrieved
 from the Hesiod domain or the
 .Tn NIS
 maps.
-As well, if the
+Likewise, if the
 .Ar gecos ,
 .Ar dir
 or
@@ -399,7 +402,8 @@ The additional fields
 .Ar change
 and
 .Ar expire
-are added, but are turned off by default.
+are added, but are turned off by default
+.Pq setting these fields to zero is equivalent to leaving them blank .
 Class is currently not implemented, but change and expire are; to set them,
 use the current day in seconds from the epoch + whatever number of seconds
 of offset you want.

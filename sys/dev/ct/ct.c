@@ -42,47 +42,19 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#if defined(__FreeBSD__) && __FreeBSD_version > 500001
 #include <sys/bio.h>
-#endif	/* __ FreeBSD__ */
 #include <sys/buf.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
 
-#ifdef __NetBSD__
-#include <sys/device.h>
-
 #include <machine/bus.h>
-#include <machine/intr.h>
-
-#include <dev/scsipi/scsi_all.h>
-#include <dev/scsipi/scsipi_all.h>
-#include <dev/scsipi/scsiconf.h>
-#include <dev/scsipi/scsi_disk.h>
-
-#include <machine/dvcfg.h>
-#include <machine/physio_proc.h>
-
-#include <i386/Cbus/dev/scsi_low.h>
-
-#include <dev/ic/wd33c93reg.h>
-#include <i386/Cbus/dev/ct/ctvar.h>
-#include <i386/Cbus/dev/ct/ct_machdep.h>
-#endif /* __NetBSD__ */
-
-#ifdef __FreeBSD__
-#include <machine/bus.h>
-
-#include <compat/netbsd/dvcfg.h>
-#include <compat/netbsd/physio_proc.h>
 
 #include <cam/scsi/scsi_low.h>
 
 #include <dev/ic/wd33c93reg.h>
 #include <dev/ct/ctvar.h>
 #include <dev/ct/ct_machdep.h>
-#endif /* __FreeBSD__ */
 
 #define	CT_NTARGETS		8
 #define	CT_NLUNS		8
@@ -192,9 +164,7 @@ struct scsi_low_funcs ct_funcs = {
  * HW functions
  **************************************************/
 static __inline void
-cthw_phase_bypass(ct, ph)
-	struct ct_softc *ct;
-	u_int8_t ph;
+cthw_phase_bypass(struct ct_softc *ct, u_int8_t ph)
 {
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
 
@@ -203,8 +173,7 @@ cthw_phase_bypass(ct, ph)
 }
 
 static void
-cthw_bus_reset(ct)
-	struct ct_softc *ct;
+cthw_bus_reset(struct ct_softc *ct)
 {
 
 	/*
@@ -215,10 +184,8 @@ cthw_bus_reset(ct)
 }
 
 static int
-cthw_chip_reset(chp, chiprevp, chipclk, hostid)
-	struct ct_bus_access_handle *chp;
-	int *chiprevp;
-	int chipclk, hostid;
+cthw_chip_reset(struct ct_bus_access_handle *chp, int *chiprevp, int chipclk,
+    int hostid)
 {
 #define	CT_SELTIMEOUT_20MHz_REGV	(0x80)
 	u_int8_t aux, regv;
@@ -227,7 +194,7 @@ cthw_chip_reset(chp, chiprevp, chipclk, hostid)
 
 	/* issue abort cmd */
 	ct_cr_write_1(chp, wd3s_cmd, WD3S_ABORT);
-	SCSI_LOW_DELAY(1000);	/* 1ms wait */
+	DELAY(1000);	/* 1ms wait */
 	(void) ct_stat_read_1(chp);
 	(void) ct_cr_read_1(chp, wd3s_stat);
 
@@ -274,7 +241,7 @@ cthw_chip_reset(chp, chiprevp, chipclk, hostid)
 
 			ct_cr_write_1(chp, wd3s_cmd, WD3S_RESET);
 		}
-		SCSI_LOW_DELAY(1);
+		DELAY(1);
 	}
 	if (wc == 0)
 		return ENXIO;
@@ -313,8 +280,7 @@ out:
 }
 
 static struct ct_synch_data *
-ct_make_synch_table(ct)
-	struct ct_softc *ct;
+ct_make_synch_table(struct ct_softc *ct)
 {
 	struct ct_synch_data *sdtp, *sdp;
 	u_int base, i, period;
@@ -357,11 +323,8 @@ ct_make_synch_table(ct)
  * Attach & Probe
  **************************************************/
 int
-ctprobesubr(chp, dvcfg, hsid, chipclk, chiprevp)
-	struct ct_bus_access_handle *chp;
-	u_int dvcfg, chipclk;
-	int hsid;
-	int *chiprevp;
+ctprobesubr(struct ct_bus_access_handle *chp, u_int dvcfg, int hsid,
+    u_int chipclk, int *chiprevp)
 {
 
 #if	0
@@ -373,20 +336,8 @@ ctprobesubr(chp, dvcfg, hsid, chipclk, chiprevp)
 	return 1;
 }
 
-int
-ctprint(aux, name)
-	void *aux;
-	const char *name;
-{
-
-	if (name != NULL)
-		printf("%s: scsibus ", name);
-	return UNCONF;
-}
-
 void
-ctattachsubr(ct)
-	struct ct_softc *ct;
+ctattachsubr(struct ct_softc *ct)
 {
 	struct scsi_low_softc *slp = &ct->sc_sclow;
 
@@ -401,8 +352,7 @@ ctattachsubr(ct)
  * SCSI LOW interface functions
  **************************************************/
 static void
-cthw_attention(ct)
-	struct ct_softc *ct;
+cthw_attention(struct ct_softc *ct)
 {
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
 
@@ -411,7 +361,7 @@ cthw_attention(ct)
 		return;
 
 	ct_cr_write_1(chp, wd3s_cmd, WD3S_ASSERT_ATN);
-	SCSI_LOW_DELAY(10);
+	DELAY(10);
 	if ((ct_stat_read_1(chp) & STR_LCI) == 0)
 		ct->sc_atten = 0;
 	ct_unbusy(ct);
@@ -419,8 +369,7 @@ cthw_attention(ct)
 }
 
 static void
-ct_attention(ct)
-	struct ct_softc *ct;
+ct_attention(struct ct_softc *ct)
 {
 	struct scsi_low_softc *slp = &ct->sc_sclow;
 
@@ -437,10 +386,7 @@ ct_attention(ct)
 }
 
 static int
-ct_targ_init(ct, ti, action)
-	struct ct_softc *ct;
-	struct targ_info *ti;
-	int action;
+ct_targ_init(struct ct_softc *ct, struct targ_info *ti, int action)
 {
 	struct ct_targ_info *cti = (void *) ti;
 
@@ -477,9 +423,7 @@ ct_targ_init(ct, ti, action)
 }	
 
 static int
-ct_world_start(ct, fdone)
-	struct ct_softc *ct;
-	int fdone;
+ct_world_start(struct ct_softc *ct, int fdone)
 {
 	struct scsi_low_softc *slp = &ct->sc_sclow;
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
@@ -505,14 +449,11 @@ ct_world_start(ct, fdone)
 	scsi_low_bus_reset(slp);
 	cthw_chip_reset(chp, NULL, ct->sc_chipclk, slp->sl_hostid);
 
-	SOFT_INTR_REQUIRED(slp);
 	return 0;
 }
 
 static int
-ct_start_selection(ct, cb)
-	struct ct_softc *ct;
-	struct slccb *cb;
+ct_start_selection(struct ct_softc *ct, struct slccb *cb)
 {
 	struct scsi_low_softc *slp = &ct->sc_sclow;
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
@@ -584,10 +525,7 @@ ct_start_selection(ct, cb)
 }
 
 static int
-ct_msg(ct, ti, msg)
-	struct ct_softc *ct;
-	struct targ_info *ti;
-	u_int msg;
+ct_msg(struct ct_softc *ct, struct targ_info *ti, u_int msg)
 {
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
 	struct ct_targ_info *cti = (void *) ti;
@@ -639,11 +577,8 @@ ct_msg(ct, ti, msg)
  * <DATA PHASE>
  *************************************************/
 static int
-ct_xfer(ct, data, len, direction, statp)
-	struct ct_softc *ct;
-	u_int8_t *data;
-	int len, direction;
-	u_int *statp;
+ct_xfer(struct ct_softc *ct, u_int8_t *data, int len, int direction,
+    u_int *statp)
 {
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
 	int wc;
@@ -689,7 +624,7 @@ ct_xfer(ct, data, len, direction, statp)
 		}
 		else
 		{
-			SCSI_LOW_DELAY(1);
+			DELAY(1);
 		}
 
 		/* check phase miss */
@@ -703,8 +638,7 @@ ct_xfer(ct, data, len, direction, statp)
 #define	CT_PADDING_BUF_SIZE 32
 
 static void
-ct_io_xfer(ct)
-	struct ct_softc *ct;
+ct_io_xfer(struct ct_softc *ct)
 {
 	struct scsi_low_softc *slp = &ct->sc_sclow;
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
@@ -721,7 +655,7 @@ ct_io_xfer(ct)
 		slp->sl_error |= PDMAERR;
 
 		if (slp->sl_scp.scp_direction == SCSI_LOW_WRITE)
-			SCSI_LOW_BZERO(pbuf, CT_PADDING_BUF_SIZE);
+			bzero(pbuf, CT_PADDING_BUF_SIZE);
 		ct_xfer(ct, pbuf, CT_PADDING_BUF_SIZE, 
 			sp->scp_direction, &stat);
 	}
@@ -756,9 +690,7 @@ struct ct_err ct_cmderr[] = {
 };
 
 static void
-ct_phase_error(ct, scsi_status)
-	struct ct_softc *ct;
-	u_int8_t scsi_status;
+ct_phase_error(struct ct_softc *ct, u_int8_t scsi_status)
 {
 	struct scsi_low_softc *slp = &ct->sc_sclow;
 	struct targ_info *ti = slp->sl_Tnexus;
@@ -785,8 +717,8 @@ ct_phase_error(ct, scsi_status)
 
 		if (pep->pe_msg != NULL)
 		{
-			printf("%s: phase error: %s",
-				slp->sl_xname, pep->pe_msg);
+			device_printf(slp->sl_dev, "phase error: %s",
+			    pep->pe_msg);
 			scsi_low_print(slp, slp->sl_Tnexus);
 		}
 
@@ -804,9 +736,7 @@ ct_phase_error(ct, scsi_status)
  * ### SCSI PHASE SEQUENCER ###
  **************************************************/
 static int
-ct_reselected(ct, scsi_status)
-	struct ct_softc *ct;
-	u_int8_t scsi_status;
+ct_reselected(struct ct_softc *ct, u_int8_t scsi_status)
 {
 	struct scsi_low_softc *slp = &ct->sc_sclow;
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
@@ -849,9 +779,7 @@ ct_reselected(ct, scsi_status)
 }
 
 static int
-ct_target_nexus_establish(ct, lun, dir)
-	struct ct_softc *ct;
-	int lun, dir;
+ct_target_nexus_establish(struct ct_softc *ct, int lun, int dir)
 {
 	struct scsi_low_softc *slp = &ct->sc_sclow;
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
@@ -871,8 +799,7 @@ ct_target_nexus_establish(ct, lun, dir)
 }
 
 static int
-ct_lun_nexus_establish(ct)
-	struct ct_softc *ct;
+ct_lun_nexus_establish(struct ct_softc *ct)
 {
 	struct scsi_low_softc *slp = &ct->sc_sclow;
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
@@ -883,8 +810,7 @@ ct_lun_nexus_establish(ct)
 }
 
 static int
-ct_ccb_nexus_establish(ct)
-	struct ct_softc *ct;
+ct_ccb_nexus_establish(struct ct_softc *ct)
 {
 	struct scsi_low_softc *slp = &ct->sc_sclow;
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
@@ -910,8 +836,7 @@ ct_ccb_nexus_establish(ct)
 }
 
 static int
-ct_unbusy(ct)
-	struct ct_softc *ct;
+ct_unbusy(struct ct_softc *ct)
 {
 	struct scsi_low_softc *slp = &ct->sc_sclow;
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
@@ -926,16 +851,15 @@ ct_unbusy(ct)
 		if (regv == (u_int8_t) -1)
 			return EIO;
 
-		SCSI_LOW_DELAY(CT_DELAY_INTERVAL);
+		DELAY(CT_DELAY_INTERVAL);
 	}
 
-	printf("%s: unbusy timeout\n", slp->sl_xname);
+	device_printf(slp->sl_dev, "unbusy timeout\n");
 	return EBUSY;
 }
 	
 static int
-ct_catch_intr(ct)
-	struct ct_softc *ct;
+ct_catch_intr(struct ct_softc *ct)
 {
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
 	int wc;
@@ -947,20 +871,18 @@ ct_catch_intr(ct)
 		if ((regv & (STR_INT | STR_BSY | STR_CIP)) == STR_INT)
 			return 0;
 
-		SCSI_LOW_DELAY(CT_DELAY_INTERVAL);
+		DELAY(CT_DELAY_INTERVAL);
 	}
 	return EJUSTRETURN;
 }
 
 int
-ctintr(arg)
-	void *arg;
+ctintr(void *arg)
 {
 	struct ct_softc *ct = arg;
 	struct scsi_low_softc *slp = &ct->sc_sclow;
 	struct ct_bus_access_handle *chp = &ct->sc_ch;
 	struct targ_info *ti;
-	struct physio_proc *pp;
 	struct buf *bp;
 	u_int derror, flags;
 	int len, satgo, error;
@@ -999,11 +921,11 @@ again:
 	if (ct_debug > 0)
 	{
 		scsi_low_print(slp, NULL);
-		printf("%s: scsi_status 0x%x\n\n", slp->sl_xname, 
+		device_printf(slp->sl_dev, "scsi_status 0x%x\n\n", 
 		       (u_int) scsi_status);
 #ifdef	KDB
 		if (ct_debug > 1)
-			SCSI_LOW_DEBUGGER("ct");
+			kdb_enter(KDB_WHY_CAM, "ct");
 #endif	/* KDB */
 	}
 #endif	/* CT_DEBUG */
@@ -1104,9 +1026,7 @@ common_data_phase:
 				slp->sl_flags |= HW_PDMASTART;
 				if ((ct->sc_xmode & CT_XMODE_PIO) != 0)
 				{
-					pp = physio_proc_enter(bp);
 					error = (*ct->ct_pio_xfer_start) (ct);
-					physio_proc_leave(pp);
 					if (error == 0)
 					{
 						ct->sc_dma |= CT_DMA_PIOSTART;
@@ -1130,7 +1050,8 @@ common_data_phase:
 				{
 					if (!(slp->sl_flags & HW_READ_PADDING))
 					{
-						printf("%s: read padding required\n", slp->sl_xname);
+						device_printf(slp->sl_dev,
+						    "read padding required\n");
 						return 1;
 					}
 				}
@@ -1138,7 +1059,8 @@ common_data_phase:
 				{
 					if (!(slp->sl_flags & HW_WRITE_PADDING))
 					{
-						printf("%s: write padding required\n", slp->sl_xname);
+						device_printf(slp->sl_dev,
+						    "write padding required\n");
 						return 1;
 					}
 				}
@@ -1159,8 +1081,8 @@ common_data_phase:
 				    slp->sl_scp.scp_cmdlen,
 				    SCSI_LOW_WRITE, &derror) != 0)
 			{
-				printf("%s: scsi cmd xfer short\n",
-					slp->sl_xname);
+				device_printf(slp->sl_dev,
+				    "scsi cmd xfer short\n");
 			}
 			return 1;
 
@@ -1192,7 +1114,7 @@ common_data_phase:
 
 		case BSR_UNSPINFO0:
 		case BSR_UNSPINFO1:
-			printf("%s: illegal bus phase (0x%x)\n", slp->sl_xname,
+			device_printf(slp->sl_dev, "illegal bus phase (0x%x)\n",
 				(u_int) scsi_status);
 			scsi_low_print(slp, ti);
 			return 1;
@@ -1212,8 +1134,8 @@ common_data_phase:
 			if (ct_xfer(ct, ti->ti_msgoutstr, len, 
 				    SCSI_LOW_WRITE, &derror) != 0)
 			{
-				printf("%s: scsi msgout xfer short\n",
-					slp->sl_xname);
+				device_printf(slp->sl_dev,
+				    "scsi msgout xfer short\n");
 			}
 			SCSI_LOW_DEASSERT_ATN(slp);
 			ct->sc_atten = 0;

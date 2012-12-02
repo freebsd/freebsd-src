@@ -123,6 +123,15 @@ typedef struct elf_file {
 #endif
 } *elf_file_t;
 
+struct elf_set {
+	Elf_Addr	es_start;
+	Elf_Addr	es_stop;
+	Elf_Addr	es_base;
+	TAILQ_ENTRY(elf_set)	es_link;
+};
+
+TAILQ_HEAD(elf_set_head, elf_set);
+
 #include <kern/kern_ctf.c>
 
 static int	link_elf_link_common_finish(linker_file_t);
@@ -180,6 +189,75 @@ static struct linker_class link_elf_class = {
 static int	parse_dynamic(elf_file_t);
 static int	relocate_file(elf_file_t);
 static int	link_elf_preload_parse_symbols(elf_file_t);
+
+static struct elf_set_head set_pcpu_list;
+#ifdef VIMAGE
+static struct elf_set_head set_vnet_list;
+#endif
+
+static void
+elf_set_add(struct elf_set_head *list, Elf_Addr start, Elf_Addr stop, Elf_Addr base)
+{
+	struct elf_set *set, *iter;
+
+	set = malloc(sizeof(*set), M_LINKER, M_WAITOK);
+	set->es_start = start;
+	set->es_stop = stop;
+	set->es_base = base;
+
+	TAILQ_FOREACH(iter, list, es_link) {
+
+		KASSERT((set->es_start < iter->es_start && set->es_stop < iter->es_stop) ||
+		    (set->es_start > iter->es_start && set->es_stop > iter->es_stop),
+		    ("linker sets intersection: to insert: 0x%jx-0x%jx; inserted: 0x%jx-0x%jx",
+		    (uintmax_t)set->es_start, (uintmax_t)set->es_stop,
+		    (uintmax_t)iter->es_start, (uintmax_t)iter->es_stop));
+
+		if (iter->es_start > set->es_start) {
+			TAILQ_INSERT_BEFORE(iter, set, es_link);
+			break;
+		}
+	}
+
+	if (iter == NULL)
+		TAILQ_INSERT_TAIL(list, set, es_link);
+}
+
+static int
+elf_set_find(struct elf_set_head *list, Elf_Addr addr, Elf_Addr *start, Elf_Addr *base)
+{
+	struct elf_set *set;
+
+	TAILQ_FOREACH(set, list, es_link) {
+		if (addr < set->es_start)
+			return (0);
+		if (addr < set->es_stop) {
+			*start = set->es_start;
+			*base = set->es_base;
+			return (1);
+		}
+	}
+
+	return (0);
+}
+
+static void
+elf_set_delete(struct elf_set_head *list, Elf_Addr start)
+{
+	struct elf_set *set;
+
+	TAILQ_FOREACH(set, list, es_link) {
+		if (start < set->es_start)
+			break;
+		if (start == set->es_start) {
+			TAILQ_REMOVE(list, set, es_link);
+			free(set, M_LINKER);
+			return;
+		}
+	}
+	KASSERT(0, ("deleting unknown linker set (start = 0x%jx)",
+	    (uintmax_t)start));
+}
 
 #ifdef GDB
 static void	r_debug_state(struct r_debug *, struct link_map *);
@@ -345,6 +423,10 @@ link_elf_init(void* arg)
 
 	(void)link_elf_link_common_finish(linker_kernel_file);
 	linker_kernel_file->flags |= LINKER_FILE_LINKED;
+	TAILQ_INIT(&set_pcpu_list);
+#ifdef VIMAGE
+	TAILQ_INIT(&set_vnet_list);
+#endif
 }
 
 SYSINIT(link_elf, SI_SUB_KLD, SI_ORDER_THIRD, link_elf_init, 0);
@@ -515,6 +597,8 @@ parse_dpcpu(elf_file_t ef)
 		return (ENOSPC);
 	memcpy((void *)ef->pcpu_base, (void *)ef->pcpu_start, count);
 	dpcpu_copy((void *)ef->pcpu_base, count);
+	elf_set_add(&set_pcpu_list, ef->pcpu_start, ef->pcpu_stop,
+	    ef->pcpu_base);
 
 	return (0);
 }
@@ -544,6 +628,8 @@ parse_vnet(elf_file_t ef)
 		return (ENOSPC);
 	memcpy((void *)ef->vnet_base, (void *)ef->vnet_start, count);
 	vnet_data_copy((void *)ef->vnet_base, count);
+	elf_set_add(&set_vnet_list, ef->vnet_start, ef->vnet_stop,
+	    ef->vnet_base);
 
 	return (0);
 }
@@ -664,17 +750,15 @@ link_elf_load_file(linker_class_t cls, const char* filename,
 	int symstrindex;
 	int symcnt;
 	int strcnt;
-	int vfslocked;
 
 	shdr = NULL;
 	lf = NULL;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, filename, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, filename, td);
 	flags = FREAD;
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error != 0)
 		return (error);
-	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_vp->v_type != VREG) {
 		error = ENOEXEC;
@@ -961,7 +1045,6 @@ nosyms:
 out:
 	VOP_UNLOCK(nd.ni_vp, 0);
 	vn_close(nd.ni_vp, FREAD, td->td_ucred, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 	if (error != 0 && lf != NULL)
 		linker_file_unload(lf, LINKER_UNLOAD_FORCE);
 	if (shdr != NULL)
@@ -996,11 +1079,13 @@ link_elf_unload_file(linker_file_t file)
 	if (ef->pcpu_base != 0) {
 		dpcpu_free((void *)ef->pcpu_base,
 		    ef->pcpu_stop - ef->pcpu_start);
+		elf_set_delete(&set_pcpu_list, ef->pcpu_start);
 	}
 #ifdef VIMAGE
 	if (ef->vnet_base != 0) {
 		vnet_data_free((void *)ef->vnet_base,
 		    ef->vnet_stop - ef->vnet_start);
+		elf_set_delete(&set_vnet_list, ef->vnet_start);
 	}
 #endif
 #ifdef GDB
@@ -1439,6 +1524,7 @@ elf_lookup(linker_file_t lf, Elf_Size symidx, int deps)
 	elf_file_t ef = (elf_file_t)lf;
 	const Elf_Sym *sym;
 	const char *symbol;
+	Elf_Addr addr, start, base;
 
 	/* Don't even try to lookup the symbol if the index is bogus. */
 	if (symidx >= ef->nchains)
@@ -1470,7 +1556,15 @@ elf_lookup(linker_file_t lf, Elf_Size symidx, int deps)
 	if (*symbol == 0)
 		return (0);
 
-	return ((Elf_Addr)linker_file_lookup_symbol(lf, symbol, deps));
+	addr = ((Elf_Addr)linker_file_lookup_symbol(lf, symbol, deps));
+
+	if (elf_set_find(&set_pcpu_list, addr, &start, &base))
+		addr = addr - start + base;
+#ifdef VIMAGE
+	else if (elf_set_find(&set_vnet_list, addr, &start, &base))
+		addr = addr - start + base;
+#endif
+	return addr;
 }
 
 static void

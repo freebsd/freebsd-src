@@ -18,6 +18,7 @@
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/AliasAnalysis.h"
+#include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/CFG.h"
@@ -26,6 +27,7 @@
 using namespace llvm;
 
 STATISTIC(NumSunk, "Number of instructions sunk");
+STATISTIC(NumSinkIter, "Number of sinking iterations");
 
 namespace {
   class Sinking : public FunctionPass {
@@ -38,9 +40,9 @@ namespace {
     Sinking() : FunctionPass(ID) {
       initializeSinkingPass(*PassRegistry::getPassRegistry());
     }
-    
+
     virtual bool runOnFunction(Function &F);
-    
+
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesCFG();
       FunctionPass::getAnalysisUsage(AU);
@@ -54,9 +56,10 @@ namespace {
     bool ProcessBlock(BasicBlock &BB);
     bool SinkInstruction(Instruction *I, SmallPtrSet<Instruction *, 8> &Stores);
     bool AllUsesDominatedByBlock(Instruction *Inst, BasicBlock *BB) const;
+    bool IsAcceptableTarget(Instruction *Inst, BasicBlock *SuccToSinkTo) const;
   };
 } // end anonymous namespace
-  
+
 char Sinking::ID = 0;
 INITIALIZE_PASS_BEGIN(Sinking, "sink", "Code sinking", false, false)
 INITIALIZE_PASS_DEPENDENCY(LoopInfo)
@@ -68,7 +71,7 @@ FunctionPass *llvm::createSinkingPass() { return new Sinking(); }
 
 /// AllUsesDominatedByBlock - Return true if all uses of the specified value
 /// occur in blocks dominated by the specified block.
-bool Sinking::AllUsesDominatedByBlock(Instruction *Inst, 
+bool Sinking::AllUsesDominatedByBlock(Instruction *Inst,
                                       BasicBlock *BB) const {
   // Ignoring debug uses is necessary so debug info doesn't affect the code.
   // This may leave a referencing dbg_value in the original block, before
@@ -97,20 +100,19 @@ bool Sinking::runOnFunction(Function &F) {
   LI = &getAnalysis<LoopInfo>();
   AA = &getAnalysis<AliasAnalysis>();
 
-  bool EverMadeChange = false;
-  
-  while (1) {
-    bool MadeChange = false;
+  bool MadeChange, EverMadeChange = false;
 
+  do {
+    MadeChange = false;
+    DEBUG(dbgs() << "Sinking iteration " << NumSinkIter << "\n");
     // Process all basic blocks.
-    for (Function::iterator I = F.begin(), E = F.end(); 
+    for (Function::iterator I = F.begin(), E = F.end();
          I != E; ++I)
       MadeChange |= ProcessBlock(*I);
-    
-    // If this iteration over the code changed anything, keep iterating.
-    if (!MadeChange) break;
-    EverMadeChange = true;
-  } 
+    EverMadeChange |= MadeChange;
+    NumSinkIter++;
+  } while (MadeChange);
+
   return EverMadeChange;
 }
 
@@ -119,8 +121,8 @@ bool Sinking::ProcessBlock(BasicBlock &BB) {
   if (BB.getTerminator()->getNumSuccessors() <= 1 || BB.empty()) return false;
 
   // Don't bother sinking code out of unreachable blocks. In addition to being
-  // unprofitable, it can also lead to infinite looping, because in an unreachable
-  // loop there may be nowhere to stop.
+  // unprofitable, it can also lead to infinite looping, because in an
+  // unreachable loop there may be nowhere to stop.
   if (!DT->isReachableFromEntry(&BB)) return false;
 
   bool MadeChange = false;
@@ -132,7 +134,7 @@ bool Sinking::ProcessBlock(BasicBlock &BB) {
   SmallPtrSet<Instruction *, 8> Stores;
   do {
     Instruction *Inst = I;  // The instruction to sink.
-    
+
     // Predecrement I (if it's not begin) so that it isn't invalidated by
     // sinking.
     ProcessedBegin = I == BB.begin();
@@ -144,10 +146,10 @@ bool Sinking::ProcessBlock(BasicBlock &BB) {
 
     if (SinkInstruction(Inst, Stores))
       ++NumSunk, MadeChange = true;
-    
+
     // If we just processed the first instruction in the block, we're done.
   } while (!ProcessedBegin);
-  
+
   return MadeChange;
 }
 
@@ -173,6 +175,45 @@ static bool isSafeToMove(Instruction *Inst, AliasAnalysis *AA,
   return true;
 }
 
+/// IsAcceptableTarget - Return true if it is possible to sink the instruction
+/// in the specified basic block.
+bool Sinking::IsAcceptableTarget(Instruction *Inst,
+                                 BasicBlock *SuccToSinkTo) const {
+  assert(Inst && "Instruction to be sunk is null");
+  assert(SuccToSinkTo && "Candidate sink target is null");
+
+  // It is not possible to sink an instruction into its own block.  This can
+  // happen with loops.
+  if (Inst->getParent() == SuccToSinkTo)
+    return false;
+
+  // If the block has multiple predecessors, this would introduce computation
+  // on different code paths.  We could split the critical edge, but for now we
+  // just punt.
+  // FIXME: Split critical edges if not backedges.
+  if (SuccToSinkTo->getUniquePredecessor() != Inst->getParent()) {
+    // We cannot sink a load across a critical edge - there may be stores in
+    // other code paths.
+    if (!isSafeToSpeculativelyExecute(Inst))
+      return false;
+
+    // We don't want to sink across a critical edge if we don't dominate the
+    // successor. We could be introducing calculations to new code paths.
+    if (!DT->dominates(Inst->getParent(), SuccToSinkTo))
+      return false;
+
+    // Don't sink instructions into a loop.
+    Loop *succ = LI->getLoopFor(SuccToSinkTo);
+    Loop *cur = LI->getLoopFor(Inst->getParent());
+    if (succ != 0 && succ != cur)
+      return false;
+  }
+
+  // Finally, check that all the uses of the instruction are actually
+  // dominated by the candidate
+  return AllUsesDominatedByBlock(Inst, SuccToSinkTo);
+}
+
 /// SinkInstruction - Determine whether it is safe to sink the specified machine
 /// instruction out of its current block into a successor.
 bool Sinking::SinkInstruction(Instruction *Inst,
@@ -180,7 +221,7 @@ bool Sinking::SinkInstruction(Instruction *Inst,
   // Check if it's safe to move the instruction.
   if (!isSafeToMove(Inst, AA, Stores))
     return false;
-  
+
   // FIXME: This should include support for sinking instructions within the
   // block they are currently in to shorten the live ranges.  We often get
   // instructions sunk into the top of a large block, but it would be better to
@@ -188,86 +229,42 @@ bool Sinking::SinkInstruction(Instruction *Inst,
   // be careful not to *increase* register pressure though, e.g. sinking
   // "x = y + z" down if it kills y and z would increase the live ranges of y
   // and z and only shrink the live range of x.
-  
-  // Loop over all the operands of the specified instruction.  If there is
-  // anything we can't handle, bail out.
-  BasicBlock *ParentBlock = Inst->getParent();
-  
+
   // SuccToSinkTo - This is the successor to sink this instruction to, once we
   // decide.
   BasicBlock *SuccToSinkTo = 0;
-  
-  // FIXME: This picks a successor to sink into based on having one
-  // successor that dominates all the uses.  However, there are cases where
-  // sinking can happen but where the sink point isn't a successor.  For
-  // example:
-  //   x = computation
-  //   if () {} else {}
-  //   use x
-  // the instruction could be sunk over the whole diamond for the 
-  // if/then/else (or loop, etc), allowing it to be sunk into other blocks
-  // after that.
-  
+
   // Instructions can only be sunk if all their uses are in blocks
   // dominated by one of the successors.
-  // Look at all the successors and decide which one
-  // we should sink to.
-  for (succ_iterator SI = succ_begin(ParentBlock),
-       E = succ_end(ParentBlock); SI != E; ++SI) {
-    if (AllUsesDominatedByBlock(Inst, *SI)) {
-      SuccToSinkTo = *SI;
-      break;
-    }
+  // Look at all the postdominators and see if we can sink it in one.
+  DomTreeNode *DTN = DT->getNode(Inst->getParent());
+  for (DomTreeNode::iterator I = DTN->begin(), E = DTN->end();
+      I != E && SuccToSinkTo == 0; ++I) {
+    BasicBlock *Candidate = (*I)->getBlock();
+    if ((*I)->getIDom()->getBlock() == Inst->getParent() &&
+        IsAcceptableTarget(Inst, Candidate))
+      SuccToSinkTo = Candidate;
   }
-      
+
+  // If no suitable postdominator was found, look at all the successors and
+  // decide which one we should sink to, if any.
+  for (succ_iterator I = succ_begin(Inst->getParent()),
+      E = succ_end(Inst->getParent()); I != E && SuccToSinkTo == 0; ++I) {
+    if (IsAcceptableTarget(Inst, *I))
+      SuccToSinkTo = *I;
+  }
+
   // If we couldn't find a block to sink to, ignore this instruction.
   if (SuccToSinkTo == 0)
     return false;
-  
-  // It is not possible to sink an instruction into its own block.  This can
-  // happen with loops.
-  if (Inst->getParent() == SuccToSinkTo)
-    return false;
-  
-  DEBUG(dbgs() << "Sink instr " << *Inst);
-  DEBUG(dbgs() << "to block ";
-        WriteAsOperand(dbgs(), SuccToSinkTo, false));
-  
-  // If the block has multiple predecessors, this would introduce computation on
-  // a path that it doesn't already exist.  We could split the critical edge,
-  // but for now we just punt.
-  // FIXME: Split critical edges if not backedges.
-  if (SuccToSinkTo->getUniquePredecessor() != ParentBlock) {
-    // We cannot sink a load across a critical edge - there may be stores in
-    // other code paths.
-    if (!Inst->isSafeToSpeculativelyExecute()) {
-      DEBUG(dbgs() << " *** PUNTING: Wont sink load along critical edge.\n");
-      return false;
-    }
 
-    // We don't want to sink across a critical edge if we don't dominate the
-    // successor. We could be introducing calculations to new code paths.
-    if (!DT->dominates(ParentBlock, SuccToSinkTo)) {
-      DEBUG(dbgs() << " *** PUNTING: Critical edge found\n");
-      return false;
-    }
+  DEBUG(dbgs() << "Sink" << *Inst << " (";
+        WriteAsOperand(dbgs(), Inst->getParent(), false);
+        dbgs() << " -> ";
+        WriteAsOperand(dbgs(), SuccToSinkTo, false);
+        dbgs() << ")\n");
 
-    // Don't sink instructions into a loop.
-    if (LI->isLoopHeader(SuccToSinkTo)) {
-      DEBUG(dbgs() << " *** PUNTING: Loop header found\n");
-      return false;
-    }
-
-    // Otherwise we are OK with sinking along a critical edge.
-    DEBUG(dbgs() << "Sinking along critical edge.\n");
-  }
-  
-  // Determine where to insert into.  Skip phi nodes.
-  BasicBlock::iterator InsertPos = SuccToSinkTo->begin();
-  while (InsertPos != SuccToSinkTo->end() && isa<PHINode>(InsertPos))
-    ++InsertPos;
-  
   // Move the instruction.
-  Inst->moveBefore(InsertPos);
+  Inst->moveBefore(SuccToSinkTo->getFirstInsertionPt());
   return true;
 }

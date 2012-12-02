@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: asltransform - Parse tree transforms
@@ -100,7 +99,7 @@ TrDoSwitch (
  *
  * RETURN:      A pointer to name (allocated here).
  *
- * DESCRIPTION: Generate an ACPI name of the form _T_x.  These names are
+ * DESCRIPTION: Generate an ACPI name of the form _T_x. These names are
  *              reserved for use by the ASL compiler. (_T_0 through _T_Z)
  *
  ******************************************************************************/
@@ -281,7 +280,7 @@ TrAmlTransformWalk (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Prepare nodes to be output as AML data and operands.  The more
+ * DESCRIPTION: Prepare nodes to be output as AML data and operands. The more
  *              complex AML opcodes require processing of the child nodes
  *              (arguments/operands).
  *
@@ -332,7 +331,7 @@ TrTransformSubtree (
  * RETURN:      None
  *
  * DESCRIPTION: Find the end of the definition block and set a global to this
- *              node.  It is used by the compiler to insert compiler-generated
+ *              node. It is used by the compiler to insert compiler-generated
  *              names at the root level of the namespace.
  *
  ******************************************************************************/
@@ -376,7 +375,7 @@ TrDoDefinitionBlock (
  * RETURN:      None
  *
  *
- * DESCRIPTION: Translate ASL SWITCH statement to if/else pairs.  There is
+ * DESCRIPTION: Translate ASL SWITCH statement to if/else pairs. There is
  *              no actual AML opcode for SWITCH -- it must be simulated.
  *
  ******************************************************************************/
@@ -574,7 +573,7 @@ TrDoSwitch (
             else
             {
                 /*
-                 * The IF is a child of previous IF/ELSE.  It
+                 * The IF is a child of previous IF/ELSE. It
                  * is therefore without peer.
                  */
                 CurrentParentNode->Asl.Child = Conditional;
@@ -737,7 +736,7 @@ TrDoSwitch (
     /*
      * Transform the Switch() into a While(One)-Break node.
      * And create a Store() node which will be used to save the
-     * Switch() value.  The store is of the form: Store (Value, _T_x)
+     * Switch() value. The store is of the form: Store (Value, _T_x)
      * where _T_x is the temp variable.
      */
     TrAmlInitNode (StartNode, PARSEOP_WHILE);
@@ -778,5 +777,3 @@ TrDoSwitch (
     BreakOp->Asl.Parent = StartNode;
     TrAmlInsertPeer (Conditional, BreakOp);
 }
-
-

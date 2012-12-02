@@ -107,8 +107,7 @@ static const u_int32_t	CH_TIMEOUT_SEND_VOLTAG		     = 10000;
 static const u_int32_t	CH_TIMEOUT_INITIALIZE_ELEMENT_STATUS = 500000;
 
 typedef enum {
-	CH_FLAG_INVALID		= 0x001,
-	CH_FLAG_OPEN		= 0x002
+	CH_FLAG_INVALID		= 0x001
 } ch_flags;
 
 typedef enum {
@@ -211,7 +210,7 @@ PERIPHDRIVER_DECLARE(ch, chdriver);
 
 static struct cdevsw ch_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	0,
+	.d_flags =	D_TRACKCLOSE,
 	.d_open =	chopen,
 	.d_close =	chclose,
 	.d_ioctl =	chioctl,
@@ -325,11 +324,6 @@ chregister(struct cam_periph *periph, void *arg)
 	struct ccb_pathinq cpi;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("chregister: periph was NULL!!\n");
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	if (cgd == NULL) {
 		printf("chregister: no getdev CCB, can't register device\n");
 		return(CAM_REQ_CMP_ERR);
@@ -404,15 +398,10 @@ chopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	cam_periph_lock(periph);
 	
 	if (softc->flags & CH_FLAG_INVALID) {
+		cam_periph_release_locked(periph);
 		cam_periph_unlock(periph);
-		cam_periph_release(periph);
 		return(ENXIO);
 	}
-
-	if ((softc->flags & CH_FLAG_OPEN) == 0)
-		softc->flags |= CH_FLAG_OPEN;
-	else
-		cam_periph_release(periph);
 
 	if ((error = cam_periph_hold(periph, PRIBIO | PCATCH)) != 0) {
 		cam_periph_unlock(periph);
@@ -424,9 +413,8 @@ chopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	 * Load information about this changer device into the softc.
 	 */
 	if ((error = chgetparams(periph)) != 0) {
-		softc->flags &= ~CH_FLAG_OPEN;
+		cam_periph_release_locked(periph);
 		cam_periph_unlock(periph);
-		cam_periph_release(periph);
 		return(error);
 	}
 
@@ -440,22 +428,11 @@ static int
 chclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
 	struct	cam_periph *periph;
-	struct	ch_softc *softc;
-	int	error;
-
-	error = 0;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return(ENXIO);
 
-	softc = (struct ch_softc *)periph->softc;
-
-	cam_periph_lock(periph);
-
-	softc->flags &= ~CH_FLAG_OPEN;
-
-	cam_periph_unlock(periph);
 	cam_periph_release(periph);
 
 	return(0);

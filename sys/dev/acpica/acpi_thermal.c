@@ -121,6 +121,8 @@ struct acpi_tz_softc {
     int				tz_cooling_saved_freq;
 };
 
+#define	TZ_ACTIVE_LEVEL(act)	((act) >= 0 ? (act) : TZ_NUMLEVELS)
+
 #define CPUFREQ_MAX_LEVELS	64 /* XXX cpufreq should export this */
 
 static int	acpi_tz_probe(device_t dev);
@@ -565,18 +567,21 @@ acpi_tz_monitor(void *Context)
     }
 
     if (newactive != sc->tz_active) {
-	/* Turn off the cooling devices that are on, if any are */
-	if (sc->tz_active != TZ_ACTIVE_NONE)
+	/* Turn off unneeded cooling devices that are on, if any are */
+	for (i = TZ_ACTIVE_LEVEL(sc->tz_active);
+	     i < TZ_ACTIVE_LEVEL(newactive); i++) {
 	    acpi_ForeachPackageObject(
-		(ACPI_OBJECT *)sc->tz_zone.al[sc->tz_active].Pointer,
+		(ACPI_OBJECT *)sc->tz_zone.al[i].Pointer,
 		acpi_tz_switch_cooler_off, sc);
-
+	}
 	/* Turn on cooling devices that are required, if any are */
-	if (newactive != TZ_ACTIVE_NONE) {
+	for (i = TZ_ACTIVE_LEVEL(sc->tz_active) - 1;
+	     i >= TZ_ACTIVE_LEVEL(newactive); i--) {
 	    acpi_ForeachPackageObject(
-		(ACPI_OBJECT *)sc->tz_zone.al[newactive].Pointer,
+		(ACPI_OBJECT *)sc->tz_zone.al[i].Pointer,
 		acpi_tz_switch_cooler_on, sc);
 	}
+
 	ACPI_VPRINT(sc->tz_dev, acpi_device_get_parent_softc(sc->tz_dev),
 		    "switched from %s to %s: %d.%dC\n",
 		    acpi_tz_aclevel_string(sc->tz_active),

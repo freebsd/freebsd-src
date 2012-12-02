@@ -125,7 +125,7 @@ ath_led_config(struct ath_softc *sc)
 	/* Software LED blinking - GPIO controlled LED */
 	if (sc->sc_softled) {
 		ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_ledpin,
-		    HAL_GPIO_MUX_OUTPUT);
+		    HAL_GPIO_OUTPUT_MUX_AS_OUTPUT);
 		ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin, !sc->sc_ledon);
 	}
 
@@ -139,10 +139,10 @@ ath_led_config(struct ath_softc *sc)
 		 */
 		if (sc->sc_led_pwr_pin > 0)
 			ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_led_pwr_pin,
-			    HAL_GPIO_MUX_MAC_POWER_LED);
+			    HAL_GPIO_OUTPUT_MUX_MAC_POWER_LED);
 		if (sc->sc_led_net_pin > 0)
 			ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_led_net_pin,
-			    HAL_GPIO_MUX_MAC_NETWORK_LED);
+			    HAL_GPIO_OUTPUT_MUX_MAC_NETWORK_LED);
 	}
 }
 

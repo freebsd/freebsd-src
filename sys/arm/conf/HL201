@@ -11,8 +11,8 @@
 # latest information.
 #
 # An exhaustive list of options and more detailed explanations of the
-# device lines is also present in the ../../conf/NOTES and NOTES files. 
-# If you are in doubt as to the purpose or necessity of a line, check first 
+# device lines is also present in the ../../conf/NOTES and NOTES files.
+# If you are in doubt as to the purpose or necessity of a line, check first
 # in NOTES.
 #
 # $FreeBSD$
@@ -49,7 +49,7 @@ options 	BOOTP_NFSV3
 #options 	BOOTP_WIRED_TO=ate0
 options 	BOOTP_COMPAT
 
-options		ALT_BREAK_TO_DEBUGGER
+options 	ALT_BREAK_TO_DEBUGGER
 
 #options 	MSDOSFS			#MSDOS Filesystem
 #options 	CD9660			#ISO 9660 Filesystem
@@ -70,7 +70,7 @@ device		random
 device		loop
 device		ether
 device		uart
-device		macb
+device		ate
 device		mii
 #device		lxtphy
 
@@ -128,5 +128,5 @@ device		pass		# Passthrough device (direct SCSI access)
 #device		wlan_ccmp	# 802.11 CCMP support
 #device		wlan_tkip	# 802.11 TKIP support
 #device		wlan_amrr	# AMRR transmit rate control algorithm
-options		ROOTDEVNAME=\"ufs:da0s1a\"
+options 	ROOTDEVNAME=\"ufs:da0s1a\"
 

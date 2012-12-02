@@ -16,25 +16,35 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/Analysis/CaptureTracking.h"
-#include "llvm/Constants.h"
-#include "llvm/Instructions.h"
-#include "llvm/Value.h"
-#include "llvm/Analysis/AliasAnalysis.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/CallSite.h"
+#include "llvm/Analysis/CaptureTracking.h"
 using namespace llvm;
 
-/// As its comment mentions, PointerMayBeCaptured can be expensive.
-/// However, it's not easy for BasicAA to cache the result, because
-/// it's an ImmutablePass. To work around this, bound queries at a
-/// fixed number of uses.
-///
-/// TODO: Write a new FunctionPass AliasAnalysis so that it can keep
-/// a cache. Then we can move the code from BasicAliasAnalysis into
-/// that path, and remove this threshold.
-static int const Threshold = 20;
+CaptureTracker::~CaptureTracker() {}
+
+namespace {
+  struct SimpleCaptureTracker : public CaptureTracker {
+    explicit SimpleCaptureTracker(bool ReturnCaptures)
+      : ReturnCaptures(ReturnCaptures), Captured(false) {}
+
+    void tooManyUses() { Captured = true; }
+
+    bool shouldExplore(Use *U) { return true; }
+
+    bool captured(Use *U) {
+      if (isa<ReturnInst>(U->getUser()) && !ReturnCaptures)
+        return false;
+
+      Captured = true;
+      return true;
+    }
+
+    bool ReturnCaptures;
+
+    bool Captured;
+  };
+}
 
 /// PointerMayBeCaptured - Return true if this pointer value may be captured
 /// by the enclosing function (which is required to exist).  This routine can
@@ -45,6 +55,26 @@ static int const Threshold = 20;
 /// counts as capturing it or not.
 bool llvm::PointerMayBeCaptured(const Value *V,
                                 bool ReturnCaptures, bool StoreCaptures) {
+  assert(!isa<GlobalValue>(V) &&
+         "It doesn't make sense to ask whether a global is captured.");
+
+  // TODO: If StoreCaptures is not true, we could do Fancy analysis
+  // to determine whether this store is not actually an escape point.
+  // In that case, BasicAliasAnalysis should be updated as well to
+  // take advantage of this.
+  (void)StoreCaptures;
+
+  SimpleCaptureTracker SCT(ReturnCaptures);
+  PointerMayBeCaptured(V, &SCT);
+  return SCT.Captured;
+}
+
+/// TODO: Write a new FunctionPass AliasAnalysis so that it can keep
+/// a cache. Then we can move the code from BasicAliasAnalysis into
+/// that path, and remove this threshold.
+static int const Threshold = 20;
+
+void llvm::PointerMayBeCaptured(const Value *V, CaptureTracker *Tracker) {
   assert(V->getType()->isPointerTy() && "Capture is for pointers only!");
   SmallVector<Use*, Threshold> Worklist;
   SmallSet<Use*, Threshold> Visited;
@@ -55,9 +85,10 @@ bool llvm::PointerMayBeCaptured(const Value *V,
     // If there are lots of uses, conservatively say that the value
     // is captured to avoid taking too much compile time.
     if (Count++ >= Threshold)
-      return true;
+      return Tracker->tooManyUses();
 
     Use *U = &UI.getUse();
+    if (!Tracker->shouldExplore(U)) continue;
     Visited.insert(U);
     Worklist.push_back(U);
   }
@@ -86,11 +117,10 @@ bool llvm::PointerMayBeCaptured(const Value *V,
       // (think of self-referential objects).
       CallSite::arg_iterator B = CS.arg_begin(), E = CS.arg_end();
       for (CallSite::arg_iterator A = B; A != E; ++A)
-        if (A->get() == V && !CS.paramHasAttr(A - B + 1, Attribute::NoCapture))
+        if (A->get() == V && !CS.doesNotCapture(A - B))
           // The parameter is not marked 'nocapture' - captured.
-          return true;
-      // Only passed via 'nocapture' arguments, or is the called function - not
-      // captured.
+          if (Tracker->captured(U))
+            return;
       break;
     }
     case Instruction::Load:
@@ -99,18 +129,11 @@ bool llvm::PointerMayBeCaptured(const Value *V,
     case Instruction::VAArg:
       // "va-arg" from a pointer does not cause it to be captured.
       break;
-    case Instruction::Ret:
-      if (ReturnCaptures)
-        return true;
-      break;
     case Instruction::Store:
       if (V == I->getOperand(0))
         // Stored the pointer - conservatively assume it may be captured.
-        // TODO: If StoreCaptures is not true, we could do Fancy analysis
-        // to determine whether this store is not actually an escape point.
-        // In that case, BasicAliasAnalysis should be updated as well to
-        // take advantage of this.
-        return true;
+        if (Tracker->captured(U))
+          return;
       // Storing to the pointee does not cause the pointer to be captured.
       break;
     case Instruction::BitCast:
@@ -122,7 +145,8 @@ bool llvm::PointerMayBeCaptured(const Value *V,
            UI != UE; ++UI) {
         Use *U = &UI.getUse();
         if (Visited.insert(U))
-          Worklist.push_back(U);
+          if (Tracker->shouldExplore(U))
+            Worklist.push_back(U);
       }
       break;
     case Instruction::ICmp:
@@ -136,13 +160,16 @@ bool llvm::PointerMayBeCaptured(const Value *V,
             break;
       // Otherwise, be conservative. There are crazy ways to capture pointers
       // using comparisons.
-      return true;
+      if (Tracker->captured(U))
+        return;
+      break;
     default:
       // Something else - be conservative and say it is captured.
-      return true;
+      if (Tracker->captured(U))
+        return;
+      break;
     }
   }
 
-  // All uses examined - not captured.
-  return false;
+  // All uses examined.
 }

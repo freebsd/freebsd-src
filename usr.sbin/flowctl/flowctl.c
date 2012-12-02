@@ -52,19 +52,33 @@ static const char rcs_id[] =
 #include <netgraph.h>
 #include <netgraph/netflow/ng_netflow.h>
 
-#define	CISCO_SH_FLOW_HEADER	"SrcIf         SrcIPaddress    DstIf         DstIPaddress    Pr SrcP DstP  Pkts\n"
+#define	CISCO_SH_FLOW_HEADER	"SrcIf         SrcIPaddress    " \
+"DstIf         DstIPaddress    Pr SrcP DstP  Pkts\n"
 #define	CISCO_SH_FLOW	"%-13s %-15s %-13s %-15s %2u %4.4x %4.4x %6lu\n"
 
-#define	CISCO_SH_FLOW6_HEADER	"SrcIf         SrcIPaddress                   DstIf         DstIPaddress                   Pr SrcP DstP  Pkts\n"
-#define	CISCO_SH_FLOW6	"%-13s %-30s %-13s %-30s %2u %4.4x %4.4x %6lu\n"
+/* human-readable IPv4 header */
+#define	CISCO_SH_FLOW_HHEADER	"SrcIf         SrcIPaddress    " \
+"DstIf         DstIPaddress    Proto  SrcPort  DstPort     Pkts\n"
+#define	CISCO_SH_FLOW_H	"%-13s %-15s %-13s %-15s %5u %8d %8d %8lu\n"
 
-#define	CISCO_SH_VERB_FLOW_HEADER "SrcIf          SrcIPaddress    DstIf          DstIPaddress    Pr TOS Flgs  Pkts\n" \
+#define	CISCO_SH_FLOW6_HEADER	"SrcIf         SrcIPaddress                   " \
+"DstIf         DstIPaddress                   Pr SrcP DstP  Pkts\n"
+#define	CISCO_SH_FLOW6		"%-13s %-30s %-13s %-30s %2u %4.4x %4.4x %6lu\n"
+
+/* Human-readable IPv6 headers */
+#define	CISCO_SH_FLOW6_HHEADER	"SrcIf         SrcIPaddress                         " \
+"DstIf         DstIPaddress                         Proto  SrcPort  DstPort     Pkts\n"
+#define	CISCO_SH_FLOW6_H	"%-13s %-36s %-13s %-36s %5u %8d %8d %8lu\n"
+
+#define	CISCO_SH_VERB_FLOW_HEADER "SrcIf          SrcIPaddress    " \
+"DstIf          DstIPaddress    Pr TOS Flgs  Pkts\n" \
 "Port Msk AS                    Port Msk AS    NextHop              B/Pk  Active\n"
 
 #define	CISCO_SH_VERB_FLOW "%-14s %-15s %-14s %-15s %2u %3x %4x %6lu\n" \
 	"%4.4x /%-2u %-5u                 %4.4x /%-2u %-5u %-15s %9u %8u\n\n"
 
-#define	CISCO_SH_VERB_FLOW6_HEADER "SrcIf          SrcIPaddress                   DstIf          DstIPaddress                   Pr TOS Flgs  Pkts\n" \
+#define	CISCO_SH_VERB_FLOW6_HEADER "SrcIf          SrcIPaddress                   " \
+"DstIf          DstIPaddress                   Pr TOS Flgs  Pkts\n" \
 "Port Msk AS                    Port Msk AS    NextHop                             B/Pk  Active\n"
 
 #define	CISCO_SH_VERB_FLOW6 "%-14s %-30s %-14s %-30s %2u %3x %4x %6lu\n" \
@@ -94,7 +108,7 @@ struct ip_ctl_cmd cmds[] = {
     {NULL,	NULL},
 };
 
-int	cs;
+int	cs, human = 0;
 char	*ng_path;
 
 int
@@ -182,6 +196,9 @@ ctl_show(int argc, char **argv)
 	if (argc > 0 && !strncmp(argv[0], "verbose", strlen(argv[0])))
 		verbose = 1;
 
+	if (argc > 0 && !strncmp(argv[0], "human", strlen(argv[0])))
+		human = 1;
+
 #ifdef INET
 	if (ipv4) {
 		if (verbose)
@@ -259,13 +276,14 @@ flow_cache_print(struct ngnf_show_header *resp)
 		errx(EX_SOFTWARE, "%s: version mismatch: %u",
 		    __func__, resp->version);
 
-	printf(CISCO_SH_FLOW_HEADER);
+	if (resp->nentries > 0)
+		printf(human ? CISCO_SH_FLOW_HHEADER : CISCO_SH_FLOW_HEADER);
 
 	fle = (struct flow_entry_data *)(resp + 1);
 	for (i = 0; i < resp->nentries; i++, fle++) {
 		inet_ntop(AF_INET, &fle->r.r_src, src, sizeof(src));
 		inet_ntop(AF_INET, &fle->r.r_dst, dst, sizeof(dst));
-		printf(CISCO_SH_FLOW,
+		printf(human ? CISCO_SH_FLOW_H : CISCO_SH_FLOW,
 			if_indextoname(fle->fle_i_ifx, src_if),
 			src,
 			if_indextoname(fle->fle_o_ifx, dst_if),
@@ -292,13 +310,14 @@ flow_cache_print6(struct ngnf_show_header *resp)
 		errx(EX_SOFTWARE, "%s: version mismatch: %u",
 		    __func__, resp->version);
 
-	printf(CISCO_SH_FLOW6_HEADER);
+	if (resp->nentries > 0)
+		printf(human ? CISCO_SH_FLOW6_HHEADER : CISCO_SH_FLOW6_HEADER);
 
 	fle6 = (struct flow6_entry_data *)(resp + 1);
 	for (i = 0; i < resp->nentries; i++, fle6++) {
 		inet_ntop(AF_INET6, &fle6->r.src.r_src6, src6, sizeof(src6));
 		inet_ntop(AF_INET6, &fle6->r.dst.r_dst6, dst6, sizeof(dst6));
-		printf(CISCO_SH_FLOW6,
+		printf(human ? CISCO_SH_FLOW6_H : CISCO_SH_FLOW6,
 			if_indextoname(fle6->fle_i_ifx, src_if),
 			src6,
 			if_indextoname(fle6->fle_o_ifx, dst_if),

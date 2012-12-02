@@ -245,7 +245,7 @@ hrowpic_enable(device_t dev, u_int irq, u_int vector)
 }
 
 static void
-hrowpic_eoi(device_t dev __unused, u_int irq __unused)
+hrowpic_eoi(device_t dev, u_int irq)
 {
 	struct hrowpic_softc *sc;
 	int bank;

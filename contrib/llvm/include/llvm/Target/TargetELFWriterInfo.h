@@ -15,9 +15,6 @@
 #define LLVM_TARGET_TARGETELFWRITERINFO_H
 
 namespace llvm {
-  class Function;
-  class TargetData;
-  class TargetMachine;
 
   //===--------------------------------------------------------------------===//
   //                          TargetELFWriterInfo
@@ -46,7 +43,8 @@ namespace llvm {
       EM_ARM = 40,     // ARM
       EM_ALPHA = 41,   // DEC Alpha
       EM_SPARCV9 = 43, // SPARC V9
-      EM_X86_64 = 62   // AMD64
+      EM_X86_64 = 62,  // AMD64
+      EM_HEXAGON = 164 // Qualcomm Hexagon
     };
 
     // ELF File classes

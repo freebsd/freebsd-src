@@ -15,6 +15,7 @@
 #include "Unix.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/Mutex.h"
+#include <string>
 #include <vector>
 #include <algorithm>
 #if HAVE_EXECINFO_H
@@ -30,6 +31,10 @@
 #include <dlfcn.h>
 #include <cxxabi.h>
 #endif
+#if HAVE_MACH_MACH_H
+#include <mach/mach.h>
+#endif
+
 using namespace llvm;
 
 static RETSIGTYPE SignalHandler(int Sig);  // defined below.
@@ -39,7 +44,7 @@ static SmartMutex<true> SignalsMutex;
 /// InterruptFunction - The function to call if ctrl-c is pressed.
 static void (*InterruptFunction)() = 0;
 
-static std::vector<sys::Path> FilesToRemove;
+static std::vector<std::string> FilesToRemove;
 static std::vector<std::pair<void(*)(void*), void*> > CallBacksToRun;
 
 // IntSigs - Signals that may interrupt the program at any time.
@@ -113,10 +118,20 @@ static void UnregisterHandlers() {
 
 /// RemoveFilesToRemove - Process the FilesToRemove list. This function
 /// should be called with the SignalsMutex lock held.
+/// NB: This must be an async signal safe function. It cannot allocate or free
+/// memory, even in debug builds.
 static void RemoveFilesToRemove() {
-  while (!FilesToRemove.empty()) {
-    FilesToRemove.back().eraseFromDisk(true);
-    FilesToRemove.pop_back();
+  // Note: avoid iterators in case of debug iterators that allocate or release
+  // memory.
+  for (unsigned i = 0, e = FilesToRemove.size(); i != e; ++i) {
+    // Note that we don't want to use any external code here, and we don't care
+    // about errors. We're going to try as hard as we can as often as we need
+    // to to make these files go away. If these aren't files, too bad.
+    //
+    // We do however rely on a std::string implementation for which repeated
+    // calls to 'c_str()' don't allocate memory. We pre-call 'c_str()' on all
+    // of these strings to try to ensure this is safe.
+    unlink(FilesToRemove[i].c_str());
   }
 }
 
@@ -174,7 +189,19 @@ void llvm::sys::SetInterruptFunction(void (*IF)()) {
 bool llvm::sys::RemoveFileOnSignal(const sys::Path &Filename,
                                    std::string* ErrMsg) {
   SignalsMutex.acquire();
-  FilesToRemove.push_back(Filename);
+  std::string *OldPtr = FilesToRemove.empty() ? 0 : &FilesToRemove[0];
+  FilesToRemove.push_back(Filename.str());
+
+  // We want to call 'c_str()' on every std::string in this vector so that if
+  // the underlying implementation requires a re-allocation, it happens here
+  // rather than inside of the signal handler. If we see the vector grow, we
+  // have to call it on every entry. If it remains in place, we only need to
+  // call it on the latest one.
+  if (OldPtr == &FilesToRemove[0])
+    FilesToRemove.back().c_str();
+  else
+    for (unsigned i = 0, e = FilesToRemove.size(); i != e; ++i)
+      FilesToRemove[i].c_str();
 
   SignalsMutex.release();
 
@@ -185,10 +212,19 @@ bool llvm::sys::RemoveFileOnSignal(const sys::Path &Filename,
 // DontRemoveFileOnSignal - The public API
 void llvm::sys::DontRemoveFileOnSignal(const sys::Path &Filename) {
   SignalsMutex.acquire();
-  std::vector<sys::Path>::reverse_iterator I =
-    std::find(FilesToRemove.rbegin(), FilesToRemove.rend(), Filename);
-  if (I != FilesToRemove.rend())
-    FilesToRemove.erase(I.base()-1);
+  std::vector<std::string>::reverse_iterator RI =
+    std::find(FilesToRemove.rbegin(), FilesToRemove.rend(), Filename.str());
+  std::vector<std::string>::iterator I = FilesToRemove.end();
+  if (RI != FilesToRemove.rend())
+    I = FilesToRemove.erase(RI.base()-1);
+
+  // We need to call c_str() on every element which would have been moved by
+  // the erase. These elements, in a C++98 implementation where c_str()
+  // requires a reallocation on the first call may have had the call to c_str()
+  // made on insertion become invalid by being copied down an element.
+  for (std::vector<std::string>::iterator E = FilesToRemove.end(); I != E; ++I)
+    I->c_str();
+
   SignalsMutex.release();
 }
 
@@ -261,6 +297,22 @@ static void PrintStackTrace(void *) {
 /// SIGSEGV) is delivered to the process, print a stack trace and then exit.
 void llvm::sys::PrintStackTraceOnErrorSignal() {
   AddSignalHandler(PrintStackTrace, 0);
+
+#if defined(__APPLE__)
+  // Environment variable to disable any kind of crash dialog.
+  if (getenv("LLVM_DISABLE_CRASH_REPORT")) {
+    mach_port_t self = mach_task_self();
+
+    exception_mask_t mask = EXC_MASK_CRASH;
+
+    kern_return_t ret = task_set_exception_ports(self, 
+                             mask,
+                             MACH_PORT_NULL,
+                             EXCEPTION_STATE_IDENTITY | MACH_EXCEPTION_CODES, 
+                             THREAD_STATE_NONE);
+    (void)ret;
+  }
+#endif
 }
 
 

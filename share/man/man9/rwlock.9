@@ -114,12 +114,10 @@ cannot be held while sleeping.
 The
 .Nm
 locks have priority propagation like mutexes, but priority
-can be propagated only to an exclusive holder.
-This limitation comes from the fact that shared owners
+can be propagated only to writers.
+This limitation comes from the fact that readers
 are anonymous.
-Another important property is that shared holders of
-.Nm
-can recurse,
+Another important property is that readers can always recurse,
 and exclusive locks can be made recursive selectively.
 .Ss Macros and Functions
 .Bl -tag -width indent

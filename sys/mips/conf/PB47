@@ -27,8 +27,6 @@ options		AR71XX_ENV_UBOOT
 options		AR71XX_REALMEM=64*1024*1024
 
 # For DOS - enable if required
-options		GEOM_PART_BSD
-options		GEOM_PART_MBR
 options		MSDOSFS
 
 # uncompress - to boot read-only lzma natively from flash

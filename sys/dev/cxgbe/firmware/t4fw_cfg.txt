@@ -1,8 +1,6 @@
 # Firmware configuration file.
 #
 # Global limits (some are hardware limits, others are due to the firmware).
-# Also note that the firmware reserves some of these resources for its own use
-# so it's not always possible for the drivers to grab everything listed here.
 # nvi = 128		virtual interfaces
 # niqflint = 1023	ingress queues with freelists and/or interrupts
 # nethctrl = 64K	Ethernet or ctrl egress queues
@@ -22,7 +20,7 @@
 	filterMode = fragmentation, mpshittype, protocol, vlan, port, fcoe
 
 	# TP rx and tx payload memory (% of the total EDRAM + DDR3).
-	tp_pmrx = 40
+	tp_pmrx = 38
 	tp_pmtx = 60
 	tp_pmrx_pagesize = 64K
 	tp_pmtx_pagesize = 64K
@@ -58,25 +56,26 @@
 [function "4"]
 	wx_caps = all
 	r_caps = all
-	nvi = 48
+	nvi = 54
 	niqflint = 256
 	nethctrl = 128
 	neq = 256
-	nexactf = 300
+	nexactf = 328
 	cmask = all
 	pmask = all
 
 	# driver will mask off features it won't use
 	protocol = ofld
 
-	tp_l2t = 100
+	tp_l2t = 4096
+	tp_ddp = 2
 
 	# TCAM has 8K cells; each region must start at a multiple of 128 cell.
 	# Each entry in these categories takes 4 cells each.  nhash will use the
 	# TCAM iff there is room left (that is, the rest don't add up to 2048).
 	nroute = 32
 	nclip = 0	# needed only for IPv6 offload
-	nfilter = 1504
+	nfilter = 1488
 	nserver = 512
 	nhash = 16384
 
@@ -89,6 +88,18 @@
 # Not used right now.
 [function "6"]
 	nvi = 1
+
+# The following function, 1023, is not an actual PCIE function but is used to
+# configure and reserve firmware internal resources that come from the global
+# resource pool.
+[function "1023"]
+	wx_caps = all
+	r_caps = all
+	nvi = 4
+	cmask = all
+	pmask = all
+	nexactf = 8
+	nfilter = 16
 
 # MPS has 192K buffer space for ingress packets from the wire as well as
 # loopback path of the L2 switch.
@@ -126,7 +137,7 @@
 
 [fini]
 	version = 0x1
-	checksum = 0xb31cdfac
+	checksum = 0x162df193
 #
 # $FreeBSD$
 #

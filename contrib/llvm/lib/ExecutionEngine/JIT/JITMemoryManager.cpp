@@ -23,10 +23,22 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/Memory.h"
+#include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/DynamicLibrary.h"
+#include "llvm/Config/config.h"
 #include <vector>
 #include <cassert>
 #include <climits>
 #include <cstring>
+
+#if defined(__linux__)
+#if defined(HAVE_SYS_STAT_H)
+#include <sys/stat.h>
+#endif
+#include <fcntl.h>
+#include <unistd.h>
+#endif
+
 using namespace llvm;
 
 STATISTIC(NumSlabs, "Number of slabs of memory allocated by the JIT");
@@ -314,6 +326,11 @@ namespace {
     /// should allocate a separate slab.
     static const size_t DefaultSizeThreshold;
 
+    /// getPointerToNamedFunction - This method returns the address of the
+    /// specified function by using the dlsym function call.
+    virtual void *getPointerToNamedFunction(const std::string &Name,
+                                            bool AbortOnFailure = true);
+
     void AllocateGOT();
 
     // Testing methods.
@@ -438,6 +455,53 @@ namespace {
 
     /// allocateGlobal - Allocate memory for a global.
     uint8_t *allocateGlobal(uintptr_t Size, unsigned Alignment) {
+      return (uint8_t*)DataAllocator.Allocate(Size, Alignment);
+    }
+
+    /// allocateCodeSection - Allocate memory for a code section.
+    uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
+                                 unsigned SectionID) {
+      // Grow the required block size to account for the block header
+      Size += sizeof(*CurBlock);
+
+      // FIXME: Alignement handling.
+      FreeRangeHeader* candidateBlock = FreeMemoryList;
+      FreeRangeHeader* head = FreeMemoryList;
+      FreeRangeHeader* iter = head->Next;
+
+      uintptr_t largest = candidateBlock->BlockSize;
+
+      // Search for the largest free block.
+      while (iter != head) {
+        if (iter->BlockSize > largest) {
+          largest = iter->BlockSize;
+          candidateBlock = iter;
+        }
+        iter = iter->Next;
+      }
+
+      largest = largest - sizeof(MemoryRangeHeader);
+
+      // If this block isn't big enough for the allocation desired, allocate
+      // another block of memory and add it to the free list.
+      if (largest < Size || largest <= FreeRangeHeader::getMinBlockSize()) {
+        DEBUG(dbgs() << "JIT: Allocating another slab of memory for function.");
+        candidateBlock = allocateNewCodeSlab((size_t)Size);
+      }
+
+      // Select this candidate block for allocation
+      CurBlock = candidateBlock;
+
+      // Allocate the entire memory block.
+      FreeMemoryList = candidateBlock->AllocateBlock();
+      // Release the memory at the end of this block that isn't needed.
+      FreeMemoryList = CurBlock->TrimAllocationToSize(FreeMemoryList, Size);
+      return (uint8_t *)(CurBlock + 1);
+    }
+
+    /// allocateDataSection - Allocate memory for a data section.
+    uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment,
+                                 unsigned SectionID) {
       return (uint8_t*)DataAllocator.Allocate(Size, Alignment);
     }
 
@@ -712,6 +776,139 @@ bool DefaultJITMemoryManager::CheckInvariants(std::string &ErrorStr) {
   // All invariants are preserved.
   return true;
 }
+
+//===----------------------------------------------------------------------===//
+// getPointerToNamedFunction() implementation.
+//===----------------------------------------------------------------------===//
+
+// AtExitHandlers - List of functions to call when the program exits,
+// registered with the atexit() library function.
+static std::vector<void (*)()> AtExitHandlers;
+
+/// runAtExitHandlers - Run any functions registered by the program's
+/// calls to atexit(3), which we intercept and store in
+/// AtExitHandlers.
+///
+static void runAtExitHandlers() {
+  while (!AtExitHandlers.empty()) {
+    void (*Fn)() = AtExitHandlers.back();
+    AtExitHandlers.pop_back();
+    Fn();
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// Function stubs that are invoked instead of certain library calls
+//
+// Force the following functions to be linked in to anything that uses the
+// JIT. This is a hack designed to work around the all-too-clever Glibc
+// strategy of making these functions work differently when inlined vs. when
+// not inlined, and hiding their real definitions in a separate archive file
+// that the dynamic linker can't see. For more info, search for
+// 'libc_nonshared.a' on Google, or read http://llvm.org/PR274.
+#if defined(__linux__)
+/* stat functions are redirecting to __xstat with a version number.  On x86-64
+ * linking with libc_nonshared.a and -Wl,--export-dynamic doesn't make 'stat'
+ * available as an exported symbol, so we have to add it explicitly.
+ */
+namespace {
+class StatSymbols {
+public:
+  StatSymbols() {
+    sys::DynamicLibrary::AddSymbol("stat", (void*)(intptr_t)stat);
+    sys::DynamicLibrary::AddSymbol("fstat", (void*)(intptr_t)fstat);
+    sys::DynamicLibrary::AddSymbol("lstat", (void*)(intptr_t)lstat);
+    sys::DynamicLibrary::AddSymbol("stat64", (void*)(intptr_t)stat64);
+    sys::DynamicLibrary::AddSymbol("\x1stat64", (void*)(intptr_t)stat64);
+    sys::DynamicLibrary::AddSymbol("\x1open64", (void*)(intptr_t)open64);
+    sys::DynamicLibrary::AddSymbol("\x1lseek64", (void*)(intptr_t)lseek64);
+    sys::DynamicLibrary::AddSymbol("fstat64", (void*)(intptr_t)fstat64);
+    sys::DynamicLibrary::AddSymbol("lstat64", (void*)(intptr_t)lstat64);
+    sys::DynamicLibrary::AddSymbol("atexit", (void*)(intptr_t)atexit);
+    sys::DynamicLibrary::AddSymbol("mknod", (void*)(intptr_t)mknod);
+  }
+};
+}
+static StatSymbols initStatSymbols;
+#endif // __linux__
+
+// jit_exit - Used to intercept the "exit" library call.
+static void jit_exit(int Status) {
+  runAtExitHandlers();   // Run atexit handlers...
+  exit(Status);
+}
+
+// jit_atexit - Used to intercept the "atexit" library call.
+static int jit_atexit(void (*Fn)()) {
+  AtExitHandlers.push_back(Fn);    // Take note of atexit handler...
+  return 0;  // Always successful
+}
+
+static int jit_noop() {
+  return 0;
+}
+
+//===----------------------------------------------------------------------===//
+//
+/// getPointerToNamedFunction - This method returns the address of the specified
+/// function by using the dynamic loader interface.  As such it is only useful
+/// for resolving library symbols, not code generated symbols.
+///
+void *DefaultJITMemoryManager::getPointerToNamedFunction(const std::string &Name,
+                                                         bool AbortOnFailure) {
+  // Check to see if this is one of the functions we want to intercept.  Note,
+  // we cast to intptr_t here to silence a -pedantic warning that complains
+  // about casting a function pointer to a normal pointer.
+  if (Name == "exit") return (void*)(intptr_t)&jit_exit;
+  if (Name == "atexit") return (void*)(intptr_t)&jit_atexit;
+
+  // We should not invoke parent's ctors/dtors from generated main()!
+  // On Mingw and Cygwin, the symbol __main is resolved to
+  // callee's(eg. tools/lli) one, to invoke wrong duplicated ctors
+  // (and register wrong callee's dtors with atexit(3)).
+  // We expect ExecutionEngine::runStaticConstructorsDestructors()
+  // is called before ExecutionEngine::runFunctionAsMain() is called.
+  if (Name == "__main") return (void*)(intptr_t)&jit_noop;
+
+  const char *NameStr = Name.c_str();
+  // If this is an asm specifier, skip the sentinal.
+  if (NameStr[0] == 1) ++NameStr;
+
+  // If it's an external function, look it up in the process image...
+  void *Ptr = sys::DynamicLibrary::SearchForAddressOfSymbol(NameStr);
+  if (Ptr) return Ptr;
+
+  // If it wasn't found and if it starts with an underscore ('_') character,
+  // try again without the underscore.
+  if (NameStr[0] == '_') {
+    Ptr = sys::DynamicLibrary::SearchForAddressOfSymbol(NameStr+1);
+    if (Ptr) return Ptr;
+  }
+
+  // Darwin/PPC adds $LDBLStub suffixes to various symbols like printf.  These
+  // are references to hidden visibility symbols that dlsym cannot resolve.
+  // If we have one of these, strip off $LDBLStub and try again.
+#if defined(__APPLE__) && defined(__ppc__)
+  if (Name.size() > 9 && Name[Name.size()-9] == '$' &&
+      memcmp(&Name[Name.size()-8], "LDBLStub", 8) == 0) {
+    // First try turning $LDBLStub into $LDBL128. If that fails, strip it off.
+    // This mirrors logic in libSystemStubs.a.
+    std::string Prefix = std::string(Name.begin(), Name.end()-9);
+    if (void *Ptr = getPointerToNamedFunction(Prefix+"$LDBL128", false))
+      return Ptr;
+    if (void *Ptr = getPointerToNamedFunction(Prefix, false))
+      return Ptr;
+  }
+#endif
+
+  if (AbortOnFailure) {
+    report_fatal_error("Program used external function '"+Name+
+                      "' which could not be resolved!");
+  }
+  return 0;
+}
+
+
 
 JITMemoryManager *JITMemoryManager::CreateDefaultMemManager() {
   return new DefaultJITMemoryManager();

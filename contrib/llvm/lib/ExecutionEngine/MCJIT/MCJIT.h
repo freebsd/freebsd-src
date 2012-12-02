@@ -24,22 +24,20 @@ namespace llvm {
 
 class MCJIT : public ExecutionEngine {
   MCJIT(Module *M, TargetMachine *tm, TargetJITInfo &tji,
-        RTDyldMemoryManager *MemMgr, CodeGenOpt::Level OptLevel,
-        bool AllocateGVsWithCode);
+        RTDyldMemoryManager *MemMgr, bool AllocateGVsWithCode);
 
   TargetMachine *TM;
   MCContext *Ctx;
   RTDyldMemoryManager *MemMgr;
+  RuntimeDyld Dyld;
 
-  // FIXME: These may need moved to a separate 'jitstate' member like the
-  // non-MC JIT does for multithreading and such. Just keep them here for now.
-  PassManager PM;
+  // FIXME: Add support for multiple modules
+  bool isCompiled;
   Module *M;
-  // FIXME: This really doesn't belong here.
+
+  // FIXME: Move these to a single container which manages JITed objects
   SmallVector<char, 4096> Buffer; // Working buffer into which we JIT.
   raw_svector_ostream OS;
-
-  RuntimeDyld Dyld;
 
 public:
   ~MCJIT();
@@ -66,8 +64,17 @@ public:
   /// found, this function silently returns a null pointer. Otherwise,
   /// it prints a message to stderr and aborts.
   ///
-  void *getPointerToNamedFunction(const std::string &Name,
-                                  bool AbortOnFailure = true);
+  virtual void *getPointerToNamedFunction(const std::string &Name,
+                                          bool AbortOnFailure = true);
+
+  /// mapSectionAddress - map a section to its target address space value.
+  /// Map the address of a JIT section as returned from the memory manager
+  /// to the address in the target process as the running code will see it.
+  /// This is the address which will be used for relocation resolution.
+  virtual void mapSectionAddress(void *LocalAddress, uint64_t TargetAddress) {
+    Dyld.mapSectionAddress(LocalAddress, TargetAddress);
+  }
+
   /// @}
   /// @name (Private) Registration Interfaces
   /// @{
@@ -79,11 +86,18 @@ public:
   static ExecutionEngine *createJIT(Module *M,
                                     std::string *ErrorStr,
                                     JITMemoryManager *JMM,
-                                    CodeGenOpt::Level OptLevel,
                                     bool GVsWithCode,
                                     TargetMachine *TM);
 
   // @}
+
+protected:
+  /// emitObject -- Generate a JITed object in memory from the specified module
+  /// Currently, MCJIT only supports a single module and the module passed to
+  /// this function call is expected to be the contained module.  The module
+  /// is passed as a parameter here to prepare for multiple module support in 
+  /// the future.
+  void emitObject(Module *M);
 };
 
 } // End llvm namespace

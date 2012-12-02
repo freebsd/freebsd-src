@@ -65,7 +65,7 @@ xfs_read_xfsstats(
 	};
 
 	for (i=j=len = 0; i < sizeof(xstats)/sizeof(struct xstats_entry); i++) {
-		len += sprintf(buffer + len, xstats[i].desc);
+		len += sprintf(buffer + len, "%s", xstats[i].desc);
 		/* inner loop does each group */
 		while (j < xstats[i].endpoint) {
 			len += sprintf(buffer + len, " %u",

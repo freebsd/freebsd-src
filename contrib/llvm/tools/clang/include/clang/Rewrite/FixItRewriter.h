@@ -18,6 +18,7 @@
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Rewrite/Rewriter.h"
+#include "clang/Edit/EditedSource.h"
 
 namespace clang {
 
@@ -26,19 +27,37 @@ class FileEntry;
 
 class FixItOptions {
 public:
+  FixItOptions() : FixWhatYouCan(false),
+                   FixOnlyWarnings(false), Silent(false) { }
+
   virtual ~FixItOptions();
 
   /// \brief This file is about to be rewritten. Return the name of the file
   /// that is okay to write to.
-  virtual std::string RewriteFilename(const std::string &Filename) = 0;
+  ///
+  /// \param fd out parameter for file descriptor. After the call it may be set
+  /// to an open file descriptor for the returned filename, or it will be -1
+  /// otherwise.
+  ///
+  virtual std::string RewriteFilename(const std::string &Filename, int &fd) = 0;
 
   /// \brief Whether to abort fixing a file when not all errors could be fixed.
   bool FixWhatYouCan;
+
+  /// \brief Whether to only fix warnings and not errors.
+  bool FixOnlyWarnings;
+
+  /// \brief If true, only pass the diagnostic to the actual diagnostic consumer
+  /// if it is an error or a fixit was applied as part of the diagnostic.
+  /// It basically silences warnings without accompanying fixits.
+  bool Silent;
 };
 
 class FixItRewriter : public DiagnosticConsumer {
   /// \brief The diagnostics machinery.
   DiagnosticsEngine &Diags;
+
+  edit::EditedSource Editor;
 
   /// \brief The rewriter used to perform the various code
   /// modifications.
@@ -47,6 +66,7 @@ class FixItRewriter : public DiagnosticConsumer {
   /// \brief The diagnostic client that performs the actual formatting
   /// of error messages.
   DiagnosticConsumer *Client;
+  bool OwnsClient;
 
   /// \brief Turn an input path into an output path. NULL implies overwriting
   /// the original.
@@ -54,6 +74,9 @@ class FixItRewriter : public DiagnosticConsumer {
 
   /// \brief The number of rewriter failures.
   unsigned NumFailures;
+
+  /// \brief Whether the previous diagnostic was not passed to the consumer.
+  bool PrevDiagSilenced;
 
 public:
   typedef Rewriter::buffer_iterator iterator;
@@ -82,7 +105,8 @@ public:
   /// \brief Write the modified source files.
   ///
   /// \returns true if there was an error, false otherwise.
-  bool WriteFixedFiles();
+  bool WriteFixedFiles(
+         std::vector<std::pair<std::string, std::string> > *RewrittenFiles = 0);
 
   /// IncludeInDiagnosticCounts - This method (whose default implementation
   /// returns true) indicates whether the diagnostics handled by this

@@ -68,6 +68,8 @@
  * 5 - Added multiple encrypton keys and AES-XTS support.
  * 6 - Fixed usage of multiple keys for authenticated providers (the
  *     G_ELI_FLAG_FIRST_KEY flag will be set for older versions).
+ * 7 - Encryption keys are now generated from the Data Key and not from the
+ *     IV Key (the G_ELI_FLAG_ENC_IVKEY flag will be set for older versions).
  */
 #define	G_ELI_VERSION_00	0
 #define	G_ELI_VERSION_01	1
@@ -76,7 +78,8 @@
 #define	G_ELI_VERSION_04	4
 #define	G_ELI_VERSION_05	5
 #define	G_ELI_VERSION_06	6
-#define	G_ELI_VERSION		G_ELI_VERSION_06
+#define	G_ELI_VERSION_07	7
+#define	G_ELI_VERSION		G_ELI_VERSION_07
 
 /* ON DISK FLAGS. */
 /* Use random, onetime keys. */
@@ -104,6 +107,8 @@
 #define	G_ELI_FLAG_SUSPEND		0x00100000
 /* Provider uses first encryption key. */
 #define	G_ELI_FLAG_FIRST_KEY		0x00200000
+/* Provider uses IV-Key for encryption key generation. */
+#define	G_ELI_FLAG_ENC_IVKEY		0x00400000
 
 #define	G_ELI_NEW_BIO	255
 
@@ -237,7 +242,7 @@ eli_metadata_encode_v0(struct g_eli_metadata *md, u_char **datap)
 	*datap = p;
 }
 static __inline void
-eli_metadata_encode_v1v2v3v4v5v6(struct g_eli_metadata *md, u_char **datap)
+eli_metadata_encode_v1v2v3v4v5v6v7(struct g_eli_metadata *md, u_char **datap)
 {
 	u_char *p;
 
@@ -275,7 +280,8 @@ eli_metadata_encode(struct g_eli_metadata *md, u_char *data)
 	case G_ELI_VERSION_04:
 	case G_ELI_VERSION_05:
 	case G_ELI_VERSION_06:
-		eli_metadata_encode_v1v2v3v4v5v6(md, &p);
+	case G_ELI_VERSION_07:
+		eli_metadata_encode_v1v2v3v4v5v6v7(md, &p);
 		break;
 	default:
 #ifdef _KERNEL
@@ -315,7 +321,7 @@ eli_metadata_decode_v0(const u_char *data, struct g_eli_metadata *md)
 }
 
 static __inline int
-eli_metadata_decode_v1v2v3v4v5v6(const u_char *data, struct g_eli_metadata *md)
+eli_metadata_decode_v1v2v3v4v5v6v7(const u_char *data, struct g_eli_metadata *md)
 {
 	MD5_CTX ctx;
 	const u_char *p;
@@ -357,7 +363,8 @@ eli_metadata_decode(const u_char *data, struct g_eli_metadata *md)
 	case G_ELI_VERSION_04:
 	case G_ELI_VERSION_05:
 	case G_ELI_VERSION_06:
-		error = eli_metadata_decode_v1v2v3v4v5v6(data, md);
+	case G_ELI_VERSION_07:
+		error = eli_metadata_decode_v1v2v3v4v5v6v7(data, md);
 		break;
 	default:
 		error = EOPNOTSUPP;

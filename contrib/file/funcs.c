@@ -27,7 +27,7 @@
 #include "file.h"
 
 #ifndef	lint
-FILE_RCSID("@(#)$File: funcs.c,v 1.53 2009/04/07 11:07:00 christos Exp $")
+FILE_RCSID("@(#)$File: funcs.c,v 1.60 2011/12/08 12:38:24 rrt Exp $")
 #endif	/* lint */
 
 #include "magic.h"
@@ -95,7 +95,7 @@ file_printf(struct magic_set *ms, const char *fmt, ...)
 /*VARARGS*/
 private void
 file_error_core(struct magic_set *ms, int error, const char *f, va_list va,
-    uint32_t lineno)
+    size_t lineno)
 {
 	/* Only the first error is ok */
 	if (ms->event_flags & EVENT_HAD_ERR)
@@ -103,7 +103,7 @@ file_error_core(struct magic_set *ms, int error, const char *f, va_list va,
 	if (lineno != 0) {
 		free(ms->o.buf);
 		ms->o.buf = NULL;
-		file_printf(ms, "line %u: ", lineno);
+		file_printf(ms, "line %" SIZE_T_FORMAT "u: ", lineno);
 	}
 	file_vprintf(ms, f, va);
 	if (error > 0)
@@ -138,7 +138,8 @@ file_magerror(struct magic_set *ms, const char *f, ...)
 protected void
 file_oomem(struct magic_set *ms, size_t len)
 {
-	file_error(ms, errno, "cannot allocate %zu bytes", len);
+	file_error(ms, errno, "cannot allocate %" SIZE_T_FORMAT "u bytes",
+	    len);
 }
 
 protected void
@@ -155,8 +156,8 @@ file_badread(struct magic_set *ms)
 
 #ifndef COMPILE_ONLY
 protected int
-file_buffer(struct magic_set *ms, int fd, const char *inname, const void *buf,
-    size_t nb)
+file_buffer(struct magic_set *ms, int fd, const char *inname __attribute__ ((unused)),
+    const void *buf, size_t nb)
 {
 	int m = 0, rv = 0, looks_text = 0;
 	int mime = ms->flags & MAGIC_MIME;
@@ -200,7 +201,7 @@ file_buffer(struct magic_set *ms, int fd, const char *inname, const void *buf,
 		}
 	}
 #endif
-
+#if HAVE_FORK
 	/* try compression stuff */
 	if ((ms->flags & MAGIC_NO_CHECK_COMPRESS) == 0)
 		if ((m = file_zmagic(ms, fd, inname, ubuf, nb)) != 0) {
@@ -208,7 +209,7 @@ file_buffer(struct magic_set *ms, int fd, const char *inname, const void *buf,
 				(void)fprintf(stderr, "zmagic %d\n", m);
 			goto done;
 		}
-
+#endif
 	/* Check if we have a tar file */
 	if ((ms->flags & MAGIC_NO_CHECK_TAR) == 0)
 		if ((m = file_is_tar(ms, ubuf, nb)) != 0) {
@@ -227,7 +228,8 @@ file_buffer(struct magic_set *ms, int fd, const char *inname, const void *buf,
 
 	/* try soft magic tests */
 	if ((ms->flags & MAGIC_NO_CHECK_SOFT) == 0)
-		if ((m = file_softmagic(ms, ubuf, nb, BINTEST)) != 0) {
+		if ((m = file_softmagic(ms, ubuf, nb, BINTEST,
+		    looks_text)) != 0) {
 			if ((ms->flags & MAGIC_DEBUG) != 0)
 				(void)fprintf(stderr, "softmagic %d\n", m);
 #ifdef BUILTIN_ELF
@@ -251,10 +253,10 @@ file_buffer(struct magic_set *ms, int fd, const char *inname, const void *buf,
 			goto done;
 		}
 
-	/* try text properties (and possibly text tokens) */
+	/* try text properties */
 	if ((ms->flags & MAGIC_NO_CHECK_TEXT) == 0) {
 
-		if ((m = file_ascmagic(ms, ubuf, nb)) != 0) {
+		if ((m = file_ascmagic(ms, ubuf, nb, looks_text)) != 0) {
 			if ((ms->flags & MAGIC_DEBUG) != 0)
 				(void)fprintf(stderr, "ascmagic %d\n", m);
 			goto done;
@@ -264,7 +266,8 @@ file_buffer(struct magic_set *ms, int fd, const char *inname, const void *buf,
 		if ((ms->flags & MAGIC_NO_CHECK_ENCODING) == 0) {
 			if (looks_text == 0)
 				if ((m = file_ascmagic_with_encoding( ms, ubuf,
-				    nb, u8buf, ulen, code, type)) != 0) {
+				    nb, u8buf, ulen, code, type, looks_text))
+				    != 0) {
 					if ((ms->flags & MAGIC_DEBUG) != 0)
 						(void)fprintf(stderr,
 						    "ascmagic/enc %d\n", m);
@@ -287,8 +290,7 @@ file_buffer(struct magic_set *ms, int fd, const char *inname, const void *buf,
 		if (file_printf(ms, "%s", code_mime) == -1)
 			rv = -1;
 	}
-	if (u8buf)
-		free(u8buf);
+	free(u8buf);
 	if (rv)
 		return rv;
 
@@ -391,9 +393,9 @@ file_getbuffer(struct magic_set *ms)
 	}
 #endif
 
-	for (np = ms->o.pbuf, op = ms->o.buf; *op; op++) {
+	for (np = ms->o.pbuf, op = ms->o.buf; *op;) {
 		if (isprint((unsigned char)*op)) {
-			*np++ = *op;
+			*np++ = *op++;
 		} else {
 			OCTALIFY(np, op);
 		}
@@ -423,4 +425,37 @@ file_check_mem(struct magic_set *ms, unsigned int level)
 	ms->c.li[level].last_cond = COND_NONE;
 #endif /* ENABLE_CONDITIONALS */
 	return 0;
+}
+
+protected size_t
+file_printedlen(const struct magic_set *ms)
+{
+	return ms->o.buf == NULL ? 0 : strlen(ms->o.buf);
+}
+
+protected int
+file_replace(struct magic_set *ms, const char *pat, const char *rep)
+{
+	regex_t rx;
+	int rc;
+
+	rc = regcomp(&rx, pat, REG_EXTENDED);
+	if (rc) {
+		char errmsg[512];
+		(void)regerror(rc, &rx, errmsg, sizeof(errmsg));
+		file_magerror(ms, "regex error %d, (%s)", rc, errmsg);
+		return -1;
+	} else {
+		regmatch_t rm;
+		int nm = 0;
+		while (regexec(&rx, ms->o.buf, 1, &rm, 0) == 0) {
+			ms->o.buf[rm.rm_so] = '\0';
+			if (file_printf(ms, "%s%s", rep,
+			    rm.rm_eo != 0 ? ms->o.buf + rm.rm_eo : "") == -1)
+				return -1;
+			nm++;
+		}
+		regfree(&rx);
+		return nm;
+	}
 }

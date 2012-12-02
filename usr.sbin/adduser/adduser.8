@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 16, 2008
+.Dd September 15, 2012
 .Dt ADDUSER 8
 .Os
 .Sh NAME
@@ -129,9 +129,8 @@ they can safely run with a umask of 002 instead of the usual 022
 and create files in their home directory
 without worrying about others being able to change them.
 .Pp
-For a shared area you create a separate UID/GID (like cvs or ncvs on freefall),
-you place each person that should be able to access this area into that new
-group.
+For a shared area you create a separate UID/GID, you place each person
+that should be able to access this area into that new group.
 .Pp
 This model of UID/GID administration allows far greater flexibility than lumping
 users into groups and having to muck with the umask when working in a shared

@@ -1,4 +1,4 @@
-//===-- SPUAsmPrinter.cpp - Print machine instrs to Cell SPU assembly -------=//
+//===-- SPUAsmPrinter.cpp - Print machine instrs to Cell SPU assembly -----===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -248,7 +248,6 @@ void SPUAsmPrinter::printOp(const MachineOperand &MO, raw_ostream &O) {
   switch (MO.getType()) {
   case MachineOperand::MO_Immediate:
     report_fatal_error("printOp() does not handle immediate values");
-    return;
 
   case MachineOperand::MO_MachineBasicBlock:
     O << *MO.getMBB()->getSymbol();
@@ -302,7 +301,9 @@ bool SPUAsmPrinter::PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
     if (ExtraCode[1] != 0) return true; // Unknown modifier.
 
     switch (ExtraCode[0]) {
-    default: return true;  // Unknown modifier.
+    default:
+      // See if this is a generic print operand
+      return AsmPrinter::PrintAsmOperand(MI, OpNo, AsmVariant, ExtraCode, O);
     case 'L': // Write second word of DImode reference.
       // Verify that this operand has two consecutive registers.
       if (!MI->getOperand(OpNo).isReg() ||

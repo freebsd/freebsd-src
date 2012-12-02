@@ -147,6 +147,8 @@ typedef void (*dns_rdatatypestats_dumper_t)(dns_rdatastatstype_t, isc_uint64_t,
 					    void *);
 typedef void (*dns_opcodestats_dumper_t)(dns_opcode_t, isc_uint64_t, void *);
 
+ISC_LANG_BEGINDECLS
+
 isc_result_t
 dns_generalstats_create(isc_mem_t *mctx, dns_stats_t **statsp, int ncounters);
 /*%<

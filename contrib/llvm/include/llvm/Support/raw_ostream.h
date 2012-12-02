@@ -222,10 +222,16 @@ public:
   /// outputting colored text, or before program exit.
   virtual raw_ostream &resetColor() { return *this; }
 
+  /// Reverses the forground and background colors.
+  virtual raw_ostream &reverseColor() { return *this; }
+
   /// This function determines if this stream is connected to a "tty" or
   /// "console" window. That is, the output would be displayed to the user
   /// rather than being put on a pipe or stored in a file.
   virtual bool is_displayed() const { return false; }
+
+  /// This function determines if this stream is displayed and supports colors.
+  virtual bool has_colors() const { return is_displayed(); }
 
   //===--------------------------------------------------------------------===//
   // Subclass Interface
@@ -379,12 +385,16 @@ public:
                                    bool bg=false);
   virtual raw_ostream &resetColor();
 
+  virtual raw_ostream &reverseColor();
+
   virtual bool is_displayed() const;
+
+  virtual bool has_colors() const;
 
   /// has_error - Return the value of the flag in this raw_fd_ostream indicating
   /// whether an output error has been encountered.
   /// This doesn't implicitly flush any pending output.  Also, it doesn't
-  /// guarantee to detect all errors unless the the stream has been closed.
+  /// guarantee to detect all errors unless the stream has been closed.
   bool has_error() const {
     return Error;
   }

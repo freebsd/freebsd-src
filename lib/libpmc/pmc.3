@@ -111,7 +111,7 @@ processor.
 Certain kinds of PMCs require that a log file be configured before
 they may be started.
 These include:
-.Bl -bullet -compact
+.Bl -bullet
 .It
 System scope sampling PMCs.
 .It
@@ -120,6 +120,7 @@ Process scope sampling PMCs.
 Process scope counting PMCs that have been configured to report PMC
 readings on process context switches or process exits.
 .El
+.Pp
 Up to one log file may be configured per owner process.
 Events logged to a log file may be subsequently analyzed using the
 .Xr pmclog 3
@@ -129,6 +130,7 @@ The CPUs known to the PMC library are named by the
 .Vt "enum pmc_cputype"
 enumeration.
 Supported CPUs include:
+.Pp
 .Bl -tag -width "Li PMC_CPU_INTEL_CORE2" -compact
 .It Li PMC_CPU_AMD_K7
 .Tn "AMD Athlon"
@@ -185,6 +187,7 @@ PMC supported by this library are named by the
 .Vt enum pmc_class
 enumeration.
 Supported PMC kinds include:
+.Pp
 .Bl -tag -width "Li PMC_CLASS_IAF" -compact
 .It Li PMC_CLASS_IAF
 Fixed function hardware counters presents in CPUs conforming to the
@@ -232,6 +235,7 @@ the
 .Vt "enum pmc_caps"
 enumeration.
 Supported capabilities include:
+.Pp
 .Bl -tag -width "Li PMC_CAP_INTERRUPT" -compact
 .It Li PMC_CAP_CASCADE
 The ability to cascade counters.
@@ -273,9 +277,9 @@ Operations on non-existent CPUs will return an error.
 This section contains a brief overview of the available functionality
 in the PMC library.
 Each function listed here is described further in its own manual page.
-.Bl -tag -width indent
+.Bl -tag -width 2n
 .It Administration
-.Bl -tag -compact
+.Bl -tag -width 6n -compact
 .It Fn pmc_disable , Fn pmc_enable
 Administratively disable (enable) specific performance monitoring
 counter hardware.
@@ -283,7 +287,7 @@ Counters that are disabled will not be available to applications to
 use.
 .El
 .It "Convenience Functions"
-.Bl -tag -compact
+.Bl -tag -width 6n -compact
 .It Fn pmc_event_names_of_class
 Returns a list of event names supported by a given PMC type.
 .It Fn pmc_name_of_capability
@@ -308,13 +312,13 @@ constant to a human-readable name.
 Return a human-readable string describing a PMC's current state.
 .El
 .It "Library Initialization"
-.Bl -tag -compact
+.Bl -tag -width 6n -compact
 .It Fn pmc_init
 Initialize the library.
 This function must be called before any other library function.
 .El
 .It "Log File Handling"
-.Bl -tag -compact
+.Bl -tag -width 6n -compact
 .It Fn pmc_configure_logfile
 Configure a log file for
 .Xr hwpmc 4
@@ -331,7 +335,7 @@ side of the stream.
 Append arbitrary user data to the current log file.
 .El
 .It "PMC Management"
-.Bl -tag -compact
+.Bl -tag -width 6n -compact
 .It Fn pmc_allocate , Fn pmc_release
 Allocate (free) a PMC.
 .It Fn pmc_attach , Fn pmc_detach
@@ -344,7 +348,7 @@ Start (stop) a software PMC.
 Set the reload value for a sampling PMC.
 .El
 .It "Queries"
-.Bl -tag -compact
+.Bl -tag -width 6n -compact
 .It Fn pmc_capabilities
 Retrieve the capabilities for a given PMC.
 .It Fn pmc_cpuinfo
@@ -363,7 +367,7 @@ Return information about the state of a given CPU's PMCs.
 Determine the width of a hardware counter in bits.
 .El
 .It "x86 Architecture Specific API"
-.Bl -tag -compact
+.Bl -tag -width 6n -compact
 .It Fn pmc_get_msr
 Returns the processor model specific register number
 associated with

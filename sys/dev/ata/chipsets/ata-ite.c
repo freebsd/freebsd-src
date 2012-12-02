@@ -64,7 +64,7 @@ static int
 ata_ite_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static const struct ata_chip_id const ids[] =
+    static const struct ata_chip_id ids[] =
     {{ ATA_IT8213F, 0x00, 0x00, 0x00, ATA_UDMA6, "IT8213F" },
      { ATA_IT8212F, 0x00, 0x00, 0x00, ATA_UDMA6, "IT8212F" },
      { ATA_IT8211F, 0x00, 0x00, 0x00, ATA_UDMA6, "IT8211F" },
@@ -105,10 +105,10 @@ ata_ite_chipinit(device_t dev)
 
 	ctlr->setmode = ata_ite_821x_setmode;
 	/* No timing restrictions initally. */
-	ctlr->chipset_data = (void *)0;
+	ctlr->chipset_data = NULL;
     }
     ctlr->ch_attach = ata_ite_ch_attach;
-    return 0;
+    return (0);
 }
 
 static int
@@ -119,6 +119,9 @@ ata_ite_ch_attach(device_t dev)
  
 	error = ata_pci_ch_attach(dev);
 	ch->flags |= ATA_CHECKS_CABLE;
+#ifdef ATA_CAM
+	ch->flags |= ATA_NO_ATAPI_DMA;
+#endif
 	return (error);
 }
 

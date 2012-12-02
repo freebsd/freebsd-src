@@ -261,6 +261,14 @@ OF_getproplen(phandle_t package, const char *propname)
 	return (OFW_GETPROPLEN(ofw_obj, package, propname));
 }
 
+/* Check existence of a property of a package. */
+int
+OF_hasprop(phandle_t package, const char *propname)
+{
+
+	return (OF_getproplen(package, propname) >= 0 ? 1 : 0);
+}
+
 /* Get the value of a property of a package. */
 ssize_t
 OF_getprop(phandle_t package, const char *propname, void *buf, size_t buflen)

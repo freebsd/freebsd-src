@@ -128,8 +128,8 @@ struct filterops sig_filtops = {
 };
 
 static int	kern_logsigexit = 1;
-SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW, 
-    &kern_logsigexit, 0, 
+SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW,
+    &kern_logsigexit, 0,
     "Log processes quitting on abnormal signals to syslog(3)");
 
 static int	kern_forcesigexit = 1;
@@ -171,8 +171,14 @@ SYSINIT(signal, SI_SUB_P1003_1B, SI_ORDER_FIRST+3, sigqueue_start, NULL);
 	    (cr1)->cr_uid == (cr2)->cr_uid)
 
 static int	sugid_coredump;
-SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RW, 
+TUNABLE_INT("kern.sugid_coredump", &sugid_coredump);
+SYSCTL_INT(_kern, OID_AUTO, sugid_coredump, CTLFLAG_RW,
     &sugid_coredump, 0, "Allow setuid and setgid processes to dump core");
+
+static int	capmode_coredump;
+TUNABLE_INT("kern.capmode_coredump", &capmode_coredump);
+SYSCTL_INT(_kern, OID_AUTO, capmode_coredump, CTLFLAG_RW,
+    &capmode_coredump, 0, "Allow processes in capability mode to dump core");
 
 static int	do_coredump = 1;
 SYSCTL_INT(_kern, OID_AUTO, coredump, CTLFLAG_RW,
@@ -284,9 +290,9 @@ sigqueue_init(sigqueue_t *list, struct proc *p)
 /*
  * Get a signal's ksiginfo.
  * Return:
- * 	0	-	signal not found
+ *	0	-	signal not found
  *	others	-	signal number
- */ 
+ */
 static int
 sigqueue_get(sigqueue_t *sq, int signo, ksiginfo_t *si)
 {
@@ -357,7 +363,7 @@ sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 	int ret = 0;
 
 	KASSERT(sq->sq_flags & SQ_INIT, ("sigqueue not inited"));
-	
+
 	if (signo == SIGKILL || signo == SIGSTOP || si == NULL) {
 		SIGADDSET(sq->sq_kill, signo);
 		goto out_set_bit;
@@ -377,7 +383,7 @@ sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 		SIGADDSET(sq->sq_kill, signo);
 		goto out_set_bit;
 	}
-	
+
 	if (p != NULL && p->p_pendingcnt >= max_pending_per_proc) {
 		signal_overflow++;
 		ret = EAGAIN;
@@ -406,7 +412,7 @@ sigqueue_add(sigqueue_t *sq, int signo, ksiginfo_t *si)
 
 	if (ret != 0)
 		return (ret);
-	
+
 out_set_bit:
 	SIGADDSET(sq->sq_signals, signo);
 	return (ret);
@@ -1158,7 +1164,7 @@ sys_sigwaitinfo(struct thread *td, struct sigwaitinfo_args *uap)
 
 	if (uap->info)
 		error = copyout(&ksi.ksi_info, uap->info, sizeof(siginfo_t));
-	
+
 	if (error == 0)
 		td->td_retval[0] = ksi.ksi_signo;
 	return (error);
@@ -1184,7 +1190,7 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 		if (timeout->tv_nsec >= 0 && timeout->tv_nsec < 1000000000) {
 			timevalid = 1;
 			getnanouptime(&rts);
-		 	ets = rts;
+			ets = rts;
 			timespecadd(&ets, timeout);
 		}
 	}
@@ -1201,7 +1207,7 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 		mtx_unlock(&ps->ps_mtx);
 		if (sig != 0 && SIGISMEMBER(waitset, sig)) {
 			if (sigqueue_get(&td->td_sigqueue, sig, ksi) != 0 ||
-		    	    sigqueue_get(&p->p_sigqueue, sig, ksi) != 0) {
+			    sigqueue_get(&p->p_sigqueue, sig, ksi) != 0) {
 				error = 0;
 				break;
 			}
@@ -1257,7 +1263,7 @@ kern_sigtimedwait(struct thread *td, sigset_t waitset, ksiginfo_t *ksi,
 
 	if (error == 0) {
 		SDT_PROBE(proc, kernel, , signal_clear, sig, ksi, 0, 0, 0);
-		
+
 		if (ksi->ksi_code == SI_TIMER)
 			itimer_accept(p, ksi->ksi_timerid, ksi);
 
@@ -1407,7 +1413,7 @@ osigsetmask(td, uap)
 
 /*
  * Suspend calling thread until signal, providing mask to be set in the
- * meantime. 
+ * meantime.
  */
 #ifndef _SYS_SYSPROTO_H_
 struct sigsuspend_args {
@@ -1599,8 +1605,10 @@ killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
 {
 	struct proc *p;
 	struct pgrp *pgrp;
-	int nfound = 0;
+	int err;
+	int ret;
 
+	ret = ESRCH;
 	if (all) {
 		/*
 		 * broadcast
@@ -1613,11 +1621,14 @@ killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
 				PROC_UNLOCK(p);
 				continue;
 			}
-			if (p_cansignal(td, p, sig) == 0) {
-				nfound++;
+			err = p_cansignal(td, p, sig);
+			if (err == 0) {
 				if (sig)
 					pksignal(p, sig, ksi);
+				ret = err;
 			}
+			else if (ret == ESRCH)
+				ret = err;
 			PROC_UNLOCK(p);
 		}
 		sx_sunlock(&allproc_lock);
@@ -1638,22 +1649,25 @@ killpg1(struct thread *td, int sig, int pgid, int all, ksiginfo_t *ksi)
 		}
 		sx_sunlock(&proctree_lock);
 		LIST_FOREACH(p, &pgrp->pg_members, p_pglist) {
-			PROC_LOCK(p);	      
+			PROC_LOCK(p);
 			if (p->p_pid <= 1 || p->p_flag & P_SYSTEM ||
 			    p->p_state == PRS_NEW) {
 				PROC_UNLOCK(p);
 				continue;
 			}
-			if (p_cansignal(td, p, sig) == 0) {
-				nfound++;
+			err = p_cansignal(td, p, sig);
+			if (err == 0) {
 				if (sig)
 					pksignal(p, sig, ksi);
+				ret = err;
 			}
+			else if (ret == ESRCH)
+				ret = err;
 			PROC_UNLOCK(p);
 		}
 		PGRP_UNLOCK(pgrp);
 	}
-	return (nfound ? 0 : ESRCH);
+	return (ret);
 }
 
 #ifndef _SYS_SYSPROTO_H_
@@ -1669,6 +1683,14 @@ sys_kill(struct thread *td, struct kill_args *uap)
 	ksiginfo_t ksi;
 	struct proc *p;
 	int error;
+
+	/*
+	 * A process in capability mode can send signals only to himself.
+	 * The main rationale behind this is that abort(3) is implemented as
+	 * kill(getpid(), SIGABRT).
+	 */
+	if (IN_CAPABILITY_MODE(td) && uap->pid != td->td_proc->p_pid)
+		return (ECAPMODE);
 
 	AUDIT_ARG_SIGNUM(uap->signum);
 	AUDIT_ARG_PID(uap->pid);
@@ -1873,7 +1895,7 @@ trapsignal(struct thread *td, ksiginfo_t *ksi)
 			ktrpsig(sig, ps->ps_sigact[_SIG_IDX(sig)],
 			    &td->td_sigmask, code);
 #endif
-		(*p->p_sysent->sv_sendsig)(ps->ps_sigact[_SIG_IDX(sig)], 
+		(*p->p_sysent->sv_sendsig)(ps->ps_sigact[_SIG_IDX(sig)],
 				ksi, &td->td_sigmask);
 		mask = ps->ps_catchmask[_SIG_IDX(sig)];
 		if (!SIGISMEMBER(ps->ps_signodefer, sig))
@@ -1950,7 +1972,7 @@ sigtd(struct proc *p, int sig, int prop)
  *     regardless of the signal action (eg, blocked or ignored).
  *
  * Other ignored signals are discarded immediately.
- * 
+ *
  * NB: This function may be entered from the debugger via the "kill" DDB
  * command.  There is little that can be done to mitigate the possibly messy
  * side effects of this unwise possibility.
@@ -2134,6 +2156,8 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 	 * We try do the per-process part here.
 	 */
 	if (P_SHOULDSTOP(p)) {
+		KASSERT(!(p->p_flag & P_WEXIT),
+		    ("signal to stopped but exiting process"));
 		if (sig == SIGKILL) {
 			/*
 			 * If traced process is already stopped,
@@ -2248,7 +2272,7 @@ tdsendsignal(struct proc *p, struct thread *td, int sig, ksiginfo_t *ksi)
 		MPASS(action == SIG_DFL);
 
 		if (prop & SA_STOP) {
-			if (p->p_flag & P_PPWAIT)
+			if (p->p_flag & (P_PPWAIT|P_WEXIT))
 				goto out;
 			p->p_flag |= P_STOPPED_SIG;
 			p->p_xstat = sig;
@@ -2410,6 +2434,7 @@ ptracestop(struct thread *td, int sig)
 	struct proc *p = td->td_proc;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
+	KASSERT(!(p->p_flag & P_WEXIT), ("Stopping exiting process"));
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK,
 	    &p->p_mtx.lock_object, "Stopping for traced signal");
 
@@ -2436,9 +2461,10 @@ ptracestop(struct thread *td, int sig)
 		}
 stopme:
 		thread_suspend_switch(td);
-		if (!(p->p_flag & P_TRACED)) {
+		if (p->p_xthread == td)
+			p->p_xthread = NULL;
+		if (!(p->p_flag & P_TRACED))
 			break;
-		}
 		if (td->td_dbgflags & TDB_SUSPEND) {
 			if (p->p_flag & P_SINGLE_EXIT)
 				break;
@@ -2581,14 +2607,15 @@ issignal(struct thread *td, int stop_allowed)
 				 * If parent wants us to take the signal,
 				 * then it will leave it in p->p_xstat;
 				 * otherwise we just look for signals again.
-			 	*/
+				*/
 				if (newsig == 0)
 					continue;
 				sig = newsig;
 
 				/*
 				 * Put the new signal into td_sigqueue. If the
-				 * signal is being masked, look for other signals.
+				 * signal is being masked, look for other
+				 * signals.
 				 */
 				sigqueue_add(queue, sig, NULL);
 				if (SIGISMEMBER(td->td_sigmask, sig))
@@ -2647,8 +2674,8 @@ issignal(struct thread *td, int stop_allowed)
 			 * process group, ignore tty stop signals.
 			 */
 			if (prop & SA_STOP) {
-				if (p->p_flag & P_TRACED ||
-		    		    (p->p_pgrp->pg_jobc == 0 &&
+				if (p->p_flag & (P_TRACED|P_WEXIT) ||
+				    (p->p_pgrp->pg_jobc == 0 &&
 				     prop & SA_TTYSTOP))
 					break;	/* == ignore */
 
@@ -2694,7 +2721,7 @@ issignal(struct thread *td, int stop_allowed)
 			 */
 			return (sig);
 		}
-		sigqueue_delete(&td->td_sigqueue, sig);		/* take the signal! */
+		sigqueue_delete(&td->td_sigqueue, sig);	/* take the signal! */
 		sigqueue_delete(&p->p_sigqueue, sig);
 	}
 	/* NOTREACHED */
@@ -2720,7 +2747,7 @@ thread_stopped(struct proc *p)
 		PROC_SLOCK(p);
 	}
 }
- 
+
 /*
  * Take the action for the specified signal
  * from the current set of pending signals.
@@ -2825,10 +2852,10 @@ killproc(p, why)
 {
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
-	CTR3(KTR_PROC, "killproc: proc %p (pid %d, %s)",
-		p, p->p_pid, p->p_comm);
-	log(LOG_ERR, "pid %d (%s), uid %d, was killed: %s\n", p->p_pid, p->p_comm,
-		p->p_ucred ? p->p_ucred->cr_uid : -1, why);
+	CTR3(KTR_PROC, "killproc: proc %p (pid %d, %s)", p, p->p_pid,
+	    p->p_comm);
+	log(LOG_ERR, "pid %d (%s), uid %d, was killed: %s\n", p->p_pid,
+	    p->p_comm, p->p_ucred ? p->p_ucred->cr_uid : -1, why);
 	p->p_flag |= P_WKILLED;
 	kern_psignal(p, SIGKILL);
 }
@@ -2985,7 +3012,7 @@ sysctl_debug_num_cores_check (SYSCTL_HANDLER_ARGS)
 	num_cores = new_val;
 	return (0);
 }
-SYSCTL_PROC(_debug, OID_AUTO, ncores, CTLTYPE_INT|CTLFLAG_RW, 
+SYSCTL_PROC(_debug, OID_AUTO, ncores, CTLTYPE_INT|CTLFLAG_RW,
 	    0, sizeof(int), sysctl_debug_num_cores_check, "I", "");
 
 #if defined(COMPRESS_USER_CORES)
@@ -2997,11 +3024,12 @@ int compress_user_cores_gzlevel = -1; /* default level */
 SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_gzlevel, CTLFLAG_RW,
     &compress_user_cores_gzlevel, -1, "user core gz compression level");
 
-#define GZ_SUFFIX	".gz"	
-#define GZ_SUFFIX_LEN	3	
+#define GZ_SUFFIX	".gz"
+#define GZ_SUFFIX_LEN	3
 #endif
 
 static char corefilename[MAXPATHLEN] = {"%N.core"};
+TUNABLE_STR("kern.corefile", corefilename, sizeof(corefilename));
 SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RW, corefilename,
 	      sizeof(corefilename), "process corefile name format string");
 
@@ -3026,7 +3054,7 @@ expand_name(const char *name, uid_t uid, pid_t pid, struct thread *td,
 	size_t i;
 	int indexpos;
 	char *hostname;
-	
+
 	hostname = NULL;
 	format = corefilename;
 	temp = malloc(MAXPATHLEN, M_TEMP, M_NOWAIT | M_ZERO);
@@ -3074,7 +3102,7 @@ expand_name(const char *name, uid_t uid, pid_t pid, struct thread *td,
 				sbuf_printf(&sb, "%u", uid);
 				break;
 			default:
-			  	log(LOG_ERR,
+				log(LOG_ERR,
 				    "Unknown format character %c in "
 				    "corename `%s'\n", format[i], format);
 			}
@@ -3111,17 +3139,20 @@ nomem:
 		int error, n;
 		int flags = O_CREAT | O_EXCL | FWRITE | O_NOFOLLOW;
 		int cmode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
-		int vfslocked;
+		int oflags = 0;
+
+		if (capmode_coredump)
+			oflags = VN_OPEN_NOCAPCHECK;
 
 		for (n = 0; n < num_cores; n++) {
 			temp[indexpos] = '0' + n;
-			NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE,
-			    temp, td); 
-			error = vn_open(&nd, &flags, cmode, NULL);
+			NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE,
+			    temp, td);
+			error = vn_open_cred(&nd, &flags, cmode, oflags,
+			    td->td_ucred, NULL);
 			if (error) {
-				if (error == EEXIST) {
+				if (error == EEXIST)
 					continue;
-				}
 				log(LOG_ERR,
 				    "pid %d (%s), uid (%u):  Path `%s' failed "
                                     "on initial open test, error = %d\n",
@@ -3129,11 +3160,9 @@ nomem:
 				free(temp, M_TEMP);
 				return (NULL);
 			}
-			vfslocked = NDHASGIANT(&nd);
 			NDFREE(&nd, NDF_ONLY_PNBUF);
 			VOP_UNLOCK(nd.ni_vp, 0);
 			error = vn_close(nd.ni_vp, FWRITE, td->td_ucred, td);
-			VFS_UNLOCK_GIANT(vfslocked);
 			if (error) {
 				log(LOG_ERR,
 				    "pid %d (%s), uid (%u):  Path `%s' failed "
@@ -3170,7 +3199,6 @@ coredump(struct thread *td)
 	struct mount *mp;
 	char *name;			/* name of corefile */
 	off_t limit;
-	int vfslocked;
 	int compress;
 
 #ifdef COMPRESS_USER_CORES
@@ -3191,7 +3219,8 @@ coredump(struct thread *td)
 #endif
 		return (EINVAL);
 	}
-	if (((sugid_coredump == 0) && p->p_flag & P_SUGID) || do_coredump == 0) {
+	if (((sugid_coredump == 0) && p->p_flag & P_SUGID) ||
+	    do_coredump == 0) {
 		PROC_UNLOCK(p);
 #ifdef AUDIT
 		audit_proc_coredump(td, name, EFAULT);
@@ -3199,7 +3228,7 @@ coredump(struct thread *td)
 		free(name, M_TEMP);
 		return (EFAULT);
 	}
-	
+
 	/*
 	 * Note that the bulk of limit checking is done after
 	 * the corefile is created.  The exception is if the limit
@@ -3220,9 +3249,10 @@ coredump(struct thread *td)
 	PROC_UNLOCK(p);
 
 restart:
-	NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_SYSSPACE, name, td);
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, td);
 	flags = O_CREAT | FWRITE | O_NOFOLLOW;
-	error = vn_open_cred(&nd, &flags, S_IRUSR | S_IWUSR, VN_OPEN_NOAUDIT,
+	error = vn_open_cred(&nd, &flags, S_IRUSR | S_IWUSR,
+	    VN_OPEN_NOAUDIT | (capmode_coredump ? VN_OPEN_NOCAPCHECK : 0),
 	    cred, NULL);
 	if (error) {
 #ifdef AUDIT
@@ -3231,7 +3261,6 @@ restart:
 		free(name, M_TEMP);
 		return (error);
 	}
-	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 
@@ -3258,7 +3287,6 @@ restart:
 			goto out;
 		if ((error = vn_start_write(NULL, &mp, V_XSLEEP | PCATCH)) != 0)
 			goto out;
-		VFS_UNLOCK_GIANT(vfslocked);
 		goto restart;
 	}
 
@@ -3274,9 +3302,12 @@ restart:
 	p->p_acflag |= ACORE;
 	PROC_UNLOCK(p);
 
-	error = p->p_sysent->sv_coredump ?
-	  p->p_sysent->sv_coredump(td, vp, limit, compress ? IMGACT_CORE_COMPRESS : 0) :
-	  ENOSYS;
+	if (p->p_sysent->sv_coredump != NULL) {
+		error = p->p_sysent->sv_coredump(td, vp, limit,
+		    compress ? IMGACT_CORE_COMPRESS : 0);
+	} else {
+		error = ENOSYS;
+	}
 
 	if (locked) {
 		lf.l_type = F_UNLCK;
@@ -3291,7 +3322,6 @@ out:
 	audit_proc_coredump(td, name, error);
 #endif
 	free(name, M_TEMP);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
@@ -3313,7 +3343,7 @@ nosys(td, args)
 	struct proc *p = td->td_proc;
 
 	PROC_LOCK(p);
-	kern_psignal(p, SIGSYS);
+	tdsignal(td, SIGSYS);
 	PROC_UNLOCK(p);
 	return (ENOSYS);
 }
@@ -3384,7 +3414,7 @@ filt_sigdetach(struct knote *kn)
 }
 
 /*
- * signal knotes are shared with proc knotes, so we apply a mask to 
+ * signal knotes are shared with proc knotes, so we apply a mask to
  * the hint in order to differentiate them from process hints.  This
  * could be avoided by using a signal-specific knote list, but probably
  * isn't worth the trouble.

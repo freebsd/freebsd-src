@@ -15,9 +15,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "AllocationOrder.h"
-#include "RegisterClassInfo.h"
 #include "VirtRegMap.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
+#include "llvm/CodeGen/RegisterClassInfo.h"
 
 using namespace llvm;
 
@@ -41,7 +41,7 @@ AllocationOrder::AllocationOrder(unsigned VirtReg,
   if (HintPair.first) {
     const TargetRegisterInfo &TRI = VRM.getTargetRegInfo();
     // The remaining allocation order may depend on the hint.
-    ArrayRef<unsigned> Order =
+    ArrayRef<uint16_t> Order =
       TRI.getRawAllocationOrder(RC, HintPair.first, Hint,
                                 VRM.getMachineFunction());
     if (Order.empty())

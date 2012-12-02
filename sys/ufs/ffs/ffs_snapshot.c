@@ -522,17 +522,14 @@ restart:
 	    FSMAXSNAP + 1 /* superblock */ + 1 /* last block */ + 1 /* size */;
 	MNT_ILOCK(mp);
 	mp->mnt_kern_flag &= ~MNTK_SUSPENDED;
+	MNT_IUNLOCK(mp);
 loop:
-	MNT_VNODE_FOREACH(xvp, mp, mvp) {
-		VI_LOCK(xvp);
-		MNT_IUNLOCK(mp);
-		if ((xvp->v_iflag & VI_DOOMED) ||
-		    (xvp->v_usecount == 0 &&
+	MNT_VNODE_FOREACH_ALL(xvp, mp, mvp) {
+		if ((xvp->v_usecount == 0 &&
 		     (xvp->v_iflag & (VI_OWEINACT | VI_DOINGINACT)) == 0) ||
 		    xvp->v_type == VNON ||
 		    IS_SNAPSHOT(VTOI(xvp))) {
 			VI_UNLOCK(xvp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		/*
@@ -541,13 +538,11 @@ loop:
 		 */
 		if (xvp == nd.ni_dvp) {
 			VI_UNLOCK(xvp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		vholdl(xvp);
 		if (vn_lock(xvp, LK_EXCLUSIVE | LK_INTERLOCK) != 0) {
-			MNT_ILOCK(mp);
-			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			vdrop(xvp);
 			goto loop;
 		}
@@ -557,7 +552,6 @@ loop:
 			VI_UNLOCK(xvp);
 			VOP_UNLOCK(xvp, 0);
 			vdrop(xvp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		VI_UNLOCK(xvp);
@@ -567,14 +561,12 @@ loop:
 		    vat.va_nlink > 0) {
 			VOP_UNLOCK(xvp, 0);
 			vdrop(xvp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		xp = VTOI(xvp);
 		if (ffs_checkfreefile(copy_fs, vp, xp->i_number)) {
 			VOP_UNLOCK(xvp, 0);
 			vdrop(xvp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		/*
@@ -610,12 +602,10 @@ loop:
 			free(copy_fs->fs_csp, M_UFSMNT);
 			free(copy_fs, M_UFSMNT);
 			copy_fs = NULL;
-			MNT_VNODE_FOREACH_ABORT(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			goto out1;
 		}
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 	/*
 	 * Erase the journal file from the snapshot.
 	 */
@@ -684,7 +674,8 @@ loop:
 	VI_LOCK(devvp);
 	fs->fs_snapinum[snaploc] = ip->i_number;
 	if (ip->i_nextsnap.tqe_prev != 0)
-		panic("ffs_snapshot: %d already on list", ip->i_number);
+		panic("ffs_snapshot: %ju already on list",
+		    (uintmax_t)ip->i_number);
 	TAILQ_INSERT_TAIL(&sn->sn_head, ip, i_nextsnap);
 	devvp->v_vflag |= VV_COPYONWRITE;
 	VI_UNLOCK(devvp);
@@ -860,7 +851,7 @@ out:
 	mp->mnt_flag = (mp->mnt_flag & MNT_QUOTA) | (flag & ~MNT_QUOTA);
 	MNT_IUNLOCK(mp);
 	if (error)
-		(void) ffs_truncate(vp, (off_t)0, 0, NOCRED, td);
+		(void) ffs_truncate(vp, (off_t)0, 0, NOCRED);
 	(void) ffs_syncvnode(vp, MNT_WAIT, 0);
 	if (error)
 		vput(vp);
@@ -1581,8 +1572,8 @@ ffs_snapgone(ip)
 	if (xp != NULL)
 		vrele(ITOV(ip));
 	else if (snapdebug)
-		printf("ffs_snapgone: lost snapshot vnode %d\n",
-		    ip->i_number);
+		printf("ffs_snapgone: lost snapshot vnode %ju\n",
+		    (uintmax_t)ip->i_number);
 	/*
 	 * Delete snapshot inode from superblock. Keep list dense.
 	 */
@@ -1752,7 +1743,7 @@ ffs_snapblkfree(fs, devvp, bno, size, inum, vtype, wkhd)
 	enum vtype vtype;
 	struct workhead *wkhd;
 {
-	struct buf *ibp, *cbp, *savedcbp = 0;
+	struct buf *ibp, *cbp, *savedcbp = NULL;
 	struct thread *td = curthread;
 	struct inode *ip;
 	struct vnode *vp = NULL;
@@ -1844,9 +1835,10 @@ retry:
 		if (size == fs->fs_bsize) {
 #ifdef DEBUG
 			if (snapdebug)
-				printf("%s %d lbn %jd from inum %d\n",
-				    "Grabonremove: snapino", ip->i_number,
-				    (intmax_t)lbn, inum);
+				printf("%s %ju lbn %jd from inum %ju\n",
+				    "Grabonremove: snapino",
+				    (uintmax_t)ip->i_number,
+				    (intmax_t)lbn, (uintmax_t)inum);
 #endif
 			/*
 			 * If journaling is tracking this write we must add
@@ -1888,9 +1880,9 @@ retry:
 			break;
 #ifdef DEBUG
 		if (snapdebug)
-			printf("%s%d lbn %jd %s %d size %ld to blkno %jd\n",
-			    "Copyonremove: snapino ", ip->i_number,
-			    (intmax_t)lbn, "for inum", inum, size,
+			printf("%s%ju lbn %jd %s %ju size %ld to blkno %jd\n",
+			    "Copyonremove: snapino ", (uintmax_t)ip->i_number,
+			    (intmax_t)lbn, "for inum", (uintmax_t)inum, size,
 			    (intmax_t)cbp->b_blkno);
 #endif
 		/*
@@ -1999,7 +1991,7 @@ ffs_snapshot_mount(mp)
 				reason = "non-snapshot";
 			} else {
 				reason = "old format snapshot";
-				(void)ffs_truncate(vp, (off_t)0, 0, NOCRED, td);
+				(void)ffs_truncate(vp, (off_t)0, 0, NOCRED);
 				(void)ffs_syncvnode(vp, MNT_WAIT, 0);
 			}
 			printf("ffs_snapshot_mount: %s inode %d\n",
@@ -2031,8 +2023,8 @@ ffs_snapshot_mount(mp)
 		 */
 		VI_LOCK(devvp);
 		if (ip->i_nextsnap.tqe_prev != 0)
-			panic("ffs_snapshot_mount: %d already on list",
-			    ip->i_number);
+			panic("ffs_snapshot_mount: %ju already on list",
+			    (uintmax_t)ip->i_number);
 		else
 			TAILQ_INSERT_TAIL(&sn->sn_head, ip, i_nextsnap);
 		vp->v_vflag |= VV_SYSTEM;
@@ -2246,11 +2238,11 @@ ffs_copyonwrite(devvp, bp)
 	struct buf *bp;
 {
 	struct snapdata *sn;
-	struct buf *ibp, *cbp, *savedcbp = 0;
+	struct buf *ibp, *cbp, *savedcbp = NULL;
 	struct thread *td = curthread;
 	struct fs *fs;
 	struct inode *ip;
-	struct vnode *vp = 0;
+	struct vnode *vp = NULL;
 	ufs2_daddr_t lbn, blkno, *snapblklist;
 	int lower, upper, mid, indiroff, error = 0;
 	int launched_async_io, prev_norunningbuf;
@@ -2376,12 +2368,13 @@ ffs_copyonwrite(devvp, bp)
 			break;
 #ifdef DEBUG
 		if (snapdebug) {
-			printf("Copyonwrite: snapino %d lbn %jd for ",
-			    ip->i_number, (intmax_t)lbn);
+			printf("Copyonwrite: snapino %ju lbn %jd for ",
+			    (uintmax_t)ip->i_number, (intmax_t)lbn);
 			if (bp->b_vp == devvp)
 				printf("fs metadata");
 			else
-				printf("inum %d", VTOI(bp->b_vp)->i_number);
+				printf("inum %ju",
+				    (uintmax_t)VTOI(bp->b_vp)->i_number);
 			printf(" lblkno %jd to blkno %jd\n",
 			    (intmax_t)bp->b_lblkno, (intmax_t)cbp->b_blkno);
 		}
@@ -2532,31 +2525,26 @@ process_deferred_inactive(struct mount *mp)
 
 	td = curthread;
 	(void) vn_start_secondary_write(NULL, &mp, V_WAIT);
-	MNT_ILOCK(mp);
  loop:
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		VI_LOCK(vp);
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		/*
 		 * IN_LAZYACCESS is checked here without holding any
 		 * vnode lock, but this flag is set only while holding
 		 * vnode interlock.
 		 */
-		if (vp->v_type == VNON || (vp->v_iflag & VI_DOOMED) != 0 ||
+		if (vp->v_type == VNON ||
 		    ((VTOI(vp)->i_flag & IN_LAZYACCESS) == 0 &&
-			((vp->v_iflag & VI_OWEINACT) == 0 ||
-			vp->v_usecount > 0))) {
+		    ((vp->v_iflag & VI_OWEINACT) == 0 || vp->v_usecount > 0))) {
 			VI_UNLOCK(vp);
 			continue;
 		}
-		MNT_IUNLOCK(mp);
 		vholdl(vp);
 		error = vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK);
 		if (error != 0) {
 			vdrop(vp);
-			MNT_ILOCK(mp);
 			if (error == ENOENT)
 				continue;	/* vnode recycled */
-			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			goto loop;
 		}
 		ip = VTOI(vp);
@@ -2569,7 +2557,6 @@ process_deferred_inactive(struct mount *mp)
 			VI_UNLOCK(vp);
 			VOP_UNLOCK(vp, 0);
 			vdrop(vp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		vinactive(vp, td);
@@ -2578,9 +2565,7 @@ process_deferred_inactive(struct mount *mp)
 		VI_UNLOCK(vp);
 		VOP_UNLOCK(vp, 0);
 		vdrop(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 	vn_finished_secondary_write(mp);
 }
 

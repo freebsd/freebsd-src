@@ -43,7 +43,7 @@ struct cal_year {
 	int firstdayofweek; /* 0 .. 6 */
 	struct cal_month *months;
 	struct cal_year	*nextyear;
-} cal_year;
+};
 
 struct cal_month {
 	int month;			/* 01 .. 12 */
@@ -52,7 +52,7 @@ struct cal_month {
 	struct cal_year *year;		/* points back */
 	struct cal_day *days;
 	struct cal_month *nextmonth;
-} cal_month;
+};
 
 struct cal_day {
 	int dayofmonth;			/* 01 .. 31 */
@@ -62,19 +62,18 @@ struct cal_day {
 	struct cal_month *month;	/* points back */
 	struct cal_year	*year;		/* points back */
 	struct event *events;
-} cal_day;
+};
 
 int debug_remember = 0;
-struct cal_year	*hyear = NULL;
+static struct cal_year *hyear = NULL;
 
 /* 1-based month, 0-based days, cumulative */
-int *cumdays;
 int	cumdaytab[][14] = {
 	{0, -1, 30, 58, 89, 119, 150, 180, 211, 242, 272, 303, 333, 364},
 	{0, -1, 30, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365},
 };
 /* 1-based month, individual */
-int *mondays;
+static int *mondays;
 int	mondaytab[][14] = {
 	{0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 30},
 	{0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, 30},

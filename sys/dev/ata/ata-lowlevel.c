@@ -116,6 +116,7 @@ ata_begin_transaction(struct ata_request *request)
 		} while (request->status & ATA_S_BUSY && timeout--);
 		if (request->status & ATA_S_ERROR)
 		    request->error = ATA_IDX_INB(ch, ATA_ERROR);
+		ch->hw.tf_read(request);
 		goto begin_finished;
 	    }
 
@@ -253,8 +254,9 @@ ata_end_transaction(struct ata_request *request)
 	if (request->flags & ATA_R_TIMEOUT)
 	    goto end_finished;
 
-	/* on control commands read back registers to the request struct */
-	if (request->flags & ATA_R_CONTROL) {
+	/* Read back registers to the request struct. */
+	if ((request->status & ATA_S_ERROR) ||
+	    (request->flags & (ATA_R_CONTROL | ATA_R_NEEDRESULT))) {
 	    ch->hw.tf_read(request);
 	}
 
@@ -332,6 +334,12 @@ ata_end_transaction(struct ata_request *request)
 	else if (!(request->flags & ATA_R_TIMEOUT))
 	    request->donecount = request->bytecount;
 
+	/* Read back registers to the request struct. */
+	if ((request->status & ATA_S_ERROR) ||
+	    (request->flags & (ATA_R_CONTROL | ATA_R_NEEDRESULT))) {
+	    ch->hw.tf_read(request);
+	}
+
 	/* release SG list etc */
 	ch->dma.unload(request);
 
@@ -370,7 +378,6 @@ ata_end_transaction(struct ata_request *request)
 			      "%s trying to write on read buffer\n",
 			   ata_cmd2str(request));
 		goto end_finished;
-		break;
 	    }
 	    ata_pio_write(request, length);
 	    request->donecount += length;
@@ -836,23 +843,21 @@ static void
 ata_pio_read(struct ata_request *request, int length)
 {
     struct ata_channel *ch = device_get_softc(request->parent);
+    uint8_t *addr;
     int size = min(request->transfersize, length);
     int resid;
     uint8_t buf[2];
 
-    if (ch->flags & ATA_USE_16BIT || (size % sizeof(int32_t))) {
-	ATA_IDX_INSW_STRM(ch, ATA_DATA,
-			  (void*)((uintptr_t)request->data+request->donecount),
-			  size / sizeof(int16_t));
+    addr = (uint8_t *)request->data + request->donecount;
+    if (ch->flags & ATA_USE_16BIT || (size % sizeof(int32_t)) ||
+	((uintptr_t)addr % sizeof(int32_t))) {
+	ATA_IDX_INSW_STRM(ch, ATA_DATA, (void*)addr, size / sizeof(int16_t));
 	if (size & 1) {
 	    ATA_IDX_INSW_STRM(ch, ATA_DATA, (void*)buf, 1);
-	    ((uint8_t *)request->data + request->donecount +
-		(size & ~1))[0] = buf[0];
+	    (addr + (size & ~1))[0] = buf[0];
 	}
     } else
-	ATA_IDX_INSL_STRM(ch, ATA_DATA,
-			  (void*)((uintptr_t)request->data+request->donecount),
-			  size / sizeof(int32_t));
+	ATA_IDX_INSL_STRM(ch, ATA_DATA, (void*)addr, size / sizeof(int32_t));
 
     if (request->transfersize < length) {
 	device_printf(request->parent, "WARNING - %s read data overrun %d>%d\n",
@@ -867,23 +872,21 @@ static void
 ata_pio_write(struct ata_request *request, int length)
 {
     struct ata_channel *ch = device_get_softc(request->parent);
+    uint8_t *addr;
     int size = min(request->transfersize, length);
     int resid;
     uint8_t buf[2];
 
-    if (ch->flags & ATA_USE_16BIT || (size % sizeof(int32_t))) {
-	ATA_IDX_OUTSW_STRM(ch, ATA_DATA,
-			   (void*)((uintptr_t)request->data+request->donecount),
-			   size / sizeof(int16_t));
+    addr = (uint8_t *)request->data + request->donecount;
+    if (ch->flags & ATA_USE_16BIT || (size % sizeof(int32_t)) ||
+	((uintptr_t)addr % sizeof(int32_t))) {
+	ATA_IDX_OUTSW_STRM(ch, ATA_DATA, (void*)addr, size / sizeof(int16_t));
 	if (size & 1) {
-	    buf[0] = ((uint8_t *)request->data + request->donecount +
-		(size & ~1))[0];
+	    buf[0] = (addr + (size & ~1))[0];
 	    ATA_IDX_OUTSW_STRM(ch, ATA_DATA, (void*)buf, 1);
 	}
     } else
-	ATA_IDX_OUTSL_STRM(ch, ATA_DATA,
-			   (void*)((uintptr_t)request->data+request->donecount),
-			   size / sizeof(int32_t));
+	ATA_IDX_OUTSL_STRM(ch, ATA_DATA, (void*)addr, size / sizeof(int32_t));
 
     if (request->transfersize < length) {
 	device_printf(request->parent, "WARNING - %s write data underrun %d>%d\n",

@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: mips,v 1.7 2011/05/03 01:44:17 christos Exp $
 # mips:  file(1) magic for Silicon Graphics (MIPS, IRIS, IRIX, etc.)
 #                         Dec Ultrix (MIPS)
 # all of SGI's *current* machines and OSes run in big-endian mode on the
@@ -34,7 +35,7 @@
 >8	belong	>0		not stripped
 >8	belong	0		stripped
 >22	byte	x		- version %ld
->23	byte	x		.%ld
+>23	byte	x		\b.%ld
 #
 0	beshort	0x0162		MIPSEL-BE ECOFF executable
 >20	beshort	0407		(impure)
@@ -43,7 +44,7 @@
 >8	belong	>0		not stripped
 >8	belong	0		stripped
 >23	byte	x		- version %d
->22	byte	x		.%ld
+>22	byte	x		\b.%ld
 #
 0	beshort	0x6001		MIPSEB-LE ECOFF executable
 >20	beshort	03401		(impure)
@@ -52,7 +53,7 @@
 >8	belong	>0		not stripped
 >8	belong	0		stripped
 >23	byte	x		- version %d
->22	byte	x		.%ld
+>22	byte	x		\b.%ld
 #
 0	beshort	0x6201		MIPSEL ECOFF executable
 >20	beshort	03401		(impure)
@@ -61,7 +62,7 @@
 >8	belong	>0		not stripped
 >8	belong	0		stripped
 >23	byte	x		- version %ld
->22	byte	x		.%ld
+>22	byte	x		\b.%ld
 #
 # MIPS 2 additions
 #
@@ -72,7 +73,7 @@
 >8	belong	>0		not stripped
 >8	belong	0		stripped
 >22	byte	x		- version %ld
->23	byte	x		.%ld
+>23	byte	x		\b.%ld
 #
 0	beshort	0x0166		MIPSEL-BE MIPS-II ECOFF executable
 >20	beshort	0407		(impure)
@@ -81,7 +82,7 @@
 >8	belong	>0		not stripped
 >8	belong	0		stripped
 >22	byte	x		- version %ld
->23	byte	x		.%ld
+>23	byte	x		\b.%ld
 #
 0	beshort	0x6301		MIPSEB-LE MIPS-II ECOFF executable
 >20	beshort	03401		(impure)
@@ -90,7 +91,7 @@
 >8	belong	>0		not stripped
 >8	belong	0		stripped
 >23	byte	x		- version %ld
->22	byte	x		.%ld
+>22	byte	x		\b.%ld
 #
 0	beshort	0x6601		MIPSEL MIPS-II ECOFF executable
 >20	beshort	03401		(impure)
@@ -99,7 +100,7 @@
 >8	belong	>0		not stripped
 >8	belong	0		stripped
 >23	byte	x		- version %ld
->22	byte	x		.%ld
+>22	byte	x		\b.%ld
 #
 # MIPS 3 additions
 #
@@ -110,7 +111,7 @@
 >8	belong	>0		not stripped
 >8	belong	0		stripped
 >22	byte	x		- version %ld
->23	byte	x		.%ld
+>23	byte	x		\b.%ld
 #
 0	beshort	0x0142		MIPSEL-BE MIPS-III ECOFF executable
 >20	beshort	0407		(impure)
@@ -119,7 +120,7 @@
 >8	belong	>0		not stripped
 >8	belong	0		stripped
 >22	byte	x		- version %ld
->23	byte	x		.%ld
+>23	byte	x		\b.%ld
 #
 0	beshort	0x4001		MIPSEB-LE MIPS-III ECOFF executable
 >20	beshort	03401		(impure)
@@ -128,7 +129,7 @@
 >8	belong	>0		not stripped
 >8	belong	0		stripped
 >23	byte	x		- version %ld
->22	byte	x		.%ld
+>22	byte	x		\b.%ld
 #
 0	beshort	0x4201		MIPSEL MIPS-III ECOFF executable
 >20	beshort	03401		(impure)
@@ -137,7 +138,7 @@
 >8	belong	>0		not stripped
 >8	belong	0		stripped
 >23	byte	x		- version %ld
->22	byte	x		.%ld
+>22	byte	x		\b.%ld
 #
 0	beshort	0x180		MIPSEB Ucode
 0	beshort	0x182		MIPSEL-BE Ucode
@@ -159,7 +160,7 @@
 # Trusted IRIX info
 0	string	SGIAUDIT	SGI Audit file
 >8	byte	x		- version %d
->9	byte	x		.%ld
+>9	byte	x		\b.%ld
 #
 0	string	WNGZWZSC	Wingz compiled script
 0	string	WNGZWZSS	Wingz spreadsheet
@@ -170,8 +171,12 @@
 # GLF is OpenGL stream encoding
 0	string	glfHeadMagic();		GLF_TEXT
 4	belong	0x7d000000		GLF_BINARY_LSB_FIRST
+!:strength -30
 4	belong	0x0000007d		GLF_BINARY_MSB_FIRST
+!:strength -30
 # GLS is OpenGL stream encoding; GLS is the successor of GLF
 0	string	glsBeginGLS(		GLS_TEXT
 4	belong	0x10000000		GLS_BINARY_LSB_FIRST
+!:strength -30
 4	belong	0x00000010		GLS_BINARY_MSB_FIRST
+!:strength -30

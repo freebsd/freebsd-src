@@ -1,10 +1,10 @@
-//===- PPCInstrAltivec.td - The PowerPC Altivec Extension --*- tablegen -*-===//
-// 
+//===-- PPCInstrAltivec.td - The PowerPC Altivec Extension -*- tablegen -*-===//
+//
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-// 
+//
 //===----------------------------------------------------------------------===//
 //
 // This file describes the Altivec extension to the PowerPC instruction set.
@@ -188,85 +188,85 @@ class VX2_Int<bits<11> xo, string opc, Intrinsic IntID>
 
 def DSS      : DSS_Form<822, (outs),
                         (ins u5imm:$ZERO0, u5imm:$STRM,u5imm:$ZERO1,u5imm:$ZERO2),
-                        "dss $STRM", LdStGeneral /*FIXME*/, []>;
+                        "dss $STRM", LdStLoad /*FIXME*/, []>;
 def DSSALL   : DSS_Form<822, (outs),
                         (ins u5imm:$ONE, u5imm:$ZERO0,u5imm:$ZERO1,u5imm:$ZERO2),
-                        "dssall", LdStGeneral /*FIXME*/, []>;
+                        "dssall", LdStLoad /*FIXME*/, []>;
 def DST      : DSS_Form<342, (outs),
                         (ins u5imm:$ZERO, u5imm:$STRM, GPRC:$rA, GPRC:$rB),
-                        "dst $rA, $rB, $STRM", LdStGeneral /*FIXME*/, []>;
+                        "dst $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>;
 def DSTT     : DSS_Form<342, (outs),
                         (ins u5imm:$ONE, u5imm:$STRM, GPRC:$rA, GPRC:$rB),
-                        "dstt $rA, $rB, $STRM", LdStGeneral /*FIXME*/, []>;
+                        "dstt $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>;
 def DSTST    : DSS_Form<374, (outs),
                         (ins u5imm:$ZERO, u5imm:$STRM, GPRC:$rA, GPRC:$rB),
-                        "dstst $rA, $rB, $STRM", LdStGeneral /*FIXME*/, []>;
+                        "dstst $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>;
 def DSTSTT   : DSS_Form<374, (outs),
                         (ins u5imm:$ONE, u5imm:$STRM, GPRC:$rA, GPRC:$rB),
-                        "dststt $rA, $rB, $STRM", LdStGeneral /*FIXME*/, []>;
+                        "dststt $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>;
 
 def DST64    : DSS_Form<342, (outs),
                         (ins u5imm:$ZERO, u5imm:$STRM, G8RC:$rA, GPRC:$rB),
-                        "dst $rA, $rB, $STRM", LdStGeneral /*FIXME*/, []>;
+                        "dst $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>;
 def DSTT64   : DSS_Form<342, (outs),
                         (ins u5imm:$ONE, u5imm:$STRM, G8RC:$rA, GPRC:$rB),
-                        "dstt $rA, $rB, $STRM", LdStGeneral /*FIXME*/, []>;
+                        "dstt $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>;
 def DSTST64  : DSS_Form<374, (outs),
                         (ins u5imm:$ZERO, u5imm:$STRM, G8RC:$rA, GPRC:$rB),
-                        "dstst $rA, $rB, $STRM", LdStGeneral /*FIXME*/, []>;
+                        "dstst $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>;
 def DSTSTT64 : DSS_Form<374, (outs),
                         (ins u5imm:$ONE, u5imm:$STRM, G8RC:$rA, GPRC:$rB),
-                        "dststt $rA, $rB, $STRM", LdStGeneral /*FIXME*/, []>;
+                        "dststt $rA, $rB, $STRM", LdStLoad /*FIXME*/, []>;
 
 def MFVSCR : VXForm_4<1540, (outs VRRC:$vD), (ins),
-                      "mfvscr $vD", LdStGeneral,
+                      "mfvscr $vD", LdStStore,
                       [(set VRRC:$vD, (int_ppc_altivec_mfvscr))]>; 
 def MTVSCR : VXForm_5<1604, (outs), (ins VRRC:$vB),
-                      "mtvscr $vB", LdStGeneral,
+                      "mtvscr $vB", LdStLoad,
                       [(int_ppc_altivec_mtvscr VRRC:$vB)]>; 
 
 let canFoldAsLoad = 1, PPC970_Unit = 2 in {  // Loads.
 def LVEBX: XForm_1<31,   7, (outs VRRC:$vD), (ins memrr:$src),
-                   "lvebx $vD, $src", LdStGeneral,
+                   "lvebx $vD, $src", LdStLoad,
                    [(set VRRC:$vD, (int_ppc_altivec_lvebx xoaddr:$src))]>;
 def LVEHX: XForm_1<31,  39, (outs VRRC:$vD), (ins memrr:$src),
-                   "lvehx $vD, $src", LdStGeneral,
+                   "lvehx $vD, $src", LdStLoad,
                    [(set VRRC:$vD, (int_ppc_altivec_lvehx xoaddr:$src))]>;
 def LVEWX: XForm_1<31,  71, (outs VRRC:$vD), (ins memrr:$src),
-                   "lvewx $vD, $src", LdStGeneral,
+                   "lvewx $vD, $src", LdStLoad,
                    [(set VRRC:$vD, (int_ppc_altivec_lvewx xoaddr:$src))]>;
 def LVX  : XForm_1<31, 103, (outs VRRC:$vD), (ins memrr:$src),
-                   "lvx $vD, $src", LdStGeneral,
+                   "lvx $vD, $src", LdStLoad,
                    [(set VRRC:$vD, (int_ppc_altivec_lvx xoaddr:$src))]>;
 def LVXL : XForm_1<31, 359, (outs VRRC:$vD), (ins memrr:$src),
-                   "lvxl $vD, $src", LdStGeneral,
+                   "lvxl $vD, $src", LdStLoad,
                    [(set VRRC:$vD, (int_ppc_altivec_lvxl xoaddr:$src))]>;
 }
 
 def LVSL : XForm_1<31,   6, (outs VRRC:$vD), (ins memrr:$src),
-                   "lvsl $vD, $src", LdStGeneral,
+                   "lvsl $vD, $src", LdStLoad,
                    [(set VRRC:$vD, (int_ppc_altivec_lvsl xoaddr:$src))]>,
                    PPC970_Unit_LSU;
 def LVSR : XForm_1<31,  38, (outs VRRC:$vD), (ins memrr:$src),
-                   "lvsr $vD, $src", LdStGeneral,
+                   "lvsr $vD, $src", LdStLoad,
                    [(set VRRC:$vD, (int_ppc_altivec_lvsr xoaddr:$src))]>,
                    PPC970_Unit_LSU;
 
 let PPC970_Unit = 2 in {   // Stores.
 def STVEBX: XForm_8<31, 135, (outs), (ins VRRC:$rS, memrr:$dst),
-                   "stvebx $rS, $dst", LdStGeneral,
+                   "stvebx $rS, $dst", LdStStore,
                    [(int_ppc_altivec_stvebx VRRC:$rS, xoaddr:$dst)]>;
 def STVEHX: XForm_8<31, 167, (outs), (ins VRRC:$rS, memrr:$dst),
-                   "stvehx $rS, $dst", LdStGeneral,
+                   "stvehx $rS, $dst", LdStStore,
                    [(int_ppc_altivec_stvehx VRRC:$rS, xoaddr:$dst)]>;
 def STVEWX: XForm_8<31, 199, (outs), (ins VRRC:$rS, memrr:$dst),
-                   "stvewx $rS, $dst", LdStGeneral,
+                   "stvewx $rS, $dst", LdStStore,
                    [(int_ppc_altivec_stvewx VRRC:$rS, xoaddr:$dst)]>;
 def STVX  : XForm_8<31, 231, (outs), (ins VRRC:$rS, memrr:$dst),
-                   "stvx $rS, $dst", LdStGeneral,
+                   "stvx $rS, $dst", LdStStore,
                    [(int_ppc_altivec_stvx VRRC:$rS, xoaddr:$dst)]>;
 def STVXL : XForm_8<31, 487, (outs), (ins VRRC:$rS, memrr:$dst),
-                   "stvxl $rS, $dst", LdStGeneral,
+                   "stvxl $rS, $dst", LdStStore,
                    [(int_ppc_altivec_stvxl VRRC:$rS, xoaddr:$dst)]>;
 }
 
@@ -274,15 +274,11 @@ let PPC970_Unit = 5 in {  // VALU Operations.
 // VA-Form instructions.  3-input AltiVec ops.
 def VMADDFP : VAForm_1<46, (outs VRRC:$vD), (ins VRRC:$vA, VRRC:$vC, VRRC:$vB),
                        "vmaddfp $vD, $vA, $vC, $vB", VecFP,
-                       [(set VRRC:$vD, (fadd (fmul VRRC:$vA, VRRC:$vC),
-                                             VRRC:$vB))]>,
-                       Requires<[FPContractions]>;
+                       [(set VRRC:$vD, (fma VRRC:$vA, VRRC:$vC, VRRC:$vB))]>;
 def VNMSUBFP: VAForm_1<47, (outs VRRC:$vD), (ins VRRC:$vA, VRRC:$vC, VRRC:$vB),
                        "vnmsubfp $vD, $vA, $vC, $vB", VecFP,
-                       [(set VRRC:$vD, (fsub V_immneg0,
-                                             (fsub (fmul VRRC:$vA, VRRC:$vC),
-                                                   VRRC:$vB)))]>,
-                       Requires<[FPContractions]>;
+                       [(set VRRC:$vD, (fneg (fma VRRC:$vA, VRRC:$vC,
+                                                  (fneg VRRC:$vB))))]>; 
 
 def VMHADDSHS  : VA1a_Int<32, "vmhaddshs",  int_ppc_altivec_vmhaddshs>;
 def VMHRADDSHS : VA1a_Int<33, "vmhraddshs", int_ppc_altivec_vmhraddshs>;

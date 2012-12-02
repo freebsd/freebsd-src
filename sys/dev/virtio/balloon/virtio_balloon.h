@@ -31,8 +31,6 @@
 #ifndef _VIRTIO_BALLOON_H
 #define _VIRTIO_BALLOON_H
 
-#include <sys/types.h>
-
 /* Feature bits. */
 #define VIRTIO_BALLOON_F_MUST_TELL_HOST	0x1 /* Tell before reclaiming pages */
 #define VIRTIO_BALLOON_F_STATS_VQ	0x2 /* Memory stats virtqueue */

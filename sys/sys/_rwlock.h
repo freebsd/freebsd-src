@@ -32,12 +32,34 @@
 #ifndef _SYS__RWLOCK_H_
 #define	_SYS__RWLOCK_H_
 
+#include <machine/param.h>
+
 /*
  * Reader/writer lock.
+ *
+ * All reader/writer lock implementations must always have a member
+ * called rw_lock.  Other locking primitive structures are not allowed to
+ * use this name for their members.
+ * If this rule needs to change, the bits in the reader/writer lock
+ * implementation must be modified appropriately.
  */
 struct rwlock {
 	struct lock_object	lock_object;
 	volatile uintptr_t	rw_lock;
 };
+
+/*
+ * Members of struct rwlock_padalign must mirror members of struct rwlock.
+ * rwlock_padalign rwlocks can use the rwlock(9) API transparently without
+ * modification.
+ * Pad-aligned rwlocks used within structures should generally be the
+ * first member of the struct.  Otherwise, the compiler can generate
+ * additional padding for the struct to keep a correct alignment for
+ * the rwlock.
+ */
+struct rwlock_padalign {
+	struct lock_object	lock_object;
+	volatile uintptr_t	rw_lock;
+} __aligned(CACHE_LINE_SIZE);
 
 #endif /* !_SYS__RWLOCK_H_ */

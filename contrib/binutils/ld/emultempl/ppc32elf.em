@@ -119,7 +119,40 @@ ppc_before_allocation (void)
 	    }
 	}
     }
+
   gld${EMULATION_NAME}_before_allocation ();
+
+  /* Turn on relaxation if executable sections have addresses that
+     might make branches overflow.  */
+  if (!command_line.relax)
+    {
+      bfd_vma low = (bfd_vma) -1;
+      bfd_vma high = 0;
+      asection *o;
+
+      /* Run lang_size_sections (if not already done).  */
+      if (expld.phase != lang_mark_phase_enum)
+	{
+	  expld.phase = lang_mark_phase_enum;
+	  expld.dataseg.phase = exp_dataseg_none;
+	  one_lang_size_sections_pass (NULL, FALSE);
+	  lang_reset_memory_regions ();
+	}
+
+      for (o = output_bfd->sections; o != NULL; o = o->next)
+	{
+	  if ((o->flags & (SEC_ALLOC | SEC_CODE)) != (SEC_ALLOC | SEC_CODE))
+	    continue;
+	  if (o->rawsize == 0)
+	    continue;
+	  if (low > o->vma)
+	    low = o->vma;
+	  if (high < o->vma + o->rawsize - 1)
+	    high = o->vma + o->rawsize - 1;
+	}
+      if (high > low && high - low > (1 << 25) - 1)
+	command_line.relax = TRUE;
+    }
 }
 
 EOF

@@ -13,6 +13,7 @@ SRCS=	ADCE.cpp \
 	DCE.cpp \
 	DeadStoreElimination.cpp \
 	EarlyCSE.cpp \
+	GlobalMerge.cpp \
 	GVN.cpp \
 	IndVarSimplify.cpp \
 	JumpThreading.cpp \
@@ -23,9 +24,11 @@ SRCS=	ADCE.cpp \
 	LoopStrengthReduce.cpp \
 	LoopUnrollPass.cpp \
 	LoopUnswitch.cpp \
+	LowerAtomic.cpp \
 	MemCpyOptimizer.cpp \
 	ObjCARC.cpp \
 	Reassociate.cpp \
+	Reg2Mem.cpp \
 	SCCP.cpp \
 	ScalarReplAggregates.cpp \
 	SimplifyCFGPass.cpp \

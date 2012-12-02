@@ -180,6 +180,42 @@ freebsd32_wait4(struct thread *td, struct freebsd32_wait4_args *uap)
 	return (error);
 }
 
+int
+freebsd32_wait6(struct thread *td, struct freebsd32_wait6_args *uap)
+{
+	struct wrusage32 wru32;
+	struct __wrusage wru, *wrup;
+	struct siginfo32 si32;
+	struct __siginfo si, *sip;
+	int error, status;
+
+	if (uap->wrusage != NULL)
+		wrup = &wru;
+	else
+		wrup = NULL;
+	if (uap->info != NULL) {
+		sip = &si;
+		bzero(sip, sizeof(*sip));
+	} else
+		sip = NULL;
+	error = kern_wait6(td, uap->idtype, uap->id, &status, uap->options,
+	    wrup, sip);
+	if (error != 0)
+		return (error);
+	if (uap->status != NULL)
+		error = copyout(&status, uap->status, sizeof(status));
+	if (uap->wrusage != NULL && error == 0) {
+		freebsd32_rusage_out(&wru.wru_self, &wru32.wru_self);
+		freebsd32_rusage_out(&wru.wru_children, &wru32.wru_children);
+		error = copyout(&wru32, uap->wrusage, sizeof(wru32));
+	}
+	if (uap->info != NULL && error == 0) {
+		siginfo_to_siginfo32 (&si, &si32);
+		error = copyout(&si32, uap->info, sizeof(si32));
+	}
+	return (error);
+}
+
 #ifdef COMPAT_FREEBSD4
 static void
 copy_statfs(struct statfs *in, struct statfs32 *out)
@@ -1528,7 +1564,8 @@ freebsd32_getdirentries(struct thread *td,
 	int32_t base32;
 	int error;
 
-	error = kern_getdirentries(td, uap->fd, uap->buf, uap->count, &base);
+	error = kern_getdirentries(td, uap->fd, uap->buf, uap->count, &base,
+	    NULL, UIO_USERSPACE);
 	if (error)
 		return (error);
 	if (uap->basep != NULL) {

@@ -1,4 +1,4 @@
-/*	$NetBSD: fsck.c,v 1.21 1999/04/22 04:20:53 abs Exp $	*/
+/*	$NetBSD: fsck.c,v 1.30 2003/08/07 10:04:15 agc Exp $	*/
 
 /*
  * Copyright (c) 1996 Christos Zoulas. All rights reserved.
@@ -13,11 +13,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -35,7 +31,7 @@
  *
  * From: @(#)mount.c	8.19 (Berkeley) 4/19/94
  * From: $NetBSD: mount.c,v 1.24 1995/11/18 03:34:29 cgd Exp 
- * $NetBSD: fsck.c,v 1.21 1999/04/22 04:20:53 abs Exp $
+ * $NetBSD: fsck.c,v 1.30 2003/08/07 10:04:15 agc Exp $
  */
 
 #include <sys/cdefs.h>
@@ -77,14 +73,14 @@ static char *options = NULL;
 static int flags = 0;
 static int forceflag = 0;
 
-static int checkfs(const char *, const char *, const char *, char *, pid_t *);
+static int checkfs(const char *, const char *, const char *, const char *, pid_t *);
 static int selected(const char *);
 static void addoption(char *);
 static const char *getoptions(const char *);
 static void addentry(struct fstypelist *, const char *, const char *);
 static void maketypelist(char *);
 static void catopt(char **, const char *);
-static void mangle(char *, int *, const char ***, int *);
+static void mangle(char *, int *, const char ** volatile *, int *);
 static const char *getfslab(const char *);
 static void usage(void) __dead2;
 static int isok(struct fstab *);
@@ -191,6 +187,7 @@ main(int argc, char *argv[])
 		char device[MAXPATHLEN];
 		struct statfs *mntp;
 
+		mntpt = NULL;
 		spec = *argv;
 		cp = strrchr(spec, '/');
 		if (cp == 0) {
@@ -289,9 +286,9 @@ isok(struct fstab *fs)
 
 static int
 checkfs(const char *pvfstype, const char *spec, const char *mntpt,
-    char *auxopt, pid_t *pidp)
+    const char *auxopt, pid_t *pidp)
 {
-	const char **argv;
+	const char ** volatile argv;
 	pid_t pid;
 	int argc, i, status, maxargc;
 	char *optbuf, execbase[MAXPATHLEN];
@@ -315,8 +312,8 @@ checkfs(const char *pvfstype, const char *spec, const char *mntpt,
 	 */
 	vfstype = strdup(pvfstype);
 	if (vfstype == NULL)
-		perror("strdup(pvfstype)"); 
-	for (i = 0; i < strlen(vfstype); i++) {
+		perr("strdup(pvfstype)");
+	for (i = 0; i < (int)strlen(vfstype); i++) {
 		vfstype[i] = tolower(vfstype[i]);
 		if (vfstype[i] == ' ')
 			vfstype[i] = '_';
@@ -365,7 +362,7 @@ checkfs(const char *pvfstype, const char *spec, const char *mntpt,
 			_exit(0);
 
 		/* Go find an executable. */
-		execvP(execbase, _PATH_SYSPATH, (char * const *)argv);
+		execvP(execbase, _PATH_SYSPATH, __DECONST(char * const *, argv));
 		if (spec)
 			warn("exec %s for %s in %s", execbase, spec, _PATH_SYSPATH);
 		else
@@ -502,7 +499,7 @@ catopt(char **sp, const char *o)
 
 
 static void
-mangle(char *options, int *argcp, const char ***argvp, int *maxargcp)
+mangle(char *opts, int *argcp, const char ** volatile *argvp, int *maxargcp)
 {
 	char *p, *s;
 	int argc, maxargc;
@@ -512,7 +509,7 @@ mangle(char *options, int *argcp, const char ***argvp, int *maxargcp)
 	argv = *argvp;
 	maxargc = *maxargcp;
 
-	for (s = options; (p = strsep(&s, ",")) != NULL;) {
+	for (s = opts; (p = strsep(&s, ",")) != NULL;) {
 		/* Always leave space for one more argument and the NULL. */
 		if (argc >= maxargc - 3) {
 			maxargc <<= 1;
@@ -539,7 +536,7 @@ mangle(char *options, int *argcp, const char ***argvp, int *maxargcp)
 }
 
 
-const static char *
+static const char *
 getfslab(const char *str)
 {
 	struct disklabel dl;

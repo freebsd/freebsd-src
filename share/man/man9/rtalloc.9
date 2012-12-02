@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2011
+.Dd July 4, 2012
 .Dt RTALLOC 9
 .Os
 .Sh NAME
@@ -52,6 +52,7 @@
 .Fn RT_UNLOCK "struct rt_entry *rt"
 .Fn RT_ADDREF "struct rt_entry *rt"
 .Fn RT_REMREF "struct rt_entry *rt"
+.Fn RO_RTFREE "struct route *ro"
 .Ft void
 .Fn rtfree "struct rt_entry *rt"
 .Ft "struct rtentry *"
@@ -201,6 +202,14 @@ The
 macro decrements the reference count on a previously locked route entry.
 Its usage is contrary to
 .Fn RT_ADDREF .
+.Pp
+The
+.Fn RO_RTFREE
+macro is used to free route entry that is referenced by struct route.
+At certain circumstances the latter may not hold a reference on rtentry,
+and
+.Fn RO_RTFREE
+treats such routes correctly.
 .Pp
 The
 .Fn rtfree

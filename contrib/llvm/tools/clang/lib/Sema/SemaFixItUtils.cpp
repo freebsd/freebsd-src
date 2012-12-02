@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/ExprCXX.h"
 #include "clang/AST/ExprObjC.h"
 #include "clang/Lex/Preprocessor.h"
@@ -157,4 +158,60 @@ bool ConversionFixItGenerator::tryToFixConversion(const Expr *FullExpr,
   }
 
   return false;
+}
+
+static bool isMacroDefined(const Sema &S, StringRef Name) {
+  return S.PP.getMacroInfo(&S.getASTContext().Idents.get(Name));
+}
+
+static std::string getScalarZeroExpressionForType(const Type& T, const Sema& S) {
+  assert(T.isScalarType() && "use scalar types only");
+  // Suggest "0" for non-enumeration scalar types, unless we can find a
+  // better initializer.
+  if (T.isEnumeralType())
+    return std::string();
+  if ((T.isObjCObjectPointerType() || T.isBlockPointerType()) &&
+      isMacroDefined(S, "nil"))
+    return "nil";
+  if (T.isRealFloatingType())
+    return "0.0";
+  if (T.isBooleanType() && S.LangOpts.CPlusPlus)
+    return "false";
+  if (T.isPointerType() || T.isMemberPointerType()) {
+    if (S.LangOpts.CPlusPlus0x)
+      return "nullptr";
+    if (isMacroDefined(S, "NULL"))
+      return "NULL";
+  }
+  if (T.isCharType())
+    return "'\\0'";
+  if (T.isWideCharType())
+    return "L'\\0'";
+  if (T.isChar16Type())
+    return "u'\\0'";
+  if (T.isChar32Type())
+    return "U'\\0'";
+  return "0";
+}
+
+std::string Sema::getFixItZeroInitializerForType(QualType T) const {
+  if (T->isScalarType()) {
+    std::string s = getScalarZeroExpressionForType(*T, *this);
+    if (!s.empty())
+      s = " = " + s;
+    return s;
+  }
+
+  const CXXRecordDecl *RD = T->getAsCXXRecordDecl();
+  if (!RD || !RD->hasDefinition())
+    return std::string();
+  if (LangOpts.CPlusPlus0x && !RD->hasUserProvidedDefaultConstructor())
+    return "{}";
+  if (RD->isAggregate())
+    return " = {}";
+  return std::string();
+}
+
+std::string Sema::getFixItZeroLiteralForType(QualType T) const {
+  return getScalarZeroExpressionForType(*T, *this);
 }

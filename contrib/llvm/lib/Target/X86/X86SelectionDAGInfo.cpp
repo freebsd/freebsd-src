@@ -38,7 +38,7 @@ X86SelectionDAGInfo::EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
   // If to a segment-relative address space, use the default lowering.
   if (DstPtrInfo.getAddrSpace() >= 256)
     return SDValue();
-  
+
   // If not DWORD aligned or size is more than the threshold, call the library.
   // The libc version is likely to be faster for these cases. It can use the
   // address value and run time information about the CPU.
@@ -62,12 +62,15 @@ X86SelectionDAGInfo::EmitTargetCodeForMemset(SelectionDAG &DAG, DebugLoc dl,
       Args.push_back(Entry);
       Entry.Node = Size;
       Args.push_back(Entry);
-      std::pair<SDValue,SDValue> CallResult =
-        TLI.LowerCallTo(Chain, Type::getVoidTy(*DAG.getContext()),
+      TargetLowering::
+      CallLoweringInfo CLI(Chain, Type::getVoidTy(*DAG.getContext()),
                         false, false, false, false,
-                        0, CallingConv::C, false, /*isReturnValueUsed=*/false,
+                        0, CallingConv::C, /*isTailCall=*/false,
+                        /*doesNotRet=*/false, /*isReturnValueUsed=*/false,
                         DAG.getExternalSymbol(bzeroEntry, IntPtr), Args,
                         DAG, dl);
+      std::pair<SDValue,SDValue> CallResult =
+        TLI.LowerCallTo(CLI);
       return CallResult.second;
     }
 

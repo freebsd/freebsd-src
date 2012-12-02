@@ -104,6 +104,7 @@ struct ad7417_softc {
 	uint32_t                sc_addr;
 	struct ad7417_sensor    *sc_sensors;
 	int                     sc_nsensors;
+	int                     init_done;
 };
 static device_method_t  ad7417_methods[] = {
 	/* Device interface */
@@ -247,6 +248,9 @@ ad7417_init_adc(device_t dev, uint32_t addr)
 {
 	uint8_t buf;
 	int err;
+	struct ad7417_softc *sc;
+
+	sc = device_get_softc(dev);
 
 	adc741x_config = 0;
 	/* Clear Config2 */
@@ -266,6 +270,8 @@ ad7417_init_adc(device_t dev, uint32_t addr)
 	err = ad7417_write(dev, addr, AD7417_CONFIG, &buf, 1);
 	if (err < 0)
 		return (-1);
+
+	sc->init_done = 1;
 
 	return (0);
 
@@ -430,10 +436,10 @@ ad7417_attach(device_t dev)
 
 		if (sc->sc_sensors[i].type == ADC7417_TEMP_SENSOR) {
 			unit = "temp";
-			desc = "Sensor temp in C";
+			desc = "sensor unit (C)";
 		} else {
 			unit = "volt";
-			desc = "Sensor Volt in V";
+			desc = "sensor unit (mV)";
 		}
 		/* I use i to pass the sensor id. */
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
@@ -584,9 +590,10 @@ ad7417_sensor_read(struct ad7417_sensor *sens)
 
 	sc = device_get_softc(sens->dev);
 
-	/* Init the ADC. */
-	if (ad7417_init_adc(sc->sc_dev, sc->sc_addr) < 0)
-		return (-1);
+	/* Init the ADC if not already done.*/
+	if (!sc->init_done)
+		if (ad7417_init_adc(sc->sc_dev, sc->sc_addr) < 0)
+			return (-1);
 
 	if (sens->type == ADC7417_TEMP_SENSOR) {
 		if (ad7417_get_temp(sc->sc_dev, sc->sc_addr, &temp) < 0)

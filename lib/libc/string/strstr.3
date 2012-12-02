@@ -49,6 +49,10 @@
 .Fn strcasestr "const char *big" "const char *little"
 .Ft char *
 .Fn strnstr "const char *big" "const char *little" "size_t len"
+.In string.h
+.In xlocale.h
+.Ft char *
+.Fn strcasestr_l "const char *big" "const char *little" "locale_t loc"
 .Sh DESCRIPTION
 The
 .Fn strstr
@@ -63,6 +67,12 @@ The
 function is similar to
 .Fn strstr ,
 but ignores the case of both strings.
+.Pp
+The
+.Fn strcasestr_l
+function does the same as
+.Fn strcasestr
+but takes an explicit locale rather than using the current locale.
 .Pp
 The
 .Fn strnstr

@@ -19,9 +19,10 @@
 #include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
+#include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/ObjCMessage.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Decl.h"
 
@@ -31,33 +32,24 @@ using namespace ento;
 namespace {
 class NSAutoreleasePoolChecker
   : public Checker<check::PreObjCMessage> {
-      
+  mutable OwningPtr<BugType> BT;
   mutable Selector releaseS;
 
 public:
-  void checkPreObjCMessage(ObjCMessage msg, CheckerContext &C) const;    
+  void checkPreObjCMessage(const ObjCMethodCall &msg, CheckerContext &C) const;
 };
 
 } // end anonymous namespace
 
-void NSAutoreleasePoolChecker::checkPreObjCMessage(ObjCMessage msg,
+void NSAutoreleasePoolChecker::checkPreObjCMessage(const ObjCMethodCall &msg,
                                                    CheckerContext &C) const {
-  
-  const Expr *receiver = msg.getInstanceReceiver();
-  if (!receiver)
+  if (!msg.isInstanceMessage())
     return;
-  
-  // FIXME: Enhance with value-tracking information instead of consulting
-  // the type of the expression.
-  const ObjCObjectPointerType* PT =
-    receiver->getType()->getAs<ObjCObjectPointerType>();
-  
-  if (!PT)
-    return;  
-  const ObjCInterfaceDecl *OD = PT->getInterfaceDecl();
+
+  const ObjCInterfaceDecl *OD = msg.getReceiverInterface();
   if (!OD)
     return;  
-  if (!OD->getIdentifier()->getName().equals("NSAutoreleasePool"))
+  if (!OD->getIdentifier()->isStr("NSAutoreleasePool"))
     return;
 
   if (releaseS.isNull())
@@ -65,20 +57,24 @@ void NSAutoreleasePoolChecker::checkPreObjCMessage(ObjCMessage msg,
   // Sending 'release' message?
   if (msg.getSelector() != releaseS)
     return;
-                     
-  SourceRange R = msg.getSourceRange();
-  BugReporter &BR = C.getBugReporter();
-  const LocationContext *LC = C.getPredecessor()->getLocationContext();
-  const SourceManager &SM = BR.getSourceManager();
-  const Expr *E = msg.getMsgOrPropExpr();
-  PathDiagnosticLocation L = PathDiagnosticLocation::createBegin(E, SM, LC);
-  C.getBugReporter().EmitBasicReport("Use -drain instead of -release",
-    "API Upgrade (Apple)",
-    "Use -drain instead of -release when using NSAutoreleasePool "
-    "and garbage collection", L, &R, 1);
+
+  if (!BT)
+    BT.reset(new BugType("Use -drain instead of -release",
+                         "API Upgrade (Apple)"));
+
+  ExplodedNode *N = C.addTransition();
+  if (!N) {
+    assert(0);
+    return;
+  }
+
+  BugReport *Report = new BugReport(*BT, "Use -drain instead of -release when "
+    "using NSAutoreleasePool and garbage collection", N);
+  Report->addRange(msg.getSourceRange());
+  C.EmitReport(Report);
 }
 
 void ento::registerNSAutoreleasePoolChecker(CheckerManager &mgr) {
-  if (mgr.getLangOptions().getGC() != LangOptions::NonGC)
+  if (mgr.getLangOpts().getGC() != LangOptions::NonGC)
     mgr.registerChecker<NSAutoreleasePoolChecker>();
 }

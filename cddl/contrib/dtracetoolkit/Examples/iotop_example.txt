@@ -1,0 +1,142 @@
+The following are demonstrations of the iotop program,
+
+
+Here we run iotop with the -C option to not clear the screen, but instead
+provide a scrolling output,
+
+   # iotop -C
+   Tracing... Please wait.
+   2005 Jul 16 00:34:40,  load: 1.21,  disk_r:  12891 KB,  disk_w:   1087 KB
+   
+     UID    PID   PPID CMD              DEVICE  MAJ MIN D            BYTES
+       0      3      0 fsflush          cmdk0   102   4 W              512
+       0      3      0 fsflush          cmdk0   102   0 W            11776
+       0  27751  20320 tar              cmdk0   102  16 W            23040
+       0      3      0 fsflush          cmdk0   102   0 R            73728
+       0      0      0 sched            cmdk0   102   0 R           548864
+       0      0      0 sched            cmdk0   102   0 W          1078272
+       0  27751  20320 tar              cmdk0   102  16 R          1514496
+       0  27751  20320 tar              cmdk0   102   3 R         11767808
+   
+   2005 Jul 16 00:34:45,  load: 1.23,  disk_r:  83849 KB,  disk_w:    488 KB
+   
+     UID    PID   PPID CMD              DEVICE  MAJ MIN D            BYTES
+       0      0      0 sched            cmdk0   102   4 W             1536
+       0      0      0 sched            cmdk0   102   0 R           131072
+       0  27752  20320 find             cmdk0   102   0 R           262144
+       0      0      0 sched            cmdk0   102   0 W           498176
+       0  27751  20320 tar              cmdk0   102   3 R         11780096
+       0  27751  20320 tar              cmdk0   102   5 R         29745152
+       0  27751  20320 tar              cmdk0   102   4 R         47203328
+   
+   2005 Jul 16 00:34:50,  load: 1.25,  disk_r:  22394 KB,  disk_w:      2 KB
+   
+     UID    PID   PPID CMD              DEVICE  MAJ MIN D            BYTES
+       0  27752  20320 find             cmdk0   102   0 W             2048
+       0      0      0 sched            cmdk0   102   0 R            16384
+       0    321      1 automountd       cmdk0   102   0 R            22528
+       0  27752  20320 find             cmdk0   102   0 R          1462272
+       0  27751  20320 tar              cmdk0   102   5 R         17465344
+
+In the above output, we can see a tar command is reading from the cmdk0 
+disk, from several different slices (different minor numbers), on the last
+report focusing on 102,5 (an "ls -lL" in /dev/dsk can explain the number to
+slice mappings).
+
+The disk_r and disk_w values give a summary of the overall activity in 
+bytes.
+
+
+
+Bytes can be used as a yardstick to determine which process is keeping the
+disks busy, however either of the delta times available from iotop would 
+be more accurate (as they take into account whether the activity is random 
+or sequential).  
+
+   # iotop -Co
+   Tracing... Please wait.
+   2005 Jul 16 00:39:03,  load: 1.10,  disk_r:   5302 KB,  disk_w:     20 KB
+   
+     UID    PID   PPID CMD              DEVICE  MAJ MIN D         DISKTIME
+       0      0      0 sched            cmdk0   102   0 W              532
+       0      0      0 sched            cmdk0   102   0 R           245398
+       0  27758  20320 find             cmdk0   102   0 R          3094794
+   
+   2005 Jul 16 00:39:08,  load: 1.14,  disk_r:   5268 KB,  disk_w:    273 KB
+   
+     UID    PID   PPID CMD              DEVICE  MAJ MIN D         DISKTIME
+       0      3      0 fsflush          cmdk0   102   0 W             2834
+       0      0      0 sched            cmdk0   102   0 W           263527
+       0      0      0 sched            cmdk0   102   0 R           285015
+       0      3      0 fsflush          cmdk0   102   0 R           519187
+       0  27758  20320 find             cmdk0   102   0 R          2429232
+   
+   2005 Jul 16 00:39:13,  load: 1.16,  disk_r:    602 KB,  disk_w:   1238 KB
+   
+     UID    PID   PPID CMD              DEVICE  MAJ MIN D         DISKTIME
+       0      3      0 fsflush          cmdk0   102   4 W              200
+       0      3      0 fsflush          cmdk0   102   6 W              260
+       0      3      0 fsflush          cmdk0   102   0 W              883
+       0  27758  20320 find             cmdk0   102   0 R            55686
+       0      3      0 fsflush          cmdk0   102   0 R           317508
+       0      0      0 sched            cmdk0   102   0 R           320195
+       0      0      0 sched            cmdk0   102   0 W           571084
+   [...]
+
+The disk time is in microseconds. In the first sample, we can see the find
+command caused a total of 3.094 seconds of disk time - the duration of the
+samples here is 5 seconds (the default), so it would be fair to say that
+the find command is keeping the disk 60% busy.
+
+
+
+A new option for iotop is to print percents "-P" which are based on disk
+I/O times, and hense are a fair measurementt of what is keeping the disks
+busy.
+
+   # iotop -PC 1
+   Tracing... Please wait.
+   2005 Nov 18 15:26:14,  load: 0.24,  disk_r:  13176 KB,  disk_w:      0 KB
+   
+     UID    PID   PPID CMD              DEVICE  MAJ MIN D   %I/O
+       0   2215   1663 bart             cmdk0   102   0 R     85
+   
+   2005 Nov 18 15:26:15,  load: 0.25,  disk_r:   5263 KB,  disk_w:      0 KB
+   
+     UID    PID   PPID CMD              DEVICE  MAJ MIN D   %I/O
+       0   2214   1663 find             cmdk0   102   0 R     15
+       0   2215   1663 bart             cmdk0   102   0 R     67
+   
+   2005 Nov 18 15:26:16,  load: 0.25,  disk_r:   8724 KB,  disk_w:      0 KB
+   
+     UID    PID   PPID CMD              DEVICE  MAJ MIN D   %I/O
+       0   2214   1663 find             cmdk0   102   0 R     10
+       0   2215   1663 bart             cmdk0   102   0 R     71
+   
+   2005 Nov 18 15:26:17,  load: 0.25,  disk_r:   7528 KB,  disk_w:      0 KB
+   
+     UID    PID   PPID CMD              DEVICE  MAJ MIN D   %I/O
+       0   2214   1663 find             cmdk0   102   0 R      0
+       0   2215   1663 bart             cmdk0   102   0 R     85
+   
+   2005 Nov 18 15:26:18,  load: 0.26,  disk_r:  11389 KB,  disk_w:      0 KB
+   
+     UID    PID   PPID CMD              DEVICE  MAJ MIN D   %I/O
+       0   2214   1663 find             cmdk0   102   0 R      2
+       0   2215   1663 bart             cmdk0   102   0 R     80
+   
+   2005 Nov 18 15:26:19,  load: 0.26,  disk_r:  22109 KB,  disk_w:      0 KB
+   
+     UID    PID   PPID CMD              DEVICE  MAJ MIN D   %I/O
+       0   2215   1663 bart             cmdk0   102   0 R     76
+   
+   ^C
+
+In the above output, bart and find jostle for disk access as they create
+a database of file checksums. The command was,
+
+	find / | bart create -I > /dev/null
+
+Note that the %I/O is in terms of 1 disk. A %I/O of say 200 is allowed - it
+would mean that effectively 2 disks were at 100%, or 4 disks at 50%, etc.
+

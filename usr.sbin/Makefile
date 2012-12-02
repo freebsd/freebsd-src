@@ -23,6 +23,7 @@ SUBDIR=	adduser \
 	digictl \
 	diskinfo \
 	dumpcis \
+	etcupdate \
 	extattr \
 	extattrctl \
 	fifolog \
@@ -34,6 +35,7 @@ SUBDIR=	adduser \
 	ifmcstat \
 	inetd \
 	iostat \
+	isfctl \
 	kldxref \
 	mailwrapper \
 	makefs \
@@ -44,7 +46,6 @@ SUBDIR=	adduser \
 	mixer \
 	mlxcontrol \
 	mountd \
-	mount_portalfs \
 	mptutil \
 	mtest \
 	mtree \
@@ -109,6 +110,9 @@ SUBDIR+=	amd
 .if ${MK_AUDIT} != "no"
 SUBDIR+=	audit
 SUBDIR+=	auditd
+.if ${MK_OPENSSL} != "no"
+SUBDIR+=	auditdistd
+.endif
 SUBDIR+=	auditreduce
 SUBDIR+=	praudit
 .endif
@@ -141,6 +145,11 @@ SUBDIR+=	rndc-confgen
 
 .if ${MK_BLUETOOTH} != "no"
 SUBDIR+=	bluetooth
+.endif
+
+.if ${MK_BSDCONFIG} != "no"
+SUBDIR+=	bsdconfig
+SUBDIR+=	sysrc
 .endif
 
 .if ${MK_BSNMP} != "no"
@@ -223,6 +232,11 @@ SUBDIR+=	lpr
 SUBDIR+=	manctl
 .endif
 
+.if ${MK_NAND} != "no"
+SUBDIR+=	nandsim
+SUBDIR+=	nandtool
+.endif
+
 .if ${MK_NETGRAPH} != "no"
 SUBDIR+=	flowctl
 SUBDIR+=	lmcconfig
@@ -252,6 +266,10 @@ SUBDIR+=	keyserv
 
 .if ${MK_PF} != "no"
 SUBDIR+=	ftp-proxy
+.endif
+
+.if ${MK_PKGBOOTSTRAP} != "no"
+SUBDIR+=	pkg
 .endif
 
 .if ${MK_PKGTOOLS} != "no"

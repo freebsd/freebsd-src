@@ -28,7 +28,7 @@
 .\"     @(#)directory.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd April 16, 2008
+.Dd July 5, 2012
 .Dt DIRECTORY 3
 .Os
 .Sh NAME
@@ -153,7 +153,7 @@ returns 0 on success or an error number to indicate failure.
 The
 .Fn telldir
 function
-returns the current location associated with the named
+returns a token representing the current location associated with the named
 .Em directory stream .
 Values returned by
 .Fn telldir
@@ -179,6 +179,13 @@ The new position reverts to the one associated with the
 when the
 .Fn telldir
 operation was performed.
+State associated with the token returned by
+.Fn telldir is freed when it is passed to
+.Fn seekdir .
+If you wish return to the same location again,
+then you must create a new token with another
+.Fn telldir
+call.
 .Pp
 The
 .Fn rewinddir
@@ -245,3 +252,9 @@ The
 .Fn fdopendir
 function appeared in
 .Fx 8.0 .
+.Sh BUGS
+The invalidation of
+.Fn telldir
+tokens when calling
+.Fn seekdir
+is non-standard.

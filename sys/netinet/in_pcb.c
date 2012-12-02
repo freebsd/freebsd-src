@@ -1105,8 +1105,17 @@ in_pcbrele_rlocked(struct inpcb *inp)
 
 	INP_RLOCK_ASSERT(inp);
 
-	if (refcount_release(&inp->inp_refcount) == 0)
+	if (refcount_release(&inp->inp_refcount) == 0) {
+		/*
+		 * If the inpcb has been freed, let the caller know, even if
+		 * this isn't the last reference.
+		 */
+		if (inp->inp_flags2 & INP_FREED) {
+			INP_RUNLOCK(inp);
+			return (1);
+		}
 		return (0);
+	}
 
 	KASSERT(inp->inp_socket == NULL, ("%s: inp_socket != NULL", __func__));
 
@@ -1186,6 +1195,7 @@ in_pcbfree(struct inpcb *inp)
 		inp_freemoptions(inp->inp_moptions);
 #endif
 	inp->inp_vflag = 0;
+	inp->inp_flags2 |= INP_FREED;
 	crfree(inp->inp_cred);
 #ifdef MAC
 	mac_inpcb_destroy(inp);
@@ -2293,6 +2303,10 @@ db_print_inpflags(int inp_flags)
 	}
 	if (inp_flags & INP_DONTFRAG) {
 		db_printf("%sINP_DONTFRAG", comma ? ", " : "");
+		comma = 1;
+	}
+	if (inp_flags & INP_RECVTOS) {
+		db_printf("%sINP_RECVTOS", comma ? ", " : "");
 		comma = 1;
 	}
 	if (inp_flags & IN6P_IPV6_V6ONLY) {

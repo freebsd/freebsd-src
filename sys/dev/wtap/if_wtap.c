@@ -230,8 +230,10 @@ wtap_beacon_intrp(void *arg)
 	struct ieee80211vap *vap = arg;
 	struct mbuf *m;
 
-	KASSERT(vap->iv_state >= IEEE80211_S_RUN,
-	    ("not running, state %d", vap->iv_state));
+	if (vap->iv_state < IEEE80211_S_RUN) {
+	    DWTAP_PRINTF("Skip beacon, not running, state %d", vap->iv_state);
+	    return ;
+	}
 	DWTAP_PRINTF("[%d] beacon intrp\n", avp->id);	//burst mode
 	/*
 	 * Update dynamic beacon contents.  If this returns
@@ -266,7 +268,7 @@ wtap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	DWTAP_PRINTF("%s\n", __func__);
 
-	ni = vap->iv_bss;
+	ni = ieee80211_ref_node(vap->iv_bss);
 	/*
 	 * Invoke the parent method to do net80211 work.
 	 */
@@ -276,7 +278,8 @@ wtap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 
 	if (nstate == IEEE80211_S_RUN) {
 		/* NB: collect bss node again, it may have changed */
-		ni = vap->iv_bss;
+		ieee80211_free_node(ni);
+		ni = ieee80211_ref_node(vap->iv_bss);
 		switch (vap->iv_opmode) {
 		case IEEE80211_M_MBSS:
 			error = wtap_beacon_alloc(sc, ni);
@@ -289,10 +292,14 @@ wtap_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		default:
 			goto bad;
 		}
+	} else if (nstate == IEEE80211_S_INIT) {
+		callout_stop(&avp->av_swba);
 	}
+	ieee80211_free_node(ni);
 	return 0;
 bad:
 	printf("%s: bad\n", __func__);
+	ieee80211_free_node(ni);
 	return error;
 }
 
@@ -315,6 +322,7 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	 struct ieee80211vap *vap;
 	 struct wtap_vap *avp;
 	 int error;
+	struct ieee80211_node *ni;
 
 	 DWTAP_PRINTF("%s\n", __func__);
 
@@ -343,7 +351,9 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	    (const char *)ic->ic_ifp->if_xname);
 
 	/* TODO this is a hack to force it to choose the rate we want */
-	vap->iv_bss->ni_txrate = 130;
+	ni = ieee80211_ref_node(vap->iv_bss);
+	ni->ni_txrate = 130;
+	ieee80211_free_node(ni);
 	return vap;
 }
 

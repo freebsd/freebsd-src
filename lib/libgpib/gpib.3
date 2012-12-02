@@ -207,7 +207,8 @@ The variable
 .Dv iberr
 provides an error code for the most recent library call.
 The possible error codes are:
-.Bl -tag -offset indent -compact
+.Pp
+.Bl -tag -width 6n -offset indent -compact
 .It EDVR
 System error
 .It ECIC
@@ -244,7 +245,8 @@ The variable
 .Dv ibsta
 contains the controller status.
 This is an ORed status value, with the following individual bit names:
-.Bl -tag -offset indent -compact
+.Pp
+.Bl -tag -width 6n -offset indent -compact
 .It ERR
 Error
 .It TIMO
@@ -329,7 +331,8 @@ The lower 8 bits of
 are interpreted as an end-of-string character,
 .Li EOS .
 This character can be ORed with the following values:
-.Bl -tag -compact -offset indent
+.Pp
+.Bl -tag -width 6n -compact -offset indent
 .It Dv REOS
 When receiving a message byte on the bus that matches the
 .Li EOS
@@ -348,6 +351,7 @@ If set, include all 8 bits of the
 character in the comparison; if unset, compare only 7 bit ASCII
 values.
 .El
+.Pp
 Passing 0 as
 .Fa eos
 will turn off any special character treatment, allowing for a fully
@@ -666,7 +670,7 @@ and sends its contents to the device.
 .Pp
 The function
 .Fn ibwrtkey
-is obsolete, and not implemented
+is obsolete, and not implemented.
 .Pp
 The function
 .Fn ibxtrc

@@ -92,6 +92,25 @@
 	{Reserved} *i1
 }
 
+0x15 "Extended Page";
+
+0x16 "Extended Device-Type Specific Page";
+
+0x1c "Informational Exceptions Control Page" {
+	{PERF} t1
+	{Reserved} *t1
+	{EBF} t1
+	{EWasc} t1
+	{DExcpt} t1
+	{TEST} t1
+	{EBACKERR} t1
+	{LogErr} t1
+	{Reserved} *t4
+	{MRIE} b4
+	{Interval Timer} i4
+	{Report Count} i4
+}
+
 0x09 "Peripheral Device Page" {
 	{Interface Identifier} i2
 	{Reserved} *i1
@@ -100,7 +119,7 @@
 	{Reserved} *i1
 }
 
-0x1a "Power Control" {
+0x1a "Power Condition Page" {
 	{Reserved} *i1
 	{Reserved} *t6
 	{Idle} t1
@@ -108,6 +127,10 @@
 	{Idle Condition Timer} i4
 	{Standby Condition Timer} i4
 }
+
+0x18 "Protocol-Specific LUN Page";
+
+0x19 "Protocol-Specific Port Page";
 
 # DIRECT ACCESS DEVICES
 0x08 "Caching Page" {

@@ -10,6 +10,7 @@ SRCS=	AnalysisWrappers.cpp \
 
 TGHDRS=	Intrinsics
 LIBDEPS=llvmipo \
+	llvmvectorize \
 	llvmscalaropts \
 	llvminstcombine \
 	llvminstrumentation \
@@ -18,6 +19,7 @@ LIBDEPS=llvmipo \
 	llvmanalysis \
 	llvmtarget \
 	llvmmc \
+	llvmobject \
 	llvmasmparser \
 	llvmbitwriter \
 	llvmbitreader \

@@ -25,7 +25,7 @@ using namespace ento;
 namespace {
 class ReturnUndefChecker : 
     public Checker< check::PreStmt<ReturnStmt> > {
-  mutable llvm::OwningPtr<BuiltinBug> BT;
+  mutable OwningPtr<BuiltinBug> BT;
 public:
   void checkPreStmt(const ReturnStmt *RS, CheckerContext &C) const;
 };
@@ -38,7 +38,7 @@ void ReturnUndefChecker::checkPreStmt(const ReturnStmt *RS,
   if (!RetE)
     return;
   
-  if (!C.getState()->getSVal(RetE).isUndef())
+  if (!C.getState()->getSVal(RetE, C.getLocationContext()).isUndef())
     return;
   
   ExplodedNode *N = C.generateSink();
@@ -53,8 +53,9 @@ void ReturnUndefChecker::checkPreStmt(const ReturnStmt *RS,
   BugReport *report = 
     new BugReport(*BT, BT->getDescription(), N);
 
+  report->disablePathPruning();
   report->addRange(RetE->getSourceRange());
-  report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, RetE));
+  bugreporter::addTrackNullOrUndefValueVisitor(N, RetE, report);
 
   C.EmitReport(report);
 }

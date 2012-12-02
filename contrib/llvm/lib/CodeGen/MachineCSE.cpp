@@ -26,13 +26,14 @@
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/RecyclingAllocator.h"
-
 using namespace llvm;
 
 STATISTIC(NumCoalesces, "Number of copies coalesced");
 STATISTIC(NumCSEs,      "Number of common subexpression eliminated");
 STATISTIC(NumPhysCSEs,
           "Number of physreg referencing common subexpr eliminated");
+STATISTIC(NumCrossBBCSEs,
+          "Number of cross-MBB physreg referencing CS eliminated");
 STATISTIC(NumCommutes,  "Number of copies coalesced after commuting");
 
 namespace {
@@ -49,7 +50,7 @@ namespace {
     }
 
     virtual bool runOnMachineFunction(MachineFunction &MF);
-    
+
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.setPreservesCFG();
       MachineFunctionPass::getAnalysisUsage(AU);
@@ -62,6 +63,8 @@ namespace {
     virtual void releaseMemory() {
       ScopeMap.clear();
       Exps.clear();
+      AllocatableRegs.clear();
+      ReservedRegs.clear();
     }
 
   private:
@@ -75,16 +78,21 @@ namespace {
     ScopedHTType VNT;
     SmallVector<MachineInstr*, 64> Exps;
     unsigned CurrVN;
+    BitVector AllocatableRegs;
+    BitVector ReservedRegs;
 
     bool PerformTrivialCoalescing(MachineInstr *MI, MachineBasicBlock *MBB);
     bool isPhysDefTriviallyDead(unsigned Reg,
                                 MachineBasicBlock::const_iterator I,
-                                MachineBasicBlock::const_iterator E) const ;
+                                MachineBasicBlock::const_iterator E) const;
     bool hasLivePhysRegDefUses(const MachineInstr *MI,
                                const MachineBasicBlock *MBB,
-                               SmallSet<unsigned,8> &PhysRefs) const;
+                               SmallSet<unsigned,8> &PhysRefs,
+                               SmallVector<unsigned,2> &PhysDefs) const;
     bool PhysRegDefsReach(MachineInstr *CSMI, MachineInstr *MI,
-                          SmallSet<unsigned,8> &PhysRefs) const;
+                          SmallSet<unsigned,8> &PhysRefs,
+                          SmallVector<unsigned,2> &PhysDefs,
+                          bool &NonLocal) const;
     bool isCSECandidate(MachineInstr *MI);
     bool isProfitableToCSE(unsigned CSReg, unsigned Reg,
                            MachineInstr *CSMI, MachineInstr *MI);
@@ -92,21 +100,19 @@ namespace {
     void ExitScope(MachineBasicBlock *MBB);
     bool ProcessBlock(MachineBasicBlock *MBB);
     void ExitScopeIfDone(MachineDomTreeNode *Node,
-                 DenseMap<MachineDomTreeNode*, unsigned> &OpenChildren,
-                 DenseMap<MachineDomTreeNode*, MachineDomTreeNode*> &ParentMap);
+                         DenseMap<MachineDomTreeNode*, unsigned> &OpenChildren);
     bool PerformCSE(MachineDomTreeNode *Node);
   };
 } // end anonymous namespace
 
 char MachineCSE::ID = 0;
+char &llvm::MachineCSEID = MachineCSE::ID;
 INITIALIZE_PASS_BEGIN(MachineCSE, "machine-cse",
                 "Machine Common Subexpression Elimination", false, false)
 INITIALIZE_PASS_DEPENDENCY(MachineDominatorTree)
 INITIALIZE_AG_DEPENDENCY(AliasAnalysis)
 INITIALIZE_PASS_END(MachineCSE, "machine-cse",
                 "Machine Common Subexpression Elimination", false, false)
-
-FunctionPass *llvm::createMachineCSEPass() { return new MachineCSE(); }
 
 bool MachineCSE::PerformTrivialCoalescing(MachineInstr *MI,
                                           MachineBasicBlock *MBB) {
@@ -163,6 +169,8 @@ MachineCSE::isPhysDefTriviallyDead(unsigned Reg,
     bool SeenDef = false;
     for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i) {
       const MachineOperand &MO = I->getOperand(i);
+      if (MO.isRegMask() && MO.clobbersPhysReg(Reg))
+        SeenDef = true;
       if (!MO.isReg() || !MO.getReg())
         continue;
       if (!TRI->regsOverlap(MO.getReg(), Reg))
@@ -173,7 +181,7 @@ MachineCSE::isPhysDefTriviallyDead(unsigned Reg,
       SeenDef = true;
     }
     if (SeenDef)
-      // See a def of Reg (or an alias) before encountering any use, it's 
+      // See a def of Reg (or an alias) before encountering any use, it's
       // trivially dead.
       return true;
 
@@ -189,7 +197,8 @@ MachineCSE::isPhysDefTriviallyDead(unsigned Reg,
 /// instruction does not uses a physical register.
 bool MachineCSE::hasLivePhysRegDefUses(const MachineInstr *MI,
                                        const MachineBasicBlock *MBB,
-                                       SmallSet<unsigned,8> &PhysRefs) const {
+                                       SmallSet<unsigned,8> &PhysRefs,
+                                       SmallVector<unsigned,2> &PhysDefs) const{
   MachineBasicBlock::const_iterator I = MI; I = llvm::next(I);
   for (unsigned i = 0, e = MI->getNumOperands(); i != e; ++i) {
     const MachineOperand &MO = MI->getOperand(i);
@@ -206,34 +215,68 @@ bool MachineCSE::hasLivePhysRegDefUses(const MachineInstr *MI,
     if (MO.isDef() &&
         (MO.isDead() || isPhysDefTriviallyDead(Reg, I, MBB->end())))
       continue;
-    PhysRefs.insert(Reg);
-    for (const unsigned *Alias = TRI->getAliasSet(Reg); *Alias; ++Alias)
-      PhysRefs.insert(*Alias);
+    // Reading constant physregs is ok.
+    if (!MRI->isConstantPhysReg(Reg, *MBB->getParent()))
+      for (MCRegAliasIterator AI(Reg, TRI, true); AI.isValid(); ++AI)
+        PhysRefs.insert(*AI);
+    if (MO.isDef())
+      PhysDefs.push_back(Reg);
   }
 
   return !PhysRefs.empty();
 }
 
 bool MachineCSE::PhysRegDefsReach(MachineInstr *CSMI, MachineInstr *MI,
-                                  SmallSet<unsigned,8> &PhysRefs) const {
+                                  SmallSet<unsigned,8> &PhysRefs,
+                                  SmallVector<unsigned,2> &PhysDefs,
+                                  bool &NonLocal) const {
   // For now conservatively returns false if the common subexpression is
-  // not in the same basic block as the given instruction.
-  MachineBasicBlock *MBB = MI->getParent();
-  if (CSMI->getParent() != MBB)
-    return false;
+  // not in the same basic block as the given instruction. The only exception
+  // is if the common subexpression is in the sole predecessor block.
+  const MachineBasicBlock *MBB = MI->getParent();
+  const MachineBasicBlock *CSMBB = CSMI->getParent();
+
+  bool CrossMBB = false;
+  if (CSMBB != MBB) {
+    if (MBB->pred_size() != 1 || *MBB->pred_begin() != CSMBB)
+      return false;
+
+    for (unsigned i = 0, e = PhysDefs.size(); i != e; ++i) {
+      if (AllocatableRegs.test(PhysDefs[i]) || ReservedRegs.test(PhysDefs[i]))
+        // Avoid extending live range of physical registers if they are
+        //allocatable or reserved.
+        return false;
+    }
+    CrossMBB = true;
+  }
   MachineBasicBlock::const_iterator I = CSMI; I = llvm::next(I);
   MachineBasicBlock::const_iterator E = MI;
+  MachineBasicBlock::const_iterator EE = CSMBB->end();
   unsigned LookAheadLeft = LookAheadLimit;
   while (LookAheadLeft) {
     // Skip over dbg_value's.
-    while (I != E && I->isDebugValue())
+    while (I != E && I != EE && I->isDebugValue())
       ++I;
+
+    if (I == EE) {
+      assert(CrossMBB && "Reaching end-of-MBB without finding MI?");
+      (void)CrossMBB;
+      CrossMBB = false;
+      NonLocal = true;
+      I = MBB->begin();
+      EE = MBB->end();
+      continue;
+    }
 
     if (I == E)
       return true;
 
     for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i) {
       const MachineOperand &MO = I->getOperand(i);
+      // RegMasks go on instructions like calls that clobber lots of physregs.
+      // Don't attempt to CSE across such an instruction.
+      if (MO.isRegMask())
+        return false;
       if (!MO.isReg() || !MO.isDef())
         continue;
       unsigned MOReg = MO.getReg();
@@ -260,12 +303,11 @@ bool MachineCSE::isCSECandidate(MachineInstr *MI) {
     return false;
 
   // Ignore stuff that we obviously can't move.
-  const MCInstrDesc &MCID = MI->getDesc();  
-  if (MCID.mayStore() || MCID.isCall() || MCID.isTerminator() ||
+  if (MI->mayStore() || MI->isCall() || MI->isTerminator() ||
       MI->hasUnmodeledSideEffects())
     return false;
 
-  if (MCID.mayLoad()) {
+  if (MI->mayLoad()) {
     // Okay, this instruction does a load. As a refinement, we allow the target
     // to decide whether the loaded value is actually a constant. If so, we can
     // actually use it as a load.
@@ -284,10 +326,33 @@ bool MachineCSE::isProfitableToCSE(unsigned CSReg, unsigned Reg,
                                    MachineInstr *CSMI, MachineInstr *MI) {
   // FIXME: Heuristics that works around the lack the live range splitting.
 
+  // If CSReg is used at all uses of Reg, CSE should not increase register
+  // pressure of CSReg.
+  bool MayIncreasePressure = true;
+  if (TargetRegisterInfo::isVirtualRegister(CSReg) &&
+      TargetRegisterInfo::isVirtualRegister(Reg)) {
+    MayIncreasePressure = false;
+    SmallPtrSet<MachineInstr*, 8> CSUses;
+    for (MachineRegisterInfo::use_nodbg_iterator I =MRI->use_nodbg_begin(CSReg),
+         E = MRI->use_nodbg_end(); I != E; ++I) {
+      MachineInstr *Use = &*I;
+      CSUses.insert(Use);
+    }
+    for (MachineRegisterInfo::use_nodbg_iterator I = MRI->use_nodbg_begin(Reg),
+         E = MRI->use_nodbg_end(); I != E; ++I) {
+      MachineInstr *Use = &*I;
+      if (!CSUses.count(Use)) {
+        MayIncreasePressure = true;
+        break;
+      }
+    }
+  }
+  if (!MayIncreasePressure) return true;
+
   // Heuristics #1: Don't CSE "cheap" computation if the def is not local or in
   // an immediate predecessor. We don't want to increase register pressure and
   // end up causing other computation to be spilled.
-  if (MI->getDesc().isAsCheapAsAMove()) {
+  if (MI->isAsCheapAsAMove()) {
     MachineBasicBlock *CSBB = CSMI->getParent();
     MachineBasicBlock *BB = MI->getParent();
     if (CSBB != BB && !CSBB->isSuccessor(BB))
@@ -354,6 +419,7 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
   bool Changed = false;
 
   SmallVector<std::pair<unsigned, unsigned>, 8> CSEPairs;
+  SmallVector<unsigned, 2> ImplicitDefsToUpdate;
   for (MachineBasicBlock::iterator I = MBB->begin(), E = MBB->end(); I != E; ) {
     MachineInstr *MI = &*I;
     ++I;
@@ -376,7 +442,7 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
 
     // Commute commutable instructions.
     bool Commuted = false;
-    if (!FoundCSE && MI->getDesc().isCommutable()) {
+    if (!FoundCSE && MI->isCommutable()) {
       MachineInstr *NewMI = TII->commuteInstruction(MI);
       if (NewMI) {
         Commuted = true;
@@ -394,16 +460,18 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
     // If the instruction defines physical registers and the values *may* be
     // used, then it's not safe to replace it with a common subexpression.
     // It's also not safe if the instruction uses physical registers.
-    SmallSet<unsigned,8> PhysRefs;
-    if (FoundCSE && hasLivePhysRegDefUses(MI, MBB, PhysRefs)) {
+    bool CrossMBBPhysDef = false;
+    SmallSet<unsigned, 8> PhysRefs;
+    SmallVector<unsigned, 2> PhysDefs;
+    if (FoundCSE && hasLivePhysRegDefUses(MI, MBB, PhysRefs, PhysDefs)) {
       FoundCSE = false;
 
-      // ... Unless the CS is local and it also defines the physical register
-      // which is not clobbered in between and the physical register uses 
-      // were not clobbered.
+      // ... Unless the CS is local or is in the sole predecessor block
+      // and it also defines the physical register which is not clobbered
+      // in between and the physical register uses were not clobbered.
       unsigned CSVN = VNT.lookup(MI);
       MachineInstr *CSMI = Exps[CSVN];
-      if (PhysRegDefsReach(CSMI, MI, PhysRefs))
+      if (PhysRegDefsReach(CSMI, MI, PhysRefs, PhysDefs, CrossMBBPhysDef))
         FoundCSE = true;
     }
 
@@ -421,21 +489,31 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
 
     // Check if it's profitable to perform this CSE.
     bool DoCSE = true;
-    unsigned NumDefs = MI->getDesc().getNumDefs();
+    unsigned NumDefs = MI->getDesc().getNumDefs() +
+                       MI->getDesc().getNumImplicitDefs();
+    
     for (unsigned i = 0, e = MI->getNumOperands(); NumDefs && i != e; ++i) {
       MachineOperand &MO = MI->getOperand(i);
       if (!MO.isReg() || !MO.isDef())
         continue;
       unsigned OldReg = MO.getReg();
       unsigned NewReg = CSMI->getOperand(i).getReg();
-      if (OldReg == NewReg)
+
+      // Go through implicit defs of CSMI and MI, if a def is not dead at MI,
+      // we should make sure it is not dead at CSMI.
+      if (MO.isImplicit() && !MO.isDead() && CSMI->getOperand(i).isDead())
+        ImplicitDefsToUpdate.push_back(i);
+      if (OldReg == NewReg) {
+        --NumDefs;
         continue;
+      }
 
       assert(TargetRegisterInfo::isVirtualRegister(OldReg) &&
              TargetRegisterInfo::isVirtualRegister(NewReg) &&
              "Do not CSE physical register defs!");
 
       if (!isProfitableToCSE(NewReg, OldReg, CSMI, MI)) {
+        DEBUG(dbgs() << "*** Not profitable, avoid CSE!\n");
         DoCSE = false;
         break;
       }
@@ -444,6 +522,7 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
       // within the register class of the new instruction.
       const TargetRegisterClass *OldRC = MRI->getRegClass(OldReg);
       if (!MRI->constrainRegClass(NewReg, OldRC)) {
+        DEBUG(dbgs() << "*** Not the same register class, avoid CSE!\n");
         DoCSE = false;
         break;
       }
@@ -458,6 +537,23 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
         MRI->replaceRegWith(CSEPairs[i].first, CSEPairs[i].second);
         MRI->clearKillFlags(CSEPairs[i].second);
       }
+
+      // Go through implicit defs of CSMI and MI, if a def is not dead at MI,
+      // we should make sure it is not dead at CSMI.
+      for (unsigned i = 0, e = ImplicitDefsToUpdate.size(); i != e; ++i)
+        CSMI->getOperand(ImplicitDefsToUpdate[i]).setIsDead(false);
+
+      if (CrossMBBPhysDef) {
+        // Add physical register defs now coming in from a predecessor to MBB
+        // livein list.
+        while (!PhysDefs.empty()) {
+          unsigned LiveIn = PhysDefs.pop_back_val();
+          if (!MBB->isLiveIn(LiveIn))
+            MBB->addLiveIn(LiveIn);
+        }
+        ++NumCrossBBCSEs;
+      }
+
       MI->eraseFromParent();
       ++NumCSEs;
       if (!PhysRefs.empty())
@@ -466,11 +562,11 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
         ++NumCommutes;
       Changed = true;
     } else {
-      DEBUG(dbgs() << "*** Not profitable, avoid CSE!\n");
       VNT.insert(MI, CurrVN++);
       Exps.push_back(MI);
     }
     CSEPairs.clear();
+    ImplicitDefsToUpdate.clear();
   }
 
   return Changed;
@@ -481,8 +577,7 @@ bool MachineCSE::ProcessBlock(MachineBasicBlock *MBB) {
 /// up the dominator tree to destroy ancestors which are now done.
 void
 MachineCSE::ExitScopeIfDone(MachineDomTreeNode *Node,
-                DenseMap<MachineDomTreeNode*, unsigned> &OpenChildren,
-                DenseMap<MachineDomTreeNode*, MachineDomTreeNode*> &ParentMap) {
+                        DenseMap<MachineDomTreeNode*, unsigned> &OpenChildren) {
   if (OpenChildren[Node])
     return;
 
@@ -490,7 +585,7 @@ MachineCSE::ExitScopeIfDone(MachineDomTreeNode *Node,
   ExitScope(Node->getBlock());
 
   // Now traverse upwards to pop ancestors whose offsprings are all done.
-  while (MachineDomTreeNode *Parent = ParentMap[Node]) {
+  while (MachineDomTreeNode *Parent = Node->getIDom()) {
     unsigned Left = --OpenChildren[Parent];
     if (Left != 0)
       break;
@@ -502,7 +597,6 @@ MachineCSE::ExitScopeIfDone(MachineDomTreeNode *Node,
 bool MachineCSE::PerformCSE(MachineDomTreeNode *Node) {
   SmallVector<MachineDomTreeNode*, 32> Scopes;
   SmallVector<MachineDomTreeNode*, 8> WorkList;
-  DenseMap<MachineDomTreeNode*, MachineDomTreeNode*> ParentMap;
   DenseMap<MachineDomTreeNode*, unsigned> OpenChildren;
 
   CurrVN = 0;
@@ -517,7 +611,6 @@ bool MachineCSE::PerformCSE(MachineDomTreeNode *Node) {
     OpenChildren[Node] = NumChildren;
     for (unsigned i = 0; i != NumChildren; ++i) {
       MachineDomTreeNode *Child = Children[i];
-      ParentMap[Child] = Node;
       WorkList.push_back(Child);
     }
   } while (!WorkList.empty());
@@ -530,7 +623,7 @@ bool MachineCSE::PerformCSE(MachineDomTreeNode *Node) {
     EnterScope(MBB);
     Changed |= ProcessBlock(MBB);
     // If it's a leaf node, it's done. Traverse upwards to pop ancestors.
-    ExitScopeIfDone(Node, OpenChildren, ParentMap);
+    ExitScopeIfDone(Node, OpenChildren);
   }
 
   return Changed;
@@ -542,5 +635,7 @@ bool MachineCSE::runOnMachineFunction(MachineFunction &MF) {
   MRI = &MF.getRegInfo();
   AA = &getAnalysis<AliasAnalysis>();
   DT = &getAnalysis<MachineDominatorTree>();
+  AllocatableRegs = TRI->getAllocatableSet(MF);
+  ReservedRegs = TRI->getReservedRegs(MF);
   return PerformCSE(DT->getRootNode());
 }

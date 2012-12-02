@@ -407,6 +407,11 @@ namespace {
       Size = LHS->size() + RHS->size();
     }
 
+    ~RopePieceBTreeInterior() {
+      for (unsigned i = 0, e = getNumChildren(); i != e; ++i)
+        Children[i]->Destroy();
+    }
+
     bool isFull() const { return NumChildren == 2*WidthFactor; }
 
     unsigned getNumChildren() const { return NumChildren; }

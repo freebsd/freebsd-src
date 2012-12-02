@@ -594,11 +594,7 @@ nfs_namei(struct nameidata *ndp, struct nfsrv_descript *nfsd,
 	int error, rdonly, linklen;
 	struct componentname *cnp = &ndp->ni_cnd;
 	int lockleaf = (cnp->cn_flags & LOCKLEAF) != 0;
-	int dvfslocked;
-	int vfslocked;
 
-	vfslocked = 0;
-	dvfslocked = 0;
 	*retdirp = NULL;
 	cnp->cn_flags |= NOMACCHECK;
 	cnp->cn_pnbuf = uma_zalloc(namei_zone, M_WAITOK);
@@ -645,10 +641,9 @@ nfs_namei(struct nameidata *ndp, struct nfsrv_descript *nfsd,
 	/*
 	 * Extract and set starting directory.
 	 */
-	error = nfsrv_fhtovp(fhp, 0, &dp, &dvfslocked, nfsd, slp, nam, &rdonly);
+	error = nfsrv_fhtovp(fhp, 0, &dp, nfsd, slp, nam, &rdonly);
 	if (error)
 		goto out;
-	vfslocked = VFS_LOCK_GIANT(dp->v_mount);
 	if (dp->v_type != VDIR) {
 		vput(dp);
 		error = ENOTDIR;
@@ -726,14 +721,9 @@ nfs_namei(struct nameidata *ndp, struct nfsrv_descript *nfsd,
 	if (pubflag) {
 		ndp->ni_rootdir = rootvnode;
 		ndp->ni_loopcnt = 0;
-		if (cnp->cn_pnbuf[0] == '/') {
-			int tvfslocked;
 
-			tvfslocked = VFS_LOCK_GIANT(rootvnode->v_mount);
-			VFS_UNLOCK_GIANT(vfslocked);
+		if (cnp->cn_pnbuf[0] == '/')
 			dp = rootvnode;
-			vfslocked = tvfslocked;
-		}
 	} else {
 		cnp->cn_flags |= NOCROSSMOUNT;
 	}
@@ -758,11 +748,7 @@ nfs_namei(struct nameidata *ndp, struct nfsrv_descript *nfsd,
 		 * In either case ni_startdir will be dereferenced and NULLed
 		 * out.
 		 */
-		if (vfslocked)
-			ndp->ni_cnd.cn_flags |= GIANTHELD;
 		error = lookup(ndp);
-		vfslocked = (ndp->ni_cnd.cn_flags & GIANTHELD) != 0;
-		ndp->ni_cnd.cn_flags &= ~GIANTHELD;
 		if (error)
 			break;
 
@@ -860,10 +846,6 @@ nfs_namei(struct nameidata *ndp, struct nfsrv_descript *nfsd,
 	}
 	if (!lockleaf)
 		cnp->cn_flags &= ~LOCKLEAF;
-	if (cnp->cn_flags & GIANTHELD) {
-		mtx_unlock(&Giant);
-		cnp->cn_flags &= ~GIANTHELD;
-	}
 
 	/*
 	 * nfs_namei() guarentees that fields will not contain garbage
@@ -877,21 +859,9 @@ out:
 		ndp->ni_dvp = NULL;
 		ndp->ni_startdir = NULL;
 		cnp->cn_flags &= ~HASBUF;
-		VFS_UNLOCK_GIANT(vfslocked);
-		vfslocked = 0;
 	} else if ((ndp->ni_cnd.cn_flags & (WANTPARENT|LOCKPARENT)) == 0) {
 		ndp->ni_dvp = NULL;
 	}
-	/*
-	 * This differs from normal namei() in that even on failure we may
-	 * return with Giant held due to the dirp return.  Make sure we only
-	 * have not recursed however.  The calling code only expects to drop
-	 * one acquire.
-	 */
-	if (vfslocked || dvfslocked)
-		ndp->ni_cnd.cn_flags |= GIANTHELD;
-	if (vfslocked && dvfslocked)
-		VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
@@ -1055,7 +1025,7 @@ nfsm_srvfattr(struct nfsrv_descript *nfsd, struct vattr *vap,
  *	- if cred->cr_uid == 0 or MNT_EXPORTANON set it to credanon
  */
 int
-nfsrv_fhtovp(fhandle_t *fhp, int flags, struct vnode **vpp, int *vfslockedp,
+nfsrv_fhtovp(fhandle_t *fhp, int flags, struct vnode **vpp,
     struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
     struct sockaddr *nam, int *rdonlyp)
 {
@@ -1067,13 +1037,11 @@ nfsrv_fhtovp(fhandle_t *fhp, int flags, struct vnode **vpp, int *vfslockedp,
 	struct sockaddr_int *saddr;
 #endif
 	int credflavor;
-	int vfslocked;
 	int numsecflavors, *secflavors;
 	int authsys;
 	int v3 = nfsd->nd_flag & ND_NFSV3;
 	int mountreq;
 
-	*vfslockedp = 0;
 	*vpp = NULL;
 
 	if (nfs_ispublicfh(fhp)) {
@@ -1085,7 +1053,6 @@ nfsrv_fhtovp(fhandle_t *fhp, int flags, struct vnode **vpp, int *vfslockedp,
 	mp = vfs_busyfs(&fhp->fh_fsid);
 	if (!mp)
 		return (ESTALE);
-	vfslocked = VFS_LOCK_GIANT(mp);
 	error = VFS_CHECKEXP(mp, nam, &exflags, &credanon,
 	    &numsecflavors, &secflavors);
 	if (error) {
@@ -1169,10 +1136,6 @@ out:
 	if (credanon != NULL)
 		crfree(credanon);
 
-	if (error)
-		VFS_UNLOCK_GIANT(vfslocked);
-	else
-		*vfslockedp = vfslocked;
 	return (error);
 }
 

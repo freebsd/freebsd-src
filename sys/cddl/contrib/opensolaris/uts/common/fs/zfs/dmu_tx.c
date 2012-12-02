@@ -20,9 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- */
-/*
  * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <sys/dmu.h>
@@ -430,6 +429,7 @@ dmu_tx_count_free(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 	dsl_dataset_t *ds = dn->dn_objset->os_dsl_dataset;
 	spa_t *spa = txh->txh_tx->tx_pool->dp_spa;
 	int epbs;
+	uint64_t l0span = 0, nl1blks = 0;
 
 	if (dn->dn_nlevels == 0)
 		return;
@@ -462,6 +462,7 @@ dmu_tx_count_free(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 			nblks = dn->dn_maxblkid - blkid;
 
 	}
+	l0span = nblks;    /* save for later use to calc level > 1 overhead */
 	if (dn->dn_nlevels == 1) {
 		int i;
 		for (i = 0; i < nblks; i++) {
@@ -474,22 +475,8 @@ dmu_tx_count_free(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 			}
 			unref += BP_GET_ASIZE(bp);
 		}
+		nl1blks = 1;
 		nblks = 0;
-	}
-
-	/*
-	 * Add in memory requirements of higher-level indirects.
-	 * This assumes a worst-possible scenario for dn_nlevels.
-	 */
-	{
-		uint64_t blkcnt = 1 + ((nblks >> epbs) >> epbs);
-		int level = (dn->dn_nlevels > 1) ? 2 : 1;
-
-		while (level++ < DN_MAX_LEVELS) {
-			txh->txh_memory_tohold += blkcnt << dn->dn_indblkshift;
-			blkcnt = 1 + (blkcnt >> epbs);
-		}
-		ASSERT(blkcnt <= dn->dn_nblkptr);
 	}
 
 	lastblk = blkid + nblks - 1;
@@ -562,10 +549,34 @@ dmu_tx_count_free(dmu_tx_hold_t *txh, uint64_t off, uint64_t len)
 		}
 		dbuf_rele(dbuf, FTAG);
 
+		++nl1blks;
 		blkid += tochk;
 		nblks -= tochk;
 	}
 	rw_exit(&dn->dn_struct_rwlock);
+
+	/*
+	 * Add in memory requirements of higher-level indirects.
+	 * This assumes a worst-possible scenario for dn_nlevels and a
+	 * worst-possible distribution of l1-blocks over the region to free.
+	 */
+	{
+		uint64_t blkcnt = 1 + ((l0span >> epbs) >> epbs);
+		int level = 2;
+		/*
+		 * Here we don't use DN_MAX_LEVEL, but calculate it with the
+		 * given datablkshift and indblkshift. This makes the
+		 * difference between 19 and 8 on large files.
+		 */
+		int maxlevel = 2 + (DN_MAX_OFFSET_SHIFT - dn->dn_datablkshift) /
+		    (dn->dn_indblkshift - SPA_BLKPTRSHIFT);
+
+		while (level++ < maxlevel) {
+			txh->txh_memory_tohold += MAX(MIN(blkcnt, nl1blks), 1)
+			    << dn->dn_indblkshift;
+			blkcnt = 1 + (blkcnt >> epbs);
+		}
+	}
 
 	/* account for new level 1 indirect blocks that might show up */
 	if (skipped > 0) {
@@ -676,7 +687,7 @@ dmu_tx_hold_zap(dmu_tx_t *tx, uint64_t object, int add, const char *name)
 		return;
 	}
 
-	ASSERT3P(dmu_ot[dn->dn_type].ot_byteswap, ==, zap_byteswap);
+	ASSERT3P(DMU_OT_BYTESWAP(dn->dn_type), ==, DMU_BSWAP_ZAP);
 
 	if (dn->dn_maxblkid == 0 && !add) {
 		blkptr_t *bp;
@@ -900,7 +911,7 @@ dmu_tx_try_assign(dmu_tx_t *tx, uint64_t txg_how)
 	uint64_t memory, asize, fsize, usize;
 	uint64_t towrite, tofree, tooverwrite, tounref, tohold, fudge;
 
-	ASSERT3U(tx->tx_txg, ==, 0);
+	ASSERT0(tx->tx_txg);
 
 	if (tx->tx_err)
 		return (tx->tx_err);

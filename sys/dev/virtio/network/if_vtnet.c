@@ -223,7 +223,7 @@ static device_method_t vtnet_methods[] = {
 	/* VirtIO methods. */
 	DEVMETHOD(virtio_config_change, vtnet_config_change),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t vtnet_driver = {
@@ -748,11 +748,9 @@ vtnet_is_link_up(struct vtnet_softc *sc)
 static void
 vtnet_update_link_status(struct vtnet_softc *sc)
 {
-	device_t dev;
 	struct ifnet *ifp;
 	int link;
 
-	dev = sc->vtnet_dev;
 	ifp = sc->vtnet_ifp;
 
 	link = vtnet_is_link_up(sc);

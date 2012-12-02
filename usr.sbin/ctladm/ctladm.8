@@ -401,7 +401,7 @@ This option and the
 .Fl m
 option are mutually exclusive.  One of the two must be specified, though.
 .It Fl P Ar pc
-Specify the mode page page control value.  Possible values are:
+Specify the mode page control value.  Possible values are:
 .Bl -tag -width 2n -compact
 .It 0
 Current values.
@@ -542,7 +542,7 @@ List all LUNs registered with CTL.
 Because this command uses the ioctl port, it will only work when the FETDs
 (Front End Target Drivers) are enabled.
 This command is the equivalent of doing a REPORT LUNS on one LUN and then
-and then an INQUIRY on each LUN in the system.
+an INQUIRY on each LUN in the system.
 .It Ic delay
 Delay commands at the given location.  There are two places where commands
 may be delayed currently: before data is transferred
@@ -749,7 +749,7 @@ single port.
 As a general rule, the WWNN should be the same across all ports on the
 system.
 .It Fl W Ar wwpn
-Set the World Wide Node Name for the given port.
+Set the World Wide Port Name for the given port.
 The
 .Fl n
 argument must be specified, since this is only possible to implement on a
@@ -939,10 +939,10 @@ Create a LUN using the block backend, specify the file
 .Pa src/usr.sbin/ctladm/ctladm.8
 as the backing store, and specify the
 .Tn SCSI
-VPD page 0x80 and 0x83 serial number (
-.Fl S)
-and device ID (
-.Fl d).
+VPD page 0x80 and 0x83 serial number
+.Fl ( S )
+and device ID
+.Fl ( d ) .
 .Pp
 .Dl ctladm remove -b block -l 12
 .Pp

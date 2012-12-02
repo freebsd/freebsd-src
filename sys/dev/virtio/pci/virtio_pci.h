@@ -73,7 +73,7 @@
  * configuration space.
  */
 #define VIRTIO_PCI_CONFIG(sc) \
-    (((sc)->vtpci_flags & VIRTIO_PCI_FLAG_MSIX) ? 24 : 20)
+    (((sc)->vtpci_flags & VTPCI_FLAG_MSIX) ? 24 : 20)
 
 /*
  * How many bits to shift physical queue address written to QUEUE_PFN.

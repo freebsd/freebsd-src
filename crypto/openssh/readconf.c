@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.c,v 1.193 2011/05/24 07:15:47 djm Exp $ */
+/* $OpenBSD: readconf.c,v 1.194 2011/09/23 07:45:05 markus Exp $ */
 /* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -324,6 +324,7 @@ add_remote_forward(Options *options, const Forward *newfwd)
 	fwd->listen_port = newfwd->listen_port;
 	fwd->connect_host = newfwd->connect_host;
 	fwd->connect_port = newfwd->connect_port;
+	fwd->handle = newfwd->handle;
 	fwd->allocated_port = 0;
 }
 
@@ -1115,11 +1116,20 @@ parse_int:
 #endif
 
 	case oVersionAddendum:
-		ssh_version_set_addendum(strtok(s, "\n"));
-		do {
-			arg = strdelim(&s);
-		} while (arg != NULL && *arg != '\0');
-		break;
+		if (s == NULL)
+			fatal("%.200s line %d: Missing argument.", filename,
+			    linenum);
+		len = strspn(s, WHITESPACE);
+		if (*activep && options->version_addendum == NULL) {
+			if (strcasecmp(s + len, "none") == 0)
+				options->version_addendum = xstrdup("");
+			else if (strchr(s + len, '\r') != NULL)
+				fatal("%.200s line %d: Invalid argument",
+				    filename, linenum);
+			else
+				options->version_addendum = xstrdup(s + len);
+		}
+		return 0;
 
 	case oDeprecated:
 		debug("%s line %d: Deprecated option \"%s\"",
@@ -1280,6 +1290,7 @@ initialize_options(Options * options)
 	options->ip_qos_interactive = -1;
 	options->ip_qos_bulk = -1;
 	options->request_tty = -1;
+	options->version_addendum = NULL;
 	options->hpn_disabled = -1;
 	options->hpn_buffer_size = -1;
 	options->tcp_rcv_buf_poll = -1;
@@ -1458,6 +1469,8 @@ fill_default_options(Options * options)
 	/* options->hostname will be set in the main program if appropriate */
 	/* options->host_key_alias should not be set by default */
 	/* options->preferred_authentications will be set in ssh */
+	if (options->version_addendum == NULL)
+		options->version_addendum = xstrdup(SSH_VERSION_FREEBSD);
 	if (options->hpn_disabled == -1)
 		options->hpn_disabled = 0;
 	if (options->hpn_buffer_size > -1)

@@ -1,10 +1,10 @@
-//===- PPCScheduleG5.td - PPC G5 Scheduling Definitions ----*- tablegen -*-===//
-// 
+//===-- PPCScheduleG5.td - PPC G5 Scheduling Definitions ---*- tablegen -*-===//
+//
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-// 
+//
 //===----------------------------------------------------------------------===//
 //
 // This file defines the itinerary class data for the G5 (970) processor.
@@ -13,6 +13,7 @@
 
 def G5Itineraries : ProcessorItineraries<
   [IU1, IU2, SLU, BPU, FPU1, FPU2, VFPU, VIU1, VIU2, VPU], [], [
+  InstrItinData<IntSimple   , [InstrStage<2, [IU1, IU2]>]>,
   InstrItinData<IntGeneral  , [InstrStage<2, [IU1, IU2]>]>,
   InstrItinData<IntCompare  , [InstrStage<3, [IU1, IU2]>]>,
   InstrItinData<IntDivD     , [InstrStage<68, [IU1]>]>,
@@ -35,7 +36,8 @@ def G5Itineraries : ProcessorItineraries<
   InstrItinData<BrMCR       , [InstrStage<2, [BPU]>]>,
   InstrItinData<BrMCRX      , [InstrStage<3, [BPU]>]>,
   InstrItinData<LdStDCBF    , [InstrStage<3, [SLU]>]>,
-  InstrItinData<LdStGeneral , [InstrStage<3, [SLU]>]>,
+  InstrItinData<LdStLoad    , [InstrStage<3, [SLU]>]>,
+  InstrItinData<LdStStore   , [InstrStage<3, [SLU]>]>,
   InstrItinData<LdStDSS     , [InstrStage<10, [SLU]>]>,
   InstrItinData<LdStICBI    , [InstrStage<40, [SLU]>]>,
   InstrItinData<LdStUX      , [InstrStage<4, [SLU]>]>,

@@ -197,7 +197,8 @@ signal, or if the process group of the reading
 process is orphaned, the
 .Xr read 2
 returns -1 with
-.Va errno set to
+.Va errno
+set to
 .Er EIO
 and no
 signal is sent.

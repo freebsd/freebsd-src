@@ -2623,7 +2623,7 @@ static const struct cas_pci_dev {
 	uint8_t		cpd_revid;
 	int		cpd_variant;
 	const char	*cpd_desc;
-} const cas_pci_devlist[] = {
+} cas_pci_devlist[] = {
 	{ 0x0035100b, 0x0, CAS_SATURN, "NS DP83065 Saturn Gigabit Ethernet" },
 	{ 0xabba108e, 0x10, CAS_CASPLUS, "Sun Cassini+ Gigabit Ethernet" },
 	{ 0xabba108e, 0x0, CAS_CAS, "Sun Cassini Gigabit Ethernet" },

@@ -14,14 +14,20 @@
 #ifndef LLVM_ANALYSIS_SCALAREVOLUTION_EXPANDER_H
 #define LLVM_ANALYSIS_SCALAREVOLUTION_EXPANDER_H
 
+#include "llvm/IRBuilder.h"
 #include "llvm/Analysis/ScalarEvolutionExpressions.h"
 #include "llvm/Analysis/ScalarEvolutionNormalization.h"
-#include "llvm/Support/IRBuilder.h"
 #include "llvm/Support/TargetFolder.h"
 #include "llvm/Support/ValueHandle.h"
 #include <set>
 
 namespace llvm {
+  class TargetLowering;
+
+  /// Return true if the given expression is safe to expand in the sense that
+  /// all materialized values are safe to speculate.
+  bool isSafeToExpand(const SCEV *S);
+
   /// SCEVExpander - This class uses information about analyze scalars to
   /// rewrite expressions in canonical form.
   ///
@@ -57,6 +63,9 @@ namespace llvm {
     /// IVIncInsertPos - When expanding addrecs in the IVIncInsertLoop loop,
     /// insert the IV increment at this position.
     Instruction *IVIncInsertPos;
+
+    /// Phis that complete an IV chain. Reuse
+    std::set<AssertingVH<PHINode> > ChainedPhis;
 
     /// CanonicalMode - When true, expressions are expanded in "canonical"
     /// form. In particular, addrecs are expanded as arithmetic based on
@@ -100,6 +109,7 @@ namespace llvm {
       InsertedExpressions.clear();
       InsertedValues.clear();
       InsertedPostIncValues.clear();
+      ChainedPhis.clear();
     }
 
     /// getOrInsertCanonicalInductionVariable - This method returns the
@@ -108,14 +118,18 @@ namespace llvm {
     /// starts at zero and steps by one on each iteration.
     PHINode *getOrInsertCanonicalInductionVariable(const Loop *L, Type *Ty);
 
-    /// hoistStep - Utility for hoisting an IV increment.
-    static bool hoistStep(Instruction *IncV, Instruction *InsertPos,
-                          const DominatorTree *DT);
+    /// getIVIncOperand - Return the induction variable increment's IV operand.
+    Instruction *getIVIncOperand(Instruction *IncV, Instruction *InsertPos,
+                                 bool allowScale);
+
+    /// hoistIVInc - Utility for hoisting an IV increment.
+    bool hoistIVInc(Instruction *IncV, Instruction *InsertPos);
 
     /// replaceCongruentIVs - replace congruent phis with their most canonical
     /// representative. Return the number of phis eliminated.
     unsigned replaceCongruentIVs(Loop *L, const DominatorTree *DT,
-                                 SmallVectorImpl<WeakVH> &DeadInsts);
+                                 SmallVectorImpl<WeakVH> &DeadInsts,
+                                 const TargetLowering *TLI = NULL);
 
     /// expandCodeFor - Insert code to directly compute the specified SCEV
     /// expression into the program.  The inserted code is inserted into the
@@ -161,6 +175,16 @@ namespace llvm {
     void clearInsertPoint() {
       Builder.ClearInsertionPoint();
     }
+
+    /// isInsertedInstruction - Return true if the specified instruction was
+    /// inserted by the code rewriter.  If so, the client should not modify the
+    /// instruction.
+    bool isInsertedInstruction(Instruction *I) const {
+      return InsertedValues.count(I) || InsertedPostIncValues.count(I);
+    }
+
+    void setChainedPhi(PHINode *PN) { ChainedPhis.insert(PN); }
+
   private:
     LLVMContext &getContext() const { return SE.getContext(); }
 
@@ -194,13 +218,6 @@ namespace llvm {
     /// SCEVExpander's current insertion point. If a type is specified, the
     /// result will be expanded to have that type, with a cast if necessary.
     Value *expandCodeFor(const SCEV *SH, Type *Ty = 0);
-
-    /// isInsertedInstruction - Return true if the specified instruction was
-    /// inserted by the code rewriter.  If so, the client should not modify the
-    /// instruction.
-    bool isInsertedInstruction(Instruction *I) const {
-      return InsertedValues.count(I) || InsertedPostIncValues.count(I);
-    }
 
     /// getRelevantLoop - Determine the most "relevant" loop for the given SCEV.
     const Loop *getRelevantLoop(const SCEV *);
@@ -244,6 +261,8 @@ namespace llvm {
                                        const Loop *L,
                                        Type *ExpandTy,
                                        Type *IntTy);
+    Value *expandIVInc(PHINode *PN, Value *StepV, const Loop *L,
+                       Type *ExpandTy, Type *IntTy, bool useSubtract);
   };
 }
 

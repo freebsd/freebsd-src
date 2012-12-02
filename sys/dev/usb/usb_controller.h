@@ -108,7 +108,8 @@ struct usb_bus_methods {
 	/* USB Device mode only - Mandatory */
 
 	void    (*get_hw_ep_profile) (struct usb_device *udev, const struct usb_hw_ep_profile **ppf, uint8_t ep_addr);
-	void    (*set_stall) (struct usb_device *udev, struct usb_xfer *xfer, struct usb_endpoint *ep, uint8_t *did_stall);
+	void    (*xfer_stall) (struct usb_xfer *xfer);
+	void    (*set_stall) (struct usb_device *udev, struct usb_endpoint *ep, uint8_t *did_stall);
 
 	/* USB Device mode mandatory. USB Host mode optional. */
 
@@ -143,6 +144,10 @@ struct usb_bus_methods {
 	/* Optional for host mode */
 
 	usb_error_t	(*set_address) (struct usb_device *, struct mtx *, uint16_t);
+
+	/* Optional for device and host mode */
+
+	usb_error_t	(*set_endpoint_mode) (struct usb_device *, struct usb_endpoint *, uint8_t);
 };
 
 /*
@@ -231,7 +236,8 @@ void	usb_bus_mem_flush_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb);
 uint8_t	usb_bus_mem_alloc_all(struct usb_bus *bus, bus_dma_tag_t dmat, usb_bus_mem_cb_t *cb);
 void	usb_bus_mem_free_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb);
 uint16_t usb_isoc_time_expand(struct usb_bus *bus, uint16_t isoc_time_curr);
-uint16_t usbd_fs_isoc_schedule_isoc_time_expand(struct usb_device *udev, struct usb_fs_isoc_schedule **pp_start, struct usb_fs_isoc_schedule **pp_end, uint16_t isoc_time);
-uint8_t	usbd_fs_isoc_schedule_alloc(struct usb_fs_isoc_schedule *fss, uint8_t *pstart, uint16_t len);
+#if USB_HAVE_TT_SUPPORT
+uint8_t	usbd_fs_isoc_schedule_alloc_slot(struct usb_xfer *isoc_xfer, uint16_t isoc_time);
+#endif
 
 #endif					/* _USB_CONTROLLER_H_ */

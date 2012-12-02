@@ -1,7 +1,7 @@
 /*
  * $FreeBSD$
  */
-#include <contrib/rdma/ib_verbs.h>
+#include <rdma/ib_verbs.h>
 #include <netinet/in.h>
 
 /*
@@ -92,6 +92,8 @@ struct krping_cb {
 	int count;			/* ping count */
 	int size;			/* ping data size */
 	int validate;			/* validate ping data */
+	uint64_t memlimit;		/* limit of the physical memory that
+					   can be registered with dma_mr mode */
 
 	/* CM stuff */
 	struct rdma_cm_id *cm_id;	/* connection on client side,*/

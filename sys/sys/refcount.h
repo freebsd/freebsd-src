@@ -32,6 +32,7 @@
 #ifndef __SYS_REFCOUNT_H__
 #define __SYS_REFCOUNT_H__
 
+#include <sys/limits.h>
 #include <machine/atomic.h>
 
 #ifdef _KERNEL
@@ -51,6 +52,7 @@ static __inline void
 refcount_acquire(volatile u_int *count)
 {
 
+	KASSERT(*count < UINT_MAX, ("refcount %p overflowed", count));
 	atomic_add_acq_int(count, 1);	
 }
 

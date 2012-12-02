@@ -30,10 +30,9 @@ public:
 };
 
 class PragmaGCCVisibilityHandler : public PragmaHandler {
-  Sema &Actions;
 public:
-  explicit PragmaGCCVisibilityHandler(Sema &A) : PragmaHandler("visibility"),
-                                                 Actions(A) {}
+  explicit PragmaGCCVisibilityHandler(Sema &/*A*/)
+    : PragmaHandler("visibility") {}
 
   virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
                             Token &FirstToken);
@@ -70,11 +69,9 @@ public:
 };
 
 class PragmaUnusedHandler : public PragmaHandler {
-  Sema &Actions;
-  Parser &parser;
 public:
-  PragmaUnusedHandler(Sema &A, Parser& p)
-    : PragmaHandler("unused"), Actions(A), parser(p) {}
+  PragmaUnusedHandler(Sema &/*A*/)
+    : PragmaHandler("unused") {}
 
   virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
                             Token &FirstToken);
@@ -90,12 +87,21 @@ public:
                             Token &FirstToken);
 };
 
+class PragmaRedefineExtnameHandler : public PragmaHandler {
+  Sema &Actions;
+public:
+  explicit PragmaRedefineExtnameHandler(Sema &A)
+    : PragmaHandler("redefine_extname"), Actions(A) {}
+
+  virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
+                            Token &FirstToken);
+};
+
 class PragmaOpenCLExtensionHandler : public PragmaHandler {
   Sema &Actions;
-  Parser &parser;
 public:
-  PragmaOpenCLExtensionHandler(Sema &S, Parser& p) : 
-    PragmaHandler("EXTENSION"), Actions(S), parser(p) {}
+  PragmaOpenCLExtensionHandler(Sema &A) :
+    PragmaHandler("EXTENSION"), Actions(A) {}
   virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
                             Token &FirstToken);
 };
@@ -103,10 +109,9 @@ public:
 
 class PragmaFPContractHandler : public PragmaHandler {
   Sema &Actions;
-  Parser &parser;
 public:
-  PragmaFPContractHandler(Sema &S, Parser& p) : 
-    PragmaHandler("FP_CONTRACT"), Actions(S), parser(p) {}
+  PragmaFPContractHandler(Sema &A) :
+    PragmaHandler("FP_CONTRACT"), Actions(A) {}
   virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
                             Token &FirstToken);
 };

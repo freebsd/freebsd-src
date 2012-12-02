@@ -32,7 +32,7 @@ namespace {
       Unknown
     };
 
-    static const char* DepTypeStr[];
+    static const char *const DepTypeStr[];
 
     typedef PointerIntPair<const Instruction *, 2, DepType> InstTypePair;
     typedef std::pair<InstTypePair, const BasicBlock *> Dep;
@@ -88,7 +88,7 @@ FunctionPass *llvm::createMemDepPrinter() {
   return new MemDepPrinter();
 }
 
-const char* MemDepPrinter::DepTypeStr[]
+const char *const MemDepPrinter::DepTypeStr[]
   = {"Clobber", "Def", "NonFuncLocal", "Unknown"};
 
 bool MemDepPrinter::runOnFunction(Function &F) {
@@ -130,7 +130,7 @@ bool MemDepPrinter::runOnFunction(Function &F) {
         AliasAnalysis::Location Loc = AA.getLocation(LI);
         MDA.getNonLocalPointerDependency(Loc, true, LI->getParent(), NLDI);
       } else if (StoreInst *SI = dyn_cast<StoreInst>(Inst)) {
-        if (!LI->isUnordered()) {
+        if (!SI->isUnordered()) {
           // FIXME: Handle atomic/volatile stores.
           Deps[Inst].insert(std::make_pair(getInstTypePair(0, Unknown),
                                            static_cast<BasicBlock *>(0)));

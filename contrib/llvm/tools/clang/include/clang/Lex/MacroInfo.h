@@ -22,7 +22,7 @@
 namespace clang {
   class Preprocessor;
 
-/// MacroInfo - Each identifier that is #define'd has an instance of this class
+/// MacroInfo - Each identifier that is \#define'd has an instance of this class
 /// associated with it, used to implement macro expansion.
 class MacroInfo {
   //===--------------------------------------------------------------------===//
@@ -35,24 +35,24 @@ class MacroInfo {
 
   /// Arguments - The list of arguments for a function-like macro.  This can be
   /// empty, for, e.g. "#define X()".  In a C99-style variadic macro, this
-  /// includes the __VA_ARGS__ identifier on the list.
+  /// includes the \c __VA_ARGS__ identifier on the list.
   IdentifierInfo **ArgumentList;
   unsigned NumArguments;
 
-  /// \brief The location at which this macro was exported from its module.
+  /// \brief The location at which this macro was either explicitly exported
+  /// from its module or marked as private.
   ///
-  /// If invalid, this macro has not been explicitly exported.
-  SourceLocation ExportLocation;
+  /// If invalid, this macro has not been explicitly given any visibility.
+  SourceLocation VisibilityLocation;
   
-  /// ReplacementTokens - This is the list of tokens that the macro is defined
-  /// to.
+  /// \brief This is the list of tokens that the macro is defined to.
   SmallVector<Token, 8> ReplacementTokens;
 
   /// \brief Length in characters of the macro definition.
   mutable unsigned DefinitionLength;
   mutable bool IsDefinitionLengthCached : 1;
 
-  /// IsFunctionLike - True if this macro is a function-like macro, false if it
+  /// \brief True if this macro is a function-like macro, false if it
   /// is an object-like macro.
   bool IsFunctionLike : 1;
 
@@ -70,7 +70,7 @@ class MacroInfo {
   /// it has not yet been redefined or undefined.
   bool IsBuiltinMacro : 1;
 
-  /// IsFromAST - True if this macro was loaded from an AST file.
+  /// \brief True if this macro was loaded from an AST file.
   bool IsFromAST : 1;
 
   /// \brief Whether this macro changed after it was loaded from an AST file.
@@ -81,8 +81,8 @@ private:
   // State that changes as the macro is used.
 
   /// IsDisabled - True if we have started an expansion of this macro already.
-  /// This disbles recursive expansion, which would be quite bad for things like
-  /// #define A A.
+  /// This disables recursive expansion, which would be quite bad for things
+  /// like \#define A A.
   bool IsDisabled : 1;
 
   /// IsUsed - True if this macro is either defined in the main file and has
@@ -97,6 +97,9 @@ private:
   /// \brief Must warn if the macro is unused at the end of translation unit.
   bool IsWarnIfUnused : 1;
    
+  /// \brief Whether the macro has public (when described in a module).
+  bool IsPublic : 1;
+  
    ~MacroInfo() {
     assert(ArgumentList == 0 && "Didn't call destroy before dtor!");
   }
@@ -279,17 +282,18 @@ public:
   }
 
   /// \brief Set the export location for this macro.
-  void setExportLocation(SourceLocation ExportLoc) {
-    ExportLocation = ExportLoc;
+  void setVisibility(bool Public, SourceLocation Loc) {
+    VisibilityLocation = Loc;
+    IsPublic = Public;
   }
 
-  /// \brief Determine whether this macro was explicitly exported from its
+  /// \brief Determine whether this macro is part of the public API of its
   /// module.
-  bool isExported() const { return ExportLocation.isValid(); }
+  bool isPublic() const { return IsPublic; }
   
-  /// \brief Determine the location where this macro was explicitly exported
-  /// from its module.
-  SourceLocation getExportLocation() { return ExportLocation; }
+  /// \brief Determine the location where this macro was explicitly made
+  /// public or private within its module.
+  SourceLocation getVisibilityLocation() { return VisibilityLocation; }
   
 private:
   unsigned getDefinitionLengthSlow(SourceManager &SM) const;

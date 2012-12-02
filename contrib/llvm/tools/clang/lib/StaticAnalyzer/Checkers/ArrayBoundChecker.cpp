@@ -25,7 +25,7 @@ using namespace ento;
 namespace {
 class ArrayBoundChecker : 
     public Checker<check::Location> {
-  mutable llvm::OwningPtr<BuiltinBug> BT;
+  mutable OwningPtr<BuiltinBug> BT;
 public:
   void checkLocation(SVal l, bool isLoad, const Stmt* S,
                      CheckerContext &C) const;
@@ -51,15 +51,15 @@ void ArrayBoundChecker::checkLocation(SVal l, bool isLoad, const Stmt* LoadS,
   if (Idx.isZeroConstant())
     return;
 
-  const ProgramState *state = C.getState();
+  ProgramStateRef state = C.getState();
 
   // Get the size of the array.
   DefinedOrUnknownSVal NumElements 
     = C.getStoreManager().getSizeInElements(state, ER->getSuperRegion(), 
                                             ER->getValueType());
 
-  const ProgramState *StInBound = state->assumeInBound(Idx, NumElements, true);
-  const ProgramState *StOutBound = state->assumeInBound(Idx, NumElements, false);
+  ProgramStateRef StInBound = state->assumeInBound(Idx, NumElements, true);
+  ProgramStateRef StOutBound = state->assumeInBound(Idx, NumElements, false);
   if (StOutBound && !StInBound) {
     ExplodedNode *N = C.generateSink(StOutBound);
     if (!N)
@@ -84,7 +84,6 @@ void ArrayBoundChecker::checkLocation(SVal l, bool isLoad, const Stmt* LoadS,
   
   // Array bound check succeeded.  From this point forward the array bound
   // should always succeed.
-  assert(StInBound);
   C.addTransition(StInBound);
 }
 

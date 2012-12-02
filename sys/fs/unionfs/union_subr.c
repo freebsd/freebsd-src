@@ -2,8 +2,8 @@
  * Copyright (c) 1994 Jan-Simon Pendry
  * Copyright (c) 1994
  *	The Regents of the University of California.  All rights reserved.
- * Copyright (c) 2005, 2006 Masanori Ozawa <ozawa@ongs.co.jp>, ONGS Inc.
- * Copyright (c) 2006 Daichi Goto <daichi@freebsd.org>
+ * Copyright (c) 2005, 2006, 2012 Masanori Ozawa <ozawa@ongs.co.jp>, ONGS Inc.
+ * Copyright (c) 2006, 2012 Daichi Goto <daichi@freebsd.org>
  *
  * This code is derived from software contributed to Berkeley by
  * Jan-Simon Pendry.
@@ -247,12 +247,6 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 		if (dvp == NULLVP)
 			return (EINVAL);
 	}
-
-	/*
-	 * Do the MALLOC before the getnewvnode since doing so afterward
-	 * might cause a bogus v_data pointer to get dereferenced elsewhere
-	 * if MALLOC should block.
-	 */
 	unp = malloc(sizeof(struct unionfs_node),
 	    M_UNIONFSNODE, M_WAITOK | M_ZERO);
 
@@ -331,7 +325,6 @@ unionfs_nodeget_out:
 void
 unionfs_noderem(struct vnode *vp, struct thread *td)
 {
-	int		vfslocked;
 	int		count;
 	struct unionfs_node *unp, *unp_t1, *unp_t2;
 	struct unionfs_node_hashhead *hd;
@@ -350,33 +343,28 @@ unionfs_noderem(struct vnode *vp, struct thread *td)
 	uvp = unp->un_uppervp;
 	dvp = unp->un_dvp;
 	unp->un_lowervp = unp->un_uppervp = NULLVP;
-
 	vp->v_vnlock = &(vp->v_lock);
 	vp->v_data = NULL;
-	lockmgr(vp->v_vnlock, LK_EXCLUSIVE | LK_INTERLOCK, VI_MTX(vp));
-	if (lvp != NULLVP)
-		VOP_UNLOCK(lvp, 0);
-	if (uvp != NULLVP)
-		VOP_UNLOCK(uvp, 0);
 	vp->v_object = NULL;
+	VI_UNLOCK(vp);
+
+	if (lvp != NULLVP)
+		VOP_UNLOCK(lvp, LK_RELEASE);
+	if (uvp != NULLVP)
+		VOP_UNLOCK(uvp, LK_RELEASE);
 
 	if (dvp != NULLVP && unp->un_hash.le_prev != NULL)
 		unionfs_rem_cached_vnode(unp, dvp);
 
-	if (lvp != NULLVP) {
-		vfslocked = VFS_LOCK_GIANT(lvp->v_mount);
+	if (lockmgr(vp->v_vnlock, LK_EXCLUSIVE, VI_MTX(vp)) != 0)
+		panic("the lock for deletion is unacquirable.");
+
+	if (lvp != NULLVP)
 		vrele(lvp);
-		VFS_UNLOCK_GIANT(vfslocked);
-	}
-	if (uvp != NULLVP) {
-		vfslocked = VFS_LOCK_GIANT(uvp->v_mount);
+	if (uvp != NULLVP)
 		vrele(uvp);
-		VFS_UNLOCK_GIANT(vfslocked);
-	}
 	if (dvp != NULLVP) {
-		vfslocked = VFS_LOCK_GIANT(dvp->v_mount);
 		vrele(dvp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		unp->un_dvp = NULLVP;
 	}
 	if (unp->un_path != NULL) {
@@ -550,7 +538,7 @@ unionfs_relookup(struct vnode *dvp, struct vnode **vpp,
 		cn->cn_flags |= (cnp->cn_flags & SAVESTART);
 
 	vref(dvp);
-	VOP_UNLOCK(dvp, 0);
+	VOP_UNLOCK(dvp, LK_RELEASE);
 
 	if ((error = relookup(dvp, vpp, cn))) {
 		uma_zfree(namei_zone, cn->cn_pnbuf);
@@ -951,13 +939,13 @@ unionfs_vn_create_on_upper(struct vnode **vpp, struct vnode *udvp,
 		vput(vp);
 		goto unionfs_vn_create_on_upper_free_out1;
 	}
-	vp->v_writecount++;
+	VOP_ADD_WRITECOUNT(vp, 1);
 	CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d",  __func__, vp,
 	    vp->v_writecount);
 	*vpp = vp;
 
 unionfs_vn_create_on_upper_free_out1:
-	VOP_UNLOCK(udvp, 0);
+	VOP_UNLOCK(udvp, LK_RELEASE);
 
 unionfs_vn_create_on_upper_free_out2:
 	if (cn.cn_flags & HASBUF) {
@@ -1088,7 +1076,7 @@ unionfs_copyfile(struct unionfs_node *unp, int docopy, struct ucred *cred,
 		}
 	}
 	VOP_CLOSE(uvp, FWRITE, cred, td);
-	uvp->v_writecount--;
+	VOP_ADD_WRITECOUNT(uvp, -1);
 	CTR3(KTR_VFS, "%s: vp %p v_writecount decreased to %d", __func__, uvp,
 	    uvp->v_writecount);
 
@@ -1181,7 +1169,7 @@ unionfs_check_rmdir(struct vnode *vp, struct ucred *cred, struct thread *td)
 		edp = (struct dirent*)&buf[sizeof(buf) - uio.uio_resid];
 		for (dp = (struct dirent*)buf; !error && dp < edp;
 		     dp = (struct dirent*)((caddr_t)dp + dp->d_reclen)) {
-			if (dp->d_type == DT_WHT ||
+			if (dp->d_type == DT_WHT || dp->d_fileno == 0 ||
 			    (dp->d_namlen == 1 && dp->d_name[0] == '.') ||
 			    (dp->d_namlen == 2 && !bcmp(dp->d_name, "..", 2)))
 				continue;

@@ -38,7 +38,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <machine/cpu.h>
-#include <machine/cpufunc.h>
+#include <machine/atomic.h>
 #include <machine/md_var.h>
 
 #include "debug.h"
@@ -299,7 +299,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, int flags,
 	 * limited amounts of stack available so we cannot use alloca().
 	 */
 	if (obj != obj_rtld) {
-		cache = calloc(obj->nchains, sizeof(SymCache));
+		cache = calloc(obj->dynsymcount, sizeof(SymCache));
 		/* No need to check for NULL here */
 	} else
 		cache = NULL;
@@ -499,7 +499,7 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
 
 		jmptab = obj->pltgot + JMPTAB_BASE(N);
 		jmptab[reloff] = target;
-		powerpc_mb(); /* Order jmptab update before next changes */
+		mb(); /* Order jmptab update before next changes */
 
 		if (reloff < PLT_EXTENDED_BEGIN) {
 			/* for extended PLT entries, we keep the old code */

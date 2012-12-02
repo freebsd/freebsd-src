@@ -58,7 +58,7 @@ namespace clang {
                            SourceLocation TemplateLoc) 
       : Kind(ParsedTemplateArgument::Template),
         Arg(Template.getAsOpaquePtr()), 
-        Loc(TemplateLoc), SS(SS), EllipsisLoc() { }
+        SS(SS), Loc(TemplateLoc), EllipsisLoc() { }
     
     /// \brief Determine whether the given template argument is invalid.
     bool isInvalid() const { return Arg == 0; }
@@ -118,13 +118,13 @@ namespace clang {
     /// expression), or an ActionBase::TemplateTy (for a template).
     void *Arg;
 
-    /// \brief the location of the template argument.
-    SourceLocation Loc;
-    
     /// \brief The nested-name-specifier that can accompany a template template
     /// argument.
     CXXScopeSpec SS;
-    
+
+    /// \brief the location of the template argument.
+    SourceLocation Loc;
+
     /// \brief The ellipsis location that can accompany a template template
     /// argument (turning it into a template template argument expansion).
     SourceLocation EllipsisLoc;
@@ -141,7 +141,11 @@ namespace clang {
   struct TemplateIdAnnotation {
     /// \brief The nested-name-specifier that precedes the template name.
     CXXScopeSpec SS;
-    
+
+    /// TemplateKWLoc - The location of the template keyword within the
+    /// source.
+    SourceLocation TemplateKWLoc;
+
     /// TemplateNameLoc - The location of the template name within the
     /// source.
     SourceLocation TemplateNameLoc;
@@ -174,8 +178,11 @@ namespace clang {
     ParsedTemplateArgument *getTemplateArgs() { 
       return reinterpret_cast<ParsedTemplateArgument *>(this + 1); 
     }
-    
-    static TemplateIdAnnotation* Allocate(unsigned NumArgs) {
+
+    /// \brief Creates a new TemplateIdAnnotation with NumArgs arguments and
+    /// appends it to List.
+    static TemplateIdAnnotation *
+    Allocate(unsigned NumArgs, SmallVectorImpl<TemplateIdAnnotation*> &List) {
       TemplateIdAnnotation *TemplateId
         = (TemplateIdAnnotation *)std::malloc(sizeof(TemplateIdAnnotation) +
                                       sizeof(ParsedTemplateArgument) * NumArgs);
@@ -189,6 +196,7 @@ namespace clang {
       for (unsigned I = 0; I != NumArgs; ++I)
         new (TemplateArgs + I) ParsedTemplateArgument();
       
+      List.push_back(TemplateId);
       return TemplateId;
     }
     

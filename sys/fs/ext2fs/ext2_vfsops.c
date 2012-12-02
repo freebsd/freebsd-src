@@ -112,7 +112,7 @@ ext2_mount(struct mount *mp)
 	struct vfsoptlist *opts;
 	struct vnode *devvp;
 	struct thread *td;
-	struct ext2mount *ump = 0;
+	struct ext2mount *ump = NULL;
 	struct m_ext2fs *fs;
 	struct nameidata nd, *ndp = &nd;
 	accmode_t accmode;
@@ -480,19 +480,12 @@ ext2_reload(struct mount *mp, struct thread *td)
 	}
 
 loop:
-	MNT_ILOCK(mp);
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		VI_LOCK(vp);
-		if (vp->v_iflag & VI_DOOMED) {
-			VI_UNLOCK(vp);
-			continue;
-		}
-		MNT_IUNLOCK(mp);
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		/*
 		 * Step 4: invalidate all cached file data.
 		 */
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
-			MNT_VNODE_FOREACH_ABORT(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			goto loop;
 		}
 		if (vinvalbuf(vp, 0, 0, 0))
@@ -507,7 +500,7 @@ loop:
 		if (error) {
 			VOP_UNLOCK(vp, 0);
 			vrele(vp);
-			MNT_VNODE_FOREACH_ABORT(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			return (error);
 		}
 		ext2_ei2i((struct ext2fs_dinode *) ((char *)bp->b_data +
@@ -515,9 +508,7 @@ loop:
 		brelse(bp);
 		VOP_UNLOCK(vp, 0);
 		vrele(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 	return (0);
 }
 
@@ -674,8 +665,7 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	 * Initialize filesystem stat information in mount struct.
 	 */
 	MNT_ILOCK(mp);
- 	mp->mnt_kern_flag |= MNTK_MPSAFE | MNTK_LOOKUP_SHARED |
-            MNTK_EXTENDED_SHARED;
+ 	mp->mnt_kern_flag |= MNTK_LOOKUP_SHARED | MNTK_EXTENDED_SHARED;
 	MNT_IUNLOCK(mp);
 	return (0);
 out:
@@ -776,7 +766,7 @@ ext2_statfs(struct mount *mp, struct statfs *sbp)
 	ump = VFSTOEXT2(mp);
 	fs = ump->um_e2fs;
 	if (fs->e2fs->e2fs_magic != E2FS_MAGIC)
-		panic("ext2fs_statvfs");
+		panic("ext2fs_statfs");
 
 	/*
 	 * Compute the overhead (FS structures)
@@ -839,29 +829,24 @@ ext2_sync(struct mount *mp, int waitfor)
 	/*
 	 * Write back each (modified) inode.
 	 */
-	MNT_ILOCK(mp);
 loop:
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		VI_LOCK(vp);
-		if (vp->v_type == VNON || (vp->v_iflag & VI_DOOMED)) {
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
+		if (vp->v_type == VNON) {
 			VI_UNLOCK(vp);
 			continue;
 		}
-		MNT_IUNLOCK(mp);
 		ip = VTOI(vp);
 		if ((ip->i_flag &
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
 		    (vp->v_bufobj.bo_dirty.bv_cnt == 0 ||
 		    waitfor == MNT_LAZY)) {
 			VI_UNLOCK(vp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		error = vget(vp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK, td);
 		if (error) {
-			MNT_ILOCK(mp);
 			if (error == ENOENT) {
-				MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+				MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 				goto loop;
 			}
 			continue;
@@ -870,9 +855,7 @@ loop:
 			allerror = error;
 		VOP_UNLOCK(vp, 0);
 		vrele(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 
 	/*
 	 * Force stale file system control information to be flushed.
@@ -922,14 +905,6 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 
 	ump = VFSTOEXT2(mp);
 	dev = ump->um_dev;
-
-	/*
-	 * If this malloc() is performed after the getnewvnode()
-	 * it might block, leaving a vnode with a NULL v_data to be
-	 * found by ext2_sync() if a sync happens to fire right then,
-	 * which will cause a panic because ext2_sync() blindly
-	 * dereferences vp->v_data (as well it should).
-	 */
 	ip = malloc(sizeof(struct inode), M_EXT2NODE, M_WAITOK | M_ZERO);
 
 	/* Allocate a new vnode/inode. */

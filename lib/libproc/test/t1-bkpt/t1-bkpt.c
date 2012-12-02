@@ -50,12 +50,12 @@ t1_bkpt_d()
 	unsigned long saved;
 
 	proc_create("./t1-bkpt", targv, NULL, NULL, &phdl);
-	proc_bkptset(phdl, (uintptr_t)t1_bkpt_t, &saved);
+	assert(proc_bkptset(phdl, (uintptr_t)t1_bkpt_t, &saved) == 0);
 	proc_continue(phdl);
-	assert(WIFSTOPPED(proc_wstatus(phdl)));
+	assert(proc_wstatus(phdl) == PS_STOP);
 	proc_bkptexec(phdl, saved);
 	proc_continue(phdl);
-	proc_wait(phdl);
+	proc_wstatus(phdl);
 	proc_free(phdl);
 }
 

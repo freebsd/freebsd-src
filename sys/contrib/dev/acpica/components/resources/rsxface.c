@@ -679,7 +679,7 @@ AcpiWalkResources (
 
         /* Get the next resource descriptor */
 
-        Resource = ACPI_ADD_PTR (ACPI_RESOURCE, Resource, Resource->Length);
+        Resource = ACPI_NEXT_RESOURCE (Resource);
     }
 
     ACPI_FREE (Buffer.Pointer);

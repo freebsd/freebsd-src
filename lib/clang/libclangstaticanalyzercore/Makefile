@@ -3,13 +3,14 @@
 LIB=	clangstaticanalyzercore
 
 SRCDIR=	tools/clang/lib/StaticAnalyzer/Core
-SRCS=	AggExprVisitor.cpp \
-	AnalysisManager.cpp \
+SRCS=	AnalysisManager.cpp \
+	APSIntType.cpp \
 	BasicConstraintManager.cpp \
 	BasicValueFactory.cpp \
 	BlockCounter.cpp \
 	BugReporter.cpp \
 	BugReporterVisitors.cpp \
+	CallEvent.cpp \
 	Checker.cpp \
 	CheckerContext.cpp \
 	CheckerHelpers.cpp \
@@ -23,9 +24,9 @@ SRCS=	AggExprVisitor.cpp \
 	ExprEngineCXX.cpp \
 	ExprEngineCallAndReturn.cpp \
 	ExprEngineObjC.cpp \
+	FunctionSummary.cpp \
 	HTMLDiagnostics.cpp \
 	MemRegion.cpp \
-	ObjCMessage.cpp \
 	PathDiagnostic.cpp \
 	PlistDiagnostics.cpp \
 	ProgramState.cpp \
@@ -36,11 +37,13 @@ SRCS=	AggExprVisitor.cpp \
 	SimpleConstraintManager.cpp \
 	SimpleSValBuilder.cpp \
 	Store.cpp \
+	SubEngine.cpp \
 	SymbolManager.cpp \
 	TextPathDiagnostics.cpp
 
 TGHDRS=	AttrList \
 	Attrs \
+	CommentNodes \
 	DeclNodes \
 	DiagnosticCommonKinds \
 	StmtNodes

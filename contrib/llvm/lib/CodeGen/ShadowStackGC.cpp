@@ -26,13 +26,13 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "shadowstackgc"
-#include "llvm/CodeGen/GCs.h"
-#include "llvm/ADT/StringExtras.h"
-#include "llvm/CodeGen/GCStrategy.h"
+#include "llvm/IRBuilder.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Module.h"
+#include "llvm/ADT/StringExtras.h"
+#include "llvm/CodeGen/GCStrategy.h"
+#include "llvm/CodeGen/GCs.h"
 #include "llvm/Support/CallSite.h"
-#include "llvm/Support/IRBuilder.h"
 
 using namespace llvm;
 
@@ -116,8 +116,7 @@ namespace {
           // Branches and invokes do not escape, only unwind, resume, and return
           // do.
           TerminatorInst *TI = CurBB->getTerminator();
-          if (!isa<UnwindInst>(TI) && !isa<ReturnInst>(TI) &&
-              !isa<ResumeInst>(TI))
+          if (!isa<ReturnInst>(TI) && !isa<ResumeInst>(TI))
             continue;
 
           Builder.SetInsertPoint(TI->getParent(), TI);

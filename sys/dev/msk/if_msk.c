@@ -3734,6 +3734,9 @@ msk_intr(void *xsc)
 	if ((status & Y2_IS_STAT_BMU) != 0 && domore == 0)
 		CSR_WRITE_4(sc, STAT_CTRL, SC_STAT_CLR_IRQ);
 
+	/* Clear TWSI IRQ. */
+	if ((status & Y2_IS_TWSI_RDY) != 0)
+		CSR_WRITE_4(sc, B2_I2C_IRQ, 1);
 	/* Reenable interrupts. */
 	CSR_WRITE_4(sc, B0_Y2_SP_ICR, 2);
 

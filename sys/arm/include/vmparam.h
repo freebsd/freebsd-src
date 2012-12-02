@@ -104,7 +104,7 @@
 
 #define VM_MIN_ADDRESS          (0x00001000)
 #ifdef ARM_USE_SMALL_ALLOC
-/* 
+/*
  * ARM_KERN_DIRECTMAP is used to make sure there's enough space between
  * VM_MAXUSER_ADDRESS and KERNBASE to map the whole memory.
  * It has to be a compile-time constant, even if arm_init_smallalloc(),
@@ -116,7 +116,9 @@
 #endif
 #define VM_MAXUSER_ADDRESS	KERNBASE - ARM_KERN_DIRECTMAP
 #else /* ARM_USE_SMALL_ALLOC */
+#ifndef VM_MAXUSER_ADDRESS
 #define VM_MAXUSER_ADDRESS      KERNBASE
+#endif /* VM_MAXUSER_ADDRESS */
 #endif /* ARM_USE_SMALL_ALLOC */
 #define VM_MAX_ADDRESS          VM_MAXUSER_ADDRESS
 

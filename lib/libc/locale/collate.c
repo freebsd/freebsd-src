@@ -56,11 +56,11 @@ __FBSDID("$FreeBSD$");
  * We also modify the collation table test functions to search the thread-local
  * table first and the global table second.  
  */
-#define __collate_load_error (table->__collate_load_error)
 #define __collate_substitute_nontrivial (table->__collate_substitute_nontrivial)
 #define __collate_substitute_table_ptr (table->__collate_substitute_table_ptr)
 #define __collate_char_pri_table_ptr (table->__collate_char_pri_table_ptr)
 #define __collate_chain_pri_table (table->__collate_chain_pri_table)
+int __collate_load_error;
 
 
 struct xlocale_collate __xlocale_global_collate = {
@@ -109,7 +109,9 @@ __collate_load(const char *encoding, locale_t unused)
 int
 __collate_load_tables(const char *encoding)
 {
-	return __collate_load_tables_l(encoding, &__xlocale_global_collate);
+	int ret = __collate_load_tables_l(encoding, &__xlocale_global_collate);
+	__collate_load_error = __xlocale_global_collate.__collate_load_error;
+	return ret;
 }
 
 int
@@ -123,7 +125,7 @@ __collate_load_tables_l(const char *encoding, struct xlocale_collate *table)
 
 	/* 'encoding' must be already checked. */
 	if (strcmp(encoding, "C") == 0 || strcmp(encoding, "POSIX") == 0) {
-		__collate_load_error = 1;
+		table->__collate_load_error = 1;
 		return (_LDP_CACHE);
 	}
 
@@ -240,7 +242,7 @@ __collate_load_tables_l(const char *encoding, struct xlocale_collate *table)
 			break;
 		}
 	}
-	__collate_load_error = 0;
+	table->__collate_load_error = 0;
 
 	return (_LDP_LOADED);
 }

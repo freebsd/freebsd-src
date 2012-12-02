@@ -72,7 +72,6 @@ hptrr_lib.o			optional	hptrr			\
 	no-implicit-rule
 #
 amd64/acpica/acpi_machdep.c	optional	acpi
-amd64/acpica/acpi_switch.S	optional	acpi
 acpi_wakecode.o			optional	acpi			\
 	dependency	"$S/amd64/acpica/acpi_wakecode.S assym.s"	\
 	compile-with	"${NORMAL_S}"					\
@@ -80,7 +79,7 @@ acpi_wakecode.o			optional	acpi			\
 	clean		"acpi_wakecode.o"
 acpi_wakecode.bin		optional	acpi			\
 	dependency	"acpi_wakecode.o"				\
-	compile-with	"objcopy -S -O binary acpi_wakecode.o ${.TARGET}" \
+	compile-with	"${OBJCOPY} -S -O binary acpi_wakecode.o ${.TARGET}" \
 	no-obj no-implicit-rule	before-depend				\
 	clean		"acpi_wakecode.bin"
 acpi_wakecode.h			optional	acpi			\
@@ -94,7 +93,6 @@ acpi_wakedata.h			optional	acpi			\
 	no-obj no-implicit-rule	before-depend				\
 	clean		"acpi_wakedata.h"
 #
-amd64/acpica/acpi_wakeup.c	optional	acpi
 amd64/amd64/amd64_mem.c		optional	mem
 #amd64/amd64/apic_vector.S	standard
 amd64/amd64/atomic.c		standard
@@ -137,8 +135,8 @@ crypto/aesni/aesencdec_amd64.S	optional aesni
 crypto/aesni/aeskeys_amd64.S	optional aesni
 crypto/aesni/aesni.c		optional aesni
 crypto/aesni/aesni_wrap.c	optional aesni
-crypto/blowfish/bf_enc.c	optional	crypto | ipsec 
-crypto/des/des_enc.c		optional	crypto | ipsec | netsmb
+crypto/blowfish/bf_enc.c	optional	crypto | ipsec
+crypto/des/des_enc.c		optional	crypto | ipsec
 crypto/via/padlock.c		optional	padlock
 crypto/via/padlock_cipher.c	optional	padlock
 crypto/via/padlock_hash.c	optional	padlock
@@ -192,7 +190,8 @@ dev/fdc/fdc_acpi.c		optional	fdc
 dev/fdc/fdc_isa.c		optional	fdc isa
 dev/fdc/fdc_pccard.c		optional	fdc pccard
 dev/hpt27xx/os_bsd.c		optional	hpt27xx
-dev/hpt27xx/osm_bsd.c		optional	hpt27xx
+dev/hpt27xx/osm_bsd.c		optional	hpt27xx \
+	compile-with "${NORMAL_C} ${NO_WFORMAT_SECURITY}"
 dev/hpt27xx/hpt27xx_config.c	optional	hpt27xx
 dev/hptmv/entry.c		optional	hptmv
 dev/hptmv/mv.c			optional	hptmv
@@ -213,9 +212,20 @@ dev/kbd/kbd.c			optional	atkbd | sc | ukbd
 dev/lindev/full.c		optional	lindev
 dev/lindev/lindev.c		optional	lindev
 dev/nfe/if_nfe.c		optional	nfe pci
+dev/nvd/nvd.c			optional	nvd nvme
 dev/nve/if_nve.c		optional	nve pci
+dev/nvme/nvme.c			optional	nvme
+dev/nvme/nvme_ctrlr.c		optional	nvme
+dev/nvme/nvme_ctrlr_cmd.c	optional	nvme
+dev/nvme/nvme_ns.c		optional	nvme
+dev/nvme/nvme_ns_cmd.c		optional	nvme
+dev/nvme/nvme_qpair.c		optional	nvme
+dev/nvme/nvme_sysctl.c		optional	nvme
+dev/nvme/nvme_test.c		optional	nvme
+dev/nvme/nvme_uio.c		optional	nvme
 dev/nvram/nvram.c		optional	nvram isa
-dev/random/nehemiah.c		optional	random
+dev/random/ivy.c		optional	random rdrand_rng
+dev/random/nehemiah.c		optional	random padlock_rng
 dev/qlxgb/qla_dbg.c		optional	qlxgb pci
 dev/qlxgb/qla_hw.c		optional	qlxgb pci
 dev/qlxgb/qla_ioctl.c		optional	qlxgb pci
@@ -393,14 +403,9 @@ amd64/ia32/ia32_signal.c	optional	compat_freebsd32
 amd64/ia32/ia32_sigtramp.S	optional	compat_freebsd32
 amd64/ia32/ia32_syscall.c	optional	compat_freebsd32
 amd64/ia32/ia32_misc.c		optional	compat_freebsd32
-compat/freebsd32/freebsd32_ioctl.c	optional	compat_freebsd32
-compat/freebsd32/freebsd32_misc.c	optional	compat_freebsd32
-compat/freebsd32/freebsd32_syscalls.c	optional	compat_freebsd32
-compat/freebsd32/freebsd32_sysent.c	optional	compat_freebsd32
 compat/ia32/ia32_sysvec.c	optional	compat_freebsd32
 compat/linprocfs/linprocfs.c	optional	linprocfs
 compat/linsysfs/linsysfs.c	optional	linsysfs
-kern/imgact_elf32.c		optional	compat_freebsd32
 #
 # Linux/i386 binary support
 #
@@ -454,6 +459,7 @@ contrib/x86emu/x86emu.c		optional x86bios | atkbd | dpms | vesa
 #
 x86/acpica/OsdEnvironment.c	optional	acpi
 x86/acpica/acpi_apm.c		optional	acpi
+x86/acpica/acpi_wakeup.c	optional	acpi
 x86/acpica/madt.c		optional	acpi
 x86/acpica/srat.c		optional	acpi
 x86/bios/smbios.c		optional	smbios

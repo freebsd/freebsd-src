@@ -73,6 +73,7 @@ AcpiDmGetResourceTag (
 
 static char *
 AcpiGetTagPathname (
+    ACPI_PARSE_OBJECT       *Op,
     ACPI_NAMESPACE_NODE     *BufferNode,
     ACPI_NAMESPACE_NODE     *ResourceNode,
     UINT32                  BitIndex);
@@ -443,7 +444,6 @@ AcpiDmCheckResourceReference (
     ACPI_NAMESPACE_NODE     *BufferNode;
     ACPI_NAMESPACE_NODE     *ResourceNode;
     const ACPI_OPCODE_INFO  *OpInfo;
-    char                    *Pathname;
     UINT32                  BitIndex;
 
 
@@ -469,6 +469,11 @@ AcpiDmCheckResourceReference (
     /* Get the Index term, must be an integer constant to convert */
 
     IndexOp = BufferNameOp->Common.Next;
+
+    /* Major cheat: The Node field is also used for the Tag ptr. Clear it now */
+
+    IndexOp->Common.Node = NULL;
+
     OpInfo = AcpiPsGetOpcodeInfo (IndexOp->Common.AmlOpcode);
     if (OpInfo->ObjectType != ACPI_TYPE_INTEGER)
     {
@@ -519,14 +524,7 @@ AcpiDmCheckResourceReference (
 
     /* Translate the Index to a resource tag pathname */
 
-    Pathname = AcpiGetTagPathname (BufferNode, ResourceNode, BitIndex);
-    if (Pathname)
-    {
-        /* Complete the conversion of the Index to a symbol */
-
-        IndexOp->Common.AmlOpcode = AML_INT_NAMEPATH_OP;
-        IndexOp->Common.Value.String = Pathname;
-    }
+    AcpiGetTagPathname (IndexOp, BufferNode, ResourceNode, BitIndex);
 }
 
 
@@ -597,6 +595,7 @@ AcpiDmGetResourceNode (
 
 static char *
 AcpiGetTagPathname (
+    ACPI_PARSE_OBJECT       *IndexOp,
     ACPI_NAMESPACE_NODE     *BufferNode,
     ACPI_NAMESPACE_NODE     *ResourceNode,
     UINT32                  BitIndex)
@@ -626,7 +625,7 @@ AcpiGetTagPathname (
     Aml = ACPI_CAST_PTR (AML_RESOURCE,
             &Op->Named.Data[ResourceNode->Value]);
 
-    Status = AcpiUtValidateResource (Aml, &ResourceTableIndex);
+    Status = AcpiUtValidateResource (NULL, Aml, &ResourceTableIndex);
     if (ACPI_FAILURE (Status))
     {
         return (NULL);
@@ -689,6 +688,15 @@ AcpiGetTagPathname (
 
     AcpiNsInternalizeName (Pathname, &InternalPath);
     ACPI_FREE (Pathname);
+
+    /* Update the Op with the symbol */
+
+    AcpiPsInitOp (IndexOp, AML_INT_NAMEPATH_OP);
+    IndexOp->Common.Value.String = InternalPath;
+
+    /* We will need the tag later. Cheat by putting it in the Node field */
+
+    IndexOp->Common.Node = ACPI_CAST_PTR (ACPI_NAMESPACE_NODE, Tag);
     return (InternalPath);
 }
 
@@ -930,7 +938,7 @@ AcpiDmFindResources (
                  * resource descriptors to the namespace, as children of the
                  * buffer node.
                  */
-                if (ACPI_SUCCESS (AcpiDmIsResourceTemplate (Op)))
+                if (ACPI_SUCCESS (AcpiDmIsResourceTemplate (NULL, Op)))
                 {
                     Op->Common.DisasmOpcode = ACPI_DASM_RESOURCE;
                     AcpiDmAddResourcesToNamespace (Parent->Common.Node, Op);
@@ -983,7 +991,7 @@ AcpiDmAddResourcesToNamespace (
      * Insert each resource into the namespace
      * NextOp contains the Aml pointer and the Aml length
      */
-    AcpiUtWalkAmlResources ((UINT8 *) NextOp->Named.Data,
+    AcpiUtWalkAmlResources (NULL, (UINT8 *) NextOp->Named.Data,
         (ACPI_SIZE) NextOp->Common.Value.Integer,
         AcpiDmAddResourceToNamespace, BufferNode);
 }
@@ -1042,4 +1050,3 @@ AcpiDmAddResourceToNamespace (
     Node->Length = Length;
     return (AE_OK);
 }
-

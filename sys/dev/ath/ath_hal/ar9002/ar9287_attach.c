@@ -65,7 +65,9 @@ static const HAL_PERCAL_DATA ar9287_adc_init_dc_cal = {
 	.calPostProc	= ar5416AdcDcCalibration
 };
 
-static void ar9287ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
+static void ar9287ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore,
+		HAL_BOOL power_off);
+static void ar9287DisablePCIE(struct ath_hal *ah);
 static HAL_BOOL ar9287FillCapabilityInfo(struct ath_hal *ah);
 static void ar9287WriteIni(struct ath_hal *ah,
 	const struct ieee80211_channel *chan);
@@ -84,8 +86,8 @@ ar9287AniSetup(struct ath_hal *ah)
                 .coarseHigh             = { -14, -14, -14, -14, -12 },
                 .coarseLow              = { -64, -64, -64, -64, -70 },
                 .firpwr                 = { -78, -78, -78, -78, -80 },
-                .maxSpurImmunityLevel   = 2,
-                .cycPwrThr1             = { 2, 4, 6 },
+                .maxSpurImmunityLevel   = 7,
+                .cycPwrThr1             = { 2, 4, 6, 8, 10, 12, 14, 16 },
                 .maxFirstepLevel        = 2,    /* levels 0..2 */
                 .firstep                = { 0, 4, 8 },
                 .ofdmTrigHigh           = 500,
@@ -135,12 +137,20 @@ ar9287Attach(uint16_t devid, HAL_SOFTC sc,
 
 	ar5416InitState(AH5416(ah), devid, sc, st, sh, status);
 
+	if (eepromdata != AH_NULL) {
+		AH_PRIVATE(ah)->ah_eepromRead = ath_hal_EepromDataRead;
+		AH_PRIVATE(ah)->ah_eepromWrite = NULL;
+		ah->ah_eepromdata = eepromdata;
+	}
+
+
 	/* XXX override with 9280 specific state */
 	/* override 5416 methods for our needs */
 	AH5416(ah)->ah_initPLL = ar9280InitPLL;
 
 	ah->ah_setAntennaSwitch		= ar9287SetAntennaSwitch;
 	ah->ah_configPCIE		= ar9287ConfigPCIE;
+	ah->ah_disablePCIE		= ar9287DisablePCIE;
 
 	AH5416(ah)->ah_cal.iqCalData.calData = &ar9287_iq_cal;
 	AH5416(ah)->ah_cal.adcGainCalData.calData = &ar9287_adc_gain_cal;
@@ -357,14 +367,21 @@ bad:
 }
 
 static void
-ar9287ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
+ar9287ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore, HAL_BOOL power_off)
 {
 	if (AH_PRIVATE(ah)->ah_ispcie && !restore) {
 		ath_hal_ini_write(ah, &AH5416(ah)->ah_ini_pcieserdes, 1, 0);
 		OS_DELAY(1000);
 		OS_REG_SET_BIT(ah, AR_PCIE_PM_CTRL, AR_PCIE_PM_CTRL_ENA);
-		OS_REG_WRITE(ah, AR_WA, AR9285_WA_DEFAULT);	/* Yes, Kiwi uses the Kite PCIe PHY WA */
+		/* Yes, Kiwi uses the Kite PCIe PHY WA */
+		OS_REG_WRITE(ah, AR_WA, AR9285_WA_DEFAULT);
 	}
+}
+
+static void
+ar9287DisablePCIE(struct ath_hal *ah)
+{
+	/* XXX TODO */
 }
 
 static void

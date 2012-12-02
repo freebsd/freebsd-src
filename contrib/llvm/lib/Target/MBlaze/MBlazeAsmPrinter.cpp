@@ -38,8 +38,6 @@
 #include "llvm/Target/TargetLoweringObjectFile.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/ADT/SmallString.h"
-#include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
@@ -119,7 +117,7 @@ namespace {
 static void printHex32(unsigned int Value, raw_ostream &O) {
   O << "0x";
   for (int i = 7; i >= 0; i--)
-    O << utohexstr((Value & (0xF << (i*4))) >> (i*4));
+    O.write_hex((Value & (0xF << (i*4))) >> (i*4));
 }
 
 // Create a bitmask with all callee saved registers for CPU or Floating Point
@@ -137,7 +135,7 @@ void MBlazeAsmPrinter::printSavedRegsBitmask() {
   for (unsigned i = 0, e = CSI.size(); i != e; ++i) {
     unsigned Reg = CSI[i].getReg();
     unsigned RegNum = getMBlazeRegisterNumbering(Reg);
-    if (MBlaze::GPRRegisterClass->contains(Reg))
+    if (MBlaze::GPRRegClass.contains(Reg))
       CPUBitmask |= (1 << RegNum);
   }
 
@@ -189,7 +187,7 @@ void MBlazeAsmPrinter::EmitFunctionBodyEnd() {
 
 //===----------------------------------------------------------------------===//
 void MBlazeAsmPrinter::EmitInstruction(const MachineInstr *MI) {
-  MBlazeMCInstLower MCInstLowering(OutContext, *Mang, *this);
+  MBlazeMCInstLower MCInstLowering(OutContext, *this);
 
   MCInst TmpInst;
   MCInstLowering.Lower(MI, TmpInst);
@@ -202,7 +200,13 @@ PrintAsmOperand(const MachineInstr *MI, unsigned OpNo,
                 unsigned AsmVariant,const char *ExtraCode, raw_ostream &O) {
   // Does this asm operand have a single letter operand modifier?
   if (ExtraCode && ExtraCode[0])
-    return true; // Unknown modifier.
+    if (ExtraCode[1] != 0) return true; // Unknown modifier.
+
+    switch (ExtraCode[0]) {
+    default:
+      // See if this is a generic print operand
+      return AsmPrinter::PrintAsmOperand(MI, OpNo, AsmVariant, ExtraCode, O);
+    }
 
   printOperand(MI, OpNo, O);
   return false;
@@ -311,9 +315,9 @@ isBlockOnlyReachableByFallthrough(const MachineBasicBlock *MBB) const {
 
   // Check if the last terminator is an unconditional branch.
   MachineBasicBlock::const_iterator I = Pred->end();
-  while (I != Pred->begin() && !(--I)->getDesc().isTerminator())
+  while (I != Pred->begin() && !(--I)->isTerminator())
     ; // Noop
-  return I == Pred->end() || !I->getDesc().isBarrier();
+  return I == Pred->end() || !I->isBarrier();
 }
 
 // Force static initialization.

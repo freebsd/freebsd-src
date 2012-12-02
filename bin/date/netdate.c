@@ -55,8 +55,6 @@ __FBSDID("$FreeBSD$");
 #define	WAITACK		2	/* seconds */
 #define	WAITDATEACK	5	/* seconds */
 
-extern int retval;
-
 /*
  * Set the date in the machines controlled by timedaemons by communicating the
  * new date to the local timedaemon.  If the timedaemon is in the master state,

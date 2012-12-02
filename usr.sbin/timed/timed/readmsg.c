@@ -168,11 +168,11 @@ again:
 	 * right one, return it, otherwise insert it in the linked list.
 	 */
 
-	(void)gettimeofday(&rtout, 0);
+	(void)gettimeofday(&rtout, NULL);
 	timevaladd(&rtout, intvl);
 	FD_ZERO(&ready);
 	for (;;) {
-		(void)gettimeofday(&rtime, 0);
+		(void)gettimeofday(&rtime, NULL);
 		timevalsub(&rwait, &rtout, &rtime);
 		if (rwait.tv_sec < 0)
 			rwait.tv_sec = rwait.tv_usec = 0;
@@ -219,7 +219,7 @@ again:
 			      inet_ntoa(from.sin_addr));
 			continue;
 		}
-		(void)gettimeofday(&from_when, (struct timezone *)0);
+		(void)gettimeofday(&from_when, NULL);
 		bytehostorder(&msgin);
 
 		if (msgin.tsp_vers > TSPVERSION) {

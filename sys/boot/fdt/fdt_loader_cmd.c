@@ -40,8 +40,6 @@ __FBSDID("$FreeBSD$");
 #include "bootstrap.h"
 #include "glue.h"
 
-#define DEBUG
-
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
     printf(fmt,##args); } while (0)
@@ -57,14 +55,25 @@ __FBSDID("$FreeBSD$");
 #define STR(number) #number
 #define STRINGIFY(number) STR(number)
 
-#define COPYOUT(s,d,l)	archsw.arch_copyout((vm_offset_t)(s), d, l)
+#define COPYOUT(s,d,l)	archsw.arch_copyout(s, d, l)
+#define COPYIN(s,d,l)	archsw.arch_copyin(s, d, l)
 
 #define FDT_STATIC_DTB_SYMBOL	"fdt_static_dtb"
 
+#define	CMD_REQUIRES_BLOB	0x01
+
+/* Local copy of FDT */
 static struct fdt_header *fdtp = NULL;
+/* Size of FDT blob */
+static size_t fdtp_size = 0;
+/* Location of FDT in kernel or module */
+static vm_offset_t fdtp_va = 0;
+
+static int fdt_load_dtb(vm_offset_t va);
 
 static int fdt_cmd_nyi(int argc, char *argv[]);
 
+static int fdt_cmd_addr(int argc, char *argv[]);
 static int fdt_cmd_mkprop(int argc, char *argv[]);
 static int fdt_cmd_cd(int argc, char *argv[]);
 static int fdt_cmd_hdr(int argc, char *argv[]);
@@ -73,46 +82,47 @@ static int fdt_cmd_prop(int argc, char *argv[]);
 static int fdt_cmd_pwd(int argc, char *argv[]);
 static int fdt_cmd_rm(int argc, char *argv[]);
 static int fdt_cmd_mknode(int argc, char *argv[]);
+static int fdt_cmd_mres(int argc, char *argv[]);
 
 typedef int cmdf_t(int, char *[]);
 
 struct cmdtab {
 	char	*name;
 	cmdf_t	*handler;
+	int	flags;
 };
 
 static const struct cmdtab commands[] = {
-	{ "alias", &fdt_cmd_nyi },
-	{ "cd", &fdt_cmd_cd },
-	{ "header", &fdt_cmd_hdr },
-	{ "ls", &fdt_cmd_ls },
-	{ "mknode", &fdt_cmd_mknode },
-	{ "mkprop", &fdt_cmd_mkprop },
-	{ "mres", &fdt_cmd_nyi },
-	{ "prop", &fdt_cmd_prop },
-	{ "pwd", &fdt_cmd_pwd },
-	{ "rm", &fdt_cmd_rm },
+	{ "addr", &fdt_cmd_addr,	0 },
+	{ "alias", &fdt_cmd_nyi,	0 },
+	{ "cd", &fdt_cmd_cd,		CMD_REQUIRES_BLOB },
+	{ "header", &fdt_cmd_hdr,	CMD_REQUIRES_BLOB },
+	{ "ls", &fdt_cmd_ls,		CMD_REQUIRES_BLOB },
+	{ "mknode", &fdt_cmd_mknode,	CMD_REQUIRES_BLOB },
+	{ "mkprop", &fdt_cmd_mkprop,	CMD_REQUIRES_BLOB },
+	{ "mres", &fdt_cmd_mres,	CMD_REQUIRES_BLOB },
+	{ "prop", &fdt_cmd_prop,	CMD_REQUIRES_BLOB },
+	{ "pwd", &fdt_cmd_pwd,		CMD_REQUIRES_BLOB },
+	{ "rm", &fdt_cmd_rm,		CMD_REQUIRES_BLOB },
 	{ NULL, NULL }
 };
 
 static char cwd[FDT_CWD_LEN] = "/";
 
 static vm_offset_t
-fdt_find_static_dtb(void)
+fdt_find_static_dtb()
 {
+	Elf_Dyn dyn;
 	Elf_Sym sym;
-	vm_offset_t dyntab, esym;
+	vm_offset_t dyntab, esym, strtab, symtab, fdt_start;
 	uint64_t offs;
 	struct preloaded_file *kfp;
 	struct file_metadata *md;
-	Elf_Sym *symtab;
-	Elf_Dyn *dyn;
-	char *strtab, *strp;
-	int i, sym_count;
+	char *strp;
+	int sym_count;
 
-	symtab = NULL;
-	dyntab = esym = 0;
-	strtab = strp = NULL;
+	symtab = strtab = dyntab = esym = 0;
+	strp = NULL;
 
 	offs = __elfN(relocation_offset);
 
@@ -123,28 +133,29 @@ fdt_find_static_dtb(void)
 	md = file_findmetadata(kfp, MODINFOMD_ESYM);
 	if (md == NULL)
 		return (0);
-	COPYOUT(md->md_data, &esym, sizeof(esym));
+	bcopy(md->md_data, &esym, sizeof(esym));
+	/* esym is already offset */
 
 	md = file_findmetadata(kfp, MODINFOMD_DYNAMIC);
 	if (md == NULL)
 		return (0);
-	COPYOUT(md->md_data, &dyntab, sizeof(dyntab));
-
+	bcopy(md->md_data, &dyntab, sizeof(dyntab));
 	dyntab += offs;
 
 	/* Locate STRTAB and DYNTAB */
-	for (dyn = (Elf_Dyn *)dyntab; dyn->d_tag != DT_NULL; dyn++) {
-		if (dyn->d_tag == DT_STRTAB) {
-			strtab = (char *)(uintptr_t)(dyn->d_un.d_ptr + offs);
-			continue;
-		} else if (dyn->d_tag == DT_SYMTAB) {
-			symtab = (Elf_Sym *)(uintptr_t)
-			    (dyn->d_un.d_ptr + offs);
-			continue;
+	for (;;) {
+		COPYOUT(dyntab, &dyn, sizeof(dyn));
+		if (dyn.d_tag == DT_STRTAB) {
+			strtab = (vm_offset_t)(dyn.d_un.d_ptr) + offs;
+		} else if (dyn.d_tag == DT_SYMTAB) {
+			symtab = (vm_offset_t)(dyn.d_un.d_ptr) + offs;
+		} else if (dyn.d_tag == DT_NULL) {
+			break;
 		}
+		dyntab += sizeof(dyn);
 	}
 
-	if (symtab == NULL || strtab == NULL) {
+	if (symtab == 0 || strtab == 0) {
 		/*
 		 * No symtab? No strtab? That should not happen here,
 		 * and should have been verified during __elfN(loadimage).
@@ -153,7 +164,7 @@ fdt_find_static_dtb(void)
 		return (0);
 	}
 
-	sym_count = (int)((Elf_Sym *)esym - symtab) / sizeof(Elf_Sym);
+	sym_count = (int)(esym - symtab) / sizeof(Elf_Sym);
 
 	/*
 	 * The most efficent way to find a symbol would be to calculate a
@@ -165,47 +176,31 @@ fdt_find_static_dtb(void)
 	 * we are eliminating symbols type of which is not STT_NOTYPE, or(and)
 	 * those which binding attribute is not STB_GLOBAL.
 	 */
-	for (i = 0; i < sym_count; i++) {
-		COPYOUT(symtab + i, &sym, sizeof(sym));
+	fdt_start = 0;
+	while (sym_count > 0 && fdt_start == 0) {
+		COPYOUT(symtab, &sym, sizeof(sym));
+		symtab += sizeof(sym);
+		--sym_count;
 		if (ELF_ST_BIND(sym.st_info) != STB_GLOBAL ||
 		    ELF_ST_TYPE(sym.st_info) != STT_NOTYPE)
 			continue;
-
-		strp = strdupout((vm_offset_t)(strtab + sym.st_name));
-		if (strcmp(strp, FDT_STATIC_DTB_SYMBOL) == 0) {
-			/* Found a match ! */
-			free(strp);
-			return ((vm_offset_t)(sym.st_value + offs));
-		}
+		strp = strdupout(strtab + sym.st_name);
+		if (strcmp(strp, FDT_STATIC_DTB_SYMBOL) == 0)
+			fdt_start = (vm_offset_t)sym.st_value + offs;
 		free(strp);
 	}
-	return (0);
+	printf("fdt_start: 0x%08jX\n", (intmax_t)fdt_start);
+	return (fdt_start);
 }
 
 static int
-fdt_setup_fdtp()
+fdt_load_dtb(vm_offset_t va)
 {
-	struct preloaded_file *bfp;
+	struct fdt_header header;
 	int err;
 
-	/*
-	 * Find the device tree blob.
-	 */
-	bfp = file_findfile(NULL, "dtb");
-	if (bfp == NULL) {
-		if ((fdtp = (struct fdt_header *)fdt_find_static_dtb()) == 0) {
-			command_errmsg = "no device tree blob found!";
-			return (CMD_ERROR);
-		}
-	} else {
-		/* Dynamic blob has precedence over static. */
-		fdtp = (struct fdt_header *)bfp->f_addr;
-	}
-
-	/*
-	 * Validate the blob.
-	 */
-	err = fdt_check_header(fdtp);
+	COPYOUT(va, &header, sizeof(header));
+	err = fdt_check_header(&header);
 	if (err < 0) {
 		if (err == -FDT_ERR_BADVERSION)
 			sprintf(command_errbuf,
@@ -215,9 +210,51 @@ fdt_setup_fdtp()
 		else
 			sprintf(command_errbuf, "error validating blob: %s",
 			    fdt_strerror(err));
-		return (CMD_ERROR);
+		return (1);
 	}
-	return (CMD_OK);
+
+	/*
+	 * Release previous blob
+	 */
+	if (fdtp)
+		free(fdtp);
+
+	fdtp_size = fdt_totalsize(&header);
+	fdtp = malloc(fdtp_size);
+
+	if (fdtp == NULL) {
+		command_errmsg = "can't allocate memory for device tree copy";
+		return (1);
+	}
+
+	fdtp_va = va;
+	COPYOUT(va, fdtp, fdtp_size);
+	debugf("DTB blob found at 0x%jx, size: 0x%jx\n", (uintmax_t)va, (uintmax_t)fdtp_size);
+
+	return (0);
+}
+
+static int
+fdt_setup_fdtp()
+{
+	struct preloaded_file *bfp;
+	vm_offset_t va;
+
+	bfp = file_findfile(NULL, "dtb");
+	if (bfp == NULL) {
+		if ((va = fdt_find_static_dtb()) == 0) {
+			command_errmsg = "no device tree blob found!";
+			return (1);
+		}
+	} else {
+		/* Dynamic blob has precedence over static. */
+		va = bfp->f_addr;
+	}
+
+	if (fdt_load_dtb(va) != 0)
+		return (1);
+	
+	return (0);
 }
 
 #define fdt_strtovect(str, cellbuf, lim, cellsize) _fdt_strtovect((str), \
@@ -317,6 +354,8 @@ fixup_cpubusfreqs(unsigned long cpufreq, unsigned long busfreq)
 
 	/* We want to modify every subnode of /cpus */
 	o = fdt_path_offset(fdtp, "/cpus");
+	if (o < 0)
+		return;
 
 	/* maxo should contain offset of node next to /cpus */
 	depth = 0;
@@ -395,6 +434,8 @@ fixup_memory(struct sys_info *si)
 	uint32_t *addr_cellsp, *reg,  *size_cellsp;
 	int err, i, len, memory, realmrno, root;
 	uint8_t *buf, *sb;
+	uint64_t rstart, rsize;
+	int reserved;
 
 	root = fdt_path_offset(fdtp, "/");
 	if (root < 0) {
@@ -433,6 +474,52 @@ fixup_memory(struct sys_info *si)
 
 	addr_cells = fdt32_to_cpu(*addr_cellsp);
 	size_cells = fdt32_to_cpu(*size_cellsp);
+
+	/*
+	 * Convert memreserve data to memreserve property
+	 * Check if property already exists
+	 */
+	reserved = fdt_num_mem_rsv(fdtp);
+	if (reserved &&
+	    (fdt_getprop(fdtp, root, "memreserve", NULL) == NULL)) {
+		len = (addr_cells + size_cells) * reserved * sizeof(uint32_t);
+		sb = buf = (uint8_t *)malloc(len);
+		if (!buf)
+			return;
+
+		bzero(buf, len);
+
+		for (i = 0; i < reserved; i++) {
+			curmr = &si->mr[i];
+			if (fdt_get_mem_rsv(fdtp, i, &rstart, &rsize))
+				break;
+			if (rsize) {
+				/* Ensure endianess, and put cells into a buffer */
+				if (addr_cells == 2)
+					*(uint64_t *)buf =
+					    cpu_to_fdt64(rstart);
+				else
+					*(uint32_t *)buf =
+					    cpu_to_fdt32(rstart);
+
+				buf += sizeof(uint32_t) * addr_cells;
+				if (size_cells == 2)
+					*(uint64_t *)buf =
+					    cpu_to_fdt64(rsize);
+				else
+					*(uint32_t *)buf =
+					    cpu_to_fdt32(rsize);
+
+				buf += sizeof(uint32_t) * size_cells;
+			}
+		}
+
+		/* Set property */
+		if ((err = fdt_setprop(fdtp, root, "memreserve", sb, len)) < 0)
+			printf("Could not fixup 'memreserve' property.\n");
+
+		free(sb);
+	} 
 
 	/* Count valid memory regions entries in sysinfo. */
 	realmrno = si->mr_no;
@@ -490,6 +577,8 @@ fixup_memory(struct sys_info *si)
 	/* Set property */
 	if ((err = fdt_setprop(fdtp, memory, "reg", sb, len)) < 0)
 		sprintf(command_errbuf, "Could not fixup '/memory' node.\n");
+
+	free(sb);
 }
 
 void
@@ -545,7 +634,7 @@ fixup_stdout(const char *env)
 /*
  * Locate the blob, fix it up and return its location.
  */
-void *
+static vm_offset_t
 fdt_fixup(void)
 {
 	const char *env;
@@ -558,10 +647,12 @@ fdt_fixup(void)
 	ethstr = NULL;
 	len = 0;
 
-	err = fdt_setup_fdtp();
-	if (err) {
-		sprintf(command_errbuf, "No valid device tree blob found!");
-		return (NULL);
+	if (fdtp == NULL) {
+		err = fdt_setup_fdtp();
+		if (err) {
+			sprintf(command_errbuf, "No valid device tree blob found!");
+			return (0);
+		}
 	}
 
 	/* Create /chosen node (if not exists) */
@@ -616,13 +707,41 @@ fdt_fixup(void)
 	fdt_setprop(fdtp, chosen, "fixup-applied", NULL, 0);
 
 success:
-	return (fdtp);
+	/* Overwrite the FDT with the fixed version. */
+	COPYIN(fdtp, fdtp_va, fdtp_size);
+	return (fdtp_va);
 }
+
+/*
+ * Copy DTB blob to specified location and its return size
+ */
+int
+fdt_copy(vm_offset_t va)
+{
+	int err;
+
+	if (fdtp == NULL) {
+		err = fdt_setup_fdtp();
+		if (err) {
+			printf("No valid device tree blob found!");
+			return (0);
+		}
+	}
+
+	if (fdt_fixup() == 0)
+		return (0);
+
+	COPYIN(fdtp, va, fdtp_size);
+	return (fdtp_size);
+}
+
+
 
 int
 command_fdt_internal(int argc, char *argv[])
 {
 	cmdf_t *cmdh;
+	int flags;
 	char *cmd;
 	int i, err;
 
@@ -630,12 +749,6 @@ command_fdt_internal(int argc, char *argv[])
 		command_errmsg = "usage is 'fdt <command> [<args>]";
 		return (CMD_ERROR);
 	}
-
-	/*
-	 * Check if uboot env vars were parsed already. If not, do it now.
-	 */
-	if (fdt_fixup() == NULL)
-		return (CMD_ERROR);
 
 	/*
 	 * Validate fdt <command>.
@@ -647,6 +760,7 @@ command_fdt_internal(int argc, char *argv[])
 		if (strcmp(cmd, commands[i].name) == 0) {
 			/* found it */
 			cmdh = commands[i].handler;
+			flags = commands[i].flags;
 			break;
 		}
 		i++;
@@ -656,12 +770,45 @@ command_fdt_internal(int argc, char *argv[])
 		return (CMD_ERROR);
 	}
 
+	if (flags & CMD_REQUIRES_BLOB) {
+		/*
+		 * Check if uboot env vars were parsed already. If not, do it now.
+		 */
+		if (fdt_fixup() == 0)
+			return (CMD_ERROR);
+	}
+
 	/*
 	 * Call command handler.
 	 */
 	err = (*cmdh)(argc, argv);
 
 	return (err);
+}
+
+static int
+fdt_cmd_addr(int argc, char *argv[])
+{
+	vm_offset_t va;
+	char *addr, *cp;
+
+	if (argc > 2)
+		addr = argv[2];
+	else {
+		sprintf(command_errbuf, "no address specified");
+		return (CMD_ERROR);
+	}
+
+	va = strtol(addr, &cp, 0);
+	if (cp == addr) {
+		sprintf(command_errbuf, "Invalid address: %s", addr);
+		return (CMD_ERROR);
+	}
+
+	if (fdt_load_dtb(va) != 0)
+		return (CMD_ERROR);
+
+	return (CMD_OK);
 }
 
 static int
@@ -1151,6 +1298,8 @@ fdt_modprop(int nodeoff, char *propname, void *value, char mode)
 		else
 			sprintf(command_errbuf,
 			    "Could not add/modify property!\n");
+	} else {
+		COPYIN(fdtp, fdtp_va, fdtp_size);
 	}
 	return (rv);
 }
@@ -1371,6 +1520,8 @@ fdt_cmd_rm(int argc, char *argv[])
 	if (rv) {
 		sprintf(command_errbuf, "could not delete node");
 		return (CMD_ERROR);
+	} else {
+		COPYIN(fdtp, fdtp_va, fdtp_size);
 	}
 	return (CMD_OK);
 }
@@ -1401,6 +1552,8 @@ fdt_cmd_mknode(int argc, char *argv[])
 			sprintf(command_errbuf,
 			    "Could not add node!\n");
 		return (CMD_ERROR);
+	} else {
+		COPYIN(fdtp, fdtp_va, fdtp_size);
 	}
 	return (CMD_OK);
 }
@@ -1414,6 +1567,30 @@ fdt_cmd_pwd(int argc, char *argv[])
 	sprintf(line, "%s\n", cwd);
 	pager_output(line);
 	pager_close();
+	return (CMD_OK);
+}
+
+static int
+fdt_cmd_mres(int argc, char *argv[])
+{
+	uint64_t start, size;
+	int i, total;
+	char line[80];
+
+	pager_open();
+	total = fdt_num_mem_rsv(fdtp);
+	if (total > 0) {
+		pager_output("Reserved memory regions:\n");
+		for (i = 0; i < total; i++) {
+			fdt_get_mem_rsv(fdtp, i, &start, &size);
+			sprintf(line, "reg#%d: (start: 0x%jx, size: 0x%jx)\n", 
+			    i, start, size);
+			pager_output(line);
+		}
+	} else
+		pager_output("No reserved memory regions\n");
+	pager_close();
+
 	return (CMD_OK);
 }
 

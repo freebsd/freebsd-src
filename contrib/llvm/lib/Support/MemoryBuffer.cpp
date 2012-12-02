@@ -14,8 +14,10 @@
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Config/config.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/Errno.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/Program.h"
@@ -29,14 +31,11 @@
 #include <sys/stat.h>
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <unistd.h>
-#include <sys/uio.h>
 #else
 #include <io.h>
 #endif
 #include <fcntl.h>
 using namespace llvm;
-
-namespace { const llvm::error_code success; }
 
 //===----------------------------------------------------------------------===//
 // MemoryBuffer implementation itself.
@@ -216,6 +215,14 @@ error_code MemoryBuffer::getFile(const char *Filename,
                                  OwningPtr<MemoryBuffer> &result,
                                  int64_t FileSize,
                                  bool RequiresNullTerminator) {
+  // First check that the "file" is not a directory
+  bool is_dir = false;
+  error_code err = sys::fs::is_directory(Filename, is_dir);
+  if (err)
+    return err;
+  if (is_dir)
+    return make_error_code(errc::is_a_directory);
+
   int OpenFlags = O_RDONLY;
 #ifdef O_BINARY
   OpenFlags |= O_BINARY;  // Open input file in binary mode on win32.
@@ -306,7 +313,7 @@ error_code MemoryBuffer::getOpenFile(int FD, const char *Filename,
                                                       RealMapOffset)) {
       result.reset(GetNamedBuffer<MemoryBufferMMapFile>(
           StringRef(Pages + Delta, MapSize), Filename, RequiresNullTerminator));
-      return success;
+      return error_code::success();
     }
   }
 
@@ -321,29 +328,35 @@ error_code MemoryBuffer::getOpenFile(int FD, const char *Filename,
   char *BufPtr = const_cast<char*>(SB->getBufferStart());
 
   size_t BytesLeft = MapSize;
+#ifndef HAVE_PREAD
   if (lseek(FD, Offset, SEEK_SET) == -1)
     return error_code(errno, posix_category());
+#endif
 
   while (BytesLeft) {
+#ifdef HAVE_PREAD
+    ssize_t NumRead = ::pread(FD, BufPtr, BytesLeft, MapSize-BytesLeft+Offset);
+#else
     ssize_t NumRead = ::read(FD, BufPtr, BytesLeft);
+#endif
     if (NumRead == -1) {
       if (errno == EINTR)
         continue;
       // Error while reading.
       return error_code(errno, posix_category());
-    } else if (NumRead == 0) {
-      // We hit EOF early, truncate and terminate buffer.
-      Buf->BufferEnd = BufPtr;
-      *BufPtr = 0;
-      result.swap(SB);
-      return success;
+    }
+    if (NumRead == 0) {
+      assert(0 && "We got inaccurate FileSize value or fstat reported an "
+                   "invalid file size.");
+      *BufPtr = '\0'; // null-terminate at the actual size.
+      break;
     }
     BytesLeft -= NumRead;
     BufPtr += NumRead;
   }
 
   result.swap(SB);
-  return success;
+  return error_code::success();
 }
 
 //===----------------------------------------------------------------------===//
@@ -372,5 +385,5 @@ error_code MemoryBuffer::getSTDIN(OwningPtr<MemoryBuffer> &result) {
   } while (ReadBytes != 0);
 
   result.reset(getMemBufferCopy(Buffer, "<stdin>"));
-  return success;
+  return error_code::success();
 }

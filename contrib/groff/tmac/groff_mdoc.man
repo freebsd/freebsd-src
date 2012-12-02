@@ -1797,8 +1797,6 @@ and their results are:
 .Lb libsdp
 .It Li libssp
 .Lb libssp
-.It Li libstdthreads
-.Lb libstdthreads
 .It Li libSystem
 .Lb libSystem
 .It Li libtermcap

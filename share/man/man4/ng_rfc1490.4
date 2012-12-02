@@ -78,20 +78,20 @@ hook of an
 node.
 .Sh HOOKS
 This node type supports the following hooks:
-.Bl -tag -width foobarbazum
-.It Dv downstream
+.Bl -tag -width ".Va downstream"
+.It Va downstream
 Connects to the RFC 1490 peer entity.
-.It Dv ethernet
+.It Va ethernet
 Transmits and receives bridged raw Ethernet frames, without a checksum.
-.It Dv inet
+.It Va inet
 Transmits and receives raw IP frames.
-.It Dv ppp
+.It Va ppp
 Transmits and receives PPP frames.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
-.Bl -tag -width indent
-.It Dv NGM_RFC1490_SETENCAP
+.Bl -tag -width foo
+.It Dv NGM_RFC1490_SET_ENCAP Pq Ic setencap
 This command sets encapsulation method for the node.
 The desired method must be passed as a string message argument,
 and must be one of the following supported encapsulation modes:
@@ -105,7 +105,7 @@ Also conforms to RFC1490/2427.
 IP packets are sent and received using proprietary Cisco encapsulation
 method.
 .El
-.It Dv NGM_RFC1490_GETENCAP
+.It Dv NGM_RFC1490_GET_ENCAP Pq Ic getencap
 This command returns current encapsulation method on the node.
 .El
 .Sh SHUTDOWN

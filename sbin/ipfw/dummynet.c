@@ -759,7 +759,8 @@ load_extra_delays(const char *filename, struct dn_profile *p,
 void
 ipfw_config_pipe(int ac, char **av)
 {
-	int i, j;
+	int i;
+	u_int j;
 	char *end;
 	struct dn_id *buf, *base;
 	struct dn_sch *sch = NULL;
@@ -1282,8 +1283,8 @@ parse_range(int ac, char *av[], uint32_t *v, int len)
 			av--;
 		}
 		if (v[1] < v[0] ||
-			v[1] < 0 || v[1] >= DN_MAX_ID-1 ||
-			v[0] < 0 || v[1] >= DN_MAX_ID-1) {
+			v[1] >= DN_MAX_ID-1 ||
+			v[1] >= DN_MAX_ID-1) {
 			continue; /* invalid entry */
 		}
 		n++;
@@ -1310,11 +1311,12 @@ void
 dummynet_list(int ac, char *av[], int show_counters)
 {
 	struct dn_id *oid, *x = NULL;
-	int ret, i, l;
+	int ret, i;
 	int n; 		/* # of ranges */
-	int buflen;
-	int max_size;	/* largest obj passed up */
+	u_int buflen, l;
+	u_int max_size;	/* largest obj passed up */
 
+	(void)show_counters;	// XXX unused, but we should use it.
 	ac--;
 	av++; 		/* skip 'list' | 'show' word */
 

@@ -1,0 +1,84 @@
+The following are examples of php_calldist.d.
+
+This script traces the elapsed time of PHP functions and prints a report 
+containing distribution plots per subroutine. Here it traces the example program
+Code/Php/func_abc.php.
+
+# php_calldist.d
+Tracing... Hit Ctrl-C to end.
+^C
+
+Exclusive function elapsed times (us),
+   func_abc.php, func, func_a 
+           value  ------------- Distribution ------------- count    
+             128 |                                         0        
+             256 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             512 |                                         0        
+
+   func_abc.php, func, func_b 
+           value  ------------- Distribution ------------- count    
+             128 |                                         0        
+             256 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             512 |                                         0        
+
+   func_abc.php, func, func_c 
+           value  ------------- Distribution ------------- count    
+             128 |                                         0        
+             256 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+             512 |                                         0        
+
+   func_abc.php, func, sleep 
+           value  ------------- Distribution ------------- count    
+          262144 |                                         0        
+          524288 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+         1048576 |                                         0        
+
+
+Inclusive function elapsed times (us),
+   func_abc.php, func, func_c 
+           value  ------------- Distribution ------------- count    
+          262144 |                                         0        
+          524288 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+         1048576 |                                         0        
+
+   func_abc.php, func, func_b 
+           value  ------------- Distribution ------------- count    
+          524288 |                                         0        
+         1048576 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+         2097152 |                                         0        
+
+   func_abc.php, func, sleep 
+           value  ------------- Distribution ------------- count    
+          262144 |                                         0        
+          524288 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 3        
+         1048576 |                                         0        
+
+   func_abc.php, func, func_a 
+           value  ------------- Distribution ------------- count    
+         1048576 |                                         0        
+         2097152 |@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ 1        
+         4194304 |                                         0        
+
+In total, 3 subroutines were called, one each of func_a(), func_b() and
+func_c(), and sleep was called 3 times.  You can see this reflected in the
+"count" column on the right.
+
+The exclusive subroutine elapsed times show that each subroutine spent
+between 256 and 512 microseconds. This time excludes the time spent in
+other subroutines.
+
+The inclusive subroutine elapsed times show that func_c() took between 0.5 
+seconds and 1 second, func_b() took between 1 second and 2.1 seconds, and 
+func_a() took between 2.1 seconds and 4.2 seconds to execute. This time 
+includes the time spent in other subroutines called, and since func_a() called 
+func_b() which called func_c(), these times make sense.
+
+These elapsed times are the absolute time from when the subroutine began to
+when it completed - which includes off-CPU time due to other system events
+such as I/O, scheduling, interrupts, etc.
+
+Elapsed times are useful for identifying where latencies are.
+See Notes/ALLelapsed_notes.txt for more details. Also see
+Notes/ALLexclusive_notes.txt and Notes/ALLinclusive_notes.txt for a
+detailed explanation of exclusive vs inclusive subroutine time.
+

@@ -34,7 +34,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd December 18, 2011
+.Dd May 26, 2012
 .Dt OPENPAM_RESTORE_CRED 3
 .Os
 .Sh NAME
@@ -50,13 +50,13 @@
 .Fn openpam_restore_cred "pam_handle_t *pamh"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn openpam_restore_cred
 function restores the credentials saved by
 .Xr openpam_borrow_cred 3 .
 .Pp
 .Sh RETURN VALUES
 The
-.Nm
+.Fn openpam_restore_cred
 function returns one of the following values:
 .Bl -tag -width 18n
 .It Bq Er PAM_NO_MODULE_DATA
@@ -73,15 +73,15 @@ System error.
 .Xr pam_strerror 3
 .Sh STANDARDS
 The
-.Nm
+.Fn openpam_restore_cred
 function is an OpenPAM extension.
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were developed for the
+.Fn openpam_restore_cred
+function and this manual page were
+developed for the
 .Fx
-Project by
-ThinkSec AS and Network Associates Laboratories, the
+Project by ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,

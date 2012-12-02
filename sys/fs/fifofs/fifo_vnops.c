@@ -59,22 +59,12 @@
  * Notes about locking:
  *   - fi_pipe is invariant since init time.
  *   - fi_readers and fi_writers are protected by the vnode lock.
- *   - fi_wgen and fi_seqcount are protected by the pipe mutex.
  */
 struct fifoinfo {
 	struct pipe *fi_pipe;
 	long	fi_readers;
 	long	fi_writers;
-	int	fi_wgen;
-	int	fi_seqcount;
 };
-
-#define FIFO_UPDWGEN(fip, pip)	do { \
-	if ((fip)->fi_wgen == (fip)->fi_seqcount) 			\
-		(pip)->pipe_state |= PIPE_SAMEWGEN;			\
-	else								\
-		(pip)->pipe_state &= ~PIPE_SAMEWGEN;			\
-} while (0)
 
 static vop_print_t	fifo_print;
 static vop_open_t	fifo_open;
@@ -161,7 +151,7 @@ fifo_open(ap)
 			return (error);
 		fip = malloc(sizeof(*fip), M_VNODE, M_WAITOK);
 		fip->fi_pipe = fpipe;
-		fip->fi_wgen = fip->fi_readers = fip->fi_writers = 0;
+		fpipe->pipe_wgen = fip->fi_readers = fip->fi_writers = 0;
  		KASSERT(vp->v_fifoinfo == NULL, ("fifo_open: v_fifoinfo race"));
 		vp->v_fifoinfo = fip;
 	}
@@ -181,8 +171,7 @@ fifo_open(ap)
 			if (fip->fi_writers > 0)
 				wakeup(&fip->fi_writers);
 		}
-		fip->fi_seqcount = fip->fi_wgen - fip->fi_writers;
-		FIFO_UPDWGEN(fip, fpipe);
+		fp->f_seqcount = fpipe->pipe_wgen - fip->fi_writers;
 	}
 	if (ap->a_mode & FWRITE) {
 		if ((ap->a_mode & O_NONBLOCK) && fip->fi_readers == 0) {
@@ -235,8 +224,7 @@ fifo_open(ap)
 					fpipe->pipe_state |= PIPE_EOF;
 					if (fpipe->pipe_state & PIPE_WANTR)
 						wakeup(fpipe);
-					fip->fi_wgen++;
-					FIFO_UPDWGEN(fip, fpipe);
+					fpipe->pipe_wgen++;
 					PIPE_UNLOCK(fpipe);
 					fifo_cleanup(vp);
 				}
@@ -283,8 +271,11 @@ fifo_close(ap)
 		if (fip->fi_readers == 0) {
 			PIPE_LOCK(cpipe);
 			cpipe->pipe_state |= PIPE_EOF;
-			if (cpipe->pipe_state & PIPE_WANTW)
+			if ((cpipe->pipe_state & PIPE_WANTW)) {
+				cpipe->pipe_state &= ~PIPE_WANTW;
 				wakeup(cpipe);
+			}
+			pipeselwakeup(cpipe);
 			PIPE_UNLOCK(cpipe);
 		}
 	}
@@ -293,10 +284,12 @@ fifo_close(ap)
 		if (fip->fi_writers == 0) {
 			PIPE_LOCK(cpipe);
 			cpipe->pipe_state |= PIPE_EOF;
-			if (cpipe->pipe_state & PIPE_WANTR)
+			if ((cpipe->pipe_state & PIPE_WANTR)) {
+				cpipe->pipe_state &= ~PIPE_WANTR;
 				wakeup(cpipe);
-			fip->fi_wgen++;
-			FIFO_UPDWGEN(fip, cpipe);
+			}
+			cpipe->pipe_wgen++;
+			pipeselwakeup(cpipe);
 			PIPE_UNLOCK(cpipe);
 		}
 	}

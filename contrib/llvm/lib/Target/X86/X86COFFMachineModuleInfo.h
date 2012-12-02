@@ -1,4 +1,4 @@
-//===-- llvm/CodeGen/X86COFFMachineModuleInfo.h -----------------*- C++ -*-===//
+//===-- X86coffmachinemoduleinfo.h - X86 COFF MMI Impl ----------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -14,9 +14,9 @@
 #ifndef X86COFF_MACHINEMODULEINFO_H
 #define X86COFF_MACHINEMODULEINFO_H
 
+#include "X86MachineFunctionInfo.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/ADT/DenseSet.h"
-#include "X86MachineFunctionInfo.h"
 
 namespace llvm {
   class X86MachineFunctionInfo;
@@ -33,7 +33,7 @@ public:
   void addExternalFunction(MCSymbol* Symbol) {
     Externals.insert(Symbol);
   }
-    
+
   typedef DenseSet<MCSymbol const *>::const_iterator externals_iterator;
   externals_iterator externals_begin() const { return Externals.begin(); }
   externals_iterator externals_end() const { return Externals.end(); }

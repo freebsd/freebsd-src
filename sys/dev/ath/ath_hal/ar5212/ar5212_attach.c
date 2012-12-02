@@ -29,7 +29,8 @@
 #define AH_5212_COMMON
 #include "ar5212/ar5212.ini"
 
-static void ar5212ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore);
+static void ar5212ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore,
+		HAL_BOOL power_off);
 static void ar5212DisablePCIE(struct ath_hal *ah);
 
 static const struct ath_hal_private ar5212hal = {{
@@ -70,6 +71,9 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_getTxIntrQueue		= ar5212GetTxIntrQueue,
 	.ah_reqTxIntrDesc 		= ar5212IntrReqTxDesc,
 	.ah_getTxCompletionRates	= ar5212GetTxCompletionRates,
+	.ah_setTxDescLink		= ar5212SetTxDescLink,
+	.ah_getTxDescLink		= ar5212GetTxDescLink,
+	.ah_getTxDescLinkPtr		= ar5212GetTxDescLinkPtr,
 
 	/* RX Functions */
 	.ah_getRxDP			= ar5212GetRxDP,
@@ -107,6 +111,7 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_gpioSetIntr			= ar5212GpioSetIntr,
 	.ah_getTsf32			= ar5212GetTsf32,
 	.ah_getTsf64			= ar5212GetTsf64,
+	.ah_setTsf64			= ar5212SetTsf64,
 	.ah_resetTsf			= ar5212ResetTsf,
 	.ah_detectCardPresent		= ar5212DetectCardPresent,
 	.ah_updateMibCounters		= ar5212UpdateMibCounters,
@@ -125,13 +130,15 @@ static const struct ath_hal_private ar5212hal = {{
 	.ah_getAckCTSRate		= ar5212GetAckCTSRate,
 	.ah_setCTSTimeout		= ar5212SetCTSTimeout,
 	.ah_getCTSTimeout		= ar5212GetCTSTimeout,
-	.ah_setDecompMask               = ar5212SetDecompMask,
-	.ah_setCoverageClass            = ar5212SetCoverageClass,
+	.ah_setDecompMask		= ar5212SetDecompMask,
+	.ah_setCoverageClass		= ar5212SetCoverageClass,
 	.ah_setQuiet			= ar5212SetQuiet,
+	.ah_getMibCycleCounts		= ar5212GetMibCycleCounts,
 
 	/* DFS Functions */
 	.ah_enableDfs			= ar5212EnableDfs,
 	.ah_getDfsThresh		= ar5212GetDfsThresh,
+	.ah_getDfsDefaultThresh		= ar5212GetDfsDefaultThresh,
 	.ah_procRadarEvent		= ar5212ProcessRadarEvent,
 	.ah_isFastClockEnabled		= ar5212IsFastClockEnabled,
 	.ah_get11nExtBusy		= ar5212Get11nExtBusy,
@@ -369,7 +376,7 @@ ar5212Attach(uint16_t devid, HAL_SOFTC sc,
 
 	if (AH_PRIVATE(ah)->ah_ispcie) {
 		/* XXX: build flag to disable this? */
-		ath_hal_configPCIE(ah, AH_FALSE);
+		ath_hal_configPCIE(ah, AH_FALSE, AH_FALSE);
 	}
 
 	if (!ar5212ChipTest(ah)) {
@@ -665,7 +672,7 @@ ar5212GetChannelEdges(struct ath_hal *ah,
  * XXX Clean up the magic numbers.
  */
 static void
-ar5212ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore)
+ar5212ConfigPCIE(struct ath_hal *ah, HAL_BOOL restore, HAL_BOOL power_off)
 {
 	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x9248fc00);
 	OS_REG_WRITE(ah, AR_PCIE_SERDES, 0x24924924);
@@ -780,7 +787,29 @@ ar5212FillCapabilityInfo(struct ath_hal *ah)
 	else
 		pCap->halHigh2GhzChan = 2732;
 
-	pCap->halLow5GhzChan = 4915;
+	/*
+	 * For AR5111 version < 4, the lowest centre frequency supported is
+	 * 5130MHz.  For AR5111 version 4, the 4.9GHz channels are supported
+	 * but only in 10MHz increments.
+	 *
+	 * In addition, the programming method is wrong - it uses the IEEE
+	 * channel number to calculate the frequency, rather than the
+	 * channel centre.  Since half/quarter rates re-use some of the
+	 * 5GHz channel IEEE numbers, this will result in a badly programmed
+	 * synth.
+	 *
+	 * Until the relevant support is written, just limit lower frequency
+	 * support for AR5111 so things aren't incorrectly programmed.
+	 *
+	 * XXX It's also possible this code doesn't correctly limit the
+	 * centre frequencies of potential channels; this is very important
+	 * for half/quarter rate!
+	 */
+	if (AH_RADIO_MAJOR(ah) == AR_RAD5111_SREV_MAJOR) {
+		pCap->halLow5GhzChan = 5120; /* XXX lowest centre = 5130MHz */
+	} else {
+		pCap->halLow5GhzChan = 4915;
+	}
 	pCap->halHigh5GhzChan = 6100;
 
 	pCap->halCipherCkipSupport = AH_FALSE;
@@ -819,6 +848,8 @@ ar5212FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halTurboGSupport = pCap->halWirelessModes & HAL_MODE_108G;
 
 	pCap->halPSPollBroken = AH_TRUE;	/* XXX fixed in later revs? */
+	pCap->halNumMRRetries = 4;		/* Hardware supports 4 MRR */
+	pCap->halNumTxMaps = 1;			/* Single TX ptr per descr */
 	pCap->halVEOLSupport = AH_TRUE;
 	pCap->halBssIdMaskSupport = AH_TRUE;
 	pCap->halMcastKeySrchSupport = AH_TRUE;

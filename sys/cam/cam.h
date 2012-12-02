@@ -83,6 +83,7 @@ typedef struct {
 #define CAM_PRIORITY_NORMAL	((CAM_RL_NORMAL << 8) + 0x80)
 #define CAM_PRIORITY_NONE	(u_int32_t)-1
 #define CAM_PRIORITY_TO_RL(x)	((x) >> 8)
+#define CAM_RL_TO_PRIORITY(x)	((x) << 8)
 	u_int32_t generation;
 	int       index;
 #define CAM_UNQUEUED_INDEX	-1
@@ -107,6 +108,15 @@ typedef enum {
 	CAM_EXPECT_INQ_CHANGE	= 0x01,
 	CAM_RETRY_SELTO		= 0x02 /* Retry Selection Timeouts */
 } cam_flags;
+
+enum {
+	SF_RETRY_UA		= 0x01,	/* Retry UNIT ATTENTION conditions. */
+	SF_NO_PRINT		= 0x02,	/* Never print error status. */
+	SF_QUIET_IR		= 0x04,	/* Be quiet about Illegal Request reponses */
+	SF_PRINT_ALWAYS		= 0x08,	/* Always print error status. */
+	SF_NO_RECOVERY		= 0x10,	/* Don't do active error recovery. */
+	SF_NO_RETRY		= 0x20	/* Don't do any retries. */
+};
 
 /* CAM  Status field values */
 typedef enum {

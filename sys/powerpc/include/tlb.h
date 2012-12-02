@@ -1,5 +1,5 @@
 /*-
- * Copyright (C) 2006 Semihalf, Marian Balakowicz <m8@semihalf.com>
+ * Copyright (C) 2006-2012 Semihalf.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,6 +29,8 @@
 
 #ifndef	_MACHINE_TLB_H_
 #define	_MACHINE_TLB_H_
+
+#if defined(BOOKE_E500)
 
 /*  PowerPC E500 MAS registers */
 #define MAS0_TLBSEL(x)		((x << 28) & 0x10000000)
@@ -122,6 +124,73 @@
 #define _TLB_ENTRY_MEM	(0)
 #endif
 
+#if !defined(LOCORE)
+typedef struct tlb_entry {
+	uint32_t mas1;
+	uint32_t mas2;
+	uint32_t mas3;
+} tlb_entry_t;
+
+void tlb0_print_tlbentries(void);
+
+void tlb1_inval_entry(unsigned int);
+void tlb1_init(vm_offset_t);
+void tlb1_print_entries(void);
+void tlb1_print_tlbentries(void);
+#endif /* !LOCORE */
+
+#elif defined(BOOKE_PPC4XX)
+
+/* TLB Words */
+#define	TLB_PAGEID		0
+#define	TLB_XLAT		1
+#define	TLB_ATTRIB		2
+
+/* Page identification fields */
+#define	TLB_EPN_MASK		(0xFFFFFC00 >> 0)
+#define	TLB_VALID		(0x80000000 >> 22)
+#define	TLB_TS			(0x80000000 >> 23)
+#define	TLB_SIZE_1K		(0x00000000 >> 24)
+#define	TLB_SIZE_MASK		(0xF0000000 >> 24)
+
+/* Translation fields */
+#define	TLB_RPN_MASK		(0xFFFFFC00 >> 0)
+#define	TLB_ERPN_MASK		(0xF0000000 >> 28)
+
+/* Storage attribute and access control fields */
+#define	TLB_WL1			(0x80000000 >> 11)
+#define	TLB_IL1I		(0x80000000 >> 12)
+#define	TLB_IL1D		(0x80000000 >> 13)
+#define	TLB_IL2I		(0x80000000 >> 14)
+#define	TLB_IL2D		(0x80000000 >> 15)
+#define	TLB_U0			(0x80000000 >> 16)
+#define	TLB_U1			(0x80000000 >> 17)
+#define	TLB_U2			(0x80000000 >> 18)
+#define	TLB_U3			(0x80000000 >> 19)
+#define	TLB_W			(0x80000000 >> 20)
+#define	TLB_I			(0x80000000 >> 21)
+#define	TLB_M			(0x80000000 >> 22)
+#define	TLB_G			(0x80000000 >> 23)
+#define	TLB_E			(0x80000000 >> 24)
+#define	TLB_UX			(0x80000000 >> 26)
+#define	TLB_UW			(0x80000000 >> 27)
+#define	TLB_UR			(0x80000000 >> 28)
+#define	TLB_SX			(0x80000000 >> 29)
+#define	TLB_SW			(0x80000000 >> 30)
+#define	TLB_SR			(0x80000000 >> 31)
+#define	TLB_SIZE		64
+
+#define	TLB_SIZE_4K		(0x10000000 >> 24)
+#define	TLB_SIZE_16K		(0x20000000 >> 24)
+#define	TLB_SIZE_64K		(0x30000000 >> 24)
+#define	TLB_SIZE_256K		(0x40000000 >> 24)
+#define	TLB_SIZE_1M		(0x50000000 >> 24)
+#define	TLB_SIZE_16M		(0x70000000 >> 24)
+#define	TLB_SIZE_256M		(0x90000000 >> 24)
+#define	TLB_SIZE_1G		(0xA0000000 >> 24)
+
+#endif /* BOOKE_E500 */
+
 #define TID_KERNEL	0	/* TLB TID to use for kernel (shared) translations */
 #define TID_KRESERVED	1	/* Number of TIDs reserved for kernel */
 #define TID_URESERVED	0	/* Number of TIDs reserved for user */
@@ -132,21 +201,10 @@
 #define TLB_UNLOCKED	0
 
 #if !defined(LOCORE)
-typedef struct tlb_entry {
-	uint32_t mas1;
-	uint32_t mas2;
-	uint32_t mas3;
-} tlb_entry_t;
 
 typedef int tlbtid_t;
+
 struct pmap;
-
-void tlb0_print_tlbentries(void);
-
-void tlb1_inval_entry(unsigned int);
-void tlb1_init(vm_offset_t);
-void tlb1_print_entries(void);
-void tlb1_print_tlbentries(void);
 
 void tlb_lock(uint32_t *);
 void tlb_unlock(uint32_t *);

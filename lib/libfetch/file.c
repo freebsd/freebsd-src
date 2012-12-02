@@ -50,12 +50,15 @@ fetchXGetFile(struct url *u, struct url_stat *us, const char *flags)
 
 	f = fopen(u->doc, "r");
 
-	if (f == NULL)
+	if (f == NULL) {
 		fetch_syserr();
+		return (NULL);
+	}
 
 	if (u->offset && fseeko(f, u->offset, SEEK_SET) == -1) {
 		fclose(f);
 		fetch_syserr();
+		return (NULL);
 	}
 
 	fcntl(fileno(f), F_SETFD, FD_CLOEXEC);
@@ -78,12 +81,15 @@ fetchPutFile(struct url *u, const char *flags)
 	else
 		f = fopen(u->doc, "w+");
 
-	if (f == NULL)
+	if (f == NULL) {
 		fetch_syserr();
+		return (NULL);
+	}
 
 	if (u->offset && fseeko(f, u->offset, SEEK_SET) == -1) {
 		fclose(f);
 		fetch_syserr();
+		return (NULL);
 	}
 
 	fcntl(fileno(f), F_SETFD, FD_CLOEXEC);

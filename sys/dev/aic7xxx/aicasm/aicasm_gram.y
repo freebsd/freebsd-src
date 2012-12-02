@@ -1076,7 +1076,7 @@ conditional:
 		last_scope = TAILQ_LAST(&scope_context->inner_scope,
 					scope_tailq);
 		if (last_scope == NULL
-		 || last_scope->type == T_ELSE) {
+		 || last_scope->type == SCOPE_ELSE) {
 
 			stop("'else if' without leading 'if'", EX_DATAERR);
 			/* NOTREACHED */

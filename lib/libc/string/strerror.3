@@ -174,10 +174,10 @@ function was implemented in
 by
 .An Wes Peters Aq wes@FreeBSD.org .
 .Sh BUGS
-For unknown error numbers, the
+The
 .Fn strerror
-function will return its result in a static buffer which
-may be overwritten by subsequent calls.
+function returns its result in a static buffer which
+will be overwritten by subsequent calls.
 .Pp
 The return type for
 .Fn strerror

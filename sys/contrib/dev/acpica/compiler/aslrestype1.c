@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslrestype1 - Miscellaneous small resource descriptors
@@ -453,6 +452,10 @@ RsDoStartDependentDescriptor (
     PreviousRnode = Rnode;
     Descriptor = Rnode->Buffer;
 
+    /* Increment offset past StartDependent descriptor */
+
+    CurrentByteOffset += sizeof (AML_RESOURCE_START_DEPENDENT);
+
     /* Descriptor has priority byte */
 
     Descriptor->StartDpf.DescriptorType  = ACPI_RESOURCE_NAME_START_DEPENDENT |
@@ -494,7 +497,7 @@ RsDoStartDependentDescriptor (
 
             /*
              * Update current byte offset to indicate the number of bytes from the
-             * start of the buffer.  Buffer can include multiple descriptors, we
+             * start of the buffer. Buffer can include multiple descriptors, we
              * must keep track of the offset of not only each descriptor, but each
              * element (field) within each descriptor as well.
              */
@@ -545,6 +548,10 @@ RsDoStartDependentNoPriDescriptor (
                                       ASL_RDESC_ST_DEPEND_SIZE;
     PreviousRnode = Rnode;
 
+    /* Increment offset past StartDependentNoPri descriptor */
+
+    CurrentByteOffset += sizeof (AML_RESOURCE_START_DEPENDENT_NOPRIO);
+
     /* Process all child initialization nodes */
 
     State = ACPI_RSTATE_START_DEPENDENT;
@@ -555,7 +562,7 @@ RsDoStartDependentNoPriDescriptor (
 
         /*
          * Update current byte offset to indicate the number of bytes from the
-         * start of the buffer.  Buffer can include multiple descriptors, we
+         * start of the buffer. Buffer can include multiple descriptors, we
          * must keep track of the offset of not only each descriptor, but each
          * element (field) within each descriptor as well.
          */
@@ -642,4 +649,3 @@ RsDoVendorSmallDescriptor (
     Descriptor->VendorSmall.DescriptorType |= (UINT8) i;
     return (Rnode);
 }
-

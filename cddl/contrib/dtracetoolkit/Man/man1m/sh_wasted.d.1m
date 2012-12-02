@@ -1,0 +1,49 @@
+.TH sh_wasted.d 1m   "$Date:: 2007-10-03 #$" "USER COMMANDS"
+.SH NAME
+sh_wasted.d - measure Bourne shell elapsed times for "wasted" commands.
+.SH SYNOPSIS
+.B sh_wasted.d
+{ \-p PID | \-c cmd }	
+.SH DESCRIPTION
+This script measures "wasted" commands - those which are called externally
+but are in fact builtins to the shell. Ever seen a script which calls
+/usr/bin/echo needlessly? This script measures that cost.
+
+Filename and call names are printed if available.
+.SH OS
+Any
+.SH STABILITY
+Evolving - uses the DTrace Shell provider, which may change 
+as additional features are introduced. Check Shell/Readme
+to see what version these scripts are based on.
+.SH EXAMPLES
+.TP
+Default output,
+# 
+.B sh_wasted.d
+.PP
+.SH FIELDS
+.TP
+FILE
+Filename of the shell or shellscript
+.TP
+NAME
+Name of call
+.TP
+TIME
+Total elapsed time for calls (us)
+.SH IDEA
+Mike Shapiro
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Examples, Notes and Docs directories. The example files may be
+especially useful as they aim to demonstrate how to interpret
+the output.
+.SH EXIT
+sh_wasted.d will run until Ctrl-C is hit.
+.SH AUTHOR
+Brendan Gregg
+[CA, USA]
+.SH SEE ALSO
+dtrace(1M)

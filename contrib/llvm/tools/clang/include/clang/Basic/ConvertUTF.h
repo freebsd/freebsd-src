@@ -98,7 +98,7 @@
     bit mask & shift operations.
 ------------------------------------------------------------------------ */
 
-typedef unsigned long   UTF32;  /* at least 32 bits */
+typedef unsigned int    UTF32;  /* at least 32 bits */
 typedef unsigned short  UTF16;  /* at least 16 bits */
 typedef unsigned char   UTF8;   /* typically 8 bits */
 typedef unsigned char   Boolean; /* 0 or 1 */
@@ -109,6 +109,8 @@ typedef unsigned char   Boolean; /* 0 or 1 */
 #define UNI_MAX_UTF16 (UTF32)0x0010FFFF
 #define UNI_MAX_UTF32 (UTF32)0x7FFFFFFF
 #define UNI_MAX_LEGAL_UTF32 (UTF32)0x0010FFFF
+
+#define UNI_MAX_UTF8_BYTES_PER_CODE_POINT 4
 
 typedef enum {
   conversionOK,           /* conversion successful */
@@ -131,19 +133,21 @@ ConversionResult ConvertUTF8toUTF16 (
   const UTF8** sourceStart, const UTF8* sourceEnd,
   UTF16** targetStart, UTF16* targetEnd, ConversionFlags flags);
 
+ConversionResult ConvertUTF8toUTF32 (
+  const UTF8** sourceStart, const UTF8* sourceEnd,
+  UTF32** targetStart, UTF32* targetEnd, ConversionFlags flags);
+
 #ifdef CLANG_NEEDS_THESE_ONE_DAY
 ConversionResult ConvertUTF16toUTF8 (
   const UTF16** sourceStart, const UTF16* sourceEnd,
   UTF8** targetStart, UTF8* targetEnd, ConversionFlags flags);
-
-ConversionResult ConvertUTF8toUTF32 (
-  const UTF8** sourceStart, const UTF8* sourceEnd,
-  UTF32** targetStart, UTF32* targetEnd, ConversionFlags flags);
+#endif
 
 ConversionResult ConvertUTF32toUTF8 (
   const UTF32** sourceStart, const UTF32* sourceEnd,
   UTF8** targetStart, UTF8* targetEnd, ConversionFlags flags);
 
+#ifdef CLANG_NEEDS_THESE_ONE_DAY
 ConversionResult ConvertUTF16toUTF32 (
   const UTF16** sourceStart, const UTF16* sourceEnd,
   UTF32** targetStart, UTF32* targetEnd, ConversionFlags flags);
@@ -155,7 +159,40 @@ ConversionResult ConvertUTF32toUTF16 (
 
 Boolean isLegalUTF8Sequence(const UTF8 *source, const UTF8 *sourceEnd);
 
+Boolean isLegalUTF8String(const UTF8 *source, const UTF8 *sourceEnd);
+
 #ifdef __cplusplus
+}
+
+/*************************************************************************/
+/* Below are LLVM-specific wrappers of the functions above. */
+
+#include "llvm/ADT/StringRef.h"
+
+namespace clang {
+
+/**
+ * Convert an UTF8 StringRef to UTF8, UTF16, or UTF32 depending on
+ * WideCharWidth. The converted data is written to ResultPtr, which needs to
+ * point to at least WideCharWidth * (Source.Size() + 1) bytes. On success,
+ * ResultPtr will point one after the end of the copied string.
+ * \return true on success.
+ */
+bool ConvertUTF8toWide(unsigned WideCharWidth, llvm::StringRef Source,
+                       char *&ResultPtr);
+
+/**
+ * Convert an Unicode code point to UTF8 sequence.
+ *
+ * \param Source a Unicode code point.
+ * \param [in,out] ResultPtr pointer to the output buffer, needs to be at least
+ * \c UNI_MAX_UTF8_BYTES_PER_CODE_POINT bytes.  On success \c ResultPtr is
+ * updated one past end of the converted sequence.
+ *
+ * \returns true on success.
+ */
+bool ConvertCodePointToUTF8(unsigned Source, char *&ResultPtr);
+
 }
 #endif
 

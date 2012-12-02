@@ -205,8 +205,8 @@ g_eli_auth_read_done(struct cryptop *crp)
 				 * Report previous corruption if there was one.
 				 */
 				if (coroff != -1) {
-					G_ELI_DEBUG(0, "%s: %jd bytes "
-					    "corrupted at offset %jd.",
+					G_ELI_DEBUG(0, "%s: Failed to authenticate %jd "
+					    "bytes of data at offset %jd.",
 					    sc->sc_name, (intmax_t)corsize,
 					    (intmax_t)coroff);
 					coroff = -1;
@@ -221,7 +221,8 @@ g_eli_auth_read_done(struct cryptop *crp)
 		}
 		/* Report previous corruption if there was one. */
 		if (coroff != -1) {
-			G_ELI_DEBUG(0, "%s: %jd bytes corrupted at offset %jd.",
+			G_ELI_DEBUG(0, "%s: Failed to authenticate %jd "
+			    "bytes of data at offset %jd.",
 			    sc->sc_name, (intmax_t)corsize, (intmax_t)coroff);
 		}
 	}

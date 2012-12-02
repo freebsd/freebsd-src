@@ -104,6 +104,15 @@ AcpiDbDeleteObjects (
     ACPI_OBJECT             *Objects);
 
 
+static UINT8 *
+AcpiDbEncodePldBuffer (
+    ACPI_PLD_INFO           *PldInfo);
+
+static void
+AcpiDbDumpPldBuffer (
+    ACPI_OBJECT             *ObjDesc);
+
+
 /*******************************************************************************
  *
  * FUNCTION:    AcpiDbHexCharToValue
@@ -446,7 +455,6 @@ AcpiDbExecuteMethod (
     ACPI_STATUS             Status;
     ACPI_OBJECT_LIST        ParamObjects;
     ACPI_OBJECT             Params[ACPI_METHOD_NUM_ARGS];
-    ACPI_HANDLE             Handle;
     ACPI_DEVICE_INFO        *ObjInfo;
     UINT32                  i;
 
@@ -459,17 +467,9 @@ AcpiDbExecuteMethod (
         AcpiOsPrintf ("Warning: debug output is not enabled!\n");
     }
 
-    /* Get the NS node, determines existence also */
-
-    Status = AcpiGetHandle (NULL, Info->Pathname, &Handle);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
     /* Get the object info for number of method parameters */
 
-    Status = AcpiGetObjectInfo (Handle, &ObjInfo);
+    Status = AcpiGetObjectInfo (Info->Method, &ObjInfo);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -607,7 +607,7 @@ AcpiDbExecuteSetup (
     AcpiDbPrepNamestring (Info->Pathname);
 
     AcpiDbSetOutputDestination (ACPI_DB_DUPLICATE_OUTPUT);
-    AcpiOsPrintf ("Executing %s\n", Info->Pathname);
+    AcpiOsPrintf ("Evaluating %s\n", Info->Pathname);
 
     if (Info->Flags & EX_SINGLE_STEP)
     {
@@ -674,7 +674,7 @@ AcpiDbGetOutstandingAllocations (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Execute a control method.  Name is relative to the current
+ * DESCRIPTION: Execute a control method. Name is relative to the current
  *              scope.
  *
  ******************************************************************************/
@@ -701,7 +701,7 @@ AcpiDbExecutionWalk (
     ReturnObj.Pointer = NULL;
     ReturnObj.Length = ACPI_ALLOCATE_BUFFER;
 
-    AcpiNsPrintNodePathname (Node, "Execute");
+    AcpiNsPrintNodePathname (Node, "Evaluating");
 
     /* Do the actual method execution */
 
@@ -710,11 +710,207 @@ AcpiDbExecutionWalk (
 
     Status = AcpiEvaluateObject (Node, NULL, NULL, &ReturnObj);
 
-    AcpiOsPrintf ("[%4.4s] returned %s\n", AcpiUtGetNodeName (Node),
+    AcpiOsPrintf ("Evaluation of [%4.4s] returned %s\n", AcpiUtGetNodeName (Node),
             AcpiFormatException (Status));
     AcpiGbl_MethodExecuting = FALSE;
 
     return (AE_OK);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbEncodePldBuffer
+ *
+ * PARAMETERS:  PldInfo             - _PLD buffer struct (Using local struct)
+ *
+ * RETURN:      Encode _PLD buffer suitable for return value from _PLD
+ *
+ * DESCRIPTION: Bit-packs a _PLD buffer struct. Used to test the _PLD macros
+ *
+ ******************************************************************************/
+
+static UINT8 *
+AcpiDbEncodePldBuffer (
+    ACPI_PLD_INFO           *PldInfo)
+{
+    UINT32                  *Buffer;
+    UINT32                  Dword;
+
+
+    Buffer = ACPI_ALLOCATE_ZEROED (ACPI_PLD_BUFFER_SIZE);
+    if (!Buffer)
+    {
+        return (NULL);
+    }
+
+    /* First 32 bits */
+
+    Dword = 0;
+    ACPI_PLD_SET_REVISION       (&Dword, PldInfo->Revision);
+    ACPI_PLD_SET_IGNORE_COLOR   (&Dword, PldInfo->IgnoreColor);
+    ACPI_PLD_SET_COLOR          (&Dword, PldInfo->Color);
+    ACPI_MOVE_32_TO_32 (&Buffer[0], &Dword);
+
+    /* Second 32 bits */
+
+    Dword = 0;
+    ACPI_PLD_SET_WIDTH          (&Dword, PldInfo->Width);
+    ACPI_PLD_SET_HEIGHT         (&Dword, PldInfo->Height);
+    ACPI_MOVE_32_TO_32 (&Buffer[1], &Dword);
+
+    /* Third 32 bits */
+
+    Dword = 0;
+    ACPI_PLD_SET_USER_VISIBLE   (&Dword, PldInfo->UserVisible);
+    ACPI_PLD_SET_DOCK           (&Dword, PldInfo->Dock);
+    ACPI_PLD_SET_LID            (&Dword, PldInfo->Lid);
+    ACPI_PLD_SET_PANEL          (&Dword, PldInfo->Panel);
+    ACPI_PLD_SET_VERTICAL       (&Dword, PldInfo->VerticalPosition);
+    ACPI_PLD_SET_HORIZONTAL     (&Dword, PldInfo->HorizontalPosition);
+    ACPI_PLD_SET_SHAPE          (&Dword, PldInfo->Shape);
+    ACPI_PLD_SET_ORIENTATION    (&Dword, PldInfo->GroupOrientation);
+    ACPI_PLD_SET_TOKEN          (&Dword, PldInfo->GroupToken);
+    ACPI_PLD_SET_POSITION       (&Dword, PldInfo->GroupPosition);
+    ACPI_PLD_SET_BAY            (&Dword, PldInfo->Bay);
+    ACPI_MOVE_32_TO_32 (&Buffer[2], &Dword);
+
+    /* Fourth 32 bits */
+
+    Dword = 0;
+    ACPI_PLD_SET_EJECTABLE      (&Dword, PldInfo->Ejectable);
+    ACPI_PLD_SET_OSPM_EJECT     (&Dword, PldInfo->OspmEjectRequired);
+    ACPI_PLD_SET_CABINET        (&Dword, PldInfo->CabinetNumber);
+    ACPI_PLD_SET_CARD_CAGE      (&Dword, PldInfo->CardCageNumber);
+    ACPI_PLD_SET_REFERENCE      (&Dword, PldInfo->Reference);
+    ACPI_PLD_SET_ROTATION       (&Dword, PldInfo->Rotation);
+    ACPI_PLD_SET_ORDER          (&Dword, PldInfo->Order);
+    ACPI_MOVE_32_TO_32 (&Buffer[3], &Dword);
+
+    if (PldInfo->Revision >= 2)
+    {
+        /* Fifth 32 bits */
+
+        Dword = 0;
+        ACPI_PLD_SET_VERT_OFFSET    (&Dword, PldInfo->VerticalOffset);
+        ACPI_PLD_SET_HORIZ_OFFSET   (&Dword, PldInfo->HorizontalOffset);
+        ACPI_MOVE_32_TO_32 (&Buffer[4], &Dword);
+    }
+
+    return (ACPI_CAST_PTR (UINT8, Buffer));
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbDumpPldBuffer
+ *
+ * PARAMETERS:  ObjDesc             - Object returned from _PLD method
+ *
+ * RETURN:      None.
+ *
+ * DESCRIPTION: Dumps formatted contents of a _PLD return buffer.
+ *
+ ******************************************************************************/
+
+#define ACPI_PLD_OUTPUT     "%20s : %-6X\n"
+
+static void
+AcpiDbDumpPldBuffer (
+    ACPI_OBJECT             *ObjDesc)
+{
+    ACPI_OBJECT             *BufferDesc;
+    ACPI_PLD_INFO           *PldInfo;
+    UINT8                   *NewBuffer;
+    ACPI_STATUS             Status;
+
+
+    /* Object must be of type Package with at least one Buffer element */
+
+    if (ObjDesc->Type != ACPI_TYPE_PACKAGE)
+    {
+        return;
+    }
+
+    BufferDesc = &ObjDesc->Package.Elements[0];
+    if (BufferDesc->Type != ACPI_TYPE_BUFFER)
+    {
+        return;
+    }
+
+    /* Convert _PLD buffer to local _PLD struct */
+
+    Status = AcpiDecodePldBuffer (BufferDesc->Buffer.Pointer,
+        BufferDesc->Buffer.Length, &PldInfo);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    /* Encode local _PLD struct back to a _PLD buffer */
+
+    NewBuffer = AcpiDbEncodePldBuffer (PldInfo);
+    if (!NewBuffer)
+    {
+        return;
+    }
+
+    /* The two bit-packed buffers should match */
+
+    if (ACPI_MEMCMP (NewBuffer, BufferDesc->Buffer.Pointer,
+        BufferDesc->Buffer.Length))
+    {
+        AcpiOsPrintf ("Converted _PLD buffer does not compare. New:\n");
+
+        AcpiUtDumpBuffer (NewBuffer,
+            BufferDesc->Buffer.Length, DB_BYTE_DISPLAY, 0);
+    }
+
+    /* First 32-bit dword */
+
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "Revision", PldInfo->Revision);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "IgnoreColor", PldInfo->IgnoreColor);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "Color", PldInfo->Color);
+
+    /* Second 32-bit dword */
+
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "Width", PldInfo->Width);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "Height", PldInfo->Height);
+
+    /* Third 32-bit dword */
+
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "UserVisible", PldInfo->UserVisible);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "Dock", PldInfo->Dock);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "Lid", PldInfo->Lid);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "Panel", PldInfo->Panel);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "VerticalPosition", PldInfo->VerticalPosition);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "HorizontalPosition", PldInfo->HorizontalPosition);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "Shape", PldInfo->Shape);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "GroupOrientation", PldInfo->GroupOrientation);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "GroupToken", PldInfo->GroupToken);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "GroupPosition", PldInfo->GroupPosition);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "Bay", PldInfo->Bay);
+
+    /* Fourth 32-bit dword */
+
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "Ejectable", PldInfo->Ejectable);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "OspmEjectRequired", PldInfo->OspmEjectRequired);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "CabinetNumber", PldInfo->CabinetNumber);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "CardCageNumber", PldInfo->CardCageNumber);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "Reference", PldInfo->Reference);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "Rotation", PldInfo->Rotation);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT, "Order", PldInfo->Order);
+
+    /* Fifth 32-bit dword */
+
+    if (BufferDesc->Buffer.Length > 16)
+    {
+        AcpiOsPrintf (ACPI_PLD_OUTPUT, "VerticalOffset", PldInfo->VerticalOffset);
+        AcpiOsPrintf (ACPI_PLD_OUTPUT, "HorizontalOffset", PldInfo->HorizontalOffset);
+    }
+
+    ACPI_FREE (PldInfo);
+    ACPI_FREE (NewBuffer);
 }
 
 
@@ -728,7 +924,7 @@ AcpiDbExecutionWalk (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Execute a control method.  Name is relative to the current
+ * DESCRIPTION: Execute a control method. Name is relative to the current
  *              scope.
  *
  ******************************************************************************/
@@ -782,6 +978,16 @@ AcpiDbExecute (
         ReturnObj.Length = ACPI_ALLOCATE_BUFFER;
 
         AcpiDbExecuteSetup (&AcpiGbl_DbMethodInfo);
+
+        /* Get the NS node, determines existence also */
+
+        Status = AcpiGetHandle (NULL, AcpiGbl_DbMethodInfo.Pathname,
+            &AcpiGbl_DbMethodInfo.Method);
+        if (ACPI_FAILURE (Status))
+        {
+            return;
+        }
+
         Status = AcpiDbExecuteMethod (&AcpiGbl_DbMethodInfo, &ReturnObj);
         ACPI_FREE (NameString);
     }
@@ -803,14 +1009,14 @@ AcpiDbExecute (
 
     if (Allocations > 0)
     {
-        AcpiOsPrintf ("Outstanding: 0x%X allocations after execution\n",
-                        Allocations);
+        AcpiOsPrintf ("0x%X Outstanding allocations after evaluation of %s\n",
+                        Allocations, AcpiGbl_DbMethodInfo.Pathname);
     }
 #endif
 
     if (ACPI_FAILURE (Status))
     {
-        AcpiOsPrintf ("Execution of %s failed with status %s\n",
+        AcpiOsPrintf ("Evaluation of %s failed with status %s\n",
             AcpiGbl_DbMethodInfo.Pathname, AcpiFormatException (Status));
     }
     else
@@ -819,14 +1025,23 @@ AcpiDbExecute (
 
         if (ReturnObj.Length)
         {
-            AcpiOsPrintf ("Execution of %s returned object %p Buflen %X\n",
+            AcpiOsPrintf (
+                "Evaluation of %s returned object %p, external buffer length %X\n",
                 AcpiGbl_DbMethodInfo.Pathname, ReturnObj.Pointer,
                 (UINT32) ReturnObj.Length);
             AcpiDbDumpExternalObject (ReturnObj.Pointer, 1);
+
+            /* Dump a _PLD buffer if present */
+
+            if (ACPI_COMPARE_NAME ((ACPI_CAST_PTR (ACPI_NAMESPACE_NODE,
+                    AcpiGbl_DbMethodInfo.Method)->Name.Ascii), METHOD_NAME__PLD))
+            {
+                AcpiDbDumpPldBuffer (ReturnObj.Pointer);
+            }
         }
         else
         {
-            AcpiOsPrintf ("No return object from execution of %s\n",
+            AcpiOsPrintf ("No object was returned from evaluation of %s\n",
                 AcpiGbl_DbMethodInfo.Pathname);
         }
     }
@@ -843,7 +1058,7 @@ AcpiDbExecute (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Debugger execute thread.  Waits for a command line, then
+ * DESCRIPTION: Debugger execute thread. Waits for a command line, then
  *              simply dispatches it.
  *
  ******************************************************************************/
@@ -872,8 +1087,8 @@ AcpiDbMethodThread (
 
     if (Info->InitArgs)
     {
-        AcpiDbUInt32ToHexString (Info->NumCreated, Info->IndexOfThreadStr);
-        AcpiDbUInt32ToHexString ((UINT32) AcpiOsGetThreadId (), Info->IdOfThreadStr);
+        AcpiDbUint32ToHexString (Info->NumCreated, Info->IndexOfThreadStr);
+        AcpiDbUint32ToHexString ((UINT32) AcpiOsGetThreadId (), Info->IdOfThreadStr);
     }
 
     if (Info->Threads && (Info->NumCreated < Info->NumThreads))
@@ -897,7 +1112,7 @@ AcpiDbMethodThread (
         Status = AcpiDbExecuteMethod (&LocalInfo, &ReturnObj);
         if (ACPI_FAILURE (Status))
         {
-            AcpiOsPrintf ("%s During execution of %s at iteration %X\n",
+            AcpiOsPrintf ("%s During evaluation of %s at iteration %X\n",
                 AcpiFormatException (Status), Info->Pathname, i);
             if (Status == AE_ABORT_METHOD)
             {
@@ -908,12 +1123,12 @@ AcpiDbMethodThread (
 #if 0
         if ((i % 100) == 0)
         {
-            AcpiOsPrintf ("%u executions, Thread 0x%x\n", i, AcpiOsGetThreadId ());
+            AcpiOsPrintf ("%u loops, Thread 0x%x\n", i, AcpiOsGetThreadId ());
         }
 
         if (ReturnObj.Length)
         {
-            AcpiOsPrintf ("Execution of %s returned object %p Buflen %X\n",
+            AcpiOsPrintf ("Evaluation of %s returned object %p Buflen %X\n",
                 Info->Pathname, ReturnObj.Pointer, (UINT32) ReturnObj.Length);
             AcpiDbDumpExternalObject (ReturnObj.Pointer, 1);
         }
@@ -1063,9 +1278,20 @@ AcpiDbCreateExecutionThreads (
     AcpiGbl_DbMethodInfo.ArgTypes[1] = ACPI_TYPE_INTEGER;
     AcpiGbl_DbMethodInfo.ArgTypes[2] = ACPI_TYPE_INTEGER;
 
-    AcpiDbUInt32ToHexString (NumThreads, AcpiGbl_DbMethodInfo.NumThreadsStr);
+    AcpiDbUint32ToHexString (NumThreads, AcpiGbl_DbMethodInfo.NumThreadsStr);
 
     AcpiDbExecuteSetup (&AcpiGbl_DbMethodInfo);
+
+    /* Get the NS node, determines existence also */
+
+    Status = AcpiGetHandle (NULL, AcpiGbl_DbMethodInfo.Pathname,
+        &AcpiGbl_DbMethodInfo.Method);
+    if (ACPI_FAILURE (Status))
+    {
+        AcpiOsPrintf ("%s Could not get handle for %s\n",
+            AcpiFormatException (Status), AcpiGbl_DbMethodInfo.Pathname);
+        goto CleanupAndExit;
+    }
 
     /* Create the threads */
 
@@ -1090,6 +1316,8 @@ AcpiDbCreateExecutionThreads (
     AcpiOsPrintf ("All threads (%X) have completed\n", NumThreads);
     AcpiDbSetOutputDestination (ACPI_DB_CONSOLE_OUTPUT);
 
+CleanupAndExit:
+
     /* Cleanup and exit */
 
     (void) AcpiOsDeleteSemaphore (MainThreadGate);
@@ -1101,5 +1329,3 @@ AcpiDbCreateExecutionThreads (
 }
 
 #endif /* ACPI_DEBUGGER */
-
-

@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MSP430.h"
 #include "MSP430TargetMachine.h"
+#include "MSP430.h"
 #include "llvm/PassManager.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/MC/MCAsmInfo.h"
@@ -28,25 +28,44 @@ MSP430TargetMachine::MSP430TargetMachine(const Target &T,
                                          StringRef TT,
                                          StringRef CPU,
                                          StringRef FS,
-                                         Reloc::Model RM, CodeModel::Model CM)
-  : LLVMTargetMachine(T, TT, CPU, FS, RM, CM),
+                                         const TargetOptions &Options,
+                                         Reloc::Model RM, CodeModel::Model CM,
+                                         CodeGenOpt::Level OL)
+  : LLVMTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
     Subtarget(TT, CPU, FS),
     // FIXME: Check TargetData string.
     DataLayout("e-p:16:16:16-i8:8:8-i16:16:16-i32:16:32-n8:16"),
     InstrInfo(*this), TLInfo(*this), TSInfo(*this),
     FrameLowering(Subtarget) { }
 
+namespace {
+/// MSP430 Code Generator Pass Configuration Options.
+class MSP430PassConfig : public TargetPassConfig {
+public:
+  MSP430PassConfig(MSP430TargetMachine *TM, PassManagerBase &PM)
+    : TargetPassConfig(TM, PM) {}
 
-bool MSP430TargetMachine::addInstSelector(PassManagerBase &PM,
-                                          CodeGenOpt::Level OptLevel) {
+  MSP430TargetMachine &getMSP430TargetMachine() const {
+    return getTM<MSP430TargetMachine>();
+  }
+
+  virtual bool addInstSelector();
+  virtual bool addPreEmitPass();
+};
+} // namespace
+
+TargetPassConfig *MSP430TargetMachine::createPassConfig(PassManagerBase &PM) {
+  return new MSP430PassConfig(this, PM);
+}
+
+bool MSP430PassConfig::addInstSelector() {
   // Install an instruction selector.
-  PM.add(createMSP430ISelDag(*this, OptLevel));
+  addPass(createMSP430ISelDag(getMSP430TargetMachine(), getOptLevel()));
   return false;
 }
 
-bool MSP430TargetMachine::addPreEmitPass(PassManagerBase &PM,
-                                         CodeGenOpt::Level OptLevel) {
+bool MSP430PassConfig::addPreEmitPass() {
   // Must run branch selection immediately preceding the asm printer.
-  PM.add(createMSP430BranchSelectionPass());
+  addPass(createMSP430BranchSelectionPass());
   return false;
 }

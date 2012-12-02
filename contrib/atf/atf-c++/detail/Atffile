@@ -1,0 +1,13 @@
+Content-Type: application/X-atf-atffile; version="1"
+
+prop: test-suite = atf
+
+tp: application_test
+tp: env_test
+tp: exceptions_test
+tp: expand_test
+tp: fs_test
+tp: parser_test
+tp: sanity_test
+tp: text_test
+tp: ui_test

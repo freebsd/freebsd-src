@@ -1,4 +1,4 @@
-//===- MBlazeSchedule.td - MBlaze Scheduling Definitions ---*- tablegen -*-===//
+//===-- MBlazeSchedule.td - MBlaze Scheduling Definitions --*- tablegen -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -38,11 +38,6 @@ def IIC_BRc    : InstrItinClass;
 def IIC_BRl    : InstrItinClass;
 def IIC_WDC    : InstrItinClass;
 def IIC_Pseudo : InstrItinClass;
-
-//===----------------------------------------------------------------------===//
-// MBlaze generic instruction itineraries.
-//===----------------------------------------------------------------------===//
-def MBlazeGenericItineraries : ProcessorItineraries<[], [], []>;
 
 //===----------------------------------------------------------------------===//
 // MBlaze instruction itineraries for three stage pipeline.

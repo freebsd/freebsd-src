@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: ispell,v 1.8 2009/09/19 16:28:10 christos Exp $
 # ispell:  file(1) magic for ispell
 #
 # Ispell 3.0 has a magic of 0x9601 and ispell 3.1 has 0x9602.  This magic

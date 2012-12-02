@@ -5,8 +5,8 @@
 # Compare files created by /usr/src/etc/Makefile (or the directory
 # the user specifies) with the currently installed copies.
 
-# Copyright 1998-2011 Douglas Barton
-# dougb@FreeBSD.org
+# Copyright (c) 1998-2012 Douglas Barton, All rights reserved
+# Please see detailed copyright below
 
 # $FreeBSD$
 
@@ -532,9 +532,9 @@ if [ -t 0 ]; then
   esac
 fi
 
-# Define what CVS $Id tag to look for to aid portability.
+# Define what $Id tag to look for to aid portability.
 #
-CVS_ID_TAG=FreeBSD
+ID_TAG=FreeBSD
 
 delete_temproot () {
   rm -rf "${TEMPROOT}" 2>/dev/null
@@ -1095,17 +1095,17 @@ for COMPFILE in `find . -type f | sort`; do
 
   case "${STRICT}" in
   '' | [Nn][Oo])
-    # Compare CVS $Id's first so if the file hasn't been modified
+    # Compare $Id's first so if the file hasn't been modified
     # local changes will be ignored.
     # If the files have the same $Id, delete the one in temproot so the
     # user will have less to wade through if files are left to merge by hand.
     #
-    CVSID1=`grep "[$]${CVS_ID_TAG}:" ${DESTDIR}${COMPFILE#.} 2>/dev/null`
-    CVSID2=`grep "[$]${CVS_ID_TAG}:" ${COMPFILE} 2>/dev/null` || CVSID2=none
+    ID1=`grep "[$]${ID_TAG}:" ${DESTDIR}${COMPFILE#.} 2>/dev/null`
+    ID2=`grep "[$]${ID_TAG}:" ${COMPFILE} 2>/dev/null` || ID2=none
 
-    case "${CVSID2}" in
-    "${CVSID1}")
-      echo " *** Temp ${COMPFILE} and installed have the same CVS Id, deleting"
+    case "${ID2}" in
+    "${ID1}")
+      echo " *** Temp ${COMPFILE} and installed have the same Id, deleting"
       rm "${COMPFILE}"
       ;;
     esac
@@ -1334,7 +1334,7 @@ case "${NEED_PWD_MKDB}" in
   ;;
 esac
 
-if [ -e "${DESTDIR}/etc/localtime" ]; then	# Ignore if TZ == UTC
+if [ -e "${DESTDIR}/etc/localtime" -a -z "${PRE_WORLD}" ]; then	# Ignore if TZ == UTC
   echo ''
   [ -n "${DESTDIR}" ] && tzs_args="-C ${DESTDIR}"
   if [ -f "${DESTDIR}/var/db/zoneinfo" ]; then
@@ -1380,29 +1380,35 @@ case "${COMP_CONFS}" in
   ;;
 esac
 
-case "${PRE_WORLD}" in
-'') ;;
-*)
-  MAKE_CONF="${SOURCEDIR}/share/examples/etc/make.conf"
-
-  (echo ''
-  echo '*** Comparing make variables'
-  echo ''
-  echo "*** From ${DESTDIR}/etc/make.conf"
-  echo "*** From ${MAKE_CONF}"
-
-  for MAKE_VAR in `grep -i ^[a-z] ${DESTDIR}/etc/make.conf | cut -d '=' -f 1`; do
-    echo ''
-    grep -w ^${MAKE_VAR} ${DESTDIR}/etc/make.conf
-    grep -w ^#${MAKE_VAR} ${MAKE_CONF} ||
-      echo ' * No example variable with this name'
-  done) | ${PAGER}
-  ;;
-esac
-
 if [ -n "${PRESERVE_FILES}" ]; then
   find -d $PRESERVE_FILES_DIR -type d -empty -delete 2>/dev/null
   rmdir $PRESERVE_FILES_DIR 2>/dev/null
 fi
 
 exit 0
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+#  Copyright (c) 1998-2012 Douglas Barton
+#  All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions
+#  are met:
+#  1. Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+#  2. Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+#  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+#  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+#  ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+#  FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+#  DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+#  OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+#  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+#  LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+#  OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+#  SUCH DAMAGE.

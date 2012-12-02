@@ -23,7 +23,7 @@ class DWARFFormValue;
 /// DWARFDebugInfoEntryMinimal - A DIE with only the minimum required data.
 class DWARFDebugInfoEntryMinimal {
   /// Offset within the .debug_info of the start of this entry.
-  uint64_t Offset;
+  uint32_t Offset;
 
   /// How many to subtract from "this" to get the parent.
   /// If zero this die has no parent.
@@ -52,7 +52,7 @@ public:
 
   uint32_t getTag() const { return AbbrevDecl ? AbbrevDecl->getTag() : 0; }
   bool isNULL() const { return AbbrevDecl == 0; }
-  uint64_t getOffset() const { return Offset; }
+  uint32_t getOffset() const { return Offset; }
   uint32_t getNumAttributes() const {
     return !isNULL() ? AbbrevDecl->getNumAttributes() : 0;
   }
@@ -128,6 +128,15 @@ public:
 
   void buildAddressRangeTable(const DWARFCompileUnit *cu,
                               DWARFDebugAranges *debug_aranges) const;
+
+  bool addressRangeContainsAddress(const DWARFCompileUnit *cu,
+                                   const uint64_t address) const;
+
+  // If a DIE represents a subprogram, returns its mangled name
+  // (or short name, if mangled is missing). This name may be fetched
+  // from specification or abstract origin for this subprogram.
+  // Returns null if no name is found.
+  const char* getSubprogramName(const DWARFCompileUnit *cu) const;
 };
 
 }

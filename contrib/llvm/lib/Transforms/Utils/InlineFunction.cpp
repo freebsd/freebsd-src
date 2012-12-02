@@ -10,298 +10,72 @@
 // This file implements inlining of a function into a call site, resolving
 // parameters and the return value as appropriate.
 //
-// The code in this file for handling inlines through invoke
-// instructions preserves semantics only under some assumptions about
-// the behavior of unwinders which correspond to gcc-style libUnwind
-// exception personality functions.  Eventually the IR will be
-// improved to make this unnecessary, but until then, this code is
-// marked [LIBUNWIND].
-//
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Transforms/Utils/Cloning.h"
+#include "llvm/Attributes.h"
 #include "llvm/Constants.h"
+#include "llvm/DebugInfo.h"
 #include "llvm/DerivedTypes.h"
-#include "llvm/Module.h"
+#include "llvm/IRBuilder.h"
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Intrinsics.h"
-#include "llvm/Attributes.h"
-#include "llvm/Analysis/CallGraph.h"
-#include "llvm/Analysis/DebugInfo.h"
-#include "llvm/Analysis/InstructionSimplify.h"
-#include "llvm/Target/TargetData.h"
-#include "llvm/Transforms/Utils/Local.h"
+#include "llvm/Module.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
+#include "llvm/Analysis/CallGraph.h"
+#include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Support/CallSite.h"
-#include "llvm/Support/IRBuilder.h"
+#include "llvm/Target/TargetData.h"
+#include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
 
-bool llvm::InlineFunction(CallInst *CI, InlineFunctionInfo &IFI) {
-  return InlineFunction(CallSite(CI), IFI);
+bool llvm::InlineFunction(CallInst *CI, InlineFunctionInfo &IFI,
+                          bool InsertLifetime) {
+  return InlineFunction(CallSite(CI), IFI, InsertLifetime);
 }
-bool llvm::InlineFunction(InvokeInst *II, InlineFunctionInfo &IFI) {
-  return InlineFunction(CallSite(II), IFI);
-}
-
-// FIXME: New EH - Remove the functions marked [LIBUNWIND] when new EH is
-// turned on.
-
-/// [LIBUNWIND] Look for an llvm.eh.exception call in the given block.
-static EHExceptionInst *findExceptionInBlock(BasicBlock *bb) {
-  for (BasicBlock::iterator i = bb->begin(), e = bb->end(); i != e; i++) {
-    EHExceptionInst *exn = dyn_cast<EHExceptionInst>(i);
-    if (exn) return exn;
-  }
-
-  return 0;
-}
-
-/// [LIBUNWIND] Look for the 'best' llvm.eh.selector instruction for
-/// the given llvm.eh.exception call.
-static EHSelectorInst *findSelectorForException(EHExceptionInst *exn) {
-  BasicBlock *exnBlock = exn->getParent();
-
-  EHSelectorInst *outOfBlockSelector = 0;
-  for (Instruction::use_iterator
-         ui = exn->use_begin(), ue = exn->use_end(); ui != ue; ++ui) {
-    EHSelectorInst *sel = dyn_cast<EHSelectorInst>(*ui);
-    if (!sel) continue;
-
-    // Immediately accept an eh.selector in the same block as the
-    // excepton call.
-    if (sel->getParent() == exnBlock) return sel;
-
-    // Otherwise, use the first selector we see.
-    if (!outOfBlockSelector) outOfBlockSelector = sel;
-  }
-
-  return outOfBlockSelector;
-}
-
-/// [LIBUNWIND] Find the (possibly absent) call to @llvm.eh.selector
-/// in the given landing pad.  In principle, llvm.eh.exception is
-/// required to be in the landing pad; in practice, SplitCriticalEdge
-/// can break that invariant, and then inlining can break it further.
-/// There's a real need for a reliable solution here, but until that
-/// happens, we have some fragile workarounds here.
-static EHSelectorInst *findSelectorForLandingPad(BasicBlock *lpad) {
-  // Look for an exception call in the actual landing pad.
-  EHExceptionInst *exn = findExceptionInBlock(lpad);
-  if (exn) return findSelectorForException(exn);
-
-  // Okay, if that failed, look for one in an obvious successor.  If
-  // we find one, we'll fix the IR by moving things back to the
-  // landing pad.
-
-  bool dominates = true; // does the lpad dominate the exn call
-  BasicBlock *nonDominated = 0; // if not, the first non-dominated block
-  BasicBlock *lastDominated = 0; // and the block which branched to it
-
-  BasicBlock *exnBlock = lpad;
-
-  // We need to protect against lpads that lead into infinite loops.
-  SmallPtrSet<BasicBlock*,4> visited;
-  visited.insert(exnBlock);
-
-  do {
-    // We're not going to apply this hack to anything more complicated
-    // than a series of unconditional branches, so if the block
-    // doesn't terminate in an unconditional branch, just fail.  More
-    // complicated cases can arise when, say, sinking a call into a
-    // split unwind edge and then inlining it; but that can do almost
-    // *anything* to the CFG, including leaving the selector
-    // completely unreachable.  The only way to fix that properly is
-    // to (1) prohibit transforms which move the exception or selector
-    // values away from the landing pad, e.g. by producing them with
-    // instructions that are pinned to an edge like a phi, or
-    // producing them with not-really-instructions, and (2) making
-    // transforms which split edges deal with that.
-    BranchInst *branch = dyn_cast<BranchInst>(&exnBlock->back());
-    if (!branch || branch->isConditional()) return 0;
-
-    BasicBlock *successor = branch->getSuccessor(0);
-
-    // Fail if we found an infinite loop.
-    if (!visited.insert(successor)) return 0;
-
-    // If the successor isn't dominated by exnBlock:
-    if (!successor->getSinglePredecessor()) {
-      // We don't want to have to deal with threading the exception
-      // through multiple levels of phi, so give up if we've already
-      // followed a non-dominating edge.
-      if (!dominates) return 0;
-
-      // Otherwise, remember this as a non-dominating edge.
-      dominates = false;
-      nonDominated = successor;
-      lastDominated = exnBlock;
-    }
-
-    exnBlock = successor;
-
-    // Can we stop here?
-    exn = findExceptionInBlock(exnBlock);
-  } while (!exn);
-
-  // Look for a selector call for the exception we found.
-  EHSelectorInst *selector = findSelectorForException(exn);
-  if (!selector) return 0;
-
-  // The easy case is when the landing pad still dominates the
-  // exception call, in which case we can just move both calls back to
-  // the landing pad.
-  if (dominates) {
-    selector->moveBefore(lpad->getFirstNonPHI());
-    exn->moveBefore(selector);
-    return selector;
-  }
-
-  // Otherwise, we have to split at the first non-dominating block.
-  // The CFG looks basically like this:
-  //    lpad:
-  //      phis_0
-  //      insnsAndBranches_1
-  //      br label %nonDominated
-  //    nonDominated:
-  //      phis_2
-  //      insns_3
-  //      %exn = call i8* @llvm.eh.exception()
-  //      insnsAndBranches_4
-  //      %selector = call @llvm.eh.selector(i8* %exn, ...
-  // We need to turn this into:
-  //    lpad:
-  //      phis_0
-  //      %exn0 = call i8* @llvm.eh.exception()
-  //      %selector0 = call @llvm.eh.selector(i8* %exn0, ...
-  //      insnsAndBranches_1
-  //      br label %split // from lastDominated
-  //    nonDominated:
-  //      phis_2 (without edge from lastDominated)
-  //      %exn1 = call i8* @llvm.eh.exception()
-  //      %selector1 = call i8* @llvm.eh.selector(i8* %exn1, ...
-  //      br label %split
-  //    split:
-  //      phis_2 (edge from lastDominated, edge from split)
-  //      %exn = phi ...
-  //      %selector = phi ...
-  //      insns_3
-  //      insnsAndBranches_4
-
-  assert(nonDominated);
-  assert(lastDominated);
-
-  // First, make clones of the intrinsics to go in lpad.
-  EHExceptionInst *lpadExn = cast<EHExceptionInst>(exn->clone());
-  EHSelectorInst *lpadSelector = cast<EHSelectorInst>(selector->clone());
-  lpadSelector->setArgOperand(0, lpadExn);
-  lpadSelector->insertBefore(lpad->getFirstNonPHI());
-  lpadExn->insertBefore(lpadSelector);
-
-  // Split the non-dominated block.
-  BasicBlock *split =
-    nonDominated->splitBasicBlock(nonDominated->getFirstNonPHI(),
-                                  nonDominated->getName() + ".lpad-fix");
-
-  // Redirect the last dominated branch there.
-  cast<BranchInst>(lastDominated->back()).setSuccessor(0, split);
-
-  // Move the existing intrinsics to the end of the old block.
-  selector->moveBefore(&nonDominated->back());
-  exn->moveBefore(selector);
-
-  Instruction *splitIP = &split->front();
-
-  // For all the phis in nonDominated, make a new phi in split to join
-  // that phi with the edge from lastDominated.
-  for (BasicBlock::iterator
-         i = nonDominated->begin(), e = nonDominated->end(); i != e; ++i) {
-    PHINode *phi = dyn_cast<PHINode>(i);
-    if (!phi) break;
-
-    PHINode *splitPhi = PHINode::Create(phi->getType(), 2, phi->getName(),
-                                        splitIP);
-    phi->replaceAllUsesWith(splitPhi);
-    splitPhi->addIncoming(phi, nonDominated);
-    splitPhi->addIncoming(phi->removeIncomingValue(lastDominated),
-                          lastDominated);
-  }
-
-  // Make new phis for the exception and selector.
-  PHINode *exnPhi = PHINode::Create(exn->getType(), 2, "", splitIP);
-  exn->replaceAllUsesWith(exnPhi);
-  selector->setArgOperand(0, exn); // except for this use
-  exnPhi->addIncoming(exn, nonDominated);
-  exnPhi->addIncoming(lpadExn, lastDominated);
-
-  PHINode *selectorPhi = PHINode::Create(selector->getType(), 2, "", splitIP);
-  selector->replaceAllUsesWith(selectorPhi);
-  selectorPhi->addIncoming(selector, nonDominated);
-  selectorPhi->addIncoming(lpadSelector, lastDominated);
-
-  return lpadSelector;
+bool llvm::InlineFunction(InvokeInst *II, InlineFunctionInfo &IFI,
+                          bool InsertLifetime) {
+  return InlineFunction(CallSite(II), IFI, InsertLifetime);
 }
 
 namespace {
   /// A class for recording information about inlining through an invoke.
   class InvokeInliningInfo {
-    BasicBlock *OuterUnwindDest;
-    EHSelectorInst *OuterSelector;
-    BasicBlock *InnerUnwindDest;
-    PHINode *InnerExceptionPHI;
-    PHINode *InnerSelectorPHI;
+    BasicBlock *OuterResumeDest; ///< Destination of the invoke's unwind.
+    BasicBlock *InnerResumeDest; ///< Destination for the callee's resume.
+    LandingPadInst *CallerLPad;  ///< LandingPadInst associated with the invoke.
+    PHINode *InnerEHValuesPHI;   ///< PHI for EH values from landingpad insts.
     SmallVector<Value*, 8> UnwindDestPHIValues;
-
-    // FIXME: New EH - These will replace the analogous ones above.
-    BasicBlock *OuterResumeDest; //< Destination of the invoke's unwind.
-    BasicBlock *InnerResumeDest; //< Destination for the callee's resume.
-    LandingPadInst *CallerLPad;  //< LandingPadInst associated with the invoke.
-    PHINode *InnerEHValuesPHI;   //< PHI for EH values from landingpad insts.
 
   public:
     InvokeInliningInfo(InvokeInst *II)
-      : OuterUnwindDest(II->getUnwindDest()), OuterSelector(0),
-        InnerUnwindDest(0), InnerExceptionPHI(0), InnerSelectorPHI(0),
-        OuterResumeDest(II->getUnwindDest()), InnerResumeDest(0),
+      : OuterResumeDest(II->getUnwindDest()), InnerResumeDest(0),
         CallerLPad(0), InnerEHValuesPHI(0) {
       // If there are PHI nodes in the unwind destination block, we need to keep
       // track of which values came into them from the invoke before removing
       // the edge from this block.
       llvm::BasicBlock *InvokeBB = II->getParent();
-      BasicBlock::iterator I = OuterUnwindDest->begin();
+      BasicBlock::iterator I = OuterResumeDest->begin();
       for (; isa<PHINode>(I); ++I) {
         // Save the value to use for this edge.
         PHINode *PHI = cast<PHINode>(I);
         UnwindDestPHIValues.push_back(PHI->getIncomingValueForBlock(InvokeBB));
       }
 
-      // FIXME: With the new EH, this if/dyn_cast should be a 'cast'.
-      if (LandingPadInst *LPI = dyn_cast<LandingPadInst>(I)) {
-        CallerLPad = LPI;
-      }
+      CallerLPad = cast<LandingPadInst>(I);
     }
 
-    /// The outer unwind destination is the target of unwind edges
-    /// introduced for calls within the inlined function.
-    BasicBlock *getOuterUnwindDest() const {
-      return OuterUnwindDest;
+    /// getOuterResumeDest - The outer unwind destination is the target of
+    /// unwind edges introduced for calls within the inlined function.
+    BasicBlock *getOuterResumeDest() const {
+      return OuterResumeDest;
     }
 
-    EHSelectorInst *getOuterSelector() {
-      if (!OuterSelector)
-        OuterSelector = findSelectorForLandingPad(OuterUnwindDest);
-      return OuterSelector;
-    }
-
-    BasicBlock *getInnerUnwindDest();
-
-    // FIXME: New EH - Rename when new EH is turned on.
-    BasicBlock *getInnerUnwindDestNewEH();
+    BasicBlock *getInnerResumeDest();
 
     LandingPadInst *getLandingPadInst() const { return CallerLPad; }
-
-    bool forwardEHResume(CallInst *call, BasicBlock *src);
 
     /// forwardResume - Forward the 'resume' instruction to the caller's landing
     /// pad block. When the landing pad block has only one predecessor, this is
@@ -314,7 +88,7 @@ namespace {
     /// destination block for the given basic block, using the values for the
     /// original invoke's source block.
     void addIncomingPHIValuesFor(BasicBlock *BB) const {
-      addIncomingPHIValuesForInto(BB, OuterUnwindDest);
+      addIncomingPHIValuesForInto(BB, OuterResumeDest);
     }
 
     void addIncomingPHIValuesForInto(BasicBlock *src, BasicBlock *dest) const {
@@ -327,113 +101,8 @@ namespace {
   };
 }
 
-/// [LIBUNWIND] Get or create a target for the branch out of rewritten calls to
-/// llvm.eh.resume.
-BasicBlock *InvokeInliningInfo::getInnerUnwindDest() {
-  if (InnerUnwindDest) return InnerUnwindDest;
-
-  // Find and hoist the llvm.eh.exception and llvm.eh.selector calls
-  // in the outer landing pad to immediately following the phis.
-  EHSelectorInst *selector = getOuterSelector();
-  if (!selector) return 0;
-
-  // The call to llvm.eh.exception *must* be in the landing pad.
-  Instruction *exn = cast<Instruction>(selector->getArgOperand(0));
-  assert(exn->getParent() == OuterUnwindDest);
-
-  // TODO: recognize when we've already done this, so that we don't
-  // get a linear number of these when inlining calls into lots of
-  // invokes with the same landing pad.
-
-  // Do the hoisting.
-  Instruction *splitPoint = exn->getParent()->getFirstNonPHI();
-  assert(splitPoint != selector && "selector-on-exception dominance broken!");
-  if (splitPoint == exn) {
-    selector->removeFromParent();
-    selector->insertAfter(exn);
-    splitPoint = selector->getNextNode();
-  } else {
-    exn->moveBefore(splitPoint);
-    selector->moveBefore(splitPoint);
-  }
-
-  // Split the landing pad.
-  InnerUnwindDest = OuterUnwindDest->splitBasicBlock(splitPoint,
-                                        OuterUnwindDest->getName() + ".body");
-
-  // The number of incoming edges we expect to the inner landing pad.
-  const unsigned phiCapacity = 2;
-
-  // Create corresponding new phis for all the phis in the outer landing pad.
-  BasicBlock::iterator insertPoint = InnerUnwindDest->begin();
-  BasicBlock::iterator I = OuterUnwindDest->begin();
-  for (unsigned i = 0, e = UnwindDestPHIValues.size(); i != e; ++i, ++I) {
-    PHINode *outerPhi = cast<PHINode>(I);
-    PHINode *innerPhi = PHINode::Create(outerPhi->getType(), phiCapacity,
-                                        outerPhi->getName() + ".lpad-body",
-                                        insertPoint);
-    outerPhi->replaceAllUsesWith(innerPhi);
-    innerPhi->addIncoming(outerPhi, OuterUnwindDest);
-  }
-
-  // Create a phi for the exception value...
-  InnerExceptionPHI = PHINode::Create(exn->getType(), phiCapacity,
-                                      "exn.lpad-body", insertPoint);
-  exn->replaceAllUsesWith(InnerExceptionPHI);
-  selector->setArgOperand(0, exn); // restore this use
-  InnerExceptionPHI->addIncoming(exn, OuterUnwindDest);
-
-  // ...and the selector.
-  InnerSelectorPHI = PHINode::Create(selector->getType(), phiCapacity,
-                                     "selector.lpad-body", insertPoint);
-  selector->replaceAllUsesWith(InnerSelectorPHI);
-  InnerSelectorPHI->addIncoming(selector, OuterUnwindDest);
-
-  // All done.
-  return InnerUnwindDest;
-}
-
-/// [LIBUNWIND] Try to forward the given call, which logically occurs
-/// at the end of the given block, as a branch to the inner unwind
-/// block.  Returns true if the call was forwarded.
-bool InvokeInliningInfo::forwardEHResume(CallInst *call, BasicBlock *src) {
-  // First, check whether this is a call to the intrinsic.
-  Function *fn = dyn_cast<Function>(call->getCalledValue());
-  if (!fn || fn->getName() != "llvm.eh.resume")
-    return false;
-  
-  // At this point, we need to return true on all paths, because
-  // otherwise we'll construct an invoke of the intrinsic, which is
-  // not well-formed.
-
-  // Try to find or make an inner unwind dest, which will fail if we
-  // can't find a selector call for the outer unwind dest.
-  BasicBlock *dest = getInnerUnwindDest();
-  bool hasSelector = (dest != 0);
-
-  // If we failed, just use the outer unwind dest, dropping the
-  // exception and selector on the floor.
-  if (!hasSelector)
-    dest = OuterUnwindDest;
-
-  // Make a branch.
-  BranchInst::Create(dest, src);
-
-  // Update the phis in the destination.  They were inserted in an
-  // order which makes this work.
-  addIncomingPHIValuesForInto(src, dest);
-
-  if (hasSelector) {
-    InnerExceptionPHI->addIncoming(call->getArgOperand(0), src);
-    InnerSelectorPHI->addIncoming(call->getArgOperand(1), src);
-  }
-
-  return true;
-}
-
-/// Get or create a target for the branch from ResumeInsts.
-BasicBlock *InvokeInliningInfo::getInnerUnwindDestNewEH() {
-  // FIXME: New EH - rename this function when new EH is turned on.
+/// getInnerResumeDest - Get or create a target for the branch from ResumeInsts.
+BasicBlock *InvokeInliningInfo::getInnerResumeDest() {
   if (InnerResumeDest) return InnerResumeDest;
 
   // Split the landing pad.
@@ -472,7 +141,7 @@ BasicBlock *InvokeInliningInfo::getInnerUnwindDestNewEH() {
 /// branch. When there is more than one predecessor, we need to split the
 /// landing pad block after the landingpad instruction and jump to there.
 void InvokeInliningInfo::forwardResume(ResumeInst *RI) {
-  BasicBlock *Dest = getInnerUnwindDestNewEH();
+  BasicBlock *Dest = getInnerResumeDest();
   BasicBlock *Src = RI->getParent();
 
   BranchInst::Create(Dest, Src);
@@ -483,14 +152,6 @@ void InvokeInliningInfo::forwardResume(ResumeInst *RI) {
 
   InnerEHValuesPHI->addIncoming(RI->getOperand(0), Src);
   RI->eraseFromParent();
-}
-
-/// [LIBUNWIND] Check whether this selector is "only cleanups":
-///   call i32 @llvm.eh.selector(blah, blah, i32 0)
-static bool isCleanupOnlySelector(EHSelectorInst *selector) {
-  if (selector->getNumArgOperands() != 3) return false;
-  ConstantInt *val = dyn_cast<ConstantInt>(selector->getArgOperand(2));
-  return (val && val->isZero());
 }
 
 /// HandleCallsInBlockInlinedThroughInvoke - When we inline a basic block into
@@ -507,77 +168,34 @@ static bool HandleCallsInBlockInlinedThroughInvoke(BasicBlock *BB,
   for (BasicBlock::iterator BBI = BB->begin(), E = BB->end(); BBI != E; ) {
     Instruction *I = BBI++;
 
-    if (LPI) // FIXME: New EH - This won't be NULL in the new EH.
-      if (LandingPadInst *L = dyn_cast<LandingPadInst>(I)) {
-        unsigned NumClauses = LPI->getNumClauses();
-        L->reserveClauses(NumClauses);
-        for (unsigned i = 0; i != NumClauses; ++i)
-          L->addClause(LPI->getClause(i));
-      }
+    if (LandingPadInst *L = dyn_cast<LandingPadInst>(I)) {
+      unsigned NumClauses = LPI->getNumClauses();
+      L->reserveClauses(NumClauses);
+      for (unsigned i = 0; i != NumClauses; ++i)
+        L->addClause(LPI->getClause(i));
+    }
 
     // We only need to check for function calls: inlined invoke
     // instructions require no special handling.
     CallInst *CI = dyn_cast<CallInst>(I);
-    if (CI == 0) continue;
 
-    // LIBUNWIND: merge selector instructions.
-    if (EHSelectorInst *Inner = dyn_cast<EHSelectorInst>(CI)) {
-      EHSelectorInst *Outer = Invoke.getOuterSelector();
-      if (!Outer) continue;
-
-      bool innerIsOnlyCleanup = isCleanupOnlySelector(Inner);
-      bool outerIsOnlyCleanup = isCleanupOnlySelector(Outer);
-
-      // If both selectors contain only cleanups, we don't need to do
-      // anything.  TODO: this is really just a very specific instance
-      // of a much more general optimization.
-      if (innerIsOnlyCleanup && outerIsOnlyCleanup) continue;
-
-      // Otherwise, we just append the outer selector to the inner selector.
-      SmallVector<Value*, 16> NewSelector;
-      for (unsigned i = 0, e = Inner->getNumArgOperands(); i != e; ++i)
-        NewSelector.push_back(Inner->getArgOperand(i));
-      for (unsigned i = 2, e = Outer->getNumArgOperands(); i != e; ++i)
-        NewSelector.push_back(Outer->getArgOperand(i));
-
-      CallInst *NewInner =
-        IRBuilder<>(Inner).CreateCall(Inner->getCalledValue(), NewSelector);
-      // No need to copy attributes, calling convention, etc.
-      NewInner->takeName(Inner);
-      Inner->replaceAllUsesWith(NewInner);
-      Inner->eraseFromParent();
-      continue;
-    }
-    
     // If this call cannot unwind, don't convert it to an invoke.
-    if (CI->doesNotThrow())
+    if (!CI || CI->doesNotThrow())
       continue;
-    
-    // Convert this function call into an invoke instruction.
-    // First, split the basic block.
+
+    // Convert this function call into an invoke instruction.  First, split the
+    // basic block.
     BasicBlock *Split = BB->splitBasicBlock(CI, CI->getName()+".noexc");
 
     // Delete the unconditional branch inserted by splitBasicBlock
     BB->getInstList().pop_back();
 
-    // LIBUNWIND: If this is a call to @llvm.eh.resume, just branch
-    // directly to the new landing pad.
-    if (Invoke.forwardEHResume(CI, BB)) {
-      // TODO: 'Split' is now unreachable; clean it up.
-
-      // We want to leave the original call intact so that the call
-      // graph and other structures won't get misled.  We also have to
-      // avoid processing the next block, or we'll iterate here forever.
-      return true;
-    }
-
-    // Otherwise, create the new invoke instruction.
+    // Create the new invoke instruction.
     ImmutableCallSite CS(CI);
     SmallVector<Value*, 8> InvokeArgs(CS.arg_begin(), CS.arg_end());
-    InvokeInst *II =
-      InvokeInst::Create(CI->getCalledValue(), Split,
-                         Invoke.getOuterUnwindDest(),
-                         InvokeArgs, CI->getName(), BB);
+    InvokeInst *II = InvokeInst::Create(CI->getCalledValue(), Split,
+                                        Invoke.getOuterResumeDest(),
+                                        InvokeArgs, CI->getName(), BB);
     II->setCallingConv(CI->getCallingConv());
     II->setAttributes(CI->getAttributes());
     
@@ -585,21 +203,20 @@ static bool HandleCallsInBlockInlinedThroughInvoke(BasicBlock *BB,
     // updates the CallGraph if present, because it uses a WeakVH.
     CI->replaceAllUsesWith(II);
 
-    Split->getInstList().pop_front();  // Delete the original call
+    // Delete the original call
+    Split->getInstList().pop_front();
 
-    // Update any PHI nodes in the exceptional block to indicate that
-    // there is now a new entry in them.
+    // Update any PHI nodes in the exceptional block to indicate that there is
+    // now a new entry in them.
     Invoke.addIncomingPHIValuesFor(BB);
     return false;
   }
 
   return false;
 }
-  
 
 /// HandleInlinedInvoke - If we inlined an invoke site, we need to convert calls
-/// in the body of the inlined function into invokes and turn unwind
-/// instructions into branches to the invoke unwind dest.
+/// in the body of the inlined function into invokes.
 ///
 /// II is the invoke instruction being inlined.  FirstNewBlock is the first
 /// block of the inlined code (the last block is the end of the function),
@@ -614,7 +231,7 @@ static void HandleInlinedInvoke(InvokeInst *II, BasicBlock *FirstNewBlock,
   // start of the inlined code to its end, checking for stuff we need to
   // rewrite.  If the code doesn't have calls or unwinds, we know there is
   // nothing to rewrite.
-  if (!InlinedCodeInfo.ContainsCalls && !InlinedCodeInfo.ContainsUnwinds) {
+  if (!InlinedCodeInfo.ContainsCalls) {
     // Now that everything is happy, we have one final detail.  The PHI nodes in
     // the exception destination block still have entries due to the original
     // invoke instruction.  Eliminate these entries (which might even delete the
@@ -628,30 +245,13 @@ static void HandleInlinedInvoke(InvokeInst *II, BasicBlock *FirstNewBlock,
   for (Function::iterator BB = FirstNewBlock, E = Caller->end(); BB != E; ++BB){
     if (InlinedCodeInfo.ContainsCalls)
       if (HandleCallsInBlockInlinedThroughInvoke(BB, Invoke)) {
-        // Honor a request to skip the next block.  We don't need to
-        // consider UnwindInsts in this case either.
+        // Honor a request to skip the next block.
         ++BB;
         continue;
       }
 
-    if (UnwindInst *UI = dyn_cast<UnwindInst>(BB->getTerminator())) {
-      // An UnwindInst requires special handling when it gets inlined into an
-      // invoke site.  Once this happens, we know that the unwind would cause
-      // a control transfer to the invoke exception destination, so we can
-      // transform it into a direct branch to the exception destination.
-      BranchInst::Create(InvokeDest, UI);
-
-      // Delete the unwind instruction!
-      UI->eraseFromParent();
-
-      // Update any PHI nodes in the exceptional block to indicate that
-      // there is now a new entry in them.
-      Invoke.addIncomingPHIValuesFor(BB);
-    }
-
-    if (ResumeInst *RI = dyn_cast<ResumeInst>(BB->getTerminator())) {
+    if (ResumeInst *RI = dyn_cast<ResumeInst>(BB->getTerminator()))
       Invoke.forwardResume(RI);
-    }
   }
 
   // Now that everything is happy, we have one final detail.  The PHI nodes in
@@ -836,8 +436,8 @@ static bool hasLifetimeMarkers(AllocaInst *AI) {
   return false;
 }
 
-/// updateInlinedAtInfo - Helper function used by fixupLineNumbers to recursively
-/// update InlinedAtEntry of a DebugLoc.
+/// updateInlinedAtInfo - Helper function used by fixupLineNumbers to
+/// recursively update InlinedAtEntry of a DebugLoc.
 static DebugLoc updateInlinedAtInfo(const DebugLoc &DL, 
                                     const DebugLoc &InlinedAtDL,
                                     LLVMContext &Ctx) {
@@ -847,16 +447,15 @@ static DebugLoc updateInlinedAtInfo(const DebugLoc &DL,
     return DebugLoc::get(DL.getLine(), DL.getCol(), DL.getScope(Ctx),
                          NewInlinedAtDL.getAsMDNode(Ctx));
   }
-                                             
+
   return DebugLoc::get(DL.getLine(), DL.getCol(), DL.getScope(Ctx),
                        InlinedAtDL.getAsMDNode(Ctx));
 }
 
-
 /// fixupLineNumbers - Update inlined instructions' line numbers to 
 /// to encode location where these instructions are inlined.
 static void fixupLineNumbers(Function *Fn, Function::iterator FI,
-                              Instruction *TheCall) {
+                             Instruction *TheCall) {
   DebugLoc TheCallDL = TheCall->getDebugLoc();
   if (TheCallDL.isUnknown())
     return;
@@ -878,18 +477,18 @@ static void fixupLineNumbers(Function *Fn, Function::iterator FI,
   }
 }
 
-// InlineFunction - This function inlines the called function into the basic
-// block of the caller.  This returns false if it is not possible to inline this
-// call.  The program is still in a well defined state if this occurs though.
-//
-// Note that this only does one level of inlining.  For example, if the
-// instruction 'call B' is inlined, and 'B' calls 'C', then the call to 'C' now
-// exists in the instruction stream.  Similarly this will inline a recursive
-// function by one level.
-//
-bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI) {
+/// InlineFunction - This function inlines the called function into the basic
+/// block of the caller.  This returns false if it is not possible to inline
+/// this call.  The program is still in a well defined state if this occurs
+/// though.
+///
+/// Note that this only does one level of inlining.  For example, if the
+/// instruction 'call B' is inlined, and 'B' calls 'C', then the call to 'C' now
+/// exists in the instruction stream.  Similarly this will inline a recursive
+/// function by one level.
+bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI,
+                          bool InsertLifetime) {
   Instruction *TheCall = CS.getInstruction();
-  LLVMContext &Context = TheCall->getContext();
   assert(TheCall->getParent() && TheCall->getParent()->getParent() &&
          "Instruction not in function!");
 
@@ -924,43 +523,40 @@ bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI) {
       return false;
   }
 
-  // Find the personality function used by the landing pads of the caller. If it
-  // exists, then check to see that it matches the personality function used in
-  // the callee.
-  for (Function::const_iterator
-         I = Caller->begin(), E = Caller->end(); I != E; ++I)
+  // Get the personality function from the callee if it contains a landing pad.
+  Value *CalleePersonality = 0;
+  for (Function::const_iterator I = CalledFunc->begin(), E = CalledFunc->end();
+       I != E; ++I)
     if (const InvokeInst *II = dyn_cast<InvokeInst>(I->getTerminator())) {
       const BasicBlock *BB = II->getUnwindDest();
-      // FIXME: This 'isa' here should become go away once the new EH system is
-      // in place.
-      if (!isa<LandingPadInst>(BB->getFirstNonPHI()))
-        continue;
-      const LandingPadInst *LP = cast<LandingPadInst>(BB->getFirstNonPHI());
-      const Value *CallerPersFn = LP->getPersonalityFn();
-
-      // If the personality functions match, then we can perform the
-      // inlining. Otherwise, we can't inline.
-      // TODO: This isn't 100% true. Some personality functions are proper
-      //       supersets of others and can be used in place of the other.
-      for (Function::const_iterator
-             I = CalledFunc->begin(), E = CalledFunc->end(); I != E; ++I)
-        if (const InvokeInst *II = dyn_cast<InvokeInst>(I->getTerminator())) {
-          const BasicBlock *BB = II->getUnwindDest();
-          // FIXME: This 'if/dyn_cast' here should become a normal 'cast' once
-          // the new EH system is in place.
-          if (const LandingPadInst *LP =
-              dyn_cast<LandingPadInst>(BB->getFirstNonPHI()))
-            if (CallerPersFn != LP->getPersonalityFn())
-              return false;
-          break;
-        }
-
+      const LandingPadInst *LP = BB->getLandingPadInst();
+      CalleePersonality = LP->getPersonalityFn();
       break;
     }
 
+  // Find the personality function used by the landing pads of the caller. If it
+  // exists, then check to see that it matches the personality function used in
+  // the callee.
+  if (CalleePersonality) {
+    for (Function::const_iterator I = Caller->begin(), E = Caller->end();
+         I != E; ++I)
+      if (const InvokeInst *II = dyn_cast<InvokeInst>(I->getTerminator())) {
+        const BasicBlock *BB = II->getUnwindDest();
+        const LandingPadInst *LP = BB->getLandingPadInst();
+
+        // If the personality functions match, then we can perform the
+        // inlining. Otherwise, we can't inline.
+        // TODO: This isn't 100% true. Some personality functions are proper
+        //       supersets of others and can be used in place of the other.
+        if (LP->getPersonalityFn() != CalleePersonality)
+          return false;
+
+        break;
+      }
+  }
+
   // Get an iterator to the last basic block in the function, which will have
   // the new function inlined after it.
-  //
   Function::iterator LastBlock = &Caller->back();
 
   // Make sure to capture all of the return instructions from the cloned
@@ -987,7 +583,7 @@ bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI) {
       // by them explicit.  However, we don't do this if the callee is readonly
       // or readnone, because the copy would be unneeded: the callee doesn't
       // modify the struct.
-      if (CalledFunc->paramHasAttr(ArgNo+1, Attribute::ByVal)) {
+      if (CS.isByValArgument(ArgNo)) {
         ActualArg = HandleByValArgument(ActualArg, TheCall, CalledFunc, IFI,
                                         CalledFunc->getParamAlignment(ArgNo+1));
  
@@ -1023,7 +619,6 @@ bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI) {
   // block for the callee, move them to the entry block of the caller.  First
   // calculate which instruction they should be inserted before.  We insert the
   // instructions at the end of the current alloca list.
-  //
   {
     BasicBlock::iterator InsertPoint = Caller->begin()->begin();
     for (BasicBlock::iterator I = FirstNewBlock->begin(),
@@ -1063,7 +658,7 @@ bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI) {
 
   // Leave lifetime markers for the static alloca's, scoping them to the
   // function we just inlined.
-  if (!IFI.StaticAllocas.empty()) {
+  if (InsertLifetime && !IFI.StaticAllocas.empty()) {
     IRBuilder<> builder(FirstNewBlock->begin());
     for (unsigned ai = 0, ae = IFI.StaticAllocas.size(); ai != ae; ++ai) {
       AllocaInst *AI = IFI.StaticAllocas[ai];
@@ -1098,20 +693,6 @@ bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI) {
     for (unsigned i = 0, e = Returns.size(); i != e; ++i) {
       IRBuilder<>(Returns[i]).CreateCall(StackRestore, SavedPtr);
     }
-
-    // Count the number of StackRestore calls we insert.
-    unsigned NumStackRestores = Returns.size();
-
-    // If we are inlining an invoke instruction, insert restores before each
-    // unwind.  These unwinds will be rewritten into branches later.
-    if (InlinedFunctionInfo.ContainsUnwinds && isa<InvokeInst>(TheCall)) {
-      for (Function::iterator BB = FirstNewBlock, E = Caller->end();
-           BB != E; ++BB)
-        if (UnwindInst *UI = dyn_cast<UnwindInst>(BB->getTerminator())) {
-          IRBuilder<>(UI).CreateCall(StackRestore, SavedPtr);
-          ++NumStackRestores;
-        }
-    }
   }
 
   // If we are inlining tail call instruction through a call site that isn't
@@ -1131,21 +712,8 @@ bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI) {
         }
   }
 
-  // If we are inlining through a 'nounwind' call site then any inlined 'unwind'
-  // instructions are unreachable.
-  if (InlinedFunctionInfo.ContainsUnwinds && MarkNoUnwind)
-    for (Function::iterator BB = FirstNewBlock, E = Caller->end();
-         BB != E; ++BB) {
-      TerminatorInst *Term = BB->getTerminator();
-      if (isa<UnwindInst>(Term)) {
-        new UnreachableInst(Context, Term);
-        BB->getInstList().erase(Term);
-      }
-    }
-
   // If we are inlining for an invoke instruction, we must make sure to rewrite
-  // any inlined 'unwind' instructions into branches to the invoke exception
-  // destination, and call instructions into invoke instructions.
+  // any call instructions into invoke instructions.
   if (InvokeInst *II = dyn_cast<InvokeInst>(TheCall))
     HandleInlinedInvoke(II, FirstNewBlock, InlinedFunctionInfo);
 
@@ -1308,11 +876,12 @@ bool llvm::InlineFunction(CallSite CS, InlineFunctionInfo &IFI) {
   // If we inserted a phi node, check to see if it has a single value (e.g. all
   // the entries are the same or undef).  If so, remove the PHI so it doesn't
   // block other optimizations.
-  if (PHI)
+  if (PHI) {
     if (Value *V = SimplifyInstruction(PHI, IFI.TD)) {
       PHI->replaceAllUsesWith(V);
       PHI->eraseFromParent();
     }
+  }
 
   return true;
 }

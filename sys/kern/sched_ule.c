@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
+#include <sys/sdt.h>
 #include <sys/smp.h>
 #include <sys/sx.h>
 #include <sys/sysctl.h>
@@ -76,7 +77,7 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-#if defined(__powerpc__) && defined(E500)
+#if defined(__powerpc__) && defined(BOOKE_E500)
 #error "This architecture is not currently compatible with ULE"
 #endif
 
@@ -189,6 +190,15 @@ static struct td_sched td_sched0;
 #define	SCHED_INTERACT_THRESH	(30)
 
 /*
+ * These parameters determine the slice behavior for batch work.
+ */
+#define	SCHED_SLICE_DEFAULT_DIVISOR	10	/* ~94 ms, 12 stathz ticks. */
+#define	SCHED_SLICE_MIN_DIVISOR		6	/* DEFAULT/MIN = ~16 ms. */
+
+/* Flags kept in td_flags. */
+#define	TDF_SLICEEND	TDF_SCHED2	/* Thread time slice is over. */
+
+/*
  * tickincr:		Converts a stathz tick into a hz domain scaled by
  *			the shift factor.  Without the shift the error rate
  *			due to rounding would be unacceptably high.
@@ -197,9 +207,10 @@ static struct td_sched td_sched0;
  * preempt_thresh:	Priority threshold for preemption and remote IPIs.
  */
 static int sched_interact = SCHED_INTERACT_THRESH;
-static int realstathz;
-static int tickincr;
-static int sched_slice = 1;
+static int tickincr = 8 << SCHED_TICK_SHIFT;
+static int realstathz = 127;	/* reset during boot. */
+static int sched_slice = 10;	/* reset during boot. */
+static int sched_slice_min = 1;	/* reset during boot. */
 #ifdef PREEMPTION
 #ifdef FULL_PREEMPTION
 static int preempt_thresh = PRI_MAX_IDLE;
@@ -219,8 +230,12 @@ static int sched_idlespinthresh = -1;
  * locking in sched_pickcpu();
  */
 struct tdq {
-	/* Ordered to improve efficiency of cpu_search() and switch(). */
-	struct mtx	tdq_lock;		/* run queue lock. */
+	/* 
+	 * Ordered to improve efficiency of cpu_search() and switch().
+	 * tdq_lock is padded to avoid false sharing with tdq_load and
+	 * tdq_cpu_idle.
+	 */
+	struct mtx_padalign tdq_lock;		/* run queue lock. */
 	struct cpu_group *tdq_cg;		/* Pointer to cpu topology. */
 	volatile int	tdq_load;		/* Aggregate load. */
 	volatile int	tdq_cpu_idle;		/* cpu_idle() is active. */
@@ -283,7 +298,7 @@ static struct tdq	tdq_cpu;
 #define	TDQ_LOCK(t)		mtx_lock_spin(TDQ_LOCKPTR((t)))
 #define	TDQ_LOCK_FLAGS(t, f)	mtx_lock_spin_flags(TDQ_LOCKPTR((t)), (f))
 #define	TDQ_UNLOCK(t)		mtx_unlock_spin(TDQ_LOCKPTR((t)))
-#define	TDQ_LOCKPTR(t)		(&(t)->tdq_lock)
+#define	TDQ_LOCKPTR(t)		((struct mtx *)(&(t)->tdq_lock))
 
 static void sched_priority(struct thread *);
 static void sched_thread_priority(struct thread *, u_char);
@@ -326,6 +341,24 @@ SYSINIT(sched_setup, SI_SUB_RUN_QUEUE, SI_ORDER_FIRST, sched_setup, NULL);
 static void sched_initticks(void *dummy);
 SYSINIT(sched_initticks, SI_SUB_CLOCKS, SI_ORDER_THIRD, sched_initticks,
     NULL);
+
+SDT_PROVIDER_DEFINE(sched);
+
+SDT_PROBE_DEFINE3(sched, , , change_pri, change-pri, "struct thread *", 
+    "struct proc *", "uint8_t");
+SDT_PROBE_DEFINE3(sched, , , dequeue, dequeue, "struct thread *", 
+    "struct proc *", "void *");
+SDT_PROBE_DEFINE4(sched, , , enqueue, enqueue, "struct thread *", 
+    "struct proc *", "void *", "int");
+SDT_PROBE_DEFINE4(sched, , , lend_pri, lend-pri, "struct thread *", 
+    "struct proc *", "uint8_t", "struct thread *");
+SDT_PROBE_DEFINE2(sched, , , load_change, load-change, "int", "int");
+SDT_PROBE_DEFINE2(sched, , , off_cpu, off-cpu, "struct thread *", 
+    "struct proc *");
+SDT_PROBE_DEFINE(sched, , , on_cpu, on-cpu);
+SDT_PROBE_DEFINE(sched, , , remain_cpu, remain-cpu);
+SDT_PROBE_DEFINE2(sched, , , surrender, surrender, "struct thread *", 
+    "struct proc *");
 
 /*
  * Print the threads waiting on a run-queue.
@@ -509,6 +542,7 @@ tdq_load_add(struct tdq *tdq, struct thread *td)
 	if ((td->td_flags & TDF_NOLOAD) == 0)
 		tdq->tdq_sysload++;
 	KTR_COUNTER0(KTR_SCHED, "load", tdq->tdq_loadname, tdq->tdq_load);
+	SDT_PROBE2(sched, , , load_change, (int)TDQ_ID(tdq), tdq->tdq_load);
 }
 
 /*
@@ -528,6 +562,31 @@ tdq_load_rem(struct tdq *tdq, struct thread *td)
 	if ((td->td_flags & TDF_NOLOAD) == 0)
 		tdq->tdq_sysload--;
 	KTR_COUNTER0(KTR_SCHED, "load", tdq->tdq_loadname, tdq->tdq_load);
+	SDT_PROBE2(sched, , , load_change, (int)TDQ_ID(tdq), tdq->tdq_load);
+}
+
+/*
+ * Bound timeshare latency by decreasing slice size as load increases.  We
+ * consider the maximum latency as the sum of the threads waiting to run
+ * aside from curthread and target no more than sched_slice latency but
+ * no less than sched_slice_min runtime.
+ */
+static inline int
+tdq_slice(struct tdq *tdq)
+{
+	int load;
+
+	/*
+	 * It is safe to use sys_load here because this is called from
+	 * contexts where timeshare threads are running and so there
+	 * cannot be higher priority load in the system.
+	 */
+	load = tdq->tdq_sysload - 1;
+	if (load >= SCHED_SLICE_MIN_DIVISOR)
+		return (sched_slice_min);
+	if (load <= 1)
+		return (sched_slice);
+	return (sched_slice / load);
 }
 
 /*
@@ -881,10 +940,8 @@ sched_balance_pair(struct tdq *high, struct tdq *low)
 		 * reschedule with the new workload.
 		 */
 		cpu = TDQ_ID(low);
-		sched_pin();
 		if (cpu != PCPU_GET(cpuid))
 			ipi_cpu(cpu, IPI_PREEMPT);
-		sched_unpin();
 	}
 	tdq_unlock_pair(high, low);
 	return (moved);
@@ -1339,13 +1396,6 @@ sched_setup(void *dummy)
 #else
 	tdq_setup(tdq);
 #endif
-	/*
-	 * To avoid divide-by-zero, we set realstathz a dummy value
-	 * in case which sched_clock() called before sched_initticks().
-	 */
-	realstathz = hz;
-	sched_slice = (realstathz/10);	/* ~100ms */
-	tickincr = 1 << SCHED_TICK_SHIFT;
 
 	/* Add thread0's load since it's running. */
 	TDQ_LOCK(tdq);
@@ -1356,7 +1406,7 @@ sched_setup(void *dummy)
 }
 
 /*
- * This routine determines the tickincr after stathz and hz are setup.
+ * This routine determines time constants after stathz and hz are setup.
  */
 /* ARGSUSED */
 static void
@@ -1365,7 +1415,10 @@ sched_initticks(void *dummy)
 	int incr;
 
 	realstathz = stathz ? stathz : hz;
-	sched_slice = (realstathz/10);	/* ~100ms */
+	sched_slice = realstathz / SCHED_SLICE_DEFAULT_DIVISOR;
+	sched_slice_min = sched_slice / SCHED_SLICE_MIN_DIVISOR;
+	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
+	    realstathz);
 
 	/*
 	 * tickincr is shifted out by 10 to avoid rounding errors due to
@@ -1385,16 +1438,10 @@ sched_initticks(void *dummy)
 	 * what realstathz is.
 	 */
 	balance_interval = realstathz;
-	/*
-	 * Set steal thresh to roughly log2(mp_ncpu) but no greater than 4. 
-	 * This prevents excess thrashing on large machines and excess idle 
-	 * on smaller machines.
-	 */
-	steal_thresh = min(fls(mp_ncpus) - 1, 3);
 	affinity = SCHED_AFFINITY_DEFAULT;
 #endif
 	if (sched_idlespinthresh < 0)
-		sched_idlespinthresh = max(16, 2 * hz / realstathz);
+		sched_idlespinthresh = 2 * max(10000, 6 * hz) / realstathz;
 }
 
 
@@ -1570,7 +1617,7 @@ schedinit(void)
 	thread0.td_sched = &td_sched0;
 	td_sched0.ts_ltick = ticks;
 	td_sched0.ts_ftick = ticks;
-	td_sched0.ts_slice = sched_slice;
+	td_sched0.ts_slice = 0;
 }
 
 /*
@@ -1582,8 +1629,8 @@ int
 sched_rr_interval(void)
 {
 
-	/* Convert sched_slice to hz */
-	return (hz/(realstathz/sched_slice));
+	/* Convert sched_slice from stathz to hz. */
+	return (imax(1, (sched_slice * hz + realstathz / 2) / realstathz));
 }
 
 /*
@@ -1625,10 +1672,13 @@ sched_thread_priority(struct thread *td, u_char prio)
 	KTR_POINT3(KTR_SCHED, "thread", sched_tdname(td), "prio",
 	    "prio:%d", td->td_priority, "new prio:%d", prio,
 	    KTR_ATTR_LINKED, sched_tdname(curthread));
-	if (td != curthread && prio > td->td_priority) {
+	SDT_PROBE3(sched, , , change_pri, td, td->td_proc, prio);
+	if (td != curthread && prio < td->td_priority) {
 		KTR_POINT3(KTR_SCHED, "thread", sched_tdname(curthread),
 		    "lend prio", "prio:%d", td->td_priority, "new prio:%d",
 		    prio, KTR_ATTR_LINKED, sched_tdname(td));
+		SDT_PROBE4(sched, , , lend_pri, td, td->td_proc, prio, 
+		    curthread);
 	} 
 	ts = td->td_sched;
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
@@ -1817,7 +1867,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	struct td_sched *ts;
 	struct mtx *mtx;
 	int srqflag;
-	int cpuid;
+	int cpuid, preempted;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	KASSERT(newtd == NULL, ("sched_switch: Unsupported newtd argument"));
@@ -1830,10 +1880,11 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 	ts->ts_rltick = ticks;
 	td->td_lastcpu = td->td_oncpu;
 	td->td_oncpu = NOCPU;
-	if (!(flags & SW_PREEMPT))
-		td->td_flags &= ~TDF_NEEDRESCHED;
+	preempted = !(td->td_flags & TDF_SLICEEND);
+	td->td_flags &= ~(TDF_NEEDRESCHED | TDF_SLICEEND);
 	td->td_owepreempt = 0;
-	tdq->tdq_switchcnt++;
+	if (!TD_IS_IDLETHREAD(td))
+		tdq->tdq_switchcnt++;
 	/*
 	 * The lock pointer in an idle thread should never change.  Reset it
 	 * to CAN_RUN as well.
@@ -1843,7 +1894,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		TD_SET_CAN_RUN(td);
 	} else if (TD_IS_RUNNING(td)) {
 		MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
-		srqflag = (flags & SW_PREEMPT) ?
+		srqflag = preempted ?
 		    SRQ_OURSELF|SRQ_YIELDING|SRQ_PREEMPTED :
 		    SRQ_OURSELF|SRQ_YIELDING;
 #ifdef SMP
@@ -1879,6 +1930,7 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_OUT);
 #endif
+		SDT_PROBE2(sched, , , off_cpu, td, td->td_proc);
 		lock_profile_release_lock(&TDQ_LOCKPTR(tdq)->lock_object);
 		TDQ_LOCKPTR(tdq)->mtx_lock = (uintptr_t)newtd;
 		sched_pctcpu_update(newtd->td_sched, 0);
@@ -1903,12 +1955,16 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 		tdq = TDQ_CPU(cpuid);
 		lock_profile_obtain_lock_success(
 		    &TDQ_LOCKPTR(tdq)->lock_object, 0, 0, __FILE__, __LINE__);
+
+		SDT_PROBE0(sched, , , on_cpu);
 #ifdef	HWPMC_HOOKS
 		if (PMC_PROC_IS_USING_PMCS(td->td_proc))
 			PMC_SWITCH_CONTEXT(td, PMC_FN_CSW_IN);
 #endif
-	} else
+	} else {
 		thread_unblock_switch(td, mtx);
+		SDT_PROBE0(sched, , , remain_cpu);
+	}
 	/*
 	 * Assert that all went well and return.
 	 */
@@ -1980,8 +2036,10 @@ sched_wakeup(struct thread *td)
 		sched_interact_update(td);
 		sched_pctcpu_update(ts, 0);
 	}
-	/* Reset the slice value after we sleep. */
-	ts->ts_slice = sched_slice;
+	/*
+	 * Reset the slice value since we slept and advanced the round-robin.
+	 */
+	ts->ts_slice = 0;
 	sched_add(td, SRQ_BORING);
 }
 
@@ -2013,14 +2071,16 @@ sched_fork_thread(struct thread *td, struct thread *child)
 {
 	struct td_sched *ts;
 	struct td_sched *ts2;
+	struct tdq *tdq;
 
+	tdq = TDQ_SELF();
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	/*
 	 * Initialize child.
 	 */
 	ts = td->td_sched;
 	ts2 = child->td_sched;
-	child->td_lock = TDQ_LOCKPTR(TDQ_SELF());
+	child->td_lock = TDQ_LOCKPTR(tdq);
 	child->td_cpuset = cpuset_ref(td->td_cpuset);
 	ts2->ts_cpu = ts->ts_cpu;
 	ts2->ts_flags = 0;
@@ -2039,7 +2099,8 @@ sched_fork_thread(struct thread *td, struct thread *child)
 	 */
 	ts2->ts_slptime = ts->ts_slptime;
 	ts2->ts_runtime = ts->ts_runtime;
-	ts2->ts_slice = 1;	/* Attempt to quickly learn interactivity. */
+	/* Attempt to quickly learn interactivity. */
+	ts2->ts_slice = tdq_slice(tdq) - sched_slice_min;
 #ifdef KTR
 	bzero(ts2->ts_name, sizeof(ts2->ts_name));
 #endif
@@ -2101,6 +2162,8 @@ void
 sched_preempt(struct thread *td)
 {
 	struct tdq *tdq;
+
+	SDT_PROBE2(sched, , , surrender, td, td->td_proc);
 
 	thread_lock(td);
 	tdq = TDQ_SELF();
@@ -2197,16 +2260,15 @@ sched_clock(struct thread *td)
 		sched_interact_update(td);
 		sched_priority(td);
 	}
+
 	/*
-	 * We used up one time slice.
+	 * Force a context switch if the current thread has used up a full
+	 * time slice (default is 100ms).
 	 */
-	if (--ts->ts_slice > 0)
-		return;
-	/*
-	 * We're out of time, force a requeue at userret().
-	 */
-	ts->ts_slice = sched_slice;
-	td->td_flags |= TDF_NEEDRESCHED;
+	if (!TD_IS_IDLETHREAD(td) && ++ts->ts_slice >= tdq_slice(tdq)) {
+		ts->ts_slice = 0;
+		td->td_flags |= TDF_NEEDRESCHED | TDF_SLICEEND;
+	}
 }
 
 /*
@@ -2330,6 +2392,8 @@ sched_add(struct thread *td, int flags)
 	    sched_tdname(curthread));
 	KTR_POINT1(KTR_SCHED, "thread", sched_tdname(curthread), "wokeup",
 	    KTR_ATTR_LINKED, sched_tdname(td));
+	SDT_PROBE4(sched, , , enqueue, td, td->td_proc, NULL, 
+	    flags & SRQ_PREEMPTED);
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
 	/*
 	 * Recalculate the priority before we select the target cpu or
@@ -2375,6 +2439,7 @@ sched_rem(struct thread *td)
 
 	KTR_STATE1(KTR_SCHED, "thread", sched_tdname(td), "runq rem",
 	    "prio:%d", td->td_priority);
+	SDT_PROBE3(sched, , , dequeue, td, td->td_proc, NULL);
 	tdq = TDQ_CPU(td->td_sched->ts_cpu);
 	TDQ_LOCK_ASSERT(tdq, MA_OWNED);
 	MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
@@ -2550,18 +2615,31 @@ sched_idletd(void *dummy)
 {
 	struct thread *td;
 	struct tdq *tdq;
-	int switchcnt;
+	int oldswitchcnt, switchcnt;
 	int i;
 
 	mtx_assert(&Giant, MA_NOTOWNED);
 	td = curthread;
 	tdq = TDQ_SELF();
+	THREAD_NO_SLEEPING();
+	oldswitchcnt = -1;
 	for (;;) {
-#ifdef SMP
-		if (tdq_idled(tdq) == 0)
-			continue;
-#endif
+		if (tdq->tdq_load) {
+			thread_lock(td);
+			mi_switch(SW_VOL | SWT_IDLE, NULL);
+			thread_unlock(td);
+		}
 		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
+#ifdef SMP
+		if (switchcnt != oldswitchcnt) {
+			oldswitchcnt = switchcnt;
+			if (tdq_idled(tdq) == 0)
+				continue;
+		}
+		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
+#else
+		oldswitchcnt = switchcnt;
+#endif
 		/*
 		 * If we're switching very frequently, spin while checking
 		 * for load rather than entering a low power state that 
@@ -2576,20 +2654,26 @@ sched_idletd(void *dummy)
 				cpu_spinwait();
 			}
 		}
+
+		/* If there was context switch during spin, restart it. */
 		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
-		if (tdq->tdq_load == 0) {
-			tdq->tdq_cpu_idle = 1;
-			if (tdq->tdq_load == 0) {
-				cpu_idle(switchcnt > sched_idlespinthresh * 4);
-				tdq->tdq_switchcnt++;
-			}
-			tdq->tdq_cpu_idle = 0;
-		}
-		if (tdq->tdq_load) {
-			thread_lock(td);
-			mi_switch(SW_VOL | SWT_IDLE, NULL);
-			thread_unlock(td);
-		}
+		if (tdq->tdq_load != 0 || switchcnt != oldswitchcnt)
+			continue;
+
+		/* Run main MD idle handler. */
+		tdq->tdq_cpu_idle = 1;
+		cpu_idle(switchcnt * 4 > sched_idlespinthresh);
+		tdq->tdq_cpu_idle = 0;
+
+		/*
+		 * Account thread-less hardware interrupts and
+		 * other wakeup reasons equal to context switches.
+		 */
+		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
+		if (switchcnt != oldswitchcnt)
+			continue;
+		tdq->tdq_switchcnt++;
+		oldswitchcnt++;
 	}
 }
 
@@ -2758,21 +2842,45 @@ sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS)
 
 #endif
 
+static int
+sysctl_kern_quantum(SYSCTL_HANDLER_ARGS)
+{
+	int error, new_val, period;
+
+	period = 1000000 / realstathz;
+	new_val = period * sched_slice;
+	error = sysctl_handle_int(oidp, &new_val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	if (new_val <= 0)
+		return (EINVAL);
+	sched_slice = imax(1, (new_val + period / 2) / period);
+	sched_slice_min = sched_slice / SCHED_SLICE_MIN_DIVISOR;
+	hogticks = imax(1, (2 * hz * sched_slice + realstathz / 2) /
+	    realstathz);
+	return (0);
+}
+
 SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RW, 0, "Scheduler");
 SYSCTL_STRING(_kern_sched, OID_AUTO, name, CTLFLAG_RD, "ULE", 0,
     "Scheduler name");
+SYSCTL_PROC(_kern_sched, OID_AUTO, quantum, CTLTYPE_INT | CTLFLAG_RW,
+    NULL, 0, sysctl_kern_quantum, "I",
+    "Quantum for timeshare threads in microseconds");
 SYSCTL_INT(_kern_sched, OID_AUTO, slice, CTLFLAG_RW, &sched_slice, 0,
-    "Slice size for timeshare threads");
+    "Quantum for timeshare threads in stathz ticks");
 SYSCTL_INT(_kern_sched, OID_AUTO, interact, CTLFLAG_RW, &sched_interact, 0,
-     "Interactivity score threshold");
-SYSCTL_INT(_kern_sched, OID_AUTO, preempt_thresh, CTLFLAG_RW, &preempt_thresh,
-     0,"Min priority for preemption, lower priorities have greater precedence");
-SYSCTL_INT(_kern_sched, OID_AUTO, static_boost, CTLFLAG_RW, &static_boost,
-     0,"Controls whether static kernel priorities are assigned to sleeping threads.");
-SYSCTL_INT(_kern_sched, OID_AUTO, idlespins, CTLFLAG_RW, &sched_idlespins,
-     0,"Number of times idle will spin waiting for new work.");
-SYSCTL_INT(_kern_sched, OID_AUTO, idlespinthresh, CTLFLAG_RW, &sched_idlespinthresh,
-     0,"Threshold before we will permit idle spinning.");
+    "Interactivity score threshold");
+SYSCTL_INT(_kern_sched, OID_AUTO, preempt_thresh, CTLFLAG_RW,
+    &preempt_thresh, 0,
+    "Maximal (lowest) priority for preemption");
+SYSCTL_INT(_kern_sched, OID_AUTO, static_boost, CTLFLAG_RW, &static_boost, 0,
+    "Assign static kernel priorities to sleeping threads");
+SYSCTL_INT(_kern_sched, OID_AUTO, idlespins, CTLFLAG_RW, &sched_idlespins, 0,
+    "Number of times idle thread will spin waiting for new work");
+SYSCTL_INT(_kern_sched, OID_AUTO, idlespinthresh, CTLFLAG_RW,
+    &sched_idlespinthresh, 0,
+    "Threshold before we will permit idle thread spinning");
 #ifdef SMP
 SYSCTL_INT(_kern_sched, OID_AUTO, affinity, CTLFLAG_RW, &affinity, 0,
     "Number of hz ticks to keep thread affinity for");
@@ -2780,17 +2888,14 @@ SYSCTL_INT(_kern_sched, OID_AUTO, balance, CTLFLAG_RW, &rebalance, 0,
     "Enables the long-term load balancer");
 SYSCTL_INT(_kern_sched, OID_AUTO, balance_interval, CTLFLAG_RW,
     &balance_interval, 0,
-    "Average frequency in stathz ticks to run the long-term balancer");
+    "Average period in stathz ticks to run the long-term balancer");
 SYSCTL_INT(_kern_sched, OID_AUTO, steal_idle, CTLFLAG_RW, &steal_idle, 0,
     "Attempts to steal work from other cores before idling");
 SYSCTL_INT(_kern_sched, OID_AUTO, steal_thresh, CTLFLAG_RW, &steal_thresh, 0,
-    "Minimum load on remote cpu before we'll steal");
-
-/* Retrieve SMP topology */
+    "Minimum load on remote CPU before we'll steal");
 SYSCTL_PROC(_kern_sched, OID_AUTO, topology_spec, CTLTYPE_STRING |
-    CTLFLAG_RD, NULL, 0, sysctl_kern_sched_topology_spec, "A", 
+    CTLFLAG_RD, NULL, 0, sysctl_kern_sched_topology_spec, "A",
     "XML dump of detected CPU topology");
-
 #endif
 
 /* ps compat.  All cpu percentages from ULE are weighted. */

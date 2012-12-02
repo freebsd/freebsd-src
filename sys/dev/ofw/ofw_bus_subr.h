@@ -74,4 +74,7 @@ void	ofw_bus_find_iparent(phandle_t);
 int ofw_bus_is_compatible(device_t, const char *);
 int ofw_bus_is_compatible_strict(device_t, const char *);
 
+/* Helper routine for checking existence of a prop */
+int ofw_bus_has_prop(device_t, const char *);
+
 #endif /* !_DEV_OFW_OFW_BUS_SUBR_H_ */

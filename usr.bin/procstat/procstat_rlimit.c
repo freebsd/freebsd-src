@@ -66,8 +66,8 @@ static struct {
 #error "Resource limits have grown. Add new entries to rlimit_param[]."
 #endif
 
-static
-const char *humanize_rlimit(int indx, rlim_t limit)
+static const char *
+humanize_rlimit(int indx, rlim_t limit)
 {
 	static char buf[14];
 	int scale;

@@ -61,9 +61,6 @@ static MALLOC_DEFINE(M_SIMPLEBUS, "simplebus", "simplebus devices information");
 struct simplebus_softc {
 	int	sc_addr_cells;
 	int	sc_size_cells;
-	u_long	sc_start_pa;
-	u_long	sc_start_va;
-	u_long	sc_size;
 };
 
 struct simplebus_devinfo {
@@ -155,10 +152,6 @@ simplebus_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 
-	sc->sc_start_pa = fdt_immr_pa;
-	sc->sc_start_va = fdt_immr_va;
-	sc->sc_size = fdt_immr_size;
-
 	/*
 	 * Walk simple-bus and add direct subordinates as our children.
 	 */
@@ -182,10 +175,11 @@ simplebus_attach(device_t dev)
 		}
 
 		resource_list_init(&di->di_res);
-
-		if (fdt_reg_to_rl(dt_child, &di->di_res, sc->sc_start_va)) {
-			device_printf(dev, "%s: could not process 'reg' "
+		if (fdt_reg_to_rl(dt_child, &di->di_res)) {
+			device_printf(dev,
+			    "%s: could not process 'reg' "
 			    "property\n", di->di_ofw.obd_name);
+			/* XXX should unmap */
 			ofw_bus_gen_destroy_devinfo(&di->di_ofw);
 			free(di, M_SIMPLEBUS);
 			continue;
@@ -195,6 +189,7 @@ simplebus_attach(device_t dev)
 			device_printf(dev, "%s: could not process "
 			    "'interrupts' property\n", di->di_ofw.obd_name);
 			resource_list_free(&di->di_res);
+			/* XXX should unmap */
 			ofw_bus_gen_destroy_devinfo(&di->di_ofw);
 			free(di, M_SIMPLEBUS);
 			continue;
@@ -206,6 +201,7 @@ simplebus_attach(device_t dev)
 			device_printf(dev, "could not add child: %s\n",
 			    di->di_ofw.obd_name);
 			resource_list_free(&di->di_res);
+			/* XXX should unmap */
 			ofw_bus_gen_destroy_devinfo(&di->di_ofw);
 			free(di, M_SIMPLEBUS);
 			continue;
@@ -288,39 +284,34 @@ simplebus_setup_intr(device_t bus, device_t child, struct resource *res,
 	struct simplebus_devinfo *di;
 	enum intr_trigger trig;
 	enum intr_polarity pol;
-	int irq, rid;
+	int error, rid;
+
+	if (device_get_parent(child) != bus)
+		return (ECHILD);
+
+	di = device_get_ivars(child);
+	if (di == NULL)
+		return (ENXIO);
 
 	if (res == NULL)
-		panic("simplebus_setup_intr: NULL irq resource!");
+		return (EINVAL);
 
 	rid = rman_get_rid(res);
-	if (rid > DI_MAX_INTR_NUM) {
-		device_printf(child, "rid out of range rid = %d\n", rid);
-		return (ERANGE);
-	}
-
-	irq = rman_get_start(res);
-
-	if ((di = device_get_ivars(child)) == NULL) {
-		device_printf(child, "could not retrieve devinfo\n");
-		return (ENXIO);
-	}
+	if (rid >= DI_MAX_INTR_NUM)
+		return (ENOENT);
 
 	trig = di->di_intr_sl[rid].trig;
 	pol = di->di_intr_sl[rid].pol;
+	if (trig != INTR_TRIGGER_CONFORM || pol != INTR_POLARITY_CONFORM) {
+		error = bus_generic_config_intr(bus, rman_get_start(res),
+		    trig, pol);
+		if (error)
+			return (error);
+	}
 
-	debugf("intr config: irq = %d, trig = %d, pol = %d\n", irq, trig, pol);
-
-#if defined(__powerpc__)
-	int err;
-
-	err = powerpc_config_intr(irq, trig, pol);
-	if (err)
-		return (err);
-#endif
-
-	return (bus_generic_setup_intr(bus, child, res, flags, filter, ihand,
-	    arg, cookiep));
+	error = bus_generic_setup_intr(bus, child, res, flags, filter, ihand,
+	    arg, cookiep);
+	return (error);
 }
 
 static const struct ofw_bus_devinfo *

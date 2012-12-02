@@ -50,6 +50,7 @@ class Pass;
 class AnalysisUsage;
 class MemTransferInst;
 class MemIntrinsic;
+class DominatorTree;
 
 class AliasAnalysis {
 protected:
@@ -327,7 +328,7 @@ public:
   }
 
   /// doesAccessArgPointees - Return true if functions with the specified
-  /// behavior are known to potentially read or write  from objects pointed
+  /// behavior are known to potentially read or write from objects pointed
   /// to be their pointer-typed arguments (with arbitrary offsets).
   ///
   static bool doesAccessArgPointees(ModRefBehavior MRB) {
@@ -462,6 +463,18 @@ public:
   virtual ModRefResult getModRefInfo(ImmutableCallSite CS1,
                                      ImmutableCallSite CS2);
 
+  /// callCapturesBefore - Return information about whether a particular call 
+  /// site modifies or reads the specified memory location.
+  ModRefResult callCapturesBefore(const Instruction *I,
+                                  const AliasAnalysis::Location &MemLoc,
+                                  DominatorTree *DT);
+
+  /// callCapturesBefore - A convenience wrapper.
+  ModRefResult callCapturesBefore(const Instruction *I, const Value *P,
+                                  uint64_t Size, DominatorTree *DT) {
+    return callCapturesBefore(I, Location(P, Size), DT);
+  }
+
   //===--------------------------------------------------------------------===//
   /// Higher level methods for querying mod/ref information.
   ///
@@ -567,6 +580,11 @@ bool isNoAliasCall(const Value *V);
 ///    NoAlias returns
 ///
 bool isIdentifiedObject(const Value *V);
+
+/// isKnownNonNull - Return true if this pointer couldn't possibly be null by
+/// its definition.  This returns true for allocas, non-extern-weak globals and
+/// byval arguments.
+bool isKnownNonNull(const Value *V);
 
 } // End llvm namespace
 

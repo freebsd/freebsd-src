@@ -41,7 +41,7 @@ extern char	*PkgAddCmd;
 extern char	FirstPen[];
 extern add_mode_t AddMode;
 
-int		make_hierarchy(char *);
+int		make_hierarchy(char *, Boolean);
 void		extract_plist(const char *, Package *);
 void		apply_perms(const char *, const char *);
 

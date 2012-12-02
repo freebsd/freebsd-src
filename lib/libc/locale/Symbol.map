@@ -60,13 +60,9 @@ FBSD_1.0 {
 	nextwctype;
 	nl_langinfo;
 	__maskrune;
-	__maskrune_l;
 	__sbmaskrune;
-	__sbmaskrune_l;
 	__istype;
-	__istype_l;
 	__sbistype;
-	__sbistype_l;
 	__isctype;
 	__toupper;
 	__sbtoupper;
@@ -197,6 +193,10 @@ FBSD_1.3 {
 	wcstoul_l;
 	wcstoull_l;
 	wcstoumax_l;
+	__sbistype_l;
+	__maskrune_l;
+	__sbmaskrune_l;
+	__istype_l;
 	__runes_for_locale;
 	_ThreadRuneLocale;
 };

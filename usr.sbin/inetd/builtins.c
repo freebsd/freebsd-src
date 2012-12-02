@@ -691,15 +691,9 @@ printit:
 uint32_t
 machtime(void)
 {
-	struct timeval tv;
 
-	if (gettimeofday(&tv, (struct timezone *)NULL) < 0) {
-		if (debug)
-			warnx("unable to get time of day");
-		return (0L);
-	}
 #define	OFFSET ((uint32_t)25567 * 24*60*60)
-	return (htonl((uint32_t)(tv.tv_sec + OFFSET)));
+	return (htonl((uint32_t)(time(NULL) + OFFSET)));
 #undef OFFSET
 }
 

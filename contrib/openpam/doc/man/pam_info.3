@@ -34,7 +34,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd December 18, 2011
+.Dd May 26, 2012
 .Dt PAM_INFO 3
 .Os
 .Sh NAME
@@ -49,13 +49,13 @@
 .Fn pam_info "const pam_handle_t *pamh" "const char *fmt" "..."
 .Sh DESCRIPTION
 The
-.Nm
+.Fn pam_info
 function displays an informational message through the
 intermediary of the given PAM context's conversation function.
 .Pp
 .Sh RETURN VALUES
 The
-.Nm
+.Fn pam_info
 function returns one of the following values:
 .Bl -tag -width 18n
 .It Bq Er PAM_BUF_ERR
@@ -73,15 +73,15 @@ System error.
 .Xr pam_vinfo 3
 .Sh STANDARDS
 The
-.Nm
+.Fn pam_info
 function is an OpenPAM extension.
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were developed for the
+.Fn pam_info
+function and this manual page were
+developed for the
 .Fx
-Project by
-ThinkSec AS and Network Associates Laboratories, the
+Project by ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,

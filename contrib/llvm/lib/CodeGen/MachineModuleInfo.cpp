@@ -257,7 +257,7 @@ MachineModuleInfo::MachineModuleInfo(const MCAsmInfo &MAI,
   : ImmutablePass(ID), Context(MAI, MRI, MOFI),
     ObjFileMMI(0), CompactUnwindEncoding(0), CurCallSite(0), CallsEHReturn(0),
     CallsUnwindInit(0), DbgInfoAvailable(false),
-    CallsExternalVAFunctionWithFloatingPointArguments(false) {
+    UsesVAFloatArgument(false) {
   initializeMachineModuleInfoPass(*PassRegistry::getPassRegistry());
   // Always emit some info, by default "no personality" info.
   Personalities.push_back(NULL);
@@ -268,9 +268,9 @@ MachineModuleInfo::MachineModuleInfo(const MCAsmInfo &MAI,
 MachineModuleInfo::MachineModuleInfo()
   : ImmutablePass(ID),
     Context(*(MCAsmInfo*)0, *(MCRegisterInfo*)0, (MCObjectFileInfo*)0) {
-  assert(0 && "This MachineModuleInfo constructor should never be called, MMI "
-         "should always be explicitly constructed by LLVMTargetMachine");
-  abort();
+  llvm_unreachable("This MachineModuleInfo constructor should never be called, "
+                   "MMI should always be explicitly constructed by "
+                   "LLVMTargetMachine");
 }
 
 MachineModuleInfo::~MachineModuleInfo() {
@@ -503,8 +503,7 @@ void MachineModuleInfo::TidyLandingPads(DenseMap<MCSymbol*, uintptr_t> *LPMap) {
 /// indexes.
 void MachineModuleInfo::setCallSiteLandingPad(MCSymbol *Sym,
                                               ArrayRef<unsigned> Sites) {
-  for (unsigned I = 0, E = Sites.size(); I != E; ++I)
-    LPadToCallSiteMap[Sym].push_back(Sites[I]);
+  LPadToCallSiteMap[Sym].append(Sites.begin(), Sites.end());
 }
 
 /// getTypeIDFor - Return the type id for the specified typeinfo.  This is
@@ -541,8 +540,7 @@ try_next:;
   // Add the new filter.
   int FilterID = -(1 + FilterIds.size());
   FilterIds.reserve(FilterIds.size() + TyIds.size() + 1);
-  for (unsigned I = 0, N = TyIds.size(); I != N; ++I)
-    FilterIds.push_back(TyIds[I]);
+  FilterIds.insert(FilterIds.end(), TyIds.begin(), TyIds.end());
   FilterEnds.push_back(FilterIds.size());
   FilterIds.push_back(0); // terminator
   return FilterID;
@@ -561,13 +559,13 @@ unsigned MachineModuleInfo::getPersonalityIndex() const {
   const Function* Personality = NULL;
 
   // Scan landing pads. If there is at least one non-NULL personality - use it.
-  for (unsigned i = 0; i != LandingPads.size(); ++i)
+  for (unsigned i = 0, e = LandingPads.size(); i != e; ++i)
     if (LandingPads[i].Personality) {
       Personality = LandingPads[i].Personality;
       break;
     }
 
-  for (unsigned i = 0; i < Personalities.size(); ++i) {
+  for (unsigned i = 0, e = Personalities.size(); i < e; ++i) {
     if (Personalities[i] == Personality)
       return i;
   }

@@ -108,7 +108,7 @@ msdosfs_lookup_(struct vnode *vdp, struct vnode **vpp,
 	struct denode *dp;
 	struct denode *tdp;
 	struct msdosfsmount *pmp;
-	struct buf *bp = 0;
+	struct buf *bp = NULL;
 	struct direntry *dep = NULL;
 	u_char dosfilename[12];
 	int flags = cnp->cn_flags;
@@ -649,7 +649,7 @@ createde(dep, ddep, depp, cnp)
 		dirclust = de_clcount(pmp, diroffset);
 		error = extendfile(ddep, dirclust, 0, 0, DE_CLEAR);
 		if (error) {
-			(void)detrunc(ddep, ddep->de_FileSize, 0, NOCRED, NULL);
+			(void)detrunc(ddep, ddep->de_FileSize, 0, NOCRED);
 			return error;
 		}
 

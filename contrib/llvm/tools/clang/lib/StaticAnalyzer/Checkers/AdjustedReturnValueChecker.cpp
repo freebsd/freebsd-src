@@ -37,20 +37,21 @@ void AdjustedReturnValueChecker::checkPostStmt(const CallExpr *CE,
   QualType expectedResultTy = CE->getType();
 
   // Fetch the signature of the called function.
-  const ProgramState *state = C.getState();
+  ProgramStateRef state = C.getState();
+  const LocationContext *LCtx = C.getLocationContext();
 
-  SVal V = state->getSVal(CE);
+  SVal V = state->getSVal(CE, LCtx);
   
   if (V.isUnknown())
     return;
   
   // Casting to void?  Discard the value.
   if (expectedResultTy->isVoidType()) {
-    C.generateNode(state->BindExpr(CE, UnknownVal()));
+    C.addTransition(state->BindExpr(CE, LCtx, UnknownVal()));
     return;
   }                   
 
-  const MemRegion *callee = state->getSVal(CE->getCallee()).getAsRegion();
+  const MemRegion *callee = state->getSVal(CE->getCallee(), LCtx).getAsRegion();
   if (!callee)
     return;
 
@@ -82,7 +83,7 @@ void AdjustedReturnValueChecker::checkPostStmt(const CallExpr *CE,
     // the cast avoids some assertion failures elsewhere.
     SValBuilder &svalBuilder = C.getSValBuilder();
     V = svalBuilder.evalCast(V, expectedResultTy, actualResultTy);
-    C.generateNode(state->BindExpr(CE, V));
+    C.addTransition(state->BindExpr(CE, LCtx, V));
   }
 }
 

@@ -73,6 +73,7 @@ static struct g_raid_tr_class g_raid_tr_concat_class = {
 	"CONCAT",
 	g_raid_tr_concat_methods,
 	sizeof(struct g_raid_tr_concat_object),
+	.trc_enable = 1,
 	.trc_priority = 50
 };
 
@@ -247,7 +248,8 @@ g_raid_tr_iostart_concat(struct g_raid_tr_object *tr, struct bio *bp)
 		cbp->bio_caller1 = sd;
 		bioq_insert_tail(&queue, cbp);
 		remain -= length;
-		addr += length;
+		if (bp->bio_cmd != BIO_DELETE)
+			addr += length;
 		offset = 0;
 		no++;
 		KASSERT(no < vol->v_disks_count || remain == 0,
@@ -340,4 +342,4 @@ g_raid_tr_free_concat(struct g_raid_tr_object *tr)
 	return (0);
 }
 
-G_RAID_TR_DECLARE(g_raid_tr_concat);
+G_RAID_TR_DECLARE(concat, "CONCAT");

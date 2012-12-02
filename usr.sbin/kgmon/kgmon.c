@@ -90,7 +90,9 @@ main(int argc, char **argv)
 	struct kvmvars kvmvars;
 	char *system, *kmemf;
 
-	seteuid(getuid());
+	if (seteuid(getuid()) != 0) {
+		err(1, "seteuid failed\n");
+	}
 	kmemf = NULL;
 	system = NULL;
 	while ((ch = getopt(argc, argv, "M:N:Bbhpr")) != -1) {

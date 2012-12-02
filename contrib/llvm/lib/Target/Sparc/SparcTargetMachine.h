@@ -28,14 +28,15 @@ namespace llvm {
 class SparcTargetMachine : public LLVMTargetMachine {
   SparcSubtarget Subtarget;
   const TargetData DataLayout;       // Calculates type size & alignment
+  SparcInstrInfo InstrInfo;
   SparcTargetLowering TLInfo;
   SparcSelectionDAGInfo TSInfo;
-  SparcInstrInfo InstrInfo;
   SparcFrameLowering FrameLowering;
 public:
   SparcTargetMachine(const Target &T, StringRef TT,
-                     StringRef CPU, StringRef FS,
-                     Reloc::Model RM, CodeModel::Model CM, bool is64bit);
+                     StringRef CPU, StringRef FS, const TargetOptions &Options,
+                     Reloc::Model RM, CodeModel::Model CM,
+                     CodeGenOpt::Level OL, bool is64bit);
 
   virtual const SparcInstrInfo *getInstrInfo() const { return &InstrInfo; }
   virtual const TargetFrameLowering  *getFrameLowering() const {
@@ -54,26 +55,31 @@ public:
   virtual const TargetData       *getTargetData() const { return &DataLayout; }
 
   // Pass Pipeline Configuration
-  virtual bool addInstSelector(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
-  virtual bool addPreEmitPass(PassManagerBase &PM, CodeGenOpt::Level OptLevel);
+  virtual TargetPassConfig *createPassConfig(PassManagerBase &PM);
 };
 
 /// SparcV8TargetMachine - Sparc 32-bit target machine
 ///
 class SparcV8TargetMachine : public SparcTargetMachine {
+  virtual void anchor();
 public:
   SparcV8TargetMachine(const Target &T, StringRef TT,
                        StringRef CPU, StringRef FS,
-                       Reloc::Model RM, CodeModel::Model CM);
+                       const TargetOptions &Options,
+                       Reloc::Model RM, CodeModel::Model CM,
+                       CodeGenOpt::Level OL);
 };
 
 /// SparcV9TargetMachine - Sparc 64-bit target machine
 ///
 class SparcV9TargetMachine : public SparcTargetMachine {
+  virtual void anchor();
 public:
   SparcV9TargetMachine(const Target &T, StringRef TT,
                        StringRef CPU, StringRef FS,
-                       Reloc::Model RM, CodeModel::Model CM);
+                       const TargetOptions &Options,
+                       Reloc::Model RM, CodeModel::Model CM,
+                       CodeGenOpt::Level OL);
 };
 
 } // end namespace llvm

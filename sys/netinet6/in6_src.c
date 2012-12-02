@@ -127,20 +127,20 @@ static VNET_DEFINE(struct in6_addrpolicy, defaultaddrpolicy);
 
 VNET_DEFINE(int, ip6_prefer_tempaddr) = 0;
 
-static int selectroute __P((struct sockaddr_in6 *, struct ip6_pktopts *,
+static int selectroute(struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
-	struct rtentry **, int, u_int));
-static int in6_selectif __P((struct sockaddr_in6 *, struct ip6_pktopts *,
+	struct rtentry **, int, u_int);
+static int in6_selectif(struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *ro, struct ifnet **,
-	struct ifnet *, u_int));
+	struct ifnet *, u_int);
 
 static struct in6_addrpolicy *lookup_addrsel_policy(struct sockaddr_in6 *);
 
 static void init_policy_queue(void);
 static int add_addrsel_policyent(struct in6_addrpolicy *);
 static int delete_addrsel_policyent(struct in6_addrpolicy *);
-static int walk_addrsel_policy __P((int (*)(struct in6_addrpolicy *, void *),
-				    void *));
+static int walk_addrsel_policy(int (*)(struct in6_addrpolicy *, void *),
+	void *);
 static int dump_addrsel_policyent(struct in6_addrpolicy *, void *);
 static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
 
@@ -597,6 +597,7 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		if (ron->ro_rt == NULL) {
 			in6_rtalloc(ron, fibnum); /* multi path case? */
 			if (ron->ro_rt == NULL) {
+				/* XXX-BZ WT.? */
 				if (ron->ro_rt) {
 					RTFREE(ron->ro_rt);
 					ron->ro_rt = NULL;
@@ -608,9 +609,9 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 
 		rt = ron->ro_rt;
 		ifp = rt->rt_ifp;
-		IF_AFDATA_LOCK(ifp);
+		IF_AFDATA_RLOCK(ifp);
 		la = lla_lookup(LLTABLE6(ifp), 0, (struct sockaddr *)&sin6_next->sin6_addr);
-		IF_AFDATA_UNLOCK(ifp);
+		IF_AFDATA_RUNLOCK(ifp);
 		if (la != NULL) 
 			LLE_RUNLOCK(la);
 		else {
@@ -873,8 +874,7 @@ in6_selecthlim(struct inpcb *in6p, struct ifnet *ifp)
 			RTFREE(ro6.ro_rt);
 			if (lifp)
 				return (ND_IFINFO(lifp)->chlim);
-		} else
-			return (V_ip6_defhlim);
+		}
 	}
 	return (V_ip6_defhlim);
 }
@@ -1103,8 +1103,7 @@ delete_addrsel_policyent(struct in6_addrpolicy *key)
 }
 
 static int
-walk_addrsel_policy(int (*callback)(struct in6_addrpolicy *, void *),
-    void *w)
+walk_addrsel_policy(int (*callback)(struct in6_addrpolicy *, void *), void *w)
 {
 	struct addrsel_policyent *pol;
 	int error = 0;

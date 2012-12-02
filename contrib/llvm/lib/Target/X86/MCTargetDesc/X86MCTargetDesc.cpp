@@ -1,4 +1,4 @@
-//===-- X86MCTargetDesc.cpp - X86 Target Descriptions -----------*- C++ -*-===//
+//===-- X86MCTargetDesc.cpp - X86 Target Descriptions ---------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -24,6 +24,7 @@
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/Host.h"
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetRegistry.h"
 
 #define GET_REGINFO_MC_DESC
@@ -35,6 +36,10 @@
 #define GET_SUBTARGETINFO_MC_DESC
 #include "X86GenSubtargetInfo.inc"
 
+#if _MSC_VER
+#include <intrin.h>
+#endif
+
 using namespace llvm;
 
 
@@ -45,10 +50,6 @@ std::string X86_MC::ParseX86Triple(StringRef TT) {
     FS = "+64bit-mode";
   else
     FS = "-64bit-mode";
-  if (TheTriple.getOS() == Triple::NativeClient)
-    FS += ",+nacl-mode";
-  else
-    FS += ",-nacl-mode";
   return FS;
 }
 
@@ -76,6 +77,8 @@ bool X86_MC::GetCpuIDAndInfo(unsigned value, unsigned *rEAX,
     *rECX = registers[2];
     *rEDX = registers[3];
     return false;
+  #else
+    return true;
   #endif
 #elif defined(i386) || defined(__i386__) || defined(__x86__) || defined(_M_IX86)
   #if defined(__GNUC__)
@@ -102,9 +105,81 @@ bool X86_MC::GetCpuIDAndInfo(unsigned value, unsigned *rEAX,
       mov   dword ptr [esi],edx
     }
     return false;
+  #else
+    return true;
   #endif
-#endif
+#else
   return true;
+#endif
+}
+
+/// GetCpuIDAndInfoEx - Execute the specified cpuid with subleaf and return the
+/// 4 values in the specified arguments.  If we can't run cpuid on the host,
+/// return true.
+bool X86_MC::GetCpuIDAndInfoEx(unsigned value, unsigned subleaf, unsigned *rEAX,
+                               unsigned *rEBX, unsigned *rECX, unsigned *rEDX) {
+#if defined(__x86_64__) || defined(_M_AMD64) || defined (_M_X64)
+  #if defined(__GNUC__)
+    // gcc desn't know cpuid would clobber ebx/rbx. Preseve it manually.
+    asm ("movq\t%%rbx, %%rsi\n\t"
+         "cpuid\n\t"
+         "xchgq\t%%rbx, %%rsi\n\t"
+         : "=a" (*rEAX),
+           "=S" (*rEBX),
+           "=c" (*rECX),
+           "=d" (*rEDX)
+         :  "a" (value),
+            "c" (subleaf));
+    return false;
+  #elif defined(_MSC_VER)
+    // __cpuidex was added in MSVC++ 9.0 SP1
+    #if (_MSC_VER > 1500) || (_MSC_VER == 1500 && _MSC_FULL_VER >= 150030729)
+      int registers[4];
+      __cpuidex(registers, value, subleaf);
+      *rEAX = registers[0];
+      *rEBX = registers[1];
+      *rECX = registers[2];
+      *rEDX = registers[3];
+      return false;
+    #else
+      return true;
+    #endif
+  #else
+    return true;
+  #endif
+#elif defined(i386) || defined(__i386__) || defined(__x86__) || defined(_M_IX86)
+  #if defined(__GNUC__)
+    asm ("movl\t%%ebx, %%esi\n\t"
+         "cpuid\n\t"
+         "xchgl\t%%ebx, %%esi\n\t"
+         : "=a" (*rEAX),
+           "=S" (*rEBX),
+           "=c" (*rECX),
+           "=d" (*rEDX)
+         :  "a" (value),
+            "c" (subleaf));
+    return false;
+  #elif defined(_MSC_VER)
+    __asm {
+      mov   eax,value
+      mov   ecx,subleaf
+      cpuid
+      mov   esi,rEAX
+      mov   dword ptr [esi],eax
+      mov   esi,rEBX
+      mov   dword ptr [esi],ebx
+      mov   esi,rECX
+      mov   dword ptr [esi],ecx
+      mov   esi,rEDX
+      mov   dword ptr [esi],edx
+    }
+    return false;
+  #else
+    return true;
+  #endif
+#else
+  return true;
+#endif
 }
 
 void X86_MC::DetectFamilyModel(unsigned EAX, unsigned &Family,
@@ -261,7 +336,8 @@ MCSubtargetInfo *X86_MC::createX86MCSubtargetInfo(StringRef TT, StringRef CPU,
 
   std::string CPUName = CPU;
   if (CPUName.empty()) {
-#if defined (__x86_64__) || defined(__i386__)
+#if defined(i386) || defined(__i386__) || defined(__x86__) || defined(_M_IX86)\
+    || defined(__x86_64__) || defined(_M_AMD64) || defined (_M_X64)
     CPUName = sys::getHostCPUName();
 #else
     CPUName = "generic";
@@ -303,8 +379,10 @@ static MCAsmInfo *createX86MCAsmInfo(const Target &T, StringRef TT) {
       MAI = new X86_64MCAsmInfoDarwin(TheTriple);
     else
       MAI = new X86MCAsmInfoDarwin(TheTriple);
-  } else if (TheTriple.isOSWindows()) {
-    MAI = new X86MCAsmInfoCOFF(TheTriple);
+  } else if (TheTriple.getOS() == Triple::Win32) {
+    MAI = new X86MCAsmInfoMicrosoft(TheTriple);
+  } else if (TheTriple.getOS() == Triple::MinGW32 || TheTriple.getOS() == Triple::Cygwin) {
+    MAI = new X86MCAsmInfoGNUCOFF(TheTriple);
   } else {
     MAI = new X86ELFMCAsmInfo(TheTriple);
   }
@@ -327,7 +405,8 @@ static MCAsmInfo *createX86MCAsmInfo(const Target &T, StringRef TT) {
 }
 
 static MCCodeGenInfo *createX86MCCodeGenInfo(StringRef TT, Reloc::Model RM,
-                                             CodeModel::Model CM) {
+                                             CodeModel::Model CM,
+                                             CodeGenOpt::Level OL) {
   MCCodeGenInfo *X = new MCCodeGenInfo();
 
   Triple T(TT);
@@ -371,7 +450,7 @@ static MCCodeGenInfo *createX86MCCodeGenInfo(StringRef TT, Reloc::Model RM,
     // 64-bit JIT places everything in the same buffer except external funcs.
     CM = is64Bit ? CodeModel::Large : CodeModel::Small;
 
-  X->InitMCCodeGenInfo(RM, CM);
+  X->InitMCCodeGenInfo(RM, CM, OL);
   return X;
 }
 
@@ -395,11 +474,13 @@ static MCStreamer *createMCStreamer(const Target &T, StringRef TT,
 static MCInstPrinter *createX86MCInstPrinter(const Target &T,
                                              unsigned SyntaxVariant,
                                              const MCAsmInfo &MAI,
+                                             const MCInstrInfo &MII,
+                                             const MCRegisterInfo &MRI,
                                              const MCSubtargetInfo &STI) {
   if (SyntaxVariant == 0)
-    return new X86ATTInstPrinter(MAI);
+    return new X86ATTInstPrinter(MAI, MII, MRI);
   if (SyntaxVariant == 1)
-    return new X86IntelInstPrinter(MAI);
+    return new X86IntelInstPrinter(MAI, MII, MRI);
   return 0;
 }
 

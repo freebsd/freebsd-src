@@ -14,6 +14,7 @@
 #ifndef LLVM_CODEGEN_MACHINEOPERAND_H
 #define LLVM_CODEGEN_MACHINEOPERAND_H
 
+#include "llvm/ADT/Hashing.h"
 #include "llvm/Support/DataTypes.h"
 #include <cassert>
 
@@ -44,10 +45,12 @@ public:
     MO_MachineBasicBlock,      ///< MachineBasicBlock reference
     MO_FrameIndex,             ///< Abstract Stack Frame Index
     MO_ConstantPoolIndex,      ///< Address of indexed Constant in Constant Pool
+    MO_TargetIndex,            ///< Target-dependent index+offset operand.
     MO_JumpTableIndex,         ///< Address of indexed Jump Table for switch
     MO_ExternalSymbol,         ///< Name of external global symbol
     MO_GlobalAddress,          ///< Address of a global value
     MO_BlockAddress,           ///< Address of a basic block
+    MO_RegisterMask,           ///< Mask of preserved registers.
     MO_Metadata,               ///< Metadata reference (for debug info)
     MO_MCSymbol                ///< MCSymbol reference (for debug/eh info)
   };
@@ -102,6 +105,17 @@ private:
   ///
   bool IsUndef : 1;
 
+  /// IsInternalRead - True if this operand reads a value that was defined
+  /// inside the same instruction or bundle.  This flag can be set on both use
+  /// and def operands.  On a sub-register def operand, it refers to the part
+  /// of the register that isn't written.  On a full-register def operand, it
+  /// is a noop.
+  ///
+  /// When this flag is set, the instruction bundle must contain at least one
+  /// other def of the register.  If multiple instructions in the bundle define
+  /// the register, the meaning is target-defined.
+  bool IsInternalRead : 1;
+
   /// IsEarlyClobber - True if this MO_Register 'def' operand is written to
   /// by the MachineInstr before all input registers are read.  This is used to
   /// model the GCC inline asm '&' constraint modifier.
@@ -130,12 +144,13 @@ private:
     const ConstantFP *CFP;    // For MO_FPImmediate.
     const ConstantInt *CI;    // For MO_CImmediate. Integers > 64bit.
     int64_t ImmVal;           // For MO_Immediate.
+    const uint32_t *RegMask;  // For MO_RegisterMask.
     const MDNode *MD;         // For MO_Metadata.
     MCSymbol *Sym;            // For MO_MCSymbol
 
     struct {                  // For MO_Register.
       // Register number is in SmallContents.RegNo.
-      MachineOperand **Prev;  // Access list for register.
+      MachineOperand *Prev;   // Access list for register. See MRI.
       MachineOperand *Next;
     } Reg;
 
@@ -201,6 +216,8 @@ public:
   bool isFI() const { return OpKind == MO_FrameIndex; }
   /// isCPI - Tests if this is a MO_ConstantPoolIndex operand.
   bool isCPI() const { return OpKind == MO_ConstantPoolIndex; }
+  /// isTargetIndex - Tests if this is a MO_TargetIndex operand.
+  bool isTargetIndex() const { return OpKind == MO_TargetIndex; }
   /// isJTI - Tests if this is a MO_JumpTableIndex operand.
   bool isJTI() const { return OpKind == MO_JumpTableIndex; }
   /// isGlobal - Tests if this is a MO_GlobalAddress operand.
@@ -209,9 +226,12 @@ public:
   bool isSymbol() const { return OpKind == MO_ExternalSymbol; }
   /// isBlockAddress - Tests if this is a MO_BlockAddress operand.
   bool isBlockAddress() const { return OpKind == MO_BlockAddress; }
+  /// isRegMask - Tests if this is a MO_RegisterMask operand.
+  bool isRegMask() const { return OpKind == MO_RegisterMask; }
   /// isMetadata - Tests if this is a MO_Metadata operand.
   bool isMetadata() const { return OpKind == MO_Metadata; }
   bool isMCSymbol() const { return OpKind == MO_MCSymbol; }
+
 
   //===--------------------------------------------------------------------===//
   // Accessors for Register Operands
@@ -258,6 +278,11 @@ public:
     return IsUndef;
   }
 
+  bool isInternalRead() const {
+    assert(isReg() && "Wrong MachineOperand accessor");
+    return IsInternalRead;
+  }
+
   bool isEarlyClobber() const {
     assert(isReg() && "Wrong MachineOperand accessor");
     return IsEarlyClobber;
@@ -272,16 +297,12 @@ public:
   /// register.  A use operand with the <undef> flag set doesn't read its
   /// register.  A sub-register def implicitly reads the other parts of the
   /// register being redefined unless the <undef> flag is set.
+  ///
+  /// This refers to reading the register value from before the current
+  /// instruction or bundle. Internal bundle reads are not included.
   bool readsReg() const {
     assert(isReg() && "Wrong MachineOperand accessor");
-    return !isUndef() && (isUse() || getSubReg());
-  }
-
-  /// getNextOperandForReg - Return the next MachineOperand in the function that
-  /// uses or defines this register.
-  MachineOperand *getNextOperandForReg() const {
-    assert(isReg() && "This is not a register operand!");
-    return Contents.Reg.Next;
+    return !isUndef() && !isInternalRead() && (isUse() || getSubReg());
   }
 
   //===--------------------------------------------------------------------===//
@@ -310,17 +331,9 @@ public:
   ///
   void substPhysReg(unsigned Reg, const TargetRegisterInfo&);
 
-  void setIsUse(bool Val = true) {
-    assert(isReg() && "Wrong MachineOperand accessor");
-    assert((Val || !isDebug()) && "Marking a debug operation as def");
-    IsDef = !Val;
-  }
+  void setIsUse(bool Val = true) { setIsDef(!Val); }
 
-  void setIsDef(bool Val = true) {
-    assert(isReg() && "Wrong MachineOperand accessor");
-    assert((!Val || !isDebug()) && "Marking a debug operation as def");
-    IsDef = Val;
-  }
+  void setIsDef(bool Val = true);
 
   void setImplicit(bool Val = true) {
     assert(isReg() && "Wrong MachineOperand accessor");
@@ -341,6 +354,11 @@ public:
   void setIsUndef(bool Val = true) {
     assert(isReg() && "Wrong MachineOperand accessor");
     IsUndef = Val;
+  }
+
+  void setIsInternalRead(bool Val = true) {
+    assert(isReg() && "Wrong MachineOperand accessor");
+    IsInternalRead = Val;
   }
 
   void setIsEarlyClobber(bool Val = true) {
@@ -378,7 +396,7 @@ public:
   }
 
   int getIndex() const {
-    assert((isFI() || isCPI() || isJTI()) &&
+    assert((isFI() || isCPI() || isTargetIndex() || isJTI()) &&
            "Wrong MachineOperand accessor");
     return Contents.OffsetedInfo.Val.Index;
   }
@@ -401,8 +419,8 @@ public:
   /// getOffset - Return the offset from the symbol in this operand. This always
   /// returns 0 for ExternalSymbol operands.
   int64_t getOffset() const {
-    assert((isGlobal() || isSymbol() || isCPI() || isBlockAddress()) &&
-           "Wrong MachineOperand accessor");
+    assert((isGlobal() || isSymbol() || isCPI() || isTargetIndex() ||
+            isBlockAddress()) && "Wrong MachineOperand accessor");
     return (int64_t(Contents.OffsetedInfo.OffsetHi) << 32) |
            SmallContents.OffsetLo;
   }
@@ -410,6 +428,28 @@ public:
   const char *getSymbolName() const {
     assert(isSymbol() && "Wrong MachineOperand accessor");
     return Contents.OffsetedInfo.Val.SymbolName;
+  }
+
+  /// clobbersPhysReg - Returns true if this RegMask clobbers PhysReg.
+  /// It is sometimes necessary to detach the register mask pointer from its
+  /// machine operand. This static method can be used for such detached bit
+  /// mask pointers.
+  static bool clobbersPhysReg(const uint32_t *RegMask, unsigned PhysReg) {
+    // See TargetRegisterInfo.h.
+    assert(PhysReg < (1u << 30) && "Not a physical register");
+    return !(RegMask[PhysReg / 32] & (1u << PhysReg % 32));
+  }
+
+  /// clobbersPhysReg - Returns true if this RegMask operand clobbers PhysReg.
+  bool clobbersPhysReg(unsigned PhysReg) const {
+     return clobbersPhysReg(getRegMask(), PhysReg);
+  }
+
+  /// getRegMask - Returns a bit mask of registers preserved by this RegMask
+  /// operand.
+  const uint32_t *getRegMask() const {
+    assert(isRegMask() && "Wrong MachineOperand accessor");
+    return Contents.RegMask;
   }
 
   const MDNode *getMetadata() const {
@@ -427,14 +467,14 @@ public:
   }
 
   void setOffset(int64_t Offset) {
-    assert((isGlobal() || isSymbol() || isCPI() || isBlockAddress()) &&
-        "Wrong MachineOperand accessor");
+    assert((isGlobal() || isSymbol() || isCPI() || isTargetIndex() ||
+            isBlockAddress()) && "Wrong MachineOperand accessor");
     SmallContents.OffsetLo = unsigned(Offset);
     Contents.OffsetedInfo.OffsetHi = int(Offset >> 32);
   }
 
   void setIndex(int Idx) {
-    assert((isFI() || isCPI() || isJTI()) &&
+    assert((isFI() || isCPI() || isTargetIndex() || isJTI()) &&
            "Wrong MachineOperand accessor");
     Contents.OffsetedInfo.Val.Index = Idx;
   }
@@ -451,6 +491,13 @@ public:
   /// isIdenticalTo - Return true if this operand is identical to the specified
   /// operand. Note: This method ignores isKill and isDead properties.
   bool isIdenticalTo(const MachineOperand &Other) const;
+
+  /// \brief MachineOperand hash_value overload.
+  ///
+  /// Note that this includes the same information in the hash that
+  /// isIdenticalTo uses for comparison. It is thus suited for use in hash
+  /// tables which use that function for equality comparisons only.
+  friend hash_code hash_value(const MachineOperand &MO);
 
   /// ChangeToImmediate - Replace this operand with a new immediate operand of
   /// the specified value.  If an operand is known to be an immediate already,
@@ -491,13 +538,15 @@ public:
                                   bool isUndef = false,
                                   bool isEarlyClobber = false,
                                   unsigned SubReg = 0,
-                                  bool isDebug = false) {
+                                  bool isDebug = false,
+                                  bool isInternalRead = false) {
     MachineOperand Op(MachineOperand::MO_Register);
     Op.IsDef = isDef;
     Op.IsImp = isImp;
     Op.IsKill = isKill;
     Op.IsDead = isDead;
     Op.IsUndef = isUndef;
+    Op.IsInternalRead = isInternalRead;
     Op.IsEarlyClobber = isEarlyClobber;
     Op.IsDebug = isDebug;
     Op.SmallContents.RegNo = Reg;
@@ -521,6 +570,14 @@ public:
   static MachineOperand CreateCPI(unsigned Idx, int Offset,
                                   unsigned char TargetFlags = 0) {
     MachineOperand Op(MachineOperand::MO_ConstantPoolIndex);
+    Op.setIndex(Idx);
+    Op.setOffset(Offset);
+    Op.setTargetFlags(TargetFlags);
+    return Op;
+  }
+  static MachineOperand CreateTargetIndex(unsigned Idx, int64_t Offset,
+                                          unsigned char TargetFlags = 0) {
+    MachineOperand Op(MachineOperand::MO_TargetIndex);
     Op.setIndex(Idx);
     Op.setOffset(Offset);
     Op.setTargetFlags(TargetFlags);
@@ -557,6 +614,24 @@ public:
     Op.setTargetFlags(TargetFlags);
     return Op;
   }
+  /// CreateRegMask - Creates a register mask operand referencing Mask.  The
+  /// operand does not take ownership of the memory referenced by Mask, it must
+  /// remain valid for the lifetime of the operand.
+  ///
+  /// A RegMask operand represents a set of non-clobbered physical registers on
+  /// an instruction that clobbers many registers, typically a call.  The bit
+  /// mask has a bit set for each physreg that is preserved by this
+  /// instruction, as described in the documentation for
+  /// TargetRegisterInfo::getCallPreservedMask().
+  ///
+  /// Any physreg with a 0 bit in the mask is clobbered by the instruction.
+  ///
+  static MachineOperand CreateRegMask(const uint32_t *Mask) {
+    assert(Mask && "Missing register mask");
+    MachineOperand Op(MachineOperand::MO_RegisterMask);
+    Op.Contents.RegMask = Mask;
+    return Op;
+  }
   static MachineOperand CreateMetadata(const MDNode *Meta) {
     MachineOperand Op(MachineOperand::MO_Metadata);
     Op.Contents.MD = Meta;
@@ -583,15 +658,6 @@ private:
     assert(isReg() && "Can only add reg operand to use lists");
     return Contents.Reg.Prev != 0;
   }
-
-  /// AddRegOperandToRegInfo - Add this register operand to the specified
-  /// MachineRegisterInfo.  If it is null, then the next/prev fields should be
-  /// explicitly nulled out.
-  void AddRegOperandToRegInfo(MachineRegisterInfo *RegInfo);
-
-  /// RemoveRegOperandFromRegInfo - Remove this register operand from the
-  /// MachineRegisterInfo it is linked with.
-  void RemoveRegOperandFromRegInfo();
 };
 
 inline raw_ostream &operator<<(raw_ostream &OS, const MachineOperand& MO) {

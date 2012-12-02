@@ -120,7 +120,7 @@ obio_alloc_resource(device_t bus, device_t child, int type, int *rid,
 
 
 	rv = rman_reserve_resource(rm, start, end, count, flags, child);
-	if (rv == NULL) 
+	if (rv == NULL)
 		return (NULL);
 	if (type == SYS_RES_IRQ)
 		return (rv);

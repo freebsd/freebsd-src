@@ -41,6 +41,8 @@
 #ifndef AT91RM9200_H
 #define	AT91RM9200_H
 
+#define ATMEL_ENV
+
 typedef volatile unsigned int AT91_REG;// Hardware register definition
 
 // *****************************************************************************
@@ -2309,7 +2311,7 @@ typedef struct _AT91S_BFC {
 // ========== Register definition for BFC peripheral ========== 
 #define	AT91C_BFC_MR    ((AT91_REG *) 	0xFFFFFFC0) // (BFC) BFC Mode Register
 
-#include <at91/at91_pio_rm9200.h>
+#include <at91/at91_pioreg.h>
 
 // *****************************************************************************
 //               PERIPHERAL ID DEFINITIONS FOR AT91RM9200

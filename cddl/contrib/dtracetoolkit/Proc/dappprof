@@ -1,0 +1,239 @@
+#!/usr/bin/sh
+#
+# dappprof - profile user and library function usage.
+#            Written using DTrace (Solaris 10 3/05).
+#
+# The default output traces user functions as they are called. Options
+#  can be used to examine libraries and timestamps.
+#
+# $Id: dappprof 65 2007-10-04 11:09:40Z brendan $
+#
+# USAGE: dappprof [-acehoTU] [-u lib] { -p PID | command }
+#
+#          -p PID          # examine this PID
+#          -a              # print all details
+#          -c              # print call counts
+#          -e              # print elapsed times (us)
+#          -o              # print on cpu times (us)
+#          -T              # print totals
+#          -u lib          # trace this library instead
+#          -U              # trace all libraries + user functions
+#          -b bufsize      # dynamic variable buf size (default is "4m")
+#  eg,
+#       dappprof df -h       # run and examine the "df -h" command
+#       dappprof -p 1871     # examine PID 1871
+#
+# The elapsed times are interesting, to help identify calls that take
+#  some time to complete (during which the process may have context
+#  switched off the CPU). 
+#
+# SEE ALSO: dapptrace      # DTraceToolkit
+#           dtruss         # DTraceToolkit
+#           apptrace           
+#
+# COPYRIGHT: Copyright (c) 2005 Brendan Gregg.
+#
+# CDDL HEADER START
+#
+#  The contents of this file are subject to the terms of the
+#  Common Development and Distribution License, Version 1.0 only
+#  (the "License").  You may not use this file except in compliance
+#  with the License.
+#
+#  You can obtain a copy of the license at Docs/cddl1.txt
+#  or http://www.opensolaris.org/os/licensing.
+#  See the License for the specific language governing permissions
+#  and limitations under the License.
+#
+# CDDL HEADER END
+#
+# Author: Brendan Gregg  [Sydney, Australia]
+#
+# 16-May-2005   Brendan Gregg   Created this.
+# 17-Jul-2005	   "      "	Last update.
+#
+
+
+##############################
+# --- Process Arguments ---
+#
+
+### Default variables
+opt_totals=0; opt_pid=0; pid=0; opt_lib=0; lib=""
+opt_elapsed=0; opt_cpu=0; opt_counts=0; opt_liball=0
+opt_command=0; command=""; opt_buf=0; buf="4m"
+
+### Process options
+while getopts ab:cehop:Tu:U name
+do
+        case $name in
+        a)      opt_liball=1; opt_counts=1; opt_elapsed=1; opt_cpu=1 
+		opt_totals=1 ;;
+	b)	opt_buf=1; buf=$OPTARG ;;
+        p)      opt_pid=1; pid=$OPTARG ;;
+        u)      opt_lib=1; lib=$OPTARG ;;
+        U)      opt_liball=1 ;; 
+	c)	opt_counts=1 ;;
+	e)	opt_elapsed=1 ;;
+	o)	opt_cpu=1 ;;
+	T)	opt_totals=1 ;;
+        h|?)    cat <<-END >&2
+		USAGE: dappprof [-cehoTU] [-u lib] { -p PID | command }
+
+		          -p PID          # examine this PID
+		          -a              # print all details
+		          -c              # print syscall counts
+		          -e              # print elapsed times (us)
+		          -o              # print on cpu times
+		          -T              # print totals
+		          -u lib          # trace this library instead
+		          -U              # trace all libraries + user funcs
+		          -b bufsize      # dynamic variable buf size
+		   eg,
+		       dappprof df -h       # run and examine "df -h"
+		       dappprof -p 1871     # examine PID 1871
+		       dappprof -ap 1871    # print all data
+		END
+		exit 1
+        esac
+done
+shift `expr $OPTIND - 1`
+
+### Option logic
+if [ $opt_pid -eq 0 ]; then
+	opt_command=1
+	if [ "$*" = "" ]; then
+		$0 -h
+		exit
+	fi
+	command="$*"
+fi
+if [ $opt_elapsed -eq 0 -a $opt_cpu -eq 0 -a $opt_counts -eq 0 ]; then
+        opt_elapsed=1;
+fi
+
+
+### Probe logic
+if [ $opt_liball -eq 1 ]; then
+	probe_entry='pid$target:::entry'
+	probe_return='pid$target:::return'
+elif [ $opt_lib -eq 1 ]; then
+	probe_entry='pid$target:'$lib'::entry'
+	probe_return='pid$target:'$lib'::return'
+else
+ 	probe_entry='pid$target:a.out::entry'
+ 	probe_return='pid$target:a.out::return'
+fi
+
+#################################
+# --- Main Program, DTrace ---
+#
+
+### Define D Script
+dtrace='
+ #pragma D option quiet
+
+ /*
+  * Command line arguments
+  */
+ inline int OPT_command   = '$opt_command';
+ inline int OPT_liball    = '$opt_liball';
+ inline int OPT_elapsed   = '$opt_elapsed';
+ inline int OPT_cpu       = '$opt_cpu';
+ inline int OPT_counts    = '$opt_counts';
+ inline int OPT_totals    = '$opt_totals';
+ inline int OPT_pid       = '$opt_pid';
+ inline int PID           = '$pid';
+ inline string NAME       = "'$pname'";
+
+ dtrace:::BEGIN 
+ /! OPT_command/
+ {
+	printf("Tracing... Hit Ctrl-C to end...\n");
+ }
+
+ /*
+  * Save syscall entry info
+  */
+ '$probe_entry'
+ {
+        /* set function depth */
+        this->fdepth = ++fdepth[probefunc];
+
+	/* set start details */
+	self->start[probefunc,this->fdepth] = timestamp;
+	self->vstart[probefunc,this->fdepth] = vtimestamp;
+
+	/* count occurances */
+	OPT_counts && OPT_liball ? @Counts[probemod,probefunc] = count() : 1;
+	OPT_counts && ! OPT_liball ? @Counts[probefunc] = count() : 1;
+	OPT_counts && OPT_totals && OPT_liball ? 
+	    @Counts["TOTAL:",""] = count() : 1;
+	OPT_counts && OPT_totals && ! OPT_liball ? 
+	    @Counts["TOTAL:"] = count() : 1;
+ }
+
+ /*
+  * Print return data
+  */
+ /* print 3 arg output - default */
+ '$probe_return'
+ /self->start[probefunc,fdepth[probefunc]]/
+ {
+        /* fetch function depth */
+        this->fdepth = fdepth[probefunc];
+
+	/* calculate elapsed time */
+	this->elapsed = timestamp - self->start[probefunc,this->fdepth];
+	self->start[probefunc,this->fdepth] = 0;
+	this->cpu = vtimestamp - self->vstart[probefunc,this->fdepth];
+	self->vstart[probefunc,this->fdepth] = 0;
+
+	/* save elapsed times */
+	OPT_elapsed && OPT_liball ? 
+	    @Elapsed[probemod,probefunc] = sum(this->elapsed) : 1;
+	OPT_elapsed && ! OPT_liball ? 
+	    @Elapsed[probefunc] = sum(this->elapsed) : 1;
+	OPT_elapsed && OPT_totals && OPT_liball ? 
+	    @Elapsed["TOTAL:",""] = sum(this->elapsed) : 1;
+	OPT_elapsed && OPT_totals && ! OPT_liball ? 
+	    @Elapsed["TOTAL:"] = sum(this->elapsed) : 1;
+
+	/* save cpu times */
+	OPT_cpu && OPT_liball ? @CPU[probemod,probefunc] = sum(this->cpu) : 1;
+	OPT_cpu && ! OPT_liball ? @CPU[probefunc] = sum(this->cpu) : 1;
+	OPT_cpu && OPT_totals && OPT_liball ? 
+	    @CPU["TOTAL:",""] = sum(this->cpu) : 1;
+	OPT_cpu && OPT_totals && ! OPT_liball ? 
+	    @CPU["TOTAL:"] = sum(this->cpu) : 1;
+	
+ }
+
+ /* print counts */
+ dtrace:::END
+ {
+	/* print counts */
+	OPT_counts ? printf("\n%-49s %16s\n","CALL","COUNT") : 1;
+	OPT_counts && OPT_liball ? printa("%-16s %-32s %@16d\n",@Counts) : 1;
+	OPT_counts && ! OPT_liball ? printa("%-49s %@16d\n",@Counts) : 1;
+
+	/* print elapsed times */
+	OPT_elapsed ? printf("\n%-49s %16s\n","CALL","ELAPSED") : 1;
+	OPT_elapsed && OPT_liball ? printa("%-16s %-32s %@16d\n",@Elapsed) : 1;
+	OPT_elapsed && ! OPT_liball ? printa("%-49s %@16d\n",@Elapsed) : 1;
+
+	/* print cpu times */
+	OPT_cpu ? printf("\n%-49s %16s\n","CALL","CPU") : 1;
+	OPT_cpu && OPT_liball ? printa("%-16s %-32s %@16d\n",@CPU) : 1;
+	OPT_cpu && ! OPT_liball ? printa("%-49s %@16d\n",@CPU) : 1;
+ }
+'
+
+### Run DTrace
+if [ $opt_command -eq 1 ]; then
+	/usr/sbin/dtrace -x dynvarsize=$buf -x evaltime=exec -n "$dtrace" \
+	    -c "$command" >&2
+else
+	/usr/sbin/dtrace -x dynvarsize=$buf -n "$dtrace" -p "$pid" >&2
+fi
+

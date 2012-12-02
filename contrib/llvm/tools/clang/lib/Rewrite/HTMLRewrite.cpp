@@ -209,7 +209,7 @@ std::string html::EscapeText(const std::string& s, bool EscapeSpaces,
 
 static void AddLineNumber(RewriteBuffer &RB, unsigned LineNo,
                           unsigned B, unsigned E) {
-  llvm::SmallString<256> Str;
+  SmallString<256> Str;
   llvm::raw_svector_ostream OS(Str);
 
   OS << "<tr><td class=\"num\" id=\"LN"
@@ -292,7 +292,7 @@ void html::AddHeaderFooterInternalBuiltinCSS(Rewriter& R, FileID FID,
       " body { font-family:Helvetica, sans-serif; font-size:10pt }\n"
       " h1 { font-size:14pt }\n"
       " .code { border-collapse:collapse; width:100%; }\n"
-      " .code { font-family: \"Andale Mono\", monospace; font-size:10pt }\n"
+      " .code { font-family: \"Monospace\", monospace; font-size:10pt }\n"
       " .code { line-height: 1.2em }\n"
       " .comment { color: green; font-style: oblique }\n"
       " .keyword { color: blue }\n"
@@ -325,11 +325,12 @@ void html::AddHeaderFooterInternalBuiltinCSS(Rewriter& R, FileID FID,
       " .msgControl { background-color:#bbbbbb; color:#000000 }\n"
       " .mrange { background-color:#dfddf3 }\n"
       " .mrange { border-bottom:1px solid #6F9DBE }\n"
-      " .PathIndex { font-weight: bold; padding:0px 5px 0px 5px; "
+      " .PathIndex { font-weight: bold; padding:0px 5px; "
         "margin-right:5px; }\n"
       " .PathIndex { -webkit-border-radius:8px }\n"
       " .PathIndexEvent { background-color:#bfba87 }\n"
       " .PathIndexControl { background-color:#8c8c8c }\n"
+      " .PathNav a { text-decoration:none; font-size: larger }\n"
       " .CodeInsertionHint { font-weight: bold; background-color: #10dd10 }\n"
       " .CodeRemovalHint { background-color:#de1010 }\n"
       " .CodeRemovalHint { border-bottom:1px solid #6F9DBE }\n"
@@ -360,7 +361,7 @@ void html::SyntaxHighlight(Rewriter &R, FileID FID, const Preprocessor &PP) {
 
   const SourceManager &SM = PP.getSourceManager();
   const llvm::MemoryBuffer *FromFile = SM.getBuffer(FID);
-  Lexer L(FID, FromFile, SM, PP.getLangOptions());
+  Lexer L(FID, FromFile, SM, PP.getLangOpts());
   const char *BufferStart = L.getBufferStart();
 
   // Inform the preprocessor that we want to retain comments as tokens, so we
@@ -381,7 +382,6 @@ void html::SyntaxHighlight(Rewriter &R, FileID FID, const Preprocessor &PP) {
     default: break;
     case tok::identifier:
       llvm_unreachable("tok::identifier in raw lexing mode!");
-      break;
     case tok::raw_identifier: {
       // Fill in Result.IdentifierInfo and update the token kind,
       // looking up the identifier in the identifier table.
@@ -410,6 +410,7 @@ void html::SyntaxHighlight(Rewriter &R, FileID FID, const Preprocessor &PP) {
       --TokLen;
       // FALL THROUGH.
     case tok::string_literal:
+      // FIXME: Exclude the optional ud-suffix from the highlighted range.
       HighlightRange(RB, TokOffs, TokOffs+TokLen, BufferStart,
                      "<span class='string_literal'>", "</span>");
       break;
@@ -450,7 +451,7 @@ void html::HighlightMacros(Rewriter &R, FileID FID, const Preprocessor& PP) {
   std::vector<Token> TokenStream;
 
   const llvm::MemoryBuffer *FromFile = SM.getBuffer(FID);
-  Lexer L(FID, FromFile, SM, PP.getLangOptions());
+  Lexer L(FID, FromFile, SM, PP.getLangOpts());
 
   // Lex all the tokens in raw mode, to avoid entering #includes or expanding
   // macros.
@@ -494,6 +495,11 @@ void html::HighlightMacros(Rewriter &R, FileID FID, const Preprocessor& PP) {
 
   // Inform the preprocessor that we don't want comments.
   TmpPP.SetCommentRetentionState(false, false);
+
+  // We don't want pragmas either. Although we filtered out #pragma, removing
+  // _Pragma and __pragma is much harder.
+  bool PragmasPreviouslyEnabled = TmpPP.getPragmasEnabled();
+  TmpPP.setPragmasEnabled(false);
 
   // Enter the tokens we just lexed.  This will cause them to be macro expanded
   // but won't enter sub-files (because we removed #'s).
@@ -571,6 +577,7 @@ void html::HighlightMacros(Rewriter &R, FileID FID, const Preprocessor& PP) {
                    "<span class='macro'>", Expansion.c_str());
   }
 
-  // Restore diagnostics object back to its own thing.
+  // Restore the preprocessor's old state.
   TmpPP.setDiagnostics(*OldDiags);
+  TmpPP.setPragmasEnabled(PragmasPreviouslyEnabled);
 }

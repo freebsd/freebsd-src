@@ -24,6 +24,7 @@
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
 #include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/Statistic.h"
@@ -75,6 +76,7 @@ namespace {
   ///
   class JumpThreading : public FunctionPass {
     TargetData *TD;
+    TargetLibraryInfo *TLI;
     LazyValueInfo *LVI;
 #ifdef NDEBUG
     SmallPtrSet<BasicBlock*, 16> LoopHeaders;
@@ -107,6 +109,7 @@ namespace {
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addRequired<LazyValueInfo>();
       AU.addPreserved<LazyValueInfo>();
+      AU.addRequired<TargetLibraryInfo>();
     }
 
     void FindLoopHeaders(Function &F);
@@ -133,6 +136,7 @@ char JumpThreading::ID = 0;
 INITIALIZE_PASS_BEGIN(JumpThreading, "jump-threading",
                 "Jump Threading", false, false)
 INITIALIZE_PASS_DEPENDENCY(LazyValueInfo)
+INITIALIZE_PASS_DEPENDENCY(TargetLibraryInfo)
 INITIALIZE_PASS_END(JumpThreading, "jump-threading",
                 "Jump Threading", false, false)
 
@@ -144,6 +148,7 @@ FunctionPass *llvm::createJumpThreadingPass() { return new JumpThreading(); }
 bool JumpThreading::runOnFunction(Function &F) {
   DEBUG(dbgs() << "Jump threading on function '" << F.getName() << "'\n");
   TD = getAnalysisIfAvailable<TargetData>();
+  TLI = &getAnalysis<TargetLibraryInfo>();
   LVI = &getAnalysis<LazyValueInfo>();
 
   FindLoopHeaders(F);
@@ -665,6 +670,8 @@ bool JumpThreading::ProcessBlock(BasicBlock *BB) {
   } else if (SwitchInst *SI = dyn_cast<SwitchInst>(Terminator)) {
     Condition = SI->getCondition();
   } else if (IndirectBrInst *IB = dyn_cast<IndirectBrInst>(Terminator)) {
+    // Can't thread indirect branch with no successors.
+    if (IB->getNumSuccessors() == 0) return false;
     Condition = IB->getAddress()->stripPointerCasts();
     Preference = WantBlockAddress;
   } else {
@@ -674,7 +681,7 @@ bool JumpThreading::ProcessBlock(BasicBlock *BB) {
   // Run constant folding to see if we can reduce the condition to a simple
   // constant.
   if (Instruction *I = dyn_cast<Instruction>(Condition)) {
-    Value *SimpleVal = ConstantFoldInstruction(I, TD);
+    Value *SimpleVal = ConstantFoldInstruction(I, TD, TLI);
     if (SimpleVal) {
       I->replaceAllUsesWith(SimpleVal);
       I->eraseFromParent();
@@ -852,6 +859,9 @@ bool JumpThreading::SimplifyPartiallyRedundantLoad(LoadInst *LI) {
   if (BBIt != LoadBB->begin())
     return false;
 
+  // If all of the loads and stores that feed the value have the same TBAA tag,
+  // then we can propagate it onto any newly inserted loads.
+  MDNode *TBAATag = LI->getMetadata(LLVMContext::MD_tbaa);
 
   SmallPtrSet<BasicBlock*, 8> PredsScanned;
   typedef SmallVector<std::pair<BasicBlock*, Value*>, 8> AvailablePredsTy;
@@ -870,11 +880,16 @@ bool JumpThreading::SimplifyPartiallyRedundantLoad(LoadInst *LI) {
 
     // Scan the predecessor to see if the value is available in the pred.
     BBIt = PredBB->end();
-    Value *PredAvailable = FindAvailableLoadedValue(LoadedPtr, PredBB, BBIt, 6);
+    MDNode *ThisTBAATag = 0;
+    Value *PredAvailable = FindAvailableLoadedValue(LoadedPtr, PredBB, BBIt, 6,
+                                                    0, &ThisTBAATag);
     if (!PredAvailable) {
       OneUnavailablePred = PredBB;
       continue;
     }
+
+    // If tbaa tags disagree or are not present, forget about them.
+    if (TBAATag != ThisTBAATag) TBAATag = 0;
 
     // If so, this load is partially redundant.  Remember this info so that we
     // can create a PHI node.
@@ -921,8 +936,7 @@ bool JumpThreading::SimplifyPartiallyRedundantLoad(LoadInst *LI) {
 
     // Split them out to their own block.
     UnavailablePred =
-      SplitBlockPredecessors(LoadBB, &PredsToSplit[0], PredsToSplit.size(),
-                             "thread-pre-split", this);
+      SplitBlockPredecessors(LoadBB, PredsToSplit, "thread-pre-split", this);
   }
 
   // If the value isn't available in all predecessors, then there will be
@@ -935,6 +949,9 @@ bool JumpThreading::SimplifyPartiallyRedundantLoad(LoadInst *LI) {
                                  LI->getAlignment(),
                                  UnavailablePred->getTerminator());
     NewVal->setDebugLoc(LI->getDebugLoc());
+    if (TBAATag)
+      NewVal->setMetadata(LLVMContext::MD_tbaa, TBAATag);
+
     AvailablePreds.push_back(std::make_pair(UnavailablePred, NewVal));
   }
 
@@ -1082,9 +1099,9 @@ bool JumpThreading::ProcessThreadableEdges(Value *Cond, BasicBlock *BB,
       DestBB = 0;
     else if (BranchInst *BI = dyn_cast<BranchInst>(BB->getTerminator()))
       DestBB = BI->getSuccessor(cast<ConstantInt>(Val)->isZero());
-    else if (SwitchInst *SI = dyn_cast<SwitchInst>(BB->getTerminator()))
-      DestBB = SI->getSuccessor(SI->findCaseValue(cast<ConstantInt>(Val)));
-    else {
+    else if (SwitchInst *SI = dyn_cast<SwitchInst>(BB->getTerminator())) {
+      DestBB = SI->findCaseValue(cast<ConstantInt>(Val)).getCaseSuccessor();
+    } else {
       assert(isa<IndirectBrInst>(BB->getTerminator())
               && "Unexpected terminator");
       DestBB = cast<BlockAddress>(Val)->getBasicBlock();
@@ -1334,8 +1351,7 @@ bool JumpThreading::ThreadEdge(BasicBlock *BB,
   else {
     DEBUG(dbgs() << "  Factoring out " << PredBBs.size()
           << " common predecessors.\n");
-    PredBB = SplitBlockPredecessors(BB, &PredBBs[0], PredBBs.size(),
-                                    ".thr_comm", this);
+    PredBB = SplitBlockPredecessors(BB, PredBBs, ".thr_comm", this);
   }
 
   // And finally, do it!
@@ -1479,8 +1495,7 @@ bool JumpThreading::DuplicateCondBranchOnPHIIntoPred(BasicBlock *BB,
   else {
     DEBUG(dbgs() << "  Factoring out " << PredBBs.size()
           << " common predecessors.\n");
-    PredBB = SplitBlockPredecessors(BB, &PredBBs[0], PredBBs.size(),
-                                    ".thr_comm", this);
+    PredBB = SplitBlockPredecessors(BB, PredBBs, ".thr_comm", this);
   }
 
   // Okay, we decided to do this!  Clone all the instructions in BB onto the end

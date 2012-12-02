@@ -15,11 +15,12 @@
 #ifndef LLVM_CLANG_AST_TEMPLATEBASE_H
 #define LLVM_CLANG_AST_TEMPLATEBASE_H
 
-#include "llvm/ADT/APSInt.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/ErrorHandling.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/TemplateName.h"
+#include "llvm/ADT/APSInt.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/Support/Compiler.h"
+#include "llvm/Support/ErrorHandling.h"
 
 namespace llvm {
   class FoldingSetNodeID;
@@ -72,7 +73,15 @@ private:
   union {
     uintptr_t TypeOrValue;
     struct {
-      char Value[sizeof(llvm::APSInt)];
+      // We store a decomposed APSInt with the data allocated by ASTContext if
+      // BitWidth > 64. The memory may be shared between multiple
+      // TemplateArgument instances.
+      union {
+        uint64_t VAL;          ///< Used to store the <= 64 bits integer value.
+        const uint64_t *pVal;  ///< Used to store the >64 bits integer value.
+      };
+      unsigned BitWidth : 31;
+      unsigned IsUnsigned : 1;
       void *Type;
     } Integer;
     struct {
@@ -100,15 +109,18 @@ public:
   /// declaration, which is either an external declaration or a
   /// template declaration.
   TemplateArgument(Decl *D) : Kind(Declaration) {
-    // FIXME: Need to be sure we have the "canonical" declaration!
     TypeOrValue = reinterpret_cast<uintptr_t>(D);
   }
 
-  /// \brief Construct an integral constant template argument.
-  TemplateArgument(const llvm::APSInt &Value, QualType Type) : Kind(Integral) {
-    // FIXME: Large integral values will get leaked. Do something
-    // similar to what we did with IntegerLiteral.
-    new (Integer.Value) llvm::APSInt(Value);
+  /// \brief Construct an integral constant template argument. The memory to
+  /// store the value is allocated with Ctx.
+  TemplateArgument(ASTContext &Ctx, const llvm::APSInt &Value, QualType Type);
+
+  /// \brief Construct an integral constant template argument with the same
+  /// value as Other but a different type.
+  TemplateArgument(const TemplateArgument &Other, QualType Type)
+    : Kind(Integral) {
+    Integer = Other.Integer;
     Integer.Type = Type.getAsOpaquePtr();
   }
 
@@ -163,62 +175,6 @@ public:
   TemplateArgument(const TemplateArgument *Args, unsigned NumArgs) : Kind(Pack){
     this->Args.Args = Args;
     this->Args.NumArgs = NumArgs;
-  }
-
-  /// \brief Copy constructor for a template argument.
-  TemplateArgument(const TemplateArgument &Other) : Kind(Other.Kind) {
-    // FIXME: Large integral values will get leaked. Do something
-    // similar to what we did with IntegerLiteral.
-    if (Kind == Integral) {
-      new (Integer.Value) llvm::APSInt(*Other.getAsIntegral());
-      Integer.Type = Other.Integer.Type;
-    } else if (Kind == Pack) {
-      Args.NumArgs = Other.Args.NumArgs;
-      Args.Args = Other.Args.Args;
-    } else if (Kind == Template || Kind == TemplateExpansion) {
-      TemplateArg.Name = Other.TemplateArg.Name;
-      TemplateArg.NumExpansions = Other.TemplateArg.NumExpansions;
-    } else
-      TypeOrValue = Other.TypeOrValue;
-  }
-
-  TemplateArgument& operator=(const TemplateArgument& Other) {
-    using llvm::APSInt;
-
-    if (Kind == Other.Kind && Kind == Integral) {
-      // Copy integral values.
-      *this->getAsIntegral() = *Other.getAsIntegral();
-      Integer.Type = Other.Integer.Type;
-      return *this;
-    } 
-
-    // Destroy the current integral value, if that's what we're holding.
-    if (Kind == Integral)
-      getAsIntegral()->~APSInt();
-
-    Kind = Other.Kind;
-
-    if (Other.Kind == Integral) {
-      new (Integer.Value) llvm::APSInt(*Other.getAsIntegral());
-      Integer.Type = Other.Integer.Type;
-    } else if (Other.Kind == Pack) {
-      Args.NumArgs = Other.Args.NumArgs;
-      Args.Args = Other.Args.Args;
-    } else if (Kind == Template || Kind == TemplateExpansion) {
-      TemplateArg.Name = Other.TemplateArg.Name;
-      TemplateArg.NumExpansions = Other.TemplateArg.NumExpansions;
-    } else {
-      TypeOrValue = Other.TypeOrValue;
-    }
-
-    return *this;
-  }
-
-  ~TemplateArgument() {
-    using llvm::APSInt;
-
-    if (Kind == Integral)
-      getAsIntegral()->~APSInt();
   }
 
   /// \brief Create a new template argument pack by copying the given set of
@@ -286,14 +242,15 @@ public:
   llvm::Optional<unsigned> getNumTemplateExpansions() const;
   
   /// \brief Retrieve the template argument as an integral value.
-  llvm::APSInt *getAsIntegral() {
-    if (Kind != Integral)
-      return 0;
-    return reinterpret_cast<llvm::APSInt*>(&Integer.Value[0]);
-  }
+  // FIXME: Provide a way to read the integral data without copying the value.
+  llvm::APSInt getAsIntegral() const {
+    using namespace llvm;
+    if (Integer.BitWidth <= 64)
+      return APSInt(APInt(Integer.BitWidth, Integer.VAL), Integer.IsUnsigned);
 
-  const llvm::APSInt *getAsIntegral() const {
-    return const_cast<TemplateArgument*>(this)->getAsIntegral();
+    unsigned NumWords = APInt::getNumWords(Integer.BitWidth);
+    return APSInt(APInt(Integer.BitWidth, makeArrayRef(Integer.pVal, NumWords)),
+                  Integer.IsUnsigned);
   }
 
   /// \brief Retrieve the type of the integral value.
@@ -342,14 +299,12 @@ public:
     return Args.NumArgs;
   }
 
-  /// Determines whether two template arguments are superficially the
+  /// \brief Determines whether two template arguments are superficially the
   /// same.
   bool structurallyEquals(const TemplateArgument &Other) const;
 
-  /// \brief When the template argument is a pack expansion, returns 
+  /// \brief When the template argument is a pack expansion, returns
   /// the pattern of the pack expansion.
-  ///
-  /// \param Ellipsis Will be set to the location of the ellipsis.
   TemplateArgument getPackExpansionPattern() const;
 
   /// \brief Print this template argument to the given output stream.
@@ -457,7 +412,7 @@ public:
   }
 
   /// \brief - Fetches the full source range of the argument.
-  SourceRange getSourceRange() const;
+  SourceRange getSourceRange() const LLVM_READONLY;
 
   const TemplateArgument &getArgument() const {
     return Argument;
@@ -555,17 +510,23 @@ public:
 /// This is safe to be used inside an AST node, in contrast with
 /// TemplateArgumentListInfo.
 struct ASTTemplateArgumentListInfo {
-  /// \brief The source location of the left angle bracket ('<');
+  /// \brief The source location of the left angle bracket ('<').
   SourceLocation LAngleLoc;
   
-  /// \brief The source location of the right angle bracket ('>');
+  /// \brief The source location of the right angle bracket ('>').
   SourceLocation RAngleLoc;
   
-  /// \brief The number of template arguments in TemplateArgs.
-  /// The actual template arguments (if any) are stored after the
-  /// ExplicitTemplateArgumentList structure.
-  unsigned NumTemplateArgs;
-  
+  union {
+    /// \brief The number of template arguments in TemplateArgs.
+    /// The actual template arguments (if any) are stored after the
+    /// ExplicitTemplateArgumentList structure.
+    unsigned NumTemplateArgs;
+
+    /// Force ASTTemplateArgumentListInfo to the right alignment
+    /// for the following array of TemplateArgumentLocs.
+    void *Aligner;
+  };
+
   /// \brief Retrieve the template arguments
   TemplateArgumentLoc *getTemplateArgs() {
     return reinterpret_cast<TemplateArgumentLoc *> (this + 1);
@@ -589,7 +550,42 @@ struct ASTTemplateArgumentListInfo {
                       bool &ContainsUnexpandedParameterPack);
   void copyInto(TemplateArgumentListInfo &List) const;
   static std::size_t sizeFor(unsigned NumTemplateArgs);
-  static std::size_t sizeFor(const TemplateArgumentListInfo &List);
+};
+
+/// \brief Extends ASTTemplateArgumentListInfo with the source location
+/// information for the template keyword; this is used as part of the
+/// representation of qualified identifiers, such as S<T>::template apply<T>.
+struct ASTTemplateKWAndArgsInfo : public ASTTemplateArgumentListInfo {
+  typedef ASTTemplateArgumentListInfo Base;
+
+  // NOTE: the source location of the (optional) template keyword is
+  // stored after all template arguments.
+
+  /// \brief Get the source location of the template keyword.
+  SourceLocation getTemplateKeywordLoc() const {
+    return *reinterpret_cast<const SourceLocation*>
+      (getTemplateArgs() + NumTemplateArgs);
+  }
+
+  /// \brief Sets the source location of the template keyword.
+  void setTemplateKeywordLoc(SourceLocation TemplateKWLoc) {
+    *reinterpret_cast<SourceLocation*>
+      (getTemplateArgs() + NumTemplateArgs) = TemplateKWLoc;
+  }
+
+  static const ASTTemplateKWAndArgsInfo*
+  Create(ASTContext &C, SourceLocation TemplateKWLoc,
+         const TemplateArgumentListInfo &List);
+
+  void initializeFrom(SourceLocation TemplateKWLoc,
+                      const TemplateArgumentListInfo &List);
+  void initializeFrom(SourceLocation TemplateKWLoc,
+                      const TemplateArgumentListInfo &List,
+                      bool &Dependent, bool &InstantiationDependent,
+                      bool &ContainsUnexpandedParameterPack);
+  void initializeFrom(SourceLocation TemplateKWLoc);
+
+  static std::size_t sizeFor(unsigned NumTemplateArgs);
 };
 
 const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,

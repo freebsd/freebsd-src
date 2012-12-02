@@ -152,7 +152,7 @@ void LoaderPass::readEdge(ProfileInfo::Edge e,
 }
 
 bool LoaderPass::runOnModule(Module &M) {
-  ProfileInfoLoader PIL("profile-loader", Filename, M);
+  ProfileInfoLoader PIL("profile-loader", Filename);
 
   EdgeInformation.clear();
   std::vector<unsigned> Counters = PIL.getRawEdgeCounts();
@@ -160,7 +160,7 @@ bool LoaderPass::runOnModule(Module &M) {
     ReadCount = 0;
     for (Module::iterator F = M.begin(), E = M.end(); F != E; ++F) {
       if (F->isDeclaration()) continue;
-      DEBUG(dbgs()<<"Working on "<<F->getNameStr()<<"\n");
+      DEBUG(dbgs() << "Working on " << F->getName() << "\n");
       readEdge(getEdge(0,&F->getEntryBlock()), Counters);
       for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
         TerminatorInst *TI = BB->getTerminator();
@@ -181,7 +181,7 @@ bool LoaderPass::runOnModule(Module &M) {
     ReadCount = 0;
     for (Module::iterator F = M.begin(), E = M.end(); F != E; ++F) {
       if (F->isDeclaration()) continue;
-      DEBUG(dbgs()<<"Working on "<<F->getNameStr()<<"\n");
+      DEBUG(dbgs() << "Working on " << F->getName() << "\n");
       readEdge(getEdge(0,&F->getEntryBlock()), Counters);
       for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
         TerminatorInst *TI = BB->getTerminator();

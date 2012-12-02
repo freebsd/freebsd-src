@@ -51,12 +51,16 @@ struct deletelist {
 	struct deletelist *last;
 };
 
+union {
+	uint8_t buf[sizeof(struct chrp_header)];
+	struct chrp_header header;
+} conv;
+
 int
 main(int argc, char **argv)
 {
 	int opt, dump, fd, res, i, size;
 	uint8_t buf[NVRAM_SIZE], *cp, *common;
-	struct chrp_header *header;
 	struct deletelist *dl;
 
 	dump = 0;
@@ -116,9 +120,9 @@ main(int argc, char **argv)
 	/* Locate common block */
 	size = 0;
 	for (cp = buf; cp < buf + sizeof(buf); cp += size) {
-		header = (struct chrp_header *)cp;
-		size = header->length * 0x10;
-		if (strncmp(header->name, "common", 7) == 0)
+		memcpy(conv.buf, cp, sizeof(struct chrp_header));
+		size = conv.header.length * 0x10;
+		if (strncmp(conv.header.name, "common", 7) == 0)
 			break;
 	}
 	if (cp >= buf + sizeof(buf) || size <= (int)sizeof(struct chrp_header))

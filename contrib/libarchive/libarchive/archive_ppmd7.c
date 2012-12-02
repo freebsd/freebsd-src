@@ -415,7 +415,7 @@ static CTX_PTR CreateSuccessors(CPpmd7 *p, Bool skip)
     upState.Freq = (Byte)(1 + ((2 * cf <= s0) ? (5 * cf > s0) : ((2 * cf + 3 * s0 - 1) / (2 * s0))));
   }
 
-  do
+  while (numPs != 0)
   {
     /* Create Child */
     CTX_PTR c1; /* = AllocContext(p); */
@@ -435,7 +435,6 @@ static CTX_PTR CreateSuccessors(CPpmd7 *p, Bool skip)
     SetSuccessor(ps[--numPs], REF(c1));
     c = c1;
   }
-  while (numPs != 0);
   
   return c;
 }
@@ -778,7 +777,7 @@ static void Range_Normalize(CPpmd7z_RangeDec *p)
       if(p->Range >= p->Bottom)
         break;
       else
-        p->Range = -p->Low & (p->Bottom - 1);
+        p->Range = ((uint32_t)(-(int32_t)p->Low)) & (p->Bottom - 1);
     }
     p->Code = (p->Code << 8) | p->Stream->Read((void *)p->Stream);
     p->Range <<= 8;

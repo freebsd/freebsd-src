@@ -15,7 +15,7 @@
 #define LLVM_TARGET_TARGETSUBTARGETINFO_H
 
 #include "llvm/MC/MCSubtargetInfo.h"
-#include "llvm/Target/TargetMachine.h"
+#include "llvm/Support/CodeGen.h"
 
 namespace llvm {
 
@@ -39,7 +39,7 @@ public:
   // AntiDepBreakMode - Type of anti-dependence breaking that should
   // be performed before post-RA scheduling.
   typedef enum { ANTIDEP_NONE, ANTIDEP_CRITICAL, ANTIDEP_ALL } AntiDepBreakMode;
-  typedef SmallVectorImpl<TargetRegisterClass*> RegClassVector;
+  typedef SmallVectorImpl<const TargetRegisterClass*> RegClassVector;
 
   virtual ~TargetSubtargetInfo();
 

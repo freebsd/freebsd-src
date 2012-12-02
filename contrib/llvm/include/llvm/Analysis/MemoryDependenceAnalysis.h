@@ -124,11 +124,11 @@ namespace llvm {
     }
 
     /// isClobber - Return true if this MemDepResult represents a query that is
-    /// a instruction clobber dependency.
+    /// an instruction clobber dependency.
     bool isClobber() const { return Value.getInt() == Clobber; }
 
     /// isDef - Return true if this MemDepResult represents a query that is
-    /// a instruction definition dependency.
+    /// an instruction definition dependency.
     bool isDef() const { return Value.getInt() == Def; }
     
     /// isNonLocal - Return true if this MemDepResult represents a query that
@@ -324,6 +324,7 @@ namespace llvm {
     /// Current AA implementation, just a cache.
     AliasAnalysis *AA;
     TargetData *TD;
+    DominatorTree *DT;
     OwningPtr<PredIteratorCache> PredCache;
   public:
     MemoryDependenceAnalysis();

@@ -1,4 +1,4 @@
-//===- MBlaze.td - Describe the MBlaze Target Machine ------*- tablegen -*-===//
+//===-- MBlaze.td - Describe the MBlaze Target Machine -----*- tablegen -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -50,7 +50,7 @@ def FeatureSqrt        : SubtargetFeature<"sqrt", "HasSqrt", "true",
 // MBlaze processors supported.
 //===----------------------------------------------------------------------===//
 
-def : Processor<"mblaze",  MBlazeGenericItineraries, []>;
+def : Processor<"mblaze",  NoItineraries, []>;
 def : Processor<"mblaze3", MBlazePipe3Itineraries, []>;
 def : Processor<"mblaze5", MBlazePipe5Itineraries, []>;
 

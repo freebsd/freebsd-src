@@ -108,8 +108,10 @@ xprt_register(xprt)
 	if (__svc_xports == NULL) {
 		__svc_xports = (SVCXPRT **)
 			mem_alloc(FD_SETSIZE * sizeof(SVCXPRT *));
-		if (__svc_xports == NULL)
+		if (__svc_xports == NULL) {
+			rwlock_unlock(&svc_fd_lock);
 			return;
+		}
 		memset(__svc_xports, '\0', FD_SETSIZE * sizeof(SVCXPRT *));
 	}
 	if (sock < FD_SETSIZE) {
@@ -565,8 +567,14 @@ svc_xprt_alloc()
 	SVCXPRT_EXT *ext;
 
 	xprt = mem_alloc(sizeof(SVCXPRT));
+	if (xprt == NULL)
+		return (NULL);
 	memset(xprt, 0, sizeof(SVCXPRT));
 	ext = mem_alloc(sizeof(SVCXPRT_EXT));
+	if (ext == NULL) {
+		mem_free(xprt, sizeof(SVCXPRT));
+		return (NULL);
+	}
 	memset(ext, 0, sizeof(SVCXPRT_EXT));
 	xprt->xp_p3 = ext;
 	ext->xp_auth.svc_ah_ops = &svc_auth_null_ops;

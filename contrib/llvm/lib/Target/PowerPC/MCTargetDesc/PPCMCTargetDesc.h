@@ -14,24 +14,34 @@
 #ifndef PPCMCTARGETDESC_H
 #define PPCMCTARGETDESC_H
 
+#include "llvm/Support/DataTypes.h"
+
 namespace llvm {
 class MCAsmBackend;
 class MCCodeEmitter;
 class MCContext;
 class MCInstrInfo;
+class MCObjectWriter;
+class MCRegisterInfo;
 class MCSubtargetInfo;
 class Target;
 class StringRef;
+class raw_ostream;
 
 extern Target ThePPC32Target;
 extern Target ThePPC64Target;
   
 MCCodeEmitter *createPPCMCCodeEmitter(const MCInstrInfo &MCII,
+                                      const MCRegisterInfo &MRI,
                                       const MCSubtargetInfo &STI,
                                       MCContext &Ctx);
 
-MCAsmBackend *createPPCAsmBackend(const Target &T, StringRef TT);
-  
+MCAsmBackend *createPPCAsmBackend(const Target &T, StringRef TT, StringRef CPU);
+
+/// createPPCELFObjectWriter - Construct an PPC ELF object writer.
+MCObjectWriter *createPPCELFObjectWriter(raw_ostream &OS,
+                                         bool Is64Bit,
+                                         uint8_t OSABI);
 } // End llvm namespace
 
 // Defines symbolic names for PowerPC registers.  This defines a mapping from

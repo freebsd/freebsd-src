@@ -34,18 +34,18 @@
 #define	_IDAVAR_H
 
 #define	ida_inb(ida, port) \
-	bus_space_read_1((ida)->tag, (ida)->bsh, port)
+	bus_read_1((ida)->regs, port)
 #define	ida_inw(ida, port) \
-	bus_space_read_2((ida)->tag, (ida)->bsh, port)
+	bus_read_2((ida)->regs, port)
 #define	ida_inl(ida, port) \
-	bus_space_read_4((ida)->tag, (ida)->bsh, port)
+	bus_read_4((ida)->regs, port)
 
 #define	ida_outb(ida, port, val) \
-	bus_space_write_1((ida)->tag, (ida)->bsh, port, val)
+	bus_write_1((ida)->regs, port, val)
 #define	ida_outw(ida, port, val) \
-	bus_space_write_2((ida)->tag, (ida)->bsh, port, val)
+	bus_write_2((ida)->regs, port, val)
 #define	ida_outl(ida, port, val) \
-	bus_space_write_4((ida)->tag, (ida)->bsh, port, val)
+	bus_write_4((ida)->regs, port, val)
 
 struct ida_hdr {
 	u_int8_t	drive;		/* logical drive */
@@ -83,6 +83,7 @@ struct ida_hardware_qcb {
 typedef enum {
 	QCB_FREE		= 0x0000,
 	QCB_ACTIVE		= 0x0001,	/* waiting for completion */
+	QCB_TIMEDOUT		= 0x0002,
 } qcb_state;
 
 #define	DMA_DATA_IN	0x0001
@@ -93,8 +94,11 @@ typedef enum {
 #define	IDA_QCB_MAX	256
 #define	IDA_CONTROLLER	0		/* drive "number" for controller */
 
+struct ida_softc;
+
 struct ida_qcb {
 	struct		ida_hardware_qcb *hwqcb;
+	struct		ida_softc *ida;
 	qcb_state	state;
 	short		flags;
 	union {
@@ -104,9 +108,8 @@ struct ida_qcb {
 	bus_dmamap_t	dmamap;
 	bus_addr_t	hwqcb_busaddr;
 	struct		bio *buf;		/* bio associated with qcb */
+	int		error;
 };
-
-struct ida_softc;
 
 struct ida_access {
 	int		(*fifo_full)(struct ida_softc *);
@@ -122,10 +125,10 @@ struct ida_access {
 #define	IDA_ATTACHED	0x01		/* attached */
 #define	IDA_FIRMWARE	0x02		/* firmware must be started */
 #define	IDA_INTERRUPTS	0x04		/* interrupts enabled */
+#define	IDA_QFROZEN	0x08		/* request queue frozen */
 
 struct ida_softc {
 	device_t	dev;
-	int		unit;
 
 	struct callout	ch;
 	struct cdev *ida_dev_t;
@@ -138,8 +141,8 @@ struct ida_softc {
 	struct		resource *irq;
 	void		*ih;
 
-	bus_space_tag_t		tag;
-	bus_space_handle_t	bsh;
+	struct mtx	lock;
+	struct intr_config_hook ich;
 
 	/* various DMA tags */
 	bus_dma_tag_t	parent_dmat;
@@ -151,8 +154,6 @@ struct ida_softc {
 
 	bus_dma_tag_t	sg_dmat;
 
-	int		num_drives;
-	int		num_qcbs;
 	int		flags;
 
 	int		qactive;
@@ -197,7 +198,6 @@ extern struct ida_softc *ida_alloc(device_t dev, struct resource *regs,
 	int regs_type, int regs_id, bus_dma_tag_t parent_dmat);
 extern void ida_free(struct ida_softc *ida);
 extern int ida_init(struct ida_softc *ida);
-extern void ida_attach(struct ida_softc *ida);
 extern int ida_command(struct ida_softc *ida, int command, void *data,
 	int datasize, int drive, u_int32_t pblkno, int flags);
 extern void ida_submit_buf(struct ida_softc *ida, struct bio *bp);

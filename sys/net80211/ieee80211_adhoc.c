@@ -242,7 +242,7 @@ adhoc_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 			ic->ic_newassoc(ni, ostate != IEEE80211_S_RUN);
 		break;
 	case IEEE80211_S_SLEEP:
-		ieee80211_sta_pwrsave(vap, 0);
+		vap->iv_sta_ps(vap, 0);
 		break;
 	default:
 	invalid:

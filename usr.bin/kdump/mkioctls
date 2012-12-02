@@ -63,6 +63,8 @@ BEGIN {
 	print "#include <netinet6/ip6_mroute.h>"
 	print "#include <stdio.h>"
 	print "#include <cam/cam.h>"
+	print "#include <stddef.h>"
+	print "#include <stdint.h>"
 	print ""
 	print ioctl_includes
 	print ""

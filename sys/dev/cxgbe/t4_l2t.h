@@ -30,7 +30,24 @@
 #ifndef __T4_L2T_H
 #define __T4_L2T_H
 
+/* identifies sync vs async L2T_WRITE_REQs */
+#define S_SYNC_WR    12
+#define V_SYNC_WR(x) ((x) << S_SYNC_WR)
+#define F_SYNC_WR    V_SYNC_WR(1)
+
 enum { L2T_SIZE = 4096 };     /* # of L2T entries */
+
+enum {
+	L2T_STATE_VALID,	/* entry is up to date */
+	L2T_STATE_STALE,	/* entry may be used but needs revalidation */
+	L2T_STATE_RESOLVING,	/* entry needs address resolution */
+	L2T_STATE_FAILED,	/* failed to resolve */
+	L2T_STATE_SYNC_WRITE,	/* synchronous write of entry underway */
+
+	/* when state is one of the below the entry is not hashed */
+	L2T_STATE_SWITCHING,	/* entry is being used by a switching filter */
+	L2T_STATE_UNUSED	/* entry not in use */
+};
 
 /*
  * Each L2T entry plays multiple roles.  First of all, it keeps state for the
@@ -43,39 +60,49 @@ enum { L2T_SIZE = 4096 };     /* # of L2T entries */
 struct l2t_entry {
 	uint16_t state;			/* entry state */
 	uint16_t idx;			/* entry index */
-	uint32_t addr[4];		/* next hop IP or IPv6 address */
+	uint32_t addr;			/* next hop IP address */
 	struct ifnet *ifp;		/* outgoing interface */
 	uint16_t smt_idx;		/* SMT index */
 	uint16_t vlan;			/* VLAN TCI (id: 0-11, prio: 13-15) */
-	int ifindex;			/* interface index */
-	struct llentry *lle;		/* llentry for next hop */
 	struct l2t_entry *first;	/* start of hash chain */
 	struct l2t_entry *next;		/* next l2t_entry on chain */
-	struct mbuf *arpq_head;		/* list of mbufs awaiting resolution */
-	struct mbuf *arpq_tail;
+	STAILQ_HEAD(, wrqe) wr_list;	/* list of WRs awaiting resolution */
 	struct mtx lock;
 	volatile int refcnt;		/* entry reference count */
 	uint16_t hash;			/* hash bucket the entry is on */
-	uint8_t v6;			/* whether entry is for IPv6 */
 	uint8_t lport;			/* associated offload logical port */
 	uint8_t dmac[ETHER_ADDR_LEN];	/* next hop's MAC address */
 };
 
+struct l2t_data {
+	struct rwlock lock;
+	volatile int nfree;	/* number of free entries */
+	struct l2t_entry *rover;/* starting point for next allocation */
+	struct l2t_entry l2tab[L2T_SIZE];
+};
+
+
 int t4_init_l2t(struct adapter *, int);
 int t4_free_l2t(struct l2t_data *);
+struct l2t_entry *t4_alloc_l2e(struct l2t_data *);
 struct l2t_entry *t4_l2t_alloc_switching(struct l2t_data *);
 int t4_l2t_set_switching(struct adapter *, struct l2t_entry *, uint16_t,
     uint8_t, uint8_t *);
-void t4_l2t_release(struct l2t_entry *);
+int t4_write_l2e(struct adapter *, struct l2t_entry *, int);
+int do_l2t_write_rpl(struct sge_iq *, const struct rss_header *, struct mbuf *);
+
+static inline void
+t4_l2t_release(struct l2t_entry *e)
+{
+	struct l2t_data *d = __containerof(e, struct l2t_data, l2tab[e->idx]);
+
+	if (atomic_fetchadd_int(&e->refcnt, -1) == 1)
+		atomic_add_int(&d->nfree, 1);
+}
+
+
 #ifdef SBUF_DRAIN
 int sysctl_l2t(SYSCTL_HANDLER_ARGS);
-#endif
-
-#ifndef TCP_OFFLOAD_DISABLE
-struct l2t_entry *t4_l2t_get(struct port_info *, struct ifnet *,
-    struct sockaddr *);
-int t4_l2t_send(struct adapter *, struct mbuf *, struct l2t_entry *);
-void t4_l2t_update(struct adapter *, struct llentry *);
 #endif
 
 #endif  /* __T4_L2T_H */

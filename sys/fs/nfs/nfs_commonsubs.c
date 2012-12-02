@@ -1401,12 +1401,12 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			}
 			if (compare) {
 			    if (!(*retcmpp)) {
-				if (nfsv4_strtouid(cp, j, &uid, p) ||
+				if (nfsv4_strtouid(nd, cp, j, &uid, p) ||
 				    nap->na_uid != uid)
 				    *retcmpp = NFSERR_NOTSAME;
 			    }
 			} else if (nap != NULL) {
-				if (nfsv4_strtouid(cp, j, &uid, p))
+				if (nfsv4_strtouid(nd, cp, j, &uid, p))
 					nap->na_uid = nfsrv_defaultuid;
 				else
 					nap->na_uid = uid;
@@ -1434,12 +1434,12 @@ nfsv4_loadattr(struct nfsrv_descript *nd, vnode_t vp,
 			}
 			if (compare) {
 			    if (!(*retcmpp)) {
-				if (nfsv4_strtogid(cp, j, &gid, p) ||
+				if (nfsv4_strtogid(nd, cp, j, &gid, p) ||
 				    nap->na_gid != gid)
 				    *retcmpp = NFSERR_NOTSAME;
 			    }
 			} else if (nap != NULL) {
-				if (nfsv4_strtogid(cp, j, &gid, p))
+				if (nfsv4_strtogid(nd, cp, j, &gid, p))
 					nap->na_gid = nfsrv_defaultgid;
 				else
 					nap->na_gid = gid;
@@ -2594,27 +2594,41 @@ tryagain:
  * Convert a string to a uid.
  * If no conversion is possible return NFSERR_BADOWNER, otherwise
  * return 0.
+ * If this is called from a client side mount using AUTH_SYS and the
+ * string is made up entirely of digits, just convert the string to
+ * a number.
  */
 APPLESTATIC int
-nfsv4_strtouid(u_char *str, int len, uid_t *uidp, NFSPROC_T *p)
+nfsv4_strtouid(struct nfsrv_descript *nd, u_char *str, int len, uid_t *uidp,
+    NFSPROC_T *p)
 {
 	int i;
-	u_char *cp;
+	char *cp, *endstr, *str0;
 	struct nfsusrgrp *usrp;
 	int cnt, ret;
 	int error = 0;
+	uid_t tuid;
 
 	if (len == 0) {
 		error = NFSERR_BADOWNER;
 		goto out;
 	}
+	/* If a string of digits and an AUTH_SYS mount, just convert it. */
+	str0 = str;
+	tuid = (uid_t)strtoul(str0, &endstr, 10);
+	if ((endstr - str0) == len &&
+	    (nd->nd_flag & (ND_KERBV | ND_NFSCL)) == ND_NFSCL) {
+		*uidp = tuid;
+		goto out;
+	}
 	/*
 	 * Look for an '@'.
 	 */
-	cp = str;
-	for (i = 0; i < len; i++)
-		if (*cp++ == '@')
-			break;
+	cp = strchr(str0, '@');
+	if (cp != NULL)
+		i = (int)(cp++ - str0);
+	else
+		i = len;
 
 	cnt = 0;
 tryagain:
@@ -2783,27 +2797,43 @@ tryagain:
 
 /*
  * Convert a string to a gid.
+ * If no conversion is possible return NFSERR_BADOWNER, otherwise
+ * return 0.
+ * If this is called from a client side mount using AUTH_SYS and the
+ * string is made up entirely of digits, just convert the string to
+ * a number.
  */
 APPLESTATIC int
-nfsv4_strtogid(u_char *str, int len, gid_t *gidp, NFSPROC_T *p)
+nfsv4_strtogid(struct nfsrv_descript *nd, u_char *str, int len, gid_t *gidp,
+    NFSPROC_T *p)
 {
 	int i;
-	u_char *cp;
+	char *cp, *endstr, *str0;
 	struct nfsusrgrp *usrp;
 	int cnt, ret;
 	int error = 0;
+	gid_t tgid;
 
 	if (len == 0) {
 		error =  NFSERR_BADOWNER;
 		goto out;
 	}
+	/* If a string of digits and an AUTH_SYS mount, just convert it. */
+	str0 = str;
+	tgid = (gid_t)strtoul(str0, &endstr, 10);
+	if ((endstr - str0) == len &&
+	    (nd->nd_flag & (ND_KERBV | ND_NFSCL)) == ND_NFSCL) {
+		*gidp = tgid;
+		goto out;
+	}
 	/*
 	 * Look for an '@'.
 	 */
-	cp = str;
-	for (i = 0; i < len; i++)
-		if (*cp++ == '@')
-			break;
+	cp = strchr(str0, '@');
+	if (cp != NULL)
+		i = (int)(cp++ - str0);
+	else
+		i = len;
 
 	cnt = 0;
 tryagain:

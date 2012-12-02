@@ -15,8 +15,8 @@
 #ifndef SPARC_ISELLOWERING_H
 #define SPARC_ISELLOWERING_H
 
-#include "llvm/Target/TargetLowering.h"
 #include "Sparc.h"
+#include "llvm/Target/TargetLowering.h"
 
 namespace llvm {
   namespace SPISD {
@@ -50,7 +50,6 @@ namespace llvm {
     /// in Mask are known to be either zero or one and return them in the
     /// KnownZero/KnownOne bitsets.
     virtual void computeMaskedBitsForTargetNode(const SDValue Op,
-                                                const APInt &Mask,
                                                 APInt &KnownZero,
                                                 APInt &KnownOne,
                                                 const SelectionDAG &DAG,
@@ -77,13 +76,7 @@ namespace llvm {
                            SmallVectorImpl<SDValue> &InVals) const;
 
     virtual SDValue
-      LowerCall(SDValue Chain, SDValue Callee,
-                CallingConv::ID CallConv, bool isVarArg,
-                bool &isTailCall,
-                const SmallVectorImpl<ISD::OutputArg> &Outs,
-                const SmallVectorImpl<SDValue> &OutVals,
-                const SmallVectorImpl<ISD::InputArg> &Ins,
-                DebugLoc dl, SelectionDAG &DAG,
+      LowerCall(TargetLowering::CallLoweringInfo &CLI,
                 SmallVectorImpl<SDValue> &InVals) const;
 
     virtual SDValue

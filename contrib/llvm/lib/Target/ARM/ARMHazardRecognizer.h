@@ -23,6 +23,10 @@ class ARMBaseRegisterInfo;
 class ARMSubtarget;
 class MachineInstr;
 
+/// ARMHazardRecognizer handles special constraints that are not expressed in
+/// the scheduling itinerary. This is only used during postRA scheduling. The
+/// ARM preRA scheduler uses an unspecialized instance of the
+/// ScoreboardHazardRecognizer.
 class ARMHazardRecognizer : public ScoreboardHazardRecognizer {
   const ARMBaseInstrInfo &TII;
   const ARMBaseRegisterInfo &TRI;
@@ -30,8 +34,6 @@ class ARMHazardRecognizer : public ScoreboardHazardRecognizer {
 
   MachineInstr *LastMI;
   unsigned FpMLxStalls;
-  unsigned ITBlockSize;  // No. of MIs in current IT block yet to be scheduled.
-  MachineInstr *ITBlockMIs[4];
 
 public:
   ARMHazardRecognizer(const InstrItineraryData *ItinData,
@@ -40,7 +42,7 @@ public:
                       const ARMSubtarget &sti,
                       const ScheduleDAG *DAG) :
     ScoreboardHazardRecognizer(ItinData, DAG, "post-RA-sched"), TII(tii),
-    TRI(tri), STI(sti), LastMI(0), ITBlockSize(0) {}
+    TRI(tri), STI(sti), LastMI(0) {}
 
   virtual HazardType getHazardType(SUnit *SU, int Stalls);
   virtual void Reset();

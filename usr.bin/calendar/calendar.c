@@ -60,8 +60,8 @@ __FBSDID("$FreeBSD$");
 struct passwd	*pw;
 int		doall = 0;
 int		debug = 0;
-char		*DEBUG = NULL;
-time_t		f_time = 0;
+static char	*DEBUG = NULL;
+static time_t	f_time = 0;
 double		UTCOffset = UTCOFFSET_NOTSET;
 int		EastLongitude = LONGITUDE_NOTSET;
 

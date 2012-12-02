@@ -1,4 +1,4 @@
-//=====-- MipsSubtarget.h - Define Subtarget for the Mips -----*- C++ -*--====//
+//===-- MipsSubtarget.h - Define Subtarget for the Mips ---------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -25,6 +25,7 @@ namespace llvm {
 class StringRef;
 
 class MipsSubtarget : public MipsGenSubtargetInfo {
+  virtual void anchor();
 
 public:
   // NOTE: O64 will not be supported.
@@ -85,9 +86,18 @@ protected:
   // HasBitCount - Count leading '1' and '0' bits.
   bool HasBitCount;
 
+  // InMips16 -- can process Mips16 instructions
+  bool InMips16Mode;
+
+  // IsAndroid -- target is android
+  bool IsAndroid;
+
   InstrItineraryData InstrItins;
 
 public:
+  virtual bool enablePostRAScheduler(CodeGenOpt::Level OptLevel,
+                                     AntiDepBreakMode& Mode,
+                                     RegClassVector& CriticalPathRCs) const;
 
   /// Only O32 and EABI supported right now.
   bool isABI_EABI() const { return MipsABI == EABI; }
@@ -111,6 +121,8 @@ public:
   bool hasMips64() const { return MipsArchVersion >= Mips64; }
   bool hasMips64r2() const { return MipsArchVersion == Mips64r2; }
 
+  bool hasMips32r2Or64() const { return hasMips32r2() || hasMips64(); }
+
   bool isLittle() const { return IsLittle; }
   bool isFP64bit() const { return IsFP64bit; }
   bool isGP64bit() const { return IsGP64bit; }
@@ -118,7 +130,11 @@ public:
   bool isSingleFloat() const { return IsSingleFloat; }
   bool isNotSingleFloat() const { return !IsSingleFloat; }
   bool hasVFPU() const { return HasVFPU; }
+  bool inMips16Mode() const { return InMips16Mode; }
+  bool isAndroid() const { return IsAndroid; }
   bool isLinux() const { return IsLinux; }
+
+  bool hasStandardEncoding() const { return !inMips16Mode(); }
 
   /// Features related to the presence of specific instructions.
   bool hasSEInReg()   const { return HasSEInReg; }

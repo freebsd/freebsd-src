@@ -152,7 +152,6 @@ static int
 ntfs_mount(struct mount *mp)
 {
 	int err = 0, error;
-	accmode_t accmode;
 	struct vnode *devvp;
 	struct nameidata ndp;
 	struct thread *td;
@@ -161,6 +160,11 @@ ntfs_mount(struct mount *mp)
 	td = curthread;
 	if (vfs_filteropt(mp->mnt_optnew, ntfs_opts))
 		return (EINVAL);
+
+	/* Force mount as read-only. */
+	MNT_ILOCK(mp);
+	mp->mnt_flag |= MNT_RDONLY;
+	MNT_IUNLOCK(mp);
 
 	from = vfs_getopts(mp->mnt_optnew, "from", &error);
 	if (error)	
@@ -173,11 +177,10 @@ ntfs_mount(struct mount *mp)
 	if (mp->mnt_flag & MNT_UPDATE) {
 		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0)) {
 			/* Process export requests in vfs_mount.c */
-			goto success;
+			return (0);
 		} else {
 			printf("ntfs_mount(): MNT_UPDATE not supported\n");
-			err = EINVAL;
-			goto error_1;
+			return (EINVAL);
 		}
 	}
 
@@ -187,10 +190,8 @@ ntfs_mount(struct mount *mp)
 	 */
 	NDINIT(&ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, from, td);
 	err = namei(&ndp);
-	if (err) {
-		/* can't get devvp!*/
-		goto error_1;
-	}
+	if (err)
+		return (err);
 	NDFREE(&ndp, NDF_ONLY_PNBUF);
 	devvp = ndp.ni_vp;
 
@@ -203,10 +204,7 @@ ntfs_mount(struct mount *mp)
 	 * If mount by non-root, then verify that user has necessary
 	 * permissions on the device.
 	 */
-	accmode = VREAD;
-	if ((mp->mnt_flag & MNT_RDONLY) == 0)
-		accmode |= VWRITE;
-	err = VOP_ACCESS(devvp, accmode, td->td_ucred, td);
+	err = VOP_ACCESS(devvp, VREAD, td->td_ucred, td);
 	if (err)
 		err = priv_check(td, PRIV_VFS_MOUNT_PERM);
 	if (err) {
@@ -214,52 +212,23 @@ ntfs_mount(struct mount *mp)
 		return (err);
 	}
 
-	if (mp->mnt_flag & MNT_UPDATE) {
-#if 0
-		/*
-		 ********************
-		 * UPDATE
-		 ********************
-		 */
 
-		if (devvp != ntmp->um_devvp)
-			err = EINVAL;	/* needs translation */
-		vput(devvp);
-		if (err)
-			return (err);
-#endif
-	} else {
-		/*
-		 ********************
-		 * NEW MOUNT
-		 ********************
-		 */
+	/*
+	 * Since this is a new mount, we want the names for the device and
+	 * the mount point copied in.  If an error occurs, the mountpoint is
+	 * discarded by the upper level code.  Note that vfs_mount() handles
+	 * copying the mountpoint f_mntonname for us, so we don't have to do
+	 * it here unless we want to set it to something other than "path"
+	 * for some rason.
+	 */
 
-		/*
-		 * Since this is a new mount, we want the names for
-		 * the device and the mount point copied in.  If an
-		 * error occurs, the mountpoint is discarded by the
-		 * upper level code.  Note that vfs_mount() handles
-		 * copying the mountpoint f_mntonname for us, so we
-		 * don't have to do it here unless we want to set it
-		 * to something other than "path" for some rason.
-		 */
-		/* Save "mounted from" info for mount point (NULL pad)*/
+	err = ntfs_mountfs(devvp, mp, td);
+	if (err == 0) {
+
+		/* Save "mounted from" info for mount point. */
 		vfs_mountedfrom(mp, from);
-
-		err = ntfs_mountfs(devvp, mp, td);
-	}
-	if (err) {
+	} else
 		vrele(devvp);
-		return (err);
-	}
-
-	goto success;
-
-error_1:	/* no state to back out*/
-	/* XXX: missing NDFREE(&ndp, ...) */
-
-success:
 	return (err);
 }
 
@@ -275,13 +244,12 @@ ntfs_mountfs(devvp, mp, td)
 	struct buf *bp;
 	struct ntfsmount *ntmp;
 	struct cdev *dev = devvp->v_rdev;
-	int error, ronly, i, v;
+	int error, i, v;
 	struct vnode *vp;
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	char *cs_ntfs, *cs_local;
 
-	ronly = (mp->mnt_flag & MNT_RDONLY) != 0;
 	DROP_GIANT();
 	g_topology_lock();
 
@@ -296,7 +264,7 @@ ntfs_mountfs(devvp, mp, td)
  	if ((pp != NULL) && ((pp->acr | pp->acw | pp->ace ) != 0)) 
 		error = EPERM;
 	else 
-		error = g_vfs_open(devvp, &cp, "ntfs", ronly ? 0 : 1);
+		error = g_vfs_open(devvp, &cp, "ntfs", 0);
 
 	g_topology_unlock();
 	PICKUP_GIANT();
@@ -671,9 +639,9 @@ ntfs_vgetex(
 	struct vnode *vp;
 	enum vtype f_type;
 
-	dprintf(("ntfs_vgetex: ino: %d, attr: 0x%x:%s, lkf: 0x%lx, f: 0x%lx\n",
-		ino, attrtype, attrname?attrname:"", (u_long)lkflags,
-		(u_long)flags));
+	dprintf(("ntfs_vgetex: ino: %ju, attr: 0x%x:%s, lkf: 0x%lx, f: 0x%lx\n",
+	    (uintmax_t)ino, attrtype, attrname ? attrname : "", lkflags,
+	    (u_long)flags));
 
 	ntmp = VFSTONTFS(mp);
 	*vpp = NULL;
@@ -689,8 +657,8 @@ ntfs_vgetex(
 	if (!(flags & VG_DONTLOADIN) && !(ip->i_flag & IN_LOADED)) {
 		error = ntfs_loadntnode(ntmp, ip);
 		if(error) {
-			printf("ntfs_vget: CAN'T LOAD ATTRIBUTES FOR INO: %d\n",
-			       ip->i_number);
+			printf("ntfs_vget: CAN'T LOAD ATTRIBUTES FOR INO: %ju\n",
+			    (uintmax_t)ip->i_number);
 			ntfs_ntput(ip);
 			return (error);
 		}
@@ -745,7 +713,7 @@ ntfs_vgetex(
 		ntfs_ntput(ip);
 		return (error);
 	}
-	dprintf(("ntfs_vget: vnode: %p for ntnode: %d\n", vp,ino));
+	dprintf(("ntfs_vget: vnode: %p for ntnode: %ju\n", vp, (uintmax_t)ino));
 
 	fp->f_vp = vp;
 	vp->v_data = fp;
@@ -808,5 +776,5 @@ static struct vfsops ntfs_vfsops = {
 	.vfs_unmount =	ntfs_unmount,
 	.vfs_vget =	ntfs_vget,
 };
-VFS_SET(ntfs_vfsops, ntfs, 0);
+VFS_SET(ntfs_vfsops, ntfs, VFCF_READONLY);
 MODULE_VERSION(ntfs, 1);

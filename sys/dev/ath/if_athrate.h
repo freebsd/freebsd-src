@@ -150,4 +150,16 @@ struct ath_buf;
 void	ath_rate_tx_complete(struct ath_softc *, struct ath_node *,
 		const struct ath_rc_series *, const struct ath_tx_status *,
 		int pktlen, int nframes, int nbad);
+
+/*
+ * Fetch the global rate control statistics.
+ */
+int	ath_rate_fetch_stats(struct ath_softc *sc, struct ath_rateioctl *rs);
+
+/*
+ * Fetch the per-node statistics.
+ */
+int	ath_rate_fetch_node_stats(struct ath_softc *sc, struct ath_node *an,
+		struct ath_rateioctl *rs);
+
 #endif /* _ATH_RATECTRL_H_ */

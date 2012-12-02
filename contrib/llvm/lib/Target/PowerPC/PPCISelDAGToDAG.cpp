@@ -18,7 +18,6 @@
 #include "MCTargetDesc/PPCPredicates.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineFunction.h"
-#include "llvm/CodeGen/MachineFunctionAnalysis.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/SelectionDAG.h"
 #include "llvm/CodeGen/SelectionDAGISel.h"
@@ -112,6 +111,23 @@ namespace {
     /// immediate field.  Because preinc imms have already been validated, just
     /// accept it.
     bool SelectAddrImmOffs(SDValue N, SDValue &Out) const {
+      if (isa<ConstantSDNode>(N) || N.getOpcode() == PPCISD::Lo ||
+          N.getOpcode() == ISD::TargetGlobalAddress) {
+        Out = N;
+        return true;
+      }
+
+      return false;
+    }
+
+    /// SelectAddrIdxOffs - Return true if the operand is valid for a preinc
+    /// index field.  Because preinc imms have already been validated, just
+    /// accept it.
+    bool SelectAddrIdxOffs(SDValue N, SDValue &Out) const {
+      if (isa<ConstantSDNode>(N) || N.getOpcode() == PPCISD::Lo ||
+          N.getOpcode() == ISD::TargetGlobalAddress)
+        return false;
+
       Out = N;
       return true;
     }
@@ -211,13 +227,13 @@ void PPCDAGToDAGISel::InsertVRSaveCode(MachineFunction &Fn) {
 
   // Find all return blocks, outputting a restore in each epilog.
   for (MachineFunction::iterator BB = Fn.begin(), E = Fn.end(); BB != E; ++BB) {
-    if (!BB->empty() && BB->back().getDesc().isReturn()) {
+    if (!BB->empty() && BB->back().isReturn()) {
       IP = BB->end(); --IP;
 
       // Skip over all terminator instructions, which are part of the return
       // sequence.
       MachineBasicBlock::iterator I2 = IP;
-      while (I2 != BB->begin() && (--I2)->getDesc().isTerminator())
+      while (I2 != BB->begin() && (--I2)->isTerminator())
         IP = I2;
 
       // Emit: MTVRSAVE InVRSave
@@ -239,11 +255,11 @@ SDNode *PPCDAGToDAGISel::getGlobalBaseReg() {
     DebugLoc dl;
 
     if (PPCLowering.getPointerTy() == MVT::i32) {
-      GlobalBaseReg = RegInfo->createVirtualRegister(PPC::GPRCRegisterClass);
+      GlobalBaseReg = RegInfo->createVirtualRegister(&PPC::GPRCRegClass);
       BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MovePCtoLR));
       BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MFLR), GlobalBaseReg);
     } else {
-      GlobalBaseReg = RegInfo->createVirtualRegister(PPC::G8RCRegisterClass);
+      GlobalBaseReg = RegInfo->createVirtualRegister(&PPC::G8RCRegClass);
       BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MovePCtoLR8));
       BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MFLR8), GlobalBaseReg);
     }
@@ -378,8 +394,8 @@ SDNode *PPCDAGToDAGISel::SelectBitfieldInsert(SDNode *N) {
   DebugLoc dl = N->getDebugLoc();
 
   APInt LKZ, LKO, RKZ, RKO;
-  CurDAG->ComputeMaskedBits(Op0, APInt::getAllOnesValue(32), LKZ, LKO);
-  CurDAG->ComputeMaskedBits(Op1, APInt::getAllOnesValue(32), RKZ, RKO);
+  CurDAG->ComputeMaskedBits(Op0, LKZ, LKO);
+  CurDAG->ComputeMaskedBits(Op1, RKZ, RKO);
 
   unsigned TargetMask = LKZ.getZExtValue();
   unsigned InsertMask = RKZ.getZExtValue();
@@ -603,7 +619,6 @@ static unsigned getCRIdxForSetCC(ISD::CondCode CC, bool &Invert, int &Other) {
   case ISD::SETULT: return 0;
   case ISD::SETUGT: return 1;
   }
-  return 0;
 }
 
 SDNode *PPCDAGToDAGISel::SelectSETCC(SDNode *N) {
@@ -699,7 +714,7 @@ SDNode *PPCDAGToDAGISel::SelectSETCC(SDNode *N) {
   CCReg = CurDAG->getCopyToReg(CurDAG->getEntryNode(), dl, CR7Reg, CCReg,
                                InFlag).getValue(1);
 
-  if (PPCSubTarget.isGigaProcessor() && OtherCondIdx == -1)
+  if (PPCSubTarget.hasMFOCRF() && OtherCondIdx == -1)
     IntCR = SDValue(CurDAG->getMachineNode(PPC::MFOCRF, dl, MVT::i32, CR7Reg,
                                            CCReg), 0);
  else
@@ -835,7 +850,7 @@ SDNode *PPCDAGToDAGISel::Select(SDNode *N) {
   case PPCISD::MFCR: {
     SDValue InFlag = N->getOperand(1);
     // Use MFOCRF if supported.
-    if (PPCSubTarget.isGigaProcessor())
+    if (PPCSubTarget.hasMFOCRF())
       return CurDAG->getMachineNode(PPC::MFOCRF, dl, MVT::i32,
                                     N->getOperand(0), InFlag);
     else
@@ -917,12 +932,44 @@ SDNode *PPCDAGToDAGISel::Select(SDNode *N) {
       SDValue Chain = LD->getChain();
       SDValue Base = LD->getBasePtr();
       SDValue Ops[] = { Offset, Base, Chain };
-      // FIXME: PPC64
       return CurDAG->getMachineNode(Opcode, dl, LD->getValueType(0),
                                     PPCLowering.getPointerTy(),
                                     MVT::Other, Ops, 3);
     } else {
-      llvm_unreachable("R+R preindex loads not supported yet!");
+      unsigned Opcode;
+      bool isSExt = LD->getExtensionType() == ISD::SEXTLOAD;
+      if (LD->getValueType(0) != MVT::i64) {
+        // Handle PPC32 integer and normal FP loads.
+        assert((!isSExt || LoadedVT == MVT::i16) && "Invalid sext update load");
+        switch (LoadedVT.getSimpleVT().SimpleTy) {
+          default: llvm_unreachable("Invalid PPC load type!");
+          case MVT::f64: Opcode = PPC::LFDUX; break;
+          case MVT::f32: Opcode = PPC::LFSUX; break;
+          case MVT::i32: Opcode = PPC::LWZUX; break;
+          case MVT::i16: Opcode = isSExt ? PPC::LHAUX : PPC::LHZUX; break;
+          case MVT::i1:
+          case MVT::i8:  Opcode = PPC::LBZUX; break;
+        }
+      } else {
+        assert(LD->getValueType(0) == MVT::i64 && "Unknown load result type!");
+        assert((!isSExt || LoadedVT == MVT::i16 || LoadedVT == MVT::i32) &&
+               "Invalid sext update load");
+        switch (LoadedVT.getSimpleVT().SimpleTy) {
+          default: llvm_unreachable("Invalid PPC load type!");
+          case MVT::i64: Opcode = PPC::LDUX; break;
+          case MVT::i32: Opcode = isSExt ? PPC::LWAUX  : PPC::LWZUX8; break;
+          case MVT::i16: Opcode = isSExt ? PPC::LHAUX8 : PPC::LHZUX8; break;
+          case MVT::i1:
+          case MVT::i8:  Opcode = PPC::LBZUX8; break;
+        }
+      }
+
+      SDValue Chain = LD->getChain();
+      SDValue Base = LD->getBasePtr();
+      SDValue Ops[] = { Offset, Base, Chain };
+      return CurDAG->getMachineNode(Opcode, dl, LD->getValueType(0),
+                                    PPCLowering.getPointerTy(),
+                                    MVT::Other, Ops, 3);
     }
   }
 
@@ -1067,7 +1114,7 @@ SDNode *PPCDAGToDAGISel::Select(SDNode *N) {
     SDValue Target = N->getOperand(1);
     unsigned Opc = Target.getValueType() == MVT::i32 ? PPC::MTCTR : PPC::MTCTR8;
     unsigned Reg = Target.getValueType() == MVT::i32 ? PPC::BCTR : PPC::BCTR8;
-    Chain = SDValue(CurDAG->getMachineNode(Opc, dl, MVT::Other, Target,
+    Chain = SDValue(CurDAG->getMachineNode(Opc, dl, MVT::Glue, Target,
                                            Chain), 0);
     return CurDAG->SelectNodeTo(N, Reg, MVT::Other, Chain);
   }

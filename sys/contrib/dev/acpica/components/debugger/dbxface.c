@@ -231,7 +231,7 @@ AcpiDbSingleStep (
     switch (OpcodeClass)
     {
     case AML_CLASS_UNKNOWN:
-    case AML_CLASS_ARGUMENT:    /* constants, literals, etc.  do nothing */
+    case AML_CLASS_ARGUMENT:    /* constants, literals, etc. do nothing */
         return (AE_OK);
 
     default:

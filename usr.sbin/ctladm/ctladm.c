@@ -164,7 +164,7 @@ typedef enum {
 static const char rw_opts[] = "Nb:c:d:f:l:";
 static const char startstop_opts[] = "io";
 
-struct ctladm_opts option_table[] = {
+static struct ctladm_opts option_table[] = {
 	{"adddev", CTLADM_CMD_ADDDEV, CTLADM_ARG_NONE, NULL},
 	{"bbrread", CTLADM_CMD_BBRREAD, CTLADM_ARG_NEED_TL, "d:l:"},
 	{"create", CTLADM_CMD_CREATE, CTLADM_ARG_NONE, "b:B:d:l:o:s:S:t:"},
@@ -572,7 +572,7 @@ typedef enum {
 	CCTL_PORT_MODE_OFF
 } cctl_port_mode;
 
-struct ctladm_opts cctl_fe_table[] = {
+static struct ctladm_opts cctl_fe_table[] = {
 	{"fc", CTL_PORT_FC, CTLADM_ARG_NONE, NULL},
 	{"scsi", CTL_PORT_SCSI, CTLADM_ARG_NONE, NULL},
 	{"internal", CTL_PORT_INTERNAL, CTLADM_ARG_NONE, NULL},
@@ -772,7 +772,6 @@ static int
 cctl_delay(int fd, int target, int lun, int argc, char **argv,
 	   char *combinedopt)
 {
-	int datamove_delay;
 	struct ctl_io_delay_info delay_info;
 	char *delayloc = NULL;
 	char *delaytype = NULL;
@@ -781,7 +780,6 @@ cctl_delay(int fd, int target, int lun, int argc, char **argv,
 	int c;
 
 	retval = 0;
-	datamove_delay = 0;
 
 	memset(&delay_info, 0, sizeof(delay_info));
 
@@ -1001,7 +999,7 @@ bailout:
 	return (retval);
 }
 
-struct ctladm_opts cctl_err_types[] = {
+static struct ctladm_opts cctl_err_types[] = {
 	{"aborted", CTL_LUN_INJ_ABORTED, CTLADM_ARG_NONE, NULL},
 	{"mediumerr", CTL_LUN_INJ_MEDIUM_ERR, CTLADM_ARG_NONE, NULL},
 	{"ua", CTL_LUN_INJ_UA, CTLADM_ARG_NONE, NULL},
@@ -1010,7 +1008,7 @@ struct ctladm_opts cctl_err_types[] = {
 
 };
 
-struct ctladm_opts cctl_err_patterns[] = {
+static struct ctladm_opts cctl_err_patterns[] = {
 	{"read", CTL_LUN_PAT_READ, CTLADM_ARG_NONE, NULL},
 	{"write", CTL_LUN_PAT_WRITE, CTLADM_ARG_NONE, NULL},
 	{"rw", CTL_LUN_PAT_READWRITE, CTLADM_ARG_NONE, NULL},
@@ -1028,7 +1026,7 @@ static int
 cctl_error_inject(int fd, uint32_t target, uint32_t lun, int argc, char **argv, 
 		  char *combinedopt)
 {
-	int retval;
+	int retval = 0;
 	struct ctl_error_desc err_desc;
 	uint64_t lba = 0;
 	uint32_t len = 0;
@@ -3803,7 +3801,7 @@ CTL_DEFAULT_DEV);
 int
 main(int argc, char **argv)
 {
-	int option_index, c;
+	int c;
 	ctladm_cmdfunction command;
 	ctladm_cmdargs cmdargs;
 	ctladm_optret optreturn;
@@ -3814,10 +3812,9 @@ main(int argc, char **argv)
 	int target, lun;
 	int optstart = 2;
 	int retval, fd;
-	int retries, timeout;
+	int retries;
 	int initid;
 
-	option_index = 0;
 	retval = 0;
 	cmdargs = CTLADM_ARG_NONE;
 	command = CTLADM_CMD_HELP;
@@ -3826,7 +3823,6 @@ main(int argc, char **argv)
 	retries = 0;
 	target = 0;
 	lun = 0;
-	timeout = 0;
 	initid = 7;
 
 	if (argc < 2) {

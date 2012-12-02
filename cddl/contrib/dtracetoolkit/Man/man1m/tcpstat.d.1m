@@ -1,0 +1,58 @@
+.TH tcpstat.d 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+tcpstat.d \- print TCP statistics. Uses DTrace.
+.SH SYNOPSIS
+.B tcpstat.d
+.SH DESCRIPTION
+tcpstat.d is a DTrace program to print TCP statistics every second,
+retrieved from the MIB provider.
+
+This program can be used to help identify how utilised the network 
+interfaces may be, as well as TCP transmission errors.
+
+The TCP statistics are documented in the mib2_tcp struct
+in /usr/include/inet/mib2.h; and also in the mib provider
+chapter of the DTrace Guide, found at 
+http://docs.sun.com/db/doc/817-6223.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the mib provider.
+.SH EXAMPLES
+.TP
+Print statistics every second,
+# 
+.B tcpstat.d
+.PP
+.SH FIELDS
+.TP
+TCP_out
+TCP bytes sent
+.TP
+TCP_outRe
+TCP bytes retransmitted
+.TP
+TCP_in
+TCP bytes received
+.TP
+TCP_inDup
+TCP bytes received duplicated
+.TP
+TCP_inUn
+TCP bytes received out of order
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+tcpstat.d will run forever until Ctrl\-C is hit. 
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+nicstat(1M), dtrace(1M)
+

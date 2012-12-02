@@ -11,6 +11,9 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote
+ *    products derived from this software without specific prior written
+ *    permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -24,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_check_owner_perms.c 499 2011-11-22 11:51:50Z des $
+ * $Id: openpam_check_owner_perms.c 543 2012-03-31 22:11:34Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -67,6 +70,12 @@ openpam_check_desc_owner_perms(const char *name, int fd)
 		errno = serrno;
 		return (-1);
 	}
+	if (!S_ISREG(sb.st_mode)) {
+		openpam_log(PAM_LOG_ERROR,
+		    "%s: not a regular file", name);
+		errno = EINVAL;
+		return (-1);
+	}
 	if ((sb.st_uid != root && sb.st_uid != arbitrator) ||
 	    (sb.st_mode & (S_IWGRP|S_IWOTH)) != 0) {
 		openpam_log(PAM_LOG_ERROR,
@@ -84,7 +93,7 @@ openpam_check_desc_owner_perms(const char *name, int fd)
  * up to it are owned by either root or the arbitrator and that they are
  * not writable by group or other.
  *
- * Note that openpam_check_file_owner_perms() should be used instead if
+ * Note that openpam_check_desc_owner_perms() should be used instead if
  * possible to avoid a race between the ownership / permission check and
  * the actual open().
  */
@@ -95,8 +104,9 @@ openpam_check_path_owner_perms(const char *path)
 	uid_t root, arbitrator;
 	char pathbuf[PATH_MAX];
 	struct stat sb;
-	int len, serrno;
+	int len, serrno, tip;
 
+	tip = 1;
 	root = 0;
 	arbitrator = geteuid();
 	if (realpath(path, pathbuf) == NULL)
@@ -111,6 +121,12 @@ openpam_check_path_owner_perms(const char *path)
 			}
 			return (-1);
 		}
+		if (tip && !S_ISREG(sb.st_mode)) {
+			openpam_log(PAM_LOG_ERROR,
+			    "%s: not a regular file", pathbuf);
+			errno = EINVAL;
+			return (-1);
+		}
 		if ((sb.st_uid != root && sb.st_uid != arbitrator) ||
 		    (sb.st_mode & (S_IWGRP|S_IWOTH)) != 0) {
 			openpam_log(PAM_LOG_ERROR,
@@ -120,6 +136,7 @@ openpam_check_path_owner_perms(const char *path)
 		}
 		while (--len > 0 && pathbuf[len] != '/')
 			pathbuf[len] = '\0';
+		tip = 0;
 	}
 	return (0);
 }

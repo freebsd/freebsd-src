@@ -200,9 +200,9 @@ bool ProfileInfoPrinterPass::runOnModule(Module &M) {
     }
 
     outs() << format("%3d", i+1) << ". "
-      << format("%5.2g", FunctionCounts[i].second) << "/"
-      << format("%g", TotalExecutions) << " "
-      << FunctionCounts[i].first->getNameStr() << "\n";
+           << format("%5.2g", FunctionCounts[i].second) << "/"
+           << format("%g", TotalExecutions) << " "
+           << FunctionCounts[i].first->getName() << "\n";
   }
 
   std::set<Function*> FunctionsToPrint;
@@ -225,12 +225,12 @@ bool ProfileInfoPrinterPass::runOnModule(Module &M) {
   for (unsigned i = 0; i != BlocksToPrint; ++i) {
     if (Counts[i].second == 0) break;
     Function *F = Counts[i].first->getParent();
-    outs() << format("%3d", i+1) << ". " 
-      << format("%5g", Counts[i].second/(double)TotalExecutions*100) << "% "
-      << format("%5.0f", Counts[i].second) << "/"
-      << format("%g", TotalExecutions) << "\t"
-      << F->getNameStr() << "() - "
-       << Counts[i].first->getNameStr() << "\n";
+    outs() << format("%3d", i+1) << ". "
+           << format("%5g", Counts[i].second/(double)TotalExecutions*100)<<"% "
+           << format("%5.0f", Counts[i].second) << "/"
+           << format("%g", TotalExecutions) << "\t"
+           << F->getName() << "() - "
+           << Counts[i].first->getName() << "\n";
     FunctionsToPrint.insert(F);
   }
 
@@ -281,7 +281,7 @@ int main(int argc, char **argv) {
   // using the standard profile info provider pass, but for now this gives us
   // access to additional information not exposed via the ProfileInfo
   // interface.
-  ProfileInfoLoader PIL(argv[0], ProfileDataFile, *M);
+  ProfileInfoLoader PIL(argv[0], ProfileDataFile);
 
   // Run the printer pass.
   PassManager PassMgr;

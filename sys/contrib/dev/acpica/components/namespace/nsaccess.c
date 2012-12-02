@@ -121,12 +121,12 @@ AcpiNsRootInitialize (
         Status = AcpiNsLookup (NULL, InitVal->Name, InitVal->Type,
                         ACPI_IMODE_LOAD_PASS2, ACPI_NS_NO_UPSEARCH,
                         NULL, &NewNode);
-
-        if (ACPI_FAILURE (Status) || (!NewNode)) /* Must be on same line for code converter */
+        if (ACPI_FAILURE (Status))
         {
             ACPI_EXCEPTION ((AE_INFO, Status,
                 "Could not create predefined name %s",
                 InitVal->Name));
+            continue;
         }
 
         /*
@@ -697,4 +697,3 @@ AcpiNsLookup (
     *ReturnNode = ThisNode;
     return_ACPI_STATUS (AE_OK);
 }
-

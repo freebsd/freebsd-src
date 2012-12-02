@@ -16,7 +16,6 @@
 #define DEBUG_TYPE "indvars"
 
 #include "llvm/Instructions.h"
-#include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/IVUsers.h"
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/LoopPass.h"
@@ -44,9 +43,7 @@ namespace {
   class SimplifyIndvar {
     Loop             *L;
     LoopInfo         *LI;
-    DominatorTree    *DT;
     ScalarEvolution  *SE;
-    IVUsers          *IU; // NULL for DisableIVRewrite
     const TargetData *TD; // May be NULL
 
     SmallVectorImpl<WeakVH> &DeadInsts;
@@ -59,7 +56,6 @@ namespace {
       L(Loop),
       LI(LPM->getAnalysisIfAvailable<LoopInfo>()),
       SE(SE),
-      IU(IVU),
       TD(LPM->getAnalysisIfAvailable<TargetData>()),
       DeadInsts(Dead),
       Changed(false) {
@@ -107,8 +103,8 @@ Value *SimplifyIndvar::foldIVUser(Instruction *UseInst, Instruction *IVOperand) 
 
     // Attempt to fold a binary operator with constant operand.
     // e.g. ((I + 1) >> 2) => I >> 2
-    if (IVOperand->getNumOperands() != 2 ||
-        !isa<ConstantInt>(IVOperand->getOperand(1)))
+    if (!isa<BinaryOperator>(IVOperand)
+        || !isa<ConstantInt>(IVOperand->getOperand(1)))
       return 0;
 
     IVSrc = IVOperand->getOperand(0);
@@ -229,11 +225,6 @@ void SimplifyIndvar::eliminateIVRemainder(BinaryOperator *Rem,
     Rem->replaceAllUsesWith(Sel);
   }
 
-  // Inform IVUsers about the new users.
-  if (IU) {
-    if (Instruction *I = dyn_cast<Instruction>(Rem->getOperand(0)))
-      IU->AddUsersIfInteresting(I);
-  }
   DEBUG(dbgs() << "INDVARS: Simplified rem: " << *Rem << '\n');
   ++NumElimRem;
   Changed = true;
@@ -375,6 +366,8 @@ void SimplifyIndvar::simplifyUsers(PHINode *CurrIV, IVVisitor *V) {
 
 namespace llvm {
 
+void IVVisitor::anchor() { }
+
 /// simplifyUsersOfIV - Simplify instructions that use this induction variable
 /// by using ScalarEvolution to analyze the IV's recurrence.
 bool simplifyUsersOfIV(PHINode *CurrIV, ScalarEvolution *SE, LPPassManager *LPM,
@@ -395,38 +388,6 @@ bool simplifyLoopIVs(Loop *L, ScalarEvolution *SE, LPPassManager *LPM,
     Changed |= simplifyUsersOfIV(cast<PHINode>(I), SE, LPM, Dead);
   }
   return Changed;
-}
-
-/// simplifyIVUsers - Perform simplification on instructions recorded by the
-/// IVUsers pass.
-///
-/// This is the old approach to IV simplification to be replaced by
-/// SimplifyLoopIVs.
-bool simplifyIVUsers(IVUsers *IU, ScalarEvolution *SE, LPPassManager *LPM,
-                     SmallVectorImpl<WeakVH> &Dead) {
-  SimplifyIndvar SIV(IU->getLoop(), SE, LPM, Dead);
-
-  // Each round of simplification involves a round of eliminating operations
-  // followed by a round of widening IVs. A single IVUsers worklist is used
-  // across all rounds. The inner loop advances the user. If widening exposes
-  // more uses, then another pass through the outer loop is triggered.
-  for (IVUsers::iterator I = IU->begin(); I != IU->end(); ++I) {
-    Instruction *UseInst = I->getUser();
-    Value *IVOperand = I->getOperandValToReplace();
-
-    if (ICmpInst *ICmp = dyn_cast<ICmpInst>(UseInst)) {
-      SIV.eliminateIVComparison(ICmp, IVOperand);
-      continue;
-    }
-    if (BinaryOperator *Rem = dyn_cast<BinaryOperator>(UseInst)) {
-      bool IsSigned = Rem->getOpcode() == Instruction::SRem;
-      if (IsSigned || Rem->getOpcode() == Instruction::URem) {
-        SIV.eliminateIVRemainder(Rem, IVOperand, IsSigned);
-        continue;
-      }
-    }
-  }
-  return SIV.hasChanged();
 }
 
 } // namespace llvm

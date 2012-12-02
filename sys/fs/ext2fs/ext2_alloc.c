@@ -197,6 +197,18 @@ ext2_reallocblks(ap)
 			panic("ext2_reallocblks: non-cluster");
 #endif
 	/*
+	 * If the cluster crosses the boundary for the first indirect
+	 * block, leave space for the indirect block. Indirect blocks
+	 * are initially laid out in a position after the last direct
+	 * block. Block reallocation would usually destroy locality by
+	 * moving the indirect block out of the way to make room for
+	 * data blocks if we didn't compensate here. We should also do
+	 * this for other indirect block boundaries, but it is only
+	 * important for the first one.
+	 */
+	if (start_lbn < NDADDR && end_lbn >= NDADDR)
+		return (ENOSPC);
+	/*
 	 * If the latest allocation is in a new cylinder group, assume that
 	 * the filesystem has decided to move and do not force it back to
 	 * the previous cylinder group.
@@ -1026,8 +1038,8 @@ ext2_vfree(pvp, ino, mode)
 	fs = pip->i_e2fs;
 	ump = pip->i_ump;
 	if ((u_int)ino > fs->e2fs_ipg * fs->e2fs_gcount)
-		panic("ext2_vfree: range: devvp = %p, ino = %d, fs = %s",
-		    pip->i_devvp, ino, fs->e2fs_fsmnt);
+		panic("ext2_vfree: range: devvp = %p, ino = %ju, fs = %s",
+		    pip->i_devvp, (uintmax_t)ino, fs->e2fs_fsmnt);
 
 	cg = ino_to_cg(fs, ino);
 	error = bread(pip->i_devvp,

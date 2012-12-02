@@ -16,13 +16,12 @@
 #define THUMB1REGISTERINFO_H
 
 #include "ARM.h"
-#include "ARMRegisterInfo.h"
+#include "ARMBaseRegisterInfo.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 
 namespace llvm {
   class ARMSubtarget;
   class ARMBaseInstrInfo;
-  class Type;
 
 struct Thumb1RegisterInfo : public ARMBaseRegisterInfo {
 public:
@@ -31,7 +30,8 @@ public:
   const TargetRegisterClass*
   getLargestLegalSuperClass(const TargetRegisterClass *RC) const;
 
-  const TargetRegisterClass *getPointerRegClass(unsigned Kind = 0) const;
+  const TargetRegisterClass*
+  getPointerRegClass(const MachineFunction &MF, unsigned Kind = 0) const;
 
   /// emitLoadConstPool - Emits a load from constpool to materialize the
   /// specified immediate.

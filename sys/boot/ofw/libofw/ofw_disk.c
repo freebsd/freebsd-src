@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/param.h>
-#include <sys/queue.h>
 
 #include <netinet/in.h>
 
@@ -43,8 +42,8 @@ __FBSDID("$FreeBSD$");
 #include "libofw.h"
 
 static int	ofwd_init(void);
-static int	ofwd_strategy(void *devdata, int flag, daddr_t dblk, 
-				size_t size, char *buf, size_t *rsize);
+static int	ofwd_strategy(void *devdata, int flag, daddr_t dblk,
+		    size_t size, char *buf, size_t *rsize);
 static int	ofwd_open(struct open_file *f, ...);
 static int	ofwd_close(struct open_file *f);
 static int	ofwd_ioctl(struct open_file *f, u_long cmd, void *data);
@@ -61,120 +60,109 @@ struct devsw ofwdisk = {
 	ofwd_print
 };
 
-struct opened_dev {
-	ihandle_t		handle;
-	u_int			count;
-	SLIST_ENTRY(opened_dev)	link;
-};
-
-SLIST_HEAD(, opened_dev) opened_devs = SLIST_HEAD_INITIALIZER(opened_devs);
+/*
+ * We're not guaranteed to be able to open a device more than once and there
+ * is no OFW standard method to determine whether a device is already opened.
+ * Opening a device multiple times simultaneously happens to work with most
+ * OFW block device drivers but triggers a trap with at least the driver for
+ * the on-board controllers of Sun Fire V100 and Ultra 1.  Upper layers and MI
+ * code expect to be able to open a device more than once however.  Given that
+ * different partitions of the same device might be opened at the same time as
+ * done by ZFS, we can't generally just keep track of the opened devices and
+ * reuse the instance handle when asked to open an already opened device.  So
+ * the best we can do is to cache the lastly used device path and close and
+ * open devices in ofwd_strategy() as needed.
+ */
+static struct ofw_devdesc *kdp;
 
 static int
 ofwd_init(void)
 {
 
-	return 0;
+	return (0);
 }
 
 static int
-ofwd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, char *buf,
-    size_t *rsize)
+ofwd_strategy(void *devdata, int flag __unused, daddr_t dblk, size_t size,
+    char *buf, size_t *rsize)
 {
 	struct ofw_devdesc *dp = (struct ofw_devdesc *)devdata;
 	daddr_t pos;
 	int n;
 
+	if (dp != kdp) {
+		if (kdp != NULL) {
+#if !defined(__powerpc__)
+			OF_close(kdp->d_handle);
+#endif
+			kdp = NULL;
+		}
+		if ((dp->d_handle = OF_open(dp->d_path)) == -1)
+			return (ENOENT);
+		kdp = dp;
+	}
+
 	pos = dblk * 512;
 	do {
 		if (OF_seek(dp->d_handle, pos) < 0)
-			return EIO;
+			return (EIO);
 		n = OF_read(dp->d_handle, buf, size);
 		if (n < 0 && n != -2)
-			return EIO;
+			return (EIO);
 	} while (n == -2);
 	*rsize = size;
-	return 0;
+	return (0);
 }
 
 static int
 ofwd_open(struct open_file *f, ...)
 {
-	char path[256];
 	struct ofw_devdesc *dp;
-	struct opened_dev *odp;
 	va_list vl;
 
 	va_start(vl, f);
 	dp = va_arg(vl, struct ofw_devdesc *);
 	va_end(vl);
-	/*
-	 * We're not guaranteed to be able to open a device more than once
-	 * simultaneously and there is no OFW standard method to determine
-	 * whether a device is already opened. Opening a device more than
-	 * once happens to work with most OFW block device drivers but
-	 * triggers a trap with at least the driver for the on-board SCSI
-	 * controller in Sun Ultra 1. Upper layers and MI code expect to
-	 * be able to open a device more than once however. As a workaround
-	 * keep track of the opened devices and reuse the instance handle
-	 * when asked to open an already opened device.
-	 */
-	SLIST_FOREACH(odp, &opened_devs, link) {
-		if (OF_instance_to_path(odp->handle, path, sizeof(path)) == -1)
-			continue;
-		if (strcmp(path, dp->d_path) == 0) {
-			odp->count++;
-			dp->d_handle = odp->handle;
-			return 0;
+
+	if (dp != kdp) {
+		if (kdp != NULL) {
+			OF_close(kdp->d_handle);
+			kdp = NULL;
 		}
+		if ((dp->d_handle = OF_open(dp->d_path)) == -1) {
+			printf("%s: Could not open %s\n", __func__,
+			    dp->d_path);
+			return (ENOENT);
+		}
+		kdp = dp;
 	}
-	odp = malloc(sizeof(struct opened_dev));
-	if (odp == NULL) {
-		printf("ofwd_open: malloc failed\n");
-		return ENOMEM;
-	}
-	if ((odp->handle = OF_open(dp->d_path)) == -1) {
-		printf("ofwd_open: Could not open %s\n", dp->d_path);
-		free(odp);
-		return ENOENT;
-	}
-	odp->count = 1;
-	SLIST_INSERT_HEAD(&opened_devs, odp, link);
-	dp->d_handle = odp->handle;
-	return 0;
+	return (0);
 }
 
 static int
 ofwd_close(struct open_file *f)
 {
 	struct ofw_devdesc *dev = f->f_devdata;
-	struct opened_dev *odp;
 
-	SLIST_FOREACH(odp, &opened_devs, link) {
-		if (odp->handle == dev->d_handle) {
-			odp->count--;
-			if (odp->count == 0) {
-				SLIST_REMOVE(&opened_devs, odp, opened_dev,
-				    link);
-			#if !defined(__powerpc__)
-				OF_close(odp->handle);
-			#endif
-				free(odp);
-			}
-			break;
-		}
+	if (dev == kdp) {
+#if !defined(__powerpc__)
+		OF_close(dev->d_handle);
+#endif
+		kdp = NULL;
 	}
-	return 0;
+	return (0);
 }
 
 static int
-ofwd_ioctl(struct open_file *f, u_long cmd, void *data)
+ofwd_ioctl(struct open_file *f __unused, u_long cmd __unused,
+    void *data __unused)
 {
 
 	return (EINVAL);
 }
 
 static void
-ofwd_print(int verbose)
+ofwd_print(int verbose __unused)
 {
 
 }

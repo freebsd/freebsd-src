@@ -83,8 +83,8 @@
                                              / | cur         |
    NETMAP_IF  (nifp, one per file desc.)    /  | avail       |
     +---------------+                      /   | buf_ofs     |
-    | ni_num_queues |                     /    +=============+
-    |               |                    /     | buf_idx     | slot[0]
+    | ni_tx_rings   |                     /    +=============+
+    | ni_rx_rings   |                    /     | buf_idx     | slot[0]
     |               |                   /      | len, flags  |
     |               |                  /       +-------------+
     +===============+                 /        | buf_idx     | slot[1]
@@ -221,8 +221,8 @@ struct netmap_ring {
 struct netmap_if {
 	char		ni_name[IFNAMSIZ]; /* name of the interface. */
 	const u_int	ni_version;	/* API version, currently unused */
-	const u_int	ni_rx_queues;	/* number of rx queue pairs */
-	const u_int	ni_tx_queues;	/* if zero, same as ni_tx_queues */
+	const u_int	ni_rx_rings;	/* number of rx rings */
+	const u_int	ni_tx_rings;	/* if zero, same as ni_rx_rings */
 	/*
 	 * The following array contains the offset of each netmap ring
 	 * from this structure. The first ni_tx_queues+1 entries refer
@@ -257,7 +257,7 @@ struct netmap_if {
 struct nmreq {
 	char		nr_name[IFNAMSIZ];
 	uint32_t	nr_version;	/* API version */
-#define	NETMAP_API	2		/* current version */
+#define	NETMAP_API	3		/* current version */
 	uint32_t	nr_offset;	/* nifp offset in the shared region */
 	uint32_t	nr_memsize;	/* size of the shared region */
 	uint32_t	nr_tx_slots;	/* slots in tx rings */

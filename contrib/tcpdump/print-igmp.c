@@ -227,7 +227,11 @@ print_igmpv3_query(register const u_char *bp, register u_int len)
     }
     if (mrc != 100) {
 	(void)printf(" [max resp time ");
-	relts_print(mrt);
+        if (mrt < 600) {
+            (void)printf("%.1fs", mrt * 0.1);
+        } else {
+            relts_print(mrt / 10);
+        }
 	(void)printf("]");
     }
     TCHECK2(bp[4], 4);
@@ -259,6 +263,8 @@ trunc:
 void
 igmp_print(register const u_char *bp, register u_int len)
 {
+    struct cksum_vec vec[1];
+
     if (qflag) {
         (void)printf("igmp");
         return;
@@ -327,7 +333,9 @@ igmp_print(register const u_char *bp, register u_int len)
 
     if (vflag && TTEST2(bp[0], len)) {
         /* Check the IGMP checksum */
-        if (in_cksum((const u_short*)bp, len, 0))
+        vec[0].ptr = bp;
+        vec[0].len = len;
+        if (in_cksum(vec, 1))
             printf(" bad igmp cksum %x!", EXTRACT_16BITS(&bp[2]));
     }
     return;

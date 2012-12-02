@@ -683,6 +683,13 @@ pcib_attach_common(device_t dev)
      *     would be more widely routed than absolutely necessary.  We could
      *     then do a walk of the tree later and fix it.
      */
+
+    /*
+     * Always enable busmastering on bridges so that transactions
+     * initiated on the secondary bus are passed through to the
+     * primary bus.
+     */
+    pci_enable_busmaster(dev);
 }
 
 int
@@ -815,7 +822,7 @@ static int
 pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
     u_long start, u_long end, u_long count, u_int flags)
 {
-	u_long align, start_free, end_free, front, back;
+	u_long align, start_free, end_free, front, back, wmask;
 	int error, rid;
 
 	/*
@@ -828,6 +835,7 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 		end = w->rman.rm_end;
 	if (start + count - 1 > end || start + count < start)
 		return (EINVAL);
+	wmask = (1ul << w->step) - 1;
 
 	/*
 	 * If there is no resource at all, just try to allocate enough
@@ -838,8 +846,8 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 			flags &= ~RF_ALIGNMENT_MASK;
 			flags |= RF_ALIGNMENT_LOG2(w->step);
 		}
-		start &= ~((1ul << w->step) - 1);
-		end |= ((1ul << w->step) - 1);
+		start &= ~wmask;
+		end |= wmask;
 		count = roundup2(count, 1ul << w->step);
 		rid = w->reg;
 		w->res = bus_alloc_resource(sc->dev, type, &rid, start, end,
@@ -893,9 +901,9 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 	if (start < rman_get_start(w->res)) {
 		if (rman_first_free_region(&w->rman, &start_free, &end_free) !=
 		    0 || start_free != rman_get_start(w->res))
-			end_free = rman_get_start(w->res) - 1;
+			end_free = rman_get_start(w->res);
 		if (end_free > end)
-			end_free = end;
+			end_free = end + 1;
 
 		/* Move end_free down until it is properly aligned. */
 		end_free &= ~(align - 1);
@@ -913,7 +921,7 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 			if (bootverbose)
 				printf("\tfront candidate range: %#lx-%#lx\n",
 				    front, end_free);
-			front &= (1ul << w->step) - 1;
+			front &= ~wmask;
 			front = rman_get_start(w->res) - front;
 		} else
 			front = 0;
@@ -941,7 +949,7 @@ pcib_grow_window(struct pcib_softc *sc, struct pcib_window *w, int type,
 			if (bootverbose)
 				printf("\tback candidate range: %#lx-%#lx\n",
 				    start_free, back);
-			back = roundup2(back + 1, 1ul << w->step) - 1;
+			back |= wmask;
 			back -= rman_get_end(w->res);
 		} else
 			back = 0;
@@ -1000,10 +1008,8 @@ updatewin:
 	/* Save the new window. */
 	w->base = rman_get_start(w->res);
 	w->limit = rman_get_end(w->res);
-	KASSERT((w->base & ((1ul << w->step) - 1)) == 0,
-	    ("start address is not aligned"));
-	KASSERT((w->limit & ((1ul << w->step) - 1)) == (1ul << w->step) - 1,
-	    ("end address is not aligned"));
+	KASSERT((w->base & wmask) == 0, ("start address is not aligned"));
+	KASSERT((w->limit & wmask) == wmask, ("end address is not aligned"));
 	pcib_write_windows(sc, w->mask);
 	return (0);
 }
@@ -1039,7 +1045,7 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	case SYS_RES_IOPORT:
 		r = pcib_suballoc_resource(sc, &sc->io, child, type, rid, start,
 		    end, count, flags);
-		if (r != NULL)
+		if (r != NULL || (sc->flags & PCIB_SUBTRACTIVE) != 0)
 			break;
 		if (pcib_grow_window(sc, &sc->io, type, start, end, count,
 		    flags) == 0)
@@ -1063,7 +1069,7 @@ pcib_alloc_resource(device_t dev, device_t child, int type, int *rid,
 		}
 		r = pcib_suballoc_resource(sc, &sc->mem, child, type, rid,
 		    start, end, count, flags);
-		if (r != NULL)
+		if (r != NULL || (sc->flags & PCIB_SUBTRACTIVE) != 0)
 			break;
 		if (flags & RF_PREFETCHABLE) {
 			if (pcib_grow_window(sc, &sc->pmem, type, start, end,

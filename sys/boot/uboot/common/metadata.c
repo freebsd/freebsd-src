@@ -42,7 +42,7 @@ __FBSDID("$FreeBSD$");
 #include "glue.h"
 
 #if defined(LOADER_FDT_SUPPORT)
-extern int fdt_fixup(void);
+extern int fdt_copy(vm_offset_t);
 #endif
 
 /*
@@ -72,6 +72,7 @@ static int
 md_getboothowto(char *kargs)
 {
 	char	*cp;
+	char	*p;
 	int	howto;
 	int	active;
 	int	i;
@@ -132,10 +133,12 @@ md_getboothowto(char *kargs)
 		if (getenv(howto_names[i].ev) != NULL)
 			howto |= howto_names[i].mask;
 	}
-	if (!strcmp(getenv("console"), "comconsole"))
-		howto |= RB_SERIAL;
-	if (!strcmp(getenv("console"), "nullconsole"))
-		howto |= RB_MUTE;
+	if ((p = getenv("console"))) {
+		if (!strcmp(p, "comconsole"))
+			howto |= RB_SERIAL;
+		if (!strcmp(p, "nullconsole"))
+			howto |= RB_MUTE;
+	}
 
 	return(howto);
 }
@@ -276,7 +279,10 @@ md_load(char *args, vm_offset_t *modulep)
 	vm_offset_t		envp;
 	vm_offset_t		size;
 	vm_offset_t		vaddr;
+#if defined(LOADER_FDT_SUPPORT)
 	vm_offset_t		dtbp;
+	int			dtb_size;
+#endif
 	char			*rootdevname;
 	int			howto;
 	int			i;
@@ -322,6 +328,16 @@ md_load(char *args, vm_offset_t *modulep)
 	/* Pad to a page boundary */
 	addr = roundup(addr, PAGE_SIZE);
 
+#if defined(LOADER_FDT_SUPPORT)
+	/* Handle device tree blob */
+	dtbp = addr;
+	dtb_size = fdt_copy(addr);
+		
+	/* Pad to a page boundary */
+	if (dtb_size)
+		addr += roundup(dtb_size, PAGE_SIZE);
+#endif
+
 	kernend = 0;
 	kfp = file_findfile(NULL, "elf32 kernel");
 	if (kfp == NULL)
@@ -332,9 +348,7 @@ md_load(char *args, vm_offset_t *modulep)
 	file_addmetadata(kfp, MODINFOMD_ENVP, sizeof envp, &envp);
 
 #if defined(LOADER_FDT_SUPPORT)
-	/* Handle device tree blob */
-	dtbp = fdt_fixup();
-	if (dtbp != (vm_offset_t)NULL)
+	if (dtb_size)
 		file_addmetadata(kfp, MODINFOMD_DTBP, sizeof dtbp, &dtbp);
 	else
 		pager_output("WARNING! Trying to fire up the kernel, but no "

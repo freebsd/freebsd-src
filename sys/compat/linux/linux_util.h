@@ -68,15 +68,23 @@ int linux_emul_convpath(struct thread *, const char *, enum uio_seg, char **, in
 #define LFREEPATH(path)	free(path, M_TEMP)
 
 #define DUMMY(s)							\
+LIN_SDT_PROBE_DEFINE0(dummy, s, entry);					\
+LIN_SDT_PROBE_DEFINE0(dummy, s, not_implemented);			\
+LIN_SDT_PROBE_DEFINE1(dummy, s, return, "int");				\
 int									\
 linux_ ## s(struct thread *td, struct linux_ ## s ## _args *args)	\
 {									\
 	static pid_t pid;						\
 									\
+	LIN_SDT_PROBE0(dummy, s, entry);				\
+									\
 	if (pid != td->td_proc->p_pid) {				\
 		linux_msg(td, "syscall %s not implemented", #s);	\
+		LIN_SDT_PROBE0(dummy, s, not_implemented);		\
 		pid = td->td_proc->p_pid;				\
 	};								\
+									\
+	LIN_SDT_PROBE1(dummy, s, return, ENOSYS);			\
 	return (ENOSYS);						\
 }									\
 struct __hack

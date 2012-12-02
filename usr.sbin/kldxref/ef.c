@@ -532,7 +532,7 @@ ef_open(const char *filename, struct elf_file *efile, int verbose)
 	int error;
 	int phlen, res;
 	int nsegs;
-	Elf_Phdr *phdr, *phdyn, *phphdr, *phlimit;
+	Elf_Phdr *phdr, *phdyn, *phlimit;
 
 	if (filename == NULL)
 		return EFTYPE;
@@ -576,7 +576,6 @@ ef_open(const char *filename, struct elf_file *efile, int verbose)
 		phlimit = phdr + hdr->e_phnum;
 		nsegs = 0;
 		phdyn = NULL;
-		phphdr = NULL;
 		while (phdr < phlimit) {
 			if (verbose > 1)
 				ef_print_phdr(phdr);
@@ -590,7 +589,6 @@ ef_open(const char *filename, struct elf_file *efile, int verbose)
 				ef->ef_segs[nsegs++] = phdr;
 				break;
 			case PT_PHDR:
-				phphdr = phdr;
 				break;
 			case PT_DYNAMIC:
 				phdyn = phdr;
@@ -602,7 +600,8 @@ ef_open(const char *filename, struct elf_file *efile, int verbose)
 			printf("\n");
 		ef->ef_nsegs = nsegs;
 		if (phdyn == NULL) {
-			warnx("file isn't dynamically-linked");
+			warnx("Skipping %s: not dynamically-linked",
+			    filename);
 			break;
 		}
 		if (ef_read_entry(ef, phdyn->p_offset,

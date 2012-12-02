@@ -132,6 +132,28 @@ struct ath_hal_5416 {
 	int		initPDADC;
 
 	int		ah_need_an_top2_fixup;	/* merlin or later chips that may need this workaround */
+
+	/*
+	 * Bluetooth coexistence static setup according to the registry
+	 */
+	HAL_BT_MODULE ah_btModule;            /* Bluetooth module identifier */
+	uint8_t		ah_btCoexConfigType;  /* BT coex configuration */
+	uint8_t		ah_btActiveGpioSelect;  /* GPIO pin for BT_ACTIVE */
+	uint8_t		ah_btPriorityGpioSelect; /* GPIO pin for BT_PRIORITY */
+	uint8_t		ah_wlanActiveGpioSelect; /* GPIO pin for WLAN_ACTIVE */
+	uint8_t		ah_btActivePolarity;  /* Polarity of BT_ACTIVE */
+	HAL_BOOL	ah_btCoexSingleAnt;   /* Single or dual antenna configuration */
+	uint8_t		ah_btWlanIsolation;   /* Isolation between BT and WLAN in dB */
+
+	/*
+	 * Bluetooth coexistence runtime settings
+	 */
+	HAL_BOOL	ah_btCoexEnabled;     /* If Bluetooth coexistence is enabled */
+	uint32_t	ah_btCoexMode;        /* Register setting for AR_BT_COEX_MODE */
+	uint32_t	ah_btCoexBTWeight;    /* Register setting for AR_BT_COEX_WEIGHT */
+	uint32_t	ah_btCoexWLANWeight;  /* Register setting for AR_BT_COEX_WEIGHT */
+	uint32_t	ah_btCoexMode2;       /* Register setting for AR_BT_COEX_MODE2 */
+	uint32_t	ah_btCoexFlag;        /* Special tuning flags for BT coex */
 };
 #define	AH5416(_ah)	((struct ath_hal_5416 *)(_ah))
 
@@ -173,6 +195,21 @@ extern	void ar5416SetStaBeaconTimers(struct ath_hal *ah,
 		const HAL_BEACON_STATE *);
 extern	uint64_t ar5416GetNextTBTT(struct ath_hal *);
 
+/* ar5416_btcoex.c */
+extern	void ar5416SetBTCoexInfo(struct ath_hal *ah,
+		HAL_BT_COEX_INFO *btinfo);
+extern	void ar5416BTCoexConfig(struct ath_hal *ah,
+		HAL_BT_COEX_CONFIG *btconf);
+extern	void ar5416BTCoexSetQcuThresh(struct ath_hal *ah, int qnum);
+extern	void ar5416BTCoexSetWeights(struct ath_hal *ah, uint32_t stompType);
+extern	void ar5416BTCoexSetupBmissThresh(struct ath_hal *ah,
+		uint32_t thresh);
+extern	void ar5416BTCoexSetParameter(struct ath_hal *ah, uint32_t type,
+		uint32_t value);
+extern	void ar5416BTCoexDisable(struct ath_hal *ah);
+extern	int ar5416BTCoexEnable(struct ath_hal *ah);
+extern	void ar5416InitBTCoex(struct ath_hal *ah);
+
 extern	HAL_BOOL ar5416EepromRead(struct ath_hal *, u_int off, uint16_t *data);
 extern	HAL_BOOL ar5416EepromWrite(struct ath_hal *, u_int off, uint16_t data);
 
@@ -196,9 +233,8 @@ extern	uint32_t ar5416GetCurRssi(struct ath_hal *ah);
 extern	HAL_BOOL ar5416SetAntennaSwitch(struct ath_hal *, HAL_ANT_SETTING);
 extern	HAL_BOOL ar5416SetDecompMask(struct ath_hal *, uint16_t, int);
 extern	void ar5416SetCoverageClass(struct ath_hal *, uint8_t, int);
-extern	uint32_t ar5416GetMibCycleCountsPct(struct ath_hal *ah,
-    uint32_t *rxc_pcnt, uint32_t *rxextc_pcnt, uint32_t *rxf_pcnt,
-    uint32_t *txf_pcnt);
+extern	HAL_BOOL ar5416GetMibCycleCounts(struct ath_hal *ah,
+	    HAL_SURVEY_SAMPLE *hsample);
 extern	uint32_t ar5416Get11nExtBusy(struct ath_hal *ah);
 extern	void ar5416Set11nMac2040(struct ath_hal *ah, HAL_HT_MACMODE mode);
 extern	HAL_HT_RXCLEAR ar5416Get11nRxClear(struct ath_hal *ah);
@@ -217,6 +253,8 @@ extern	HAL_BOOL ar5416SetRifsDelay(struct ath_hal *ah,
 	    const struct ieee80211_channel *chan, HAL_BOOL enable);
 
 extern	void ar5416EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
+extern	HAL_BOOL ar5416GetDfsDefaultThresh(struct ath_hal *ah,
+	    HAL_PHYERR_PARAM *pe);
 extern	void ar5416GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
 extern	HAL_BOOL ar5416ProcessRadarEvent(struct ath_hal *ah,
 	    struct ath_rx_status *rxs, uint64_t fulltsf, const char *buf,
@@ -234,6 +272,7 @@ extern	HAL_BOOL ar5416SetKeyCacheEntry(struct ath_hal *ah, uint16_t entry,
 
 extern	uint32_t ar5416GetRxFilter(struct ath_hal *ah);
 extern	void ar5416SetRxFilter(struct ath_hal *ah, uint32_t bits);
+extern	HAL_BOOL ar5416StopDmaReceive(struct ath_hal *ah);
 extern	void ar5416StartPcuReceive(struct ath_hal *ah);
 extern	void ar5416StopPcuReceive(struct ath_hal *ah);
 extern	HAL_BOOL ar5416SetupRxDesc(struct ath_hal *,
@@ -323,7 +362,8 @@ extern	HAL_BOOL ar5416SetupXTxDesc(struct ath_hal *, struct ath_desc *,
 		u_int txRate2, u_int txRetries2,
 		u_int txRate3, u_int txRetries3);
 extern	HAL_BOOL ar5416FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
-		u_int segLen, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
+		HAL_DMA_ADDR *bufAddrList, uint32_t *segLenList,
+		u_int descId, u_int qcuId, HAL_BOOL firstSeg, HAL_BOOL lastSeg,
 		const struct ath_desc *ds0);
 extern	HAL_STATUS ar5416ProcTxDesc(struct ath_hal *ah,
 		struct ath_desc *, struct ath_tx_status *);
@@ -335,8 +375,9 @@ extern	int ar5416SetupTxQueue(struct ath_hal *ah, HAL_TX_QUEUE type,
 	        const HAL_TXQ_INFO *qInfo);
 
 extern	HAL_BOOL ar5416ChainTxDesc(struct ath_hal *ah, struct ath_desc *ds,
+		HAL_DMA_ADDR *bufAddrList, uint32_t *segLenList,
 		u_int pktLen, u_int hdrLen, HAL_PKT_TYPE type, u_int keyIx,
-		HAL_CIPHER cipher, uint8_t delims, u_int segLen,
+		HAL_CIPHER cipher, uint8_t delims,
 		HAL_BOOL firstSeg, HAL_BOOL lastSeg, HAL_BOOL lastAggr);
 extern	HAL_BOOL ar5416SetupFirstTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		u_int aggrLen, u_int flags, u_int txPower, u_int txRate0, u_int txTries0,

@@ -1,0 +1,14 @@
+The following is an example of the minfbyproc.d script,
+
+   # minfbyproc.d
+   dtrace: description 'vminfo:::as_fault ' matched 1 probe
+   ^C
+    
+     mozilla-bin                                                      18
+     dtrace                                                           57
+     find                                                             64
+     bash                                                            150
+     tar                                                             501
+
+In the above output, tar processes caused 501 minor faults. 
+

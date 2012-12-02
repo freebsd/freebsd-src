@@ -100,7 +100,7 @@ bool Filler::runOnMachineBasicBlock(MachineBasicBlock &MBB) {
   bool Changed = false;
 
   for (MachineBasicBlock::iterator I = MBB.begin(); I != MBB.end(); ++I)
-    if (I->getDesc().hasDelaySlot()) {
+    if (I->hasDelaySlot()) {
       MachineBasicBlock::iterator D = MBB.end();
       MachineBasicBlock::iterator J = I;
 
@@ -149,7 +149,7 @@ Filler::findDelayInstr(MachineBasicBlock &MBB,
   }
 
   //Call's delay filler can def some of call's uses.
-  if (slot->getDesc().isCall())
+  if (slot->isCall())
     insertCallUses(slot, RegUses);
   else
     insertDefsUses(slot, RegDefs, RegUses);
@@ -170,7 +170,7 @@ Filler::findDelayInstr(MachineBasicBlock &MBB,
     if (I->hasUnmodeledSideEffects()
         || I->isInlineAsm()
         || I->isLabel()
-        || I->getDesc().hasDelaySlot()
+        || I->hasDelaySlot()
         || isDelayFiller(MBB, I))
       break;
 
@@ -194,13 +194,13 @@ bool Filler::delayHasHazard(MachineBasicBlock::iterator candidate,
   if (candidate->isImplicitDef() || candidate->isKill())
     return true;
 
-  if (candidate->getDesc().mayLoad()) {
+  if (candidate->mayLoad()) {
     sawLoad = true;
     if (sawStore)
       return true;
   }
 
-  if (candidate->getDesc().mayStore()) {
+  if (candidate->mayStore()) {
     if (sawStore)
       return true;
     sawStore = true;
@@ -279,14 +279,11 @@ void Filler::insertDefsUses(MachineBasicBlock::iterator MI,
 //returns true if the Reg or its alias is in the RegSet.
 bool Filler::IsRegInSet(SmallSet<unsigned, 32>& RegSet, unsigned Reg)
 {
-  if (RegSet.count(Reg))
-    return true;
-  // check Aliased Registers
-  for (const unsigned *Alias = TM.getRegisterInfo()->getAliasSet(Reg);
-       *Alias; ++ Alias)
-    if (RegSet.count(*Alias))
+  // Check Reg and all aliased Registers.
+  for (MCRegAliasIterator AI(Reg, TM.getRegisterInfo(), true);
+       AI.isValid(); ++AI)
+    if (RegSet.count(*AI))
       return true;
-
   return false;
 }
 
@@ -298,13 +295,13 @@ bool Filler::isDelayFiller(MachineBasicBlock &MBB,
     return false;
   if (candidate->getOpcode() == SP::UNIMP)
     return true;
-  const MCInstrDesc &prevdesc = (--candidate)->getDesc();
-  return prevdesc.hasDelaySlot();
+  --candidate;
+  return candidate->hasDelaySlot();
 }
 
 bool Filler::needsUnimp(MachineBasicBlock::iterator I, unsigned &StructSize)
 {
-  if (!I->getDesc().isCall())
+  if (!I->isCall())
     return false;
 
   unsigned structSizeOpNum = 0;

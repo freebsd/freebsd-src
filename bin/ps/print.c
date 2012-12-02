@@ -387,12 +387,13 @@ started(KINFO *k, VARENT *ve __unused)
 	size_t buflen = 100;
 	char *buf;
 
+	if (!k->ki_valid)
+		return (NULL);
+
 	buf = malloc(buflen);
 	if (buf == NULL)
 		errx(1, "malloc failed");
 
-	if (!k->ki_valid)
-		return (NULL);
 	if (use_ampm < 0)
 		use_ampm = (*nl_langinfo(T_FMT_AMPM) != '\0');
 	then = k->ki_p->ki_start.tv_sec;
@@ -415,12 +416,13 @@ lstarted(KINFO *k, VARENT *ve __unused)
 	char *buf;
 	size_t buflen = 100;
 
+	if (!k->ki_valid)
+		return (NULL);
+
 	buf = malloc(buflen);
 	if (buf == NULL)
 		errx(1, "malloc failed");
 
-	if (!k->ki_valid)
-		return (NULL);
 	then = k->ki_p->ki_start.tv_sec;
 	(void)strftime(buf, buflen, "%c", localtime(&then));
 	return (buf);

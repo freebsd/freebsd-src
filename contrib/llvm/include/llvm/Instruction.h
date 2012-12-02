@@ -143,7 +143,7 @@ public:
   
   /// getMetadata - Get the metadata of given kind attached to this Instruction.
   /// If the metadata is not found then return null.
-  MDNode *getMetadata(const char *Kind) const {
+  MDNode *getMetadata(StringRef Kind) const {
     if (!hasMetadata()) return 0;
     return getMetadataImpl(Kind);
   }
@@ -168,7 +168,7 @@ public:
   /// node.  This updates/replaces metadata if already present, or removes it if
   /// Node is null.
   void setMetadata(unsigned KindID, MDNode *Node);
-  void setMetadata(const char *Kind, MDNode *Node);
+  void setMetadata(StringRef Kind, MDNode *Node);
 
   /// setDebugLoc - Set the debug location information for this instruction.
   void setDebugLoc(const DebugLoc &Loc) { DbgLoc = Loc; }
@@ -185,7 +185,7 @@ private:
   
   // These are all implemented in Metadata.cpp.
   MDNode *getMetadataImpl(unsigned KindID) const;
-  MDNode *getMetadataImpl(const char *Kind) const;
+  MDNode *getMetadataImpl(StringRef Kind) const;
   void getAllMetadataImpl(SmallVectorImpl<std::pair<unsigned,MDNode*> > &)const;
   void getAllMetadataOtherThanDebugLocImpl(SmallVectorImpl<std::pair<unsigned,
                                            MDNode*> > &) const;
@@ -214,6 +214,27 @@ public:
   ///
   bool isCommutative() const { return isCommutative(getOpcode()); }
   static bool isCommutative(unsigned op);
+
+  /// isIdempotent - Return true if the instruction is idempotent:
+  ///
+  ///   Idempotent operators satisfy:  x op x === x
+  ///
+  /// In LLVM, the And and Or operators are idempotent.
+  ///
+  bool isIdempotent() const { return isIdempotent(getOpcode()); }
+  static bool isIdempotent(unsigned op);
+
+  /// isNilpotent - Return true if the instruction is nilpotent:
+  ///
+  ///   Nilpotent operators satisfy:  x op x === Id,
+  ///
+  ///   where Id is the identity for the operator, i.e. a constant such that
+  ///     x op Id === x and Id op x === x for all x.
+  ///
+  /// In LLVM, the Xor operator is nilpotent.
+  ///
+  bool isNilpotent() const { return isNilpotent(getOpcode()); }
+  static bool isNilpotent(unsigned op);
 
   /// mayWriteToMemory - Return true if this instruction may modify memory.
   ///
@@ -244,26 +265,6 @@ public:
     return mayWriteToMemory() || mayThrow();
   }
 
-  /// isSafeToSpeculativelyExecute - Return true if the instruction does not
-  /// have any effects besides calculating the result and does not have
-  /// undefined behavior.
-  ///
-  /// This method never returns true for an instruction that returns true for
-  /// mayHaveSideEffects; however, this method also does some other checks in
-  /// addition. It checks for undefined behavior, like dividing by zero or
-  /// loading from an invalid pointer (but not for undefined results, like a
-  /// shift with a shift amount larger than the width of the result). It checks
-  /// for malloc and alloca because speculatively executing them might cause a
-  /// memory leak. It also returns false for instructions related to control
-  /// flow, specifically terminators and PHI nodes.
-  ///
-  /// This method only looks at the instruction itself and its operands, so if
-  /// this method returns true, it is safe to move the instruction as long as
-  /// the correct dominance relationships for the operands and users hold.
-  /// However, this method can return true for instructions that read memory;
-  /// for such instructions, moving them may change the resulting value.
-  bool isSafeToSpeculativelyExecute() const;
-
   /// clone() - Create a copy of 'this' instruction that is identical in all
   /// ways except the following:
   ///   * The instruction has no parent
@@ -280,6 +281,16 @@ public:
   /// ignores the SubclassOptionalData flags, which specify conditions
   /// under which the instruction's result is undefined.
   bool isIdenticalToWhenDefined(const Instruction *I) const;
+
+  /// When checking for operation equivalence (using isSameOperationAs) it is
+  /// sometimes useful to ignore certain attributes.
+  enum OperationEquivalenceFlags {
+    /// Check for equivalence ignoring load/store alignment.
+    CompareIgnoringAlignment = 1<<0,
+    /// Check for equivalence treating a type and a vector of that type
+    /// as equivalent.
+    CompareUsingScalarTypes = 1<<1
+  };
   
   /// This function determines if the specified instruction executes the same
   /// operation as the current one. This means that the opcodes, type, operand
@@ -289,7 +300,7 @@ public:
   /// @returns true if the specified instruction is the same operation as
   /// the current one.
   /// @brief Determine if one instruction is the same operation as another.
-  bool isSameOperationAs(const Instruction *I) const;
+  bool isSameOperationAs(const Instruction *I, unsigned flags = 0) const;
   
   /// isUsedOutsideOfBlock - Return true if there are any uses of this
   /// instruction in blocks other than the specified block.  Note that PHI nodes

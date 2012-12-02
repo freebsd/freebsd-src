@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslcompiler.h - common include file for iASL
@@ -87,10 +86,6 @@
 /*
  * Main ASL parser - generated from flex/bison, lex/yacc, etc.
  */
-int
-AslCompilerparse(
-    void);
-
 ACPI_PARSE_OBJECT *
 AslDoError (
     void);
@@ -100,11 +95,11 @@ AslCompilerlex(
     void);
 
 void
-ResetCurrentLineBuffer (
+AslResetCurrentLineBuffer (
     void);
 
 void
-InsertLineBuffer (
+AslInsertLineBuffer (
     int                     SourceChar);
 
 int
@@ -136,6 +131,11 @@ ACPI_STATUS
 AslDoOneFile (
     char                    *Filename);
 
+ACPI_STATUS
+AslCheckForErrorExit (
+    void);
+
+
 /*
  * aslcompile - compile mainline
  */
@@ -161,7 +161,9 @@ CmCleanupAndExit (
 
 ACPI_STATUS
 FlCheckForAscii (
-    ASL_FILE_INFO           *FileInfo);
+    FILE                    *Handle,
+    char                    *Filename,
+    BOOLEAN                 DisplayErrors);
 
 
 /*
@@ -587,6 +589,11 @@ TrSetNodeFlags (
     UINT32                  Flags);
 
 ACPI_PARSE_OBJECT *
+TrSetNodeAmlLength (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  Length);
+
+ACPI_PARSE_OBJECT *
 TrLinkPeerNodes (
     UINT32                  NumPeers,
     ...);
@@ -602,6 +609,11 @@ AslAbort (
 void
 FlAddIncludeDirectory (
     char                    *Dir);
+
+char *
+FlMergePathnames (
+    char                    *PrefixDir,
+    char                    *FilePathname);
 
 void
 FlOpenIncludeFile (
@@ -644,8 +656,16 @@ FlPrintFile (
     ...);
 
 void
+FlDeleteFile (
+    UINT32                  FileId);
+
+void
 FlSetLineNumber (
-    ACPI_PARSE_OBJECT       *Op);
+    UINT32                  LineNumber);
+
+void
+FlSetFilename (
+    char                    *Filename);
 
 ACPI_STATUS
 FlOpenInputFile (
@@ -757,6 +777,10 @@ UtSetParseOpName (
 char *
 UtGetStringBuffer (
     UINT32                  Length);
+
+void
+UtExpandLineBuffers (
+    void);
 
 ACPI_STATUS
 UtInternalizeName (
@@ -1099,4 +1123,3 @@ DtCreateTemplates (
     char                    *Signature);
 
 #endif /*  __ASLCOMPILER_H */
-

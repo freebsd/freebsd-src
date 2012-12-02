@@ -45,6 +45,7 @@ static const char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
 #include <sys/stat.h>
 #include <sys/time.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -57,6 +58,7 @@ static const char sccsid[] = "@(#)touch.c	8.1 (Berkeley) 6/6/93";
 
 void	stime_arg1(char *, struct timeval *);
 void	stime_arg2(char *, int, struct timeval *);
+void	stime_darg(char *, struct timeval *);
 void	stime_file(char *, struct timeval *);
 int	timeoffset(char *);
 void	usage(char *);
@@ -79,7 +81,7 @@ main(int argc, char *argv[])
 	if (gettimeofday(&tv[0], NULL))
 		err(1, "gettimeofday");
 
-	while ((ch = getopt(argc, argv, "A:acfhmr:t:")) != -1)
+	while ((ch = getopt(argc, argv, "A:acd:fhmr:t:")) != -1)
 		switch(ch) {
 		case 'A':
 			Aflag = timeoffset(optarg);
@@ -89,6 +91,10 @@ main(int argc, char *argv[])
 			break;
 		case 'c':
 			cflag = 1;
+			break;
+		case 'd':
+			timeset = 1;
+			stime_darg(optarg, tv);
 			break;
 		case 'f':
 			/* No-op for compatibility. */
@@ -320,6 +326,50 @@ stime_arg2(char *arg, int year, struct timeval *tvp)
 	tvp[0].tv_usec = tvp[1].tv_usec = 0;
 }
 
+void
+stime_darg(char *arg, struct timeval *tvp)
+{
+	struct tm t = { .tm_sec = 0 };
+	const char *fmt, *colon;
+	char *p;
+	int val, isutc = 0;
+
+	tvp[0].tv_usec = 0;
+	t.tm_isdst = -1;
+	colon = strchr(arg, ':');
+	if (colon == NULL || strchr(colon + 1, ':') == NULL)
+		goto bad;
+	fmt = strchr(arg, 'T') != NULL ? "%Y-%m-%dT%H:%M:%S" :
+	    "%Y-%m-%d %H:%M:%S";
+	p = strptime(arg, fmt, &t);
+	if (p == NULL)
+		goto bad;
+	/* POSIX: must have at least one digit after dot */
+	if ((*p == '.' || *p == ',') && isdigit((unsigned char)p[1])) {
+		p++;
+		val = 100000;
+		while (isdigit((unsigned char)*p)) {
+			tvp[0].tv_usec += val * (*p - '0');
+			p++;
+			val /= 10;
+		}
+	}
+	if (*p == 'Z') {
+		isutc = 1;
+		p++;
+	}
+	if (*p != '\0')
+		goto bad;
+
+	tvp[0].tv_sec = isutc ? timegm(&t) : mktime(&t);
+
+	tvp[1] = tvp[0];
+	return;
+
+bad:
+	errx(1, "out of range or illegal time specification: YYYY-MM-DDThh:mm:SS[.frac][tz]");
+}
+
 /* Calculate a time offset in seconds, given an arg of the format [-]HHMMSS. */
 int
 timeoffset(char *arg)
@@ -364,7 +414,9 @@ stime_file(char *fname, struct timeval *tvp)
 void
 usage(char *myname)
 {
-	fprintf(stderr, "usage:\n" "%s [-A [-][[hh]mm]SS] [-achm] [-r file] "
-		"[-t [[CC]YY]MMDDhhmm[.SS]] file ...\n", myname);
+	fprintf(stderr, "usage: %s [-A [-][[hh]mm]SS] [-achm] [-r file] "
+		"[-t [[CC]YY]MMDDhhmm[.SS]]\n"
+		"       [-d YYYY-MM-DDThh:mm:SS[.frac][tz]] "
+		"file ...\n", myname);
 	exit(1);
 }

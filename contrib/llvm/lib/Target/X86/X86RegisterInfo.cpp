@@ -1,4 +1,4 @@
-//===- X86RegisterInfo.cpp - X86 Register Information -----------*- C++ -*-===//
+//===-- X86RegisterInfo.cpp - X86 Register Information --------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -13,8 +13,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "X86.h"
 #include "X86RegisterInfo.h"
+#include "X86.h"
 #include "X86InstrBuilder.h"
 #include "X86MachineFunctionInfo.h"
 #include "X86Subtarget.h"
@@ -50,6 +50,10 @@ ForceStackAlign("force-align-stack",
                            " needed for the function."),
                  cl::init(false), cl::Hidden);
 
+cl::opt<bool>
+EnableBasePointer("x86-use-base-pointer", cl::Hidden, cl::init(true),
+          cl::desc("Enable use of a base pointer for complex stack frames"));
+
 X86RegisterInfo::X86RegisterInfo(X86TargetMachine &tm,
                                  const TargetInstrInfo &tii)
   : X86GenRegisterInfo(tm.getSubtarget<X86Subtarget>().is64Bit()
@@ -73,6 +77,10 @@ X86RegisterInfo::X86RegisterInfo(X86TargetMachine &tm,
     StackPtr = X86::ESP;
     FramePtr = X86::EBP;
   }
+  // Use a callee-saved register as the base pointer.  These registers must
+  // not conflict with any ABI requirements.  For example, in 32-bit mode PIC
+  // requires GOT in the EBX register before function calls via PLT GOT pointer.
+  BasePtr = Is64Bit ? X86::RBX : X86::ESI;
 }
 
 /// getCompactUnwindRegNum - This function maps the register to the number for
@@ -88,6 +96,12 @@ int X86RegisterInfo::getCompactUnwindRegNum(unsigned RegNum, bool isEH) const {
   }
 
   return -1;
+}
+
+bool
+X86RegisterInfo::trackLivenessAfterRegAlloc(const MachineFunction &MF) const {
+  // Only enable when post-RA scheduling is enabled and this is needed.
+  return TM.getSubtargetImpl()->postRAScheduler();
 }
 
 int
@@ -127,121 +141,13 @@ const TargetRegisterClass *
 X86RegisterInfo::getMatchingSuperRegClass(const TargetRegisterClass *A,
                                           const TargetRegisterClass *B,
                                           unsigned SubIdx) const {
-  switch (SubIdx) {
-  default: return 0;
-  case X86::sub_8bit:
-    if (B == &X86::GR8RegClass) {
-      if (A->getSize() == 2 || A->getSize() == 4 || A->getSize() == 8)
-        return A;
-    } else if (B == &X86::GR8_ABCD_LRegClass || B == &X86::GR8_ABCD_HRegClass) {
-      if (A == &X86::GR64RegClass || A == &X86::GR64_ABCDRegClass ||
-          A == &X86::GR64_NOREXRegClass ||
-          A == &X86::GR64_NOSPRegClass ||
-          A == &X86::GR64_NOREX_NOSPRegClass)
-        return &X86::GR64_ABCDRegClass;
-      else if (A == &X86::GR32RegClass || A == &X86::GR32_ABCDRegClass ||
-               A == &X86::GR32_NOREXRegClass ||
-               A == &X86::GR32_NOSPRegClass)
-        return &X86::GR32_ABCDRegClass;
-      else if (A == &X86::GR16RegClass || A == &X86::GR16_ABCDRegClass ||
-               A == &X86::GR16_NOREXRegClass)
-        return &X86::GR16_ABCDRegClass;
-    } else if (B == &X86::GR8_NOREXRegClass) {
-      if (A == &X86::GR64RegClass || A == &X86::GR64_NOREXRegClass ||
-          A == &X86::GR64_NOSPRegClass || A == &X86::GR64_NOREX_NOSPRegClass)
-        return &X86::GR64_NOREXRegClass;
-      else if (A == &X86::GR64_ABCDRegClass)
-        return &X86::GR64_ABCDRegClass;
-      else if (A == &X86::GR32RegClass || A == &X86::GR32_NOREXRegClass ||
-               A == &X86::GR32_NOSPRegClass)
-        return &X86::GR32_NOREXRegClass;
-      else if (A == &X86::GR32_ABCDRegClass)
-        return &X86::GR32_ABCDRegClass;
-      else if (A == &X86::GR16RegClass || A == &X86::GR16_NOREXRegClass)
-        return &X86::GR16_NOREXRegClass;
-      else if (A == &X86::GR16_ABCDRegClass)
-        return &X86::GR16_ABCDRegClass;
-    }
-    break;
-  case X86::sub_8bit_hi:
-    if (B->hasSubClassEq(&X86::GR8_ABCD_HRegClass))
-      switch (A->getSize()) {
-        case 2: return getCommonSubClass(A, &X86::GR16_ABCDRegClass);
-        case 4: return getCommonSubClass(A, &X86::GR32_ABCDRegClass);
-        case 8: return getCommonSubClass(A, &X86::GR64_ABCDRegClass);
-        default: return 0;
-      }
-    break;
-  case X86::sub_16bit:
-    if (B == &X86::GR16RegClass) {
-      if (A->getSize() == 4 || A->getSize() == 8)
-        return A;
-    } else if (B == &X86::GR16_ABCDRegClass) {
-      if (A == &X86::GR64RegClass || A == &X86::GR64_ABCDRegClass ||
-          A == &X86::GR64_NOREXRegClass ||
-          A == &X86::GR64_NOSPRegClass ||
-          A == &X86::GR64_NOREX_NOSPRegClass)
-        return &X86::GR64_ABCDRegClass;
-      else if (A == &X86::GR32RegClass || A == &X86::GR32_ABCDRegClass ||
-               A == &X86::GR32_NOREXRegClass || A == &X86::GR32_NOSPRegClass)
-        return &X86::GR32_ABCDRegClass;
-    } else if (B == &X86::GR16_NOREXRegClass) {
-      if (A == &X86::GR64RegClass || A == &X86::GR64_NOREXRegClass ||
-          A == &X86::GR64_NOSPRegClass || A == &X86::GR64_NOREX_NOSPRegClass)
-        return &X86::GR64_NOREXRegClass;
-      else if (A == &X86::GR64_ABCDRegClass)
-        return &X86::GR64_ABCDRegClass;
-      else if (A == &X86::GR32RegClass || A == &X86::GR32_NOREXRegClass ||
-               A == &X86::GR32_NOSPRegClass)
-        return &X86::GR32_NOREXRegClass;
-      else if (A == &X86::GR32_ABCDRegClass)
-        return &X86::GR64_ABCDRegClass;
-    }
-    break;
-  case X86::sub_32bit:
-    if (B == &X86::GR32RegClass) {
-      if (A->getSize() == 8)
-        return A;
-    } else if (B == &X86::GR32_NOSPRegClass) {
-      if (A == &X86::GR64RegClass || A == &X86::GR64_NOSPRegClass)
-        return &X86::GR64_NOSPRegClass;
-      if (A->getSize() == 8)
-        return getCommonSubClass(A, &X86::GR64_NOSPRegClass);
-    } else if (B == &X86::GR32_ABCDRegClass) {
-      if (A == &X86::GR64RegClass || A == &X86::GR64_ABCDRegClass ||
-          A == &X86::GR64_NOREXRegClass ||
-          A == &X86::GR64_NOSPRegClass ||
-          A == &X86::GR64_NOREX_NOSPRegClass)
-        return &X86::GR64_ABCDRegClass;
-    } else if (B == &X86::GR32_NOREXRegClass) {
-      if (A == &X86::GR64RegClass || A == &X86::GR64_NOREXRegClass)
-        return &X86::GR64_NOREXRegClass;
-      else if (A == &X86::GR64_NOSPRegClass || A == &X86::GR64_NOREX_NOSPRegClass)
-        return &X86::GR64_NOREX_NOSPRegClass;
-      else if (A == &X86::GR64_ABCDRegClass)
-        return &X86::GR64_ABCDRegClass;
-    } else if (B == &X86::GR32_NOREX_NOSPRegClass) {
-      if (A == &X86::GR64RegClass || A == &X86::GR64_NOREXRegClass ||
-          A == &X86::GR64_NOSPRegClass || A == &X86::GR64_NOREX_NOSPRegClass)
-        return &X86::GR64_NOREX_NOSPRegClass;
-      else if (A == &X86::GR64_ABCDRegClass)
-        return &X86::GR64_ABCDRegClass;
-    }
-    break;
-  case X86::sub_ss:
-    if (B == &X86::FR32RegClass)
-      return A;
-    break;
-  case X86::sub_sd:
-    if (B == &X86::FR64RegClass)
-      return A;
-    break;
-  case X86::sub_xmm:
-    if (B == &X86::VR128RegClass)
-      return A;
-    break;
+  // The sub_8bit sub-register index is more constrained in 32-bit mode.
+  if (!Is64Bit && SubIdx == X86::sub_8bit) {
+    A = X86GenRegisterInfo::getSubClassWithSubReg(A, X86::sub_8bit_hi);
+    if (!A)
+      return 0;
   }
-  return 0;
+  return X86GenRegisterInfo::getMatchingSuperRegClass(A, B, SubIdx);
 }
 
 const TargetRegisterClass*
@@ -254,7 +160,7 @@ X86RegisterInfo::getLargestLegalSuperClass(const TargetRegisterClass *RC) const{
   // The GR8_NOREX class is always used in a way that won't be constrained to a
   // sub-class, so sub-classes like GR8_ABCD_L are allowed to expand to the
   // full GR8 class.
-  if (RC == X86::GR8_NOREXRegisterClass)
+  if (RC == &X86::GR8_NOREXRegClass)
     return RC;
 
   const TargetRegisterClass *Super = RC;
@@ -283,7 +189,8 @@ X86RegisterInfo::getLargestLegalSuperClass(const TargetRegisterClass *RC) const{
 }
 
 const TargetRegisterClass *
-X86RegisterInfo::getPointerRegClass(unsigned Kind) const {
+X86RegisterInfo::getPointerRegClass(const MachineFunction &MF, unsigned Kind)
+                                                                         const {
   switch (Kind) {
   default: llvm_unreachable("Unexpected Kind in getPointerRegClass!");
   case 0: // Normal GPRs.
@@ -334,7 +241,7 @@ X86RegisterInfo::getRegPressureLimit(const TargetRegisterClass *RC,
   }
 }
 
-const unsigned *
+const uint16_t *
 X86RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   bool callsEHReturn = false;
   bool ghcCall = false;
@@ -345,45 +252,29 @@ X86RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
     ghcCall = (F ? F->getCallingConv() == CallingConv::GHC : false);
   }
 
-  static const unsigned GhcCalleeSavedRegs[] = {
-    0
-  };
-
-  static const unsigned CalleeSavedRegs32Bit[] = {
-    X86::ESI, X86::EDI, X86::EBX, X86::EBP,  0
-  };
-
-  static const unsigned CalleeSavedRegs32EHRet[] = {
-    X86::EAX, X86::EDX, X86::ESI, X86::EDI, X86::EBX, X86::EBP,  0
-  };
-
-  static const unsigned CalleeSavedRegs64Bit[] = {
-    X86::RBX, X86::R12, X86::R13, X86::R14, X86::R15, X86::RBP, 0
-  };
-
-  static const unsigned CalleeSavedRegs64EHRet[] = {
-    X86::RAX, X86::RDX, X86::RBX, X86::R12,
-    X86::R13, X86::R14, X86::R15, X86::RBP, 0
-  };
-
-  static const unsigned CalleeSavedRegsWin64[] = {
-    X86::RBX,   X86::RBP,   X86::RDI,   X86::RSI,
-    X86::R12,   X86::R13,   X86::R14,   X86::R15,
-    X86::XMM6,  X86::XMM7,  X86::XMM8,  X86::XMM9,
-    X86::XMM10, X86::XMM11, X86::XMM12, X86::XMM13,
-    X86::XMM14, X86::XMM15, 0
-  };
-
-  if (ghcCall) {
-    return GhcCalleeSavedRegs;
-  } else if (Is64Bit) {
+  if (ghcCall)
+    return CSR_NoRegs_SaveList;
+  if (Is64Bit) {
     if (IsWin64)
-      return CalleeSavedRegsWin64;
-    else
-      return (callsEHReturn ? CalleeSavedRegs64EHRet : CalleeSavedRegs64Bit);
-  } else {
-    return (callsEHReturn ? CalleeSavedRegs32EHRet : CalleeSavedRegs32Bit);
+      return CSR_Win64_SaveList;
+    if (callsEHReturn)
+      return CSR_64EHRet_SaveList;
+    return CSR_64_SaveList;
   }
+  if (callsEHReturn)
+    return CSR_32EHRet_SaveList;
+  return CSR_32_SaveList;
+}
+
+const uint32_t*
+X86RegisterInfo::getCallPreservedMask(CallingConv::ID CC) const {
+  if (CC == CallingConv::GHC)
+    return CSR_NoRegs_RegMask;
+  if (!Is64Bit)
+    return CSR_32_RegMask;
+  if (IsWin64)
+    return CSR_Win64_RegMask;
+  return CSR_64_RegMask;
 }
 
 BitVector X86RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
@@ -392,21 +283,33 @@ BitVector X86RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 
   // Set the stack-pointer register and its aliases as reserved.
   Reserved.set(X86::RSP);
-  Reserved.set(X86::ESP);
-  Reserved.set(X86::SP);
-  Reserved.set(X86::SPL);
+  for (MCSubRegIterator I(X86::RSP, this); I.isValid(); ++I)
+    Reserved.set(*I);
 
   // Set the instruction pointer register and its aliases as reserved.
   Reserved.set(X86::RIP);
-  Reserved.set(X86::EIP);
-  Reserved.set(X86::IP);
+  for (MCSubRegIterator I(X86::RIP, this); I.isValid(); ++I)
+    Reserved.set(*I);
 
   // Set the frame-pointer register and its aliases as reserved if needed.
   if (TFI->hasFP(MF)) {
     Reserved.set(X86::RBP);
-    Reserved.set(X86::EBP);
-    Reserved.set(X86::BP);
-    Reserved.set(X86::BPL);
+    for (MCSubRegIterator I(X86::RBP, this); I.isValid(); ++I)
+      Reserved.set(*I);
+  }
+
+  // Set the base-pointer register and its aliases as reserved if needed.
+  if (hasBasePointer(MF)) {
+    CallingConv::ID CC = MF.getFunction()->getCallingConv();
+    const uint32_t* RegMask = getCallPreservedMask(CC);
+    if (MachineOperand::clobbersPhysReg(RegMask, getBaseRegister()))
+      report_fatal_error(
+        "Stack realignment in presence of dynamic allocas is not supported with"
+        "this calling convention.");
+
+    Reserved.set(getBaseRegister());
+    for (MCSubRegIterator I(getBaseRegister(), this); I.isValid(); ++I)
+      Reserved.set(*I);
   }
 
   // Mark the segment registers as reserved.
@@ -416,6 +319,16 @@ BitVector X86RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   Reserved.set(X86::ES);
   Reserved.set(X86::FS);
   Reserved.set(X86::GS);
+
+  // Mark the floating point stack registers as reserved.
+  Reserved.set(X86::ST0);
+  Reserved.set(X86::ST1);
+  Reserved.set(X86::ST2);
+  Reserved.set(X86::ST3);
+  Reserved.set(X86::ST4);
+  Reserved.set(X86::ST5);
+  Reserved.set(X86::ST6);
+  Reserved.set(X86::ST7);
 
   // Reserve the registers that only exist in 64-bit mode.
   if (!Is64Bit) {
@@ -428,18 +341,17 @@ BitVector X86RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 
     for (unsigned n = 0; n != 8; ++n) {
       // R8, R9, ...
-      const unsigned GPR64[] = {
+      static const uint16_t GPR64[] = {
         X86::R8,  X86::R9,  X86::R10, X86::R11,
         X86::R12, X86::R13, X86::R14, X86::R15
       };
-      for (const unsigned *AI = getOverlaps(GPR64[n]); unsigned Reg = *AI; ++AI)
-        Reserved.set(Reg);
+      for (MCRegAliasIterator AI(GPR64[n], this, true); AI.isValid(); ++AI)
+        Reserved.set(*AI);
 
       // XMM8, XMM9, ...
       assert(X86::XMM15 == X86::XMM8+7);
-      for (const unsigned *AI = getOverlaps(X86::XMM8 + n); unsigned Reg = *AI;
-           ++AI)
-        Reserved.set(Reg);
+      for (MCRegAliasIterator AI(X86::XMM8 + n, this, true); AI.isValid(); ++AI)
+        Reserved.set(*AI);
     }
   }
 
@@ -450,10 +362,36 @@ BitVector X86RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
 // Stack Frame Processing methods
 //===----------------------------------------------------------------------===//
 
+bool X86RegisterInfo::hasBasePointer(const MachineFunction &MF) const {
+   const MachineFrameInfo *MFI = MF.getFrameInfo();
+
+   if (!EnableBasePointer)
+     return false;
+
+   // When we need stack realignment and there are dynamic allocas, we can't
+   // reference off of the stack pointer, so we reserve a base pointer.
+   if (needsStackRealignment(MF) && MFI->hasVarSizedObjects())
+     return true;
+
+   return false;
+}
+
 bool X86RegisterInfo::canRealignStack(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
-  return (RealignStack &&
-          !MFI->hasVarSizedObjects());
+  const MachineRegisterInfo *MRI = &MF.getRegInfo();
+  if (!MF.getTarget().Options.RealignStack)
+    return false;
+
+  // Stack realignment requires a frame pointer.  If we already started
+  // register allocation with frame pointer elimination, it is too late now.
+  if (!MRI->canReserveReg(FramePtr))
+    return false;
+
+  // If a base pointer is necessary.  Check that it isn't too late to reserve
+  // it.
+  if (MFI->hasVarSizedObjects())
+    return MRI->canReserveReg(BasePtr);
+  return true;
 }
 
 bool X86RegisterInfo::needsStackRealignment(const MachineFunction &MF) const {
@@ -462,13 +400,6 @@ bool X86RegisterInfo::needsStackRealignment(const MachineFunction &MF) const {
   unsigned StackAlign = TM.getFrameLowering()->getStackAlignment();
   bool requiresRealignment = ((MFI->getMaxAlignment() > StackAlign) ||
                                F->hasFnAttr(Attribute::StackAlignment));
-
-  // FIXME: Currently we don't support stack realignment for functions with
-  //        variable-sized allocas.
-  // FIXME: It's more complicated than this...
-  if (0 && requiresRealignment && MFI->hasVarSizedObjects())
-    report_fatal_error(
-      "Stack realignment in presence of dynamic allocas is not supported");
 
   // If we've requested that we force align the stack do so now.
   if (ForceStackAlign)
@@ -583,7 +514,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
     // sure we restore the stack pointer immediately after the call, there may
     // be spill code inserted between the CALL and ADJCALLSTACKUP instructions.
     MachineBasicBlock::iterator B = MBB.begin();
-    while (I != B && !llvm::prior(I)->getDesc().isCall())
+    while (I != B && !llvm::prior(I)->isCall())
       --I;
     MBB.insert(I, New);
   }
@@ -609,7 +540,9 @@ X86RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
 
   unsigned Opc = MI.getOpcode();
   bool AfterFPPop = Opc == X86::TAILJMPm64 || Opc == X86::TAILJMPm;
-  if (needsStackRealignment(MF))
+  if (hasBasePointer(MF))
+    BasePtr = (FrameIndex < 0 ? FramePtr : getBaseRegister());
+  else if (needsStackRealignment(MF))
     BasePtr = (FrameIndex < 0 ? FramePtr : StackPtr);
   else if (AfterFPPop)
     BasePtr = StackPtr;
@@ -650,12 +583,10 @@ unsigned X86RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
 
 unsigned X86RegisterInfo::getEHExceptionRegister() const {
   llvm_unreachable("What is the exception register");
-  return 0;
 }
 
 unsigned X86RegisterInfo::getEHHandlerRegister() const {
   llvm_unreachable("What is the exception handler register");
-  return 0;
 }
 
 namespace llvm {
@@ -665,7 +596,7 @@ unsigned getX86SubSuperRegister(unsigned Reg, EVT VT, bool High) {
   case MVT::i8:
     if (High) {
       switch (Reg) {
-      default: return 0;
+      default: return getX86SubSuperRegister(Reg, MVT::i64, High);
       case X86::AH: case X86::AL: case X86::AX: case X86::EAX: case X86::RAX:
         return X86::AH;
       case X86::DH: case X86::DL: case X86::DX: case X86::EDX: case X86::RDX:
@@ -785,6 +716,22 @@ unsigned getX86SubSuperRegister(unsigned Reg, EVT VT, bool High) {
       return X86::R15D;
     }
   case MVT::i64:
+    // For 64-bit mode if we've requested a "high" register and the
+    // Q or r constraints we want one of these high registers or
+    // just the register name otherwise.
+    if (High) {
+      switch (Reg) {
+      case X86::SIL: case X86::SI: case X86::ESI: case X86::RSI:
+        return X86::SI;
+      case X86::DIL: case X86::DI: case X86::EDI: case X86::RDI:
+        return X86::DI;
+      case X86::BPL: case X86::BP: case X86::EBP: case X86::RBP:
+        return X86::BP;
+      case X86::SPL: case X86::SP: case X86::ESP: case X86::RSP:
+        return X86::SP;
+      // Fallthrough.
+      }
+    }
     switch (Reg) {
     default: return Reg;
     case X86::AH: case X86::AL: case X86::AX: case X86::EAX: case X86::RAX:
@@ -821,8 +768,6 @@ unsigned getX86SubSuperRegister(unsigned Reg, EVT VT, bool High) {
       return X86::R15;
     }
   }
-
-  return Reg;
 }
 }
 

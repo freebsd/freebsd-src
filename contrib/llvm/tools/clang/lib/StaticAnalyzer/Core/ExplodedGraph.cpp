@@ -13,11 +13,14 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExplodedGraph.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CallEvent.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "clang/AST/Stmt.h"
+#include "clang/AST/ParentMap.h"
 #include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/Statistic.h"
 #include <vector>
 
 using namespace clang;
@@ -44,26 +47,19 @@ void ExplodedNode::SetAuditor(ExplodedNode::Auditor* A) {
 // Cleanup.
 //===----------------------------------------------------------------------===//
 
-typedef std::vector<ExplodedNode*> NodeList;
-static inline NodeList*& getNodeList(void *&p) { return (NodeList*&) p; }
+static const unsigned CounterTop = 1000;
 
-ExplodedGraph::~ExplodedGraph() {
-  if (reclaimNodes) {
-    delete getNodeList(recentlyAllocatedNodes);
-    delete getNodeList(freeNodes);
-  }
-}
+ExplodedGraph::ExplodedGraph()
+  : NumNodes(0), reclaimNodes(false), reclaimCounter(CounterTop) {}
+
+ExplodedGraph::~ExplodedGraph() {}
 
 //===----------------------------------------------------------------------===//
 // Node reclamation.
 //===----------------------------------------------------------------------===//
 
-void ExplodedGraph::reclaimRecentlyAllocatedNodes() {
-  if (!recentlyAllocatedNodes)
-    return;
-  NodeList &nl = *getNodeList(recentlyAllocatedNodes);
- 
-  // Reclaimn all nodes that match *all* the following criteria:
+bool ExplodedGraph::shouldCollect(const ExplodedNode *node) {
+  // Reclaim all nodes that match *all* the following criteria:
   //
   // (1) 1 predecessor (that has one successor)
   // (2) 1 successor (that has one predecessor)
@@ -72,61 +68,94 @@ void ExplodedGraph::reclaimRecentlyAllocatedNodes() {
   // (5) The 'store' is the same as the predecessor.
   // (6) The 'GDM' is the same as the predecessor.
   // (7) The LocationContext is the same as the predecessor.
-  // (8) The PostStmt is for a non-CFGElement expression.
+  // (8) The PostStmt is for a non-consumed Stmt or Expr.
+  // (9) The successor is not a CallExpr StmtPoint (so that we would be able to
+  //     find it when retrying a call with no inlining).
+  // FIXME: It may be safe to reclaim PreCall and PostCall nodes as well.
+
+  // Conditions 1 and 2.
+  if (node->pred_size() != 1 || node->succ_size() != 1)
+    return false;
+
+  const ExplodedNode *pred = *(node->pred_begin());
+  if (pred->succ_size() != 1)
+    return false;
   
-  for (NodeList::iterator i = nl.begin(), e = nl.end() ; i != e; ++i) {
-    ExplodedNode *node = *i;
-    
-    // Conditions 1 and 2.
-    if (node->pred_size() != 1 || node->succ_size() != 1)
-      continue;
+  const ExplodedNode *succ = *(node->succ_begin());
+  if (succ->pred_size() != 1)
+    return false;
 
-    ExplodedNode *pred = *(node->pred_begin());
-    if (pred->succ_size() != 1)
-      continue;
+  // Condition 3.
+  ProgramPoint progPoint = node->getLocation();
+  if (!isa<PostStmt>(progPoint))
+    return false;
 
-    ExplodedNode *succ = *(node->succ_begin());
-    if (succ->pred_size() != 1)
-      continue;
+  // Condition 4.
+  PostStmt ps = cast<PostStmt>(progPoint);
+  if (ps.getTag())
+    return false;
+  
+  if (isa<BinaryOperator>(ps.getStmt()))
+    return false;
 
-    // Condition 3.
-    ProgramPoint progPoint = node->getLocation();
-    if (!isa<PostStmt>(progPoint))
-      continue;
-    // Condition 4.
-    PostStmt ps = cast<PostStmt>(progPoint);
-    if (ps.getTag())
-      continue;
-
-    if (isa<BinaryOperator>(ps.getStmt()))
-      continue;
-
-    // Conditions 5, 6, and 7.
-    const ProgramState *state = node->getState();
-    const ProgramState *pred_state = pred->getState();    
-    if (state->store != pred_state->store || state->GDM != pred_state->GDM ||
-        progPoint.getLocationContext() != pred->getLocationContext())
-      continue;
-
-    // Condition 8.
-    if (node->getCFG().isBlkExpr(ps.getStmt()))
-      continue;
-    
-    // If we reach here, we can remove the node.  This means:
-    // (a) changing the predecessors successor to the successor of this node
-    // (b) changing the successors predecessor to the predecessor of this node
-    // (c) Putting 'node' onto freeNodes.
-    pred->replaceSuccessor(succ);
-    succ->replacePredecessor(pred);
-    if (!freeNodes)
-      freeNodes = new NodeList();
-    getNodeList(freeNodes)->push_back(node);
-    Nodes.RemoveNode(node);
-    --NumNodes;
-    node->~ExplodedNode();
+  // Conditions 5, 6, and 7.
+  ProgramStateRef state = node->getState();
+  ProgramStateRef pred_state = pred->getState();    
+  if (state->store != pred_state->store || state->GDM != pred_state->GDM ||
+      progPoint.getLocationContext() != pred->getLocationContext())
+    return false;
+  
+  // Condition 8.
+  if (const Expr *Ex = dyn_cast<Expr>(ps.getStmt())) {
+    ParentMap &PM = progPoint.getLocationContext()->getParentMap();
+    if (!PM.isConsumedExpr(Ex))
+      return false;
   }
   
-  nl.clear();
+  // Condition 9.
+  const ProgramPoint SuccLoc = succ->getLocation();
+  if (const StmtPoint *SP = dyn_cast<StmtPoint>(&SuccLoc))
+    if (CallEvent::mayBeInlined(SP->getStmt()))
+      return false;
+
+  return true;
+}
+
+void ExplodedGraph::collectNode(ExplodedNode *node) {
+  // Removing a node means:
+  // (a) changing the predecessors successor to the successor of this node
+  // (b) changing the successors predecessor to the predecessor of this node
+  // (c) Putting 'node' onto freeNodes.
+  assert(node->pred_size() == 1 || node->succ_size() == 1);
+  ExplodedNode *pred = *(node->pred_begin());
+  ExplodedNode *succ = *(node->succ_begin());
+  pred->replaceSuccessor(succ);
+  succ->replacePredecessor(pred);
+  FreeNodes.push_back(node);
+  Nodes.RemoveNode(node);
+  --NumNodes;
+  node->~ExplodedNode();  
+}
+
+void ExplodedGraph::reclaimRecentlyAllocatedNodes() {
+  if (ChangedNodes.empty())
+    return;
+
+  // Only periodically relcaim nodes so that we can build up a set of
+  // nodes that meet the reclamation criteria.  Freshly created nodes
+  // by definition have no successor, and thus cannot be reclaimed (see below).
+  assert(reclaimCounter > 0);
+  if (--reclaimCounter != 0)
+    return;
+  reclaimCounter = CounterTop;
+
+  for (NodeVector::iterator it = ChangedNodes.begin(), et = ChangedNodes.end();
+       it != et; ++it) {
+    ExplodedNode *node = *it;
+    if (shouldCollect(node))
+      collectNode(node);
+  }
+  ChangedNodes.clear();
 }
 
 //===----------------------------------------------------------------------===//
@@ -215,36 +244,33 @@ ExplodedNode** ExplodedNode::NodeGroup::end() const {
 }
 
 ExplodedNode *ExplodedGraph::getNode(const ProgramPoint &L,
-                                     const ProgramState *State, bool* IsNew) {
+                                     ProgramStateRef State,
+                                     bool IsSink,
+                                     bool* IsNew) {
   // Profile 'State' to determine if we already have an existing node.
   llvm::FoldingSetNodeID profile;
   void *InsertPos = 0;
 
-  NodeTy::Profile(profile, L, State);
+  NodeTy::Profile(profile, L, State, IsSink);
   NodeTy* V = Nodes.FindNodeOrInsertPos(profile, InsertPos);
 
   if (!V) {
-    if (freeNodes && !getNodeList(freeNodes)->empty()) {
-      NodeList *nl = getNodeList(freeNodes);
-      V = nl->back();
-      nl->pop_back();
+    if (!FreeNodes.empty()) {
+      V = FreeNodes.back();
+      FreeNodes.pop_back();
     }
     else {
       // Allocate a new node.
       V = (NodeTy*) getAllocator().Allocate<NodeTy>();
     }
 
-    new (V) NodeTy(L, State);
+    new (V) NodeTy(L, State, IsSink);
 
-    if (reclaimNodes) {
-      if (!recentlyAllocatedNodes)
-        recentlyAllocatedNodes = new NodeList();
-      getNodeList(recentlyAllocatedNodes)->push_back(V);
-    }
+    if (reclaimNodes)
+      ChangedNodes.push_back(V);
 
     // Insert the node into the node set and return it.
     Nodes.InsertNode(V, InsertPos);
-
     ++NumNodes;
 
     if (IsNew) *IsNew = true;
@@ -265,7 +291,7 @@ ExplodedGraph::Trim(const NodeTy* const* NBeg, const NodeTy* const* NEnd,
 
   assert (NBeg < NEnd);
 
-  llvm::OwningPtr<InterExplodedGraphMap> M(new InterExplodedGraphMap());
+  OwningPtr<InterExplodedGraphMap> M(new InterExplodedGraphMap());
 
   ExplodedGraph* G = TrimInternal(NBeg, NEnd, M.get(), InverseMap);
 
@@ -334,7 +360,7 @@ ExplodedGraph::TrimInternal(const ExplodedNode* const* BeginSources,
 
     // Create the corresponding node in the new graph and record the mapping
     // from the old node to the new node.
-    ExplodedNode *NewN = G->getNode(N->getLocation(), N->State, NULL);
+    ExplodedNode *NewN = G->getNode(N->getLocation(), N->State, N->isSink(), 0);
     Pass2[N] = NewN;
 
     // Also record the reverse mapping from the new node to the old node.
@@ -372,14 +398,12 @@ ExplodedGraph::TrimInternal(const ExplodedNode* const* BeginSources,
       if (Pass1.count(*I))
         WL2.push_back(*I);
     }
-
-    // Finally, explicitly mark all nodes without any successors as sinks.
-    if (N->isSink())
-      NewN->markAsSink();
   }
 
   return G;
 }
+
+void InterExplodedGraphMap::anchor() { }
 
 ExplodedNode*
 InterExplodedGraphMap::getMappedNode(const ExplodedNode *N) const {

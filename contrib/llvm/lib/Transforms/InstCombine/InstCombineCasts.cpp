@@ -14,6 +14,7 @@
 #include "InstCombine.h"
 #include "llvm/Analysis/ConstantFolding.h"
 #include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Support/PatternMatch.h"
 using namespace llvm;
 using namespace PatternMatch;
@@ -33,7 +34,7 @@ static Value *DecomposeSimpleLinearExpr(Value *Val, unsigned &Scale,
   if (BinaryOperator *I = dyn_cast<BinaryOperator>(Val)) {
     // Cannot look past anything that might overflow.
     OverflowingBinaryOperator *OBI = dyn_cast<OverflowingBinaryOperator>(Val);
-    if (OBI && !OBI->hasNoUnsignedWrap()) {
+    if (OBI && !OBI->hasNoUnsignedWrap() && !OBI->hasNoSignedWrap()) {
       Scale = 1;
       Offset = 0;
       return Val;
@@ -147,8 +148,6 @@ Instruction *InstCombiner::PromoteCastOfAllocation(BitCastInst &CI,
   return ReplaceInstUsesWith(CI, New);
 }
 
-
-
 /// EvaluateInDifferentType - Given an expression that 
 /// CanEvaluateTruncated or CanEvaluateSExtd returns true for, actually
 /// insert the code to evaluate the expression.
@@ -158,7 +157,7 @@ Value *InstCombiner::EvaluateInDifferentType(Value *V, Type *Ty,
     C = ConstantExpr::getIntegerCast(C, Ty, isSigned /*Sext or ZExt*/);
     // If we got a constantexpr back, try to simplify it with TD info.
     if (ConstantExpr *CE = dyn_cast<ConstantExpr>(C))
-      C = ConstantFoldConstantExpression(CE, TD);
+      C = ConstantFoldConstantExpression(CE, TD, TLI);
     return C;
   }
 
@@ -216,7 +215,6 @@ Value *InstCombiner::EvaluateInDifferentType(Value *V, Type *Ty,
   default: 
     // TODO: Can handle more cases here.
     llvm_unreachable("Unreachable!");
-    break;
   }
   
   Res->takeName(I);
@@ -528,9 +526,7 @@ Instruction *InstCombiner::transformZExtICmp(ICmpInst *ICI, Instruction &CI,
 
       return ReplaceInstUsesWith(CI, In);
     }
-      
-      
-      
+
     // zext (X == 0) to i32 --> X^1      iff X has only the low bit set.
     // zext (X == 0) to i32 --> (X>>1)^1 iff X has only the 2nd bit set.
     // zext (X == 1) to i32 --> X        iff X has only the low bit set.
@@ -545,8 +541,7 @@ Instruction *InstCombiner::transformZExtICmp(ICmpInst *ICI, Instruction &CI,
       // If Op1C some other power of two, convert:
       uint32_t BitWidth = Op1C->getType()->getBitWidth();
       APInt KnownZero(BitWidth, 0), KnownOne(BitWidth, 0);
-      APInt TypeMask(APInt::getAllOnesValue(BitWidth));
-      ComputeMaskedBits(ICI->getOperand(0), TypeMask, KnownZero, KnownOne);
+      ComputeMaskedBits(ICI->getOperand(0), KnownZero, KnownOne);
         
       APInt KnownZeroMask(~KnownZero);
       if (KnownZeroMask.isPowerOf2()) { // Exactly 1 possible 1?
@@ -594,9 +589,8 @@ Instruction *InstCombiner::transformZExtICmp(ICmpInst *ICI, Instruction &CI,
 
       APInt KnownZeroLHS(BitWidth, 0), KnownOneLHS(BitWidth, 0);
       APInt KnownZeroRHS(BitWidth, 0), KnownOneRHS(BitWidth, 0);
-      APInt TypeMask(APInt::getAllOnesValue(BitWidth));
-      ComputeMaskedBits(LHS, TypeMask, KnownZeroLHS, KnownOneLHS);
-      ComputeMaskedBits(RHS, TypeMask, KnownZeroRHS, KnownOneRHS);
+      ComputeMaskedBits(LHS, KnownZeroLHS, KnownOneLHS);
+      ComputeMaskedBits(RHS, KnownZeroRHS, KnownOneRHS);
 
       if (KnownZeroLHS == KnownZeroRHS && KnownOneLHS == KnownOneRHS) {
         APInt KnownBits = KnownZeroLHS | KnownOneLHS;
@@ -654,10 +648,8 @@ static bool CanEvaluateZExtd(Value *V, Type *Ty, unsigned &BitsToClear) {
   if (!I) return false;
   
   // If the input is a truncate from the destination type, we can trivially
-  // eliminate it, even if it has multiple uses.
-  // FIXME: This is currently disabled until codegen can handle this without
-  // pessimizing code, PR5997.
-  if (0 && isa<TruncInst>(I) && I->getOperand(0)->getType() == Ty)
+  // eliminate it.
+  if (isa<TruncInst>(I) && I->getOperand(0)->getType() == Ty)
     return true;
   
   // We can't extend or shrink something that has multiple uses: doing so would
@@ -915,8 +907,7 @@ Instruction *InstCombiner::transformSExtICmp(ICmpInst *ICI, Instruction &CI) {
         ICI->isEquality() && (Op1C->isZero() || Op1C->getValue().isPowerOf2())){
       unsigned BitWidth = Op1C->getType()->getBitWidth();
       APInt KnownZero(BitWidth, 0), KnownOne(BitWidth, 0);
-      APInt TypeMask(APInt::getAllOnesValue(BitWidth));
-      ComputeMaskedBits(Op0, TypeMask, KnownZero, KnownOne);
+      ComputeMaskedBits(Op0, KnownZero, KnownOne);
 
       APInt KnownZeroMask(~KnownZero);
       if (KnownZeroMask.isPowerOf2()) {
@@ -999,11 +990,8 @@ static bool CanEvaluateSExtd(Value *V, Type *Ty) {
   Instruction *I = dyn_cast<Instruction>(V);
   if (!I) return false;
   
-  // If this is a truncate from the dest type, we can trivially eliminate it,
-  // even if it has multiple uses.
-  // FIXME: This is currently disabled until codegen can handle this without
-  // pessimizing code, PR5997.
-  if (0 && isa<TruncInst>(I) && I->getOperand(0)->getType() == Ty)
+  // If this is a truncate from the dest type, we can trivially eliminate it.
+  if (isa<TruncInst>(I) && I->getOperand(0)->getType() == Ty)
     return true;
   
   // We can't extend or shrink something that has multiple uses: doing so would
@@ -1163,6 +1151,9 @@ static Value *LookThroughFPExtensions(Value *V) {
   if (ConstantFP *CFP = dyn_cast<ConstantFP>(V)) {
     if (CFP->getType() == Type::getPPC_FP128Ty(V->getContext()))
       return V;  // No constant folding of this.
+    // See if the value can be truncated to half and then reextended.
+    if (Value *V = FitsInFPType(CFP, APFloat::IEEEhalf))
+      return V;
     // See if the value can be truncated to float and then reextended.
     if (Value *V = FitsInFPType(CFP, APFloat::IEEEsingle))
       return V;
@@ -1213,10 +1204,9 @@ Instruction *InstCombiner::visitFPTrunc(FPTruncInst &CI) {
   }
   
   // Fold (fptrunc (sqrt (fpext x))) -> (sqrtf x)
-  // NOTE: This should be disabled by -fno-builtin-sqrt if we ever support it.
   CallInst *Call = dyn_cast<CallInst>(CI.getOperand(0));
-  if (Call && Call->getCalledFunction() &&
-      Call->getCalledFunction()->getName() == "sqrt" &&
+  if (Call && Call->getCalledFunction() && TLI->has(LibFunc::sqrtf) &&
+      Call->getCalledFunction()->getName() == TLI->getName(LibFunc::sqrt) &&
       Call->getNumArgOperands() == 1 &&
       Call->hasOneUse()) {
     CastInst *Arg = dyn_cast<CastInst>(Call->getArgOperand(0));
@@ -1346,10 +1336,9 @@ Instruction *InstCombiner::commonPointerCastTransforms(CastInst &CI) {
     // non-type-safe code.
     if (TD && GEP->hasOneUse() && isa<BitCastInst>(GEP->getOperand(0)) &&
         GEP->hasAllConstantIndices()) {
-      // We are guaranteed to get a constant from EmitGEPOffset.
-      ConstantInt *OffsetV = cast<ConstantInt>(EmitGEPOffset(GEP));
-      int64_t Offset = OffsetV->getSExtValue();
-      
+      SmallVector<Value*, 8> Ops(GEP->idx_begin(), GEP->idx_end());
+      int64_t Offset = TD->getIndexedOffset(GEP->getPointerOperandType(), Ops);
+
       // Get the base pointer input of the bitcast, and the type it points to.
       Value *OrigBase = cast<BitCastInst>(GEP->getOperand(0))->getOperand(0);
       Type *GEPIdxTy =
@@ -1423,16 +1412,15 @@ static Instruction *OptimizeVectorResize(Value *InVal, VectorType *DestTy,
   // Now that the element types match, get the shuffle mask and RHS of the
   // shuffle to use, which depends on whether we're increasing or decreasing the
   // size of the input.
-  SmallVector<Constant*, 16> ShuffleMask;
+  SmallVector<uint32_t, 16> ShuffleMask;
   Value *V2;
-  IntegerType *Int32Ty = Type::getInt32Ty(SrcTy->getContext());
   
   if (SrcTy->getNumElements() > DestTy->getNumElements()) {
     // If we're shrinking the number of elements, just shuffle in the low
     // elements from the input and use undef as the second shuffle input.
     V2 = UndefValue::get(SrcTy);
     for (unsigned i = 0, e = DestTy->getNumElements(); i != e; ++i)
-      ShuffleMask.push_back(ConstantInt::get(Int32Ty, i));
+      ShuffleMask.push_back(i);
     
   } else {
     // If we're increasing the number of elements, shuffle in all of the
@@ -1441,14 +1429,16 @@ static Instruction *OptimizeVectorResize(Value *InVal, VectorType *DestTy,
     V2 = Constant::getNullValue(SrcTy);
     unsigned SrcElts = SrcTy->getNumElements();
     for (unsigned i = 0, e = SrcElts; i != e; ++i)
-      ShuffleMask.push_back(ConstantInt::get(Int32Ty, i));
+      ShuffleMask.push_back(i);
 
     // The excess elements reference the first element of the zero input.
-    ShuffleMask.append(DestTy->getNumElements()-SrcElts,
-                       ConstantInt::get(Int32Ty, SrcElts));
+    for (unsigned i = 0, e = DestTy->getNumElements()-SrcElts; i != e; ++i)
+      ShuffleMask.push_back(SrcElts);
   }
   
-  return new ShuffleVectorInst(InVal, V2, ConstantVector::get(ShuffleMask));
+  return new ShuffleVectorInst(InVal, V2,
+                               ConstantDataVector::get(V2->getContext(),
+                                                       ShuffleMask));
 }
 
 static bool isMultipleOfTypeSize(unsigned Value, Type *Ty) {

@@ -1,7 +1,10 @@
 # Chelsio T4 Factory Default configuration file.
 #
-# Copyright (C) 2010 Chelsio Communications.  All rights reserved.
+# Copyright (C) 2010-2012 Chelsio Communications.  All rights reserved.
 #
+#   DO NOT MODIFY THIS FILE UNDER ANY CIRCUMSTANCES.  MODIFICATION OF
+#   THIS FILE WILL RESULT IN A NON-FUNCTIONAL T4 ADAPTER AND MAY RESULT
+#   IN PHYSICAL DAMAGE TO T4 ADAPTERS.
 
 # This file provides the default, power-on configuration for 4-port T4-based
 # adapters shipped from the factory.  These defaults are designed to address
@@ -112,7 +115,7 @@
 	# must sum to <= 36): { IP Fragment (1), MPS Match Type (3),
 	# IP Protocol (8), [Inner] VLAN (17), Port (3), FCoE (1) }
 	#
-	filterMode = fragmentation, mpshittype, protocol, vnic_id, port, fcoe
+	filterMode = fragmentation, mpshittype, protocol, vlan, port, fcoe
 
 	# Percentage of dynamic memory (in either the EDRAM or external MEM)
 	# to use for TP RX payload
@@ -339,18 +342,19 @@
 	r_caps = all		# read permissions for all commands
 	nvi = 28		# NVI_UNIFIED
 	niqflint = 170		# NFLIQ_UNIFIED + NLFIQ_WD
-	nethctrl = 96 		# NETHCTRL_UNIFIED + NETHCTRL_WD
-	neq = 252		# NEQ_UNIFIED + NEQ_WD
+	nethctrl = 100		# NETHCTRL_UNIFIED + NETHCTRL_WD
+	neq = 256		# NEQ_UNIFIED + NEQ_WD
 	nexactf = 40		# NMPSTCAM_UNIFIED
 	cmask = all		# access to all channels
 	pmask = all		# access to all four ports ...
+	nethofld = 1024		# number of user mode ethernet flow contexts
 	nroute = 32		# number of routing region entries
 	nclip = 32		# number of clip region entries
-	nfilter = 768		# number of filter region entries
-	nserver = 256		# number of server region entries
-	nhash = 0		# number of hash region entries
+	nfilter = 496		# number of filter region entries
+	nserver = 496		# number of server region entries
+	nhash = 12288		# number of hash region entries
 	protocol = nic_vm, ofld, rddp, rdmac, iscsi_initiator_pdu, iscsi_target_pdu
-	tp_l2t = 100
+	tp_l2t = 3072
 	tp_ddp = 2
 	tp_ddp_iscsi = 2
 	tp_stag = 2
@@ -371,6 +375,15 @@
 	nexactf = 4		# NPORTS
 	cmask = all		# access to all channels
 	pmask = all		# access to all four ports ...
+	nserver = 16
+	nhash = 2048
+	tp_l2t = 1024
+	protocol = iscsi_initiator_fofld
+	tp_ddp_iscsi = 2
+	iscsi_ntask = 2048
+	iscsi_nsess = 2048
+	iscsi_nconn_per_session = 1
+	iscsi_ninitiator_instance = 64
 
 [function "6"]
 	wx_caps = all		# write/execute permissions for all commands
@@ -384,12 +397,25 @@
 				# and we never load PF0..3 and PF4 concurrently
 	cmask = all		# access to all channels
 	pmask = all		# access to all four ports ...
-	nhash = 0 
+	nhash = 2048
 	protocol = fcoe_initiator
 	tp_ddp = 2
 	fcoe_nfcf = 16
 	fcoe_nvnp = 32
 	fcoe_nssn = 1024
+
+# The following function, 1023, is not an actual PCIE function but is used to
+# configure and reserve firmware internal resources that come from the global
+# resource pool.
+#
+[function "1023"]
+	wx_caps = all		# write/execute permissions for all commands
+	r_caps = all		# read permissions for all commands
+	nvi = 4			# NVI_UNIFIED
+	cmask = all		# access to all channels
+	pmask = all		# access to all four ports ...
+	nexactf = 8		# NPORTS + DCBX +
+	nfilter = 16		# number of filter region entries
 
 # For Virtual functions, we only allow NIC functionality and we only allow
 # access to one port (1 << PF).  Note that because of limitations in the
@@ -488,8 +514,8 @@
 	dwm = 30
 
 [fini]
-	version = 0x14250007
-	checksum = 0xfcbadefb
+	version = 0x1425000b
+	checksum = 0x7690f7a5
 
 # Total resources used by above allocations:
 #   Virtual Interfaces: 104

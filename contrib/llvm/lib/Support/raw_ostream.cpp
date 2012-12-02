@@ -20,6 +20,7 @@
 #include "llvm/Config/config.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/system_error.h"
 #include "llvm/ADT/STLExtras.h"
 #include <cctype>
 #include <cerrno>
@@ -527,7 +528,8 @@ void raw_fd_ostream::write_impl(const char *Ptr, size_t Size) {
     } else {
       // Use ::writev() where available.
 #if defined(HAVE_WRITEV)
-      struct iovec IOV = { (void*) Ptr, Size };
+      const void *Addr = static_cast<const void *>(Ptr);
+      struct iovec IOV = {const_cast<void *>(Addr), Size };
       ret = ::writev(FD, &IOV, 1);
 #else
       ret = ::write(FD, Ptr, Size);
@@ -632,8 +634,25 @@ raw_ostream &raw_fd_ostream::resetColor() {
   return *this;
 }
 
+raw_ostream &raw_fd_ostream::reverseColor() {
+  if (sys::Process::ColorNeedsFlush())
+    flush();
+  const char *colorcode = sys::Process::OutputReverse();
+  if (colorcode) {
+    size_t len = strlen(colorcode);
+    write(colorcode, len);
+    // don't account colors towards output characters
+    pos -= len;
+  }
+  return *this;
+}
+
 bool raw_fd_ostream::is_displayed() const {
   return sys::Process::FileDescriptorIsDisplayed(FD);
+}
+
+bool raw_fd_ostream::has_colors() const {
+  return sys::Process::FileDescriptorHasColors(FD);
 }
 
 //===----------------------------------------------------------------------===//

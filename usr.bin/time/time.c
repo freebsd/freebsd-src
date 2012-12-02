@@ -117,7 +117,7 @@ main(int argc, char **argv)
 		setvbuf(out, (char *)NULL, _IONBF, (size_t)0);
 	}
 
-	gettimeofday(&before_tv, (struct timezone *)NULL);
+	(void)gettimeofday(&before_tv, NULL);
 	switch(pid = fork()) {
 	case -1:			/* error */
 		err(1, "time");
@@ -134,7 +134,7 @@ main(int argc, char **argv)
 	(void)signal(SIGQUIT, SIG_IGN);
 	(void)signal(SIGINFO, siginfo);
 	while (wait4(pid, &status, 0, &ru) != pid);
-	gettimeofday(&after, (struct timezone *)NULL);
+	(void)gettimeofday(&after, NULL);
 	if ( ! WIFEXITED(status))
 		warnx("command terminated abnormally");
 	exitonsig = WIFSIGNALED(status) ? WTERMSIG(status) : 0;
@@ -297,7 +297,7 @@ siginfo(int sig __unused)
 	struct timeval after;
 	struct rusage ru;
 
-	gettimeofday(&after, (struct timezone *)NULL);
+	(void)gettimeofday(&after, NULL);
 	getrusage(RUSAGE_CHILDREN, &ru);
 	showtime(stdout, &before_tv, &after, &ru);
 }

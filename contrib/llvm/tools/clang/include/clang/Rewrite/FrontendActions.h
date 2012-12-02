@@ -28,8 +28,8 @@ protected:
 
 class FixItAction : public ASTFrontendAction {
 protected:
-  llvm::OwningPtr<FixItRewriter> Rewriter;
-  llvm::OwningPtr<FixItOptions> FixItOpts;
+  OwningPtr<FixItRewriter> Rewriter;
+  OwningPtr<FixItOptions> FixItOpts;
 
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
                                          StringRef InFile);
@@ -46,6 +46,17 @@ public:
   ~FixItAction();
 };
 
+/// \brief Emits changes to temporary files and uses them for the original
+/// frontend action.
+class FixItRecompile : public WrapperFrontendAction {
+public:
+  FixItRecompile(FrontendAction *WrappedAction)
+    : WrapperFrontendAction(WrappedAction) {}
+
+protected:
+  virtual bool BeginInvocation(CompilerInstance &CI);
+};
+
 class RewriteObjCAction : public ASTFrontendAction {
 protected:
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
@@ -58,6 +69,11 @@ protected:
 };
 
 class RewriteTestAction : public PreprocessorFrontendAction {
+protected:
+  void ExecuteAction();
+};
+
+class RewriteIncludesAction : public PreprocessorFrontendAction {
 protected:
   void ExecuteAction();
 };

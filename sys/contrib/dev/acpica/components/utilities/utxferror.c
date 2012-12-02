@@ -87,6 +87,9 @@ extern FILE                 *AcpiGbl_OutputFile;
 #define ACPI_MSG_WARNING        "ACPI Warning: "
 #define ACPI_MSG_INFO           "ACPI: "
 
+#define ACPI_MSG_BIOS_ERROR     "ACPI BIOS Bug: Error: "
+#define ACPI_MSG_BIOS_WARNING   "ACPI BIOS Bug: Warning: "
+
 /*
  * Common message suffix
  */
@@ -257,6 +260,84 @@ AcpiInfo (
 ACPI_EXPORT_SYMBOL (AcpiInfo)
 
 
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiBiosError
+ *
+ * PARAMETERS:  ModuleName          - Caller's module name (for error output)
+ *              LineNumber          - Caller's line number (for error output)
+ *              Format              - Printf format string + additional args
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Print "ACPI Firmware Error" message with module/line/version
+ *              info
+ *
+ ******************************************************************************/
+
+void ACPI_INTERNAL_VAR_XFACE
+AcpiBiosError (
+    const char              *ModuleName,
+    UINT32                  LineNumber,
+    const char              *Format,
+    ...)
+{
+    va_list                 ArgList;
+
+
+    ACPI_MSG_REDIRECT_BEGIN;
+    AcpiOsPrintf (ACPI_MSG_BIOS_ERROR);
+
+    va_start (ArgList, Format);
+    AcpiOsVprintf (Format, ArgList);
+    ACPI_MSG_SUFFIX;
+    va_end (ArgList);
+
+    ACPI_MSG_REDIRECT_END;
+}
+
+ACPI_EXPORT_SYMBOL (AcpiBiosError)
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiBiosWarning
+ *
+ * PARAMETERS:  ModuleName          - Caller's module name (for error output)
+ *              LineNumber          - Caller's line number (for error output)
+ *              Format              - Printf format string + additional args
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Print "ACPI Firmware Warning" message with module/line/version
+ *              info
+ *
+ ******************************************************************************/
+
+void ACPI_INTERNAL_VAR_XFACE
+AcpiBiosWarning (
+    const char              *ModuleName,
+    UINT32                  LineNumber,
+    const char              *Format,
+    ...)
+{
+    va_list                 ArgList;
+
+
+    ACPI_MSG_REDIRECT_BEGIN;
+    AcpiOsPrintf (ACPI_MSG_BIOS_WARNING);
+
+    va_start (ArgList, Format);
+    AcpiOsVprintf (Format, ArgList);
+    ACPI_MSG_SUFFIX;
+    va_end (ArgList);
+
+    ACPI_MSG_REDIRECT_END;
+}
+
+ACPI_EXPORT_SYMBOL (AcpiBiosWarning)
+
+
 /*
  * The remainder of this module contains internal error functions that may
  * be configured out.
@@ -396,7 +477,7 @@ AcpiUtNamespaceError (
         /* There is a non-ascii character in the name */
 
         ACPI_MOVE_32_TO_32 (&BadName, ACPI_CAST_PTR (UINT32, InternalName));
-        AcpiOsPrintf ("[0x%4.4X] (NON-ASCII)", BadName);
+        AcpiOsPrintf ("[0x%.8X] (NON-ASCII)", BadName);
     }
     else
     {

@@ -53,7 +53,7 @@ _RuneLocale	*__runes_for_locale(locale_t, int*);
 #endif
 
 #ifndef _XLOCALE_INLINE
-#if __GNUC__ && !__GNUC_STDC_INLINE__
+#if defined(__GNUC__) && !defined(__GNUC_STDC_INLINE__)
 /* GNU89 inline has nonstandard semantics. */
 #define _XLOCALE_INLINE extern __inline
 #else
@@ -78,8 +78,8 @@ __maskrune_l(__ct_rune_t __c, unsigned long __f, locale_t __loc)
 {
 	int __limit;
 	_RuneLocale *runes = __runes_for_locale(__loc, &__limit);
-	return (__c < 0 || __c >= _CACHED_RUNES) ? ___runetype_l(__c, __loc) :
-	       runes->__runetype[__c] & __f;
+	return ((__c < 0 || __c >= _CACHED_RUNES) ? ___runetype_l(__c, __loc) :
+	        runes->__runetype[__c]) & __f;
 }
 
 _XLOCALE_INLINE int

@@ -111,7 +111,7 @@ static int tx_threshold = 64;
  *
  * See struct fxp_cb_config for the bit definitions.
  */
-static const u_char const fxp_cb_config_template[] = {
+static const u_char fxp_cb_config_template[] = {
 	0x0, 0x0,		/* cb_status */
 	0x0, 0x0,		/* cb_command */
 	0x0, 0x0, 0x0, 0x0,	/* link_addr */
@@ -155,7 +155,7 @@ static const u_char const fxp_cb_config_template[] = {
  * particular variants, but we don't currently differentiate between
  * them.
  */
-static const struct fxp_ident const fxp_ident_table[] = {
+static const struct fxp_ident fxp_ident_table[] = {
     { 0x1029,	-1,	0, "Intel 82559 PCI/CardBus Pro/100" },
     { 0x1030,	-1,	0, "Intel 82559 Pro/100 Ethernet" },
     { 0x1031,	-1,	3, "Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
@@ -290,7 +290,7 @@ static device_method_t fxp_methods[] = {
 	DEVMETHOD(miibus_writereg,	fxp_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	fxp_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t fxp_driver = {
@@ -301,8 +301,9 @@ static driver_t fxp_driver = {
 
 static devclass_t fxp_devclass;
 
-DRIVER_MODULE(fxp, pci, fxp_driver, fxp_devclass, 0, 0);
-DRIVER_MODULE(miibus, fxp, miibus_driver, miibus_devclass, 0, 0);
+DRIVER_MODULE_ORDERED(fxp, pci, fxp_driver, fxp_devclass, NULL, NULL,
+    SI_ORDER_ANY);
+DRIVER_MODULE(miibus, fxp, miibus_driver, miibus_devclass, NULL, NULL);
 
 static struct resource_spec fxp_res_spec_mem[] = {
 	{ SYS_RES_MEMORY,	FXP_PCI_MMBA,	RF_ACTIVE },
@@ -3052,7 +3053,7 @@ static const struct ucode {
 	int		length;
 	u_short		int_delay_offset;
 	u_short		bundle_max_offset;
-} const ucode_table[] = {
+} ucode_table[] = {
 	{ FXP_REV_82558_A4, UCODE(fxp_ucode_d101a), D101_CPUSAVER_DWORD, 0 },
 	{ FXP_REV_82558_B0, UCODE(fxp_ucode_d101b0), D101_CPUSAVER_DWORD, 0 },
 	{ FXP_REV_82559_A0, UCODE(fxp_ucode_d101ma),

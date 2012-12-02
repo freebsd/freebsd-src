@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: macintosh,v 1.22 2011/05/17 17:40:31 rrt Exp $
 # macintosh description
 #
 # BinHex is the Macintosh ASCII-encoded file format (see also "apple")
@@ -284,7 +285,7 @@
 >0x412	beshort			x		number of blocks: %d,
 >0x424	pstring			x		volume name: %s
 
-# "BD" is has many false positives
+# "BD" gives many false positives
 #0x400	beshort			0x4244		Macintosh HFS data
 #>0	beshort			0x4C4B		(bootable)
 #>0x40a	beshort			&0x8000		(locked)
@@ -375,3 +376,15 @@
 
 # From: Remi Mommsen <mommsen@slac.stanford.edu>
 0		string		BOMStore	Mac OS X bill of materials (BOM) file
+
+# From: Adam Buchbinder <adam.buchbinder@gmail.com>
+# URL: http://en.wikipedia.org/wiki/Datafork_TrueType
+# Derived from the 'fondu' and 'ufond' source code (fondu.sf.net). 'sfnt' is
+# TrueType; 'POST' is PostScript. 'FONT' and 'NFNT' sometimes appear, but I
+# don't know what they mean.
+0	belong	0x100
+>(0x4.L+24)	beshort	x
+>>&4	belong	0x73666e74	Mac OSX datafork font, TrueType
+>>&4	belong	0x464f4e54	Mac OSX datafork font, 'FONT'
+>>&4	belong	0x4e464e54	Mac OSX datafork font, 'NFNT'
+>>&4	belong	0x504f5354	Mac OSX datafork font, PostScript

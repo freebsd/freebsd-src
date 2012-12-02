@@ -22,8 +22,10 @@
 #include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCAsmLayout.h"
 #include "llvm/MC/MCSectionCOFF.h"
+#include "llvm/MC/MCWinCOFFObjectWriter.h"
 
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
 
@@ -32,8 +34,6 @@
 #include "llvm/Support/ErrorHandling.h"
 
 #include "llvm/Support/TimeValue.h"
-
-#include "../Target/X86/MCTargetDesc/X86FixupKinds.h"
 
 #include <cstdio>
 
@@ -128,8 +128,9 @@ public:
   typedef DenseMap<MCSymbol  const *, COFFSymbol *>   symbol_map;
   typedef DenseMap<MCSection const *, COFFSection *> section_map;
 
+  llvm::OwningPtr<MCWinCOFFObjectTargetWriter> TargetObjectWriter;
+
   // Root level file contents.
-  bool Is64Bit;
   COFF::header Header;
   sections     Sections;
   symbols      Symbols;
@@ -139,7 +140,7 @@ public:
   section_map SectionMap;
   symbol_map  SymbolMap;
 
-  WinCOFFObjectWriter(raw_ostream &OS, bool is64Bit);
+  WinCOFFObjectWriter(MCWinCOFFObjectTargetWriter *MOTW, raw_ostream &OS);
   ~WinCOFFObjectWriter();
 
   COFFSymbol *createSymbol(StringRef Name);
@@ -281,6 +282,7 @@ StringTable::StringTable() {
   // The string table data begins with the length of the entire string table
   // including the length header. Allocate space for this header.
   Data.resize(4);
+  update_length();
 }
 
 size_t StringTable::size() const {
@@ -313,13 +315,13 @@ size_t StringTable::insert(llvm::StringRef String) {
 //------------------------------------------------------------------------------
 // WinCOFFObjectWriter class implementation
 
-WinCOFFObjectWriter::WinCOFFObjectWriter(raw_ostream &OS, bool is64Bit)
+WinCOFFObjectWriter::WinCOFFObjectWriter(MCWinCOFFObjectTargetWriter *MOTW,
+                                         raw_ostream &OS)
   : MCObjectWriter(OS, true)
-  , Is64Bit(is64Bit) {
+  , TargetObjectWriter(MOTW) {
   memset(&Header, 0, sizeof(Header));
 
-  Is64Bit ? Header.Machine = COFF::IMAGE_FILE_MACHINE_AMD64
-          : Header.Machine = COFF::IMAGE_FILE_MACHINE_I386;
+  Header.Machine = TargetObjectWriter->getMachine();
 }
 
 WinCOFFObjectWriter::~WinCOFFObjectWriter() {
@@ -694,30 +696,13 @@ void WinCOFFObjectWriter::RecordRelocation(const MCAssembler &Asm,
   if (CrossSection)
     FixupKind = FK_PCRel_4;
 
-  switch (FixupKind) {
-  case FK_PCRel_4:
-  case X86::reloc_riprel_4byte:
-  case X86::reloc_riprel_4byte_movq_load:
-    Reloc.Data.Type = Is64Bit ? COFF::IMAGE_REL_AMD64_REL32
-                              : COFF::IMAGE_REL_I386_REL32;
-    // FIXME: Can anyone explain what this does other than adjust for the size
-    // of the offset?
+  Reloc.Data.Type = TargetObjectWriter->getRelocType(FixupKind);
+
+  // FIXME: Can anyone explain what this does other than adjust for the size
+  // of the offset?
+  if (Reloc.Data.Type == COFF::IMAGE_REL_AMD64_REL32 ||
+      Reloc.Data.Type == COFF::IMAGE_REL_I386_REL32)
     FixedValue += 4;
-    break;
-  case FK_Data_4:
-  case X86::reloc_signed_4byte:
-    Reloc.Data.Type = Is64Bit ? COFF::IMAGE_REL_AMD64_ADDR32
-                              : COFF::IMAGE_REL_I386_DIR32;
-    break;
-  case FK_Data_8:
-    if (Is64Bit)
-      Reloc.Data.Type = COFF::IMAGE_REL_AMD64_ADDR64;
-    else
-      llvm_unreachable("unsupported relocation type");
-    break;
-  default:
-    llvm_unreachable("unsupported relocation type");
-  }
 
   coff_section->Relocations.push_back(Reloc);
 }
@@ -798,8 +783,21 @@ void WinCOFFObjectWriter::WriteObject(MCAssembler &Asm,
     }
 
     if (Sec->Relocations.size() > 0) {
-      Sec->Header.NumberOfRelocations = Sec->Relocations.size();
+      bool RelocationsOverflow = Sec->Relocations.size() >= 0xffff;
+
+      if (RelocationsOverflow) {
+        // Signal overflow by setting NumberOfSections to max value. Actual
+        // size is found in reloc #0. Microsoft tools understand this.
+        Sec->Header.NumberOfRelocations = 0xffff;
+      } else {
+        Sec->Header.NumberOfRelocations = Sec->Relocations.size();
+      }
       Sec->Header.PointerToRelocations = offset;
+
+      if (RelocationsOverflow) {
+        // Reloc #0 will contain actual count, so make room for it.
+        offset += COFF::RelocationSize;
+      }
 
       offset += COFF::RelocationSize * Sec->Relocations.size();
 
@@ -835,8 +833,12 @@ void WinCOFFObjectWriter::WriteObject(MCAssembler &Asm,
     MCAssembler::const_iterator j, je;
 
     for (i = Sections.begin(), ie = Sections.end(); i != ie; i++)
-      if ((*i)->Number != -1)
+      if ((*i)->Number != -1) {
+        if ((*i)->Relocations.size() >= 0xffff) {
+          (*i)->Header.Characteristics |= COFF::IMAGE_SCN_LNK_NRELOC_OVFL;
+        }
         WriteSectionHeader((*i)->Header);
+      }
 
     for (i = Sections.begin(), ie = Sections.end(),
          j = Asm.begin(), je = Asm.end();
@@ -849,12 +851,22 @@ void WinCOFFObjectWriter::WriteObject(MCAssembler &Asm,
         assert(OS.tell() == (*i)->Header.PointerToRawData &&
                "Section::PointerToRawData is insane!");
 
-        Asm.WriteSectionData(j, Layout);
+        Asm.writeSectionData(j, Layout);
       }
 
       if ((*i)->Relocations.size() > 0) {
         assert(OS.tell() == (*i)->Header.PointerToRelocations &&
                "Section::PointerToRelocations is insane!");
+
+        if ((*i)->Relocations.size() >= 0xffff) {
+          // In case of overflow, write actual relocation count as first
+          // relocation. Including the synthetic reloc itself (+ 1).
+          COFF::relocation r;
+          r.VirtualAddress = (*i)->Relocations.size() + 1;
+          r.SymbolTableIndex = 0;
+          r.Type = 0;
+          WriteRelocation(r);
+        }
 
         for (relocations::const_iterator k = (*i)->Relocations.begin(),
                                                ke = (*i)->Relocations.end();
@@ -877,11 +889,16 @@ void WinCOFFObjectWriter::WriteObject(MCAssembler &Asm,
   OS.write((char const *)&Strings.Data.front(), Strings.Data.size());
 }
 
+MCWinCOFFObjectTargetWriter::MCWinCOFFObjectTargetWriter(unsigned Machine_) :
+  Machine(Machine_) {
+}
+
 //------------------------------------------------------------------------------
 // WinCOFFObjectWriter factory function
 
 namespace llvm {
-  MCObjectWriter *createWinCOFFObjectWriter(raw_ostream &OS, bool is64Bit) {
-    return new WinCOFFObjectWriter(OS, is64Bit);
+  MCObjectWriter *createWinCOFFObjectWriter(MCWinCOFFObjectTargetWriter *MOTW,
+                                            raw_ostream &OS) {
+    return new WinCOFFObjectWriter(MOTW, OS);
   }
 }

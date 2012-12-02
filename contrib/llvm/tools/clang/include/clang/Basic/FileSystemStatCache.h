@@ -6,14 +6,16 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-//
-//  This file defines the FileSystemStatCache interface.
-//
+///
+/// \file
+/// \brief Defines the FileSystemStatCache interface.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_FILESYSTEMSTATCACHE_H
 #define LLVM_CLANG_FILESYSTEMSTATCACHE_H
 
+#include "clang/Basic/LLVM.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/StringMap.h"
 #include <sys/types.h>
@@ -25,20 +27,22 @@ namespace clang {
 /// system calls, which is used by precompiled and pretokenized headers to
 /// improve performance.
 class FileSystemStatCache {
+  virtual void anchor();
 protected:
-  llvm::OwningPtr<FileSystemStatCache> NextStatCache;
+  OwningPtr<FileSystemStatCache> NextStatCache;
   
 public:
   virtual ~FileSystemStatCache() {}
   
   enum LookupResult {
-    CacheExists,   //< We know the file exists and its cached stat data.
-    CacheMissing   //< We know that the file doesn't exist.
+    CacheExists,   ///< We know the file exists and its cached stat data.
+    CacheMissing   ///< We know that the file doesn't exist.
   };
 
-  /// FileSystemStatCache::get - Get the 'stat' information for the specified
-  /// path, using the cache to accellerate it if possible.  This returns true if
-  /// the path does not exist or false if it exists.
+  /// \brief Get the 'stat' information for the specified path, using the cache
+  /// to accelerate it if possible.
+  ///
+  /// \returns \c true if the path does not exist or \c false if it exists.
   ///
   /// If FileDescriptor is non-null, then this lookup should only return success
   /// for files (not directories).  If it is null this lookup should only return

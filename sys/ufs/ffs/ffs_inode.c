@@ -170,12 +170,11 @@ loop:
  * disk blocks.
  */
 int
-ffs_truncate(vp, length, flags, cred, td)
+ffs_truncate(vp, length, flags, cred)
 	struct vnode *vp;
 	off_t length;
 	int flags;
 	struct ucred *cred;
-	struct thread *td;
 {
 	struct inode *ip;
 	ufs2_daddr_t bn, lbn, lastblock, lastiblock[NIADDR], indir_lbn[NIADDR];
@@ -449,7 +448,7 @@ ffs_truncate(vp, length, flags, cred, td)
 	ip->i_size = osize;
 	DIP_SET(ip, i_size, osize);
 
-	error = vtruncbuf(vp, cred, td, length, fs->fs_bsize);
+	error = vtruncbuf(vp, cred, length, fs->fs_bsize);
 	if (error && (allerror == 0))
 		allerror = error;
 

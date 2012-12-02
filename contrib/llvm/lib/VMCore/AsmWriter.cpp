@@ -20,11 +20,13 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/CallingConv.h"
 #include "llvm/Constants.h"
+#include "llvm/DebugInfo.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/InlineAsm.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Operator.h"
 #include "llvm/Module.h"
+#include "llvm/TypeFinder.h"
 #include "llvm/ValueSymbolTable.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallString.h"
@@ -89,7 +91,6 @@ enum PrefixType {
 static void PrintLLVMName(raw_ostream &OS, StringRef Name, PrefixType Prefix) {
   assert(!Name.empty() && "Cannot get empty name!");
   switch (Prefix) {
-  default: llvm_unreachable("Bad prefix!");
   case NoPrefix: break;
   case GlobalPrefix: OS << '@'; break;
   case LabelPrefix:  break;
@@ -100,7 +101,11 @@ static void PrintLLVMName(raw_ostream &OS, StringRef Name, PrefixType Prefix) {
   bool NeedsQuotes = isdigit(Name[0]);
   if (!NeedsQuotes) {
     for (unsigned i = 0, e = Name.size(); i != e; ++i) {
-      char C = Name[i];
+      // By making this unsigned, the value passed in to isalnum will always be
+      // in the range 0-255.  This is important when building with MSVC because
+      // its implementation will assert.  This situation can arise when dealing
+      // with UTF-8 multibyte characters.
+      unsigned char C = Name[i];
       if (!isalnum(C) && C != '-' && C != '.' && C != '_') {
         NeedsQuotes = true;
         break;
@@ -141,7 +146,7 @@ class TypePrinting {
 public:
 
   /// NamedTypes - The named types that are used by the current module.
-  std::vector<StructType*> NamedTypes;
+  TypeFinder NamedTypes;
 
   /// NumberedTypes - The numbered types, along with their value.
   DenseMap<StructType*, unsigned> NumberedTypes;
@@ -160,7 +165,7 @@ public:
 
 
 void TypePrinting::incorporateTypes(const Module &M) {
-  M.findUsedStructTypes(NamedTypes);
+  NamedTypes.run(M, false);
 
   // The list of struct types we got back includes all the struct types, split
   // the unnamed ones out to a numbering and remove the anonymous structs.
@@ -189,6 +194,7 @@ void TypePrinting::incorporateTypes(const Module &M) {
 void TypePrinting::print(Type *Ty, raw_ostream &OS) {
   switch (Ty->getTypeID()) {
   case Type::VoidTyID:      OS << "void"; break;
+  case Type::HalfTyID:      OS << "half"; break;
   case Type::FloatTyID:     OS << "float"; break;
   case Type::DoubleTyID:    OS << "double"; break;
   case Type::X86_FP80TyID:  OS << "x86_fp80"; break;
@@ -231,7 +237,7 @@ void TypePrinting::print(Type *Ty, raw_ostream &OS) {
     if (I != NumberedTypes.end())
       OS << '%' << I->second;
     else  // Not enumerated, print the hex address.
-      OS << "%\"type 0x" << STy << '\"';
+      OS << "%\"type " << STy << '\"';
     return;
   }
   case Type::PointerTyID: {
@@ -708,31 +714,36 @@ static void WriteConstantInternal(raw_ostream &Out, const Constant *CV,
   }
 
   if (const ConstantFP *CFP = dyn_cast<ConstantFP>(CV)) {
-    if (&CFP->getValueAPF().getSemantics() == &APFloat::IEEEdouble ||
-        &CFP->getValueAPF().getSemantics() == &APFloat::IEEEsingle) {
+    if (&CFP->getValueAPF().getSemantics() == &APFloat::IEEEsingle ||
+        &CFP->getValueAPF().getSemantics() == &APFloat::IEEEdouble) {
       // We would like to output the FP constant value in exponential notation,
       // but we cannot do this if doing so will lose precision.  Check here to
       // make sure that we only output it in exponential format if we can parse
       // the value back and get the same value.
       //
       bool ignored;
+      bool isHalf = &CFP->getValueAPF().getSemantics()==&APFloat::IEEEhalf;
       bool isDouble = &CFP->getValueAPF().getSemantics()==&APFloat::IEEEdouble;
-      double Val = isDouble ? CFP->getValueAPF().convertToDouble() :
-                              CFP->getValueAPF().convertToFloat();
-      SmallString<128> StrVal;
-      raw_svector_ostream(StrVal) << Val;
+      bool isInf = CFP->getValueAPF().isInfinity();
+      bool isNaN = CFP->getValueAPF().isNaN();
+      if (!isHalf && !isInf && !isNaN) {
+        double Val = isDouble ? CFP->getValueAPF().convertToDouble() :
+                                CFP->getValueAPF().convertToFloat();
+        SmallString<128> StrVal;
+        raw_svector_ostream(StrVal) << Val;
 
-      // Check to make sure that the stringized number is not some string like
-      // "Inf" or NaN, that atof will accept, but the lexer will not.  Check
-      // that the string matches the "[-+]?[0-9]" regex.
-      //
-      if ((StrVal[0] >= '0' && StrVal[0] <= '9') ||
-          ((StrVal[0] == '-' || StrVal[0] == '+') &&
-           (StrVal[1] >= '0' && StrVal[1] <= '9'))) {
-        // Reparse stringized version!
-        if (atof(StrVal.c_str()) == Val) {
-          Out << StrVal.str();
-          return;
+        // Check to make sure that the stringized number is not some string like
+        // "Inf" or NaN, that atof will accept, but the lexer will not.  Check
+        // that the string matches the "[-+]?[0-9]" regex.
+        //
+        if ((StrVal[0] >= '0' && StrVal[0] <= '9') ||
+            ((StrVal[0] == '-' || StrVal[0] == '+') &&
+             (StrVal[1] >= '0' && StrVal[1] <= '9'))) {
+          // Reparse stringized version!
+          if (APFloat(APFloat::IEEEdouble, StrVal).convertToDouble() == Val) {
+            Out << StrVal.str();
+            return;
+          }
         }
       }
       // Otherwise we could not reparse it to exactly the same value, so we must
@@ -743,7 +754,7 @@ static void WriteConstantInternal(raw_ostream &Out, const Constant *CV,
              "assuming that double is 64 bits!");
       char Buffer[40];
       APFloat apf = CFP->getValueAPF();
-      // Floats are represented in ASCII IR as double, convert.
+      // Halves and floats are represented in ASCII IR as double, convert.
       if (!isDouble)
         apf.convert(APFloat::IEEEdouble, APFloat::rmNearestTiesToEven,
                           &ignored);
@@ -753,16 +764,20 @@ static void WriteConstantInternal(raw_ostream &Out, const Constant *CV,
       return;
     }
 
-    // Some form of long double.  These appear as a magic letter identifying
-    // the type, then a fixed number of hex digits.
+    // Either half, or some form of long double.
+    // These appear as a magic letter identifying the type, then a
+    // fixed number of hex digits.
     Out << "0x";
+    // Bit position, in the current word, of the next nibble to print.
+    int shiftcount;
+
     if (&CFP->getValueAPF().getSemantics() == &APFloat::x87DoubleExtended) {
       Out << 'K';
       // api needed to prevent premature destruction
       APInt api = CFP->getValueAPF().bitcastToAPInt();
       const uint64_t* p = api.getRawData();
       uint64_t word = p[1];
-      int shiftcount=12;
+      shiftcount = 12;
       int width = api.getBitWidth();
       for (int j=0; j<width; j+=4, shiftcount-=4) {
         unsigned int nibble = (word>>shiftcount) & 15;
@@ -778,17 +793,21 @@ static void WriteConstantInternal(raw_ostream &Out, const Constant *CV,
         }
       }
       return;
-    } else if (&CFP->getValueAPF().getSemantics() == &APFloat::IEEEquad)
+    } else if (&CFP->getValueAPF().getSemantics() == &APFloat::IEEEquad) {
+      shiftcount = 60;
       Out << 'L';
-    else if (&CFP->getValueAPF().getSemantics() == &APFloat::PPCDoubleDouble)
+    } else if (&CFP->getValueAPF().getSemantics() == &APFloat::PPCDoubleDouble) {
+      shiftcount = 60;
       Out << 'M';
-    else
+    } else if (&CFP->getValueAPF().getSemantics() == &APFloat::IEEEhalf) {
+      shiftcount = 12;
+      Out << 'H';
+    } else
       llvm_unreachable("Unsupported floating point type");
     // api needed to prevent premature destruction
     APInt api = CFP->getValueAPF().bitcastToAPInt();
     const uint64_t* p = api.getRawData();
     uint64_t word = *p;
-    int shiftcount=60;
     int width = api.getBitWidth();
     for (int j=0; j<width; j+=4, shiftcount-=4) {
       unsigned int nibble = (word>>shiftcount) & 15;
@@ -823,34 +842,52 @@ static void WriteConstantInternal(raw_ostream &Out, const Constant *CV,
   }
 
   if (const ConstantArray *CA = dyn_cast<ConstantArray>(CV)) {
+    Type *ETy = CA->getType()->getElementType();
+    Out << '[';
+    TypePrinter.print(ETy, Out);
+    Out << ' ';
+    WriteAsOperandInternal(Out, CA->getOperand(0),
+                           &TypePrinter, Machine,
+                           Context);
+    for (unsigned i = 1, e = CA->getNumOperands(); i != e; ++i) {
+      Out << ", ";
+      TypePrinter.print(ETy, Out);
+      Out << ' ';
+      WriteAsOperandInternal(Out, CA->getOperand(i), &TypePrinter, Machine,
+                             Context);
+    }
+    Out << ']';
+    return;
+  }
+  
+  if (const ConstantDataArray *CA = dyn_cast<ConstantDataArray>(CV)) {
     // As a special case, print the array as a string if it is an array of
     // i8 with ConstantInt values.
-    //
-    Type *ETy = CA->getType()->getElementType();
     if (CA->isString()) {
       Out << "c\"";
       PrintEscapedString(CA->getAsString(), Out);
       Out << '"';
-    } else {                // Cannot output in string format...
-      Out << '[';
-      if (CA->getNumOperands()) {
-        TypePrinter.print(ETy, Out);
-        Out << ' ';
-        WriteAsOperandInternal(Out, CA->getOperand(0),
-                               &TypePrinter, Machine,
-                               Context);
-        for (unsigned i = 1, e = CA->getNumOperands(); i != e; ++i) {
-          Out << ", ";
-          TypePrinter.print(ETy, Out);
-          Out << ' ';
-          WriteAsOperandInternal(Out, CA->getOperand(i), &TypePrinter, Machine,
-                                 Context);
-        }
-      }
-      Out << ']';
+      return;
     }
+
+    Type *ETy = CA->getType()->getElementType();
+    Out << '[';
+    TypePrinter.print(ETy, Out);
+    Out << ' ';
+    WriteAsOperandInternal(Out, CA->getElementAsConstant(0),
+                           &TypePrinter, Machine,
+                           Context);
+    for (unsigned i = 1, e = CA->getNumElements(); i != e; ++i) {
+      Out << ", ";
+      TypePrinter.print(ETy, Out);
+      Out << ' ';
+      WriteAsOperandInternal(Out, CA->getElementAsConstant(i), &TypePrinter,
+                             Machine, Context);
+    }
+    Out << ']';
     return;
   }
+
 
   if (const ConstantStruct *CS = dyn_cast<ConstantStruct>(CV)) {
     if (CS->getType()->isPacked())
@@ -882,21 +919,19 @@ static void WriteConstantInternal(raw_ostream &Out, const Constant *CV,
     return;
   }
 
-  if (const ConstantVector *CP = dyn_cast<ConstantVector>(CV)) {
-    Type *ETy = CP->getType()->getElementType();
-    assert(CP->getNumOperands() > 0 &&
-           "Number of operands for a PackedConst must be > 0");
+  if (isa<ConstantVector>(CV) || isa<ConstantDataVector>(CV)) {
+    Type *ETy = CV->getType()->getVectorElementType();
     Out << '<';
     TypePrinter.print(ETy, Out);
     Out << ' ';
-    WriteAsOperandInternal(Out, CP->getOperand(0), &TypePrinter, Machine,
-                           Context);
-    for (unsigned i = 1, e = CP->getNumOperands(); i != e; ++i) {
+    WriteAsOperandInternal(Out, CV->getAggregateElement(0U), &TypePrinter,
+                           Machine, Context);
+    for (unsigned i = 1, e = CV->getType()->getVectorNumElements(); i != e;++i){
       Out << ", ";
       TypePrinter.print(ETy, Out);
       Out << ' ';
-      WriteAsOperandInternal(Out, CP->getOperand(i), &TypePrinter, Machine,
-                             Context);
+      WriteAsOperandInternal(Out, CV->getAggregateElement(i), &TypePrinter,
+                             Machine, Context);
     }
     Out << '>';
     return;
@@ -1162,7 +1197,6 @@ void AssemblyWriter::writeAtomic(AtomicOrdering Ordering,
     return;
 
   switch (SynchScope) {
-  default: Out << " <bad scope " << int(SynchScope) << ">"; break;
   case SingleThread: Out << " singlethread"; break;
   case CrossThread: break;
   }
@@ -1348,6 +1382,26 @@ static void PrintVisibility(GlobalValue::VisibilityTypes Vis,
   }
 }
 
+static void PrintThreadLocalModel(GlobalVariable::ThreadLocalMode TLM,
+                                  formatted_raw_ostream &Out) {
+  switch (TLM) {
+    case GlobalVariable::NotThreadLocal:
+      break;
+    case GlobalVariable::GeneralDynamicTLSModel:
+      Out << "thread_local ";
+      break;
+    case GlobalVariable::LocalDynamicTLSModel:
+      Out << "thread_local(localdynamic) ";
+      break;
+    case GlobalVariable::InitialExecTLSModel:
+      Out << "thread_local(initialexec) ";
+      break;
+    case GlobalVariable::LocalExecTLSModel:
+      Out << "thread_local(localexec) ";
+      break;
+  }
+}
+
 void AssemblyWriter::printGlobal(const GlobalVariable *GV) {
   if (GV->isMaterializable())
     Out << "; Materializable\n";
@@ -1360,8 +1414,8 @@ void AssemblyWriter::printGlobal(const GlobalVariable *GV) {
 
   PrintLinkage(GV->getLinkage(), Out);
   PrintVisibility(GV->getVisibility(), Out);
+  PrintThreadLocalModel(GV->getThreadLocalMode(), Out);
 
-  if (GV->isThreadLocal()) Out << "thread_local ";
   if (unsigned AddressSpace = GV->getType()->getAddressSpace())
     Out << "addrspace(" << AddressSpace << ") ";
   if (GV->hasUnnamedAddr()) Out << "unnamed_addr ";
@@ -1710,13 +1764,12 @@ void AssemblyWriter::printInstruction(const Instruction &I) {
     Out << ", ";
     writeOperand(SI.getDefaultDest(), true);
     Out << " [";
-    // Skip the first item since that's the default case.
-    unsigned NumCases = SI.getNumCases();
-    for (unsigned i = 1; i < NumCases; ++i) {
+    for (SwitchInst::CaseIt i = SI.case_begin(), e = SI.case_end();
+         i != e; ++i) {
       Out << "\n    ";
-      writeOperand(SI.getCaseValue(i), true);
+      writeOperand(i.getCaseValue(), true);
       Out << ", ";
-      writeOperand(SI.getSuccessor(i), true);
+      writeOperand(i.getCaseSuccessor(), true);
     }
     Out << "\n  ]";
   } else if (isa<IndirectBrInst>(I)) {
@@ -1984,19 +2037,22 @@ static void WriteMDNodeComment(const MDNode *Node,
                                formatted_raw_ostream &Out) {
   if (Node->getNumOperands() < 1)
     return;
-  ConstantInt *CI = dyn_cast_or_null<ConstantInt>(Node->getOperand(0));
-  if (!CI) return;
-  APInt Val = CI->getValue();
-  APInt Tag = Val & ~APInt(Val.getBitWidth(), LLVMDebugVersionMask);
-  if (Val.ult(LLVMDebugVersion))
+
+  Value *Op = Node->getOperand(0);
+  if (!Op || !isa<ConstantInt>(Op) || cast<ConstantInt>(Op)->getBitWidth() < 32)
     return;
 
+  DIDescriptor Desc(Node);
+  if (Desc.getVersion() < LLVMDebugVersion11)
+    return;
+
+  unsigned Tag = Desc.getTag();
   Out.PadToColumn(50);
-  if (Tag == dwarf::DW_TAG_user_base)
+  if (dwarf::TagString(Tag)) {
+    Out << "; ";
+    Desc.print(Out);
+  } else if (Tag == dwarf::DW_TAG_user_base) {
     Out << "; [ DW_TAG_user_base ]";
-  else if (Tag.isIntN(32)) {
-    if (const char *TagName = dwarf::TagString(Tag.getZExtValue()))
-      Out << "; [ " << TagName << " ]";
   }
 }
 
@@ -2110,3 +2166,6 @@ void Type::dump() const { print(dbgs()); }
 
 // Module::dump() - Allow printing of Modules from the debugger.
 void Module::dump() const { print(dbgs(), 0); }
+
+// NamedMDNode::dump() - Allow printing of NamedMDNodes from the debugger.
+void NamedMDNode::dump() const { print(dbgs(), 0); }

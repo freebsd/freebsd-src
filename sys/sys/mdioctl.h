@@ -79,6 +79,7 @@ struct md_ioctl {
 #define MDIOCDETACH	_IOWR('m', 1, struct md_ioctl)	/* detach disk */
 #define MDIOCQUERY	_IOWR('m', 2, struct md_ioctl)	/* query status */
 #define MDIOCLIST	_IOWR('m', 3, struct md_ioctl)	/* query status */
+#define MDIOCRESIZE	_IOWR('m', 4, struct md_ioctl)	/* resize disk */
 
 #define MD_CLUSTER	0x01	/* Don't cluster */
 #define MD_RESERVE	0x02	/* Pre-reserve swap */

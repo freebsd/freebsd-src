@@ -57,6 +57,7 @@
 #define	XLP_REVISION_A1				0x01
 #define	XLP_REVISION_A2				0x02
 #define	XLP_REVISION_B0				0x03
+#define	XLP_REVISION_B1				0x04
 
 #ifndef LOCORE
 /*
@@ -87,6 +88,16 @@ static __inline int nlm_is_xlp3xx(void)
 	return (nlm_processor_id() == CHIP_PROCESSOR_ID_XLP_3XX);
 }
 
+static __inline int nlm_is_xlp3xx_ax(void)
+{
+	uint32_t procid = mips_rd_prid();
+	int prid = (procid >> 8) & 0xff;
+	int rev = procid & 0xff;
+
+	return (prid == CHIP_PROCESSOR_ID_XLP_3XX &&
+		rev < XLP_REVISION_B0);
+}
+
 static __inline int nlm_is_xlp4xx(void)
 {
 	int prid = nlm_processor_id();
@@ -114,6 +125,18 @@ static __inline int nlm_is_xlp8xx_ax(void)
 	    prid == CHIP_PROCESSOR_ID_XLP_432 ||
 	    prid == CHIP_PROCESSOR_ID_XLP_416) &&
 	    (rev < XLP_REVISION_B0));
+}
+
+static __inline int nlm_is_xlp8xx_b0(void)
+{
+	uint32_t procid = mips_rd_prid();
+	int prid = (procid >> 8) & 0xff;
+	int rev = procid & 0xff;
+
+	return ((prid == CHIP_PROCESSOR_ID_XLP_8XX ||
+	    prid == CHIP_PROCESSOR_ID_XLP_432 ||
+	    prid == CHIP_PROCESSOR_ID_XLP_416) &&
+		rev == XLP_REVISION_B0);
 }
 
 #endif /* LOCORE */

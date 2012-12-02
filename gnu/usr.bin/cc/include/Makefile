@@ -21,6 +21,4 @@ mm_malloc.h: pmm_malloc.h
 	@cp ${.ALLSRC} ${.TARGET}
 CLEANFILES+=	mm_malloc.h
 
-.include <bsd.init.mk>
-.include <bsd.incs.mk>
-.include <bsd.obj.mk>
+.include <bsd.prog.mk>

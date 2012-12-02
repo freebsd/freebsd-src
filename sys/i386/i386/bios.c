@@ -372,9 +372,11 @@ bios16(struct bios_args *args, char *fmt, ...)
 	    break;
 
 	default:
+	    va_end(ap);
 	    return (EINVAL);
 	}
     }
+    va_end(ap);
 
     if (flags & BIOSARGS_FLAG) {
 	if (arg_end - arg_start > ctob(16))
@@ -448,9 +450,11 @@ bios16(struct bios_args *args, char *fmt, ...)
 	    break;
 
 	default:
+	    va_end(ap);
 	    return (EINVAL);
 	}
     }
+    va_end(ap);
 
     set_bios_selectors(&args->seg, flags);
     bioscall_vector.vec16.offset = (u_short)args->entry;

@@ -34,26 +34,26 @@ def edit(datfile):
     for line in file(datfile):
         if line == "%\n":
             key = hash(fortune)
-            if not dups.has_key(key):
+            if key not in dups:
                 dups[key] = []
             dups[key].append(fortune)
             fortunes.append(fortune)
             fortune = ""
         else:
             fortune += line
-    for key in dups.keys():
+    for key in list(dups.keys()):
         if len(dups[key]) == 1:
             del dups[key]
     o = file(datfile + '~', "w")
     for fortune in fortunes:
         key = hash(fortune)
         if key in dups:
-            print '\n' * 50
+            print('\n' * 50)
             for f in dups[key]:
                 if f != fortune:
-                    print f, '%'
-            print fortune, '%'
-            if raw_input("Remove last fortune? ") == 'y':
+                    print(f, '%')
+            print(fortune, '%')
+            if input("Remove last fortune? ") == 'y':
                 del dups[key]
                 continue
         o.write(fortune + "%\n")

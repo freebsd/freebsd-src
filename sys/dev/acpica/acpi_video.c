@@ -75,6 +75,7 @@ static void	acpi_video_identify(driver_t *driver, device_t parent);
 static int	acpi_video_probe(device_t);
 static int	acpi_video_attach(device_t);
 static int	acpi_video_detach(device_t);
+static int	acpi_video_resume(device_t);
 static int	acpi_video_shutdown(device_t);
 static void	acpi_video_notify_handler(ACPI_HANDLE, UINT32, void *);
 static void	acpi_video_power_profile(void *);
@@ -155,6 +156,7 @@ static device_method_t acpi_video_methods[] = {
 	DEVMETHOD(device_probe, acpi_video_probe),
 	DEVMETHOD(device_attach, acpi_video_attach),
 	DEVMETHOD(device_detach, acpi_video_detach),
+	DEVMETHOD(device_resume, acpi_video_resume),
 	DEVMETHOD(device_shutdown, acpi_video_shutdown),
 	{ 0, 0 }
 };
@@ -299,6 +301,36 @@ acpi_video_detach(device_t dev)
 	STAILQ_FOREACH_SAFE(vo, &sc->vid_outputs, vo_next, vn) {
 		acpi_video_vo_destroy(vo);
 	}
+	ACPI_SERIAL_END(video);
+
+	return (0);
+}
+
+static int
+acpi_video_resume(device_t dev)
+{
+	struct acpi_video_softc *sc;
+	struct acpi_video_output *vo, *vn;
+	int level;
+
+	sc = device_get_softc(dev);
+
+	/* Restore brightness level */
+	ACPI_SERIAL_BEGIN(video);
+	ACPI_SERIAL_BEGIN(video_output);
+	STAILQ_FOREACH_SAFE(vo, &sc->vid_outputs, vo_next, vn) {
+		if ((vo->adr & DOD_DEVID_MASK_FULL) != DOD_DEVID_LCD &&
+		    (vo->adr & DOD_DEVID_MASK) != DOD_DEVID_INTDFP)
+			continue;
+
+		if ((vo_get_device_status(vo->handle) & DCS_ACTIVE) == 0)
+			continue;
+
+		level = vo_get_brightness(vo->handle);
+		if (level != -1)
+			vo_set_brightness(vo->handle, level);
+	}
+	ACPI_SERIAL_END(video_output);
 	ACPI_SERIAL_END(video);
 
 	return (0);
@@ -874,7 +906,8 @@ vid_enum_outputs_subr(ACPI_HANDLE handle, UINT32 level __unused,
 
 	for (i = 0; i < argset->dod_pkg->Package.Count; i++) {
 		if (acpi_PkgInt32(argset->dod_pkg, i, &val) == 0 &&
-		    (val & DOD_DEVID_MASK_FULL) == adr) {
+		    (val & DOD_DEVID_MASK_FULL) ==
+		    (adr & DOD_DEVID_MASK_FULL)) {
 			argset->callback(handle, val, argset->context);
 			argset->count++;
 		}

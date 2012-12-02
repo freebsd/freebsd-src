@@ -392,8 +392,6 @@ _ipip_input(struct mbuf *m, int iphlen, struct ifnet *gifp)
 		panic("%s: bogus ip version %u", __func__, v>>4);
 	}
 
-	m_addr_changed(m);
-
 	if (netisr_queue(isr, m)) {	/* (0) on success. */
 		V_ipipstat.ipips_qfull++;
 		DPRINTF(("%s: packet dropped because of full queue\n",
@@ -577,6 +575,7 @@ ipip_output(
 			itos = ntohl(itos32) >> 20;
 
 			ip6o->ip6_nxt = IPPROTO_IPV6;
+			break;
 		}
 		default:
 			goto nofamily;

@@ -7,7 +7,8 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// InterferenceCache remembers per-block interference in LiveIntervalUnions.
+// InterferenceCache remembers per-block interference from LiveIntervalUnions,
+// fixed RegUnit interference, and register masks.
 //
 //===----------------------------------------------------------------------===//
 
@@ -18,10 +19,11 @@
 
 namespace llvm {
 
+class LiveIntervals;
+
 class InterferenceCache {
   const TargetRegisterInfo *TRI;
   LiveIntervalUnion *LIUArray;
-  SlotIndexes *Indexes;
   MachineFunction *MF;
 
   /// BlockInterference - information about the interference in a single basic
@@ -52,17 +54,37 @@ class InterferenceCache {
     /// Indexes - Mapping block numbers to SlotIndex ranges.
     SlotIndexes *Indexes;
 
+    /// LIS - Used for accessing register mask interference maps.
+    LiveIntervals *LIS;
+
     /// PrevPos - The previous position the iterators were moved to.
     SlotIndex PrevPos;
 
-    /// AliasTags - A LiveIntervalUnion pointer and tag for each alias of
-    /// PhysReg.
-    SmallVector<std::pair<LiveIntervalUnion*, unsigned>, 8> Aliases;
+    /// RegUnitInfo - Information tracked about each RegUnit in PhysReg.
+    /// When PrevPos is set, the iterators are valid as if advanceTo(PrevPos)
+    /// had just been called.
+    struct RegUnitInfo {
+      /// Iterator pointing into the LiveIntervalUnion containing virtual
+      /// register interference.
+      LiveIntervalUnion::SegmentIter VirtI;
 
-    typedef LiveIntervalUnion::SegmentIter Iter;
+      /// Tag of the LIU last time we looked.
+      unsigned VirtTag;
 
-    /// Iters - an iterator for each alias
-    SmallVector<Iter, 8> Iters;
+      /// Fixed interference in RegUnit.
+      LiveInterval *Fixed;
+
+      /// Iterator pointing into the fixed RegUnit interference.
+      LiveInterval::iterator FixedI;
+
+      RegUnitInfo(LiveIntervalUnion &LIU) : VirtTag(LIU.getTag()), Fixed(0) {
+        VirtI.setMap(LIU.getMap());
+      }
+    };
+
+    /// Info for each RegUnit in PhysReg. It is very rare ofr a PHysReg to have
+    /// more than 4 RegUnits.
+    SmallVector<RegUnitInfo, 4> RegUnits;
 
     /// Blocks - Interference for each block in the function.
     SmallVector<BlockInterference, 8> Blocks;
@@ -71,13 +93,14 @@ class InterferenceCache {
     void update(unsigned MBBNum);
 
   public:
-    Entry() : PhysReg(0), Tag(0), RefCount(0), Indexes(0) {}
+    Entry() : PhysReg(0), Tag(0), RefCount(0), Indexes(0), LIS(0) {}
 
-    void clear(MachineFunction *mf, SlotIndexes *indexes) {
+    void clear(MachineFunction *mf, SlotIndexes *indexes, LiveIntervals *lis) {
       assert(!hasRefs() && "Cannot clear cache entry with references");
       PhysReg = 0;
       MF = mf;
       Indexes = indexes;
+      LIS = lis;
     }
 
     unsigned getPhysReg() const { return PhysReg; }
@@ -86,7 +109,7 @@ class InterferenceCache {
 
     bool hasRefs() const { return RefCount > 0; }
 
-    void revalidate();
+    void revalidate(LiveIntervalUnion *LIUArray, const TargetRegisterInfo *TRI);
 
     /// valid - Return true if this is a valid entry for physReg.
     bool valid(LiveIntervalUnion *LIUArray, const TargetRegisterInfo *TRI);
@@ -124,10 +147,10 @@ class InterferenceCache {
   Entry *get(unsigned PhysReg);
 
 public:
-  InterferenceCache() : TRI(0), LIUArray(0), Indexes(0), MF(0), RoundRobin(0) {}
+  InterferenceCache() : TRI(0), LIUArray(0), MF(0), RoundRobin(0) {}
 
   /// init - Prepare cache for a new function.
-  void init(MachineFunction*, LiveIntervalUnion*, SlotIndexes*,
+  void init(MachineFunction*, LiveIntervalUnion*, SlotIndexes*, LiveIntervals*,
             const TargetRegisterInfo *);
 
   /// getMaxCursors - Return the maximum number of concurrent cursors that can

@@ -91,7 +91,7 @@ null_ioctl(struct cdev *dev __unused, u_long cmd, caddr_t data __unused,
 	case DIOCSKERNELDUMP:
 		error = priv_check(td, PRIV_SETDUMPER);
 		if (error == 0)
-			error = set_dumper(NULL);
+			error = set_dumper(NULL, NULL);
 		break;
 	case FIONBIO:
 		break;

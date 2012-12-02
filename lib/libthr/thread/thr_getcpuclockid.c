@@ -39,9 +39,11 @@ __weak_reference(_pthread_getcpuclockid, pthread_getcpuclockid);
 int
 _pthread_getcpuclockid(pthread_t pthread, clockid_t *clock_id)
 {
+
 	if (pthread == NULL)
 		return (EINVAL);
 
-	*clock_id = CLOCK_THREAD_CPUTIME_ID;
+	if (clock_getcpuclockid2(TID(pthread), CPUCLOCK_WHICH_TID, clock_id))
+		return (errno);
 	return (0);
 }

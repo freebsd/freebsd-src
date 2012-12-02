@@ -8,19 +8,20 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCMachObjectWriter.h"
-#include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCAsmBackend.h"
 #include "llvm/MC/MCAsmLayout.h"
 #include "llvm/MC/MCExpr.h"
+#include "llvm/MC/MCFixupKindInfo.h"
 #include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCMachOSymbolFlags.h"
 #include "llvm/MC/MCValue.h"
 #include "llvm/Object/MachOFormat.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 
 #include <vector>
@@ -351,6 +352,21 @@ void MachObjectWriter::WriteNlist(MachSymbolData &MSD,
     Write32(Address);
 }
 
+void MachObjectWriter::WriteLinkeditLoadCommand(uint32_t Type,
+                                                uint32_t DataOffset,
+                                                uint32_t DataSize) {
+  uint64_t Start = OS.tell();
+  (void) Start;
+
+  Write32(Type);
+  Write32(macho::LinkeditLoadCommandSize);
+  Write32(DataOffset);
+  Write32(DataSize);
+
+  assert(OS.tell() - Start == macho::LinkeditLoadCommandSize);
+}
+
+
 void MachObjectWriter::RecordRelocation(const MCAssembler &Asm,
                                         const MCAsmLayout &Layout,
                                         const MCFragment *Fragment,
@@ -584,9 +600,16 @@ IsSymbolRefDifferenceFullyResolvedImpl(const MCAssembler &Asm,
     // requires the compiler to use .set to absolutize the differences between
     // symbols which the compiler knows to be assembly time constants, so we
     // don't need to worry about considering symbol differences fully resolved.
+    //
+    // If the file isn't using sub-sections-via-symbols, we can make the
+    // same assumptions about any symbol that we normally make about
+    // assembler locals.
 
     if (!Asm.getBackend().hasReliableSymbolDifference()) {
-      if (!SA.isTemporary() || !SA.isInSection() || &SecA != &SecB)
+      if (!SA.isInSection() || &SecA != &SecB ||
+          (!SA.isTemporary() &&
+           FB.getAtom() != Asm.getSymbolData(SA).getFragment()->getAtom() &&
+           Asm.getSubsectionsViaSymbols()))
         return false;
       return true;
     }
@@ -628,7 +651,7 @@ IsSymbolRefDifferenceFullyResolvedImpl(const MCAssembler &Asm,
 }
 
 void MachObjectWriter::WriteObject(MCAssembler &Asm,
-				   const MCAsmLayout &Layout) {
+                                   const MCAsmLayout &Layout) {
   unsigned NumSections = Asm.size();
 
   // The section data starts after the header, the segment load command (and
@@ -645,6 +668,13 @@ void MachObjectWriter::WriteObject(MCAssembler &Asm,
     NumLoadCommands += 2;
     LoadCommandsSize += (macho::SymtabLoadCommandSize +
                          macho::DysymtabLoadCommandSize);
+  }
+
+  // Add the data-in-code load command size, if used.
+  unsigned NumDataRegions = Asm.getDataRegions().size();
+  if (NumDataRegions) {
+    ++NumLoadCommands;
+    LoadCommandsSize += macho::LinkeditLoadCommandSize;
   }
 
   // Compute the total size of the section data, as well as its file size and vm
@@ -694,6 +724,15 @@ void MachObjectWriter::WriteObject(MCAssembler &Asm,
     RelocTableEnd += NumRelocs * macho::RelocationInfoSize;
   }
 
+  // Write the data-in-code load command, if used.
+  uint64_t DataInCodeTableEnd = RelocTableEnd + NumDataRegions * 8;
+  if (NumDataRegions) {
+    uint64_t DataRegionsOffset = RelocTableEnd;
+    uint64_t DataRegionsSize = NumDataRegions * 8;
+    WriteLinkeditLoadCommand(macho::LCT_DataInCode, DataRegionsOffset,
+                             DataRegionsSize);
+  }
+
   // Write the symbol table load command, if used.
   if (NumSymbols) {
     unsigned FirstLocalSymbol = 0;
@@ -710,10 +749,10 @@ void MachObjectWriter::WriteObject(MCAssembler &Asm,
 
     // If used, the indirect symbols are written after the section data.
     if (NumIndirectSymbols)
-      IndirectSymbolOffset = RelocTableEnd;
+      IndirectSymbolOffset = DataInCodeTableEnd;
 
     // The symbol table is written after the indirect symbol data.
-    uint64_t SymbolTableOffset = RelocTableEnd + IndirectSymbolSize;
+    uint64_t SymbolTableOffset = DataInCodeTableEnd + IndirectSymbolSize;
 
     // The string table is written after symbol table.
     uint64_t StringTableOffset =
@@ -731,7 +770,7 @@ void MachObjectWriter::WriteObject(MCAssembler &Asm,
   // Write the actual section data.
   for (MCAssembler::const_iterator it = Asm.begin(),
          ie = Asm.end(); it != ie; ++it) {
-    Asm.WriteSectionData(it, Layout);
+    Asm.writeSectionData(it, Layout);
 
     uint64_t Pad = getPaddingSize(it, Layout);
     for (unsigned int i = 0; i < Pad; ++i)
@@ -751,6 +790,23 @@ void MachObjectWriter::WriteObject(MCAssembler &Asm,
       Write32(Relocs[e - i - 1].Word0);
       Write32(Relocs[e - i - 1].Word1);
     }
+  }
+
+  // Write out the data-in-code region payload, if there is one.
+  for (MCAssembler::const_data_region_iterator
+         it = Asm.data_region_begin(), ie = Asm.data_region_end();
+         it != ie; ++it) {
+    const DataRegionData *Data = &(*it);
+    uint64_t Start = getSymbolAddress(&Layout.getAssembler().getSymbolData(*Data->Start), Layout);
+    uint64_t End = getSymbolAddress(&Layout.getAssembler().getSymbolData(*Data->End), Layout);
+    DEBUG(dbgs() << "data in code region-- kind: " << Data->Kind
+                 << "  start: " << Start << "(" << Data->Start->getName() << ")"
+                 << "  end: " << End << "(" << Data->End->getName() << ")"
+                 << "  size: " << End - Start
+                 << "\n");
+    Write32(Start);
+    Write16(End - Start);
+    Write16(Data->Kind);
   }
 
   // Write the symbol table data, if used.

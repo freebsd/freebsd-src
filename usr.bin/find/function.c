@@ -975,6 +975,25 @@ c_group(OPTION *option, char ***argvp)
 }
 
 /*
+ * -ignore_readdir_race functions --
+ *
+ *	Always true. Ignore errors which occur if a file or a directory
+ *	in a starting point gets deleted between reading the name and calling
+ *	stat on it while find is traversing the starting point.
+ */
+
+PLAN *
+c_ignore_readdir_race(OPTION *option, char ***argvp __unused)
+{
+	if (strcmp(option->name, "-ignore_readdir_race") == 0)
+		ignore_readdir_race = 1;
+	else
+		ignore_readdir_race = 0;
+
+	return palloc(option);
+}
+
+/*
  * -inum n functions --
  *
  *	True if the file has inode # n.

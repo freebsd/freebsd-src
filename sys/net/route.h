@@ -54,7 +54,8 @@ struct route {
 	struct	sockaddr ro_dst;
 };
 
-#define RT_CACHING_CONTEXT	0x1
+#define	RT_CACHING_CONTEXT	0x1	/* XXX: not used anywhere */
+#define	RT_NORTREF		0x2	/* doesn't hold reference on ro_rt */
 
 /*
  * These numbers are used by reliable protocols for determining
@@ -339,6 +340,18 @@ struct rt_addrinfo {
 #define	RTFREE(_rt) do {					\
 	RT_LOCK(_rt);						\
 	RTFREE_LOCKED(_rt);					\
+} while (0)
+
+#define	RO_RTFREE(_ro) do {					\
+	if ((_ro)->ro_rt) {					\
+		if ((_ro)->ro_flags & RT_NORTREF) {		\
+			(_ro)->ro_flags &= ~RT_NORTREF;		\
+			(_ro)->ro_rt = NULL;			\
+		} else {					\
+			RT_LOCK((_ro)->ro_rt);			\
+			RTFREE_LOCKED((_ro)->ro_rt);		\
+		}						\
+	}							\
 } while (0)
 
 struct radix_node_head *rt_tables_get_rnh(int, int);

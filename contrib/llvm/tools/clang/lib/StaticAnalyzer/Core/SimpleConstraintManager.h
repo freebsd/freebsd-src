@@ -23,24 +23,24 @@ namespace ento {
 
 class SimpleConstraintManager : public ConstraintManager {
   SubEngine &SU;
+  BasicValueFactory &BVF;
 public:
-  SimpleConstraintManager(SubEngine &subengine) : SU(subengine) {}
+  SimpleConstraintManager(SubEngine &subengine, BasicValueFactory &BV)
+    : SU(subengine), BVF(BV) {}
   virtual ~SimpleConstraintManager();
 
   //===------------------------------------------------------------------===//
   // Common implementation for the interface provided by ConstraintManager.
   //===------------------------------------------------------------------===//
 
-  bool canReasonAbout(SVal X) const;
-
-  const ProgramState *assume(const ProgramState *state, DefinedSVal Cond,
+  ProgramStateRef assume(ProgramStateRef state, DefinedSVal Cond,
                         bool Assumption);
 
-  const ProgramState *assume(const ProgramState *state, Loc Cond, bool Assumption);
+  ProgramStateRef assume(ProgramStateRef state, Loc Cond, bool Assumption);
 
-  const ProgramState *assume(const ProgramState *state, NonLoc Cond, bool Assumption);
+  ProgramStateRef assume(ProgramStateRef state, NonLoc Cond, bool Assumption);
 
-  const ProgramState *assumeSymRel(const ProgramState *state,
+  ProgramStateRef assumeSymRel(ProgramStateRef state,
                               const SymExpr *LHS,
                               BinaryOperator::Opcode op,
                               const llvm::APSInt& Int);
@@ -53,27 +53,27 @@ protected:
 
   // Each of these is of the form "$sym+Adj <> V", where "<>" is the comparison
   // operation for the method being invoked.
-  virtual const ProgramState *assumeSymNE(const ProgramState *state, SymbolRef sym,
+  virtual ProgramStateRef assumeSymNE(ProgramStateRef state, SymbolRef sym,
                                      const llvm::APSInt& V,
                                      const llvm::APSInt& Adjustment) = 0;
 
-  virtual const ProgramState *assumeSymEQ(const ProgramState *state, SymbolRef sym,
+  virtual ProgramStateRef assumeSymEQ(ProgramStateRef state, SymbolRef sym,
                                      const llvm::APSInt& V,
                                      const llvm::APSInt& Adjustment) = 0;
 
-  virtual const ProgramState *assumeSymLT(const ProgramState *state, SymbolRef sym,
+  virtual ProgramStateRef assumeSymLT(ProgramStateRef state, SymbolRef sym,
                                      const llvm::APSInt& V,
                                      const llvm::APSInt& Adjustment) = 0;
 
-  virtual const ProgramState *assumeSymGT(const ProgramState *state, SymbolRef sym,
+  virtual ProgramStateRef assumeSymGT(ProgramStateRef state, SymbolRef sym,
                                      const llvm::APSInt& V,
                                      const llvm::APSInt& Adjustment) = 0;
 
-  virtual const ProgramState *assumeSymLE(const ProgramState *state, SymbolRef sym,
+  virtual ProgramStateRef assumeSymLE(ProgramStateRef state, SymbolRef sym,
                                      const llvm::APSInt& V,
                                      const llvm::APSInt& Adjustment) = 0;
 
-  virtual const ProgramState *assumeSymGE(const ProgramState *state, SymbolRef sym,
+  virtual ProgramStateRef assumeSymGE(ProgramStateRef state, SymbolRef sym,
                                      const llvm::APSInt& V,
                                      const llvm::APSInt& Adjustment) = 0;
 
@@ -81,9 +81,21 @@ protected:
   // Internal implementation.
   //===------------------------------------------------------------------===//
 
-  const ProgramState *assumeAux(const ProgramState *state, Loc Cond,bool Assumption);
+  BasicValueFactory &getBasicVals() const { return BVF; }
 
-  const ProgramState *assumeAux(const ProgramState *state, NonLoc Cond, bool Assumption);
+  bool canReasonAbout(SVal X) const;
+
+  ProgramStateRef assumeAux(ProgramStateRef state,
+                                Loc Cond,
+                                bool Assumption);
+
+  ProgramStateRef assumeAux(ProgramStateRef state,
+                                NonLoc Cond,
+                                bool Assumption);
+
+  ProgramStateRef assumeAuxForSymbol(ProgramStateRef State,
+                                         SymbolRef Sym,
+                                         bool Assumption);
 };
 
 } // end GR namespace

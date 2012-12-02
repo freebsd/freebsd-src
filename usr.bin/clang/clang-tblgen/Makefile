@@ -13,6 +13,7 @@ SRCS=	ClangASTNodesEmitter.cpp \
 	TableGen.cpp
 LLVM_REQUIRES_EH=
 
-LIBDEPS=llvmtablegen llvmsupport
+LIBDEPS=llvmtablegen \
+	llvmsupport
 
 .include "../clang.prog.mk"

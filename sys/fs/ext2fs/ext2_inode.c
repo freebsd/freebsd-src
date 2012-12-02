@@ -249,7 +249,7 @@ ext2_truncate(vp, length, flags, cred, td)
 	bcopy((caddr_t)&oip->i_db[0], (caddr_t)newblks, sizeof(newblks));
 	bcopy((caddr_t)oldblks, (caddr_t)&oip->i_db[0], sizeof(oldblks));
 	oip->i_size = osize;
-	error = vtruncbuf(ovp, cred, td, length, (int)fs->e2fs_bsize);
+	error = vtruncbuf(ovp, cred, length, (int)fs->e2fs_bsize);
 	if (error && (allerror == 0))
 		allerror = error;
 	vnode_pager_setsize(ovp, length);
@@ -397,8 +397,7 @@ ext2_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 	 */
 	vp = ITOV(ip);
 	bp = getblk(vp, lbn, (int)fs->e2fs_bsize, 0, 0, 0);
-	if (bp->b_flags & (B_DONE | B_DELWRI)) {
-	} else {
+	if ((bp->b_flags & (B_DONE | B_DELWRI)) == 0) {
 		bp->b_iocmd = BIO_READ;
 		if (bp->b_bcount > bp->b_bufsize)
 			panic("ext2_indirtrunc: bad buffer size");
@@ -498,7 +497,7 @@ out:
 	 * so that it can be reused immediately.
 	 */
 	if (ip->i_mode == 0)
-		vrecycle(vp, td);
+		vrecycle(vp);
 	return (error);
 }
 

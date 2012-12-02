@@ -28,19 +28,20 @@
 #define DEBUG_TYPE "mem2reg"
 #include "llvm/Transforms/Utils/PromoteMemToReg.h"
 #include "llvm/Constants.h"
+#include "llvm/DebugInfo.h"
 #include "llvm/DerivedTypes.h"
+#include "llvm/DIBuilder.h"
 #include "llvm/Function.h"
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
 #include "llvm/Metadata.h"
 #include "llvm/Analysis/AliasSetTracker.h"
-#include "llvm/Analysis/DebugInfo.h"
-#include "llvm/Analysis/DIBuilder.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/Hashing.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
@@ -66,7 +67,8 @@ struct DenseMapInfo<std::pair<BasicBlock*, unsigned> > {
     return EltTy(reinterpret_cast<BasicBlock*>(-2), 0U);
   }
   static unsigned getHashValue(const std::pair<BasicBlock*, unsigned> &Val) {
-    return DenseMapInfo<void*>::getHashValue(Val.first) + Val.second*2;
+    using llvm::hash_value;
+    return static_cast<unsigned>(hash_value(Val));
   }
   static bool isEqual(const EltTy &LHS, const EltTy &RHS) {
     return LHS == RHS;
@@ -423,7 +425,8 @@ void PromoteMem2Reg::run() {
 
       // Finally, after the scan, check to see if the store is all that is left.
       if (Info.UsingBlocks.empty()) {
-        // Record debuginfo for the store and remove the declaration's debuginfo.
+        // Record debuginfo for the store and remove the declaration's 
+        // debuginfo.
         if (DbgDeclareInst *DDI = Info.DbgDeclare) {
           if (!DIB)
             DIB = new DIBuilder(*DDI->getParent()->getParent()->getParent());
@@ -590,7 +593,7 @@ void PromoteMem2Reg::run() {
       PHINode *PN = I->second;
 
       // If this PHI node merges one value and/or undefs, get the value.
-      if (Value *V = SimplifyInstruction(PN, 0, &DT)) {
+      if (Value *V = SimplifyInstruction(PN, 0, 0, &DT)) {
         if (AST && PN->getType()->isPointerTy())
           AST->deleteValue(PN);
         PN->replaceAllUsesWith(V);

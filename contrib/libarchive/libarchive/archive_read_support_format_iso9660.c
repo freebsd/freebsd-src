@@ -975,8 +975,8 @@ read_children(struct archive_read *a, struct file_info *parent)
 		iso9660->current_position = parent->offset;
 	}
 
-	step = ((parent->size + iso9660->logical_block_size -1) /
-	    iso9660->logical_block_size) * iso9660->logical_block_size;
+	step = (size_t)(((parent->size + iso9660->logical_block_size -1) /
+	    iso9660->logical_block_size) * iso9660->logical_block_size);
 	b = __archive_read_ahead(a, step, NULL);
 	if (b == NULL) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -1397,7 +1397,7 @@ zisofs_read_data(struct archive_read *a,
 		return (ARCHIVE_FATAL);
 	}
 	if (bytes_read > iso9660->entry_bytes_remaining)
-		bytes_read = iso9660->entry_bytes_remaining;
+		bytes_read = (ssize_t)iso9660->entry_bytes_remaining;
 	avail = bytes_read;
 	uncompressed_size = 0;
 
@@ -1405,9 +1405,9 @@ zisofs_read_data(struct archive_read *a,
 		size_t ceil, xsize;
 
 		/* Allocate block pointers buffer. */
-		ceil = (zisofs->pz_uncompressed_size +
-			(1LL << zisofs->pz_log2_bs) - 1)
-			>> zisofs->pz_log2_bs;
+		ceil = (size_t)((zisofs->pz_uncompressed_size +
+			(((int64_t)1) << zisofs->pz_log2_bs) - 1)
+			>> zisofs->pz_log2_bs);
 		xsize = (ceil + 1) * 4;
 		if (zisofs->block_pointers_alloc < xsize) {
 			size_t alloc;
@@ -1671,7 +1671,7 @@ archive_read_format_iso9660_read_data(struct archive_read *a,
 	if (*buff == NULL)
 		return (ARCHIVE_FATAL);
 	if (bytes_read > iso9660->entry_bytes_remaining)
-		bytes_read = iso9660->entry_bytes_remaining;
+		bytes_read = (ssize_t)iso9660->entry_bytes_remaining;
 	*size = bytes_read;
 	*offset = iso9660->entry_sparse_offset;
 	iso9660->entry_sparse_offset += bytes_read;
@@ -2277,7 +2277,7 @@ register_CE(struct archive_read *a, int32_t location,
 			archive_set_error(&a->archive, ENOMEM, "Out of memory");
 			return (ARCHIVE_FATAL);
 		}
-		p = malloc(new_size * sizeof(p[0]));
+		p = calloc(new_size, sizeof(p[0]));
 		if (p == NULL) {
 			archive_set_error(&a->archive, ENOMEM, "Out of memory");
 			return (ARCHIVE_FATAL);
@@ -2527,9 +2527,6 @@ parse_rockridge_SL1(struct file_info *file, const unsigned char *data,
 
 	if (!file->symlink_continues || file->symlink.length < 1)
 		archive_string_empty(&file->symlink);
-	else if (!file->symlink_continues &&
-	    file->symlink.s[file->symlink.length - 1] != '/')
-		separator = "/";
 	file->symlink_continues = 0;
 
 	/*
@@ -3099,6 +3096,8 @@ isodate7(const unsigned char *v)
 {
 	struct tm tm;
 	int offset;
+	time_t t;
+
 	memset(&tm, 0, sizeof(tm));
 	tm.tm_year = v[0];
 	tm.tm_mon = v[1] - 1;
@@ -3112,7 +3111,10 @@ isodate7(const unsigned char *v)
 		tm.tm_hour -= offset / 4;
 		tm.tm_min -= (offset % 4) * 15;
 	}
-	return (time_from_tm(&tm));
+	t = time_from_tm(&tm);
+	if (t == (time_t)-1)
+		return ((time_t)0);
+	return (t);
 }
 
 static time_t
@@ -3120,6 +3122,8 @@ isodate17(const unsigned char *v)
 {
 	struct tm tm;
 	int offset;
+	time_t t;
+
 	memset(&tm, 0, sizeof(tm));
 	tm.tm_year = (v[0] - '0') * 1000 + (v[1] - '0') * 100
 	    + (v[2] - '0') * 10 + (v[3] - '0')
@@ -3135,7 +3139,10 @@ isodate17(const unsigned char *v)
 		tm.tm_hour -= offset / 4;
 		tm.tm_min -= (offset % 4) * 15;
 	}
-	return (time_from_tm(&tm));
+	t = time_from_tm(&tm);
+	if (t == (time_t)-1)
+		return ((time_t)0);
+	return (t);
 }
 
 static time_t
@@ -3149,7 +3156,8 @@ time_from_tm(struct tm *t)
 #else
 	/* Else use direct calculation using POSIX assumptions. */
 	/* First, fix up tm_yday based on the year/month/day. */
-	mktime(t);
+	if (mktime(t) == (time_t)-1)
+		return ((time_t)-1);
 	/* Then we can compute timegm() from first principles. */
 	return (t->tm_sec + t->tm_min * 60 + t->tm_hour * 3600
 	    + t->tm_yday * 86400 + (t->tm_year - 70) * 31536000

@@ -47,7 +47,7 @@
 Determines the number of seconds for which the specified context will
 remain valid.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It context_handle"
 .It minor_status
 Mechanism specific status code.
 .It context_handle
@@ -57,7 +57,7 @@ Number of seconds that the context will remain valid.
 If the context has already expired, zero will be returned.
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_CONTEXT_EXPIRED"
 .It GSS_S_COMPLETE
 Successful completion
 .It GSS_S_CONTEXT_EXPIRED
@@ -66,7 +66,7 @@ The context has already expired
 The context_handle parameter did not identify a valid context
 .El
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744

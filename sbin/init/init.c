@@ -646,8 +646,6 @@ single_user(void)
 	if (Reboot) {
 		/* Instead of going single user, let's reboot the machine */
 		sync();
-		alarm(2);
-		pause();
 		reboot(howto);
 		_exit(0);
 	}

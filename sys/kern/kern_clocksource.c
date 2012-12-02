@@ -168,8 +168,8 @@ hardclockintr(void)
 	state = DPCPU_PTR(timerstate);
 	now = state->now;
 	CTR4(KTR_SPARE2, "ipi  at %d:    now  %d.%08x%08x",
-	    curcpu, now.sec, (unsigned int)(now.frac >> 32),
-			     (unsigned int)(now.frac & 0xffffffff));
+	    curcpu, now.sec, (u_int)(now.frac >> 32),
+			     (u_int)(now.frac & 0xffffffff));
 	done = handleevents(&now, 0);
 	return (done ? FILTER_HANDLED : FILTER_STRAY);
 }
@@ -188,8 +188,8 @@ handleevents(struct bintime *now, int fake)
 	int done, runs;
 
 	CTR4(KTR_SPARE2, "handle at %d:  now  %d.%08x%08x",
-	    curcpu, now->sec, (unsigned int)(now->frac >> 32),
-		     (unsigned int)(now->frac & 0xffffffff));
+	    curcpu, now->sec, (u_int)(now->frac >> 32),
+		     (u_int)(now->frac & 0xffffffff));
 	done = 0;
 	if (fake) {
 		frame = NULL;
@@ -205,19 +205,21 @@ handleevents(struct bintime *now, int fake)
 
 	runs = 0;
 	while (bintime_cmp(now, &state->nexthard, >=)) {
-		bintime_add(&state->nexthard, &hardperiod);
+		bintime_addx(&state->nexthard, hardperiod.frac);
 		runs++;
 	}
-	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0 &&
-	    bintime_cmp(&state->nexthard, &nexthard, >))
-		nexthard = state->nexthard;
-	if (runs && fake < 2) {
-		hardclock_cnt(runs, usermode);
-		done = 1;
+	if (runs) {
+		if ((timer->et_flags & ET_FLAGS_PERCPU) == 0 &&
+		    bintime_cmp(&state->nexthard, &nexthard, >))
+			nexthard = state->nexthard;
+		if (fake < 2) {
+			hardclock_cnt(runs, usermode);
+			done = 1;
+		}
 	}
 	runs = 0;
 	while (bintime_cmp(now, &state->nextstat, >=)) {
-		bintime_add(&state->nextstat, &statperiod);
+		bintime_addx(&state->nextstat, statperiod.frac);
 		runs++;
 	}
 	if (runs && fake < 2) {
@@ -227,7 +229,7 @@ handleevents(struct bintime *now, int fake)
 	if (profiling) {
 		runs = 0;
 		while (bintime_cmp(now, &state->nextprof, >=)) {
-			bintime_add(&state->nextprof, &profperiod);
+			bintime_addx(&state->nextprof, profperiod.frac);
 			runs++;
 		}
 		if (runs && !fake) {
@@ -330,8 +332,8 @@ getnextevent(struct bintime *event)
 			*event = nexthard;
 	}
 	CTR5(KTR_SPARE2, "next at %d:    next %d.%08x%08x by %d",
-	    curcpu, event->sec, (unsigned int)(event->frac >> 32),
-			     (unsigned int)(event->frac & 0xffffffff), c);
+	    curcpu, event->sec, (u_int)(event->frac >> 32),
+			     (u_int)(event->frac & 0xffffffff), c);
 }
 
 /* Hardware timer callback function. */
@@ -354,17 +356,16 @@ timercb(struct eventtimer *et, void *arg)
 		next = &state->nexttick;
 	} else
 		next = &nexttick;
-	if (periodic) {
-		now = *next;	/* Ex-next tick time becomes present time. */
-		bintime_add(next, &timerperiod); /* Next tick in 1 period. */
-	} else {
-		binuptime(&now);	/* Get present time from hardware. */
-		next->sec = -1;		/* Next tick is not scheduled yet. */
-	}
+	binuptime(&now); 
+	if (periodic) { 
+		*next = now;
+		bintime_addx(next, timerperiod.frac); /* Next tick in 1 period. */
+	} else
+		next->sec = -1;	/* Next tick is not scheduled yet. */
 	state->now = now;
 	CTR4(KTR_SPARE2, "intr at %d:    now  %d.%08x%08x",
-	    curcpu, now.sec, (unsigned int)(now.frac >> 32),
-			     (unsigned int)(now.frac & 0xffffffff));
+	    curcpu, (int)(now.sec), (u_int)(now.frac >> 32),
+			     (u_int)(now.frac & 0xffffffff));
 
 #ifdef SMP
 	/* Prepare broadcasting to other CPUs for non-per-CPU timers. */
@@ -433,10 +434,10 @@ loadtimer(struct bintime *now, int start)
 			new.sec = 0;
 			new.frac = timerperiod.frac - tmp;
 			if (new.frac < tmp)	/* Left less then passed. */
-				bintime_add(&new, &timerperiod);
+				bintime_addx(&new, timerperiod.frac);
 			CTR5(KTR_SPARE2, "load p at %d:   now %d.%08x first in %d.%08x",
-			    curcpu, now->sec, (unsigned int)(now->frac >> 32),
-			    new.sec, (unsigned int)(new.frac >> 32));
+			    curcpu, now->sec, (u_int)(now->frac >> 32),
+			    new.sec, (u_int)(new.frac >> 32));
 			*next = new;
 			bintime_add(next, now);
 			et_start(timer, &new, &timerperiod);
@@ -445,8 +446,8 @@ loadtimer(struct bintime *now, int start)
 		getnextevent(&new);
 		eq = bintime_cmp(&new, next, ==);
 		CTR5(KTR_SPARE2, "load at %d:    next %d.%08x%08x eq %d",
-		    curcpu, new.sec, (unsigned int)(new.frac >> 32),
-			     (unsigned int)(new.frac & 0xffffffff),
+		    curcpu, new.sec, (u_int)(new.frac >> 32),
+			     (u_int)(new.frac & 0xffffffff),
 			     eq);
 		if (!eq) {
 			*next = new;
@@ -531,7 +532,7 @@ configtimer(int start)
 	if (start) {
 		/* Initialize time machine parameters. */
 		next = now;
-		bintime_add(&next, &timerperiod);
+		bintime_addx(&next, timerperiod.frac);
 		if (periodic)
 			nexttick = next;
 		else
@@ -601,7 +602,8 @@ round_freq(struct eventtimer *et, int freq)
 		freq = (et->et_frequency + div / 2) / div;
 	}
 	if (et->et_min_period.sec > 0)
-		freq = 0;
+		panic("Event timer \"%s\" doesn't support sub-second periods!",
+		    et->et_name);
 	else if (et->et_min_period.frac != 0)
 		freq = min(freq, BT2FREQ(&et->et_min_period));
 	if (et->et_max_period.sec == 0 && et->et_max_period.frac != 0)
@@ -712,11 +714,7 @@ cpu_initclocks_ap(void)
 	state = DPCPU_PTR(timerstate);
 	binuptime(&now);
 	ET_HW_LOCK(state);
-	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0 && periodic) {
-		state->now = nexttick;
-		bintime_sub(&state->now, &timerperiod);
-	} else
-		state->now = now;
+	state->now = now;
 	hardclock_sync(curcpu);
 	handleevents(&state->now, 2);
 	if (timer->et_flags & ET_FLAGS_PERCPU)
@@ -780,8 +778,8 @@ cpu_idleclock(void)
 	else
 		binuptime(&now);
 	CTR4(KTR_SPARE2, "idle at %d:    now  %d.%08x%08x",
-	    curcpu, now.sec, (unsigned int)(now.frac >> 32),
-			     (unsigned int)(now.frac & 0xffffffff));
+	    curcpu, now.sec, (u_int)(now.frac >> 32),
+			     (u_int)(now.frac & 0xffffffff));
 	getnextcpuevent(&t, 1);
 	ET_HW_LOCK(state);
 	state->idle = 1;
@@ -809,8 +807,8 @@ cpu_activeclock(void)
 	else
 		binuptime(&now);
 	CTR4(KTR_SPARE2, "active at %d:  now  %d.%08x%08x",
-	    curcpu, now.sec, (unsigned int)(now.frac >> 32),
-			     (unsigned int)(now.frac & 0xffffffff));
+	    curcpu, now.sec, (u_int)(now.frac >> 32),
+			     (u_int)(now.frac & 0xffffffff));
 	spinlock_enter();
 	td = curthread;
 	td->td_intr_nesting_level++;
@@ -833,11 +831,11 @@ clocksource_cyc_set(const struct bintime *t)
 		binuptime(&now);
 
 	CTR4(KTR_SPARE2, "set_cyc at %d:  now  %d.%08x%08x",
-	    curcpu, now.sec, (unsigned int)(now.frac >> 32),
-			     (unsigned int)(now.frac & 0xffffffff));
+	    curcpu, now.sec, (u_int)(now.frac >> 32),
+			     (u_int)(now.frac & 0xffffffff));
 	CTR4(KTR_SPARE2, "set_cyc at %d:  t  %d.%08x%08x",
-	    curcpu, t->sec, (unsigned int)(t->frac >> 32),
-			     (unsigned int)(t->frac & 0xffffffff));
+	    curcpu, t->sec, (u_int)(t->frac >> 32),
+			     (u_int)(t->frac & 0xffffffff));
 
 	ET_HW_LOCK(state);
 	if (bintime_cmp(t, &state->nextcyc, ==)) {

@@ -13,8 +13,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCAsmInfoCOFF.h"
-#include "llvm/ADT/SmallVector.h"
 using namespace llvm;
+
+void MCAsmInfoCOFF::anchor() { }
 
 MCAsmInfoCOFF::MCAsmInfoCOFF() {
   GlobalPrefix = "_";
@@ -25,7 +26,7 @@ MCAsmInfoCOFF::MCAsmInfoCOFF() {
   PrivateGlobalPrefix = "L";  // Prefix for private global symbols
   WeakRefDirective = "\t.weak\t";
   LinkOnceDirective = "\t.linkonce discard\n";
-  
+
   // Doesn't support visibility:
   HiddenVisibilityAttr = HiddenDeclarationVisibilityAttr = MCSA_Invalid;
   ProtectedVisibilityAttr = MCSA_Invalid;
@@ -35,6 +36,16 @@ MCAsmInfoCOFF::MCAsmInfoCOFF() {
   SupportsDebugInformation = true;
   DwarfSectionOffsetDirective = "\t.secrel32\t";
   HasMicrosoftFastStdCallMangling = true;
+}
 
-  SupportsDataRegions = false;
+void MCAsmInfoMicrosoft::anchor() { }
+
+MCAsmInfoMicrosoft::MCAsmInfoMicrosoft() {
+  AllowQuotesInName = true;
+}
+
+void MCAsmInfoGNUCOFF::anchor() { }
+
+MCAsmInfoGNUCOFF::MCAsmInfoGNUCOFF() {
+
 }

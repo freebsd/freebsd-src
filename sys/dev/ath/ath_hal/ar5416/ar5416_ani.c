@@ -422,7 +422,7 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 			 * If weak sig detect is already off, as last resort,
 			 * raise firstep level 
 			 */
-			if (aniState->firstepLevel+1 < params->maxFirstepLevel) {
+			if (aniState->firstepLevel < params->maxFirstepLevel) {
 				if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
 						 aniState->firstepLevel + 1))
 					return;
@@ -436,7 +436,7 @@ ar5416AniOfdmErrTrigger(struct ath_hal *ah)
 				ar5416AniControl(ah,
 				    HAL_ANI_OFDM_WEAK_SIGNAL_DETECTION,
 				    AH_TRUE);
-			if (aniState->firstepLevel+1 < params->maxFirstepLevel)
+			if (aniState->firstepLevel < params->maxFirstepLevel)
 				if (ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
 				     aniState->firstepLevel + 1))
 				return;
@@ -490,7 +490,7 @@ ar5416AniCckErrTrigger(struct ath_hal *ah)
 			 * Beacon signal in mid and high range,
 			 * raise firstep level.
 			 */
-			if (aniState->firstepLevel+1 < params->maxFirstepLevel)
+			if (aniState->firstepLevel < params->maxFirstepLevel)
 				ar5416AniControl(ah, HAL_ANI_FIRSTEP_LEVEL,
 						 aniState->firstepLevel + 1);
 		} else {
@@ -804,21 +804,50 @@ ar5416AniLowerImmunity(struct ath_hal *ah)
  * deducting the cycles spent tx'ing and rx'ing from the total
  * cycle count since our last call.  A return value <0 indicates
  * an invalid/inconsistent time.
+ *
+ * This may be called with ANI disabled; in which case simply keep
+ * the statistics and don't write to the aniState pointer.
+ *
+ * XXX TODO: Make this cleaner!
  */
 static int32_t
 ar5416AniGetListenTime(struct ath_hal *ah)
 {
 	struct ath_hal_5212 *ahp = AH5212(ah);
-	struct ar5212AniState *aniState;
-	uint32_t rxc_pct, extc_pct, rxf_pct, txf_pct;
-	int32_t listenTime;
+	struct ar5212AniState *aniState = NULL;
+	int32_t listenTime = 0;
 	int good;
+	HAL_SURVEY_SAMPLE hs;
+	HAL_CHANNEL_SURVEY *cs = AH_NULL;
 
-	good = ar5416GetMibCycleCountsPct(ah,
-	&rxc_pct, &extc_pct, &rxf_pct, &txf_pct);
+	/*
+	 * We shouldn't see ah_curchan be NULL, but just in case..
+	 */
+	if (AH_PRIVATE(ah)->ah_curchan == AH_NULL) {
+		ath_hal_printf(ah, "%s: ah_curchan = NULL?\n", __func__);
+		return (0);
+	}
 
-	aniState = ahp->ah_curani;
-	if (good == 0) {
+	cs = &ahp->ah_chansurvey;
+
+	/*
+	 * Fetch the current statistics, squirrel away the current
+	 * sample, bump the sequence/sample counter.
+	 */
+	OS_MEMZERO(&hs, sizeof(hs));
+	good = ar5416GetMibCycleCounts(ah, &hs);
+	if (cs != AH_NULL) {
+		OS_MEMCPY(&cs->samples[cs->cur_sample], &hs, sizeof(hs));
+		cs->samples[cs->cur_sample].seq_num = cs->cur_seq;
+		cs->cur_sample =
+		    (cs->cur_sample + 1) % CHANNEL_SURVEY_SAMPLE_COUNT;
+		cs->cur_seq++;
+	}
+
+	if (ANI_ENA(ah))
+		aniState = ahp->ah_curani;
+
+	if (good == AH_FALSE) {
 		/*
 		 * Cycle counter wrap (or initial call); it's not possible
 		 * to accurately calculate a value because the registers
@@ -826,18 +855,28 @@ ar5416AniGetListenTime(struct ath_hal *ah)
 		 */
 		listenTime = 0;
 		ahp->ah_stats.ast_ani_lzero++;
-	} else {
-		int32_t ccdelta = AH5416(ah)->ah_cycleCount - aniState->cycleCount;
-		int32_t rfdelta = AH5416(ah)->ah_rxBusy - aniState->rxFrameCount;
-		int32_t tfdelta = AH5416(ah)->ah_txBusy - aniState->txFrameCount;
+	} else if (ANI_ENA(ah)) {
+		/*
+		 * Only calculate and update the cycle count if we have
+		 * an ANI state.
+		 */
+		int32_t ccdelta =
+		    AH5416(ah)->ah_cycleCount - aniState->cycleCount;
+		int32_t rfdelta =
+		    AH5416(ah)->ah_rxBusy - aniState->rxFrameCount;
+		int32_t tfdelta =
+		    AH5416(ah)->ah_txBusy - aniState->txFrameCount;
 		listenTime = (ccdelta - rfdelta - tfdelta) / CLOCK_RATE;
 	}
-	aniState->cycleCount = AH5416(ah)->ah_cycleCount;
-	aniState->txFrameCount = AH5416(ah)->ah_rxBusy;
-	aniState->rxFrameCount = AH5416(ah)->ah_txBusy;
 
-	HALDEBUG(ah, HAL_DEBUG_ANI, "rxc=%d, extc=%d, rxf=%d, txf=%d\n",
-	    rxc_pct, extc_pct, rxf_pct, txf_pct);
+	/*
+	 * Again, only update ANI state if we have it.
+	 */
+	if (ANI_ENA(ah)) {
+		aniState->cycleCount = AH5416(ah)->ah_cycleCount;
+		aniState->rxFrameCount = AH5416(ah)->ah_rxBusy;
+		aniState->txFrameCount = AH5416(ah)->ah_txBusy;
+	}
 
 	return listenTime;
 }
@@ -902,12 +941,12 @@ ar5416AniPoll(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	const struct ar5212AniParams *params;
 	int32_t listenTime;
 
+	/* Always update from the MIB, for statistics gathering */
+	listenTime = ar5416AniGetListenTime(ah);
+
 	/* XXX can aniState be null? */
 	if (aniState == AH_NULL)
 		return;
-
-	/* Always update from the MIB, for statistics gathering */
-	listenTime = ar5416AniGetListenTime(ah);
 
 	if (!ANI_ENA(ah))
 		return;
@@ -915,6 +954,8 @@ ar5416AniPoll(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	if (listenTime < 0) {
 		ahp->ah_stats.ast_ani_lneg++;
 		/* restart ANI period if listenTime is invalid */
+		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: invalid listenTime\n",
+		    __func__);
 		ar5416AniRestart(ah, aniState);
 	}
 	/* XXX beware of overflow? */
@@ -934,6 +975,8 @@ ar5416AniPoll(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		    aniState->cckPhyErrCount <= aniState->listenTime *
 		    params->cckTrigLow/1000)
 			ar5416AniLowerImmunity(ah);
+		HALDEBUG(ah, HAL_DEBUG_ANI, "%s: lower immunity\n",
+		    __func__);
 		ar5416AniRestart(ah, aniState);
 	} else if (aniState->listenTime > params->period) {
 		updateMIBStats(ah, aniState);
@@ -949,7 +992,7 @@ ar5416AniPoll(struct ath_hal *ah, const struct ieee80211_channel *chan)
 			   params->cckTrigHigh / 1000) {
                         HALDEBUG(ah, HAL_DEBUG_ANI,
                             "%s: CCK err %u listenTime %u\n", __func__,
-                            aniState->ofdmPhyErrCount, aniState->listenTime);
+                            aniState->cckPhyErrCount, aniState->listenTime);
 			ar5416AniCckErrTrigger(ah);
 			ar5416AniRestart(ah, aniState);
 		}

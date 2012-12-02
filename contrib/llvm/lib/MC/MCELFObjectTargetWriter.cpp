@@ -7,17 +7,42 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/MC/MCELFObjectWriter.h"
 
 using namespace llvm;
 
 MCELFObjectTargetWriter::MCELFObjectTargetWriter(bool Is64Bit_,
-                                                 Triple::OSType OSType_,
+                                                 uint8_t OSABI_,
                                                  uint16_t EMachine_,
-                                                 bool HasRelocationAddend_)
-  : OSType(OSType_), EMachine(EMachine_),
-    HasRelocationAddend(HasRelocationAddend_), Is64Bit(Is64Bit_) {
+                                                 bool HasRelocationAddend_,
+                                                 bool IsN64_)
+  : OSABI(OSABI_), EMachine(EMachine_),
+    HasRelocationAddend(HasRelocationAddend_), Is64Bit(Is64Bit_),
+    IsN64(IsN64_){
 }
 
-MCELFObjectTargetWriter::~MCELFObjectTargetWriter() {
+/// Default e_flags = 0
+unsigned MCELFObjectTargetWriter::getEFlags() const {
+  return 0;
+}
+
+const MCSymbol *MCELFObjectTargetWriter::ExplicitRelSym(const MCAssembler &Asm,
+                                                        const MCValue &Target,
+                                                        const MCFragment &F,
+                                                        const MCFixup &Fixup,
+                                                        bool IsPCRel) const {
+  return NULL;
+}
+
+
+void MCELFObjectTargetWriter::adjustFixupOffset(const MCFixup &Fixup,
+                                                uint64_t &RelocOffset) {
+}
+
+void
+MCELFObjectTargetWriter::sortRelocs(const MCAssembler &Asm,
+                                    std::vector<ELFRelocationEntry> &Relocs) {
+  // Sort by the r_offset, just like gnu as does.
+  array_pod_sort(Relocs.begin(), Relocs.end());
 }

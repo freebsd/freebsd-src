@@ -76,8 +76,21 @@
  *
  *	vm_object_t		Virtual memory object.
  *
+ *	The root of cached pages pool is protected by both the per-object mutex
+ *	and the free pages queue mutex.
+ *	On insert in the cache splay tree, the per-object mutex is expected
+ *	to be already held and the free pages queue mutex will be
+ *	acquired during the operation too.
+ *	On remove and lookup from the cache splay tree, only the free
+ *	pages queue mutex is expected to be locked.
+ *	These rules allow for reliably checking for the presence of cached
+ *	pages with only the per-object lock held, thereby reducing contention
+ *	for the free pages queue mutex.
+ *
  * List of locks
  *	(c)	const until freed
+ *	(o)	per-object mutex
+ *	(f)	free pages queue mutex
  *
  */
 
@@ -102,7 +115,7 @@ struct vm_object {
 	vm_ooffset_t backing_object_offset;/* Offset in backing object */
 	TAILQ_ENTRY(vm_object) pager_object_list; /* list of all objects of this pager type */
 	LIST_HEAD(, vm_reserv) rvq;	/* list of reservations */
-	vm_page_t cache;		/* root of the cache page splay tree */
+	vm_page_t cache;		/* (o + f) root of the cache page splay tree */
 	void *handle;
 	union {
 		/*

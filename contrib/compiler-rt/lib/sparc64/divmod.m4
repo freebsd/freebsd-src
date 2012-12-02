@@ -59,9 +59,6 @@ define(SC,`%g2')
 
 #include "../assembly.h"
 
-.text
-	.align 4
-
 define(DEVELOP_QUOTIENT_BITS,
 `	!depth $1, accumulated bits $2
 	bl	L.$1.eval(TWOSUPN+$2)
@@ -84,12 +81,14 @@ L.$1.eval(TWOSUPN+$2):
 	ifelse( $1, 1, `9:')
 ')
 ifelse( ANSWER, `quotient', `
+.text
+	.align 32
 DEFINE_COMPILERRT_FUNCTION(__udivsi3)
-	save	%sp,-64,%sp		! do this for debugging
 	b	divide
 	mov	0,SIGN			! result always nonnegative
+.text
+	.align 32
 DEFINE_COMPILERRT_FUNCTION(__divsi3)
-	save	%sp,-64,%sp		! do this for debugging
 	orcc	divisor,dividend,%g0	! are either dividend or divisor negative
 	bge	divide			! if not, skip this junk
 	xor	divisor,dividend,SIGN	! record sign of result in sign of SIGN
@@ -104,12 +103,14 @@ DEFINE_COMPILERRT_FUNCTION(__divsi3)
 	neg	dividend
 	! FALL THROUGH
 ',`
+.text
+	.align 32
 DEFINE_COMPILERRT_FUNCTION(__umodsi3)
-	save	%sp,-64,%sp		! do this for debugging
 	b	divide
 	mov	0,SIGN			! result always nonnegative
+.text
+	.align 32
 DEFINE_COMPILERRT_FUNCTION(__modsi3)
-	save	%sp,-64,%sp		! do this for debugging
 	orcc	divisor,dividend,%g0	! are either dividend or divisor negative
 	bge	divide			! if not, skip this junk
 	mov	dividend,SIGN		! record sign of result in sign of SIGN
@@ -184,8 +185,8 @@ do_single_div:
 	nop
 	sub	R,V,R
 	mov	1,Q
-	b	end_single_divloop
-	nop
+	b,a	end_single_divloop
+	! EMPTY
 single_divloop:
 	sll	Q,1,Q
 	bl	1f
@@ -202,8 +203,8 @@ single_divloop:
 		deccc	SC
 		bge	single_divloop
 		tst	R
-		b	end_regular_divide
-		nop
+		b,a	end_regular_divide
+		! EMPTY
 
 not_really_big:
 1:
@@ -224,9 +225,8 @@ end_regular_divide:
 	deccc	ITER
 	bge	divloop
 	tst	R
-	bge	got_result
-	nop
-	! non-restoring fixup here
+	bl,a	got_result
+	! non-restoring fixup if remainder < 0, otherwise annulled
 ifelse( ANSWER, `quotient',
 `	dec	Q
 ',`	add	R,divisor,R
@@ -234,13 +234,11 @@ ifelse( ANSWER, `quotient',
 
 got_result:
 	tst	SIGN
-	bge	1f
-	restore
-	! answer < 0
-	retl				! leaf-routine return
+	bl,a	1f
+	! negate for answer < 0, otherwise annulled
 ifelse( ANSWER, `quotient',
-`	neg	%o2,%o0			! quotient <- -Q
-',`	neg	%o3,%o0 		! remainder <- -R
+`	neg	%o2,%o2			! Q <- -Q
+',`	neg	%o3,%o3 		! R <- -R
 ')
 1:
 	retl				! leaf-routine return

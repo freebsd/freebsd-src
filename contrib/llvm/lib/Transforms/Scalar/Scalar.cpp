@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file implements common infrastructure for libLLVMScalarOpts.a, which 
+// This file implements common infrastructure for libLLVMScalarOpts.a, which
 // implements several scalar transformations over the LLVM intermediate
 // representation, including the C bindings for that library.
 //
@@ -24,7 +24,7 @@
 
 using namespace llvm;
 
-/// initializeScalarOptsPasses - Initialize all passes linked into the 
+/// initializeScalarOptsPasses - Initialize all passes linked into the
 /// ScalarOpts library.
 void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeADCEPass(Registry);
@@ -51,6 +51,7 @@ void llvm::initializeScalarOpts(PassRegistry &Registry) {
   initializeLowerExpectIntrinsicPass(Registry);
   initializeMemCpyOptPass(Registry);
   initializeObjCARCAliasAnalysisPass(Registry);
+  initializeObjCARCAPElimPass(Registry);
   initializeObjCARCExpandPass(Registry);
   initializeObjCARCContractPass(Registry);
   initializeObjCARCOptPass(Registry);

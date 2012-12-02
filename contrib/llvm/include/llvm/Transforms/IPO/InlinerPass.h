@@ -31,7 +31,7 @@ namespace llvm {
 ///
 struct Inliner : public CallGraphSCCPass {
   explicit Inliner(char &ID);
-  explicit Inliner(char &ID, int Threshold);
+  explicit Inliner(char &ID, int Threshold, bool InsertLifetime);
 
   /// getAnalysisUsage - For this class, we declare that we require and preserve
   /// the call graph.  If the derived class implements this method, it should
@@ -65,27 +65,20 @@ struct Inliner : public CallGraphSCCPass {
   ///
   virtual InlineCost getInlineCost(CallSite CS) = 0;
 
-  // getInlineFudgeFactor - Return a > 1.0 factor if the inliner should use a
-  // higher threshold to determine if the function call should be inlined.
+  /// removeDeadFunctions - Remove dead functions.
   ///
-  virtual float getInlineFudgeFactor(CallSite CS) = 0;
+  /// This also includes a hack in the form of the 'AlwaysInlineOnly' flag
+  /// which restricts it to deleting functions with an 'AlwaysInline'
+  /// attribute. This is useful for the InlineAlways pass that only wants to
+  /// deal with that subset of the functions.
+  bool removeDeadFunctions(CallGraph &CG, bool AlwaysInlineOnly = false);
 
-  /// resetCachedCostInfo - erase any cached cost data from the derived class.
-  /// If the derived class has no such data this can be empty.
-  /// 
-  virtual void resetCachedCostInfo(Function* Caller) = 0;
-
-  /// growCachedCostInfo - update the cached cost info for Caller after Callee
-  /// has been inlined.
-  virtual void growCachedCostInfo(Function *Caller, Function *Callee) = 0;
-
-  /// removeDeadFunctions - Remove dead functions that are not included in
-  /// DNR (Do Not Remove) list.
-  bool removeDeadFunctions(CallGraph &CG, 
-                           SmallPtrSet<const Function *, 16> *DNR = NULL);
 private:
   // InlineThreshold - Cache the value here for easy access.
   unsigned InlineThreshold;
+
+  // InsertLifetime - Insert @llvm.lifetime intrinsics.
+  bool InsertLifetime;
 
   /// shouldInline - Return true if the inliner should attempt to
   /// inline at the given CallSite.

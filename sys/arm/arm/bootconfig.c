@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bootconfig.h>
 
 
-/* 
+/*
  * Function to identify and process different types of boot argument
  */
 

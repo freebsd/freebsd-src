@@ -105,11 +105,10 @@ __FBSDID("$FreeBSD$");
 #include "dev/mpt/mpilib/mpi_targ.h"
 #include "dev/mpt/mpilib/mpi_fc.h"
 #include "dev/mpt/mpilib/mpi_sas.h"
-#if __FreeBSD_version >= 500000
-#include <sys/sysctl.h>
-#endif
+
 #include <sys/callout.h>
 #include <sys/kthread.h>
+#include <sys/sysctl.h>
 
 #if __FreeBSD_version >= 700025
 #ifndef	CAM_NEW_TRAN_CODE
@@ -125,7 +124,6 @@ mpt_get_spi_settings(struct mpt_softc *, struct ccb_trans_settings *);
 static void mpt_setwidth(struct mpt_softc *, int, int);
 static void mpt_setsync(struct mpt_softc *, int, int, int);
 static int mpt_update_spi_config(struct mpt_softc *, int);
-static void mpt_calc_geometry(struct ccb_calc_geometry *ccg, int extended);
 
 static mpt_reply_handler_t mpt_scsi_reply_handler;
 static mpt_reply_handler_t mpt_scsi_tmf_reply_handler;
@@ -416,6 +414,8 @@ cleanup:
 static int
 mpt_read_config_info_fc(struct mpt_softc *mpt)
 {
+	struct sysctl_ctx_list *ctx;
+	struct sysctl_oid *tree;
 	char *topology = NULL;
 	int rv;
 
@@ -473,33 +473,27 @@ mpt_read_config_info_fc(struct mpt_softc *mpt)
 	    mpt->mpt_fcport_page0.WWPN.High,
 	    mpt->mpt_fcport_page0.WWPN.Low,
 	    mpt->mpt_fcport_speed);
-#if __FreeBSD_version >= 500000
 	MPT_UNLOCK(mpt);
-	{
-		struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(mpt->dev);
-		struct sysctl_oid *tree = device_get_sysctl_tree(mpt->dev);
+	ctx = device_get_sysctl_ctx(mpt->dev);
+	tree = device_get_sysctl_tree(mpt->dev);
 
-		snprintf(mpt->scinfo.fc.wwnn,
-		    sizeof (mpt->scinfo.fc.wwnn), "0x%08x%08x",
-		    mpt->mpt_fcport_page0.WWNN.High,
-		    mpt->mpt_fcport_page0.WWNN.Low);
+	snprintf(mpt->scinfo.fc.wwnn, sizeof (mpt->scinfo.fc.wwnn),
+	    "0x%08x%08x", mpt->mpt_fcport_page0.WWNN.High,
+	    mpt->mpt_fcport_page0.WWNN.Low);
 
-		snprintf(mpt->scinfo.fc.wwpn,
-		    sizeof (mpt->scinfo.fc.wwpn), "0x%08x%08x",
-		    mpt->mpt_fcport_page0.WWPN.High,
-		    mpt->mpt_fcport_page0.WWPN.Low);
+	snprintf(mpt->scinfo.fc.wwpn, sizeof (mpt->scinfo.fc.wwpn),
+	    "0x%08x%08x", mpt->mpt_fcport_page0.WWPN.High,
+	    mpt->mpt_fcport_page0.WWPN.Low);
 
-		SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		       "wwnn", CTLFLAG_RD, mpt->scinfo.fc.wwnn, 0,
-		       "World Wide Node Name");
+	SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	    "wwnn", CTLFLAG_RD, mpt->scinfo.fc.wwnn, 0,
+	    "World Wide Node Name");
 
-		SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		       "wwpn", CTLFLAG_RD, mpt->scinfo.fc.wwpn, 0,
-		       "World Wide Port Name");
+	SYSCTL_ADD_STRING(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+	     "wwpn", CTLFLAG_RD, mpt->scinfo.fc.wwpn, 0,
+	     "World Wide Port Name");
 
-	}
 	MPT_LOCK(mpt);
-#endif
 	return (0);
 }
 
@@ -1246,9 +1240,6 @@ mpt_timeout(void *arg)
 	ccb = (union ccb *)arg;
 	mpt = ccb->ccb_h.ccb_mpt_ptr;
 
-#if __FreeBSD_version < 500000
-	MPT_LOCK(mpt);
-#endif
 	MPT_LOCK_ASSERT(mpt);
 	req = ccb->ccb_h.ccb_req_ptr;
 	mpt_prt(mpt, "request %p:%u timed out for ccb %p (req->ccb %p)\n", req,
@@ -1260,9 +1251,6 @@ mpt_timeout(void *arg)
 		req->state |= REQ_STATE_TIMEDOUT;
 		mpt_wakeup_recovery_thread(mpt);
 	}
-#if __FreeBSD_version < 500000
-	MPT_UNLOCK(mpt);
-#endif
 }
 
 /*
@@ -1359,9 +1347,7 @@ bad:
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d", __LINE__));
 		xpt_done(ccb);
-		CAMLOCK_2_MPTLOCK(mpt);
 		mpt_free_request(mpt, req);
-		MPTLOCK_2_CAMLOCK(mpt);
 		return;
 	}
 
@@ -1595,9 +1581,7 @@ bad:
 		if (seg < nseg && nxt_off >= MPT_REQUEST_AREA) {
 			request_t *nrq;
 
-			CAMLOCK_2_MPTLOCK(mpt);
 			nrq = mpt_get_request(mpt, FALSE);
-			MPTLOCK_2_CAMLOCK(mpt);
 
 			if (nrq == NULL) {
 				error = ENOMEM;
@@ -1645,9 +1629,7 @@ out:
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d", __LINE__));
 		xpt_done(ccb);
-		CAMLOCK_2_MPTLOCK(mpt);
 		mpt_free_request(mpt, req);
-		MPTLOCK_2_CAMLOCK(mpt);
 		return;
 	}
 
@@ -1679,9 +1661,7 @@ out:
 		tgt->state = TGT_STATE_MOVING_DATA;
 #endif
 	}
-	CAMLOCK_2_MPTLOCK(mpt);
 	mpt_send_cmd(mpt, req);
-	MPTLOCK_2_CAMLOCK(mpt);
 }
 
 static void
@@ -1770,9 +1750,7 @@ bad:
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d", __LINE__));
 		xpt_done(ccb);
-		CAMLOCK_2_MPTLOCK(mpt);
 		mpt_free_request(mpt, req);
-		MPTLOCK_2_CAMLOCK(mpt);
 		return;
 	}
 
@@ -1990,9 +1968,7 @@ bad:
 		if (seg < nseg && nxt_off >= MPT_REQUEST_AREA) {
 			request_t *nrq;
 
-			CAMLOCK_2_MPTLOCK(mpt);
 			nrq = mpt_get_request(mpt, FALSE);
-			MPTLOCK_2_CAMLOCK(mpt);
 
 			if (nrq == NULL) {
 				error = ENOMEM;
@@ -2040,9 +2016,7 @@ out:
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d", __LINE__));
 		xpt_done(ccb);
-		CAMLOCK_2_MPTLOCK(mpt);
 		mpt_free_request(mpt, req);
-		MPTLOCK_2_CAMLOCK(mpt);
 		return;
 	}
 
@@ -2074,9 +2048,7 @@ out:
 		tgt->state = TGT_STATE_MOVING_DATA;
 #endif
 	}
-	CAMLOCK_2_MPTLOCK(mpt);
 	mpt_send_cmd(mpt, req);
-	MPTLOCK_2_CAMLOCK(mpt);
 }
 
 static void
@@ -2095,7 +2067,6 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	mpt = ccb->ccb_h.ccb_mpt_ptr;
 	raid_passthru = (sim == mpt->phydisk_sim);
 
-	CAMLOCK_2_MPTLOCK(mpt);
 	if ((req = mpt_get_request(mpt, FALSE)) == NULL) {
 		if (mpt->outofbeer == 0) {
 			mpt->outofbeer = 1;
@@ -2104,14 +2075,12 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 		}
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		mpt_set_ccb_status(ccb, CAM_REQUEUE_REQ);
-		MPTLOCK_2_CAMLOCK(mpt);
 		xpt_done(ccb);
 		return;
 	}
 #ifdef	INVARIANTS
 	mpt_req_not_spcl(mpt, req, "mpt_start", __LINE__);
 #endif
-	MPTLOCK_2_CAMLOCK(mpt);
 
 	if (sizeof (bus_addr_t) > 4) {
 		cb = mpt_execute_req_a64;
@@ -2133,15 +2102,12 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 	mpt_req->Function = MPI_FUNCTION_SCSI_IO_REQUEST;
 	if (raid_passthru) {
 		mpt_req->Function = MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH;
-		CAMLOCK_2_MPTLOCK(mpt);
 		if (mpt_map_physdisk(mpt, ccb, &tgt) != 0) {
-			MPTLOCK_2_CAMLOCK(mpt);
 			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 			mpt_set_ccb_status(ccb, CAM_DEV_NOT_THERE);
 			xpt_done(ccb);
 			return;
 		}
-		MPTLOCK_2_CAMLOCK(mpt);
 		mpt_req->Bus = 0;	/* we never set bus here */
 	} else {
 		tgt = ccb->ccb_h.target_id;
@@ -2436,7 +2402,6 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		} else {
 			pathid = cam_sim_path(mpt->sim);
 		}
-		MPTLOCK_2_CAMLOCK(mpt);
 		/*
 		 * Allocate a CCB, create a wildcard path for this bus,
 		 * and schedule a rescan.
@@ -2444,19 +2409,16 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		ccb = xpt_alloc_ccb_nowait();
 		if (ccb == NULL) {
 			mpt_prt(mpt, "unable to alloc CCB for rescan\n");
-			CAMLOCK_2_MPTLOCK(mpt);
 			break;
 		}
 
 		if (xpt_create_path(&ccb->ccb_h.path, xpt_periph, pathid,
 		    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-			CAMLOCK_2_MPTLOCK(mpt);
 			mpt_prt(mpt, "unable to create path for rescan\n");
 			xpt_free_ccb(ccb);
 			break;
 		}
 		xpt_rescan(ccb);
-		CAMLOCK_2_MPTLOCK(mpt);
 		break;
 	}
 #else
@@ -2553,13 +2515,11 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 		} else {
 			sim = mpt->sim;
 		}
-		MPTLOCK_2_CAMLOCK(mpt);
 		for (lun_id = 0; lun_id < MPT_MAX_LUNS; lun_id++) {
 			if (xpt_create_path(&tmppath, NULL, cam_sim_path(sim),
 			    pqf->TargetID, lun_id) != CAM_REQ_CMP) {
 				mpt_prt(mpt, "unable to create a path to send "
 				    "XPT_REL_SIMQ");
-				CAMLOCK_2_MPTLOCK(mpt);
 				break;
 			}
 			xpt_setup_ccb(&crs.ccb_h, tmppath, 5);
@@ -2573,7 +2533,6 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 			}
 			xpt_free_path(tmppath);
 		}
-		CAMLOCK_2_MPTLOCK(mpt);
 		break;
 	}
 	case MPI_EVENT_IR_RESYNC_UPDATE:
@@ -2595,39 +2554,32 @@ mpt_cam_event(struct mpt_softc *mpt, request_t *req,
 			sim = mpt->sim;
 		switch(psdsc->ReasonCode) {
 		case MPI_EVENT_SAS_DEV_STAT_RC_ADDED:
-			MPTLOCK_2_CAMLOCK(mpt);
 			ccb = xpt_alloc_ccb_nowait();
 			if (ccb == NULL) {
 				mpt_prt(mpt,
 				    "unable to alloc CCB for rescan\n");
-				CAMLOCK_2_MPTLOCK(mpt);
 				break;
 			}
 			if (xpt_create_path(&ccb->ccb_h.path, xpt_periph,
 			    cam_sim_path(sim), psdsc->TargetID,
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
-				CAMLOCK_2_MPTLOCK(mpt);
 				mpt_prt(mpt,
 				    "unable to create path for rescan\n");
 				xpt_free_ccb(ccb);
 				break;
 			}
 			xpt_rescan(ccb);
-			CAMLOCK_2_MPTLOCK(mpt);
 			break;
 		case MPI_EVENT_SAS_DEV_STAT_RC_NOT_RESPONDING:
-			MPTLOCK_2_CAMLOCK(mpt);
 			if (xpt_create_path(&tmppath, NULL, cam_sim_path(sim),
 			    psdsc->TargetID, CAM_LUN_WILDCARD) !=
 			    CAM_REQ_CMP) {
 				mpt_prt(mpt,
 				    "unable to create path for async event");
-				CAMLOCK_2_MPTLOCK(mpt);
 				break;
 			}
 			xpt_async(AC_LOST_DEVICE, tmppath, NULL);
 			xpt_free_path(tmppath);
-			CAMLOCK_2_MPTLOCK(mpt);
 			break;
 		case MPI_EVENT_SAS_DEV_STAT_RC_CMPL_INTERNAL_DEV_RESET:
 		case MPI_EVENT_SAS_DEV_STAT_RC_CMPL_TASK_ABORT_INTERNAL:
@@ -2747,9 +2699,7 @@ mpt_scsi_reply_handler(struct mpt_softc *mpt, request_t *req,
 		    req, req->serno);
 	}
 	KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d", __LINE__));
-	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_done(ccb);
-	CAMLOCK_2_MPTLOCK(mpt);
 	if ((req->state & REQ_STATE_TIMEDOUT) == 0) {
 		TAILQ_REMOVE(&mpt->request_pending_list, req, links);
 	} else {
@@ -3187,7 +3137,7 @@ mpt_scsi_reply_frame_handler(struct mpt_softc *mpt, request_t *req,
 		else
 			ccb->csio.sense_resid = 0;
 
-		bzero(&ccb->csio.sense_data, sizeof(&ccb->csio.sense_data));
+		bzero(&ccb->csio.sense_data, sizeof(ccb->csio.sense_data));
 		bcopy(req->sense_vbuf, &ccb->csio.sense_data,
 		    min(ccb->csio.sense_len, sense_returned));
 	}
@@ -3335,15 +3285,12 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	    ccb->ccb_h.func_code != XPT_PATH_INQ &&
 	    ccb->ccb_h.func_code != XPT_RESET_BUS &&
 	    ccb->ccb_h.func_code != XPT_RESET_DEV) {
-		CAMLOCK_2_MPTLOCK(mpt);
 		if (mpt_map_physdisk(mpt, ccb, &tgt) != 0) {
-			MPTLOCK_2_CAMLOCK(mpt);
 			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 			mpt_set_ccb_status(ccb, CAM_DEV_NOT_THERE);
 			xpt_done(ccb);
 			return;
 		}
-		MPTLOCK_2_CAMLOCK(mpt);
 	}
 	ccb->ccb_h.ccb_mpt_ptr = mpt;
 
@@ -3392,9 +3339,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		} else {
 			xpt_print(ccb->ccb_h.path, "reset device\n");
 		}
-		CAMLOCK_2_MPTLOCK(mpt);
 		(void) mpt_bus_reset(mpt, tgt, lun, FALSE);
-		MPTLOCK_2_CAMLOCK(mpt);
 
 		/*
 		 * mpt_bus_reset is always successful in that it
@@ -3408,10 +3353,9 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	case XPT_ABORT:
 	{
 		union ccb *accb = ccb->cab.abort_ccb;
-		CAMLOCK_2_MPTLOCK(mpt);
 		switch (accb->ccb_h.func_code) {
 		case XPT_ACCEPT_TARGET_IO:
-		case XPT_IMMED_NOTIFY:
+		case XPT_IMMEDIATE_NOTIFY:
 			ccb->ccb_h.status = mpt_abort_target_ccb(mpt, ccb);
 			break;
 		case XPT_CONT_TARGET_IO:
@@ -3425,7 +3369,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 			break;
 		}
-		MPTLOCK_2_CAMLOCK(mpt);
 		break;
 	}
 
@@ -3565,7 +3508,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	    		period >>= MPI_SCSIDEVPAGE1_RP_SHIFT_MIN_SYNC_PERIOD;
 		}
 #endif
-		CAMLOCK_2_MPTLOCK(mpt);
 		if (dval & DP_DISC_ENABLE) {
 			mpt->mpt_disc_enable |= (1 << tgt);
 		} else if (dval & DP_DISC_DISABL) {
@@ -3583,7 +3525,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			mpt_setsync(mpt, tgt, period, offset);
 		}
 		if (dval == 0) {
-			MPTLOCK_2_CAMLOCK(mpt);
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 			break;
 		}
@@ -3595,7 +3536,6 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		} else {
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 		}
-		MPTLOCK_2_CAMLOCK(mpt);
 		break;
 	}
 	case XPT_GET_TRAN_SETTINGS:
@@ -3660,7 +3600,7 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			mpt_set_ccb_status(ccb, CAM_REQ_INVALID);
 			break;
 		}
-		mpt_calc_geometry(ccg, /*extended*/1);
+		cam_calc_geometry(ccg, /* extended */ 1);
 		KASSERT(ccb->ccb_h.status, ("zero ccb sts at %d", __LINE__));
 		break;
 	}
@@ -3770,14 +3710,12 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 	{
 		int result;
 
-		CAMLOCK_2_MPTLOCK(mpt);
 		if (ccb->cel.enable)
 			result = mpt_enable_lun(mpt,
 			    ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
 		else
 			result = mpt_disable_lun(mpt,
 			    ccb->ccb_h.target_id, ccb->ccb_h.target_lun);
-		MPTLOCK_2_CAMLOCK(mpt);
 		if (result == 0) {
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 		} else {
@@ -3785,8 +3723,8 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		}
 		break;
 	}
-	case XPT_NOTIFY_ACK:		/* recycle notify ack */
-	case XPT_IMMED_NOTIFY:		/* Add Immediate Notify Resource */
+	case XPT_NOTIFY_ACKNOWLEDGE:	/* recycle notify ack */
+	case XPT_IMMEDIATE_NOTIFY:	/* Add Immediate Notify Resource */
 	case XPT_ACCEPT_TARGET_IO:	/* Add Accept Target IO Resource */
 	{
 		tgt_resource_t *trtp;
@@ -3807,13 +3745,12 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 		} else {
 			trtp = &mpt->trt[lun];
 		}
-		CAMLOCK_2_MPTLOCK(mpt);
 		if (ccb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO) {
 			mpt_lprt(mpt, MPT_PRT_DEBUG1,
 			    "Put FREE ATIO %p lun %d\n", ccb, lun);
 			STAILQ_INSERT_TAIL(&trtp->atios, &ccb->ccb_h,
 			    sim_links.stqe);
-		} else if (ccb->ccb_h.func_code == XPT_IMMED_NOTIFY) {
+		} else if (ccb->ccb_h.func_code == XPT_IMMEDIATE_NOTIFY) {
 			mpt_lprt(mpt, MPT_PRT_DEBUG1,
 			    "Put FREE INOT lun %d\n", lun);
 			STAILQ_INSERT_TAIL(&trtp->inots, &ccb->ccb_h,
@@ -3822,13 +3759,10 @@ mpt_action(struct cam_sim *sim, union ccb *ccb)
 			mpt_lprt(mpt, MPT_PRT_ALWAYS, "Got Notify ACK\n");
 		}
 		mpt_set_ccb_status(ccb, CAM_REQ_INPROG);
-		MPTLOCK_2_CAMLOCK(mpt);
 		return;
 	}
 	case XPT_CONT_TARGET_IO:
-		CAMLOCK_2_MPTLOCK(mpt);
 		mpt_target_start_io(mpt, ccb);
-		MPTLOCK_2_CAMLOCK(mpt);
 		return;
 
 	default:
@@ -3872,18 +3806,15 @@ mpt_get_spi_settings(struct mpt_softc *mpt, struct ccb_trans_settings *cts)
 		CONFIG_PAGE_SCSI_DEVICE_0 tmp;
 		dval = 0;
 
-		CAMLOCK_2_MPTLOCK(mpt);
 		tmp = mpt->mpt_dev_page0[tgt];
 		rv = mpt_read_cur_cfg_page(mpt, tgt, &tmp.Header,
 		    sizeof(tmp), FALSE, 5000);
 		if (rv) {
-			MPTLOCK_2_CAMLOCK(mpt);
 			mpt_prt(mpt, "can't get tgt %d config page 0\n", tgt);
 			return (rv);
 		}
 		mpt2host_config_page_scsi_device_0(&tmp);
 		
-		MPTLOCK_2_CAMLOCK(mpt);
 		mpt_lprt(mpt, MPT_PRT_DEBUG,
 		    "mpt_get_spi_settings[%d]: current NP %x Info %x\n", tgt,
 		    tmp.NegotiatedParameters, tmp.Information);
@@ -4020,33 +3951,6 @@ mpt_update_spi_config(struct mpt_softc *mpt, int tgt)
 		return (-1);
 	}
 	return (0);
-}
-
-static void
-mpt_calc_geometry(struct ccb_calc_geometry *ccg, int extended)
-{
-#if __FreeBSD_version >= 500000
-	cam_calc_geometry(ccg, extended);
-#else
-	uint32_t size_mb;
-	uint32_t secs_per_cylinder;
-
-	if (ccg->block_size == 0) {
-		ccg->ccb_h.status = CAM_REQ_INVALID;
-		return;
-	}
-	size_mb = ccg->volume_size / ((1024L * 1024L) / ccg->block_size);
-	if (size_mb > 1024 && extended) {
-		ccg->heads = 255;
-		ccg->secs_per_track = 63;
-	} else {
-		ccg->heads = 64;
-		ccg->secs_per_track = 32;
-	}
-	secs_per_cylinder = ccg->heads * ccg->secs_per_track;
-	ccg->cylinders = ccg->volume_size / secs_per_cylinder;
-	ccg->ccb_h.status = CAM_REQ_CMP;
-#endif
 }
 
 /****************************** Timeout Recovery ******************************/
@@ -4539,18 +4443,14 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 		xpt_freeze_simq(mpt->sim, 1);
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 		tgt->ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
-		MPTLOCK_2_CAMLOCK(mpt);
 		xpt_done(ccb);
-		CAMLOCK_2_MPTLOCK(mpt);
 		return;
 	default:
 		mpt_prt(mpt, "ccb %p flags 0x%x tag 0x%08x had bad request "
 		    "starting I/O\n", ccb, csio->ccb_h.flags, csio->tag_id);
 		mpt_tgt_dump_req_state(mpt, cmd_req);
 		mpt_set_ccb_status(ccb, CAM_REQ_CMP_ERR);
-		MPTLOCK_2_CAMLOCK(mpt);
 		xpt_done(ccb);
-		CAMLOCK_2_MPTLOCK(mpt);
 		return;
 	}
 
@@ -4570,9 +4470,7 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 			}
 			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 			mpt_set_ccb_status(ccb, CAM_REQUEUE_REQ);
-			MPTLOCK_2_CAMLOCK(mpt);
 			xpt_done(ccb);
-			CAMLOCK_2_MPTLOCK(mpt);
 			return;
 		}
 		ccb->ccb_h.status = CAM_SIM_QUEUED | CAM_REQ_INPROG;
@@ -4646,7 +4544,6 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 		    "nxtstate=%d\n", csio, csio->tag_id, csio->dxfer_len,
 		    tgt->resid, ccb->ccb_h.flags, req, req->serno, tgt->state);
 
-		MPTLOCK_2_CAMLOCK(mpt);
 		if ((ccb->ccb_h.flags & CAM_SCATTER_VALID) == 0) {
 			if ((ccb->ccb_h.flags & CAM_DATA_PHYS) == 0) {
 				int error;
@@ -4686,7 +4583,6 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 				(*cb)(req, sgs, csio->sglist_cnt, 0);
 			}
 		}
-		CAMLOCK_2_MPTLOCK(mpt);
 	} else {
 		uint8_t *sp = NULL, sense[MPT_SENSE_SIZE];
 
@@ -4703,9 +4599,7 @@ mpt_target_start_io(struct mpt_softc *mpt, union ccb *ccb)
 			    ccb->ccb_h.status, tgt->resid, tgt->bytes_xfered);
 			mpt_set_ccb_status(ccb, CAM_REQ_CMP);
 			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
-			MPTLOCK_2_CAMLOCK(mpt);
 			xpt_done(ccb);
-			CAMLOCK_2_MPTLOCK(mpt);
 			return;
 		}
 		if (ccb->ccb_h.flags & CAM_SEND_SENSE) {
@@ -4822,7 +4716,7 @@ mpt_abort_target_ccb(struct mpt_softc *mpt, union ccb *ccb)
 
 	if (accb->ccb_h.func_code == XPT_ACCEPT_TARGET_IO) {
 		lp = &trtp->atios;
-	} else if (accb->ccb_h.func_code == XPT_IMMED_NOTIFY) {
+	} else if (accb->ccb_h.func_code == XPT_IMMEDIATE_NOTIFY) {
 		lp = &trtp->inots;
 	} else {
 		return (CAM_REQ_INVALID);
@@ -4911,9 +4805,7 @@ mpt_scsi_tgt_status(struct mpt_softc *mpt, union ccb *ccb, request_t *cmd_req,
 		if (ccb) {
 			ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
 			mpt_set_ccb_status(ccb, CAM_REQUEUE_REQ);
-			MPTLOCK_2_CAMLOCK(mpt);
 			xpt_done(ccb);
-			CAMLOCK_2_MPTLOCK(mpt);
 		} else {
 			mpt_prt(mpt,
 			    "could not allocate status request- dropping\n");
@@ -5043,11 +4935,11 @@ static void
 mpt_scsi_tgt_tsk_mgmt(struct mpt_softc *mpt, request_t *req, mpt_task_mgmt_t fc,
     tgt_resource_t *trtp, int init_id)
 {
-	struct ccb_immed_notify *inot;
+	struct ccb_immediate_notify *inot;
 	mpt_tgt_state_t *tgt;
 
 	tgt = MPT_TGT_STATE(mpt, req);
-	inot = (struct ccb_immed_notify *) STAILQ_FIRST(&trtp->inots);
+	inot = (struct ccb_immediate_notify *) STAILQ_FIRST(&trtp->inots);
 	if (inot == NULL) {
 		mpt_lprt(mpt, MPT_PRT_WARN, "no INOTSs- sending back BSY\n");
 		mpt_scsi_tgt_status(mpt, NULL, req, SCSI_STATUS_BUSY, NULL);
@@ -5057,40 +4949,38 @@ mpt_scsi_tgt_tsk_mgmt(struct mpt_softc *mpt, request_t *req, mpt_task_mgmt_t fc,
 	mpt_lprt(mpt, MPT_PRT_DEBUG1,
 	    "Get FREE INOT %p lun %d\n", inot, inot->ccb_h.target_lun);
 
-	memset(&inot->sense_data, 0, sizeof (inot->sense_data));
-	inot->sense_len = 0;
-	memset(inot->message_args, 0, sizeof (inot->message_args));
 	inot->initiator_id = init_id;	/* XXX */
-
 	/*
 	 * This is a somewhat grotesque attempt to map from task management
 	 * to old style SCSI messages. God help us all.
 	 */
 	switch (fc) {
 	case MPT_ABORT_TASK_SET:
-		inot->message_args[0] = MSG_ABORT_TAG;
+		inot->arg = MSG_ABORT_TAG;
 		break;
 	case MPT_CLEAR_TASK_SET:
-		inot->message_args[0] = MSG_CLEAR_TASK_SET;
+		inot->arg = MSG_CLEAR_TASK_SET;
 		break;
 	case MPT_TARGET_RESET:
-		inot->message_args[0] = MSG_TARGET_RESET;
+		inot->arg = MSG_TARGET_RESET;
 		break;
 	case MPT_CLEAR_ACA:
-		inot->message_args[0] = MSG_CLEAR_ACA;
+		inot->arg = MSG_CLEAR_ACA;
 		break;
 	case MPT_TERMINATE_TASK:
-		inot->message_args[0] = MSG_ABORT_TAG;
+		inot->arg = MSG_ABORT_TAG;
 		break;
 	default:
-		inot->message_args[0] = MSG_NOOP;
+		inot->arg = MSG_NOOP;
 		break;
 	}
+	/*
+	 * XXX KDM we need the sequence/tag number for the target of the
+	 * task management operation, especially if it is an abort.
+	 */
 	tgt->ccb = (union ccb *) inot;
 	inot->ccb_h.status = CAM_MESSAGE_RECV|CAM_DEV_QFRZN;
-	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_done((union ccb *)inot);
-	CAMLOCK_2_MPTLOCK(mpt);
 }
 
 static void
@@ -5360,9 +5250,7 @@ mpt_scsi_tgt_atio(struct mpt_softc *mpt, request_t *req, uint32_t reply_desc)
 	    	    itag, atiop->tag_id, tgt->reply_desc, tgt->resid);
 	}
 	
-	MPTLOCK_2_CAMLOCK(mpt);
 	xpt_done((union ccb *)atiop);
-	CAMLOCK_2_MPTLOCK(mpt);
 }
 
 static void
@@ -5471,9 +5359,7 @@ mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
 					mpt->outofbeer = 0;
 					mpt_lprt(mpt, MPT_PRT_DEBUG, "THAWQ\n");
 				}
-				MPTLOCK_2_CAMLOCK(mpt);
 				xpt_done(ccb);
-				CAMLOCK_2_MPTLOCK(mpt);
 				break;
 			}
 			/*
@@ -5556,9 +5442,7 @@ mpt_scsi_tgt_reply_handler(struct mpt_softc *mpt, request_t *req,
 					mpt->outofbeer = 0;
 					mpt_lprt(mpt, MPT_PRT_DEBUG, "THAWQ\n");
 				}
-				MPTLOCK_2_CAMLOCK(mpt);
 				xpt_done(ccb);
-				CAMLOCK_2_MPTLOCK(mpt);
 			}
 			break;
 		}

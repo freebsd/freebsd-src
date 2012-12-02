@@ -99,15 +99,7 @@ __FBSDID("$FreeBSD$");
 #ifdef CPU_ENABLE_SSE
 #define	fxrstor(addr)		__asm __volatile("fxrstor %0" : : "m" (*(addr)))
 #define	fxsave(addr)		__asm __volatile("fxsave %0" : "=m" (*(addr)))
-#endif
-#ifdef XEN
-#define	start_emulating()	(HYPERVISOR_fpu_taskswitch(1))
-#define	stop_emulating()	(HYPERVISOR_fpu_taskswitch(0))
-#else
-#define	start_emulating()	__asm __volatile( \
-				    "smsw %%ax; orb %0,%%al; lmsw %%ax" \
-				    : : "n" (CR0_TS) : "ax")
-#define	stop_emulating()	__asm __volatile("clts")
+#define	stmxcsr(addr)		__asm __volatile("stmxcsr %0" : : "m" (*(addr)))
 #endif
 #else	/* !(__GNUCLIKE_ASM && !lint) */
 
@@ -122,11 +114,18 @@ void	frstor(caddr_t addr);
 #ifdef CPU_ENABLE_SSE
 void	fxsave(caddr_t addr);
 void	fxrstor(caddr_t addr);
+void	stmxcsr(u_int *csr);
 #endif
-void	start_emulating(void);
-void	stop_emulating(void);
 
 #endif	/* __GNUCLIKE_ASM && !lint */
+
+#ifdef XEN
+#define	start_emulating()	(HYPERVISOR_fpu_taskswitch(1))
+#define	stop_emulating()	(HYPERVISOR_fpu_taskswitch(0))
+#else
+#define	start_emulating()	load_cr0(rcr0() | CR0_TS)
+#define	stop_emulating()	clts()
+#endif
 
 #ifdef CPU_ENABLE_SSE
 #define GET_FPU_CW(thread) \
@@ -379,7 +378,7 @@ npxexit(td)
 
 	critical_enter();
 	if (curthread == PCPU_GET(fpcurthread))
-		npxsave(PCPU_GET(curpcb)->pcb_save);
+		npxsave(curpcb->pcb_save);
 	critical_exit();
 #ifdef NPX_DEBUG
 	if (hw_float) {
@@ -584,29 +583,30 @@ static char fpetable[128] = {
 };
 
 /*
- * Preserve the FP status word, clear FP exceptions, then generate a SIGFPE.
+ * Read the FP status and control words, then generate si_code value
+ * for SIGFPE.  The error code chosen will be one of the
+ * FPE_... macros.  It will be sent as the second argument to old
+ * BSD-style signal handlers and as "siginfo_t->si_code" (second
+ * argument) to SA_SIGINFO signal handlers.
  *
- * Clearing exceptions is necessary mainly to avoid IRQ13 bugs.  We now
- * depend on longjmp() restoring a usable state.  Restoring the state
- * or examining it might fail if we didn't clear exceptions.
+ * Some time ago, we cleared the x87 exceptions with FNCLEX there.
+ * Clearing exceptions was necessary mainly to avoid IRQ13 bugs.  The
+ * usermode code which understands the FPU hardware enough to enable
+ * the exceptions, can also handle clearing the exception state in the
+ * handler.  The only consequence of not clearing the exception is the
+ * rethrow of the SIGFPE on return from the signal handler and
+ * reexecution of the corresponding instruction.
  *
- * The error code chosen will be one of the FPE_... macros. It will be
- * sent as the second argument to old BSD-style signal handlers and as
- * "siginfo_t->si_code" (second argument) to SA_SIGINFO signal handlers.
- *
- * XXX the FP state is not preserved across signal handlers.  So signal
- * handlers cannot afford to do FP unless they preserve the state or
- * longjmp() out.  Both preserving the state and longjmp()ing may be
- * destroyed by IRQ13 bugs.  Clearing FP exceptions is not an acceptable
- * solution for signals other than SIGFPE.
+ * For XMM traps, the exceptions were never cleared.
  */
 int
-npxtrap()
+npxtrap_x87(void)
 {
 	u_short control, status;
 
 	if (!hw_float) {
-		printf("npxtrap: fpcurthread = %p, curthread = %p, hw_float = %d\n",
+		printf(
+	"npxtrap_x87: fpcurthread = %p, curthread = %p, hw_float = %d\n",
 		       PCPU_GET(fpcurthread), curthread, hw_float);
 		panic("npxtrap from nowhere");
 	}
@@ -624,12 +624,31 @@ npxtrap()
 		fnstcw(&control);
 		fnstsw(&status);
 	}
-
-	if (PCPU_GET(fpcurthread) == curthread)
-		fnclex();
 	critical_exit();
 	return (fpetable[status & ((~control & 0x3f) | 0x40)]);
 }
+
+#ifdef CPU_ENABLE_SSE
+int
+npxtrap_sse(void)
+{
+	u_int mxcsr;
+
+	if (!hw_float) {
+		printf(
+	"npxtrap_sse: fpcurthread = %p, curthread = %p, hw_float = %d\n",
+		       PCPU_GET(fpcurthread), curthread, hw_float);
+		panic("npxtrap from nowhere");
+	}
+	critical_enter();
+	if (PCPU_GET(fpcurthread) != curthread)
+		mxcsr = curthread->td_pcb->pcb_save->sv_xmm.sv_env.en_mxcsr;
+	else
+		stmxcsr(&mxcsr);
+	critical_exit();
+	return (fpetable[(mxcsr & (~mxcsr >> 7)) & 0x3f]);
+}
+#endif
 
 /*
  * Implement device not available (DNA) exception
@@ -644,7 +663,6 @@ static int err_count = 0;
 int
 npxdna(void)
 {
-	struct pcb *pcb;
 
 	if (!hw_float)
 		return (0);
@@ -668,25 +686,24 @@ npxdna(void)
 	 * Record new context early in case frstor causes an IRQ13.
 	 */
 	PCPU_SET(fpcurthread, curthread);
-	pcb = PCPU_GET(curpcb);
 
 #ifdef CPU_ENABLE_SSE
 	if (cpu_fxsr)
 		fpu_clean_state();
 #endif
 
-	if ((pcb->pcb_flags & PCB_NPXINITDONE) == 0) {
+	if ((curpcb->pcb_flags & PCB_NPXINITDONE) == 0) {
 		/*
 		 * This is the first time this thread has used the FPU or
 		 * the PCB doesn't contain a clean FPU state.  Explicitly
 		 * load an initial state.
 		 */
 		fpurstor(&npx_initialstate);
-		if (pcb->pcb_initial_npxcw != __INITIAL_NPXCW__)
-			fldcw(pcb->pcb_initial_npxcw);
-		pcb->pcb_flags |= PCB_NPXINITDONE;
-		if (PCB_USER_FPU(pcb))
-			pcb->pcb_flags |= PCB_NPXUSERINITDONE;
+		if (curpcb->pcb_initial_npxcw != __INITIAL_NPXCW__)
+			fldcw(curpcb->pcb_initial_npxcw);
+		curpcb->pcb_flags |= PCB_NPXINITDONE;
+		if (PCB_USER_FPU(curpcb))
+			curpcb->pcb_flags |= PCB_NPXUSERINITDONE;
 	} else {
 		/*
 		 * The following fpurstor() may cause an IRQ13 when the
@@ -702,7 +719,7 @@ npxdna(void)
 		 * fnclex if it is the first FPU instruction after a context
 		 * switch.
 		 */
-		fpurstor(pcb->pcb_save);
+		fpurstor(curpcb->pcb_save);
 	}
 	critical_exit();
 
@@ -1080,13 +1097,14 @@ fpu_kern_thread(u_int flags)
 {
 	struct pcb *pcb;
 
-	pcb = PCPU_GET(curpcb);
+	pcb = curpcb;
 	KASSERT((curthread->td_pflags & TDP_KTHREAD) != 0,
 	    ("Only kthread may use fpu_kern_thread"));
-	KASSERT(pcb->pcb_save == &pcb->pcb_user_save, ("mangled pcb_save"));
-	KASSERT(PCB_USER_FPU(pcb), ("recursive call"));
+	KASSERT(curpcb->pcb_save == &curpcb->pcb_user_save,
+	    ("mangled pcb_save"));
+	KASSERT(PCB_USER_FPU(curpcb), ("recursive call"));
 
-	pcb->pcb_flags |= PCB_KERNNPX;
+	curpcb->pcb_flags |= PCB_KERNNPX;
 	return (0);
 }
 
@@ -1096,5 +1114,5 @@ is_fpu_kern_thread(u_int flags)
 
 	if ((curthread->td_pflags & TDP_KTHREAD) == 0)
 		return (0);
-	return ((PCPU_GET(curpcb)->pcb_flags & PCB_KERNNPX) != 0);
+	return ((curpcb->pcb_flags & PCB_KERNNPX) != 0);
 }

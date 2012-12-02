@@ -202,7 +202,7 @@ struct uma_keg {
 	struct mtx	uk_lock;	/* Lock for the keg */
 	struct uma_hash	uk_hash;
 
-	char		*uk_name;		/* Name of creating zone. */
+	const char	*uk_name;		/* Name of creating zone. */
 	LIST_HEAD(,uma_zone)	uk_zones;	/* Keg's zones */
 	LIST_HEAD(,uma_slab)	uk_part_slab;	/* partially allocated slabs */
 	LIST_HEAD(,uma_slab)	uk_free_slab;	/* empty slab list */
@@ -305,7 +305,7 @@ typedef struct uma_klink *uma_klink_t;
  *
  */
 struct uma_zone {
-	char		*uz_name;	/* Text name of the zone */
+	const char	*uz_name;	/* Text name of the zone */
 	struct mtx	*uz_lock;	/* Lock for the zone (keg's lock) */
 
 	LIST_ENTRY(uma_zone)	uz_link;	/* List of all zones in keg */

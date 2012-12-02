@@ -44,7 +44,7 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
-		ranges = <0x0>;
+		ranges = <0x0 0x18000000 0x04000000>;
 		bus-frequency = <0>;
 
 		serial0: serial@30100 {

@@ -128,8 +128,7 @@ class CXXBasePaths {
   /// while the element contains the number of non-virtual base
   /// class subobjects for that class type. The key of the map is
   /// the cv-unqualified canonical type of the base class subobject.
-  std::map<QualType, std::pair<bool, unsigned>, QualTypeOrdering>
-    ClassSubobjects;
+  llvm::SmallDenseMap<QualType, std::pair<bool, unsigned>, 8> ClassSubobjects;
   
   /// FindAmbiguities - Whether Sema::IsDerivedFrom should try find
   /// ambiguous paths while it is looking for a path from a derived

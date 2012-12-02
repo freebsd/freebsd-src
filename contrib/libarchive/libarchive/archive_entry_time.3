@@ -23,9 +23,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD: src/lib/libarchive/archive_entry.3,v 1.18 2008/05/26 17:00:22 kientzle Exp $
+.\" $FreeBSD$
 .\"
-.Dd February 21, 2010
+.Dd February 2, 2012
 .Dt ARCHIVE_ENTRY_TIME 3
 .Os
 .Sh NAME
@@ -50,6 +50,8 @@
 .Nm archive_entry_set_mtime ,
 .Nm archive_entry_unset_mtime ,
 .Nd functions for manipulating times in archive entry descriptions
+.Sh LIBRARY
+Streaming Archive Library (libarchive, -larchive)
 .Sh SYNOPSIS
 .In archive_entry.h
 .Ft time_t

@@ -18,6 +18,7 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/MemoryBuffer.h"
+#include "llvm/Support/MutexGuard.h"
 #include "llvm/Target/TargetData.h"
 
 using namespace llvm;
@@ -36,7 +37,6 @@ extern "C" void LLVMLinkInMCJIT() {
 ExecutionEngine *MCJIT::createJIT(Module *M,
                                   std::string *ErrorStr,
                                   JITMemoryManager *JMM,
-                                  CodeGenOpt::Level OptLevel,
                                   bool GVsWithCode,
                                   TargetMachine *TM) {
   // Try to register the program as a source of symbols to resolve against.
@@ -46,8 +46,7 @@ ExecutionEngine *MCJIT::createJIT(Module *M,
 
   // If the target supports JIT code generation, create the JIT.
   if (TargetJITInfo *TJ = TM->getJITInfo())
-    return new MCJIT(M, TM, *TJ, new MCJITMemoryManager(JMM, M), OptLevel,
-                     GVsWithCode);
+    return new MCJIT(M, TM, *TJ, new MCJITMemoryManager(JMM), GVsWithCode);
 
   if (ErrorStr)
     *ErrorStr = "target does not support JIT code generation";
@@ -55,16 +54,41 @@ ExecutionEngine *MCJIT::createJIT(Module *M,
 }
 
 MCJIT::MCJIT(Module *m, TargetMachine *tm, TargetJITInfo &tji,
-             RTDyldMemoryManager *MM, CodeGenOpt::Level OptLevel,
-             bool AllocateGVsWithCode)
-  : ExecutionEngine(m), TM(tm), MemMgr(MM), M(m), OS(Buffer), Dyld(MM) {
+             RTDyldMemoryManager *MM, bool AllocateGVsWithCode)
+  : ExecutionEngine(m), TM(tm), Ctx(0), MemMgr(MM), Dyld(MM), 
+    isCompiled(false), M(m), OS(Buffer)  {
 
   setTargetData(TM->getTargetData());
+}
+
+MCJIT::~MCJIT() {
+  delete MemMgr;
+  delete TM;
+}
+
+void MCJIT::emitObject(Module *m) {
+  /// Currently, MCJIT only supports a single module and the module passed to
+  /// this function call is expected to be the contained module.  The module
+  /// is passed as a parameter here to prepare for multiple module support in 
+  /// the future.
+  assert(M == m);
+
+  // Get a thread lock to make sure we aren't trying to compile multiple times
+  MutexGuard locked(lock);
+
+  // FIXME: Track compilation state on a per-module basis when multiple modules
+  //        are supported.
+  // Re-compilation is not supported
+  if (isCompiled)
+    return;
+
+  PassManager PM;
+
   PM.add(new TargetData(*TM->getTargetData()));
 
   // Turn the machine code intermediate representation into bytes in memory
   // that may be executed.
-  if (TM->addPassesToEmitMC(PM, Ctx, OS, CodeGenOpt::Default, false)) {
+  if (TM->addPassesToEmitMC(PM, Ctx, OS, false)) {
     report_fatal_error("Target does not support MC emission!");
   }
 
@@ -72,30 +96,33 @@ MCJIT::MCJIT(Module *m, TargetMachine *tm, TargetJITInfo &tji,
   // FIXME: When we support multiple modules, we'll want to move the code
   // gen and finalization out of the constructor here and do it more
   // on-demand as part of getPointerToFunction().
-  PM.run(*M);
+  PM.run(*m);
   // Flush the output buffer so the SmallVector gets its data.
   OS.flush();
 
   // Load the object into the dynamic linker.
-  // FIXME: It would be nice to avoid making yet another copy.
-  MemoryBuffer *MB = MemoryBuffer::getMemBufferCopy(StringRef(Buffer.data(),
-                                                              Buffer.size()));
+  MemoryBuffer* MB = MemoryBuffer::getMemBuffer(StringRef(Buffer.data(),
+                                                          Buffer.size()),
+                                                "", false);
   if (Dyld.loadObject(MB))
     report_fatal_error(Dyld.getErrorString());
+
   // Resolve any relocations.
   Dyld.resolveRelocations();
-}
 
-MCJIT::~MCJIT() {
-  delete MemMgr;
+  // FIXME: Add support for per-module compilation state
+  isCompiled = true;
 }
 
 void *MCJIT::getPointerToBasicBlock(BasicBlock *BB) {
   report_fatal_error("not yet implemented");
-  return 0;
 }
 
 void *MCJIT::getPointerToFunction(Function *F) {
+  // FIXME: Add support for per-module compilation state
+  if (!isCompiled)
+    emitObject(M);
+
   if (F->isDeclaration() || F->hasAvailableExternallyLinkage()) {
     bool AbortOnFailure = !F->hasExternalWeakLinkage();
     void *Addr = getPointerToNamedFunction(F->getName(), AbortOnFailure);
@@ -103,6 +130,7 @@ void *MCJIT::getPointerToFunction(Function *F) {
     return Addr;
   }
 
+  // FIXME: Should the Dyld be retaining module information? Probably not.
   // FIXME: Should we be using the mangler for this? Probably.
   StringRef BaseName = F->getName();
   if (BaseName[0] == '\1')
@@ -211,12 +239,34 @@ GenericValue MCJIT::runFunction(Function *F,
     case Type::FP128TyID:
     case Type::PPC_FP128TyID:
       llvm_unreachable("long double not supported yet");
-      return rv;
     case Type::PointerTyID:
       return PTOGV(((void*(*)())(intptr_t)FPtr)());
     }
   }
 
-  assert(0 && "Full-featured argument passing not supported yet!");
-  return GenericValue();
+  llvm_unreachable("Full-featured argument passing not supported yet!");
+}
+
+void *MCJIT::getPointerToNamedFunction(const std::string &Name,
+                                       bool AbortOnFailure) {
+  // FIXME: Add support for per-module compilation state
+  if (!isCompiled)
+    emitObject(M);
+
+  if (!isSymbolSearchingDisabled() && MemMgr) {
+    void *ptr = MemMgr->getPointerToNamedFunction(Name, false);
+    if (ptr)
+      return ptr;
+  }
+
+  /// If a LazyFunctionCreator is installed, use it to get/create the function.
+  if (LazyFunctionCreator)
+    if (void *RP = LazyFunctionCreator(Name))
+      return RP;
+
+  if (AbortOnFailure) {
+    report_fatal_error("Program used external function '"+Name+
+                       "' which could not be resolved!");
+  }
+  return 0;
 }

@@ -67,7 +67,6 @@ struct mtx null_hashmtx;
 static MALLOC_DEFINE(M_NULLFSHASH, "nullfs_hash", "NULLFS hash table");
 MALLOC_DEFINE(M_NULLFSNODE, "nullfs_node", "NULLFS vnode private part");
 
-static struct vnode * null_hashget(struct mount *, struct vnode *);
 static struct vnode * null_hashins(struct mount *, struct null_node *);
 
 /*
@@ -98,7 +97,7 @@ nullfs_uninit(vfsp)
  * Return a VREF'ed alias for lower vnode if already exists, else 0.
  * Lower vnode should be locked on entry and will be left locked on exit.
  */
-static struct vnode *
+struct vnode *
 null_hashget(mp, lowervp)
 	struct mount *mp;
 	struct vnode *lowervp;
@@ -209,14 +208,10 @@ null_nodeget(mp, lowervp, vpp)
 	struct vnode *vp;
 	int error;
 
-	/*
-	 * The insmntque1() call below requires the exclusive lock on
-	 * the nullfs vnode.
-	 */
-	ASSERT_VOP_ELOCKED(lowervp, "lowervp");
-	KASSERT(lowervp->v_usecount >= 1, ("Unreferenced vnode %p\n", lowervp));
+	ASSERT_VOP_LOCKED(lowervp, "lowervp");
+	KASSERT(lowervp->v_usecount >= 1, ("Unreferenced vnode %p", lowervp));
 
-	/* Lookup the hash firstly */
+	/* Lookup the hash firstly. */
 	*vpp = null_hashget(mp, lowervp);
 	if (*vpp != NULL) {
 		vrele(lowervp);
@@ -224,17 +219,25 @@ null_nodeget(mp, lowervp, vpp)
 	}
 
 	/*
+	 * The insmntque1() call below requires the exclusive lock on
+	 * the nullfs vnode.  Upgrade the lock now if hash failed to
+	 * provide ready to use vnode.
+	 */
+	if (VOP_ISLOCKED(lowervp) != LK_EXCLUSIVE) {
+		vn_lock(lowervp, LK_UPGRADE | LK_RETRY);
+		if ((lowervp->v_iflag & VI_DOOMED) != 0) {
+			vput(lowervp);
+			return (ENOENT);
+		}
+	}
+
+	/*
 	 * We do not serialize vnode creation, instead we will check for
 	 * duplicates later, when adding new vnode to hash.
 	 * Note that duplicate can only appear in hash if the lowervp is
 	 * locked LK_SHARED.
-	 *
-	 * Do the MALLOC before the getnewvnode since doing so afterward
-	 * might cause a bogus v_data pointer to get dereferenced
-	 * elsewhere if MALLOC should block.
 	 */
-	xp = malloc(sizeof(struct null_node),
-	    M_NULLFSNODE, M_WAITOK);
+	xp = malloc(sizeof(struct null_node), M_NULLFSNODE, M_WAITOK);
 
 	error = getnewvnode("null", mp, &null_vnodeops, &vp);
 	if (error) {
@@ -248,8 +251,6 @@ null_nodeget(mp, lowervp, vpp)
 	vp->v_type = lowervp->v_type;
 	vp->v_data = xp;
 	vp->v_vnlock = lowervp->v_vnlock;
-	if (vp->v_vnlock == NULL)
-		panic("null_nodeget: Passed a NULL vnlock.\n");
 	error = insmntque1(vp, mp, null_insmntque_dtr, xp);
 	if (error != 0)
 		return (error);

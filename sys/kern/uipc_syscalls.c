@@ -82,6 +82,7 @@ __FBSDID("$FreeBSD$");
 #include <security/mac/mac_framework.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
@@ -134,8 +135,7 @@ getsock_cap(struct filedesc *fdp, int fd, cap_rights_t rights,
 	int error;
 #endif
 
-	fp = NULL;
-	if ((fdp == NULL) || ((fp = fget_unlocked(fdp, fd)) == NULL))
+	if (fdp == NULL || (fp = fget_unlocked(fdp, fd)) == NULL)
 		return (EBADF);
 #ifdef CAPABILITIES
 	/*
@@ -179,7 +179,6 @@ sys_socket(td, uap)
 		int	protocol;
 	} */ *uap;
 {
-	struct filedesc *fdp;
 	struct socket *so;
 	struct file *fp;
 	int fd, error;
@@ -191,7 +190,6 @@ sys_socket(td, uap)
 	if (error)
 		return (error);
 #endif
-	fdp = td->td_proc->p_fd;
 	error = falloc(td, &fp, &fd, 0);
 	if (error)
 		return (error);
@@ -199,7 +197,7 @@ sys_socket(td, uap)
 	error = socreate(uap->domain, &so, uap->type, uap->protocol,
 	    td->td_ucred, td);
 	if (error) {
-		fdclose(fdp, fp, fd, td);
+		fdclose(td->td_proc->p_fd, fp, fd, td);
 	} else {
 		finit(fp, FREAD | FWRITE, DTYPE_SOCKET, so, &socketops);
 		td->td_retval[0] = fd;
@@ -1836,7 +1834,6 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	struct vm_page *pg;
 	off_t off, xfsize, fsbytes = 0, sbytes = 0, rem = 0;
 	int error, hdrlen = 0, mnw = 0;
-	int vfslocked;
 	struct sendfile_sync *sfs = NULL;
 
 	/*
@@ -1848,7 +1845,6 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	AUDIT_ARG_FD(uap->fd);
 	if ((error = fgetvp_read(td, uap->fd, CAP_READ, &vp)) != 0)
 		goto out;
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_lock(vp, LK_SHARED | LK_RETRY);
 	if (vp->v_type == VREG) {
 		obj = vp->v_object;
@@ -1870,7 +1866,6 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 		}
 	}
 	VOP_UNLOCK(vp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
 	if (obj == NULL) {
 		error = EINVAL;
 		goto out;
@@ -1962,6 +1957,7 @@ kern_sendfile(struct thread *td, struct sendfile_args *uap,
 	 * and takes care of the overall progress.
 	 */
 	for (off = uap->offset, rem = uap->nbytes; ; ) {
+		struct mbuf *mtail = NULL;
 		int loopbytes = 0;
 		int space = 0;
 		int done = 0;
@@ -2099,7 +2095,6 @@ retry_space:
 				/*
 				 * Get the page from backing store.
 				 */
-				vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 				error = vn_lock(vp, LK_SHARED);
 				if (error != 0)
 					goto after_read;
@@ -2117,7 +2112,6 @@ retry_space:
 				    td->td_ucred, NOCRED, &resid, td);
 				VOP_UNLOCK(vp, 0);
 			after_read:
-				VFS_UNLOCK_GIANT(vfslocked);
 				VM_OBJECT_LOCK(obj);
 				vm_page_io_finish(pg);
 				if (!error)
@@ -2181,10 +2175,13 @@ retry_space:
 			m0->m_len = xfsize;
 
 			/* Append to mbuf chain. */
-			if (m != NULL)
-				m_cat(m, m0);
+			if (mtail != NULL)
+				mtail->m_next = m0;
+			else if (m != NULL)
+				m_last(m)->m_next = m0;
 			else
 				m = m0;
+			mtail = m0;
 
 			/* Keep track of bits processed. */
 			loopbytes += xfsize;
@@ -2268,11 +2265,8 @@ out:
 	}
 	if (obj != NULL)
 		vm_object_deallocate(obj);
-	if (vp != NULL) {
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	if (vp != NULL)
 		vrele(vp);
-		VFS_UNLOCK_GIANT(vfslocked);
-	}
 	if (so)
 		fdrop(sock_fp, td);
 	if (m)
@@ -2309,25 +2303,23 @@ sys_sctp_peeloff(td, uap)
 	} */ *uap;
 {
 #if (defined(INET) || defined(INET6)) && defined(SCTP)
-	struct filedesc *fdp;
 	struct file *nfp = NULL;
 	int error;
 	struct socket *head, *so;
 	int fd;
 	u_int fflag;
 
-	fdp = td->td_proc->p_fd;
 	AUDIT_ARG_FD(uap->sd);
 	error = fgetsock(td, uap->sd, CAP_PEELOFF, &head, &fflag);
 	if (error)
 		goto done2;
 	if (head->so_proto->pr_protocol != IPPROTO_SCTP) {
 		error = EOPNOTSUPP;
-		goto done2;
+		goto done;
 	}
 	error = sctp_can_peel_off(head, (sctp_assoc_t)uap->name);
 	if (error)
-		goto done2;
+		goto done;
 	/*
 	 * At this point we know we do have a assoc to pull
 	 * we proceed to get the fd setup. This may block
@@ -2374,7 +2366,7 @@ noconnection:
 	 * out from under us.
 	 */
 	if (error)
-		fdclose(fdp, nfp, fd, td);
+		fdclose(td->td_proc->p_fd, nfp, fd, td);
 
 	/*
 	 * Release explicitly held references before returning.

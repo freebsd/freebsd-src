@@ -25,26 +25,25 @@ template<typename decl_type>
 class Redeclarable {
 
 protected:
-  // FIXME: PointerIntPair is a value class that should not be inherited from.
-  // This should change to using containment.
-  struct DeclLink : public llvm::PointerIntPair<decl_type *, 1, bool> {
+  class DeclLink {
+    llvm::PointerIntPair<decl_type *, 1, bool> NextAndIsPrevious;
+  public:
     DeclLink(decl_type *D, bool isLatest)
-      : llvm::PointerIntPair<decl_type *, 1, bool>(D, isLatest) { }
+      : NextAndIsPrevious(D, isLatest) { }
 
-    typedef llvm::PointerIntPair<decl_type *, 1, bool> base_type;
-
-    bool NextIsPrevious() const { return base_type::getInt() == false; }
-    bool NextIsLatest() const { return base_type::getInt() == true; }
-    decl_type *getNext() const { return base_type::getPointer(); }
+    bool NextIsPrevious() const { return !NextAndIsPrevious.getInt(); }
+    bool NextIsLatest() const { return NextAndIsPrevious.getInt(); }
+    decl_type *getNext() const { return NextAndIsPrevious.getPointer(); }
+    void setNext(decl_type *D) { NextAndIsPrevious.setPointer(D); }
   };
 
-  struct PreviousDeclLink : public DeclLink {
-    PreviousDeclLink(decl_type *D) : DeclLink(D, false) { }
-  };
+  static DeclLink PreviousDeclLink(decl_type *D) {
+    return DeclLink(D, false);
+  }
 
-  struct LatestDeclLink : public DeclLink {
-    LatestDeclLink(decl_type *D) : DeclLink(D, true) { }
-  };
+  static DeclLink LatestDeclLink(decl_type *D) {
+    return DeclLink(D, true);
+  }
 
   /// \brief Points to the next redeclaration in the chain.
   ///
@@ -64,22 +63,22 @@ public:
 
   /// \brief Return the previous declaration of this declaration or NULL if this
   /// is the first declaration.
-  decl_type *getPreviousDeclaration() {
+  decl_type *getPreviousDecl() {
     if (RedeclLink.NextIsPrevious())
       return RedeclLink.getNext();
     return 0;
   }
-  const decl_type *getPreviousDeclaration() const {
+  const decl_type *getPreviousDecl() const {
     return const_cast<decl_type *>(
-                 static_cast<const decl_type*>(this))->getPreviousDeclaration();
+                 static_cast<const decl_type*>(this))->getPreviousDecl();
   }
 
   /// \brief Return the first declaration of this declaration or itself if this
   /// is the only declaration.
   decl_type *getFirstDeclaration() {
     decl_type *D = static_cast<decl_type*>(this);
-    while (D->getPreviousDeclaration())
-      D = D->getPreviousDeclaration();
+    while (D->getPreviousDecl())
+      D = D->getPreviousDecl();
     return D;
   }
 
@@ -87,8 +86,8 @@ public:
   /// is the only declaration.
   const decl_type *getFirstDeclaration() const {
     const decl_type *D = static_cast<const decl_type*>(this);
-    while (D->getPreviousDeclaration())
-      D = D->getPreviousDeclaration();
+    while (D->getPreviousDecl())
+      D = D->getPreviousDecl();
     return D;
   }
 
@@ -98,12 +97,12 @@ public:
   }
 
   /// \brief Returns the most recent (re)declaration of this declaration.
-  decl_type *getMostRecentDeclaration() {
+  decl_type *getMostRecentDecl() {
     return getFirstDeclaration()->RedeclLink.getNext();
   }
 
   /// \brief Returns the most recent (re)declaration of this declaration.
-  const decl_type *getMostRecentDeclaration() const {
+  const decl_type *getMostRecentDecl() const {
     return getFirstDeclaration()->RedeclLink.getNext();
   }
   
@@ -116,6 +115,7 @@ public:
     /// Current - The current declaration.
     decl_type *Current;
     decl_type *Starter;
+    bool PassedFirst;
 
   public:
     typedef decl_type*                value_type;
@@ -125,13 +125,24 @@ public:
     typedef std::ptrdiff_t            difference_type;
 
     redecl_iterator() : Current(0) { }
-    explicit redecl_iterator(decl_type *C) : Current(C), Starter(C) { }
+    explicit redecl_iterator(decl_type *C)
+      : Current(C), Starter(C), PassedFirst(false) { }
 
     reference operator*() const { return Current; }
     pointer operator->() const { return Current; }
 
     redecl_iterator& operator++() {
       assert(Current && "Advancing while iterator has reached end");
+      // Sanity check to avoid infinite loop on invalid redecl chain.
+      if (Current->isFirstDeclaration()) {
+        if (PassedFirst) {
+          assert(0 && "Passed first decl twice, invalid redecl chain!");
+          Current = 0;
+          return *this;
+        }
+        PassedFirst = true;
+      }
+
       // Get either previous decl or latest decl.
       decl_type *Next = Current->RedeclLink.getNext();
       Current = (Next != Starter ? Next : 0);

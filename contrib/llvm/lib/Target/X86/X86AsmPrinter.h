@@ -17,7 +17,6 @@
 #include "X86.h"
 #include "X86MachineFunctionInfo.h"
 #include "X86TargetMachine.h"
-#include "llvm/ADT/StringSet.h"
 #include "llvm/CodeGen/AsmPrinter.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/ValueTypes.h"
@@ -25,11 +24,7 @@
 
 namespace llvm {
 
-class MachineJumpTableInfo;
-class MCContext;
-class MCInst;
 class MCStreamer;
-class MCSymbol;
 
 class LLVM_LIBRARY_VISIBILITY X86AsmPrinter : public AsmPrinter {
   const X86Subtarget *Subtarget;
@@ -42,15 +37,15 @@ class LLVM_LIBRARY_VISIBILITY X86AsmPrinter : public AsmPrinter {
   virtual const char *getPassName() const {
     return "X86 AT&T-Style Assembly Printer";
   }
-  
+
   const X86Subtarget &getSubtarget() const { return *Subtarget; }
 
   virtual void EmitStartOfAsmFile(Module &M);
 
   virtual void EmitEndOfAsmFile(Module &M);
-  
+
   virtual void EmitInstruction(const MachineInstr *MI);
-  
+
   void printSymbolOperand(const MachineOperand &MO, raw_ostream &O);
 
   // These methods are used by the tablegen'erated instruction printer.
@@ -76,7 +71,7 @@ class LLVM_LIBRARY_VISIBILITY X86AsmPrinter : public AsmPrinter {
   void printPICLabel(const MachineInstr *MI, unsigned Op, raw_ostream &O);
 
   bool runOnMachineFunction(MachineFunction &F);
-  
+
   void PrintDebugValueComment(const MachineInstr *MI, raw_ostream &OS);
 
   MachineLocation getDebugValueLocation(const MachineInstr *MI) const;

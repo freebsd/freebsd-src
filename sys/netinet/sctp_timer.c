@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,8 +29,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-/* $KAME: sctp_timer.c,v 1.29 2005/03/06 16:04:18 itojun Exp $	 */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -92,7 +90,7 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	if (net) {
 		net->error_count++;
 		SCTPDBG(SCTP_DEBUG_TIMER4, "Error count for %p now %d thresh:%d\n",
-		    net, net->error_count,
+		    (void *)net, net->error_count,
 		    net->failure_threshold);
 		if (net->error_count > net->failure_threshold) {
 			/* We had a threshold failure */
@@ -101,8 +99,7 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 				net->dest_state &= ~SCTP_ADDR_REQ_PRIMARY;
 				net->dest_state &= ~SCTP_ADDR_PF;
 				sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_DOWN,
-				    stcb,
-				    SCTP_FAILED_THRESHOLD,
+				    stcb, 0,
 				    (void *)net, SCTP_SO_NOT_LOCKED);
 			}
 		} else if ((net->pf_threshold < net->failure_threshold) &&
@@ -141,7 +138,7 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		stcb->asoc.overall_error_count++;
 	}
 	SCTPDBG(SCTP_DEBUG_TIMER4, "Overall error count for %p now %d thresh:%u state:%x\n",
-	    &stcb->asoc, stcb->asoc.overall_error_count,
+	    (void *)&stcb->asoc, stcb->asoc.overall_error_count,
 	    (uint32_t) threshold,
 	    ((net == NULL) ? (uint32_t) 0 : (uint32_t) net->dest_state));
 	/*
@@ -167,7 +164,7 @@ sctp_threshold_management(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			*ippp = htonl(SCTP_FROM_SCTP_TIMER + SCTP_LOC_1);
 		}
 		inp->last_abort_code = SCTP_FROM_SCTP_TIMER + SCTP_LOC_1;
-		sctp_abort_an_association(inp, stcb, SCTP_FAILED_THRESHOLD, oper, SCTP_SO_NOT_LOCKED);
+		sctp_abort_an_association(inp, stcb, oper, SCTP_SO_NOT_LOCKED);
 		return (1);
 	}
 	return (0);
@@ -442,7 +439,12 @@ sctp_recover_sent_list(struct sctp_tcb *stcb)
 	TAILQ_FOREACH_SAFE(chk, &asoc->sent_queue, sctp_next, nchk) {
 		if (SCTP_TSN_GE(asoc->last_acked_seq, chk->rec.data.TSN_seq)) {
 			SCTP_PRINTF("Found chk:%p tsn:%x <= last_acked_seq:%x\n",
-			    chk, chk->rec.data.TSN_seq, asoc->last_acked_seq);
+			    (void *)chk, chk->rec.data.TSN_seq, asoc->last_acked_seq);
+			if (chk->sent != SCTP_DATAGRAM_NR_ACKED) {
+				if (asoc->strmout[chk->rec.data.stream_number].chunks_on_queues > 0) {
+					asoc->strmout[chk->rec.data.stream_number].chunks_on_queues--;
+				}
+			}
 			TAILQ_REMOVE(&asoc->sent_queue, chk, sctp_next);
 			if (chk->pr_sctp_on) {
 				if (asoc->pr_sctp_cnt != 0)
@@ -463,7 +465,7 @@ sctp_recover_sent_list(struct sctp_tcb *stcb)
 	}
 	SCTP_PRINTF("after recover order is as follows\n");
 	TAILQ_FOREACH(chk, &asoc->sent_queue, sctp_next) {
-		SCTP_PRINTF("chk:%p TSN:%x\n", chk, chk->rec.data.TSN_seq);
+		SCTP_PRINTF("chk:%p TSN:%x\n", (void *)chk, chk->rec.data.TSN_seq);
 	}
 }
 
@@ -615,7 +617,7 @@ start_again:
 					if (chk->data) {
 						(void)sctp_release_pr_sctp_chunk(stcb,
 						    chk,
-						    (SCTP_RESPONSE_TO_USER_REQ | SCTP_NOTIFY_DATAGRAM_SENT),
+						    1,
 						    SCTP_SO_NOT_LOCKED);
 						cnt_abandoned++;
 					}
@@ -628,7 +630,7 @@ start_again:
 					if (chk->data) {
 						(void)sctp_release_pr_sctp_chunk(stcb,
 						    chk,
-						    (SCTP_RESPONSE_TO_USER_REQ | SCTP_NOTIFY_DATAGRAM_SENT),
+						    1,
 						    SCTP_SO_NOT_LOCKED);
 						cnt_abandoned++;
 					}
@@ -770,7 +772,7 @@ start_again:
 	if (audit_tf) {
 		SCTPDBG(SCTP_DEBUG_TIMER4,
 		    "Audit total flight due to negative value net:%p\n",
-		    net);
+		    (void *)net);
 		stcb->asoc.total_flight = 0;
 		stcb->asoc.total_flight_count = 0;
 		/* Clear all networks flight size */
@@ -778,7 +780,7 @@ start_again:
 			lnets->flight_size = 0;
 			SCTPDBG(SCTP_DEBUG_TIMER4,
 			    "Net:%p c-f cwnd:%d ssthresh:%d\n",
-			    lnets, lnets->cwnd, lnets->ssthresh);
+			    (void *)lnets, lnets->cwnd, lnets->ssthresh);
 		}
 		TAILQ_FOREACH(chk, &stcb->asoc.sent_queue, sctp_next) {
 			if (chk->sent < SCTP_DATAGRAM_RESEND) {
@@ -1066,8 +1068,7 @@ sctp_cookie_timer(struct sctp_inpcb *inp,
 				*ippp = htonl(SCTP_FROM_SCTP_TIMER + SCTP_LOC_3);
 			}
 			inp->last_abort_code = SCTP_FROM_SCTP_TIMER + SCTP_LOC_4;
-			sctp_abort_an_association(inp, stcb, SCTP_INTERNAL_ERROR,
-			    oper, SCTP_SO_NOT_LOCKED);
+			sctp_abort_an_association(inp, stcb, oper, SCTP_SO_NOT_LOCKED);
 		} else {
 #ifdef INVARIANTS
 			panic("Cookie timer expires in wrong state?");
@@ -1438,7 +1439,23 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		 * when move to PF during threshold mangement, a HB has been
 		 * queued in that routine
 		 */
-		sctp_send_hb(stcb, net, SCTP_SO_NOT_LOCKED);
+		uint32_t ms_gone_by;
+
+		if ((net->last_sent_time.tv_sec > 0) ||
+		    (net->last_sent_time.tv_usec > 0)) {
+			struct timeval diff;
+
+			SCTP_GETTIME_TIMEVAL(&diff);
+			timevalsub(&diff, &net->last_sent_time);
+			ms_gone_by = (uint32_t) (diff.tv_sec * 1000) +
+			    (uint32_t) (diff.tv_usec / 1000);
+		} else {
+			ms_gone_by = 0xffffffff;
+		}
+		if ((ms_gone_by >= net->heart_beat_delay) ||
+		    (net->dest_state & SCTP_ADDR_PF)) {
+			sctp_send_hb(stcb, net, SCTP_SO_NOT_LOCKED);
+		}
 	}
 	return (0);
 }

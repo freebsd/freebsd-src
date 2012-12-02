@@ -2028,6 +2028,9 @@ mls_system_check_acct(struct ucred *cred, struct vnode *vp,
 	if (!mls_enabled)
 		return (0);
 
+	if (vplabel == NULL)
+		return (0);
+
 	subj = SLOT(cred->cr_label);
 	obj = SLOT(vplabel);
 

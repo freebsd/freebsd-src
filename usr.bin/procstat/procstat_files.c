@@ -476,4 +476,5 @@ procstat_files(struct procstat *procstat, struct kinfo_proc *kipp)
 
 		printf("\n");
 	}
+	procstat_freefiles(procstat, head);
 }

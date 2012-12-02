@@ -62,8 +62,6 @@ class Diagnostic<string text, DiagClass DC, DiagMapping defaultmapping> {
   DiagMapping DefaultMapping = defaultmapping;
   DiagGroup   Group;
   string      CategoryName = "";
-  string      Brief = "";
-  string      Explanation = "";
 }
 
 class Error<string str>     : Diagnostic<str, CLASS_ERROR, MAP_ERROR>;
@@ -87,19 +85,15 @@ class DefaultWarnShowInSystemHeader {
 class NoSFINAE { bit SFINAE = 0; }
 class AccessControl { bit AccessControl = 1; }
 
-class Brief<string str> { string Brief = str; }
-class FullExplanation<string brief, string full> {
-  string Brief = brief;
-  string Explanation = full;
-}
-
 // Definitions for Diagnostics.
 include "DiagnosticASTKinds.td"
 include "DiagnosticAnalysisKinds.td"
+include "DiagnosticCommentKinds.td"
 include "DiagnosticCommonKinds.td"
 include "DiagnosticDriverKinds.td"
 include "DiagnosticFrontendKinds.td"
 include "DiagnosticLexKinds.td"
 include "DiagnosticParseKinds.td"
 include "DiagnosticSemaKinds.td"
+include "DiagnosticSerializationKinds.td"
 

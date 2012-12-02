@@ -346,6 +346,7 @@ owner_parse(const char *spec, int *uid, int *gid)
 				snprintf(errbuff, sizeof(errbuff),
 				    "Couldn't lookup user ``%s''", user);
 				errbuff[sizeof(errbuff) - 1] = '\0';
+				free(user);
 				return (errbuff);
 			}
 		}

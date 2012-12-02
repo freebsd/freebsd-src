@@ -335,7 +335,7 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 	struct vnode *vp;
 	char *freepath, *fullpath;
 	u_int pathlen;
-	int error, index, vfslocked;
+	int error, index;
 
 	error = 0;
 	obj = NULL;
@@ -412,14 +412,12 @@ ptrace_vm_entry(struct thread *td, struct proc *p, struct ptrace_vm_entry *pve)
 			freepath = NULL;
 			fullpath = NULL;
 			vn_fullpath(td, vp, &fullpath, &freepath);
-			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 			vn_lock(vp, LK_SHARED | LK_RETRY);
 			if (VOP_GETATTR(vp, &vattr, td->td_ucred) == 0) {
 				pve->pve_fileid = vattr.va_fileid;
 				pve->pve_fsid = vattr.va_fsid;
 			}
 			vput(vp);
-			VFS_UNLOCK_GIANT(vfslocked);
 
 			if (fullpath != NULL) {
 				pve->pve_pathlen = strlen(fullpath) + 1;
@@ -635,7 +633,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 	struct iovec iov;
 	struct uio uio;
 	struct proc *curp, *p, *pp;
-	struct thread *td2 = NULL;
+	struct thread *td2 = NULL, *td3;
 	struct ptrace_io_desc *piod = NULL;
 	struct ptrace_lwpinfo *pl;
 	int error, write, tmp, num;
@@ -953,10 +951,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			td2->td_xsig = data;
 
 			if (req == PT_DETACH) {
-				struct thread *td3;
-				FOREACH_THREAD_IN_PROC(p, td3) {
+				FOREACH_THREAD_IN_PROC(p, td3)
 					td3->td_dbgflags &= ~TDB_SUSPEND; 
-				}
 			}
 			/*
 			 * unsuspend all threads, to not let a thread run,
@@ -967,6 +963,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SIG|P_WAITED);
 			thread_unsuspend(p);
 			PROC_SUNLOCK(p);
+			if (req == PT_ATTACH)
+				kern_psignal(p, data);
 		} else {
 			if (data)
 				kern_psignal(p, data);
@@ -1112,6 +1110,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 #endif
 		pl = addr;
 		pl->pl_lwpid = td2->td_tid;
+		pl->pl_event = PL_EVENT_NONE;
 		pl->pl_flags = 0;
 		if (td2->td_dbgflags & TDB_XSIG) {
 			pl->pl_event = PL_EVENT_SIGNAL;

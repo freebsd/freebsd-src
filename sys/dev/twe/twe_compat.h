@@ -43,9 +43,13 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/lock.h>
 #include <sys/module.h>
+#include <sys/mutex.h>
 #include <sys/sysctl.h>
+#include <sys/sx.h>
 
+#include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/disk.h>
@@ -58,6 +62,8 @@
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
+#include <geom/geom_disk.h>
+
 #define TWE_DRIVER_NAME		twe
 #define TWED_DRIVER_NAME	twed
 #define TWE_MALLOC_CLASS	M_TWE
@@ -65,10 +71,10 @@
 /* 
  * Wrappers for bus-space actions
  */
-#define TWE_CONTROL(sc, val)		bus_space_write_4((sc)->twe_btag, (sc)->twe_bhandle, 0x0, (u_int32_t)val)
-#define TWE_STATUS(sc)			(u_int32_t)bus_space_read_4((sc)->twe_btag, (sc)->twe_bhandle, 0x4)
-#define TWE_COMMAND_QUEUE(sc, val)	bus_space_write_4((sc)->twe_btag, (sc)->twe_bhandle, 0x8, (u_int32_t)val)
-#define TWE_RESPONSE_QUEUE(sc)		(TWE_Response_Queue)bus_space_read_4((sc)->twe_btag, (sc)->twe_bhandle, 0xc)
+#define TWE_CONTROL(sc, val)		bus_write_4((sc)->twe_io, 0x0, (u_int32_t)val)
+#define TWE_STATUS(sc)			(u_int32_t)bus_read_4((sc)->twe_io, 0x4)
+#define TWE_COMMAND_QUEUE(sc, val)	bus_write_4((sc)->twe_io, 0x8, (u_int32_t)val)
+#define TWE_RESPONSE_QUEUE(sc)		(TWE_Response_Queue)bus_read_4((sc)->twe_io, 0xc)
 
 /*
  * FreeBSD-specific softc elements
@@ -79,8 +85,6 @@
     device_t			twe_dev;		/* bus device */		\
     struct cdev *twe_dev_t;		/* control device */		\
     struct resource		*twe_io;		/* register interface window */	\
-    bus_space_handle_t		twe_bhandle;		/* bus space handle */		\
-    bus_space_tag_t		twe_btag;		/* bus space tag */		\
     bus_dma_tag_t		twe_parent_dmat;	/* parent DMA tag */		\
     bus_dma_tag_t		twe_buffer_dmat;	/* data buffer DMA tag */	\
     bus_dma_tag_t		twe_cmd_dmat;		/* command buffer DMA tag */	\
@@ -91,8 +95,8 @@
     void			*twe_cmd;		/* command structures */	\
     void			*twe_immediate;		/* immediate commands */	\
     bus_dmamap_t		twe_immediate_map;					\
-    struct sysctl_ctx_list	sysctl_ctx;						\
-    struct sysctl_oid		*sysctl_tree;
+    struct mtx			twe_io_lock;						\
+    struct sx			twe_config_lock;
 
 /*
  * FreeBSD-specific request elements
@@ -107,52 +111,12 @@
 #define twe_printf(sc, fmt, args...)	device_printf(sc->twe_dev, fmt , ##args)
 #define twed_printf(twed, fmt, args...)	device_printf(twed->twed_dev, fmt , ##args)
 
-#if __FreeBSD_version < 500003
-# include <machine/clock.h>
-# define INTR_ENTROPY			0
-# define FREEBSD_4
-
-# include <sys/buf.h>			/* old buf style */
-typedef struct buf			twe_bio;
-typedef struct buf_queue_head		twe_bioq;
-# define TWE_BIO_QINIT(bq)		bufq_init(&bq);
-# define TWE_BIO_QINSERT(bq, bp)	bufq_insert_tail(&bq, bp)
-# define TWE_BIO_QFIRST(bq)		bufq_first(&bq)
-# define TWE_BIO_QREMOVE(bq, bp)	bufq_remove(&bq, bp)
-# define TWE_BIO_IS_READ(bp)		((bp)->b_flags & B_READ)
-# define TWE_BIO_DATA(bp)		(bp)->b_data
-# define TWE_BIO_LENGTH(bp)		(bp)->b_bcount
-# define TWE_BIO_LBA(bp)		(bp)->b_pblkno
-# define TWE_BIO_SOFTC(bp)		(bp)->b_dev->si_drv1
-# define TWE_BIO_UNIT(bp)		*(int *)((bp)->b_dev->si_drv2)
-# define TWE_BIO_SET_ERROR(bp, err)	do { (bp)->b_error = err; (bp)->b_flags |= B_ERROR;} while(0)
-# define TWE_BIO_HAS_ERROR(bp)		((bp)->b_flags & B_ERROR)
-# define TWE_BIO_RESID(bp)		(bp)->b_resid
-# define TWE_BIO_DONE(bp)		biodone(bp)
-# define TWE_BIO_STATS_START(bp)	devstat_start_transaction(&((struct twed_softc *)TWE_BIO_SOFTC(bp))->twed_stats)
-# define TWE_BIO_STATS_END(bp)		devstat_end_transaction_buf(&((struct twed_softc *)TWE_BIO_SOFTC(bp))->twed_stats, bp)
-#else
-# include <sys/bio.h>
-# include <geom/geom_disk.h>
-typedef struct bio			twe_bio;
-typedef struct bio_queue_head		twe_bioq;
-# define TWE_BIO_QINIT(bq)		bioq_init(&bq);
-# define TWE_BIO_QINSERT(bq, bp)	bioq_insert_tail(&bq, bp)
-# define TWE_BIO_QFIRST(bq)		bioq_first(&bq)
-# define TWE_BIO_QREMOVE(bq, bp)	bioq_remove(&bq, bp)
-# define TWE_BIO_IS_READ(bp)		((bp)->bio_cmd == BIO_READ)
-# define TWE_BIO_DATA(bp)		(bp)->bio_data
-# define TWE_BIO_LENGTH(bp)		(bp)->bio_bcount
-# define TWE_BIO_LBA(bp)		(bp)->bio_pblkno
-# define TWE_BIO_SOFTC(bp)		(bp)->bio_disk->d_drv1
-# define TWE_BIO_UNIT(bp)		*(int *)(bp->bio_driver1)
-# define TWE_BIO_SET_ERROR(bp, err)	do { (bp)->bio_error = err; (bp)->bio_flags |= BIO_ERROR;} while(0)
-# define TWE_BIO_HAS_ERROR(bp)		((bp)->bio_flags & BIO_ERROR)
-# define TWE_BIO_RESID(bp)		(bp)->bio_resid
-# define TWE_BIO_DONE(bp)		biodone(bp)
-# define TWE_BIO_STATS_START(bp)
-# define TWE_BIO_STATS_END(bp)
-#endif
+#define	TWE_IO_LOCK(sc)			mtx_lock(&(sc)->twe_io_lock)
+#define	TWE_IO_UNLOCK(sc)		mtx_unlock(&(sc)->twe_io_lock)
+#define	TWE_IO_ASSERT_LOCKED(sc)	mtx_assert(&(sc)->twe_io_lock, MA_OWNED)
+#define	TWE_CONFIG_LOCK(sc)		sx_xlock(&(sc)->twe_config_lock)
+#define	TWE_CONFIG_UNLOCK(sc)		sx_xunlock(&(sc)->twe_config_lock)
+#define	TWE_CONFIG_ASSERT_LOCKED(sc)	sx_assert(&(sc)->twe_config_lock, SA_XLOCKED)
 
 #endif /* FreeBSD */
 

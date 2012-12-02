@@ -79,18 +79,6 @@ typedef u_int64_t uint64_t;
 #endif
 #endif
 
-#ifdef _OpenBSD_
-#define INT8_MAX 127
-#define INT8_MIN -128
-#define UINT8_MAX 255
-#define INT16_MAX 32767
-#define INT16_MIN -32768
-#define UINT16_MAX 65535
-#define INT32_MAX 2147483647
-#define INT32_MIN -2147483648
-#define UINT32_MAX 4294967295U
-#endif
-
 #else /* _MSC_VER */
 /* Visual C++ doesn't provide standard integer headers, but it does provide
    built-in data types. */
@@ -167,8 +155,23 @@ typedef signed int ssize_t;
 # define UINT64_C(C) C##ui64
 #endif
 
+#ifndef PRId64
+# define PRId64 "I64d"
+#endif
+#ifndef PRIi64
+# define PRIi64 "I64i"
+#endif
+#ifndef PRIo64
+# define PRIo64 "I64o"
+#endif
+#ifndef PRIu64
+# define PRIu64 "I64u"
+#endif
 #ifndef PRIx64
 # define PRIx64 "I64x"
+#endif
+#ifndef PRIX64
+# define PRIX64 "I64X"
 #endif
 
 #endif /* _MSC_VER */

@@ -60,19 +60,19 @@ xdr_authunix_parms(xdrs, p)
 	XDR *xdrs;
 	struct authunix_parms *p;
 {
-	int **paup_gids;
+	u_int **paup_gids;
 
 	assert(xdrs != NULL);
 	assert(p != NULL);
 
 	paup_gids = &p->aup_gids;
 
-	if (xdr_u_long(xdrs, &(p->aup_time))
-	    && xdr_string(xdrs, &(p->aup_machname), MAX_MACHINE_NAME)
-	    && xdr_int(xdrs, &(p->aup_uid))
-	    && xdr_int(xdrs, &(p->aup_gid))
-	    && xdr_array(xdrs, (char **) paup_gids,
-		    &(p->aup_len), NGRPS, sizeof(int), (xdrproc_t)xdr_int) ) {
+	if (xdr_u_long(xdrs, &(p->aup_time)) &&
+	    xdr_string(xdrs, &(p->aup_machname), MAX_MACHINE_NAME) &&
+	    xdr_u_int(xdrs, &(p->aup_uid)) &&
+	    xdr_u_int(xdrs, &(p->aup_gid)) &&
+	    xdr_array(xdrs, (char **) paup_gids,
+	    &(p->aup_len), NGRPS, sizeof(u_int), (xdrproc_t)xdr_u_int) ) {
 		return (TRUE);
 	}
 	return (FALSE);

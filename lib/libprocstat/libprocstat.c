@@ -184,15 +184,18 @@ procstat_getprocs(struct procstat *procstat, int what, int arg,
 	struct kinfo_proc *p0, *p;
 	size_t len;
 	int name[4];
+	int cnt;
 	int error;
 
 	assert(procstat);
 	assert(count);
 	p = NULL;
 	if (procstat->type == PROCSTAT_KVM) {
-		p0 = kvm_getprocs(procstat->kd, what, arg, count);
-		if (p0 == NULL || count == 0)
+		*count = 0;
+		p0 = kvm_getprocs(procstat->kd, what, arg, &cnt);
+		if (p0 == NULL || cnt <= 0)
 			return (NULL);
+		*count = cnt;
 		len = *count * sizeof(*p);
 		p = malloc(len);
 		if (p == NULL) {
@@ -881,6 +884,8 @@ procstat_get_shm_info_kvm(kvm_t *kd, struct filestat *fst,
 {
 	struct shmfd shmfd;
 	void *shmfdp;
+	char *path;
+	int i;
 
 	assert(kd);
 	assert(shm);
@@ -896,6 +901,21 @@ procstat_get_shm_info_kvm(kvm_t *kd, struct filestat *fst,
 	}
 	shm->mode = S_IFREG | shmfd.shm_mode;
 	shm->size = shmfd.shm_size;
+	if (fst->fs_path == NULL && shmfd.shm_path != NULL) {
+		path = malloc(MAXPATHLEN);
+		for (i = 0; i < MAXPATHLEN - 1; i++) {
+			if (!kvm_read_all(kd, (unsigned long)shmfd.shm_path + i,
+			    path + i, 1))
+				break;
+			if (path[i] == '\0')
+				break;
+		}
+		path[i] = '\0';
+		if (i == 0)
+			free(path);
+		else
+			fst->fs_path = path;
+	}
 	return (0);
 
 fail:
@@ -953,11 +973,6 @@ procstat_get_vnode_info_kvm(kvm_t *kd, struct filestat *fst,
 		FSTYPE(isofs),
 		FSTYPE(msdosfs),
 		FSTYPE(nfs),
-		FSTYPE(ntfs),
-#ifdef LIBPROCSTAT_NWFS
-		FSTYPE(nwfs), 
-#endif
-		FSTYPE(smbfs),
 		FSTYPE(udf), 
 		FSTYPE(ufs),
 #ifdef LIBPROCSTAT_ZFS

@@ -21,7 +21,7 @@
 
 /*
  * Copyright 2008 Sun Microsystems, Inc.  All rights reserved.
- * Use is subject to license terms.
+ * Copyright (c) 2011, Joyent Inc. All rights reserved.
  */
 
 #pragma ident	"%Z%%M%	%I%	%E% SMI"
@@ -31,8 +31,12 @@
 #if defined(sun)
 #include <alloca.h>
 #endif
+#include <fcntl.h>
 #include <stdlib.h>
 #include <stdio.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
 
 #include <dt_parser.h>
 #include <dt_impl.h>
@@ -201,6 +205,29 @@ dt_pragma_binding(const char *prname, dt_node_t *dnp)
 		dtp->dt_globals->dh_defer = &dt_pragma_apply;
 }
 
+static void 
+dt_pragma_depends_finddep(dtrace_hdl_t *dtp, const char *lname, char *lib,
+    size_t len)
+{
+	dt_dirpath_t *dirp;
+	struct stat sbuf;
+	int found = 0;
+
+	for (dirp = dt_list_next(&dtp->dt_lib_path); dirp != NULL;
+	    dirp = dt_list_next(dirp)) {
+		(void) snprintf(lib, len, "%s/%s", dirp->dir_path, lname);
+
+		if (stat(lib, &sbuf) == 0) {
+			found = 1;
+			break;
+		}
+	}
+
+	if (!found)
+		xyerror(D_PRAGMA_DEPEND,
+		    "failed to find dependency in libpath: %s", lname);
+}
+
 /*
  * The #pragma depends_on directive can be used to express a dependency on a
  * module, provider or library which if not present will cause processing to
@@ -230,16 +257,13 @@ dt_pragma_depends(const char *prname, dt_node_t *cnp)
 		if (yypcb->pcb_cflags & DTRACE_C_CTL) {
 			assert(dtp->dt_filetag != NULL);
 
-			/*
-			 * We have the file we are working on in dtp->dt_filetag
-			 * so find that node and add the dependency in.
-			 */
+			dt_pragma_depends_finddep(dtp, nnp->dn_string, lib,
+			    sizeof (lib));
+
 			dld = dt_lib_depend_lookup(&dtp->dt_lib_dep,
 			    dtp->dt_filetag);
 			assert(dld != NULL);
 
-			(void) snprintf(lib, sizeof (lib), "%s%s",
-			    dld->dtld_libpath, nnp->dn_string);
 			if ((dt_lib_depend_add(dtp, &dld->dtld_dependencies,
 			    lib)) != 0) {
 				xyerror(D_PRAGMA_DEPEND,
@@ -261,8 +285,8 @@ dt_pragma_depends(const char *prname, dt_node_t *cnp)
 			    dtp->dt_filetag);
 			assert(dld != NULL);
 
-			(void) snprintf(lib, sizeof (lib), "%s%s",
-			    dld->dtld_libpath, nnp->dn_string);
+			dt_pragma_depends_finddep(dtp, nnp->dn_string, lib,
+			    sizeof (lib));
 			dld = dt_lib_depend_lookup(&dtp->dt_lib_dep_sorted,
 			    lib);
 			assert(dld != NULL);

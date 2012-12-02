@@ -49,8 +49,7 @@ void CCState::HandleByVal(unsigned ValNo, MVT ValVT,
     Size = MinSize;
   if (MinAlign > (int)Align)
     Align = MinAlign;
-  if (MF.getFrameInfo()->getMaxAlignment() < Align)
-    MF.getFrameInfo()->setMaxAlignment(Align);
+  MF.getFrameInfo()->ensureMaxAlignment(Align);
   TM.getTargetLowering()->HandleByVal(this, Size);
   unsigned Offset = AllocateStack(Size, Align);
   addLoc(CCValAssign::getMem(ValNo, ValVT, Offset, LocVT, LocInfo));
@@ -58,9 +57,8 @@ void CCState::HandleByVal(unsigned ValNo, MVT ValVT,
 
 /// MarkAllocated - Mark a register and all of its aliases as allocated.
 void CCState::MarkAllocated(unsigned Reg) {
-  for (const unsigned *Alias = TRI.getOverlaps(Reg);
-       unsigned Reg = *Alias; ++Alias)
-    UsedRegs[Reg/32] |= 1 << (Reg&31);
+  for (MCRegAliasIterator AI(Reg, &TRI, true); AI.isValid(); ++AI)
+    UsedRegs[*AI/32] |= 1 << (*AI&31);
 }
 
 /// AnalyzeFormalArguments - Analyze an array of argument values,

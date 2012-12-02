@@ -1,0 +1,18 @@
+The following is a demonstration of the sigdist.d script.
+
+
+Here we run sigdist.d, and in another window we kill -9 a sleep process,
+
+   # ./sigdist.d
+   Tracing... Hit Ctrl-C to end.
+   ^C
+             SENDER        RECIPIENT    SIG  COUNT
+              sched           dtrace      2      1
+              sched             bash     18      1
+               bash            sleep      9      1
+              sched             Xorg     14     55
+
+We can see the signal sent from bash to sleep. We can also see that Xorg
+has recieved 55 signal 14s. a "man -s3head signal" may help explain what
+signal 14 is (alarm clock). 
+

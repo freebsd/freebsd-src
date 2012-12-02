@@ -21,8 +21,10 @@
 #include "clang/AST/ExprObjC.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/DeclObjC.h"
+#include "clang/AST/ASTMutationListener.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Sema/DeclSpec.h"
+#include "clang/Lex/Preprocessor.h"
 #include "llvm/ADT/DenseSet.h"
 
 using namespace clang;
@@ -59,7 +61,7 @@ bool Sema::checkInitMethod(ObjCMethodDecl *method,
 
     // It's okay for the result type to still be a forward declaration
     // if we're checking an interface declaration.
-    if (resultClass->isForwardDecl()) {
+    if (!resultClass->hasDefinition()) {
       if (receiverTypeIfCall.isNull() &&
           !isa<ObjCImplementationDecl>(method->getDeclContext()))
         return false;
@@ -156,7 +158,7 @@ void Sema::CheckObjCMethodOverride(ObjCMethodDecl *NewMethod,
       Diag(Overridden->getLocation(), 
            diag::note_related_result_type_overridden);
   }
-  if (getLangOptions().ObjCAutoRefCount) {
+  if (getLangOpts().ObjCAutoRefCount) {
     if ((NewMethod->hasAttr<NSReturnsRetainedAttr>() !=
          Overridden->hasAttr<NSReturnsRetainedAttr>())) {
         Diag(NewMethod->getLocation(),
@@ -171,10 +173,11 @@ void Sema::CheckObjCMethodOverride(ObjCMethodDecl *NewMethod,
         Diag(Overridden->getLocation(), diag::note_previous_decl) 
         << "method";
     }
-    ObjCMethodDecl::param_const_iterator oi = Overridden->param_begin();
+    ObjCMethodDecl::param_const_iterator oi = Overridden->param_begin(),
+                                         oe = Overridden->param_end();
     for (ObjCMethodDecl::param_iterator
            ni = NewMethod->param_begin(), ne = NewMethod->param_end();
-         ni != ne; ++ni, ++oi) {
+         ni != ne && oi != oe; ++ni, ++oi) {
       const ParmVarDecl *oldDecl = (*oi);
       ParmVarDecl *newDecl = (*ni);
       if (newDecl->hasAttr<NSConsumedAttr>() != 
@@ -194,7 +197,6 @@ static bool CheckARCMethodDecl(Sema &S, ObjCMethodDecl *method) {
   ObjCMethodFamily family = method->getMethodFamily();
   switch (family) {
   case OMF_None:
-  case OMF_dealloc:
   case OMF_finalize:
   case OMF_retain:
   case OMF_release:
@@ -204,6 +206,24 @@ static bool CheckARCMethodDecl(Sema &S, ObjCMethodDecl *method) {
   case OMF_performSelector:
     return false;
 
+  case OMF_dealloc:
+    if (!S.Context.hasSameType(method->getResultType(), S.Context.VoidTy)) {
+      SourceRange ResultTypeRange;
+      if (const TypeSourceInfo *ResultTypeInfo
+          = method->getResultTypeSourceInfo())
+        ResultTypeRange = ResultTypeInfo->getTypeLoc().getSourceRange();
+      if (ResultTypeRange.isInvalid())
+        S.Diag(method->getLocation(), diag::error_dealloc_bad_result_type) 
+          << method->getResultType() 
+          << FixItHint::CreateInsertion(method->getSelectorLoc(0), "(void)");
+      else
+        S.Diag(method->getLocation(), diag::error_dealloc_bad_result_type) 
+          << method->getResultType() 
+          << FixItHint::CreateReplacement(ResultTypeRange, "void");
+      return true;
+    }
+    return false;
+      
   case OMF_init:
     // If the method doesn't obey the init rules, don't bother annotating it.
     if (S.checkInitMethod(method, QualType()))
@@ -241,7 +261,8 @@ static void DiagnoseObjCImplementedDeprecations(Sema &S,
   if (ND && ND->isDeprecated()) {
     S.Diag(ImplLoc, diag::warn_deprecated_def) << select;
     if (select == 0)
-      S.Diag(ND->getLocation(), diag::note_method_declared_at);
+      S.Diag(ND->getLocation(), diag::note_method_declared_at)
+        << ND->getDeclName();
     else
       S.Diag(ND->getLocation(), diag::note_previous_decl) << "class";
   }
@@ -264,9 +285,9 @@ void Sema::AddAnyMethodToGlobalPool(Decl *D) {
 /// ActOnStartOfObjCMethodDef - This routine sets up parameters; invisible
 /// and user declared, in the method definition's AST.
 void Sema::ActOnStartOfObjCMethodDef(Scope *FnBodyScope, Decl *D) {
-  assert(getCurMethodDecl() == 0 && "Method parsing confused");
+  assert((getCurMethodDecl() == 0) && "Methodparsing confused");
   ObjCMethodDecl *MDecl = dyn_cast_or_null<ObjCMethodDecl>(D);
-
+  
   // If we don't have a valid method decl, simply return.
   if (!MDecl)
     return;
@@ -297,7 +318,7 @@ void Sema::ActOnStartOfObjCMethodDef(Scope *FnBodyScope, Decl *D) {
   }
 
   // In ARC, disallow definition of retain/release/autorelease/retainCount
-  if (getLangOptions().ObjCAutoRefCount) {
+  if (getLangOpts().ObjCAutoRefCount) {
     switch (MDecl->getMethodFamily()) {
     case OMF_retain:
     case OMF_retainCount:
@@ -335,15 +356,37 @@ void Sema::ActOnStartOfObjCMethodDef(Scope *FnBodyScope, Decl *D) {
     // Finally, in ActOnFinishFunctionBody() (SemaDecl), warn if flag is set.
     // Only do this if the current class actually has a superclass.
     if (IC->getSuperClass()) {
-      ObjCShouldCallSuperDealloc = 
-        !(Context.getLangOptions().ObjCAutoRefCount ||
-          Context.getLangOptions().getGC() == LangOptions::GCOnly) &&
+      getCurFunction()->ObjCShouldCallSuperDealloc = 
+        !(Context.getLangOpts().ObjCAutoRefCount ||
+          Context.getLangOpts().getGC() == LangOptions::GCOnly) &&
         MDecl->getMethodFamily() == OMF_dealloc;
-      ObjCShouldCallSuperFinalize =
-        Context.getLangOptions().getGC() != LangOptions::NonGC &&
+      getCurFunction()->ObjCShouldCallSuperFinalize =
+        Context.getLangOpts().getGC() != LangOptions::NonGC &&
         MDecl->getMethodFamily() == OMF_finalize;
     }
   }
+}
+
+namespace {
+
+// Callback to only accept typo corrections that are Objective-C classes.
+// If an ObjCInterfaceDecl* is given to the constructor, then the validation
+// function will reject corrections to that class.
+class ObjCInterfaceValidatorCCC : public CorrectionCandidateCallback {
+ public:
+  ObjCInterfaceValidatorCCC() : CurrentIDecl(0) {}
+  explicit ObjCInterfaceValidatorCCC(ObjCInterfaceDecl *IDecl)
+      : CurrentIDecl(IDecl) {}
+
+  virtual bool ValidateCandidate(const TypoCorrection &candidate) {
+    ObjCInterfaceDecl *ID = candidate.getCorrectionDeclAs<ObjCInterfaceDecl>();
+    return ID && !declaresSameEntity(ID, CurrentIDecl);
+  }
+
+ private:
+  ObjCInterfaceDecl *CurrentIDecl;
+};
+
 }
 
 Decl *Sema::
@@ -364,54 +407,44 @@ ActOnStartClassInterface(SourceLocation AtInterfaceLoc,
     Diag(PrevDecl->getLocation(), diag::note_previous_definition);
   }
 
-  ObjCInterfaceDecl* IDecl = dyn_cast_or_null<ObjCInterfaceDecl>(PrevDecl);
-  if (IDecl) {
-    // Class already seen. Is it a forward declaration?
-    if (!IDecl->isForwardDecl()) {
+  // Create a declaration to describe this @interface.
+  ObjCInterfaceDecl* PrevIDecl = dyn_cast_or_null<ObjCInterfaceDecl>(PrevDecl);
+  ObjCInterfaceDecl *IDecl
+    = ObjCInterfaceDecl::Create(Context, CurContext, AtInterfaceLoc, ClassName,
+                                PrevIDecl, ClassLoc);
+  
+  if (PrevIDecl) {
+    // Class already seen. Was it a definition?
+    if (ObjCInterfaceDecl *Def = PrevIDecl->getDefinition()) {
+      Diag(AtInterfaceLoc, diag::err_duplicate_class_def)
+        << PrevIDecl->getDeclName();
+      Diag(Def->getLocation(), diag::note_previous_definition);
       IDecl->setInvalidDecl();
-      Diag(AtInterfaceLoc, diag::err_duplicate_class_def)<<IDecl->getDeclName();
-      Diag(IDecl->getLocation(), diag::note_previous_definition);
-
-      // Return the previous class interface.
-      // FIXME: don't leak the objects passed in!
-      return ActOnObjCContainerStartDefinition(IDecl);
-    } else {
-      IDecl->setLocation(ClassLoc);
-      IDecl->setForwardDecl(false);
-      IDecl->setAtStartLoc(AtInterfaceLoc);
-      // If the forward decl was in a PCH, we need to write it again in a
-      // dependent AST file.
-      IDecl->setChangedSinceDeserialization(true);
-      
-      // Since this ObjCInterfaceDecl was created by a forward declaration,
-      // we now add it to the DeclContext since it wasn't added before
-      // (see ActOnForwardClassDeclaration).
-      IDecl->setLexicalDeclContext(CurContext);
-      CurContext->addDecl(IDecl);
-      
-      if (AttrList)
-        ProcessDeclAttributeList(TUScope, IDecl, AttrList);
     }
-  } else {
-    IDecl = ObjCInterfaceDecl::Create(Context, CurContext, AtInterfaceLoc,
-                                      ClassName, ClassLoc);
-    if (AttrList)
-      ProcessDeclAttributeList(TUScope, IDecl, AttrList);
-
-    PushOnScopeChains(IDecl, TUScope);
   }
+  
+  if (AttrList)
+    ProcessDeclAttributeList(TUScope, IDecl, AttrList);
+  PushOnScopeChains(IDecl, TUScope);
 
+  // Start the definition of this class. If we're in a redefinition case, there 
+  // may already be a definition, so we'll end up adding to it.
+  if (!IDecl->hasDefinition())
+    IDecl->startDefinition();
+  
   if (SuperName) {
     // Check if a different kind of symbol declared in this scope.
     PrevDecl = LookupSingleName(TUScope, SuperName, SuperLoc,
                                 LookupOrdinaryName);
 
     if (!PrevDecl) {
-      // Try to correct for a typo in the superclass name.
-      TypoCorrection Corrected = CorrectTypo(
+      // Try to correct for a typo in the superclass name without correcting
+      // to the class we're defining.
+      ObjCInterfaceValidatorCCC Validator(IDecl);
+      if (TypoCorrection Corrected = CorrectTypo(
           DeclarationNameInfo(SuperName, SuperLoc), LookupOrdinaryName, TUScope,
-          NULL, NULL, false, CTC_NoKeywords);
-      if ((PrevDecl = Corrected.getCorrectionDeclAs<ObjCInterfaceDecl>())) {
+          NULL, Validator)) {
+        PrevDecl = Corrected.getCorrectionDeclAs<ObjCInterfaceDecl>();
         Diag(SuperLoc, diag::err_undef_superclass_suggest)
           << SuperName << ClassName << PrevDecl->getDeclName();
         Diag(PrevDecl->getLocation(), diag::note_previous_decl)
@@ -419,10 +452,10 @@ ActOnStartClassInterface(SourceLocation AtInterfaceLoc,
       }
     }
 
-    if (PrevDecl == IDecl) {
+    if (declaresSameEntity(PrevDecl, IDecl)) {
       Diag(SuperLoc, diag::err_recursive_superclass)
         << SuperName << ClassName << SourceRange(AtInterfaceLoc, ClassLoc);
-      IDecl->setLocEnd(ClassLoc);
+      IDecl->setEndOfDefinitionLoc(ClassLoc);
     } else {
       ObjCInterfaceDecl *SuperClassDecl =
                                 dyn_cast_or_null<ObjCInterfaceDecl>(PrevDecl);
@@ -458,40 +491,41 @@ ActOnStartClassInterface(SourceLocation AtInterfaceLoc,
         if (!SuperClassDecl)
           Diag(SuperLoc, diag::err_undef_superclass)
             << SuperName << ClassName << SourceRange(AtInterfaceLoc, ClassLoc);
-        else if (SuperClassDecl->isForwardDecl()) {
-          Diag(SuperLoc, diag::err_forward_superclass)
-            << SuperClassDecl->getDeclName() << ClassName
-            << SourceRange(AtInterfaceLoc, ClassLoc);
-          Diag(SuperClassDecl->getLocation(), diag::note_forward_class);
+        else if (RequireCompleteType(SuperLoc, 
+                                  Context.getObjCInterfaceType(SuperClassDecl),
+                                     diag::err_forward_superclass,
+                                     SuperClassDecl->getDeclName(),
+                                     ClassName,
+                                     SourceRange(AtInterfaceLoc, ClassLoc))) {
           SuperClassDecl = 0;
         }
       }
       IDecl->setSuperClass(SuperClassDecl);
       IDecl->setSuperClassLoc(SuperLoc);
-      IDecl->setLocEnd(SuperLoc);
+      IDecl->setEndOfDefinitionLoc(SuperLoc);
     }
   } else { // we have a root class.
-    IDecl->setLocEnd(ClassLoc);
+    IDecl->setEndOfDefinitionLoc(ClassLoc);
   }
 
   // Check then save referenced protocols.
   if (NumProtoRefs) {
     IDecl->setProtocolList((ObjCProtocolDecl**)ProtoRefs, NumProtoRefs,
                            ProtoLocs, Context);
-    IDecl->setLocEnd(EndProtoLoc);
+    IDecl->setEndOfDefinitionLoc(EndProtoLoc);
   }
 
   CheckObjCDeclScope(IDecl);
   return ActOnObjCContainerStartDefinition(IDecl);
 }
 
-/// ActOnCompatiblityAlias - this action is called after complete parsing of
-/// @compatibility_alias declaration. It sets up the alias relationships.
-Decl *Sema::ActOnCompatiblityAlias(SourceLocation AtLoc,
-                                        IdentifierInfo *AliasName,
-                                        SourceLocation AliasLocation,
-                                        IdentifierInfo *ClassName,
-                                        SourceLocation ClassLocation) {
+/// ActOnCompatibilityAlias - this action is called after complete parsing of
+/// a \@compatibility_alias declaration. It sets up the alias relationships.
+Decl *Sema::ActOnCompatibilityAlias(SourceLocation AtLoc,
+                                    IdentifierInfo *AliasName,
+                                    SourceLocation AliasLocation,
+                                    IdentifierInfo *ClassName,
+                                    SourceLocation ClassLocation) {
   // Look for previous declaration of alias name
   NamedDecl *ADecl = LookupSingleName(TUScope, AliasName, AliasLocation,
                                       LookupOrdinaryName, ForRedeclaration);
@@ -550,6 +584,10 @@ bool Sema::CheckForwardProtocolDeclarationForCircularDependency(
         Diag(PrevLoc, diag::note_previous_definition);
         res = true;
       }
+      
+      if (!PDecl->hasDefinition())
+        continue;
+      
       if (CheckForwardProtocolDeclarationForCircularDependency(PName, Ploc,
             PDecl->getLocation(), PDecl->getReferencedProtocols()))
         res = true;
@@ -570,44 +608,52 @@ Sema::ActOnStartProtocolInterface(SourceLocation AtProtoInterfaceLoc,
   bool err = false;
   // FIXME: Deal with AttrList.
   assert(ProtocolName && "Missing protocol identifier");
-  ObjCProtocolDecl *PDecl = LookupProtocol(ProtocolName, ProtocolLoc);
-  if (PDecl) {
-    // Protocol already seen. Better be a forward protocol declaration
-    if (!PDecl->isForwardDecl()) {
-      Diag(ProtocolLoc, diag::warn_duplicate_protocol_def) << ProtocolName;
-      Diag(PDecl->getLocation(), diag::note_previous_definition);
-      // Just return the protocol we already had.
-      // FIXME: don't leak the objects passed in!
-      return ActOnObjCContainerStartDefinition(PDecl);
-    }
-    ObjCList<ObjCProtocolDecl> PList;
-    PList.set((ObjCProtocolDecl *const*)ProtoRefs, NumProtoRefs, Context);
-    err = CheckForwardProtocolDeclarationForCircularDependency(
-            ProtocolName, ProtocolLoc, PDecl->getLocation(), PList);
+  ObjCProtocolDecl *PrevDecl = LookupProtocol(ProtocolName, ProtocolLoc,
+                                              ForRedeclaration);
+  ObjCProtocolDecl *PDecl = 0;
+  if (ObjCProtocolDecl *Def = PrevDecl? PrevDecl->getDefinition() : 0) {
+    // If we already have a definition, complain.
+    Diag(ProtocolLoc, diag::warn_duplicate_protocol_def) << ProtocolName;
+    Diag(Def->getLocation(), diag::note_previous_definition);
 
-    // Make sure the cached decl gets a valid start location.
-    PDecl->setAtStartLoc(AtProtoInterfaceLoc);
-    PDecl->setLocation(ProtocolLoc);
-    PDecl->setForwardDecl(false);
-    // Since this ObjCProtocolDecl was created by a forward declaration,
-    // we now add it to the DeclContext since it wasn't added before
-    PDecl->setLexicalDeclContext(CurContext);
-    CurContext->addDecl(PDecl);
-    // Repeat in dependent AST files.
-    PDecl->setChangedSinceDeserialization(true);
-  } else {
+    // Create a new protocol that is completely distinct from previous
+    // declarations, and do not make this protocol available for name lookup.
+    // That way, we'll end up completely ignoring the duplicate.
+    // FIXME: Can we turn this into an error?
     PDecl = ObjCProtocolDecl::Create(Context, CurContext, ProtocolName,
-                                     ProtocolLoc, AtProtoInterfaceLoc);
+                                     ProtocolLoc, AtProtoInterfaceLoc,
+                                     /*PrevDecl=*/0);
+    PDecl->startDefinition();
+  } else {
+    if (PrevDecl) {
+      // Check for circular dependencies among protocol declarations. This can
+      // only happen if this protocol was forward-declared.
+      ObjCList<ObjCProtocolDecl> PList;
+      PList.set((ObjCProtocolDecl *const*)ProtoRefs, NumProtoRefs, Context);
+      err = CheckForwardProtocolDeclarationForCircularDependency(
+              ProtocolName, ProtocolLoc, PrevDecl->getLocation(), PList);
+    }
+
+    // Create the new declaration.
+    PDecl = ObjCProtocolDecl::Create(Context, CurContext, ProtocolName,
+                                     ProtocolLoc, AtProtoInterfaceLoc,
+                                     /*PrevDecl=*/PrevDecl);
+    
     PushOnScopeChains(PDecl, TUScope);
-    PDecl->setForwardDecl(false);
+    PDecl->startDefinition();
   }
+  
   if (AttrList)
     ProcessDeclAttributeList(TUScope, PDecl, AttrList);
+  
+  // Merge attributes from previous declarations.
+  if (PrevDecl)
+    mergeDeclAttributes(PDecl, PrevDecl);
+
   if (!err && NumProtoRefs ) {
     /// Check then save referenced protocols.
     PDecl->setProtocolList((ObjCProtocolDecl**)ProtoRefs, NumProtoRefs,
                            ProtoLocs, Context);
-    PDecl->setLocEnd(EndProtoLoc);
   }
 
   CheckObjCDeclScope(PDecl);
@@ -626,9 +672,10 @@ Sema::FindProtocolDeclaration(bool WarnOnDeclarations,
     ObjCProtocolDecl *PDecl = LookupProtocol(ProtocolId[i].first,
                                              ProtocolId[i].second);
     if (!PDecl) {
+      DeclFilterCCC<ObjCProtocolDecl> Validator;
       TypoCorrection Corrected = CorrectTypo(
           DeclarationNameInfo(ProtocolId[i].first, ProtocolId[i].second),
-          LookupObjCProtocolName, TUScope, NULL, NULL, false, CTC_NoKeywords);
+          LookupObjCProtocolName, TUScope, NULL, Validator);
       if ((PDecl = Corrected.getCorrectionDeclAs<ObjCProtocolDecl>())) {
         Diag(ProtocolId[i].second, diag::err_undeclared_protocol_suggest)
           << ProtocolId[i].first << Corrected.getCorrection();
@@ -647,7 +694,7 @@ Sema::FindProtocolDeclaration(bool WarnOnDeclarations,
 
     // If this is a forward declaration and we are supposed to warn in this
     // case, do it.
-    if (WarnOnDeclarations && PDecl->isForwardDecl())
+    if (WarnOnDeclarations && !PDecl->hasDefinition())
       Diag(ProtocolId[i].second, diag::warn_undef_protocolref)
         << ProtocolId[i].first;
     Protocols.push_back(PDecl);
@@ -683,41 +730,35 @@ void Sema::DiagnoseClassExtensionDupMethods(ObjCCategoryDecl *CAT,
   }
 }
 
-/// ActOnForwardProtocolDeclaration - Handle @protocol foo;
-Decl *
+/// ActOnForwardProtocolDeclaration - Handle \@protocol foo;
+Sema::DeclGroupPtrTy
 Sema::ActOnForwardProtocolDeclaration(SourceLocation AtProtocolLoc,
                                       const IdentifierLocPair *IdentList,
                                       unsigned NumElts,
                                       AttributeList *attrList) {
-  SmallVector<ObjCProtocolDecl*, 32> Protocols;
-  SmallVector<SourceLocation, 8> ProtoLocs;
-
+  SmallVector<Decl *, 8> DeclsInGroup;
   for (unsigned i = 0; i != NumElts; ++i) {
     IdentifierInfo *Ident = IdentList[i].first;
-    ObjCProtocolDecl *PDecl = LookupProtocol(Ident, IdentList[i].second);
-    bool isNew = false;
-    if (PDecl == 0) { // Not already seen?
-      PDecl = ObjCProtocolDecl::Create(Context, CurContext, Ident,
-                                       IdentList[i].second, AtProtocolLoc);
-      PushOnScopeChains(PDecl, TUScope, false);
-      isNew = true;
-    }
-    if (attrList) {
+    ObjCProtocolDecl *PrevDecl = LookupProtocol(Ident, IdentList[i].second,
+                                                ForRedeclaration);
+    ObjCProtocolDecl *PDecl
+      = ObjCProtocolDecl::Create(Context, CurContext, Ident, 
+                                 IdentList[i].second, AtProtocolLoc,
+                                 PrevDecl);
+        
+    PushOnScopeChains(PDecl, TUScope);
+    CheckObjCDeclScope(PDecl);
+    
+    if (attrList)
       ProcessDeclAttributeList(TUScope, PDecl, attrList);
-      if (!isNew)
-        PDecl->setChangedSinceDeserialization(true);
-    }
-    Protocols.push_back(PDecl);
-    ProtoLocs.push_back(IdentList[i].second);
+    
+    if (PrevDecl)
+      mergeDeclAttributes(PDecl, PrevDecl);
+
+    DeclsInGroup.push_back(PDecl);
   }
 
-  ObjCForwardProtocolDecl *PDecl =
-    ObjCForwardProtocolDecl::Create(Context, CurContext, AtProtocolLoc,
-                                    Protocols.data(), Protocols.size(),
-                                    ProtoLocs.data());
-  CurContext->addDecl(PDecl);
-  CheckObjCDeclScope(PDecl);
-  return PDecl;
+  return BuildDeclaratorGroup(DeclsInGroup.data(), DeclsInGroup.size(), false);
 }
 
 Decl *Sema::
@@ -733,14 +774,21 @@ ActOnStartCategoryInterface(SourceLocation AtInterfaceLoc,
   ObjCInterfaceDecl *IDecl = getObjCInterfaceDecl(ClassName, ClassLoc, true);
 
   /// Check that class of this category is already completely declared.
-  if (!IDecl || IDecl->isForwardDecl()) {
+
+  if (!IDecl 
+      || RequireCompleteType(ClassLoc, Context.getObjCInterfaceType(IDecl),
+                             diag::err_category_forward_interface,
+                             CategoryName == 0)) {
     // Create an invalid ObjCCategoryDecl to serve as context for
     // the enclosing method declarations.  We mark the decl invalid
     // to make it clear that this isn't a valid AST.
     CDecl = ObjCCategoryDecl::Create(Context, CurContext, AtInterfaceLoc,
                                      ClassLoc, CategoryLoc, CategoryName,IDecl);
     CDecl->setInvalidDecl();
-    Diag(ClassLoc, diag::err_undef_interface) << ClassName;
+    CurContext->addDecl(CDecl);
+        
+    if (!IDecl)
+      Diag(ClassLoc, diag::err_undef_interface) << ClassName;
     return ActOnObjCContainerStartDefinition(CDecl);
   }
 
@@ -792,23 +840,27 @@ Decl *Sema::ActOnStartCategoryImplementation(
                       IdentifierInfo *CatName, SourceLocation CatLoc) {
   ObjCInterfaceDecl *IDecl = getObjCInterfaceDecl(ClassName, ClassLoc, true);
   ObjCCategoryDecl *CatIDecl = 0;
-  if (IDecl) {
+  if (IDecl && IDecl->hasDefinition()) {
     CatIDecl = IDecl->FindCategoryDeclaration(CatName);
     if (!CatIDecl) {
       // Category @implementation with no corresponding @interface.
       // Create and install one.
-      CatIDecl = ObjCCategoryDecl::Create(Context, CurContext, SourceLocation(),
-                                          SourceLocation(), SourceLocation(),
+      CatIDecl = ObjCCategoryDecl::Create(Context, CurContext, AtCatImplLoc,
+                                          ClassLoc, CatLoc,
                                           CatName, IDecl);
+      CatIDecl->setImplicit();
     }
   }
 
   ObjCCategoryImplDecl *CDecl =
     ObjCCategoryImplDecl::Create(Context, CurContext, CatName, IDecl,
-                                 ClassLoc, AtCatImplLoc);
+                                 ClassLoc, AtCatImplLoc, CatLoc);
   /// Check that class of this category is already completely declared.
-  if (!IDecl || IDecl->isForwardDecl()) {
+  if (!IDecl) {
     Diag(ClassLoc, diag::err_undef_interface) << ClassName;
+    CDecl->setInvalidDecl();
+  } else if (RequireCompleteType(ClassLoc, Context.getObjCInterfaceType(IDecl),
+                                 diag::err_undef_interface)) {
     CDecl->setInvalidDecl();
   }
 
@@ -854,23 +906,21 @@ Decl *Sema::ActOnStartClassImplementation(
     Diag(ClassLoc, diag::err_redefinition_different_kind) << ClassName;
     Diag(PrevDecl->getLocation(), diag::note_previous_definition);
   } else if ((IDecl = dyn_cast_or_null<ObjCInterfaceDecl>(PrevDecl))) {
-    // If this is a forward declaration of an interface, warn.
-    if (IDecl->isForwardDecl()) {
-      Diag(ClassLoc, diag::warn_undef_interface) << ClassName;
-      IDecl = 0;
-    }
+    RequireCompleteType(ClassLoc, Context.getObjCInterfaceType(IDecl),
+                        diag::warn_undef_interface);
   } else {
     // We did not find anything with the name ClassName; try to correct for 
     // typos in the class name.
-    TypoCorrection Corrected = CorrectTypo(
+    ObjCInterfaceValidatorCCC Validator;
+    if (TypoCorrection Corrected = CorrectTypo(
         DeclarationNameInfo(ClassName, ClassLoc), LookupOrdinaryName, TUScope,
-        NULL, NULL, false, CTC_NoKeywords);
-    if ((IDecl = Corrected.getCorrectionDeclAs<ObjCInterfaceDecl>())) {
+        NULL, Validator)) {
       // Suggest the (potentially) correct interface name. However, put the
       // fix-it hint itself in a separate note, since changing the name in 
       // the warning would make the fix-it change semantics.However, don't
       // provide a code-modification hint or use the typo name for recovery,
       // because this is just a warning. The program may actually be correct.
+      IDecl = Corrected.getCorrectionDeclAs<ObjCInterfaceDecl>();
       DeclarationName CorrectedName = Corrected.getCorrection();
       Diag(ClassLoc, diag::warn_undef_interface_suggest)
         << ClassName << CorrectedName;
@@ -894,10 +944,12 @@ Decl *Sema::ActOnStartClassImplementation(
       Diag(PrevDecl->getLocation(), diag::note_previous_definition);
     } else {
       SDecl = dyn_cast_or_null<ObjCInterfaceDecl>(PrevDecl);
+      if (SDecl && !SDecl->hasDefinition())
+        SDecl = 0;
       if (!SDecl)
         Diag(SuperClassLoc, diag::err_undef_superclass)
           << SuperClassname << ClassName;
-      else if (IDecl && IDecl->getSuperClass() != SDecl) {
+      else if (IDecl && !declaresSameEntity(IDecl->getSuperClass(), SDecl)) {
         // This implementation and its interface do not have the same
         // super class.
         Diag(SuperClassLoc, diag::err_conflicting_super_class)
@@ -914,16 +966,24 @@ Decl *Sema::ActOnStartClassImplementation(
     // FIXME: Do we support attributes on the @implementation? If so we should
     // copy them over.
     IDecl = ObjCInterfaceDecl::Create(Context, CurContext, AtClassImplLoc,
-                                      ClassName, ClassLoc, false, true);
-    IDecl->setSuperClass(SDecl);
-    IDecl->setLocEnd(ClassLoc);
-
+                                      ClassName, /*PrevDecl=*/0, ClassLoc, 
+                                      true);
+    IDecl->startDefinition();
+    if (SDecl) {
+      IDecl->setSuperClass(SDecl);
+      IDecl->setSuperClassLoc(SuperClassLoc);
+      IDecl->setEndOfDefinitionLoc(SuperClassLoc);
+    } else {
+      IDecl->setEndOfDefinitionLoc(ClassLoc);
+    }
+    
     PushOnScopeChains(IDecl, TUScope);
   } else {
     // Mark the interface as being completed, even if it was just as
     //   @class ....;
     // declaration; the user cannot reopen it.
-    IDecl->setForwardDecl(false);
+    if (!IDecl->hasDefinition())
+      IDecl->startDefinition();
   }
 
   ObjCImplementationDecl* IMPDecl =
@@ -951,6 +1011,25 @@ Decl *Sema::ActOnStartClassImplementation(
   return ActOnObjCContainerStartDefinition(IMPDecl);
 }
 
+Sema::DeclGroupPtrTy
+Sema::ActOnFinishObjCImplementation(Decl *ObjCImpDecl, ArrayRef<Decl *> Decls) {
+  SmallVector<Decl *, 64> DeclsInGroup;
+  DeclsInGroup.reserve(Decls.size() + 1);
+
+  for (unsigned i = 0, e = Decls.size(); i != e; ++i) {
+    Decl *Dcl = Decls[i];
+    if (!Dcl)
+      continue;
+    if (Dcl->getDeclContext()->isFileContext())
+      Dcl->setTopLevelDeclInObjCContainer();
+    DeclsInGroup.push_back(Dcl);
+  }
+
+  DeclsInGroup.push_back(ObjCImpDecl);
+
+  return BuildDeclaratorGroup(DeclsInGroup.data(), DeclsInGroup.size(), false);
+}
+
 void Sema::CheckImplementationIvars(ObjCImplementationDecl *ImpDecl,
                                     ObjCIvarDecl **ivars, unsigned numIvars,
                                     SourceLocation RBrace) {
@@ -958,15 +1037,15 @@ void Sema::CheckImplementationIvars(ObjCImplementationDecl *ImpDecl,
   ObjCInterfaceDecl* IDecl = ImpDecl->getClassInterface();
   if (!IDecl)
     return;
-  /// Check case of non-existing @interface decl.
-  /// (legacy objective-c @implementation decl without an @interface decl).
+  /// Check case of non-existing \@interface decl.
+  /// (legacy objective-c \@implementation decl without an \@interface decl).
   /// Add implementations's ivar to the synthesize class's ivar list.
   if (IDecl->isImplicitInterfaceDecl()) {
-    IDecl->setLocEnd(RBrace);
+    IDecl->setEndOfDefinitionLoc(RBrace);
     // Add ivar's to class's DeclContext.
     for (unsigned i = 0, e = numIvars; i != e; ++i) {
       ivars[i]->setLexicalDeclContext(ImpDecl);
-      IDecl->makeDeclVisibleInContext(ivars[i], false);
+      IDecl->makeDeclVisibleInContext(ivars[i]);
       ImpDecl->addDecl(ivars[i]);
     }
     
@@ -977,7 +1056,7 @@ void Sema::CheckImplementationIvars(ObjCImplementationDecl *ImpDecl,
     return;
 
   assert(ivars && "missing @implementation ivars");
-  if (LangOpts.ObjCNonFragileABI2) {
+  if (LangOpts.ObjCRuntime.isNonFragile()) {
     if (ImpDecl->getSuperClass())
       Diag(ImpDecl->getLocation(), diag::warn_on_superclass_use);
     for (unsigned i = 0; i < numIvars; i++) {
@@ -990,7 +1069,7 @@ void Sema::CheckImplementationIvars(ObjCImplementationDecl *ImpDecl,
       }
       // Instance ivar to Implementation's DeclContext.
       ImplIvar->setLexicalDeclContext(ImpDecl);
-      IDecl->makeDeclVisibleInContext(ImplIvar, false);
+      IDecl->makeDeclVisibleInContext(ImplIvar);
       ImpDecl->addDecl(ImplIvar);
     }
     return;
@@ -1033,7 +1112,7 @@ void Sema::CheckImplementationIvars(ObjCImplementationDecl *ImpDecl,
   if (numIvars > 0)
     Diag(ivars[j]->getLocation(), diag::err_inconsistant_ivar_count);
   else if (IVI != IVE)
-    Diag((*IVI)->getLocation(), diag::err_inconsistant_ivar_count);
+    Diag(IVI->getLocation(), diag::err_inconsistant_ivar_count);
 }
 
 void Sema::WarnUndefinedMethod(SourceLocation ImpLoc, ObjCMethodDecl *method,
@@ -1329,7 +1408,7 @@ static bool checkMethodFamilyMismatch(Sema &S, ObjCMethodDecl *impl,
 void Sema::WarnConflictingTypedMethods(ObjCMethodDecl *ImpMethodDecl,
                                        ObjCMethodDecl *MethodDecl,
                                        bool IsProtocolMethodDecl) {
-  if (getLangOptions().ObjCAutoRefCount &&
+  if (getLangOpts().ObjCAutoRefCount &&
       checkMethodFamilyMismatch(*this, ImpMethodDecl, MethodDecl))
     return;
 
@@ -1338,8 +1417,9 @@ void Sema::WarnConflictingTypedMethods(ObjCMethodDecl *ImpMethodDecl,
                             true);
 
   for (ObjCMethodDecl::param_iterator IM = ImpMethodDecl->param_begin(),
-       IF = MethodDecl->param_begin(), EM = ImpMethodDecl->param_end();
-       IM != EM; ++IM, ++IF) {
+       IF = MethodDecl->param_begin(), EM = ImpMethodDecl->param_end(),
+       EF = MethodDecl->param_end();
+       IM != EM && IF != EF; ++IM, ++IF) {
     CheckMethodOverrideParam(*this, ImpMethodDecl, MethodDecl, *IM, *IF,
                              IsProtocolMethodDecl, false, true);
   }
@@ -1360,8 +1440,9 @@ void Sema::CheckConflictingOverridingMethod(ObjCMethodDecl *Method,
                             true);
   
   for (ObjCMethodDecl::param_iterator IM = Method->param_begin(),
-       IF = Overridden->param_begin(), EM = Method->param_end();
-       IM != EM; ++IM, ++IF) {
+       IF = Overridden->param_begin(), EM = Method->param_end(),
+       EF = Overridden->param_end();
+       IM != EM && IF != EF; ++IM, ++IF) {
     CheckMethodOverrideParam(*this, Method, Overridden, *IM, *IF,
                              IsProtocolMethodDecl, true, true);
   }
@@ -1393,8 +1474,9 @@ void Sema::WarnExactTypedMethods(ObjCMethodDecl *ImpMethodDecl,
                                       IsProtocolMethodDecl, false, false);
   if (match)
     for (ObjCMethodDecl::param_iterator IM = ImpMethodDecl->param_begin(),
-         IF = MethodDecl->param_begin(), EM = ImpMethodDecl->param_end();
-         IM != EM; ++IM, ++IF) {
+         IF = MethodDecl->param_begin(), EM = ImpMethodDecl->param_end(),
+         EF = MethodDecl->param_end();
+         IM != EM && IF != EF; ++IM, ++IF) {
       match = CheckMethodOverrideParam(*this, ImpMethodDecl, MethodDecl, 
                                        *IM, *IF,
                                        IsProtocolMethodDecl, false, false);
@@ -1410,7 +1492,8 @@ void Sema::WarnExactTypedMethods(ObjCMethodDecl *ImpMethodDecl,
   if (match) {
     Diag(ImpMethodDecl->getLocation(), 
          diag::warn_category_method_impl_match);
-    Diag(MethodDecl->getLocation(), diag::note_method_declared_at);
+    Diag(MethodDecl->getLocation(), diag::note_method_declared_at)
+      << MethodDecl->getDeclName();
   }
 }
 
@@ -1425,19 +1508,17 @@ void Sema::WarnExactTypedMethods(ObjCMethodDecl *ImpMethodDecl,
 void Sema::CheckProtocolMethodDefs(SourceLocation ImpLoc,
                                    ObjCProtocolDecl *PDecl,
                                    bool& IncompleteImpl,
-                                   const llvm::DenseSet<Selector> &InsMap,
-                                   const llvm::DenseSet<Selector> &ClsMap,
+                                   const SelectorSet &InsMap,
+                                   const SelectorSet &ClsMap,
                                    ObjCContainerDecl *CDecl) {
-  ObjCInterfaceDecl *IDecl;
-  if (ObjCCategoryDecl *C = dyn_cast<ObjCCategoryDecl>(CDecl))
-    IDecl = C->getClassInterface();
-  else
-    IDecl = dyn_cast<ObjCInterfaceDecl>(CDecl);
+  ObjCCategoryDecl *C = dyn_cast<ObjCCategoryDecl>(CDecl);
+  ObjCInterfaceDecl *IDecl = C ? C->getClassInterface() 
+                               : dyn_cast<ObjCInterfaceDecl>(CDecl);
   assert (IDecl && "CheckProtocolMethodDefs - IDecl is null");
   
   ObjCInterfaceDecl *Super = IDecl->getSuperClass();
   ObjCInterfaceDecl *NSIDecl = 0;
-  if (getLangOptions().NeXTRuntime) {
+  if (getLangOpts().ObjCRuntime.isNeXTFamily()) {
     // check to see if class implements forwardInvocation method and objects
     // of this class are derived from 'NSProxy' so that to forward requests
     // from one object to another.
@@ -1467,20 +1548,28 @@ void Sema::CheckProtocolMethodDefs(SourceLocation ImpLoc,
           !method->isSynthesized() && !InsMap.count(method->getSelector()) &&
           (!Super ||
            !Super->lookupInstanceMethod(method->getSelector()))) {
+            // If a method is not implemented in the category implementation but
+            // has been declared in its primary class, superclass,
+            // or in one of their protocols, no need to issue the warning. 
+            // This is because method will be implemented in the primary class 
+            // or one of its super class implementation.
+            
             // Ugly, but necessary. Method declared in protcol might have
             // have been synthesized due to a property declared in the class which
             // uses the protocol.
-            ObjCMethodDecl *MethodInClass =
-            IDecl->lookupInstanceMethod(method->getSelector());
-            if (!MethodInClass || !MethodInClass->isSynthesized()) {
-              unsigned DIAG = diag::warn_unimplemented_protocol_method;
-              if (Diags.getDiagnosticLevel(DIAG, ImpLoc)
-                      != DiagnosticsEngine::Ignored) {
-                WarnUndefinedMethod(ImpLoc, method, IncompleteImpl, DIAG);
-                Diag(method->getLocation(), diag::note_method_declared_at);
-                Diag(CDecl->getLocation(), diag::note_required_for_protocol_at)
-                  << PDecl->getDeclName();
-              }
+            if (ObjCMethodDecl *MethodInClass =
+                  IDecl->lookupInstanceMethod(method->getSelector(), 
+                                              true /*shallowCategoryLookup*/))
+              if (C || MethodInClass->isSynthesized())
+                continue;
+            unsigned DIAG = diag::warn_unimplemented_protocol_method;
+            if (Diags.getDiagnosticLevel(DIAG, ImpLoc)
+                != DiagnosticsEngine::Ignored) {
+              WarnUndefinedMethod(ImpLoc, method, IncompleteImpl, DIAG);
+              Diag(method->getLocation(), diag::note_method_declared_at)
+                << method->getDeclName();
+              Diag(CDecl->getLocation(), diag::note_required_for_protocol_at)
+                << PDecl->getDeclName();
             }
           }
     }
@@ -1492,11 +1581,16 @@ void Sema::CheckProtocolMethodDefs(SourceLocation ImpLoc,
     if (method->getImplementationControl() != ObjCMethodDecl::Optional &&
         !ClsMap.count(method->getSelector()) &&
         (!Super || !Super->lookupClassMethod(method->getSelector()))) {
+      // See above comment for instance method lookups.
+      if (C && IDecl->lookupClassMethod(method->getSelector(), 
+                                        true /*shallowCategoryLookup*/))
+        continue;
       unsigned DIAG = diag::warn_unimplemented_protocol_method;
       if (Diags.getDiagnosticLevel(DIAG, ImpLoc) !=
             DiagnosticsEngine::Ignored) {
         WarnUndefinedMethod(ImpLoc, method, IncompleteImpl, DIAG);
-        Diag(method->getLocation(), diag::note_method_declared_at);
+        Diag(method->getLocation(), diag::note_method_declared_at)
+          << method->getDeclName();
         Diag(IDecl->getLocation(), diag::note_required_for_protocol_at) <<
           PDecl->getDeclName();
       }
@@ -1505,21 +1599,21 @@ void Sema::CheckProtocolMethodDefs(SourceLocation ImpLoc,
   // Check on this protocols's referenced protocols, recursively.
   for (ObjCProtocolDecl::protocol_iterator PI = PDecl->protocol_begin(),
        E = PDecl->protocol_end(); PI != E; ++PI)
-    CheckProtocolMethodDefs(ImpLoc, *PI, IncompleteImpl, InsMap, ClsMap, IDecl);
+    CheckProtocolMethodDefs(ImpLoc, *PI, IncompleteImpl, InsMap, ClsMap, CDecl);
 }
 
 /// MatchAllMethodDeclarations - Check methods declared in interface
 /// or protocol against those declared in their implementations.
 ///
-void Sema::MatchAllMethodDeclarations(const llvm::DenseSet<Selector> &InsMap,
-                                      const llvm::DenseSet<Selector> &ClsMap,
-                                      llvm::DenseSet<Selector> &InsMapSeen,
-                                      llvm::DenseSet<Selector> &ClsMapSeen,
+void Sema::MatchAllMethodDeclarations(const SelectorSet &InsMap,
+                                      const SelectorSet &ClsMap,
+                                      SelectorSet &InsMapSeen,
+                                      SelectorSet &ClsMapSeen,
                                       ObjCImplDecl* IMPDecl,
                                       ObjCContainerDecl* CDecl,
                                       bool &IncompleteImpl,
                                       bool ImmediateClass,
-                                      bool WarnExactMatch) {
+                                      bool WarnCategoryMethodImpl) {
   // Check and see if instance methods in class interface have been
   // implemented in the implementation class. If so, their types match.
   for (ObjCInterfaceDecl::instmeth_iterator I = CDecl->instmeth_begin(),
@@ -1541,12 +1635,12 @@ void Sema::MatchAllMethodDeclarations(const llvm::DenseSet<Selector> &InsMap,
       ObjCMethodDecl *MethodDecl = *I;
       // ImpMethodDecl may be null as in a @dynamic property.
       if (ImpMethodDecl) {
-        if (!WarnExactMatch)
+        if (!WarnCategoryMethodImpl)
           WarnConflictingTypedMethods(ImpMethodDecl, MethodDecl,
                                       isa<ObjCProtocolDecl>(CDecl));
         else if (!MethodDecl->isSynthesized())
           WarnExactTypedMethods(ImpMethodDecl, MethodDecl,
-                               isa<ObjCProtocolDecl>(CDecl));
+                                isa<ObjCProtocolDecl>(CDecl));
       }
     }
   }
@@ -1568,12 +1662,12 @@ void Sema::MatchAllMethodDeclarations(const llvm::DenseSet<Selector> &InsMap,
       assert(CDecl->getClassMethod((*I)->getSelector()) &&
              "Expected to find the method through lookup as well");
       ObjCMethodDecl *MethodDecl = *I;
-      if (!WarnExactMatch)
+      if (!WarnCategoryMethodImpl)
         WarnConflictingTypedMethods(ImpMethodDecl, MethodDecl, 
                                     isa<ObjCProtocolDecl>(CDecl));
       else
         WarnExactTypedMethods(ImpMethodDecl, MethodDecl,
-                             isa<ObjCProtocolDecl>(CDecl));
+                              isa<ObjCProtocolDecl>(CDecl));
     }
   }
   
@@ -1584,7 +1678,8 @@ void Sema::MatchAllMethodDeclarations(const llvm::DenseSet<Selector> &InsMap,
       MatchAllMethodDeclarations(InsMap, ClsMap, InsMapSeen, ClsMapSeen,
                                  IMPDecl,
                                  const_cast<ObjCCategoryDecl *>(ClsExtDecl), 
-                                 IncompleteImpl, false, WarnExactMatch);
+                                 IncompleteImpl, false, 
+                                 WarnCategoryMethodImpl);
     
     // Check for any implementation of a methods declared in protocol.
     for (ObjCInterfaceDecl::all_protocol_iterator
@@ -1592,11 +1687,12 @@ void Sema::MatchAllMethodDeclarations(const llvm::DenseSet<Selector> &InsMap,
           E = I->all_referenced_protocol_end(); PI != E; ++PI)
       MatchAllMethodDeclarations(InsMap, ClsMap, InsMapSeen, ClsMapSeen,
                                  IMPDecl,
-                                 (*PI), IncompleteImpl, false, WarnExactMatch);
+                                 (*PI), IncompleteImpl, false, 
+                                 WarnCategoryMethodImpl);
     
     // FIXME. For now, we are not checking for extact match of methods 
     // in category implementation and its primary class's super class. 
-    if (!WarnExactMatch && I->getSuperClass())
+    if (!WarnCategoryMethodImpl && I->getSuperClass())
       MatchAllMethodDeclarations(InsMap, ClsMap, InsMapSeen, ClsMapSeen,
                                  IMPDecl,
                                  I->getSuperClass(), IncompleteImpl, false);
@@ -1608,7 +1704,7 @@ void Sema::MatchAllMethodDeclarations(const llvm::DenseSet<Selector> &InsMap,
 /// warns each time an exact match is found. 
 void Sema::CheckCategoryVsClassMethodMatches(
                                   ObjCCategoryImplDecl *CatIMPDecl) {
-  llvm::DenseSet<Selector> InsMap, ClsMap;
+  SelectorSet InsMap, ClsMap;
   
   for (ObjCImplementationDecl::instmeth_iterator
        I = CatIMPDecl->instmeth_begin(), 
@@ -1629,17 +1725,18 @@ void Sema::CheckCategoryVsClassMethodMatches(
   ObjCInterfaceDecl *IDecl = CatDecl->getClassInterface();
   if (!IDecl)
     return;
-  llvm::DenseSet<Selector> InsMapSeen, ClsMapSeen;
+  SelectorSet InsMapSeen, ClsMapSeen;
   bool IncompleteImpl = false;
   MatchAllMethodDeclarations(InsMap, ClsMap, InsMapSeen, ClsMapSeen,
                              CatIMPDecl, IDecl,
-                             IncompleteImpl, false, true /*WarnExactMatch*/);
+                             IncompleteImpl, false, 
+                             true /*WarnCategoryMethodImpl*/);
 }
 
 void Sema::ImplMethodsVsClassMethods(Scope *S, ObjCImplDecl* IMPDecl,
                                      ObjCContainerDecl* CDecl,
                                      bool IncompleteImpl) {
-  llvm::DenseSet<Selector> InsMap;
+  SelectorSet InsMap;
   // Check and see if instance methods in class interface have been
   // implemented in the implementation class.
   for (ObjCImplementationDecl::instmeth_iterator
@@ -1649,11 +1746,13 @@ void Sema::ImplMethodsVsClassMethods(Scope *S, ObjCImplDecl* IMPDecl,
   // Check and see if properties declared in the interface have either 1)
   // an implementation or 2) there is a @synthesize/@dynamic implementation
   // of the property in the @implementation.
-  if (isa<ObjCInterfaceDecl>(CDecl) &&
-        !(LangOpts.ObjCDefaultSynthProperties && LangOpts.ObjCNonFragileABI2))
-    DiagnoseUnimplementedProperties(S, IMPDecl, CDecl, InsMap);
+  if (const ObjCInterfaceDecl *IDecl = dyn_cast<ObjCInterfaceDecl>(CDecl))
+    if  (!(LangOpts.ObjCDefaultSynthProperties &&
+           LangOpts.ObjCRuntime.isNonFragile()) ||
+         IDecl->isObjCRequiresPropertyDefs())
+      DiagnoseUnimplementedProperties(S, IMPDecl, CDecl, InsMap);
       
-  llvm::DenseSet<Selector> ClsMap;
+  SelectorSet ClsMap;
   for (ObjCImplementationDecl::classmeth_iterator
        I = IMPDecl->classmeth_begin(),
        E = IMPDecl->classmeth_end(); I != E; ++I)
@@ -1661,7 +1760,7 @@ void Sema::ImplMethodsVsClassMethods(Scope *S, ObjCImplDecl* IMPDecl,
 
   // Check for type conflict of methods declared in a class/protocol and
   // its implementation; if any.
-  llvm::DenseSet<Selector> InsMapSeen, ClsMapSeen;
+  SelectorSet InsMapSeen, ClsMapSeen;
   MatchAllMethodDeclarations(InsMap, ClsMap, InsMapSeen, ClsMapSeen,
                              IMPDecl, CDecl,
                              IncompleteImpl, true);
@@ -1738,37 +1837,36 @@ Sema::ActOnForwardClassDeclaration(SourceLocation AtClassLoc,
       // typedef NSObject < XCElementTogglerP > XCElementToggler;
       // @class XCElementToggler;
       //
-      // FIXME: Make an extension?
+      // Here we have chosen to ignore the forward class declaration
+      // with a warning. Since this is the implied behavior.
       TypedefNameDecl *TDD = dyn_cast<TypedefNameDecl>(PrevDecl);
       if (!TDD || !TDD->getUnderlyingType()->isObjCObjectType()) {
         Diag(AtClassLoc, diag::err_redefinition_different_kind) << IdentList[i];
         Diag(PrevDecl->getLocation(), diag::note_previous_definition);
       } else {
         // a forward class declaration matching a typedef name of a class refers
-        // to the underlying class.
-        if (const ObjCObjectType *OI =
-              TDD->getUnderlyingType()->getAs<ObjCObjectType>())
-          PrevDecl = OI->getInterface();
+        // to the underlying class. Just ignore the forward class with a warning
+        // as this will force the intended behavior which is to lookup the typedef
+        // name.
+        if (isa<ObjCObjectType>(TDD->getUnderlyingType())) {
+          Diag(AtClassLoc, diag::warn_forward_class_redefinition) << IdentList[i];
+          Diag(PrevDecl->getLocation(), diag::note_previous_definition);
+          continue;
+        }
       }
     }
-    ObjCInterfaceDecl *IDecl = dyn_cast_or_null<ObjCInterfaceDecl>(PrevDecl);
-    if (!IDecl) {  // Not already seen?  Make a forward decl.
-      IDecl = ObjCInterfaceDecl::Create(Context, CurContext, AtClassLoc,
-                                        IdentList[i], IdentLocs[i], true);
-      
-      // Push the ObjCInterfaceDecl on the scope chain but do *not* add it to
-      // the current DeclContext.  This prevents clients that walk DeclContext
-      // from seeing the imaginary ObjCInterfaceDecl until it is actually
-      // declared later (if at all).  We also take care to explicitly make
-      // sure this declaration is visible for name lookup.
-      PushOnScopeChains(IDecl, TUScope, false);
-      CurContext->makeDeclVisibleInContext(IDecl, true);
-    }
-    ObjCClassDecl *CDecl = ObjCClassDecl::Create(Context, CurContext, AtClassLoc,
-                                                 IDecl, IdentLocs[i]);
-    CurContext->addDecl(CDecl);
-    CheckObjCDeclScope(CDecl);
-    DeclsInGroup.push_back(CDecl);
+    
+    // Create a declaration to describe this forward declaration.
+    ObjCInterfaceDecl *PrevIDecl
+      = dyn_cast_or_null<ObjCInterfaceDecl>(PrevDecl);
+    ObjCInterfaceDecl *IDecl
+      = ObjCInterfaceDecl::Create(Context, CurContext, AtClassLoc,
+                                  IdentList[i], PrevIDecl, IdentLocs[i]);
+    IDecl->setAtEndRange(IdentLocs[i]);
+    
+    PushOnScopeChains(IDecl, TUScope);
+    CheckObjCDeclScope(IDecl);
+    DeclsInGroup.push_back(IDecl);
   }
   
   return BuildDeclaratorGroup(DeclsInGroup.data(), DeclsInGroup.size(), false);
@@ -1870,7 +1968,7 @@ bool Sema::MatchTwoMethodDeclarations(const ObjCMethodDecl *left,
                   left->getResultType(), right->getResultType()))
     return false;
 
-  if (getLangOptions().ObjCAutoRefCount &&
+  if (getLangOpts().ObjCAutoRefCount &&
       (left->hasAttr<NSReturnsRetainedAttr>()
          != right->hasAttr<NSReturnsRetainedAttr>() ||
        left->hasAttr<NSConsumesSelfAttr>()
@@ -1878,85 +1976,91 @@ bool Sema::MatchTwoMethodDeclarations(const ObjCMethodDecl *left,
     return false;
 
   ObjCMethodDecl::param_const_iterator
-    li = left->param_begin(), le = left->param_end(), ri = right->param_begin();
+    li = left->param_begin(), le = left->param_end(), ri = right->param_begin(),
+    re = right->param_end();
 
-  for (; li != le; ++li, ++ri) {
+  for (; li != le && ri != re; ++li, ++ri) {
     assert(ri != right->param_end() && "Param mismatch");
     const ParmVarDecl *lparm = *li, *rparm = *ri;
 
     if (!matchTypes(Context, strategy, lparm->getType(), rparm->getType()))
       return false;
 
-    if (getLangOptions().ObjCAutoRefCount &&
+    if (getLangOpts().ObjCAutoRefCount &&
         lparm->hasAttr<NSConsumedAttr>() != rparm->hasAttr<NSConsumedAttr>())
       return false;
   }
   return true;
 }
 
+void Sema::addMethodToGlobalList(ObjCMethodList *List, ObjCMethodDecl *Method) {
+  // If the list is empty, make it a singleton list.
+  if (List->Method == 0) {
+    List->Method = Method;
+    List->Next = 0;
+    return;
+  }
+  
+  // We've seen a method with this name, see if we have already seen this type
+  // signature.
+  ObjCMethodList *Previous = List;
+  for (; List; Previous = List, List = List->Next) {
+    if (!MatchTwoMethodDeclarations(Method, List->Method))
+      continue;
+    
+    ObjCMethodDecl *PrevObjCMethod = List->Method;
+
+    // Propagate the 'defined' bit.
+    if (Method->isDefined())
+      PrevObjCMethod->setDefined(true);
+    
+    // If a method is deprecated, push it in the global pool.
+    // This is used for better diagnostics.
+    if (Method->isDeprecated()) {
+      if (!PrevObjCMethod->isDeprecated())
+        List->Method = Method;
+    }
+    // If new method is unavailable, push it into global pool
+    // unless previous one is deprecated.
+    if (Method->isUnavailable()) {
+      if (PrevObjCMethod->getAvailability() < AR_Deprecated)
+        List->Method = Method;
+    }
+    
+    return;
+  }
+  
+  // We have a new signature for an existing method - add it.
+  // This is extremely rare. Only 1% of Cocoa selectors are "overloaded".
+  ObjCMethodList *Mem = BumpAlloc.Allocate<ObjCMethodList>();
+  Previous->Next = new (Mem) ObjCMethodList(Method, 0);
+}
+
 /// \brief Read the contents of the method pool for a given selector from
 /// external storage.
-///
-/// This routine should only be called once, when the method pool has no entry
-/// for this selector.
-Sema::GlobalMethodPool::iterator Sema::ReadMethodPool(Selector Sel) {
+void Sema::ReadMethodPool(Selector Sel) {
   assert(ExternalSource && "We need an external AST source");
-  assert(MethodPool.find(Sel) == MethodPool.end() &&
-         "Selector data already loaded into the method pool");
-
-  // Read the method list from the external source.
-  GlobalMethods Methods = ExternalSource->ReadMethodPool(Sel);
-
-  return MethodPool.insert(std::make_pair(Sel, Methods)).first;
+  ExternalSource->ReadMethodPool(Sel);
 }
 
 void Sema::AddMethodToGlobalPool(ObjCMethodDecl *Method, bool impl,
                                  bool instance) {
-  GlobalMethodPool::iterator Pos = MethodPool.find(Method->getSelector());
-  if (Pos == MethodPool.end()) {
-    if (ExternalSource)
-      Pos = ReadMethodPool(Method->getSelector());
-    else
-      Pos = MethodPool.insert(std::make_pair(Method->getSelector(),
-                                             GlobalMethods())).first;
-  }
-  Method->setDefined(impl);
-  ObjCMethodList &Entry = instance ? Pos->second.first : Pos->second.second;
-  if (Entry.Method == 0) {
-    // Haven't seen a method with this selector name yet - add it.
-    Entry.Method = Method;
-    Entry.Next = 0;
+  // Ignore methods of invalid containers.
+  if (cast<Decl>(Method->getDeclContext())->isInvalidDecl())
     return;
-  }
 
-  // We've seen a method with this name, see if we have already seen this type
-  // signature.
-  for (ObjCMethodList *List = &Entry; List; List = List->Next) {
-    bool match = MatchTwoMethodDeclarations(Method, List->Method);
-
-    if (match) {
-      ObjCMethodDecl *PrevObjCMethod = List->Method;
-      PrevObjCMethod->setDefined(impl);
-      // If a method is deprecated, push it in the global pool.
-      // This is used for better diagnostics.
-      if (Method->isDeprecated()) {
-        if (!PrevObjCMethod->isDeprecated())
-          List->Method = Method;
-      }
-      // If new method is unavailable, push it into global pool
-      // unless previous one is deprecated.
-      if (Method->isUnavailable()) {
-        if (PrevObjCMethod->getAvailability() < AR_Deprecated)
-          List->Method = Method;
-      }
-      return;
-    }
-  }
-
-  // We have a new signature for an existing method - add it.
-  // This is extremely rare. Only 1% of Cocoa selectors are "overloaded".
-  ObjCMethodList *Mem = BumpAlloc.Allocate<ObjCMethodList>();
-  Entry.Next = new (Mem) ObjCMethodList(Method, Entry.Next);
+  if (ExternalSource)
+    ReadMethodPool(Method->getSelector());
+  
+  GlobalMethodPool::iterator Pos = MethodPool.find(Method->getSelector());
+  if (Pos == MethodPool.end())
+    Pos = MethodPool.insert(std::make_pair(Method->getSelector(),
+                                           GlobalMethods())).first;
+  
+  Method->setDefined(impl);
+  
+  ObjCMethodList &Entry = instance ? Pos->second.first : Pos->second.second;
+  addMethodToGlobalList(&Entry, Method);
 }
 
 /// Determines if this is an "acceptable" loose mismatch in the global
@@ -1981,13 +2085,12 @@ static bool isAcceptableMethodMismatch(ObjCMethodDecl *chosen,
 ObjCMethodDecl *Sema::LookupMethodInGlobalPool(Selector Sel, SourceRange R,
                                                bool receiverIdOrClass,
                                                bool warn, bool instance) {
+  if (ExternalSource)
+    ReadMethodPool(Sel);
+    
   GlobalMethodPool::iterator Pos = MethodPool.find(Sel);
-  if (Pos == MethodPool.end()) {
-    if (ExternalSource)
-      Pos = ReadMethodPool(Sel);
-    else
-      return 0;
-  }
+  if (Pos == MethodPool.end())
+    return 0;
 
   ObjCMethodList &MethList = instance ? Pos->second.first : Pos->second.second;
 
@@ -2014,14 +2117,14 @@ ObjCMethodDecl *Sema::LookupMethodInGlobalPool(Selector Sel, SourceRange R,
     // differences.  In ARC, however, we also need to check for loose
     // mismatches, because most of them are errors.
     if (!strictSelectorMatch ||
-        (issueDiagnostic && getLangOptions().ObjCAutoRefCount))
+        (issueDiagnostic && getLangOpts().ObjCAutoRefCount))
       for (ObjCMethodList *Next = MethList.Next; Next; Next = Next->Next) {
         // This checks if the methods differ in type mismatch.
         if (!MatchTwoMethodDeclarations(MethList.Method, Next->Method,
                                         MMS_loose) &&
             !isAcceptableMethodMismatch(MethList.Method, Next->Method)) {
           issueDiagnostic = true;
-          if (getLangOptions().ObjCAutoRefCount)
+          if (getLangOpts().ObjCAutoRefCount)
             issueError = true;
           break;
         }
@@ -2060,53 +2163,16 @@ ObjCMethodDecl *Sema::LookupImplementedMethodInGlobalPool(Selector Sel) {
   return 0;
 }
 
-/// CompareMethodParamsInBaseAndSuper - This routine compares methods with
-/// identical selector names in current and its super classes and issues
-/// a warning if any of their argument types are incompatible.
-void Sema::CompareMethodParamsInBaseAndSuper(Decl *ClassDecl,
-                                             ObjCMethodDecl *Method,
-                                             bool IsInstance)  {
-  ObjCInterfaceDecl *ID = dyn_cast<ObjCInterfaceDecl>(ClassDecl);
-  if (ID == 0) return;
-
-  while (ObjCInterfaceDecl *SD = ID->getSuperClass()) {
-    ObjCMethodDecl *SuperMethodDecl =
-        SD->lookupMethod(Method->getSelector(), IsInstance);
-    if (SuperMethodDecl == 0) {
-      ID = SD;
-      continue;
-    }
-    ObjCMethodDecl::param_iterator ParamI = Method->param_begin(),
-      E = Method->param_end();
-    ObjCMethodDecl::param_iterator PrevI = SuperMethodDecl->param_begin();
-    for (; ParamI != E; ++ParamI, ++PrevI) {
-      // Number of parameters are the same and is guaranteed by selector match.
-      assert(PrevI != SuperMethodDecl->param_end() && "Param mismatch");
-      QualType T1 = Context.getCanonicalType((*ParamI)->getType());
-      QualType T2 = Context.getCanonicalType((*PrevI)->getType());
-      // If type of argument of method in this class does not match its
-      // respective argument type in the super class method, issue warning;
-      if (!Context.typesAreCompatible(T1, T2)) {
-        Diag((*ParamI)->getLocation(), diag::ext_typecheck_base_super)
-          << T1 << T2;
-        Diag(SuperMethodDecl->getLocation(), diag::note_previous_declaration);
-        return;
-      }
-    }
-    ID = SD;
-  }
-}
-
 /// DiagnoseDuplicateIvars - 
 /// Check for duplicate ivars in the entire class at the start of 
-/// @implementation. This becomes necesssary because class extension can
+/// \@implementation. This becomes necesssary because class extension can
 /// add ivars to a class in random order which will not be known until
-/// class's @implementation is seen.
+/// class's \@implementation is seen.
 void Sema::DiagnoseDuplicateIvars(ObjCInterfaceDecl *ID, 
                                   ObjCInterfaceDecl *SID) {
   for (ObjCInterfaceDecl::ivar_iterator IVI = ID->ivar_begin(),
        IVE = ID->ivar_end(); IVI != IVE; ++IVI) {
-    ObjCIvarDecl* Ivar = (*IVI);
+    ObjCIvarDecl* Ivar = *IVI;
     if (Ivar->isInvalidDecl())
       continue;
     if (IdentifierInfo *II = Ivar->getIdentifier()) {
@@ -2120,15 +2186,39 @@ void Sema::DiagnoseDuplicateIvars(ObjCInterfaceDecl *ID,
   }
 }
 
+Sema::ObjCContainerKind Sema::getObjCContainerKind() const {
+  switch (CurContext->getDeclKind()) {
+    case Decl::ObjCInterface:
+      return Sema::OCK_Interface;
+    case Decl::ObjCProtocol:
+      return Sema::OCK_Protocol;
+    case Decl::ObjCCategory:
+      if (dyn_cast<ObjCCategoryDecl>(CurContext)->IsClassExtension())
+        return Sema::OCK_ClassExtension;
+      else
+        return Sema::OCK_Category;
+    case Decl::ObjCImplementation:
+      return Sema::OCK_Implementation;
+    case Decl::ObjCCategoryImpl:
+      return Sema::OCK_CategoryImplementation;
+
+    default:
+      return Sema::OCK_None;
+  }
+}
+
 // Note: For class/category implemenations, allMethods/allProperties is
 // always null.
-void Sema::ActOnAtEnd(Scope *S, SourceRange AtEnd,
-                      Decl **allMethods, unsigned allNum,
-                      Decl **allProperties, unsigned pNum,
-                      DeclGroupPtrTy *allTUVars, unsigned tuvNum) {
+Decl *Sema::ActOnAtEnd(Scope *S, SourceRange AtEnd,
+                       Decl **allMethods, unsigned allNum,
+                       Decl **allProperties, unsigned pNum,
+                       DeclGroupPtrTy *allTUVars, unsigned tuvNum) {
 
-  if (!CurContext->isObjCContainer())
-    return;
+  if (getObjCContainerKind() == Sema::OCK_None)
+    return 0;
+
+  assert(AtEnd.isValid() && "Invalid location for '@end'");
+
   ObjCContainerDecl *OCD = dyn_cast<ObjCContainerDecl>(CurContext);
   Decl *ClassDecl = cast<Decl>(OCD);
   
@@ -2137,15 +2227,6 @@ void Sema::ActOnAtEnd(Scope *S, SourceRange AtEnd,
          || isa<ObjCProtocolDecl>(ClassDecl);
   bool checkIdenticalMethods = isa<ObjCImplementationDecl>(ClassDecl);
 
-  if (!isInterfaceDeclKind && AtEnd.isInvalid()) {
-    // FIXME: This is wrong.  We shouldn't be pretending that there is
-    //  an '@end' in the declaration.
-    SourceLocation L = ClassDecl->getLocation();
-    AtEnd.setBegin(L);
-    AtEnd.setEnd(L);
-    Diag(L, diag::err_missing_atend);
-  }
-  
   // FIXME: Remove these and use the ObjCContainerDecl/DeclContext.
   llvm::DenseMap<Selector, const ObjCMethodDecl*> InsMap;
   llvm::DenseMap<Selector, const ObjCMethodDecl*> ClsMap;
@@ -2167,14 +2248,17 @@ void Sema::ActOnAtEnd(Scope *S, SourceRange AtEnd,
           Diag(PrevMethod->getLocation(), diag::note_previous_declaration);
         Method->setInvalidDecl();
       } else {
-        if (PrevMethod)
+        if (PrevMethod) {
           Method->setAsRedeclaration(PrevMethod);
+          if (!Context.getSourceManager().isInSystemHeader(
+                 Method->getLocation()))
+            Diag(Method->getLocation(), diag::warn_duplicate_method_decl)
+              << Method->getDeclName();
+          Diag(PrevMethod->getLocation(), diag::note_previous_declaration);
+        }
         InsMap[Method->getSelector()] = Method;
         /// The following allows us to typecheck messages to "id".
         AddInstanceMethodToGlobalPool(Method);
-        // verify that the instance method conforms to the same definition of
-        // parent methods if it shadows one.
-        CompareMethodParamsInBaseAndSuper(ClassDecl, Method, true);
       }
     } else {
       /// Check for class method of the same name with incompatible types
@@ -2188,14 +2272,16 @@ void Sema::ActOnAtEnd(Scope *S, SourceRange AtEnd,
         Diag(PrevMethod->getLocation(), diag::note_previous_declaration);
         Method->setInvalidDecl();
       } else {
-        if (PrevMethod)
+        if (PrevMethod) {
           Method->setAsRedeclaration(PrevMethod);
+          if (!Context.getSourceManager().isInSystemHeader(
+                 Method->getLocation()))
+            Diag(Method->getLocation(), diag::warn_duplicate_method_decl)
+              << Method->getDeclName();
+          Diag(PrevMethod->getLocation(), diag::note_previous_declaration);
+        }
         ClsMap[Method->getSelector()] = Method;
-        /// The following allows us to typecheck messages to "Class".
         AddFactoryMethodToGlobalPool(Method);
-        // verify that the class method conforms to the same definition of
-        // parent methods if it shadows one.
-        CompareMethodParamsInBaseAndSuper(ClassDecl, Method, false);
       }
     }
   }
@@ -2240,7 +2326,7 @@ void Sema::ActOnAtEnd(Scope *S, SourceRange AtEnd,
            ClsExtDecl; ClsExtDecl = ClsExtDecl->getNextClassExtension()) {
         for (ObjCContainerDecl::prop_iterator I = ClsExtDecl->prop_begin(),
              E = ClsExtDecl->prop_end(); I != E; ++I) {
-          ObjCPropertyDecl *Property = (*I);
+          ObjCPropertyDecl *Property = *I;
           // Skip over properties declared @dynamic
           if (const ObjCPropertyImplDecl *PIDecl
               = IC->FindPropertyImplDecl(Property->getIdentifier()))
@@ -2265,11 +2351,39 @@ void Sema::ActOnAtEnd(Scope *S, SourceRange AtEnd,
       AtomicPropertySetterGetterRules(IC, IDecl);
       DiagnoseOwningPropertyGetterSynthesis(IC);
   
-      if (LangOpts.ObjCNonFragileABI2)
+      bool HasRootClassAttr = IDecl->hasAttr<ObjCRootClassAttr>();
+      if (IDecl->getSuperClass() == NULL) {
+        // This class has no superclass, so check that it has been marked with
+        // __attribute((objc_root_class)).
+        if (!HasRootClassAttr) {
+          SourceLocation DeclLoc(IDecl->getLocation());
+          SourceLocation SuperClassLoc(PP.getLocForEndOfToken(DeclLoc));
+          Diag(DeclLoc, diag::warn_objc_root_class_missing)
+            << IDecl->getIdentifier();
+          // See if NSObject is in the current scope, and if it is, suggest
+          // adding " : NSObject " to the class declaration.
+          NamedDecl *IF = LookupSingleName(TUScope,
+                                           NSAPIObj->getNSClassId(NSAPI::ClassId_NSObject),
+                                           DeclLoc, LookupOrdinaryName);
+          ObjCInterfaceDecl *NSObjectDecl = dyn_cast_or_null<ObjCInterfaceDecl>(IF);
+          if (NSObjectDecl && NSObjectDecl->getDefinition()) {
+            Diag(SuperClassLoc, diag::note_objc_needs_superclass)
+              << FixItHint::CreateInsertion(SuperClassLoc, " : NSObject ");
+          } else {
+            Diag(SuperClassLoc, diag::note_objc_needs_superclass);
+          }
+        }
+      } else if (HasRootClassAttr) {
+        // Complain that only root classes may have this attribute.
+        Diag(IDecl->getLocation(), diag::err_objc_root_class_subclass);
+      }
+
+      if (LangOpts.ObjCRuntime.isNonFragile()) {
         while (IDecl->getSuperClass()) {
           DiagnoseDuplicateIvars(IDecl, IDecl->getSuperClass());
           IDecl = IDecl->getSuperClass();
         }
+      }
     }
     SetIvarInitializers(IC);
   } else if (ObjCCategoryImplDecl* CatImplClass =
@@ -2300,6 +2414,16 @@ void Sema::ActOnAtEnd(Scope *S, SourceRange AtEnd,
     }
   }
   ActOnObjCContainerFinishDefinition();
+
+  for (unsigned i = 0; i != tuvNum; i++) {
+    DeclGroupRef DG = allTUVars[i].getAsVal<DeclGroupRef>();
+    for (DeclGroupRef::iterator I = DG.begin(), E = DG.end(); I != E; ++I)
+      (*I)->setTopLevelDeclInObjCContainer();
+    Consumer.HandleTopLevelDeclInObjCContainer(DG);
+  }
+
+  ActOnDocumentableDecl(ClassDecl);
+  return ClassDecl;
 }
 
 
@@ -2311,29 +2435,43 @@ CvtQTToAstBitMask(ObjCDeclSpec::ObjCDeclQualifier PQTVal) {
 }
 
 static inline
-bool containsInvalidMethodImplAttribute(const AttrVec &A) {
-  // The 'ibaction' attribute is allowed on method definitions because of
-  // how the IBAction macro is used on both method declarations and definitions.
-  // If the method definitions contains any other attributes, return true.
-  for (AttrVec::const_iterator i = A.begin(), e = A.end(); i != e; ++i)
-    if ((*i)->getKind() != attr::IBAction)
-      return true;
-  return false;
-}
+bool containsInvalidMethodImplAttribute(ObjCMethodDecl *IMD,
+                                        const AttrVec &A) {
+  // If method is only declared in implementation (private method),
+  // No need to issue any diagnostics on method definition with attributes.
+  if (!IMD)
+    return false;
 
-namespace  {
-  /// \brief Describes the compatibility of a result type with its method.
-  enum ResultTypeCompatibilityKind {
-    RTC_Compatible,
-    RTC_Incompatible,
-    RTC_Unknown
-  };
+  // method declared in interface has no attribute. 
+  // But implementation has attributes. This is invalid
+  if (!IMD->hasAttrs())
+    return true;
+
+  const AttrVec &D = IMD->getAttrs();
+  if (D.size() != A.size())
+    return true;
+
+  // attributes on method declaration and definition must match exactly.
+  // Note that we have at most a couple of attributes on methods, so this
+  // n*n search is good enough.
+  for (AttrVec::const_iterator i = A.begin(), e = A.end(); i != e; ++i) {
+    bool match = false;
+    for (AttrVec::const_iterator i1 = D.begin(), e1 = D.end(); i1 != e1; ++i1) {
+      if ((*i)->getKind() == (*i1)->getKind()) {
+        match = true;
+        break;
+      }
+    }
+    if (!match)
+      return true;
+  }
+  return false;
 }
 
 /// \brief Check whether the declared result type of the given Objective-C
 /// method declaration is compatible with the method's class.
 ///
-static ResultTypeCompatibilityKind 
+static Sema::ResultTypeCompatibilityKind 
 CheckRelatedResultTypeCompatibility(Sema &S, ObjCMethodDecl *Method,
                                     ObjCInterfaceDecl *CurrentClass) {
   QualType ResultType = Method->getResultType();
@@ -2346,37 +2484,37 @@ CheckRelatedResultTypeCompatibility(Sema &S, ObjCMethodDecl *Method,
     //   - it is id or qualified id, or
     if (ResultObjectType->isObjCIdType() ||
         ResultObjectType->isObjCQualifiedIdType())
-      return RTC_Compatible;
+      return Sema::RTC_Compatible;
   
     if (CurrentClass) {
       if (ObjCInterfaceDecl *ResultClass 
                                       = ResultObjectType->getInterfaceDecl()) {
         //   - it is the same as the method's class type, or
-        if (CurrentClass == ResultClass)
-          return RTC_Compatible;
+        if (declaresSameEntity(CurrentClass, ResultClass))
+          return Sema::RTC_Compatible;
         
         //   - it is a superclass of the method's class type
         if (ResultClass->isSuperClassOf(CurrentClass))
-          return RTC_Compatible;
+          return Sema::RTC_Compatible;
       }      
     } else {
       // Any Objective-C pointer type might be acceptable for a protocol
       // method; we just don't know.
-      return RTC_Unknown;
+      return Sema::RTC_Unknown;
     }
   }
   
-  return RTC_Incompatible;
+  return Sema::RTC_Incompatible;
 }
 
 namespace {
 /// A helper class for searching for methods which a particular method
 /// overrides.
 class OverrideSearch {
+public:
   Sema &S;
   ObjCMethodDecl *Method;
-  llvm::SmallPtrSet<ObjCContainerDecl*, 8> Searched;
-  llvm::SmallPtrSet<ObjCMethodDecl*, 8> Overridden;
+  llvm::SmallPtrSet<ObjCMethodDecl*, 4> Overridden;
   bool Recursive;
 
 public:
@@ -2388,7 +2526,11 @@ public:
     Sema::GlobalMethodPool::iterator it = S.MethodPool.find(selector);
     if (it == S.MethodPool.end()) {
       if (!S.ExternalSource) return;
-      it = S.ReadMethodPool(selector);
+      S.ReadMethodPool(selector);
+      
+      it = S.MethodPool.find(selector);
+      if (it == S.MethodPool.end())
+        return;
     }
     ObjCMethodList &list =
       method->isInstanceMethod() ? it->second.first : it->second.second;
@@ -2400,11 +2542,16 @@ public:
     // Prevent the search from reaching this container again.  This is
     // important with categories, which override methods from the
     // interface and each other.
-    Searched.insert(container);
-    searchFromContainer(container);
+    if (ObjCCategoryDecl *Category = dyn_cast<ObjCCategoryDecl>(container)) {
+      searchFromContainer(container);
+      if (ObjCInterfaceDecl *Interface = Category->getClassInterface())
+        searchFromContainer(Interface);
+    } else {
+      searchFromContainer(container);
+    }
   }
 
-  typedef llvm::SmallPtrSet<ObjCMethodDecl*,8>::iterator iterator;
+  typedef llvm::SmallPtrSet<ObjCMethodDecl*, 128>::iterator iterator;
   iterator begin() const { return Overridden.begin(); }
   iterator end() const { return Overridden.end(); }
 
@@ -2426,6 +2573,9 @@ private:
   }
 
   void searchFrom(ObjCProtocolDecl *protocol) {
+    if (!protocol->hasDefinition())
+      return;
+    
     // A method in a protocol declaration overrides declarations from
     // referenced ("parent") protocols.
     search(protocol->getReferencedProtocols());
@@ -2434,7 +2584,7 @@ private:
   void searchFrom(ObjCCategoryDecl *category) {
     // A method in a category declaration overrides declarations from
     // the main class and from protocols the category references.
-    search(category->getClassInterface());
+    // The main class is handled in the constructor.
     search(category->getReferencedProtocols());
   }
 
@@ -2444,16 +2594,20 @@ private:
     // declaration.
     if (ObjCCategoryDecl *category = impl->getCategoryDecl()) {
       search(category);
+      if (ObjCInterfaceDecl *Interface = category->getClassInterface())
+        search(Interface);
 
     // Otherwise it overrides declarations from the class.
-    } else {
-      search(impl->getClassInterface());
+    } else if (ObjCInterfaceDecl *Interface = impl->getClassInterface()) {
+      search(Interface);
     }
   }
 
   void searchFrom(ObjCInterfaceDecl *iface) {
     // A method in a class declaration overrides declarations from
-
+    if (!iface->hasDefinition())
+      return;
+    
     //   - categories,
     for (ObjCCategoryDecl *category = iface->getCategoryList();
            category; category = category->getNextClassCategory())
@@ -2470,7 +2624,8 @@ private:
   void searchFrom(ObjCImplementationDecl *impl) {
     // A method in a class implementation overrides declarations from
     // the class interface.
-    search(impl->getClassInterface());
+    if (ObjCInterfaceDecl *Interface = impl->getClassInterface())
+      search(Interface);
   }
 
 
@@ -2481,9 +2636,6 @@ private:
   }
 
   void search(ObjCContainerDecl *container) {
-    // Abort if we've already searched this container.
-    if (!Searched.insert(container)) return;
-
     // Check for a method in this container which matches this selector.
     ObjCMethodDecl *meth = container->getMethod(Method->getSelector(),
                                                 Method->isInstanceMethod());
@@ -2503,6 +2655,68 @@ private:
     searchFromContainer(container);
   }
 };
+}
+
+void Sema::CheckObjCMethodOverrides(ObjCMethodDecl *ObjCMethod,
+                                    ObjCInterfaceDecl *CurrentClass,
+                                    ResultTypeCompatibilityKind RTC) {
+  // Search for overridden methods and merge information down from them.
+  OverrideSearch overrides(*this, ObjCMethod);
+  // Keep track if the method overrides any method in the class's base classes,
+  // its protocols, or its categories' protocols; we will keep that info
+  // in the ObjCMethodDecl.
+  // For this info, a method in an implementation is not considered as
+  // overriding the same method in the interface or its categories.
+  bool hasOverriddenMethodsInBaseOrProtocol = false;
+  for (OverrideSearch::iterator
+         i = overrides.begin(), e = overrides.end(); i != e; ++i) {
+    ObjCMethodDecl *overridden = *i;
+
+    if (isa<ObjCProtocolDecl>(overridden->getDeclContext()) ||
+        CurrentClass != overridden->getClassInterface() ||
+        overridden->isOverriding())
+      hasOverriddenMethodsInBaseOrProtocol = true;
+
+    // Propagate down the 'related result type' bit from overridden methods.
+    if (RTC != Sema::RTC_Incompatible && overridden->hasRelatedResultType())
+      ObjCMethod->SetRelatedResultType();
+
+    // Then merge the declarations.
+    mergeObjCMethodDecls(ObjCMethod, overridden);
+
+    if (ObjCMethod->isImplicit() && overridden->isImplicit())
+      continue; // Conflicting properties are detected elsewhere.
+
+    // Check for overriding methods
+    if (isa<ObjCInterfaceDecl>(ObjCMethod->getDeclContext()) || 
+        isa<ObjCImplementationDecl>(ObjCMethod->getDeclContext()))
+      CheckConflictingOverridingMethod(ObjCMethod, overridden,
+              isa<ObjCProtocolDecl>(overridden->getDeclContext()));
+    
+    if (CurrentClass && overridden->getDeclContext() != CurrentClass &&
+        isa<ObjCInterfaceDecl>(overridden->getDeclContext()) &&
+        !overridden->isImplicit() /* not meant for properties */) {
+      ObjCMethodDecl::param_iterator ParamI = ObjCMethod->param_begin(),
+                                          E = ObjCMethod->param_end();
+      ObjCMethodDecl::param_iterator PrevI = overridden->param_begin(),
+                                     PrevE = overridden->param_end();
+      for (; ParamI != E && PrevI != PrevE; ++ParamI, ++PrevI) {
+        assert(PrevI != overridden->param_end() && "Param mismatch");
+        QualType T1 = Context.getCanonicalType((*ParamI)->getType());
+        QualType T2 = Context.getCanonicalType((*PrevI)->getType());
+        // If type of argument of method in this class does not match its
+        // respective argument type in the super class method, issue warning;
+        if (!Context.typesAreCompatible(T1, T2)) {
+          Diag((*ParamI)->getLocation(), diag::ext_typecheck_base_super)
+            << T1 << T2;
+          Diag(overridden->getLocation(), diag::note_previous_declaration);
+          break;
+        }
+      }
+    }
+  }
+
+  ObjCMethod->setOverriding(hasOverriddenMethodsInBaseOrProtocol);
 }
 
 Decl *Sema::ActOnMethodDeclaration(
@@ -2606,6 +2820,10 @@ Decl *Sema::ActOnMethodDeclaration(
     // Apply the attributes to the parameter.
     ProcessDeclAttributeList(TUScope, Param, ArgInfo[i].ArgAttrs);
 
+    if (Param->hasAttr<BlocksAttr>()) {
+      Diag(Param->getLocation(), diag::err_block_on_nonlocal);
+      Param->setInvalidDecl();
+    }
     S->AddDecl(Param);
     IdResolver.AddDecl(Param);
 
@@ -2649,9 +2867,19 @@ Decl *Sema::ActOnMethodDeclaration(
       ImpDecl->addClassMethod(ObjCMethod);
     }
 
+    ObjCMethodDecl *IMD = 0;
+    if (ObjCInterfaceDecl *IDecl = ImpDecl->getClassInterface())
+      IMD = IDecl->lookupMethod(ObjCMethod->getSelector(), 
+                                ObjCMethod->isInstanceMethod());
     if (ObjCMethod->hasAttrs() &&
-        containsInvalidMethodImplAttribute(ObjCMethod->getAttrs()))
-      Diag(EndLoc, diag::warn_attribute_method_def);
+        containsInvalidMethodImplAttribute(IMD, ObjCMethod->getAttrs())) {
+      SourceLocation MethodLoc = IMD->getLocation();
+      if (!getSourceManager().isInSystemHeader(MethodLoc)) {
+        Diag(EndLoc, diag::warn_attribute_method_def);
+        Diag(MethodLoc, diag::note_method_declared_at)
+          << ObjCMethod->getDeclName();
+      }
+    }
   } else {
     cast<DeclContext>(ClassDecl)->addDecl(ObjCMethod);
   }
@@ -2680,32 +2908,14 @@ Decl *Sema::ActOnMethodDeclaration(
   ResultTypeCompatibilityKind RTC
     = CheckRelatedResultTypeCompatibility(*this, ObjCMethod, CurrentClass);
 
-  // Search for overridden methods and merge information down from them.
-  OverrideSearch overrides(*this, ObjCMethod);
-  for (OverrideSearch::iterator
-         i = overrides.begin(), e = overrides.end(); i != e; ++i) {
-    ObjCMethodDecl *overridden = *i;
+  CheckObjCMethodOverrides(ObjCMethod, CurrentClass, RTC);
 
-    // Propagate down the 'related result type' bit from overridden methods.
-    if (RTC != RTC_Incompatible && overridden->hasRelatedResultType())
-      ObjCMethod->SetRelatedResultType();
-
-    // Then merge the declarations.
-    mergeObjCMethodDecls(ObjCMethod, overridden);
-    
-    // Check for overriding methods
-    if (isa<ObjCInterfaceDecl>(ObjCMethod->getDeclContext()) || 
-        isa<ObjCImplementationDecl>(ObjCMethod->getDeclContext()))
-      CheckConflictingOverridingMethod(ObjCMethod, overridden,
-              isa<ObjCProtocolDecl>(overridden->getDeclContext()));
-  }
-  
   bool ARCError = false;
-  if (getLangOptions().ObjCAutoRefCount)
+  if (getLangOpts().ObjCAutoRefCount)
     ARCError = CheckARCMethodDecl(*this, ObjCMethod);
 
   // Infer the related result type when possible.
-  if (!ARCError && RTC == RTC_Compatible &&
+  if (!ARCError && RTC == Sema::RTC_Compatible &&
       !ObjCMethod->hasRelatedResultType() &&
       LangOpts.ObjCInferRelatedResultType) {
     bool InferRelatedResultType = false;
@@ -2736,18 +2946,22 @@ Decl *Sema::ActOnMethodDeclaration(
     if (InferRelatedResultType)
       ObjCMethod->SetRelatedResultType();
   }
-    
+
+  ActOnDocumentableDecl(ObjCMethod);
+
   return ObjCMethod;
 }
 
 bool Sema::CheckObjCDeclScope(Decl *D) {
-  if (isa<TranslationUnitDecl>(CurContext->getRedeclContext()))
-    return false;
   // Following is also an error. But it is caused by a missing @end
   // and diagnostic is issued elsewhere.
-  if (isa<ObjCContainerDecl>(CurContext->getRedeclContext())) {
+  if (isa<ObjCContainerDecl>(CurContext->getRedeclContext()))
     return false;
-  }
+
+  // If we switched context to translation unit while we are still lexically in
+  // an objc container, it means the parser missed emitting an error.
+  if (isa<TranslationUnitDecl>(getCurLexicalContext()->getRedeclContext()))
+    return false;
   
   Diag(D->getLocation(), diag::err_objc_decls_may_only_appear_in_global_scope);
   D->setInvalidDecl();
@@ -2755,7 +2969,7 @@ bool Sema::CheckObjCDeclScope(Decl *D) {
   return true;
 }
 
-/// Called whenever @defs(ClassName) is encountered in the source.  Inserts the
+/// Called whenever \@defs(ClassName) is encountered in the source.  Inserts the
 /// instance variables of ClassName into Decls.
 void Sema::ActOnDefs(Scope *S, Decl *TagD, SourceLocation DeclStart,
                      IdentifierInfo *ClassName,
@@ -2766,7 +2980,7 @@ void Sema::ActOnDefs(Scope *S, Decl *TagD, SourceLocation DeclStart,
     Diag(DeclStart, diag::err_undef_interface) << ClassName;
     return;
   }
-  if (LangOpts.ObjCNonFragileABI) {
+  if (LangOpts.ObjCRuntime.isNonFragile()) {
     Diag(DeclStart, diag::err_atdef_nonfragile_interface);
     return;
   }
@@ -2790,7 +3004,7 @@ void Sema::ActOnDefs(Scope *S, Decl *TagD, SourceLocation DeclStart,
   for (SmallVectorImpl<Decl*>::iterator D = Decls.begin();
        D != Decls.end(); ++D) {
     FieldDecl *FD = cast<FieldDecl>(*D);
-    if (getLangOptions().CPlusPlus)
+    if (getLangOpts().CPlusPlus)
       PushOnScopeChains(cast<FieldDecl>(FD), S);
     else if (RecordDecl *Record = dyn_cast<RecordDecl>(TagD))
       Record->addDecl(FD);
@@ -2830,6 +3044,10 @@ VarDecl *Sema::BuildObjCExceptionDecl(TypeSourceInfo *TInfo, QualType T,
                                  T, TInfo, SC_None, SC_None);
   New->setExceptionVariable(true);
   
+  // In ARC, infer 'retaining' for variables of retainable type.
+  if (getLangOpts().ObjCAutoRefCount && inferObjCARCLifetime(New))
+    Invalid = true;
+
   if (Invalid)
     New->setInvalidDecl();
   return New;
@@ -2855,7 +3073,7 @@ Decl *Sema::ActOnObjCExceptionDecl(Scope *S, Declarator &D) {
   
   // Check that there are no default arguments inside the type of this
   // exception object (C++ only).
-  if (getLangOptions().CPlusPlus)
+  if (getLangOpts().CPlusPlus)
     CheckExtraCXXDefaultArguments(D);
   
   TypeSourceInfo *TInfo = GetTypeForDeclarator(D, S);

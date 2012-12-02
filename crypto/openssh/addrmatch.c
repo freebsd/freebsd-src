@@ -1,4 +1,4 @@
-/*	$OpenBSD: addrmatch.c,v 1.5 2010/02/26 20:29:54 djm Exp $ */
+/*	$OpenBSD: addrmatch.c,v 1.6 2012/06/21 00:16:07 dtucker Exp $ */
 
 /*
  * Copyright (c) 2004-2008 Damien Miller <djm@mindrot.org>
@@ -318,7 +318,7 @@ addr_pton_cidr(const char *p, struct xaddr *n, u_int *l)
 	char addrbuf[64], *mp, *cp;
 
 	/* Don't modify argument */
-	if (p == NULL || strlcpy(addrbuf, p, sizeof(addrbuf)) > sizeof(addrbuf))
+	if (p == NULL || strlcpy(addrbuf, p, sizeof(addrbuf)) >= sizeof(addrbuf))
 		return -1;
 
 	if ((mp = strchr(addrbuf, '/')) != NULL) {

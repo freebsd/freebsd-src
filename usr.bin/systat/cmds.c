@@ -35,6 +35,8 @@ __FBSDID("$FreeBSD$");
 static const char sccsid[] = "@(#)cmds.c	8.2 (Berkeley) 4/29/95";
 #endif
 
+#include <sys/param.h>
+
 #include <ctype.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -49,10 +51,9 @@ command(const char *cmd)
 {
 	struct cmdtab *p;
 	char *cp, *tmpstr, *tmpstr1;
-	int interval, omask;
+	double t;
 
 	tmpstr = tmpstr1 = strdup(cmd);
-	omask = sigblock(sigmask(SIGALRM));
 	for (cp = tmpstr1; *cp && !isspace(*cp); cp++)
 		;
 	if (*cp)
@@ -68,7 +69,7 @@ command(const char *cmd)
 		goto done;
 	}
 	if (strcmp(tmpstr1, "stop") == 0) {
-		alarm(0);
+		delay = 0;
 		mvaddstr(CMDLINE, 0, "Refresh disabled.");
 		clrtoeol();
 		goto done;
@@ -88,19 +89,23 @@ command(const char *cmd)
 		clrtoeol();
 		goto done;
 	}
-	interval = atoi(tmpstr1);
-	if (interval <= 0 &&
-	    (strcmp(tmpstr1, "start") == 0 || strcmp(tmpstr1, "interval") == 0)) {
-		interval = *cp ? atoi(cp) : naptime;
-		if (interval <= 0) {
-			error("%d: bad interval.", interval);
-			goto done;
+	t = strtod(tmpstr1, NULL) * 1000000.0;
+	if (t > 0 && t < (double)UINT_MAX)
+		delay = (unsigned int)t;
+	if ((t <= 0 || t > (double)UINT_MAX) &&
+	    (strcmp(tmpstr1, "start") == 0 ||
+	    strcmp(tmpstr1, "interval") == 0)) {
+		if (*cp != '\0') {
+			t = strtod(cp, NULL) * 1000000.0;
+			if (t <= 0 || t >= (double)UINT_MAX) {
+				error("%d: bad interval.", (int)t);
+				goto done;
+			}
 		}
 	}
-	if (interval > 0) {
-		alarm(0);
-		naptime = interval;
-		display(0);
+	if (t > 0) {
+		delay = (unsigned int)t;
+		display();
 		status();
 		goto done;
 	}
@@ -112,7 +117,6 @@ command(const char *cmd)
 	if (p) {
 		if (curcmd == p)
 			goto done;
-		alarm(0);
 		(*curcmd->c_close)(wnd);
 		curcmd->c_flags &= ~CF_INIT;
 		wnd = (*p->c_open)();
@@ -133,14 +137,13 @@ command(const char *cmd)
 		}
 		curcmd = p;
 		labels();
-		display(0);
+		display();
 		status();
 		goto done;
 	}
 	if (curcmd->c_cmd == 0 || !(*curcmd->c_cmd)(tmpstr1, cp))
 		error("%s: Unknown command.", tmpstr1);
 done:
-	sigsetmask(omask);
 	free(tmpstr);
 }
 
@@ -177,7 +180,7 @@ status(void)
 {
 
 	error("Showing %s, refresh every %d seconds.",
-	  curcmd->c_name, naptime);
+	  curcmd->c_name, delay / 1000000);
 }
 
 int

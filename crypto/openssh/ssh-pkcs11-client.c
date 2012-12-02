@@ -1,4 +1,4 @@
-/* $OpenBSD: ssh-pkcs11-client.c,v 1.2 2010/02/24 06:12:53 djm Exp $ */
+/* $OpenBSD: ssh-pkcs11-client.c,v 1.3 2012/01/16 20:34:09 miod Exp $ */
 /*
  * Copyright (c) 2010 Markus Friedl.  All rights reserved.
  *
@@ -123,6 +123,7 @@ pkcs11_rsa_private_encrypt(int flen, const u_char *from, u_char *to, RSA *rsa,
 	buffer_put_int(&msg, 0);
 	xfree(blob);
 	send_msg(&msg);
+	buffer_clear(&msg);
 
 	if (recv_msg(&msg) == SSH2_AGENT_SIGN_RESPONSE) {
 		signature = buffer_get_string(&msg, &slen);
@@ -132,6 +133,7 @@ pkcs11_rsa_private_encrypt(int flen, const u_char *from, u_char *to, RSA *rsa,
 		}
 		xfree(signature);
 	}
+	buffer_free(&msg);
 	return (ret);
 }
 

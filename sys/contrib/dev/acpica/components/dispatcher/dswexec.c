@@ -223,7 +223,7 @@ Cleanup:
  * RETURN:      Status
  *
  * DESCRIPTION: Descending callback used during the execution of control
- *              methods.  This is where most operators and operands are
+ *              methods. This is where most operators and operands are
  *              dispatched to the interpreter.
  *
  ****************************************************************************/
@@ -325,7 +325,7 @@ AcpiDsExecBeginOp (
         {
             /*
              * Found a named object declaration during method execution;
-             * we must enter this object into the namespace.  The created
+             * we must enter this object into the namespace. The created
              * object is temporary and will be deleted upon completion of
              * the execution of this method.
              *
@@ -381,7 +381,7 @@ ErrorExit:
  * RETURN:      Status
  *
  * DESCRIPTION: Ascending callback used during the execution of control
- *              methods.  The only thing we really need to do here is to
+ *              methods. The only thing we really need to do here is to
  *              notice the beginning of IF, ELSE, and WHILE blocks.
  *
  ****************************************************************************/
@@ -469,7 +469,7 @@ AcpiDsExecEndOp (
         {
             /*
              * Dispatch the request to the appropriate interpreter handler
-             * routine.  There is one routine per opcode "type" based upon the
+             * routine. There is one routine per opcode "type" based upon the
              * number of opcode arguments and return type.
              */
             Status = AcpiGbl_OpTypeDispatch[OpType] (WalkState);
@@ -793,5 +793,3 @@ Cleanup:
     WalkState->NumOperands = 0;
     return_ACPI_STATUS (Status);
 }
-
-

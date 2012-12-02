@@ -88,6 +88,11 @@ struct rusage32 {
 	int32_t	ru_nivcsw;
 };
 
+struct wrusage32 {
+	struct rusage32	wru_self;
+	struct rusage32 wru_children;
+};
+
 struct itimerval32 {
 	struct timeval32 it_interval;
 	struct timeval32 it_value;
@@ -306,7 +311,7 @@ struct kinfo_proc32 {
 	u_int	ki_estcpu;
 	u_int	ki_slptime;
 	u_int	ki_swtime;
-	int	ki_spareint1;
+	u_int	ki_cow;
 	u_int64_t ki_runtime;
 	struct	timeval32 ki_start;
 	struct	timeval32 ki_childtime;

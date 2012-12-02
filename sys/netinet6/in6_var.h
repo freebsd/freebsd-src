@@ -762,36 +762,36 @@ int	in6_leavegroup(struct in6_multi_mship *);
 /* flags to in6_update_ifa */
 #define IN6_IFAUPDATE_DADDELAY	0x1 /* first time to configure an address */
 
-int	in6_mask2len __P((struct in6_addr *, u_char *));
-int	in6_control __P((struct socket *, u_long, caddr_t, struct ifnet *,
-	struct thread *));
-int	in6_update_ifa __P((struct ifnet *, struct in6_aliasreq *,
-	struct in6_ifaddr *, int));
-void	in6_purgeaddr __P((struct ifaddr *));
-int	in6if_do_dad __P((struct ifnet *));
-void	in6_purgeif __P((struct ifnet *));
-void	in6_savemkludge __P((struct in6_ifaddr *));
-void	*in6_domifattach __P((struct ifnet *));
-void	in6_domifdetach __P((struct ifnet *, void *));
-void	in6_setmaxmtu   __P((void));
-int	in6_if2idlen   __P((struct ifnet *));
-struct in6_ifaddr *in6ifa_ifpforlinklocal __P((struct ifnet *, int));
-struct in6_ifaddr *in6ifa_ifpwithaddr __P((struct ifnet *, struct in6_addr *));
-char	*ip6_sprintf __P((char *, const struct in6_addr *));
-int	in6_addr2zoneid __P((struct ifnet *, struct in6_addr *, u_int32_t *));
-int	in6_matchlen __P((struct in6_addr *, struct in6_addr *));
-int	in6_are_prefix_equal __P((struct in6_addr *, struct in6_addr *, int));
-void	in6_prefixlen2mask __P((struct in6_addr *, int));
-int	in6_prefix_ioctl __P((struct socket *, u_long, caddr_t,
-	struct ifnet *));
-int	in6_prefix_add_ifid __P((int, struct in6_ifaddr *));
-void	in6_prefix_remove_ifid __P((int, struct in6_ifaddr *));
-void	in6_purgeprefix __P((struct ifnet *));
+int	in6_mask2len(struct in6_addr *, u_char *);
+int	in6_control(struct socket *, u_long, caddr_t, struct ifnet *,
+	struct thread *);
+int	in6_update_ifa(struct ifnet *, struct in6_aliasreq *,
+	struct in6_ifaddr *, int);
+void	in6_purgeaddr(struct ifaddr *);
+int	in6if_do_dad(struct ifnet *);
+void	in6_purgeif(struct ifnet *);
+void	in6_savemkludge(struct in6_ifaddr *);
+void	*in6_domifattach(struct ifnet *);
+void	in6_domifdetach(struct ifnet *, void *);
+void	in6_setmaxmtu(void);
+int	in6_if2idlen(struct ifnet *);
+struct in6_ifaddr *in6ifa_ifpforlinklocal(struct ifnet *, int);
+struct in6_ifaddr *in6ifa_ifpwithaddr(struct ifnet *, struct in6_addr *);
+char	*ip6_sprintf(char *, const struct in6_addr *);
+int	in6_addr2zoneid(struct ifnet *, struct in6_addr *, u_int32_t *);
+int	in6_matchlen(struct in6_addr *, struct in6_addr *);
+int	in6_are_prefix_equal(struct in6_addr *, struct in6_addr *, int);
+void	in6_prefixlen2mask(struct in6_addr *, int);
+int	in6_prefix_ioctl(struct socket *, u_long, caddr_t,
+	struct ifnet *);
+int	in6_prefix_add_ifid(int, struct in6_ifaddr *);
+void	in6_prefix_remove_ifid(int, struct in6_ifaddr *);
+void	in6_purgeprefix(struct ifnet *);
 void	in6_ifremloop(struct ifaddr *);
 void	in6_ifaddloop(struct ifaddr *);
 
-int	in6_is_addr_deprecated __P((struct sockaddr_in6 *));
-int	in6_src_ioctl __P((u_long, caddr_t));
+int	in6_is_addr_deprecated(struct sockaddr_in6 *);
+int	in6_src_ioctl(u_long, caddr_t);
 
 /*
  * Extended API for IPv6 FIB support.

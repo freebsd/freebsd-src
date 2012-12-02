@@ -30,7 +30,7 @@ static bool isAcceptableChar(char C) {
 /// syntactically correct.
 static bool NameNeedsQuoting(StringRef Str) {
   assert(!Str.empty() && "Cannot create an empty MCSymbol");
-  
+
   // If any of the characters in the string is an unacceptable character, force
   // quotes.
   for (unsigned i = 0, e = Str.size(); i != e; ++i)
@@ -54,17 +54,14 @@ const MCSymbol &MCSymbol::AliasedSymbol() const {
 void MCSymbol::setVariableValue(const MCExpr *Value) {
   assert(!IsUsed && "Cannot set a variable that has already been used.");
   assert(Value && "Invalid variable value!");
-  assert((isUndefined() || (isAbsolute() && isa<MCConstantExpr>(Value))) &&
-         "Invalid redefinition!");
   this->Value = Value;
 
   // Variables should always be marked as in the same "section" as the value.
   const MCSection *Section = Value->FindAssociatedSection();
-  if (Section) {
+  if (Section)
     setSection(*Section);
-  } else {
+  else
     setUndefined();
-  }
 }
 
 void MCSymbol::print(raw_ostream &OS) const {
@@ -75,7 +72,7 @@ void MCSymbol::print(raw_ostream &OS) const {
     OS << getName();
     return;
   }
-    
+
   OS << '"' << getName() << '"';
 }
 

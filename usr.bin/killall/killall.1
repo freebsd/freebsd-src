@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 25, 2009
+.Dd June 27, 2012
 .Dt KILLALL 1
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 .Nm
 .Op Fl delmsvz
 .Op Fl help
+.Op Fl I
 .Op Fl j Ar jail
 .Op Fl u Ar user
 .Op Fl t Ar tty
@@ -71,6 +72,9 @@ processes specified with the
 option.
 .It Fl help
 Give a help on the command usage and exit.
+.It Fl I
+Request confirmation before attempting to signal each
+process.
 .It Fl l
 List the names of the available signals and exit, like in
 .Xr kill 1 .

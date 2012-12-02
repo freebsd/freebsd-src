@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 /*
  * This implements an empty DFS module.
  */
+#include "opt_ath.h"
 #include "opt_inet.h"
 #include "opt_wlan.h"
 
@@ -71,28 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_hal/ah_desc.h>
 
 /*
- * These are default parameters for the AR5416 and
- * later 802.11n NICs.  They simply enable some
- * radar pulse event generation.
- *
- * These are very likely not valid for the AR5212 era
- * NICs.
- *
- * Since these define signal sizing and threshold
- * parameters, they may need changing based on the
- * specific antenna and receive amplifier
- * configuration.
- */
-#define	AR5416_DFS_FIRPWR	-33
-#define	AR5416_DFS_RRSSI	20
-#define	AR5416_DFS_HEIGHT	10
-#define	AR5416_DFS_PRSSI	15
-#define	AR5416_DFS_INBAND	15
-#define	AR5416_DFS_RELPWR	8
-#define	AR5416_DFS_RELSTEP	12
-#define	AR5416_DFS_MAXLEN	255
-
-/*
  * Methods which are required
  */
 
@@ -102,7 +81,7 @@ __FBSDID("$FreeBSD$");
 int
 ath_dfs_attach(struct ath_softc *sc)
 {
-	return 1;
+	return (1);
 }
 
 /*
@@ -111,11 +90,12 @@ ath_dfs_attach(struct ath_softc *sc)
 int
 ath_dfs_detach(struct ath_softc *sc)
 {
-	return 1;
+	return (1);
 }
 
 /*
- * Enable radar check
+ * Enable radar check.  Return 1 if the driver should
+ * enable radar PHY errors, or 0 if not.
  */
 int
 ath_dfs_radar_enable(struct ath_softc *sc, struct ieee80211_channel *chan)
@@ -123,30 +103,27 @@ ath_dfs_radar_enable(struct ath_softc *sc, struct ieee80211_channel *chan)
 #if 0
 	HAL_PHYERR_PARAM pe;
 
+	/* Check if the hardware supports radar reporting */
+	/* XXX TODO: migrate HAL_CAP_RADAR/HAL_CAP_AR to somewhere public! */
+	if (ath_hal_getcapability(sc->sc_ah,
+	    HAL_CAP_PHYDIAG, 0, NULL) != HAL_OK)
+		return (0);
+
 	/* Check if the current channel is radar-enabled */
 	if (! IEEE80211_IS_CHAN_DFS(chan))
+		return (0);
+
+	/* Fetch the default parameters */
+	memset(&pe, '\0', sizeof(pe));
+	if (! ath_hal_getdfsdefaultthresh(sc->sc_ah, &pe))
 		return (0);
 
 	/* Enable radar PHY error reporting */
 	sc->sc_dodfs = 1;
 
-	/*
-	 * These are general examples of the parameter values
-	 * to use when configuring radar pulse detection for
-	 * the AR5416, AR91xx, AR92xx NICs.  They are only
-	 * for testing and do require tuning depending upon the
-	 * hardware and deployment specifics.
-	 */
-	pe.pe_firpwr = AR5416_DFS_FIRPWR;
-	pe.pe_rrssi = AR5416_DFS_RRSSI;
-	pe.pe_height = AR5416_DFS_HEIGHT;
-	pe.pe_prssi = AR5416_DFS_PRSSI;
-	pe.pe_inband = AR5416_DFS_INBAND;
-	pe.pe_relpwr = AR5416_DFS_RELPWR;
-	pe.pe_relstep = AR5416_DFS_RELSTEP;
-	pe.pe_maxlen = AR5416_DFS_MAXLEN;
+	/* Tell the hardware to enable radar reporting */
 	pe.pe_enabled = 1;
-	
+
 	/* Flip on extension channel events only if doing HT40 */
 	if (IEEE80211_IS_CHAN_HT40(chan))
 		pe.pe_extchannel = 1;
@@ -154,6 +131,13 @@ ath_dfs_radar_enable(struct ath_softc *sc, struct ieee80211_channel *chan)
 		pe.pe_extchannel = 0;
 
 	ath_hal_enabledfs(sc->sc_ah, &pe);
+
+	/*
+	 * Disable strong signal fast diversity - needed for
+	 * AR5212 and similar PHYs for reliable short pulse
+	 * duration.
+	 */
+	(void) ath_hal_setcapability(sc->sc_ah, HAL_CAP_DIVERSITY, 2, 0, NULL);
 
 	return (1);
 #else
@@ -163,9 +147,12 @@ ath_dfs_radar_enable(struct ath_softc *sc, struct ieee80211_channel *chan)
 
 /*
  * Process DFS related PHY errors
+ *
+ * The mbuf is not "ours" and if we want a copy, we have
+ * to take a copy.  It'll be freed after this function returns.
  */
 void
-ath_dfs_process_phy_err(struct ath_softc *sc, const char *buf,
+ath_dfs_process_phy_err(struct ath_softc *sc, struct mbuf *m,
     uint64_t tsf, struct ath_rx_status *rxstat)
 {
 
@@ -182,7 +169,7 @@ int
 ath_dfs_process_radar_event(struct ath_softc *sc,
     struct ieee80211_channel *chan)
 {
-	return 0;
+	return (0);
 }
 
 /*
@@ -195,7 +182,7 @@ ath_dfs_process_radar_event(struct ath_softc *sc,
 int
 ath_dfs_tasklet_needed(struct ath_softc *sc, struct ieee80211_channel *chan)
 {
-	return 0;
+	return (0);
 }
 
 /*
@@ -272,7 +259,7 @@ bad:
 		free(indata, M_TEMP);
 	if ((ad->ad_id & ATH_DIAG_DYN) && outdata != NULL)
 		free(outdata, M_TEMP);
-	return error;
+	return (error);
 }
 
 /*
@@ -282,5 +269,5 @@ int
 ath_dfs_get_thresholds(struct ath_softc *sc, HAL_PHYERR_PARAM *param)
 {
 	ath_hal_getdfsthresh(sc->sc_ah, param);
-	return 1;
+	return (1);
 }

@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2011 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2000 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -139,6 +140,7 @@ static struct g_raid_md_class g_raid_md_sii_class = {
 	"SiI",
 	g_raid_md_sii_methods,
 	sizeof(struct g_raid_md_sii_object),
+	.mdc_enable = 1,
 	.mdc_priority = 100
 };
 
@@ -456,11 +458,13 @@ g_raid_md_sii_supported(int level, int qual, int disks, int force)
 	case G_RAID_VOLUME_RL_RAID5:
 		if (disks < 3)
 			return (0);
+		if (qual != G_RAID_VOLUME_RLQ_R5LS)
+			return (0);
 		break;
 	default:
 		return (0);
 	}
-	if (qual != G_RAID_VOLUME_RLQ_NONE)
+	if (level != G_RAID_VOLUME_RL_RAID5 && qual != G_RAID_VOLUME_RLQ_NONE)
 		return (0);
 	return (1);
 }
@@ -719,6 +723,7 @@ g_raid_md_sii_start(struct g_raid_softc *sc)
 	sii_meta_get_name(meta, buf);
 	vol = g_raid_create_volume(sc, buf, -1);
 	vol->v_mediasize = (off_t)meta->total_sectors * 512;
+	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
 	if (meta->type == SII_T_RAID0) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID0;
 		size = vol->v_mediasize / mdi->mdio_total_disks;
@@ -736,6 +741,7 @@ g_raid_md_sii_start(struct g_raid_softc *sc)
 		size = 0;
 	} else if (meta->type == SII_T_RAID5) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID5;
+		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_R5LS;
 		size = vol->v_mediasize / (mdi->mdio_total_disks - 1);
 	} else if (meta->type == SII_T_JBOD) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_SINGLE;
@@ -744,7 +750,6 @@ g_raid_md_sii_start(struct g_raid_softc *sc)
 		vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
 		size = 0;
 	}
-	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
 	vol->v_strip_size = meta->strip_sectors * 512; //ZZZ
 	vol->v_disks_count = mdi->mdio_total_disks;
 	vol->v_sectorsize = 512; //ZZZ
@@ -907,7 +912,7 @@ g_raid_md_taste_sii(struct g_raid_md_object *md, struct g_class *mp,
 	struct sii_raid_conf *meta;
 	struct g_raid_md_sii_perdisk *pd;
 	struct g_geom *geom;
-	int error, disk_pos, result, spare, len;
+	int disk_pos, result, spare, len;
 	char name[32];
 	uint16_t vendor;
 
@@ -1027,14 +1032,7 @@ search:
 	disk->d_consumer = rcp;
 	rcp->private = disk;
 
-	/* Read kernel dumping information. */
-	disk->d_kd.offset = 0;
-	disk->d_kd.length = OFF_MAX;
-	len = sizeof(disk->d_kd);
-	error = g_io_getattr("GEOM::kerneldump", rcp, &len, &disk->d_kd);
-	if (disk->d_kd.di.dumper == NULL)
-		G_RAID_DEBUG1(2, sc, "Dumping not supported by %s: %d.", 
-		    rcp->provider->name, error);
+	g_raid_get_disk_info(disk);
 
 	g_raid_md_sii_new_disk(disk);
 
@@ -1144,6 +1142,8 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 			gctl_error(req, "No RAID level.");
 			return (-3);
 		}
+		if (strcasecmp(levelname, "RAID5") == 0)
+			levelname = "RAID5-LS";
 		if (g_raid_volume_str2level(levelname, &level, &qual)) {
 			gctl_error(req, "Unknown RAID level '%s'.", levelname);
 			return (-4);
@@ -1194,15 +1194,7 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 			cp->private = disk;
 			g_topology_unlock();
 
-			/* Read kernel dumping information. */
-			disk->d_kd.offset = 0;
-			disk->d_kd.length = OFF_MAX;
-			len = sizeof(disk->d_kd);
-			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
-			if (disk->d_kd.di.dumper == NULL)
-				G_RAID_DEBUG1(2, sc,
-				    "Dumping not supported by %s.",
-				    cp->provider->name);
+			g_raid_get_disk_info(disk);
 
 			pd->pd_disk_size = pp->mediasize;
 			if (size > pp->mediasize)
@@ -1278,7 +1270,7 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 		vol = g_raid_create_volume(sc, volname, -1);
 		vol->v_md_data = (void *)(intptr_t)0;
 		vol->v_raid_level = level;
-		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
+		vol->v_raid_level_qualifier = qual;
 		vol->v_strip_size = strip;
 		vol->v_disks_count = numdisks;
 		if (level == G_RAID_VOLUME_RL_RAID0 ||
@@ -1452,15 +1444,7 @@ g_raid_md_ctl_sii(struct g_raid_md_object *md,
 			cp->private = disk;
 			g_topology_unlock();
 
-			/* Read kernel dumping information. */
-			disk->d_kd.offset = 0;
-			disk->d_kd.length = OFF_MAX;
-			len = sizeof(disk->d_kd);
-			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
-			if (disk->d_kd.di.dumper == NULL)
-				G_RAID_DEBUG1(2, sc,
-				    "Dumping not supported by %s.",
-				    cp->provider->name);
+			g_raid_get_disk_info(disk);
 
 			/* Welcome the "new" disk. */
 			update += g_raid_md_sii_start_disk(disk);
@@ -1682,4 +1666,4 @@ g_raid_md_free_sii(struct g_raid_md_object *md)
 	return (0);
 }
 
-G_RAID_MD_DECLARE(g_raid_md_sii);
+G_RAID_MD_DECLARE(sii, "SiI");

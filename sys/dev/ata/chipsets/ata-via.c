@@ -89,7 +89,7 @@ static int
 ata_via_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static const struct ata_chip_id const ids[] =
+    static const struct ata_chip_id ids[] =
     {{ ATA_VIA82C586, 0x02, VIA33,  0x00,    ATA_UDMA2, "82C586B" },
      { ATA_VIA82C586, 0x00, VIA33,  0x00,    ATA_WDMA2, "82C586" },
      { ATA_VIA82C596, 0x12, VIA66,  VIACLK,  ATA_UDMA4, "82C596B" },
@@ -113,7 +113,7 @@ ata_via_probe(device_t dev)
      { ATA_VIAVX855,  0x00, VIA133, 0x00,    ATA_UDMA6, "VX855" },
      { ATA_VIAVX900,  0x00, VIA133, VIASATA, ATA_SA300, "VX900" },
      { 0, 0, 0, 0, 0, 0 }};
-    static const struct ata_chip_id const new_ids[] =
+    static const struct ata_chip_id new_ids[] =
     {{ ATA_VIA6410,   0x00, 0,      0x00,    ATA_UDMA6, "6410" },
      { ATA_VIA6420,   0x00, 7,      0x00,    ATA_SA150, "6420" },
      { ATA_VIA6421,   0x00, 6,      VIABAR,  ATA_SA150, "6421" },
@@ -472,12 +472,10 @@ ata_via_sata_reset(device_t dev)
 static int
 ata_via_sata_scr_read(device_t dev, int port, int reg, u_int32_t *result)
 {
-	struct ata_channel *ch;
 	device_t parent;
 	uint32_t val;
 
 	parent = device_get_parent(dev);
-	ch = device_get_softc(dev);
 	port = (port == 1) ? 1 : 0;
 	switch (reg) {
 	case ATA_SSTATUS:
@@ -520,12 +518,10 @@ ata_via_sata_scr_read(device_t dev, int port, int reg, u_int32_t *result)
 static int
 ata_via_sata_scr_write(device_t dev, int port, int reg, u_int32_t value)
 {
-	struct ata_channel *ch;
 	device_t parent;
 	uint32_t val;
 
 	parent = device_get_parent(dev);
-	ch = device_get_softc(dev);
 	port = (port == 1) ? 1 : 0;
 	switch (reg) {
 	case ATA_SERROR:

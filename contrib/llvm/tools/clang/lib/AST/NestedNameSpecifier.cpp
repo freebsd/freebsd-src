@@ -18,6 +18,7 @@
 #include "clang/AST/PrettyPrinter.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/TypeLoc.h"
+#include "llvm/Support/AlignOf.h"
 #include "llvm/Support/raw_ostream.h"
 #include <cassert>
 
@@ -33,7 +34,8 @@ NestedNameSpecifier::FindOrInsert(const ASTContext &Context,
   NestedNameSpecifier *NNS
     = Context.NestedNameSpecifiers.FindNodeOrInsertPos(ID, InsertPos);
   if (!NNS) {
-    NNS = new (Context, 4) NestedNameSpecifier(Mockup);
+    NNS = new (Context, llvm::alignOf<NestedNameSpecifier>())
+        NestedNameSpecifier(Mockup);
     Context.NestedNameSpecifiers.InsertNode(NNS, InsertPos);
   }
 
@@ -107,7 +109,9 @@ NestedNameSpecifier::Create(const ASTContext &Context, IdentifierInfo *II) {
 NestedNameSpecifier *
 NestedNameSpecifier::GlobalSpecifier(const ASTContext &Context) {
   if (!Context.GlobalNestedNameSpecifier)
-    Context.GlobalNestedNameSpecifier = new (Context, 4) NestedNameSpecifier();
+    Context.GlobalNestedNameSpecifier =
+        new (Context, llvm::alignOf<NestedNameSpecifier>())
+            NestedNameSpecifier();
   return Context.GlobalNestedNameSpecifier;
 }
 
@@ -130,7 +134,7 @@ NestedNameSpecifier::SpecifierKind NestedNameSpecifier::getKind() const {
     return TypeSpecWithTemplate;
   }
 
-  return Global;
+  llvm_unreachable("Invalid NNS Kind!");
 }
 
 /// \brief Retrieve the namespace stored in this nested name
@@ -170,8 +174,7 @@ bool NestedNameSpecifier::isDependent() const {
     return getAsType()->isDependentType();
   }
 
-  // Necessary to suppress a GCC warning.
-  return false;
+  llvm_unreachable("Invalid NNS Kind!");
 }
 
 /// \brief Whether this nested name specifier refers to a dependent
@@ -191,9 +194,8 @@ bool NestedNameSpecifier::isInstantiationDependent() const {
   case TypeSpecWithTemplate:
     return getAsType()->isInstantiationDependentType();
   }
-  
-  // Necessary to suppress a GCC warning.
-  return false;
+
+  llvm_unreachable("Invalid NNS Kind!");
 }
 
 bool NestedNameSpecifier::containsUnexpandedParameterPack() const {
@@ -211,8 +213,7 @@ bool NestedNameSpecifier::containsUnexpandedParameterPack() const {
     return getAsType()->containsUnexpandedParameterPack();
   }
 
-  // Necessary to suppress a GCC warning.
-  return false;  
+  llvm_unreachable("Invalid NNS Kind!");
 }
 
 /// \brief Print this nested name specifier to the given output
@@ -229,6 +230,9 @@ NestedNameSpecifier::print(raw_ostream &OS,
     break;
 
   case Namespace:
+    if (getAsNamespace()->isAnonymousNamespace())
+      return;
+      
     OS << getAsNamespace()->getName();
     break;
 
@@ -379,8 +383,8 @@ SourceRange NestedNameSpecifierLoc::getLocalSourceRange() const {
                        LoadSourceLocation(Data, Offset + sizeof(void*)));
   }
   }
-  
-  return SourceRange();
+
+  llvm_unreachable("Invalid NNS Kind!");
 }
 
 TypeLoc NestedNameSpecifierLoc::getTypeLoc() const {
@@ -433,9 +437,6 @@ namespace {
            Buffer, BufferSize, BufferCapacity);
   }
 }
-
-NestedNameSpecifierLocBuilder::NestedNameSpecifierLocBuilder()
-  : Representation(0), Buffer(0), BufferSize(0), BufferCapacity(0) { }
 
 NestedNameSpecifierLocBuilder::
 NestedNameSpecifierLocBuilder(const NestedNameSpecifierLocBuilder &Other) 
@@ -497,11 +498,6 @@ operator=(const NestedNameSpecifierLocBuilder &Other) {
   Buffer = static_cast<char *>(malloc(BufferSize));
   memcpy(Buffer, Other.Buffer, BufferSize);
   return *this;
-}
-
-NestedNameSpecifierLocBuilder::~NestedNameSpecifierLocBuilder() {
-  if (BufferCapacity)
-    free(Buffer);
 }
 
 void NestedNameSpecifierLocBuilder::Extend(ASTContext &Context, 
@@ -638,4 +634,3 @@ NestedNameSpecifierLocBuilder::getWithLocInContext(ASTContext &Context) const {
   memcpy(Mem, Buffer, BufferSize);
   return NestedNameSpecifierLoc(Representation, Mem);
 }
-

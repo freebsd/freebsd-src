@@ -543,7 +543,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	int created, cuflags, descend, enforce, error, errmsg_len, errmsg_pos;
 	int gotchildmax, gotenforce, gothid, gotrsnum, gotslevel;
 	int fi, jid, jsys, len, level;
-	int childmax, rsnum, slevel, vfslocked;
+	int childmax, rsnum, slevel;
 	int fullpath_disabled;
 #if defined(INET) || defined(INET6)
 	int ii, ij;
@@ -921,12 +921,11 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			error = EINVAL;
 			goto done_free;
 		}
-		NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE, UIO_SYSSPACE,
+		NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE,
 		    path, td);
 		error = namei(&nd);
 		if (error)
 			goto done_free;
-		vfslocked = NDHASGIANT(&nd);
 		root = nd.ni_vp;
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		g_path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
@@ -941,17 +940,14 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 				path = NULL;
 		} else {
 			/* exit on other errors */
-			VFS_UNLOCK_GIANT(vfslocked);
 			goto done_free;
 		}
 		if (root->v_type != VDIR) {
 			error = ENOTDIR;
 			vput(root);
-			VFS_UNLOCK_GIANT(vfslocked);
 			goto done_free;
 		}
 		VOP_UNLOCK(root, 0);
-		VFS_UNLOCK_GIANT(vfslocked);
 		if (fullpath_disabled) {
 			/* Leave room for a real-root full pathname. */
 			if (len + (path[0] == '/' && strcmp(mypr->pr_path, "/")
@@ -1811,6 +1807,16 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		}
 	}
 
+#ifdef RACCT
+	if (!created) {
+		sx_sunlock(&allprison_lock);
+		prison_racct_modify(pr);
+		sx_slock(&allprison_lock);
+	}
+#endif
+
+	td->td_retval[0] = pr->pr_id;
+
 	/*
 	 * Now that it is all there, drop the temporary reference from existing
 	 * prisons.  Or add a reference to newly created persistent prisons
@@ -1832,12 +1838,6 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			sx_sunlock(&allprison_lock);
 	}
 
-#ifdef RACCT
-	if (!created)
-		prison_racct_modify(pr);
-#endif
-
-	td->td_retval[0] = pr->pr_id;
 	goto done_errmsg;
 
  done_deref_locked:
@@ -1848,11 +1848,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
  done_unlock_list:
 	sx_xunlock(&allprison_lock);
  done_releroot:
-	if (root != NULL) {
-		vfslocked = VFS_LOCK_GIANT(root->v_mount);
+	if (root != NULL)
 		vrele(root);
-		VFS_UNLOCK_GIANT(vfslocked);
-	}
  done_errmsg:
 	if (error) {
 		vfs_getopt(opts, "errmsg", (void **)&errmsg, &errmsg_len);
@@ -2333,7 +2330,7 @@ do_jail_attach(struct thread *td, struct prison *pr)
 	struct prison *ppr;
 	struct proc *p;
 	struct ucred *newcred, *oldcred;
-	int vfslocked, error;
+	int error;
 
 	/*
 	 * XXX: Note that there is a slight race here if two threads
@@ -2364,7 +2361,6 @@ do_jail_attach(struct thread *td, struct prison *pr)
 	if (error)
 		goto e_revert_osd;
 
-	vfslocked = VFS_LOCK_GIANT(pr->pr_root->v_mount);
 	vn_lock(pr->pr_root, LK_EXCLUSIVE | LK_RETRY);
 	if ((error = change_dir(pr->pr_root, td)) != 0)
 		goto e_unlock;
@@ -2374,8 +2370,7 @@ do_jail_attach(struct thread *td, struct prison *pr)
 #endif
 	VOP_UNLOCK(pr->pr_root, 0);
 	if ((error = change_root(pr->pr_root, td)))
-		goto e_unlock_giant;
-	VFS_UNLOCK_GIANT(vfslocked);
+		goto e_revert_osd;
 
 	newcred = crget();
 	PROC_LOCK(p);
@@ -2393,8 +2388,6 @@ do_jail_attach(struct thread *td, struct prison *pr)
 	return (0);
  e_unlock:
 	VOP_UNLOCK(pr->pr_root, 0);
- e_unlock_giant:
-	VFS_UNLOCK_GIANT(vfslocked);
  e_revert_osd:
 	/* Tell modules this thread is still in its old jail after all. */
 	(void)osd_jail_call(ppr, PR_METHOD_ATTACH, td);
@@ -2543,7 +2536,6 @@ static void
 prison_deref(struct prison *pr, int flags)
 {
 	struct prison *ppr, *tpr;
-	int vfslocked;
 
 	if (!(flags & PD_LOCKED))
 		mtx_lock(&pr->pr_mtx);
@@ -2584,11 +2576,8 @@ prison_deref(struct prison *pr, int flags)
 		if (pr->pr_vnet != ppr->pr_vnet)
 			vnet_destroy(pr->pr_vnet);
 #endif
-		if (pr->pr_root != NULL) {
-			vfslocked = VFS_LOCK_GIANT(pr->pr_root->v_mount);
+		if (pr->pr_root != NULL)
 			vrele(pr->pr_root);
-			VFS_UNLOCK_GIANT(vfslocked);
-		}
 		mtx_destroy(&pr->pr_mtx);
 #ifdef INET
 		free(pr->pr_ip4, M_PRISON);
@@ -4491,8 +4480,11 @@ prison_racct_modify(struct prison *pr)
 	sx_slock(&allproc_lock);
 	sx_xlock(&allprison_lock);
 
-	if (strcmp(pr->pr_name, pr->pr_prison_racct->prr_name) == 0)
+	if (strcmp(pr->pr_name, pr->pr_prison_racct->prr_name) == 0) {
+		sx_xunlock(&allprison_lock);
+		sx_sunlock(&allproc_lock);
 		return;
+	}
 
 	oldprr = pr->pr_prison_racct;
 	pr->pr_prison_racct = NULL;

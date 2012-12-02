@@ -3,7 +3,7 @@
  * project 2000.
  */
 /* ====================================================================
- * Copyright (c) 2000 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 2000-2005 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -60,21 +60,12 @@
 #include "cryptlib.h"
 #include <openssl/bn.h>
 #include <openssl/rsa.h>
+#include <openssl/x509.h>
 #include <openssl/asn1t.h>
 
-static ASN1_METHOD method={
-        (I2D_OF(void))     i2d_RSAPrivateKey,
-        (D2I_OF(void))     d2i_RSAPrivateKey,
-        (void *(*)(void))  RSA_new,
-        (void (*)(void *)) RSA_free};
-
-ASN1_METHOD *RSAPrivateKey_asn1_meth(void)
-	{
-	return(&method);
-	}
-
 /* Override the default free and new methods */
-static int rsa_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it)
+static int rsa_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
+								void *exarg)
 {
 	if(operation == ASN1_OP_NEW_PRE) {
 		*pval = (ASN1_VALUE *)RSA_new();
@@ -105,6 +96,15 @@ ASN1_SEQUENCE_cb(RSAPublicKey, rsa_cb) = {
 	ASN1_SIMPLE(RSA, n, BIGNUM),
 	ASN1_SIMPLE(RSA, e, BIGNUM),
 } ASN1_SEQUENCE_END_cb(RSA, RSAPublicKey)
+
+ASN1_SEQUENCE(RSA_PSS_PARAMS) = {
+	ASN1_EXP_OPT(RSA_PSS_PARAMS, hashAlgorithm, X509_ALGOR,0),
+	ASN1_EXP_OPT(RSA_PSS_PARAMS, maskGenAlgorithm, X509_ALGOR,1),
+	ASN1_EXP_OPT(RSA_PSS_PARAMS, saltLength, ASN1_INTEGER,2),
+	ASN1_EXP_OPT(RSA_PSS_PARAMS, trailerField, ASN1_INTEGER,3)
+} ASN1_SEQUENCE_END(RSA_PSS_PARAMS)
+
+IMPLEMENT_ASN1_FUNCTIONS(RSA_PSS_PARAMS)
 
 IMPLEMENT_ASN1_ENCODE_FUNCTIONS_const_fname(RSA, RSAPrivateKey, RSAPrivateKey)
 

@@ -14,13 +14,12 @@
 
 #define DEBUG_TYPE "jit"
 #include "JIT.h"
-#include "JITDebugRegisterer.h"
 #include "JITDwarfEmitter.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/Constants.h"
-#include "llvm/Module.h"
+#include "llvm/DebugInfo.h"
 #include "llvm/DerivedTypes.h"
-#include "llvm/Analysis/DebugInfo.h"
+#include "llvm/Module.h"
 #include "llvm/CodeGen/JITCodeEmitter.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineCodeInfo.h"
@@ -77,8 +76,8 @@ namespace {
   struct NoRAUWValueMapConfig : public ValueMapConfig<ValueTy> {
     typedef JITResolverState *ExtraData;
     static void onRAUW(JITResolverState *, Value *Old, Value *New) {
-      assert(false && "The JIT doesn't know how to handle a"
-             " RAUW on a value it has emitted.");
+      llvm_unreachable("The JIT doesn't know how to handle a"
+                       " RAUW on a value it has emitted.");
     }
   };
 
@@ -109,13 +108,18 @@ namespace {
     /// particular GlobalVariable so that we can reuse them if necessary.
     GlobalToIndirectSymMapTy GlobalToIndirectSymMap;
 
+#ifndef NDEBUG
     /// Instance of the JIT this ResolverState serves.
     JIT *TheJIT;
+#endif
 
   public:
     JITResolverState(JIT *jit) : FunctionToLazyStubMap(this),
-                                 FunctionToCallSitesMap(this),
-                                 TheJIT(jit) {}
+                                 FunctionToCallSitesMap(this) {
+#ifndef NDEBUG
+      TheJIT = jit;
+#endif
+    }
 
     FunctionToLazyStubMapTy& getFunctionToLazyStubMap(
       const MutexGuard& locked) {
@@ -324,9 +328,6 @@ namespace {
     /// DE - The dwarf emitter for the jit.
     OwningPtr<JITDwarfEmitter> DE;
 
-    /// DR - The debug registerer for the jit.
-    OwningPtr<JITDebugRegisterer> DR;
-
     /// LabelLocations - This vector is a mapping from Label ID's to their
     /// address.
     DenseMap<MCSymbol*, uintptr_t> LabelLocations;
@@ -362,21 +363,21 @@ namespace {
     /// Instance of the JIT
     JIT *TheJIT;
 
+    bool JITExceptionHandling;
+
   public:
     JITEmitter(JIT &jit, JITMemoryManager *JMM, TargetMachine &TM)
       : SizeEstimate(0), Resolver(jit, *this), MMI(0), CurFn(0),
-        EmittedFunctions(this), TheJIT(&jit) {
+        EmittedFunctions(this), TheJIT(&jit),
+        JITExceptionHandling(TM.Options.JITExceptionHandling) {
       MemMgr = JMM ? JMM : JITMemoryManager::CreateDefaultMemManager();
       if (jit.getJITInfo().needsGOT()) {
         MemMgr->AllocateGOT();
         DEBUG(dbgs() << "JIT is managing a GOT\n");
       }
 
-      if (JITExceptionHandling || JITEmitDebugInfo) {
+      if (JITExceptionHandling) {
         DE.reset(new JITDwarfEmitter(jit));
-      }
-      if (JITEmitDebugInfo) {
-        DR.reset(new JITDebugRegisterer(TM));
       }
     }
     ~JITEmitter() {
@@ -968,7 +969,7 @@ bool JITEmitter::finishFunction(MachineFunction &F) {
       }
     });
 
-  if (JITExceptionHandling || JITEmitDebugInfo) {
+  if (JITExceptionHandling) {
     uintptr_t ActualSize = 0;
     SavedBufferBegin = BufferBegin;
     SavedBufferEnd = BufferEnd;
@@ -983,22 +984,12 @@ bool JITEmitter::finishFunction(MachineFunction &F) {
                                                 EhStart);
     MemMgr->endExceptionTable(F.getFunction(), BufferBegin, CurBufferPtr,
                               FrameRegister);
-    uint8_t *EhEnd = CurBufferPtr;
     BufferBegin = SavedBufferBegin;
     BufferEnd = SavedBufferEnd;
     CurBufferPtr = SavedCurBufferPtr;
 
     if (JITExceptionHandling) {
       TheJIT->RegisterTable(F.getFunction(), FrameRegister);
-    }
-
-    if (JITEmitDebugInfo) {
-      DebugInfo I;
-      I.FnStart = FnStart;
-      I.FnEnd = FnEnd;
-      I.EhStart = EhStart;
-      I.EhEnd = EhEnd;
-      DR->RegisterFunction(F.getFunction(), I);
     }
   }
 
@@ -1037,17 +1028,13 @@ void JITEmitter::deallocateMemForFunction(const Function *F) {
     EmittedFunctions.erase(Emitted);
   }
 
-  if(JITExceptionHandling) {
+  if (JITExceptionHandling) {
     TheJIT->DeregisterTable(F);
-  }
-
-  if (JITEmitDebugInfo) {
-    DR->UnregisterFunction(F);
   }
 }
 
 
-void* JITEmitter::allocateSpace(uintptr_t Size, unsigned Alignment) {
+void *JITEmitter::allocateSpace(uintptr_t Size, unsigned Alignment) {
   if (BufferBegin)
     return JITCodeEmitter::allocateSpace(Size, Alignment);
 
@@ -1059,7 +1046,7 @@ void* JITEmitter::allocateSpace(uintptr_t Size, unsigned Alignment) {
   return CurBufferPtr;
 }
 
-void* JITEmitter::allocateGlobal(uintptr_t Size, unsigned Alignment) {
+void *JITEmitter::allocateGlobal(uintptr_t Size, unsigned Alignment) {
   // Delegate this call through the memory manager.
   return MemMgr->allocateGlobal(Size, Alignment);
 }
@@ -1179,6 +1166,9 @@ void JITEmitter::emitJumpTableInfo(MachineJumpTableInfo *MJTI) {
     }
     break;
   }
+  case MachineJumpTableInfo::EK_GPRel64BlockAddress:
+    llvm_unreachable(
+           "JT Info emission not implemented for GPRel64BlockAddress yet.");
   }
 }
 

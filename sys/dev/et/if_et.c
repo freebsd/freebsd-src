@@ -700,8 +700,8 @@ et_bus_config(struct et_softc *sc)
 	 * max playload size
 	 */
 	val = pci_read_config(sc->dev,
-	    sc->sc_expcap + PCIR_EXPRESS_DEVICE_CAP, 4);
-	max_plsz = val & PCIM_EXP_CAP_MAX_PAYLOAD;
+	    sc->sc_expcap + PCIER_DEVICE_CAP, 4);
+	max_plsz = val & PCIEM_CAP_MAX_PAYLOAD;
 
 	switch (max_plsz) {
 	case ET_PCIV_DEVICE_CAPS_PLSZ_128:
@@ -732,7 +732,7 @@ et_bus_config(struct et_softc *sc)
 	 * Set L0s and L1 latency timer to 2us
 	 */
 	val = pci_read_config(sc->dev, ET_PCIR_L0S_L1_LATENCY, 4);
-	val &= ~(PCIM_LINK_CAP_L0S_EXIT | PCIM_LINK_CAP_L1_EXIT);
+	val &= ~(PCIEM_LINK_CAP_L0S_EXIT | PCIEM_LINK_CAP_L1_EXIT);
 	/* L0s exit latency : 2us */
 	val |= 0x00005000;
 	/* L1 exit latency : 2us */

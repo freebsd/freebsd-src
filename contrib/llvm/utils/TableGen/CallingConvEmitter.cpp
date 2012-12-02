@@ -12,13 +12,28 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "CallingConvEmitter.h"
 #include "CodeGenTarget.h"
 #include "llvm/TableGen/Record.h"
+#include "llvm/TableGen/TableGenBackend.h"
+#include <cassert>
 using namespace llvm;
 
+namespace {
+class CallingConvEmitter {
+  RecordKeeper &Records;
+public:
+  explicit CallingConvEmitter(RecordKeeper &R) : Records(R) {}
+
+  void run(raw_ostream &o);
+
+private:
+  void EmitCallingConv(Record *CC, raw_ostream &O);
+  void EmitAction(Record *Action, unsigned Indent, raw_ostream &O);
+  unsigned Counter;
+};
+} // End anonymous namespace
+
 void CallingConvEmitter::run(raw_ostream &O) {
-  EmitSourceFileHeader("Calling Convention Implementation Fragment", O);
 
   std::vector<Record*> CCs = Records.getAllDerivedDefinitions("CallingConv");
   
@@ -96,7 +111,7 @@ void CallingConvEmitter::EmitAction(Record *Action,
         O << IndentStr << "if (unsigned Reg = State.AllocateReg(";
         O << getQualifiedName(RegList->getElementAsRecord(0)) << ")) {\n";
       } else {
-        O << IndentStr << "static const unsigned RegList" << ++Counter
+        O << IndentStr << "static const uint16_t RegList" << ++Counter
           << "[] = {\n";
         O << IndentStr << "  ";
         for (unsigned i = 0, e = RegList->getSize(); i != e; ++i) {
@@ -127,7 +142,7 @@ void CallingConvEmitter::EmitAction(Record *Action,
         unsigned RegListNumber = ++Counter;
         unsigned ShadowRegListNumber = ++Counter;
 
-        O << IndentStr << "static const unsigned RegList" << RegListNumber
+        O << IndentStr << "static const uint16_t RegList" << RegListNumber
           << "[] = {\n";
         O << IndentStr << "  ";
         for (unsigned i = 0, e = RegList->getSize(); i != e; ++i) {
@@ -136,7 +151,7 @@ void CallingConvEmitter::EmitAction(Record *Action,
         }
         O << "\n" << IndentStr << "};\n";
 
-        O << IndentStr << "static const unsigned RegList"
+        O << IndentStr << "static const uint16_t RegList"
           << ShadowRegListNumber << "[] = {\n";
         O << IndentStr << "  ";
         for (unsigned i = 0, e = ShadowRegList->getSize(); i != e; ++i) {
@@ -210,3 +225,12 @@ void CallingConvEmitter::EmitAction(Record *Action,
     }
   }
 }
+
+namespace llvm {
+
+void EmitCallingConv(RecordKeeper &RK, raw_ostream &OS) {
+  emitSourceFileHeader("Calling Convention Implementation Fragment", OS);
+  CallingConvEmitter(RK).run(OS);
+}
+
+} // End llvm namespace

@@ -126,7 +126,7 @@
 #define	VM_LEVEL_0_ORDER	9
 #endif
 
-/*
+/**
  * Address space layout.
  *
  * UltraSPARC I and II implement a 44 bit virtual address space.  The address

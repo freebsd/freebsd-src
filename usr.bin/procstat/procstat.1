@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 23, 2012
+.Dd July 11, 2012
 .Dt PROCSTAT 1
 .Os
 .Sh NAME
@@ -418,6 +418,8 @@ default
 device
 .It ph
 physical
+.It sg
+scatter/gather
 .It sw
 swap
 .It vn
@@ -433,6 +435,10 @@ copy-on-write
 needs copy
 .It S
 one or more superpage mappings are used
+.It D
+grows down (top-down stack)
+.It U
+grows up (bottom-up stack)
 .El
 .Sh EXIT STATUS
 .Ex -std

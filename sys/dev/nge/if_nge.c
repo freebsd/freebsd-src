@@ -139,7 +139,7 @@ MODULE_DEPEND(nge, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct nge_type const nge_devs[] = {
+static const struct nge_type nge_devs[] = {
 	{ NGE_VENDORID, NGE_DEVICEID,
 	    "National Semiconductor Gigabit Ethernet" },
 	{ 0, 0, NULL }

@@ -58,6 +58,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 
 #define MAX_CLOCKS 	(CLOCK_MONOTONIC+1)
+#define CPUCLOCK_BIT		0x80000000
+#define CPUCLOCK_PROCESS_BIT	0x40000000
+#define CPUCLOCK_ID_MASK	(~(CPUCLOCK_BIT|CPUCLOCK_PROCESS_BIT))
+#define MAKE_THREAD_CPUCLOCK(tid)	(CPUCLOCK_BIT|(tid))
+#define MAKE_PROCESS_CPUCLOCK(pid)	\
+	(CPUCLOCK_BIT|CPUCLOCK_PROCESS_BIT|(pid))
 
 static struct kclock	posix_clocks[MAX_CLOCKS];
 static uma_zone_t	itimer_zone = NULL;
@@ -165,6 +171,52 @@ settime(struct thread *td, struct timeval *tv)
 }
 
 #ifndef _SYS_SYSPROTO_H_
+struct clock_getcpuclockid2_args {
+	id_t id;
+	int which,
+	clockid_t *clock_id;
+};
+#endif
+/* ARGSUSED */
+int
+sys_clock_getcpuclockid2(struct thread *td, struct clock_getcpuclockid2_args *uap)
+{
+	clockid_t clk_id;
+	struct proc *p;
+	pid_t pid;
+	lwpid_t tid;
+	int error;
+
+	switch(uap->which) {
+	case CPUCLOCK_WHICH_PID:
+		if (uap->id != 0) {
+			p = pfind(uap->id);
+			if (p == NULL)
+				return (ESRCH);
+			error = p_cansee(td, p);
+			PROC_UNLOCK(p);
+			if (error)
+				return (error);
+			pid = uap->id;
+		} else {
+			pid = td->td_proc->p_pid;
+		}
+		clk_id = MAKE_PROCESS_CPUCLOCK(pid);
+		break;
+	case CPUCLOCK_WHICH_TID:
+		if (uap->id == 0)
+			tid = td->td_tid;
+		else
+			tid = uap->id;
+		clk_id = MAKE_THREAD_CPUCLOCK(tid);
+		break;
+	default:
+		return (EINVAL);
+	}
+	return (copyout(&clk_id, uap->clock_id, sizeof(clockid_t)));
+}
+
+#ifndef _SYS_SYSPROTO_H_
 struct clock_gettime_args {
 	clockid_t clock_id;
 	struct	timespec *tp;
@@ -184,12 +236,85 @@ sys_clock_gettime(struct thread *td, struct clock_gettime_args *uap)
 	return (error);
 }
 
+static inline void 
+cputick2timespec(uint64_t runtime, struct timespec *ats)
+{
+	runtime = cputick2usec(runtime);
+	ats->tv_sec = runtime / 1000000;
+	ats->tv_nsec = runtime % 1000000 * 1000;
+}
+
+static void
+get_thread_cputime(struct thread *targettd, struct timespec *ats)
+{
+	uint64_t runtime, curtime, switchtime;
+
+	if (targettd == NULL) { /* current thread */
+		critical_enter();
+		switchtime = PCPU_GET(switchtime);
+		curtime = cpu_ticks();
+		runtime = curthread->td_runtime;
+		critical_exit();
+		runtime += curtime - switchtime;
+	} else {
+		thread_lock(targettd);
+		runtime = targettd->td_runtime;
+		thread_unlock(targettd);
+	}
+	cputick2timespec(runtime, ats);
+}
+
+static void
+get_process_cputime(struct proc *targetp, struct timespec *ats)
+{
+	uint64_t runtime;
+	struct rusage ru;
+
+	PROC_SLOCK(targetp);
+	rufetch(targetp, &ru);
+	runtime = targetp->p_rux.rux_runtime;
+	PROC_SUNLOCK(targetp);
+	cputick2timespec(runtime, ats);
+}
+
+static int
+get_cputime(struct thread *td, clockid_t clock_id, struct timespec *ats)
+{
+	struct proc *p, *p2;
+	struct thread *td2;
+	lwpid_t tid;
+	pid_t pid;
+	int error;
+
+	p = td->td_proc;
+	if ((clock_id & CPUCLOCK_PROCESS_BIT) == 0) {
+		tid = clock_id & CPUCLOCK_ID_MASK;
+		td2 = tdfind(tid, p->p_pid);
+		if (td2 == NULL)
+			return (EINVAL);
+		get_thread_cputime(td2, ats);
+		PROC_UNLOCK(td2->td_proc);
+	} else {
+		pid = clock_id & CPUCLOCK_ID_MASK;
+		p2 = pfind(pid);
+		if (p2 == NULL)
+			return (EINVAL);
+		error = p_cansee(td, p2);
+		if (error) {
+			PROC_UNLOCK(p2);
+			return (EINVAL);
+		}
+		get_process_cputime(p2, ats);
+		PROC_UNLOCK(p2);
+	}
+	return (0);
+}
+
 int
 kern_clock_gettime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 {
 	struct timeval sys, user;
 	struct proc *p;
-	uint64_t runtime, curtime, switchtime;
 
 	p = td->td_proc;
 	switch (clock_id) {
@@ -232,17 +357,17 @@ kern_clock_gettime(struct thread *td, clockid_t clock_id, struct timespec *ats)
 		ats->tv_nsec = 0;
 		break;
 	case CLOCK_THREAD_CPUTIME_ID:
-		critical_enter();
-		switchtime = PCPU_GET(switchtime);
-		curtime = cpu_ticks();
-		runtime = td->td_runtime;
-		critical_exit();
-		runtime = cputick2usec(runtime + curtime - switchtime);
-		ats->tv_sec = runtime / 1000000;
-		ats->tv_nsec = runtime % 1000000 * 1000;
+		get_thread_cputime(NULL, ats);
+		break;
+	case CLOCK_PROCESS_CPUTIME_ID:
+		PROC_LOCK(p);
+		get_process_cputime(p, ats);
+		PROC_UNLOCK(p);
 		break;
 	default:
-		return (EINVAL);
+		if ((int)clock_id >= 0)
+			return (EINVAL);
+		return (get_cputime(td, clock_id, ats));
 	}
 	return (0);
 }
@@ -336,12 +461,16 @@ kern_clock_getres(struct thread *td, clockid_t clock_id, struct timespec *ts)
 		ts->tv_nsec = 0;
 		break;
 	case CLOCK_THREAD_CPUTIME_ID:
+	case CLOCK_PROCESS_CPUTIME_ID:
+	cputime:
 		/* sync with cputick2usec */
 		ts->tv_nsec = 1000000 / cpu_tickrate();
 		if (ts->tv_nsec == 0)
 			ts->tv_nsec = 1000;
 		break;
 	default:
+		if ((int)clock_id < 0)
+			goto cputime;
 		return (EINVAL);
 	}
 	return (0);

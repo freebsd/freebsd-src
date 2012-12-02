@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_set_option.c 482 2011-11-03 16:33:02Z des $
+ * $Id: openpam_set_option.c 532 2012-03-31 14:24:53Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -46,7 +46,6 @@
 #include <string.h>
 
 #include <security/pam_appl.h>
-#include <security/openpam.h>
 
 #include "openpam_impl.h"
 

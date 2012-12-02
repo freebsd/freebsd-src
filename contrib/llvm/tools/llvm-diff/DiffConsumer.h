@@ -29,6 +29,7 @@ namespace llvm {
 
   /// The interface for consumers of difference data.
   class Consumer {
+    virtual void anchor();
   public:
     /// Record that a local context has been entered.  Left and
     /// Right are IR "containers" of some sort which are being
@@ -66,8 +67,6 @@ namespace llvm {
     };
 
     raw_ostream &out;
-    Module *LModule;
-    Module *RModule;
     SmallVector<DiffContext, 5> contexts;
     bool Differences;
     unsigned Indent;
@@ -77,8 +76,8 @@ namespace llvm {
     void indent();
 
   public:
-    DiffConsumer(Module *L, Module *R)
-      : out(errs()), LModule(L), RModule(R), Differences(false), Indent(0) {}
+    DiffConsumer()
+      : out(errs()), Differences(false), Indent(0) {}
 
     bool hadDifferences() const;
     void enterContext(Value *L, Value *R);

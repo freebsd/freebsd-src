@@ -1,4 +1,4 @@
-//===-- XCoreFrameLowering.h - Frame info for XCore Target -------*- C++ -*-==//
+//===-- XCoreFrameLowering.h - Frame info for XCore Target ------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -22,7 +22,6 @@ namespace llvm {
   class XCoreSubtarget;
 
   class XCoreFrameLowering: public TargetFrameLowering {
-    const XCoreSubtarget &STI;
   public:
     XCoreFrameLowering(const XCoreSubtarget &STI);
 
@@ -44,8 +43,6 @@ namespace llvm {
 
     void processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
                                               RegScavenger *RS = NULL) const;
-
-    void processFunctionBeforeFrameFinalized(MachineFunction &MF) const;
 
     //! Stack slot size (4 bytes)
     static int stackSlotSize() {

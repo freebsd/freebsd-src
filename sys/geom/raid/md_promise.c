@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2011 Alexander Motin <mav@FreeBSD.org>
+ * Copyright (c) 2000 - 2008 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -170,6 +171,7 @@ static struct g_raid_md_class g_raid_md_promise_class = {
 	"Promise",
 	g_raid_md_promise_methods,
 	sizeof(struct g_raid_md_object),
+	.mdc_enable = 1,
 	.mdc_priority = 100
 };
 
@@ -542,7 +544,7 @@ g_raid_md_promise_purge_disks(struct g_raid_softc *sc)
 			free(pd->pd_meta[i], M_MD_PROMISE);
 			for (j = i; j < pd->pd_subdisks - 1; j++)
 				pd->pd_meta[j] = pd->pd_meta[j + 1];
-			pd->pd_meta[PROMISE_MAX_SUBDISKS - 1] = NULL;
+			pd->pd_meta[pd->pd_subdisks - 1] = NULL;
 			pd->pd_subdisks--;
 			pd->pd_updated = 1;
 		}
@@ -595,11 +597,13 @@ g_raid_md_promise_supported(int level, int qual, int disks, int force)
 	case G_RAID_VOLUME_RL_RAID5:
 		if (disks < 3)
 			return (0);
+		if (qual != G_RAID_VOLUME_RLQ_R5LA)
+			return (0);
 		break;
 	default:
 		return (0);
 	}
-	if (qual != G_RAID_VOLUME_RLQ_NONE)
+	if (level != G_RAID_VOLUME_RL_RAID5 && qual != G_RAID_VOLUME_RLQ_NONE)
 		return (0);
 	return (1);
 }
@@ -646,7 +650,7 @@ g_raid_md_promise_start_disk(struct g_raid_disk *disk, int sdn,
 			free(pd->pd_meta[sdn], M_MD_PROMISE);
 			for (i = sdn; i < pd->pd_subdisks - 1; i++)
 				pd->pd_meta[i] = pd->pd_meta[i + 1];
-			pd->pd_meta[PROMISE_MAX_SUBDISKS - 1] = NULL;
+			pd->pd_meta[pd->pd_subdisks - 1] = NULL;
 			pd->pd_subdisks--;
 		}
 		/* If we are in the start process, that's all for now. */
@@ -848,6 +852,7 @@ g_raid_md_promise_start(struct g_raid_volume *vol)
 	pv = vol->v_md_data;
 	meta = pv->pv_meta;
 
+	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
 	if (meta->type == PROMISE_T_RAID0)
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID0;
 	else if (meta->type == PROMISE_T_RAID1) {
@@ -857,15 +862,15 @@ g_raid_md_promise_start(struct g_raid_volume *vol)
 			vol->v_raid_level = G_RAID_VOLUME_RL_RAID1E;
 	} else if (meta->type == PROMISE_T_RAID3)
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID3;
-	else if (meta->type == PROMISE_T_RAID5)
+	else if (meta->type == PROMISE_T_RAID5) {
 		vol->v_raid_level = G_RAID_VOLUME_RL_RAID5;
-	else if (meta->type == PROMISE_T_SPAN)
+		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_R5LA;
+	} else if (meta->type == PROMISE_T_SPAN)
 		vol->v_raid_level = G_RAID_VOLUME_RL_CONCAT;
 	else if (meta->type == PROMISE_T_JBOD)
 		vol->v_raid_level = G_RAID_VOLUME_RL_SINGLE;
 	else
 		vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
-	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
 	vol->v_strip_size = 512 << meta->stripe_shift; //ZZZ
 	vol->v_disks_count = meta->total_disks;
 	vol->v_mediasize = (off_t)meta->total_sectors * 512; //ZZZ
@@ -1041,7 +1046,7 @@ g_raid_md_taste_promise(struct g_raid_md_object *md, struct g_class *mp,
 	struct promise_raid_conf *meta, *metaarr[4];
 	struct g_raid_md_promise_perdisk *pd;
 	struct g_geom *geom;
-	int error, i, j, result, len, subdisks;
+	int i, j, result, len, subdisks;
 	char name[16];
 	uint16_t vendor;
 
@@ -1089,7 +1094,7 @@ g_raid_md_taste_promise(struct g_raid_md_object *md, struct g_class *mp,
 		free(metaarr[i], M_MD_PROMISE);
 		for (j = i; j < subdisks - 1; j++)
 			metaarr[i] = metaarr[j + 1];
-		metaarr[PROMISE_MAX_SUBDISKS - 1] = NULL;
+		metaarr[subdisks - 1] = NULL;
 		subdisks--;
 	}
 
@@ -1137,14 +1142,7 @@ search:
 	disk->d_consumer = rcp;
 	rcp->private = disk;
 
-	/* Read kernel dumping information. */
-	disk->d_kd.offset = 0;
-	disk->d_kd.length = OFF_MAX;
-	len = sizeof(disk->d_kd);
-	error = g_io_getattr("GEOM::kerneldump", rcp, &len, &disk->d_kd);
-	if (disk->d_kd.di.dumper == NULL)
-		G_RAID_DEBUG1(2, sc, "Dumping not supported by %s: %d.", 
-		    rcp->provider->name, error);
+	g_raid_get_disk_info(disk);
 
 	g_raid_md_promise_new_disk(disk);
 
@@ -1212,7 +1210,7 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 	struct g_consumer *cp;
 	struct g_provider *pp;
 	char arg[16];
-	const char *verb, *volname, *levelname, *diskname;
+	const char *nodename, *verb, *volname, *levelname, *diskname;
 	char *tmp;
 	int *nargs, *force;
 	off_t size, sectorsize, strip;
@@ -1241,6 +1239,8 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			gctl_error(req, "No RAID level.");
 			return (-3);
 		}
+		if (strcasecmp(levelname, "RAID5") == 0)
+			levelname = "RAID5-LA";
 		if (g_raid_volume_str2level(levelname, &level, &qual)) {
 			gctl_error(req, "Unknown RAID level '%s'.", levelname);
 			return (-4);
@@ -1330,15 +1330,7 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 				break;
 			}
 
-			/* Read kernel dumping information. */
-			disk->d_kd.offset = 0;
-			disk->d_kd.length = OFF_MAX;
-			len = sizeof(disk->d_kd);
-			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
-			if (disk->d_kd.di.dumper == NULL)
-				G_RAID_DEBUG1(2, sc,
-				    "Dumping not supported by %s.",
-				    cp->provider->name);
+			g_raid_get_disk_info(disk);
 
 			/* Reserve some space for metadata. */
 			size = MIN(size, pp->mediasize - 131072llu * pp->sectorsize);
@@ -1415,7 +1407,7 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 		vol = g_raid_create_volume(sc, volname, -1);
 		vol->v_md_data = pv;
 		vol->v_raid_level = level;
-		vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_NONE;
+		vol->v_raid_level_qualifier = qual;
 		vol->v_strip_size = strip;
 		vol->v_disks_count = numdisks;
 		if (level == G_RAID_VOLUME_RL_RAID0 ||
@@ -1471,8 +1463,12 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 	}
 	if (strcmp(verb, "delete") == 0) {
 
+		nodename = gctl_get_asciiparam(req, "arg0");
+		if (nodename != NULL && strcasecmp(sc->sc_name, nodename) != 0)
+			nodename = NULL;
+
 		/* Full node destruction. */
-		if (*nargs == 1) {
+		if (*nargs == 1 && nodename != NULL) {
 			/* Check if some volume is still open. */
 			force = gctl_get_paraml(req, "force", sizeof(*force));
 			if (force != NULL && *force == 0 &&
@@ -1490,11 +1486,12 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 		}
 
 		/* Destroy specified volume. If it was last - all node. */
-		if (*nargs != 2) {
+		if (*nargs > 2) {
 			gctl_error(req, "Invalid number of arguments.");
 			return (-1);
 		}
-		volname = gctl_get_asciiparam(req, "arg1");
+		volname = gctl_get_asciiparam(req,
+		    nodename != NULL ? "arg1" : "arg0");
 		if (volname == NULL) {
 			gctl_error(req, "No volume name.");
 			return (-2);
@@ -1503,6 +1500,14 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 		/* Search for volume. */
 		TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
 			if (strcmp(vol->v_name, volname) == 0)
+				break;
+			pp = vol->v_provider;
+			if (pp == NULL)
+				continue;
+			if (strcmp(pp->name, volname) == 0)
+				break;
+			if (strncmp(pp->name, "raid/", 5) == 0 &&
+			    strcmp(pp->name + 5, volname) == 0)
 				break;
 		}
 		if (vol == NULL) {
@@ -1639,15 +1644,7 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			disk->d_md_data = (void *)pd;
 			cp->private = disk;
 
-			/* Read kernel dumping information. */
-			disk->d_kd.offset = 0;
-			disk->d_kd.length = OFF_MAX;
-			len = sizeof(disk->d_kd);
-			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
-			if (disk->d_kd.di.dumper == NULL)
-				G_RAID_DEBUG1(2, sc,
-				    "Dumping not supported by %s.",
-				    cp->provider->name);
+			g_raid_get_disk_info(disk);
 
 			/* Welcome the "new" disk. */
 			g_raid_change_disk_state(disk, G_RAID_DISK_S_SPARE);
@@ -1949,6 +1946,8 @@ g_raid_md_free_volume_promise(struct g_raid_md_object *md,
 		pv->pv_started = 1;
 		callout_stop(&pv->pv_start_co);
 	}
+	free(pv, M_MD_PROMISE);
+	vol->v_md_data = NULL;
 	return (0);
 }
 
@@ -1959,4 +1958,4 @@ g_raid_md_free_promise(struct g_raid_md_object *md)
 	return (0);
 }
 
-G_RAID_MD_DECLARE(g_raid_md_promise);
+G_RAID_MD_DECLARE(promise, "Promise");

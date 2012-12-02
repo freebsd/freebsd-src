@@ -11,12 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "ClangASTNodesEmitter.h"
-#include "ClangAttrEmitter.h"
-#include "ClangDiagnosticsEmitter.h"
-#include "ClangSACheckersEmitter.h"
-#include "NeonEmitter.h"
-#include "OptParserEmitter.h"
+#include "TableGenBackends.h" // Declares all backends.
 
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/PrettyStackTrace.h"
@@ -27,6 +22,7 @@
 #include "llvm/TableGen/TableGenAction.h"
 
 using namespace llvm;
+using namespace clang;
 
 enum ActionType {
   GenClangAttrClasses,
@@ -36,9 +32,13 @@ enum ActionType {
   GenClangAttrPCHWrite,
   GenClangAttrSpellingList,
   GenClangAttrLateParsedList,
+  GenClangAttrTemplateInstantiate,
+  GenClangAttrParsedAttrList,
+  GenClangAttrParsedAttrKinds,
   GenClangDiagsDefs,
   GenClangDiagGroups,
   GenClangDiagsIndexName,
+  GenClangCommentNodes,
   GenClangDeclNodes,
   GenClangStmtNodes,
   GenClangSACheckers,
@@ -71,6 +71,15 @@ namespace {
                     clEnumValN(GenClangAttrLateParsedList,
                                "gen-clang-attr-late-parsed-list",
                                "Generate a clang attribute LateParsed list"),
+                    clEnumValN(GenClangAttrTemplateInstantiate,
+                               "gen-clang-attr-template-instantiate",
+                               "Generate a clang template instantiate code"),
+                    clEnumValN(GenClangAttrParsedAttrList,
+                               "gen-clang-attr-parsed-attr-list",
+                               "Generate a clang parsed attribute list"),
+                    clEnumValN(GenClangAttrParsedAttrKinds,
+                               "gen-clang-attr-parsed-attr-kinds",
+                               "Generate a clang parsed attribute kinds"),
                     clEnumValN(GenClangDiagsDefs, "gen-clang-diags-defs",
                                "Generate Clang diagnostics definitions"),
                     clEnumValN(GenClangDiagGroups, "gen-clang-diag-groups",
@@ -78,6 +87,8 @@ namespace {
                     clEnumValN(GenClangDiagsIndexName,
                                "gen-clang-diags-index-name",
                                "Generate Clang diagnostic name index"),
+                    clEnumValN(GenClangCommentNodes, "gen-clang-comment-nodes",
+                               "Generate Clang AST comment nodes"),
                     clEnumValN(GenClangDeclNodes, "gen-clang-decl-nodes",
                                "Generate Clang AST declaration nodes"),
                     clEnumValN(GenClangStmtNodes, "gen-clang-stmt-nodes",
@@ -96,75 +107,84 @@ namespace {
   ClangComponent("clang-component",
                  cl::desc("Only use warnings from specified component"),
                  cl::value_desc("component"), cl::Hidden);
-}
 
 class ClangTableGenAction : public TableGenAction {
 public:
   bool operator()(raw_ostream &OS, RecordKeeper &Records) {
     switch (Action) {
     case GenClangAttrClasses:
-      ClangAttrClassEmitter(Records).run(OS);
+      EmitClangAttrClass(Records, OS);
       break;
     case GenClangAttrImpl:
-      ClangAttrImplEmitter(Records).run(OS);
+      EmitClangAttrImpl(Records, OS);
       break;
     case GenClangAttrList:
-      ClangAttrListEmitter(Records).run(OS);
+      EmitClangAttrList(Records, OS);
       break;
     case GenClangAttrPCHRead:
-      ClangAttrPCHReadEmitter(Records).run(OS);
+      EmitClangAttrPCHRead(Records, OS);
       break;
     case GenClangAttrPCHWrite:
-      ClangAttrPCHWriteEmitter(Records).run(OS);
+      EmitClangAttrPCHWrite(Records, OS);
       break;
     case GenClangAttrSpellingList:
-      ClangAttrSpellingListEmitter(Records).run(OS);
+      EmitClangAttrSpellingList(Records, OS);
       break;
     case GenClangAttrLateParsedList:
-      ClangAttrLateParsedListEmitter(Records).run(OS);
+      EmitClangAttrLateParsedList(Records, OS);
+      break;
+    case GenClangAttrTemplateInstantiate:
+      EmitClangAttrTemplateInstantiate(Records, OS);
+      break;
+    case GenClangAttrParsedAttrList:
+      EmitClangAttrParsedAttrList(Records, OS);
+      break;
+    case GenClangAttrParsedAttrKinds:
+      EmitClangAttrParsedAttrKinds(Records, OS);
       break;
     case GenClangDiagsDefs:
-      ClangDiagsDefsEmitter(Records, ClangComponent).run(OS);
+      EmitClangDiagsDefs(Records, OS, ClangComponent);
       break;
     case GenClangDiagGroups:
-      ClangDiagGroupsEmitter(Records).run(OS);
+      EmitClangDiagGroups(Records, OS);
       break;
     case GenClangDiagsIndexName:
-      ClangDiagsIndexNameEmitter(Records).run(OS);
+      EmitClangDiagsIndexName(Records, OS);
+      break;
+    case GenClangCommentNodes:
+      EmitClangASTNodes(Records, OS, "Comment", "");
       break;
     case GenClangDeclNodes:
-      ClangASTNodesEmitter(Records, "Decl", "Decl").run(OS);
-      ClangDeclContextEmitter(Records).run(OS);
+      EmitClangASTNodes(Records, OS, "Decl", "Decl");
+      EmitClangDeclContext(Records, OS);
       break;
     case GenClangStmtNodes:
-      ClangASTNodesEmitter(Records, "Stmt", "").run(OS);
+      EmitClangASTNodes(Records, OS, "Stmt", "");
       break;
     case GenClangSACheckers:
-      ClangSACheckersEmitter(Records).run(OS);
+      EmitClangSACheckers(Records, OS);
       break;
     case GenOptParserDefs:
-      OptParserEmitter(Records, true).run(OS);
+      EmitOptParser(Records, OS, true);
       break;
     case GenOptParserImpl:
-      OptParserEmitter(Records, false).run(OS);
+      EmitOptParser(Records, OS, false);
       break;
     case GenArmNeon:
-      NeonEmitter(Records).run(OS);
+      EmitNeon(Records, OS);
       break;
     case GenArmNeonSema:
-      NeonEmitter(Records).runHeader(OS);
+      EmitNeonSema(Records, OS);
       break;
     case GenArmNeonTest:
-      NeonEmitter(Records).runTests(OS);
+      EmitNeonTest(Records, OS);
       break;
-    default:
-      assert(1 && "Invalid Action");
-      return true;
     }
 
     return false;
   }
 };
+}
 
 int main(int argc, char **argv) {
   sys::PrintStackTraceOnErrorSignal();

@@ -75,7 +75,7 @@ static SYSCTL_NODE(_hw, OID_AUTO, upgt, CTLFLAG_RD, 0,
 
 #ifdef UPGT_DEBUG
 int upgt_debug = 0;
-SYSCTL_INT(_hw_upgt, OID_AUTO, debug, CTLFLAG_RW, &upgt_debug,
+SYSCTL_INT(_hw_upgt, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN, &upgt_debug,
 	    0, "control debugging printfs");
 TUNABLE_INT("hw.upgt.debug", &upgt_debug);
 enum {

@@ -38,8 +38,6 @@ SRCS=	8003.c \
 	get_mic.c \
 	gkrb5_err.c \
 	gkrb5_err.h \
-	gsskrb5-private.h \
-	gsskrb5_locl.h \
 	import_name.c \
 	import_sec_context.c \
 	indicate_mechs.c \

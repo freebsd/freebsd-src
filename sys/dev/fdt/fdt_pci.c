@@ -100,6 +100,14 @@ fdt_pci_ranges_decode(phandle_t node, struct fdt_pci_range *io_space,
 	    size_cells);
 	tuples = len / tuple_size;
 
+	/*
+	 * Initialize the ranges so that we don't have to worry about
+	 * having them all defined in the FDT. In particular, it is
+	 * perfectly fine not to want I/O space on PCI busses.
+	 */
+	bzero(io_space, sizeof(*io_space));
+	bzero(mem_space, sizeof(*mem_space));
+
 	rangesptr = &ranges[0];
 	offset_cells = 0;
 	for (i = 0; i < tuples; i++) {
@@ -333,14 +341,14 @@ fdt_pci_devmap(phandle_t node, struct pmap_devmap *devmap, vm_offset_t io_va,
 	if ((error = fdt_pci_ranges_decode(node, &io_space, &mem_space)) != 0)
 		return (error);
 
-	devmap->pd_va = io_va;
+	devmap->pd_va = (io_va ? io_va : io_space.base_parent);
 	devmap->pd_pa = io_space.base_parent;
 	devmap->pd_size = io_space.len;
 	devmap->pd_prot = VM_PROT_READ | VM_PROT_WRITE;
 	devmap->pd_cache = PTE_NOCACHE;
 	devmap++;
 
-	devmap->pd_va = mem_va;
+	devmap->pd_va = (mem_va ? mem_va : mem_space.base_parent);
 	devmap->pd_pa = mem_space.base_parent;
 	devmap->pd_size = mem_space.len;
 	devmap->pd_prot = VM_PROT_READ | VM_PROT_WRITE;

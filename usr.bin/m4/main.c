@@ -85,7 +85,7 @@ struct keyblk {
         int     ktyp;           /* keyword type */
 };
 
-struct keyblk keywrds[] = {	/* m4 keywords to be installed */
+static struct keyblk keywrds[] = {	/* m4 keywords to be installed */
 	{ "include",      INCLTYPE },
 	{ "sinclude",     SINCTYPE },
 	{ "define",       DEFITYPE },
@@ -163,6 +163,8 @@ static void reallyputchar(int);
 static void enlarge_stack(void);
 
 int main(int, char *[]);
+
+int exit_code = 0;
 
 int
 main(int argc, char *argv[])
@@ -282,7 +284,7 @@ main(int argc, char *argv[])
 		(void) fclose(outfile[0]);
 	}
 
-	return 0;
+	return exit_code;
 }
 
 /*

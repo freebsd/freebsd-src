@@ -51,22 +51,49 @@ EntryPoint("entry",
 class TrivialMemoryManager : public RTDyldMemoryManager {
 public:
   SmallVector<sys::MemoryBlock, 16> FunctionMemory;
+  SmallVector<sys::MemoryBlock, 16> DataMemory;
 
-  uint8_t *startFunctionBody(const char *Name, uintptr_t &Size);
-  void endFunctionBody(const char *Name, uint8_t *FunctionStart,
-                       uint8_t *FunctionEnd);
+  uint8_t *allocateCodeSection(uintptr_t Size, unsigned Alignment,
+                               unsigned SectionID);
+  uint8_t *allocateDataSection(uintptr_t Size, unsigned Alignment,
+                               unsigned SectionID);
+
+  virtual void *getPointerToNamedFunction(const std::string &Name,
+                                          bool AbortOnFailure = true) {
+    return 0;
+  }
+
+  // Invalidate instruction cache for sections with execute permissions.
+  // Some platforms with separate data cache and instruction cache require
+  // explicit cache flush, otherwise JIT code manipulations (like resolved
+  // relocations) will get to the data cache but not to the instruction cache.
+  virtual void invalidateInstructionCache();
 };
 
-uint8_t *TrivialMemoryManager::startFunctionBody(const char *Name,
-                                                 uintptr_t &Size) {
-  return (uint8_t*)sys::Memory::AllocateRWX(Size, 0, 0).base();
+uint8_t *TrivialMemoryManager::allocateCodeSection(uintptr_t Size,
+                                                   unsigned Alignment,
+                                                   unsigned SectionID) {
+  sys::MemoryBlock MB = sys::Memory::AllocateRWX(Size, 0, 0);
+  FunctionMemory.push_back(MB);
+  return (uint8_t*)MB.base();
 }
 
-void TrivialMemoryManager::endFunctionBody(const char *Name,
-                                           uint8_t *FunctionStart,
-                                           uint8_t *FunctionEnd) {
-  uintptr_t Size = FunctionEnd - FunctionStart + 1;
-  FunctionMemory.push_back(sys::MemoryBlock(FunctionStart, Size));
+uint8_t *TrivialMemoryManager::allocateDataSection(uintptr_t Size,
+                                                   unsigned Alignment,
+                                                   unsigned SectionID) {
+  sys::MemoryBlock MB = sys::Memory::AllocateRWX(Size, 0, 0);
+  DataMemory.push_back(MB);
+  return (uint8_t*)MB.base();
+}
+
+void TrivialMemoryManager::invalidateInstructionCache() {
+  for (int i = 0, e = FunctionMemory.size(); i != e; ++i)
+    sys::Memory::InvalidateInstructionCache(FunctionMemory[i].base(),
+                                            FunctionMemory[i].size());
+
+  for (int i = 0, e = DataMemory.size(); i != e; ++i)
+    sys::Memory::InvalidateInstructionCache(DataMemory[i].base(),
+                                            DataMemory[i].size());
 }
 
 static const char *ProgramName;
@@ -105,6 +132,8 @@ static int executeInput() {
 
   // Resolve all the relocations we can.
   Dyld.resolveRelocations();
+  // Clear instruction cache before code will be executed.
+  MemMgr->invalidateInstructionCache();
 
   // FIXME: Error out if there are unresolved relocations.
 
@@ -142,10 +171,7 @@ int main(int argc, char **argv) {
   cl::ParseCommandLineOptions(argc, argv, "llvm MC-JIT tool\n");
 
   switch (Action) {
-  default:
   case AC_Execute:
     return executeInput();
   }
-
-  return 0;
 }

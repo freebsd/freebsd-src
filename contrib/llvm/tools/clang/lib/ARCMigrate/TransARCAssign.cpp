@@ -23,6 +23,7 @@
 
 #include "Transforms.h"
 #include "Internals.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/Sema/SemaDiagnostic.h"
 
 using namespace clang;
@@ -39,6 +40,9 @@ public:
   ARCAssignChecker(MigrationPass &pass) : Pass(pass) { }
 
   bool VisitBinaryOperator(BinaryOperator *Exp) {
+    if (Exp->getType()->isDependentType())
+      return true;
+
     Expr *E = Exp->getLHS();
     SourceLocation OrigLoc = E->getExprLoc();
     SourceLocation Loc = OrigLoc;

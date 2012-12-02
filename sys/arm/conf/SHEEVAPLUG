@@ -17,6 +17,7 @@ options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
 options 	INET6			#IPv6 communications protocols
 options 	FFS			#Berkeley Fast Filesystem
+options 	NANDFS			#NAND Filesystem
 options 	NFSCL			#New Network Filesystem Client
 options 	NFSLOCKD		#Network Lock Manager
 options 	NFS_ROOT		#NFS usable as /, requires NFSCL
@@ -55,8 +56,8 @@ device		mge			# Marvell Gigabit Ethernet controller
 device		mii
 device		e1000phy
 device		bpf
-options		HZ=1000
-options		DEVICE_POLLING
+options 	HZ=1000
+options 	DEVICE_POLLING
 device		vlan
 
 device		cesa			# Marvell security engine
@@ -72,7 +73,10 @@ device		scbus
 device		pass
 device		da
 
+# NAND
+device		nand
+
 # Flattened Device Tree
 options 	FDT
-options		FDT_DTB_STATIC
+options 	FDT_DTB_STATIC
 makeoptions	FDT_DTS_FILE=sheevaplug.dts

@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: database,v 1.28 2011/09/16 19:40:40 christos Exp $
 # database:  file(1) magic for various databases
 #
 # extracted from header/code files by Graeme Wilford (eep2gw@ee.surrey.ac.uk)
@@ -267,3 +268,28 @@
 >40	lequad		x			\b, bnum=%lld
 >48	lequad		x			\b, rnum=%lld
 >56	lequad		x			\b, fsiz=%lld
+
+# G-IR database made by gobject-introspect toolset,
+# http://live.gnome.org/GObjectIntrospection
+0	string		GOBJ\nMETADATA\r\n\032	G-IR binary database
+>16	byte		x			\b, v%d
+>17	byte		x			\b.%d
+>20	leshort		x			\b, %d entries
+>22	leshort		x			\b/%d local
+
+# Type:	QDBM Quick Database Manager
+# From:	Benoit Sibaud <bsibaud@april.org>
+0	string		\\[depot\\]\n\f		Quick Database Manager, little endian
+0	string		\\[DEPOT\\]\n\f		Quick Database Manager, big endian
+
+# Type:	TokyoCabinet database
+# URL:	http://tokyocabinet.sourceforge.net/
+# From:	Benoit Sibaud <bsibaud@april.org>
+0	string		ToKyO\ CaBiNeT\n	TokyoCabinet database
+>14	string		x			(version %s)
+
+# From:  Stéphane Blondon http://www.yaal.fr
+# Database file for Zope (done by FileStorage)
+0	string		FS21	Zope Object Database File Storage (data)
+# Cache file for the database of Zope (done by ClientStorage)
+0	string		ZEC3	Zope Object Database Client Cache File (data)

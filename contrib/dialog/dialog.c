@@ -1,9 +1,9 @@
 /*
- * $Id: dialog.c,v 1.193 2011/06/29 09:10:56 tom Exp $
+ * $Id: dialog.c,v 1.202 2012/07/01 20:20:39 tom Exp $
  *
  *  cdialog - Display simple dialog boxes from shell scripts
  *
- *  Copyright 2000-2010,2011	Thomas E. Dickey
+ *  Copyright 2000-2011,2012	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -57,6 +57,7 @@ typedef enum {
     ,o_cr_wrap
     ,o_create_rc
     ,o_date_format
+    ,o_default_button
     ,o_default_item
     ,o_defaultno
     ,o_dselect
@@ -201,6 +202,7 @@ static const Options options[] = {
     { "cr-wrap",	o_cr_wrap,		1, "" },
     { "create-rc",	o_create_rc,		1, NULL },
     { "date-format",	o_date_format,		1, "<str>" },
+    { "default-button",	o_default_button,	1, "<str>" },
     { "default-item",	o_default_item,		1, "<str>" },
     { "defaultno",	o_defaultno,		1, "" },
     { "dselect",	o_dselect,		2, "<directory> <height> <width>" },
@@ -431,6 +433,12 @@ unescape_argv(int *argcp, char ***argvp)
     dialog_argv = (*argvp);
 }
 
+#define OptionChars "\
+0123456789\
+-\
+abcdefghijklmnopqrstuvwxyz\
+"
+
 /*
  * Check if the given string from main's argv is an option.
  */
@@ -449,7 +457,11 @@ isOption(const char *arg)
 		}
 	    }
 	} else if (!strncmp(arg, "--", (size_t) 2) && isalpha(UCH(arg[2]))) {
-	    result = TRUE;
+	    if (strlen(arg) == strspn(arg, OptionChars)) {
+		result = TRUE;
+	    } else {
+		dlg_exiterr("Invalid option \"%s\"", arg);
+	    }
 	}
     }
     return result;
@@ -459,17 +471,19 @@ static eOptions
 lookupOption(const char *name, int pass)
 {
     unsigned n;
+    eOptions result = o_unknown;
 
     if (isOption(name)) {
 	name += 2;
 	for (n = 0; n < sizeof(options) / sizeof(options[0]); n++) {
 	    if ((pass & options[n].pass) != 0
 		&& !strcmp(name, options[n].name)) {
-		return options[n].code;
+		result = options[n].code;
+		break;
 	    }
 	}
     }
-    return o_unknown;
+    return result;
 }
 
 static void
@@ -685,9 +699,7 @@ call_checklist(CALLARGS)
 {
     int tags = howmany_tags(av + 5, CHECKBOX_TAGS);
     int code;
-    bool save_quoted = dialog_vars.quoted;
 
-    dialog_vars.quoted = !dialog_vars.separate_output;
     *offset_add = 5 + tags * CHECKBOX_TAGS;
     code = dialog_checklist(t,
 			    av[1],
@@ -695,7 +707,6 @@ call_checklist(CALLARGS)
 			    numeric_arg(av, 3),
 			    numeric_arg(av, 4),
 			    tags, av + 5, FLAG_CHECK);
-    dialog_vars.quoted = save_quoted;
     return code;
 }
 
@@ -1052,6 +1063,43 @@ optionValue(char **argv, int *num)
     return result;
 }
 
+/* Return exit-code for a named button */
+static int
+button_code(const char *name)
+{
+    /* *INDENT-OFF* */
+    static struct {
+	const char *name;
+	int code;
+    } table[] = {
+	{ "ok",	    DLG_EXIT_OK },
+	{ "yes",    DLG_EXIT_OK },
+	{ "cancel", DLG_EXIT_CANCEL },
+	{ "no",	    DLG_EXIT_CANCEL },
+	{ "help",   DLG_EXIT_HELP },
+	{ "extra",  DLG_EXIT_EXTRA },
+    };
+    /* *INDENT-ON* */
+
+    int code = DLG_EXIT_ERROR;
+    size_t i;
+
+    for (i = 0; i < (sizeof(table) / sizeof(table[0])); i++) {
+	if (!dlg_strcmp(name, table[i].name)) {
+	    code = table[i].code;
+	    break;
+	}
+    }
+
+    if (code == DLG_EXIT_ERROR) {
+	char temp[80];
+	sprintf(temp, "Button name \"%.20s\" unknown", name);
+	Usage(temp);
+    }
+
+    return code;
+}
+
 /*
  * Print parts of a message
  */
@@ -1115,7 +1163,7 @@ Help(void)
     static const char *const tbl_1[] =
     {
 	"cdialog (ComeOn Dialog!) version %s",
-	"Copyright 2000-2008,2011 Thomas E. Dickey",
+	"Copyright 2000-2011,2012 Thomas E. Dickey",
 	"This is free software; see the source for copying conditions.  There is NO",
 	"warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
 	"",
@@ -1179,6 +1227,29 @@ Help(void)
     dlg_exit(DLG_EXIT_OK);
 }
 
+#ifdef HAVE_DLG_TRACE
+/*
+ * Only the first call to dlg_trace will open a trace file.  But each time
+ * --trace is parsed, we show the whole parameter list as it is at that moment,
+ * counting discarded parameters.  The only way to capture the whole parameter
+ * list is if --trace is the first option.
+ */
+static void
+process_trace_option(char **argv, int *offset)
+{
+    int j;
+
+    if (dialog_state.trace_output == 0)
+	dlg_trace(optionString(argv, offset));
+
+    dlg_trace_msg("# Parameters:\n");
+    for (j = 0; argv[j] != 0; ++j) {
+	dlg_trace_msg("# argv[%d] = %s\n", j, argv[j]);
+    }
+    *offset += 1;
+}
+#endif
+
 /*
  * "Common" options apply to all widgets more/less.  Most of the common options
  * set values in dialog_vars, a few set dialog_state and a couple write to the
@@ -1187,12 +1258,12 @@ Help(void)
 static int
 process_common_options(int argc, char **argv, int offset, bool output)
 {
-#ifdef HAVE_DLG_TRACE
-    int n;
-#endif
     bool done = FALSE;
 
+    dlg_trace_msg("# process_common_options, offset %d\n", offset);
+
     while (offset < argc && !done) {	/* Common options */
+	dlg_trace_msg("#\targv[%d] = %s\n", offset, argv[offset]);
 	switch (lookupOption(argv[offset], 1)) {
 	case o_title:
 	    dialog_vars.title = optionString(argv, &offset);
@@ -1250,6 +1321,11 @@ process_common_options(int argc, char **argv, int offset, bool output)
 	    break;
 	case o_defaultno:
 	    dialog_vars.defaultno = TRUE;
+	    dialog_vars.default_button = DLG_EXIT_CANCEL;
+	    break;
+	case o_default_button:
+	    dialog_vars.default_button = button_code(optionString(argv, &offset));
+	    dialog_vars.defaultno = dialog_vars.default_button == DLG_EXIT_CANCEL;
 	    break;
 	case o_default_item:
 	    dialog_vars.default_item = optionString(argv, &offset);
@@ -1416,10 +1492,7 @@ process_common_options(int argc, char **argv, int offset, bool output)
 	    break;
 #ifdef HAVE_DLG_TRACE
 	case o_trace:
-	    dlg_trace(optionString(argv, &offset));
-	    for (n = 0; argv[n] != 0; ++n) {
-		dlg_trace_msg("argv[%d] = %s\n", n, argv[n]);
-	    }
+	    process_trace_option(argv, &offset);
 	    break;
 #endif
 	}
@@ -1440,11 +1513,15 @@ init_result(char *buffer)
     static char **special_argv = 0;
     static int special_argc = 0;
 
+    dlg_trace_msg("# init_result\n");
+
     /* clear everything we do not save for the next widget */
     memset(&dialog_vars, 0, sizeof(dialog_vars));
 
     dialog_vars.input_result = buffer;
     dialog_vars.input_result[0] = '\0';
+
+    dialog_vars.default_button = -1;
 
     /*
      * The first time this is called, check for common options given by an
@@ -1458,12 +1535,20 @@ init_result(char *buffer)
 	    special_argv = dlg_string_to_argv(env);
 	    special_argc = dlg_count_argv(special_argv);
 	}
+	first = FALSE;
     }
+
+    /*
+     * If we are not checking memory leaks, just do the parse of the
+     * environment once.
+     */
     if (special_argv != 0) {
 	process_common_options(special_argc, special_argv, 0, FALSE);
 #ifdef NO_LEAKS
 	free(special_argv[0]);
 	free(special_argv);
+	special_argv = 0;
+	special_argc = 0;
 	first = TRUE;
 #endif
     }
@@ -1539,10 +1624,28 @@ main(int argc, char *argv[])
 	case o_help:
 	    Help();
 	    break;
+#ifdef HAVE_DLG_TRACE
+	case o_trace:
+	    /*
+	     * Process/remove the --trace option if it is the first option.
+	     * Otherwise, process it in more/less expected order as a
+	     * "common" option.
+	     */
+	    if (base == 1) {
+		process_trace_option(argv, &offset);
+		break;
+	    } else {
+		++offset;
+		continue;
+	    }
+#endif
 	default:
 	    ++offset;
 	    continue;
 	}
+	dlg_trace_msg("# discarding %d parameters starting with argv[%d] (%s)\n",
+		      1 + offset - base, base,
+		      argv[base]);
 	for (j = base; j < argc; ++j) {
 	    dialog_argv[j] = dialog_argv[j + 1 + (offset - base)];
 	    if (dialog_opts != 0)
@@ -1679,6 +1782,7 @@ main(int argc, char *argv[])
 	retval = show_result((*(modePtr->jumper)) (dialog_vars.title,
 						   argv + offset,
 						   &offset_add));
+	dlg_trace_msg("# widget returns %d\n", retval);
 	offset += offset_add;
 
 	if (dialog_vars.input_result != my_buffer) {

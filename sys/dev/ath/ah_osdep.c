@@ -47,6 +47,7 @@
 #include <net/ethernet.h>		/* XXX for ether_sprintf */
 
 #include <dev/ath/ath_hal/ah.h>
+#include <dev/ath/ath_hal/ah_debug.h>
 
 /*
  * WiSoC boards overload the bus tag with information about the
@@ -137,8 +138,6 @@ ath_hal_ether_sprintf(const u_int8_t *mac)
 
 #ifdef AH_DEBUG
 
-/* This must match the definition in ath_hal/ah_debug.h */
-#define	HAL_DEBUG_UNMASKABLE	0xf0000000
 void
 DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 {
@@ -267,12 +266,7 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 	}
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
-#if _BYTE_ORDER == _BIG_ENDIAN
-	if (OS_REG_UNSWAPPED(reg))
-		bus_space_write_4(tag, h, reg, val);
-	else
-#endif
-		bus_space_write_stream_4(tag, h, reg, val);
+	bus_space_write_4(tag, h, reg, val);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
 }
@@ -286,12 +280,7 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
-#if _BYTE_ORDER == _BIG_ENDIAN
-	if (OS_REG_UNSWAPPED(reg))
-		val = bus_space_read_4(tag, h, reg);
-	else
-#endif
-		val = bus_space_read_stream_4(tag, h, reg);
+	val = bus_space_read_4(tag, h, reg);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
 	if (ath_hal_alq) {
@@ -343,12 +332,7 @@ ath_hal_reg_write(struct ath_hal *ah, u_int32_t reg, u_int32_t val)
 
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
-#if _BYTE_ORDER == _BIG_ENDIAN
-	if (OS_REG_UNSWAPPED(reg))
-		bus_space_write_4(tag, h, reg, val);
-	else
-#endif
-		bus_space_write_stream_4(tag, h, reg, val);
+	bus_space_write_4(tag, h, reg, val);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
 }
@@ -362,12 +346,7 @@ ath_hal_reg_read(struct ath_hal *ah, u_int32_t reg)
 
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_lock_spin(&ah_regser_mtx);
-#if _BYTE_ORDER == _BIG_ENDIAN
-	if (OS_REG_UNSWAPPED(reg))
-		val = bus_space_read_4(tag, h, reg);
-	else
-#endif
-		val = bus_space_read_stream_4(tag, h, reg);
+	val = bus_space_read_4(tag, h, reg);
 	if (ah->ah_config.ah_serialise_reg_war)
 		mtx_unlock_spin(&ah_regser_mtx);
 	return val;

@@ -284,7 +284,7 @@ re_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 		for (n = 0; j != k; n++) {
 			struct netmap_slot *slot = ring->slot + j;
 			struct rl_desc *desc = &sc->rl_ldata.rl_rx_list[l];
-			int cmd = na->buff_size | RL_RDESC_CMD_OWN;
+			int cmd = NETMAP_BUF_SIZE | RL_RDESC_CMD_OWN;
 			uint64_t paddr;
 			void *addr = PNMB(slot, &paddr);
 
@@ -391,7 +391,7 @@ re_netmap_rx_init(struct rl_softc *sc)
 		    sc->rl_ldata.rl_rx_desc[i].rx_dmamap, BUS_DMASYNC_PREREAD);
 		desc[i].rl_bufaddr_lo = htole32(RL_ADDR_LO(paddr));
 		desc[i].rl_bufaddr_hi = htole32(RL_ADDR_HI(paddr));
-		cmdstat = na->buff_size;
+		cmdstat = NETMAP_BUF_SIZE;
 		if (i == n - 1) /* mark the end of ring */
 			cmdstat |= RL_RDESC_CMD_EOR;
 		if (i < max_avail)

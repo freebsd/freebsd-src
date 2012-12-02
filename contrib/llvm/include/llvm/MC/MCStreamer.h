@@ -23,7 +23,6 @@
 
 namespace llvm {
   class MCAsmBackend;
-  class MCAsmInfo;
   class MCCodeEmitter;
   class MCContext;
   class MCExpr;
@@ -32,7 +31,6 @@ namespace llvm {
   class MCSection;
   class MCSymbol;
   class StringRef;
-  class TargetLoweringObjectFile;
   class Twine;
   class raw_ostream;
   class formatted_raw_ostream;
@@ -71,22 +69,7 @@ namespace llvm {
     SmallVector<std::pair<const MCSection *,
                 const MCSection *>, 4> SectionStack;
 
-    unsigned UniqueCodeBeginSuffix;
-    unsigned UniqueDataBeginSuffix;
-
   protected:
-    /// Indicator of whether the previous data-or-code indicator was for
-    /// code or not.  Used to determine when we need to emit a new indicator.
-    enum DataType {
-      Data,
-      Code,
-      JumpTable8,
-      JumpTable16,
-      JumpTable32
-    };
-    DataType RegionIndicator;
-
-
     MCStreamer(MCContext &Ctx);
 
     const MCExpr *BuildSymbolDiff(MCContext &Context, const MCSymbol *A,
@@ -94,6 +77,10 @@ namespace llvm {
 
     const MCExpr *ForceExpAbs(const MCExpr* Expr);
 
+    void RecordProcStart(MCDwarfFrameInfo &Frame);
+    virtual void EmitCFIStartProcImpl(MCDwarfFrameInfo &Frame);
+    void RecordProcEnd(MCDwarfFrameInfo &Frame);
+    virtual void EmitCFIEndProcImpl(MCDwarfFrameInfo &CurFrame);
     void EmitFrames(bool usingCFI);
 
     MCWin64EHUnwindInfo *getCurrentW64UnwindInfo(){return CurrentW64UnwindInfo;}
@@ -239,46 +226,14 @@ namespace llvm {
     /// used in an assignment.
     virtual void EmitLabel(MCSymbol *Symbol);
 
-    /// EmitDataRegion - Emit a label that marks the beginning of a data
-    /// region.
-    /// On ELF targets, this corresponds to an assembler statement such as:
-    ///   $d.1:
-    virtual void EmitDataRegion();
-
-    /// EmitJumpTable8Region - Emit a label that marks the beginning of a
-    /// jump table composed of 8-bit offsets.
-    /// On ELF targets, this corresponds to an assembler statement such as:
-    ///   $d.1:
-    virtual void EmitJumpTable8Region();
-
-    /// EmitJumpTable16Region - Emit a label that marks the beginning of a
-    /// jump table composed of 16-bit offsets.
-    /// On ELF targets, this corresponds to an assembler statement such as:
-    ///   $d.1:
-    virtual void EmitJumpTable16Region();
-
-    /// EmitJumpTable32Region - Emit a label that marks the beginning of a
-    /// jump table composed of 32-bit offsets.
-    /// On ELF targets, this corresponds to an assembler statement such as:
-    ///   $d.1:
-    virtual void EmitJumpTable32Region();
-
-    /// EmitCodeRegion - Emit a label that marks the beginning of a code
-    /// region.
-    /// On ELF targets, this corresponds to an assembler statement such as:
-    ///   $a.1:
-    virtual void EmitCodeRegion();
-
-    /// ForceCodeRegion - Forcibly sets the current region mode to code.  Used
-    /// at function entry points.
-    void ForceCodeRegion() { RegionIndicator = Code; }
-
-
     virtual void EmitEHSymAttributes(const MCSymbol *Symbol,
                                      MCSymbol *EHSymbol);
 
-    /// EmitAssemblerFlag - Note in the output the specified @p Flag
+    /// EmitAssemblerFlag - Note in the output the specified @p Flag.
     virtual void EmitAssemblerFlag(MCAssemblerFlag Flag) = 0;
+
+    /// EmitDataRegion - Note in the output the specified region @p Kind.
+    virtual void EmitDataRegion(MCDataRegionType Kind) {}
 
     /// EmitThumbFunc - Note in the output that the specified @p Func is
     /// a Thumb mode function (ARM target only).
@@ -334,6 +289,11 @@ namespace llvm {
     /// EndCOFFSymbolDef - Marks the end of the symbol definition.
     virtual void EndCOFFSymbolDef() = 0;
 
+    /// EmitCOFFSecRel32 - Emits a COFF section relative relocation.
+    ///
+    /// @param Symbol - Symbol the section relative realocation should point to.
+    virtual void EmitCOFFSecRel32(MCSymbol const *Symbol);
+
     /// EmitELFSize - Emit an ELF .size directive.
     ///
     /// This corresponds to an assembler statement such as:
@@ -366,7 +326,7 @@ namespace llvm {
     /// @param ByteAlignment - The alignment of the zerofill symbol if
     /// non-zero. This must be a power of 2 on some targets.
     virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
-                              unsigned Size = 0,unsigned ByteAlignment = 0) = 0;
+                              uint64_t Size = 0,unsigned ByteAlignment = 0) = 0;
 
     /// EmitTBSSSymbol - Emit a thread local bss (.tbss) symbol.
     ///
@@ -420,7 +380,8 @@ namespace llvm {
 
     /// EmitULEB128Value - Special case of EmitULEB128Value that avoids the
     /// client having to pass in a MCExpr for constant integers.
-    void EmitULEB128IntValue(uint64_t Value, unsigned AddrSpace = 0);
+    void EmitULEB128IntValue(uint64_t Value, unsigned AddrSpace = 0,
+                             unsigned Padding = 0);
 
     /// EmitSLEB128Value - Special case of EmitSLEB128Value that avoids the
     /// client having to pass in a MCExpr for constant integers.
@@ -430,6 +391,13 @@ namespace llvm {
     /// having to pass in a MCExpr for MCSymbols.
     void EmitSymbolValue(const MCSymbol *Sym, unsigned Size,
                          unsigned AddrSpace = 0);
+
+    /// EmitGPRel64Value - Emit the expression @p Value into the output as a
+    /// gprel64 (64-bit GP relative) value.
+    ///
+    /// This is used to implement assembler directives such as .gpdword on
+    /// targets that support them.
+    virtual void EmitGPRel64Value(const MCExpr *Value);
 
     /// EmitGPRel32Value - Emit the expression @p Value into the output as a
     /// gprel32 (32-bit GP relative) value.
@@ -493,7 +461,8 @@ namespace llvm {
     /// @param Offset - The offset to reach. This may be an expression, but the
     /// expression must be associated with the current section.
     /// @param Value - The value to use when filling bytes.
-    virtual void EmitValueToOffset(const MCExpr *Offset,
+    /// @return false on success, true if the offset was invalid.
+    virtual bool EmitValueToOffset(const MCExpr *Offset,
                                    unsigned char Value = 0) = 0;
 
     /// @}
@@ -505,7 +474,8 @@ namespace llvm {
     /// EmitDwarfFileDirective - Associate a filename with a specified logical
     /// file number.  This implements the DWARF2 '.file 4 "foo.c"' assembler
     /// directive.
-    virtual bool EmitDwarfFileDirective(unsigned FileNo,StringRef Filename);
+    virtual bool EmitDwarfFileDirective(unsigned FileNo, StringRef Directory,
+                                        StringRef Filename);
 
     /// EmitDwarfLocDirective - This implements the DWARF2
     // '.loc fileno lineno ...' assembler directive.
@@ -529,8 +499,8 @@ namespace llvm {
 
     virtual void EmitCompactUnwindEncoding(uint32_t CompactUnwindEncoding);
     virtual void EmitCFISections(bool EH, bool Debug);
-    virtual void EmitCFIStartProc();
-    virtual void EmitCFIEndProc();
+    void EmitCFIStartProc();
+    void EmitCFIEndProc();
     virtual void EmitCFIDefCfa(int64_t Register, int64_t Offset);
     virtual void EmitCFIDefCfaOffset(int64_t Offset);
     virtual void EmitCFIDefCfaRegister(int64_t Register);
@@ -540,8 +510,11 @@ namespace llvm {
     virtual void EmitCFIRememberState();
     virtual void EmitCFIRestoreState();
     virtual void EmitCFISameValue(int64_t Register);
+    virtual void EmitCFIRestore(int64_t Register);
     virtual void EmitCFIRelOffset(int64_t Register, int64_t Offset);
     virtual void EmitCFIAdjustCfaOffset(int64_t Adjustment);
+    virtual void EmitCFIEscape(StringRef Values);
+    virtual void EmitCFISignalFrame();
 
     virtual void EmitWin64EHStartProc(const MCSymbol *Symbol);
     virtual void EmitWin64EHEndProc();
@@ -581,8 +554,10 @@ namespace llvm {
     virtual void EmitRegSave(const SmallVectorImpl<unsigned> &RegList,
                              bool isVector);
 
+    /// FinishImpl - Streamer specific finalization.
+    virtual void FinishImpl() = 0;
     /// Finish - Finish emission of machine code.
-    virtual void Finish() = 0;
+    void Finish();
   };
 
   /// createNullStreamer - Create a dummy machine code streamer, which does
@@ -613,6 +588,7 @@ namespace llvm {
                                 bool isVerboseAsm,
                                 bool useLoc,
                                 bool useCFI,
+                                bool useDwarfDirectory,
                                 MCInstPrinter *InstPrint = 0,
                                 MCCodeEmitter *CE = 0,
                                 MCAsmBackend *TAB = 0,
@@ -638,14 +614,8 @@ namespace llvm {
   /// createELFStreamer - Create a machine code streamer which will generate
   /// ELF format object files.
   MCStreamer *createELFStreamer(MCContext &Ctx, MCAsmBackend &TAB,
-				raw_ostream &OS, MCCodeEmitter *CE,
-				bool RelaxAll, bool NoExecStack);
-
-  /// createLoggingStreamer - Create a machine code streamer which just logs the
-  /// API calls and then dispatches to another streamer.
-  ///
-  /// The new streamer takes ownership of the \arg Child.
-  MCStreamer *createLoggingStreamer(MCStreamer *Child, raw_ostream &OS);
+                                raw_ostream &OS, MCCodeEmitter *CE,
+                                bool RelaxAll, bool NoExecStack);
 
   /// createPureStreamer - Create a machine code streamer which will generate
   /// "pure" MC object files, for use with MC-JIT and testing tools.

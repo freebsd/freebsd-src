@@ -43,5 +43,5 @@ divert(0)dnl
 VERSIONID(`$FreeBSD$')
 
 OSTYPE(freebsd6)
-FEATURE(nullclient, hub.$m)
+FEATURE(nullclient, smarthost.ysv.$m)
 MASQUERADE_AS(FreeBSD.org)

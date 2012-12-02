@@ -1,0 +1,29 @@
+The following is a demonstration of the icmpstat.d script,
+
+
+Here we run it and catch an inbound ping,
+
+   # icmpstat.d
+   2005 Jul 25 23:05:39,
+   
+                          STATISTIC    VALUE
+   
+   2005 Jul 25 23:05:40,
+   
+                          STATISTIC    VALUE
+                        icmpOutMsgs        1
+                    icmpOutEchoReps        1
+                        icmpInEchos        1
+                         icmpInMsgs        1
+   
+   2005 Jul 25 23:05:41,
+   
+                          STATISTIC    VALUE
+   
+   ^C
+
+Files such as /usr/include/inet/mib2.h may explain each of the statistics.
+
+The icmpstat.d is a simple demonstration of tracing ICMP activity. It may 
+serve as the starting point for other scripts.
+

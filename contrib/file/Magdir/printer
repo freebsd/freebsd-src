@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: printer,v 1.25 2011/05/20 23:31:46 christos Exp $
 # printer:  file(1) magic for printer-formatted files
 #
 
@@ -62,6 +63,10 @@
 >>>>&0	string		>\0			%s		
 #>15	string		\ ENTER\ LANGUAGE\ =
 #>31	string		PostScript		PostScript
+
+# From: Stefan Thurner <thurners@nicsys.de>
+0	string		\033%-12345X@PJL
+>&0	search/10000	%!			PJL encapsulated PostScript document text
 
 # HP Printer Control Language, Daniel Quinlan (quinlan@yggdrasil.com)
 0	string		\033E\033	HP PCL printer data

@@ -148,6 +148,7 @@ struct vfsopt {
  * Lock reference:
  *	m - mountlist_mtx
  *	i - interlock
+ *	v - vnode freelist mutex
  *
  * Unmarked fields are considered stable as long as a ref is held.
  *
@@ -164,6 +165,8 @@ struct mount {
 	int		mnt_ref;		/* (i) Reference count */
 	struct vnodelst	mnt_nvnodelist;		/* (i) list of vnodes */
 	int		mnt_nvnodelistsize;	/* (i) # of vnodes */
+	struct vnodelst	mnt_activevnodelist;	/* (v) list of active vnodes */
+	int		mnt_activevnodelistsize;/* (v) # of active vnodes */
 	int		mnt_writeopcount;	/* (i) write syscalls pending */
 	int		mnt_kern_flag;		/* (i) kernel only flags */
 	uint64_t	mnt_flag;		/* (i) flags shared with user */
@@ -185,8 +188,53 @@ struct mount {
 #define	mnt_endzero	mnt_gjprovider
 	char		*mnt_gjprovider;	/* gjournal provider name */
 	struct lock	mnt_explock;		/* vfs_export walkers lock */
+	TAILQ_ENTRY(mount) mnt_upper_link;	/* (m) we in the all uppers */
+	TAILQ_HEAD(, mount) mnt_uppers;		/* (m) upper mounts over us*/
 };
 
+/*
+ * Definitions for MNT_VNODE_FOREACH_ALL.
+ */
+struct vnode *__mnt_vnode_next_all(struct vnode **mvp, struct mount *mp);
+struct vnode *__mnt_vnode_first_all(struct vnode **mvp, struct mount *mp);
+void          __mnt_vnode_markerfree_all(struct vnode **mvp, struct mount *mp);
+
+#define MNT_VNODE_FOREACH_ALL(vp, mp, mvp) \
+	for (vp = __mnt_vnode_first_all(&(mvp), (mp)); \
+		(vp) != NULL; vp = __mnt_vnode_next_all(&(mvp), (mp)))
+
+#define MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp)				\
+	do {								\
+		MNT_ILOCK(mp);						\
+		__mnt_vnode_markerfree_all(&(mvp), (mp));		\
+		/* MNT_IUNLOCK(mp); -- done in above function */	\
+		mtx_assert(MNT_MTX(mp), MA_NOTOWNED);			\
+	} while (0)
+
+/*
+ * Definitions for MNT_VNODE_FOREACH_ACTIVE.
+ */
+struct vnode *__mnt_vnode_next_active(struct vnode **mvp, struct mount *mp);
+struct vnode *__mnt_vnode_first_active(struct vnode **mvp, struct mount *mp);
+void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
+
+#define MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) \
+	for (vp = __mnt_vnode_first_active(&(mvp), (mp)); \
+		(vp) != NULL; vp = __mnt_vnode_next_active(&(mvp), (mp)))
+
+#define MNT_VNODE_FOREACH_ACTIVE_ABORT(mp, mvp)				\
+	do {								\
+		MNT_ILOCK(mp);						\
+		__mnt_vnode_markerfree_active(&(mvp), (mp));		\
+		/* MNT_IUNLOCK(mp); -- done in above function */	\
+		mtx_assert(MNT_MTX(mp), MA_NOTOWNED);			\
+	} while (0)
+
+/*
+ * Definitions for MNT_VNODE_FOREACH.
+ *
+ * This interface has been deprecated in favor of MNT_VNODE_FOREACH_ALL.
+ */
 struct vnode *__mnt_vnode_next(struct vnode **mvp, struct mount *mp);
 struct vnode *__mnt_vnode_first(struct vnode **mvp, struct mount *mp);
 void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
@@ -324,13 +372,20 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNTK_REFEXPIRE	0x00000020	/* refcount expiring is happening */
 #define MNTK_EXTENDED_SHARED	0x00000040 /* Allow shared locking for more ops */
 #define	MNTK_SHARED_WRITES	0x00000080 /* Allow shared locking for writes */
+#define	MNTK_NO_IOPF	0x00000100	/* Disallow page faults during reads
+					   and writes. Filesystem shall properly
+					   handle i/o state on EFAULT. */
+#define	MNTK_VGONE_UPPER	0x00000200
+#define	MNTK_VGONE_WAITER	0x00000400
+#define	MNTK_LOOKUP_EXCL_DOTDOT	0x00000800
+#define	MNTK_MARKER		0x00001000
 #define MNTK_NOASYNC	0x00800000	/* disable async */
 #define MNTK_UNMOUNT	0x01000000	/* unmount in progress */
 #define	MNTK_MWAIT	0x02000000	/* waiting for unmount to finish */
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */
 #define	MNTK_SUSPEND2	0x04000000	/* block secondary writes */
 #define	MNTK_SUSPENDED	0x10000000	/* write operations are suspended */
-#define	MNTK_MPSAFE	0x20000000	/* Filesystem is MPSAFE. */
+#define	MNTK_UNUSED25	0x20000000	/*  --available-- */
 #define MNTK_LOOKUP_SHARED	0x40000000 /* FS supports shared lock lookups */
 #define	MNTK_NOKNOTE	0x80000000	/* Don't send KNOTEs from VOP hooks */
 
@@ -579,6 +634,7 @@ typedef	int vfs_mount_t(struct mount *mp);
 typedef int vfs_sysctl_t(struct mount *mp, fsctlop_t op,
 		    struct sysctl_req *req);
 typedef void vfs_susp_clean_t(struct mount *mp);
+typedef void vfs_reclaim_lowervp_t(struct mount *mp, struct vnode *lowervp);
 
 struct vfsops {
 	vfs_mount_t		*vfs_mount;
@@ -596,6 +652,7 @@ struct vfsops {
 	vfs_extattrctl_t	*vfs_extattrctl;
 	vfs_sysctl_t		*vfs_sysctl;
 	vfs_susp_clean_t	*vfs_susp_clean;
+	vfs_reclaim_lowervp_t	*vfs_reclaim_lowervp;
 };
 
 vfs_statfs_t	__vfs_statfs;
@@ -621,41 +678,9 @@ vfs_statfs_t	__vfs_statfs;
 #define	VFS_SUSP_CLEAN(MP) \
 	({if (*(MP)->mnt_op->vfs_susp_clean != NULL)		\
 	       (*(MP)->mnt_op->vfs_susp_clean)(MP); })
-
-#define	VFS_NEEDSGIANT_(MP)						\
-    ((MP) != NULL && ((MP)->mnt_kern_flag & MNTK_MPSAFE) == 0)
-
-#define	VFS_NEEDSGIANT(MP) __extension__				\
-({									\
-	struct mount *_mp;						\
-	_mp = (MP);							\
-	VFS_NEEDSGIANT_(_mp);						\
-})
-
-#define	VFS_LOCK_GIANT(MP) __extension__				\
-({									\
-	int _locked;							\
-	struct mount *_mp;						\
-	_mp = (MP);							\
-	if (VFS_NEEDSGIANT_(_mp)) {					\
-		mtx_lock(&Giant);					\
-		_locked = 1;						\
-	} else								\
-		_locked = 0;						\
-	_locked;							\
-})
-#define	VFS_UNLOCK_GIANT(locked) do					\
-{									\
-	if ((locked))							\
-		mtx_unlock(&Giant);					\
-} while (0)
-#define	VFS_ASSERT_GIANT(MP) do						\
-{									\
-	struct mount *_mp;						\
-	_mp = (MP);							\
-	if (VFS_NEEDSGIANT_(_mp))					\
-		mtx_assert(&Giant, MA_OWNED);				\
-} while (0)
+#define	VFS_RECLAIM_LOWERVP(MP, VP)				\
+	({if (*(MP)->mnt_op->vfs_reclaim_lowervp != NULL)	\
+		(*(MP)->mnt_op->vfs_reclaim_lowervp)((MP), (VP)); })
 
 #define VFS_KNOTE_LOCKED(vp, hint) do					\
 {									\
@@ -675,7 +700,8 @@ vfs_statfs_t	__vfs_statfs;
  * Version numbers.
  */
 #define VFS_VERSION_00	0x19660120
-#define VFS_VERSION	VFS_VERSION_00
+#define VFS_VERSION_01	0x20121030
+#define VFS_VERSION	VFS_VERSION_01
 
 #define VFS_SET(vfsops, fsname, flags) \
 	static struct vfsconf fsname ## _vfsconf = {		\

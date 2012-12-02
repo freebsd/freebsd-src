@@ -197,12 +197,6 @@ nfscl_nget(struct mount *mntp, struct vnode *dvp, struct nfsfh *nfhp,
 		FREE((caddr_t)nfhp, M_NFSFH);
 		return (0);
 	}
-
-	/*
-	 * Allocate before getnewvnode since doing so afterward
-	 * might cause a bogus v_data pointer to get dereferenced
-	 * elsewhere if zalloc should block.
-	 */
 	np = uma_zalloc(newnfsnode_zone, M_WAITOK | M_ZERO);
 
 	error = getnewvnode("newnfs", mntp, &newnfs_vnodeops, &nvp);
@@ -1150,31 +1144,6 @@ nfscl_maperr(struct thread *td, int error, uid_t uid, gid_t gid)
 }
 
 /*
- * Locate a process by number; return only "live" processes -- i.e., neither
- * zombies nor newly born but incompletely initialized processes.  By not
- * returning processes in the PRS_NEW state, we allow callers to avoid
- * testing for that condition to avoid dereferencing p_ucred, et al.
- * Identical to pfind() in kern_proc.c, except it assume the list is
- * already locked.
- */
-static struct proc *
-pfind_locked(pid_t pid)
-{
-	struct proc *p;
-
-	LIST_FOREACH(p, PIDHASH(pid), p_hash)
-		if (p->p_pid == pid) {
-			PROC_LOCK(p);
-			if (p->p_state == PRS_NEW) {
-				PROC_UNLOCK(p);
-				p = NULL;
-			}
-			break;
-		}
-	return (p);
-}
-
-/*
  * Check to see if the process for this owner exists. Return 1 if it doesn't
  * and 0 otherwise.
  */
@@ -1232,6 +1201,9 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 	struct nfscbd_args nfscbdarg;
 	struct nfsd_nfscbd_args nfscbdarg2;
 	int error;
+	struct nameidata nd;
+	struct nfscl_dumpmntopts dumpmntopts;
+	char *buf;
 
 	if (uap->flag & NFSSVC_CBADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg, sizeof(nfscbdarg));
@@ -1264,6 +1236,28 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 		if (error)
 			return (error);
 		error = nfscbd_nfsd(td, &nfscbdarg2);
+	} else if (uap->flag & NFSSVC_DUMPMNTOPTS) {
+		error = copyin(uap->argp, &dumpmntopts, sizeof(dumpmntopts));
+		if (error == 0 && (dumpmntopts.ndmnt_blen < 256 ||
+		    dumpmntopts.ndmnt_blen > 1024))
+			error = EINVAL;
+		if (error == 0)
+			error = nfsrv_lookupfilename(&nd,
+			    dumpmntopts.ndmnt_fname, td);
+		if (error == 0 && strcmp(nd.ni_vp->v_mount->mnt_vfc->vfc_name,
+		    "nfs") != 0) {
+			vput(nd.ni_vp);
+			error = EINVAL;
+		}
+		if (error == 0) {
+			buf = malloc(dumpmntopts.ndmnt_blen, M_TEMP, M_WAITOK);
+			nfscl_retopts(VFSTONFS(nd.ni_vp->v_mount), buf,
+			    dumpmntopts.ndmnt_blen);
+			vput(nd.ni_vp);
+			error = copyout(buf, dumpmntopts.ndmnt_buf,
+			    dumpmntopts.ndmnt_blen);
+			free(buf, M_TEMP);
+		}
 	} else {
 		error = EINVAL;
 	}

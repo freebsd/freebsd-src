@@ -1,5 +1,6 @@
 
 #------------------------------------------------------------------------------
+# $File: island,v 1.5 2009/09/19 16:28:10 christos Exp $
 # island:  file(1) magic for IslandWite/IslandDraw, from SunOS 5.5.1
 # "/etc/magic":
 # From: guy@netapp.com (Guy Harris)

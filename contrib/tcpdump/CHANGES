@@ -1,3 +1,80 @@
+Friday  April 3, 2011.  mcr@sandelman.ca.
+  Summary for 4.3.0 tcpdump release
+        fixes for forces: SPARSE data (per RFC 5810)
+        some more test cases added
+        updates to documentation on -l, -U and -w flags.
+        Fix printing of BGP optional headers.
+        Tried to include DLT_PFSYNC support, failed due to headers required.
+        added TIPC support.
+        Fix LLDP Network Policy bit definitions.
+        fixes for IGMPv3's Max Response Time: it is in units of 0.1 second.
+        SIGUSR1 can be used rather than SIGINFO for stats
+        permit -n flag to affect print-ip for protocol numbers
+        ND_OPT_ADVINTERVAL is in milliseconds, not seconds
+        Teach PPPoE parser about RFC 4638
+
+
+Friday  December 9, 2011.  guy@alum.mit.edu.
+  Summary for 4.2.1 tcpdump release
+	Only build the Babel printer if IPv6 is enabled.
+	Support Babel on port 6696 as well as 6697.
+	Include ppi.h in release tarball.
+	Include all the test files in the release tarball, and don't
+	 "include" test files that no longer exist.
+	Don't assume we have <rpc/rpc.h> - check for it.
+	Support "-T carp" as a way of dissecting IP protocol 112 as CARP
+	 rather than VRRP.
+	Support Hilscher NetAnalyzer link-layer header format.
+	Constify some pointers and fix compiler warnings.
+	Get rid of never-true test.
+	Fix an unintended fall-through in a case statement in the ARP
+	 printer.
+	Fix several cases where sizeof(sizeof(XXX)) was used when just
+	 sizeof(XXX) was intended.
+	Make stricter sanity checks in the ES-IS printer.
+	Get rid of some GCCisms that caused builds to fai with compilers
+	 that don't support them.
+	Fix typo in man page.
+	Added length checks to Babel printer.
+
+Sunday  July 24, 2011.  mcr@sandelman.ca.
+  Summary for 4.2.+
+	merged 802.15.4 decoder from Dmitry Eremin-Solenikov <dbaryshkov
+	  at gmail dot com>
+        updates to forces for new port numbers
+        Use "-H", not "-h", for the 802.11s option. (-h always help)
+        Better ICMPv6 checksum handling.
+        add support for the RPKI/Router Protocol, per -ietf-sidr-rpki-rtr-12
+        get rid of uuencoded pcap test files, git can do binary.
+        sFlow changes for 64-bit counters.
+        fixes for PPI packet header handling and printing.
+        Add DCB Exchange protocol (DCBX) version 1.01.
+        Babel dissector, from Juliusz Chroboczek and Grégoire Henry.
+        improvements to radiotap for rate values > 127.
+        Many improvements to ForCES decode, including fix SCTP TML port
+        updated RPL type code to RPL-17 draft
+        Improve printout of DHCPv6 options.
+        added support and test case for QinQ (802.1q VLAN) packets
+        Handle DLT_IEEE802_15_4_NOFCS like DLT_IEEE802_15_4.
+        Build fixes for Sparc and other machines with alignment restrictions.
+        Merged changes from Debian package.
+        PGM: Add ACK decoding and add PGMCC DATA and FEEDBACK options.
+        Build fixes for OSX (Snow Leopard and others)
+        Add support for IEEE 802.15.4 packets
+
+Tue.    July 20, 2010.  guy@alum.mit.edu.
+  Summary for 4.1.2 tcpdump release
+	If -U is specified, flush the file after creating it, so it's
+	  not zero-length
+	Fix TCP flags output description, and some typoes, in the man
+	  page
+	Add a -h flag, and only attempt to recognize 802.11s mesh
+	  headers if it's set
+	When printing the link-layer type list, send *all* output to
+	  stderr
+	Include the CFLAGS setting when configure was run in the
+	  compiler flags
+
 Thu.	April 1, 2010.  guy@alum.mit.edu.
   Summary for 4.1.1 tcpdump release
 	Fix build on systems with PF, such as FreeBSD and OpenBSD.

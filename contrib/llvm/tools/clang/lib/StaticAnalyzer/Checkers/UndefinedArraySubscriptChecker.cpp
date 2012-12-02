@@ -24,7 +24,7 @@ using namespace ento;
 namespace {
 class UndefinedArraySubscriptChecker
   : public Checker< check::PreStmt<ArraySubscriptExpr> > {
-  mutable llvm::OwningPtr<BugType> BT;
+  mutable OwningPtr<BugType> BT;
 
 public:
   void checkPreStmt(const ArraySubscriptExpr *A, CheckerContext &C) const;
@@ -34,7 +34,7 @@ public:
 void 
 UndefinedArraySubscriptChecker::checkPreStmt(const ArraySubscriptExpr *A,
                                              CheckerContext &C) const {
-  if (C.getState()->getSVal(A->getIdx()).isUndef()) {
+  if (C.getState()->getSVal(A->getIdx(), C.getLocationContext()).isUndef()) {
     if (ExplodedNode *N = C.generateSink()) {
       if (!BT)
         BT.reset(new BuiltinBug("Array subscript is undefined"));
@@ -42,8 +42,7 @@ UndefinedArraySubscriptChecker::checkPreStmt(const ArraySubscriptExpr *A,
       // Generate a report for this bug.
       BugReport *R = new BugReport(*BT, BT->getName(), N);
       R->addRange(A->getIdx()->getSourceRange());
-      R->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N,
-                                                                 A->getIdx()));
+      bugreporter::addTrackNullOrUndefValueVisitor(N, A->getIdx(), R);
       C.EmitReport(R);
     }
   }

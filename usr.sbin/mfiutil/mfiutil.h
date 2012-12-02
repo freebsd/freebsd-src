@@ -121,6 +121,7 @@ struct mfiutil_command {
 #define	MFI_DNAME_HONOR_OPTS	0x8000	/* Allow cmd line to override default */
 
 extern int mfi_unit;
+
 extern u_int mfi_opts;
 
 void	mbox_store_ldref(uint8_t *mbox, union mfi_ld_ref *ref);
@@ -139,7 +140,7 @@ int	mfi_lookup_drive(int fd, char *drive, uint16_t *device_id);
 int	mfi_lookup_volume(int fd, const char *name, uint8_t *target_id);
 int	mfi_dcmd_command(int fd, uint32_t opcode, void *buf, size_t bufsize,
     uint8_t *mbox, size_t mboxlen, uint8_t *statusp);
-int	mfi_open(int unit);
+int	mfi_open(int unit, int acs);
 int	mfi_ctrl_get_info(int fd, struct mfi_ctrl_info *info, uint8_t *statusp);
 int	mfi_ld_get_info(int fd, uint8_t target_id, struct mfi_ld_info *info,
     uint8_t *statusp);
@@ -151,5 +152,8 @@ int	mfi_reconfig_supported(void);
 const char *mfi_status(u_int status_code);
 const char *mfi_drive_name(struct mfi_pd_info *pinfo, uint16_t device_id,
     uint32_t def);
+
+void	scan_firmware(struct mfi_info_component *comp);
+void	display_firmware(struct mfi_info_component *comp, const char *tag);
 
 #endif /* !__MFIUTIL_H__ */

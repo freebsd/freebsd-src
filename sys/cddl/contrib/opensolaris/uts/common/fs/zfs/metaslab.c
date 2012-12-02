@@ -775,7 +775,7 @@ metaslab_fini(metaslab_t *msp)
 	for (int t = 0; t < TXG_DEFER_SIZE; t++)
 		space_map_destroy(&msp->ms_defermap[t]);
 
-	ASSERT3S(msp->ms_deferspace, ==, 0);
+	ASSERT0(msp->ms_deferspace);
 
 	mutex_exit(&msp->ms_lock);
 	mutex_destroy(&msp->ms_lock);
@@ -881,8 +881,9 @@ metaslab_activate(metaslab_t *msp, uint64_t activation_weight)
 	if ((msp->ms_weight & METASLAB_ACTIVE_MASK) == 0) {
 		space_map_load_wait(sm);
 		if (!sm->sm_loaded) {
-			int error = space_map_load(sm, sm_ops, SM_FREE,
-			    &msp->ms_smo,
+			space_map_obj_t *smo = &msp->ms_smo;
+
+			int error = space_map_load(sm, sm_ops, SM_FREE, smo,
 			    spa_meta_objset(msp->ms_group->mg_vd->vdev_spa));
 			if (error)  {
 				metaslab_group_sort(msp->ms_group, msp, 0);

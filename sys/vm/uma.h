@@ -165,9 +165,9 @@ typedef void (*uma_fini)(void *mem, int size);
  *	A pointer to a structure which is intended to be opaque to users of
  *	the interface.  The value may be null if the wait flag is not set.
  */
-uma_zone_t uma_zcreate(char *name, size_t size, uma_ctor ctor, uma_dtor dtor,
-			uma_init uminit, uma_fini fini, int align,
-			u_int32_t flags);
+uma_zone_t uma_zcreate(const char *name, size_t size, uma_ctor ctor,
+		    uma_dtor dtor, uma_init uminit, uma_fini fini,
+		    int align, u_int32_t flags);
 
 /*
  * Create a secondary uma zone

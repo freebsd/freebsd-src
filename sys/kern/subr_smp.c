@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 
@@ -55,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #ifdef SMP
 volatile cpuset_t stopped_cpus;
 volatile cpuset_t started_cpus;
+volatile cpuset_t suspended_cpus;
 cpuset_t hlt_cpus_mask;
 cpuset_t logical_cpus_mask;
 
@@ -207,9 +209,10 @@ generic_stop_cpus(cpuset_t map, u_int type)
 #endif
 	static volatile u_int stopping_cpu = NOCPU;
 	int i;
+	volatile cpuset_t *cpus;
 
 	KASSERT(
-#if defined(__amd64__)
+#if defined(__amd64__) || defined(__i386__)
 	    type == IPI_STOP || type == IPI_STOP_HARD || type == IPI_SUSPEND,
 #else
 	    type == IPI_STOP || type == IPI_STOP_HARD,
@@ -231,8 +234,15 @@ generic_stop_cpus(cpuset_t map, u_int type)
 	/* send the stop IPI to all CPUs in map */
 	ipi_selected(map, type);
 
+#if defined(__amd64__) || defined(__i386__)
+	if (type == IPI_SUSPEND)
+		cpus = &suspended_cpus;
+	else
+#endif
+		cpus = &stopped_cpus;
+
 	i = 0;
-	while (!CPU_SUBSET(&stopped_cpus, &map)) {
+	while (!CPU_SUBSET(cpus, &map)) {
 		/* spin */
 		cpu_spinwait();
 		i++;
@@ -260,7 +270,7 @@ stop_cpus_hard(cpuset_t map)
 	return (generic_stop_cpus(map, IPI_STOP_HARD));
 }
 
-#if defined(__amd64__)
+#if defined(__amd64__) || defined(__i386__)
 int
 suspend_cpus(cpuset_t map)
 {
@@ -724,4 +734,53 @@ smp_no_rendevous_barrier(void *dummy)
 #ifdef SMP
 	KASSERT((!smp_started),("smp_no_rendevous called and smp is started"));
 #endif
+}
+
+/*
+ * Wait specified idle threads to switch once.  This ensures that even
+ * preempted threads have cycled through the switch function once,
+ * exiting their codepaths.  This allows us to change global pointers
+ * with no other synchronization.
+ */
+int
+quiesce_cpus(cpuset_t map, const char *wmesg, int prio)
+{
+	struct pcpu *pcpu;
+	u_int gen[MAXCPU];
+	int error;
+	int cpu;
+
+	error = 0;
+	for (cpu = 0; cpu <= mp_maxid; cpu++) {
+		if (!CPU_ISSET(cpu, &map) || CPU_ABSENT(cpu))
+			continue;
+		pcpu = pcpu_find(cpu);
+		gen[cpu] = pcpu->pc_idlethread->td_generation;
+	}
+	for (cpu = 0; cpu <= mp_maxid; cpu++) {
+		if (!CPU_ISSET(cpu, &map) || CPU_ABSENT(cpu))
+			continue;
+		pcpu = pcpu_find(cpu);
+		thread_lock(curthread);
+		sched_bind(curthread, cpu);
+		thread_unlock(curthread);
+		while (gen[cpu] == pcpu->pc_idlethread->td_generation) {
+			error = tsleep(quiesce_cpus, prio, wmesg, 1);
+			if (error)
+				goto out;
+		}
+	}
+out:
+	thread_lock(curthread);
+	sched_unbind(curthread);
+	thread_unlock(curthread);
+
+	return (error);
+}
+
+int
+quiesce_all_cpus(const char *wmesg, int prio)
+{
+
+	return quiesce_cpus(all_cpus, wmesg, prio);
 }

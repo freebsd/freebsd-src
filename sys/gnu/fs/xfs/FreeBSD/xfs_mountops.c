@@ -422,7 +422,7 @@ static struct vfsops xfs_fsops = {
 	.vfs_extattrctl = _xfs_extattrctl,
 };
 
-VFS_SET(xfs_fsops, xfs, 0);
+VFS_SET(xfs_fsops, xfs, VFCF_READONLY);
 
 /*
  *  Copy GEOM VFS functions here to provide a conveniet place to

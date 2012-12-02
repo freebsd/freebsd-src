@@ -356,7 +356,8 @@ check_suspend(struct pthread *curthread)
 		(THR_FLAGS_NEED_SUSPEND | THR_FLAGS_SUSPENDED))
 		!= THR_FLAGS_NEED_SUSPEND))
 		return;
-
+	if (curthread == _single_thread)
+		return;
 	if (curthread->force_exit)
 		return;
 

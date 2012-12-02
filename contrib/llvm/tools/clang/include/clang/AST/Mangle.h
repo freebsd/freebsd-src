@@ -58,12 +58,14 @@ public:
 
 private:
   StringRef String;
-  llvm::SmallString<256> Buffer;
+  SmallString<256> Buffer;
 };
 
 /// MangleContext - Context for tracking state which persists across multiple
 /// calls to the C++ name mangler.
 class MangleContext {
+  virtual void anchor();
+
   ASTContext &Context;
   DiagnosticsEngine &Diags;
 
@@ -119,6 +121,7 @@ public:
                              raw_ostream &) = 0;
 
   void mangleGlobalBlock(const BlockDecl *BD,
+                         const NamedDecl *ID,
                          raw_ostream &Out);
   void mangleCtorBlock(const CXXConstructorDecl *CD, CXXCtorType CT,
                        const BlockDecl *BD, raw_ostream &Out);
@@ -127,7 +130,8 @@ public:
   void mangleBlock(const DeclContext *DC, const BlockDecl *BD,
                    raw_ostream &Out);
   // Do the right thing.
-  void mangleBlock(const BlockDecl *BD, raw_ostream &Out);
+  void mangleBlock(const BlockDecl *BD, raw_ostream &Out,
+                   const NamedDecl *ID=0);
 
   void mangleObjCMethodName(const ObjCMethodDecl *MD,
                             raw_ostream &);

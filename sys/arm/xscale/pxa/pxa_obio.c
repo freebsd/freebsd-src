@@ -181,7 +181,6 @@ pxa_setup_intr(device_t dev, device_t child, struct resource *irq, int flags,
 	    filter, ithread, arg, cookiep);
 	if (error)
 		return (error);
-	arm_unmask_irq(rman_get_start(irq));
 	return (0);
 }
 

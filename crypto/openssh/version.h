@@ -1,13 +1,10 @@
-/* $OpenBSD: version.h,v 1.62 2011/08/02 23:13:01 djm Exp $ */
+/* $OpenBSD: version.h,v 1.65 2012/07/22 18:19:21 markus Exp $ */
 /* $FreeBSD$ */
 
-#ifndef SSH_VERSION
-#define SSH_VERSION_BASE	"OpenSSH_5.9p1"
-#define SSH_VERSION_ADDENDUM	"FreeBSD-20111001"
-#define SSH_VERSION_HPN		"_hpn13v11"
-#define SSH_VERSION		SSH_VERSION_BASE SSH_VERSION_HPN " " SSH_VERSION_ADDENDUM
-#define SSH_RELEASE		(ssh_version_get())
+#define SSH_VERSION	"OpenSSH_6.1"
 
-const char *ssh_version_get(void);
-void ssh_version_set_addendum(const char *);
-#endif /* SSH_VERSION */
+#define SSH_PORTABLE	"p1"
+#define SSH_RELEASE	SSH_VERSION SSH_PORTABLE
+
+#define SSH_VERSION_FREEBSD	"FreeBSD-20120901"
+#define SSH_VERSION_HPN		"_hpn13v11"

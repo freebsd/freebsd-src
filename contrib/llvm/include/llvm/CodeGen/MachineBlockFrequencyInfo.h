@@ -20,6 +20,7 @@
 
 namespace llvm {
 
+class MachineBasicBlock;
 class MachineBranchProbabilityInfo;
 template<class BlockT, class FunctionT, class BranchProbInfoT>
 class BlockFrequencyImpl;
@@ -28,7 +29,8 @@ class BlockFrequencyImpl;
 /// machine basic block frequencies.
 class MachineBlockFrequencyInfo : public MachineFunctionPass {
 
-  BlockFrequencyImpl<MachineBasicBlock, MachineFunction, MachineBranchProbabilityInfo> *MBFI;
+  BlockFrequencyImpl<MachineBasicBlock, MachineFunction,
+                     MachineBranchProbabilityInfo> *MBFI;
 
 public:
   static char ID;
@@ -46,7 +48,7 @@ public:
   /// that we should not rely on the value itself, but only on the comparison to
   /// the other block frequencies. We do this to avoid using of floating points.
   ///
-  BlockFrequency getBlockFreq(MachineBasicBlock *MBB) const;
+  BlockFrequency getBlockFreq(const MachineBasicBlock *MBB) const;
 };
 
 }

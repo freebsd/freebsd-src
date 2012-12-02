@@ -73,21 +73,13 @@ SYSCTL_INT(_hw_usb, OID_AUTO, no_cs_fail, CTLFLAG_RW,
     &usb_no_cs_fail, 0, "USB clear stall failures are ignored, if set");
 
 #ifdef USB_DEBUG
-static int usb_pr_poll_delay = USB_PORT_RESET_DELAY;
-static int usb_pr_recovery_delay = USB_PORT_RESET_RECOVERY;
-
-SYSCTL_INT(_hw_usb, OID_AUTO, pr_poll_delay, CTLFLAG_RW,
-    &usb_pr_poll_delay, 0, "USB port reset poll delay in ms");
-SYSCTL_INT(_hw_usb, OID_AUTO, pr_recovery_delay, CTLFLAG_RW,
-    &usb_pr_recovery_delay, 0, "USB port reset recovery delay in ms");
-
 #ifdef USB_REQ_DEBUG
 /* The following structures are used in connection to fault injection. */
 struct usb_ctrl_debug {
 	int bus_index;		/* target bus */
 	int dev_index;		/* target address */
 	int ds_fail;		/* fail data stage */
-	int ss_fail;		/* fail data stage */
+	int ss_fail;		/* fail status stage */
 	int ds_delay;		/* data stage delay in ms */
 	int ss_delay;		/* status stage delay in ms */
 	int bmRequestType_value;
@@ -228,6 +220,7 @@ usb_do_clear_stall_callback(struct usb_xfer *xfer, usb_error_t error)
 	struct usb_endpoint *ep;
 	struct usb_endpoint *ep_end;
 	struct usb_endpoint *ep_first;
+	usb_stream_t x;
 	uint8_t to;
 
 	udev = xfer->xroot->udev;
@@ -255,9 +248,11 @@ tr_transferred:
 			ep->is_stalled = 0;
 			/* some hardware needs a callback to clear the data toggle */
 			usbd_clear_stall_locked(udev, ep);
-			/* start up the current or next transfer, if any */
-			usb_command_wrapper(&ep->endpoint_q,
-			    ep->endpoint_q.curr);
+			for (x = 0; x != USB_MAX_EP_STREAMS; x++) {
+				/* start the current or next transfer, if any */
+				usb_command_wrapper(&ep->endpoint_q[x],
+				    ep->endpoint_q[x].curr);
+			}
 		}
 		ep++;
 
@@ -788,12 +783,6 @@ usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 	uint16_t status;
 	uint16_t change;
 
-#ifdef USB_DEBUG
-	uint16_t pr_poll_delay;
-	uint16_t pr_recovery_delay;
-
-#endif
-
 	DPRINTF("\n");
 
 	/* clear any leftover port reset changes first */
@@ -808,29 +797,12 @@ usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 	if (err)
 		goto done;
 #ifdef USB_DEBUG
-	/* range check input parameters */
-	pr_poll_delay = usb_pr_poll_delay;
-	if (pr_poll_delay < 1) {
-		pr_poll_delay = 1;
-	} else if (pr_poll_delay > 1000) {
-		pr_poll_delay = 1000;
-	}
-	pr_recovery_delay = usb_pr_recovery_delay;
-	if (pr_recovery_delay > 1000) {
-		pr_recovery_delay = 1000;
-	}
 #endif
 	n = 0;
 	while (1) {
-#ifdef USB_DEBUG
 		/* wait for the device to recover from reset */
-		usb_pause_mtx(mtx, USB_MS_TO_TICKS(pr_poll_delay));
-		n += pr_poll_delay;
-#else
-		/* wait for the device to recover from reset */
-		usb_pause_mtx(mtx, USB_MS_TO_TICKS(USB_PORT_RESET_DELAY));
-		n += USB_PORT_RESET_DELAY;
-#endif
+		usb_pause_mtx(mtx, USB_MS_TO_TICKS(usb_port_reset_delay));
+		n += usb_port_reset_delay;
 		err = usbd_req_get_port_status(udev, mtx, &ps, port);
 		if (err)
 			goto done;
@@ -872,13 +844,8 @@ usbd_req_reset_port(struct usb_device *udev, struct mtx *mtx, uint8_t port)
 		err = USB_ERR_TIMEOUT;
 		goto done;
 	}
-#ifdef USB_DEBUG
 	/* wait for the device to recover from reset */
-	usb_pause_mtx(mtx, USB_MS_TO_TICKS(pr_recovery_delay));
-#else
-	/* wait for the device to recover from reset */
-	usb_pause_mtx(mtx, USB_MS_TO_TICKS(USB_PORT_RESET_RECOVERY));
-#endif
+	usb_pause_mtx(mtx, USB_MS_TO_TICKS(usb_port_reset_recovery));
 
 done:
 	DPRINTFN(2, "port %d reset returning error=%s\n",
@@ -909,12 +876,6 @@ usbd_req_warm_reset_port(struct usb_device *udev, struct mtx *mtx,
 	uint16_t status;
 	uint16_t change;
 
-#ifdef USB_DEBUG
-	uint16_t pr_poll_delay;
-	uint16_t pr_recovery_delay;
-
-#endif
-
 	DPRINTF("\n");
 
 	err = usbd_req_get_port_status(udev, mtx, &ps, port);
@@ -944,30 +905,11 @@ usbd_req_warm_reset_port(struct usb_device *udev, struct mtx *mtx,
 	if (err)
 		goto done;
 
-#ifdef USB_DEBUG
-	/* range check input parameters */
-	pr_poll_delay = usb_pr_poll_delay;
-	if (pr_poll_delay < 1) {
-		pr_poll_delay = 1;
-	} else if (pr_poll_delay > 1000) {
-		pr_poll_delay = 1000;
-	}
-	pr_recovery_delay = usb_pr_recovery_delay;
-	if (pr_recovery_delay > 1000) {
-		pr_recovery_delay = 1000;
-	}
-#endif
 	n = 0;
 	while (1) {
-#ifdef USB_DEBUG
 		/* wait for the device to recover from reset */
-		usb_pause_mtx(mtx, USB_MS_TO_TICKS(pr_poll_delay));
-		n += pr_poll_delay;
-#else
-		/* wait for the device to recover from reset */
-		usb_pause_mtx(mtx, USB_MS_TO_TICKS(USB_PORT_RESET_DELAY));
-		n += USB_PORT_RESET_DELAY;
-#endif
+		usb_pause_mtx(mtx, USB_MS_TO_TICKS(usb_port_reset_delay));
+		n += usb_port_reset_delay;
 		err = usbd_req_get_port_status(udev, mtx, &ps, port);
 		if (err)
 			goto done;
@@ -1001,13 +943,8 @@ usbd_req_warm_reset_port(struct usb_device *udev, struct mtx *mtx,
 		err = USB_ERR_TIMEOUT;
 		goto done;
 	}
-#ifdef USB_DEBUG
 	/* wait for the device to recover from reset */
-	usb_pause_mtx(mtx, USB_MS_TO_TICKS(pr_recovery_delay));
-#else
-	/* wait for the device to recover from reset */
-	usb_pause_mtx(mtx, USB_MS_TO_TICKS(USB_PORT_RESET_RECOVERY));
-#endif
+	usb_pause_mtx(mtx, USB_MS_TO_TICKS(usb_port_reset_recovery));
 
 done:
 	DPRINTFN(2, "port %d warm reset returning error=%s\n",
@@ -1566,7 +1503,7 @@ usbd_req_set_address(struct usb_device *udev, struct mtx *mtx, uint16_t addr)
 done:
 	/* allow device time to set new address */
 	usb_pause_mtx(mtx,
-	    USB_MS_TO_TICKS(USB_SET_ADDRESS_SETTLE));
+	    USB_MS_TO_TICKS(usb_set_address_settle));
 
 	return (err);
 }

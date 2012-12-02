@@ -24,11 +24,9 @@ namespace llvm {
 
 class FunctionPass;
 class JITCodeEmitter;
-class MachineCodeEmitter;
-class Target;
 class X86TargetMachine;
 
-/// createX86ISelDag - This pass converts a legalized DAG into a 
+/// createX86ISelDag - This pass converts a legalized DAG into a
 /// X86-specific DAG, ready for instruction scheduling.
 ///
 FunctionPass *createX86ISelDag(X86TargetMachine &TM,
@@ -37,6 +35,11 @@ FunctionPass *createX86ISelDag(X86TargetMachine &TM,
 /// createGlobalBaseRegPass - This pass initializes a global base
 /// register for PIC on x86-32.
 FunctionPass* createGlobalBaseRegPass();
+
+/// createCleanupLocalDynamicTLSPass() - This pass combines multiple accesses
+/// to local-dynamic TLS variables so that the TLS base address for the module
+/// is only fetched once per execution path through the function.
+FunctionPass *createCleanupLocalDynamicTLSPass();
 
 /// createX86FloatingPointStackifierPass - This function returns a pass which
 /// converts floating point register references and pseudo instructions into

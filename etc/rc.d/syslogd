@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: syslogd
-# REQUIRE: mountcritremote cleanvar newsyslog
+# REQUIRE: mountcritremote FILESYSTEMS newsyslog
 # BEFORE:  SERVERS
 
 . /etc/rc.subr

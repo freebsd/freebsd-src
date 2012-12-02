@@ -73,7 +73,10 @@ FEATURE(rctl, "Resource Limits");
 
 /* Default buffer size for rctl_get_rules(2). */
 #define	RCTL_DEFAULT_BUFSIZE	4096
+#define	RCTL_MAX_INBUFLEN	4096
 #define	RCTL_LOG_BUFSIZE	128
+
+#define	RCTL_PCPU_SHIFT		(10 * 1000000)
 
 /*
  * 'rctl_rule_link' connects a rule with every racct it's related to.
@@ -119,6 +122,7 @@ static struct dict resourcenames[] = {
 	{ "nshm", RACCT_NSHM },
 	{ "shmsize", RACCT_SHMSIZE },
 	{ "wallclock", RACCT_WALLCLOCK },
+	{ "pcpu", RACCT_PCTCPU },
 	{ NULL, -1 }};
 
 static struct dict actionnames[] = {
@@ -267,6 +271,51 @@ rctl_would_exceed(const struct proc *p, const struct rctl_rule *rule,
 		return (0);
 
 	return (1);
+}
+
+/*
+ * Special version of rctl_available() function for the %cpu resource.
+ * We slightly cheat here and return less than we normally would.
+ */
+int64_t
+rctl_pcpu_available(const struct proc *p) {
+	struct rctl_rule *rule;
+	struct rctl_rule_link *link;
+	int64_t available, minavailable, limit;
+
+	minavailable = INT64_MAX;
+	limit = 0;
+
+	rw_rlock(&rctl_lock);
+
+	LIST_FOREACH(link, &p->p_racct->r_rule_links, rrl_next) {
+		rule = link->rrl_rule;
+		if (rule->rr_resource != RACCT_PCTCPU)
+			continue;
+		if (rule->rr_action != RCTL_ACTION_DENY)
+			continue;
+		available = rctl_available_resource(p, rule);
+		if (available < minavailable) {
+			minavailable = available;
+			limit = rule->rr_amount;
+		}
+	}
+
+	rw_runlock(&rctl_lock);
+
+	/*
+	 * Return slightly less than actual value of the available
+	 * %cpu resource.  This makes %cpu throttling more agressive
+	 * and lets us act sooner than the limits are already exceeded.
+	 */
+	if (limit != 0) {
+		if (limit > 2 * RCTL_PCPU_SHIFT)
+			minavailable -= RCTL_PCPU_SHIFT;
+		else
+			minavailable -= (limit / 2);
+	}
+
+	return (minavailable);
 }
 
 /*
@@ -993,11 +1042,6 @@ rctl_rule_add(struct rctl_rule *rule)
 	case RCTL_SUBJECT_TYPE_PROCESS:
 		p = rule->rr_subject.rs_proc;
 		KASSERT(p != NULL, ("rctl_rule_add: NULL proc"));
-		/*
-		 * No resource limits for system processes.
-		 */
-		if (p->p_flag & P_SYSTEM)
-			return (EPERM);
 
 		rctl_racct_add_rule(p->p_racct, rule);
 		/*
@@ -1035,8 +1079,6 @@ rctl_rule_add(struct rctl_rule *rule)
 	 */
 	sx_assert(&allproc_lock, SA_LOCKED);
 	FOREACH_PROC_IN_SYSTEM(p) {
-		if (p->p_flag & P_SYSTEM)
-			continue;
 		cred = p->p_ucred;
 		switch (rule->rr_subject_type) {
 		case RCTL_SUBJECT_TYPE_USER:
@@ -1191,6 +1233,8 @@ rctl_read_inbuf(char **inputstr, const char *inbufp, size_t inbuflen)
 
 	if (inbuflen <= 0)
 		return (EINVAL);
+	if (inbuflen > RCTL_MAX_INBUFLEN)
+		return (E2BIG);
 
 	str = malloc(inbuflen + 1, M_RCTL, M_WAITOK);
 	error = copyinstr(inbufp, str, inbuflen, NULL);
@@ -1278,10 +1322,6 @@ sys_rctl_get_racct(struct thread *td, struct rctl_get_racct_args *uap)
 	case RCTL_SUBJECT_TYPE_PROCESS:
 		p = filter->rr_subject.rs_proc;
 		if (p == NULL) {
-			error = EINVAL;
-			goto out;
-		}
-		if (p->p_flag & P_SYSTEM) {
 			error = EINVAL;
 			goto out;
 		}
@@ -1716,20 +1756,7 @@ rctl_proc_fork(struct proc *parent, struct proc *child)
 
 	LIST_INIT(&child->p_racct->r_rule_links);
 
-	/*
-	 * No limits for kernel processes.
-	 */
-	if (child->p_flag & P_SYSTEM)
-		return (0);
-
-	/*
-	 * Nothing to inherit from P_SYSTEM parents.
-	 */
-	if (parent->p_racct == NULL) {
-		KASSERT(parent->p_flag & P_SYSTEM,
-		    ("non-system process without racct; p = %p", parent));
-		return (0);
-	}
+	KASSERT(parent->p_racct != NULL, ("process without racct; p = %p", parent));
 
 	rw_wlock(&rctl_lock);
 

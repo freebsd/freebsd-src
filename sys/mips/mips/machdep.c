@@ -346,7 +346,12 @@ mips_vector_init(void)
 	bcopy(MipsTLBMiss, (void *)MIPS_UTLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
 
-#if defined(__mips_n64) || defined(CPU_RMI) || defined(CPU_NLM)
+	/*
+	 * XXXRW: Why don't we install the XTLB handler for all 64-bit
+	 * architectures?
+	 */
+#if defined(__mips_n64) || defined(CPU_RMI) || defined(CPU_NLM) || defined (CPU_BERI)
+/* Fake, but sufficient, for the 32-bit with 64-bit hardware addresses  */
 	bcopy(MipsTLBMiss, (void *)MIPS_XTLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
 #endif

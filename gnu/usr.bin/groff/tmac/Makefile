@@ -62,13 +62,12 @@ $f-s: $f
 .endfor
 
 beforeinstall:
-	cd ${DIST_DIR}; \
+	(cd ${DIST_DIR} && \
 	    ${INSTALL} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
-	    ${NORMALFILES} ${DESTDIR}${TMACDIR}
-	cd ${.CURDIR}; \
+	    ${NORMALFILES} ${DESTDIR}${TMACDIR})
+	(cd ${.CURDIR} && \
 	    ${INSTALL} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
-	    koi8-r.tmac hyphen.ru ${DESTDIR}${TMACDIR}
-	cd ${.OBJDIR}
+	    koi8-r.tmac hyphen.ru ${DESTDIR}${TMACDIR})
 .for f in ${STRIPFILES} ${SPECIALFILES}
 	${INSTALL} -o ${TMACOWN} -g ${TMACGRP} -m ${TMACMODE} \
 	    $f-s ${DESTDIR}${TMACDIR}/$f

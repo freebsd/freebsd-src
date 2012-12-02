@@ -4,6 +4,7 @@ LIB=	llvmarmdesc
 
 SRCDIR=	lib/Target/ARM/MCTargetDesc
 SRCS=	ARMAsmBackend.cpp \
+	ARMELFObjectWriter.cpp \
 	ARMMachObjectWriter.cpp \
 	ARMMCAsmInfo.cpp \
 	ARMMCCodeEmitter.cpp \

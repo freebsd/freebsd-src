@@ -19,6 +19,7 @@
 #include "clang/Analysis/CFG.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/PointerIntPair.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/ADT/StringRef.h"
@@ -28,7 +29,7 @@
 
 namespace clang {
 
-class AnalysisContext;
+class AnalysisDeclContext;
 class FunctionDecl;
 class LocationContext;
 class ProgramPointTag;
@@ -39,56 +40,98 @@ public:
               BlockEntranceKind,
               BlockExitKind,
               PreStmtKind,
+              PreStmtPurgeDeadSymbolsKind,
+              PostStmtPurgeDeadSymbolsKind,
               PostStmtKind,
               PreLoadKind,
               PostLoadKind,
               PreStoreKind,
               PostStoreKind,
-              PostPurgeDeadSymbolsKind,
               PostConditionKind,
               PostLValueKind,
+              MinPostStmtKind = PostStmtKind,
+              MaxPostStmtKind = PostLValueKind,
               PostInitializerKind,
               CallEnterKind,
-              CallExitKind,
-              MinPostStmtKind = PostStmtKind,
-              MaxPostStmtKind = CallExitKind };
+              CallExitBeginKind,
+              CallExitEndKind,
+              PreImplicitCallKind,
+              PostImplicitCallKind,
+              MinImplicitCallKind = PreImplicitCallKind,
+              MaxImplicitCallKind = PostImplicitCallKind,
+              EpsilonKind};
 
 private:
-  std::pair<const void *, const void *> Data;
-  Kind K;
+  const void *Data1;
+  llvm::PointerIntPair<const void *, 2, unsigned> Data2;
 
   // The LocationContext could be NULL to allow ProgramPoint to be used in
   // context insensitive analysis.
-  const LocationContext *L;
-  const ProgramPointTag *Tag;
+  llvm::PointerIntPair<const LocationContext *, 2, unsigned> L;
+
+  llvm::PointerIntPair<const ProgramPointTag *, 2, unsigned> Tag;
 
   ProgramPoint();
   
 protected:
-  ProgramPoint(const void *P, Kind k, const LocationContext *l,
+  ProgramPoint(const void *P,
+               Kind k,
+               const LocationContext *l,
                const ProgramPointTag *tag = 0)
-    : Data(P, static_cast<const void*>(NULL)), K(k), L(l), Tag(tag) {}
-
-  ProgramPoint(const void *P1, const void *P2, Kind k, const LocationContext *l,
+    : Data1(P),
+      Data2(0, (((unsigned) k) >> 0) & 0x3),
+      L(l, (((unsigned) k) >> 2) & 0x3),
+      Tag(tag, (((unsigned) k) >> 4) & 0x3) {
+        assert(getKind() == k);
+        assert(getLocationContext() == l);
+        assert(getData1() == P);
+      }
+        
+  ProgramPoint(const void *P1,
+               const void *P2,
+               Kind k,
+               const LocationContext *l,
                const ProgramPointTag *tag = 0)
-    : Data(P1, P2), K(k), L(l), Tag(tag) {}
+    : Data1(P1),
+      Data2(P2, (((unsigned) k) >> 0) & 0x3),
+      L(l, (((unsigned) k) >> 2) & 0x3),
+      Tag(tag, (((unsigned) k) >> 4) & 0x3) {}
 
 protected:
-  const void *getData1() const { return Data.first; }
-  const void *getData2() const { return Data.second; }
+  const void *getData1() const { return Data1; }
+  const void *getData2() const { return Data2.getPointer(); }
+  void setData2(const void *d) { Data2.setPointer(d); }
 
 public:
   /// Create a new ProgramPoint object that is the same as the original
   /// except for using the specified tag value.
   ProgramPoint withTag(const ProgramPointTag *tag) const {
-    return ProgramPoint(Data.first, Data.second, K, L, tag);
+    return ProgramPoint(getData1(), getData2(), getKind(),
+                        getLocationContext(), tag);
   }
 
-  Kind getKind() const { return K; }
+  Kind getKind() const {
+    unsigned x = Tag.getInt();
+    x <<= 2;
+    x |= L.getInt();
+    x <<= 2;
+    x |= Data2.getInt();
+    return (Kind) x;
+  }
 
-  const ProgramPointTag *getTag() const { return Tag; }
+  /// \brief Is this a program point corresponding to purge/removal of dead
+  /// symbols and bindings.
+  bool isPurgeKind() {
+    Kind K = getKind();
+    return (K == PostStmtPurgeDeadSymbolsKind ||
+            K == PreStmtPurgeDeadSymbolsKind);
+  }
 
-  const LocationContext *getLocationContext() const { return L; }
+  const ProgramPointTag *getTag() const { return Tag.getPointer(); }
+
+  const LocationContext *getLocationContext() const {
+    return L.getPointer();
+  }
 
   // For use with DenseMap.  This hash is probably slow.
   unsigned getHashValue() const {
@@ -100,25 +143,30 @@ public:
   static bool classof(const ProgramPoint*) { return true; }
 
   bool operator==(const ProgramPoint & RHS) const {
-    return K == RHS.K && Data == RHS.Data && L == RHS.L && Tag == RHS.Tag;
+    return Data1 == RHS.Data1 &&
+           Data2 == RHS.Data2 &&
+           L == RHS.L &&
+           Tag == RHS.Tag;
   }
 
   bool operator!=(const ProgramPoint &RHS) const {
-    return K != RHS.K || Data != RHS.Data || L != RHS.L || Tag != RHS.Tag;
+    return Data1 != RHS.Data1 ||
+           Data2 != RHS.Data2 ||
+           L != RHS.L ||
+           Tag != RHS.Tag;
   }
 
   void Profile(llvm::FoldingSetNodeID& ID) const {
-    ID.AddInteger((unsigned) K);
-    ID.AddPointer(Data.first);
-    ID.AddPointer(Data.second);
-    ID.AddPointer(L);
-    ID.AddPointer(Tag);
+    ID.AddInteger((unsigned) getKind());
+    ID.AddPointer(getData1());
+    ID.AddPointer(getData2());
+    ID.AddPointer(getLocationContext());
+    ID.AddPointer(getTag());
   }
 
   static ProgramPoint getProgramPoint(const Stmt *S, ProgramPoint::Kind K,
                                       const LocationContext *LC,
                                       const ProgramPointTag *tag);
-
 };
 
 class BlockEntrance : public ProgramPoint {
@@ -195,7 +243,7 @@ public:
 class PostStmt : public StmtPoint {
 protected:
   PostStmt(const Stmt *S, const void *data, Kind k, const LocationContext *L,
-           const ProgramPointTag *tag =0)
+           const ProgramPointTag *tag = 0)
     : StmtPoint(S, data, k, L, tag) {}
 
 public:
@@ -270,15 +318,29 @@ public:
   }
 };
 
+/// \brief Represents a program point after a store evaluation.
 class PostStore : public PostStmt {
 public:
-  PostStore(const Stmt *S, const LocationContext *L,
+  /// Construct the post store point.
+  /// \param Loc can be used to store the information about the location 
+  /// used in the form it was uttered in the code.
+  PostStore(const Stmt *S, const LocationContext *L, const void *Loc,
             const ProgramPointTag *tag = 0)
-    : PostStmt(S, PostStoreKind, L, tag) {}
+    : PostStmt(S, PostStoreKind, L, tag) {
+    assert(getData2() == 0);
+    setData2(Loc);
+  }
 
   static bool classof(const ProgramPoint* Location) {
     return Location->getKind() == PostStoreKind;
   }
+  
+  /// \brief Returns the information about the location used in the store,
+  /// how it was uttered in the code.
+  const void *getLocationValue() const {
+    return getData2();
+  }
+
 };
 
 class PostLValue : public PostStmt {
@@ -292,14 +354,29 @@ public:
   }
 };
 
-class PostPurgeDeadSymbols : public PostStmt {
+/// Represents a point after we ran remove dead bindings BEFORE
+/// processing the given statement.
+class PreStmtPurgeDeadSymbols : public StmtPoint {
 public:
-  PostPurgeDeadSymbols(const Stmt *S, const LocationContext *L,
+  PreStmtPurgeDeadSymbols(const Stmt *S, const LocationContext *L,
                        const ProgramPointTag *tag = 0)
-    : PostStmt(S, PostPurgeDeadSymbolsKind, L, tag) {}
+    : StmtPoint(S, 0, PreStmtPurgeDeadSymbolsKind, L, tag) { }
 
   static bool classof(const ProgramPoint* Location) {
-    return Location->getKind() == PostPurgeDeadSymbolsKind;
+    return Location->getKind() == PreStmtPurgeDeadSymbolsKind;
+  }
+};
+
+/// Represents a point after we ran remove dead bindings AFTER
+/// processing the  given statement.
+class PostStmtPurgeDeadSymbols : public StmtPoint {
+public:
+  PostStmtPurgeDeadSymbols(const Stmt *S, const LocationContext *L,
+                       const ProgramPointTag *tag = 0)
+    : StmtPoint(S, 0, PostStmtPurgeDeadSymbolsKind, L, tag) { }
+
+  static bool classof(const ProgramPoint* Location) {
+    return Location->getKind() == PostStmtPurgeDeadSymbolsKind;
   }
 };
 
@@ -335,11 +412,60 @@ public:
   }
 };
 
-class CallEnter : public StmtPoint {
+/// Represents an implicit call event.
+///
+/// The nearest statement is provided for diagnostic purposes.
+class ImplicitCallPoint : public ProgramPoint {
+public:
+  ImplicitCallPoint(const Decl *D, SourceLocation Loc, Kind K,
+                    const LocationContext *L, const ProgramPointTag *Tag)
+    : ProgramPoint(Loc.getPtrEncoding(), D, K, L, Tag) {}
+
+  const Decl *getDecl() const { return static_cast<const Decl *>(getData2()); }
+  SourceLocation getLocation() const {
+    return SourceLocation::getFromPtrEncoding(getData1());
+  }
+
+  static bool classof(const ProgramPoint *Location) {
+    return Location->getKind() >= MinImplicitCallKind &&
+           Location->getKind() <= MaxImplicitCallKind;
+  }
+};
+
+/// Represents a program point just before an implicit call event.
+///
+/// Explicit calls will appear as PreStmt program points.
+class PreImplicitCall : public ImplicitCallPoint {
+public:
+  PreImplicitCall(const Decl *D, SourceLocation Loc,
+                  const LocationContext *L, const ProgramPointTag *Tag = 0)
+    : ImplicitCallPoint(D, Loc, PreImplicitCallKind, L, Tag) {}
+
+  static bool classof(const ProgramPoint *Location) {
+    return Location->getKind() == PreImplicitCallKind;
+  }
+};
+
+/// Represents a program point just after an implicit call event.
+///
+/// Explicit calls will appear as PostStmt program points.
+class PostImplicitCall : public ImplicitCallPoint {
+public:
+  PostImplicitCall(const Decl *D, SourceLocation Loc,
+                   const LocationContext *L, const ProgramPointTag *Tag = 0)
+    : ImplicitCallPoint(D, Loc, PostImplicitCallKind, L, Tag) {}
+
+  static bool classof(const ProgramPoint *Location) {
+    return Location->getKind() == PostImplicitCallKind;
+  }
+};
+
+/// Represents a point when we begin processing an inlined call.
+class CallEnter : public ProgramPoint {
 public:
   CallEnter(const Stmt *stmt, const StackFrameContext *calleeCtx, 
             const LocationContext *callerCtx)
-    : StmtPoint(stmt, calleeCtx, CallEnterKind, callerCtx, 0) {}
+    : ProgramPoint(stmt, calleeCtx, CallEnterKind, callerCtx, 0) {}
 
   const Stmt *getCallExpr() const {
     return static_cast<const Stmt *>(getData1());
@@ -354,14 +480,56 @@ public:
   }
 };
 
-class CallExit : public StmtPoint {
+/// Represents a point when we start the call exit sequence (for inlined call).
+///
+/// The call exit is simulated with a sequence of nodes, which occur between
+/// CallExitBegin and CallExitEnd. The following operations occur between the
+/// two program points:
+/// - CallExitBegin
+/// - Bind the return value
+/// - Run Remove dead bindings (to clean up the dead symbols from the callee).
+/// - CallExitEnd
+class CallExitBegin : public ProgramPoint {
 public:
-  // CallExit uses the callee's location context.
-  CallExit(const Stmt *S, const LocationContext *L)
-    : StmtPoint(S, 0, CallExitKind, L, 0) {}
+  // CallExitBegin uses the callee's location context.
+  CallExitBegin(const StackFrameContext *L)
+    : ProgramPoint(0, CallExitBeginKind, L, 0) {}
 
   static bool classof(const ProgramPoint *Location) {
-    return Location->getKind() == CallExitKind;
+    return Location->getKind() == CallExitBeginKind;
+  }
+};
+
+/// Represents a point when we finish the call exit sequence (for inlined call).
+/// \sa CallExitBegin
+class CallExitEnd : public ProgramPoint {
+public:
+  // CallExitEnd uses the caller's location context.
+  CallExitEnd(const StackFrameContext *CalleeCtx,
+              const LocationContext *CallerCtx)
+    : ProgramPoint(CalleeCtx, CallExitEndKind, CallerCtx, 0) {}
+
+  const StackFrameContext *getCalleeContext() const {
+    return static_cast<const StackFrameContext *>(getData1());
+  }
+
+  static bool classof(const ProgramPoint *Location) {
+    return Location->getKind() == CallExitEndKind;
+  }
+};
+
+/// This is a meta program point, which should be skipped by all the diagnostic
+/// reasoning etc.
+class EpsilonPoint : public ProgramPoint {
+public:
+  EpsilonPoint(const LocationContext *L, const void *Data1,
+               const void *Data2 = 0, const ProgramPointTag *tag = 0)
+    : ProgramPoint(Data1, Data2, EpsilonKind, L, tag) {}
+
+  const void *getData() const { return getData1(); }
+
+  static bool classof(const ProgramPoint* Location) {
+    return Location->getKind() == EpsilonKind;
   }
 };
 

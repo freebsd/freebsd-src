@@ -177,7 +177,7 @@ ixp425_set_gpio(struct ixp425_softc *sc, int pin, int type)
 	    gpiotr | GPIO_TYPE(pin, type));
 
 	/* configure gpio line as an input */
-	GPIO_CONF_WRITE_4(sc, IXP425_GPIO_GPOER, 
+	GPIO_CONF_WRITE_4(sc, IXP425_GPIO_GPOER,
 	    GPIO_CONF_READ_4(sc, IXP425_GPIO_GPOER) | (1<<pin));
 	IXP4XX_GPIO_UNLOCK();
 }
@@ -330,7 +330,7 @@ ixp425_attach(device_t dev)
 		cambria_exp_bus_init(sc);
 
 	if (bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL,  0xffffffff, 0xff, 0xffffffff, 0, 
+	    BUS_SPACE_MAXADDR, NULL, NULL,  0xffffffff, 0xff, 0xffffffff, 0,
 	    NULL, NULL, &sc->sc_dmat))
 		panic("%s: failed to create dma tag", __func__);
 
@@ -534,7 +534,7 @@ ixp425_alloc_resource(device_t dev, device_t child, int type, int *rid,
 					device_printf(child,
 					    "%s: assign 0x%lx:0x%lx%s\n",
 					    __func__, start, end - start,
-					    vtrans->isa4x ? " A4X" : 
+					    vtrans->isa4x ? " A4X" :
 					    vtrans->isslow ? " SLOW" : "");
 			}
 		} else
@@ -602,7 +602,7 @@ ixp425_activate_resource(device_t dev, device_t child, int type, int rid,
 
 static int
 ixp425_deactivate_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r) 
+    struct resource *r)
 {
 	/* NB: no private resources, just deactive */
 	return (rman_deactivate_resource(r));
@@ -635,8 +635,8 @@ update_masks(uint32_t mask, uint32_t mask2)
 
 static int
 ixp425_setup_intr(device_t dev, device_t child,
-    struct resource *res, int flags, driver_filter_t *filt, 
-    driver_intr_t *intr, void *arg, void **cookiep)    
+    struct resource *res, int flags, driver_filter_t *filt,
+    driver_intr_t *intr, void *arg, void **cookiep)
 {
 	uint32_t mask, mask2;
 	int error;

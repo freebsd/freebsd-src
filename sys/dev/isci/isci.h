@@ -30,6 +30,9 @@
  * $FreeBSD$
  */
 
+#ifndef _ISCI_H
+#define _ISCI_H
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -86,7 +89,31 @@ struct ISCI_REMOTE_DEVICE {
 	BOOL				is_resetting;
 	uint32_t			frozen_lun_mask;
 	SCI_FAST_LIST_ELEMENT_T		pending_device_reset_element;
+
+	/*
+	 * This queue maintains CCBs that have been returned with
+	 *  SCI_IO_FAILURE_INVALID_STATE from the SCI layer.  These CCBs
+	 *  need to be retried, but we cannot return CAM_REQUEUE_REQ because
+	 *  this status gets passed all the way back up to users of the pass(4)
+	 *  interface and breaks things like smartctl.  So instead, we queue
+	 *  these CCBs internally.
+	 */
 	TAILQ_HEAD(,ccb_hdr)		queued_ccbs;
+
+	/*
+	 * Marker denoting this remote device needs its first queued ccb to
+	 *  be retried.
+	 */
+	BOOL				release_queued_ccb;
+
+	/*
+	 * Points to a CCB in the queue that is currently being processed by
+	 *  SCIL.  This allows us to keep in flight CCBs in the queue so as to
+	 *  maintain ordering (i.e. in case we retry an I/O and then find out
+	 *  it needs to be retried again - it just keeps its same place in the
+	 *  queue.
+	 */
+	union ccb *			queued_ccb_in_progress;
 };
 
 struct ISCI_DOMAIN {
@@ -116,6 +143,16 @@ struct ISCI_INTERRUPT_INFO
 
 };
 
+struct ISCI_PHY
+{
+	struct cdev		*cdev_fault;
+	struct cdev		*cdev_locate;
+	SCI_CONTROLLER_HANDLE_T	handle;
+	int			index;
+	int			led_fault;
+	int			led_locate;
+};
+
 struct ISCI_CONTROLLER
 {
 	struct isci_softc 	*isci;
@@ -126,6 +163,7 @@ struct ISCI_CONTROLLER
 	BOOL			has_been_scanned;
 	uint32_t		initial_discovery_mask;
 	BOOL			is_frozen;
+	BOOL			release_queued_ccbs;
 	uint8_t			*remote_device_memory;
 	struct ISCI_MEMORY	cached_controller_memory;
 	struct ISCI_MEMORY	uncached_controller_memory;
@@ -141,12 +179,14 @@ struct ISCI_CONTROLLER
 	uint32_t		queue_depth;
 	uint32_t		sim_queue_depth;
 	SCI_FAST_LIST_T		pending_device_reset_list;
+	struct ISCI_PHY		phys[SCI_MAX_PHYS];
 
 	SCI_MEMORY_DESCRIPTOR_LIST_HANDLE_T mdl;
 
 	SCI_POOL_CREATE(remote_device_pool, struct ISCI_REMOTE_DEVICE *, SCI_MAX_REMOTE_DEVICES);
 	SCI_POOL_CREATE(request_pool, struct ISCI_REQUEST *, SCI_MAX_IO_REQUESTS);
 	SCI_POOL_CREATE(timer_pool, struct ISCI_TIMER *, SCI_MAX_TIMERS);
+	SCI_POOL_CREATE(unmap_buffer_pool, void *, SCI_MAX_REMOTE_DEVICES);
 };
 
 struct ISCI_REQUEST
@@ -291,6 +331,8 @@ int isci_controller_attach_to_cam(struct ISCI_CONTROLLER *controller);
 
 void isci_controller_start(void *controller);
 
+void isci_controller_release_queued_ccbs(struct ISCI_CONTROLLER *controller);
+
 void isci_domain_construct(struct ISCI_DOMAIN *domain, uint32_t domain_index,
     struct ISCI_CONTROLLER *controller);
 
@@ -301,3 +343,5 @@ void isci_log_message(uint32_t	verbosity, char *log_message_prefix,
     char *log_message, ...);
 
 extern uint32_t g_isci_debug_level;
+
+#endif /* #ifndef _ISCI_H */

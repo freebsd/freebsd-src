@@ -109,7 +109,7 @@ struct SCIC_SDS_REQUEST;
 /**
  * @struct SCIC_SDS_PORT
  *
- * The core port object provides the the abstraction for an SCU port.
+ * The core port object provides the abstraction for an SCU port.
  */
 typedef struct SCIC_SDS_PORT
 {

@@ -1,3 +1,5 @@
+# $FreeBSD$
+#
 # This is the list of files that
 # should be in your rootfs (copy it from
 # the build world nfsmount dir. When the rge0
@@ -321,7 +323,6 @@
 ./etc/ssh/moduli
 ./etc/ssl
 ./etc/ssl/openssl.cnf
-./etc/auth.conf
 ./etc/crontab
 ./etc/devd.conf
 ./etc/devfs.conf
@@ -529,7 +530,6 @@
 ./sbin/mount_msdosfs
 ./sbin/mount_nfs
 ./sbin/mount_newnfs
-./sbin/mount_ntfs
 ./sbin/mount_nullfs
 ./sbin/mount_udf
 ./sbin/mount_unionfs

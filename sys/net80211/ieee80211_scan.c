@@ -866,7 +866,7 @@ scan_task(void *arg, int pending)
 	    vap->iv_state == IEEE80211_S_RUN) {
 		if ((vap->iv_bss->ni_flags & IEEE80211_NODE_PWR_MGT) == 0) {
 			/* Enable station power save mode */
-			ieee80211_sta_pwrsave(vap, 1);
+			vap->iv_sta_ps(vap, 1);
 			/*
 			 * Use an 1ms delay so the null data frame has a chance
 			 * to go out.
@@ -1047,7 +1047,7 @@ done:
 	 * waiting for us.
 	 */
 	if (scandone) {
-		ieee80211_sta_pwrsave(vap, 0);
+		vap->iv_sta_ps(vap, 0);
 		if (ss->ss_next >= ss->ss_last) {
 			ieee80211_notify_scan_done(vap);
 			ic->ic_flags_ext &= ~IEEE80211_FEXT_BGSCAN;

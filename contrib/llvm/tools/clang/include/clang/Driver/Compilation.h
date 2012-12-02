@@ -56,6 +56,10 @@ class Compilation {
   /// Result files which should be removed on failure.
   ArgStringList ResultFiles;
 
+  /// Result files which are generated correctly on failure, and which should
+  /// only be removed if we crash.
+  ArgStringList FailureResultFiles;
+
   /// Redirection for stdout, stderr, etc.
   const llvm::sys::Path **Redirects;
 
@@ -72,6 +76,8 @@ public:
 
   const DerivedArgList &getArgs() const { return *TranslatedArgs; }
 
+  DerivedArgList &getArgs() { return *TranslatedArgs; }
+
   ActionList &getActions() { return Actions; }
   const ActionList &getActions() const { return Actions; }
 
@@ -83,6 +89,13 @@ public:
   const ArgStringList &getTempFiles() const { return TempFiles; }
 
   const ArgStringList &getResultFiles() const { return ResultFiles; }
+
+  const ArgStringList &getFailureResultFiles() const {
+    return FailureResultFiles;
+  }
+
+  /// Returns the sysroot path.
+  StringRef getSysRoot() const;
 
   /// getArgsForToolChain - Return the derived argument list for the
   /// tool chain \arg TC (or the default tool chain, if TC is not
@@ -103,6 +116,13 @@ public:
   /// argument.
   const char *addResultFile(const char *Name) {
     ResultFiles.push_back(Name);
+    return Name;
+  }
+
+  /// addFailureResultFile - Add a file to remove if we crash, and returns its
+  /// argument.
+  const char *addFailureResultFile(const char *Name) {
+    FailureResultFiles.push_back(Name);
     return Name;
   }
 

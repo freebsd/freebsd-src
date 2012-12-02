@@ -63,6 +63,7 @@ static struct {
 } mvs_ids[] = {
 	{MV_DEV_88F5182, 0x00,   "Marvell 88F5182",	2, MVS_Q_GENIIE|MVS_Q_SOC},
 	{MV_DEV_88F6281, 0x00,   "Marvell 88F6281",	2, MVS_Q_GENIIE|MVS_Q_SOC},
+	{MV_DEV_88F6282, 0x00,   "Marvell 88F6282",	2, MVS_Q_GENIIE|MVS_Q_SOC},
 	{MV_DEV_MV78100, 0x00,   "Marvell MV78100",	2, MVS_Q_GENIIE|MVS_Q_SOC},
 	{MV_DEV_MV78100_Z0, 0x00,"Marvell MV78100",	2, MVS_Q_GENIIE|MVS_Q_SOC},
 	{0,              0x00,   NULL,			0, 0}
@@ -135,6 +136,8 @@ mvs_attach(device_t dev)
 	if (!(ctlr->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
 	    &ctlr->r_rid, RF_ACTIVE)))
 		return ENXIO;
+	if (ATA_INL(ctlr->r_mem, PORT_BASE(0) + SATA_PHYCFG_OFS) != 0)
+		ctlr->quirks |= MVS_Q_SOC65;
 	/* Setup our own memory management for channels. */
 	ctlr->sc_iomem.rm_start = rman_get_start(ctlr->r_mem);
 	ctlr->sc_iomem.rm_end = rman_get_end(ctlr->r_mem);

@@ -175,11 +175,10 @@ tcp_trace(short act, short ostate, struct tcpcb *tp, void *ipgen,
 #ifdef INET6
 		    isipv6 ? ntohs(((struct ip6_hdr *)ipgen)->ip6_plen) :
 #endif
-		    ((struct ip *)ipgen)->ip_len;
+		    ntohs(((struct ip *)ipgen)->ip_len);
 		if (act == TA_OUTPUT) {
 			seq = ntohl(seq);
 			ack = ntohl(ack);
-			len = ntohs((u_short)len);
 		}
 		if (act == TA_OUTPUT)
 			len -= sizeof (struct tcphdr);

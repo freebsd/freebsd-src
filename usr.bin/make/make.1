@@ -32,7 +32,7 @@
 .\"	@(#)make.1	8.8 (Berkeley) 6/13/95
 .\" $FreeBSD$
 .\"
-.Dd November 5, 2011
+.Dd May 30, 2012
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -320,6 +320,11 @@ Do not build any targets.
 Multiple instances of this option may be specified;
 the variables will be printed one per line,
 with a blank line for each null or undefined variable.
+If
+.Ar variable
+contains a
+.Sq Ic $
+then the value will be expanded before printing.
 .It Fl v
 Be extra verbose.
 Print any extra information.
@@ -902,6 +907,7 @@ Replaces each word in the variable with its suffix.
 Replaces each word in the variable with everything but the last component.
 .It Cm :L
 Converts variable to lower-case letters.
+(deprecated)
 .It Cm :M Ns Ar pattern
 Select only those words that match the rest of the modifier.
 The standard shell wildcard characters
@@ -993,8 +999,13 @@ to be replaced in
 .Ar new_string .
 .It Cm :T
 Replaces each word in the variable with its last component.
+.It Cm :tl
+Converts variable to lower-case letters.
+.It Cm :tu
+Converts variable to upper-case letters.
 .It Cm :U
 Converts variable to upper-case letters.
+(deprecated)
 .It Cm :u
 Remove adjacent duplicate words (like
 .Xr uniq 1 ) .
@@ -1661,7 +1672,7 @@ To prevent infinite loops the following source Makefile targets are ignored:
 .Ic ::
 targets that have no prerequisites
 .It
-.Ic !
+.Ic \&!
 targets
 .It
 targets that have
@@ -1741,6 +1752,19 @@ The internal variable
 is set to the same value as
 .Va .MAKE ;
 support for this may be removed in the future.
+.Pp
+The use of the
+.Cm :L
+and
+.Cm :U
+modifiers are deprecated
+in
+.Fx 10.0
+and the more portable (among Pmake decedents)
+.Cm :tl
+and
+.Cm :tu
+should be used instead.
 .Pp
 Most of the more esoteric features of
 .Nm

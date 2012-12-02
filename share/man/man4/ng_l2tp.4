@@ -37,7 +37,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 2, 2004
+.Dd November 13, 2012
 .Dt NG_L2TP 4
 .Os
 .Sh NAME
@@ -59,13 +59,12 @@ control session packet acknowledgment and retransmission.
 The
 .Nm l2tp
 node type supports the following hooks:
-.Pp
-.Bl -tag -compact -offset indent -width ".Dv session_hhhh"
-.It Dv lower
+.Bl -tag -width ".Va session_hhhh"
+.It Va lower
 L2TP frames.
-.It Dv ctrl
+.It Va ctrl
 Control packets.
-.It Dv session_hhhh
+.It Va session_hhhh
 Session 0xhhhh data packets.
 .El
 .Pp
@@ -104,8 +103,8 @@ the hook is named
 .Dv session_abcd .
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
-.Bl -tag -width indent
-.It Dv NGM_L2TP_SET_CONFIG
+.Bl -tag -width foo
+.It Dv NGM_L2TP_SET_CONFIG Pq Ic setconfig
 This command updates the configuration of the node.
 It takes a
 .Vt "struct ng_l2tp_config"
@@ -182,14 +181,14 @@ Once a failure condition is declared, each additional retransmission
 will cause the
 .Nm l2tp
 node to send a
-.Dv NGM_L2TP_ACK_FAILURE
+.Dv NGM_L2TP_ACK_FAILURE Pq Ic ackfailure
 control message back to the node that sent the last
 .Dv NGM_L2TP_SET_CONFIG .
 Appropriate action should then be taken to shutdown the control connection.
-.It Dv NGM_L2TP_GET_CONFIG
+.It Dv NGM_L2TP_GET_CONFIG Pq Ic getconfig
 Returns the current configuration as a
 .Vt "struct ng_l2tp_config" .
-.It Dv NGM_L2TP_SET_SESS_CONFIG
+.It Dv NGM_L2TP_SET_SESS_CONFIG Pq Ic setsessconfig
 This control message configures a single data session.
 The corresponding hook must already be connected before sending this command.
 The argument is a
@@ -199,9 +198,9 @@ The argument is a
 struct ng_l2tp_sess_config {
     uint16_t    session_id;     /* local session id */
     uint16_t    peer_id;        /* peer's session id */
-    u_char      control_dseq;   /* we control data sequencing? */
-    u_char      enable_dseq;    /* enable data sequencing? */
-    u_char      include_length; /* include length field? */
+    u_char      control_dseq;   /* whether we control data sequencing */
+    u_char      enable_dseq;    /* whether to enable data sequencing */
+    u_char      include_length; /* whether to include length field */
 };
 .Ed
 .Pp
@@ -256,35 +255,35 @@ The
 field determines whether the L2TP header length field is included
 in outgoing L2TP data packets.
 For incoming packets, the L2TP length field is always checked when present.
-.It Dv NGM_L2TP_GET_SESS_CONFIG
+.It Dv NGM_L2TP_GET_SESS_CONFIG Pq Ic getsessconfig
 This command takes a two byte session ID as an argument and returns
 the current configuration for the corresponding data session as a
 .Vt "struct ng_l2tp_sess_config" .
 The corresponding session hook must be connected.
-.It Dv NGM_L2TP_GET_STATS
+.It Dv NGM_L2TP_GET_STATS Pq Ic getstats
 This command returns a
 .Vt "struct ng_l2tp_stats"
 containing statistics of the L2TP tunnel.
-.It Dv NGM_L2TP_CLR_STATS
+.It Dv NGM_L2TP_CLR_STATS Pq Ic clrstats
 This command clears the statistics for the L2TP tunnel.
-.It Dv NGM_L2TP_GETCLR_STATS
+.It Dv NGM_L2TP_GETCLR_STATS Pq Ic getclrstats
 Same as
 .Dv NGM_L2TP_GET_STATS ,
 but also atomically clears the statistics as well.
-.It Dv NGM_L2TP_GET_SESSION_STATS
+.It Dv NGM_L2TP_GET_SESSION_STATS Pq Ic getsessstats
 This command takes a two byte session ID as an argument and returns a
 .Vt "struct ng_l2tp_session_stats"
 containing statistics for the corresponding data session.
 The corresponding session hook must be connected.
-.It Dv NGM_L2TP_CLR_SESSION_STATS
+.It Dv NGM_L2TP_CLR_SESSION_STATS Pq Ic clrsessstats
 This command takes a two byte session ID as an argument and
 clears the statistics for that data session.
 The corresponding session hook must be connected.
-.It Dv NGM_L2TP_GETCLR_SESSION_STATS
+.It Dv NGM_L2TP_GETCLR_SESSION_STATS Pq Ic getclrsessstats
 Same as
 .Dv NGM_L2TP_GET_SESSION_STATS ,
 but also atomically clears the statistics as well.
-.It Dv NGM_L2TP_SET_SEQ
+.It Dv NGM_L2TP_SET_SEQ Pq Ic setsequence
 This command sets the sequence numbers of a not yet enabled node.
 It takes a
 .Vt "struct ng_l2tp_seq_config"

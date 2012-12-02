@@ -1,0 +1,4 @@
+.\" $FreeBSD$
+Set to build
+.Xr ed 1
+without support for encryption/decryption.

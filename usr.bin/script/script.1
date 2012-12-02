@@ -28,7 +28,7 @@
 .\"	@(#)script.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd September 28, 2011
+.Dd Oct 27, 2012
 .Dt SCRIPT 1
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 .Nd make typescript of terminal session
 .Sh SYNOPSIS
 .Nm
-.Op Fl akq
+.Op Fl adfkpqr
 .Op Fl t Ar time
 .Op Ar file Op Ar command ...
 .Sh DESCRIPTION
@@ -72,10 +72,27 @@ Append the output to
 or
 .Pa typescript ,
 retaining the prior contents.
+.It Fl d
+When playing back a session with the
+.Fl p
+flag, do not sleep between records when playing back a timestamped session.
+.It Fl f
+Create
+.Ar file.filemon
+or
+.Pa typescript.filemon
+using
+.Xr filemon 4 .
 .It Fl k
 Log keys sent to the program as well as output.
+.It Fl p
+Play back a session recorded with the
+.Fl r
+flag in real time.
 .It Fl q
-Run in quiet mode, omit the start and stop status messages.
+Run in quiet mode, omit the start, stop and command status messages.
+.It Fl r
+Record a session with input, output, and timestamping.
 .It Fl t Ar time
 Specify the interval at which the script output file will be flushed
 to disk, in seconds.
@@ -141,6 +158,7 @@ is assumed.
 .El
 .Sh SEE ALSO
 .Xr csh 1
+.Xr filemon 4
 .Po
 for the
 .Em history
@@ -151,6 +169,16 @@ The
 .Nm
 command appeared in
 .Bx 3.0 .
+.Pp
+The
+.Fl d ,
+.Fl p
+and
+.Fl r
+options first appeared in
+.Nx 2.0
+and were ported to
+.Fx 10 .
 .Sh BUGS
 The
 .Nm

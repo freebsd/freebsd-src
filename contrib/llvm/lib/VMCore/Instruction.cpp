@@ -102,7 +102,6 @@ const char *Instruction::getOpcodeName(unsigned OpCode) {
   case IndirectBr: return "indirectbr";
   case Invoke: return "invoke";
   case Resume: return "resume";
-  case Unwind: return "unwind";
   case Unreachable: return "unreachable";
 
   // Standard binary operators...
@@ -166,8 +165,6 @@ const char *Instruction::getOpcodeName(unsigned OpCode) {
 
   default: return "<Invalid operator> ";
   }
-
-  return 0;
 }
 
 /// isIdenticalTo - Return true if the specified instruction is exactly
@@ -229,34 +226,52 @@ bool Instruction::isIdenticalToWhenDefined(const Instruction *I) const {
            RMWI->isVolatile() == cast<AtomicRMWInst>(I)->isVolatile() &&
            RMWI->getOrdering() == cast<AtomicRMWInst>(I)->getOrdering() &&
            RMWI->getSynchScope() == cast<AtomicRMWInst>(I)->getSynchScope();
-
+  if (const PHINode *thisPHI = dyn_cast<PHINode>(this)) {
+    const PHINode *otherPHI = cast<PHINode>(I);
+    for (unsigned i = 0, e = thisPHI->getNumOperands(); i != e; ++i) {
+      if (thisPHI->getIncomingBlock(i) != otherPHI->getIncomingBlock(i))
+        return false;
+    }
+    return true;
+  }
   return true;
 }
 
 // isSameOperationAs
 // This should be kept in sync with isEquivalentOperation in
 // lib/Transforms/IPO/MergeFunctions.cpp.
-bool Instruction::isSameOperationAs(const Instruction *I) const {
+bool Instruction::isSameOperationAs(const Instruction *I,
+                                    unsigned flags) const {
+  bool IgnoreAlignment = flags & CompareIgnoringAlignment;
+  bool UseScalarTypes  = flags & CompareUsingScalarTypes;
+
   if (getOpcode() != I->getOpcode() ||
       getNumOperands() != I->getNumOperands() ||
-      getType() != I->getType())
+      (UseScalarTypes ?
+       getType()->getScalarType() != I->getType()->getScalarType() :
+       getType() != I->getType()))
     return false;
 
   // We have two instructions of identical opcode and #operands.  Check to see
   // if all operands are the same type
   for (unsigned i = 0, e = getNumOperands(); i != e; ++i)
-    if (getOperand(i)->getType() != I->getOperand(i)->getType())
+    if (UseScalarTypes ?
+        getOperand(i)->getType()->getScalarType() !=
+          I->getOperand(i)->getType()->getScalarType() :
+        getOperand(i)->getType() != I->getOperand(i)->getType())
       return false;
 
   // Check special state that is a part of some instructions.
   if (const LoadInst *LI = dyn_cast<LoadInst>(this))
     return LI->isVolatile() == cast<LoadInst>(I)->isVolatile() &&
-           LI->getAlignment() == cast<LoadInst>(I)->getAlignment() &&
+           (LI->getAlignment() == cast<LoadInst>(I)->getAlignment() ||
+            IgnoreAlignment) &&
            LI->getOrdering() == cast<LoadInst>(I)->getOrdering() &&
            LI->getSynchScope() == cast<LoadInst>(I)->getSynchScope();
   if (const StoreInst *SI = dyn_cast<StoreInst>(this))
     return SI->isVolatile() == cast<StoreInst>(I)->isVolatile() &&
-           SI->getAlignment() == cast<StoreInst>(I)->getAlignment() &&
+           (SI->getAlignment() == cast<StoreInst>(I)->getAlignment() ||
+            IgnoreAlignment) &&
            SI->getOrdering() == cast<StoreInst>(I)->getOrdering() &&
            SI->getSynchScope() == cast<StoreInst>(I)->getSynchScope();
   if (const CmpInst *CI = dyn_cast<CmpInst>(this))
@@ -391,57 +406,27 @@ bool Instruction::isCommutative(unsigned op) {
   }
 }
 
-bool Instruction::isSafeToSpeculativelyExecute() const {
-  for (unsigned i = 0, e = getNumOperands(); i != e; ++i)
-    if (Constant *C = dyn_cast<Constant>(getOperand(i)))
-      if (C->canTrap())
-        return false;
+/// isIdempotent - Return true if the instruction is idempotent:
+///
+///   Idempotent operators satisfy:  x op x === x
+///
+/// In LLVM, the And and Or operators are idempotent.
+///
+bool Instruction::isIdempotent(unsigned Opcode) {
+  return Opcode == And || Opcode == Or;
+}
 
-  switch (getOpcode()) {
-  default:
-    return true;
-  case UDiv:
-  case URem: {
-    // x / y is undefined if y == 0, but calcuations like x / 3 are safe.
-    ConstantInt *Op = dyn_cast<ConstantInt>(getOperand(1));
-    return Op && !Op->isNullValue();
-  }
-  case SDiv:
-  case SRem: {
-    // x / y is undefined if y == 0, and might be undefined if y == -1,
-    // but calcuations like x / 3 are safe.
-    ConstantInt *Op = dyn_cast<ConstantInt>(getOperand(1));
-    return Op && !Op->isNullValue() && !Op->isAllOnesValue();
-  }
-  case Load: {
-    const LoadInst *LI = cast<LoadInst>(this);
-    if (!LI->isUnordered())
-      return false;
-    return LI->getPointerOperand()->isDereferenceablePointer();
-  }
-  case Call:
-    return false; // The called function could have undefined behavior or
-                  // side-effects.
-                  // FIXME: We should special-case some intrinsics (bswap,
-                  // overflow-checking arithmetic, etc.)
-  case VAArg:
-  case Alloca:
-  case Invoke:
-  case PHI:
-  case Store:
-  case Ret:
-  case Br:
-  case IndirectBr:
-  case Switch:
-  case Unwind:
-  case Unreachable:
-  case Fence:
-  case LandingPad:
-  case AtomicRMW:
-  case AtomicCmpXchg:
-  case Resume:
-    return false; // Misc instructions which have effects
-  }
+/// isNilpotent - Return true if the instruction is nilpotent:
+///
+///   Nilpotent operators satisfy:  x op x === Id,
+///
+///   where Id is the identity for the operator, i.e. a constant such that
+///     x op Id === x and Id op x === x for all x.
+///
+/// In LLVM, the Xor operator is nilpotent.
+///
+bool Instruction::isNilpotent(unsigned Opcode) {
+  return Opcode == Xor;
 }
 
 Instruction *Instruction::clone() const {

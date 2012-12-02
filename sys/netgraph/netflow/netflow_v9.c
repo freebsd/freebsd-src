@@ -222,7 +222,7 @@ export9_send(priv_p priv, fib_export_p fe, item_p item, struct netflow_v9_packet
 	header->unix_secs  = htonl(ts.tv_sec);
 	header->seq_num = htonl(atomic_fetchadd_32(&fe->flow9_seq, 1));
 	header->count = htons(t->count);
-	header->source_id = htonl(NG_NODE_ID(priv->node));
+	header->source_id = htonl(fe->domain_id);
 
 	if (priv->export9 != NULL)
 		NG_FWD_ITEM_HOOK_FLAGS(error, item, priv->export9, flags);
@@ -416,16 +416,14 @@ get_export9_dgram(priv_p priv, fib_export_p fe, struct netflow_v9_packet_opt **t
 		 * Check if we need to insert templates into packet
 		 */
 		
-		struct timespec ts;
 		struct netflow_v9_flowset_header	*fl;
 	
-		getnanotime(&ts);
-		if ((ts.tv_sec >= priv->templ_time + fe->templ_last_ts) ||
+		if ((time_uptime >= priv->templ_time + fe->templ_last_ts) ||
 				(fe->sent_packets >= priv->templ_packets + fe->templ_last_pkt)) {
 
-			atomic_store_rel_32(&fe->templ_last_ts, ts.tv_sec);
-			atomic_store_rel_32(&fe->templ_last_pkt, fe->sent_packets);
-	
+			fe->templ_last_ts = time_uptime;
+			fe->templ_last_pkt = fe->sent_packets;
+
 			fl = priv->v9_flowsets[0];
 			m_append(m, ntohs(fl->length), (void *)fl);
 			t->flow_header = m->m_len;
@@ -482,3 +480,14 @@ ng_netflow_v9_cache_flush(priv_p priv)
 	for (i = 0; i < priv->flowsets_count; i++)
 		free(priv->v9_flowsets[i], M_NETFLOW_GENERAL);
 }
+
+/* Get a snapshot of NetFlow v9 settings */
+void
+ng_netflow_copyv9info(priv_p priv, struct ng_netflow_v9info *i)
+{
+
+	i->templ_time = priv->templ_time;
+	i->templ_packets = priv->templ_packets;
+	i->mtu = priv->mtu;
+}
+

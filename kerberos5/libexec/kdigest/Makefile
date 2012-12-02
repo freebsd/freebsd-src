@@ -13,8 +13,12 @@ SRCS=	kdigest.c \
 	kdigest-commands.c \
 	kdigest-commands.h
 
-kdigest-commands.c kdigest-commands.h: kdigest-commands.in
-	slc ${.ALLSRC:M*.in}
+kdigest-commands.h: kdigest-commands.in
+	${SLC} ${.ALLSRC:M*.in}
+
+.for ext in c o
+kdigest-commands.${ext}: kdigest-commands.h
+.endfor
 
 .include <bsd.prog.mk>
 

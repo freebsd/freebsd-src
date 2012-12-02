@@ -56,6 +56,7 @@ extern u_int32_t newnfs_false, newnfs_true;
 extern nfstype nfsv34_type[9];
 extern int nfsrv_useacl;
 extern char nfsv4_callbackaddr[INET6_ADDRSTRLEN];
+extern int nfscl_debuglevel;
 NFSCLSTATEMUTEX;
 int nfstest_outofseq = 0;
 int nfscl_assumeposixlocks = 1;
@@ -1398,7 +1399,7 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 			if (stateid.other[0] == 0 && stateid.other[1] == 0 &&
 			    stateid.other[2] == 0) {
 				nostateid = 1;
-				printf("stateid0 in write\n");
+				NFSCL_DEBUG(1, "stateid0 in write\n");
 			}
 		}
 

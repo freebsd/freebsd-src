@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 
 #include "calendar.h"
 
-time_t			time1, time2;
+static time_t		time1, time2;
 const struct tm		tm0;
 char			dayname[100];
 int			year1, year2;

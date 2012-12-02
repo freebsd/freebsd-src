@@ -50,15 +50,17 @@ namespace llvm {
 
     /// An oracle for answering whether two values are equivalent as
     /// operands.
-    struct Oracle {
+    class Oracle {
+      virtual void anchor();
+    public:
       virtual bool operator()(Value *L, Value *R) = 0;
 
     protected:
       virtual ~Oracle() {}
     };
 
-    DifferenceEngine(LLVMContext &context, Consumer &consumer)
-      : context(context), consumer(consumer), globalValueOracle(0) {}
+    DifferenceEngine(Consumer &consumer)
+      : consumer(consumer), globalValueOracle(0) {}
 
     void diff(Module *L, Module *R);
     void diff(Function *L, Function *R);
@@ -82,7 +84,6 @@ namespace llvm {
     bool equivalentAsOperands(GlobalValue *L, GlobalValue *R);
 
   private:
-    LLVMContext &context;
     Consumer &consumer;
     Oracle *globalValueOracle;
   };

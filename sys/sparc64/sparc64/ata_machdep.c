@@ -40,7 +40,7 @@ sparc64_ata_disk_firmware_geom_adjust(struct disk *disk)
 	 * and sectors so the geometry of large disks has to be adjusted.
 	 * If the disk is > 32GB at 16 heads and 63 sectors, adjust to 255
 	 * sectors (this matches what the OpenSolaris dad(7D) driver does).
-	 * If the the disk is even > 128GB, additionally adjust the heads to
+	 * If the disk is even > 128GB, additionally adjust the heads to
 	 * 255.  This allows disks up to the 2TB limit of the extended VTOC8.
 	 * XXX the OpenSolaris dad(7D) driver limits the mediasize to 128GB.
 	 */

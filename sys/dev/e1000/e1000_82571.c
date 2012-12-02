@@ -1907,7 +1907,7 @@ void e1000_set_laa_state_82571(struct e1000_hw *hw, bool state)
 		 * incoming packets directed to this port are dropped.
 		 * Eventually the LAA will be in RAR[0] and RAR[14].
 		 */
-		e1000_rar_set_generic(hw, hw->mac.addr,
+		hw->mac.ops.rar_set(hw, hw->mac.addr,
 				      hw->mac.rar_entry_count - 1);
 	return;
 }

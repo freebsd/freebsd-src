@@ -32,9 +32,9 @@
 #error this file needs sys/cdefs.h as a prerequisite
 #endif
 
-#define	mb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory")
-#define	wmb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory")
-#define	rmb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory")
+#define	mb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory", "cc")
+#define	wmb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory", "cc")
+#define	rmb()	__asm __volatile("lock; addl $0,(%%esp)" : : : "memory", "cc")
 
 /*
  * Various simple operations on memory, each of which is atomic in the
@@ -79,8 +79,9 @@ void atomic_##NAME##_barr_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 int	atomic_cmpset_int(volatile u_int *dst, u_int expect, u_int src);
 u_int	atomic_fetchadd_int(volatile u_int *p, u_int v);
 
-#define	ATOMIC_STORE_LOAD(TYPE, LOP, SOP)			\
-u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p);	\
+#define	ATOMIC_LOAD(TYPE, LOP)					\
+u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p)
+#define	ATOMIC_STORE(TYPE)					\
 void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 #else /* !KLD_MODULE && __GNUCLIKE_ASM */
@@ -280,37 +281,43 @@ atomic_fetchadd_int(volatile u_int *p, u_int v)
 	return (v);
 }
 
+/*
+ * We assume that a = b will do atomic loads and stores.  Due to the
+ * IA32 memory model, a simple store guarantees release semantics.
+ *
+ * However, loads may pass stores, so for atomic_load_acq we have to
+ * ensure a Store/Load barrier to do the load in SMP kernels.  We use
+ * "lock cmpxchg" as recommended by the AMD Software Optimization
+ * Guide, and not mfence.  For UP kernels, however, the cache of the
+ * single processor is always consistent, so we only need to take care
+ * of the compiler.
+ */
+#define	ATOMIC_STORE(TYPE)				\
+static __inline void					\
+atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
+{							\
+	__compiler_membar();				\
+	*p = v;						\
+}							\
+struct __hack
+
 #if defined(_KERNEL) && !defined(SMP)
 
-/*
- * We assume that a = b will do atomic loads and stores.  However, on a
- * PentiumPro or higher, reads may pass writes, so for that case we have
- * to use a serializing instruction (i.e. with LOCK) to do the load in
- * SMP kernels.  For UP kernels, however, the cache of the single processor
- * is always consistent, so we only need to take care of compiler.
- */
-#define	ATOMIC_STORE_LOAD(TYPE, LOP, SOP)		\
+#define	ATOMIC_LOAD(TYPE, LOP)				\
 static __inline u_##TYPE				\
 atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 {							\
 	u_##TYPE tmp;					\
 							\
 	tmp = *p;					\
-	__asm __volatile("" : : : "memory");		\
+	__compiler_membar();				\
 	return (tmp);					\
-}							\
-							\
-static __inline void					\
-atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
-{							\
-	__asm __volatile("" : : : "memory");		\
-	*p = v;						\
 }							\
 struct __hack
 
 #else /* !(_KERNEL && !SMP) */
 
-#define	ATOMIC_STORE_LOAD(TYPE, LOP, SOP)		\
+#define	ATOMIC_LOAD(TYPE, LOP)				\
 static __inline u_##TYPE				\
 atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 {							\
@@ -323,19 +330,6 @@ atomic_load_acq_##TYPE(volatile u_##TYPE *p)		\
 	: "memory", "cc");				\
 							\
 	return (res);					\
-}							\
-							\
-/*							\
- * The XCHG instruction asserts LOCK automagically.	\
- */							\
-static __inline void					\
-atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
-{							\
-	__asm __volatile(SOP				\
-	: "=m" (*p),			/* 0 */		\
-	  "+r" (v)			/* 1 */		\
-	: "m" (*p)			/* 2 */		\
-	: "memory");					\
 }							\
 struct __hack
 
@@ -363,13 +357,19 @@ ATOMIC_ASM(clear,    long,  "andl %1,%0",  "ir", ~v);
 ATOMIC_ASM(add,	     long,  "addl %1,%0",  "ir",  v);
 ATOMIC_ASM(subtract, long,  "subl %1,%0",  "ir",  v);
 
-ATOMIC_STORE_LOAD(char,	"cmpxchgb %b0,%1", "xchgb %b1,%0");
-ATOMIC_STORE_LOAD(short,"cmpxchgw %w0,%1", "xchgw %w1,%0");
-ATOMIC_STORE_LOAD(int,	"cmpxchgl %0,%1",  "xchgl %1,%0");
-ATOMIC_STORE_LOAD(long,	"cmpxchgl %0,%1",  "xchgl %1,%0");
+ATOMIC_LOAD(char,  "cmpxchgb %b0,%1");
+ATOMIC_LOAD(short, "cmpxchgw %w0,%1");
+ATOMIC_LOAD(int,   "cmpxchgl %0,%1");
+ATOMIC_LOAD(long,  "cmpxchgl %0,%1");
+
+ATOMIC_STORE(char);
+ATOMIC_STORE(short);
+ATOMIC_STORE(int);
+ATOMIC_STORE(long);
 
 #undef ATOMIC_ASM
-#undef ATOMIC_STORE_LOAD
+#undef ATOMIC_LOAD
+#undef ATOMIC_STORE
 
 #ifndef WANT_FUNCTIONS
 

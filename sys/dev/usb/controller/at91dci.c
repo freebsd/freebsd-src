@@ -740,7 +740,6 @@ at91dci_vbus_interrupt(struct at91dci_softc *sc, uint8_t is_on)
 {
 	DPRINTFN(5, "vbus = %u\n", is_on);
 
-	USB_BUS_LOCK(&sc->sc_bus);
 	if (is_on) {
 		if (!sc->sc_flags.status_vbus) {
 			sc->sc_flags.status_vbus = 1;
@@ -760,7 +759,6 @@ at91dci_vbus_interrupt(struct at91dci_softc *sc, uint8_t is_on)
 			at91dci_root_intr(sc);
 		}
 	}
-	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
 void
@@ -1226,7 +1224,13 @@ at91dci_device_done(struct usb_xfer *xfer, usb_error_t error)
 }
 
 static void
-at91dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
+at91dci_xfer_stall(struct usb_xfer *xfer)
+{
+	at91dci_device_done(xfer, USB_ERR_STALLED);
+}
+
+static void
+at91dci_set_stall(struct usb_device *udev,
     struct usb_endpoint *ep, uint8_t *did_stall)
 {
 	struct at91dci_softc *sc;
@@ -1237,10 +1241,6 @@ at91dci_set_stall(struct usb_device *udev, struct usb_xfer *xfer,
 
 	DPRINTFN(5, "endpoint=%p\n", ep);
 
-	if (xfer) {
-		/* cancel any ongoing transfers */
-		at91dci_device_done(xfer, USB_ERR_STALLED);
-	}
 	/* set FORCESTALL */
 	sc = AT9100_DCI_BUS2SC(udev->bus);
 	csr_reg = (ep->edesc->bEndpointAddress & UE_ADDR);
@@ -2277,10 +2277,6 @@ at91dci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 
 	if (udev->device_index != sc->sc_rt_addr) {
 
-		if (udev->flags.usb_mode != USB_MODE_DEVICE) {
-			/* not supported */
-			return;
-		}
 		if (udev->speed != USB_SPEED_FULL) {
 			/* not supported */
 			return;
@@ -2332,6 +2328,7 @@ struct usb_bus_methods at91dci_bus_methods =
 	.xfer_unsetup = &at91dci_xfer_unsetup,
 	.get_hw_ep_profile = &at91dci_get_hw_ep_profile,
 	.set_stall = &at91dci_set_stall,
+	.xfer_stall = &at91dci_xfer_stall,
 	.clear_stall = &at91dci_clear_stall,
 	.roothub_exec = &at91dci_roothub_exec,
 	.xfer_poll = &at91dci_do_poll,

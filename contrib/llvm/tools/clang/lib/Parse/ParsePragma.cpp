@@ -29,6 +29,31 @@ void Parser::HandlePragmaUnused() {
   ConsumeToken(); // The argument token.
 }
 
+void Parser::HandlePragmaVisibility() {
+  assert(Tok.is(tok::annot_pragma_vis));
+  const IdentifierInfo *VisType =
+    static_cast<IdentifierInfo *>(Tok.getAnnotationValue());
+  SourceLocation VisLoc = ConsumeToken();
+  Actions.ActOnPragmaVisibility(VisType, VisLoc);
+}
+
+struct PragmaPackInfo {
+  Sema::PragmaPackKind Kind;
+  IdentifierInfo *Name;
+  Expr *Alignment;
+  SourceLocation LParenLoc;
+  SourceLocation RParenLoc;
+};
+
+void Parser::HandlePragmaPack() {
+  assert(Tok.is(tok::annot_pragma_pack));
+  PragmaPackInfo *Info =
+    static_cast<PragmaPackInfo *>(Tok.getAnnotationValue());
+  SourceLocation PragmaLoc = ConsumeToken();
+  Actions.ActOnPragmaPack(Info->Kind, Info->Name, Info->Alignment, PragmaLoc,
+                          Info->LParenLoc, Info->RParenLoc);
+}
+
 // #pragma GCC visibility comes in two variants:
 //   'push' '(' [visibility] ')'
 //   'pop'
@@ -42,13 +67,10 @@ void PragmaGCCVisibilityHandler::HandlePragma(Preprocessor &PP,
 
   const IdentifierInfo *PushPop = Tok.getIdentifierInfo();
 
-  bool IsPush;
   const IdentifierInfo *VisType;
   if (PushPop && PushPop->isStr("pop")) {
-    IsPush = false;
     VisType = 0;
   } else if (PushPop && PushPop->isStr("push")) {
-    IsPush = true;
     PP.LexUnexpandedToken(Tok);
     if (Tok.isNot(tok::l_paren)) {
       PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_lparen)
@@ -80,7 +102,14 @@ void PragmaGCCVisibilityHandler::HandlePragma(Preprocessor &PP,
     return;
   }
 
-  Actions.ActOnPragmaVisibility(IsPush, VisType, VisLoc);
+  Token *Toks = new Token[1];
+  Toks[0].startToken();
+  Toks[0].setKind(tok::annot_pragma_vis);
+  Toks[0].setLocation(VisLoc);
+  Toks[0].setAnnotationValue(
+                          const_cast<void*>(static_cast<const void*>(VisType)));
+  PP.EnterTokenStream(Toks, 1, /*DisableMacroExpansion=*/true,
+                      /*OwnsTokens=*/true);
 }
 
 // #pragma pack(...) comes in the following delicious flavors:
@@ -110,6 +139,12 @@ void PragmaPackHandler::HandlePragma(Preprocessor &PP,
       return;
 
     PP.Lex(Tok);
+
+    // In MSVC/gcc, #pragma pack(4) sets the alignment without affecting
+    // the push/pop stack.
+    // In Apple gcc, #pragma pack(4) is equivalent to #pragma pack(push, 4)
+    if (PP.getLangOpts().ApplePragmaPack)
+      Kind = Sema::PPK_Push;
   } else if (Tok.is(tok::identifier)) {
     const IdentifierInfo *II = Tok.getIdentifierInfo();
     if (II->isStr("show")) {
@@ -159,6 +194,11 @@ void PragmaPackHandler::HandlePragma(Preprocessor &PP,
         }
       }
     }
+  } else if (PP.getLangOpts().ApplePragmaPack) {
+    // In MSVC/gcc, #pragma pack() resets the alignment without affecting
+    // the push/pop stack.
+    // In Apple gcc #pragma pack() is equivalent to #pragma pack(pop).
+    Kind = Sema::PPK_Pop;
   }
 
   if (Tok.isNot(tok::r_paren)) {
@@ -173,8 +213,26 @@ void PragmaPackHandler::HandlePragma(Preprocessor &PP,
     return;
   }
 
-  Actions.ActOnPragmaPack(Kind, Name, Alignment.release(), PackLoc,
-                          LParenLoc, RParenLoc);
+  PragmaPackInfo *Info = 
+    (PragmaPackInfo*) PP.getPreprocessorAllocator().Allocate(
+      sizeof(PragmaPackInfo), llvm::alignOf<PragmaPackInfo>());
+  new (Info) PragmaPackInfo();
+  Info->Kind = Kind;
+  Info->Name = Name;
+  Info->Alignment = Alignment.release();
+  Info->LParenLoc = LParenLoc;
+  Info->RParenLoc = RParenLoc;
+
+  Token *Toks = 
+    (Token*) PP.getPreprocessorAllocator().Allocate(
+      sizeof(Token) * 1, llvm::alignOf<Token>());
+  new (Toks) Token();
+  Toks[0].startToken();
+  Toks[0].setKind(tok::annot_pragma_pack);
+  Toks[0].setLocation(PackLoc);
+  Toks[0].setAnnotationValue(static_cast<void*>(Info));
+  PP.EnterTokenStream(Toks, 1, /*DisableMacroExpansion=*/true,
+                      /*OwnsTokens=*/false);
 }
 
 // #pragma ms_struct on
@@ -203,7 +261,8 @@ void PragmaMSStructHandler::HandlePragma(Preprocessor &PP,
   }
   
   if (Tok.isNot(tok::eod)) {
-    PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol) << "ms_struct";
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol)
+      << "ms_struct";
     return;
   }
   Actions.ActOnPragmaMSStruct(Kind);
@@ -348,7 +407,9 @@ void PragmaUnusedHandler::HandlePragma(Preprocessor &PP,
   // This allows us to cache a "#pragma unused" that occurs inside an inline
   // C++ member function.
 
-  Token *Toks = new Token[2*Identifiers.size()];
+  Token *Toks = 
+    (Token*) PP.getPreprocessorAllocator().Allocate(
+      sizeof(Token) * 2 * Identifiers.size(), llvm::alignOf<Token>());
   for (unsigned i=0; i != Identifiers.size(); i++) {
     Token &pragmaUnusedTok = Toks[2*i], &idTok = Toks[2*i+1];
     pragmaUnusedTok.startToken();
@@ -356,7 +417,8 @@ void PragmaUnusedHandler::HandlePragma(Preprocessor &PP,
     pragmaUnusedTok.setLocation(UnusedLoc);
     idTok = Identifiers[i];
   }
-  PP.EnterTokenStream(Toks, 2*Identifiers.size(), /*DisableMacroExpansion=*/true, /*OwnsTokens=*/true);
+  PP.EnterTokenStream(Toks, 2*Identifiers.size(),
+                      /*DisableMacroExpansion=*/true, /*OwnsTokens=*/false);
 }
 
 // #pragma weak identifier
@@ -402,6 +464,44 @@ void PragmaWeakHandler::HandlePragma(Preprocessor &PP,
     Actions.ActOnPragmaWeakID(WeakName, WeakLoc, WeakNameLoc);
   }
 }
+
+// #pragma redefine_extname identifier identifier
+void PragmaRedefineExtnameHandler::HandlePragma(Preprocessor &PP, 
+                                               PragmaIntroducerKind Introducer,
+                                                Token &RedefToken) {
+  SourceLocation RedefLoc = RedefToken.getLocation();
+
+  Token Tok;
+  PP.Lex(Tok);
+  if (Tok.isNot(tok::identifier)) {
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_identifier) <<
+      "redefine_extname";
+    return;
+  }
+
+  IdentifierInfo *RedefName = Tok.getIdentifierInfo(), *AliasName = 0;
+  SourceLocation RedefNameLoc = Tok.getLocation(), AliasNameLoc;
+
+  PP.Lex(Tok);
+  if (Tok.isNot(tok::identifier)) {
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_expected_identifier)
+        << "redefine_extname";
+    return;
+  }
+  AliasName = Tok.getIdentifierInfo();
+  AliasNameLoc = Tok.getLocation();
+  PP.Lex(Tok);
+
+  if (Tok.isNot(tok::eod)) {
+    PP.Diag(Tok.getLocation(), diag::warn_pragma_extra_tokens_at_eol) <<
+      "redefine_extname";
+    return;
+  }
+
+  Actions.ActOnPragmaRedefineExtname(RedefName, AliasName, RedefLoc,
+      RedefNameLoc, AliasNameLoc);
+}
+
 
 void
 PragmaFPContractHandler::HandlePragma(Preprocessor &PP, 

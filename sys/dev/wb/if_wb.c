@@ -130,7 +130,7 @@ MODULE_DEPEND(wb, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct wb_type const wb_devs[] = {
+static const struct wb_type wb_devs[] = {
 	{ WB_VENDORID, WB_DEVICEID_840F,
 		"Winbond W89C840F 10/100BaseTX" },
 	{ CP_VENDORID, CP_DEVICEID_RL100,

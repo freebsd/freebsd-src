@@ -16,16 +16,21 @@ ideas:
 	Brian Fundakowski Feldman <green@freebsd.org>
 	Christos Zoulas <christos@netbsd.org>
 	Daniel Richard G. <skunk@iskunk.org>
-	Darren J. Moffat <Darren.Moffat@sun.com>
+	Darren J. Moffat <darren.moffat@sun.com>
 	Dmitry V. Levin <ldv@altlinux.org>
+	Don Lewis <truckman@freebsd.org>
 	Emmanuel Dreyfus <manu@netbsd.org>
 	Eric Melville <eric@freebsd.org>
-	Gary Winiger <Gary.Winiger@sun.com>
+	Gary Winiger <gary.winiger@sun.com>
+	Gleb Smirnoff <glebius@freebsd.org>
 	Hubert Feyrer <hubert@feyrer.de>
+	Jason Evans <jasone@freebsd.org>
 	Joe Marcus Clarke <marcus@freebsd.org>
 	Juli Mallett <jmallett@freebsd.org>
 	Jörg Sonnenberger <joerg@britannica.bec.de>
+	Maëlle Lesage <lesage.maelle@gmail.com>
 	Mark Murray <markm@freebsd.org>
+	Matthias Drochner <drochner@netbsd.org>
 	Mike Petullo <mike@flyn.org>
 	Mikhail Teterin <mi@aldan.algebra.com>
 	Mikko Työläjärvi <mbsd@pacbell.net>
@@ -38,4 +43,4 @@ ideas:
 	Wojciech A. Koszek <wkoszek@freebsd.org>
 	Yar Tikhiy <yar@freebsd.org>
 
-$Id: CREDITS 498 2011-11-21 16:27:04Z des $
+$Id: CREDITS 587 2012-04-08 11:12:10Z des $

@@ -28,7 +28,7 @@
 .\"	From: @(#)listen.2	8.2 (Berkeley) 12/11/93
 .\" $FreeBSD$
 .\"
-.Dd August 29, 2005
+.Dd October 20, 2012
 .Dt LISTEN 2
 .Os
 .Sh NAME
@@ -102,15 +102,15 @@ of service attacks are no longer necessary.
 The
 .Xr sysctl 3
 MIB variable
-.Va kern.ipc.somaxconn
+.Va kern.ipc.soacceptqueue
 specifies a hard limit on
 .Fa backlog ;
 if a value greater than
-.Va kern.ipc.somaxconn
+.Va kern.ipc.soacceptqueue
 or less than zero is specified,
 .Fa backlog
 is silently forced to
-.Va kern.ipc.somaxconn .
+.Va kern.ipc.soacceptqueue .
 .Sh INTERACTION WITH ACCEPT FILTERS
 When accept filtering is used on a socket, a second queue will
 be used to hold sockets that have connected, but have not yet
@@ -168,3 +168,17 @@ at run-time, and to use a negative
 .Fa backlog
 to request the maximum allowable value, was introduced in
 .Fx 2.2 .
+The
+.Va kern.ipc.somaxconn
+.Xr sysctl 3
+has been replaced with
+.Va kern.ipc.soacceptqueue
+in
+.Fx 10.0
+to prevent confusion about its actual functionality.
+The original
+.Xr sysctl 3
+.Va kern.ipc.somaxconn
+is still available but hidden from a
+.Xr sysctl 3
+-a output so that existing applications and scripts continue to work.

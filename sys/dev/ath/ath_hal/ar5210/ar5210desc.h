@@ -19,8 +19,6 @@
 #ifndef _DEV_ATH_AR5210DESC_H
 #define _DEV_ATH_AR5210DESC_H
 
-#include "ah_desc.h"
-
 /*
  * Defintions for the DMA descriptors used by the Atheros
  * AR5210/AR5211 and AR5110 Wireless Lan controller parts.
@@ -57,6 +55,7 @@ struct ar5210_desc {
 #define	AR_ClearDestMask	0x01000000	/* Clear destination mask bit */
 #define	AR_AntModeXmit		0x02000000	/* TX antenna seslection */
 #define	AR_FrmType		0x1c000000	/* frame type indication */
+#define	AR_FrmType_S		26
 #define	AR_Frm_Normal		0x00000000	/* normal frame */
 #define	AR_Frm_ATIM		0x04000000	/* ATIM frame */
 #define	AR_Frm_PSPOLL		0x08000000	/* PS poll frame */
@@ -71,6 +70,7 @@ struct ar5210_desc {
 #define	AR_EncryptKeyIdx	0x0007e000	/* ecnrypt key table index */
 #define	AR_EncryptKeyIdx_S	13
 #define	AR_RTSDuration		0xfff80000	/* lower 13bit of duration */
+#define	AR_RTSDuration_S	19
 
 /* RX ds_ctl1 */
 /*	AR_BufLen		0x00000fff	   data buffer length */

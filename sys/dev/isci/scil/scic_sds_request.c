@@ -2679,7 +2679,7 @@ void scic_sds_request_initial_state_enter(
 /**
  * This method implements the actions taken when entering the
  * SCI_BASE_REQUEST_STATE_CONSTRUCTED state.
- * The method sets the state handlers for the the constructed state.
+ * The method sets the state handlers for the constructed state.
  *
  * @param[in] object The io request object that is to enter the constructed
  *       state.

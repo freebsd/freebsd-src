@@ -99,8 +99,6 @@ void ntfs_ntref(struct ntnode *);
 void ntfs_ntrele(struct ntnode *);
 void ntfs_ntput(struct ntnode *);
 int ntfs_loadntnode( struct ntfsmount *, struct ntnode * );
-int ntfs_writentvattr_plain(struct ntfsmount *, struct ntnode *, struct ntvattr *, off_t, size_t, void *, size_t *, struct uio *);
-int ntfs_writeattr_plain(struct ntfsmount *, struct ntnode *, u_int32_t, char *, off_t, size_t, void *, size_t *, struct uio *);
 void ntfs_toupper_init(void);
 void ntfs_toupper_destroy(void);
 int ntfs_toupper_use(struct mount *, struct ntfsmount *);

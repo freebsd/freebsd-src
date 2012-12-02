@@ -31,7 +31,6 @@ SRCS=	BackendUtil.cpp \
 	CGRTTI.cpp \
 	CGRecordLayoutBuilder.cpp \
 	CGStmt.cpp \
-	CGTemporaries.cpp \
 	CGVTT.cpp \
 	CGVTables.cpp \
 	CodeGenAction.cpp \
@@ -46,6 +45,7 @@ SRCS=	BackendUtil.cpp \
 
 TGHDRS=	AttrList \
 	Attrs \
+	CommentNodes \
 	DeclNodes \
 	DiagnosticCommonKinds \
 	DiagnosticFrontendKinds \

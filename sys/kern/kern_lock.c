@@ -477,6 +477,9 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	KASSERT((flags & LK_INTERLOCK) == 0 || ilk != NULL,
 	    ("%s: LK_INTERLOCK passed without valid interlock @ %s:%d",
 	    __func__, file, line));
+	KASSERT(!TD_IS_IDLETHREAD(curthread),
+	    ("%s: idle thread %p on lockmgr %s @ %s:%d", __func__, curthread,
+	    lk->lock_object.lo_name, file, line));
 
 	class = (flags & LK_INTERLOCK) ? LOCK_CLASS(ilk) : NULL;
 	if (panicstr != NULL) {

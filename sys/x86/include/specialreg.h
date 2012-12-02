@@ -52,6 +52,8 @@
 #define	CR0_NW  0x20000000	/* Not Write-through */
 #define	CR0_CD  0x40000000	/* Cache Disable */
 
+#define	CR3_PCID_SAVE 0x8000000000000000
+
 /*
  * Bits in PPro special registers
  */
@@ -66,7 +68,10 @@
 #define	CR4_PCE	0x00000100	/* Performance monitoring counter enable */
 #define	CR4_FXSR 0x00000200	/* Fast FPU save/restore used by OS */
 #define	CR4_XMM	0x00000400	/* enable SIMD/MMX2 to use except 16 */
+#define	CR4_FSGSBASE 0x00010000	/* Enable FS/GS BASE accessing instructions */
+#define	CR4_PCIDE 0x00020000	/* Enable Context ID */
 #define	CR4_XSAVE 0x00040000	/* XSETBV/XGETBV */
+#define	CR4_SMEP 0x00100000	/* Supervisor-Mode Execution Prevention */
 
 /*
  * Bits in AMD64 special registers.  EFER is 64 bits wide.
@@ -247,6 +252,11 @@
 #define	CPUID_TYPE_CORE		2
 
 /*
+ * CPUID instruction 0xd Processor Extended State Enumeration Sub-leaf 1
+ */
+#define	CPUID_EXTSTATE_XSAVEOPT	0x00000001
+
+/*
  * AMD extended function 8000_0007h edx info
  */
 #define	AMDPM_TS		0x00000001
@@ -266,6 +276,12 @@
 #define	AMDID_CMP_CORES		0x000000ff
 #define	AMDID_COREID_SIZE	0x0000f000
 #define	AMDID_COREID_SIZE_SHIFT	12
+
+#define	CPUID_STDEXT_FSGSBASE	0x00000001
+#define	CPUID_STDEXT_TSC_ADJUST	0x00000002
+#define	CPUID_STDEXT_SMEP	0x00000080
+#define	CPUID_STDEXT_ENH_MOVSB	0x00000200
+#define	CPUID_STDEXT_INVPCID	0x00000400
 
 /*
  * CPUID manufacturers identifiers
@@ -359,10 +375,44 @@
 #define	MSR_MC4_MISC		0x413
 
 /*
+ * X2APIC MSRs
+ */
+#define	MSR_APIC_ID		0x802
+#define	MSR_APIC_VERSION	0x803
+#define	MSR_APIC_TPR		0x808
+#define	MSR_APIC_EOI		0x80b
+#define	MSR_APIC_LDR		0x80d
+#define	MSR_APIC_SVR		0x80f
+#define	MSR_APIC_ISR0		0x810
+#define	MSR_APIC_ISR1		0x811
+#define	MSR_APIC_ISR2		0x812
+#define	MSR_APIC_ISR3		0x813
+#define	MSR_APIC_ISR4		0x814
+#define	MSR_APIC_ISR5		0x815
+#define	MSR_APIC_ISR6		0x816
+#define	MSR_APIC_ISR7		0x817
+#define	MSR_APIC_TMR0		0x818
+#define	MSR_APIC_IRR0		0x820
+#define	MSR_APIC_ESR		0x828
+#define	MSR_APIC_LVT_CMCI	0x82F
+#define	MSR_APIC_ICR		0x830
+#define	MSR_APIC_LVT_TIMER	0x832
+#define	MSR_APIC_LVT_THERMAL	0x833
+#define	MSR_APIC_LVT_PCINT	0x834
+#define	MSR_APIC_LVT_LINT0	0x835
+#define	MSR_APIC_LVT_LINT1	0x836
+#define	MSR_APIC_LVT_ERROR	0x837
+#define	MSR_APIC_ICR_TIMER	0x838
+#define	MSR_APIC_CCR_TIMER	0x839
+#define	MSR_APIC_DCR_TIMER	0x83e
+#define	MSR_APIC_SELF_IPI	0x83f
+
+/*
  * Constants related to MSR's.
  */
-#define	APICBASE_RESERVED	0x000006ff
+#define	APICBASE_RESERVED	0x000002ff
 #define	APICBASE_BSP		0x00000100
+#define	APICBASE_X2APIC		0x00000400
 #define	APICBASE_ENABLED	0x00000800
 #define	APICBASE_ADDRESS	0xfffff000
 

@@ -1,4 +1,4 @@
-//===- PowerPCSubtarget.cpp - PPC Subtarget Information -------------------===//
+//===-- PowerPCSubtarget.cpp - PPC Subtarget Information ------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -12,9 +12,11 @@
 //===----------------------------------------------------------------------===//
 
 #include "PPCSubtarget.h"
+#include "PPCRegisterInfo.h"
 #include "PPC.h"
 #include "llvm/GlobalValue.h"
 #include "llvm/Target/TargetMachine.h"
+#include "llvm/Support/Host.h"
 #include "llvm/Support/TargetRegistry.h"
 #include <cstdlib>
 
@@ -24,56 +26,20 @@
 
 using namespace llvm;
 
-#if defined(__APPLE__)
-#include <mach/mach.h>
-#include <mach/mach_host.h>
-#include <mach/host_info.h>
-#include <mach/machine.h>
-
-/// GetCurrentPowerPCFeatures - Returns the current CPUs features.
-static const char *GetCurrentPowerPCCPU() {
-  host_basic_info_data_t hostInfo;
-  mach_msg_type_number_t infoCount;
-
-  infoCount = HOST_BASIC_INFO_COUNT;
-  host_info(mach_host_self(), HOST_BASIC_INFO, (host_info_t)&hostInfo, 
-            &infoCount);
-            
-  if (hostInfo.cpu_type != CPU_TYPE_POWERPC) return "generic";
-
-  switch(hostInfo.cpu_subtype) {
-  case CPU_SUBTYPE_POWERPC_601:   return "601";
-  case CPU_SUBTYPE_POWERPC_602:   return "602";
-  case CPU_SUBTYPE_POWERPC_603:   return "603";
-  case CPU_SUBTYPE_POWERPC_603e:  return "603e";
-  case CPU_SUBTYPE_POWERPC_603ev: return "603ev";
-  case CPU_SUBTYPE_POWERPC_604:   return "604";
-  case CPU_SUBTYPE_POWERPC_604e:  return "604e";
-  case CPU_SUBTYPE_POWERPC_620:   return "620";
-  case CPU_SUBTYPE_POWERPC_750:   return "750";
-  case CPU_SUBTYPE_POWERPC_7400:  return "7400";
-  case CPU_SUBTYPE_POWERPC_7450:  return "7450";
-  case CPU_SUBTYPE_POWERPC_970:   return "970";
-  default: ;
-  }
-  
-  return "generic";
-}
-#endif
-
-
 PPCSubtarget::PPCSubtarget(const std::string &TT, const std::string &CPU,
                            const std::string &FS, bool is64Bit)
   : PPCGenSubtargetInfo(TT, CPU, FS)
   , StackAlignment(16)
   , DarwinDirective(PPC::DIR_NONE)
-  , IsGigaProcessor(false)
+  , HasMFOCRF(false)
   , Has64BitSupport(false)
   , Use64BitRegs(false)
   , IsPPC64(is64Bit)
   , HasAltivec(false)
   , HasFSQRT(false)
   , HasSTFIWX(false)
+  , HasISEL(false)
+  , IsBookE(false)
   , HasLazyResolverStubs(false)
   , IsJITCodeModel(false)
   , TargetTriple(TT) {
@@ -82,9 +48,10 @@ PPCSubtarget::PPCSubtarget(const std::string &TT, const std::string &CPU,
   std::string CPUName = CPU;
   if (CPUName.empty())
     CPUName = "generic";
-#if defined(__APPLE__)
+#if (defined(__APPLE__) || defined(__linux__)) && \
+    (defined(__ppc__) || defined(__powerpc__))
   if (CPUName == "generic")
-    CPUName = GetCurrentPowerPCCPU();
+    CPUName = sys::getHostCPUName();
 #endif
 
   // Parse features string.
@@ -139,3 +106,30 @@ bool PPCSubtarget::hasLazyResolverStub(const GlobalValue *GV,
   return GV->hasWeakLinkage() || GV->hasLinkOnceLinkage() ||
          GV->hasCommonLinkage() || isDecl;
 }
+
+bool PPCSubtarget::enablePostRAScheduler(
+           CodeGenOpt::Level OptLevel,
+           TargetSubtargetInfo::AntiDepBreakMode& Mode,
+           RegClassVector& CriticalPathRCs) const {
+  // FIXME: It would be best to use TargetSubtargetInfo::ANTIDEP_ALL here,
+  // but we can't because we can't reassign the cr registers. There is a
+  // dependence between the cr register and the RLWINM instruction used
+  // to extract its value which the anti-dependency breaker can't currently
+  // see. Maybe we should make a late-expanded pseudo to encode this dependency.
+  // (the relevant code is in PPCDAGToDAGISel::SelectSETCC)
+
+  Mode = TargetSubtargetInfo::ANTIDEP_CRITICAL;
+
+  CriticalPathRCs.clear();
+
+  if (isPPC64())
+    CriticalPathRCs.push_back(&PPC::G8RCRegClass);
+  else
+    CriticalPathRCs.push_back(&PPC::GPRCRegClass);
+    
+  CriticalPathRCs.push_back(&PPC::F8RCRegClass);
+  CriticalPathRCs.push_back(&PPC::VRRCRegClass);
+
+  return OptLevel >= CodeGenOpt::Default;
+}
+

@@ -186,6 +186,16 @@ struct {
  */
 static uma_zone_t mt_zone;
 
+static vm_offset_t vm_min_kernel_address = VM_MIN_KERNEL_ADDRESS;
+SYSCTL_ULONG(_vm, OID_AUTO, min_kernel_address, CTLFLAG_RD,
+    &vm_min_kernel_address, 0, "Min kernel address");
+
+#ifndef __sparc64__
+static vm_offset_t vm_max_kernel_address = VM_MAX_KERNEL_ADDRESS;
+#endif
+SYSCTL_ULONG(_vm, OID_AUTO, max_kernel_address, CTLFLAG_RD,
+    &vm_max_kernel_address, 0, "Max kernel address");
+
 u_long vm_kmem_size;
 SYSCTL_ULONG(_vm, OID_AUTO, kmem_size, CTLFLAG_RDTUN, &vm_kmem_size, 0,
     "Size of kernel memory");
@@ -744,7 +754,7 @@ kmeminit(void *dummy)
 		vm_kmem_size = 2 * mem_size * PAGE_SIZE;
 
 #ifdef DEBUG_MEMGUARD
-	tmp = memguard_fudge(vm_kmem_size, vm_kmem_size_max);
+	tmp = memguard_fudge(vm_kmem_size, kernel_map);
 #else
 	tmp = vm_kmem_size;
 #endif
@@ -1000,6 +1010,8 @@ DB_SHOW_COMMAND(malloc, db_show_malloc)
 		db_printf("%18s %12ju %12juK %12ju\n",
 		    mtp->ks_shortdesc, allocs - frees,
 		    (alloced - freed + 1023) / 1024, allocs);
+		if (db_pager_quit)
+			break;
 	}
 }
 
@@ -1029,6 +1041,8 @@ DB_SHOW_COMMAND(multizone_matches, db_show_multizone_matches)
 		if (mtip->mti_zone != subzone)
 			continue;
 		db_printf("%s\n", mtp->ks_shortdesc);
+		if (db_pager_quit)
+			break;
 	}
 }
 #endif /* MALLOC_DEBUG_MAXZONES > 1 */

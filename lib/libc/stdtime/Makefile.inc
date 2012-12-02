@@ -18,4 +18,6 @@ MLINKS+=ctime.3 asctime.3 ctime.3 difftime.3 ctime.3 gmtime.3 \
 	ctime.3 localtime.3 ctime.3 mktime.3 ctime.3 timegm.3 \
 	ctime.3 ctime_r.3 ctime.3 localtime_r.3 ctime.3 gmtime_r.3 \
 	ctime.3 asctime_r.3
+MLINKS+=strftime.3 strftime_l.3
+MLINKS+=strptime.3 strptime_l.3
 MLINKS+=time2posix.3 posix2time.3

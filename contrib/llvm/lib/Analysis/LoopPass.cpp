@@ -14,10 +14,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Analysis/LoopPass.h"
-#include "llvm/DebugInfoProbe.h"
 #include "llvm/Assembly/PrintModulePass.h"
 #include "llvm/Support/Debug.h"
-#include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Timer.h"
 using namespace llvm;
 
@@ -51,20 +49,6 @@ public:
 };
 
 char PrintLoopPass::ID = 0;
-}
-
-//===----------------------------------------------------------------------===//
-// DebugInfoProbe
-
-static DebugInfoProbeInfo *TheDebugProbe;
-static void createDebugInfoProbe() {
-  if (TheDebugProbe) return;
-
-  // Constructed the first time this is called. This guarantees that the
-  // object will be constructed, if -enable-debug-info-probe is set,
-  // before static globals, thus it will be destroyed before them.
-  static ManagedStatic<DebugInfoProbeInfo> DIP;
-  TheDebugProbe = &*DIP;
 }
 
 //===----------------------------------------------------------------------===//
@@ -178,7 +162,7 @@ void LPPassManager::deleteSimpleAnalysisValue(Value *V, Loop *L) {
 // Recurse through all subloops and all loops  into LQ.
 static void addLoopIntoQueue(Loop *L, std::deque<Loop *> &LQ) {
   LQ.push_back(L);
-  for (Loop::iterator I = L->begin(), E = L->end(); I != E; ++I)
+  for (Loop::reverse_iterator I = L->rbegin(), E = L->rend(); I != E; ++I)
     addLoopIntoQueue(*I, LQ);
 }
 
@@ -195,13 +179,16 @@ void LPPassManager::getAnalysisUsage(AnalysisUsage &Info) const {
 bool LPPassManager::runOnFunction(Function &F) {
   LI = &getAnalysis<LoopInfo>();
   bool Changed = false;
-  createDebugInfoProbe();
 
   // Collect inherited analysis from Module level pass manager.
   populateInheritedAnalysis(TPM->activeStack);
 
-  // Populate Loop Queue
-  for (LoopInfo::iterator I = LI->begin(), E = LI->end(); I != E; ++I)
+  // Populate the loop queue in reverse program order. There is no clear need to
+  // process sibling loops in either forward or reverse order. There may be some
+  // advantage in deleting uses in a later loop before optimizing the
+  // definitions in an earlier loop. If we find a clear reason to process in
+  // forward order, then a forward variant of LoopPassManager should be created.
+  for (LoopInfo::reverse_iterator I = LI->rbegin(), E = LI->rend(); I != E; ++I)
     addLoopIntoQueue(*I, LQ);
 
   if (LQ.empty()) // No loops, skip calling finalizers
@@ -227,21 +214,19 @@ bool LPPassManager::runOnFunction(Function &F) {
     // Run all passes on the current Loop.
     for (unsigned Index = 0; Index < getNumContainedPasses(); ++Index) {
       LoopPass *P = getContainedPass(Index);
+
       dumpPassInfo(P, EXECUTION_MSG, ON_LOOP_MSG,
                    CurrentLoop->getHeader()->getName());
       dumpRequiredSet(P);
 
       initializeAnalysisImpl(P);
-      if (TheDebugProbe)
-        TheDebugProbe->initialize(P, F);
+
       {
         PassManagerPrettyStackEntry X(P, *CurrentLoop->getHeader());
         TimeRegion PassTimer(getPassTimer(P));
 
         Changed |= P->runOnLoop(CurrentLoop, *this);
       }
-      if (TheDebugProbe)
-        TheDebugProbe->finalize(P, F);
 
       if (Changed)
         dumpPassInfo(P, MODIFICATION_MSG, ON_LOOP_MSG,

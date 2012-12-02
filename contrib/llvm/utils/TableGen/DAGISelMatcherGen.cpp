@@ -217,7 +217,7 @@ void MatcherGen::EmitLeafMatchCode(const TreePatternNode *N) {
 
   DefInit *DI = dynamic_cast<DefInit*>(N->getLeafValue());
   if (DI == 0) {
-    errs() << "Unknown leaf kind: " << *DI << "\n";
+    errs() << "Unknown leaf kind: " << *N << "\n";
     abort();
   }
 
@@ -689,6 +689,13 @@ EmitResultInstructionAsOperand(const TreePatternNode *N,
   // NodeHasChain - Whether the instruction node we're creating takes chains.
   bool NodeHasChain = InstPatNode &&
                       InstPatNode->TreeHasProperty(SDNPHasChain, CGP);
+
+  // Instructions which load and store from memory should have a chain,
+  // regardless of whether they happen to have an internal pattern saying so.
+  if (Pattern.getSrcPattern()->TreeHasProperty(SDNPHasChain, CGP)
+      && (II.hasCtrlDep || II.mayLoad || II.mayStore || II.canFoldAsLoad ||
+          II.hasSideEffects))
+      NodeHasChain = true;
 
   bool isRoot = N == Pattern.getDstPattern();
 

@@ -18,10 +18,10 @@
 #include "llvm/PassManager.h"
 #include "llvm/Pass.h"
 #include "llvm/ADT/Triple.h"
+#include "llvm/Assembly/PrintModulePass.h"
 #include "llvm/Support/IRReader.h"
 #include "llvm/CodeGen/LinkAllAsmWriterComponents.h"
 #include "llvm/CodeGen/LinkAllCodegenComponents.h"
-#include "llvm/Config/config.h"
 #include "llvm/MC/SubtargetFeature.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -35,6 +35,7 @@
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Target/TargetData.h"
+#include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Target/TargetMachine.h"
 #include <memory>
 using namespace llvm;
@@ -119,7 +120,7 @@ FileType("filetype", cl::init(TargetMachine::CGFT_AssemblyFile),
        clEnumValN(TargetMachine::CGFT_AssemblyFile, "asm",
                   "Emit an assembly ('.s') file"),
        clEnumValN(TargetMachine::CGFT_ObjectFile, "obj",
-                  "Emit a native object ('.o') file [experimental]"),
+                  "Emit a native object ('.o') file"),
        clEnumValN(TargetMachine::CGFT_Null, "null",
                   "Emit nothing, for performance testing"),
        clEnumValEnd));
@@ -133,10 +134,139 @@ cl::opt<bool> DisableDotLoc("disable-dot-loc", cl::Hidden,
 cl::opt<bool> DisableCFI("disable-cfi", cl::Hidden,
                          cl::desc("Do not use .cfi_* directives"));
 
+cl::opt<bool> EnableDwarfDirectory("enable-dwarf-directory", cl::Hidden,
+    cl::desc("Use .file directives with an explicit directory."));
+
 static cl::opt<bool>
 DisableRedZone("disable-red-zone",
   cl::desc("Do not emit code that uses the red zone."),
   cl::init(false));
+
+static cl::opt<bool>
+EnableFPMAD("enable-fp-mad",
+  cl::desc("Enable less precise MAD instructions to be generated"),
+  cl::init(false));
+
+static cl::opt<bool>
+DisableFPElim("disable-fp-elim",
+  cl::desc("Disable frame pointer elimination optimization"),
+  cl::init(false));
+
+static cl::opt<bool>
+DisableFPElimNonLeaf("disable-non-leaf-fp-elim",
+  cl::desc("Disable frame pointer elimination optimization for non-leaf funcs"),
+  cl::init(false));
+
+static cl::opt<bool>
+EnableUnsafeFPMath("enable-unsafe-fp-math",
+  cl::desc("Enable optimizations that may decrease FP precision"),
+  cl::init(false));
+
+static cl::opt<bool>
+EnableNoInfsFPMath("enable-no-infs-fp-math",
+  cl::desc("Enable FP math optimizations that assume no +-Infs"),
+  cl::init(false));
+
+static cl::opt<bool>
+EnableNoNaNsFPMath("enable-no-nans-fp-math",
+  cl::desc("Enable FP math optimizations that assume no NaNs"),
+  cl::init(false));
+
+static cl::opt<bool>
+EnableHonorSignDependentRoundingFPMath("enable-sign-dependent-rounding-fp-math",
+  cl::Hidden,
+  cl::desc("Force codegen to assume rounding mode can change dynamically"),
+  cl::init(false));
+
+static cl::opt<bool>
+GenerateSoftFloatCalls("soft-float",
+  cl::desc("Generate software floating point library calls"),
+  cl::init(false));
+
+static cl::opt<llvm::FloatABI::ABIType>
+FloatABIForCalls("float-abi",
+  cl::desc("Choose float ABI type"),
+  cl::init(FloatABI::Default),
+  cl::values(
+    clEnumValN(FloatABI::Default, "default",
+               "Target default float ABI type"),
+    clEnumValN(FloatABI::Soft, "soft",
+               "Soft float ABI (implied by -soft-float)"),
+    clEnumValN(FloatABI::Hard, "hard",
+               "Hard float ABI (uses FP registers)"),
+    clEnumValEnd));
+
+static cl::opt<llvm::FPOpFusion::FPOpFusionMode>
+FuseFPOps("fp-contract",
+  cl::desc("Enable aggresive formation of fused FP ops"),
+  cl::init(FPOpFusion::Standard),
+  cl::values(
+    clEnumValN(FPOpFusion::Fast, "fast",
+               "Fuse FP ops whenever profitable"),
+    clEnumValN(FPOpFusion::Standard, "on",
+               "Only fuse 'blessed' FP ops."),
+    clEnumValN(FPOpFusion::Strict, "off",
+               "Only fuse FP ops when the result won't be effected."),
+    clEnumValEnd));
+
+static cl::opt<bool>
+DontPlaceZerosInBSS("nozero-initialized-in-bss",
+  cl::desc("Don't place zero-initialized symbols into bss section"),
+  cl::init(false));
+
+static cl::opt<bool>
+DisableSimplifyLibCalls("disable-simplify-libcalls",
+  cl::desc("Disable simplify-libcalls"),
+  cl::init(false));
+
+static cl::opt<bool>
+EnableGuaranteedTailCallOpt("tailcallopt",
+  cl::desc("Turn fastcc calls into tail calls by (potentially) changing ABI."),
+  cl::init(false));
+
+static cl::opt<bool>
+DisableTailCalls("disable-tail-calls",
+  cl::desc("Never emit tail calls"),
+  cl::init(false));
+
+static cl::opt<unsigned>
+OverrideStackAlignment("stack-alignment",
+  cl::desc("Override default stack alignment"),
+  cl::init(0));
+
+static cl::opt<bool>
+EnableRealignStack("realign-stack",
+  cl::desc("Realign stack if needed"),
+  cl::init(true));
+
+static cl::opt<std::string>
+TrapFuncName("trap-func", cl::Hidden,
+  cl::desc("Emit a call to trap function rather than a trap instruction"),
+  cl::init(""));
+
+static cl::opt<bool>
+EnablePIE("enable-pie",
+  cl::desc("Assume the creation of a position independent executable."),
+  cl::init(false));
+
+static cl::opt<bool>
+SegmentedStacks("segmented-stacks",
+  cl::desc("Use segmented stacks if possible."),
+  cl::init(false));
+
+static cl::opt<bool>
+UseInitArray("use-init-array",
+  cl::desc("Use .init_array instead of .ctors."),
+  cl::init(false));
+
+static cl::opt<std::string> StopAfter("stop-after",
+  cl::desc("Stop compilation after a specific pass"),
+  cl::value_desc("pass-name"),
+  cl::init(""));
+static cl::opt<std::string> StartAfter("start-after",
+  cl::desc("Resume compilation after a specific pass"),
+  cl::value_desc("pass-name"),
+  cl::init(""));
 
 // GetFileNameRoot - Helper function to get the basename of a filename.
 static inline std::string
@@ -166,7 +296,6 @@ static tool_output_file *GetOutputStream(const char *TargetName,
       OutputFilename = GetFileNameRoot(InputFilename);
 
       switch (FileType) {
-      default: assert(0 && "Unknown file type");
       case TargetMachine::CGFT_AssemblyFile:
         if (TargetName[0] == 'c') {
           if (TargetName[1] == 0)
@@ -194,7 +323,6 @@ static tool_output_file *GetOutputStream(const char *TargetName,
   // Decide if we need "binary" output.
   bool Binary = false;
   switch (FileType) {
-  default: assert(0 && "Unknown file type");
   case TargetMachine::CGFT_AssemblyFile:
     break;
   case TargetMachine::CGFT_ObjectFile:
@@ -236,6 +364,15 @@ int main(int argc, char **argv) {
   InitializeAllAsmPrinters();
   InitializeAllAsmParsers();
 
+  // Initialize codegen and IR passes used by llc so that the -print-after,
+  // -print-before, and -stop-after options work.
+  PassRegistry *Registry = PassRegistry::getPassRegistry();
+  initializeCore(*Registry);
+  initializeCodeGen(*Registry);
+  initializeLoopStrengthReducePass(*Registry);
+  initializeLowerIntrinsicsPass(*Registry);
+  initializeUnreachableBlockElimPass(*Registry);
+
   // Register the target printer for --version.
   cl::AddExtraVersionPrinter(TargetRegistry::printRegisteredTargetsForVersion);
 
@@ -244,54 +381,39 @@ int main(int argc, char **argv) {
   // Load the module to be compiled...
   SMDiagnostic Err;
   std::auto_ptr<Module> M;
+  Module *mod = 0;
+  Triple TheTriple;
 
-  M.reset(ParseIRFile(InputFilename, Err, Context));
-  if (M.get() == 0) {
-    Err.Print(argv[0], errs());
-    return 1;
-  }
-  Module &mod = *M.get();
+  bool SkipModule = MCPU == "help" ||
+                    (!MAttrs.empty() && MAttrs.front() == "help");
 
-  // If we are supposed to override the target triple, do so now.
-  if (!TargetTriple.empty())
-    mod.setTargetTriple(Triple::normalize(TargetTriple));
-
-  Triple TheTriple(mod.getTargetTriple());
-  if (TheTriple.getTriple().empty())
-    TheTriple.setTriple(sys::getHostTriple());
-
-  // Allocate target machine.  First, check whether the user has explicitly
-  // specified an architecture to compile for. If so we have to look it up by
-  // name, because it might be a backend that has no mapping to a target triple.
-  const Target *TheTarget = 0;
-  if (!MArch.empty()) {
-    for (TargetRegistry::iterator it = TargetRegistry::begin(),
-           ie = TargetRegistry::end(); it != ie; ++it) {
-      if (MArch == it->getName()) {
-        TheTarget = &*it;
-        break;
-      }
-    }
-
-    if (!TheTarget) {
-      errs() << argv[0] << ": error: invalid target '" << MArch << "'.\n";
+  // If user just wants to list available options, skip module loading
+  if (!SkipModule) {
+    M.reset(ParseIRFile(InputFilename, Err, Context));
+    mod = M.get();
+    if (mod == 0) {
+      Err.print(argv[0], errs());
       return 1;
     }
 
-    // Adjust the triple to match (if known), otherwise stick with the
-    // module/host triple.
-    Triple::ArchType Type = Triple::getArchTypeForLLVMName(MArch);
-    if (Type != Triple::UnknownArch)
-      TheTriple.setArch(Type);
+    // If we are supposed to override the target triple, do so now.
+    if (!TargetTriple.empty())
+      mod->setTargetTriple(Triple::normalize(TargetTriple));
+    TheTriple = Triple(mod->getTargetTriple());
   } else {
-    std::string Err;
-    TheTarget = TargetRegistry::lookupTarget(TheTriple.getTriple(), Err);
-    if (TheTarget == 0) {
-      errs() << argv[0] << ": error auto-selecting target for module '"
-             << Err << "'.  Please use the -march option to explicitly "
-             << "pick a target.\n";
-      return 1;
-    }
+    TheTriple = Triple(Triple::normalize(TargetTriple));
+  }
+
+  if (TheTriple.getTriple().empty())
+    TheTriple.setTriple(sys::getDefaultTargetTriple());
+
+  // Get the target specific parser.
+  std::string Error;
+  const Target *TheTarget = TargetRegistry::lookupTarget(MArch, TheTriple,
+                                                         Error);
+  if (!TheTarget) {
+    errs() << argv[0] << ": " << Error;
+    return 1;
   }
 
   // Package up features to be passed to target/subtarget
@@ -302,29 +424,6 @@ int main(int argc, char **argv) {
       Features.AddFeature(MAttrs[i]);
     FeaturesStr = Features.getString();
   }
-
-  std::auto_ptr<TargetMachine>
-    target(TheTarget->createTargetMachine(TheTriple.getTriple(),
-                                          MCPU, FeaturesStr,
-                                          RelocModel, CMModel));
-  assert(target.get() && "Could not allocate target machine!");
-  TargetMachine &Target = *target.get();
-
-  if (DisableDotLoc)
-    Target.setMCUseLoc(false);
-
-  if (DisableCFI)
-    Target.setMCUseCFI(false);
-
-  // Disable .loc support for older OS X versions.
-  if (TheTriple.isMacOSX() &&
-      TheTriple.isMacOSXVersionLT(10, 6))
-    Target.setMCUseLoc(false);
-
-  // Figure out where we are going to send the output...
-  OwningPtr<tool_output_file> Out
-    (GetOutputStream(TheTarget->getName(), TheTriple.getOS(), argv[0]));
-  if (!Out) return 1;
 
   CodeGenOpt::Level OLvl = CodeGenOpt::Default;
   switch (OptLevel) {
@@ -338,14 +437,73 @@ int main(int argc, char **argv) {
   case '3': OLvl = CodeGenOpt::Aggressive; break;
   }
 
+  TargetOptions Options;
+  Options.LessPreciseFPMADOption = EnableFPMAD;
+  Options.NoFramePointerElim = DisableFPElim;
+  Options.NoFramePointerElimNonLeaf = DisableFPElimNonLeaf;
+  Options.AllowFPOpFusion = FuseFPOps;
+  Options.UnsafeFPMath = EnableUnsafeFPMath;
+  Options.NoInfsFPMath = EnableNoInfsFPMath;
+  Options.NoNaNsFPMath = EnableNoNaNsFPMath;
+  Options.HonorSignDependentRoundingFPMathOption =
+      EnableHonorSignDependentRoundingFPMath;
+  Options.UseSoftFloat = GenerateSoftFloatCalls;
+  if (FloatABIForCalls != FloatABI::Default)
+    Options.FloatABIType = FloatABIForCalls;
+  Options.NoZerosInBSS = DontPlaceZerosInBSS;
+  Options.GuaranteedTailCallOpt = EnableGuaranteedTailCallOpt;
+  Options.DisableTailCalls = DisableTailCalls;
+  Options.StackAlignmentOverride = OverrideStackAlignment;
+  Options.RealignStack = EnableRealignStack;
+  Options.TrapFuncName = TrapFuncName;
+  Options.PositionIndependentExecutable = EnablePIE;
+  Options.EnableSegmentedStacks = SegmentedStacks;
+  Options.UseInitArray = UseInitArray;
+
+  std::auto_ptr<TargetMachine>
+    target(TheTarget->createTargetMachine(TheTriple.getTriple(),
+                                          MCPU, FeaturesStr, Options,
+                                          RelocModel, CMModel, OLvl));
+  assert(target.get() && "Could not allocate target machine!");
+  assert(mod && "Should have exited after outputting help!");
+  TargetMachine &Target = *target.get();
+
+  if (DisableDotLoc)
+    Target.setMCUseLoc(false);
+
+  if (DisableCFI)
+    Target.setMCUseCFI(false);
+
+  if (EnableDwarfDirectory)
+    Target.setMCUseDwarfDirectory(true);
+
+  if (GenerateSoftFloatCalls)
+    FloatABIForCalls = FloatABI::Soft;
+
+  // Disable .loc support for older OS X versions.
+  if (TheTriple.isMacOSX() &&
+      TheTriple.isMacOSXVersionLT(10, 6))
+    Target.setMCUseLoc(false);
+
+  // Figure out where we are going to send the output.
+  OwningPtr<tool_output_file> Out
+    (GetOutputStream(TheTarget->getName(), TheTriple.getOS(), argv[0]));
+  if (!Out) return 1;
+
   // Build up all of the passes that we want to do to the module.
   PassManager PM;
+
+  // Add an appropriate TargetLibraryInfo pass for the module's triple.
+  TargetLibraryInfo *TLI = new TargetLibraryInfo(TheTriple);
+  if (DisableSimplifyLibCalls)
+    TLI->disableAllFunctions();
+  PM.add(TLI);
 
   // Add the target data from the target machine, if it exists, or the module.
   if (const TargetData *TD = Target.getTargetData())
     PM.add(new TargetData(*TD));
   else
-    PM.add(new TargetData(&mod));
+    PM.add(new TargetData(mod));
 
   // Override default to generate verbose assembly.
   Target.setAsmVerbosityDefault(true);
@@ -361,8 +519,29 @@ int main(int argc, char **argv) {
   {
     formatted_raw_ostream FOS(Out->os());
 
+    AnalysisID StartAfterID = 0;
+    AnalysisID StopAfterID = 0;
+    const PassRegistry *PR = PassRegistry::getPassRegistry();
+    if (!StartAfter.empty()) {
+      const PassInfo *PI = PR->getPassInfo(StartAfter);
+      if (!PI) {
+        errs() << argv[0] << ": start-after pass is not registered.\n";
+        return 1;
+      }
+      StartAfterID = PI->getTypeInfo();
+    }
+    if (!StopAfter.empty()) {
+      const PassInfo *PI = PR->getPassInfo(StopAfter);
+      if (!PI) {
+        errs() << argv[0] << ": stop-after pass is not registered.\n";
+        return 1;
+      }
+      StopAfterID = PI->getTypeInfo();
+    }
+
     // Ask the target to add backend passes as necessary.
-    if (Target.addPassesToEmitFile(PM, FOS, FileType, OLvl, NoVerify)) {
+    if (Target.addPassesToEmitFile(PM, FOS, FileType, NoVerify,
+                                   StartAfterID, StopAfterID)) {
       errs() << argv[0] << ": target does not support generation of this"
              << " file type!\n";
       return 1;
@@ -371,7 +550,7 @@ int main(int argc, char **argv) {
     // Before executing passes, print the final values of the LLVM options.
     cl::PrintOptionValues();
 
-    PM.run(mod);
+    PM.run(*mod);
   }
 
   // Declare success.

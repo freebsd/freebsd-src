@@ -5,7 +5,8 @@
 # Modules that include binary-only blobs of microcode should be selectable by
 # MK_SOURCELESS_UCODE option (see below).
 
-SUBDIR=	${_3dfx} \
+SUBDIR=	\
+	${_3dfx} \
 	${_3dfx_linux} \
 	${_aac} \
 	accf_data \
@@ -66,16 +67,16 @@ SUBDIR=	${_3dfx} \
 	${_ciss} \
 	${_cm} \
 	${_cmx} \
-	coda \
-	coda5 \
 	${_coff} \
 	${_coretemp} \
 	${_cp} \
+	${_cpsw} \
 	${_cpuctl} \
 	${_cpufreq} \
 	${_crypto} \
 	${_cryptodev} \
 	${_cs} \
+	${_ct} \
 	${_ctau} \
 	${_cxgb} \
 	cxgbe \
@@ -87,6 +88,7 @@ SUBDIR=	${_3dfx} \
 	${_dpms} \
 	${_dpt} \
 	${_drm} \
+	${_drm2} \
 	${_dtrace} \
 	dummynet \
 	${_ed} \
@@ -104,8 +106,10 @@ SUBDIR=	${_3dfx} \
 	fdc \
 	fdescfs \
 	${_fe} \
+	${_filemon} \
 	firewire \
 	firmware \
+	fuse \
 	${_fxp} \
 	gem \
 	geom \
@@ -146,6 +150,7 @@ SUBDIR=	${_3dfx} \
 	${_ipfw} \
 	ipfw_nat \
 	${_ipmi} \
+	ip6_mroute_mod \
 	ip_mroute_mod \
 	${_ips} \
 	${_ipw} \
@@ -217,6 +222,8 @@ SUBDIR=	${_3dfx} \
 	${_mwlfw} \
 	mxge \
 	my \
+	${_nandfs} \
+	${_nandsim} \
 	${_ncp} \
 	${_ncv} \
 	${_ndis} \
@@ -234,12 +241,11 @@ SUBDIR=	${_3dfx} \
 	nge \
 	nmdm \
 	${_nsp} \
-	ntfs \
-	ntfs_iconv \
 	nullfs \
+	${_nvd} \
 	${_nve} \
+	${_nvme} \
 	${_nvram} \
-	${_nwfs} \
 	${_nxge} \
 	${_opensolaris} \
 	oce \
@@ -253,7 +259,6 @@ SUBDIR=	${_3dfx} \
 	${_pfsync} \
 	plip \
 	${_pmc} \
-	portalfs \
 	ppbus \
 	ppc \
 	ppi \
@@ -280,6 +285,7 @@ SUBDIR=	${_3dfx} \
 	scd \
 	${_scsi_low} \
 	sdhci \
+	sdhci_pci \
 	sem \
 	send \
 	${_sf} \
@@ -290,7 +296,6 @@ SUBDIR=	${_3dfx} \
 	siis \
 	sis \
 	sk \
-	${_smbfs} \
 	${_sn} \
 	${_snc} \
 	snp \
@@ -309,6 +314,7 @@ SUBDIR=	${_3dfx} \
 	${_ti} \
 	tl \
 	tmpfs \
+	${_toecore} \
 	${_tpm} \
 	trm \
 	${_twa} \
@@ -349,10 +355,13 @@ SUBDIR=	${_3dfx} \
 	${_wpifw} \
 	${_x86bios} \
 	${_xe} \
-	xfs \
 	xl \
 	${_zfs} \
 	zlib \
+
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+_filemon=	filemon
+.endif
 
 .if ${MACHINE_CPUARCH} != "powerpc" && ${MACHINE_CPUARCH} != "arm" && \
 	${MACHINE_CPUARCH} != "mips"
@@ -383,6 +392,7 @@ _random=	random
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
 	defined(ALL_MODULES)
 _carp=	carp
+_toecore=	toecore
 .endif
 
 .if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
@@ -396,6 +406,11 @@ _ipfilter=	ipfilter
 .if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
 _ipdivert=	ipdivert
 _ipfw=		ipfw
+.endif
+
+.if ${MK_NAND} != "no" || defined(ALL_MODULES)
+_nandfs=	nandfs
+_nandsim=	nandsim
 .endif
 
 .if ${MK_NETGRAPH} != "no" || defined(ALL_MODULES)
@@ -455,6 +470,7 @@ _cyclic=	cyclic
 .endif
 _dpms=		dpms
 _drm=		drm
+_drm2=		drm2
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _dtrace=	dtrace
 .endif
@@ -485,15 +501,9 @@ _mlx4ib=	mlx4ib
 _mlxen=		mlxen
 _mthca=		mthca
 .endif
-.if ${MK_NCP} != "no"
-_ncp=		ncp
-.endif
 _ncv=		ncv
 _ndis=		ndis
 _nsp=		nsp
-.if ${MK_NCP} != "no"
-_nwfs=		nwfs
-.endif
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _opensolaris=	opensolaris
 .endif
@@ -504,7 +514,6 @@ _rdma=		rdma
 _safe=		safe
 _sbni=		sbni
 _scsi_low=	scsi_low
-_smbfs=		smbfs
 _sound=		sound
 _speaker=	speaker
 _splash=	splash
@@ -571,9 +580,11 @@ _ixgb=		ixgb
 _ixgbe=		ixgbe
 _mly=		mly
 _nfe=		nfe
+_nvd=		nvd
 .if ${MK_SOURCELESS_HOST} != "no"
 _nve=		nve
 .endif
+_nvme=		nvme
 _nvram=		nvram
 _nxge=		nxge
 _tpm=		tpm
@@ -593,6 +604,7 @@ _x86bios=	x86bios
 .elif ${MACHINE} == "pc98"
 _canbepm=	canbepm
 _canbus=	canbus
+_ct=		ct
 _pmc=		pmc
 _snc=		snc
 .endif
@@ -625,6 +637,7 @@ _cyclic=	cyclic
 .endif
 _dpms=		dpms
 _drm=		drm
+_drm2=		drm2
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _dtrace=	dtrace
 .endif
@@ -678,9 +691,11 @@ _mthca=		mthca
 .endif
 _ndis=		ndis
 _nfe=		nfe
+_nvd=		nvd
 .if ${MK_SOURCELESS_HOST} != "no"
 _nve=		nve
 .endif
+_nvme=		nvme
 _nvram=		nvram
 _nxge=		nxge
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
@@ -691,12 +706,11 @@ _padlock=	padlock
 .endif
 _pccard=	pccard
 _qlxgb=		qlxgb
-_rdma=		rdma	
+_rdma=		rdma
 _s3=		s3
 _safe=		safe
 _scsi_low=	scsi_low
 _sfxge=		sfxge
-_smbfs=		smbfs
 _sound=		sound
 _speaker=	speaker
 _splash=	splash
@@ -721,6 +735,7 @@ _zfs=		zfs
 
 .if ${MACHINE_CPUARCH} == "arm"
 _cfi=		cfi
+_cpsw=		cpsw
 .endif
 
 .if ${MACHINE_CPUARCH} == "ia64"
@@ -751,7 +766,6 @@ _ips=		ips
 _mly=		mly
 _pccard=	pccard
 _scsi_low=	scsi_low
-_smbfs=		smbfs
 _sound=		sound
 _splash=	splash
 _sppp=		sppp
@@ -770,15 +784,20 @@ _cardbus=	cardbus
 _cbb=		cbb
 _cfi=		cfi
 _cpufreq=	cpufreq
+_drm=		drm
 _exca=		exca
 _nvram=		powermac_nvram
 _pccard=	pccard
-_smbfs=		smbfs
 _sound=		sound
+_cyclic=	cyclic
+_dtrace=	dtrace
+_opensolaris=	opensolaris
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc64"
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
+_cyclic=	cyclic
+_dtrace=	dtrace
 _opensolaris=	opensolaris
 .endif
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
@@ -795,7 +814,6 @@ _igb=		igb
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
 _opensolaris=	opensolaris
 .endif
-_smbfs=		smbfs
 _sound=		sound
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs

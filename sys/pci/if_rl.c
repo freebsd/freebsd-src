@@ -131,7 +131,7 @@ MODULE_DEPEND(rl, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct rl_type const rl_devs[] = {
+static const struct rl_type rl_devs[] = {
 	{ RT_VENDORID, RT_DEVICEID_8129, RL_8129,
 		"RealTek 8129 10/100BaseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8139, RL_8139,

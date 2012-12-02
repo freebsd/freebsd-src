@@ -34,7 +34,7 @@
 .\" $Id: //depot/SpectraBSD/head/share/man/man4/mps.4#6 $
 .\" $FreeBSD$
 .\"
-.Dd February 7, 2012
+.Dd June 30, 2012
 .Dt MPS 4
 .Os
 .Sh NAME
@@ -166,7 +166,7 @@ variable, where X is the adapter number, either in
 or via
 .Xr sysctl 8 .
 The following bits have the described effects:
-.Bl -tag -offset indent
+.Bl -tag -width 6n -offset indent
 .It 0x01
 Enable informational prints.
 .It 0x02
@@ -205,11 +205,8 @@ This man page was written by
 This driver has a couple of known shortcomings:
 .Bl -bullet -compact
 .It
-Not endian safe.
-It only works on little endian machines (e.g. amd64 and i386).
-.It
 No userland utility available (e.g.
-.Xr mptutil 8)
+.Xr mptutil 8 ) .
 .It
 The driver probes devices sequentially.
 If your system has a large number of devices, the probe will take a while.

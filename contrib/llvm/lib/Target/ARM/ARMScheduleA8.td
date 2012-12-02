@@ -151,28 +151,30 @@ def CortexA8Itineraries : ProcessorItineraries<
   // Load multiple, def is the 5th operand. Pipeline 0 only.
   // FIXME: A8_LSPipe cycle time is dynamic, this assumes 3 to 4 registers.
   InstrItinData<IIC_iLoad_m  , [InstrStage<2, [A8_Pipe0], 0>,
-                                InstrStage<2, [A8_LSPipe]>], [1, 1, 1, 1, 3]>,
+                                InstrStage<2, [A8_LSPipe]>],
+                [1, 1, 1, 1, 3], [], -1>, // dynamic uops
   //
   // Load multiple + update, defs are the 1st and 5th operands.
   InstrItinData<IIC_iLoad_mu , [InstrStage<3, [A8_Pipe0], 0>,
-                                InstrStage<3, [A8_LSPipe]>], [2, 1, 1, 1, 3]>,
+                                InstrStage<3, [A8_LSPipe]>],
+                [2, 1, 1, 1, 3], [], -1>, // dynamic uops
   //
   // Load multiple plus branch
   InstrItinData<IIC_iLoad_mBr, [InstrStage<3, [A8_Pipe0], 0>,
                                 InstrStage<3, [A8_LSPipe]>,
                                 InstrStage<1, [A8_Pipe0, A8_Pipe1]>],
-                               [1, 2, 1, 1, 3]>,
+                              [1, 2, 1, 1, 3], [], -1>, // dynamic uops
   //
   // Pop, def is the 3rd operand.
   InstrItinData<IIC_iPop  ,    [InstrStage<3, [A8_Pipe0], 0>,
-                                InstrStage<3, [A8_LSPipe]>], [1, 1, 3]>,
+                                InstrStage<3, [A8_LSPipe]>],
+                [1, 1, 3], [], -1>, // dynamic uops
   //
   // Push, def is the 3th operand.
   InstrItinData<IIC_iPop_Br,   [InstrStage<3, [A8_Pipe0], 0>,
                                 InstrStage<3, [A8_LSPipe]>,
                                 InstrStage<1, [A8_Pipe0, A8_Pipe1]>],
-                               [1, 1, 3]>,
-
+                               [1, 1, 3], [], -1>, // dynamic uops
   //
   // iLoadi + iALUr for t2LDRpci_pic.
   InstrItinData<IIC_iLoadiALU, [InstrStage<1, [A8_Pipe0, A8_Pipe1], 0>,
@@ -227,12 +229,13 @@ def CortexA8Itineraries : ProcessorItineraries<
   // Store multiple. Pipeline 0 only.
   // FIXME: A8_LSPipe cycle time is dynamic, this assumes 3 to 4 registers.
   InstrItinData<IIC_iStore_m , [InstrStage<2, [A8_Pipe0], 0>,
-                                InstrStage<2, [A8_LSPipe]>]>,
+                                InstrStage<2, [A8_LSPipe]>],
+                [], [], -1>, // dynamic uops
   //
   // Store multiple + update
   InstrItinData<IIC_iStore_mu, [InstrStage<2, [A8_Pipe0], 0>,
-                                InstrStage<2, [A8_LSPipe]>], [2]>,
-
+                                InstrStage<2, [A8_LSPipe]>],
+                [2], [], -1>, // dynamic uops
   //
   // Preload
   InstrItinData<IIC_Preload, [InstrStage<1, [A8_Pipe0, A8_Pipe1]>], [2, 2]>,
@@ -324,6 +327,15 @@ def CortexA8Itineraries : ProcessorItineraries<
                                InstrStage<19, [A8_NPipe], 0>,
                                InstrStage<19, [A8_NLSPipe]>], [19, 2, 1, 1]>,
   //
+  // Single-precision Fused FP MAC
+  InstrItinData<IIC_fpFMAC32, [InstrStage<1, [A8_Pipe0, A8_Pipe1], 0>,
+                               InstrStage<1, [A8_NPipe]>], [7, 2, 1, 1]>,
+  //
+  // Double-precision Fused FP MAC
+  InstrItinData<IIC_fpFMAC64, [InstrStage<1, [A8_Pipe0, A8_Pipe1], 0>,
+                               InstrStage<19, [A8_NPipe], 0>,
+                               InstrStage<19, [A8_NLSPipe]>], [19, 2, 1, 1]>,
+  //
   // Single-precision FP DIV
   InstrItinData<IIC_fpDIV32 , [InstrStage<1, [A8_Pipe0, A8_Pipe1], 0>,
                                InstrStage<20, [A8_NPipe], 0>,
@@ -384,14 +396,16 @@ def CortexA8Itineraries : ProcessorItineraries<
                                InstrStage<1, [A8_NLSPipe], 0>,
                                InstrStage<1, [A8_LSPipe]>,
                                InstrStage<1, [A8_NLSPipe], 0>,
-                               InstrStage<1, [A8_LSPipe]>], [1, 1, 1, 2]>,
+                               InstrStage<1, [A8_LSPipe]>],
+                [1, 1, 1, 2], [], -1>, // dynamic uops
   //
   // FP Load Multiple + update
   InstrItinData<IIC_fpLoad_mu,[InstrStage<1, [A8_Pipe0, A8_Pipe1], 0>,
                                InstrStage<1, [A8_NLSPipe], 0>,
                                InstrStage<1, [A8_LSPipe]>,
                                InstrStage<1, [A8_NLSPipe], 0>,
-                               InstrStage<1, [A8_LSPipe]>], [2, 1, 1, 1, 2]>,
+                               InstrStage<1, [A8_LSPipe]>],
+                [2, 1, 1, 1, 2], [], -1>, // dynamic uops
   //
   // Single-precision FP Store
   InstrItinData<IIC_fpStore32,[InstrStage<1, [A8_Pipe0, A8_Pipe1], 0>,
@@ -410,15 +424,16 @@ def CortexA8Itineraries : ProcessorItineraries<
                                InstrStage<1, [A8_NLSPipe], 0>,
                                InstrStage<1, [A8_LSPipe]>,
                                InstrStage<1, [A8_NLSPipe], 0>,
-                               InstrStage<1, [A8_LSPipe]>], [1, 1, 1, 1]>,
+                               InstrStage<1, [A8_LSPipe]>],
+                [1, 1, 1, 1], [], -1>, // dynamic uops
   //
   // FP Store Multiple + update
   InstrItinData<IIC_fpStore_mu,[InstrStage<1, [A8_Pipe0, A8_Pipe1], 0>,
                                 InstrStage<1, [A8_NLSPipe], 0>,
                                 InstrStage<1, [A8_LSPipe]>,
                                 InstrStage<1, [A8_NLSPipe], 0>,
-                                InstrStage<1, [A8_LSPipe]>], [2, 1, 1, 1, 1]>,
-
+                                InstrStage<1, [A8_LSPipe]>],
+                [2, 1, 1, 1, 1], [], -1>, // dynamic uops
   // NEON
   // Issue through integer pipeline, and execute in NEON unit.
   //
@@ -860,6 +875,16 @@ def CortexA8Itineraries : ProcessorItineraries<
   InstrItinData<IIC_VMACQ,    [InstrStage<1, [A8_Pipe0, A8_Pipe1], 0>,
                                InstrStage<2, [A8_NPipe]>], [10, 3, 2, 2]>,
   //
+  // Double-register Fused FP Multiple-Accumulate
+  InstrItinData<IIC_VFMACD,   [InstrStage<1, [A8_Pipe0, A8_Pipe1], 0>,
+                               InstrStage<1, [A8_NPipe]>], [9, 3, 2, 2]>,
+  //
+  // Quad-register Fused FP Multiple-Accumulate
+  // Result written in N9, but that is relative to the last cycle of multicycle,
+  // so we use 10 for those cases
+  InstrItinData<IIC_VFMACQ,   [InstrStage<1, [A8_Pipe0, A8_Pipe1], 0>,
+                               InstrStage<2, [A8_NPipe]>], [10, 3, 2, 2]>,
+  //
   // Double-register Reciprical Step
   InstrItinData<IIC_VRECSD,   [InstrStage<1, [A8_Pipe0, A8_Pipe1], 0>,
                                InstrStage<1, [A8_NPipe]>], [9, 2, 2]>,
@@ -1032,3 +1057,19 @@ def CortexA8Itineraries : ProcessorItineraries<
                                InstrStage<1, [A8_NPipe], 0>,
                             InstrStage<2, [A8_NLSPipe]>], [4, 1, 2, 2, 3, 3, 1]>
 ]>;
+
+// ===---------------------------------------------------------------------===//
+// This following definitions describe the simple machine model which
+// will replace itineraries.
+
+// Cortex-A8 machine model for scheduling and other instruction cost heuristics.
+def CortexA8Model : SchedMachineModel {
+  let IssueWidth = 2; // 2 micro-ops are dispatched per cycle.
+  let MinLatency = -1; // OperandCycles are interpreted as MinLatency.
+  let LoadLatency = 2; // Optimistic load latency assuming bypass.
+                       // This is overriden by OperandCycles if the
+                       // Itineraries are queried instead.
+  let MispredictPenalty = 13; // Based on estimate of pipeline depth.
+
+  let Itineraries = CortexA8Itineraries;
+}

@@ -25,11 +25,11 @@ ipfw_prestart()
 	if checkyesno dummynet_enable; then
 		required_modules="$required_modules dummynet"
 	fi
-
+	if checkyesno natd_enable; then
+		required_modules="$required_modules ipdivert"
+	fi
 	if checkyesno firewall_nat_enable; then
-		if ! checkyesno natd_enable; then
-			required_modules="$required_modules ipfw_nat"
-		fi
+		required_modules="$required_modules ipfw_nat"
 	fi
 }
 
@@ -56,6 +56,10 @@ ipfw_start()
 	if checkyesno firewall_logging; then
 		echo 'Firewall logging enabled.'
 		sysctl net.inet.ip.fw.verbose=1 >/dev/null
+	fi
+	if checkyesno firewall_logif; then
+		ifconfig ipfw0 create
+		echo 'Firewall logging pseudo-interface (ipfw0) created.'
 	fi
 }
 

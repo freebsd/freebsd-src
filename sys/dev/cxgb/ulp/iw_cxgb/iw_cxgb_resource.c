@@ -29,11 +29,13 @@ POSSIBILITY OF SUCH DAMAGE.
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_inet.h"
+
+#ifdef TCP_OFFLOAD
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/bus.h>
-#include <sys/module.h>
 #include <sys/pciio.h>
 #include <sys/conf.h>
 #include <machine/bus.h>
@@ -59,9 +61,11 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 
-#include <contrib/rdma/ib_verbs.h>
-#include <contrib/rdma/ib_umem.h>
-#include <contrib/rdma/ib_user_verbs.h>
+#include <rdma/ib_verbs.h>
+#include <rdma/ib_umem.h>
+#include <rdma/ib_user_verbs.h>
+#include <linux/idr.h>
+#include <ulp/iw_cxgb/iw_cxgb_ib_intfc.h>
 
 #include <cxgb_include.h>
 #include <ulp/iw_cxgb/iw_cxgb_wr.h>
@@ -369,3 +373,4 @@ void cxio_hal_rqtpool_destroy(struct cxio_rdev *rdev_p)
 {
 	gen_pool_destroy(rdev_p->rqt_pool);
 }
+#endif

@@ -16,33 +16,9 @@ CVSup's base directory to "/var/db".  The sup directory is in the base
 directory; i.e., it is "/var/db/sup".  If you have changed your base
 directory, your sup directory is /path/to/base/sup.
 
-This file used to contain /usr/src/etc/sendmail/freebsd.mc in case
-you modified that file.  However, this was removed as it can break
-buildworld.  Modify /etc/mail/`hostname`.mc instead.
-
 If you are an English speaker and don't wish to receive the
-foreign-language documentation or ports, use the following patterns:
+non-English ports, use the following patterns:
 
-    doc/bn_*
-    doc/da_*
-    doc/de_*
-    doc/el_*
-    doc/es_*
-    doc/fr_*
-    doc/hu_*
-    doc/id_*
-    doc/it_*
-    doc/ja_*
-    doc/mn_*
-    doc/nl_*
-    doc/no_*
-    doc/pl_*
-    doc/pt_*
-    doc/ro_*
-    doc/ru_*
-    doc/sr_*
-    doc/tr_*
-    doc/zh_*
     ports/arabic
     ports/chinese
     ports/french
@@ -56,6 +32,9 @@ foreign-language documentation or ports, use the following patterns:
     ports/russian
     ports/ukrainian
     ports/vietnamese
+
+Note that this is *not* a supported configuration and may result
+in ports builds breaking.
 
 Use refuse files with care.  Some parts of the src distribution
 depend on files in completely different parts.

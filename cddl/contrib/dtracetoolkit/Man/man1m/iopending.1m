@@ -1,0 +1,89 @@
+.TH iopending 1m  "$Date:: 2007-08-05 #$" "USER COMMANDS"
+.SH NAME
+iopending \- plot number of pending disk events. Uses DTrace.
+.SH SYNOPSIS
+.B iopending
+[\-c] [\-d device] [\-f filename] [\-m mount_point] [interval [count]]
+.SH DESCRIPTION
+This samples the number of disk events that are pending and plots a
+distribution graph. By doing this the
+"serialness" or "parallelness" of disk behaviour can be distinguished.
+A high occurance of a pending value of more than 1 is an indication of
+saturation.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris
+.SH STABILITY
+stable - needs the io provider.
+.SH OPTIONS
+.TP
+\-c
+clear screen
+.TP
+\-d device
+instance name to snoop (eg, dad0)
+.TP
+\-f filename
+full pathname of file to snoop
+.TP
+\-m mount_point
+mountpoint for filesystem to snoop
+.SH EXAMPLES
+.TP
+Default output, print I/O summary every 1 second,
+# 
+.B iopending
+.PP
+.TP
+Print 10 second samples,
+# 
+.B iopending
+10
+.PP
+.TP
+Print 12 x 5 second samples,
+#
+.B iopending
+5 12
+.PP
+.TP
+Snoop events on the root filesystem only,
+#
+.B iopending
+\-m /
+.PP
+.SH FIELDS
+.TP
+value
+number of pending events, 0 == idle
+.TP
+count
+number of samples @ 1000 Hz
+.TP
+load
+1 min load average
+.TP
+disk_r
+total disk read Kb for sample
+.TP
+disk_w
+total disk write Kb for sample
+.PP
+.SH IDEA
+Dr Rex di Bona
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+iopending will run forever until Ctrl\-C is hit, or the
+specified count is reached.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+iosnoop(1M), iotop(1M), dtrace(1M)
+

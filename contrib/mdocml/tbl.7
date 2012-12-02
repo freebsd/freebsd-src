@@ -1,0 +1,348 @@
+.\"	$Id: tbl.7,v 1.16 2011/09/03 00:29:21 kristaps Exp $
+.\"
+.\" Copyright (c) 2010, 2011 Kristaps Dzonsons <kristaps@bsd.lv>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate: September 3 2011 $
+.Dt TBL 7
+.Os
+.Sh NAME
+.Nm tbl
+.Nd tbl language reference for mandoc
+.Sh DESCRIPTION
+The
+.Nm tbl
+language is a table-formatting language.
+It is used within
+.Xr mdoc 7
+and
+.Xr man 7
+.Ux
+manual pages.
+This manual describes the subset of the
+.Nm
+language accepted by the
+.Xr mandoc 1
+utility.
+.Pp
+Tables within
+.Xr mdoc 7
+or
+.Xr man 7
+are enclosed by the
+.Sq TS
+and
+.Sq TE
+macro tags, whose precise syntax is documented in
+.Xr roff 7 .
+Tables consist of a series of options on a single line, followed by the
+table layout, followed by data.
+.Pp
+For example, the following creates a boxed table with digits centred in
+the cells.
+.Bd -literal -offset indent
+\&.TS
+tab(:) box;
+c5 c5 c5.
+1:2:3
+4:5:6
+\&.TE
+.Ed
+.Pp
+When formatted, the following output is produced:
+.Bd -filled -offset indent -compact
+.TS
+tab(:) box;
+c5 c5 c5.
+1:2:3
+4:5:6
+.TE
+.Ed
+.Pp
+The
+.Nm
+implementation in
+.Xr mandoc 1
+is
+.Ud
+.Sh TABLE STRUCTURE
+Tables are enclosed by the
+.Sq TS
+and
+.Sq TE
+.Xr roff 7
+macros.
+A table consists of an optional single line of table
+.Sx Options
+terminated by a semicolon, followed by one or more lines of
+.Sx Layout
+specifications terminated by a period, then
+.Sx Data .
+All input must be 7-bit ASCII.
+Example:
+.Bd -literal -offset indent
+\&.TS
+box tab(:);
+c | c
+| c | c.
+1:2
+3:4
+\&.TE
+.Ed
+.Pp
+Table data is
+.Em pre-processed ,
+that is, data rows are parsed then inserted into the underlying stream
+of input data.
+This allows data rows to be interspersed by arbitrary
+.Xr roff 7 ,
+.Xr mdoc 7 ,
+and
+.Xr man 7
+macros such as
+.Bd -literal -offset indent
+\&.TS
+tab(:);
+c c c.
+1:2:3
+\&.Ao
+3:2:1
+\&.Ac
+\&.TE
+.Ed
+.Pp
+in the case of
+.Xr mdoc 7
+or
+.Bd -literal -offset indent
+\&.TS
+tab(:);
+c c c.
+\&.ds ab 2
+1:\e*(ab:3
+\&.I
+3:2:1
+\&.TE
+.Ed
+.Pp
+in the case of
+.Xr man 7 .
+.Ss Options
+The first line of a table consists of space-separated option keys and
+modifiers terminated by a semicolon.
+If the first line does not have a terminating semicolon, it is assumed
+that no options are specified and instead a
+.Sx Layout
+is processed.
+Some options accept arguments enclosed by parenthesis.
+The following case-insensitive options are available:
+.Bl -tag -width Ds
+.It Cm center
+This option is not supported by
+.Xr mandoc 1 .
+This may also be invoked with
+.Cm centre .
+.It Cm delim
+Accepts a two-character argument.
+This option is not supported by
+.Xr mandoc 1 .
+.It Cm expand
+This option is not supported by
+.Xr mandoc 1 .
+.It Cm box
+Draw a single-line box around the table.
+This may also be invoked with
+.Cm frame .
+.It Cm doublebox
+Draw a double-line box around the table.
+This may also be invoked with
+.Cm doubleframe .
+.It Cm allbox
+This option is not supported by
+.Xr mandoc 1 .
+.It Cm tab
+Accepts a single-character argument.
+This character is used as a delimiter between data cells, which otherwise
+defaults to the tab character.
+.It Cm linesize
+Accepts a natural number (all digits).
+This option is not supported by
+.Xr mandoc 1 .
+.It Cm nokeep
+This option is not supported by
+.Xr mandoc 1 .
+.It Cm decimalpoint
+Accepts a single-character argument.
+This character will be used as the decimal point with the
+.Cm n
+layout key.
+.It Cm nospaces
+This option is not supported by
+.Xr mandoc 1 .
+.El
+.Ss Layout
+The table layout follows
+.Sx Options
+or a
+.Sq \&T&
+macro invocation.
+Layout specifies how data rows are displayed on output.
+Each layout line corresponds to a line of data; the last layout line
+applies to all remaining data lines.
+Layout lines may also be separated by a comma.
+Each layout cell consists of one of the following case-insensitive keys:
+.Bl -tag -width Ds
+.It Cm c
+Centre a literal string within its column.
+.It Cm r
+Right-justify a literal string within its column.
+.It Cm l
+Left-justify a literal string within its column.
+.It Cm n
+Justify a number around its last decimal point.
+If the decimal point is not found on the number, it's assumed to trail
+the number.
+.It Cm s
+Horizontally span columns from the last
+.No non- Ns Cm s
+data cell.
+It is an error if spanning columns follow a
+.Cm \-
+or
+.Cm \(ba
+cell, or come first.
+This option is not supported by
+.Xr mandoc 1 .
+.It Cm a
+Left-justify a literal string and pad with one space.
+.It Cm ^
+Vertically span rows from the last
+.No non- Ns Cm ^
+data cell.
+It is an error to invoke a vertical span on the first layout row.
+Unlike a horizontal spanner, you must specify an empty cell (if it not
+empty, the data is discarded) in the corresponding data cell.
+.It Cm \-
+Replace the data cell (its contents will be lost) with a single
+horizontal line.
+This may also be invoked with
+.Cm _ .
+.It Cm =
+Replace the data cell (its contents will be lost) with a double
+horizontal line.
+.It Cm \(ba
+Emit a vertical bar instead of data.
+.It Cm \(ba\(ba
+Emit a double-vertical bar instead of data.
+.El
+.Pp
+Keys may be followed by a set of modifiers.
+A modifier is either a modifier key or a natural number for specifying
+the minimum width of a column.
+The following case-insensitive modifier keys are available:
+.Cm z ,
+.Cm u ,
+.Cm e ,
+.Cm t ,
+.Cm d ,
+.Cm b ,
+.Cm i ,
+.Cm r ,
+and
+.Cm f
+.Po
+followed by
+.Cm b ,
+.Cm i ,
+.Cm r ,
+.Cm 3 ,
+.Cm 2 ,
+or
+.Cm 1
+.Pc .
+All of these are ignored by
+.Xr mandoc 1 .
+.Pp
+For example, the following layout specifies a centre-justified column of
+minimum width 10, followed by vertical bar, followed by a left-justified
+column of minimum width 10, another vertical bar, then a column
+justified about the decimal point in numbers:
+.Pp
+.Dl c10 | l10 | n
+.Ss Data
+The data section follows the last layout row.
+By default, cells in a data section are delimited by a tab.
+This behaviour may be changed with the
+.Cm tab
+option.
+If
+.Cm _
+or
+.Cm =
+is specified, a single or double line, respectively, is drawn across the
+data field.
+If
+.Cm \e-
+or
+.Cm \e=
+is specified, a line is drawn within the data field (i.e. terminating
+within the cell and not draw to the border).
+If the last cell of a line is
+.Cm T{ ,
+all subsequent lines are included as part of the cell until
+.Cm T}
+is specified as its own data cell.
+It may then be followed by a tab
+.Pq or as designated by Cm tab
+or an end-of-line to terminate the row.
+.Sh COMPATIBILITY
+This section documents compatibility between mandoc and other
+.Nm
+implementations, at this time limited to GNU tbl.
+.Pp
+.Bl -dash -compact
+.It
+In GNU tbl, comments and macros are disallowed prior to the data block
+of a table.
+The
+.Xr mandoc 1
+implementation allows them.
+.El
+.Sh SEE ALSO
+.Xr mandoc 1 ,
+.Xr man 7 ,
+.Xr mandoc_char 7 ,
+.Xr mdoc 7 ,
+.Xr roff 7
+.Rs
+.%A M. E. Lesk
+.%T Tbl\(emA Program to Format Tables
+.%D June 11, 1976
+.Re
+.Sh HISTORY
+The tbl utility, a preprocessor for troff, was originally written by M.
+E. Lesk at Bell Labs in 1975.
+The GNU reimplementation of tbl, part of the groff package, was released
+in 1990 by James Clark.
+A standalone tbl implementation was written by Kristaps Dzonsons in
+2010.
+This formed the basis of the implementation that is part of the
+.Xr mandoc 1
+utility.
+.Sh AUTHORS
+This
+.Nm
+reference was written by
+.An Kristaps Dzonsons ,
+.Mt kristaps@bsd.lv .

@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -32,6 +32,7 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
+
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -187,30 +188,34 @@ sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt,
 	cpto = ((caddr_t)buf + sizeof(int));
 	/* validate all the addresses and get the size */
 	for (i = 0; i < addrcnt; i++) {
-		if (at->sa_family == AF_INET) {
+		switch (at->sa_family) {
+		case AF_INET:
 			if (at->sa_len != sizeof(struct sockaddr_in)) {
 				errno = EINVAL;
 				return (-1);
 			}
-			memcpy(cpto, at, at->sa_len);
-			cpto = ((caddr_t)cpto + at->sa_len);
-			len += at->sa_len;
-		} else if (at->sa_family == AF_INET6) {
+			memcpy(cpto, at, sizeof(struct sockaddr_in));
+			cpto = ((caddr_t)cpto + sizeof(struct sockaddr_in));
+			len += sizeof(struct sockaddr_in);
+			at = (struct sockaddr *)((caddr_t)at + sizeof(struct sockaddr_in));
+			break;
+		case AF_INET6:
 			if (at->sa_len != sizeof(struct sockaddr_in6)) {
 				errno = EINVAL;
 				return (-1);
 			}
 			if (IN6_IS_ADDR_V4MAPPED(&((struct sockaddr_in6 *)at)->sin6_addr)) {
-				len += sizeof(struct sockaddr_in);
 				in6_sin6_2_sin((struct sockaddr_in *)cpto, (struct sockaddr_in6 *)at);
 				cpto = ((caddr_t)cpto + sizeof(struct sockaddr_in));
 				len += sizeof(struct sockaddr_in);
 			} else {
-				memcpy(cpto, at, at->sa_len);
-				cpto = ((caddr_t)cpto + at->sa_len);
-				len += at->sa_len;
+				memcpy(cpto, at, sizeof(struct sockaddr_in6));
+				cpto = ((caddr_t)cpto + sizeof(struct sockaddr_in6));
+				len += sizeof(struct sockaddr_in6);
 			}
-		} else {
+			at = (struct sockaddr *)((caddr_t)at + sizeof(struct sockaddr_in6));
+			break;
+		default:
 			errno = EINVAL;
 			return (-1);
 		}
@@ -219,7 +224,6 @@ sctp_connectx(int sd, const struct sockaddr *addrs, int addrcnt,
 			errno = E2BIG;
 			return (-1);
 		}
-		at = (struct sockaddr *)((caddr_t)at + at->sa_len);
 		cnt++;
 	}
 	/* do we have any? */
@@ -260,56 +264,57 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 		errno = EINVAL;
 		return (-1);
 	}
-	argsz = (sizeof(struct sockaddr_storage) +
-	    sizeof(struct sctp_getaddresses));
-	gaddrs = (struct sctp_getaddresses *)calloc(1, argsz);
-	if (gaddrs == NULL) {
-		errno = ENOMEM;
-		return (-1);
-	}
 	/* First pre-screen the addresses */
 	sa = addrs;
 	for (i = 0; i < addrcnt; i++) {
-		if (sa->sa_family == AF_INET) {
-			if (sa->sa_len != sizeof(struct sockaddr_in))
-				goto out_error;
+		switch (sa->sa_family) {
+		case AF_INET:
+			if (sa->sa_len != sizeof(struct sockaddr_in)) {
+				errno = EINVAL;
+				return (-1);
+			}
 			sin = (struct sockaddr_in *)sa;
 			if (sin->sin_port) {
 				/* non-zero port, check or save */
 				if (sport) {
 					/* Check against our port */
 					if (sport != sin->sin_port) {
-						goto out_error;
+						errno = EINVAL;
+						return (-1);
 					}
 				} else {
 					/* save off the port */
 					sport = sin->sin_port;
 				}
 			}
-		} else if (sa->sa_family == AF_INET6) {
-			if (sa->sa_len != sizeof(struct sockaddr_in6))
-				goto out_error;
+			break;
+		case AF_INET6:
+			if (sa->sa_len != sizeof(struct sockaddr_in6)) {
+				errno = EINVAL;
+				return (-1);
+			}
 			sin6 = (struct sockaddr_in6 *)sa;
 			if (sin6->sin6_port) {
 				/* non-zero port, check or save */
 				if (sport) {
 					/* Check against our port */
 					if (sport != sin6->sin6_port) {
-						goto out_error;
+						errno = EINVAL;
+						return (-1);
 					}
 				} else {
 					/* save off the port */
 					sport = sin6->sin6_port;
 				}
 			}
-		} else {
-			/* invalid address family specified */
-			goto out_error;
+			break;
+		default:
+			/* Invalid address family specified. */
+			errno = EINVAL;
+			return (-1);
 		}
-
 		sa = (struct sockaddr *)((caddr_t)sa + sa->sa_len);
 	}
-	sa = addrs;
 	/*
 	 * Now if there was a port mentioned, assure that the first address
 	 * has that port to make sure it fails or succeeds correctly.
@@ -318,20 +323,14 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 		sin = (struct sockaddr_in *)sa;
 		sin->sin_port = sport;
 	}
+	argsz = sizeof(struct sctp_getaddresses) +
+	    sizeof(struct sockaddr_storage);
+	if ((gaddrs = (struct sctp_getaddresses *)malloc(argsz)) == NULL) {
+		errno = ENOMEM;
+		return (-1);
+	}
+	sa = addrs;
 	for (i = 0; i < addrcnt; i++) {
-		if (sa->sa_family == AF_INET) {
-			if (sa->sa_len != sizeof(struct sockaddr_in))
-				goto out_error;
-		} else if (sa->sa_family == AF_INET6) {
-			if (sa->sa_len != sizeof(struct sockaddr_in6))
-				goto out_error;
-		} else {
-			/* invalid address family specified */
-	out_error:
-			free(gaddrs);
-			errno = EINVAL;
-			return (-1);
-		}
 		memset(gaddrs, 0, argsz);
 		gaddrs->sget_assoc_id = 0;
 		memcpy(gaddrs->addr, sa, sa->sa_len);
@@ -448,6 +447,7 @@ sctp_getpaddrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 	opt_len = (socklen_t) ((size_t)asoc + sizeof(struct sctp_getaddresses));
 	addrs = calloc(1, (size_t)opt_len);
 	if (addrs == NULL) {
+		errno = ENOMEM;
 		return (-1);
 	}
 	addrs->sget_assoc_id = id;
@@ -776,6 +776,7 @@ sctp_sendx(int sd, const void *msg, size_t msg_len,
 	}
 	buf = malloc(len);
 	if (buf == NULL) {
+		errno = ENOMEM;
 		return (-1);
 	}
 	aa = (int *)buf;
@@ -800,7 +801,6 @@ continue_send:
 	}
 	sinfo->sinfo_assoc_id = sctp_getassocid(sd, addrs);
 	if (sinfo->sinfo_assoc_id == 0) {
-		printf("Huh, can't get associd? TSNH!\n");
 		(void)setsockopt(sd, IPPROTO_SCTP, SCTP_CONNECT_X_COMPLETE, (void *)addrs,
 		    (socklen_t) addrs->sa_len);
 		errno = ENOENT;
@@ -1052,7 +1052,7 @@ sctp_sendv(int sd,
 	    CMSG_SPACE(sizeof(struct sctp_authinfo)) +
 	    (size_t)addrcnt * CMSG_SPACE(sizeof(struct in6_addr)));
 	if (cmsgbuf == NULL) {
-		errno = ENOBUFS;
+		errno = ENOMEM;
 		return (-1);
 	}
 	msg.msg_control = cmsgbuf;

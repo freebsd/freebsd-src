@@ -42,6 +42,9 @@ static const char rcsid[] =
 #include <sys/resource.h>
 #include <unistd.h>
 #include <login_cap.h>
+#include <pwd.h>
+#include <grp.h>
+#include <libutil.h>
 #include "pw.h"
 #include "bitmap.h"
 
@@ -292,7 +295,6 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	if (mode == M_PRINT && getarg(args, 'a')) {
 		int             pretty = getarg(args, 'P') != NULL;
 		int		v7 = getarg(args, '7') != NULL;
-
 		SETPWENT();
 		while ((pwd = GETPWENT()) != NULL)
 			print_user(pwd, pretty, v7);
@@ -315,7 +317,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		 */
 		if (mode != M_ADD && pwd == NULL
 		    && strspn(a_name->val, "0123456789") == strlen(a_name->val)
-		    && atoi(a_name->val) > 0) {	/* Assume uid */
+		    && *a_name->val) {
 			(a_uid = a_name)->ch = 'u';
 			a_name = NULL;
 		}
@@ -422,7 +424,24 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				/* non-fatal */
 			}
 
-			editgroups(a_name->val, NULL);
+			grp = GETGRNAM(a_name->val);
+			if (*grp->gr_mem == NULL)
+				delgrent(GETGRNAM(a_name->val));
+			SETGRENT();
+			while ((grp = GETGRENT()) != NULL) {
+				int i;
+				char group[MAXLOGNAME];
+				for (i = 0; grp->gr_mem[i] != NULL; i++) {
+					if (!strcmp(grp->gr_mem[i], a_name->val)) {
+						while (grp->gr_mem[i] != NULL) {
+							grp->gr_mem[i] = grp->gr_mem[i+1];
+						}	
+						strlcpy(group, grp->gr_name, MAXLOGNAME);
+						chggrent(group, grp);
+					}
+				}
+			}
+			ENDGRENT();
 
 			pw_log(cnf, mode, W_USER, "%s(%ld) account removed", a_name->val, (long) uid);
 
@@ -725,8 +744,29 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 * Ok, user is created or changed - now edit group file
 	 */
 
-	if (mode == M_ADD || getarg(args, 'G') != NULL)
-		editgroups(pwd->pw_name, cnf->groups);
+	if (mode == M_ADD || getarg(args, 'G') != NULL) {
+		int i, j;
+		for (i = 0; cnf->groups[i] != NULL; i++) {
+			grp = GETGRNAM(cnf->groups[i]);
+			for (j = 0; grp->gr_mem[j] != NULL; j++) {
+				if (!strcmp(grp->gr_mem[j], pwd->pw_name))
+					break;
+			}
+			if (grp->gr_mem[j] != NULL) /* user already member of group */
+				continue;
+
+			if (j == 0)
+				grp->gr_mem = NULL;
+
+			grp->gr_mem = reallocf(grp->gr_mem, sizeof(*grp->gr_mem) *
+					                    (j + 2));
+
+			grp->gr_mem[j] = pwd->pw_name;
+			grp->gr_mem[j+1] = NULL;
+			chggrent(cnf->groups[i], grp);
+		}
+	}
+
 
 	/* go get a current version of pwd */
 	pwd = GETPWNAM(a_name->val);
@@ -1090,10 +1130,14 @@ static int
 print_user(struct passwd * pwd, int pretty, int v7)
 {
 	if (!pretty) {
-		char            buf[_UC_MAXLINE];
+		char            *buf;
 
-		fmtpwentry(buf, pwd, v7 ? PWF_PASSWD : PWF_STANDARD);
-		fputs(buf, stdout);
+		if (!v7)
+			pwd->pw_passwd = (pwd->pw_passwd == NULL) ? "" : "*";
+
+		buf = v7 ? pw_make_v7(pwd) : pw_make(pwd);
+		printf("%s\n", buf);
+		free(buf);
 	} else {
 		int		j;
 		char           *p;

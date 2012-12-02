@@ -52,6 +52,10 @@ static MALLOC_DEFINE(M_RAID, "raid_data", "GEOM_RAID Data");
 
 SYSCTL_DECL(_kern_geom);
 SYSCTL_NODE(_kern_geom, OID_AUTO, raid, CTLFLAG_RW, 0, "GEOM_RAID stuff");
+int g_raid_enable = 1;
+TUNABLE_INT("kern.geom.raid.enable", &g_raid_enable);
+SYSCTL_INT(_kern_geom_raid, OID_AUTO, enable, CTLFLAG_RW,
+    &g_raid_enable, 0, "Enable on-disk metadata taste");
 u_int g_raid_aggressive_spare = 0;
 TUNABLE_INT("kern.geom.raid.aggressive_spare", &g_raid_aggressive_spare);
 SYSCTL_UINT(_kern_geom_raid, OID_AUTO, aggressive_spare, CTLFLAG_RW,
@@ -104,8 +108,9 @@ LIST_HEAD(, g_raid_tr_class) g_raid_tr_classes =
 LIST_HEAD(, g_raid_volume) g_raid_volumes =
     LIST_HEAD_INITIALIZER(g_raid_volumes);
 
-static eventhandler_tag g_raid_pre_sync = NULL;
+static eventhandler_tag g_raid_post_sync = NULL;
 static int g_raid_started = 0;
+static int g_raid_shutdown = 0;
 
 static int g_raid_destroy_geom(struct gctl_req *req, struct g_class *mp,
     struct g_geom *gp);
@@ -218,6 +223,8 @@ g_raid_subdisk_event2str(int event)
 	switch (event) {
 	case G_RAID_SUBDISK_E_NEW:
 		return ("NEW");
+	case G_RAID_SUBDISK_E_FAILED:
+		return ("FAILED");
 	case G_RAID_SUBDISK_E_DISCONNECTED:
 		return ("DISCONNECTED");
 	default:
@@ -277,23 +284,87 @@ g_raid_volume_level2str(int level, int qual)
 	case G_RAID_VOLUME_RL_RAID1:
 		return ("RAID1");
 	case G_RAID_VOLUME_RL_RAID3:
+		if (qual == G_RAID_VOLUME_RLQ_R3P0)
+			return ("RAID3-P0");
+		if (qual == G_RAID_VOLUME_RLQ_R3PN)
+			return ("RAID3-PN");
 		return ("RAID3");
 	case G_RAID_VOLUME_RL_RAID4:
+		if (qual == G_RAID_VOLUME_RLQ_R4P0)
+			return ("RAID4-P0");
+		if (qual == G_RAID_VOLUME_RLQ_R4PN)
+			return ("RAID4-PN");
 		return ("RAID4");
 	case G_RAID_VOLUME_RL_RAID5:
+		if (qual == G_RAID_VOLUME_RLQ_R5RA)
+			return ("RAID5-RA");
+		if (qual == G_RAID_VOLUME_RLQ_R5RS)
+			return ("RAID5-RS");
+		if (qual == G_RAID_VOLUME_RLQ_R5LA)
+			return ("RAID5-LA");
+		if (qual == G_RAID_VOLUME_RLQ_R5LS)
+			return ("RAID5-LS");
 		return ("RAID5");
 	case G_RAID_VOLUME_RL_RAID6:
+		if (qual == G_RAID_VOLUME_RLQ_R6RA)
+			return ("RAID6-RA");
+		if (qual == G_RAID_VOLUME_RLQ_R6RS)
+			return ("RAID6-RS");
+		if (qual == G_RAID_VOLUME_RLQ_R6LA)
+			return ("RAID6-LA");
+		if (qual == G_RAID_VOLUME_RLQ_R6LS)
+			return ("RAID6-LS");
 		return ("RAID6");
+	case G_RAID_VOLUME_RL_RAIDMDF:
+		if (qual == G_RAID_VOLUME_RLQ_RMDFRA)
+			return ("RAIDMDF-RA");
+		if (qual == G_RAID_VOLUME_RLQ_RMDFRS)
+			return ("RAIDMDF-RS");
+		if (qual == G_RAID_VOLUME_RLQ_RMDFLA)
+			return ("RAIDMDF-LA");
+		if (qual == G_RAID_VOLUME_RLQ_RMDFLS)
+			return ("RAIDMDF-LS");
+		return ("RAIDMDF");
 	case G_RAID_VOLUME_RL_RAID1E:
+		if (qual == G_RAID_VOLUME_RLQ_R1EA)
+			return ("RAID1E-A");
+		if (qual == G_RAID_VOLUME_RLQ_R1EO)
+			return ("RAID1E-O");
 		return ("RAID1E");
 	case G_RAID_VOLUME_RL_SINGLE:
 		return ("SINGLE");
 	case G_RAID_VOLUME_RL_CONCAT:
 		return ("CONCAT");
 	case G_RAID_VOLUME_RL_RAID5E:
+		if (qual == G_RAID_VOLUME_RLQ_R5ERA)
+			return ("RAID5E-RA");
+		if (qual == G_RAID_VOLUME_RLQ_R5ERS)
+			return ("RAID5E-RS");
+		if (qual == G_RAID_VOLUME_RLQ_R5ELA)
+			return ("RAID5E-LA");
+		if (qual == G_RAID_VOLUME_RLQ_R5ELS)
+			return ("RAID5E-LS");
 		return ("RAID5E");
 	case G_RAID_VOLUME_RL_RAID5EE:
+		if (qual == G_RAID_VOLUME_RLQ_R5EERA)
+			return ("RAID5EE-RA");
+		if (qual == G_RAID_VOLUME_RLQ_R5EERS)
+			return ("RAID5EE-RS");
+		if (qual == G_RAID_VOLUME_RLQ_R5EELA)
+			return ("RAID5EE-LA");
+		if (qual == G_RAID_VOLUME_RLQ_R5EELS)
+			return ("RAID5EE-LS");
 		return ("RAID5EE");
+	case G_RAID_VOLUME_RL_RAID5R:
+		if (qual == G_RAID_VOLUME_RLQ_R5RRA)
+			return ("RAID5R-RA");
+		if (qual == G_RAID_VOLUME_RLQ_R5RRS)
+			return ("RAID5R-RS");
+		if (qual == G_RAID_VOLUME_RLQ_R5RLA)
+			return ("RAID5R-LA");
+		if (qual == G_RAID_VOLUME_RLQ_R5RLS)
+			return ("RAID5R-LS");
+		return ("RAID5E");
 	default:
 		return ("UNKNOWN");
 	}
@@ -309,26 +380,111 @@ g_raid_volume_str2level(const char *str, int *level, int *qual)
 		*level = G_RAID_VOLUME_RL_RAID0;
 	else if (strcasecmp(str, "RAID1") == 0)
 		*level = G_RAID_VOLUME_RL_RAID1;
-	else if (strcasecmp(str, "RAID3") == 0)
+	else if (strcasecmp(str, "RAID3-P0") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID3;
-	else if (strcasecmp(str, "RAID4") == 0)
+		*qual = G_RAID_VOLUME_RLQ_R3P0;
+	} else if (strcasecmp(str, "RAID3-PN") == 0 ||
+		   strcasecmp(str, "RAID3") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID3;
+		*qual = G_RAID_VOLUME_RLQ_R3PN;
+	} else if (strcasecmp(str, "RAID4-P0") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID4;
-	else if (strcasecmp(str, "RAID5") == 0)
+		*qual = G_RAID_VOLUME_RLQ_R4P0;
+	} else if (strcasecmp(str, "RAID4-PN") == 0 ||
+		   strcasecmp(str, "RAID4") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID4;
+		*qual = G_RAID_VOLUME_RLQ_R4PN;
+	} else if (strcasecmp(str, "RAID5-RA") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID5;
-	else if (strcasecmp(str, "RAID6") == 0)
+		*qual = G_RAID_VOLUME_RLQ_R5RA;
+	} else if (strcasecmp(str, "RAID5-RS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5;
+		*qual = G_RAID_VOLUME_RLQ_R5RS;
+	} else if (strcasecmp(str, "RAID5") == 0 ||
+		   strcasecmp(str, "RAID5-LA") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5;
+		*qual = G_RAID_VOLUME_RLQ_R5LA;
+	} else if (strcasecmp(str, "RAID5-LS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5;
+		*qual = G_RAID_VOLUME_RLQ_R5LS;
+	} else if (strcasecmp(str, "RAID6-RA") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID6;
-	else if (strcasecmp(str, "RAID10") == 0 ||
-		 strcasecmp(str, "RAID1E") == 0)
+		*qual = G_RAID_VOLUME_RLQ_R6RA;
+	} else if (strcasecmp(str, "RAID6-RS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID6;
+		*qual = G_RAID_VOLUME_RLQ_R6RS;
+	} else if (strcasecmp(str, "RAID6") == 0 ||
+		   strcasecmp(str, "RAID6-LA") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID6;
+		*qual = G_RAID_VOLUME_RLQ_R6LA;
+	} else if (strcasecmp(str, "RAID6-LS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID6;
+		*qual = G_RAID_VOLUME_RLQ_R6LS;
+	} else if (strcasecmp(str, "RAIDMDF-RA") == 0) {
+		*level = G_RAID_VOLUME_RL_RAIDMDF;
+		*qual = G_RAID_VOLUME_RLQ_RMDFRA;
+	} else if (strcasecmp(str, "RAIDMDF-RS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAIDMDF;
+		*qual = G_RAID_VOLUME_RLQ_RMDFRS;
+	} else if (strcasecmp(str, "RAIDMDF") == 0 ||
+		   strcasecmp(str, "RAIDMDF-LA") == 0) {
+		*level = G_RAID_VOLUME_RL_RAIDMDF;
+		*qual = G_RAID_VOLUME_RLQ_RMDFLA;
+	} else if (strcasecmp(str, "RAIDMDF-LS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAIDMDF;
+		*qual = G_RAID_VOLUME_RLQ_RMDFLS;
+	} else if (strcasecmp(str, "RAID10") == 0 ||
+		   strcasecmp(str, "RAID1E") == 0 ||
+		   strcasecmp(str, "RAID1E-A") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID1E;
-	else if (strcasecmp(str, "SINGLE") == 0)
+		*qual = G_RAID_VOLUME_RLQ_R1EA;
+	} else if (strcasecmp(str, "RAID1E-O") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID1E;
+		*qual = G_RAID_VOLUME_RLQ_R1EO;
+	} else if (strcasecmp(str, "SINGLE") == 0)
 		*level = G_RAID_VOLUME_RL_SINGLE;
 	else if (strcasecmp(str, "CONCAT") == 0)
 		*level = G_RAID_VOLUME_RL_CONCAT;
-	else if (strcasecmp(str, "RAID5E") == 0)
+	else if (strcasecmp(str, "RAID5E-RA") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID5E;
-	else if (strcasecmp(str, "RAID5EE") == 0)
+		*qual = G_RAID_VOLUME_RLQ_R5ERA;
+	} else if (strcasecmp(str, "RAID5E-RS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5E;
+		*qual = G_RAID_VOLUME_RLQ_R5ERS;
+	} else if (strcasecmp(str, "RAID5E") == 0 ||
+		   strcasecmp(str, "RAID5E-LA") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5E;
+		*qual = G_RAID_VOLUME_RLQ_R5ELA;
+	} else if (strcasecmp(str, "RAID5E-LS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5E;
+		*qual = G_RAID_VOLUME_RLQ_R5ELS;
+	} else if (strcasecmp(str, "RAID5EE-RA") == 0) {
 		*level = G_RAID_VOLUME_RL_RAID5EE;
-	else
+		*qual = G_RAID_VOLUME_RLQ_R5EERA;
+	} else if (strcasecmp(str, "RAID5EE-RS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5EE;
+		*qual = G_RAID_VOLUME_RLQ_R5EERS;
+	} else if (strcasecmp(str, "RAID5EE") == 0 ||
+		   strcasecmp(str, "RAID5EE-LA") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5EE;
+		*qual = G_RAID_VOLUME_RLQ_R5EELA;
+	} else if (strcasecmp(str, "RAID5EE-LS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5EE;
+		*qual = G_RAID_VOLUME_RLQ_R5EELS;
+	} else if (strcasecmp(str, "RAID5R-RA") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5R;
+		*qual = G_RAID_VOLUME_RLQ_R5RRA;
+	} else if (strcasecmp(str, "RAID5R-RS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5R;
+		*qual = G_RAID_VOLUME_RLQ_R5RRS;
+	} else if (strcasecmp(str, "RAID5R") == 0 ||
+		   strcasecmp(str, "RAID5R-LA") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5R;
+		*qual = G_RAID_VOLUME_RLQ_R5RLA;
+	} else if (strcasecmp(str, "RAID5R-LS") == 0) {
+		*level = G_RAID_VOLUME_RL_RAID5R;
+		*qual = G_RAID_VOLUME_RLQ_R5RLS;
+	} else
 		return (-1);
 	return (0);
 }
@@ -340,6 +496,34 @@ g_raid_get_diskname(struct g_raid_disk *disk)
 	if (disk->d_consumer == NULL || disk->d_consumer->provider == NULL)
 		return ("[unknown]");
 	return (disk->d_consumer->provider->name);
+}
+
+void
+g_raid_get_disk_info(struct g_raid_disk *disk)
+{
+	struct g_consumer *cp = disk->d_consumer;
+	int error, len;
+
+	/* Read kernel dumping information. */
+	disk->d_kd.offset = 0;
+	disk->d_kd.length = OFF_MAX;
+	len = sizeof(disk->d_kd);
+	error = g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
+	if (error)
+		disk->d_kd.di.dumper = NULL;
+	if (disk->d_kd.di.dumper == NULL)
+		G_RAID_DEBUG1(2, disk->d_softc,
+		    "Dumping not supported by %s: %d.", 
+		    cp->provider->name, error);
+
+	/* Read BIO_DELETE support. */
+	error = g_getattr("GEOM::candelete", cp, &disk->d_candelete);
+	if (error)
+		disk->d_candelete = 0;
+	if (!disk->d_candelete)
+		G_RAID_DEBUG1(2, disk->d_softc,
+		    "BIO_DELETE not supported by %s: %d.", 
+		    cp->provider->name, error);
 }
 
 void
@@ -726,7 +910,7 @@ g_raid_orphan(struct g_consumer *cp)
 	    G_RAID_EVENT_DISK);
 }
 
-static int
+static void
 g_raid_clean(struct g_raid_volume *vol, int acw)
 {
 	struct g_raid_softc *sc;
@@ -737,22 +921,21 @@ g_raid_clean(struct g_raid_volume *vol, int acw)
 	sx_assert(&sc->sc_lock, SX_XLOCKED);
 
 //	if ((sc->sc_flags & G_RAID_DEVICE_FLAG_NOFAILSYNC) != 0)
-//		return (0);
+//		return;
 	if (!vol->v_dirty)
-		return (0);
+		return;
 	if (vol->v_writes > 0)
-		return (0);
+		return;
 	if (acw > 0 || (acw == -1 &&
 	    vol->v_provider != NULL && vol->v_provider->acw > 0)) {
 		timeout = g_raid_clean_time - (time_uptime - vol->v_last_write);
-		if (timeout > 0)
-			return (timeout);
+		if (!g_raid_shutdown && timeout > 0)
+			return;
 	}
 	vol->v_dirty = 0;
 	G_RAID_DEBUG1(1, sc, "Volume %s marked as clean.",
 	    vol->v_name);
 	g_raid_write_metadata(sc, vol, NULL, NULL);
-	return (0);
 }
 
 static void
@@ -897,6 +1080,31 @@ g_raid_kerneldump(struct g_raid_softc *sc, struct bio *bp)
 }
 
 static void
+g_raid_candelete(struct g_raid_softc *sc, struct bio *bp)
+{
+	struct g_provider *pp;
+	struct g_raid_volume *vol;
+	struct g_raid_subdisk *sd;
+	int *val;
+	int i;
+
+	val = (int *)bp->bio_data;
+	pp = bp->bio_to;
+	vol = pp->private;
+	*val = 0;
+	for (i = 0; i < vol->v_disks_count; i++) {
+		sd = &vol->v_subdisks[i];
+		if (sd->sd_state == G_RAID_SUBDISK_S_NONE)
+			continue;
+		if (sd->sd_disk->d_candelete) {
+			*val = 1;
+			break;
+		}
+	}
+	g_io_deliver(bp, 0);
+}
+
+static void
 g_raid_start(struct bio *bp)
 {
 	struct g_raid_softc *sc;
@@ -918,7 +1126,9 @@ g_raid_start(struct bio *bp)
 	case BIO_FLUSH:
 		break;
 	case BIO_GETATTR:
-		if (!strcmp(bp->bio_attribute, "GEOM::kerneldump"))
+		if (!strcmp(bp->bio_attribute, "GEOM::candelete"))
+			g_raid_candelete(sc, bp);
+		else if (!strcmp(bp->bio_attribute, "GEOM::kerneldump"))
 			g_raid_kerneldump(sc, bp);
 		else
 			g_io_deliver(bp, EOPNOTSUPP);
@@ -1365,8 +1575,7 @@ process:
 				g_raid_disk_done_request(bp);
 		} else if (rv == EWOULDBLOCK) {
 			TAILQ_FOREACH(vol, &sc->sc_volumes, v_next) {
-				if (vol->v_writes == 0 && vol->v_dirty)
-					g_raid_clean(vol, -1);
+				g_raid_clean(vol, -1);
 				if (bioq_first(&vol->v_inflight) == NULL &&
 				    vol->v_tr) {
 					t.tv_sec = g_raid_idle_threshold / 1000000;
@@ -1628,7 +1837,7 @@ g_raid_access(struct g_provider *pp, int acr, int acw, int ace)
 		error = ENXIO;
 		goto out;
 	}
-	if (dcw == 0 && vol->v_dirty)
+	if (dcw == 0)
 		g_raid_clean(vol, dcw);
 	vol->v_provider_open += acr + acw + ace;
 	/* Handle delayed node destruction. */
@@ -1674,8 +1883,8 @@ g_raid_create_node(struct g_class *mp,
 	sc->sc_flags = 0;
 	TAILQ_INIT(&sc->sc_volumes);
 	TAILQ_INIT(&sc->sc_disks);
-	sx_init(&sc->sc_lock, "gmirror:lock");
-	mtx_init(&sc->sc_queue_mtx, "gmirror:queue", NULL, MTX_DEF);
+	sx_init(&sc->sc_lock, "graid:lock");
+	mtx_init(&sc->sc_queue_mtx, "graid:queue", NULL, MTX_DEF);
 	TAILQ_INIT(&sc->sc_events);
 	bioq_init(&sc->sc_queue);
 	gp->softc = sc;
@@ -1707,6 +1916,7 @@ g_raid_create_volume(struct g_raid_softc *sc, const char *name, int id)
 	vol->v_state = G_RAID_VOLUME_S_STARTING;
 	vol->v_raid_level = G_RAID_VOLUME_RL_UNKNOWN;
 	vol->v_raid_level_qualifier = G_RAID_VOLUME_RLQ_UNKNOWN;
+	vol->v_rotate_parity = 1;
 	bioq_init(&vol->v_inflight);
 	bioq_init(&vol->v_locked);
 	LIST_INIT(&vol->v_locks);
@@ -1770,6 +1980,8 @@ int g_raid_start_volume(struct g_raid_volume *vol)
 
 	G_RAID_DEBUG1(2, vol->v_softc, "Starting volume %s.", vol->v_name);
 	LIST_FOREACH(class, &g_raid_tr_classes, trc_list) {
+		if (!class->trc_enable)
+			continue;
 		G_RAID_DEBUG1(2, vol->v_softc,
 		    "Tasting volume %s for %s transformation.",
 		    vol->v_name, class->name);
@@ -1992,9 +2204,11 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	g_topology_assert();
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
+	if (!g_raid_enable)
+		return (NULL);
 	G_RAID_DEBUG(2, "Tasting provider %s.", pp->name);
 
-	gp = g_new_geomf(mp, "mirror:taste");
+	gp = g_new_geomf(mp, "raid:taste");
 	/*
 	 * This orphan function should be never called.
 	 */
@@ -2004,6 +2218,8 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 
 	geom = NULL;
 	LIST_FOREACH(class, &g_raid_md_classes, mdc_list) {
+		if (!class->mdc_enable)
+			continue;
 		G_RAID_DEBUG(2, "Tasting provider %s for %s metadata.",
 		    pp->name, class->name);
 		obj = (void *)kobj_create((kobj_class_t)class, M_RAID,
@@ -2024,7 +2240,8 @@ g_raid_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 }
 
 int
-g_raid_create_node_format(const char *format, struct g_geom **gp)
+g_raid_create_node_format(const char *format, struct gctl_req *req,
+    struct g_geom **gp)
 {
 	struct g_raid_md_class *class;
 	struct g_raid_md_object *obj;
@@ -2042,7 +2259,7 @@ g_raid_create_node_format(const char *format, struct g_geom **gp)
 	obj = (void *)kobj_create((kobj_class_t)class, M_RAID,
 	    M_WAITOK);
 	obj->mdo_class = class;
-	status = G_RAID_MD_CREATE(obj, &g_raid_class, gp);
+	status = G_RAID_MD_CREATE_REQ(obj, &g_raid_class, req, gp);
 	if (status != G_RAID_MD_TASTE_NEW)
 		kobj_delete((kobj_t)obj, M_RAID);
 	return (status);
@@ -2216,21 +2433,25 @@ g_raid_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 }
 
 static void
-g_raid_shutdown_pre_sync(void *arg, int howto)
+g_raid_shutdown_post_sync(void *arg, int howto)
 {
 	struct g_class *mp;
 	struct g_geom *gp, *gp2;
 	struct g_raid_softc *sc;
+	struct g_raid_volume *vol;
 	int error;
 
 	mp = arg;
 	DROP_GIANT();
 	g_topology_lock();
+	g_raid_shutdown = 1;
 	LIST_FOREACH_SAFE(gp, &mp->geom, geom, gp2) {
 		if ((sc = gp->softc) == NULL)
 			continue;
 		g_topology_unlock();
 		sx_xlock(&sc->sc_lock);
+		TAILQ_FOREACH(vol, &sc->sc_volumes, v_next)
+			g_raid_clean(vol, -1);
 		g_cancel_event(sc);
 		error = g_raid_destroy(sc, G_RAID_DESTROY_DELAYED);
 		if (error != 0)
@@ -2245,9 +2466,9 @@ static void
 g_raid_init(struct g_class *mp)
 {
 
-	g_raid_pre_sync = EVENTHANDLER_REGISTER(shutdown_pre_sync,
-	    g_raid_shutdown_pre_sync, mp, SHUTDOWN_PRI_FIRST);
-	if (g_raid_pre_sync == NULL)
+	g_raid_post_sync = EVENTHANDLER_REGISTER(shutdown_post_sync,
+	    g_raid_shutdown_post_sync, mp, SHUTDOWN_PRI_FIRST);
+	if (g_raid_post_sync == NULL)
 		G_RAID_DEBUG(0, "Warning! Cannot register shutdown event.");
 	g_raid_started = 1;
 }
@@ -2256,8 +2477,8 @@ static void
 g_raid_fini(struct g_class *mp)
 {
 
-	if (g_raid_pre_sync != NULL)
-		EVENTHANDLER_DEREGISTER(shutdown_pre_sync, g_raid_pre_sync);
+	if (g_raid_post_sync != NULL)
+		EVENTHANDLER_DEREGISTER(shutdown_post_sync, g_raid_post_sync);
 	g_raid_started = 0;
 }
 

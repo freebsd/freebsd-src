@@ -12,13 +12,13 @@ SRCS=	AliasAnalysis.cpp \
 	AliasSetTracker.cpp \
 	Analysis.cpp \
 	BasicAliasAnalysis.cpp \
+	BlockFrequencyInfo.cpp \
 	BranchProbabilityInfo.cpp \
 	CFGPrinter.cpp \
 	CaptureTracking.cpp \
+	CodeMetrics.cpp \
 	ConstantFolding.cpp \
 	DbgInfoPrinter.cpp \
-	DebugInfo.cpp \
-	DIBuilder.cpp \
 	DomPrinter.cpp \
 	DominanceFrontier.cpp \
 	IVUsers.cpp \
@@ -29,6 +29,7 @@ SRCS=	AliasAnalysis.cpp \
 	IntervalPartition.cpp \
 	LazyValueInfo.cpp \
 	LibCallAliasAnalysis.cpp \
+	LibCallSemantics.cpp \
 	Lint.cpp \
 	Loads.cpp \
 	LoopDependenceAnalysis.cpp \
@@ -40,6 +41,9 @@ SRCS=	AliasAnalysis.cpp \
 	ModuleDebugInfoPrinter.cpp \
 	NoAliasAnalysis.cpp \
 	PHITransAddr.cpp \
+	PathNumbering.cpp \
+	PathProfileInfo.cpp \
+	PathProfileVerifier.cpp \
 	PostDominators.cpp \
 	ProfileEstimatorPass.cpp \
 	ProfileInfo.cpp \
@@ -54,6 +58,7 @@ SRCS=	AliasAnalysis.cpp \
 	ScalarEvolutionExpander.cpp \
 	ScalarEvolutionNormalization.cpp \
 	SparsePropagation.cpp \
+	Trace.cpp \
 	TypeBasedAliasAnalysis.cpp \
 	ValueTracking.cpp
 

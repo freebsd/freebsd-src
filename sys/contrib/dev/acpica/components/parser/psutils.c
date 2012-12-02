@@ -120,7 +120,7 @@ AcpiPsInitOp (
  * RETURN:      Pointer to the new Op, null on failure
  *
  * DESCRIPTION: Allocate an acpi_op, choose op type (and thus size) based on
- *              opcode.  A cache of opcodes is available for the pure
+ *              opcode. A cache of opcodes is available for the pure
  *              GENERIC_OP, since this is by far the most commonly used.
  *
  ******************************************************************************/
@@ -189,7 +189,7 @@ AcpiPsAllocOp (
  *
  * RETURN:      None.
  *
- * DESCRIPTION: Free an Op object.  Either put it on the GENERIC_OP cache list
+ * DESCRIPTION: Free an Op object. Either put it on the GENERIC_OP cache list
  *              or actually free it.
  *
  ******************************************************************************/
@@ -287,4 +287,3 @@ AcpiPsSetName (
 
     Op->Named.Name = name;
 }
-

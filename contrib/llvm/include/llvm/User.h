@@ -7,11 +7,11 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This class defines the interface that one who 'use's a Value must implement.
+// This class defines the interface that one who uses a Value must implement.
 // Each instance of the Value class keeps track of what User's have handles
 // to it.
 //
-//  * Instructions are the largest class of User's.
+//  * Instructions are the largest class of Users.
 //  * Constants may be users of other constants (think arrays and stuff)
 //
 //===----------------------------------------------------------------------===//
@@ -19,6 +19,7 @@
 #ifndef LLVM_USER_H
 #define LLVM_USER_H
 
+#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Value.h"
 
 namespace llvm {
@@ -34,6 +35,7 @@ class User : public Value {
   void *operator new(size_t);     // Do not implement
   template <unsigned>
   friend struct HungoffOperandTraits;
+  virtual void anchor();
 protected:
   /// OperandList - This is a pointer to the array of Uses for this User.
   /// For nodes of fixed arity (e.g. a binary operator) this array will live
@@ -64,11 +66,11 @@ public:
   void operator delete(void *Usr);
   /// placement delete - required by std, but never called.
   void operator delete(void*, unsigned) {
-    assert(0 && "Constructor throws?");
+    llvm_unreachable("Constructor throws?");
   }
   /// placement delete - required by std, but never called.
   void operator delete(void*, unsigned, bool) {
-    assert(0 && "Constructor throws?");
+    llvm_unreachable("Constructor throws?");
   }
 protected:
   template <int Idx, typename U> static Use &OpFrom(const U *that) {

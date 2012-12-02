@@ -122,4 +122,10 @@ int agp_unbind_memory(device_t dev, void *handle);
  */
 void agp_memory_info(device_t dev, void *handle, struct agp_memory_info *mi);
 
+#define AGP_NORMAL_MEMORY 0
+
+#define AGP_USER_TYPES (1 << 16)
+#define AGP_USER_MEMORY (AGP_USER_TYPES)
+#define AGP_USER_CACHED_MEMORY (AGP_USER_TYPES + 1)
+
 #endif /* !_PCI_AGPVAR_H_ */

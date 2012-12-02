@@ -59,8 +59,8 @@ int linenum = 0;		/* current line number */
 const char *infilename;		/* input filename */
 
 #define	NFILES   7
-const char *outfiles[NFILES];	/* output file names */
-int nfiles;
+static const char *outfiles[NFILES]; /* output file names */
+static int nfiles;
 
 FILE *fout;			/* file pointer of current output */
 FILE *fin;			/* file pointer of current input */

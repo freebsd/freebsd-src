@@ -73,7 +73,7 @@ AcpiDsInitOneObject (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Callback from AcpiWalkNamespace.  Invoked for every object
+ * DESCRIPTION: Callback from AcpiWalkNamespace. Invoked for every object
  *              within the namespace.
  *
  *              Currently, the only objects that require initialization are:
@@ -234,5 +234,3 @@ AcpiDsInitializeObjects (
 
     return_ACPI_STATUS (AE_OK);
 }
-
-

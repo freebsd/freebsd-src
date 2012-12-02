@@ -99,7 +99,6 @@ struct tun_softc {
 #define TUN2IFP(sc)	((sc)->tun_ifp)
 
 #define TUNDEBUG	if (tundebug) if_printf
-#define	TUNNAME		"tun"
 
 /*
  * All mutable global variables in if_tun are locked using tunmtx, with
@@ -107,7 +106,8 @@ struct tun_softc {
  * which is static after setup.
  */
 static struct mtx tunmtx;
-static MALLOC_DEFINE(M_TUN, TUNNAME, "Tunnel Interface");
+static const char tunname[] = "tun";
+static MALLOC_DEFINE(M_TUN, tunname, "Tunnel Interface");
 static int tundebug = 0;
 static int tundclone = 1;
 static struct clonedevs *tunclones;
@@ -134,8 +134,7 @@ static void	tunstart(struct ifnet *);
 
 static int	tun_clone_create(struct if_clone *, int, caddr_t);
 static void	tun_clone_destroy(struct ifnet *);
-
-IFC_SIMPLE_DECLARE(tun, 0);
+static struct if_clone *tun_cloner;
 
 static d_open_t		tunopen;
 static d_close_t	tunclose;
@@ -173,7 +172,7 @@ static struct cdevsw tun_cdevsw = {
 	.d_ioctl =	tunioctl,
 	.d_poll =	tunpoll,
 	.d_kqfilter =	tunkqfilter,
-	.d_name =	TUNNAME,
+	.d_name =	tunname,
 };
 
 static int
@@ -187,9 +186,9 @@ tun_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	if (i) {
 		/* No preexisting struct cdev *, create one */
 		dev = make_dev(&tun_cdevsw, unit,
-		    UID_UUCP, GID_DIALER, 0600, "%s%d", ifc->ifc_name, unit);
+		    UID_UUCP, GID_DIALER, 0600, "%s%d", tunname, unit);
 	}
-	tuncreate(ifc->ifc_name, dev);
+	tuncreate(tunname, dev);
 
 	return (0);
 }
@@ -211,9 +210,9 @@ tunclone(void *arg, struct ucred *cred, char *name, int namelen,
 	if (!tundclone || priv_check_cred(cred, PRIV_NET_IFCREATE, 0) != 0)
 		return;
 
-	if (strcmp(name, TUNNAME) == 0) {
+	if (strcmp(name, tunname) == 0) {
 		u = -1;
-	} else if (dev_stdclone(name, NULL, TUNNAME, &u) != 1)
+	} else if (dev_stdclone(name, NULL, tunname, &u) != 1)
 		return;	/* Don't recognise the name */
 	if (u != -1 && u > IF_MAXUNIT)
 		return;	/* Unit number too high */
@@ -246,7 +245,6 @@ tun_destroy(struct tun_softc *tp)
 {
 	struct cdev *dev;
 
-	/* Unlocked read. */
 	mtx_lock(&tp->tun_mtx);
 	if ((tp->tun_flags & TUN_OPEN) != 0)
 		cv_wait_unlock(&tp->tun_cv, &tp->tun_mtx);
@@ -291,10 +289,11 @@ tunmodevent(module_t mod, int type, void *data)
 		tag = EVENTHANDLER_REGISTER(dev_clone, tunclone, 0, 1000);
 		if (tag == NULL)
 			return (ENOMEM);
-		if_clone_attach(&tun_cloner);
+		tun_cloner = if_clone_simple(tunname, tun_clone_create,
+		    tun_clone_destroy, 0);
 		break;
 	case MOD_UNLOAD:
-		if_clone_detach(&tun_cloner);
+		if_clone_detach(tun_cloner);
 		EVENTHANDLER_DEREGISTER(dev_clone, tag);
 		drain_dev_clone_events();
 
@@ -409,7 +408,7 @@ tunopen(struct cdev *dev, int flag, int mode, struct thread *td)
 	 */
 	tp = dev->si_drv1;
 	if (!tp) {
-		tuncreate(TUNNAME, dev);
+		tuncreate(tunname, dev);
 		tp = dev->si_drv1;
 	}
 

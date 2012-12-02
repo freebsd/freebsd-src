@@ -30,7 +30,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/asi.h>
 #include <machine/asmacros.h>
 #include <machine/intr_machdep.h>
-#include <machine/ktr.h>
 #include <machine/pstate.h>
 #include <machine/ver.h>
 
@@ -84,13 +83,13 @@ ENTRY(intr_vector)
 	 * The 2nd word points to code to execute and the 3rd is an argument
 	 * to pass.  Jump to it.
 	 */
-	brnz,pt %g3, 1f
+	brnz,a,pt %g3, 1f
+	 srlx	%g3, 60, %g6
 	/*
 	 * NB: Zeus CPUs set some undocumented bits in the first data word.
 	 */
-	 and	%g3, IV_MAX - 1, %g3
 	jmpl	%g4, %g0
-	 nop
+	 and	%g3, IV_MAX - 1, %g3
 	/* NOTREACHED */
 
 	/*
@@ -99,8 +98,7 @@ ENTRY(intr_vector)
 	 * 4 bits of the 1st data word specify a priority, and the 2nd and
 	 * 3rd a function and argument.
 	 */
-1:	srlx	%g3, 60, %g6
-	brnz,a,pn %g6, 2f
+1:	brnz,a,pn %g6, 2f
 	 clr	%g3
 
 	/*

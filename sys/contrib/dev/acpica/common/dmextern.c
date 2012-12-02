@@ -153,10 +153,17 @@ AcpiDmNormalizeParentPrefix (
     char                    *Fullpath;
     char                    *ParentPath;
     ACPI_SIZE               Length;
+    UINT32                  Index = 0;
 
 
-    /* Search upwards in the parse tree until we reach a namespace node */
+    if (!Op)
+    {
+        return (NULL);
+    }
 
+    /* Search upwards in the parse tree until we reach the next namespace node */
+
+    Op = Op->Common.Parent;
     while (Op)
     {
         if (Op->Common.Node)
@@ -205,6 +212,13 @@ AcpiDmNormalizeParentPrefix (
          * for the required dot separator (ParentPath.Path)
          */
         Length++;
+
+        /* For External() statements, we do not want a leading '\' */
+
+        if (*ParentPath == AML_ROOT_PREFIX)
+        {
+            Index = 1;
+        }
     }
 
     Fullpath = ACPI_ALLOCATE_ZEROED (Length);
@@ -219,10 +233,12 @@ AcpiDmNormalizeParentPrefix (
      *
      * Copy the parent path
      */
-    ACPI_STRCAT (Fullpath, ParentPath);
+    ACPI_STRCPY (Fullpath, &ParentPath[Index]);
 
-    /* Add dot separator (don't need dot if parent fullpath is a single "\") */
-
+    /*
+     * Add dot separator
+     * (don't need dot if parent fullpath is a single backslash)
+     */
     if (ParentPath[1])
     {
         ACPI_STRCAT (Fullpath, ".");
@@ -364,7 +380,22 @@ AcpiDmAddToExternalList (
         return;
     }
 
-    /* Externalize the ACPI path */
+    /*
+     * We don't want External() statements to contain a leading '\'.
+     * This prevents duplicate external statements of the form:
+     *
+     *    External (\ABCD)
+     *    External (ABCD)
+     *
+     * This would cause a compile time error when the disassembled
+     * output file is recompiled.
+     */
+    if ((*Path == AML_ROOT_PREFIX) && (Path[1]))
+    {
+        Path++;
+    }
+
+    /* Externalize the ACPI pathname */
 
     Status = AcpiNsExternalizeName (ACPI_UINT32_MAX, Path,
                 NULL, &ExternalPath);
@@ -373,8 +404,10 @@ AcpiDmAddToExternalList (
         return;
     }
 
-    /* Get the full pathname from root if "Path" has a parent prefix */
-
+    /*
+     * Get the full pathname from the root if "Path" has one or more
+     * parent prefixes (^). Note: path will not contain a leading '\'.
+     */
     if (*Path == (UINT8) AML_PARENT_PREFIX)
     {
         Fullpath = AcpiDmNormalizeParentPrefix (Op, ExternalPath);
@@ -454,12 +487,12 @@ AcpiDmAddToExternalList (
 
     NewExternal->InternalPath = Path;
 
-    /* Link the new descriptor into the global list, ordered by string length */
+    /* Link the new descriptor into the global list, alphabetically ordered */
 
     NextExternal = AcpiGbl_ExternalList;
     while (NextExternal)
     {
-        if (NewExternal->Length <= NextExternal->Length)
+        if (AcpiUtStricmp (NewExternal->Path, NextExternal->Path) < 0)
         {
             if (PrevExternal)
             {
@@ -508,7 +541,7 @@ AcpiDmAddExternalsToNamespace (
 {
     ACPI_STATUS             Status;
     ACPI_NAMESPACE_NODE     *Node;
-    ACPI_OPERAND_OBJECT     *MethodDesc;
+    ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_EXTERNAL_LIST      *External = AcpiGbl_ExternalList;
 
 
@@ -527,13 +560,29 @@ AcpiDmAddExternalsToNamespace (
                 "while adding external to namespace [%s]",
                 External->Path));
         }
-        else if (External->Type == ACPI_TYPE_METHOD)
+
+        else switch (External->Type)
         {
+        case ACPI_TYPE_METHOD:
+
             /* For methods, we need to save the argument count */
 
-            MethodDesc = AcpiUtCreateInternalObject (ACPI_TYPE_METHOD);
-            MethodDesc->Method.ParamCount = (UINT8) External->Value;
-            Node->Object = MethodDesc;
+            ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_METHOD);
+            ObjDesc->Method.ParamCount = (UINT8) External->Value;
+            Node->Object = ObjDesc;
+            break;
+
+        case ACPI_TYPE_REGION:
+
+            /* Regions require a region sub-object */
+
+            ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_REGION);
+            ObjDesc->Region.Node = Node;
+            Node->Object = ObjDesc;
+            break;
+
+        default:
+            break;
         }
 
         External = External->Next;
@@ -669,4 +718,3 @@ AcpiDmEmitExternals (
 
     AcpiOsPrintf ("\n");
 }
-

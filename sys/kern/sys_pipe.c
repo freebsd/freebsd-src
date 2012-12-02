@@ -129,6 +129,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/uma.h>
 
+/* XXX */
+int	do_pipe(struct thread *td, int fildes[2], int flags);
+
 /*
  * Use this define if you want to disable *fancy* VM things.  Expect an
  * approx 30% decrease in transfer rate.  This could be useful for
@@ -224,7 +227,6 @@ static int pipe_create(struct pipe *pipe, int backing);
 static int pipe_paircreate(struct thread *td, struct pipepair **p_pp);
 static __inline int pipelock(struct pipe *cpipe, int catch);
 static __inline void pipeunlock(struct pipe *cpipe);
-static __inline void pipeselwakeup(struct pipe *cpipe);
 #ifndef PIPE_NODIRECT
 static int pipe_build_write_buffer(struct pipe *wpipe, struct uio *uio);
 static void pipe_destroy_write_buffer(struct pipe *wpipe);
@@ -405,11 +407,18 @@ pipe_dtor(struct pipe *dpipe)
 int
 kern_pipe(struct thread *td, int fildes[2])
 {
+
+	return (do_pipe(td, fildes, 0));
+}
+
+int
+do_pipe(struct thread *td, int fildes[2], int flags)
+{
 	struct filedesc *fdp; 
 	struct file *rf, *wf;
 	struct pipe *rpipe, *wpipe;
 	struct pipepair *pp;
-	int fd, error;
+	int fd, fflags, error;
 
 	fdp = td->td_proc->p_fd;
 	error = pipe_paircreate(td, &pp);
@@ -417,7 +426,7 @@ kern_pipe(struct thread *td, int fildes[2])
 		return (error);
 	rpipe = &pp->pp_rpipe;
 	wpipe = &pp->pp_wpipe;
-	error = falloc(td, &rf, &fd, 0);
+	error = falloc(td, &rf, &fd, flags);
 	if (error) {
 		pipeclose(rpipe);
 		pipeclose(wpipe);
@@ -426,14 +435,18 @@ kern_pipe(struct thread *td, int fildes[2])
 	/* An extra reference on `rf' has been held for us by falloc(). */
 	fildes[0] = fd;
 
+	fflags = FREAD | FWRITE;
+	if ((flags & O_NONBLOCK) != 0)
+		fflags |= FNONBLOCK;
+
 	/*
 	 * Warning: once we've gotten past allocation of the fd for the
 	 * read-side, we can only drop the read side via fdrop() in order
 	 * to avoid races against processes which manage to dup() the read
 	 * side while we are blocked trying to allocate the write side.
 	 */
-	finit(rf, FREAD | FWRITE, DTYPE_PIPE, rpipe, &pipeops);
-	error = falloc(td, &wf, &fd, 0);
+	finit(rf, fflags, DTYPE_PIPE, rpipe, &pipeops);
+	error = falloc(td, &wf, &fd, flags);
 	if (error) {
 		fdclose(fdp, rf, fildes[0], td);
 		fdrop(rf, td);
@@ -442,7 +455,7 @@ kern_pipe(struct thread *td, int fildes[2])
 		return (error);
 	}
 	/* An extra reference on `wf' has been held for us by falloc(). */
-	finit(wf, FREAD | FWRITE, DTYPE_PIPE, wpipe, &pipeops);
+	finit(wf, fflags, DTYPE_PIPE, wpipe, &pipeops);
 	fdrop(wf, td);
 	fildes[1] = fd;
 	fdrop(rf, td);
@@ -593,7 +606,7 @@ pipeunlock(cpipe)
 	}
 }
 
-static __inline void
+void
 pipeselwakeup(cpipe)
 	struct pipe *cpipe;
 {
@@ -724,7 +737,7 @@ pipe_read(fp, uio, active_cred, flags, td)
 			rpipe->pipe_map.pos += size;
 			rpipe->pipe_map.cnt -= size;
 			if (rpipe->pipe_map.cnt == 0) {
-				rpipe->pipe_state &= ~PIPE_DIRECTW;
+				rpipe->pipe_state &= ~(PIPE_DIRECTW|PIPE_WANTW);
 				wakeup(rpipe);
 			}
 #endif
@@ -987,6 +1000,7 @@ retry:
 			wakeup(wpipe);
 		}
 		pipeselwakeup(wpipe);
+		wpipe->pipe_state |= PIPE_WANTW;
 		pipeunlock(wpipe);
 		error = msleep(wpipe, PIPE_MTX(wpipe), PRIBIO | PCATCH,
 		    "pipdwt", 0);
@@ -1428,7 +1442,7 @@ pipe_poll(fp, events, active_cred, td)
 	levents = events &
 	    (POLLIN | POLLINIGNEOF | POLLPRI | POLLRDNORM | POLLRDBAND);
 	if (rpipe->pipe_state & PIPE_NAMED && fp->f_flag & FREAD && levents &&
-	    rpipe->pipe_state & PIPE_SAMEWGEN)
+	    fp->f_seqcount == rpipe->pipe_wgen)
 		events |= POLLINIGNEOF;
 
 	if ((events & POLLINIGNEOF) == 0) {

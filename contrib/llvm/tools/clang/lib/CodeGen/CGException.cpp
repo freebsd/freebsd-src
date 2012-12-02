@@ -11,17 +11,13 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "clang/AST/StmtCXX.h"
-
-#include "llvm/Intrinsics.h"
-#include "llvm/IntrinsicInst.h"
-#include "llvm/Support/CallSite.h"
-
-#include "CGObjCRuntime.h"
 #include "CodeGenFunction.h"
-#include "CGException.h"
 #include "CGCleanup.h"
+#include "CGObjCRuntime.h"
 #include "TargetInfo.h"
+#include "clang/AST/StmtCXX.h"
+#include "llvm/Intrinsics.h"
+#include "llvm/Support/CallSite.h"
 
 using namespace clang;
 using namespace CodeGen;
@@ -104,7 +100,7 @@ llvm::Constant *CodeGenFunction::getUnwindResumeFn() {
   llvm::FunctionType *FTy =
     llvm::FunctionType::get(VoidTy, Int8PtrTy, /*IsVarArgs=*/false);
 
-  if (CGM.getLangOptions().SjLjExceptions)
+  if (CGM.getLangOpts().SjLjExceptions)
     return CGM.CreateRuntimeFunction(FTy, "_Unwind_SjLj_Resume");
   return CGM.CreateRuntimeFunction(FTy, "_Unwind_Resume");
 }
@@ -113,7 +109,7 @@ llvm::Constant *CodeGenFunction::getUnwindResumeOrRethrowFn() {
   llvm::FunctionType *FTy =
     llvm::FunctionType::get(VoidTy, Int8PtrTy, /*IsVarArgs=*/false);
 
-  if (CGM.getLangOptions().SjLjExceptions)
+  if (CGM.getLangOpts().SjLjExceptions)
     return CGM.CreateRuntimeFunction(FTy, "_Unwind_SjLj_Resume_or_Rethrow");
   return CGM.CreateRuntimeFunction(FTy, "_Unwind_Resume_or_Rethrow");
 }
@@ -127,10 +123,10 @@ static llvm::Constant *getTerminateFn(CodeGenFunction &CGF) {
   StringRef name;
 
   // In C++, use std::terminate().
-  if (CGF.getLangOptions().CPlusPlus)
+  if (CGF.getLangOpts().CPlusPlus)
     name = "_ZSt9terminatev"; // FIXME: mangling!
-  else if (CGF.getLangOptions().ObjC1 &&
-           CGF.CGM.getCodeGenOpts().ObjCRuntimeHasTerminate)
+  else if (CGF.getLangOpts().ObjC1 &&
+           CGF.getLangOpts().ObjCRuntime.hasTerminate())
     name = "objc_terminate";
   else
     name = "abort";
@@ -145,14 +141,37 @@ static llvm::Constant *getCatchallRethrowFn(CodeGenFunction &CGF,
   return CGF.CGM.CreateRuntimeFunction(FTy, Name);
 }
 
-const EHPersonality EHPersonality::GNU_C("__gcc_personality_v0");
-const EHPersonality EHPersonality::GNU_C_SJLJ("__gcc_personality_sj0");
-const EHPersonality EHPersonality::NeXT_ObjC("__objc_personality_v0");
-const EHPersonality EHPersonality::GNU_CPlusPlus("__gxx_personality_v0");
-const EHPersonality EHPersonality::GNU_CPlusPlus_SJLJ("__gxx_personality_sj0");
-const EHPersonality EHPersonality::GNU_ObjC("__gnu_objc_personality_v0",
-                                            "objc_exception_throw");
-const EHPersonality EHPersonality::GNU_ObjCXX("__gnustep_objcxx_personality_v0");
+namespace {
+  /// The exceptions personality for a function.
+  struct EHPersonality {
+    const char *PersonalityFn;
+
+    // If this is non-null, this personality requires a non-standard
+    // function for rethrowing an exception after a catchall cleanup.
+    // This function must have prototype void(void*).
+    const char *CatchallRethrowFn;
+
+    static const EHPersonality &get(const LangOptions &Lang);
+    static const EHPersonality GNU_C;
+    static const EHPersonality GNU_C_SJLJ;
+    static const EHPersonality GNU_ObjC;
+    static const EHPersonality GNU_ObjCXX;
+    static const EHPersonality NeXT_ObjC;
+    static const EHPersonality GNU_CPlusPlus;
+    static const EHPersonality GNU_CPlusPlus_SJLJ;
+  };
+}
+
+const EHPersonality EHPersonality::GNU_C = { "__gcc_personality_v0", 0 };
+const EHPersonality EHPersonality::GNU_C_SJLJ = { "__gcc_personality_sj0", 0 };
+const EHPersonality EHPersonality::NeXT_ObjC = { "__objc_personality_v0", 0 };
+const EHPersonality EHPersonality::GNU_CPlusPlus = { "__gxx_personality_v0", 0};
+const EHPersonality
+EHPersonality::GNU_CPlusPlus_SJLJ = { "__gxx_personality_sj0", 0 };
+const EHPersonality
+EHPersonality::GNU_ObjC = {"__gnu_objc_personality_v0", "objc_exception_throw"};
+const EHPersonality
+EHPersonality::GNU_ObjCXX = { "__gnustep_objcxx_personality_v0", 0 };
 
 static const EHPersonality &getCPersonality(const LangOptions &L) {
   if (L.SjLjExceptions)
@@ -161,12 +180,18 @@ static const EHPersonality &getCPersonality(const LangOptions &L) {
 }
 
 static const EHPersonality &getObjCPersonality(const LangOptions &L) {
-  if (L.NeXTRuntime) {
-    if (L.ObjCNonFragileABI) return EHPersonality::NeXT_ObjC;
-    else return getCPersonality(L);
-  } else {
+  switch (L.ObjCRuntime.getKind()) {
+  case ObjCRuntime::FragileMacOSX:
+    return getCPersonality(L);
+  case ObjCRuntime::MacOSX:
+  case ObjCRuntime::iOS:
+    return EHPersonality::NeXT_ObjC;
+  case ObjCRuntime::GNUstep:
+  case ObjCRuntime::GCC:
+  case ObjCRuntime::ObjFW:
     return EHPersonality::GNU_ObjC;
   }
+  llvm_unreachable("bad runtime kind");
 }
 
 static const EHPersonality &getCXXPersonality(const LangOptions &L) {
@@ -179,22 +204,28 @@ static const EHPersonality &getCXXPersonality(const LangOptions &L) {
 /// Determines the personality function to use when both C++
 /// and Objective-C exceptions are being caught.
 static const EHPersonality &getObjCXXPersonality(const LangOptions &L) {
+  switch (L.ObjCRuntime.getKind()) {
   // The ObjC personality defers to the C++ personality for non-ObjC
   // handlers.  Unlike the C++ case, we use the same personality
   // function on targets using (backend-driven) SJLJ EH.
-  if (L.NeXTRuntime) {
-    if (L.ObjCNonFragileABI)
-      return EHPersonality::NeXT_ObjC;
+  case ObjCRuntime::MacOSX:
+  case ObjCRuntime::iOS:
+    return EHPersonality::NeXT_ObjC;
 
-    // In the fragile ABI, just use C++ exception handling and hope
-    // they're not doing crazy exception mixing.
-    else
-      return getCXXPersonality(L);
-  }
+  // In the fragile ABI, just use C++ exception handling and hope
+  // they're not doing crazy exception mixing.
+  case ObjCRuntime::FragileMacOSX:
+    return getCXXPersonality(L);
 
-  // The GNU runtime's personality function inherently doesn't support
+  // The GCC runtime's personality function inherently doesn't support
   // mixed EH.  Use the C++ personality just to avoid returning null.
-  return EHPersonality::GNU_ObjCXX;
+  case ObjCRuntime::GCC:
+  case ObjCRuntime::ObjFW: // XXX: this will change soon
+    return EHPersonality::GNU_ObjC;
+  case ObjCRuntime::GNUstep:
+    return EHPersonality::GNU_ObjCXX;
+  }
+  llvm_unreachable("bad runtime kind");
 }
 
 const EHPersonality &EHPersonality::get(const LangOptions &L) {
@@ -211,10 +242,8 @@ const EHPersonality &EHPersonality::get(const LangOptions &L) {
 static llvm::Constant *getPersonalityFn(CodeGenModule &CGM,
                                         const EHPersonality &Personality) {
   llvm::Constant *Fn =
-    CGM.CreateRuntimeFunction(llvm::FunctionType::get(
-                                llvm::Type::getInt32Ty(CGM.getLLVMContext()),
-                                true),
-                              Personality.getPersonalityFnName());
+    CGM.CreateRuntimeFunction(llvm::FunctionType::get(CGM.Int32Ty, true),
+                              Personality.PersonalityFn);
   return Fn;
 }
 
@@ -283,17 +312,18 @@ void CodeGenModule::SimplifyPersonality() {
     return;
 
   // If we're not in ObjC++ -fexceptions, there's nothing to do.
-  if (!Features.CPlusPlus || !Features.ObjC1 || !Features.Exceptions)
+  if (!LangOpts.CPlusPlus || !LangOpts.ObjC1 || !LangOpts.Exceptions)
     return;
 
-  const EHPersonality &ObjCXX = EHPersonality::get(Features);
-  const EHPersonality &CXX = getCXXPersonality(Features);
-  if (&ObjCXX == &CXX ||
-      ObjCXX.getPersonalityFnName() == CXX.getPersonalityFnName())
+  const EHPersonality &ObjCXX = EHPersonality::get(LangOpts);
+  const EHPersonality &CXX = getCXXPersonality(LangOpts);
+  if (&ObjCXX == &CXX)
     return;
 
-  llvm::Function *Fn =
-    getModule().getFunction(ObjCXX.getPersonalityFnName());
+  assert(std::strcmp(ObjCXX.PersonalityFn, CXX.PersonalityFn) != 0 &&
+         "Different EHPersonalities using the same personality function.");
+
+  llvm::Function *Fn = getModule().getFunction(ObjCXX.PersonalityFn);
 
   // Nothing to do if it's unused.
   if (!Fn || Fn->use_empty()) return;
@@ -359,7 +389,7 @@ static void EmitAnyExprToExn(CodeGenFunction &CGF, const Expr *e,
                        /*IsInit*/ true);
 
   // Deactivate the cleanup block.
-  CGF.DeactivateCleanupBlock(cleanup);
+  CGF.DeactivateCleanupBlock(cleanup, cast<llvm::Instruction>(typedAddr));
 }
 
 llvm::Value *CodeGenFunction::getExceptionSlot() {
@@ -452,7 +482,7 @@ void CodeGenFunction::EmitCXXThrowExpr(const CXXThrowExpr *E) {
 }
 
 void CodeGenFunction::EmitStartEHSpec(const Decl *D) {
-  if (!CGM.getLangOptions().CXXExceptions)
+  if (!CGM.getLangOpts().CXXExceptions)
     return;
   
   const FunctionDecl* FD = dyn_cast_or_null<FunctionDecl>(D);
@@ -520,7 +550,7 @@ static void emitFilterDispatchBlock(CodeGenFunction &CGF,
 }
 
 void CodeGenFunction::EmitEndEHSpec(const Decl *D) {
-  if (!CGM.getLangOptions().CXXExceptions)
+  if (!CGM.getLangOpts().CXXExceptions)
     return;
   
   const FunctionDecl* FD = dyn_cast_or_null<FunctionDecl>(D);
@@ -636,15 +666,14 @@ static bool isNonEHScope(const EHScope &S) {
     return false;
   }
 
-  // Suppress warning.
-  return false;
+  llvm_unreachable("Invalid EHScope Kind!");
 }
 
 llvm::BasicBlock *CodeGenFunction::getInvokeDestImpl() {
   assert(EHStack.requiresLandingPad());
   assert(!EHStack.empty());
 
-  if (!CGM.getLangOptions().Exceptions)
+  if (!CGM.getLangOpts().Exceptions)
     return 0;
 
   // Check the innermost scope for a cached landing pad.  If this is
@@ -734,7 +763,7 @@ llvm::BasicBlock *CodeGenFunction::EmitLandingPad() {
   // Save the current IR generation state.
   CGBuilderTy::InsertPoint savedIP = Builder.saveAndClearIP();
 
-  const EHPersonality &personality = EHPersonality::get(getLangOptions());
+  const EHPersonality &personality = EHPersonality::get(getLangOpts());
 
   // Create and configure the landing pad.
   llvm::BasicBlock *lpad = createBasicBlock("lpad");
@@ -984,8 +1013,23 @@ static void InitCatchParam(CodeGenFunction &CGF,
     if (CatchType->hasPointerRepresentation()) {
       llvm::Value *CastExn =
         CGF.Builder.CreateBitCast(AdjustedExn, LLVMCatchTy, "exn.casted");
-      CGF.Builder.CreateStore(CastExn, ParamAddr);
-      return;
+
+      switch (CatchType.getQualifiers().getObjCLifetime()) {
+      case Qualifiers::OCL_Strong:
+        CastExn = CGF.EmitARCRetainNonBlock(CastExn);
+        // fallthrough
+
+      case Qualifiers::OCL_None:
+      case Qualifiers::OCL_ExplicitNone:
+      case Qualifiers::OCL_Autoreleasing:
+        CGF.Builder.CreateStore(CastExn, ParamAddr);
+        return;
+
+      case Qualifiers::OCL_Weak:
+        CGF.EmitARCInitWeak(ParamAddr, CastExn);
+        return;
+      }
+      llvm_unreachable("bad ownership qualifier!");
     }
 
     // Otherwise, it returns a pointer into the exception object.
@@ -1039,10 +1083,12 @@ static void InitCatchParam(CodeGenFunction &CGF,
   CGF.EHStack.pushTerminate();
 
   // Perform the copy construction.
-  CGF.EmitAggExpr(copyExpr, AggValueSlot::forAddr(ParamAddr, Qualifiers(),
-                                                  AggValueSlot::IsNotDestructed,
-                                          AggValueSlot::DoesNotNeedGCBarriers,
-                                                  AggValueSlot::IsNotAliased));
+  CharUnits Alignment = CGF.getContext().getDeclAlign(&CatchParam);
+  CGF.EmitAggExpr(copyExpr,
+                  AggValueSlot::forAddr(ParamAddr, Alignment, Qualifiers(),
+                                        AggValueSlot::IsNotDestructed,
+                                        AggValueSlot::DoesNotNeedGCBarriers,
+                                        AggValueSlot::IsNotAliased));
 
   // Leave the terminate scope.
   CGF.EHStack.popTerminate();
@@ -1091,14 +1137,6 @@ static void BeginCatch(CodeGenFunction &CGF, const CXXCatchStmt *S) {
   CodeGenFunction::AutoVarEmission var = CGF.EmitAutoVarAlloca(*CatchParam);
   InitCatchParam(CGF, *CatchParam, var.getObjectAddress(CGF));
   CGF.EmitAutoVarCleanups(var);
-}
-
-namespace {
-  struct CallRethrow : EHScopeStack::Cleanup {
-    void Emit(CodeGenFunction &CGF, Flags flags) {
-      CGF.EmitCallOrInvoke(getReThrowFn(CGF));
-    }
-  };
 }
 
 /// Emit the structure of the dispatch block for the given catch scope.
@@ -1170,14 +1208,10 @@ static void emitCatchDispatchBlock(CodeGenFunction &CGF,
     if (nextIsEnd) {
       CGF.Builder.restoreIP(savedIP);
       return;
-
-    // Otherwise we need to emit and continue at that block.
-    } else {
-      CGF.EmitBlock(nextBlock);
     }
+    // Otherwise we need to emit and continue at that block.
+    CGF.EmitBlock(nextBlock);
   }
-
-  llvm_unreachable("fell out of loop!");
 }
 
 void CodeGenFunction::popCatchScope() {
@@ -1216,11 +1250,12 @@ void CodeGenFunction::ExitCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock) {
   if (HaveInsertPoint())
     Builder.CreateBr(ContBB);
 
-  // Determine if we need an implicit rethrow for all these catch handlers.
-  bool ImplicitRethrow = false;
+  // Determine if we need an implicit rethrow for all these catch handlers;
+  // see the comment below.
+  bool doImplicitRethrow = false;
   if (IsFnTryBlock)
-    ImplicitRethrow = isa<CXXDestructorDecl>(CurCodeDecl) ||
-                      isa<CXXConstructorDecl>(CurCodeDecl);
+    doImplicitRethrow = isa<CXXDestructorDecl>(CurCodeDecl) ||
+                        isa<CXXConstructorDecl>(CurCodeDecl);
 
   // Perversely, we emit the handlers backwards precisely because we
   // want them to appear in source order.  In all of these cases, the
@@ -1243,14 +1278,23 @@ void CodeGenFunction::ExitCXXTryStmt(const CXXTryStmt &S, bool IsFnTryBlock) {
     // Initialize the catch variable and set up the cleanups.
     BeginCatch(*this, C);
 
-    // If there's an implicit rethrow, push a normal "cleanup" to call
-    // _cxa_rethrow.  This needs to happen before __cxa_end_catch is
-    // called, and so it is pushed after BeginCatch.
-    if (ImplicitRethrow)
-      EHStack.pushCleanup<CallRethrow>(NormalCleanup);
-
     // Perform the body of the catch.
     EmitStmt(C->getHandlerBlock());
+
+    // [except.handle]p11:
+    //   The currently handled exception is rethrown if control
+    //   reaches the end of a handler of the function-try-block of a
+    //   constructor or destructor.
+
+    // It is important that we only do this on fallthrough and not on
+    // return.  Note that it's illegal to put a return in a
+    // constructor function-try-block's catch handler (p14), so this
+    // really only applies to destructors.
+    if (doImplicitRethrow && HaveInsertPoint()) {
+      EmitCallOrInvoke(getReThrowFn(*this));
+      Builder.CreateUnreachable();
+      Builder.ClearInsertionPoint();
+    }
 
     // Fall out through the catch cleanups.
     CatchScope.ForceCleanup();
@@ -1464,7 +1508,7 @@ llvm::BasicBlock *CodeGenFunction::getTerminateLandingPad() {
   Builder.SetInsertPoint(TerminateLandingPad);
 
   // Tell the backend that this is a landing pad.
-  const EHPersonality &Personality = EHPersonality::get(CGM.getLangOptions());
+  const EHPersonality &Personality = EHPersonality::get(CGM.getLangOpts());
   llvm::LandingPadInst *LPadInst =
     Builder.CreateLandingPad(llvm::StructType::get(Int8PtrTy, Int32Ty, NULL),
                              getOpaquePersonalityFn(CGM, Personality), 0);
@@ -1511,24 +1555,23 @@ llvm::BasicBlock *CodeGenFunction::getEHResumeBlock() {
   EHResumeBlock = createBasicBlock("eh.resume");
   Builder.SetInsertPoint(EHResumeBlock);
 
-  const EHPersonality &Personality = EHPersonality::get(CGM.getLangOptions());
+  const EHPersonality &Personality = EHPersonality::get(CGM.getLangOpts());
 
   // This can always be a call because we necessarily didn't find
   // anything on the EH stack which needs our help.
-  StringRef RethrowName = Personality.getCatchallRethrowFnName();
-  if (!RethrowName.empty()) {
+  const char *RethrowName = Personality.CatchallRethrowFn;
+  if (RethrowName != 0) {
     Builder.CreateCall(getCatchallRethrowFn(*this, RethrowName),
                        getExceptionFromSlot())
       ->setDoesNotReturn();
   } else {
-    llvm::Value *Exn = getExceptionFromSlot();
-
     switch (CleanupHackLevel) {
     case CHL_MandatoryCatchall:
       // In mandatory-catchall mode, we need to use
       // _Unwind_Resume_or_Rethrow, or whatever the personality's
       // equivalent is.
-      Builder.CreateCall(getUnwindResumeOrRethrowFn(), Exn)
+      Builder.CreateCall(getUnwindResumeOrRethrowFn(),
+                         getExceptionFromSlot())
         ->setDoesNotReturn();
       break;
     case CHL_MandatoryCleanup: {
@@ -1552,7 +1595,7 @@ llvm::BasicBlock *CodeGenFunction::getEHResumeBlock() {
       // In an idealized mode where we don't have to worry about the
       // optimizer combining landing pads, we should just use
       // _Unwind_Resume (or the personality's equivalent).
-      Builder.CreateCall(getUnwindResumeFn(), Exn)
+      Builder.CreateCall(getUnwindResumeFn(), getExceptionFromSlot())
         ->setDoesNotReturn();
       break;
     }

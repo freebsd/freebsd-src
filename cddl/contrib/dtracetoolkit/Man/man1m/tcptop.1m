@@ -1,0 +1,111 @@
+.TH tcptop 1m  "$Date:: 2007-10-04 #$" "USER COMMANDS"
+.SH NAME
+tcptop \- display top TCP network packets by process. Uses DTrace.
+.SH SYNOPSIS
+.B tcptop
+[-Ch] [-j|-Z] [interval [count]]
+.SH DESCRIPTION
+This analyses TCP network packets and prints the responsible PID and UID,
+plus standard details such as IP address and port. This captures traffic
+of newly created TCP connections that were established while this program
+was running. It can help identify which processes is causing TCP traffic.
+
+Since this uses DTrace, only the root user or users with the
+dtrace_kernel privilege can run this command.
+.SH OS
+Solaris 10 3/05
+.SH STABILITY
+unstable - this script uses fbt provider probes which may change for
+future updates of the OS, invalidating this script. Please read
+Docs/Notes/ALLfbt_notes.txt for further details about these fbt scripts.
+.SH OPTIONS
+.TP
+\-C
+don't clear the screen
+.TP
+\-j
+print project IDs
+.TP
+\-Z
+print zone IDs
+.TP
+interval
+sample seconds between refreshing the screen
+.TP
+count
+number of samples
+.PP
+.SH EXAMPLES
+.TP
+Print a report every 5 seconds,
+# 
+.B tcptop
+.TP
+Don't clear the screen, scrolling output,
+#
+.B tcptop
+\-C
+.TP
+Print project IDs,
+#
+.B tcptop
+\-j
+.TP
+Print zone IDs,
+#
+.B tcptop
+\-Z
+.PP
+.SH FIELDS
+.TP
+UID
+user ID
+.TP
+PID
+process ID
+.TP
+CMD
+command name
+.TP
+LADDR
+local IP address
+.TP
+RADDR
+remote IP address
+.TP
+LPORT
+local port number
+.TP
+RPORT
+remote port number
+.TP
+SIZE
+packet size, bytes
+.TP
+load
+1 minute load average
+.TP
+TCPin
+total TCP inbound payload data
+.TP
+TCPout
+total TCP outbound payload data
+.TP
+ZONE
+zone ID
+.TP
+PROJ
+project ID
+.PP
+.SH DOCUMENTATION
+See the DTraceToolkit for further documentation under the 
+Docs directory. The DTraceToolkit docs may include full worked
+examples with verbose descriptions explaining the output.
+.SH EXIT
+tcptop will print reports until Ctrl\-C is hit, or the specified
+count is reached.
+.SH AUTHOR
+Brendan Gregg
+[Sydney, Australia]
+.SH SEE ALSO
+tcpsnoop(1M), dtrace(1M)

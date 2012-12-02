@@ -115,7 +115,7 @@ routines will signal an error if a GElf value is out of range
 for the underlying ELF data type.
 .Ss Namespace use
 The GElf interface uses the following symbols:
-.Bl -tag
+.Bl -tag -width 8n
 .It GElf_*
 Class-independent data types.
 .It gelf_*
@@ -125,16 +125,16 @@ For functions defined in the API set.
 This section provides an overview of the GElf programming APIs.
 Further information is provided in the manual page of each function
 listed here.
-.Bl -tag
+.Bl -tag -width 2n
 .It "Allocating ELF Data Structures"
-.Bl -tag -compact
+.Bl -tag -width 19n -compact
 .It Fn gelf_newehdr
 Allocate a new ELF Executable Header.
 .It Fn gelf_newphdr
 Allocate a new ELF Program Header Table.
 .El
 .It "Data Translation"
-.Bl -tag -compact
+.Bl -tag -width 19n -compact
 .It Fn gelf_xlatetof
 Translate the native representation of an ELF data structure to its
 file representation.
@@ -143,7 +143,7 @@ Translate from the file representation of an ELF data structure to a
 native representation.
 .El
 .It "Retrieving ELF Data"
-.Bl -tag -compact
+.Bl -tag -width 19n -compact
 .It Fn gelf_getdyn
 Retrieve an ELF
 .Sy .dynamic
@@ -162,7 +162,7 @@ Retrieve an ELF Section Header Table entry from the underlying ELF descriptor.
 Retrieve an ELF symbol table entry.
 .El
 .It Queries
-.Bl -tag -compact
+.Bl -tag -width 19n -compact
 .It Fn gelf_checksum
 Retrieves the ELF checksum for an ELF descriptor.
 .It Fn gelf_fsize
@@ -171,7 +171,7 @@ Retrieves the size of the file representation of an ELF type.
 Retrieves the ELF class of an ELF descriptor.
 .El
 .It "Updating ELF Data"
-.Bl -tag -compact -width ".Fn gelf_update_shdr"
+.Bl -tag -width 19n -compact
 .It Fn gelf_update_dyn
 Copy back an ELF
 .Sy .dynamic

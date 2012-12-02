@@ -11,17 +11,17 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm/CodeGen/IntrinsicLowering.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
+#include "llvm/IRBuilder.h"
 #include "llvm/Module.h"
 #include "llvm/Type.h"
-#include "llvm/CodeGen/IntrinsicLowering.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/CallSite.h"
 #include "llvm/Support/ErrorHandling.h"
-#include "llvm/Support/IRBuilder.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Target/TargetData.h"
-#include "llvm/ADT/SmallVector.h"
 using namespace llvm;
 
 template <class ArgIt>
@@ -447,11 +447,6 @@ void IntrinsicLowering::LowerIntrinsicCall(CallInst *CI) {
 
   case Intrinsic::dbg_declare:
     break;    // Simply strip out debugging intrinsics
-
-  case Intrinsic::eh_exception:
-  case Intrinsic::eh_selector:
-    CI->replaceAllUsesWith(Constant::getNullValue(CI->getType()));
-    break;
 
   case Intrinsic::eh_typeid_for:
     // Return something different to eh_selector.

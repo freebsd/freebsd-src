@@ -39,9 +39,6 @@ namespace {
     CodePlacementOpt() : MachineFunctionPass(ID) {}
 
     virtual bool runOnMachineFunction(MachineFunction &MF);
-    virtual const char *getPassName() const {
-      return "Code Placement Optimizer";
-    }
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const {
       AU.addRequired<MachineLoopInfo>();
@@ -69,9 +66,9 @@ namespace {
   char CodePlacementOpt::ID = 0;
 } // end anonymous namespace
 
-FunctionPass *llvm::createCodePlacementOptPass() {
-  return new CodePlacementOpt();
-}
+char &llvm::CodePlacementOptID = CodePlacementOpt::ID;
+INITIALIZE_PASS(CodePlacementOpt, "code-placement",
+                "Code Placement Optimizer", false, false)
 
 /// HasFallthrough - Test whether the given branch has a fallthrough, either as
 /// a plain fallthrough or as a fallthrough case of a conditional branch.
@@ -204,7 +201,7 @@ bool CodePlacementOpt::EliminateUnconditionalJumpsToTop(MachineFunction &MF,
           // fallthrough edge.
           if (!Prior->isSuccessor(End))
             goto next_pred;
-          // Otherwise we can stop scanning and procede to move the blocks.
+          // Otherwise we can stop scanning and proceed to move the blocks.
           break;
         }
         // If we hit a switch or something complicated, don't move anything

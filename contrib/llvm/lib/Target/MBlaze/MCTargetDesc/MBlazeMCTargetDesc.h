@@ -14,24 +14,31 @@
 #ifndef MBLAZEMCTARGETDESC_H
 #define MBLAZEMCTARGETDESC_H
 
+#include "llvm/Support/DataTypes.h"
+
 namespace llvm {
 class MCAsmBackend;
 class MCContext;
 class MCCodeEmitter;
 class MCInstrInfo;
+class MCObjectWriter;
+class MCRegisterInfo;
 class MCSubtargetInfo;
 class Target;
 class StringRef;
-class formatted_raw_ostream;
+class raw_ostream;
 
 extern Target TheMBlazeTarget;
 
 MCCodeEmitter *createMBlazeMCCodeEmitter(const MCInstrInfo &MCII,
+                                         const MCRegisterInfo &MRI,
                                          const MCSubtargetInfo &STI,
                                          MCContext &Ctx);
-  
-MCAsmBackend *createMBlazeAsmBackend(const Target &T, StringRef TT);
 
+MCAsmBackend *createMBlazeAsmBackend(const Target &T, StringRef TT,
+                                     StringRef CPU);
+
+MCObjectWriter *createMBlazeELFObjectWriter(raw_ostream &OS, uint8_t OSABI);
 } // End llvm namespace
 
 // Defines symbolic names for MBlaze registers.  This defines a mapping from

@@ -177,6 +177,18 @@ server_read(int s, short ev, void *arg)
 		return;
 	}
 
+	len = sizeof(n);
+	if (getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &n, &len) == -1) {
+		log_err("Could not read SO_RCVBUF");
+		close(fd);
+		return;
+	}
+	if (n < (mru * 10)) {
+		n = mru * 10;
+		if (setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &n, sizeof(n)) == -1)
+			log_info("Could not increase SO_RCVBUF (from %d)", n);
+	}
+
 	len = sizeof(mtu);
 	if (getsockopt(fd, SOL_L2CAP, SO_L2CAP_OMTU, &mtu, &len) == -1) {
 		log_err("Could not get L2CAP OMTU: %m");

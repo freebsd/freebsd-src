@@ -227,7 +227,7 @@ reiserfs_unmount(struct mount *mp, int mntflags)
 
 	DROP_GIANT();
 	g_topology_lock();
-	g_wither_geom_close(rmp->rm_cp->geom, ENXIO);
+	g_vfs_close(rmp->rm_cp);
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(rmp->rm_devvp);
@@ -580,7 +580,6 @@ reiserfs_mountfs(struct vnode *devvp, struct mount *mp, struct thread *td)
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_MPSAFE;
 	MNT_IUNLOCK(mp);
 #if defined(si_mountpoint)
 	devvp->v_rdev->si_mountpoint = mp;
@@ -611,7 +610,7 @@ out:
 	if (cp != NULL) {
 		DROP_GIANT();
 		g_topology_lock();
-		g_wither_geom_close(cp->geom, ENXIO);
+		g_vfs_close(cp);
 		g_topology_unlock();
 		PICKUP_GIANT();
 	}

@@ -3095,7 +3095,7 @@ typedef struct vxge_hal_device_pmd_info_t {
  * @mac_addr_masks: Mac address masks for each vpath
  *
  * Returns the vpath mask that has the bits set for each vpath allocated
- * for the driver and teh first mac addresse for each vpath
+ * for the driver and the first mac addresse for each vpath
  */
 typedef struct vxge_hal_device_hw_info_t {
 	u32			 host_type;

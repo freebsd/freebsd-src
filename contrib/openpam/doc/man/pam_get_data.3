@@ -34,7 +34,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd December 18, 2011
+.Dd May 26, 2012
 .Dt PAM_GET_DATA 3
 .Os
 .Sh NAME
@@ -49,7 +49,7 @@
 .Fn pam_get_data "const pam_handle_t *pamh" "const char *module_data_name" "const void **data"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn pam_get_data
 function looks up the opaque object associated with
 the string specified by the
 .Fa module_data_name
@@ -61,7 +61,7 @@ A pointer to the object is stored in the location pointed to by the
 .Fa data
 argument.
 If
-.Nm
+.Fn pam_get_data
 fails, the
 .Fa data
 argument is untouched.
@@ -72,7 +72,7 @@ are useful for managing
 data that are meaningful only to a particular service module.
 .Sh RETURN VALUES
 The
-.Nm
+.Fn pam_get_data
 function returns one of the following values:
 .Bl -tag -width 18n
 .It Bq Er PAM_NO_MODULE_DATA
@@ -91,11 +91,11 @@ System error.
 .Re
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were developed for the
+.Fn pam_get_data
+function and this manual page were
+developed for the
 .Fx
-Project by
-ThinkSec AS and Network Associates Laboratories, the
+Project by ThinkSec AS and Network Associates Laboratories, the
 Security Research Division of Network Associates, Inc.\& under
 DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,

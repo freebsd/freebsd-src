@@ -307,7 +307,6 @@ dead_strategy(struct bio *bp)
 
 static struct cdevsw dead_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT, /* XXX: does dead_strategy need this ? */
 	.d_open =	dead_open,
 	.d_close =	dead_close,
 	.d_read =	dead_read,
@@ -993,9 +992,10 @@ make_dev_physpath_alias(int flags, struct cdev **cdev, struct cdev *pdev,
 	max_parentpath_len = SPECNAMELEN - physpath_len - /*/*/1;
 	parentpath_len = strlen(pdev->si_name);
 	if (max_parentpath_len < parentpath_len) {
-		printf("make_dev_physpath_alias: WARNING - Unable to alias %s "
-		    "to %s/%s - path too long\n",
-		    pdev->si_name, physpath, pdev->si_name);
+		if (bootverbose)
+			printf("WARNING: Unable to alias %s "
+			    "to %s/%s - path too long\n",
+			    pdev->si_name, physpath, pdev->si_name);
 		ret = ENAMETOOLONG;
 		goto out;
 	}
@@ -1431,10 +1431,7 @@ DB_SHOW_COMMAND(cdev, db_show_cdev)
 	SI_FLAG(SI_NAMED);
 	SI_FLAG(SI_CHEAPCLONE);
 	SI_FLAG(SI_CHILD);
-	SI_FLAG(SI_DEVOPEN);
-	SI_FLAG(SI_CONSOPEN);
 	SI_FLAG(SI_DUMPDEV);
-	SI_FLAG(SI_CANDELETE);
 	SI_FLAG(SI_CLONELIST);
 	db_printf("si_flags %s\n", buf);
 

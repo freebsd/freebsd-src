@@ -100,9 +100,12 @@ void PragmaNamespace::HandlePragma(Preprocessor &PP,
 // Preprocessor Pragma Directive Handling.
 //===----------------------------------------------------------------------===//
 
-/// HandlePragmaDirective - The "#pragma" directive has been parsed.  Lex the
+/// HandlePragmaDirective - The "\#pragma" directive has been parsed.  Lex the
 /// rest of the pragma, passing it to the registered pragma handlers.
 void Preprocessor::HandlePragmaDirective(unsigned Introducer) {
+  if (!PragmasEnabled)
+    return;
+
   ++NumPragma;
 
   // Invoke the first level of pragma handlers which reads the namespace id.
@@ -115,10 +118,61 @@ void Preprocessor::HandlePragmaDirective(unsigned Introducer) {
     DiscardUntilEndOfDirective();
 }
 
+namespace {
+/// \brief Helper class for \see Preprocessor::Handle_Pragma.
+class LexingFor_PragmaRAII {
+  Preprocessor &PP;
+  bool InMacroArgPreExpansion;
+  bool Failed;
+  Token &OutTok;
+  Token PragmaTok;
+
+public:
+  LexingFor_PragmaRAII(Preprocessor &PP, bool InMacroArgPreExpansion,
+                       Token &Tok)
+    : PP(PP), InMacroArgPreExpansion(InMacroArgPreExpansion),
+      Failed(false), OutTok(Tok) {
+    if (InMacroArgPreExpansion) {
+      PragmaTok = OutTok;
+      PP.EnableBacktrackAtThisPos();
+    }
+  }
+
+  ~LexingFor_PragmaRAII() {
+    if (InMacroArgPreExpansion) {
+      if (Failed) {
+        PP.CommitBacktrackedTokens();
+      } else {
+        PP.Backtrack();
+        OutTok = PragmaTok;
+      }
+    }
+  }
+
+  void failed() {
+    Failed = true;
+  }
+};
+}
+
 /// Handle_Pragma - Read a _Pragma directive, slice it up, process it, then
 /// return the first token after the directive.  The _Pragma token has just
 /// been read into 'Tok'.
 void Preprocessor::Handle_Pragma(Token &Tok) {
+
+  // This works differently if we are pre-expanding a macro argument.
+  // In that case we don't actually "activate" the pragma now, we only lex it
+  // until we are sure it is lexically correct and then we backtrack so that
+  // we activate the pragma whenever we encounter the tokens again in the token
+  // stream. This ensures that we will activate it in the correct location
+  // or that we will ignore it if it never enters the token stream, e.g:
+  //
+  //     #define EMPTY(x)
+  //     #define INACTIVE(x) EMPTY(x)
+  //     INACTIVE(_Pragma("clang diagnostic ignored \"-Wconversion\""))
+
+  LexingFor_PragmaRAII _PragmaLexing(*this, InMacroArgPreExpansion, Tok);
+
   // Remember the pragma token location.
   SourceLocation PragmaLoc = Tok.getLocation();
 
@@ -126,27 +180,45 @@ void Preprocessor::Handle_Pragma(Token &Tok) {
   Lex(Tok);
   if (Tok.isNot(tok::l_paren)) {
     Diag(PragmaLoc, diag::err__Pragma_malformed);
-    return;
+    return _PragmaLexing.failed();
   }
 
   // Read the '"..."'.
   Lex(Tok);
   if (Tok.isNot(tok::string_literal) && Tok.isNot(tok::wide_string_literal)) {
     Diag(PragmaLoc, diag::err__Pragma_malformed);
-    return;
+    // Skip this token, and the ')', if present.
+    if (Tok.isNot(tok::r_paren))
+      Lex(Tok);
+    if (Tok.is(tok::r_paren))
+      Lex(Tok);
+    return _PragmaLexing.failed();
+  }
+
+  if (Tok.hasUDSuffix()) {
+    Diag(Tok, diag::err_invalid_string_udl);
+    // Skip this token, and the ')', if present.
+    Lex(Tok);
+    if (Tok.is(tok::r_paren))
+      Lex(Tok);
+    return _PragmaLexing.failed();
   }
 
   // Remember the string.
-  std::string StrVal = getSpelling(Tok);
+  Token StrTok = Tok;
 
   // Read the ')'.
   Lex(Tok);
   if (Tok.isNot(tok::r_paren)) {
     Diag(PragmaLoc, diag::err__Pragma_malformed);
-    return;
+    return _PragmaLexing.failed();
   }
 
+  if (InMacroArgPreExpansion)
+    return;
+
   SourceLocation RParenLoc = Tok.getLocation();
+  std::string StrVal = getSpelling(StrTok);
 
   // The _Pragma is lexically sound.  Destringize according to C99 6.10.9.1:
   // "The string literal is destringized by deleting the L prefix, if present,
@@ -245,7 +317,7 @@ void Preprocessor::HandleMicrosoft__pragma(Token &Tok) {
   return Lex(Tok);
 }
 
-/// HandlePragmaOnce - Handle #pragma once.  OnceTok is the 'once'.
+/// HandlePragmaOnce - Handle \#pragma once.  OnceTok is the 'once'.
 ///
 void Preprocessor::HandlePragmaOnce(Token &OnceTok) {
   if (isInPrimaryFile()) {
@@ -267,7 +339,7 @@ void Preprocessor::HandlePragmaMark() {
 }
 
 
-/// HandlePragmaPoison - Handle #pragma GCC poison.  PoisonTok is the 'poison'.
+/// HandlePragmaPoison - Handle \#pragma GCC poison.  PoisonTok is the 'poison'.
 ///
 void Preprocessor::HandlePragmaPoison(Token &PoisonTok) {
   Token Tok;
@@ -304,10 +376,12 @@ void Preprocessor::HandlePragmaPoison(Token &PoisonTok) {
 
     // Finally, poison it!
     II->setIsPoisoned();
+    if (II->isFromAST())
+      II->setChangedSinceDeserialization();
   }
 }
 
-/// HandlePragmaSystemHeader - Implement #pragma GCC system_header.  We know
+/// HandlePragmaSystemHeader - Implement \#pragma GCC system_header.  We know
 /// that the whole directive has been parsed.
 void Preprocessor::HandlePragmaSystemHeader(Token &SysHeaderTok) {
   if (isInPrimaryFile()) {
@@ -340,7 +414,7 @@ void Preprocessor::HandlePragmaSystemHeader(Token &SysHeaderTok) {
                         false, false, true, false);
 }
 
-/// HandlePragmaDependency - Handle #pragma GCC dependency "foo" blah.
+/// HandlePragmaDependency - Handle \#pragma GCC dependency "foo" blah.
 ///
 void Preprocessor::HandlePragmaDependency(Token &DependencyTok) {
   Token FilenameTok;
@@ -351,7 +425,7 @@ void Preprocessor::HandlePragmaDependency(Token &DependencyTok) {
     return;
 
   // Reserve a buffer to get the spelling.
-  llvm::SmallString<128> FilenameBuffer;
+  SmallString<128> FilenameBuffer;
   bool Invalid = false;
   StringRef Filename = getSpelling(FilenameTok, FilenameBuffer, &Invalid);
   if (Invalid)
@@ -393,9 +467,12 @@ void Preprocessor::HandlePragmaDependency(Token &DependencyTok) {
   }
 }
 
-/// HandlePragmaComment - Handle the microsoft #pragma comment extension.  The
-/// syntax is:
-///   #pragma comment(linker, "foo")
+/// \brief Handle the microsoft \#pragma comment extension.
+///
+/// The syntax is:
+/// \code
+///   \#pragma comment(linker, "foo")
+/// \endcode
 /// 'linker' is one of five identifiers: compiler, exestr, lib, linker, user.
 /// "foo" is a string, which is fully macro expanded, and permits string
 /// concatenation, embedded escape characters etc.  See MSDN for more details.
@@ -440,6 +517,8 @@ void Preprocessor::HandlePragmaComment(Token &Tok) {
     // "foo " "bar" "Baz"
     SmallVector<Token, 4> StrToks;
     while (Tok.is(tok::string_literal)) {
+      if (Tok.hasUDSuffix())
+        Diag(Tok, diag::err_invalid_string_udl);
       StrToks.push_back(Tok);
       Lex(Tok);
     }
@@ -479,11 +558,15 @@ void Preprocessor::HandlePragmaComment(Token &Tok) {
     Callbacks->PragmaComment(CommentLoc, II, ArgumentString);
 }
 
-/// HandlePragmaMessage - Handle the microsoft and gcc #pragma message
+/// HandlePragmaMessage - Handle the microsoft and gcc \#pragma message
 /// extension.  The syntax is:
-///   #pragma message(string)
+/// \code
+///   \#pragma message(string)
+/// \endcode
 /// OR, in GCC mode:
-///   #pragma message string
+/// \code
+///   \#pragma message string
+/// \endcode
 /// string is a string, which is fully macro expanded, and permits string
 /// concatenation, embedded escape characters, etc... See MSDN for more details.
 void Preprocessor::HandlePragmaMessage(Token &Tok) {
@@ -516,6 +599,8 @@ void Preprocessor::HandlePragmaMessage(Token &Tok) {
   // "foo " "bar" "Baz"
   SmallVector<Token, 4> StrToks;
   while (Tok.is(tok::string_literal)) {
+    if (Tok.hasUDSuffix())
+      Diag(Tok, diag::err_invalid_string_udl);
     StrToks.push_back(Tok);
     Lex(Tok);
   }
@@ -575,6 +660,11 @@ IdentifierInfo *Preprocessor::ParsePragmaPushOrPopMacro(Token &Tok) {
     return 0;
   }
 
+  if (Tok.hasUDSuffix()) {
+    Diag(Tok, diag::err_invalid_string_udl);
+    return 0;
+  }
+
   // Remember the macro string.
   std::string StrVal = getSpelling(Tok);
 
@@ -599,9 +689,12 @@ IdentifierInfo *Preprocessor::ParsePragmaPushOrPopMacro(Token &Tok) {
   return LookUpIdentifierInfo(MacroTok);
 }
 
-/// HandlePragmaPushMacro - Handle #pragma push_macro.  
+/// \brief Handle \#pragma push_macro.
+///
 /// The syntax is:
-///   #pragma push_macro("macro")
+/// \code
+///   \#pragma push_macro("macro")
+/// \endcode
 void Preprocessor::HandlePragmaPushMacro(Token &PushMacroTok) {
   // Parse the pragma directive and get the macro IdentifierInfo*.
   IdentifierInfo *IdentInfo = ParsePragmaPushOrPopMacro(PushMacroTok);
@@ -623,9 +716,12 @@ void Preprocessor::HandlePragmaPushMacro(Token &PushMacroTok) {
   PragmaPushMacroInfo[IdentInfo].push_back(MacroCopyToPush);
 }
 
-/// HandlePragmaPopMacro - Handle #pragma pop_macro.  
+/// \brief Handle \#pragma pop_macro.
+///
 /// The syntax is:
+/// \code
 ///   #pragma pop_macro("macro")
+/// \endcode
 void Preprocessor::HandlePragmaPopMacro(Token &PopMacroTok) {
   SourceLocation MessageLoc = PopMacroTok.getLocation();
 
@@ -659,6 +755,111 @@ void Preprocessor::HandlePragmaPopMacro(Token &PopMacroTok) {
     Diag(MessageLoc, diag::warn_pragma_pop_macro_no_push)
       << IdentInfo->getName();
   }
+}
+
+void Preprocessor::HandlePragmaIncludeAlias(Token &Tok) {
+  // We will either get a quoted filename or a bracketed filename, and we 
+  // have to track which we got.  The first filename is the source name,
+  // and the second name is the mapped filename.  If the first is quoted,
+  // the second must be as well (cannot mix and match quotes and brackets).
+
+  // Get the open paren
+  Lex(Tok);
+  if (Tok.isNot(tok::l_paren)) {
+    Diag(Tok, diag::warn_pragma_include_alias_expected) << "(";
+    return;
+  }
+
+  // We expect either a quoted string literal, or a bracketed name
+  Token SourceFilenameTok;
+  CurPPLexer->LexIncludeFilename(SourceFilenameTok);
+  if (SourceFilenameTok.is(tok::eod)) {
+    // The diagnostic has already been handled
+    return;
+  }
+
+  StringRef SourceFileName;
+  SmallString<128> FileNameBuffer;
+  if (SourceFilenameTok.is(tok::string_literal) || 
+      SourceFilenameTok.is(tok::angle_string_literal)) {
+    SourceFileName = getSpelling(SourceFilenameTok, FileNameBuffer);
+  } else if (SourceFilenameTok.is(tok::less)) {
+    // This could be a path instead of just a name
+    FileNameBuffer.push_back('<');
+    SourceLocation End;
+    if (ConcatenateIncludeName(FileNameBuffer, End))
+      return; // Diagnostic already emitted
+    SourceFileName = FileNameBuffer.str();
+  } else {
+    Diag(Tok, diag::warn_pragma_include_alias_expected_filename);
+    return;
+  }
+  FileNameBuffer.clear();
+
+  // Now we expect a comma, followed by another include name
+  Lex(Tok);
+  if (Tok.isNot(tok::comma)) {
+    Diag(Tok, diag::warn_pragma_include_alias_expected) << ",";
+    return;
+  }
+
+  Token ReplaceFilenameTok;
+  CurPPLexer->LexIncludeFilename(ReplaceFilenameTok);
+  if (ReplaceFilenameTok.is(tok::eod)) {
+    // The diagnostic has already been handled
+    return;
+  }
+
+  StringRef ReplaceFileName;
+  if (ReplaceFilenameTok.is(tok::string_literal) || 
+      ReplaceFilenameTok.is(tok::angle_string_literal)) {
+    ReplaceFileName = getSpelling(ReplaceFilenameTok, FileNameBuffer);
+  } else if (ReplaceFilenameTok.is(tok::less)) {
+    // This could be a path instead of just a name
+    FileNameBuffer.push_back('<');
+    SourceLocation End;
+    if (ConcatenateIncludeName(FileNameBuffer, End))
+      return; // Diagnostic already emitted
+    ReplaceFileName = FileNameBuffer.str();
+  } else {
+    Diag(Tok, diag::warn_pragma_include_alias_expected_filename);
+    return;
+  }
+
+  // Finally, we expect the closing paren
+  Lex(Tok);
+  if (Tok.isNot(tok::r_paren)) {
+    Diag(Tok, diag::warn_pragma_include_alias_expected) << ")";
+    return;
+  }
+
+  // Now that we have the source and target filenames, we need to make sure
+  // they're both of the same type (angled vs non-angled)
+  StringRef OriginalSource = SourceFileName;
+
+  bool SourceIsAngled = 
+    GetIncludeFilenameSpelling(SourceFilenameTok.getLocation(), 
+                                SourceFileName);
+  bool ReplaceIsAngled =
+    GetIncludeFilenameSpelling(ReplaceFilenameTok.getLocation(),
+                                ReplaceFileName);
+  if (!SourceFileName.empty() && !ReplaceFileName.empty() &&
+      (SourceIsAngled != ReplaceIsAngled)) {
+    unsigned int DiagID;
+    if (SourceIsAngled)
+      DiagID = diag::warn_pragma_include_alias_mismatch_angle;
+    else
+      DiagID = diag::warn_pragma_include_alias_mismatch_quote;
+
+    Diag(SourceFilenameTok.getLocation(), DiagID)
+      << SourceFileName 
+      << ReplaceFileName;
+
+    return;
+  }
+
+  // Now we can let the include handler know about this mapping
+  getHeaderSearchInfo().AddIncludeAlias(OriginalSource, ReplaceFileName);
 }
 
 /// AddPragmaHandler - Add the specified pragma handler to the preprocessor.
@@ -712,8 +913,10 @@ void Preprocessor::RemovePragmaHandler(StringRef Namespace,
 
   // If this is a non-default namespace and it is now empty, remove
   // it.
-  if (NS != PragmaHandlers && NS->IsEmpty())
+  if (NS != PragmaHandlers && NS->IsEmpty()) {
     PragmaHandlers->RemovePragmaHandler(NS);
+    delete NS;
+  }
 }
 
 bool Preprocessor::LexOnOffSwitch(tok::OnOffSwitch &Result) {
@@ -744,7 +947,7 @@ bool Preprocessor::LexOnOffSwitch(tok::OnOffSwitch &Result) {
 }
 
 namespace {
-/// PragmaOnceHandler - "#pragma once" marks the file as atomically included.
+/// PragmaOnceHandler - "\#pragma once" marks the file as atomically included.
 struct PragmaOnceHandler : public PragmaHandler {
   PragmaOnceHandler() : PragmaHandler("once") {}
   virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
@@ -754,7 +957,7 @@ struct PragmaOnceHandler : public PragmaHandler {
   }
 };
 
-/// PragmaMarkHandler - "#pragma mark ..." is ignored by the compiler, and the
+/// PragmaMarkHandler - "\#pragma mark ..." is ignored by the compiler, and the
 /// rest of the line is not lexed.
 struct PragmaMarkHandler : public PragmaHandler {
   PragmaMarkHandler() : PragmaHandler("mark") {}
@@ -764,7 +967,7 @@ struct PragmaMarkHandler : public PragmaHandler {
   }
 };
 
-/// PragmaPoisonHandler - "#pragma poison x" marks x as not usable.
+/// PragmaPoisonHandler - "\#pragma poison x" marks x as not usable.
 struct PragmaPoisonHandler : public PragmaHandler {
   PragmaPoisonHandler() : PragmaHandler("poison") {}
   virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
@@ -773,7 +976,7 @@ struct PragmaPoisonHandler : public PragmaHandler {
   }
 };
 
-/// PragmaSystemHeaderHandler - "#pragma system_header" marks the current file
+/// PragmaSystemHeaderHandler - "\#pragma system_header" marks the current file
 /// as a system header, which silences warnings in it.
 struct PragmaSystemHeaderHandler : public PragmaHandler {
   PragmaSystemHeaderHandler() : PragmaHandler("system_header") {}
@@ -807,6 +1010,10 @@ struct PragmaDebugHandler : public PragmaHandler {
       llvm_unreachable("This is an assertion!");
     } else if (II->isStr("crash")) {
       *(volatile int*) 0x11 = 0;
+    } else if (II->isStr("parser_crash")) {
+      Token Crasher;
+      Crasher.setKind(tok::annot_pragma_parser_crash);
+      PP.EnterToken(Crasher);
     } else if (II->isStr("llvm_fatal_error")) {
       llvm::report_fatal_error("#pragma clang __debug llvm_fatal_error");
     } else if (II->isStr("llvm_unreachable")) {
@@ -836,7 +1043,7 @@ struct PragmaDebugHandler : public PragmaHandler {
 
 };
 
-/// PragmaDiagnosticHandler - e.g. '#pragma GCC diagnostic ignored "-Wformat"'
+/// PragmaDiagnosticHandler - e.g. '\#pragma GCC diagnostic ignored "-Wformat"'
 struct PragmaDiagnosticHandler : public PragmaHandler {
 private:
   const char *Namespace;
@@ -930,7 +1137,7 @@ public:
   }
 };
 
-/// PragmaCommentHandler - "#pragma comment ...".
+/// PragmaCommentHandler - "\#pragma comment ...".
 struct PragmaCommentHandler : public PragmaHandler {
   PragmaCommentHandler() : PragmaHandler("comment") {}
   virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
@@ -939,7 +1146,16 @@ struct PragmaCommentHandler : public PragmaHandler {
   }
 };
 
-/// PragmaMessageHandler - "#pragma message("...")".
+/// PragmaIncludeAliasHandler - "\#pragma include_alias("...")".
+struct PragmaIncludeAliasHandler : public PragmaHandler {
+  PragmaIncludeAliasHandler() : PragmaHandler("include_alias") {}
+  virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
+                            Token &IncludeAliasTok) {
+      PP.HandlePragmaIncludeAlias(IncludeAliasTok);
+  }
+};
+
+/// PragmaMessageHandler - "\#pragma message("...")".
 struct PragmaMessageHandler : public PragmaHandler {
   PragmaMessageHandler() : PragmaHandler("message") {}
   virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
@@ -948,7 +1164,7 @@ struct PragmaMessageHandler : public PragmaHandler {
   }
 };
 
-/// PragmaPushMacroHandler - "#pragma push_macro" saves the value of the
+/// PragmaPushMacroHandler - "\#pragma push_macro" saves the value of the
 /// macro on the top of the stack.
 struct PragmaPushMacroHandler : public PragmaHandler {
   PragmaPushMacroHandler() : PragmaHandler("push_macro") {}
@@ -959,7 +1175,7 @@ struct PragmaPushMacroHandler : public PragmaHandler {
 };
 
 
-/// PragmaPopMacroHandler - "#pragma pop_macro" sets the value of the
+/// PragmaPopMacroHandler - "\#pragma pop_macro" sets the value of the
 /// macro to the value on the top of the stack.
 struct PragmaPopMacroHandler : public PragmaHandler {
   PragmaPopMacroHandler() : PragmaHandler("pop_macro") {}
@@ -971,7 +1187,7 @@ struct PragmaPopMacroHandler : public PragmaHandler {
 
 // Pragma STDC implementations.
 
-/// PragmaSTDC_FENV_ACCESSHandler - "#pragma STDC FENV_ACCESS ...".
+/// PragmaSTDC_FENV_ACCESSHandler - "\#pragma STDC FENV_ACCESS ...".
 struct PragmaSTDC_FENV_ACCESSHandler : public PragmaHandler {
   PragmaSTDC_FENV_ACCESSHandler() : PragmaHandler("FENV_ACCESS") {}
   virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
@@ -984,7 +1200,7 @@ struct PragmaSTDC_FENV_ACCESSHandler : public PragmaHandler {
   }
 };
 
-/// PragmaSTDC_CX_LIMITED_RANGEHandler - "#pragma STDC CX_LIMITED_RANGE ...".
+/// PragmaSTDC_CX_LIMITED_RANGEHandler - "\#pragma STDC CX_LIMITED_RANGE ...".
 struct PragmaSTDC_CX_LIMITED_RANGEHandler : public PragmaHandler {
   PragmaSTDC_CX_LIMITED_RANGEHandler()
     : PragmaHandler("CX_LIMITED_RANGE") {}
@@ -995,7 +1211,7 @@ struct PragmaSTDC_CX_LIMITED_RANGEHandler : public PragmaHandler {
   }
 };
 
-/// PragmaSTDC_UnknownHandler - "#pragma STDC ...".
+/// PragmaSTDC_UnknownHandler - "\#pragma STDC ...".
 struct PragmaSTDC_UnknownHandler : public PragmaHandler {
   PragmaSTDC_UnknownHandler() {}
   virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
@@ -1006,7 +1222,7 @@ struct PragmaSTDC_UnknownHandler : public PragmaHandler {
 };
 
 /// PragmaARCCFCodeAuditedHandler - 
-///   #pragma clang arc_cf_code_audited begin/end
+///   \#pragma clang arc_cf_code_audited begin/end
 struct PragmaARCCFCodeAuditedHandler : public PragmaHandler {
   PragmaARCCFCodeAuditedHandler() : PragmaHandler("arc_cf_code_audited") {}
   virtual void HandlePragma(Preprocessor &PP, PragmaIntroducerKind Introducer,
@@ -1063,7 +1279,7 @@ struct PragmaARCCFCodeAuditedHandler : public PragmaHandler {
 
 
 /// RegisterBuiltinPragmas - Install the standard preprocessor pragmas:
-/// #pragma GCC poison/system_header/dependency and #pragma once.
+/// \#pragma GCC poison/system_header/dependency and \#pragma once.
 void Preprocessor::RegisterBuiltinPragmas() {
   AddPragmaHandler(new PragmaOnceHandler());
   AddPragmaHandler(new PragmaMarkHandler());
@@ -1089,7 +1305,8 @@ void Preprocessor::RegisterBuiltinPragmas() {
   AddPragmaHandler("STDC", new PragmaSTDC_UnknownHandler());
 
   // MS extensions.
-  if (Features.MicrosoftExt) {
+  if (LangOpts.MicrosoftExt) {
     AddPragmaHandler(new PragmaCommentHandler());
+    AddPragmaHandler(new PragmaIncludeAliasHandler());
   }
 }

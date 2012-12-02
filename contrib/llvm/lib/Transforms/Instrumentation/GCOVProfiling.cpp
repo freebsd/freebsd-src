@@ -18,22 +18,23 @@
 
 #include "ProfilingUtils.h"
 #include "llvm/Transforms/Instrumentation.h"
-#include "llvm/Analysis/DebugInfo.h"
+#include "llvm/DebugInfo.h"
+#include "llvm/IRBuilder.h"
+#include "llvm/Instructions.h"
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
-#include "llvm/Instructions.h"
-#include "llvm/Support/raw_ostream.h"
-#include "llvm/Support/Debug.h"
-#include "llvm/Support/DebugLoc.h"
-#include "llvm/Support/InstIterator.h"
-#include "llvm/Support/IRBuilder.h"
-#include "llvm/Support/PathV2.h"
 #include "llvm/ADT/DenseMap.h"
-#include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/Statistic.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/UniqueVector.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/DebugLoc.h"
+#include "llvm/Support/InstIterator.h"
+#include "llvm/Support/PathV2.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/Utils/ModuleUtils.h"
 #include <string>
 #include <utility>
 using namespace llvm;
@@ -43,19 +44,20 @@ namespace {
   public:
     static char ID;
     GCOVProfiler()
-        : ModulePass(ID), EmitNotes(true), EmitData(true), Use402Format(false) {
+        : ModulePass(ID), EmitNotes(true), EmitData(true), Use402Format(false),
+          UseExtraChecksum(false) {
       initializeGCOVProfilerPass(*PassRegistry::getPassRegistry());
     }
-    GCOVProfiler(bool EmitNotes, bool EmitData, bool use402Format = false)
+    GCOVProfiler(bool EmitNotes, bool EmitData, bool use402Format = false,
+                 bool useExtraChecksum = false)
         : ModulePass(ID), EmitNotes(EmitNotes), EmitData(EmitData),
-          Use402Format(use402Format) {
+          Use402Format(use402Format), UseExtraChecksum(useExtraChecksum) {
       assert((EmitNotes || EmitData) && "GCOVProfiler asked to do nothing?");
       initializeGCOVProfilerPass(*PassRegistry::getPassRegistry());
     }
     virtual const char *getPassName() const {
       return "GCOV Profiler";
     }
-
   private:
     bool runOnModule(Module &M);
 
@@ -88,12 +90,14 @@ namespace {
     // list.
     void insertCounterWriteout(SmallVector<std::pair<GlobalVariable *,
                                                      MDNode *>, 8> &);
+    void insertIndirectCounterIncrement();
 
     std::string mangleName(DICompileUnit CU, std::string NewStem);
 
     bool EmitNotes;
     bool EmitData;
     bool Use402Format;
+    bool UseExtraChecksum;
 
     Module *M;
     LLVMContext *Ctx;
@@ -105,8 +109,9 @@ INITIALIZE_PASS(GCOVProfiler, "insert-gcov-profiling",
                 "Insert instrumentation for GCOV profiling", false, false)
 
 ModulePass *llvm::createGCOVProfilerPass(bool EmitNotes, bool EmitData,
-                                         bool Use402Format) {
-  return new GCOVProfiler(EmitNotes, EmitData, Use402Format);
+                                         bool Use402Format,
+                                         bool UseExtraChecksum) {
+  return new GCOVProfiler(EmitNotes, EmitData, Use402Format, UseExtraChecksum);
 }
 
 namespace {
@@ -167,7 +172,7 @@ namespace {
     }
 
     uint32_t length() {
-      // Here 2 = 1 for string lenght + 1 for '0' id#.
+      // Here 2 = 1 for string length + 1 for '0' id#.
       return lengthOfGCOVString(Filename) + 2 + Lines.size();
     }
 
@@ -244,10 +249,12 @@ namespace {
   // object users can construct, the blocks and lines will be rooted here.
   class GCOVFunction : public GCOVRecord {
    public:
-    GCOVFunction(DISubprogram SP, raw_ostream *os, bool Use402Format) {
+    GCOVFunction(DISubprogram SP, raw_ostream *os,
+                 bool Use402Format, bool UseExtraChecksum) {
       this->os = os;
 
       Function *F = SP.getFunction();
+      DEBUG(dbgs() << "Function: " << F->getName() << "\n");
       uint32_t i = 0;
       for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
         Blocks[BB] = new GCOVBlock(i++, os);
@@ -257,14 +264,14 @@ namespace {
       writeBytes(FunctionTag, 4);
       uint32_t BlockLen = 1 + 1 + 1 + lengthOfGCOVString(SP.getName()) +
           1 + lengthOfGCOVString(SP.getFilename()) + 1;
-      if (!Use402Format)
-        ++BlockLen; // For second checksum.
+      if (UseExtraChecksum)
+        ++BlockLen;
       write(BlockLen);
       uint32_t Ident = reinterpret_cast<intptr_t>((MDNode*)SP);
       write(Ident);
-      write(0);  // checksum #1
-      if (!Use402Format)
-        write(0);  // checksum #2
+      write(0);  // lineno checksum
+      if (UseExtraChecksum)
+        write(0);  // cfg checksum
       writeGCOVString(SP.getName());
       writeGCOVString(SP.getFilename());
       write(SP.getLineNumber());
@@ -290,6 +297,7 @@ namespace {
       for (int i = 0, e = Blocks.size() + 1; i != e; ++i) {
         write(0);  // No flags on our blocks.
       }
+      DEBUG(dbgs() << Blocks.size() << " blocks.\n");
 
       // Emit edges between blocks.
       for (DenseMap<BasicBlock *, GCOVBlock *>::iterator I = Blocks.begin(),
@@ -301,6 +309,8 @@ namespace {
         write(Block.OutEdges.size() * 2 + 1);
         write(Block.Number);
         for (int i = 0, e = Block.OutEdges.size(); i != e; ++i) {
+          DEBUG(dbgs() << Block.Number << " -> " << Block.OutEdges[i]->Number
+                       << "\n");
           write(Block.OutEdges[i]->Number);
           write(0);  // no flags
         }
@@ -350,68 +360,60 @@ bool GCOVProfiler::runOnModule(Module &M) {
 }
 
 void GCOVProfiler::emitGCNO() {
-  DenseMap<const MDNode *, raw_fd_ostream *> GcnoFiles;
   NamedMDNode *CU_Nodes = M->getNamedMetadata("llvm.dbg.cu");
-  if (CU_Nodes) {
-    for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
-      // Each compile unit gets its own .gcno file. This means that whether we run
-      // this pass over the original .o's as they're produced, or run it after
-      // LTO, we'll generate the same .gcno files.
-      
-      DICompileUnit CU(CU_Nodes->getOperand(i));
-      raw_fd_ostream *&out = GcnoFiles[CU];
-      std::string ErrorInfo;
-      out = new raw_fd_ostream(mangleName(CU, "gcno").c_str(), ErrorInfo,
-                               raw_fd_ostream::F_Binary);
-      if (!Use402Format)
-        out->write("oncg*404MVLL", 12);
-      else
-        out->write("oncg*204MVLL", 12);
-  
-      DIArray SPs = CU.getSubprograms();
-      for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
-        DISubprogram SP(SPs.getElement(i));
-        if (!SP.Verify()) continue;
-        raw_fd_ostream *&os = GcnoFiles[CU];
-        
-        Function *F = SP.getFunction();
-        if (!F) continue;
-        GCOVFunction Func(SP, os, Use402Format);
-        
-        for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
-          GCOVBlock &Block = Func.getBlock(BB);
-          TerminatorInst *TI = BB->getTerminator();
-          if (int successors = TI->getNumSuccessors()) {
-            for (int i = 0; i != successors; ++i) {
-              Block.addEdge(Func.getBlock(TI->getSuccessor(i)));
-            }
-          } else if (isa<ReturnInst>(TI)) {
-            Block.addEdge(Func.getReturnBlock());
-          }
-          
-          uint32_t Line = 0;
-          for (BasicBlock::iterator I = BB->begin(), IE = BB->end(); I != IE; ++I) {
-            const DebugLoc &Loc = I->getDebugLoc();
-            if (Loc.isUnknown()) continue;
-            if (Line == Loc.getLine()) continue;
-            Line = Loc.getLine();
-            if (SP != getDISubprogram(Loc.getScope(*Ctx))) continue;
-            
-            GCOVLines &Lines = Block.getFile(SP.getFilename());
-            Lines.addLine(Loc.getLine());
-          }
-        }
-        Func.writeOut();
-      }
-    }
-  }
+  if (!CU_Nodes) return;
 
-  for (DenseMap<const MDNode *, raw_fd_ostream *>::iterator
-           I = GcnoFiles.begin(), E = GcnoFiles.end(); I != E; ++I) {
-    raw_fd_ostream *&out = I->second;
-    out->write("\0\0\0\0\0\0\0\0", 8);  // EOF
-    out->close();
-    delete out;
+  for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
+    // Each compile unit gets its own .gcno file. This means that whether we run
+    // this pass over the original .o's as they're produced, or run it after
+    // LTO, we'll generate the same .gcno files.
+
+    DICompileUnit CU(CU_Nodes->getOperand(i));
+    std::string ErrorInfo;
+    raw_fd_ostream out(mangleName(CU, "gcno").c_str(), ErrorInfo,
+                       raw_fd_ostream::F_Binary);
+    if (!Use402Format)
+      out.write("oncg*404MVLL", 12);
+    else
+      out.write("oncg*204MVLL", 12);
+
+    DIArray SPs = CU.getSubprograms();
+    for (unsigned i = 0, e = SPs.getNumElements(); i != e; ++i) {
+      DISubprogram SP(SPs.getElement(i));
+      if (!SP.Verify()) continue;
+
+      Function *F = SP.getFunction();
+      if (!F) continue;
+      GCOVFunction Func(SP, &out, Use402Format, UseExtraChecksum);
+
+      for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
+        GCOVBlock &Block = Func.getBlock(BB);
+        TerminatorInst *TI = BB->getTerminator();
+        if (int successors = TI->getNumSuccessors()) {
+          for (int i = 0; i != successors; ++i) {
+            Block.addEdge(Func.getBlock(TI->getSuccessor(i)));
+          }
+        } else if (isa<ReturnInst>(TI)) {
+          Block.addEdge(Func.getReturnBlock());
+        }
+
+        uint32_t Line = 0;
+        for (BasicBlock::iterator I = BB->begin(), IE = BB->end();
+             I != IE; ++I) {
+          const DebugLoc &Loc = I->getDebugLoc();
+          if (Loc.isUnknown()) continue;
+          if (Line == Loc.getLine()) continue;
+          Line = Loc.getLine();
+          if (SP != getDISubprogram(Loc.getScope(*Ctx))) continue;
+
+          GCOVLines &Lines = Block.getFile(SP.getFilename());
+          Lines.addLine(Loc.getLine());
+        }
+      }
+      Func.writeOut();
+    }
+    out.write("\0\0\0\0\0\0\0\0", 8);  // EOF
+    out.close();
   }
 }
 
@@ -420,6 +422,7 @@ bool GCOVProfiler::emitProfileArcs() {
   if (!CU_Nodes) return false;
 
   bool Result = false;  
+  bool InsertIndCounterIncrCode = false;
   for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
     DICompileUnit CU(CU_Nodes->getOperand(i));
     DIArray SPs = CU.getSubprograms();
@@ -445,7 +448,7 @@ bool GCOVProfiler::emitProfileArcs() {
         new GlobalVariable(*M, CounterTy, false,
                            GlobalValue::InternalLinkage,
                            Constant::getNullValue(CounterTy),
-                           "__llvm_gcov_ctr", 0, false, 0);
+                           "__llvm_gcov_ctr");
       CountersBySP.push_back(std::make_pair(Counters, (MDNode*)SP));
       
       UniqueVector<BasicBlock *> ComplexEdgePreds;
@@ -506,15 +509,21 @@ bool GCOVProfiler::emitProfileArcs() {
           Value *CounterPtrArray =
             Builder.CreateConstInBoundsGEP2_64(EdgeTable, 0,
                                                i * ComplexEdgePreds.size());
+
+          // Build code to increment the counter.
+          InsertIndCounterIncrCode = true;
           Builder.CreateCall2(getIncrementIndirectCounterFunc(),
                               EdgeState, CounterPtrArray);
-          // clear the predecessor number
-          Builder.CreateStore(ConstantInt::get(Int32Ty, 0xffffffff), EdgeState);
         }
       }
     }
+
     insertCounterWriteout(CountersBySP);
   }
+
+  if (InsertIndCounterIncrCode)
+    insertIndirectCounterIncrement();
+
   return Result;
 }
 
@@ -573,13 +582,14 @@ Constant *GCOVProfiler::getStartFileFunc() {
 }
 
 Constant *GCOVProfiler::getIncrementIndirectCounterFunc() {
+  Type *Int32Ty = Type::getInt32Ty(*Ctx);
+  Type *Int64Ty = Type::getInt64Ty(*Ctx);
   Type *Args[] = {
-    Type::getInt32PtrTy(*Ctx),                  // uint32_t *predecessor
-    Type::getInt64PtrTy(*Ctx)->getPointerTo(),  // uint64_t **state_table_row
+    Int32Ty->getPointerTo(),                // uint32_t *predecessor
+    Int64Ty->getPointerTo()->getPointerTo() // uint64_t **counters
   };
-  FunctionType *FTy = FunctionType::get(Type::getVoidTy(*Ctx),
-                                              Args, false);
-  return M->getOrInsertFunction("llvm_gcda_increment_indirect_counter", FTy);
+  FunctionType *FTy = FunctionType::get(Type::getVoidTy(*Ctx), Args, false);
+  return M->getOrInsertFunction("__llvm_gcov_indirect_counter_increment", FTy);
 }
 
 Constant *GCOVProfiler::getEmitFunctionFunc() {
@@ -587,8 +597,7 @@ Constant *GCOVProfiler::getEmitFunctionFunc() {
     Type::getInt32Ty(*Ctx),    // uint32_t ident
     Type::getInt8PtrTy(*Ctx),  // const char *function_name
   };
-  FunctionType *FTy = FunctionType::get(Type::getVoidTy(*Ctx),
-                                              Args, false);
+  FunctionType *FTy = FunctionType::get(Type::getVoidTy(*Ctx), Args, false);
   return M->getOrInsertFunction("llvm_gcda_emit_function", FTy);
 }
 
@@ -664,5 +673,75 @@ void GCOVProfiler::insertCounterWriteout(
   }
   Builder.CreateRetVoid();
 
-  InsertProfilingShutdownCall(WriteoutF, M);
+  // Create a small bit of code that registers the "__llvm_gcov_writeout"
+  // function to be executed at exit.
+  FunctionType *FTy = FunctionType::get(Type::getVoidTy(*Ctx), false);
+  Function *F = Function::Create(FTy, GlobalValue::InternalLinkage,
+                                 "__llvm_gcov_init", M);
+  F->setUnnamedAddr(true);
+  F->setLinkage(GlobalValue::InternalLinkage);
+  F->addFnAttr(Attribute::NoInline);
+
+  BB = BasicBlock::Create(*Ctx, "entry", F);
+  Builder.SetInsertPoint(BB);
+
+  FTy = FunctionType::get(Type::getInt32Ty(*Ctx),
+                          PointerType::get(FTy, 0), false);
+  Constant *AtExitFn = M->getOrInsertFunction("atexit", FTy);
+  Builder.CreateCall(AtExitFn, WriteoutF);
+  Builder.CreateRetVoid();
+
+  appendToGlobalCtors(*M, F, 0);
+}
+
+void GCOVProfiler::insertIndirectCounterIncrement() {
+  Function *Fn =
+    cast<Function>(GCOVProfiler::getIncrementIndirectCounterFunc());
+  Fn->setUnnamedAddr(true);
+  Fn->setLinkage(GlobalValue::InternalLinkage);
+  Fn->addFnAttr(Attribute::NoInline);
+
+  Type *Int32Ty = Type::getInt32Ty(*Ctx);
+  Type *Int64Ty = Type::getInt64Ty(*Ctx);
+  Constant *NegOne = ConstantInt::get(Int32Ty, 0xffffffff);
+
+  // Create basic blocks for function.
+  BasicBlock *BB = BasicBlock::Create(*Ctx, "entry", Fn);
+  IRBuilder<> Builder(BB);
+
+  BasicBlock *PredNotNegOne = BasicBlock::Create(*Ctx, "", Fn);
+  BasicBlock *CounterEnd = BasicBlock::Create(*Ctx, "", Fn);
+  BasicBlock *Exit = BasicBlock::Create(*Ctx, "exit", Fn);
+
+  // uint32_t pred = *predecessor;
+  // if (pred == 0xffffffff) return;
+  Argument *Arg = Fn->arg_begin();
+  Arg->setName("predecessor");
+  Value *Pred = Builder.CreateLoad(Arg, "pred");
+  Value *Cond = Builder.CreateICmpEQ(Pred, NegOne);
+  BranchInst::Create(Exit, PredNotNegOne, Cond, BB);
+
+  Builder.SetInsertPoint(PredNotNegOne);
+
+  // uint64_t *counter = counters[pred];
+  // if (!counter) return;
+  Value *ZExtPred = Builder.CreateZExt(Pred, Int64Ty);
+  Arg = llvm::next(Fn->arg_begin());
+  Arg->setName("counters");
+  Value *GEP = Builder.CreateGEP(Arg, ZExtPred);
+  Value *Counter = Builder.CreateLoad(GEP, "counter");
+  Cond = Builder.CreateICmpEQ(Counter,
+                              Constant::getNullValue(Int64Ty->getPointerTo()));
+  Builder.CreateCondBr(Cond, Exit, CounterEnd);
+
+  // ++*counter;
+  Builder.SetInsertPoint(CounterEnd);
+  Value *Add = Builder.CreateAdd(Builder.CreateLoad(Counter),
+                                 ConstantInt::get(Int64Ty, 1));
+  Builder.CreateStore(Add, Counter);
+  Builder.CreateBr(Exit);
+
+  // Fill in the exit block.
+  Builder.SetInsertPoint(Exit);
+  Builder.CreateRetVoid();
 }

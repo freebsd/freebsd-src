@@ -12,7 +12,7 @@ CCDIR=	${.CURDIR}/../../usr.bin/cc
 
 SRCS=		crtstuff.c tconfig.h tm.h options.h
 OBJS=		crtbegin.o crtend.o crtbeginT.o
-SOBJS=		crtbegin.So crtend.So
+SOBJS=		crtbeginS.o crtendS.o
 CSTD?=		gnu89
 CFLAGS+=	-DIN_GCC -DHAVE_LD_EH_FRAME_HDR -DDT_CONFIG -D__GLIBC__=3
 CFLAGS+=	-finhibit-size-directive -fno-inline-functions \
@@ -55,7 +55,7 @@ crtbeginT.o:	${BEGINSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_BEGIN -DCRTSTUFFT_O \
 		-c -o ${.TARGET} ${.ALLSRC:N*.h}
 
-crtbegin.So:	${BEGINSRC}
+crtbeginS.o:	${BEGINSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_BEGIN ${CRTS_CFLAGS} \
 		-c -o ${.TARGET} ${.ALLSRC:N*.h}
 
@@ -63,7 +63,7 @@ crtend.o:	${ENDSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_END \
 		-c -o ${.TARGET} ${.ALLSRC:N*.h}
 
-crtend.So:	${ENDSRC}
+crtendS.o:	${ENDSRC}
 	${CC} ${CFLAGS} -g0 -DCRT_END ${CRTS_CFLAGS} \
 		-c -o ${.TARGET} ${.ALLSRC:N*.h}
 
@@ -74,7 +74,7 @@ tm.h tconfig.h options.h: ${CCDIR}/cc_tools/Makefile
 realinstall:
 .for file in ${OBJS} ${SOBJS} ${TGTOBJS}
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${file} ${DESTDIR}${LIBDIR}/${file:S/.So$/S.o/}
+	    ${file} ${DESTDIR}${LIBDIR}/${file}
 .endfor
 
 .include <bsd.lib.mk>

@@ -6,10 +6,11 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-//
-// This file defines the IdentifierInfo, IdentifierTable, and Selector
-// interfaces.
-//
+///
+/// \file
+/// \brief Defines the clang::IdentifierInfo, clang::IdentifierTable, and
+/// clang::Selector interfaces.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_BASIC_IDENTIFIERTABLE_H
@@ -20,11 +21,9 @@
 #include "clang/Basic/LLVM.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
-#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/Support/PointerLikeTypeTraits.h"
 #include <cassert>
-#include <cctype>
 #include <string>
 
 namespace llvm {
@@ -39,18 +38,16 @@ namespace clang {
   class MultiKeywordSelector; // private class used by Selector
   class DeclarationName;      // AST class that stores declaration names
 
-  /// IdentifierLocPair - A simple pair of identifier info and location.
+  /// \brief A simple pair of identifier info and location.
   typedef std::pair<IdentifierInfo*, SourceLocation> IdentifierLocPair;
 
 
-/// IdentifierInfo - One of these records is kept for each identifier that
-/// is lexed.  This contains information about whether the token was #define'd,
+/// One of these records is kept for each identifier that
+/// is lexed.  This contains information about whether the token was \#define'd,
 /// is a language keyword, or if it is a front-end token of some sort (e.g. a
 /// variable or function name).  The preprocessor keeps this information in a
 /// set, and all tok::identifier tokens have a pointer to one of these.
 class IdentifierInfo {
-  // Note: DON'T make TokenID a 'tok::TokenKind'; MSVC will treat it as a
-  //       signed char and TokenKinds > 255 won't be handled correctly.
   unsigned TokenID            : 9; // Front-end token ID or tok::identifier.
   // Objective-C keyword ('protocol' in '@protocol') or builtin (__builtin_inf).
   // First NUM_OBJC_KEYWORDS values are for Objective-C, the remaining values
@@ -62,11 +59,19 @@ class IdentifierInfo {
   bool IsPoisoned             : 1; // True if identifier is poisoned.
   bool IsCPPOperatorKeyword   : 1; // True if ident is a C++ operator keyword.
   bool NeedsHandleIdentifier  : 1; // See "RecomputeNeedsHandleIdentifier".
-  bool IsFromAST              : 1; // True if identfier first appeared in an AST
-                                   // file and wasn't modified since.
+  bool IsFromAST              : 1; // True if identifier was loaded (at least 
+                                   // partially) from an AST file.
+  bool ChangedAfterLoad       : 1; // True if identifier has changed from the
+                                   // definition loaded from an AST file.
   bool RevertedTokenID        : 1; // True if RevertTokenIDToIdentifier was
                                    // called.
-  // 5 bits left in 32-bit word.
+  bool OutOfDate              : 1; // True if there may be additional
+                                   // information about this identifier
+                                   // stored externally.
+  bool IsModulesImport        : 1; // True if this is the 'import' contextual
+                                   // keyword.
+  // 1 bit left in 32-bit word.
+  
   void *FETokenInfo;               // Managed by the language front-end.
   llvm::StringMapEntry<IdentifierInfo*> *Entry;
 
@@ -79,15 +84,16 @@ public:
   IdentifierInfo();
 
 
-  /// isStr - Return true if this is the identifier for the specified string.
+  /// \brief Return true if this is the identifier for the specified string.
+  ///
   /// This is intended to be used for string literals only: II->isStr("foo").
   template <std::size_t StrLen>
   bool isStr(const char (&Str)[StrLen]) const {
     return getLength() == StrLen-1 && !memcmp(getNameStart(), Str, StrLen-1);
   }
 
-  /// getNameStart - Return the beginning of the actual string for this
-  /// identifier.  The returned string is properly null terminated.
+  /// \brief Return the beginning of the actual null-terminated string for this
+  /// identifier.
   ///
   const char *getNameStart() const {
     if (Entry) return Entry->getKeyData();
@@ -100,7 +106,7 @@ public:
     return ((const actualtype*) this)->second;
   }
 
-  /// getLength - Efficiently return the length of this identifier info.
+  /// \brief Efficiently return the length of this identifier info.
   ///
   unsigned getLength() const {
     if (Entry) return Entry->getKeyLength();
@@ -114,13 +120,12 @@ public:
     return (((unsigned) p[0]) | (((unsigned) p[1]) << 8)) - 1;
   }
 
-  /// getName - Return the actual identifier string.
+  /// \brief Return the actual identifier string.
   StringRef getName() const {
     return StringRef(getNameStart(), getLength());
   }
 
-  /// hasMacroDefinition - Return true if this identifier is #defined to some
-  /// other value.
+  /// \brief Return true if this identifier is \#defined to some other value.
   bool hasMacroDefinition() const {
     return HasMacro;
   }
@@ -132,7 +137,6 @@ public:
       NeedsHandleIdentifier = 1;
     else
       RecomputeNeedsHandleIdentifier();
-    IsFromAST = false;
   }
 
   /// getTokenID - If this is a source-language token (e.g. 'for'), this API
@@ -155,13 +159,14 @@ public:
     RevertedTokenID = true;
   }
 
-  /// getPPKeywordID - Return the preprocessor keyword ID for this identifier.
+  /// \brief Return the preprocessor keyword ID for this identifier.
+  ///
   /// For example, "define" will return tok::pp_define.
   tok::PPKeywordKind getPPKeywordID() const;
 
-  /// getObjCKeywordID - Return the Objective-C keyword ID for the this
-  /// identifier.  For example, 'class' will return tok::objc_class if ObjC is
-  /// enabled.
+  /// \brief Return the Objective-C keyword ID for the this identifier.
+  ///
+  /// For example, 'class' will return tok::objc_class if ObjC is enabled.
   tok::ObjCKeywordKind getObjCKeywordID() const {
     if (ObjCOrBuiltinID < tok::NUM_OBJC_KEYWORDS)
       return tok::ObjCKeywordKind(ObjCOrBuiltinID);
@@ -221,7 +226,6 @@ public:
       NeedsHandleIdentifier = 1;
     else
       RecomputeNeedsHandleIdentifier();
-    IsFromAST = false;
   }
 
   /// isPoisoned - Return true if this token has been poisoned.
@@ -253,8 +257,48 @@ public:
   /// from an AST file.
   bool isFromAST() const { return IsFromAST; }
 
-  void setIsFromAST(bool FromAST = true) { IsFromAST = FromAST; }
+  void setIsFromAST() { IsFromAST = true; }
 
+  /// \brief Determine whether this identifier has changed since it was loaded
+  /// from an AST file.
+  bool hasChangedSinceDeserialization() const {
+    return ChangedAfterLoad;
+  }
+  
+  /// \brief Note that this identifier has changed since it was loaded from
+  /// an AST file.
+  void setChangedSinceDeserialization() {
+    ChangedAfterLoad = true;
+  }
+
+  /// \brief Determine whether the information for this identifier is out of
+  /// date with respect to the external source.
+  bool isOutOfDate() const { return OutOfDate; }
+  
+  /// \brief Set whether the information for this identifier is out of
+  /// date with respect to the external source.
+  void setOutOfDate(bool OOD) {
+    OutOfDate = OOD;
+    if (OOD)
+      NeedsHandleIdentifier = true;
+    else
+      RecomputeNeedsHandleIdentifier();
+  }
+  
+  /// \brief Determine whether this is the contextual keyword
+  /// '__experimental_modules_import'.
+  bool isModulesImport() const { return IsModulesImport; }
+  
+  /// \brief Set whether this identifier is the contextual keyword 
+  /// '__experimental_modules_import'.
+  void setModulesImport(bool I) {
+    IsModulesImport = I;
+    if (I)
+      NeedsHandleIdentifier = true;
+    else
+      RecomputeNeedsHandleIdentifier();
+  }
+  
 private:
   /// RecomputeNeedsHandleIdentifier - The Preprocessor::HandleIdentifier does
   /// several special (but rare) things to identifiers of various sorts.  For
@@ -266,8 +310,8 @@ private:
   void RecomputeNeedsHandleIdentifier() {
     NeedsHandleIdentifier =
       (isPoisoned() | hasMacroDefinition() | isCPlusPlusOperatorKeyword() |
-       isExtensionToken() | isCXX11CompatKeyword() ||
-       (getTokenID() == tok::kw___import_module__));
+       isExtensionToken() | isCXX11CompatKeyword() || isOutOfDate() ||
+       isModulesImport());
   }
 };
 
@@ -358,10 +402,11 @@ public:
   virtual IdentifierInfo *GetIdentifier(unsigned ID) = 0;
 };
 
-/// IdentifierTable - This table implements an efficient mapping from strings to
-/// IdentifierInfo nodes.  It has no other purpose, but this is an
-/// extremely performance-critical piece of the code, as each occurrence of
-/// every identifier goes through here when lexed.
+/// \brief Implements an efficient mapping from strings to IdentifierInfo nodes.
+///
+/// This has no other purpose, but this is an extremely performance-critical
+/// piece of the code, as each occurrence of every identifier goes through
+/// here when lexed.
 class IdentifierTable {
   // Shark shows that using MallocAllocator is *much* slower than using this
   // BumpPtrAllocator!
@@ -371,8 +416,8 @@ class IdentifierTable {
   IdentifierInfoLookup* ExternalLookup;
 
 public:
-  /// IdentifierTable ctor - Create the identifier table, populating it with
-  /// info about the language keywords for the language specified by LangOpts.
+  /// \brief Create the identifier table, populating it with info about the
+  /// language keywords for the language specified by \p LangOpts.
   IdentifierTable(const LangOptions &LangOpts,
                   IdentifierInfoLookup* externalLookup = 0);
 
@@ -390,8 +435,8 @@ public:
     return HashTable.getAllocator();
   }
 
-  /// get - Return the identifier token info for the specified named identifier.
-  ///
+  /// \brief Return the identifier token info for the specified named
+  /// identifier.
   IdentifierInfo &get(StringRef Name) {
     llvm::StringMapEntry<IdentifierInfo*> &Entry =
       HashTable.GetOrCreateValue(Name);
@@ -449,6 +494,10 @@ public:
       // Make sure getName() knows how to find the IdentifierInfo
       // contents.
       II->Entry = &Entry;
+      
+      // If this is the 'import' contextual keyword, mark it as such.
+      if (Name.equals("import"))
+        II->setModulesImport(true);
     }
 
     return *II;
@@ -461,15 +510,16 @@ public:
   iterator end() const   { return HashTable.end(); }
   unsigned size() const { return HashTable.size(); }
 
-  /// PrintStats - Print some statistics to stderr that indicate how well the
+  /// \brief Print some statistics to stderr that indicate how well the
   /// hashing is doing.
   void PrintStats() const;
 
   void AddKeywords(const LangOptions &LangOpts);
 };
 
-/// ObjCMethodFamily - A family of Objective-C methods.  These
-/// families have no inherent meaning in the language, but are
+/// \brief A family of Objective-C methods. 
+///
+/// These families have no inherent meaning in the language, but are
 /// nonetheless central enough in the existing implementations to
 /// merit direct AST support.  While, in theory, arbitrary methods can
 /// be considered to form families, we focus here on the methods
@@ -516,11 +566,13 @@ enum ObjCMethodFamily {
 /// InvalidObjCMethodFamily.
 enum { ObjCMethodFamilyBitWidth = 4 };
 
-/// An invalid value of ObjCMethodFamily.
+/// \brief An invalid value of ObjCMethodFamily.
 enum { InvalidObjCMethodFamily = (1 << ObjCMethodFamilyBitWidth) - 1 };
 
-/// Selector - This smart pointer class efficiently represents Objective-C
-/// method names. This class will either point to an IdentifierInfo or a
+/// \brief Smart pointer class that efficiently represents Objective-C method
+/// names.
+///
+/// This class will either point to an IdentifierInfo or a
 /// MultiKeywordSelector (which is private). This enables us to optimize
 /// selectors that take no arguments and selectors that take 1 argument, which
 /// accounts for 78% of all selectors in Cocoa.h.
@@ -528,9 +580,10 @@ class Selector {
   friend class Diagnostic;
 
   enum IdentifierInfoFlag {
-    // MultiKeywordSelector = 0.
+    // Empty selector = 0.
     ZeroArg  = 0x1,
     OneArg   = 0x2,
+    MultiArg = 0x3,
     ArgFlags = ZeroArg|OneArg
   };
   uintptr_t InfoPtr; // a pointer to the MultiKeywordSelector or IdentifierInfo.
@@ -544,13 +597,18 @@ class Selector {
   Selector(MultiKeywordSelector *SI) {
     InfoPtr = reinterpret_cast<uintptr_t>(SI);
     assert((InfoPtr & ArgFlags) == 0 &&"Insufficiently aligned IdentifierInfo");
+    InfoPtr |= MultiArg;
   }
 
   IdentifierInfo *getAsIdentifierInfo() const {
-    if (getIdentifierInfoFlag())
+    if (getIdentifierInfoFlag() < MultiArg)
       return reinterpret_cast<IdentifierInfo *>(InfoPtr & ~ArgFlags);
     return 0;
   }
+  MultiKeywordSelector *getMultiKeywordSelector() const {
+    return reinterpret_cast<MultiKeywordSelector *>(InfoPtr & ~ArgFlags);
+  }
+  
   unsigned getIdentifierInfoFlag() const {
     return InfoPtr & ArgFlags;
   }
@@ -615,11 +673,12 @@ public:
   /// name was supplied.
   StringRef getNameForSlot(unsigned argIndex) const;
   
-  /// getAsString - Derive the full selector name (e.g. "foo:bar:") and return
+  /// \brief Derive the full selector name (e.g. "foo:bar:") and return
   /// it as an std::string.
+  // FIXME: Add a print method that uses a raw_ostream.
   std::string getAsString() const;
 
-  /// getMethodFamily - Derive the conventional family of this method.
+  /// \brief Derive the conventional family of this method.
   ObjCMethodFamily getMethodFamily() const {
     return getMethodFamilyImpl(*this);
   }
@@ -632,7 +691,7 @@ public:
   }
 };
 
-/// SelectorTable - This table allows us to fully hide how we implement
+/// \brief This table allows us to fully hide how we implement
 /// multi-keyword caching.
 class SelectorTable {
   void *Impl;  // Actually a SelectorTableImpl
@@ -642,9 +701,10 @@ public:
   SelectorTable();
   ~SelectorTable();
 
-  /// getSelector - This can create any sort of selector.  NumArgs indicates
-  /// whether this is a no argument selector "foo", a single argument selector
-  /// "foo:" or multi-argument "foo:bar:".
+  /// \brief Can create any sort of selector.
+  ///
+  /// \p NumArgs indicates whether this is a no argument selector "foo", a
+  /// single argument selector "foo:" or multi-argument "foo:bar:".
   Selector getSelector(unsigned NumArgs, IdentifierInfo **IIV);
 
   Selector getUnarySelector(IdentifierInfo *ID) {
@@ -654,22 +714,16 @@ public:
     return Selector(ID, 0);
   }
 
-  /// Return the total amount of memory allocated for managing selectors.
+  /// \brief Return the total amount of memory allocated for managing selectors.
   size_t getTotalMemory() const;
 
-  /// constructSetterName - Return the setter name for the given
-  /// identifier, i.e. "set" + Name where the initial character of Name
+  /// \brief Return the setter name for the given identifier.
+  ///
+  /// This is "set" + \p Name where the initial character of \p Name
   /// has been capitalized.
   static Selector constructSetterName(IdentifierTable &Idents,
                                       SelectorTable &SelTable,
-                                      const IdentifierInfo *Name) {
-    llvm::SmallString<100> SelectorName;
-    SelectorName = "set";
-    SelectorName += Name->getName();
-    SelectorName[3] = toupper(SelectorName[3]);
-    IdentifierInfo *SetterName = &Idents.get(SelectorName);
-    return SelTable.getUnarySelector(SetterName);
-  }
+                                      const IdentifierInfo *Name);
 };
 
 /// DeclarationNameExtra - Common base of the MultiKeywordSelector,

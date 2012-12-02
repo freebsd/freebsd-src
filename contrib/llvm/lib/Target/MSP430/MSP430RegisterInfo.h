@@ -1,4 +1,4 @@
-//===- MSP430RegisterInfo.h - MSP430 Register Information Impl --*- C++ -*-===//
+//===-- MSP430RegisterInfo.h - MSP430 Register Information Impl -*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -36,17 +36,11 @@ public:
   MSP430RegisterInfo(MSP430TargetMachine &tm, const TargetInstrInfo &tii);
 
   /// Code Generation virtual methods...
-  const unsigned *getCalleeSavedRegs(const MachineFunction *MF = 0) const;
+  const uint16_t *getCalleeSavedRegs(const MachineFunction *MF = 0) const;
 
   BitVector getReservedRegs(const MachineFunction &MF) const;
-  const TargetRegisterClass* getPointerRegClass(unsigned Kind = 0) const;
-
-  const TargetRegisterClass *
-  getMatchingSuperRegClass(const TargetRegisterClass *A,
-                           const TargetRegisterClass *B, unsigned Idx) const {
-    // No sub-classes makes this really easy.
-    return A;
-  }
+  const TargetRegisterClass*
+  getPointerRegClass(const MachineFunction &MF, unsigned Kind = 0) const;
 
   void eliminateCallFramePseudoInstr(MachineFunction &MF,
                                      MachineBasicBlock &MBB,

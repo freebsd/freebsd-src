@@ -60,14 +60,15 @@ enum AccessKind {
 enum LockErrorKind {
   LEK_LockedSomeLoopIterations,
   LEK_LockedSomePredecessors,
-  LEK_LockedAtEndOfFunction
+  LEK_LockedAtEndOfFunction,
+  LEK_NotLockedAtEndOfFunction
 };
 
 /// Handler class for thread safety warnings.
 class ThreadSafetyHandler {
 public:
   typedef llvm::StringRef Name;
-  virtual ~ThreadSafetyHandler() = 0;
+  virtual ~ThreadSafetyHandler();
 
   /// Warn about lock expressions which fail to resolve to lockable objects.
   /// \param Loc -- the SourceLocation of the unresolved expression.
@@ -93,9 +94,14 @@ public:
   /// 3. or when a mutex is locked but not unlocked inside a function.
   /// \param LockName -- A StringRef name for the lock expression, to be printed
   /// in the error message.
-  /// \param Loc -- The location of the lock expression where the mutex is locked
+  /// \param LocLocked -- The location of the lock expression where the mutex is
+  ///               locked
+  /// \param LocEndOfScope -- The location of the end of the scope where the
+  ///               mutex is no longer held
   /// \param LEK -- which of the three above cases we should warn for
-  virtual void handleMutexHeldEndOfScope(Name LockName, SourceLocation Loc,
+  virtual void handleMutexHeldEndOfScope(Name LockName,
+                                         SourceLocation LocLocked,
+                                         SourceLocation LocEndOfScope,
                                          LockErrorKind LEK){}
 
   /// Warn when a mutex is held exclusively and shared at the same point. For
@@ -118,11 +124,11 @@ public:
 
   /// Warn when a protected operation occurs while the specific mutex protecting
   /// the operation is not locked.
-  /// \param LockName -- A StringRef name for the lock expression, to be printed
-  /// in the error message.
   /// \param D -- The decl for the protected variable or function
   /// \param POK -- The kind of protected operation (e.g. variable access)
-  /// \param AK -- The kind of access (i.e. read or write) that occurred
+  /// \param LockName -- A StringRef name for the lock expression, to be printed
+  /// in the error message.
+  /// \param LK -- The kind of access (i.e. read or write) that occurred
   /// \param Loc -- The location of the protected operation.
   virtual void handleMutexNotHeld(const NamedDecl *D,
                                   ProtectedOperationKind POK, Name LockName,
@@ -143,7 +149,8 @@ public:
 /// We traverse the blocks in the CFG, compute the set of mutexes that are held
 /// at the end of each block, and issue warnings for thread safety violations.
 /// Each block in the CFG is traversed exactly once.
-void runThreadSafetyAnalysis(AnalysisContext &AC, ThreadSafetyHandler &Handler);
+void runThreadSafetyAnalysis(AnalysisDeclContext &AC,
+                             ThreadSafetyHandler &Handler);
 
 /// \brief Helper function that returns a LockKind required for the given level
 /// of access.

@@ -219,10 +219,14 @@ wakeup_64:
 	mov	$bootdata64 - bootgdt, %eax
 	mov	%ax, %ds
 
-	/* Restore arguments and return. */
-	movq	wakeup_kpml4 - wakeup_start(%rbx), %rdi
-	movq	wakeup_ctx - wakeup_start(%rbx), %rsi
-	movq	wakeup_retaddr - wakeup_start(%rbx), %rax
+	/* Restore arguments. */
+	movq	wakeup_pcb - wakeup_start(%rbx), %rdi
+	movq	wakeup_ret - wakeup_start(%rbx), %rax
+
+	/* Restore GDT. */
+	lgdt	wakeup_gdt - wakeup_start(%rbx)
+
+	/* Jump to return address. */
 	jmp	*%rax
 
 	.data
@@ -268,34 +272,11 @@ bootgdtdesc:
 	.long	bootgdt - wakeup_start	/* Offset plus %ds << 4 */
 
 	ALIGN_DATA
-wakeup_retaddr:
-	.quad	0
-wakeup_kpml4:
-	.quad	0
-
-wakeup_ctx:
-	.quad	0
 wakeup_pcb:
 	.quad	0
-wakeup_fpusave:
+wakeup_ret:
 	.quad	0
 wakeup_gdt:
 	.word	0
 	.quad	0
-
-	ALIGN_DATA
-wakeup_efer:
-	.quad	0
-wakeup_star:
-	.quad	0
-wakeup_lstar:
-	.quad	0
-wakeup_cstar:
-	.quad	0
-wakeup_sfmask:
-	.quad	0
-wakeup_xsmask:
-	.quad	0
-wakeup_cpu:
-	.long	0
 dummy:

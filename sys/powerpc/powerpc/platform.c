@@ -92,7 +92,7 @@ mem_valid(vm_offset_t addr, int len)
 		    &aregions, &naregions);
 
 	for (i = 0; i < npregions; i++)
-		if ((addr >= pregions[i].mr_start) 
+		if ((addr >= pregions[i].mr_start)
 		   && (addr + len <= pregions[i].mr_start + pregions[i].mr_size))
 			return (0);
 
@@ -116,7 +116,7 @@ platform_timebase_freq(struct cpuref *cpu)
 {
 	return (PLATFORM_TIMEBASE_FREQ(plat_obj, cpu));
 }
-	
+
 int
 platform_smp_first_cpu(struct cpuref *cpu)
 {

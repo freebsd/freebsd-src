@@ -6,10 +6,11 @@
 // License. See LICENSE.TXT for details.
 //
 //===----------------------------------------------------------------------===//
-//
-// This file defines various enumerations that describe declaration and
-// type specifiers.
-//
+///
+/// \file
+/// \brief Defines various enumerations that describe declaration and
+/// type specifiers.
+///
 //===----------------------------------------------------------------------===//
 
 #ifndef LLVM_CLANG_BASIC_SPECIFIERS_H
@@ -40,6 +41,7 @@ namespace clang {
     TST_char16,       // C++0x char16_t
     TST_char32,       // C++0x char32_t
     TST_int,
+    TST_int128,
     TST_half,         // OpenCL half, ARM NEON __fp16
     TST_float,
     TST_double,
@@ -58,13 +60,12 @@ namespace clang {
     TST_underlyingType, // __underlying_type for C++0x
     TST_auto,         // C++0x auto
     TST_unknown_anytype, // __unknown_anytype extension
-    TST_atomic,       // C1X _Atomic
+    TST_atomic,       // C11 _Atomic
     TST_error         // erroneous type
   };
   
-  /// WrittenBuiltinSpecs - Structure that packs information about the 
-  /// type specifiers that were written in a particular type specifier
-  /// sequence.
+  /// \brief Structure that packs information about the type specifiers that
+  /// were written in a particular type specifier sequence.
   struct WrittenBuiltinSpecs {
     /*DeclSpec::TST*/ unsigned Type  : 5;
     /*DeclSpec::TSS*/ unsigned Sign  : 2;
@@ -72,9 +73,8 @@ namespace clang {
     bool ModeAttr : 1;
   };  
 
-  /// AccessSpecifier - A C++ access specifier (public, private,
-  /// protected), plus the special value "none" which means
-  /// different things in different contexts.
+  /// \brief A C++ access specifier (public, private, protected), plus the
+  /// special value "none" which means different things in different contexts.
   enum AccessSpecifier {
     AS_public,
     AS_protected,
@@ -82,24 +82,24 @@ namespace clang {
     AS_none
   };
 
-  /// ExprValueKind - The categorization of expression values,
-  /// currently following the C++0x scheme.
+  /// \brief The categorization of expression values, currently following the
+  /// C++11 scheme.
   enum ExprValueKind {
-    /// An r-value expression (a pr-value in the C++0x taxonomy)
+    /// \brief An r-value expression (a pr-value in the C++11 taxonomy)
     /// produces a temporary value.
     VK_RValue,
 
-    /// An l-value expression is a reference to an object with
+    /// \brief An l-value expression is a reference to an object with
     /// independent storage.
     VK_LValue,
 
-    /// An x-value expression is a reference to an object with
+    /// \brief An x-value expression is a reference to an object with
     /// independent storage but which can be "moved", i.e.
     /// efficiently cannibalized for its resources.
     VK_XValue
   };
 
-  /// A further classification of the kind of object referenced by an
+  /// \brief A further classification of the kind of object referenced by an
   /// l-value or x-value.
   enum ExprObjectKind {
     /// An ordinary object is located at an address in memory.
@@ -111,9 +111,14 @@ namespace clang {
     /// A vector component is an element or range of elements on a vector.
     OK_VectorComponent,
 
-    /// An Objective C property is a logical field of an Objective-C
-    /// object which is read and written via Objective C method calls.
-    OK_ObjCProperty
+    /// An Objective-C property is a logical field of an Objective-C
+    /// object which is read and written via Objective-C method calls.
+    OK_ObjCProperty,
+    
+    /// An Objective-C array/dictionary subscripting which reads an
+    /// object or writes at the subscripted array/dictionary element via
+    /// Objective-C method calls.
+    OK_ObjCSubscript
   };
 
   // \brief Describes the kind of template specialization that a
@@ -153,15 +158,22 @@ namespace clang {
     SC_Register
   };
 
-  /// Checks whether the given storage class is legal for functions.
+  /// \brief Checks whether the given storage class is legal for functions.
   inline bool isLegalForFunction(StorageClass SC) {
     return SC <= SC_PrivateExtern;
   }
 
-  /// Checks whether the given storage class is legal for variables.
+  /// \brief Checks whether the given storage class is legal for variables.
   inline bool isLegalForVariable(StorageClass SC) {
     return true;
   }
+
+  /// \brief In-class initialization styles for non-static data members.
+  enum InClassInitStyle {
+    ICIS_NoInit,   ///< No in-class initializer.
+    ICIS_CopyInit, ///< Copy initialization.
+    ICIS_ListInit  ///< Direct list-initialization.
+  };
 } // end namespace clang
 
 #endif // LLVM_CLANG_BASIC_SPECIFIERS_H

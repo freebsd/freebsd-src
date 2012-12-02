@@ -108,6 +108,7 @@ static devclass_t	hpt_devclass;
 
 #define __DRIVER_MODULE(p1, p2, p3, p4, p5, p6) DRIVER_MODULE(p1, p2, p3, p4, p5, p6)
 __DRIVER_MODULE(PROC_DIR_NAME, pci, hpt_pci_driver, hpt_devclass, 0, 0);
+MODULE_DEPEND(PROC_DIR_NAME, cam, 1, 1, 1);
 
 #define ccb_ccb_ptr spriv_ptr0
 #define ccb_adapter ccb_h.spriv_ptr1
@@ -3045,7 +3046,7 @@ fOsCommandDone(_VBUS_ARG PCommand pCmd)
 	if (pCmd->cf_data_in) {
 		bus_dmamap_sync(pAdapter->io_dma_parent, pmap->dma_map, BUS_DMASYNC_POSTREAD);
 	}
-	else if (pCmd->cf_data_in) {
+	else if (pCmd->cf_data_out) {
 		bus_dmamap_sync(pAdapter->io_dma_parent, pmap->dma_map, BUS_DMASYNC_POSTWRITE);
 	}
 	

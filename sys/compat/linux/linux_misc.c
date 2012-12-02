@@ -31,6 +31,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
+#include "opt_kdtrace.h"
 
 #include <sys/param.h>
 #include <sys/blist.h>
@@ -53,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
+#include <sys/sdt.h>
 #include <sys/signalvar.h>
 #include <sys/stat.h>
 #include <sys/syscallsubr.h>
@@ -83,6 +85,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/../linux/linux_proto.h>
 #endif
 
+#include <compat/linux/linux_dtrace.h>
 #include <compat/linux/linux_file.h>
 #include <compat/linux/linux_mib.h>
 #include <compat/linux/linux_signal.h>
@@ -90,6 +93,17 @@ __FBSDID("$FreeBSD$");
 #include <compat/linux/linux_sysproto.h>
 #include <compat/linux/linux_emul.h>
 #include <compat/linux/linux_misc.h>
+
+/* DTrace init */
+LIN_SDT_PROVIDER_DECLARE(LINUX_DTRACE);
+
+/* Linuxulator-global DTrace probes */
+LIN_SDT_PROBE_DECLARE(locks, emul_lock, locked);
+LIN_SDT_PROBE_DECLARE(locks, emul_lock, unlock);
+LIN_SDT_PROBE_DECLARE(locks, emul_shared_rlock, locked);
+LIN_SDT_PROBE_DECLARE(locks, emul_shared_rlock, unlock);
+LIN_SDT_PROBE_DECLARE(locks, emul_shared_wlock, locked);
+LIN_SDT_PROBE_DECLARE(locks, emul_shared_wlock, unlock);
 
 int stclohz;				/* Statistics clock frequency */
 
@@ -232,8 +246,7 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	unsigned long bss_size;
 	char *library;
 	ssize_t aresid;
-	int error;
-	int locked, vfslocked;
+	int error, locked, writecount;
 
 	LCONVPATHEXIST(td, args->library, &library);
 
@@ -243,11 +256,10 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 #endif
 
 	a_out = NULL;
-	vfslocked = 0;
 	locked = 0;
 	vp = NULL;
 
-	NDINIT(&ni, LOOKUP, ISOPEN | FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
+	NDINIT(&ni, LOOKUP, ISOPEN | FOLLOW | LOCKLEAF | AUDITVNODE1,
 	    UIO_SYSSPACE, library, td);
 	error = namei(&ni);
 	LFREEPATH(library);
@@ -255,7 +267,6 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 		goto cleanup;
 
 	vp = ni.ni_vp;
-	vfslocked = NDHASGIANT(&ni);
 	NDFREE(&ni, NDF_ONLY_PNBUF);
 
 	/*
@@ -265,7 +276,10 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	locked = 1;
 
 	/* Writable? */
-	if (vp->v_writecount) {
+	error = VOP_GET_WRITECOUNT(vp, &writecount);
+	if (error != 0)
+		goto cleanup;
+	if (writecount != 0) {
 		error = ETXTBSY;
 		goto cleanup;
 	}
@@ -372,14 +386,13 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 	 * XXX: Note that if any of the VM operations fail below we don't
 	 * clear this flag.
 	 */
-	vp->v_vflag |= VV_TEXT;
+	VOP_SET_TEXT(vp);
 
 	/*
 	 * Lock no longer needed
 	 */
 	locked = 0;
 	VOP_UNLOCK(vp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
 
 	/*
 	 * Check if file_offset page aligned. Currently we cannot handle
@@ -449,10 +462,8 @@ linux_uselib(struct thread *td, struct linux_uselib_args *args)
 
 cleanup:
 	/* Unlock vnode if needed */
-	if (locked) {
+	if (locked)
 		VOP_UNLOCK(vp, 0);
-		VFS_UNLOCK_GIANT(vfslocked);
-	}
 
 	/* Release the temporary mapping. */
 	if (a_out)

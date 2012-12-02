@@ -44,10 +44,10 @@ Duplicates an existing
 .Fa locale_t
 returning a new
 .Fa locale_t
-that refers to the same locale values but has independent internal state.
+that refers to the same locale values but has an independent internal state.
 Various functions, such as
 .Xr mblen 3
-require presistent state.
+require a persistent state.
 These functions formerly used static variables and calls to them from multiple
 threads had undefined behavior.
 They now use fields in the

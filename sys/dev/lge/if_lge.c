@@ -110,7 +110,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct lge_type const lge_devs[] = {
+static const struct lge_type lge_devs[] = {
 	{ LGE_VENDORID, LGE_DEVICEID, "Level 1 Gigabit Ethernet" },
 	{ 0, 0, NULL }
 };

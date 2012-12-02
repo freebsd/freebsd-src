@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001-2007, by Cisco Systems, Inc. All rights reserved.
- * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
- * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
+ * Copyright (c) 2008-2012, by Randall Stewart. All rights reserved.
+ * Copyright (c) 2008-2012, by Michael Tuexen. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -29,8 +29,6 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
-
-/* $KAME: sctp_output.c,v 1.46 2005/03/06 16:04:17 itojun Exp $	 */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -154,12 +152,12 @@ sctp_gather_internal_ifa_flags(struct sctp_ifa *ifa)
 
 
 static uint32_t
-sctp_is_desired_interface_type(struct ifaddr *ifa)
+sctp_is_desired_interface_type(struct ifnet *ifn)
 {
 	int result;
 
 	/* check the interface type to see if it's one we care about */
-	switch (ifa->ifa_ifp->if_type) {
+	switch (ifn->if_type) {
 	case IFT_ETHER:
 	case IFT_ISO88023:
 	case IFT_ISO88024:
@@ -218,6 +216,10 @@ sctp_init_ifns_for_vrf(int vrfid)
 
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_list) {
+		if (sctp_is_desired_interface_type(ifn) == 0) {
+			/* non desired type */
+			continue;
+		}
 		IF_ADDR_RLOCK(ifn);
 		TAILQ_FOREACH(ifa, &ifn->if_addrlist, ifa_list) {
 			if (ifa->ifa_addr == NULL) {
@@ -240,10 +242,6 @@ sctp_init_ifns_for_vrf(int vrfid)
 				break;
 #endif
 			default:
-				continue;
-			}
-			if (sctp_is_desired_interface_type(ifa) == 0) {
-				/* non desired type */
 				continue;
 			}
 			switch (ifa->ifa_addr->sa_family) {
@@ -319,6 +317,10 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 	if (ifa->ifa_addr == NULL) {
 		return;
 	}
+	if (sctp_is_desired_interface_type(ifa->ifa_ifp) == 0) {
+		/* non desired type */
+		return;
+	}
 	switch (ifa->ifa_addr->sa_family) {
 #ifdef INET
 	case AF_INET:
@@ -340,22 +342,16 @@ sctp_addr_change(struct ifaddr *ifa, int cmd)
 		/* non inet/inet6 skip */
 		return;
 	}
-
-	if (sctp_is_desired_interface_type(ifa) == 0) {
-		/* non desired type */
-		return;
-	}
 	if (cmd == RTM_ADD) {
 		(void)sctp_add_addr_to_vrf(SCTP_DEFAULT_VRFID, (void *)ifa->ifa_ifp,
-		    ifa->ifa_ifp->if_index, ifa->ifa_ifp->if_type,
-		    ifa->ifa_ifp->if_xname,
+		    ifa->ifa_ifp->if_index, ifa->ifa_ifp->if_type, ifa->ifa_ifp->if_xname,
 		    (void *)ifa, ifa->ifa_addr, ifa_flags, 1);
 	} else {
 
 		sctp_del_addr_from_vrf(SCTP_DEFAULT_VRFID, ifa->ifa_addr,
 		    ifa->ifa_ifp->if_index,
-		    ifa->ifa_ifp->if_xname
-		    );
+		    ifa->ifa_ifp->if_xname);
+
 		/*
 		 * We don't bump refcount here so when it completes the
 		 * final delete will happen.
@@ -424,11 +420,12 @@ sctp_get_mbuf_for_msg(unsigned int space_needed, int want_header,
 
 #ifdef SCTP_PACKET_LOGGING
 void
-sctp_packet_log(struct mbuf *m, int length)
+sctp_packet_log(struct mbuf *m)
 {
 	int *lenat, thisone;
 	void *copyto;
 	uint32_t *tick_tock;
+	int length;
 	int total_len;
 	int grabbed_lock = 0;
 	int value, newval, thisend, thisbegin;
@@ -438,6 +435,7 @@ sctp_packet_log(struct mbuf *m, int length)
 	 * (value) -ticks of log      (ticks) o -ip packet o -as logged -
 	 * where this started (thisbegin) x <--end points here
 	 */
+	length = SCTP_HEADER_LEN(m);
 	total_len = SCTP_SIZE32((length + (4 * sizeof(int))));
 	/* Log a packet to the buffer. */
 	if (total_len > SCTP_PACKET_LOG_SIZE) {
@@ -483,7 +481,7 @@ again_locked:
 	}
 	/* Sanity check */
 	if (thisend >= SCTP_PACKET_LOG_SIZE) {
-		printf("Insanity stops a log thisbegin:%d thisend:%d writers:%d lock:%d end:%d\n",
+		SCTP_PRINTF("Insanity stops a log thisbegin:%d thisend:%d writers:%d lock:%d end:%d\n",
 		    thisbegin,
 		    thisend,
 		    SCTP_BASE_VAR(packet_log_writers),

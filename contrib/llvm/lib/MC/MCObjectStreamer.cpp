@@ -7,17 +7,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCObjectStreamer.h"
-
-#include "llvm/Support/ErrorHandling.h"
+#include "llvm/MC/MCAsmBackend.h"
+#include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCAssembler.h"
 #include "llvm/MC/MCCodeEmitter.h"
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCDwarf.h"
 #include "llvm/MC/MCExpr.h"
+#include "llvm/MC/MCObjectWriter.h"
 #include "llvm/MC/MCSymbol.h"
-#include "llvm/MC/MCAsmBackend.h"
+#include "llvm/Support/ErrorHandling.h"
 using namespace llvm;
 
 MCObjectStreamer::MCObjectStreamer(MCContext &Context, MCAsmBackend &TAB,
@@ -105,6 +105,14 @@ void MCObjectStreamer::EmitValueImpl(const MCExpr *Value, unsigned Size,
   DF->getContents().resize(DF->getContents().size() + Size, 0);
 }
 
+void MCObjectStreamer::EmitCFIStartProcImpl(MCDwarfFrameInfo &Frame) {
+  RecordProcStart(Frame);
+}
+
+void MCObjectStreamer::EmitCFIEndProcImpl(MCDwarfFrameInfo &Frame) {
+  RecordProcEnd(Frame);
+}
+
 void MCObjectStreamer::EmitLabel(MCSymbol *Symbol) {
   MCStreamer::EmitLabel(Symbol);
 
@@ -164,7 +172,7 @@ void MCObjectStreamer::EmitInstruction(const MCInst &Inst) {
   MCLineEntry::Make(this, getCurrentSection());
 
   // If this instruction doesn't need relaxation, just emit it as data.
-  if (!getAssembler().getBackend().MayNeedRelaxation(Inst)) {
+  if (!getAssembler().getBackend().mayNeedRelaxation(Inst)) {
     EmitInstToData(Inst);
     return;
   }
@@ -173,9 +181,9 @@ void MCObjectStreamer::EmitInstruction(const MCInst &Inst) {
   // possible and emit it as data.
   if (getAssembler().getRelaxAll()) {
     MCInst Relaxed;
-    getAssembler().getBackend().RelaxInstruction(Inst, Relaxed);
-    while (getAssembler().getBackend().MayNeedRelaxation(Relaxed))
-      getAssembler().getBackend().RelaxInstruction(Relaxed, Relaxed);
+    getAssembler().getBackend().relaxInstruction(Inst, Relaxed);
+    while (getAssembler().getBackend().mayNeedRelaxation(Relaxed))
+      getAssembler().getBackend().relaxInstruction(Relaxed, Relaxed);
     EmitInstToData(Relaxed);
     return;
   }
@@ -224,12 +232,12 @@ void MCObjectStreamer::EmitDwarfAdvanceFrameAddr(const MCSymbol *LastLabel,
   new MCDwarfCallFrameFragment(*AddrDelta, getCurrentSectionData());
 }
 
-void MCObjectStreamer::EmitValueToOffset(const MCExpr *Offset,
-                                        unsigned char Value) {
+bool MCObjectStreamer::EmitValueToOffset(const MCExpr *Offset,
+                                         unsigned char Value) {
   int64_t Res;
   if (Offset->EvaluateAsAbsolute(Res, getAssembler())) {
     new MCOrgFragment(*Offset, Value, getCurrentSectionData());
-    return;
+    return false;
   }
 
   MCSymbol *CurrentPos = getContext().CreateTempSymbol();
@@ -241,14 +249,30 @@ void MCObjectStreamer::EmitValueToOffset(const MCExpr *Offset,
     MCBinaryExpr::Create(MCBinaryExpr::Sub, Offset, Ref, getContext());
 
   if (!Delta->EvaluateAsAbsolute(Res, getAssembler()))
-    report_fatal_error("expected assembly-time absolute expression");
+    return true;
   EmitFill(Res, Value, 0);
+  return false;
 }
 
-void MCObjectStreamer::Finish() {
+// Associate GPRel32 fixup with data and resize data area
+void MCObjectStreamer::EmitGPRel32Value(const MCExpr *Value) {
+  MCDataFragment *DF = getOrCreateDataFragment();
+
+  DF->addFixup(MCFixup::Create(DF->getContents().size(),
+                               Value,
+                               FK_GPRel_4));
+  DF->getContents().resize(DF->getContents().size() + 4, 0);
+}
+
+void MCObjectStreamer::FinishImpl() {
   // Dump out the dwarf file & directory tables and line tables.
+  const MCSymbol *LineSectionSymbol = NULL;
   if (getContext().hasDwarfFiles())
-    MCDwarfFileTable::Emit(this);
+    LineSectionSymbol = MCDwarfFileTable::Emit(this);
+
+  // If we are generating dwarf for assembly source files dump out the sections.
+  if (getContext().getGenDwarfForAssembly())
+    MCGenDwarfInfo::Emit(this, LineSectionSymbol);
 
   getAssembler().Finish();
 }

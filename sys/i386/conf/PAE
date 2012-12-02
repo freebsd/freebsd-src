@@ -75,7 +75,7 @@ nodevice	sn
 nodevice	xe
 
 nodevice	an
-nodevice	ath		# Atheros pci/cardbus NIC's
+nodevice	ath		# Atheros pci/cardbus NICs
 nodevice	ath_pci
 nodevice	ath_hal
 nodevice	ath_rate_sample	# SampleRate tx rate control for ath

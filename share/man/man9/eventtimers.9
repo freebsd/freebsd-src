@@ -86,7 +86,7 @@ struct eventtimer {
 Event timers are responsible for generating interrupts at specified time
 or periodically, to run different time-based events.
 Subsystem consists of three main parts:
-.Bl -tag
+.Bl -tag -width "Consumers"
 .It Drivers
 Manage hardware to generate requested time events.
 .It Consumers
@@ -107,7 +107,7 @@ Driver API is built around eventtimer structure.
 To register its functionality driver allocates that structure and calls
 .Fn et_register .
 Driver should fill following fields there:
-.Bl -tag
+.Bl -tag -width Va
 .It Va et_name
 Unique name of the event timer for management purposes.
 .It Va et_flags

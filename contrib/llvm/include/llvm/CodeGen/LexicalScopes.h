@@ -153,11 +153,15 @@ private:
 /// LexicalScope - This class is used to track scope information.
 ///
 class LexicalScope {
+  virtual void anchor();
 
 public:
   LexicalScope(LexicalScope *P, const MDNode *D, const MDNode *I, bool A)
     : Parent(P), Desc(D), InlinedAtLocation(I), AbstractScope(A),
-      LastInsn(0), FirstInsn(0), DFSIn(0), DFSOut(0), IndentLevel(0) {
+      LastInsn(0), FirstInsn(0), DFSIn(0), DFSOut(0) {
+#ifndef NDEBUG
+    IndentLevel = 0;
+#endif
     if (Parent)
       Parent->addChild(this);
   }
@@ -208,7 +212,7 @@ public:
       Parent->closeInsnRange(NewScope);
   }
 
-  /// dominates - Return true if current scope dominsates given lexical scope.
+  /// dominates - Return true if current scope dominates given lexical scope.
   bool dominates(const LexicalScope *S) const {
     if (S == this)
       return true;
@@ -240,7 +244,9 @@ private:
   const MachineInstr *FirstInsn;      // First instruction of this scope.
   unsigned DFSIn, DFSOut;             // In & Out Depth use to determine
                                       // scope nesting.
+#ifndef NDEBUG
   mutable unsigned IndentLevel;       // Private state for dump()
+#endif
 };
 
 } // end llvm namespace

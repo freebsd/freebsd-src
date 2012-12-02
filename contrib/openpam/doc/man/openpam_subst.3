@@ -34,7 +34,7 @@
 .\"
 .\" $Id$
 .\"
-.Dd December 18, 2011
+.Dd May 26, 2012
 .Dt OPENPAM_SUBST 3
 .Os
 .Sh NAME
@@ -50,7 +50,7 @@
 .Fn openpam_subst "const pam_handle_t *pamh" "char *buf" "size_t *bufsize" "const char *template"
 .Sh DESCRIPTION
 The
-.Nm
+.Fn openpam_subst
 function expands a string, substituting PAM item
 values for all occurrences of specific substitution codes.
 The
@@ -73,12 +73,12 @@ string,
 .Fa bufsize
 is updated to reflect the amount of space required to
 hold the entire string, and
-.Nm
+.Fn openpam_subst
 returns
 .Dv PAM_TRY_AGAIN .
 .Pp
 If
-.Nm
+.Fn openpam_subst
 fails for any other reason, the
 .Fa bufsize
 argument is
@@ -112,10 +112,9 @@ Replaced by the current value of the
 .Dv PAM_USER
 item.
 .El
-.Pp
 .Sh RETURN VALUES
 The
-.Nm
+.Fn openpam_subst
 function returns one of the following values:
 .Bl -tag -width 18n
 .It Bq Er PAM_SYSTEM_ERR
@@ -131,12 +130,11 @@ Try again.
 .Xr pam_strerror 3
 .Sh STANDARDS
 The
-.Nm
+.Fn openpam_subst
 function is an OpenPAM extension.
 .Sh AUTHORS
 The
-.Nm
-function and this manual page were developed for the
-.Fx
-Project by
-.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
+.Fn openpam_subst
+function and this manual page were
+developed by
+.An Dag-Erling Sm\(/orgrav Aq des@des.no .

@@ -48,21 +48,21 @@ Implementations are encouraged to set the name to
 .Dv GSS_C_NO_NAME
 on successful completion of this call.
 .Sh PARAMETERS
-.Bl -tag
+.Bl -tag -width ".It minor status"
 .It minor_status
 Mechanism specific status code.
 .It name
 The name to be deleted.
 .El
 .Sh RETURN VALUES
-.Bl -tag
+.Bl -tag -width ".It GSS_S_COMPLETE"
 .It GSS_S_COMPLETE
 Successful completion
 .It GSS_S_BAD_NAME
 The name parameter did not contain a valid name
 .El
 .Sh STANDARDS
-.Bl -tag
+.Bl -tag -width ".It RFC 2743"
 .It RFC 2743
 Generic Security Service Application Program Interface Version 2, Update 1
 .It RFC 2744

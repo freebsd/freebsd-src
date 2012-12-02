@@ -39,7 +39,7 @@
 
 #define	N(a)	(sizeof(a) / sizeof(a[0]))
 
-#define	MAC5416	SREV(13,8), SREV(0xff,0xff)	/* XXX */
+#define	MAC5416	SREV(13,8), SREV(0xffff,0xffff)	/* XXX */
 
 static struct dumpreg ar5416regs[] = {
     DEFBASIC(AR_CR,		"CR"),

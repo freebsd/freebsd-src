@@ -34,18 +34,18 @@ public:
 struct PrintingPolicy {
   /// \brief Create a default printing policy for C.
   PrintingPolicy(const LangOptions &LO)
-    : Indentation(2), LangOpts(LO), SuppressSpecifiers(false),
+    : LangOpts(LO), Indentation(2), SuppressSpecifiers(false),
       SuppressTagKeyword(false), SuppressTag(false), SuppressScope(false),
-      SuppressInitializers(false),
-      Dump(false), ConstantArraySizeAsWritten(false),
-      AnonymousTagLocations(true), SuppressStrongLifetime(false),
-      Bool(LO.Bool) { }
-
-  /// \brief The number of spaces to use to indent each line.
-  unsigned Indentation : 8;
+      SuppressUnwrittenScope(false), SuppressInitializers(false),
+      ConstantArraySizeAsWritten(false), AnonymousTagLocations(true),
+      SuppressStrongLifetime(false), Bool(LO.Bool),
+      DumpSourceManager(0) { }
 
   /// \brief What language we're printing.
   LangOptions LangOpts;
+
+  /// \brief The number of spaces to use to indent each line.
+  unsigned Indentation : 8;
 
   /// \brief Whether we should suppress printing of the actual specifiers for
   /// the given type or declaration.
@@ -86,6 +86,10 @@ struct PrintingPolicy {
   /// \brief Suppresses printing of scope specifiers.
   bool SuppressScope : 1;
 
+  /// \brief Suppress printing parts of scope specifiers that don't need
+  /// to be written, e.g., for inline or anonymous namespaces.
+  bool SuppressUnwrittenScope : 1;
+  
   /// \brief Suppress printing of variable initializers.
   ///
   /// This flag is used when printing the loop variable in a for-range
@@ -98,12 +102,6 @@ struct PrintingPolicy {
   /// SuppressInitializers will be true when printing "auto x", so that the
   /// internal initializer constructed for x will not be printed.
   bool SuppressInitializers : 1;
-
-  /// \brief True when we are "dumping" rather than "pretty-printing",
-  /// where dumping involves printing the internal details of the AST
-  /// and pretty-printing involves printing something similar to
-  /// source code.
-  bool Dump : 1;
 
   /// \brief Whether we should print the sizes of constant array expressions
   /// as written in the sources.
@@ -135,6 +133,12 @@ struct PrintingPolicy {
   /// \brief Whether we can use 'bool' rather than '_Bool', even if the language
   /// doesn't actually have 'bool' (because, e.g., it is defined as a macro).
   unsigned Bool : 1;
+
+  /// \brief If we are "dumping" rather than "pretty-printing", this points to
+  /// a SourceManager which will be used to dump SourceLocations. Dumping
+  /// involves printing the internal details of the AST and pretty-printing
+  /// involves printing something similar to source code.
+  SourceManager *DumpSourceManager;
 };
 
 } // end namespace clang

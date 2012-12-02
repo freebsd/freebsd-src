@@ -84,13 +84,12 @@
 #include <geom/geom.h>
 
 #include <vm/vm.h>
+#include <vm/vm_param.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
 #include <vm/uma.h>
-
-#include <machine/vmparam.h>
 
 #define MD_MODVER 1
 
@@ -110,6 +109,10 @@ SYSCTL_INT(_debug, OID_AUTO, mddebug, CTLFLAG_RW, &md_debug, 0,
 static int md_malloc_wait;
 SYSCTL_INT(_vm, OID_AUTO, md_malloc_wait, CTLFLAG_RW, &md_malloc_wait, 0,
     "Allow malloc to wait for memory allocations");
+
+#if defined(MD_ROOT) && !defined(MD_ROOT_FSTYPE)
+#define	MD_ROOT_FSTYPE	"ufs"
+#endif
 
 #if defined(MD_ROOT) && defined(MD_ROOT_SIZE)
 /*
@@ -134,7 +137,6 @@ static g_access_t g_md_access;
 static void g_md_dumpconf(struct sbuf *sb, const char *indent,
     struct g_geom *gp, struct g_consumer *cp __unused, struct g_provider *pp);
 
-static int mdunits;
 static struct cdev *status_dev = 0;
 static struct sx md_sx;
 static struct unrhdr *md_uh;
@@ -513,7 +515,7 @@ mdstart_preload(struct md_s *sc, struct bio *bp)
 static int
 mdstart_vnode(struct md_s *sc, struct bio *bp)
 {
-	int error, vfslocked;
+	int error;
 	struct uio auio;
 	struct iovec aiov;
 	struct mount *mp;
@@ -543,13 +545,11 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	 */
 
 	if (bp->bio_cmd == BIO_FLUSH) {
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		(void) vn_start_write(vp, &mp, V_WAIT);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_FSYNC(vp, MNT_WAIT, td);
 		VOP_UNLOCK(vp, 0);
 		vn_finished_write(mp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
 
@@ -571,7 +571,6 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		auio.uio_rw = UIO_WRITE;
 		auio.uio_td = td;
 		end = bp->bio_offset + bp->bio_length;
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		(void) vn_start_write(vp, &mp, V_WAIT);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = 0;
@@ -589,7 +588,6 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		VOP_UNLOCK(vp, 0);
 		vn_finished_write(mp);
 		bp->bio_resid = end - auio.uio_offset;
-		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
 
@@ -611,7 +609,6 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 	 * When reading set IO_DIRECT to try to avoid double-caching
 	 * the data.  When writing IO_DIRECT is not optimal.
 	 */
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (bp->bio_cmd == BIO_READ) {
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 		error = VOP_READ(vp, &auio, IO_DIRECT, sc->cred);
@@ -624,7 +621,6 @@ mdstart_vnode(struct md_s *sc, struct bio *bp)
 		VOP_UNLOCK(vp, 0);
 		vn_finished_write(mp);
 	}
-	VFS_UNLOCK_GIANT(vfslocked);
 	bp->bio_resid = auio.uio_resid;
 	return (error);
 }
@@ -680,6 +676,15 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 				sched_unpin();
 				vm_page_wakeup(m);
 				break;
+			} else if (rv == VM_PAGER_FAIL) {
+				/*
+				 * Pager does not have the page.  Zero
+				 * the allocated page, and mark it as
+				 * valid. Do not set dirty, the page
+				 * can be recreated if thrown out.
+				 */
+				bzero((void *)sf_buf_kva(sf), PAGE_SIZE);
+				m->valid = VM_PAGE_BITS_ALL;
 			}
 			bcopy((void *)(sf_buf_kva(sf) + offs), p, len);
 			cpu_flush_dcache(p, len);
@@ -725,12 +730,6 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		/* Actions on further pages start at offset 0 */
 		p += PAGE_SIZE - offs;
 		offs = 0;
-#if 0
-if (bootverbose || bp->bio_offset / PAGE_SIZE < 17)
-printf("wire_count %d busy %d flags %x hold_count %d act_count %d queue %d valid %d dirty %d @ %d\n",
-    m->wire_count, m->busy,
-    m->flags, m->hold_count, m->act_count, m->queue, m->valid, m->dirty, i);
-#endif
 	}
 	vm_object_pip_subtract(sc->object, 1);
 	VM_OBJECT_UNLOCK(sc->object);
@@ -854,27 +853,6 @@ mdinit(struct md_s *sc)
 	    DEVSTAT_ALL_SUPPORTED, DEVSTAT_TYPE_DIRECT, DEVSTAT_PRIORITY_MAX);
 }
 
-/*
- * XXX: we should check that the range they feed us is mapped.
- * XXX: we should implement read-only.
- */
-
-static int
-mdcreate_preload(struct md_s *sc, struct md_ioctl *mdio)
-{
-
-	if (mdio->md_options & ~(MD_AUTOUNIT | MD_FORCE))
-		return (EINVAL);
-	if (mdio->md_base == 0)
-		return (EINVAL);
-	sc->flags = mdio->md_options & MD_FORCE;
-	/* Cast to pointer size, then to pointer to avoid warning */
-	sc->pl_ptr = (u_char *)(uintptr_t)mdio->md_base;
-	sc->pl_len = (size_t)sc->mediasize;
-	return (0);
-}
-
-
 static int
 mdcreate_malloc(struct md_s *sc, struct md_ioctl *mdio)
 {
@@ -964,7 +942,7 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	struct vattr vattr;
 	struct nameidata nd;
 	char *fname;
-	int error, flags, vfslocked;
+	int error, flags;
 
 	/*
 	 * Kernel-originated requests must have the filename appended
@@ -983,11 +961,10 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	 * set the FWRITE mask before trying to open the backing store.
 	 */
 	flags = FREAD | ((mdio->md_options & MD_READONLY) ? 0 : FWRITE);
-	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, sc->file, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, sc->file, td);
 	error = vn_open(&nd, &flags, 0, NULL);
 	if (error != 0)
 		return (error);
-	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	if (nd.ni_vp->v_type != VREG) {
 		error = EINVAL;
@@ -1023,19 +1000,16 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 		nd.ni_vp->v_vflag &= ~VV_MD;
 		goto bad;
 	}
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (0);
 bad:
 	VOP_UNLOCK(nd.ni_vp, 0);
 	(void)vn_close(nd.ni_vp, flags, td->td_ucred, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 
 static int
 mddestroy(struct md_s *sc, struct thread *td)
 {
-	int vfslocked;
 
 	if (sc->gp) {
 		sc->gp->softc = NULL;
@@ -1057,13 +1031,11 @@ mddestroy(struct md_s *sc, struct thread *td)
 	mtx_unlock(&sc->queue_mtx);
 	mtx_destroy(&sc->queue_mtx);
 	if (sc->vnode != NULL) {
-		vfslocked = VFS_LOCK_GIANT(sc->vnode->v_mount);
 		vn_lock(sc->vnode, LK_EXCLUSIVE | LK_RETRY);
 		sc->vnode->v_vflag &= ~VV_MD;
 		VOP_UNLOCK(sc->vnode, 0);
 		(void)vn_close(sc->vnode, sc->flags & MD_READONLY ?
 		    FREAD : (FREAD|FWRITE), sc->cred, td);
-		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	if (sc->cred != NULL)
 		crfree(sc->cred);
@@ -1081,6 +1053,64 @@ mddestroy(struct md_s *sc, struct thread *td)
 }
 
 static int
+mdresize(struct md_s *sc, struct md_ioctl *mdio)
+{
+	int error, res;
+	vm_pindex_t oldpages, newpages;
+
+	switch (sc->type) {
+	case MD_VNODE:
+		break;
+	case MD_SWAP:
+		if (mdio->md_mediasize <= 0 ||
+		    (mdio->md_mediasize % PAGE_SIZE) != 0)
+			return (EDOM);
+		oldpages = OFF_TO_IDX(round_page(sc->mediasize));
+		newpages = OFF_TO_IDX(round_page(mdio->md_mediasize));
+		if (newpages < oldpages) {
+			VM_OBJECT_LOCK(sc->object);
+			vm_object_page_remove(sc->object, newpages, 0, 0);
+			swap_pager_freespace(sc->object, newpages,
+			    oldpages - newpages);
+			swap_release_by_cred(IDX_TO_OFF(oldpages -
+			    newpages), sc->cred);
+			sc->object->charge = IDX_TO_OFF(newpages);
+			sc->object->size = newpages;
+			VM_OBJECT_UNLOCK(sc->object);
+		} else if (newpages > oldpages) {
+			res = swap_reserve_by_cred(IDX_TO_OFF(newpages -
+			    oldpages), sc->cred);
+			if (!res)
+				return (ENOMEM);
+			if ((mdio->md_options & MD_RESERVE) ||
+			    (sc->flags & MD_RESERVE)) {
+				error = swap_pager_reserve(sc->object,
+				    oldpages, newpages - oldpages);
+				if (error < 0) {
+					swap_release_by_cred(
+					    IDX_TO_OFF(newpages - oldpages),
+					    sc->cred);
+					return (EDOM);
+				}
+			}
+			VM_OBJECT_LOCK(sc->object);
+			sc->object->charge = IDX_TO_OFF(newpages);
+			sc->object->size = newpages;
+			VM_OBJECT_UNLOCK(sc->object);
+		}
+		break;
+	default:
+		return (EOPNOTSUPP);
+	}
+
+	sc->mediasize = mdio->md_mediasize;
+	g_topology_lock();
+	g_resize_provider(sc->pp, sc->mediasize);
+	g_topology_unlock();
+	return (0);
+}
+
+static int
 mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 {
 	vm_ooffset_t npage;
@@ -1090,7 +1120,7 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	 * Range check.  Disallow negative sizes or any size less then the
 	 * size of a page.  Then round to a page.
 	 */
-	if (sc->mediasize == 0 || (sc->mediasize % PAGE_SIZE) != 0)
+	if (sc->mediasize <= 0 || (sc->mediasize % PAGE_SIZE) != 0)
 		return (EDOM);
 
 	/*
@@ -1108,7 +1138,7 @@ mdcreate_swap(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	    VM_PROT_DEFAULT, 0, td->td_ucred);
 	if (sc->object == NULL)
 		return (ENOMEM);
-	sc->flags = mdio->md_options & MD_FORCE;
+	sc->flags = mdio->md_options & (MD_FORCE | MD_RESERVE);
 	if (mdio->md_options & MD_RESERVE) {
 		if (swap_pager_reserve(sc->object, 0, npage) < 0) {
 			error = EDOM;
@@ -1131,6 +1161,7 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 	struct md_ioctl *mdio;
 	struct md_s *sc;
 	int error, i;
+	unsigned sectsize;
 
 	if (md_debug)
 		printf("mdctlioctl(%s %lx %p %x %p)\n",
@@ -1159,6 +1190,12 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		default:
 			return (EINVAL);
 		}
+		if (mdio->md_sectorsize == 0)
+			sectsize = DEV_BSIZE;
+		else
+			sectsize = mdio->md_sectorsize;
+		if (sectsize > MAXPHYS || mdio->md_mediasize < sectsize)
+			return (EINVAL);
 		if (mdio->md_options & MD_AUTOUNIT)
 			sc = mdnew(-1, &error, mdio->md_type);
 		else {
@@ -1171,10 +1208,7 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		if (mdio->md_options & MD_AUTOUNIT)
 			mdio->md_unit = sc->unit;
 		sc->mediasize = mdio->md_mediasize;
-		if (mdio->md_sectorsize == 0)
-			sc->sectorsize = DEV_BSIZE;
-		else
-			sc->sectorsize = mdio->md_sectorsize;
+		sc->sectorsize = sectsize;
 		error = EDOOFUS;
 		switch (sc->type) {
 		case MD_MALLOC:
@@ -1182,8 +1216,12 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 			error = mdcreate_malloc(sc, mdio);
 			break;
 		case MD_PRELOAD:
-			sc->start = mdstart_preload;
-			error = mdcreate_preload(sc, mdio);
+			/*
+			 * We disallow attaching preloaded memory disks via
+			 * ioctl. Preloaded memory disks are automatically
+			 * attached in g_md_init().
+			 */
+			error = EOPNOTSUPP;
 			break;
 		case MD_VNODE:
 			sc->start = mdstart_vnode;
@@ -1217,6 +1255,20 @@ xmdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread
 		    !(mdio->md_options & MD_FORCE))
 			return (EBUSY);
 		return (mddestroy(sc, td));
+	case MDIOCRESIZE:
+		if ((mdio->md_options & ~(MD_FORCE | MD_RESERVE)) != 0)
+			return (EINVAL);
+
+		sc = mdfind(mdio->md_unit);
+		if (sc == NULL)
+			return (ENOENT);
+		if (mdio->md_mediasize < sc->sectorsize)
+			return (EINVAL);
+		if (mdio->md_mediasize < sc->mediasize &&
+		    !(sc->flags & MD_FORCE) &&
+		    !(mdio->md_options & MD_FORCE))
+			return (EBUSY);
+		return (mdresize(sc, mdio));
 	case MDIOCQUERY:
 		sc = mdfind(mdio->md_unit);
 		if (sc == NULL)
@@ -1256,7 +1308,7 @@ mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread 
 }
 
 static void
-md_preloaded(u_char *image, size_t length)
+md_preloaded(u_char *image, size_t length, const char *name)
 {
 	struct md_s *sc;
 	int error;
@@ -1271,9 +1323,13 @@ md_preloaded(u_char *image, size_t length)
 	sc->start = mdstart_preload;
 #ifdef MD_ROOT
 	if (sc->unit == 0)
-		rootdevnames[0] = "ufs:/dev/md0";
+		rootdevnames[0] = MD_ROOT_FSTYPE ":/dev/md0";
 #endif
 	mdinit(sc);
+	if (name != NULL) {
+		printf("%s%d: Preloaded image <%s> %zd bytes at %p\n",
+		    MD_NAME, sc->unit, name, length, image);
+	}
 }
 
 static void
@@ -1294,7 +1350,7 @@ g_md_init(struct g_class *mp __unused)
 	md_uh = new_unrhdr(0, INT_MAX, NULL);
 #ifdef MD_ROOT_SIZE
 	sx_xlock(&md_sx);
-	md_preloaded(mfs_root.start, sizeof(mfs_root.start));
+	md_preloaded(mfs_root.start, sizeof(mfs_root.start), NULL);
 	sx_xunlock(&md_sx);
 #endif
 	/* XXX: are preload_* static or do they need Giant ? */
@@ -1310,10 +1366,8 @@ g_md_init(struct g_class *mp __unused)
 		ptr = preload_fetch_addr(mod);
 		len = preload_fetch_size(mod);
 		if (ptr != NULL && len != 0) {
-			printf("%s%d: Preloaded image <%s> %d bytes at %p\n",
-			    MD_NAME, mdunits, name, len, ptr);
 			sx_xlock(&md_sx);
-			md_preloaded(ptr, len);
+			md_preloaded(ptr, len, name);
 			sx_xunlock(&md_sx);
 		}
 	}

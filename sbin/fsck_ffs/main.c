@@ -210,12 +210,11 @@ checkfilesys(char *filesys)
 	struct statfs *mntp;
 	struct stat snapdir;
 	struct group *grp;
-	ufs2_daddr_t blks;
 	struct iovec *iov;
 	char errmsg[255];
 	int iovlen;
 	int cylno;
-	ino_t files;
+	intmax_t blks, files;
 	size_t size;
 
 	iov = NULL;
@@ -279,8 +278,8 @@ checkfilesys(char *filesys)
 					exit(0);
 				exit(4);
 			} else {
-				pfatal("UNEXPECTED INCONSISTENCY, %s\n",
-				    "CANNOT RUN FAST FSCK\n");
+				pfatal(
+			    "UNEXPECTED INCONSISTENCY, CANNOT RUN FAST FSCK\n");
 			}
 		}
 	}
@@ -297,8 +296,8 @@ checkfilesys(char *filesys)
 			pfatal("NOT MOUNTED, CANNOT RUN IN BACKGROUND\n");
 		} else if ((mntp->f_flags & MNT_SOFTDEP) == 0) {
 			bkgrdflag = 0;
-			pfatal("NOT USING SOFT UPDATES, %s\n",
-			    "CANNOT RUN IN BACKGROUND");
+			pfatal(
+			  "NOT USING SOFT UPDATES, CANNOT RUN IN BACKGROUND\n");
 		} else if ((mntp->f_flags & MNT_RDONLY) != 0) {
 			bkgrdflag = 0;
 			pfatal("MOUNTED READ-ONLY, CANNOT RUN IN BACKGROUND\n");
@@ -306,8 +305,8 @@ checkfilesys(char *filesys)
 			if (readsb(0) != 0) {
 				if (sblock.fs_flags & (FS_NEEDSFSCK | FS_SUJ)) {
 					bkgrdflag = 0;
-					pfatal("UNEXPECTED INCONSISTENCY, %s\n",
-					    "CANNOT RUN IN BACKGROUND\n");
+					pfatal(
+			"UNEXPECTED INCONSISTENCY, CANNOT RUN IN BACKGROUND\n");
 				}
 				if ((sblock.fs_flags & FS_UNCLEAN) == 0 &&
 				    skipclean && ckclean) {
@@ -315,8 +314,8 @@ checkfilesys(char *filesys)
 					 * file system is clean;
 					 * skip snapshot and report it clean
 					 */
-					pwarn("FILE SYSTEM CLEAN; %s\n",
-					    "SKIPPING CHECKS");
+					pwarn(
+					"FILE SYSTEM CLEAN; SKIPPING CHECKS\n");
 					goto clean;
 				}
 			}
@@ -328,24 +327,23 @@ checkfilesys(char *filesys)
 			if (stat(snapname, &snapdir) < 0) {
 				if (errno != ENOENT) {
 					bkgrdflag = 0;
-					pfatal("CANNOT FIND %s %s: %s, %s\n",
-					    "SNAPSHOT DIRECTORY",
-					    snapname, strerror(errno),
-					    "CANNOT RUN IN BACKGROUND");
+					pfatal(
+	"CANNOT FIND SNAPSHOT DIRECTORY %s: %s, CANNOT RUN IN BACKGROUND\n",
+					    snapname, strerror(errno));
 				} else if ((grp = getgrnam("operator")) == 0 ||
 				    mkdir(snapname, 0770) < 0 ||
 				    chown(snapname, -1, grp->gr_gid) < 0 ||
 				    chmod(snapname, 0770) < 0) {
 					bkgrdflag = 0;
-					pfatal("CANNOT CREATE %s %s: %s, %s\n",
-					    "SNAPSHOT DIRECTORY",
-					    snapname, strerror(errno),
-					    "CANNOT RUN IN BACKGROUND");
+					pfatal(
+	"CANNOT CREATE SNAPSHOT DIRECTORY %s: %s, CANNOT RUN IN BACKGROUND\n",
+					    snapname, strerror(errno));
 				}
 			} else if (!S_ISDIR(snapdir.st_mode)) {
 				bkgrdflag = 0;
-				pfatal("%s IS NOT A DIRECTORY, %s\n", snapname,
-				    "CANNOT RUN IN BACKGROUND");
+				pfatal(
+			"%s IS NOT A DIRECTORY, CANNOT RUN IN BACKGROUND\n",
+				    snapname);
 			}
 		}
 		if (bkgrdflag) {
@@ -383,9 +381,9 @@ checkfilesys(char *filesys)
 	clean:
 		pwarn("clean, %ld free ", (long)(sblock.fs_cstotal.cs_nffree +
 		    sblock.fs_frag * sblock.fs_cstotal.cs_nbfree));
-		printf("(%lld frags, %lld blocks, %.1f%% fragmentation)\n",
-		    (long long)sblock.fs_cstotal.cs_nffree,
-		    (long long)sblock.fs_cstotal.cs_nbfree,
+		printf("(%jd frags, %jd blocks, %.1f%% fragmentation)\n",
+		    (intmax_t)sblock.fs_cstotal.cs_nffree,
+		    (intmax_t)sblock.fs_cstotal.cs_nbfree,
 		    sblock.fs_cstotal.cs_nffree * 100.0 / sblock.fs_dsize);
 		return (0);
 	}
@@ -482,8 +480,8 @@ checkfilesys(char *filesys)
 	blks = maxfsblock - (n_ffree + sblock.fs_frag * n_bfree) - blks;
 	if (bkgrdflag && (files > 0 || blks > 0)) {
 		countdirs = sblock.fs_cstotal.cs_ndir - countdirs;
-		pwarn("Reclaimed: %ld directories, %ld files, %lld fragments\n",
-		    countdirs, (long)files - countdirs, (long long)blks);
+		pwarn("Reclaimed: %ld directories, %jd files, %jd fragments\n",
+		    countdirs, files - countdirs, blks);
 	}
 	pwarn("%ld files, %jd used, %ju free ",
 	    (long)n_files, (intmax_t)n_blks,
@@ -493,13 +491,13 @@ checkfilesys(char *filesys)
 	    n_ffree * 100.0 / sblock.fs_dsize);
 	if (debug) {
 		if (files < 0)
-			printf("%d inodes missing\n", -files);
+			printf("%jd inodes missing\n", -files);
 		if (blks < 0)
-			printf("%lld blocks missing\n", -(long long)blks);
+			printf("%jd blocks missing\n", -blks);
 		if (duplist != NULL) {
 			printf("The following duplicate blocks remain:");
 			for (dp = duplist; dp; dp = dp->next)
-				printf(" %lld,", (long long)dp->dup);
+				printf(" %jd,", (intmax_t)dp->dup);
 			printf("\n");
 		}
 	}
@@ -636,8 +634,7 @@ static void
 usage(void)
 {
 	(void) fprintf(stderr,
-	    "usage: %s [-BEFfnpry] [-b block] [-c level] [-m mode] "
-			"filesystem ...\n",
+"usage: %s [-BEFfnpry] [-b block] [-c level] [-m mode] filesystem ...\n",
 	    getprogname());
 	exit(1);
 }

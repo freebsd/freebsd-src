@@ -28,7 +28,7 @@
 .\"	@(#)arp4.4	6.5 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd March 28, 2007
+.Dd September 3, 2012
 .Dt ARP 4
 .Os
 .Sh NAME
@@ -113,26 +113,65 @@ MIB variable
 .Va net.link.ether.inet.proxyall
 to 1.
 .Sh MIB Variables
-The ARP protocol implements a number of configrable variables in
+The ARP protocol implements a number of configurable variables in
 .Va net.link.ether.inet
 branch
 of the
 .Xr sysctl 3
 MIB.
-.Bl -tag
+.Bl -tag -width "log_arp_permanent_modify"
+.It Va allow_multicast
+Should the kernel install ARP entries with multicast bit set in
+the hardware address.
+Installing such entries is RFC 1812 violation, but some prorietary
+load balancing techniques require routers on network to do so.
+Turned off by default.
+.It Va log_arp_movements
+Should the kernel log movements of IP addresses from one hardware
+address to an other.
+See
+.Sx DIAGNOSTICS
+below.
+Turned on by default.
+.It Va log_arp_permanent_modify
+Should the kernel log attempts of remote host on network to modify a
+permanent ARP entry.
+See
+.Sx DIAGNOSTICS
+below.
+Turned on by default.
+.It Va log_arp_wrong_iface
+Should the kernel log attempts to insert an ARP entry on an interface
+when the IP network the address belongs to is connected to an other
+interface.
+See
+.Sx DIAGNOSTICS
+below.
+Turned on by default.
 .It Va max_age
 How long an ARP entry is held in the cache until it needs to be refreshed.
+Default is 1200 seconds.
+.It Va maxhold
+How many packets hold in the per-entry output queue while the entry
+is being resolved.
+Default is one packet.
 .It Va maxtries
 Number of retransmits before host is considered down and error is returned.
+Default is 5 tries.
+.It Va proxyall
+Enables ARP proxying for all hosts on net.
+Turned off by default.
 .It Va useloopback
 If an ARP entry is added for local address, force the traffic to go through
 the loopback interface.
-.It Va proxyall
-Enables ARP proxying for all hosts on net.
+Turned on by default.
+.It Va wait
+Lifetime of an incomplete ARP entry.
+Default is 20 seconds.
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
-.It "arp: %x:%x:%x:%x:%x:%x is using my IP address %d.%d.%d.%d!"
+.It "arp: %x:%x:%x:%x:%x:%x is using my IP address %d.%d.%d.%d on %s!"
 ARP has discovered another host on the local network which responds to
 mapping requests for its own Internet address with a different Ethernet
 address, generally indicating that two hosts are attempting to use the
@@ -170,6 +209,11 @@ entry in the local ARP table.
 This error will only be logged if the sysctl
 .Va net.link.ether.inet.log_arp_permanent_modify
 is set to 1, which is the system's default behaviour.
+.It "arp: %x:%x:%x:%x:%x:%x is multicast"
+Kernel refused to install an entry with multicast hardware address.
+If you really want such addresses being installed, set the sysctl
+.Va net.link.ether.inet.allow_multicast
+to a positive value.
 .El
 .Sh SEE ALSO
 .Xr inet 4 ,

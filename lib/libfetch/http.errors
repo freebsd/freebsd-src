@@ -18,6 +18,7 @@
 304 OK		Not Modified
 305 INFO	Use Proxy
 307 MOVED	Temporary Redirect
+308 MOVED	Permanent Redirect
 400 PROTO	Bad Request
 401 AUTH	Unauthorized
 402 AUTH	Payment Required

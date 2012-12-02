@@ -61,13 +61,33 @@
 #include "cryptlib.h"
 #include <openssl/hmac.h>
 
-#ifndef OPENSSL_FIPS
+#ifdef OPENSSL_FIPS
+#include <openssl/fips.h>
+#endif
 
-void HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
+int HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
 		  const EVP_MD *md, ENGINE *impl)
 	{
 	int i,j,reset=0;
 	unsigned char pad[HMAC_MAX_MD_CBLOCK];
+
+#ifdef OPENSSL_FIPS
+	if (FIPS_mode())
+		{
+		/* If we have an ENGINE need to allow non FIPS */
+		if ((impl || ctx->i_ctx.engine)
+			&&  !(ctx->i_ctx.flags & EVP_CIPH_FLAG_NON_FIPS_ALLOW))
+			{
+			EVPerr(EVP_F_HMAC_INIT_EX, EVP_R_DISABLED_FOR_FIPS);
+			return 0;
+			}
+		/* Other algorithm blocking will be done in FIPS_cmac_init,
+		 * via FIPS_hmac_init_ex().
+		 */
+		if (!impl && !ctx->i_ctx.engine)
+			return FIPS_hmac_init_ex(ctx, key, len, md, NULL);
+		}
+#endif
 
 	if (md != NULL)
 		{
@@ -84,10 +104,13 @@ void HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
 		OPENSSL_assert(j <= (int)sizeof(ctx->key));
 		if (j < len)
 			{
-			EVP_DigestInit_ex(&ctx->md_ctx,md, impl);
-			EVP_DigestUpdate(&ctx->md_ctx,key,len);
-			EVP_DigestFinal_ex(&(ctx->md_ctx),ctx->key,
-				&ctx->key_length);
+			if (!EVP_DigestInit_ex(&ctx->md_ctx,md, impl))
+				goto err;
+			if (!EVP_DigestUpdate(&ctx->md_ctx,key,len))
+				goto err;
+			if (!EVP_DigestFinal_ex(&(ctx->md_ctx),ctx->key,
+				&ctx->key_length))
+				goto err;
 			}
 		else
 			{
@@ -104,39 +127,61 @@ void HMAC_Init_ex(HMAC_CTX *ctx, const void *key, int len,
 		{
 		for (i=0; i<HMAC_MAX_MD_CBLOCK; i++)
 			pad[i]=0x36^ctx->key[i];
-		EVP_DigestInit_ex(&ctx->i_ctx,md, impl);
-		EVP_DigestUpdate(&ctx->i_ctx,pad,EVP_MD_block_size(md));
+		if (!EVP_DigestInit_ex(&ctx->i_ctx,md, impl))
+			goto err;
+		if (!EVP_DigestUpdate(&ctx->i_ctx,pad,EVP_MD_block_size(md)))
+			goto err;
 
 		for (i=0; i<HMAC_MAX_MD_CBLOCK; i++)
 			pad[i]=0x5c^ctx->key[i];
-		EVP_DigestInit_ex(&ctx->o_ctx,md, impl);
-		EVP_DigestUpdate(&ctx->o_ctx,pad,EVP_MD_block_size(md));
+		if (!EVP_DigestInit_ex(&ctx->o_ctx,md, impl))
+			goto err;
+		if (!EVP_DigestUpdate(&ctx->o_ctx,pad,EVP_MD_block_size(md)))
+			goto err;
 		}
-	EVP_MD_CTX_copy_ex(&ctx->md_ctx,&ctx->i_ctx);
+	if (!EVP_MD_CTX_copy_ex(&ctx->md_ctx,&ctx->i_ctx))
+			goto err;
+	return 1;
+	err:
+	return 0;
 	}
 
-void HMAC_Init(HMAC_CTX *ctx, const void *key, int len,
-	       const EVP_MD *md)
+int HMAC_Init(HMAC_CTX *ctx, const void *key, int len, const EVP_MD *md)
 	{
 	if(key && md)
 	    HMAC_CTX_init(ctx);
-	HMAC_Init_ex(ctx,key,len,md, NULL);
+	return HMAC_Init_ex(ctx,key,len,md, NULL);
 	}
 
-void HMAC_Update(HMAC_CTX *ctx, const unsigned char *data, size_t len)
+int HMAC_Update(HMAC_CTX *ctx, const unsigned char *data, size_t len)
 	{
-	EVP_DigestUpdate(&ctx->md_ctx,data,len);
+#ifdef OPENSSL_FIPS
+	if (FIPS_mode() && !ctx->i_ctx.engine)
+		return FIPS_hmac_update(ctx, data, len);
+#endif
+	return EVP_DigestUpdate(&ctx->md_ctx,data,len);
 	}
 
-void HMAC_Final(HMAC_CTX *ctx, unsigned char *md, unsigned int *len)
+int HMAC_Final(HMAC_CTX *ctx, unsigned char *md, unsigned int *len)
 	{
 	unsigned int i;
 	unsigned char buf[EVP_MAX_MD_SIZE];
+#ifdef OPENSSL_FIPS
+	if (FIPS_mode() && !ctx->i_ctx.engine)
+		return FIPS_hmac_final(ctx, md, len);
+#endif
 
-	EVP_DigestFinal_ex(&ctx->md_ctx,buf,&i);
-	EVP_MD_CTX_copy_ex(&ctx->md_ctx,&ctx->o_ctx);
-	EVP_DigestUpdate(&ctx->md_ctx,buf,i);
-	EVP_DigestFinal_ex(&ctx->md_ctx,md,len);
+	if (!EVP_DigestFinal_ex(&ctx->md_ctx,buf,&i))
+		goto err;
+	if (!EVP_MD_CTX_copy_ex(&ctx->md_ctx,&ctx->o_ctx))
+		goto err;
+	if (!EVP_DigestUpdate(&ctx->md_ctx,buf,i))
+		goto err;
+	if (!EVP_DigestFinal_ex(&ctx->md_ctx,md,len))
+		goto err;
+	return 1;
+	err:
+	return 0;
 	}
 
 void HMAC_CTX_init(HMAC_CTX *ctx)
@@ -146,8 +191,31 @@ void HMAC_CTX_init(HMAC_CTX *ctx)
 	EVP_MD_CTX_init(&ctx->md_ctx);
 	}
 
+int HMAC_CTX_copy(HMAC_CTX *dctx, HMAC_CTX *sctx)
+	{
+	if (!EVP_MD_CTX_copy(&dctx->i_ctx, &sctx->i_ctx))
+		goto err;
+	if (!EVP_MD_CTX_copy(&dctx->o_ctx, &sctx->o_ctx))
+		goto err;
+	if (!EVP_MD_CTX_copy(&dctx->md_ctx, &sctx->md_ctx))
+		goto err;
+	memcpy(dctx->key, sctx->key, HMAC_MAX_MD_CBLOCK);
+	dctx->key_length = sctx->key_length;
+	dctx->md = sctx->md;
+	return 1;
+	err:
+	return 0;
+	}
+
 void HMAC_CTX_cleanup(HMAC_CTX *ctx)
 	{
+#ifdef OPENSSL_FIPS
+	if (FIPS_mode() && !ctx->i_ctx.engine)
+		{
+		FIPS_hmac_ctx_cleanup(ctx);
+		return;
+		}
+#endif
 	EVP_MD_CTX_cleanup(&ctx->i_ctx);
 	EVP_MD_CTX_cleanup(&ctx->o_ctx);
 	EVP_MD_CTX_cleanup(&ctx->md_ctx);
@@ -163,11 +231,16 @@ unsigned char *HMAC(const EVP_MD *evp_md, const void *key, int key_len,
 
 	if (md == NULL) md=m;
 	HMAC_CTX_init(&c);
-	HMAC_Init(&c,key,key_len,evp_md);
-	HMAC_Update(&c,d,n);
-	HMAC_Final(&c,md,md_len);
+	if (!HMAC_Init(&c,key,key_len,evp_md))
+		goto err;
+	if (!HMAC_Update(&c,d,n))
+		goto err;
+	if (!HMAC_Final(&c,md,md_len))
+		goto err;
 	HMAC_CTX_cleanup(&c);
-	return(md);
+	return md;
+	err:
+	return NULL;
 	}
 
 void HMAC_CTX_set_flags(HMAC_CTX *ctx, unsigned long flags)
@@ -176,5 +249,3 @@ void HMAC_CTX_set_flags(HMAC_CTX *ctx, unsigned long flags)
 	EVP_MD_CTX_set_flags(&ctx->o_ctx, flags);
 	EVP_MD_CTX_set_flags(&ctx->md_ctx, flags);
 	}
-
-#endif

@@ -562,9 +562,11 @@ ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq,
 	IEEE80211_LOCK(ic);
 	head = sq->head;
 	while ((m = sq->head) != NULL && M_AGE_GET(m) < quanta) {
+		int tid = WME_AC_TO_TID(M_WME_GETAC(m));
+
 		/* clear tap ref to frame */
 		ni = (struct ieee80211_node *) m->m_pkthdr.rcvif;
-		tap = &ni->ni_tx_ampdu[M_WME_GETAC(m)];
+		tap = &ni->ni_tx_ampdu[tid];
 		KASSERT(tap->txa_private == m, ("staging queue empty"));
 		tap->txa_private = NULL;
 
@@ -670,7 +672,7 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 	 *     be aggregated with other types of frames when encryption is on?
 	 */
 	IEEE80211_LOCK(ic);
-	tap = &ni->ni_tx_ampdu[pri];
+	tap = &ni->ni_tx_ampdu[WME_AC_TO_TID(pri)];
 	mstaged = tap->txa_private;		/* NB: we reuse AMPDU state */
 	ieee80211_txampdu_count_packet(tap);
 
@@ -783,12 +785,14 @@ ieee80211_ff_node_cleanup(struct ieee80211_node *ni)
 	struct ieee80211_superg *sg = ic->ic_superg;
 	struct ieee80211_tx_ampdu *tap;
 	struct mbuf *m, *head;
-	int ac;
+	int tid;
 
 	IEEE80211_LOCK(ic);
 	head = NULL;
-	for (ac = 0; ac < WME_NUM_AC; ac++) {
-		tap = &ni->ni_tx_ampdu[ac];
+	for (tid = 0; tid < WME_NUM_TID; tid++) {
+		int ac = TID_TO_WME_AC(tid);
+
+		tap = &ni->ni_tx_ampdu[tid];
 		m = tap->txa_private;
 		if (m != NULL) {
 			tap->txa_private = NULL;

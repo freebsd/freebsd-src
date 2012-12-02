@@ -39,16 +39,16 @@ public:
   virtual void EmitLabel(MCSymbol *Symbol);
   virtual void EmitAssignment(MCSymbol *Symbol, const MCExpr *Value);
   virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
-                            unsigned Size = 0, unsigned ByteAlignment = 0);
+                            uint64_t Size = 0, unsigned ByteAlignment = 0);
   virtual void EmitBytes(StringRef Data, unsigned AddrSpace);
   virtual void EmitValueToAlignment(unsigned ByteAlignment, int64_t Value = 0,
                                     unsigned ValueSize = 1,
                                     unsigned MaxBytesToEmit = 0);
   virtual void EmitCodeAlignment(unsigned ByteAlignment,
                                  unsigned MaxBytesToEmit = 0);
-  virtual void EmitValueToOffset(const MCExpr *Offset,
+  virtual bool EmitValueToOffset(const MCExpr *Offset,
                                  unsigned char Value = 0);
-  virtual void Finish();
+  virtual void FinishImpl();
 
 
   virtual void EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute) {
@@ -93,9 +93,9 @@ public:
   virtual void EmitFileDirective(StringRef Filename) {
     report_fatal_error("unsupported directive in pure streamer");
   }
-  virtual bool EmitDwarfFileDirective(unsigned FileNo, StringRef Filename) {
+  virtual bool EmitDwarfFileDirective(unsigned FileNo, StringRef Directory,
+                                      StringRef Filename) {
     report_fatal_error("unsupported directive in pure streamer");
-    return false;
   }
 
   /// @}
@@ -144,7 +144,7 @@ void MCPureStreamer::EmitAssignment(MCSymbol *Symbol, const MCExpr *Value) {
 }
 
 void MCPureStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
-                                  unsigned Size, unsigned ByteAlignment) {
+                                  uint64_t Size, unsigned ByteAlignment) {
   report_fatal_error("not yet implemented in pure streamer");
 }
 
@@ -184,9 +184,10 @@ void MCPureStreamer::EmitCodeAlignment(unsigned ByteAlignment,
     getCurrentSectionData()->setAlignment(ByteAlignment);
 }
 
-void MCPureStreamer::EmitValueToOffset(const MCExpr *Offset,
+bool MCPureStreamer::EmitValueToOffset(const MCExpr *Offset,
                                        unsigned char Value) {
   new MCOrgFragment(*Offset, Value, getCurrentSectionData());
+  return false;
 }
 
 void MCPureStreamer::EmitInstToFragment(const MCInst &Inst) {
@@ -223,10 +224,10 @@ void MCPureStreamer::EmitInstToData(const MCInst &Inst) {
   DF->getContents().append(Code.begin(), Code.end());
 }
 
-void MCPureStreamer::Finish() {
+void MCPureStreamer::FinishImpl() {
   // FIXME: Handle DWARF tables?
 
-  this->MCObjectStreamer::Finish();
+  this->MCObjectStreamer::FinishImpl();
 }
 
 MCStreamer *llvm::createPureStreamer(MCContext &Context, MCAsmBackend &MAB,

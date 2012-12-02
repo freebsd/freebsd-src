@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -139,32 +140,32 @@ dnode_dest(void *arg, void *unused)
 		ASSERT(!list_link_active(&dn->dn_dirty_link[i]));
 		avl_destroy(&dn->dn_ranges[i]);
 		list_destroy(&dn->dn_dirty_records[i]);
-		ASSERT3U(dn->dn_next_nblkptr[i], ==, 0);
-		ASSERT3U(dn->dn_next_nlevels[i], ==, 0);
-		ASSERT3U(dn->dn_next_indblkshift[i], ==, 0);
-		ASSERT3U(dn->dn_next_bonustype[i], ==, 0);
-		ASSERT3U(dn->dn_rm_spillblk[i], ==, 0);
-		ASSERT3U(dn->dn_next_bonuslen[i], ==, 0);
-		ASSERT3U(dn->dn_next_blksz[i], ==, 0);
+		ASSERT0(dn->dn_next_nblkptr[i]);
+		ASSERT0(dn->dn_next_nlevels[i]);
+		ASSERT0(dn->dn_next_indblkshift[i]);
+		ASSERT0(dn->dn_next_bonustype[i]);
+		ASSERT0(dn->dn_rm_spillblk[i]);
+		ASSERT0(dn->dn_next_bonuslen[i]);
+		ASSERT0(dn->dn_next_blksz[i]);
 	}
 
-	ASSERT3U(dn->dn_allocated_txg, ==, 0);
-	ASSERT3U(dn->dn_free_txg, ==, 0);
-	ASSERT3U(dn->dn_assigned_txg, ==, 0);
-	ASSERT3U(dn->dn_dirtyctx, ==, 0);
+	ASSERT0(dn->dn_allocated_txg);
+	ASSERT0(dn->dn_free_txg);
+	ASSERT0(dn->dn_assigned_txg);
+	ASSERT0(dn->dn_dirtyctx);
 	ASSERT3P(dn->dn_dirtyctx_firstset, ==, NULL);
 	ASSERT3P(dn->dn_bonus, ==, NULL);
 	ASSERT(!dn->dn_have_spill);
 	ASSERT3P(dn->dn_zio, ==, NULL);
-	ASSERT3U(dn->dn_oldused, ==, 0);
-	ASSERT3U(dn->dn_oldflags, ==, 0);
-	ASSERT3U(dn->dn_olduid, ==, 0);
-	ASSERT3U(dn->dn_oldgid, ==, 0);
-	ASSERT3U(dn->dn_newuid, ==, 0);
-	ASSERT3U(dn->dn_newgid, ==, 0);
-	ASSERT3U(dn->dn_id_flags, ==, 0);
+	ASSERT0(dn->dn_oldused);
+	ASSERT0(dn->dn_oldflags);
+	ASSERT0(dn->dn_olduid);
+	ASSERT0(dn->dn_oldgid);
+	ASSERT0(dn->dn_newuid);
+	ASSERT0(dn->dn_newgid);
+	ASSERT0(dn->dn_id_flags);
 
-	ASSERT3U(dn->dn_dbufs_count, ==, 0);
+	ASSERT0(dn->dn_dbufs_count);
 	list_destroy(&dn->dn_dbufs);
 }
 
@@ -196,7 +197,7 @@ dnode_verify(dnode_t *dn)
 	ASSERT(dn->dn_objset);
 	ASSERT(dn->dn_handle->dnh_dnode == dn);
 
-	ASSERT(dn->dn_phys->dn_type < DMU_OT_NUMTYPES);
+	ASSERT(DMU_OT_IS_VALID(dn->dn_phys->dn_type));
 
 	if (!(zfs_flags & ZFS_DEBUG_DNODE_VERIFY))
 		return;
@@ -215,7 +216,7 @@ dnode_verify(dnode_t *dn)
 			ASSERT3U(1<<dn->dn_datablkshift, ==, dn->dn_datablksz);
 		}
 		ASSERT3U(dn->dn_nlevels, <=, 30);
-		ASSERT3U(dn->dn_type, <=, DMU_OT_NUMTYPES);
+		ASSERT(DMU_OT_IS_VALID(dn->dn_type));
 		ASSERT3U(dn->dn_nblkptr, >=, 1);
 		ASSERT3U(dn->dn_nblkptr, <=, DN_MAX_NBLKPTR);
 		ASSERT3U(dn->dn_bonuslen, <=, DN_MAX_BONUSLEN);
@@ -281,8 +282,10 @@ dnode_byteswap(dnode_phys_t *dnp)
 		 */
 		int off = (dnp->dn_nblkptr-1) * sizeof (blkptr_t);
 		size_t len = DN_MAX_BONUSLEN - off;
-		ASSERT3U(dnp->dn_bonustype, <, DMU_OT_NUMTYPES);
-		dmu_ot[dnp->dn_bonustype].ot_byteswap(dnp->dn_bonus + off, len);
+		ASSERT(DMU_OT_IS_VALID(dnp->dn_bonustype));
+		dmu_object_byteswap_t byteswap =
+		    DMU_OT_BYTESWAP(dnp->dn_bonustype);
+		dmu_ot_byteswap[byteswap].ob_func(dnp->dn_bonus + off, len);
 	}
 
 	/* Swap SPILL block if we have one */
@@ -361,7 +364,7 @@ dnode_rm_spill(dnode_t *dn, dmu_tx_t *tx)
 static void
 dnode_setdblksz(dnode_t *dn, int size)
 {
-	ASSERT3U(P2PHASE(size, SPA_MINBLOCKSIZE), ==, 0);
+	ASSERT0(P2PHASE(size, SPA_MINBLOCKSIZE));
 	ASSERT3U(size, <=, SPA_MAXBLOCKSIZE);
 	ASSERT3U(size, >=, SPA_MINBLOCKSIZE);
 	ASSERT3U(size >> SPA_MINBLOCKSHIFT, <,
@@ -410,7 +413,7 @@ dnode_create(objset_t *os, dnode_phys_t *dnp, dmu_buf_impl_t *db,
 
 	dmu_zfetch_init(&dn->dn_zfetch, dn);
 
-	ASSERT(dn->dn_phys->dn_type < DMU_OT_NUMTYPES);
+	ASSERT(DMU_OT_IS_VALID(dn->dn_phys->dn_type));
 
 	mutex_enter(&os->os_lock);
 	list_insert_head(&os->os_dnodes, dn);
@@ -499,31 +502,31 @@ dnode_allocate(dnode_t *dn, dmu_object_type_t ot, int blocksize, int ibs,
 	ASSERT(bcmp(dn->dn_phys, &dnode_phys_zero, sizeof (dnode_phys_t)) == 0);
 	ASSERT(dn->dn_phys->dn_type == DMU_OT_NONE);
 	ASSERT(ot != DMU_OT_NONE);
-	ASSERT3U(ot, <, DMU_OT_NUMTYPES);
+	ASSERT(DMU_OT_IS_VALID(ot));
 	ASSERT((bonustype == DMU_OT_NONE && bonuslen == 0) ||
 	    (bonustype == DMU_OT_SA && bonuslen == 0) ||
 	    (bonustype != DMU_OT_NONE && bonuslen != 0));
-	ASSERT3U(bonustype, <, DMU_OT_NUMTYPES);
+	ASSERT(DMU_OT_IS_VALID(bonustype));
 	ASSERT3U(bonuslen, <=, DN_MAX_BONUSLEN);
 	ASSERT(dn->dn_type == DMU_OT_NONE);
-	ASSERT3U(dn->dn_maxblkid, ==, 0);
-	ASSERT3U(dn->dn_allocated_txg, ==, 0);
-	ASSERT3U(dn->dn_assigned_txg, ==, 0);
+	ASSERT0(dn->dn_maxblkid);
+	ASSERT0(dn->dn_allocated_txg);
+	ASSERT0(dn->dn_assigned_txg);
 	ASSERT(refcount_is_zero(&dn->dn_tx_holds));
 	ASSERT3U(refcount_count(&dn->dn_holds), <=, 1);
 	ASSERT3P(list_head(&dn->dn_dbufs), ==, NULL);
 
 	for (i = 0; i < TXG_SIZE; i++) {
-		ASSERT3U(dn->dn_next_nblkptr[i], ==, 0);
-		ASSERT3U(dn->dn_next_nlevels[i], ==, 0);
-		ASSERT3U(dn->dn_next_indblkshift[i], ==, 0);
-		ASSERT3U(dn->dn_next_bonuslen[i], ==, 0);
-		ASSERT3U(dn->dn_next_bonustype[i], ==, 0);
-		ASSERT3U(dn->dn_rm_spillblk[i], ==, 0);
-		ASSERT3U(dn->dn_next_blksz[i], ==, 0);
+		ASSERT0(dn->dn_next_nblkptr[i]);
+		ASSERT0(dn->dn_next_nlevels[i]);
+		ASSERT0(dn->dn_next_indblkshift[i]);
+		ASSERT0(dn->dn_next_bonuslen[i]);
+		ASSERT0(dn->dn_next_bonustype[i]);
+		ASSERT0(dn->dn_rm_spillblk[i]);
+		ASSERT0(dn->dn_next_blksz[i]);
 		ASSERT(!list_link_active(&dn->dn_dirty_link[i]));
 		ASSERT3P(list_head(&dn->dn_dirty_records[i]), ==, NULL);
-		ASSERT3U(avl_numnodes(&dn->dn_ranges[i]), ==, 0);
+		ASSERT0(avl_numnodes(&dn->dn_ranges[i]));
 	}
 
 	dn->dn_type = ot;
@@ -565,13 +568,13 @@ dnode_reallocate(dnode_t *dn, dmu_object_type_t ot, int blocksize,
 
 	ASSERT3U(blocksize, >=, SPA_MINBLOCKSIZE);
 	ASSERT3U(blocksize, <=, SPA_MAXBLOCKSIZE);
-	ASSERT3U(blocksize % SPA_MINBLOCKSIZE, ==, 0);
+	ASSERT0(blocksize % SPA_MINBLOCKSIZE);
 	ASSERT(dn->dn_object != DMU_META_DNODE_OBJECT || dmu_tx_private_ok(tx));
 	ASSERT(tx->tx_txg != 0);
 	ASSERT((bonustype == DMU_OT_NONE && bonuslen == 0) ||
 	    (bonustype != DMU_OT_NONE && bonuslen != 0) ||
 	    (bonustype == DMU_OT_SA && bonuslen == 0));
-	ASSERT3U(bonustype, <, DMU_OT_NUMTYPES);
+	ASSERT(DMU_OT_IS_VALID(bonustype));
 	ASSERT3U(bonuslen, <=, DN_MAX_BONUSLEN);
 
 	/* clean up any unreferenced dbufs */
@@ -1237,9 +1240,9 @@ dnode_setdirty(dnode_t *dn, dmu_tx_t *tx)
 
 	ASSERT(!refcount_is_zero(&dn->dn_holds) || list_head(&dn->dn_dbufs));
 	ASSERT(dn->dn_datablksz != 0);
-	ASSERT3U(dn->dn_next_bonuslen[txg&TXG_MASK], ==, 0);
-	ASSERT3U(dn->dn_next_blksz[txg&TXG_MASK], ==, 0);
-	ASSERT3U(dn->dn_next_bonustype[txg&TXG_MASK], ==, 0);
+	ASSERT0(dn->dn_next_bonuslen[txg&TXG_MASK]);
+	ASSERT0(dn->dn_next_blksz[txg&TXG_MASK]);
+	ASSERT0(dn->dn_next_bonustype[txg&TXG_MASK]);
 
 	dprintf_ds(os->os_dsl_dataset, "obj=%llu txg=%llu\n",
 	    dn->dn_object, txg);
@@ -1589,7 +1592,7 @@ dnode_free_range(dnode_t *dn, uint64_t off, uint64_t len, dmu_tx_t *tx)
 	else
 		tail = P2PHASE(len, blksz);
 
-	ASSERT3U(P2PHASE(off, blksz), ==, 0);
+	ASSERT0(P2PHASE(off, blksz));
 	/* zero out any partial block data at the end of the range */
 	if (tail) {
 		if (len < tail)
@@ -1771,7 +1774,7 @@ dnode_diduse_space(dnode_t *dn, int64_t delta)
 	space += delta;
 	if (spa_version(dn->dn_objset->os_spa) < SPA_VERSION_DNODE_BYTES) {
 		ASSERT((dn->dn_phys->dn_flags & DNODE_FLAG_USED_BYTES) == 0);
-		ASSERT3U(P2PHASE(space, 1<<DEV_BSHIFT), ==, 0);
+		ASSERT0(P2PHASE(space, 1<<DEV_BSHIFT));
 		dn->dn_phys->dn_used = space >> DEV_BSHIFT;
 	} else {
 		dn->dn_phys->dn_used = space;

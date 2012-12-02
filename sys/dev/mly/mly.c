@@ -1350,7 +1350,6 @@ mly_process_event(struct mly_softc *sc, struct mly_event *me)
 	if (action == 'r')
 	    sc->mly_btl[bus][target].mb_flags |= MLY_BTL_RESCAN;
 	break;
-      break;
     case 's':		/* report of sense data */
 	if (((ssd->flags & SSD_KEY) == SSD_KEY_NO_SENSE) ||
 	    (((ssd->flags & SSD_KEY) == SSD_KEY_NOT_READY) && 

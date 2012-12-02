@@ -142,7 +142,7 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
 
   Instruction *I = dyn_cast<Instruction>(V);
   if (!I) {
-    ComputeMaskedBits(V, DemandedMask, KnownZero, KnownOne, Depth);
+    ComputeMaskedBits(V, KnownZero, KnownOne, Depth);
     return 0;        // Only analyze instructions.
   }
 
@@ -156,10 +156,8 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
     // this instruction has a simpler value in that context.
     if (I->getOpcode() == Instruction::And) {
       // If either the LHS or the RHS are Zero, the result is zero.
-      ComputeMaskedBits(I->getOperand(1), DemandedMask,
-                        RHSKnownZero, RHSKnownOne, Depth+1);
-      ComputeMaskedBits(I->getOperand(0), DemandedMask & ~RHSKnownZero,
-                        LHSKnownZero, LHSKnownOne, Depth+1);
+      ComputeMaskedBits(I->getOperand(1), RHSKnownZero, RHSKnownOne, Depth+1);
+      ComputeMaskedBits(I->getOperand(0), LHSKnownZero, LHSKnownOne, Depth+1);
       
       // If all of the demanded bits are known 1 on one side, return the other.
       // These bits cannot contribute to the result of the 'and' in this
@@ -180,10 +178,8 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
       // only bits from X or Y are demanded.
       
       // If either the LHS or the RHS are One, the result is One.
-      ComputeMaskedBits(I->getOperand(1), DemandedMask, 
-                        RHSKnownZero, RHSKnownOne, Depth+1);
-      ComputeMaskedBits(I->getOperand(0), DemandedMask & ~RHSKnownOne, 
-                        LHSKnownZero, LHSKnownOne, Depth+1);
+      ComputeMaskedBits(I->getOperand(1), RHSKnownZero, RHSKnownOne, Depth+1);
+      ComputeMaskedBits(I->getOperand(0), LHSKnownZero, LHSKnownOne, Depth+1);
       
       // If all of the demanded bits are known zero on one side, return the
       // other.  These bits cannot contribute to the result of the 'or' in this
@@ -206,7 +202,7 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
     }
     
     // Compute the KnownZero/KnownOne bits to simplify things downstream.
-    ComputeMaskedBits(I, DemandedMask, KnownZero, KnownOne, Depth);
+    ComputeMaskedBits(I, KnownZero, KnownOne, Depth);
     return 0;
   }
   
@@ -219,7 +215,7 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
   
   switch (I->getOpcode()) {
   default:
-    ComputeMaskedBits(I, DemandedMask, KnownZero, KnownOne, Depth);
+    ComputeMaskedBits(I, KnownZero, KnownOne, Depth);
     break;
   case Instruction::And:
     // If either the LHS or the RHS are Zero, the result is zero.
@@ -567,9 +563,20 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
                                LHSKnownZero, LHSKnownOne, Depth+1))
         return I;
     }
+
     // Otherwise just hand the sub off to ComputeMaskedBits to fill in
     // the known zeros and ones.
-    ComputeMaskedBits(V, DemandedMask, KnownZero, KnownOne, Depth);
+    ComputeMaskedBits(V, KnownZero, KnownOne, Depth);
+
+    // Turn this into a xor if LHS is 2^n-1 and the remaining bits are known
+    // zero.
+    if (ConstantInt *C0 = dyn_cast<ConstantInt>(I->getOperand(0))) {
+      APInt I0 = C0->getValue();
+      if ((I0 + 1).isPowerOf2() && (I0 | KnownZero).isAllOnesValue()) {
+        Instruction *Xor = BinaryOperator::CreateXor(I->getOperand(1), C0);
+        return InsertNewInstWith(Xor, *I);
+      }
+    }
     break;
   case Instruction::Shl:
     if (ConstantInt *SA = dyn_cast<ConstantInt>(I->getOperand(1))) {
@@ -671,8 +678,9 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
       if (BitWidth <= ShiftAmt || KnownZero[BitWidth-ShiftAmt-1] || 
           (HighBits & ~DemandedMask) == HighBits) {
         // Perform the logical shift right.
-        Instruction *NewVal = BinaryOperator::CreateLShr(
-                          I->getOperand(0), SA, I->getName());
+        BinaryOperator *NewVal = BinaryOperator::CreateLShr(I->getOperand(0),
+                                                            SA, I->getName());
+        NewVal->setIsExact(cast<BinaryOperator>(I)->isExact());
         return InsertNewInstWith(NewVal, *I);
       } else if ((KnownOne & SignBit) != 0) { // New bits are known one.
         KnownOne |= HighBits;
@@ -717,10 +725,8 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
     // The sign bit is the LHS's sign bit, except when the result of the
     // remainder is zero.
     if (DemandedMask.isNegative() && KnownZero.isNonNegative()) {
-      APInt Mask2 = APInt::getSignBit(BitWidth);
       APInt LHSKnownZero(BitWidth, 0), LHSKnownOne(BitWidth, 0);
-      ComputeMaskedBits(I->getOperand(0), Mask2, LHSKnownZero, LHSKnownOne,
-                        Depth+1);
+      ComputeMaskedBits(I->getOperand(0), LHSKnownZero, LHSKnownOne, Depth+1);
       // If it's known zero, our sign bit is also zero.
       if (LHSKnownZero.isNegative())
         KnownZero |= LHSKnownZero;
@@ -783,7 +789,7 @@ Value *InstCombiner::SimplifyDemandedUseBits(Value *V, APInt DemandedMask,
         return 0;
       }
     }
-    ComputeMaskedBits(V, DemandedMask, KnownZero, KnownOne, Depth);
+    ComputeMaskedBits(V, KnownZero, KnownOne, Depth);
     break;
   }
   
@@ -822,46 +828,39 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
   }
 
   UndefElts = 0;
-  if (ConstantVector *CV = dyn_cast<ConstantVector>(V)) {
-    Type *EltTy = cast<VectorType>(V->getType())->getElementType();
-    Constant *Undef = UndefValue::get(EltTy);
-
-    std::vector<Constant*> Elts;
-    for (unsigned i = 0; i != VWidth; ++i)
-      if (!DemandedElts[i]) {   // If not demanded, set to undef.
-        Elts.push_back(Undef);
-        UndefElts.setBit(i);
-      } else if (isa<UndefValue>(CV->getOperand(i))) {   // Already undef.
-        Elts.push_back(Undef);
-        UndefElts.setBit(i);
-      } else {                               // Otherwise, defined.
-        Elts.push_back(CV->getOperand(i));
-      }
-
-    // If we changed the constant, return it.
-    Constant *NewCP = ConstantVector::get(Elts);
-    return NewCP != CV ? NewCP : 0;
-  }
   
-  if (isa<ConstantAggregateZero>(V)) {
-    // Simplify the CAZ to a ConstantVector where the non-demanded elements are
-    // set to undef.
-    
+  // Handle ConstantAggregateZero, ConstantVector, ConstantDataSequential.
+  if (Constant *C = dyn_cast<Constant>(V)) {
     // Check if this is identity. If so, return 0 since we are not simplifying
     // anything.
     if (DemandedElts.isAllOnesValue())
       return 0;
-    
+
     Type *EltTy = cast<VectorType>(V->getType())->getElementType();
-    Constant *Zero = Constant::getNullValue(EltTy);
     Constant *Undef = UndefValue::get(EltTy);
-    std::vector<Constant*> Elts;
+    
+    SmallVector<Constant*, 16> Elts;
     for (unsigned i = 0; i != VWidth; ++i) {
-      Constant *Elt = DemandedElts[i] ? Zero : Undef;
-      Elts.push_back(Elt);
+      if (!DemandedElts[i]) {   // If not demanded, set to undef.
+        Elts.push_back(Undef);
+        UndefElts.setBit(i);
+        continue;
+      }
+      
+      Constant *Elt = C->getAggregateElement(i);
+      if (Elt == 0) return 0;
+      
+      if (isa<UndefValue>(Elt)) {   // Already undef.
+        Elts.push_back(Undef);
+        UndefElts.setBit(i);
+      } else {                               // Otherwise, defined.
+        Elts.push_back(Elt);
+      }
     }
-    UndefElts = DemandedElts ^ EltMask;
-    return ConstantVector::get(Elts);
+    
+    // If we changed the constant, return it.
+    Constant *NewCV = ConstantVector::get(Elts);
+    return NewCV != C ? NewCV : 0;
   }
   
   // Limit search depth.
@@ -977,7 +976,7 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
 
     if (NewUndefElts) {
       // Add additional discovered undefs.
-      std::vector<Constant*> Elts;
+      SmallVector<Constant*, 16> Elts;
       for (unsigned i = 0; i < VWidth; ++i) {
         if (UndefElts[i])
           Elts.push_back(UndefValue::get(Type::getInt32Ty(I->getContext())));
@@ -988,6 +987,29 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
       I->setOperand(2, ConstantVector::get(Elts));
       MadeChange = true;
     }
+    break;
+  }
+  case Instruction::Select: {
+    APInt LeftDemanded(DemandedElts), RightDemanded(DemandedElts);
+    if (ConstantVector* CV = dyn_cast<ConstantVector>(I->getOperand(0))) {
+      for (unsigned i = 0; i < VWidth; i++) {
+        if (CV->getAggregateElement(i)->isNullValue())
+          LeftDemanded.clearBit(i);
+        else
+          RightDemanded.clearBit(i);
+      }
+    }
+
+    TmpV = SimplifyDemandedVectorElts(I->getOperand(1), LeftDemanded,
+                                      UndefElts, Depth+1);
+    if (TmpV) { I->setOperand(1, TmpV); MadeChange = true; }
+
+    TmpV = SimplifyDemandedVectorElts(I->getOperand(2), RightDemanded,
+                                      UndefElts2, Depth+1);
+    if (TmpV) { I->setOperand(2, TmpV); MadeChange = true; }
+      
+    // Output elements are undefined if both are undefined.
+    UndefElts &= UndefElts2;
     break;
   }
   case Instruction::BitCast: {
@@ -1074,6 +1096,12 @@ Value *InstCombiner::SimplifyDemandedVectorElts(Value *V, APInt DemandedElts,
     // Output elements are undefined if both are undefined.  Consider things
     // like undef&0.  The result is known zero, not undef.
     UndefElts &= UndefElts2;
+    break;
+  case Instruction::FPTrunc:
+  case Instruction::FPExt:
+    TmpV = SimplifyDemandedVectorElts(I->getOperand(0), DemandedElts,
+                                      UndefElts, Depth+1);
+    if (TmpV) { I->setOperand(0, TmpV); MadeChange = true; }
     break;
     
   case Instruction::Call: {

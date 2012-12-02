@@ -42,36 +42,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/buf.h>
 #include <sys/queue.h>
 #include <sys/malloc.h>
-#include <sys/device_port.h>
+#include <sys/bus.h>
+#include <sys/module.h>
 #include <sys/errno.h>
 
 #include <vm/vm.h>
 
-#ifdef __NetBSD__
-#include <machine/bus.h>
-#include <machine/intr.h>
-
-#include <dev/scsipi/scsi_all.h>
-#include <dev/scsipi/scsipi_all.h>
-#include <dev/scsipi/scsiconf.h>
-#include <dev/scsipi/scsi_disk.h>
-
-#include <dev/isa/isareg.h>
-#include <dev/isa/isavar.h>
-#include <dev/isa/isadmavar.h>
-
-#include <machine/dvcfg.h>
-#include <machine/physio_proc.h>
-#include <machine/syspmgr.h>
-
-#include <i386/Cbus/dev/scsi_low.h>
-
-#include <dev/ic/wd33c93reg.h>
-#include <i386/Cbus/dev/ct/ctvar.h>
-#include <i386/Cbus/dev/ct/bshwvar.h>
-#endif /* __NetBSD__ */
-
-#ifdef __FreeBSD__
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
@@ -82,14 +58,12 @@ __FBSDID("$FreeBSD$");
 #include <isa/isavar.h>
 
 #include <compat/netbsd/dvcfg.h>
-#include <compat/netbsd/physio_proc.h>
 
 #include <cam/scsi/scsi_low.h>
 
 #include <dev/ic/wd33c93reg.h>
 #include <dev/ct/ctvar.h>
 #include <dev/ct/bshwvar.h>
-#endif /* __FreeBSD__ */
 
 #define	BSHW_IOSZ	0x08
 #define	BSHW_IOBASE 	0xcc0
@@ -322,7 +296,6 @@ ct_isa_attach(device_t dev)
 
 	slp->sl_dev = dev;
 	slp->sl_hostid = bs->sc_hostid;
-	slp->sl_irq = isa_get_irq(dev);
 	slp->sl_cfgflags = device_get_flags(dev);
 
 	s = splcam();
@@ -394,16 +367,14 @@ ct_dmamap(void *arg, bus_dma_segment_t *seg, int nseg, int error)
 }
 
 static void
-ct_isa_bus_access_weight(chp)
-	struct ct_bus_access_handle *chp;
+ct_isa_bus_access_weight(struct ct_bus_access_handle *chp)
 {
 
 	outb(0x5f, 0);
 }
 
 static void
-ct_isa_dmasync_before(ct)
-	struct ct_softc *ct;
+ct_isa_dmasync_before(struct ct_softc *ct)
 {
 
 	if (need_pre_dma_flush)
@@ -411,8 +382,7 @@ ct_isa_dmasync_before(ct)
 }
 
 static void
-ct_isa_dmasync_after(ct)
-	struct ct_softc *ct;
+ct_isa_dmasync_after(struct ct_softc *ct)
 {
 
 	if (need_post_dma_flush)

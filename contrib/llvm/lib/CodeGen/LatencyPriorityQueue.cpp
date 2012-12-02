@@ -46,7 +46,7 @@ bool latency_sort::operator()(const SUnit *LHS, const SUnit *RHS) const {
 
   // Finally, just to provide a stable ordering, use the node number as a
   // deciding factor.
-  return LHSNum < RHSNum;
+  return RHSNum < LHSNum;
 }
 
 
@@ -84,11 +84,11 @@ void LatencyPriorityQueue::push(SUnit *SU) {
 }
 
 
-// ScheduledNode - As nodes are scheduled, we look to see if there are any
+// scheduledNode - As nodes are scheduled, we look to see if there are any
 // successor nodes that have a single unscheduled predecessor.  If so, that
 // single predecessor has a higher priority, since scheduling it will make
 // the node available.
-void LatencyPriorityQueue::ScheduledNode(SUnit *SU) {
+void LatencyPriorityQueue::scheduledNode(SUnit *SU) {
   for (SUnit::const_succ_iterator I = SU->Succs.begin(), E = SU->Succs.end();
        I != E; ++I) {
     AdjustPriorityOfUnscheduledPreds(I->getSUnit());

@@ -52,7 +52,6 @@
 static ACPI_STATUS
 AcpiHwSleepDispatch (
     UINT8                   SleepState,
-    UINT8                   Flags,
     UINT32                  FunctionId);
 
 /*
@@ -100,6 +99,14 @@ AcpiSetFirmwareWakingVector (
 {
     ACPI_FUNCTION_TRACE (AcpiSetFirmwareWakingVector);
 
+
+    /*
+     * According to the ACPI specification 2.0c and later, the 64-bit
+     * waking vector should be cleared and the 32-bit waking vector should
+     * be used, unless we want the wake-up code to be called by the BIOS in
+     * Protected Mode. Some systems (for example HP dv5-1004nr) are known
+     * to fail to resume if the 64-bit vector is used.
+     */
 
     /* Set the 32-bit vector */
 
@@ -253,7 +260,6 @@ ACPI_EXPORT_SYMBOL (AcpiEnterSleepStateS4bios)
 static ACPI_STATUS
 AcpiHwSleepDispatch (
     UINT8                   SleepState,
-    UINT8                   Flags,
     UINT32                  FunctionId)
 {
     ACPI_STATUS             Status;
@@ -269,13 +275,13 @@ AcpiHwSleepDispatch (
     if (AcpiGbl_ReducedHardware ||
         AcpiGbl_FADT.SleepControl.Address)
     {
-        Status = SleepFunctions->ExtendedFunction (SleepState, Flags);
+        Status = SleepFunctions->ExtendedFunction (SleepState);
     }
     else
     {
         /* Legacy sleep */
 
-        Status = SleepFunctions->LegacyFunction (SleepState, Flags);
+        Status = SleepFunctions->LegacyFunction (SleepState);
     }
 
     return (Status);
@@ -285,7 +291,7 @@ AcpiHwSleepDispatch (
      * For the case where reduced-hardware-only code is being generated,
      * we know that only the extended sleep registers are available
      */
-    Status = SleepFunctions->ExtendedFunction (SleepState, Flags);
+    Status = SleepFunctions->ExtendedFunction (SleepState);
     return (Status);
 
 #endif /* !ACPI_REDUCED_HARDWARE */
@@ -379,7 +385,6 @@ ACPI_EXPORT_SYMBOL (AcpiEnterSleepStatePrep)
  * FUNCTION:    AcpiEnterSleepState
  *
  * PARAMETERS:  SleepState          - Which sleep state to enter
- *              Flags               - ACPI_EXECUTE_GTS to run optional method
  *
  * RETURN:      Status
  *
@@ -390,8 +395,7 @@ ACPI_EXPORT_SYMBOL (AcpiEnterSleepStatePrep)
 
 ACPI_STATUS
 AcpiEnterSleepState (
-    UINT8                   SleepState,
-    UINT8                   Flags)
+    UINT8                   SleepState)
 {
     ACPI_STATUS             Status;
 
@@ -407,7 +411,7 @@ AcpiEnterSleepState (
         return_ACPI_STATUS (AE_AML_OPERAND_VALUE);
     }
 
-    Status = AcpiHwSleepDispatch (SleepState, Flags, ACPI_SLEEP_FUNCTION_ID);
+    Status = AcpiHwSleepDispatch (SleepState, ACPI_SLEEP_FUNCTION_ID);
     return_ACPI_STATUS (Status);
 }
 
@@ -419,7 +423,6 @@ ACPI_EXPORT_SYMBOL (AcpiEnterSleepState)
  * FUNCTION:    AcpiLeaveSleepStatePrep
  *
  * PARAMETERS:  SleepState          - Which sleep state we are exiting
- *              Flags               - ACPI_EXECUTE_BFS to run optional method
  *
  * RETURN:      Status
  *
@@ -432,8 +435,7 @@ ACPI_EXPORT_SYMBOL (AcpiEnterSleepState)
 
 ACPI_STATUS
 AcpiLeaveSleepStatePrep (
-    UINT8                   SleepState,
-    UINT8                   Flags)
+    UINT8                   SleepState)
 {
     ACPI_STATUS             Status;
 
@@ -441,7 +443,7 @@ AcpiLeaveSleepStatePrep (
     ACPI_FUNCTION_TRACE (AcpiLeaveSleepStatePrep);
 
 
-    Status = AcpiHwSleepDispatch (SleepState, Flags, ACPI_WAKE_PREP_FUNCTION_ID);
+    Status = AcpiHwSleepDispatch (SleepState, ACPI_WAKE_PREP_FUNCTION_ID);
     return_ACPI_STATUS (Status);
 }
 
@@ -471,7 +473,7 @@ AcpiLeaveSleepState (
     ACPI_FUNCTION_TRACE (AcpiLeaveSleepState);
 
 
-    Status = AcpiHwSleepDispatch (SleepState, 0, ACPI_WAKE_FUNCTION_ID);
+    Status = AcpiHwSleepDispatch (SleepState, ACPI_WAKE_FUNCTION_ID);
     return_ACPI_STATUS (Status);
 }
 

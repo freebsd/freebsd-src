@@ -69,7 +69,7 @@ libusb20_parse_config_desc(const void *config_desc)
 	uint16_t niface_no_alt;
 	uint16_t niface;
 	uint16_t nendpoint;
-	uint8_t iface_no;
+	uint16_t iface_no;
 
 	ptr = config_desc;
 	if (ptr[1] != LIBUSB20_DT_CONFIG) {
@@ -82,7 +82,7 @@ libusb20_parse_config_desc(const void *config_desc)
 	niface_no_alt = 0;
 	nendpoint = 0;
 	niface = 0;
-	iface_no = 0 - 1;
+	iface_no = 0xFFFF;
 	ptr = NULL;
 
 	/* get "wTotalLength" and setup "pcdesc" */
@@ -155,7 +155,7 @@ libusb20_parse_config_desc(const void *config_desc)
 
 	/* reset states */
 	niface = 0;
-	iface_no = 0 - 1;
+	iface_no = 0xFFFF;
 	ptr = NULL;
 	lub_interface--;
 	lub_endpoint--;
@@ -450,7 +450,7 @@ libusb20_me_encode(void *ptr, uint16_t len, const void *pd)
 						 * and should be
 						 * correct:
 						 */
-						ps->len = 0 - 1;
+						ps->len = 0xFFFF;
 					}
 					src_len = libusb20_me_get_1(pd, 0);
 					src_ptr = LIBUSB20_ADD_BYTES(ps->ptr, 1);
@@ -465,7 +465,7 @@ libusb20_me_encode(void *ptr, uint16_t len, const void *pd)
 				case LIBUSB20_ME_IS_DECODED:
 					/* reserve 3 length bytes */
 					src_len = libusb20_me_encode(NULL,
-					    0 - 1 - 3, ps->ptr);
+					    0xFFFF - 3, ps->ptr);
 					src_ptr = NULL;
 					break;
 
@@ -476,7 +476,7 @@ libusb20_me_encode(void *ptr, uint16_t len, const void *pd)
 				}
 
 				if (src_len > 0xFE) {
-					if (src_len > (uint16_t)(0 - 1 - 3))
+					if (src_len > (0xFFFF - 3))
 						/* overflow */
 						goto done;
 
@@ -516,7 +516,7 @@ libusb20_me_encode(void *ptr, uint16_t len, const void *pd)
 						uint16_t dummy;
 
 						dummy = libusb20_me_encode(buf,
-						    0 - 1 - 3, ps->ptr);
+						    0xFFFF - 3, ps->ptr);
 					} else {
 						bcopy(src_ptr, buf, src_len);
 					}

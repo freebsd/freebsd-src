@@ -14,25 +14,47 @@
 #ifndef MIPSMCTARGETDESC_H
 #define MIPSMCTARGETDESC_H
 
+#include "llvm/Support/DataTypes.h"
+
 namespace llvm {
 class MCAsmBackend;
-class MCInstrInfo;
 class MCCodeEmitter;
 class MCContext;
+class MCInstrInfo;
+class MCObjectWriter;
+class MCRegisterInfo;
 class MCSubtargetInfo;
 class StringRef;
 class Target;
+class raw_ostream;
 
 extern Target TheMipsTarget;
 extern Target TheMipselTarget;
 extern Target TheMips64Target;
 extern Target TheMips64elTarget;
 
-MCCodeEmitter *createMipsMCCodeEmitter(const MCInstrInfo &MCII,
-                                       const MCSubtargetInfo &STI,
-                                       MCContext &Ctx);
+MCCodeEmitter *createMipsMCCodeEmitterEB(const MCInstrInfo &MCII,
+                                         const MCRegisterInfo &MRI,
+                                         const MCSubtargetInfo &STI,
+                                         MCContext &Ctx);
+MCCodeEmitter *createMipsMCCodeEmitterEL(const MCInstrInfo &MCII,
+                                         const MCRegisterInfo &MRI,
+                                         const MCSubtargetInfo &STI,
+                                         MCContext &Ctx);
 
-MCAsmBackend *createMipsAsmBackend(const Target &T, StringRef TT);
+MCAsmBackend *createMipsAsmBackendEB32(const Target &T, StringRef TT,
+                                       StringRef CPU);
+MCAsmBackend *createMipsAsmBackendEL32(const Target &T, StringRef TT,
+                                       StringRef CPU);
+MCAsmBackend *createMipsAsmBackendEB64(const Target &T, StringRef TT,
+                                       StringRef CPU);
+MCAsmBackend *createMipsAsmBackendEL64(const Target &T, StringRef TT,
+                                       StringRef CPU);
+
+MCObjectWriter *createMipsELFObjectWriter(raw_ostream &OS,
+                                          uint8_t OSABI,
+                                          bool IsLittleEndian,
+                                          bool Is64Bit);
 } // End llvm namespace
 
 // Defines symbolic names for Mips registers.  This defines a mapping from

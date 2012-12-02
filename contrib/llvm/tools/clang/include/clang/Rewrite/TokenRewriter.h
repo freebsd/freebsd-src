@@ -16,12 +16,12 @@
 #define LLVM_CLANG_TOKENREWRITER_H
 
 #include "clang/Basic/SourceLocation.h"
+#include "clang/Lex/Token.h"
 #include "llvm/ADT/OwningPtr.h"
 #include <list>
 #include <map>
 
 namespace clang {
-  class Token;
   class LangOptions;
   class ScratchBuffer;
 
@@ -41,7 +41,7 @@ namespace clang {
 
     /// ScratchBuf - This is the buffer that we create scratch tokens from.
     ///
-    llvm::OwningPtr<ScratchBuffer> ScratchBuf;
+    OwningPtr<ScratchBuffer> ScratchBuf;
 
     TokenRewriter(const TokenRewriter&);  // DO NOT IMPLEMENT
     void operator=(const TokenRewriter&); // DO NOT IMPLEMENT.

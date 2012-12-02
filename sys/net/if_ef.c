@@ -151,14 +151,10 @@ static int
 ef_detach(struct efnet *sc)
 {
 	struct ifnet *ifp = sc->ef_ifp;
-	int s;
-
-	s = splimp();
 
 	ether_ifdetach(ifp);
 	if_free(ifp);
 
-	splx(s);
 	return 0;
 }
 
@@ -172,11 +168,10 @@ ef_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	struct efnet *sc = ifp->if_softc;
 	struct ifaddr *ifa = (struct ifaddr*)data;
-	int s, error;
+	int error;
 
 	EFDEBUG("IOCTL %ld for %s\n", cmd, ifp->if_xname);
 	error = 0;
-	s = splimp();
 	switch (cmd) {
 	    case SIOCSIFFLAGS:
 		error = 0;
@@ -193,7 +188,6 @@ ef_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		error = ether_ioctl(ifp, cmd, data);
 		break;
 	}
-	splx(s);
 	return error;
 }
 

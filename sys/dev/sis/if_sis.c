@@ -126,7 +126,7 @@ MODULE_DEPEND(sis, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct sis_type const sis_devs[] = {
+static const struct sis_type sis_devs[] = {
 	{ SIS_VENDORID, SIS_DEVICEID_900, "SiS 900 10/100BaseTX" },
 	{ SIS_VENDORID, SIS_DEVICEID_7016, "SiS 7016 10/100BaseTX" },
 	{ NS_VENDORID, NS_DEVICEID_DP83815, "NatSemi DP8381[56] 10/100BaseTX" },

@@ -32,60 +32,68 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_debug.h 491 2011-11-12 00:12:32Z des $
+ * $Id: openpam_debug.h 606 2012-04-20 11:06:38Z des $
  */
 
-#ifndef OPENPAM_DEBUG_INCLUDED
-#define OPENPAM_DEBUG_INCLUDED
+#ifndef OPENPAM_DEBUG_H_INCLUDED
+#define OPENPAM_DEBUG_H_INCLUDED
 
 #ifdef OPENPAM_DEBUG
-#define ENTER() openpam_log(PAM_LOG_DEBUG, "entering")
+#define ENTER() openpam_log(PAM_LOG_LIBDEBUG, "entering")
 #define ENTERI(i) do { \
 	int i_ = (i); \
 	if (i_ > 0 && i_ < PAM_NUM_ITEMS) \
-		openpam_log(PAM_LOG_DEBUG, "entering: %s", pam_item_name[i_]); \
+		openpam_log(PAM_LOG_LIBDEBUG, "entering: %s", pam_item_name[i_]); \
 	else \
-		openpam_log(PAM_LOG_DEBUG, "entering: %d", i_); \
+		openpam_log(PAM_LOG_LIBDEBUG, "entering: %d", i_); \
 } while (0)
 #define ENTERN(n) do { \
 	int n_ = (n); \
-	openpam_log(PAM_LOG_DEBUG, "entering: %d", n_); \
+	openpam_log(PAM_LOG_LIBDEBUG, "entering: %d", n_); \
 } while (0)
 #define ENTERS(s) do { \
 	const char *s_ = (s); \
 	if (s_ == NULL) \
-		openpam_log(PAM_LOG_DEBUG, "entering: NULL"); \
+		openpam_log(PAM_LOG_LIBDEBUG, "entering: NULL"); \
 	else \
-		openpam_log(PAM_LOG_DEBUG, "entering: '%s'", s_); \
+		openpam_log(PAM_LOG_LIBDEBUG, "entering: '%s'", s_); \
 } while (0)
-#define	RETURNV() openpam_log(PAM_LOG_DEBUG, "returning")
+#define ENTERF(f) do { \
+	int f_ = (f); \
+	if (f_ >= 0 && f_ <= OPENPAM_NUM_FEATURES) \
+		openpam_log(PAM_LOG_LIBDEBUG, "entering: %s", \
+		    openpam_features[f_].name); \
+	else \
+		openpam_log(PAM_LOG_LIBDEBUG, "entering: %d", f_); \
+} while (0)
+#define	RETURNV() openpam_log(PAM_LOG_LIBDEBUG, "returning")
 #define RETURNC(c) do { \
 	int c_ = (c); \
 	if (c_ >= 0 && c_ < PAM_NUM_ERRORS) \
-		openpam_log(PAM_LOG_DEBUG, "returning %s", pam_err_name[c_]); \
+		openpam_log(PAM_LOG_LIBDEBUG, "returning %s", pam_err_name[c_]); \
 	else \
-		openpam_log(PAM_LOG_DEBUG, "returning %d!", c_); \
+		openpam_log(PAM_LOG_LIBDEBUG, "returning %d!", c_); \
 	return (c_); \
 } while (0)
 #define	RETURNN(n) do { \
 	int n_ = (n); \
-	openpam_log(PAM_LOG_DEBUG, "returning %d", n_); \
+	openpam_log(PAM_LOG_LIBDEBUG, "returning %d", n_); \
 	return (n_); \
 } while (0)
 #define	RETURNP(p) do { \
-	const void *p_ = (p); \
+	void *p_ = (p); \
 	if (p_ == NULL) \
-		openpam_log(PAM_LOG_DEBUG, "returning NULL"); \
+		openpam_log(PAM_LOG_LIBDEBUG, "returning NULL"); \
 	else \
-		openpam_log(PAM_LOG_DEBUG, "returning %p", p_); \
+		openpam_log(PAM_LOG_LIBDEBUG, "returning %p", p_); \
 	return (p_); \
 } while (0)
 #define	RETURNS(s) do { \
 	const char *s_ = (s); \
 	if (s_ == NULL) \
-		openpam_log(PAM_LOG_DEBUG, "returning NULL"); \
+		openpam_log(PAM_LOG_LIBDEBUG, "returning NULL"); \
 	else \
-		openpam_log(PAM_LOG_DEBUG, "returning '%s'", s_); \
+		openpam_log(PAM_LOG_LIBDEBUG, "returning '%s'", s_); \
 	return (s_); \
 } while (0)
 #else
@@ -93,6 +101,7 @@
 #define ENTERI(i)
 #define ENTERN(n)
 #define ENTERS(s)
+#define ENTERF(f)
 #define RETURNV() return
 #define RETURNC(c) return (c)
 #define RETURNN(n) return (n)

@@ -127,7 +127,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/sysctl.h>
 
-#define TI_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_IP_FRAGS)
+#define TI_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
 /*
  * We can only turn on header splitting if we're using extended receive
  * BDs.
@@ -145,7 +145,7 @@ typedef enum {
  * Various supported device vendors/types and their names.
  */
 
-static const struct ti_type const ti_devs[] = {
+static const struct ti_type ti_devs[] = {
 	{ ALT_VENDORID,	ALT_DEVICEID_ACENIC,
 		"Alteon AceNIC 1000baseSX Gigabit Ethernet" },
 	{ ALT_VENDORID,	ALT_DEVICEID_ACENIC_COPPER,
@@ -3082,16 +3082,10 @@ ti_encap(struct ti_softc *sc, struct mbuf **m_head)
 
 	m = *m_head;
 	csum_flags = 0;
-	if (m->m_pkthdr.csum_flags) {
-		if (m->m_pkthdr.csum_flags & CSUM_IP)
-			csum_flags |= TI_BDFLAG_IP_CKSUM;
-		if (m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))
-			csum_flags |= TI_BDFLAG_TCP_UDP_CKSUM;
-		if (m->m_flags & M_LASTFRAG)
-			csum_flags |= TI_BDFLAG_IP_FRAG_END;
-		else if (m->m_flags & M_FRAG)
-			csum_flags |= TI_BDFLAG_IP_FRAG;
-	}
+	if (m->m_pkthdr.csum_flags & CSUM_IP)
+		csum_flags |= TI_BDFLAG_IP_CKSUM;
+	if (m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))
+		csum_flags |= TI_BDFLAG_TCP_UDP_CKSUM;
 
 	frag = sc->ti_tx_saved_prodidx;
 	for (i = 0; i < nseg; i++) {

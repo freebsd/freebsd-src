@@ -88,10 +88,8 @@ typedef	__wint_t	wint_t;
 #define	_WINT_T_DECLARED
 #endif
 
-#ifndef	WCHAR_MIN 
-#define	WCHAR_MIN	__INT_MIN
-#define	WCHAR_MAX	__INT_MAX
-#endif
+#define	WCHAR_MIN	__WCHAR_MIN
+#define	WCHAR_MAX	__WCHAR_MAX
 
 #ifndef WEOF
 #define	WEOF 	((wint_t)-1)

@@ -14,26 +14,25 @@
 #ifndef LLVM_MC_MCBJECTFILEINFO_H
 #define LLVM_MC_MCBJECTFILEINFO_H
 
-#include "llvm/MC/MCCodeGenInfo.h"
-#include "llvm/ADT/StringRef.h"
-#include "llvm/MC/SectionKind.h"
+#include "llvm/Support/CodeGen.h"
 
 namespace llvm {
-class MCContext;
-class MCSection;
-class Triple;
-  
-class MCObjectFileInfo {  
+  class MCContext;
+  class MCSection;
+  class StringRef;
+  class Triple;
+
+class MCObjectFileInfo {
 protected:
   /// CommDirectiveSupportsAlignment - True if .comm supports alignment.  This
   /// is a hack for as long as we support 10.4 Tiger, whose assembler doesn't
   /// support alignment on comm.
   bool CommDirectiveSupportsAlignment;
-  
+
   /// SupportsWeakEmptyEHFrame - True if target object file supports a
   /// weak_definition of constant 0 for an omitted EH frame.
   bool SupportsWeakOmittedEHFrame;
-  
+
   /// IsFunctionEHFrameSymbolPrivate - This flag is set to true if the
   /// "EH_frame" symbol for EH information should be an assembler temporary (aka
   /// private linkage, aka an L or .L label) or false if it should be a normal
@@ -47,24 +46,27 @@ protected:
   unsigned FDEEncoding;
   unsigned FDECFIEncoding;
   unsigned TTypeEncoding;
+  // Section flags for eh_frame
+  unsigned EHSectionType;
+  unsigned EHSectionFlags;
 
   /// TextSection - Section directive for standard text.
   ///
   const MCSection *TextSection;
-  
+
   /// DataSection - Section directive for standard data.
   ///
   const MCSection *DataSection;
-  
+
   /// BSSSection - Section that is default initialized to zero.
   const MCSection *BSSSection;
-  
+
   /// ReadOnlySection - Section that is readonly and can contain arbitrary
   /// initialized data.  Targets are not required to have a readonly section.
   /// If they don't, various bits of code will fall back to using the data
   /// section for constants.
   const MCSection *ReadOnlySection;
-  
+
   /// StaticCtorSection - This section contains the static constructor pointer
   /// list.
   const MCSection *StaticCtorSection;
@@ -72,7 +74,7 @@ protected:
   /// StaticDtorSection - This section contains the static destructor pointer
   /// list.
   const MCSection *StaticDtorSection;
-  
+
   /// LSDASection - If exception handling is supported by the target, this is
   /// the section the Language Specific Data Area information is emitted to.
   const MCSection *LSDASection;
@@ -82,13 +84,20 @@ protected:
   /// this is the section to emit them into.
   const MCSection *CompactUnwindSection;
 
+  /// DwarfAccelNamesSection, DwarfAccelObjCSection
+  /// If we use the DWARF accelerated hash tables then we want toe emit these
+  /// sections.
+  const MCSection *DwarfAccelNamesSection;
+  const MCSection *DwarfAccelObjCSection;
+  const MCSection *DwarfAccelNamespaceSection;
+  const MCSection *DwarfAccelTypesSection;
+
   // Dwarf sections for debug info.  If a target supports debug info, these must
   // be set.
   const MCSection *DwarfAbbrevSection;
   const MCSection *DwarfInfoSection;
   const MCSection *DwarfLineSection;
   const MCSection *DwarfFrameSection;
-  const MCSection *DwarfPubNamesSection;
   const MCSection *DwarfPubTypesSection;
   const MCSection *DwarfDebugInlineSection;
   const MCSection *DwarfStrSection;
@@ -100,9 +109,9 @@ protected:
   // Extra TLS Variable Data section.  If the target needs to put additional
   // information for a TLS variable, it'll go here.
   const MCSection *TLSExtraDataSection;
-  
+
   /// TLSDataSection - Section directive for Thread Local data.
-  /// ELF and MachO only.
+  /// ELF, MachO and COFF.
   const MCSection *TLSDataSection;        // Defaults to ".tdata".
 
   /// TLSBSSSection - Section directive for Thread Local uninitialized data.
@@ -132,11 +141,11 @@ protected:
   /// Contains the source code name of the variable, visibility and a pointer
   /// to the initial value (.tdata or .tbss).
   const MCSection *TLSTLVSection;         // Defaults to ".tlv".
-  
+
   /// TLSThreadInitSection - Section for thread local data initialization
   /// functions.
   const MCSection *TLSThreadInitSection;  // Defaults to ".thread_init_func".
-  
+
   const MCSection *CStringSection;
   const MCSection *UStringSection;
   const MCSection *TextCoalSection;
@@ -156,11 +165,11 @@ protected:
   const MCSection *DrectveSection;
   const MCSection *PDataSection;
   const MCSection *XDataSection;
-  
+
 public:
   void InitMCObjectFileInfo(StringRef TT, Reloc::Model RM, CodeModel::Model CM,
                             MCContext &ctx);
-  
+
   bool isFunctionEHFrameSymbolPrivate() const {
     return IsFunctionEHFrameSymbolPrivate;
   }
@@ -181,17 +190,26 @@ public:
   const MCSection *getTextSection() const { return TextSection; }
   const MCSection *getDataSection() const { return DataSection; }
   const MCSection *getBSSSection() const { return BSSSection; }
-  const MCSection *getStaticCtorSection() const { return StaticCtorSection; }
-  const MCSection *getStaticDtorSection() const { return StaticDtorSection; }
   const MCSection *getLSDASection() const { return LSDASection; }
   const MCSection *getCompactUnwindSection() const{
     return CompactUnwindSection;
+  }
+  const MCSection *getDwarfAccelNamesSection() const {
+    return DwarfAccelNamesSection;
+  }
+  const MCSection *getDwarfAccelObjCSection() const {
+    return DwarfAccelObjCSection;
+  }
+  const MCSection *getDwarfAccelNamespaceSection() const {
+    return DwarfAccelNamespaceSection;
+  }
+  const MCSection *getDwarfAccelTypesSection() const {
+    return DwarfAccelTypesSection;
   }
   const MCSection *getDwarfAbbrevSection() const { return DwarfAbbrevSection; }
   const MCSection *getDwarfInfoSection() const { return DwarfInfoSection; }
   const MCSection *getDwarfLineSection() const { return DwarfLineSection; }
   const MCSection *getDwarfFrameSection() const { return DwarfFrameSection; }
-  const MCSection *getDwarfPubNamesSection() const{return DwarfPubNamesSection;}
   const MCSection *getDwarfPubTypesSection() const{return DwarfPubTypesSection;}
   const MCSection *getDwarfDebugInlineSection() const {
     return DwarfDebugInlineSection;

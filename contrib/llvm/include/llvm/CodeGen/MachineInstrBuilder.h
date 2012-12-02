@@ -34,6 +34,8 @@ namespace RegState {
     Undef          = 0x20,
     EarlyClobber   = 0x40,
     Debug          = 0x80,
+    InternalRead   = 0x100,
+    DefineNoRead   = Define | Undef,
     ImplicitDefine = Implicit | Define,
     ImplicitKill   = Implicit | Kill
   };
@@ -66,7 +68,8 @@ public:
                                              flags & RegState::Undef,
                                              flags & RegState::EarlyClobber,
                                              SubReg,
-                                             flags & RegState::Debug));
+                                             flags & RegState::Debug,
+                                             flags & RegState::InternalRead));
     return *this;
   }
 
@@ -105,6 +108,12 @@ public:
     return *this;
   }
 
+  const MachineInstrBuilder &addTargetIndex(unsigned Idx, int64_t Offset = 0,
+                                          unsigned char TargetFlags = 0) const {
+    MI->addOperand(MachineOperand::CreateTargetIndex(Idx, Offset, TargetFlags));
+    return *this;
+  }
+
   const MachineInstrBuilder &addJumpTableIndex(unsigned Idx,
                                           unsigned char TargetFlags = 0) const {
     MI->addOperand(MachineOperand::CreateJTI(Idx, TargetFlags));
@@ -121,6 +130,11 @@ public:
   const MachineInstrBuilder &addExternalSymbol(const char *FnName,
                                           unsigned char TargetFlags = 0) const {
     MI->addOperand(MachineOperand::CreateES(FnName, TargetFlags));
+    return *this;
+  }
+
+  const MachineInstrBuilder &addRegMask(const uint32_t *Mask) const {
+    MI->addOperand(MachineOperand::CreateRegMask(Mask));
     return *this;
   }
 
@@ -209,6 +223,30 @@ inline MachineInstrBuilder BuildMI(MachineBasicBlock &BB,
   return MachineInstrBuilder(MI).addReg(DestReg, RegState::Define);
 }
 
+inline MachineInstrBuilder BuildMI(MachineBasicBlock &BB,
+                                   MachineBasicBlock::instr_iterator I,
+                                   DebugLoc DL,
+                                   const MCInstrDesc &MCID,
+                                   unsigned DestReg) {
+  MachineInstr *MI = BB.getParent()->CreateMachineInstr(MCID, DL);
+  BB.insert(I, MI);
+  return MachineInstrBuilder(MI).addReg(DestReg, RegState::Define);
+}
+
+inline MachineInstrBuilder BuildMI(MachineBasicBlock &BB,
+                                   MachineInstr *I,
+                                   DebugLoc DL,
+                                   const MCInstrDesc &MCID,
+                                   unsigned DestReg) {
+  if (I->isInsideBundle()) {
+    MachineBasicBlock::instr_iterator MII = I;
+    return BuildMI(BB, MII, DL, MCID, DestReg);
+  }
+
+  MachineBasicBlock::iterator MII = I;
+  return BuildMI(BB, MII, DL, MCID, DestReg);
+}
+
 /// BuildMI - This version of the builder inserts the newly-built
 /// instruction before the given position in the given MachineBasicBlock, and
 /// does NOT take a destination register.
@@ -220,6 +258,28 @@ inline MachineInstrBuilder BuildMI(MachineBasicBlock &BB,
   MachineInstr *MI = BB.getParent()->CreateMachineInstr(MCID, DL);
   BB.insert(I, MI);
   return MachineInstrBuilder(MI);
+}
+
+inline MachineInstrBuilder BuildMI(MachineBasicBlock &BB,
+                                   MachineBasicBlock::instr_iterator I,
+                                   DebugLoc DL,
+                                   const MCInstrDesc &MCID) {
+  MachineInstr *MI = BB.getParent()->CreateMachineInstr(MCID, DL);
+  BB.insert(I, MI);
+  return MachineInstrBuilder(MI);
+}
+
+inline MachineInstrBuilder BuildMI(MachineBasicBlock &BB,
+                                   MachineInstr *I,
+                                   DebugLoc DL,
+                                   const MCInstrDesc &MCID) {
+  if (I->isInsideBundle()) {
+    MachineBasicBlock::instr_iterator MII = I;
+    return BuildMI(BB, MII, DL, MCID);
+  }
+
+  MachineBasicBlock::iterator MII = I;
+  return BuildMI(BB, MII, DL, MCID);
 }
 
 /// BuildMI - This version of the builder inserts the newly-built
@@ -257,6 +317,9 @@ inline unsigned getDeadRegState(bool B) {
 }
 inline unsigned getUndefRegState(bool B) {
   return B ? RegState::Undef : 0;
+}
+inline unsigned getInternalReadRegState(bool B) {
+  return B ? RegState::InternalRead : 0;
 }
 
 } // End llvm namespace

@@ -438,7 +438,7 @@ static void InvalidPTH(DiagnosticsEngine &Diags, const char *Msg) {
 PTHManager *PTHManager::Create(const std::string &file,
                                DiagnosticsEngine &Diags) {
   // Memory map the PTH file.
-  llvm::OwningPtr<llvm::MemoryBuffer> File;
+  OwningPtr<llvm::MemoryBuffer> File;
 
   if (llvm::MemoryBuffer::getFile(file, File)) {
     // FIXME: Add ec.message() to this diag.
@@ -452,14 +452,14 @@ PTHManager *PTHManager::Create(const std::string &file,
   const unsigned char *BufEnd = (unsigned char*)File->getBufferEnd();
 
   // Check the prologue of the file.
-  if ((BufEnd - BufBeg) < (signed)(sizeof("cfe-pth") + 3 + 4) ||
-      memcmp(BufBeg, "cfe-pth", sizeof("cfe-pth") - 1) != 0) {
+  if ((BufEnd - BufBeg) < (signed)(sizeof("cfe-pth") + 4 + 4) ||
+      memcmp(BufBeg, "cfe-pth", sizeof("cfe-pth")) != 0) {
     Diags.Report(diag::err_invalid_pth_file) << file;
     return 0;
   }
 
   // Read the PTH version.
-  const unsigned char *p = BufBeg + (sizeof("cfe-pth") - 1);
+  const unsigned char *p = BufBeg + (sizeof("cfe-pth"));
   unsigned Version = ReadLE32(p);
 
   if (Version < PTHManager::Version) {
@@ -488,7 +488,7 @@ PTHManager *PTHManager::Create(const std::string &file,
     return 0; // FIXME: Proper error diagnostic?
   }
 
-  llvm::OwningPtr<PTHFileLookup> FL(PTHFileLookup::Create(FileTable, BufBeg));
+  OwningPtr<PTHFileLookup> FL(PTHFileLookup::Create(FileTable, BufBeg));
 
   // Warn if the PTH file is empty.  We still want to create a PTHManager
   // as the PTH could be used with -include-pth.
@@ -514,7 +514,7 @@ PTHManager *PTHManager::Create(const std::string &file,
     return 0;
   }
 
-  llvm::OwningPtr<PTHStringIdLookup> SL(PTHStringIdLookup::Create(StringIdTable,
+  OwningPtr<PTHStringIdLookup> SL(PTHStringIdLookup::Create(StringIdTable,
                                                                   BufBeg));
 
   // Get the location of the spelling cache.

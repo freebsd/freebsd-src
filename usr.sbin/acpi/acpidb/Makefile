@@ -9,8 +9,9 @@ SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c	\
 	dbxface.c
 
 # components/disassembler
-SRCS+=	dmbuffer.c dmnames.c dmobject.c dmopcode.c dmresrc.c	\
-	dmresrcl.c dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
+SRCS+=	dmbuffer.c dmdeferred.c dmnames.c dmobject.c dmopcode.c	\
+	dmresrc.c dmresrcl.c dmresrcl2.c dmresrcs.c dmutils.c	\
+	dmwalk.c
 
 # components/dispatcher
 SRCS+=	dsargs.c dscontrol.c dsfield.c dsinit.c dsmethod.c	\
@@ -52,14 +53,15 @@ SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsinfo.c		\
 	rsserial.c rsutils.c rsxface.c
 
 # components/tables
-SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c
+SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c	\
+	tbxfload.c
 
 # components/utilities
 SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c	\
-	utdecode.c utdelete.c uteval.c utglobal.c utids.c	\
-	utinit.c utlock.c utmath.c utmisc.c utmutex.c		\
+	utdecode.c utdelete.c uteval.c utexcep.c utglobal.c	\
+	utids.c	utinit.c utlock.c utmath.c utmisc.c utmutex.c	\
 	utobject.c utosi.c utresrc.c utstate.c uttrack.c	\
-	utxface.c utxferror.c
+	utxface.c utxferror.c utxfinit.c
 
 MAN=	acpidb.8
 WARNS?=	2

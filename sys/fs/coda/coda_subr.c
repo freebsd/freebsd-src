@@ -365,13 +365,7 @@ coda_checkunmounting(struct mount *mp)
 	struct cnode *cp;
 	int count = 0, bad = 0;
 
-	MNT_ILOCK(mp);
-	MNT_VNODE_FOREACH(vp, mp, nvp) {
-		VI_LOCK(vp);
-		if (vp->v_iflag & VI_DOOMED) {
-			VI_UNLOCK(vp);
-			continue;
-		}
+	MNT_VNODE_FOREACH_ALL(vp, mp, nvp) {
 		cp = VTOC(vp);
 		count++;
 		if (!(cp->c_flags & C_UNMOUNTING)) {
@@ -381,7 +375,6 @@ coda_checkunmounting(struct mount *mp)
 		}
 		VI_UNLOCK(vp);
 	}
-	MNT_IUNLOCK(mp);
 }
 
 void
@@ -493,7 +486,7 @@ handleDownCall(struct coda_mntinfo *mnt, int opcode, union outputArgs *out)
 			cache_purge(CTOV(cp));
 			cp->c_flags &= ~(C_VATTR | C_ACCCACHE);
 			ASSERT_VOP_LOCKED(CTOV(cp), "coda HandleDownCall");
-			if (CTOV(cp)->v_vflag & VV_TEXT)
+			if (VOP_IS_TEXT(CTOV(cp)))
 				error = coda_vmflush(cp);
 			CODADEBUG(CODA_ZAPFILE,
 			myprintf(("zapfile: fid = %s, refcnt = %d, error = "
@@ -539,7 +532,7 @@ handleDownCall(struct coda_mntinfo *mnt, int opcode, union outputArgs *out)
 			cp->c_flags &= ~(C_VATTR | C_ACCCACHE);
 			ASSERT_VOP_LOCKED(CTOV(cp), "coda HandleDownCall");
 			if (!(IS_DIR(out->coda_purgefid.Fid))
-			    && (CTOV(cp)->v_vflag & VV_TEXT))
+			    && VOP_IS_TEXT(CTOV(cp)))
 				error = coda_vmflush(cp);
 			CODADEBUG(CODA_PURGEFID, myprintf(("purgefid: fid "
 			    "= %s, refcnt = %d, error = %d\n",

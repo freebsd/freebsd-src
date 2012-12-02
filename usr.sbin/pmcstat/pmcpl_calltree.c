@@ -125,7 +125,7 @@ struct pmcpl_ct_node_hash {
 	STAILQ_ENTRY(pmcpl_ct_node_hash) pch_next;
 };
 
-struct pmcpl_ct_sample pmcpl_ct_callid;
+static struct pmcpl_ct_sample pmcpl_ct_callid;
 
 #define	PMCPL_CT_MAXCOL		PMC_CALLCHAIN_DEPTH_MAX
 #define	PMCPL_CT_MAXLINE	1024	/* TODO: dynamic. */
@@ -135,8 +135,8 @@ struct pmcpl_ct_line {
 	unsigned	ln_index;
 };
 
-struct pmcpl_ct_line	pmcpl_ct_topmax[PMCPL_CT_MAXLINE+1];
-struct pmcpl_ct_node
+static struct pmcpl_ct_line	pmcpl_ct_topmax[PMCPL_CT_MAXLINE+1];
+static struct pmcpl_ct_node
     *pmcpl_ct_topscreen[PMCPL_CT_MAXCOL+1][PMCPL_CT_MAXLINE+1];
 
 /*

@@ -8,77 +8,61 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
-#include "clang/Index/Entity.h"
-#include "clang/Index/Indexer.h"
 
 using namespace clang;
 using namespace ento;
 
+void AnalysisManager::anchor() { }
+
 AnalysisManager::AnalysisManager(ASTContext &ctx, DiagnosticsEngine &diags,
                                  const LangOptions &lang,
-                                 PathDiagnosticConsumer *pd,
+                                 const PathDiagnosticConsumers &PDC,
                                  StoreManagerCreator storemgr,
                                  ConstraintManagerCreator constraintmgr, 
                                  CheckerManager *checkerMgr,
-                                 idx::Indexer *idxer,
                                  unsigned maxnodes, unsigned maxvisit,
                                  bool vizdot, bool vizubi,
                                  AnalysisPurgeMode purge,
                                  bool eager, bool trim,
-                                 bool inlinecall, bool useUnoptimizedCFG,
-                                 bool addImplicitDtors, bool addInitializers,
-                                 bool eagerlyTrimEGraph)
-  : AnaCtxMgr(useUnoptimizedCFG, addImplicitDtors, addInitializers),
-    Ctx(ctx), Diags(diags), LangInfo(lang), PD(pd),
+                                 bool useUnoptimizedCFG,
+                                 bool addImplicitDtors,
+                                 bool eagerlyTrimEGraph,
+                                 AnalysisIPAMode ipa,
+                                 unsigned inlineMaxStack,
+                                 unsigned inlineMaxFunctionSize,
+                                 AnalysisInliningMode IMode,
+                                 bool NoRetry)
+  : AnaCtxMgr(useUnoptimizedCFG, addImplicitDtors, /*addInitializers=*/true),
+    Ctx(ctx), Diags(diags), LangOpts(lang),
+    PathConsumers(PDC),
     CreateStoreMgr(storemgr), CreateConstraintMgr(constraintmgr),
-    CheckerMgr(checkerMgr), Idxer(idxer),
-    AScope(ScopeDecl), MaxNodes(maxnodes), MaxVisit(maxvisit),
+    CheckerMgr(checkerMgr), 
+    MaxNodes(maxnodes), MaxVisit(maxvisit),
     VisualizeEGDot(vizdot), VisualizeEGUbi(vizubi), PurgeDead(purge),
-    EagerlyAssume(eager), TrimGraph(trim), InlineCall(inlinecall),
-    EagerlyTrimEGraph(eagerlyTrimEGraph)
+    EagerlyAssume(eager), TrimGraph(trim),
+    EagerlyTrimEGraph(eagerlyTrimEGraph),
+    IPAMode(ipa),
+    InlineMaxStackDepth(inlineMaxStack),
+    InlineMaxFunctionSize(inlineMaxFunctionSize),
+    InliningMode(IMode),
+    NoRetryExhausted(NoRetry)
 {
   AnaCtxMgr.getCFGBuildOptions().setAllAlwaysAdd();
 }
 
-AnalysisManager::AnalysisManager(ASTContext &ctx, DiagnosticsEngine &diags,
-                                 AnalysisManager &ParentAM)
-  : AnaCtxMgr(ParentAM.AnaCtxMgr.getUseUnoptimizedCFG(),
-              ParentAM.AnaCtxMgr.getCFGBuildOptions().AddImplicitDtors,
-              ParentAM.AnaCtxMgr.getCFGBuildOptions().AddInitializers),
-    Ctx(ctx), Diags(diags),
-    LangInfo(ParentAM.LangInfo), PD(ParentAM.getPathDiagnosticConsumer()),
-    CreateStoreMgr(ParentAM.CreateStoreMgr),
-    CreateConstraintMgr(ParentAM.CreateConstraintMgr),
-    CheckerMgr(ParentAM.CheckerMgr),
-    Idxer(ParentAM.Idxer),
-    AScope(ScopeDecl),
-    MaxNodes(ParentAM.MaxNodes),
-    MaxVisit(ParentAM.MaxVisit),
-    VisualizeEGDot(ParentAM.VisualizeEGDot),
-    VisualizeEGUbi(ParentAM.VisualizeEGUbi),
-    PurgeDead(ParentAM.PurgeDead),
-    EagerlyAssume(ParentAM.EagerlyAssume),
-    TrimGraph(ParentAM.TrimGraph),
-    InlineCall(ParentAM.InlineCall),
-    EagerlyTrimEGraph(ParentAM.EagerlyTrimEGraph)
-{
-  AnaCtxMgr.getCFGBuildOptions().setAllAlwaysAdd();
+AnalysisManager::~AnalysisManager() {
+  FlushDiagnostics();
+  for (PathDiagnosticConsumers::iterator I = PathConsumers.begin(),
+       E = PathConsumers.end(); I != E; ++I) {
+    delete *I;
+  }
 }
 
-
-AnalysisContext *
-AnalysisManager::getAnalysisContextInAnotherTU(const Decl *D) {
-  idx::Entity Ent = idx::Entity::get(const_cast<Decl *>(D), 
-                                     Idxer->getProgram());
-  FunctionDecl *FuncDef;
-  idx::TranslationUnit *TU;
-  llvm::tie(FuncDef, TU) = Idxer->getDefinitionFor(Ent);
-
-  if (FuncDef == 0)
-    return 0;
-
-  // This AnalysisContext wraps function definition in another translation unit.
-  // But it is still owned by the AnalysisManager associated with the current
-  // translation unit.
-  return AnaCtxMgr.getContext(FuncDef, TU);
+void AnalysisManager::FlushDiagnostics() {
+  PathDiagnosticConsumer::FilesMade filesMade;
+  for (PathDiagnosticConsumers::iterator I = PathConsumers.begin(),
+       E = PathConsumers.end();
+       I != E; ++I) {
+    (*I)->FlushDiagnostics(&filesMade);
+  }
 }

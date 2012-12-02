@@ -229,7 +229,7 @@ struct schizo_desc {
 	const char	*sd_name;
 };
 
-static const struct schizo_desc const schizo_compats[] = {
+static const struct schizo_desc schizo_compats[] = {
 	{ "pci108e,8001",	SCHIZO_MODE_SCZ,	"Schizo" },
 #if 0
 	{ "pci108e,8002",	SCHIZO_MODE_XMS,	"XMITS" },
@@ -1213,8 +1213,6 @@ schizo_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 	if ((op & BUS_DMASYNC_PREWRITE) != 0)
 		membar(Sync);
 }
-
-#define	VIS_BLOCKSIZE	64
 
 static void
 ichip_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)

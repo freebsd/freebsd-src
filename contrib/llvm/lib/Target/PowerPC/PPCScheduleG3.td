@@ -1,10 +1,10 @@
-//===- PPCScheduleG3.td - PPC G3 Scheduling Definitions ----*- tablegen -*-===//
-// 
+//===-- PPCScheduleG3.td - PPC G3 Scheduling Definitions ---*- tablegen -*-===//
+//
 //                     The LLVM Compiler Infrastructure
 //
 // This file is distributed under the University of Illinois Open Source
 // License. See LICENSE.TXT for details.
-// 
+//
 //===----------------------------------------------------------------------===//
 //
 // This file defines the itinerary class data for the G3 (750) processor.
@@ -14,6 +14,7 @@
 
 def G3Itineraries : ProcessorItineraries<
   [IU1, IU2, FPU1, BPU, SRU, SLU], [], [
+  InstrItinData<IntSimple   , [InstrStage<1, [IU1, IU2]>]>,
   InstrItinData<IntGeneral  , [InstrStage<1, [IU1, IU2]>]>,
   InstrItinData<IntCompare  , [InstrStage<1, [IU1, IU2]>]>,
   InstrItinData<IntDivW     , [InstrStage<19, [IU1]>]>,
@@ -32,7 +33,8 @@ def G3Itineraries : ProcessorItineraries<
   InstrItinData<LdStDCBA    , [InstrStage<2, [SLU]>]>,
   InstrItinData<LdStDCBF    , [InstrStage<3, [SLU]>]>,
   InstrItinData<LdStDCBI    , [InstrStage<3, [SLU]>]>,
-  InstrItinData<LdStGeneral , [InstrStage<2, [SLU]>]>,
+  InstrItinData<LdStLoad    , [InstrStage<2, [SLU]>]>,
+  InstrItinData<LdStStore   , [InstrStage<2, [SLU]>]>,
   InstrItinData<LdStICBI    , [InstrStage<3, [SLU]>]>,
   InstrItinData<LdStUX      , [InstrStage<2, [SLU]>]>,
   InstrItinData<LdStLFD     , [InstrStage<2, [SLU]>]>,

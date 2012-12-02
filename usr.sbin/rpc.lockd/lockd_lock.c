@@ -494,8 +494,6 @@ regions_overlap(start1, len1, start2, len2)
 	} else {
 		return 1;
 	}
-
-	return (result);
 }
 
 /*

@@ -31,9 +31,8 @@ public:
   TextPathDiagnostics(const std::string& output, DiagnosticsEngine &diag)
     : OutputFile(output), Diag(diag) {}
 
-  void HandlePathDiagnosticImpl(const PathDiagnostic* D);
-
-  void FlushDiagnostics(SmallVectorImpl<std::string> *FilesMade) { }
+  void FlushDiagnosticsImpl(std::vector<const PathDiagnostic *> &Diags,
+                            FilesMade *filesMade);
   
   virtual StringRef getName() const {
     return "TextPathDiagnostics";
@@ -43,28 +42,31 @@ public:
   bool supportsLogicalOpControlFlow() const { return true; }
   bool supportsAllBlockEdges() const { return true; }
   virtual bool useVerboseDescription() const { return true; }
+  virtual bool supportsCrossFileDiagnostics() const { return true; }
 };
 
 } // end anonymous namespace
 
-PathDiagnosticConsumer*
-ento::createTextPathDiagnosticConsumer(const std::string& out,
-                                     const Preprocessor &PP) {
-  return new TextPathDiagnostics(out, PP.getDiagnostics());
+void ento::createTextPathDiagnosticConsumer(PathDiagnosticConsumers &C,
+                                            const std::string& out,
+                                            const Preprocessor &PP) {
+  C.push_back(new TextPathDiagnostics(out, PP.getDiagnostics()));
 }
 
-void TextPathDiagnostics::HandlePathDiagnosticImpl(const PathDiagnostic* D) {
-  if (!D)
-    return;
+void TextPathDiagnostics::FlushDiagnosticsImpl(
+                              std::vector<const PathDiagnostic *> &Diags,
+                              FilesMade *) {
+  for (std::vector<const PathDiagnostic *>::iterator it = Diags.begin(),
+       et = Diags.end(); it != et; ++it) {
+    const PathDiagnostic *D = *it;
 
-  if (D->empty()) {
-    delete D;
-    return;
-  }
-
-  for (PathDiagnostic::const_iterator I=D->begin(), E=D->end(); I != E; ++I) {
-    unsigned diagID = Diag.getDiagnosticIDs()->getCustomDiagID(
-                                           DiagnosticIDs::Note, I->getString());
-    Diag.Report(I->getLocation().asLocation(), diagID);
+    PathPieces FlatPath = D->path.flatten(/*ShouldFlattenMacros=*/true);
+    for (PathPieces::const_iterator I = FlatPath.begin(), E = FlatPath.end(); 
+         I != E; ++I) {
+      unsigned diagID =
+        Diag.getDiagnosticIDs()->getCustomDiagID(DiagnosticIDs::Note,
+                                                 (*I)->getString());
+      Diag.Report((*I)->getLocation().asLocation(), diagID);
+    }
   }
 }

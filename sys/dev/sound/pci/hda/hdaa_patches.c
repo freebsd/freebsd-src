@@ -139,7 +139,7 @@ hdac_pin_patch(struct hdaa_widget *w)
 
 	config = orig = w->wclass.pin.config;
 	id = hdaa_codec_id(w->devinfo);
-	subid = hdaa_subvendor_id(w->devinfo);
+	subid = hdaa_card_id(w->devinfo);
 
 	/* XXX: Old patches require complete review.
 	 * Now they may create more problem then solve due to
@@ -392,7 +392,7 @@ hdaa_patch(struct hdaa_devinfo *devinfo)
 	int i;
 
 	id = hdaa_codec_id(devinfo);
-	subid = hdaa_subvendor_id(devinfo);
+	subid = hdaa_card_id(devinfo);
 
 	/*
 	 * Quirks
@@ -401,12 +401,9 @@ hdaa_patch(struct hdaa_devinfo *devinfo)
 		if (!(HDA_DEV_MATCH(hdac_quirks[i].model, subid) &&
 		    HDA_DEV_MATCH(hdac_quirks[i].id, id)))
 			continue;
-		if (hdac_quirks[i].set != 0)
-			devinfo->quirks |=
-			    hdac_quirks[i].set;
-		if (hdac_quirks[i].unset != 0)
-			devinfo->quirks &=
-			    ~(hdac_quirks[i].unset);
+		devinfo->quirks |= hdac_quirks[i].set;
+		devinfo->quirks &= ~(hdac_quirks[i].unset);
+		devinfo->gpio = hdac_quirks[i].gpio;
 	}
 
 	/* Apply per-widget patch. */
@@ -544,6 +541,21 @@ hdaa_patch(struct hdaa_devinfo *devinfo)
 		if (w != NULL)
 			w->connsenable[0] = 0;
 		break;
+	case HDA_CODEC_ALC269:
+		/*
+		 * ASUS EeePC 1001px has strange variant of ALC269 CODEC,
+		 * that mutes speaker if unused mixer at NID 15 is muted.
+		 * Probably CODEC incorrectly reports internal connections.
+		 * Hide that muter from the driver.  There are several CODECs
+		 * sharing this ID and I have not enough information about
+		 * them to implement more universal solution.
+		 */
+		if (subid == 0x84371043) {
+			w = hdaa_widget_get(devinfo, 15);
+			if (w != NULL)
+				w->param.inamp_cap = 0;
+		}
+		break;
 	case HDA_CODEC_CX20582:
 	case HDA_CODEC_CX20583:
 	case HDA_CODEC_CX20584:
@@ -597,7 +609,7 @@ hdaa_patch_direct(struct hdaa_devinfo *devinfo)
 	uint32_t id, subid, val;
 
 	id = hdaa_codec_id(devinfo);
-	subid = hdaa_subvendor_id(devinfo);
+	subid = hdaa_card_id(devinfo);
 
 	switch (id) {
 	case HDA_CODEC_VT1708S_0:
@@ -611,6 +623,8 @@ hdaa_patch_direct(struct hdaa_devinfo *devinfo)
 		/* Enable Mic Boost Volume controls. */
 		hda_command(dev, HDA_CMD_12BIT(0, devinfo->nid,
 		    0xf98, 0x01));
+		/* Fall though */
+	case HDA_CODEC_VT1818S:
 		/* Don't bypass mixer. */
 		hda_command(dev, HDA_CMD_12BIT(0, devinfo->nid,
 		    0xf88, 0xc0));

@@ -62,9 +62,9 @@ MBlazeTargetLowering::MBlazeTargetLowering(MBlazeTargetMachine &TM)
   setBooleanVectorContents(ZeroOrOneBooleanContent); // FIXME: Is this correct?
 
   // Set up the register classes
-  addRegisterClass(MVT::i32, MBlaze::GPRRegisterClass);
+  addRegisterClass(MVT::i32, &MBlaze::GPRRegClass);
   if (Subtarget->hasFPU()) {
-    addRegisterClass(MVT::f32, MBlaze::GPRRegisterClass);
+    addRegisterClass(MVT::f32, &MBlaze::GPRRegClass);
     setOperationAction(ISD::ConstantFP, MVT::f32, Legal);
   }
 
@@ -167,7 +167,9 @@ MBlazeTargetLowering::MBlazeTargetLowering(MBlazeTargetMachine &TM)
   setOperationAction(ISD::SRA_PARTS,          MVT::i32,   Expand);
   setOperationAction(ISD::SRL_PARTS,          MVT::i32,   Expand);
   setOperationAction(ISD::CTLZ,               MVT::i32,   Expand);
+  setOperationAction(ISD::CTLZ_ZERO_UNDEF,    MVT::i32,   Expand);
   setOperationAction(ISD::CTTZ,               MVT::i32,   Expand);
+  setOperationAction(ISD::CTTZ_ZERO_UNDEF,    MVT::i32,   Expand);
   setOperationAction(ISD::CTPOP,              MVT::i32,   Expand);
   setOperationAction(ISD::BSWAP,              MVT::i32,   Expand);
 
@@ -214,7 +216,7 @@ MBlazeTargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
                                                   MachineBasicBlock *MBB)
                                                   const {
   switch (MI->getOpcode()) {
-  default: assert(false && "Unexpected instr type to insert");
+  default: llvm_unreachable("Unexpected instr type to insert");
 
   case MBlaze::ShiftRL:
   case MBlaze::ShiftRA:
@@ -289,12 +291,12 @@ MBlazeTargetLowering::EmitCustomShift(MachineInstr *MI,
   loop->addSuccessor(finish);
   loop->addSuccessor(loop);
 
-  unsigned IAMT = R.createVirtualRegister(MBlaze::GPRRegisterClass);
+  unsigned IAMT = R.createVirtualRegister(&MBlaze::GPRRegClass);
   BuildMI(MBB, dl, TII->get(MBlaze::ANDI), IAMT)
     .addReg(MI->getOperand(2).getReg())
     .addImm(31);
 
-  unsigned IVAL = R.createVirtualRegister(MBlaze::GPRRegisterClass);
+  unsigned IVAL = R.createVirtualRegister(&MBlaze::GPRRegClass);
   BuildMI(MBB, dl, TII->get(MBlaze::ADDIK), IVAL)
     .addReg(MI->getOperand(1).getReg())
     .addImm(0);
@@ -303,14 +305,14 @@ MBlazeTargetLowering::EmitCustomShift(MachineInstr *MI,
     .addReg(IAMT)
     .addMBB(finish);
 
-  unsigned DST = R.createVirtualRegister(MBlaze::GPRRegisterClass);
-  unsigned NDST = R.createVirtualRegister(MBlaze::GPRRegisterClass);
+  unsigned DST = R.createVirtualRegister(&MBlaze::GPRRegClass);
+  unsigned NDST = R.createVirtualRegister(&MBlaze::GPRRegClass);
   BuildMI(loop, dl, TII->get(MBlaze::PHI), DST)
     .addReg(IVAL).addMBB(MBB)
     .addReg(NDST).addMBB(loop);
 
-  unsigned SAMT = R.createVirtualRegister(MBlaze::GPRRegisterClass);
-  unsigned NAMT = R.createVirtualRegister(MBlaze::GPRRegisterClass);
+  unsigned SAMT = R.createVirtualRegister(&MBlaze::GPRRegClass);
+  unsigned NAMT = R.createVirtualRegister(&MBlaze::GPRRegClass);
   BuildMI(loop, dl, TII->get(MBlaze::PHI), SAMT)
     .addReg(IAMT).addMBB(MBB)
     .addReg(NAMT).addMBB(loop);
@@ -498,7 +500,7 @@ MBlazeTargetLowering::EmitCustomAtomic(MachineInstr *MI,
     case MBlaze::LAN32: opcode = MBlaze::AND; break;
     }
 
-    finalReg = R.createVirtualRegister(MBlaze::GPRRegisterClass);
+    finalReg = R.createVirtualRegister(&MBlaze::GPRRegClass);
     start->addSuccessor(exit);
     start->addSuccessor(start);
 
@@ -508,7 +510,7 @@ MBlazeTargetLowering::EmitCustomAtomic(MachineInstr *MI,
 
     if (MI->getOpcode() == MBlaze::LAN32) {
       unsigned tmp = finalReg;
-      finalReg = R.createVirtualRegister(MBlaze::GPRRegisterClass);
+      finalReg = R.createVirtualRegister(&MBlaze::GPRRegClass);
       BuildMI(start, dl, TII->get(MBlaze::XORI), finalReg)
         .addReg(tmp)
         .addImm(-1);
@@ -526,7 +528,7 @@ MBlazeTargetLowering::EmitCustomAtomic(MachineInstr *MI,
     final->addSuccessor(exit);
     final->addSuccessor(start);
 
-    unsigned CMP = R.createVirtualRegister(MBlaze::GPRRegisterClass);
+    unsigned CMP = R.createVirtualRegister(&MBlaze::GPRRegClass);
     BuildMI(start, dl, TII->get(MBlaze::CMP), CMP)
       .addReg(MI->getOperand(0).getReg())
       .addReg(MI->getOperand(2).getReg());
@@ -541,7 +543,7 @@ MBlazeTargetLowering::EmitCustomAtomic(MachineInstr *MI,
   }
   }
 
-  unsigned CHK = R.createVirtualRegister(MBlaze::GPRRegisterClass);
+  unsigned CHK = R.createVirtualRegister(&MBlaze::GPRRegClass);
   BuildMI(final, dl, TII->get(MBlaze::SWX))
     .addReg(finalReg)
     .addReg(MI->getOperand(1).getReg())
@@ -600,7 +602,6 @@ LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const {
 SDValue MBlazeTargetLowering::
 LowerGlobalTLSAddress(SDValue Op, SelectionDAG &DAG) const {
   llvm_unreachable("TLS not implemented for MicroBlaze.");
-  return SDValue(); // Not reached
 }
 
 SDValue MBlazeTargetLowering::
@@ -656,7 +657,7 @@ static bool CC_MBlaze_AssignReg(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
                                 CCValAssign::LocInfo &LocInfo,
                                 ISD::ArgFlagsTy &ArgFlags,
                                 CCState &State) {
-  static const unsigned ArgRegs[] = {
+  static const uint16_t ArgRegs[] = {
     MBlaze::R5, MBlaze::R6, MBlaze::R7,
     MBlaze::R8, MBlaze::R9, MBlaze::R10
   };
@@ -680,13 +681,19 @@ static bool CC_MBlaze_AssignReg(unsigned &ValNo, MVT &ValVT, MVT &LocVT,
 /// (physical regs)/(stack frame), CALLSEQ_START and CALLSEQ_END are emitted.
 /// TODO: isVarArg, isTailCall.
 SDValue MBlazeTargetLowering::
-LowerCall(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
-          bool isVarArg, bool &isTailCall,
-          const SmallVectorImpl<ISD::OutputArg> &Outs,
-          const SmallVectorImpl<SDValue> &OutVals,
-          const SmallVectorImpl<ISD::InputArg> &Ins,
-          DebugLoc dl, SelectionDAG &DAG,
+LowerCall(TargetLowering::CallLoweringInfo &CLI,
           SmallVectorImpl<SDValue> &InVals) const {
+  SelectionDAG &DAG                     = CLI.DAG;
+  DebugLoc &dl                          = CLI.DL;
+  SmallVector<ISD::OutputArg, 32> &Outs = CLI.Outs;
+  SmallVector<SDValue, 32> &OutVals     = CLI.OutVals;
+  SmallVector<ISD::InputArg, 32> &Ins   = CLI.Ins;
+  SDValue Chain                         = CLI.Chain;
+  SDValue Callee                        = CLI.Callee;
+  bool &isTailCall                      = CLI.IsTailCall;
+  CallingConv::ID CallConv              = CLI.CallConv;
+  bool isVarArg                         = CLI.IsVarArg;
+
   // MBlaze does not yet support tail call optimization
   isTailCall = false;
 
@@ -701,7 +708,7 @@ LowerCall(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
   // Analyze operands of the call, assigning locations to each operand.
   SmallVector<CCValAssign, 16> ArgLocs;
   CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
-		 getTargetMachine(), ArgLocs, *DAG.getContext());
+                 getTargetMachine(), ArgLocs, *DAG.getContext());
   CCInfo.AnalyzeCallOperands(Outs, CC_MBlaze);
 
   // Get a count of how many bytes are to be pushed on the stack.
@@ -840,7 +847,7 @@ LowerCallResult(SDValue Chain, SDValue InFlag, CallingConv::ID CallConv,
   // Assign locations to each value returned by this call.
   SmallVector<CCValAssign, 16> RVLocs;
   CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
-		 getTargetMachine(), RVLocs, *DAG.getContext());
+                 getTargetMachine(), RVLocs, *DAG.getContext());
 
   CCInfo.AnalyzeCallResult(Ins, RetCC_MBlaze);
 
@@ -883,7 +890,7 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
   // Assign locations to all of the incoming arguments.
   SmallVector<CCValAssign, 16> ArgLocs;
   CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
-		 getTargetMachine(), ArgLocs, *DAG.getContext());
+                 getTargetMachine(), ArgLocs, *DAG.getContext());
 
   CCInfo.AnalyzeFormalArguments(Ins, CC_MBlaze);
   SDValue StackPtr;
@@ -895,12 +902,12 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
     if (VA.isRegLoc()) {
       MVT RegVT = VA.getLocVT();
       ArgRegEnd = VA.getLocReg();
-      TargetRegisterClass *RC = 0;
+      const TargetRegisterClass *RC;
 
       if (RegVT == MVT::i32)
-        RC = MBlaze::GPRRegisterClass;
+        RC = &MBlaze::GPRRegClass;
       else if (RegVT == MVT::f32)
-        RC = MBlaze::GPRRegisterClass;
+        RC = &MBlaze::GPRRegClass;
       else
         llvm_unreachable("RegVT not supported by LowerFormalArguments");
 
@@ -951,7 +958,7 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
       SDValue FIN = DAG.getFrameIndex(FI, getPointerTy());
       InVals.push_back(DAG.getLoad(VA.getValVT(), dl, Chain, FIN,
                                    MachinePointerInfo::getFixedStack(FI),
-                                   false, false, 0));
+                                   false, false, false, 0));
     }
   }
 
@@ -963,7 +970,7 @@ LowerFormalArguments(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
       StackPtr = DAG.getRegister(StackReg, getPointerTy());
 
     // The last register argument that must be saved is MBlaze::R10
-    TargetRegisterClass *RC = MBlaze::GPRRegisterClass;
+    const TargetRegisterClass *RC = &MBlaze::GPRRegClass;
 
     unsigned Begin = getMBlazeRegisterNumbering(MBlaze::R5);
     unsigned Start = getMBlazeRegisterNumbering(ArgRegEnd+1);
@@ -1015,7 +1022,7 @@ LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
 
   // CCState - Info about the registers and stack slot.
   CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
-		 getTargetMachine(), RVLocs, *DAG.getContext());
+                 getTargetMachine(), RVLocs, *DAG.getContext());
 
   // Analize return values.
   CCInfo.AnalyzeReturn(Outs, RetCC_MBlaze);
@@ -1045,10 +1052,10 @@ LowerReturn(SDValue Chain, CallingConv::ID CallConv, bool isVarArg,
 
   // If this function is using the interrupt_handler calling convention
   // then use "rtid r14, 0" otherwise use "rtsd r15, 8"
-  unsigned Ret = (CallConv == llvm::CallingConv::MBLAZE_INTR) ? MBlazeISD::IRet
-                                                              : MBlazeISD::Ret;
-  unsigned Reg = (CallConv == llvm::CallingConv::MBLAZE_INTR) ? MBlaze::R14
-                                                              : MBlaze::R15;
+  unsigned Ret = (CallConv == CallingConv::MBLAZE_INTR) ? MBlazeISD::IRet
+                                                        : MBlazeISD::Ret;
+  unsigned Reg = (CallConv == CallingConv::MBLAZE_INTR) ? MBlaze::R14
+                                                        : MBlaze::R15;
   SDValue DReg = DAG.getRegister(Reg, MVT::i32);
 
   if (Flag.getNode())
@@ -1079,7 +1086,6 @@ getConstraintType(const std::string &Constraint) const
       case 'y':
       case 'f':
         return C_RegisterClass;
-        break;
     }
   }
   return TargetLowering::getConstraintType(Constraint);
@@ -1124,14 +1130,14 @@ getRegForInlineAsmConstraint(const std::string &Constraint, EVT VT) const {
   if (Constraint.size() == 1) {
     switch (Constraint[0]) {
     case 'r':
-      return std::make_pair(0U, MBlaze::GPRRegisterClass);
+      return std::make_pair(0U, &MBlaze::GPRRegClass);
       // TODO: These can't possibly be right, but match what was in
       // getRegClassForInlineAsmConstraint.
     case 'd':
     case 'y':
     case 'f':
       if (VT == MVT::f32)
-        return std::make_pair(0U, MBlaze::GPRRegisterClass);
+        return std::make_pair(0U, &MBlaze::GPRRegClass);
     }
   }
   return TargetLowering::getRegForInlineAsmConstraint(Constraint, VT);

@@ -35,24 +35,26 @@
 #include <sys/mount.h>
 
 struct file;
+enum idtype;
 struct itimerval;
 struct image_args;
 struct jail;
-struct mbuf;
-struct msghdr;
-struct msqid_ds;
-struct rlimit;
-struct rusage;
-union semun;
-struct sockaddr;
-struct stat;
 struct kevent;
 struct kevent_copyops;
 struct kld_file_stat;
 struct ksiginfo;
-struct sendfile_args;
-struct thr_param;
+struct mbuf;
+struct msghdr;
+struct msqid_ds;
 struct ogetdirentries_args;
+struct rlimit;
+struct rusage;
+union semun;
+struct sendfile_args;
+struct sockaddr;
+struct stat;
+struct thr_param;
+struct __wrusage;
 
 int	kern___getcwd(struct thread *td, u_char *buf, enum uio_seg bufseg,
 	    u_int buflen);
@@ -89,6 +91,7 @@ int	kern_fchmodat(struct thread *td, int fd, char *path,
 int	kern_fchownat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, int uid, int gid, int flag);
 int	kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg);
+int	kern_fhstat(struct thread *td, fhandle_t fh, struct stat *buf);
 int	kern_fhstatfs(struct thread *td, fhandle_t fh, struct statfs *buf);
 int	kern_fstat(struct thread *td, int fd, struct stat *sbp);
 int	kern_fstatfs(struct thread *td, int fd, struct statfs *buf);
@@ -96,7 +99,7 @@ int	kern_ftruncate(struct thread *td, int fd, off_t length);
 int	kern_futimes(struct thread *td, int fd, struct timeval *tptr,
 	    enum uio_seg tptrseg);
 int	kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
-	    long *basep);
+	    long *basep, ssize_t *residp, enum uio_seg bufseg);
 int	kern_getfsstat(struct thread *td, struct statfs **buf, size_t bufsize,
 	    enum uio_seg bufseg, int flags);
 int	kern_getgroups(struct thread *td, u_int *ngrp, gid_t *groups);
@@ -233,6 +236,8 @@ int	kern_utimesat(struct thread *td, int fd, char *path,
 	    enum uio_seg pathseg, struct timeval *tptr, enum uio_seg tptrseg);
 int	kern_wait(struct thread *td, pid_t pid, int *status, int options,
 	    struct rusage *rup);
+int	kern_wait6(struct thread *td, enum idtype idtype, id_t id, int *status,
+	    int options, struct __wrusage *wrup, siginfo_t *sip);
 int	kern_writev(struct thread *td, int fd, struct uio *auio);
 int	kern_socketpair(struct thread *td, int domain, int type, int protocol,
 	    int *rsv);

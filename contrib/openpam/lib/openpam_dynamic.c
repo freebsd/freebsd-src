@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_dynamic.c 502 2011-12-18 13:59:22Z des $
+ * $Id: openpam_dynamic.c 607 2012-04-20 11:09:37Z des $
  */
 
 #ifdef HAVE_CONFIG_H
@@ -40,6 +40,7 @@
 #endif
 
 #include <dlfcn.h>
+#include <fcntl.h>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -60,15 +61,50 @@
  * Perform sanity checks and attempt to load a module
  */
 
+#ifdef HAVE_FDLOPEN
 static void *
 try_dlopen(const char *modfn)
 {
+	void *dlh;
+	int fd;
 
-	if (openpam_check_path_owner_perms(modfn) != 0)
+	if ((fd = open(modfn, O_RDONLY)) < 0)
 		return (NULL);
-	return (dlopen(modfn, RTLD_NOW));
+	if (OPENPAM_FEATURE(VERIFY_MODULE_FILE) &&
+	    openpam_check_desc_owner_perms(modfn, fd) != 0) {
+		close(fd);
+		return (NULL);
+	}
+	if ((dlh = fdlopen(fd, RTLD_NOW)) == NULL) {
+		openpam_log(PAM_LOG_ERROR, "%s: %s", modfn, dlerror());
+		close(fd);
+		errno = 0;
+		return (NULL);
+	}
+	close(fd);
+	return (dlh);
 }
-    
+#else
+static void *
+try_dlopen(const char *modfn)
+{
+	int check_module_file;
+	void *dlh;
+
+	openpam_get_feature(OPENPAM_VERIFY_MODULE_FILE,
+	    &check_module_file);
+	if (check_module_file &&
+	    openpam_check_path_owner_perms(modfn) != 0)
+		return (NULL);
+	if ((dlh = dlopen(modfn, RTLD_NOW)) == NULL) {
+		openpam_log(PAM_LOG_ERROR, "%s: %s", modfn, dlerror());
+		errno = 0;
+		return (NULL);
+	}
+	return (dlh);
+}
+#endif
+
 /*
  * OpenPAM internal
  *
@@ -100,9 +136,6 @@ openpam_dynamic(const char *path)
 		*strrchr(vpath, '.') = '\0';
 		dlh = try_dlopen(vpath);
 	}
-	serrno = errno;
-	FREE(vpath);
-	errno = serrno;
 	if (dlh == NULL)
 		goto err;
 	if ((module = calloc(1, sizeof *module)) == NULL)
@@ -112,19 +145,41 @@ openpam_dynamic(const char *path)
 	module->dlh = dlh;
 	dlmodule = dlsym(dlh, "_pam_module");
 	for (i = 0; i < PAM_NUM_PRIMITIVES; ++i) {
-		module->func[i] = dlmodule ? dlmodule->func[i] :
-		    (pam_func_t)dlsym(dlh, pam_sm_func_name[i]);
-		if (module->func[i] == NULL)
-			openpam_log(PAM_LOG_DEBUG, "%s: %s(): %s",
-			    path, pam_sm_func_name[i], dlerror());
+		if (dlmodule) {
+			module->func[i] = dlmodule->func[i];
+		} else {
+			module->func[i] =
+			    (pam_func_t)dlsym(dlh, pam_sm_func_name[i]);
+			/*
+			 * This openpam_log() call is a major source of
+			 * log spam, and the cases that matter are caught
+			 * and logged in openpam_dispatch().  This would
+			 * be less problematic if dlerror() returned an
+			 * error code so we could log an error only when
+			 * dlsym() failed for a reason other than "no such
+			 * symbol".
+			 */
+#if 0
+			if (module->func[i] == NULL)
+				openpam_log(PAM_LOG_DEBUG, "%s: %s(): %s",
+				    path, pam_sm_func_name[i], dlerror());
+#endif
+		}
 	}
+	FREE(vpath);
 	return (module);
 buf_err:
+	serrno = errno;
 	if (dlh != NULL)
 		dlclose(dlh);
 	FREE(module);
+	errno = serrno;
 err:
-	openpam_log(PAM_LOG_ERROR, "%m");
+	serrno = errno;
+	if (errno != 0)
+		openpam_log(PAM_LOG_ERROR, "%s: %m", vpath);
+	FREE(vpath);
+	errno = serrno;
 	return (NULL);
 }
 

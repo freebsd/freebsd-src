@@ -89,7 +89,11 @@ main(int argc, char** argv)
 	char buf[512], hash[33];
 	MD5_CTX ctx;
 	struct stat sb;
+	struct zfsmount zfsmnt;
 	dnode_phys_t dn;
+#if 0
+	uint64_t rootobj;
+#endif
 	spa_t *spa;
 	off_t off;
 	ssize_t n;
@@ -138,14 +142,28 @@ main(int argc, char** argv)
 		exit(1);
 	}
 
-	if (zfs_mount_pool(spa)) {
-		fprintf(stderr, "can't mount pool\n");
+	if (zfs_spa_init(spa)) {
+		fprintf(stderr, "can't init pool\n");
 		exit(1);
 	}
 
+#if 0
+	if (zfs_get_root(spa, &rootobj)) {
+		fprintf(stderr, "can't get root\n");
+		exit(1);
+	}
+
+	if (zfs_mount(spa, rootobj, &zfsmnt)) {
+#else
+	if (zfs_mount(spa, 0, &zfsmnt)) {
+		fprintf(stderr, "can't mount\n");
+		exit(1);
+	}
+#endif
+
 	printf("\n");
 	for (++i, failures = 0; i < argc; i++) {
-		if (zfs_lookup(spa, argv[i], &dn)) {
+		if (zfs_lookup(&zfsmnt, argv[i], &dn)) {
 			fprintf(stderr, "%s: can't lookup\n", argv[i]);
 			failures++;
 			continue;

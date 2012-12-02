@@ -55,7 +55,7 @@ ulog_fill(struct utmpx *utx, const char *line)
 	SHA1_Init(&c);
 	SHA1_Update(&c, "libulog", 7);
 	SHA1_Update(&c, utx->ut_line, sizeof utx->ut_line);
-	SHA_Final(id, &c);
+	SHA1_Final(id, &c);
 
 	memcpy(utx->ut_id, id, MIN(sizeof utx->ut_id, sizeof id));
 }

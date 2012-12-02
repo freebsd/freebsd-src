@@ -104,7 +104,7 @@ assigned to (remote) channel endpoints by several remote devices connected
 to a single local device, the local device can still uniquely associate each
 remote CID with a different device.
 .Ss Channel Operational States
-.Bl -tag -width indent
+.Bl -tag -width foo
 .It Dv NG_L2CAP_CLOSED
 In this state, there is no channel associated with this CID.
 This is the only
@@ -209,13 +209,13 @@ L2CAP does not support the concept of a global group name.
 .El
 .Sh HOOKS
 This node type supports the following hooks:
-.Bl -tag -width indent
-.It Dv hci
+.Bl -tag -width ".Va hci"
+.It Va hci
 Bluetooth Host Controller Interface downstream hook.
-.It Dv l2c
+.It Va l2c
 Upper layer protocol upstream hook.
 Usually the Bluetooth L2CAP socket layer is connected to the hook.
-.It Dv ctl
+.It Va ctl
 Control hook.
 Usually the Bluetooth raw L2CAP sockets layer is connected to the hook.
 .El
@@ -242,7 +242,7 @@ and will not set
 flag.
 There is no reason for this, because they are just notifications and do
 not require acknowledgment.
-.Bl -tag -width indent
+.Bl -tag -width foo
 .It Dv NGM_L2CAP_L2CA_CON
 Requests the creation of a channel representing a logical connection to a
 physical address.
@@ -380,7 +380,7 @@ parameter is the PSM value indicating service that should be blocked
 .El
 .Sh NETGRAPH CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
-.Bl -tag -width indent
+.Bl -tag -width foo
 .It Dv NGM_L2CAP_NODE_GET_FLAGS
 Returns current state for the node.
 .It Dv NGM_L2CAP_NODE_GET_DEBUG

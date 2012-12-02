@@ -136,6 +136,18 @@ Instruction *InstCombiner::visitAdd(BinaryOperator &I) {
         Value *NewShl = Builder->CreateShl(XorLHS, ShAmt, "sext");
         return BinaryOperator::CreateAShr(NewShl, ShAmt);
       }
+
+      // If this is a xor that was canonicalized from a sub, turn it back into
+      // a sub and fuse this add with it.
+      if (LHS->hasOneUse() && (XorRHS->getValue()+1).isPowerOf2()) {
+        IntegerType *IT = cast<IntegerType>(I.getType());
+        APInt LHSKnownOne(IT->getBitWidth(), 0);
+        APInt LHSKnownZero(IT->getBitWidth(), 0);
+        ComputeMaskedBits(XorLHS, LHSKnownZero, LHSKnownOne);
+        if ((XorRHS->getValue() | LHSKnownZero).isAllOnesValue())
+          return BinaryOperator::CreateSub(ConstantExpr::getAdd(XorRHS, CI),
+                                           XorLHS);
+      }
     }
   }
 
@@ -158,10 +170,11 @@ Instruction *InstCombiner::visitAdd(BinaryOperator &I) {
   // -A + B  -->  B - A
   // -A + -B  -->  -(A + B)
   if (Value *LHSV = dyn_castNegVal(LHS)) {
-    if (Value *RHSV = dyn_castNegVal(RHS)) {
-      Value *NewAdd = Builder->CreateAdd(LHSV, RHSV, "sum");
-      return BinaryOperator::CreateNeg(NewAdd);
-    }
+    if (!isa<Constant>(RHS))
+      if (Value *RHSV = dyn_castNegVal(RHS)) {
+        Value *NewAdd = Builder->CreateAdd(LHSV, RHSV, "sum");
+        return BinaryOperator::CreateNeg(NewAdd);
+      }
     
     return BinaryOperator::CreateSub(RHS, LHSV);
   }
@@ -189,14 +202,13 @@ Instruction *InstCombiner::visitAdd(BinaryOperator &I) {
 
   // A+B --> A|B iff A and B have no bits set in common.
   if (IntegerType *IT = dyn_cast<IntegerType>(I.getType())) {
-    APInt Mask = APInt::getAllOnesValue(IT->getBitWidth());
     APInt LHSKnownOne(IT->getBitWidth(), 0);
     APInt LHSKnownZero(IT->getBitWidth(), 0);
-    ComputeMaskedBits(LHS, Mask, LHSKnownZero, LHSKnownOne);
+    ComputeMaskedBits(LHS, LHSKnownZero, LHSKnownOne);
     if (LHSKnownZero != 0) {
       APInt RHSKnownOne(IT->getBitWidth(), 0);
       APInt RHSKnownZero(IT->getBitWidth(), 0);
-      ComputeMaskedBits(RHS, Mask, RHSKnownZero, RHSKnownOne);
+      ComputeMaskedBits(RHS, RHSKnownZero, RHSKnownOne);
       
       // No bits in common -> bitwise or.
       if ((LHSKnownZero|RHSKnownZero).isAllOnesValue())
@@ -318,6 +330,20 @@ Instruction *InstCombiner::visitAdd(BinaryOperator &I) {
     }
   }
 
+  // Check for (x & y) + (x ^ y)
+  {
+    Value *A = 0, *B = 0;
+    if (match(RHS, m_Xor(m_Value(A), m_Value(B))) &&
+        (match(LHS, m_And(m_Specific(A), m_Specific(B))) ||
+         match(LHS, m_And(m_Specific(B), m_Specific(A)))))
+      return BinaryOperator::CreateOr(A, B);
+
+    if (match(LHS, m_Xor(m_Value(A), m_Value(B))) &&
+        (match(RHS, m_And(m_Specific(A), m_Specific(B))) ||
+         match(RHS, m_And(m_Specific(B), m_Specific(A)))))
+      return BinaryOperator::CreateOr(A, B);
+  }
+
   return Changed ? &I : 0;
 }
 
@@ -395,66 +421,6 @@ Instruction *InstCombiner::visitFAdd(BinaryOperator &I) {
 }
 
 
-/// EmitGEPOffset - Given a getelementptr instruction/constantexpr, emit the
-/// code necessary to compute the offset from the base pointer (without adding
-/// in the base pointer).  Return the result as a signed integer of intptr size.
-Value *InstCombiner::EmitGEPOffset(User *GEP) {
-  TargetData &TD = *getTargetData();
-  gep_type_iterator GTI = gep_type_begin(GEP);
-  Type *IntPtrTy = TD.getIntPtrType(GEP->getContext());
-  Value *Result = Constant::getNullValue(IntPtrTy);
-
-  // If the GEP is inbounds, we know that none of the addressing operations will
-  // overflow in an unsigned sense.
-  bool isInBounds = cast<GEPOperator>(GEP)->isInBounds();
-  
-  // Build a mask for high order bits.
-  unsigned IntPtrWidth = TD.getPointerSizeInBits();
-  uint64_t PtrSizeMask = ~0ULL >> (64-IntPtrWidth);
-
-  for (User::op_iterator i = GEP->op_begin() + 1, e = GEP->op_end(); i != e;
-       ++i, ++GTI) {
-    Value *Op = *i;
-    uint64_t Size = TD.getTypeAllocSize(GTI.getIndexedType()) & PtrSizeMask;
-    if (ConstantInt *OpC = dyn_cast<ConstantInt>(Op)) {
-      if (OpC->isZero()) continue;
-      
-      // Handle a struct index, which adds its field offset to the pointer.
-      if (StructType *STy = dyn_cast<StructType>(*GTI)) {
-        Size = TD.getStructLayout(STy)->getElementOffset(OpC->getZExtValue());
-        
-        if (Size)
-          Result = Builder->CreateAdd(Result, ConstantInt::get(IntPtrTy, Size),
-                                      GEP->getName()+".offs");
-        continue;
-      }
-      
-      Constant *Scale = ConstantInt::get(IntPtrTy, Size);
-      Constant *OC =
-              ConstantExpr::getIntegerCast(OpC, IntPtrTy, true /*SExt*/);
-      Scale = ConstantExpr::getMul(OC, Scale, isInBounds/*NUW*/);
-      // Emit an add instruction.
-      Result = Builder->CreateAdd(Result, Scale, GEP->getName()+".offs");
-      continue;
-    }
-    // Convert to correct type.
-    if (Op->getType() != IntPtrTy)
-      Op = Builder->CreateIntCast(Op, IntPtrTy, true, Op->getName()+".c");
-    if (Size != 1) {
-      // We'll let instcombine(mul) convert this to a shl if possible.
-      Op = Builder->CreateMul(Op, ConstantInt::get(IntPtrTy, Size),
-                              GEP->getName()+".idx", isInBounds /*NUW*/);
-    }
-
-    // Emit an add instruction.
-    Result = Builder->CreateAdd(Op, Result, GEP->getName()+".offs");
-  }
-  return Result;
-}
-
-
-
-
 /// Optimize pointer differences into the same array into a size.  Consider:
 ///  &A[10] - &A[0]: we should compile this to "10".  LHS/RHS are the pointer
 /// operands to the ptrtoint instructions for the LHS/RHS of the subtract.
@@ -466,57 +432,57 @@ Value *InstCombiner::OptimizePointerDifference(Value *LHS, Value *RHS,
   // If LHS is a gep based on RHS or RHS is a gep based on LHS, we can optimize
   // this.
   bool Swapped = false;
-  GetElementPtrInst *GEP = 0;
-  ConstantExpr *CstGEP = 0;
-  
-  // TODO: Could also optimize &A[i] - &A[j] -> "i-j", and "&A.foo[i] - &A.foo".
+  GEPOperator *GEP1 = 0, *GEP2 = 0;
+
   // For now we require one side to be the base pointer "A" or a constant
-  // expression derived from it.
-  if (GetElementPtrInst *LHSGEP = dyn_cast<GetElementPtrInst>(LHS)) {
+  // GEP derived from it.
+  if (GEPOperator *LHSGEP = dyn_cast<GEPOperator>(LHS)) {
     // (gep X, ...) - X
     if (LHSGEP->getOperand(0) == RHS) {
-      GEP = LHSGEP;
+      GEP1 = LHSGEP;
       Swapped = false;
-    } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(RHS)) {
-      // (gep X, ...) - (ce_gep X, ...)
-      if (CE->getOpcode() == Instruction::GetElementPtr &&
-          LHSGEP->getOperand(0) == CE->getOperand(0)) {
-        CstGEP = CE;
-        GEP = LHSGEP;
+    } else if (GEPOperator *RHSGEP = dyn_cast<GEPOperator>(RHS)) {
+      // (gep X, ...) - (gep X, ...)
+      if (LHSGEP->getOperand(0)->stripPointerCasts() ==
+            RHSGEP->getOperand(0)->stripPointerCasts()) {
+        GEP2 = RHSGEP;
+        GEP1 = LHSGEP;
         Swapped = false;
       }
     }
   }
   
-  if (GetElementPtrInst *RHSGEP = dyn_cast<GetElementPtrInst>(RHS)) {
+  if (GEPOperator *RHSGEP = dyn_cast<GEPOperator>(RHS)) {
     // X - (gep X, ...)
     if (RHSGEP->getOperand(0) == LHS) {
-      GEP = RHSGEP;
+      GEP1 = RHSGEP;
       Swapped = true;
-    } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(LHS)) {
-      // (ce_gep X, ...) - (gep X, ...)
-      if (CE->getOpcode() == Instruction::GetElementPtr &&
-          RHSGEP->getOperand(0) == CE->getOperand(0)) {
-        CstGEP = CE;
-        GEP = RHSGEP;
+    } else if (GEPOperator *LHSGEP = dyn_cast<GEPOperator>(LHS)) {
+      // (gep X, ...) - (gep X, ...)
+      if (RHSGEP->getOperand(0)->stripPointerCasts() ==
+            LHSGEP->getOperand(0)->stripPointerCasts()) {
+        GEP2 = LHSGEP;
+        GEP1 = RHSGEP;
         Swapped = true;
       }
     }
   }
   
-  if (GEP == 0)
+  // Avoid duplicating the arithmetic if GEP2 has non-constant indices and
+  // multiple users.
+  if (GEP1 == 0 ||
+      (GEP2 != 0 && !GEP2->hasAllConstantIndices() && !GEP2->hasOneUse()))
     return 0;
   
   // Emit the offset of the GEP and an intptr_t.
-  Value *Result = EmitGEPOffset(GEP);
+  Value *Result = EmitGEPOffset(GEP1);
   
   // If we had a constant expression GEP on the other side offsetting the
   // pointer, subtract it from the offset we have.
-  if (CstGEP) {
-    Value *CstOffset = EmitGEPOffset(CstGEP);
-    Result = Builder->CreateSub(Result, CstOffset);
+  if (GEP2) {
+    Value *Offset = EmitGEPOffset(GEP2);
+    Result = Builder->CreateSub(Result, Offset);
   }
-  
 
   // If we have p - gep(p, ...)  then we have to negate the result.
   if (Swapped)
@@ -578,15 +544,13 @@ Instruction *InstCombiner::visitSub(BinaryOperator &I) {
       if (Instruction *R = FoldOpIntoSelect(I, SI))
         return R;
 
-    // C - zext(bool) -> bool ? C - 1 : C
-    if (ZExtInst *ZI = dyn_cast<ZExtInst>(Op1))
-      if (ZI->getSrcTy()->isIntegerTy(1))
-        return SelectInst::Create(ZI->getOperand(0), SubOne(C), C);
-
     // C-(X+C2) --> (C-C2)-X
     ConstantInt *C2;
     if (match(Op1, m_Add(m_Value(X), m_ConstantInt(C2))))
       return BinaryOperator::CreateSub(ConstantExpr::getSub(C, C2), X);
+
+    if (SimplifyDemandedInstructionBits(I))
+      return &I;
   }
 
   

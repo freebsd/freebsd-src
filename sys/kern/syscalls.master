@@ -71,8 +71,7 @@
 ; XXX man page says `mode_t mode'.
 6	AUE_CLOSE	STD	{ int close(int fd); }
 7	AUE_WAIT4	STD	{ int wait4(int pid, int *status, \
-				    int options, struct rusage *rusage); } \
-				    wait4 wait_args int
+				    int options, struct rusage *rusage); }
 8	AUE_CREAT	COMPAT	{ int creat(char *path, int mode); }
 9	AUE_LINK	STD	{ int link(char *path, char *link); }
 10	AUE_UNLINK	STD	{ int unlink(char *path); }
@@ -464,7 +463,8 @@
 244	AUE_NULL	UNIMPL	nosys
 245	AUE_NULL	UNIMPL	nosys
 246	AUE_NULL	UNIMPL	nosys
-247	AUE_NULL	UNIMPL	nosys
+247	AUE_NULL	STD	{ int clock_getcpuclockid2(id_t id,\
+				    int which, clockid_t *clock_id); }
 248	AUE_NULL	STD	{ int ntp_gettime(struct ntptimeval *ntvp); }
 249	AUE_NULL	UNIMPL	nosys
 ; syscall numbers initially used in OpenBSD
@@ -916,9 +916,9 @@
 512	AUE_SHMCTL	NOSTD	{ int shmctl(int shmid, int cmd, \
 				    struct shmid_ds *buf); }
 513	AUE_LPATHCONF	STD	{ int lpathconf(char *path, int name); }
-514	AUE_CAP_NEW	STD	{ int cap_new(int fd, u_int64_t rights); }
+514	AUE_CAP_NEW	STD	{ int cap_new(int fd, uint64_t rights); }
 515	AUE_CAP_GETRIGHTS	STD	{ int cap_getrights(int fd, \
-				    u_int64_t *rightsp); }
+				    uint64_t *rightsp); }
 516	AUE_CAP_ENTER	STD	{ int cap_enter(void); }
 517	AUE_CAP_GETMODE	STD	{ int cap_getmode(u_int *modep); }
 518	AUE_PDFORK	STD	{ int pdfork(int *fdp, int flags); }
@@ -951,5 +951,9 @@
 				    off_t offset, off_t len); }
 531	AUE_NULL	STD	{ int posix_fadvise(int fd, off_t offset, \
 				    off_t len, int advice); }
+532	AUE_WAIT6	STD	{ int wait6(int idtype, int id, \
+				    int *status, int options, \
+				    struct __wrusage *wrusage, \
+				    siginfo_t *info); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

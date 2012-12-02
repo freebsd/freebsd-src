@@ -44,8 +44,6 @@ __FBSDID("$FreeBSD$");
 #include "wrapper-cvmx-includes.h"
 #include "ethernet-headers.h"
 
-extern int octeon_is_simulation(void);
-
 int cvm_oct_xaui_init(struct ifnet *ifp)
 {
 	cvm_oct_private_t *priv = (cvm_oct_private_t *)ifp->if_softc;

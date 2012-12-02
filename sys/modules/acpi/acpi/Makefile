@@ -34,8 +34,8 @@ KMOD=	acpi
 # ACPI CA sources
 SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c dbinput.c dbmethod.c
 SRCS+=	dbnames.c dbstats.c dbutils.c dbxface.c
-SRCS+=	dmbuffer.c dmnames.c dmopcode.c dmobject.c dmresrc.c dmresrcl.c
-SRCS+=	dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
+SRCS+=	dmbuffer.c dmdeferred.c dmnames.c dmopcode.c dmobject.c dmresrc.c
+SRCS+=	dmresrcl.c dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
 SRCS+=	dsargs.c dscontrol.c dsfield.c dsinit.c dsmethod.c dsmthdat.c
 SRCS+=	dsobject.c dsopcode.c dsutils.c dswexec.c dswload.c dswload2.c
 SRCS+=	dswscope.c dswstate.c
@@ -54,11 +54,11 @@ SRCS+=	psargs.c psloop.c psopcode.c psparse.c psscope.c pstree.c psutils.c
 SRCS+=	pswalk.c psxface.c
 SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsinfo.c rsio.c rsirq.c rslist.c
 SRCS+=	rsmemory.c rsmisc.c rsserial.c rsutils.c rsxface.c
-SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c tbxfroot.c
+SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c tbxfload.c tbxfroot.c
 SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c utdecode.c
-SRCS+=	utdelete.c uteval.c utglobal.c utids.c utinit.c utlock.c utmath.c
-SRCS+=	utmisc.c utmutex.c utobject.c utosi.c utresrc.c utstate.c utxface.c
-SRCS+=	utxferror.c
+SRCS+=	utdelete.c uteval.c utexcep.c utglobal.c utids.c utinit.c utlock.c
+SRCS+=	utmath.c utmisc.c utmutex.c utobject.c utosi.c utresrc.c utstate.c
+SRCS+=	utxface.c utxferror.c utxfinit.c
 #SRCS+=	utxfmutex.c
 
 # OSPM layer and core hardware drivers
@@ -86,6 +86,9 @@ SRCS+=	opt_kstack_pages.h opt_nfs.h opt_apic.h opt_compat.h opt_hwpmc_hooks.h
 .if KTR
 CFLAGS+=-DKTR
 .endif
+.if SMP
+CFLAGS+=-DSMP
+.endif
 .if ACPI_MAX_TASKS
 CFLAGS+=-DACPI_MAX_TASKS=${ACPI_MAX_TASKS}
 .endif
@@ -109,20 +112,11 @@ CLEANFILES+=acpi_wakecode.bin acpi_wakecode.h acpi_wakecode.o acpi_wakedata.h
 
 SRCS+=	opt_global.h
 
-ASM_CFLAGS=	-x assembler-with-cpp -DLOCORE ${CFLAGS}
-NORMAL_S=	${CC} -c ${ASM_CFLAGS} ${WERROR} ${.IMPSRC}
-NM?=		nm
+.include <bsd.kmod.mk>
 
-.if ${MACHINE_CPUARCH} == "amd64"
-.if !defined(KERNBUILDDIR)
-CFLAGS+=-DSMP
-.endif
-SRCS+=	acpi_switch.S
-acpi_switch.o:	acpi_switch.S
-	${NORMAL_S}
-.endif
 acpi_wakecode.o: acpi_wakecode.S assym.s
-	${NORMAL_S}
+	${CC} -c -x assembler-with-cpp -DLOCORE ${CFLAGS} ${CLANG_NO_IAS} \
+	    ${WERROR} ${.IMPSRC}
 acpi_wakecode.bin: acpi_wakecode.o
 	objcopy -S -O binary acpi_wakecode.o ${.TARGET}
 acpi_wakecode.h: acpi_wakecode.bin
@@ -133,5 +127,3 @@ acpi_wakedata.h: acpi_wakecode.o
 	    while read offset dummy what; do \
 	    echo "#define	$${what}	0x$${offset}"; \
 	    done > ${.TARGET}
-
-.include <bsd.kmod.mk>

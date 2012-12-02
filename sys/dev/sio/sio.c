@@ -278,6 +278,11 @@ static int	sio_inited;
 
 /* table and macro for fast conversion from a unit number to its com struct */
 devclass_t	sio_devclass;
+/*
+ * XXX Assmues that devclass_get_device, devclass_get_softc and
+ * device_get_softc are fast interrupt safe.  The current implementation
+ * of these functions are.
+ */
 #define	com_addr(unit)	((struct com_s *) \
 			 devclass_get_softc(sio_devclass, unit)) /* XXX */
 

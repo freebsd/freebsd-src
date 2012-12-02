@@ -41,9 +41,9 @@ __FBSDID("$FreeBSD$");
 #include "drv.h"
 #include "util.h"
 #include "cons.h"
+#include "bootargs.h"
 
-/* Hint to loader that we came from ZFS */
-#define	KARGS_FLAGS_ZFS		0x4
+#include "libzfs.h"
 
 #define PATH_DOTCONFIG	"/boot.config"
 #define PATH_CONFIG	"/boot/config"
@@ -62,8 +62,6 @@ __FBSDID("$FreeBSD$");
 #define TYPE_DA		1
 #define TYPE_MAXHARD	TYPE_DA
 #define TYPE_FD		2
-
-#define	MAXBDDEV	31
 
 extern uint32_t _end;
 
@@ -93,10 +91,14 @@ static const char *const dev_nm[NDEV] = {"ad", "da", "fd"};
 static const unsigned char dev_maj[NDEV] = {30, 4, 2};
 
 static char cmd[512];
+static char cmddup[512];
 static char kname[1024];
+static char rootname[256];
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
 static uint32_t bootdev;
+static struct zfs_boot_args zfsargs;
+static struct zfsmount zfsmount;
 
 vm_offset_t	high_heap_base;
 uint32_t	bios_basemem, bios_extmem, high_heap_size;
@@ -173,7 +175,9 @@ zfs_read(spa_t *spa, const dnode_phys_t *dnode, off_t *offp, void *start, size_t
 /*
  * Current ZFS pool
  */
-spa_t *spa;
+static spa_t *spa;
+static spa_t *primary_spa;
+static vdev_t *primary_vdev;
 
 /*
  * A wrapper for dskread that doesn't have to worry about whether the
@@ -212,7 +216,7 @@ static int
 xfsread(const dnode_phys_t *dnode, off_t *offp, void *buf, size_t nbyte)
 {
     if ((size_t)zfs_read(spa, dnode, offp, buf, nbyte) != nbyte) {
-	printf("Invalid %s\n", "format");
+	printf("Invalid format\n");
 	return -1;
     }
     return 0;
@@ -341,7 +345,7 @@ copy_dsk(struct dsk *dsk)
 }
 
 static void
-probe_drive(struct dsk *dsk, spa_t **spap)
+probe_drive(struct dsk *dsk)
 {
 #ifdef GPT
     struct gpt_hdr hdr;
@@ -355,9 +359,10 @@ probe_drive(struct dsk *dsk, spa_t **spap)
 
     /*
      * If we find a vdev on the whole disk, stop here. Otherwise dig
-     * out the MBR and probe each slice in turn for a vdev.
+     * out the partition table and probe each slice/partition
+     * in turn for a vdev.
      */
-    if (vdev_probe(vdev_read, dsk, spap) == 0)
+    if (vdev_probe(vdev_read, dsk, NULL) == 0)
 	return;
 
     sec = dmadat->secbuf;
@@ -395,13 +400,7 @@ probe_drive(struct dsk *dsk, spa_t **spap)
 	    if (memcmp(&ent->ent_type, &freebsd_zfs_uuid,
 		     sizeof(uuid_t)) == 0) {
 		dsk->start = ent->ent_lba_start;
-		if (vdev_probe(vdev_read, dsk, spap) == 0) {
-		    /*
-		     * We record the first pool we find (we will try
-		     * to boot from that one).
-		     */
-		    spap = NULL;
-
+		if (vdev_probe(vdev_read, dsk, NULL) == 0) {
 		    /*
 		     * This slice had a vdev. We need a new dsk
 		     * structure now since the vdev now owns this one.
@@ -424,13 +423,7 @@ trymbr:
 	if (!dp[i].dp_typ)
 	    continue;
 	dsk->start = dp[i].dp_start;
-	if (vdev_probe(vdev_read, dsk, spap) == 0) {
-	    /*
-	     * We record the first pool we find (we will try to boot
-	     * from that one.
-	     */
-	    spap = 0;
-
+	if (vdev_probe(vdev_read, dsk, NULL) == 0) {
 	    /*
 	     * This slice had a vdev. We need a new dsk structure now
 	     * since the vdev now owns this one.
@@ -489,7 +482,7 @@ main(void)
      * Probe the boot drive first - we will try to boot from whatever
      * pool we find on that drive.
      */
-    probe_drive(dsk, &spa);
+    probe_drive(dsk);
 
     /*
      * Probe the rest of the drives that the bios knows about. This
@@ -516,35 +509,42 @@ main(void)
 	dsk->part = 0;
 	dsk->start = 0;
 	dsk->init = 0;
-	probe_drive(dsk, NULL);
+	probe_drive(dsk);
     }
 
     /*
-     * If we didn't find a pool on the boot drive, default to the
-     * first pool we found, if any.
+     * The first discovered pool, if any, is the pool.
      */
+    spa = spa_get_primary();
     if (!spa) {
-	spa = STAILQ_FIRST(&zfs_pools);
-	if (!spa) {
-	    printf("%s: No ZFS pools located, can't boot\n", BOOTPROG);
-	    for (;;)
-		;
-	}
+	printf("%s: No ZFS pools located, can't boot\n", BOOTPROG);
+	for (;;)
+	    ;
     }
 
-    zfs_mount_pool(spa);
+    primary_spa = spa;
+    primary_vdev = spa_get_primary_vdev(spa);
 
-    if (zfs_lookup(spa, PATH_CONFIG, &dn) == 0 ||
-        zfs_lookup(spa, PATH_DOTCONFIG, &dn) == 0) {
+    if (zfs_spa_init(spa) != 0 || zfs_mount(spa, 0, &zfsmount) != 0) {
+	printf("%s: failed to mount default pool %s\n",
+	    BOOTPROG, spa->spa_name);
+	autoboot = 0;
+    } else if (zfs_lookup(&zfsmount, PATH_CONFIG, &dn) == 0 ||
+        zfs_lookup(&zfsmount, PATH_DOTCONFIG, &dn) == 0) {
 	off = 0;
 	zfs_read(spa, &dn, &off, cmd, sizeof(cmd));
     }
 
     if (*cmd) {
-	if (!OPT_CHECK(RBX_QUIET))
-	    printf("%s: %s", PATH_CONFIG, cmd);
+	/*
+	 * Note that parse() is destructive to cmd[] and we also want
+	 * to honor RBX_QUIET option that could be present in cmd[].
+	 */
+	memcpy(cmddup, cmd, sizeof(cmd));
 	if (parse())
 	    autoboot = 0;
+	if (!OPT_CHECK(RBX_QUIET))
+	    printf("%s: %s\n", PATH_CONFIG, cmddup);
 	/* Do not process this command twice */
 	*cmd = 0;
     }
@@ -565,11 +565,21 @@ main(void)
     /* Present the user with the boot2 prompt. */
 
     for (;;) {
-	if (!autoboot || !OPT_CHECK(RBX_QUIET))
-	    printf("\nFreeBSD/x86 boot\n"
-		   "Default: %s:%s\n"
-		   "boot: ",
-		   spa->spa_name, kname);
+	if (!autoboot || !OPT_CHECK(RBX_QUIET)) {
+	    printf("\nFreeBSD/x86 boot\n");
+	    if (zfs_rlookup(spa, zfsmount.rootobj, rootname) != 0)
+		printf("Default: %s/<0x%llx>:%s\n"
+		       "boot: ",
+		       spa->spa_name, zfsmount.rootobj, kname);
+	    else if (rootname[0] != '\0')
+		printf("Default: %s/%s:%s\n"
+		       "boot: ",
+		       spa->spa_name, rootname, kname);
+	    else
+		printf("Default: %s:%s\n"
+		       "boot: ",
+		       spa->spa_name, kname);
+	}
 	if (ioctrl & IO_SERIAL)
 	    sio_flush();
 	if (!autoboot || keyhit(5))
@@ -605,7 +615,8 @@ load(void)
     uint32_t addr, x;
     int fmt, i, j;
 
-    if (zfs_lookup(spa, kname, &dn)) {
+    if (zfs_lookup(&zfsmount, kname, &dn)) {
+	printf("\nCan't find %s\n", kname);
 	return;
     }
     off = 0;
@@ -679,12 +690,56 @@ load(void)
     }
     bootinfo.bi_esymtab = VTOP(p);
     bootinfo.bi_kernelname = VTOP(kname);
+    zfsargs.size = sizeof(zfsargs);
+    zfsargs.pool = zfsmount.spa->spa_guid;
+    zfsargs.root = zfsmount.rootobj;
+    zfsargs.primary_pool = primary_spa->spa_guid;
+    if (primary_vdev != NULL)
+	zfsargs.primary_vdev = primary_vdev->v_guid;
+    else
+	printf("failed to detect primary vdev\n");
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
 	   bootdev,
-	   KARGS_FLAGS_ZFS,
+	   KARGS_FLAGS_ZFS | KARGS_FLAGS_EXTARG,
 	   (uint32_t) spa->spa_guid,
 	   (uint32_t) (spa->spa_guid >> 32),
-	   VTOP(&bootinfo));
+	   VTOP(&bootinfo),
+	   zfsargs);
+}
+
+static int
+zfs_mount_ds(char *dsname)
+{
+    uint64_t newroot;
+    spa_t *newspa;
+    char *q;
+
+    q = strchr(dsname, '/');
+    if (q)
+	*q++ = '\0';
+    newspa = spa_find_by_name(dsname);
+    if (newspa == NULL) {
+	printf("\nCan't find ZFS pool %s\n", dsname);
+	return -1;
+    }
+
+    if (zfs_spa_init(newspa))
+	return -1;
+
+    newroot = 0;
+    if (q) {
+	if (zfs_lookup_dataset(newspa, q, &newroot)) {
+	    printf("\nCan't find dataset %s in ZFS pool %s\n",
+		    q, newspa->spa_name);
+	    return -1;
+	}
+    }
+    if (zfs_mount(newspa, newroot, &zfsmount)) {
+	printf("\nCan't mount ZFS dataset\n");
+	return -1;
+    }
+    spa = newspa;
+    return (0);
 }
 
 static int
@@ -693,7 +748,6 @@ parse(void)
     char *arg = cmd;
     char *ep, *p, *q;
     const char *cp;
-    //unsigned int drv;
     int c, i, j;
 
     while ((c = *arg++)) {
@@ -731,12 +785,14 @@ parse(void)
 	    }
 	    ioctrl = OPT_CHECK(RBX_DUAL) ? (IO_SERIAL|IO_KEYBOARD) :
 		     OPT_CHECK(RBX_SERIAL) ? IO_SERIAL : IO_KEYBOARD;
-	    if (ioctrl & IO_SERIAL)
-	        sio_init(115200 / comspeed);
+	    if (ioctrl & IO_SERIAL) {
+	        if (sio_init(115200 / comspeed) != 0)
+		    ioctrl &= ~IO_SERIAL;
+	    }
 	} if (c == '?') {
 	    dnode_phys_t dn;
 
-	    if (zfs_lookup(spa, arg, &dn) == 0) {
+	    if (zfs_lookup(&zfsmount, arg, &dn) == 0) {
 		zap_list(spa, &dn);
 	    }
 	    return -1;
@@ -753,21 +809,19 @@ parse(void)
 	    }
 
 	    /*
+	     * If there is "zfs:" prefix simply ignore it.
+	     */
+	    if (strncmp(arg, "zfs:", 4) == 0)
+		arg += 4;
+
+	    /*
 	     * If there is a colon, switch pools.
 	     */
-	    q = (char *) strchr(arg, ':');
+	    q = strchr(arg, ':');
 	    if (q) {
-		spa_t *newspa;
-
-		*q++ = 0;
-		newspa = spa_find_by_name(arg);
-		if (newspa) {
-		    spa = newspa;
-		    zfs_mount_pool(spa);
-		} else {
-		    printf("\nCan't find ZFS pool %s\n", arg);
+		*q++ = '\0';
+		if (zfs_mount_ds(arg) != 0)
 		    return -1;
-		}
 		arg = q;
 	    }
 	    if ((i = ep - arg)) {

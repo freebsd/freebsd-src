@@ -171,7 +171,7 @@ em_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	u_int j, k, l, n = 0, lim = kring->nkr_num_slots - 1;
 
 	/* generate an interrupt approximately every half ring */
-	int report_frequency = kring->nkr_num_slots >> 1;
+	u_int report_frequency = kring->nkr_num_slots >> 1;
 
 	k = ring->cur;
 	if (k > lim)

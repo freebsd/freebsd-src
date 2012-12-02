@@ -1,0 +1,59 @@
+The following examples are the results of running the js_who.d script while
+various JavaScript events happen.
+
+A JavaScript program that behaves like a clock is frequently used by these
+examples, since it can be left running in the background without browser
+input. Browser input, such as hitting the reload button or using menus,
+triggers many other JavaScript events since much of the browser uses
+JavaScript. This makes for interesting longer examples, but would be
+overwhelming for example #1.
+
+In the first example, we can see what happens when we run this program,
+Code/JavaScript/func_clock.html
+
+# js_who.d 
+Tracing... Hit Ctrl-C to end.
+^C
+      PID    UID  FUNCS FILE
+    10530    100     18 file:///export/home/brendan/Lang/JavaScript/func_clock.html
+
+
+The second example is more complex, the reason for this is that the program
+Code/Javascript/func_slow.html was loaded in the browser, and the reload
+button was pressed.  This output captured the many browser events that occured
+when moving the mouse pointer to do so.
+
+# js_who.d 
+Tracing... Hit Ctrl-C to end.
+^C
+      PID    UID  FUNCS FILE
+    10530    100      2 chrome://firebug/content/views/css.js
+    10530    100      2 chrome://firebug/content/views/dom.js
+    10530    100      2 chrome://firebug/content/views/events.js
+    10530    100      2 chrome://firebug/content/views/layout.js
+    10530    100      2 chrome://firebug/content/views/source.js
+    10530    100      2 chrome://firebug/content/views/style.js
+    10530    100      2 chrome://global/content/bindings/scrollbar.xml
+    10530    100      3 chrome://global/content/bindings/general.xml
+    10530    100      3 chrome://global/content/bindings/tabbox.xml
+    10530    100      3 chrome://global/content/bindings/text.xml
+    10530    100      4 chrome://browser/content/utilityOverlay.js
+    10530    100      5 chrome://firebug/content/views/view.js
+    10530    100      6 file:///export/home/brendan/Lang/JavaScript/func_slow.html
+    10530    100      7 chrome://global/content/bindings/textbox.xml
+    10530    100      7 chrome://global/content/bindings/tree.xml
+    10530    100     10 chrome://reporter/content/reporterOverlay.js
+    10530    100     12 XStringBundle
+    10530    100     14 chrome://global/content/bindings/progressmeter.xml
+    10530    100     18 file:///export/home/brendan/Lang/JavaScript/func_clock.html
+    10530    100     19 chrome://firebug/content/utils.js
+    10530    100     30 chrome://webdeveloper/content/common/preferences.js
+    10530    100     43 chrome://global/content/bindings/browser.xml
+    10530    100     44 chrome://global/content/bindings/tabbrowser.xml
+    10530    100     72 chrome://global/content/bindings/button.xml
+    10530    100     88 chrome://global/content/bindings/autocomplete.xml
+    10530    100    110 chrome://browser/content/browser.js
+    10530    100    121 chrome://webdeveloper/content/webdeveloper.js
+    10530    100    133 chrome://firebug/content/firebug.js
+    10530    100    162 chrome://global/content/globalOverlay.js
+

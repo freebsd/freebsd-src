@@ -27,19 +27,6 @@
  * SUCH DAMAGE.
  */
 
-/*
- * This code does two things necessary for the enhanced TCP metrics to
- * function in a useful manner:
- *  1) It marks all non-host routes as `cloning', thus ensuring that
- *     every actual reference to such a route actually gets turned
- *     into a reference to a host route to the specific destination
- *     requested.
- *  2) When such routes lose all their references, it arranges for them
- *     to be deleted in some random collection of circumstances, so that
- *     a large quantity of stale routing data is not kept in kernel memory
- *     indefinitely.  See in_rtqtimo() below for the exact mechanism.
- */
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -58,6 +45,8 @@ __FBSDID("$FreeBSD$");
 
 #include <netinet/in.h>
 #include <netinet/in_var.h>
+#include <netinet/ip.h>
+#include <netinet/ip_icmp.h>
 #include <netinet/ip_var.h>
 
 extern int	in_inithead(void **head, int off);
@@ -340,6 +329,13 @@ in_rtqdrain(void)
 	VNET_LIST_RUNLOCK_NOSLEEP();
 }
 
+void
+in_setmatchfunc(struct radix_node_head *rnh, int val)
+{
+
+	rnh->rnh_matchaddr = (val != 0) ? rn_match : in_matroute;
+}
+
 static int _in_rt_was_here;
 /*
  * Initialize our routing tree.
@@ -365,7 +361,7 @@ in_inithead(void **head, int off)
 
 	rnh = *head;
 	rnh->rnh_addaddr = in_addroute;
-	rnh->rnh_matchaddr = in_matroute;
+	in_setmatchfunc(rnh, V_drop_redirect);
 	rnh->rnh_close = in_clsroute;
 	if (_in_rt_was_here == 0 ) {
 		callout_init(&V_rtq_timer, CALLOUT_MPSAFE);

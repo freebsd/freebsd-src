@@ -21,6 +21,7 @@
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/STLExtras.h"
 #include "SymbolTableListTraitsImpl.h"
+#include "llvm/Support/ConstantRange.h"
 #include "llvm/Support/LeakDetector.h"
 #include "llvm/Support/ValueHandle.h"
 using namespace llvm;
@@ -29,16 +30,19 @@ using namespace llvm;
 // MDString implementation.
 //
 
-MDString::MDString(LLVMContext &C, StringRef S)
-  : Value(Type::getMetadataTy(C), Value::MDStringVal), Str(S) {}
+void MDString::anchor() { }
+
+MDString::MDString(LLVMContext &C)
+  : Value(Type::getMetadataTy(C), Value::MDStringVal) {}
 
 MDString *MDString::get(LLVMContext &Context, StringRef Str) {
   LLVMContextImpl *pImpl = Context.pImpl;
-  StringMapEntry<MDString *> &Entry =
+  StringMapEntry<Value*> &Entry =
     pImpl->MDStringCache.GetOrCreateValue(Str);
-  MDString *&S = Entry.getValue();
-  if (!S) S = new MDString(Context, Entry.getKey());
-  return S;
+  Value *&S = Entry.getValue();
+  if (!S) S = new MDString(Context);
+  S->setValueName(&Entry);
+  return cast<MDString>(S);
 }
 
 //===----------------------------------------------------------------------===//
@@ -48,14 +52,30 @@ MDString *MDString::get(LLVMContext &Context, StringRef Str) {
 // Use CallbackVH to hold MDNode operands.
 namespace llvm {
 class MDNodeOperand : public CallbackVH {
-  MDNode *Parent;
+  MDNode *getParent() {
+    MDNodeOperand *Cur = this;
+
+    while (Cur->getValPtrInt() != 1)
+      --Cur;
+
+    assert(Cur->getValPtrInt() == 1 &&
+           "Couldn't find the beginning of the operand list!");
+    return reinterpret_cast<MDNode*>(Cur) - 1;
+  }
+
 public:
-  MDNodeOperand(Value *V, MDNode *P) : CallbackVH(V), Parent(P) {}
+  MDNodeOperand(Value *V) : CallbackVH(V) {}
   ~MDNodeOperand() {}
 
   void set(Value *V) {
-    setValPtr(V);
+    unsigned IsFirst = this->getValPtrInt();
+    this->setValPtr(V);
+    this->setAsFirstOperand(IsFirst);
   }
+
+  /// setAsFirstOperand - Accessor method to mark the operand as the first in
+  /// the list.
+  void setAsFirstOperand(unsigned V) { this->setValPtrInt(V); }
 
   virtual void deleted();
   virtual void allUsesReplacedWith(Value *NV);
@@ -64,14 +84,12 @@ public:
 
 
 void MDNodeOperand::deleted() {
-  Parent->replaceOperand(this, 0);
+  getParent()->replaceOperand(this, 0);
 }
 
 void MDNodeOperand::allUsesReplacedWith(Value *NV) {
-  Parent->replaceOperand(this, NV);
+  getParent()->replaceOperand(this, NV);
 }
-
-
 
 //===----------------------------------------------------------------------===//
 // MDNode implementation.
@@ -82,7 +100,12 @@ void MDNodeOperand::allUsesReplacedWith(Value *NV) {
 static MDNodeOperand *getOperandPtr(MDNode *N, unsigned Op) {
   // Use <= instead of < to permit a one-past-the-end address.
   assert(Op <= N->getNumOperands() && "Invalid operand number");
-  return reinterpret_cast<MDNodeOperand*>(N+1)+Op;
+  return reinterpret_cast<MDNodeOperand*>(N + 1) + Op;
+}
+
+void MDNode::replaceOperandWith(unsigned i, Value *Val) {
+  MDNodeOperand *Op = getOperandPtr(this, i);
+  replaceOperand(Op, Val);
 }
 
 MDNode::MDNode(LLVMContext &C, ArrayRef<Value*> Vals, bool isFunctionLocal)
@@ -95,10 +118,14 @@ MDNode::MDNode(LLVMContext &C, ArrayRef<Value*> Vals, bool isFunctionLocal)
   // Initialize the operand list, which is co-allocated on the end of the node.
   unsigned i = 0;
   for (MDNodeOperand *Op = getOperandPtr(this, 0), *E = Op+NumOperands;
-       Op != E; ++Op, ++i)
-    new (Op) MDNodeOperand(Vals[i], this);
-}
+       Op != E; ++Op, ++i) {
+    new (Op) MDNodeOperand(Vals[i]);
 
+    // Mark the first MDNodeOperand as being the first in the list of operands.
+    if (i == 0)
+      Op->setAsFirstOperand(1);
+  }
+}
 
 /// ~MDNode - Destroy MDNode.
 MDNode::~MDNode() {
@@ -161,18 +188,19 @@ static const Function *assertLocalFunction(const MDNode *N) {
 const Function *MDNode::getFunction() const {
 #ifndef NDEBUG
   return assertLocalFunction(this);
-#endif
+#else
   if (!isFunctionLocal()) return NULL;
   for (unsigned i = 0, e = getNumOperands(); i != e; ++i)
     if (const Function *F = getFunctionForValue(getOperand(i)))
       return F;
   return NULL;
+#endif
 }
 
 // destroy - Delete this node.  Only when there are no uses.
 void MDNode::destroy() {
   setValueSubclassData(getSubclassDataFromValue() | DestroyFlag);
-  // Placement delete, the free the memory.
+  // Placement delete, then free the memory.
   this->~MDNode();
   free(this);
 }
@@ -197,11 +225,11 @@ MDNode *MDNode::getMDNode(LLVMContext &Context, ArrayRef<Value*> Vals,
     ID.AddPointer(Vals[i]);
 
   void *InsertPoint;
-  MDNode *N = NULL;
-  
-  if ((N = pImpl->MDNodeSet.FindNodeOrInsertPos(ID, InsertPoint)))
+  MDNode *N = pImpl->MDNodeSet.FindNodeOrInsertPos(ID, InsertPoint);
+
+  if (N || !Insert)
     return N;
-    
+
   bool isFunctionLocal = false;
   switch (FL) {
   case FL_Unknown:
@@ -223,8 +251,11 @@ MDNode *MDNode::getMDNode(LLVMContext &Context, ArrayRef<Value*> Vals,
   }
 
   // Coallocate space for the node and Operands together, then placement new.
-  void *Ptr = malloc(sizeof(MDNode)+Vals.size()*sizeof(MDNodeOperand));
+  void *Ptr = malloc(sizeof(MDNode) + Vals.size() * sizeof(MDNodeOperand));
   N = new (Ptr) MDNode(Context, Vals, isFunctionLocal);
+
+  // Cache the operand hash.
+  N->Hash = ID.ComputeHash();
 
   // InsertPoint will have been set by the FindNodeOrInsertPos call.
   pImpl->MDNodeSet.InsertNode(N, InsertPoint);
@@ -248,7 +279,7 @@ MDNode *MDNode::getIfExists(LLVMContext &Context, ArrayRef<Value*> Vals) {
 
 MDNode *MDNode::getTemporary(LLVMContext &Context, ArrayRef<Value*> Vals) {
   MDNode *N =
-    (MDNode *)malloc(sizeof(MDNode)+Vals.size()*sizeof(MDNodeOperand));
+    (MDNode *)malloc(sizeof(MDNode) + Vals.size() * sizeof(MDNodeOperand));
   N = new (N) MDNode(Context, Vals, FL_No);
   N->setValueSubclassData(N->getSubclassDataFromValue() |
                           NotUniquedBit);
@@ -349,6 +380,8 @@ void MDNode::replaceOperand(MDNodeOperand *Op, Value *To) {
     return;
   }
 
+  // Cache the operand hash.
+  Hash = ID.ComputeHash();
   // InsertPoint will have been set by the FindNodeOrInsertPos call.
   pImpl->MDNodeSet.InsertNode(this, InsertPoint);
 
@@ -367,6 +400,155 @@ void MDNode::replaceOperand(MDNodeOperand *Op, Value *To) {
     if (!isStillFunctionLocal)
       setValueSubclassData(getSubclassDataFromValue() & ~FunctionLocalBit);
   }
+}
+
+MDNode *MDNode::getMostGenericTBAA(MDNode *A, MDNode *B) {
+  if (!A || !B)
+    return NULL;
+
+  if (A == B)
+    return A;
+
+  SmallVector<MDNode *, 4> PathA;
+  MDNode *T = A;
+  while (T) {
+    PathA.push_back(T);
+    T = T->getNumOperands() >= 2 ? cast_or_null<MDNode>(T->getOperand(1)) : 0;
+  }
+
+  SmallVector<MDNode *, 4> PathB;
+  T = B;
+  while (T) {
+    PathB.push_back(T);
+    T = T->getNumOperands() >= 2 ? cast_or_null<MDNode>(T->getOperand(1)) : 0;
+  }
+
+  int IA = PathA.size() - 1;
+  int IB = PathB.size() - 1;
+
+  MDNode *Ret = 0;
+  while (IA >= 0 && IB >=0) {
+    if (PathA[IA] == PathB[IB])
+      Ret = PathA[IA];
+    else
+      break;
+    --IA;
+    --IB;
+  }
+  return Ret;
+}
+
+MDNode *MDNode::getMostGenericFPMath(MDNode *A, MDNode *B) {
+  if (!A || !B)
+    return NULL;
+
+  APFloat AVal = cast<ConstantFP>(A->getOperand(0))->getValueAPF();
+  APFloat BVal = cast<ConstantFP>(B->getOperand(0))->getValueAPF();
+  if (AVal.compare(BVal) == APFloat::cmpLessThan)
+    return A;
+  return B;
+}
+
+static bool isContiguous(const ConstantRange &A, const ConstantRange &B) {
+  return A.getUpper() == B.getLower() || A.getLower() == B.getUpper();
+}
+
+static bool canBeMerged(const ConstantRange &A, const ConstantRange &B) {
+  return !A.intersectWith(B).isEmptySet() || isContiguous(A, B);
+}
+
+static bool tryMergeRange(SmallVector<Value*, 4> &EndPoints, ConstantInt *Low,
+                          ConstantInt *High) {
+  ConstantRange NewRange(Low->getValue(), High->getValue());
+  unsigned Size = EndPoints.size();
+  APInt LB = cast<ConstantInt>(EndPoints[Size - 2])->getValue();
+  APInt LE = cast<ConstantInt>(EndPoints[Size - 1])->getValue();
+  ConstantRange LastRange(LB, LE);
+  if (canBeMerged(NewRange, LastRange)) {
+    ConstantRange Union = LastRange.unionWith(NewRange);
+    Type *Ty = High->getType();
+    EndPoints[Size - 2] = ConstantInt::get(Ty, Union.getLower());
+    EndPoints[Size - 1] = ConstantInt::get(Ty, Union.getUpper());
+    return true;
+  }
+  return false;
+}
+
+static void addRange(SmallVector<Value*, 4> &EndPoints, ConstantInt *Low,
+                     ConstantInt *High) {
+  if (!EndPoints.empty())
+    if (tryMergeRange(EndPoints, Low, High))
+      return;
+
+  EndPoints.push_back(Low);
+  EndPoints.push_back(High);
+}
+
+MDNode *MDNode::getMostGenericRange(MDNode *A, MDNode *B) {
+  // Given two ranges, we want to compute the union of the ranges. This
+  // is slightly complitade by having to combine the intervals and merge
+  // the ones that overlap.
+
+  if (!A || !B)
+    return NULL;
+
+  if (A == B)
+    return A;
+
+  // First, walk both lists in older of the lower boundary of each interval.
+  // At each step, try to merge the new interval to the last one we adedd.
+  SmallVector<Value*, 4> EndPoints;
+  int AI = 0;
+  int BI = 0;
+  int AN = A->getNumOperands() / 2;
+  int BN = B->getNumOperands() / 2;
+  while (AI < AN && BI < BN) {
+    ConstantInt *ALow = cast<ConstantInt>(A->getOperand(2 * AI));
+    ConstantInt *BLow = cast<ConstantInt>(B->getOperand(2 * BI));
+
+    if (ALow->getValue().slt(BLow->getValue())) {
+      addRange(EndPoints, ALow, cast<ConstantInt>(A->getOperand(2 * AI + 1)));
+      ++AI;
+    } else {
+      addRange(EndPoints, BLow, cast<ConstantInt>(B->getOperand(2 * BI + 1)));
+      ++BI;
+    }
+  }
+  while (AI < AN) {
+    addRange(EndPoints, cast<ConstantInt>(A->getOperand(2 * AI)),
+             cast<ConstantInt>(A->getOperand(2 * AI + 1)));
+    ++AI;
+  }
+  while (BI < BN) {
+    addRange(EndPoints, cast<ConstantInt>(B->getOperand(2 * BI)),
+             cast<ConstantInt>(B->getOperand(2 * BI + 1)));
+    ++BI;
+  }
+
+  // If we have more than 2 ranges (4 endpoints) we have to try to merge
+  // the last and first ones.
+  unsigned Size = EndPoints.size();
+  if (Size > 4) {
+    ConstantInt *FB = cast<ConstantInt>(EndPoints[0]);
+    ConstantInt *FE = cast<ConstantInt>(EndPoints[1]);
+    if (tryMergeRange(EndPoints, FB, FE)) {
+      for (unsigned i = 0; i < Size - 2; ++i) {
+        EndPoints[i] = EndPoints[i + 2];
+      }
+      EndPoints.resize(Size - 2);
+    }
+  }
+
+  // If in the end we have a single range, it is possible that it is now the
+  // full range. Just drop the metadata in that case.
+  if (EndPoints.size() == 2) {
+    ConstantRange Range(cast<ConstantInt>(EndPoints[0])->getValue(),
+                        cast<ConstantInt>(EndPoints[1])->getValue());
+    if (Range.isFullSet())
+      return NULL;
+  }
+
+  return MDNode::get(A->getContext(), EndPoints);
 }
 
 //===----------------------------------------------------------------------===//
@@ -425,12 +607,12 @@ StringRef NamedMDNode::getName() const {
 // Instruction Metadata method implementations.
 //
 
-void Instruction::setMetadata(const char *Kind, MDNode *Node) {
+void Instruction::setMetadata(StringRef Kind, MDNode *Node) {
   if (Node == 0 && !hasMetadata()) return;
   setMetadata(getContext().getMDKindID(Kind), Node);
 }
 
-MDNode *Instruction::getMetadataImpl(const char *Kind) const {
+MDNode *Instruction::getMetadataImpl(StringRef Kind) const {
   return getMetadataImpl(getContext().getMDKindID(Kind));
 }
 
@@ -468,9 +650,11 @@ void Instruction::setMetadata(unsigned KindID, MDNode *Node) {
   }
 
   // Otherwise, we're removing metadata from an instruction.
-  assert(hasMetadataHashEntry() &&
-         getContext().pImpl->MetadataStore.count(this) &&
+  assert((hasMetadataHashEntry() ==
+          getContext().pImpl->MetadataStore.count(this)) &&
          "HasMetadata bit out of date!");
+  if (!hasMetadataHashEntry())
+    return;  // Nothing to remove!
   LLVMContextImpl::MDMapTy &Info = getContext().pImpl->MetadataStore[this];
 
   // Common case is removing the only entry.
@@ -541,16 +725,14 @@ getAllMetadataOtherThanDebugLocImpl(SmallVectorImpl<std::pair<unsigned,
          getContext().pImpl->MetadataStore.count(this) &&
          "Shouldn't have called this");
   const LLVMContextImpl::MDMapTy &Info =
-  getContext().pImpl->MetadataStore.find(this)->second;
+    getContext().pImpl->MetadataStore.find(this)->second;
   assert(!Info.empty() && "Shouldn't have called this");
-  
   Result.append(Info.begin(), Info.end());
-  
+
   // Sort the resulting array so it is stable.
   if (Result.size() > 1)
     array_pod_sort(Result.begin(), Result.end());
 }
-
 
 /// clearMetadataHashEntries - Clear all hashtable-based metadata from
 /// this instruction.

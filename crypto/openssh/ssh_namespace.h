@@ -7,8 +7,7 @@
  *
  * A list of symbols which need munging is obtained as follows:
  *
- * nm libssh.a | awk '/[0-9a-z] [A-Z] / && $3 !~ /^ssh_/ { print "#define " $3 "\t\tssh_" $3 }'
- *
+ * nm libssh.a | awk '/[0-9a-z] [A-Z] / && $3 !~ /^ssh_/ { printf("#define %-39s ssh_%s\n", $3, $3) }' | unexpand -a | sort
  * $FreeBSD$
  */
 
@@ -96,6 +95,7 @@
 #define channel_after_select			ssh_channel_after_select
 #define channel_by_id				ssh_channel_by_id
 #define channel_cancel_cleanup			ssh_channel_cancel_cleanup
+#define channel_cancel_lport_listener		ssh_channel_cancel_lport_listener
 #define channel_cancel_rport_listener		ssh_channel_cancel_rport_listener
 #define channel_clear_adm_permitted_opens	ssh_channel_clear_adm_permitted_opens
 #define channel_clear_permitted_opens		ssh_channel_clear_permitted_opens
@@ -104,6 +104,7 @@
 #define channel_connect_by_listen_address	ssh_channel_connect_by_listen_address
 #define channel_connect_stdio_fwd		ssh_channel_connect_stdio_fwd
 #define channel_connect_to			ssh_channel_connect_to
+#define channel_disable_adm_local_opens		ssh_channel_disable_adm_local_opens
 #define channel_find_open			ssh_channel_find_open
 #define channel_free				ssh_channel_free
 #define channel_free_all			ssh_channel_free_all
@@ -145,6 +146,7 @@
 #define channel_setup_remote_fwd_listener	ssh_channel_setup_remote_fwd_listener
 #define channel_still_open			ssh_channel_still_open
 #define channel_stop_listening			ssh_channel_stop_listening
+#define channel_update_permitted_opens		ssh_channel_update_permitted_opens
 #define check_key_in_hostkeys			ssh_check_key_in_hostkeys
 #define choose_dh				ssh_choose_dh
 #define chop					ssh_chop
@@ -238,7 +240,6 @@
 #define hpdelim					ssh_hpdelim
 #define incoming_stream				ssh_incoming_stream
 #define init_hostkeys				ssh_init_hostkeys
-#define init_rng				ssh_init_rng
 #define iptos2str				ssh_iptos2str
 #define ipv64_normalise_mapped			ssh_ipv64_normalise_mapped
 #define kex_derive_keys				ssh_kex_derive_keys
@@ -339,7 +340,6 @@
 #define packet_add_padding			ssh_packet_add_padding
 #define packet_backup_state			ssh_packet_backup_state
 #define packet_close				ssh_packet_close
-#define packet_connection_is_ipv4		ssh_packet_connection_is_ipv4
 #define packet_connection_is_on_socket		ssh_packet_connection_is_on_socket
 #define packet_disconnect			ssh_packet_disconnect
 #define packet_get_bignum			ssh_packet_get_bignum
@@ -382,7 +382,6 @@
 #define packet_put_string			ssh_packet_put_string
 #define packet_read				ssh_packet_read
 #define packet_read_expect			ssh_packet_read_expect
-#define packet_read_poll			ssh_packet_read_poll
 #define packet_read_poll_seqnr			ssh_packet_read_poll_seqnr
 #define packet_read_seqnr			ssh_packet_read_seqnr
 #define packet_remaining			ssh_packet_remaining
@@ -412,6 +411,7 @@
 #define percent_expand				ssh_percent_expand
 #define permanently_drop_suid			ssh_permanently_drop_suid
 #define permanently_set_uid			ssh_permanently_set_uid
+#define permitopen_port				ssh_permitopen_port
 #define pkcs11_add_provider			ssh_pkcs11_add_provider
 #define pkcs11_del_provider			ssh_pkcs11_del_provider
 #define pkcs11_init				ssh_pkcs11_init

@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h> /* hz */
 #include <sys/socket.h> /* for net/if.h */
 #include <sys/sockio.h>
+#include <sys/sysctl.h>
 #include <machine/stdarg.h>
 #include <sys/lock.h>
 #include <sys/rwlock.h>
@@ -168,7 +169,8 @@ static void	lacp_enable_distributing(struct lacp_port *);
 static int	lacp_xmit_lacpdu(struct lacp_port *);
 static int	lacp_xmit_marker(struct lacp_port *);
 
-#if defined(LACP_DEBUG)
+/* Debugging */
+
 static void	lacp_dump_lacpdu(const struct lacpdu *);
 static const char *lacp_format_partner(const struct lacp_peerinfo *, char *,
 		    size_t);
@@ -184,10 +186,14 @@ static const char *lacp_format_portid(const struct lacp_portid *, char *,
 		    size_t);
 static void	lacp_dprintf(const struct lacp_port *, const char *, ...)
 		    __attribute__((__format__(__printf__, 2, 3)));
-#define	LACP_DPRINTF(a)	lacp_dprintf a
-#else
-#define LACP_DPRINTF(a) /* nothing */
-#endif
+
+static int lacp_debug = 0;
+SYSCTL_INT(_net, OID_AUTO, lacp_debug, CTLFLAG_RW | CTLFLAG_TUN,
+    &lacp_debug, 0, "Enable LACP debug logging (1=debug, 2=trace)");
+TUNABLE_INT("net.lacp_debug", &lacp_debug);
+
+#define LACP_DPRINTF(a) if (lacp_debug > 0) { lacp_dprintf a ; }
+#define LACP_TRACE(a) if (lacp_debug > 1) { lacp_dprintf(a,"%s\n",__func__); }
 
 /*
  * partner administration variables.
@@ -290,10 +296,10 @@ lacp_pdu_input(struct lacp_port *lp, struct mbuf *m)
 		goto bad;
 	}
 
-#if defined(LACP_DEBUG)
-	LACP_DPRINTF((lp, "lacpdu receive\n"));
-	lacp_dump_lacpdu(du);
-#endif /* defined(LACP_DEBUG) */
+        if (lacp_debug > 0) {
+		lacp_dprintf(lp, "lacpdu receive\n");
+		lacp_dump_lacpdu(du);
+	}
 
 	LACP_LOCK(lsc);
 	lacp_sm_rx(lp, du);
@@ -370,10 +376,10 @@ lacp_xmit_lacpdu(struct lacp_port *lp)
 	    sizeof(du->ldu_collector));
 	du->ldu_collector.lci_maxdelay = 0;
 
-#if defined(LACP_DEBUG)
-	LACP_DPRINTF((lp, "lacpdu transmit\n"));
-	lacp_dump_lacpdu(du);
-#endif /* defined(LACP_DEBUG) */
+	if (lacp_debug > 0) {
+		lacp_dprintf(lp, "lacpdu transmit\n");
+		lacp_dump_lacpdu(du);
+	}
 
 	m->m_flags |= M_MCAST;
 
@@ -647,9 +653,7 @@ lacp_disable_distributing(struct lacp_port *lp)
 {
 	struct lacp_aggregator *la = lp->lp_aggregator;
 	struct lacp_softc *lsc = lp->lp_lsc;
-#if defined(LACP_DEBUG)
 	char buf[LACP_LAGIDSTR_MAX+1];
-#endif /* defined(LACP_DEBUG) */
 
 	LACP_LOCK_ASSERT(lsc);
 
@@ -684,9 +688,7 @@ lacp_enable_distributing(struct lacp_port *lp)
 {
 	struct lacp_aggregator *la = lp->lp_aggregator;
 	struct lacp_softc *lsc = lp->lp_lsc;
-#if defined(LACP_DEBUG)
 	char buf[LACP_LAGIDSTR_MAX+1];
-#endif /* defined(LACP_DEBUG) */
 
 	LACP_LOCK_ASSERT(lsc);
 
@@ -720,7 +722,8 @@ lacp_transit_expire(void *vp)
 
 	LACP_LOCK_ASSERT(lsc);
 
-	LACP_DPRINTF((NULL, "%s\n", __func__));
+	LACP_TRACE(NULL);
+
 	lsc->lsc_suppress_distributing = FALSE;
 }
 
@@ -838,7 +841,8 @@ lacp_suppress_distributing(struct lacp_softc *lsc, struct lacp_aggregator *la)
 		return;
 	}
 
-	LACP_DPRINTF((NULL, "%s\n", __func__));
+	LACP_TRACE(NULL);
+
 	lsc->lsc_suppress_distributing = TRUE;
 
 	/* send a marker frame down each port to verify the queues are empty */
@@ -908,11 +912,9 @@ lacp_select_active_aggregator(struct lacp_softc *lsc)
 	struct lacp_aggregator *la;
 	struct lacp_aggregator *best_la = NULL;
 	uint64_t best_speed = 0;
-#if defined(LACP_DEBUG)
 	char buf[LACP_LAGIDSTR_MAX+1];
-#endif /* defined(LACP_DEBUG) */
 
-	LACP_DPRINTF((NULL, "%s:\n", __func__));
+	LACP_TRACE(NULL);
 
 	TAILQ_FOREACH(la, &lsc->lsc_aggregators, la_q) {
 		uint64_t speed;
@@ -946,7 +948,6 @@ lacp_select_active_aggregator(struct lacp_softc *lsc)
 	KASSERT(best_la == NULL || !TAILQ_EMPTY(&best_la->la_ports),
 	    ("invalid aggregator list"));
 
-#if defined(LACP_DEBUG)
 	if (lsc->lsc_active_aggregator != best_la) {
 		LACP_DPRINTF((NULL, "active aggregator changed\n"));
 		LACP_DPRINTF((NULL, "old %s\n",
@@ -957,7 +958,6 @@ lacp_select_active_aggregator(struct lacp_softc *lsc)
 	}
 	LACP_DPRINTF((NULL, "new %s\n",
 	    lacp_format_lagid_aggregator(best_la, buf, sizeof(buf))));
-#endif /* defined(LACP_DEBUG) */
 
 	if (lsc->lsc_active_aggregator != best_la) {
 		sc->sc_ifp->if_baudrate = best_speed;
@@ -1040,9 +1040,7 @@ lacp_compose_key(struct lacp_port *lp)
 static void
 lacp_aggregator_addref(struct lacp_softc *lsc, struct lacp_aggregator *la)
 {
-#if defined(LACP_DEBUG)
 	char buf[LACP_LAGIDSTR_MAX+1];
-#endif
 
 	LACP_DPRINTF((NULL, "%s: lagid=%s, refcnt %d -> %d\n",
 	    __func__,
@@ -1058,9 +1056,7 @@ lacp_aggregator_addref(struct lacp_softc *lsc, struct lacp_aggregator *la)
 static void
 lacp_aggregator_delref(struct lacp_softc *lsc, struct lacp_aggregator *la)
 {
-#if defined(LACP_DEBUG)
 	char buf[LACP_LAGIDSTR_MAX+1];
-#endif
 
 	LACP_DPRINTF((NULL, "%s: lagid=%s, refcnt %d -> %d\n",
 	    __func__,
@@ -1195,9 +1191,7 @@ lacp_select(struct lacp_port *lp)
 {
 	struct lacp_softc *lsc = lp->lp_lsc;
 	struct lacp_aggregator *la;
-#if defined(LACP_DEBUG)
 	char buf[LACP_LAGIDSTR_MAX+1];
-#endif
 
 	if (lp->lp_aggregator) {
 		return;
@@ -1278,7 +1272,8 @@ lacp_sm_mux(struct lacp_port *lp)
 	enum lacp_selected selected = lp->lp_selected;
 	struct lacp_aggregator *la;
 
-	/* LACP_DPRINTF((lp, "%s: state %d\n", __func__, lp->lp_mux_state)); */
+	if (lacp_debug > 1)
+		lacp_dprintf(lp, "%s: state %d\n", __func__, lp->lp_mux_state);
 
 re_eval:
 	la = lp->lp_aggregator;
@@ -1387,9 +1382,7 @@ static void
 lacp_sm_mux_timer(struct lacp_port *lp)
 {
 	struct lacp_aggregator *la = lp->lp_aggregator;
-#if defined(LACP_DEBUG)
 	char buf[LACP_LAGIDSTR_MAX+1];
-#endif
 
 	KASSERT(la->la_pending > 0, ("no pending event"));
 
@@ -1537,11 +1530,9 @@ lacp_sm_rx_record_pdu(struct lacp_port *lp, const struct lacpdu *du)
 {
 	boolean_t active;
 	uint8_t oldpstate;
-#if defined(LACP_DEBUG)
 	char buf[LACP_STATESTR_MAX+1];
-#endif
 
-	/* LACP_DPRINTF((lp, "%s\n", __func__)); */
+	LACP_TRACE(lp);
 
 	oldpstate = lp->lp_partner.lip_state;
 
@@ -1576,7 +1567,8 @@ lacp_sm_rx_record_pdu(struct lacp_port *lp, const struct lacpdu *du)
 static void
 lacp_sm_rx_update_ntt(struct lacp_port *lp, const struct lacpdu *du)
 {
-	/* LACP_DPRINTF((lp, "%s\n", __func__)); */
+
+	LACP_TRACE(lp);
 
 	if (lacp_compare_peerinfo(&lp->lp_actor, &du->ldu_partner) ||
 	    !LACP_STATE_EQ(lp->lp_state, du->ldu_partner.lip_state,
@@ -1591,7 +1583,7 @@ lacp_sm_rx_record_default(struct lacp_port *lp)
 {
 	uint8_t oldpstate;
 
-	/* LACP_DPRINTF((lp, "%s\n", __func__)); */
+	LACP_TRACE(lp);
 
 	oldpstate = lp->lp_partner.lip_state;
 	lp->lp_partner = lacp_partner_admin;
@@ -1603,7 +1595,8 @@ static void
 lacp_sm_rx_update_selected_from_peerinfo(struct lacp_port *lp,
     const struct lacp_peerinfo *info)
 {
-	/* LACP_DPRINTF((lp, "%s\n", __func__)); */
+
+	LACP_TRACE(lp);
 
 	if (lacp_compare_peerinfo(&lp->lp_partner, info) ||
 	    !LACP_STATE_EQ(lp->lp_partner.lip_state, info->lip_state,
@@ -1616,7 +1609,8 @@ lacp_sm_rx_update_selected_from_peerinfo(struct lacp_port *lp,
 static void
 lacp_sm_rx_update_selected(struct lacp_port *lp, const struct lacpdu *du)
 {
-	/* LACP_DPRINTF((lp, "%s\n", __func__)); */
+
+	LACP_TRACE(lp);
 
 	lacp_sm_rx_update_selected_from_peerinfo(lp, &du->ldu_actor);
 }
@@ -1624,7 +1618,8 @@ lacp_sm_rx_update_selected(struct lacp_port *lp, const struct lacpdu *du)
 static void
 lacp_sm_rx_update_default_selected(struct lacp_port *lp)
 {
-	/* LACP_DPRINTF((lp, "%s\n", __func__)); */
+
+	LACP_TRACE(lp);
 
 	lacp_sm_rx_update_selected_from_peerinfo(lp, &lacp_partner_admin);
 }
@@ -1812,7 +1807,7 @@ tlv_check(const void *p, size_t size, const struct tlvhdr *tlv,
 	return (0);
 }
 
-#if defined(LACP_DEBUG)
+/* Debugging */
 const char *
 lacp_format_mac(const uint8_t *mac, char *buf, size_t buflen)
 {
@@ -1942,4 +1937,3 @@ lacp_dprintf(const struct lacp_port *lp, const char *fmt, ...)
 	vprintf(fmt, va);
 	va_end(va);
 }
-#endif

@@ -157,5 +157,3 @@ AcpiNsDumpRootDevices (
 
 #endif
 #endif
-
-

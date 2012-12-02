@@ -53,7 +53,7 @@ public:
   void *FETokenInfo;
 };
 
-/// CXXLiberalOperatorName - Contains the actual identifier that makes up the
+/// CXXLiteralOperatorName - Contains the actual identifier that makes up the
 /// name.
 ///
 /// This identifier is stored here rather than directly in DeclarationName so as
@@ -63,6 +63,10 @@ class CXXLiteralOperatorIdName
   : public DeclarationNameExtra, public llvm::FoldingSetNode {
 public:
   IdentifierInfo *ID;
+
+  /// FETokenInfo - Extra information associated with this operator
+  /// name that can be used by the front end.
+  void *FETokenInfo;
 
   void Profile(llvm::FoldingSetNodeID &FSID) {
     FSID.AddPointer(ID);
@@ -125,38 +129,11 @@ int DeclarationName::compare(DeclarationName LHS, DeclarationName RHS) {
   case DeclarationName::CXXUsingDirective:
     return 0;
   }
-              
-  return 0;
+
+  llvm_unreachable("Invalid DeclarationName Kind!");
 }
 
 } // end namespace clang
-
-DeclarationName::DeclarationName(Selector Sel) {
-  if (!Sel.getAsOpaquePtr()) {
-    Ptr = 0;
-    return;
-  }
-
-  switch (Sel.getNumArgs()) {
-  case 0:
-    Ptr = reinterpret_cast<uintptr_t>(Sel.getAsIdentifierInfo());
-    assert((Ptr & PtrMask) == 0 && "Improperly aligned IdentifierInfo");
-    Ptr |= StoredObjCZeroArgSelector;
-    break;
-
-  case 1:
-    Ptr = reinterpret_cast<uintptr_t>(Sel.getAsIdentifierInfo());
-    assert((Ptr & PtrMask) == 0 && "Improperly aligned IdentifierInfo");
-    Ptr |= StoredObjCOneArgSelector;
-    break;
-
-  default:
-    Ptr = Sel.InfoPtr & ~Selector::ArgFlags;
-    assert((Ptr & PtrMask) == 0 && "Improperly aligned MultiKeywordSelector");
-    Ptr |= StoredDeclarationNameExtra;
-    break;
-  }
-}
 
 DeclarationName::NameKind DeclarationName::getNameKind() const {
   switch (getStoredNameKind()) {
@@ -189,7 +166,6 @@ DeclarationName::NameKind DeclarationName::getNameKind() const {
 
       return ObjCMultiArgSelector;
     }
-    break;
   }
 
   // Can't actually get here.
@@ -302,28 +278,10 @@ IdentifierInfo *DeclarationName::getCXXLiteralIdentifier() const {
     return 0;
 }
 
-Selector DeclarationName::getObjCSelector() const {
-  switch (getNameKind()) {
-  case ObjCZeroArgSelector:
-    return Selector(reinterpret_cast<IdentifierInfo *>(Ptr & ~PtrMask), 0);
-
-  case ObjCOneArgSelector:
-    return Selector(reinterpret_cast<IdentifierInfo *>(Ptr & ~PtrMask), 1);
-
-  case ObjCMultiArgSelector:
-    return Selector(reinterpret_cast<MultiKeywordSelector *>(Ptr & ~PtrMask));
-
-  default:
-    break;
-  }
-
-  return Selector();
-}
-
-void *DeclarationName::getFETokenInfoAsVoid() const {
+void *DeclarationName::getFETokenInfoAsVoidSlow() const {
   switch (getNameKind()) {
   case Identifier:
-    return getAsIdentifierInfo()->getFETokenInfo<void>();
+    llvm_unreachable("Handled by getFETokenInfo()");
 
   case CXXConstructorName:
   case CXXDestructorName:
@@ -334,7 +292,7 @@ void *DeclarationName::getFETokenInfoAsVoid() const {
     return getAsCXXOperatorIdName()->FETokenInfo;
 
   case CXXLiteralOperatorName:
-    return getCXXLiteralIdentifier()->getFETokenInfo<void>();
+    return getAsCXXLiteralOperatorIdName()->FETokenInfo;
 
   default:
     llvm_unreachable("Declaration name has no FETokenInfo");
@@ -358,7 +316,7 @@ void DeclarationName::setFETokenInfo(void *T) {
     break;
 
   case CXXLiteralOperatorName:
-    getCXXLiteralIdentifier()->setFETokenInfo(T);
+    getAsCXXLiteralOperatorIdName()->FETokenInfo = T;
     break;
 
   default:
@@ -472,15 +430,10 @@ DeclarationNameTable::getCXXLiteralOperatorName(IdentifierInfo *II) {
   CXXLiteralOperatorIdName *LiteralName = new (Ctx) CXXLiteralOperatorIdName;
   LiteralName->ExtraKindOrNumArgs = DeclarationNameExtra::CXXLiteralOperator;
   LiteralName->ID = II;
+  LiteralName->FETokenInfo = 0;
 
   LiteralNames->InsertNode(LiteralName, InsertPos);
   return DeclarationName(LiteralName);
-}
-
-unsigned
-llvm::DenseMapInfo<clang::DeclarationName>::
-getHashValue(clang::DeclarationName N) {
-  return DenseMapInfo<void*>::getHashValue(N.getAsOpaquePtr());
 }
 
 DeclarationNameLoc::DeclarationNameLoc(DeclarationName Name) {

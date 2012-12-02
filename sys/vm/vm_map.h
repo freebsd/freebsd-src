@@ -112,8 +112,9 @@ struct vm_map_entry {
 	vm_prot_t protection;		/* protection code */
 	vm_prot_t max_protection;	/* maximum protection */
 	vm_inherit_t inheritance;	/* inheritance */
+	uint8_t read_ahead;		/* pages in the read-ahead window */
 	int wired_count;		/* can be paged if = 0 */
-	vm_pindex_t lastr;		/* last read */
+	vm_pindex_t next_read;		/* index of the next sequential read */
 	struct ucred *cred;		/* tmp storage for creator ref */
 };
 
@@ -199,13 +200,13 @@ struct vm_map {
 
 #ifdef	_KERNEL
 static __inline vm_offset_t
-vm_map_max(vm_map_t map)
+vm_map_max(const struct vm_map *map)
 {
 	return (map->max_offset);
 }
 
 static __inline vm_offset_t
-vm_map_min(vm_map_t map)
+vm_map_min(const struct vm_map *map)
 {
 	return (map->min_offset);
 }
@@ -328,6 +329,14 @@ long vmspace_wired_count(struct vmspace *vmspace);
 #define VM_FAULT_NORMAL 0		/* Nothing special */
 #define VM_FAULT_CHANGE_WIRING 1	/* Change the wiring as appropriate */
 #define	VM_FAULT_DIRTY 2		/* Dirty the page; use w/VM_PROT_COPY */
+
+/*
+ * Initially, mappings are slightly sequential.  The maximum window size must
+ * account for the map entry's "read_ahead" field being defined as an uint8_t.
+ */
+#define	VM_FAULT_READ_AHEAD_MIN		7
+#define	VM_FAULT_READ_AHEAD_INIT	15
+#define	VM_FAULT_READ_AHEAD_MAX		min(atop(MAXPHYS) - 1, UINT8_MAX)
 
 /*
  * The following "find_space" options are supported by vm_map_find()

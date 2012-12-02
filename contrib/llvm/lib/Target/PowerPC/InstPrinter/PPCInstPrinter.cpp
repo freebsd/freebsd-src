@@ -17,15 +17,11 @@
 #include "MCTargetDesc/PPCPredicates.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
+#include "llvm/MC/MCInstrInfo.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
-#define GET_INSTRUCTION_NAME
 #include "PPCGenAsmWriter.inc"
-
-StringRef PPCInstPrinter::getOpcodeName(unsigned Opcode) const {
-  return getInstructionName(Opcode);
-}
 
 void PPCInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
   OS << getRegisterName(RegNo);
@@ -90,11 +86,35 @@ void PPCInstPrinter::printInst(const MCInst *MI, raw_ostream &O,
 void PPCInstPrinter::printPredicateOperand(const MCInst *MI, unsigned OpNo,
                                            raw_ostream &O, 
                                            const char *Modifier) {
-  assert(Modifier && "Must specify 'cc' or 'reg' as predicate op modifier!");
   unsigned Code = MI->getOperand(OpNo).getImm();
+  if (!Modifier) {
+    unsigned CCReg = MI->getOperand(OpNo+1).getReg();
+    unsigned RegNo;
+    switch (CCReg) {
+    default: llvm_unreachable("Unknown CR register");
+    case PPC::CR0: RegNo = 0; break;
+    case PPC::CR1: RegNo = 1; break;
+    case PPC::CR2: RegNo = 2; break;
+    case PPC::CR3: RegNo = 3; break;
+    case PPC::CR4: RegNo = 4; break;
+    case PPC::CR5: RegNo = 5; break;
+    case PPC::CR6: RegNo = 6; break;
+    case PPC::CR7: RegNo = 7; break;
+    }
+
+    // Print the CR bit number. The Code is ((BI << 5) | BO) for a
+    // BCC, but we must have the positive form here (BO == 12)
+    unsigned BI = Code >> 5;
+    assert((Code & 0xF) == 12 &&
+           "BO in predicate bit must have the positive form");
+
+    unsigned Value = 4*RegNo + BI;
+    O << Value;
+    return;
+  }
+
   if (StringRef(Modifier) == "cc") {
     switch ((PPC::Predicate)Code) {
-    default: assert(0 && "Invalid predicate");
     case PPC::PRED_ALWAYS: return; // Don't print anything for always.
     case PPC::PRED_LT: O << "lt"; return;
     case PPC::PRED_LE: O << "le"; return;
@@ -175,7 +195,7 @@ void PPCInstPrinter::printcrbitm(const MCInst *MI, unsigned OpNo,
   unsigned CCReg = MI->getOperand(OpNo).getReg();
   unsigned RegNo;
   switch (CCReg) {
-  default: assert(0 && "Unknown CR register");
+  default: llvm_unreachable("Unknown CR register");
   case PPC::CR0: RegNo = 0; break;
   case PPC::CR1: RegNo = 1; break;
   case PPC::CR2: RegNo = 2; break;

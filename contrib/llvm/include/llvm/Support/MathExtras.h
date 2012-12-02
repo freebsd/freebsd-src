@@ -51,6 +51,13 @@ inline bool isInt<32>(int64_t x) {
   return static_cast<int32_t>(x) == x;
 }
 
+/// isShiftedInt<N,S> - Checks if a signed integer is an N bit number shifted
+///                     left by S.
+template<unsigned N, unsigned S>
+inline bool isShiftedInt(int64_t x) {
+  return isInt<N+S>(x) && (x % (1<<S) == 0);
+}
+
 /// isUInt - Checks if an unsigned integer fits into the given bit width.
 template<unsigned N>
 inline bool isUInt(uint64_t x) {
@@ -68,6 +75,13 @@ inline bool isUInt<16>(uint64_t x) {
 template<>
 inline bool isUInt<32>(uint64_t x) {
   return static_cast<uint32_t>(x) == x;
+}
+
+/// isShiftedUInt<N,S> - Checks if a unsigned integer is an N bit number shifted
+///                     left by S.
+template<unsigned N, unsigned S>
+inline bool isShiftedUInt(uint64_t x) {
+  return isUInt<N+S>(x) && (x % (1<<S) == 0);
 }
 
 /// isUIntN - Checks if an unsigned integer fits into the given (dynamic)
@@ -400,14 +414,14 @@ int IsInf(double d);
 
 /// MinAlign - A and B are either alignments or offsets.  Return the minimum
 /// alignment that may be assumed after adding the two together.
-static inline uint64_t MinAlign(uint64_t A, uint64_t B) {
+inline uint64_t MinAlign(uint64_t A, uint64_t B) {
   // The largest power of 2 that divides both A and B.
   return (A | B) & -(A | B);
 }
 
 /// NextPowerOf2 - Returns the next power of two (in 64-bits)
 /// that is strictly greater than A.  Returns zero on overflow.
-static inline uint64_t NextPowerOf2(uint64_t A) {
+inline uint64_t NextPowerOf2(uint64_t A) {
   A |= (A >> 1);
   A |= (A >> 2);
   A |= (A >> 4);

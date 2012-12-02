@@ -292,6 +292,8 @@ struct cab {
 	char			 end_of_archive;
 	char			 end_of_entry;
 	char			 end_of_entry_cleanup;
+	char			 read_data_invoked;
+	int64_t			 bytes_skipped;
 
 	unsigned char		*uncompressed_buffer;
 	size_t			 uncompressed_buffer_size;
@@ -798,7 +800,7 @@ cab_read_header(struct archive_read *a)
 		file->offset = archive_le32dec(p + CFFILE_uoffFolderStart);
 		file->folder = archive_le16dec(p + CFFILE_iFolder);
 		file->mtime = cab_dos_time(p + CFFILE_date_time);
-		file->attr = archive_le16dec(p + CFFILE_attribs);
+		file->attr = (uint8_t)archive_le16dec(p + CFFILE_attribs);
 		__archive_read_consume(a, 16);
 
 		cab->cab_offset += 16;
@@ -988,7 +990,7 @@ archive_read_format_cab_read_header(struct archive_read *a,
 	if (file->attr & ATTR_RDONLY)
 		archive_entry_set_mode(entry, AE_IFREG | 0555);
 	else
-		archive_entry_set_mode(entry, AE_IFREG | 0777);
+		archive_entry_set_mode(entry, AE_IFREG | 0666);
 	archive_entry_set_mtime(entry, file->mtime, 0);
 
 	cab->entry_bytes_remaining = file->uncompressed_size;
@@ -1026,9 +1028,22 @@ archive_read_format_cab_read_data(struct archive_read *a,
 	default:
 		break;
 	}
+	if (cab->read_data_invoked == 0) {
+		if (cab->bytes_skipped) {
+			if (cab->entry_cfdata == NULL) {
+				r = cab_next_cfdata(a);
+				if (r < 0)
+					return (r);
+			}
+			if (cab_consume_cfdata(a, cab->bytes_skipped) < 0)
+				return (ARCHIVE_FATAL);
+			cab->bytes_skipped = 0;
+		}
+		cab->read_data_invoked = 1;
+	}
 	if (cab->entry_unconsumed) {
 		/* Consume as much as the compressor actually used. */
-		r = cab_consume_cfdata(a, cab->entry_unconsumed);
+		r = (int)cab_consume_cfdata(a, cab->entry_unconsumed);
 		cab->entry_unconsumed = 0;
 		if (r < 0)
 			return (r);
@@ -1358,46 +1373,25 @@ cab_read_ahead_cfdata_none(struct archive_read *a, ssize_t *avail)
 	struct cab *cab = (struct cab *)(a->format->data);
 	struct cfdata *cfdata;
 	const void *d;
-	int64_t skipped_bytes;
 
 	cfdata = cab->entry_cfdata;
 
-	if (cfdata->uncompressed_avail == 0 &&
-		cfdata->read_offset > 0) {
-		/* we've already skipped some bytes before really read. */
-		skipped_bytes = cfdata->read_offset;
-		cfdata->read_offset = 0;
-		cfdata->uncompressed_bytes_remaining += skipped_bytes;
-	} else
-		skipped_bytes = 0;
-	do {
-		/*
-		 * Note: '1' here is a performance optimization.
-		 * Recall that the decompression layer returns a count of
-		 * available bytes; asking for more than that forces the
-		 * decompressor to combine reads by copying data.
-		 */
-		d = __archive_read_ahead(a, 1, avail);
-		if (*avail <= 0) {
-			*avail = truncated_error(a);
-			return (NULL);
-		}
-		if (*avail > cfdata->uncompressed_bytes_remaining)
-			*avail = cfdata->uncompressed_bytes_remaining;
-		cfdata->uncompressed_avail = cfdata->uncompressed_size;
-		cfdata->unconsumed = *avail;
-		cfdata->sum_ptr = d;
-		if (skipped_bytes > 0) {
-			skipped_bytes =
-			    cab_minimum_consume_cfdata(a, skipped_bytes);
-			if (skipped_bytes < 0) {
-				*avail = ARCHIVE_FATAL;
-				return (NULL);
-			}
-			continue;
-		}
-	} while (0);
-
+	/*
+	 * Note: '1' here is a performance optimization.
+	 * Recall that the decompression layer returns a count of
+	 * available bytes; asking for more than that forces the
+	 * decompressor to combine reads by copying data.
+	 */
+	d = __archive_read_ahead(a, 1, avail);
+	if (*avail <= 0) {
+		*avail = truncated_error(a);
+		return (NULL);
+	}
+	if (*avail > cfdata->uncompressed_bytes_remaining)
+		*avail = cfdata->uncompressed_bytes_remaining;
+	cfdata->uncompressed_avail = cfdata->uncompressed_size;
+	cfdata->unconsumed = *avail;
+	cfdata->sum_ptr = d;
 	return (d);
 }
 
@@ -1543,7 +1537,7 @@ cab_read_ahead_cfdata_deflate(struct archive_read *a, ssize_t *avail)
 			return (NULL);
 		}
 	}
-	uavail = cab->stream.total_out;
+	uavail = (uint16_t)cab->stream.total_out;
 
 	if (uavail < cfdata->uncompressed_size) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -1721,7 +1715,7 @@ cab_read_ahead_cfdata_lzx(struct archive_read *a, ssize_t *avail)
 		}
 	}
 
-	uavail = cab->xstrm.total_out;
+	uavail = (uint16_t)cab->xstrm.total_out;
 	/*
 	 * Make sure a read pointer advances to next CFDATA.
 	 */
@@ -1793,9 +1787,8 @@ cab_consume_cfdata(struct archive_read *a, int64_t consumed_bytes)
 		rbytes -= cbytes;
 
 		if (cfdata->uncompressed_avail == 0 &&
-		    (cab->entry_cffolder->comptype == COMPTYPE_NONE ||
-		     cab->entry_cffile->folder == iFoldCONTINUED_PREV_AND_NEXT ||
-			 cab->entry_cffile->folder == iFoldCONTINUED_FROM_PREV)) {
+		   (cab->entry_cffile->folder == iFoldCONTINUED_PREV_AND_NEXT ||
+		    cab->entry_cffile->folder == iFoldCONTINUED_FROM_PREV)) {
 			/* We have not read any data yet. */
 			if (cbytes == cfdata->uncompressed_bytes_remaining) {
 				/* Skip whole current CFDATA. */
@@ -1821,8 +1814,8 @@ cab_consume_cfdata(struct archive_read *a, int64_t consumed_bytes)
 				}
 				continue;
 			}
-			cfdata->read_offset += cbytes;
-			cfdata->uncompressed_bytes_remaining -= cbytes;
+			cfdata->read_offset += (uint16_t)cbytes;
+			cfdata->uncompressed_bytes_remaining -= (uint16_t)cbytes;
 			break;
 		} else if (cbytes == 0) {
 			err = cab_next_cfdata(a);
@@ -1846,7 +1839,7 @@ cab_consume_cfdata(struct archive_read *a, int64_t consumed_bytes)
 			if (avail <= 0)
 				return (ARCHIVE_FATAL);
 			if (avail > cbytes)
-				avail = cbytes;
+				avail = (ssize_t)cbytes;
 			if (cab_minimum_consume_cfdata(a, avail) < 0)
 				return (ARCHIVE_FATAL);
 			cbytes -= avail;
@@ -1875,8 +1868,8 @@ cab_minimum_consume_cfdata(struct archive_read *a, int64_t consumed_bytes)
 		else
 			cbytes = cfdata->unconsumed;
 		rbytes -= cbytes; 
-		cfdata->read_offset += cbytes;
-		cfdata->uncompressed_bytes_remaining -= cbytes;
+		cfdata->read_offset += (uint16_t)cbytes;
+		cfdata->uncompressed_bytes_remaining -= (uint16_t)cbytes;
 		cfdata->unconsumed -= cbytes;
 	} else {
 		cbytes = cfdata->uncompressed_avail - cfdata->read_offset;
@@ -1884,8 +1877,8 @@ cab_minimum_consume_cfdata(struct archive_read *a, int64_t consumed_bytes)
 			if (consumed_bytes < cbytes)
 				cbytes = consumed_bytes;
 			rbytes -= cbytes;
-			cfdata->read_offset += cbytes;
-			cfdata->uncompressed_bytes_remaining -= cbytes;
+			cfdata->read_offset += (uint16_t)cbytes;
+			cfdata->uncompressed_bytes_remaining -= (uint16_t)cbytes;
 		}
 
 		if (cfdata->unconsumed) {
@@ -1896,12 +1889,12 @@ cab_minimum_consume_cfdata(struct archive_read *a, int64_t consumed_bytes)
 	}
 	if (cbytes) {
 		/* Compute the sum. */
-		cab_checksum_update(a, cbytes);
+		cab_checksum_update(a, (size_t)cbytes);
 
 		/* Consume as much as the compressor actually used. */
 		__archive_read_consume(a, cbytes);
 		cab->cab_offset += cbytes;
-		cfdata->compressed_bytes_remaining -= cbytes;
+		cfdata->compressed_bytes_remaining -= (uint16_t)cbytes;
 		if (cfdata->compressed_bytes_remaining == 0) {
 			err = cab_checksum_finish(a);
 			if (err < 0)
@@ -1945,7 +1938,7 @@ cab_read_data(struct archive_read *a, const void **buff,
 			return (bytes_avail);
 	}
 	if (bytes_avail > cab->entry_bytes_remaining)
-		bytes_avail = cab->entry_bytes_remaining;
+		bytes_avail = (ssize_t)cab->entry_bytes_remaining;
 
 	*size = bytes_avail;
 	*offset = cab->entry_offset;
@@ -1954,6 +1947,11 @@ cab_read_data(struct archive_read *a, const void **buff,
 	if (cab->entry_bytes_remaining == 0)
 		cab->end_of_entry = 1;
 	cab->entry_unconsumed = bytes_avail;
+	if (cab->entry_cffolder->comptype == COMPTYPE_NONE) {
+		/* Don't consume more than current entry used. */
+		if (cab->entry_cfdata->unconsumed > cab->entry_unconsumed)
+			cab->entry_cfdata->unconsumed = cab->entry_unconsumed;
+	}
 	return (ARCHIVE_OK);
 }
 
@@ -1969,9 +1967,17 @@ archive_read_format_cab_read_data_skip(struct archive_read *a)
 	if (cab->end_of_archive)
 		return (ARCHIVE_EOF);
 
+	if (!cab->read_data_invoked) {
+		cab->bytes_skipped += cab->entry_bytes_remaining;
+		cab->entry_bytes_remaining = 0;
+		/* This entry is finished and done. */
+		cab->end_of_entry_cleanup = cab->end_of_entry = 1;
+		return (ARCHIVE_OK);
+	}
+
 	if (cab->entry_unconsumed) {
 		/* Consume as much as the compressor actually used. */
-		r = cab_consume_cfdata(a, cab->entry_unconsumed);
+		r = (int)cab_consume_cfdata(a, cab->entry_unconsumed);
 		cab->entry_unconsumed = 0;
 		if (r < 0)
 			return (r);
@@ -1992,6 +1998,11 @@ archive_read_format_cab_read_data_skip(struct archive_read *a)
 	bytes_skipped = cab_consume_cfdata(a, cab->entry_bytes_remaining);
 	if (bytes_skipped < 0)
 		return (ARCHIVE_FATAL);
+
+	/* If the compression type is none(uncompressed), we've already
+	 * consumed data as much as the current entry size. */
+	if (cab->entry_cffolder->comptype == COMPTYPE_NONE)
+		cab->entry_cfdata->unconsumed = 0;
 
 	/* This entry is finished and done. */
 	cab->end_of_entry_cleanup = cab->end_of_entry = 1;
@@ -2227,7 +2238,9 @@ lzx_translation(struct lzx_stream *strm, void *p, size_t size, uint32_t offset)
 
 /* Notify how many bits we consumed. */
 #define lzx_br_consume(br, n)	((br)->cache_avail -= (n))
-#define lzx_br_consume_unalined_bits(br) ((br)->cache_avail &= ~0x0f)
+#define lzx_br_consume_unaligned_bits(br) ((br)->cache_avail &= ~0x0f)
+
+#define lzx_br_is_unaligned(br)	((br)->cache_avail & 0x0f)
 
 static const uint32_t cache_masks[] = {
 	0x00000000, 0x00000001, 0x00000003, 0x00000007,
@@ -2354,24 +2367,25 @@ lzx_cleanup_bitstream(struct lzx_stream *strm)
 #define ST_RD_TRANSLATION_SIZE	1
 #define ST_RD_BLOCK_TYPE	2
 #define ST_RD_BLOCK_SIZE	3
-#define ST_RD_R0		4
-#define ST_RD_R1		5
-#define ST_RD_R2		6
-#define ST_COPY_UNCOMP1		7
-#define ST_COPY_UNCOMP2		8
-#define ST_RD_ALIGNED_OFFSET	9
-#define ST_RD_VERBATIM		10
-#define ST_RD_PRE_MAIN_TREE_256	11
-#define ST_MAIN_TREE_256	12
-#define ST_RD_PRE_MAIN_TREE_REM	13
-#define ST_MAIN_TREE_REM	14
-#define ST_RD_PRE_LENGTH_TREE	15
-#define ST_LENGTH_TREE		16
-#define ST_MAIN			17
-#define ST_LENGTH		18
-#define ST_OFFSET		19
-#define ST_REAL_POS		20
-#define ST_COPY			21
+#define ST_RD_ALIGNMENT		4
+#define ST_RD_R0		5
+#define ST_RD_R1		6
+#define ST_RD_R2		7
+#define ST_COPY_UNCOMP1		8
+#define ST_COPY_UNCOMP2		9
+#define ST_RD_ALIGNED_OFFSET	10
+#define ST_RD_VERBATIM		11
+#define ST_RD_PRE_MAIN_TREE_256	12
+#define ST_MAIN_TREE_256	13
+#define ST_RD_PRE_MAIN_TREE_REM	14
+#define ST_MAIN_TREE_REM	15
+#define ST_RD_PRE_LENGTH_TREE	16
+#define ST_LENGTH_TREE		17
+#define ST_MAIN			18
+#define ST_LENGTH		19
+#define ST_OFFSET		20
+#define ST_REAL_POS		21
+#define ST_COPY			22
 
 static int
 lzx_decode(struct lzx_stream *strm, int last)
@@ -2475,15 +2489,25 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 					ds->state = ST_RD_ALIGNED_OFFSET;
 				break;
 			}
+			/* FALL THROUGH */
+		case ST_RD_ALIGNMENT:
 			/*
 			 * Handle an Uncompressed Block.
 			 */
 			/* Skip padding to align following field on
 			 * 16-bit boundary. */
-			if (br->cache_avail == 32 || br->cache_avail == 16)
-				lzx_br_consume(br, 16);
-			else
-				lzx_br_consume_unalined_bits(br);
+			if (lzx_br_is_unaligned(br))
+				lzx_br_consume_unaligned_bits(br);
+			else {
+				if (lzx_br_read_ahead(strm, br, 16))
+					lzx_br_consume(br, 16);
+				else {
+					ds->state = ST_RD_ALIGNMENT;
+					if (last)
+						goto failed;
+					return (ARCHIVE_OK);
+				}
+			}
 			/* Preparation to read repeated offsets R0,R1 and R2. */
 			ds->rbytes_avail = 0;
 			ds->state = ST_RD_R0;
@@ -2508,8 +2532,7 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 					lzx_br_consume(br, 16);
 					archive_le16enc(ds->rbytes, u16);
 					ds->rbytes_avail = 2;
-				} else
-					ds->rbytes_avail = 0;
+				}
 				if (ds->rbytes_avail < 4 && ds->br.have_odd) {
 					ds->rbytes[ds->rbytes_avail++] =
 					    ds->br.odd;
@@ -2525,6 +2548,7 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 					    *strm->next_in++;
 					strm->avail_in--;
 				}
+				ds->rbytes_avail = 0;
 				if (ds->state == ST_RD_R0) {
 					ds->r0 = archive_le32dec(ds->rbytes);
 					if (ds->r0 < 0)
@@ -2549,8 +2573,7 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 			 * Copy bytes form next_in to next_out directly.
 			 */
 			while (ds->block_bytes_avail) {
-				unsigned char *d;
-				int l,ll;
+				int l;
 
 				if (strm->avail_out <= 0)
 					/* Output buffer is empty. */
@@ -2568,17 +2591,16 @@ lzx_read_blocks(struct lzx_stream *strm, int last)
 					l = (int)strm->avail_out;
 				if (l > strm->avail_in)
 					l = (int)strm->avail_in;
-				ll = l;
-				d = &(ds->w_buff[ds->w_pos]);
-				while (--l >= 0) {
-					*strm->next_out++ = *strm->next_in;
-					*d++ = *strm->next_in++;
-				}
-				strm->avail_out -= ll;
-				strm->total_out += ll;
-				strm->avail_in -= ll;
-				ds->w_pos = (ds->w_pos + ll) & ds->w_mask;
-				ds->block_bytes_avail -= ll;
+				memcpy(strm->next_out, strm->next_in, l);
+				memcpy(&(ds->w_buff[ds->w_pos]),
+				    strm->next_in, l);
+				strm->next_in += l;
+				strm->avail_in -= l;
+				strm->next_out += l;
+				strm->avail_out -= l;
+				strm->total_out += l;
+				ds->w_pos = (ds->w_pos + l) & ds->w_mask;
+				ds->block_bytes_avail -= l;
 			}
 			/* FALL THROUGH */
 		case ST_COPY_UNCOMP2:

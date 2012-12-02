@@ -11,17 +11,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "SPU.h"
 #include "SPUTargetMachine.h"
+#include "SPU.h"
 #include "llvm/PassManager.h"
-#include "llvm/CodeGen/RegAllocRegistry.h"
 #include "llvm/CodeGen/SchedulerRegistry.h"
 #include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/TargetRegistry.h"
 
 using namespace llvm;
 
-extern "C" void LLVMInitializeCellSPUTarget() { 
+extern "C" void LLVMInitializeCellSPUTarget() {
   // Register the target.
   RegisterTargetMachine<SPUTargetMachine> X(TheCellSPUTarget);
 }
@@ -34,8 +33,10 @@ SPUFrameLowering::getCalleeSaveSpillSlots(unsigned &NumEntries) const {
 
 SPUTargetMachine::SPUTargetMachine(const Target &T, StringRef TT,
                                    StringRef CPU, StringRef FS,
-                                   Reloc::Model RM, CodeModel::Model CM)
-  : LLVMTargetMachine(T, TT, CPU, FS, RM, CM),
+                                   const TargetOptions &Options,
+                                   Reloc::Model RM, CodeModel::Model CM,
+                                   CodeGenOpt::Level OL)
+  : LLVMTargetMachine(T, TT, CPU, FS, Options, RM, CM, OL),
     Subtarget(TT, CPU, FS),
     DataLayout(Subtarget.getTargetDataString()),
     InstrInfo(*this),
@@ -49,16 +50,34 @@ SPUTargetMachine::SPUTargetMachine(const Target &T, StringRef TT,
 // Pass Pipeline Configuration
 //===----------------------------------------------------------------------===//
 
-bool SPUTargetMachine::addInstSelector(PassManagerBase &PM,
-                                       CodeGenOpt::Level OptLevel) {
+namespace {
+/// SPU Code Generator Pass Configuration Options.
+class SPUPassConfig : public TargetPassConfig {
+public:
+  SPUPassConfig(SPUTargetMachine *TM, PassManagerBase &PM)
+    : TargetPassConfig(TM, PM) {}
+
+  SPUTargetMachine &getSPUTargetMachine() const {
+    return getTM<SPUTargetMachine>();
+  }
+
+  virtual bool addInstSelector();
+  virtual bool addPreEmitPass();
+};
+} // namespace
+
+TargetPassConfig *SPUTargetMachine::createPassConfig(PassManagerBase &PM) {
+  return new SPUPassConfig(this, PM);
+}
+
+bool SPUPassConfig::addInstSelector() {
   // Install an instruction selector.
-  PM.add(createSPUISelDag(*this));
+  addPass(createSPUISelDag(getSPUTargetMachine()));
   return false;
 }
 
 // passes to run just before printing the assembly
-bool SPUTargetMachine::
-addPreEmitPass(PassManagerBase &PM, CodeGenOpt::Level OptLevel) {
+bool SPUPassConfig::addPreEmitPass() {
   // load the TCE instruction scheduler, if available via
   // loaded plugins
   typedef llvm::FunctionPass* (*BuilderFunc)(const char*);
@@ -66,9 +85,9 @@ addPreEmitPass(PassManagerBase &PM, CodeGenOpt::Level OptLevel) {
     (BuilderFunc)(intptr_t)sys::DynamicLibrary::SearchForAddressOfSymbol(
           "createTCESchedulerPass");
   if (schedulerCreator != NULL)
-      PM.add(schedulerCreator("cellspu"));
+      addPass(schedulerCreator("cellspu"));
 
   //align instructions with nops/lnops for dual issue
-  PM.add(createSPUNopFillerPass(*this));
+  addPass(createSPUNopFillerPass(getSPUTargetMachine()));
   return true;
 }

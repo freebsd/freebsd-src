@@ -38,11 +38,10 @@ using namespace llvm;
 //                ConstantFold*Instruction Implementations
 //===----------------------------------------------------------------------===//
 
-/// BitCastConstantVector - Convert the specified ConstantVector node to the
+/// BitCastConstantVector - Convert the specified vector Constant node to the
 /// specified vector type.  At this point, we know that the elements of the
 /// input vector constant are all simple integer or FP values.
-static Constant *BitCastConstantVector(ConstantVector *CV,
-                                       VectorType *DstTy) {
+static Constant *BitCastConstantVector(Constant *CV, VectorType *DstTy) {
 
   if (CV->isAllOnesValue()) return Constant::getAllOnesValue(DstTy);
   if (CV->isNullValue()) return Constant::getNullValue(DstTy);
@@ -51,22 +50,20 @@ static Constant *BitCastConstantVector(ConstantVector *CV,
   // doing so requires endianness information.  This should be handled by
   // Analysis/ConstantFolding.cpp
   unsigned NumElts = DstTy->getNumElements();
-  if (NumElts != CV->getNumOperands())
+  if (NumElts != CV->getType()->getVectorNumElements())
     return 0;
+  
+  Type *DstEltTy = DstTy->getElementType();
 
-  // Check to verify that all elements of the input are simple.
+  SmallVector<Constant*, 16> Result;
+  Type *Ty = IntegerType::get(CV->getContext(), 32);
   for (unsigned i = 0; i != NumElts; ++i) {
-    if (!isa<ConstantInt>(CV->getOperand(i)) &&
-        !isa<ConstantFP>(CV->getOperand(i)))
-      return 0;
+    Constant *C =
+      ConstantExpr::getExtractElement(CV, ConstantInt::get(Ty, i));
+    C = ConstantExpr::getBitCast(C, DstEltTy);
+    Result.push_back(C);
   }
 
-  // Bitcast each element now.
-  std::vector<Constant*> Result;
-  Type *DstEltTy = DstTy->getElementType();
-  for (unsigned i = 0; i != NumElts; ++i)
-    Result.push_back(ConstantExpr::getBitCast(CV->getOperand(i),
-                                                    DstEltTy));
   return ConstantVector::get(Result);
 }
 
@@ -104,7 +101,8 @@ static Constant *FoldBitCast(Constant *V, Type *DestTy) {
   // the first element.  If so, return the appropriate GEP instruction.
   if (PointerType *PTy = dyn_cast<PointerType>(V->getType()))
     if (PointerType *DPTy = dyn_cast<PointerType>(DestTy))
-      if (PTy->getAddressSpace() == DPTy->getAddressSpace()) {
+      if (PTy->getAddressSpace() == DPTy->getAddressSpace()
+          && DPTy->getElementType()->isSized()) {
         SmallVector<Value*, 8> IdxList;
         Value *Zero =
           Constant::getNullValue(Type::getInt32Ty(DPTy->getContext()));
@@ -141,8 +139,8 @@ static Constant *FoldBitCast(Constant *V, Type *DestTy) {
       if (isa<ConstantAggregateZero>(V))
         return Constant::getNullValue(DestTy);
 
-      if (ConstantVector *CV = dyn_cast<ConstantVector>(V))
-        return BitCastConstantVector(CV, DestPTy);
+      // Handle ConstantVector and ConstantAggregateVector.
+      return BitCastConstantVector(V, DestPTy);
     }
 
     // Canonicalize scalar-to-vector bitcasts into vector-to-vector bitcasts
@@ -548,18 +546,20 @@ Constant *llvm::ConstantFoldCastInstruction(unsigned opc, Constant *V,
   // If the cast operand is a constant vector, perform the cast by
   // operating on each element. In the cast of bitcasts, the element
   // count may be mismatched; don't attempt to handle that here.
-  if (ConstantVector *CV = dyn_cast<ConstantVector>(V))
-    if (DestTy->isVectorTy() &&
-        cast<VectorType>(DestTy)->getNumElements() ==
-        CV->getType()->getNumElements()) {
-      std::vector<Constant*> res;
-      VectorType *DestVecTy = cast<VectorType>(DestTy);
-      Type *DstEltTy = DestVecTy->getElementType();
-      for (unsigned i = 0, e = CV->getType()->getNumElements(); i != e; ++i)
-        res.push_back(ConstantExpr::getCast(opc,
-                                            CV->getOperand(i), DstEltTy));
-      return ConstantVector::get(res);
+  if ((isa<ConstantVector>(V) || isa<ConstantDataVector>(V)) &&
+      DestTy->isVectorTy() &&
+      DestTy->getVectorNumElements() == V->getType()->getVectorNumElements()) {
+    SmallVector<Constant*, 16> res;
+    VectorType *DestVecTy = cast<VectorType>(DestTy);
+    Type *DstEltTy = DestVecTy->getElementType();
+    Type *Ty = IntegerType::get(V->getContext(), 32);
+    for (unsigned i = 0, e = V->getType()->getVectorNumElements(); i != e; ++i) {
+      Constant *C =
+        ConstantExpr::getExtractElement(V, ConstantInt::get(Ty, i));
+      res.push_back(ConstantExpr::getCast(opc, C, DstEltTy));
     }
+    return ConstantVector::get(res);
+  }
 
   // We actually have to do a cast now. Perform the cast according to the
   // opcode specified.
@@ -571,7 +571,8 @@ Constant *llvm::ConstantFoldCastInstruction(unsigned opc, Constant *V,
     if (ConstantFP *FPC = dyn_cast<ConstantFP>(V)) {
       bool ignored;
       APFloat Val = FPC->getValueAPF();
-      Val.convert(DestTy->isFloatTy() ? APFloat::IEEEsingle :
+      Val.convert(DestTy->isHalfTy() ? APFloat::IEEEhalf :
+                  DestTy->isFloatTy() ? APFloat::IEEEsingle :
                   DestTy->isDoubleTy() ? APFloat::IEEEdouble :
                   DestTy->isX86_FP80Ty() ? APFloat::x87DoubleExtended :
                   DestTy->isFP128Ty() ? APFloat::IEEEquad :
@@ -690,44 +691,27 @@ Constant *llvm::ConstantFoldCastInstruction(unsigned opc, Constant *V,
 
 Constant *llvm::ConstantFoldSelectInstruction(Constant *Cond,
                                               Constant *V1, Constant *V2) {
-  if (ConstantInt *CB = dyn_cast<ConstantInt>(Cond))
-    return CB->getZExtValue() ? V1 : V2;
-
-  // Check for zero aggregate and ConstantVector of zeros
+  // Check for i1 and vector true/false conditions.
   if (Cond->isNullValue()) return V2;
+  if (Cond->isAllOnesValue()) return V1;
 
-  if (ConstantVector* CondV = dyn_cast<ConstantVector>(Cond)) {
-
-    if (CondV->isAllOnesValue()) return V1;
-
-    VectorType *VTy = cast<VectorType>(V1->getType());
-    ConstantVector *CP1 = dyn_cast<ConstantVector>(V1);
-    ConstantVector *CP2 = dyn_cast<ConstantVector>(V2);
-
-    if ((CP1 || isa<ConstantAggregateZero>(V1)) &&
-        (CP2 || isa<ConstantAggregateZero>(V2))) {
-
-      // Find the element type of the returned vector
-      Type *EltTy = VTy->getElementType();
-      unsigned NumElem = VTy->getNumElements();
-      std::vector<Constant*> Res(NumElem);
-
-      bool Valid = true;
-      for (unsigned i = 0; i < NumElem; ++i) {
-        ConstantInt* c = dyn_cast<ConstantInt>(CondV->getOperand(i));
-        if (!c) {
-          Valid = false;
-          break;
-        }
-        Constant *C1 = CP1 ? CP1->getOperand(i) : Constant::getNullValue(EltTy);
-        Constant *C2 = CP2 ? CP2->getOperand(i) : Constant::getNullValue(EltTy);
-        Res[i] = c->getZExtValue() ? C1 : C2;
-      }
-      // If we were able to build the vector, return it
-      if (Valid) return ConstantVector::get(Res);
+  // If the condition is a vector constant, fold the result elementwise.
+  if (ConstantVector *CondV = dyn_cast<ConstantVector>(Cond)) {
+    SmallVector<Constant*, 16> Result;
+    Type *Ty = IntegerType::get(CondV->getContext(), 32);
+    for (unsigned i = 0, e = V1->getType()->getVectorNumElements(); i != e;++i){
+      ConstantInt *Cond = dyn_cast<ConstantInt>(CondV->getOperand(i));
+      if (Cond == 0) break;
+      
+      Constant *V = Cond->isNullValue() ? V2 : V1;
+      Constant *Res = ConstantExpr::getExtractElement(V, ConstantInt::get(Ty, i));
+      Result.push_back(Res);
     }
+    
+    // If we were able to build the vector, return it.
+    if (Result.size() == V1->getType()->getVectorNumElements())
+      return ConstantVector::get(Result);
   }
-
 
   if (isa<UndefValue>(Cond)) {
     if (isa<UndefValue>(V1)) return V1;
@@ -740,12 +724,12 @@ Constant *llvm::ConstantFoldSelectInstruction(Constant *Cond,
   if (ConstantExpr *TrueVal = dyn_cast<ConstantExpr>(V1)) {
     if (TrueVal->getOpcode() == Instruction::Select)
       if (TrueVal->getOperand(0) == Cond)
-	return ConstantExpr::getSelect(Cond, TrueVal->getOperand(1), V2);
+        return ConstantExpr::getSelect(Cond, TrueVal->getOperand(1), V2);
   }
   if (ConstantExpr *FalseVal = dyn_cast<ConstantExpr>(V2)) {
     if (FalseVal->getOpcode() == Instruction::Select)
       if (FalseVal->getOperand(0) == Cond)
-	return ConstantExpr::getSelect(Cond, V1, FalseVal->getOperand(2));
+        return ConstantExpr::getSelect(Cond, V1, FalseVal->getOperand(2));
   }
 
   return 0;
@@ -754,22 +738,19 @@ Constant *llvm::ConstantFoldSelectInstruction(Constant *Cond,
 Constant *llvm::ConstantFoldExtractElementInstruction(Constant *Val,
                                                       Constant *Idx) {
   if (isa<UndefValue>(Val))  // ee(undef, x) -> undef
-    return UndefValue::get(cast<VectorType>(Val->getType())->getElementType());
+    return UndefValue::get(Val->getType()->getVectorElementType());
   if (Val->isNullValue())  // ee(zero, x) -> zero
-    return Constant::getNullValue(
-                          cast<VectorType>(Val->getType())->getElementType());
+    return Constant::getNullValue(Val->getType()->getVectorElementType());
+  // ee({w,x,y,z}, undef) -> undef
+  if (isa<UndefValue>(Idx))
+    return UndefValue::get(Val->getType()->getVectorElementType());
 
-  if (ConstantVector *CVal = dyn_cast<ConstantVector>(Val)) {
-    if (ConstantInt *CIdx = dyn_cast<ConstantInt>(Idx)) {
-      uint64_t Index = CIdx->getZExtValue();
-      if (Index >= CVal->getNumOperands())
-        // ee({w,x,y,z}, wrong_value) -> undef
-        return UndefValue::get(cast<VectorType>(Val->getType())->getElementType());
-      return CVal->getOperand(CIdx->getZExtValue());
-    } else if (isa<UndefValue>(Idx)) {
-      // ee({w,x,y,z}, undef) -> undef
-      return UndefValue::get(cast<VectorType>(Val->getType())->getElementType());
-    }
+  if (ConstantInt *CIdx = dyn_cast<ConstantInt>(Idx)) {
+    uint64_t Index = CIdx->getZExtValue();
+    // ee({w,x,y,z}, wrong_value) -> undef
+    if (Index >= Val->getType()->getVectorNumElements())
+      return UndefValue::get(Val->getType()->getVectorElementType());
+    return Val->getAggregateElement(Index);
   }
   return 0;
 }
@@ -779,102 +760,58 @@ Constant *llvm::ConstantFoldInsertElementInstruction(Constant *Val,
                                                      Constant *Idx) {
   ConstantInt *CIdx = dyn_cast<ConstantInt>(Idx);
   if (!CIdx) return 0;
-  APInt idxVal = CIdx->getValue();
-  if (isa<UndefValue>(Val)) { 
-    // Insertion of scalar constant into vector undef
-    // Optimize away insertion of undef
-    if (isa<UndefValue>(Elt))
-      return Val;
-    // Otherwise break the aggregate undef into multiple undefs and do
-    // the insertion
-    unsigned numOps = 
-      cast<VectorType>(Val->getType())->getNumElements();
-    std::vector<Constant*> Ops; 
-    Ops.reserve(numOps);
-    for (unsigned i = 0; i < numOps; ++i) {
-      Constant *Op =
-        (idxVal == i) ? Elt : UndefValue::get(Elt->getType());
-      Ops.push_back(Op);
+  const APInt &IdxVal = CIdx->getValue();
+  
+  SmallVector<Constant*, 16> Result;
+  Type *Ty = IntegerType::get(Val->getContext(), 32);
+  for (unsigned i = 0, e = Val->getType()->getVectorNumElements(); i != e; ++i){
+    if (i == IdxVal) {
+      Result.push_back(Elt);
+      continue;
     }
-    return ConstantVector::get(Ops);
+    
+    Constant *C =
+      ConstantExpr::getExtractElement(Val, ConstantInt::get(Ty, i));
+    Result.push_back(C);
   }
-  if (isa<ConstantAggregateZero>(Val)) {
-    // Insertion of scalar constant into vector aggregate zero
-    // Optimize away insertion of zero
-    if (Elt->isNullValue())
-      return Val;
-    // Otherwise break the aggregate zero into multiple zeros and do
-    // the insertion
-    unsigned numOps = 
-      cast<VectorType>(Val->getType())->getNumElements();
-    std::vector<Constant*> Ops; 
-    Ops.reserve(numOps);
-    for (unsigned i = 0; i < numOps; ++i) {
-      Constant *Op =
-        (idxVal == i) ? Elt : Constant::getNullValue(Elt->getType());
-      Ops.push_back(Op);
-    }
-    return ConstantVector::get(Ops);
-  }
-  if (ConstantVector *CVal = dyn_cast<ConstantVector>(Val)) {
-    // Insertion of scalar constant into vector constant
-    std::vector<Constant*> Ops; 
-    Ops.reserve(CVal->getNumOperands());
-    for (unsigned i = 0; i < CVal->getNumOperands(); ++i) {
-      Constant *Op =
-        (idxVal == i) ? Elt : cast<Constant>(CVal->getOperand(i));
-      Ops.push_back(Op);
-    }
-    return ConstantVector::get(Ops);
-  }
-
-  return 0;
-}
-
-/// GetVectorElement - If C is a ConstantVector, ConstantAggregateZero or Undef
-/// return the specified element value.  Otherwise return null.
-static Constant *GetVectorElement(Constant *C, unsigned EltNo) {
-  if (ConstantVector *CV = dyn_cast<ConstantVector>(C))
-    return CV->getOperand(EltNo);
-
-  Type *EltTy = cast<VectorType>(C->getType())->getElementType();
-  if (isa<ConstantAggregateZero>(C))
-    return Constant::getNullValue(EltTy);
-  if (isa<UndefValue>(C))
-    return UndefValue::get(EltTy);
-  return 0;
+  
+  return ConstantVector::get(Result);
 }
 
 Constant *llvm::ConstantFoldShuffleVectorInstruction(Constant *V1,
                                                      Constant *V2,
                                                      Constant *Mask) {
-  // Undefined shuffle mask -> undefined value.
-  if (isa<UndefValue>(Mask)) return UndefValue::get(V1->getType());
+  unsigned MaskNumElts = Mask->getType()->getVectorNumElements();
+  Type *EltTy = V1->getType()->getVectorElementType();
 
-  unsigned MaskNumElts = cast<VectorType>(Mask->getType())->getNumElements();
-  unsigned SrcNumElts = cast<VectorType>(V1->getType())->getNumElements();
-  Type *EltTy = cast<VectorType>(V1->getType())->getElementType();
+  // Undefined shuffle mask -> undefined value.
+  if (isa<UndefValue>(Mask))
+    return UndefValue::get(VectorType::get(EltTy, MaskNumElts));
+
+  // Don't break the bitcode reader hack.
+  if (isa<ConstantExpr>(Mask)) return 0;
+  
+  unsigned SrcNumElts = V1->getType()->getVectorNumElements();
 
   // Loop over the shuffle mask, evaluating each element.
   SmallVector<Constant*, 32> Result;
   for (unsigned i = 0; i != MaskNumElts; ++i) {
-    Constant *InElt = GetVectorElement(Mask, i);
-    if (InElt == 0) return 0;
-
-    if (isa<UndefValue>(InElt))
+    int Elt = ShuffleVectorInst::getMaskValue(Mask, i);
+    if (Elt == -1) {
+      Result.push_back(UndefValue::get(EltTy));
+      continue;
+    }
+    Constant *InElt;
+    if (unsigned(Elt) >= SrcNumElts*2)
       InElt = UndefValue::get(EltTy);
-    else if (ConstantInt *CI = dyn_cast<ConstantInt>(InElt)) {
-      unsigned Elt = CI->getZExtValue();
-      if (Elt >= SrcNumElts*2)
-        InElt = UndefValue::get(EltTy);
-      else if (Elt >= SrcNumElts)
-        InElt = GetVectorElement(V2, Elt - SrcNumElts);
-      else
-        InElt = GetVectorElement(V1, Elt);
-      if (InElt == 0) return 0;
+    else if (unsigned(Elt) >= SrcNumElts) {
+      Type *Ty = IntegerType::get(V2->getContext(), 32);
+      InElt =
+        ConstantExpr::getExtractElement(V2,
+                                        ConstantInt::get(Ty, Elt - SrcNumElts));
     } else {
-      // Unknown value.
-      return 0;
+      Type *Ty = IntegerType::get(V1->getContext(), 32);
+      InElt = ConstantExpr::getExtractElement(V1, ConstantInt::get(Ty, Elt));
     }
     Result.push_back(InElt);
   }
@@ -888,26 +825,10 @@ Constant *llvm::ConstantFoldExtractValueInstruction(Constant *Agg,
   if (Idxs.empty())
     return Agg;
 
-  if (isa<UndefValue>(Agg))  // ev(undef, x) -> undef
-    return UndefValue::get(ExtractValueInst::getIndexedType(Agg->getType(),
-                                                            Idxs));
+  if (Constant *C = Agg->getAggregateElement(Idxs[0]))
+    return ConstantFoldExtractValueInstruction(C, Idxs.slice(1));
 
-  if (isa<ConstantAggregateZero>(Agg))  // ev(0, x) -> 0
-    return
-      Constant::getNullValue(ExtractValueInst::getIndexedType(Agg->getType(),
-                                                              Idxs));
-
-  // Otherwise recurse.
-  if (ConstantStruct *CS = dyn_cast<ConstantStruct>(Agg))
-    return ConstantFoldExtractValueInstruction(CS->getOperand(Idxs[0]),
-                                               Idxs.slice(1));
-
-  if (ConstantArray *CA = dyn_cast<ConstantArray>(Agg))
-    return ConstantFoldExtractValueInstruction(CA->getOperand(Idxs[0]),
-                                               Idxs.slice(1));
-  ConstantVector *CV = cast<ConstantVector>(Agg);
-  return ConstantFoldExtractValueInstruction(CV->getOperand(Idxs[0]),
-                                             Idxs.slice(1));
+  return 0;
 }
 
 Constant *llvm::ConstantFoldInsertValueInstruction(Constant *Agg,
@@ -917,84 +838,30 @@ Constant *llvm::ConstantFoldInsertValueInstruction(Constant *Agg,
   if (Idxs.empty())
     return Val;
 
-  if (isa<UndefValue>(Agg)) {
-    // Insertion of constant into aggregate undef
-    // Optimize away insertion of undef.
-    if (isa<UndefValue>(Val))
-      return Agg;
+  unsigned NumElts;
+  if (StructType *ST = dyn_cast<StructType>(Agg->getType()))
+    NumElts = ST->getNumElements();
+  else if (ArrayType *AT = dyn_cast<ArrayType>(Agg->getType()))
+    NumElts = AT->getNumElements();
+  else
+    NumElts = AT->getVectorNumElements();
+  
+  SmallVector<Constant*, 32> Result;
+  for (unsigned i = 0; i != NumElts; ++i) {
+    Constant *C = Agg->getAggregateElement(i);
+    if (C == 0) return 0;
     
-    // Otherwise break the aggregate undef into multiple undefs and do
-    // the insertion.
-    CompositeType *AggTy = cast<CompositeType>(Agg->getType());
-    unsigned numOps;
-    if (ArrayType *AR = dyn_cast<ArrayType>(AggTy))
-      numOps = AR->getNumElements();
-    else
-      numOps = cast<StructType>(AggTy)->getNumElements();
+    if (Idxs[0] == i)
+      C = ConstantFoldInsertValueInstruction(C, Val, Idxs.slice(1));
     
-    std::vector<Constant*> Ops(numOps); 
-    for (unsigned i = 0; i < numOps; ++i) {
-      Type *MemberTy = AggTy->getTypeAtIndex(i);
-      Constant *Op =
-        (Idxs[0] == i) ?
-        ConstantFoldInsertValueInstruction(UndefValue::get(MemberTy),
-                                           Val, Idxs.slice(1)) :
-        UndefValue::get(MemberTy);
-      Ops[i] = Op;
-    }
-    
-    if (StructType* ST = dyn_cast<StructType>(AggTy))
-      return ConstantStruct::get(ST, Ops);
-    return ConstantArray::get(cast<ArrayType>(AggTy), Ops);
+    Result.push_back(C);
   }
   
-  if (isa<ConstantAggregateZero>(Agg)) {
-    // Insertion of constant into aggregate zero
-    // Optimize away insertion of zero.
-    if (Val->isNullValue())
-      return Agg;
-    
-    // Otherwise break the aggregate zero into multiple zeros and do
-    // the insertion.
-    CompositeType *AggTy = cast<CompositeType>(Agg->getType());
-    unsigned numOps;
-    if (ArrayType *AR = dyn_cast<ArrayType>(AggTy))
-      numOps = AR->getNumElements();
-    else
-      numOps = cast<StructType>(AggTy)->getNumElements();
-    
-    std::vector<Constant*> Ops(numOps);
-    for (unsigned i = 0; i < numOps; ++i) {
-      Type *MemberTy = AggTy->getTypeAtIndex(i);
-      Constant *Op =
-        (Idxs[0] == i) ?
-        ConstantFoldInsertValueInstruction(Constant::getNullValue(MemberTy),
-                                           Val, Idxs.slice(1)) :
-        Constant::getNullValue(MemberTy);
-      Ops[i] = Op;
-    }
-    
-    if (StructType *ST = dyn_cast<StructType>(AggTy))
-      return ConstantStruct::get(ST, Ops);
-    return ConstantArray::get(cast<ArrayType>(AggTy), Ops);
-  }
-  
-  if (isa<ConstantStruct>(Agg) || isa<ConstantArray>(Agg)) {
-    // Insertion of constant into aggregate constant.
-    std::vector<Constant*> Ops(Agg->getNumOperands());
-    for (unsigned i = 0; i < Agg->getNumOperands(); ++i) {
-      Constant *Op = cast<Constant>(Agg->getOperand(i));
-      if (Idxs[0] == i)
-        Op = ConstantFoldInsertValueInstruction(Op, Val, Idxs.slice(1));
-      Ops[i] = Op;
-    }
-    
-    if (StructType* ST = dyn_cast<StructType>(Agg->getType()))
-      return ConstantStruct::get(ST, Ops);
-    return ConstantArray::get(cast<ArrayType>(Agg->getType()), Ops);
-  }
-
-  return 0;
+  if (StructType *ST = dyn_cast<StructType>(Agg->getType()))
+    return ConstantStruct::get(ST, Result);
+  if (ArrayType *AT = dyn_cast<ArrayType>(Agg->getType()))
+    return ConstantArray::get(AT, Result);
+  return ConstantVector::get(Result);
 }
 
 
@@ -1172,7 +1039,6 @@ Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode,
   // At this point we know neither constant is an UndefValue.
   if (ConstantInt *CI1 = dyn_cast<ConstantInt>(C1)) {
     if (ConstantInt *CI2 = dyn_cast<ConstantInt>(C2)) {
-      using namespace APIntOps;
       const APInt &C1V = CI1->getValue();
       const APInt &C2V = CI2->getValue();
       switch (Opcode) {
@@ -1269,145 +1135,19 @@ Constant *llvm::ConstantFoldBinaryInstruction(unsigned Opcode,
       }
     }
   } else if (VectorType *VTy = dyn_cast<VectorType>(C1->getType())) {
-    ConstantVector *CP1 = dyn_cast<ConstantVector>(C1);
-    ConstantVector *CP2 = dyn_cast<ConstantVector>(C2);
-    if ((CP1 != NULL || isa<ConstantAggregateZero>(C1)) &&
-        (CP2 != NULL || isa<ConstantAggregateZero>(C2))) {
-      std::vector<Constant*> Res;
-      Type* EltTy = VTy->getElementType();  
-      Constant *C1 = 0;
-      Constant *C2 = 0;
-      switch (Opcode) {
-      default:
-        break;
-      case Instruction::Add:
-        for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-          C1 = CP1 ? CP1->getOperand(i) : Constant::getNullValue(EltTy);
-          C2 = CP2 ? CP2->getOperand(i) : Constant::getNullValue(EltTy);
-          Res.push_back(ConstantExpr::getAdd(C1, C2));
-        }
-        return ConstantVector::get(Res);
-      case Instruction::FAdd:
-        for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-          C1 = CP1 ? CP1->getOperand(i) : Constant::getNullValue(EltTy);
-          C2 = CP2 ? CP2->getOperand(i) : Constant::getNullValue(EltTy);
-          Res.push_back(ConstantExpr::getFAdd(C1, C2));
-        }
-        return ConstantVector::get(Res);
-      case Instruction::Sub:
-        for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-          C1 = CP1 ? CP1->getOperand(i) : Constant::getNullValue(EltTy);
-          C2 = CP2 ? CP2->getOperand(i) : Constant::getNullValue(EltTy);
-          Res.push_back(ConstantExpr::getSub(C1, C2));
-        }
-        return ConstantVector::get(Res);
-      case Instruction::FSub:
-        for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-          C1 = CP1 ? CP1->getOperand(i) : Constant::getNullValue(EltTy);
-          C2 = CP2 ? CP2->getOperand(i) : Constant::getNullValue(EltTy);
-          Res.push_back(ConstantExpr::getFSub(C1, C2));
-        }
-        return ConstantVector::get(Res);
-      case Instruction::Mul:
-        for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-          C1 = CP1 ? CP1->getOperand(i) : Constant::getNullValue(EltTy);
-          C2 = CP2 ? CP2->getOperand(i) : Constant::getNullValue(EltTy);
-          Res.push_back(ConstantExpr::getMul(C1, C2));
-        }
-        return ConstantVector::get(Res);
-      case Instruction::FMul:
-        for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-          C1 = CP1 ? CP1->getOperand(i) : Constant::getNullValue(EltTy);
-          C2 = CP2 ? CP2->getOperand(i) : Constant::getNullValue(EltTy);
-          Res.push_back(ConstantExpr::getFMul(C1, C2));
-        }
-        return ConstantVector::get(Res);
-      case Instruction::UDiv:
-        for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-          C1 = CP1 ? CP1->getOperand(i) : Constant::getNullValue(EltTy);
-          C2 = CP2 ? CP2->getOperand(i) : Constant::getNullValue(EltTy);
-          Res.push_back(ConstantExpr::getUDiv(C1, C2));
-        }
-        return ConstantVector::get(Res);
-      case Instruction::SDiv:
-        for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-          C1 = CP1 ? CP1->getOperand(i) : Constant::getNullValue(EltTy);
-          C2 = CP2 ? CP2->getOperand(i) : Constant::getNullValue(EltTy);
-          Res.push_back(ConstantExpr::getSDiv(C1, C2));
-        }
-        return ConstantVector::get(Res);
-      case Instruction::FDiv:
-        for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-          C1 = CP1 ? CP1->getOperand(i) : Constant::getNullValue(EltTy);
-          C2 = CP2 ? CP2->getOperand(i) : Constant::getNullValue(EltTy);
-          Res.push_back(ConstantExpr::getFDiv(C1, C2));
-        }
-        return ConstantVector::get(Res);
-      case Instruction::URem:
-        for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-          C1 = CP1 ? CP1->getOperand(i) : Constant::getNullValue(EltTy);
-          C2 = CP2 ? CP2->getOperand(i) : Constant::getNullValue(EltTy);
-          Res.push_back(ConstantExpr::getURem(C1, C2));
-        }
-        return ConstantVector::get(Res);
-      case Instruction::SRem:
-        for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-          C1 = CP1 ? CP1->getOperand(i) : Constant::getNullValue(EltTy);
-          C2 = CP2 ? CP2->getOperand(i) : Constant::getNullValue(EltTy);
-          Res.push_back(ConstantExpr::getSRem(C1, C2));
-        }
-        return ConstantVector::get(Res);
-      case Instruction::FRem:
-        for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-          C1 = CP1 ? CP1->getOperand(i) : Constant::getNullValue(EltTy);
-          C2 = CP2 ? CP2->getOperand(i) : Constant::getNullValue(EltTy);
-          Res.push_back(ConstantExpr::getFRem(C1, C2));
-        }
-        return ConstantVector::get(Res);
-      case Instruction::And: 
-        for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-          C1 = CP1 ? CP1->getOperand(i) : Constant::getNullValue(EltTy);
-          C2 = CP2 ? CP2->getOperand(i) : Constant::getNullValue(EltTy);
-          Res.push_back(ConstantExpr::getAnd(C1, C2));
-        }
-        return ConstantVector::get(Res);
-      case Instruction::Or:
-        for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-          C1 = CP1 ? CP1->getOperand(i) : Constant::getNullValue(EltTy);
-          C2 = CP2 ? CP2->getOperand(i) : Constant::getNullValue(EltTy);
-          Res.push_back(ConstantExpr::getOr(C1, C2));
-        }
-        return ConstantVector::get(Res);
-      case Instruction::Xor:
-        for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-          C1 = CP1 ? CP1->getOperand(i) : Constant::getNullValue(EltTy);
-          C2 = CP2 ? CP2->getOperand(i) : Constant::getNullValue(EltTy);
-          Res.push_back(ConstantExpr::getXor(C1, C2));
-        }
-        return ConstantVector::get(Res);
-      case Instruction::LShr:
-        for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-          C1 = CP1 ? CP1->getOperand(i) : Constant::getNullValue(EltTy);
-          C2 = CP2 ? CP2->getOperand(i) : Constant::getNullValue(EltTy);
-          Res.push_back(ConstantExpr::getLShr(C1, C2));
-        }
-        return ConstantVector::get(Res);
-      case Instruction::AShr:
-        for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-          C1 = CP1 ? CP1->getOperand(i) : Constant::getNullValue(EltTy);
-          C2 = CP2 ? CP2->getOperand(i) : Constant::getNullValue(EltTy);
-          Res.push_back(ConstantExpr::getAShr(C1, C2));
-        }
-        return ConstantVector::get(Res);
-      case Instruction::Shl:
-        for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
-          C1 = CP1 ? CP1->getOperand(i) : Constant::getNullValue(EltTy);
-          C2 = CP2 ? CP2->getOperand(i) : Constant::getNullValue(EltTy);
-          Res.push_back(ConstantExpr::getShl(C1, C2));
-        }
-        return ConstantVector::get(Res);
-      }
+    // Perform elementwise folding.
+    SmallVector<Constant*, 16> Result;
+    Type *Ty = IntegerType::get(VTy->getContext(), 32);
+    for (unsigned i = 0, e = VTy->getNumElements(); i != e; ++i) {
+      Constant *LHS =
+        ConstantExpr::getExtractElement(C1, ConstantInt::get(Ty, i));
+      Constant *RHS =
+        ConstantExpr::getExtractElement(C2, ConstantInt::get(Ty, i));
+      
+      Result.push_back(ConstantExpr::get(Opcode, LHS, RHS));
     }
+    
+    return ConstantVector::get(Result);
   }
 
   if (ConstantExpr *CE1 = dyn_cast<ConstantExpr>(C1)) {
@@ -1906,7 +1646,7 @@ Constant *llvm::ConstantFoldCompareInstruction(unsigned short pred,
     APInt V1 = cast<ConstantInt>(C1)->getValue();
     APInt V2 = cast<ConstantInt>(C2)->getValue();
     switch (pred) {
-    default: llvm_unreachable("Invalid ICmp Predicate"); return 0;
+    default: llvm_unreachable("Invalid ICmp Predicate");
     case ICmpInst::ICMP_EQ:  return ConstantInt::get(ResultTy, V1 == V2);
     case ICmpInst::ICMP_NE:  return ConstantInt::get(ResultTy, V1 != V2);
     case ICmpInst::ICMP_SLT: return ConstantInt::get(ResultTy, V1.slt(V2));
@@ -1923,7 +1663,7 @@ Constant *llvm::ConstantFoldCompareInstruction(unsigned short pred,
     APFloat C2V = cast<ConstantFP>(C2)->getValueAPF();
     APFloat::cmpResult R = C1V.compare(C2V);
     switch (pred) {
-    default: llvm_unreachable("Invalid FCmp Predicate"); return 0;
+    default: llvm_unreachable("Invalid FCmp Predicate");
     case FCmpInst::FCMP_FALSE: return Constant::getNullValue(ResultTy);
     case FCmpInst::FCMP_TRUE:  return Constant::getAllOnesValue(ResultTy);
     case FCmpInst::FCMP_UNO:
@@ -1962,19 +1702,20 @@ Constant *llvm::ConstantFoldCompareInstruction(unsigned short pred,
                                         R==APFloat::cmpEqual);
     }
   } else if (C1->getType()->isVectorTy()) {
-    SmallVector<Constant*, 16> C1Elts, C2Elts;
-    C1->getVectorElements(C1Elts);
-    C2->getVectorElements(C2Elts);
-    if (C1Elts.empty() || C2Elts.empty())
-      return 0;
-
     // If we can constant fold the comparison of each element, constant fold
     // the whole vector comparison.
     SmallVector<Constant*, 4> ResElts;
+    Type *Ty = IntegerType::get(C1->getContext(), 32);
     // Compare the elements, producing an i1 result or constant expr.
-    for (unsigned i = 0, e = C1Elts.size(); i != e; ++i)
-      ResElts.push_back(ConstantExpr::getCompare(pred, C1Elts[i], C2Elts[i]));
-
+    for (unsigned i = 0, e = C1->getType()->getVectorNumElements(); i != e;++i){
+      Constant *C1E =
+        ConstantExpr::getExtractElement(C1, ConstantInt::get(Ty, i));
+      Constant *C2E =
+        ConstantExpr::getExtractElement(C2, ConstantInt::get(Ty, i));
+      
+      ResElts.push_back(ConstantExpr::getCompare(pred, C1E, C2E));
+    }
+    
     return ConstantVector::get(ResElts);
   }
 
@@ -2209,7 +1950,7 @@ static Constant *ConstantFoldGetElementPtrImpl(Constant *C,
            I != E; ++I)
         LastTy = *I;
 
-      if ((LastTy && LastTy->isArrayTy()) || Idx0->isNullValue()) {
+      if ((LastTy && isa<SequentialType>(LastTy)) || Idx0->isNullValue()) {
         SmallVector<Value*, 16> NewIndices;
         NewIndices.reserve(Idxs.size() + CE->getNumOperands());
         for (unsigned i = 1, e = CE->getNumOperands()-1; i != e; ++i)

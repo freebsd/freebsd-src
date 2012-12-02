@@ -17,7 +17,7 @@
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Lex/LexDiagnostic.h"
-#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/SmallString.h"
 using namespace clang;
 
 
@@ -252,9 +252,9 @@ void TokenLexer::ExpandFunctionArguments() {
     const Token *ArgToks = ActualArgs->getUnexpArgument(ArgNo);
     unsigned NumToks = MacroArgs::getArgLength(ArgToks);
     if (NumToks) {  // Not an empty argument?
-      // If this is the GNU ", ## __VA_ARG__" extension, and we just learned
-      // that __VA_ARG__ expands to multiple tokens, avoid a pasting error when
-      // the expander trys to paste ',' with the first token of the __VA_ARG__
+      // If this is the GNU ", ## __VA_ARGS__" extension, and we just learned
+      // that __VA_ARGS__ expands to multiple tokens, avoid a pasting error when
+      // the expander trys to paste ',' with the first token of the __VA_ARGS__
       // expansion.
       if (PasteBefore && ResultToks.size() >= 2 &&
           ResultToks[ResultToks.size()-2].is(tok::comma) &&
@@ -450,7 +450,7 @@ void TokenLexer::Lex(Token &Tok) {
 /// are more ## after it, chomp them iteratively.  Return the result as Tok.
 /// If this returns true, the caller should immediately return the token.
 bool TokenLexer::PasteTokens(Token &Tok) {
-  llvm::SmallString<128> Buffer;
+  SmallString<128> Buffer;
   const char *ResultTokStrPtr = 0;
   SourceLocation StartLoc = Tok.getLocation();
   SourceLocation PasteOpLoc;
@@ -527,7 +527,7 @@ bool TokenLexer::PasteTokens(Token &Tok) {
       // Make a lexer to lex this string from.  Lex just this one token.
       // Make a lexer object so that we lex and expand the paste result.
       Lexer TL(SourceMgr.getLocForStartOfFile(LocFileID),
-               PP.getLangOptions(), ScratchBufStart,
+               PP.getLangOpts(), ScratchBufStart,
                ResultTokStrPtr, ResultTokStrPtr+LHSLen+RHSLen);
 
       // Lex a token in raw mode.  This way it won't look up identifiers
@@ -546,14 +546,14 @@ bool TokenLexer::PasteTokens(Token &Tok) {
       if (isInvalid) {
         // Test for the Microsoft extension of /##/ turning into // here on the
         // error path.
-        if (PP.getLangOptions().MicrosoftExt && Tok.is(tok::slash) &&
+        if (PP.getLangOpts().MicrosoftExt && Tok.is(tok::slash) &&
             RHS.is(tok::slash)) {
           HandleMicrosoftCommentPaste(Tok);
           return true;
         }
 
         // Do not emit the error when preprocessing assembler code.
-        if (!PP.getLangOptions().AsmPreprocessor) {
+        if (!PP.getLangOpts().AsmPreprocessor) {
           // Explicitly convert the token location to have proper expansion
           // information so that the user knows where it came from.
           SourceManager &SM = PP.getSourceManager();
@@ -563,13 +563,13 @@ bool TokenLexer::PasteTokens(Token &Tok) {
           // error to a warning that defaults to an error.  This allows
           // disabling it.
           PP.Diag(Loc,
-                  PP.getLangOptions().MicrosoftExt ? diag::err_pp_bad_paste_ms 
+                  PP.getLangOpts().MicrosoftExt ? diag::err_pp_bad_paste_ms 
                                                    : diag::err_pp_bad_paste)
             << Buffer.str();
         }
 
-        // Do not consume the RHS.
-        --CurToken;
+        // An error has occurred so exit loop.
+        break;
       }
 
       // Turn ## into 'unknown' to avoid # ## # from looking like a paste
@@ -578,7 +578,7 @@ bool TokenLexer::PasteTokens(Token &Tok) {
         Result.setKind(tok::unknown);
     }
 
-    // Transfer properties of the LHS over the the Result.
+    // Transfer properties of the LHS over the Result.
     Result.setFlagValue(Token::StartOfLine , Tok.isAtStartOfLine());
     Result.setFlagValue(Token::LeadingSpace, Tok.hasLeadingSpace());
     

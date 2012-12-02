@@ -10,6 +10,9 @@
 .\" 2. Redistributions in binary form must reproduce the above copyright
 .\"    notice, this list of conditions and the following disclaimer in the
 .\"    documentation and/or other materials provided with the distribution.
+.\" 3. The name of the author may not be used to endorse or promote
+.\"    products derived from this software without specific prior written
+.\"    permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -23,9 +26,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: pamtest.1 471 2011-11-03 09:44:40Z des $
+.\" $Id: pamtest.1 610 2012-05-26 14:03:45Z des $
 .\"
-.Dd November 2, 2011
+.Dd May 26, 2012
 .Dt PAMTEST 1
 .Os
 .Sh NAME
@@ -33,7 +36,7 @@
 .Nd PAM policy tester
 .Sh SYNOPSYS
 .Nm
-.Op Fl dksv
+.Op Fl dkMPsv
 .Op Fl H Ar rhost
 .Op Fl h Ar host
 .Op Fl t Ar tty
@@ -116,6 +119,11 @@ The default is to use the result of calling
 .Xr gethostname 3 .
 .It Fl k
 Keep going even if one of the commands fails.
+.It Fl M
+Disable path, ownership and permission checks on module files.
+.It Fl P
+Disable service name validation and path, ownership and permission
+checks on policy files.
 .It Fl s
 Set the
 .Dv PAM_SILENT
@@ -149,14 +157,14 @@ policy:
 pamtest -v system auth account change setcred open close unsetcred
 .Ed
 .Sh SEE ALSO
-.Xr openpam 3
-.Xr pam 3
+.Xr openpam 3 ,
+.Xr pam 3 ,
 .Xr pam.conf 5
 .Sh AUTHORS
 The
 .Nm
 utility and this manual page were written by
-.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
+.An Dag-Erling Sm\(/orgrav Aq des@des.no .
 .Sh BUGS
 The
 .Nm

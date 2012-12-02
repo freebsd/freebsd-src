@@ -101,7 +101,7 @@ u64 mlx4_en_mac_to_u64(u8 *addr)
 
 static int mlx4_en_cache_mclist(struct net_device *dev, u64 **mcaddrp)
 {
-	struct ifmultiaddr *ifma;;
+	struct ifmultiaddr *ifma;
 	u64 *mcaddr;
 	int cnt;
 	int i;
@@ -1569,7 +1569,7 @@ int mlx4_en_init_netdev(struct mlx4_en_dev *mdev, int port,
 	dev->if_capabilities |= IFCAP_VLAN_HWCSUM | IFCAP_VLAN_HWFILTER;
 	dev->if_capabilities |= IFCAP_LINKSTATE | IFCAP_JUMBO_MTU;
 	if (mdev->LSO_support)
-		dev->if_capabilities |= IFCAP_TSO | IFCAP_VLAN_HWTSO;
+		dev->if_capabilities |= IFCAP_TSO4 | IFCAP_VLAN_HWTSO;
 	if (mdev->profile.num_lro)
 		dev->if_capabilities |= IFCAP_LRO;
 	dev->if_capenable = dev->if_capabilities;

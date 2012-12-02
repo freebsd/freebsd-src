@@ -1,0 +1,21 @@
+# AM335x generic configuration
+#$FreeBSD$
+files		"../ti/am335x/files.am335x"
+include		"../ti/std.ti"
+makeoption	ARM_LITTLE_ENDIAN
+
+# Physical memory starts at 0x80000000.  We assume images are loaded at
+# 0x80200000, e.g. from u-boot with 'fatload mmc 0 0x80200000 kernel.bin'
+#
+#
+options		PHYSADDR=0x80000000
+options		KERNPHYSADDR=0x80200000
+makeoptions	KERNPHYSADDR=0x80200000
+options		KERNVIRTADDR=0xc0200000		# Used in ldscript.arm
+makeoptions	KERNVIRTADDR=0xc0200000
+
+options		STARTUP_PAGETABLE_ADDR=0x80000000
+
+options		SOC_TI_AM335X
+
+options		ARM_L2_PIPT

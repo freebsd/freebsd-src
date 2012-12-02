@@ -13,16 +13,19 @@
 
 let Component = "Lex", CategoryName = "Lexical or Preprocessor Issue" in {
 
-def null_in_string : Warning<"null character(s) preserved in string literal">;
-def null_in_char : Warning<"null character(s) preserved in character literal">;
-def null_in_file : Warning<"null character ignored">;
+def null_in_string : Warning<"null character(s) preserved in string literal">,
+  InGroup<NullCharacter>;
+def null_in_char : Warning<"null character(s) preserved in character literal">,
+  InGroup<NullCharacter>;
+def null_in_file : Warning<"null character ignored">, InGroup<NullCharacter>;
 def warn_nested_block_comment : Warning<"'/*' within block comment">,
   InGroup<Comment>;
 def escaped_newline_block_comment_end : Warning<
   "escaped newline between */ characters at block comment end">,
   InGroup<Comment>;
 def backslash_newline_space : Warning<
-  "backslash and newline separated by space">;
+  "backslash and newline separated by space">,
+  InGroup<DiagGroup<"backslash-newline-escape">>;
 
 // Digraphs.
 def warn_cxx98_compat_less_colon_colon : Warning<
@@ -45,18 +48,28 @@ def ext_bcpl_comment : Extension<
   InGroup<Comment>;
 def ext_no_newline_eof : Extension<"no newline at end of file">, 
   InGroup<DiagGroup<"newline-eof">>;
-def ext_dollar_in_identifier : Extension<"'$' in identifier">;
-def charize_microsoft_ext : Extension<"@# is a microsoft extension">;
+
+def warn_cxx98_compat_no_newline_eof : Warning<
+  "C++98 requires newline at end of file">,
+  InGroup<CXX98CompatPedantic>, DefaultIgnore;
+
+def ext_dollar_in_identifier : Extension<"'$' in identifier">,
+  InGroup<DiagGroup<"dollar-in-identifier-extension">>;
+def ext_charize_microsoft : Extension<"@# is a microsoft extension">,
+  InGroup<Microsoft>;
 
 def ext_token_used : Extension<"extension used">,
   InGroup<DiagGroup<"language-extension-token">>;
 
 def warn_cxx11_keyword : Warning<"'%0' is a keyword in C++11">,
-  InGroup<CXX11Compat>;
+  InGroup<CXX11Compat>, DefaultIgnore;
 
-def warn_unterminated_string : ExtWarn<"missing terminating '\"' character">;
-def warn_unterminated_char : ExtWarn<"missing terminating ' character">;
-def err_empty_character : Error<"empty character constant">;
+def ext_unterminated_string : ExtWarn<"missing terminating '\"' character">,
+  InGroup<InvalidPPToken>;
+def ext_unterminated_char : ExtWarn<"missing terminating ' character">,
+  InGroup<InvalidPPToken>;
+def ext_empty_character : ExtWarn<"empty character constant">,
+  InGroup<InvalidPPToken>;
 def err_unterminated_block_comment : Error<"unterminated /* comment">;
 def err_invalid_character_to_charify : Error<
   "invalid argument to convert to character">;
@@ -90,7 +103,16 @@ def err_hex_escape_no_digits : Error<"\\x used with no following hex digits">;
 def err_ucn_escape_no_digits : Error<"\\u used with no following hex digits">;
 def err_ucn_escape_invalid : Error<"invalid universal character">;
 def err_ucn_escape_incomplete : Error<"incomplete universal character name">;
-def err_ucn_escape_too_big : Error<"universal character name is too long">;
+def err_ucn_escape_basic_scs : Error<
+  "character '%0' cannot be specified by a universal character name">;
+def err_ucn_control_character : Error<
+  "universal character name refers to a control character">;
+def warn_cxx98_compat_literal_ucn_escape_basic_scs : Warning<
+  "specifying character '%0' with a universal character name "
+  "is incompatible with C++98">, InGroup<CXX98Compat>, DefaultIgnore;
+def warn_cxx98_compat_literal_ucn_control_character : Warning<
+  "universal character name referring to a control character "
+  "is incompatible with C++98">, InGroup<CXX98Compat>, DefaultIgnore;
 def err_invalid_decimal_digit : Error<"invalid digit '%0' in decimal constant">;
 def err_invalid_binary_digit : Error<"invalid digit '%0' in binary constant">;
 def err_invalid_octal_digit : Error<"invalid digit '%0' in octal constant">;
@@ -102,10 +124,14 @@ def warn_extraneous_char_constant : Warning<
   "extraneous characters in character constant ignored">;
 def warn_char_constant_too_large : Warning<
   "character constant too long for its type">;
+def err_multichar_utf_character_literal : Error<
+  "Unicode character literals may not contain multiple characters">;
 def err_exponent_has_no_digits : Error<"exponent has no digits">;
 def ext_imaginary_constant : Extension<"imaginary constants are an extension">;
 def err_hexconstant_requires_exponent : Error<
   "hexadecimal floating constants require an exponent">;
+def err_hexconstant_requires_digits : Error<
+  "hexadecimal floating constants require a significand">;
 def ext_hexconstant_invalid : Extension<
   "hexadecimal floating constants are a C99 feature">;
 def ext_binary_literal : Extension<
@@ -116,36 +142,70 @@ def warn_hex_escape_too_large : ExtWarn<"hex escape sequence out of range">;
 def ext_string_too_long : Extension<"string literal of length %0 exceeds "
   "maximum length %1 that %select{C90|ISO C99|C++}2 compilers are required to "
   "support">, InGroup<OverlengthStrings>;
-def warn_ucn_escape_too_large : ExtWarn<
-  "character unicode escape sequence too long for its type">;
+def err_character_too_large : Error<
+  "character too large for enclosing character literal type">;
 def warn_ucn_not_valid_in_c89 : ExtWarn<
-  "unicode escape sequences are only valid in C99 or C++">;
+  "unicode escape sequences are only valid in C99 or C++">, InGroup<Unicode>;
 def warn_cxx98_compat_unicode_literal : Warning<
   "unicode literals are incompatible with C++98">,
   InGroup<CXX98Compat>, DefaultIgnore;
+def warn_cxx11_compat_user_defined_literal : Warning<
+  "identifier after literal will be treated as a user-defined literal suffix "
+  "in C++11">, InGroup<CXX11Compat>, DefaultIgnore;
+def warn_cxx11_compat_reserved_user_defined_literal : Warning<
+  "identifier after literal will be treated as a reserved user-defined literal "
+  "suffix in C++11">,
+  InGroup<CXX11CompatReservedUserDefinedLiteral>, DefaultIgnore;
+def ext_reserved_user_defined_literal : ExtWarn<
+  "invalid suffix on literal; C++11 requires a space between literal and "
+  "identifier">, InGroup<ReservedUserDefinedLiteral>, DefaultError;
+def ext_ms_reserved_user_defined_literal : ExtWarn<
+  "invalid suffix on literal; C++11 requires a space between literal and "
+  "identifier">, InGroup<ReservedUserDefinedLiteral>;
 def err_unsupported_string_concat : Error<
   "unsupported non-standard concatenation of string literals">;
-  
+def err_string_concat_mixed_suffix : Error<
+  "differing user-defined suffixes ('%0' and '%1') in string literal "
+  "concatenation">;
+def err_pp_invalid_udl : Error<
+  "%select{character|integer}0 literal with user-defined suffix "
+  "cannot be used in preprocessor constant expression">;
+def err_bad_string_encoding : Error<
+  "illegal character encoding in string literal">;
+def warn_bad_string_encoding : ExtWarn<
+  "illegal character encoding in string literal">,
+  InGroup<DiagGroup<"invalid-source-encoding">>;
+def err_bad_character_encoding : Error<
+  "illegal character encoding in character literal">;
+def warn_bad_character_encoding : ExtWarn<
+  "illegal character encoding in character literal">,
+  InGroup<DiagGroup<"invalid-source-encoding">>;
+def err_lexing_string : Error<"failure when lexing a string">;
+
+
 //===----------------------------------------------------------------------===//
 // PTH Diagnostics
 //===----------------------------------------------------------------------===//
-def err_pth_cannot_read : Error<
-    "PTH file '%0' could not be read">;
 def err_invalid_pth_file : Error<
     "invalid or corrupt PTH file '%0'">;
 
 //===----------------------------------------------------------------------===//
 // Preprocessor Diagnostics
 //===----------------------------------------------------------------------===//
-def pp_hash_warning : Warning<"#warning%0">,
+
+let CategoryName = "User Defined Issues" in {
+def pp_hash_warning : Warning<"%0">,
   InGroup<PoundWarning>, DefaultWarnShowInSystemHeader;
+def err_pp_hash_error : Error<"%0">;
+}
+
 def pp_include_next_in_primary : Warning<
   "#include_next in primary source file">;
 def pp_include_macros_out_of_predefines : Error<
   "the #__include_macros directive is only for internal use by -imacros">;
 def pp_include_next_absolute_path : Warning<"#include_next with absolute path">;
 def ext_c99_whitespace_required_after_macro_name : ExtWarn<
-  "ISO C99 requires whitespace after the macro name">;
+  "ISO C99 requires whitespace after the macro name">, InGroup<C99>;
 def ext_missing_whitespace_after_macro_name : ExtWarn<
   "whitespace required after macro name">;
 def warn_missing_whitespace_after_macro_name : Warning<
@@ -160,6 +220,9 @@ def pp_out_of_date_dependency : Warning<
 def pp_undef_builtin_macro : Warning<"undefining builtin macro">;
 def pp_redef_builtin_macro : Warning<"redefining builtin macro">,
   InGroup<DiagGroup<"builtin-macro-redefined">>;
+def pp_disabled_macro_expansion : Warning<
+  "disabled expansion of recursive macro">, DefaultIgnore,
+  InGroup<DiagGroup<"disabled-macro-expansion">>;
 def pp_macro_not_used : Warning<"macro is not used">, DefaultIgnore,
   InGroup<DiagGroup<"unused-macros">>;
 def warn_pp_undef_identifier : Warning<
@@ -175,7 +238,11 @@ def warn_pp_convert_lhs_to_positive : Warning<
 def warn_pp_convert_rhs_to_positive : Warning<
   "right side of operator converted from negative value to unsigned: %0">;
 
-def ext_pp_import_directive : Extension<"#import is a language extension">;
+def ext_pp_import_directive : Extension<"#import is a language extension">,
+  InGroup<DiagGroup<"import-preprocessor-directive-pedantic">>;
+def err_pp_import_directive_ms : Error<
+  "#import of type library is an unsupported Microsoft feature">;
+
 def ext_pp_ident_directive : Extension<"#ident is a language extension">;
 def ext_pp_include_next_directive : Extension<
   "#include_next is a language extension">;
@@ -188,26 +255,32 @@ def ext_pp_comma_expr : Extension<"comma operator in operand of #if">;
 def ext_pp_bad_vaargs_use : Extension<
   "__VA_ARGS__ can only appear in the expansion of a C99 variadic macro">;
 def ext_pp_macro_redef : ExtWarn<"%0 macro redefined">;
-def ext_variadic_macro : Extension<"variadic macros were introduced in C99">,
+def ext_variadic_macro : Extension<"variadic macros are a C99 feature">,
   InGroup<VariadicMacros>;
 def warn_cxx98_compat_variadic_macro : Warning<
   "variadic macros are incompatible with C++98">,
   InGroup<CXX98CompatPedantic>, DefaultIgnore;
 def ext_named_variadic_macro : Extension<
   "named variadic macros are a GNU extension">, InGroup<VariadicMacros>;
+def err_embedded_include : Error<
+  "embedding a #%0 directive within macro arguments is not supported">;
 def ext_embedded_directive : Extension<
-  "embedding a directive within macro arguments is not portable">;
+  "embedding a directive within macro arguments has undefined behavior">,
+  InGroup<DiagGroup<"embedded-directive">>;
 def ext_missing_varargs_arg : Extension<
-  "varargs argument missing, but tolerated as an extension">;
+  "must specify at least one argument for '...' parameter of variadic macro">,
+  InGroup<GNU>;
 def ext_empty_fnmacro_arg : Extension<
-  "empty macro arguments were standardized in C99">;
+  "empty macro arguments are a C99 feature">, InGroup<C99>;
 def warn_cxx98_compat_empty_fnmacro_arg : Warning<
-  "empty macro argument list is incompatible with C++98">,
+  "empty macro arguments are incompatible with C++98">,
   InGroup<CXX98CompatPedantic>, DefaultIgnore;
+def note_macro_here : Note<"macro %0 defined here">;
 
 def err_pp_invalid_directive : Error<"invalid preprocessing directive">;
-def err_pp_hash_error : Error<"#error%0">;
 def err_pp_file_not_found : Error<"'%0' file not found">, DefaultFatal;
+def err_pp_file_not_found_not_fatal : Error<
+  "'%0' file not found with <angled> include; use \"quotes\" instead">;
 def err_pp_error_opening_file : Error<
   "error opening file '%0': %1">, DefaultFatal;
 def err_pp_empty_filename : Error<"empty filename">;
@@ -236,7 +309,6 @@ def pp_err_else_without_if : Error<"#else without #if">;
 def pp_err_elif_without_if : Error<"#elif without #if">;
 def err_pp_endif_without_if : Error<"#endif without #if">;
 def err_pp_expected_value_in_expr : Error<"expected value in expression">;
-def err_pp_missing_val_before_operator : Error<"missing value before operator">;
 def err_pp_expected_rparen : Error<"expected ')' in preprocessor expression">;
 def err_pp_expected_eol : Error<
   "expected end of line in preprocessor expression">;
@@ -260,11 +332,23 @@ def err_feature_check_malformed : Error<
   "builtin feature check macro requires a parenthesized identifier">;
 
 def err_warning_check_malformed : Error<
-  "builtin warning check macro requires a parenthesized string">,
-  InGroup<MalformedWarningCheck>;
+  "builtin warning check macro requires a parenthesized string">;
 def warn_has_warning_invalid_option :
    ExtWarn<"__has_warning expected option name (e.g. \"-Wundef\")">,
    InGroup<MalformedWarningCheck>;
+
+def warn_pragma_include_alias_mismatch_angle :
+   ExtWarn<"angle-bracketed include <%0> cannot be aliased to double-quoted "
+   "include \"%1\"">, InGroup<UnknownPragmas>;
+def warn_pragma_include_alias_mismatch_quote :
+   ExtWarn<"double-quoted include \"%0\" cannot be aliased to angle-bracketed "
+   "include <%1>">, InGroup<UnknownPragmas>;
+def warn_pragma_include_alias_expected :
+   ExtWarn<"pragma include_alias expected '%0'">,
+   InGroup<UnknownPragmas>;
+def warn_pragma_include_alias_expected_filename :
+   ExtWarn<"pragma include_alias expected include filename">,
+   InGroup<UnknownPragmas>;
 
 def err__Pragma_malformed : Error<
   "_Pragma takes a parenthesized string literal">;
@@ -317,7 +401,7 @@ def err_paste_at_start : Error<
   "'##' cannot appear at start of macro expansion">;
 def err_paste_at_end : Error<"'##' cannot appear at end of macro expansion">;
 def ext_paste_comma : Extension<
-  "Use of comma pasting extension is non-portable">;
+  "token pasting of ',' and __VA_ARGS__ is a GNU extension">, InGroup<GNU>;
 def err_unterm_macro_invoc : Error<
   "unterminated function-like macro invocation">;
 def err_too_many_args_in_macro_invoc : Error<
@@ -335,6 +419,9 @@ def err_pp_illegal_floating_literal : Error<
   "floating point literal in preprocessor expression">;
 def err_pp_line_requires_integer : Error<
   "#line directive requires a positive integer argument">;
+def ext_pp_line_zero : Extension<
+  "#line directive with zero argument is a GNU extension">, 
+  InGroup<GNU>;
 def err_pp_line_invalid_filename : Error<
   "invalid filename for #line directive">;
 def warn_pp_line_decimal : Warning<
@@ -355,7 +442,7 @@ def warn_cxx98_compat_pp_line_too_big : Warning<
   "#line number greater than 32767 is incompatible with C++98">,
   InGroup<CXX98CompatPedantic>, DefaultIgnore;
 
-def err_pp_export_non_macro : Error<"no macro named %0 to export">;
+def err_pp_visibility_non_macro : Error<"no macro named %0">;
 
 def err_pp_arc_cf_code_audited_syntax : Error<"expected 'begin' or 'end'">;
 def err_pp_double_begin_of_arc_cf_code_audited : Error<
@@ -366,5 +453,61 @@ def err_pp_include_in_arc_cf_code_audited : Error<
   "cannot #include files inside '#pragma clang arc_cf_code_audited'">;
 def err_pp_eof_in_arc_cf_code_audited : Error<
   "'#pragma clang arc_cf_code_audited' was not ended within this file">;
+
+// Module map parsing
+def err_mmap_unknown_token : Error<"skipping stray token">;
+def err_mmap_expected_module : Error<"expected module declaration">;
+def err_mmap_expected_module_name : Error<"expected module name">;
+def err_mmap_expected_lbrace : Error<"expected '{' to start module '%0'">;
+def err_mmap_expected_rbrace : Error<"expected '}'">;
+def note_mmap_lbrace_match : Note<"to match this '{'">;
+def err_mmap_expected_rsquare : Error<"expected ']' to close attribute">;
+def note_mmap_lsquare_match : Note<"to match this ']'">;
+def err_mmap_expected_member : Error<
+  "expected umbrella, header, submodule, or module export">;
+def err_mmap_expected_header : Error<"expected a header name after '%0'">;
+def err_mmap_module_redefinition : Error<
+  "redefinition of module '%0'">;
+def note_mmap_prev_definition : Note<"previously defined here">;
+def err_mmap_header_conflict : Error<
+  "header '%0' is already part of module '%1'">;
+def err_mmap_header_not_found : Error<
+  "%select{|umbrella }0header '%1' not found">;
+def err_mmap_umbrella_dir_not_found : Error<
+  "umbrella directory '%0' not found">;
+def err_mmap_umbrella_clash : Error<
+  "umbrella for module '%0' already covers this directory">;
+def err_mmap_export_module_id : Error<
+  "expected an exported module name or '*'">;
+def err_mmap_missing_module_unqualified : Error<
+  "no module named '%0' visible from '%1'">;
+def err_mmap_missing_module_qualified : Error<
+  "no module named '%0' in '%1'">;
+def err_mmap_top_level_inferred_submodule : Error<
+  "only submodules may be inferred with wildcard syntax">;
+def err_mmap_inferred_no_umbrella : Error<
+  "inferred submodules require a module with an umbrella">;
+def err_mmap_inferred_redef : Error<
+  "redefinition of inferred submodule">;
+def err_mmap_expected_lbrace_wildcard : Error<
+  "expected '{' to start inferred submodule">;
+def err_mmap_expected_wildcard_member : Error<
+  "expected module export wildcard">;
+def err_mmap_expected_export_wildcard : Error<
+  "only '*' can be exported from an inferred submodule">;
+def err_mmap_explicit_top_level : Error<
+  "'explicit' is not permitted on top-level modules">;
+def err_mmap_nested_submodule_id : Error<
+  "qualified module name can only be used to define modules at the top level">;
+def err_mmap_expected_feature : Error<"expected a feature name">;
+def err_mmap_expected_attribute : Error<"expected an attribute name">;
+def warn_mmap_unknown_attribute : Warning<"unknown attribute '%0'">,
+  InGroup<IgnoredAttributes>;
+
+def warn_auto_module_import : Warning<
+  "treating #%select{include|import|include_next|__include_macros}0 as an "
+  "import of module '%1'">, InGroup<AutoImport>, DefaultIgnore;
+def warn_uncovered_module_header : Warning<
+  "umbrella header does not include header '%0'">, InGroup<IncompleteUmbrella>;
 
 }

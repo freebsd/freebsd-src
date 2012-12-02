@@ -51,7 +51,7 @@ public:
   static void noteHead(SDNode*, SDNode*) {}
 
   static void deleteNode(SDNode *) {
-    assert(0 && "ilist_traits<SDNode> shouldn't see a deleteNode call!");
+    llvm_unreachable("ilist_traits<SDNode> shouldn't see a deleteNode call!");
   }
 private:
   static void createNode(const SDNode &);
@@ -112,9 +112,10 @@ public:
 };
 
 enum CombineLevel {
-  Unrestricted,   // Combine may create illegal operations and illegal types.
-  NoIllegalTypes, // Combine may create illegal operations but no illegal types.
-  NoIllegalOperations // Combine may only create legal operations and types.
+  BeforeLegalizeTypes,
+  AfterLegalizeTypes,
+  AfterLegalizeVectorOps,
+  AfterLegalizeDAG
 };
 
 class SelectionDAG;
@@ -138,6 +139,7 @@ class SelectionDAG {
   const TargetSelectionDAGInfo &TSI;
   MachineFunction *MF;
   LLVMContext *Context;
+  CodeGenOpt::Level OptLevel;
 
   /// EntryNode - The starting token.
   SDNode EntryNode;
@@ -175,6 +177,44 @@ class SelectionDAG {
   /// DbgInfo - Tracks dbg_value information through SDISel.
   SDDbgInfo *DbgInfo;
 
+public:
+  /// DAGUpdateListener - Clients of various APIs that cause global effects on
+  /// the DAG can optionally implement this interface.  This allows the clients
+  /// to handle the various sorts of updates that happen.
+  ///
+  /// A DAGUpdateListener automatically registers itself with DAG when it is
+  /// constructed, and removes itself when destroyed in RAII fashion.
+  struct DAGUpdateListener {
+    DAGUpdateListener *const Next;
+    SelectionDAG &DAG;
+
+    explicit DAGUpdateListener(SelectionDAG &D)
+      : Next(D.UpdateListeners), DAG(D) {
+      DAG.UpdateListeners = this;
+    }
+
+    virtual ~DAGUpdateListener() {
+      assert(DAG.UpdateListeners == this &&
+             "DAGUpdateListeners must be destroyed in LIFO order");
+      DAG.UpdateListeners = Next;
+    }
+
+    /// NodeDeleted - The node N that was deleted and, if E is not null, an
+    /// equivalent node E that replaced it.
+    virtual void NodeDeleted(SDNode *N, SDNode *E);
+
+    /// NodeUpdated - The node N that was updated.
+    virtual void NodeUpdated(SDNode *N);
+  };
+
+private:
+  /// DAGUpdateListener is a friend so it can manipulate the listener stack.
+  friend struct DAGUpdateListener;
+
+  /// UpdateListeners - Linked list of registered DAGUpdateListener instances.
+  /// This stack is maintained by DAGUpdateListener RAII.
+  DAGUpdateListener *UpdateListeners;
+
   /// setGraphColorHelper - Implementation of setSubgraphColor.
   /// Return whether we had to truncate the search.
   ///
@@ -186,7 +226,7 @@ class SelectionDAG {
   SelectionDAG(const SelectionDAG&);   // Do not implement.
 
 public:
-  explicit SelectionDAG(const TargetMachine &TM);
+  explicit SelectionDAG(const TargetMachine &TM, llvm::CodeGenOpt::Level);
   ~SelectionDAG();
 
   /// init - Prepare this SelectionDAG to process code in the given
@@ -382,6 +422,8 @@ public:
                                   int Offset = 0, unsigned char TargetFlags=0) {
     return getConstantPool(C, VT, Align, Offset, true, TargetFlags);
   }
+  SDValue getTargetIndex(int Index, EVT VT, int64_t Offset = 0,
+                         unsigned char TargetFlags = 0);
   // When generating a branch to a BB, we don't in general know enough
   // to provide debug info for the BB at that time, so keep this one around.
   SDValue getBasicBlock(MachineBasicBlock *MBB);
@@ -392,6 +434,7 @@ public:
                                   unsigned char TargetFlags = 0);
   SDValue getValueType(EVT);
   SDValue getRegister(unsigned Reg, EVT VT);
+  SDValue getRegisterMask(const uint32_t *RegMask);
   SDValue getEHLabel(DebugLoc dl, SDValue Root, MCSymbol *Label);
   SDValue getBlockAddress(const BlockAddress *BA, EVT VT,
                           bool isTarget = false, unsigned char TargetFlags = 0);
@@ -650,8 +693,8 @@ public:
   ///
   SDValue getLoad(EVT VT, DebugLoc dl, SDValue Chain, SDValue Ptr,
                   MachinePointerInfo PtrInfo, bool isVolatile,
-                  bool isNonTemporal, unsigned Alignment,
-                  const MDNode *TBAAInfo = 0);
+                  bool isNonTemporal, bool isInvariant, unsigned Alignment,
+                  const MDNode *TBAAInfo = 0, const MDNode *Ranges = 0);
   SDValue getExtLoad(ISD::LoadExtType ExtType, DebugLoc dl, EVT VT,
                      SDValue Chain, SDValue Ptr, MachinePointerInfo PtrInfo,
                      EVT MemVT, bool isVolatile,
@@ -663,8 +706,9 @@ public:
                   EVT VT, DebugLoc dl,
                   SDValue Chain, SDValue Ptr, SDValue Offset,
                   MachinePointerInfo PtrInfo, EVT MemVT,
-                  bool isVolatile, bool isNonTemporal, unsigned Alignment,
-                  const MDNode *TBAAInfo = 0);
+                  bool isVolatile, bool isNonTemporal, bool isInvariant,
+                  unsigned Alignment, const MDNode *TBAAInfo = 0,
+                  const MDNode *Ranges = 0);
   SDValue getLoad(ISD::MemIndexedMode AM, ISD::LoadExtType ExtType,
                   EVT VT, DebugLoc dl,
                   SDValue Chain, SDValue Ptr, SDValue Offset,
@@ -813,30 +857,14 @@ public:
   SDDbgValue *getDbgValue(MDNode *MDPtr, unsigned FI, uint64_t Off,
                           DebugLoc DL, unsigned O);
 
-  /// DAGUpdateListener - Clients of various APIs that cause global effects on
-  /// the DAG can optionally implement this interface.  This allows the clients
-  /// to handle the various sorts of updates that happen.
-  class DAGUpdateListener {
-  public:
-    virtual ~DAGUpdateListener();
-
-    /// NodeDeleted - The node N that was deleted and, if E is not null, an
-    /// equivalent node E that replaced it.
-    virtual void NodeDeleted(SDNode *N, SDNode *E) = 0;
-
-    /// NodeUpdated - The node N that was updated.
-    virtual void NodeUpdated(SDNode *N) = 0;
-  };
-
   /// RemoveDeadNode - Remove the specified node from the system. If any of its
   /// operands then becomes dead, remove them as well. Inform UpdateListener
   /// for each node deleted.
-  void RemoveDeadNode(SDNode *N, DAGUpdateListener *UpdateListener = 0);
+  void RemoveDeadNode(SDNode *N);
 
   /// RemoveDeadNodes - This method deletes the unreachable nodes in the
   /// given list, and any nodes that become unreachable as a result.
-  void RemoveDeadNodes(SmallVectorImpl<SDNode *> &DeadNodes,
-                       DAGUpdateListener *UpdateListener = 0);
+  void RemoveDeadNodes(SmallVectorImpl<SDNode *> &DeadNodes);
 
   /// ReplaceAllUsesWith - Modify anything using 'From' to use 'To' instead.
   /// This can cause recursive merging of nodes in the DAG.  Use the first
@@ -853,24 +881,19 @@ public:
   /// to be given new uses. These new uses of From are left in place, and
   /// not automatically transferred to To.
   ///
-  void ReplaceAllUsesWith(SDValue From, SDValue Op,
-                          DAGUpdateListener *UpdateListener = 0);
-  void ReplaceAllUsesWith(SDNode *From, SDNode *To,
-                          DAGUpdateListener *UpdateListener = 0);
-  void ReplaceAllUsesWith(SDNode *From, const SDValue *To,
-                          DAGUpdateListener *UpdateListener = 0);
+  void ReplaceAllUsesWith(SDValue From, SDValue Op);
+  void ReplaceAllUsesWith(SDNode *From, SDNode *To);
+  void ReplaceAllUsesWith(SDNode *From, const SDValue *To);
 
   /// ReplaceAllUsesOfValueWith - Replace any uses of From with To, leaving
   /// uses of other values produced by From.Val alone.
-  void ReplaceAllUsesOfValueWith(SDValue From, SDValue To,
-                                 DAGUpdateListener *UpdateListener = 0);
+  void ReplaceAllUsesOfValueWith(SDValue From, SDValue To);
 
   /// ReplaceAllUsesOfValuesWith - Like ReplaceAllUsesOfValueWith, but
   /// for multiple values at once. This correctly handles the case where
   /// there is an overlap between the From values and the To values.
   void ReplaceAllUsesOfValuesWith(const SDValue *From, const SDValue *To,
-                                  unsigned Num,
-                                  DAGUpdateListener *UpdateListener = 0);
+                                  unsigned Num);
 
   /// AssignTopologicalOrder - Topological-sort the AllNodes list and a
   /// assign a unique node id for each node in the DAG based on their
@@ -976,8 +999,8 @@ public:
   /// bitsets.  This code only analyzes bits in Mask, in order to short-circuit
   /// processing.  Targets can implement the computeMaskedBitsForTargetNode
   /// method in the TargetLowering class to allow target nodes to be understood.
-  void ComputeMaskedBits(SDValue Op, const APInt &Mask, APInt &KnownZero,
-                         APInt &KnownOne, unsigned Depth = 0) const;
+  void ComputeMaskedBits(SDValue Op, APInt &KnownZero, APInt &KnownOne,
+                         unsigned Depth = 0) const;
 
   /// ComputeNumSignBits - Return the number of times the sign bit of the
   /// register is replicated into the other bits.  We know that at least 1 bit
@@ -1027,12 +1050,13 @@ public:
 
 private:
   bool RemoveNodeFromCSEMaps(SDNode *N);
-  void AddModifiedNodeToCSEMaps(SDNode *N, DAGUpdateListener *UpdateListener);
+  void AddModifiedNodeToCSEMaps(SDNode *N);
   SDNode *FindModifiedNodeSlot(SDNode *N, SDValue Op, void *&InsertPos);
   SDNode *FindModifiedNodeSlot(SDNode *N, SDValue Op1, SDValue Op2,
                                void *&InsertPos);
   SDNode *FindModifiedNodeSlot(SDNode *N, const SDValue *Ops, unsigned NumOps,
                                void *&InsertPos);
+  SDNode *UpdadeDebugLocOnMergedSDNode(SDNode *N, DebugLoc loc);
 
   void DeleteNodeNotInCSEMaps(SDNode *N);
   void DeallocateNode(SDNode *N);

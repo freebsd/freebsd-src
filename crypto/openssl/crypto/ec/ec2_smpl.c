@@ -14,7 +14,7 @@
  *
  */
 /* ====================================================================
- * Copyright (c) 1998-2003 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2005 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -71,10 +71,20 @@
 
 #include "ec_lcl.h"
 
+#ifndef OPENSSL_NO_EC2M
+
+#ifdef OPENSSL_FIPS
+#include <openssl/fips.h>
+#endif
+
 
 const EC_METHOD *EC_GF2m_simple_method(void)
 	{
+#ifdef OPENSSL_FIPS
+	return fips_ec_gf2m_simple_method();
+#else
 	static const EC_METHOD ret = {
+		EC_FLAGS_DEFAULT_OCT,
 		NID_X9_62_characteristic_two_field,
 		ec_GF2m_simple_group_init,
 		ec_GF2m_simple_group_finish,
@@ -93,9 +103,7 @@ const EC_METHOD *EC_GF2m_simple_method(void)
 		0 /* get_Jprojective_coordinates_GFp */,
 		ec_GF2m_simple_point_set_affine_coordinates,
 		ec_GF2m_simple_point_get_affine_coordinates,
-		ec_GF2m_simple_set_compressed_coordinates,
-		ec_GF2m_simple_point2oct,
-		ec_GF2m_simple_oct2point,
+		0,0,0,
 		ec_GF2m_simple_add,
 		ec_GF2m_simple_dbl,
 		ec_GF2m_simple_invert,
@@ -118,6 +126,7 @@ const EC_METHOD *EC_GF2m_simple_method(void)
 		0 /* field_set_to_one */ };
 
 	return &ret;
+#endif
 	}
 
 
@@ -157,6 +166,7 @@ void ec_GF2m_simple_group_clear_finish(EC_GROUP *group)
 	group->poly[2] = 0;
 	group->poly[3] = 0;
 	group->poly[4] = 0;
+	group->poly[5] = -1;
 	}
 
 
@@ -174,10 +184,9 @@ int ec_GF2m_simple_group_copy(EC_GROUP *dest, const EC_GROUP *src)
 	dest->poly[2] = src->poly[2];
 	dest->poly[3] = src->poly[3];
 	dest->poly[4] = src->poly[4];
-	if(bn_wexpand(&dest->a, (int)(dest->poly[0] + BN_BITS2 - 1) / BN_BITS2) == NULL)
-		return 0;
-	if(bn_wexpand(&dest->b, (int)(dest->poly[0] + BN_BITS2 - 1) / BN_BITS2) == NULL)
-		return 0;
+	dest->poly[5] = src->poly[5];
+	if (bn_wexpand(&dest->a, (int)(dest->poly[0] + BN_BITS2 - 1) / BN_BITS2) == NULL) return 0;
+	if (bn_wexpand(&dest->b, (int)(dest->poly[0] + BN_BITS2 - 1) / BN_BITS2) == NULL) return 0;
 	for (i = dest->a.top; i < dest->a.dmax; i++) dest->a.d[i] = 0;
 	for (i = dest->b.top; i < dest->b.dmax; i++) dest->b.d[i] = 0;
 	return 1;
@@ -192,7 +201,7 @@ int ec_GF2m_simple_group_set_curve(EC_GROUP *group,
 
 	/* group->field */
 	if (!BN_copy(&group->field, p)) goto err;
-	i = BN_GF2m_poly2arr(&group->field, group->poly, 5);
+	i = BN_GF2m_poly2arr(&group->field, group->poly, 6) - 1;
 	if ((i != 5) && (i != 3))
 		{
 		ECerr(EC_F_EC_GF2M_SIMPLE_GROUP_SET_CURVE, EC_R_UNSUPPORTED_FIELD);
@@ -405,274 +414,6 @@ int ec_GF2m_simple_point_get_affine_coordinates(const EC_GROUP *group, const EC_
 	return ret;
 	}
 
-
-/* Include patented algorithms. */
-#include "ec2_smpt.c"
-
-
-/* Converts an EC_POINT to an octet string.  
- * If buf is NULL, the encoded length will be returned.
- * If the length len of buf is smaller than required an error will be returned.
- *
- * The point compression section of this function is patented by Certicom Corp. 
- * under US Patent 6,141,420.  Point compression is disabled by default and can 
- * be enabled by defining the preprocessor macro OPENSSL_EC_BIN_PT_COMP at 
- * Configure-time.
- */
-size_t ec_GF2m_simple_point2oct(const EC_GROUP *group, const EC_POINT *point, point_conversion_form_t form,
-	unsigned char *buf, size_t len, BN_CTX *ctx)
-	{
-	size_t ret;
-	BN_CTX *new_ctx = NULL;
-	int used_ctx = 0;
-	BIGNUM *x, *y, *yxi;
-	size_t field_len, i, skip;
-
-#ifndef OPENSSL_EC_BIN_PT_COMP
-	if ((form == POINT_CONVERSION_COMPRESSED) || (form == POINT_CONVERSION_HYBRID)) 
-		{
-		ECerr(EC_F_EC_GF2M_SIMPLE_POINT2OCT, ERR_R_DISABLED);
-		goto err;
-		}
-#endif
-
-	if ((form != POINT_CONVERSION_COMPRESSED)
-		&& (form != POINT_CONVERSION_UNCOMPRESSED)
-		&& (form != POINT_CONVERSION_HYBRID))
-		{
-		ECerr(EC_F_EC_GF2M_SIMPLE_POINT2OCT, EC_R_INVALID_FORM);
-		goto err;
-		}
-
-	if (EC_POINT_is_at_infinity(group, point))
-		{
-		/* encodes to a single 0 octet */
-		if (buf != NULL)
-			{
-			if (len < 1)
-				{
-				ECerr(EC_F_EC_GF2M_SIMPLE_POINT2OCT, EC_R_BUFFER_TOO_SMALL);
-				return 0;
-				}
-			buf[0] = 0;
-			}
-		return 1;
-		}
-
-
-	/* ret := required output buffer length */
-	field_len = (EC_GROUP_get_degree(group) + 7) / 8;
-	ret = (form == POINT_CONVERSION_COMPRESSED) ? 1 + field_len : 1 + 2*field_len;
-
-	/* if 'buf' is NULL, just return required length */
-	if (buf != NULL)
-		{
-		if (len < ret)
-			{
-			ECerr(EC_F_EC_GF2M_SIMPLE_POINT2OCT, EC_R_BUFFER_TOO_SMALL);
-			goto err;
-			}
-
-		if (ctx == NULL)
-			{
-			ctx = new_ctx = BN_CTX_new();
-			if (ctx == NULL)
-				return 0;
-			}
-
-		BN_CTX_start(ctx);
-		used_ctx = 1;
-		x = BN_CTX_get(ctx);
-		y = BN_CTX_get(ctx);
-		yxi = BN_CTX_get(ctx);
-		if (yxi == NULL) goto err;
-
-		if (!EC_POINT_get_affine_coordinates_GF2m(group, point, x, y, ctx)) goto err;
-
-		buf[0] = form;
-#ifdef OPENSSL_EC_BIN_PT_COMP
-		if ((form != POINT_CONVERSION_UNCOMPRESSED) && !BN_is_zero(x))
-			{
-			if (!group->meth->field_div(group, yxi, y, x, ctx)) goto err;
-			if (BN_is_odd(yxi)) buf[0]++;
-			}
-#endif
-
-		i = 1;
-		
-		skip = field_len - BN_num_bytes(x);
-		if (skip > field_len)
-			{
-			ECerr(EC_F_EC_GF2M_SIMPLE_POINT2OCT, ERR_R_INTERNAL_ERROR);
-			goto err;
-			}
-		while (skip > 0)
-			{
-			buf[i++] = 0;
-			skip--;
-			}
-		skip = BN_bn2bin(x, buf + i);
-		i += skip;
-		if (i != 1 + field_len)
-			{
-			ECerr(EC_F_EC_GF2M_SIMPLE_POINT2OCT, ERR_R_INTERNAL_ERROR);
-			goto err;
-			}
-
-		if (form == POINT_CONVERSION_UNCOMPRESSED || form == POINT_CONVERSION_HYBRID)
-			{
-			skip = field_len - BN_num_bytes(y);
-			if (skip > field_len)
-				{
-				ECerr(EC_F_EC_GF2M_SIMPLE_POINT2OCT, ERR_R_INTERNAL_ERROR);
-				goto err;
-				}
-			while (skip > 0)
-				{
-				buf[i++] = 0;
-				skip--;
-				}
-			skip = BN_bn2bin(y, buf + i);
-			i += skip;
-			}
-
-		if (i != ret)
-			{
-			ECerr(EC_F_EC_GF2M_SIMPLE_POINT2OCT, ERR_R_INTERNAL_ERROR);
-			goto err;
-			}
-		}
-	
-	if (used_ctx)
-		BN_CTX_end(ctx);
-	if (new_ctx != NULL)
-		BN_CTX_free(new_ctx);
-	return ret;
-
- err:
-	if (used_ctx)
-		BN_CTX_end(ctx);
-	if (new_ctx != NULL)
-		BN_CTX_free(new_ctx);
-	return 0;
-	}
-
-
-/* Converts an octet string representation to an EC_POINT. 
- * Note that the simple implementation only uses affine coordinates.
- */
-int ec_GF2m_simple_oct2point(const EC_GROUP *group, EC_POINT *point,
-	const unsigned char *buf, size_t len, BN_CTX *ctx)
-	{
-	point_conversion_form_t form;
-	int y_bit;
-	BN_CTX *new_ctx = NULL;
-	BIGNUM *x, *y, *yxi;
-	size_t field_len, enc_len;
-	int ret = 0;
-
-	if (len == 0)
-		{
-		ECerr(EC_F_EC_GF2M_SIMPLE_OCT2POINT, EC_R_BUFFER_TOO_SMALL);
-		return 0;
-		}
-	form = buf[0];
-	y_bit = form & 1;
-	form = form & ~1U;
-	if ((form != 0)	&& (form != POINT_CONVERSION_COMPRESSED)
-		&& (form != POINT_CONVERSION_UNCOMPRESSED)
-		&& (form != POINT_CONVERSION_HYBRID))
-		{
-		ECerr(EC_F_EC_GF2M_SIMPLE_OCT2POINT, EC_R_INVALID_ENCODING);
-		return 0;
-		}
-	if ((form == 0 || form == POINT_CONVERSION_UNCOMPRESSED) && y_bit)
-		{
-		ECerr(EC_F_EC_GF2M_SIMPLE_OCT2POINT, EC_R_INVALID_ENCODING);
-		return 0;
-		}
-
-	if (form == 0)
-		{
-		if (len != 1)
-			{
-			ECerr(EC_F_EC_GF2M_SIMPLE_OCT2POINT, EC_R_INVALID_ENCODING);
-			return 0;
-			}
-
-		return EC_POINT_set_to_infinity(group, point);
-		}
-	
-	field_len = (EC_GROUP_get_degree(group) + 7) / 8;
-	enc_len = (form == POINT_CONVERSION_COMPRESSED) ? 1 + field_len : 1 + 2*field_len;
-
-	if (len != enc_len)
-		{
-		ECerr(EC_F_EC_GF2M_SIMPLE_OCT2POINT, EC_R_INVALID_ENCODING);
-		return 0;
-		}
-
-	if (ctx == NULL)
-		{
-		ctx = new_ctx = BN_CTX_new();
-		if (ctx == NULL)
-			return 0;
-		}
-
-	BN_CTX_start(ctx);
-	x = BN_CTX_get(ctx);
-	y = BN_CTX_get(ctx);
-	yxi = BN_CTX_get(ctx);
-	if (yxi == NULL) goto err;
-
-	if (!BN_bin2bn(buf + 1, field_len, x)) goto err;
-	if (BN_ucmp(x, &group->field) >= 0)
-		{
-		ECerr(EC_F_EC_GF2M_SIMPLE_OCT2POINT, EC_R_INVALID_ENCODING);
-		goto err;
-		}
-
-	if (form == POINT_CONVERSION_COMPRESSED)
-		{
-		if (!EC_POINT_set_compressed_coordinates_GF2m(group, point, x, y_bit, ctx)) goto err;
-		}
-	else
-		{
-		if (!BN_bin2bn(buf + 1 + field_len, field_len, y)) goto err;
-		if (BN_ucmp(y, &group->field) >= 0)
-			{
-			ECerr(EC_F_EC_GF2M_SIMPLE_OCT2POINT, EC_R_INVALID_ENCODING);
-			goto err;
-			}
-		if (form == POINT_CONVERSION_HYBRID)
-			{
-			if (!group->meth->field_div(group, yxi, y, x, ctx)) goto err;
-			if (y_bit != BN_is_odd(yxi))
-				{
-				ECerr(EC_F_EC_GF2M_SIMPLE_OCT2POINT, EC_R_INVALID_ENCODING);
-				goto err;
-				}
-			}
-
-		if (!EC_POINT_set_affine_coordinates_GF2m(group, point, x, y, ctx)) goto err;
-		}
-	
-	if (!EC_POINT_is_on_curve(group, point, ctx)) /* test required by X9.62 */
-		{
-		ECerr(EC_F_EC_GF2M_SIMPLE_OCT2POINT, EC_R_POINT_IS_NOT_ON_CURVE);
-		goto err;
-		}
-
-	ret = 1;
-	
- err:
-	BN_CTX_end(ctx);
-	if (new_ctx != NULL)
-		BN_CTX_free(new_ctx);
-	return ret;
-	}
-
-
 /* Computes a + b and stores the result in r.  r could be a or b, a could be b.
  * Uses algorithm A.10.2 of IEEE P1363.
  */
@@ -821,7 +562,7 @@ int ec_GF2m_simple_is_on_curve(const EC_GROUP *group, const EC_POINT *point, BN_
 	field_sqr = group->meth->field_sqr;	
 
 	/* only support affine coordinates */
-	if (!point->Z_is_one) goto err;
+	if (!point->Z_is_one) return -1;
 
 	if (ctx == NULL)
 		{
@@ -871,6 +612,9 @@ int ec_GF2m_simple_cmp(const EC_GROUP *group, const EC_POINT *a, const EC_POINT 
 		{
 		return EC_POINT_is_at_infinity(group, b) ? 0 : 1;
 		}
+
+	if (EC_POINT_is_at_infinity(group, b))
+		return 1;
 	
 	if (a->Z_is_one && b->Z_is_one)
 		{
@@ -971,3 +715,5 @@ int ec_GF2m_simple_field_div(const EC_GROUP *group, BIGNUM *r, const BIGNUM *a, 
 	{
 	return BN_GF2m_mod_div(r, a, b, &group->field, ctx);
 	}
+
+#endif

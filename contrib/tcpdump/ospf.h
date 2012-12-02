@@ -324,5 +324,5 @@ struct ospfhdr {
 #define	ospf_lsa	ospf_un.un_lsa
 
 /* Functions shared by ospf and ospf6 */
-extern int ospf_print_te_lsa(u_int8_t *, u_int);
-extern int ospf_print_grace_lsa(u_int8_t *, u_int);
+extern int ospf_print_te_lsa(const u_int8_t *, u_int);
+extern int ospf_print_grace_lsa(const u_int8_t *, u_int);

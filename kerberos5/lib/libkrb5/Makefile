@@ -531,7 +531,6 @@ SRCS=	acache.c \
 	crypto-pk.c \
 	crypto-rand.c \
 	crypto.c \
-	crypto.h \
 	data.c \
 	deprecated.c \
 	digest.c \
@@ -562,8 +561,6 @@ SRCS=	acache.c \
 	keytab_file.c \
 	keytab_keyfile.c \
 	keytab_memory.c \
-	krb5-v4compat.h \
-	krb5_locl.h \
 	krbhst.c \
 	kuserok.c \
 	log.c \

@@ -167,7 +167,7 @@ AcpiUtDeleteInternalObj (
     case ACPI_TYPE_PROCESSOR:
     case ACPI_TYPE_THERMAL:
 
-        /* Walk the notify handler list for this object */
+        /* Walk the address handler list for this object */
 
         HandlerDesc = Object->CommonNotify.Handler;
         while (HandlerDesc)
@@ -368,7 +368,7 @@ AcpiUtDeleteInternalObjectList (
     ACPI_OPERAND_OBJECT     **InternalObj;
 
 
-    ACPI_FUNCTION_TRACE (UtDeleteInternalObjectList);
+    ACPI_FUNCTION_NAME (UtDeleteInternalObjectList);
 
 
     /* Walk the null-terminated internal list */
@@ -381,7 +381,7 @@ AcpiUtDeleteInternalObjectList (
     /* Free the combined parameter pointer list and object array */
 
     ACPI_FREE (ObjList);
-    return_VOID;
+    return;
 }
 
 
@@ -523,11 +523,12 @@ AcpiUtUpdateObjectReference (
     ACPI_STATUS             Status = AE_OK;
     ACPI_GENERIC_STATE      *StateList = NULL;
     ACPI_OPERAND_OBJECT     *NextObject = NULL;
+    ACPI_OPERAND_OBJECT     *PrevObject;
     ACPI_GENERIC_STATE      *State;
     UINT32                  i;
 
 
-    ACPI_FUNCTION_TRACE_PTR (UtUpdateObjectReference, Object);
+    ACPI_FUNCTION_NAME (UtUpdateObjectReference);
 
 
     while (Object)
@@ -538,7 +539,7 @@ AcpiUtUpdateObjectReference (
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
                 "Object %p is NS handle\n", Object));
-            return_ACPI_STATUS (AE_OK);
+            return (AE_OK);
         }
 
         /*
@@ -552,10 +553,20 @@ AcpiUtUpdateObjectReference (
         case ACPI_TYPE_POWER:
         case ACPI_TYPE_THERMAL:
 
-            /* Update the notify objects for these types (if present) */
-
-            AcpiUtUpdateRefCount (Object->CommonNotify.SystemNotify, Action);
-            AcpiUtUpdateRefCount (Object->CommonNotify.DeviceNotify, Action);
+            /*
+             * Update the notify objects for these types (if present)
+             * Two lists, system and device notify handlers.
+             */
+            for (i = 0; i < ACPI_NUM_NOTIFY_TYPES; i++)
+            {
+                PrevObject = Object->CommonNotify.NotifyList[i];
+                while (PrevObject)
+                {
+                    NextObject = PrevObject->Notify.Next[i];
+                    AcpiUtUpdateRefCount (PrevObject, Action);
+                    PrevObject = NextObject;
+                }
+            }
             break;
 
         case ACPI_TYPE_PACKAGE:
@@ -566,17 +577,43 @@ AcpiUtUpdateObjectReference (
             for (i = 0; i < Object->Package.Count; i++)
             {
                 /*
-                 * Push each element onto the stack for later processing.
-                 * Note: There can be null elements within the package,
-                 * these are simply ignored
+                 * Null package elements are legal and can be simply
+                 * ignored.
                  */
-                Status = AcpiUtCreateUpdateStateAndPush (
-                            Object->Package.Elements[i], Action, &StateList);
-                if (ACPI_FAILURE (Status))
+                NextObject = Object->Package.Elements[i];
+                if (!NextObject)
                 {
-                    goto ErrorExit;
+                    continue;
+                }
+
+                switch (NextObject->Common.Type)
+                {
+                case ACPI_TYPE_INTEGER:
+                case ACPI_TYPE_STRING:
+                case ACPI_TYPE_BUFFER:
+                    /*
+                     * For these very simple sub-objects, we can just
+                     * update the reference count here and continue.
+                     * Greatly increases performance of this operation.
+                     */
+                    AcpiUtUpdateRefCount (NextObject, Action);
+                    break;
+
+                default:
+                    /*
+                     * For complex sub-objects, push them onto the stack
+                     * for later processing (this eliminates recursion.)
+                     */
+                    Status = AcpiUtCreateUpdateStateAndPush (
+                                 NextObject, Action, &StateList);
+                    if (ACPI_FAILURE (Status))
+                    {
+                        goto ErrorExit;
+                    }
+                    break;
                 }
             }
+            NextObject = NULL;
             break;
 
         case ACPI_TYPE_BUFFER_FIELD:
@@ -652,7 +689,7 @@ AcpiUtUpdateObjectReference (
         }
     }
 
-    return_ACPI_STATUS (AE_OK);
+    return (AE_OK);
 
 
 ErrorExit:
@@ -668,7 +705,7 @@ ErrorExit:
         AcpiUtDeleteGenericState (State);
     }
 
-    return_ACPI_STATUS (Status);
+    return (Status);
 }
 
 
@@ -690,14 +727,14 @@ AcpiUtAddReference (
     ACPI_OPERAND_OBJECT     *Object)
 {
 
-    ACPI_FUNCTION_TRACE_PTR (UtAddReference, Object);
+    ACPI_FUNCTION_NAME (UtAddReference);
 
 
     /* Ensure that we have a valid object */
 
     if (!AcpiUtValidInternalObject (Object))
     {
-        return_VOID;
+        return;
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
@@ -707,7 +744,7 @@ AcpiUtAddReference (
     /* Increment the reference count */
 
     (void) AcpiUtUpdateObjectReference (Object, REF_INCREMENT);
-    return_VOID;
+    return;
 }
 
 
@@ -728,7 +765,7 @@ AcpiUtRemoveReference (
     ACPI_OPERAND_OBJECT     *Object)
 {
 
-    ACPI_FUNCTION_TRACE_PTR (UtRemoveReference, Object);
+    ACPI_FUNCTION_NAME (UtRemoveReference);
 
 
     /*
@@ -740,14 +777,14 @@ AcpiUtRemoveReference (
         (ACPI_GET_DESCRIPTOR_TYPE (Object) == ACPI_DESC_TYPE_NAMED))
 
     {
-        return_VOID;
+        return;
     }
 
     /* Ensure that we have a valid object */
 
     if (!AcpiUtValidInternalObject (Object))
     {
-        return_VOID;
+        return;
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_ALLOCATIONS,
@@ -760,7 +797,5 @@ AcpiUtRemoveReference (
      * of all subobjects!)
      */
     (void) AcpiUtUpdateObjectReference (Object, REF_DECREMENT);
-    return_VOID;
+    return;
 }
-
-

@@ -80,6 +80,12 @@ these multi-platform ports:
 http://www.thrysoee.dk/editline/
 http://sourceforge.net/projects/libedit/
 
+LDNS:
+
+LDNS is a DNS BSD-licensed resolver library which supports DNSSEC.
+
+http://nlnetlabs.nl/projects/ldns/
+
 Autoconf:
 
 If you modify configure.ac or configure doesn't exist (eg if you checked
@@ -260,4 +266,4 @@ Please refer to the "reporting bugs" section of the webpage at
 http://www.openssh.com/
 
 
-$Id: INSTALL,v 1.86 2011/05/05 03:48:37 djm Exp $
+$Id: INSTALL,v 1.87 2011/11/04 00:25:25 dtucker Exp $

@@ -376,7 +376,7 @@ AcpiNsDeleteChildren (
  *
  * RETURN:      None.
  *
- * DESCRIPTION: Delete a subtree of the namespace.  This includes all objects
+ * DESCRIPTION: Delete a subtree of the namespace. This includes all objects
  *              stored within the subtree.
  *
  ******************************************************************************/
@@ -472,7 +472,7 @@ AcpiNsDeleteNamespaceSubtree (
  * RETURN:      Status
  *
  * DESCRIPTION: Delete entries within the namespace that are owned by a
- *              specific ID.  Used to delete entire ACPI tables.  All
+ *              specific ID. Used to delete entire ACPI tables. All
  *              reference counts are updated.
  *
  * MUTEX:       Locks namespace during deletion walk.
@@ -584,5 +584,3 @@ AcpiNsDeleteNamespaceByOwner (
     (void) AcpiUtReleaseMutex (ACPI_MTX_NAMESPACE);
     return_VOID;
 }
-
-

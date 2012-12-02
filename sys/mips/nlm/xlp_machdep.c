@@ -419,83 +419,91 @@ xlp_pic_init(void)
 #else
 #define	XLP_MEM_LIM	0xfffff000UL
 #endif
+static vm_paddr_t xlp_mem_excl[] = {
+	0,          0,		/* entry for kernel image, set by xlp_mem_init*/
+	0x0c000000, 0x0d000000,	/* uboot mess */
+	0x10000000, 0x14000000,	/* cms queue and other stuff */
+	0x1fc00000, 0x1fd00000,	/* reset vec */
+	0x1e000000, 0x1e200000,	/* poe buffers */
+};
+
+static int
+mem_exclude_add(vm_paddr_t *avail, vm_paddr_t mstart, vm_paddr_t mend)
+{
+	int nreg = sizeof(xlp_mem_excl)/sizeof(xlp_mem_excl[0]);
+	int i, pos;
+
+	pos = 0;
+	for (i = 0; i < nreg; i += 2) {
+		if (mstart > xlp_mem_excl[i + 1])
+			continue;
+		if (mstart < xlp_mem_excl[i]) {
+			avail[pos++] = mstart;
+			if (mend < xlp_mem_excl[i]) 
+				avail[pos++] = mend;
+			else
+				avail[pos++] = xlp_mem_excl[i];
+		}
+		mstart = xlp_mem_excl[i + 1];
+		if (mend <= mstart)
+			break;
+	}
+	if (mstart < mend) {
+		avail[pos++] = mstart;
+		avail[pos++] = mend;
+	}
+	return (pos);
+}
+
 static void
 xlp_mem_init(void)
 {
-	uint64_t bridgebase = nlm_get_bridge_regbase(0);  /* TOOD: Add other nodes */
-	vm_size_t physsz = 0;
-        uint64_t base, lim, val;
-	int i, j;
+	vm_paddr_t physsz, tmp;
+	uint64_t bridgebase, base, lim, val;
+	int i, j, k, n;
 
+	/* update kernel image area in exclude regions */
+	tmp = (vm_paddr_t)MIPS_KSEG0_TO_PHYS(&_end);
+	tmp = round_page(tmp) + 0x20000; /* round up */
+	xlp_mem_excl[1] = tmp;
+
+	printf("Memory (from DRAM BARs):\n");
+	bridgebase = nlm_get_bridge_regbase(0); /* TODO: Add other nodes */
+	physsz = 0;
         for (i = 0, j = 0; i < 8; i++) {
 		val = nlm_read_bridge_reg(bridgebase, BRIDGE_DRAM_BAR(i));
-		base = ((val >>  12) & 0xfffff) << 20;
+                val = (val >>  12) & 0xfffff;
+		base = val << 20;
 		val = nlm_read_bridge_reg(bridgebase, BRIDGE_DRAM_LIMIT(i));
-                lim = ((val >>  12) & 0xfffff) << 20;
-
-		/* BAR not enabled */
-		if (lim == 0)
+                val = (val >>  12) & 0xfffff;
+		if (val == 0)	/* BAR not enabled */
 			continue;
+                lim = (val + 1) << 20;
+		printf("  BAR %d: %#jx - %#jx : ", i, (intmax_t)base,
+		    (intmax_t)lim);
 
-		/* first bar, start a bit after end */
-		if (base == 0) {
-			base = (vm_paddr_t)MIPS_KSEG0_TO_PHYS(&_end);
-			base = round_page(base) + 0x20000; /* round up */
-			/* TODO : hack to avoid uboot packet mem, network
-			 * interface will write here if not reset correctly
-			 * by u-boot */
-			lim  = 0x0c000000;
-		}
-		if (base >= XLP_MEM_LIM) {
-			printf("Mem [%d]: Ignore %#jx - %#jx\n", i,
-			   (intmax_t)base, (intmax_t)lim);
-			continue;
-		}
-		if (lim > XLP_MEM_LIM) {
-			printf("Mem [%d]: Restrict %#jx -> %#jx\n", i,
-			    (intmax_t)lim, (intmax_t)XLP_MEM_LIM);
-			lim = XLP_MEM_LIM;
-		}
 		if (lim <= base) {
-			printf("Mem[%d]: Malformed %#jx -> %#jx\n", i,
+			printf("\tskipped - malformed %#jx -> %#jx\n",
 			    (intmax_t)base, (intmax_t)lim);
 			continue;
+		} else if (base >= XLP_MEM_LIM) {
+			printf(" skipped - outside usable limit %#jx.\n",
+			    (intmax_t)XLP_MEM_LIM);
+			continue;
+		} else if (lim >= XLP_MEM_LIM) {
+			lim = XLP_MEM_LIM;
+			printf(" truncated to %#jx.\n", (intmax_t)XLP_MEM_LIM);
+		} else
+			printf(" usable\n");
+
+		/* exclude unusable regions from BAR and add rest */
+		n = mem_exclude_add(&phys_avail[j], base, lim);
+		for (k = j; k < j + n; k += 2) {
+			physsz += phys_avail[k + 1] - phys_avail[k];
+			printf("\tMem[%d]: %#jx - %#jx\n", k/2,
+			    (intmax_t)phys_avail[k], (intmax_t)phys_avail[k+1]);
 		}
-
-		/*
-		 * Exclude reset entry memory range 0x1fc00000 - 0x20000000
-		 * from free memory
-		 */
-		if (base < 0x20000000 && lim > 0x1fc00000) {
-			uint64_t base0, lim0, base1, lim1;
-
-			base0 = base;
-			lim0 = 0x1fc00000;
-			base1 = 0x20000000;
-			lim1 = lim;
-
-			if (lim0 > base0) {
-				phys_avail[j++] = (vm_paddr_t)base0;
-				phys_avail[j++] = (vm_paddr_t)lim0;
-				physsz += lim0 - base0;
-				printf("Mem[%d]: %#jx - %#jx (excl reset)\n", i,
-				    (intmax_t)base0, (intmax_t)lim0);
-			}
-			if (lim1 > base1) {
-				phys_avail[j++] = (vm_paddr_t)base1;
-				phys_avail[j++] = (vm_paddr_t)lim1;
-				physsz += lim1 - base1;
-				printf("Mem[%d]: %#jx - %#jx (excl reset)\n", i,
-				    (intmax_t)base1, (intmax_t)lim1);
-			}
-		} else {
-			phys_avail[j++] = (vm_paddr_t)base;
-			phys_avail[j++] = (vm_paddr_t)lim;
-			physsz += lim - base;
-			printf("Mem[%d]: %#jx - %#jx\n", i,
-			    (intmax_t)base, (intmax_t)lim);
-		}
-
+		j = k;
         }
 
 	/* setup final entry with 0 */

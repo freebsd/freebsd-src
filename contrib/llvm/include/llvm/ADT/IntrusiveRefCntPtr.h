@@ -21,9 +21,9 @@
 #ifndef LLVM_ADT_INTRUSIVE_REF_CNT_PTR
 #define LLVM_ADT_INTRUSIVE_REF_CNT_PTR
 
-#include <cassert>
-
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/Compiler.h"
+#include <memory>
 
 namespace llvm {
 
@@ -34,7 +34,7 @@ namespace llvm {
 /// RefCountedBase - A generic base class for objects that wish to
 ///  have their lifetimes managed using reference counts. Classes
 ///  subclass RefCountedBase to obtain such functionality, and are
-///  typically handled with IntrusivePtr "smart pointers" (see below)
+///  typically handled with IntrusiveRefCntPtr "smart pointers" (see below)
 ///  which automatically handle the management of reference counts.
 ///  Objects that subclass RefCountedBase should not be allocated on
 ///  the stack, as invoking "delete" (which is called when the
@@ -46,6 +46,7 @@ namespace llvm {
 
   public:
     RefCountedBase() : ref_cnt(0) {}
+    RefCountedBase(const RefCountedBase &) : ref_cnt(0) {}
 
     void Retain() const { ++ref_cnt; }
     void Release() const {
@@ -64,9 +65,12 @@ namespace llvm {
 //===----------------------------------------------------------------------===//
   class RefCountedBaseVPTR {
     mutable unsigned ref_cnt;
+    virtual void anchor();
 
   protected:
     RefCountedBaseVPTR() : ref_cnt(0) {}
+    RefCountedBaseVPTR(const RefCountedBaseVPTR &) : ref_cnt(0) {}
+
     virtual ~RefCountedBaseVPTR() {}
 
     void Retain() const { ++ref_cnt; }
@@ -76,9 +80,15 @@ namespace llvm {
     }
 
     template <typename T>
-    friend class IntrusiveRefCntPtr;
+    friend struct IntrusiveRefCntPtrInfo;
   };
 
+  
+  template <typename T> struct IntrusiveRefCntPtrInfo {
+    static void retain(T *obj) { obj->Retain(); }
+    static void release(T *obj) { obj->Release(); }
+  };
+  
 //===----------------------------------------------------------------------===//
 /// IntrusiveRefCntPtr - A template class that implements a "smart pointer"
 ///  that assumes the wrapped object has a reference count associated
@@ -105,7 +115,7 @@ namespace llvm {
 
     explicit IntrusiveRefCntPtr() : Obj(0) {}
 
-    explicit IntrusiveRefCntPtr(T* obj) : Obj(obj) {
+    IntrusiveRefCntPtr(T* obj) : Obj(obj) {
       retain();
     }
 
@@ -113,25 +123,25 @@ namespace llvm {
       retain();
     }
 
+#if LLVM_USE_RVALUE_REFERENCES
+    IntrusiveRefCntPtr(IntrusiveRefCntPtr&& S) : Obj(S.Obj) {
+      S.Obj = 0;
+    }
+
+    template <class X>
+    IntrusiveRefCntPtr(IntrusiveRefCntPtr<X>&& S) : Obj(S.getPtr()) {
+      S.Obj = 0;
+    }
+#endif
+
     template <class X>
     IntrusiveRefCntPtr(const IntrusiveRefCntPtr<X>& S)
       : Obj(S.getPtr()) {
       retain();
     }
 
-    IntrusiveRefCntPtr& operator=(const IntrusiveRefCntPtr& S) {
-      replace(S.getPtr());
-      return *this;
-    }
-
-    template <class X>
-    IntrusiveRefCntPtr& operator=(const IntrusiveRefCntPtr<X>& S) {
-      replace(S.getPtr());
-      return *this;
-    }
-
-    IntrusiveRefCntPtr& operator=(T * S) {
-      replace(S);
+    IntrusiveRefCntPtr& operator=(IntrusiveRefCntPtr S) {
+      swap(S);
       return *this;
     }
 
@@ -153,18 +163,19 @@ namespace llvm {
       other.Obj = Obj;
       Obj = tmp;
     }
-    
+
+    void reset() {
+      release();
+      Obj = 0;
+    }
+
     void resetWithoutRelease() {
       Obj = 0;
     }
 
   private:
-    void retain() { if (Obj) Obj->Retain(); }
-    void release() { if (Obj) Obj->Release(); }
-
-    void replace(T* S) {
-      this_type(S).swap(*this);
-    }
+    void retain() { if (Obj) IntrusiveRefCntPtrInfo<T>::retain(Obj); }
+    void release() { if (Obj) IntrusiveRefCntPtrInfo<T>::release(Obj); }
   };
 
   template<class T, class U>

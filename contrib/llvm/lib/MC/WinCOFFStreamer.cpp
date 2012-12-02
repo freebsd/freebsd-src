@@ -25,13 +25,13 @@
 #include "llvm/MC/MCSectionCOFF.h"
 #include "llvm/MC/MCWin64EH.h"
 #include "llvm/MC/MCAsmBackend.h"
-#include "llvm/ADT/StringMap.h"
 
 #include "llvm/Support/COFF.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
+
 using namespace llvm;
 
 namespace {
@@ -60,13 +60,14 @@ public:
   virtual void EmitCOFFSymbolStorageClass(int StorageClass);
   virtual void EmitCOFFSymbolType(int Type);
   virtual void EndCOFFSymbolDef();
+  virtual void EmitCOFFSecRel32(MCSymbol const *Symbol);
   virtual void EmitELFSize(MCSymbol *Symbol, const MCExpr *Value);
   virtual void EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                 unsigned ByteAlignment);
   virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                      unsigned ByteAlignment);
   virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
-                            unsigned Size,unsigned ByteAlignment);
+                            uint64_t Size,unsigned ByteAlignment);
   virtual void EmitTBSSSymbol(const MCSection *Section, MCSymbol *Symbol,
                               uint64_t Size, unsigned ByteAlignment);
   virtual void EmitBytes(StringRef Data, unsigned AddrSpace);
@@ -77,7 +78,7 @@ public:
   virtual void EmitFileDirective(StringRef Filename);
   virtual void EmitInstruction(const MCInst &Instruction);
   virtual void EmitWin64EHHandlerData();
-  virtual void Finish();
+  virtual void FinishImpl();
 
 private:
   virtual void EmitInstToFragment(const MCInst &Inst) {
@@ -251,7 +252,6 @@ void WinCOFFStreamer::EmitSymbolAttribute(MCSymbol *Symbol,
 
   default:
     llvm_unreachable("unsupported attribute");
-    break;
   }
 }
 
@@ -293,6 +293,16 @@ void WinCOFFStreamer::EndCOFFSymbolDef() {
   CurSymbol = NULL;
 }
 
+void WinCOFFStreamer::EmitCOFFSecRel32(MCSymbol const *Symbol)
+{
+  MCDataFragment *DF = getOrCreateDataFragment();
+
+  DF->addFixup(MCFixup::Create(DF->getContents().size(),
+                               MCSymbolRefExpr::Create (Symbol, getContext ()),
+                               FK_SecRel_4));
+  DF->getContents().resize(DF->getContents().size() + 4, 0);
+}
+
 void WinCOFFStreamer::EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) {
   llvm_unreachable("not implemented");
 }
@@ -314,7 +324,7 @@ void WinCOFFStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
 }
 
 void WinCOFFStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
-                                   unsigned Size,unsigned ByteAlignment) {
+                                   uint64_t Size,unsigned ByteAlignment) {
   llvm_unreachable("not implemented");
 }
 
@@ -389,9 +399,9 @@ void WinCOFFStreamer::EmitWin64EHHandlerData() {
   MCWin64EHUnwindEmitter::EmitUnwindInfo(*this, getCurrentW64UnwindInfo());
 }
 
-void WinCOFFStreamer::Finish() {
+void WinCOFFStreamer::FinishImpl() {
   EmitW64Tables();
-  MCObjectStreamer::Finish();
+  MCObjectStreamer::FinishImpl();
 }
 
 namespace llvm

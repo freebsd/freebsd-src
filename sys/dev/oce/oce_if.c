@@ -248,7 +248,7 @@ oce_attach(device_t dev)
 
 	rc = oce_hw_start(sc);
 	if (rc)
-		goto lro_free;;
+		goto lro_free;
 
 	sc->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
 				oce_add_vlan, sc, EVENTHANDLER_PRI_FIRST);
@@ -1183,7 +1183,9 @@ oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m, struct oce_wq *wq)
 			}  
 			break;
 		}
-		drbr_stats_update(ifp, next->m_pkthdr.len, next->m_flags);
+		ifp->if_obytes += next->m_pkthdr.len;
+		if (next->m_flags & M_MCAST)
+			ifp->if_omcasts++;
 		ETHER_BPF_MTAP(ifp, next);
 		next = drbr_dequeue(ifp, br);
 	}
@@ -1650,7 +1652,7 @@ oce_attach_ifp(POCE_SOFTC sc)
 #endif
 	
 	sc->ifp->if_capenable = sc->ifp->if_capabilities;
-	sc->ifp->if_baudrate = IF_Gbps(10UL);
+	if_initbaudrate(sc->ifp, IF_Gbps(10));
 
 	ether_ifattach(sc->ifp, sc->macaddr.mac_addr);
 	

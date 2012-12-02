@@ -62,7 +62,7 @@
 #include "opt_isp.h"
 
 #define	ISP_PLATFORM_VERSION_MAJOR	7
-#define	ISP_PLATFORM_VERSION_MINOR	0
+#define	ISP_PLATFORM_VERSION_MINOR	10
 
 /*
  * Efficiency- get rid of SBus code && tests unless we need them.
@@ -74,6 +74,16 @@
 #endif
 
 #define	ISP_IFLAGS	INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE
+
+#define	N_XCMDS		64
+#define	XCMD_SIZE	512
+struct ispsoftc;
+typedef union isp_ecmd {
+	union isp_ecmd *	next;
+	uint8_t			data[XCMD_SIZE];
+} isp_ecmd_t;
+isp_ecmd_t *	isp_get_ecmd(struct ispsoftc *);
+void		isp_put_ecmd(struct ispsoftc *, isp_ecmd_t *);
 
 #ifdef	ISP_TARGET_MODE
 /* Not quite right, but there was no bump for this change */
@@ -92,19 +102,31 @@ typedef struct {
 	void *		next;
 	uint32_t	orig_datalen;
 	uint32_t	bytes_xfered;
-	uint32_t	last_xframt;
-	uint32_t	tag;
+	uint32_t	bytes_in_transit;
+	uint32_t	tag;		/* typically f/w RX_ID */
 	uint32_t	lun;
 	uint32_t	nphdl;
 	uint32_t	sid;
 	uint32_t	portid;
+	uint16_t	rxid;	/* wire rxid */
+	uint16_t	oxid;	/* wire oxid */
+	uint16_t	word3;	/* PRLI word3 params */
+	uint16_t	ctcnt;	/* number of CTIOs currently active */
+	uint8_t		seqno;	/* CTIO sequence number */
 	uint32_t
-			oxid	: 16,
-			cdb0	: 8,
-				: 1,
-			dead	: 1,
-			tattr	: 3,
-			state	: 3;
+			srr_notify_rcvd	: 1,
+			cdb0		: 8,
+			sendst		: 1,
+			dead		: 1,
+			tattr		: 3,
+			state		: 3;
+	void *		ests;
+	/*
+	 * The current SRR notify copy
+	 */
+	uint8_t		srr[64];	/*  sb QENTRY_LEN, but order of definitions is wrong */
+	void *		srr_ccb;
+	uint32_t	nsrr;
 } atio_private_data_t;
 #define	ATPD_STATE_FREE			0
 #define	ATPD_STATE_ATIO			1
@@ -112,6 +134,14 @@ typedef struct {
 #define	ATPD_STATE_CTIO			3
 #define	ATPD_STATE_LAST_CTIO		4
 #define	ATPD_STATE_PDON			5
+
+#define	ATPD_CCB_OUTSTANDING		16
+
+#define	ATPD_SEQ_MASK			0x7f
+#define	ATPD_SEQ_NOTIFY_CAM		0x80
+#define	ATPD_SET_SEQNO(hdrp, atp)	((isphdr_t *)hdrp)->rqs_seqno &= ~ATPD_SEQ_MASK, ((isphdr_t *)hdrp)->rqs_seqno |= (atp)->seqno
+#define	ATPD_GET_SEQNO(hdrp)		(((isphdr_t *)hdrp)->rqs_seqno & ATPD_SEQ_MASK)
+#define	ATPD_GET_NCAM(hdrp)		((((isphdr_t *)hdrp)->rqs_seqno & ATPD_SEQ_NOTIFY_CAM) != 0)
 
 typedef union inot_private_data inot_private_data_t;
 union inot_private_data {
@@ -122,15 +152,24 @@ union inot_private_data {
 		uint32_t tag_id, seq_id;
 	} rd;
 };
+typedef struct isp_timed_notify_ack {
+	void *isp;
+	void *not;
+	uint8_t data[64];	 /* sb QENTRY_LEN, but order of definitions is wrong */
+} isp_tna_t;
 
+TAILQ_HEAD(isp_ccbq, ccb_hdr);
 typedef struct tstate {
 	SLIST_ENTRY(tstate) next;
 	struct cam_path *owner;
+	struct isp_ccbq waitq;		/* waiting CCBs */
 	struct ccb_hdr_slist atios;
 	struct ccb_hdr_slist inots;
 	uint32_t hold;
-	int atio_count;
-	int inot_count;
+	uint32_t
+		enabled		: 1,
+		atio_count	: 15,
+		inot_count	: 15;
 	inot_private_data_t *	restart_queue;
 	inot_private_data_t *	ntfree;
 	inot_private_data_t	ntpool[ATPDPSIZE];
@@ -148,12 +187,31 @@ typedef struct tstate {
  */
 struct isp_pcmd {
 	struct isp_pcmd *	next;
-	bus_dmamap_t 		dmap;	/* dma map for this command */
-	struct ispsoftc *	isp;	/* containing isp */
-	struct callout		wdog;	/* watchdog timer */
+	bus_dmamap_t 		dmap;		/* dma map for this command */
+	struct ispsoftc *	isp;		/* containing isp */
+	struct callout		wdog;		/* watchdog timer */
+	uint32_t		datalen;	/* data length for this command (target mode only) */
+	uint8_t			totslen;	/* sense length on status response */
+	uint8_t			cumslen;	/* sense length on status response */
+	uint8_t 		crn;		/* command reference number */
 };
 #define	ISP_PCMD(ccb)		(ccb)->ccb_h.spriv_ptr1
 #define	PISP_PCMD(ccb)		((struct isp_pcmd *)ISP_PCMD(ccb))
+
+/*
+ * Per nexus info.
+ */
+struct isp_nexus {
+	struct isp_nexus *	next;
+	uint32_t
+		crnseed	:	8;	/* next command reference number */
+	uint32_t
+		tgt	:	16,	/* TGT for target */
+		lun	:	16;	/* LUN for target */
+};
+#define	NEXUS_HASH_WIDTH	32
+#define	INITIAL_NEXUS_COUNT	MAX_FC_TARG
+#define	NEXUS_HASH(tgt, lun)	((tgt + lun) % NEXUS_HASH_WIDTH)
 
 /*
  * Per channel information
@@ -172,6 +230,11 @@ struct isp_fc {
 	uint32_t loop_down_time;
 	uint32_t loop_down_limit;
 	uint32_t gone_device_time;
+	/*
+	 * Per target/lun info- just to keep a per-ITL nexus crn count
+	 */
+	struct isp_nexus *nexus_hash[NEXUS_HASH_WIDTH];
+	struct isp_nexus *nexus_free_list;
 	uint32_t
 #ifdef	ISP_TARGET_MODE
 #ifdef	ISP_INTERNAL_TARGET
@@ -197,6 +260,9 @@ struct isp_fc {
 	struct tslist lun_hash[LUN_HASH_SIZE];
 #ifdef	ISP_INTERNAL_TARGET
 	struct proc *		target_proc;
+#endif
+#if defined(DEBUG)
+	unsigned int inject_lost_data_frame;
 #endif
 #endif
 };
@@ -261,7 +327,7 @@ struct isposinfo {
 #else
 				: 2,
 #endif
-		forcemulti	: 1,
+		sixtyfourbit	: 1,	/* sixtyfour bit platform */
 		timer_active	: 1,
 		autoconf	: 1,
 		ehook_active	: 1,
@@ -283,6 +349,10 @@ struct isposinfo {
 #ifdef	ISP_TARGET_MODE
 	cam_status *		rptr;
 #endif
+
+	bus_addr_t		ecmd_dma;
+	isp_ecmd_t *		ecmd_base;
+	isp_ecmd_t *		ecmd_free;
 
 	/*
 	 * Per-type private storage...
@@ -314,6 +384,7 @@ struct isposinfo {
 		ISP_FC_PC(isp, chan)-> tag = val;	\
 	}
 
+#define	FCP_NEXT_CRN	isp_fcp_next_crn
 #define	isp_lock	isp_osinfo.lock
 #define	isp_bus_tag	isp_osinfo.bus_tag
 #define	isp_bus_handle	isp_osinfo.bus_handle
@@ -327,7 +398,6 @@ struct isposinfo {
 /*
  * Required Macros/Defines
  */
-
 #define	ISP_FC_SCRLEN		0x1000
 
 #define	ISP_MEMZERO(a, b)	memset(a, 0, b)
@@ -445,20 +515,17 @@ default:							\
 #define	XS_STSP(ccb)		(&(ccb)->scsi_status)
 #define	XS_SNSP(ccb)		(&(ccb)->sense_data)
 
-#define	XS_SNSLEN(ccb)		\
-	imin((sizeof((ccb)->sense_data)), ccb->sense_len - ccb->sense_resid)
+#define	XS_TOT_SNSLEN(ccb)	ccb->sense_len
+#define	XS_CUR_SNSLEN(ccb)	(ccb->sense_len - ccb->sense_resid)
 
 #define	XS_SNSKEY(ccb)		(scsi_get_sense_key(&(ccb)->sense_data, \
-				 ccb->sense_len - ccb->sense_resid, 	\
-				 /*show_errors*/ 1))
+				 ccb->sense_len - ccb->sense_resid, 1))
 
 #define	XS_SNSASC(ccb)		(scsi_get_asc(&(ccb)->sense_data,	\
-				 ccb->sense_len - ccb->sense_resid, 	\
-				 /*show_errors*/ 1))
+				 ccb->sense_len - ccb->sense_resid, 1))
 
 #define	XS_SNSASCQ(ccb)		(scsi_get_ascq(&(ccb)->sense_data,	\
-				 ccb->sense_len - ccb->sense_resid, 	\
-				 /*show_errors*/ 1))
+				 ccb->sense_len - ccb->sense_resid, 1))
 #define	XS_TAG_P(ccb)	\
 	(((ccb)->ccb_h.flags & CAM_TAG_ACTION_VALID) && \
 	 (ccb)->tag_action != CAM_TAG_ACTION_NONE)
@@ -469,8 +536,7 @@ default:							\
 		
 
 #define	XS_SETERR(ccb, v)	(ccb)->ccb_h.status &= ~CAM_STATUS_MASK, \
-				(ccb)->ccb_h.status |= v, \
-				(ccb)->ccb_h.spriv_field0 |= ISP_SPRIV_ERRSET
+				(ccb)->ccb_h.status |= v
 
 #	define	HBA_NOERROR		CAM_REQ_INPROG
 #	define	HBA_BOTCH		CAM_UNREC_HBA_ERROR
@@ -485,21 +551,31 @@ default:							\
 
 #define	XS_ERR(ccb)		((ccb)->ccb_h.status & CAM_STATUS_MASK)
 
-#define	XS_NOERR(ccb)		\
-	(((ccb)->ccb_h.spriv_field0 & ISP_SPRIV_ERRSET) == 0 || \
-	 ((ccb)->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG)
+#define	XS_NOERR(ccb)		(((ccb)->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG)
 
-#define	XS_INITERR(ccb)		\
-	XS_SETERR(ccb, CAM_REQ_INPROG), (ccb)->ccb_h.spriv_field0 = 0
+#define	XS_INITERR(ccb)		XS_SETERR(ccb, CAM_REQ_INPROG), ccb->sense_resid = ccb->sense_len
 
-#define	XS_SAVE_SENSE(xs, sense_ptr, slen)	do {			\
-		(xs)->ccb_h.status |= CAM_AUTOSNS_VALID;		\
-		memset(&(xs)->sense_data, 0, sizeof((xs)->sense_data));	\
-		memcpy(&(xs)->sense_data, sense_ptr, imin(XS_SNSLEN(xs),\
-		       slen)); 						\
-		if (slen < (xs)->sense_len) 				\
-			(xs)->sense_resid = (xs)->sense_len - slen;	\
-	} while (0);
+#define	XS_SAVE_SENSE(xs, sense_ptr, totslen, slen)	do {			\
+		uint32_t tlen = slen;						\
+		if (tlen > (xs)->sense_len)					\
+			tlen = (xs)->sense_len;					\
+		PISP_PCMD(xs)->totslen = imin((xs)->sense_len, totslen);	\
+		PISP_PCMD(xs)->cumslen = tlen;					\
+		memcpy(&(xs)->sense_data, sense_ptr, tlen);			\
+		(xs)->sense_resid = (xs)->sense_len - tlen;			\
+		(xs)->ccb_h.status |= CAM_AUTOSNS_VALID;			\
+	} while (0)
+
+#define	XS_SENSE_APPEND(xs, xsnsp, xsnsl)	do {				\
+		uint32_t off = PISP_PCMD(xs)->cumslen;				\
+		uint8_t *ptr = &((uint8_t *)(&(xs)->sense_data))[off];		\
+		uint32_t amt = imin(xsnsl, PISP_PCMD(xs)->totslen - off);	\
+		if (amt) {							\
+			memcpy(ptr, xsnsp, amt);				\
+			(xs)->sense_resid -= amt;				\
+			PISP_PCMD(xs)->cumslen += amt;				\
+		}								\
+	} while (0)
 
 #define	XS_SENSE_VALID(xs)	(((xs)->ccb_h.status & CAM_AUTOSNS_VALID) != 0)
 
@@ -620,25 +696,6 @@ extern int isp_autoconfig;
 /*
  * Platform private flags
  */
-#define	ISP_SPRIV_ERRSET	0x1
-#define	ISP_SPRIV_TACTIVE	0x2
-#define	ISP_SPRIV_DONE		0x8
-#define	ISP_SPRIV_WPEND		0x10
-
-#define	XS_S_TACTIVE(sccb)	(sccb)->ccb_h.spriv_field0 |= ISP_SPRIV_TACTIVE
-#define	XS_C_TACTIVE(sccb)	(sccb)->ccb_h.spriv_field0 &= ~ISP_SPRIV_TACTIVE
-#define	XS_TACTIVE_P(sccb)	((sccb)->ccb_h.spriv_field0 & ISP_SPRIV_TACTIVE)
-
-#define	XS_CMD_S_DONE(sccb)	(sccb)->ccb_h.spriv_field0 |= ISP_SPRIV_DONE
-#define	XS_CMD_C_DONE(sccb)	(sccb)->ccb_h.spriv_field0 &= ~ISP_SPRIV_DONE
-#define	XS_CMD_DONE_P(sccb)	((sccb)->ccb_h.spriv_field0 & ISP_SPRIV_DONE)
-
-#define	XS_CMD_S_WPEND(sccb)	(sccb)->ccb_h.spriv_field0 |= ISP_SPRIV_WPEND
-#define	XS_CMD_C_WPEND(sccb)	(sccb)->ccb_h.spriv_field0 &= ~ISP_SPRIV_WPEND
-#define	XS_CMD_WPEND_P(sccb)	((sccb)->ccb_h.spriv_field0 & ISP_SPRIV_WPEND)
-
-
-#define	XS_CMD_S_CLEAR(sccb)	(sccb)->ccb_h.spriv_field0 = 0
 
 /*
  * Platform Library Functions
@@ -654,6 +711,7 @@ int isp_fc_scratch_acquire(ispsoftc_t *, int);
 int isp_mstohz(int);
 void isp_platform_intr(void *);
 void isp_common_dmateardown(ispsoftc_t *, struct ccb_scsiio *, uint32_t);
+int isp_fcp_next_crn(ispsoftc_t *, uint8_t *, XS_T *);
 
 /*
  * Platform Version specific defines
@@ -667,9 +725,6 @@ void isp_common_dmateardown(ispsoftc_t *, struct ccb_scsiio *, uint32_t);
 
 #define	isp_sim_alloc(a, b, c, d, e, f, g, h)	\
 	cam_sim_alloc(a, b, c, d, e, &(d)->isp_osinfo.lock, f, g, h)
-
-/* Should be BUS_SPACE_MAXSIZE, but MAXPHYS is larger than BUS_SPACE_MAXSIZE */
-#define ISP_NSEGS ((MAXPHYS / PAGE_SIZE) + 1)  
 
 #define	ISP_PATH_PRT(i, l, p, ...)					\
 	if ((l) == ISP_LOGALL || ((l)& (i)->isp_dblev) != 0) {		\

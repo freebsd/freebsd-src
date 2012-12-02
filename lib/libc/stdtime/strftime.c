@@ -67,7 +67,7 @@ extern char *	tzname[];
 #define PAD_SPACE	2
 #define PAD_ZERO	3
 
-static const char* fmt_padding[][4] = {
+static const char fmt_padding[][4][5] = {
 	/* DEFAULT,	LESS,	SPACE,	ZERO */
 #define PAD_FMT_MONTHDAY	0
 #define PAD_FMT_HMS		0

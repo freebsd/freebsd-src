@@ -33,7 +33,7 @@
  * XXX We make no attempt at present to take advantage of the v6 memroy
  * architecture or physically tagged cache.
  */
- 
+
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
@@ -44,9 +44,11 @@ __FBSDID("$FreeBSD$");
  * addresses that are about to change.
  */
 ENTRY(arm11_setttb)
+#ifdef	PMAP_CACHE_VIVT
 	stmfd	sp!, {r0, lr}
 	bl	_C_LABEL(armv5_idcache_wbinv_all)
 	ldmfd	sp!, {r0, lr}
+#endif
 
 	mcr	p15, 0, r0, c2, c0, 0	/* load new TTB */
 
@@ -122,3 +124,8 @@ ENTRY(arm11_tlb_flushD_SE)
 ENTRY(arm11_drain_writebuf)
 	mcr	p15, 0, r0, c7, c10, 4	/* drain write buffer */
 	mov	pc, lr
+
+ENTRY_NP(arm11_sleep)
+	mov	r0, #0
+	mcr	p15, 0, r0, c7, c0, 4   /* wait for interrupt */
+	RET

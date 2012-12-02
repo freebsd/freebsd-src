@@ -102,7 +102,7 @@ typedef enum _SCI_BASE_PHY_STATES
    SCI_BASE_PHY_STATE_STARTING,
 
    /**
-    * This state indicates the the phy is now ready.  Thus, the user
+    * This state indicates the phy is now ready.  Thus, the user
     * is able to perform IO operations utilizing this phy as long as it
     * is currently part of a valid port.
     * This state is entered from the STARTING state.

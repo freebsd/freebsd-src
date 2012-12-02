@@ -69,7 +69,6 @@ struct tree {
 	ssize_t			index;
 };
 
-int			 yyparse(void);
 int			 yywrap(void);
 
 int			 fileindex;
@@ -1085,7 +1084,7 @@ escape(const char *str)
 }
 
 /* ARGSUSED */
-void
+static void
 sigchld(int signo)
 {
 	pid_t pid;

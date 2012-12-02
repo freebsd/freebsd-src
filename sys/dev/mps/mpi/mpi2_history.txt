@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 LSI Corp.
+ * Copyright (c) 2011, 2012 LSI Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
  Fusion-MPT MPI 2.0 Header File Change History
  ==============================
 
- Copyright (c) 2000-2011 LSI Corporation.
+ Copyright (c) 2000-2012 LSI Corporation.
 
  ---------------------------------------
  Header Set Release Version:    02.00.18

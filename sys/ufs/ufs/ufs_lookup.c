@@ -770,11 +770,13 @@ ufs_dirbad(ip, offset, how)
 
 	mp = ITOV(ip)->v_mount;
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
-		panic("ufs_dirbad: %s: bad dir ino %lu at offset %ld: %s",
-		    mp->mnt_stat.f_mntonname, (u_long)ip->i_number, (long)offset, how);
+		panic("ufs_dirbad: %s: bad dir ino %ju at offset %ld: %s",
+		    mp->mnt_stat.f_mntonname, (uintmax_t)ip->i_number,
+		    (long)offset, how);
 	else
-		(void)printf("%s: bad dir ino %lu at offset %ld: %s\n",
-		    mp->mnt_stat.f_mntonname, (u_long)ip->i_number, (long)offset, how);
+		(void)printf("%s: bad dir ino %ju at offset %ld: %s\n",
+		    mp->mnt_stat.f_mntonname, (uintmax_t)ip->i_number,
+		    (long)offset, how);
 }
 
 /*
@@ -1133,7 +1135,7 @@ ufs_direnter(dvp, tvp, dirp, cnp, newdirbp, isrename)
 			ufsdirhash_dirtrunc(dp, dp->i_endoff);
 #endif
 		(void) UFS_TRUNCATE(dvp, (off_t)dp->i_endoff,
-		    IO_NORMAL | IO_SYNC, cr, td);
+		    IO_NORMAL | IO_SYNC, cr);
 		if (tvp != NULL)
 			vn_lock(tvp, LK_EXCLUSIVE | LK_RETRY);
 	}
@@ -1209,8 +1211,8 @@ ufs_dirremove(dvp, ip, flags, isrmdir)
 		ufsdirhash_remove(dp, rep, dp->i_offset);
 #endif
 	if (ip && rep->d_ino != ip->i_number)
-		panic("ufs_dirremove: ip %d does not match dirent ino %d\n",
-		    ip->i_number, rep->d_ino);
+		panic("ufs_dirremove: ip %ju does not match dirent ino %ju\n",
+		    (uintmax_t)ip->i_number, (uintmax_t)rep->d_ino);
 	if (dp->i_count == 0) {
 		/*
 		 * First entry in block: set d_ino to zero.

@@ -38,11 +38,14 @@ __FBSDID("$FreeBSD$");
 
 #include <cam/cam_periph.h>
 
+#include <dev/led/led.h>
+
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
 
 #include <dev/isci/scil/scic_logger.h>
 #include <dev/isci/scil/scic_library.h>
+#include <dev/isci/scil/scic_sgpio.h>
 #include <dev/isci/scil/scic_user_callback.h>
 
 #include <dev/isci/scil/scif_controller.h>
@@ -180,11 +183,12 @@ static int
 isci_detach(device_t device)
 {
 	struct isci_softc *isci = DEVICE2SOFTC(device);
-	int i;
+	int i, phy;
 
 	for (i = 0; i < isci->controller_count; i++) {
 		struct ISCI_CONTROLLER *controller = &isci->controllers[i];
 		SCI_STATUS status;
+		void *unmap_buffer;
 
 		if (controller->scif_controller_handle != NULL) {
 			scic_controller_disable_interrupts(
@@ -218,6 +222,21 @@ isci_detach(device_t device)
 
 		if (controller->remote_device_memory != NULL)
 			free(controller->remote_device_memory, M_ISCI);
+
+		for (phy = 0; phy < SCI_MAX_PHYS; phy++) {
+			if (controller->phys[phy].cdev_fault)
+				led_destroy(controller->phys[phy].cdev_fault);
+
+			if (controller->phys[phy].cdev_locate)
+				led_destroy(controller->phys[phy].cdev_locate);
+		}
+
+		while (1) {
+			sci_pool_get(controller->unmap_buffer_pool, unmap_buffer);
+			if (unmap_buffer == NULL)
+				break;
+			contigfree(unmap_buffer, PAGE_SIZE, M_ISCI);
+		}
 	}
 
 	/* The SCIF controllers have been stopped, so we can now

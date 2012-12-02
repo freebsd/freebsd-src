@@ -341,7 +341,6 @@ do_execve(td, args, mac_p)
 #endif
 	struct vnode *textvp = NULL, *binvp = NULL;
 	int credential_changing;
-	int vfslocked;
 	int textset;
 #ifdef MAC
 	struct label *interpvplabel = NULL;
@@ -352,7 +351,6 @@ do_execve(td, args, mac_p)
 #endif
 	static const char fexecv_proc_title[] = "(fexecv)";
 
-	vfslocked = 0;
 	imgp = &image_params;
 
 	/*
@@ -412,7 +410,7 @@ do_execve(td, args, mac_p)
 	 */
 	if (args->fname != NULL) {
 		NDINIT(&nd, LOOKUP, ISOPEN | LOCKLEAF | FOLLOW | SAVENAME
-		    | MPSAFE | AUDITVNODE1, UIO_SYSSPACE, args->fname, td);
+		    | AUDITVNODE1, UIO_SYSSPACE, args->fname, td);
 	}
 
 	SDT_PROBE(proc, kernel, , exec, args->fname, 0, 0, 0, 0 );
@@ -435,7 +433,6 @@ interpret:
 		if (error)
 			goto exec_fail;
 
-		vfslocked = NDHASGIANT(&nd);
 		binvp  = nd.ni_vp;
 		imgp->vp = binvp;
 	} else {
@@ -443,11 +440,12 @@ interpret:
 		/*
 		 * Some might argue that CAP_READ and/or CAP_MMAP should also
 		 * be required here; such arguments will be entertained.
+		 *
+		 * Descriptors opened only with O_EXEC or O_RDONLY are allowed.
 		 */
-		error = fgetvp_read(td, args->fd, CAP_FEXECVE, &binvp);
+		error = fgetvp_exec(td, args->fd, CAP_FEXECVE, &binvp);
 		if (error)
 			goto exec_fail;
-		vfslocked = VFS_LOCK_GIANT(binvp->v_mount);
 		vn_lock(binvp, LK_EXCLUSIVE | LK_RETRY);
 		AUDIT_ARG_VNODE1(binvp);
 		imgp->vp = binvp;
@@ -471,9 +469,8 @@ interpret:
 	 * Remember if this was set before and unset it in case this is not
 	 * actually an executable image.
 	 */
-	textset = imgp->vp->v_vflag & VV_TEXT;
-	ASSERT_VOP_ELOCKED(imgp->vp, "vv_text");
-	imgp->vp->v_vflag |= VV_TEXT;
+	textset = VOP_IS_TEXT(imgp->vp);
+	VOP_SET_TEXT(imgp->vp);
 
 	error = exec_map_first_page(imgp);
 	if (error)
@@ -504,10 +501,8 @@ interpret:
 
 	if (error) {
 		if (error == -1) {
-			if (textset == 0) {
-				ASSERT_VOP_ELOCKED(imgp->vp, "vv_text");
-				imgp->vp->v_vflag &= ~VV_TEXT;
-			}
+			if (textset == 0)
+				VOP_UNSET_TEXT(imgp->vp);
 			error = ENOEXEC;
 		}
 		goto exec_fail_dealloc;
@@ -525,7 +520,7 @@ interpret:
 		 * VV_TEXT will be set. The vnode lock is held over this
 		 * entire period so nothing should illegitimately be blocked.
 		 */
-		imgp->vp->v_vflag &= ~VV_TEXT;
+		VOP_UNSET_TEXT(imgp->vp);
 		/* free name buffer and old vnode */
 		if (args->fname != NULL)
 			NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -539,10 +534,8 @@ interpret:
 		vput(binvp);
 		vm_object_deallocate(imgp->object);
 		imgp->object = NULL;
-		VFS_UNLOCK_GIANT(vfslocked);
-		vfslocked = 0;
 		/* set new name to that of the interpreter */
-		NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME | MPSAFE,
+		NDINIT(&nd, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
 		    UIO_SYSSPACE, imgp->interpreter_name, td);
 		args->fname = imgp->interpreter_name;
 		goto interpret;
@@ -692,7 +685,8 @@ interpret:
 		setsugid(p);
 
 #ifdef KTRACE
-		if (priv_check_cred(oldcred, PRIV_DEBUG_DIFFCRED, 0))
+		if (p->p_tracecred != NULL &&
+		    priv_check_cred(p->p_tracecred, PRIV_DEBUG_DIFFCRED, 0))
 			ktrprocexec(p, &tracecred, &tracevp);
 #endif
 		/*
@@ -844,23 +838,13 @@ done1:
 	/*
 	 * Handle deferred decrement of ref counts.
 	 */
-	if (textvp != NULL) {
-		int tvfslocked;
-
-		tvfslocked = VFS_LOCK_GIANT(textvp->v_mount);
+	if (textvp != NULL)
 		vrele(textvp);
-		VFS_UNLOCK_GIANT(tvfslocked);
-	}
 	if (binvp && error != 0)
 		vrele(binvp);
 #ifdef KTRACE
-	if (tracevp != NULL) {
-		int tvfslocked;
-
-		tvfslocked = VFS_LOCK_GIANT(tracevp->v_mount);
+	if (tracevp != NULL)
 		vrele(tracevp);
-		VFS_UNLOCK_GIANT(tvfslocked);
-	}
 	if (tracecred != NULL)
 		crfree(tracecred);
 #endif
@@ -917,7 +901,6 @@ done2:
 	mac_execve_exit(imgp);
 	mac_execve_interpreter_exit(interpvplabel);
 #endif
-	VFS_UNLOCK_GIANT(vfslocked);
 	exec_free_args(args);
 
 	if (error && imgp->vmspace_destroyed) {
@@ -1393,7 +1376,7 @@ exec_check_permissions(imgp)
 	struct vnode *vp = imgp->vp;
 	struct vattr *attr = imgp->attr;
 	struct thread *td;
-	int error;
+	int error, writecount;
 
 	td = curthread;
 
@@ -1438,7 +1421,10 @@ exec_check_permissions(imgp)
 	 * Check number of open-for-writes on the file and deny execution
 	 * if there are any.
 	 */
-	if (vp->v_writecount)
+	error = VOP_GET_WRITECOUNT(vp, &writecount);
+	if (error != 0)
+		return (error);
+	if (writecount != 0)
 		return (ETXTBSY);
 
 	/*
@@ -1510,65 +1496,4 @@ exec_unregister(execsw_arg)
 		free(execsw, M_TEMP);
 	execsw = newexecsw;
 	return (0);
-}
-
-static vm_object_t shared_page_obj;
-static int shared_page_free;
-
-int
-shared_page_fill(int size, int align, const char *data)
-{
-	vm_page_t m;
-	struct sf_buf *s;
-	vm_offset_t sk;
-	int res;
-
-	VM_OBJECT_LOCK(shared_page_obj);
-	m = vm_page_grab(shared_page_obj, 0, VM_ALLOC_RETRY);
-	res = roundup(shared_page_free, align);
-	if (res + size >= IDX_TO_OFF(shared_page_obj->size))
-		res = -1;
-	else {
-		VM_OBJECT_UNLOCK(shared_page_obj);
-		s = sf_buf_alloc(m, SFB_DEFAULT);
-		sk = sf_buf_kva(s);
-		bcopy(data, (void *)(sk + res), size);
-		shared_page_free = res + size;
-		sf_buf_free(s);
-		VM_OBJECT_LOCK(shared_page_obj);
-	}
-	vm_page_wakeup(m);
-	VM_OBJECT_UNLOCK(shared_page_obj);
-	return (res);
-}
-
-static void
-shared_page_init(void *dummy __unused)
-{
-	vm_page_t m;
-
-	shared_page_obj = vm_pager_allocate(OBJT_PHYS, 0, PAGE_SIZE,
-	    VM_PROT_DEFAULT, 0, NULL);
-	VM_OBJECT_LOCK(shared_page_obj);
-	m = vm_page_grab(shared_page_obj, 0, VM_ALLOC_RETRY | VM_ALLOC_NOBUSY |
-	    VM_ALLOC_ZERO);
-	m->valid = VM_PAGE_BITS_ALL;
-	VM_OBJECT_UNLOCK(shared_page_obj);
-}
-
-SYSINIT(shp, SI_SUB_EXEC, SI_ORDER_FIRST, (sysinit_cfunc_t)shared_page_init,
-    NULL);
-
-void
-exec_sysvec_init(void *param)
-{
-	struct sysentvec *sv;
-
-	sv = (struct sysentvec *)param;
-
-	if ((sv->sv_flags & SV_SHP) == 0)
-		return;
-	sv->sv_shared_page_obj = shared_page_obj;
-	sv->sv_sigcode_base = sv->sv_shared_page_base +
-	    shared_page_fill(*(sv->sv_szsigcode), 16, sv->sv_sigcode);
 }

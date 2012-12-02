@@ -6,8 +6,7 @@ LDADD=	-lheimbase -lroken
 LDFLAGS=	-pthread
 DPADD=	${LIBHEIMBASE} ${LIBROKEN}
 
-SRCS=	hi_locl.h \
-	heim_ipc_types.h \
+SRCS=	\
 	server.c \
 	common.c
 

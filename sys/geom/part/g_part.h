@@ -46,6 +46,7 @@ enum g_part_alias {
 	G_PART_ALIAS_EFI,		/* A EFI system partition entry. */
 	G_PART_ALIAS_FREEBSD,		/* A BSD labeled partition entry. */
 	G_PART_ALIAS_FREEBSD_BOOT,	/* A FreeBSD boot partition entry. */
+	G_PART_ALIAS_FREEBSD_NANDFS,	/* A FreeBSD nandfs partition entry. */
 	G_PART_ALIAS_FREEBSD_SWAP,	/* A swap partition entry. */
 	G_PART_ALIAS_FREEBSD_UFS,	/* A UFS/UFS2 file system entry. */
 	G_PART_ALIAS_FREEBSD_VINUM,	/* A Vinum partition entry. */
@@ -69,6 +70,9 @@ enum g_part_alias {
 	G_PART_ALIAS_EBR,		/* A EBR partition entry. */
 	G_PART_ALIAS_MS_FAT32,		/* A Microsoft FAT32 partition entry. */
 	G_PART_ALIAS_BIOS_BOOT,		/* A GRUB 2 boot partition entry. */
+	G_PART_ALIAS_VMFS,		/* A VMware VMFS partition entry */
+	G_PART_ALIAS_VMKDIAG,		/* A VMware vmkDiagnostic partition entry */
+	G_PART_ALIAS_VMRESERVED,	/* A VMware reserved partition entry */
 	/* Keep the following last */
 	G_PART_ALIAS_COUNT
 };

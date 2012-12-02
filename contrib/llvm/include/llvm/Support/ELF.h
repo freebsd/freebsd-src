@@ -248,7 +248,7 @@ enum {
   EM_CYPRESS_M8C   = 161, // Cypress M8C microprocessor
   EM_R32C          = 162, // Renesas R32C series microprocessors
   EM_TRIMEDIA      = 163, // NXP Semiconductors TriMedia architecture family
-  EM_QDSP6         = 164, // QUALCOMM DSP6 Processor
+  EM_HEXAGON       = 164, // Qualcomm Hexagon processor
   EM_8051          = 165, // Intel 8051 and variants
   EM_STXP7X        = 166, // STMicroelectronics STxP7x family of configurable
                           // and extensible RISC processors
@@ -599,7 +599,25 @@ enum {
   R_ARM_THM_TLS_DESCSEQ32     = 0x82
 };
 
+// Mips Specific e_flags
+enum {
+  EF_MIPS_NOREORDER = 0x00000001, // Don't reorder instructions
+  EF_MIPS_PIC       = 0x00000002, // Position independent code
+  EF_MIPS_CPIC      = 0x00000004, // Call object with Position independent code
+  EF_MIPS_ARCH_1    = 0x00000000, // MIPS1 instruction set
+  EF_MIPS_ARCH_2    = 0x10000000, // MIPS2 instruction set
+  EF_MIPS_ARCH_3    = 0x20000000, // MIPS3 instruction set
+  EF_MIPS_ARCH_4    = 0x30000000, // MIPS4 instruction set
+  EF_MIPS_ARCH_5    = 0x40000000, // MIPS5 instruction set
+  EF_MIPS_ARCH_32   = 0x50000000, // MIPS32 instruction set per linux not elf.h
+  EF_MIPS_ARCH_64   = 0x60000000, // MIPS64 instruction set per linux not elf.h
+  EF_MIPS_ARCH_32R2 = 0x70000000, // mips32r2
+  EF_MIPS_ARCH_64R2 = 0x80000000, // mips64r2
+  EF_MIPS_ARCH      = 0xf0000000  // Mask for applying EF_MIPS_ARCH_ variant
+};
+
 // ELF Relocation types for Mips
+// .
 enum {
   R_MIPS_NONE              =  0,
   R_MIPS_16                =  1,
@@ -611,6 +629,7 @@ enum {
   R_MIPS_GPREL16           =  7,
   R_MIPS_LITERAL           =  8,
   R_MIPS_GOT16             =  9,
+  R_MIPS_GOT               =  9,
   R_MIPS_PC16              = 10,
   R_MIPS_CALL16            = 11,
   R_MIPS_GPREL32           = 12,
@@ -653,6 +672,97 @@ enum {
   R_MIPS_COPY              = 126,
   R_MIPS_JUMP_SLOT         = 127,
   R_MIPS_NUM               = 218
+};
+
+// ELF Relocation types for Hexagon
+// Release 5 ABI - Document: 80-V9418-3 Rev. J
+enum {
+  R_HEX_NONE              =  0,
+  R_HEX_B22_PCREL         =  1,
+  R_HEX_B15_PCREL         =  2,
+  R_HEX_B7_PCREL          =  3,
+  R_HEX_LO16              =  4,
+  R_HEX_HI16              =  5,
+  R_HEX_32                =  6,
+  R_HEX_16                =  7,
+  R_HEX_8                 =  8,
+  R_HEX_GPREL16_0         =  9,
+  R_HEX_GPREL16_1         =  10,
+  R_HEX_GPREL16_2         =  11,
+  R_HEX_GPREL16_3         =  12,
+  R_HEX_HL16              =  13,
+  R_HEX_B13_PCREL         =  14,
+  R_HEX_B9_PCREL          =  15,
+  R_HEX_B32_PCREL_X       =  16,
+  R_HEX_32_6_X            =  17,
+  R_HEX_B22_PCREL_X       =  18,
+  R_HEX_B15_PCREL_X       =  19,
+  R_HEX_B13_PCREL_X       =  20,
+  R_HEX_B9_PCREL_X        =  21,
+  R_HEX_B7_PCREL_X        =  22,
+  R_HEX_16_X              =  23,
+  R_HEX_12_X              =  24,
+  R_HEX_11_X              =  25,
+  R_HEX_10_X              =  26,
+  R_HEX_9_X               =  27,
+  R_HEX_8_X               =  28,
+  R_HEX_7_X               =  29,
+  R_HEX_6_X               =  30,
+  R_HEX_32_PCREL          =  31,
+  R_HEX_COPY              =  32,
+  R_HEX_GLOB_DAT          =  33,
+  R_HEX_JMP_SLOT          =  34,
+  R_HEX_RELATIVE          =  35,
+  R_HEX_PLT_B22_PCREL     =  36,
+  R_HEX_GOTREL_LO16       =  37,
+  R_HEX_GOTREL_HI16       =  38,
+  R_HEX_GOTREL_32         =  39,
+  R_HEX_GOT_LO16          =  40,
+  R_HEX_GOT_HI16          =  41,
+  R_HEX_GOT_32            =  42,
+  R_HEX_GOT_16            =  43,
+  R_HEX_DTPMOD_32         =  44,
+  R_HEX_DTPREL_LO16       =  45,
+  R_HEX_DTPREL_HI16       =  46,
+  R_HEX_DTPREL_32         =  47,
+  R_HEX_DTPREL_16         =  48,
+  R_HEX_GD_PLT_B22_PCREL  =  49,
+  R_HEX_GD_GOT_LO16       =  50,
+  R_HEX_GD_GOT_HI16       =  51,
+  R_HEX_GD_GOT_32         =  52,
+  R_HEX_GD_GOT_16         =  53,
+  R_HEX_IE_LO16           =  54,
+  R_HEX_IE_HI16           =  55,
+  R_HEX_IE_32             =  56,
+  R_HEX_IE_GOT_LO16       =  57,
+  R_HEX_IE_GOT_HI16       =  58,
+  R_HEX_IE_GOT_32         =  59,
+  R_HEX_IE_GOT_16         =  60,
+  R_HEX_TPREL_LO16        =  61,
+  R_HEX_TPREL_HI16        =  62,
+  R_HEX_TPREL_32          =  63,
+  R_HEX_TPREL_16          =  64,
+  R_HEX_6_PCREL_X         =  65,
+  R_HEX_GOTREL_32_6_X     =  66,
+  R_HEX_GOTREL_16_X       =  67,
+  R_HEX_GOTREL_11_X       =  68,
+  R_HEX_GOT_32_6_X        =  69,
+  R_HEX_GOT_16_X          =  70,
+  R_HEX_GOT_11_X          =  71,
+  R_HEX_DTPREL_32_6_X     =  72,
+  R_HEX_DTPREL_16_X       =  73,
+  R_HEX_DTPREL_11_X       =  74,
+  R_HEX_GD_GOT_32_6_X     =  75,
+  R_HEX_GD_GOT_16_X       =  76,
+  R_HEX_GD_GOT_11_X       =  77,
+  R_HEX_IE_32_6_X         =  78,
+  R_HEX_IE_16_X           =  79,
+  R_HEX_IE_GOT_32_6_X     =  80,
+  R_HEX_IE_GOT_16_X       =  81,
+  R_HEX_IE_GOT_11_X       =  82,
+  R_HEX_TPREL_32_6_X      =  83,
+  R_HEX_TPREL_16_X        =  84,
+  R_HEX_TPREL_11_X        =  85
 };
 
 // Section header.
@@ -717,6 +827,11 @@ enum {
   SHT_GROUP         = 17, // Section group.
   SHT_SYMTAB_SHNDX  = 18, // Indices for SHN_XINDEX entries.
   SHT_LOOS          = 0x60000000, // Lowest operating system-specific type.
+  SHT_GNU_ATTRIBUTES= 0x6ffffff5, // Object attributes.
+  SHT_GNU_HASH      = 0x6ffffff6, // GNU-style hash table.
+  SHT_GNU_verdef    = 0x6ffffffd, // GNU version definitions.
+  SHT_GNU_verneed   = 0x6ffffffe, // GNU version references.
+  SHT_GNU_versym    = 0x6fffffff, // GNU symbol versions table.
   SHT_HIOS          = 0x6fffffff, // Highest operating system-specific type.
   SHT_LOPROC        = 0x70000000, // Lowest processor architecture-specific type.
   // Fixme: All this is duplicated in MCSectionELF. Why??
@@ -871,6 +986,7 @@ enum {
   STT_TLS     = 6,   // Thread local data object
   STT_LOOS    = 7,   // Lowest operating system-specific symbol type
   STT_HIOS    = 8,   // Highest operating system-specific symbol type
+  STT_GNU_IFUNC = 10, // GNU indirect function
   STT_LOPROC  = 13,  // Lowest processor-specific symbol type
   STT_HIPROC  = 15   // Highest processor-specific symbol type
 };
@@ -994,6 +1110,9 @@ enum {
   PT_SUNW_EH_FRAME = 0x6474e550,
   PT_SUNW_UNWIND   = 0x6464e550,
 
+  PT_GNU_STACK  = 0x6474e551, // Indicates stack executability.
+  PT_GNU_RELRO  = 0x6474e552, // Read-only after relocation.
+
   PT_HIOS    = 0x6fffffff, // Highest operating system-specific pt entry type.
   PT_LOPROC  = 0x70000000, // Lowest processor-specific program hdr entry type.
   PT_HIPROC  = 0x7fffffff  // Highest processor-specific program hdr entry type.
@@ -1072,7 +1191,16 @@ enum {
   DT_LOOS         = 0x60000000, // Start of environment specific tags.
   DT_HIOS         = 0x6FFFFFFF, // End of environment specific tags.
   DT_LOPROC       = 0x70000000, // Start of processor specific tags.
-  DT_HIPROC       = 0x7FFFFFFF  // End of processor specific tags.
+  DT_HIPROC       = 0x7FFFFFFF, // End of processor specific tags.
+
+  DT_RELACOUNT    = 0x6FFFFFF9, // ELF32_Rela count.
+  DT_RELCOUNT     = 0x6FFFFFFA, // ELF32_Rel count.
+
+  DT_FLAGS_1      = 0X6FFFFFFB, // Flags_1.
+  DT_VERDEF       = 0X6FFFFFFC, // The address of the version definition table.
+  DT_VERDEFNUM    = 0X6FFFFFFD, // The number of entries in DT_VERDEF.
+  DT_VERNEED      = 0X6FFFFFFE, // The address of the version Dependency table.
+  DT_VERNEEDNUM   = 0X6FFFFFFF  // The number of entries in DT_VERNEED.
 };
 
 // DT_FLAGS values.
@@ -1082,6 +1210,54 @@ enum {
   DF_TEXTREL    = 0x04, // Relocations may modify a non-writable segment.
   DF_BIND_NOW   = 0x08, // Process all relocations on load.
   DF_STATIC_TLS = 0x10  // Reject attempts to load dynamically.
+};
+
+// State flags selectable in the `d_un.d_val' element of the DT_FLAGS_1 entry.
+enum {
+  DF_1_NOW        = 0x00000001, // Set RTLD_NOW for this object.
+  DF_1_GLOBAL     = 0x00000002, // Set RTLD_GLOBAL for this object.
+  DF_1_GROUP      = 0x00000004, // Set RTLD_GROUP for this object.
+  DF_1_NODELETE   = 0x00000008, // Set RTLD_NODELETE for this object.
+  DF_1_LOADFLTR   = 0x00000010, // Trigger filtee loading at runtime.
+  DF_1_INITFIRST  = 0x00000020, // Set RTLD_INITFIRST for this object.
+  DF_1_NOOPEN     = 0x00000040, // Set RTLD_NOOPEN for this object.
+  DF_1_ORIGIN     = 0x00000080, // $ORIGIN must be handled.
+  DF_1_DIRECT     = 0x00000100, // Direct binding enabled.
+  DF_1_TRANS      = 0x00000200,
+  DF_1_INTERPOSE  = 0x00000400, // Object is used to interpose.
+  DF_1_NODEFLIB   = 0x00000800, // Ignore default lib search path.
+  DF_1_NODUMP     = 0x00001000, // Object can't be dldump'ed.
+  DF_1_CONFALT    = 0x00002000, // Configuration alternative created.
+  DF_1_ENDFILTEE  = 0x00004000, // Filtee terminates filters search.
+  DF_1_DISPRELDNE = 0x00008000, // Disp reloc applied at build time.
+  DF_1_DISPRELPND = 0x00010000  // Disp reloc applied at run-time.
+};
+
+// ElfXX_VerDef structure version (GNU versioning)
+enum {
+  VER_DEF_NONE    = 0,
+  VER_DEF_CURRENT = 1
+};
+
+// VerDef Flags (ElfXX_VerDef::vd_flags)
+enum {
+  VER_FLG_BASE = 0x1,
+  VER_FLG_WEAK = 0x2,
+  VER_FLG_INFO = 0x4
+};
+
+// Special constants for the version table. (SHT_GNU_versym/.gnu.version)
+enum {
+  VER_NDX_LOCAL  = 0,      // Unversioned local symbol
+  VER_NDX_GLOBAL = 1,      // Unversioned global symbol
+  VERSYM_VERSION = 0x7fff, // Version Index mask
+  VERSYM_HIDDEN  = 0x8000  // Hidden bit (non-default version)
+};
+
+// ElfXX_VerNeed structure version (GNU versioning)
+enum {
+  VER_NEED_NONE = 0,
+  VER_NEED_CURRENT = 1
 };
 
 } // end namespace ELF

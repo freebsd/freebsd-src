@@ -29,6 +29,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Dwarf.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/ADT/SmallString.h"
@@ -36,10 +37,14 @@
 #include "llvm/ADT/Twine.h"
 using namespace llvm;
 
+cl::opt<bool>
+EnableARMEHABIDescriptors("arm-enable-ehabi-descriptors", cl::Hidden,
+  cl::desc("Generate ARM EHABI tables with unwinding descriptors"),
+  cl::init(false));
+
+
 ARMException::ARMException(AsmPrinter *A)
-  : DwarfException(A),
-    shouldEmitTable(false), shouldEmitMoves(false), shouldEmitTableModule(false)
-    {}
+  : DwarfException(A) {}
 
 ARMException::~ARMException() {}
 
@@ -72,13 +77,15 @@ void ARMException::EndFunction() {
       Asm->OutStreamer.EmitPersonality(PerSym);
     }
 
-    // Map all labels and get rid of any dead landing pads.
-    MMI->TidyLandingPads();
+    if (EnableARMEHABIDescriptors) {
+      // Map all labels and get rid of any dead landing pads.
+      MMI->TidyLandingPads();
 
-    Asm->OutStreamer.EmitHandlerData();
+      Asm->OutStreamer.EmitHandlerData();
 
-    // Emit actual exception table
-    EmitExceptionTable();
+      // Emit actual exception table
+      EmitExceptionTable();
+    }
   }
 
   Asm->OutStreamer.EmitFnEnd();

@@ -12,6 +12,7 @@
 #include "clang/Basic/SourceManager.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/ErrorHandling.h"
 using namespace clang;
 
 LogDiagnosticPrinter::LogDiagnosticPrinter(raw_ostream &os,
@@ -28,14 +29,13 @@ LogDiagnosticPrinter::~LogDiagnosticPrinter() {
 
 static StringRef getLevelName(DiagnosticsEngine::Level Level) {
   switch (Level) {
-  default:
-    return "<unknown>";
   case DiagnosticsEngine::Ignored: return "ignored";
   case DiagnosticsEngine::Note:    return "note";
   case DiagnosticsEngine::Warning: return "warning";
   case DiagnosticsEngine::Error:   return "error";
   case DiagnosticsEngine::Fatal:   return "fatal error";
   }
+  llvm_unreachable("Invalid DiagnosticsEngine level!");
 }
 
 // Escape XML characters inside the raw string.
@@ -64,7 +64,7 @@ void LogDiagnosticPrinter::EndSourceFile() {
     return;
 
   // Write to a temporary string to ensure atomic write of diagnostic object.
-  llvm::SmallString<512> Msg;
+  SmallString<512> Msg;
   llvm::raw_svector_ostream OS(Msg);
 
   OS << "<dict>\n";
@@ -140,7 +140,7 @@ void LogDiagnosticPrinter::HandleDiagnostic(DiagnosticsEngine::Level Level,
   DE.DiagnosticLevel = Level;
 
   // Format the message.
-  llvm::SmallString<100> MessageStr;
+  SmallString<100> MessageStr;
   Info.FormatDiagnostic(MessageStr);
   DE.Message = MessageStr.str();
 

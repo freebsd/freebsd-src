@@ -37,7 +37,7 @@
 .Xr hastd 8
 daemon and the
 .Xr hastctl 8
-utility.
+utility
 .Sh DESCRIPTION
 The
 .Nm
@@ -63,7 +63,7 @@ checksum <algorithm>
 compression <algorithm>
 timeout <seconds>
 exec <path>
-metaflush "on" | "off"
+metaflush on | off
 pidfile <path>
 
 on <node> {
@@ -89,14 +89,14 @@ resource <name> {
 	local <path>
 	timeout <seconds>
 	exec <path>
-	metaflush "on" | "off"
+	metaflush on | off
 
 	on <node> {
 		# Resource-node section
 		name <name>
 		# Required
 		local <path>
-		metaflush "on" | "off"
+		metaflush on | off
 		# Required
 		remote <addr>
 		source <addr>
@@ -106,7 +106,7 @@ resource <name> {
 		name <name>
 		# Required
 		local <path>
-		metaflush "on" | "off"
+		metaflush on | off
 		# Required
 		remote <addr>
 		source <addr>
@@ -439,7 +439,7 @@ resource tank {
 .Xr gethostname 3 ,
 .Xr geom 4 ,
 .Xr hastctl 8 ,
-.Xr hastd 8 .
+.Xr hastd 8
 .Sh AUTHORS
 The
 .Nm

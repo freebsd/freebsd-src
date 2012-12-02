@@ -78,7 +78,6 @@ __FBSDID("$FreeBSD$");
 
 
 #define CMDTABLESIZE 31		/* should be prime */
-#define ARB 1			/* actual size determined at run time */
 
 
 
@@ -86,9 +85,9 @@ struct tblentry {
 	struct tblentry *next;	/* next entry in hash chain */
 	union param param;	/* definition of builtin function */
 	int special;		/* flag for special builtin commands */
-	short cmdtype;		/* index identifying command */
+	signed char cmdtype;	/* index identifying command */
 	char rehash;		/* if set, cd done since entry created */
-	char cmdname[ARB];	/* name of command */
+	char cmdname[];		/* name of command */
 };
 
 
@@ -563,7 +562,7 @@ cmdlookup(const char *name, int add)
 	}
 	if (add && cmdp == NULL) {
 		INTOFF;
-		cmdp = *pp = ckmalloc(sizeof (struct tblentry) - ARB
+		cmdp = *pp = ckmalloc(sizeof (struct tblentry)
 					+ strlen(name) + 1);
 		cmdp->next = NULL;
 		cmdp->cmdtype = CMDUNKNOWN;
@@ -647,6 +646,19 @@ unsetfunc(const char *name)
 	}
 	return (0);
 }
+
+
+/*
+ * Check if a function by a certain name exists.
+ */
+int
+isfunc(const char *name)
+{
+	struct tblentry *cmdp;
+	cmdp = cmdlookup(name, 0);
+	return (cmdp != NULL && cmdp->cmdtype == CMDFUNCTION);
+}
+
 
 /*
  * Shared code for the following builtin commands:

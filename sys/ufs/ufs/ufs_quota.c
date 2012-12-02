@@ -497,7 +497,7 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 	struct vnode *vp, **vpp;
 	struct vnode *mvp;
 	struct dquot *dq;
-	int error, flags, vfslocked;
+	int error, flags;
 	struct nameidata nd;
 
 	error = priv_check(td, PRIV_UFS_QUOTAON);
@@ -510,7 +510,7 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 	ump = VFSTOUFS(mp);
 	dq = NODQUOT;
 
-	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_USERSPACE, fname, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, fname, td);
 	flags = FREAD | FWRITE;
 	vfs_ref(mp);
 	vfs_unbusy(mp);
@@ -519,7 +519,6 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 		vfs_rel(mp);
 		return (error);
 	}
-	vfslocked = NDHASGIANT(&nd);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 	error = vfs_busy(mp, MBF_NOWAIT);
@@ -533,7 +532,6 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 	if (error != 0) {
 		VOP_UNLOCK(vp, 0);
 		(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
-		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
 
@@ -542,7 +540,6 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 		UFS_UNLOCK(ump);
 		VOP_UNLOCK(vp, 0);
 		(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
-		VFS_UNLOCK_GIANT(vfslocked);
 		vfs_unbusy(mp);
 		return (EALREADY);
 	}
@@ -554,7 +551,6 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 		ump->um_qflags[type] &= ~(QTF_OPENING|QTF_CLOSING);
 		UFS_UNLOCK(ump);
 		(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
-		VFS_UNLOCK_GIANT(vfslocked);
 		vfs_unbusy(mp);
 		return (error);
 	}
@@ -571,7 +567,6 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 	vp->v_vflag |= VV_SYSTEM;
 	VOP_UNLOCK(vp, 0);
 	*vpp = vp;
-	VFS_UNLOCK_GIANT(vfslocked);
 	/*
 	 * Save the credential of the process that turned on quotas.
 	 * Set up the time limits for this quota.
@@ -598,32 +593,25 @@ quotaon(struct thread *td, struct mount *mp, int type, void *fname)
 	 * adding references to quota file being opened.
 	 * NB: only need to add dquot's for inodes being modified.
 	 */
-	MNT_ILOCK(mp);
 again:
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		VI_LOCK(vp);
-		MNT_IUNLOCK(mp);
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
-			MNT_ILOCK(mp);
-			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			goto again;
 		}
 		if (vp->v_type == VNON || vp->v_writecount == 0) {
 			VOP_UNLOCK(vp, 0);
 			vrele(vp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		error = getinoquota(VTOI(vp));
 		VOP_UNLOCK(vp, 0);
 		vrele(vp);
-		MNT_ILOCK(mp);
 		if (error) {
-			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			break;
 		}
 	}
-	MNT_IUNLOCK(mp);
 
         if (error)
 		quotaoff_inchange(td, mp, type);
@@ -650,7 +638,6 @@ quotaoff1(struct thread *td, struct mount *mp, int type)
 	struct dquot *dq;
 	struct inode *ip;
 	struct ucred *cr;
-	int vfslocked;
 	int error;
 
 	ump = VFSTOUFS(mp);
@@ -669,19 +656,14 @@ quotaoff1(struct thread *td, struct mount *mp, int type)
 	 * Search vnodes associated with this mount point,
 	 * deleting any references to quota file being closed.
 	 */
-	MNT_ILOCK(mp);
 again:
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		VI_LOCK(vp);
-		MNT_IUNLOCK(mp);
+	MNT_VNODE_FOREACH_ALL(vp, mp, mvp) {
 		if (vp->v_type == VNON) {
 			VI_UNLOCK(vp);
-			MNT_ILOCK(mp);
 			continue;
 		}
 		if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td)) {
-			MNT_ILOCK(mp);
-			MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+			MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 			goto again;
 		}
 		ip = VTOI(vp);
@@ -690,9 +672,7 @@ again:
 		dqrele(vp, dq);
 		VOP_UNLOCK(vp, 0);
 		vrele(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
 
 	dqflush(qvp);
 	/* Clear um_quotas before closing the quota vnode to prevent
@@ -703,12 +683,10 @@ again:
 	ump->um_cred[type] = NOCRED;
 	UFS_UNLOCK(ump);
 
-	vfslocked = VFS_LOCK_GIANT(qvp->v_mount);
 	vn_lock(qvp, LK_EXCLUSIVE | LK_RETRY);
 	qvp->v_vflag &= ~VV_SYSTEM;
 	VOP_UNLOCK(qvp, 0);
 	error = vn_close(qvp, FREAD|FWRITE, td->td_ucred, td);
-	VFS_UNLOCK_GIANT(vfslocked);
 	crfree(cr);
 
 	return (error);
@@ -1057,20 +1035,16 @@ qsync(struct mount *mp)
 	 * Search vnodes associated with this mount point,
 	 * synchronizing any modified dquot structures.
 	 */
-	MNT_ILOCK(mp);
 again:
-	MNT_VNODE_FOREACH(vp, mp, mvp) {
-		VI_LOCK(vp);
+	MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) {
 		if (vp->v_type == VNON) {
 			VI_UNLOCK(vp);
 			continue;
 		}
-		MNT_IUNLOCK(mp);
 		error = vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td);
 		if (error) {
-			MNT_ILOCK(mp);
 			if (error == ENOENT) {
-				MNT_VNODE_FOREACH_ABORT_ILOCKED(mp, mvp);
+				MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp);
 				goto again;
 			}
 			continue;
@@ -1081,9 +1055,40 @@ again:
 				dqsync(vp, dq);
 		}
 		vput(vp);
-		MNT_ILOCK(mp);
 	}
-	MNT_IUNLOCK(mp);
+	return (0);
+}
+
+/*
+ * Sync quota file for given vnode to disk.
+ */
+int
+qsyncvp(struct vnode *vp)
+{
+	struct ufsmount *ump = VFSTOUFS(vp->v_mount);
+	struct dquot *dq;
+	int i;
+
+	/*
+	 * Check if the mount point has any quotas.
+	 * If not, simply return.
+	 */
+	UFS_LOCK(ump);
+	for (i = 0; i < MAXQUOTAS; i++)
+		if (ump->um_quotas[i] != NULLVP)
+			break;
+	UFS_UNLOCK(ump);
+	if (i == MAXQUOTAS)
+		return (0);
+	/*
+	 * Search quotas associated with this vnode
+	 * synchronizing any modified dquot structures.
+	 */
+	for (i = 0; i < MAXQUOTAS; i++) {
+		dq = VTOI(vp)->i_dquot[i];
+		if (dq != NODQUOT)
+			dqsync(vp, dq);
+	}
 	return (0);
 }
 
@@ -1233,7 +1238,7 @@ dqget(struct vnode *vp, u_long id, struct ufsmount *ump, int type,
 	struct vnode *dqvp;
 	struct iovec aiov;
 	struct uio auio;
-	int vfslocked, dqvplocked, error;
+	int dqvplocked, error;
 
 #ifdef DEBUG_VFS_LOCKS
 	if (vp != NULLVP)
@@ -1279,12 +1284,10 @@ hfound:		DQI_LOCK(dq);
 			error = EIO;
 		}
 		*dqp = dq;
-		vfslocked = VFS_LOCK_GIANT(dqvp->v_mount);
 		if (dqvplocked)
 			vput(dqvp);
 		else
 			vrele(dqvp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		return (error);
 	}
 
@@ -1337,12 +1340,10 @@ hfound:		DQI_LOCK(dq);
 			DQH_UNLOCK();
 			tablefull("dquot");
 			*dqp = NODQUOT;
-			vfslocked = VFS_LOCK_GIANT(dqvp->v_mount);
 			if (dqvplocked)
 				vput(dqvp);
 			else
 				vrele(dqvp);
-			VFS_UNLOCK_GIANT(vfslocked);
 			return (EUSERS);
 		}
 		if (dq->dq_cnt || (dq->dq_flags & DQ_MOD))
@@ -1385,7 +1386,6 @@ hfound:		DQI_LOCK(dq);
 	auio.uio_rw = UIO_READ;
 	auio.uio_td = (struct thread *)0;
 
-	vfslocked = VFS_LOCK_GIANT(dqvp->v_mount);
 	error = VOP_READ(dqvp, &auio, 0, ump->um_cred[type]);
 	if (auio.uio_resid == recsize && error == 0) {
 		bzero(&dq->dq_dqb, sizeof(dq->dq_dqb));
@@ -1399,7 +1399,6 @@ hfound:		DQI_LOCK(dq);
 		vput(dqvp);
 	else
 		vrele(dqvp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	/*
 	 * I/O error in reading quota file, release
 	 * quota structure and reflect problem to caller.
@@ -1512,7 +1511,7 @@ dqsync(struct vnode *vp, struct dquot *dq)
 	struct vnode *dqvp;
 	struct iovec aiov;
 	struct uio auio;
-	int vfslocked, error;
+	int error;
 	struct mount *mp;
 	struct ufsmount *ump;
 
@@ -1533,12 +1532,10 @@ dqsync(struct vnode *vp, struct dquot *dq)
 	vref(dqvp);
 	UFS_UNLOCK(ump);
 
-	vfslocked = VFS_LOCK_GIANT(dqvp->v_mount);
 	DQI_LOCK(dq);
 	if ((dq->dq_flags & DQ_MOD) == 0) {
 		DQI_UNLOCK(dq);
 		vrele(dqvp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		return (0);
 	}
 	DQI_UNLOCK(dq);
@@ -1547,7 +1544,6 @@ dqsync(struct vnode *vp, struct dquot *dq)
 	if (vp != dqvp)
 		vn_lock(dqvp, LK_EXCLUSIVE | LK_RETRY);
 
-	VFS_UNLOCK_GIANT(vfslocked);
 	DQI_LOCK(dq);
 	DQI_WAIT(dq, PINOD+2, "dqsync");
 	if ((dq->dq_flags & DQ_MOD) == 0)
@@ -1578,9 +1574,7 @@ dqsync(struct vnode *vp, struct dquot *dq)
 	auio.uio_segflg = UIO_SYSSPACE;
 	auio.uio_rw = UIO_WRITE;
 	auio.uio_td = (struct thread *)0;
-	vfslocked = VFS_LOCK_GIANT(dqvp->v_mount);
 	error = VOP_WRITE(dqvp, &auio, 0, dq->dq_ump->um_cred[dq->dq_type]);
-	VFS_UNLOCK_GIANT(vfslocked);
 	if (auio.uio_resid && error == 0)
 		error = EIO;
 
@@ -1589,13 +1583,11 @@ dqsync(struct vnode *vp, struct dquot *dq)
 	dq->dq_flags &= ~DQ_MOD;
 out:
 	DQI_UNLOCK(dq);
-	vfslocked = VFS_LOCK_GIANT(dqvp->v_mount);
 	if (vp != dqvp)
 		vput(dqvp);
 	else
 		vrele(dqvp);
 	vn_finished_secondary_write(mp);
-	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
 

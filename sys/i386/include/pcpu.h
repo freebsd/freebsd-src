@@ -236,15 +236,35 @@ extern struct pcpu *pcpup;
 #define	PCPU_PTR(member)	__PCPU_PTR(pc_ ## member)
 #define	PCPU_SET(member, val)	__PCPU_SET(pc_ ## member, val)
 
+#define	OFFSETOF_CURTHREAD	0
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnull-dereference"
+#endif
 static __inline __pure2 struct thread *
 __curthread(void)
 {
 	struct thread *td;
 
-	__asm("movl %%fs:0,%0" : "=r" (td));
+	__asm("movl %%fs:%1,%0" : "=r" (td)
+	    : "m" (*(char *)OFFSETOF_CURTHREAD));
 	return (td);
 }
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif
 #define	curthread		(__curthread())
+
+#define	OFFSETOF_CURPCB		16
+static __inline __pure2 struct pcb *
+__curpcb(void)
+{
+	struct pcb *pcb;
+
+	__asm("movl %%fs:%1,%0" : "=r" (pcb) : "m" (*(char *)OFFSETOF_CURPCB));
+	return (pcb);
+}
+#define	curpcb		(__curpcb())
 
 #else /* !lint || defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE___TYPEOF) */
 

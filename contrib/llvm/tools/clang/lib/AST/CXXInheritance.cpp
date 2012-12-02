@@ -11,6 +11,7 @@
 //
 //===----------------------------------------------------------------------===//
 #include "clang/AST/CXXInheritance.h"
+#include "clang/AST/ASTContext.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/DeclCXX.h"
 #include <algorithm>
@@ -23,12 +24,15 @@ using namespace clang;
 void CXXBasePaths::ComputeDeclsFound() {
   assert(NumDeclsFound == 0 && !DeclsFound &&
          "Already computed the set of declarations");
-  
-  std::set<NamedDecl *> Decls;
-  for (CXXBasePaths::paths_iterator Path = begin(), PathEnd = end();
-       Path != PathEnd; ++Path)
-    Decls.insert(*Path->Decls.first);
-  
+
+  SmallVector<NamedDecl *, 8> Decls;
+  for (paths_iterator Path = begin(), PathEnd = end(); Path != PathEnd; ++Path)
+    Decls.push_back(*Path->Decls.first);
+
+  // Eliminate duplicated decls.
+  llvm::array_pod_sort(Decls.begin(), Decls.end());
+  Decls.erase(std::unique(Decls.begin(), Decls.end()), Decls.end());
+
   NumDeclsFound = Decls.size();
   DeclsFound = new NamedDecl * [NumDeclsFound];
   std::copy(Decls.begin(), Decls.end(), DeclsFound);
@@ -93,7 +97,7 @@ bool CXXRecordDecl::isDerivedFrom(const CXXRecordDecl *Base,
                        Paths);
 }
 
-bool CXXRecordDecl::isVirtuallyDerivedFrom(CXXRecordDecl *Base) const {
+bool CXXRecordDecl::isVirtuallyDerivedFrom(const CXXRecordDecl *Base) const {
   if (!getNumVBases())
     return false;
 
@@ -103,8 +107,12 @@ bool CXXRecordDecl::isVirtuallyDerivedFrom(CXXRecordDecl *Base) const {
   if (getCanonicalDecl() == Base->getCanonicalDecl())
     return false;
   
-  Paths.setOrigin(const_cast<CXXRecordDecl*>(this));  
-  return lookupInBases(&FindVirtualBaseClass, Base->getCanonicalDecl(), Paths);
+  Paths.setOrigin(const_cast<CXXRecordDecl*>(this));
+
+  const void *BasePtr = static_cast<const void*>(Base->getCanonicalDecl());
+  return lookupInBases(&FindVirtualBaseClass,
+                       const_cast<void *>(BasePtr),
+                       Paths);
 }
 
 static bool BaseIsNot(const CXXRecordDecl *Base, void *OpaqueTarget) {
@@ -157,7 +165,7 @@ bool CXXRecordDecl::forallBases(ForallBasesCallback *BaseMatches,
   return AllMatches;
 }
 
-bool CXXBasePaths::lookupInBases(ASTContext &Context, 
+bool CXXBasePaths::lookupInBases(ASTContext &Context,
                                  const CXXRecordDecl *Record,
                                CXXRecordDecl::BaseMatchesCallback *BaseMatches, 
                                  void *UserData) {
@@ -502,12 +510,17 @@ void FinalOverriderCollector::Collect(const CXXRecordDecl *RD,
       CXXFinalOverriderMap *BaseOverriders = &ComputedBaseOverriders;
       if (Base->isVirtual()) {
         CXXFinalOverriderMap *&MyVirtualOverriders = VirtualOverriders[BaseDecl];
+        BaseOverriders = MyVirtualOverriders;
         if (!MyVirtualOverriders) {
           MyVirtualOverriders = new CXXFinalOverriderMap;
+
+          // Collect may cause VirtualOverriders to reallocate, invalidating the
+          // MyVirtualOverriders reference. Set BaseOverriders to the right
+          // value now.
+          BaseOverriders = MyVirtualOverriders;
+
           Collect(BaseDecl, true, BaseDecl, *MyVirtualOverriders);
         }
-
-        BaseOverriders = MyVirtualOverriders;
       } else
         Collect(BaseDecl, false, InVirtualSubobject, ComputedBaseOverriders);
 

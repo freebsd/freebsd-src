@@ -171,7 +171,6 @@ char	*path(const char *);
 char	*raisestr(char *);
 void	remember(const char *);
 void	moveifchanged(const char *, const char *);
-int	yyparse(void);
 int	yylex(void);
 void	options(void);
 void	makefile(void);
