@@ -4,7 +4,9 @@ This file is maintained and copyrighted by M. Warner Losh <imp@freebsd.org>.
 See end of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.  These instructions assume that you
 basically know what you are doing.  If not, then please consult the FreeBSD
-handbook.
+handbook:
+
+    http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
 
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
@@ -23,6 +25,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	debugging, define MALLOC_PRODUCTION in /etc/make.conf, or to merely
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20121201:
+	With the addition of auditdistd(8), a new auditdistd user is now
+	depended on during installworld.  "mergemaster -p" can be used to add
+	the user prior to installworld, as documented in the handbook.
 
 20121117:
 	The sin6_scope_id member variable in struct sockaddr_in6 is now
