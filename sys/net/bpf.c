@@ -141,7 +141,7 @@ struct bpf_dltlist32 {
  * structures registered by different layers in the stack (i.e., 802.11
  * frames, ethernet frames, etc).
  */
-static LIST_HEAD(, bpf_if)	bpf_iflist;
+static LIST_HEAD(, bpf_if)	bpf_iflist, bpf_freelist;
 static struct mtx	bpf_mtx;		/* bpf global lock */
 static int		bpf_bpfd_cnt;
 
@@ -2491,52 +2491,51 @@ bpfattach2(struct ifnet *ifp, u_int dlt, u_int hdrlen, struct bpf_if **driverp)
 void
 bpfdetach(struct ifnet *ifp)
 {
-	struct bpf_if	*bp;
+	struct bpf_if	*bp, *bp_temp;
 	struct bpf_d	*d;
-#ifdef INVARIANTS
 	int ndetached;
 
 	ndetached = 0;
-#endif
 
 	BPF_LOCK();
 	/* Find all bpf_if struct's which reference ifp and detach them. */
-	do {
-		LIST_FOREACH(bp, &bpf_iflist, bif_next) {
-			if (ifp == bp->bif_ifp)
-				break;
-		}
-		if (bp != NULL)
-			LIST_REMOVE(bp, bif_next);
+	LIST_FOREACH_SAFE(bp, &bpf_iflist, bif_next, bp_temp) {
+		if (ifp != bp->bif_ifp)
+			continue;
 
-		if (bp != NULL) {
-#ifdef INVARIANTS
-			ndetached++;
-#endif
-			while ((d = LIST_FIRST(&bp->bif_dlist)) != NULL) {
-				bpf_detachd_locked(d);
-				BPFD_LOCK(d);
-				bpf_wakeup(d);
-				BPFD_UNLOCK(d);
-			}
-			/* Free writer-only descriptors */
-			while ((d = LIST_FIRST(&bp->bif_wlist)) != NULL) {
-				bpf_detachd_locked(d);
-				BPFD_LOCK(d);
-				bpf_wakeup(d);
-				BPFD_UNLOCK(d);
-			}
+		LIST_REMOVE(bp, bif_next);
+		/* Add to to-be-freed list */
+		LIST_INSERT_HEAD(&bpf_freelist, bp, bif_next);
 
-			/*
-			 * Delay freing bp till interface is detached
-			 * and all routes through this interface are removed.
-			 * Mark bp as detached to restrict new consumers.
-			 */
-			BPFIF_WLOCK(bp);
-			bp->flags |= BPFIF_FLAG_DYING;
-			BPFIF_WUNLOCK(bp);
+		ndetached++;
+		/*
+		 * Delay freeing bp till interface is detached
+		 * and all routes through this interface are removed.
+		 * Mark bp as detached to restrict new consumers.
+		 */
+		BPFIF_WLOCK(bp);
+		bp->flags |= BPFIF_FLAG_DYING;
+		BPFIF_WUNLOCK(bp);
+
+		CTR4(KTR_NET, "%s: sheduling free for encap %d (%p) for if %p",
+		    __func__, bp->bif_dlt, bp, ifp);
+
+		/* Free common descriptors */
+		while ((d = LIST_FIRST(&bp->bif_dlist)) != NULL) {
+			bpf_detachd_locked(d);
+			BPFD_LOCK(d);
+			bpf_wakeup(d);
+			BPFD_UNLOCK(d);
 		}
-	} while (bp != NULL);
+
+		/* Free writer-only descriptors */
+		while ((d = LIST_FIRST(&bp->bif_wlist)) != NULL) {
+			bpf_detachd_locked(d);
+			BPFD_LOCK(d);
+			bpf_wakeup(d);
+			BPFD_UNLOCK(d);
+		}
+	}
 	BPF_UNLOCK();
 
 #ifdef INVARIANTS
@@ -2548,32 +2547,46 @@ bpfdetach(struct ifnet *ifp)
 /*
  * Interface departure handler.
  * Note departure event does not guarantee interface is going down.
+ * Interface renaming is currently done via departure/arrival event set.
+ *
+ * Departure handled is called after all routes pointing to
+ * given interface are removed and interface is in down state
+ * restricting any packets to be sent/received. We assume it is now safe
+ * to free data allocated by BPF.
  */
 static void
 bpf_ifdetach(void *arg __unused, struct ifnet *ifp)
 {
-	struct bpf_if *bp;
+	struct bpf_if *bp, *bp_temp;
+	int nmatched = 0;
 
 	BPF_LOCK();
-	if ((bp = ifp->if_bpf) == NULL) {
-		BPF_UNLOCK();
-		return;
+	/*
+	 * Find matching entries in free list.
+	 * Nothing should be found if bpfdetach() was not called.
+	 */
+	LIST_FOREACH_SAFE(bp, &bpf_freelist, bif_next, bp_temp) {
+		if (ifp != bp->bif_ifp)
+			continue;
+
+		CTR3(KTR_NET, "%s: freeing BPF instance %p for interface %p",
+		    __func__, bp, ifp);
+
+		LIST_REMOVE(bp, bif_next);
+
+		rw_destroy(&bp->bif_lock);
+		free(bp, M_BPF);
+
+		nmatched++;
 	}
-
-	/* Check if bpfdetach() was called previously */
-	if ((bp->flags & BPFIF_FLAG_DYING) == 0) {
-		BPF_UNLOCK();
-		return;
-	}
-
-	CTR3(KTR_NET, "%s: freing BPF instance %p for interface %p",
-	    __func__, bp, ifp);
-
-	ifp->if_bpf = NULL;
 	BPF_UNLOCK();
 
-	rw_destroy(&bp->bif_lock);
-	free(bp, M_BPF);
+	/*
+	 * Note that we cannot zero other pointers to
+	 * custom DLTs possibly used by given interface.
+	 */
+	if (nmatched != 0)
+		ifp->if_bpf = NULL;
 }
 
 /*
@@ -2653,6 +2666,7 @@ bpf_drvinit(void *unused)
 
 	mtx_init(&bpf_mtx, "bpf global lock", NULL, MTX_DEF);
 	LIST_INIT(&bpf_iflist);
+	LIST_INIT(&bpf_freelist);
 
 	dev = make_dev(&bpf_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "bpf");
 	/* For compatibility */
