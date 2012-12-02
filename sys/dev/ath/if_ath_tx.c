@@ -2275,11 +2275,11 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	 */
 	ath_tx_update_tim(sc, ni, 1);
 
+	ATH_TX_UNLOCK(sc);
+
 	ATH_PCU_LOCK(sc);
 	sc->sc_txstart_cnt--;
 	ATH_PCU_UNLOCK(sc);
-
-	ATH_TX_UNLOCK(sc);
 
 	return 0;
 bad2:
