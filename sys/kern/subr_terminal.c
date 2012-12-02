@@ -183,7 +183,7 @@ terminal_maketty(struct terminal *tm, const char *fmt, ...)
 	va_end(ap);
 
 	tp = tty_alloc(&terminal_tty_class, tm);
-	tty_makedev(tp, NULL, name);
+	tty_makedev(tp, NULL, "%s", name);
 	tm->tm_tty = tp;
 	terminal_sync_ttysize(tm);
 }

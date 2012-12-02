@@ -207,7 +207,7 @@ vt_kbdevent(keyboard_t *kbd, int event, void *arg)
 			shutdown_nice(RB_HALT|RB_POWEROFF);
 			break;
 		case SLK: {
-			int state;
+			int state = 0;
 
 			kbdd_ioctl(kbd, KDGKBSTATE, (caddr_t)&state);
 			VT_LOCK(vd);
@@ -660,7 +660,7 @@ vtterm_cngetc(struct terminal *tm)
 
 		switch (c) {
 		case SLK: {
-			int state;
+			int state = 0;
 
 			kbdd_ioctl(kbd, KDGKBSTATE, (caddr_t)&state);
 			if (state & SLKED) {
