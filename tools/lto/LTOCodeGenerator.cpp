@@ -15,6 +15,7 @@
 #include "LTOCodeGenerator.h"
 #include "LTOModule.h"
 #include "llvm/Constants.h"
+#include "llvm/DataLayout.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Linker.h"
 #include "llvm/LLVMContext.h"
@@ -29,7 +30,6 @@
 #include "llvm/MC/SubtargetFeature.h"
 #include "llvm/Target/Mangler.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Transforms/IPO.h"
@@ -163,13 +163,16 @@ bool LTOCodeGenerator::compile_to_file(const char** name, std::string& errMsg) {
   // generate object file
   bool genResult = false;
   tool_output_file objFile(uniqueObjPath.c_str(), errMsg);
-  if (!errMsg.empty())
+  if (!errMsg.empty()) {
+    uniqueObjPath.eraseFromDisk();
     return true;
+  }
 
   genResult = this->generateObjectFile(objFile.os(), errMsg);
   objFile.os().close();
   if (objFile.os().has_error()) {
     objFile.os().clear_error();
+    uniqueObjPath.eraseFromDisk();
     return true;
   }
 
@@ -196,6 +199,7 @@ const void* LTOCodeGenerator::compile(size_t* length, std::string& errMsg) {
   OwningPtr<MemoryBuffer> BuffPtr;
   if (error_code ec = MemoryBuffer::getFile(name, BuffPtr, -1, false)) {
     errMsg = ec.message();
+    sys::Path(_nativeObjectPath).eraseFromDisk();
     return NULL;
   }
   _nativeObjectFile = BuffPtr.take();
@@ -214,12 +218,13 @@ bool LTOCodeGenerator::determineTarget(std::string& errMsg) {
   if (_target != NULL)
     return false;
 
-  std::string Triple = _linker.getModule()->getTargetTriple();
-  if (Triple.empty())
-    Triple = sys::getDefaultTargetTriple();
+  std::string TripleStr = _linker.getModule()->getTargetTriple();
+  if (TripleStr.empty())
+    TripleStr = sys::getDefaultTargetTriple();
+  llvm::Triple Triple(TripleStr);
 
   // create target machine from info for merged modules
-  const Target *march = TargetRegistry::lookupTarget(Triple, errMsg);
+  const Target *march = TargetRegistry::lookupTarget(TripleStr, errMsg);
   if (march == NULL)
     return true;
 
@@ -240,11 +245,18 @@ bool LTOCodeGenerator::determineTarget(std::string& errMsg) {
 
   // construct LTOModule, hand over ownership of module and target
   SubtargetFeatures Features;
-  Features.getDefaultSubtargetFeatures(llvm::Triple(Triple));
+  Features.getDefaultSubtargetFeatures(Triple);
   std::string FeatureStr = Features.getString();
+  // Set a default CPU for Darwin triples.
+  if (_mCpu.empty() && Triple.isOSDarwin()) {
+    if (Triple.getArch() == llvm::Triple::x86_64)
+      _mCpu = "core2";
+    else if (Triple.getArch() == llvm::Triple::x86)
+      _mCpu = "yonah";
+  }
   TargetOptions Options;
   LTOModule::getTargetOptions(Options);
-  _target = march->createTargetMachine(Triple, _mCpu, FeatureStr, Options,
+  _target = march->createTargetMachine(TripleStr, _mCpu, FeatureStr, Options,
                                        RelocModel, CodeModel::Default,
                                        CodeGenOpt::Aggressive);
   return false;
@@ -289,7 +301,7 @@ void LTOCodeGenerator::applyScopeRestrictions() {
 
   // mark which symbols can not be internalized
   MCContext Context(*_target->getMCAsmInfo(), *_target->getRegisterInfo(),NULL);
-  Mangler mangler(Context, *_target->getTargetData());
+  Mangler mangler(Context, *_target->getDataLayout());
   std::vector<const char*> mustPreserveList;
   SmallPtrSet<GlobalValue*, 8> asmUsed;
 
@@ -357,8 +369,10 @@ bool LTOCodeGenerator::generateObjectFile(raw_ostream &out,
   // Start off with a verification pass.
   passes.add(createVerifierPass());
 
-  // Add an appropriate TargetData instance for this module...
-  passes.add(new TargetData(*_target->getTargetData()));
+  // Add an appropriate DataLayout instance for this module...
+  passes.add(new DataLayout(*_target->getDataLayout()));
+  passes.add(new TargetTransformInfo(_target->getScalarTargetTransformInfo(),
+                                     _target->getVectorTargetTransformInfo()));
 
   // Enabling internalize here would use its AllButMain variant. It
   // keeps only main if it exists and does nothing for libraries. Instead
@@ -372,7 +386,7 @@ bool LTOCodeGenerator::generateObjectFile(raw_ostream &out,
 
   FunctionPassManager *codeGenPasses = new FunctionPassManager(mergedModule);
 
-  codeGenPasses->add(new TargetData(*_target->getTargetData()));
+  codeGenPasses->add(new DataLayout(*_target->getDataLayout()));
 
   formatted_raw_ostream Out(out);
 

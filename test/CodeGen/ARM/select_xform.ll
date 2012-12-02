@@ -9,7 +9,7 @@ define i32 @t1(i32 %a, i32 %b, i32 %c) nounwind {
 
 ; T2: t1:
 ; T2: mvn r0, #-2147483648
-; T2: addle.w r1, r1
+; T2: addle r1, r0
 ; T2: mov r0, r1
   %tmp1 = icmp sgt i32 %c, 10
   %tmp2 = select i1 %tmp1, i32 0, i32 2147483647
@@ -23,7 +23,7 @@ define i32 @t2(i32 %a, i32 %b, i32 %c, i32 %d) nounwind {
 ; ARM: mov r0, r1
 
 ; T2: t2:
-; T2: suble.w r1, r1, #10
+; T2: suble r1, #10
 ; T2: mov r0, r1
   %tmp1 = icmp sgt i32 %c, 10
   %tmp2 = select i1 %tmp1, i32 0, i32 10
@@ -33,12 +33,12 @@ define i32 @t2(i32 %a, i32 %b, i32 %c, i32 %d) nounwind {
 
 define i32 @t3(i32 %a, i32 %b, i32 %x, i32 %y) nounwind {
 ; ARM: t3:
-; ARM: mvnlt r2, #0
-; ARM: and r0, r2, r3
+; ARM: andge r3, r3, r2
+; ARM: mov r0, r3
 
 ; T2: t3:
-; T2: movlt.w r2, #-1
-; T2: and.w r0, r2, r3
+; T2: andge r3, r2
+; T2: mov r0, r3
   %cond = icmp slt i32 %a, %b
   %z = select i1 %cond, i32 -1, i32 %x
   %s = and i32 %z, %y
@@ -47,12 +47,12 @@ define i32 @t3(i32 %a, i32 %b, i32 %x, i32 %y) nounwind {
 
 define i32 @t4(i32 %a, i32 %b, i32 %x, i32 %y) nounwind {
 ; ARM: t4:
-; ARM: movlt r2, #0
-; ARM: orr r0, r2, r3
+; ARM: orrge r3, r3, r2
+; ARM: mov r0, r3
 
 ; T2: t4:
-; T2: movlt r2, #0
-; T2: orr.w r0, r2, r3
+; T2: orrge r3, r2
+; T2: mov r0, r3
   %cond = icmp slt i32 %a, %b
   %z = select i1 %cond, i32 0, i32 %x
   %s = or i32 %z, %y
@@ -81,7 +81,7 @@ define i32 @t6(i32 %a, i32 %b, i32 %c, i32 %d) nounwind {
 
 ; T2: t6:
 ; T2-NOT: movge
-; T2: eorlt.w r3, r3, r2
+; T2: eorlt r3, r2
   %cond = icmp slt i32 %a, %b
   %tmp1 = select i1 %cond, i32 %c, i32 0
   %tmp2 = xor i32 %tmp1, %d
@@ -178,4 +178,47 @@ define i32 @t12(i32 %a, i32 %b) nounwind {
   %cond = icmp slt i32 %a, %b
   %tmp1 = select i1 %cond, i32 %a, i32 %x
   ret i32 %tmp1
+}
+
+; Handle frame index operands.
+define void @pr13628() nounwind uwtable align 2 {
+  %x3 = alloca i8, i32 256, align 8
+  %x4 = load i8* undef, align 1
+  %x5 = icmp ne i8 %x4, 0
+  %x6 = select i1 %x5, i8* %x3, i8* null
+  call void @bar(i8* %x6) nounwind
+  ret void
+}
+declare void @bar(i8*)
+
+; Fold zext i1 into predicated add
+define i32 @t13(i32 %c, i32 %a) nounwind readnone ssp {
+entry:
+; ARM: t13
+; ARM: cmp r1, #10
+; ARM: addgt r0, r0, #1
+
+; T2: t13
+; T2: cmp r1, #10
+; T2: addgt r0, #1
+  %cmp = icmp sgt i32 %a, 10
+  %conv = zext i1 %cmp to i32
+  %add = add i32 %conv, %c
+  ret i32 %add
+}
+
+; Fold sext i1 into predicated sub
+define i32 @t14(i32 %c, i32 %a) nounwind readnone ssp {
+entry:
+; ARM: t14
+; ARM: cmp r1, #10
+; ARM: subgt r0, r0, #1
+
+; T2: t14
+; T2: cmp r1, #10
+; T2: subgt r0, #1
+  %cmp = icmp sgt i32 %a, 10
+  %conv = sext i1 %cmp to i32
+  %add = add i32 %conv, %c
+  ret i32 %add
 }

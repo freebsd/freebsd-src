@@ -261,3 +261,73 @@ define void @redundantVdup(<8 x i8>* %ptr) nounwind {
   store <8 x i8> %2, <8 x i8>* %ptr, align 8
   ret void
 }
+
+define <4 x i32> @tdupi(i32 %x, i32 %y) {
+;CHECK: tdupi
+;CHECK: vdup.32
+  %1 = insertelement <4 x i32> undef, i32 %x, i32 0
+  %2 = insertelement <4 x i32> %1, i32 %x, i32 1
+  %3 = insertelement <4 x i32> %2, i32 %x, i32 2
+  %4 = insertelement <4 x i32> %3, i32 %y, i32 3
+  ret <4 x i32> %4
+}
+
+define <4 x float> @tdupf(float %x, float %y) {
+;CHECK: tdupf
+;CHECK: vdup.32
+  %1 = insertelement <4 x float> undef, float %x, i32 0
+  %2 = insertelement <4 x float> %1, float %x, i32 1
+  %3 = insertelement <4 x float> %2, float %x, i32 2
+  %4 = insertelement <4 x float> %3, float %y, i32 3
+  ret <4 x float> %4
+}
+
+; This test checks that when splatting an element from a vector into another,
+; the value isn't moved out to GPRs first.
+define <4 x i32> @tduplane(<4 x i32> %invec) {
+;CHECK: tduplane
+;CHECK-NOT: vmov {{.*}}, d16[1]
+;CHECK: vdup.32 {{.*}}, d16[1]
+  %in = extractelement <4 x i32> %invec, i32 1
+  %1 = insertelement <4 x i32> undef, i32 %in, i32 0
+  %2 = insertelement <4 x i32> %1, i32 %in, i32 1
+  %3 = insertelement <4 x i32> %2, i32 %in, i32 2
+  %4 = insertelement <4 x i32> %3, i32 255, i32 3
+  ret <4 x i32> %4
+}
+
+define <2 x float> @check_f32(<4 x float> %v) nounwind {
+;CHECK: check_f32:
+;CHECK: vdup.32 {{.*}}, d{{..}}[1]
+  %x = extractelement <4 x float> %v, i32 3
+  %1 = insertelement  <2 x float> undef, float %x, i32 0
+  %2 = insertelement  <2 x float> %1, float %x, i32 1
+  ret <2 x float> %2
+}
+
+define <2 x i32> @check_i32(<4 x i32> %v) nounwind {
+;CHECK: check_i32:
+;CHECK: vdup.32 {{.*}}, d{{..}}[1]
+  %x = extractelement <4 x i32> %v, i32 3
+  %1 = insertelement  <2 x i32> undef, i32 %x, i32 0
+  %2 = insertelement  <2 x i32> %1, i32 %x, i32 1
+  ret <2 x i32> %2
+}
+
+define <4 x i16> @check_i16(<8 x i16> %v) nounwind {
+;CHECK: check_i16:
+;CHECK: vdup.16 {{.*}}, d{{..}}[3]
+  %x = extractelement <8 x i16> %v, i32 3
+  %1 = insertelement  <4 x i16> undef, i16 %x, i32 0
+  %2 = insertelement  <4 x i16> %1, i16 %x, i32 1
+  ret <4 x i16> %2
+}
+
+define <8 x i8> @check_i8(<16 x i8> %v) nounwind {
+;CHECK: check_i8:
+;CHECK: vdup.8 {{.*}}, d{{..}}[3]
+  %x = extractelement <16 x i8> %v, i32 3
+  %1 = insertelement  <8  x i8> undef, i8 %x, i32 0
+  %2 = insertelement  <8  x i8> %1, i8 %x, i32 1
+  ret <8 x i8> %2
+}

@@ -30,7 +30,6 @@
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
-#include "llvm/Function.h"
 #include "llvm/PassManager.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -48,7 +47,7 @@ namespace {
 class MipsCodeEmitter : public MachineFunctionPass {
   MipsJITInfo *JTI;
   const MipsInstrInfo *II;
-  const TargetData *TD;
+  const DataLayout *TD;
   const MipsSubtarget *Subtarget;
   TargetMachine &TM;
   JITCodeEmitter &MCE;
@@ -67,7 +66,7 @@ class MipsCodeEmitter : public MachineFunctionPass {
     MipsCodeEmitter(TargetMachine &tm, JITCodeEmitter &mce) :
       MachineFunctionPass(ID), JTI(0),
       II((const MipsInstrInfo *) tm.getInstrInfo()),
-      TD(tm.getTargetData()), TM(tm), MCE(mce), MCPEs(0), MJTEs(0),
+      TD(tm.getDataLayout()), TM(tm), MCE(mce), MCPEs(0), MJTEs(0),
       IsPIC(TM.getRelocationModel() == Reloc::PIC_) {
     }
 
@@ -129,7 +128,7 @@ char MipsCodeEmitter::ID = 0;
 bool MipsCodeEmitter::runOnMachineFunction(MachineFunction &MF) {
   JTI = ((MipsTargetMachine&) MF.getTarget()).getJITInfo();
   II = ((const MipsTargetMachine&) MF.getTarget()).getInstrInfo();
-  TD = ((const MipsTargetMachine&) MF.getTarget()).getTargetData();
+  TD = ((const MipsTargetMachine&) MF.getTarget()).getDataLayout();
   Subtarget = &TM.getSubtarget<MipsSubtarget> ();
   MCPEs = &MF.getConstantPool()->getConstants();
   MJTEs = 0;
@@ -139,7 +138,7 @@ bool MipsCodeEmitter::runOnMachineFunction(MachineFunction &MF) {
 
   do {
     DEBUG(errs() << "JITTing function '"
-        << MF.getFunction()->getName() << "'\n");
+        << MF.getName() << "'\n");
     MCE.startFunction(MF);
 
     for (MachineFunction::iterator MBB = MF.begin(), E = MF.end();
@@ -219,15 +218,9 @@ unsigned MipsCodeEmitter::getMachineOpValue(const MachineInstr &MI,
     return getMipsRegisterNumbering(MO.getReg());
   else if (MO.isImm())
     return static_cast<unsigned>(MO.getImm());
-  else if (MO.isGlobal()) {
-    if (MI.getOpcode() == Mips::ULW || MI.getOpcode() == Mips::USW ||
-          MI.getOpcode() == Mips::ULH || MI.getOpcode() == Mips::ULHu)
-      emitGlobalAddressUnaligned(MO.getGlobal(), getRelocation(MI, MO), 4);
-    else if (MI.getOpcode() == Mips::USH)
-      emitGlobalAddressUnaligned(MO.getGlobal(), getRelocation(MI, MO), 8);
-    else
-      emitGlobalAddress(MO.getGlobal(), getRelocation(MI, MO), true);
-  } else if (MO.isSymbol())
+  else if (MO.isGlobal())
+    emitGlobalAddress(MO.getGlobal(), getRelocation(MI, MO), true);
+  else if (MO.isSymbol())
     emitExternalSymbolAddress(MO.getSymbolName(), getRelocation(MI, MO));
   else if (MO.isCPI())
     emitConstPoolAddress(MO.getIndex(), getRelocation(MI, MO));
@@ -384,29 +377,8 @@ void MipsCodeEmitter::emitInstruction(const MachineInstr &MI) {
   if ((MI.getDesc().TSFlags & MipsII::FormMask) == MipsII::Pseudo)
     return;
 
-
-  switch (MI.getOpcode()) {
-  case Mips::USW:
-    NumEmitted += emitUSW(MI);
-    break;
-  case Mips::ULW:
-    NumEmitted += emitULW(MI);
-    break;
-  case Mips::ULH:
-    NumEmitted += emitULH(MI);
-    break;
-  case Mips::ULHu:
-    NumEmitted += emitULHu(MI);
-    break;
-  case Mips::USH:
-    NumEmitted += emitUSH(MI);
-    break;
-
-  default:
-    emitWordLE(getBinaryCodeForInstr(MI));
-    ++NumEmitted;  // Keep track of the # of mi's emitted
-    break;
-  }
+  emitWordLE(getBinaryCodeForInstr(MI));
+  ++NumEmitted;  // Keep track of the # of mi's emitted
 
   MCE.processDebugLoc(MI.getDebugLoc(), false);
 }

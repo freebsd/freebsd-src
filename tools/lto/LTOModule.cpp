@@ -150,15 +150,20 @@ UseInitArray("use-init-array",
   cl::desc("Use .init_array instead of .ctors."),
   cl::init(false));
 
+static cl::opt<unsigned>
+SSPBufferSize("stack-protector-buffer-size", cl::init(8),
+              cl::desc("Lower bound for a buffer to be considered for "
+                       "stack protection"));
+
 LTOModule::LTOModule(llvm::Module *m, llvm::TargetMachine *t)
   : _module(m), _target(t),
     _context(*_target->getMCAsmInfo(), *_target->getRegisterInfo(), NULL),
-    _mangler(_context, *_target->getTargetData()) {}
+    _mangler(_context, *_target->getDataLayout()) {}
 
 /// isBitcodeFile - Returns 'true' if the file (or memory contents) is LLVM
 /// bitcode.
 bool LTOModule::isBitcodeFile(const void *mem, size_t length) {
-  return llvm::sys::IdentifyFileType((char*)mem, length)
+  return llvm::sys::IdentifyFileType((const char*)mem, length)
     == llvm::sys::Bitcode_FileType;
 }
 
@@ -252,6 +257,7 @@ void LTOModule::getTargetOptions(TargetOptions &Options) {
   Options.PositionIndependentExecutable = EnablePIE;
   Options.EnableSegmentedStacks = SegmentedStacks;
   Options.UseInitArray = UseInitArray;
+  Options.SSPBufferSize = SSPBufferSize;
 }
 
 LTOModule *LTOModule::makeLTOModule(MemoryBuffer *buffer,
@@ -272,23 +278,31 @@ LTOModule *LTOModule::makeLTOModule(MemoryBuffer *buffer,
     return NULL;
   }
 
-  std::string Triple = m->getTargetTriple();
-  if (Triple.empty())
-    Triple = sys::getDefaultTargetTriple();
+  std::string TripleStr = m->getTargetTriple();
+  if (TripleStr.empty())
+    TripleStr = sys::getDefaultTargetTriple();
+  llvm::Triple Triple(TripleStr);
 
   // find machine architecture for this module
-  const Target *march = TargetRegistry::lookupTarget(Triple, errMsg);
+  const Target *march = TargetRegistry::lookupTarget(TripleStr, errMsg);
   if (!march)
     return NULL;
 
   // construct LTOModule, hand over ownership of module and target
   SubtargetFeatures Features;
-  Features.getDefaultSubtargetFeatures(llvm::Triple(Triple));
+  Features.getDefaultSubtargetFeatures(Triple);
   std::string FeatureStr = Features.getString();
+  // Set a default CPU for Darwin triples.
   std::string CPU;
+  if (Triple.isOSDarwin()) {
+    if (Triple.getArch() == llvm::Triple::x86_64)
+      CPU = "core2";
+    else if (Triple.getArch() == llvm::Triple::x86)
+      CPU = "yonah";
+  }
   TargetOptions Options;
   getTargetOptions(Options);
-  TargetMachine *target = march->createTargetMachine(Triple, CPU, FeatureStr,
+  TargetMachine *target = march->createTargetMachine(TripleStr, CPU, FeatureStr,
                                                      Options);
   LTOModule *Ret = new LTOModule(m.take(), target);
   if (Ret->parseSymbols(errMsg)) {
@@ -301,7 +315,7 @@ LTOModule *LTOModule::makeLTOModule(MemoryBuffer *buffer,
 
 /// makeBuffer - Create a MemoryBuffer from a memory range.
 MemoryBuffer *LTOModule::makeBuffer(const void *mem, size_t length) {
-  const char *startPtr = (char*)mem;
+  const char *startPtr = (const char*)mem;
   return MemoryBuffer::getMemBuffer(StringRef(startPtr, length), "", false);
 }
 
@@ -487,8 +501,7 @@ void LTOModule::addDefinedSymbol(GlobalValue *def, bool isFunction) {
 
   // set definition part
   if (def->hasWeakLinkage() || def->hasLinkOnceLinkage() ||
-      def->hasLinkerPrivateWeakLinkage() ||
-      def->hasLinkerPrivateWeakDefAutoLinkage())
+      def->hasLinkerPrivateWeakLinkage())
     attr |= LTO_SYMBOL_DEFINITION_WEAK;
   else if (def->hasCommonLinkage())
     attr |= LTO_SYMBOL_DEFINITION_TENTATIVE;
@@ -504,7 +517,7 @@ void LTOModule::addDefinedSymbol(GlobalValue *def, bool isFunction) {
            def->hasLinkOnceLinkage() || def->hasCommonLinkage() ||
            def->hasLinkerPrivateWeakLinkage())
     attr |= LTO_SYMBOL_SCOPE_DEFAULT;
-  else if (def->hasLinkerPrivateWeakDefAutoLinkage())
+  else if (def->hasLinkOnceODRAutoHideLinkage())
     attr |= LTO_SYMBOL_SCOPE_DEFAULT_CAN_BE_HIDDEN;
   else
     attr |= LTO_SYMBOL_SCOPE_INTERNAL;

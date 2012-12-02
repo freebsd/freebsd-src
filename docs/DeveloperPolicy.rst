@@ -137,6 +137,9 @@ reviewees. If someone is kind enough to review your code, you should return the
 favor for someone else.  Note that anyone is welcome to review and give feedback
 on a patch, but only people with Subversion write access can approve it.
 
+There is a web based code review tool that can optionally be used
+for code reviews. See :doc:`Phabricator`.
+
 Code Owners
 -----------
 
@@ -279,7 +282,7 @@ If you have recently been granted commit access, these policies apply:
 #. You are granted *commit-after-approval* to all parts of LLVM.  To get
    approval, submit a `patch`_ to `llvm-commits
    <http://lists.cs.uiuc.edu/mailman/listinfo/llvm-commits>`_. When approved
-   you may commit it yourself.</li>
+   you may commit it yourself.
 
 #. You are allowed to commit patches without approval which you think are
    obvious. This is clearly a subjective decision --- we simply expect you to

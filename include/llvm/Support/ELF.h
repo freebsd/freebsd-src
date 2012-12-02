@@ -441,6 +441,7 @@ enum {
   R_MICROBLAZE_COPY           = 21
 };
 
+// ELF Relocation types for PPC32
 enum {
   R_PPC_NONE                  = 0,      /* No relocation. */
   R_PPC_ADDR32                = 1,
@@ -456,7 +457,23 @@ enum {
   R_PPC_REL14                 = 11,
   R_PPC_REL14_BRTAKEN         = 12,
   R_PPC_REL14_BRNTAKEN        = 13,
-  R_PPC_REL32                 = 26
+  R_PPC_REL32                 = 26,
+  R_PPC_TPREL16_LO            = 70,
+  R_PPC_TPREL16_HA            = 72
+};
+
+// ELF Relocation types for PPC64
+enum {
+  R_PPC64_ADDR16_LO           = 4,
+  R_PPC64_ADDR16_HI           = 5,
+  R_PPC64_ADDR14              = 7,
+  R_PPC64_REL24               = 10,
+  R_PPC64_ADDR64              = 38,
+  R_PPC64_ADDR16_HIGHER       = 39,
+  R_PPC64_ADDR16_HIGHEST      = 41,
+  R_PPC64_TOC16               = 47,
+  R_PPC64_TOC                 = 51,
+  R_PPC64_TOC16_DS            = 63
 };
 
 // ARM Specific e_flags
@@ -674,8 +691,36 @@ enum {
   R_MIPS_NUM               = 218
 };
 
+// Hexagon Specific e_flags
+// Release 5 ABI
+enum {
+  // Object processor version flags, bits[3:0]
+  EF_HEXAGON_MACH_V2      = 0x00000001,   // Hexagon V2
+  EF_HEXAGON_MACH_V3      = 0x00000002,   // Hexagon V3
+  EF_HEXAGON_MACH_V4      = 0x00000003,   // Hexagon V4
+  EF_HEXAGON_MACH_V5      = 0x00000004,   // Hexagon V5
+
+  // Highest ISA version flags
+  EF_HEXAGON_ISA_MACH     = 0x00000000,   // Same as specified in bits[3:0]
+                                          // of e_flags
+  EF_HEXAGON_ISA_V2       = 0x00000010,   // Hexagon V2 ISA
+  EF_HEXAGON_ISA_V3       = 0x00000020,   // Hexagon V3 ISA
+  EF_HEXAGON_ISA_V4       = 0x00000030,   // Hexagon V4 ISA
+  EF_HEXAGON_ISA_V5       = 0x00000040    // Hexagon V5 ISA
+};
+
+// Hexagon specific Section indexes for common small data
+// Release 5 ABI 
+enum {
+  SHN_HEXAGON_SCOMMON     = 0xff00,       // Other access sizes
+  SHN_HEXAGON_SCOMMON_1   = 0xff01,       // Byte-sized access
+  SHN_HEXAGON_SCOMMON_2   = 0xff02,       // Half-word-sized access
+  SHN_HEXAGON_SCOMMON_4   = 0xff03,       // Word-sized access
+  SHN_HEXAGON_SCOMMON_8   = 0xff04        // Double-word-size access
+};   
+
 // ELF Relocation types for Hexagon
-// Release 5 ABI - Document: 80-V9418-3 Rev. J
+// Release 5 ABI
 enum {
   R_HEX_NONE              =  0,
   R_HEX_B22_PCREL         =  1,
@@ -1103,6 +1148,9 @@ enum {
   PT_PHDR    = 6, // The program header table itself.
   PT_TLS     = 7, // The thread-local storage template.
   PT_LOOS    = 0x60000000, // Lowest operating system-specific pt entry type.
+  PT_HIOS    = 0x6fffffff, // Highest operating system-specific pt entry type.
+  PT_LOPROC  = 0x70000000, // Lowest processor-specific program hdr entry type.
+  PT_HIPROC  = 0x7fffffff, // Highest processor-specific program hdr entry type.
 
   // x86-64 program header types.
   // These all contain stack unwind tables.
@@ -1113,9 +1161,11 @@ enum {
   PT_GNU_STACK  = 0x6474e551, // Indicates stack executability.
   PT_GNU_RELRO  = 0x6474e552, // Read-only after relocation.
 
-  PT_HIOS    = 0x6fffffff, // Highest operating system-specific pt entry type.
-  PT_LOPROC  = 0x70000000, // Lowest processor-specific program hdr entry type.
-  PT_HIPROC  = 0x7fffffff  // Highest processor-specific program hdr entry type.
+  // ARM program header types.
+  PT_ARM_ARCHEXT = 0x70000000, // Platform architecture compatibility information
+  // These all contain stack unwind tables.
+  PT_ARM_EXIDX   = 0x70000001,
+  PT_ARM_UNWIND  = 0x70000001
 };
 
 // Segment flag bits.
