@@ -162,11 +162,23 @@ namespace test12 {
   void use() {
     // CHECK: define internal void @_ZN6test124testIFivEXadL_ZNS_L1fEvEEEEvv(
     test<int(), &f>();
-    // CHECK: define internal void @_ZN6test124testIRFivEXadL_ZNS_L1fEvEEEEvv(
+    // CHECK: define internal void @_ZN6test124testIRFivELZNS_L1fEvEEEvv(
     test<int(&)(), f>();
     // CHECK: define internal void @_ZN6test124testIPKiXadL_ZNS_L1nEEEEEvv(
     test<const int*, &n>();
-    // CHECK: define internal void @_ZN6test124testIRKiXadL_ZNS_L1nEEEEEvv(
+    // CHECK: define internal void @_ZN6test124testIRKiLZNS_L1nEEEEvv(
     test<const int&, n>();
   }
+}
+
+// rdar://problem/12072531
+// Test the boundary condition of minimal signed integers.
+namespace test13 {
+  template <char c> char returnChar() { return c; }
+  template char returnChar<-128>();
+  // CHECK: @_ZN6test1310returnCharILcn128EEEcv()
+
+  template <short s> short returnShort() { return s; }
+  template short returnShort<-32768>();
+  // CHECK: @_ZN6test1311returnShortILsn32768EEEsv()
 }

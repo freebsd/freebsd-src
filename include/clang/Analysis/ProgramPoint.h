@@ -140,8 +140,6 @@ public:
     return ID.ComputeHash();
   }
 
-  static bool classof(const ProgramPoint*) { return true; }
-
   bool operator==(const ProgramPoint & RHS) const {
     return Data1 == RHS.Data1 &&
            Data2 == RHS.Data2 &&
@@ -213,7 +211,9 @@ class StmtPoint : public ProgramPoint {
 public:
   StmtPoint(const Stmt *S, const void *p2, Kind k, const LocationContext *L,
             const ProgramPointTag *tag)
-    : ProgramPoint(S, p2, k, L, tag) {}
+    : ProgramPoint(S, p2, k, L, tag) {
+    assert(S);
+  }
 
   const Stmt *getStmt() const { return (const Stmt*) getData1(); }
 
@@ -461,6 +461,7 @@ public:
 };
 
 /// Represents a point when we begin processing an inlined call.
+/// CallEnter uses the caller's location context.
 class CallEnter : public ProgramPoint {
 public:
   CallEnter(const Stmt *stmt, const StackFrameContext *calleeCtx, 

@@ -48,11 +48,23 @@ void template_mangling() {
 // CHECK: call {{.*}} @"\01??0?$BoolTemplate@$00@@QAE@XZ"
 // CHECK: call {{.*}} @"\01??$Foo@H@?$BoolTemplate@$00@@QAEXH@Z"
 
+  IntTemplate<0> zero;
+// CHECK: call {{.*}} @"\01??0?$IntTemplate@$0A@@@QAE@XZ"
+
   IntTemplate<5> five;
 // CHECK: call {{.*}} @"\01??0?$IntTemplate@$04@@QAE@XZ"
 
   IntTemplate<11> eleven;
 // CHECK: call {{.*}} @"\01??0?$IntTemplate@$0L@@@QAE@XZ"
+
+  IntTemplate<256> _256;
+// CHECK: call {{.*}} @"\01??0?$IntTemplate@$0BAA@@@QAE@XZ"
+
+  IntTemplate<513> _513;
+// CHECK: call {{.*}} @"\01??0?$IntTemplate@$0CAB@@@QAE@XZ"
+
+  IntTemplate<1026> _1026;
+// CHECK: call {{.*}} @"\01??0?$IntTemplate@$0EAC@@@QAE@XZ"
 
   IntTemplate<65535> ffff;
 // CHECK: call {{.*}} @"\01??0?$IntTemplate@$0PPPP@@@QAE@XZ"

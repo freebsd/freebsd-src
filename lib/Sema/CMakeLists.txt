@@ -13,7 +13,9 @@ add_clang_library(clangSema
   DelayedDiagnostic.cpp
   IdentifierResolver.cpp
   JumpDiagnostics.cpp
+  MultiplexExternalSemaSource.cpp
   Scope.cpp
+  ScopeInfo.cpp
   Sema.cpp
   SemaAccess.cpp
   SemaAttr.cpp
@@ -39,6 +41,7 @@ add_clang_library(clangSema
   SemaOverload.cpp
   SemaPseudoObject.cpp
   SemaStmt.cpp
+  SemaStmtAsm.cpp
   SemaStmtAttr.cpp
   SemaTemplate.cpp
   SemaTemplateDeduction.cpp

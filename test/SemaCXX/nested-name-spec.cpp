@@ -93,8 +93,7 @@ void f3() {
 }
 
 // make sure the following doesn't hit any asserts
-void f4(undef::C); // expected-error {{use of undeclared identifier 'undef'}} \
-                      expected-error {{variable has incomplete type 'void'}}
+void f4(undef::C); // expected-error {{use of undeclared identifier 'undef'}}
 
 typedef void C2::f5(int); // expected-error{{typedef declarator cannot be qualified}}
 
@@ -160,7 +159,7 @@ namespace N {
   void f();
   // FIXME: if we move this to a separate definition of N, things break!
 }
-void ::global_func2(int) { } // expected-warning{{extra qualification on member 'global_func2'}}
+void ::global_func2(int) { } // expected-error{{extra qualification on member 'global_func2'}}
 
 void N::f() { } // okay
 
@@ -246,15 +245,15 @@ namespace PR7133 {
 }
 
 class CLASS {
-  void CLASS::foo2(); // expected-warning {{extra qualification on member 'foo2'}}
+  void CLASS::foo2(); // expected-error {{extra qualification on member 'foo2'}}
 };
 
 namespace PR8159 {
   class B { };
 
   class A {
-    int A::a; // expected-warning{{extra qualification on member 'a'}}
-    static int A::b; // expected-warning{{extra qualification on member 'b'}}
+    int A::a; // expected-error{{extra qualification on member 'a'}}
+    static int A::b; // expected-error{{extra qualification on member 'b'}}
     int ::c; // expected-error{{non-friend class member 'c' cannot have a qualified name}}
   };
 }

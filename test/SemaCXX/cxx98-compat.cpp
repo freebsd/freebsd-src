@@ -20,7 +20,7 @@ class Variadic2 {};
 template<int ...I>  // expected-warning {{variadic templates are incompatible with C++98}}
 class Variadic3 {};
 
-int alignas(8) with_alignas; // expected-warning {{'alignas' is incompatible with C++98}}
+alignas(8) int with_alignas; // expected-warning {{'alignas' is incompatible with C++98}}
 int with_attribute [[ ]]; // expected-warning {{attributes are incompatible with C++98}}
 
 void Literals() {
@@ -360,5 +360,16 @@ namespace AssignOpUnion {
   union test1 {
     a x; // expected-warning {{union member 'x' with a non-trivial copy assignment operator is incompatible with C++98}}
     b y; // expected-warning {{union member 'y' with a non-trivial copy assignment operator is incompatible with C++98}}
+  };
+}
+
+namespace rdar11736429 {
+  struct X {
+    X(const X&) = delete; // expected-warning{{deleted function definitions are incompatible with C++98}} \
+    // expected-note{{because type 'rdar11736429::X' has a user-declared constructor}}
+  };
+
+  union S {
+    X x; // expected-warning{{union member 'x' with a non-trivial constructor is incompatible with C++98}}
   };
 }

@@ -1,5 +1,4 @@
 // RUN: %clang_cc1 -fcxx-exceptions -fexceptions -analyze -analyzer-checker=deadcode.DeadStores -verify -Wno-unreachable-code %s
-// RUN: %clang_cc1 -fcxx-exceptions -fexceptions -analyze -analyzer-store=region -analyzer-constraints=basic -analyzer-checker=deadcode.DeadStores -verify -Wno-unreachable-code %s
 // RUN: %clang_cc1 -fcxx-exceptions -fexceptions -analyze -analyzer-store=region -analyzer-constraints=range -analyzer-checker=deadcode.DeadStores -verify -Wno-unreachable-code %s
 
 //===----------------------------------------------------------------------===//
@@ -110,3 +109,43 @@ namespace foo {
   }
 }
 
+//===----------------------------------------------------------------------===//
+// Dead stores in with EH code.
+//===----------------------------------------------------------------------===//
+
+void test_5_Aux();
+int test_5() {
+  int x = 0;
+  try {
+    x = 2; // no-warning
+    test_5_Aux();
+  }
+  catch (int z) {
+    return x + z;
+  }
+  return 1;
+}
+
+
+int test_6_aux(unsigned x);
+
+void test_6() {
+  unsigned currDestLen = 0;  // no-warning
+  try {
+    while (test_6_aux(currDestLen)) {
+      currDestLen += 2; // no-warning
+    } 
+  }
+  catch (void *) {}
+}
+
+void test_6b() {
+  unsigned currDestLen = 0;  // no-warning
+  try {
+    while (test_6_aux(currDestLen)) {
+      currDestLen += 2; // expected-warning {{Value stored to 'currDestLen' is never read}}
+      break;
+    } 
+  }
+  catch (void *) {}
+}

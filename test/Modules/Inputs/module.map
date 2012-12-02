@@ -18,6 +18,20 @@ module lookup_left_cxx { header "lookup_left.hpp" }
 module lookup_right_cxx { header "lookup_right.hpp" }
 module module_private_left { header "module_private_left.h" }
 module module_private_right { header "module_private_right.h" }
+module macros_top { 
+  header "macros_top.h" 
+}
+module macros_left { 
+  header "macros_left.h" 
+  export *
+}
+module macros_right { 
+  header "macros_right.h" 
+  export *
+  explicit module undef {
+    header "macros_right_undef.h"
+  }
+}
 module macros { header "macros.h" }
 module category_top { header "category_top.h" }
 module category_left { 
@@ -78,6 +92,18 @@ module namespaces_right {
   header "namespaces-right.h"
   export *
 }
+module templates_top { 
+  header "templates-top.h"
+  export *
+}
+module templates_left { 
+  header "templates-left.h"
+  export *
+}
+module templates_right { 
+  header "templates-right.h"
+  export *
+}
 module MethodPoolA {
   header "MethodPoolA.h"
 }
@@ -86,4 +112,8 @@ module MethodPoolB {
 }
 module import_decl {
   header "import-decl.h"
+}
+
+framework module * { 
+  exclude NotAModule
 }

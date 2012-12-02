@@ -60,7 +60,7 @@ typedef int T1;
 typedef float T2;
 
 int func0(int);
-int func1(int);
+int func1(int x) { return x; }
 int func2(int);
 
 
@@ -77,12 +77,6 @@ extern int var1;
 extern float var2;
 
 extern double var3;
-
-#ifdef __cplusplus
-template<typename T> class Vector;
-
-template<typename T> class Vector;
-#endif
 
 // Make sure this doesn't introduce an ambiguity-creating 'id' at the
 // top level.

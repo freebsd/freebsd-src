@@ -68,13 +68,15 @@ public:
                                   const Token &IncludeTok,
                                   StringRef FileName,
                                   bool IsAngled,
+                                  CharSourceRange FilenameRange,
                                   const FileEntry *File,
-                                  SourceLocation EndLoc,
                                   StringRef SearchPath,
-                                  StringRef RelativePath) {
+                                  StringRef RelativePath,
+                                  const Module *Imported) {
     bool isImport = (IncludeTok.is(tok::identifier) &&
             IncludeTok.getIdentifierInfo()->getPPKeywordID() == tok::pp_import);
-    IndexCtx.ppIncludedFile(HashLoc, FileName, File, isImport, IsAngled);
+    IndexCtx.ppIncludedFile(HashLoc, FileName, File, isImport, IsAngled,
+                            Imported);
   }
 
   /// MacroDefined - This hook is called whenever a macro definition is seen.
@@ -189,6 +191,13 @@ public:
 
   virtual ASTConsumer *CreateASTConsumer(CompilerInstance &CI,
                                          StringRef InFile) {
+    PreprocessorOptions &PPOpts = CI.getPreprocessorOpts();
+
+    if (!PPOpts.ImplicitPCHInclude.empty()) {
+      IndexCtx.importedPCH(
+                        CI.getFileManager().getFile(PPOpts.ImplicitPCHInclude));
+    }
+
     IndexCtx.setASTContext(CI.getASTContext());
     Preprocessor &PP = CI.getPreprocessor();
     PP.addPPCallbacks(new IndexPPCallbacks(PP, IndexCtx));
@@ -281,13 +290,13 @@ static void clang_indexSourceFile_Impl(void *UserData) {
   CaptureDiagnosticConsumer *CaptureDiag = new CaptureDiagnosticConsumer();
 
   // Configure the diagnostics.
-  DiagnosticOptions DiagOpts;
   IntrusiveRefCntPtr<DiagnosticsEngine>
-    Diags(CompilerInstance::createDiagnostics(DiagOpts, num_command_line_args, 
-                                                command_line_args,
-                                                CaptureDiag,
-                                                /*ShouldOwnClient=*/true,
-                                                /*ShouldCloneClient=*/false));
+    Diags(CompilerInstance::createDiagnostics(new DiagnosticOptions,
+                                              num_command_line_args,
+                                              command_line_args,
+                                              CaptureDiag,
+                                              /*ShouldOwnClient=*/true,
+                                              /*ShouldCloneClient=*/false));
 
   // Recover resources if we crash before exiting this function.
   llvm::CrashRecoveryContextCleanupRegistrar<DiagnosticsEngine,
@@ -346,9 +355,6 @@ static void clang_indexSourceFile_Impl(void *UserData) {
   // precompiled headers are involved), we disable it.
   CInvok->getLangOpts()->SpellChecking = false;
 
-  if (!requestedToGetTU)
-    CInvok->getPreprocessorOpts().DetailedRecord = false;
-
   if (index_options & CXIndexOpt_SuppressWarnings)
     CInvok->getDiagnosticOpts().IgnoreWarnings = true;
 
@@ -374,7 +380,6 @@ static void clang_indexSourceFile_Impl(void *UserData) {
   bool PrecompilePreamble = false;
   bool CacheCodeCompletionResults = false;
   PreprocessorOptions &PPOpts = CInvok->getPreprocessorOpts(); 
-  PPOpts.DetailedRecord = false;
   PPOpts.AllowPCHWithCompilerErrors = true;
 
   if (requestedToGetTU) {
@@ -383,10 +388,14 @@ static void clang_indexSourceFile_Impl(void *UserData) {
     // FIXME: Add a flag for modules.
     CacheCodeCompletionResults
       = TU_options & CXTranslationUnit_CacheCompletionResults;
-    if (TU_options & CXTranslationUnit_DetailedPreprocessingRecord) {
-      PPOpts.DetailedRecord = true;
-    }
   }
+
+  if (TU_options & CXTranslationUnit_DetailedPreprocessingRecord) {
+    PPOpts.DetailedRecord = true;
+  }
+
+  if (!requestedToGetTU && !CInvok->getLangOpts()->Modules)
+    PPOpts.DetailedRecord = false;
 
   DiagnosticErrorTrap DiagTrap(*Diags);
   bool Success = ASTUnit::LoadFromCompilerInvocationAction(CInvok.getPtr(), Diags,
@@ -435,57 +444,39 @@ static void indexPreprocessingRecord(ASTUnit &Unit, IndexingContext &IdxCtx) {
   if (!PP.getPreprocessingRecord())
     return;
 
-  PreprocessingRecord &PPRec = *PP.getPreprocessingRecord();
-
   // FIXME: Only deserialize inclusion directives.
-  // FIXME: Only deserialize stuff from the last chained PCH, not the PCH/Module
-  // that it depends on.
 
-  bool OnlyLocal = !Unit.isMainFileAST() && Unit.getOnlyLocalDecls();
   PreprocessingRecord::iterator I, E;
-  if (OnlyLocal) {
-    I = PPRec.local_begin();
-    E = PPRec.local_end();
-  } else {
-    I = PPRec.begin();
-    E = PPRec.end();
-  }
+  llvm::tie(I, E) = Unit.getLocalPreprocessingEntities();
 
+  bool isModuleFile = Unit.isModuleFile();
   for (; I != E; ++I) {
     PreprocessedEntity *PPE = *I;
 
     if (InclusionDirective *ID = dyn_cast<InclusionDirective>(PPE)) {
-      IdxCtx.ppIncludedFile(ID->getSourceRange().getBegin(), ID->getFileName(),
-                     ID->getFile(), ID->getKind() == InclusionDirective::Import,
-                     !ID->wasInQuotes());
+      SourceLocation Loc = ID->getSourceRange().getBegin();
+      // Modules have synthetic main files as input, give an invalid location
+      // if the location points to such a file.
+      if (isModuleFile && Unit.isInMainFileID(Loc))
+        Loc = SourceLocation();
+      IdxCtx.ppIncludedFile(Loc, ID->getFileName(),
+                            ID->getFile(),
+                            ID->getKind() == InclusionDirective::Import,
+                            !ID->wasInQuotes(), ID->importedModule());
     }
   }
 }
 
+static bool topLevelDeclVisitor(void *context, const Decl *D) {
+  IndexingContext &IdxCtx = *static_cast<IndexingContext*>(context);
+  IdxCtx.indexTopLevelDecl(D);
+  if (IdxCtx.shouldAbort())
+    return false;
+  return true;
+}
+
 static void indexTranslationUnit(ASTUnit &Unit, IndexingContext &IdxCtx) {
-  // FIXME: Only deserialize stuff from the last chained PCH, not the PCH/Module
-  // that it depends on.
-
-  bool OnlyLocal = !Unit.isMainFileAST() && Unit.getOnlyLocalDecls();
-
-  if (OnlyLocal) {
-    for (ASTUnit::top_level_iterator TL = Unit.top_level_begin(),
-                                  TLEnd = Unit.top_level_end();
-           TL != TLEnd; ++TL) {
-      IdxCtx.indexTopLevelDecl(*TL);
-      if (IdxCtx.shouldAbort())
-        return;
-    }
-
-  } else {
-    TranslationUnitDecl *TUDecl = Unit.getASTContext().getTranslationUnitDecl();
-    for (TranslationUnitDecl::decl_iterator
-           I = TUDecl->decls_begin(), E = TUDecl->decls_end(); I != E; ++I) {
-      IdxCtx.indexTopLevelDecl(*I);
-      if (IdxCtx.shouldAbort())
-        return;
-    }
-  }
+  Unit.visitLocalTopLevelDecls(&IdxCtx, topLevelDeclVisitor);
 }
 
 static void indexDiagnostics(CXTranslationUnit TU, IndexingContext &IdxCtx) {
@@ -538,6 +529,11 @@ static void clang_indexTranslationUnit_Impl(void *UserData) {
   ASTUnit *Unit = static_cast<ASTUnit *>(TU->TUData);
   if (!Unit)
     return;
+
+  ASTUnit::ConcurrencyCheck Check(*Unit);
+
+  if (const FileEntry *PCHFile = Unit->getPCHFile())
+    IndexCtx->importedPCH(PCHFile);
 
   FileManager &FileMgr = Unit->getFileManager();
 

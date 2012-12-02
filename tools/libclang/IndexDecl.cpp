@@ -110,7 +110,7 @@ public:
     return true;
   }
 
-  bool VisitTypedefDecl(TypedefNameDecl *D) {
+  bool VisitTypedefNameDecl(TypedefNameDecl *D) {
     IndexCtx.handleTypedefName(D);
     IndexCtx.indexTypeSourceInfo(D->getTypeSourceInfo(), D);
     return true;
@@ -194,7 +194,7 @@ public:
   bool VisitObjCMethodDecl(ObjCMethodDecl *D) {
     // Methods associated with a property, even user-declared ones, are
     // handled when we handle the property.
-    if (D->isSynthesized())
+    if (D->isPropertyAccessor())
       return true;
 
     handleObjCMethod(D);
@@ -228,12 +228,12 @@ public:
     }
 
     if (ObjCMethodDecl *MD = PD->getGetterMethodDecl()) {
-      if (MD->isSynthesized())
+      if (MD->isPropertyAccessor())
         IndexCtx.handleSynthesizedObjCMethod(MD, D->getLocation(),
                                              D->getLexicalDeclContext());
     }
     if (ObjCMethodDecl *MD = PD->getSetterMethodDecl()) {
-      if (MD->isSynthesized())
+      if (MD->isPropertyAccessor())
         IndexCtx.handleSynthesizedObjCMethod(MD, D->getLocation(),
                                              D->getLexicalDeclContext());
     }
@@ -305,6 +305,11 @@ public:
     IndexCtx.indexTypeSourceInfo(D->getTemplatedDecl()->getTypeSourceInfo(), D);
     return true;
   }
+
+  bool VisitImportDecl(ImportDecl *D) {
+    IndexCtx.importedModule(D);
+    return true;
+  }
 };
 
 } // anonymous namespace
@@ -325,7 +330,7 @@ void IndexingContext::indexDeclContext(const DeclContext *DC) {
   }
 }
 
-void IndexingContext::indexTopLevelDecl(Decl *D) {
+void IndexingContext::indexTopLevelDecl(const Decl *D) {
   if (isNotFromSourceFile(D->getLocation()))
     return;
 

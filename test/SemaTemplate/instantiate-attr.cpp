@@ -1,4 +1,5 @@
 // RUN: %clang_cc1 -fsyntax-only -verify %s
+// expected-no-diagnostics
 template <typename T>
 struct A {
   char a __attribute__((aligned(16)));
@@ -23,4 +24,13 @@ namespace test1 {
   int test0[sizeof(type) == 4 ? 1 : -1];
   int test1[__builtin_offsetof(type, a) == 0 ? 1 : -1];
   int test2[__builtin_offsetof(type, b) == 4 ? 1 : -1];
+}
+
+namespace test2 {
+  template <class type>
+  struct fastscriptmember {
+      type Member __attribute__ ((packed));
+      char x;
+  };
+  int test0[sizeof(fastscriptmember<int>) == 5 ? 1 : -1];
 }

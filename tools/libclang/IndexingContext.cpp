@@ -1,4 +1,4 @@
-//===- CIndexHigh.cpp - Higher level API functions ------------------------===//
+//===- IndexingContext.cpp - Higher level API functions -------------------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -204,6 +204,26 @@ void IndexingContext::setPreprocessor(Preprocessor &PP) {
   static_cast<ASTUnit*>(CXTU->TUData)->setPreprocessor(&PP);
 }
 
+bool IndexingContext::isFunctionLocalDecl(const Decl *D) {
+  assert(D);
+
+  if (!D->getParentFunctionOrMethod())
+    return false;
+
+  if (const NamedDecl *ND = dyn_cast<NamedDecl>(D)) {
+    switch (ND->getLinkage()) {
+    case NoLinkage:
+    case InternalLinkage:
+      return true;
+    case UniqueExternalLinkage:
+    case ExternalLinkage:
+      return false;
+    }
+  }
+
+  return true;
+}
+
 bool IndexingContext::shouldAbort() {
   if (!CB.abortQuery)
     return false;
@@ -220,7 +240,8 @@ void IndexingContext::enteredMainFile(const FileEntry *File) {
 void IndexingContext::ppIncludedFile(SourceLocation hashLoc,
                                      StringRef filename,
                                      const FileEntry *File,
-                                     bool isImport, bool isAngled) {
+                                     bool isImport, bool isAngled,
+                                     bool isModuleImport) {
   if (!CB.ppIncludedFile)
     return;
 
@@ -228,9 +249,42 @@ void IndexingContext::ppIncludedFile(SourceLocation hashLoc,
   CXIdxIncludedFileInfo Info = { getIndexLoc(hashLoc),
                                  SA.toCStr(filename),
                                  (CXFile)File,
-                                 isImport, isAngled };
+                                 isImport, isAngled, isModuleImport };
   CXIdxClientFile idxFile = CB.ppIncludedFile(ClientData, &Info);
   FileMap[File] = idxFile;
+}
+
+void IndexingContext::importedModule(const ImportDecl *ImportD) {
+  if (!CB.importedASTFile)
+    return;
+
+  Module *Mod = ImportD->getImportedModule();
+  if (!Mod)
+    return;
+  std::string ModuleName = Mod->getFullModuleName();
+
+  CXIdxImportedASTFileInfo Info = {
+                                    (CXFile)Mod->getASTFile(),
+                                    Mod,
+                                    getIndexLoc(ImportD->getLocation()),
+                                    ImportD->isImplicit()
+                                  };
+  CXIdxClientASTFile astFile = CB.importedASTFile(ClientData, &Info);
+  (void)astFile;
+}
+
+void IndexingContext::importedPCH(const FileEntry *File) {
+  if (!CB.importedASTFile)
+    return;
+
+  CXIdxImportedASTFileInfo Info = {
+                                    (CXFile)File,
+                                    /*module=*/NULL,
+                                    getIndexLoc(SourceLocation()),
+                                    /*isImplicit=*/false
+                                  };
+  CXIdxClientASTFile astFile = CB.importedASTFile(ClientData, &Info);
+  (void)astFile;
 }
 
 void IndexingContext::startedTranslationUnit() {
@@ -590,7 +644,7 @@ bool IndexingContext::handleReference(const NamedDecl *D, SourceLocation Loc,
     return false;
   if (Loc.isInvalid())
     return false;
-  if (!shouldIndexFunctionLocalSymbols() && D->getParentFunctionOrMethod())
+  if (!shouldIndexFunctionLocalSymbols() && isFunctionLocalDecl(D))
     return false;
   if (isNotFromSourceFile(D->getLocation()))
     return false;
@@ -855,6 +909,10 @@ void IndexingContext::getEntityInfo(const NamedDecl *D,
       EntityInfo.kind = CXIdxEntity_CXXClass;
       EntityInfo.lang = CXIdxEntityLang_CXX;
       break;
+    case TTK_Interface:
+      EntityInfo.kind = CXIdxEntity_CXXInterface;
+      EntityInfo.lang = CXIdxEntityLang_CXX;
+      break;
     case TTK_Enum:
       EntityInfo.kind = CXIdxEntity_Enum; break;
     }
@@ -1064,6 +1122,8 @@ bool IndexingContext::shouldIgnoreIfImplicit(const Decl *D) {
   if (isa<ObjCIvarDecl>(D))
     return false;
   if (isa<ObjCMethodDecl>(D))
+    return false;
+  if (isa<ImportDecl>(D))
     return false;
   return true;
 }

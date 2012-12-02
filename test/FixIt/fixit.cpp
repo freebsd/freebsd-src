@@ -64,7 +64,7 @@ namespace rdar7796492 {
 
 // extra qualification on member
 class C {
-  int C::foo(); // expected-warning {{extra qualification}}
+  int C::foo(); // expected-error {{extra qualification}}
 };
 
 namespace rdar8488464 {
@@ -292,3 +292,10 @@ namespace greatergreater {
     //(void)(&t<S<int>>==p);
   }
 }
+
+class foo {
+  static void test() {
+    (void)&i; // expected-error{{must explicitly qualify name of member function when taking its address}}
+  }
+  int i();
+};

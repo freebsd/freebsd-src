@@ -1,9 +1,9 @@
 set(LLVM_LINK_COMPONENTS support)
 
 add_clang_library(clangStaticAnalyzerCore
-  AnalysisManager.cpp
   APSIntType.cpp
-  BasicConstraintManager.cpp
+  AnalysisManager.cpp
+  AnalyzerOptions.cpp
   BasicValueFactory.cpp
   BlockCounter.cpp
   BugReporter.cpp
@@ -14,6 +14,7 @@ add_clang_library(clangStaticAnalyzerCore
   CheckerHelpers.cpp
   CheckerManager.cpp
   CheckerRegistry.cpp
+  ConstraintManager.cpp
   CoreEngine.cpp
   Environment.cpp
   ExplodedGraph.cpp
@@ -54,5 +55,5 @@ target_link_libraries(clangStaticAnalyzerCore
   clangLex
   clangAST
   clangFrontend
-  clangRewrite
+  clangRewriteCore
   )

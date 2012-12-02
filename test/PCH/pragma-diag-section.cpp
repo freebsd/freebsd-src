@@ -11,7 +11,7 @@
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wtautological-compare"
 template <typename T>
-struct TS {
+struct TS1 {
     void m() {
       T a = 0;
       T b = a==a;
@@ -21,9 +21,22 @@ struct TS {
 
 #else
 
+
+template <typename T>
+struct TS2 {
+    void m() {
+      T a = 0;
+      T b = a==a; // expected-warning {{self-comparison always evaluates to true}} expected-note@39 {{in instantiation of member function}}
+    }
+};
+
 void f() {
-    TS<int> ts;
-    ts.m();
+    TS1<int> ts1;
+    ts1.m();
+
+
+    TS2<int> ts2;
+    ts2.m();
 }
 
 #endif

@@ -1,4 +1,5 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,experimental.core -analyzer-constraints=basic -analyzer-store=region -verify -Wno-objc-root-class %s
+// RUN: %clang_cc1 -analyze -analyzer-checker=core,alpha.core -analyzer-constraints=range -analyzer-store=region -verify -Wno-objc-root-class %s
+// expected-no-diagnostics
 
 typedef struct Foo { int x; } Bar;
 

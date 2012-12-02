@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -fsyntax-only -include-pch %S/badpch-empty.h.gch %s 2>&1 | FileCheck -check-prefix=CHECK-EMPTY %s
-// RUN: %clang_cc1 -fsyntax-only -include-pch %S/badpch-dir.h.gch %s 2>&1 | FileCheck -check-prefix=CHECK-DIR %s
+// RUN: %clang_cc1 -fsyntax-only -include-pch %S/Inputs/badpch-empty.h.gch %s 2>&1 | FileCheck -check-prefix=CHECK-EMPTY %s
+// RUN: %clang_cc1 -fsyntax-only -include-pch %S/Inputs/badpch-dir.h.gch %s 2>&1 | FileCheck -check-prefix=CHECK-DIR %s
 
 // The purpose of this test is to verify that various invalid PCH files are
 // reported as such.
@@ -10,4 +10,4 @@
 // submitted on 2012-02-06 introduced a segfault in the case where the PCH is
 // an empty file and clang was built with assertions.
 // CHECK-EMPTY: error: input is not a PCH file: '{{.*[/\\]}}badpch-empty.h.gch'
-// CHECK-DIR: error: unable to read PCH file {{.*[/\\]}}badpch-dir.h.gch:
+// CHECK-DIR:error: no suitable precompiled header file found in directory '{{.*[/\\]}}badpch-dir.h.gch
