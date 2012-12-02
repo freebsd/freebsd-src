@@ -1,9 +1,9 @@
 .\" This file is distributed under the University of Illinois Open Source
 .\" License. See LICENSE.TXT for details.
-.\" $Id: scan-build.1 157412 2012-05-24 20:16:00Z kremenek $
+.\" $Id: scan-build.1 167537 2012-11-07 17:12:37Z jrose $
 .Dd May 25, 2012
+.Dt SCAN-BUILD 1
 .Os "clang" "3.1"
-.Dt SCAN-BUILD \&1 CLANG
 .Sh NAME
 .Nm scan-build
 .Nd Clang static analyzer
@@ -139,7 +139,7 @@ which is far less precise but can more quickly analyze code.
 was the default store model for checker-0.221 and earlier.
 .\"
 .El
-.Sh RETURN VALUES
+.Sh EXIT STATUS
 .Nm
 returns the value returned by
 .Ar build_command
@@ -188,10 +188,10 @@ Check for undefined results of binary operators.
 .It core.VLASize
 Check for declarations of VLA of undefined or zero size.
 .It core.builtin.BuiltinFunctions
-Evaluate compiler builtin functions, e.g. 
+Evaluate compiler builtin functions, e.g.
 .Fn alloca .
 .It core.builtin.NoReturnFunctions
-Evaluate 
+Evaluate
 .Ql panic
 functions that are known to not return to the caller.
 .It core.uninitialized.ArraySubscript
@@ -270,9 +270,10 @@ Check for proper uses of
 .Fn CFNumberCreate .
 .It osx.coreFoundation.CFRetainRelease
 Check for null arguments to
-.Fn CFRetain
+.Fn CFRetain ,
+.Fn CFRelease ,
 and
-.Fn CFRelease .
+.Fn CFMakeCollectable .
 .It osx.coreFoundation.containers.OutOfBounds
 Checks for index out-of-bounds when using the
 .Vt CFArray

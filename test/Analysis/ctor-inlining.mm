@@ -1,6 +1,7 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,debug.ExprInspection -fobjc-arc -cfg-add-implicit-dtors -Wno-null-dereference -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-checker=core,debug.ExprInspection -fobjc-arc -analyzer-ipa=inlining -analyzer-config c++-inlining=constructors -Wno-null-dereference -verify %s
 
 void clang_analyzer_eval(bool);
+void clang_analyzer_checkInlined(bool);
 
 struct Wrapper {
   __strong id obj;
@@ -86,4 +87,33 @@ namespace ConstructorVirtualCalls {
   }
 }
 
+namespace TemporaryConstructor {
+  class BoolWrapper {
+  public:
+    BoolWrapper() {
+      clang_analyzer_checkInlined(true); // expected-warning{{TRUE}}
+      value = true;
+    }
+    bool value;
+  };
 
+  void test() {
+    // PR13717 - Don't crash when a CXXTemporaryObjectExpr is inlined.
+    if (BoolWrapper().value)
+      return;
+  }
+}
+
+
+namespace ConstructorUsedAsRValue {
+  using TemporaryConstructor::BoolWrapper;
+
+  bool extractValue(BoolWrapper b) {
+    return b.value;
+  }
+
+  void test() {
+    bool result = extractValue(BoolWrapper());
+    clang_analyzer_eval(result); // expected-warning{{TRUE}}
+  }
+}

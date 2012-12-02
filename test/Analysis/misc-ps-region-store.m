@@ -1,5 +1,5 @@
-// RUN: %clang_cc1 -triple i386-apple-darwin9 -analyze -analyzer-checker=core,experimental.deadcode.IdempotentOperations,experimental.core.CastToStruct,experimental.security.ReturnPtrRange,experimental.security.ArrayBound -analyzer-store=region -verify -fblocks -analyzer-opt-analyze-nested-blocks -Wno-objc-root-class %s
-// RUN: %clang_cc1 -triple x86_64-apple-darwin9 -DTEST_64 -analyze -analyzer-checker=core,experimental.deadcode.IdempotentOperations,experimental.core.CastToStruct,experimental.security.ReturnPtrRange,experimental.security.ArrayBound -analyzer-store=region -verify -fblocks   -analyzer-opt-analyze-nested-blocks -Wno-objc-root-class %s
+// RUN: %clang_cc1 -triple i386-apple-darwin9 -analyze -analyzer-checker=core,alpha.deadcode.IdempotentOperations,alpha.core.CastToStruct,alpha.security.ReturnPtrRange,alpha.security.ArrayBound -analyzer-store=region -verify -fblocks -analyzer-opt-analyze-nested-blocks -Wno-objc-root-class %s
+// RUN: %clang_cc1 -triple x86_64-apple-darwin9 -DTEST_64 -analyze -analyzer-checker=core,alpha.deadcode.IdempotentOperations,alpha.core.CastToStruct,alpha.security.ReturnPtrRange,alpha.security.ArrayBound -analyzer-store=region -verify -fblocks   -analyzer-opt-analyze-nested-blocks -Wno-objc-root-class %s
 
 typedef long unsigned int size_t;
 void *memcpy(void *, const void *, size_t);
@@ -1086,6 +1086,9 @@ pr8052(u_int boot_addr)
     u_char         *src = (u_char *) ((u_long) bootMP);
     u_char         *dst = (u_char *) boot_addr + ((vm_offset_t) ((((((((1 <<
 12) / (sizeof(pd_entry_t))) - 1) - 1) - (260 - 2))) << 22) | ((0) << 12)));
+#ifdef TEST_64
+// expected-warning@-3 {{cast to 'u_char *' (aka 'unsigned char *') from smaller integer type 'u_int' (aka 'unsigned int')}}
+#endif
     for (x = 0;
          x < size;
          ++x)

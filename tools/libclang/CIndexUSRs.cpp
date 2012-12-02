@@ -402,6 +402,7 @@ void USRGenerator::VisitTagDecl(TagDecl *D) {
       AlreadyStarted = true;
       
       switch (D->getTagKind()) {
+      case TTK_Interface:
       case TTK_Struct: Out << "@ST"; break;
       case TTK_Class:  Out << "@CT"; break;
       case TTK_Union:  Out << "@UT"; break;
@@ -413,6 +414,7 @@ void USRGenerator::VisitTagDecl(TagDecl *D) {
       AlreadyStarted = true;
       
       switch (D->getTagKind()) {
+      case TTK_Interface:
       case TTK_Struct: Out << "@SP"; break;
       case TTK_Class:  Out << "@CP"; break;
       case TTK_Union:  Out << "@UP"; break;
@@ -424,6 +426,7 @@ void USRGenerator::VisitTagDecl(TagDecl *D) {
   
   if (!AlreadyStarted) {
     switch (D->getTagKind()) {
+      case TTK_Interface:
       case TTK_Struct: Out << "@S"; break;
       case TTK_Class:  Out << "@C"; break;
       case TTK_Union:  Out << "@U"; break;
@@ -725,10 +728,12 @@ void USRGenerator::VisitTemplateArgument(const TemplateArgument &Arg) {
     break;
 
   case TemplateArgument::Declaration:
-    if (Decl *D = Arg.getAsDecl())
-      Visit(D);
+    Visit(Arg.getAsDecl());
     break;
-      
+
+  case TemplateArgument::NullPtr:
+    break;
+
   case TemplateArgument::TemplateExpansion:
     Out << 'P'; // pack expansion of...
     // Fall through
@@ -800,36 +805,11 @@ bool cxcursor::getDeclCursorUSR(const Decl *D, SmallVectorImpl<char> &Buf) {
   if (!D || D->getLocStart().isInvalid())
     return true;
 
-  // Check if the cursor has 'NoLinkage'.
-  if (const NamedDecl *ND = dyn_cast<NamedDecl>(D))
-    switch (ND->getLinkage()) {
-      case ExternalLinkage:
-        // Generate USRs for all entities with external linkage.
-        break;
-      case NoLinkage:
-      case UniqueExternalLinkage:
-        // We allow enums, typedefs, and structs that have no linkage to
-        // have USRs that are anchored to the file they were defined in
-        // (e.g., the header).  This is a little gross, but in principal
-        // enums/anonymous structs/etc. defined in a common header file
-        // are referred to across multiple translation units.
-        if (isa<TagDecl>(ND) || isa<TypedefDecl>(ND) ||
-            isa<EnumConstantDecl>(ND) || isa<FieldDecl>(ND) ||
-            isa<VarDecl>(ND) || isa<NamespaceDecl>(ND))
-          break;
-        // Fall-through.
-      case InternalLinkage:
-        if (isa<FunctionDecl>(ND))
-          break;
-    }
+  USRGenerator UG(&D->getASTContext(), &Buf);
+  UG->Visit(const_cast<Decl*>(D));
 
-  {
-    USRGenerator UG(&D->getASTContext(), &Buf);
-    UG->Visit(const_cast<Decl*>(D));
-
-    if (UG->ignoreResults())
-      return true;
-  }
+  if (UG->ignoreResults())
+    return true;
 
   return false;
 }

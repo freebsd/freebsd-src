@@ -15,12 +15,12 @@
 #define LLVM_CLANG_REWRITER_TEST_CONTEXT_H
 
 #include "clang/Basic/Diagnostic.h"
+#include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/SourceManager.h"
-#include "clang/Frontend/DiagnosticOptions.h"
 #include "clang/Frontend/TextDiagnosticPrinter.h"
-#include "clang/Rewrite/Rewriter.h"
+#include "clang/Rewrite/Core/Rewriter.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
@@ -35,8 +35,10 @@ namespace clang {
 class RewriterTestContext {
  public:
   RewriterTestContext()
-      : Diagnostics(llvm::IntrusiveRefCntPtr<DiagnosticIDs>()),
-        DiagnosticPrinter(llvm::outs(), DiagnosticOptions()),
+      : DiagOpts(new DiagnosticOptions()),
+        Diagnostics(llvm::IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs),
+                    &*DiagOpts),
+        DiagnosticPrinter(llvm::outs(), &*DiagOpts),
         Files((FileSystemOptions())),
         Sources(Diagnostics, Files),
         Rewrite(Sources, Options) {
@@ -109,6 +111,7 @@ class RewriterTestContext {
     return Files.getBufferForFile(Path, NULL)->getBuffer();
   }
 
+  llvm::IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts;
   DiagnosticsEngine Diagnostics;
   TextDiagnosticPrinter DiagnosticPrinter;
   FileManager Files;

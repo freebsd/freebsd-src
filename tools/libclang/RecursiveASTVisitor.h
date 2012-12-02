@@ -657,6 +657,7 @@ bool RecursiveASTVisitor<Derived>::TraverseTemplateArgument(
   case TemplateArgument::Null:
   case TemplateArgument::Declaration:
   case TemplateArgument::Integral:
+  case TemplateArgument::NullPtr:
     return true;
 
   case TemplateArgument::Type:
@@ -689,6 +690,7 @@ bool RecursiveASTVisitor<Derived>::TraverseTemplateArgumentLoc(
   case TemplateArgument::Null:
   case TemplateArgument::Declaration:
   case TemplateArgument::Integral:
+  case TemplateArgument::NullPtr:
     return true;
 
   case TemplateArgument::Type: {
@@ -1753,7 +1755,7 @@ bool RecursiveASTVisitor<Derived>::Traverse##STMT (STMT *S) {           \
   return true;                                                          \
 }
 
-DEF_TRAVERSE_STMT(AsmStmt, {
+DEF_TRAVERSE_STMT(GCCAsmStmt, {
     StmtQueue.queue(S->getAsmString());
     for (unsigned I = 0, E = S->getNumInputs(); I < E; ++I) {
       StmtQueue.queue(S->getInputConstraintLiteral(I));
@@ -1762,7 +1764,7 @@ DEF_TRAVERSE_STMT(AsmStmt, {
       StmtQueue.queue(S->getOutputConstraintLiteral(I));
     }
     for (unsigned I = 0, E = S->getNumClobbers(); I < E; ++I) {
-      StmtQueue.queue(S->getClobber(I));
+      StmtQueue.queue(S->getClobberStringLiteral(I));
     }
     // children() iterates over inputExpr and outputExpr.
   })
@@ -2141,6 +2143,7 @@ DEF_TRAVERSE_STMT(PackExpansionExpr, { })
 DEF_TRAVERSE_STMT(SizeOfPackExpr, { })
 DEF_TRAVERSE_STMT(SubstNonTypeTemplateParmPackExpr, { })
 DEF_TRAVERSE_STMT(SubstNonTypeTemplateParmExpr, { })
+DEF_TRAVERSE_STMT(FunctionParmPackExpr, { })
 DEF_TRAVERSE_STMT(MaterializeTemporaryExpr, { })
 DEF_TRAVERSE_STMT(AtomicExpr, { })
 

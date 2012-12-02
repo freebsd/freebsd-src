@@ -2,7 +2,7 @@
 
 // Note that the error count below doesn't matter. We just want to
 // make sure that the parser doesn't crash.
-// CHECK: 13 errors
+// CHECK: 15 errors
 
 // PR7511
 template<a>
@@ -86,4 +86,27 @@ int operator<<( basic_ostream<char> , pair ) ;
 void register_object_imp ( )
 {
 cout << endl<1>;
+}
+
+// PR12933
+namespacae PR12933 {
+  template<typename S>
+    template<typename T>
+    void function(S a, T b) {}
+
+  int main() {
+    function(0, 1);
+    return 0;
+  }
+}
+
+// A buildbot failure from libcxx
+namespace libcxx_test {
+  template <class _Ptr, bool> struct __pointer_traits_element_type;
+  template <class _Ptr> struct __pointer_traits_element_type<_Ptr, true>;
+  template <template <class, class...> class _Sp, class _Tp, class ..._Args> struct __pointer_traits_element_type<_Sp<_Tp, _Args...>, true> {
+    typedef char type;
+  };
+  template <class T> struct B {};
+  __pointer_traits_element_type<B<int>, true>::type x;
 }

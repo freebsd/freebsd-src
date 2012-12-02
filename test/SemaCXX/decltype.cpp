@@ -28,3 +28,18 @@ template<typename T> auto f(T t) -> decltype(S<int>(t)) {
   using U = S<int>;
   return S<int>(t);
 }
+
+struct B {
+  B(decltype(undeclared)); // expected-error {{undeclared identifier}}
+};
+struct C {
+  C(decltype(undeclared; // expected-error {{undeclared identifier}} \
+                         // expected-error {{expected ')'}} expected-note {{to match this '('}}
+};
+
+template<typename>
+class conditional {
+};
+
+void foo(conditional<decltype((1),int>) {  // expected-note 2 {{to match this '('}} expected-error {{expected ')'}}
+} // expected-error {{expected function body after function declarator}} expected-error 2 {{expected '>'}} expected-error {{expected ')'}}

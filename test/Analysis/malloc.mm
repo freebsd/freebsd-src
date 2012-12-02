@@ -1,5 +1,5 @@
 // RUN: %clang_cc1 -analyze -analyzer-checker=core,unix.Malloc -analyzer-store=region -verify -fblocks %s
-#include "system-header-simulator-objc.h"
+#include "Inputs/system-header-simulator-objc.h"
 
 typedef __typeof(sizeof(int)) size_t;
 void *malloc(size_t);
@@ -221,4 +221,60 @@ void foo(NSPointerArray* pointerArray) {
 void noCrashOnVariableArgumentSelector() {
   NSMutableString *myString = [NSMutableString stringWithString:@"some text"];
   [myString appendFormat:@"some text = %d", 3];
+}
+
+void test12365078_check() {
+  unichar *characters = (unichar*)malloc(12);
+  NSString *string = [[NSString alloc] initWithCharactersNoCopy:characters length:12 freeWhenDone:1];
+  if (!string) free(characters); // no-warning
+}
+
+void test12365078_nocheck() {
+  unichar *characters = (unichar*)malloc(12);
+  NSString *string = [[NSString alloc] initWithCharactersNoCopy:characters length:12 freeWhenDone:1];
+}
+
+void test12365078_false_negative() {
+  unichar *characters = (unichar*)malloc(12);
+  NSString *string = [[NSString alloc] initWithCharactersNoCopy:characters length:12 freeWhenDone:1];
+  if (!string) {;}
+}
+
+void test12365078_no_malloc(unichar *characters) {
+  NSString *string = [[NSString alloc] initWithCharactersNoCopy:characters length:12 freeWhenDone:1];
+  if (!string) {free(characters);}
+}
+
+NSString *test12365078_no_malloc_returnValue(unichar *characters) {
+  NSString *string = [[NSString alloc] initWithCharactersNoCopy:characters length:12 freeWhenDone:1];
+  if (!string) {
+    return 0; // no-warning
+  }
+  return string;
+}
+
+void test12365078_nocheck_nomalloc(unichar *characters) {
+  NSString *string = [[NSString alloc] initWithCharactersNoCopy:characters length:12 freeWhenDone:1];
+  free(characters); // expected-warning {{Attempt to free non-owned memory}}
+}
+
+void test12365078_nested(unichar *characters) {
+  NSString *string = [[NSString alloc] initWithCharactersNoCopy:characters length:12 freeWhenDone:1];
+  if (!string) {    
+    NSString *string2 = [[NSString alloc] initWithCharactersNoCopy:characters length:12 freeWhenDone:1];
+    if (!string2) {    
+      NSString *string3 = [[NSString alloc] initWithCharactersNoCopy:characters length:12 freeWhenDone:1];
+      if (!string3) {    
+        NSString *string4 = [[NSString alloc] initWithCharactersNoCopy:characters length:12 freeWhenDone:1];
+        if (!string4)
+          free(characters);
+      }
+    }
+  }
+}
+
+void test12365078_check_positive() {
+  unichar *characters = (unichar*)malloc(12);
+  NSString *string = [[NSString alloc] initWithCharactersNoCopy:characters length:12 freeWhenDone:1];
+  if (string) free(characters); // expected-warning{{Attempt to free non-owned memory}}
 }

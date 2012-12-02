@@ -1,5 +1,7 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,experimental.deadcode.UnreachableCode,experimental.core.CastSize,unix.Malloc,debug.ExprInspection -analyzer-store=region -verify %s
-#include "system-header-simulator.h"
+// RUN: %clang_cc1 -analyze -analyzer-checker=core,alpha.deadcode.UnreachableCode,alpha.core.CastSize,unix.Malloc,debug.ExprInspection -analyzer-store=region -verify %s
+// REQUIRES: LP64
+
+#include "Inputs/system-header-simulator.h"
 
 void clang_analyzer_eval(int);
 
@@ -1000,15 +1002,34 @@ void freeButNoMalloc(int *p, int x){
 }
 
 struct HasPtr {
-  int *p;
+  char *p;
 };
 
-int* reallocButNoMalloc(struct HasPtr *a, int c, int size) {
+char* reallocButNoMalloc(struct HasPtr *a, int c, int size) {
   int *s;
-  a->p = (int *)realloc(a->p, size);
-  if (a->p == 0)
-    return 0; // expected-warning{{Memory is never released; potential leak}}
+  char *b = realloc(a->p, size);
+  char *m = realloc(a->p, size); // expected-warning {{Attempt to free released memory}}
   return a->p;
+}
+
+// We should not warn in this case since the caller will presumably free a->p in all cases.
+int reallocButNoMallocPR13674(struct HasPtr *a, int c, int size) {
+  int *s;
+  char *b = realloc(a->p, size);
+  if (b == 0)
+    return -1;
+  a->p = b;
+  return 0;
+}
+
+// Test realloc with no visible malloc.
+void *test(void *ptr) {
+  void *newPtr = realloc(ptr, 4);
+  if (newPtr == 0) {
+    if (ptr)
+      free(ptr); // no-warning
+  }
+  return newPtr;
 }
 
 // ----------------------------------------------------------------------------

@@ -20,7 +20,7 @@ void test1() {
   g()->f();
   S::f();
   X::g(); // expected-error{{no member named 'g' in 'X'}}
-  X::S x_s; // expected-error{{no member named 'S' in 'X'}}
+  X::S x_s; // expected-error{{no type named 'S' in 'X'}}
   X x;
   x.g(); // expected-error{{no member named 'g' in 'X'}}
 }
@@ -44,16 +44,16 @@ namespace N {
     S s;
     S::f();
     X::g(); // expected-error{{no member named 'g' in 'N::X'}}
-    X::S x_s; // expected-error{{no member named 'S' in 'N::X'}}
+    X::S x_s; // expected-error{{no type named 'S' in 'N::X'}}
     X x;
     x.g(); // expected-error{{no member named 'g' in 'N::X'}}
 
     g2();
     S2 s2;
     ::g2(); // expected-error{{no member named 'g2' in the global namespace}}
-    ::S2 g_s2; // expected-error{{no member named 'S2' in the global namespace}}
+    ::S2 g_s2; // expected-error{{no type named 'S2' in the global namespace}}
     X::g2(); // expected-error{{no member named 'g2' in 'N::X'}}
-    X::S2 x_s2; // expected-error{{no member named 'S2' in 'N::X'}}
+    X::S2 x_s2; // expected-error{{no type named 'S2' in 'N::X'}}
     x.g2(); // expected-error{{no member named 'g2' in 'N::X'}}
   }
 }
@@ -355,4 +355,20 @@ namespace PR9103 {
       base::foo();
     }
   };
+}
+
+// PR13642.  When computing the effective context, we were walking up
+// the DC chain for the canonical decl, which is unfortunate if that's
+// (e.g.) a friend declaration.
+namespace test14 {
+  class A {
+    class B { // expected-note {{implicitly declared private here}}
+      static int i;
+      friend void c();
+    };
+  };
+
+  void c() {
+    A::B::i = 5; // expected-error {{'B' is a private member of 'test14::A'}}
+  }
 }

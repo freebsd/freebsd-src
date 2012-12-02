@@ -26,6 +26,7 @@ class C {
 
     [] -> int { return 0; }; // expected-error{{lambda requires '()' before return type}}
     [] mutable -> int { return 0; }; // expected-error{{lambda requires '()' before 'mutable'}}
+    [](int) -> {}; // PR13652 expected-error {{expected a type}}
     return 1;
   }
 
@@ -33,7 +34,7 @@ class C {
     typedef int T; 
     const int b = 0; 
     const int c = 1;
-    int a1[1] = {[b] (T()) {}}; // expected-error{{no viable conversion from 'C::<lambda}}
+    int a1[1] = {[b] (T()) {}}; // expected-error{{no viable conversion from '<lambda}}
     int a2[1] = {[b] = 1 };
     int a3[1] = {[b,c] = 1 }; // expected-error{{expected body of lambda expression}}
     int a4[1] = {[&b] = 1 }; // expected-error{{integral constant expression must have integral or unscoped enumeration type, not 'const int *'}}

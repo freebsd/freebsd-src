@@ -72,7 +72,7 @@ public:
   virtual ~SValBuilder() {}
 
   bool haveSameType(const SymExpr *Sym1, const SymExpr *Sym2) {
-    return haveSameType(Sym1->getType(Context), Sym2->getType(Context));
+    return haveSameType(Sym1->getType(), Sym2->getType());
   }
 
   bool haveSameType(QualType Ty1, QualType Ty2) {
@@ -142,19 +142,19 @@ public:
 
   // Forwarding methods to SymbolManager.
 
-  const SymbolConjured* getConjuredSymbol(const Stmt *stmt,
-                                          const LocationContext *LCtx,
-                                          QualType type,
-                                          unsigned visitCount,
-                                          const void *symbolTag = 0) {
-    return SymMgr.getConjuredSymbol(stmt, LCtx, type, visitCount, symbolTag);
+  const SymbolConjured* conjureSymbol(const Stmt *stmt,
+                                      const LocationContext *LCtx,
+                                      QualType type,
+                                      unsigned visitCount,
+                                      const void *symbolTag = 0) {
+    return SymMgr.conjureSymbol(stmt, LCtx, type, visitCount, symbolTag);
   }
 
-  const SymbolConjured* getConjuredSymbol(const Expr *expr,
-                                          const LocationContext *LCtx,
-                                          unsigned visitCount,
-                                          const void *symbolTag = 0) {
-    return SymMgr.getConjuredSymbol(expr, LCtx, visitCount, symbolTag);
+  const SymbolConjured* conjureSymbol(const Expr *expr,
+                                      const LocationContext *LCtx,
+                                      unsigned visitCount,
+                                      const void *symbolTag = 0) {
+    return SymMgr.conjureSymbol(expr, LCtx, visitCount, symbolTag);
   }
 
   /// Construct an SVal representing '0' for the specified type.
@@ -169,20 +169,20 @@ public:
   /// The advantage of symbols derived/built from other symbols is that we
   /// preserve the relation between related(or even equivalent) expressions, so
   /// conjured symbols should be used sparingly.
-  DefinedOrUnknownSVal getConjuredSymbolVal(const void *symbolTag,
-                                            const Expr *expr,
-                                            const LocationContext *LCtx,
-                                            unsigned count);
-  DefinedOrUnknownSVal getConjuredSymbolVal(const void *symbolTag,
-                                            const Expr *expr,
-                                            const LocationContext *LCtx,
-                                            QualType type,
-                                            unsigned count);
+  DefinedOrUnknownSVal conjureSymbolVal(const void *symbolTag,
+                                        const Expr *expr,
+                                        const LocationContext *LCtx,
+                                        unsigned count);
+  DefinedOrUnknownSVal conjureSymbolVal(const void *symbolTag,
+                                        const Expr *expr,
+                                        const LocationContext *LCtx,
+                                        QualType type,
+                                        unsigned count);
   
-  DefinedOrUnknownSVal getConjuredSymbolVal(const Stmt *stmt,
-                                            const LocationContext *LCtx,
-                                            QualType type,
-                                            unsigned visitCount);
+  DefinedOrUnknownSVal conjureSymbolVal(const Stmt *stmt,
+                                        const LocationContext *LCtx,
+                                        QualType type,
+                                        unsigned visitCount);
   /// \brief Conjure a symbol representing heap allocated memory region.
   ///
   /// Note, the expression should represent a location.
@@ -227,7 +227,7 @@ public:
         BasicVals.getValue(integer->getValue(),
                      integer->getType()->isUnsignedIntegerOrEnumerationType()));
   }
-  
+
   nonloc::ConcreteInt makeBoolVal(const ObjCBoolLiteralExpr *boolean) {
     return makeTruthVal(boolean->getValue(), boolean->getType());
   }
@@ -260,11 +260,6 @@ public:
   NonLoc makeIntValWithPtrWidth(uint64_t integer, bool isUnsigned) {
     return nonloc::ConcreteInt(
         BasicVals.getIntWithPtrWidth(integer, isUnsigned));
-  }
-
-  NonLoc makeIntVal(uint64_t integer, unsigned bitWidth, bool isUnsigned) {
-    return nonloc::ConcreteInt(
-        BasicVals.getValue(integer, bitWidth, isUnsigned));
   }
 
   NonLoc makeLocAsInteger(Loc loc, unsigned bits) {

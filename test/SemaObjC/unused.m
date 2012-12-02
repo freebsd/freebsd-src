@@ -1,4 +1,4 @@
-// RUN: %clang_cc1 -verify -Wunused -Wunused-parameter -fsyntax-only -Wno-objc-root-class %s
+// RUN: %clang_cc1 -verify -Wused-but-marked-unused -Wno-objc-protocol-method-implementation -Wunused -Wunused-parameter -fsyntax-only -Wno-objc-root-class %s
 
 int printf(const char *, ...);
 
@@ -25,12 +25,17 @@ void test2() {
 }
 
 @interface foo
-- (int)meth: (int)x: (int)y: (int)z ;
+- (int)meth: (int)x : (int)y : (int)z ;
 @end
 
 @implementation foo
-- (int) meth: (int)x: 
-(int)y: // expected-warning{{unused}} 
+- (int) meth: (int)x: // expected-warning {{'x' used as the name of the previous parameter rather than as part of the selector}} \
+                      // expected-note {{introduce a parameter name to make 'x' part of the selector}} \
+                      // expected-note {{or insert whitespace before ':' to use 'x' as parameter name and have an empty entry in the selector}}
+
+(int)y:  // expected-warning {{unused}}  expected-warning {{'y' used as the name of the previous parameter rather than as part of the selector}} \
+         // expected-note {{introduce a parameter name to make 'y' part of the selector}} \
+         // expected-note {{or insert whitespace before ':' to use 'y' as parameter name and have an empty entry in the selector}}
 (int) __attribute__((unused))z { return x; }
 @end
 
@@ -53,3 +58,17 @@ void test2() {
 
 // rdar://10777111
 static NSString *x = @"hi"; // expected-warning {{unused variable 'x'}}
+
+// rdar://12233989
+@interface TestTransitiveUnused
+- (void) a __attribute__((unused));
+- (void) b __attribute__((unused));
+@end
+
+@interface TestTransitiveUnused(CAT)
+@end
+
+@implementation TestTransitiveUnused(CAT)
+- (void) b {}
+- (void) a { [self b]; }
+@end

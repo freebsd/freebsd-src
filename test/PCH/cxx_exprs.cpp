@@ -5,6 +5,8 @@
 // RUN: %clang_cc1 -fcxx-exceptions -fexceptions -x c++-header -std=c++11 -emit-pch -o %t %S/cxx_exprs.h
 // RUN: %clang_cc1 -fcxx-exceptions -fexceptions -std=c++11 -include-pch %t -fsyntax-only -verify %s -ast-dump
 
+// expected-no-diagnostics
+
 int integer;
 double floating;
 char character;
@@ -37,3 +39,9 @@ cxx_null_ptr_result null_ptr = nullptr;
 // CXXTypeidExpr
 typeid_result1 typeid_1 = 0;
 typeid_result2 typeid_2 = 0;
+
+// CharacterLiteral variants
+static_assert(char_value == 97, "char_value is correct");
+static_assert(wchar_t_value == 305, "wchar_t_value is correct");
+static_assert(char16_t_value == 231, "char16_t_value is correct");
+static_assert(char32_t_value == 8706, "char32_t_value is correct");

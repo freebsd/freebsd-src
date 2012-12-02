@@ -1,5 +1,4 @@
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,experimental.core.CastToStruct -analyzer-store=region -analyzer-constraints=basic -verify %s
-// RUN: %clang_cc1 -analyze -analyzer-checker=core,experimental.core.CastToStruct -analyzer-store=region -analyzer-constraints=range -verify %s
+// RUN: %clang_cc1 -analyze -analyzer-checker=core,alpha.core.CastToStruct -analyzer-store=region -analyzer-constraints=range -verify %s
 
 struct s {
   int data;
@@ -176,3 +175,11 @@ void f18() {
   if (*q) { // no-warning
   }
 }
+
+
+// [PR13927] offsetof replacement macro flagged as "dereference of a null pointer"
+int offset_of_data_array(void)
+{
+  return ((char *)&(((struct s*)0)->data_array)) - ((char *)0); // no-warning
+}
+
