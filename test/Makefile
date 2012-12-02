@@ -29,11 +29,6 @@ else
 LIT_ARGS := -s -v
 endif
 
-# -jN causes crash on Cygwin's python.
-ifneq (,$(filter $(HOST_OS),Cygwin))
-  LIT_ARGS += -j1
-endif
-
 ifdef TESTSUITE
 LIT_TESTSUITE := $(TESTSUITE)
 CLEANED_TESTSUITE := $(patsubst %/,%,$(TESTSUITE))
@@ -122,6 +117,16 @@ else
 ENABLE_ASSERTIONS=1
 endif
 
+# Derive whether or not LTO is enabled by checking the extra options.
+LTO_IS_ENABLED := 0
+ifneq ($(findstring -flto,$(CompileCommonOpts)),)
+LTO_IS_ENABLED := 1
+else
+ifneq ($(findstring -O4,$(CompileCommonOpts)),)
+LTO_IS_ENABLED := 1
+endif
+endif
+
 lit.site.cfg: FORCE
 	@echo "Making LLVM 'lit.site.cfg' file..."
 	@$(ECHOPATH) s=@TARGET_TRIPLE@=$(TARGET_TRIPLE)=g > lit.tmp
@@ -131,9 +136,10 @@ lit.site.cfg: FORCE
 	@$(ECHOPATH) s=@SHLIBDIR@=$(SharedLibDir)=g >> lit.tmp
 	@$(ECHOPATH) s=@SHLIBEXT@=$(SHLIBEXT)=g >> lit.tmp
 	@$(ECHOPATH) s=@PYTHON_EXECUTABLE@=python=g >> lit.tmp
-	@$(ECHOPATH) s,@OCAMLOPT@,$(OCAMLOPT) -cc \\\\\"$(CXX_FOR_OCAMLOPT)\\\\\" -I $(LibDir)/ocaml,g >> lit.tmp
+	@$(ECHOPATH) s=@OCAMLOPT@=$(OCAMLOPT) -cc $(subst *,'\\\"',*$(subst =,"\\=",$(CXX_FOR_OCAMLOPT))*) -I $(LibDir)/ocaml=g >> lit.tmp
 	@$(ECHOPATH) s=@ENABLE_SHARED@=$(ENABLE_SHARED)=g >> lit.tmp
 	@$(ECHOPATH) s=@ENABLE_ASSERTIONS@=$(ENABLE_ASSERTIONS)=g >> lit.tmp
+	@$(ECHOPATH) s=@LTO_IS_ENABLED@=$(LTO_IS_ENABLED)=g >> lit.tmp
 	@$(ECHOPATH) s=@TARGETS_TO_BUILD@=$(TARGETS_TO_BUILD)=g >> lit.tmp
 	@$(ECHOPATH) s=@LLVM_BINDINGS@=$(BINDINGS_TO_BUILD)=g >> lit.tmp
 	@$(ECHOPATH) s=@HOST_OS@=$(HOST_OS)=g >> lit.tmp

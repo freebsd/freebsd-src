@@ -199,8 +199,7 @@ MCAssembler::MCAssembler(MCContext &Context_, MCAsmBackend &Backend_,
                          MCCodeEmitter &Emitter_, MCObjectWriter &Writer_,
                          raw_ostream &OS_)
   : Context(Context_), Backend(Backend_), Emitter(Emitter_), Writer(Writer_),
-    OS(OS_), RelaxAll(false), NoExecStack(false), SubsectionsViaSymbols(false)
-{
+    OS(OS_), RelaxAll(false), NoExecStack(false), SubsectionsViaSymbols(false) {
 }
 
 MCAssembler::~MCAssembler() {
@@ -325,6 +324,12 @@ uint64_t MCAssembler::computeFragmentSize(const MCAsmLayout &Layout,
     const MCAlignFragment &AF = cast<MCAlignFragment>(F);
     unsigned Offset = Layout.getFragmentOffset(&AF);
     unsigned Size = OffsetToAlignment(Offset, AF.getAlignment());
+    // If we are padding with nops, force the padding to be larger than the
+    // minimum nop size.
+    if (Size > 0 && AF.hasEmitNops()) {
+      while (Size % getBackend().getMinimumNopSize())
+        Size += AF.getAlignment();
+    }
     if (Size > AF.getMaxBytesToEmit())
       return 0;
     return Size;
@@ -375,7 +380,7 @@ void MCAsmLayout::LayoutFragment(MCFragment *F) {
   LastValidFragment[F->getParent()] = F;
 }
 
-/// WriteFragmentData - Write the \arg F data to the output file.
+/// WriteFragmentData - Write the \p F data to the output file.
 static void WriteFragmentData(const MCAssembler &Asm, const MCAsmLayout &Layout,
                               const MCFragment &F) {
   MCObjectWriter *OW = &Asm.getWriter();
@@ -527,7 +532,7 @@ void MCAssembler::writeSectionData(const MCSectionData *SD,
   }
 
   uint64_t Start = getWriter().getStream().tell();
-  (void) Start;
+  (void)Start;
 
   for (MCSectionData::const_iterator it = SD->begin(),
          ie = SD->end(); it != ie; ++it)
@@ -824,6 +829,7 @@ raw_ostream &operator<<(raw_ostream &OS, const MCFixup &AF) {
 
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void MCFragment::dump() {
   raw_ostream &OS = llvm::errs();
 
@@ -964,6 +970,7 @@ void MCAssembler::dump() {
   }
   OS << "]>\n";
 }
+#endif
 
 // anchors for MC*Fragment vtables
 void MCDataFragment::anchor() { }

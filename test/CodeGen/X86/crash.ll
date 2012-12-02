@@ -442,3 +442,150 @@ entry:
   ret void
 }
 declare void @_Z6PrintFz(...)
+
+@a = external global i32, align 4
+@fn1.g = private unnamed_addr constant [9 x i32*] [i32* null, i32* @a, i32* null, i32* null, i32* null, i32* null, i32* null, i32* null, i32* null], align 16
+@e = external global i32, align 4
+
+define void @pr13943() nounwind uwtable ssp {
+entry:
+  %srcval = load i576* bitcast ([9 x i32*]* @fn1.g to i576*), align 16
+  br label %for.cond
+
+for.cond:                                         ; preds = %for.inc, %entry
+  %g.0 = phi i576 [ %srcval, %entry ], [ %ins, %for.inc ]
+  %0 = load i32* @e, align 4
+  %1 = lshr i576 %g.0, 64
+  %2 = trunc i576 %1 to i64
+  %3 = inttoptr i64 %2 to i32*
+  %cmp = icmp eq i32* undef, %3
+  %conv2 = zext i1 %cmp to i32
+  %and = and i32 %conv2, %0
+  tail call void (...)* @fn3(i32 %and) nounwind
+  %tobool = icmp eq i32 undef, 0
+  br i1 %tobool, label %for.inc, label %if.then
+
+if.then:                                          ; preds = %for.cond
+  ret void
+
+for.inc:                                          ; preds = %for.cond
+  %4 = shl i576 %1, 384
+  %mask = and i576 %g.0, -726838724295606890509921801691610055141362320587174446476410459910173841445449629921945328942266354949348255351381262292727973638307841
+  %5 = and i576 %4, 726838724295606890509921801691610055141362320587174446476410459910173841445449629921945328942266354949348255351381262292727973638307840
+  %ins = or i576 %5, %mask
+  br label %for.cond
+}
+
+declare void @fn3(...)
+
+; Check coalescing of IMPLICIT_DEF instructions:
+;
+; %vreg1 = IMPLICIT_DEF
+; %vreg2 = MOV32r0
+;
+; When coalescing %vreg1 and %vreg2, the IMPLICIT_DEF instruction should be
+; erased along with its value number.
+;
+define void @rdar12474033() nounwind ssp {
+bb:
+  br i1 undef, label %bb21, label %bb1
+
+bb1:                                              ; preds = %bb
+  switch i32 undef, label %bb10 [
+    i32 4, label %bb2
+    i32 1, label %bb9
+    i32 5, label %bb3
+    i32 6, label %bb3
+    i32 2, label %bb9
+  ]
+
+bb2:                                              ; preds = %bb1
+  unreachable
+
+bb3:                                              ; preds = %bb1, %bb1
+  br i1 undef, label %bb4, label %bb5
+
+bb4:                                              ; preds = %bb3
+  unreachable
+
+bb5:                                              ; preds = %bb3
+  %tmp = load <4 x float>* undef, align 1
+  %tmp6 = bitcast <4 x float> %tmp to i128
+  %tmp7 = load <4 x float>* undef, align 1
+  %tmp8 = bitcast <4 x float> %tmp7 to i128
+  br label %bb10
+
+bb9:                                              ; preds = %bb1, %bb1
+  unreachable
+
+bb10:                                             ; preds = %bb5, %bb1
+  %tmp11 = phi i128 [ undef, %bb1 ], [ %tmp6, %bb5 ]
+  %tmp12 = phi i128 [ 0, %bb1 ], [ %tmp8, %bb5 ]
+  switch i32 undef, label %bb21 [
+    i32 2, label %bb18
+    i32 3, label %bb13
+    i32 5, label %bb16
+    i32 6, label %bb17
+    i32 1, label %bb18
+  ]
+
+bb13:                                             ; preds = %bb10
+  br i1 undef, label %bb15, label %bb14
+
+bb14:                                             ; preds = %bb13
+  br label %bb21
+
+bb15:                                             ; preds = %bb13
+  unreachable
+
+bb16:                                             ; preds = %bb10
+  unreachable
+
+bb17:                                             ; preds = %bb10
+  unreachable
+
+bb18:                                             ; preds = %bb10, %bb10
+  %tmp19 = bitcast i128 %tmp11 to <4 x float>
+  %tmp20 = bitcast i128 %tmp12 to <4 x float>
+  br label %bb21
+
+bb21:                                             ; preds = %bb18, %bb14, %bb10, %bb
+  %tmp22 = phi <4 x float> [ undef, %bb ], [ undef, %bb10 ], [ undef, %bb14 ], [ %tmp20, %bb18 ]
+  %tmp23 = phi <4 x float> [ undef, %bb ], [ undef, %bb10 ], [ undef, %bb14 ], [ %tmp19, %bb18 ]
+  store <4 x float> %tmp23, <4 x float>* undef, align 16
+  store <4 x float> %tmp22, <4 x float>* undef, align 16
+  switch i32 undef, label %bb29 [
+    i32 5, label %bb27
+    i32 1, label %bb24
+    i32 2, label %bb25
+    i32 14, label %bb28
+    i32 4, label %bb26
+  ]
+
+bb24:                                             ; preds = %bb21
+  unreachable
+
+bb25:                                             ; preds = %bb21
+  br label %bb29
+
+bb26:                                             ; preds = %bb21
+  br label %bb29
+
+bb27:                                             ; preds = %bb21
+  unreachable
+
+bb28:                                             ; preds = %bb21
+  br label %bb29
+
+bb29:                                             ; preds = %bb28, %bb26, %bb25, %bb21
+  unreachable
+}
+
+define void @pr14194() nounwind uwtable {
+  %tmp = load i64* undef, align 16
+  %tmp1 = trunc i64 %tmp to i32
+  %tmp2 = lshr i64 %tmp, 32
+  %tmp3 = trunc i64 %tmp2 to i32
+  %tmp4 = call { i32, i32 } asm sideeffect "", "=&r,=&r,r,r,0,1,~{dirflag},~{fpsr},~{flags}"(i32 %tmp3, i32 undef, i32 %tmp3, i32 %tmp1) nounwind
+ ret void
+}

@@ -10,3 +10,10 @@ foreach(entry ${entries})
     endif()
   endif()
 endforeach(entry)
+
+# Also add in the compiler-rt tree if present and we have a sufficiently
+# recent version of CMake.
+if(${CMAKE_VERSION} VERSION_GREATER 2.8.7 AND
+   ${LLVM_BUILD_RUNTIME})
+  add_llvm_external_project(compiler-rt)
+endif()

@@ -1,6 +1,4 @@
-/**************************************
-** Created by Kevin from config.h.in **
-***************************************/
+/* include/llvm/Config/config.h.cmake corresponding to config.h.in. */
 
 #ifndef CONFIG_H
 #define CONFIG_H
@@ -16,6 +14,9 @@
 
 /* Default <path> to all compiler invocations for --sysroot=<path>. */
 #undef DEFAULT_SYSROOT
+
+/* Define if you want backtraces on crash */
+#cmakedefine ENABLE_BACKTRACES
 
 /* Define if position independent code is enabled */
 #cmakedefine ENABLE_PIC
@@ -51,7 +52,7 @@
 #cmakedefine HAVE_ASSERT_H ${HAVE_ASSERT_H}
 
 /* Define to 1 if you have the `backtrace' function. */
-#undef HAVE_BACKTRACE
+#cmakedefine HAVE_BACKTRACE ${HAVE_BACKTRACE}
 
 /* Define to 1 if you have the `bcopy' function. */
 #undef HAVE_BCOPY

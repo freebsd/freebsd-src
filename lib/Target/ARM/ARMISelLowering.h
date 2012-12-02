@@ -63,9 +63,6 @@ namespace llvm {
       FMSTAT,       // ARM fmstat instruction.
 
       CMOV,         // ARM conditional move instructions.
-      CAND,         // ARM conditional and instructions.
-      COR,          // ARM conditional or instructions.
-      CXOR,         // ARM conditional xor instructions.
 
       BCC_i64,
 
@@ -176,6 +173,9 @@ namespace llvm {
       VMULLs,       // ...signed
       VMULLu,       // ...unsigned
 
+      UMLAL,        // 64bit Unsigned Accumulate Multiply
+      SMLAL,        // 64bit Signed Accumulate Multiply
+
       // Operands of the standard BUILD_VECTOR node are not legalized, which
       // is fine if BUILD_VECTORs are always lowered to shuffles or other
       // operations, but for ARM some BUILD_VECTORs are legal as-is and their
@@ -259,6 +259,11 @@ namespace llvm {
                                     SelectionDAG &DAG) const;
 
     virtual const char *getTargetNodeName(unsigned Opcode) const;
+
+    virtual bool isSelectSupported(SelectSupportKind Kind) const {
+      // ARM does not support scalar condition selects on vectors.
+      return (Kind != ScalarCondVectorVal);
+    }
 
     /// getSetCCResultType - Return the value type to use for ISD::SETCC.
     virtual EVT getSetCCResultType(EVT VT) const;
@@ -461,7 +466,11 @@ namespace llvm {
                            SmallVectorImpl<SDValue> &InVals) const;
 
     void VarArgStyleRegisters(CCState &CCInfo, SelectionDAG &DAG,
-                              DebugLoc dl, SDValue &Chain, unsigned ArgOffset)
+                              DebugLoc dl, SDValue &Chain,
+                              const Value *OrigArg,
+                              unsigned OffsetFromOrigArg,
+                              unsigned ArgOffset,
+                              bool ForceMutable = false)
       const;
 
     void computeRegArea(CCState &CCInfo, MachineFunction &MF,
@@ -472,7 +481,7 @@ namespace llvm {
                 SmallVectorImpl<SDValue> &InVals) const;
 
     /// HandleByVal - Target-specific cleanup for ByVal support.
-    virtual void HandleByVal(CCState *, unsigned &) const;
+    virtual void HandleByVal(CCState *, unsigned &, unsigned) const;
 
     /// IsEligibleForTailCallOptimization - Check whether the call is eligible
     /// for tail call optimization. Targets which want to do tail call

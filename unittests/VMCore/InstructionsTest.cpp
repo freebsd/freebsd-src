@@ -9,6 +9,7 @@
 
 #include "llvm/BasicBlock.h"
 #include "llvm/Constants.h"
+#include "llvm/DataLayout.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/IRBuilder.h"
 #include "llvm/Instructions.h"
@@ -17,7 +18,6 @@
 #include "llvm/Operator.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Analysis/ValueTracking.h"
-#include "llvm/Target/TargetData.h"
 #include "gtest/gtest.h"
 
 namespace llvm {
@@ -183,7 +183,7 @@ TEST(InstructionsTest, VectorGep) {
   EXPECT_NE(S3, Gep3);
 
   int64_t Offset;
-  TargetData TD("e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f3"
+  DataLayout TD("e-p:64:64:64-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:64-f3"
                 "2:32:32-f64:64:64-v64:64:64-v128:128:128-a0:0:64-s0:64:64-f80"
                 ":128:128-n8:16:32:64-S128");
   // Make sure we don't crash
@@ -241,6 +241,43 @@ TEST(InstructionsTest, FPMathOperator) {
   EXPECT_EQ(O1->getFPAccuracy(), 1.0);
   delete V1;
   delete I;
+}
+
+
+TEST(InstructionsTest, isEliminableCastPair) {
+  LLVMContext &C(getGlobalContext());
+
+  Type* Int32Ty = Type::getInt32Ty(C);
+  Type* Int64Ty = Type::getInt64Ty(C);
+  Type* Int64PtrTy = Type::getInt64PtrTy(C);
+
+  // Source and destination pointers have same size -> bitcast.
+  EXPECT_EQ(CastInst::isEliminableCastPair(CastInst::PtrToInt,
+                                           CastInst::IntToPtr,
+                                           Int64PtrTy, Int64Ty, Int64PtrTy,
+                                           Int32Ty, 0, Int32Ty),
+            CastInst::BitCast);
+
+  // Source and destination pointers have different sizes -> fail.
+  EXPECT_EQ(CastInst::isEliminableCastPair(CastInst::PtrToInt,
+                                           CastInst::IntToPtr,
+                                           Int64PtrTy, Int64Ty, Int64PtrTy,
+                                           Int32Ty, 0, Int64Ty),
+            0U);
+
+  // Middle pointer big enough -> bitcast.
+  EXPECT_EQ(CastInst::isEliminableCastPair(CastInst::IntToPtr,
+                                           CastInst::PtrToInt,
+                                           Int64Ty, Int64PtrTy, Int64Ty,
+                                           0, Int64Ty, 0),
+            CastInst::BitCast);
+
+  // Middle pointer too small -> fail.
+  EXPECT_EQ(CastInst::isEliminableCastPair(CastInst::IntToPtr,
+                                           CastInst::PtrToInt,
+                                           Int64Ty, Int64PtrTy, Int64Ty,
+                                           0, Int32Ty, 0),
+            0U);
 }
 
 }  // end anonymous namespace

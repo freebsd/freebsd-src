@@ -152,7 +152,7 @@ stuff too.
 
 //===---------------------------------------------------------------------===//
 
-For vector types, TargetData.cpp::getTypeInfo() returns alignment that is equal
+For vector types, DataLayout.cpp::getTypeInfo() returns alignment that is equal
 to the type size. It works but can be overly conservative as the alignment of
 specific vector types are target dependent.
 
@@ -2365,10 +2365,5 @@ should fold to (x & y) == 0.
 
 unsigned foo(unsigned x, unsigned y) { return x > y && x != 0; }
 should fold to x > y.
-
-//===---------------------------------------------------------------------===//
-
-int f(double x) { return __builtin_fabs(x) < 0.0; }
-should fold to false.
 
 //===---------------------------------------------------------------------===//

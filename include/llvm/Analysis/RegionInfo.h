@@ -54,10 +54,8 @@ class FlatIt {};
 /// @brief A RegionNode represents a subregion or a BasicBlock that is part of a
 /// Region.
 class RegionNode {
-  // DO NOT IMPLEMENT
-  RegionNode(const RegionNode &);
-  // DO NOT IMPLEMENT
-  const RegionNode &operator=(const RegionNode &);
+  RegionNode(const RegionNode &) LLVM_DELETED_FUNCTION;
+  const RegionNode &operator=(const RegionNode &) LLVM_DELETED_FUNCTION;
 
 protected:
   /// This is the entry basic block that starts this region node.  If this is a
@@ -203,10 +201,8 @@ inline Region* RegionNode::getNodeAs<Region>() const {
 /// tree, the second one creates a graphical representation using graphviz.
 class Region : public RegionNode {
   friend class RegionInfo;
-  // DO NOT IMPLEMENT
-  Region(const Region &);
-  // DO NOT IMPLEMENT
-  const Region &operator=(const Region &);
+  Region(const Region &) LLVM_DELETED_FUNCTION;
+  const Region &operator=(const Region &) LLVM_DELETED_FUNCTION;
 
   // Information necessary to manage this Region.
   RegionInfo* RI;
@@ -473,27 +469,6 @@ public:
   const_iterator end() const { return children.end(); }
   //@}
 
-  /// @name BasicBlock Node Iterators
-  ///
-  /// These iterators iterate over all BasicBlock RegionNodes that are
-  /// contained in this Region. The iterator also iterates over BasicBlock
-  /// RegionNodes that are elements of a subregion of this Region. It is
-  /// therefore called a flat iterator.
-  //@{
-  typedef df_iterator<RegionNode*, SmallPtrSet<RegionNode*, 8>, false,
-                      GraphTraits<FlatIt<RegionNode*> > > block_node_iterator;
-
-  typedef df_iterator<const RegionNode*, SmallPtrSet<const RegionNode*, 8>,
-                      false, GraphTraits<FlatIt<const RegionNode*> > >
-            const_block_node_iterator;
-
-  block_node_iterator block_node_begin();
-  block_node_iterator block_node_end();
-
-  const_block_node_iterator block_node_begin() const;
-  const_block_node_iterator block_node_end() const;
-  //@}
-
   /// @name BasicBlock Iterators
   ///
   /// These iterators iterate over all BasicBlocks that are contained in this
@@ -586,10 +561,8 @@ class RegionInfo : public FunctionPass {
   typedef DenseMap<BasicBlock*, Region*> BBtoRegionMap;
   typedef SmallPtrSet<Region*, 4> RegionSet;
 
-  // DO NOT IMPLEMENT
-  RegionInfo(const RegionInfo &);
-  // DO NOT IMPLEMENT
-  const RegionInfo &operator=(const RegionInfo &);
+  RegionInfo(const RegionInfo &) LLVM_DELETED_FUNCTION;
+  const RegionInfo &operator=(const RegionInfo &) LLVM_DELETED_FUNCTION;
 
   DominatorTree *DT;
   PostDominatorTree *PDT;

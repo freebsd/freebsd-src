@@ -17,6 +17,7 @@
 *.pyc
 # vim swap files
 .*.swp
+.sw?
 
 #==============================================================================#
 # Explicit files to ignore (only matches one).
@@ -27,6 +28,7 @@ cscope.files
 cscope.out
 autoconf/aclocal.m4
 autoconf/autom4te.cache
+compile_commands.json
 
 #==============================================================================#
 # Directories to ignore (do not add trailing '/'s, they skip symlinks).

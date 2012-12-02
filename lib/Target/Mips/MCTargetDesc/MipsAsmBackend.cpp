@@ -92,7 +92,7 @@ public:
       MCELFObjectTargetWriter::getOSABI(OSType), IsLittle, Is64Bit);
   }
 
-  /// ApplyFixup - Apply the \arg Value for given \arg Fixup into the provided
+  /// ApplyFixup - Apply the \p Value for given \p Fixup into the provided
   /// data fragment, at the offset specified by the fixup and following the
   /// fixup kind as appropriate.
   void applyFixup(const MCFixup &Fixup, char *Data, unsigned DataSize,
@@ -217,7 +217,7 @@ public:
   ///
   /// \param Inst - The instruction to relax, which may be the same
   /// as the output.
-  /// \parm Res [output] - On return, the relaxed instruction.
+  /// \param [out] Res On return, the relaxed instruction.
   void relaxInstruction(const MCInst &Inst, MCInst &Res) const {
   }
 
@@ -244,22 +244,26 @@ public:
 } // namespace
 
 // MCAsmBackend
-MCAsmBackend *llvm::createMipsAsmBackendEL32(const Target &T, StringRef TT) {
+MCAsmBackend *llvm::createMipsAsmBackendEL32(const Target &T, StringRef TT,
+                                             StringRef CPU) {
   return new MipsAsmBackend(T, Triple(TT).getOS(),
                             /*IsLittle*/true, /*Is64Bit*/false);
 }
 
-MCAsmBackend *llvm::createMipsAsmBackendEB32(const Target &T, StringRef TT) {
+MCAsmBackend *llvm::createMipsAsmBackendEB32(const Target &T, StringRef TT,
+                                             StringRef CPU) {
   return new MipsAsmBackend(T, Triple(TT).getOS(),
                             /*IsLittle*/false, /*Is64Bit*/false);
 }
 
-MCAsmBackend *llvm::createMipsAsmBackendEL64(const Target &T, StringRef TT) {
+MCAsmBackend *llvm::createMipsAsmBackendEL64(const Target &T, StringRef TT,
+                                             StringRef CPU) {
   return new MipsAsmBackend(T, Triple(TT).getOS(),
                             /*IsLittle*/true, /*Is64Bit*/true);
 }
 
-MCAsmBackend *llvm::createMipsAsmBackendEB64(const Target &T, StringRef TT) {
+MCAsmBackend *llvm::createMipsAsmBackendEB64(const Target &T, StringRef TT,
+                                             StringRef CPU) {
   return new MipsAsmBackend(T, Triple(TT).getOS(),
                             /*IsLittle*/false, /*Is64Bit*/true);
 }

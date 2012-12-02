@@ -32,6 +32,7 @@
   <li><a href="#InstructionSet">Instruction Set</a>
   <ul>  
     <li><a href="#operandMapping">Instruction Operand Mapping</a></li>
+    <li><a href="#relationMapping">Instruction Relation Mapping</a></li>
     <li><a href="#implementInstr">Implement a subclass of TargetInstrInfo</a></li>
     <li><a href="#branchFolding">Branch Folding and If Conversion</a></li>
   </ul></li>
@@ -314,14 +315,14 @@ represent target components.  These methods are named <tt>get*Info</tt>, and are
 intended to obtain the instruction set (<tt>getInstrInfo</tt>), register set
 (<tt>getRegisterInfo</tt>), stack frame layout (<tt>getFrameInfo</tt>), and
 similar information. <tt>XXXTargetMachine</tt> must also implement the
-<tt>getTargetData</tt> method to access an object with target-specific data
+<tt>getDataLayout</tt> method to access an object with target-specific data
 characteristics, such as data type size and alignment requirements.
 </p>
 
 <p>
 For instance, for the SPARC target, the header file
 <tt>SparcTargetMachine.h</tt> declares prototypes for several <tt>get*Info</tt>
-and <tt>getTargetData</tt> methods that simply return a class member.
+and <tt>getDataLayout</tt> methods that simply return a class member.
 </p>
 
 <div class="doc_code">
@@ -331,7 +332,7 @@ namespace llvm {
 class Module;
 
 class SparcTargetMachine : public LLVMTargetMachine {
-  const TargetData DataLayout;       // Calculates type size &amp; alignment
+  const DataLayout DataLayout;       // Calculates type size &amp; alignment
   SparcSubtarget Subtarget;
   SparcInstrInfo InstrInfo;
   TargetFrameInfo FrameInfo;
@@ -348,7 +349,7 @@ public:
   virtual const TargetRegisterInfo *getRegisterInfo() const {
     return &amp;InstrInfo.getRegisterInfo();
   }
-  virtual const TargetData *getTargetData() const { return &amp;DataLayout; }
+  virtual const DataLayout *getDataLayout() const { return &amp;DataLayout; }
   static unsigned getModuleMatchQuality(const Module &amp;M);
 
   // Pass Pipeline Configuration
@@ -364,7 +365,7 @@ public:
 <li><tt>getInstrInfo()</tt></li>
 <li><tt>getRegisterInfo()</tt></li>
 <li><tt>getFrameInfo()</tt></li>
-<li><tt>getTargetData()</tt></li>
+<li><tt>getDataLayout()</tt></li>
 <li><tt>getSubtargetImpl()</tt></li>
 </ul>
 
@@ -1255,6 +1256,29 @@ instruction binding <tt>$dst</tt>, <tt>$b</tt>, and <tt>$c</tt> operands to
 the <tt>rd</tt>, <tt>rs1</tt>, and <tt>rs2</tt> fields respectively.
 </p>
 
+</div>
+
+<!-- ======================================================================= -->
+<h3>
+  <a name="relationMapping">Instruction Relation Mapping</a>
+</h3>
+
+<div>
+
+<p>
+This TableGen feature is used to relate instructions with each other. It is
+particularly useful when you have multiple instruction formats and need to
+switch between them after instruction selection. This entire feature is driven
+by relation models which can be defined in <tt>XXXInstrInfo.td</tt> files
+according to the target-specific instruction set. Relation models are defined
+using <tt>InstrMapping</tt> class as a base. TableGen parses all the models
+and generates instruction relation maps using the specified information.
+Relation maps are emitted as tables in the <tt>XXXGenInstrInfo.inc</tt> file
+along with the functions to query them. For the detailed information on how to
+use this feature, please refer to
+<a href="HowToUseInstrMappings.html">How to add Instruction Mappings</a>
+document.
+</p>
 </div>
 
 <!-- ======================================================================= -->
@@ -2526,7 +2550,7 @@ with assembler.
   <a href="http://www.woo.com">Mason Woo</a> and <a href="http://misha.brukman.net">Misha Brukman</a><br>
   <a href="http://llvm.org/">The LLVM Compiler Infrastructure</a>
   <br>
-  Last modified: $Date: 2012-04-19 22:20:34 +0200 (Thu, 19 Apr 2012) $
+  Last modified: $Date: 2012-10-25 17:54:06 +0200 (Thu, 25 Oct 2012) $
 </address>
 
 </body>
