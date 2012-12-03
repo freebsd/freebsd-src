@@ -78,10 +78,9 @@ void UndefinedAssignmentChecker::checkBind(SVal location, SVal val,
   BugReport *R = new BugReport(*BT, str, N);
   if (ex) {
     R->addRange(ex->getSourceRange());
-    bugreporter::addTrackNullOrUndefValueVisitor(N, ex, R);
+    bugreporter::trackNullOrUndefValue(N, ex, *R);
   }
-  R->disablePathPruning();
-  C.EmitReport(R);
+  C.emitReport(R);
 }
 
 void ento::registerUndefinedAssignmentChecker(CheckerManager &mgr) {

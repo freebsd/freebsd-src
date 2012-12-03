@@ -12,6 +12,7 @@
 #define STREAMABLEMEMORYOBJECT_H_
 
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/Support/Compiler.h"
 #include "llvm/Support/MemoryObject.h"
 #include "llvm/Support/DataStream.h"
 #include <vector>
@@ -107,14 +108,15 @@ class StreamableMemoryObject : public MemoryObject {
 class StreamingMemoryObject : public StreamableMemoryObject {
 public:
   StreamingMemoryObject(DataStreamer *streamer);
-  virtual uint64_t getBase() const { return 0; }
-  virtual uint64_t getExtent() const;
-  virtual int readByte(uint64_t address, uint8_t* ptr) const;
+  virtual uint64_t getBase() const LLVM_OVERRIDE { return 0; }
+  virtual uint64_t getExtent() const LLVM_OVERRIDE;
+  virtual int readByte(uint64_t address, uint8_t* ptr) const LLVM_OVERRIDE;
   virtual int readBytes(uint64_t address,
                         uint64_t size,
                         uint8_t* buf,
-                        uint64_t* copied) const ;
-  virtual const uint8_t *getPointer(uint64_t address, uint64_t size) const {
+                        uint64_t* copied) const LLVM_OVERRIDE;
+  virtual const uint8_t *getPointer(uint64_t address,
+                                    uint64_t size) const LLVM_OVERRIDE {
     // This could be fixed by ensuring the bytes are fetched and making a copy,
     // requiring that the bitcode size be known, or otherwise ensuring that
     // the memory doesn't go away/get reallocated, but it's
@@ -122,8 +124,8 @@ public:
     assert(0 && "getPointer in streaming memory objects not allowed");
     return NULL;
   }
-  virtual bool isValidAddress(uint64_t address) const;
-  virtual bool isObjectEnd(uint64_t address) const;
+  virtual bool isValidAddress(uint64_t address) const LLVM_OVERRIDE;
+  virtual bool isObjectEnd(uint64_t address) const LLVM_OVERRIDE;
 
   /// Drop s bytes from the front of the stream, pushing the positions of the
   /// remaining bytes down by s. This is used to skip past the bitcode header,
@@ -170,8 +172,8 @@ private:
     return true;
   }
 
-  StreamingMemoryObject(const StreamingMemoryObject&);  // DO NOT IMPLEMENT
-  void operator=(const StreamingMemoryObject&);  // DO NOT IMPLEMENT
+  StreamingMemoryObject(const StreamingMemoryObject&) LLVM_DELETED_FUNCTION;
+  void operator=(const StreamingMemoryObject&) LLVM_DELETED_FUNCTION;
 };
 
 StreamableMemoryObject *getNonStreamedMemoryObject(

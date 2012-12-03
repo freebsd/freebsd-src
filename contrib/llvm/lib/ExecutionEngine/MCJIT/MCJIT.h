@@ -11,39 +11,40 @@
 #define LLVM_LIB_EXECUTIONENGINE_MCJIT_H
 
 #include "llvm/PassManager.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ExecutionEngine/ExecutionEngine.h"
 #include "llvm/ExecutionEngine/RuntimeDyld.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/Support/raw_ostream.h"
 
 namespace llvm {
+
+class ObjectImage;
 
 // FIXME: This makes all kinds of horrible assumptions for the time being,
 // like only having one module, not needing to worry about multi-threading,
 // blah blah. Purely in get-it-up-and-limping mode for now.
 
 class MCJIT : public ExecutionEngine {
-  MCJIT(Module *M, TargetMachine *tm, TargetJITInfo &tji,
-        RTDyldMemoryManager *MemMgr, bool AllocateGVsWithCode);
+  MCJIT(Module *M, TargetMachine *tm, RTDyldMemoryManager *MemMgr,
+        bool AllocateGVsWithCode);
 
   TargetMachine *TM;
   MCContext *Ctx;
   RTDyldMemoryManager *MemMgr;
   RuntimeDyld Dyld;
+  SmallVector<JITEventListener*, 2> EventListeners;
 
   // FIXME: Add support for multiple modules
   bool isCompiled;
   Module *M;
-
-  // FIXME: Move these to a single container which manages JITed objects
-  SmallVector<char, 4096> Buffer; // Working buffer into which we JIT.
-  raw_svector_ostream OS;
+  OwningPtr<ObjectImage> LoadedObject;
 
 public:
   ~MCJIT();
 
   /// @name ExecutionEngine interface implementation
   /// @{
+
+  virtual void finalizeObject();
 
   virtual void *getPointerToBasicBlock(BasicBlock *BB);
 
@@ -71,9 +72,13 @@ public:
   /// Map the address of a JIT section as returned from the memory manager
   /// to the address in the target process as the running code will see it.
   /// This is the address which will be used for relocation resolution.
-  virtual void mapSectionAddress(void *LocalAddress, uint64_t TargetAddress) {
+  virtual void mapSectionAddress(const void *LocalAddress,
+                                 uint64_t TargetAddress) {
     Dyld.mapSectionAddress(LocalAddress, TargetAddress);
   }
+
+  virtual void RegisterJITEventListener(JITEventListener *L);
+  virtual void UnregisterJITEventListener(JITEventListener *L);
 
   /// @}
   /// @name (Private) Registration Interfaces
@@ -98,6 +103,9 @@ protected:
   /// is passed as a parameter here to prepare for multiple module support in 
   /// the future.
   void emitObject(Module *M);
+
+  void NotifyObjectEmitted(const ObjectImage& Obj);
+  void NotifyFreeingObject(const ObjectImage& Obj);
 };
 
 } // End llvm namespace

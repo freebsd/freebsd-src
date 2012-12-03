@@ -13,6 +13,7 @@
 //
 #define DEBUG_TYPE "mccodeemitter"
 #include "MCTargetDesc/MipsBaseInfo.h"
+#include "MCTargetDesc/MipsDirectObjLower.h"
 #include "MCTargetDesc/MipsFixupKinds.h"
 #include "MCTargetDesc/MipsMCTargetDesc.h"
 #include "llvm/ADT/APFloat.h"
@@ -29,17 +30,14 @@ using namespace llvm;
 
 namespace {
 class MipsMCCodeEmitter : public MCCodeEmitter {
-  MipsMCCodeEmitter(const MipsMCCodeEmitter &); // DO NOT IMPLEMENT
-  void operator=(const MipsMCCodeEmitter &); // DO NOT IMPLEMENT
+  MipsMCCodeEmitter(const MipsMCCodeEmitter &) LLVM_DELETED_FUNCTION;
+  void operator=(const MipsMCCodeEmitter &) LLVM_DELETED_FUNCTION;
   const MCInstrInfo &MCII;
-  const MCSubtargetInfo &STI;
-  MCContext &Ctx;
   bool IsLittleEndian;
 
 public:
-  MipsMCCodeEmitter(const MCInstrInfo &mcii, const MCSubtargetInfo &sti,
-                    MCContext &ctx, bool IsLittle) :
-            MCII(mcii), STI(sti) , Ctx(ctx), IsLittleEndian(IsLittle) {}
+  MipsMCCodeEmitter(const MCInstrInfo &mcii, bool IsLittle) :
+            MCII(mcii), IsLittleEndian(IsLittle) {}
 
   ~MipsMCCodeEmitter() {}
 
@@ -95,7 +93,7 @@ MCCodeEmitter *llvm::createMipsMCCodeEmitterEB(const MCInstrInfo &MCII,
                                                const MCSubtargetInfo &STI,
                                                MCContext &Ctx)
 {
-  return new MipsMCCodeEmitter(MCII, STI, Ctx, false);
+  return new MipsMCCodeEmitter(MCII, false);
 }
 
 MCCodeEmitter *llvm::createMipsMCCodeEmitterEL(const MCInstrInfo &MCII,
@@ -103,7 +101,7 @@ MCCodeEmitter *llvm::createMipsMCCodeEmitterEL(const MCInstrInfo &MCII,
                                                const MCSubtargetInfo &STI,
                                                MCContext &Ctx)
 {
-  return new MipsMCCodeEmitter(MCII, STI, Ctx, true);
+  return new MipsMCCodeEmitter(MCII, true);
 }
 
 /// EncodeInstruction - Emit the instruction.
@@ -112,16 +110,35 @@ void MipsMCCodeEmitter::
 EncodeInstruction(const MCInst &MI, raw_ostream &OS,
                   SmallVectorImpl<MCFixup> &Fixups) const
 {
-  uint32_t Binary = getBinaryCodeForInstr(MI, Fixups);
+
+  // Non-pseudo instructions that get changed for direct object
+  // only based on operand values.
+  // If this list of instructions get much longer we will move
+  // the check to a function call. Until then, this is more efficient.
+  MCInst TmpInst = MI;
+  switch (MI.getOpcode()) {
+  // If shift amount is >= 32 it the inst needs to be lowered further
+  case Mips::DSLL:
+  case Mips::DSRL:
+  case Mips::DSRA:
+    Mips::LowerLargeShift(TmpInst);
+    break;
+    // Double extract instruction is chosen by pos and size operands
+  case Mips::DEXT:
+  case Mips::DINS:
+    Mips::LowerDextDins(TmpInst);
+  }
+
+  uint32_t Binary = getBinaryCodeForInstr(TmpInst, Fixups);
 
   // Check for unimplemented opcodes.
-  // Unfortunately in MIPS both NOT and SLL will come in with Binary == 0
+  // Unfortunately in MIPS both NOP and SLL will come in with Binary == 0
   // so we have to special check for them.
-  unsigned Opcode = MI.getOpcode();
+  unsigned Opcode = TmpInst.getOpcode();
   if ((Opcode != Mips::NOP) && (Opcode != Mips::SLL) && !Binary)
     llvm_unreachable("unimplemented opcode in EncodeInstruction()");
 
-  const MCInstrDesc &Desc = MCII.get(MI.getOpcode());
+  const MCInstrDesc &Desc = MCII.get(TmpInst.getOpcode());
   uint64_t TSFlags = Desc.TSFlags;
 
   // Pseudo instructions don't get encoded and shouldn't be here
@@ -129,8 +146,10 @@ EncodeInstruction(const MCInst &MI, raw_ostream &OS,
   if ((TSFlags & MipsII::FormMask) == MipsII::Pseudo)
     llvm_unreachable("Pseudo opcode found in EncodeInstruction()");
 
-  // For now all instructions are 4 bytes
-  int Size = 4; // FIXME: Have Desc.getSize() return the correct value!
+  // Get byte count of instruction
+  unsigned Size = Desc.getSize();
+  if (!Size)
+    llvm_unreachable("Desc.getSize() returns 0");
 
   EmitInstruction(Binary, Size, OS);
 }
@@ -143,7 +162,11 @@ getBranchTargetOpValue(const MCInst &MI, unsigned OpNo,
                        SmallVectorImpl<MCFixup> &Fixups) const {
 
   const MCOperand &MO = MI.getOperand(OpNo);
-  assert(MO.isExpr() && "getBranchTargetOpValue expects only expressions");
+
+  // If the destination is an immediate, we have nothing to do.
+  if (MO.isImm()) return MO.getImm();
+  assert(MO.isExpr() &&
+         "getBranchTargetOpValue expects only expressions or immediates");
 
   const MCExpr *Expr = MO.getExpr();
   Fixups.push_back(MCFixup::Create(0, Expr,
@@ -159,7 +182,10 @@ getJumpTargetOpValue(const MCInst &MI, unsigned OpNo,
                      SmallVectorImpl<MCFixup> &Fixups) const {
 
   const MCOperand &MO = MI.getOperand(OpNo);
-  assert(MO.isExpr() && "getJumpTargetOpValue expects only expressions");
+  // If the destination is an immediate, we have nothing to do.
+  if (MO.isImm()) return MO.getImm();
+  assert(MO.isExpr() &&
+         "getJumpTargetOpValue expects only expressions or an immediate");
 
   const MCExpr *Expr = MO.getExpr();
   Fixups.push_back(MCFixup::Create(0, Expr,
