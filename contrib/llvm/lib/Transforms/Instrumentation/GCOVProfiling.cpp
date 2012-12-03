@@ -88,11 +88,11 @@ namespace {
 
     // Add the function to write out all our counters to the global destructor
     // list.
-    void insertCounterWriteout(SmallVector<std::pair<GlobalVariable *,
-                                                     MDNode *>, 8> &);
+    void insertCounterWriteout(ArrayRef<std::pair<GlobalVariable*, MDNode*> >);
     void insertIndirectCounterIncrement();
+    void insertFlush(ArrayRef<std::pair<GlobalVariable*, MDNode*> >);
 
-    std::string mangleName(DICompileUnit CU, std::string NewStem);
+    std::string mangleName(DICompileUnit CU, const char *NewStem);
 
     bool EmitNotes;
     bool EmitData;
@@ -329,7 +329,7 @@ namespace {
   };
 }
 
-std::string GCOVProfiler::mangleName(DICompileUnit CU, std::string NewStem) {
+std::string GCOVProfiler::mangleName(DICompileUnit CU, const char *NewStem) {
   if (NamedMDNode *GCov = M->getNamedMetadata("llvm.gcov")) {
     for (int i = 0, e = GCov->getNumOperands(); i != e; ++i) {
       MDNode *N = GCov->getOperand(i);
@@ -519,6 +519,7 @@ bool GCOVProfiler::emitProfileArcs() {
     }
 
     insertCounterWriteout(CountersBySP);
+    insertFlush(CountersBySP);
   }
 
   if (InsertIndCounterIncrCode)
@@ -630,14 +631,15 @@ GlobalVariable *GCOVProfiler::getEdgeStateValue() {
 }
 
 void GCOVProfiler::insertCounterWriteout(
-    SmallVector<std::pair<GlobalVariable *, MDNode *>, 8> &CountersBySP) {
-  FunctionType *WriteoutFTy =
-      FunctionType::get(Type::getVoidTy(*Ctx), false);
-  Function *WriteoutF = Function::Create(WriteoutFTy,
-                                         GlobalValue::InternalLinkage,
-                                         "__llvm_gcov_writeout", M);
+    ArrayRef<std::pair<GlobalVariable *, MDNode *> > CountersBySP) {
+  FunctionType *WriteoutFTy = FunctionType::get(Type::getVoidTy(*Ctx), false);
+  Function *WriteoutF = M->getFunction("__llvm_gcov_writeout");
+  if (!WriteoutF)
+    WriteoutF = Function::Create(WriteoutFTy, GlobalValue::InternalLinkage,
+                                 "__llvm_gcov_writeout", M);
   WriteoutF->setUnnamedAddr(true);
-  BasicBlock *BB = BasicBlock::Create(*Ctx, "", WriteoutF);
+
+  BasicBlock *BB = BasicBlock::Create(*Ctx, "entry", WriteoutF);
   IRBuilder<> Builder(BB);
 
   Constant *StartFile = getStartFileFunc();
@@ -648,11 +650,11 @@ void GCOVProfiler::insertCounterWriteout(
   NamedMDNode *CU_Nodes = M->getNamedMetadata("llvm.dbg.cu");
   if (CU_Nodes) {
     for (unsigned i = 0, e = CU_Nodes->getNumOperands(); i != e; ++i) {
-      DICompileUnit compile_unit(CU_Nodes->getOperand(i));
-      std::string FilenameGcda = mangleName(compile_unit, "gcda");
+      DICompileUnit CU(CU_Nodes->getOperand(i));
+      std::string FilenameGcda = mangleName(CU, "gcda");
       Builder.CreateCall(StartFile,
                          Builder.CreateGlobalStringPtr(FilenameGcda));
-      for (SmallVector<std::pair<GlobalVariable *, MDNode *>, 8>::iterator
+      for (ArrayRef<std::pair<GlobalVariable *, MDNode *> >::iterator
              I = CountersBySP.begin(), E = CountersBySP.end();
            I != E; ++I) {
         DISubprogram SP(I->second);
@@ -680,7 +682,7 @@ void GCOVProfiler::insertCounterWriteout(
                                  "__llvm_gcov_init", M);
   F->setUnnamedAddr(true);
   F->setLinkage(GlobalValue::InternalLinkage);
-  F->addFnAttr(Attribute::NoInline);
+  F->addFnAttr(Attributes::NoInline);
 
   BB = BasicBlock::Create(*Ctx, "entry", F);
   Builder.SetInsertPoint(BB);
@@ -699,7 +701,7 @@ void GCOVProfiler::insertIndirectCounterIncrement() {
     cast<Function>(GCOVProfiler::getIncrementIndirectCounterFunc());
   Fn->setUnnamedAddr(true);
   Fn->setLinkage(GlobalValue::InternalLinkage);
-  Fn->addFnAttr(Attribute::NoInline);
+  Fn->addFnAttr(Attributes::NoInline);
 
   Type *Int32Ty = Type::getInt32Ty(*Ctx);
   Type *Int64Ty = Type::getInt64Ty(*Ctx);
@@ -744,4 +746,43 @@ void GCOVProfiler::insertIndirectCounterIncrement() {
   // Fill in the exit block.
   Builder.SetInsertPoint(Exit);
   Builder.CreateRetVoid();
+}
+
+void GCOVProfiler::
+insertFlush(ArrayRef<std::pair<GlobalVariable*, MDNode*> > CountersBySP) {
+  FunctionType *FTy = FunctionType::get(Type::getVoidTy(*Ctx), false);
+  Function *FlushF = M->getFunction("__gcov_flush");
+  if (!FlushF)
+    FlushF = Function::Create(FTy, GlobalValue::InternalLinkage,
+                              "__gcov_flush", M);
+  else
+    FlushF->setLinkage(GlobalValue::InternalLinkage);
+  FlushF->setUnnamedAddr(true);
+
+  BasicBlock *Entry = BasicBlock::Create(*Ctx, "entry", FlushF);
+
+  // Write out the current counters.
+  Constant *WriteoutF = M->getFunction("__llvm_gcov_writeout");
+  assert(WriteoutF && "Need to create the writeout function first!");
+
+  IRBuilder<> Builder(Entry);
+  Builder.CreateCall(WriteoutF);
+
+  // Zero out the counters.
+  for (ArrayRef<std::pair<GlobalVariable *, MDNode *> >::iterator
+         I = CountersBySP.begin(), E = CountersBySP.end();
+       I != E; ++I) {
+    GlobalVariable *GV = I->first;
+    Constant *Null = Constant::getNullValue(GV->getType()->getElementType());
+    Builder.CreateStore(Null, GV);
+  }
+
+  Type *RetTy = FlushF->getReturnType();
+  if (RetTy == Type::getVoidTy(*Ctx))
+    Builder.CreateRetVoid();
+  else if (RetTy->isIntegerTy())
+    // Used if __gcov_flush was implicitly declared.
+    Builder.CreateRet(ConstantInt::get(RetTy, 0));
+  else
+    report_fatal_error("invalid return type for __gcov_flush");
 }

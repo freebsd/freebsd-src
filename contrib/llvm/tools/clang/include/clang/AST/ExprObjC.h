@@ -51,7 +51,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCStringLiteralClass;
   }
-  static bool classof(const ObjCStringLiteral *) { return true; }
 
   // Iterators
   child_range children() { return child_range(&String, &String+1); }
@@ -81,7 +80,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCBoolLiteralExprClass;
   }
-  static bool classof(const ObjCBoolLiteralExpr *) { return true; }
     
   // Iterators
   child_range children() { return child_range(); }
@@ -121,7 +119,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCBoxedExprClass;
   }
-  static bool classof(const ObjCBoxedExpr *) { return true; }
   
   // Iterators
   child_range children() { return child_range(&SubExpr, &SubExpr+1); }
@@ -156,7 +153,6 @@ public:
   static bool classof(const Stmt *T) {
       return T->getStmtClass() == ObjCArrayLiteralClass;
   }
-  static bool classof(const ObjCArrayLiteral *) { return true; }
 
   /// \brief Retrieve elements of array of literals.
   Expr **getElements() { return reinterpret_cast<Expr **>(this + 1); }
@@ -319,7 +315,6 @@ public:
   static bool classof(const Stmt *T) {
       return T->getStmtClass() == ObjCDictionaryLiteralClass;
   }
-  static bool classof(const ObjCDictionaryLiteral *) { return true; }
     
   // Iterators
   child_range children() { 
@@ -372,7 +367,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCEncodeExprClass;
   }
-  static bool classof(const ObjCEncodeExpr *) { return true; }
 
   // Iterators
   child_range children() { return child_range(); }
@@ -409,7 +403,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCSelectorExprClass;
   }
-  static bool classof(const ObjCSelectorExpr *) { return true; }
 
   // Iterators
   child_range children() { return child_range(); }
@@ -447,7 +440,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCProtocolExprClass;
   }
-  static bool classof(const ObjCProtocolExpr *) { return true; }
 
   // Iterators
   child_range children() { return child_range(); }
@@ -501,7 +493,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCIvarRefExprClass;
   }
-  static bool classof(const ObjCIvarRefExpr *) { return true; }
 
   // Iterators
   child_range children() { return child_range(&Base, &Base+1); }
@@ -715,7 +706,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCPropertyRefExprClass;
   }
-  static bool classof(const ObjCPropertyRefExpr *) { return true; }
 
   // Iterators
   child_range children() {
@@ -813,7 +803,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCSubscriptRefExprClass;
   }
-  static bool classof(const ObjCSubscriptRefExpr *) { return true; }
   
   Expr *getBaseExpr() const { return cast<Expr>(SubExprs[BASE]); }
   void setBaseExpr(Stmt *S) { SubExprs[BASE] = S; }
@@ -1156,10 +1145,8 @@ public:
     return getReceiverKind() == Class || getReceiverKind() == SuperClass;
   }
 
-  /// \brief Returns the receiver of an instance message.
-  ///
-  /// \brief Returns the object expression for an instance message, or
-  /// NULL for a message that is not an instance message.
+  /// \brief Returns the object expression (receiver) for an instance message,
+  /// or null for a message that is not an instance message.
   Expr *getInstanceReceiver() {
     if (getReceiverKind() == Instance)
       return static_cast<Expr *>(getReceiverPointer());
@@ -1207,6 +1194,17 @@ public:
 
     return SourceLocation();
   }
+
+  /// \brief Retrieve the receiver type to which this message is being directed.
+  ///
+  /// This routine cross-cuts all of the different kinds of message
+  /// sends to determine what the underlying (statically known) type
+  /// of the receiver will be; use \c getReceiverKind() to determine
+  /// whether the message is a class or an instance method, whether it
+  /// is a send to super or not, etc.
+  ///
+  /// \returns The type of the receiver.
+  QualType getReceiverType() const;
 
   /// \brief Retrieve the Objective-C interface to which this message
   /// is being directed, if known.
@@ -1344,7 +1342,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCMessageExprClass;
   }
-  static bool classof(const ObjCMessageExpr *) { return true; }
 
   // Iterators
   child_range children();
@@ -1409,7 +1406,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCIsaExprClass;
   }
-  static bool classof(const ObjCIsaExpr *) { return true; }
 
   // Iterators
   child_range children() { return child_range(&Base, &Base+1); }
@@ -1483,7 +1479,6 @@ public:
   static bool classof(const Stmt *s) {
     return s->getStmtClass() == ObjCIndirectCopyRestoreExprClass;
   }
-  static bool classof(const ObjCIndirectCopyRestoreExpr *) { return true; }
 };
 
 /// \brief An Objective-C "bridged" cast expression, which casts between
@@ -1532,8 +1527,6 @@ public:
   static bool classof(const Stmt *T) {
     return T->getStmtClass() == ObjCBridgedCastExprClass;
   }
-  static bool classof(const ObjCBridgedCastExpr *) { return true; }
- 
 };
   
 }  // end namespace clang

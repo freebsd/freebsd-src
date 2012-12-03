@@ -16,9 +16,56 @@
 #define LLVM_CLANG_SA_CORE_PATHSENSITIVE_CHECKERCONTEXT
 
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
 
 namespace clang {
 namespace ento {
+
+  /// Declares an immutable map of type \p NameTy, suitable for placement into
+  /// the ProgramState. This is implementing using llvm::ImmutableMap.
+  ///
+  /// \code
+  /// State = State->set<Name>(K, V);
+  /// const Value *V = State->get<Name>(K); // Returns NULL if not in the map.
+  /// State = State->remove<Name>(K);
+  /// NameTy Map = State->get<Name>();
+  /// \endcode
+  ///
+  /// The macro should not be used inside namespaces, or for traits that must
+  /// be accessible from more than one translation unit.
+  #define REGISTER_MAP_WITH_PROGRAMSTATE(Name, Key, Value) \
+    REGISTER_TRAIT_WITH_PROGRAMSTATE(Name, \
+                                     CLANG_ENTO_PROGRAMSTATE_MAP(Key, Value))
+
+  /// Declares an immutable set of type \p NameTy, suitable for placement into
+  /// the ProgramState. This is implementing using llvm::ImmutableSet.
+  ///
+  /// \code
+  /// State = State->add<Name>(E);
+  /// State = State->remove<Name>(E);
+  /// bool Present = State->contains<Name>(E);
+  /// NameTy Set = State->get<Name>();
+  /// \endcode
+  ///
+  /// The macro should not be used inside namespaces, or for traits that must
+  /// be accessible from more than one translation unit.
+  #define REGISTER_SET_WITH_PROGRAMSTATE(Name, Elem) \
+    REGISTER_TRAIT_WITH_PROGRAMSTATE(Name, llvm::ImmutableSet<Elem>)
+  
+  /// Declares an immutable list of type \p NameTy, suitable for placement into
+  /// the ProgramState. This is implementing using llvm::ImmutableList.
+  ///
+  /// \code
+  /// State = State->add<Name>(E); // Adds to the /end/ of the list.
+  /// bool Present = State->contains<Name>(E);
+  /// NameTy List = State->get<Name>();
+  /// \endcode
+  ///
+  /// The macro should not be used inside namespaces, or for traits that must
+  /// be accessible from more than one translation unit.
+  #define REGISTER_LIST_WITH_PROGRAMSTATE(Name, Elem) \
+    REGISTER_TRAIT_WITH_PROGRAMSTATE(Name, llvm::ImmutableList<Elem>)
+
 
 class CheckerContext {
   ExprEngine &Eng;
@@ -64,6 +111,10 @@ public:
     return Eng.getStoreManager();
   }
 
+  const AnalyzerOptions::ConfigTable &getConfig() const {
+    return Eng.getAnalysisManager().options.Config;
+  }
+  
   /// \brief Returns the previous node in the exploded graph, which includes
   /// the state of the program before the checker ran. Note, checkers should
   /// not retain the node in their state since the nodes might get invalidated.
@@ -76,8 +127,8 @@ public:
 
   /// \brief Returns the number of times the current block has been visited
   /// along the analyzed path.
-  unsigned getCurrentBlockCount() const {
-    return NB.getContext().getCurrentBlockCount();
+  unsigned blockCount() const {
+    return NB.getContext().blockCount();
   }
 
   ASTContext &getASTContext() {
@@ -95,6 +146,9 @@ public:
   const StackFrameContext *getStackFrame() const {
     return Pred->getStackFrame();
   }
+
+  /// Return true if the current LocationContext has no caller context.
+  bool inTopFrame() const { return getLocationContext()->inTopFrame();  }
 
   BugReporter &getBugReporter() {
     return Eng.getBugReporter();
@@ -144,20 +198,15 @@ public:
   /// \brief Generates a new transition in the program state graph
   /// (ExplodedGraph). Uses the default CheckerContext predecessor node.
   ///
-  /// @param State The state of the generated node.
+  /// @param State The state of the generated node. If not specified, the state
+  ///        will not be changed, but the new node will have the checker's tag.
   /// @param Tag The tag is used to uniquely identify the creation site. If no
   ///        tag is specified, a default tag, unique to the given checker,
   ///        will be used. Tags are used to prevent states generated at
   ///        different sites from caching out.
-  ExplodedNode *addTransition(ProgramStateRef State,
+  ExplodedNode *addTransition(ProgramStateRef State = 0,
                               const ProgramPointTag *Tag = 0) {
-    return addTransitionImpl(State, false, 0, Tag);
-  }
-
-  /// \brief Generates a default transition (containing checker tag but no
-  /// checker state changes).
-  ExplodedNode *addTransition() {
-    return addTransition(getState());
+    return addTransitionImpl(State ? State : getState(), false, 0, Tag);
   }
 
   /// \brief Generates a new transition with the given predecessor.
@@ -167,25 +216,24 @@ public:
   /// @param Pred The transition will be generated from the specified Pred node
   ///             to the newly generated node.
   /// @param Tag The tag to uniquely identify the creation site.
-  /// @param IsSink Mark the new node as sink, which will stop exploration of
-  ///               the given path.
   ExplodedNode *addTransition(ProgramStateRef State,
-                             ExplodedNode *Pred,
-                             const ProgramPointTag *Tag = 0,
-                             bool IsSink = false) {
-    return addTransitionImpl(State, IsSink, Pred, Tag);
+                              ExplodedNode *Pred,
+                              const ProgramPointTag *Tag = 0) {
+    return addTransitionImpl(State, false, Pred, Tag);
   }
 
-  /// \brief Generate a sink node. Generating sink stops exploration of the
+  /// \brief Generate a sink node. Generating a sink stops exploration of the
   /// given path.
-  ExplodedNode *generateSink(ProgramStateRef state = 0) {
-    return addTransitionImpl(state ? state : getState(), true);
+  ExplodedNode *generateSink(ProgramStateRef State = 0,
+                             ExplodedNode *Pred = 0,
+                             const ProgramPointTag *Tag = 0) {
+    return addTransitionImpl(State ? State : getState(), true, Pred, Tag);
   }
 
   /// \brief Emit the diagnostics report.
-  void EmitReport(BugReport *R) {
+  void emitReport(BugReport *R) {
     Changed = true;
-    Eng.getBugReporter().EmitReport(R);
+    Eng.getBugReporter().emitReport(R);
   }
 
   /// \brief Get the declaration of the called function (path-sensitive).
@@ -194,17 +242,33 @@ public:
   /// \brief Get the name of the called function (path-sensitive).
   StringRef getCalleeName(const FunctionDecl *FunDecl) const;
 
+  /// \brief Get the identifier of the called function (path-sensitive).
+  const IdentifierInfo *getCalleeIdentifier(const CallExpr *CE) const {
+    const FunctionDecl *FunDecl = getCalleeDecl(CE);
+    if (FunDecl)
+      return FunDecl->getIdentifier();
+    else
+      return 0;
+  }
+
   /// \brief Get the name of the called function (path-sensitive).
   StringRef getCalleeName(const CallExpr *CE) const {
     const FunctionDecl *FunDecl = getCalleeDecl(CE);
     return getCalleeName(FunDecl);
   }
 
-  /// Given a function declaration and a name checks if this is a C lib
-  /// function with the given name.
-  bool isCLibraryFunction(const FunctionDecl *FD, StringRef Name);
-  static bool isCLibraryFunction(const FunctionDecl *FD, StringRef Name,
-                                 ASTContext &Context);
+  /// \brief Returns true if the callee is an externally-visible function in the
+  /// top-level namespace, such as \c malloc.
+  ///
+  /// If a name is provided, the function must additionally match the given
+  /// name.
+  ///
+  /// Note that this deliberately excludes C++ library functions in the \c std
+  /// namespace, but will include C library functions accessed through the
+  /// \c std namespace. This also does not check if the function is declared
+  /// as 'extern "C"', or if it uses C++ name mangling.
+  static bool isCLibraryFunction(const FunctionDecl *FD,
+                                 StringRef Name = StringRef());
 
   /// \brief Depending on wither the location corresponds to a macro, return 
   /// either the macro name or the token spelling.
@@ -226,9 +290,15 @@ private:
       return Pred;
 
     Changed = true;
-    ExplodedNode *node = NB.generateNode(Tag ? Location.withTag(Tag) : Location,
-                                        State,
-                                        P ? P : Pred, MarkAsSink);
+    const ProgramPoint &LocalLoc = (Tag ? Location.withTag(Tag) : Location);
+    if (!P)
+      P = Pred;
+
+    ExplodedNode *node;
+    if (MarkAsSink)
+      node = NB.generateSink(LocalLoc, State, P);
+    else
+      node = NB.generateNode(LocalLoc, State, P);
     return node;
   }
 };
