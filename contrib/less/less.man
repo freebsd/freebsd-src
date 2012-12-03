@@ -438,18 +438,14 @@ LESS(1)                                                                LESS(1)
        the command line by beginning the command line option with "-+".
 
        Some  options  like -k or -D require a string to follow the option let-
-       ter.  The string for that option is considered to  end  when  a  space,
-       tab,  dash  or  dollar  sign  ($) is found.  For example, to set two -D
-       options on MS-DOS, you can separate them with a dollar sign, like this:
+       ter.  The string for that option is considered to  end  when  a  dollar
+       sign  ($)  is found.  For example, you can set two -D options on MS-DOS
+       like this:
 
        LESS="Dn9.1$Ds4.1"
 
-       or a space like this:
-
-       LESS="Dn9.1 Ds4.1"
-
-       Any character may be included literally in an option string by  preced-
-       ing it with a backslash.
+       A dollar sign or backslash may  be  included  literally  in  an  option
+       string by preceding it with a backslash.
 
        -? or --help
               This  option displays a summary of the commands accepted by [4mless[0m
@@ -1612,4 +1608,4 @@ LESS(1)                                                                LESS(1)
 
 
 
-                           Version 453: 27 Oct 2012                    LESS(1)
+                           Version 456: 08 Nov 2012                    LESS(1)
