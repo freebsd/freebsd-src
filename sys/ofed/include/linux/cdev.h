@@ -107,7 +107,7 @@ cdev_add(struct linux_cdev *cdev, dev_t dev, unsigned count)
 	if (count != 1)
 		panic("cdev_add: Unsupported count: %d", count);
 	cdev->cdev = make_dev(&linuxcdevsw, MINOR(dev), 0, 0, 0700, 
-	    kobject_name(&cdev->kobj));
+	    "%s", kobject_name(&cdev->kobj));
 	cdev->dev = dev;
 	cdev->cdev->si_drv1 = cdev;
 
