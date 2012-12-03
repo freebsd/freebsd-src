@@ -2329,7 +2329,7 @@ ixgbe_allocate_msix(struct adapter *adapter)
 		if (adapter->num_queues > 1)
 			bus_bind_intr(dev, que->res, i);
 
-#ifdef IXGBE_LEGACY_TX
+#ifndef IXGBE_LEGACY_TX
 		TASK_INIT(&txr->txq_task, 0, ixgbe_deferred_mq_start, txr);
 #endif
 		TASK_INIT(&que->que_task, 0, ixgbe_handle_que, que);
@@ -3081,6 +3081,9 @@ ixgbe_initialize_transmit_units(struct adapter *adapter)
 		/* Setup Transmit Descriptor Cmd Settings */
 		txr->txd_cmd = IXGBE_TXD_CMD_IFCS;
 		txr->queue_status = IXGBE_QUEUE_IDLE;
+
+		/* Set the processing limit */
+		txr->process_limit = ixgbe_tx_process_limit;
 
 		/* Disable Head Writeback */
 		switch (hw->mac.type) {
@@ -4130,6 +4133,9 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 		/* Setup the HW Rx Head and Tail Descriptor Pointers */
 		IXGBE_WRITE_REG(hw, IXGBE_RDH(i), 0);
 		IXGBE_WRITE_REG(hw, IXGBE_RDT(i), 0);
+
+		/* Set the processing limit */
+		rxr->process_limit = ixgbe_rx_process_limit;
 	}
 
 	if (adapter->hw.mac.type != ixgbe_mac_82598EB) {
@@ -5173,23 +5179,6 @@ ixgbe_sysctl_tdt_handler(SYSCTL_HANDLER_ARGS)
 	return 0;
 }
 
-/** ixgbe_sysctl_tx_process_limit - Handler function
- *  Set the limit value for TX processing
- */
-static int 
-ixgbe_sysctl_tx_process_limit(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-
-	struct tx_ring *txr = ((struct tx_ring *)oidp->oid_arg1);
-	if (!txr) return 0;
-
-	error = sysctl_handle_int(oidp, &ixgbe_tx_process_limit, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return 0;
-}
-
 /** ixgbe_sysctl_rdh_handler - Handler function
  *  Retrieves the RDH value from the hardware
  */
@@ -5221,23 +5210,6 @@ ixgbe_sysctl_rdt_handler(SYSCTL_HANDLER_ARGS)
 
 	unsigned val = IXGBE_READ_REG(&rxr->adapter->hw, IXGBE_RDT(rxr->me));
 	error = sysctl_handle_int(oidp, &val, 0, req);
-	if (error || !req->newptr)
-		return error;
-	return 0;
-}
-
-/** ixgbe_sysctl_rx_process_limit - Handler function
- *  Set the limit value for RX processing
- */
-static int 
-ixgbe_sysctl_rx_process_limit(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-
-	struct rx_ring *rxr = ((struct rx_ring *)oidp->oid_arg1);
-	if (!rxr) return 0;
-
-	error = sysctl_handle_int(oidp, &ixgbe_rx_process_limit, 0, req);
 	if (error || !req->newptr)
 		return error;
 	return 0;
@@ -5330,10 +5302,6 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 				CTLTYPE_UINT | CTLFLAG_RD, txr, sizeof(txr),
 				ixgbe_sysctl_tdt_handler, "IU",
 				"Transmit Descriptor Tail");
-		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "tx_process_limit", 
-				CTLTYPE_UINT | CTLFLAG_RD, txr, sizeof(txr),
-				ixgbe_sysctl_tx_process_limit, "IU",
-				"Transmit Process Limit");
 		SYSCTL_ADD_ULONG(ctx, queue_list, OID_AUTO, "tso_tx",
 				CTLFLAG_RD, &txr->tso_tx,
 				"TSO");
@@ -5369,10 +5337,6 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 				CTLTYPE_UINT | CTLFLAG_RD, rxr, sizeof(rxr),
 				ixgbe_sysctl_rdt_handler, "IU",
 				"Receive Descriptor Tail");
-		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "rx_process_limit", 
-				CTLTYPE_UINT | CTLFLAG_RD, rxr, sizeof(rxr),
-				ixgbe_sysctl_rx_process_limit, "IU",
-				"Receive Process Limit");
 		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "rx_packets",
 				CTLFLAG_RD, &rxr->rx_packets,
 				"Queue Packets Received");
