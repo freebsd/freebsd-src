@@ -191,6 +191,16 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_getPendingInterrupts	= ar5416GetPendingInterrupts;
 	ah->ah_setInterrupts		= ar5416SetInterrupts;
 
+	/* Bluetooth Coexistence functions */
+	ah->ah_btCoexSetInfo		= ar5416SetBTCoexInfo;
+	ah->ah_btCoexSetConfig		= ar5416BTCoexConfig;
+	ah->ah_btCoexSetQcuThresh	= ar5416BTCoexSetQcuThresh;
+	ah->ah_btCoexSetWeights		= ar5416BTCoexSetWeights;
+	ah->ah_btCoexSetBmissThresh	= ar5416BTCoexSetupBmissThresh;
+	ah->ah_btcoexSetParameter	= ar5416BTCoexSetParameter;
+	ah->ah_btCoexDisable		= ar5416BTCoexDisable;
+	ah->ah_btCoexEnable		= ar5416BTCoexEnable;
+
 	ahp->ah_priv.ah_getWirelessModes= ar5416GetWirelessModes;
 	ahp->ah_priv.ah_eepromRead	= ar5416EepromRead;
 #ifdef AH_SUPPORT_WRITE_EEPROM
