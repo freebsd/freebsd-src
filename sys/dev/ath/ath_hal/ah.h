@@ -1514,6 +1514,22 @@ struct ath_hal {
 	HAL_BOOL  __ahdecl(*ah_getPendingInterrupts)(struct ath_hal*, HAL_INT*);
 	HAL_INT	  __ahdecl(*ah_getInterrupts)(struct ath_hal*);
 	HAL_INT	  __ahdecl(*ah_setInterrupts)(struct ath_hal*, HAL_INT);
+
+	/* Bluetooth Coexistence functions */
+	void	    __ahdecl(*ah_btCoexSetInfo)(struct ath_hal *,
+				HAL_BT_COEX_INFO *);
+	void	    __ahdecl(*ah_btCoexSetConfig)(struct ath_hal *,
+				HAL_BT_COEX_CONFIG *);
+	void	    __ahdecl(*ah_btCoexSetQcuThresh)(struct ath_hal *,
+				int);
+	void	    __ahdecl(*ah_btCoexSetWeights)(struct ath_hal *,
+				uint32_t);
+	void	    __ahdecl(*ah_btCoexSetBmissThresh)(struct ath_hal *,
+				uint32_t);
+	void	    __ahdecl(*ah_btcoexSetParameter)(struct ath_hal *,
+				uint32_t, uint32_t);
+	void	    __ahdecl(*ah_btCoexDisable)(struct ath_hal *);
+	int	    __ahdecl(*ah_btCoexEnable)(struct ath_hal *);
 };
 
 /* 
