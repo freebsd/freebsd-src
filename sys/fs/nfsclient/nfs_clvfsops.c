@@ -719,7 +719,7 @@ static const char *nfs_opts[] = { "from", "nfs_args",
     "readdirsize", "soft", "hard", "mntudp", "tcp", "udp", "wsize", "rsize",
     "retrans", "acregmin", "acregmax", "acdirmin", "acdirmax", "resvport",
     "readahead", "hostname", "timeout", "addr", "fh", "nfsv3", "sec",
-    "principal", "nfsv4", "gssname", "allgssname", "dirpath", "minvers",
+    "principal", "nfsv4", "gssname", "allgssname", "dirpath", "minorversion",
     "nametimeo", "negnametimeo", "nocto", "pnfs", "wcommitsize",
     NULL };
 
@@ -995,11 +995,12 @@ nfs_mount(struct mount *mp)
 			goto out;
 		}
 	}
-	if (vfs_getopt(mp->mnt_optnew, "minvers", (void **)&opt, NULL) == 0) {
+	if (vfs_getopt(mp->mnt_optnew, "minorversion", (void **)&opt, NULL) ==
+	    0) {
 		ret = sscanf(opt, "%d", &minvers);
 		if (ret != 1 || minvers < 0 || minvers > 1 ||
 		    (args.flags & NFSMNT_NFSV4) == 0) {
-			vfs_mount_error(mp, "illegal minvers: %s", opt);
+			vfs_mount_error(mp, "illegal minorversion: %s", opt);
 			error = EINVAL;
 			goto out;
 		}
