@@ -166,7 +166,7 @@ public:
   ///
   /// @param Symbol - The common symbol to emit.
   /// @param Size - The size of the common symbol.
-  /// @param Size - The alignment of the common symbol in bytes.
+  /// @param ByteAlignment - The alignment of the common symbol in bytes.
   virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                      unsigned ByteAlignment);
 
@@ -251,6 +251,7 @@ public:
   virtual void EmitPad(int64_t Offset);
   virtual void EmitRegSave(const SmallVectorImpl<unsigned> &RegList, bool);
 
+  virtual void EmitTCEntry(const MCSymbol &S);
 
   virtual void EmitInstruction(const MCInst &Inst);
 
@@ -517,13 +518,19 @@ void MCAsmStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
 /// @param Size - The size of the common symbol.
 void MCAsmStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                           unsigned ByteAlign) {
-  assert(MAI.getLCOMMDirectiveType() != LCOMM::None &&
-         "Doesn't have .lcomm, can't emit it!");
   OS << "\t.lcomm\t" << *Symbol << ',' << Size;
   if (ByteAlign > 1) {
-    assert(MAI.getLCOMMDirectiveType() == LCOMM::ByteAlignment &&
-           "Alignment not supported on .lcomm!");
-    OS << ',' << ByteAlign;
+    switch (MAI.getLCOMMDirectiveAlignmentType()) {
+    case LCOMM::NoAlignment:
+      llvm_unreachable("alignment not supported on .lcomm!");
+    case LCOMM::ByteAlignment:
+      OS << ',' << ByteAlign;
+      break;
+    case LCOMM::Log2Alignment:
+      assert(isPowerOf2_32(ByteAlign) && "alignment must be a power of 2");
+      OS << ',' << Log2_32(ByteAlign);
+      break;
+    }
   }
   EmitEOL();
 }
@@ -1290,6 +1297,14 @@ void MCAsmStreamer::EmitRegSave(const SmallVectorImpl<unsigned> &RegList,
   }
 
   OS << "}";
+  EmitEOL();
+}
+
+void MCAsmStreamer::EmitTCEntry(const MCSymbol &S) {
+  OS << "\t.tc ";
+  OS << S.getName();
+  OS << "[TC],";
+  OS << S.getName();
   EmitEOL();
 }
 

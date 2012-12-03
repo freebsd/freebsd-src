@@ -24,9 +24,6 @@
 using namespace clang;
 using namespace ento;
 
-namespace { class ConstraintRange {}; }
-static int ConstraintRangeIndex = 0;
-
 /// A Range represents the closed range [from, to].  The caller must
 /// guarantee that from <= to.  Note that Range is immutable, so as not
 /// to subvert RangeSet's immutability.
@@ -280,23 +277,15 @@ public:
 };
 } // end anonymous namespace
 
-typedef llvm::ImmutableMap<SymbolRef,RangeSet> ConstraintRangeTy;
-
-namespace clang {
-namespace ento {
-template<>
-struct ProgramStateTrait<ConstraintRange>
-  : public ProgramStatePartialTrait<ConstraintRangeTy> {
-  static inline void *GDMIndex() { return &ConstraintRangeIndex; }
-};
-}
-}
+REGISTER_TRAIT_WITH_PROGRAMSTATE(ConstraintRange,
+                                 CLANG_ENTO_PROGRAMSTATE_MAP(SymbolRef,
+                                                             RangeSet))
 
 namespace {
 class RangeConstraintManager : public SimpleConstraintManager{
   RangeSet GetRange(ProgramStateRef state, SymbolRef sym);
 public:
-  RangeConstraintManager(SubEngine &subengine, BasicValueFactory &BVF)
+  RangeConstraintManager(SubEngine *subengine, BasicValueFactory &BVF)
     : SimpleConstraintManager(subengine, BVF) {}
 
   ProgramStateRef assumeSymNE(ProgramStateRef state, SymbolRef sym,
@@ -324,12 +313,7 @@ public:
                              const llvm::APSInt& Adjustment);
 
   const llvm::APSInt* getSymVal(ProgramStateRef St, SymbolRef sym) const;
-
-  // FIXME: Refactor into SimpleConstraintManager?
-  bool isEqual(ProgramStateRef St, SymbolRef sym, const llvm::APSInt& V) const {
-    const llvm::APSInt *i = getSymVal(St, sym);
-    return i ? *i == V : false;
-  }
+  ConditionTruthVal checkNull(ProgramStateRef State, SymbolRef Sym);
 
   ProgramStateRef removeDeadBindings(ProgramStateRef St, SymbolReaper& SymReaper);
 
@@ -343,7 +327,7 @@ private:
 } // end anonymous namespace
 
 ConstraintManager *
-ento::CreateRangeConstraintManager(ProgramStateManager &StMgr, SubEngine &Eng) {
+ento::CreateRangeConstraintManager(ProgramStateManager &StMgr, SubEngine *Eng) {
   return new RangeConstraintManager(Eng, StMgr.getBasicVals());
 }
 
@@ -351,6 +335,30 @@ const llvm::APSInt* RangeConstraintManager::getSymVal(ProgramStateRef St,
                                                       SymbolRef sym) const {
   const ConstraintRangeTy::data_type *T = St->get<ConstraintRange>(sym);
   return T ? T->getConcreteValue() : NULL;
+}
+
+ConditionTruthVal RangeConstraintManager::checkNull(ProgramStateRef State,
+                                                    SymbolRef Sym) {
+  const RangeSet *Ranges = State->get<ConstraintRange>(Sym);
+
+  // If we don't have any information about this symbol, it's underconstrained.
+  if (!Ranges)
+    return ConditionTruthVal();
+
+  // If we have a concrete value, see if it's zero.
+  if (const llvm::APSInt *Value = Ranges->getConcreteValue())
+    return *Value == 0;
+
+  BasicValueFactory &BV = getBasicVals();
+  APSIntType IntType = BV.getAPSIntType(Sym->getType());
+  llvm::APSInt Zero = IntType.getZeroValue();
+
+  // Check if zero is in the set of possible values.
+  if (Ranges->Intersect(BV, F, Zero, Zero).isEmpty())
+    return false;
+
+  // Zero is a possible value, but it is not the /only/ possible value.
+  return ConditionTruthVal();
 }
 
 /// Scan all symbols referenced by the constraints. If the symbol is not alive
@@ -379,8 +387,18 @@ RangeConstraintManager::GetRange(ProgramStateRef state, SymbolRef sym) {
   // Lazily generate a new RangeSet representing all possible values for the
   // given symbol type.
   BasicValueFactory &BV = getBasicVals();
-  QualType T = sym->getType(BV.getContext());
-  return RangeSet(F, BV.getMinValue(T), BV.getMaxValue(T));
+  QualType T = sym->getType();
+
+  RangeSet Result(F, BV.getMinValue(T), BV.getMaxValue(T));
+
+  // Special case: references are known to be non-zero.
+  if (T->isReferenceType()) {
+    APSIntType IntType = BV.getAPSIntType(T);
+    Result = Result.Intersect(BV, F, ++IntType.getZeroValue(),
+                                     --IntType.getZeroValue());
+  }
+
+  return Result;
 }
 
 //===------------------------------------------------------------------------===

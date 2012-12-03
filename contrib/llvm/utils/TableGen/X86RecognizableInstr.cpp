@@ -38,14 +38,15 @@ using namespace llvm;
   MAP(D0, 45)           \
   MAP(D1, 46)           \
   MAP(D4, 47)           \
-  MAP(D8, 48)           \
-  MAP(D9, 49)           \
-  MAP(DA, 50)           \
-  MAP(DB, 51)           \
-  MAP(DC, 52)           \
-  MAP(DD, 53)           \
-  MAP(DE, 54)           \
-  MAP(DF, 55)
+  MAP(D5, 48)           \
+  MAP(D8, 49)           \
+  MAP(D9, 50)           \
+  MAP(DA, 51)           \
+  MAP(DB, 52)           \
+  MAP(DC, 53)           \
+  MAP(DD, 54)           \
+  MAP(DE, 55)           \
+  MAP(DF, 56)
 
 // A clone of X86 since we can't depend on something that is generated.
 namespace X86Local {
@@ -244,7 +245,7 @@ RecognizableInstr::RecognizableInstr(DisassemblerTables &tables,
   IsSSE            = (HasOpSizePrefix && (Name.find("16") == Name.npos)) ||
                      (Name.find("CRC32") != Name.npos);
   HasFROperands    = hasFROperands();
-  HasVEX_LPrefix   = has256BitOperands() || Rec->getValueAsBit("hasVEX_L");
+  HasVEX_LPrefix   = Rec->getValueAsBit("hasVEX_L");
 
   // Check for 64-bit inst which does not require REX
   Is32Bit = false;
@@ -475,20 +476,6 @@ bool RecognizableInstr::hasFROperands() const {
 
     if (recName.find("FR") != recName.npos)
       return true;
-  }
-  return false;
-}
-
-bool RecognizableInstr::has256BitOperands() const {
-  const std::vector<CGIOperandList::OperandInfo> &OperandList = *Operands;
-  unsigned numOperands = OperandList.size();
-
-  for (unsigned operandIndex = 0; operandIndex < numOperands; ++operandIndex) {
-    const std::string &recName = OperandList[operandIndex].Rec->getName();
-
-    if (!recName.compare("VR256")) {
-      return true;
-    }
   }
   return false;
 }
@@ -1145,6 +1132,8 @@ OperandEncoding RecognizableInstr::immediateEncodingFromString
   // register IDs in 8-bit immediates nowadays.
   ENCODING("VR256",           ENCODING_IB)
   ENCODING("VR128",           ENCODING_IB)
+  ENCODING("FR32",            ENCODING_IB)
+  ENCODING("FR64",            ENCODING_IB)
   errs() << "Unhandled immediate encoding " << s << "\n";
   llvm_unreachable("Unhandled immediate encoding");
 }

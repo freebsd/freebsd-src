@@ -3,9 +3,13 @@
 PROG_CXX=lli
 
 SRCDIR=	tools/lli
-SRCS=	lli.cpp
+SRCS=	lli.cpp \
+	RecordingMemoryManager.cpp \
+	RemoteTarget.cpp
 
-LIBDEPS=llvmasmparser \
+LIBDEPS=llvmx86asmparser \
+	llvmx86disassembler \
+	llvmasmparser \
 	llvmbitreader \
 	llvmx86codegen \
 	llvmx86desc \

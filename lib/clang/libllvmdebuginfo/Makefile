@@ -12,6 +12,7 @@ SRCS=	DIContext.cpp \
 	DWARFDebugAranges.cpp \
 	DWARFDebugInfoEntry.cpp \
 	DWARFDebugLine.cpp \
+	DWARFDebugRangeList.cpp \
 	DWARFFormValue.cpp
 
 .include "../clang.lib.mk"

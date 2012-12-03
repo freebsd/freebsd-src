@@ -22,7 +22,6 @@
 #include "llvm/Constants.h"
 #include "llvm/DebugInfo.h"
 #include "llvm/Type.h"
-#include "llvm/Function.h"
 #include "llvm/CodeGen/ValueTypes.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineFunction.h"
@@ -43,9 +42,8 @@
 
 using namespace llvm;
 
-MipsRegisterInfo::MipsRegisterInfo(const MipsSubtarget &ST,
-                                   const TargetInstrInfo &tii)
-  : MipsGenRegisterInfo(Mips::RA), Subtarget(ST), TII(tii) {}
+MipsRegisterInfo::MipsRegisterInfo(const MipsSubtarget &ST)
+  : MipsGenRegisterInfo(Mips::RA), Subtarget(ST) {}
 
 unsigned MipsRegisterInfo::getPICCallReg() { return Mips::T9; }
 
@@ -83,11 +81,11 @@ MipsRegisterInfo::getCallPreservedMask(CallingConv::ID) const {
 BitVector MipsRegisterInfo::
 getReservedRegs(const MachineFunction &MF) const {
   static const uint16_t ReservedCPURegs[] = {
-    Mips::ZERO, Mips::AT, Mips::K0, Mips::K1, Mips::SP
+    Mips::ZERO, Mips::K0, Mips::K1, Mips::SP
   };
 
   static const uint16_t ReservedCPU64Regs[] = {
-    Mips::ZERO_64, Mips::AT_64, Mips::K0_64, Mips::K1_64, Mips::SP_64
+    Mips::ZERO_64, Mips::K0_64, Mips::K1_64, Mips::SP_64
   };
 
   BitVector Reserved(getNumRegs());
@@ -96,39 +94,47 @@ getReservedRegs(const MachineFunction &MF) const {
   for (unsigned I = 0; I < array_lengthof(ReservedCPURegs); ++I)
     Reserved.set(ReservedCPURegs[I]);
 
-  if (Subtarget.hasMips64()) {
-    for (unsigned I = 0; I < array_lengthof(ReservedCPU64Regs); ++I)
-      Reserved.set(ReservedCPU64Regs[I]);
+  for (unsigned I = 0; I < array_lengthof(ReservedCPU64Regs); ++I)
+    Reserved.set(ReservedCPU64Regs[I]);
 
+  if (Subtarget.hasMips64()) {
     // Reserve all registers in AFGR64.
     for (RegIter Reg = Mips::AFGR64RegClass.begin(),
          EReg = Mips::AFGR64RegClass.end(); Reg != EReg; ++Reg)
       Reserved.set(*Reg);
   } else {
-    // Reserve all registers in CPU64Regs & FGR64.
-    for (RegIter Reg = Mips::CPU64RegsRegClass.begin(),
-         EReg = Mips::CPU64RegsRegClass.end(); Reg != EReg; ++Reg)
-      Reserved.set(*Reg);
-
+    // Reserve all registers in FGR64.
     for (RegIter Reg = Mips::FGR64RegClass.begin(),
          EReg = Mips::FGR64RegClass.end(); Reg != EReg; ++Reg)
       Reserved.set(*Reg);
   }
-
   // Reserve FP if this function should have a dedicated frame pointer register.
   if (MF.getTarget().getFrameLowering()->hasFP(MF)) {
-    Reserved.set(Mips::FP);
-    Reserved.set(Mips::FP_64);
+    if (Subtarget.inMips16Mode())
+      Reserved.set(Mips::S0);
+    else {
+      Reserved.set(Mips::FP);
+      Reserved.set(Mips::FP_64);
+    }
   }
 
   // Reserve hardware registers.
   Reserved.set(Mips::HWR29);
   Reserved.set(Mips::HWR29_64);
 
+  // Reserve DSP control register.
+  Reserved.set(Mips::DSPCtrl);
+
   // Reserve RA if in mips16 mode.
   if (Subtarget.inMips16Mode()) {
     Reserved.set(Mips::RA);
     Reserved.set(Mips::RA_64);
+  }
+
+  // Reserve GP if small section is used.
+  if (Subtarget.useSmallSection()) {
+    Reserved.set(Mips::GP);
+    Reserved.set(Mips::GP_64);
   }
 
   return Reserved;
@@ -160,7 +166,7 @@ eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
            "Instr doesn't have FrameIndex operand!");
   }
 
-  DEBUG(errs() << "\nFunction : " << MF.getFunction()->getName() << "\n";
+  DEBUG(errs() << "\nFunction : " << MF.getName() << "\n";
         errs() << "<--------->\n" << MI);
 
   int FrameIndex = MI.getOperand(i).getIndex();
@@ -179,8 +185,12 @@ getFrameRegister(const MachineFunction &MF) const {
   const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
   bool IsN64 = Subtarget.isABI_N64();
 
-  return TFI->hasFP(MF) ? (IsN64 ? Mips::FP_64 : Mips::FP) :
-                          (IsN64 ? Mips::SP_64 : Mips::SP);
+  if (Subtarget.inMips16Mode())
+    return TFI->hasFP(MF) ? Mips::S0 : Mips::SP;
+  else
+    return TFI->hasFP(MF) ? (IsN64 ? Mips::FP_64 : Mips::FP) :
+                            (IsN64 ? Mips::SP_64 : Mips::SP);
+
 }
 
 unsigned MipsRegisterInfo::

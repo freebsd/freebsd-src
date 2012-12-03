@@ -21,13 +21,15 @@
 
 namespace llvm {
 class raw_ostream;
-class TargetData;
+class DataLayout;
 class TargetRegisterClass;
 class Type;
 class MachineFunction;
 class MachineBasicBlock;
 class TargetFrameLowering;
 class BitVector;
+class Value;
+class AllocaInst;
 
 /// The CalleeSavedInfo class tracks the information need to locate where a
 /// callee saved register is in the current frame.
@@ -103,14 +105,18 @@ class MachineFrameInfo {
     // protector.
     bool MayNeedSP;
 
+    /// Alloca - If this stack object is originated from an Alloca instruction
+    /// this value saves the original IR allocation. Can be NULL.
+    const AllocaInst *Alloca;
+
     // PreAllocated - If true, the object was mapped into the local frame
     // block and doesn't need additional handling for allocation beyond that.
     bool PreAllocated;
 
     StackObject(uint64_t Sz, unsigned Al, int64_t SP, bool IM,
-                bool isSS, bool NSP)
+                bool isSS, bool NSP, const AllocaInst *Val)
       : SPOffset(SP), Size(Sz), Alignment(Al), isImmutable(IM),
-        isSpillSlot(isSS), MayNeedSP(NSP), PreAllocated(false) {}
+        isSpillSlot(isSS), MayNeedSP(NSP), Alloca(Val), PreAllocated(false) {}
   };
 
   /// Objects - The list of stack objects allocated...
@@ -362,6 +368,14 @@ public:
     ensureMaxAlignment(Align);
   }
 
+  /// getObjectAllocation - Return the underlying Alloca of the specified
+  /// stack object if it exists. Returns 0 if none exists.
+  const AllocaInst* getObjectAllocation(int ObjectIdx) const {
+    assert(unsigned(ObjectIdx+NumFixedObjects) < Objects.size() &&
+           "Invalid Object Idx!");
+    return Objects[ObjectIdx+NumFixedObjects].Alloca;
+  }
+
   /// NeedsStackProtector - Returns true if the object may need stack
   /// protectors.
   bool MayNeedStackProtector(int ObjectIdx) const {
@@ -482,9 +496,10 @@ public:
   /// a nonnegative identifier to represent it.
   ///
   int CreateStackObject(uint64_t Size, unsigned Alignment, bool isSS,
-                        bool MayNeedSP = false) {
+                        bool MayNeedSP = false, const AllocaInst *Alloca = 0) {
     assert(Size != 0 && "Cannot allocate zero size stack objects!");
-    Objects.push_back(StackObject(Size, Alignment, 0, false, isSS, MayNeedSP));
+    Objects.push_back(StackObject(Size, Alignment, 0, false, isSS, MayNeedSP,
+                                  Alloca));
     int Index = (int)Objects.size() - NumFixedObjects - 1;
     assert(Index >= 0 && "Bad frame index!");
     ensureMaxAlignment(Alignment);
@@ -516,7 +531,7 @@ public:
   ///
   int CreateVariableSizedObject(unsigned Alignment) {
     HasVarSizedObjects = true;
-    Objects.push_back(StackObject(0, Alignment, 0, false, false, true));
+    Objects.push_back(StackObject(0, Alignment, 0, false, false, true, 0));
     ensureMaxAlignment(Alignment);
     return (int)Objects.size()-NumFixedObjects-1;
   }
