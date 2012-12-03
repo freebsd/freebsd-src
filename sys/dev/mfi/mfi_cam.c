@@ -79,6 +79,11 @@ static void	mfip_cam_poll(struct cam_sim *);
 static struct mfi_command * mfip_start(void *);
 static void	mfip_done(struct mfi_command *cm);
 
+static int mfi_allow_disks = 0;
+TUNABLE_INT("hw.mfi.allow_cam_disk_passthrough", &mfi_allow_disks);
+SYSCTL_INT(_hw_mfi, OID_AUTO, allow_cam_disk_passthrough, CTLFLAG_RD,
+    &mfi_allow_disks, 0, "event message locale");
+
 static devclass_t	mfip_devclass;
 static device_method_t	mfip_methods[] = {
 	DEVMETHOD(device_probe,		mfip_probe),
@@ -349,7 +354,8 @@ mfip_done(struct mfi_command *cm)
 			command = csio->cdb_io.cdb_bytes[0];
 		if (command == INQUIRY) {
 			device = csio->data_ptr[0] & 0x1f;
-			if ((device == T_DIRECT) || (device == T_PROCESSOR))
+			if ((!mfi_allow_disks && device == T_DIRECT) ||
+			    (device == T_PROCESSOR))
 				csio->data_ptr[0] =
 				     (csio->data_ptr[0] & 0xe0) | T_NODEVICE;
 		}
@@ -392,6 +398,9 @@ mfip_done(struct mfi_command *cm)
 static void
 mfip_cam_poll(struct cam_sim *sim)
 {
-	return;
+	struct mfip_softc *sc = cam_sim_softc(sim);
+	struct mfi_softc *mfisc = sc->mfi_sc;
+
+	mfisc->mfi_intr_ptr(mfisc);
 }
 
