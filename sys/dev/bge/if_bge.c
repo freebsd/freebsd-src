@@ -1312,12 +1312,12 @@ bge_newbuf_std(struct bge_softc *sc, int i)
 	if (sc->bge_flags & BGE_FLAG_JUMBO_STD &&
 	    (sc->bge_ifp->if_mtu + ETHER_HDR_LEN + ETHER_CRC_LEN +
 	    ETHER_VLAN_ENCAP_LEN > (MCLBYTES - ETHER_ALIGN))) {
-		m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
+		m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
 		if (m == NULL)
 			return (ENOBUFS);
 		m->m_len = m->m_pkthdr.len = MJUM9BYTES;
 	} else {
-		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL)
 			return (ENOBUFS);
 		m->m_len = m->m_pkthdr.len = MCLBYTES;
@@ -1368,11 +1368,11 @@ bge_newbuf_jumbo(struct bge_softc *sc, int i)
 	struct mbuf *m;
 	int error, nsegs;
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOBUFS);
 
-	m_cljget(m, M_DONTWAIT, MJUM9BYTES);
+	m_cljget(m, M_NOWAIT, MJUM9BYTES);
 	if (!(m->m_flags & M_EXT)) {
 		m_freem(m);
 		return (ENOBUFS);
@@ -4946,7 +4946,7 @@ bge_cksum_pad(struct mbuf *m)
 			/* Allocate new empty mbuf, pad it. Compact later. */
 			struct mbuf *n;
 
-			MGET(n, M_DONTWAIT, MT_DATA);
+			MGET(n, M_NOWAIT, MT_DATA);
 			if (n == NULL)
 				return (ENOBUFS);
 			n->m_len = 0;
@@ -4988,7 +4988,7 @@ bge_check_short_dma(struct mbuf *m)
 	}
 
 	if (found > 1) {
-		n = m_defrag(m, M_DONTWAIT);
+		n = m_defrag(m, M_NOWAIT);
 		if (n == NULL)
 			m_freem(m);
 	} else
@@ -5008,7 +5008,7 @@ bge_setup_tso(struct bge_softc *sc, struct mbuf *m, uint16_t *mss,
 
 	if (M_WRITABLE(m) == 0) {
 		/* Get a writable copy. */
-		n = m_dup(m, M_DONTWAIT);
+		n = m_dup(m, M_NOWAIT);
 		m_freem(m);
 		if (n == NULL)
 			return (NULL);
@@ -5125,9 +5125,9 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 			 * DMA read operation.
 			 */
 			if (sc->bge_forced_collapse == 1)
-				m = m_defrag(m, M_DONTWAIT);
+				m = m_defrag(m, M_NOWAIT);
 			else
-				m = m_collapse(m, M_DONTWAIT,
+				m = m_collapse(m, M_NOWAIT,
 				    sc->bge_forced_collapse);
 			if (m == NULL)
 				m = *m_head;
@@ -5139,7 +5139,7 @@ bge_encap(struct bge_softc *sc, struct mbuf **m_head, uint32_t *txidx)
 	error = bus_dmamap_load_mbuf_sg(sc->bge_cdata.bge_tx_mtag, map, m, segs,
 	    &nsegs, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
-		m = m_collapse(m, M_DONTWAIT, BGE_NSEG_NEW);
+		m = m_collapse(m, M_NOWAIT, BGE_NSEG_NEW);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;

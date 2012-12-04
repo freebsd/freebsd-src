@@ -1103,7 +1103,7 @@ vtnet_alloc_rxbuf(struct vtnet_softc *sc, int nbufs, struct mbuf **m_tailp)
 
 	clsize = sc->vtnet_rx_mbuf_size;
 
-	m_head = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, clsize);
+	m_head = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, clsize);
 	if (m_head == NULL)
 		goto fail;
 
@@ -1115,7 +1115,7 @@ vtnet_alloc_rxbuf(struct vtnet_softc *sc, int nbufs, struct mbuf **m_tailp)
 		    ("chained Rx mbuf requested without LRO_NOMRG"));
 
 		for (i = 1; i < nbufs; i++) {
-			m = m_getjcl(M_DONTWAIT, MT_DATA, 0, clsize);
+			m = m_getjcl(M_NOWAIT, MT_DATA, 0, clsize);
 			if (m == NULL)
 				goto fail;
 
@@ -1927,7 +1927,7 @@ again:
 		if (collapsed)
 			goto fail;
 
-		m = m_collapse(m, M_DONTWAIT, VTNET_MAX_TX_SEGS - 1);
+		m = m_collapse(m, M_NOWAIT, VTNET_MAX_TX_SEGS - 1);
 		if (m == NULL)
 			goto fail;
 
