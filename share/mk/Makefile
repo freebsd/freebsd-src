@@ -32,6 +32,7 @@ FILES=	\
 	bsd.port.pre.mk \
 	bsd.port.subdir.mk \
 	bsd.prog.mk \
+	bsd.progs.mk \
 	bsd.snmpmod.mk \
 	bsd.subdir.mk \
 	bsd.symver.mk \

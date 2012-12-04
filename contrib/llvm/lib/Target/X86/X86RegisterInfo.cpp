@@ -106,23 +106,7 @@ X86RegisterInfo::trackLivenessAfterRegAlloc(const MachineFunction &MF) const {
 
 int
 X86RegisterInfo::getSEHRegNum(unsigned i) const {
-  int reg = X86_MC::getX86RegNum(i);
-  switch (i) {
-  case X86::R8:  case X86::R8D:  case X86::R8W:  case X86::R8B:
-  case X86::R9:  case X86::R9D:  case X86::R9W:  case X86::R9B:
-  case X86::R10: case X86::R10D: case X86::R10W: case X86::R10B:
-  case X86::R11: case X86::R11D: case X86::R11W: case X86::R11B:
-  case X86::R12: case X86::R12D: case X86::R12W: case X86::R12B:
-  case X86::R13: case X86::R13D: case X86::R13W: case X86::R13B:
-  case X86::R14: case X86::R14D: case X86::R14W: case X86::R14B:
-  case X86::R15: case X86::R15D: case X86::R15W: case X86::R15B:
-  case X86::XMM8: case X86::XMM9: case X86::XMM10: case X86::XMM11:
-  case X86::XMM12: case X86::XMM13: case X86::XMM14: case X86::XMM15:
-  case X86::YMM8: case X86::YMM9: case X86::YMM10: case X86::YMM11:
-  case X86::YMM12: case X86::YMM13: case X86::YMM14: case X86::YMM15:
-    reg += 8;
-  }
-  return reg;
+  return getEncodingValue(i);
 }
 
 const TargetRegisterClass *
@@ -245,15 +229,26 @@ const uint16_t *
 X86RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
   bool callsEHReturn = false;
   bool ghcCall = false;
+  bool oclBiCall = false;
+  bool HasAVX = TM.getSubtarget<X86Subtarget>().hasAVX();
 
   if (MF) {
     callsEHReturn = MF->getMMI().callsEHReturn();
     const Function *F = MF->getFunction();
     ghcCall = (F ? F->getCallingConv() == CallingConv::GHC : false);
+    oclBiCall = (F ? F->getCallingConv() == CallingConv::Intel_OCL_BI : false);
   }
 
   if (ghcCall)
     return CSR_NoRegs_SaveList;
+  if (oclBiCall) {
+    if (HasAVX && IsWin64)
+        return CSR_Win64_Intel_OCL_BI_AVX_SaveList;
+    if (HasAVX && Is64Bit)
+        return CSR_64_Intel_OCL_BI_AVX_SaveList;
+    if (!HasAVX && !IsWin64 && Is64Bit)
+        return CSR_64_Intel_OCL_BI_SaveList;
+  }
   if (Is64Bit) {
     if (IsWin64)
       return CSR_Win64_SaveList;
@@ -268,6 +263,16 @@ X86RegisterInfo::getCalleeSavedRegs(const MachineFunction *MF) const {
 
 const uint32_t*
 X86RegisterInfo::getCallPreservedMask(CallingConv::ID CC) const {
+  bool HasAVX = TM.getSubtarget<X86Subtarget>().hasAVX();
+
+  if (CC == CallingConv::Intel_OCL_BI) {
+    if (IsWin64 && HasAVX)
+      return CSR_Win64_Intel_OCL_BI_AVX_RegMask;
+    if (Is64Bit && HasAVX)
+      return CSR_64_Intel_OCL_BI_AVX_RegMask;
+    if (!HasAVX && !IsWin64 && Is64Bit)
+      return CSR_64_Intel_OCL_BI_RegMask;
+  }
   if (CC == CallingConv::GHC)
     return CSR_NoRegs_RegMask;
   if (!Is64Bit)
@@ -275,6 +280,11 @@ X86RegisterInfo::getCallPreservedMask(CallingConv::ID CC) const {
   if (IsWin64)
     return CSR_Win64_RegMask;
   return CSR_64_RegMask;
+}
+
+const uint32_t*
+X86RegisterInfo::getNoPreservedMask() const {
+  return CSR_NoRegs_RegMask;
 }
 
 BitVector X86RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
@@ -398,8 +408,9 @@ bool X86RegisterInfo::needsStackRealignment(const MachineFunction &MF) const {
   const MachineFrameInfo *MFI = MF.getFrameInfo();
   const Function *F = MF.getFunction();
   unsigned StackAlign = TM.getFrameLowering()->getStackAlignment();
-  bool requiresRealignment = ((MFI->getMaxAlignment() > StackAlign) ||
-                               F->hasFnAttr(Attribute::StackAlignment));
+  bool requiresRealignment =
+    ((MFI->getMaxAlignment() > StackAlign) ||
+     F->getFnAttributes().hasAttribute(Attributes::StackAlignment));
 
   // If we've requested that we force align the stack do so now.
   if (ForceStackAlign)
@@ -522,7 +533,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
 
 void
 X86RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
-                                     int SPAdj, RegScavenger *RS) const{
+                                     int SPAdj, RegScavenger *RS) const {
   assert(SPAdj == 0 && "Unexpected");
 
   unsigned i = 0;
@@ -590,9 +601,10 @@ unsigned X86RegisterInfo::getEHHandlerRegister() const {
 }
 
 namespace llvm {
-unsigned getX86SubSuperRegister(unsigned Reg, EVT VT, bool High) {
-  switch (VT.getSimpleVT().SimpleTy) {
-  default: return Reg;
+unsigned getX86SubSuperRegister(unsigned Reg, MVT::SimpleValueType VT,
+                                bool High) {
+  switch (VT) {
+  default: llvm_unreachable("Unexpected VT");
   case MVT::i8:
     if (High) {
       switch (Reg) {
@@ -608,7 +620,7 @@ unsigned getX86SubSuperRegister(unsigned Reg, EVT VT, bool High) {
       }
     } else {
       switch (Reg) {
-      default: return 0;
+      default: llvm_unreachable("Unexpected register");
       case X86::AH: case X86::AL: case X86::AX: case X86::EAX: case X86::RAX:
         return X86::AL;
       case X86::DH: case X86::DL: case X86::DX: case X86::EDX: case X86::RDX:
@@ -645,7 +657,7 @@ unsigned getX86SubSuperRegister(unsigned Reg, EVT VT, bool High) {
     }
   case MVT::i16:
     switch (Reg) {
-    default: return Reg;
+    default: llvm_unreachable("Unexpected register");
     case X86::AH: case X86::AL: case X86::AX: case X86::EAX: case X86::RAX:
       return X86::AX;
     case X86::DH: case X86::DL: case X86::DX: case X86::EDX: case X86::RDX:
@@ -681,7 +693,7 @@ unsigned getX86SubSuperRegister(unsigned Reg, EVT VT, bool High) {
     }
   case MVT::i32:
     switch (Reg) {
-    default: return Reg;
+    default: llvm_unreachable("Unexpected register");
     case X86::AH: case X86::AL: case X86::AX: case X86::EAX: case X86::RAX:
       return X86::EAX;
     case X86::DH: case X86::DL: case X86::DX: case X86::EDX: case X86::RDX:
@@ -733,7 +745,7 @@ unsigned getX86SubSuperRegister(unsigned Reg, EVT VT, bool High) {
       }
     }
     switch (Reg) {
-    default: return Reg;
+    default: llvm_unreachable("Unexpected register");
     case X86::AH: case X86::AL: case X86::AX: case X86::EAX: case X86::RAX:
       return X86::RAX;
     case X86::DH: case X86::DL: case X86::DX: case X86::EDX: case X86::RDX:

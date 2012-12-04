@@ -135,6 +135,8 @@ restart:
 			ndp->ni_cnd.cn_flags |= FOLLOW;
 		if (!(vn_open_flags & VN_OPEN_NOAUDIT))
 			ndp->ni_cnd.cn_flags |= AUDITVNODE1;
+		if (vn_open_flags & VN_OPEN_NOCAPCHECK)
+			ndp->ni_cnd.cn_flags |= NOCAPCHECK;
 		bwillwrite();
 		if ((error = namei(ndp)) != 0)
 			return (error);
@@ -188,6 +190,8 @@ restart:
 			ndp->ni_cnd.cn_flags |= LOCKSHARED;
 		if (!(vn_open_flags & VN_OPEN_NOAUDIT))
 			ndp->ni_cnd.cn_flags |= AUDITVNODE1;
+		if (vn_open_flags & VN_OPEN_NOCAPCHECK)
+			ndp->ni_cnd.cn_flags |= NOCAPCHECK;
 		if ((error = namei(ndp)) != 0)
 			return (error);
 		vp = ndp->ni_vp;

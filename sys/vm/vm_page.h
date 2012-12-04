@@ -288,7 +288,7 @@ extern struct mtx_padalign pa_lock[];
 #include <machine/atomic.h>
 
 /*
- * Each pageable resident page falls into one of five lists:
+ * Each pageable resident page falls into one of four lists:
  *
  *	free
  *		Available for allocation now.
@@ -296,10 +296,6 @@ extern struct mtx_padalign pa_lock[];
  *	cache
  *		Almost available for allocation. Still associated with
  *		an object, but clean and immediately freeable.
- *
- *	hold
- *		Will become free after a pending I/O operation
- *		completes.
  *
  * The following lists are LRU sorted:
  *

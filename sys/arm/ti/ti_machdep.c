@@ -137,4 +137,3 @@ cpu_reset()
 	printf("Reset failed!\n");
 	while (1);
 }
-

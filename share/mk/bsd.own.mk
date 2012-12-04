@@ -671,18 +671,21 @@ MK_${var}:=	no
 
 .if ${MK_CTF} != "no"
 CTFCONVERT_CMD=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.elif defined(MAKE_VERSION) && ${MAKE_VERSION} >= 5201111300
+.elif defined(.PARSEDIR) || (defined(MAKE_VERSION) && ${MAKE_VERSION} >= 5201111300)
 CTFCONVERT_CMD=
 .else
 CTFCONVERT_CMD=	@:
 .endif 
 
 .if ${MK_INSTALL_AS_USER} != "no"
-_uid!=	id -un
+_uid!=	id -u
 .if ${_uid} != 0
+.if !defined(USER)
+USER!=	id -un
+.endif
 _gid!=	id -gn
 .for x in BIN CONF DOC INFO KMOD LIB MAN NLS SHARE
-$xOWN=	${_uid}
+$xOWN=	${USER}
 $xGRP=	${_gid}
 .endfor
 .endif

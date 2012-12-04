@@ -430,6 +430,15 @@ class TemplateDiff {
       /// arguments or the type arguments that are templates.
       TemplateDecl *FromTD, *ToTD;
 
+      /// FromQual, ToQual - Qualifiers for template types.
+      Qualifiers FromQual, ToQual;
+
+      /// FromInt, ToInt - APSInt's for integral arguments.
+      llvm::APSInt FromInt, ToInt;
+
+      /// IsValidFromInt, IsValidToInt - Whether the APSInt's are valid.
+      bool IsValidFromInt, IsValidToInt;
+
       /// FromDefault, ToDefault - Whether the argument is a default argument.
       bool FromDefault, ToDefault;
 
@@ -478,6 +487,21 @@ class TemplateDiff {
     void SetNode(Expr *FromExpr, Expr *ToExpr) {
       FlatTree[CurrentNode].FromExpr = FromExpr;
       FlatTree[CurrentNode].ToExpr = ToExpr;
+    }
+
+    /// SetNode - Set FromInt and ToInt of the current node.
+    void SetNode(llvm::APSInt FromInt, llvm::APSInt ToInt,
+                 bool IsValidFromInt, bool IsValidToInt) {
+      FlatTree[CurrentNode].FromInt = FromInt;
+      FlatTree[CurrentNode].ToInt = ToInt;
+      FlatTree[CurrentNode].IsValidFromInt = IsValidFromInt;
+      FlatTree[CurrentNode].IsValidToInt = IsValidToInt;
+    }
+
+    /// SetNode - Set FromQual and ToQual of the current node.
+    void SetNode(Qualifiers FromQual, Qualifiers ToQual) {
+      FlatTree[CurrentNode].FromQual = FromQual;
+      FlatTree[CurrentNode].ToQual = ToQual;
     }
 
     /// SetSame - Sets the same flag of the current node.
@@ -557,6 +581,12 @@ class TemplateDiff {
              (FlatTree[ReadNode].FromTD || FlatTree[ReadNode].ToTD);
     }
 
+    /// NodeIsAPSInt - Returns true if the arugments are stored in APSInt's.
+    bool NodeIsAPSInt() {
+      return FlatTree[ReadNode].IsValidFromInt ||
+             FlatTree[ReadNode].IsValidToInt;
+    }
+
     /// GetNode - Gets the FromType and ToType.
     void GetNode(QualType &FromType, QualType &ToType) {
       FromType = FlatTree[ReadNode].FromType;
@@ -573,6 +603,21 @@ class TemplateDiff {
     void GetNode(TemplateDecl *&FromTD, TemplateDecl *&ToTD) {
       FromTD = FlatTree[ReadNode].FromTD;
       ToTD = FlatTree[ReadNode].ToTD;
+    }
+
+    /// GetNode - Gets the FromInt and ToInt.
+    void GetNode(llvm::APSInt &FromInt, llvm::APSInt &ToInt,
+                 bool &IsValidFromInt, bool &IsValidToInt) {
+      FromInt = FlatTree[ReadNode].FromInt;
+      ToInt = FlatTree[ReadNode].ToInt;
+      IsValidFromInt = FlatTree[ReadNode].IsValidFromInt;
+      IsValidToInt = FlatTree[ReadNode].IsValidToInt;
+    }
+
+    /// GetNode - Gets the FromQual and ToQual.
+    void GetNode(Qualifiers &FromQual, Qualifiers &ToQual) {
+      FromQual = FlatTree[ReadNode].FromQual;
+      ToQual = FlatTree[ReadNode].ToQual;
     }
 
     /// NodeIsSame - Returns true the arguments are the same.
@@ -778,18 +823,21 @@ class TemplateDiff {
           if (Context.hasSameType(FromType, ToType)) {
             Tree.SetSame(true);
           } else {
+            Qualifiers FromQual = FromType.getQualifiers(),
+                       ToQual = ToType.getQualifiers();
             const TemplateSpecializationType *FromArgTST =
                 GetTemplateSpecializationType(Context, FromType);
             const TemplateSpecializationType *ToArgTST =
                 GetTemplateSpecializationType(Context, ToType);
 
-            if (FromArgTST && ToArgTST) {
-              bool SameTemplate = hasSameTemplate(FromArgTST, ToArgTST);
-              if (SameTemplate) {
-                Tree.SetNode(FromArgTST->getTemplateName().getAsTemplateDecl(),
-                             ToArgTST->getTemplateName().getAsTemplateDecl());
-                DiffTemplate(FromArgTST, ToArgTST);
-              }
+            if (FromArgTST && ToArgTST &&
+                hasSameTemplate(FromArgTST, ToArgTST)) {
+              FromQual -= QualType(FromArgTST, 0).getQualifiers();
+              ToQual -= QualType(ToArgTST, 0).getQualifiers();
+              Tree.SetNode(FromArgTST->getTemplateName().getAsTemplateDecl(),
+                           ToArgTST->getTemplateName().getAsTemplateDecl());
+              Tree.SetNode(FromQual, ToQual);
+              DiffTemplate(FromArgTST, ToArgTST);
             }
           }
         }
@@ -799,12 +847,41 @@ class TemplateDiff {
       if (NonTypeTemplateParmDecl *DefaultNTTPD =
               dyn_cast<NonTypeTemplateParmDecl>(ParamND)) {
         Expr *FromExpr, *ToExpr;
-        GetExpr(FromIter, DefaultNTTPD, FromExpr);
-        GetExpr(ToIter, DefaultNTTPD, ToExpr);
-        Tree.SetNode(FromExpr, ToExpr);
-        Tree.SetSame(IsEqualExpr(Context, FromExpr, ToExpr));
-        Tree.SetDefault(FromIter.isEnd() && FromExpr,
-                        ToIter.isEnd() && ToExpr);
+        llvm::APSInt FromInt, ToInt;
+        bool HasFromInt = !FromIter.isEnd() &&
+                          FromIter->getKind() == TemplateArgument::Integral;
+        bool HasToInt = !ToIter.isEnd() &&
+                        ToIter->getKind() == TemplateArgument::Integral;
+        //bool IsValidFromInt = false, IsValidToInt = false;
+        if (HasFromInt)
+          FromInt = FromIter->getAsIntegral();
+        else
+          GetExpr(FromIter, DefaultNTTPD, FromExpr);
+
+        if (HasToInt)
+          ToInt = ToIter->getAsIntegral();
+        else
+          GetExpr(ToIter, DefaultNTTPD, ToExpr);
+
+        if (!HasFromInt && !HasToInt) {
+          Tree.SetNode(FromExpr, ToExpr);
+          Tree.SetSame(IsEqualExpr(Context, FromExpr, ToExpr));
+          Tree.SetDefault(FromIter.isEnd() && FromExpr,
+                          ToIter.isEnd() && ToExpr);
+        } else {
+          if (!HasFromInt && FromExpr) {
+            FromInt = FromExpr->EvaluateKnownConstInt(Context);
+            HasFromInt = true;
+          }
+          if (!HasToInt && ToExpr) {
+            ToInt = ToExpr->EvaluateKnownConstInt(Context);
+            HasToInt = true;
+          }
+          Tree.SetNode(FromInt, ToInt, HasFromInt, HasToInt);
+          Tree.SetSame(llvm::APSInt::isSameValue(FromInt, ToInt));
+          Tree.SetDefault(FromIter.isEnd() && HasFromInt,
+                          ToIter.isEnd() && HasToInt);
+        }
       }
 
       // Handle Templates
@@ -824,6 +901,26 @@ class TemplateDiff {
     }
   }
 
+  /// makeTemplateList - Dump every template alias into the vector.
+  static void makeTemplateList(
+      SmallVector<const TemplateSpecializationType*, 1> &TemplateList,
+      const TemplateSpecializationType *TST) {
+    while (TST) {
+      TemplateList.push_back(TST);
+      if (!TST->isTypeAlias())
+        return;
+      TST = TST->getAliasedType()->getAs<TemplateSpecializationType>();
+    }
+  }
+
+  /// hasSameBaseTemplate - Returns true when the base templates are the same,
+  /// even if the template arguments are not.
+  static bool hasSameBaseTemplate(const TemplateSpecializationType *FromTST,
+                                  const TemplateSpecializationType *ToTST) {
+    return FromTST->getTemplateName().getAsTemplateDecl()->getIdentifier() ==
+           ToTST->getTemplateName().getAsTemplateDecl()->getIdentifier();
+  }
+
   /// hasSameTemplate - Returns true if both types are specialized from the
   /// same template declaration.  If they come from different template aliases,
   /// do a parallel ascension search to determine the highest template alias in
@@ -831,49 +928,29 @@ class TemplateDiff {
   static bool hasSameTemplate(const TemplateSpecializationType *&FromTST,
                               const TemplateSpecializationType *&ToTST) {
     // Check the top templates if they are the same.
-    if (FromTST->getTemplateName().getAsTemplateDecl()->getIdentifier() ==
-        ToTST->getTemplateName().getAsTemplateDecl()->getIdentifier())
+    if (hasSameBaseTemplate(FromTST, ToTST))
       return true;
 
     // Create vectors of template aliases.
     SmallVector<const TemplateSpecializationType*, 1> FromTemplateList,
                                                       ToTemplateList;
 
-    const TemplateSpecializationType *TempToTST = ToTST, *TempFromTST = FromTST;
-    FromTemplateList.push_back(FromTST);
-    ToTemplateList.push_back(ToTST);
-
-    // Dump every template alias into the vectors.
-    while (TempFromTST->isTypeAlias()) {
-      TempFromTST =
-          TempFromTST->getAliasedType()->getAs<TemplateSpecializationType>();
-      if (!TempFromTST)
-        break;
-      FromTemplateList.push_back(TempFromTST);
-    }
-    while (TempToTST->isTypeAlias()) {
-      TempToTST =
-          TempToTST->getAliasedType()->getAs<TemplateSpecializationType>();
-      if (!TempToTST)
-        break;
-      ToTemplateList.push_back(TempToTST);
-    }
+    makeTemplateList(FromTemplateList, FromTST);
+    makeTemplateList(ToTemplateList, ToTST);
 
     SmallVector<const TemplateSpecializationType*, 1>::reverse_iterator
         FromIter = FromTemplateList.rbegin(), FromEnd = FromTemplateList.rend(),
         ToIter = ToTemplateList.rbegin(), ToEnd = ToTemplateList.rend();
 
     // Check if the lowest template types are the same.  If not, return.
-    if ((*FromIter)->getTemplateName().getAsTemplateDecl()->getIdentifier() !=
-        (*ToIter)->getTemplateName().getAsTemplateDecl()->getIdentifier())
+    if (!hasSameBaseTemplate(*FromIter, *ToIter))
       return false;
 
     // Begin searching up the template aliases.  The bottom most template
     // matches so move up until one pair does not match.  Use the template
     // right before that one.
     for (; FromIter != FromEnd && ToIter != ToEnd; ++FromIter, ++ToIter) {
-      if ((*FromIter)->getTemplateName().getAsTemplateDecl()->getIdentifier() !=
-          (*ToIter)->getTemplateName().getAsTemplateDecl()->getIdentifier())
+      if (!hasSameBaseTemplate(*FromIter, *ToIter))
         break;
     }
 
@@ -923,7 +1000,9 @@ class TemplateDiff {
     bool isVariadic = DefaultTTPD->isParameterPack();
 
     TemplateArgument TA = DefaultTTPD->getDefaultArgument().getArgument();
-    TemplateDecl *DefaultTD = TA.getAsTemplate().getAsTemplateDecl();
+    TemplateDecl *DefaultTD = 0;
+    if (TA.getKind() != TemplateArgument::Null)
+      DefaultTD = TA.getAsTemplate().getAsTemplateDecl();
 
     if (!Iter.isEnd())
       ArgDecl = Iter->getAsTemplate().getAsTemplateDecl();
@@ -1018,6 +1097,15 @@ class TemplateDiff {
                               Tree.ToDefault(), Tree.NodeIsSame());
         return;
       }
+
+      if (Tree.NodeIsAPSInt()) {
+        llvm::APSInt FromInt, ToInt;
+        bool IsValidFromInt, IsValidToInt;
+        Tree.GetNode(FromInt, ToInt, IsValidFromInt, IsValidToInt);
+        PrintAPSInt(FromInt, ToInt, IsValidFromInt, IsValidToInt,
+                    Tree.FromDefault(), Tree.ToDefault(), Tree.NodeIsSame());
+        return;
+      }
       llvm_unreachable("Unable to deduce template difference.");
     }
 
@@ -1026,6 +1114,10 @@ class TemplateDiff {
     Tree.GetNode(FromTD, ToTD);
 
     assert(Tree.HasChildren() && "Template difference not found in diff tree.");
+
+    Qualifiers FromQual, ToQual;
+    Tree.GetNode(FromQual, ToQual);
+    PrintQualifiers(FromQual, ToQual);
 
     OS << FromTD->getNameAsString() << '<'; 
     Tree.MoveToChild();
@@ -1085,6 +1177,17 @@ class TemplateDiff {
 
     if (Same) {
       OS << FromType.getAsString();
+      return;
+    }
+
+    if (!FromType.isNull() && !ToType.isNull() &&
+        FromType.getLocalUnqualifiedType() ==
+        ToType.getLocalUnqualifiedType()) {
+      Qualifiers FromQual = FromType.getLocalQualifiers(),
+                 ToQual = ToType.getLocalQualifiers(),
+                 CommonQual;
+      PrintQualifiers(FromQual, ToQual);
+      FromType.getLocalUnqualifiedType().print(OS, Policy);
       return;
     }
 
@@ -1177,6 +1280,34 @@ class TemplateDiff {
     }
   }
 
+  /// PrintAPSInt - Handles printing of integral arguments, highlighting
+  /// argument differences.
+  void PrintAPSInt(llvm::APSInt FromInt, llvm::APSInt ToInt,
+                   bool IsValidFromInt, bool IsValidToInt, bool FromDefault,
+                   bool ToDefault, bool Same) {
+    assert((IsValidFromInt || IsValidToInt) &&
+           "Only one integral argument may be missing.");
+
+    if (Same) {
+      OS << FromInt.toString(10);
+    } else if (!PrintTree) {
+      OS << (FromDefault ? "(default) " : "");
+      Bold();
+      OS << (IsValidFromInt ? FromInt.toString(10) : "(no argument)");
+      Unbold();
+    } else {
+      OS << (FromDefault ? "[(default) " : "[");
+      Bold();
+      OS << (IsValidFromInt ? FromInt.toString(10) : "(no argument)");
+      Unbold();
+      OS << " != " << (ToDefault ? "(default) " : "");
+      Bold();
+      OS << (IsValidToInt ? ToInt.toString(10) : "(no argument)");
+      Unbold();
+      OS << ']';
+    }
+  }
+
   // Prints the appropriate placeholder for elided template arguments.
   void PrintElideArgs(unsigned NumElideArgs, unsigned Indent) {
     if (PrintTree) {
@@ -1189,6 +1320,68 @@ class TemplateDiff {
       OS << "[...]";
     else
       OS << "[" << NumElideArgs << " * ...]";
+  }
+
+  // Prints and highlights differences in Qualifiers.
+  void PrintQualifiers(Qualifiers FromQual, Qualifiers ToQual) {
+    // Both types have no qualifiers
+    if (FromQual.empty() && ToQual.empty())
+      return;
+
+    // Both types have same qualifiers
+    if (FromQual == ToQual) {
+      PrintQualifier(FromQual, /*ApplyBold*/false);
+      return;
+    }
+
+    // Find common qualifiers and strip them from FromQual and ToQual.
+    Qualifiers CommonQual = Qualifiers::removeCommonQualifiers(FromQual,
+                                                               ToQual);
+
+    // The qualifiers are printed before the template name.
+    // Inline printing:
+    // The common qualifiers are printed.  Then, qualifiers only in this type
+    // are printed and highlighted.  Finally, qualifiers only in the other
+    // type are printed and highlighted inside parentheses after "missing".
+    // Tree printing:
+    // Qualifiers are printed next to each other, inside brackets, and
+    // separated by "!=".  The printing order is:
+    // common qualifiers, highlighted from qualifiers, "!=",
+    // common qualifiers, highlighted to qualifiers
+    if (PrintTree) {
+      OS << "[";
+      if (CommonQual.empty() && FromQual.empty()) {
+        Bold();
+        OS << "(no qualifiers) ";
+        Unbold();
+      } else {
+        PrintQualifier(CommonQual, /*ApplyBold*/false);
+        PrintQualifier(FromQual, /*ApplyBold*/true);
+      }
+      OS << "!= ";
+      if (CommonQual.empty() && ToQual.empty()) {
+        Bold();
+        OS << "(no qualifiers)";
+        Unbold();
+      } else {
+        PrintQualifier(CommonQual, /*ApplyBold*/false,
+                       /*appendSpaceIfNonEmpty*/!ToQual.empty());
+        PrintQualifier(ToQual, /*ApplyBold*/true,
+                       /*appendSpaceIfNonEmpty*/false);
+      }
+      OS << "] ";
+    } else {
+      PrintQualifier(CommonQual, /*ApplyBold*/false);
+      PrintQualifier(FromQual, /*ApplyBold*/true);
+    }
+  }
+
+  void PrintQualifier(Qualifiers Q, bool ApplyBold,
+                      bool AppendSpaceIfNonEmpty = true) {
+    if (Q.empty()) return;
+    if (ApplyBold) Bold();
+    Q.print(OS, Policy, AppendSpaceIfNonEmpty);
+    if (ApplyBold) Unbold();
   }
 
 public:
@@ -1210,6 +1403,9 @@ public:
 
   /// DiffTemplate - Start the template type diffing.
   void DiffTemplate() {
+    Qualifiers FromQual = FromType.getQualifiers(),
+               ToQual = ToType.getQualifiers();
+
     const TemplateSpecializationType *FromOrigTST =
         GetTemplateSpecializationType(Context, FromType);
     const TemplateSpecializationType *ToOrigTST =
@@ -1224,7 +1420,10 @@ public:
       return;
     }
 
+    FromQual -= QualType(FromOrigTST, 0).getQualifiers();
+    ToQual -= QualType(ToOrigTST, 0).getQualifiers();
     Tree.SetNode(FromType, ToType);
+    Tree.SetNode(FromQual, ToQual);
 
     // Same base template, but different arguments.
     Tree.SetNode(FromOrigTST->getTemplateName().getAsTemplateDecl(),

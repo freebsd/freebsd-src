@@ -257,19 +257,19 @@ AcpiExSystemMemorySpaceHandler (
         switch (BitWidth)
         {
         case 8:
-            ACPI_SET8 (LogicalAddrPtr) = (UINT8) *Value;
+            ACPI_SET8 (LogicalAddrPtr, *Value);
             break;
 
         case 16:
-            ACPI_SET16 (LogicalAddrPtr) = (UINT16) *Value;
+            ACPI_SET16 (LogicalAddrPtr, *Value);
             break;
 
         case 32:
-            ACPI_SET32 ( LogicalAddrPtr) = (UINT32) *Value;
+            ACPI_SET32 (LogicalAddrPtr, *Value);
             break;
 
         case 64:
-            ACPI_SET64 (LogicalAddrPtr) = (UINT64) *Value;
+            ACPI_SET64 (LogicalAddrPtr, *Value);
             break;
 
         default:

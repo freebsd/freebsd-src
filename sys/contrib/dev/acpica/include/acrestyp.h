@@ -675,7 +675,10 @@ typedef struct acpi_resource
 #define ACPI_RS_SIZE_MIN                    (UINT32) ACPI_ROUND_UP_TO_NATIVE_WORD (12)
 #define ACPI_RS_SIZE(Type)                  (UINT32) (ACPI_RS_SIZE_NO_DATA + sizeof (Type))
 
-#define ACPI_NEXT_RESOURCE(Res)             (ACPI_RESOURCE *)((UINT8 *) Res + Res->Length)
+/* Macro for walking resource templates with multiple descriptors */
+
+#define ACPI_NEXT_RESOURCE(Res) \
+    ACPI_ADD_PTR (ACPI_RESOURCE, (Res), (Res)->Length)
 
 
 typedef struct acpi_pci_routing_table

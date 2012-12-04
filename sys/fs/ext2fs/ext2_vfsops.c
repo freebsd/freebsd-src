@@ -905,14 +905,6 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 
 	ump = VFSTOEXT2(mp);
 	dev = ump->um_dev;
-
-	/*
-	 * If this malloc() is performed after the getnewvnode()
-	 * it might block, leaving a vnode with a NULL v_data to be
-	 * found by ext2_sync() if a sync happens to fire right then,
-	 * which will cause a panic because ext2_sync() blindly
-	 * dereferences vp->v_data (as well it should).
-	 */
 	ip = malloc(sizeof(struct inode), M_EXT2NODE, M_WAITOK | M_ZERO);
 
 	/* Allocate a new vnode/inode. */

@@ -722,14 +722,12 @@ ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
 	 * If the interface will not calculate checksums on
 	 * fragmented packets, then do it here.
 	 */
-	if (m0->m_pkthdr.csum_flags & CSUM_DELAY_DATA &&
-	    (if_hwassist_flags & CSUM_IP_FRAGS) == 0) {
+	if (m0->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
 		in_delayed_cksum(m0);
 		m0->m_pkthdr.csum_flags &= ~CSUM_DELAY_DATA;
 	}
 #ifdef SCTP
-	if (m0->m_pkthdr.csum_flags & CSUM_SCTP &&
-	    (if_hwassist_flags & CSUM_IP_FRAGS) == 0) {
+	if (m0->m_pkthdr.csum_flags & CSUM_SCTP) {
 		sctp_delayed_cksum(m0, hlen);
 		m0->m_pkthdr.csum_flags &= ~CSUM_SCTP;
 	}

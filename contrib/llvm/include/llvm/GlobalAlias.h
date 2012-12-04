@@ -28,8 +28,8 @@ template<typename ValueSubClass, typename ItemParentClass>
 
 class GlobalAlias : public GlobalValue, public ilist_node<GlobalAlias> {
   friend class SymbolTableListTraits<GlobalAlias, Module>;
-  void operator=(const GlobalAlias &);     // Do not implement
-  GlobalAlias(const GlobalAlias &);     // Do not implement
+  void operator=(const GlobalAlias &) LLVM_DELETED_FUNCTION;
+  GlobalAlias(const GlobalAlias &) LLVM_DELETED_FUNCTION;
 
   void setParent(Module *parent);
 
@@ -76,7 +76,6 @@ public:
   const GlobalValue *resolveAliasedGlobal(bool stopOnWeak = true) const;
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
-  static inline bool classof(const GlobalAlias *) { return true; }
   static inline bool classof(const Value *V) {
     return V->getValueID() == Value::GlobalAliasVal;
   }

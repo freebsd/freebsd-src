@@ -3,9 +3,9 @@
 LIB=	clangstaticanalyzercore
 
 SRCDIR=	tools/clang/lib/StaticAnalyzer/Core
-SRCS=	AnalysisManager.cpp \
-	APSIntType.cpp \
-	BasicConstraintManager.cpp \
+SRCS=	APSIntType.cpp \
+	AnalysisManager.cpp \
+	AnalyzerOptions.cpp \
 	BasicValueFactory.cpp \
 	BlockCounter.cpp \
 	BugReporter.cpp \
@@ -16,6 +16,7 @@ SRCS=	AnalysisManager.cpp \
 	CheckerHelpers.cpp \
 	CheckerManager.cpp \
 	CheckerRegistry.cpp \
+	ConstraintManager.cpp \
 	CoreEngine.cpp \
 	Environment.cpp \
 	ExplodedGraph.cpp \

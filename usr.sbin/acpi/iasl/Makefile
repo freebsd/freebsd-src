@@ -27,8 +27,8 @@ SRCS+=	aslanalyze.c aslbtypes.c aslcodegen.c aslcompile.c	\
 SRCS+=	dbfileio.c
 
 # components/disassembler
-SRCS+=	dmbuffer.c dmnames.c dmopcode.c dmresrc.c dmresrcl.c	\
-	dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
+SRCS+=	dmbuffer.c dmdeferred.c dmnames.c dmopcode.c dmresrc.c	\
+	dmresrcl.c dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
 
 # components/dispatcher
 SRCS+=	dsargs.c dscontrol.c dsfield.c dsobject.c dsopcode.c	\

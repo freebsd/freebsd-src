@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/pcpu.h>
 #include <sys/power.h>
 #include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/sbuf.h>
 #include <sys/smp.h>
 
@@ -68,6 +69,7 @@ struct acpi_cx {
     uint32_t		 trans_lat;	/* Transition latency (usec). */
     uint32_t		 power;		/* Power consumed (mW). */
     int			 res_type;	/* Resource type for p_lvlx. */
+    int			 res_rid;	/* Resource ID for p_lvlx. */
 };
 #define MAX_CX_STATES	 8
 
@@ -90,8 +92,8 @@ struct acpi_cpu_softc {
     struct sysctl_oid	*cpu_sysctl_tree;
     int			 cpu_cx_lowest;
     int			 cpu_cx_lowest_lim;
+    int			 cpu_disable_idle; /* Disable entry to idle function */
     char 		 cpu_cx_supported[64];
-    int			 cpu_rid;
 };
 
 struct acpi_cpu_device {
@@ -136,9 +138,6 @@ SYSCTL_INT(_debug_acpi, OID_AUTO, cpu_unordered, CTLFLAG_RDTUN,
 static uint32_t		 cpu_smi_cmd;	/* Value to write to SMI_CMD. */
 static uint8_t		 cpu_cst_cnt;	/* Indicate we are _CST aware. */
 static int		 cpu_quirks;	/* Indicate any hardware bugs. */
-
-/* Runtime state. */
-static int		 cpu_disable_idle; /* Disable entry to idle function */
 
 /* Values for sysctl. */
 static struct sysctl_ctx_list cpu_sysctl_ctx;
@@ -418,6 +417,39 @@ acpi_cpu_postattach(void *unused __unused)
 SYSINIT(acpi_cpu, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE,
     acpi_cpu_postattach, NULL);
 
+static void
+disable_idle(struct acpi_cpu_softc *sc)
+{
+    cpuset_t cpuset;
+
+    CPU_SETOF(sc->cpu_pcpu->pc_cpuid, &cpuset);
+    sc->cpu_disable_idle = TRUE;
+
+    /*
+     * Ensure that the CPU is not in idle state or in acpi_cpu_idle().
+     * Note that this code depends on the fact that the rendezvous IPI
+     * can not penetrate context where interrupts are disabled and acpi_cpu_idle
+     * is called and executed in such a context with interrupts being re-enabled
+     * right before return.
+     */
+    smp_rendezvous_cpus(cpuset, smp_no_rendevous_barrier, NULL,
+	smp_no_rendevous_barrier, NULL);
+}
+
+static void
+enable_idle(struct acpi_cpu_softc *sc)
+{
+
+    sc->cpu_disable_idle = FALSE;
+}
+
+static int
+is_idle_disabled(struct acpi_cpu_softc *sc)
+{
+
+    return (sc->cpu_disable_idle);
+}
+
 /*
  * Disable any entry to the idle function during suspend and re-enable it
  * during resume.
@@ -430,7 +462,7 @@ acpi_cpu_suspend(device_t dev)
     error = bus_generic_suspend(dev);
     if (error)
 	return (error);
-    cpu_disable_idle = TRUE;
+    disable_idle(device_get_softc(dev));
     return (0);
 }
 
@@ -438,7 +470,7 @@ static int
 acpi_cpu_resume(device_t dev)
 {
 
-    cpu_disable_idle = FALSE;
+    enable_idle(device_get_softc(dev));
     return (bus_generic_resume(dev));
 }
 
@@ -572,12 +604,14 @@ acpi_cpu_shutdown(device_t dev)
     bus_generic_shutdown(dev);
 
     /*
-     * Disable any entry to the idle function.  There is a small race where
-     * an idle thread have passed this check but not gone to sleep.  This
-     * is ok since device_shutdown() does not free the softc, otherwise
-     * we'd have to be sure all threads were evicted before returning.
+     * Disable any entry to the idle function.
      */
-    cpu_disable_idle = TRUE;
+    disable_idle(device_get_softc(dev));
+
+    /*
+     * CPU devices are not truely detached and remain referenced,
+     * so their resources are not freed.
+     */
 
     return_VALUE (0);
 }
@@ -648,10 +682,10 @@ acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc)
     gas.BitWidth = 8;
     if (AcpiGbl_FADT.C2Latency <= 100) {
 	gas.Address = sc->cpu_p_blk + 4;
-	acpi_bus_alloc_gas(sc->cpu_dev, &cx_ptr->res_type, &sc->cpu_rid,
+	cx_ptr->res_rid = 0;
+	acpi_bus_alloc_gas(sc->cpu_dev, &cx_ptr->res_type, &cx_ptr->res_rid,
 	    &gas, &cx_ptr->p_lvlx, RF_SHAREABLE);
 	if (cx_ptr->p_lvlx != NULL) {
-	    sc->cpu_rid++;
 	    cx_ptr->type = ACPI_STATE_C2;
 	    cx_ptr->trans_lat = AcpiGbl_FADT.C2Latency;
 	    cx_ptr++;
@@ -665,10 +699,10 @@ acpi_cpu_generic_cx_probe(struct acpi_cpu_softc *sc)
     /* Validate and allocate resources for C3 (P_LVL3). */
     if (AcpiGbl_FADT.C3Latency <= 1000 && !(cpu_quirks & CPU_QUIRK_NO_C3)) {
 	gas.Address = sc->cpu_p_blk + 5;
-	acpi_bus_alloc_gas(sc->cpu_dev, &cx_ptr->res_type, &sc->cpu_rid, &gas,
-	    &cx_ptr->p_lvlx, RF_SHAREABLE);
+	cx_ptr->res_rid = 1;
+	acpi_bus_alloc_gas(sc->cpu_dev, &cx_ptr->res_type, &cx_ptr->res_rid,
+	    &gas, &cx_ptr->p_lvlx, RF_SHAREABLE);
 	if (cx_ptr->p_lvlx != NULL) {
-	    sc->cpu_rid++;
 	    cx_ptr->type = ACPI_STATE_C3;
 	    cx_ptr->trans_lat = AcpiGbl_FADT.C3Latency;
 	    cx_ptr++;
@@ -770,19 +804,18 @@ acpi_cpu_cx_cst(struct acpi_cpu_softc *sc)
 	    break;
 	}
 
-#ifdef notyet
 	/* Free up any previous register. */
 	if (cx_ptr->p_lvlx != NULL) {
-	    bus_release_resource(sc->cpu_dev, 0, 0, cx_ptr->p_lvlx);
+	    bus_release_resource(sc->cpu_dev, cx_ptr->res_type, cx_ptr->res_rid,
+	        cx_ptr->p_lvlx);
 	    cx_ptr->p_lvlx = NULL;
 	}
-#endif
 
 	/* Allocate the control register for C2 or C3. */
-	acpi_PkgGas(sc->cpu_dev, pkg, 0, &cx_ptr->res_type, &sc->cpu_rid,
+	cx_ptr->res_rid = sc->cpu_cx_count;
+	acpi_PkgGas(sc->cpu_dev, pkg, 0, &cx_ptr->res_type, &cx_ptr->res_rid,
 	    &cx_ptr->p_lvlx, RF_SHAREABLE);
 	if (cx_ptr->p_lvlx) {
-	    sc->cpu_rid++;
 	    ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			     "acpi_cpu%d: Got C%d - %d latency\n",
 			     device_get_unit(sc->cpu_dev), cx_ptr->type,
@@ -860,7 +893,10 @@ acpi_cpu_startup(void *arg)
 
     /* Take over idling from cpu_idle_default(). */
     cpu_cx_lowest_lim = 0;
-    cpu_disable_idle = FALSE;
+    for (i = 0; i < cpu_ndevices; i++) {
+	sc = device_get_softc(cpu_devices[i]);
+	enable_idle(sc);
+    }
     cpu_idle_hook = acpi_cpu_idle;
 }
 
@@ -926,12 +962,6 @@ acpi_cpu_idle()
     uint32_t	start_time, end_time;
     int		bm_active, cx_next_idx, i;
 
-    /* If disabled, return immediately. */
-    if (cpu_disable_idle) {
-	ACPI_ENABLE_IRQS();
-	return;
-    }
-
     /*
      * Look up our CPU id to get our softc.  If it's NULL, we'll use C1
      * since there is no ACPI processor object for this CPU.  This occurs
@@ -939,6 +969,12 @@ acpi_cpu_idle()
      */
     sc = cpu_softc[PCPU_GET(cpuid)];
     if (sc == NULL) {
+	acpi_cpu_c1();
+	return;
+    }
+
+    /* If disabled, take the safe path. */
+    if (is_idle_disabled(sc)) {
 	acpi_cpu_c1();
 	return;
     }
@@ -1045,23 +1081,31 @@ acpi_cpu_idle()
 
 /*
  * Re-evaluate the _CST object when we are notified that it changed.
- *
- * XXX Re-evaluation disabled until locking is done.
  */
 static void
 acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 {
     struct acpi_cpu_softc *sc = (struct acpi_cpu_softc *)context;
-    
+
     if (notify != ACPI_NOTIFY_CX_STATES)
 	return;
+
+    /*
+     * C-state data for target CPU is going to be in flux while we execute
+     * acpi_cpu_cx_cst, so disable entering acpi_cpu_idle.
+     * Also, it may happen that multiple ACPI taskqueues may concurrently
+     * execute notifications for the same CPU.  ACPI_SERIAL is used to
+     * protect against that.
+     */
+    ACPI_SERIAL_BEGIN(cpu);
+    disable_idle(sc);
 
     /* Update the list of Cx states. */
     acpi_cpu_cx_cst(sc);
     acpi_cpu_cx_list(sc);
-
-    ACPI_SERIAL_BEGIN(cpu);
     acpi_cpu_set_cx_lowest(sc);
+
+    enable_idle(sc);
     ACPI_SERIAL_END(cpu);
 
     acpi_UserNotify("PROCESSOR", sc->cpu_handle, notify);

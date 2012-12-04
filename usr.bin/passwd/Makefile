@@ -19,7 +19,9 @@ beforeinstall:
 		chflags noschg ${DESTDIR}${BINDIR}/$i || true
 .endfor
 
+.if !defined(NO_FSCHG)
 afterinstall:
 	-chflags schg ${DESTDIR}${BINDIR}/passwd
+.endif
 
 .include <bsd.prog.mk>

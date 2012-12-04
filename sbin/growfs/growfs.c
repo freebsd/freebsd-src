@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <inttypes.h>
 #include <limits.h>
 #include <mntopts.h>
+#include <paths.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -1525,8 +1526,9 @@ main(int argc, char **argv)
 
 	if (yflag == 0 && Nflag == 0) {
 		if (statfsp != NULL && (statfsp->f_flags & MNT_RDONLY) == 0)
-			errx(1, "%s is mounted read-write on %s",
-			    statfsp->f_mntfromname, statfsp->f_mntonname);
+			printf("Device is mounted read-write; resizing will "
+			    "result in temporary write suspension for %s.\n",
+			    statfsp->f_mntonname);
 		printf("It's strongly recommended to make a backup "
 		    "before growing the file system.\n"
 		    "OK to grow filesystem on %s", device);
@@ -1555,9 +1557,18 @@ main(int argc, char **argv)
 	if (Nflag) {
 		fso = -1;
 	} else {
-		fso = open(device, O_WRONLY);
-		if (fso < 0)
-			err(1, "%s", device);
+		if (statfsp != NULL && (statfsp->f_flags & MNT_RDONLY) == 0) {
+			fso = open(_PATH_UFSSUSPEND, O_RDWR);
+			if (fso == -1)
+				err(1, "unable to open %s", _PATH_UFSSUSPEND);
+			error = ioctl(fso, UFSSUSPEND, &statfsp->f_fsid);
+			if (error != 0)
+				err(1, "UFSSUSPEND");
+		} else {
+			fso = open(device, O_WRONLY);
+			if (fso < 0)
+				err(1, "%s", device);
+		}
 	}
 
 	/*
@@ -1627,12 +1638,17 @@ main(int argc, char **argv)
 
 	close(fsi);
 	if (fso > -1) {
+		if (statfsp != NULL && (statfsp->f_flags & MNT_RDONLY) == 0) {
+			error = ioctl(fso, UFSRESUME);
+			if (error != 0)
+				err(1, "UFSRESUME");
+		}
 		error = close(fso);
 		if (error != 0)
 			err(1, "close");
+		if (statfsp != NULL && (statfsp->f_flags & MNT_RDONLY) != 0)
+			mount_reload(statfsp);
 	}
-	if (statfsp != NULL)
-		mount_reload(statfsp);
 
 	DBG_CLOSE;
 

@@ -40,7 +40,6 @@ MIRROR=`dialog --backtitle "FreeBSD Installer" \
     0 0 0 \
 	ftp://ftp.freebsd.org	"Main Site"\
 	ftp://snapshots.jp.freebsd.org 	"Snapshots Server Japan"\
-	ftp://snapshots.se.freebsd.org 	"Snapshots Server Sweden"\
 	ftp://ftp.freebsd.org 	"IPv6 Main Site"\
 	ftp://ftp3.ie.freebsd.org 	"IPv6 Ireland"\
 	ftp://ftp.il.freebsd.org 	"IPv6 Israel"\
@@ -151,6 +150,7 @@ MIRROR=`dialog --backtitle "FreeBSD Installer" \
 	ftp://ftp3.se.freebsd.org 	"Sweden #3"\
 	ftp://ftp4.se.freebsd.org 	"Sweden #4"\
 	ftp://ftp5.se.freebsd.org 	"Sweden #5"\
+	ftp://ftp6.se.freebsd.org 	"Sweden #6"\
 	ftp://ftp.ch.freebsd.org 	"Switzerland"\
 	ftp://ftp2.ch.freebsd.org 	"Switzerland #2"\
 	ftp://ftp.tw.freebsd.org 	"Taiwan"\

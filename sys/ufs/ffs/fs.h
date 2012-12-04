@@ -33,6 +33,9 @@
 #ifndef _UFS_FFS_FS_H_
 #define _UFS_FFS_FS_H_
 
+#include <sys/mount.h>
+#include <ufs/ufs/dinode.h>
+
 /*
  * Each disk drive contains some number of filesystems.
  * A filesystem consists of a number of cylinder groups.
@@ -762,5 +765,11 @@ CTASSERT(sizeof(union jrec) == JREC_SIZE);
 
 extern int inside[], around[];
 extern u_char *fragtbl[];
+
+/*
+ * IOCTLs used for filesystem write suspension.
+ */
+#define	UFSSUSPEND	_IOW('U', 1, fsid_t)
+#define	UFSRESUME	_IO('U', 2)
 
 #endif

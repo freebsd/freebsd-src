@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 31, 1997
+.Dd November 18, 2012
 .Dt ROUTE6D 8
 .Os
 .Sh NAME
@@ -39,6 +39,15 @@
 .Ek
 .Bk -words
 .Op Fl O Ar prefix/preflen,if1[,if2...\&]
+.Ek
+.Bk -words
+.Op Fl P Ar number
+.Ek
+.Bk -words
+.Op Fl p Ar pidfile
+.Ek
+.Bk -words
+.Op Fl Q Ar number
 .Ek
 .Bk -words
 .Op Fl T Ar if1[,if2...\&]
@@ -80,6 +89,12 @@ and advertises the aggregated route
 .Ar prefix/preflen ,
 to the interfaces specified in the comma-separated interface list,
 .Ar if1[,if2...] .
+The characters
+.Qq Li * ,
+.Qq Li \&? ,
+and
+.Qq Li \&[
+in the interface list will be interpreted as shell-style pattern.
 The
 .Nm
 utility creates a static route to
@@ -143,7 +158,7 @@ option.
 For example, with
 .Do
 .Fl L
-.Li 3ffe::/16,if1
+.Li 2001:db8::/16,if1
 .Fl L
 .Li ::/0,if1
 .Dc
@@ -164,6 +179,33 @@ With this option
 .Nm
 will only advertise routes that matches
 .Ar prefix/preflen .
+.It Fl P Ar number
+Specifies routes to be ignored in calculation of expiration timer.
+The
+.Ar number
+must be
+.Li 1 ,
+.Li 2 ,
+or
+.Li 3
+and it means route flags of
+.Li RTF_PROTO1 ,
+.Li RTF_PROTO2 ,
+or
+.Li RTF_PROTO3 .
+When
+.Li 1
+is specified, routes with
+.Li RTF_PROTO1
+will never expire.
+.It Fl p Ar pidfile
+Specifies an alternative file in which to store the process ID.
+The default is
+.Pa /var/run/route6d.pid .
+.It Fl Q Ar number
+Specifies flag which will be used for routes added by RIP protocol.
+The default is
+.Li 2 Pq Li RTF_PROTO2 .
 .\"
 .It Fl q
 Makes

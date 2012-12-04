@@ -645,7 +645,7 @@ AcpiDmDisassembleOneOp (
          */
         if (!AcpiGbl_NoResourceDisassembly)
         {
-            Status = AcpiDmIsResourceTemplate (Op);
+            Status = AcpiDmIsResourceTemplate (WalkState, Op);
             if (ACPI_SUCCESS (Status))
             {
                 Op->Common.DisasmOpcode = ACPI_DASM_RESOURCE;

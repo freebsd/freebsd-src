@@ -803,6 +803,7 @@ AcpiUtDisplayInitPathname (
  */
 ACPI_STATUS
 AcpiUtWalkAmlResources (
+    ACPI_WALK_STATE         *WalkState,
     UINT8                   *Aml,
     ACPI_SIZE               AmlLength,
     ACPI_WALK_AML_CALLBACK  UserFunction,
@@ -810,6 +811,7 @@ AcpiUtWalkAmlResources (
 
 ACPI_STATUS
 AcpiUtValidateResource (
+    ACPI_WALK_STATE         *WalkState,
     void                    *Aml,
     UINT8                   *ReturnIndex);
 

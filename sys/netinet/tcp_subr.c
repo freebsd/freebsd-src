@@ -235,7 +235,7 @@ static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
  * variable net.inet.tcp.tcbhashsize
  */
 #ifndef TCBHASHSIZE
-#define TCBHASHSIZE	512
+#define TCBHASHSIZE	0
 #endif
 
 /*
@@ -282,10 +282,34 @@ tcp_inpcb_init(void *mem, int size, int flags)
 	return (0);
 }
 
+/*
+ * Take a value and get the next power of 2 that doesn't overflow.
+ * Used to size the tcp_inpcb hash buckets.
+ */
+static int
+maketcp_hashsize(int size)
+{
+	int hashsize;
+
+	/*
+	 * auto tune.
+	 * get the next power of 2 higher than maxsockets.
+	 */
+	hashsize = 1 << fls(size);
+	/* catch overflow, and just go one power of 2 smaller */
+	if (hashsize < size) {
+		hashsize = 1 << (fls(size) - 1);
+	}
+	return (hashsize);
+}
+
 void
 tcp_init(void)
 {
+	const char *tcbhash_tuneable;
 	int hashsize;
+
+	tcbhash_tuneable = "net.inet.tcp.tcbhashsize";
 
 	if (hhook_head_register(HHOOK_TYPE_TCP, HHOOK_TCP_EST_IN,
 	    &V_tcp_hhh[HHOOK_TCP_EST_IN], HHOOK_NOWAIT|HHOOK_HEADISINVNET) != 0)
@@ -295,10 +319,43 @@ tcp_init(void)
 		printf("%s: WARNING: unable to register helper hook\n", __func__);
 
 	hashsize = TCBHASHSIZE;
-	TUNABLE_INT_FETCH("net.inet.tcp.tcbhashsize", &hashsize);
+	TUNABLE_INT_FETCH(tcbhash_tuneable, &hashsize);
+	if (hashsize == 0) {
+		/*
+		 * Auto tune the hash size based on maxsockets.
+		 * A perfect hash would have a 1:1 mapping
+		 * (hashsize = maxsockets) however it's been
+		 * suggested that O(2) average is better.
+		 */
+		hashsize = maketcp_hashsize(maxsockets / 4);
+		/*
+		 * Our historical default is 512,
+		 * do not autotune lower than this.
+		 */
+		if (hashsize < 512)
+			hashsize = 512;
+		if (bootverbose)
+			printf("%s: %s auto tuned to %d\n", __func__,
+			    tcbhash_tuneable, hashsize);
+	}
+	/*
+	 * We require a hashsize to be a power of two.
+	 * Previously if it was not a power of two we would just reset it
+	 * back to 512, which could be a nasty surprise if you did not notice
+	 * the error message.
+	 * Instead what we do is clip it to the closest power of two lower
+	 * than the specified hash value.
+	 */
 	if (!powerof2(hashsize)) {
-		printf("WARNING: TCB hash size not a power of 2\n");
-		hashsize = 512; /* safe default */
+		int oldhashsize = hashsize;
+
+		hashsize = maketcp_hashsize(hashsize);
+		/* prevent absurdly low value */
+		if (hashsize < 16)
+			hashsize = 16;
+		printf("%s: WARNING: TCB hash size not a power of 2, "
+		    "clipped from %d to %d.\n", __func__, oldhashsize,
+		    hashsize);
 	}
 	in_pcbinfo_init(&V_tcbinfo, "tcp", &V_tcb, hashsize, hashsize,
 	    "tcp_inpcb", tcp_inpcb_init, NULL, UMA_ZONE_NOFREE,
