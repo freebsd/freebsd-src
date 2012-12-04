@@ -27,7 +27,7 @@ LDFLAGS+=	-nostdlib -e .rtld_start
 WARNS?=		2
 INSTALLFLAGS=	-C -b
 PRECIOUSPROG=
-BINDIR=		/libexec
+BINDIR=		../../libexec
 SYMLINKS=	${BINDIR}/${PROG} /usr/libexec/${PROG}
 MLINKS=		rtld.1 ld-elf.so.1.1 \
 		rtld.1 ld.so.1
