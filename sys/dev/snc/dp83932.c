@@ -1108,7 +1108,7 @@ sonic_get(struct snc_softc *sc, u_int32_t pkt, int datalen)
 	 * Our sonic_read() and sonic_get() require it.
 	 */
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == 0)
 		return (0);
 	m->m_pkthdr.rcvif = sc->sc_ifp;
@@ -1119,7 +1119,7 @@ sonic_get(struct snc_softc *sc, u_int32_t pkt, int datalen)
 
 	while (datalen > 0) {
 		if (top) {
-			MGET(m, M_DONTWAIT, MT_DATA);
+			MGET(m, M_NOWAIT, MT_DATA);
 			if (m == 0) {
 				m_freem(top);
 				return (0);
@@ -1127,7 +1127,7 @@ sonic_get(struct snc_softc *sc, u_int32_t pkt, int datalen)
 			len = MLEN;
 		}
 		if (datalen >= MINCLSIZE) {
-			MCLGET(m, M_DONTWAIT);
+			MCLGET(m, M_NOWAIT);
 			if ((m->m_flags & M_EXT) == 0) {
 				if (top) m_freem(top);
 				return (0);

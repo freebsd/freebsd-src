@@ -753,7 +753,7 @@ tr_setup:
 				}
 			}
 			if (m->m_len != m->m_pkthdr.len) {
-				mt = m_defrag(m, M_DONTWAIT);
+				mt = m_defrag(m, M_NOWAIT);
 				if (mt == NULL) {
 					m_freem(m);
 					ifp->if_oerrors++;
@@ -1369,9 +1369,9 @@ cdce_ncm_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				/* silently ignore this frame */
 				continue;
 			} else if (temp > (int)(MHLEN - ETHER_ALIGN)) {
-				m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+				m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 			} else {
-				m = m_gethdr(M_DONTWAIT, MT_DATA);
+				m = m_gethdr(M_NOWAIT, MT_DATA);
 			}
 
 			DPRINTFN(16, "frame %u, offset = %u, length = %u \n",

@@ -1790,7 +1790,7 @@ ixgb_get_buf(int i, struct adapter * adapter,
 
 	if (mp == NULL) {
 
-		mp = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		mp = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 
 		if (mp == NULL) {
 			adapter->mbuf_alloc_failed++;
