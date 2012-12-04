@@ -1033,6 +1033,13 @@ inet_makenetandmask(u_long net, struct sockaddr_in *sin, u_long bits)
 	rtm_addrs |= RTA_NETMASK;
 
 	/*
+	 * MSB of net should be meaningful. 0/0 is exception.
+	 */
+	if (net > 0)
+		while ((net & 0xff000000) == 0)
+			net <<= 8;
+
+	/*
 	 * If no /xx was specified we must calculate the
 	 * CIDR address.
 	 */
