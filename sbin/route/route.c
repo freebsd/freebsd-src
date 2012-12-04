@@ -365,7 +365,7 @@ flushroutes(int argc, char *argv[])
 	struct fibl *fl;
 	int error;
 
-	if (uid != 0 && !debugonly) {
+	if (uid != 0 && !debugonly && !tflag) {
 		errx(EX_NOPERM, "must be root to alter routing table");
 	}
 	shutdown(s, SHUT_RD); /* Don't want to read back our messages */
@@ -727,7 +727,7 @@ newroute(int argc, char **argv)
 	const char *dest, *gateway, *errmsg;
 	int key, error, flags, nrflags, fibnum;
 
-	if (uid != 0) {
+	if (uid != 0 && !debugonly && !tflag) {
 		errx(EX_NOPERM, "must be root to alter routing table");
 	}
 
