@@ -216,7 +216,9 @@ static const struct bge_type {
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM5906M },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57760 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57761 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57762 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57765 },
+	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57766 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57780 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57781 },
 	{ BCOM_VENDORID,	BCOM_DEVICEID_BCM57785 },
@@ -347,6 +349,7 @@ static const struct bge_revision bge_majorrevs[] = {
 	{ BGE_ASICREV_BCM5787,		"unknown BCM5754/5787" },
 	{ BGE_ASICREV_BCM5906,		"unknown BCM5906" },
 	{ BGE_ASICREV_BCM57765,		"unknown BCM57765" },
+	{ BGE_ASICREV_BCM57766,		"unknown BCM57766" },
 	{ BGE_ASICREV_BCM57780,		"unknown BCM57780" },
 	{ BGE_ASICREV_BCM5717,		"unknown BCM5717" },
 	{ BGE_ASICREV_BCM5719,		"unknown BCM5719" },
@@ -362,6 +365,7 @@ static const struct bge_revision bge_majorrevs[] = {
 #define	BGE_IS_575X_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_575X_PLUS)
 #define	BGE_IS_5755_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_5755_PLUS)
 #define	BGE_IS_5717_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_5717_PLUS)
+#define	BGE_IS_57765_PLUS(sc)		((sc)->bge_flags & BGE_FLAG_57765_PLUS)
 
 const struct bge_revision * bge_lookup_rev(uint32_t);
 const struct bge_vendor * bge_lookup_vendor(uint16_t);
@@ -2243,7 +2247,7 @@ bge_blockinit(struct bge_softc *sc)
 	} else if (!BGE_IS_5705_PLUS(sc))
 		limit = BGE_RX_RINGS_MAX;
 	else if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
-	    sc->bge_asicrev == BGE_ASICREV_BCM57765)
+	    BGE_IS_57765_PLUS(sc))
 		limit = 4;
 	else
 		limit = 1;
@@ -2657,7 +2661,9 @@ bge_probe(device_t dev)
 					    BGE_PCI_GEN2_PRODID_ASICREV, 4);
 					break;
 				case BCOM_DEVICEID_BCM57761:
+				case BCOM_DEVICEID_BCM57762:
 				case BCOM_DEVICEID_BCM57765:
+				case BCOM_DEVICEID_BCM57766:
 				case BCOM_DEVICEID_BCM57781:
 				case BCOM_DEVICEID_BCM57785:
 				case BCOM_DEVICEID_BCM57791:
@@ -3258,7 +3264,9 @@ bge_attach(device_t dev)
 			    BGE_PCI_GEN2_PRODID_ASICREV, 4);
 			break;
 		case BCOM_DEVICEID_BCM57761:
+		case BCOM_DEVICEID_BCM57762:
 		case BCOM_DEVICEID_BCM57765:
+		case BCOM_DEVICEID_BCM57766:
 		case BCOM_DEVICEID_BCM57781:
 		case BCOM_DEVICEID_BCM57785:
 		case BCOM_DEVICEID_BCM57791:
@@ -3321,10 +3329,13 @@ bge_attach(device_t dev)
 
 	/* Save chipset family. */
 	switch (sc->bge_asicrev) {
+	case BGE_ASICREV_BCM57765:
+	case BGE_ASICREV_BCM57766:
+		sc->bge_flags |= BGE_FLAG_57765_PLUS;
+		/* FALLTHROUGH */
 	case BGE_ASICREV_BCM5717:
 	case BGE_ASICREV_BCM5719:
 	case BGE_ASICREV_BCM5720:
-	case BGE_ASICREV_BCM57765:
 		sc->bge_flags |= BGE_FLAG_5717_PLUS | BGE_FLAG_5755_PLUS |
 		    BGE_FLAG_575X_PLUS | BGE_FLAG_5705_PLUS | BGE_FLAG_JUMBO |
 		    BGE_FLAG_JUMBO_FRAME;
@@ -3738,12 +3749,9 @@ bge_attach(device_t dev)
 		sc->bge_phy_flags |= BGE_PHY_NO_3LED;
 	if ((BGE_IS_5705_PLUS(sc)) &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5906 &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM5717 &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM5719 &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM5720 &&
 	    sc->bge_asicrev != BGE_ASICREV_BCM5785 &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM57765 &&
-	    sc->bge_asicrev != BGE_ASICREV_BCM57780) {
+	    sc->bge_asicrev != BGE_ASICREV_BCM57780 &&
+	    !BGE_IS_5717_PLUS(sc)) {
 		if (sc->bge_asicrev == BGE_ASICREV_BCM5755 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5761 ||
 		    sc->bge_asicrev == BGE_ASICREV_BCM5784 ||

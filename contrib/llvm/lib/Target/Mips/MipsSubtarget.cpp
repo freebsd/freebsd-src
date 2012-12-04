@@ -25,12 +25,14 @@ using namespace llvm;
 void MipsSubtarget::anchor() { }
 
 MipsSubtarget::MipsSubtarget(const std::string &TT, const std::string &CPU,
-                             const std::string &FS, bool little) :
+                             const std::string &FS, bool little,
+                             Reloc::Model RM) :
   MipsGenSubtargetInfo(TT, CPU, FS),
   MipsArchVersion(Mips32), MipsABI(UnknownABI), IsLittle(little),
   IsSingleFloat(false), IsFP64bit(false), IsGP64bit(false), HasVFPU(false),
   IsLinux(true), HasSEInReg(false), HasCondMov(false), HasMulDivAdd(false),
-  HasMinMax(false), HasSwap(false), HasBitCount(false), InMips16Mode(false)
+  HasMinMax(false), HasSwap(false), HasBitCount(false), InMips16Mode(false),
+  HasDSP(false), HasDSPR2(false), IsAndroid(false)
 {
   std::string CPUName = CPU;
   if (CPUName.empty())
@@ -54,6 +56,9 @@ MipsSubtarget::MipsSubtarget(const std::string &TT, const std::string &CPU,
   // Is the target system Linux ?
   if (TT.find("linux") == std::string::npos)
     IsLinux = false;
+
+  // Set UseSmallSection.
+  UseSmallSection = !IsLinux && (RM == Reloc::Static);
 }
 
 bool

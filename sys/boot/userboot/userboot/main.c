@@ -153,13 +153,12 @@ extract_currdev(void)
 		dev.d_slice = 0;
 		dev.d_partition = 0;
 		/*
-		 * Figure out if we are using MBR or GPT.
-		 * If neither, then access the disk as a raw device.
+		 * If we cannot auto-detect the partition type then
+		 * access the disk as a raw device.
 		 */
-		if ((*dev.d_dev->dv_open)(NULL, &dev)) {
+		if (dev.d_dev->dv_open(NULL, &dev)) {
 			dev.d_slice = -1;
 			dev.d_partition = -1;
-			dev.d_offset = 0;
 		}
 	} else {
 		dev.d_dev = &host_dev;

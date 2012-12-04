@@ -918,11 +918,16 @@ bad2:
 bad:
 	if (ah)
 		ath_hal_detach(ah);
-	if (ifp != NULL) {
+
+	/*
+	 * To work around scoping issues with CURVNET_SET/CURVNET_RESTORE..
+	 */
+	if (ifp != NULL && ifp->if_vnet) {
 		CURVNET_SET(ifp->if_vnet);
 		if_free(ifp);
 		CURVNET_RESTORE();
-	}
+	} else if (ifp != NULL)
+		if_free(ifp);
 	sc->sc_invalid = 1;
 	return error;
 }
@@ -1364,7 +1369,6 @@ ath_vap_delete(struct ieee80211vap *vap)
 		 * Reclaim any pending mcast frames for the vap.
 		 */
 		ath_tx_draintxq(sc, &avp->av_mcastq);
-		ATH_TXQ_LOCK_DESTROY(&avp->av_mcastq);
 	}
 	/*
 	 * Update bookkeeping.
@@ -2266,16 +2270,16 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	/* Restart TX/RX as needed */
 	ath_txrx_start(sc);
 
-	/* XXX Restart TX completion and pending TX */
+	/* Restart TX completion and pending TX */
 	if (reset_type == ATH_RESET_NOLOSS) {
+		ATH_TX_LOCK(sc);
 		for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
 			if (ATH_TXQ_SETUP(sc, i)) {
-				ATH_TXQ_LOCK(&sc->sc_txq[i]);
 				ath_txq_restart_dma(sc, &sc->sc_txq[i]);
 				ath_txq_sched(sc, &sc->sc_txq[i]);
-				ATH_TXQ_UNLOCK(&sc->sc_txq[i]);
 			}
 		}
+		ATH_TX_UNLOCK(sc);
 	}
 
 	/*
@@ -2508,7 +2512,9 @@ ath_start_task(void *arg, int npending)
 	sc->sc_txstart_cnt++;
 	ATH_PCU_UNLOCK(sc);
 
+	ATH_TX_LOCK(sc);
 	ath_start(sc->sc_ifp);
+	ATH_TX_UNLOCK(sc);
 
 	ATH_PCU_LOCK(sc);
 	sc->sc_txstart_cnt--;
@@ -2528,6 +2534,8 @@ ath_start(struct ifnet *ifp)
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid)
 		return;
+
+	ATH_TX_LOCK_ASSERT(sc);
 
 	ATH_KTR(sc, ATH_KTR_TX, 0, "ath_start: called");
 
@@ -2600,6 +2608,10 @@ ath_start(struct ifnet *ifp)
 			ath_returnbuf_head(sc, bf);
 			ath_txfrag_cleanup(sc, &frags, ni);
 			ATH_TXBUF_UNLOCK(sc);
+			/*
+			 * XXX todo, free the node outside of
+			 * the TX lock context!
+			 */
 			if (ni != NULL)
 				ieee80211_free_node(ni);
 			continue;
@@ -2810,9 +2822,6 @@ ath_updateslot(struct ifnet *ifp)
 void
 ath_txqmove(struct ath_txq *dst, struct ath_txq *src)
 {
-
-	ATH_TXQ_LOCK_ASSERT(dst);
-	ATH_TXQ_LOCK_ASSERT(src);
 
 	TAILQ_CONCAT(&dst->axq_q, &src->axq_q, bf_list);
 	dst->axq_link = src->axq_link;
@@ -3293,7 +3302,6 @@ ath_txq_init(struct ath_softc *sc, struct ath_txq *txq, int qnum)
 	txq->axq_softc = sc;
 	TAILQ_INIT(&txq->axq_q);
 	TAILQ_INIT(&txq->axq_tidq);
-	ATH_TXQ_LOCK_INIT(sc, txq);
 }
 
 /*
@@ -3477,7 +3485,6 @@ ath_tx_cleanupq(struct ath_softc *sc, struct ath_txq *txq)
 {
 
 	ath_hal_releasetxqueue(sc->sc_ah, txq->axq_qnum);
-	ATH_TXQ_LOCK_DESTROY(txq);
 	sc->sc_txqsetup &= ~(1<<txq->axq_qnum);
 }
 
@@ -3686,7 +3693,7 @@ ath_tx_process_buf_completion(struct ath_softc *sc, struct ath_txq *txq,
 	struct ieee80211_node *ni = bf->bf_node;
 	struct ath_node *an = NULL;
 
-	ATH_TXQ_UNLOCK_ASSERT(txq);
+	ATH_TX_UNLOCK_ASSERT(sc);
 
 	/* If unicast frame, update general statistics */
 	if (ni != NULL) {
@@ -3755,11 +3762,11 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 
 	nacked = 0;
 	for (;;) {
-		ATH_TXQ_LOCK(txq);
+		ATH_TX_LOCK(sc);
 		txq->axq_intrcnt = 0;	/* reset periodic desc intr count */
 		bf = TAILQ_FIRST(&txq->axq_q);
 		if (bf == NULL) {
-			ATH_TXQ_UNLOCK(txq);
+			ATH_TX_UNLOCK(sc);
 			break;
 		}
 		ds = bf->bf_lastds;	/* XXX must be setup correctly! */
@@ -3787,7 +3794,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 			ATH_KTR(sc, ATH_KTR_TXCOMP, 3,
 			    "ath_tx_processq: txq=%u, bf=%p ds=%p, HAL_EINPROGRESS",
 			    txq->axq_qnum, bf, ds);
-			ATH_TXQ_UNLOCK(txq);
+			ATH_TX_UNLOCK(sc);
 			break;
 		}
 		ATH_TXQ_REMOVE(txq, bf, bf_list);
@@ -3828,7 +3835,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 			ATH_RSSI_LPF(sc->sc_halstats.ns_avgtxrssi,
 				ts->ts_rssi);
 		}
-		ATH_TXQ_UNLOCK(txq);
+		ATH_TX_UNLOCK(sc);
 
 		/*
 		 * Update statistics and call completion
@@ -3847,9 +3854,9 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq, int dosched)
 
 	/* Kick the TXQ scheduler */
 	if (dosched) {
-		ATH_TXQ_LOCK(txq);
+		ATH_TX_LOCK(sc);
 		ath_txq_sched(sc, txq);
-		ATH_TXQ_UNLOCK(txq);
+		ATH_TX_UNLOCK(sc);
 	}
 
 	ATH_KTR(sc, ATH_KTR_TXCOMP, 1,
@@ -4022,13 +4029,13 @@ ath_txq_sched_tasklet(void *arg, int npending)
 	sc->sc_txproc_cnt++;
 	ATH_PCU_UNLOCK(sc);
 
+	ATH_TX_LOCK(sc);
 	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
 		if (ATH_TXQ_SETUP(sc, i)) {
-			ATH_TXQ_LOCK(&sc->sc_txq[i]);
 			ath_txq_sched(sc, &sc->sc_txq[i]);
-			ATH_TXQ_UNLOCK(&sc->sc_txq[i]);
 		}
 	}
+	ATH_TX_UNLOCK(sc);
 
 	ATH_PCU_LOCK(sc);
 	sc->sc_txproc_cnt--;
@@ -4161,7 +4168,7 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 	ATH_TXBUF_UNLOCK(sc);
 
 	for (ix = 0;; ix++) {
-		ATH_TXQ_LOCK(txq);
+		ATH_TX_LOCK(sc);
 		bf = TAILQ_FIRST(&txq->axq_q);
 		if (bf == NULL) {
 			txq->axq_link = NULL;
@@ -4176,7 +4183,7 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 			 * very fruity very quickly.
 			 */
 			txq->axq_fifo_depth = 0;
-			ATH_TXQ_UNLOCK(txq);
+			ATH_TX_UNLOCK(sc);
 			break;
 		}
 		ATH_TXQ_REMOVE(txq, bf, bf_list);
@@ -4212,7 +4219,7 @@ ath_tx_draintxq(struct ath_softc *sc, struct ath_txq *txq)
 		 * Clear ATH_BUF_BUSY; the completion handler
 		 * will free the buffer.
 		 */
-		ATH_TXQ_UNLOCK(txq);
+		ATH_TX_UNLOCK(sc);
 		bf->bf_flags &= ~ATH_BUF_BUSY;
 		if (bf->bf_comp)
 			bf->bf_comp(sc, bf, 1);

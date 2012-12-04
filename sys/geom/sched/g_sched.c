@@ -1003,7 +1003,7 @@ g_sched_create(struct gctl_req *req, struct g_class *mp,
 		}
 	}
 
-	gp = g_new_geomf(mp, name);
+	gp = g_new_geomf(mp, "%s", name);
 	dstgp = proxy ? pp->geom : gp; /* where do we link the provider */
 
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
@@ -1029,7 +1029,7 @@ g_sched_create(struct gctl_req *req, struct g_class *mp,
 	gp->access = g_sched_access;
 	gp->dumpconf = g_sched_dumpconf;
 
-	newpp = g_new_providerf(dstgp, gp->name);
+	newpp = g_new_providerf(dstgp, "%s", gp->name);
 	newpp->mediasize = pp->mediasize;
 	newpp->sectorsize = pp->sectorsize;
 

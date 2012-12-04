@@ -10,6 +10,7 @@
 #ifndef LLVM_SUPPORT_DATAEXTRACTOR_H
 #define LLVM_SUPPORT_DATAEXTRACTOR_H
 
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/DataTypes.h"
 
@@ -99,8 +100,8 @@ public:
   ///     enough bytes to extract this value, the offset will be left
   ///     unmodified.
   ///
-  /// @param[in] byte_size
-  ///     The size in byte of the integer to extract.
+  /// @param[in] size
+  ///     The size in bytes of the integer to extract.
   ///
   /// @return
   ///     The sign extended signed integer value that was extracted,

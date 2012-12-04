@@ -180,9 +180,13 @@ static void
 pl310_wbinv_range(vm_paddr_t start, vm_size_t size)
 {
 	
+	if (start & g_l2cache_align_mask) {
+		size += start & g_l2cache_align_mask;
+		start &= ~g_l2cache_align_mask;
+	}
 	if (size & g_l2cache_align_mask) {
 		size &= ~g_l2cache_align_mask;
-		size += g_l2cache_line_size;
+	   	size += g_l2cache_line_size;
 	}
 #if 1
 
@@ -217,6 +221,10 @@ static void
 pl310_wb_range(vm_paddr_t start, vm_size_t size)
 {
 	
+	if (start & g_l2cache_align_mask) {
+		size += start & g_l2cache_align_mask;
+		start &= ~g_l2cache_align_mask;
+	}
 	if (size & g_l2cache_align_mask) {
 		size &= ~g_l2cache_align_mask;
 		size += g_l2cache_line_size;
@@ -235,6 +243,10 @@ static void
 pl310_inv_range(vm_paddr_t start, vm_size_t size)
 {
 
+	if (start & g_l2cache_align_mask) {
+		size += start & g_l2cache_align_mask;
+		start &= ~g_l2cache_align_mask;
+	}
 	if (size & g_l2cache_align_mask) {
 		size &= ~g_l2cache_align_mask;
 		size += g_l2cache_line_size;

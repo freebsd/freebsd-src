@@ -1111,10 +1111,6 @@ insmntque_stddtr(struct vnode *vp, void *dtr_arg)
 
 	vp->v_data = NULL;
 	vp->v_op = &dead_vnodeops;
-	/* XXX non mp-safe fs may still call insmntque with vnode
-	   unlocked */
-	if (!VOP_ISLOCKED(vp))
-		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vgone(vp);
 	vput(vp);
 }
@@ -1126,7 +1122,6 @@ int
 insmntque1(struct vnode *vp, struct mount *mp,
 	void (*dtr)(struct vnode *, void *), void *dtr_arg)
 {
-	int locked;
 
 	KASSERT(vp->v_mount == NULL,
 		("insmntque: vnode already on per mount vnode list"));
@@ -1144,18 +1139,15 @@ insmntque1(struct vnode *vp, struct mount *mp,
 	 */
 	MNT_ILOCK(mp);
 	VI_LOCK(vp);
-	if ((mp->mnt_kern_flag & MNTK_NOINSMNTQ) != 0 &&
+	if (((mp->mnt_kern_flag & MNTK_NOINSMNTQ) != 0 &&
 	    ((mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0 ||
-	     mp->mnt_nvnodelistsize == 0)) {
-		locked = VOP_ISLOCKED(vp);
-		if (!locked || (locked == LK_EXCLUSIVE &&
-		     (vp->v_vflag & VV_FORCEINSMQ) == 0)) {
-			VI_UNLOCK(vp);
-			MNT_IUNLOCK(mp);
-			if (dtr != NULL)
-				dtr(vp, dtr_arg);
-			return (EBUSY);
-		}
+	    mp->mnt_nvnodelistsize == 0)) &&
+	    (vp->v_vflag & VV_FORCEINSMQ) == 0) {
+		VI_UNLOCK(vp);
+		MNT_IUNLOCK(mp);
+		if (dtr != NULL)
+			dtr(vp, dtr_arg);
+		return (EBUSY);
 	}
 	vp->v_mount = mp;
 	MNT_REF(mp);
@@ -3987,9 +3979,13 @@ assert_vi_unlocked(struct vnode *vp, const char *str)
 void
 assert_vop_locked(struct vnode *vp, const char *str)
 {
+	int locked;
 
-	if (!IGNORE_LOCK(vp) && VOP_ISLOCKED(vp) == 0)
-		vfs_badlock("is not locked but should be", str, vp);
+	if (!IGNORE_LOCK(vp)) {
+		locked = VOP_ISLOCKED(vp);
+		if (locked == 0 || locked == LK_EXCLOTHER)
+			vfs_badlock("is not locked but should be", str, vp);
+	}
 }
 
 void
@@ -4098,40 +4094,6 @@ vop_strategy_pre(void *ap)
 		if (vfs_badlock_ddb)
 			kdb_enter(KDB_WHY_VFSLOCK, "lock violation");
 	}
-#endif
-}
-
-void
-vop_lookup_pre(void *ap)
-{
-#ifdef DEBUG_VFS_LOCKS
-	struct vop_lookup_args *a;
-	struct vnode *dvp;
-
-	a = ap;
-	dvp = a->a_dvp;
-	ASSERT_VI_UNLOCKED(dvp, "VOP_LOOKUP");
-	ASSERT_VOP_LOCKED(dvp, "VOP_LOOKUP");
-#endif
-}
-
-void
-vop_lookup_post(void *ap, int rc)
-{
-#ifdef DEBUG_VFS_LOCKS
-	struct vop_lookup_args *a;
-	struct vnode *dvp;
-	struct vnode *vp;
-
-	a = ap;
-	dvp = a->a_dvp;
-	vp = *(a->a_vpp);
-
-	ASSERT_VI_UNLOCKED(dvp, "VOP_LOOKUP");
-	ASSERT_VOP_LOCKED(dvp, "VOP_LOOKUP");
-
-	if (!rc)
-		ASSERT_VOP_LOCKED(vp, "VOP_LOOKUP (child)");
 #endif
 }
 
@@ -4756,10 +4718,20 @@ __mnt_vnode_next_active(struct vnode **mvp, struct mount *mp)
 	if (should_yield())
 		kern_yield(PRI_UNCHANGED);
 	MNT_ILOCK(mp);
+restart:
+	mtx_lock(&vnode_free_list_mtx);
 	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
 	vp = TAILQ_NEXT(*mvp, v_actfreelist);
 	while (vp != NULL) {
-		VI_LOCK(vp);
+		if (vp->v_type == VMARKER) {
+			vp = TAILQ_NEXT(vp, v_actfreelist);
+			continue;
+		}
+		if (!VI_TRYLOCK(vp)) {
+			mtx_unlock(&vnode_free_list_mtx);
+			kern_yield(PRI_UNCHANGED);
+			goto restart;
+		}
 		if (vp->v_mount == mp && vp->v_type != VMARKER &&
 		    (vp->v_iflag & VI_DOOMED) == 0)
 			break;
@@ -4770,16 +4742,18 @@ __mnt_vnode_next_active(struct vnode **mvp, struct mount *mp)
 
 	/* Check if we are done */
 	if (vp == NULL) {
+		mtx_unlock(&vnode_free_list_mtx);
 		__mnt_vnode_markerfree_active(mvp, mp);
 		/* MNT_IUNLOCK(mp); -- done in above function */
 		mtx_assert(MNT_MTX(mp), MA_NOTOWNED);
 		return (NULL);
 	}
-	mtx_lock(&vnode_free_list_mtx);
 	TAILQ_REMOVE(&mp->mnt_activevnodelist, *mvp, v_actfreelist);
 	TAILQ_INSERT_AFTER(&mp->mnt_activevnodelist, vp, *mvp, v_actfreelist);
 	mtx_unlock(&vnode_free_list_mtx);
 	MNT_IUNLOCK(mp);
+	ASSERT_VI_LOCKED(vp, "active iter");
+	KASSERT((vp->v_iflag & VI_ACTIVE) != 0, ("Non-active vp %p", vp));
 	return (vp);
 }
 
@@ -4793,9 +4767,19 @@ __mnt_vnode_first_active(struct vnode **mvp, struct mount *mp)
 	MNT_REF(mp);
 	(*mvp)->v_type = VMARKER;
 
-	vp = TAILQ_NEXT(*mvp, v_actfreelist);
+restart:
+	mtx_lock(&vnode_free_list_mtx);
+	vp = TAILQ_FIRST(&mp->mnt_activevnodelist);
 	while (vp != NULL) {
-		VI_LOCK(vp);
+		if (vp->v_type == VMARKER) {
+			vp = TAILQ_NEXT(vp, v_actfreelist);
+			continue;
+		}
+		if (!VI_TRYLOCK(vp)) {
+			mtx_unlock(&vnode_free_list_mtx);
+			kern_yield(PRI_UNCHANGED);
+			goto restart;
+		}
 		if (vp->v_mount == mp && vp->v_type != VMARKER &&
 		    (vp->v_iflag & VI_DOOMED) == 0)
 			break;
@@ -4806,6 +4790,7 @@ __mnt_vnode_first_active(struct vnode **mvp, struct mount *mp)
 
 	/* Check if we are done */
 	if (vp == NULL) {
+		mtx_unlock(&vnode_free_list_mtx);
 		MNT_REL(mp);
 		MNT_IUNLOCK(mp);
 		free(*mvp, M_VNODE_MARKER);
@@ -4813,10 +4798,11 @@ __mnt_vnode_first_active(struct vnode **mvp, struct mount *mp)
 		return (NULL);
 	}
 	(*mvp)->v_mount = mp;
-	mtx_lock(&vnode_free_list_mtx);
 	TAILQ_INSERT_AFTER(&mp->mnt_activevnodelist, vp, *mvp, v_actfreelist);
 	mtx_unlock(&vnode_free_list_mtx);
 	MNT_IUNLOCK(mp);
+	ASSERT_VI_LOCKED(vp, "active iter first");
+	KASSERT((vp->v_iflag & VI_ACTIVE) != 0, ("Non-active vp %p", vp));
 	return (vp);
 }
 

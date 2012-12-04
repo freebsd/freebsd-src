@@ -337,16 +337,17 @@ PrOpenIncludeWithPrefix (
     /* Attempt to open the file, push if successful */
 
     IncludeFile = fopen (Pathname, "r");
-    if (IncludeFile)
+    if (!IncludeFile)
     {
-        /* Push the include file on the open input file stack */
-
-        PrPushInputFileStack (IncludeFile, Pathname);
-        return (IncludeFile);
+        fprintf (stderr, "Could not open include file %s\n", Pathname);
+        ACPI_FREE (Pathname);
+        return (NULL);
     }
 
-    ACPI_FREE (Pathname);
-    return (NULL);
+    /* Push the include file on the open input file stack */
+
+    PrPushInputFileStack (IncludeFile, Pathname);
+    return (IncludeFile);
 }
 
 

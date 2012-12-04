@@ -290,7 +290,7 @@ init_maxsockets(void *ignored)
 {
 
 	TUNABLE_INT_FETCH("kern.ipc.maxsockets", &maxsockets);
-	maxsockets = imax(maxsockets, imax(maxfiles, nmbclusters));
+	maxsockets = imax(maxsockets, maxfiles);
 }
 SYSINIT(param, SI_SUB_TUNABLES, SI_ORDER_ANY, init_maxsockets, NULL);
 
@@ -306,12 +306,9 @@ sysctl_maxsockets(SYSCTL_HANDLER_ARGS)
 	newmaxsockets = maxsockets;
 	error = sysctl_handle_int(oidp, &newmaxsockets, 0, req);
 	if (error == 0 && req->newptr) {
-		if (newmaxsockets > maxsockets) {
+		if (newmaxsockets > maxsockets &&
+		    newmaxsockets <= maxfiles) {
 			maxsockets = newmaxsockets;
-			if (maxsockets > ((maxfiles / 4) * 3)) {
-				maxfiles = (maxsockets * 5) / 4;
-				maxfilesperproc = (maxfiles * 9) / 10;
-			}
 			EVENTHANDLER_INVOKE(maxsockets_change);
 		} else
 			error = EINVAL;
@@ -555,6 +552,16 @@ sonewconn(struct socket *head, int connstatus)
 	so->so_snd.sb_flags |= head->so_snd.sb_flags & SB_AUTOSIZE;
 	so->so_state |= connstatus;
 	ACCEPT_LOCK();
+	/*
+	 * The accept socket may be tearing down but we just
+	 * won a race on the ACCEPT_LOCK.
+	 */
+	if (!(head->so_options & SO_ACCEPTCONN)) {
+		SOCK_LOCK(so);
+		so->so_head = NULL;
+		sofree(so);		/* NB: returns ACCEPT_UNLOCK'ed. */
+		return (NULL);
+	}
 	if (connstatus) {
 		TAILQ_INSERT_TAIL(&head->so_comp, so, so_list);
 		so->so_qstate |= SQ_COMP;
@@ -780,9 +787,14 @@ soclose(struct socket *so)
 drop:
 	if (so->so_proto->pr_usrreqs->pru_close != NULL)
 		(*so->so_proto->pr_usrreqs->pru_close)(so);
+	ACCEPT_LOCK();
 	if (so->so_options & SO_ACCEPTCONN) {
 		struct socket *sp;
-		ACCEPT_LOCK();
+		/*
+		 * Prevent new additions to the accept queues due
+		 * to ACCEPT_LOCK races while we are draining them.
+		 */
+		so->so_options &= ~SO_ACCEPTCONN;
 		while ((sp = TAILQ_FIRST(&so->so_incomp)) != NULL) {
 			TAILQ_REMOVE(&so->so_incomp, sp, so_list);
 			so->so_incqlen--;
@@ -801,13 +813,15 @@ drop:
 			soabort(sp);
 			ACCEPT_LOCK();
 		}
-		ACCEPT_UNLOCK();
+		KASSERT((TAILQ_EMPTY(&so->so_comp)),
+		    ("%s: so_comp populated", __func__));
+		KASSERT((TAILQ_EMPTY(&so->so_incomp)),
+		    ("%s: so_incomp populated", __func__));
 	}
-	ACCEPT_LOCK();
 	SOCK_LOCK(so);
 	KASSERT((so->so_state & SS_NOFDREF) == 0, ("soclose: NOFDREF"));
 	so->so_state |= SS_NOFDREF;
-	sorele(so);
+	sorele(so);			/* NB: Returns with ACCEPT_UNLOCK(). */
 	CURVNET_RESTORE();
 	return (error);
 }

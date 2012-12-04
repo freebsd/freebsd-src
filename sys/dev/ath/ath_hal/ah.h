@@ -192,6 +192,7 @@ typedef enum {
 	HAL_CAP_LONG_RXDESC_TSF	= 243,	/* hardware supports 32bit TSF in RX descriptor */
 	HAL_CAP_BB_READ_WAR	= 244,	/* baseband read WAR */
 	HAL_CAP_SERIALISE_WAR	= 245,	/* serialise register access on PCI */
+	HAL_CAP_ENFORCE_TXOP	= 246,	/* Enforce TXOP if supported */
 } HAL_CAPABILITY_TYPE;
 
 /* 
@@ -777,6 +778,11 @@ typedef struct {
 	uint32_t	bs_nexttbtt;		/* next beacon in TU */
 	uint32_t	bs_nextdtim;		/* next DTIM in TU */
 	uint32_t	bs_intval;		/* beacon interval+flags */
+/*
+ * HAL_BEACON_PERIOD, HAL_BEACON_ENA and HAL_BEACON_RESET_TSF
+ * are all 1:1 correspondances with the pre-11n chip AR_BEACON
+ * register.
+ */
 #define	HAL_BEACON_PERIOD	0x0000ffff	/* beacon interval period */
 #define	HAL_BEACON_PERIOD_TU8	0x0007ffff	/* beacon interval, tu/8 */
 #define	HAL_BEACON_ENA		0x00800000	/* beacon xmit enable */
@@ -1388,6 +1394,7 @@ struct ath_hal {
 	void	  __ahdecl(*ah_gpioSetIntr)(struct ath_hal*, u_int, uint32_t);
 	uint32_t __ahdecl(*ah_getTsf32)(struct ath_hal*);
 	uint64_t __ahdecl(*ah_getTsf64)(struct ath_hal*);
+	void     __ahdecl(*ah_setTsf64)(struct ath_hal *, uint64_t);
 	void	  __ahdecl(*ah_resetTsf)(struct ath_hal*);
 	HAL_BOOL  __ahdecl(*ah_detectCardPresent)(struct ath_hal*);
 	void	  __ahdecl(*ah_updateMibCounters)(struct ath_hal*,

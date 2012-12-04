@@ -82,6 +82,7 @@ __elfN(uboot_exec)(struct preloaded_file *fp)
 
 	entry = uboot_vm_translate(e->e_entry);
 	printf("Kernel entry at 0x%x...\n", (unsigned)entry);
+	printf("Kernel args: %s\n", fp->f_args);
 
 	dev_cleanup();
 

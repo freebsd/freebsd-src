@@ -207,7 +207,6 @@ smbfs_mount(struct mount *mp)
 	vfs_flagopt(mp->mnt_optnew,
 	    "nolong", &smp->sm_flags, SMBFS_MOUNT_NO_LONG);
 
-/*	simple_lock_init(&smp->sm_npslock);*/
 	pc = mp->mnt_stat.f_mntfromname;
 	pe = pc + sizeof(mp->mnt_stat.f_mntfromname);
 	bzero(pc, MNAMELEN);
@@ -320,7 +319,7 @@ smbfs_root(struct mount *mp, int flags, struct vnode **vpp)
 	error = smbfs_smb_lookup(NULL, NULL, 0, &fattr, scred);
 	if (error)
 		goto out;
-	error = smbfs_nget(mp, NULL, "TheRooT", 7, &fattr, &vp);
+	error = smbfs_nget(mp, NULL, NULL, 0, &fattr, &vp);
 	if (error)
 		goto out;
 	ASSERT_VOP_LOCKED(vp, "smbfs_root");

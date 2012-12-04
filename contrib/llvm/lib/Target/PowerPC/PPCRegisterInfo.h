@@ -30,6 +30,7 @@ class PPCRegisterInfo : public PPCGenRegisterInfo {
   std::map<unsigned, unsigned> ImmToIdxMap;
   const PPCSubtarget &Subtarget;
   const TargetInstrInfo &TII;
+  mutable int CRSpillFrameIdx;
 public:
   PPCRegisterInfo(const PPCSubtarget &SubTarget, const TargetInstrInfo &tii);
   
@@ -43,7 +44,7 @@ public:
 
   /// Code Generation virtual methods...
   const uint16_t *getCalleeSavedRegs(const MachineFunction* MF = 0) const;
-  const unsigned *getCallPreservedMask(CallingConv::ID CC) const;
+  const uint32_t *getCallPreservedMask(CallingConv::ID CC) const;
 
   BitVector getReservedRegs(const MachineFunction &MF) const;
 
@@ -65,6 +66,8 @@ public:
                        int SPAdj, RegScavenger *RS) const;
   void lowerCRRestore(MachineBasicBlock::iterator II, unsigned FrameIndex,
                        int SPAdj, RegScavenger *RS) const;
+  bool hasReservedSpillSlot(const MachineFunction &MF, unsigned Reg,
+			    int &FrameIdx) const;
   void eliminateFrameIndex(MachineBasicBlock::iterator II,
                            int SPAdj, RegScavenger *RS = NULL) const;
 

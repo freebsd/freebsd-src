@@ -25,7 +25,7 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.1#17 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/bin/auditreduce/auditreduce.1#18 $
 .\"
 .Dd January 24, 2004
 .Dt AUDITREDUCE 1
@@ -92,7 +92,7 @@ Select records with the given effective group ID or name.
 .It Fl g Ar rgid
 Select records with the given real group ID or name.
 .It Fl j Ar id
-Select records having a subject token with matching ID.
+Select records having a subject token with matching ID, where ID is a process ID.
 .It Fl m Ar event
 Select records with the given event name or number. This option can
 be used more then once to select records of multiple event types.

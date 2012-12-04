@@ -174,6 +174,10 @@ namespace llvm {
       ///   operand #3 optional in flag
       TC_RETURN,
 
+      /// ch, gl = CR6[UN]SET ch, inglue - Toggle CR bit 6 for SVR4 vararg calls
+      CR6SET,
+      CR6UNSET,
+
       /// STD_32 - This is the STD instruction for use with "32-bit" registers.
       STD_32 = ISD::FIRST_TARGET_MEMORY_OPCODE,
 
@@ -463,20 +467,41 @@ namespace llvm {
                   DebugLoc dl, SelectionDAG &DAG) const;
 
     SDValue
+      extendArgForPPC64(ISD::ArgFlagsTy Flags, EVT ObjectVT, SelectionDAG &DAG,
+                        SDValue ArgVal, DebugLoc dl) const;
+
+    void
+      setMinReservedArea(MachineFunction &MF, SelectionDAG &DAG,
+                         unsigned nAltivecParamsAtEnd,
+                         unsigned MinReservedArea, bool isPPC64) const;
+
+    SDValue
       LowerFormalArguments_Darwin(SDValue Chain,
                                   CallingConv::ID CallConv, bool isVarArg,
                                   const SmallVectorImpl<ISD::InputArg> &Ins,
                                   DebugLoc dl, SelectionDAG &DAG,
                                   SmallVectorImpl<SDValue> &InVals) const;
     SDValue
-      LowerFormalArguments_SVR4(SDValue Chain,
-                                CallingConv::ID CallConv, bool isVarArg,
-                                const SmallVectorImpl<ISD::InputArg> &Ins,
-                                DebugLoc dl, SelectionDAG &DAG,
-                                SmallVectorImpl<SDValue> &InVals) const;
+      LowerFormalArguments_64SVR4(SDValue Chain,
+                                  CallingConv::ID CallConv, bool isVarArg,
+                                  const SmallVectorImpl<ISD::InputArg> &Ins,
+                                  DebugLoc dl, SelectionDAG &DAG,
+                                  SmallVectorImpl<SDValue> &InVals) const;
+    SDValue
+      LowerFormalArguments_32SVR4(SDValue Chain,
+                                  CallingConv::ID CallConv, bool isVarArg,
+                                  const SmallVectorImpl<ISD::InputArg> &Ins,
+                                  DebugLoc dl, SelectionDAG &DAG,
+                                  SmallVectorImpl<SDValue> &InVals) const;
 
     SDValue
-      LowerCall_Darwin(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
+      createMemcpyOutsideCallSeq(SDValue Arg, SDValue PtrOff,
+                                 SDValue CallSeqStart, ISD::ArgFlagsTy Flags,
+                                 SelectionDAG &DAG, DebugLoc dl) const;
+
+    SDValue
+      LowerCall_Darwin(SDValue Chain, SDValue Callee,
+                       CallingConv::ID CallConv,
                        bool isVarArg, bool isTailCall,
                        const SmallVectorImpl<ISD::OutputArg> &Outs,
                        const SmallVectorImpl<SDValue> &OutVals,
@@ -484,13 +509,22 @@ namespace llvm {
                        DebugLoc dl, SelectionDAG &DAG,
                        SmallVectorImpl<SDValue> &InVals) const;
     SDValue
-    LowerCall_SVR4(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
-                   bool isVarArg, bool isTailCall,
-                   const SmallVectorImpl<ISD::OutputArg> &Outs,
-                   const SmallVectorImpl<SDValue> &OutVals,
-                   const SmallVectorImpl<ISD::InputArg> &Ins,
-                   DebugLoc dl, SelectionDAG &DAG,
-                   SmallVectorImpl<SDValue> &InVals) const;
+      LowerCall_64SVR4(SDValue Chain, SDValue Callee,
+                       CallingConv::ID CallConv,
+                       bool isVarArg, bool isTailCall,
+                       const SmallVectorImpl<ISD::OutputArg> &Outs,
+                       const SmallVectorImpl<SDValue> &OutVals,
+                       const SmallVectorImpl<ISD::InputArg> &Ins,
+                       DebugLoc dl, SelectionDAG &DAG,
+                       SmallVectorImpl<SDValue> &InVals) const;
+    SDValue
+    LowerCall_32SVR4(SDValue Chain, SDValue Callee, CallingConv::ID CallConv,
+                     bool isVarArg, bool isTailCall,
+                     const SmallVectorImpl<ISD::OutputArg> &Outs,
+                     const SmallVectorImpl<SDValue> &OutVals,
+                     const SmallVectorImpl<ISD::InputArg> &Ins,
+                     DebugLoc dl, SelectionDAG &DAG,
+                     SmallVectorImpl<SDValue> &InVals) const;
   };
 }
 

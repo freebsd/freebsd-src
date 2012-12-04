@@ -43,6 +43,55 @@ struct if_ath_alq_init_state {
 #define	ATH_ALQ_EDMA_RXSTATUS		3
 #define	ATH_ALQ_EDMA_TXDESC		4
 
+#define	ATH_ALQ_TDMA_BEACON_STATE	5
+struct if_ath_alq_tdma_beacon_state {
+	uint64_t	rx_tsf;		/* RX TSF of beacon frame */
+	uint64_t	beacon_tsf;	/* TSF inside beacon frame */
+	uint64_t	tsf64;
+	uint64_t	nextslot_tsf;
+	uint32_t	nextslot_tu;
+	uint32_t	txtime;
+};
+
+#define	ATH_ALQ_TDMA_TIMER_CONFIG	6
+struct if_ath_alq_tdma_timer_config {
+	uint32_t	tdma_slot;
+	uint32_t	tdma_slotlen;
+	uint32_t	tdma_slotcnt;
+	uint32_t	tdma_bintval;
+	uint32_t	tdma_guard;
+	uint32_t	tdma_scbintval;
+	uint32_t	tdma_dbaprep;
+};
+
+#define	ATH_ALQ_TDMA_SLOT_CALC		7
+struct if_ath_alq_tdma_slot_calc {
+	uint64_t	nexttbtt;
+	uint64_t	next_slot;
+	int32_t		tsfdelta;
+	int32_t		avg_plus;
+	int32_t		avg_minus;
+};
+
+#define	ATH_ALQ_TDMA_TSF_ADJUST		8
+struct if_ath_alq_tdma_tsf_adjust {
+	uint64_t	tsf64_old;
+	uint64_t	tsf64_new;
+	int32_t		tsfdelta;
+};
+
+#define	ATH_ALQ_TDMA_TIMER_SET		9
+struct if_ath_alq_tdma_timer_set {
+	uint32_t	bt_intval;
+	uint32_t	bt_nexttbtt;
+	uint32_t	bt_nextdba;
+	uint32_t	bt_nextswba;
+	uint32_t	bt_nextatim;
+	uint32_t	bt_flags;
+	uint32_t	sc_tdmadbaprep;
+	uint32_t	sc_tdmaswbaprep;
+};
+
 /*
  * These will always be logged, regardless.
  */

@@ -11,9 +11,6 @@
 .\" 2.  Redistributions in binary form must reproduce the above copyright
 .\"     notice, this list of conditions and the following disclaimer in the
 .\"     documentation and/or other materials provided with the distribution.
-.\" 3.  Neither the name of Apple Computer, Inc. ("Apple") nor the names of
-.\"     its contributors may be used to endorse or promote products derived
-.\"     from this software without specific prior written permission.
 .\"
 .\" THIS SOFTWARE IS PROVIDED BY APPLE AND ITS CONTRIBUTORS "AS IS" AND
 .\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -27,7 +24,7 @@
 .\" IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/audit_submit.3#17 $
+.\" $P4: //depot/projects/trustedbsd/openbsm/libbsm/audit_submit.3#19 $
 .\"
 .Dd January 18, 2008
 .Dt AUDIT_SUBMIT 3
@@ -88,6 +85,13 @@ subject will be retrieved from the kernel via
 .Xr getaudit 2 ,
 or
 .Xr getaudit_addr 2 .
+.Sh RETURN VALUES
+If successful,
+.Nm
+will return zero.
+Otherwise a -1 is returned and the global variable
+.Va errno
+is set to indicate the error.
 .Sh EXAMPLES
 .Bd -literal -offset indent
 #include <bsm/audit.h>
@@ -131,13 +135,6 @@ text,bad su from from csjp to root
 return,failure : Operation not permitted,1
 trailer,94
 .Ed
-.Sh RETURN VALUES
-If successful,
-.Nm
-will return zero.
-Otherwise a -1 is returned and the global variable
-.Va errno
-is set to indicate the error.
 .Sh SEE ALSO
 .Xr auditon 2 ,
 .Xr getaudit 2 ,
