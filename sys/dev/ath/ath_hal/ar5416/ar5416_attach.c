@@ -200,6 +200,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_btcoexSetParameter	= ar5416BTCoexSetParameter;
 	ah->ah_btCoexDisable		= ar5416BTCoexDisable;
 	ah->ah_btCoexEnable		= ar5416BTCoexEnable;
+	AH5416(ah)->ah_btCoexSetDiversity = ar5416BTCoexAntennaDiversity;
 
 	ahp->ah_priv.ah_getWirelessModes= ar5416GetWirelessModes;
 	ahp->ah_priv.ah_eepromRead	= ar5416EepromRead;
