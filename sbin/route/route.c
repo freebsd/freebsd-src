@@ -1208,6 +1208,16 @@ getaddr(int which, char *str, struct hostent **hpp)
 			exit(1);
 		}
 		memcpy(&su->sin6, res->ai_addr, sizeof(su->sin6));
+#ifdef __KAME__
+		if ((IN6_IS_ADDR_LINKLOCAL(&su->sin6.sin6_addr) ||
+		    IN6_IS_ADDR_MC_LINKLOCAL(&su->sin6.sin6_addr) ||
+		    IN6_IS_ADDR_MC_NODELOCAL(&su->sin6.sin6_addr)) &&
+		    su->sin6.sin6_scope_id) {
+			*(u_int16_t *)&su->sin6.sin6_addr.s6_addr[2] =
+			    htons(su->sin6.sin6_scope_id);
+			su->sin6.sin6_scope_id = 0;
+		}
+#endif
 		freeaddrinfo(res);
 		if (q != NULL)
 			*q++ = '/';
