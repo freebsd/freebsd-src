@@ -788,13 +788,11 @@ realitexpire(void *arg)
 	struct timeval ctv, ntv;
 
 	p = (struct proc *)arg;
-	PROC_LOCK(p);
 	kern_psignal(p, SIGALRM);
 	if (!timevalisset(&p->p_realtimer.it_interval)) {
 		timevalclear(&p->p_realtimer.it_value);
 		if (p->p_flag & P_WEXIT)
 			wakeup(&p->p_itcallout);
-		PROC_UNLOCK(p);
 		return;
 	}
 	for (;;) {
@@ -806,7 +804,6 @@ realitexpire(void *arg)
 			timevalsub(&ntv, &ctv);
 			callout_reset(&p->p_itcallout, tvtohz(&ntv) - 1,
 			    realitexpire, p);
-			PROC_UNLOCK(p);
 			return;
 		}
 	}
