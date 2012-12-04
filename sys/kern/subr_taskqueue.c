@@ -252,9 +252,13 @@ taskqueue_enqueue_timeout(struct taskqueue *queue,
 		} else {
 			queue->tq_callouts++;
 			timeout_task->f |= DT_CALLOUT_ARMED;
+			if (ticks < 0)
+				ticks = -ticks; /* Ignore overflow. */
 		}
-		callout_reset(&timeout_task->c, ticks, taskqueue_timeout_func,
-		    timeout_task);
+		if (ticks > 0) {
+			callout_reset(&timeout_task->c, ticks,
+			    taskqueue_timeout_func, timeout_task);
+		}
 	}
 	TQ_UNLOCK(queue);
 	return (res);
