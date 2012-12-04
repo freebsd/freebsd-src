@@ -28,7 +28,7 @@ WARNS?=		2
 INSTALLFLAGS=	-C -b
 PRECIOUSPROG=
 BINDIR=		/libexec
-SYMLINKS=	../..${BINDIR}/${PROG} /usr/libexec/${PROG}
+SYMLINKS=	${BINDIR}/${PROG} /usr/libexec/${PROG}
 MLINKS=		rtld.1 ld-elf.so.1.1 \
 		rtld.1 ld.so.1
 
@@ -62,7 +62,7 @@ SYMBOL_MAPS+=	${.CURDIR}/${RTLD_ARCH}/Symbol.map
 # Fixup the existing binary that's there so we can symlink over it.
 beforeinstall:
 .if exists(${DESTDIR}/usr/libexec/${PROG})
-	-chflags noschg ${DESTDIR}/usr/libexec/${PROG}
+	-chflags -h noschg ${DESTDIR}/usr/libexec/${PROG}
 .endif
 
 .PATH: ${.CURDIR}/${RTLD_ARCH}
