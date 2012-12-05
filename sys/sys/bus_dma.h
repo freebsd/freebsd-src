@@ -112,6 +112,7 @@
 /* Forwards needed by prototypes below. */
 struct mbuf;
 struct uio;
+union ccb;
 
 /*
  * Operations performed by bus_dmamap_sync().
@@ -250,6 +251,13 @@ int bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 int bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 			struct uio *ui,
 			bus_dmamap_callback2_t *callback, void *callback_arg,
+			int flags);
+
+/*
+ * Like bus_dmamap_load but for cam control blocks.
+ */
+int bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
+			bus_dmamap_callback_t *callback, void *callback_arg,
 			int flags);
 
 /*

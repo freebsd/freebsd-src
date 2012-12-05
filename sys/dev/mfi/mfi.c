@@ -2267,8 +2267,14 @@ mfi_mapcmd(struct mfi_softc *sc, struct mfi_command *cm)
 
 	if ((cm->cm_data != NULL) && (cm->cm_frame->header.cmd != MFI_CMD_STP )) {
 		polled = (cm->cm_flags & MFI_CMD_POLLED) ? BUS_DMA_NOWAIT : 0;
-		error = bus_dmamap_load(sc->mfi_buffer_dmat, cm->cm_dmamap,
-		    cm->cm_data, cm->cm_len, mfi_data_cb, cm, polled);
+		if (cm->cm_flags & MFI_CMD_CCB)
+			error = bus_dmamap_load_ccb(sc->mfi_buffer_dmat,
+			    cm->cm_dmamap, cm->cm_data, mfi_data_cb, cm,
+			    polled);
+		else
+			error = bus_dmamap_load(sc->mfi_buffer_dmat,
+			    cm->cm_dmamap, cm->cm_data, cm->cm_len,
+			    mfi_data_cb, cm, polled);
 		if (error == EINPROGRESS) {
 			sc->mfi_flags |= MFI_FLAGS_QFRZN;
 			return (0);

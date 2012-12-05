@@ -2676,9 +2676,14 @@ ciss_map_request(struct ciss_request *cr)
 		    BUS_DMASYNC_PREWRITE);
 
     if (cr->cr_data != NULL) {
-	error = bus_dmamap_load(sc->ciss_buffer_dmat, cr->cr_datamap,
-				cr->cr_data, cr->cr_length,
-				ciss_request_map_helper, cr, 0);
+	if (cr->cr_flags & CISS_REQ_CCB)
+		error = bus_dmamap_load_ccb(sc->ciss_buffer_dmat,
+					cr->cr_datamap, cr->cr_data,
+					ciss_request_map_helper, cr, 0);
+	else
+		error = bus_dmamap_load(sc->ciss_buffer_dmat, cr->cr_datamap,
+					cr->cr_data, cr->cr_length,
+					ciss_request_map_helper, cr, 0);
 	if (error != 0)
 	    return (error);
     } else {
@@ -3082,7 +3087,7 @@ ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
      * Build the command.
      */
     cc = cr->cr_cc;
-    cr->cr_data = csio->data_ptr;
+    cr->cr_data = csio;
     cr->cr_length = csio->dxfer_len;
     cr->cr_complete = ciss_cam_complete;
     cr->cr_private = csio;
@@ -3109,6 +3114,7 @@ ciss_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
 	cr->cr_flags = 0;
 	cc->cdb.direction = CISS_CDB_DIRECTION_NONE;
     }
+    cr->cr_flags |= CISS_REQ_CCB;
     cc->cdb.timeout = (csio->ccb_h.timeout / 1000) + 1;
     if (csio->ccb_h.flags & CAM_CDB_POINTER) {
 	bcopy(csio->cdb_io.cdb_ptr, &cc->cdb.cdb[0], csio->cdb_len);

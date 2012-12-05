@@ -714,7 +714,6 @@ void
 isci_io_request_execute_scsi_io(union ccb *ccb,
     struct ISCI_CONTROLLER *controller)
 {
-	struct ccb_scsiio *csio = &ccb->csio;
 	target_id_t target_id = ccb->ccb_h.target_id;
 	struct ISCI_REQUEST *request;
 	struct ISCI_IO_REQUEST *io_request;
@@ -757,8 +756,8 @@ isci_io_request_execute_scsi_io(union ccb *ccb,
 		panic("Unexpected CAM_DATA_PHYS flag!  flags = 0x%x\n",
 		    ccb->ccb_h.flags);
 
-	error = bus_dmamap_load(io_request->parent.dma_tag,
-	    io_request->parent.dma_map, csio->data_ptr, csio->dxfer_len,
+	error = bus_dmamap_load_ccb(io_request->parent.dma_tag,
+	    io_request->parent.dma_map, ccb,
 	    isci_io_request_construct, io_request, 0x0);
 
 	/* A resource shortage from BUSDMA will be automatically

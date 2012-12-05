@@ -1755,7 +1755,8 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 		}
 	}
 
-	cm->cm_data = csio->data_ptr;
+	cm->cm_data = ccb;
+	cm->cm_flags |= MPS_CM_FLAGS_USE_CCB;
 	cm->cm_length = csio->dxfer_len;
 	cm->cm_sge = &req->SGL;
 	cm->cm_sglsize = (32 - 24) * 4;

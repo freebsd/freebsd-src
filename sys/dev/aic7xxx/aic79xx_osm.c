@@ -1071,6 +1071,7 @@ ahd_setup_data(struct ahd_softc *ahd, struct cam_sim *sim,
 {
 	struct hardware_scb *hscb;
 	struct ccb_hdr *ccb_h;
+	int error;
 	
 	hscb = scb->hscb;
 	ccb_h = &csio->ccb_h;
@@ -1120,64 +1121,18 @@ ahd_setup_data(struct ahd_softc *ahd, struct cam_sim *sim,
 		}
 	}
 		
-	/* Only use S/G if there is a transfer */
-	if ((ccb_h->flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-		if ((ccb_h->flags & CAM_SCATTER_VALID) == 0) {
-			/* We've been given a pointer to a single buffer */
-			if ((ccb_h->flags & CAM_DATA_PHYS) == 0) {
-				int s;
-				int error;
-
-				s = splsoftvm();
-				error = bus_dmamap_load(ahd->buffer_dmat,
-							scb->dmamap,
-							csio->data_ptr,
-							csio->dxfer_len,
-							ahd_execute_scb,
-							scb, /*flags*/0);
-				if (error == EINPROGRESS) {
-					/*
-					 * So as to maintain ordering,
-					 * freeze the controller queue
-					 * until our mapping is
-					 * returned.
-					 */
-					xpt_freeze_simq(sim,
-							/*count*/1);
-					scb->io_ctx->ccb_h.status |=
-					    CAM_RELEASE_SIMQ;
-				}
-				splx(s);
-			} else {
-				struct bus_dma_segment seg;
-
-				/* Pointer to physical buffer */
-				if (csio->dxfer_len > AHD_MAXTRANSFER_SIZE)
-					panic("ahd_setup_data - Transfer size "
-					      "larger than can device max");
-
-				seg.ds_addr =
-				    (bus_addr_t)(vm_offset_t)csio->data_ptr;
-				seg.ds_len = csio->dxfer_len;
-				ahd_execute_scb(scb, &seg, 1, 0);
-			}
-		} else {
-			struct bus_dma_segment *segs;
-
-			if ((ccb_h->flags & CAM_DATA_PHYS) != 0)
-				panic("ahd_setup_data - Physical segment "
-				      "pointers unsupported");
-
-			if ((ccb_h->flags & CAM_SG_LIST_PHYS) == 0)
-				panic("ahd_setup_data - Virtual segment "
-				      "addresses unsupported");
-
-			/* Just use the segments provided */
-			segs = (struct bus_dma_segment *)csio->data_ptr;
-			ahd_execute_scb(scb, segs, csio->sglist_cnt, 0);
-		}
-	} else {
-		ahd_execute_scb(scb, NULL, 0, 0);
+	error = bus_dmamap_load_ccb(ahd->buffer_dmat,
+				    scb->dmamap,
+				    (union ccb *)csio,
+				    ahd_execute_scb,
+				    scb, /*flags*/0);
+	if (error == EINPROGRESS) {
+		/*
+		 * So as to maintain ordering, freeze the controller queue
+		 * until our mapping is returned.
+		 */
+		xpt_freeze_simq(sim, /*count*/1);
+		scb->io_ctx->ccb_h.status |= CAM_RELEASE_SIMQ;
 	}
 }
 

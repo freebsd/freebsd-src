@@ -2883,6 +2883,7 @@ OsSendCommand(_VBUS_ARG union ccb *ccb)
 			UCHAR CdbLength;
 			_VBUS_INST(pVDev->pVBus)
 			PCommand pCmd = AllocateCommand(_VBUS_P0);
+			int error;
 			HPT_ASSERT(pCmd);
 
 			CdbLength = csio->cdb_len;
@@ -2960,40 +2961,21 @@ OsSendCommand(_VBUS_ARG union ccb *ccb)
 					break;
 			}
 /*///////////////////////// */
-			if (ccb->ccb_h.flags & CAM_SCATTER_VALID) {
-				int idx;
-				bus_dma_segment_t *sgList = (bus_dma_segment_t *)ccb->csio.data_ptr;
-				
-				if (ccb->ccb_h.flags & CAM_SG_LIST_PHYS)
-					pCmd->cf_physical_sg = 1;
-
-				for (idx = 0; idx < ccb->csio.sglist_cnt; idx++) {
-					pCmd->pSgTable[idx].dSgAddress = (ULONG_PTR)(UCHAR *)sgList[idx].ds_addr;
-					pCmd->pSgTable[idx].wSgSize = sgList[idx].ds_len;
-					pCmd->pSgTable[idx].wSgFlag= (idx==ccb->csio.sglist_cnt-1)?SG_FLAG_EOT: 0;
-				}
-	
-				ccb->ccb_h.timeout_ch = timeout(hpt_timeout, (caddr_t)ccb, 20*hz);
-				pVDev->pfnSendCommand(_VBUS_P pCmd);
-			}	
-			else {
-				int error;
-				pCmd->cf_physical_sg = 1;
-				error = bus_dmamap_load(pAdapter->io_dma_parent, 
-							pmap->dma_map, 
-							ccb->csio.data_ptr, ccb->csio.dxfer_len, 
-							hpt_io_dmamap_callback, pCmd,
-					    		BUS_DMA_WAITOK
-						);
-				KdPrint(("bus_dmamap_load return %d\n", error));
-				if (error && error!=EINPROGRESS) {
-					hpt_printk(("bus_dmamap_load error %d\n", error));
-					FreeCommand(_VBUS_P pCmd);
-					ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-					dmamap_put(pmap);
-					pAdapter->outstandingCommands--;
-					xpt_done(ccb);
-				}
+			pCmd->cf_physical_sg = 1;
+			error = bus_dmamap_load_ccb(pAdapter->io_dma_parent, 
+						    pmap->dma_map, 
+						    ccb,
+						    hpt_io_dmamap_callback,
+						    pCmd, BUS_DMA_WAITOK
+						    );
+			KdPrint(("bus_dmamap_load return %d\n", error));
+			if (error && error!=EINPROGRESS) {
+				hpt_printk(("bus_dmamap_load error %d\n", error));
+				FreeCommand(_VBUS_P pCmd);
+				ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+				dmamap_put(pmap);
+				pAdapter->outstandingCommands--;
+				xpt_done(ccb);
 			}
 			goto Command_Complished;
 		}

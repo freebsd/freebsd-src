@@ -107,6 +107,7 @@ struct mfi_command {
 #define MFI_ON_MFIQ_BUSY	(1<<7)
 #define MFI_ON_MFIQ_MASK	((1<<5)|(1<<6)|(1<<7))
 #define MFI_CMD_SCSI		(1<<8)
+#define MFI_CMD_CCB		(1<<9)
 	uint8_t			retry_for_fw_reset;
 	void			(* cm_complete)(struct mfi_command *cm);
 	void			*cm_private;

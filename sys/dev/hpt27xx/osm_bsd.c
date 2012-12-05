@@ -660,6 +660,7 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 	case 0x2f:
 	case 0x8f: /* VERIFY_16 */
 	{
+		int error;
 		pCmd = ldm_alloc_cmds(vbus, vd->cmds_per_request);
 		if(!pCmd){
 			KdPrint(("Failed to allocate command!"));
@@ -716,42 +717,20 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 		pCmd->target = vd;
 		pCmd->done = os_cmddone;
 		pCmd->buildsgl = os_buildsgl;
-
 		pCmd->psg = ext->psg;
-		
-		if (ccb->ccb_h.flags & CAM_SCATTER_VALID) {
-			int idx;
-			bus_dma_segment_t *sgList = (bus_dma_segment_t *)ccb->csio.data_ptr;
-			
-			if (ccb->ccb_h.flags & CAM_SG_LIST_PHYS)
-				pCmd->flags.physical_sg = 1;
-				
-			for (idx = 0; idx < ccb->csio.sglist_cnt; idx++) {
-				pCmd->psg[idx].addr.bus = sgList[idx].ds_addr;
-				pCmd->psg[idx].size = sgList[idx].ds_len;
-				pCmd->psg[idx].eot = (idx==ccb->csio.sglist_cnt-1)? 1 : 0;
-			}
-
-			ccb->ccb_h.timeout_ch = timeout(hpt_timeout, pCmd, HPT_OSM_TIMEOUT);
-			ldm_queue_cmd(pCmd);
-		}
-		else {
-			int error;
-			pCmd->flags.physical_sg = 1;
-			error = bus_dmamap_load(vbus_ext->io_dmat, 
-						ext->dma_map, 
-						ccb->csio.data_ptr, ccb->csio.dxfer_len, 
-						hpt_io_dmamap_callback, pCmd,
+		pCmd->flags.physical_sg = 1;
+		error = bus_dmamap_load_ccb(vbus_ext->io_dmat, 
+					ext->dma_map, ccb, 
+					hpt_io_dmamap_callback, pCmd,
 				    	BUS_DMA_WAITOK
 					);
-			KdPrint(("bus_dmamap_load return %d", error));
-			if (error && error!=EINPROGRESS) {
-				os_printk("bus_dmamap_load error %d", error);
-				cmdext_put(ext);
-				ldm_free_cmds(pCmd);
-				ccb->ccb_h.status = CAM_REQ_CMP_ERR;
-				xpt_done(ccb);
-			}
+		KdPrint(("bus_dmamap_load return %d", error));
+		if (error && error!=EINPROGRESS) {
+			os_printk("bus_dmamap_load error %d", error);
+			cmdext_put(ext);
+			ldm_free_cmds(pCmd);
+			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
+			xpt_done(ccb);
 		}
 		return;
 	}

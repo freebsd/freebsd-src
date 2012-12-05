@@ -379,14 +379,14 @@ mfip_start(void *data)
 	cm->cm_private = ccb;
 	cm->cm_sg = &pt->sgl;
 	cm->cm_total_frame_size = MFI_PASS_FRAME_SIZE;
-	cm->cm_data = csio->data_ptr;
+	cm->cm_data = ccb;
 	cm->cm_len = csio->dxfer_len;
 	switch (ccbh->flags & CAM_DIR_MASK) {
 	case CAM_DIR_IN:
-		cm->cm_flags = MFI_CMD_DATAIN;
+		cm->cm_flags = MFI_CMD_DATAIN | MFI_CMD_CCB;
 		break;
 	case CAM_DIR_OUT:
-		cm->cm_flags = MFI_CMD_DATAOUT;
+		cm->cm_flags = MFI_CMD_DATAOUT | MFI_CMD_CCB;
 		break;
 	case CAM_DIR_NONE:
 	default:

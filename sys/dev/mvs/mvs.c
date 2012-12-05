@@ -873,6 +873,7 @@ mvs_legacy_intr(device_t dev, int poll)
 	}
 	if (ccb->ccb_h.func_code == XPT_ATA_IO) { /* ATA PIO */
 		ccb->ataio.res.status = status;
+		/* XXX PIO does not support alternate data_ptr formats. */
 		/* Are we moving data? */
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
 		    /* If data read command - get them. */
@@ -1260,19 +1261,9 @@ mvs_begin_transaction(device_t dev, union ccb *ccb)
 		mvs_set_edma_mode(dev, MVS_EDMA_OFF);
 	}
 	if (ch->numpslots == 0 || ch->basic_dma) {
-		void *buf;
-		bus_size_t size;
-
 		slot->state = MVS_SLOT_LOADING;
-		if (ccb->ccb_h.func_code == XPT_ATA_IO) {
-			buf = ccb->ataio.data_ptr;
-			size = ccb->ataio.dxfer_len;
-		} else {
-			buf = ccb->csio.data_ptr;
-			size = ccb->csio.dxfer_len;
-		}
-		bus_dmamap_load(ch->dma.data_tag, slot->dma.data_map,
-		    buf, size, mvs_dmasetprd, slot, 0);
+		bus_dmamap_load_ccb(ch->dma.data_tag, slot->dma.data_map,
+		    ccb, mvs_dmasetprd, slot, 0);
 	} else
 		mvs_legacy_execute_transaction(slot);
 }

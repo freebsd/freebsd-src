@@ -1864,9 +1864,13 @@ mly_map_command(struct mly_command *mc)
 
     /* does the command have a data buffer? */
     if (mc->mc_data != NULL) {
-	bus_dmamap_load(sc->mly_buffer_dmat, mc->mc_datamap, mc->mc_data, mc->mc_length, 
-			mly_map_command_sg, mc, 0);
-	
+	if (mc->mc_flags & MLY_CMD_CCB)
+		bus_dmamap_load_ccb(sc->mly_buffer_dmat, mc->mc_datamap,
+				mc->mc_data, mly_map_command_sg, mc, 0);
+	else 
+		bus_dmamap_load(sc->mly_buffer_dmat, mc->mc_datamap,
+				mc->mc_data, mc->mc_length, 
+				mly_map_command_sg, mc, 0);
 	if (mc->mc_flags & MLY_CMD_DATAIN)
 	    bus_dmamap_sync(sc->mly_buffer_dmat, mc->mc_datamap, BUS_DMASYNC_PREREAD);
 	if (mc->mc_flags & MLY_CMD_DATAOUT)
@@ -2251,10 +2255,12 @@ mly_cam_action_io(struct cam_sim *sim, struct ccb_scsiio *csio)
     }
     
     /* build the command */
-    mc->mc_data = csio->data_ptr;
+    mc->mc_data = csio;
     mc->mc_length = csio->dxfer_len;
     mc->mc_complete = mly_cam_complete;
     mc->mc_private = csio;
+    mc->mc_flags |= MLY_CMD_CCB;
+    /* XXX This code doesn't set the data direction in mc_flags. */
 
     /* save the bus number in the ccb for later recovery XXX should be a better way */
      csio->ccb_h.sim_priv.entries[0].field = bus;
