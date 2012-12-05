@@ -138,7 +138,7 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 	 * Get the first mbuf for the request.
 	 */
 	if (nfs_bigrequest[procnum])
-		NFSMCLGET(mb, M_WAIT);
+		NFSMCLGET(mb, M_WAITOK);
 	else
 		NFSMGET(mb);
 	mbuf_setlen(mb, 0);
@@ -212,7 +212,7 @@ nfsm_uiombuf(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 			mlen = M_TRAILINGSPACE(mp);
 			if (mlen == 0) {
 				if (clflg)
-					NFSMCLGET(mp, M_WAIT);
+					NFSMCLGET(mp, M_WAITOK);
 				else
 					NFSMGET(mp);
 				mbuf_setlen(mp, 0);

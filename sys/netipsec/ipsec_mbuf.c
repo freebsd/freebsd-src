@@ -85,11 +85,11 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 		todo = remain;
 		while (todo > 0) {
 			if (todo > MHLEN) {
-				n = m_getcl(M_DONTWAIT, m->m_type, 0);
+				n = m_getcl(M_NOWAIT, m->m_type, 0);
 				len = MCLBYTES;
 			}
 			else {
-				n = m_get(M_DONTWAIT, m->m_type);
+				n = m_get(M_NOWAIT, m->m_type);
 				len = MHLEN;
 			}
 			if (n == NULL) {
@@ -115,7 +115,7 @@ m_makespace(struct mbuf *m0, int skip, int hlen, int *off)
 			}
 		}
 		else {
-			n = m_get(M_DONTWAIT, m->m_type);
+			n = m_get(M_NOWAIT, m->m_type);
 			if (n == NULL) {
 				m_freem(n0);
 				return NULL;
@@ -203,7 +203,7 @@ m_pad(struct mbuf *m, int n)
 
 	if (pad > M_TRAILINGSPACE(m0)) {
 		/* Add an mbuf to the chain. */
-		MGET(m1, M_DONTWAIT, MT_DATA);
+		MGET(m1, M_NOWAIT, MT_DATA);
 		if (m1 == 0) {
 			m_freem(m0);
 			DPRINTF(("%s: unable to get extra mbuf\n", __func__));

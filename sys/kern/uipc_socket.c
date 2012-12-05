@@ -998,7 +998,7 @@ sosend_copyin(struct uio *uio, struct mbuf **retmp, int atomic, long *space,
 			}
 		} else {
 			if (top == NULL) {
-				m = m_gethdr(M_WAIT, MT_DATA);
+				m = m_gethdr(M_WAITOK, MT_DATA);
 				m->m_pkthdr.len = 0;
 				m->m_pkthdr.rcvif = NULL;
 
@@ -1010,7 +1010,7 @@ sosend_copyin(struct uio *uio, struct mbuf **retmp, int atomic, long *space,
 				if (atomic && m && len < MHLEN)
 					MH_ALIGN(m, len);
 			} else {
-				m = m_get(M_WAIT, MT_DATA);
+				m = m_get(M_WAITOK, MT_DATA);
 				len = min(min(MLEN, resid), *space);
 			}
 		}
@@ -1433,7 +1433,7 @@ soreceive_rcvoob(struct socket *so, struct uio *uio, int flags)
 	KASSERT(flags & MSG_OOB, ("soreceive_rcvoob: (flags & MSG_OOB) == 0"));
 	VNET_SO_ASSERT(so);
 
-	m = m_get(M_WAIT, MT_DATA);
+	m = m_get(M_WAITOK, MT_DATA);
 	error = (*pr->pr_usrreqs->pru_rcvoob)(so, m, flags & MSG_PEEK);
 	if (error)
 		goto bad;
@@ -1841,13 +1841,13 @@ dontblock:
 					int copy_flag;
 
 					if (flags & MSG_DONTWAIT)
-						copy_flag = M_DONTWAIT;
+						copy_flag = M_NOWAIT;
 					else
 						copy_flag = M_WAIT;
-					if (copy_flag == M_WAIT)
+					if (copy_flag == M_WAITOK)
 						SOCKBUF_UNLOCK(&so->so_rcv);
 					*mp = m_copym(m, 0, len, copy_flag);
-					if (copy_flag == M_WAIT)
+					if (copy_flag == M_WAITOK)
 						SOCKBUF_LOCK(&so->so_rcv);
  					if (*mp == NULL) {
  						/*
@@ -2114,7 +2114,7 @@ deliver:
 			KASSERT(sb->sb_mb != NULL,
 			    ("%s: len > 0 && sb->sb_mb empty", __func__));
 
-			m = m_copym(sb->sb_mb, 0, len, M_DONTWAIT);
+			m = m_copym(sb->sb_mb, 0, len, M_NOWAIT);
 			if (m == NULL)
 				len = 0;	/* Don't flush data from sockbuf. */
 			else
@@ -2901,11 +2901,11 @@ soopt_getm(struct sockopt *sopt, struct mbuf **mp)
 	struct mbuf *m, *m_prev;
 	int sopt_size = sopt->sopt_valsize;
 
-	MGET(m, sopt->sopt_td ? M_WAIT : M_DONTWAIT, MT_DATA);
+	MGET(m, sopt->sopt_td ? M_WAITOK : M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return ENOBUFS;
 	if (sopt_size > MLEN) {
-		MCLGET(m, sopt->sopt_td ? M_WAIT : M_DONTWAIT);
+		MCLGET(m, sopt->sopt_td ? M_WAITOK : M_NOWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_free(m);
 			return ENOBUFS;
@@ -2919,14 +2919,14 @@ soopt_getm(struct sockopt *sopt, struct mbuf **mp)
 	m_prev = m;
 
 	while (sopt_size) {
-		MGET(m, sopt->sopt_td ? M_WAIT : M_DONTWAIT, MT_DATA);
+		MGET(m, sopt->sopt_td ? M_WAITOK : M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			m_freem(*mp);
 			return ENOBUFS;
 		}
 		if (sopt_size > MLEN) {
-			MCLGET(m, sopt->sopt_td != NULL ? M_WAIT :
-			    M_DONTWAIT);
+			MCLGET(m, sopt->sopt_td != NULL ? M_WAITOK :
+			    M_NOWAIT);
 			if ((m->m_flags & M_EXT) == 0) {
 				m_freem(m);
 				m_freem(*mp);
@@ -3409,7 +3409,7 @@ restart:
 			    head->so_accf->so_accept_filter_arg);
 			so->so_options &= ~SO_ACCEPTFILTER;
 			ret = head->so_accf->so_accept_filter->accf_callback(so,
-			    head->so_accf->so_accept_filter_arg, M_DONTWAIT);
+			    head->so_accf->so_accept_filter_arg, M_NOWAIT);
 			if (ret == SU_ISCONNECTED)
 				soupcall_clear(so, SO_RCV);
 			SOCK_UNLOCK(so);
