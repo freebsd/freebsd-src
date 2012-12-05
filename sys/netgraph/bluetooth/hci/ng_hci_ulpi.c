@@ -224,7 +224,7 @@ ng_hci_lp_acl_con_req(ng_hci_unit_p unit, item_p item, hook_p hook)
 	 * Create HCI command 
 	 */
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		ng_hci_free_con(con);
 		error = ENOBUFS;
@@ -417,7 +417,7 @@ ng_hci_lp_sco_con_req(ng_hci_unit_p unit, item_p item, hook_p hook)
 	 * Create HCI command 
 	 */
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		ng_hci_free_con(sco_con);
 		error = ENOBUFS;
@@ -531,7 +531,7 @@ ng_hci_lp_discon_req(ng_hci_unit_p unit, item_p item, hook_p hook)
 	 * Create HCI command
 	 */
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		error = ENOBUFS;
 		goto out;
@@ -776,7 +776,7 @@ ng_hci_lp_con_rsp(ng_hci_unit_p unit, item_p item, hook_p hook)
 		 * Create HCI command 
 		 */
 
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
 			goto out;
@@ -996,7 +996,7 @@ ng_hci_lp_qos_req(ng_hci_unit_p unit, item_p item, hook_p hook)
 	 * Create HCI command 
 	 */
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		error = ENOBUFS;
 		goto out;

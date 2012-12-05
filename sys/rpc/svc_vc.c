@@ -572,7 +572,7 @@ svc_vc_recv(SVCXPRT *xprt, struct rpc_msg *msg,
 				if (cd->mpending->m_next
 				    || cd->mpending->m_len > cd->resid)
 					cd->mpending = m_split(cd->mpending,
-					    cd->resid, M_WAIT);
+					    cd->resid, M_WAITOK);
 				else
 					cd->mpending = NULL;
 				if (cd->mreq)
@@ -691,7 +691,7 @@ svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 	/*
 	 * Leave space for record mark.
 	 */
-	MGETHDR(mrep, M_WAIT, MT_DATA);
+	MGETHDR(mrep, M_WAITOK, MT_DATA);
 	mrep->m_len = 0;
 	mrep->m_data += sizeof(uint32_t);
 
@@ -713,7 +713,7 @@ svc_vc_reply(SVCXPRT *xprt, struct rpc_msg *msg,
 		/*
 		 * Prepend a record marker containing the reply length.
 		 */
-		M_PREPEND(mrep, sizeof(uint32_t), M_WAIT);
+		M_PREPEND(mrep, sizeof(uint32_t), M_WAITOK);
 		*mtod(mrep, uint32_t *) =
 			htonl(0x80000000 | (mrep->m_pkthdr.len
 				- sizeof(uint32_t)));

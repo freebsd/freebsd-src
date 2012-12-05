@@ -1369,7 +1369,7 @@ syncache_respond(struct syncache *sc)
 	    ("syncache: mbuf too small"));
 
 	/* Create the IP+TCP header from scratch. */
-	m = m_gethdr(M_DONTWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOBUFS);
 #ifdef MAC

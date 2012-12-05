@@ -513,7 +513,7 @@ dn_compat_configure(void *v)
 	lmax += sizeof(struct dn_sch) + sizeof(struct dn_link) +
 		sizeof(struct dn_fs) + sizeof(struct dn_profile);
 
-	base = buf = malloc(lmax, M_DUMMYNET, M_WAIT|M_ZERO);
+	base = buf = malloc(lmax, M_DUMMYNET, M_WAITOK|M_ZERO);
 	o_next(&buf, sizeof(struct dn_id), DN_CMD_CONFIG);
 	base->id = DN_API_VERSION;
 

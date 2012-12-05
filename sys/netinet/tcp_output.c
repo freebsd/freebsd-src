@@ -842,7 +842,7 @@ send:
 			TCPSTAT_INC(tcps_sndpack);
 			TCPSTAT_ADD(tcps_sndbyte, len);
 		}
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			SOCKBUF_UNLOCK(&so->so_snd);
 			error = ENOBUFS;
@@ -850,7 +850,7 @@ send:
 		}
 #ifdef INET6
 		if (MHLEN < hdrlen + max_linkhdr) {
-			MCLGET(m, M_DONTWAIT);
+			MCLGET(m, M_NOWAIT);
 			if ((m->m_flags & M_EXT) == 0) {
 				SOCKBUF_UNLOCK(&so->so_snd);
 				m_freem(m);
@@ -902,7 +902,7 @@ send:
 		else
 			TCPSTAT_INC(tcps_sndwinup);
 
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			error = ENOBUFS;
 			goto out;

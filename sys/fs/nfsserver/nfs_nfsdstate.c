@@ -3726,7 +3726,7 @@ nfsrv_docallback(struct nfsclient *clp, int procnum,
 	/*
 	 * Get the first mbuf for the request.
 	 */
-	MGET(m, M_WAIT, MT_DATA);
+	MGET(m, M_WAITOK, MT_DATA);
 	mbuf_setlen(m, 0);
 	nd->nd_mreq = nd->nd_mb = m;
 	nd->nd_bpos = NFSMTOD(m, caddr_t);

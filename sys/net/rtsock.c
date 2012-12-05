@@ -1113,9 +1113,9 @@ rt_msg1(int type, struct rt_addrinfo *rtinfo)
 	}
 	if (len > MCLBYTES)
 		panic("rt_msg1");
-	m = m_gethdr(M_DONTWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m && len > MHLEN) {
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_free(m);
 			m = NULL;

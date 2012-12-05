@@ -1174,7 +1174,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	 * link-layer headers.  Immediate slide the data pointer back forward
 	 * since we won't use that space at this layer.
 	 */
-	M_PREPEND(m, sizeof(struct udpiphdr) + max_linkhdr, M_DONTWAIT);
+	M_PREPEND(m, sizeof(struct udpiphdr) + max_linkhdr, M_NOWAIT);
 	if (m == NULL) {
 		error = ENOBUFS;
 		goto release;

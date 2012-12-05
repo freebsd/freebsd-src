@@ -249,7 +249,7 @@ arprequest(struct ifnet *ifp, struct in_addr *sip, struct in_addr  *tip,
 	if (enaddr == NULL)
 		enaddr = carpaddr ? carpaddr : (u_char *)IF_LLADDR(ifp);
 
-	if ((m = m_gethdr(M_DONTWAIT, MT_DATA)) == NULL)
+	if ((m = m_gethdr(M_NOWAIT, MT_DATA)) == NULL)
 		return;
 	m->m_len = sizeof(*ah) + 2*sizeof(struct in_addr) +
 		2*ifp->if_data.ifi_addrlen;
