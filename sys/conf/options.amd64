@@ -61,9 +61,6 @@ DEV_ATPIC		opt_atpic.h
 # Debugging
 KDTRACE_FRAME		opt_kdtrace.h
 
-# BPF just-in-time compiler
-BPF_JITTER		opt_bpf.h
-
 XENHVM			opt_global.h
 
 # options for the Intel C600 SAS driver (isci)

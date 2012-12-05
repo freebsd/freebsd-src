@@ -86,10 +86,6 @@ cpu		HAMMER			# aka K8, aka Opteron & Athlon64
 
 options 	DEVICE_POLLING
 
-# BPF_JITTER adds support for BPF just-in-time compiler.
-
-options 	BPF_JITTER
-
 # OpenFabrics Enterprise Distribution (Infiniband).
 options 	OFED
 options 	OFED_DEBUG_INIT

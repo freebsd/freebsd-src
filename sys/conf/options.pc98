@@ -97,6 +97,3 @@ DEV_NPX			opt_npx.h
 # Debugging
 NPX_DEBUG		opt_npx.h
 AGP_DEBUG		opt_agp.h
-
-# BPF just-in-time compiler
-BPF_JITTER		opt_bpf.h
