@@ -197,6 +197,18 @@ ext2_reallocblks(ap)
 			panic("ext2_reallocblks: non-cluster");
 #endif
 	/*
+	 * If the cluster crosses the boundary for the first indirect
+	 * block, leave space for the indirect block. Indirect blocks
+	 * are initially laid out in a position after the last direct
+	 * block. Block reallocation would usually destroy locality by
+	 * moving the indirect block out of the way to make room for
+	 * data blocks if we didn't compensate here. We should also do
+	 * this for other indirect block boundaries, but it is only
+	 * important for the first one.
+	 */
+	if (start_lbn < NDADDR && end_lbn >= NDADDR)
+		return (ENOSPC);
+	/*
 	 * If the latest allocation is in a new cylinder group, assume that
 	 * the filesystem has decided to move and do not force it back to
 	 * the previous cylinder group.
