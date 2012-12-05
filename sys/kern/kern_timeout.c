@@ -548,6 +548,11 @@ skip:
 		 */
 		if (cc_cme_migrating(cc)) {
 			cc_cme_cleanup(cc);
+
+			/*
+			 * It should be assert here that the callout is not
+			 * destroyed but that is not easy.
+			 */
 			c->c_flags &= ~CALLOUT_DFRMIGRATION;
 		}
 		cc->cc_waiting = 0;
@@ -555,7 +560,7 @@ skip:
 		wakeup(&cc->cc_waiting);
 		CC_LOCK(cc);
 	} else if (cc_cme_migrating(cc)) {
-		KASSERT((c->c_flags & CALLOUT_LOCAL_ALLOC) == 0,
+		KASSERT((c_flags & CALLOUT_LOCAL_ALLOC) == 0,
 		    ("Migrating legacy callout %p", c));
 #ifdef SMP
 		/*
@@ -569,7 +574,10 @@ skip:
 		cc_cme_cleanup(cc);
 
 		/*
-		 * Handle deferred callout stops
+		 * It should be assert here that the callout is not destroyed
+		 * but that is not easy.
+		 *
+		 * As first thing, handle deferred callout stops.
 		 */
 		if ((c->c_flags & CALLOUT_DFRMIGRATION) == 0) {
 			CTR3(KTR_CALLOUT,
@@ -578,14 +586,8 @@ skip:
 			callout_cc_del(c, cc);
 			return;
 		}
-
 		c->c_flags &= ~CALLOUT_DFRMIGRATION;
 
-		/*
-		 * It should be assert here that the
-		 * callout is not destroyed but that
-		 * is not easy.
-		 */
 		new_cc = callout_cpu_switch(c, cc, new_cpu);
 		callout_cc_add(c, new_cc, new_ticks, new_func, new_arg,
 		    new_cpu);
@@ -606,7 +608,8 @@ skip:
 	KASSERT((c_flags & CALLOUT_LOCAL_ALLOC) == 0 ||
 	    c->c_flags == CALLOUT_LOCAL_ALLOC,
 	    ("corrupted callout"));
-	callout_cc_del(c, cc);
+	if (c_flags & CALLOUT_LOCAL_ALLOC)
+		callout_cc_del(c, cc);
 }
 
 /*
