@@ -1,3 +1,8 @@
+	--- 9.8.4-P1 released ---
+
+3407.	[security]	Named could die on specific queries with dns64 enabled.
+			[Addressed in change #3388 for BIND 9.8.5 and 9.9.3.]
+
 	--- 9.8.4 released ---
 
 3383.	[security]	A certain combination of records in the RBT could

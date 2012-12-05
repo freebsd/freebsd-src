@@ -11,6 +11,7 @@ docutil
 isc-config.sh.1
 isc-config.sh.docbook
 isc-config.sh.html
+srcid
 util
 
 # Tests

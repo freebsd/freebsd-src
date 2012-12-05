@@ -5183,10 +5183,12 @@ dns64_ttl(dns_db_t *db, dns_dbversion_t *version) {
 	isc_result_t result;
 	isc_uint32_t ttl = ISC_UINT32_MAX;
 
+	dns_rdataset_init(&rdataset);
+
 	result = dns_db_getoriginnode(db, &node);
 	if (result != ISC_R_SUCCESS)
 		goto cleanup;
-	dns_rdataset_init(&rdataset);
+
 	result = dns_db_findrdataset(db, node, version, dns_rdatatype_soa,
 				     0, 0, &rdataset, NULL);
 	if (result != ISC_R_SUCCESS)
