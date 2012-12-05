@@ -1095,7 +1095,7 @@ _bus_dmamap_fix_user(vm_offset_t buf, bus_size_t len,
 #else
 #define l2cache_wb_range(va, pa, size) cpu_l2cache_wb_range(va, size)
 #define l2cache_wbinv_range(va, pa, size) cpu_l2cache_wbinv_range(va, size)
-#define l2cache_inv_range(va, pa, size) cpu_l2cache_wbinv_range(va, size)
+#define l2cache_inv_range(va, pa, size) cpu_l2cache_inv_range(va, size)
 #endif
 
 void
