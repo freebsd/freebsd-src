@@ -22,6 +22,8 @@
  * BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef _SLJIT_CONFIG_H_
@@ -33,6 +35,27 @@
 
 /* Put your custom defines here. This empty section will never change
    which helps maintaining patches (with diff / patch utilities). */
+
+#ifdef _KERNEL
+#include <sys/malloc.h>
+#include <sys/systm.h>
+
+#define	SLJIT_CALL
+#define	SLJIT_CONFIG_AUTO		1
+#define	SLJIT_DEBUG			0
+#define	SLJIT_EXECUTABLE_ALLOCATOR	0
+#define	SLJIT_STD_MACROS_DEFINED	1
+#define	SLJIT_SINGLE_THREADED		1
+#define	SLJIT_UTIL_STACK		0
+#define	SLJIT_VERBOSE			0
+
+#define	SLJIT_FREE(ptr)			free(ptr, M_TEMP)
+#define	SLJIT_FREE_EXEC(ptr)		free(ptr, M_TEMP)
+#define	SLJIT_MALLOC(size)		malloc(size, M_TEMP, M_NOWAIT)
+#define	SLJIT_MALLOC_EXEC(size)		malloc(size, M_TEMP, M_NOWAIT)
+#define	SLJIT_MEMMOVE(dest, src, len)	bcopy(src, dest, len)
+#define	SLJIT_ZEROMEM(dest, len)	bzero(dest, len)
+#endif
 
 /* --------------------------------------------------------------------- */
 /*  Architecture                                                         */
