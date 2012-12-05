@@ -113,6 +113,8 @@ typedef isc_uint32_t                    rbtdb_rdatatype_t;
 		RBTDB_RDATATYPE_VALUE(dns_rdatatype_rrsig, dns_rdatatype_cname)
 #define RBTDB_RDATATYPE_SIGDNAME \
 		RBTDB_RDATATYPE_VALUE(dns_rdatatype_rrsig, dns_rdatatype_dname)
+#define RBTDB_RDATATYPE_SIGDDS \
+		RBTDB_RDATATYPE_VALUE(dns_rdatatype_rrsig, dns_rdatatype_ds)
 #define RBTDB_RDATATYPE_NCACHEANY \
 		RBTDB_RDATATYPE_VALUE(0, dns_rdatatype_any)
 
@@ -4572,7 +4574,7 @@ get_rpz_enabled(dns_db_t *db, dns_rpz_st_t *st)
  * configured earlier than this policy zone and does not have a higher
  * precedence type.
  */
-static isc_result_t
+static void
 rpz_findips(dns_rpz_zone_t *rpz, dns_rpz_type_t rpz_type,
 	    dns_zone_t *zone, dns_db_t *db, dns_dbversion_t *version,
 	    dns_rdataset_t *ardataset, dns_rpz_st_t *st,
@@ -4597,7 +4599,7 @@ rpz_findips(dns_rpz_zone_t *rpz, dns_rpz_type_t rpz_type,
 
 	if (rbtdb->rpz_cidr == NULL) {
 		RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_read);
-		return (ISC_R_UNEXPECTED);
+		return;
 	}
 
 	dns_fixedname_init(&selfnamef);
@@ -4659,7 +4661,7 @@ rpz_findips(dns_rpz_zone_t *rpz, dns_rpz_type_t rpz_type,
 			dns_name_format(qname, namebuf, sizeof(namebuf));
 			isc_log_write(dns_lctx, DNS_LOGCATEGORY_RPZ,
 				      DNS_LOGMODULE_RBTDB, DNS_RPZ_ERROR_LEVEL,
-				      "rpz_findips findnode(%s): %s",
+				      "rpz_findips findnode(%s) failed: %s",
 				      namebuf, isc_result_totext(result));
 			continue;
 		}
@@ -4680,7 +4682,8 @@ rpz_findips(dns_rpz_zone_t *rpz, dns_rpz_type_t rpz_type,
 			if (zrdataset.type != dns_rdatatype_cname) {
 				rpz_policy = DNS_RPZ_POLICY_RECORD;
 			} else {
-				rpz_policy = dns_rpz_decode_cname(&zrdataset,
+				rpz_policy = dns_rpz_decode_cname(rpz,
+								  &zrdataset,
 								  selfname);
 				if (rpz_policy == DNS_RPZ_POLICY_RECORD ||
 				    rpz_policy == DNS_RPZ_POLICY_WILDCNAME)
@@ -4738,7 +4741,7 @@ rpz_findips(dns_rpz_zone_t *rpz, dns_rpz_type_t rpz_type,
 		st->m.type = rpz_type;
 		st->m.prefix = prefix;
 		st->m.policy = rpz_policy;
-		st->m.ttl = ttl;
+		st->m.ttl = ISC_MIN(ttl, rpz->max_policy_ttl);
 		st->m.result = result;
 		dns_name_copy(qname, st->qname, NULL);
 		if ((rpz_policy == DNS_RPZ_POLICY_RECORD ||
@@ -4755,7 +4758,6 @@ rpz_findips(dns_rpz_zone_t *rpz, dns_rpz_type_t rpz_type,
 	}
 
 	RWUNLOCK(&rbtdb->tree_lock, isc_rwlocktype_read);
-	return (ISC_R_SUCCESS);
 }
 #endif
 
@@ -5914,13 +5916,12 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 	negtype = 0;
 	if (rbtversion == NULL && !newheader_nx) {
 		rdtype = RBTDB_RDATATYPE_BASE(newheader->type);
+		covers = RBTDB_RDATATYPE_EXT(newheader->type);
+		sigtype = RBTDB_RDATATYPE_VALUE(dns_rdatatype_rrsig, covers);
 		if (NEGATIVE(newheader)) {
 			/*
 			 * We're adding a negative cache entry.
 			 */
-			covers = RBTDB_RDATATYPE_EXT(newheader->type);
-			sigtype = RBTDB_RDATATYPE_VALUE(dns_rdatatype_rrsig,
-							covers);
 			for (topheader = rbtnode->data;
 			     topheader != NULL;
 			     topheader = topheader->next) {
@@ -5953,14 +5954,20 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 			 * We're adding something that isn't a
 			 * negative cache entry.  Look for an extant
 			 * non-stale NXDOMAIN/NODATA(QTYPE=ANY) negative
-			 * cache entry.
+			 * cache entry.  If we're adding an RRSIG, also
+			 * check for an extant non-stale NODATA ncache
+			 * entry which covers the same type as the RRSIG.
 			 */
 			for (topheader = rbtnode->data;
 			     topheader != NULL;
 			     topheader = topheader->next) {
-				if (topheader->type ==
-				    RBTDB_RDATATYPE_NCACHEANY)
-					break;
+				if ((topheader->type ==
+					RBTDB_RDATATYPE_NCACHEANY) ||
+					(newheader->type == sigtype &&
+					topheader->type ==
+					RBTDB_RDATATYPE_VALUE(0, covers))) {
+						break;
+					}
 			}
 			if (topheader != NULL && EXISTS(topheader) &&
 			    topheader->rdh_ttl > now) {
@@ -5983,7 +5990,7 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 				}
 				/*
 				 * The new rdataset is better.  Expire the
-				 * NXDOMAIN/NODATA(QTYPE=ANY).
+				 * ncache entry.
 				 */
 				set_ttl(rbtdb, topheader, 0);
 				topheader->attributes |= RDATASET_ATTR_STALE;
@@ -6145,7 +6152,9 @@ add(dns_rbtdb_t *rbtdb, dns_rbtnode_t *rbtnode, rbtdb_version_t *rbtversion,
 		}
 		if (IS_CACHE(rbtdb) && header->rdh_ttl > now &&
 		    (header->type == dns_rdatatype_a ||
-		     header->type == dns_rdatatype_aaaa) &&
+		     header->type == dns_rdatatype_aaaa ||
+		     header->type == dns_rdatatype_ds ||
+		     header->type == RBTDB_RDATATYPE_SIGDDS) &&
 		    !header_nx && !newheader_nx &&
 		    header->trust >= newheader->trust &&
 		    dns_rdataslab_equal((unsigned char *)header,
