@@ -2100,7 +2100,7 @@ static int arcmsr_iop_message_xfer(struct AdapterControlBlock *acb, union ccb * 
 				(u_int32_t ) pccb->csio.cdb_io.cdb_bytes[8];
 					/* 4 bytes: Areca io control code */
 	/* XXX Does not handle alternate data formats. */
-	if((pccb->ccb_h.flags & CAM_SCATTER_VALID) == 0) {
+	if ((pccb->ccb_h.flags & CAM_DATA_MASK) != CAM_DATA_VADDR) {
 		buffer = pccb->csio.data_ptr;
 		transfer_len = pccb->csio.dxfer_len;
 	} else {

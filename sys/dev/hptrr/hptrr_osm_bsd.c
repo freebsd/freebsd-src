@@ -481,32 +481,6 @@ static void os_cmddone(PCOMMAND pCmd)
 
 static int os_buildsgl(PCOMMAND pCmd, PSG pSg, int logical)
 {
-	POS_CMDEXT ext = (POS_CMDEXT)pCmd->priv;
-	union ccb *ccb = ext->ccb;
-	bus_dma_segment_t *sgList = (bus_dma_segment_t *)ccb->csio.data_ptr;
-	int idx;
-
-	if(logical)	{
-		if (ccb->ccb_h.flags & CAM_DATA_PHYS)
-			panic("physical address unsupported");
-
-		if (ccb->ccb_h.flags & CAM_SCATTER_VALID) {
-			if (ccb->ccb_h.flags & CAM_SG_LIST_PHYS)
-				panic("physical address unsupported");
-	
-			for (idx = 0; idx < ccb->csio.sglist_cnt; idx++) {
-				os_set_sgptr(&pSg[idx], (HPT_U8 *)(HPT_UPTR)sgList[idx].ds_addr);
-				pSg[idx].size = sgList[idx].ds_len;
-				pSg[idx].eot = (idx==ccb->csio.sglist_cnt-1)? 1 : 0;
-			}
-		}
-		else {
-			os_set_sgptr(pSg, (HPT_U8 *)ccb->csio.data_ptr);
-			pSg->size = ccb->csio.dxfer_len;
-			pSg->eot = 1;
-		}
-		return TRUE;
-	}
 
 	/* since we have provided physical sg, nobody will ask us to build physical sg */
 	HPT_ASSERT(0);
@@ -522,7 +496,7 @@ static void hpt_io_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nsegs
 	
 	HPT_ASSERT(pCmd->flags.physical_sg);
 	
-	if (error || nsegs == 0)
+	if (error)
 		panic("busdma error");
 		
 	HPT_ASSERT(nsegs<=os_max_sg_descriptors);
@@ -532,7 +506,8 @@ static void hpt_io_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nsegs
 		psg->size = segs[idx].ds_len;
 		psg->eot = 0;
 	}
-	psg[-1].eot = 1;
+	if (nsegs)
+		psg[-1].eot = 1;
 	
 	if (pCmd->flags.data_in) {
 		bus_dmamap_sync(ext->vbus_ext->io_dmat, ext->dma_map, BUS_DMASYNC_PREREAD);
@@ -724,7 +699,6 @@ static void hpt_scsi_io(PVBUS_EXT vbus_ext, union ccb *ccb)
 		pCmd->target = vd;
 		pCmd->done = os_cmddone;
 		pCmd->buildsgl = os_buildsgl;
-
 		pCmd->psg = ext->psg;
 		pCmd->flags.physical_sg = 1;
 		error = bus_dmamap_load_ccb(vbus_ext->io_dmat, 

@@ -2620,32 +2620,7 @@ launch_worker_thread(void)
 
 int HPTLIBAPI fOsBuildSgl(_VBUS_ARG PCommand pCmd, FPSCAT_GATH pSg, int logical)
 {
-	union ccb *ccb = (union ccb *)pCmd->pOrgCommand;
-	bus_dma_segment_t *sgList = (bus_dma_segment_t *)ccb->csio.data_ptr;
-	int idx;
 
-	if(logical) {
-		if (ccb->ccb_h.flags & CAM_DATA_PHYS)
-			panic("physical address unsupported");
-	
-		if (ccb->ccb_h.flags & CAM_SCATTER_VALID) {
-			if (ccb->ccb_h.flags & CAM_SG_LIST_PHYS)
-				panic("physical address unsupported");
-		
-			for (idx = 0; idx < ccb->csio.sglist_cnt; idx++) {
-				pSg[idx].dSgAddress = (ULONG_PTR)(UCHAR *)sgList[idx].ds_addr;
-				pSg[idx].wSgSize = sgList[idx].ds_len;
-				pSg[idx].wSgFlag = (idx==ccb->csio.sglist_cnt-1)? SG_FLAG_EOT : 0;
-			}
-		}
-		else {
-			pSg->dSgAddress = (ULONG_PTR)(UCHAR *)ccb->csio.data_ptr;
-			pSg->wSgSize = ccb->csio.dxfer_len;
-			pSg->wSgFlag = SG_FLAG_EOT;
-		}
-		return TRUE;
-	}
-	
 	/* since we have provided physical sg, nobody will ask us to build physical sg */
 	HPT_ASSERT(0);
 	return FALSE;
@@ -2757,7 +2732,7 @@ hpt_io_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 
 	HPT_ASSERT(pCmd->cf_physical_sg);
 		
-	if (error || nsegs == 0)
+	if (error)
 		panic("busdma error");
 		
 	HPT_ASSERT(nsegs<= MAX_SG_DESCRIPTORS);
@@ -2768,7 +2743,9 @@ hpt_io_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		psg->wSgFlag = (idx == nsegs-1)? SG_FLAG_EOT: 0;
 /*		KdPrint(("psg[%d]:add=%p,size=%x,flag=%x\n", idx, psg->dSgAddress,psg->wSgSize,psg->wSgFlag)); */
 	}
-/*	psg[-1].wSgFlag = SG_FLAG_EOT; */
+	if (nsegs) {
+	/*	psg[-1].wSgFlag = SG_FLAG_EOT; */
+	}
 	
 	if (pCmd->cf_data_in) {
 		bus_dmamap_sync(pAdapter->io_dma_parent, pmap->dma_map, BUS_DMASYNC_PREREAD);

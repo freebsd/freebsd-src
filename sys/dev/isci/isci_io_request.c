@@ -748,12 +748,8 @@ isci_io_request_execute_scsi_io(union ccb *ccb,
 	io_request->current_sge_index = 0;
 	io_request->parent.remote_device_handle = device->sci_object;
 
-	if ((ccb->ccb_h.flags & CAM_SCATTER_VALID) != 0)
-		panic("Unexpected CAM_SCATTER_VALID flag!  flags = 0x%x\n",
-		    ccb->ccb_h.flags);
-
-	if ((ccb->ccb_h.flags & CAM_DATA_PHYS) != 0)
-		panic("Unexpected CAM_DATA_PHYS flag!  flags = 0x%x\n",
+	if ((ccb->ccb_h.flags & CAM_DATA_MASK) != CAM_DATA_VADDR)
+		panic("Unexpected cam data format!  flags = 0x%x\n",
 		    ccb->ccb_h.flags);
 
 	error = bus_dmamap_load_ccb(io_request->parent.dma_tag,

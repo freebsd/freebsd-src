@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/callout.h>
+#include <sys/uio.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -76,27 +77,8 @@ bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 		    ccb_h->func_code);
 	}
 
-	if ((ccb_h->flags & CAM_SCATTER_VALID) != 0) {
-		struct bus_dma_segment *segs;
-
-		if ((ccb_h->flags & CAM_DATA_PHYS) != 0)
-			panic("bus_dmamap_load_ccb - Physical segment "
-			    "pointers unsupported");
-
-		if ((ccb_h->flags & CAM_SG_LIST_PHYS) == 0)
-			panic("bus_dmamap_load_ccb - Virtual segment "
-			      "addresses unsupported");
-
-		/* Just use the segments provided */
-		segs = (struct bus_dma_segment *)data_ptr;
-		callback(callback_arg, segs, sglist_cnt, 0);
-	} else if ((ccb_h->flags & CAM_DATA_PHYS) != 0) {
-		struct bus_dma_segment seg;
-
-		seg.ds_addr = (bus_addr_t)(vm_offset_t)data_ptr;
-		seg.ds_len = dxfer_len;
-		callback(callback_arg, &seg, 1, 0);
-	} else {
+	switch ((ccb_h->flags & CAM_DATA_MASK)) {
+	case CAM_DATA_VADDR:
 		return bus_dmamap_load(dmat,
 				       map,
 				       data_ptr,
@@ -104,6 +86,43 @@ bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 				       callback,
 				       callback_arg,
 				       /*flags*/0);
+	case CAM_DATA_PADDR: {
+		struct bus_dma_segment seg;
+
+		seg.ds_addr = (bus_addr_t)(vm_offset_t)data_ptr;
+		seg.ds_len = dxfer_len;
+		callback(callback_arg, &seg, 1, 0);
+		break;
+	}
+	case CAM_DATA_SG: {
+#if 0
+		struct uio sguio;
+		KASSERT((sizeof (sguio.uio_iov) == sizeof (data_ptr) &&
+		    sizeof (sguio.uio_iovcnt) >= sizeof (sglist_cnt) &&
+		    sizeof (sguio.uio_resid) >= sizeof (dxfer_len)),
+		    ("uio won't fit csio data"));
+		sguio.uio_iov = (struct iovec *)data_ptr;
+		sguio.uio_iovcnt = csio->sglist_cnt;
+		sguio.uio_resid = csio->dxfer_len;
+		sguio.uio_segflg = UIO_SYSSPACE;
+		return bus_dmamap_load_uio(dmat, map, &sguio, callback,
+		    callback_arg, 0);
+#else
+		panic("bus_dmamap_load_ccb: flags 0x%X unimplemented",
+		    ccb_h->flags);
+#endif
+	}
+	case CAM_DATA_SG_PADDR: {
+		struct bus_dma_segment *segs;
+		/* Just use the segments provided */
+		segs = (struct bus_dma_segment *)data_ptr;
+		callback(callback_arg, segs, sglist_cnt, 0);
+		break;
+	}
+	case CAM_DATA_BIO:
+	default:
+		panic("bus_dmamap_load_ccb: flags 0x%X unimplemented",
+		    ccb_h->flags);
 	}
 	return (0);
 }

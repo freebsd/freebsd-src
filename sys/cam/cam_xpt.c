@@ -547,7 +547,8 @@ xptioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *td
 			 * We can't deal with physical addresses for this
 			 * type of transaction.
 			 */
-			if (inccb->ccb_h.flags & CAM_DATA_PHYS) {
+			if ((inccb->ccb_h.flags & CAM_DATA_MASK) !=
+			    CAM_DATA_VADDR) {
 				error = EINVAL;
 				break;
 			}
