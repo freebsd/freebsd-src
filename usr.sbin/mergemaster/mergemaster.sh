@@ -421,9 +421,7 @@ check_pager () {
     echo "     I cannot execute it.  So, what would you like to do?"
     echo ''
     echo "  Use 'e' to exit mergemaster and fix your PAGER variable"
-    if [ -x /usr/bin/less -o -x /usr/local/bin/less ]; then
     echo "  Use 'l' to set PAGER to 'less' for this run"
-    fi
     echo "  Use 'm' to use plain old 'more' as your PAGER for this run"
     echo ''
     echo "  or you may type an absolute path to PAGER for this run"
@@ -438,17 +436,7 @@ check_pager () {
        exit 0
        ;;
     [lL])
-       if [ -x /usr/bin/less ]; then
-         PAGER=/usr/bin/less
-       elif [ -x /usr/local/bin/less ]; then
-         PAGER=/usr/local/bin/less
-       else
-         echo ''
-         echo " *** Fatal Error:"
-         echo "     You asked to use 'less' as your pager, but I can't"
-         echo "     find it in /usr/bin or /usr/local/bin"
-         exit 1
-       fi
+       PAGER=less
        ;;
     [mM]|'')
        PAGER=more
