@@ -530,11 +530,11 @@ bpf_movein(struct uio *uio, int linktype, struct ifnet *ifp, struct mbuf **mp,
 		return (EIO);
 
 	if (len <= MHLEN)
-		MGETHDR(m, M_WAIT, MT_DATA);
+		MGETHDR(m, M_WAITOK, MT_DATA);
 	else if (len <= MCLBYTES)
-		m = m_getcl(M_WAIT, MT_DATA, M_PKTHDR);
+		m = m_getcl(M_WAITOK, MT_DATA, M_PKTHDR);
 	else
-		m = m_getjcl(M_WAIT, MT_DATA, M_PKTHDR,
+		m = m_getjcl(M_WAITOK, MT_DATA, M_PKTHDR,
 #if (MJUMPAGESIZE > MCLBYTES)
 		    len <= MJUMPAGESIZE ? MJUMPAGESIZE :
 #endif
@@ -1064,7 +1064,7 @@ bpfwrite(struct cdev *dev, struct uio *uio, int ioflag)
 		dst.sa_family = pseudo_AF_HDRCMPLT;
 
 	if (d->bd_feedback) {
-		mc = m_dup(m, M_DONTWAIT);
+		mc = m_dup(m, M_NOWAIT);
 		if (mc != NULL)
 			mc->m_pkthdr.rcvif = ifp;
 		/* Set M_PROMISC for outgoing packets to be discarded. */

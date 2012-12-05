@@ -143,7 +143,7 @@ key_sendup0(rp, m, promisc)
 	if (promisc) {
 		struct sadb_msg *pmsg;
 
-		M_PREPEND(m, sizeof(struct sadb_msg), M_DONTWAIT);
+		M_PREPEND(m, sizeof(struct sadb_msg), M_NOWAIT);
 		if (m && m->m_len < sizeof(struct sadb_msg))
 			m = m_pullup(m, sizeof(struct sadb_msg));
 		if (!m) {
@@ -214,14 +214,14 @@ key_sendup(so, msg, len, target)
 	m = mprev = NULL;
 	while (tlen > 0) {
 		if (tlen == len) {
-			MGETHDR(n, M_DONTWAIT, MT_DATA);
+			MGETHDR(n, M_NOWAIT, MT_DATA);
 			if (n == NULL) {
 				V_pfkeystat.in_nomem++;
 				return ENOBUFS;
 			}
 			n->m_len = MHLEN;
 		} else {
-			MGET(n, M_DONTWAIT, MT_DATA);
+			MGET(n, M_NOWAIT, MT_DATA);
 			if (n == NULL) {
 				V_pfkeystat.in_nomem++;
 				return ENOBUFS;
@@ -229,7 +229,7 @@ key_sendup(so, msg, len, target)
 			n->m_len = MLEN;
 		}
 		if (tlen >= MCLBYTES) {	/*XXX better threshold? */
-			MCLGET(n, M_DONTWAIT);
+			MCLGET(n, M_NOWAIT);
 			if ((n->m_flags & M_EXT) == 0) {
 				m_free(n);
 				m_freem(m);

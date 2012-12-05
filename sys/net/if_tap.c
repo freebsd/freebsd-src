@@ -948,7 +948,7 @@ tapwrite(struct cdev *dev, struct uio *uio, int flag)
 		return (EIO);
 	}
 
-	if ((m = m_uiotombuf(uio, M_DONTWAIT, 0, ETHER_ALIGN,
+	if ((m = m_uiotombuf(uio, M_NOWAIT, 0, ETHER_ALIGN,
 	    M_PKTHDR)) == NULL) {
 		ifp->if_ierrors ++;
 		return (ENOBUFS);
