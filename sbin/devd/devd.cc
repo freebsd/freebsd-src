@@ -248,9 +248,8 @@ action::do_action(config &c)
 }
 
 match::match(config &c, const char *var, const char *re)
-	: _var(var)
+	: _var(var), _re("^")
 {
-	_re = "^";
 	if (!c.expand_string(string(re)).empty() &&
 	    c.expand_string(string(re)).at(0) == '!') {
 		_re.append(c.expand_string(string(re)).substr(1));
