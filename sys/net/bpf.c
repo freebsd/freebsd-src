@@ -71,8 +71,8 @@ __FBSDID("$FreeBSD$");
 #define	BPF_INTERNAL
 #include <net/bpf.h>
 #include <net/bpf_buffer.h>
-#ifdef BPF_JITTER
-#include <net/bpf_jitter.h>
+#ifdef BPFJIT
+#include <net/bpfjit.h>
 #endif
 #include <net/bpf_zerocopy.h>
 #include <net/bpfdesc.h>
@@ -1724,8 +1724,8 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 	struct bpf_program32 *fp32;
 #endif
 	struct bpf_insn *fcode, *old;
-#ifdef BPF_JITTER
-	bpf_jit_filter *jfunc, *ofunc;
+#ifdef BPFJIT
+	bpfjit_function_t jfunc, ofunc;
 #endif
 	size_t size;
 	u_int flen;
@@ -1753,7 +1753,7 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 #endif
 
 	fcode = NULL;
-#ifdef BPF_JITTER
+#ifdef BPFJIT
 	jfunc = ofunc = NULL;
 #endif
 	need_upgrade = 0;
@@ -1774,9 +1774,12 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 			free(fcode, M_BPF);
 			return (EINVAL);
 		}
-#ifdef BPF_JITTER
+#ifdef BPFJIT
 		/* Filter is copied inside fcode and is perfectly valid. */
-		jfunc = bpf_jitter(fcode, flen);
+		jfunc = bpfjit_generate_code(fcode, flen);
+
+		if (jfunc == NULL && bootverbose)
+			printf("bpf_setf: failed to compile filter\n");
 #endif
 	}
 
@@ -1796,7 +1799,7 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 	} else {
 		old = d->bd_rfilter;
 		d->bd_rfilter = fcode;
-#ifdef BPF_JITTER
+#ifdef BPFJIT
 		ofunc = d->bd_bfilter;
 		d->bd_bfilter = jfunc;
 #endif
@@ -1820,9 +1823,9 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 		BPFIF_WUNLOCK(d->bd_bif);
 	if (old != NULL)
 		free(old, M_BPF);
-#ifdef BPF_JITTER
+#ifdef BPFJIT
 	if (ofunc != NULL)
-		bpf_destroy_jit_filter(ofunc);
+		bpfjit_free_code(ofunc);
 #endif
 
 	/* Move d to active readers list. */
@@ -2031,8 +2034,8 @@ bpf_tap(struct bpf_if *bp, u_char *pkt, u_int pktlen)
 {
 	struct bintime bt;
 	struct bpf_d *d;
-#ifdef BPF_JITTER
-	bpf_jit_filter *bf;
+#ifdef BPFJIT
+	bpfjit_function_t bf;
 #endif
 	u_int slen;
 	int gottime;
@@ -2058,10 +2061,10 @@ bpf_tap(struct bpf_if *bp, u_char *pkt, u_int pktlen)
 		 * is inbound or outbound.  In the bpf_mtap() routines, we use
 		 * the interface pointers on the mbuf to figure it out.
 		 */
-#ifdef BPF_JITTER
-		bf = bpf_jitter_enable != 0 ? d->bd_bfilter : NULL;
+#ifdef BPFJIT
+		bf = bpfjit_disable == 0 ? d->bd_bfilter : NULL;
 		if (bf != NULL)
-			slen = (*(bf->func))(pkt, pktlen, pktlen);
+			slen = bf(pkt, pktlen, pktlen);
 		else
 #endif
 		slen = bpf_filter(d->bd_rfilter, pkt, pktlen, pktlen);
@@ -2098,8 +2101,8 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 {
 	struct bintime bt;
 	struct bpf_d *d;
-#ifdef BPF_JITTER
-	bpf_jit_filter *bf;
+#ifdef BPFJIT
+	bpfjit_function_t bf;
 #endif
 	u_int pktlen, slen;
 	int gottime;
@@ -2119,11 +2122,10 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 		if (BPF_CHECK_DIRECTION(d, m->m_pkthdr.rcvif, bp->bif_ifp))
 			continue;
 		++d->bd_rcount;
-#ifdef BPF_JITTER
-		bf = bpf_jitter_enable != 0 ? d->bd_bfilter : NULL;
-		/* XXX We cannot handle multiple mbufs. */
-		if (bf != NULL && m->m_next == NULL)
-			slen = (*(bf->func))(mtod(m, u_char *), pktlen, pktlen);
+#ifdef BPFJIT
+		bf = bpfjit_disable == 0 ? d->bd_bfilter : NULL;
+		if (bf != NULL)
+			slen = bf((u_char *)m, pktlen, 0);
 		else
 #endif
 		slen = bpf_filter(d->bd_rfilter, (u_char *)m, pktlen, 0);
@@ -2154,6 +2156,9 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 	struct bintime bt;
 	struct mbuf mb;
 	struct bpf_d *d;
+#ifdef BPFJIT
+	bpfjit_function_t bf;
+#endif
 	u_int pktlen, slen;
 	int gottime;
 
@@ -2182,6 +2187,12 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 		if (BPF_CHECK_DIRECTION(d, m->m_pkthdr.rcvif, bp->bif_ifp))
 			continue;
 		++d->bd_rcount;
+#ifdef BPFJIT
+		bf = bpfjit_disable == 0 ? d->bd_bfilter : NULL;
+		if (bf != NULL)
+			slen = bf((u_char *)&mb, pktlen, 0);
+		else
+#endif
 		slen = bpf_filter(d->bd_rfilter, (u_char *)&mb, pktlen, 0);
 		if (slen != 0) {
 			BPFD_LOCK(d);
@@ -2429,9 +2440,9 @@ bpf_freed(struct bpf_d *d)
 	bpf_free(d);
 	if (d->bd_rfilter != NULL) {
 		free((caddr_t)d->bd_rfilter, M_BPF);
-#ifdef BPF_JITTER
+#ifdef BPFJIT
 		if (d->bd_bfilter != NULL)
-			bpf_destroy_jit_filter(d->bd_bfilter);
+			bpfjit_free_code(d->bd_bfilter);
 #endif
 	}
 	if (d->bd_wfilter != NULL)

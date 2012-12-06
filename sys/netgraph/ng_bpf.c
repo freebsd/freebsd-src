@@ -64,8 +64,8 @@
 #include <sys/mbuf.h>
 
 #include <net/bpf.h>
-#ifdef BPF_JITTER
-#include <net/bpf_jitter.h>
+#ifdef BPFJIT
+#include <net/bpfjit.h>
 #endif
 
 #include <netgraph/ng_message.h>
@@ -89,8 +89,8 @@ struct ng_bpf_hookinfo {
 	hook_p			match;
 	hook_p			nomatch;
 	struct ng_bpf_hookprog	*prog;
-#ifdef BPF_JITTER
-	bpf_jit_filter		*jit_prog;
+#ifdef BPFJIT
+	bpfjit_function_t	jit_prog;
 #endif
 	struct ng_bpf_hookstat	stats;
 };
@@ -437,8 +437,8 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 		goto ready;
 	}
 
-#ifdef BPF_JITTER
-	if (bpf_jitter_enable != 0 && hip->jit_prog != NULL)
+#ifdef BPFJIT
+	if (bpfjit_disable == 0 && hip->jit_prog != NULL)
 		usejit = 1;
 #endif
 
@@ -465,9 +465,9 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 	}
 
 	/* Run packet through filter */
-#ifdef BPF_JITTER
+#ifdef BPFJIT
 	if (usejit)
-		len = (*(hip->jit_prog->func))(data, totlen, totlen);
+		len = (hip->jit_prog)(data, totlen, totlen);
 	else
 #endif
 	if (data)
@@ -533,9 +533,9 @@ ng_bpf_disconnect(hook_p hook)
 	NG_NODE_FOREACH_HOOK(node, ng_bpf_remrefs, hook, tmp);
 
 	free(hip->prog, M_NETGRAPH_BPF);
-#ifdef BPF_JITTER
+#ifdef BPFJIT
 	if (hip->jit_prog != NULL)
-		bpf_destroy_jit_filter(hip->jit_prog);
+		bpfjit_free_code(hip->jit_prog);
 #endif
 	free(hip, M_NETGRAPH_BPF);
 	if ((NG_NODE_NUMHOOKS(node) == 0) &&
@@ -557,8 +557,8 @@ ng_bpf_setprog(hook_p hook, const struct ng_bpf_hookprog *hp0)
 {
 	const hinfo_p hip = NG_HOOK_PRIVATE(hook);
 	struct ng_bpf_hookprog *hp;
-#ifdef BPF_JITTER
-	bpf_jit_filter *jit_prog;
+#ifdef BPFJIT
+	bpfjit_function_t jit_prog;
 #endif
 	int size;
 
@@ -573,17 +573,17 @@ ng_bpf_setprog(hook_p hook, const struct ng_bpf_hookprog *hp0)
 	if (hp == NULL)
 		return (ENOMEM);
 	bcopy(hp0, hp, size);
-#ifdef BPF_JITTER
-	jit_prog = bpf_jitter(hp->bpf_prog, hp->bpf_prog_len);
+#ifdef BPFJIT
+	jit_prog = bpfjit_generate_code(hp->bpf_prog, hp->bpf_prog_len);
 #endif
 
 	/* Free previous program, if any, and assign new one */
 	if (hip->prog != NULL)
 		free(hip->prog, M_NETGRAPH_BPF);
 	hip->prog = hp;
-#ifdef BPF_JITTER
+#ifdef BPFJIT
 	if (hip->jit_prog != NULL)
-		bpf_destroy_jit_filter(hip->jit_prog);
+		bpfjit_free_code(hip->jit_prog);
 	hip->jit_prog = jit_prog;
 #endif
 
