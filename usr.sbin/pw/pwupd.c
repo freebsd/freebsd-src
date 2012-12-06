@@ -56,12 +56,10 @@ setpwdir(const char * dir)
 {
 	if (dir == NULL)
 		return -1;
-	else {
-		char * d = malloc(strlen(dir)+1);
-		if (d == NULL)
-			return -1;
-		pwpath = strcpy(d, dir);
-	}
+	else
+		pwpath = strdup(dir);
+	if (pwpath == NULL)
+		return -1;
 	return 0;
 }
 

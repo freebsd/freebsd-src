@@ -32,6 +32,51 @@ variable kernel_state
 variable root_state
 
 \ 
+\ Boot
+\ 
+
+: init_boot ( N -- N )
+	dup
+	s" boot_single" getenv -1 <> if
+		drop ( n n c-addr -- n n ) \ unused
+		toggle_menuitem ( n n -- n n )
+		s" set menu_keycode[N]=115" \ base command to execute
+	else
+		s" set menu_keycode[N]=98" \ base command to execute
+	then
+	17 +c! \ replace 'N' with ASCII numeral
+	evaluate
+;
+
+\ 
+\ Alternate Boot
+\ 
+
+: init_altboot ( N -- N )
+	dup
+	s" boot_single" getenv -1 <> if
+		drop ( n c-addr -- n ) \ unused
+		toggle_menuitem ( n -- n )
+		s" set menu_keycode[N]=109" \ base command to execute
+	else
+		s" set menu_keycode[N]=115" \ base command to execute
+	then
+	17 +c! \ replace 'N' with ASCII numeral
+	evaluate
+;
+
+: altboot ( -- )
+	s" boot_single" 2dup getenv -1 <> if
+		drop ( c-addr/u c-addr -- c-addr/u ) \ unused
+		unsetenv ( c-addr/u -- )
+	else
+		2drop ( c-addr/u -- ) \ unused
+		s" set boot_single=YES" evaluate
+	then
+	0 boot ( state -- )
+;
+
+\ 
 \ ACPI
 \ 
 
@@ -286,4 +331,16 @@ variable root_state
 	menuset-loadsetnum ( n m -- n )
 	menu-redraw
 	TRUE \ Loop menu again
+;
+
+\ 
+\ Defaults
+\ 
+
+: set_default_boot_options ( N -- N TRUE )
+	acpi_enable
+	safemode_disable
+	singleuser_disable
+	verbose_disable
+	2 goto_menu
 ;

@@ -52,6 +52,9 @@ OLD_FILES+=usr/include/clang/3.2/unwind.h
 # 20120910: NetBSD compat shims removed
 OLD_FILES+=usr/include/cam/scsi/scsi_low_pisa.h
 OLD_FILES+=usr/include/sys/device_port.h
+# 20120909: doc and www supfiles removed
+OLD_FILES+=usr/share/examples/cvsup/doc-supfile
+OLD_FILES+=usr/share/examples/cvsup/www-supfile
 # 20120908: pf cleanup
 OLD_FILES+=usr/include/net/if_pflow.h
 # 20120816: new clang import which bumps version from 3.1 to 3.2

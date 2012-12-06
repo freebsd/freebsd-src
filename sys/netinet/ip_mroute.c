@@ -1306,7 +1306,7 @@ X_ip_mforward(struct ip *ip, struct ifnet *ifp, struct mbuf *m,
 	    return ENOBUFS;
 	}
 
-	mb0 = m_copypacket(m, M_DONTWAIT);
+	mb0 = m_copypacket(m, M_NOWAIT);
 	if (mb0 && (M_HASCL(mb0) || mb0->m_len < hlen))
 	    mb0 = m_pullup(mb0, hlen);
 	if (mb0 == NULL) {
@@ -1669,7 +1669,7 @@ phyint_send(struct ip *ip, struct vif *vifp, struct mbuf *m)
      * the IP header is actually copied, not just referenced,
      * so that ip_output() only scribbles on the copy.
      */
-    mb_copy = m_copypacket(m, M_DONTWAIT);
+    mb_copy = m_copypacket(m, M_NOWAIT);
     if (mb_copy && (M_HASCL(mb_copy) || mb_copy->m_len < hlen))
 	mb_copy = m_pullup(mb_copy, hlen);
     if (mb_copy == NULL)
@@ -2083,7 +2083,7 @@ bw_upcalls_send(void)
      * Allocate a new mbuf, initialize it with the header and
      * the payload for the pending calls.
      */
-    MGETHDR(m, M_DONTWAIT, MT_DATA);
+    MGETHDR(m, M_NOWAIT, MT_DATA);
     if (m == NULL) {
 	log(LOG_WARNING, "bw_upcalls_send: cannot allocate mbuf\n");
 	return;
@@ -2384,7 +2384,7 @@ pim_register_prepare(struct ip *ip, struct mbuf *m)
      * Copy the old packet & pullup its IP header into the
      * new mbuf so we can modify it.
      */
-    mb_copy = m_copypacket(m, M_DONTWAIT);
+    mb_copy = m_copypacket(m, M_NOWAIT);
     if (mb_copy == NULL)
 	return NULL;
     mb_copy = m_pullup(mb_copy, ip->ip_hl << 2);
@@ -2430,7 +2430,7 @@ pim_register_send_upcall(struct ip *ip, struct vif *vifp,
     /*
      * Add a new mbuf with an upcall header
      */
-    MGETHDR(mb_first, M_DONTWAIT, MT_DATA);
+    MGETHDR(mb_first, M_NOWAIT, MT_DATA);
     if (mb_first == NULL) {
 	m_freem(mb_copy);
 	return ENOBUFS;
@@ -2488,7 +2488,7 @@ pim_register_send_rp(struct ip *ip, struct vif *vifp, struct mbuf *mb_copy,
     /*
      * Add a new mbuf with the encapsulating header
      */
-    MGETHDR(mb_first, M_DONTWAIT, MT_DATA);
+    MGETHDR(mb_first, M_NOWAIT, MT_DATA);
     if (mb_first == NULL) {
 	m_freem(mb_copy);
 	return ENOBUFS;

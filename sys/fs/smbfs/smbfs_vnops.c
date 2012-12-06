@@ -583,12 +583,12 @@ smbfs_rename(ap)
 	/* Check for cross-device rename */
 	if ((fvp->v_mount != tdvp->v_mount) ||
 	    (tvp && (fvp->v_mount != tvp->v_mount))) {
-		return EXDEV;
+		error = EXDEV;
 		goto out;
 	}
 
 	if (tvp && vrefcnt(tvp) > 1) {
-		return EBUSY;
+		error = EBUSY;
 		goto out;
 	}
 	flags = 0x10;			/* verify all writes */

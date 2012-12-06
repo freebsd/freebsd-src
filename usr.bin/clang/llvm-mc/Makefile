@@ -14,12 +14,12 @@ LIBDEPS=llvmmcdisassembler \
 	llvmarmdesc \
 	llvmarminfo \
 	llvmarminstprinter \
-	llvmmipscodegen \
-	llvmmipsdisassembler \
 	llvmmipsasmparser \
+	llvmmipscodegen \
 	llvmmipsdesc \
-	llvmmipsinfo \
 	llvmmipsinstprinter \
+	llvmmipsdisassembler \
+	llvmmipsinfo \
 	llvmpowerpccodegen \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \

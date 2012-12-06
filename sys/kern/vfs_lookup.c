@@ -160,17 +160,6 @@ namei(struct nameidata *ndp)
 		error = copyinstr(ndp->ni_dirp, cnp->cn_pnbuf,
 			    MAXPATHLEN, (size_t *)&ndp->ni_pathlen);
 
-	if (error == 0) {
-		/*
-		 * If we are auditing the kernel pathname, save the user
-		 * pathname.
-		 */
-		if (cnp->cn_flags & AUDITVNODE1)
-			AUDIT_ARG_UPATH1(td, cnp->cn_pnbuf);
-		if (cnp->cn_flags & AUDITVNODE2)
-			AUDIT_ARG_UPATH2(td, cnp->cn_pnbuf);
-	}
-
 	/*
 	 * Don't allow empty pathnames.
 	 */
@@ -183,7 +172,7 @@ namei(struct nameidata *ndp)
 	 * not an absolute path, and not containing '..' components) to
 	 * a real file descriptor, not the pseudo-descriptor AT_FDCWD.
 	 */
-	if (IN_CAPABILITY_MODE(td)) {
+	if (IN_CAPABILITY_MODE(td) && (cnp->cn_flags & NOCAPCHECK) == 0) {
 		ndp->ni_strictrelative = 1;
 		if (ndp->ni_dirfd == AT_FDCWD) {
 #ifdef KTRACE
@@ -217,6 +206,14 @@ namei(struct nameidata *ndp)
 	FILEDESC_SLOCK(fdp);
 	ndp->ni_rootdir = fdp->fd_rdir;
 	ndp->ni_topdir = fdp->fd_jdir;
+
+	/*
+	 * If we are auditing the kernel pathname, save the user pathname.
+	 */
+	if (cnp->cn_flags & AUDITVNODE1)
+		AUDIT_ARG_UPATH1(td, ndp->ni_dirfd, cnp->cn_pnbuf);
+	if (cnp->cn_flags & AUDITVNODE2)
+		AUDIT_ARG_UPATH2(td, ndp->ni_dirfd, cnp->cn_pnbuf);
 
 	dp = NULL;
 	if (cnp->cn_pnbuf[0] != '/') {

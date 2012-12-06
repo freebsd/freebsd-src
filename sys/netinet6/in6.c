@@ -2669,6 +2669,8 @@ in6_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			ndpc.sin6.sin6_family = AF_INET6;
 			ndpc.sin6.sin6_len = sizeof(ndpc.sin6);
 			bcopy(L3_ADDR(lle), &ndpc.sin6, L3_ADDR_LEN(lle));
+			if (V_deembed_scopeid)
+				sa6_recoverscope(&ndpc.sin6);
 
 			/* publish */
 			if (lle->la_flags & LLE_PUB)

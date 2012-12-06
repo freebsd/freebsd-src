@@ -32,6 +32,12 @@ class MacroInfo {
   SourceLocation Location;
   /// EndLocation - The location of the last token in the macro.
   SourceLocation EndLocation;
+  /// \brief The location where the macro was #undef'd, or an invalid location
+  /// for macros that haven't been undefined.
+  SourceLocation UndefLocation;
+  /// \brief Previous definition, the identifier of this macro was defined to,
+  /// or NULL.
+  MacroInfo *PreviousDefinition;
 
   /// Arguments - The list of arguments for a function-like macro.  This can be
   /// empty, for, e.g. "#define X()".  In a C99-style variadic macro, this
@@ -99,7 +105,16 @@ private:
    
   /// \brief Whether the macro has public (when described in a module).
   bool IsPublic : 1;
-  
+
+  /// \brief Whether the macro definition is currently "hidden".
+  /// Note that this is transient state that is never serialized to the AST
+  /// file.
+  bool IsHidden : 1;
+
+  /// \brief Whether the definition of this macro is ambiguous, due to
+  /// multiple definitions coming in from multiple modules.
+  bool IsAmbiguous : 1;
+
    ~MacroInfo() {
     assert(ArgumentList == 0 && "Didn't call destroy before dtor!");
   }
@@ -128,10 +143,34 @@ public:
   /// setDefinitionEndLoc - Set the location of the last token in the macro.
   ///
   void setDefinitionEndLoc(SourceLocation EndLoc) { EndLocation = EndLoc; }
+
   /// getDefinitionEndLoc - Return the location of the last token in the macro.
   ///
   SourceLocation getDefinitionEndLoc() const { return EndLocation; }
-  
+
+  /// \brief Set the location where macro was undefined. Can only be set once.
+  void setUndefLoc(SourceLocation UndefLoc) {
+    assert(UndefLocation.isInvalid() && "UndefLocation is already set!");
+    assert(UndefLoc.isValid() && "Invalid UndefLoc!");
+    UndefLocation = UndefLoc;
+  }
+
+  /// \brief Get the location where macro was undefined.
+  SourceLocation getUndefLoc() const { return UndefLocation; }
+
+  /// \brief Set previous definition of the macro with the same name.
+  void setPreviousDefinition(MacroInfo *PreviousDef) {
+    PreviousDefinition = PreviousDef;
+  }
+
+  /// \brief Get previous definition of the macro with the same name.
+  MacroInfo *getPreviousDefinition() { return PreviousDefinition; }
+
+  /// \brief Find macro definition active in the specified source location. If
+  /// this macro was not defined there, return NULL.
+  const MacroInfo *findDefinitionAtLoc(SourceLocation L,
+                                       SourceManager &SM) const;
+
   /// \brief Get length in characters of the macro definition.
   unsigned getDefinitionLength(SourceManager &SM) const {
     if (IsDefinitionLengthCached)
@@ -294,6 +333,23 @@ public:
   /// \brief Determine the location where this macro was explicitly made
   /// public or private within its module.
   SourceLocation getVisibilityLocation() { return VisibilityLocation; }
+
+  /// \brief Determine whether this macro is currently defined (and has not
+  /// been #undef'd) or has been hidden.
+  bool isDefined() const { return UndefLocation.isInvalid() && !IsHidden; }
+
+  /// \brief Determine whether this macro definition is hidden.
+  bool isHidden() const { return IsHidden; }
+
+  /// \brief Set whether this macro definition is hidden.
+  void setHidden(bool Val) { IsHidden = Val; }
+
+  /// \brief Determine whether this macro definition is ambiguous with
+  /// other macro definitions.
+  bool isAmbiguous() const { return IsAmbiguous; }
+
+  /// \brief Set whether this macro definition is ambiguous.
+  void setAmbiguous(bool Val) { IsAmbiguous = Val; }
   
 private:
   unsigned getDefinitionLengthSlow(SourceManager &SM) const;

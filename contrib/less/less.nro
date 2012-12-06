@@ -1,4 +1,4 @@
-.TH LESS 1 "Version 453: 27 Oct 2012"
+.TH LESS 1 "Version 456: 08 Nov 2012"
 .SH NAME
 less \- opposite of more
 .SH SYNOPSIS
@@ -456,18 +456,12 @@ to its default value on the command line by beginning the command
 line option with "\-+".
 .sp
 Some options like \-k or \-D require a string to follow the option letter.
-The string for that option is considered to end when a space, tab,
-dash or dollar sign ($) is found.
-For example, to set two \-D options on MS-DOS, 
-you can separate them with a dollar sign, like this:
+The string for that option is considered to end when a dollar sign ($) is found.
+For example, you can set two \-D options on MS-DOS like this:
 .sp
 LESS="Dn9.1$Ds4.1"
 .sp
-or a space like this:
-.sp
-LESS="Dn9.1 Ds4.1"
-.sp
-Any character may be included literally in an option string
+A dollar sign or backslash may be included literally in an option string
 by preceding it with a backslash.
 .IP "\-? or \-\-help"
 This option displays a summary of the commands accepted by

@@ -669,7 +669,7 @@ AH_TOP([
 /*
  * Sizes of various buffers.
  */
-#if 0 /* old sizes for small memory machines
+#if 0 /* old sizes for small memory machines */
 #define	CMDBUF_SIZE	512	/* Buffer for multichar commands */
 #define	UNGOT_SIZE	100	/* Max chars to unget() */
 #define	LINEBUF_SIZE	1024	/* Max size of line in input file */

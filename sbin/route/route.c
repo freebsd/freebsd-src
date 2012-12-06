@@ -365,7 +365,7 @@ flushroutes(int argc, char *argv[])
 	struct fibl *fl;
 	int error;
 
-	if (uid != 0 && !debugonly) {
+	if (uid != 0 && !debugonly && !tflag) {
 		errx(EX_NOPERM, "must be root to alter routing table");
 	}
 	shutdown(s, SHUT_RD); /* Don't want to read back our messages */
@@ -727,7 +727,7 @@ newroute(int argc, char **argv)
 	const char *dest, *gateway, *errmsg;
 	int key, error, flags, nrflags, fibnum;
 
-	if (uid != 0) {
+	if (uid != 0 && !debugonly && !tflag) {
 		errx(EX_NOPERM, "must be root to alter routing table");
 	}
 
@@ -1031,6 +1031,13 @@ inet_makenetandmask(u_long net, struct sockaddr_in *sin, u_long bits)
 	char *cp;
 
 	rtm_addrs |= RTA_NETMASK;
+
+	/*
+	 * MSB of net should be meaningful. 0/0 is exception.
+	 */
+	if (net > 0)
+		while ((net & 0xff000000) == 0)
+			net <<= 8;
 
 	/*
 	 * If no /xx was specified we must calculate the
@@ -1632,6 +1639,7 @@ print_rtmsg(struct rt_msghdr *rtm, size_t msglen)
 			break;
 		}
 		printf("\n");
+		fflush(stdout);
 		break;
 
 	default:

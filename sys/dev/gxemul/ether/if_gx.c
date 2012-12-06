@@ -370,7 +370,7 @@ gx_rx_intr(void *arg)
 			continue;
 		}
 
-		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL) {
 			device_printf(sc->sc_dev, "no memory for receive mbuf.\n");
 			sc->sc_ifp->if_iqdrops++;

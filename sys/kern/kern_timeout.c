@@ -84,7 +84,7 @@ SYSCTL_INT(_debug, OID_AUTO, to_avg_mpcalls, CTLFLAG_RD, &avg_mpcalls, 0,
  * TODO:
  *	allocate more timeout table slots when table overflows.
  */
-int callwheelsize, callwheelbits, callwheelmask;
+int callwheelsize, callwheelmask;
 
 /*
  * The callout cpu migration entity represents informations necessary for
@@ -218,12 +218,10 @@ kern_timeout_callwheel_alloc(caddr_t v)
 	timeout_cpu = PCPU_GET(cpuid);
 	cc = CC_CPU(timeout_cpu);
 	/*
-	 * Calculate callout wheel size
+	 * Calculate callout wheel size, should be next power of two higher
+	 * than 'ncallout'.
 	 */
-	for (callwheelsize = 1, callwheelbits = 0;
-	     callwheelsize < ncallout;
-	     callwheelsize <<= 1, ++callwheelbits)
-		;
+	callwheelsize = 1 << fls(ncallout);
 	callwheelmask = callwheelsize - 1;
 
 	cc->cc_callout = (struct callout *)v;
@@ -441,15 +439,13 @@ static void
 callout_cc_del(struct callout *c, struct callout_cpu *cc)
 {
 
-	if (cc->cc_next == c)
-		cc->cc_next = TAILQ_NEXT(c, c_links.tqe);
-	if (c->c_flags & CALLOUT_LOCAL_ALLOC) {
-		c->c_func = NULL;
-		SLIST_INSERT_HEAD(&cc->cc_callfree, c, c_links.sle);
-	}
+	if ((c->c_flags & CALLOUT_LOCAL_ALLOC) == 0)
+		return;
+	c->c_func = NULL;
+	SLIST_INSERT_HEAD(&cc->cc_callfree, c, c_links.sle);
 }
 
-static struct callout *
+static void
 softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
     int *lockcalls, int *gcalls)
 {
@@ -471,7 +467,9 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
 	static timeout_t *lastfunc;
 #endif
 
-	cc->cc_next = TAILQ_NEXT(c, c_links.tqe);
+	KASSERT((c->c_flags & (CALLOUT_PENDING | CALLOUT_ACTIVE)) ==
+	    (CALLOUT_PENDING | CALLOUT_ACTIVE),
+	    ("softclock_call_cc: pend|act %p %x", c, c->c_flags));
 	class = (c->c_lock != NULL) ? LOCK_CLASS(c->c_lock) : NULL;
 	sharedlock = (c->c_flags & CALLOUT_SHAREDLOCK) ? 0 : 1;
 	c_lock = c->c_lock;
@@ -539,20 +537,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
 		class->lc_unlock(c_lock);
 skip:
 	CC_LOCK(cc);
-	/*
-	 * If the current callout is locally allocated (from
-	 * timeout(9)) then put it on the freelist.
-	 *
-	 * Note: we need to check the cached copy of c_flags because
-	 * if it was not local, then it's not safe to deref the
-	 * callout pointer.
-	 */
-	if (c_flags & CALLOUT_LOCAL_ALLOC) {
-		KASSERT(c->c_flags == CALLOUT_LOCAL_ALLOC,
-		    ("corrupted callout"));
-		c->c_func = NULL;
-		SLIST_INSERT_HEAD(&cc->cc_callfree, c, c_links.sle);
-	}
+	KASSERT(cc->cc_curr == c, ("mishandled cc_curr"));
 	cc->cc_curr = NULL;
 	if (cc->cc_waiting) {
 		/*
@@ -561,13 +546,22 @@ skip:
 		 * If the callout was scheduled for
 		 * migration just cancel it.
 		 */
-		if (cc_cme_migrating(cc))
+		if (cc_cme_migrating(cc)) {
 			cc_cme_cleanup(cc);
+
+			/*
+			 * It should be assert here that the callout is not
+			 * destroyed but that is not easy.
+			 */
+			c->c_flags &= ~CALLOUT_DFRMIGRATION;
+		}
 		cc->cc_waiting = 0;
 		CC_UNLOCK(cc);
 		wakeup(&cc->cc_waiting);
 		CC_LOCK(cc);
 	} else if (cc_cme_migrating(cc)) {
+		KASSERT((c_flags & CALLOUT_LOCAL_ALLOC) == 0,
+		    ("Migrating legacy callout %p", c));
 #ifdef SMP
 		/*
 		 * If the callout was scheduled for
@@ -580,23 +574,20 @@ skip:
 		cc_cme_cleanup(cc);
 
 		/*
-		 * Handle deferred callout stops
+		 * It should be assert here that the callout is not destroyed
+		 * but that is not easy.
+		 *
+		 * As first thing, handle deferred callout stops.
 		 */
 		if ((c->c_flags & CALLOUT_DFRMIGRATION) == 0) {
 			CTR3(KTR_CALLOUT,
 			     "deferred cancelled %p func %p arg %p",
 			     c, new_func, new_arg);
 			callout_cc_del(c, cc);
-			goto nextc;
+			return;
 		}
-
 		c->c_flags &= ~CALLOUT_DFRMIGRATION;
 
-		/*
-		 * It should be assert here that the
-		 * callout is not destroyed but that
-		 * is not easy.
-		 */
 		new_cc = callout_cpu_switch(c, cc, new_cpu);
 		callout_cc_add(c, new_cc, new_ticks, new_func, new_arg,
 		    new_cpu);
@@ -606,10 +597,19 @@ skip:
 		panic("migration should not happen");
 #endif
 	}
-#ifdef SMP
-nextc:
-#endif
-	return (cc->cc_next);
+	/*
+	 * If the current callout is locally allocated (from
+	 * timeout(9)) then put it on the freelist.
+	 *
+	 * Note: we need to check the cached copy of c_flags because
+	 * if it was not local, then it's not safe to deref the
+	 * callout pointer.
+	 */
+	KASSERT((c_flags & CALLOUT_LOCAL_ALLOC) == 0 ||
+	    c->c_flags == CALLOUT_LOCAL_ALLOC,
+	    ("corrupted callout"));
+	if (c_flags & CALLOUT_LOCAL_ALLOC)
+		callout_cc_del(c, cc);
 }
 
 /*
@@ -676,10 +676,12 @@ softclock(void *arg)
 					steps = 0;
 				}
 			} else {
+				cc->cc_next = TAILQ_NEXT(c, c_links.tqe);
 				TAILQ_REMOVE(bucket, c, c_links.tqe);
-				c = softclock_call_cc(c, cc, &mpcalls,
+				softclock_call_cc(c, cc, &mpcalls,
 				    &lockcalls, &gcalls);
 				steps = 0;
+				c = cc->cc_next;
 			}
 		}
 	}
@@ -1024,6 +1026,8 @@ again:
 
 	CTR3(KTR_CALLOUT, "cancelled %p func %p arg %p",
 	    c, c->c_func, c->c_arg);
+	if (cc->cc_next == c)
+		cc->cc_next = TAILQ_NEXT(c, c_links.tqe);
 	TAILQ_REMOVE(&cc->cc_callwheel[c->c_time & callwheelmask], c,
 	    c_links.tqe);
 	callout_cc_del(c, cc);

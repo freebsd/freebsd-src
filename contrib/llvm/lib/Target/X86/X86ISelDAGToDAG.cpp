@@ -100,6 +100,7 @@ namespace {
       Base_Reg = Reg;
     }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
     void dump() {
       dbgs() << "X86ISelAddressMode " << this << '\n';
       dbgs() << "Base_Reg ";
@@ -133,6 +134,7 @@ namespace {
         dbgs() << "nul";
       dbgs() << " JT" << JT << " Align" << Align << '\n';
     }
+#endif
   };
 }
 
@@ -189,7 +191,6 @@ namespace {
     SDNode *Select(SDNode *N);
     SDNode *SelectGather(SDNode *N, unsigned Opc);
     SDNode *SelectAtomic64(SDNode *Node, unsigned Opc);
-    SDNode *SelectAtomicLoadAdd(SDNode *Node, EVT NVT);
     SDNode *SelectAtomicLoadArith(SDNode *Node, EVT NVT);
 
     bool FoldOffsetIntoAddress(uint64_t Offset, X86ISelAddressMode &AM);
@@ -244,13 +245,15 @@ namespace {
       else if (AM.CP)
         Disp = CurDAG->getTargetConstantPool(AM.CP, MVT::i32,
                                              AM.Align, AM.Disp, AM.SymbolFlags);
-      else if (AM.ES)
+      else if (AM.ES) {
+        assert(!AM.Disp && "Non-zero displacement is ignored with ES.");
         Disp = CurDAG->getTargetExternalSymbol(AM.ES, MVT::i32, AM.SymbolFlags);
-      else if (AM.JT != -1)
+      } else if (AM.JT != -1) {
+        assert(!AM.Disp && "Non-zero displacement is ignored with JT.");
         Disp = CurDAG->getTargetJumpTable(AM.JT, MVT::i32, AM.SymbolFlags);
-      else if (AM.BlockAddr)
-        Disp = CurDAG->getBlockAddress(AM.BlockAddr, MVT::i32,
-                                       true, AM.SymbolFlags);
+      } else if (AM.BlockAddr)
+        Disp = CurDAG->getTargetBlockAddress(AM.BlockAddr, MVT::i32, AM.Disp,
+                                             AM.SymbolFlags);
       else
         Disp = CurDAG->getTargetConstant(AM.Disp, MVT::i32);
 
@@ -359,7 +362,7 @@ X86DAGToDAGISel::IsProfitableToFold(SDValue N, SDNode *U, SDNode *Root) const {
 /// MoveBelowCallOrigChain - Replace the original chain operand of the call with
 /// load's chain operand and move load below the call's chain operand.
 static void MoveBelowOrigChain(SelectionDAG *CurDAG, SDValue Load,
-                                  SDValue Call, SDValue OrigChain) {
+                               SDValue Call, SDValue OrigChain) {
   SmallVector<SDValue, 8> Ops;
   SDValue Chain = OrigChain.getOperand(0);
   if (Chain.getNode() == Load.getNode())
@@ -383,11 +386,13 @@ static void MoveBelowOrigChain(SelectionDAG *CurDAG, SDValue Load,
   CurDAG->UpdateNodeOperands(OrigChain.getNode(), &Ops[0], Ops.size());
   CurDAG->UpdateNodeOperands(Load.getNode(), Call.getOperand(0),
                              Load.getOperand(1), Load.getOperand(2));
+
+  unsigned NumOps = Call.getNode()->getNumOperands();
   Ops.clear();
   Ops.push_back(SDValue(Load.getNode(), 1));
-  for (unsigned i = 1, e = Call.getNode()->getNumOperands(); i != e; ++i)
+  for (unsigned i = 1, e = NumOps; i != e; ++i)
     Ops.push_back(Call.getOperand(i));
-  CurDAG->UpdateNodeOperands(Call.getNode(), &Ops[0], Ops.size());
+  CurDAG->UpdateNodeOperands(Call.getNode(), &Ops[0], NumOps);
 }
 
 /// isCalleeLoad - Return true if call address is a load and it can be
@@ -396,6 +401,10 @@ static void MoveBelowOrigChain(SelectionDAG *CurDAG, SDValue Load,
 /// In the case of a tail call, there isn't a callseq node between the call
 /// chain and the load.
 static bool isCalleeLoad(SDValue Callee, SDValue &Chain, bool HasCallSeq) {
+  // The transformation is somewhat dangerous if the call's chain was glued to
+  // the call. After MoveBelowOrigChain the load is moved between the call and
+  // the chain, this can create a cycle if the load is not folded. So it is
+  // *really* important that we are sure the load will be folded.
   if (Callee.getNode() == Chain.getNode() || !Callee.hasOneUse())
     return false;
   LoadSDNode *LD = dyn_cast<LoadSDNode>(Callee.getNode());
@@ -425,7 +434,8 @@ static bool isCalleeLoad(SDValue Callee, SDValue &Chain, bool HasCallSeq) {
 
 void X86DAGToDAGISel::PreprocessISelDAG() {
   // OptForSize is used in pattern predicates that isel is matching.
-  OptForSize = MF->getFunction()->hasFnAttr(Attribute::OptimizeForSize);
+  OptForSize = MF->getFunction()->getFnAttributes().
+    hasAttribute(Attributes::OptimizeForSize);
 
   for (SelectionDAG::allnodes_iterator I = CurDAG->allnodes_begin(),
        E = CurDAG->allnodes_end(); I != E; ) {
@@ -433,7 +443,10 @@ void X86DAGToDAGISel::PreprocessISelDAG() {
 
     if (OptLevel != CodeGenOpt::None &&
         (N->getOpcode() == X86ISD::CALL ||
-         N->getOpcode() == X86ISD::TC_RETURN)) {
+         (N->getOpcode() == X86ISD::TC_RETURN &&
+          // Only does this if load can be foled into TC_RETURN.
+          (Subtarget->is64Bit() ||
+           getTargetMachine().getRelocationModel() != Reloc::PIC_)))) {
       /// Also try moving call address load from outside callseq_start to just
       /// before the call to allow it to be folded.
       ///
@@ -652,10 +665,16 @@ bool X86DAGToDAGISel::MatchWrapper(SDValue N, X86ISelAddressMode &AM) {
     } else if (JumpTableSDNode *J = dyn_cast<JumpTableSDNode>(N0)) {
       AM.JT = J->getIndex();
       AM.SymbolFlags = J->getTargetFlags();
-    } else {
-      AM.BlockAddr = cast<BlockAddressSDNode>(N0)->getBlockAddress();
-      AM.SymbolFlags = cast<BlockAddressSDNode>(N0)->getTargetFlags();
-    }
+    } else if (BlockAddressSDNode *BA = dyn_cast<BlockAddressSDNode>(N0)) {
+      X86ISelAddressMode Backup = AM;
+      AM.BlockAddr = BA->getBlockAddress();
+      AM.SymbolFlags = BA->getTargetFlags();
+      if (FoldOffsetIntoAddress(BA->getOffset(), AM)) {
+        AM = Backup;
+        return true;
+      }
+    } else
+      llvm_unreachable("Unhandled symbol reference node.");
 
     if (N.getOpcode() == X86ISD::WrapperRIP)
       AM.setBaseReg(CurDAG->getRegister(X86::RIP, MVT::i64));
@@ -684,10 +703,12 @@ bool X86DAGToDAGISel::MatchWrapper(SDValue N, X86ISelAddressMode &AM) {
     } else if (JumpTableSDNode *J = dyn_cast<JumpTableSDNode>(N0)) {
       AM.JT = J->getIndex();
       AM.SymbolFlags = J->getTargetFlags();
-    } else {
-      AM.BlockAddr = cast<BlockAddressSDNode>(N0)->getBlockAddress();
-      AM.SymbolFlags = cast<BlockAddressSDNode>(N0)->getTargetFlags();
-    }
+    } else if (BlockAddressSDNode *BA = dyn_cast<BlockAddressSDNode>(N0)) {
+      AM.BlockAddr = BA->getBlockAddress();
+      AM.Disp += BA->getOffset();
+      AM.SymbolFlags = BA->getTargetFlags();
+    } else
+      llvm_unreachable("Unhandled symbol reference node.");
     return false;
   }
 
@@ -1011,7 +1032,7 @@ bool X86DAGToDAGISel::MatchAddressRecursively(SDValue N, X86ISelAddressMode &AM,
           AM.IndexReg = ShVal.getNode()->getOperand(0);
           ConstantSDNode *AddVal =
             cast<ConstantSDNode>(ShVal.getNode()->getOperand(1));
-          uint64_t Disp = AddVal->getSExtValue() << Val;
+          uint64_t Disp = (uint64_t)AddVal->getSExtValue() << Val;
           if (!FoldOffsetIntoAddress(Disp, AM))
             return false;
         }
@@ -1281,7 +1302,9 @@ bool X86DAGToDAGISel::SelectAddr(SDNode *Parent, SDValue N, SDValue &Base,
       // that are not a MemSDNode, and thus don't have proper addrspace info.
       Parent->getOpcode() != ISD::INTRINSIC_W_CHAIN && // unaligned loads, fixme
       Parent->getOpcode() != ISD::INTRINSIC_VOID && // nontemporal stores
-      Parent->getOpcode() != X86ISD::TLSCALL) { // Fixme
+      Parent->getOpcode() != X86ISD::TLSCALL && // Fixme
+      Parent->getOpcode() != X86ISD::EH_SJLJ_SETJMP && // setjmp
+      Parent->getOpcode() != X86ISD::EH_SJLJ_LONGJMP) { // longjmp
     unsigned AddrSpace =
       cast<MemSDNode>(Parent)->getPointerInfo().getAddrSpace();
     // AddrSpace 256 -> GS, 257 -> FS.
@@ -1468,6 +1491,7 @@ SDNode *X86DAGToDAGISel::SelectAtomic64(SDNode *Node, unsigned Opc) {
   SDValue In1 = Node->getOperand(1);
   SDValue In2L = Node->getOperand(2);
   SDValue In2H = Node->getOperand(3);
+
   SDValue Tmp0, Tmp1, Tmp2, Tmp3, Tmp4;
   if (!SelectAddr(Node, In1, Tmp0, Tmp1, Tmp2, Tmp3, Tmp4))
     return NULL;
@@ -1481,159 +1505,13 @@ SDNode *X86DAGToDAGISel::SelectAtomic64(SDNode *Node, unsigned Opc) {
   return ResNode;
 }
 
-// FIXME: Figure out some way to unify this with the 'or' and other code
-// below.
-SDNode *X86DAGToDAGISel::SelectAtomicLoadAdd(SDNode *Node, EVT NVT) {
-  if (Node->hasAnyUseOfValue(0))
-    return 0;
-
-  // Optimize common patterns for __sync_add_and_fetch and
-  // __sync_sub_and_fetch where the result is not used. This allows us
-  // to use "lock" version of add, sub, inc, dec instructions.
-  // FIXME: Do not use special instructions but instead add the "lock"
-  // prefix to the target node somehow. The extra information will then be
-  // transferred to machine instruction and it denotes the prefix.
-  SDValue Chain = Node->getOperand(0);
-  SDValue Ptr = Node->getOperand(1);
-  SDValue Val = Node->getOperand(2);
-  SDValue Tmp0, Tmp1, Tmp2, Tmp3, Tmp4;
-  if (!SelectAddr(Node, Ptr, Tmp0, Tmp1, Tmp2, Tmp3, Tmp4))
-    return 0;
-
-  bool isInc = false, isDec = false, isSub = false, isCN = false;
-  ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Val);
-  if (CN && CN->getSExtValue() == (int32_t)CN->getSExtValue()) {
-    isCN = true;
-    int64_t CNVal = CN->getSExtValue();
-    if (CNVal == 1)
-      isInc = true;
-    else if (CNVal == -1)
-      isDec = true;
-    else if (CNVal >= 0)
-      Val = CurDAG->getTargetConstant(CNVal, NVT);
-    else {
-      isSub = true;
-      Val = CurDAG->getTargetConstant(-CNVal, NVT);
-    }
-  } else if (Val.hasOneUse() &&
-             Val.getOpcode() == ISD::SUB &&
-             X86::isZeroNode(Val.getOperand(0))) {
-    isSub = true;
-    Val = Val.getOperand(1);
-  }
-
-  DebugLoc dl = Node->getDebugLoc();
-  unsigned Opc = 0;
-  switch (NVT.getSimpleVT().SimpleTy) {
-  default: return 0;
-  case MVT::i8:
-    if (isInc)
-      Opc = X86::LOCK_INC8m;
-    else if (isDec)
-      Opc = X86::LOCK_DEC8m;
-    else if (isSub) {
-      if (isCN)
-        Opc = X86::LOCK_SUB8mi;
-      else
-        Opc = X86::LOCK_SUB8mr;
-    } else {
-      if (isCN)
-        Opc = X86::LOCK_ADD8mi;
-      else
-        Opc = X86::LOCK_ADD8mr;
-    }
-    break;
-  case MVT::i16:
-    if (isInc)
-      Opc = X86::LOCK_INC16m;
-    else if (isDec)
-      Opc = X86::LOCK_DEC16m;
-    else if (isSub) {
-      if (isCN) {
-        if (immSext8(Val.getNode()))
-          Opc = X86::LOCK_SUB16mi8;
-        else
-          Opc = X86::LOCK_SUB16mi;
-      } else
-        Opc = X86::LOCK_SUB16mr;
-    } else {
-      if (isCN) {
-        if (immSext8(Val.getNode()))
-          Opc = X86::LOCK_ADD16mi8;
-        else
-          Opc = X86::LOCK_ADD16mi;
-      } else
-        Opc = X86::LOCK_ADD16mr;
-    }
-    break;
-  case MVT::i32:
-    if (isInc)
-      Opc = X86::LOCK_INC32m;
-    else if (isDec)
-      Opc = X86::LOCK_DEC32m;
-    else if (isSub) {
-      if (isCN) {
-        if (immSext8(Val.getNode()))
-          Opc = X86::LOCK_SUB32mi8;
-        else
-          Opc = X86::LOCK_SUB32mi;
-      } else
-        Opc = X86::LOCK_SUB32mr;
-    } else {
-      if (isCN) {
-        if (immSext8(Val.getNode()))
-          Opc = X86::LOCK_ADD32mi8;
-        else
-          Opc = X86::LOCK_ADD32mi;
-      } else
-        Opc = X86::LOCK_ADD32mr;
-    }
-    break;
-  case MVT::i64:
-    if (isInc)
-      Opc = X86::LOCK_INC64m;
-    else if (isDec)
-      Opc = X86::LOCK_DEC64m;
-    else if (isSub) {
-      Opc = X86::LOCK_SUB64mr;
-      if (isCN) {
-        if (immSext8(Val.getNode()))
-          Opc = X86::LOCK_SUB64mi8;
-        else if (i64immSExt32(Val.getNode()))
-          Opc = X86::LOCK_SUB64mi32;
-      }
-    } else {
-      Opc = X86::LOCK_ADD64mr;
-      if (isCN) {
-        if (immSext8(Val.getNode()))
-          Opc = X86::LOCK_ADD64mi8;
-        else if (i64immSExt32(Val.getNode()))
-          Opc = X86::LOCK_ADD64mi32;
-      }
-    }
-    break;
-  }
-
-  SDValue Undef = SDValue(CurDAG->getMachineNode(TargetOpcode::IMPLICIT_DEF,
-                                                 dl, NVT), 0);
-  MachineSDNode::mmo_iterator MemOp = MF->allocateMemRefsArray(1);
-  MemOp[0] = cast<MemSDNode>(Node)->getMemOperand();
-  if (isInc || isDec) {
-    SDValue Ops[] = { Tmp0, Tmp1, Tmp2, Tmp3, Tmp4, Chain };
-    SDValue Ret = SDValue(CurDAG->getMachineNode(Opc, dl, MVT::Other, Ops, 6), 0);
-    cast<MachineSDNode>(Ret)->setMemRefs(MemOp, MemOp + 1);
-    SDValue RetVals[] = { Undef, Ret };
-    return CurDAG->getMergeValues(RetVals, 2, dl).getNode();
-  } else {
-    SDValue Ops[] = { Tmp0, Tmp1, Tmp2, Tmp3, Tmp4, Val, Chain };
-    SDValue Ret = SDValue(CurDAG->getMachineNode(Opc, dl, MVT::Other, Ops, 7), 0);
-    cast<MachineSDNode>(Ret)->setMemRefs(MemOp, MemOp + 1);
-    SDValue RetVals[] = { Undef, Ret };
-    return CurDAG->getMergeValues(RetVals, 2, dl).getNode();
-  }
-}
-
+/// Atomic opcode table
+///
 enum AtomicOpc {
+  ADD,
+  SUB,
+  INC,
+  DEC,
   OR,
   AND,
   XOR,
@@ -1657,6 +1535,58 @@ enum AtomicSz {
 
 static const uint16_t AtomicOpcTbl[AtomicOpcEnd][AtomicSzEnd] = {
   {
+    X86::LOCK_ADD8mi,
+    X86::LOCK_ADD8mr,
+    X86::LOCK_ADD16mi8,
+    X86::LOCK_ADD16mi,
+    X86::LOCK_ADD16mr,
+    X86::LOCK_ADD32mi8,
+    X86::LOCK_ADD32mi,
+    X86::LOCK_ADD32mr,
+    X86::LOCK_ADD64mi8,
+    X86::LOCK_ADD64mi32,
+    X86::LOCK_ADD64mr,
+  },
+  {
+    X86::LOCK_SUB8mi,
+    X86::LOCK_SUB8mr,
+    X86::LOCK_SUB16mi8,
+    X86::LOCK_SUB16mi,
+    X86::LOCK_SUB16mr,
+    X86::LOCK_SUB32mi8,
+    X86::LOCK_SUB32mi,
+    X86::LOCK_SUB32mr,
+    X86::LOCK_SUB64mi8,
+    X86::LOCK_SUB64mi32,
+    X86::LOCK_SUB64mr,
+  },
+  {
+    0,
+    X86::LOCK_INC8m,
+    0,
+    0,
+    X86::LOCK_INC16m,
+    0,
+    0,
+    X86::LOCK_INC32m,
+    0,
+    0,
+    X86::LOCK_INC64m,
+  },
+  {
+    0,
+    X86::LOCK_DEC8m,
+    0,
+    0,
+    X86::LOCK_DEC16m,
+    0,
+    0,
+    X86::LOCK_DEC32m,
+    0,
+    0,
+    X86::LOCK_DEC64m,
+  },
+  {
     X86::LOCK_OR8mi,
     X86::LOCK_OR8mr,
     X86::LOCK_OR16mi8,
@@ -1667,7 +1597,7 @@ static const uint16_t AtomicOpcTbl[AtomicOpcEnd][AtomicSzEnd] = {
     X86::LOCK_OR32mr,
     X86::LOCK_OR64mi8,
     X86::LOCK_OR64mi32,
-    X86::LOCK_OR64mr
+    X86::LOCK_OR64mr,
   },
   {
     X86::LOCK_AND8mi,
@@ -1680,7 +1610,7 @@ static const uint16_t AtomicOpcTbl[AtomicOpcEnd][AtomicSzEnd] = {
     X86::LOCK_AND32mr,
     X86::LOCK_AND64mi8,
     X86::LOCK_AND64mi32,
-    X86::LOCK_AND64mr
+    X86::LOCK_AND64mr,
   },
   {
     X86::LOCK_XOR8mi,
@@ -1693,18 +1623,74 @@ static const uint16_t AtomicOpcTbl[AtomicOpcEnd][AtomicSzEnd] = {
     X86::LOCK_XOR32mr,
     X86::LOCK_XOR64mi8,
     X86::LOCK_XOR64mi32,
-    X86::LOCK_XOR64mr
+    X86::LOCK_XOR64mr,
   }
 };
+
+// Return the target constant operand for atomic-load-op and do simple
+// translations, such as from atomic-load-add to lock-sub. The return value is
+// one of the following 3 cases:
+// + target-constant, the operand could be supported as a target constant.
+// + empty, the operand is not needed any more with the new op selected.
+// + non-empty, otherwise.
+static SDValue getAtomicLoadArithTargetConstant(SelectionDAG *CurDAG,
+                                                DebugLoc dl,
+                                                enum AtomicOpc &Op, EVT NVT,
+                                                SDValue Val) {
+  if (ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Val)) {
+    int64_t CNVal = CN->getSExtValue();
+    // Quit if not 32-bit imm.
+    if ((int32_t)CNVal != CNVal)
+      return Val;
+    // For atomic-load-add, we could do some optimizations.
+    if (Op == ADD) {
+      // Translate to INC/DEC if ADD by 1 or -1.
+      if ((CNVal == 1) || (CNVal == -1)) {
+        Op = (CNVal == 1) ? INC : DEC;
+        // No more constant operand after being translated into INC/DEC.
+        return SDValue();
+      }
+      // Translate to SUB if ADD by negative value.
+      if (CNVal < 0) {
+        Op = SUB;
+        CNVal = -CNVal;
+      }
+    }
+    return CurDAG->getTargetConstant(CNVal, NVT);
+  }
+
+  // If the value operand is single-used, try to optimize it.
+  if (Op == ADD && Val.hasOneUse()) {
+    // Translate (atomic-load-add ptr (sub 0 x)) back to (lock-sub x).
+    if (Val.getOpcode() == ISD::SUB && X86::isZeroNode(Val.getOperand(0))) {
+      Op = SUB;
+      return Val.getOperand(1);
+    }
+    // A special case for i16, which needs truncating as, in most cases, it's
+    // promoted to i32. We will translate
+    // (atomic-load-add (truncate (sub 0 x))) to (lock-sub (EXTRACT_SUBREG x))
+    if (Val.getOpcode() == ISD::TRUNCATE && NVT == MVT::i16 &&
+        Val.getOperand(0).getOpcode() == ISD::SUB &&
+        X86::isZeroNode(Val.getOperand(0).getOperand(0))) {
+      Op = SUB;
+      Val = Val.getOperand(0);
+      return CurDAG->getTargetExtractSubreg(X86::sub_16bit, dl, NVT,
+                                            Val.getOperand(1));
+    }
+  }
+
+  return Val;
+}
 
 SDNode *X86DAGToDAGISel::SelectAtomicLoadArith(SDNode *Node, EVT NVT) {
   if (Node->hasAnyUseOfValue(0))
     return 0;
 
+  DebugLoc dl = Node->getDebugLoc();
+
   // Optimize common patterns for __sync_or_and_fetch and similar arith
   // operations where the result is not used. This allows us to use the "lock"
   // version of the arithmetic instruction.
-  // FIXME: Same as for 'add' and 'sub', try to merge those down here.
   SDValue Chain = Node->getOperand(0);
   SDValue Ptr = Node->getOperand(1);
   SDValue Val = Node->getOperand(2);
@@ -1715,6 +1701,8 @@ SDNode *X86DAGToDAGISel::SelectAtomicLoadArith(SDNode *Node, EVT NVT) {
   // Which index into the table.
   enum AtomicOpc Op;
   switch (Node->getOpcode()) {
+    default:
+      return 0;
     case ISD::ATOMIC_LOAD_OR:
       Op = OR;
       break;
@@ -1724,16 +1712,14 @@ SDNode *X86DAGToDAGISel::SelectAtomicLoadArith(SDNode *Node, EVT NVT) {
     case ISD::ATOMIC_LOAD_XOR:
       Op = XOR;
       break;
-    default:
-      return 0;
+    case ISD::ATOMIC_LOAD_ADD:
+      Op = ADD;
+      break;
   }
-
-  bool isCN = false;
-  ConstantSDNode *CN = dyn_cast<ConstantSDNode>(Val);
-  if (CN && (int32_t)CN->getSExtValue() == CN->getSExtValue()) {
-    isCN = true;
-    Val = CurDAG->getTargetConstant(CN->getSExtValue(), NVT);
-  }
+  
+  Val = getAtomicLoadArithTargetConstant(CurDAG, dl, Op, NVT, Val);
+  bool isUnOp = !Val.getNode();
+  bool isCN = Val.getNode() && (Val.getOpcode() == ISD::TargetConstant);
 
   unsigned Opc = 0;
   switch (NVT.getSimpleVT().SimpleTy) {
@@ -1775,13 +1761,20 @@ SDNode *X86DAGToDAGISel::SelectAtomicLoadArith(SDNode *Node, EVT NVT) {
 
   assert(Opc != 0 && "Invalid arith lock transform!");
 
-  DebugLoc dl = Node->getDebugLoc();
+  SDValue Ret;
   SDValue Undef = SDValue(CurDAG->getMachineNode(TargetOpcode::IMPLICIT_DEF,
                                                  dl, NVT), 0);
   MachineSDNode::mmo_iterator MemOp = MF->allocateMemRefsArray(1);
   MemOp[0] = cast<MemSDNode>(Node)->getMemOperand();
-  SDValue Ops[] = { Tmp0, Tmp1, Tmp2, Tmp3, Tmp4, Val, Chain };
-  SDValue Ret = SDValue(CurDAG->getMachineNode(Opc, dl, MVT::Other, Ops, 7), 0);
+  if (isUnOp) {
+    SDValue Ops[] = { Tmp0, Tmp1, Tmp2, Tmp3, Tmp4, Chain };
+    Ret = SDValue(CurDAG->getMachineNode(Opc, dl, MVT::Other, Ops,
+                                         array_lengthof(Ops)), 0);
+  } else {
+    SDValue Ops[] = { Tmp0, Tmp1, Tmp2, Tmp3, Tmp4, Val, Chain };
+    Ret = SDValue(CurDAG->getMachineNode(Opc, dl, MVT::Other, Ops,
+                                         array_lengthof(Ops)), 0);
+  }
   cast<MachineSDNode>(Ret)->setMemRefs(MemOp, MemOp + 1);
   SDValue RetVals[] = { Undef, Ret };
   return CurDAG->getMergeValues(RetVals, 2, dl).getNode();
@@ -2059,6 +2052,10 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
   case X86ISD::ATOMSUB64_DAG:
   case X86ISD::ATOMNAND64_DAG:
   case X86ISD::ATOMAND64_DAG:
+  case X86ISD::ATOMMAX64_DAG:
+  case X86ISD::ATOMMIN64_DAG:
+  case X86ISD::ATOMUMAX64_DAG:
+  case X86ISD::ATOMUMIN64_DAG:
   case X86ISD::ATOMSWAP64_DAG: {
     unsigned Opc;
     switch (Opcode) {
@@ -2069,6 +2066,10 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
     case X86ISD::ATOMSUB64_DAG:  Opc = X86::ATOMSUB6432;  break;
     case X86ISD::ATOMNAND64_DAG: Opc = X86::ATOMNAND6432; break;
     case X86ISD::ATOMAND64_DAG:  Opc = X86::ATOMAND6432;  break;
+    case X86ISD::ATOMMAX64_DAG:  Opc = X86::ATOMMAX6432;  break;
+    case X86ISD::ATOMMIN64_DAG:  Opc = X86::ATOMMIN6432;  break;
+    case X86ISD::ATOMUMAX64_DAG: Opc = X86::ATOMUMAX6432; break;
+    case X86ISD::ATOMUMIN64_DAG: Opc = X86::ATOMUMIN6432; break;
     case X86ISD::ATOMSWAP64_DAG: Opc = X86::ATOMSWAP6432; break;
     }
     SDNode *RetVal = SelectAtomic64(Node, Opc);
@@ -2077,15 +2078,10 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
     break;
   }
 
-  case ISD::ATOMIC_LOAD_ADD: {
-    SDNode *RetVal = SelectAtomicLoadAdd(Node, NVT);
-    if (RetVal)
-      return RetVal;
-    break;
-  }
   case ISD::ATOMIC_LOAD_XOR:
   case ISD::ATOMIC_LOAD_AND:
-  case ISD::ATOMIC_LOAD_OR: {
+  case ISD::ATOMIC_LOAD_OR:
+  case ISD::ATOMIC_LOAD_ADD: {
     SDNode *RetVal = SelectAtomicLoadArith(Node, NVT);
     if (RetVal)
       return RetVal;
@@ -2116,7 +2112,8 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
 
     // Make sure that we don't change the operation by removing bits.
     // This only matters for OR and XOR, AND is unaffected.
-    if (Opcode != ISD::AND && ((Val >> ShlVal) << ShlVal) != Val)
+    uint64_t RemovedBitsMask = (1ULL << ShlVal) - 1;
+    if (Opcode != ISD::AND && (Val & RemovedBitsMask) != 0)
       break;
 
     unsigned ShlOp, Op;
@@ -2199,13 +2196,16 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
     SDValue N1 = Node->getOperand(1);
 
     bool isSigned = Opcode == ISD::SMUL_LOHI;
+    bool hasBMI2 = Subtarget->hasBMI2();
     if (!isSigned) {
       switch (NVT.getSimpleVT().SimpleTy) {
       default: llvm_unreachable("Unsupported VT!");
       case MVT::i8:  Opc = X86::MUL8r;  MOpc = X86::MUL8m;  break;
       case MVT::i16: Opc = X86::MUL16r; MOpc = X86::MUL16m; break;
-      case MVT::i32: Opc = X86::MUL32r; MOpc = X86::MUL32m; break;
-      case MVT::i64: Opc = X86::MUL64r; MOpc = X86::MUL64m; break;
+      case MVT::i32: Opc = hasBMI2 ? X86::MULX32rr : X86::MUL32r;
+                     MOpc = hasBMI2 ? X86::MULX32rm : X86::MUL32m; break;
+      case MVT::i64: Opc = hasBMI2 ? X86::MULX64rr : X86::MUL64r;
+                     MOpc = hasBMI2 ? X86::MULX64rm : X86::MUL64m; break;
       }
     } else {
       switch (NVT.getSimpleVT().SimpleTy) {
@@ -2217,13 +2217,31 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
       }
     }
 
-    unsigned LoReg, HiReg;
-    switch (NVT.getSimpleVT().SimpleTy) {
-    default: llvm_unreachable("Unsupported VT!");
-    case MVT::i8:  LoReg = X86::AL;  HiReg = X86::AH;  break;
-    case MVT::i16: LoReg = X86::AX;  HiReg = X86::DX;  break;
-    case MVT::i32: LoReg = X86::EAX; HiReg = X86::EDX; break;
-    case MVT::i64: LoReg = X86::RAX; HiReg = X86::RDX; break;
+    unsigned SrcReg, LoReg, HiReg;
+    switch (Opc) {
+    default: llvm_unreachable("Unknown MUL opcode!");
+    case X86::IMUL8r:
+    case X86::MUL8r:
+      SrcReg = LoReg = X86::AL; HiReg = X86::AH;
+      break;
+    case X86::IMUL16r:
+    case X86::MUL16r:
+      SrcReg = LoReg = X86::AX; HiReg = X86::DX;
+      break;
+    case X86::IMUL32r:
+    case X86::MUL32r:
+      SrcReg = LoReg = X86::EAX; HiReg = X86::EDX;
+      break;
+    case X86::IMUL64r:
+    case X86::MUL64r:
+      SrcReg = LoReg = X86::RAX; HiReg = X86::RDX;
+      break;
+    case X86::MULX32rr:
+      SrcReg = X86::EDX; LoReg = HiReg = 0;
+      break;
+    case X86::MULX64rr:
+      SrcReg = X86::RDX; LoReg = HiReg = 0;
+      break;
     }
 
     SDValue Tmp0, Tmp1, Tmp2, Tmp3, Tmp4;
@@ -2235,22 +2253,47 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
         std::swap(N0, N1);
     }
 
-    SDValue InFlag = CurDAG->getCopyToReg(CurDAG->getEntryNode(), dl, LoReg,
+    SDValue InFlag = CurDAG->getCopyToReg(CurDAG->getEntryNode(), dl, SrcReg,
                                           N0, SDValue()).getValue(1);
+    SDValue ResHi, ResLo;
 
     if (foldedLoad) {
+      SDValue Chain;
       SDValue Ops[] = { Tmp0, Tmp1, Tmp2, Tmp3, Tmp4, N1.getOperand(0),
                         InFlag };
-      SDNode *CNode =
-        CurDAG->getMachineNode(MOpc, dl, MVT::Other, MVT::Glue, Ops,
-                               array_lengthof(Ops));
-      InFlag = SDValue(CNode, 1);
+      if (MOpc == X86::MULX32rm || MOpc == X86::MULX64rm) {
+        SDVTList VTs = CurDAG->getVTList(NVT, NVT, MVT::Other, MVT::Glue);
+        SDNode *CNode = CurDAG->getMachineNode(MOpc, dl, VTs, Ops,
+                                               array_lengthof(Ops));
+        ResHi = SDValue(CNode, 0);
+        ResLo = SDValue(CNode, 1);
+        Chain = SDValue(CNode, 2);
+        InFlag = SDValue(CNode, 3);
+      } else {
+        SDVTList VTs = CurDAG->getVTList(MVT::Other, MVT::Glue);
+        SDNode *CNode = CurDAG->getMachineNode(MOpc, dl, VTs, Ops,
+                                               array_lengthof(Ops));
+        Chain = SDValue(CNode, 0);
+        InFlag = SDValue(CNode, 1);
+      }
 
       // Update the chain.
-      ReplaceUses(N1.getValue(1), SDValue(CNode, 0));
+      ReplaceUses(N1.getValue(1), Chain);
     } else {
-      SDNode *CNode = CurDAG->getMachineNode(Opc, dl, MVT::Glue, N1, InFlag);
-      InFlag = SDValue(CNode, 0);
+      SDValue Ops[] = { N1, InFlag };
+      if (Opc == X86::MULX32rr || Opc == X86::MULX64rr) {
+        SDVTList VTs = CurDAG->getVTList(NVT, NVT, MVT::Glue);
+        SDNode *CNode = CurDAG->getMachineNode(Opc, dl, VTs, Ops,
+                                               array_lengthof(Ops));
+        ResHi = SDValue(CNode, 0);
+        ResLo = SDValue(CNode, 1);
+        InFlag = SDValue(CNode, 2);
+      } else {
+        SDVTList VTs = CurDAG->getVTList(MVT::Glue);
+        SDNode *CNode = CurDAG->getMachineNode(Opc, dl, VTs, Ops,
+                                               array_lengthof(Ops));
+        InFlag = SDValue(CNode, 0);
+      }
     }
 
     // Prevent use of AH in a REX instruction by referencing AX instead.
@@ -2275,19 +2318,25 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
     }
     // Copy the low half of the result, if it is needed.
     if (!SDValue(Node, 0).use_empty()) {
-      SDValue Result = CurDAG->getCopyFromReg(CurDAG->getEntryNode(), dl,
-                                              LoReg, NVT, InFlag);
-      InFlag = Result.getValue(2);
-      ReplaceUses(SDValue(Node, 0), Result);
-      DEBUG(dbgs() << "=> "; Result.getNode()->dump(CurDAG); dbgs() << '\n');
+      if (ResLo.getNode() == 0) {
+        assert(LoReg && "Register for low half is not defined!");
+        ResLo = CurDAG->getCopyFromReg(CurDAG->getEntryNode(), dl, LoReg, NVT,
+                                       InFlag);
+        InFlag = ResLo.getValue(2);
+      }
+      ReplaceUses(SDValue(Node, 0), ResLo);
+      DEBUG(dbgs() << "=> "; ResLo.getNode()->dump(CurDAG); dbgs() << '\n');
     }
     // Copy the high half of the result, if it is needed.
     if (!SDValue(Node, 1).use_empty()) {
-      SDValue Result = CurDAG->getCopyFromReg(CurDAG->getEntryNode(), dl,
-                                              HiReg, NVT, InFlag);
-      InFlag = Result.getValue(2);
-      ReplaceUses(SDValue(Node, 1), Result);
-      DEBUG(dbgs() << "=> "; Result.getNode()->dump(CurDAG); dbgs() << '\n');
+      if (ResHi.getNode() == 0) {
+        assert(HiReg && "Register for high half is not defined!");
+        ResHi = CurDAG->getCopyFromReg(CurDAG->getEntryNode(), dl, HiReg, NVT,
+                                       InFlag);
+        InFlag = ResHi.getValue(2);
+      }
+      ReplaceUses(SDValue(Node, 1), ResHi);
+      DEBUG(dbgs() << "=> "; ResHi.getNode()->dump(CurDAG); dbgs() << '\n');
     }
 
     return NULL;
@@ -2488,7 +2537,13 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
                                                         MVT::i8, Reg);
 
         // Emit a testb.
-        return CurDAG->getMachineNode(X86::TEST8ri, dl, MVT::i32, Subreg, Imm);
+        SDNode *NewNode = CurDAG->getMachineNode(X86::TEST8ri, dl, MVT::i32,
+                                                 Subreg, Imm);
+        // Replace SUB|CMP with TEST, since SUB has two outputs while TEST has
+        // one, do not call ReplaceAllUsesWith.
+        ReplaceUses(SDValue(Node, (Opcode == X86ISD::SUB ? 1 : 0)),
+                    SDValue(NewNode, 0));
+        return NULL;
       }
 
       // For example, "testl %eax, $2048" to "testb %ah, $8".
@@ -2519,8 +2574,13 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
         // Emit a testb.  The EXTRACT_SUBREG becomes a COPY that can only
         // target GR8_NOREX registers, so make sure the register class is
         // forced.
-        return CurDAG->getMachineNode(X86::TEST8ri_NOREX, dl, MVT::i32,
-                                      Subreg, ShiftedImm);
+        SDNode *NewNode = CurDAG->getMachineNode(X86::TEST8ri_NOREX, dl,
+                                                 MVT::i32, Subreg, ShiftedImm);
+        // Replace SUB|CMP with TEST, since SUB has two outputs while TEST has
+        // one, do not call ReplaceAllUsesWith.
+        ReplaceUses(SDValue(Node, (Opcode == X86ISD::SUB ? 1 : 0)),
+                    SDValue(NewNode, 0));
+        return NULL;
       }
 
       // For example, "testl %eax, $32776" to "testw %ax, $32776".
@@ -2536,7 +2596,13 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
                                                         MVT::i16, Reg);
 
         // Emit a testw.
-        return CurDAG->getMachineNode(X86::TEST16ri, dl, MVT::i32, Subreg, Imm);
+        SDNode *NewNode = CurDAG->getMachineNode(X86::TEST16ri, dl, MVT::i32,
+                                                 Subreg, Imm);
+        // Replace SUB|CMP with TEST, since SUB has two outputs while TEST has
+        // one, do not call ReplaceAllUsesWith.
+        ReplaceUses(SDValue(Node, (Opcode == X86ISD::SUB ? 1 : 0)),
+                    SDValue(NewNode, 0));
+        return NULL;
       }
 
       // For example, "testq %rax, $268468232" to "testl %eax, $268468232".
@@ -2552,7 +2618,13 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
                                                         MVT::i32, Reg);
 
         // Emit a testl.
-        return CurDAG->getMachineNode(X86::TEST32ri, dl, MVT::i32, Subreg, Imm);
+        SDNode *NewNode = CurDAG->getMachineNode(X86::TEST32ri, dl, MVT::i32,
+                                                 Subreg, Imm);
+        // Replace SUB|CMP with TEST, since SUB has two outputs while TEST has
+        // one, do not call ReplaceAllUsesWith.
+        ReplaceUses(SDValue(Node, (Opcode == X86ISD::SUB ? 1 : 0)),
+                    SDValue(NewNode, 0));
+        return NULL;
       }
     }
     break;
@@ -2606,85 +2678,6 @@ SDNode *X86DAGToDAGISel::Select(SDNode *Node) {
     ReplaceUses(SDValue(StoredVal.getNode(), 1), SDValue(Result, 0));
 
     return Result;
-  }
-
-  // FIXME: Custom handling because TableGen doesn't support multiple implicit
-  // defs in an instruction pattern
-  case X86ISD::PCMPESTRI: {
-    SDValue N0 = Node->getOperand(0);
-    SDValue N1 = Node->getOperand(1);
-    SDValue N2 = Node->getOperand(2);
-    SDValue N3 = Node->getOperand(3);
-    SDValue N4 = Node->getOperand(4);
-
-    // Make sure last argument is a constant
-    ConstantSDNode *Cst = dyn_cast<ConstantSDNode>(N4);
-    if (!Cst)
-      break;
-
-    uint64_t Imm = Cst->getZExtValue();
-
-    SDValue InFlag = CurDAG->getCopyToReg(CurDAG->getEntryNode(), dl,
-                                          X86::EAX, N1, SDValue()).getValue(1);
-    InFlag = CurDAG->getCopyToReg(CurDAG->getEntryNode(), dl, X86::EDX,
-                                  N3, InFlag).getValue(1);
-
-    SDValue Ops[] = { N0, N2, getI8Imm(Imm), InFlag };
-    unsigned Opc = Subtarget->hasAVX() ? X86::VPCMPESTRIrr :
-                                         X86::PCMPESTRIrr;
-    InFlag = SDValue(CurDAG->getMachineNode(Opc, dl, MVT::Glue, Ops,
-                                            array_lengthof(Ops)), 0);
-
-    if (!SDValue(Node, 0).use_empty()) {
-      SDValue Result = CurDAG->getCopyFromReg(CurDAG->getEntryNode(), dl,
-                                              X86::ECX, NVT, InFlag);
-      InFlag = Result.getValue(2);
-      ReplaceUses(SDValue(Node, 0), Result);
-    }
-    if (!SDValue(Node, 1).use_empty()) {
-      SDValue Result = CurDAG->getCopyFromReg(CurDAG->getEntryNode(), dl,
-                                              X86::EFLAGS, NVT, InFlag);
-      InFlag = Result.getValue(2);
-      ReplaceUses(SDValue(Node, 1), Result);
-    }
-
-    return NULL;
-  }
-
-  // FIXME: Custom handling because TableGen doesn't support multiple implicit
-  // defs in an instruction pattern
-  case X86ISD::PCMPISTRI: {
-    SDValue N0 = Node->getOperand(0);
-    SDValue N1 = Node->getOperand(1);
-    SDValue N2 = Node->getOperand(2);
-
-    // Make sure last argument is a constant
-    ConstantSDNode *Cst = dyn_cast<ConstantSDNode>(N2);
-    if (!Cst)
-      break;
-
-    uint64_t Imm = Cst->getZExtValue();
-
-    SDValue Ops[] = { N0, N1, getI8Imm(Imm) };
-    unsigned Opc = Subtarget->hasAVX() ? X86::VPCMPISTRIrr :
-                                         X86::PCMPISTRIrr;
-    SDValue InFlag = SDValue(CurDAG->getMachineNode(Opc, dl, MVT::Glue, Ops,
-                                                    array_lengthof(Ops)), 0);
-
-    if (!SDValue(Node, 0).use_empty()) {
-      SDValue Result = CurDAG->getCopyFromReg(CurDAG->getEntryNode(), dl,
-                                              X86::ECX, NVT, InFlag);
-      InFlag = Result.getValue(2);
-      ReplaceUses(SDValue(Node, 0), Result);
-    }
-    if (!SDValue(Node, 1).use_empty()) {
-      SDValue Result = CurDAG->getCopyFromReg(CurDAG->getEntryNode(), dl,
-                                              X86::EFLAGS, NVT, InFlag);
-      InFlag = Result.getValue(2);
-      ReplaceUses(SDValue(Node, 1), Result);
-    }
-
-    return NULL;
   }
   }
 

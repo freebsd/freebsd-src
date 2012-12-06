@@ -431,7 +431,7 @@ call_again:
 send_again:
 	mtx_unlock(&cs->cs_lock);
 
-	MGETHDR(mreq, M_WAIT, MT_DATA);
+	MGETHDR(mreq, M_WAITOK, MT_DATA);
 	KASSERT(cu->cu_mcalllen <= MHLEN, ("RPC header too big"));
 	bcopy(cu->cu_mcallc, mreq->m_data, cu->cu_mcalllen);
 	mreq->m_len = cu->cu_mcalllen;

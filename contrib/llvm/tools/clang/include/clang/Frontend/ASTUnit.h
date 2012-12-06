@@ -19,11 +19,13 @@
 #include "clang/Sema/CodeCompleteConsumer.h"
 #include "clang/Lex/ModuleLoader.h"
 #include "clang/Lex/PreprocessingRecord.h"
+#include "clang/Lex/HeaderSearchOptions.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/SourceManager.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/FileSystemOptions.h"
+#include "clang/Basic/TargetOptions.h"
 #include "clang-c/Index.h"
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/OwningPtr.h"
@@ -56,20 +58,26 @@ class Preprocessor;
 class SourceManager;
 class TargetInfo;
 class ASTFrontendAction;
+class ASTDeserializationListener;
 
 /// \brief Utility class for loading a ASTContext from an AST file.
 ///
 class ASTUnit : public ModuleLoader {
 private:
-  IntrusiveRefCntPtr<LangOptions>       LangOpts;
-  IntrusiveRefCntPtr<DiagnosticsEngine> Diagnostics;
-  IntrusiveRefCntPtr<FileManager>       FileMgr;
-  IntrusiveRefCntPtr<SourceManager>     SourceMgr;
-  OwningPtr<HeaderSearch>               HeaderInfo;
-  IntrusiveRefCntPtr<TargetInfo>        Target;
-  IntrusiveRefCntPtr<Preprocessor>      PP;
-  IntrusiveRefCntPtr<ASTContext>        Ctx;
+  IntrusiveRefCntPtr<LangOptions>         LangOpts;
+  IntrusiveRefCntPtr<DiagnosticsEngine>   Diagnostics;
+  IntrusiveRefCntPtr<FileManager>         FileMgr;
+  IntrusiveRefCntPtr<SourceManager>       SourceMgr;
+  OwningPtr<HeaderSearch>                 HeaderInfo;
+  IntrusiveRefCntPtr<TargetInfo>          Target;
+  IntrusiveRefCntPtr<Preprocessor>        PP;
+  IntrusiveRefCntPtr<ASTContext>          Ctx;
+  IntrusiveRefCntPtr<TargetOptions>       TargetOpts;
+  IntrusiveRefCntPtr<HeaderSearchOptions> HSOpts;
   ASTReader *Reader;
+
+  struct ASTWriterData;
+  OwningPtr<ASTWriterData> WriterData;
 
   FileSystemOptions FileSystemOpts;
 
@@ -84,13 +92,6 @@ private:
   /// Optional owned invocation, just used to make the invocation used in
   /// LoadFromCommandLine available.
   IntrusiveRefCntPtr<CompilerInvocation> Invocation;
-  
-  /// \brief The set of target features.
-  ///
-  /// FIXME: each time we reparse, we need to restore the set of target
-  /// features from this vector, because TargetInfo::CreateTargetInfo()
-  /// mangles the target options in place. Yuck!
-  std::vector<std::string> TargetFeatures;
   
   // OnlyLocalDecls - when true, walking this AST should only visit declarations
   // that come from the AST itself, not from included precompiled headers.
@@ -374,8 +375,8 @@ private:
   /// \brief Clear out and deallocate 
   void ClearCachedCompletionResults();
   
-  ASTUnit(const ASTUnit&); // DO NOT IMPLEMENT
-  ASTUnit &operator=(const ASTUnit &); // DO NOT IMPLEMENT
+  ASTUnit(const ASTUnit &) LLVM_DELETED_FUNCTION;
+  void operator=(const ASTUnit &) LLVM_DELETED_FUNCTION;
   
   explicit ASTUnit(bool MainFileIsAST);
 
@@ -466,7 +467,11 @@ public:
 
   const FileSystemOptions &getFileSystemOpts() const { return FileSystemOpts; }
 
-  const std::string &getOriginalSourceFileName();
+  StringRef getOriginalSourceFileName() {
+    return OriginalSourceFile;
+  }
+
+  ASTDeserializationListener *getDeserializationListener();
 
   /// \brief Add a temporary file that the ASTUnit depends on.
   ///
@@ -515,7 +520,7 @@ public:
   void addFileLevelDecl(Decl *D);
 
   /// \brief Get the decls that are contained in a file in the Offset/Length
-  /// range. \arg Length can be 0 to indicate a point at \arg Offset instead of
+  /// range. \p Length can be 0 to indicate a point at \p Offset instead of
   /// a range. 
   void findFileRegionDecls(FileID File, unsigned Offset, unsigned Length,
                            SmallVectorImpl<Decl *> &Decls);
@@ -542,14 +547,14 @@ public:
   /// \brief Get the source location for the given file:offset pair.
   SourceLocation getLocation(const FileEntry *File, unsigned Offset) const;
 
-  /// \brief If \arg Loc is a loaded location from the preamble, returns
+  /// \brief If \p Loc is a loaded location from the preamble, returns
   /// the corresponding local location of the main file, otherwise it returns
-  /// \arg Loc.
+  /// \p Loc.
   SourceLocation mapLocationFromPreamble(SourceLocation Loc);
 
-  /// \brief If \arg Loc is a local location of the main file but inside the
+  /// \brief If \p Loc is a local location of the main file but inside the
   /// preamble chunk, returns the corresponding loaded location from the
-  /// preamble, otherwise it returns \arg Loc.
+  /// preamble, otherwise it returns \p Loc.
   SourceLocation mapLocationToPreamble(SourceLocation Loc);
 
   bool isInPreambleFileID(SourceLocation Loc);
@@ -557,13 +562,13 @@ public:
   SourceLocation getStartOfMainFileID();
   SourceLocation getEndOfPreambleFileID();
 
-  /// \brief \see mapLocationFromPreamble.
+  /// \see mapLocationFromPreamble.
   SourceRange mapRangeFromPreamble(SourceRange R) {
     return SourceRange(mapLocationFromPreamble(R.getBegin()),
                        mapLocationFromPreamble(R.getEnd()));
   }
 
-  /// \brief \see mapLocationToPreamble.
+  /// \see mapLocationToPreamble.
   SourceRange mapRangeToPreamble(SourceRange R) {
     return SourceRange(mapLocationToPreamble(R.getBegin()),
                        mapLocationToPreamble(R.getEnd()));
@@ -606,6 +611,29 @@ public:
   unsigned cached_completion_size() const { 
     return CachedCompletionResults.size(); 
   }
+
+  /// \brief Returns an iterator range for the local preprocessing entities
+  /// of the local Preprocessor, if this is a parsed source file, or the loaded
+  /// preprocessing entities of the primary module if this is an AST file.
+  std::pair<PreprocessingRecord::iterator, PreprocessingRecord::iterator>
+    getLocalPreprocessingEntities() const;
+
+  /// \brief Type for a function iterating over a number of declarations.
+  /// \returns true to continue iteration and false to abort.
+  typedef bool (*DeclVisitorFn)(void *context, const Decl *D);
+
+  /// \brief Iterate over local declarations (locally parsed if this is a parsed
+  /// source file or the loaded declarations of the primary module if this is an
+  /// AST file).
+  /// \returns true if the iteration was complete or false if it was aborted.
+  bool visitLocalTopLevelDecls(void *context, DeclVisitorFn Fn);
+
+  /// \brief Get the PCH file if one was included.
+  const FileEntry *getPCHFile();
+
+  /// \brief Returns true if the ASTUnit was constructed from a serialized
+  /// module file.
+  bool isModuleFile();
 
   llvm::MemoryBuffer *getBufferForFile(StringRef Filename,
                                        std::string *ErrorStr = 0);
@@ -679,7 +707,7 @@ public:
   /// (e.g. because the PCH could not be loaded), this accepts the ASTUnit
   /// mainly to allow the caller to see the diagnostics.
   /// This will only receive an ASTUnit if a new one was created. If an already
-  /// created ASTUnit was passed in \param Unit then the caller can check that.
+  /// created ASTUnit was passed in \p Unit then the caller can check that.
   ///
   static ASTUnit *LoadFromCompilerInvocationAction(CompilerInvocation *CI,
                               IntrusiveRefCntPtr<DiagnosticsEngine> Diags,
@@ -750,6 +778,7 @@ public:
                                       bool AllowPCHWithCompilerErrors = false,
                                       bool SkipFunctionBodies = false,
                                       bool UserFilesAreVolatile = false,
+                                      bool ForSerialization = false,
                                       OwningPtr<ASTUnit> *ErrAST = 0);
   
   /// \brief Reparse the source files using the same command-line options that
@@ -792,8 +821,9 @@ public:
 
   /// \brief Save this translation unit to a file with the given name.
   ///
-  /// \returns An indication of whether the save was successful or not.
-  CXSaveError Save(StringRef File);
+  /// \returns true if there was a file error or false if the save was
+  /// successful.
+  bool Save(StringRef File);
 
   /// \brief Serialize this translation unit with the given output stream.
   ///

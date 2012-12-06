@@ -619,7 +619,7 @@ f_install_zoneinfo()
 
 	return $rv
 }
- 
+
 # f_confirm_zone $filename
 #
 # Prompt the user to confirm the new timezone data. The first (and only)

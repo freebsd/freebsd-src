@@ -39,13 +39,9 @@ void DivZeroChecker::reportBug(const char *Msg,
     if (!BT)
       BT.reset(new BuiltinBug("Division by zero"));
 
-    BugReport *R =
-      new BugReport(*BT, Msg, N);
-
-    bugreporter::addTrackNullOrUndefValueVisitor(N,
-                                                 bugreporter::GetDenomExpr(N),
-                                                 R);
-    C.EmitReport(R);
+    BugReport *R = new BugReport(*BT, Msg, N);
+    bugreporter::trackNullOrUndefValue(N, bugreporter::GetDenomExpr(N), *R);
+    C.emitReport(R);
   }
 }
 

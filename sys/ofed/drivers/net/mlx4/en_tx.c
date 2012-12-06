@@ -725,7 +725,7 @@ retry:
 	nr_txbb = desc_size / TXBB_SIZE;
 	if (unlikely(nr_txbb > MAX_DESC_TXBBS)) {
 		if (defrag) {
-			mb = m_defrag(*mbp, M_DONTWAIT);
+			mb = m_defrag(*mbp, M_NOWAIT);
 			if (mb == NULL) {
 				mb = *mbp;
 				goto tx_drop;

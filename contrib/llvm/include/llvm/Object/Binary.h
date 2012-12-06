@@ -26,8 +26,8 @@ namespace object {
 
 class Binary {
 private:
-  Binary(); // = delete
-  Binary(const Binary &other); // = delete
+  Binary() LLVM_DELETED_FUNCTION;
+  Binary(const Binary &other) LLVM_DELETED_FUNCTION;
 
   unsigned int TypeID;
 
@@ -64,7 +64,6 @@ public:
 
   // Cast methods.
   unsigned int getType() const { return TypeID; }
-  static inline bool classof(const Binary *v) { return true; }
 
   // Convenience methods
   bool isObject() const {

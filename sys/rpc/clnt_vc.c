@@ -386,7 +386,7 @@ call_again:
 	/*
 	 * Leave space to pre-pend the record mark.
 	 */
-	MGETHDR(mreq, M_WAIT, MT_DATA);
+	MGETHDR(mreq, M_WAITOK, MT_DATA);
 	mreq->m_data += sizeof(uint32_t);
 	KASSERT(ct->ct_mpos + sizeof(uint32_t) <= MHLEN,
 	    ("RPC header too big"));
@@ -414,7 +414,7 @@ call_again:
 	/*
 	 * Prepend a record marker containing the packet length.
 	 */
-	M_PREPEND(mreq, sizeof(uint32_t), M_WAIT);
+	M_PREPEND(mreq, sizeof(uint32_t), M_WAITOK);
 	*mtod(mreq, uint32_t *) =
 		htonl(0x80000000 | (mreq->m_pkthdr.len - sizeof(uint32_t)));
 
