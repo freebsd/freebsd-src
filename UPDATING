@@ -28,9 +28,8 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 
 XXXXXXXX:
 	The BPF_JITTER kernel option has been removed.  Its functionality
-	is now replaced by BPFJIT option and the GENERIC kernels on all
-	supported architectures (i.e., amd64, i386, pc98, and powerpc)
-	include the new option.
+	is now replaced with BPFJIT option and GENERIC kernel configurations
+	for amd64, i386, pc98, and powerpc architectures include the option.
 
 20121201:
 	With the addition of auditdistd(8), a new auditdistd user is now
