@@ -37,6 +37,8 @@
 .Fn rad_acct_open "void"
 .Ft int
 .Fn rad_add_server "struct rad_handle *h" "const char *host" "int port" "const char *secret" "int timeout" "int max_tries"
+.Ft int
+.Fn rad_add_server_ex "struct rad_handle *h" "const char *host" "int port" "const char *secret" "int timeout" "int max_tries" "int dead_time" "struct in_addr bindto"
 .Ft "struct rad_handle *"
 .Fn rad_auth_open "void"
 .Ft void
@@ -153,7 +155,12 @@ is used.
 returns 0 on success, or \-1 if an error occurs.
 .Pp
 The library can also be configured programmatically by calls to
-.Fn rad_add_server .
+.Fn rad_add_server
+or
+.Fn rad_add_server_ex .
+.Fn rad_add_server
+is a backward compatible function, implemented via
+.Fn rad_add_server_ex .
 The
 .Fa host
 parameter specifies the server host, either as a fully qualified
@@ -188,11 +195,20 @@ The maximum number of repeated
 requests to make before giving up is passed into the
 .Fa max_tries
 parameter.
+Time interval in seconds when the server will not be requested
+if it is marked as dead (did not answer on the last try) set with
+.Fa dead_time
+parameter.
+.Fa bindto
+parameter is an IP address on the multihomed host that is used as
+a source address for all requests.
 .Fn rad_add_server
 returns 0 on success, or \-1 if an error occurs.
 .Pp
 .Fn rad_add_server
-may be called multiple times, and it may be used together with
+or
+.Fn rad_add_server_ex
+may be called multiple times, and they may be used together with
 .Fn rad_config .
 At most 10 servers may be specified.
 When multiple servers are given, they are tried in round-robin
