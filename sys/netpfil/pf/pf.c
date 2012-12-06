@@ -1487,8 +1487,6 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 		return (0);	/* XXXGL: undefined actually */
 	}
 
-	s->timeout = PFTM_UNLINKED;
-
 	if (s->src.state == PF_TCPS_PROXY_DST) {
 		/* XXX wire key the right one? */
 		pf_send_tcp(NULL, s->rule.ptr, s->key[PF_SK_WIRE]->af,
@@ -1502,10 +1500,13 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 
 	LIST_REMOVE(s, entry);
 	pf_src_tree_remove_state(s);
-	PF_HASHROW_UNLOCK(ih);
 
 	if (pfsync_delete_state_ptr != NULL)
 		pfsync_delete_state_ptr(s);
+
+	s->timeout = PFTM_UNLINKED;
+
+	PF_HASHROW_UNLOCK(ih);
 
 	pf_detach_state(s);
 	refcount_release(&s->refs);
