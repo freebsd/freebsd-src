@@ -894,3 +894,6 @@ RACCT		opt_global.h
 
 # Resource Limits
 RCTL		opt_global.h
+
+# BPF just-in-time compiler
+BPFJIT		opt_bpf.h
