@@ -66,6 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #else
 #include <stdlib.h>
+#include <strings.h>
 #endif
 #include <net/bpf.h>
 #ifdef _KERNEL
@@ -82,11 +83,12 @@ __FBSDID("$FreeBSD$");
 	} \
 }
 
-static u_int16_t	m_xhalf(struct mbuf *m, bpf_u_int32 k, int *err);
-static u_int32_t	m_xword(struct mbuf *m, bpf_u_int32 k, int *err);
+uint32_t	m_xhalf(const struct mbuf *, uint32_t, int *);
+uint32_t	m_xword(const struct mbuf *, uint32_t, int *);
+uint32_t	m_xbyte(const struct mbuf *, uint32_t, int *);
 
-static u_int32_t
-m_xword(struct mbuf *m, bpf_u_int32 k, int *err)
+uint32_t
+m_xword(const struct mbuf *m, uint32_t k, int *err)
 {
 	size_t len;
 	u_char *cp, *np;
@@ -134,8 +136,8 @@ m_xword(struct mbuf *m, bpf_u_int32 k, int *err)
 	return (0);
 }
 
-static u_int16_t
-m_xhalf(struct mbuf *m, bpf_u_int32 k, int *err)
+uint32_t
+m_xhalf(const struct mbuf *m, uint32_t k, int *err)
 {
 	size_t len;
 	u_char *cp;
@@ -162,6 +164,15 @@ m_xhalf(struct mbuf *m, bpf_u_int32 k, int *err)
  bad:
 	*err = 1;
 	return (0);
+}
+
+uint32_t
+m_xbyte(const struct mbuf *m, uint32_t k, int *err)
+{
+
+	*err = 0;
+	MINDEX(m, k);
+	return (mtod(m, u_char *)[k]);
 }
 #endif
 
