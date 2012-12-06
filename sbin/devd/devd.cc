@@ -127,7 +127,7 @@ delete_and_clear(vector<T *> &v)
 {
 	typename vector<T *>::const_iterator i;
 
-	for (i = v.begin(); i != v.end(); i++)
+	for (i = v.begin(); i != v.end(); ++i)
 		delete *i;
 	v.clear();
 }
@@ -155,7 +155,7 @@ event_proc::matches(config &c) const
 {
 	vector<eps *>::const_iterator i;
 
-	for (i = _epsvec.begin(); i != _epsvec.end(); i++)
+	for (i = _epsvec.begin(); i != _epsvec.end(); ++i)
 		if (!(*i)->do_match(c))
 			return (false);
 	return (true);
@@ -166,7 +166,7 @@ event_proc::run(config &c) const
 {
 	vector<eps *>::const_iterator i;
 		
-	for (i = _epsvec.begin(); i != _epsvec.end(); i++)
+	for (i = _epsvec.begin(); i != _epsvec.end(); ++i)
 		if (!(*i)->do_action(c))
 			return (false);
 	return (true);
@@ -301,7 +301,7 @@ media::media(config &, const char *var, const char *type)
 		{ -1,			"unknown" },
 		{ 0, NULL },
 	};
-	for (int i = 0; media_types[i].ifmt_string != NULL; i++)
+	for (int i = 0; media_types[i].ifmt_string != NULL; ++i)
 		if (strcasecmp(type, media_types[i].ifmt_string) == 0) {
 			_type = media_types[i].ifmt_word;
 			break;
@@ -454,7 +454,7 @@ config::parse(void)
 	vector<string>::const_iterator i;
 
 	parse_one_file(configfile);
-	for (i = _dir_list.begin(); i != _dir_list.end(); i++)
+	for (i = _dir_list.begin(); i != _dir_list.end(); ++i)
 		parse_files_in_dir((*i).c_str());
 	sort_vector(_attach_list);
 	sort_vector(_detach_list);
@@ -569,7 +569,7 @@ config::get_variable(const string &var)
 {
 	vector<var_list *>::reverse_iterator i;
 
-	for (i = _var_list_table.rbegin(); i != _var_list_table.rend(); i++) {
+	for (i = _var_list_table.rbegin(); i != _var_list_table.rend(); ++i) {
 		if ((*i)->is_set(var))
 			return ((*i)->get_variable(var));
 	}
@@ -726,7 +726,7 @@ config::find_and_execute(char type)
 	}
 	if (Dflag)
 		fprintf(stderr, "Processing %s event\n", s);
-	for (i = l->begin(); i != l->end(); i++) {
+	for (i = l->begin(); i != l->end(); ++i) {
 		if ((*i)->matches(*this)) {
 			(*i)->run(*this);
 			break;
@@ -823,14 +823,14 @@ notify_clients(const char *data, int len)
 	list<int> bad;
 	list<int>::const_iterator i;
 
-	for (i = clients.begin(); i != clients.end(); i++) {
+	for (i = clients.begin(); i != clients.end(); ++i) {
 		if (write(*i, data, len) <= 0) {
 			bad.push_back(*i);
 			close(*i);
 		}
 	}
 
-	for (i = bad.begin(); i != bad.end(); i++)
+	for (i = bad.begin(); i != bad.end(); ++i)
 		clients.erase(find(clients.begin(), clients.end(), *i));
 }
 
