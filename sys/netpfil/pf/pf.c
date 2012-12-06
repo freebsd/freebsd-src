@@ -1504,6 +1504,12 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 	if (pfsync_delete_state_ptr != NULL)
 		pfsync_delete_state_ptr(s);
 
+	--s->rule.ptr->states_cur;
+	if (s->nat_rule.ptr != NULL)
+		--s->nat_rule.ptr->states_cur;
+	if (s->anchor.ptr != NULL)
+		--s->anchor.ptr->states_cur;
+
 	s->timeout = PFTM_UNLINKED;
 
 	PF_HASHROW_UNLOCK(ih);
@@ -1521,11 +1527,7 @@ pf_free_state(struct pf_state *cur)
 	KASSERT(cur->refs == 0, ("%s: %p has refs", __func__, cur));
 	KASSERT(cur->timeout == PFTM_UNLINKED, ("%s: timeout %u", __func__,
 	    cur->timeout));
-	--cur->rule.ptr->states_cur;
-	if (cur->nat_rule.ptr != NULL)
-		--cur->nat_rule.ptr->states_cur;
-	if (cur->anchor.ptr != NULL)
-		--cur->anchor.ptr->states_cur;
+
 	pf_normalize_tcp_cleanup(cur);
 	uma_zfree(V_pf_state_z, cur);
 	V_pf_status.fcounters[FCNT_STATE_REMOVALS]++;
