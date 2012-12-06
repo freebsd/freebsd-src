@@ -29,8 +29,8 @@ int	invalid =	1;
 u_int	expect =	0xdeadc0de;
 
 /* Expected signal */
-#ifdef __amd64__
-int	expect_signal =	SIGBUS;
-#else
+#ifdef BPF_JIT_COMPILER
 int	expect_signal =	SIGSEGV;
+#else
+int	expect_signal =	SIGBUS;
 #endif

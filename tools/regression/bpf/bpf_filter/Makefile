@@ -24,7 +24,7 @@ TEST_CASES?=	test0001 test0002 test0003 test0004	\
 
 SYSDIR?=	${.CURDIR}/../../../../sys
 
-SRCS=		${.CURDIR}/bpf_test.c
+SRCS=		${.CURDIR}/bpf_test.c ${SYSDIR}/net/bpf_filter.c
 
 CFLAGS+=	-g -I${SYSDIR} -I${.CURDIR}/tests
 
@@ -38,17 +38,17 @@ CFLAGS+=	-DLOG_LEVEL="${LOG_LEVEL}"
 CFLAGS+=	-DBPF_VALIDATE
 .endif
 
-.if defined(BPF_JIT) &&	\
-    (${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386")
-SRCS+=		${SYSDIR}/net/bpf_jitter.c	\
-		${SYSDIR}/${MACHINE_ARCH}/${MACHINE_ARCH}/bpf_jit_machdep.c
-CFLAGS+=	-DBPF_JIT_COMPILER
-LIBS+=		-lutil
-WARNS?=		6
+.if defined(BPF_JIT)
+SRCS+=		${SYSDIR}/net/bpfjit.c ${SYSDIR}/contrib/sljit/sljitLir.c
+CFLAGS+=	-DBPF_JIT_COMPILER -I${SYSDIR}/contrib/sljit
+CFLAGS+=	-DBPFJIT_USE_UDIV -DSLJIT_CONFIG_AUTO=1 -DSLJIT_DEBUG=0
+.if !defined(BPF_BENCHMARK) && defined(LOG_LEVEL) && (${LOG_LEVEL} > 2)
+CFLAGS+=	-DSLJIT_VERBOSE=1
 .else
-SRCS+=		${SYSDIR}/net/bpf_filter.c
-WARNS?=		2
+CFLAGS+=	-DSLJIT_VERBOSE=0
 .endif
+.endif
+WARNS?=		2
 
 .for TEST in ${TEST_CASES}
 ${TEST}:	${.CURDIR}/tests/${TEST}.h ${SRCS}

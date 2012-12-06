@@ -59,31 +59,28 @@ static int	verbose = LOG_LEVEL;
 
 #include <libutil.h>
 
-#include <net/bpf_jitter.h>
+#include <net/bpfjit.h>
 
 static u_int
 bpf_compile_and_filter(void)
 {
-	bpf_jit_filter	*filter;
+	bpfjit_function_t filter;
 	u_int		i, ret;
 
 	/* Compile the BPF filter program and generate native code. */
-	if ((filter = bpf_jitter(pc, nins)) == NULL) {
+	filter = bpfjit_generate_code(pc, nins);
+	if (filter == NULL && invalid == 0) {
 		if (verbose > 1)
 			printf("Failed to allocate memory:\t");
 		if (verbose > 0)
 			printf("FATAL\n");
 		exit(FATAL);
 	}
-	if (verbose > 2) {
-		printf("\n");
-		hexdump(filter->func, filter->size, NULL, HD_OMIT_CHARS);
-	}
 
 	for (i = 0; i < BPF_NRUNS; i++)
-		ret = (*(filter->func))(pkt, wirelen, buflen);
+		ret = filter(pkt, wirelen, buflen);
 
-	bpf_destroy_jit_filter(filter);
+	bpfjit_free_code(filter);
 
 	return (ret);
 }

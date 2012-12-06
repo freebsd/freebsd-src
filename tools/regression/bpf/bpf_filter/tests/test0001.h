@@ -28,4 +28,8 @@ int	invalid =	1;
 u_int	expect =	0;
 
 /* Expected signal */
+#ifdef BPF_JIT_COMPILER
+int	expect_signal =	SIGSEGV;
+#else
 int	expect_signal =	SIGABRT;
+#endif
