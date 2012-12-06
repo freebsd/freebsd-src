@@ -103,3 +103,5 @@ options 	AGP_DEBUG
 # The following devices are not supported.
 nodevice	fdc
 nooption	FDC_DEBUG
+
+nooption	BPFJIT
