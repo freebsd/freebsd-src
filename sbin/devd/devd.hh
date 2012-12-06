@@ -134,8 +134,8 @@ public:
 	int get_priority() const { return (_prio); }
 	void set_priority(int prio) { _prio = prio; }
 	void add(eps *);
-	bool matches(config &);
-	bool run(config &);
+	bool matches(config &) const;
+	bool run(config &) const;
 private:
 	int _prio;
 	std::vector<eps *> _epsvec;
@@ -170,7 +170,7 @@ protected:
 	void parse_one_file(const char *fn);
 	void parse_files_in_dir(const char *dirname);
 	void expand_one(const char *&src, std::string &dst);
-	bool is_id_char(char);
+	bool is_id_char(char) const;
 	bool chop_var(char *&buffer, char *&lhs, char *&rhs);
 private:
 	std::vector<std::string> _dir_list;

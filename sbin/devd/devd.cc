@@ -151,7 +151,7 @@ event_proc::add(eps *eps)
 }
 
 bool
-event_proc::matches(config &c)
+event_proc::matches(config &c) const
 {
 	vector<eps *>::const_iterator i;
 
@@ -162,7 +162,7 @@ event_proc::matches(config &c)
 }
 
 bool
-event_proc::run(config &c)
+event_proc::run(config &c) const
 {
 	vector<eps *>::const_iterator i;
 		
@@ -436,7 +436,7 @@ config::parse_files_in_dir(const char *dirname)
 
 class epv_greater {
 public:
-	int operator()(event_proc *const&l1, event_proc *const&l2)
+	int operator()(event_proc *const&l1, event_proc *const&l2) const
 	{
 		return (l1->get_priority() > l2->get_priority());
 	}
@@ -577,7 +577,7 @@ config::get_variable(const string &var)
 }
 
 bool
-config::is_id_char(char ch)
+config::is_id_char(char ch) const
 {
 	return (ch != '\0' && (isalpha(ch) || isdigit(ch) || ch == '_' || 
 	    ch == '-'));
