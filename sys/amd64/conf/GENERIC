@@ -306,6 +306,7 @@ device		firmware	# firmware assist module
 # Be aware of the administrative consequences of enabling this!
 # Note that 'bpf' is required for DHCP.
 device		bpf		# Berkeley packet filter
+options 	BPFJIT		# enable BPF just-in-time compiler
 
 # USB support
 options 	USB_DEBUG	# enable debug msgs
