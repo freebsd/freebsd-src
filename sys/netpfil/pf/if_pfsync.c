@@ -2063,9 +2063,7 @@ pfsync_bulk_update(void *arg)
 			if (s->sync_state == PFSYNC_S_NONE &&
 			    s->timeout < PFTM_MAX &&
 			    s->pfsync_time <= sc->sc_ureq_received) {
-				PFSYNC_LOCK(sc);
 				pfsync_update_state_req(s);
-				PFSYNC_UNLOCK(sc);
 				sent++;
 			}
 		}
