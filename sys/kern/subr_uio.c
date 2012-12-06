@@ -389,7 +389,6 @@ again:
 	case UIO_SYSSPACE:
 		iov_base = iov->iov_base;
 		*iov_base = c;
-		iov->iov_base = iov_base;
 		break;
 
 	case UIO_NOCOPY:
