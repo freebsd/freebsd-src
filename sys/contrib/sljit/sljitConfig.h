@@ -50,11 +50,15 @@
 #define	SLJIT_VERBOSE			0
 
 #define	SLJIT_FREE(ptr)			free(ptr, M_TEMP)
-#define	SLJIT_FREE_EXEC(ptr)		free(ptr, M_TEMP)
 #define	SLJIT_MALLOC(size)		malloc(size, M_TEMP, M_NOWAIT)
-#define	SLJIT_MALLOC_EXEC(size)		malloc(size, M_TEMP, M_NOWAIT)
 #define	SLJIT_MEMMOVE(dest, src, len)	bcopy(src, dest, len)
 #define	SLJIT_ZEROMEM(dest, len)	bzero(dest, len)
+
+/* XXX okay for x86 but other architectures? */
+#define	SLJIT_FREE_EXEC(ptr)		free(ptr, M_TEMP)
+#define	SLJIT_MALLOC_EXEC(size)		malloc(size, M_TEMP, M_NOWAIT)
+
+/* XXX need SLJIT_CACHE_FLUSH(from, to) for non-X86 to flush icache */
 #endif
 
 /* --------------------------------------------------------------------- */
