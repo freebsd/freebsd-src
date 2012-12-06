@@ -26,6 +26,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+XXXXXXXX:
+	The BPF_JITTER kernel option has been removed.  Its functionality
+	is now replaced by BPFJIT option and the GENERIC kernels on all
+	supported architectures (i.e., amd64, i386, pc98, and powerpc)
+	include the new option.
+
 20121201:
 	With the addition of auditdistd(8), a new auditdistd user is now
 	depended on during installworld.  "mergemaster -p" can be used to add
