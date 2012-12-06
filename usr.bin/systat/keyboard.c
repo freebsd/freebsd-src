@@ -57,7 +57,6 @@ static int keyboard_dispatch(int ch);
 int
 keyboard(void)
 {
-	char line[80];
 	int ch, n;
 	struct timeval last, intvl, now, tm;
 	fd_set rfds;
