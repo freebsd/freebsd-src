@@ -1197,7 +1197,6 @@ bpfjit_generate_code(struct bpf_insn *insns, size_t insn_count)
 	size_t i;
 	int status;
 	int branching, negate;
-	unsigned int rval, mode, src;
 	int ntmp;
 	unsigned int locals_size;
 	unsigned int minm, maxm; /* min/max k for M[k] */
@@ -1352,229 +1351,164 @@ bpfjit_generate_code(struct bpf_insn *insns, size_t insn_count)
 		}
 
 		pc = &insns[i];
-		switch (BPF_CLASS(pc->code)) {
+		switch (pc->code) {
 
 		default:
 			goto fail;
 
-		case BPF_LD:
-			/* BPF_LD+BPF_IMM          A <- k */
-			if (pc->code == (BPF_LD|BPF_IMM)) {
-				status = sljit_emit_op1(compiler,
-				    SLJIT_MOV,
-				    BPFJIT_A, 0,
-				    SLJIT_IMM, (uint32_t)pc->k);
-				if (status != SLJIT_SUCCESS)
-					goto fail;
+		case BPF_LD|BPF_IMM:
+			status = sljit_emit_op1(compiler,
+			    SLJIT_MOV,
+			    BPFJIT_A, 0,
+			    SLJIT_IMM, (uint32_t)pc->k);
+			break;
 
-				continue;
-			}
-
-			/* BPF_LD+BPF_MEM          A <- M[k] */
-			if (pc->code == (BPF_LD|BPF_MEM)) {
-				if (pc->k < minm || pc->k > maxm)
-					goto fail;
-				status = sljit_emit_op1(compiler,
-				    SLJIT_MOV_UI,
-				    BPFJIT_A, 0,
-				    SLJIT_MEM1(SLJIT_LOCALS_REG),
-				    mem_local_offset(pc->k, minm));
-				if (status != SLJIT_SUCCESS)
-					goto fail;
-
-				continue;
-			}
-
-			/* BPF_LD+BPF_W+BPF_LEN    A <- len */
-			if (pc->code == (BPF_LD|BPF_W|BPF_LEN)) {
-				status = sljit_emit_op1(compiler,
-				    SLJIT_MOV,
-				    BPFJIT_A, 0,
-				    BPFJIT_WIRELEN, 0);
-				if (status != SLJIT_SUCCESS)
-					goto fail;
-
-				continue;
-			}
-
-			mode = BPF_MODE(pc->code);
-			if (mode != BPF_ABS && mode != BPF_IND)
+		case BPF_LD|BPF_MEM:
+			if (pc->k < minm || pc->k > maxm)
 				goto fail;
+			status = sljit_emit_op1(compiler,
+			    SLJIT_MOV_UI,
+			    BPFJIT_A, 0,
+			    SLJIT_MEM1(SLJIT_LOCALS_REG),
+			    mem_local_offset(pc->k, minm));
+			break;
 
-			status = emit_pkt_read(compiler, pc,
-			    to_mchain_jump, ret0, &ret0_size);
-			if (status != SLJIT_SUCCESS)
+		case BPF_LD|BPF_W|BPF_LEN:
+			status = sljit_emit_op1(compiler,
+			    SLJIT_MOV,
+			    BPFJIT_A, 0,
+			    BPFJIT_WIRELEN, 0);
+			break;
+
+		case BPF_LD|BPF_W|BPF_ABS:
+		case BPF_LD|BPF_H|BPF_ABS:
+		case BPF_LD|BPF_B|BPF_ABS:
+		case BPF_LD|BPF_W|BPF_IND:
+		case BPF_LD|BPF_H|BPF_IND:
+		case BPF_LD|BPF_B|BPF_IND:
+			status = emit_pkt_read(compiler, pc, to_mchain_jump,
+			    ret0, &ret0_size);
+			break;
+
+		case BPF_LDX|BPF_IMM:
+			status = sljit_emit_op1(compiler,
+			    SLJIT_MOV,
+			    BPFJIT_X, 0,
+			    SLJIT_IMM, (uint32_t)pc->k);
+			break;
+
+		case BPF_LDX|BPF_W|BPF_LEN:
+			status = sljit_emit_op1(compiler,
+			    SLJIT_MOV,
+			    BPFJIT_X, 0,
+			    BPFJIT_WIRELEN, 0);
+			break;
+
+		case BPF_LDX|BPF_MEM:
+			if (pc->k < minm || pc->k > maxm)
 				goto fail;
+			status = sljit_emit_op1(compiler,
+			    SLJIT_MOV_UI,
+			    BPFJIT_X, 0,
+			    SLJIT_MEM1(SLJIT_LOCALS_REG),
+			    mem_local_offset(pc->k, minm));
+			break;
 
-			continue;
-
-		case BPF_LDX:
-			mode = BPF_MODE(pc->code);
-
-			/* BPF_LDX+BPF_W+BPF_IMM    X <- k */
-			if (mode == BPF_IMM) {
-				if (BPF_SIZE(pc->code) != BPF_W)
-					goto fail;
-				status = sljit_emit_op1(compiler,
-				    SLJIT_MOV,
-				    BPFJIT_X, 0,
-				    SLJIT_IMM, (uint32_t)pc->k);
-				if (status != SLJIT_SUCCESS)
-					goto fail;
-
-				continue;
-			}
-
-			/* BPF_LDX+BPF_W+BPF_LEN    X <- len */
-			if (mode == BPF_LEN) {
-				if (BPF_SIZE(pc->code) != BPF_W)
-					goto fail;
-				status = sljit_emit_op1(compiler,
-				    SLJIT_MOV,
-				    BPFJIT_X, 0,
-				    BPFJIT_WIRELEN, 0);
-				if (status != SLJIT_SUCCESS)
-					goto fail;
-
-				continue;
-			}
-
-			/* BPF_LDX+BPF_W+BPF_MEM    X <- M[k] */
-			if (mode == BPF_MEM) {
-				if (BPF_SIZE(pc->code) != BPF_W)
-					goto fail;
-				if (pc->k < minm || pc->k > maxm)
-					goto fail;
-				status = sljit_emit_op1(compiler,
-				    SLJIT_MOV_UI,
-				    BPFJIT_X, 0,
-				    SLJIT_MEM1(SLJIT_LOCALS_REG),
-				    mem_local_offset(pc->k, minm));
-				if (status != SLJIT_SUCCESS)
-					goto fail;
-
-				continue;
-			}
-
-			/* BPF_LDX+BPF_B+BPF_MSH    X <- 4*(P[k:1]&0xf) */
-			if (mode != BPF_MSH || BPF_SIZE(pc->code) != BPF_B)
-				goto fail;
-
-			status = emit_msh(compiler, pc,
-			    to_mchain_jump, ret0, &ret0_size);
-			if (status != SLJIT_SUCCESS)
-				goto fail;
-
-			continue;
+		case BPF_LDX|BPF_MSH|BPF_B:
+			status = emit_msh(compiler, pc, to_mchain_jump,
+			    ret0, &ret0_size);
+			break;
 
 		case BPF_ST:
-			if (pc->code != BPF_ST || pc->k < minm || pc->k > maxm)
+			if (pc->k < minm || pc->k > maxm)
 				goto fail;
-
 			status = sljit_emit_op1(compiler,
 			    SLJIT_MOV_UI,
 			    SLJIT_MEM1(SLJIT_LOCALS_REG),
 			    mem_local_offset(pc->k, minm),
 			    BPFJIT_A, 0);
-			if (status != SLJIT_SUCCESS)
-				goto fail;
-
-			continue;
+			break;
 
 		case BPF_STX:
-			if (pc->code != BPF_STX || pc->k < minm || pc->k > maxm)
+			if (pc->k < minm || pc->k > maxm)
 				goto fail;
-
 			status = sljit_emit_op1(compiler,
 			    SLJIT_MOV_UI,
 			    SLJIT_MEM1(SLJIT_LOCALS_REG),
 			    mem_local_offset(pc->k, minm),
 			    BPFJIT_X, 0);
-			if (status != SLJIT_SUCCESS)
-				goto fail;
+			break;
 
-			continue;
+		case BPF_ALU|BPF_NEG:
+			status = sljit_emit_op1(compiler,
+			    SLJIT_NEG,
+			    BPFJIT_A, 0,
+			    BPFJIT_A, 0);
+			break;
 
-		case BPF_ALU:
+		case BPF_ALU|BPF_ADD|BPF_X:
+		case BPF_ALU|BPF_SUB|BPF_X:
+		case BPF_ALU|BPF_MUL|BPF_X:
+		case BPF_ALU|BPF_AND|BPF_X:
+		case BPF_ALU|BPF_OR|BPF_X:
+		case BPF_ALU|BPF_LSH|BPF_X:
+		case BPF_ALU|BPF_RSH|BPF_X:
+		case BPF_ALU|BPF_ADD|BPF_K:
+		case BPF_ALU|BPF_SUB|BPF_K:
+		case BPF_ALU|BPF_MUL|BPF_K:
+		case BPF_ALU|BPF_AND|BPF_K:
+		case BPF_ALU|BPF_OR|BPF_K:
+		case BPF_ALU|BPF_LSH|BPF_K:
+		case BPF_ALU|BPF_RSH|BPF_K:
+			status = sljit_emit_op2(compiler,
+			    bpf_alu_to_sljit_op(pc),
+			    BPFJIT_A, 0,
+			    BPFJIT_A, 0,
+			    kx_to_reg(pc), kx_to_reg_arg(pc));
+			break;
 
-			if (pc->code == (BPF_ALU|BPF_NEG)) {
-				status = sljit_emit_op1(compiler,
-				    SLJIT_NEG,
-				    BPFJIT_A, 0,
-				    BPFJIT_A, 0);
-				if (status != SLJIT_SUCCESS)
-					goto fail;
-
-				continue;
-			}
-
-			if (BPF_OP(pc->code) != BPF_DIV) {
-				status = sljit_emit_op2(compiler,
-				    bpf_alu_to_sljit_op(pc),
-				    BPFJIT_A, 0,
-				    BPFJIT_A, 0,
-				    kx_to_reg(pc), kx_to_reg_arg(pc));
-				if (status != SLJIT_SUCCESS)
-					goto fail;
-
-				continue;
-			}
-
-			/* BPF_DIV */
-
-			src = BPF_SRC(pc->code);
-			if (src != BPF_X && src != BPF_K)
-				goto fail;
-
+		case BPF_ALU|BPF_DIV|BPF_X:
 			/* division by zero? */
-			if (src == BPF_X) {
-				jump = sljit_emit_cmp(compiler,
-				    SLJIT_C_EQUAL|SLJIT_INT_OP,
-				    BPFJIT_X, 0,
-				    SLJIT_IMM, 0);
-				if (jump == NULL)
-					goto fail;
-				ret0[ret0_size++] = jump;
-			} else if (pc->k == 0) {
+			jump = sljit_emit_cmp(compiler,
+			    SLJIT_C_EQUAL|SLJIT_INT_OP,
+			    BPFJIT_X, 0,
+			    SLJIT_IMM, 0);
+			if (jump == NULL)
+				goto fail;
+			ret0[ret0_size++] = jump;
+			status = emit_division(compiler, BPFJIT_X, 0);
+			break;
+
+		case BPF_ALU|BPF_DIV|BPF_K:
+			/* division by zero? */
+			if (pc->k == 0) {
 				jump = sljit_emit_jump(compiler, SLJIT_JUMP);
 				if (jump == NULL)
 					goto fail;
 				ret0[ret0_size++] = jump;
+			} else if ((pc->k & (pc->k - 1)) == 0) {
+				status = emit_pow2_division(compiler,
+				    (uint32_t)pc->k);
+			} else {
+				status = emit_division(compiler, SLJIT_IMM,
+				    (uint32_t)pc->k);
 			}
+			break;
 
-			if (src == BPF_X) {
-				status = emit_division(compiler, BPFJIT_X, 0);
-				if (status != SLJIT_SUCCESS)
-					goto fail;
-			} else if (pc->k != 0) {
-				if (pc->k & (pc->k - 1)) {
-					status = emit_division(compiler,
-					    SLJIT_IMM, (uint32_t)pc->k);
-				} else {
-					status = emit_pow2_division(compiler,
-					    (uint32_t)pc->k);
-				}
-				if (status != SLJIT_SUCCESS)
-					goto fail;
-			}
-
-			continue;
-
-		case BPF_JMP:
-
-			switch (BPF_OP(pc->code)) {
-			case BPF_JA:
+		case BPF_JMP|BPF_JA:
+		case BPF_JMP|BPF_JGT|BPF_K:
+		case BPF_JMP|BPF_JGE|BPF_K:
+		case BPF_JMP|BPF_JEQ|BPF_K:
+		case BPF_JMP|BPF_JSET|BPF_K:
+		case BPF_JMP|BPF_JGT|BPF_X:
+		case BPF_JMP|BPF_JGE|BPF_X:
+		case BPF_JMP|BPF_JEQ|BPF_X:
+		case BPF_JMP|BPF_JSET|BPF_X:
+			if (pc->code == (BPF_JMP|BPF_JA))
 				jt = jf = pc->k;
-				break;
-			case BPF_JEQ:
-			case BPF_JGT:
-			case BPF_JGE:
-			case BPF_JSET:
+			else {
 				jt = pc->jt;
 				jf = pc->jf;
-				break;
-			default:
-				goto fail;
 			}
 
 			negate = (jt == 0) ? 1 : 0;
@@ -1617,79 +1551,54 @@ bpfjit_generate_code(struct bpf_insn *insns, size_t insn_count)
 				BPFJIT_ASSERT(jtf[branching].bj_jump == NULL);
 				jtf[branching].bj_jump = jump;
 			}
+			break;
 
-			continue;
+		case BPF_RET|BPF_K:
+			status = sljit_emit_op1(compiler,
+			    SLJIT_MOV,
+			    BPFJIT_A, 0,
+			    SLJIT_IMM, (uint32_t)pc->k);
+			break;
 
-		case BPF_RET:
-
-			rval = BPF_RVAL(pc->code);
-			if (rval == BPF_X)
-				goto fail;
-
-			/* BPF_RET+BPF_K    accept k bytes */
-			if (rval == BPF_K) {
-				status = sljit_emit_op1(compiler,
-				    SLJIT_MOV,
-				    BPFJIT_A, 0,
-				    SLJIT_IMM, (uint32_t)pc->k);
-				if (status != SLJIT_SUCCESS)
-					goto fail;
-			}
-
-			/* BPF_RET+BPF_A    accept A bytes */
-			if (rval == BPF_A) {
+		case BPF_RET|BPF_A:
 #if BPFJIT_A != SLJIT_RETURN_REG
-				status = sljit_emit_op1(compiler,
-				    SLJIT_MOV,
-				    SLJIT_RETURN_REG, 0,
-				    BPFJIT_A, 0);
-				if (status != SLJIT_SUCCESS)
-					goto fail;
+			status = sljit_emit_op1(compiler,
+			    SLJIT_MOV,
+			    SLJIT_RETURN_REG, 0,
+			    BPFJIT_A, 0);
 #endif
-			}
+			break;
 
-			/*
-			 * Save a jump to a normal return. If the program
-			 * ends with BPF_RET, no jump is needed because
-			 * the normal return is generated right after the
-			 * last instruction.
-			 */
-			if (i != insn_count - 1) {
-				jump = sljit_emit_jump(compiler, SLJIT_JUMP);
-				if (jump == NULL)
-					goto fail;
-				returns[returns_size++] = jump;
-			}
+		case BPF_MISC|BPF_TAX:
+			status = sljit_emit_op1(compiler,
+			    SLJIT_MOV_UI,
+			    BPFJIT_X, 0,
+			    BPFJIT_A, 0);
+			break;
 
-			continue;
-
-		case BPF_MISC:
-
-			if (pc->code == (BPF_MISC|BPF_TAX)) {
-				status = sljit_emit_op1(compiler,
-				    SLJIT_MOV_UI,
-				    BPFJIT_X, 0,
-				    BPFJIT_A, 0);
-				if (status != SLJIT_SUCCESS)
-					goto fail;
-
-				continue;
-			}
-
-			if (pc->code == (BPF_MISC|BPF_TXA)) {
-				status = sljit_emit_op1(compiler,
-				    SLJIT_MOV,
-				    BPFJIT_A, 0,
-				    BPFJIT_X, 0);
-				if (status != SLJIT_SUCCESS)
-					goto fail;
-
-				continue;
-			}
-
+		case BPF_MISC|BPF_TXA:
+			status = sljit_emit_op1(compiler,
+			    SLJIT_MOV,
+			    BPFJIT_A, 0,
+			    BPFJIT_X, 0);
+			break;
+		}
+		if (status != SLJIT_SUCCESS)
 			goto fail;
-		} /* switch */
-	} /* main loop */
+
+		/*
+		 * Save a jump to a normal return. If the program
+		 * ends with BPF_RET, no jump is needed because
+		 * the normal return is generated right after the
+		 * last instruction.
+		 */
+		if (BPF_CLASS(pc->code) == BPF_RET && i != insn_count - 1) {
+			jump = sljit_emit_jump(compiler, SLJIT_JUMP);
+			if (jump == NULL)
+				goto fail;
+			returns[returns_size++] = jump;
+		}
+	}
 
 	BPFJIT_ASSERT(ret0_size == ret0_maxsize);
 	BPFJIT_ASSERT(returns_size <= returns_maxsize);
