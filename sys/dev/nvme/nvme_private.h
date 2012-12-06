@@ -55,7 +55,8 @@ MALLOC_DECLARE(M_NVME);
 #define CHATHAM_CONTROL_BAR	0
 #endif
 
-#define IDT_PCI_ID		0x80d0111d
+#define IDT32_PCI_ID		0x80d0111d /* 32 channel board */
+#define IDT8_PCI_ID		0x80d2111d /* 8 channel board */
 
 #define NVME_MAX_PRP_LIST_ENTRIES	(32)
 
