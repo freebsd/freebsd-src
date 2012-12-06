@@ -178,7 +178,7 @@ struct callout_cpu cc_cpu;
 static int timeout_cpu;
 void (*callout_new_inserted)(int cpu, struct bintime bt,
     struct bintime bt_opt) = NULL;
-static struct callout *
+static void
 softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
     int *lockcalls, int *gcalls, int direct);
 
@@ -445,10 +445,13 @@ callout_process(struct bintime *now)
 				 */
 				if (tmp->c_flags & CALLOUT_DIRECT) {
 					++depth_dir;
+					cc->cc_exec_next_dir =
+					    TAILQ_NEXT(tmp, c_links.tqe);
 					TAILQ_REMOVE(sc, tmp, c_links.tqe);
-					tmp = softclock_call_cc(tmp, cc,
+					softclock_call_cc(tmp, cc,
 					    &mpcalls_dir, &lockcalls_dir,
 					    NULL, 1);
+					tmp = cc->cc_exec_next_dir;
 				} else {
 					TAILQ_INSERT_TAIL(&cc->cc_expireq,
 					    tmp, c_staiter);
@@ -605,20 +608,16 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 }
 
 static void
-callout_cc_del(struct callout *c, struct callout_cpu *cc, int direct)
+callout_cc_del(struct callout *c, struct callout_cpu *cc)
 {
-	
-	if (cc->cc_exec_next_dir == c)
-		cc->cc_exec_next_dir = TAILQ_NEXT(c, c_links.tqe);
-	else if (cc->cc_exec_next == c)
-		cc->cc_exec_next = TAILQ_NEXT(c, c_staiter);
-	if (c->c_flags & CALLOUT_LOCAL_ALLOC) {
-		c->c_func = NULL;
-		SLIST_INSERT_HEAD(&cc->cc_callfree, c, c_links.sle);
-	}
+
+	if ((c->c_flags & CALLOUT_LOCAL_ALLOC) == 0)
+		return;
+	c->c_func = NULL;
+	SLIST_INSERT_HEAD(&cc->cc_callfree, c, c_links.sle);
 }
 
-static struct callout *
+static void
 softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
     int *lockcalls, int *gcalls, int direct)
 {
@@ -641,10 +640,9 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
 	static timeout_t *lastfunc;
 #endif
 
-	if (direct)
-		cc->cc_exec_next_dir = TAILQ_NEXT(c, c_links.tqe);
-	else 
-		cc->cc_exec_next = TAILQ_NEXT(c, c_staiter);
+	KASSERT((c->c_flags & (CALLOUT_PENDING | CALLOUT_ACTIVE)) ==
+	    (CALLOUT_PENDING | CALLOUT_ACTIVE),
+	    ("softclock_call_cc: pend|act %p %x", c, c->c_flags));
 	class = (c->c_lock != NULL) ? LOCK_CLASS(c->c_lock) : NULL;
 	sharedlock = (c->c_flags & CALLOUT_SHAREDLOCK) ? 0 : 1;
 	c_lock = c->c_lock;
@@ -718,20 +716,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
 		class->lc_unlock(c_lock);
 skip:
 	CC_LOCK(cc);
-	/*
-	 * If the current callout is locally allocated (from
-	 * timeout(9)) then put it on the freelist.
-	 *
-	 * Note: we need to check the cached copy of c_flags because
-	 * if it was not local, then it's not safe to deref the
-	 * callout pointer.
-	 */
-	if (c_flags & CALLOUT_LOCAL_ALLOC) {
-		KASSERT(c->c_flags == CALLOUT_LOCAL_ALLOC,
-		    ("corrupted callout"));
-		c->c_func = NULL;
-		SLIST_INSERT_HEAD(&cc->cc_callfree, c, c_links.sle);
-	}
+	KASSERT(cc->cc_curr == c, ("mishandled cc_curr"));
 	cc->cc_exec_entity[direct].cc_curr = NULL;
 	if (cc->cc_exec_entity[direct].cc_waiting) {
 		/*
@@ -740,13 +725,22 @@ skip:
 		 * If the callout was scheduled for
 		 * migration just cancel it.
 		 */
-		if (cc_cme_migrating(cc, direct))
+		if (cc_cme_migrating(cc, direct)) {
 			cc_cme_cleanup(cc, direct);
+
+			/*
+			 * It should be assert here that the callout is not
+			 * destroyed but that is not easy.
+			 */
+			c->c_flags &= ~CALLOUT_DFRMIGRATION;
+		}
 		cc->cc_exec_entity[direct].cc_waiting = 0;
 		CC_UNLOCK(cc);
 		wakeup(&cc->cc_exec_entity[direct].cc_waiting);
 		CC_LOCK(cc);
 	} else if (cc_cme_migrating(cc, direct)) {
+		KASSERT((c_flags & CALLOUT_LOCAL_ALLOC) == 0,
+		    ("Migrating legacy callout %p", c));
 #ifdef SMP
 		/*
 		 * If the callout was scheduled for
@@ -759,23 +753,20 @@ skip:
 		cc_cme_cleanup(cc, direct);
 
 		/*
-		 * Handle deferred callout stops
+		 * It should be assert here that the callout is not destroyed
+		 * but that is not easy.
+		 *
+		 * As first thing, handle deferred callout stops.
 		 */
 		if ((c->c_flags & CALLOUT_DFRMIGRATION) == 0) {
 			CTR3(KTR_CALLOUT,
 			     "deferred cancelled %p func %p arg %p",
 			     c, new_func, new_arg);
-			callout_cc_del(c, cc, direct);
-			goto nextc;
+			callout_cc_del(c, cc);
+			return;
 		}
-
 		c->c_flags &= ~CALLOUT_DFRMIGRATION;
 
-		/*
-		 * It should be assert here that the
-		 * callout is not destroyed but that
-		 * is not easy.
-		 */
 		new_cc = callout_cpu_switch(c, cc, new_cpu);
 		flags = (direct) ? C_DIRECT_EXEC : 0;
 		callout_cc_add(c, new_cc, new_time, new_func, new_arg,
@@ -786,10 +777,19 @@ skip:
 		panic("migration should not happen");
 #endif
 	}
-#ifdef SMP
-nextc:
-#endif
-	return cc->cc_exec_entity[direct].cc_next;
+	/*
+	 * If the current callout is locally allocated (from
+	 * timeout(9)) then put it on the freelist.
+	 *
+	 * Note: we need to check the cached copy of c_flags because
+	 * if it was not local, then it's not safe to deref the
+	 * callout pointer.
+	 */
+	KASSERT((c_flags & CALLOUT_LOCAL_ALLOC) == 0 ||
+	    c->c_flags == CALLOUT_LOCAL_ALLOC,
+	    ("corrupted callout"));
+	if (c_flags & CALLOUT_LOCAL_ALLOC)
+		callout_cc_del(c, cc);
 }
 
 /*
@@ -824,17 +824,18 @@ softclock(void *arg)
 	c = TAILQ_FIRST(&cc->cc_expireq);
 	while (c != NULL) {
 		++depth;
+		cc->cc_exec_next = TAILQ_NEXT(c, c_staiter);
 		TAILQ_REMOVE(&cc->cc_expireq, c, c_staiter);
-		c = softclock_call_cc(c, cc, &mpcalls,
-		    &lockcalls, &gcalls, 0);
+		softclock_call_cc(c, cc, &mpcalls, &lockcalls, &gcalls, 0);
+		c = cc->cc_exec_next;
 	}
+	cc->cc_exec_next = NULL;
 #ifdef CALLOUT_PROFILING
 	avg_depth += (depth * 1000 - avg_depth) >> 8;
 	avg_mpcalls += (mpcalls * 1000 - avg_mpcalls) >> 8;
 	avg_lockcalls += (lockcalls * 1000 - avg_lockcalls) >> 8;
 	avg_gcalls += (gcalls * 1000 - avg_gcalls) >> 8;
 #endif
-	cc->cc_exec_next = NULL;
 	CC_UNLOCK(cc);
 }
 
@@ -1198,12 +1199,17 @@ again:
 	CTR3(KTR_CALLOUT, "cancelled %p func %p arg %p",
 	    c, c->c_func, c->c_arg);
 	if ((c->c_flags & CALLOUT_PROCESSED) == 0) {
+		if (cc->cc_exec_next_dir == c)
+			cc->cc_exec_next_dir = TAILQ_NEXT(c, c_links.tqe);
 		bucket = get_bucket(&c->c_time);
 		TAILQ_REMOVE(&cc->cc_callwheel[bucket], c,
 		    c_links.tqe);
-	} else
+	} else {
+		if (cc->cc_exec_next == c)
+			cc->cc_exec_next = TAILQ_NEXT(c, c_links.tqe);
 		TAILQ_REMOVE(&cc->cc_expireq, c, c_staiter);
-	callout_cc_del(c, cc, direct);
+	}
+	callout_cc_del(c, cc);
 
 	CC_UNLOCK(cc);
 	return (1);
