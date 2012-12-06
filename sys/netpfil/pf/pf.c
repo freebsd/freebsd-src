@@ -1487,8 +1487,6 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 		return (0);	/* XXXGL: undefined actually */
 	}
 
-	s->timeout = PFTM_UNLINKED;
-
 	if (s->src.state == PF_TCPS_PROXY_DST) {
 		/* XXX wire key the right one? */
 		pf_send_tcp(NULL, s->rule.ptr, s->key[PF_SK_WIRE]->af,
@@ -1502,10 +1500,19 @@ pf_unlink_state(struct pf_state *s, u_int flags)
 
 	LIST_REMOVE(s, entry);
 	pf_src_tree_remove_state(s);
-	PF_HASHROW_UNLOCK(ih);
 
 	if (pfsync_delete_state_ptr != NULL)
 		pfsync_delete_state_ptr(s);
+
+	--s->rule.ptr->states_cur;
+	if (s->nat_rule.ptr != NULL)
+		--s->nat_rule.ptr->states_cur;
+	if (s->anchor.ptr != NULL)
+		--s->anchor.ptr->states_cur;
+
+	s->timeout = PFTM_UNLINKED;
+
+	PF_HASHROW_UNLOCK(ih);
 
 	pf_detach_state(s);
 	refcount_release(&s->refs);
@@ -1520,11 +1527,7 @@ pf_free_state(struct pf_state *cur)
 	KASSERT(cur->refs == 0, ("%s: %p has refs", __func__, cur));
 	KASSERT(cur->timeout == PFTM_UNLINKED, ("%s: timeout %u", __func__,
 	    cur->timeout));
-	--cur->rule.ptr->states_cur;
-	if (cur->nat_rule.ptr != NULL)
-		--cur->nat_rule.ptr->states_cur;
-	if (cur->anchor.ptr != NULL)
-		--cur->anchor.ptr->states_cur;
+
 	pf_normalize_tcp_cleanup(cur);
 	uma_zfree(V_pf_state_z, cur);
 	V_pf_status.fcounters[FCNT_STATE_REMOVALS]++;

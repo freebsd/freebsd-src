@@ -512,7 +512,7 @@ ${_src:R:S/$/.o/}: ${_src}
 
 ${LIBIBERTY}: ${LIBIBERTY_OBJS}
 	@rm -f ${.TARGET}
-	@${AR} cq ${.TARGET} `lorder ${LIBIBERTY_OBJS} | tsort -q`
+	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${LIBIBERTY_OBJS} | tsort -q`
 	${RANLIB} ${.TARGET}
 CLEANFILES+=	${LIBIBERTY} ${LIBIBERTY_OBJS}
 
