@@ -24,7 +24,7 @@ TEST_CASES?=	test0001 test0002 test0003 test0004	\
 
 SYSDIR?=	${.CURDIR}/../../../../sys
 
-SRCS=		${.CURDIR}/bpf_test.c ${SYSDIR}/net/bpf_filter.c
+SRCS=		${.CURDIR}/bpf_test.c
 
 CFLAGS+=	-g -I${SYSDIR} -I${.CURDIR}/tests
 
@@ -47,8 +47,11 @@ CFLAGS+=	-DSLJIT_VERBOSE=1
 .else
 CFLAGS+=	-DSLJIT_VERBOSE=0
 .endif
-.endif
+WARNS?=		3
+.else
+SRCS+=		${SYSDIR}/net/bpf_filter.c
 WARNS?=		2
+.endif
 
 .for TEST in ${TEST_CASES}
 ${TEST}:	${.CURDIR}/tests/${TEST}.h ${SRCS}
