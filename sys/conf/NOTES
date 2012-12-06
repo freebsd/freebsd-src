@@ -806,6 +806,7 @@ device		sppp
 #  aware of the legal and administrative consequences of enabling this
 #  option.  DHCP requires bpf.
 device		bpf
+options 	BPFJIT		# enable BPF just-in-time compiler
 
 #  The `netmap' device implements memory-mapped access to network
 #  devices from userspace, enabling wire-speed packet capture and

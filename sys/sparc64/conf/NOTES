@@ -145,6 +145,7 @@ nooption	SC_NORM_ATTR
 nooption	SC_DFLT_FONT
 nooption	SC_ALT_MOUSE_IMAGE
 nooption	EXT2FS
+nooption	BPFJIT
 
 
 #####################################################################
