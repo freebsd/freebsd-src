@@ -14,6 +14,12 @@ force the compile to fail if a warning is found:
 
     CFLAGS="-Wall -Werror" ./configure
 
+On Linux systems, OpenSSL headers may have to be installed to support
+encryption of on-the-wire audit streams using auditdistd; the following
+appears to work on Ubuntu:
+
+    sudo apt-get install libssl-dev
+
 To install the library, binaries, and man pages, use:
 
     make install

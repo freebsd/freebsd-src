@@ -118,6 +118,9 @@ protected:
   /// HasBMI2 - Processor has BMI2 instructions.
   bool HasBMI2;
 
+  /// HasRTM - Processor has RTM instructions.
+  bool HasRTM;
+
   /// IsBTMemSlow - True if BT (bit test) of memory instructions are slow.
   bool IsBTMemSlow;
 
@@ -135,6 +138,10 @@ protected:
   /// UseLeaForSP - True if the LEA instruction should be used for adjusting
   /// the stack pointer. This is an optimization for Intel Atom processors.
   bool UseLeaForSP;
+
+  /// HasSlowDivide - True if smaller divides are significantly faster than
+  /// full divides and should be used when possible.
+  bool HasSlowDivide;
 
   /// PostRAScheduler - True if using post-register-allocation scheduler.
   bool PostRAScheduler;
@@ -205,7 +212,8 @@ public:
   bool hasAES() const { return HasAES; }
   bool hasPCLMUL() const { return HasPCLMUL; }
   bool hasFMA() const { return HasFMA; }
-  bool hasFMA4() const { return HasFMA4; }
+  // FIXME: Favor FMA when both are enabled. Is this the right thing to do?
+  bool hasFMA4() const { return HasFMA4 && !HasFMA; }
   bool hasXOP() const { return HasXOP; }
   bool hasMOVBE() const { return HasMOVBE; }
   bool hasRDRAND() const { return HasRDRAND; }
@@ -214,11 +222,13 @@ public:
   bool hasLZCNT() const { return HasLZCNT; }
   bool hasBMI() const { return HasBMI; }
   bool hasBMI2() const { return HasBMI2; }
+  bool hasRTM() const { return HasRTM; }
   bool isBTMemSlow() const { return IsBTMemSlow; }
   bool isUnalignedMemAccessFast() const { return IsUAMemFast; }
   bool hasVectorUAMem() const { return HasVectorUAMem; }
   bool hasCmpxchg16b() const { return HasCmpxchg16b; }
   bool useLeaForSP() const { return UseLeaForSP; }
+  bool hasSlowDivide() const { return HasSlowDivide; }
 
   bool isAtom() const { return X86ProcFamily == IntelAtom; }
 
@@ -231,10 +241,10 @@ public:
   bool isTargetSolaris() const {
     return TargetTriple.getOS() == Triple::Solaris;
   }
-
-  // ELF is a reasonably sane default and the only other X86 targets we
-  // support are Darwin and Windows. Just use "not those".
-  bool isTargetELF() const { return TargetTriple.isOSBinFormatELF(); }
+  bool isTargetELF() const {
+    return (TargetTriple.getEnvironment() == Triple::ELF ||
+            TargetTriple.isOSBinFormatELF());
+  }
   bool isTargetLinux() const { return TargetTriple.getOS() == Triple::Linux; }
   bool isTargetNaCl() const {
     return TargetTriple.getOS() == Triple::NativeClient;
@@ -245,7 +255,10 @@ public:
   bool isTargetMingw() const { return TargetTriple.getOS() == Triple::MinGW32; }
   bool isTargetCygwin() const { return TargetTriple.getOS() == Triple::Cygwin; }
   bool isTargetCygMing() const { return TargetTriple.isOSCygMing(); }
-  bool isTargetCOFF() const { return TargetTriple.isOSBinFormatCOFF(); }
+  bool isTargetCOFF() const {
+    return (TargetTriple.getEnvironment() != Triple::ELF &&
+            TargetTriple.isOSBinFormatCOFF());
+  }
   bool isTargetEnvMacho() const { return TargetTriple.isEnvironmentMachO(); }
 
   bool isTargetWin64() const {
@@ -295,12 +308,6 @@ public:
   /// memset with zero passed as the second argument. Otherwise it
   /// returns null.
   const char *getBZeroEntry() const;
-
-  /// getSpecialAddressLatency - For targets where it is beneficial to
-  /// backschedule instructions that compute addresses, return a value
-  /// indicating the number of scheduling cycles of backscheduling that
-  /// should be attempted.
-  unsigned getSpecialAddressLatency() const;
 
   /// enablePostRAScheduler - run for Atom optimization.
   bool enablePostRAScheduler(CodeGenOpt::Level OptLevel,

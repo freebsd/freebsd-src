@@ -722,7 +722,7 @@ sendit(td, s, mp, flags)
 		if (mp->msg_flags == MSG_COMPAT) {
 			struct cmsghdr *cm;
 
-			M_PREPEND(control, sizeof(*cm), M_WAIT);
+			M_PREPEND(control, sizeof(*cm), M_WAITOK);
 			cm = mtod(control, struct cmsghdr *);
 			cm->cmsg_len = control->m_len;
 			cm->cmsg_level = SOL_SOCKET;
@@ -1661,9 +1661,9 @@ sockargs(mp, buf, buflen, type)
 			if ((u_int)buflen > MCLBYTES)
 				return (EINVAL);
 	}
-	m = m_get(M_WAIT, type);
+	m = m_get(M_WAITOK, type);
 	if ((u_int)buflen > MLEN)
-		MCLGET(m, M_WAIT);
+		MCLGET(m, M_WAITOK);
 	m->m_len = buflen;
 	error = copyin(buf, mtod(m, caddr_t), (u_int)buflen);
 	if (error)

@@ -382,7 +382,7 @@ nfsm_strtom(struct nfsrv_descript *nd, const char *cp, int siz)
 	while (siz > 0) {
 		if (left == 0) {
 			if (siz > ncl_mbuf_mlen)
-				NFSMCLGET(m1, M_WAIT);
+				NFSMCLGET(m1, M_WAITOK);
 			else
 				NFSMGET(m1);
 			mbuf_setlen(m1, 0);
@@ -3455,7 +3455,7 @@ nfsrvd_rephead(struct nfsrv_descript *nd)
 	 */
 	if ((nd->nd_flag & ND_GSSINITREPLY) == 0 &&
 	    nfs_bigreply[nd->nd_procnum]) {
-		NFSMCLGET(mreq, M_WAIT);
+		NFSMCLGET(mreq, M_WAITOK);
 		nd->nd_mreq = mreq;
 		nd->nd_mb = mreq;
 	} else {

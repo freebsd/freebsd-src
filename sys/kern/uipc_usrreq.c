@@ -131,7 +131,7 @@ static const struct sockaddr	sun_noname = { sizeof(sun_noname), AF_LOCAL };
  * reentrance in the UNIX domain socket, file descriptor, and socket layer
  * code.  See unp_gc() for a full description.
  */
-static struct task	unp_gc_task;
+static struct timeout_task unp_gc_task;
 
 /*
  * The close of unix domain sockets attached as SCM_RIGHTS is
@@ -672,7 +672,7 @@ uipc_detach(struct socket *so)
 	if (vp)
 		vrele(vp);
 	if (local_unp_rights)
-		taskqueue_enqueue(taskqueue_thread, &unp_gc_task);
+		taskqueue_enqueue_timeout(taskqueue_thread, &unp_gc_task, -1);
 }
 
 static int
@@ -1784,7 +1784,7 @@ unp_init(void)
 	LIST_INIT(&unp_shead);
 	LIST_INIT(&unp_sphead);
 	SLIST_INIT(&unp_defers);
-	TASK_INIT(&unp_gc_task, 0, unp_gc, NULL);
+	TIMEOUT_TASK_INIT(taskqueue_thread, &unp_gc_task, 0, unp_gc, NULL);
 	TASK_INIT(&unp_defer_task, 0, unp_process_defers, NULL);
 	UNP_LINK_LOCK_INIT();
 	UNP_LIST_LOCK_INIT();

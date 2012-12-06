@@ -1365,7 +1365,7 @@ tl_newbuf(sc, c)
 {
 	struct mbuf		*m_new = NULL;
 
-	m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m_new = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m_new == NULL)
 		return(ENOBUFS);
 
@@ -1806,13 +1806,13 @@ tl_encap(sc, c, m_head)
 	if (m != NULL) {
 		struct mbuf		*m_new = NULL;
 
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		MGETHDR(m_new, M_NOWAIT, MT_DATA);
 		if (m_new == NULL) {
 			if_printf(ifp, "no memory for tx list\n");
 			return(1);
 		}
 		if (m_head->m_pkthdr.len > MHLEN) {
-			MCLGET(m_new, M_DONTWAIT);
+			MCLGET(m_new, M_NOWAIT);
 			if (!(m_new->m_flags & M_EXT)) {
 				m_freem(m_new);
 				if_printf(ifp, "no memory for tx list\n");

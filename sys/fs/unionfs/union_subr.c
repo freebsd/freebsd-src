@@ -247,12 +247,6 @@ unionfs_nodeget(struct mount *mp, struct vnode *uppervp,
 		if (dvp == NULLVP)
 			return (EINVAL);
 	}
-
-	/*
-	 * Do the MALLOC before the getnewvnode since doing so afterward
-	 * might cause a bogus v_data pointer to get dereferenced elsewhere
-	 * if MALLOC should block.
-	 */
 	unp = malloc(sizeof(struct unionfs_node),
 	    M_UNIONFSNODE, M_WAITOK | M_ZERO);
 

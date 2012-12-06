@@ -20,7 +20,7 @@
 
 namespace llvm {
 
-class TargetData;
+class DataLayout;
 class TargetMachine;
 
 //===----------------------------------------------------------------------===//
@@ -28,13 +28,13 @@ class TargetMachine;
 /// SelectionDAG lowering and instruction selection process.
 ///
 class TargetSelectionDAGInfo {
-  TargetSelectionDAGInfo(const TargetSelectionDAGInfo &); // DO NOT IMPLEMENT
-  void operator=(const TargetSelectionDAGInfo &);         // DO NOT IMPLEMENT
+  TargetSelectionDAGInfo(const TargetSelectionDAGInfo &) LLVM_DELETED_FUNCTION;
+  void operator=(const TargetSelectionDAGInfo &) LLVM_DELETED_FUNCTION;
 
-  const TargetData *TD;
+  const DataLayout *TD;
 
 protected:
-  const TargetData *getTargetData() const { return TD; }
+  const DataLayout *getDataLayout() const { return TD; }
 
 public:
   explicit TargetSelectionDAGInfo(const TargetMachine &TM);

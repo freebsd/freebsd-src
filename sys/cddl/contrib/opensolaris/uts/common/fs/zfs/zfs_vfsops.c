@@ -1847,18 +1847,6 @@ zfsvfs_teardown(zfsvfs_t *zfsvfs, boolean_t unmounting)
 		zfsvfs->z_unmounted = B_TRUE;
 		rrw_exit(&zfsvfs->z_teardown_lock, FTAG);
 		rw_exit(&zfsvfs->z_teardown_inactive_lock);
-
-#ifdef __FreeBSD__
-		/*
-		 * Some znodes might not be fully reclaimed, wait for them.
-		 */
-		mutex_enter(&zfsvfs->z_znodes_lock);
-		while (list_head(&zfsvfs->z_all_znodes) != NULL) {
-			msleep(zfsvfs, &zfsvfs->z_znodes_lock, 0,
-			    "zteardown", 0);
-		}
-		mutex_exit(&zfsvfs->z_znodes_lock);
-#endif
 	}
 
 	/*
@@ -2123,7 +2111,7 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 			VN_HOLD(*vpp);
 		}
 		ZFS_EXIT(zfsvfs);
-		err = zfs_vnode_lock(*vpp, flags | LK_RETRY);
+		err = zfs_vnode_lock(*vpp, flags);
 		if (err != 0)
 			*vpp = NULL;
 		return (err);

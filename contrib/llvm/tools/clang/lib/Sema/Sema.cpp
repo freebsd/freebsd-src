@@ -22,6 +22,7 @@
 #include "clang/Sema/CXXFieldCollector.h"
 #include "clang/Sema/TemplateDeduction.h"
 #include "clang/Sema/ExternalSemaSource.h"
+#include "clang/Sema/MultiplexExternalSemaSource.h"
 #include "clang/Sema/ObjCMethodList.h"
 #include "clang/Sema/PrettyDeclStackTrace.h"
 #include "clang/Sema/Scope.h"
@@ -42,22 +43,6 @@
 #include "clang/Basic/TargetInfo.h"
 using namespace clang;
 using namespace sema;
-
-FunctionScopeInfo::~FunctionScopeInfo() { }
-
-void FunctionScopeInfo::Clear() {
-  HasBranchProtectedScope = false;
-  HasBranchIntoScope = false;
-  HasIndirectGoto = false;
-  
-  SwitchStack.clear();
-  Returns.clear();
-  ErrorTrap.reset();
-  PossiblyUnreachableDiags.clear();
-}
-
-BlockScopeInfo::~BlockScopeInfo() { }
-LambdaScopeInfo::~LambdaScopeInfo() { }
 
 PrintingPolicy Sema::getPrintingPolicy(const ASTContext &Context,
                                        const Preprocessor &PP) {
@@ -84,12 +69,14 @@ void Sema::ActOnTranslationUnitScope(Scope *S) {
 Sema::Sema(Preprocessor &pp, ASTContext &ctxt, ASTConsumer &consumer,
            TranslationUnitKind TUKind,
            CodeCompleteConsumer *CodeCompleter)
-  : TheTargetAttributesSema(0), FPFeatures(pp.getLangOpts()),
+  : TheTargetAttributesSema(0), ExternalSource(0), 
+    isMultiplexExternalSource(false), FPFeatures(pp.getLangOpts()),
     LangOpts(pp.getLangOpts()), PP(pp), Context(ctxt), Consumer(consumer),
     Diags(PP.getDiagnostics()), SourceMgr(PP.getSourceManager()),
-    CollectStats(false), ExternalSource(0), CodeCompleter(CodeCompleter),
+    CollectStats(false), CodeCompleter(CodeCompleter),
     CurContext(0), OriginalLexicalContext(0),
     PackContext(0), MSStructPragmaOn(false), VisContext(0),
+    IsBuildingRecoveryCallExpr(false),
     ExprNeedsCleanups(false), LateTemplateParser(0), OpaqueParser(0),
     IdResolver(pp), StdInitializerList(0), CXXTypeInfoDecl(0), MSVCGuidDecl(0),
     NSNumberDecl(0),
@@ -203,6 +190,10 @@ Sema::~Sema() {
   if (ExternalSemaSource *ExternalSema
         = dyn_cast_or_null<ExternalSemaSource>(Context.getExternalSource()))
     ExternalSema->ForgetSema();
+
+  // If Sema's ExternalSource is the multiplexer - we own it.
+  if (isMultiplexExternalSource)
+    delete ExternalSource;
 }
 
 /// makeUnavailableInSystemHeader - There is an error in the current
@@ -232,6 +223,27 @@ bool Sema::makeUnavailableInSystemHeader(SourceLocation loc,
 
 ASTMutationListener *Sema::getASTMutationListener() const {
   return getASTConsumer().GetASTMutationListener();
+}
+
+///\brief Registers an external source. If an external source already exists,
+/// creates a multiplex external source and appends to it.
+///
+///\param[in] E - A non-null external sema source.
+///
+void Sema::addExternalSource(ExternalSemaSource *E) {
+  assert(E && "Cannot use with NULL ptr");
+
+  if (!ExternalSource) {
+    ExternalSource = E;
+    return;
+  }
+
+  if (isMultiplexExternalSource)
+    static_cast<MultiplexExternalSemaSource*>(ExternalSource)->addSource(*E);
+  else {
+    ExternalSource = new MultiplexExternalSemaSource(*ExternalSource, *E);
+    isMultiplexExternalSource = true;
+  }
 }
 
 /// \brief Print out statistics about the semantic analysis.
@@ -506,6 +518,11 @@ static bool IsRecordFullyDefined(const CXXRecordDecl *RD,
 void Sema::ActOnEndOfTranslationUnit() {
   assert(DelayedDiagnostics.getCurrentPool() == NULL
          && "reached end of translation unit with a pool attached?");
+
+  // If code completion is enabled, don't perform any end-of-translation-unit
+  // work.
+  if (PP.isCodeCompletionEnabled())
+    return;
 
   // Only complete translation units define vtables and perform implicit
   // instantiations.
@@ -1023,6 +1040,9 @@ LambdaScopeInfo *Sema::getCurLambda() {
 }
 
 void Sema::ActOnComment(SourceRange Comment) {
+  if (!LangOpts.RetainCommentsFromSystemHeaders &&
+      SourceMgr.isInSystemHeader(Comment.getBegin()))
+    return;
   RawComment RC(SourceMgr, Comment);
   if (RC.isAlmostTrailingComment()) {
     SourceRange MagicMarkerRange(Comment.getBegin(),
@@ -1167,8 +1187,7 @@ static void noteOverloads(Sema &S, const UnresolvedSetImpl &Overloads,
        DeclsEnd = Overloads.end(); It != DeclsEnd; ++It) {
     // FIXME: Magic number for max shown overloads stolen from
     // OverloadCandidateSet::NoteCandidates.
-    if (ShownOverloads >= 4 &&
-        S.Diags.getShowOverloads() == DiagnosticsEngine::Ovl_Best) {
+    if (ShownOverloads >= 4 && S.Diags.getShowOverloads() == Ovl_Best) {
       ++SuppressedOverloads;
       continue;
     }
@@ -1239,8 +1258,7 @@ bool Sema::tryToRecoverWithCall(ExprResult &E, const PartialDiagnostic &PD,
     // FIXME: Try this before emitting the fixit, and suppress diagnostics
     // while doing so.
     E = ActOnCallExpr(0, E.take(), ParenInsertionLoc,
-                      MultiExprArg(*this, 0, 0),
-                      ParenInsertionLoc.getLocWithOffset(1));
+                      MultiExprArg(), ParenInsertionLoc.getLocWithOffset(1));
     return true;
   }
 

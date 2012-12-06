@@ -2612,7 +2612,7 @@ swapongeom_ev(void *arg, int flags)
 	}
 	mtx_unlock(&sw_dev_mtx);
 	if (gp == NULL)
-		gp = g_new_geomf(&g_swap_class, "swap", NULL);
+		gp = g_new_geomf(&g_swap_class, "swap");
 	cp = g_new_consumer(gp);
 	g_attach(cp, pp);
 	/*

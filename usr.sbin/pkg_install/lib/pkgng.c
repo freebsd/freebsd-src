@@ -1,6 +1,6 @@
-/*
- * FreeBSD install - a package for the installation and maintenance
- * of non-core utilities.
+/*-
+ * Copyright (c) 2012 Eitan Adler
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -11,22 +11,40 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * Eitan Adler
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
- * detect pkgng's existence and warn
- *
+ * $FreeBSD$
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #include "lib.h"
 #include <err.h>
 
-void warnpkgng(void) {
+static const char message[] = "You appear to be using the newer pkg(1) tool on \
+this system for package management, rather than the legacy package \
+management tools (pkg_*).  The legacy tools should no longer be used on \
+this system.";
+
+void warnpkgng(void)
+{
 	char pkgngpath[MAXPATHLEN];
 	char *pkgngdir;
+	char *dontwarn;
 
+	dontwarn = getenv("PKG_OLD_NOWARN");
+	if (dontwarn != NULL)
+		return;
 	pkgngdir = getenv("PKG_DBDIR");
 	if (pkgngdir == NULL)
 		pkgngdir = "/var/db/pkg";
@@ -34,5 +52,5 @@ void warnpkgng(void) {
 	strcat(pkgngpath, "/local.sqlite");
 
 	if (access(pkgngpath, F_OK) == 0)
-		warnx("Don't use the pkg_ tools if you are using pkgng");
+		warnx(message);
 }

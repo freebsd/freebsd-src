@@ -313,6 +313,7 @@ void nfsd_init(void);
 int nfsd_checkrootexp(struct nfsrv_descript *);
 
 /* nfs_clvfsops.c */
+void nfscl_retopts(struct nfsmount *, char *, size_t);
 
 /* nfs_commonport.c */
 int nfsrv_checksockseqnum(struct socket *, tcp_seq);

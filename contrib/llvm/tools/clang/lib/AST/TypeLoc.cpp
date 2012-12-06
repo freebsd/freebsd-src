@@ -98,23 +98,38 @@ void TypeLoc::initializeImpl(ASTContext &Context, TypeLoc TL,
 
 SourceLocation TypeLoc::getBeginLoc() const {
   TypeLoc Cur = *this;
+  TypeLoc LeftMost = Cur;
   while (true) {
     switch (Cur.getTypeLocClass()) {
-    // FIXME: Currently QualifiedTypeLoc does not have a source range
-    // case Qualified:
     case Elaborated:
-    case DependentName:
-    case DependentTemplateSpecialization:
+      LeftMost = Cur;
       break;
-    default:
-      TypeLoc Next = Cur.getNextTypeLoc();
-      if (Next.isNull()) break;
-      Cur = Next;
+    case FunctionProto:
+      if (cast<FunctionProtoTypeLoc>(&Cur)->getTypePtr()->hasTrailingReturn()) {
+        LeftMost = Cur;
+        break;
+      }
+      /* Fall through */
+    case FunctionNoProto:
+    case ConstantArray:
+    case DependentSizedArray:
+    case IncompleteArray:
+    case VariableArray:
+      // FIXME: Currently QualifiedTypeLoc does not have a source range
+    case Qualified:
+      Cur = Cur.getNextTypeLoc();
       continue;
-    }
+    default:
+      if (!Cur.getLocalSourceRange().getBegin().isInvalid())
+        LeftMost = Cur;
+      Cur = Cur.getNextTypeLoc();
+      if (Cur.isNull())
+        break;
+      continue;
+    } // switch
     break;
-  }
-  return Cur.getLocalSourceRange().getBegin();
+  } // while
+  return LeftMost.getLocalSourceRange().getBegin();
 }
 
 SourceLocation TypeLoc::getEndLoc() const {
@@ -131,9 +146,14 @@ SourceLocation TypeLoc::getEndLoc() const {
     case DependentSizedArray:
     case IncompleteArray:
     case VariableArray:
-    case FunctionProto:
     case FunctionNoProto:
       Last = Cur;
+      break;
+    case FunctionProto:
+      if (cast<FunctionProtoTypeLoc>(&Cur)->getTypePtr()->hasTrailingReturn())
+        Last = TypeLoc();
+      else
+        Last = Cur;
       break;
     case Pointer:
     case BlockPointer:
@@ -241,6 +261,7 @@ TypeSpecifierType BuiltinTypeLoc::getWrittenTypeSpec() const {
   case BuiltinType::ObjCId:
   case BuiltinType::ObjCClass:
   case BuiltinType::ObjCSel:
+  case BuiltinType::BuiltinFn:
     return TST_unspecified;
   }
 
@@ -300,7 +321,9 @@ void TemplateSpecializationTypeLoc::initializeArgLocs(ASTContext &Context,
     case TemplateArgument::Null: 
     case TemplateArgument::Declaration:
     case TemplateArgument::Integral:
-    case TemplateArgument::Pack:
+    case TemplateArgument::NullPtr:
+      llvm_unreachable("Impossible TemplateArgument");
+
     case TemplateArgument::Expression:
       ArgInfos[i] = TemplateArgumentLocInfo(Args[i].getAsExpr());
       break;
@@ -310,7 +333,7 @@ void TemplateSpecializationTypeLoc::initializeArgLocs(ASTContext &Context,
                           Context.getTrivialTypeSourceInfo(Args[i].getAsType(), 
                                                            Loc));
       break;
-        
+
     case TemplateArgument::Template:
     case TemplateArgument::TemplateExpansion: {
       NestedNameSpecifierLocBuilder Builder;
@@ -327,7 +350,11 @@ void TemplateSpecializationTypeLoc::initializeArgLocs(ASTContext &Context,
                                             ? SourceLocation()
                                             : Loc);
       break;
-    }        
+    }
+
+    case TemplateArgument::Pack:
+      ArgInfos[i] = TemplateArgumentLocInfo();
+      break;
     }
   }
 }

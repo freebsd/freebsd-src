@@ -966,7 +966,7 @@ uath_alloc_data_list(struct uath_softc *sc, struct uath_data data[],
 		dp->sc = sc;
 		if (fillmbuf) {
 			/* XXX check maxsz */
-			dp->m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+			dp->m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 			if (dp->m == NULL) {
 				device_printf(sc->sc_dev,
 				    "could not allocate rx mbuf\n");
@@ -2611,7 +2611,7 @@ uath_data_rxeof(struct usb_xfer *xfer, struct uath_data *data,
 	}
 	sc->sc_intrx_len += chunklen;
 
-	mnew = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	mnew = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (mnew == NULL) {
 		DPRINTF(sc, UATH_DEBUG_RECV | UATH_DEBUG_RECV_ALL,
 		    "%s: can't get new mbuf, drop frame\n", __func__);

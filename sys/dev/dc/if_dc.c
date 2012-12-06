@@ -2650,7 +2650,7 @@ dc_newbuf(struct dc_softc *sc, int i)
 	bus_dma_segment_t segs[1];
 	int error, nseg;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
@@ -3387,7 +3387,7 @@ dc_encap(struct dc_softc *sc, struct mbuf **m_head)
 	defragged = 0;
 	if (sc->dc_flags & DC_TX_COALESCE &&
 	    ((*m_head)->m_next != NULL || sc->dc_flags & DC_TX_ALIGN)) {
-		m = m_defrag(*m_head, M_DONTWAIT);
+		m = m_defrag(*m_head, M_NOWAIT);
 		defragged = 1;
 	} else {
 		/*
@@ -3402,7 +3402,7 @@ dc_encap(struct dc_softc *sc, struct mbuf **m_head)
 		if (i > DC_TX_LIST_CNT / 4 ||
 		    DC_TX_LIST_CNT - i + sc->dc_cdata.dc_tx_cnt <=
 		    DC_TX_LIST_RSVD) {
-			m = m_collapse(*m_head, M_DONTWAIT, DC_MAXFRAGS);
+			m = m_collapse(*m_head, M_NOWAIT, DC_MAXFRAGS);
 			defragged = 1;
 		}
 	}
@@ -3419,7 +3419,7 @@ dc_encap(struct dc_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->dc_tx_mtag,
 	    sc->dc_cdata.dc_tx_map[idx], *m_head, segs, &nseg, 0);
 	if (error == EFBIG) {
-		if (defragged != 0 || (m = m_collapse(*m_head, M_DONTWAIT,
+		if (defragged != 0 || (m = m_collapse(*m_head, M_NOWAIT,
 		    DC_MAXFRAGS)) == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;

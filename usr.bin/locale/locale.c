@@ -279,8 +279,8 @@ main(int argc, char *argv[])
 				exit(0);
 			}
 
-	/* process '-c' and/or '-k' */
-	if (prt_categories || prt_keywords) {
+	/* process '-c', '-k', or command line arguments. */
+	if (prt_categories || prt_keywords || argc > 0) {
 		if (argc > 0) {
 			setlocale(LC_ALL, "");
 			while (argc > 0) {

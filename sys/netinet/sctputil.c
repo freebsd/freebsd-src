@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_var.h>
 #include <netinet/sctp_sysctl.h>
 #ifdef INET6
+#include <netinet6/sctp6_var.h>
 #endif
 #include <netinet/sctp_header.h>
 #include <netinet/sctp_output.h>
@@ -48,6 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <netinet/sctp_auth.h>
 #include <netinet/sctp_asconf.h>
 #include <netinet/sctp_bsd_addr.h>
+#include <netinet/udp.h>
+#include <netinet/udp_var.h>
+#include <sys/proc.h>
 
 
 #ifndef KTR_SCTP
@@ -2544,7 +2548,7 @@ sctp_add_pad_tombuf(struct mbuf *m, int padlen)
 		/* Hard way we must grow the mbuf */
 		struct mbuf *tmp;
 
-		tmp = sctp_get_mbuf_for_msg(padlen, 0, M_DONTWAIT, 1, MT_DATA);
+		tmp = sctp_get_mbuf_for_msg(padlen, 0, M_NOWAIT, 1, MT_DATA);
 		if (tmp == NULL) {
 			/* Out of space GAK! we are in big trouble. */
 			SCTP_LTRACE_ERR_RET_PKT(m, NULL, NULL, NULL, SCTP_FROM_SCTPUTIL, ENOBUFS);
@@ -2614,11 +2618,11 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 		} else if ((state == SCTP_COMM_LOST) || (state == SCTP_CANT_STR_ASSOC)) {
 			notif_len += abort_len;
 		}
-		m_notify = sctp_get_mbuf_for_msg(notif_len, 0, M_DONTWAIT, 1, MT_DATA);
+		m_notify = sctp_get_mbuf_for_msg(notif_len, 0, M_NOWAIT, 1, MT_DATA);
 		if (m_notify == NULL) {
 			/* Retry with smaller value. */
 			notif_len = sizeof(struct sctp_assoc_change);
-			m_notify = sctp_get_mbuf_for_msg(notif_len, 0, M_DONTWAIT, 1, MT_DATA);
+			m_notify = sctp_get_mbuf_for_msg(notif_len, 0, M_NOWAIT, 1, MT_DATA);
 			if (m_notify == NULL) {
 				goto set_error;
 			}
@@ -2736,7 +2740,7 @@ sctp_notify_peer_addr_change(struct sctp_tcb *stcb, uint32_t state,
 		/* event not enabled */
 		return;
 	}
-	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_paddr_change), 0, M_DONTWAIT, 1, MT_DATA);
+	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_paddr_change), 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		return;
 	SCTP_BUF_LEN(m_notify) = 0;
@@ -2827,7 +2831,7 @@ sctp_notify_send_failed(struct sctp_tcb *stcb, uint8_t sent, uint32_t error,
 	} else {
 		length = sizeof(struct sctp_send_failed);
 	}
-	m_notify = sctp_get_mbuf_for_msg(length, 0, M_DONTWAIT, 1, MT_DATA);
+	m_notify = sctp_get_mbuf_for_msg(length, 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
 		return;
@@ -2939,7 +2943,7 @@ sctp_notify_send_failed2(struct sctp_tcb *stcb, uint32_t error,
 	} else {
 		length = sizeof(struct sctp_send_failed);
 	}
-	m_notify = sctp_get_mbuf_for_msg(length, 0, M_DONTWAIT, 1, MT_DATA);
+	m_notify = sctp_get_mbuf_for_msg(length, 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL) {
 		/* no space left */
 		return;
@@ -3028,7 +3032,7 @@ sctp_notify_adaptation_layer(struct sctp_tcb *stcb)
 		/* event not enabled */
 		return;
 	}
-	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_adaption_event), 0, M_DONTWAIT, 1, MT_DATA);
+	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_adaption_event), 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
 		return;
@@ -3083,7 +3087,7 @@ sctp_notify_partial_delivery_indication(struct sctp_tcb *stcb, uint32_t error,
 	if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_CANT_READ) {
 		return;
 	}
-	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_pdapi_event), 0, M_DONTWAIT, 1, MT_DATA);
+	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_pdapi_event), 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
 		return;
@@ -3193,7 +3197,7 @@ sctp_notify_shutdown_event(struct sctp_tcb *stcb)
 		/* event not enabled */
 		return;
 	}
-	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_shutdown_event), 0, M_DONTWAIT, 1, MT_DATA);
+	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_shutdown_event), 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
 		return;
@@ -3241,7 +3245,7 @@ sctp_notify_sender_dry_event(struct sctp_tcb *stcb,
 		/* event not enabled */
 		return;
 	}
-	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_sender_dry_event), 0, M_DONTWAIT, 1, MT_DATA);
+	m_notify = sctp_get_mbuf_for_msg(sizeof(struct sctp_sender_dry_event), 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL) {
 		/* no space left */
 		return;
@@ -3293,7 +3297,7 @@ sctp_notify_stream_reset_add(struct sctp_tcb *stcb, uint16_t numberin, uint16_t 
 		return;
 	}
 	stcb->asoc.peer_req_out = 0;
-	m_notify = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_DONTWAIT, 1, MT_DATA);
+	m_notify = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
 		return;
@@ -3349,7 +3353,7 @@ sctp_notify_stream_reset_tsn(struct sctp_tcb *stcb, uint32_t sending_tsn, uint32
 		/* event not enabled */
 		return;
 	}
-	m_notify = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_DONTWAIT, 1, MT_DATA);
+	m_notify = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
 		return;
@@ -3408,7 +3412,7 @@ sctp_notify_stream_reset(struct sctp_tcb *stcb,
 		/* event not enabled */
 		return;
 	}
-	m_notify = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_DONTWAIT, 1, MT_DATA);
+	m_notify = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL)
 		/* no space left */
 		return;
@@ -3475,11 +3479,11 @@ sctp_notify_remote_error(struct sctp_tcb *stcb, uint16_t error, struct sctp_erro
 		chunk_len = 0;
 	}
 	notif_len = sizeof(struct sctp_remote_error) + chunk_len;
-	m_notify = sctp_get_mbuf_for_msg(notif_len, 0, M_DONTWAIT, 1, MT_DATA);
+	m_notify = sctp_get_mbuf_for_msg(notif_len, 0, M_NOWAIT, 1, MT_DATA);
 	if (m_notify == NULL) {
 		/* Retry with smaller value. */
 		notif_len = sizeof(struct sctp_remote_error);
-		m_notify = sctp_get_mbuf_for_msg(notif_len, 0, M_DONTWAIT, 1, MT_DATA);
+		m_notify = sctp_get_mbuf_for_msg(notif_len, 0, M_NOWAIT, 1, MT_DATA);
 		if (m_notify == NULL) {
 			return;
 		}
@@ -4632,7 +4636,7 @@ sctp_generate_invmanparam(int err)
 	/* Return a MBUF with a invalid mandatory parameter */
 	struct mbuf *m;
 
-	m = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr), 0, M_DONTWAIT, 1, MT_DATA);
+	m = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr), 0, M_NOWAIT, 1, MT_DATA);
 	if (m) {
 		struct sctp_paramhdr *ph;
 
@@ -6769,24 +6773,15 @@ sctp_log_trace(uint32_t subsys, const char *str SCTP_UNUSED, uint32_t a, uint32_
 }
 
 #endif
-/* XXX: Remove the #ifdef after tunneling over IPv6 works also on FreeBSD. */
-#ifdef INET
-/* We will need to add support
- * to bind the ports and such here
- * so we can do UDP tunneling. In
- * the mean-time, we return error
- */
-#include <netinet/udp.h>
-#include <netinet/udp_var.h>
-#include <sys/proc.h>
-#ifdef INET6
-#include <netinet6/sctp6_var.h>
-#endif
-
 static void
 sctp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *ignored)
 {
 	struct ip *iph;
+
+#ifdef INET6
+	struct ip6_hdr *ip6;
+
+#endif
 	struct mbuf *sp, *last;
 	struct udphdr *uhdr;
 	uint16_t port;
@@ -6803,7 +6798,7 @@ sctp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *ignored)
 	 * Split out the mbuf chain. Leave the IP header in m, place the
 	 * rest in the sp.
 	 */
-	sp = m_split(m, off, M_DONTWAIT);
+	sp = m_split(m, off, M_NOWAIT);
 	if (sp == NULL) {
 		/* Gak, drop packet, we can't do a split */
 		goto out;
@@ -6836,10 +6831,10 @@ sctp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *ignored)
 #endif
 #ifdef INET6
 	case IPV6_VERSION >> 4:
-		/* Not yet supported. */
-		goto out;
+		ip6 = mtod(m, struct ip6_hdr *);
+		ip6->ip6_plen = htons(ntohs(ip6->ip6_plen) - sizeof(struct udphdr));
+		sctp6_input_with_port(&m, &off, port);
 		break;
-
 #endif
 	default:
 		goto out;
@@ -6853,19 +6848,22 @@ out:
 void
 sctp_over_udp_stop(void)
 {
-	struct socket *sop;
-
 	/*
 	 * This function assumes sysctl caller holds sctp_sysctl_info_lock()
 	 * for writting!
 	 */
-	if (SCTP_BASE_INFO(udp_tun_socket) == NULL) {
-		/* Nothing to do */
-		return;
+#ifdef INET
+	if (SCTP_BASE_INFO(udp4_tun_socket) != NULL) {
+		soclose(SCTP_BASE_INFO(udp4_tun_socket));
+		SCTP_BASE_INFO(udp4_tun_socket) = NULL;
 	}
-	sop = SCTP_BASE_INFO(udp_tun_socket);
-	soclose(sop);
-	SCTP_BASE_INFO(udp_tun_socket) = NULL;
+#endif
+#ifdef INET6
+	if (SCTP_BASE_INFO(udp6_tun_socket) != NULL) {
+		soclose(SCTP_BASE_INFO(udp6_tun_socket));
+		SCTP_BASE_INFO(udp6_tun_socket) = NULL;
+	}
+#endif
 }
 
 int
@@ -6873,53 +6871,83 @@ sctp_over_udp_start(void)
 {
 	uint16_t port;
 	int ret;
-	struct sockaddr_in sin;
-	struct socket *sop = NULL;
-	struct thread *th;
-	struct ucred *cred;
 
+#ifdef INET
+	struct sockaddr_in sin;
+
+#endif
+#ifdef INET6
+	struct sockaddr_in6 sin6;
+
+#endif
 	/*
 	 * This function assumes sysctl caller holds sctp_sysctl_info_lock()
 	 * for writting!
 	 */
 	port = SCTP_BASE_SYSCTL(sctp_udp_tunneling_port);
-	if (port == 0) {
+	if (ntohs(port) == 0) {
 		/* Must have a port set */
 		return (EINVAL);
 	}
-	if (SCTP_BASE_INFO(udp_tun_socket) != NULL) {
+#ifdef INET
+	if (SCTP_BASE_INFO(udp4_tun_socket) != NULL) {
 		/* Already running -- must stop first */
 		return (EALREADY);
 	}
-	th = curthread;
-	cred = th->td_ucred;
-	if ((ret = socreate(PF_INET, &sop,
-	    SOCK_DGRAM, IPPROTO_UDP, cred, th))) {
-		return (ret);
+#endif
+#ifdef INET6
+	if (SCTP_BASE_INFO(udp6_tun_socket) != NULL) {
+		/* Already running -- must stop first */
+		return (EALREADY);
 	}
-	SCTP_BASE_INFO(udp_tun_socket) = sop;
-	/* call the special UDP hook */
-	ret = udp_set_kernel_tunneling(sop, sctp_recv_udp_tunneled_packet);
-	if (ret) {
-		goto exit_stage_left;
-	}
-	/* Ok we have a socket, bind it to the port */
-	memset(&sin, 0, sizeof(sin));
-	sin.sin_len = sizeof(sin);
-	sin.sin_family = AF_INET;
-	sin.sin_port = htons(port);
-	ret = sobind(sop, (struct sockaddr *)&sin, th);
-	if (ret) {
-		/* Close up we cant get the port */
-exit_stage_left:
+#endif
+#ifdef INET
+	if ((ret = socreate(PF_INET, &SCTP_BASE_INFO(udp4_tun_socket),
+	    SOCK_DGRAM, IPPROTO_UDP,
+	    curthread->td_ucred, curthread))) {
 		sctp_over_udp_stop();
 		return (ret);
 	}
-	/*
-	 * Ok we should now get UDP packets directly to our input routine
-	 * sctp_recv_upd_tunneled_packet().
-	 */
+	/* Call the special UDP hook. */
+	if ((ret = udp_set_kernel_tunneling(SCTP_BASE_INFO(udp4_tun_socket),
+	    sctp_recv_udp_tunneled_packet))) {
+		sctp_over_udp_stop();
+		return (ret);
+	}
+	/* Ok, we have a socket, bind it to the port. */
+	memset(&sin, 0, sizeof(struct sockaddr_in));
+	sin.sin_len = sizeof(struct sockaddr_in);
+	sin.sin_family = AF_INET;
+	sin.sin_port = htons(port);
+	if ((ret = sobind(SCTP_BASE_INFO(udp4_tun_socket),
+	    (struct sockaddr *)&sin, curthread))) {
+		sctp_over_udp_stop();
+		return (ret);
+	}
+#endif
+#ifdef INET6
+	if ((ret = socreate(PF_INET6, &SCTP_BASE_INFO(udp6_tun_socket),
+	    SOCK_DGRAM, IPPROTO_UDP,
+	    curthread->td_ucred, curthread))) {
+		sctp_over_udp_stop();
+		return (ret);
+	}
+	/* Call the special UDP hook. */
+	if ((ret = udp_set_kernel_tunneling(SCTP_BASE_INFO(udp6_tun_socket),
+	    sctp_recv_udp_tunneled_packet))) {
+		sctp_over_udp_stop();
+		return (ret);
+	}
+	/* Ok, we have a socket, bind it to the port. */
+	memset(&sin6, 0, sizeof(struct sockaddr_in6));
+	sin6.sin6_len = sizeof(struct sockaddr_in6);
+	sin6.sin6_family = AF_INET6;
+	sin6.sin6_port = htons(port);
+	if ((ret = sobind(SCTP_BASE_INFO(udp6_tun_socket),
+	    (struct sockaddr *)&sin6, curthread))) {
+		sctp_over_udp_stop();
+		return (ret);
+	}
+#endif
 	return (0);
 }
-
-#endif

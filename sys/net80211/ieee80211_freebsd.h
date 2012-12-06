@@ -53,6 +53,8 @@ typedef struct {
 #define	IEEE80211_UNLOCK(_ic)	   mtx_unlock(IEEE80211_LOCK_OBJ(_ic))
 #define	IEEE80211_LOCK_ASSERT(_ic) \
 	mtx_assert(IEEE80211_LOCK_OBJ(_ic), MA_OWNED)
+#define	IEEE80211_UNLOCK_ASSERT(_ic) \
+	mtx_assert(IEEE80211_LOCK_OBJ(_ic), MA_NOTOWNED)
 
 /*
  * Node locking definitions.

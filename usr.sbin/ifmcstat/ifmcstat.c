@@ -167,7 +167,7 @@ static const char *	inm_mode(u_int mode);
 #endif
 #ifdef INET6
 static void		in6_ifinfo(struct mld_ifinfo *);
-static const char *	inet6_n2a(struct in6_addr *);
+static const char *	inet6_n2a(struct in6_addr *, uint32_t);
 #endif
 int			main(int, char **);
 
@@ -459,7 +459,8 @@ if6_addrlist(struct ifaddr *ifap)
 		if (sa.sa_family != PF_INET6)
 			goto nextifap;
 		KREAD(ifap, &if6a, struct in6_ifaddr);
-		printf("\tinet6 %s\n", inet6_n2a(&if6a.ia_addr.sin6_addr));
+		printf("\tinet6 %s\n", inet6_n2a(&if6a.ia_addr.sin6_addr,
+		    if6a.ia_addr.sin6_scope_id));
 		/*
 		 * Print per-link MLD information, if available.
 		 */
@@ -514,7 +515,7 @@ in6_multientry(struct in6_multi *mc)
 	struct in6_multi multi;
 
 	KREAD(mc, &multi, struct in6_multi);
-	printf("\t\tgroup %s", inet6_n2a(&multi.in6m_addr));
+	printf("\t\tgroup %s", inet6_n2a(&multi.in6m_addr, 0));
 	printf(" refcnt %u\n", multi.in6m_refcount);
 
 	return (multi.in6m_entry.le_next);
@@ -751,7 +752,7 @@ in6_ifinfo(struct mld_ifinfo *mli)
 		printf("mldv?(%d)", mli->mli_version);
 		break;
 	}
-	printb(" flags", mli->mli_flags, "\020\1SILENT");
+	printb(" flags", mli->mli_flags, "\020\1SILENT\2USEALLOW");
 	if (mli->mli_version == MLD_VERSION_2) {
 		printf(" rv %u qi %u qri %u uri %u",
 		    mli->mli_rv, mli->mli_qi, mli->mli_qri, mli->mli_uri);
@@ -764,26 +765,17 @@ in6_ifinfo(struct mld_ifinfo *mli)
 }
 
 static const char *
-inet6_n2a(struct in6_addr *p)
+inet6_n2a(struct in6_addr *p, uint32_t scope_id)
 {
 	static char buf[NI_MAXHOST];
 	struct sockaddr_in6 sin6;
-	u_int32_t scopeid;
 	const int niflags = NI_NUMERICHOST;
 
 	memset(&sin6, 0, sizeof(sin6));
 	sin6.sin6_family = AF_INET6;
 	sin6.sin6_len = sizeof(struct sockaddr_in6);
 	sin6.sin6_addr = *p;
-	if (IN6_IS_ADDR_LINKLOCAL(p) || IN6_IS_ADDR_MC_LINKLOCAL(p) ||
-	    IN6_IS_ADDR_MC_NODELOCAL(p)) {
-		scopeid = ntohs(*(u_int16_t *)&sin6.sin6_addr.s6_addr[2]);
-		if (scopeid) {
-			sin6.sin6_scope_id = scopeid;
-			sin6.sin6_addr.s6_addr[2] = 0;
-			sin6.sin6_addr.s6_addr[3] = 0;
-		}
-	}
+	sin6.sin6_scope_id = scope_id;
 	if (getnameinfo((struct sockaddr *)&sin6, sin6.sin6_len,
 	    buf, sizeof(buf), NULL, 0, niflags) == 0) {
 		return (buf);
@@ -1115,7 +1107,8 @@ ifmcstat_getifmaddrs(void)
 #ifdef INET6
 			{
 				const char *p =
-				    inet6_n2a(&pifasa->sin6.sin6_addr);
+				    inet6_n2a(&pifasa->sin6.sin6_addr,
+					pifasa->sin6.sin6_scope_id);
 				strlcpy(addrbuf, p, sizeof(addrbuf));
 				break;
 			}
@@ -1196,7 +1189,8 @@ next_ifnet:
 		/* Print this group address. */
 #ifdef INET6
 		if (pgsa->sa.sa_family == AF_INET6) {
-			const char *p = inet6_n2a(&pgsa->sin6.sin6_addr);
+			const char *p = inet6_n2a(&pgsa->sin6.sin6_addr,
+			    pgsa->sin6.sin6_scope_id);
 			strlcpy(addrbuf, p, sizeof(addrbuf));
 		} else
 #endif

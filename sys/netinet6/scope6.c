@@ -369,12 +369,6 @@ sa6_recoverscope(struct sockaddr_in6 *sin6)
 	char ip6buf[INET6_ADDRSTRLEN];
 	u_int32_t zoneid;
 
-	if (sin6->sin6_scope_id != 0) {
-		log(LOG_NOTICE,
-		    "sa6_recoverscope: assumption failure (non 0 ID): %s%%%d\n",
-		    ip6_sprintf(ip6buf, &sin6->sin6_addr), sin6->sin6_scope_id);
-		/* XXX: proceed anyway... */
-	}
 	if (IN6_IS_SCOPE_LINKLOCAL(&sin6->sin6_addr) ||
 	    IN6_IS_ADDR_MC_INTFACELOCAL(&sin6->sin6_addr)) {
 		/*
@@ -387,6 +381,14 @@ sa6_recoverscope(struct sockaddr_in6 *sin6)
 				return (ENXIO);
 			if (!ifnet_byindex(zoneid))
 				return (ENXIO);
+			if (sin6->sin6_scope_id != 0 &&
+			    zoneid != sin6->sin6_scope_id) {
+				log(LOG_NOTICE,
+				    "%s: embedded scope mismatch: %s%%%d. "
+				    "sin6_scope_id was overridden.", __func__,
+				    ip6_sprintf(ip6buf, &sin6->sin6_addr),
+				    sin6->sin6_scope_id);
+			}
 			sin6->sin6_addr.s6_addr16[1] = 0;
 			sin6->sin6_scope_id = zoneid;
 		}

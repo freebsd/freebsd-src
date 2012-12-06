@@ -150,6 +150,7 @@ SUBDIR=	\
 	${_ipfw} \
 	ipfw_nat \
 	${_ipmi} \
+	ip6_mroute_mod \
 	ip_mroute_mod \
 	${_ips} \
 	${_ipw} \

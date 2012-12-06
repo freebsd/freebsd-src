@@ -39,40 +39,25 @@ class MipsFunctionInfo : public MachineFunctionInfo {
   /// relocation models.
   unsigned GlobalBaseReg;
 
+  /// Mips16SPAliasReg - keeps track of the virtual register initialized for
+  /// use as an alias for SP for use in load/store of halfword/byte from/to
+  /// the stack
+  unsigned Mips16SPAliasReg;
+
   /// VarArgsFrameIndex - FrameIndex for start of varargs area.
   int VarArgsFrameIndex;
 
-  // Range of frame object indices.
-  // InArgFIRange: Range of indices of all frame objects created during call to
-  //               LowerFormalArguments.
-  // OutArgFIRange: Range of indices of all frame objects created during call to
-  //                LowerCall except for the frame object for restoring $gp.
-  std::pair<int, int> InArgFIRange, OutArgFIRange;
-  unsigned MaxCallFrameSize;
+  /// True if function has a byval argument.
+  bool HasByvalArg;
 
-  bool EmitNOAT;
+  /// Size of incoming argument area.
+  unsigned IncomingArgSize;
 
 public:
   MipsFunctionInfo(MachineFunction& MF)
-  : MF(MF), SRetReturnReg(0), GlobalBaseReg(0),
-    VarArgsFrameIndex(0), InArgFIRange(std::make_pair(-1, 0)),
-    OutArgFIRange(std::make_pair(-1, 0)), MaxCallFrameSize(0), EmitNOAT(false)
+   : MF(MF), SRetReturnReg(0), GlobalBaseReg(0), Mips16SPAliasReg(0),
+     VarArgsFrameIndex(0)
   {}
-
-  bool isInArgFI(int FI) const {
-    return FI <= InArgFIRange.first && FI >= InArgFIRange.second;
-  }
-  void setLastInArgFI(int FI) { InArgFIRange.second = FI; }
-
-  bool isOutArgFI(int FI) const {
-    return FI <= OutArgFIRange.first && FI >= OutArgFIRange.second;
-  }
-  void extendOutArgFIRange(int FirstFI, int LastFI) {
-    if (!OutArgFIRange.second)
-      // this must be the first time this function was called.
-      OutArgFIRange.first = FirstFI;
-    OutArgFIRange.second = LastFI;
-  }
 
   unsigned getSRetReturnReg() const { return SRetReturnReg; }
   void setSRetReturnReg(unsigned Reg) { SRetReturnReg = Reg; }
@@ -80,14 +65,19 @@ public:
   bool globalBaseRegSet() const;
   unsigned getGlobalBaseReg();
 
+  bool mips16SPAliasRegSet() const;
+  unsigned getMips16SPAliasReg();
+
   int getVarArgsFrameIndex() const { return VarArgsFrameIndex; }
   void setVarArgsFrameIndex(int Index) { VarArgsFrameIndex = Index; }
 
-  unsigned getMaxCallFrameSize() const { return MaxCallFrameSize; }
-  void setMaxCallFrameSize(unsigned S) { MaxCallFrameSize = S; }
+  bool hasByvalArg() const { return HasByvalArg; }
+  void setFormalArgInfo(unsigned Size, bool HasByval) {
+    IncomingArgSize = Size;
+    HasByvalArg = HasByval;
+  }
 
-  bool getEmitNOAT() const { return EmitNOAT; }
-  void setEmitNOAT() { EmitNOAT = true; }
+  unsigned getIncomingArgSize() const { return IncomingArgSize; }
 };
 
 } // end of namespace llvm
