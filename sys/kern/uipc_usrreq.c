@@ -1778,6 +1778,7 @@ unp_init(void)
 	if (unp_zone == NULL)
 		panic("unp_init");
 	uma_zone_set_max(unp_zone, maxsockets);
+	uma_zone_set_warning(unp_zone, "kern.ipc.maxsockets limit reached");
 	EVENTHANDLER_REGISTER(maxsockets_change, unp_zone_change,
 	    NULL, EVENTHANDLER_PRI_ANY);
 	LIST_INIT(&unp_dhead);

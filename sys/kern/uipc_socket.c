@@ -276,6 +276,7 @@ socket_init(void *tag)
 	socket_zone = uma_zcreate("socket", sizeof(struct socket), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	maxsockets = uma_zone_set_max(socket_zone, maxsockets);
+	uma_zone_set_warning(socket_zone, "kern.ipc.maxsockets limit reached");
 	EVENTHANDLER_REGISTER(maxsockets_change, socket_zone_change, NULL,
 	    EVENTHANDLER_PRI_FIRST);
 }
