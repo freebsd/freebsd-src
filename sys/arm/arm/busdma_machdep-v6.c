@@ -108,7 +108,6 @@ struct sync_list {
 	vm_offset_t	vaddr;		/* kva of bounce buffer */
 	bus_addr_t	busaddr;	/* Physical address */
 	bus_size_t	datacount;	/* client data count */
-	STAILQ_ENTRY(sync_list) slinks;
 };
 
 int busdma_swi_pending;
@@ -151,7 +150,8 @@ struct bus_dmamap {
 	bus_dmamap_callback_t *callback;
 	void		      *callback_arg;
 	STAILQ_ENTRY(bus_dmamap) links;
-	STAILQ_HEAD(,sync_list)	slist;
+	int		       sync_count;
+	struct sync_list       slist[];
 };
 
 static STAILQ_HEAD(, bus_dmamap) bounce_map_waitinglist;
@@ -436,17 +436,18 @@ out:
 int
 bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 {
+	int mapsize;
 	int error;
 
 	error = 0;
 
-	*mapp = (bus_dmamap_t)malloc(sizeof(**mapp), M_DEVBUF,
-					     M_NOWAIT | M_ZERO);
+	mapsize = sizeof(**mapp) + (sizeof(struct sync_list) * dmat->nsegments);
+	*mapp = (bus_dmamap_t)malloc(mapsize, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (*mapp == NULL) {
 		CTR3(KTR_BUSDMA, "%s: tag %p error %d", __func__, dmat, ENOMEM);
 		return (ENOMEM);
 	}
-	STAILQ_INIT(&((*mapp)->slist));
+	(*mapp)->sync_count = 0;
 
 	if (dmat->segments == NULL) {
 		dmat->segments = (bus_dma_segment_t *)malloc(
@@ -521,8 +522,7 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 int
 bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
-	if (STAILQ_FIRST(&map->bpages) != NULL ||
-	    STAILQ_FIRST(&map->slist) != NULL) {
+	if (STAILQ_FIRST(&map->bpages) != NULL || map->sync_count != 0) {
 		CTR3(KTR_BUSDMA, "%s: tag %p error %d",
 		    __func__, dmat, EBUSY);
 		return (EBUSY);
@@ -546,6 +546,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		 bus_dmamap_t *mapp)
 {
 	int mflags, len;
+	int mapsize;
 
 	if (flags & BUS_DMA_NOWAIT)
 		mflags = M_NOWAIT;
@@ -554,15 +555,15 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 
 	/* ARM non-snooping caches need a map for the VA cache sync structure */
 
-	*mapp = (bus_dmamap_t)malloc(sizeof(**mapp), M_DEVBUF,
-					     M_NOWAIT | M_ZERO);
+	mapsize = sizeof(**mapp) + (sizeof(struct sync_list) * dmat->nsegments);
+	*mapp = (bus_dmamap_t)malloc(mapsize, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (*mapp == NULL) {
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 		    __func__, dmat, dmat->flags, ENOMEM);
 		return (ENOMEM);
 	}
 
-	STAILQ_INIT(&((*mapp)->slist));
+	(*mapp)->sync_count = 0;
 
 	if (dmat->segments == NULL) {
 		dmat->segments = (bus_dma_segment_t *)malloc(
@@ -774,17 +775,13 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		    map->pagesneeded != 0 && run_filter(dmat, curaddr)) {
 			curaddr = add_bounce_page(dmat, map, vaddr, sgsize);
 		} else {
-			/* add_sync_list(dmat, map, vaddr, sgsize, cflag); */
-			sl = (struct sync_list *)malloc(sizeof(struct sync_list),
-						M_DEVBUF, M_NOWAIT | M_ZERO);
-			if (sl == NULL)
+			sl = &map->slist[map->sync_count];
+			if (++map->sync_count > dmat->nsegments)
 				goto cleanup;
-			STAILQ_INSERT_TAIL(&(map->slist), sl, slinks);
 			sl->vaddr = vaddr;
 			sl->datacount = sgsize;
 			sl->busaddr = curaddr;
 		}
-
 
 		if (dmat->ranges) {
 			struct arm32_dma_range *dr;
@@ -1012,12 +1009,6 @@ _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 {
 	struct bounce_page *bpage;
 	struct bounce_zone *bz;
-	struct sync_list *sl;
-
-        while ((sl = STAILQ_FIRST(&map->slist)) != NULL) {
-                STAILQ_REMOVE_HEAD(&map->slist, slinks);
-                free(sl, M_DEVBUF);
-        }
 
 	if ((bz = dmat->bounce_zone) != NULL) {
 		while ((bpage = STAILQ_FIRST(&map->bpages)) != NULL) {
@@ -1031,6 +1022,7 @@ _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 		map->pagesreserved = 0;
 		map->pagesneeded = 0;
 	}
+	map->sync_count = 0;
 }
 
 #ifdef notyetbounceuser
@@ -1090,15 +1082,13 @@ void
 _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 {
 	struct bounce_page *bpage;
-	struct sync_list *sl;
+	struct sync_list *sl, *end;
 	bus_size_t len, unalign;
 	vm_offset_t buf, ebuf;
 #ifdef FIX_DMAP_BUS_DMASYNC_POSTREAD
 	vm_offset_t bbuf;
 	char _tmp_cl[arm_dcache_align], _tmp_clend[arm_dcache_align];
 #endif
-	int listcount = 0;
-
 		/* if buffer was from user space, it it possible that this
 		 * is not the same vm map. The fix is to map each page in
 		 * the buffer into the current address space (KVM) and then
@@ -1166,29 +1156,26 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		}
 	}
 
-	sl = STAILQ_FIRST(&map->slist);
-	while (sl) {
-		listcount++;
-		sl = STAILQ_NEXT(sl, slinks);
-	}
-	if ((sl = STAILQ_FIRST(&map->slist)) != NULL) {
+	if (map->sync_count != 0) {
 		/* ARM caches are not self-snooping for dma */
 
+		sl = &map->slist[0];
+		end = &map->slist[map->sync_count];
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x op 0x%x "
 		    "performing sync", __func__, dmat, dmat->flags, op);
 
 		switch (op) {
 		case BUS_DMASYNC_PREWRITE:
-			while (sl != NULL) {
+			while (sl != end) {
 			    cpu_dcache_wb_range(sl->vaddr, sl->datacount);
 			    l2cache_wb_range(sl->vaddr, sl->busaddr,
 				sl->datacount);
-			    sl = STAILQ_NEXT(sl, slinks);
+			    sl++;
 			}
 			break;
 
 		case BUS_DMASYNC_PREREAD:
-			while (sl != NULL) {
+			while (sl != end) {
 					/* write back the unaligned portions */
 				vm_paddr_t physaddr = sl->busaddr, ephysaddr;
 				buf = sl->vaddr;
@@ -1228,16 +1215,16 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 					cpu_dcache_inv_range(buf, len);
 					l2cache_inv_range(buf, physaddr, len);
 				}
-				sl = STAILQ_NEXT(sl, slinks);
+				sl++;
 			}
 			break;
 
 		case BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD:
-			while (sl != NULL) {
+			while (sl != end) {
 				cpu_dcache_wbinv_range(sl->vaddr, sl->datacount);
 				l2cache_wbinv_range(sl->vaddr,
 				    sl->busaddr, sl->datacount);
-				sl = STAILQ_NEXT(sl, slinks);
+				sl++;
 			}
 			break;
 
@@ -1245,7 +1232,7 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 		case BUS_DMASYNC_POSTREAD:
 			if (!pmap_dmap_iscurrent(map->pmap))
 			     panic("_bus_dmamap_sync: wrong user map. apply fix");
-			while (sl != NULL) {
+			while (sl != end) {
 					/* write back the unaligned portions */
 				vm_paddr_t physaddr;
 				buf = sl->vaddr;
@@ -1278,7 +1265,7 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 					unalign = arm_dcache_align - unalign;
 					memcpy((void *)ebuf, _tmp_clend, unalign);
 				}
-				sl = STAILQ_NEXT(sl, slinks);
+				sl++;
 			}
 				break;
 #endif /* FIX_DMAP_BUS_DMASYNC_POSTREAD */
