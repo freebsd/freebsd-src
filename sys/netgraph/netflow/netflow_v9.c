@@ -480,3 +480,14 @@ ng_netflow_v9_cache_flush(priv_p priv)
 	for (i = 0; i < priv->flowsets_count; i++)
 		free(priv->v9_flowsets[i], M_NETFLOW_GENERAL);
 }
+
+/* Get a snapshot of NetFlow v9 settings */
+void
+ng_netflow_copyv9info(priv_p priv, struct ng_netflow_v9info *i)
+{
+
+	i->templ_time = priv->templ_time;
+	i->templ_packets = priv->templ_packets;
+	i->mtu = priv->mtu;
+}
+
