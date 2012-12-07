@@ -716,7 +716,7 @@ softclock_call_cc(struct callout *c, struct callout_cpu *cc, int *mpcalls,
 		class->lc_unlock(c_lock);
 skip:
 	CC_LOCK(cc);
-	KASSERT(cc->cc_curr == c, ("mishandled cc_curr"));
+	KASSERT(cc->cc_exec_entity[direct].cc_curr == c, ("mishandled cc_curr"));
 	cc->cc_exec_entity[direct].cc_curr = NULL;
 	if (cc->cc_exec_entity[direct].cc_waiting) {
 		/*
