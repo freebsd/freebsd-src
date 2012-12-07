@@ -331,6 +331,10 @@ struct uma_zone {
 	uint16_t	uz_fills;	/* Outstanding bucket fills */
 	uint16_t	uz_count;	/* Highest value ub_ptr can have */
 
+	/* The next three fields are used to print a rate-limited warnings. */
+	const char	*uz_warning;	/* Warning to print on failure */
+	struct timeval	uz_ratecheck;	/* Warnings rate-limiting */
+
 	/*
 	 * This HAS to be the last item because we adjust the zone size
 	 * based on NCPU and then allocate the space for the zones.
