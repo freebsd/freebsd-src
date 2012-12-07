@@ -711,8 +711,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
 }
 
 /*
- * Utility function to load a linear buffer. lastaddrp holds state
- * between invocations (for multiple-buffer loads).  segp contains
+ * Utility function to load a linear buffer.  segp contains
  * the starting segment on entrace, and the ending segment on exit.
  * first indicates if this is the first invocation of this function.
  */
@@ -721,13 +720,12 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 			bus_dmamap_t map,
 			void *buf, bus_size_t buflen,
 			int flags,
-			bus_addr_t *lastaddrp,
 			bus_dma_segment_t *segs,
 			int *segp,
 			int first)
 {
 	bus_size_t sgsize;
-	bus_addr_t curaddr, lastaddr, baddr, bmask;
+	bus_addr_t curaddr, baddr, bmask;
 	vm_offset_t vaddr;
 	struct sync_list *sl;
 	int seg, error;
@@ -740,7 +738,6 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 
 	sl = NULL;
 	vaddr = (vm_offset_t)buf;
-	lastaddr = *lastaddrp;
 	bmask = ~(dmat->boundary - 1);
 
 	for (seg = *segp; buflen > 0 ; ) {
@@ -811,7 +808,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 			segs[seg].ds_len = sgsize;
 			first = 0;
 		} else {
-			if (curaddr == lastaddr &&
+			if (curaddr == segs[seg].ds_addr + segs[seg].ds_len &&
 			    (segs[seg].ds_len + sgsize) <= dmat->maxsegsz &&
 			    (dmat->boundary == 0 ||
 			     (segs[seg].ds_addr & bmask) == (curaddr & bmask)))
@@ -824,13 +821,11 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 			}
 		}
 
-		lastaddr = curaddr + sgsize;
 		vaddr += sgsize;
 		buflen -= sgsize;
 	}
 
 	*segp = seg;
-	*lastaddrp = lastaddr;
 cleanup:
 	/*
 	 * Did we fit?
@@ -850,7 +845,6 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		bus_size_t buflen, bus_dmamap_callback_t *callback,
 		void *callback_arg, int flags)
 {
-	bus_addr_t		lastaddr = 0;
 	int			error, nsegs = 0;
 
 	flags |= BUS_DMA_WAITOK;
@@ -859,7 +853,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	map->pmap = kernel_pmap;
 
 	error = _bus_dmamap_load_buffer(dmat, map, buf, buflen, flags,
-		     &lastaddr, dmat->segments, &nsegs, 1);
+		     dmat->segments, &nsegs, 1);
 
 	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
 	    __func__, dmat, dmat->flags, error, nsegs + 1);
@@ -902,15 +896,13 @@ _bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 	error = 0;
 	if (m0->m_pkthdr.len <= dmat->maxsize) {
 		int first = 1;
-		bus_addr_t lastaddr = 0;
 		struct mbuf *m;
 
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
 			if (m->m_len > 0) {
 				error = _bus_dmamap_load_buffer(dmat, map,
 						m->m_data, m->m_len,
-						flags, &lastaddr,
-						segs, nsegs, first);
+						flags, segs, nsegs, first);
 				first = 0;
 			}
 		}
@@ -966,7 +958,6 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 		    bus_dmamap_callback2_t *callback, void *callback_arg,
 		    int flags)
 {
-	bus_addr_t lastaddr;
 	int nsegs, error, first, i;
 	bus_size_t resid;
 	struct iovec *iov;
@@ -985,7 +976,6 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 	nsegs = 0;
 	error = 0;
 	first = 1;
-	lastaddr = (bus_addr_t) 0;
 	for (i = 0; i < uio->uio_iovcnt && resid != 0 && !error; i++) {
 		/*
 		 * Now at the first iovec to load.  Load each iovec
@@ -997,7 +987,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 
 		if (minlen > 0) {
 			error = _bus_dmamap_load_buffer(dmat, map,
-					addr, minlen, flags, &lastaddr,
+					addr, minlen, flags,
 					dmat->segments, &nsegs, first);
 			first = 0;
 			resid -= minlen;

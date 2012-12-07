@@ -326,18 +326,17 @@ nexus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 }
 
 /*
- * Utility function to load a linear buffer.  lastaddrp holds state
- * between invocations (for multiple-buffer loads).  segp contains
+ * Utility function to load a linear buffer.  segp contains
  * the starting segment on entrace, and the ending segment on exit.
  * first indicates if this is the first invocation of this function.
  */
 static int
 _nexus_dmamap_load_buffer(bus_dma_tag_t dmat, void *buf, bus_size_t buflen,
-    struct thread *td, int flags, bus_addr_t *lastaddrp,
+    struct thread *td, int flags,
     bus_dma_segment_t *segs, int *segp, int first)
 {
 	bus_size_t sgsize;
-	bus_addr_t curaddr, lastaddr, baddr, bmask;
+	bus_addr_t curaddr, baddr, bmask;
 	vm_offset_t vaddr = (vm_offset_t)buf;
 	int seg;
 	pmap_t pmap;
@@ -347,7 +346,6 @@ _nexus_dmamap_load_buffer(bus_dma_tag_t dmat, void *buf, bus_size_t buflen,
 	else
 		pmap = NULL;
 
-	lastaddr = *lastaddrp;
 	bmask  = ~(dmat->dt_boundary - 1);
 
 	for (seg = *segp; buflen > 0 ; ) {
@@ -386,7 +384,7 @@ _nexus_dmamap_load_buffer(bus_dma_tag_t dmat, void *buf, bus_size_t buflen,
 			segs[seg].ds_len = sgsize;
 			first = 0;
 		} else {
-			if (curaddr == lastaddr &&
+			if (curaddr == segs[seg].ds_addr + segs[seg].ds_len &&
 			    (segs[seg].ds_len + sgsize) <= dmat->dt_maxsegsz &&
 			    (dmat->dt_boundary == 0 ||
 			    (segs[seg].ds_addr & bmask) == (curaddr & bmask)))
@@ -399,13 +397,11 @@ _nexus_dmamap_load_buffer(bus_dma_tag_t dmat, void *buf, bus_size_t buflen,
 			}
 		}
 
-		lastaddr = curaddr + sgsize;
 		vaddr += sgsize;
 		buflen -= sgsize;
 	}
 
 	*segp = seg;
-	*lastaddrp = lastaddr;
 
 	/*
 	 * Did we fit?
@@ -428,11 +424,10 @@ nexus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
     bus_size_t buflen, bus_dmamap_callback_t *callback, void *callback_arg,
     int flags)
 {
-	bus_addr_t lastaddr;
 	int error, nsegs;
 
 	error = _nexus_dmamap_load_buffer(dmat, buf, buflen, NULL, flags,
-	    &lastaddr, dmat->dt_segments, &nsegs, 1);
+	    dmat->dt_segments, &nsegs, 1);
 
 	if (error == 0) {
 		(*callback)(callback_arg, dmat->dt_segments, nsegs + 1, 0);
@@ -458,13 +453,12 @@ nexus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 	error = 0;
 	if (m0->m_pkthdr.len <= dmat->dt_maxsize) {
 		int first = 1;
-		bus_addr_t lastaddr = 0;
 		struct mbuf *m;
 
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
 			if (m->m_len > 0) {
 				error = _nexus_dmamap_load_buffer(dmat,
-				    m->m_data, m->m_len,NULL, flags, &lastaddr,
+				    m->m_data, m->m_len,NULL, flags,
 				    dmat->dt_segments, &nsegs, first);
 				first = 0;
 			}
@@ -496,13 +490,12 @@ nexus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 	error = 0;
 	if (m0->m_pkthdr.len <= dmat->dt_maxsize) {
 		int first = 1;
-		bus_addr_t lastaddr = 0;
 		struct mbuf *m;
 
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
 			if (m->m_len > 0) {
 				error = _nexus_dmamap_load_buffer(dmat,
-				    m->m_data, m->m_len,NULL, flags, &lastaddr,
+				    m->m_data, m->m_len,NULL, flags,
 				    segs, nsegs, first);
 				first = 0;
 			}
@@ -522,7 +515,6 @@ static int
 nexus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
     bus_dmamap_callback2_t *callback, void *callback_arg, int flags)
 {
-	bus_addr_t lastaddr;
 	int nsegs, error, first, i;
 	bus_size_t resid;
 	struct iovec *iov;
@@ -550,7 +542,7 @@ nexus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 
 		if (minlen > 0) {
 			error = _nexus_dmamap_load_buffer(dmat, addr, minlen,
-			    td, flags, &lastaddr, dmat->dt_segments, &nsegs,
+			    td, flags, dmat->dt_segments, &nsegs,
 			    first);
 			first = 0;
 
