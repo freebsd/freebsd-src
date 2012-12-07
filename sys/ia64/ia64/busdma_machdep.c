@@ -498,6 +498,9 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	if (map == NULL)
 		map = &nobounce_dmamap;
 
+	if (segs == NULL)
+		segs = dmat->segments;
+
 	if ((dmat->lowaddr < paddr_max || dmat->boundary > 0 ||
 	    dmat->alignment > 1) && map != &nobounce_dmamap &&
 	    map->pagesneeded == 0) {
@@ -629,7 +632,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	}
 
 	error = _bus_dmamap_load_buffer(dmat, map, buf, buflen, kernel_pmap,
-	    flags, dmat->segments, &nsegs);
+	    flags, NULL, &nsegs);
 
 	if (error == EINPROGRESS)
 		return (error);
@@ -663,7 +666,7 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 			if (m->m_len > 0) {
 				error = _bus_dmamap_load_buffer(dmat, map,
 				    m->m_data, m->m_len, kernel_pmap, flags,
-				    dmat->segments, &nsegs);
+				    NULL, &nsegs);
 			}
 		}
 	} else {
@@ -745,8 +748,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 
 		if (minlen > 0) {
 			error = _bus_dmamap_load_buffer(dmat, map, addr,
-			    minlen, td, flags, dmat->segments,
-			    &nsegs);
+			    minlen, td, flags, NULL, &nsegs);
 			resid -= minlen;
 		}
 	}

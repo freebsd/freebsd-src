@@ -865,6 +865,9 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 	if (buflen > dt->dt_maxsize)
 		return (EINVAL);
 
+	if (segs == NULL)
+		segs = dt->dt_segments;
+
 	vaddr = (vm_offset_t)buf;
 	voffs = vaddr & IO_PAGE_MASK;
 	amask = (*segp == -1) ? dt->dt_alignment - 1 : 0;
@@ -970,7 +973,7 @@ iommu_dvmamap_load(bus_dma_tag_t dt, bus_dmamap_t map, void *buf,
 	IS_UNLOCK(is);
 
 	error = iommu_dvmamap_load_buffer(dt, is, map, buf, buflen,
-	    kernel_pmap, flags, dt->dt_segments, &seg);
+	    kernel_pmap, flags, NULL, &seg);
 
 	IS_LOCK(is);
 	iommu_map_insq(is, map);
@@ -1014,7 +1017,7 @@ iommu_dvmamap_load_mbuf(bus_dma_tag_t dt, bus_dmamap_t map, struct mbuf *m0,
 				continue;
 			error = iommu_dvmamap_load_buffer(dt, is, map,
 			    m->m_data, m->m_len, kernel_pmap, flags,
-			    dt->dt_segments, &nsegs);
+			    NULL, &nsegs);
 		}
 	} else
 		error = EINVAL;
@@ -1123,7 +1126,7 @@ iommu_dvmamap_load_uio(bus_dma_tag_t dt, bus_dmamap_t map, struct uio *uio,
 			continue;
 
 		error = iommu_dvmamap_load_buffer(dt, is, map,
-		    iov[i].iov_base, minlen, pmap, flags, dt->dt_segments,
+		    iov[i].iov_base, minlen, pmap, flags, NULL,
 		    &nsegs);
 		resid -= minlen;
 	}

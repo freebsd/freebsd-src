@@ -729,6 +729,9 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	struct sync_list *sl;
 	int seg, error;
 
+	if (segs == NULL)
+		segs = dmat->segments;
+
 	if ((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) {
 		error = _bus_dmamap_count_pages(dmat, map, buf, buflen, flags);
 		if (error)
@@ -852,7 +855,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	map->callback_arg = callback_arg;
 
 	error = _bus_dmamap_load_buffer(dmat, map, buf, buflen, kernel_pmap,
-	    flags, dmat->segments, &nsegs);
+	    flags, NULL, &nsegs);
 
 	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
 	    __func__, dmat, dmat->flags, error, nsegs + 1);
@@ -922,8 +925,7 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
 {
 	int nsegs, error;
 
-	error = _bus_dmamap_load_mbuf_sg(dmat, map, m0, dmat->segments, &nsegs,
-		    flags);
+	error = _bus_dmamap_load_mbuf_sg(dmat, map, m0, NULL, &nsegs, flags);
 
 	if (error) {
 		/* force "no valid mappings" in callback */
@@ -985,7 +987,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 		if (minlen > 0) {
 			error = _bus_dmamap_load_buffer(dmat, map,
 					addr, minlen, pmap, flags,
-					dmat->segments, &nsegs);
+					NULL, &nsegs);
 			resid -= minlen;
 		}
 	}

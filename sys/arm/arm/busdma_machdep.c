@@ -765,6 +765,9 @@ bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t *segs,
 
 	bmask = ~(dmat->boundary - 1);
 
+	if (segs == NULL)
+		segs = dmat->segments;
+
 	if ((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) {
 		error = _bus_dmamap_count_pages(dmat, map, pmap, buf, buflen,
 		    flags);
@@ -913,7 +916,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	map->buffer = buf;
 	map->len = buflen;
 	error = bus_dmamap_load_buffer(dmat,
-	    dmat->segments, map, buf, buflen, kernel_pmap,
+	    NULL, map, buf, buflen, kernel_pmap,
 	    flags, &nsegs);
 	if (error == EINPROGRESS)
 		return (error);
@@ -950,7 +953,7 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
 			if (m->m_len > 0) {
 				error = bus_dmamap_load_buffer(dmat,
-				    dmat->segments, map, m->m_data, m->m_len,
+				    NULL, map, m->m_data, m->m_len,
 				    kernel_pmap, flags, &nsegs);
 				map->len += m->m_len;
 			}
@@ -1050,7 +1053,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 		caddr_t addr = (caddr_t) iov[i].iov_base;
 
 		if (minlen > 0) {
-			error = bus_dmamap_load_buffer(dmat, dmat->segments,
+			error = bus_dmamap_load_buffer(dmat, NULL,
 			    map, addr, minlen, pmap, flags, &nsegs);
 
 			map->len += minlen;

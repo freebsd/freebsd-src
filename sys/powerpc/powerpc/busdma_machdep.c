@@ -583,6 +583,9 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	bus_addr_t paddr;
 	int seg;
 
+	if (segs == NULL)
+		segs = map->segments;
+
 	if (map->pagesneeded == 0 && ((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0)) {
 		vm_offset_t	vendaddr;
 
@@ -700,6 +703,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	}
 
 	*segp = seg;
+	map->nsegs = seg;
 
 	/*
 	 * Did we fit?
@@ -725,7 +729,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 
 	map->nsegs = -1;
 	error = _bus_dmamap_load_buffer(dmat, map, buf, buflen, kernel_pmap,
-	    flags, map->segments, &map->nsegs);
+	    flags, NULL, &map->nsegs);
 	map->nsegs++;
 
 	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
@@ -780,7 +784,7 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map,
 				error = _bus_dmamap_load_buffer(dmat, map,
 						m->m_data, m->m_len,
 						kernel_pmap, flags,
-						map->segments, &map->nsegs);
+						NULL, &map->nsegs);
 			}
 		}
 	} else {
@@ -887,7 +891,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 		if (minlen > 0) {
 			error = _bus_dmamap_load_buffer(dmat, map,
 					addr, minlen, pmap, flags,
-					map->segments, &map->nsegs);
+					NULL, &map->nsegs);
 
 			resid -= minlen;
 		}

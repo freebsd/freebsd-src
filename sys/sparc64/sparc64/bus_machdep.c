@@ -339,6 +339,9 @@ _nexus_dmamap_load_buffer(bus_dma_tag_t dmat, void *buf, bus_size_t buflen,
 	vm_offset_t vaddr = (vm_offset_t)buf;
 	int seg;
 
+	if (segs == NULL)
+		segs = dmat->dt_segments;
+
 	bmask  = ~(dmat->dt_boundary - 1);
 
 	for (seg = *segp; buflen > 0 ; ) {
@@ -421,7 +424,7 @@ nexus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 
 	nsegs = -1;
 	error = _nexus_dmamap_load_buffer(dmat, buf, buflen, kernel_pmap,
-	    flags, dmat->dt_segments, &nsegs);
+	    flags, NULL, &nsegs);
 
 	if (error == 0) {
 		(*callback)(callback_arg, dmat->dt_segments, nsegs + 1, 0);
@@ -452,7 +455,7 @@ nexus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 			if (m->m_len > 0) {
 				error = _nexus_dmamap_load_buffer(dmat,
 				    m->m_data, m->m_len, kernel_pmap, flags,
-				    dmat->dt_segments, &nsegs);
+				    NULL, &nsegs);
 			}
 		}
 	} else {
@@ -531,7 +534,7 @@ nexus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 
 		if (minlen > 0) {
 			error = _nexus_dmamap_load_buffer(dmat, addr, minlen,
-			    pmap, flags, dmat->dt_segments, &nsegs);
+			    pmap, flags, NULL, &nsegs);
 			resid -= minlen;
 		}
 	}
