@@ -76,7 +76,7 @@ typedef enum {
 	CAM_DATA_SG		= 0x00000100,/* Data type (010:sglist)        */
 	CAM_DATA_SG_PADDR	= 0x00000180,/* Data type (011:sglist phys)   */
 	CAM_DATA_BIO		= 0x00000200,/* Data type (100:bio)           */
-	CAM_DATA_MASK		= 0x00000380,/* Data type mask. */
+	CAM_DATA_MASK		= 0x00000380,/* Data type mask                */
 	CAM_SOFT_RST_OP		= 0x00000400,/* Use Soft reset alternative    */
 	CAM_ENG_SYNC		= 0x00000800,/* Flush resid bytes on complete */
 	CAM_DEV_QFRZDIS		= 0x00001000,/* Disable DEV Q freezing	      */
