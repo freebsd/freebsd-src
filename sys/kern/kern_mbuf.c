@@ -137,8 +137,7 @@ tunable_mbinit(void *dummy)
 	TUNABLE_INT_FETCH("kern.ipc.nmbufs", &nmbufs);
 	if (nmbufs < nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16)
 		nmbufs = lmax(maxmbufmem / MSIZE / 5,
-			      nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16);
-
+		    nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16);
 }
 SYSINIT(tunable_mbinit, SI_SUB_TUNABLES, SI_ORDER_MIDDLE, tunable_mbinit, NULL);
 
@@ -185,7 +184,7 @@ sysctl_nmbjumbop(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_kern_ipc, OID_AUTO, nmbjumbop, CTLTYPE_INT|CTLFLAG_RW,
 &nmbjumbop, 0, sysctl_nmbjumbop, "IU",
-     "Maximum number of mbuf page size jumbo clusters allowed");
+    "Maximum number of mbuf page size jumbo clusters allowed");
 
 static int
 sysctl_nmbjumbo9(SYSCTL_HANDLER_ARGS)
