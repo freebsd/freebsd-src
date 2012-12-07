@@ -27,10 +27,10 @@ INTERNALLIB=
 .endif
 .endif
 
-# GSSAPI support is incomplete in 9.3.0
-#.if ${MK_KERBEROS} != "no"
-#CFLAGS+=	-DGSSAPI
-#.endif
+# Enable GSSAPI support if available
+.if ${MK_KERBEROS} != "no"
+CFLAGS+=	-DGSSAPI
+.endif
 
 # Enable IPv6 support if available
 .if ${MK_INET6_SUPPORT} != "no"
