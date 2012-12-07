@@ -92,7 +92,7 @@
  * from a listen queue to a file descriptor, in order to prevent garbage
  * collection of the socket at an untimely moment.  For a number of reasons,
  * these interfaces are not preferred, and should be avoided.
- * 
+ *
  * NOTE: With regard to VNETs the general rule is that callers do not set
  * curvnet. Exceptions to this rule include soabort(), sodisconnect(),
  * sofree() (and with that sorele(), sotryfree()), as well as sonewconn()
@@ -273,11 +273,11 @@ static void
 socket_init(void *tag)
 {
 
-        socket_zone = uma_zcreate("socket", sizeof(struct socket), NULL, NULL,
-            NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-        uma_zone_set_max(socket_zone, maxsockets);
-        EVENTHANDLER_REGISTER(maxsockets_change, socket_zone_change, NULL,
-                EVENTHANDLER_PRI_FIRST);
+	socket_zone = uma_zcreate("socket", sizeof(struct socket), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	uma_zone_set_max(socket_zone, maxsockets);
+	EVENTHANDLER_REGISTER(maxsockets_change, socket_zone_change, NULL,
+	    EVENTHANDLER_PRI_FIRST);
 }
 SYSINIT(socket, SI_SUB_PROTO_DOMAININIT, SI_ORDER_ANY, socket_init, NULL);
 
@@ -719,8 +719,10 @@ sofree(struct socket *so)
 	    ("sofree: so_head == NULL, but still SQ_COMP(%d) or SQ_INCOMP(%d)",
 	    so->so_qstate & SQ_COMP, so->so_qstate & SQ_INCOMP));
 	if (so->so_options & SO_ACCEPTCONN) {
-		KASSERT((TAILQ_EMPTY(&so->so_comp)), ("sofree: so_comp populated"));
-		KASSERT((TAILQ_EMPTY(&so->so_incomp)), ("sofree: so_incomp populated"));
+		KASSERT((TAILQ_EMPTY(&so->so_comp)),
+		    ("sofree: so_comp populated"));
+		KASSERT((TAILQ_EMPTY(&so->so_incomp)),
+		    ("sofree: so_incomp populated"));
 	}
 	SOCK_UNLOCK(so);
 	ACCEPT_UNLOCK();
@@ -786,7 +788,8 @@ soclose(struct socket *so)
 				goto drop;
 			while (so->so_state & SS_ISCONNECTED) {
 				error = tsleep(&so->so_timeo,
-				    PSOCK | PCATCH, "soclos", so->so_linger * hz);
+				    PSOCK | PCATCH, "soclos",
+				    so->so_linger * hz);
 				if (error)
 					break;
 			}
@@ -956,7 +959,7 @@ struct so_zerocopy_stats so_zerocp_stats = {0,0,0};
 /*
  * sosend_copyin() is only used if zero copy sockets are enabled.  Otherwise
  * sosend_dgram() and sosend_generic() use m_uiotombuf().
- * 
+ *
  * sosend_copyin() accepts a uio and prepares an mbuf chain holding part or
  * all of the data referenced by the uio.  If desired, it uses zero-copy.
  * *space will be updated to reflect data copied in.
@@ -1458,8 +1461,7 @@ soreceive_rcvoob(struct socket *so, struct uio *uio, int flags)
 				disposable = 0;
 
 			error = uiomoveco(mtod(m, void *),
-					  min(uio->uio_resid, m->m_len),
-					  uio, disposable);
+			    min(uio->uio_resid, m->m_len), uio, disposable);
 		} else
 #endif /* SOCKET_RECV_PFLIP */
 		error = uiomove(mtod(m, void *),
@@ -1494,19 +1496,18 @@ sockbuf_pushsync(struct sockbuf *sb, struct mbuf *nextrecord)
 	else
 		sb->sb_mb = nextrecord;
 
-        /*
-         * Now update any dependent socket buffer fields to reflect the new
-         * state.  This is an expanded inline of SB_EMPTY_FIXUP(), with the
+	/*
+	 * Now update any dependent socket buffer fields to reflect the new
+	 * state.  This is an expanded inline of SB_EMPTY_FIXUP(), with the
 	 * addition of a second clause that takes care of the case where
 	 * sb_mb has been updated, but remains the last record.
-         */
-        if (sb->sb_mb == NULL) {
-                sb->sb_mbtail = NULL;
-                sb->sb_lastrecord = NULL;
-        } else if (sb->sb_mb->m_nextpkt == NULL)
-                sb->sb_lastrecord = sb->sb_mb;
+	 */
+	if (sb->sb_mb == NULL) {
+		sb->sb_mbtail = NULL;
+		sb->sb_lastrecord = NULL;
+	} else if (sb->sb_mb->m_nextpkt == NULL)
+		sb->sb_lastrecord = sb->sb_mb;
 }
-
 
 /*
  * Implement receive operations on a socket.  We depend on the way that
@@ -1757,7 +1758,7 @@ dontblock:
 		/*
 		 * If the type of mbuf has changed since the last mbuf
 		 * examined ('type'), end the receive operation.
-	 	 */
+		 */
 		SOCKBUF_LOCK_ASSERT(&so->so_rcv);
 		if (m->m_type == MT_OOBDATA || m->m_type == MT_CONTROL) {
 			if (type != m->m_type)
@@ -1796,8 +1797,7 @@ dontblock:
 					disposable = 0;
 
 				error = uiomoveco(mtod(m, char *) + moff,
-						  (int)len, uio,
-						  disposable);
+				    (int)len, uio, disposable);
 			} else
 #endif /* SOCKET_RECV_PFLIP */
 			error = uiomove(mtod(m, char *) + moff, (int)len, uio);
@@ -1858,18 +1858,18 @@ dontblock:
 					*mp = m_copym(m, 0, len, copy_flag);
 					if (copy_flag == M_WAITOK)
 						SOCKBUF_LOCK(&so->so_rcv);
- 					if (*mp == NULL) {
- 						/*
- 						 * m_copym() couldn't
+					if (*mp == NULL) {
+						/*
+						 * m_copym() couldn't
 						 * allocate an mbuf.  Adjust
 						 * uio_resid back (it was
 						 * adjusted down by len
 						 * bytes, which we didn't end
 						 * up "copying" over).
- 						 */
- 						uio->uio_resid += len;
- 						break;
- 					}
+						 */
+						uio->uio_resid += len;
+						break;
+					}
 				}
 				m->m_data += len;
 				m->m_len -= len;
@@ -1902,7 +1902,8 @@ dontblock:
 		while (flags & MSG_WAITALL && m == NULL && uio->uio_resid > 0 &&
 		    !sosendallatonce(so) && nextrecord == NULL) {
 			SOCKBUF_LOCK_ASSERT(&so->so_rcv);
-			if (so->so_error || so->so_rcv.sb_state & SBS_CANTRCVMORE)
+			if (so->so_error ||
+			    so->so_rcv.sb_state & SBS_CANTRCVMORE)
 				break;
 			/*
 			 * Notify the protocol that some data has been
@@ -2391,9 +2392,8 @@ soshutdown(struct socket *so, int how)
 		return (EINVAL);
 
 	CURVNET_SET(so->so_vnet);
-	if (pr->pr_usrreqs->pru_flush != NULL) {
-	        (*pr->pr_usrreqs->pru_flush)(so, how);
-	}
+	if (pr->pr_usrreqs->pru_flush != NULL)
+		(*pr->pr_usrreqs->pru_flush)(so, how);
 	if (how != SHUT_WR)
 		sorflush(so);
 	if (how != SHUT_RD) {
@@ -2560,7 +2560,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 		case SO_NO_DDP:
 		case SO_NO_OFFLOAD:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
-					    sizeof optval);
+			    sizeof optval);
 			if (error)
 				goto bad;
 			SOCK_LOCK(so);
@@ -2573,7 +2573,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 
 		case SO_SETFIB:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
-					    sizeof optval);
+			    sizeof optval);
 			if (error)
 				goto bad;
 
@@ -2591,7 +2591,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 
 		case SO_USER_COOKIE:
 			error = sooptcopyin(sopt, &val32, sizeof val32,
-					    sizeof val32);
+			    sizeof val32);
 			if (error)
 				goto bad;
 			so->so_user_cookie = val32;
@@ -2602,7 +2602,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 		case SO_SNDLOWAT:
 		case SO_RCVLOWAT:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
-					    sizeof optval);
+			    sizeof optval);
 			if (error)
 				goto bad;
 
@@ -2964,7 +2964,7 @@ soopt_mcopyin(struct sockopt *sopt, struct mbuf *m)
 			int error;
 
 			error = copyin(sopt->sopt_val, mtod(m, char *),
-				       m->m_len);
+			    m->m_len);
 			if (error != 0) {
 				m_freem(m0);
 				return(error);
@@ -2993,17 +2993,17 @@ soopt_mcopyout(struct sockopt *sopt, struct mbuf *m)
 			int error;
 
 			error = copyout(mtod(m, char *), sopt->sopt_val,
-				       m->m_len);
+			    m->m_len);
 			if (error != 0) {
 				m_freem(m0);
 				return(error);
 			}
 		} else
 			bcopy(mtod(m, char *), sopt->sopt_val, m->m_len);
-	       sopt->sopt_valsize -= m->m_len;
-	       sopt->sopt_val = (char *)sopt->sopt_val + m->m_len;
-	       valsize += m->m_len;
-	       m = m->m_next;
+		sopt->sopt_valsize -= m->m_len;
+		sopt->sopt_val = (char *)sopt->sopt_val + m->m_len;
+		valsize += m->m_len;
+		m = m->m_next;
 	}
 	if (m != NULL) {
 		/* enough soopt buffer should be given from user-land */
@@ -3331,7 +3331,7 @@ filt_solisten(struct knote *kn, long hint)
 	struct socket *so = kn->kn_fp->f_data;
 
 	kn->kn_data = so->so_qlen;
-	return (! TAILQ_EMPTY(&so->so_comp));
+	return (!TAILQ_EMPTY(&so->so_comp));
 }
 
 int
@@ -3390,7 +3390,7 @@ soisconnecting(struct socket *so)
 void
 soisconnected(struct socket *so)
 {
-	struct socket *head;	
+	struct socket *head;
 	int ret;
 
 restart:
@@ -3495,7 +3495,7 @@ soupcall_set(struct socket *so, int which,
     int (*func)(struct socket *, void *, int), void *arg)
 {
 	struct sockbuf *sb;
-	
+
 	switch (which) {
 	case SO_RCV:
 		sb = &so->so_rcv;
@@ -3579,9 +3579,10 @@ sotoxsocket(struct socket *so, struct xsocket *xso)
  */
 
 void
-so_listeners_apply_all(struct socket *so, void (*func)(struct socket *, void *), void *arg)
+so_listeners_apply_all(struct socket *so, void (*func)(struct socket *, void *),
+    void *arg)
 {
-	
+
 	TAILQ_FOREACH(so, &so->so_comp, so_list)
 		func(so, arg);
 }
@@ -3701,11 +3702,13 @@ so_sowwakeup_locked(struct socket *so)
 void
 so_lock(struct socket *so)
 {
+
 	SOCK_LOCK(so);
 }
 
 void
 so_unlock(struct socket *so)
 {
+
 	SOCK_UNLOCK(so);
 }
