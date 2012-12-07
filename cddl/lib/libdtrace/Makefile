@@ -46,6 +46,7 @@ SRCS=		dt_aggregate.c \
 		dis_tables.c
 
 DSRCS=		errno.d			\
+		io.d			\
 		psinfo.d		\
 		signal.d		\
 		unistd.d
