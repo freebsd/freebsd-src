@@ -851,23 +851,19 @@ iommu_dvmamap_destroy(bus_dma_tag_t dt, bus_dmamap_t map)
  */
 static int
 iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
-    bus_dmamap_t map, void *buf, bus_size_t buflen, struct thread *td,
+    bus_dmamap_t map, void *buf, bus_size_t buflen, pmap_t pmap,
     int flags, bus_dma_segment_t *segs, int *segp)
 {
 	bus_addr_t amask, dvmaddr, dvmoffs;
 	bus_size_t sgsize, esize;
 	vm_offset_t vaddr, voffs;
 	vm_paddr_t curaddr;
-	pmap_t pmap = NULL;
 	int error, firstpg, sgcnt;
 	u_int slot;
 
 	KASSERT(buflen != 0, ("%s: buflen == 0!", __func__));
 	if (buflen > dt->dt_maxsize)
 		return (EINVAL);
-
-	if (td != NULL)
-		pmap = vmspace_pmap(td->td_proc->p_vmspace);
 
 	vaddr = (vm_offset_t)buf;
 	voffs = vaddr & IO_PAGE_MASK;
@@ -888,10 +884,10 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 		/*
 		 * Get the physical address for this page.
 		 */
-		if (pmap != NULL)
-			curaddr = pmap_extract(pmap, vaddr);
-		else
+		if (pmap == kernel_pmap)
 			curaddr = pmap_kextract(vaddr);
+		else
+			curaddr = pmap_extract(pmap, vaddr);
 
 		/*
 		 * Compute the segment size, and adjust counts.
@@ -973,8 +969,8 @@ iommu_dvmamap_load(bus_dma_tag_t dt, bus_dmamap_t map, void *buf,
 	iommu_map_remq(is, map);
 	IS_UNLOCK(is);
 
-	error = iommu_dvmamap_load_buffer(dt, is, map, buf, buflen, NULL,
-	    flags, dt->dt_segments, &seg);
+	error = iommu_dvmamap_load_buffer(dt, is, map, buf, buflen,
+	    kernel_pmap, flags, dt->dt_segments, &seg);
 
 	IS_LOCK(is);
 	iommu_map_insq(is, map);
@@ -1017,8 +1013,8 @@ iommu_dvmamap_load_mbuf(bus_dma_tag_t dt, bus_dmamap_t map, struct mbuf *m0,
 			if (m->m_len == 0)
 				continue;
 			error = iommu_dvmamap_load_buffer(dt, is, map,
-			    m->m_data, m->m_len, NULL, flags, dt->dt_segments,
-			    &nsegs);
+			    m->m_data, m->m_len, kernel_pmap, flags,
+			    dt->dt_segments, &nsegs);
 		}
 	} else
 		error = EINVAL;
@@ -1065,7 +1061,7 @@ iommu_dvmamap_load_mbuf_sg(bus_dma_tag_t dt, bus_dmamap_t map, struct mbuf *m0,
 			if (m->m_len == 0)
 				continue;
 			error = iommu_dvmamap_load_buffer(dt, is, map,
-			    m->m_data, m->m_len, NULL, flags, segs,
+			    m->m_data, m->m_len, kernel_pmap, flags, segs,
 			    nsegs);
 		}
 	} else
@@ -1093,6 +1089,7 @@ iommu_dvmamap_load_uio(bus_dma_tag_t dt, bus_dmamap_t map, struct uio *uio,
 	struct thread *td = NULL;
 	bus_size_t minlen, resid;
 	int nsegs = -1, error = 0, i;
+	pmap-t pmap;
 
 	if ((map->dm_flags & DMF_LOADED) != 0) {
 #ifdef DIAGNOSTIC
@@ -1110,9 +1107,11 @@ iommu_dvmamap_load_uio(bus_dma_tag_t dt, bus_dmamap_t map, struct uio *uio,
 
 	if (uio->uio_segflg == UIO_USERSPACE) {
 		td = uio->uio_td;
-		KASSERT(td != NULL,
+		KASSERT(uio->uio_td != NULL,
 		    ("%s: USERSPACE but no proc", __func__));
-	}
+		pmap = vmspace_pmap(uio->uio_td->td_proc->p_vmspace);
+	} else
+		pmap = kernel_pmap;
 
 	for (i = 0; i < uio->uio_iovcnt && resid != 0 && error == 0; i++) {
 		/*
@@ -1124,7 +1123,7 @@ iommu_dvmamap_load_uio(bus_dma_tag_t dt, bus_dmamap_t map, struct uio *uio,
 			continue;
 
 		error = iommu_dvmamap_load_buffer(dt, is, map,
-		    iov[i].iov_base, minlen, td, flags, dt->dt_segments,
+		    iov[i].iov_base, minlen, pmap, flags, dt->dt_segments,
 		    &nsegs);
 		resid -= minlen;
 	}

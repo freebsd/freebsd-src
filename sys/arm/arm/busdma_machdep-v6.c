@@ -669,7 +669,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
 		vendaddr = (vm_offset_t)buf + buflen;
 
 		while (vaddr < vendaddr) {
-			if (__predict_true(map->pmap == pmap_kernel()))
+			if (__predict_true(map->pmap == kernel_pmap))
 				paddr = pmap_kextract(vaddr);
 			else
 				paddr = pmap_extract(map->pmap, vaddr);
@@ -718,6 +718,7 @@ static __inline int
 _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 			bus_dmamap_t map,
 			void *buf, bus_size_t buflen,
+			pmap_t pmap,
 			int flags,
 			bus_dma_segment_t *segs,
 			int *segp)
@@ -737,12 +738,13 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 	sl = NULL;
 	vaddr = (vm_offset_t)buf;
 	bmask = ~(dmat->boundary - 1);
+	map->pmap = pmap;
 
 	for (seg = *segp; buflen > 0 ; ) {
 		/*
 		 * Get the physical address for this segment.
 		 */
-		if (__predict_true(map->pmap == pmap_kernel()))
+		if (__predict_true(map->pmap == kernel_pmap))
 			curaddr = pmap_kextract(vaddr);
 		else
 			curaddr = pmap_extract(map->pmap, vaddr);
@@ -848,10 +850,9 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	flags |= BUS_DMA_WAITOK;
 	map->callback = callback;
 	map->callback_arg = callback_arg;
-	map->pmap = kernel_pmap;
 
-	error = _bus_dmamap_load_buffer(dmat, map, buf, buflen, flags,
-		     dmat->segments, &nsegs);
+	error = _bus_dmamap_load_buffer(dmat, map, buf, buflen, kernel_pmap,
+	    flags, dmat->segments, &nsegs);
 
 	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
 	    __func__, dmat, dmat->flags, error, nsegs + 1);
@@ -887,7 +888,6 @@ _bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 	int error;
 
 	M_ASSERTPKTHDR(m0);
-	map->pmap = kernel_pmap;
 
 	flags |= BUS_DMA_NOWAIT;
 	*nsegs = -1;
@@ -899,7 +899,8 @@ _bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 			if (m->m_len > 0) {
 				error = _bus_dmamap_load_buffer(dmat, map,
 						m->m_data, m->m_len,
-						flags, segs, nsegs);
+						kernel_pmap, flags, segs,
+						nsegs);
 			}
 		}
 	} else {
@@ -957,6 +958,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 	int nsegs, error, i;
 	bus_size_t resid;
 	struct iovec *iov;
+	pmap_t pmap;
 
 	flags |= BUS_DMA_NOWAIT;
 	resid = uio->uio_resid;
@@ -965,9 +967,9 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 	if (uio->uio_segflg == UIO_USERSPACE) {
 		KASSERT(uio->uio_td != NULL,
 			("bus_dmamap_load_uio: USERSPACE but no proc"));
-		map->pmap = vmspace_pmap(uio->uio_td->td_proc->p_vmspace);
+		pmap = vmspace_pmap(uio->uio_td->td_proc->p_vmspace);
 	} else
-		map->pmap = kernel_pmap;
+		pmap = kernel_pmap;
 
 	nsegs = -1;
 	error = 0;
@@ -982,7 +984,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 
 		if (minlen > 0) {
 			error = _bus_dmamap_load_buffer(dmat, map,
-					addr, minlen, flags,
+					addr, minlen, pmap, flags,
 					dmat->segments, &nsegs);
 			resid -= minlen;
 		}

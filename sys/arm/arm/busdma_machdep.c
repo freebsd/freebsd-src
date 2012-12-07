@@ -710,7 +710,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 		vendaddr = (vm_offset_t)buf + buflen;
 
 		while (vaddr < vendaddr) {
-			if (__predict_true(pmap == pmap_kernel()))
+			if (__predict_true(pmap == kernel_pmap))
 				paddr = pmap_kextract(vaddr);
 			else
 				paddr = pmap_extract(pmap, vaddr);
@@ -781,7 +781,7 @@ bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t *segs,
 		 * XXX Don't support checking for coherent mappings
 		 * XXX in user address space.
 		 */
-		if (__predict_true(pmap == pmap_kernel())) {
+		if (__predict_true(pmap == kernel_pmap)) {
 			if (pmap_get_pde_pte(pmap, vaddr, &pde, &ptep) == FALSE)
 				return (EFAULT);
 
@@ -951,7 +951,7 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 			if (m->m_len > 0) {
 				error = bus_dmamap_load_buffer(dmat,
 				    dmat->segments, map, m->m_data, m->m_len,
-				    pmap_kernel(), flags, &nsegs);
+				    kernel_pmap, flags, &nsegs);
 				map->len += m->m_len;
 			}
 		}
@@ -995,7 +995,7 @@ bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 			if (m->m_len > 0) {
 				error = bus_dmamap_load_buffer(dmat, segs, map,
 						m->m_data, m->m_len,
-						pmap_kernel(), flags,
+						kernel_pmap, flags,
 						nsegs);
 				map->len += m->m_len;
 			}

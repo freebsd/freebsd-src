@@ -604,10 +604,10 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 			bus_size_t sg_len;
 
 			sg_len = PAGE_SIZE - ((vm_offset_t)vaddr & PAGE_MASK);
-			if (pmap)
-				paddr = pmap_extract(pmap, vaddr);
-			else
+			if (pmap == kernel_pmap)
 				paddr = pmap_kextract(vaddr);
+			else
+				paddr = pmap_extract(pmap, vaddr);
 			if (((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) &&
 			    run_filter(dmat, paddr) != 0) {
 				sg_len = roundup2(sg_len, dmat->alignment);
@@ -680,10 +680,10 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		/*
 		 * Get the physical address for this segment.
 		 */
-		if (pmap)
-			curaddr = pmap_extract(pmap, vaddr);
-		else
+		if (pmap == kernel_pmap)
 			curaddr = pmap_kextract(vaddr);
+		else
+			curaddr = pmap_extract(pmap, vaddr);
 
 		/*
 		 * Compute the segment size, and adjust counts.
@@ -758,8 +758,8 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		map->callback_arg = callback_arg;
 	}
 
-	error = _bus_dmamap_load_buffer(dmat, map, buf, buflen, NULL, flags,
-	     dmat->segments, &nsegs);
+	error = _bus_dmamap_load_buffer(dmat, map, buf, buflen, kernel_pmap,
+	    flags, dmat->segments, &nsegs);
 
 	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
 	    __func__, dmat, dmat->flags, error, nsegs + 1);
@@ -806,7 +806,7 @@ _bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 			if (m->m_len > 0) {
 				error = _bus_dmamap_load_buffer(dmat, map,
 						m->m_data, m->m_len,
-						NULL, flags,
+						kernel_pmap, flags,
 						segs, nsegs);
 			}
 		}
@@ -875,7 +875,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map,
 			("bus_dmamap_load_uio: USERSPACE but no proc"));
 		pmap = vmspace_pmap(uio->uio_td->td_proc->p_vmspace);
 	} else
-		pmap = NULL;
+		pmap = kernel_pmap;
 
 	nsegs = -1;
 	error = 0;
