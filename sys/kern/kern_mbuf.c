@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2004, 2005,
- * 	Bosko Milekic <bmilekic@FreeBSD.org>.  All rights reserved.
+ *	Bosko Milekic <bmilekic@FreeBSD.org>.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
  *  [ Cluster Zone  ]   [     Zone     ]   [ Mbuf Master Zone ]
  *        |                       \________         |
  *  [ Cluster Keg   ]                      \       /
- *        |    	                         [ Mbuf Keg   ]
+ *        |	                         [ Mbuf Keg   ]
  *  [ Cluster Slabs ]                         |
  *        |                              [ Mbuf Slabs ]
  *         \____________(VM)_________________/
@@ -148,7 +148,7 @@ sysctl_nmbclusters(SYSCTL_HANDLER_ARGS)
 	int error, newnmbclusters;
 
 	newnmbclusters = nmbclusters;
-	error = sysctl_handle_int(oidp, &newnmbclusters, 0, req); 
+	error = sysctl_handle_int(oidp, &newnmbclusters, 0, req);
 	if (error == 0 && req->newptr) {
 		if (newnmbclusters > nmbclusters &&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
@@ -171,7 +171,7 @@ sysctl_nmbjumbop(SYSCTL_HANDLER_ARGS)
 	int error, newnmbjumbop;
 
 	newnmbjumbop = nmbjumbop;
-	error = sysctl_handle_int(oidp, &newnmbjumbop, 0, req); 
+	error = sysctl_handle_int(oidp, &newnmbjumbop, 0, req);
 	if (error == 0 && req->newptr) {
 		if (newnmbjumbop > nmbjumbop &&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
@@ -185,8 +185,7 @@ sysctl_nmbjumbop(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_kern_ipc, OID_AUTO, nmbjumbop, CTLTYPE_INT|CTLFLAG_RW,
 &nmbjumbop, 0, sysctl_nmbjumbop, "IU",
-	 "Maximum number of mbuf page size jumbo clusters allowed");
-
+     "Maximum number of mbuf page size jumbo clusters allowed");
 
 static int
 sysctl_nmbjumbo9(SYSCTL_HANDLER_ARGS)
@@ -194,7 +193,7 @@ sysctl_nmbjumbo9(SYSCTL_HANDLER_ARGS)
 	int error, newnmbjumbo9;
 
 	newnmbjumbo9 = nmbjumbo9;
-	error = sysctl_handle_int(oidp, &newnmbjumbo9, 0, req); 
+	error = sysctl_handle_int(oidp, &newnmbjumbo9, 0, req);
 	if (error == 0 && req->newptr) {
 		if (newnmbjumbo9 > nmbjumbo9&&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
@@ -208,7 +207,7 @@ sysctl_nmbjumbo9(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_kern_ipc, OID_AUTO, nmbjumbo9, CTLTYPE_INT|CTLFLAG_RW,
 &nmbjumbo9, 0, sysctl_nmbjumbo9, "IU",
-	"Maximum number of mbuf 9k jumbo clusters allowed"); 
+    "Maximum number of mbuf 9k jumbo clusters allowed");
 
 static int
 sysctl_nmbjumbo16(SYSCTL_HANDLER_ARGS)
@@ -216,7 +215,7 @@ sysctl_nmbjumbo16(SYSCTL_HANDLER_ARGS)
 	int error, newnmbjumbo16;
 
 	newnmbjumbo16 = nmbjumbo16;
-	error = sysctl_handle_int(oidp, &newnmbjumbo16, 0, req); 
+	error = sysctl_handle_int(oidp, &newnmbjumbo16, 0, req);
 	if (error == 0 && req->newptr) {
 		if (newnmbjumbo16 > nmbjumbo16 &&
 		    nmbufs >= nmbclusters + nmbjumbop + nmbjumbo9 + nmbjumbo16) {
@@ -238,7 +237,7 @@ sysctl_nmbufs(SYSCTL_HANDLER_ARGS)
 	int error, newnmbufs;
 
 	newnmbufs = nmbufs;
-	error = sysctl_handle_int(oidp, &newnmbufs, 0, req); 
+	error = sysctl_handle_int(oidp, &newnmbufs, 0, req);
 	if (error == 0 && req->newptr) {
 		if (newnmbufs > nmbufs) {
 			nmbufs = newnmbufs;
@@ -253,7 +252,6 @@ sysctl_nmbufs(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern_ipc, OID_AUTO, nmbuf, CTLTYPE_INT|CTLFLAG_RW,
 &nmbufs, 0, sysctl_nmbufs, "IU",
     "Maximum number of mbufs allowed");
-
 
 SYSCTL_STRUCT(_kern_ipc, OID_AUTO, mbstat, CTLFLAG_RD, &mbstat, mbstat,
     "Mbuf general information and statistics");
@@ -488,7 +486,7 @@ static void
 mb_dtor_mbuf(void *mem, int size, void *arg)
 {
 	struct mbuf *m;
-	unsigned long flags; 
+	unsigned long flags;
 
 	m = (struct mbuf *)mem;
 	flags = (unsigned long)arg;
