@@ -46,8 +46,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/vnet.h>
 
-#include <vm/uma.h>
-
 /*
  * System initialization
  *
