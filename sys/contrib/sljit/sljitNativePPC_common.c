@@ -41,6 +41,8 @@ static void ppc_cache_flush(sljit_ins *from, sljit_ins *to)
 {
 #ifdef _AIX
 	_sync_cache_range((caddr_t)from, (int)((size_t)to - (size_t)from));
+#elif defined(__FreeBSD__) && defined(_KERNEL)
+	__syncicache(from, (ptrdiff_t)to - (ptrdiff_t)from);
 #elif defined(__GNUC__) || (defined(__IBM_GCC_ASM) && __IBM_GCC_ASM)
 #	if defined(_ARCH_PWR) || defined(_ARCH_PWR2)
 	/* Cache flush for POWER architecture. */

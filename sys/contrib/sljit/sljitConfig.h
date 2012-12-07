@@ -38,7 +38,16 @@
 
 #ifdef _KERNEL
 #include <sys/malloc.h>
+#include <sys/stddef.h>
 #include <sys/systm.h>
+
+#if defined(__arm__)
+#include <machine/cpufunc.h>
+#elif defined(__mips__)
+#include <machine/cache.h>
+#elif defined(__powerpc__)
+#include <machine/md_var.h>
+#endif
 
 #define	SLJIT_CALL
 #define	SLJIT_CONFIG_AUTO		1
@@ -58,7 +67,16 @@
 #define	SLJIT_FREE_EXEC(ptr)		free(ptr, M_TEMP)
 #define	SLJIT_MALLOC_EXEC(size)		malloc(size, M_TEMP, M_NOWAIT)
 
-/* XXX need SLJIT_CACHE_FLUSH(from, to) for non-X86 to flush icache */
+#if defined(__arm__)
+#define	SLJIT_CACHE_FLUSH(from, to)	\
+    cpu_icache_sync_range(from, (ptrdiff_t)(to) - (ptrdiff_t)(from))
+#elif defined(__mips__)
+#define	SLJIT_CACHE_FLUSH(from, to)	\
+    mips_icache_sync_range(from, (ptrdiff_t)(to) - (ptrdiff_t)(from))
+#elif defined(__powerpc__)
+/* ppc_cache_flush() was modified to call __syncicache(). */
+#define	SLJIT_CACHE_FLUSH(from, to)	ppc_cache_flush(from, to)
+#endif
 #endif
 
 /* --------------------------------------------------------------------- */
