@@ -483,12 +483,11 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 /*
  * Utility function to load a linear buffer.  segp contains
  * the starting segment on entrace, and the ending segment on exit.
- * first indicates if this is the first invocation of this function.
  */
 static int
 _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
     bus_size_t buflen, struct thread *td, int flags,
-    bus_dma_segment_t *segs, int *segp, int first)
+    bus_dma_segment_t *segs, int *segp)
 {
 	bus_size_t sgsize;
 	bus_addr_t curaddr, baddr, bmask;
@@ -589,10 +588,10 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		 * Insert chunk into a segment, coalescing with
 		 * previous segment if possible.
 		 */
-		if (first) {
+		if (seg == -1) {
+			seg = 0;
 			segs[seg].ds_addr = curaddr;
 			segs[seg].ds_len = sgsize;
-			first = 0;
 		} else {
 			if (curaddr == segs[seg].ds_addr + segs[seg].ds_len &&
 			    (segs[seg].ds_len + sgsize) <= dmat->maxsegsz &&
@@ -627,7 +626,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
     bus_size_t buflen, bus_dmamap_callback_t *callback, void *callback_arg,
     int flags)
 {
-	int error, nsegs = 0;
+	int error, nsegs = -1;
 
 	if (map != NULL) {
 		flags |= BUS_DMA_WAITOK;
@@ -636,7 +635,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	}
 
 	error = _bus_dmamap_load_buffer(dmat, map, buf, buflen, NULL, flags,
-	    dmat->segments, &nsegs, 1);
+	    dmat->segments, &nsegs);
 
 	if (error == EINPROGRESS)
 		return (error);
@@ -661,18 +660,16 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 	M_ASSERTPKTHDR(m0);
 
 	flags |= BUS_DMA_NOWAIT;
-	nsegs = 0;
+	nsegs = -1;
 	error = 0;
 	if (m0->m_pkthdr.len <= dmat->maxsize) {
-		int first = 1;
 		struct mbuf *m;
 
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
 			if (m->m_len > 0) {
 				error = _bus_dmamap_load_buffer(dmat, map,
 				    m->m_data, m->m_len, NULL, flags,
-				    dmat->segments, &nsegs, first);
-				first = 0;
+				    dmat->segments, &nsegs);
 			}
 		}
 	} else {
@@ -698,18 +695,16 @@ bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 	M_ASSERTPKTHDR(m0);
 
 	flags |= BUS_DMA_NOWAIT;
-	*nsegs = 0;
+	*nsegs = -1;
 	error = 0;
 	if (m0->m_pkthdr.len <= dmat->maxsize) {
-		int first = 1;
 		struct mbuf *m;
 
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
 			if (m->m_len > 0) {
 				error = _bus_dmamap_load_buffer(dmat, map,
 				    m->m_data, m->m_len, NULL, flags,
-				    segs, nsegs, first);
-				first = 0;
+				    segs, nsegs);
 			}
 		}
 		++*nsegs;
@@ -727,7 +722,7 @@ int
 bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
     bus_dmamap_callback2_t *callback, void *callback_arg, int flags)
 {
-	int nsegs, error, first, i;
+	int nsegs, error, i;
 	bus_size_t resid;
 	struct iovec *iov;
 	struct thread *td = NULL;
@@ -742,9 +737,8 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 			("bus_dmamap_load_uio: USERSPACE but no proc"));
 	}
 
-	nsegs = 0;
+	nsegs = -1;
 	error = 0;
-	first = 1;
 	for (i = 0; i < uio->uio_iovcnt && resid != 0 && !error; i++) {
 		/*
 		 * Now at the first iovec to load.  Load each iovec
@@ -757,9 +751,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 		if (minlen > 0) {
 			error = _bus_dmamap_load_buffer(dmat, map, addr,
 			    minlen, td, flags, dmat->segments,
-			    &nsegs, first);
-			first = 0;
-
+			    &nsegs);
 			resid -= minlen;
 		}
 	}

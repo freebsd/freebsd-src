@@ -328,12 +328,11 @@ nexus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 /*
  * Utility function to load a linear buffer.  segp contains
  * the starting segment on entrace, and the ending segment on exit.
- * first indicates if this is the first invocation of this function.
  */
 static int
 _nexus_dmamap_load_buffer(bus_dma_tag_t dmat, void *buf, bus_size_t buflen,
     struct thread *td, int flags,
-    bus_dma_segment_t *segs, int *segp, int first)
+    bus_dma_segment_t *segs, int *segp)
 {
 	bus_size_t sgsize;
 	bus_addr_t curaddr, baddr, bmask;
@@ -379,10 +378,10 @@ _nexus_dmamap_load_buffer(bus_dma_tag_t dmat, void *buf, bus_size_t buflen,
 		 * Insert chunk into a segment, coalescing with
 		 * previous segment if possible.
 		 */
-		if (first) {
+		if (seg == -1) {
+			seg = 0;
 			segs[seg].ds_addr = curaddr;
 			segs[seg].ds_len = sgsize;
-			first = 0;
 		} else {
 			if (curaddr == segs[seg].ds_addr + segs[seg].ds_len &&
 			    (segs[seg].ds_len + sgsize) <= dmat->dt_maxsegsz &&
@@ -426,8 +425,9 @@ nexus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 {
 	int error, nsegs;
 
+	nsegs = -1;
 	error = _nexus_dmamap_load_buffer(dmat, buf, buflen, NULL, flags,
-	    dmat->dt_segments, &nsegs, 1);
+	    dmat->dt_segments, &nsegs);
 
 	if (error == 0) {
 		(*callback)(callback_arg, dmat->dt_segments, nsegs + 1, 0);
@@ -449,18 +449,16 @@ nexus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 
 	M_ASSERTPKTHDR(m0);
 
-	nsegs = 0;
+	nsegs = -1;
 	error = 0;
 	if (m0->m_pkthdr.len <= dmat->dt_maxsize) {
-		int first = 1;
 		struct mbuf *m;
 
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
 			if (m->m_len > 0) {
 				error = _nexus_dmamap_load_buffer(dmat,
 				    m->m_data, m->m_len,NULL, flags,
-				    dmat->dt_segments, &nsegs, first);
-				first = 0;
+				    dmat->dt_segments, &nsegs);
 			}
 		}
 	} else {
@@ -486,18 +484,16 @@ nexus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 
 	M_ASSERTPKTHDR(m0);
 
-	*nsegs = 0;
+	*nsegs = -1;
 	error = 0;
 	if (m0->m_pkthdr.len <= dmat->dt_maxsize) {
-		int first = 1;
 		struct mbuf *m;
 
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
 			if (m->m_len > 0) {
 				error = _nexus_dmamap_load_buffer(dmat,
-				    m->m_data, m->m_len,NULL, flags,
-				    segs, nsegs, first);
-				first = 0;
+				    m->m_data, m->m_len, NULL, flags,
+				    segs, nsegs);
 			}
 		}
 	} else {
@@ -515,7 +511,7 @@ static int
 nexus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
     bus_dmamap_callback2_t *callback, void *callback_arg, int flags)
 {
-	int nsegs, error, first, i;
+	int nsegs, error, i;
 	bus_size_t resid;
 	struct iovec *iov;
 	struct thread *td = NULL;
@@ -528,9 +524,8 @@ nexus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 		KASSERT(td != NULL, ("%s: USERSPACE but no proc", __func__));
 	}
 
-	nsegs = 0;
+	nsegs = -1;
 	error = 0;
-	first = 1;
 	for (i = 0; i < uio->uio_iovcnt && resid != 0 && !error; i++) {
 		/*
 		 * Now at the first iovec to load.  Load each iovec
@@ -542,10 +537,7 @@ nexus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 
 		if (minlen > 0) {
 			error = _nexus_dmamap_load_buffer(dmat, addr, minlen,
-			    td, flags, dmat->dt_segments, &nsegs,
-			    first);
-			first = 0;
-
+			    td, flags, dmat->dt_segments, &nsegs);
 			resid -= minlen;
 		}
 	}

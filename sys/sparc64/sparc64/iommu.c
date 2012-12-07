@@ -852,7 +852,7 @@ iommu_dvmamap_destroy(bus_dma_tag_t dt, bus_dmamap_t map)
 static int
 iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
     bus_dmamap_t map, void *buf, bus_size_t buflen, struct thread *td,
-    int flags, bus_dma_segment_t *segs, int *segp, int align)
+    int flags, bus_dma_segment_t *segs, int *segp)
 {
 	bus_addr_t amask, dvmaddr, dvmoffs;
 	bus_size_t sgsize, esize;
@@ -871,7 +871,7 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 
 	vaddr = (vm_offset_t)buf;
 	voffs = vaddr & IO_PAGE_MASK;
-	amask = align ? dt->dt_alignment - 1 : 0;
+	amask = (*segp == -1) ? dt->dt_alignment - 1 : 0;
 
 	/* Try to find a slab that is large enough. */
 	error = iommu_dvma_vallocseg(dt, is, map, voffs, buflen, amask,
@@ -974,7 +974,7 @@ iommu_dvmamap_load(bus_dma_tag_t dt, bus_dmamap_t map, void *buf,
 	IS_UNLOCK(is);
 
 	error = iommu_dvmamap_load_buffer(dt, is, map, buf, buflen, NULL,
-	    flags, dt->dt_segments, &seg, 1);
+	    flags, dt->dt_segments, &seg);
 
 	IS_LOCK(is);
 	iommu_map_insq(is, map);
@@ -997,7 +997,7 @@ iommu_dvmamap_load_mbuf(bus_dma_tag_t dt, bus_dmamap_t map, struct mbuf *m0,
 {
 	struct iommu_state *is = dt->dt_cookie;
 	struct mbuf *m;
-	int error = 0, first = 1, nsegs = -1;
+	int error = 0, nsegs = -1;
 
 	M_ASSERTPKTHDR(m0);
 
@@ -1018,8 +1018,7 @@ iommu_dvmamap_load_mbuf(bus_dma_tag_t dt, bus_dmamap_t map, struct mbuf *m0,
 				continue;
 			error = iommu_dvmamap_load_buffer(dt, is, map,
 			    m->m_data, m->m_len, NULL, flags, dt->dt_segments,
-			    &nsegs, first);
-			first = 0;
+			    &nsegs);
 		}
 	} else
 		error = EINVAL;
@@ -1045,7 +1044,7 @@ iommu_dvmamap_load_mbuf_sg(bus_dma_tag_t dt, bus_dmamap_t map, struct mbuf *m0,
 {
 	struct iommu_state *is = dt->dt_cookie;
 	struct mbuf *m;
-	int error = 0, first = 1;
+	int error = 0;
 
 	M_ASSERTPKTHDR(m0);
 
@@ -1067,8 +1066,7 @@ iommu_dvmamap_load_mbuf_sg(bus_dma_tag_t dt, bus_dmamap_t map, struct mbuf *m0,
 				continue;
 			error = iommu_dvmamap_load_buffer(dt, is, map,
 			    m->m_data, m->m_len, NULL, flags, segs,
-			    nsegs, first);
-			first = 0;
+			    nsegs);
 		}
 	} else
 		error = EINVAL;
@@ -1094,7 +1092,7 @@ iommu_dvmamap_load_uio(bus_dma_tag_t dt, bus_dmamap_t map, struct uio *uio,
 	struct iovec *iov;
 	struct thread *td = NULL;
 	bus_size_t minlen, resid;
-	int nsegs = -1, error = 0, first = 1, i;
+	int nsegs = -1, error = 0, i;
 
 	if ((map->dm_flags & DMF_LOADED) != 0) {
 #ifdef DIAGNOSTIC
@@ -1127,9 +1125,7 @@ iommu_dvmamap_load_uio(bus_dma_tag_t dt, bus_dmamap_t map, struct uio *uio,
 
 		error = iommu_dvmamap_load_buffer(dt, is, map,
 		    iov[i].iov_base, minlen, td, flags, dt->dt_segments,
-		    &nsegs, first);
-		first = 0;
-
+		    &nsegs);
 		resid -= minlen;
 	}
 
