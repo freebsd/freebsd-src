@@ -568,7 +568,7 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
  * Utility function to load a linear buffer.  segp contains
  * the starting segment on entrance, and the ending segment on exit.
  */
-static __inline int
+int
 _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
     			bus_dmamap_t map,
 			void *buf, bus_size_t buflen,

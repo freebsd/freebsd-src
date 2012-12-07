@@ -330,9 +330,9 @@ nexus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
  * the starting segment on entrace, and the ending segment on exit.
  */
 static int
-_nexus_dmamap_load_buffer(bus_dma_tag_t dmat, void *buf, bus_size_t buflen,
-    pmap_t pmap, int flags,
-    bus_dma_segment_t *segs, int *segp)
+_nexus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
+    bus_size_t buflen, pmap_t pmap, int flags, bus_dma_segment_t *segs,
+    int *segp)
 {
 	bus_size_t sgsize;
 	bus_addr_t curaddr, baddr, bmask;
@@ -423,7 +423,7 @@ nexus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	int error, nsegs;
 
 	nsegs = -1;
-	error = _nexus_dmamap_load_buffer(dmat, buf, buflen, kernel_pmap,
+	error = _nexus_dmamap_load_buffer(dmat, map, buf, buflen, kernel_pmap,
 	    flags, NULL, &nsegs);
 
 	if (error == 0) {
@@ -453,7 +453,7 @@ nexus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
 			if (m->m_len > 0) {
-				error = _nexus_dmamap_load_buffer(dmat,
+				error = _nexus_dmamap_load_buffer(dmat, map,
 				    m->m_data, m->m_len, kernel_pmap, flags,
 				    NULL, &nsegs);
 			}
@@ -488,7 +488,7 @@ nexus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
 			if (m->m_len > 0) {
-				error = _nexus_dmamap_load_buffer(dmat,
+				error = _nexus_dmamap_load_buffer(dmat, map,
 				    m->m_data, m->m_len, kernel_pmap, flags,
 				    segs, nsegs);
 			}
@@ -533,8 +533,8 @@ nexus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 		caddr_t addr = (caddr_t) iov[i].iov_base;
 
 		if (minlen > 0) {
-			error = _nexus_dmamap_load_buffer(dmat, addr, minlen,
-			    pmap, flags, NULL, &nsegs);
+			error = _nexus_dmamap_load_buffer(dmat, map, addr,
+			    minlen, pmap, flags, NULL, &nsegs);
 			resid -= minlen;
 		}
 	}

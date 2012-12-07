@@ -850,17 +850,40 @@ iommu_dvmamap_destroy(bus_dma_tag_t dt, bus_dmamap_t map)
  * IOMMU DVMA operations, common to PCI and SBus
  */
 static int
-iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
-    bus_dmamap_t map, void *buf, bus_size_t buflen, pmap_t pmap,
-    int flags, bus_dma_segment_t *segs, int *segp)
+iommu_dvmamap_load_buffer(bus_dma_tag_t dt, bus_dmamap_t map, void *buf,
+    bus_size_t buflen, pmap_t pmap, int flags, bus_dma_segment_t *segs,
+    int *segp)
 {
 	bus_addr_t amask, dvmaddr, dvmoffs;
 	bus_size_t sgsize, esize;
+	struct iommu_state *is;
 	vm_offset_t vaddr, voffs;
 	vm_paddr_t curaddr;
 	int error, firstpg, sgcnt;
+	int first;
 	u_int slot;
 
+	is = dt->dt_cookie;
+	if (*segp == -1) {
+		if ((map->dm_flags & DMF_LOADED) != 0) {
+#ifdef DIAGNOSTIC
+			printf("%s: map still in use\n", __func__);
+#endif
+			bus_dmamap_unload(dt, map);
+		}
+
+		/*
+		 * Make sure that the map is not on a queue so that the
+		 * resource list may be safely accessed and modified without
+		 * needing the lock to cover the whole operation.
+		 */
+		IS_LOCK(is);
+		iommu_map_remq(is, map);
+		IS_UNLOCK(is);
+
+		amask = dt->dt_alignment - 1;
+	} else
+		amask = 0;
 	KASSERT(buflen != 0, ("%s: buflen == 0!", __func__));
 	if (buflen > dt->dt_maxsize)
 		return (EINVAL);
@@ -870,7 +893,6 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 
 	vaddr = (vm_offset_t)buf;
 	voffs = vaddr & IO_PAGE_MASK;
-	amask = (*segp == -1) ? dt->dt_alignment - 1 : 0;
 
 	/* Try to find a slab that is large enough. */
 	error = iommu_dvma_vallocseg(dt, is, map, voffs, buflen, amask,
@@ -956,22 +978,6 @@ iommu_dvmamap_load(bus_dma_tag_t dt, bus_dmamap_t map, void *buf,
 	struct iommu_state *is = dt->dt_cookie;
 	int error, seg = -1;
 
-	if ((map->dm_flags & DMF_LOADED) != 0) {
-#ifdef DIAGNOSTIC
-		printf("%s: map still in use\n", __func__);
-#endif
-		bus_dmamap_unload(dt, map);
-	}
-
-	/*
-	 * Make sure that the map is not on a queue so that the resource list
-	 * may be safely accessed and modified without needing the lock to
-	 * cover the whole operation.
-	 */
-	IS_LOCK(is);
-	iommu_map_remq(is, map);
-	IS_UNLOCK(is);
-
 	error = iommu_dvmamap_load_buffer(dt, is, map, buf, buflen,
 	    kernel_pmap, flags, NULL, &seg);
 
@@ -999,17 +1005,6 @@ iommu_dvmamap_load_mbuf(bus_dma_tag_t dt, bus_dmamap_t map, struct mbuf *m0,
 	int error = 0, nsegs = -1;
 
 	M_ASSERTPKTHDR(m0);
-
-	if ((map->dm_flags & DMF_LOADED) != 0) {
-#ifdef DIAGNOSTIC
-		printf("%s: map still in use\n", __func__);
-#endif
-		bus_dmamap_unload(dt, map);
-	}
-
-	IS_LOCK(is);
-	iommu_map_remq(is, map);
-	IS_UNLOCK(is);
 
 	if (m0->m_pkthdr.len <= dt->dt_maxsize) {
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
@@ -1048,16 +1043,6 @@ iommu_dvmamap_load_mbuf_sg(bus_dma_tag_t dt, bus_dmamap_t map, struct mbuf *m0,
 	M_ASSERTPKTHDR(m0);
 
 	*nsegs = -1;
-	if ((map->dm_flags & DMF_LOADED) != 0) {
-#ifdef DIAGNOSTIC
-		printf("%s: map still in use\n", __func__);
-#endif
-		bus_dmamap_unload(dt, map);
-	}
-
-	IS_LOCK(is);
-	iommu_map_remq(is, map);
-	IS_UNLOCK(is);
 
 	if (m0->m_pkthdr.len <= dt->dt_maxsize) {
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
@@ -1093,17 +1078,6 @@ iommu_dvmamap_load_uio(bus_dma_tag_t dt, bus_dmamap_t map, struct uio *uio,
 	bus_size_t minlen, resid;
 	int nsegs = -1, error = 0, i;
 	pmap-t pmap;
-
-	if ((map->dm_flags & DMF_LOADED) != 0) {
-#ifdef DIAGNOSTIC
-		printf("%s: map still in use\n", __func__);
-#endif
-		bus_dmamap_unload(dt, map);
-	}
-
-	IS_LOCK(is);
-	iommu_map_remq(is, map);
-	IS_UNLOCK(is);
 
 	resid = uio->uio_resid;
 	iov = uio->uio_iov;

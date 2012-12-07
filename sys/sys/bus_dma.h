@@ -282,4 +282,9 @@ void _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map);
 
 #endif /* __sparc64__ */
 
+int _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map,
+			    void *buf, bus_size_t buflen, pmap_t pmap,
+			    int flags, bus_dma_segment_t *segs, int *segp);
+
+
 #endif /* _BUS_DMA_H_ */

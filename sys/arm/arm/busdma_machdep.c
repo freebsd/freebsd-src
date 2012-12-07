@@ -222,11 +222,6 @@ SYSINIT(busdma, SI_SUB_VM, SI_ORDER_ANY, arm_dmamap_freelist_init, NULL);
  */
 
 static __inline int
-bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t *segs,
-    bus_dmamap_t map, void *buf, bus_size_t buflen, struct pmap *pmap,
-    int flags, int *segp);
-
-static __inline int
 _bus_dma_can_bounce(vm_offset_t lowaddr, vm_offset_t highaddr)
 {
 	int i;
@@ -749,10 +744,10 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
  * Utility function to load a linear buffer.  segp contains
  * the starting segment on entrance, and the ending segment on exit.
  */
-static __inline int
-bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dma_segment_t *segs,
-    bus_dmamap_t map, void *buf, bus_size_t buflen, struct pmap *pmap,
-    int flags, int *segp)
+int
+_bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
+    bus_size_t buflen, struct pmap *pmap, int flags, bus_dma_segment_t *segs,
+    int *segp)
 {
 	bus_size_t sgsize;
 	bus_addr_t curaddr, baddr, bmask;
@@ -915,9 +910,9 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	map->flags |= DMAMAP_LINEAR|DMAMAP_COHERENT;
 	map->buffer = buf;
 	map->len = buflen;
-	error = bus_dmamap_load_buffer(dmat,
-	    NULL, map, buf, buflen, kernel_pmap,
-	    flags, &nsegs);
+	error = _bus_dmamap_load_buffer(dmat,
+	    map, buf, buflen, kernel_pmap,
+	    flags, NULL, &nsegs);
 	if (error == EINPROGRESS)
 		return (error);
 	if (error)
@@ -952,9 +947,9 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
 			if (m->m_len > 0) {
-				error = bus_dmamap_load_buffer(dmat,
-				    NULL, map, m->m_data, m->m_len,
-				    kernel_pmap, flags, &nsegs);
+				error = _bus_dmamap_load_buffer(dmat,
+				    map, m->m_data, m->m_len,
+				    kernel_pmap, flags, NULL, &nsegs);
 				map->len += m->m_len;
 			}
 		}
@@ -996,10 +991,10 @@ bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
 
 		for (m = m0; m != NULL && error == 0; m = m->m_next) {
 			if (m->m_len > 0) {
-				error = bus_dmamap_load_buffer(dmat, segs, map,
+				error = _bus_dmamap_load_buffer(dmat, map,
 						m->m_data, m->m_len,
 						kernel_pmap, flags,
-						nsegs);
+						segs, nsegs);
 				map->len += m->m_len;
 			}
 		}
@@ -1053,8 +1048,8 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 		caddr_t addr = (caddr_t) iov[i].iov_base;
 
 		if (minlen > 0) {
-			error = bus_dmamap_load_buffer(dmat, NULL,
-			    map, addr, minlen, pmap, flags, &nsegs);
+			error = _bus_dmamap_load_buffer(dmat,
+			    map, addr, minlen, pmap, flags, NULL, &nsegs);
 
 			map->len += minlen;
 			resid -= minlen;
