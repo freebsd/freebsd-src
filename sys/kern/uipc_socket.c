@@ -259,14 +259,14 @@ SYSCTL_NODE(_kern, KERN_IPC, ipc, CTLFLAG_RW, 0, "IPC");
  * Initialize the socket subsystem and set up the socket
  * memory allocator.
  */
-uma_zone_t socket_zone;
+static uma_zone_t socket_zone;
 int	maxsockets;
 
 static void
 socket_zone_change(void *tag)
 {
 
-	uma_zone_set_max(socket_zone, maxsockets);
+	maxsockets = uma_zone_set_max(socket_zone, maxsockets);
 }
 
 static void
@@ -275,7 +275,7 @@ socket_init(void *tag)
 
 	socket_zone = uma_zcreate("socket", sizeof(struct socket), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
-	uma_zone_set_max(socket_zone, maxsockets);
+	maxsockets = uma_zone_set_max(socket_zone, maxsockets);
 	EVENTHANDLER_REGISTER(maxsockets_change, socket_zone_change, NULL,
 	    EVENTHANDLER_PRI_FIRST);
 }
