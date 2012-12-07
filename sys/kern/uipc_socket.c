@@ -425,7 +425,16 @@ socreate(int dom, struct socket **aso, int type, int proto,
 	else
 		prp = pffindtype(dom, type);
 
-	if (prp == NULL || prp->pr_usrreqs->pru_attach == NULL ||
+	if (prp == NULL) {
+		/* No support for domain. */
+		if (pffinddomain(dom) == NULL)
+			return (EAFNOSUPPORT);
+		/* No support for socket type. */
+		if (proto == 0 && type != 0)
+			return (EPROTOTYPE);
+		return (EPROTONOSUPPORT);
+	}
+	if (prp->pr_usrreqs->pru_attach == NULL ||
 	    prp->pr_usrreqs->pru_attach == pru_attach_notsupp)
 		return (EPROTONOSUPPORT);
 
