@@ -168,7 +168,8 @@ openssldsa_sign(dst_context_t *dctx, isc_buffer_t *sig) {
 	if (!EVP_SignFinal(evp_md_ctx, sigbuf, &siglen, pkey)) {
 		EVP_PKEY_free(pkey);
 		free(sigbuf);
-		return (ISC_R_FAILURE);
+		return (dst__openssl_toresult2("EVP_SignFinal",
+					       ISC_R_FAILURE));
 	}
 	INSIST(EVP_PKEY_size(pkey) >= (int) siglen);
 	EVP_PKEY_free(pkey);
@@ -181,23 +182,26 @@ openssldsa_sign(dst_context_t *dctx, isc_buffer_t *sig) {
 	sb = sigbuf;
 	if (d2i_DSA_SIG(&dsasig, &sb, (long) siglen) == NULL) {
 		free(sigbuf);
-		return (ISC_R_FAILURE);
+		return (dst__openssl_toresult2("d2i_DSA_SIG", ISC_R_FAILURE));
 	}
 	free(sigbuf);
 #elif 0
 	/* Only use EVP for the Digest */
 	if (!EVP_DigestFinal_ex(evp_md_ctx, digest, &siglen)) {
-		return (ISC_R_FAILURE);
+		return (dst__openssl_toresult2("EVP_DigestFinal_ex",
+					       ISC_R_FAILURE));
 	}
 	dsasig = DSA_do_sign(digest, ISC_SHA1_DIGESTLENGTH, dsa);
 	if (dsasig == NULL)
-		return (dst__openssl_toresult(DST_R_SIGNFAILURE));
+		return (dst__openssl_toresult2("DSA_do_sign",
+					       DST_R_SIGNFAILURE));
 #else
 	isc_sha1_final(sha1ctx, digest);
 
 	dsasig = DSA_do_sign(digest, ISC_SHA1_DIGESTLENGTH, dsa);
 	if (dsasig == NULL)
-		return (dst__openssl_toresult(DST_R_SIGNFAILURE));
+		return (dst__openssl_toresult2("DSA_do_sign",
+					       DST_R_SIGNFAILURE));
 #endif
 	*r.base++ = (key->key_size - 512)/64;
 	BN_bn2bin_fixed(dsasig->r, r.base, ISC_SHA1_DIGESTLENGTH);
@@ -276,10 +280,15 @@ openssldsa_verify(dst_context_t *dctx, const isc_region_t *sig) {
 	status = DSA_do_verify(digest, ISC_SHA1_DIGESTLENGTH, dsasig, dsa);
 #endif
 	DSA_SIG_free(dsasig);
-	if (status != 1)
+	switch (status) {
+	case 1:
+		return (ISC_R_SUCCESS);
+	case 0:
 		return (dst__openssl_toresult(DST_R_VERIFYFAILURE));
-
-	return (ISC_R_SUCCESS);
+	default:
+		return (dst__openssl_toresult2("DSA_do_verify",
+					       DST_R_VERIFYFAILURE));
+	}
 }
 
 static isc_boolean_t
@@ -370,19 +379,22 @@ openssldsa_generate(dst_key_t *key, int unused, void (*callback)(int)) {
 					&cb))
 	{
 		DSA_free(dsa);
-		return (dst__openssl_toresult(DST_R_OPENSSLFAILURE));
+		return (dst__openssl_toresult2("DSA_generate_parameters_ex",
+					       DST_R_OPENSSLFAILURE));
 	}
 #else
 	dsa = DSA_generate_parameters(key->key_size, rand_array,
 				      ISC_SHA1_DIGESTLENGTH, NULL, NULL,
 				      NULL, NULL);
 	if (dsa == NULL)
-		return (dst__openssl_toresult(DST_R_OPENSSLFAILURE));
+		return (dst__openssl_toresult2("DSA_generate_parameters",
+					       DST_R_OPENSSLFAILURE));
 #endif
 
 	if (DSA_generate_key(dsa) == 0) {
 		DSA_free(dsa);
-		return (dst__openssl_toresult(DST_R_OPENSSLFAILURE));
+		return (dst__openssl_toresult2("DSA_generate_key",
+					       DST_R_OPENSSLFAILURE));
 	}
 	dsa->flags &= ~DSA_FLAG_CACHE_MONT_P;
 

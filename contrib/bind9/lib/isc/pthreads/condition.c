@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2012  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1998-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -43,7 +43,14 @@ isc_condition_waituntil(isc_condition_t *c, isc_mutex_t *m, isc_time_t *t) {
 	 * POSIX defines a timespec's tv_sec as time_t.
 	 */
 	result = isc_time_secondsastimet(t, &ts.tv_sec);
-	if (result != ISC_R_SUCCESS)
+
+	/*
+	 * If we have a range error ts.tv_sec is most probably a signed
+	 * 32 bit value.  Set ts.tv_sec to INT_MAX.  This is a kludge.
+	 */
+	if (result == ISC_R_RANGE)
+		ts.tv_sec = INT_MAX;
+	else if (result != ISC_R_SUCCESS)
 		return (result);
 
 	/*!
