@@ -1,5 +1,8 @@
+/*	$NetBSD: bpfjit.c,v 1.2 2012/11/10 22:12:31 alnsn Exp $	*/
+
 /*-
  * Copyright (c) 2011-2012 Alexander Nasonov.
+ * Copyright (c) 2012 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
