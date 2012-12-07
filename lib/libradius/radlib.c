@@ -484,7 +484,7 @@ rad_config(struct rad_handle *h, const char *path)
 	linenum = 0;
 	while (fgets(buf, sizeof buf, fp) != NULL) {
 		int len;
-		char *fields[5];
+		char *fields[MAX_FIELDS];
 		int nfields;
 		char msg[ERRSIZE];
 		char *type;
