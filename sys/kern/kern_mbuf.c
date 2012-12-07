@@ -304,10 +304,8 @@ mbuf_init(void *dummy)
 	    NULL, NULL,
 #endif
 	    MSIZE - 1, UMA_ZONE_MAXBUCKET);
-	if (nmbufs > 0) {
-		uma_zone_set_max(zone_mbuf, nmbufs);
-		nmbufs = uma_zone_get_max(zone_mbuf);
-	}
+	if (nmbufs > 0)
+		nmbufs = uma_zone_set_max(zone_mbuf, nmbufs);
 
 	zone_clust = uma_zcreate(MBUF_CLUSTER_MEM_NAME, MCLBYTES,
 	    mb_ctor_clust, mb_dtor_clust,
@@ -317,10 +315,8 @@ mbuf_init(void *dummy)
 	    NULL, NULL,
 #endif
 	    UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
-	if (nmbclusters > 0) {
-		uma_zone_set_max(zone_clust, nmbclusters);
-		nmbclusters = uma_zone_get_max(zone_clust);
-	}
+	if (nmbclusters > 0)
+		nmbclusters = uma_zone_set_max(zone_clust, nmbclusters);
 
 	zone_pack = uma_zsecond_create(MBUF_PACKET_MEM_NAME, mb_ctor_pack,
 	    mb_dtor_pack, mb_zinit_pack, mb_zfini_pack, zone_mbuf);
@@ -334,10 +330,8 @@ mbuf_init(void *dummy)
 	    NULL, NULL,
 #endif
 	    UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
-	if (nmbjumbop > 0) {
-		uma_zone_set_max(zone_jumbop, nmbjumbop);
-		nmbjumbop = uma_zone_get_max(zone_jumbop);
-	}
+	if (nmbjumbop > 0)
+		nmbjumbop = uma_zone_set_max(zone_jumbop, nmbjumbop);
 
 	zone_jumbo9 = uma_zcreate(MBUF_JUMBO9_MEM_NAME, MJUM9BYTES,
 	    mb_ctor_clust, mb_dtor_clust,
@@ -348,10 +342,8 @@ mbuf_init(void *dummy)
 #endif
 	    UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
 	uma_zone_set_allocf(zone_jumbo9, mbuf_jumbo_alloc);
-	if (nmbjumbo9 > 0) {
-		uma_zone_set_max(zone_jumbo9, nmbjumbo9);
-		nmbjumbo9 = uma_zone_get_max(zone_jumbo9);
-	}
+	if (nmbjumbo9 > 0)
+		nmbjumbo9 = uma_zone_set_max(zone_jumbo9, nmbjumbo9);
 
 	zone_jumbo16 = uma_zcreate(MBUF_JUMBO16_MEM_NAME, MJUM16BYTES,
 	    mb_ctor_clust, mb_dtor_clust,
@@ -362,10 +354,8 @@ mbuf_init(void *dummy)
 #endif
 	    UMA_ALIGN_PTR, UMA_ZONE_REFCNT);
 	uma_zone_set_allocf(zone_jumbo16, mbuf_jumbo_alloc);
-	if (nmbjumbo16 > 0) {
-		uma_zone_set_max(zone_jumbo16, nmbjumbo16);
-		nmbjumbo16 = uma_zone_get_max(zone_jumbo16);
-	}
+	if (nmbjumbo16 > 0)
+		nmbjumbo16 = uma_zone_set_max(zone_jumbo16, nmbjumbo16);
 
 	zone_ext_refcnt = uma_zcreate(MBUF_EXTREFCNT_MEM_NAME, sizeof(u_int),
 	    NULL, NULL,
