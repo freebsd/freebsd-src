@@ -57,6 +57,7 @@ bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 	ccb_h = &ccb->ccb_h;
 	if ((ccb_h->flags & CAM_DIR_MASK) == CAM_DIR_NONE) {
 		callback(callback_arg, NULL, 0, 0);
+		return (0);
 	}
 
 	switch (ccb_h->func_code) {
