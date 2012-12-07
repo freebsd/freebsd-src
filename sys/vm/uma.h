@@ -476,6 +476,18 @@ int uma_zone_set_max(uma_zone_t zone, int nitems);
 int uma_zone_get_max(uma_zone_t zone);
 
 /*
+ * Sets a warning to be printed when limit is reached
+ *
+ * Arguments:
+ *	zone  The zone we will warn about
+ *	warning  Warning content
+ *
+ * Returns:
+ *	Nothing
+ */
+void uma_zone_set_warning(uma_zone_t zone, const char *warning);
+
+/*
  * Obtains the approximate current number of items allocated from a zone
  *
  * Arguments:
