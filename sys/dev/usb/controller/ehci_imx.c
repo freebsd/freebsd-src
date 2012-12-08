@@ -38,9 +38,6 @@ __FBSDID("$FreeBSD: projects/efika_mx/sys/dev/usb/controller/ehci_fsl.c 236120 2
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/queue.h>
-#include <sys/lock.h>
-#include <sys/lockmgr.h>
 #include <sys/condvar.h>
 #include <sys/rman.h>
 
@@ -49,20 +46,40 @@ __FBSDID("$FreeBSD: projects/efika_mx/sys/dev/usb/controller/ehci_fsl.c 236120 2
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
-#include <dev/usb/usb_core.h>
 #include <dev/usb/usb_busdma.h>
 #include <dev/usb/usb_process.h>
-#include <dev/usb/usb_util.h>
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/controller/ehci.h>
 #include <dev/usb/controller/ehcireg.h>
 
 #include <machine/bus.h>
-#include <machine/clock.h>
 #include <machine/resource.h>
 
 #include "opt_platform.h"
+
+#define	FSL_EHCI_COUNT		4
+#define FSL_EHCI_REG_OFF	0x100
+#define FSL_EHCI_REG_SIZE	0x100
+#define	FSL_EHCI_REG_STEP	0x200
+
+struct imx_ehci_softc {
+	ehci_softc_t		ehci[FSL_EHCI_COUNT];
+	/* MEM + 4 interrupts */
+	struct resource		*sc_res[1 + FSL_EHCI_COUNT];
+};
+
+/* i.MX515 have 4 EHCI inside USB core */
+/* TODO: we can get number of EHCIs by IRQ allocation */
+static struct resource_spec imx_ehci_spec[] = {
+	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
+	{ SYS_RES_IRQ,		0,	RF_ACTIVE },
+	{ SYS_RES_IRQ,		1,	RF_ACTIVE },
+	{ SYS_RES_IRQ,		2,	RF_ACTIVE },
+	/* RF_OPTIONAL will allow to use driver for systems with 3 EHCIs */
+	{ SYS_RES_IRQ,		3,	RF_ACTIVE | RF_OPTIONAL },
+	{ -1, 0 }
+};
 
 /* Forward declarations */
 static int	fsl_ehci_attach(device_t self);
@@ -88,20 +105,13 @@ static device_method_t ehci_methods[] = {
 static driver_t ehci_driver = {
 	"ehci",
 	ehci_methods,
-	sizeof(struct ehci_softc)
+	sizeof(struct imx_ehci_softc)
 };
 
 static devclass_t ehci_devclass;
 
 DRIVER_MODULE(ehci, simplebus, ehci_driver, ehci_devclass, 0, 0);
 MODULE_DEPEND(ehci, usb, 1, 1, 1);
-
-/*
- * Defines location of first EHCI.
- */
-/* TODO: enable EHCI2 EHCI3, make driver for OTG */
-#define FSL_EHCI_REG_OFF	0x300
-#define FSL_EHCI_REG_SIZE	0x100
 
 /*
  * Public methods
@@ -121,174 +131,152 @@ fsl_ehci_probe(device_t dev)
 static int
 fsl_ehci_attach(device_t self)
 {
-	ehci_softc_t *sc;
-	int rid;
-	int err;
-	bus_space_handle_t ioh;
+	struct imx_ehci_softc *sc;
 	bus_space_tag_t iot;
+	ehci_softc_t *esc;
+	int err, i, rid;
 
 	sc = device_get_softc(self);
 	rid = 0;
 
-	sc->sc_bus.parent = self;
-	sc->sc_bus.devices = sc->sc_devices;
-	sc->sc_bus.devices_max = EHCI_MAX_DEVICES;
-
-	if (usb_bus_mem_alloc_all(&sc->sc_bus,
-	    USB_GET_DMA_TAG(self), &ehci_iterate_hw_softc))
-		return (ENOMEM);
-
 	/* Allocate io resource for EHCI */
-	sc->sc_io_res = bus_alloc_resource_any(self, SYS_RES_MEMORY, &rid,
-	    RF_ACTIVE);
-	if (sc->sc_io_res == NULL) {
-		err = fsl_ehci_detach(self);
-		if (err) {
-			device_printf(self,
-			    "Detach of the driver failed with error %d\n",
-			    err);
-		}
+	if (bus_alloc_resources(self, imx_ehci_spec, sc->sc_res)) {
+		device_printf(self, "could not allocate resources\n");
 		return (ENXIO);
 	}
-	iot = rman_get_bustag(sc->sc_io_res);
+	iot = rman_get_bustag(sc->sc_res[0]);
 
-	/*
-	 * Set handle to USB related registers subregion used by generic
-	 * EHCI driver
-	 */
-	ioh = rman_get_bushandle(sc->sc_io_res);
+	/* TODO: Power/clock enable */
+	/* TODO: basic init */
 
-	err = bus_space_subregion(iot, ioh, FSL_EHCI_REG_OFF, FSL_EHCI_REG_SIZE,
-	    &sc->sc_io_hdl);
-	if (err != 0) {
-		err = fsl_ehci_detach(self);
+	for (i = 0; i < FSL_EHCI_COUNT; i ++) {
+		/* No interrupt - no driver */
+		if (sc->sc_res[1 + i] == NULL)
+			continue;
+
+		esc = &sc->ehci[i];
+		esc->sc_io_tag = iot;
+		esc->sc_bus.parent = self;
+		esc->sc_bus.devices = esc->sc_devices;
+		esc->sc_bus.devices_max = EHCI_MAX_DEVICES;
+
+		if (usb_bus_mem_alloc_all(&esc->sc_bus, USB_GET_DMA_TAG(self),
+		    &ehci_iterate_hw_softc))
+			continue;
+
+		/*
+		 * Set handle to USB related registers subregion used by
+		 * generic EHCI driver.
+		 */
+		err = bus_space_subregion(iot,
+		    rman_get_bushandle(sc->sc_res[0]),
+		    FSL_EHCI_REG_OFF + (i * FSL_EHCI_REG_STEP),
+		    FSL_EHCI_REG_SIZE, &esc->sc_io_hdl);
+		if (err != 0)
+			continue;
+
+		/* Setup interrupt handler */
+		err = bus_setup_intr(self, sc->sc_res[1 + i], INTR_TYPE_BIO,
+		    NULL, (driver_intr_t *)ehci_interrupt, esc,
+		    &esc->sc_intr_hdl);
 		if (err) {
-			device_printf(self,
-			    "Detach of the driver failed with error %d\n",
-			    err);
+			device_printf(self, "Could not setup irq, "
+			    "for EHCI%d %d\n", i, err);
+			continue;
 		}
-		return (ENXIO);
-	}
 
-	sc->sc_io_tag = iot;
-
-	/* Allocate irq */
-	sc->sc_irq_res = bus_alloc_resource_any(self, SYS_RES_IRQ, &rid,
-	    RF_ACTIVE);
-	if (sc->sc_irq_res == NULL) {
-		err = fsl_ehci_detach(self);
-		if (err) {
-			device_printf(self,
-			    "Detach of the driver failed with error %d\n",
-			    err);
+		/* Add USB device */
+		esc->sc_bus.bdev = device_add_child(self, "usbus", -1);
+		if (!esc->sc_bus.bdev) {
+			device_printf(self, "Could not add USB device\n");
+			err = bus_teardown_intr(self, esc->sc_irq_res,
+			    esc->sc_intr_hdl);
+			if (err)
+				device_printf(self, "Could not tear down irq,"
+				    " %d\n", err);
+			continue;
 		}
-		return (ENXIO);
-	}
+		device_set_ivars(esc->sc_bus.bdev, &esc->sc_bus);
 
-	/* Setup interrupt handler */
-	err = bus_setup_intr(self, sc->sc_irq_res, INTR_TYPE_BIO,
-	    NULL, (driver_intr_t *)ehci_interrupt, sc, &sc->sc_intr_hdl);
-	if (err) {
-		device_printf(self, "Could not setup irq, %d\n", err);
-		sc->sc_intr_hdl = NULL;
-		err = fsl_ehci_detach(self);
-		if (err) {
-			device_printf(self,
-			    "Detach of the driver failed with error %d\n",
-			    err);
+		esc->sc_id_vendor = 0x1234;
+		strlcpy(esc->sc_vendor, "Freescale", sizeof(esc->sc_vendor));
+
+		/* Set flags */
+		esc->sc_flags |= EHCI_SCFLG_DONTRESET | EHCI_SCFLG_NORESTERM;
+
+		err = ehci_init(esc);
+		if (!err) {
+			esc->sc_flags |= EHCI_SCFLG_DONEINIT;
+			err = device_probe_and_attach(esc->sc_bus.bdev);
+		} else {
+			device_printf(self, "USB init failed err=%d\n", err);
+
+			device_delete_child(self, esc->sc_bus.bdev);
+			esc->sc_bus.bdev = NULL;
+
+			err = bus_teardown_intr(self, esc->sc_irq_res,
+			    esc->sc_intr_hdl);
+			if (err)
+				device_printf(self, "Could not tear down irq,"
+				    " %d\n", err);
+
+			continue;
 		}
-		return (ENXIO);
 	}
-
-	/* Add USB device */
-	sc->sc_bus.bdev = device_add_child(self, "usbus", -1);
-	if (!sc->sc_bus.bdev) {
-		device_printf(self, "Could not add USB device\n");
-		err = fsl_ehci_detach(self);
-		if (err) {
-			device_printf(self,
-			    "Detach of the driver failed with error %d\n",
-			    err);
-		}
-		return (ENOMEM);
-	}
-	device_set_ivars(sc->sc_bus.bdev, &sc->sc_bus);
-
-	sc->sc_id_vendor = 0x1234;
-	strlcpy(sc->sc_vendor, "Freescale", sizeof(sc->sc_vendor));
-
-	/* Set flags */
-	sc->sc_flags |= EHCI_SCFLG_DONTRESET | EHCI_SCFLG_NORESTERM;
-
-	err = ehci_init(sc);
-	if (!err) {
-		sc->sc_flags |= EHCI_SCFLG_DONEINIT;
-		err = device_probe_and_attach(sc->sc_bus.bdev);
-	}
-
-	if (err) {
-		device_printf(self, "USB init failed err=%d\n", err);
-		err = fsl_ehci_detach(self);
-		if (err) {
-			device_printf(self,
-			    "Detach of the driver failed with error %d\n",
-			    err);
-		}
-		return (EIO);
-	}
-
 	return (0);
 }
 
 static int
 fsl_ehci_detach(device_t self)
 {
-
-	int err;
-	ehci_softc_t *sc;
+	struct imx_ehci_softc *sc;
+	ehci_softc_t *esc;
+	int err, i;
 
 	sc = device_get_softc(self);
-	/*
-	 * only call ehci_detach() after ehci_init()
-	 */
-	if (sc->sc_flags & EHCI_SCFLG_DONEINIT) {
-		ehci_detach(sc);
-		sc->sc_flags &= ~EHCI_SCFLG_DONEINIT;
-	}
 
-	/* Disable interrupts that might have been switched on in ehci_init */
-	if (sc->sc_io_tag && sc->sc_io_hdl)
-		bus_space_write_4(sc->sc_io_tag, sc->sc_io_hdl, EHCI_USBINTR, 0);
-
-	if (sc->sc_irq_res && sc->sc_intr_hdl) {
-		err = bus_teardown_intr(self, sc->sc_irq_res, sc->sc_intr_hdl);
-		if (err) {
-			device_printf(self, "Could not tear down irq, %d\n",
-			    err);
-			return (err);
+	for (i = 0; i < FSL_EHCI_COUNT; i ++) {
+		esc = &sc->ehci[i];
+		if (esc->sc_flags & EHCI_SCFLG_DONEINIT)
+			continue;
+		/*
+		 * only call ehci_detach() after ehci_init()
+		 */
+		if (esc->sc_flags & EHCI_SCFLG_DONEINIT) {
+			ehci_detach(esc);
+			esc->sc_flags &= ~EHCI_SCFLG_DONEINIT;
 		}
-		sc->sc_intr_hdl = NULL;
-	}
 
-	if (sc->sc_bus.bdev) {
-		device_delete_child(self, sc->sc_bus.bdev);
-		sc->sc_bus.bdev = NULL;
+		/*
+		 * Disable interrupts that might have been switched on in
+		 * ehci_init.
+		 */
+		if (esc->sc_io_tag && esc->sc_io_hdl)
+			bus_space_write_4(esc->sc_io_tag, esc->sc_io_hdl,
+			    EHCI_USBINTR, 0);
+
+		if (esc->sc_irq_res && esc->sc_intr_hdl) {
+			err = bus_teardown_intr(self, esc->sc_irq_res,
+			    esc->sc_intr_hdl);
+			if (err) {
+				device_printf(self, "Could not tear down irq,"
+				    " %d\n", err);
+				return (err);
+			}
+			esc->sc_intr_hdl = NULL;
+		}
+
+		if (esc->sc_bus.bdev) {
+			device_delete_child(self, esc->sc_bus.bdev);
+			esc->sc_bus.bdev = NULL;
+		}
 	}
 
 	/* During module unload there are lots of children leftover */
 	device_delete_children(self);
 
-	if (sc->sc_irq_res) {
-		bus_release_resource(self, SYS_RES_IRQ, 0, sc->sc_irq_res);
-		sc->sc_irq_res = NULL;
-	}
-
-	if (sc->sc_io_res) {
-		bus_release_resource(self, SYS_RES_MEMORY, 0, sc->sc_io_res);
-		sc->sc_io_res = NULL;
-		sc->sc_io_tag = 0;
-		sc->sc_io_hdl = 0;
-	}
+	if (sc->sc_res[0])
+		bus_release_resources(self, imx_ehci_spec, sc->sc_res);
 
 	return (0);
 }
