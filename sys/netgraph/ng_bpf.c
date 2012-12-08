@@ -560,7 +560,6 @@ ng_bpf_setprog(hook_p hook, const struct ng_bpf_hookprog *hp0)
 	if (hp == NULL)
 		return (ENOMEM);
 	bcopy(hp0, hp, size);
-
 #ifdef BPFJIT
 	if (bpfjit_enable != 0)
 		jit_prog = bpfjit_generate_code(hp->bpf_prog, hp->bpf_prog_len);
