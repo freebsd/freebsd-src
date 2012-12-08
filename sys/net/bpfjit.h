@@ -49,7 +49,7 @@
 #endif
 
 #ifdef _KERNEL
-extern int bpfjit_disable;
+extern int bpfjit_enable;
 #endif
 
 /*

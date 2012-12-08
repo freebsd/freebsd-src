@@ -1776,10 +1776,11 @@ bpf_setf(struct bpf_d *d, struct bpf_program *fp, u_long cmd)
 		}
 #ifdef BPFJIT
 		/* Filter is copied inside fcode and is perfectly valid. */
-		jfunc = bpfjit_generate_code(fcode, flen);
-
-		if (jfunc == NULL && bootverbose)
-			printf("bpf_setf: failed to compile filter\n");
+		if (bpfjit_enable != 0) {
+			jfunc = bpfjit_generate_code(fcode, flen);
+			if (jfunc == NULL && bootverbose)
+				printf("bpf_setf: failed to compile filter\n");
+		}
 #endif
 	}
 
@@ -2062,10 +2063,10 @@ bpf_tap(struct bpf_if *bp, u_char *pkt, u_int pktlen)
 		 * the interface pointers on the mbuf to figure it out.
 		 */
 #ifdef BPFJIT
-		bf = bpfjit_disable == 0 ? d->bd_bfilter : NULL;
-		if (bf != NULL)
+		if (d->bd_bfilter != NULL) {
+			bf = d->bd_bfilter;
 			slen = bf(pkt, pktlen, pktlen);
-		else
+		} else
 #endif
 		slen = bpf_filter(d->bd_rfilter, pkt, pktlen, pktlen);
 		if (slen != 0) {
@@ -2123,10 +2124,10 @@ bpf_mtap(struct bpf_if *bp, struct mbuf *m)
 			continue;
 		++d->bd_rcount;
 #ifdef BPFJIT
-		bf = bpfjit_disable == 0 ? d->bd_bfilter : NULL;
-		if (bf != NULL)
+		if (d->bd_bfilter != NULL) {
+			bf = d->bd_bfilter;
 			slen = bf((u_char *)m, pktlen, 0);
-		else
+		} else
 #endif
 		slen = bpf_filter(d->bd_rfilter, (u_char *)m, pktlen, 0);
 		if (slen != 0) {
@@ -2188,10 +2189,10 @@ bpf_mtap2(struct bpf_if *bp, void *data, u_int dlen, struct mbuf *m)
 			continue;
 		++d->bd_rcount;
 #ifdef BPFJIT
-		bf = bpfjit_disable == 0 ? d->bd_bfilter : NULL;
-		if (bf != NULL)
+		if (d->bd_bfilter != NULL) {
+			bf = d->bd_bfilter;
 			slen = bf((u_char *)&mb, pktlen, 0);
-		else
+		} else
 #endif
 		slen = bpf_filter(d->bd_rfilter, (u_char *)&mb, pktlen, 0);
 		if (slen != 0) {

@@ -58,10 +58,10 @@ uint32_t	m_xword(const struct mbuf *, uint32_t, int *);
 uint32_t	m_xhalf(const struct mbuf *, uint32_t, int *);
 uint32_t	m_xbyte(const struct mbuf *, uint32_t, int *);
 
-int bpfjit_disable = 0;
+int bpfjit_enable = 0;
 SYSCTL_NODE(_net, OID_AUTO, bpfjit, CTLFLAG_RW, 0, "BPF just-in-time compiler");
-SYSCTL_INT(_net_bpfjit, OID_AUTO, disable, CTLFLAG_RW, &bpfjit_disable, 0,
-    "disable BPF just-in-time compiler");
+SYSCTL_INT(_net_bpfjit, OID_AUTO, enable, CTLFLAG_RW, &bpfjit_enable, 0,
+    "enable BPF just-in-time compiler");
 
 #else
 

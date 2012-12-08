@@ -451,7 +451,7 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 
 	/* Run packet through filter */
 #ifdef BPFJIT
-	if (bpfjit_disable == 0 && hip->jit_prog != NULL) {
+	if (hip->jit_prog != NULL) {
 		if (data)
 			len = (hip->jit_prog)(data, totlen, totlen);
 		else
@@ -545,7 +545,7 @@ ng_bpf_setprog(hook_p hook, const struct ng_bpf_hookprog *hp0)
 	const hinfo_p hip = NG_HOOK_PRIVATE(hook);
 	struct ng_bpf_hookprog *hp;
 #ifdef BPFJIT
-	bpfjit_function_t jit_prog;
+	bpfjit_function_t jit_prog = NULL;
 #endif
 	int size;
 
@@ -560,8 +560,10 @@ ng_bpf_setprog(hook_p hook, const struct ng_bpf_hookprog *hp0)
 	if (hp == NULL)
 		return (ENOMEM);
 	bcopy(hp0, hp, size);
+
 #ifdef BPFJIT
-	jit_prog = bpfjit_generate_code(hp->bpf_prog, hp->bpf_prog_len);
+	if (bpfjit_enable != 0)
+		jit_prog = bpfjit_generate_code(hp->bpf_prog, hp->bpf_prog_len);
 #endif
 
 	/* Free previous program, if any, and assign new one */
