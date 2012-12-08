@@ -416,7 +416,7 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 {
 	const hinfo_p hip = NG_HOOK_PRIVATE(hook);
 	int totlen;
-	int needfree = 0, error = 0, usejit = 0;
+	int error = 0;
 	u_char *data = NULL;
 	hinfo_p dhip;
 	hook_p dest;
@@ -437,23 +437,8 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 		goto ready;
 	}
 
-#ifdef BPFJIT
-	if (bpfjit_disable == 0 && hip->jit_prog != NULL)
-		usejit = 1;
-#endif
-
 	/* Need to put packet in contiguous memory for bpf */
-	if (m->m_next != NULL && totlen > MHLEN) {
-		if (usejit) {
-			data = malloc(totlen, M_NETGRAPH_BPF, M_NOWAIT);
-			if (data == NULL) {
-				NG_FREE_ITEM(item);
-				return (ENOMEM);
-			}
-			needfree = 1;
-			m_copydata(m, 0, totlen, (caddr_t)data);
-		}
-	} else {
+	if (m->m_next == NULL || totlen <= MHLEN) {
 		if (m->m_next != NULL) {
 			NGI_M(item) = m = m_pullup(m, totlen);
 			if (m == NULL) {
@@ -466,16 +451,18 @@ ng_bpf_rcvdata(hook_p hook, item_p item)
 
 	/* Run packet through filter */
 #ifdef BPFJIT
-	if (usejit)
-		len = (hip->jit_prog)(data, totlen, totlen);
-	else
+	if (bpfjit_disable == 0 && hip->jit_prog != NULL) {
+		if (data)
+			len = (hip->jit_prog)(data, totlen, totlen);
+		else
+			len = (hip->jit_prog)((u_char *)m, totlen, 0);
+	} else
 #endif
 	if (data)
 		len = bpf_filter(hip->prog->bpf_prog, data, totlen, totlen);
 	else
 		len = bpf_filter(hip->prog->bpf_prog, (u_char *)m, totlen, 0);
-	if (needfree)
-		free(data, M_NETGRAPH_BPF);
+
 ready:
 	/* See if we got a match and find destination hook */
 	if (len > 0) {
