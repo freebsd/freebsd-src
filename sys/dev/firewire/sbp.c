@@ -2478,11 +2478,6 @@ END_DEBUG
 			ocb->orb[4] |= htonl(ORB_CMD_IN);
 		}
 
-		if (csio->ccb_h.flags & CAM_SCATTER_VALID)
-			printf("sbp: CAM_SCATTER_VALID\n");
-		if (csio->ccb_h.flags & CAM_DATA_PHYS)
-			printf("sbp: CAM_DATA_PHYS\n");
-
 		if (csio->ccb_h.flags & CAM_CDB_POINTER)
 			cdb = (void *)csio->cdb_io.cdb_ptr;
 		else

@@ -257,7 +257,7 @@ bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 		segs = (struct bus_dma_segment *)data_ptr;
 		nsegs = -1;
 		error = 0;
-		for (i = 0; i < csio->sglist_cnt && error == 0; i++) {
+		for (i = 0; i < sglist_cnt && error == 0; i++) {
 			error = _bus_dmamap_load_buffer(dmat, map,
 			    (void *)segs[i].ds_addr, segs[i].ds_len,
 			    kernel_pmap, flags, NULL, &nsegs);

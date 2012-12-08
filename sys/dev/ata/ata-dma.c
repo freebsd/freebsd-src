@@ -304,11 +304,13 @@ ata_dmaload(struct ata_request *request, void *addr, int *entries)
     else
 	dspa.dmatab = request->dma->sg;
 
+#ifdef ATA_CAM
     if (request->ccb)
         error = bus_dmamap_load_ccb(request->dma->data_tag,
 				request->dma->data_map, request->ccb,
 				ch->dma.setprd, &dspa, BUS_DMA_NOWAIT);
     else
+#endif
         error = bus_dmamap_load(request->dma->data_tag, request->dma->data_map,
 				request->data, request->bytecount,
 				ch->dma.setprd, &dspa, BUS_DMA_NOWAIT);

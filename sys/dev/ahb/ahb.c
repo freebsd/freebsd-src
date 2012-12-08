@@ -1006,6 +1006,7 @@ ahbaction(struct cam_sim *sim, union ccb *ccb)
 	{
 		struct ecb *ecb;
 		struct hardware_ecb *hecb;
+		int error;
 
 		/*
 		 * get an ecb to use.

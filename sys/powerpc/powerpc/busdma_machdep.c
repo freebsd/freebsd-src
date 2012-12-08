@@ -735,9 +735,9 @@ _bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
 		    dmat->boundary, dmat->iommu_cookie);
 
 	if (error)
-		(*callback)(callback_arg, dmat->segments, 0, error);
+		(*callback)(callback_arg, map->segments, 0, error);
 	else
-		(*callback)(callback_arg, dmat->segments, nsegs, 0);
+		(*callback)(callback_arg, map->segments, nsegs, 0);
 }
 
 void
@@ -753,9 +753,9 @@ _bus_dmamap_complete2(bus_dma_tag_t dmat, bus_dmamap_t map,
 		    dmat->boundary, dmat->iommu_cookie);
 
 	if (error)
-		(*callback)(callback_arg, dmat->segments, 0, 0, error);
+		(*callback)(callback_arg, map->segments, 0, 0, error);
 	else
-		(*callback)(callback_arg, dmat->segments, nsegs, len, error);
+		(*callback)(callback_arg, map->segments, nsegs, len, error);
 }
 
 void

@@ -606,7 +606,7 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 	dmat->map_count++;
 	*mapp = newmap;
 	newmap->dmat = dmat;
-	nwemap->sync_count = 0;
+	newmap->sync_count = 0;
 
 	/*
 	 * If all the memory is coherent with DMA then we don't need to
@@ -916,7 +916,7 @@ _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map)
 }
 
 static void
-bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
+bus_dmamap_sync_buf(vm_offset_t buf, int len, bus_dmasync_op_t op)
 {
 	char tmp_cl[mips_pdcache_linesize], tmp_clend[mips_pdcache_linesize];
 	vm_offset_t buf_cl, buf_clend;
@@ -930,9 +930,9 @@ bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 	 * prevent a data loss we save these chunks in temporary buffer
 	 * before invalidation and restore them afer it
 	 */
-	buf_cl = (vm_offset_t)buf  & ~cache_linesize_mask;
-	size_cl = (vm_offset_t)buf  & cache_linesize_mask;
-	buf_clend = (vm_offset_t)buf + len;
+	buf_cl = buf & ~cache_linesize_mask;
+	size_cl = buf & cache_linesize_mask;
+	buf_clend = buf + len;
 	size_clend = (mips_pdcache_linesize - 
 	    (buf_clend & cache_linesize_mask)) & cache_linesize_mask;
 
@@ -947,7 +947,7 @@ bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 			memcpy (tmp_cl, (void*)buf_cl, size_cl);
 		if (size_clend)
 			memcpy (tmp_clend, (void*)buf_clend, size_clend);
-		mips_dcache_inv_range((vm_offset_t)buf, len);
+		mips_dcache_inv_range(buf, len);
 		/* 
 		 * Restore them
 		 */
@@ -962,15 +962,14 @@ bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 		 * necessary.
 		 */
 		if (size_cl)
-			mips_dcache_wbinv_range((vm_offset_t)buf_cl, size_cl);
+			mips_dcache_wbinv_range(buf_cl, size_cl);
 		if (size_clend && (size_cl == 0 ||
                     buf_clend - buf_cl > mips_pdcache_linesize))
-			mips_dcache_wbinv_range((vm_offset_t)buf_clend,
-			   size_clend);
+			mips_dcache_wbinv_range(buf_clend, size_clend);
 		break;
 
 	case BUS_DMASYNC_PREREAD|BUS_DMASYNC_PREWRITE:
-		mips_dcache_wbinv_range((vm_offset_t)buf_cl, len);
+		mips_dcache_wbinv_range(buf_cl, len);
 		break;
 
 	case BUS_DMASYNC_PREREAD:
@@ -981,7 +980,7 @@ bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 			memcpy (tmp_cl, (void *)buf_cl, size_cl);
 		if (size_clend)
 			memcpy (tmp_clend, (void *)buf_clend, size_clend);
-		mips_dcache_inv_range((vm_offset_t)buf, len);
+		mips_dcache_inv_range(buf, len);
 		/*
 		 * Restore them
 		 */
@@ -996,15 +995,14 @@ bus_dmamap_sync_buf(void *buf, int len, bus_dmasync_op_t op)
 		 * necessary.
 		 */
 		if (size_cl)
-			mips_dcache_wbinv_range((vm_offset_t)buf_cl, size_cl);
+			mips_dcache_wbinv_range(buf_cl, size_cl);
 		if (size_clend && (size_cl == 0 ||
                     buf_clend - buf_cl > mips_pdcache_linesize))
-			mips_dcache_wbinv_range((vm_offset_t)buf_clend,
-			   size_clend);
+			mips_dcache_wbinv_range(buf_clend, size_clend);
 		break;
 
 	case BUS_DMASYNC_PREWRITE:
-		mips_dcache_wb_range((vm_offset_t)buf, len);
+		mips_dcache_wb_range(buf, len);
 		break;
 	}
 }

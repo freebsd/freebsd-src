@@ -110,6 +110,7 @@
 #define	BUS_DMA_KEEP_PG_OFFSET	0x400
 
 /* Forwards needed by prototypes below. */
+struct pmap;
 struct mbuf;
 struct uio;
 union ccb;
@@ -296,7 +297,6 @@ void __bus_dmamap_mayblock(bus_dma_tag_t dmat, bus_dmamap_t map,
 			    callback_arg, flags);			\
 	} while (0);
 
-struct pmap;
 int _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map,
 			    void *buf, bus_size_t buflen, struct pmap *pmap,
 			    int flags, bus_dma_segment_t *segs, int *segp);
