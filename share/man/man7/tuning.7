@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2012
+.Dd December 8, 2012
 .Dt TUNING 7
 .Os
 .Sh NAME
@@ -457,52 +457,6 @@ it would be more beneficial to increase the slow-start flightsize via
 the
 .Va net.inet.tcp.slowstart_flightsize
 sysctl rather than disable delayed acks.
-.Pp
-The
-.Va net.inet.tcp.inflight.enable
-sysctl turns on bandwidth delay product limiting for all TCP connections.
-The system will attempt to calculate the bandwidth delay product for each
-connection and limit the amount of data queued to the network to just the
-amount required to maintain optimum throughput.
-This feature is useful
-if you are serving data over modems, GigE, or high speed WAN links (or
-any other link with a high bandwidth*delay product), especially if you are
-also using window scaling or have configured a large send window.
-If you enable this option, you should also be sure to set
-.Va net.inet.tcp.inflight.debug
-to 0 (disable debugging), and for production use setting
-.Va net.inet.tcp.inflight.min
-to at least 6144 may be beneficial.
-Note however, that setting high
-minimums may effectively disable bandwidth limiting depending on the link.
-The limiting feature reduces the amount of data built up in intermediate
-router and switch packet queues as well as reduces the amount of data built
-up in the local host's interface queue.
-With fewer packets queued up,
-interactive connections, especially over slow modems, will also be able
-to operate with lower round trip times.
-However, note that this feature
-only affects data transmission (uploading / server-side).
-It does not
-affect data reception (downloading).
-.Pp
-Adjusting
-.Va net.inet.tcp.inflight.stab
-is not recommended.
-This parameter defaults to 20, representing 2 maximal packets added
-to the bandwidth delay product window calculation.
-The additional
-window is required to stabilize the algorithm and improve responsiveness
-to changing conditions, but it can also result in higher ping times
-over slow links (though still much lower than you would get without
-the inflight algorithm).
-In such cases you may
-wish to try reducing this parameter to 15, 10, or 5, and you may also
-have to reduce
-.Va net.inet.tcp.inflight.min
-(for example, to 3500) to get the desired effect.
-Reducing these parameters
-should be done as a last resort only.
 .Pp
 The
 .Va net.inet.ip.portrange.*
