@@ -410,7 +410,7 @@ nexus_dmamap_mayblock(bus_dma_tag_t dmat, bus_dmamap_t map,
 
 }
 
-void
+static void
 nexus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
     bus_dmamap_callback_t *callback, void *callback_arg, int nsegs, int error)
 {

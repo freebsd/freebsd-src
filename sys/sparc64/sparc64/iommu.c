@@ -860,7 +860,6 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, bus_dmamap_t map, void *buf,
 	vm_offset_t vaddr, voffs;
 	vm_paddr_t curaddr;
 	int error, firstpg, sgcnt;
-	int first;
 	u_int slot;
 
 	is = dt->dt_cookie;
@@ -977,7 +976,7 @@ iommu_dvmamap_mayblock(bus_dma_tag_t dmat, bus_dmamap_t map,
 }
 
 static void
-iommu_dvmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
+iommu_dvmamap_complete(bus_dma_tag_t dt, bus_dmamap_t map,
     bus_dmamap_callback_t *callback, void *callback_arg, int nsegs, int error)
 {
 	struct iommu_state *is = dt->dt_cookie;
@@ -996,7 +995,7 @@ iommu_dvmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
 }
 
 static void
-iommu_dvmamap_complete2(bus_dma_tag_t dmat, bus_dmamap_t map,
+iommu_dvmamap_complete2(bus_dma_tag_t dt, bus_dmamap_t map,
     bus_dmamap_callback2_t *callback, void *callback_arg, int nsegs,
     bus_size_t len, int error)
 {
@@ -1016,7 +1015,7 @@ iommu_dvmamap_complete2(bus_dma_tag_t dmat, bus_dmamap_t map,
 }
 
 static void
-iommu_dvmamap_directseg(bus_dma_tag_t dmat, bus_dmamap_t map,
+iommu_dvmamap_directseg(bus_dma_tag_t dt, bus_dmamap_t map,
     bus_dma_segment_t *segs, int nsegs, int error)
 {
 	struct iommu_state *is = dt->dt_cookie;
@@ -1030,7 +1029,6 @@ iommu_dvmamap_directseg(bus_dma_tag_t dmat, bus_dmamap_t map,
 		IS_UNLOCK(is);
 		map->dm_flags |= DMF_LOADED;
 	}
-	return (error);
 }
 
 static void
