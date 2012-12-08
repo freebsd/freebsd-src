@@ -41,8 +41,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/proc.h>
 #include <sys/mutex.h>
-#include <sys/mbuf.h>
-#include <sys/uio.h>
 #include <sys/ktr.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
@@ -858,164 +856,47 @@ cleanup:
 	return (error);
 }
 
-/*
- * Map the buffer buf into bus space using the dmamap map.
- */
-int
-bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
-    bus_size_t buflen, bus_dmamap_callback_t *callback,
-    void *callback_arg, int flags)
+void
+__bus_dmamap_mayblock(bus_dma_tag_t dmat, bus_dmamap_t map,
+		      bus_dmamap_callback_t *callback, void *callback_arg,
+		      int *flags)
 {
-	int		error, nsegs = -1;
 
 	KASSERT(dmat != NULL, ("dmatag is NULL"));
 	KASSERT(map != NULL, ("dmamap is NULL"));
+	(*flags) |= BUS_DMA_WAITOK;
 	map->callback = callback;
 	map->callback_arg = callback_arg;
-	error = _bus_dmamap_load_buffer(dmat, map, buf, buflen, kernel_pmap,
-	    flags, NULL, &nsegs);
-	if (error == EINPROGRESS)
-		return (error);
+}
+
+void
+_bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
+		     bus_dmamap_callback_t *callback, void *callback_arg,
+		     int nsegs, int error)
+{
+
 	if (error)
-		(*callback)(callback_arg, NULL, 0, error);
+		(*callback)(callback_arg, dmat->segments, 0, error);
 	else
-		(*callback)(callback_arg, dmat->segments, nsegs + 1, error);
-	
-	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
-	    __func__, dmat, dmat->flags, nsegs + 1, error);
-
-	return (error);
+		(*callback)(callback_arg, dmat->segments, nsegs, 0);
 }
 
-/*
- * Like bus_dmamap_load(), but for mbufs.
- */
-int
-bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
-    bus_dmamap_callback2_t *callback, void *callback_arg,
-    int flags)
+void
+_bus_dmamap_complete2(bus_dma_tag_t dmat, bus_dmamap_t map,
+		      bus_dmamap_callback2_t *callback,
+		      void *callback_arg, int nsegs, bus_size_t len, int error)
 {
-	int nsegs = -1, error = 0;
 
-	M_ASSERTPKTHDR(m0);
-
-	if (m0->m_pkthdr.len <= dmat->maxsize) {
-		struct mbuf *m;
-
-		for (m = m0; m != NULL && error == 0; m = m->m_next) {
-			if (m->m_len > 0) {
-				error = _bus_dmamap_load_buffer(dmat,
-				    map, m->m_data, m->m_len, 
-				    kernel_pmap, flags, NULL, &nsegs);
-			}
-		}
-	} else {
-		error = EINVAL;
-	}
-
-	if (error) {
-		/* 
-		 * force "no valid mappings" on error in callback.
-		 */
+	if (error)
 		(*callback)(callback_arg, dmat->segments, 0, 0, error);
-	} else {
-		(*callback)(callback_arg, dmat->segments, nsegs + 1,
-		    m0->m_pkthdr.len, error);
-	}
-	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
-	    __func__, dmat, dmat->flags, error, nsegs + 1);
-
-	return (error);
+	else
+		(*callback)(callback_arg, dmat->segments, nsegs, len, error);
 }
 
-int
-bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
-			struct mbuf *m0, bus_dma_segment_t *segs, int *nsegs,
-			int flags)
+void
+_bus_dmamap_directseg(bus_dma_tag_t dmat, bus_dmamap_t map,
+		      bus_dma_segment_t *segs, int nsegs, int error)
 {
-	int error = 0;
-	M_ASSERTPKTHDR(m0);
-
-	flags |= BUS_DMA_NOWAIT;
-	*nsegs = -1;
-	if (m0->m_pkthdr.len <= dmat->maxsize) {
-		struct mbuf *m;
-
-		for (m = m0; m != NULL && error == 0; m = m->m_next) {
-			if (m->m_len > 0) {
-				error = _bus_dmamap_load_buffer(dmat, map,
-						m->m_data, m->m_len,
-						kernel_pmap, flags,
-						segs, nsegs);
-			}
-		}
-	} else {
-		error = EINVAL;
-	}
-
-	/* XXX FIXME: Having to increment nsegs is really annoying */
-	++*nsegs;
-	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
-	    __func__, dmat, dmat->flags, error, *nsegs);
-	return (error);
-}
-
-/*
- * Like bus_dmamap_load(), but for uios.
- */
-int
-bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
-    bus_dmamap_callback2_t *callback, void *callback_arg,
-    int flags)
-{
-	int nsegs, i, error;
-	bus_size_t resid;
-	struct iovec *iov;
-	struct pmap *pmap;
-
-	resid = uio->uio_resid;
-	iov = uio->uio_iov;
-
-	if (uio->uio_segflg == UIO_USERSPACE) {
-		KASSERT(uio->uio_td != NULL,
-		    ("bus_dmamap_load_uio: USERSPACE but no proc"));
-		/* XXX: pmap = vmspace_pmap(uio->uio_td->td_proc->p_vmspace); */
-		panic("can't do it yet");
-	} else
-		pmap = kernel_pmap;
-
-	error = 0;
-	nsegs = -1;
-	for (i = 0; i < uio->uio_iovcnt && resid != 0 && !error; i++) {
-		/*
-		 * Now at the first iovec to load.  Load each iovec
-		 * until we have exhausted the residual count.
-		 */
-		bus_size_t minlen =
-		    resid < iov[i].iov_len ? resid : iov[i].iov_len;
-		caddr_t addr = (caddr_t) iov[i].iov_base;
-
-		if (minlen > 0) {
-			error = _bus_dmamap_load_buffer(dmat, map, addr,
-			    minlen, pmap, flags, NULL, &nsegs);
-
-			resid -= minlen;
-		}
-	}
-
-	if (error) {
-		/* 
-		 * force "no valid mappings" on error in callback.
-		 */
-		(*callback)(callback_arg, dmat->segments, 0, 0, error);
-	} else {
-		(*callback)(callback_arg, dmat->segments, nsegs+1,
-		    uio->uio_resid, error);
-	}
-
-	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
-	    __func__, dmat, dmat->flags, error, nsegs + 1);
-	return (error);
 }
 
 /*

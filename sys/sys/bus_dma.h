@@ -192,39 +192,6 @@ typedef void bus_dmamap_callback_t(void *, bus_dma_segment_t *, int, int);
 typedef void bus_dmamap_callback2_t(void *, bus_dma_segment_t *, int, bus_size_t, int);
 
 /*
- * XXX sparc64 uses the same interface, but a much different implementation.
- *     <machine/bus_dma.h> for the sparc64 arch contains the equivalent
- *     declarations.
- */
-#if !defined(__sparc64__)
-
-/*
- * Allocate a handle for mapping from kva/uva/physical
- * address space into bus device space.
- */
-int bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp);
-
-/*
- * Destroy a handle for mapping from kva/uva/physical
- * address space into bus device space.
- */
-int bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map);
-
-/*
- * Allocate a piece of memory that can be efficiently mapped into
- * bus device space based on the constraints listed in the dma tag.
- * A dmamap to for use with dmamap_load is also allocated.
- */
-int bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
-		     bus_dmamap_t *mapp);
-
-/*
- * Free a piece of memory and its allocated dmamap, that was allocated
- * via bus_dmamem_alloc.
- */
-void bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map);
-
-/*
  * Map the buffer buf into bus space using the dmamap map.
  */
 int bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
@@ -261,6 +228,39 @@ int bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 			int flags);
 
 /*
+ * XXX sparc64 uses the same interface, but a much different implementation.
+ *     <machine/bus_dma.h> for the sparc64 arch contains the equivalent
+ *     declarations.
+ */
+#if !defined(__sparc64__)
+
+/*
+ * Allocate a handle for mapping from kva/uva/physical
+ * address space into bus device space.
+ */
+int bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp);
+
+/*
+ * Destroy a handle for mapping from kva/uva/physical
+ * address space into bus device space.
+ */
+int bus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map);
+
+/*
+ * Allocate a piece of memory that can be efficiently mapped into
+ * bus device space based on the constraints listed in the dma tag.
+ * A dmamap to for use with dmamap_load is also allocated.
+ */
+int bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
+		     bus_dmamap_t *mapp);
+
+/*
+ * Free a piece of memory and its allocated dmamap, that was allocated
+ * via bus_dmamem_alloc.
+ */
+void bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map);
+
+/*
  * Perform a synchronization operation on the given map.
  */
 void _bus_dmamap_sync(bus_dma_tag_t, bus_dmamap_t, bus_dmasync_op_t);
@@ -280,11 +280,39 @@ void _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map);
 			_bus_dmamap_unload(dmat, dmamap);	\
 	} while (0)
 
-#endif /* __sparc64__ */
+/*
+ * The following functions define the interface between the MD and MI
+ * busdma layers.  These are not intended for consumption by driver
+ * software.
+ */
+void __bus_dmamap_mayblock(bus_dma_tag_t dmat, bus_dmamap_t map,
+    			   bus_dmamap_callback_t *callback, void *callback_arg,
+			   int *flags);
 
+#define	_bus_dmamap_mayblock(dmat, map, callback, callback_arg, flags)	\
+	do {								\
+		if ((map) != NULL)					\
+			__bus_dmamap_mayblock(dmat, map, callback,	\
+			    callback_arg, flags);			\
+	} while (0);
+
+struct pmap;
 int _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map,
-			    void *buf, bus_size_t buflen, pmap_t pmap,
+			    void *buf, bus_size_t buflen, struct pmap *pmap,
 			    int flags, bus_dma_segment_t *segs, int *segp);
 
+void _bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
+			  bus_dmamap_callback_t *callback, void *callback_arg,
+			  int nsegs, int error);
+
+void _bus_dmamap_complete2(bus_dma_tag_t dmat, bus_dmamap_t map,
+			   bus_dmamap_callback2_t *callback2,
+			   void *callback_arg, int nsegs, bus_size_t len,
+			   int error);
+
+void _bus_dmamap_directseg(bus_dma_tag_t dmat, bus_dmamap_t map,
+			   bus_dma_segment_t *segs, int nsegs, int error);
+
+#endif /* __sparc64__ */
 
 #endif /* _BUS_DMA_H_ */

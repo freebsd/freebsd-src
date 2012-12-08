@@ -78,14 +78,19 @@
 struct bus_dma_methods {
 	int	(*dm_dmamap_create)(bus_dma_tag_t, int, bus_dmamap_t *);
 	int	(*dm_dmamap_destroy)(bus_dma_tag_t, bus_dmamap_t);
-	int	(*dm_dmamap_load)(bus_dma_tag_t, bus_dmamap_t, void *,
-	    bus_size_t, bus_dmamap_callback_t *, void *, int);
-	int	(*dm_dmamap_load_mbuf)(bus_dma_tag_t, bus_dmamap_t,
-	    struct mbuf *, bus_dmamap_callback2_t *, void *, int);
-	int	(*dm_dmamap_load_mbuf_sg)(bus_dma_tag_t, bus_dmamap_t,
-	    struct mbuf *, bus_dma_segment_t *segs, int *nsegs, int);
-	int	(*dm_dmamap_load_uio)(bus_dma_tag_t, bus_dmamap_t, struct uio *,
-	    bus_dmamap_callback2_t *, void *, int);
+	int	(*dm_dmamap_load_buffer)(bus_dma_tag_t dmat, bus_dmamap_t map,
+	    void *buf, bus_size_t buflen, struct pmap *pmap, int flags,
+	    bus_dma_segment_t *segs, int *segp);
+	void	(*dm_dmamap_mayblock)(bus_dma_tag_t dmat, bus_dmamap_t map,
+	    bus_dmamap_callback_t *callback, void *callback_arg, int *flags);
+	void	(*dm_dmamap_complete)(bus_dma_tag_t dmat, bus_dmamap_t map,
+	    bus_dmamap_callback_t *callback, void *callback_arg, int nsegs,
+	    int error);
+	void	(*dm_dmamap_complete2)(bus_dma_tag_t dmat, bus_dmamap_t map,
+	    bus_dmamap_callback2_t *callback2, void *callback_arg, int nsegs,
+	    bus_size_t len, int error);
+	void	(*dm_dmamap_directseg)(bus_dma_tag_t dmat, bus_dmamap_t map,
+	    bus_dma_segment_t *segs, int nsegs, int error);
 	void	(*dm_dmamap_unload)(bus_dma_tag_t, bus_dmamap_t);
 	void	(*dm_dmamap_sync)(bus_dma_tag_t, bus_dmamap_t,
 	    bus_dmasync_op_t);
@@ -125,14 +130,17 @@ struct bus_dma_tag {
 	((t)->dt_mt->dm_dmamap_create((t), (f), (p)))
 #define	bus_dmamap_destroy(t, p)					\
 	((t)->dt_mt->dm_dmamap_destroy((t), (p)))
-#define	bus_dmamap_load(t, m, p, s, cb, cba, f)				\
-	((t)->dt_mt->dm_dmamap_load((t), (m), (p), (s), (cb), (cba), (f)))
-#define	bus_dmamap_load_mbuf(t, m, mb, cb, cba, f)			\
-	((t)->dt_mt->dm_dmamap_load_mbuf((t), (m), (mb), (cb), (cba), (f)))
-#define	bus_dmamap_load_mbuf_sg(t, m, mb, segs, nsegs, f)		\
-	((t)->dt_mt->dm_dmamap_load_mbuf_sg((t), (m), (mb), (segs), (nsegs), (f)))
-#define	bus_dmamap_load_uio(t, m, ui, cb, cba, f)			\
-	((t)->dt_mt->dm_dmamap_load_uio((t), (m), (ui), (cb), (cba), (f)))
+#define	_bus_dmamap_load_buffer(t, m, b, l, p, f, s, sp)		\
+	((t)->dt_mt->dm_dmamap_load_buffer((t), (m), (b), (l), (p),	\
+	    (f), (s), (sp)))
+#define	_bus_dmamap_mayblock(t, m, c, ca, f)				\
+	((t)->dt_mt->dm_dmamap_mayblock((t), (m), (c), (ca), (f)))
+#define	_bus_dmamap_complete(t, m, c, ca, n, e)				\
+	((t)->dt_mt->dm_dmamap_complete((t), (m), (c), (ca), (n), (e)))
+#define	_bus_dmamap_complete2(t, m, c, ca, n, l, e)			\
+	((t)->dt_mt->dm_dmamap_complete2((t), (m), (c), (ca), (n), (l), (e)))
+#define	_bus_dmamap_directseg(t, m, s, n, e)				\
+	((t)->dt_mt->dm_dmamap_directseg((t), (m), (s), (n), (e)))
 #define	bus_dmamap_unload(t, p)						\
 	((t)->dt_mt->dm_dmamap_unload((t), (p)))
 #define	bus_dmamap_sync(t, m, op)					\

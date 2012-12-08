@@ -2,6 +2,9 @@
  * Copyright (c) 2012 EMC Corp.
  * All rights reserved.
  *
+ * Copyright (c) 1997, 1998 Justin T. Gibbs.
+ * All rights reserved.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -35,12 +38,161 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/bus.h>
 #include <sys/callout.h>
+#include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/uio.h>
+
+#include <vm/vm.h>
+#include <vm/vm_page.h>
+#include <vm/vm_map.h>
+#include <vm/pmap.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 
 #include <machine/bus.h>
+
+/*
+ * Map the buffer buf into bus space using the dmamap map.
+ */
+int
+bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
+    bus_size_t buflen, bus_dmamap_callback_t *callback,
+    void *callback_arg, int flags)
+{
+	int error;
+	int nsegs;
+
+	_bus_dmamap_mayblock(dmat, map, callback, callback_arg, &flags);
+
+	nsegs = -1;
+	error = _bus_dmamap_load_buffer(dmat, map, buf, buflen, kernel_pmap,
+	    flags, NULL, &nsegs);
+	nsegs++;
+
+	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
+	    __func__, dmat, flags, error, nsegs + 1);
+
+	if (error == EINPROGRESS)
+		return (error);
+
+	_bus_dmamap_complete(dmat, map, callback, callback_arg, nsegs, error);
+
+	/*
+	 * Return ENOMEM to the caller so that it can pass it up the stack.
+	 * This error only happens when NOWAIT is set, so deferal is disabled.
+	 */
+	if (error == ENOMEM)
+		return (error);
+
+	return (0);
+}
+
+/*
+ * Like _bus_dmamap_load(), but for mbufs.
+ */
+static __inline int
+_bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map,
+    struct mbuf *m0, bus_dma_segment_t *segs, int *nsegs, int flags)
+{
+	struct mbuf *m;
+	int error;
+
+	M_ASSERTPKTHDR(m0);
+
+	flags |= BUS_DMA_NOWAIT;
+	*nsegs = -1;
+	error = 0;
+
+	for (m = m0; m != NULL && error == 0; m = m->m_next) {
+		if (m->m_len > 0) {
+			error = _bus_dmamap_load_buffer(dmat, map, m->m_data,
+			    m->m_len, kernel_pmap, flags, segs, nsegs);
+		}
+	}
+
+	++*nsegs;
+	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
+	    __func__, dmat, flags, error, *nsegs);
+	return (error);
+}
+
+int
+bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
+    bus_dmamap_callback2_t *callback, void *callback_arg, int flags)
+{
+	int nsegs, error;
+
+	error = _bus_dmamap_load_mbuf_sg(dmat, map, m0, NULL, &nsegs, flags);
+
+	_bus_dmamap_complete2(dmat, map, callback, callback_arg, nsegs,
+	    m0->m_pkthdr.len, error);
+
+	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
+	    __func__, dmat, flags, error, nsegs);
+	return (error);
+}
+
+int
+bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
+    bus_dma_segment_t *segs, int *nsegs, int flags)
+{
+	int error;
+
+	error = _bus_dmamap_load_mbuf_sg(dmat, map, m0, segs, nsegs, flags);
+	_bus_dmamap_directseg(dmat, map, segs, *nsegs, error);
+	return (error);
+}
+
+/*
+ * Like _bus_dmamap_load(), but for uios.
+ */
+int
+bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
+    bus_dmamap_callback2_t *callback, void *callback_arg, int flags)
+{
+	int nsegs, error, i;
+	bus_size_t resid;
+	bus_size_t minlen;
+	struct iovec *iov;
+	caddr_t addr;
+	pmap_t pmap;
+
+	flags |= BUS_DMA_NOWAIT;
+	resid = uio->uio_resid;
+	iov = uio->uio_iov;
+
+	if (uio->uio_segflg == UIO_USERSPACE) {
+		KASSERT(uio->uio_td != NULL,
+			("bus_dmamap_load_uio: USERSPACE but no proc"));
+		pmap = vmspace_pmap(uio->uio_td->td_proc->p_vmspace);
+	} else
+		pmap = kernel_pmap;
+
+	nsegs = -1;
+	error = 0;
+	for (i = 0; i < uio->uio_iovcnt && resid != 0 && !error; i++) {
+		/*
+		 * Now at the first iovec to load.  Load each iovec
+		 * until we have exhausted the residual count.
+		 */
+
+		addr = (caddr_t) iov[i].iov_base;
+		minlen = resid < iov[i].iov_len ? resid : iov[i].iov_len;
+		if (minlen > 0) {
+			error = _bus_dmamap_load_buffer(dmat, map, addr,
+			    minlen, pmap, flags, NULL, &nsegs);
+			resid -= minlen;
+		}
+	}
+
+	_bus_dmamap_complete2(dmat, map, callback, callback_arg, nsegs,
+	    uio->uio_resid, error);
+
+	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
+	    __func__, dmat, dmat, error, nsegs + 1);
+	return (error);
+}
 
 int
 bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
@@ -96,22 +248,26 @@ bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 		break;
 	}
 	case CAM_DATA_SG: {
-#if 0
-		struct uio sguio;
-		KASSERT((sizeof (sguio.uio_iov) == sizeof (data_ptr) &&
-		    sizeof (sguio.uio_iovcnt) >= sizeof (sglist_cnt) &&
-		    sizeof (sguio.uio_resid) >= sizeof (dxfer_len)),
-		    ("uio won't fit csio data"));
-		sguio.uio_iov = (struct iovec *)data_ptr;
-		sguio.uio_iovcnt = csio->sglist_cnt;
-		sguio.uio_resid = csio->dxfer_len;
-		sguio.uio_segflg = UIO_SYSSPACE;
-		return bus_dmamap_load_uio(dmat, map, &sguio, callback,
-		    callback_arg, 0);
-#else
-		panic("bus_dmamap_load_ccb: flags 0x%X unimplemented",
-		    ccb_h->flags);
-#endif
+		struct bus_dma_segment *segs;
+		int nsegs;
+		int error;
+		int i;
+
+		flags |= BUS_DMA_NOWAIT;
+		segs = (struct bus_dma_segment *)data_ptr;
+		nsegs = -1;
+		error = 0;
+		for (i = 0; i < csio->sglist_cnt && error == 0; i++) {
+			error = _bus_dmamap_load_buffer(dmat, map,
+			    (void *)segs[i].ds_addr, segs[i].ds_len,
+			    kernel_pmap, flags, NULL, &nsegs);
+		}
+		nsegs++;
+		_bus_dmamap_complete(dmat, map, callback, callback_arg, nsegs,
+		    error);
+		if (error == ENOMEM)
+			return (error);
+		break;
 	}
 	case CAM_DATA_SG_PADDR: {
 		struct bus_dma_segment *segs;

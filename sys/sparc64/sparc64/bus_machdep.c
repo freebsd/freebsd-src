@@ -98,13 +98,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
-#include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/rman.h>
 #include <sys/smp.h>
 #include <sys/systm.h>
-#include <sys/uio.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -330,7 +328,7 @@ nexus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
  * the starting segment on entrace, and the ending segment on exit.
  */
 static int
-_nexus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
+nexus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
     bus_size_t buflen, pmap_t pmap, int flags, bus_dma_segment_t *segs,
     int *segp)
 {
@@ -405,149 +403,44 @@ _nexus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	return (buflen != 0 ? EFBIG : 0); /* XXX better return value here? */
 }
 
-/*
- * Common function for loading a DMA map with a linear buffer.  May
- * be called by bus-specific DMA map load functions.
- *
- * Most SPARCs have IOMMUs in the bus controllers.  In those cases
- * they only need one segment and will use virtual addresses for DVMA.
- * Those bus controllers should intercept these vectors and should
- * *NEVER* call nexus_dmamap_load() which is used only by devices that
- * bypass DVMA.
- */
-static int
-nexus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
-    bus_size_t buflen, bus_dmamap_callback_t *callback, void *callback_arg,
-    int flags)
+static void
+nexus_dmamap_mayblock(bus_dma_tag_t dmat, bus_dmamap_t map,
+    bus_dmamap_callback_t *callback, void *callback_arg, int *flags)
 {
-	int error, nsegs;
 
-	nsegs = -1;
-	error = _nexus_dmamap_load_buffer(dmat, map, buf, buflen, kernel_pmap,
-	    flags, NULL, &nsegs);
-
-	if (error == 0) {
-		(*callback)(callback_arg, dmat->dt_segments, nsegs + 1, 0);
-		map->dm_flags |= DMF_LOADED;
-	} else
-		(*callback)(callback_arg, NULL, 0, error);
-
-	return (0);
 }
 
-/*
- * Like nexus_dmamap_load(), but for mbufs.
- */
-static int
-nexus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
-    bus_dmamap_callback2_t *callback, void *callback_arg, int flags)
+void
+nexus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
+    bus_dmamap_callback_t *callback, void *callback_arg, int nsegs, int error)
 {
-	int nsegs, error;
-
-	M_ASSERTPKTHDR(m0);
-
-	nsegs = -1;
-	error = 0;
-	if (m0->m_pkthdr.len <= dmat->dt_maxsize) {
-		struct mbuf *m;
-
-		for (m = m0; m != NULL && error == 0; m = m->m_next) {
-			if (m->m_len > 0) {
-				error = _nexus_dmamap_load_buffer(dmat, map,
-				    m->m_data, m->m_len, kernel_pmap, flags,
-				    NULL, &nsegs);
-			}
-		}
-	} else {
-		error = EINVAL;
-	}
 
 	if (error) {
-		/* force "no valid mappings" in callback */
+		(*callback)(callback_arg, dmat->dt_segments, 0, error);
+	} else {
+		map->dm_flags |= DMF_LOADED;
+		(*callback)(callback_arg, dmat->dt_segments, nsegs, 0);
+	}
+}
+
+static void
+nexus_dmamap_complete2(bus_dma_tag_t dmat, bus_dmamap_t map,
+    bus_dmamap_callback2_t *callback, void *callback_arg, int nsegs,
+    bus_size_t len, int error)
+{
+
+	if (error) {
 		(*callback)(callback_arg, dmat->dt_segments, 0, 0, error);
 	} else {
 		map->dm_flags |= DMF_LOADED;
-		(*callback)(callback_arg, dmat->dt_segments, nsegs + 1,
-		    m0->m_pkthdr.len, error);
+		(*callback)(callback_arg, dmat->dt_segments, nsegs, len, error);
 	}
-	return (error);
 }
 
-static int
-nexus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
-    bus_dma_segment_t *segs, int *nsegs, int flags)
+static void
+nexus_dmamap_directseg(bus_dma_tag_t dmat, bus_dmamap_t map,
+    bus_dma_segment_t *segs, int nsegs, int error)
 {
-	int error;
-
-	M_ASSERTPKTHDR(m0);
-
-	*nsegs = -1;
-	error = 0;
-	if (m0->m_pkthdr.len <= dmat->dt_maxsize) {
-		struct mbuf *m;
-
-		for (m = m0; m != NULL && error == 0; m = m->m_next) {
-			if (m->m_len > 0) {
-				error = _nexus_dmamap_load_buffer(dmat, map,
-				    m->m_data, m->m_len, kernel_pmap, flags,
-				    segs, nsegs);
-			}
-		}
-	} else {
-		error = EINVAL;
-	}
-
-	++*nsegs;
-	return (error);
-}
-
-/*
- * Like nexus_dmamap_load(), but for uios.
- */
-static int
-nexus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
-    bus_dmamap_callback2_t *callback, void *callback_arg, int flags)
-{
-	int nsegs, error, i;
-	bus_size_t resid;
-	struct iovec *iov;
-	pmap_t pmap;
-
-	resid = uio->uio_resid;
-	iov = uio->uio_iov;
-
-	if (uio->uio_segflg == UIO_USERSPACE) {
-		pmap = vmspace_pmap(uio->uio_td->td_proc->p_vmspace);
-	} else
-		pmap = kernel_pmap;
-
-	nsegs = -1;
-	error = 0;
-	for (i = 0; i < uio->uio_iovcnt && resid != 0 && !error; i++) {
-		/*
-		 * Now at the first iovec to load.  Load each iovec
-		 * until we have exhausted the residual count.
-		 */
-		bus_size_t minlen =
-			resid < iov[i].iov_len ? resid : iov[i].iov_len;
-		caddr_t addr = (caddr_t) iov[i].iov_base;
-
-		if (minlen > 0) {
-			error = _nexus_dmamap_load_buffer(dmat, map, addr,
-			    minlen, pmap, flags, NULL, &nsegs);
-			resid -= minlen;
-		}
-	}
-
-	if (error) {
-		/* force "no valid mappings" in callback */
-		(*callback)(callback_arg, dmat->dt_segments, 0, 0, error);
-	} else {
-		map->dm_flags |= DMF_LOADED;
-		(*callback)(callback_arg, dmat->dt_segments, nsegs + 1,
-		    uio->uio_resid, error);
-	}
-	return (error);
 }
 
 /*
@@ -650,10 +543,11 @@ nexus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 static struct bus_dma_methods nexus_dma_methods = {
 	nexus_dmamap_create,
 	nexus_dmamap_destroy,
-	nexus_dmamap_load,
-	nexus_dmamap_load_mbuf,
-	nexus_dmamap_load_mbuf_sg,
-	nexus_dmamap_load_uio,
+	nexus_dmamap_load_buffer,
+	nexus_dmamap_mayblock,
+	nexus_dmamap_complete,
+	nexus_dmamap_complete2,
+	nexus_dmamap_directseg,
 	nexus_dmamap_unload,
 	nexus_dmamap_sync,
 	nexus_dmamem_alloc,
