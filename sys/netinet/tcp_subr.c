@@ -367,6 +367,7 @@ tcp_init(void)
 	V_tcpcb_zone = uma_zcreate("tcpcb", sizeof(struct tcpcb_mem),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(V_tcpcb_zone, maxsockets);
+	uma_zone_set_warning(V_tcpcb_zone, "kern.ipc.maxsockets limit reached");
 
 	tcp_tw_init();
 	syncache_init();
