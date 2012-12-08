@@ -10733,45 +10733,50 @@ sctp_send_abort_tcb(struct sctp_tcb *stcb, struct mbuf *operr, int so_locked
 #endif
 )
 {
-	struct mbuf *m_abort;
-	struct mbuf *m_out = NULL, *m_end = NULL;
-	struct sctp_abort_chunk *abort = NULL;
-	int sz;
-	uint32_t auth_offset = 0;
+	struct mbuf *m_abort, *m, *m_last;
+	struct mbuf *m_out, *m_end = NULL;
+	struct sctp_abort_chunk *abort;
 	struct sctp_auth_chunk *auth = NULL;
 	struct sctp_nets *net;
+	uint32_t auth_offset = 0;
+	uint16_t cause_len, chunk_len, padding_len;
 
+	SCTP_TCB_LOCK_ASSERT(stcb);
 	/*-
 	 * Add an AUTH chunk, if chunk requires it and save the offset into
 	 * the chain for AUTH
 	 */
 	if (sctp_auth_is_required_chunk(SCTP_ABORT_ASSOCIATION,
 	    stcb->asoc.peer_auth_chunks)) {
-		m_out = sctp_add_auth_chunk(m_out, &m_end, &auth, &auth_offset,
+		m_out = sctp_add_auth_chunk(NULL, &m_end, &auth, &auth_offset,
 		    stcb, SCTP_ABORT_ASSOCIATION);
 		SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
+	} else {
+		m_out = NULL;
 	}
-	SCTP_TCB_LOCK_ASSERT(stcb);
 	m_abort = sctp_get_mbuf_for_msg(sizeof(struct sctp_abort_chunk), 0, M_NOWAIT, 1, MT_HEADER);
 	if (m_abort == NULL) {
-		/* no mbuf's */
-		if (m_out)
+		if (m_out) {
 			sctp_m_freem(m_out);
+		}
+		if (operr) {
+			sctp_m_freem(operr);
+		}
 		return;
 	}
 	/* link in any error */
 	SCTP_BUF_NEXT(m_abort) = operr;
-	sz = 0;
-	if (operr) {
-		struct mbuf *n;
-
-		n = operr;
-		while (n) {
-			sz += SCTP_BUF_LEN(n);
-			n = SCTP_BUF_NEXT(n);
+	cause_len = 0;
+	m_last = NULL;
+	for (m = operr; m; m = SCTP_BUF_NEXT(m)) {
+		cause_len += (uint16_t) SCTP_BUF_LEN(m);
+		if (SCTP_BUF_NEXT(m) == NULL) {
+			m_last = m;
 		}
 	}
-	SCTP_BUF_LEN(m_abort) = sizeof(*abort);
+	SCTP_BUF_LEN(m_abort) = sizeof(struct sctp_abort_chunk);
+	chunk_len = (uint16_t) sizeof(struct sctp_abort_chunk) + cause_len;
+	padding_len = SCTP_SIZE32(chunk_len) - chunk_len;
 	if (m_out == NULL) {
 		/* NO Auth chunk prepended, so reserve space in front */
 		SCTP_BUF_RESV_UF(m_abort, SCTP_MIN_OVERHEAD);
@@ -10785,12 +10790,18 @@ sctp_send_abort_tcb(struct sctp_tcb *stcb, struct mbuf *operr, int so_locked
 	} else {
 		net = stcb->asoc.primary_destination;
 	}
-	/* fill in the ABORT chunk */
+	/* Fill in the ABORT chunk header. */
 	abort = mtod(m_abort, struct sctp_abort_chunk *);
 	abort->ch.chunk_type = SCTP_ABORT_ASSOCIATION;
 	abort->ch.chunk_flags = 0;
-	abort->ch.chunk_length = htons(sizeof(*abort) + sz);
-
+	abort->ch.chunk_length = htons(chunk_len);
+	/* Add padding, if necessary. */
+	if (padding_len > 0) {
+		if ((m_last == NULL) || sctp_add_pad_tombuf(m_last, padding_len)) {
+			sctp_m_freem(m_out);
+			return;
+		}
+	}
 	(void)sctp_lowlevel_chunk_output(stcb->sctp_ep, stcb, net,
 	    (struct sockaddr *)&net->ro._l_addr,
 	    m_out, auth_offset, auth, stcb->asoc.authinfo.active_keyid, 1, 0, 0,
