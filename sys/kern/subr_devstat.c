@@ -87,7 +87,11 @@ uint32_t	dtio_wait_done_id;
 
 #define DTRACE_DEVSTAT_START()
 
+#define DTRACE_DEVSTAT_BIO_START()
+
 #define DTRACE_DEVSTAT_DONE()
+
+#define DTRACE_DEVSTAT_BIO_DONE()
 
 #define DTRACE_DEVSTAT_WAIT_START()
 
