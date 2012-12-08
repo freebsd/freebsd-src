@@ -784,7 +784,7 @@ ieee80211_ff_node_cleanup(struct ieee80211_node *ni)
 	struct ieee80211com *ic = ni->ni_ic;
 	struct ieee80211_superg *sg = ic->ic_superg;
 	struct ieee80211_tx_ampdu *tap;
-	struct mbuf *m, *head;
+	struct mbuf *m, *next_m, *head;
 	int tid;
 
 	IEEE80211_LOCK(ic);
@@ -803,9 +803,16 @@ ieee80211_ff_node_cleanup(struct ieee80211_node *ni)
 	}
 	IEEE80211_UNLOCK(ic);
 
-	for (m = head; m != NULL; m = m->m_nextpkt) {
+	/*
+	 * Free mbufs, taking care to not dereference the mbuf after
+	 * we free it (hence grabbing m_nextpkt before we free it.)
+	 */
+	m = head;
+	while (m != NULL) {
+		next_m = m->m_nextpkt;
 		m_freem(m);
 		ieee80211_free_node(ni);
+		m = next_m;
 	}
 }
 
