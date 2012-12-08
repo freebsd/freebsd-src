@@ -265,11 +265,7 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 			break;
 		}
 		if ((ccbh->flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-			if (ccbh->flags & CAM_DATA_PHYS) {
-				ccbh->status = CAM_REQ_INVALID;
-				break;
-			}
-			if (ccbh->flags & CAM_SCATTER_VALID) {
+			if ((ccbh->flags & CAM_DATA_MASK) != CAM_DATA_VADDR) {
 				ccbh->status = CAM_REQ_INVALID;
 				break;
 			}

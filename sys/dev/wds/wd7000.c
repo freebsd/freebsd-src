@@ -1066,7 +1066,7 @@ wds_scsi_io(struct cam_sim * sim, struct ccb_scsiio * csio)
 		xpt_done((union ccb *) csio);
 		return;
 	}
-	if (ccb_h->flags & (CAM_CDB_PHYS | CAM_SCATTER_VALID | CAM_DATA_PHYS)) {
+	if ((ccb_h->flags & CAM_DATA_MASK) != CAM_DATA_VADDR) {
 		/* don't support these */
 		ccb_h->status = CAM_REQ_INVALID;
 		xpt_done((union ccb *) csio);
