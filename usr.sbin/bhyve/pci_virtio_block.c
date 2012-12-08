@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/uio.h>
 #include <sys/ioctl.h>
+#include <sys/disk.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -331,7 +332,9 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 {
 	struct stat sbuf;
 	struct pci_vtblk_softc *sc;
+	off_t size;	
 	int fd;
+	int sectsz;
 
 	if (opts == NULL) {
 		printf("virtio-block: backing device required\n");
@@ -359,7 +362,23 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 		close(fd);
 		return (1);
 	}
-	
+
+	/*
+	 * Deal with raw devices
+	 */
+	size = sbuf.st_size;
+	sectsz = DEV_BSIZE;
+	if (S_ISCHR(sbuf.st_mode)) {
+		if (ioctl(fd, DIOCGMEDIASIZE, &size) < 0 ||
+		    ioctl(fd, DIOCGSECTORSIZE, &sectsz)) {
+			perror("Could not fetch dev blk/sector size");
+			close(fd);
+			return (1);
+		}
+		assert(size != 0);
+		assert(sectsz != 0);
+	}
+
 	sc = malloc(sizeof(struct pci_vtblk_softc));
 	memset(sc, 0, sizeof(struct pci_vtblk_softc));
 
@@ -368,9 +387,9 @@ pci_vtblk_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 	sc->vbsc_fd = fd;
 
 	/* setup virtio block config space */
-	sc->vbsc_cfg.vbc_capacity = sbuf.st_size / DEV_BSIZE;
+	sc->vbsc_cfg.vbc_capacity = size / sectsz;
 	sc->vbsc_cfg.vbc_seg_max = VTBLK_MAXSEGS;
-	sc->vbsc_cfg.vbc_blk_size = DEV_BSIZE;
+	sc->vbsc_cfg.vbc_blk_size = sectsz;
 	sc->vbsc_cfg.vbc_size_max = 0;	/* not negotiated */
 	sc->vbsc_cfg.vbc_geom_c = 0;	/* no geometry */
 	sc->vbsc_cfg.vbc_geom_h = 0;
