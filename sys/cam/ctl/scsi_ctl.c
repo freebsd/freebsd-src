@@ -1822,8 +1822,6 @@ ctlfe_onoffline(void *arg, int online)
 
 	xpt_action(ccb);
 
-	CAM_SIM_UNLOCK(sim);
-
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 		printf("%s: SIM %s (path id %d) target %s failed with "
 		       "status %#x\n",
@@ -1836,8 +1834,11 @@ ctlfe_onoffline(void *arg, int online)
 		       (online != 0) ? "enable" : "disable");
 	}
 
-	free(ccb, M_TEMP);
 	xpt_free_path(path);
+
+	CAM_SIM_UNLOCK(sim);
+
+	free(ccb, M_TEMP);
 
 	return;
 }
@@ -1920,9 +1921,9 @@ ctlfe_lun_enable(void *arg, struct ctl_id targ_id, int lun_id)
 				  0,
 				  softc);
 
-	mtx_unlock(sim->mtx);
-
 	xpt_free_path(path);
+
+	mtx_unlock(sim->mtx);
 
 	return (0);
 }
