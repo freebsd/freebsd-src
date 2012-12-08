@@ -641,6 +641,115 @@ static driver_t uaudio_driver = {
 	.size = sizeof(struct uaudio_softc),
 };
 
+/* The following table is derived from Linux's quirks-table.h */ 
+static const STRUCT_USB_HOST_ID uaudio_vendor_midi[] = {
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1000, 0) }, /* UX256 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1001, 0) }, /* MU1000 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1002, 0) }, /* MU2000 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1003, 0) }, /* MU500 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1004, 3) }, /* UW500 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1005, 0) }, /* MOTIF6 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1006, 0) }, /* MOTIF7 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1007, 0) }, /* MOTIF8 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1008, 0) }, /* UX96 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1009, 0) }, /* UX16 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x100a, 3) }, /* EOS BX */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x100c, 0) }, /* UC-MX */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x100d, 0) }, /* UC-KX */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x100e, 0) }, /* S08 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x100f, 0) }, /* CLP-150 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1010, 0) }, /* CLP-170 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1011, 0) }, /* P-250 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1012, 0) }, /* TYROS */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1013, 0) }, /* PF-500 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1014, 0) }, /* S90 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1015, 0) }, /* MOTIF-R */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1016, 0) }, /* MDP-5 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1017, 0) }, /* CVP-204 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1018, 0) }, /* CVP-206 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1019, 0) }, /* CVP-208 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x101a, 0) }, /* CVP-210 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x101b, 0) }, /* PSR-1100 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x101c, 0) }, /* PSR-2100 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x101d, 0) }, /* CLP-175 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x101e, 0) }, /* PSR-K1 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x101f, 0) }, /* EZ-J24 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1020, 0) }, /* EZ-250i */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1021, 0) }, /* MOTIF ES 6 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1022, 0) }, /* MOTIF ES 7 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1023, 0) }, /* MOTIF ES 8 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1024, 0) }, /* CVP-301 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1025, 0) }, /* CVP-303 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1026, 0) }, /* CVP-305 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1027, 0) }, /* CVP-307 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1028, 0) }, /* CVP-309 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1029, 0) }, /* CVP-309GP */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x102a, 0) }, /* PSR-1500 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x102b, 0) }, /* PSR-3000 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x102e, 0) }, /* ELS-01/01C */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1030, 0) }, /* PSR-295/293 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1031, 0) }, /* DGX-205/203 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1032, 0) }, /* DGX-305 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1033, 0) }, /* DGX-505 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1034, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1035, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1036, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1037, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1038, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1039, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x103a, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x103b, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x103c, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x103d, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x103e, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x103f, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1040, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1041, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1042, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1043, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1044, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1045, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x104e, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x104f, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1050, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1051, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1052, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1053, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1054, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1055, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1056, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1057, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1058, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1059, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x105a, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x105b, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x105c, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x105d, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1503, 3) }, /* MOX6/MOX8 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x2000, 0) }, /* DGP-7 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x2001, 0) }, /* DGP-5 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x2002, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x2003, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5000, 0) }, /* CS1D */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5001, 0) }, /* DSP1D */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5002, 0) }, /* DME32 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5003, 0) }, /* DM2000 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5004, 0) }, /* 02R96 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5005, 0) }, /* ACU16-C */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5006, 0) }, /* NHB32-C */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5007, 0) }, /* DM1000 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5008, 0) }, /* 01V96 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5009, 0) }, /* SPX2000 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x500a, 0) }, /* PM5D */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x500b, 0) }, /* DME64N */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x500c, 0) }, /* DME24N */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x500d, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x500e, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x500f, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x7000, 0) }, /* DTX */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x7010, 0) }, /* UB99 */
+};
+
 static const STRUCT_USB_HOST_ID __used uaudio_devs[] = {
 	/* Generic USB audio class match */
 	{USB_IFACE_CLASS(UICLASS_AUDIO),
@@ -658,7 +767,12 @@ uaudio_probe(device_t dev)
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 
-	/* lookup non-standard device */
+	/* lookup non-standard device(s) */
+
+	if (usbd_lookup_id_by_uaa(uaudio_vendor_midi,
+	    sizeof(uaudio_vendor_midi), uaa) == 0) {
+		return (BUS_PROBE_SPECIFIC);
+	}
 
 	if (uaa->info.bInterfaceClass != UICLASS_AUDIO) {
 		if (uaa->info.bInterfaceClass != UICLASS_VENDOR ||
@@ -761,6 +875,16 @@ uaudio_attach(device_t dev)
 		    sc->sc_rec_chan.p_fmt->description);
 	} else {
 		device_printf(dev, "No recording.\n");
+	}
+
+	if (sc->sc_midi_chan.valid == 0) {
+		if (usbd_lookup_id_by_uaa(uaudio_vendor_midi,
+		    sizeof(uaudio_vendor_midi), uaa) == 0) {
+			sc->sc_midi_chan.iface_index =
+			    (uint8_t)uaa->driver_info;
+			sc->sc_midi_chan.iface_alt_index = 0;
+			sc->sc_midi_chan.valid = 1;
+		}
 	}
 
 	if (sc->sc_midi_chan.valid) {
