@@ -1743,6 +1743,12 @@ void nfscl_retopts(struct nfsmount *nmp, char *buffer, size_t buflen)
 	blen = buflen;
 	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_NFSV4) != 0, "nfsv4", &buf,
 	    &blen);
+	if ((nmp->nm_flag & NFSMNT_NFSV4) != 0) {
+		nfscl_printoptval(nmp, nmp->nm_minorvers, ",minorversion", &buf,
+		    &blen);
+		nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_PNFS) != 0, ",pnfs",
+		    &buf, &blen);
+	}
 	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_NFSV3) != 0, "nfsv3", &buf,
 	    &blen);
 	nfscl_printopt(nmp, (nmp->nm_flag & (NFSMNT_NFSV3 | NFSMNT_NFSV4)) == 0,
