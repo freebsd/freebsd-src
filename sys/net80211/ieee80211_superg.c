@@ -547,6 +547,14 @@ ff_flush(struct mbuf *head, struct mbuf *last)
 
 /*
  * Age frames on the staging queue.
+ *
+ * This is called without the comlock held, but it does all its work
+ * behind the comlock.  Because of this, it's possible that the
+ * staging queue will be serviced between the function which called
+ * it and now; thus simply checking that the queue has work in it
+ * may fail.
+ *
+ * See PR kern/174283 for more details.
  */
 void
 ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq,
@@ -557,7 +565,9 @@ ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq,
 	struct ieee80211_node *ni;
 	struct ieee80211_tx_ampdu *tap;
 
+#if 0
 	KASSERT(sq->head != NULL, ("stageq empty"));
+#endif
 
 	IEEE80211_LOCK(ic);
 	head = sq->head;
