@@ -560,7 +560,6 @@ void
 ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq,
     int quanta)
 {
-	struct ieee80211_superg *sg = ic->ic_superg;
 	struct mbuf *m, *head;
 	struct ieee80211_node *ni;
 	struct ieee80211_tx_ampdu *tap;
@@ -582,7 +581,6 @@ ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq,
 
 		sq->head = m->m_nextpkt;
 		sq->depth--;
-		sg->ff_stageqdepth--;
 	}
 	if (m == NULL)
 		sq->tail = NULL;
@@ -594,9 +592,12 @@ ieee80211_ff_age(struct ieee80211com *ic, struct ieee80211_stageq *sq,
 }
 
 static void
-stageq_add(struct ieee80211_stageq *sq, struct mbuf *m)
+stageq_add(struct ieee80211com *ic, struct ieee80211_stageq *sq, struct mbuf *m)
 {
 	int age = ieee80211_ffagemax;
+
+	IEEE80211_LOCK_ASSERT(ic);
+
 	if (sq->tail != NULL) {
 		sq->tail->m_nextpkt = m;
 		age -= M_AGE_GET(sq->head);
@@ -610,9 +611,11 @@ stageq_add(struct ieee80211_stageq *sq, struct mbuf *m)
 }
 
 static void
-stageq_remove(struct ieee80211_stageq *sq, struct mbuf *mstaged)
+stageq_remove(struct ieee80211com *ic, struct ieee80211_stageq *sq, struct mbuf *mstaged)
 {
 	struct mbuf *m, *mprev;
+
+	IEEE80211_LOCK_ASSERT(ic);
 
 	mprev = NULL;
 	for (m = sq->head; m != NULL; m = m->m_nextpkt) {
@@ -725,7 +728,7 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 
 		tap->txa_private = NULL;
 		if (mstaged != NULL)
-			stageq_remove(sq, mstaged);
+			stageq_remove(ic, sq, mstaged);
 		IEEE80211_UNLOCK(ic);
 
 		if (mstaged != NULL) {
@@ -745,7 +748,7 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 	 */
 	if (mstaged != NULL) {
 		tap->txa_private = NULL;
-		stageq_remove(sq, mstaged);
+		stageq_remove(ic, sq, mstaged);
 		IEEE80211_UNLOCK(ic);
 
 		IEEE80211_NOTE(vap, IEEE80211_MSG_SUPERG, ni,
@@ -766,8 +769,7 @@ ieee80211_ff_check(struct ieee80211_node *ni, struct mbuf *m)
 		    ("txa_private %p", tap->txa_private));
 		tap->txa_private = m;
 
-		stageq_add(sq, m);
-		sg->ff_stageqdepth++;
+		stageq_add(ic, sq, m);
 		IEEE80211_UNLOCK(ic);
 
 		IEEE80211_NOTE(vap, IEEE80211_MSG_SUPERG, ni,
@@ -806,7 +808,7 @@ ieee80211_ff_node_cleanup(struct ieee80211_node *ni)
 		m = tap->txa_private;
 		if (m != NULL) {
 			tap->txa_private = NULL;
-			stageq_remove(&sg->ff_stageq[ac], m);
+			stageq_remove(ic, &sg->ff_stageq[ac], m);
 			m->m_nextpkt = head;
 			head = m;
 		}
