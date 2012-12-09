@@ -183,7 +183,7 @@ stat_bps(struct xferstat *xs)
 	if (delta == 0.0) {
 		snprintf(str, sizeof str, "?? Bps");
 	} else {
-		bps = (xs->rcvd - xs->lastrcvd - xs->offset) / delta;
+		bps = (xs->rcvd - xs->lastrcvd) / delta;
 		snprintf(str, sizeof str, "%sps", stat_bytes((off_t)bps));
 	}
 	return (str);
