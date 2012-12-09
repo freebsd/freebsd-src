@@ -2324,8 +2324,8 @@ done:
 				 */
 				vm_fault_unwire(map, entry->start, entry->end,
 				    entry->object.vm_object != NULL &&
-				    (entry->object.vm_object->type == OBJT_DEVICE ||
-				    entry->object.vm_object->type == OBJT_SG));
+				    (entry->object.vm_object->flags &
+				    OBJ_FICTITIOUS) != 0);
 			}
 		}
 		KASSERT(entry->eflags & MAP_ENTRY_IN_TRANSITION,
@@ -2445,8 +2445,8 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 			saved_start = entry->start;
 			saved_end = entry->end;
 			fictitious = entry->object.vm_object != NULL &&
-			    (entry->object.vm_object->type == OBJT_DEVICE ||
-			    entry->object.vm_object->type == OBJT_SG);
+			    (entry->object.vm_object->flags &
+			    OBJ_FICTITIOUS) != 0;
 			/*
 			 * Release the map lock, relying on the in-transition
 			 * mark.  Mark the map busy for fork.
@@ -2544,8 +2544,8 @@ done:
 				 */
 				vm_fault_unwire(map, entry->start, entry->end,
 				    entry->object.vm_object != NULL &&
-				    (entry->object.vm_object->type == OBJT_DEVICE ||
-				    entry->object.vm_object->type == OBJT_SG));
+				    (entry->object.vm_object->flags &
+				    OBJ_FICTITIOUS) != 0);
 			}
 		}
 	next_entry_done:
@@ -2681,8 +2681,7 @@ vm_map_entry_unwire(vm_map_t map, vm_map_entry_t entry)
 {
 	vm_fault_unwire(map, entry->start, entry->end,
 	    entry->object.vm_object != NULL &&
-	    (entry->object.vm_object->type == OBJT_DEVICE ||
-	    entry->object.vm_object->type == OBJT_SG));
+	    (entry->object.vm_object->flags & OBJ_FICTITIOUS) != 0);
 	entry->wired_count = 0;
 }
 
