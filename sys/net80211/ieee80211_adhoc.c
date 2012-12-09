@@ -746,16 +746,6 @@ adhoc_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				memcpy(ni->ni_tstamp.data, scan.tstamp,
 					sizeof(ni->ni_tstamp));
 			}
-			if (scan.wme != NULL &&
-			    (ni->ni_flags & IEEE80211_NODE_QOS) &&
-			    ieee80211_parse_wmeparams(vap, scan.wme, wh) > 0) {
-				ieee80211_wme_updateparams(vap);
-			}
-#ifdef	IEEE80211_SUPPORT_SUPERG
-			if (scan.ath != NULL) {
-				ieee80211_parse_athparams(ni, scan.ath, wh);
-			}
-#endif
 			if (ni != NULL) {
 				IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);
 				ni->ni_noise = nf;
