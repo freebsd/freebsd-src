@@ -46,7 +46,6 @@ SUBDIR=	adduser \
 	mixer \
 	mlxcontrol \
 	mountd \
-	mount_portalfs \
 	mptutil \
 	mtest \
 	mtree \
@@ -112,6 +111,9 @@ SUBDIR+=	amd
 .if ${MK_AUDIT} != "no"
 SUBDIR+=	audit
 SUBDIR+=	auditd
+.if ${MK_OPENSSL} != "no"
+SUBDIR+=	auditdistd
+.endif
 SUBDIR+=	auditreduce
 SUBDIR+=	praudit
 .endif
@@ -148,6 +150,7 @@ SUBDIR+=	bluetooth
 
 .if ${MK_BSDCONFIG} != "no"
 SUBDIR+=	bsdconfig
+SUBDIR+=	sysrc
 .endif
 
 .if ${MK_BSNMP} != "no"

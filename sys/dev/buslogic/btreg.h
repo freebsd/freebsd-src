@@ -582,6 +582,7 @@ struct bt_ccb {
 	u_int32_t		 flags;
 	union ccb		*ccb;
 	bus_dmamap_t		 dmamap;
+	struct callout		 timer;
 	bt_sg_t			*sg_list;
 	u_int32_t		 sg_list_phys;
 };
@@ -599,8 +600,7 @@ struct bt_softc {
 	struct resource		*irq;
 	struct resource		*drq;
 	void			*ih;
-	bus_space_tag_t		 tag;
-	bus_space_handle_t	 bsh;
+	struct mtx		 lock;
 	struct	cam_sim		*sim;
 	struct	cam_path	*path;
 	bt_mbox_out_t		*cur_outbox;
@@ -637,7 +637,6 @@ struct bt_softc {
 	u_int			 num_ccbs;	/* Number of CCBs malloc'd */
 	u_int			 max_ccbs;	/* Maximum allocatable CCBs */
 	u_int			 max_sg;
-	u_int			 unit;
 	u_int			 scsi_id;
 	u_int32_t		 extended_trans	   :1,
 				 wide_bus	   :1,
@@ -663,8 +662,6 @@ struct bt_softc {
 	char			 firmware_ver[6];
 	char			 model[5];
 };
-
-extern u_long bt_unit;
 
 #define BT_TEMP_UNIT 0xFF		/* Unit for probes */
 void			bt_init_softc(device_t dev,
@@ -696,10 +693,10 @@ int			bt_cmd(struct bt_softc *bt, bt_op_t opcode,
 
 #define bt_name(bt)	device_get_nameunit(bt->dev)
 
-#define bt_inb(bt, port)				\
-	bus_space_read_1((bt)->tag, (bt)->bsh, port)
+#define bt_inb(bt, reg)				\
+	bus_read_1((bt)->port, reg)
 
-#define bt_outb(bt, port, value)			\
-	bus_space_write_1((bt)->tag, (bt)->bsh, port, value)
+#define bt_outb(bt, reg, value)			\
+	bus_write_1((bt)->port, reg, value)
 
 #endif	/* _BT_H_ */

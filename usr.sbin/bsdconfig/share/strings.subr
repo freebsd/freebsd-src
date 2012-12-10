@@ -75,7 +75,7 @@ f_longest_line_length()
 f_number_of_lines_awk='
 BEGIN { num_lines = 0 }
 {
-	num_lines += split($0, unused, /\\n/)
+	num_lines += split(" "$0, unused, /\\n/)
 }
 END { print num_lines }
 '

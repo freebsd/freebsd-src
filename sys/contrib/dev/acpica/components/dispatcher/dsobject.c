@@ -296,7 +296,7 @@ AcpiDsBuildInternalBufferObj (
 
     /*
      * Second arg is the buffer data (optional) ByteList can be either
-     * individual bytes or a string initializer.  In either case, a
+     * individual bytes or a string initializer. In either case, a
      * ByteList appears in the AML.
      */
     Arg = Op->Common.Value.Arg;         /* skip first arg */
@@ -590,7 +590,7 @@ AcpiDsCreateNode (
 
     /*
      * Because of the execution pass through the non-control-method
-     * parts of the table, we can arrive here twice.  Only init
+     * parts of the table, we can arrive here twice. Only init
      * the named object node the first time through
      */
     if (AcpiNsGetAttachedObject (Node))
@@ -643,7 +643,7 @@ AcpiDsCreateNode (
  * RETURN:      Status
  *
  * DESCRIPTION: Initialize a namespace object from a parser Op and its
- *              associated arguments.  The namespace object is a more compact
+ *              associated arguments. The namespace object is a more compact
  *              representation of the Op and its arguments.
  *
  ******************************************************************************/
@@ -863,5 +863,3 @@ AcpiDsInitObjectFromOp (
 
     return_ACPI_STATUS (Status);
 }
-
-

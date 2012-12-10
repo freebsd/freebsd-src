@@ -128,7 +128,7 @@ AcpiDmDumpName (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Diplay the pathname associated with a named object.  Two
+ * DESCRIPTION: Diplay the pathname associated with a named object. Two
  *              versions. One searches the parse tree (for parser-only
  *              applications suchas AcpiDump), and the other searches the
  *              ACPI namespace (the parse tree is probably deleted)
@@ -166,7 +166,7 @@ AcpiPsDisplayObjectPathname (
         {
             /*
              * We can't get the pathname since the object
-             * is not in the namespace.  This can happen during single
+             * is not in the namespace. This can happen during single
              * stepping where a dynamic named object is *about* to be created.
              */
             AcpiOsPrintf ("  [Path not found]");
@@ -437,9 +437,9 @@ AcpiDmValidateName (
     if (!TargetOp)
     {
         /*
-         * Didn't find the name in the parse tree.  This may be
+         * Didn't find the name in the parse tree. This may be
          * a problem, or it may simply be one of the predefined names
-         * (such as _OS_).  Rather than worry about looking up all
+         * (such as _OS_). Rather than worry about looking up all
          * the predefined names, just display the name as given
          */
         AcpiOsPrintf (
@@ -449,5 +449,3 @@ AcpiDmValidateName (
 #endif
 
 #endif
-
-

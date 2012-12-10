@@ -512,7 +512,6 @@ ktrprocexit(struct thread *td)
 	struct proc *p;
 	struct ucred *cred;
 	struct vnode *vp;
-	int vfslocked;
 
 	p = td->td_proc;
 	if (p->p_traceflag == 0)
@@ -530,11 +529,8 @@ ktrprocexit(struct thread *td)
 	ktr_freeproc(p, &cred, &vp);
 	mtx_unlock(&ktrace_mtx);
 	PROC_UNLOCK(p);
-	if (vp != NULL) {
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	if (vp != NULL)
 		vrele(vp);
-		VFS_UNLOCK_GIANT(vfslocked);
-	}
 	if (cred != NULL)
 		crfree(cred);
 	ktrace_exit(td);
@@ -862,7 +858,7 @@ sys_ktrace(td, uap)
 	int ops = KTROP(uap->ops);
 	int descend = uap->ops & KTRFLAG_DESCEND;
 	int nfound, ret = 0;
-	int flags, error = 0, vfslocked;
+	int flags, error = 0;
 	struct nameidata nd;
 	struct ucred *cred;
 
@@ -877,25 +873,21 @@ sys_ktrace(td, uap)
 		/*
 		 * an operation which requires a file argument.
 		 */
-		NDINIT(&nd, LOOKUP, NOFOLLOW | MPSAFE, UIO_USERSPACE,
-		    uap->fname, td);
+		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->fname, td);
 		flags = FREAD | FWRITE | O_NOFOLLOW;
 		error = vn_open(&nd, &flags, 0, NULL);
 		if (error) {
 			ktrace_exit(td);
 			return (error);
 		}
-		vfslocked = NDHASGIANT(&nd);
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		vp = nd.ni_vp;
 		VOP_UNLOCK(vp, 0);
 		if (vp->v_type != VREG) {
 			(void) vn_close(vp, FREAD|FWRITE, td->td_ucred, td);
-			VFS_UNLOCK_GIANT(vfslocked);
 			ktrace_exit(td);
 			return (EACCES);
 		}
-		VFS_UNLOCK_GIANT(vfslocked);
 	}
 	/*
 	 * Clear all uses of the tracefile.
@@ -921,10 +913,8 @@ sys_ktrace(td, uap)
 		}
 		sx_sunlock(&allproc_lock);
 		if (vrele_count > 0) {
-			vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 			while (vrele_count-- > 0)
 				vrele(vp);
-			VFS_UNLOCK_GIANT(vfslocked);
 		}
 		goto done;
 	}
@@ -990,11 +980,8 @@ sys_ktrace(td, uap)
 	if (!ret)
 		error = EPERM;
 done:
-	if (vp != NULL) {
-		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	if (vp != NULL)
 		(void) vn_close(vp, FWRITE, td->td_ucred, td);
-		VFS_UNLOCK_GIANT(vfslocked);
-	}
 	ktrace_exit(td);
 	return (error);
 #else /* !KTRACE */
@@ -1086,13 +1073,8 @@ ktrops(td, p, ops, facs, vp)
 	if ((p->p_traceflag & KTRFAC_MASK) != 0)
 		ktrprocctor_entered(td, p);
 	PROC_UNLOCK(p);
-	if (tracevp != NULL) {
-		int vfslocked;
-
-		vfslocked = VFS_LOCK_GIANT(tracevp->v_mount);
+	if (tracevp != NULL)
 		vrele(tracevp);
-		VFS_UNLOCK_GIANT(vfslocked);
-	}
 	if (tracecred != NULL)
 		crfree(tracecred);
 
@@ -1146,7 +1128,7 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	struct iovec aiov[3];
 	struct mount *mp;
 	int datalen, buflen, vrele_count;
-	int error, vfslocked;
+	int error;
 
 	/*
 	 * We hold the vnode and credential for use in I/O in case ktrace is
@@ -1204,7 +1186,6 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 		auio.uio_iovcnt++;
 	}
 
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	vn_start_write(vp, &mp, V_WAIT);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 #ifdef MAC
@@ -1217,10 +1198,8 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	crfree(cred);
 	if (!error) {
 		vrele(vp);
-		VFS_UNLOCK_GIANT(vfslocked);
 		return;
 	}
-	VFS_UNLOCK_GIANT(vfslocked);
 
 	/*
 	 * If error encountered, give up tracing on this vnode.  We defer
@@ -1259,10 +1238,8 @@ ktr_writerequest(struct thread *td, struct ktr_request *req)
 	}
 	sx_sunlock(&allproc_lock);
 
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	while (vrele_count-- > 0)
 		vrele(vp);
-	VFS_UNLOCK_GIANT(vfslocked);
 }
 
 /*

@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exresolv - AML Interpreter object resolution
@@ -349,7 +348,7 @@ AcpiExResolveObjectToValue (
  *
  * RETURN:      Status
  *
- * DESCRIPTION: Return the base object and type.  Traverse a reference list if
+ * DESCRIPTION: Return the base object and type. Traverse a reference list if
  *              necessary to get to the base object.
  *
  ******************************************************************************/
@@ -576,5 +575,3 @@ Exit:
     }
     return_ACPI_STATUS (AE_OK);
 }
-
-

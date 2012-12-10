@@ -180,7 +180,7 @@ sctp_notify_mbuf(struct sctp_inpcb *inp,
 		SCTP_TCB_UNLOCK(stcb);
 		return;
 	}
-	totsz = ip->ip_len;
+	totsz = ntohs(ip->ip_len);
 
 	nxtsz = ntohs(icmph->icmp_nextmtu);
 	if (nxtsz == 0) {
@@ -763,7 +763,7 @@ sctp_disconnect(struct socket *so)
 					/* Left with Data unread */
 					struct mbuf *err;
 
-					err = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr), 0, M_DONTWAIT, 1, MT_DATA);
+					err = sctp_get_mbuf_for_msg(sizeof(struct sctp_paramhdr), 0, M_NOWAIT, 1, MT_DATA);
 					if (err) {
 						/*
 						 * Fill in the user
@@ -862,7 +862,7 @@ sctp_disconnect(struct socket *so)
 
 			abort_anyway:
 					op_err = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + sizeof(uint32_t)),
-					    0, M_DONTWAIT, 1, MT_DATA);
+					    0, M_NOWAIT, 1, MT_DATA);
 					if (op_err) {
 						/*
 						 * Fill in the user
@@ -971,7 +971,8 @@ sctp_shutdown(struct socket *so)
 	}
 	SCTP_INP_RLOCK(inp);
 	/* For UDP model this is a invalid call */
-	if (inp->sctp_flags & SCTP_PCB_FLAGS_UDPTYPE) {
+	if (!((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
+	    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL))) {
 		/* Restore the flags that the soshutdown took away. */
 		SOCKBUF_LOCK(&so->so_rcv);
 		so->so_rcv.sb_state &= ~SBS_CANTRCVMORE;
@@ -1076,7 +1077,7 @@ sctp_shutdown(struct socket *so)
 
 		abort_anyway:
 				op_err = sctp_get_mbuf_for_msg((sizeof(struct sctp_paramhdr) + sizeof(uint32_t)),
-				    0, M_DONTWAIT, 1, MT_DATA);
+				    0, M_NOWAIT, 1, MT_DATA);
 				if (op_err) {
 					/* Fill in the user initiated abort */
 					struct sctp_paramhdr *ph;

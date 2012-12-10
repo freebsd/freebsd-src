@@ -301,6 +301,13 @@ ar9130FillCapabilityInfo(struct ath_hal *ah)
 	/* BB Read WAR */
 	pCap->halHasBBReadWar = AH_TRUE;
 
+	/*
+	 * Implement the PLL/config changes needed for half/quarter
+	 * rates before re-enabling them here.
+	 */
+	pCap->halChanHalfRate = AH_FALSE;
+	pCap->halChanQuarterRate = AH_FALSE;
+
 	return AH_TRUE;
 }
 

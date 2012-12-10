@@ -265,7 +265,6 @@ ng_ipfw_rcvdata(hook_p hook, item_p item)
 		switch (ip->ip_v) {
 #ifdef INET
 		case IPVERSION:
-			SET_HOST_IPLEN(ip);
 			return (ip_output(m, NULL, NULL, IP_FORWARDING,
 			    NULL, NULL));
 #endif
@@ -321,7 +320,7 @@ ng_ipfw_input(struct mbuf **m0, int dir, struct ip_fw_args *fwa, int tee)
 		m_tag_prepend(m, tag);
 
 	} else
-		if ((m = m_dup(*m0, M_DONTWAIT)) == NULL)
+		if ((m = m_dup(*m0, M_NOWAIT)) == NULL)
 			return (ENOMEM);	/* which is ignored */
 
 	if (m->m_len < sizeof(struct ip) &&

@@ -247,12 +247,12 @@ tmpfs_mount(struct mount *mp)
 	    free(tmp, M_TMPFSMNT);
 	    return error;
 	}
-	KASSERT(root->tn_id == 2, ("tmpfs root with invalid ino: %d", root->tn_id));
+	KASSERT(root->tn_id == 2,
+	    ("tmpfs root with invalid ino: %ju", (uintmax_t)root->tn_id));
 	tmp->tm_root = root;
 
 	MNT_ILOCK(mp);
 	mp->mnt_flag |= MNT_LOCAL;
-	mp->mnt_kern_flag |= MNTK_MPSAFE;
 	MNT_IUNLOCK(mp);
 
 	mp->mnt_data = tmp;

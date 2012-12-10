@@ -516,7 +516,7 @@ startrtclock()
 	__cpu_khz = 1000000ULL << 32;
 	info = &HYPERVISOR_shared_info->vcpu_info[0].time;
 
-	do_div(__cpu_khz, info->tsc_to_system_mul);
+	(void)do_div(__cpu_khz, info->tsc_to_system_mul);
 	if ( info->tsc_shift < 0 )
 		cpu_khz = __cpu_khz << -info->tsc_shift;
 	else

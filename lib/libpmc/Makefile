@@ -39,10 +39,11 @@ MAN+=	pmc.corei7.3
 MAN+=	pmc.corei7uc.3
 MAN+=	pmc.sandybridge.3
 MAN+=	pmc.sandybridgeuc.3	
+MAN+=	pmc.sandybridgexeon.3	
 MAN+=	pmc.westmere.3
 MAN+=	pmc.westmereuc.3
 MAN+=	pmc.tsc.3
-.elif ${MACHINE_CPUARCH} == "arm" && ${CPUTYPE} == "xscale"
+.elif ${MACHINE_CPUARCH} == "arm"
 MAN+=	pmc.xscale.3
 .elif ${MACHINE_CPUARCH} == "mips"
 MAN+=	pmc.mips24k.3

@@ -98,7 +98,7 @@ AcpiDmBlockType (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Disassemble parser object and its children.  This is the
+ * DESCRIPTION: Disassemble parser object and its children. This is the
  *              main entry point of the disassembler.
  *
  ******************************************************************************/
@@ -773,7 +773,7 @@ AcpiDmDescendingOp (
  * RETURN:      Status
  *
  * DESCRIPTION: Second visitation of a parse object, during ascent of parse
- *              tree.  Close out any parameter lists and complete the opcode.
+ *              tree. Close out any parameter lists and complete the opcode.
  *
  ******************************************************************************/
 

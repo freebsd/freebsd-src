@@ -160,7 +160,7 @@ nvme_ns_strategy(struct bio *bp)
 	err = nvme_ns_bio_process(ns, bp, nvme_ns_strategy_done);
 
 	if (err) {
-		bp->bio_error = EIO;
+		bp->bio_error = err;
 		bp->bio_flags |= BIO_ERROR;
 		bp->bio_resid = bp->bio_bcount;
 		biodone(bp);
@@ -239,25 +239,26 @@ int
 nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 	nvme_cb_fn_t cb_fn)
 {
-	struct nvme_dsm_range *dsm_range;
+	struct nvme_dsm_range	*dsm_range;
+	int			err;
 
 	bp->bio_driver1 = cb_fn;
 
 	switch (bp->bio_cmd) {
 	case BIO_READ:
-		nvme_ns_cmd_read(ns, bp->bio_data,
-		    bp->bio_offset/nvme_ns_get_sector_size(ns),
-		    bp->bio_bcount/nvme_ns_get_sector_size(ns),
-		    nvme_ns_bio_done, bp);
+		err = nvme_ns_cmd_read(ns, bp->bio_data,
+			bp->bio_offset/nvme_ns_get_sector_size(ns),
+			bp->bio_bcount/nvme_ns_get_sector_size(ns),
+			nvme_ns_bio_done, bp);
 		break;
 	case BIO_WRITE:
-		nvme_ns_cmd_write(ns, bp->bio_data,
-		    bp->bio_offset/nvme_ns_get_sector_size(ns),
-		    bp->bio_bcount/nvme_ns_get_sector_size(ns),
-		    nvme_ns_bio_done, bp);
+		err = nvme_ns_cmd_write(ns, bp->bio_data,
+			bp->bio_offset/nvme_ns_get_sector_size(ns),
+			bp->bio_bcount/nvme_ns_get_sector_size(ns),
+			nvme_ns_bio_done, bp);
 		break;
 	case BIO_FLUSH:
-		nvme_ns_cmd_flush(ns, nvme_ns_bio_done, bp);
+		err = nvme_ns_cmd_flush(ns, nvme_ns_bio_done, bp);
 		break;
 	case BIO_DELETE:
 		/*
@@ -272,13 +273,17 @@ nvme_ns_bio_process(struct nvme_namespace *ns, struct bio *bp,
 		dsm_range->starting_lba =
 		    bp->bio_offset/nvme_ns_get_sector_size(ns);
 		bp->bio_driver2 = dsm_range;
-		nvme_ns_cmd_deallocate(ns, dsm_range, 1, nvme_ns_bio_done, bp);
+		err = nvme_ns_cmd_deallocate(ns, dsm_range, 1,
+			nvme_ns_bio_done, bp);
+		if (err != 0)
+			free(dsm_range, M_NVME);
 		break;
 	default:
-		return (EIO);
+		err = EIO;
+		break;
 	}
 
-	return (0);
+	return (err);
 }
 
 #ifdef CHATHAM2

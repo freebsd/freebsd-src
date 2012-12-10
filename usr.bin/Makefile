@@ -12,6 +12,7 @@
 SUBDIR=	alias \
 	apply \
 	asa \
+	${_atf} \
 	awk \
 	banner \
 	basename \
@@ -97,6 +98,7 @@ SUBDIR=	alias \
 	m4 \
 	${_makewhatis} \
 	${_man} \
+	mandoc \
 	mesg \
 	minigzip \
 	ministat \
@@ -145,6 +147,7 @@ SUBDIR=	alias \
 	sockstat \
 	sort \
 	split \
+	ssh-copy-id \
 	stat \
 	stdbuf \
 	su \
@@ -203,6 +206,10 @@ SUBDIR=	alias \
 
 .if ${MK_AT} != "no"
 SUBDIR+=	at
+.endif
+
+.if ${MK_ATF} != "no"
+_atf=		atf
 .endif
 
 .if ${MK_ATM} != "no"
@@ -272,7 +279,11 @@ SUBDIR+=	msgs
 .endif
 
 .if ${MK_MAKE} != "no"
+.if ${MK_BMAKE} != "no"
+SUBDIR+=	bmake
+.else
 SUBDIR+=	make
+.endif
 .endif
 
 .if ${MK_MAN_UTILS} != "no"

@@ -107,9 +107,9 @@ static void	tftp_xmitfile(int peer, const char *mode);
 static int	validate_access(int peer, char **, int);
 static char	peername[NI_MAXHOST];
 
-FILE *file;
+static FILE *file;
 
-struct formats {
+static struct formats {
 	const char	*f_mode;
 	int	f_convert;
 } formats[] = {
@@ -371,7 +371,10 @@ main(int argc, char *argv[])
 		}
 		chdir("/");
 		setgroups(1, &nobody->pw_gid);
-		setuid(nobody->pw_uid);
+		if (setuid(nobody->pw_uid) != 0) {
+			tftp_log(LOG_ERR, "setuid failed");
+			exit(1);
+		}
 	}
 
 	len = sizeof(me_sock);

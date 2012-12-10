@@ -44,17 +44,18 @@ options 	FFS			#Berkeley Fast Filesystem
 options 	SOFTUPDATES		#Enable FFS soft updates support
 options 	UFS_ACL			#Support for access control lists
 options 	UFS_DIRHASH		#Improve performance on big directories
-options 	NFSCLIENT		#Network Filesystem Client
 device		snp
+options 	BREAK_TO_DEBUGGER
+
 #options 	NFSCL
+options 	NFSCLIENT		#Network Filesystem Client
 #options 	NFSSERVER		#Network Filesystem Server
 options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
-options 	BREAK_TO_DEBUGGER
-options 	BOOTP_NFSROOT
-options 	BOOTP_COMPAT
-options 	BOOTP
-options 	BOOTP_NFSV3
-options 	BOOTP_WIRED_TO=ue0
+#options 	BOOTP_NFSROOT
+#options 	BOOTP_COMPAT
+#options 	BOOTP
+#options 	BOOTP_NFSV3
+#options 	BOOTP_WIRED_TO=ue0
 options 	MSDOSFS			#MSDOS Filesystem
 #options 	CD9660			#ISO 9660 Filesystem
 #options 	PROCFS			#Process filesystem (requires PSEUDOFS)
@@ -67,6 +68,7 @@ options 	SYSVMSG			#SYSV-style message queues
 options 	SYSVSEM			#SYSV-style semaphores
 options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+options 	FREEBSD_BOOT_LOADER
 
 options 	PREEMPTION
 
@@ -127,7 +129,7 @@ device		da		# Direct Access (disks)
 device		miibus
 #device		axe		# ASIX Electronics USB Ethernet
 device		smsc		# SMSC LAN95xx USB Ethernet
-
+device		bpf
 
 # OMAP-specific devices
 device		ti_sdma

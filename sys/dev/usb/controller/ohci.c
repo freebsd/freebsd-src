@@ -81,9 +81,8 @@ __FBSDID("$FreeBSD$");
 static int ohcidebug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, ohci, CTLFLAG_RW, 0, "USB ohci");
-SYSCTL_INT(_hw_usb_ohci, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_ohci, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
     &ohcidebug, 0, "ohci debug level");
-
 TUNABLE_INT("hw.usb.ohci.debug", &ohcidebug);
 
 static void ohci_dumpregs(ohci_softc_t *);
@@ -2315,6 +2314,7 @@ ohci_roothub_exec(struct usb_device *udev,
 		}
 		v = OREAD4(sc, OHCI_RH_PORT_STATUS(index));
 		DPRINTFN(9, "port status=0x%04x\n", v);
+		v &= ~UPS_PORT_MODE_DEVICE;	/* force host mode */
 		USETW(sc->sc_hub_desc.ps.wPortStatus, v);
 		USETW(sc->sc_hub_desc.ps.wPortChange, v >> 16);
 		len = sizeof(sc->sc_hub_desc.ps);
@@ -2344,7 +2344,7 @@ ohci_roothub_exec(struct usb_device *udev,
 			for (v = 0;; v++) {
 				if (v < 12) {
 					usb_pause_mtx(&sc->sc_bus.bus_mtx,
-					    USB_MS_TO_TICKS(USB_PORT_ROOT_RESET_DELAY));
+					    USB_MS_TO_TICKS(usb_port_root_reset_delay));
 
 					if ((OREAD4(sc, port) & UPS_RESET) == 0) {
 						break;
@@ -2551,10 +2551,6 @@ ohci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 	    edesc->bEndpointAddress, udev->flags.usb_mode,
 	    sc->sc_addr);
 
-	if (udev->flags.usb_mode != USB_MODE_HOST) {
-		/* not supported */
-		return;
-	}
 	if (udev->device_index != sc->sc_addr) {
 		switch (edesc->bmAttributes & UE_XFERTYPE) {
 		case UE_CONTROL:

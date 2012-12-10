@@ -141,9 +141,6 @@ void TypePrinter::print(const Type *T, Qualifiers Quals, raw_ostream &OS,
     OS << "NULL TYPE";
     return;
   }
-  
-  if (Policy.SuppressSpecifiers && T->isSpecifierType())
-    return;
 
   SaveAndRestore<bool> PHVal(HasEmptyPlaceHolder, PlaceHolder.empty());
 
@@ -556,7 +553,8 @@ void TypePrinter::printExtVectorAfter(const ExtVectorType *T, raw_ostream &OS) {
 
 void 
 FunctionProtoType::printExceptionSpecification(raw_ostream &OS, 
-                                               PrintingPolicy Policy) const {
+                                               const PrintingPolicy &Policy)
+                                                                         const {
   
   if (hasDynamicExceptionSpec()) {
     OS << " throw(";
@@ -645,6 +643,9 @@ void TypePrinter::printFunctionProtoAfter(const FunctionProtoType *T,
     break;
   case CC_AAPCS_VFP:
     OS << " __attribute__((pcs(\"aapcs-vfp\")))";
+    break;
+  case CC_PnaclCall:
+    OS << " __attribute__((pnaclcall))";
     break;
   }
   if (Info.getNoReturn())
@@ -798,6 +799,7 @@ void TypePrinter::printAtomicAfter(const AtomicType *T, raw_ostream &OS) { }
 /// Appends the given scope to the end of a string.
 void TypePrinter::AppendScope(DeclContext *DC, raw_ostream &OS) {
   if (DC->isTranslationUnit()) return;
+  if (DC->isFunctionOrMethod()) return;
   AppendScope(DC->getParent(), OS);
 
   if (NamespaceDecl *NS = dyn_cast<NamespaceDecl>(DC)) {
@@ -1165,6 +1167,7 @@ void TypePrinter::printAttributedAfter(const AttributedType *T,
    OS << ')';
    break;
   }
+  case AttributedType::attr_pnaclcall: OS << "pnaclcall"; break;
   }
   OS << "))";
 }
@@ -1343,7 +1346,8 @@ PrintTemplateArgumentList(raw_ostream &OS,
 
 void 
 FunctionProtoType::printExceptionSpecification(std::string &S, 
-                                               PrintingPolicy Policy) const {
+                                               const PrintingPolicy &Policy)
+                                                                         const {
   
   if (hasDynamicExceptionSpec()) {
     S += " throw(";

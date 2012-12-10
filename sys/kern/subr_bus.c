@@ -2762,6 +2762,13 @@ device_attach(device_t dev)
 {
 	int error;
 
+	if (resource_disabled(dev->driver->name, dev->unit)) {
+		device_disable(dev);
+		if (bootverbose)
+			 device_printf(dev, "disabled via hints entry\n");
+		return (ENXIO);
+	}
+
 	device_sysctl_init(dev);
 	if (!device_is_quiet(dev))
 		device_print_child(dev->parent, dev);

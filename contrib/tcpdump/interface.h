@@ -183,6 +183,7 @@ extern void dvmrp_print(const u_char *, u_int);
 extern void egp_print(const u_char *, u_int);
 extern u_int enc_if_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int pflog_if_print(const struct pcap_pkthdr *, const u_char *);
+extern void pfsync_ip_print(const u_char *, u_int);
 extern u_int arcnet_if_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int arcnet_linux_if_print(const struct pcap_pkthdr *, const u_char *);
 extern u_int token_print(const u_char *, u_int, u_int);

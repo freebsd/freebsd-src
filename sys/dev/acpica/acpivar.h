@@ -476,7 +476,7 @@ ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
 
 /* Default maximum number of tasks to enqueue. */
 #ifndef ACPI_MAX_TASKS
-#define	ACPI_MAX_TASKS		32
+#define	ACPI_MAX_TASKS		MAX(32, MAXCPU * 2)
 #endif
 
 /* Default number of task queue threads to start. */

@@ -1611,8 +1611,8 @@ AcpiDmDumpMpst (
     ACPI_MPST_DATA_HDR      *SubTable1;
     ACPI_MPST_POWER_DATA    *SubTable2;
     UINT16                  SubtableCount;
-    UINT8                   PowerStateCount;
-    UINT8                   ComponentCount;
+    UINT32                  PowerStateCount;
+    UINT32                  ComponentCount;
 
 
     /* Main table */

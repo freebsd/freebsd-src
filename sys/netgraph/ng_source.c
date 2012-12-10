@@ -445,7 +445,7 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		    {
 			struct ng_source_embed_info *embed;
 
-			NG_MKRESPONSE(resp, msg, sizeof(*embed), M_DONTWAIT);
+			NG_MKRESPONSE(resp, msg, sizeof(*embed), M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				goto done;
@@ -484,7 +484,7 @@ ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 				error = EINVAL;
 				goto done;
 			}
-			NG_MKRESPONSE(resp, msg, sizeof(*embed), M_DONTWAIT);
+			NG_MKRESPONSE(resp, msg, sizeof(*embed), M_NOWAIT);
 			if (resp == NULL) {
 				error = ENOMEM;
 				goto done;
@@ -608,7 +608,6 @@ static int
 ng_source_store_output_ifp(sc_p sc, char *ifname)
 {
 	struct ifnet *ifp;
-	int s;
 
 	ifp = ifunit(ifname);
 
@@ -624,13 +623,11 @@ ng_source_store_output_ifp(sc_p sc, char *ifname)
 	 * interface with small packets.
 	 * XXX we should restore the original value at stop or disconnect
 	 */
-	s = splimp();		/* XXX is this required? */
 	if (ifp->if_snd.ifq_maxlen < NG_SOURCE_DRIVER_IFQ_MAXLEN) {
 		printf("ng_source: changing ifq_maxlen from %d to %d\n",
 		    ifp->if_snd.ifq_maxlen, NG_SOURCE_DRIVER_IFQ_MAXLEN);
 		ifp->if_snd.ifq_maxlen = NG_SOURCE_DRIVER_IFQ_MAXLEN;
 	}
-	splx(s);
 #endif
 	return (0);
 }
@@ -876,9 +873,9 @@ ng_source_dup_mod(sc_p sc, struct mbuf *m0, struct mbuf **m_ptr)
 
 	/* Duplicate the packet. */
 	if (modify)
-		m = m_dup(m0, M_DONTWAIT);
+		m = m_dup(m0, M_NOWAIT);
 	else
-		m = m_copypacket(m0, M_DONTWAIT);
+		m = m_copypacket(m0, M_NOWAIT);
 	if (m == NULL) {
 		error = ENOBUFS;
 		goto done;

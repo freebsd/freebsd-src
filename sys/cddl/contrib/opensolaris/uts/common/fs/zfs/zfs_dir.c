@@ -374,8 +374,15 @@ zfs_dirlook(znode_t *dzp, char *name, vnode_t **vpp, int flags,
 	znode_t *zp;
 	int error = 0;
 	uint64_t parent;
+	int unlinked;
 
 	if (name[0] == 0 || (name[0] == '.' && name[1] == 0)) {
+		mutex_enter(&dzp->z_lock);
+		unlinked = dzp->z_unlinked;
+		mutex_exit(&dzp->z_lock);
+		if (unlinked)
+			return (ENOENT);
+
 		*vpp = ZTOV(dzp);
 		VN_HOLD(*vpp);
 	} else if (name[0] == '.' && name[1] == '.' && name[2] == 0) {
@@ -394,6 +401,13 @@ zfs_dirlook(znode_t *dzp, char *name, vnode_t **vpp, int flags,
 			    NULL, NULL, NULL);
 			return (error);
 		}
+
+		mutex_enter(&dzp->z_lock);
+		unlinked = dzp->z_unlinked;
+		mutex_exit(&dzp->z_lock);
+		if (unlinked)
+			return (ENOENT);
+
 		rw_enter(&dzp->z_parent_lock, RW_READER);
 		error = zfs_zget(zfsvfs, parent, &zp);
 		if (error == 0)

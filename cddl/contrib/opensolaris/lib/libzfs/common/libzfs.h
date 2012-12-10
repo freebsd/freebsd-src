@@ -571,7 +571,8 @@ typedef struct renameflags {
 	int forceunmount : 1;
 } renameflags_t;
 
-extern int zfs_rename(zfs_handle_t *, const char *, renameflags_t flags);
+extern int zfs_rename(zfs_handle_t *, const char *, const char *,
+    renameflags_t flags);
 
 typedef struct sendflags {
 	/* print informational messages (ie, -v was specified) */

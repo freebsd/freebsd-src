@@ -48,8 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <camlib.h>
 #include "camcontrol.h"
 
-int verbose = 0;
-
 #define	DEFAULT_SCSI_MODE_DB	"/usr/share/misc/scsi_modes"
 #define	DEFAULT_EDITOR		"vi"
 #define	MAX_FORMAT_SPEC		4096	/* Max CDB format specifier. */

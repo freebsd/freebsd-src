@@ -95,19 +95,19 @@ static int ehciiaadbug = 0;
 static int ehcilostintrbug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, ehci, CTLFLAG_RW, 0, "USB ehci");
-SYSCTL_INT(_hw_usb_ehci, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_ehci, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
     &ehcidebug, 0, "Debug level");
-SYSCTL_INT(_hw_usb_ehci, OID_AUTO, no_hs, CTLFLAG_RW,
-    &ehcinohighspeed, 0, "Disable High Speed USB");
-SYSCTL_INT(_hw_usb_ehci, OID_AUTO, iaadbug, CTLFLAG_RW,
-    &ehciiaadbug, 0, "Enable doorbell bug workaround");
-SYSCTL_INT(_hw_usb_ehci, OID_AUTO, lostintrbug, CTLFLAG_RW,
-    &ehcilostintrbug, 0, "Enable lost interrupt bug workaround");
-
 TUNABLE_INT("hw.usb.ehci.debug", &ehcidebug);
+SYSCTL_INT(_hw_usb_ehci, OID_AUTO, no_hs, CTLFLAG_RW | CTLFLAG_TUN,
+    &ehcinohighspeed, 0, "Disable High Speed USB");
 TUNABLE_INT("hw.usb.ehci.no_hs", &ehcinohighspeed);
+SYSCTL_INT(_hw_usb_ehci, OID_AUTO, iaadbug, CTLFLAG_RW | CTLFLAG_TUN,
+    &ehciiaadbug, 0, "Enable doorbell bug workaround");
 TUNABLE_INT("hw.usb.ehci.iaadbug", &ehciiaadbug);
+SYSCTL_INT(_hw_usb_ehci, OID_AUTO, lostintrbug, CTLFLAG_RW | CTLFLAG_TUN,
+    &ehcilostintrbug, 0, "Enable lost interrupt bug workaround");
 TUNABLE_INT("hw.usb.ehci.lostintrbug", &ehcilostintrbug);
+
 
 static void ehci_dump_regs(ehci_softc_t *sc);
 static void ehci_dump_sqh(ehci_softc_t *sc, ehci_qh_t *sqh);
@@ -332,14 +332,18 @@ ehci_init(ehci_softc_t *sc)
 	sc->sc_noport = EHCI_HCS_N_PORTS(sparams);
 	sc->sc_bus.usbrev = USB_REV_2_0;
 
-	/* Reset the controller */
-	DPRINTF("%s: resetting\n", device_get_nameunit(sc->sc_bus.bdev));
+	if (!(sc->sc_flags & EHCI_SCFLG_DONTRESET)) {
+		/* Reset the controller */
+		DPRINTF("%s: resetting\n",
+		    device_get_nameunit(sc->sc_bus.bdev));
 
-	err = ehci_hcreset(sc);
-	if (err) {
-		device_printf(sc->sc_bus.bdev, "reset timeout\n");
-		return (err);
+		err = ehci_hcreset(sc);
+		if (err) {
+			device_printf(sc->sc_bus.bdev, "reset timeout\n");
+			return (err);
+		}
 	}
+
 	/*
 	 * use current frame-list-size selection 0: 1024*4 bytes 1:  512*4
 	 * bytes 2:  256*4 bytes 3:      unknown
@@ -3369,7 +3373,7 @@ ehci_roothub_exec(struct usb_device *udev,
 
 			/* Wait for reset to complete. */
 			usb_pause_mtx(&sc->sc_bus.bus_mtx,
-			    USB_MS_TO_TICKS(USB_PORT_ROOT_RESET_DELAY));
+			    USB_MS_TO_TICKS(usb_port_root_reset_delay));
 
 			/* Terminate reset sequence. */
 			if (!(sc->sc_flags & EHCI_SCFLG_NORESTERM))
@@ -3701,10 +3705,6 @@ ehci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 	    edesc->bEndpointAddress, udev->flags.usb_mode,
 	    sc->sc_addr);
 
-	if (udev->flags.usb_mode != USB_MODE_HOST) {
-		/* not supported */
-		return;
-	}
 	if (udev->device_index != sc->sc_addr) {
 
 		if ((udev->speed != USB_SPEED_HIGH) &&

@@ -664,8 +664,11 @@ usb_msc_auto_quirk(struct usb_device *udev, uint8_t iface_index)
 			if (sid_type == 0x00)
 				is_no_direct = 0;
 			break;
-		} else if (err != ERR_CSW_FAILED)
-			break;	/* non retryable error */
+		} else if (err != ERR_CSW_FAILED) {
+			DPRINTF("Device is not responding "
+			    "properly to SCSI INQUIRY command.\n");
+			goto error;	/* non retryable error */
+		}
 		usb_pause_mtx(NULL, hz);
 	}
 

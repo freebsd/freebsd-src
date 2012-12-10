@@ -1,0 +1,35 @@
+/*	$Id: vol.in,v 1.6 2010/06/19 20:46:28 kristaps Exp $ */
+/*
+ * Copyright (c) 2009 Kristaps Dzonsons <kristaps@bsd.lv>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+
+/*
+ * This file defines volume titles for .Dt.
+ *
+ * Be sure to escape strings.
+ */
+
+LINE("USD",		"User\'s Supplementary Documents")
+LINE("PS1",		"Programmer\'s Supplementary Documents")
+LINE("AMD",		"Ancestral Manual Documents")
+LINE("SMM",		"System Manager\'s Manual")
+LINE("URM",		"User\'s Reference Manual")
+LINE("PRM",		"Programmer\'s Manual")
+LINE("KM",		"Kernel Manual")
+LINE("IND",		"Manual Master Index")
+LINE("MMI",		"Manual Master Index")
+LINE("LOCAL",		"Local Manual")
+LINE("LOC",		"Local Manual")
+LINE("CON",		"Contributed Software Manual")

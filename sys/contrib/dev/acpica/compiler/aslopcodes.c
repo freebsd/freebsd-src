@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslopcode - AML opcode generation
@@ -188,10 +187,10 @@ OpcGetIntegerWidth (
  *
  * PARAMETERS:  Op        - A parse tree node
  *
- * RETURN:      Integer width, in bytes.  Also sets the node AML opcode to the
+ * RETURN:      Integer width, in bytes. Also sets the node AML opcode to the
  *              optimal integer AML prefix opcode.
  *
- * DESCRIPTION: Determine the optimal AML encoding of an integer.  All leading
+ * DESCRIPTION: Determine the optimal AML encoding of an integer. All leading
  *              zeros can be truncated to squeeze the integer into the
  *              minimal number of AML bytes.
  *
@@ -211,7 +210,7 @@ OpcSetOptimalIntegerSize (
         Op->Asl.Parent->Asl.Parent &&
        (Op->Asl.Parent->Asl.Parent->Asl.ParseOpcode == PARSEOP_DEFINITIONBLOCK))
     {
-        return 0;
+        return (0);
     }
 #endif
 
@@ -231,14 +230,14 @@ OpcSetOptimalIntegerSize (
             Op->Asl.AmlOpcode = AML_ZERO_OP;
             AslError (ASL_OPTIMIZATION, ASL_MSG_INTEGER_OPTIMIZATION,
                 Op, "Zero");
-            return 1;
+            return (1);
 
         case 1:
 
             Op->Asl.AmlOpcode = AML_ONE_OP;
             AslError (ASL_OPTIMIZATION, ASL_MSG_INTEGER_OPTIMIZATION,
                 Op, "One");
-            return 1;
+            return (1);
 
         case ACPI_UINT32_MAX:
 
@@ -249,7 +248,7 @@ OpcSetOptimalIntegerSize (
                 Op->Asl.AmlOpcode = AML_ONES_OP;
                 AslError (ASL_OPTIMIZATION, ASL_MSG_INTEGER_OPTIMIZATION,
                     Op, "Ones");
-                return 1;
+                return (1);
             }
             break;
 
@@ -262,7 +261,7 @@ OpcSetOptimalIntegerSize (
                 Op->Asl.AmlOpcode = AML_ONES_OP;
                 AslError (ASL_OPTIMIZATION, ASL_MSG_INTEGER_OPTIMIZATION,
                     Op, "Ones");
-                return 1;
+                return (1);
             }
             break;
 
@@ -276,17 +275,17 @@ OpcSetOptimalIntegerSize (
     if (Op->Asl.Value.Integer <= ACPI_UINT8_MAX)
     {
         Op->Asl.AmlOpcode = AML_BYTE_OP;
-        return 1;
+        return (1);
     }
     if (Op->Asl.Value.Integer <= ACPI_UINT16_MAX)
     {
         Op->Asl.AmlOpcode = AML_WORD_OP;
-        return 2;
+        return (2);
     }
     if (Op->Asl.Value.Integer <= ACPI_UINT32_MAX)
     {
         Op->Asl.AmlOpcode = AML_DWORD_OP;
-        return 4;
+        return (4);
     }
     else
     {
@@ -299,12 +298,12 @@ OpcSetOptimalIntegerSize (
             {
                 /* Truncate the integer to 32-bit */
                 Op->Asl.AmlOpcode = AML_DWORD_OP;
-                return 4;
+                return (4);
             }
         }
 
         Op->Asl.AmlOpcode = AML_QWORD_OP;
-        return 8;
+        return (8);
     }
 }
 
@@ -459,7 +458,7 @@ OpcDoConnection (
  * RETURN:      None
  *
  * DESCRIPTION: Implement the UNICODE ASL "macro".  Convert the input string
- *              to a unicode buffer.  There is no Unicode AML opcode.
+ *              to a unicode buffer. There is no Unicode AML opcode.
  *
  * Note:  The Unicode string is 16 bits per character, no leading signature,
  *        with a 16-bit terminating NULL.
@@ -535,19 +534,19 @@ OpcDoUnicode (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Convert a string EISA ID to numeric representation.  See the
- *              Pnp BIOS Specification for details.  Here is an excerpt:
+ * DESCRIPTION: Convert a string EISA ID to numeric representation. See the
+ *              Pnp BIOS Specification for details. Here is an excerpt:
  *
  *              A seven character ASCII representation of the product
- *              identifier compressed into a 32-bit identifier.  The seven
+ *              identifier compressed into a 32-bit identifier. The seven
  *              character ID consists of a three character manufacturer code,
  *              a three character hexadecimal product identifier, and a one
- *              character hexadecimal revision number.  The manufacturer code
+ *              character hexadecimal revision number. The manufacturer code
  *              is a 3 uppercase character code that is compressed into 3 5-bit
  *              values as follows:
  *                  1) Find hex ASCII value for each letter
  *                  2) Subtract 40h from each ASCII value
- *                  3) Retain 5 least signficant bits for each letter by
+ *                  3) Retain 5 least significant bits for each letter by
  *                     discarding upper 3 bits because they are always 0.
  *                  4) Compressed code = concatenate 0 and the 3 5-bit values
  *
@@ -726,7 +725,7 @@ OpcDoUuId (
  * RETURN:      None
  *
  * DESCRIPTION: Generate the AML opcode associated with the node and its
- *              parse (lex/flex) keyword opcode.  Essentially implements
+ *              parse (lex/flex) keyword opcode. Essentially implements
  *              a mapping between the parse opcodes and the actual AML opcodes.
  *
  ******************************************************************************/
@@ -810,5 +809,3 @@ OpcGenerateAmlOpcode (
 
     return;
 }
-
-

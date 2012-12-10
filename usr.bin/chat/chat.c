@@ -109,40 +109,39 @@ __FBSDID("$FreeBSD$");
 #define	MAX_REPORTS		50
 #define	DEFAULT_CHAT_TIMEOUT	45
 
-int echo          = 0;
-int verbose       = 0;
-int to_log        = 1;
-int to_stderr     = 0;
-int Verbose       = 0;
-int quiet         = 0;
-int exit_code     = 0;
-FILE* report_fp   = (FILE *) 0;
-char *report_file = (char *) 0;
-char *chat_file   = (char *) 0;
-char *phone_num   = (char *) 0;
-char *phone_num2  = (char *) 0;
-int timeout       = DEFAULT_CHAT_TIMEOUT;
+static int echo;
+static int verbose;
+static int to_log;
+static int to_stderr;
+static int Verbose;
+static int quiet;
+static int exit_code;
+static FILE* report_fp;
+static char *report_file;
+static char *chat_file;
+static char *phone_num;
+static char *phone_num2;
+static int timeout = DEFAULT_CHAT_TIMEOUT;
 
 static char blank[] = "";
 
-int have_tty_parameters = 0;
+static int have_tty_parameters;
 
 #define term_parms struct termios
 #define get_term_param(param) tcgetattr(0, param)
 #define set_term_param(param) tcsetattr(0, TCSANOW, param)
-struct termios saved_tty_parameters;
+static struct termios saved_tty_parameters;
 
-char *abort_string[MAX_ABORTS], *fail_reason = (char *)0,
-	fail_buffer[50];
-int n_aborts = 0, abort_next = 0, timeout_next = 0, echo_next = 0;
-int clear_abort_next = 0;
+static char *abort_string[MAX_ABORTS], *fail_reason, fail_buffer[50];
+static int n_aborts, abort_next, timeout_next, echo_next;
+static int clear_abort_next;
 
-char *report_string[MAX_REPORTS] ;
-char  report_buffer[50] ;
-int n_reports = 0, report_next = 0, report_gathering = 0 ; 
-int clear_report_next = 0;
+static char *report_string[MAX_REPORTS];
+static char  report_buffer[50];
+static int n_reports, report_next, report_gathering;
+static int clear_report_next;
 
-int say_next = 0, hup_next = 0;
+static int say_next, hup_next;
 
 void *dup_mem(void *b, size_t c);
 void *copy_of(char *s);
@@ -396,14 +395,13 @@ usage(void)
     exit(1);
 }
 
-char line[1024];
-
 /*
  * Send a message to syslog and/or stderr.
  */
 void
 chat_logf(const char *fmt, ...)
 {
+    char line[1024];
     va_list args;
 
     va_start(args, fmt);
@@ -422,6 +420,7 @@ chat_logf(const char *fmt, ...)
 void
 fatal(int code, const char *fmt, ...)
 {
+    char line[1024];
     va_list args;
 
     va_start(args, fmt);
@@ -434,7 +433,7 @@ fatal(int code, const char *fmt, ...)
     terminate(code);
 }
 
-int alarmed = 0;
+static int alarmed;
 
 SIGTYPE sigalrm(int signo __unused)
 {

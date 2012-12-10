@@ -72,10 +72,17 @@ arswitch_split_setpage(device_t dev, uint32_t addr, uint16_t *phy,
 	*phy = (((addr) >> 6) & 0x07) | 0x10;
 	*reg = ((addr) >> 1) & 0x1f;
 
-	if (sc->page != page) {
-		MDIO_WRITEREG(device_get_parent(dev), 0x18, 0, page);
-		sc->page = page;
-	}
+	/*
+	 * The earlier code would only switch the page
+	 * over if the page were different.  Experiments have
+	 * shown that this is unstable.
+	 *
+	 * Hence, the page is always set here.
+	 *
+	 * See PR kern/172968
+	 */
+	MDIO_WRITEREG(device_get_parent(dev), 0x18, 0, page);
+	sc->page = page;
 }
 
 /*
@@ -148,7 +155,7 @@ int
 arswitch_writereg_msb(device_t dev, int addr, int data)
 {
 
-	return (arswitch_writereg16(dev, addr + 2, data >> 16));
+	return (arswitch_writereg16(dev, addr + 2, (data >> 16) & 0xffff));
 }
 
 int

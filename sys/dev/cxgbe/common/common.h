@@ -521,6 +521,8 @@ int t4_enable_vi(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		 bool rx_en, bool tx_en);
 int t4_identify_port(struct adapter *adap, unsigned int mbox, unsigned int viid,
 		     unsigned int nblinks);
+int t4_i2c_rd(struct adapter *adap, unsigned int mbox, unsigned int port_id,
+	      u8 dev_addr, u8 offset, u8 *valp);
 int t4_mdio_rd(struct adapter *adap, unsigned int mbox, unsigned int phy_addr,
 	       unsigned int mmd, unsigned int reg, unsigned int *valp);
 int t4_mdio_wr(struct adapter *adap, unsigned int mbox, unsigned int phy_addr,

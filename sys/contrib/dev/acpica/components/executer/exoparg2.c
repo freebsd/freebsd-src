@@ -137,7 +137,7 @@ AcpiExOpcode_2A_0T_0R (
         /*
          * Dispatch the notify to the appropriate handler
          * NOTE: the request is queued for execution after this method
-         * completes.  The notify handlers are NOT invoked synchronously
+         * completes. The notify handlers are NOT invoked synchronously
          * from this thread -- because handlers may in turn run other
          * control methods.
          */
@@ -638,5 +638,3 @@ Cleanup:
 
     return_ACPI_STATUS (Status);
 }
-
-

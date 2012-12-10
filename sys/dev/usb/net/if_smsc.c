@@ -82,6 +82,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/random.h>
 
+#include "opt_platform.h"
+
+#ifdef FDT
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+#endif
+
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
@@ -296,7 +304,7 @@ static int
 smsc_wait_for_bits(struct smsc_softc *sc, uint32_t reg, uint32_t bits)
 {
 	usb_ticks_t start_ticks;
-	usb_ticks_t max_ticks = USB_MS_TO_TICKS(1000);
+	const usb_ticks_t max_ticks = USB_MS_TO_TICKS(1000);
 	uint32_t val;
 	int err;
 	
@@ -310,7 +318,7 @@ smsc_wait_for_bits(struct smsc_softc *sc, uint32_t reg, uint32_t bits)
 			return (0);
 		
 		uether_pause(&sc->sc_ue, hz / 100);
-	} while ((ticks - start_ticks) < max_ticks);
+	} while (((usb_ticks_t)(ticks - start_ticks)) < max_ticks);
 
 	return (USB_ERR_TIMEOUT);
 }
@@ -334,7 +342,7 @@ static int
 smsc_eeprom_read(struct smsc_softc *sc, uint16_t off, uint8_t *buf, uint16_t buflen)
 {
 	usb_ticks_t start_ticks;
-	usb_ticks_t max_ticks = USB_MS_TO_TICKS(1000);
+	const usb_ticks_t max_ticks = USB_MS_TO_TICKS(1000);
 	int err;
 	int locked;
 	uint32_t val;
@@ -365,8 +373,8 @@ smsc_eeprom_read(struct smsc_softc *sc, uint16_t off, uint8_t *buf, uint16_t buf
 				break;
 
 			uether_pause(&sc->sc_ue, hz / 100);
-		} while ((ticks - start_ticks) < max_ticks);
-		
+		} while (((usb_ticks_t)(ticks - start_ticks)) < max_ticks);
+
 		if (val & (SMSC_EEPROM_CMD_BUSY | SMSC_EEPROM_CMD_TIMEOUT)) {
 			smsc_warn_printf(sc, "eeprom command failed\n");
 			err = USB_ERR_IOERROR;
@@ -1042,7 +1050,12 @@ smsc_bulk_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				}
 			
 				/* Finally enqueue the mbuf on the receive queue */
-				uether_rxmbuf(ue, m, pktlen);
+				/* Remove 4 trailing bytes */
+				if (pktlen < (4 + ETHER_HDR_LEN)) {
+					m_freem(m);
+					goto tr_setup;
+				}
+				uether_rxmbuf(ue, m, pktlen - 4);
 			}
 
 			/* Update the offset to move to the next potential packet */
@@ -1174,7 +1187,7 @@ static void
 smsc_tick(struct usb_ether *ue)
 {
 	struct smsc_softc *sc = uether_getsc(ue);
-	struct mii_data *mii = uether_getmii(&sc->sc_ue);;
+	struct mii_data *mii = uether_getmii(&sc->sc_ue);
 
 	SMSC_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -1247,7 +1260,7 @@ smsc_phy_init(struct smsc_softc *sc)
 {
 	int bmcr;
 	usb_ticks_t start_ticks;
-	usb_ticks_t max_ticks = USB_MS_TO_TICKS(1000);
+	const usb_ticks_t max_ticks = USB_MS_TO_TICKS(1000);
 
 	SMSC_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -1260,7 +1273,7 @@ smsc_phy_init(struct smsc_softc *sc)
 		bmcr = smsc_miibus_readreg(sc->sc_ue.ue_dev, sc->sc_phyno, MII_BMCR);
 	} while ((bmcr & MII_BMCR) && ((ticks - start_ticks) < max_ticks));
 
-	if ((ticks - start_ticks) >= max_ticks) {
+	if (((usb_ticks_t)(ticks - start_ticks)) >= max_ticks) {
 		smsc_err_printf(sc, "PHY reset timed-out");
 		return (EIO);
 	}
@@ -1511,6 +1524,64 @@ smsc_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	return (rc);
 }
 
+#ifdef FDT
+/**
+ * Get MAC address from FDT blob. Firmware or loader should fill
+ * mac-address or local-mac-address property Returns 0 if MAC address
+ * obtained, error code otherwise
+ */
+static int
+smsc_fdt_find_mac(unsigned char *mac)
+{
+	phandle_t child, parent, root;
+	int len;
+
+	root = OF_finddevice("/");
+	len = 0;
+	parent = root;
+
+	/* Traverse through entire tree to find nodes usb ethernet nodes */
+	for (child = OF_child(parent); child != 0; child = OF_peer(child)) {
+
+		/* Find a 'leaf'. Start the search from this node. */
+		while (OF_child(child)) {
+			parent = child;
+			child = OF_child(child);
+		}
+
+		if (fdt_is_compatible(child, "net,ethernet") &&
+		    fdt_is_compatible(child, "usb,device")) {
+
+			/* Check if there is property */
+			if ((len = OF_getproplen(child, "local-mac-address")) > 0) {
+				if (len != ETHER_ADDR_LEN)
+					return (EINVAL);
+
+				OF_getprop(child, "local-mac-address", mac,
+				    ETHER_ADDR_LEN);
+				return (0);
+			}
+
+			if ((len = OF_getproplen(child, "mac-address")) > 0) {
+				if (len != ETHER_ADDR_LEN)
+					return (EINVAL);
+
+				OF_getprop(child, "mac-address", mac,
+				    ETHER_ADDR_LEN);
+				return (0);
+			}
+		}
+
+		if (OF_peer(child) == 0) {
+			/* No more siblings. */
+			child = parent;
+			parent = OF_parent(child);
+		}
+	}
+
+	return (ENXIO);
+}
+#endif
 
 /**
  *	smsc_attach_post - Called after the driver attached to the USB interface
@@ -1558,8 +1629,11 @@ smsc_attach_post(struct usb_ether *ue)
 	if (!ETHER_IS_VALID(sc->sc_ue.ue_eaddr)) {
 
 		err = smsc_eeprom_read(sc, 0x01, sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN);
+#ifdef FDT
+		if ((err != 0) || (!ETHER_IS_VALID(sc->sc_ue.ue_eaddr)))
+			err = smsc_fdt_find_mac(sc->sc_ue.ue_eaddr);
+#endif
 		if ((err != 0) || (!ETHER_IS_VALID(sc->sc_ue.ue_eaddr))) {
-		
 			read_random(sc->sc_ue.ue_eaddr, ETHER_ADDR_LEN);
 			sc->sc_ue.ue_eaddr[0] &= ~0x01;     /* unicast */
 			sc->sc_ue.ue_eaddr[0] |=  0x02;     /* locally administered */

@@ -2473,6 +2473,10 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 		goto err;
 	}
 
+	snprintf(q->rspq.lockbuf, RSPQ_NAME_LEN, "t3 rspq lock %d:%d",
+	    device_get_unit(sc->dev), irq_vec_idx);
+	MTX_INIT(&q->rspq.lock, q->rspq.lockbuf, NULL, MTX_DEF);
+
 	for (i = 0; i < ntxq; ++i) {
 		size_t sz = i == TXQ_CTRL ? 0 : sizeof(struct tx_sw_desc);
 
@@ -2590,11 +2594,7 @@ t3_sge_alloc_qset(adapter_t *sc, u_int id, int nports, int irq_vec_idx,
 			goto err_unlock;
 		}
 	}
-	
-	snprintf(q->rspq.lockbuf, RSPQ_NAME_LEN, "t3 rspq lock %d:%d",
-	    device_get_unit(sc->dev), irq_vec_idx);
-	MTX_INIT(&q->rspq.lock, q->rspq.lockbuf, NULL, MTX_DEF);
-	
+
 	mtx_unlock_spin(&sc->sge.reg_lock);
 	t3_update_qset_coalesce(q, p);
 
@@ -2710,7 +2710,7 @@ get_packet(adapter_t *adap, unsigned int drop_thres, struct sge_qset *qs,
 	
 	if (recycle_enable && len <= SGE_RX_COPY_THRES &&
 	    sopeop == RSPQ_SOP_EOP) {
-		if ((m = m_gethdr(M_DONTWAIT, MT_DATA)) == NULL)
+		if ((m = m_gethdr(M_NOWAIT, MT_DATA)) == NULL)
 			goto skip_recycle;
 		cl = mtod(m, void *);
 		memcpy(cl, sd->rxsd_cl, len);
@@ -2866,10 +2866,10 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
 				printf("async notification\n");
 
 			if (mh->mh_head == NULL) {
-				mh->mh_head = m_gethdr(M_DONTWAIT, MT_DATA);
+				mh->mh_head = m_gethdr(M_NOWAIT, MT_DATA);
 				m = mh->mh_head;
 			} else {
-				m = m_gethdr(M_DONTWAIT, MT_DATA);
+				m = m_gethdr(M_NOWAIT, MT_DATA);
 			}
 			if (m == NULL)
 				goto no_mem;
@@ -2882,7 +2882,7 @@ process_responses(adapter_t *adap, struct sge_qset *qs, int budget)
                         rspq->async_notif++;
 			goto skip;
 		} else if  (flags & F_RSPD_IMM_DATA_VALID) {
-			struct mbuf *m = m_gethdr(M_DONTWAIT, MT_DATA);
+			struct mbuf *m = m_gethdr(M_NOWAIT, MT_DATA);
 
 			if (m == NULL) {	
 		no_mem:

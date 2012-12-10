@@ -335,7 +335,7 @@ linprocfs_domtab(PFS_FILL_ARGS)
 	int error;
 
 	/* resolve symlinks etc. in the emulation tree prefix */
-	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, linux_emul_path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path, td);
 	flep = NULL;
 	error = namei(&nd);
 	lep = linux_emul_path;
@@ -343,7 +343,6 @@ linprocfs_domtab(PFS_FILL_ARGS)
 		if (vn_fullpath(td, nd.ni_vp, &dlep, &flep) == 0)
 			lep = dlep;
 		vrele(nd.ni_vp);
-		VFS_UNLOCK_GIANT(NDHASGIANT(&nd));
 	}
 	lep_len = strlen(lep);
 
@@ -414,7 +413,7 @@ linprocfs_dopartitions(PFS_FILL_ARGS)
 	int major, minor;
 
 	/* resolve symlinks etc. in the emulation tree prefix */
-	NDINIT(&nd, LOOKUP, FOLLOW | MPSAFE, UIO_SYSSPACE, linux_emul_path, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, linux_emul_path, td);
 	flep = NULL;
 	error = namei(&nd);
 	lep = linux_emul_path;
@@ -422,7 +421,6 @@ linprocfs_dopartitions(PFS_FILL_ARGS)
 		if (vn_fullpath(td, nd.ni_vp, &dlep, &flep) == 0)
 			lep = dlep;
 		vrele(nd.ni_vp);
-		VFS_UNLOCK_GIANT(NDHASGIANT(&nd));
 	}
 	lep_len = strlen(lep);
 
@@ -1012,7 +1010,6 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 	int error;
 	struct vnode *vp;
 	struct vattr vat;
-	int locked;
 
 	PROC_LOCK(p);
 	error = p_candebug(td, p);
@@ -1065,12 +1062,10 @@ linprocfs_doprocmaps(PFS_FILL_ARGS)
 			VM_OBJECT_UNLOCK(obj);
 			if (vp) {
 				vn_fullpath(td, vp, &name, &freename);
-				locked = VFS_LOCK_GIANT(vp->v_mount);
 				vn_lock(vp, LK_SHARED | LK_RETRY);
 				VOP_GETATTR(vp, &vat, td->td_ucred);
 				ino = vat.va_fileid;
 				vput(vp);
-				VFS_UNLOCK_GIANT(locked);
 			}
 		} else {
 			flags = 0;

@@ -752,7 +752,7 @@ icmp6_opt_print(const u_char *bp, int resid)
 		case ND_OPT_ADVINTERVAL:
 			opa = (struct nd_opt_advinterval *)op;
 			TCHECK(opa->nd_opt_adv_interval);
-			printf(" %us", EXTRACT_32BITS(&opa->nd_opt_adv_interval));
+			printf(" %ums", EXTRACT_32BITS(&opa->nd_opt_adv_interval));
 			break;
 		case ND_OPT_HOMEAGENT_INFO:
 			oph = (struct nd_opt_homeagent_info *)op;

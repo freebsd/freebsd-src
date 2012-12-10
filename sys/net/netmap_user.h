@@ -62,15 +62,16 @@
 #ifndef _NET_NETMAP_USER_H_
 #define _NET_NETMAP_USER_H_
 
-#define NETMAP_IF(b, o)	(struct netmap_if *)((char *)(b) + (o))
+#define _NETMAP_OFFSET(type, ptr, offset) \
+	((type)(void *)((char *)(ptr) + (offset)))
 
-#define NETMAP_TXRING(nifp, index)			\
-	((struct netmap_ring *)((char *)(nifp) +	\
-		(nifp)->ring_ofs[index] ) )
+#define NETMAP_IF(b, o)	_NETMAP_OFFSET(struct netmap_if *, b, o)
 
-#define NETMAP_RXRING(nifp, index)			\
-	((struct netmap_ring *)((char *)(nifp) +	\
-	    (nifp)->ring_ofs[index + (nifp)->ni_tx_rings + 1] ) )
+#define NETMAP_TXRING(nifp, index) _NETMAP_OFFSET(struct netmap_ring *, \
+	nifp, (nifp)->ring_ofs[index] )
+
+#define NETMAP_RXRING(nifp, index) _NETMAP_OFFSET(struct netmap_ring *,	\
+	nifp, (nifp)->ring_ofs[index + (nifp)->ni_tx_rings + 1] )
 
 #define NETMAP_BUF(ring, index)				\
 	((char *)(ring) + (ring)->buf_ofs + ((index)*(ring)->nr_buf_size))

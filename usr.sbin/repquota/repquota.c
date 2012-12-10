@@ -79,8 +79,7 @@ __FBSDID("$FreeBSD$");
 
 #define max(a,b) ((a) >= (b) ? (a) : (b))
 
-const char *qfname = QUOTAFILENAME;
-const char *qfextension[] = INITQFNAMES;
+static const char *qfextension[] = INITQFNAMES;
 
 struct fileusage {
 	struct	fileusage *fu_next;
@@ -89,15 +88,15 @@ struct fileusage {
 	/* actually bigger */
 };
 #define FUHASH 1024	/* must be power of two */
-struct fileusage *fuhead[MAXQUOTAS][FUHASH];
-struct fileusage *lookup(u_long, int);
-struct fileusage *addid(u_long, int, char *);
-u_long highid[MAXQUOTAS];	/* highest addid()'ed identifier per type */
+static struct fileusage *fuhead[MAXQUOTAS][FUHASH];
+static struct fileusage *lookup(u_long, int);
+static struct fileusage *addid(u_long, int, char *);
+static u_long highid[MAXQUOTAS]; /* highest addid()'ed identifier per type */
 
-int	vflag;			/* verbose */
-int	aflag;			/* all filesystems */
-int	nflag;			/* display user/group by id */
-int	hflag;			/* display in human readable format */
+static int	vflag;		/* verbose */
+static int	aflag;		/* all filesystems */
+static int	nflag;		/* display user/group by id */
+static int	hflag;		/* display in human readable format */
 
 int oneof(char *, char *[], int);
 int repquota(struct fstab *, int);

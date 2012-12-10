@@ -315,10 +315,10 @@ static size_t pipesizemax8 = sizeof(struct dn_pipe_max8);
 /* Indicate 'ipfw' version
  * 1: from FreeBSD 7.2
  * 0: from FreeBSD 8
- * -1: unknow (for now is unused)
+ * -1: unknown (for now is unused)
  *
  * It is update when a IP_DUMMYNET_DEL or IP_DUMMYNET_CONFIGURE request arrives
- * NOTE: if a IP_DUMMYNET_GET arrives and the 'ipfw' version is unknow,
+ * NOTE: if a IP_DUMMYNET_GET arrives and the 'ipfw' version is unknown,
  *       it is suppose to be the FreeBSD 8 version.
  */
 static int is7 = 0;
@@ -513,7 +513,7 @@ dn_compat_configure(void *v)
 	lmax += sizeof(struct dn_sch) + sizeof(struct dn_link) +
 		sizeof(struct dn_fs) + sizeof(struct dn_profile);
 
-	base = buf = malloc(lmax, M_DUMMYNET, M_WAIT|M_ZERO);
+	base = buf = malloc(lmax, M_DUMMYNET, M_WAITOK|M_ZERO);
 	o_next(&buf, sizeof(struct dn_id), DN_CMD_CONFIG);
 	base->id = DN_API_VERSION;
 

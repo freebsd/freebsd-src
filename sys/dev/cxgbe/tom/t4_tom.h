@@ -67,6 +67,7 @@ enum {
 	TPF_SYNQE_NEEDFREE = (1 << 9),	/* synq_entry was malloc'd separately */
 	TPF_SYNQE_TCPDDP   = (1 << 10),	/* ulp_mode TCPDDP in toepcb */
 	TPF_SYNQE_EXPANDED = (1 << 11),	/* toepcb ready, tid context updated */
+	TPF_SYNQE_HAS_L2TE = (1 << 12),	/* we've replied to PASS_ACCEPT_REQ */
 };
 
 enum {
@@ -205,7 +206,7 @@ static inline struct tom_data *
 tod_td(struct toedev *tod)
 {
 
-	return (member2struct(tom_data, tod, tod));
+	return (__containerof(tod, struct tom_data, tod));
 }
 
 static inline struct adapter *
@@ -272,4 +273,5 @@ int t4_soreceive_ddp(struct socket *, struct sockaddr **, struct uio *,
     struct mbuf **, struct mbuf **, int *);
 void enable_ddp(struct adapter *, struct toepcb *toep);
 void release_ddp_resources(struct toepcb *toep);
+void insert_ddp_data(struct toepcb *, uint32_t);
 #endif

@@ -94,6 +94,7 @@ typedef enum {
 struct adv_ccb_info {
 	adv_ccb_state	state;
 	bus_dmamap_t	dmamap;
+	struct callout	timer;
 	union ccb*	ccb;
 	SLIST_ENTRY(adv_ccb_info) links;
 };
@@ -496,8 +497,8 @@ struct adv_target_transinfo {
 
 struct adv_softc {
 	device_t		 dev;
-	bus_space_tag_t		 tag;
-	bus_space_handle_t	 bsh;
+	struct resource		*res;
+	long                     reg_off;
 	struct cam_sim		*sim;
 	LIST_HEAD(, ccb_hdr)	 pending_ccbs;
 	struct adv_ccb_info	*ccb_infos;
@@ -539,8 +540,7 @@ struct adv_softc {
 	
 	adv_state		 state;
 	struct cam_path		*path;
-	int			 unit;
-	int			 init_level;
+ 	int			 init_level;
 	u_int32_t		 max_dma_addr;
 	u_int32_t		 max_dma_count;
 	u_int8_t		 isa_dma_speed;
@@ -554,6 +554,7 @@ struct adv_softc {
 	u_int8_t		 ccb_infos_allocated;
 	u_int8_t		*sdtr_period_tbl;
 	u_int8_t		 sdtr_period_tbl_size;
+	struct mtx		 lock;
 };
 
 /*
@@ -793,7 +794,7 @@ void	  adv_write_lram_16(struct adv_softc *adv, u_int16_t addr,
 			    u_int16_t value);
 
 /* Intialization */
-int	  adv_find_signature(bus_space_tag_t tag, bus_space_handle_t bsh);
+int	  adv_find_signature(struct resource *res);
 void	  adv_lib_init(struct adv_softc *adv);
 
 u_int16_t adv_get_eeprom_config(struct adv_softc *adv,
@@ -846,11 +847,11 @@ void	advasync(void *callback_arg, u_int32_t code,
 		 struct cam_path *path, void *arg);
 
 #define ADV_INB(adv, offset)			\
-	bus_space_read_1((adv)->tag, (adv)->bsh, offset)
+	bus_read_1((adv)->res, (adv)->reg_off + offset)
 #define ADV_INW(adv, offset)			\
-	bus_space_read_2((adv)->tag, (adv)->bsh, offset)
+	bus_read_2((adv)->res, (adv)->reg_off + offset)
 #define ADV_INSB(adv, offset, valp, count)	\
-	bus_space_read_multi_1((adv)->tag, (adv)->bsh, offset, valp, count)
+	bus_read_multi_1((adv)->res, (adv)->reg_off + offset, valp, count)
 
 /* These controllers seem to have problems with PIO on some fast processors */
 static __inline void ADV_INSW(struct adv_softc *, u_int, u_int16_t *, u_int);
@@ -858,13 +859,13 @@ static __inline void
 ADV_INSW(struct adv_softc *adv, u_int offset, u_int16_t *valp, u_int count)
 {
 	while (count--)
-		*valp++ = bus_space_read_2(adv->tag, adv->bsh, offset);
+		*valp++ = bus_read_2(adv->res, adv->reg_off + offset);
 }
 
 #define ADV_OUTB(adv, offset, val)		\
-	bus_space_write_1((adv)->tag, (adv)->bsh, offset, val)
+	bus_write_1((adv)->res, (adv)->reg_off + offset, val)
 #define ADV_OUTW(adv, offset, val)		\
-	bus_space_write_2((adv)->tag, (adv)->bsh, offset, val)
+	bus_write_2((adv)->res, (adv)->reg_off + offset, val)
 
 /* These controllers seem to have problems with PIO on some fast processors */
 static __inline void ADV_OUTSW(struct adv_softc *, u_int, u_int16_t *, u_int);
@@ -872,7 +873,7 @@ static __inline void
 ADV_OUTSW(struct adv_softc *adv, u_int offset, u_int16_t *valp, u_int count)
 {
 	while (count--)
-		bus_space_write_2(adv->tag, adv->bsh, offset, *valp++);
+		bus_write_2(adv->res, adv->reg_off + offset, *valp++);
 }
 
 #endif /* _ADVLIB_H_ */

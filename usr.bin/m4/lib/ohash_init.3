@@ -166,7 +166,7 @@ for (n = ohash_first(h, &i); n != NULL; n = ohash_next(h, &i))
 points to an auxiliary unsigned integer used to record the current position
 in the ohash table.
 Those functions are safe to use even while entries are added to/removed
-from the table, but in such a case they don't guarantee that new entries
+from the table, but in such a case they do not guarantee that new entries
 will be returned.
 As a special case, they can safely be used to free elements in the table.
 .Pp

@@ -39,6 +39,7 @@ static const char rcsid[] =
 #include <grp.h>
 #include <histedit.h>
 #include <pwd.h>
+#include <stdint.h>
 #include <string.h>
 #include <time.h>
 #include <timeconv.h>
@@ -211,7 +212,8 @@ char *
 prompt(EditLine *el)
 {
     static char pstring[64];
-    snprintf(pstring, sizeof(pstring), "fsdb (inum: %d)> ", curinum);
+    snprintf(pstring, sizeof(pstring), "fsdb (inum: %ju)> ",
+	(uintmax_t)curinum);
     return pstring;
 }
 
@@ -298,8 +300,8 @@ ino_t curinum, ocurrent;
 
 #define GETINUM(ac,inum)    inum = strtoul(argv[ac], &cp, 0); \
     if (inum < ROOTINO || inum > maxino || cp == argv[ac] || *cp != '\0' ) { \
-	printf("inode %d out of range; range is [%d,%d]\n", \
-	       inum, ROOTINO, maxino); \
+	printf("inode %ju out of range; range is [%ju,%ju]\n",		\
+	    (uintmax_t)inum, (uintmax_t)ROOTINO, (uintmax_t)maxino);	\
 	return 1; \
     }
 
@@ -364,7 +366,8 @@ CMDFUNCSTART(uplink)
     if (!checkactive())
 	return 1;
     DIP_SET(curinode, di_nlink, DIP(curinode, di_nlink) + 1);
-    printf("inode %d link count now %d\n", curinum, DIP(curinode, di_nlink));
+    printf("inode %ju link count now %d\n",
+	(uintmax_t)curinum, DIP(curinode, di_nlink));
     inodirty();
     return 0;
 }
@@ -374,7 +377,8 @@ CMDFUNCSTART(downlink)
     if (!checkactive())
 	return 1;
     DIP_SET(curinode, di_nlink, DIP(curinode, di_nlink) - 1);
-    printf("inode %d link count now %d\n", curinum, DIP(curinode, di_nlink));
+    printf("inode %ju link count now %d\n",
+	(uintmax_t)curinum, DIP(curinode, di_nlink));
     inodirty();
     return 0;
 }
@@ -493,11 +497,11 @@ CMDFUNCSTART(findblk)
 	    if (is_ufs2 ?
 		compare_blk64(wantedblk64, ino_to_fsba(&sblock, inum)) :
 		compare_blk32(wantedblk32, ino_to_fsba(&sblock, inum))) {
-		printf("block %llu: inode block (%d-%d)\n",
+		printf("block %llu: inode block (%ju-%ju)\n",
 		    (unsigned long long)fsbtodb(&sblock,
 			ino_to_fsba(&sblock, inum)),
-		    (inum / INOPB(&sblock)) * INOPB(&sblock),
-		    (inum / INOPB(&sblock) + 1) * INOPB(&sblock));
+		    (uintmax_t)(inum / INOPB(&sblock)) * INOPB(&sblock),
+		    (uintmax_t)(inum / INOPB(&sblock) + 1) * INOPB(&sblock));
 		findblk_numtofind--;
 		if (findblk_numtofind == 0)
 		    goto end;
@@ -593,8 +597,8 @@ static int
 founddatablk(uint64_t blk)
 {
 
-    printf("%llu: data block of inode %d\n",
-	(unsigned long long)fsbtodb(&sblock, blk), curinum);
+    printf("%llu: data block of inode %ju\n",
+	(unsigned long long)fsbtodb(&sblock, blk), (uintmax_t)curinum);
     findblk_numtofind--;
     if (findblk_numtofind == 0)
 	return 1;
@@ -753,7 +757,7 @@ CMDFUNCSTART(ln)
 	return 1;
     rval = makeentry(curinum, inum, argv[2]);
     if (rval)
-	printf("Ino %d entered as `%s'\n", inum, argv[2]);
+	    printf("Ino %ju entered as `%s'\n", (uintmax_t)inum, argv[2]);
     else
 	printf("could not enter name? weird.\n");
     curinode = ginode(curinum);

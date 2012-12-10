@@ -60,6 +60,7 @@ vcmn_err(int ce, const char *fmt, va_list adx)
 	if (ce != CE_IGNORE) {
 		printf("%s", prefix);
 		vprintf(fmt, adx);
+		printf("\n");
 	}
 }
 

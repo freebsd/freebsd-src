@@ -74,8 +74,6 @@ TUNABLE_INT("hw.octe.pow_receive_group", &pow_receive_group);
 		 "\t\tgroup. Also any other software can submit packets to this\n"
 		 "\t\tgroup for the kernel to process." */
 
-extern int octeon_is_simulation(void);
-
 /**
  * Periodic timer to check auto negotiation
  */
@@ -228,7 +226,7 @@ static void cvm_oct_configure_common_hw(device_t bus)
 				      num_packet_buffers/8);
 
 	/* Enable the MII interface */
-	if (!octeon_is_simulation())
+	if (cvmx_sysinfo_get()->board_type != CVMX_BOARD_TYPE_SIM)
 		cvmx_write_csr(CVMX_SMI_EN, 1);
 
 	/* Register an IRQ hander for to receive POW interrupts */
@@ -309,8 +307,6 @@ int cvm_oct_init_module(device_t bus)
 	int interface;
 	int fau = FAU_NUM_PACKET_BUFFERS_TO_FREE;
 	int qos;
-
-	printf("cavium-ethernet: %s\n", OCTEON_SDK_VERSION_STRING);
 
 	cvm_oct_rx_initialize();
 	cvm_oct_configure_common_hw(bus);

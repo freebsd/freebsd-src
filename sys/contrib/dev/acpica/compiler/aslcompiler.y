@@ -3509,7 +3509,7 @@ OptionalXferSize
 int
 AslCompilerwrap(void)
 {
-  return 1;
+  return (1);
 }
 
 /*! [End] no source code translation !*/

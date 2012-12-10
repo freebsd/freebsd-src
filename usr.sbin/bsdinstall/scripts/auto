@@ -53,15 +53,15 @@ bsdinstall hostname || error
 
 export DISTRIBUTIONS="base.txz kernel.txz"
 if [ -f $BSDINSTALL_DISTDIR/MANIFEST ]; then
-	DISTMENU=`cut -f 4,5,6 $BSDINSTALL_DISTDIR/MANIFEST | grep -v -e ^kernel -e ^base`
+	DISTMENU=`awk -F'\t' '!/^(kernel|base)/{print $4,$5,$6}' $BSDINSTALL_DISTDIR/MANIFEST`
 
 	exec 3>&1
-	EXTRA_DISTS=$(echo $DISTMENU | xargs dialog \
-	    --backtitle "FreeBSD Installer" \
-	    --title "Distribution Select" --nocancel --separate-output \
-	    --checklist "Choose optional system components to install:" \
-	    0 0 0 \
-	2>&1 1>&3)
+	EXTRA_DISTS=$( eval dialog \
+	    --backtitle \"FreeBSD Installer\" \
+	    --title \"Distribution Select\" --nocancel --separate-output \
+	    --checklist \"Choose optional system components to install:\" \
+	    0 0 0 $DISTMENU \
+	2>&1 1>&3 )
 	for dist in $EXTRA_DISTS; do
 		export DISTRIBUTIONS="$DISTRIBUTIONS $dist.txz"
 	done

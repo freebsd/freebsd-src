@@ -32,6 +32,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bio.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
@@ -49,7 +50,6 @@
 
 #include <geom/geom_disk.h>
 
-#include <dev/mlx/mlx_compat.h>
 #include <dev/mlx/mlxio.h>
 #include <dev/mlx/mlxvar.h>
 #include <dev/mlx/mlxreg.h>
@@ -307,7 +307,7 @@ mlx_attach(struct mlx_softc *sc)
      */
     TAILQ_INIT(&sc->mlx_work);
     TAILQ_INIT(&sc->mlx_freecmds);
-    MLX_BIO_QINIT(sc->mlx_bioq);
+    bioq_init(&sc->mlx_bioq);
 
     /* 
      * Select accessor methods based on controller interface type.
@@ -731,13 +731,13 @@ mlx_intr(void *arg)
  * disk resource, then poke the disk resource to start as much work as it can.
  */
 int
-mlx_submit_buf(struct mlx_softc *sc, mlx_bio *bp)
+mlx_submit_buf(struct mlx_softc *sc, struct bio *bp)
 {
     
     debug_called(1);
 
     MLX_IO_ASSERT_LOCKED(sc);
-    MLX_BIO_QINSERT(sc->mlx_bioq, bp);
+    bioq_insert_tail(&sc->mlx_bioq, bp);
     sc->mlx_waitbufs++;
     mlx_startio(sc);
     return(0);
@@ -1838,7 +1838,7 @@ mlx_startio_cb(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
     struct mlx_command	*mc;
     struct mlxd_softc	*mlxd;
     struct mlx_softc	*sc;
-    mlx_bio		*bp;
+    struct bio		*bp;
     int			blkcount;
     int			driveno;
     int			cmd;
@@ -1849,7 +1849,7 @@ mlx_startio_cb(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
     sc = mc->mc_sc;
     bp = mc->mc_private;
 
-    if (MLX_BIO_IS_READ(bp)) {
+    if (bp->bio_cmd == BIO_READ) {
 	mc->mc_flags |= MLX_CMD_DATAIN;
 	cmd = MLX_CMD_READSG;
     } else {
@@ -1858,14 +1858,14 @@ mlx_startio_cb(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
     }
 
     /* build a suitable I/O command (assumes 512-byte rounded transfers) */
-    mlxd = (struct mlxd_softc *)MLX_BIO_SOFTC(bp);
+    mlxd = bp->bio_disk->d_drv1;
     driveno = mlxd->mlxd_drive - sc->mlx_sysdrive;
-    blkcount = (MLX_BIO_LENGTH(bp) + MLX_BLKSIZE - 1) / MLX_BLKSIZE;
+    blkcount = (bp->bio_bcount + MLX_BLKSIZE - 1) / MLX_BLKSIZE;
 
-    if ((MLX_BIO_LBA(bp) + blkcount) > sc->mlx_sysdrive[driveno].ms_size)
+    if ((bp->bio_pblkno + blkcount) > sc->mlx_sysdrive[driveno].ms_size)
 	device_printf(sc->mlx_dev,
 		      "I/O beyond end of unit (%lld,%d > %lu)\n", 
-		      (long long)MLX_BIO_LBA(bp), blkcount,
+		      (long long)bp->bio_pblkno, blkcount,
 		      (u_long)sc->mlx_sysdrive[driveno].ms_size);
 
     /*
@@ -1876,7 +1876,7 @@ mlx_startio_cb(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
 	mlx_make_type1(mc, (cmd == MLX_CMD_WRITESG) ? MLX_CMD_WRITESG_OLD :
 						      MLX_CMD_READSG_OLD,
 		       blkcount & 0xff, 	/* xfer length low byte */
-		       MLX_BIO_LBA(bp),		/* physical block number */
+		       bp->bio_pblkno,		/* physical block number */
 		       driveno,			/* target drive number */
 		       mc->mc_sgphys,		/* location of SG list */
 		       mc->mc_nsgent & 0x3f);	/* size of SG list */
@@ -1885,7 +1885,7 @@ mlx_startio_cb(void *arg, bus_dma_segment_t *segs, int nsegments, int error)
 		       blkcount & 0xff, 	/* xfer length low byte */
 		       (driveno << 3) | ((blkcount >> 8) & 0x07),
 						/* target+length high 3 bits */
-		       MLX_BIO_LBA(bp),		/* physical block number */
+		       bp->bio_pblkno,		/* physical block number */
 		       mc->mc_sgphys,		/* location of SG list */
 		       mc->mc_nsgent & 0x3f);	/* size of SG list */
     }
@@ -1908,7 +1908,7 @@ static void
 mlx_startio(struct mlx_softc *sc)
 {
     struct mlx_command	*mc;
-    mlx_bio		*bp;
+    struct bio		*bp;
     int			error;
 
     MLX_IO_ASSERT_LOCKED(sc);
@@ -1919,7 +1919,7 @@ mlx_startio(struct mlx_softc *sc)
 	    break;
 
 	/* see if there's work to be done */
-	if ((bp = MLX_BIO_QFIRST(sc->mlx_bioq)) == NULL)
+	if ((bp = bioq_first(&sc->mlx_bioq)) == NULL)
 	    break;
 	/* get a command */
 	if ((mc = mlx_alloccmd(sc)) == NULL)
@@ -1930,14 +1930,14 @@ mlx_startio(struct mlx_softc *sc)
 	    break;
 	}
 	/* get the buf containing our work */
-	MLX_BIO_QREMOVE(sc->mlx_bioq, bp);
+	bioq_remove(&sc->mlx_bioq, bp);
 	sc->mlx_waitbufs--;
 	
 	/* connect the buf to the command */
 	mc->mc_complete = mlx_completeio;
 	mc->mc_private = bp;
-	mc->mc_data = MLX_BIO_DATA(bp);
-	mc->mc_length = MLX_BIO_LENGTH(bp);
+	mc->mc_data = bp->bio_data;
+	mc->mc_length = bp->bio_bcount;
 	
 	/* map the command so the controller can work with it */
 	error = bus_dmamap_load(sc->mlx_buffer_dmat, mc->mc_dmamap, mc->mc_data,
@@ -1956,12 +1956,13 @@ static void
 mlx_completeio(struct mlx_command *mc)
 {
     struct mlx_softc	*sc = mc->mc_sc;
-    mlx_bio		*bp = (mlx_bio *)mc->mc_private;
-    struct mlxd_softc	*mlxd = (struct mlxd_softc *)MLX_BIO_SOFTC(bp);
+    struct bio		*bp = mc->mc_private;
+    struct mlxd_softc	*mlxd = bp->bio_disk->d_drv1;
 
     MLX_IO_ASSERT_LOCKED(sc);
     if (mc->mc_status != MLX_STATUS_OK) {	/* could be more verbose here? */
-	MLX_BIO_SET_ERROR(bp, EIO);
+	bp->bio_error = EIO;
+	bp->bio_flags |= BIO_ERROR;
 
 	switch(mc->mc_status) {
 	case MLX_STATUS_RDWROFFLINE:		/* system drive has gone offline */
@@ -1974,7 +1975,7 @@ mlx_completeio(struct mlx_command *mc)
 	    device_printf(sc->mlx_dev, "I/O error - %s\n", mlx_diagnose_command(mc));
 #if 0
 	    device_printf(sc->mlx_dev, "  b_bcount %ld  blkcount %ld  b_pblkno %d\n", 
-			  MLX_BIO_LENGTH(bp), MLX_BIO_LENGTH(bp) / MLX_BLKSIZE, MLX_BIO_LBA(bp));
+			  bp->bio_bcount, bp->bio_bcount / MLX_BLKSIZE, bp->bio_pblkno);
 	    device_printf(sc->mlx_dev, "  %13D\n", mc->mc_mailbox, " ");
 #endif
 	    break;

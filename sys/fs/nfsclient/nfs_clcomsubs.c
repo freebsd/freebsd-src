@@ -43,10 +43,11 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfs/nfsport.h>
 
 extern struct nfsstats newnfsstats;
-extern struct nfsv4_opflag nfsv4_opflag[NFSV4OP_NOPS];
+extern struct nfsv4_opflag nfsv4_opflag[NFSV41_NOPS];
 extern int ncl_mbuf_mlen;
 extern enum vtype newnv2tov_type[8];
 extern enum vtype nv34tov_type[8];
+extern int	nfs_bigreply[NFSV41_NPROCS];
 NFSCLSTATEMUTEX;
 #endif	/* !APPLEKEXT */
 
@@ -56,7 +57,7 @@ static struct {
 	int	opcnt;
 	const u_char *tag;
 	int	taglen;
-} nfsv4_opmap[NFS_NPROCS] = {
+} nfsv4_opmap[NFSV41_NPROCS] = {
 	{ 0, 1, "Null", 4 },
 	{ NFSV4OP_GETATTR, 1, "Getattr", 7, },
 	{ NFSV4OP_SETATTR, 2, "Setattr", 7, },
@@ -98,15 +99,28 @@ static struct {
 	{ NFSV4OP_DELEGRETURN, 9, "DelegRename2", 12, },
 	{ NFSV4OP_GETATTR, 1, "Getacl", 6, },
 	{ NFSV4OP_SETATTR, 1, "Setacl", 6, },
+	{ NFSV4OP_EXCHANGEID, 1, "ExchangeID", 10, },
+	{ NFSV4OP_CREATESESSION, 1, "CreateSession", 13, },
+	{ NFSV4OP_DESTROYSESSION, 1, "DestroySession", 14, },
+	{ NFSV4OP_DESTROYCLIENTID, 1, "DestroyClient", 13, },
+	{ NFSV4OP_FREESTATEID, 1, "FreeStateID", 11, },
+	{ NFSV4OP_LAYOUTGET, 1, "LayoutGet", 9, },
+	{ NFSV4OP_GETDEVINFO, 1, "GetDeviceInfo", 13, },
+	{ NFSV4OP_LAYOUTCOMMIT, 1, "LayoutCommit", 12, },
+	{ NFSV4OP_LAYOUTRETURN, 1, "LayoutReturn", 12, },
+	{ NFSV4OP_RECLAIMCOMPL, 1, "ReclaimComplete", 15, },
+	{ NFSV4OP_WRITE, 1, "WriteDS", 7, },
+	{ NFSV4OP_READ, 1, "ReadDS", 6, },
+	{ NFSV4OP_COMMIT, 1, "CommitDS", 8, },
 };
-
 
 /*
  * NFS RPCS that have large request message size.
  */
-static int nfs_bigrequest[NFS_NPROCS] = {
+static int nfs_bigrequest[NFSV41_NPROCS] = {
 	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 1, 0, 0
 };
 
 /*
@@ -115,7 +129,7 @@ static int nfs_bigrequest[NFS_NPROCS] = {
  */
 APPLESTATIC void
 nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
-    u_int8_t *nfhp, int fhlen, u_int32_t **opcntpp)
+    u_int8_t *nfhp, int fhlen, u_int32_t **opcntpp, struct nfsclsession *sep)
 {
 	struct mbuf *mb;
 	u_int32_t *tl;
@@ -125,9 +139,12 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 	/*
 	 * First, fill in some of the fields of nd.
 	 */
-	if (NFSHASNFSV4(nmp))
+	nd->nd_slotseq = NULL;
+	if (NFSHASNFSV4(nmp)) {
 		nd->nd_flag = ND_NFSV4 | ND_NFSCL;
-	else if (NFSHASNFSV3(nmp))
+		if (NFSHASNFSV4N(nmp))
+			nd->nd_flag |= ND_NFSV41;
+	} else if (NFSHASNFSV3(nmp))
 		nd->nd_flag = ND_NFSV3 | ND_NFSCL;
 	else
 		nd->nd_flag = ND_NFSV2 | ND_NFSCL;
@@ -138,7 +155,7 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 	 * Get the first mbuf for the request.
 	 */
 	if (nfs_bigrequest[procnum])
-		NFSMCLGET(mb, M_WAIT);
+		NFSMCLGET(mb, M_WAITOK);
 	else
 		NFSMGET(mb);
 	mbuf_setlen(mb, 0);
@@ -151,33 +168,71 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 	if (nd->nd_flag & ND_NFSV4) {
 		opcnt = nfsv4_opmap[procnum].opcnt +
 		    nfsv4_opflag[nfsv4_opmap[procnum].op].needscfh;
+		if ((nd->nd_flag & ND_NFSV41) != 0) {
+			opcnt += nfsv4_opflag[nfsv4_opmap[procnum].op].needsseq;
+			if (procnum == NFSPROC_RENEW)
+				/*
+				 * For the special case of Renew, just do a
+				 * Sequence Op.
+				 */
+				opcnt = 1;
+			else if (procnum == NFSPROC_WRITEDS ||
+			    procnum == NFSPROC_COMMITDS)
+				/*
+				 * For the special case of a Writeor Commit to
+				 * a DS, the opcnt == 3, for Sequence, PutFH,
+				 * Write/Commit.
+				 */
+				opcnt = 3;
+		}
 		/*
 		 * What should the tag really be?
 		 */
 		(void) nfsm_strtom(nd, nfsv4_opmap[procnum].tag,
 			nfsv4_opmap[procnum].taglen);
-		NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
-		*tl++ = txdr_unsigned(NFSV4_MINORVERSION);
+		NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			*tl++ = txdr_unsigned(NFSV41_MINORVERSION);
+		else
+			*tl++ = txdr_unsigned(NFSV4_MINORVERSION);
 		if (opcntpp != NULL)
 			*opcntpp = tl;
-		*tl++ = txdr_unsigned(opcnt);
+		*tl = txdr_unsigned(opcnt);
+		if ((nd->nd_flag & ND_NFSV41) != 0 &&
+		    nfsv4_opflag[nfsv4_opmap[procnum].op].needsseq > 0) {
+			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl = txdr_unsigned(NFSV4OP_SEQUENCE);
+			if (sep == NULL)
+				nfsv4_setsequence(nd, NFSMNT_MDSSESSION(nmp),
+				    nfs_bigreply[procnum]);
+			else
+				nfsv4_setsequence(nd, sep,
+				    nfs_bigreply[procnum]);
+		}
 		if (nfsv4_opflag[nfsv4_opmap[procnum].op].needscfh > 0) {
+			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 			*tl = txdr_unsigned(NFSV4OP_PUTFH);
 			(void) nfsm_fhtom(nd, nfhp, fhlen, 0);
-			if (nfsv4_opflag[nfsv4_opmap[procnum].op].needscfh==2){
+			if (nfsv4_opflag[nfsv4_opmap[procnum].op].needscfh
+			    == 2 && procnum != NFSPROC_WRITEDS &&
+			    procnum != NFSPROC_COMMITDS) {
 				NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 				*tl = txdr_unsigned(NFSV4OP_GETATTR);
 				NFSWCCATTR_ATTRBIT(&attrbits);
 				(void) nfsrv_putattrbit(nd, &attrbits);
 				nd->nd_flag |= ND_V4WCCATTR;
 			}
-			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 		}
-		*tl = txdr_unsigned(nfsv4_opmap[procnum].op);
+		if (procnum != NFSPROC_RENEW ||
+		    (nd->nd_flag & ND_NFSV41) == 0) {
+			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl = txdr_unsigned(nfsv4_opmap[procnum].op);
+		}
 	} else {
 		(void) nfsm_fhtom(nd, nfhp, fhlen, 0);
 	}
-	NFSINCRGLOBAL(newnfsstats.rpccnt[procnum]);
+	if (procnum < NFSV4_NPROCS)
+		NFSINCRGLOBAL(newnfsstats.rpccnt[procnum]);
 }
 
 #ifndef APPLE
@@ -212,7 +267,7 @@ nfsm_uiombuf(struct nfsrv_descript *nd, struct uio *uiop, int siz)
 			mlen = M_TRAILINGSPACE(mp);
 			if (mlen == 0) {
 				if (clflg)
-					NFSMCLGET(mp, M_WAIT);
+					NFSMCLGET(mp, M_WAITOK);
 				else
 					NFSMGET(mp);
 				mbuf_setlen(mp, 0);
@@ -453,6 +508,11 @@ nfsm_stateidtom(struct nfsrv_descript *nd, nfsv4stateid_t *stateidp, int flag)
 		st->other[0] = 0xffffffff;
 		st->other[1] = 0xffffffff;
 		st->other[2] = 0xffffffff;
+	} else if (flag == NFSSTATEID_PUTSEQIDZERO) {
+		st->seqid = 0;
+		st->other[0] = stateidp->other[0];
+		st->other[1] = stateidp->other[1];
+		st->other[2] = stateidp->other[2];
 	} else {
 		st->seqid = stateidp->seqid;
 		st->other[0] = stateidp->other[0];

@@ -337,7 +337,7 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 	struct l_dirent64 *linux_dirent64;
 	int buflen, error, eofflag, nbytes, justone;
 	u_long *cookies = NULL, *cookiep;
-	int ncookies, vfslocked;
+	int ncookies;
 
 	nbytes = args->count;
 	if (nbytes == 1) {
@@ -359,9 +359,7 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 
 	off = foffset_lock(fp, 0);
 	vp = fp->f_vnode;
-	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	if (vp->v_type != VDIR) {
-		VFS_UNLOCK_GIANT(vfslocked);
 		foffset_unlock(fp, off, 0);
 		fdrop(fp, td);
 		return (EINVAL);
@@ -521,7 +519,6 @@ out:
 		free(cookies, M_TEMP);
 
 	VOP_UNLOCK(vp, 0);
-	VFS_UNLOCK_GIANT(vfslocked);
 	foffset_unlock(fp, off, 0);
 	fdrop(fp, td);
 	free(buf, M_TEMP);

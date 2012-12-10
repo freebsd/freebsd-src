@@ -146,6 +146,8 @@
 #define isc_task_getcurrenttime isc__task_getcurrenttime
 #define isc_taskmgr_create isc__taskmgr_create
 #define isc_taskmgr_destroy isc__taskmgr_destroy
+#define isc_taskmgr_setexcltask isc__taskmgr_setexcltask
+#define isc_taskmgr_excltask isc__taskmgr_excltask
 #define isc_task_beginexclusive isc__task_beginexclusive
 #define isc_task_endexclusive isc__task_endexclusive
 

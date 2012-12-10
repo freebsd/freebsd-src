@@ -105,8 +105,21 @@
 #define QTRACE(m)
 #endif
 
+#define US_PER_SEC 1000000U
+/*
+ * The maximum time we will wait for a single query.
+ */
+#define MAX_SINGLE_QUERY_TIMEOUT 9U
+#define MAX_SINGLE_QUERY_TIMEOUT_US (MAX_SINGLE_QUERY_TIMEOUT*US_PER_SEC)
+
+/*
+ * We need to allow a individual query time to complete / timeout.
+ */
+#define MINIMUM_QUERY_TIMEOUT (MAX_SINGLE_QUERY_TIMEOUT + 1U)
+
+/* The default time in seconds for the whole query to live. */
 #ifndef DEFAULT_QUERY_TIMEOUT
-#define DEFAULT_QUERY_TIMEOUT 30  /* The default time in seconds for the whole query to live. */
+#define DEFAULT_QUERY_TIMEOUT MINIMUM_QUERY_TIMEOUT
 #endif
 
 #ifndef MAXIMUM_QUERY_TIMEOUT
@@ -821,8 +834,8 @@ fctx_cancelquery(resquery_t **queryp, dns_dispatchevent_t **deventp,
 			 */
 			INSIST(no_response);
 			rtt = query->addrinfo->srtt + 200000;
-			if (rtt > 10000000)
-				rtt = 10000000;
+			if (rtt > MAX_SINGLE_QUERY_TIMEOUT_US)
+				rtt = MAX_SINGLE_QUERY_TIMEOUT_US;
 			/*
 			 * Replace the current RTT with our value.
 			 */
@@ -1336,12 +1349,18 @@ fctx_setretryinterval(fetchctx_t *fctx, unsigned int rtt) {
 		us = (800000 << (fctx->restarts - 2));
 
 	/*
-	 * Double the round-trip time.
+	 * Add a fudge factor to the expected rtt based on the current
+	 * estimate.
 	 */
-	rtt *= 2;
+	if (rtt < 50000)
+		rtt += 50000;
+	else if (rtt < 100000)
+		rtt += 100000;
+	else
+		rtt += 200000;
 
 	/*
-	 * Always wait for at least the doubled round-trip time.
+	 * Always wait for at least the expected rtt.
 	 */
 	if (us < rtt)
 		us = rtt;
@@ -1349,11 +1368,11 @@ fctx_setretryinterval(fetchctx_t *fctx, unsigned int rtt) {
 	/*
 	 * But don't ever wait for more than 10 seconds.
 	 */
-	if (us > 10000000)
-		us = 10000000;
+	if (us > MAX_SINGLE_QUERY_TIMEOUT_US)
+		us = MAX_SINGLE_QUERY_TIMEOUT_US;
 
-	seconds = us / 1000000;
-	us -= seconds * 1000000;
+	seconds = us / US_PER_SEC;
+	us -= seconds * US_PER_SEC;
 	isc_interval_set(&fctx->interval, seconds, us * 1000);
 }
 
@@ -1375,6 +1394,11 @@ fctx_query(fetchctx_t *fctx, dns_adbaddrinfo_t *addrinfo,
 	task = res->buckets[fctx->bucketnum].task;
 
 	srtt = addrinfo->srtt;
+
+	/*
+	 * A forwarder needs to make multiple queries. Give it at least
+	 * a second to do these in.
+	 */
 	if (ISFORWARDER(addrinfo) && srtt < 1000000)
 		srtt = 1000000;
 
@@ -8211,8 +8235,8 @@ dns_resolver_logfetch(dns_fetch_t *fetch, isc_log_t *lctx,
 			      "timeout:%u,lame:%u,neterr:%u,badresp:%u,"
 			      "adberr:%u,findfail:%u,valfail:%u]",
 			      __FILE__, fctx->exitline, fctx->info,
-			      fctx->duration / 1000000,
-			      fctx->duration % 1000000,
+			      fctx->duration / US_PER_SEC,
+			      fctx->duration % US_PER_SEC,
 			      isc_result_totext(fctx->result),
 			      isc_result_totext(fctx->vresult), domainbuf,
 			      fctx->referrals, fctx->restarts,
@@ -8818,6 +8842,8 @@ dns_resolver_settimeout(dns_resolver_t *resolver, unsigned int seconds) {
 		seconds = DEFAULT_QUERY_TIMEOUT;
 	if (seconds > MAXIMUM_QUERY_TIMEOUT)
 		seconds = MAXIMUM_QUERY_TIMEOUT;
+	if (seconds < MINIMUM_QUERY_TIMEOUT)
+		seconds =  MINIMUM_QUERY_TIMEOUT;
 
 	resolver->query_timeout = seconds;
 }

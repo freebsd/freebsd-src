@@ -86,6 +86,7 @@ main(int ac, char **av)
 	u_long parms[KTR_PARMS];
 	struct ktr_entry *buf;
 	uintmax_t tlast, tnow;
+	unsigned long bufptr;
 	struct stat sb;
 	kvm_t *kd;
 	FILE *out;
@@ -179,8 +180,9 @@ main(int ac, char **av)
 		if ((buf = malloc(sizeof(*buf) * entries)) == NULL)
 			err(1, NULL);
 		if (kvm_read(kd, nl[2].n_value, &index, sizeof(index)) == -1 ||
-		    kvm_read(kd, nl[3].n_value, buf, sizeof(*buf) * entries)
-		    == -1)
+		    kvm_read(kd, nl[3].n_value, &bufptr,
+		    sizeof(bufptr)) == -1 ||
+		    kvm_read(kd, bufptr, buf, sizeof(*buf) * entries) == -1)
 			errx(1, "%s", kvm_geterr(kd));
 	}
 
@@ -218,7 +220,7 @@ main(int ac, char **av)
 	 * Now tear through the trace buffer.
 	 */
 	if (!iflag)
-		i = (index - 1) & (entries - 1);
+		i = (index - 1) % entries;
 	tlast = -1;
 	for (;;) {
 		if (buf[i].ktr_desc == NULL)
@@ -286,7 +288,7 @@ next:			if ((c = *p++) == '\0')
 		if (!iflag) {
 			if (i == index)
 				break;
-			i = (i - 1) & (entries - 1);
+			i = (i - 1) % entries;
 		} else {
 			if (++i == entries)
 				break;

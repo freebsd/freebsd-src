@@ -82,15 +82,14 @@ filemon_pid_check(struct proc *p)
 {
 	struct filemon *filemon;
 
-	TAILQ_FOREACH(filemon, &filemons_inuse, link) {
-		if (p->p_pid == filemon->pid)
-			return (filemon);
+	while (p->p_pptr) {
+		TAILQ_FOREACH(filemon, &filemons_inuse, link) {
+			if (p->p_pid == filemon->pid)
+				return (filemon);
+		}
+		p = p->p_pptr;
 	}
-
-	if (p->p_pptr == NULL)
-		return (NULL);
-
-	return (filemon_pid_check(p->p_pptr));
+	return (NULL);
 }
 
 static void

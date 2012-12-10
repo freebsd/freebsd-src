@@ -45,7 +45,7 @@ ext2_print_inode( in )
 {
 	int i;
 
-	printf( "Inode: %5d", in->i_number);
+	printf( "Inode: %5ju", (uintmax_t)in->i_number);
 	printf( /* "Inode: %5d" */
 		" Type: %10s Mode: 0x%o Flags: 0x%x  Version: %d\n",
 		"n/a", in->i_mode, in->i_flags, in->i_gen);

@@ -214,4 +214,3 @@ AdWriteTable (
     char                    *OemTableId);
 
 #endif /* _ACAPPS */
-

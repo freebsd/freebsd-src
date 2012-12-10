@@ -85,7 +85,7 @@ MODULE_DEPEND(ste, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct ste_type const ste_devs[] = {
+static const struct ste_type ste_devs[] = {
 	{ ST_VENDORID, ST_DEVICEID_ST201_1, "Sundance ST201 10/100BaseTX" },
 	{ ST_VENDORID, ST_DEVICEID_ST201_2, "Sundance ST201 10/100BaseTX" },
 	{ DL_VENDORID, DL_DEVICEID_DL10050, "D-Link DL10050 10/100BaseTX" },
@@ -1385,7 +1385,7 @@ ste_newbuf(struct ste_softc *sc, struct ste_chain_onefrag *rxc)
 	bus_dmamap_t map;
 	int error, nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
@@ -1824,7 +1824,7 @@ ste_encap(struct ste_softc *sc, struct mbuf **m_head, struct ste_chain *txc)
 	error = bus_dmamap_load_mbuf_sg(sc->ste_cdata.ste_tx_tag,
 	    txc->ste_map, *m_head, txsegs, &nsegs, 0);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, STE_MAXFRAGS);
+		m = m_collapse(*m_head, M_NOWAIT, STE_MAXFRAGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;

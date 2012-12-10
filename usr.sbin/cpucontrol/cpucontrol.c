@@ -86,7 +86,7 @@ struct datadir {
 };
 static SLIST_HEAD(, datadir) datadirs = SLIST_HEAD_INITIALIZER(datadirs);
 
-struct ucode_handler {
+static struct ucode_handler {
 	ucode_probe_t *probe;
 	ucode_update_t *update;
 } handlers[] = {

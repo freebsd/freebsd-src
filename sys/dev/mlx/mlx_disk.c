@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bio.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/module.h>
@@ -48,7 +49,6 @@ __FBSDID("$FreeBSD$");
 
 #include <geom/geom_disk.h>
 
-#include <dev/mlx/mlx_compat.h>
 #include <dev/mlx/mlxio.h>
 #include <dev/mlx/mlxvar.h>
 #include <dev/mlx/mlxreg.h>
@@ -142,15 +142,16 @@ mlxd_ioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
  * be a multiple of a sector in length.
  */
 static void
-mlxd_strategy(mlx_bio *bp)
+mlxd_strategy(struct bio *bp)
 {
-    struct mlxd_softc	*sc = (struct mlxd_softc *)MLX_BIO_SOFTC(bp);
+    struct mlxd_softc	*sc = bp->bio_disk->d_drv1;
 
     debug_called(1);
 
     /* bogus disk? */
     if (sc == NULL) {
-	MLX_BIO_SET_ERROR(bp, EINVAL);
+	bp->bio_error = EINVAL;
+	bp->bio_flags |= BIO_ERROR;
 	goto bad;
     }
 
@@ -158,11 +159,11 @@ mlxd_strategy(mlx_bio *bp)
     MLX_IO_LOCK(sc->mlxd_controller);
     if (sc->mlxd_drive->ms_state == MLX_SYSD_OFFLINE) {
 	MLX_IO_UNLOCK(sc->mlxd_controller);
-	MLX_BIO_SET_ERROR(bp, ENXIO);
+	bp->bio_error = ENXIO;
+	bp->bio_flags |= BIO_ERROR;
 	goto bad;
     }
 
-    MLX_BIO_STATS_START(bp);
     mlx_submit_buf(sc->mlxd_controller, bp);
     MLX_IO_UNLOCK(sc->mlxd_controller);
     return;
@@ -171,25 +172,23 @@ mlxd_strategy(mlx_bio *bp)
     /*
      * Correctly set the bio to indicate a failed tranfer.
      */
-    MLX_BIO_RESID(bp) = MLX_BIO_LENGTH(bp);
-    MLX_BIO_DONE(bp);
+    bp->bio_resid = bp->bio_bcount;
+    biodone(bp);
     return;
 }
 
 void
-mlxd_intr(void *data)
+mlxd_intr(struct bio *bp)
 {
-    mlx_bio 		*bp = (mlx_bio *)data;
 
     debug_called(1);
 	
-    if (MLX_BIO_HAS_ERROR(bp))
-	MLX_BIO_SET_ERROR(bp, EIO);
+    if (bp->bio_flags & BIO_ERROR)
+	bp->bio_error = EIO;
     else
-	MLX_BIO_RESID(bp) = 0;
+	bp->bio_resid = 0;
 
-    MLX_BIO_STATS_END(bp);
-    MLX_BIO_DONE(bp);
+    biodone(bp);
 }
 
 static int

@@ -142,7 +142,7 @@ getcwd(pt, size)
 
 		/* Open and stat parent directory. */
 		fd = _openat(dir != NULL ? _dirfd(dir) : AT_FDCWD,
-				"..", O_RDONLY);
+				"..", O_RDONLY | O_CLOEXEC);
 		if (fd == -1)
 			goto err;
 		if (dir)

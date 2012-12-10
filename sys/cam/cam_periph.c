@@ -615,6 +615,14 @@ camperiphfree(struct cam_periph *periph)
 	}
 
 	/*
+	 * We need to set this flag before dropping the topology lock, to
+	 * let anyone who is traversing the list that this peripheral is
+	 * about to be freed, and there will be no more reference count
+	 * checks.
+	 */
+	periph->flags |= CAM_PERIPH_FREE;
+
+	/*
 	 * The peripheral destructor semantics dictate calling with only the
 	 * SIM mutex held.  Since it might sleep, it should not be called
 	 * with the topology lock held.
@@ -1249,6 +1257,9 @@ cam_periph_freeze_after_event(struct cam_periph *periph,
 {
 	struct timeval delta;
 	struct timeval duration_tv;
+
+	if (!timevalisset(event_time))
+		return;
 
 	microtime(&delta);
 	timevalsub(&delta, event_time);

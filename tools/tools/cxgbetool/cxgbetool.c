@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
+#include <limits.h>
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -81,11 +82,13 @@ usage(FILE *fp)
 {
 	fprintf(fp, "Usage: %s <nexus> [operation]\n", progname);
 	fprintf(fp,
+	    "\tclearstats <port>                   clear port statistics\n"
 	    "\tcontext <type> <id>                 show an SGE context\n"
 	    "\tfilter <idx> [<param> <val>] ...    set a filter\n"
 	    "\tfilter <idx> delete|clear           delete a filter\n"
 	    "\tfilter list                         list all filters\n"
 	    "\tfilter mode [<match>] ...           get/set global filter mode\n"
+	    "\ti2c <port> <devaddr> <addr> [<len>] read from i2c device\n"
 	    "\tloadfw <fw-image.bin>               install firmware\n"
 	    "\tmemdump <addr> <len>                dump a memory range\n"
 	    "\treg <address>[=<val>]               read/write register\n"
@@ -1522,6 +1525,82 @@ read_tcb(int argc, const char *argv[])
 }
 
 static int
+read_i2c(int argc, const char *argv[])
+{
+	char *p;
+	long l;
+	struct t4_i2c_data i2cd;
+	int rc, i;
+
+	if (argc < 3 || argc > 4) {
+		warnx("incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	p = str_to_number(argv[0], &l, NULL);
+	if (*p || l > UCHAR_MAX) {
+		warnx("invalid port id \"%s\"", argv[0]);
+		return (EINVAL);
+	}
+	i2cd.port_id = l;
+
+	p = str_to_number(argv[1], &l, NULL);
+	if (*p || l > UCHAR_MAX) {
+		warnx("invalid i2c device address \"%s\"", argv[1]);
+		return (EINVAL);
+	}
+	i2cd.dev_addr = l;
+
+	p = str_to_number(argv[2], &l, NULL);
+	if (*p || l > UCHAR_MAX) {
+		warnx("invalid byte offset \"%s\"", argv[2]);
+		return (EINVAL);
+	}
+	i2cd.offset = l;
+
+	if (argc == 4) {
+		p = str_to_number(argv[3], &l, NULL);
+		if (*p || l > sizeof(i2cd.data)) {
+			warnx("invalid number of bytes \"%s\"", argv[3]);
+			return (EINVAL);
+		}
+		i2cd.len = l;
+	} else
+		i2cd.len = 1;
+
+	rc = doit(CHELSIO_T4_GET_I2C, &i2cd);
+	if (rc != 0)
+		return (rc);
+
+	for (i = 0; i < i2cd.len; i++)
+		printf("0x%x [%u]\n", i2cd.data[i], i2cd.data[i]);
+
+	return (0);
+}
+
+static int
+clearstats(int argc, const char *argv[])
+{
+	char *p;
+	long l;
+	uint32_t port;
+
+	if (argc != 1) {
+		warnx("incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	p = str_to_number(argv[0], &l, NULL);
+	if (*p) {
+		warnx("invalid port id \"%s\"", argv[0]);
+		return (EINVAL);
+	}
+	port = l;
+
+	return doit(CHELSIO_T4_CLEAR_STATS, &port);
+}
+
+static int
 run_cmd(int argc, const char *argv[])
 {
 	int rc = -1;
@@ -1547,6 +1626,10 @@ run_cmd(int argc, const char *argv[])
 		rc = memdump(argc, argv);
 	else if (!strcmp(cmd, "tcb"))
 		rc = read_tcb(argc, argv);
+	else if (!strcmp(cmd, "i2c"))
+		rc = read_i2c(argc, argv);
+	else if (!strcmp(cmd, "clearstats"))
+		rc = clearstats(argc, argv);
 	else {
 		rc = EINVAL;
 		warnx("invalid command \"%s\"", cmd);

@@ -63,6 +63,7 @@ static void	acpi_handle_madt(ACPI_TABLE_HEADER *sdp);
 static void	acpi_handle_ecdt(ACPI_TABLE_HEADER *sdp);
 static void	acpi_handle_hpet(ACPI_TABLE_HEADER *sdp);
 static void	acpi_handle_mcfg(ACPI_TABLE_HEADER *sdp);
+static void	acpi_handle_slit(ACPI_TABLE_HEADER *sdp);
 static void	acpi_print_srat_cpu(uint32_t apic_id, uint32_t proximity_domain,
 		    uint32_t flags);
 static void	acpi_print_srat_memory(ACPI_SRAT_MEM_AFFINITY *mp);
@@ -339,12 +340,13 @@ acpi_print_local_nmi(u_int lint, uint16_t mps_flags)
 	acpi_print_mps_flags(mps_flags);
 }
 
-const char *apic_types[] = { "Local APIC", "IO APIC", "INT Override", "NMI",
-			     "Local APIC NMI", "Local APIC Override",
-			     "IO SAPIC", "Local SAPIC", "Platform Interrupt",
-			     "Local X2APIC", "Local X2APIC NMI" };
-const char *platform_int_types[] = { "0 (unknown)", "PMI", "INIT",
-				     "Corrected Platform Error" };
+static const char *apic_types[] = { "Local APIC", "IO APIC", "INT Override",
+				    "NMI", "Local APIC NMI",
+				    "Local APIC Override", "IO SAPIC",
+				    "Local SAPIC", "Platform Interrupt",
+				    "Local X2APIC", "Local X2APIC NMI" };
+static const char *platform_int_types[] = { "0 (unknown)", "PMI", "INIT",
+					    "Corrected Platform Error" };
 
 static void
 acpi_print_madt(ACPI_SUBTABLE_HEADER *mp)
@@ -514,6 +516,33 @@ acpi_handle_mcfg(ACPI_TABLE_HEADER *sdp)
 		printf("\tSegment Group=0x%04x\n", alloc->PciSegment);
 		printf("\tStart Bus=%d\n", alloc->StartBusNumber);
 		printf("\tEnd Bus=%d\n", alloc->EndBusNumber);
+	}
+	printf(END_COMMENT);
+}
+
+static void
+acpi_handle_slit(ACPI_TABLE_HEADER *sdp)
+{
+	ACPI_TABLE_SLIT *slit;
+	UINT64 i, j;
+
+	printf(BEGIN_COMMENT);
+	acpi_print_sdt(sdp);
+	slit = (ACPI_TABLE_SLIT *)sdp;
+	printf("\tLocality Count=%jd\n", slit->LocalityCount);
+	printf("\n\t      ");
+	for (i = 0; i < slit->LocalityCount; i++)
+		printf(" %3jd", i);
+	printf("\n\t     +");
+	for (i = 0; i < slit->LocalityCount; i++)
+		printf("----");
+	printf("\n");
+	for (i = 0; i < slit->LocalityCount; i++) {
+		printf("\t %3jd |", i);
+		for (j = 0; j < slit->LocalityCount; j++)
+			printf(" %3d",
+			    slit->Entry[i * slit->LocalityCount + j]);
+		printf("\n");
 	}
 	printf(END_COMMENT);
 }
@@ -719,7 +748,7 @@ acpi_print_srat_memory(ACPI_SRAT_MEM_AFFINITY *mp)
 	printf("\tProximity Domain=%d\n", mp->ProximityDomain);
 }
 
-const char *srat_types[] = { "CPU", "Memory", "X2APIC" };
+static const char *srat_types[] = { "CPU", "Memory", "X2APIC" };
 
 static void
 acpi_print_srat(ACPI_SUBTABLE_HEADER *srat)
@@ -1092,6 +1121,8 @@ acpi_handle_rsdt(ACPI_TABLE_HEADER *rsdp)
 			acpi_handle_ecdt(sdp);
 		else if (!memcmp(sdp->Signature, ACPI_SIG_MCFG, 4))
 			acpi_handle_mcfg(sdp);
+		else if (!memcmp(sdp->Signature, ACPI_SIG_SLIT, 4))
+			acpi_handle_slit(sdp);
 		else if (!memcmp(sdp->Signature, ACPI_SIG_SRAT, 4))
 			acpi_handle_srat(sdp);
 		else if (!memcmp(sdp->Signature, ACPI_SIG_TCPA, 4))

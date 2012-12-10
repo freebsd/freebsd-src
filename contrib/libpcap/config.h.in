@@ -232,6 +232,9 @@
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
 
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
+
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
@@ -243,6 +246,9 @@
 
 /* target host supports CAN sniffing */
 #undef PCAP_SUPPORT_CAN
+
+/* target host supports canusb */
+#undef PCAP_SUPPORT_CANUSB
 
 /* target host supports netfilter sniffing */
 #undef PCAP_SUPPORT_NETFILTER

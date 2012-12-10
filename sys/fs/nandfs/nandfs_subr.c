@@ -58,7 +58,7 @@ __FBSDID("$FreeBSD$");
 #include "nandfs.h"
 #include "nandfs_subr.h"
 
-MALLOC_DEFINE(M_NANDFSMNT, "nandfs_mount", "NANDFS mount");;
+MALLOC_DEFINE(M_NANDFSMNT, "nandfs_mount", "NANDFS mount");
 MALLOC_DEFINE(M_NANDFSTEMP, "nandfs_tmt", "NANDFS tmp");
 
 uma_zone_t nandfs_node_zone;

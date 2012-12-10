@@ -107,6 +107,9 @@ extern	void ath_tx_process_buf_completion(struct ath_softc *sc,
 
 extern	int ath_stoptxdma(struct ath_softc *sc);
 
+extern	void ath_tx_update_tim(struct ath_softc *sc,
+	    struct ieee80211_node *ni, int enable);
+
 /*
  * This is only here so that the RX proc function can call it.
  * It's very likely that the "start TX after RX" call should be
@@ -115,12 +118,15 @@ extern	int ath_stoptxdma(struct ath_softc *sc);
  * we can kill this.
  */
 extern void ath_start(struct ifnet *ifp);
+extern	void ath_start_task(void *arg, int npending);
 
 static inline void
 ath_tx_kick(struct ath_softc *sc)
 {
 
+	ATH_TX_LOCK(sc);
 	ath_start(sc->sc_ifp);
+	ATH_TX_UNLOCK(sc);
 }
 
 #endif

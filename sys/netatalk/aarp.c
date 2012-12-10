@@ -190,7 +190,7 @@ aarpwhohas(struct ifnet *ifp, struct sockaddr_at *sat)
 	struct sockaddr	sa;
 
 	AARPTAB_UNLOCK_ASSERT();
-	m = m_gethdr(M_DONTWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return;
 #ifdef MAC
@@ -230,7 +230,7 @@ aarpwhohas(struct ifnet *ifp, struct sockaddr_at *sat)
 		    sizeof(eh->ether_dhost));
 		eh->ether_type = htons(sizeof(struct llc) +
 		    sizeof(struct ether_aarp));
-		M_PREPEND(m, sizeof(struct llc), M_DONTWAIT);
+		M_PREPEND(m, sizeof(struct llc), M_NOWAIT);
 		if (m == NULL) {
 			ifa_free(&aa->aa_ifa);
 			return;
@@ -524,7 +524,7 @@ at_aarpinput(struct ifnet *ifp, struct mbuf *m)
 	if (aa->aa_flags & AFA_PHASE2) {
 		eh->ether_type = htons(sizeof(struct llc) +
 		    sizeof(struct ether_aarp));
-		M_PREPEND(m, sizeof(struct llc), M_DONTWAIT);
+		M_PREPEND(m, sizeof(struct llc), M_NOWAIT);
 		if (m == NULL) {
 			ifa_free(&aa->aa_ifa);
 			return;
@@ -643,7 +643,7 @@ aarpprobe(void *arg)
 	ifa_ref(&aa->aa_ifa);
 	AARPTAB_UNLOCK();
 
-	m = m_gethdr(M_DONTWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL) {
 		ifa_free(&aa->aa_ifa);
 		return;
@@ -673,7 +673,7 @@ aarpprobe(void *arg)
 		    sizeof(eh->ether_dhost));
 		eh->ether_type = htons(sizeof(struct llc) +
 		    sizeof(struct ether_aarp));
-		M_PREPEND(m, sizeof(struct llc), M_WAIT);
+		M_PREPEND(m, sizeof(struct llc), M_WAITOK);
 		llc = mtod(m, struct llc *);
 		llc->llc_dsap = llc->llc_ssap = LLC_SNAP_LSAP;
 		llc->llc_control = LLC_UI;

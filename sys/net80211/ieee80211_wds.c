@@ -256,7 +256,7 @@ ieee80211_dwds_mcast(struct ieee80211vap *vap0, struct mbuf *m)
 		/*
 		 * Duplicate the frame and send it.
 		 */
-		mcopy = m_copypacket(m, M_DONTWAIT);
+		mcopy = m_copypacket(m, M_NOWAIT);
 		if (mcopy == NULL) {
 			ifp->if_oerrors++;
 			/* XXX stat + msg */

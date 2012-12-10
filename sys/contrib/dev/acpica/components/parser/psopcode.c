@@ -62,7 +62,7 @@ static const UINT8          AcpiGbl_ArgumentCount[] = {0,1,1,1,1,2,2,2,2,3,3,6};
  *
  * DESCRIPTION: Opcode table. Each entry contains <opcode, type, name, operands>
  *              The name is a simple ascii string, the operand specifier is an
- *              ascii string with one letter per operand.  The letter specifies
+ *              ascii string with one letter per operand. The letter specifies
  *              the operand type.
  *
  ******************************************************************************/
@@ -187,7 +187,7 @@ static const UINT8          AcpiGbl_ArgumentCount[] = {0,1,1,1,1,2,2,2,2,3,3,6};
 
 
 /*
- * Master Opcode information table.  A summary of everything we know about each
+ * Master Opcode information table. A summary of everything we know about each
  * opcode, all in one place.
  */
 const ACPI_OPCODE_INFO    AcpiGbl_AmlOpInfo[AML_NUM_OPCODES] =
@@ -387,7 +387,7 @@ static const UINT8 AcpiGbl_ShortOpIndex[256] =
 
 /*
  * This table is indexed by the second opcode of the extended opcode
- * pair.  It returns an index into the opcode table (AcpiGbl_AmlOpInfo)
+ * pair. It returns an index into the opcode table (AcpiGbl_AmlOpInfo)
  */
 static const UINT8 AcpiGbl_LongOpIndex[NUM_EXTENDED_OPCODE] =
 {

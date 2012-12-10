@@ -1,4 +1,4 @@
-/*-
+/*
  * Copyright (c) 2012 Oleksandr Tymoshenko <gonzo@freebsd.org>
  * Copyright (c) 2012 Damjan Marion <dmarion@freebsd.org>
  * All rights reserved.
@@ -102,7 +102,7 @@ static struct bcm_systimer_softc *bcm_systimer_sc = NULL;
 static unsigned bcm_systimer_tc_get_timecount(struct timecounter *);
 
 static struct timecounter bcm_systimer_tc = {
-	.tc_name           = "BCM2835 Timecouter",
+	.tc_name           = "BCM2835 Timecounter",
 	.tc_get_timecount  = bcm_systimer_tc_get_timecount,
 	.tc_poll_pps       = NULL,
 	.tc_counter_mask   = ~0u,
@@ -280,7 +280,7 @@ DELAY(int usec)
 	}
 
 	/* Get the number of times to count */
-	counts = usec * ((bcm_systimer_tc.tc_frequency / 1000000) + 1);;
+	counts = usec * ((bcm_systimer_tc.tc_frequency / 1000000) + 1);
 
 	first = bcm_systimer_tc_read_4(SYSTIMER_CLO);
 

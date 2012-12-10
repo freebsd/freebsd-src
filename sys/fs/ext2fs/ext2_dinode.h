@@ -60,8 +60,15 @@
 #define EXT2_APPEND		0x00000020 /* writes to file may only append */
 #define EXT2_NODUMP		0x00000040	/* do not dump file */
 #define EXT2_NOATIME		0x00000080	/* do not update atime */
-
-#define EXT2_HTREE		0x00001000	/* HTree-indexed directory */
+#define EXT2_INDEX		0x00001000 	/* hash-indexed directory */
+#define EXT2_IMAGIC		0x00002000 	/* AFS directory */
+#define EXT2_JOURNAL_DATA		0x00004000 /* file data should be journaled */
+#define EXT2_NOTAIL		0x00008000 /* file tail should not be merged */
+#define EXT2_DIRSYNC		0x00010000	/* dirsync behaviour */
+#define EXT2_TOPDIR		0x00020000 /* Top of directory hierarchies*/
+#define EXT2_HUGE_FILE		0x00040000	/* Set to each huge file */
+#define EXT2_EXTENTS		0x00080000	/* Inode uses extents */
+#define EXT2_EOFBLOCKS		0x00400000 /* Blocks allocated beyond EOF */
 
 /*
  * Definitions for nanosecond timestamps.
@@ -95,9 +102,8 @@ struct ext2fs_dinode {
 	uint32_t	e2di_facl;	/* 104: file ACL (not implemented) */
 	uint32_t	e2di_dacl;	/* 108: dir ACL (not implemented) */
 	uint32_t	e2di_faddr;	/* 112: fragment address */
-	uint8_t		e2di_nfrag;	/* 116: fragment number */
-	uint8_t		e2di_fsize;	/* 117: fragment size */
-	uint16_t	e2di_linux_reserved2; /* 118 */
+	uint16_t	e2di_nblock_high; /* 116: Blocks count bits 47:32 */
+	uint16_t	e2di_facl_high;	/* 118: file ACL bits 47:32 */
 	uint16_t	e2di_uid_high;	/* 120: Owner UID top 16 bits */
 	uint16_t	e2di_gid_high;	/* 122: Owner GID top 16 bits */
 	uint32_t	e2di_linux_reserved3; /* 124 */

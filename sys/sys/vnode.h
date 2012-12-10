@@ -565,6 +565,7 @@ vn_canvmio(struct vnode *vp)
 
 /* vn_open_flags */
 #define	VN_OPEN_NOAUDIT		0x00000001
+#define	VN_OPEN_NOCAPCHECK	0x00000002
 
 /*
  * Public vnode manipulation functions.
@@ -600,6 +601,8 @@ void	cvtstat(struct stat *st, struct ostat *ost);
 void	cvtnstat(struct stat *sb, struct nstat *nsb);
 int	getnewvnode(const char *tag, struct mount *mp, struct vop_vector *vops,
 	    struct vnode **vpp);
+void	getnewvnode_reserve(u_int count);
+void	getnewvnode_drop_reserve(void);
 int	insmntque1(struct vnode *vp, struct mount *mp,
 	    void (*dtr)(struct vnode *, void *), void *dtr_arg);
 int	insmntque(struct vnode *vp, struct mount *mp);

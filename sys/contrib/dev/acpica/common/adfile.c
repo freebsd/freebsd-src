@@ -100,7 +100,7 @@ AdGenerateFilename (
 
     FilenameBuf[i] = 0;
     strcat (FilenameBuf, ACPI_TABLE_FILE_SUFFIX);
-    return FilenameBuf;
+    return (FilenameBuf);
 }
 
 
@@ -124,19 +124,24 @@ AdWriteBuffer (
     char                    *Buffer,
     UINT32                  Length)
 {
-    FILE                    *fp;
+    FILE                    *File;
     ACPI_SIZE               Actual;
 
 
-    fp = fopen (Filename, "wb");
-    if (!fp)
+    File = fopen (Filename, "wb");
+    if (!File)
     {
-        printf ("Couldn't open %s\n", Filename);
+        printf ("Could not open file %s\n", Filename);
         return (-1);
     }
 
-    Actual = fwrite (Buffer, (size_t) Length, 1, fp);
-    fclose (fp);
+    Actual = fwrite (Buffer, 1, (size_t) Length, File);
+    if (Actual != Length)
+    {
+        printf ("Could not write to file %s\n", Filename);
+    }
+
+    fclose (File);
     return ((INT32) Actual);
 }
 
@@ -183,7 +188,7 @@ AdWriteTable (
  * RETURN:      New filename containing the original base + the new suffix
  *
  * DESCRIPTION: Generate a new filename from the ASL source filename and a new
- *              extension.  Used to create the *.LST, *.TXT, etc. files.
+ *              extension. Used to create the *.LST, *.TXT, etc. files.
  *
  ******************************************************************************/
 
@@ -223,7 +228,7 @@ FlGenerateFilename (
         strcat (NewFilename, Suffix);
     }
 
-    return NewFilename;
+    return (NewFilename);
 }
 
 
@@ -332,5 +337,3 @@ FlSplitInputPathname (
     *OutFilename = Filename;
     return (AE_OK);
 }
-
-

@@ -870,7 +870,7 @@ static device_method_t uchcom_methods[] = {
 };
 
 static driver_t uchcom_driver = {
-	.name = "ucom",
+	.name = "uchcom",
 	.methods = uchcom_methods,
 	.size = sizeof(struct uchcom_softc)
 };

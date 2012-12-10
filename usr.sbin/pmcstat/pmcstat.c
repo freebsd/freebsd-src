@@ -105,13 +105,12 @@ __FBSDID("$FreeBSD$");
 
 /* Globals */
 
-int	pmcstat_interrupt = 0;
-int	pmcstat_displayheight = DEFAULT_DISPLAY_HEIGHT;
-int	pmcstat_displaywidth  = DEFAULT_DISPLAY_WIDTH;
-int	pmcstat_sockpair[NSOCKPAIRFD];
-int	pmcstat_kq;
-kvm_t	*pmcstat_kvm;
-struct kinfo_proc *pmcstat_plist;
+int		pmcstat_displayheight = DEFAULT_DISPLAY_HEIGHT;
+int		pmcstat_displaywidth  = DEFAULT_DISPLAY_WIDTH;
+static int	pmcstat_sockpair[NSOCKPAIRFD];
+static int	pmcstat_kq;
+static kvm_t	*pmcstat_kvm;
+static struct kinfo_proc *pmcstat_plist;
 struct pmcstat_args args;
 
 static void

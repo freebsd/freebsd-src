@@ -402,6 +402,7 @@ FBSD_1.3 {
 	svis;
 	uid_from_user;
 	unvis;
+	waitid;
 };
 
 FBSDprivate_1.0 {

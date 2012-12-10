@@ -53,13 +53,28 @@
 /* Control whether simple executive applications use 1-1 TLB mappings to access physical
 ** memory addresses.  This must be disabled to allow large programs that use more than
 ** the 0x10000000 - 0x20000000 virtual address range.
+**
+** The FreeBSD kernel ifdefs elsewhere should mean that this is never even checked,
+** and so does not need to be defined.
 */
+#if !defined(__FreeBSD__) || !defined(_KERNEL)
 #ifndef CVMX_USE_1_TO_1_TLB_MAPPINGS
 #define CVMX_USE_1_TO_1_TLB_MAPPINGS 1
 #endif
+#endif
 
-#ifndef CVMX_ENABLE_PARAMETER_CHECKING
-#define CVMX_ENABLE_PARAMETER_CHECKING 1
+#if defined(__FreeBSD__) && defined(_KERNEL)
+    #ifndef CVMX_ENABLE_PARAMETER_CHECKING
+        #ifdef INVARIANTS
+            #define CVMX_ENABLE_PARAMETER_CHECKING 1
+        #else
+            #define CVMX_ENABLE_PARAMETER_CHECKING 0
+        #endif
+    #endif
+#else
+    #ifndef CVMX_ENABLE_PARAMETER_CHECKING
+        #define CVMX_ENABLE_PARAMETER_CHECKING 1
+    #endif
 #endif
 
 #ifndef CVMX_ENABLE_DEBUG_PRINTS

@@ -130,7 +130,7 @@ MODULE_DEPEND(wb, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct wb_type const wb_devs[] = {
+static const struct wb_type wb_devs[] = {
 	{ WB_VENDORID, WB_DEVICEID_840F,
 		"Winbond W89C840F 10/100BaseTX" },
 	{ CP_VENDORID, CP_DEVICEID_RL100,
@@ -842,7 +842,7 @@ wb_newbuf(sc, c, m)
 	struct mbuf		*m_new = NULL;
 
 	if (m == NULL) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		MGETHDR(m_new, M_NOWAIT, MT_DATA);
 		if (m_new == NULL)
 			return(ENOBUFS);
 		m_new->m_data = c->wb_buf;
@@ -1192,11 +1192,11 @@ wb_encap(sc, c, m_head)
 	if (m != NULL) {
 		struct mbuf		*m_new = NULL;
 
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		MGETHDR(m_new, M_NOWAIT, MT_DATA);
 		if (m_new == NULL)
 			return(1);
 		if (m_head->m_pkthdr.len > MHLEN) {
-			MCLGET(m_new, M_DONTWAIT);
+			MCLGET(m_new, M_NOWAIT);
 			if (!(m_new->m_flags & M_EXT)) {
 				m_freem(m_new);
 				return(1);

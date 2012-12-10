@@ -230,7 +230,7 @@ void ib_ud_header_init(int     		    payload_bytes,
 		       int		    immediate_present,
 		       struct ib_ud_header *header)
 {
-	u16 packet_length;
+	u16 packet_length = 0;
 
 	memset(header, 0, sizeof *header);
 

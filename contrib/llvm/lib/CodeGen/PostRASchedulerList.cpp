@@ -240,6 +240,7 @@ void SchedulePostRATDList::exitRegion() {
   ScheduleDAGInstrs::exitRegion();
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 /// dumpSchedule - dump the scheduled Sequence.
 void SchedulePostRATDList::dumpSchedule() const {
   for (unsigned i = 0, e = Sequence.size(); i != e; i++) {
@@ -249,6 +250,7 @@ void SchedulePostRATDList::dumpSchedule() const {
       dbgs() << "**** NOOP ****\n";
   }
 }
+#endif
 
 bool PostRAScheduler::runOnMachineFunction(MachineFunction &Fn) {
   TII = Fn.getTarget().getInstrInfo();
@@ -298,7 +300,7 @@ bool PostRAScheduler::runOnMachineFunction(MachineFunction &Fn) {
       static int bbcnt = 0;
       if (bbcnt++ % DebugDiv != DebugMod)
         continue;
-      dbgs() << "*** DEBUG scheduling " << Fn.getFunction()->getName()
+      dbgs() << "*** DEBUG scheduling " << Fn.getName()
              << ":BB#" << MBB->getNumber() << " ***\n";
     }
 #endif
@@ -488,7 +490,6 @@ void SchedulePostRATDList::FixupKills(MachineBasicBlock *MBB) {
   DEBUG(dbgs() << "Fixup kills for BB#" << MBB->getNumber() << '\n');
 
   BitVector killedRegs(TRI->getNumRegs());
-  BitVector ReservedRegs = TRI->getReservedRegs(MF);
 
   StartBlockForKills(MBB);
 
@@ -529,7 +530,7 @@ void SchedulePostRATDList::FixupKills(MachineBasicBlock *MBB) {
       MachineOperand &MO = MI->getOperand(i);
       if (!MO.isReg() || !MO.isUse()) continue;
       unsigned Reg = MO.getReg();
-      if ((Reg == 0) || ReservedRegs.test(Reg)) continue;
+      if ((Reg == 0) || MRI.isReserved(Reg)) continue;
 
       bool kill = false;
       if (!killedRegs.test(Reg)) {
@@ -564,7 +565,7 @@ void SchedulePostRATDList::FixupKills(MachineBasicBlock *MBB) {
       MachineOperand &MO = MI->getOperand(i);
       if (!MO.isReg() || !MO.isUse() || MO.isUndef()) continue;
       unsigned Reg = MO.getReg();
-      if ((Reg == 0) || ReservedRegs.test(Reg)) continue;
+      if ((Reg == 0) || MRI.isReserved(Reg)) continue;
 
       LiveRegs.set(Reg);
 

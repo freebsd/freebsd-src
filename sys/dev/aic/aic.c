@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/conf.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
@@ -36,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 
 #include <machine/bus.h>
+#include <sys/rman.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -51,6 +53,7 @@ __FBSDID("$FreeBSD$");
 static void aic_action(struct cam_sim *sim, union ccb *ccb);
 static void aic_execute_scb(void *arg, bus_dma_segment_t *dm_segs,
 				int nseg, int error);
+static void aic_intr_locked(struct aic_softc *aic);
 static void aic_start(struct aic_softc *aic);
 static void aic_select(struct aic_softc *aic);
 static void aic_selected(struct aic_softc *aic);
@@ -71,43 +74,42 @@ static void aic_reset(struct aic_softc *aic, int initiate_reset);
 
 devclass_t aic_devclass;
 
-static struct aic_scb *free_scbs;
-
 static struct aic_scb *
 aic_get_scb(struct aic_softc *aic)
 {
 	struct aic_scb *scb;
-	int s = splcam();
-	if ((scb = free_scbs) != NULL)
-		free_scbs = (struct aic_scb *)free_scbs->ccb;
-	splx(s);
+
+	if (!dumping)
+		mtx_assert(&aic->lock, MA_OWNED);
+	if ((scb = SLIST_FIRST(&aic->free_scbs)) != NULL)
+		SLIST_REMOVE_HEAD(&aic->free_scbs, link);
 	return (scb);
 }
 
 static void
 aic_free_scb(struct aic_softc *aic, struct aic_scb *scb)
 {
-	int s = splcam();
+
+	if (!dumping)
+		mtx_assert(&aic->lock, MA_OWNED);
 	if ((aic->flags & AIC_RESOURCE_SHORTAGE) != 0 &&
 	    (scb->ccb->ccb_h.status & CAM_RELEASE_SIMQ) == 0) {
 		scb->ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
 		aic->flags &= ~AIC_RESOURCE_SHORTAGE;
 	}
 	scb->flags = 0;
-	scb->ccb = (union ccb *)free_scbs;
-	free_scbs = scb;
-	splx(s);
+	SLIST_INSERT_HEAD(&aic->free_scbs, scb, link);
 }
 
 static void
 aic_action(struct cam_sim *sim, union ccb *ccb)
 {
 	struct aic_softc *aic;
-	int s;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("aic_action\n"));
 
 	aic = (struct aic_softc *)cam_sim_softc(sim);
+	mtx_assert(&aic->lock, MA_OWNED);
 
 	switch (ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:	/* Execute the requested I/O operation */
@@ -116,9 +118,7 @@ aic_action(struct cam_sim *sim, union ccb *ccb)
 		struct aic_scb *scb;
 
 		if ((scb = aic_get_scb(aic)) == NULL) {
-			s = splcam();
 			aic->flags |= AIC_RESOURCE_SHORTAGE;
-			splx(s);
 			xpt_freeze_simq(aic->sim, /*count*/1);
 			ccb->ccb_h.status = CAM_REQUEUE_REQ;
 			xpt_done(ccb);
@@ -175,8 +175,6 @@ aic_action(struct cam_sim *sim, union ccb *ccb)
 		struct ccb_trans_settings_spi *spi =
 		    &cts->xport_specific.spi;
 
-		s = splcam();
-
 		if ((spi->valid & CTS_SPI_VALID_DISC) != 0 &&
 		    (aic->flags & AIC_DISC_ENABLE) != 0) {
 			if ((spi->flags & CTS_SPI_FLAGS_DISC_ENB) != 0)
@@ -214,7 +212,6 @@ aic_action(struct cam_sim *sim, union ccb *ccb)
 		 || (ti->goal.offset != ti->current.offset))
 			ti->flags |= TINFO_SDTR_NEGO;
 
-		splx(s);
 		ccb->ccb_h.status = CAM_REQ_CMP;
 		xpt_done(ccb);
 		break;
@@ -235,7 +232,6 @@ aic_action(struct cam_sim *sim, union ccb *ccb)
 		scsi->flags &= ~CTS_SCSI_FLAGS_TAG_ENB;
 		spi->flags &= ~CTS_SPI_FLAGS_DISC_ENB;
 
-		s = splcam();
 		if ((ti->flags & TINFO_DISC_ENB) != 0)
 			spi->flags |= CTS_SPI_FLAGS_DISC_ENB;
 		if ((ti->flags & TINFO_TAG_ENB) != 0)
@@ -248,7 +244,6 @@ aic_action(struct cam_sim *sim, union ccb *ccb)
 			spi->sync_period = ti->user.period;
 			spi->sync_offset = ti->user.offset;
 		}
-		splx(s);
 
 		spi->bus_width = MSG_EXT_WDTR_BUS_8_BIT;
 		spi->valid = CTS_SPI_VALID_SYNC_RATE
@@ -311,12 +306,10 @@ aic_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	struct aic_scb *scb = (struct aic_scb *)arg;
 	union ccb *ccb = scb->ccb;
 	struct aic_softc *aic = (struct aic_softc *)ccb->ccb_h.ccb_aic_ptr;
-	int s;
 
-	s = splcam();
-
+	if (!dumping)
+		mtx_assert(&aic->lock, MA_OWNED);
 	if (ccb->ccb_h.status != CAM_REQ_INPROG) {
-		splx(s);
 		aic_free_scb(aic, scb);
 		xpt_done(ccb);
 		return;
@@ -326,11 +319,10 @@ aic_execute_scb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	TAILQ_INSERT_TAIL(&aic->pending_ccbs, &ccb->ccb_h, sim_links.tqe);
 
-	ccb->ccb_h.timeout_ch = timeout(aic_timeout, (caddr_t)scb,
-		(ccb->ccb_h.timeout * hz) / 1000);
+	callout_reset(&scb->timer, (ccb->ccb_h.timeout * hz) / 1000,
+	    aic_timeout, scb);
 
 	aic_start(aic);
-	splx(s);
 }
 
 /*
@@ -1053,7 +1045,7 @@ aic_done(struct aic_softc *aic, struct aic_scb *scb)
 		  ("aic_done - ccb %p status %x resid %d\n",
 		   ccb, ccb->ccb_h.status, ccb->csio.resid));
 
-	untimeout(aic_timeout, (caddr_t)scb, ccb->ccb_h.timeout_ch);
+	callout_stop(&scb->timer);
 
 	if ((scb->flags & SCB_DEVICE_RESET) != 0 &&
 	    ccb->ccb_h.func_code != XPT_RESET_DEV) {
@@ -1083,9 +1075,9 @@ aic_done(struct aic_softc *aic, struct aic_scb *scb)
 				    &pending_scb->ccb->ccb_h, sim_links.tqe);
 				aic_done(aic, pending_scb);
 			} else {
-				ccb_h->timeout_ch =
-				    timeout(aic_timeout, (caddr_t)pending_scb,
-					(ccb_h->timeout * hz) / 1000);
+				callout_reset(&pending_scb->timer,
+				    (ccb_h->timeout * hz) / 1000, aic_timeout,
+				    pending_scb);
 				ccb_h = TAILQ_NEXT(ccb_h, sim_links.tqe);
 			}
 		}
@@ -1102,9 +1094,9 @@ aic_done(struct aic_softc *aic, struct aic_scb *scb)
 				    &nexus_scb->ccb->ccb_h, sim_links.tqe);
 				aic_done(aic, nexus_scb);
 			} else {
-				ccb_h->timeout_ch =
-				    timeout(aic_timeout, (caddr_t)nexus_scb,
-					(ccb_h->timeout * hz) / 1000);
+				callout_reset(&nexus_scb->timer,
+				    (ccb_h->timeout * hz) / 1000, aic_timeout,
+				    nexus_scb);
 				ccb_h = TAILQ_NEXT(ccb_h, sim_links.tqe);
 			}
 		}
@@ -1123,7 +1115,7 @@ aic_done(struct aic_softc *aic, struct aic_scb *scb)
 static void
 aic_poll(struct cam_sim *sim)
 {
-	aic_intr(cam_sim_softc(sim));
+	aic_intr_locked(cam_sim_softc(sim));
 }
 
 static void
@@ -1132,18 +1124,15 @@ aic_timeout(void *arg)
 	struct aic_scb *scb = (struct aic_scb *)arg;
 	union ccb *ccb = scb->ccb;
 	struct aic_softc *aic = (struct aic_softc *)ccb->ccb_h.ccb_aic_ptr;
-	int s;
 
+	mtx_assert(&aic->lock, MA_OWNED);
 	xpt_print_path(ccb->ccb_h.path);
 	printf("ccb %p - timed out", ccb);
 	if (aic->nexus && aic->nexus != scb)
 		printf(", nexus %p", aic->nexus->ccb);
 	printf(", phase 0x%x, state %d\n", aic_inb(aic, SCSISIGI), aic->state);
 
-	s = splcam();
-
 	if ((scb->flags & SCB_ACTIVE) == 0) {
-		splx(s);
 		xpt_print_path(ccb->ccb_h.path);
 		printf("ccb %p - timed out already completed\n", ccb);
 		return;
@@ -1151,6 +1140,7 @@ aic_timeout(void *arg)
 
 	if ((scb->flags & SCB_DEVICE_RESET) == 0 && aic->nexus == scb) {
 		struct ccb_hdr *ccb_h = &scb->ccb->ccb_h;
+		struct aic_scb *pending_scb;
 
 		if ((ccb_h->status & CAM_RELEASE_SIMQ) == 0) {
 			xpt_freeze_simq(aic->sim, /*count*/1);
@@ -1158,18 +1148,17 @@ aic_timeout(void *arg)
 		}
 
 		TAILQ_FOREACH(ccb_h, &aic->pending_ccbs, sim_links.tqe) {
-			untimeout(aic_timeout, (caddr_t)ccb_h->ccb_scb_ptr,
-			    ccb_h->timeout_ch);
+			pending_scb = ccb_h->ccb_scb_ptr;
+			callout_stop(&pending_scb->timer);
 		}
 
 		TAILQ_FOREACH(ccb_h, &aic->nexus_ccbs, sim_links.tqe) {
-			untimeout(aic_timeout, (caddr_t)ccb_h->ccb_scb_ptr,
-			    ccb_h->timeout_ch);
+			pending_scb = ccb_h->ccb_scb_ptr;
+			callout_stop(&pending_scb->timer);
 		}
 
 		scb->flags |= SCB_DEVICE_RESET;
-		ccb->ccb_h.timeout_ch =
-		    timeout(aic_timeout, (caddr_t)scb, 5 * hz);
+		callout_reset(&scb->timer, 5 * hz, aic_timeout, scb);
 		aic_sched_msgout(aic, MSG_BUS_DEV_RESET);
 	} else {
 		if (aic->nexus == scb) {
@@ -1178,14 +1167,21 @@ aic_timeout(void *arg)
 		}
 		aic_reset(aic, /*initiate_reset*/TRUE);
 	}
-
-	splx(s);
 }
 
 void
 aic_intr(void *arg)
 {
 	struct aic_softc *aic = (struct aic_softc *)arg;
+
+	mtx_lock(&aic->lock);
+	aic_intr_locked(aic);
+	mtx_unlock(&aic->lock);
+}
+
+void
+aic_intr_locked(struct aic_softc *aic)
+{
 	u_int8_t sstat0, sstat1;
 	union ccb *ccb;
 	struct aic_scb *scb;
@@ -1434,6 +1430,7 @@ aic_init(struct aic_softc *aic)
 
 	TAILQ_INIT(&aic->pending_ccbs);
 	TAILQ_INIT(&aic->nexus_ccbs);
+	SLIST_INIT(&aic->free_scbs);
 	aic->nexus = NULL;
 	aic->state = AIC_IDLE;
 	aic->prev_phase = -1;
@@ -1481,10 +1478,10 @@ aic_init(struct aic_softc *aic)
 		aic->max_period = AIC_SYNC_PERIOD;
 	aic->min_period = AIC_MIN_SYNC_PERIOD;
 	
-	free_scbs = NULL;
 	for (i = 255; i >= 0; i--) {
 		scb = &aic->scbs[i];
 		scb->tag = i;
+		callout_init_mtx(&scb->timer, &aic->lock, 0);
 		aic_free_scb(aic, scb);
 	}
 
@@ -1543,14 +1540,16 @@ aic_attach(struct aic_softc *aic)
 	 * Construct our SIM entry
 	 */
 	aic->sim = cam_sim_alloc(aic_action, aic_poll, "aic", aic,
-				 aic->unit, &Giant, 2, 256, devq);
+	    device_get_unit(aic->dev), &aic->lock, 2, 256, devq);
 	if (aic->sim == NULL) {
 		cam_simq_free(devq);
 		return (ENOMEM);
 	}
 
+	mtx_lock(&aic->lock);
 	if (xpt_bus_register(aic->sim, aic->dev, 0) != CAM_SUCCESS) {
 		cam_sim_free(aic->sim, /*free_devq*/TRUE);
+		mtx_unlock(&aic->lock);
 		return (ENXIO);
 	}
 
@@ -1559,12 +1558,13 @@ aic_attach(struct aic_softc *aic)
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		xpt_bus_deregister(cam_sim_path(aic->sim));
 		cam_sim_free(aic->sim, /*free_devq*/TRUE);
+		mtx_unlock(&aic->lock);
 		return (ENXIO);
 	}
 
 	aic_init(aic);
 
-	printf("aic%d: %s", aic->unit, aic_chip_names[aic->chip_type]);
+	device_printf(aic->dev, "%s", aic_chip_names[aic->chip_type]);
 	if (aic->flags & AIC_DMA_ENABLE)
 		printf(", dma");
 	if (aic->flags & AIC_DISC_ENABLE)
@@ -1574,15 +1574,25 @@ aic_attach(struct aic_softc *aic)
 	if (aic->flags & AIC_FAST_ENABLE)
 		printf(", fast SCSI");
 	printf("\n");
+	mtx_unlock(&aic->lock);
 	return (0);
 }
 
 int
 aic_detach(struct aic_softc *aic)
 {
+	struct aic_scb *scb;
+	int i;
+
+	mtx_lock(&aic->lock);
 	xpt_async(AC_LOST_DEVICE, aic->path, NULL);
 	xpt_free_path(aic->path);
 	xpt_bus_deregister(cam_sim_path(aic->sim));
 	cam_sim_free(aic->sim, /*free_devq*/TRUE);
+	mtx_unlock(&aic->lock);
+	for (i = 255; i >= 0; i--) {
+		scb = &aic->scbs[i];
+		callout_drain(&scb->timer);
+	}
 	return (0);
 }

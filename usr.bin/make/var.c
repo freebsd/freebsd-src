@@ -1421,6 +1421,7 @@ modifier_M(VarParser *vp, const char value[], char endc)
 		vp->ptr++;
 	}
 	*ptr = '\0';
+	DEBUGF(VAR, ("Pattern :%s\n", patt));
 
 	if (modifier == 'M') {
 		newValue = VarModify(value, VarMatch, patt);

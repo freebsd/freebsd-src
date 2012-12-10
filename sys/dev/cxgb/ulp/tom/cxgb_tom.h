@@ -142,7 +142,8 @@ void t3_process_tid_release_list(void *data, int pending);
 static inline struct tom_data *
 t3_tomdata(struct toedev *tod)
 {
-	return (member2struct(tom_data, tod, tod));
+
+	return (__containerof(tod, struct tom_data, tod));
 }
 
 union listen_entry {

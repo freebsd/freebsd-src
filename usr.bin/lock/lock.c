@@ -129,7 +129,9 @@ main(int argc, char **argv)
 		}
 	timeout.tv_sec = sectimeout * 60;
 
-	setuid(getuid());		/* discard privs */
+	/* discard privs */
+	if (setuid(getuid()) != 0)
+		errx(1, "setuid failed");
 
 	if (tcgetattr(0, &tty))		/* get information for header */
 		exit(1);

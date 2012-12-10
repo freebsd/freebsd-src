@@ -1074,6 +1074,8 @@ hdac_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	HDA_BOOTVERBOSE(
+		device_printf(dev, "PCI card vendor: 0x%04x, device: 0x%04x\n",
+		    pci_get_subvendor(dev), pci_get_subdevice(dev));
 		device_printf(dev, "HDA Driver Revision: %s\n",
 		    HDA_DRV_TEST_REV);
 	);

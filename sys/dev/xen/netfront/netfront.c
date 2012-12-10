@@ -831,13 +831,13 @@ network_alloc_rx_buffers(struct netfront_info *sc)
 	 */
 	batch_target = sc->rx_target - (req_prod - sc->rx.rsp_cons);
 	for (i = mbufq_len(&sc->xn_rx_batch); i < batch_target; i++) {
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		MGETHDR(m_new, M_NOWAIT, MT_DATA);
 		if (m_new == NULL) {
 			printf("%s: MGETHDR failed\n", __func__);
 			goto no_mbuf;
 		}
 
-		m_cljget(m_new, M_DONTWAIT, MJUMPAGESIZE);
+		m_cljget(m_new, M_NOWAIT, MJUMPAGESIZE);
 		if ((m_new->m_flags & M_EXT) == 0) {
 			printf("%s: m_cljget failed\n", __func__);
 			m_freem(m_new);
@@ -1530,7 +1530,7 @@ xn_assemble_tx_request(struct netfront_info *sc, struct mbuf *m_head)
 	 * the Linux network stack.
 	 */
 	if (nfrags > sc->maxfrags) {
-		m = m_defrag(m_head, M_DONTWAIT);
+		m = m_defrag(m_head, M_NOWAIT);
 		if (!m) {
 			/*
 			 * Defrag failed, so free the mbuf and

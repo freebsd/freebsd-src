@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 12, 2012
+.Dd October 19, 2012
 .Dt PMC.SANDYBRIDGE 3
 .Os
 .Sh NAME
@@ -138,7 +138,7 @@ S-state.
 F-state.
 .It Li RES_SUPPLIER_LOCAL
 Local DRAM Controller.
-.It Li RES_SNOOP_SNPI_NONE
+.It Li RES_SNOOP_SNP_NONE
 No details on snoop-related information.
 .It Li RES_SNOOP_SNP_NO_NEEDED
 No snoop was needed to satisfy the request.
@@ -932,6 +932,7 @@ Split locks in SQ.
 .Xr pmc.p5 3 ,
 .Xr pmc.p6 3 ,
 .Xr pmc.sandybridgeuc 3 ,
+.Xr pmc.sandybridgexeon 3 ,
 .Xr pmc.soft 3 ,
 .Xr pmc.tsc 3 ,
 .Xr pmc.ucf 3 ,

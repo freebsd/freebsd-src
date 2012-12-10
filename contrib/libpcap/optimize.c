@@ -152,10 +152,10 @@ static void deadstmt(struct stmt *, struct stmt *[]);
 static void opt_deadstores(struct block *);
 static struct block *fold_edge(struct block *, struct edge *);
 static inline int eq_blk(struct block *, struct block *);
-static int slength(struct slist *);
+static u_int slength(struct slist *);
 static int count_blocks(struct block *);
 static void number_blks_r(struct block *);
-static int count_stmts(struct block *);
+static u_int count_stmts(struct block *);
 static int convert_code_r(struct block *);
 #ifdef BDEBUG
 static void opt_dump(struct block *);
@@ -1904,11 +1904,11 @@ opt_cleanup()
 /*
  * Return the number of stmts in 's'.
  */
-static int
+static u_int
 slength(s)
 	struct slist *s;
 {
-	int n = 0;
+	u_int n = 0;
 
 	for (; s; s = s->next)
 		if (s->s.code != NOP)
@@ -1970,11 +1970,11 @@ number_blks_r(p)
  *
  *	an extra long jump if the false branch requires it (p->longjf).
  */
-static int
+static u_int
 count_stmts(p)
 	struct block *p;
 {
-	int n;
+	u_int n;
 
 	if (p == 0 || isMarked(p))
 		return 0;
@@ -2263,9 +2263,9 @@ filled:
 struct bpf_insn *
 icode_to_fcode(root, lenp)
 	struct block *root;
-	int *lenp;
+	u_int *lenp;
 {
-	int n;
+	u_int n;
 	struct bpf_insn *fp;
 
 	/*

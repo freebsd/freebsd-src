@@ -70,7 +70,7 @@ static const char *legal_colors[16] = {
 	"lightred", "lightmagenta", "yellow", "lightwhite"
 };
 
-struct {
+static struct {
 	int			active_vty;
 	vid_info_t		console_info;
 	unsigned char		screen_map[256];

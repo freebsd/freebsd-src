@@ -8,6 +8,7 @@ SRCS=		${BASE_SRCS} sysdep.c softcore.c
 CLEANFILES=	softcore.c testmain testmain.o
 CFLAGS+=	-ffreestanding
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+CFLAGS+=	-march=i386
 CFLAGS+=	-mpreferred-stack-boundary=2
 CFLAGS+=	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 -msoft-float
 .endif
@@ -39,7 +40,7 @@ SOFTWORDS=	softcore.fr jhlocal.fr marker.fr freebsd.fr ficllocal.fr \
 #SOFTWORDS+=	oo.fr classes.fr
 
 .if ${MACHINE_CPUARCH} == "amd64"
-CFLAGS+=	-m32 -march=i386 -I.
+CFLAGS+=	-m32 -I.
 .endif
 
 .if ${MACHINE_ARCH} == "powerpc64"

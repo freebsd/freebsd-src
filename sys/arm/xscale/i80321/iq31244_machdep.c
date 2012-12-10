@@ -95,19 +95,14 @@ __FBSDID("$FreeBSD$");
 #include <arm/xscale/i80321/iq80321reg.h>
 #include <arm/xscale/i80321/obiovar.h>
 
-#define KERNEL_PT_SYS		0	/* Page table for mapping proc0 zero page */
+#define	KERNEL_PT_SYS		0	/* Page table for mapping proc0 zero page */
 #define	KERNEL_PT_IOPXS		1
-#define KERNEL_PT_BEFOREKERN	2
-#define KERNEL_PT_AFKERNEL	3	/* L2 table for mapping after kernel */
+#define	KERNEL_PT_BEFOREKERN	2
+#define	KERNEL_PT_AFKERNEL	3	/* L2 table for mapping after kernel */
 #define	KERNEL_PT_AFKERNEL_NUM	9
 
 /* this should be evenly divisable by PAGE_SIZE / L2_TABLE_SIZE_REAL (or 4) */
 #define NUM_KERNEL_PTS		(KERNEL_PT_AFKERNEL + KERNEL_PT_AFKERNEL_NUM)
-
-/* Define various stack sizes in pages */
-#define IRQ_STACK_SIZE	1
-#define ABT_STACK_SIZE	1
-#define UND_STACK_SIZE	1
 
 extern u_int data_abort_handler_address;
 extern u_int prefetch_abort_handler_address;
@@ -192,7 +187,7 @@ initarm(struct arm_boot_params *abp)
 
 	/* Do basic tuning, hz etc */
 	init_param1();
-		
+
 	freemempos = 0xa0200000;
 	/* Define a macro to simplify memory allocation */
 #define	valloc_pages(var, np)			\
@@ -244,12 +239,13 @@ initarm(struct arm_boot_params *abp)
 	freemem_pt = trunc_page(freemem_pt);
 	freemem_after = freemempos - ((freemem_pt - 0xa0100000) /
 	    PAGE_SIZE) * sizeof(struct arm_small_page);
-	arm_add_smallalloc_pages((void *)(freemem_after + 0x20000000)
-	    , (void *)0xc0100000, freemem_pt - 0xa0100000, 1);
+	arm_add_smallalloc_pages((void *)(freemem_after + 0x20000000),
+	    (void *)0xc0100000, freemem_pt - 0xa0100000, 1);
 	freemem_after -= ((freemem_after - 0xa0001000) / PAGE_SIZE) *
 	    sizeof(struct arm_small_page);
-	arm_add_smallalloc_pages((void *)(freemem_after + 0x20000000)
-	, (void *)0xc0001000, trunc_page(freemem_after) - 0xa0001000, 0);
+	arm_add_smallalloc_pages((void *)(freemem_after + 0x20000000),
+	    (void *)0xc0001000, trunc_page(freemem_after) - 0xa0001000, 0);
+
 	freemempos = trunc_page(freemem_after);
 	freemempos -= PAGE_SIZE;
 #endif
@@ -271,7 +267,7 @@ initarm(struct arm_boot_params *abp)
 	pmap_link_l2pt(l1pagetable, ARM_VECTORS_HIGH & ~(0x00100000 - 1),
 	    &kernel_pt_table[KERNEL_PT_SYS]);
 	pmap_link_l2pt(l1pagetable, IQ80321_IOPXS_VBASE,
-	                &kernel_pt_table[KERNEL_PT_IOPXS]);
+	    &kernel_pt_table[KERNEL_PT_IOPXS]);
 	pmap_link_l2pt(l1pagetable, KERNBASE,
 	    &kernel_pt_table[KERNEL_PT_BEFOREKERN]);
 	pmap_map_chunk(l1pagetable, KERNBASE, SDRAM_START, 0x100000,
@@ -279,7 +275,7 @@ initarm(struct arm_boot_params *abp)
 	pmap_map_chunk(l1pagetable, KERNBASE + 0x100000, SDRAM_START + 0x100000,
 	    0x100000, VM_PROT_READ|VM_PROT_WRITE, PTE_PAGETABLE);
 	pmap_map_chunk(l1pagetable, KERNBASE + 0x200000, SDRAM_START + 0x200000,
-	   (((uint32_t)(lastaddr) - KERNBASE - 0x200000) + L1_S_SIZE) & ~(L1_S_SIZE - 1),
+	    (((uint32_t)(lastaddr) - KERNBASE - 0x200000) + L1_S_SIZE) & ~(L1_S_SIZE - 1),
 	    VM_PROT_READ|VM_PROT_WRITE, PTE_CACHE);
 	freemem_after = ((int)lastaddr + PAGE_SIZE) & ~(PAGE_SIZE - 1);
 	afterkern = round_page(((vm_offset_t)lastaddr + L1_S_SIZE) & ~(L1_S_SIZE
@@ -328,16 +324,7 @@ initarm(struct arm_boot_params *abp)
 	 * Since the ARM stacks use STMFD etc. we must set r13 to the top end
 	 * of the stack memory.
 	 */
-
-				
-	set_stackptr(PSR_IRQ32_MODE,
-	    irqstack.pv_va + IRQ_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_ABT32_MODE,
-	    abtstack.pv_va + ABT_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_UND32_MODE,
-	    undstack.pv_va + UND_STACK_SIZE * PAGE_SIZE);
-
-
+	set_stackptrs(0);
 
 	/*
 	 * We must now clean the cache again....
@@ -372,9 +359,6 @@ initarm(struct arm_boot_params *abp)
 	/* Enable MMU, I-cache, D-cache, write buffer. */
 
 	arm_vector_init(ARM_VECTORS_HIGH, ARM_VEC_ALL);
-
-
-
 	pmap_curmaxkvaddr = afterkern + PAGE_SIZE;
 	/*
 	 * ARM_USE_SMALL_ALLOC uses dump_avail, so it must be filled before
@@ -409,7 +393,6 @@ initarm(struct arm_boot_params *abp)
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
 }
-
 
 extern int
 machdep_pci_route_interrupt(device_t pcib, device_t dev, int pin)

@@ -85,7 +85,6 @@ const char *gzip_program;		/* name of gzip program */
 static pid_t zpid = -1;			/* pid of child process */
 
 static int get_phys(void);
-extern sigset_t s_mask;
 static void ar_start_gzip(int, const char *, int);
 
 /*

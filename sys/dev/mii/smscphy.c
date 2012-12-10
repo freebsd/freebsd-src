@@ -97,11 +97,9 @@ static int
 smscphy_attach(device_t dev)
 {
 	struct mii_softc *sc;
-	struct mii_attach_args *ma;
 	const struct mii_phy_funcs *mpf;
 
 	sc = device_get_softc(dev);
-	ma = device_get_ivars(dev);
 	mpf = &smscphy_funcs;
 	mii_phy_dev_attach(dev, MIIF_NOISOLATE | MIIF_NOMANPAUSE, mpf, 1);
 	mii_phy_setmedia(sc);

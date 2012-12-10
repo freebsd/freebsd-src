@@ -784,7 +784,7 @@ radius_Init(struct radius *r)
   r->mppe.recvkeylen = 0;
   r->mppe.sendkey = NULL;
   r->mppe.sendkeylen = 0;
-  *r->cfg.file = '\0';;
+  *r->cfg.file = '\0';
   log_Printf(LogDEBUG, "Radius: radius_Init\n");
 }
 

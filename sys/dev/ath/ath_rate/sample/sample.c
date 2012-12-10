@@ -272,12 +272,29 @@ pick_sample_rate(struct sample_softc *ssc , struct ath_node *an,
 			continue;
 		}
 
+		/*
+		 * The following code stops trying to sample
+		 * non-MCS rates when speaking to an MCS node.
+		 * However, at least for CCK rates in 2.4GHz mode,
+		 * the non-MCS rates MAY actually provide better
+		 * PER at the very far edge of reception.
+		 *
+		 * However! Until ath_rate_form_aggr() grows
+		 * some logic to not form aggregates if the
+		 * selected rate is non-MCS, this won't work.
+		 *
+		 * So don't disable this code until you've taught
+		 * ath_rate_form_aggr() to drop out if any of
+		 * the selected rates are non-MCS.
+		 */
+#if 1
 		/* if the node is HT and the rate isn't HT, don't bother sample */
 		if ((an->an_node.ni_flags & IEEE80211_NODE_HT) &&
 		    (rt->info[rix].phy != IEEE80211_T_HT)) {
 			mask &= ~((uint64_t) 1<<rix);
 			goto nextrate;
 		}
+#endif
 
 		/* this bit-rate is always worse than the current one */
 		if (sn->stats[size_bin][rix].perfect_tx_time > current_tt) {

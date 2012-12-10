@@ -123,7 +123,8 @@ f_dialog_input_options()
 	local msg="$( printf "$msg_please_enter_mediaopts" "$interface" )"
 	local hline="$hline_alnum_punc_tab_enter"
 
-	$DIALOG \
+	local dialog_inputbox
+	dialog_inputbox=$( $DIALOG \
 		--title "$DIALOG_TITLE"         \
 		--backtitle "$DIALOG_BACKTITLE" \
 		--hline "$hline"                \
@@ -131,9 +132,11 @@ f_dialog_input_options()
 		--cancel-label "$msg_cancel"    \
 		--inputbox "$msg" 9 70          \
 		"$options"                      \
-		2> "$DIALOG_TMPDIR/dialog.inputbox.$$"
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
 
 	local retval=$?
+	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 	local _options="$( f_dialog_inputstr )"
 
 	[ $retval -eq $SUCCESS ] && options="$_options"
@@ -205,7 +208,8 @@ f_dialog_menu_media_options()
 
 	local hline="$hline_arrows_tab_enter"
 
-	eval $DIALOG \
+	local dialog_menu
+	dialog_menu=$( eval $DIALOG \
 		--clear --title \"\$DIALOG_TITLE\" \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--hline \"\$hline\"                \
@@ -213,9 +217,11 @@ f_dialog_menu_media_options()
 		--cancel-label \"\$msg_cancel\"    \
 		--menu \"\$msg\" 21 60 12          \
 		$supported_media                   \
-		2> "$DIALOG_TMPDIR/dialog.menu.$$"
+		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+	)
 
 	local retval=$?
+	setvar DIALOG_MENU_$$ "$dialog_menu"
 	if [ $retval -eq $SUCCESS ]; then
 		local tag="$( f_dialog_menutag )"
 		options=$( eval f_dialog_menutag2item \"\$tag\" \

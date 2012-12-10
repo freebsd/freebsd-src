@@ -421,7 +421,7 @@ AcpiDmIsPldBuffer (
  *
  ******************************************************************************/
 
-#define ACPI_PLD_OUTPUT     "%*.s/* %18s : %-6.2X */\n", ACPI_MUL_4 (Level), " "
+#define ACPI_PLD_OUTPUT08     "%*.s/* %18s : %-6.2X */\n", ACPI_MUL_4 (Level), " "
 #define ACPI_PLD_OUTPUT16   "%*.s/* %18s : %-6.4X */\n", ACPI_MUL_4 (Level), " "
 #define ACPI_PLD_OUTPUT24   "%*.s/* %18s : %-6.6X */\n", ACPI_MUL_4 (Level), " "
 
@@ -452,8 +452,8 @@ AcpiDmPldBuffer (
 
     /* First 32-bit dword */
 
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "Revision", PldInfo->Revision);
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "IgnoreColor", PldInfo->IgnoreColor);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "Revision", PldInfo->Revision);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "IgnoreColor", PldInfo->IgnoreColor);
     AcpiOsPrintf (ACPI_PLD_OUTPUT24,"Color", PldInfo->Color);
 
     /* Second 32-bit dword */
@@ -463,27 +463,27 @@ AcpiDmPldBuffer (
 
     /* Third 32-bit dword */
 
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "UserVisible", PldInfo->UserVisible);
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "Dock", PldInfo->Dock);
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "Lid", PldInfo->Lid);
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "Panel", PldInfo->Panel);
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "VerticalPosition", PldInfo->VerticalPosition);
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "HorizontalPosition", PldInfo->HorizontalPosition);
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "Shape", PldInfo->Shape);
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "GroupOrientation", PldInfo->GroupOrientation);
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "GroupToken", PldInfo->GroupToken);
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "GroupPosition", PldInfo->GroupPosition);
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "Bay", PldInfo->Bay);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "UserVisible", PldInfo->UserVisible);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "Dock", PldInfo->Dock);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "Lid", PldInfo->Lid);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "Panel", PldInfo->Panel);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "VerticalPosition", PldInfo->VerticalPosition);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "HorizontalPosition", PldInfo->HorizontalPosition);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "Shape", PldInfo->Shape);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "GroupOrientation", PldInfo->GroupOrientation);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "GroupToken", PldInfo->GroupToken);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "GroupPosition", PldInfo->GroupPosition);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "Bay", PldInfo->Bay);
 
     /* Fourth 32-bit dword */
 
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "Ejectable", PldInfo->Ejectable);
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "OspmEjectRequired", PldInfo->OspmEjectRequired);
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "CabinetNumber", PldInfo->CabinetNumber);
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "CardCageNumber", PldInfo->CardCageNumber);
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "Reference", PldInfo->Reference);
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "Rotation", PldInfo->Rotation);
-    AcpiOsPrintf (ACPI_PLD_OUTPUT,  "Order", PldInfo->Order);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "Ejectable", PldInfo->Ejectable);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "OspmEjectRequired", PldInfo->OspmEjectRequired);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "CabinetNumber", PldInfo->CabinetNumber);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "CardCageNumber", PldInfo->CardCageNumber);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "Reference", PldInfo->Reference);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "Rotation", PldInfo->Rotation);
+    AcpiOsPrintf (ACPI_PLD_OUTPUT08,  "Order", PldInfo->Order);
 
     /* Fifth 32-bit dword */
 
@@ -505,7 +505,7 @@ AcpiDmPldBuffer (
  *
  * RETURN:      None
  *
- * DESCRIPTION: Dump Unicode string as a standard ASCII string.  (Remove
+ * DESCRIPTION: Dump Unicode string as a standard ASCII string. (Remove
  *              the extra zero bytes).
  *
  ******************************************************************************/

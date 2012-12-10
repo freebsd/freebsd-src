@@ -153,17 +153,44 @@ AcpiPsGetAmlOpcode (
 
     case AML_CLASS_UNKNOWN:
 
-        /* The opcode is unrecognized. Just skip unknown opcodes */
+        /* The opcode is unrecognized. Complain and skip unknown opcodes */
 
-        ACPI_ERROR ((AE_INFO,
-             "Found unknown opcode 0x%X at AML address %p offset 0x%X, ignoring",
-              WalkState->Opcode, WalkState->ParserState.Aml, WalkState->AmlOffset));
+        if (WalkState->PassNumber == 2)
+        {
+            ACPI_ERROR ((AE_INFO,
+                "Unknown opcode 0x%.2X at table offset 0x%.4X, ignoring",
+                WalkState->Opcode,
+                (UINT32) (WalkState->AmlOffset + sizeof (ACPI_TABLE_HEADER))));
 
-        ACPI_DUMP_BUFFER (WalkState->ParserState.Aml, 128);
+            ACPI_DUMP_BUFFER (WalkState->ParserState.Aml - 16, 48);
 
-        /* Assume one-byte bad opcode */
+#ifdef ACPI_ASL_COMPILER
+            /*
+             * This is executed for the disassembler only. Output goes
+             * to the disassembled ASL output file.
+             */
+            AcpiOsPrintf (
+                "/*\nError: Unknown opcode 0x%.2X at table offset 0x%.4X, context:\n",
+                WalkState->Opcode,
+                (UINT32) (WalkState->AmlOffset + sizeof (ACPI_TABLE_HEADER)));
+
+            /* Dump the context surrounding the invalid opcode */
+
+            AcpiUtDumpBuffer (((UINT8 *) WalkState->ParserState.Aml - 16),
+                48, DB_BYTE_DISPLAY,
+                WalkState->AmlOffset + sizeof (ACPI_TABLE_HEADER) - 16);
+            AcpiOsPrintf (" */\n");
+#endif
+        }
+
+        /* Increment past one-byte or two-byte opcode */
 
         WalkState->ParserState.Aml++;
+        if (WalkState->Opcode > 0xFF) /* Can only happen if first byte is 0x5B */
+        {
+            WalkState->ParserState.Aml++;
+        }
+
         return_ACPI_STATUS (AE_CTRL_PARSE_CONTINUE);
 
     default:
@@ -551,8 +578,8 @@ AcpiPsGetArguments (
                         (!Arg))
                     {
                         ACPI_WARNING ((AE_INFO,
-                            "Detected an unsupported executable opcode "
-                            "at module-level: [0x%.4X] at table offset 0x%.4X",
+                            "Unsupported module-level executable opcode "
+                            "0x%.2X at table offset 0x%.4X",
                             Op->Common.AmlOpcode,
                             (UINT32) (ACPI_PTR_DIFF (AmlOpStart,
                                 WalkState->ParserState.AmlStart) +
@@ -1265,4 +1292,3 @@ AcpiPsParseLoop (
     Status = AcpiPsCompleteFinalOp (WalkState, Op, Status);
     return_ACPI_STATUS (Status);
 }
-

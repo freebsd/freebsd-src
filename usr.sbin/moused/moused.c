@@ -408,6 +408,7 @@ static struct rodentparam {
     int cfd;			/* /dev/consolectl file descriptor */
     int mremsfd;		/* mouse remote server file descriptor */
     int mremcfd;		/* mouse remote client file descriptor */
+    int is_removable;		/* set if device is removable, like USB */
     long clickthreshold;	/* double click speed in msec */
     long button2timeout;	/* 3 button emulation timeout */
     mousehw_t hw;		/* mouse device hardware information */
@@ -434,6 +435,7 @@ static struct rodentparam {
     .cfd = -1,
     .mremsfd = -1,
     .mremcfd = -1,
+    .is_removable = 0,
     .clickthreshold = DFLT_CLICKTHRESHOLD,
     .button2timeout = DFLT_BUTTON2TIMEOUT,
     .accelx = 1.0,
@@ -570,7 +572,6 @@ main(int argc, char *argv[])
     int c;
     int	i;
     int	j;
-    static int retry;
 
     for (i = 0; i < MOUSE_MAXBUTTON; ++i)
 	mstate[i] = &bstate[i];
@@ -876,10 +877,8 @@ main(int argc, char *argv[])
 	usage();
     }
 
-    retry = 1;
-    if (strncmp(rodent.portname, "/dev/ums", 8) == 0) {
-	retry = 5;
-    }
+    if (strncmp(rodent.portname, "/dev/ums", 8) == 0)
+	rodent.is_removable = 1;
 
     for (;;) {
 	if (setjmp(env) == 0) {
@@ -888,13 +887,8 @@ main(int argc, char *argv[])
 	    signal(SIGQUIT, cleanup);
 	    signal(SIGTERM, cleanup);
 	    signal(SIGUSR1, pause_mouse);
-	    for (i = 0; i < retry; ++i) {
-		if (i > 0)
-		    sleep(2);
-		rodent.mfd = open(rodent.portname, O_RDWR | O_NONBLOCK);
-		if (rodent.mfd != -1 || errno != ENOENT)
-		    break;
-	    }
+
+	    rodent.mfd = open(rodent.portname, O_RDWR | O_NONBLOCK);
 	    if (rodent.mfd == -1)
 		logerr(1, "unable to open %s", rodent.portname);
 	    if (r_identify() == MOUSE_PROTO_UNKNOWN) {
@@ -944,6 +938,8 @@ main(int argc, char *argv[])
 	if (rodent.cfd != -1)
 	    close(rodent.cfd);
 	rodent.mfd = rodent.cfd = -1;
+	if (rodent.is_removable)
+		exit(0);
     }
     /* NOT REACHED */
 

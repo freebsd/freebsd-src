@@ -576,8 +576,6 @@ ar5210MibEvent(struct ath_hal *ah, const HAL_NODE_STATS *stats)
 {
 }
 
-#define	AR_DIAG_SW_DIS_CRYPTO	(AR_DIAG_SW_DIS_ENC | AR_DIAG_SW_DIS_DEC)
-
 HAL_STATUS
 ar5210GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	uint32_t capability, uint32_t *result)
@@ -585,7 +583,11 @@ ar5210GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 
 	switch (type) {
 	case HAL_CAP_CIPHER:		/* cipher handled in hardware */
+#if 0
 		return (capability == HAL_CIPHER_WEP ? HAL_OK : HAL_ENOTSUPP);
+#else
+		return HAL_ENOTSUPP;
+#endif
 	default:
 		return ath_hal_getcapability(ah, type, capability, result);
 	}
@@ -608,7 +610,7 @@ ar5210SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 #else
 		AH_PRIVATE(ah)->ah_diagreg = setting & 0x6;	/* ACK+CTS */
 #endif
-		OS_REG_WRITE(ah, AR_DIAG_SW, AH_PRIVATE(ah)->ah_diagreg);
+		ar5210UpdateDiagReg(ah, AH_PRIVATE(ah)->ah_diagreg);
 		return AH_TRUE;
 	case HAL_CAP_RXORN_FATAL:	/* HAL_INT_RXORN treated as fatal  */
 		return AH_FALSE;	/* NB: disallow */
@@ -676,4 +678,19 @@ ar5210EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 void
 ar5210GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 {
+}
+
+/*
+ * Update the diagnostic register.
+ *
+ * This merges in the diagnostic register setting with the default
+ * value, which may or may not involve disabling hardware encryption.
+ */
+void
+ar5210UpdateDiagReg(struct ath_hal *ah, uint32_t val)
+{
+
+	/* Disable all hardware encryption */
+	val |= AR_DIAG_SW_DIS_CRYPTO;
+	OS_REG_WRITE(ah, AR_DIAG_SW, val);
 }

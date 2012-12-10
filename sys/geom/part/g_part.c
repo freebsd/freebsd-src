@@ -1880,7 +1880,10 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	if (error == 0)
 		error = g_access(cp, 1, 0, 0);
 	if (error != 0) {
-		g_part_wither(gp, error);
+		if (cp->provider)
+			g_detach(cp);
+		g_destroy_consumer(cp);
+		g_destroy_geom(gp);
 		return (NULL);
 	}
 
@@ -1940,7 +1943,9 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_topology_lock();
 	root_mount_rel(rht);
 	g_access(cp, -1, 0, 0);
-	g_part_wither(gp, error);
+	g_detach(cp);
+	g_destroy_consumer(cp);
+	g_destroy_geom(gp);
 	return (NULL);
 }
 

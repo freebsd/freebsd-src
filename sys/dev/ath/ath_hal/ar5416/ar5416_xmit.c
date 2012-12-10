@@ -735,7 +735,8 @@ ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
 }
 
 void
-ar5416Set11nAggrFirst(struct ath_hal *ah, struct ath_desc *ds, u_int aggrLen)
+ar5416Set11nAggrFirst(struct ath_hal *ah, struct ath_desc *ds, u_int aggrLen,
+    u_int numDelims)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
 
@@ -743,6 +744,7 @@ ar5416Set11nAggrFirst(struct ath_hal *ah, struct ath_desc *ds, u_int aggrLen)
 
 	ads->ds_ctl6 &= ~(AR_AggrLen | AR_PadDelim);
 	ads->ds_ctl6 |= SM(aggrLen, AR_AggrLen);
+	ads->ds_ctl6 |= SM(numDelims, AR_PadDelim);
 }
 
 void

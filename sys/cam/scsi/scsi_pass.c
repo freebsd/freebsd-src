@@ -76,6 +76,7 @@ struct pass_softc {
 	pass_flags	 flags;
 	u_int8_t	 pd_type;
 	union ccb	 saved_ccb;
+	int		 open_count;
 	struct devstat	*device_stats;
 	struct cdev	*dev;
 	struct cdev	*alias_dev;
@@ -140,12 +141,43 @@ passinit(void)
 static void
 passdevgonecb(void *arg)
 {
+	struct cam_sim    *sim;
 	struct cam_periph *periph;
+	struct pass_softc *softc;
+	int i;
 
 	periph = (struct cam_periph *)arg;
+	sim = periph->sim;
+	softc = (struct pass_softc *)periph->softc;
 
-	xpt_print(periph->path, "%s: devfs entry is gone\n", __func__);
-	cam_periph_release(periph);
+	KASSERT(softc->open_count >= 0, ("Negative open count %d",
+		softc->open_count));
+
+	mtx_lock(sim->mtx);
+
+	/*
+	 * When we get this callback, we will get no more close calls from
+	 * devfs.  So if we have any dangling opens, we need to release the
+	 * reference held for that particular context.
+	 */
+	for (i = 0; i < softc->open_count; i++)
+		cam_periph_release_locked(periph);
+
+	softc->open_count = 0;
+
+	/*
+	 * Release the reference held for the device node, it is gone now.
+	 */
+	cam_periph_release_locked(periph);
+
+	/*
+	 * We reference the SIM lock directly here, instead of using
+	 * cam_periph_unlock().  The reason is that the final call to
+	 * cam_periph_release_locked() above could result in the periph
+	 * getting freed.  If that is the case, dereferencing the periph
+	 * with a cam_periph_unlock() call would cause a page fault.
+	 */
+	mtx_unlock(sim->mtx);
 }
 
 static void
@@ -212,27 +244,26 @@ pass_add_physpath(void *context, int pending)
 	 */
 	periph = context;
 	softc = periph->softc;
+	physpath = malloc(MAXPATHLEN, M_DEVBUF, M_WAITOK);
 	cam_periph_lock(periph);
 	if (periph->flags & CAM_PERIPH_INVALID) {
 		cam_periph_unlock(periph);
-		return;
+		goto out;
 	}
-	cam_periph_unlock(periph);
-	physpath = malloc(MAXPATHLEN, M_DEVBUF, M_WAITOK);
 	if (xpt_getattr(physpath, MAXPATHLEN,
 			"GEOM::physpath", periph->path) == 0
 	 && strlen(physpath) != 0) {
 
+		cam_periph_unlock(periph);
 		make_dev_physpath_alias(MAKEDEV_WAITOK, &softc->alias_dev,
 					softc->dev, softc->alias_dev, physpath);
+		cam_periph_lock(periph);
 	}
-	free(physpath, M_DEVBUF);
 
 	/*
 	 * Now that we've made our alias, we no longer have to have a
 	 * reference to the device.
 	 */
-	cam_periph_lock(periph);
 	if ((softc->flags & PASS_FLAG_INITIAL_PHYSPATH) == 0) {
 		softc->flags |= PASS_FLAG_INITIAL_PHYSPATH;
 		cam_periph_unlock(periph);
@@ -240,6 +271,9 @@ pass_add_physpath(void *context, int pending)
 	}
 	else
 		cam_periph_unlock(periph);
+
+out:
+	free(physpath, M_DEVBUF);
 }
 
 static void
@@ -312,11 +346,6 @@ passregister(struct cam_periph *periph, void *arg)
 	int    no_tags;
 
 	cgd = (struct ccb_getdev *)arg;
-	if (periph == NULL) {
-		printf("%s: periph was NULL!!\n", __func__);
-		return(CAM_REQ_CMP_ERR);
-	}
-
 	if (cgd == NULL) {
 		printf("%s: no getdev CCB, can't register device\n", __func__);
 		return(CAM_REQ_CMP_ERR);
@@ -371,7 +400,7 @@ passregister(struct cam_periph *periph, void *arg)
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
 		xpt_print(periph->path, "%s: lost periph during "
 			  "registration!\n", __func__);
-		mtx_lock(periph->sim->mtx);
+		cam_periph_lock(periph);
 		return (CAM_REQ_CMP_ERR);
 	}
 
@@ -464,6 +493,8 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 		return(EINVAL);
 	}
 
+	softc->open_count++;
+
 	cam_periph_unlock(periph);
 
 	return (error);
@@ -472,13 +503,36 @@ passopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 static int
 passclose(struct cdev *dev, int flag, int fmt, struct thread *td)
 {
+	struct  cam_sim    *sim;
 	struct 	cam_periph *periph;
+	struct  pass_softc *softc;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
 		return (ENXIO);	
 
-	cam_periph_release(periph);
+	sim = periph->sim;
+	softc = periph->softc;
+
+	mtx_lock(sim->mtx);
+
+	softc->open_count--;
+
+	cam_periph_release_locked(periph);
+
+	/*
+	 * We reference the SIM lock directly here, instead of using
+	 * cam_periph_unlock().  The reason is that the call to
+	 * cam_periph_release_locked() above could result in the periph
+	 * getting freed.  If that is the case, dereferencing the periph
+	 * with a cam_periph_unlock() call would cause a page fault.
+	 *
+	 * cam_periph_release() avoids this problem using the same method,
+	 * but we're manually acquiring and dropping the lock here to
+	 * protect the open count and avoid another lock acquisition and
+	 * release.
+	 */
+	mtx_unlock(sim->mtx);
 
 	return (0);
 }
@@ -524,6 +578,7 @@ passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 	struct	cam_periph *periph;
 	struct	pass_softc *softc;
 	int	error;
+	uint32_t priority;
 
 	periph = (struct cam_periph *)dev->si_drv1;
 	if (periph == NULL)
@@ -556,6 +611,11 @@ passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 			break;
 		}
 
+		/* Compatibility for RL/priority-unaware code. */
+		priority = inccb->ccb_h.pinfo.priority;
+		if (priority < CAM_RL_TO_PRIORITY(CAM_RL_NORMAL))
+		    priority += CAM_RL_TO_PRIORITY(CAM_RL_NORMAL);
+
 		/*
 		 * Non-immediate CCBs need a CCB from the per-device pool
 		 * of CCBs, which is scheduled by the transport layer.
@@ -564,15 +624,14 @@ passioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flag, struct thread *t
 		 */
 		if ((inccb->ccb_h.func_code & XPT_FC_QUEUED)
 		 && ((inccb->ccb_h.func_code & XPT_FC_USER_CCB) == 0)) {
-			ccb = cam_periph_getccb(periph,
-						inccb->ccb_h.pinfo.priority);
+			ccb = cam_periph_getccb(periph, priority);
 			ccb_malloced = 0;
 		} else {
 			ccb = xpt_alloc_ccb_nowait();
 
 			if (ccb != NULL)
 				xpt_setup_ccb(&ccb->ccb_h, periph->path,
-					      inccb->ccb_h.pinfo.priority);
+					      priority);
 			ccb_malloced = 1;
 		}
 

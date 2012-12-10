@@ -872,7 +872,7 @@ DtCompileHest (
         }
     }
 
-    return AE_OK;
+    return (AE_OK);
 }
 
 
@@ -1184,8 +1184,8 @@ DtCompileMpst (
     ACPI_MPST_POWER_NODE    *MpstPowerNode;
     ACPI_MPST_DATA_HDR      *MpstDataHeader;
     UINT16                  SubtableCount;
-    UINT8                   PowerStateCount;
-    UINT8                   ComponentCount;
+    UINT32                  PowerStateCount;
+    UINT32                  ComponentCount;
 
 
     /* Main table */

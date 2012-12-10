@@ -523,6 +523,11 @@ extern int val_print (struct type * type, char *valaddr,
 		      int deref_ref, int recurse,
 		      enum val_prettyprint pretty);
 
+extern int common_val_print (struct value *val,
+			     struct ui_file *stream, int format,
+			     int deref_ref, int recurse,
+			     enum val_prettyprint pretty);
+
 extern int val_print_string (CORE_ADDR addr, int len, int width, struct ui_file *stream);
 
 extern void print_variable_value (struct symbol * var,

@@ -430,14 +430,6 @@ extern int fop_getattr(vnode_t *vp, vattr_t *vap);
 
 #define	vn_lock(vp, type)
 #define	VOP_UNLOCK(vp, type)
-#ifdef VFS_LOCK_GIANT
-#undef VFS_LOCK_GIANT
-#endif
-#define	VFS_LOCK_GIANT(mp)	0
-#ifdef VFS_UNLOCK_GIANT
-#undef VFS_UNLOCK_GIANT
-#endif
-#define	VFS_UNLOCK_GIANT(vfslocked)
 
 extern int vn_open(char *path, int x1, int oflags, int mode, vnode_t **vpp,
     int x2, int x3);

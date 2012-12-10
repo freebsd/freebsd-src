@@ -65,10 +65,6 @@ __FBSDID("$FreeBSD$");
  * does not seem very useful
  */
 
-static __inline void compiler_memory_barrier(void) {
-	__asm __volatile("":::"memory");
-}
-
 static void	assert_rm(const struct lock_object *lock, int what);
 static void	lock_rm(struct lock_object *lock, int how);
 #ifdef KDTRACE_HOOKS
@@ -353,7 +349,7 @@ _rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 
 	td->td_critnest++;	/* critical_enter(); */
 
-	compiler_memory_barrier();
+	__compiler_membar();
 
 	pc = cpuid_to_pcpu[td->td_oncpu]; /* pcpu_find(td->td_oncpu); */
 
@@ -361,7 +357,7 @@ _rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 
 	sched_pin();
 
-	compiler_memory_barrier();
+	__compiler_membar();
 
 	td->td_critnest--;
 

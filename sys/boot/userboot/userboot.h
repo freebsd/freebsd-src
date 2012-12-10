@@ -31,6 +31,7 @@
  */
 #define	USERBOOT_VERSION_1      1
 #define	USERBOOT_VERSION_2      2
+#define	USERBOOT_VERSION_3      3
 
 /*
  * Exit codes from the loader
@@ -38,7 +39,7 @@
 #define	USERBOOT_EXIT_QUIT      1
 #define	USERBOOT_EXIT_REBOOT    2
 
-struct loader_callbacks_v1 {
+struct loader_callbacks {
 	/*
 	 * Console i/o
 	 */
@@ -176,9 +177,22 @@ struct loader_callbacks_v1 {
          */
 	void		(*getmem)(void *arg, uint64_t *lowmem,
             uint64_t *highmem);
+
 	/*
 	 * ioctl interface to the disk device
 	 */
 	int		(*diskioctl)(void *arg, int unit, u_long cmd,
 	    void *data);
+
+	/*
+	 * Returns an environment variable in the form "name=value".
+	 *
+	 * If there are no more variables that need to be set in the
+	 * loader environment then return NULL.
+	 *
+	 * 'num' is used as a handle for the callback to identify which
+	 * environment variable to return next. It will begin at 0 and
+	 * each invocation will add 1 to the previous value of 'num'.
+	 */
+	const char *	(*getenv)(void *arg, int num);
 };

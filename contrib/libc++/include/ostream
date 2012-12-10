@@ -169,7 +169,7 @@ protected:
 public:
 
     // 27.7.2.4 Prefix/suffix:
-    class sentry;
+    class _LIBCPP_VISIBLE sentry;
 
     // 27.7.2.6 Formatted output:
     basic_ostream& operator<<(basic_ostream& (*__pf)(basic_ostream&));
@@ -1287,8 +1287,8 @@ operator<<(basic_ostream<_CharT, _Traits>& __os, const bitset<_Size>& __x)
                          use_facet<ctype<_CharT> >(__os.getloc()).widen('1'));
 }
 
-extern template class basic_ostream<char>;
-extern template class basic_ostream<wchar_t>;
+_LIBCPP_EXTERN_TEMPLATE(class basic_ostream<char>)
+_LIBCPP_EXTERN_TEMPLATE(class basic_ostream<wchar_t>)
 
 _LIBCPP_END_NAMESPACE_STD
 

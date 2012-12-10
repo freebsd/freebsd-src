@@ -171,6 +171,7 @@ namespace {
     // Shuffle live registers to match the expectations of successor blocks.
     void finishBlockStack();
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
     void dumpStack() const {
       dbgs() << "Stack contents:";
       for (unsigned i = 0; i != StackTop; ++i) {
@@ -181,6 +182,7 @@ namespace {
         dbgs() << ", ST" << i << " in FP" << unsigned(PendingST[i]);
       dbgs() << "\n";
     }
+#endif
 
     /// getSlot - Return the stack slot number a particular register number is
     /// in.
@@ -575,8 +577,8 @@ namespace {
     friend bool operator<(const TableEntry &TE, unsigned V) {
       return TE.from < V;
     }
-    friend bool LLVM_ATTRIBUTE_USED operator<(unsigned V,
-                                              const TableEntry &TE) {
+    friend bool LLVM_ATTRIBUTE_UNUSED operator<(unsigned V,
+                                                const TableEntry &TE) {
       return V < TE.from;
     }
   };

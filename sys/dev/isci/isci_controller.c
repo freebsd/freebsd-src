@@ -49,6 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/isci/scil/scif_remote_device.h>
 #include <dev/isci/scil/scif_domain.h>
 #include <dev/isci/scil/scif_user_callback.h>
+#include <dev/isci/scil/scic_sgpio.h>
+
+#include <dev/led/led.h>
 
 void isci_action(struct cam_sim *sim, union ccb *ccb);
 void isci_poll(struct cam_sim *sim);
@@ -271,10 +274,31 @@ void isci_controller_construct(struct ISCI_CONTROLLER *controller,
 	sci_pool_initialize(controller->unmap_buffer_pool);
 }
 
+static void isci_led_fault_func(void *priv, int onoff)
+{
+	struct ISCI_PHY *phy = priv;
+
+	/* map onoff to the fault LED */
+	phy->led_fault = onoff;
+	scic_sgpio_update_led_state(phy->handle, 1 << phy->index, 
+		phy->led_fault, phy->led_locate, 0);
+}
+
+static void isci_led_locate_func(void *priv, int onoff)
+{
+	struct ISCI_PHY *phy = priv;
+
+	/* map onoff to the locate LED */
+	phy->led_locate = onoff;
+	scic_sgpio_update_led_state(phy->handle, 1 << phy->index, 
+		phy->led_fault, phy->led_locate, 0);
+}
+
 SCI_STATUS isci_controller_initialize(struct ISCI_CONTROLLER *controller)
 {
 	SCIC_USER_PARAMETERS_T scic_user_parameters;
 	SCI_CONTROLLER_HANDLE_T scic_controller_handle;
+	char led_name[64];
 	unsigned long tunable;
 	int i;
 
@@ -354,6 +378,23 @@ SCI_STATUS isci_controller_initialize(struct ISCI_CONTROLLER *controller)
 	isci_controller_attach_to_cam(controller);
 	xpt_freeze_simq(controller->sim, 1);
 	mtx_unlock(&controller->lock);
+
+	for (i = 0; i < SCI_MAX_PHYS; i++) {
+		controller->phys[i].handle = scic_controller_handle;
+		controller->phys[i].index = i;
+
+		/* fault */
+		controller->phys[i].led_fault = 0;
+		sprintf(led_name, "isci.bus%d.port%d.fault", controller->index, i);
+		controller->phys[i].cdev_fault = led_create(isci_led_fault_func,
+		    &controller->phys[i], led_name);
+			
+		/* locate */
+		controller->phys[i].led_locate = 0;
+		sprintf(led_name, "isci.bus%d.port%d.locate", controller->index, i);
+		controller->phys[i].cdev_locate = led_create(isci_led_locate_func,
+		    &controller->phys[i], led_name);
+	}
 
 	return (scif_controller_initialize(controller->scif_controller_handle));
 }

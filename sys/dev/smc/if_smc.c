@@ -688,11 +688,11 @@ smc_task_rx(void *context, int pending)
 		/*
 		 * Grab an mbuf and attach a cluster.
 		 */
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (m == NULL) {
 			break;
 		}
-		MCLGET(m, M_DONTWAIT);
+		MCLGET(m, M_NOWAIT);
 		if ((m->m_flags & M_EXT) == 0) {
 			m_freem(m);
 			break;

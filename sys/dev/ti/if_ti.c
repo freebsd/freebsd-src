@@ -127,7 +127,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/sysctl.h>
 
-#define TI_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP | CSUM_IP_FRAGS)
+#define TI_CSUM_FEATURES	(CSUM_IP | CSUM_TCP | CSUM_UDP)
 /*
  * We can only turn on header splitting if we're using extended receive
  * BDs.
@@ -145,7 +145,7 @@ typedef enum {
  * Various supported device vendors/types and their names.
  */
 
-static const struct ti_type const ti_devs[] = {
+static const struct ti_type ti_devs[] = {
 	{ ALT_VENDORID,	ALT_DEVICEID_ACENIC,
 		"Alteon AceNIC 1000baseSX Gigabit Ethernet" },
 	{ ALT_VENDORID,	ALT_DEVICEID_ACENIC_COPPER,
@@ -1381,7 +1381,7 @@ ti_newbuf_std(struct ti_softc *sc, int i)
 	struct ti_rx_desc *r;
 	int error, nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MCLBYTES;
@@ -1436,7 +1436,7 @@ ti_newbuf_mini(struct ti_softc *sc, int i)
 	struct ti_rx_desc *r;
 	int error, nsegs;
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MHLEN;
@@ -1495,7 +1495,7 @@ ti_newbuf_jumbo(struct ti_softc *sc, int i, struct mbuf *dummy)
 
 	(void)dummy;
 
-	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
+	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = MJUM9BYTES;
@@ -1577,19 +1577,19 @@ ti_newbuf_jumbo(struct ti_softc *sc, int idx, struct mbuf *m_old)
 		}
 	} else {
 		/* Allocate the mbufs. */
-		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		MGETHDR(m_new, M_NOWAIT, MT_DATA);
 		if (m_new == NULL) {
 			device_printf(sc->ti_dev, "mbuf allocation failed "
 			    "-- packet dropped!\n");
 			goto nobufs;
 		}
-		MGET(m[NPAYLOAD], M_DONTWAIT, MT_DATA);
+		MGET(m[NPAYLOAD], M_NOWAIT, MT_DATA);
 		if (m[NPAYLOAD] == NULL) {
 			device_printf(sc->ti_dev, "cluster mbuf allocation "
 			    "failed -- packet dropped!\n");
 			goto nobufs;
 		}
-		MCLGET(m[NPAYLOAD], M_DONTWAIT);
+		MCLGET(m[NPAYLOAD], M_NOWAIT);
 		if ((m[NPAYLOAD]->m_flags & M_EXT) == 0) {
 			device_printf(sc->ti_dev, "mbuf allocation failed "
 			    "-- packet dropped!\n");
@@ -1598,7 +1598,7 @@ ti_newbuf_jumbo(struct ti_softc *sc, int idx, struct mbuf *m_old)
 		m[NPAYLOAD]->m_len = MCLBYTES;
 
 		for (i = 0; i < NPAYLOAD; i++){
-			MGET(m[i], M_DONTWAIT, MT_DATA);
+			MGET(m[i], M_NOWAIT, MT_DATA);
 			if (m[i] == NULL) {
 				device_printf(sc->ti_dev, "mbuf allocation "
 				    "failed -- packet dropped!\n");
@@ -3051,7 +3051,7 @@ ti_encap(struct ti_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->ti_cdata.ti_tx_tag, txd->tx_dmamap,
 	    *m_head, txsegs, &nseg, 0);
 	if (error == EFBIG) {
-		m = m_defrag(*m_head, M_DONTWAIT);
+		m = m_defrag(*m_head, M_NOWAIT);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -3082,16 +3082,10 @@ ti_encap(struct ti_softc *sc, struct mbuf **m_head)
 
 	m = *m_head;
 	csum_flags = 0;
-	if (m->m_pkthdr.csum_flags) {
-		if (m->m_pkthdr.csum_flags & CSUM_IP)
-			csum_flags |= TI_BDFLAG_IP_CKSUM;
-		if (m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))
-			csum_flags |= TI_BDFLAG_TCP_UDP_CKSUM;
-		if (m->m_flags & M_LASTFRAG)
-			csum_flags |= TI_BDFLAG_IP_FRAG_END;
-		else if (m->m_flags & M_FRAG)
-			csum_flags |= TI_BDFLAG_IP_FRAG;
-	}
+	if (m->m_pkthdr.csum_flags & CSUM_IP)
+		csum_flags |= TI_BDFLAG_IP_CKSUM;
+	if (m->m_pkthdr.csum_flags & (CSUM_TCP | CSUM_UDP))
+		csum_flags |= TI_BDFLAG_TCP_UDP_CKSUM;
 
 	frag = sc->ti_tx_saved_prodidx;
 	for (i = 0; i < nseg; i++) {

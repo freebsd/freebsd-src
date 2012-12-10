@@ -94,6 +94,7 @@ int	lflag;			/* enable multilabel for file system */
 int	nflag;			/* do not create .snap directory */
 int	tflag;			/* enable TRIM */
 intmax_t fssize;		/* file system size */
+off_t	mediasize;		/* device size */
 int	sectorsize;		/* bytes/sector */
 int	realsectorsize;		/* bytes/sector in hardware */
 int	fsize = 0;		/* fragment size */
@@ -135,7 +136,6 @@ main(int argc, char *argv[])
 	char *cp, *special;
 	intmax_t reserved;
 	int ch, i, rval;
-	off_t mediasize;
 	char part_name;		/* partition name, default to full disk */
 
 	part_name = 'c';

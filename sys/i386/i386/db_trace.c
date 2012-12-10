@@ -176,7 +176,8 @@ db_ss(struct db_variable *vp, db_expr_t *valuep, int op)
 
 static void db_nextframe(struct i386_frame **, db_addr_t *, struct thread *);
 static int db_numargs(struct i386_frame *);
-static void db_print_stack_entry(const char *, int, char **, int *, db_addr_t);
+static void db_print_stack_entry(const char *, int, char **, int *, db_addr_t,
+    void *);
 static void decode_syscall(int, struct thread *);
 
 static const char * watchtype_str(int type);
@@ -220,12 +221,13 @@ retry:
 }
 
 static void
-db_print_stack_entry(name, narg, argnp, argp, callpc)
+db_print_stack_entry(name, narg, argnp, argp, callpc, frame)
 	const char *name;
 	int narg;
 	char **argnp;
 	int *argp;
 	db_addr_t callpc;
+	void *frame;
 {
 	int n = narg >= 0 ? narg : 5;
 
@@ -242,6 +244,8 @@ db_print_stack_entry(name, narg, argnp, argp, callpc)
 		db_printf(",...");
 	db_printf(") at ");
 	db_printsym(callpc, DB_STGY_PROC);
+	if (frame != NULL)
+		db_printf("/frame 0x%r", (register_t)frame);
 	db_printf("\n");
 }
 
@@ -326,7 +330,7 @@ db_nextframe(struct i386_frame **fp, db_addr_t *ip, struct thread *td)
 		return;
 	}
 
-	db_print_stack_entry(name, 0, 0, 0, eip);
+	db_print_stack_entry(name, 0, 0, 0, eip, &(*fp)->f_frame);
 
 	/*
 	 * For a double fault, we have to snag the values from the
@@ -467,7 +471,8 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 				 * Don't try to walk back on a stack for a
 				 * process that hasn't actually been run yet.
 				 */
-				db_print_stack_entry(name, 0, 0, 0, pc);
+				db_print_stack_entry(name, 0, 0, 0, pc,
+				    actframe);
 				break;
 			}
 			first = FALSE;
@@ -481,7 +486,7 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 			narg = db_numargs(frame);
 		}
 
-		db_print_stack_entry(name, narg, argnp, argp, pc);
+		db_print_stack_entry(name, narg, argnp, argp, pc, actframe);
 
 		if (actframe != frame) {
 			/* `frame' belongs to caller. */
@@ -495,7 +500,7 @@ db_backtrace(struct thread *td, struct trapframe *tf, struct i386_frame *frame,
 		if (INKERNEL((int)pc) && !INKERNEL((int) frame)) {
 			sym = db_search_symbol(pc, DB_STGY_ANY, &offset);
 			db_symbol_values(sym, &name, NULL);
-			db_print_stack_entry(name, 0, 0, 0, pc);
+			db_print_stack_entry(name, 0, 0, 0, pc, frame);
 			break;
 		}
 		if (!INKERNEL((int) frame)) {

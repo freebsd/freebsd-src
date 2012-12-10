@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: asldefine.h - Common defines for the iASL compiler
@@ -174,4 +173,3 @@
     RsCreateResourceField (Op, Name, ByteOffset, 0, 64);
 
 #endif /* ASLDEFINE.H */
-

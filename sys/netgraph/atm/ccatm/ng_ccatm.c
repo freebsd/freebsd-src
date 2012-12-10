@@ -434,13 +434,13 @@ send_dump(struct ccdata *data, void *uarg, const char *buf)
 	struct ccnode *priv = uarg;
 
 	if (priv->dump == NULL) {
-		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL)
 			return (ENOBUFS);
 		priv->dump_first = priv->dump_last = m;
 		m->m_pkthdr.len = 0;
 	} else {
-		m = m_getcl(M_DONTWAIT, MT_DATA, 0);
+		m = m_getcl(M_NOWAIT, MT_DATA, 0);
 		if (m == 0) {
 			m_freem(priv->dump_first);
 			return (ENOBUFS);
@@ -1178,10 +1178,8 @@ ng_ccatm_log(const char *fmt, ...)
 static int
 ng_ccatm_mod_event(module_t mod, int event, void *data)
 {
-	int s;
 	int error = 0;
 
-	s = splnet();
 	switch (event) {
 
 	  case MOD_LOAD:
@@ -1194,6 +1192,5 @@ ng_ccatm_mod_event(module_t mod, int event, void *data)
 		error = EOPNOTSUPP;
 		break;
 	}
-	splx(s);
 	return (error);
 }

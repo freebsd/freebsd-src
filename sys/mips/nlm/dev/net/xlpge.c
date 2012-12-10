@@ -1125,7 +1125,7 @@ get_buf(void)
 	vm_paddr_t      temp1, temp2;
 #endif
 
-	if ((m_new = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR)) == NULL)
+	if ((m_new = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR)) == NULL)
 		return (NULL);
 	m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
 	m_adj(m_new, NAE_CACHELINE_SIZE - ((uintptr_t)m_new->m_data & 0x1f));

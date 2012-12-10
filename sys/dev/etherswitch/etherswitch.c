@@ -213,12 +213,16 @@ etherswitchioctl(struct cdev *cdev, u_long cmd, caddr_t data, int flags, struct 
 		
 	case IOETHERSWITCHGETREG:
 		reg = (etherswitch_reg_t *)data;
+		ETHERSWITCH_LOCK(etherswitch);
 		reg->val = ETHERSWITCH_READREG(etherswitch, reg->reg);
+		ETHERSWITCH_UNLOCK(etherswitch);
 		break;
 	
 	case IOETHERSWITCHSETREG:
 		reg = (etherswitch_reg_t *)data;
+		ETHERSWITCH_LOCK(etherswitch);
 		error = ETHERSWITCH_WRITEREG(etherswitch, reg->reg, reg->val);
+		ETHERSWITCH_UNLOCK(etherswitch);
 		break;
 
 	case IOETHERSWITCHGETPORT:

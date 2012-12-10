@@ -41,25 +41,6 @@
 #define	RET_SETGRENT	void
 #endif
 
-enum updtype
-{
-        UPD_DELETE = -1,
-        UPD_CREATE = 0,
-        UPD_REPLACE = 1
-};
-
-__BEGIN_DECLS
-int fileupdate(char const * fname, mode_t fm, char const * nline, char const * pfx, int pfxlen, int updmode);
-__END_DECLS
-
-enum pwdfmttype
-{
-        PWF_STANDARD,		/* MASTER format but with '*' as password */
-        PWF_PASSWD,		/* V7 format */
-        PWF_GROUP = PWF_PASSWD,
-        PWF_MASTER		/* MASTER format with password */
-};
-
 struct pwf
 {
 	int		    _altdir;
@@ -68,13 +49,11 @@ struct pwf
 	struct passwd * (*_getpwent)(void);
 	struct passwd	* (*_getpwuid)(uid_t uid);
 	struct passwd	* (*_getpwnam)(const char * nam);
-	int             (*_pwdb)(char *arg, ...);
 	RET_SETGRENT	  (*_setgrent)(void);
 	void		  (*_endgrent)(void);
 	struct group  * (*_getgrent)(void);
 	struct group  * (*_getgrgid)(gid_t gid);
 	struct group  * (*_getgrnam)(const char * nam);
-	int		  (*_grdb)(char *arg, ...);
 };
 
 extern struct pwf PWF;
@@ -85,14 +64,12 @@ extern struct pwf VPWF;
 #define GETPWENT()	PWF._getpwent()
 #define GETPWUID(uid)	PWF._getpwuid(uid)
 #define GETPWNAM(nam)	PWF._getpwnam(nam)
-#define PWDB(args)	PWF._pwdb(args)
 
 #define SETGRENT()	PWF._setgrent()
 #define ENDGRENT()	PWF._endgrent()
 #define GETGRENT()	PWF._getgrent()
 #define GETGRGID(gid)	PWF._getgrgid(gid)
 #define GETGRNAM(nam)	PWF._getgrnam(nam)
-#define GRDB(args)	PWF._grdb(args)
 
 #define PWALTDIR()	PWF._altdir
 #ifndef _PATH_PWD
@@ -101,51 +78,35 @@ extern struct pwf VPWF;
 #ifndef _GROUP
 #define _GROUP		"group"
 #endif
-#ifndef _PASSWD
-#define _PASSWD 	"passwd"
-#endif
 #ifndef _MASTERPASSWD
 #define _MASTERPASSWD	"master.passwd"
-#endif
-#ifndef _GROUP
-#define _GROUP		"group"
 #endif
 
 __BEGIN_DECLS
 int addpwent(struct passwd * pwd);
 int delpwent(struct passwd * pwd);
 int chgpwent(char const * login, struct passwd * pwd);
-int fmtpwent(char *buf, struct passwd * pwd);
-int fmtpwentry(char *buf, struct passwd * pwd, int type);
 
 int setpwdir(const char * dir);
 char * getpwpath(char const * file);
-int pwdb(char *arg, ...);
 
 int addgrent(struct group * grp);
 int delgrent(struct group * grp);
 int chggrent(char const * name, struct group * grp);
-int fmtgrent(char **buf, int * buflen, struct group * grp);
-int fmtgrentry(char **buf, int * buflen, struct group * grp, int type);
 int editgroups(char *name, char **groups);
 
 int setgrdir(const char * dir);
 char * getgrpath(const char *file);
-int grdb(char *arg, ...);
 
 void vsetpwent(void);
 void vendpwent(void);
 struct passwd * vgetpwent(void);
 struct passwd * vgetpwuid(uid_t uid);
 struct passwd * vgetpwnam(const char * nam);
-struct passwd * vgetpwent(void);
-int             vpwdb(char *arg, ...);
 
 struct group * vgetgrent(void);
 struct group * vgetgrgid(gid_t gid);
 struct group * vgetgrnam(const char * nam);
-struct group * vgetgrent(void);
-int	       vgrdb(char *arg, ...);
 RET_SETGRENT   vsetgrent(void);
 void           vendgrent(void);
 

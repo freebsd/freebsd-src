@@ -137,7 +137,8 @@ inoinfo(ino_t inum)
 	int iloff;
 
 	if (inum > maxino)
-		errx(EEXIT, "inoinfo: inumber %d out of range", inum);
+		errx(EEXIT, "inoinfo: inumber %ju out of range",
+		    (uintmax_t)inum);
 	ilp = &inostathead[inum / sblock.fs_ipg];
 	iloff = inum % sblock.fs_ipg;
 	if (iloff >= ilp->il_numalloced)

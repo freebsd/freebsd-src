@@ -48,8 +48,6 @@ kernel.
 The methods described
 here are as applicable to production installations as it is to development
 environments.
-You need approximately 10GB of disk space on one machine to make this work
-conveniently.
 .Sh SETTING UP THE ENVIRONMENT ON THE MASTER SERVER
 Your master server should always run a stable, production version of the
 .Fx
@@ -60,9 +58,9 @@ The last thing you want to do is to run an
 unstable environment on your master server which could lead to a situation
 where you lose the environment and/or cannot recover from a mistake.
 .Pp
-Create a huge partition called
+Create a partition called
 .Pa /FreeBSD .
-Approximately 7GB is recommended.
+Approximately 20GB is recommended.
 This partition will contain nearly all the development environment,
 including the subversion tree, broken-out source, and possibly even object files.
 You are going to export this partition to your other machines via a
@@ -86,7 +84,7 @@ Third, because it makes it far easier to mix and match the development
 environments which are described later in this document.
 I recommend a
 .Pa /usr/obj
-partition of at least 5GB.
+partition of at least 12GB.
 .Pp
 On the master server, use
 .Xr svn 1
@@ -456,10 +454,6 @@ This is a good time to also remind you that most of the
 .Xr svn 1
 operations you do will be done as
 .Dq Li root .
-It is a good idea to give your
-.Pa /FreeBSD
-partition a lot of space (I recommend
-10-15GB) precisely for that reason.
 .Pp
 .Xr cron 8 .
 .Sh SEE ALSO

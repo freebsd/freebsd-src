@@ -77,7 +77,7 @@ extern MD5_CTX md5_ctx;
  */
 struct sort_opts
 {
-	wchar_t		field_sep;
+	wint_t		field_sep;
 	int		sort_method;
 	bool		cflag;
 	bool		csilentflag;

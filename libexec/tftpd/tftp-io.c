@@ -53,7 +53,7 @@ struct sockaddr_storage me_sock;
 
 static int send_packet(int peer, uint16_t block, char *pkt, int size);
 
-struct errmsg {
+static struct errmsg {
 	int	e_code;
 	const char	*e_msg;
 } errmsgs[] = {
@@ -375,7 +375,7 @@ send_data(int peer, uint16_t block, char *data, int size)
 /*
  * Receive a packet
  */
-jmp_buf	timeoutbuf;
+static jmp_buf timeoutbuf;
 
 static void
 timeout(int sig __unused)

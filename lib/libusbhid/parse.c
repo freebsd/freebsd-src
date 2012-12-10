@@ -70,6 +70,7 @@ struct hid_data {
 	uint8_t	iusage;		/* current "usages_min/max" index */
 	uint8_t ousage;		/* current "usages_min/max" offset */
 	uint8_t	susage;		/* usage set flags */
+	int32_t	reportid;	/* requested report ID */
 };
 
 /*------------------------------------------------------------------------*
@@ -149,7 +150,7 @@ hid_switch_rid(struct hid_data *s, struct hid_item *c, int32_t next_rID)
  *	hid_start_parse
  *------------------------------------------------------------------------*/
 hid_data_t
-hid_start_parse(report_desc_t d, int kindset, int id __unused)
+hid_start_parse(report_desc_t d, int kindset, int id)
 {
 	struct hid_data *s;
 
@@ -158,6 +159,7 @@ hid_start_parse(report_desc_t d, int kindset, int id __unused)
 	s->start = s->p = d->data;
 	s->end = d->data + d->size;
 	s->kindset = kindset;
+	s->reportid = id;
 	return (s);
 }
 
@@ -207,8 +209,8 @@ hid_get_byte(struct hid_data *s, const uint16_t wSize)
 /*------------------------------------------------------------------------*
  *	hid_get_item
  *------------------------------------------------------------------------*/
-int
-hid_get_item(hid_data_t s, hid_item_t *h)
+static int
+hid_get_item_raw(hid_data_t s, hid_item_t *h)
 {
 	hid_item_t *c;
 	unsigned int bTag, bType, bSize;
@@ -509,6 +511,19 @@ hid_get_item(hid_data_t s, hid_item_t *h)
 }
 
 int
+hid_get_item(hid_data_t s, hid_item_t *h)
+{
+	int r;
+
+	for (;;) {
+		r = hid_get_item_raw(s, h);
+		if (r <= 0 || s->reportid == -1 || h->report_ID == s->reportid)
+			break;
+	}
+	return (r);
+}
+
+int
 hid_report_size(report_desc_t r, enum hid_kind k, int id)
 {
 	struct hid_data *d;
@@ -523,7 +538,7 @@ hid_report_size(report_desc_t r, enum hid_kind k, int id)
 
 	memset(&h, 0, sizeof h);
 	for (d = hid_start_parse(r, 1 << k, id); hid_get_item(d, &h); ) {
-		if ((h.report_ID == id || id < 0) && h.kind == k) {
+		if (h.kind == k) {
 			/* compute minimum */
 			if (lpos > h.pos)
 				lpos = h.pos;

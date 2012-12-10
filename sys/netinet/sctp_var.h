@@ -321,48 +321,34 @@ struct sctphdr;
 
 void sctp_close(struct socket *so);
 int sctp_disconnect(struct socket *so);
-
-void sctp_ctlinput __P((int, struct sockaddr *, void *));
-int sctp_ctloutput __P((struct socket *, struct sockopt *));
+void sctp_ctlinput(int, struct sockaddr *, void *);
+int sctp_ctloutput(struct socket *, struct sockopt *);
 
 #ifdef INET
-void sctp_input_with_port __P((struct mbuf *, int, uint16_t));
+void sctp_input_with_port(struct mbuf *, int, uint16_t);
+void sctp_input(struct mbuf *, int);
 
 #endif
-#ifdef INET
-void sctp_input __P((struct mbuf *, int));
-
-#endif
-void sctp_pathmtu_adjustment __P((struct sctp_tcb *, uint16_t));
-void sctp_drain __P((void));
-void sctp_init __P((void));
-
+void sctp_pathmtu_adjustment(struct sctp_tcb *, uint16_t);
+void sctp_drain(void);
+void sctp_init(void);
 void sctp_finish(void);
-
 int sctp_flush(struct socket *, int);
-int sctp_shutdown __P((struct socket *));
-void sctp_notify 
-__P((struct sctp_inpcb *, struct ip *ip, struct sctphdr *,
+int sctp_shutdown(struct socket *);
+void 
+sctp_notify(struct sctp_inpcb *, struct ip *ip, struct sctphdr *,
     struct sockaddr *, struct sctp_tcb *,
-    struct sctp_nets *));
-
-	int sctp_bindx(struct socket *, int, struct sockaddr_storage *,
-        int, int, struct proc *);
+    struct sctp_nets *);
+int 
+sctp_bindx(struct socket *, int, struct sockaddr_storage *,
+    int, int, struct proc *);
 
 /* can't use sctp_assoc_t here */
-	int sctp_peeloff(struct socket *, struct socket *, int, caddr_t, int *);
-
-	int sctp_ingetaddr(struct socket *,
-        struct sockaddr **
-);
-
-	int sctp_peeraddr(struct socket *,
-        struct sockaddr **
-);
-
-	int sctp_listen(struct socket *, int, struct thread *);
-
-	int sctp_accept(struct socket *, struct sockaddr **);
+int sctp_peeloff(struct socket *, struct socket *, int, caddr_t, int *);
+int sctp_ingetaddr(struct socket *, struct sockaddr **);
+int sctp_peeraddr(struct socket *, struct sockaddr **);
+int sctp_listen(struct socket *, int, struct thread *);
+int sctp_accept(struct socket *, struct sockaddr **);
 
 #endif				/* _KERNEL */
 
