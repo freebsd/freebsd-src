@@ -942,7 +942,8 @@ dt_proc_create_thread(dtrace_hdl_t *dtp, dt_proc_t *dpr, uint_t stop)
 		    (int)dpr->dpr_pid, strerror(err));
 	}
 
-	(void) pthread_mutex_unlock(&dpr->dpr_lock);
+	if (err == 0)
+		(void) pthread_mutex_unlock(&dpr->dpr_lock);
 	(void) pthread_attr_destroy(&a);
 
 	return (err);
