@@ -207,20 +207,20 @@ create last_module_option sizeof module.next allot 0 last_module_option !
 	dup 0= if 2drop 2drop false exit then
 	begin
 		begin
-			swap dup c@ dup 32 = over 9 = or
-			over 10 = or over 13 = or swap drop
+			swap dup c@ dup 32 = over 9 = or over 10 = or
+			over 13 = or over 44 = or swap drop
 		while 1+ swap 1- repeat
 		swap 2 pick 1- over <
 	while
 		2over 2over drop over compare-insensitive 0= if
 			2 pick over = if 2drop 2drop true exit then
 			2 pick tuck - -rot + swap over c@ dup 32 =
-			over 9 = or over 10 = or over 13 = or
+			over 9 = or over 10 = or over 13 = or over 44 = or
 			swap drop if 2drop 2drop true exit then
 		then begin
-			swap dup c@
-			dup 32 = over 9 = or over 10 = or over 13 = or
-			swap drop if false else true then 2 pick 0> and
+			swap dup c@ dup 32 = over 9 = or over 10 = or
+			over 13 = or over 44 = or swap drop
+			if false else true then 2 pick 0> and
 		while 1+ swap 1- repeat
 		swap
 	repeat
