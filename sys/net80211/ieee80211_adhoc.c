@@ -171,7 +171,9 @@ adhoc_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 				 * Already have a channel; bypass the
 				 * scan and startup immediately.
 				 */
-				ieee80211_create_ibss(vap, vap->iv_des_chan);
+				ieee80211_create_ibss(vap,
+				    ieee80211_ht_adjust_channel(ic,
+				    vap->iv_des_chan, vap->iv_flags_ht));
 				break;
 			}
 			/*
