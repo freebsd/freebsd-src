@@ -78,6 +78,9 @@ modcmp(const FTSENT *a, const FTSENT *b)
 	if (b->fts_statp->st_mtim.tv_nsec <
 	    a->fts_statp->st_mtim.tv_nsec)
 		return (-1);
+	if (f_samesort)
+		return (strcoll(b->fts_name, a->fts_name));
+	else
 	return (strcoll(a->fts_name, b->fts_name));
 }
 
@@ -104,6 +107,9 @@ acccmp(const FTSENT *a, const FTSENT *b)
 	if (b->fts_statp->st_atim.tv_nsec <
 	    a->fts_statp->st_atim.tv_nsec)
 		return (-1);
+	if (f_samesort)
+		return (strcoll(b->fts_name, a->fts_name));
+	else
 	return (strcoll(a->fts_name, b->fts_name));
 }
 
@@ -130,6 +136,9 @@ birthcmp(const FTSENT *a, const FTSENT *b)
 	if (b->fts_statp->st_birthtim.tv_nsec <
 	    a->fts_statp->st_birthtim.tv_nsec)
 		return (-1);
+	if (f_samesort)
+		return (strcoll(b->fts_name, a->fts_name));
+	else
 	return (strcoll(a->fts_name, b->fts_name));
 }
 
@@ -156,6 +165,9 @@ statcmp(const FTSENT *a, const FTSENT *b)
 	if (b->fts_statp->st_ctim.tv_nsec <
 	    a->fts_statp->st_ctim.tv_nsec)
 		return (-1);
+	if (f_samesort)
+		return (strcoll(b->fts_name, a->fts_name));
+	else
 	return (strcoll(a->fts_name, b->fts_name));
 }
 

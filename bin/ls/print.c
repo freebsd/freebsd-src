@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <langinfo.h>
 #include <libutil.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
@@ -151,7 +152,8 @@ printlong(const DISPLAY *dp)
 			continue;
 		sp = p->fts_statp;
 		if (f_inode)
-			(void)printf("%*lu ", dp->s_inode, (u_long)sp->st_ino);
+			(void)printf("%*ju ",
+			    dp->s_inode, (uintmax_t)sp->st_ino);
 		if (f_size)
 			(void)printf("%*jd ",
 			    dp->s_block, howmany(sp->st_blocks, blocksize));
@@ -327,7 +329,8 @@ printaname(const FTSENT *p, u_long inodefield, u_long sizefield)
 	sp = p->fts_statp;
 	chcnt = 0;
 	if (f_inode)
-		chcnt += printf("%*lu ", (int)inodefield, (u_long)sp->st_ino);
+		chcnt += printf("%*ju ",
+		    (int)inodefield, (uintmax_t)sp->st_ino);
 	if (f_size)
 		chcnt += printf("%*jd ",
 		    (int)sizefield, howmany(sp->st_blocks, blocksize));
@@ -351,16 +354,8 @@ printaname(const FTSENT *p, u_long inodefield, u_long sizefield)
 static void
 printdev(size_t width, dev_t dev)
 {
-	char buf[DEVSTR_HEX_LEN + 1];
 
-	if (minor(dev) > 255 || minor(dev) < 0)
-		(void)snprintf(buf, sizeof(buf), "%3d, 0x%08x",
-		    major(dev), (u_int)minor(dev));
-	else
-		(void)snprintf(buf, sizeof(buf), "%3d, %3d",
-		    major(dev), minor(dev));
-
-	(void)printf("%*s ", (u_int)width, buf);
+	(void)printf("%#*jx ", (u_int)width, (uintmax_t)dev);
 }
 
 static void
@@ -611,6 +606,10 @@ printsize(size_t width, off_t bytes)
 		humanize_number(buf, sizeof(buf), (int64_t)bytes, "",
 		    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 		(void)printf("%*s ", (u_int)width, buf);
+	} else if (f_thousands) {		/* with commas */
+		/* This format assignment needed to work round gcc bug. */
+		const char *format = "%*j'd ";
+		(void)printf(format, (u_int)width, bytes);
 	} else
 		(void)printf("%*jd ", (u_int)width, bytes);
 }
