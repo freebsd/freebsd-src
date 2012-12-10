@@ -810,7 +810,7 @@ files_setgrent(void *retval, void *mdata, va_list ap)
 		if (st->fp != NULL)
 			rewind(st->fp);
 		else if (stayopen)
-			st->fp = fopen(_PATH_GROUP, "r");
+			st->fp = fopen(_PATH_GROUP, "re");
 		break;
 	case ENDGRENT:
 		if (st->fp != NULL) {
@@ -861,7 +861,7 @@ files_group(void *retval, void *mdata, va_list ap)
 	if (*errnop != 0)
 		return (NS_UNAVAIL);
 	if (st->fp == NULL &&
-	    ((st->fp = fopen(_PATH_GROUP, "r")) == NULL)) {
+	    ((st->fp = fopen(_PATH_GROUP, "re")) == NULL)) {
 		*errnop = errno;
 		return (NS_UNAVAIL);
 	}
@@ -1251,7 +1251,7 @@ compat_setgrent(void *retval, void *mdata, va_list ap)
 		if (st->fp != NULL)
 			rewind(st->fp);
 		else if (stayopen)
-			st->fp = fopen(_PATH_GROUP, "r");
+			st->fp = fopen(_PATH_GROUP, "re");
 		set_setent(dtab, mdata);
 		(void)_nsdispatch(NULL, dtab, NSDB_GROUP_COMPAT, "setgrent",
 		    compatsrc, 0);
@@ -1335,7 +1335,7 @@ compat_group(void *retval, void *mdata, va_list ap)
 	if (*errnop != 0)
 		return (NS_UNAVAIL);
 	if (st->fp == NULL &&
-	    ((st->fp = fopen(_PATH_GROUP, "r")) == NULL)) {
+	    ((st->fp = fopen(_PATH_GROUP, "re")) == NULL)) {
 		*errnop = errno;
 		rv = NS_UNAVAIL;
 		goto fin;

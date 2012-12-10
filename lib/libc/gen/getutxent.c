@@ -71,7 +71,7 @@ setutxdb(int db, const char *file)
 
 	if (uf != NULL)
 		fclose(uf);
-	uf = fopen(file, "r");
+	uf = fopen(file, "re");
 	if (uf == NULL)
 		return (-1);
 
