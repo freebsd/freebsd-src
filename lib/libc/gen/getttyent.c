@@ -211,7 +211,7 @@ setttyent(void)
 	if (tf) {
 		rewind(tf);
 		return (1);
-	} else if ( (tf = fopen(_PATH_TTYS, "r")) )
+	} else if ( (tf = fopen(_PATH_TTYS, "re")) )
 		return (1);
 	return (0);
 }
