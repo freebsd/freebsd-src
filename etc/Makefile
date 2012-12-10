@@ -217,8 +217,7 @@ distribution:
 	cd ${.CURDIR}; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 0500 \
 	    ${BSM_ETC_EXEC_FILES} ${BSM_ETC_DIR}
 .if ${MK_BIND_MTREE} != "no"
-	@if [ ! -e ${DESTDIR}/etc/namedb ]; then \
-		set -x; \
+	if [ ! -e ${DESTDIR}/etc/namedb ]; then \
 		ln -s ../var/named/etc/namedb ${DESTDIR}/etc/namedb; \
 	fi
 .endif
@@ -264,9 +263,8 @@ distribution:
 .if ${MK_MAIL} != "no"
 	cd ${.CURDIR}/mail; ${INSTALL} -o ${BINOWN} -g ${BINGRP} -m 644 \
 	    ${ETCMAIL} ${DESTDIR}/etc/mail
-	@if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/mail/aliases -a \
+	if [ -d ${DESTDIR}/etc/mail -a -f ${DESTDIR}/etc/mail/aliases -a \
 	      ! -f ${DESTDIR}/etc/aliases ]; then \
-		set -x; \
 		ln -s mail/aliases ${DESTDIR}/etc/aliases; \
 	fi
 .endif
