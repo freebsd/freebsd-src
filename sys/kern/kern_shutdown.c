@@ -542,6 +542,9 @@ shutdown_reset(void *junk, int howto)
 
 #ifdef INVARIANTS
 static int kassert_warn_only = 0;
+#ifdef KDB
+static int kassert_do_kdb = 0;
+#endif
 #ifdef KTR
 static int kassert_do_ktr = 0;
 #endif
@@ -557,6 +560,12 @@ SYSCTL_INT(_debug_kassert, OID_AUTO, warn_only, CTLFLAG_RW | CTLFLAG_TUN,
     &kassert_warn_only, 0,
     "KASSERT triggers a panic (1) or just a warning (0)");
 TUNABLE_INT("debug.kassert.warn_only", &kassert_warn_only);
+
+#ifdef KDB
+SYSCTL_INT(_debug_kassert, OID_AUTO, do_kdb, CTLFLAG_RW | CTLFLAG_TUN,
+    &kassert_do_kdb, 0, "KASSERT will enter the debugger");
+TUNABLE_INT("debug.kassert.do_kdb", &kassert_do_kdb);
+#endif
 
 #ifdef KTR
 SYSCTL_UINT(_debug_kassert, OID_AUTO, do_ktr, CTLFLAG_RW | CTLFLAG_TUN,
@@ -650,6 +659,11 @@ kassert_panic(const char *fmt, ...)
 			kdb_backtrace();
 		}
 	}
+#ifdef KDB
+	if (kassert_do_kdb) {
+		kdb_enter(KDB_WHY_KASSERT, buf);
+	}
+#endif
 	atomic_add_int(&kassert_warnings, 1);
 }
 #endif
