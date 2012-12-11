@@ -1,4 +1,4 @@
-/*	$NetBSD: misc.c,v 1.30 2009/01/18 12:09:38 lukem Exp $	*/
+/*	$NetBSD: misc.c,v 1.32 2012/10/05 01:31:05 christos Exp $	*/
 
 /*-
  * Copyright (c) 1991, 1993
@@ -37,7 +37,7 @@
 
 #include <sys/cdefs.h>
 #if defined(__RCSID) && !defined(lint)
-__RCSID("$NetBSD: misc.c,v 1.30 2009/01/18 12:09:38 lukem Exp $");
+__RCSID("$NetBSD: misc.c,v 1.32 2012/10/05 01:31:05 christos Exp $");
 #endif /* not lint */
 
 #include <sys/types.h>

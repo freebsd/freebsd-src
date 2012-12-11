@@ -1,3 +1,5 @@
+/*	$NetBSD: specspec.c,v 1.2 2012/10/05 01:27:29 christos Exp $	*/
+
 /*-
  * Copyright (c) 2003 Poul-Henning Kamp
  * All rights reserved.
@@ -24,12 +26,17 @@
  * SUCH DAMAGE.
  */
 
+#if HAVE_NBTOOL_CONFIG_H
+#include "nbtool_config.h"
+#endif
+
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__RCSID("$NetBSD: specspec.c,v 1.2 2012/10/05 01:27:29 christos Exp $");
 
 #include <err.h>
 #include <grp.h>
 #include <pwd.h>
+#include <time.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -84,14 +91,12 @@ shownode(NODE *n, int f, char const *path)
 		printf(" %s=%s", SHA1KEY, n->sha1digest);
 	if (f & F_RMD160)
 		printf(" %s=%s", RMD160KEY, n->rmd160digest);
-	if (f & F_SHA1)
-		printf(" %s=%s", SHA1KEY, n->sha256digest);
 	if (f & F_SHA256)
 		printf(" %s=%s", SHA256KEY, n->sha256digest);
 	if (f & F_SHA384)
 		printf(" %s=%s", SHA384KEY, n->sha384digest);
 	if (f & F_SHA512)
-		printf(" %s=%s", SHA512KEY,  n->sha512digest);
+		printf(" %s=%s", SHA512KEY, n->sha512digest);
 	if (f & F_FLAGS)
 		printf(" flags=%s", flags_to_string(n->st_flags, "none"));
 	printf("\n");

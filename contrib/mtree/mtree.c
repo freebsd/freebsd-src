@@ -1,4 +1,4 @@
-/*	$NetBSD: mtree.c,v 1.37 2011/08/29 20:37:43 joerg Exp $	*/
+/*	$NetBSD: mtree.c,v 1.42 2012/10/05 09:18:08 wiz Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1990, 1993
@@ -43,7 +43,7 @@ __COPYRIGHT("@(#) Copyright (c) 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)mtree.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: mtree.c,v 1.37 2011/08/29 20:37:43 joerg Exp $");
+__RCSID("$NetBSD: mtree.c,v 1.42 2012/10/05 09:18:08 wiz Exp $");
 #endif
 #endif /* not lint */
 
@@ -84,7 +84,7 @@ main(int argc, char **argv)
 #endif
 
 	while ((ch = getopt(argc, argv,
-	    "cCdDeE:f:I:ijk:K:lLmMnN:p:PqrR:s:StTuUwWxX:"))
+	    "cCdDeE:f:I:ijk:K:lLmMnN:p:PqrR:s:StTuUWxX:"))
 	    != -1) {
 		switch((char)ch) {
 		case 'c':
@@ -200,9 +200,6 @@ main(int argc, char **argv)
 		case 'U':
 			Uflag = uflag = 1;
 			break;
-		case 'w':
-			/* Ignored for compatibility with FreeBSD's mtree. */
-			break;
 		case 'W':
 			mtree_Wflag = 1;
 			break;
@@ -267,7 +264,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-CcDdeLlMnPrSUuWx] [-i|-m] [-E tags]\n"
+	    "usage: %s [-CcDdejLlMnPqrSTtUuWx] [-i|-m] [-E tags]\n"
 	    "\t\t[-f spec] [-f spec]\n"
 	    "\t\t[-I tags] [-K keywords] [-k keywords] [-N dbdir] [-p path]\n"
 	    "\t\t[-R keywords] [-s seed] [-X exclude-file]\n",

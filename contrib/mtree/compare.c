@@ -1,4 +1,4 @@
-/*	$NetBSD: compare.c,v 1.52 2008/12/28 19:36:30 christos Exp $	*/
+/*	$NetBSD: compare.c,v 1.55 2012/10/05 00:59:35 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)compare.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: compare.c,v 1.52 2008/12/28 19:36:30 christos Exp $");
+__RCSID("$NetBSD: compare.c,v 1.55 2012/10/05 00:59:35 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -463,7 +463,7 @@ typeerr:		LABEL;
 			free(digestbuf);
 		}
 	}
-#ifndef NO_SHA384
+#ifdef SHA384_BLOCK_LENGTH
 	if (s->flags & F_SHA384) {
 		if ((digestbuf = SHA384_File(p->fts_accpath, NULL)) == NULL) {
 			LABEL;
@@ -480,7 +480,7 @@ typeerr:		LABEL;
 			free(digestbuf);
 		}
 	}
-#endif	/* ! NO_SHA384 */
+#endif
 	if (s->flags & F_SHA512) {
 		if ((digestbuf = SHA512_File(p->fts_accpath, NULL)) == NULL) {
 			LABEL;

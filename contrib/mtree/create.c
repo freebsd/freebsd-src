@@ -1,4 +1,4 @@
-/*	$NetBSD: create.c,v 1.59 2012/07/15 09:08:29 spz Exp $	*/
+/*	$NetBSD: create.c,v 1.65 2012/10/05 01:21:44 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)create.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: create.c,v 1.59 2012/07/15 09:08:29 spz Exp $");
+__RCSID("$NetBSD: create.c,v 1.65 2012/10/05 01:21:44 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -83,7 +83,13 @@ static uid_t uid;
 static mode_t mode;
 static u_long flags;
 
-static int	dcmp(const FTSENT * const *, const FTSENT * const *);
+#ifdef __FreeBSD__
+#define	FTS_CONST const
+#else
+#define	FTS_CONST
+#endif
+
+static int	dcmp(const FTSENT *FTS_CONST *, const FTSENT *FTS_CONST *);
 static void	output(int, int *, const char *, ...)
 	__attribute__((__format__(__printf__, 3, 4)));
 static int	statd(FTS *, FTSENT *, uid_t *, gid_t *, mode_t *, u_long *);
@@ -136,12 +142,16 @@ cwalk(void)
 			statf(indent, p);
 			break;
 		case FTS_DP:
-			if (!nflag && p->fts_level > 0)
-				printf("%*s# %s\n", indent, "", p->fts_path);
-#ifndef __FreeBSD__
-			if (p->fts_level > 0)
+			if (p->fts_level > 0) {
+				if (!nflag)
+					printf("%*s# %s\n", indent, "",
+					    p->fts_path);
+#ifdef __FreeBSD__
+			}
+			if (1) {
 #endif
 				printf("%*s..\n\n", indent, "");
+			}
 
 			break;
 		case FTS_DNR:
@@ -206,11 +216,11 @@ statf(int indent, FTSENT *p)
 		    (long long)p->fts_statp->st_rdev);
 	if (keys & F_NLINK && p->fts_statp->st_nlink != 1)
 		output(indent, &offset, "nlink=%u", p->fts_statp->st_nlink);
-	if (keys & F_SIZE
 #ifndef __FreeBSD__
-	    && S_ISREG(p->fts_statp->st_mode)
+	if (keys & F_SIZE && S_ISREG(p->fts_statp->st_mode))
+#else
+	if (keys & F_SIZE)
 #endif
-	    )
 		output(indent, &offset, "size=%lld",
 		    (long long)p->fts_statp->st_size);
 	if (keys & F_TIME)
@@ -232,7 +242,8 @@ statf(int indent, FTSENT *p)
 #ifndef NO_MD5
 	if (keys & F_MD5 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = MD5File(p->fts_accpath, NULL)) == NULL)
-			mtree_err("%s: MD5File failed: %s", p->fts_accpath, strerror(errno));
+			mtree_err("%s: MD5File failed: %s", p->fts_accpath,
+			    strerror(errno));
 		output(indent, &offset, "%s=%s", MD5KEY, digestbuf);
 		free(digestbuf);
 	}
@@ -240,7 +251,8 @@ statf(int indent, FTSENT *p)
 #ifndef NO_RMD160
 	if (keys & F_RMD160 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = RMD160File(p->fts_accpath, NULL)) == NULL)
-			mtree_err("%s: RMD160File failed: %s", p->fts_accpath, strerror(errno));
+			mtree_err("%s: RMD160File failed: %s", p->fts_accpath,
+			    strerror(errno));
 		output(indent, &offset, "%s=%s", RMD160KEY, digestbuf);
 		free(digestbuf);
 	}
@@ -248,7 +260,8 @@ statf(int indent, FTSENT *p)
 #ifndef NO_SHA1
 	if (keys & F_SHA1 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = SHA1File(p->fts_accpath, NULL)) == NULL)
-			mtree_err("%s: SHA1File failed: %s", p->fts_accpath, strerror(errno));
+			mtree_err("%s: SHA1File failed: %s", p->fts_accpath,
+			    strerror(errno));
 		output(indent, &offset, "%s=%s", SHA1KEY, digestbuf);
 		free(digestbuf);
 	}
@@ -256,21 +269,24 @@ statf(int indent, FTSENT *p)
 #ifndef NO_SHA2
 	if (keys & F_SHA256 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = SHA256_File(p->fts_accpath, NULL)) == NULL)
-			mtree_err("%s: SHA256_File failed: %s", p->fts_accpath, strerror(errno));
+			mtree_err("%s: SHA256_File failed: %s", p->fts_accpath,
+			    strerror(errno));
 		output(indent, &offset, "%s=%s", SHA256KEY, digestbuf);
 		free(digestbuf);
 	}
-#ifndef NO_SHA384
+#ifdef SHA384_BLOCK_LENGTH
 	if (keys & F_SHA384 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = SHA384_File(p->fts_accpath, NULL)) == NULL)
-			mtree_err("%s: SHA384_File failed: %s", p->fts_accpath, strerror(errno));
+			mtree_err("%s: SHA384_File failed: %s", p->fts_accpath,
+			    strerror(errno));
 		output(indent, &offset, "%s=%s", SHA384KEY, digestbuf);
 		free(digestbuf);
 	}
 #endif
 	if (keys & F_SHA512 && S_ISREG(p->fts_statp->st_mode)) {
 		if ((digestbuf = SHA512_File(p->fts_accpath, NULL)) == NULL)
-			mtree_err("%s: SHA512_File failed: %s", p->fts_accpath, strerror(errno));
+			mtree_err("%s: SHA512_File failed: %s", p->fts_accpath,
+			    strerror(errno));
 		output(indent, &offset, "%s=%s", SHA512KEY, digestbuf);
 		free(digestbuf);
 	}
@@ -419,7 +435,7 @@ statd(FTS *t, FTSENT *parent, uid_t *puid, gid_t *pgid, mode_t *pmode,
  * Keep this in sync with nodecmp() in spec.c.
  */
 static int
-dcmp(const FTSENT * const *a, const FTSENT * const *b)
+dcmp(const FTSENT *FTS_CONST *a, const FTSENT *FTS_CONST *b)
 {
 
 	if (S_ISDIR((*a)->fts_statp->st_mode)) {
