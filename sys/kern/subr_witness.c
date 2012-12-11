@@ -2263,6 +2263,7 @@ witness_assert(const struct lock_object *lock, int flags, const char *file,
 	else {
 		kassert_panic("Lock (%s) %s is not sleep or spin!",
 		    class->lc_name, lock->lo_name);
+		return;
 	}
 	switch (flags) {
 	case LA_UNLOCKED:
