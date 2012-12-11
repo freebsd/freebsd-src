@@ -41,16 +41,14 @@ namespace cl {
 // ParseCommandLineOptions - Command line option processing entry point.
 //
 void ParseCommandLineOptions(int argc, const char * const *argv,
-                             const char *Overview = 0,
-                             bool ReadResponseFiles = false);
+                             const char *Overview = 0);
 
 //===----------------------------------------------------------------------===//
 // ParseEnvironmentOptions - Environment variable option processing alternate
 //                           entry point.
 //
 void ParseEnvironmentOptions(const char *progName, const char *envvar,
-                             const char *Overview = 0,
-                             bool ReadResponseFiles = false);
+                             const char *Overview = 0);
 
 ///===---------------------------------------------------------------------===//
 /// SetVersionPrinter - Override the default (LLVM specific) version printer
@@ -1509,7 +1507,7 @@ class bits : public Option, public bits_storage<DataType, Storage> {
       typename ParserClass::parser_data_type();
     if (Parser.parse(*this, ArgName, Arg, Val))
       return true;  // Parse Error!
-    addValue(Val);
+    this->addValue(Val);
     setPosition(pos);
     Positions.push_back(pos);
     return false;
@@ -1608,15 +1606,16 @@ public:
 class alias : public Option {
   Option *AliasFor;
   virtual bool handleOccurrence(unsigned pos, StringRef /*ArgName*/,
-                                StringRef Arg) {
+                                StringRef Arg) LLVM_OVERRIDE {
     return AliasFor->handleOccurrence(pos, AliasFor->ArgStr, Arg);
   }
   // Handle printing stuff...
-  virtual size_t getOptionWidth() const;
-  virtual void printOptionInfo(size_t GlobalWidth) const;
+  virtual size_t getOptionWidth() const LLVM_OVERRIDE;
+  virtual void printOptionInfo(size_t GlobalWidth) const LLVM_OVERRIDE;
 
   // Aliases do not need to print their values.
-  virtual void printOptionValue(size_t /*GlobalWidth*/, bool /*Force*/) const {}
+  virtual void printOptionValue(size_t /*GlobalWidth*/,
+                                bool /*Force*/) const LLVM_OVERRIDE {}
 
   void done() {
     if (!hasArgStr())

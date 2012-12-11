@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslcompile - top level compile module
@@ -50,6 +49,15 @@
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslcompile")
+
+/*
+ * Main parser entry
+ * External is here in case the parser emits the same external in the
+ * generated header. (Newer versions of Bison)
+ */
+int
+AslCompilerparse(
+    void);
 
 /* Local prototypes */
 
@@ -275,7 +283,7 @@ FlConsumeAnsiComment (
     BOOLEAN                 ClosingComment = FALSE;
 
 
-    while (fread (&Byte, 1, 1, Handle))
+    while (fread (&Byte, 1, 1, Handle) == 1)
     {
         /* Scan until comment close is found */
 
@@ -318,7 +326,7 @@ FlConsumeNewComment (
     UINT8                   Byte;
 
 
-    while (fread (&Byte, 1, 1, Handle))
+    while (fread (&Byte, 1, 1, Handle) == 1)
     {
         Status->Offset++;
 
@@ -369,7 +377,7 @@ FlCheckForAscii (
 
     /* Read the entire file */
 
-    while (fread (&Byte, 1, 1, Handle))
+    while (fread (&Byte, 1, 1, Handle) == 1)
     {
         /* Ignore comment fields (allow non-ascii within) */
 
@@ -480,7 +488,7 @@ CmDoCompile (
         {
             UtEndEvent (Event);
             CmCleanupAndExit ();
-            return 0;
+            return (0);
         }
     }
     UtEndEvent (Event);
@@ -548,7 +556,7 @@ CmDoCompile (
     if (ACPI_FAILURE (Status))
     {
         AePrintErrorLog (ASL_FILE_STDERR);
-        return -1;
+        return (-1);
     }
 
     /* Interpret and generate all compile-time constants */
@@ -589,7 +597,7 @@ CmDoCompile (
             UtDisplaySummary (ASL_FILE_STDOUT);
         }
         UtEndEvent (FullCompile);
-        return 0;
+        return (0);
     }
 
     /*
@@ -621,7 +629,7 @@ CmDoCompile (
     UtEndEvent (AslGbl_NamespaceEvent);
 
     /*
-     * Semantic analysis.  This can happen only after the
+     * Semantic analysis. This can happen only after the
      * namespace has been loaded and cross-referenced.
      *
      * part one - check control methods
@@ -682,7 +690,7 @@ CmDoCompile (
 
     UtEndEvent (FullCompile);
     CmCleanupAndExit ();
-    return 0;
+    return (0);
 
 ErrorExit:
     UtEndEvent (FullCompile);
@@ -905,5 +913,3 @@ CmCleanupAndExit (
         FlDeleteFile (ASL_FILE_SOURCE_OUTPUT);
     }
 }
-
-

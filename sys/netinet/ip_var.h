@@ -163,6 +163,7 @@ void	kmod_ipstat_dec(int statnum);
  * mbuf flag used by ip_fastfwd
  */
 #define	M_FASTFWD_OURS		M_PROTO1	/* changed dst to local */
+#define	M_IP_NEXTHOP		M_PROTO2	/* explicit ip nexthop */
 
 #ifdef __NO_STRICT_ALIGNMENT
 #define IP_HDR_ALIGNED_P(ip)	1
@@ -210,7 +211,7 @@ int	inp_setmoptions(struct inpcb *, struct sockopt *);
 int	ip_ctloutput(struct socket *, struct sockopt *sopt);
 void	ip_drain(void);
 int	ip_fragment(struct ip *ip, struct mbuf **m_frag, int mtu,
-	    u_long if_hwassist_flags, int sw_csum);
+	    u_long if_hwassist_flags);
 void	ip_forward(struct mbuf *m, int srcrt);
 void	ip_init(void);
 #ifdef VIMAGE

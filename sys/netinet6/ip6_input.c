@@ -492,11 +492,11 @@ ip6_input(struct mbuf *m)
 	if (m && m->m_next != NULL && m->m_pkthdr.len < MCLBYTES) {
 		struct mbuf *n;
 
-		MGETHDR(n, M_DONTWAIT, MT_HEADER);
+		MGETHDR(n, M_NOWAIT, MT_HEADER);
 		if (n)
 			M_MOVE_PKTHDR(n, m);
 		if (n && n->m_pkthdr.len > MHLEN) {
-			MCLGET(n, M_DONTWAIT);
+			MCLGET(n, M_NOWAIT);
 			if ((n->m_flags & M_EXT) == 0) {
 				m_freem(n);
 				n = NULL;
@@ -628,14 +628,14 @@ ip6_input(struct mbuf *m)
 	ip6 = mtod(m, struct ip6_hdr *);
 	srcrt = !IN6_ARE_ADDR_EQUAL(&odst, &ip6->ip6_dst);
 
-#ifdef IPFIREWALL_FORWARD
 	if (m->m_flags & M_FASTFWD_OURS) {
 		m->m_flags &= ~M_FASTFWD_OURS;
 		ours = 1;
 		deliverifp = m->m_pkthdr.rcvif;
 		goto hbhcheck;
 	}
-	if (m_tag_find(m, PACKET_TAG_IPFORWARD, NULL) != NULL) {
+	if ((m->m_flags & M_IP6_NEXTHOP) &&
+	    m_tag_find(m, PACKET_TAG_IPFORWARD, NULL) != NULL) {
 		/*
 		 * Directly ship the packet on.  This allows forwarding
 		 * packets originally destined to us to some other directly
@@ -644,7 +644,6 @@ ip6_input(struct mbuf *m)
 		ip6_forward(m, 1);
 		goto out;
 	}
-#endif /* IPFIREWALL_FORWARD */
 
 passin:
 	/*
@@ -687,10 +686,10 @@ passin:
 	dst6.sin6_len = sizeof(struct sockaddr_in6);
 	dst6.sin6_addr = ip6->ip6_dst;
 	ifp = m->m_pkthdr.rcvif;
-	IF_AFDATA_LOCK(ifp);
+	IF_AFDATA_RLOCK(ifp);
 	lle = lla_lookup(LLTABLE6(ifp), 0,
 	     (struct sockaddr *)&dst6);
-	IF_AFDATA_UNLOCK(ifp);
+	IF_AFDATA_RUNLOCK(ifp);
 	if ((lle != NULL) && (lle->la_flags & LLE_IFADDR)) {
 		struct ifaddr *ifa;
 		struct in6_ifaddr *ia6;
@@ -1663,9 +1662,9 @@ ip6_pullexthdr(struct mbuf *m, size_t off, int nxt)
 	else
 		elen = (ip6e.ip6e_len + 1) << 3;
 
-	MGET(n, M_DONTWAIT, MT_DATA);
+	MGET(n, M_NOWAIT, MT_DATA);
 	if (n && elen >= MLEN) {
-		MCLGET(n, M_DONTWAIT);
+		MCLGET(n, M_NOWAIT);
 		if ((n->m_flags & M_EXT) == 0) {
 			m_free(n);
 			n = NULL;

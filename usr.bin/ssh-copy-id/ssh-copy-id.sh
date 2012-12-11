@@ -34,19 +34,18 @@ usage() {
 
 sendkey() {
 	local h="$1"
-	shift 1
-	local k="$@"
-	echo "$k" | ssh $port -S none $options "$user$h" /bin/sh -c \''
-		set -e;
-		umask 077;
-		keyfile=$HOME/.ssh/authorized_keys ;
-		mkdir -p $HOME/.ssh/ ;
-		while read alg key comment ; do
-			if ! grep -sqwF "$key" "$keyfile"; then
-				echo "$alg $key $comment" |
-				    tee -a "$keyfile" >/dev/null ;
-			fi ;
-		done
+	local k="$2"
+	printf "%s\n" "$k" | ssh $port -S none $options "$user$h" /bin/sh -c \'' \
+		set -e; \
+		umask 077; \
+		keyfile=$HOME/.ssh/authorized_keys ; \
+		mkdir -p -- "$HOME/.ssh/" ; \
+		while read alg key comment ; do \
+			[ -n "$key" ] || continue; \
+			if ! grep -sqwF "$key" "$keyfile"; then \
+				printf "$alg $key $comment\n" >> "$keyfile" ; \
+			fi ; \
+		done \
 	'\' 
 }
 
@@ -63,12 +62,17 @@ nl="
 "
 options=""
 
+IFS=$nl
+
 while getopts 'i:lo:p:' arg; do
 	case $arg in
 	i)	
 		hasarg="x"
-		if [ -f "$OPTARG" ]; then
-			keys="$(cat $OPTARG)$nl$keys"
+		if [ -r "$OPTARG" ]; then
+			keys="$(cat -- "$OPTARG")$nl$keys"
+		else
+			echo "File $OPTARG not found" >&2
+			exit 1
 		fi
 		;;
 	l)	
@@ -76,10 +80,10 @@ while getopts 'i:lo:p:' arg; do
 		agentKeys
 		;;
 	p)	
-		port="-p $OPTARG"
+		port=-p$nl$OPTARG
 		;;
 	o)	
-		options="$options -o '$OPTARG'"
+		options=$options$nl-o$nl$OPTARG
 		;;
 	*)	
 		usage
@@ -92,11 +96,11 @@ shift $((OPTIND-1))
 if [ -z "$hasarg" ]; then
 	agentKeys
 fi
-if [ -z "$keys" -o "$keys" = "$nl" ]; then
+if [ -z "$keys" ] || [ "$keys" = "$nl" ]; then
 	echo "no keys found" >&2
 	exit 1
 fi
-if [ -z "$@" ]; then
+if [ "$#" -eq 0 ]; then
 	usage
 fi
 

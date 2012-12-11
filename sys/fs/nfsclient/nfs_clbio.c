@@ -1371,6 +1371,8 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 			goto out;
 		error = vinvalbuf(vp, flags, 0, slptimeo);
 	}
+	if (NFSHASPNFS(nmp))
+		nfscl_layoutcommit(vp, td);
 	mtx_lock(&np->n_mtx);
 	if (np->n_directio_asyncwr == 0)
 		np->n_flag &= ~NMODIFIED;

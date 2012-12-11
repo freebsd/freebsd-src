@@ -80,7 +80,8 @@ static struct _pcsid
 } pci_ids[] = {
 	{ 0x01118086,		"NVMe Controller"  },
 	{ CHATHAM_PCI_ID,	"Chatham Prototype NVMe Controller"  },
-	{ IDT_PCI_ID,		"IDT NVMe Controller"  },
+	{ IDT32_PCI_ID,		"IDT NVMe Controller (32 channel)"  },
+	{ IDT8_PCI_ID,		"IDT NVMe Controller (8 channel)" },
 	{ 0x00000000,		NULL  }
 };
 

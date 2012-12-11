@@ -388,7 +388,7 @@ RetryFault:;
 				vm_object_deallocate(fs.first_object);
 				goto RetryFault;
 			}
-			vm_pageq_remove(fs.m);
+			vm_page_remque(fs.m);
 			vm_page_unlock(fs.m);
 
 			/*
@@ -966,8 +966,8 @@ vm_fault_cache_behind(const struct faultstate *fs, int distance)
 			VM_OBJECT_LOCK(object);
 		}
 	}
-	if (first_object->type != OBJT_DEVICE &&
-	    first_object->type != OBJT_PHYS && first_object->type != OBJT_SG) {
+	/* Neither fictitious nor unmanaged pages can be cached. */
+	if ((first_object->flags & (OBJ_FICTITIOUS | OBJ_UNMANAGED)) == 0) {
 		if (fs->first_pindex < distance)
 			pindex = 0;
 		else
@@ -1285,9 +1285,13 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		access &= ~VM_PROT_WRITE;
 
 	/*
-	 * Loop through all of the pages in the entry's range, copying each
-	 * one from the source object (it should be there) to the destination
-	 * object.
+	 * Loop through all of the virtual pages within the entry's
+	 * range, copying each page from the source object to the
+	 * destination object.  Since the source is wired, those pages
+	 * must exist.  In contrast, the destination is pageable.
+	 * Since the destination object does share any backing storage
+	 * with the source object, all of its pages must be dirtied,
+	 * regardless of whether they can be written.
 	 */
 	for (vaddr = dst_entry->start, dst_pindex = 0;
 	    vaddr < dst_entry->end;
@@ -1330,6 +1334,7 @@ vm_fault_copy_entry(vm_map_t dst_map, vm_map_t src_map,
 		pmap_copy_page(src_m, dst_m);
 		VM_OBJECT_UNLOCK(object);
 		dst_m->valid = VM_PAGE_BITS_ALL;
+		dst_m->dirty = VM_PAGE_BITS_ALL;
 		VM_OBJECT_UNLOCK(dst_object);
 
 		/*

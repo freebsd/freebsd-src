@@ -506,7 +506,7 @@ stf_output(ifp, m, dst, ro)
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
 	}
 
-	M_PREPEND(m, sizeof(struct ip), M_DONTWAIT);
+	M_PREPEND(m, sizeof(struct ip), M_NOWAIT);
 	if (m && m->m_len < sizeof(struct ip))
 		m = m_pullup(m, sizeof(struct ip));
 	if (m == NULL) {
@@ -524,7 +524,7 @@ stf_output(ifp, m, dst, ro)
 	bcopy(&in4, &ip->ip_dst, sizeof(ip->ip_dst));
 	ip->ip_p = IPPROTO_IPV6;
 	ip->ip_ttl = ip_stf_ttl;
-	ip->ip_len = m->m_pkthdr.len;	/*host order*/
+	ip->ip_len = htons(m->m_pkthdr.len);
 	if (ifp->if_flags & IFF_LINK1)
 		ip_ecn_ingress(ECN_ALLOWED, &ip->ip_tos, &tos);
 	else

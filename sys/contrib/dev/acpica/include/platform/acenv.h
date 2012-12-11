@@ -367,7 +367,7 @@ typedef char *va_list;
 
 #define _Bnd(X, bnd)            (((sizeof (X)) + (bnd)) & (~(bnd)))
 #define va_arg(ap, T)           (*(T *)(((ap) += (_Bnd (T, _AUPBND))) - (_Bnd (T,_ADNBND))))
-#define va_end(ap)              (void) 0
+#define va_end(ap)              (ap = (va_list) NULL)
 #define va_start(ap, A)         (void) ((ap) = (((char *) &(A)) + (_Bnd (A,_AUPBND))))
 
 #endif /* va_arg */

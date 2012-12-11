@@ -751,6 +751,14 @@ probedone(struct cam_periph *periph, union ccb *done_ccb)
 			goto noerror;
 
 		/*
+		 * Some Samsung SSDs report supported Asynchronous Notification,
+		 * but return ABORT on attempt to enable it.
+		 */
+		} else if (softc->action == PROBE_SETAN &&
+		    status == CAM_ATA_STATUS_ERROR) {
+			goto noerror;
+
+		/*
 		 * SES and SAF-TE SEPs have different IDENTIFY commands,
 		 * but SATA specification doesn't tell how to identify them.
 		 * Until better way found, just try another if first fail.

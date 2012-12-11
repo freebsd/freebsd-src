@@ -5,9 +5,9 @@
 
 SRCTOP?= ${.CURDIR:H:H:H}
 
-# $Id: Makefile.in,v 1.38 2012/06/19 23:38:48 sjg Exp $
+# $Id: Makefile.in,v 1.39 2012/11/09 19:16:10 sjg Exp $
 #
-# $NetBSD: Makefile,v 1.34 2012/06/19 23:25:53 sjg Exp $
+# $NetBSD: Makefile,v 1.35 2012/11/09 19:08:28 sjg Exp $
 #
 # Unit tests for make(1)
 # The main targets are:
@@ -47,6 +47,7 @@ SUBFILES= \
 	modorder \
 	modts \
 	modword \
+	order \
 	phony-end \
 	posix \
 	qequals \
@@ -59,6 +60,7 @@ SUBFILES= \
 all: ${SUBFILES}
 
 flags.doterror=
+flags.order=-j1
 
 # the tests are actually done with sub-makes.
 .PHONY: ${SUBFILES}

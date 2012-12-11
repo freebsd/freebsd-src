@@ -1867,8 +1867,7 @@ unionfs_lock(struct vop_lock1_args *ap)
 	if ((revlock = unionfs_get_llt_revlock(vp, flags)) == 0)
 		panic("unknown lock type: 0x%x", flags & LK_TYPE_MASK);
 
-	if ((mp->mnt_kern_flag & MNTK_MPSAFE) != 0 &&
-	    (vp->v_iflag & VI_OWEINACT) != 0)
+	if ((vp->v_iflag & VI_OWEINACT) != 0)
 		flags |= LK_NOWAIT;
 
 	/*

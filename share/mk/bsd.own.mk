@@ -426,7 +426,6 @@ __DEFAULT_NO_OPTIONS = \
     BIND_XML \
     BSDCONFIG \
     CLANG_EXTRAS \
-    CLANG_IS_CC \
     CTF \
     HESIOD \
     ICONV \
@@ -454,6 +453,12 @@ __T=${MACHINE_ARCH}
 __DEFAULT_YES_OPTIONS+=CLANG
 .else
 __DEFAULT_NO_OPTIONS+=CLANG
+.endif
+# Clang the default system compiler only on x86.
+.if ${__T} == "amd64" || ${__T} == "i386"
+__DEFAULT_YES_OPTIONS+=CLANG_IS_CC
+.else
+__DEFAULT_NO_OPTIONS+=CLANG_IS_CC
 .endif
 # FDT is needed only for arm, mips and powerpc
 .if ${__T:Marm*} || ${__T:Mpowerpc*} || ${__T:Mmips*}
@@ -666,18 +671,21 @@ MK_${var}:=	no
 
 .if ${MK_CTF} != "no"
 CTFCONVERT_CMD=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.elif defined(MAKE_VERSION) && ${MAKE_VERSION} >= 5201111300
+.elif defined(.PARSEDIR) || (defined(MAKE_VERSION) && ${MAKE_VERSION} >= 5201111300)
 CTFCONVERT_CMD=
 .else
 CTFCONVERT_CMD=	@:
 .endif 
 
 .if ${MK_INSTALL_AS_USER} != "no"
-_uid!=	id -un
+_uid!=	id -u
 .if ${_uid} != 0
+.if !defined(USER)
+USER!=	id -un
+.endif
 _gid!=	id -gn
 .for x in BIN CONF DOC INFO KMOD LIB MAN NLS SHARE
-$xOWN=	${_uid}
+$xOWN=	${USER}
 $xGRP=	${_gid}
 .endfor
 .endif

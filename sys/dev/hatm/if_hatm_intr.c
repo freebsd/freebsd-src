@@ -330,7 +330,7 @@ he_intr_rbp(struct hatm_softc *sc, struct herbp *rbp, u_int large,
 
 		if (large) {
 			/* allocate the MBUF */
-			if ((m = m_getcl(M_DONTWAIT, MT_DATA,
+			if ((m = m_getcl(M_NOWAIT, MT_DATA,
 			    M_PKTHDR)) == NULL) {
 				if_printf(sc->ifp,
 				    "no mbuf clusters\n");
@@ -437,7 +437,7 @@ hatm_rx_buffer(struct hatm_softc *sc, u_int group, u_int handle)
 	DBG(sc, RX, ("RX group=%u handle=%x page=%u chunk=%u", group, handle,
 	    pageno, chunkno));
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 
 	if (group == 0) {
 		struct mbuf0_chunk *c0;

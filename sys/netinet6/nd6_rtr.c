@@ -68,11 +68,11 @@ __FBSDID("$FreeBSD$");
 
 static int rtpref(struct nd_defrouter *);
 static struct nd_defrouter *defrtrlist_update(struct nd_defrouter *);
-static int prelist_update __P((struct nd_prefixctl *, struct nd_defrouter *,
-    struct mbuf *, int));
-static struct in6_ifaddr *in6_ifadd(struct nd_prefixctl *,	int);
-static struct nd_pfxrouter *pfxrtr_lookup __P((struct nd_prefix *,
-	struct nd_defrouter *));
+static int prelist_update(struct nd_prefixctl *, struct nd_defrouter *,
+    struct mbuf *, int);
+static struct in6_ifaddr *in6_ifadd(struct nd_prefixctl *, int);
+static struct nd_pfxrouter *pfxrtr_lookup(struct nd_prefix *,
+	struct nd_defrouter *);
 static void pfxrtr_add(struct nd_prefix *, struct nd_defrouter *);
 static void pfxrtr_del(struct nd_pfxrouter *);
 static struct nd_pfxrouter *find_pfxlist_reachable_router
@@ -81,8 +81,8 @@ static void defrouter_delreq(struct nd_defrouter *);
 static void nd6_rtmsg(int, struct rtentry *);
 
 static int in6_init_prefix_ltimes(struct nd_prefix *);
-static void in6_init_address_ltimes __P((struct nd_prefix *,
-	struct in6_addrlifetime *));
+static void in6_init_address_ltimes(struct nd_prefix *,
+	struct in6_addrlifetime *);
 
 static int nd6_prefix_onlink(struct nd_prefix *);
 static int nd6_prefix_offlink(struct nd_prefix *);
@@ -637,13 +637,13 @@ defrouter_select(void)
 	 * the ordering rule of the list described in defrtrlist_update().
 	 */
 	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
-		IF_AFDATA_LOCK(dr->ifp);
+		IF_AFDATA_RLOCK(dr->ifp);
 		if (selected_dr == NULL &&
 		    (ln = nd6_lookup(&dr->rtaddr, 0, dr->ifp)) &&
 		    ND6_IS_LLINFO_PROBREACH(ln)) {
 			selected_dr = dr;
 		}
-		IF_AFDATA_UNLOCK(dr->ifp);
+		IF_AFDATA_RUNLOCK(dr->ifp);
 		if (ln != NULL) {
 			LLE_RUNLOCK(ln);
 			ln = NULL;
@@ -671,13 +671,13 @@ defrouter_select(void)
 		else
 			selected_dr = TAILQ_NEXT(installed_dr, dr_entry);
 	} else if (installed_dr) {
-		IF_AFDATA_LOCK(installed_dr->ifp);
+		IF_AFDATA_RLOCK(installed_dr->ifp);
 		if ((ln = nd6_lookup(&installed_dr->rtaddr, 0, installed_dr->ifp)) &&
 		    ND6_IS_LLINFO_PROBREACH(ln) &&
 		    rtpref(selected_dr) <= rtpref(installed_dr)) {
 			selected_dr = installed_dr;
 		}
-		IF_AFDATA_UNLOCK(installed_dr->ifp);
+		IF_AFDATA_RUNLOCK(installed_dr->ifp);
 		if (ln != NULL)
 			LLE_RUNLOCK(ln);
 	}
@@ -1301,9 +1301,9 @@ find_pfxlist_reachable_router(struct nd_prefix *pr)
 	int canreach;
 
 	LIST_FOREACH(pfxrtr, &pr->ndpr_advrtrs, pfr_entry) {
-		IF_AFDATA_LOCK(pfxrtr->router->ifp);
+		IF_AFDATA_RLOCK(pfxrtr->router->ifp);
 		ln = nd6_lookup(&pfxrtr->router->rtaddr, 0, pfxrtr->router->ifp);
-		IF_AFDATA_UNLOCK(pfxrtr->router->ifp);
+		IF_AFDATA_RUNLOCK(pfxrtr->router->ifp);
 		if (ln == NULL)
 			continue;
 		canreach = ND6_IS_LLINFO_PROBREACH(ln);

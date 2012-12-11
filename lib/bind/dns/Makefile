@@ -26,6 +26,7 @@ SRCS+=		acache.c acl.c adb.c byaddr.c \
 		name.c ncache.c nsec.c nsec3.c \
 		openssl_link.c openssldh_link.c \
 		openssldsa_link.c opensslgost_link.c opensslrsa_link.c \
+		opensslecdsa_link.c \
 		order.c peer.c portlist.c private.c \
 		rbt.c rbtdb.c rbtdb64.c rcode.c rdata.c rdatalist.c \
 		rdataset.c rdatasetiter.c rdataslab.c request.c \

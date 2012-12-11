@@ -218,7 +218,7 @@ void ASTStmtWriter::VisitDeclStmt(DeclStmt *S) {
   Code = serialization::STMT_DECL;
 }
 
-void ASTStmtWriter::VisitAsmStmt(AsmStmt *S) {
+void ASTStmtWriter::VisitGCCAsmStmt(GCCAsmStmt *S) {
   VisitStmt(S);
   Record.push_back(S->getNumOutputs());
   Record.push_back(S->getNumInputs());
@@ -227,7 +227,6 @@ void ASTStmtWriter::VisitAsmStmt(AsmStmt *S) {
   Writer.AddSourceLocation(S->getRParenLoc(), Record);
   Record.push_back(S->isVolatile());
   Record.push_back(S->isSimple());
-  Record.push_back(S->isMSAsm());
   Writer.AddStmt(S->getAsmString());
 
   // Outputs
@@ -246,14 +245,16 @@ void ASTStmtWriter::VisitAsmStmt(AsmStmt *S) {
 
   // Clobbers
   for (unsigned I = 0, N = S->getNumClobbers(); I != N; ++I)
-    Writer.AddStmt(S->getClobber(I));
+    Writer.AddStmt(S->getClobberStringLiteral(I));
 
-  Code = serialization::STMT_ASM;
+  Code = serialization::STMT_GCCASM;
 }
 
 void ASTStmtWriter::VisitMSAsmStmt(MSAsmStmt *S) {
   // FIXME: Statement writer not yet implemented for MS style inline asm.
   VisitStmt(S);
+
+  Code = serialization::STMT_MSASM;
 }
 
 void ASTStmtWriter::VisitExpr(Expr *E) {
@@ -535,6 +536,7 @@ void ASTStmtWriter::VisitBinaryOperator(BinaryOperator *E) {
   Writer.AddStmt(E->getRHS());
   Record.push_back(E->getOpcode()); // FIXME: stable encoding
   Writer.AddSourceLocation(E->getOperatorLoc(), Record);
+  Record.push_back(E->isFPContractable());
   Code = serialization::EXPR_BINARY_OPERATOR;
 }
 
@@ -604,6 +606,8 @@ void ASTStmtWriter::VisitExtVectorElementExpr(ExtVectorElementExpr *E) {
 
 void ASTStmtWriter::VisitInitListExpr(InitListExpr *E) {
   VisitExpr(E);
+  // NOTE: only add the (possibly null) syntactic form.
+  // No need to serialize the isSemanticForm flag and the semantic form.
   Writer.AddStmt(E->getSyntacticForm());
   Writer.AddSourceLocation(E->getLBraceLoc(), Record);
   Writer.AddSourceLocation(E->getRBraceLoc(), Record);
@@ -1054,6 +1058,7 @@ void ASTStmtWriter::VisitCXXOperatorCallExpr(CXXOperatorCallExpr *E) {
   VisitCallExpr(E);
   Record.push_back(E->getOperator());
   Writer.AddSourceRange(E->Range, Record);
+  Record.push_back(E->isFPContractable());
   Code = serialization::EXPR_CXX_OPERATOR_CALL;
 }
 
@@ -1233,7 +1238,7 @@ void ASTStmtWriter::VisitCXXNewExpr(CXXNewExpr *E) {
   Writer.AddDeclRef(E->getOperatorDelete(), Record);
   Writer.AddTypeSourceInfo(E->getAllocatedTypeSourceInfo(), Record);
   Writer.AddSourceRange(E->getTypeIdParens(), Record);
-  Writer.AddSourceLocation(E->getStartLoc(), Record);
+  Writer.AddSourceRange(E->getSourceRange(), Record);
   Writer.AddSourceRange(E->getDirectInitRange(), Record);
   for (CXXNewExpr::arg_iterator I = E->raw_arg_begin(), e = E->raw_arg_end();
        I != e; ++I)
@@ -1382,8 +1387,6 @@ void ASTStmtWriter::VisitUnresolvedMemberExpr(UnresolvedMemberExpr *E) {
 void ASTStmtWriter::VisitUnresolvedLookupExpr(UnresolvedLookupExpr *E) {
   VisitOverloadExpr(E);
   Record.push_back(E->requiresADL());
-  if (E->requiresADL())
-    Record.push_back(E->isStdAssociatedNamespace());
   Record.push_back(E->isOverloaded());
   Writer.AddDeclRef(E->getNamingClass(), Record);
   Code = serialization::EXPR_CXX_UNRESOLVED_LOOKUP;
@@ -1478,6 +1481,17 @@ void ASTStmtWriter::VisitSubstNonTypeTemplateParmPackExpr(
   Writer.AddTemplateArgument(E->getArgumentPack(), Record);
   Writer.AddSourceLocation(E->getParameterPackLocation(), Record);
   Code = serialization::EXPR_SUBST_NON_TYPE_TEMPLATE_PARM_PACK;
+}
+
+void ASTStmtWriter::VisitFunctionParmPackExpr(FunctionParmPackExpr *E) {
+  VisitExpr(E);
+  Record.push_back(E->getNumExpansions());
+  Writer.AddDeclRef(E->getParameterPack(), Record);
+  Writer.AddSourceLocation(E->getParameterPackLocation(), Record);
+  for (FunctionParmPackExpr::iterator I = E->begin(), End = E->end();
+       I != End; ++I)
+    Writer.AddDeclRef(*I, Record);
+  Code = serialization::EXPR_FUNCTION_PARM_PACK;
 }
 
 void ASTStmtWriter::VisitMaterializeTemporaryExpr(MaterializeTemporaryExpr *E) {

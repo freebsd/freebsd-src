@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: exregion - ACPI default OpRegion (address space) handlers
@@ -220,7 +219,7 @@ AcpiExSystemMemorySpaceHandler (
      * Perform the memory read or write
      *
      * Note: For machines that do not support non-aligned transfers, the target
-     * address was checked for alignment above.  We do not attempt to break the
+     * address was checked for alignment above. We do not attempt to break the
      * transfer up into smaller (byte-size) chunks because the AML specifically
      * asked for a transfer width that the hardware may require.
      */
@@ -258,19 +257,19 @@ AcpiExSystemMemorySpaceHandler (
         switch (BitWidth)
         {
         case 8:
-            ACPI_SET8 (LogicalAddrPtr) = (UINT8) *Value;
+            ACPI_SET8 (LogicalAddrPtr, *Value);
             break;
 
         case 16:
-            ACPI_SET16 (LogicalAddrPtr) = (UINT16) *Value;
+            ACPI_SET16 (LogicalAddrPtr, *Value);
             break;
 
         case 32:
-            ACPI_SET32 ( LogicalAddrPtr) = (UINT32) *Value;
+            ACPI_SET32 (LogicalAddrPtr, *Value);
             break;
 
         case 64:
-            ACPI_SET64 (LogicalAddrPtr) = (UINT64) *Value;
+            ACPI_SET64 (LogicalAddrPtr, *Value);
             break;
 
         default:
@@ -561,5 +560,3 @@ AcpiExDataTableSpaceHandler (
 
     return_ACPI_STATUS (AE_OK);
 }
-
-

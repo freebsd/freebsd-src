@@ -37,7 +37,7 @@ static Value *simplifyValueKnownNonZero(Value *V, InstCombiner &IC) {
   if (match(V, m_LShr(m_OneUse(m_Shl(m_Value(PowerOf2), m_Value(A))),
                       m_Value(B))) &&
       // The "1" can be any value known to be a power of 2.
-      isPowerOfTwo(PowerOf2, IC.getTargetData())) {
+      isPowerOfTwo(PowerOf2, IC.getDataLayout())) {
     A = IC.Builder->CreateSub(A, B);
     return IC.Builder->CreateShl(PowerOf2, A);
   }
@@ -46,7 +46,7 @@ static Value *simplifyValueKnownNonZero(Value *V, InstCombiner &IC) {
   // inexact.  Similarly for <<.
   if (BinaryOperator *I = dyn_cast<BinaryOperator>(V))
     if (I->isLogicalShift() &&
-        isPowerOfTwo(I->getOperand(0), IC.getTargetData())) {
+        isPowerOfTwo(I->getOperand(0), IC.getDataLayout())) {
       // We know that this is an exact/nuw shift and that the input is a
       // non-zero context as well.
       if (Value *V2 = simplifyValueKnownNonZero(I->getOperand(0), IC)) {
@@ -462,12 +462,23 @@ Instruction *InstCombiner::visitUDiv(BinaryOperator &I) {
     }
   }
 
+  // (x lshr C1) udiv C2 --> x udiv (C2 << C1)
+  if (ConstantInt *C2 = dyn_cast<ConstantInt>(Op1)) {
+    Value *X;
+    ConstantInt *C1;
+    if (match(Op0, m_LShr(m_Value(X), m_ConstantInt(C1)))) {
+      APInt NC = C2->getValue().shl(C1->getLimitedValue(C1->getBitWidth()-1));
+      return BinaryOperator::CreateUDiv(X, Builder->getInt(NC));
+    }
+  }
+
   // X udiv (C1 << N), where C1 is "1<<C2"  -->  X >> (N+C2)
   { const APInt *CI; Value *N;
     if (match(Op1, m_Shl(m_Power2(CI), m_Value(N))) ||
         match(Op1, m_ZExt(m_Shl(m_Power2(CI), m_Value(N))))) {
       if (*CI != 1)
-        N = Builder->CreateAdd(N, ConstantInt::get(I.getType(),CI->logBase2()));
+        N = Builder->CreateAdd(N,
+                               ConstantInt::get(N->getType(), CI->logBase2()));
       if (ZExtInst *Z = dyn_cast<ZExtInst>(Op1))
         N = Builder->CreateZExt(N, Z->getDestTy());
       if (I.isExact())

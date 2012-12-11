@@ -1524,7 +1524,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 {
 	caddr_t base;
 	uint32_t len, nsegs;
-	int i, error, ns, cmap = 0;
+	int i, error, cmap = 0;
 	bus_size_t slim;	/* segment size */
 	bus_addr_t llim;	/* low limit of unavailable dma */
 	bus_addr_t hlim;	/* high limit of unavailable dma */
@@ -1633,13 +1633,12 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	if (isp->isp_type >= ISP_HA_FC_2300) {
 		len += (N_XCMDS * XCMD_SIZE);
 	}
-	ns = (len / PAGE_SIZE) + 1;
 
 	/*
 	 * Create a tag for the control spaces. We don't always need this
 	 * to be 32 bits, but we do this for simplicity and speed's sake.
 	 */
-	if (isp_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, slim, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, len, ns, slim, 0, &isp->isp_osinfo.cdmat)) {
+	if (isp_dma_tag_create(isp->isp_osinfo.dmat, QENTRY_LEN, slim, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR, NULL, NULL, len, 1, slim, 0, &isp->isp_osinfo.cdmat)) {
 		isp_prt(isp, ISP_LOGERR, "cannot create a dma tag for control spaces");
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		free(isp->isp_xflist, M_DEVBUF);

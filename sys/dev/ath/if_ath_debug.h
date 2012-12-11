@@ -105,6 +105,8 @@ extern	void ath_printrxbuf(struct ath_softc *, const struct ath_buf *bf,
 	u_int ix, int);
 extern	void ath_printtxbuf(struct ath_softc *, const struct ath_buf *bf,
 	u_int qnum, u_int ix, int done);
+extern	void ath_printtxstatbuf(struct ath_softc *sc, const struct ath_buf *bf,
+	const uint32_t *ds, u_int qnum, u_int ix, int done);
 #else	/* ATH_DEBUG */
 #define	ATH_KTR(_sc, _km, _kf, ...)	do { } while (0)
 

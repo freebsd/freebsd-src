@@ -32,7 +32,7 @@
 .\"	@(#)ln.1	8.2 (Berkeley) 12/30/93
 .\" $FreeBSD$
 .\"
-.Dd July 17, 2009
+.Dd November 2, 2012
 .Dt LN 1
 .Os
 .Sh NAME
@@ -212,6 +212,70 @@ No options may be supplied in this simple mode of operation,
 which performs a
 .Xr link 2
 operation using the two passed arguments.
+.Sh EXAMPLES
+Create a symbolic link named
+.Pa /home/src
+and point it to
+.Pa /usr/src :
+.Pp
+.Dl # ln -s /usr/src /home/src
+.Pp
+Hard link
+.Pa /usr/local/bin/fooprog
+to file
+.Pa /usr/local/bin/fooprog-1.0 :
+.Pp
+.Dl # ln /usr/local/bin/fooprog-1.0 /usr/local/bin/fooprog
+.Pp
+As an exercise, try the following commands:
+.Bd -literal -offset indent
+# ls -i /bin/[
+11553 /bin/[
+# ls -i /bin/test
+11553 /bin/test
+.Ed
+.Pp
+Note that both files have the same inode; that is,
+.Pa /bin/[
+is essentially an alias for the
+.Xr test 1
+command.
+This hard link exists so
+.Xr test 1
+may be invoked from shell scripts, for example, using the
+.Li "if [ ]"
+construct.
+.Pp
+In the next example, the second call to
+.Nm
+removes the original
+.Pa foo
+and creates a replacement pointing to
+.Pa baz :
+.Bd -literal -offset indent
+# mkdir bar baz
+# ln -s bar foo
+# ln -shf baz foo
+.Ed
+.Pp
+Without the
+.Fl h
+option, this would instead leave
+.Pa foo
+pointing to
+.Pa bar
+and inside
+.Pa foo
+create a new symlink
+.Pa baz
+pointing to itself.
+This results from directory-walking.
+.Pp
+An easy rule to remember is that the argument order for
+.Nm
+is the same as for
+.Xr cp 1 :
+The first argument needs to exist, the second one is created.
 .Sh COMPATIBILITY
 The
 .Fl h ,

@@ -391,6 +391,7 @@ FBSD_1.3 {
 	pwcache_userdb;
 	pwcache_groupdb;
 	uid_from_user;
+	waitid;
 };
 
 FBSDprivate_1.0 {

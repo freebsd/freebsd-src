@@ -135,9 +135,9 @@ lib${LIB}.a: ${OBJS} ${STATICOBJS}
 	@${ECHO} building static ${LIB} library
 	@rm -f ${.TARGET}
 .if !defined(NM)
-	@${AR} cq ${.TARGET} `lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
+	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
 .else
-	@${AR} cq ${.TARGET} `NM='${NM}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
+	@${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${OBJS} ${STATICOBJS} | tsort -q` ${ARADD}
 .endif
 	${RANLIB} ${.TARGET}
 .endif
@@ -152,9 +152,9 @@ lib${LIB}_p.a: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
 	@rm -f ${.TARGET}
 .if !defined(NM)
-	@${AR} cq ${.TARGET} `lorder ${POBJS} | tsort -q` ${ARADD}
+	@${AR} ${ARFLAGS} ${.TARGET} `lorder ${POBJS} | tsort -q` ${ARADD}
 .else
-	@${AR} cq ${.TARGET} `NM='${NM}' lorder ${POBJS} | tsort -q` ${ARADD}
+	@${AR} ${ARFLAGS} ${.TARGET} `NM='${NM}' lorder ${POBJS} | tsort -q` ${ARADD}
 .endif
 	${RANLIB} ${.TARGET}
 .endif
@@ -202,7 +202,7 @@ _LIBS+=		lib${LIB}_pic.a
 lib${LIB}_pic.a: ${SOBJS}
 	@${ECHO} building special pic ${LIB} library
 	@rm -f ${.TARGET}
-	@${AR} cq ${.TARGET} ${SOBJS} ${ARADD}
+	@${AR} ${ARFLAGS} ${.TARGET} ${SOBJS} ${ARADD}
 	${RANLIB} ${.TARGET}
 .endif
 

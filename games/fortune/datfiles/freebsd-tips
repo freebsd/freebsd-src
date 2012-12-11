@@ -40,7 +40,7 @@ Having trouble using fetch through a firewall? Try setting the environment
 variable FTP_PASSIVE_MODE to yes, and see fetch(3) for more details.
 %
 If other operating systems have damaged your Master Boot Record, you can
-reinstall it either with boot0cfg(8). See
+reinstall it with boot0cfg(8). See
 "man boot0cfg" for details.
 %
 If you accidentally end up inside vi, you can quit it by pressing Escape, colon

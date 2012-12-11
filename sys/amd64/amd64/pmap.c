@@ -225,16 +225,7 @@ u_int64_t		KPML4phys;	/* phys addr of kernel level 4 */
 static u_int64_t	DMPDphys;	/* phys addr of direct mapped level 2 */
 static u_int64_t	DMPDPphys;	/* phys addr of direct mapped level 3 */
 
-/*
- * Isolate the global pv list lock from data and other locks to prevent false
- * sharing within the cache.
- */
-static struct {
-	struct rwlock	lock;
-	char		padding[CACHE_LINE_SIZE - sizeof(struct rwlock)];
-} pvh_global __aligned(CACHE_LINE_SIZE);
-
-#define	pvh_global_lock	pvh_global.lock
+static struct rwlock_padalign pvh_global_lock;
 
 /*
  * Data for the pv entry allocation mechanism
@@ -623,6 +614,8 @@ pmap_bootstrap(vm_paddr_t *firstaddr)
 	/* XXX do %cr0 as well */
 	load_cr4(rcr4() | CR4_PGE | CR4_PSE);
 	load_cr3(KPML4phys);
+	if (cpu_stdext_feature & CPUID_STDEXT_SMEP)
+		load_cr4(rcr4() | CR4_SMEP);
 
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
@@ -5516,3 +5509,46 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
 	else
 		*addr = ((*addr + PDRMASK) & ~PDRMASK) + superpage_offset;
 }
+
+#include "opt_ddb.h"
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(pte, pmap_print_pte)
+{
+	pmap_t pmap;
+	pml4_entry_t *pml4;
+	pdp_entry_t *pdp;
+	pd_entry_t *pde;
+	pt_entry_t *pte;
+	vm_offset_t va;
+
+	if (have_addr) {
+		va = (vm_offset_t)addr;
+		pmap = PCPU_GET(curpmap); /* XXX */
+	} else {
+		db_printf("show pte addr\n");
+		return;
+	}
+	pml4 = pmap_pml4e(pmap, va);
+	db_printf("VA %#016lx pml4e %#016lx", va, *pml4);
+	if ((*pml4 & PG_V) == 0) {
+		db_printf("\n");
+		return;
+	}
+	pdp = pmap_pml4e_to_pdpe(pml4, va);
+	db_printf(" pdpe %#016lx", *pdp);
+	if ((*pdp & PG_V) == 0 || (*pdp & PG_PS) != 0) {
+		db_printf("\n");
+		return;
+	}
+	pde = pmap_pdpe_to_pde(pdp, va);
+	db_printf(" pde %#016lx", *pde);
+	if ((*pde & PG_V) == 0 || (*pde & PG_PS) != 0) {
+		db_printf("\n");
+		return;
+	}
+	pte = pmap_pde_to_pte(pde, va);
+	db_printf(" pte %#016lx\n", *pte);
+}
+#endif

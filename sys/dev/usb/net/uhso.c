@@ -1619,7 +1619,7 @@ uhso_ifnet_read_callback(struct usb_xfer *xfer, usb_error_t error)
 	case USB_ST_TRANSFERRED:
 		if (actlen > 0 && (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)) {
 			pc = usbd_xfer_get_frame(xfer, 0);
-			m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+			m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 			usbd_copy_out(pc, 0, mtod(m, uint8_t *), actlen);
 			m->m_pkthdr.len = m->m_len = actlen;
 			/* Enqueue frame for further processing */
@@ -1752,13 +1752,13 @@ uhso_if_rxflush(void *arg)
 			 * Allocate a new mbuf for this IP packet and
 			 * copy the IP-packet into it.
 			 */
-			m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+			m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 			memcpy(mtod(m, uint8_t *), mtod(m0, uint8_t *), iplen);
 			m->m_pkthdr.len = m->m_len = iplen;
 
 			/* Adjust the size of the original mbuf */
 			m_adj(m0, iplen);
-			m0 = m_defrag(m0, M_WAIT);
+			m0 = m_defrag(m0, M_WAITOK);
 
 			UHSO_DPRINTF(3, "New mbuf=%p, len=%d/%d, m0=%p, "
 			    "m0_len=%d/%d\n", m, m->m_pkthdr.len, m->m_len,

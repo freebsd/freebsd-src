@@ -569,9 +569,9 @@ ams_read(struct cdev *dev, struct uio *uio, int flag)
 
 	mtx_unlock(&sc->sc_mtx);
 
-	uiomove(outpacket,len,uio);
+	error = uiomove(outpacket,len,uio);
 
-	return (0);
+	return (error);
 }
 
 

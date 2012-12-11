@@ -11,6 +11,7 @@
 #define CLANG_DRIVER_ARGLIST_H_
 
 #include "clang/Basic/LLVM.h"
+#include "clang/Driver/Option.h"
 #include "clang/Driver/OptSpecifier.h"
 #include "clang/Driver/Util.h"
 #include "llvm/ADT/SmallVector.h"
@@ -94,8 +95,8 @@ namespace driver {
   /// and to iterate over groups of arguments.
   class ArgList {
   private:
-    ArgList(const ArgList &); // DO NOT IMPLEMENT
-    void operator=(const ArgList &); // DO NOT IMPLEMENT
+    ArgList(const ArgList &) LLVM_DELETED_FUNCTION;
+    void operator=(const ArgList &) LLVM_DELETED_FUNCTION;
 
   public:
     typedef SmallVector<Arg*, 16> arglist_type;
@@ -117,7 +118,7 @@ namespace driver {
     /// @name Arg Access
     /// @{
 
-    /// append - Append \arg A to the arg list.
+    /// append - Append \p A to the arg list.
     void append(Arg *A);
 
     arglist_type &getArgs() { return Args; }
@@ -153,16 +154,16 @@ namespace driver {
     /// @name Arg Removal
     /// @{
 
-    /// eraseArg - Remove any option matching \arg Id.
+    /// eraseArg - Remove any option matching \p Id.
     void eraseArg(OptSpecifier Id);
 
     /// @}
     /// @name Arg Access
     /// @{
 
-    /// hasArg - Does the arg list contain any option matching \arg Id.
+    /// hasArg - Does the arg list contain any option matching \p Id.
     ///
-    /// \arg Claim Whether the argument should be claimed, if it exists.
+    /// \p Claim Whether the argument should be claimed, if it exists.
     bool hasArgNoClaim(OptSpecifier Id) const {
       return getLastArgNoClaim(Id) != 0;
     }
@@ -176,9 +177,9 @@ namespace driver {
       return getLastArg(Id0, Id1, Id2) != 0;
     }
 
-    /// getLastArg - Return the last argument matching \arg Id, or null.
+    /// getLastArg - Return the last argument matching \p Id, or null.
     ///
-    /// \arg Claim Whether the argument should be claimed, if it exists.
+    /// \p Claim Whether the argument should be claimed, if it exists.
     Arg *getLastArgNoClaim(OptSpecifier Id) const;
     Arg *getLastArg(OptSpecifier Id) const;
     Arg *getLastArg(OptSpecifier Id0, OptSpecifier Id1) const;
@@ -196,7 +197,7 @@ namespace driver {
                     OptSpecifier Id3, OptSpecifier Id4, OptSpecifier Id5,
                     OptSpecifier Id6, OptSpecifier Id7) const;
 
-    /// getArgString - Return the input argument string at \arg Index.
+    /// getArgString - Return the input argument string at \p Index.
     virtual const char *getArgString(unsigned Index) const = 0;
 
     /// getNumInputArgStrings - Return the number of original argument strings,
@@ -233,15 +234,13 @@ namespace driver {
     /// @name Translation Utilities
     /// @{
 
-    /// hasFlag - Given an option \arg Pos and its negative form \arg
-    /// Neg, return true if the option is present, false if the
-    /// negation is present, and \arg Default if neither option is
-    /// given. If both the option and its negation are present, the
-    /// last one wins.
+    /// hasFlag - Given an option \p Pos and its negative form \p Neg, return
+    /// true if the option is present, false if the negation is present, and
+    /// \p Default if neither option is given. If both the option and its
+    /// negation are present, the last one wins.
     bool hasFlag(OptSpecifier Pos, OptSpecifier Neg, bool Default=true) const;
 
-    /// AddLastArg - Render only the last argument match \arg Id0, if
-    /// present.
+    /// AddLastArg - Render only the last argument match \p Id0, if present.
     void AddLastArg(ArgStringList &Output, OptSpecifier Id0) const;
 
     /// AddAllArgs - Render all arguments matching the given ids.
@@ -286,8 +285,8 @@ namespace driver {
     }
     const char *MakeArgString(const Twine &Str) const;
 
-    /// \brief Create an arg string for (\arg LHS + \arg RHS), reusing the
-    /// string at \arg Index if possible.
+    /// \brief Create an arg string for (\p LHS + \p RHS), reusing the
+    /// string at \p Index if possible.
     const char *GetOrMakeJoinedArgString(unsigned Index, StringRef LHS,
                                          StringRef RHS) const;
 
@@ -347,7 +346,7 @@ namespace driver {
     mutable arglist_type SynthesizedArgs;
 
   public:
-    /// Construct a new derived arg list from \arg BaseArgs.
+    /// Construct a new derived arg list from \p BaseArgs.
     DerivedArgList(const InputArgList &BaseArgs);
     ~DerivedArgList();
 
@@ -374,55 +373,54 @@ namespace driver {
 
     virtual const char *MakeArgString(StringRef Str) const;
 
-    /// AddFlagArg - Construct a new FlagArg for the given option \arg Id and
+    /// AddFlagArg - Construct a new FlagArg for the given option \p Id and
     /// append it to the argument list.
-    void AddFlagArg(const Arg *BaseArg, const Option *Opt) {
+    void AddFlagArg(const Arg *BaseArg, const Option Opt) {
       append(MakeFlagArg(BaseArg, Opt));
     }
 
     /// AddPositionalArg - Construct a new Positional arg for the given option
-    /// \arg Id, with the provided \arg Value and append it to the argument
+    /// \p Id, with the provided \p Value and append it to the argument
     /// list.
-    void AddPositionalArg(const Arg *BaseArg, const Option *Opt,
+    void AddPositionalArg(const Arg *BaseArg, const Option Opt,
                           StringRef Value) {
       append(MakePositionalArg(BaseArg, Opt, Value));
     }
 
 
     /// AddSeparateArg - Construct a new Positional arg for the given option
-    /// \arg Id, with the provided \arg Value and append it to the argument
+    /// \p Id, with the provided \p Value and append it to the argument
     /// list.
-    void AddSeparateArg(const Arg *BaseArg, const Option *Opt,
+    void AddSeparateArg(const Arg *BaseArg, const Option Opt,
                         StringRef Value) {
       append(MakeSeparateArg(BaseArg, Opt, Value));
     }
 
 
-    /// AddJoinedArg - Construct a new Positional arg for the given option \arg
-    /// Id, with the provided \arg Value and append it to the argument list.
-    void AddJoinedArg(const Arg *BaseArg, const Option *Opt,
+    /// AddJoinedArg - Construct a new Positional arg for the given option
+    /// \p Id, with the provided \p Value and append it to the argument list.
+    void AddJoinedArg(const Arg *BaseArg, const Option Opt,
                       StringRef Value) {
       append(MakeJoinedArg(BaseArg, Opt, Value));
     }
 
 
-    /// MakeFlagArg - Construct a new FlagArg for the given option
-    /// \arg Id.
-    Arg *MakeFlagArg(const Arg *BaseArg, const Option *Opt) const;
+    /// MakeFlagArg - Construct a new FlagArg for the given option \p Id.
+    Arg *MakeFlagArg(const Arg *BaseArg, const Option Opt) const;
 
     /// MakePositionalArg - Construct a new Positional arg for the
-    /// given option \arg Id, with the provided \arg Value.
-    Arg *MakePositionalArg(const Arg *BaseArg, const Option *Opt,
+    /// given option \p Id, with the provided \p Value.
+    Arg *MakePositionalArg(const Arg *BaseArg, const Option Opt,
                            StringRef Value) const;
 
     /// MakeSeparateArg - Construct a new Positional arg for the
-    /// given option \arg Id, with the provided \arg Value.
-    Arg *MakeSeparateArg(const Arg *BaseArg, const Option *Opt,
+    /// given option \p Id, with the provided \p Value.
+    Arg *MakeSeparateArg(const Arg *BaseArg, const Option Opt,
                          StringRef Value) const;
 
     /// MakeJoinedArg - Construct a new Positional arg for the
-    /// given option \arg Id, with the provided \arg Value.
-    Arg *MakeJoinedArg(const Arg *BaseArg, const Option *Opt,
+    /// given option \p Id, with the provided \p Value.
+    Arg *MakeJoinedArg(const Arg *BaseArg, const Option Opt,
                        StringRef Value) const;
 
     /// @}

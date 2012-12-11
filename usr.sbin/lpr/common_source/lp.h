@@ -252,11 +252,14 @@ typedef enum { TR_SENDING, TR_RECVING, TR_PRINTING } tr_sendrecv;
 /*
  * seteuid() macros.
 */
+
+extern uid_t	uid, euid;
+
 #define PRIV_START { \
-    if (seteuid(uid) != 0) err(1, "seteuid failed"); \
+    if (seteuid(euid) != 0) err(1, "seteuid failed"); \
 }
 #define PRIV_END { \
-    if (seteuid(euid) != 0) err(1, "seteuid failed"); \
+    if (seteuid(uid) != 0) err(1, "seteuid failed"); \
 }
 
 

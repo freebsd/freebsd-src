@@ -158,7 +158,7 @@ public:
             && "Word Position outside of element");
 
     // Mask off previous bits.
-    Copy &= ~0L << BitPos;
+    Copy &= ~0UL << BitPos;
 
     if (Copy != 0) {
       if (sizeof(BitWord) == 4)
@@ -260,6 +260,22 @@ public:
     }
     BecameZero = allzero;
   }
+};
+
+template <unsigned ElementSize>
+struct ilist_traits<SparseBitVectorElement<ElementSize> >
+  : public ilist_default_traits<SparseBitVectorElement<ElementSize> > {
+  typedef SparseBitVectorElement<ElementSize> Element;
+
+  Element *createSentinel() const { return static_cast<Element *>(&Sentinel); }
+  static void destroySentinel(Element *) {}
+
+  Element *provideInitialHead() const { return createSentinel(); }
+  Element *ensureHead(Element *) const { return createSentinel(); }
+  static void noteHead(Element *, Element *) {}
+
+private:
+  mutable ilist_half_node<Element> Sentinel;
 };
 
 template <unsigned ElementSize = 128>

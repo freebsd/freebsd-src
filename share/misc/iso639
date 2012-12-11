@@ -12,11 +12,11 @@
 #   existing ones according to criteria indicated in the standard. It
 #   maintains an accurate list of information associated with registered
 #   language codes, processes updates of registered language codes, and
-#   distributes them on a regular basis to subscribers and other parties. 
+#   distributes them on a regular basis to subscribers and other parties.
 #
 #   This is the official site of the ISO 639-2 Registration Authority and thus
 #   is the only one authorized by ISO. If you have questions concerning ISO
-#   639-2 please contact us at: 
+#   639-2 please contact us at:
 #
 #     Library of Congress
 #     Network Development and MARC Standards Office
@@ -90,7 +90,7 @@ be	bel	bel	Belarusian
 bn	ben	ben	Bengali
 	ber	ber	Berber languages
 	bho	bho	Bhojpuri
-bh	bih	bih	Bihari
+bh	bih	bih	Bihari languages
 	bik	bik	Bikol
 	bin	bin	Bini; Edo
 bi	bis	bis	Bislama
@@ -213,10 +213,10 @@ ha	hau	hau	Hausa
 he	heb	heb	Hebrew
 hz	her	her	Herero
 	hil	hil	Hiligaynon
-	him	him	Himachali
+	him	him	Himachali languages; Western Pahari languages
 hi	hin	hin	Hindi
 	hit	hit	Hittite
-	hmn	hmn	Hmong
+	hmn	hmn	Hmong; Mong
 ho	hmo	hmo	Hiri Motu
 hr	hrv	hrv	Croatian
 	hsb	hsb	Upper Sorbian
@@ -349,11 +349,11 @@ ne	nep	nep	Nepali
 	nia	nia	Nias
 	nic	nic	Niger-Kordofanian languages
 	niu	niu	Niuean
+nn	nno	nno	Norwegian Nynorsk; Nynorsk, Norwegian
+nb	nob	nob	Bokmål, Norwegian; Norwegian Bokmål
 	nog	nog	Nogai
 	non	non	Norse, Old
 no	nor	nor	Norwegian
-nn	nno	nno	Norwegian Nynorsk; Nynorsk, Norwegian
-nb	nob	nob	Bokmål, Norwegian; Norwegian Bokmål
 	nqo	nqo	N'Ko
 	nso	nso	Pedi; Sepedi; Northern Sotho
 	nub	nub	Nubian languages
@@ -469,8 +469,8 @@ bo	tib	bod	Tibetan
 ti	tir	tir	Tigrinya
 	tiv	tiv	Tiv
 	tkl	tkl	Tokelau
-	tli	tli	Tlingit
 	tlh	tlh	Klingon; tlhIngan-Hol
+	tli	tli	Tlingit
 	tmh	tmh	Tamashek
 	tog	tog	Tonga (Nyasa)
 to	ton	ton	Tonga (Tonga Islands)

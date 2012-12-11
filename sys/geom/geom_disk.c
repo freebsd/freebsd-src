@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/sbuf.h>
 #include <sys/sysctl.h>
-#include <sys/taskqueue.h>
 #include <sys/devicestat.h>
 #include <machine/md_var.h>
 
@@ -66,7 +65,6 @@ struct g_disk_softc {
 	struct sysctl_oid	*sysctl_tree;
 	char			led[64];
 	uint32_t		state;
-	struct task		resize_task;
 };
 
 static struct mtx g_disk_done_mtx;
@@ -443,16 +441,21 @@ g_disk_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp, struct g
 }
 
 static void
-g_disk_resize_task(void *context, int pending)
+g_disk_resize(void *ptr, int flag)
 {
+	struct disk *dp;
 	struct g_geom *gp;
 	struct g_provider *pp;
-	struct disk *dp;
-	struct g_disk_softc *sc;
 
-	sc = (struct g_disk_softc *)context;
-	dp = sc->dp;
+	if (flag == EV_CANCEL)
+		return;
+	g_topology_assert();
+
+	dp = ptr;
 	gp = dp->d_geom;
+
+	if (dp->d_destroyed || gp == NULL)
+		return;
 
 	LIST_FOREACH(pp, &gp->provider, provider) {
 		if (pp->sectorsize != 0 &&
@@ -501,7 +504,6 @@ g_disk_create(void *arg, int flag)
 		    CTLFLAG_RW | CTLFLAG_TUN, sc->led, sizeof(sc->led),
 		    "LED name");
 	}
-	TASK_INIT(&sc->resize_task, 0, g_disk_resize_task, sc);
 	pp->private = sc;
 	dp->d_geom = gp;
 	g_error_provider(pp, 0);
@@ -684,22 +686,14 @@ disk_media_gone(struct disk *dp, int flag)
 	}
 }
 
-void
-disk_resize(struct disk *dp)
+int
+disk_resize(struct disk *dp, int flag)
 {
-	struct g_geom *gp;
-	struct g_disk_softc *sc;
-	int error;
 
-	gp = dp->d_geom;
+	if (dp->d_destroyed || dp->d_geom == NULL)
+		return (0);
 
-	if (gp == NULL)
-		return;
-
-	sc = gp->softc;
-
-	error = taskqueue_enqueue(taskqueue_thread, &sc->resize_task);
-	KASSERT(error == 0, ("taskqueue_enqueue(9) failed."));
+	return (g_post_event(g_disk_resize, dp, flag, NULL));
 }
 
 static void

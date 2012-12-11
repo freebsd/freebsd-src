@@ -129,10 +129,10 @@ const struct in6_addr in6mask128 = IN6MASK128;
 const struct sockaddr_in6 sa6_any =
 	{ sizeof(sa6_any), AF_INET6, 0, 0, IN6ADDR_ANY_INIT, 0 };
 
-static int in6_lifaddr_ioctl __P((struct socket *, u_long, caddr_t,
-	struct ifnet *, struct thread *));
-static int in6_ifinit __P((struct ifnet *, struct in6_ifaddr *,
-	struct sockaddr_in6 *, int));
+static int in6_lifaddr_ioctl(struct socket *, u_long, caddr_t,
+	struct ifnet *, struct thread *);
+static int in6_ifinit(struct ifnet *, struct in6_ifaddr *,
+	struct sockaddr_in6 *, int);
 static void in6_unlink_ifa(struct in6_ifaddr *, struct ifnet *);
 
 int	(*faithprefix_p)(struct in6_addr *);
@@ -2669,6 +2669,8 @@ in6_lltable_dump(struct lltable *llt, struct sysctl_req *wr)
 			ndpc.sin6.sin6_family = AF_INET6;
 			ndpc.sin6.sin6_len = sizeof(ndpc.sin6);
 			bcopy(L3_ADDR(lle), &ndpc.sin6, L3_ADDR_LEN(lle));
+			if (V_deembed_scopeid)
+				sa6_recoverscope(&ndpc.sin6);
 
 			/* publish */
 			if (lle->la_flags & LLE_PUB)

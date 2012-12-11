@@ -498,7 +498,7 @@ proc0_init(void *dummy __unused)
 	strncpy(p->p_comm, "kernel", sizeof (p->p_comm));
 	strncpy(td->td_name, "swapper", sizeof (td->td_name));
 
-	callout_init(&p->p_itcallout, CALLOUT_MPSAFE);
+	callout_init_mtx(&p->p_itcallout, &p->p_mtx, 0);
 	callout_init_mtx(&p->p_limco, &p->p_mtx, 0);
 	callout_init(&td->td_slpcallout, CALLOUT_MPSAFE);
 

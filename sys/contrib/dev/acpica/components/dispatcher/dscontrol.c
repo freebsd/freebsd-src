@@ -290,7 +290,7 @@ AcpiDsExecEndControlOp (
 
             /*
              * Get the return value and save as the last result
-             * value.  This is the only place where WalkState->ReturnDesc
+             * value. This is the only place where WalkState->ReturnDesc
              * is set to anything other than zero!
              */
             WalkState->ReturnDesc = WalkState->Operands[0];

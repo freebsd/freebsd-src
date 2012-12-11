@@ -386,10 +386,6 @@ div_output(struct socket *so, struct mbuf *m, struct sockaddr_in *sin,
 				INP_RUNLOCK(inp);
 				goto cantsend;
 			}
-
-			/* Convert fields to host order for ip_output() */
-			ip->ip_len = ntohs(ip->ip_len);
-			ip->ip_off = ntohs(ip->ip_off);
 			break;
 #ifdef INET6
 		case IPV6_VERSION >> 4:

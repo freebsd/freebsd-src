@@ -94,7 +94,7 @@ It is functionally equivalent to
 .Bd -literal -offset indent
 dup2(fd, arg)
 .Ed
-.It Dv F_DU2PFD_CLOEXEC
+.It Dv F_DUP2FD_CLOEXEC
 Like
 .Dv F_DUP2FD ,
 but the
@@ -104,7 +104,7 @@ flag associated with the new file descriptor is set.
 The
 .Dv F_DUP2FD
 and
-.Dv F_DUP2DF_CLOEXEC
+.Dv F_DUP2FD_CLOEXEC
 constants are not portable, so they should not be used if
 portability is needed.
 Use

@@ -107,9 +107,6 @@ fdesc_mount(struct mount *mp)
 	VOP_UNLOCK(rvp, 0);
 	/* XXX -- don't mark as local to work around fts() problems */
 	/*mp->mnt_flag |= MNT_LOCAL;*/
-	MNT_ILOCK(mp);
-	mp->mnt_kern_flag |= MNTK_MPSAFE;
-	MNT_IUNLOCK(mp);
 	vfs_getnewfsid(mp);
 
 	vfs_mountedfrom(mp, "fdescfs");

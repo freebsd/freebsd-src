@@ -389,6 +389,16 @@ options 	GDB
 options 	SYSCTL_DEBUG
 
 #
+# Enable textdump by default, this disables kernel core dumps.
+#
+options		TEXTDUMP_PREFERRED
+
+#
+# Enable extra debug messages while performing textdumps.
+#
+options		TEXTDUMP_VERBOSE
+
+#
 # NO_SYSCTL_DESCR omits the sysctl node descriptions to save space in the
 # resulting kernel.
 options		NO_SYSCTL_DESCR
@@ -897,12 +907,6 @@ device		lagg
 # IPDIVERT enables the divert IP sockets, used by ``ipfw divert''.  It
 # depends on IPFIREWALL if compiled into the kernel.
 #
-# IPFIREWALL_FORWARD enables changing of the packet destination either
-# to do some sort of policy routing or transparent proxying.  Used by
-# ``ipfw forward''. All  redirections apply to locally generated
-# packets too.  Because of this great care is required when
-# crafting the ruleset.
-#
 # IPFIREWALL_NAT adds support for in kernel nat in ipfw, and it requires
 # LIBALIAS.
 #
@@ -923,7 +927,6 @@ options 	IPFIREWALL		#firewall
 options 	IPFIREWALL_VERBOSE	#enable logging to syslogd(8)
 options 	IPFIREWALL_VERBOSE_LIMIT=100	#limit verbosity
 options 	IPFIREWALL_DEFAULT_TO_ACCEPT	#allow everything by default
-options 	IPFIREWALL_FORWARD	#packet destination changes
 options 	IPFIREWALL_NAT		#ipfw kernel nat support
 options 	IPDIVERT		#divert sockets
 options 	IPFILTER		#ipfilter support
@@ -964,12 +967,20 @@ options 	TCP_SIGNATURE		#include support for RFC 2385
 # a smooth scheduling of the traffic.
 options 	DUMMYNET
 
-# Zero copy sockets support.  This enables "zero copy" for sending and
-# receiving data via a socket.  The send side works for any type of NIC,
-# the receive side only works for NICs that support MTUs greater than the
-# page size of your architecture and that support header splitting.  See
-# zero_copy(9) for more details.
-options 	ZERO_COPY_SOCKETS
+# "Zero copy" sockets support is split into the send and receive path
+# which operate very differently.
+# For the send path the VM page with the data is wired into the kernel
+# and marked as COW (copy-on-write).  If the application touches the
+# data while it is still in the send socket buffer the page is copied
+# and divorced from its kernel wiring (no longer zero copy).
+# The receive side requires explicit NIC driver support to create
+# disposable pages which are flipped from kernel to user-space VM.
+# See zero_copy(9) for more details.
+# XXX: The COW based send mechanism is not safe and may result in
+# kernel crashes.
+# XXX: None of the current NIC drivers support disposeable pages.
+options		SOCKET_SEND_COW
+options		SOCKET_RECV_PFLIP
 
 #####################################################################
 # FILESYSTEM OPTIONS
@@ -996,8 +1007,8 @@ options 	FUSE			#FUSE support module
 options 	MSDOSFS			#MS DOS File System (FAT, FAT32)
 options 	NFSSERVER		#Network File System server
 options 	NFSLOCKD		#Network Lock Manager
-options 	NFSCL			#experimental NFS client with NFSv4
-options 	NFSD			#experimental NFS server with NFSv4
+options 	NFSCL			#New Network Filesystem Client
+options 	NFSD			#New Network Filesystem Server
 options 	KGSSAPI			#Kernel GSSAPI implementation
 
 options 	NULLFS			#NULL filesystem
@@ -2140,12 +2151,6 @@ device		ral		# Ralink Technology RT2500 wireless NICs.
 # only works for Tigon II chips, and has no effect for Tigon I chips.
 # This option requires the TI_SF_BUF_JUMBO option above.
 #options 	TI_JUMBO_HDRSPLIT
-
-#
-# Use header splitting feature on bce(4) adapters.
-# This may help to reduce the amount of jumbo-sized memory buffers used.
-#
-options		BCE_JUMBO_HDRSPLIT
 
 # These two options allow manipulating the mbuf cluster size and mbuf size,
 # respectively.  Be very careful with NIC driver modules when changing

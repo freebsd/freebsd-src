@@ -48,6 +48,7 @@ extern	u_int	amd_pminfo;
 extern	u_int	via_feature_rng;
 extern	u_int	via_feature_xcrypt;
 extern	u_int	cpu_clflush_line_size;
+extern	u_int	cpu_stdext_feature;
 extern	u_int	cpu_fxsr;
 extern	u_int	cpu_high;
 extern	u_int	cpu_id;

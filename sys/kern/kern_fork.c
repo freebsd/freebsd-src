@@ -591,7 +591,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	LIST_INIT(&p2->p_children);
 	LIST_INIT(&p2->p_orphans);
 
-	callout_init(&p2->p_itcallout, CALLOUT_MPSAFE);
+	callout_init_mtx(&p2->p_itcallout, &p2->p_mtx, 0);
 
 	/*
 	 * If PF_FORK is set, the child process inherits the

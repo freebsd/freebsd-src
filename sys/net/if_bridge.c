@@ -615,7 +615,7 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	 */
 	fb = 0;
 	getcredhostid(curthread->td_ucred, &hostid);
-	for (retry = 1; retry != 0;) {
+	do {
 		if (fb || hostid == 0) {
 			arc4rand(sc->sc_defaddr, ETHER_ADDR_LEN, 1);
 			sc->sc_defaddr[0] &= ~1;/* clear multicast bit */
@@ -635,11 +635,13 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		LIST_FOREACH(sc2, &bridge_list, sc_list) {
 			bifp = sc2->sc_ifp;
 			if (memcmp(sc->sc_defaddr,
-			    IF_LLADDR(bifp), ETHER_ADDR_LEN) == 0)
+			    IF_LLADDR(bifp), ETHER_ADDR_LEN) == 0) {
 				retry = 1;
+				break;
+			}
 		}
 		mtx_unlock(&bridge_list_mtx);
-	}
+	} while (retry == 1);
 
 	bstp_attach(&sc->sc_stp, &bridge_ops);
 	ether_ifattach(ifp, sc->sc_defaddr);
@@ -1946,7 +1948,7 @@ bridge_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *sa,
 				used = 1;
 				mc = m;
 			} else {
-				mc = m_copypacket(m, M_DONTWAIT);
+				mc = m_copypacket(m, M_NOWAIT);
 				if (mc == NULL) {
 					sc->sc_ifp->if_oerrors++;
 					continue;
@@ -1988,20 +1990,19 @@ static int
 bridge_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct bridge_softc *sc;
+	struct ether_header *eh;
+	struct ifnet *dst_if;
 	int error = 0;
 
 	sc = ifp->if_softc;
 
 	ETHER_BPF_MTAP(ifp, m);
 
+	eh = mtod(m, struct ether_header *);
 
 	BRIDGE_LOCK(sc);
-	if ((m->m_flags & (M_BCAST|M_MCAST)) == 0) {
-		struct ether_header *eh;
-		struct ifnet *dst_if;
-
-		eh = mtod(m, struct ether_header *);
-		dst_if = bridge_rtlookup(sc, eh->ether_dhost, 1);
+	if (((m->m_flags & (M_BCAST|M_MCAST)) == 0) &&
+	    (dst_if = bridge_rtlookup(sc, eh->ether_dhost, 1)) != NULL) {
 		BRIDGE_UNLOCK(sc);
 		error = bridge_enqueue(sc, dst_if, m);
 	} else
@@ -2236,7 +2237,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		 * for bridge processing; return the original packet for
 		 * local processing.
 		 */
-		mc = m_dup(m, M_DONTWAIT);
+		mc = m_dup(m, M_NOWAIT);
 		if (mc == NULL) {
 			BRIDGE_UNLOCK(sc);
 			return (m);
@@ -2253,7 +2254,7 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		 */
 		KASSERT(bifp->if_bridge == NULL,
 		    ("loop created in bridge_input"));
-		mc2 = m_dup(m, M_DONTWAIT);
+		mc2 = m_dup(m, M_NOWAIT);
 		if (mc2 != NULL) {
 			/* Keep the layer3 header aligned */
 			int i = min(mc2->m_pkthdr.len, max_protohdr);
@@ -2430,7 +2431,7 @@ bridge_broadcast(struct bridge_softc *sc, struct ifnet *src_if,
 			mc = m;
 			used = 1;
 		} else {
-			mc = m_dup(m, M_DONTWAIT);
+			mc = m_dup(m, M_NOWAIT);
 			if (mc == NULL) {
 				sc->sc_ifp->if_oerrors++;
 				continue;
@@ -2493,7 +2494,7 @@ bridge_span(struct bridge_softc *sc, struct mbuf *m)
 		if ((dst_if->if_drv_flags & IFF_DRV_RUNNING) == 0)
 			continue;
 
-		mc = m_copypacket(m, M_DONTWAIT);
+		mc = m_copypacket(m, M_NOWAIT);
 		if (mc == NULL) {
 			sc->sc_ifp->if_oerrors++;
 			continue;
@@ -3188,13 +3189,13 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 	 * Finally, put everything back the way it was and return
 	 */
 	if (snap) {
-		M_PREPEND(*mp, sizeof(struct llc), M_DONTWAIT);
+		M_PREPEND(*mp, sizeof(struct llc), M_NOWAIT);
 		if (*mp == NULL)
 			return (error);
 		bcopy(&llc1, mtod(*mp, caddr_t), sizeof(struct llc));
 	}
 
-	M_PREPEND(*mp, ETHER_HDR_LEN, M_DONTWAIT);
+	M_PREPEND(*mp, ETHER_HDR_LEN, M_NOWAIT);
 	if (*mp == NULL)
 		return (error);
 	bcopy(&eh2, mtod(*mp, caddr_t), ETHER_HDR_LEN);
@@ -3380,8 +3381,8 @@ bridge_fragment(struct ifnet *ifp, struct mbuf *m, struct ether_header *eh,
 		goto out;
 	ip = mtod(m, struct ip *);
 
-	error = ip_fragment(ip, &m, ifp->if_mtu, ifp->if_hwassist,
-		    CSUM_DELAY_IP);
+	m->m_pkthdr.csum_flags |= CSUM_IP;
+	error = ip_fragment(ip, &m, ifp->if_mtu, ifp->if_hwassist);
 	if (error)
 		goto out;
 
@@ -3389,7 +3390,7 @@ bridge_fragment(struct ifnet *ifp, struct mbuf *m, struct ether_header *eh,
 	for (m0 = m; m0; m0 = m0->m_nextpkt) {
 		if (error == 0) {
 			if (snap) {
-				M_PREPEND(m0, sizeof(struct llc), M_DONTWAIT);
+				M_PREPEND(m0, sizeof(struct llc), M_NOWAIT);
 				if (m0 == NULL) {
 					error = ENOBUFS;
 					continue;
@@ -3397,7 +3398,7 @@ bridge_fragment(struct ifnet *ifp, struct mbuf *m, struct ether_header *eh,
 				bcopy(llc, mtod(m0, caddr_t),
 				    sizeof(struct llc));
 			}
-			M_PREPEND(m0, ETHER_HDR_LEN, M_DONTWAIT);
+			M_PREPEND(m0, ETHER_HDR_LEN, M_NOWAIT);
 			if (m0 == NULL) {
 				error = ENOBUFS;
 				continue;

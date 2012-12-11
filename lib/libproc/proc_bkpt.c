@@ -47,6 +47,9 @@ __FBSDID("$FreeBSD$");
 #elif defined(__mips__)
 #define BREAKPOINT_INSTR	0xd	/* break */
 #define	BREAKPOINT_INSTR_SZ	4
+#elif defined(__powerpc__)
+#define BREAKPOINT_INSTR	0x7fe00008	/* trap */
+#define BREAKPOINT_INSTR_SZ 4
 #else
 #error "Add support for your architecture"
 #endif

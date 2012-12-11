@@ -1046,7 +1046,7 @@ g_raid_md_taste_promise(struct g_raid_md_object *md, struct g_class *mp,
 	struct promise_raid_conf *meta, *metaarr[4];
 	struct g_raid_md_promise_perdisk *pd;
 	struct g_geom *geom;
-	int error, i, j, result, len, subdisks;
+	int i, j, result, len, subdisks;
 	char name[16];
 	uint16_t vendor;
 
@@ -1142,14 +1142,7 @@ search:
 	disk->d_consumer = rcp;
 	rcp->private = disk;
 
-	/* Read kernel dumping information. */
-	disk->d_kd.offset = 0;
-	disk->d_kd.length = OFF_MAX;
-	len = sizeof(disk->d_kd);
-	error = g_io_getattr("GEOM::kerneldump", rcp, &len, &disk->d_kd);
-	if (disk->d_kd.di.dumper == NULL)
-		G_RAID_DEBUG1(2, sc, "Dumping not supported by %s: %d.", 
-		    rcp->provider->name, error);
+	g_raid_get_disk_info(disk);
 
 	g_raid_md_promise_new_disk(disk);
 
@@ -1337,15 +1330,7 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 				break;
 			}
 
-			/* Read kernel dumping information. */
-			disk->d_kd.offset = 0;
-			disk->d_kd.length = OFF_MAX;
-			len = sizeof(disk->d_kd);
-			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
-			if (disk->d_kd.di.dumper == NULL)
-				G_RAID_DEBUG1(2, sc,
-				    "Dumping not supported by %s.",
-				    cp->provider->name);
+			g_raid_get_disk_info(disk);
 
 			/* Reserve some space for metadata. */
 			size = MIN(size, pp->mediasize - 131072llu * pp->sectorsize);
@@ -1659,15 +1644,7 @@ g_raid_md_ctl_promise(struct g_raid_md_object *md,
 			disk->d_md_data = (void *)pd;
 			cp->private = disk;
 
-			/* Read kernel dumping information. */
-			disk->d_kd.offset = 0;
-			disk->d_kd.length = OFF_MAX;
-			len = sizeof(disk->d_kd);
-			g_io_getattr("GEOM::kerneldump", cp, &len, &disk->d_kd);
-			if (disk->d_kd.di.dumper == NULL)
-				G_RAID_DEBUG1(2, sc,
-				    "Dumping not supported by %s.",
-				    cp->provider->name);
+			g_raid_get_disk_info(disk);
 
 			/* Welcome the "new" disk. */
 			g_raid_change_disk_state(disk, G_RAID_DISK_S_SPARE);

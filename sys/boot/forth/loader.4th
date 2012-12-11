@@ -60,6 +60,12 @@ only forth also support-functions also builtins definitions
   else
     drop
   then
+  s" menusets-unset"
+  sfind if
+    execute
+  else
+    drop
+  then
 ;
 
 : boot

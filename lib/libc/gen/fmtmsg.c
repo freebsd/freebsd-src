@@ -83,7 +83,7 @@ def:
 		if (output == NULL)
 			return (MM_NOCON);
 		if (*output != '\0') {
-			if ((fp = fopen("/dev/console", "a")) == NULL) {
+			if ((fp = fopen("/dev/console", "ae")) == NULL) {
 				free(output);
 				return (MM_NOCON);
 			}

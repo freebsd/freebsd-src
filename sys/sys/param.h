@@ -58,7 +58,7 @@
  *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 1000021	/* Master, propagated to newvers */
+#define __FreeBSD_version 1000025	/* Master, propagated to newvers */
 
 /*
  * __FreeBSD_kernel__ indicates that this system uses the kernel of FreeBSD,
@@ -96,7 +96,7 @@
 
 #define	MAXCOMLEN	19		/* max command name remembered */
 #define	MAXINTERP	PATH_MAX	/* max interpreter file name length */
-#define	MAXLOGNAME	17		/* max login name length (incl. NUL) */
+#define	MAXLOGNAME	33		/* max login name length (incl. NUL) */
 #define	MAXUPRC		CHILD_MAX	/* max simultaneous processes */
 #define	NCARGS		ARG_MAX		/* max bytes for an exec function */
 #define	NGROUPS		(NGROUPS_MAX+1)	/* max number groups */

@@ -535,6 +535,18 @@ ffs_reallocblks_ufs1(ap)
 			panic("ffs_reallocblks: non-physical cluster %d", i);
 #endif
 	/*
+	 * If the cluster crosses the boundary for the first indirect
+	 * block, leave space for the indirect block. Indirect blocks
+	 * are initially laid out in a position after the last direct
+	 * block. Block reallocation would usually destroy locality by
+	 * moving the indirect block out of the way to make room for
+	 * data blocks if we didn't compensate here. We should also do
+	 * this for other indirect block boundaries, but it is only
+	 * important for the first one.
+	 */
+	if (start_lbn < NDADDR && end_lbn >= NDADDR)
+		return (ENOSPC);
+	/*
 	 * If the latest allocation is in a new cylinder group, assume that
 	 * the filesystem has decided to move and do not force it back to
 	 * the previous cylinder group.
@@ -744,6 +756,18 @@ ffs_reallocblks_ufs2(ap)
 			panic("ffs_reallocblks: non-physical cluster %d", i);
 #endif
 	/*
+	 * If the cluster crosses the boundary for the first indirect
+	 * block, do not move anything in it. Indirect blocks are
+	 * usually initially laid out in a position between the data
+	 * blocks. Block reallocation would usually destroy locality by
+	 * moving the indirect block out of the way to make room for
+	 * data blocks if we didn't compensate here. We should also do
+	 * this for other indirect block boundaries, but it is only
+	 * important for the first one.
+	 */
+	if (start_lbn < NDADDR && end_lbn >= NDADDR)
+		return (ENOSPC);
+	/*
 	 * If the latest allocation is in a new cylinder group, assume that
 	 * the filesystem has decided to move and do not force it back to
 	 * the previous cylinder group.
@@ -790,6 +814,15 @@ ffs_reallocblks_ufs2(ap)
 	 */
 	UFS_LOCK(ump);
 	pref = ffs_blkpref_ufs2(ip, start_lbn, soff, sbap);
+	/*
+	 * Skip a block for the first indirect block.  Indirect blocks are
+	 * usually initially laid out in a good position between the data
+	 * blocks, but block reallocation would usually destroy locality by
+	 * moving them out of the way to make room for data blocks if we
+	 * didn't compensate here.
+	 */
+	if (start_lbn == NDADDR)
+		pref += fs->fs_frag;
 	/*
 	 * Search the block map looking for an allocation of the desired size.
 	 */
@@ -1185,9 +1218,25 @@ ffs_blkpref_ufs1(ip, lbn, indx, bap)
 	struct fs *fs;
 	u_int cg;
 	u_int avgbfree, startcg;
+	ufs2_daddr_t pref;
 
 	mtx_assert(UFS_MTX(ip->i_ump), MA_OWNED);
 	fs = ip->i_fs;
+	/*
+	 * If we are allocating the first indirect block, try to place it
+	 * immediately following the last direct block.
+	 *
+	 * If we are allocating the first data block in the first indirect
+	 * block, try to place it immediately following the indirect block.
+	 */
+	if (lbn == NDADDR) {
+		pref = ip->i_din1->di_db[NDADDR - 1];
+		if (bap == NULL && pref != 0)
+			return (pref + fs->fs_frag);
+		pref = ip->i_din1->di_ib[0];
+		if (pref != 0)
+			return (pref + fs->fs_frag);
+	}
 	if (indx % fs->fs_maxbpg == 0 || bap[indx - 1] == 0) {
 		if (lbn < NDADDR + NINDIR(fs)) {
 			cg = ino_to_cg(fs, ip->i_number);
@@ -1235,9 +1284,25 @@ ffs_blkpref_ufs2(ip, lbn, indx, bap)
 	struct fs *fs;
 	u_int cg;
 	u_int avgbfree, startcg;
+	ufs2_daddr_t pref;
 
 	mtx_assert(UFS_MTX(ip->i_ump), MA_OWNED);
 	fs = ip->i_fs;
+	/*
+	 * If we are allocating the first indirect block, try to place it
+	 * immediately following the last direct block.
+	 *
+	 * If we are allocating the first data block in the first indirect
+	 * block, try to place it immediately following the indirect block.
+	 */
+	if (lbn == NDADDR) {
+		pref = ip->i_din1->di_db[NDADDR - 1];
+		if (bap == NULL && pref != 0)
+			return (pref + fs->fs_frag);
+		pref = ip->i_din1->di_ib[0];
+		if (pref != 0)
+			return (pref + fs->fs_frag);
+	}
 	if (indx % fs->fs_maxbpg == 0 || bap[indx - 1] == 0) {
 		if (lbn < NDADDR + NINDIR(fs)) {
 			cg = ino_to_cg(fs, ip->i_number);

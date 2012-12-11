@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
-#ifdef ZERO_COPY_SOCKETS
+#ifdef SOCKET_SEND_COW
 #include <vm/vm_object.h>
 #endif
 
@@ -66,7 +66,7 @@ SYSCTL_INT(_kern, KERN_IOV_MAX, iov_max, CTLFLAG_RD, NULL, UIO_MAXIOV,
 
 static int uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault);
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef SOCKET_SEND_COW
 /* Declared in uipc_socket.c */
 extern int so_zero_copy_receive;
 
@@ -135,7 +135,7 @@ retry:
 	vm_map_lookup_done(map, entry);
 	return(KERN_SUCCESS);
 }
-#endif /* ZERO_COPY_SOCKETS */
+#endif /* SOCKET_SEND_COW */
 
 int
 copyin_nofault(const void *udaddr, void *kaddr, size_t len)
@@ -268,7 +268,7 @@ uiomove_frombuf(void *buf, int buflen, struct uio *uio)
 	return (uiomove((char *)buf + offset, n, uio));
 }
 
-#ifdef ZERO_COPY_SOCKETS
+#ifdef SOCKET_RECV_PFLIP
 /*
  * Experimental support for zero-copy I/O
  */
@@ -363,7 +363,7 @@ uiomoveco(void *cp, int n, struct uio *uio, int disposable)
 	}
 	return (0);
 }
-#endif /* ZERO_COPY_SOCKETS */
+#endif /* SOCKET_RECV_PFLIP */
 
 /*
  * Give next character to user as result of read.
@@ -396,7 +396,6 @@ again:
 	case UIO_SYSSPACE:
 		iov_base = iov->iov_base;
 		*iov_base = c;
-		iov->iov_base = iov_base;
 		break;
 
 	case UIO_NOCOPY:

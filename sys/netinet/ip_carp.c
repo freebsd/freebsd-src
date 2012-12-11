@@ -783,9 +783,9 @@ carp_send_ad_locked(struct carp_softc *sc)
 		ip->ip_v = IPVERSION;
 		ip->ip_hl = sizeof(*ip) >> 2;
 		ip->ip_tos = IPTOS_LOWDELAY;
-		ip->ip_len = len;
+		ip->ip_len = htons(len);
 		ip->ip_id = ip_newid();
-		ip->ip_off = IP_DF;
+		ip->ip_off = htons(IP_DF);
 		ip->ip_ttl = CARP_DFLTTL;
 		ip->ip_p = IPPROTO_CARP;
 		ip->ip_sum = 0;

@@ -240,34 +240,13 @@ lock_prof_init(void *arg)
 }
 SYSINIT(lockprof, SI_SUB_SMP, SI_ORDER_ANY, lock_prof_init, NULL);
 
-/*
- * To be certain that lock profiling has idled on all cpus before we
- * reset, we schedule the resetting thread on all active cpus.  Since
- * all operations happen within critical sections we can be sure that
- * it is safe to zero the profiling structures.
- */
-static void
-lock_prof_idle(void)
-{
-	struct thread *td;
-	int cpu;
-
-	td = curthread;
-	thread_lock(td);
-	CPU_FOREACH(cpu) {
-		sched_bind(td, cpu);
-	}
-	sched_unbind(td);
-	thread_unlock(td);
-}
-
 static void
 lock_prof_reset_wait(void)
 {
 
 	/*
-	 * Spin relinquishing our cpu so that lock_prof_idle may
-	 * run on it.
+	 * Spin relinquishing our cpu so that quiesce_all_cpus may
+	 * complete.
 	 */
 	while (lock_prof_resetting)
 		sched_relinquish(curthread);
@@ -289,7 +268,7 @@ lock_prof_reset(void)
 	atomic_store_rel_int(&lock_prof_resetting, 1);
 	enabled = lock_prof_enable;
 	lock_prof_enable = 0;
-	lock_prof_idle();
+	quiesce_all_cpus("profreset", 0);
 	/*
 	 * Some objects may have migrated between CPUs.  Clear all links
 	 * before we zero the structures.  Some items may still be linked
@@ -401,7 +380,7 @@ dump_lock_prof_stats(SYSCTL_HANDLER_ARGS)
 	    "max", "wait_max", "total", "wait_total", "count", "avg", "wait_avg", "cnt_hold", "cnt_lock", "name");
 	enabled = lock_prof_enable;
 	lock_prof_enable = 0;
-	lock_prof_idle();
+	quiesce_all_cpus("profstat", 0);
 	t = ticks;
 	for (cpu = 0; cpu <= mp_maxid; cpu++) {
 		if (lp_cpu[cpu] == NULL)

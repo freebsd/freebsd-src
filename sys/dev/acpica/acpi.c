@@ -1479,7 +1479,7 @@ static int
 acpi_isa_get_compatid(device_t dev, uint32_t *cids, int count)
 {
     ACPI_DEVICE_INFO	*devinfo;
-    ACPI_DEVICE_ID	*ids;
+    ACPI_PNP_DEVICE_ID	*ids;
     ACPI_HANDLE		h;
     uint32_t		*pnpid;
     int			i, valid;

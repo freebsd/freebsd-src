@@ -753,6 +753,13 @@ v448  6/15/12   Print name of regex library in version message.
 v449  6/23/12   Allow config option --with-regex=none.
 v450  7/4/12    Fix EOF bug with ESC-F.
 v451  7/20/12   Fix typo.
+-----------------------------------------------------------------
+v452 10/19/12   Fix --with-regex=none, fix "stty 0", fix Win32.
+                Don't quit if errors in cmd line options.
+v453 10/27/12   Increase buffer sizes.
+v454 11/5/12    Fix typo.
+v455 11/5/12    Fix typo.
+v456 11/8/12    Fix option string incompatibility.
 */
 
-char version[] = "451";
+char version[] = "456";

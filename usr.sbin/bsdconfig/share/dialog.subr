@@ -72,8 +72,7 @@ unset XDIALOG_FORCE_AUTOSIZE
 unset XDIALOG_INFOBOX_TIMEOUT
 
 #
-# Default behavior is to call f_dialog_init() automatically if not already
-# called manually by the time the first f_dialog_*() function is used.
+# Default behavior is to call f_dialog_init() automatically when loaded.
 #
 : ${DIALOG_SELF_INITIALIZE=1}
 
@@ -93,7 +92,7 @@ f_dialog_title()
 {
 	local new_title="$1"
 
-	if [ "$new_title" ]; then
+	if [ "${1+set}" ]; then
 		if [ "$USE_XDIALOG" ]; then
 			_DIALOG_BACKTITLE="$DIALOG_BACKTITLE"
 			DIALOG_BACKTITLE="$new_title"
@@ -134,7 +133,7 @@ f_dialog_backtitle()
 {
 	local new_backtitle="$1"
 
-	if [ "$new_backtitle" ]; then
+	if [ "${1+set}" ]; then
 		if [ "$USE_XDIALOG" ]; then
 			_DIALOG_TITLE="$DIALOG_TITLE"
 			DIALOG_TITLE="$new_backtitle"
@@ -185,8 +184,6 @@ f_dialog_backtitle_restore()
 #
 f_dialog_infobox_size()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local title="$1" btitle="$2" prompt="$3" hline="$4" n=0
 	local min_width max_size
 
@@ -272,7 +269,7 @@ f_dialog_infobox_size()
 	#
 	# Set height based on number of rows in prompt
 	#
-	height=$( echo "$prompt" | f_number_of_lines )
+	height=$( echo -n "$prompt" | f_number_of_lines )
 	height=$(( $height + 2 ))
 
 	#
@@ -283,7 +280,7 @@ f_dialog_infobox_size()
 		n=$( echo "$btitle" | f_number_of_lines )
 		height=$(( $height + $n + 2 ))
 	fi
-	
+
 	# Make sure height is less than maximum screen size
 	[ $height -le $max_height ] || height=$max_height
 
@@ -308,8 +305,6 @@ f_dialog_infobox_size()
 #
 f_dialog_buttonbox_size()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local title="$1" btitle="$2" prompt="$3" hline="$4"
 	local size="$( f_dialog_infobox_size \
 	               		"$title" "$btitle" "$prompt" "$hline" )"
@@ -355,8 +350,6 @@ f_dialog_buttonbox_size()
 #
 f_dialog_inputbox_size()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local title="$1" btitle="$2" prompt="$3" init="$4" hline="$5" n
 	local size="$( f_dialog_buttonbox_size \
 	               		"$title" "$btitle" "$prompt" "$hline" )"
@@ -422,8 +415,6 @@ f_dialog_inputbox_size()
 #
 f_xdialog_2inputsbox_size()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local title="$1" btitle="$2" prompt="$3"
 	local label1="$4" init1="$5" label2="$6" init2="$7" n
 	local size="$( f_dialog_inputbox_size \
@@ -519,8 +510,6 @@ f_xdialog_2inputsbox_size()
 #
 f_dialog_menu_size()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local title="$1" btitle="$2" prompt="$3" hline="$4" n=0
 	local min_width min_rows max_size
 
@@ -603,8 +592,6 @@ f_dialog_menu_size()
 #
 f_dialog_menu_with_help_size()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local title="$1" btitle="$2" prompt="$3" hline="$4" n=0
 	local min_width min_rows max_size
 
@@ -704,8 +691,6 @@ f_dialog_menu_with_help_size()
 #
 f_dialog_radiolist_size()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local title="$1" btitle="$2" prompt="$3" hline="$4" n=0
 	local min_width min_rows max_size
 
@@ -788,8 +773,6 @@ f_dialog_radiolist_size()
 #
 f_dialog_calendar_size()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local title="$1" btitle="$2" prompt="$3" hline="$4" n
 	local size="$( f_dialog_infobox_size \
 	               		"$title" "$btitle" "$prompt" "$hline" )"
@@ -869,8 +852,6 @@ f_dialog_calendar_size()
 #
 f_dialog_timebox_size()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local title="$1" btitle="$2" prompt="$3" hline="$4" n
 	local size="$( f_dialog_infobox_size \
 	               		"$title" "$btitle" "$prompt" "$hline" )"
@@ -934,8 +915,6 @@ f_dialog_timebox_size()
 #
 f_dialog_clear()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	$DIALOG --clear
 }
 
@@ -948,8 +927,6 @@ f_dialog_clear()
 #
 f_dialog_info()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local info_text="$*"
 	local size="$( f_dialog_infobox_size \
 	               		"$DIALOG_TITLE"     \
@@ -972,8 +949,6 @@ f_dialog_info()
 #
 f_xdialog_info()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local info_text="$*"
 	local size="$( f_dialog_infobox_size \
 	               		"$DIALOG_TITLE"     \
@@ -1000,8 +975,6 @@ f_xdialog_info()
 #
 f_dialog_msgbox()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local msg_text="$*"
 	local size="$( f_dialog_buttonbox_size \
 	               		"$DIALOG_TITLE"     \
@@ -1013,6 +986,46 @@ f_dialog_msgbox()
 		--backtitle \"\$DIALOG_BACKTITLE\" \
 		--ok-label \"\$msg_ok\"            \
 		--msgbox \"\$msg_text\" $size
+}
+
+############################################################ TEXTBOX FUNCTIONS
+
+# f_dialog_textbox $file
+#
+# Display the contents of $file (or an error if $file does not exist, etc.) in
+# a dialog(1) textbox (which has a scrollable region for the text). The textbox
+# remains until the user presses ENTER or ESC, acknowledging the modal dialog.
+#
+# If the user presses ENTER, the exit status is zero (success), otherwise if
+# the user presses ESC the exit status is 255.
+#
+f_dialog_textbox()
+{
+	local file="$1"
+	local contents retval size
+
+	contents=$( cat "$file" 2>&1 )
+	retval=$?
+
+	size=$( f_dialog_buttonbox_size \
+	        	"$DIALOG_TITLE"     \
+	        	"$DIALOG_BACKTITLE" \
+	        	"$contents"         )
+
+	if [ $retval -eq $SUCCESS ]; then
+		eval $DIALOG \
+			--title \"\$DIALOG_TITLE\"         \
+			--backtitle \"\$DIALOG_BACKTITLE\" \
+			--exit-label \"\$msg_ok\"          \
+			--no-cancel                        \
+			--textbox \"\$file\" $size
+	else
+		eval $DIALOG \
+			--title \"\$DIALOG_TITLE\"         \
+			--backtitle \"\$DIALOG_BACKTITLE\" \
+			--ok-label \"\$msg_ok\"            \
+			--msgbox \"\$contents\" $size
+	fi
 }
 
 ############################################################ YESNO FUNCTIONS
@@ -1028,8 +1041,6 @@ f_dialog_msgbox()
 #
 f_dialog_yesno()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local msg_text="$*"
 	local hline="$hline_arrows_tab_enter"
 	local size="$( f_dialog_buttonbox_size \
@@ -1070,8 +1081,6 @@ f_dialog_yesno()
 #
 f_dialog_noyes()
 {
-	[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
-
 	local msg_text="$*"
 	local hline="$hline_arrows_tab_enter"
 	local size="$( f_dialog_buttonbox_size \
@@ -1419,5 +1428,9 @@ f_dialog_init()
 		unset _DIALOG_TITLE
 	fi
 }
+
+############################################################ MAIN
+
+[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
 
 fi # ! $_DIALOG_SUBR

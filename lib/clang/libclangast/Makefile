@@ -63,6 +63,9 @@ SRCS=	APValue.cpp \
 TGHDRS=	AttrImpl \
 	AttrList \
 	Attrs \
+	CommentCommandInfo \
+	CommentHTMLTags \
+	CommentHTMLTagsProperties \
 	CommentNodes \
 	DeclNodes \
 	DiagnosticASTKinds \

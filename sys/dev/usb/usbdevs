@@ -366,7 +366,7 @@ vendor EICON		0x0734	Eicon Networks
 vendor SYNTECH		0x0745	Syntech Information
 vendor DIGITALSTREAM	0x074e	Digital Stream
 vendor AUREAL		0x0755	Aureal Semiconductor
-vendor MIDIMAN		0x0763	Midiman
+vendor MAUDIO		0x0763	M-Audio
 vendor CYBERPOWER	0x0764	Cyber Power Systems, Inc.
 vendor SURECOM		0x0769	Surecom Technology
 vendor HIDGLOBAL	0x076b	HID Global
@@ -721,6 +721,7 @@ vendor RTSYSTEMS	0x2100	RTSYSTEMS
 vendor VIALABS		0x2109	VIA Labs
 vendor ERICSSON		0x2282	Ericsson
 vendor MOTOROLA2	0x22b8	Motorola
+vendor WETELECOM	0x22de	WeTelecom
 vendor TRIPPLITE	0x2478	Tripp-Lite
 vendor HIROSE		0x2631	Hirose Electric
 vendor NHJ		0x2770	NHJ
@@ -943,6 +944,7 @@ product AIRPLUS MCD650		0x3198	MCD650 modem
 /* AirPrime products */
 product AIRPRIME PC5220		0x0112	CDMA Wireless PC Card
 product AIRPRIME USB308		0x68A3	USB308 HSPA+ USB Modem
+product AIRPRIME AC313U		0x68aa	Sierra Wireless AirCard 313U
 
 /* AirTies products */
 product AIRTIES RT3070		0x2310	RT3070
@@ -1545,6 +1547,7 @@ product EDIMAX EW7318USG	0x7318	USB Wireless dongle
 product EDIMAX RT2870_1		0x7711	RT2870
 product EDIMAX EW7717		0x7717	EW-7717
 product EDIMAX EW7718		0x7718	EW-7718
+product EDIMAX EW7811UN		0x7811	EW-7811Un
 
 /* eGalax Products */
 product EGALAX TPANEL		0x0001	Touch Panel
@@ -2188,12 +2191,16 @@ product HUAWEI E143D		0x143d	3G modem
 product HUAWEI E143E		0x143e	3G modem
 product HUAWEI E143F		0x143f	3G modem
 product HUAWEI E1752		0x1446	3G modem
+product HUAWEI K4505		0x1464	3G modem
 product HUAWEI K3765		0x1465	3G modem
 product HUAWEI E1820		0x14ac	E1820 HSPA+ USB Slider
+product HUAWEI K3770		0x14c9  3G modem
+product HUAWEI K3770_INIT	0x14d1  K3770 Initial
 product HUAWEI E3131_INIT	0x14fe	3G modem initial
 product HUAWEI E392		0x1505	LTE modem
 product HUAWEI E3131		0x1506	3G modem
 product HUAWEI K3765_INIT	0x1520	K3765 Initial
+product HUAWEI K4505_INIT	0x1521	K4505 Initial
 product HUAWEI ETS2055		0x1803	CDMA modem
 product HUAWEI E173		0x1c05	3G modem
 product HUAWEI E173_INIT	0x1c0b	3G modem initial
@@ -2887,7 +2894,9 @@ product MICROTEK V6UL		0x80ac	ScanMaker V6UL
 product MICROTUNE BT_DONGLE	0x1000	Bluetooth USB dongle
 
 /* Midiman products */
-product MIDIMAN MIDISPORT2X2	0x1001	Midisport 2x2
+product MAUDIO MIDISPORT2X2	0x1001	Midisport 2x2
+product MAUDIO FASTTRACKULTRA	0x2080	Fast Track Ultra
+product MAUDIO FASTTRACKULTRA8R	0x2081	Fast Track Ultra 8R
 
 /* MindsAtWork products */
 product MINDSATWORK WALLET	0x0001	Digital Wallet
@@ -3947,6 +3956,7 @@ product STELERA E1012		0x1012	3G modem
 /* STMicroelectronics products */
 product STMICRO BIOCPU		0x2016	Biometric Coprocessor
 product STMICRO COMMUNICATOR	0x7554	USB Communicator
+product STMICRO ST72682		0xfada  USB 2.0 Flash drive controller
 
 /* STSN products */
 product STSN STSN0001		0x0001	Internet Access Device
@@ -4184,6 +4194,9 @@ product WESTERN EXTHDD		0x0400	External HDD
 product WESTERN HUB		0x0500	USB HUB
 product WESTERN MYBOOK		0x0901	MyBook External HDD
 product WESTERN MYPASSWORD	0x0704	MyPassword External HDD
+
+/* WeTelecom products */
+product WETELECOM WM_D200	0x6801	WM-D200
 
 /* WIENER Plein & Baus GmbH products */
 product WIENERPLEINBAUS PL512	0x0010	PL512 PSU

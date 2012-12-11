@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include "lp.h"
 #include "pathnames.h"
 
-extern uid_t	uid, euid;
-
 /*
  * Tell the printer daemon that there are new files in the spool directory.
  */

@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslrestype2e - Large Extended address resource descriptors

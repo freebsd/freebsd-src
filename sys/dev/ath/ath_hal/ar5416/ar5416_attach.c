@@ -47,8 +47,8 @@ ar5416AniSetup(struct ath_hal *ah)
 		.coarseHigh		= { -14, -14, -14, -14, -12 },
 		.coarseLow		= { -64, -64, -64, -64, -70 },
 		.firpwr			= { -78, -78, -78, -78, -80 },
-		.maxSpurImmunityLevel	= 2,
-		.cycPwrThr1		= { 2, 4, 6 },
+		.maxSpurImmunityLevel	= 7,
+		.cycPwrThr1		= { 2, 4, 6, 8, 10, 12, 14, 16 },
 		.maxFirstepLevel	= 2,	/* levels 0..2 */
 		.firstep		= { 0, 4, 8 },
 		.ofdmTrigHigh		= 500,
@@ -142,6 +142,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_gpioSet			= ar5416GpioSet;
 	ah->ah_gpioSetIntr		= ar5416GpioSetIntr;
 	ah->ah_getTsf64			= ar5416GetTsf64;
+	ah->ah_setTsf64			= ar5416SetTsf64;
 	ah->ah_resetTsf			= ar5416ResetTsf;
 	ah->ah_getRfGain		= ar5416GetRfgain;
 	ah->ah_setAntennaSwitch		= ar5416SetAntennaSwitch;
@@ -189,6 +190,17 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_isInterruptPending	= ar5416IsInterruptPending;
 	ah->ah_getPendingInterrupts	= ar5416GetPendingInterrupts;
 	ah->ah_setInterrupts		= ar5416SetInterrupts;
+
+	/* Bluetooth Coexistence functions */
+	ah->ah_btCoexSetInfo		= ar5416SetBTCoexInfo;
+	ah->ah_btCoexSetConfig		= ar5416BTCoexConfig;
+	ah->ah_btCoexSetQcuThresh	= ar5416BTCoexSetQcuThresh;
+	ah->ah_btCoexSetWeights		= ar5416BTCoexSetWeights;
+	ah->ah_btCoexSetBmissThresh	= ar5416BTCoexSetupBmissThresh;
+	ah->ah_btcoexSetParameter	= ar5416BTCoexSetParameter;
+	ah->ah_btCoexDisable		= ar5416BTCoexDisable;
+	ah->ah_btCoexEnable		= ar5416BTCoexEnable;
+	AH5416(ah)->ah_btCoexSetDiversity = ar5416BTCoexAntennaDiversity;
 
 	ahp->ah_priv.ah_getWirelessModes= ar5416GetWirelessModes;
 	ahp->ah_priv.ah_eepromRead	= ar5416EepromRead;

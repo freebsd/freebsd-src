@@ -21,7 +21,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "LegalizeTypes.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
@@ -749,7 +749,7 @@ void DAGTypeLegalizer::SplitVecRes_INSERT_VECTOR_ELT(SDNode *N, SDValue &Lo,
   SDValue EltPtr = GetVectorElementPointer(StackPtr, EltVT, Idx);
   Type *VecType = VecVT.getTypeForEVT(*DAG.getContext());
   unsigned Alignment =
-    TLI.getTargetData()->getPrefTypeAlignment(VecType);
+    TLI.getDataLayout()->getPrefTypeAlignment(VecType);
   Store = DAG.getTruncStore(Store, dl, Elt, EltPtr, MachinePointerInfo(), EltVT,
                             false, false, 0);
 
@@ -1366,11 +1366,24 @@ void DAGTypeLegalizer::WidenVectorResult(SDNode *N, unsigned ResNo) {
   case ISD::FTRUNC:
     Res = WidenVecRes_Unary(N);
     break;
+  case ISD::FMA:
+    Res = WidenVecRes_Ternary(N);
+    break;
   }
 
   // If Res is null, the sub-method took care of registering the result.
   if (Res.getNode())
     SetWidenedVector(SDValue(N, ResNo), Res);
+}
+
+SDValue DAGTypeLegalizer::WidenVecRes_Ternary(SDNode *N) {
+  // Ternary op widening.
+  DebugLoc dl = N->getDebugLoc();
+  EVT WidenVT = TLI.getTypeToTransformTo(*DAG.getContext(), N->getValueType(0));
+  SDValue InOp1 = GetWidenedVector(N->getOperand(0));
+  SDValue InOp2 = GetWidenedVector(N->getOperand(1));
+  SDValue InOp3 = GetWidenedVector(N->getOperand(2));
+  return DAG.getNode(N->getOpcode(), dl, WidenVT, InOp1, InOp2, InOp3);
 }
 
 SDValue DAGTypeLegalizer::WidenVecRes_Binary(SDNode *N) {
@@ -2069,16 +2082,20 @@ SDValue DAGTypeLegalizer::WidenVecRes_VSETCC(SDNode *N) {
 //===----------------------------------------------------------------------===//
 // Widen Vector Operand
 //===----------------------------------------------------------------------===//
-bool DAGTypeLegalizer::WidenVectorOperand(SDNode *N, unsigned ResNo) {
-  DEBUG(dbgs() << "Widen node operand " << ResNo << ": ";
+bool DAGTypeLegalizer::WidenVectorOperand(SDNode *N, unsigned OpNo) {
+  DEBUG(dbgs() << "Widen node operand " << OpNo << ": ";
         N->dump(&DAG);
         dbgs() << "\n");
   SDValue Res = SDValue();
 
+  // See if the target wants to custom widen this node.
+  if (CustomLowerNode(N, N->getOperand(OpNo).getValueType(), false))
+    return false;
+
   switch (N->getOpcode()) {
   default:
 #ifndef NDEBUG
-    dbgs() << "WidenVectorOperand op #" << ResNo << ": ";
+    dbgs() << "WidenVectorOperand op #" << OpNo << ": ";
     N->dump(&DAG);
     dbgs() << "\n";
 #endif

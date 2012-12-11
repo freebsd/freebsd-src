@@ -1,4 +1,3 @@
-
 /******************************************************************************
  *
  * Module Name: aslrestype2w - Large Word address resource descriptors

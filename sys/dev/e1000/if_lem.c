@@ -390,11 +390,6 @@ lem_attach(device_t dev)
 
 	INIT_DEBUGOUT("lem_attach: begin");
 
-	if (resource_disabled("lem", device_get_unit(dev))) {
-		device_printf(dev, "Disabled by device hint\n");
-		return (ENXIO);
-	}
-
 	adapter = device_get_softc(dev);
 	adapter->dev = adapter->osdep.dev = dev;
 	EM_CORE_LOCK_INIT(adapter, device_get_nameunit(dev));
@@ -1571,7 +1566,7 @@ lem_xmit(struct adapter *adapter, struct mbuf **m_headp)
 	if (error == EFBIG) {
 		struct mbuf *m;
 
-		m = m_defrag(*m_headp, M_DONTWAIT);
+		m = m_defrag(*m_headp, M_NOWAIT);
 		if (m == NULL) {
 			adapter->mbuf_alloc_failed++;
 			m_freem(*m_headp);
@@ -3080,7 +3075,7 @@ lem_get_buf(struct adapter *adapter, int i)
 	struct em_buffer	*rx_buffer;
 	int			error, nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		adapter->mbuf_cluster_failed++;
 		return (ENOBUFS);
@@ -3638,7 +3633,7 @@ lem_fixup_rx(struct adapter *adapter)
 		bcopy(m->m_data, m->m_data + ETHER_HDR_LEN, m->m_len);
 		m->m_data += ETHER_HDR_LEN;
 	} else {
-		MGETHDR(n, M_DONTWAIT, MT_DATA);
+		MGETHDR(n, M_NOWAIT, MT_DATA);
 		if (n != NULL) {
 			bcopy(m->m_data, n->m_data, ETHER_HDR_LEN);
 			m->m_data += ETHER_HDR_LEN;

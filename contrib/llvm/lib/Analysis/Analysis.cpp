@@ -26,11 +26,13 @@ void llvm::initializeAnalysis(PassRegistry &Registry) {
   initializeBasicAliasAnalysisPass(Registry);
   initializeBlockFrequencyInfoPass(Registry);
   initializeBranchProbabilityInfoPass(Registry);
+  initializeCostModelAnalysisPass(Registry);
   initializeCFGViewerPass(Registry);
   initializeCFGPrinterPass(Registry);
   initializeCFGOnlyViewerPass(Registry);
   initializeCFGOnlyPrinterPass(Registry);
   initializePrintDbgInfoPass(Registry);
+  initializeDependenceAnalysisPass(Registry);
   initializeDominanceFrontierPass(Registry);
   initializeDomViewerPass(Registry);
   initializeDomPrinterPass(Registry);
@@ -46,7 +48,6 @@ void llvm::initializeAnalysis(PassRegistry &Registry) {
   initializeLazyValueInfoPass(Registry);
   initializeLibCallAliasAnalysisPass(Registry);
   initializeLintPass(Registry);
-  initializeLoopDependenceAnalysisPass(Registry);
   initializeLoopInfoPass(Registry);
   initializeMemDepPrinterPass(Registry);
   initializeMemoryDependenceAnalysisPass(Registry);
@@ -61,6 +62,7 @@ void llvm::initializeAnalysis(PassRegistry &Registry) {
   initializePathProfileLoaderPassPass(Registry);
   initializeProfileVerifierPassPass(Registry);
   initializePathProfileVerifierPass(Registry);
+  initializeProfileMetadataLoaderPassPass(Registry);
   initializeRegionInfoPass(Registry);
   initializeRegionViewerPass(Registry);
   initializeRegionPrinterPass(Registry);

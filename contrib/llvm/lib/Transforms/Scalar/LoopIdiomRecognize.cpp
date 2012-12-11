@@ -54,7 +54,7 @@
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetLibraryInfo.h"
 #include "llvm/Transforms/Utils/Local.h"
 using namespace llvm;
@@ -65,7 +65,7 @@ STATISTIC(NumMemCpy, "Number of memcpy's formed from loop load+stores");
 namespace {
   class LoopIdiomRecognize : public LoopPass {
     Loop *CurLoop;
-    const TargetData *TD;
+    const DataLayout *TD;
     DominatorTree *DT;
     ScalarEvolution *SE;
     TargetLibraryInfo *TLI;
@@ -132,7 +132,8 @@ Pass *llvm::createLoopIdiomPass() { return new LoopIdiomRecognize(); }
 /// and zero out all the operands of this instruction.  If any of them become
 /// dead, delete them and the computation tree that feeds them.
 ///
-static void deleteDeadInstruction(Instruction *I, ScalarEvolution &SE) {
+static void deleteDeadInstruction(Instruction *I, ScalarEvolution &SE,
+                                  const TargetLibraryInfo *TLI) {
   SmallVector<Instruction*, 32> NowDeadInsts;
 
   NowDeadInsts.push_back(I);
@@ -153,7 +154,7 @@ static void deleteDeadInstruction(Instruction *I, ScalarEvolution &SE) {
       if (!Op->use_empty()) continue;
 
       if (Instruction *OpI = dyn_cast<Instruction>(Op))
-        if (isInstructionTriviallyDead(OpI))
+        if (isInstructionTriviallyDead(OpI, TLI))
           NowDeadInsts.push_back(OpI);
     }
 
@@ -164,14 +165,20 @@ static void deleteDeadInstruction(Instruction *I, ScalarEvolution &SE) {
 
 /// deleteIfDeadInstruction - If the specified value is a dead instruction,
 /// delete it and any recursively used instructions.
-static void deleteIfDeadInstruction(Value *V, ScalarEvolution &SE) {
+static void deleteIfDeadInstruction(Value *V, ScalarEvolution &SE,
+                                    const TargetLibraryInfo *TLI) {
   if (Instruction *I = dyn_cast<Instruction>(V))
-    if (isInstructionTriviallyDead(I))
-      deleteDeadInstruction(I, SE);
+    if (isInstructionTriviallyDead(I, TLI))
+      deleteDeadInstruction(I, SE, TLI);
 }
 
 bool LoopIdiomRecognize::runOnLoop(Loop *L, LPPassManager &LPM) {
   CurLoop = L;
+
+  // If the loop could not be converted to canonical form, it must have an
+  // indirectbr in it, just give up.
+  if (!L->getLoopPreheader())
+    return false;
 
   // Disable loop idiom recognition if the function's name is a common idiom.
   StringRef Name = L->getHeader()->getParent()->getName();
@@ -192,7 +199,7 @@ bool LoopIdiomRecognize::runOnLoop(Loop *L, LPPassManager &LPM) {
       return false;
 
   // We require target data for now.
-  TD = getAnalysisIfAvailable<TargetData>();
+  TD = getAnalysisIfAvailable<DataLayout>();
   if (TD == 0) return false;
 
   DT = &getAnalysis<DominatorTree>();
@@ -401,7 +408,7 @@ static bool mayLoopAccessLocation(Value *Ptr,AliasAnalysis::ModRefResult Access,
 ///
 /// Note that we don't ever attempt to use memset_pattern8 or 4, because these
 /// just replicate their input array and then pass on to memset_pattern16.
-static Constant *getMemSetPatternValue(Value *V, const TargetData &TD) {
+static Constant *getMemSetPatternValue(Value *V, const DataLayout &TD) {
   // If the value isn't a constant, we can't promote it to being in a constant
   // array.  We could theoretically do a store to an alloca or something, but
   // that doesn't seem worthwhile.
@@ -490,7 +497,7 @@ processLoopStridedStore(Value *DestPtr, unsigned StoreSize,
                             StoreSize, getAnalysis<AliasAnalysis>(), TheStore)){
     Expander.clear();
     // If we generated new code for the base pointer, clean up.
-    deleteIfDeadInstruction(BasePtr, *SE);
+    deleteIfDeadInstruction(BasePtr, *SE, TLI);
     return false;
   }
 
@@ -538,7 +545,7 @@ processLoopStridedStore(Value *DestPtr, unsigned StoreSize,
 
   // Okay, the memset has been formed.  Zap the original store and anything that
   // feeds into it.
-  deleteDeadInstruction(TheStore, *SE);
+  deleteDeadInstruction(TheStore, *SE, TLI);
   ++NumMemSet;
   return true;
 }
@@ -579,7 +586,7 @@ processLoopStoreOfLoopLoad(StoreInst *SI, unsigned StoreSize,
                             getAnalysis<AliasAnalysis>(), SI)) {
     Expander.clear();
     // If we generated new code for the base pointer, clean up.
-    deleteIfDeadInstruction(StoreBasePtr, *SE);
+    deleteIfDeadInstruction(StoreBasePtr, *SE, TLI);
     return false;
   }
 
@@ -594,8 +601,8 @@ processLoopStoreOfLoopLoad(StoreInst *SI, unsigned StoreSize,
                             StoreSize, getAnalysis<AliasAnalysis>(), SI)) {
     Expander.clear();
     // If we generated new code for the base pointer, clean up.
-    deleteIfDeadInstruction(LoadBasePtr, *SE);
-    deleteIfDeadInstruction(StoreBasePtr, *SE);
+    deleteIfDeadInstruction(LoadBasePtr, *SE, TLI);
+    deleteIfDeadInstruction(StoreBasePtr, *SE, TLI);
     return false;
   }
 
@@ -628,7 +635,7 @@ processLoopStoreOfLoopLoad(StoreInst *SI, unsigned StoreSize,
 
   // Okay, the memset has been formed.  Zap the original store and anything that
   // feeds into it.
-  deleteDeadInstruction(SI, *SE);
+  deleteDeadInstruction(SI, *SE, TLI);
   ++NumMemCpy;
   return true;
 }

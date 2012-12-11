@@ -135,6 +135,8 @@ restart:
 			ndp->ni_cnd.cn_flags |= FOLLOW;
 		if (!(vn_open_flags & VN_OPEN_NOAUDIT))
 			ndp->ni_cnd.cn_flags |= AUDITVNODE1;
+		if (vn_open_flags & VN_OPEN_NOCAPCHECK)
+			ndp->ni_cnd.cn_flags |= NOCAPCHECK;
 		bwillwrite();
 		if ((error = namei(ndp)) != 0)
 			return (error);
@@ -188,6 +190,8 @@ restart:
 			ndp->ni_cnd.cn_flags |= LOCKSHARED;
 		if (!(vn_open_flags & VN_OPEN_NOAUDIT))
 			ndp->ni_cnd.cn_flags |= AUDITVNODE1;
+		if (vn_open_flags & VN_OPEN_NOCAPCHECK)
+			ndp->ni_cnd.cn_flags |= NOCAPCHECK;
 		if ((error = namei(ndp)) != 0)
 			return (error);
 		vp = ndp->ni_vp;
@@ -302,7 +306,7 @@ vn_open_vnode(struct vnode *vp, int fmode, struct ucred *cred,
 		fp->f_flag |= FHASLOCK;
 	}
 	if (fmode & FWRITE) {
-		vp->v_writecount++;
+		VOP_ADD_WRITECOUNT(vp, 1);
 		CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d",
 		    __func__, vp, vp->v_writecount);
 	}
@@ -355,7 +359,7 @@ vn_close(vp, flags, file_cred, td)
 	if (flags & FWRITE) {
 		VNASSERT(vp->v_writecount > 0, vp, 
 		    ("vn_close: negative writecount"));
-		vp->v_writecount--;
+		VOP_ADD_WRITECOUNT(vp, -1);
 		CTR3(KTR_VFS, "%s: vp %p v_writecount decreased to %d",
 		    __func__, vp, vp->v_writecount);
 	}

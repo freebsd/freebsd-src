@@ -90,6 +90,7 @@ struct ctlname {
 #define	CTLFLAG_DYING	0x00010000	/* oid is being removed */
 #define CTLFLAG_CAPRD	0x00008000	/* Can be read in capability mode */
 #define CTLFLAG_CAPWR	0x00004000	/* Can be written in capability mode */
+#define CTLFLAG_STATS	0x00002000	/* Statistics, not a tuneable */
 #define CTLFLAG_CAPRW	(CTLFLAG_CAPRD|CTLFLAG_CAPWR)
 
 /*

@@ -1095,7 +1095,7 @@ _bus_dmamap_fix_user(vm_offset_t buf, bus_size_t len,
 #else
 #define l2cache_wb_range(va, pa, size) cpu_l2cache_wb_range(va, size)
 #define l2cache_wbinv_range(va, pa, size) cpu_l2cache_wbinv_range(va, size)
-#define l2cache_inv_range(va, pa, size) cpu_l2cache_wbinv_range(va, size)
+#define l2cache_inv_range(va, pa, size) cpu_l2cache_inv_range(va, size)
 #endif
 
 void
@@ -1463,7 +1463,6 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 	struct bounce_zone *bz;
 	struct bounce_page *bpage;
 
-	printf("add bounce page\n");
 	KASSERT(dmat->bounce_zone != NULL, ("no bounce zone in dma tag"));
 	KASSERT(map != NULL,
 	    ("add_bounce_page: bad map %p", map));

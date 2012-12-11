@@ -897,7 +897,7 @@ msk_newbuf(struct msk_if_softc *sc_if, int idx)
 	bus_dmamap_t map;
 	int nsegs;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 
@@ -955,7 +955,7 @@ msk_jumbo_newbuf(struct msk_if_softc *sc_if, int idx)
 	bus_dmamap_t map;
 	int nsegs;
 
-	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
+	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, MJUM9BYTES);
 	if (m == NULL)
 		return (ENOBUFS);
 	if ((m->m_flags & M_EXT) == 0) {
@@ -2653,7 +2653,7 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 
 		if (M_WRITABLE(m) == 0) {
 			/* Get a writable copy. */
-			m = m_dup(*m_head, M_DONTWAIT);
+			m = m_dup(*m_head, M_NOWAIT);
 			m_freem(*m_head);
 			if (m == NULL) {
 				*m_head = NULL;
@@ -2732,7 +2732,7 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc_if->msk_cdata.msk_tx_tag, map,
 	    *m_head, txsegs, &nseg, BUS_DMA_NOWAIT);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, MSK_MAXTXSEGS);
+		m = m_collapse(*m_head, M_NOWAIT, MSK_MAXTXSEGS);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;

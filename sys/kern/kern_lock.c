@@ -934,9 +934,19 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		}
 		break;
 	case LK_DOWNGRADE:
-		_lockmgr_assert(lk, KA_XLOCKED | KA_NOTRECURSED, file, line);
+		_lockmgr_assert(lk, KA_XLOCKED, file, line);
 		LOCK_LOG_LOCK("XDOWNGRADE", &lk->lock_object, 0, 0, file, line);
 		WITNESS_DOWNGRADE(&lk->lock_object, 0, file, line);
+
+		/*
+		 * Panic if the lock is recursed.
+		 */
+		if (lockmgr_xlocked(lk) && lockmgr_recursed(lk)) {
+			if (flags & LK_INTERLOCK)
+				class->lc_unlock(ilk);
+			panic("%s: downgrade a recursed lockmgr %s @ %s:%d\n",
+			    __func__, iwmesg, file, line);
+		}
 		TD_SLOCKS_INC(curthread);
 
 		/*
@@ -1254,7 +1264,14 @@ _lockmgr_disown(struct lock *lk, const char *file, int line)
 		return;
 
 	tid = (uintptr_t)curthread;
-	_lockmgr_assert(lk, KA_XLOCKED | KA_NOTRECURSED, file, line);
+	_lockmgr_assert(lk, KA_XLOCKED, file, line);
+
+	/*
+	 * Panic if the lock is recursed.
+	 */
+	if (lockmgr_xlocked(lk) && lockmgr_recursed(lk))
+		panic("%s: disown a recursed lockmgr @ %s:%d\n",
+		    __func__,  file, line);
 
 	/*
 	 * If the owner is already LK_KERNPROC just skip the whole operation.

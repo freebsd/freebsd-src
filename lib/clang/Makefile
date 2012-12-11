@@ -14,7 +14,8 @@ SUBDIR=	libclanganalysis \
 	libclangfrontendtool \
 	libclanglex \
 	libclangparse \
-	libclangrewrite \
+	libclangrewritecore \
+	libclangrewritefrontend \
 	libclangsema \
 	libclangserialization \
 	libclangstaticanalyzercheckers \

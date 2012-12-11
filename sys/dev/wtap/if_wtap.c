@@ -100,7 +100,7 @@ wtap_node_write(struct cdev *dev, struct uio *uio, int ioflag)
 		return (err);
 	}
 
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	m_copyback(m, 0, buf_len, buf);
 
 	CURVNET_SET(TD_TO_VNET(curthread));
@@ -241,7 +241,7 @@ wtap_beacon_intrp(void *arg)
 	 * the beacon frame changed size (probably because
 	 * of the TIM bitmap).
 	 */
-	m = m_dup(avp->beacon, M_DONTWAIT);
+	m = m_dup(avp->beacon, M_NOWAIT);
 	if (ieee80211_beacon_update(avp->bf_node, &avp->av_boff, m, 0)) {
 		printf("%s, need to remap the memory because the beacon frame"
 		    " changed size.\n",__func__);

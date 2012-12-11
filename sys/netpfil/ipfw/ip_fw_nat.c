@@ -276,6 +276,7 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 
 		found = 0;
 		chain = &V_layer3_chain;
+		IPFW_RLOCK_ASSERT(chain);
 		/* Check every nat entry... */
 		LIST_FOREACH(t, &chain->nat, _next) {
 			if ((t->mode & PKT_ALIAS_SKIP_GLOBAL) != 0)

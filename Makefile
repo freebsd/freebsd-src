@@ -443,3 +443,6 @@ universe_epilogue:
 	fi
 .endif
 .endif
+
+buildLINT:
+	${MAKE} -C ${.CURDIR}/sys/${_TARGET}/conf LINT

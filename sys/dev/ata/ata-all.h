@@ -397,6 +397,7 @@ struct ata_request {
 #define         ATA_R_REQUEUE           0x00000400
 #define         ATA_R_THREAD            0x00000800
 #define         ATA_R_DIRECT            0x00001000
+#define         ATA_R_NEEDRESULT        0x00002000
 
 #define         ATA_R_ATAPI16           0x00010000
 #define         ATA_R_ATAPI_INTR        0x00020000

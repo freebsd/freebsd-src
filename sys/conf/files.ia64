@@ -29,10 +29,6 @@ ukbdmap.h			optional	ukbd_dflt_keymap	\
 	clean		"ukbdmap.h"
 #
 cddl/contrib/opensolaris/common/atomic/ia64/opensolaris_atomic.S	optional zfs compile-with "${ZFS_S}"
-compat/freebsd32/freebsd32_ioctl.c	optional	compat_freebsd32
-compat/freebsd32/freebsd32_misc.c	optional	compat_freebsd32
-compat/freebsd32/freebsd32_syscalls.c	optional	compat_freebsd32
-compat/freebsd32/freebsd32_sysent.c	optional	compat_freebsd32
 compat/ia32/ia32_sysvec.c		optional	compat_freebsd32
 contrib/ia64/libuwx/src/uwx_bstream.c		standard
 contrib/ia64/libuwx/src/uwx_context.c		standard
@@ -119,7 +115,6 @@ ia64/isa/isa_dma.c		optional	isa
 ia64/pci/pci_cfgreg.c		optional	pci
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
-kern/imgact_elf32.c		optional	compat_freebsd32
 kern/kern_clocksource.c		standard
 libkern/bcmp.c			standard
 libkern/ffsl.c			standard

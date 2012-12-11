@@ -828,7 +828,7 @@ AcpiExDumpOperands (
  * PARAMETERS:  Title               - Descriptive text
  *              Value               - Value to be displayed
  *
- * DESCRIPTION: Object dump output formatting functions.  These functions
+ * DESCRIPTION: Object dump output formatting functions. These functions
  *              reduce the number of format strings required and keeps them
  *              all in one place for easy modification.
  *
@@ -1015,7 +1015,7 @@ AcpiExDumpPackageObj (
         AcpiOsPrintf ("[Buffer] Length %.2X = ", ObjDesc->Buffer.Length);
         if (ObjDesc->Buffer.Length)
         {
-            AcpiUtDumpBuffer (ACPI_CAST_PTR (UINT8, ObjDesc->Buffer.Pointer),
+            AcpiUtDebugDumpBuffer (ACPI_CAST_PTR (UINT8, ObjDesc->Buffer.Pointer),
                 ObjDesc->Buffer.Length, DB_DWORD_DISPLAY, _COMPONENT);
         }
         else
@@ -1122,4 +1122,3 @@ AcpiExDumpObjectDescriptor (
 }
 
 #endif
-

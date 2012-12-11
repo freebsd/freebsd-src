@@ -166,9 +166,8 @@ __FBSDID("$FreeBSD$");
 static int umass_debug = 0;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, umass, CTLFLAG_RW, 0, "USB umass");
-SYSCTL_INT(_hw_usb_umass, OID_AUTO, debug, CTLFLAG_RW,
+SYSCTL_INT(_hw_usb_umass, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
     &umass_debug, 0, "umass debug level");
-
 TUNABLE_INT("hw.usb.umass.debug", &umass_debug);
 #else
 #define	DIF(...) do { } while (0)
@@ -362,6 +361,8 @@ typedef uint8_t (umass_transform_t)(struct umass_softc *sc, uint8_t *cmd_ptr,
 	 * result.
 	 */
 #define	NO_SYNCHRONIZE_CACHE	0x4000
+	/* Device does not support 'PREVENT/ALLOW MEDIUM REMOVAL'. */
+#define	NO_PREVENT_ALLOW	0x8000
 
 struct umass_softc {
 
@@ -832,6 +833,8 @@ umass_probe_proto(device_t dev, struct usb_attach_arg *uaa)
 		quirks |= NO_INQUIRY;
 	if (usb_test_quirk(uaa, UQ_MSC_NO_INQUIRY_EVPD))
 		quirks |= NO_INQUIRY_EVPD;
+	if (usb_test_quirk(uaa, UQ_MSC_NO_PREVENT_ALLOW))
+		quirks |= NO_PREVENT_ALLOW;
 	if (usb_test_quirk(uaa, UQ_MSC_NO_SYNC_CACHE))
 		quirks |= NO_SYNCHRONIZE_CACHE;
 	if (usb_test_quirk(uaa, UQ_MSC_SHUTTLE_INIT))
@@ -2245,6 +2248,13 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 					}
 					if (sc->sc_quirks & FORCE_SHORT_INQUIRY) {
 						ccb->csio.dxfer_len = SHORT_INQUIRY_LENGTH;
+					}
+				} else if (sc->sc_transfer.cmd_data[0] == PREVENT_ALLOW) {
+					if (sc->sc_quirks & NO_PREVENT_ALLOW) {
+						ccb->csio.scsi_status = SCSI_STATUS_OK;
+						ccb->ccb_h.status = CAM_REQ_CMP;
+						xpt_done(ccb);
+						goto done;
 					}
 				} else if (sc->sc_transfer.cmd_data[0] == SYNCHRONIZE_CACHE) {
 					if (sc->sc_quirks & NO_SYNCHRONIZE_CACHE) {

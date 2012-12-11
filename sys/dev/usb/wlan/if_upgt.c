@@ -75,7 +75,7 @@ static SYSCTL_NODE(_hw, OID_AUTO, upgt, CTLFLAG_RD, 0,
 
 #ifdef UPGT_DEBUG
 int upgt_debug = 0;
-SYSCTL_INT(_hw_upgt, OID_AUTO, debug, CTLFLAG_RW, &upgt_debug,
+SYSCTL_INT(_hw_upgt, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN, &upgt_debug,
 	    0, "control debugging printfs");
 TUNABLE_INT("hw.upgt.debug", &upgt_debug);
 enum {
@@ -1493,7 +1493,7 @@ upgt_rx(struct upgt_softc *sc, uint8_t *data, int pkglen, int *rssi)
 	/* create mbuf which is suitable for strict alignment archs */
 	KASSERT((pkglen + ETHER_ALIGN) < MCLBYTES,
 	    ("A current mbuf storage is small (%d)", pkglen + ETHER_ALIGN));
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		device_printf(sc->sc_dev, "could not create RX mbuf\n");
 		return (NULL);

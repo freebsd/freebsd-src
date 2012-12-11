@@ -191,6 +191,9 @@ mount_snapshot(kthread_t *td, vnode_t **vpp, const char *fstype, char *fspath,
 	td->td_ucred = cr;
 
 	if (error != 0) {
+		VI_LOCK(vp);
+		vp->v_iflag &= ~VI_MOUNT;
+		VI_UNLOCK(vp);
 		vrele(vp);
 		vfs_unbusy(mp);
 		vfs_mount_destroy(mp);

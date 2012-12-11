@@ -110,6 +110,7 @@ unit-tests/modmisc
 unit-tests/modorder
 unit-tests/modts
 unit-tests/modword
+unit-tests/order
 unit-tests/phony-end
 unit-tests/posix
 unit-tests/qequals

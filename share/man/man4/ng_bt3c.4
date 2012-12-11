@@ -74,34 +74,34 @@ The
 driver provides support for the 3Com/HP 3CRWB6096-A PCCARD bluetooth adapter.
 .Sh HOOKS
 This node type supports the following hooks:
-.Bl -tag -width indent
-.It Dv hook
+.Bl -tag -width ".Va hook"
+.It Va hook
 single HCI frame contained in single
 .Vt mbuf
 structure.
 .El
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
-.Bl -tag -width indent
-.It Dv NGM_BT3C_NODE_GET_STATE
+.Bl -tag -width foo
+.It Dv NGM_BT3C_NODE_GET_STATE Pq Ic get_state
 Returns the current receiving state for the node.
-.It Dv NGM_BT3C_NODE_GET_DEBUG
-Returns an integer containing the current debug level for the node.
-.It Dv NGM_BT3C_NODE_SET_DEBUG
+.It Dv NGM_BT3C_NODE_SET_DEBUG Pq Ic set_debug
 This command takes an integer argument and sets the current debug level
 for the node.
-.It Dv NGM_BT3C_NODE_GET_QLEN
+.It Dv NGM_BT3C_NODE_GET_DEBUG Pq Ic get_debug
+Returns an integer containing the current debug level for the node.
+.It Dv NGM_BT3C_NODE_GET_QLEN Pq Ic get_qlen
 This command takes a parameter that specifies queue number and returns
 the current length of the queue for the node.
-.It Dv NGM_BT3C_NODE_SET_QLEN
+.It Dv NGM_BT3C_NODE_SET_QLEN Pq Ic set_qlen
 This command takes two parameters that specify the queue number and
 the maximum length of the queue and sets the maximum length of the queue for
 the node.
-.It Dv NGM_BT3C_NODE_GET_STAT
+.It Dv NGM_BT3C_NODE_GET_STAT Pq Ic get_stat
 Returns various statistic information for the node, such as: number of
 bytes (frames) sent, number of bytes (frames) received and number of
 input (output) errors.
-.It Dv NGM_BT3C_NODE_RESET_STAT
+.It Dv NGM_BT3C_NODE_RESET_STAT Pq Ic reset_stat
 Reset all statistic counters to zero.
 .It Dv NGM_BT3C_NODE_DOWNLOAD_FIRMWARE
 Download card firmware.

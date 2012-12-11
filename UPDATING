@@ -4,7 +4,9 @@ This file is maintained and copyrighted by M. Warner Losh <imp@freebsd.org>.
 See end of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.  These instructions assume that you
 basically know what you are doing.  If not, then please consult the FreeBSD
-handbook.
+handbook:
+
+    http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
 
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
@@ -23,6 +25,47 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	debugging, define MALLOC_PRODUCTION in /etc/make.conf, or to merely
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
+
+20121201:
+	With the addition of auditdistd(8), a new auditdistd user is now
+	depended on during installworld.  "mergemaster -p" can be used to add
+	the user prior to installworld, as documented in the handbook.
+
+20121117:
+	The sin6_scope_id member variable in struct sockaddr_in6 is now
+	filled by the kernel before passing the structure to the userland via
+	sysctl or routing socket.  This means the KAME-specific embedded scope
+	id in sin6_addr.s6_addr[2] is always cleared in userland application.
+	This behavior can be controlled by net.inet6.ip6.deembed_scopeid.
+	__FreeBSD_version is bumped to 1000025.
+
+20121105:
+	On i386 and amd64 systems WITH_CLANG_IS_CC is now the default.
+	This means that the world and kernel will be compiled with clang
+	and that clang will be installed as /usr/bin/cc, /usr/bin/c++,
+	and /usr/bin/cpp.  To disable this behavior and revert to building
+	with gcc, compile with WITHOUT_CLANG_IS_CC.
+
+20121102:
+	The IPFIREWALL_FORWARD kernel option has been removed. Its
+	functionality now turned on by default.
+
+20121023:
+	The ZERO_COPY_SOCKET kernel option has been removed and
+	split into SOCKET_SEND_COW and SOCKET_RECV_PFLIP.
+	NB: SOCKET_SEND_COW uses the VM page based copy-on-write
+	mechanism which is not safe and may result in kernel crashes.
+	NB: The SOCKET_RECV_PFLIP mechanism is useless as no current
+	driver supports disposeable external page sized mbuf storage.
+	Proper replacements for both zero-copy mechanisms are under
+	consideration and will eventually lead to complete removal
+	of the two kernel options.
+
+20121023:
+	The IPv4 network stack has been converted to network byte
+	order. The following modules need to be recompiled together
+	with kernel: carp(4), divert(4), gif(4), siftr(4), gre(4),
+	pf(4), ipfw(4), ng_ipfw(4), stf(4).
 
 20121022:
 	Support for non-MPSAFE filesystems was removed from VFS. The
@@ -1573,7 +1616,7 @@ COMMON ITEMS:
 	<reboot>
 
 
-	To upgrade in-place from 8.x-stable to current
+	To upgrade in-place from stable to current
 	----------------------------------------------
 	<make sure you have good level 0 dumps>
 	make buildworld					[9]

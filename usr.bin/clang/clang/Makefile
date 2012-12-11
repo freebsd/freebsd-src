@@ -20,9 +20,11 @@ MLINKS=	clang.1 clang++.1 \
 .if ${MK_CLANG_IS_CC} != "no"
 LINKS+=	${BINDIR}/clang ${BINDIR}/cc \
 	${BINDIR}/clang ${BINDIR}/c++ \
+	${BINDIR}/clang ${BINDIR}/CC \
 	${BINDIR}/clang ${BINDIR}/cpp
 MLINKS+= clang.1 cc.1 \
 	clang.1 c++.1 \
+	clang.1 CC.1 \
 	clang.1 cpp.1
 .endif
 
@@ -45,7 +47,8 @@ LIBDEPS=clangfrontendtool \
 	clangstaticanalyzercore \
 	clanganalysis \
 	clangarcmigrate \
-	clangrewrite \
+	clangrewritefrontend \
+	clangrewritecore \
 	clangedit \
 	clangast \
 	clanglex \
@@ -64,12 +67,12 @@ LIBDEPS=clangfrontendtool \
 	llvmarmdesc \
 	llvmarminfo \
 	llvmarminstprinter \
-	llvmmipscodegen \
-	llvmmipsdisassembler \
 	llvmmipsasmparser \
+	llvmmipscodegen \
 	llvmmipsdesc \
-	llvmmipsinfo \
 	llvmmipsinstprinter \
+	llvmmipsdisassembler \
+	llvmmipsinfo \
 	llvmpowerpccodegen \
 	llvmpowerpcdesc \
 	llvmpowerpcinfo \

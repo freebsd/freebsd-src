@@ -376,7 +376,6 @@ ctl_grow_beio(struct ctl_be_block_softc *softc, int count)
 		beio = (struct ctl_be_block_io *)malloc(sizeof(*beio),
 							   M_CTLBLK,
 							   M_WAITOK | M_ZERO);
-		bzero(beio, sizeof(*beio));
 		beio->softc = softc;
 		mtx_lock(&softc->lock);
 		STAILQ_INSERT_TAIL(&softc->beio_free_queue, beio, links);

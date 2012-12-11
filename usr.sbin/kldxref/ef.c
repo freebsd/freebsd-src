@@ -600,7 +600,8 @@ ef_open(const char *filename, struct elf_file *efile, int verbose)
 			printf("\n");
 		ef->ef_nsegs = nsegs;
 		if (phdyn == NULL) {
-			warnx("file isn't dynamically-linked");
+			warnx("Skipping %s: not dynamically-linked",
+			    filename);
 			break;
 		}
 		if (ef_read_entry(ef, phdyn->p_offset,
