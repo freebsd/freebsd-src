@@ -129,7 +129,7 @@ __setrunelocale(struct xlocale_ctype *l, const char *encoding)
 	(void) strcat(name, encoding);
 	(void) strcat(name, "/LC_CTYPE");
 
-	if ((fp = fopen(name, "r")) == NULL)
+	if ((fp = fopen(name, "re")) == NULL)
 		return (errno == 0 ? ENOENT : errno);
 
 	if ((rl = _Read_RuneMagi(fp)) == NULL) {
