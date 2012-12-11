@@ -1446,10 +1446,12 @@ witness_upgrade(struct lock_object *lock, int flags, const char *file, int line)
 			    fixup_filename(file), line);
 	}
 	instance = find_instance(curthread->td_sleeplocks, lock);
-	if (instance == NULL)
+	if (instance == NULL) {
 		kassert_panic("upgrade of unlocked lock (%s) %s @ %s:%d",
 		    class->lc_name, lock->lo_name,
 		    fixup_filename(file), line);
+		return;
+	}
 	if (witness_watch) {
 		if ((instance->li_flags & LI_EXCLUSIVE) != 0)
 			kassert_panic(
@@ -1490,10 +1492,12 @@ witness_downgrade(struct lock_object *lock, int flags, const char *file,
 			    fixup_filename(file), line);
 	}
 	instance = find_instance(curthread->td_sleeplocks, lock);
-	if (instance == NULL)
+	if (instance == NULL) {
 		kassert_panic("downgrade of unlocked lock (%s) %s @ %s:%d",
 		    class->lc_name, lock->lo_name,
 		    fixup_filename(file), line);
+		return;
+	}
 	if (witness_watch) {
 		if ((instance->li_flags & LI_EXCLUSIVE) == 0)
 			kassert_panic(
@@ -1544,11 +1548,13 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 	 * We have to make sure we flush these queues, so just search for
 	 * eventual register locks and remove them.
 	 */
-	if (witness_watch > 0)
+	if (witness_watch > 0) {
 		kassert_panic("lock (%s) %s not locked @ %s:%d", class->lc_name,
 		    lock->lo_name, fixup_filename(file), line);
-	else
 		return;
+	} else {
+		return;
+	}
 found:
 
 	/* First, check for shared/exclusive mismatches. */
@@ -1761,11 +1767,13 @@ enroll(const char *description, struct lock_class *lock_class)
 			return (NULL);
 		else
 			typelist = &w_spin;
-	} else if ((lock_class->lc_flags & LC_SLEEPLOCK))
+	} else if ((lock_class->lc_flags & LC_SLEEPLOCK)) {
 		typelist = &w_sleep;
-	else
+	} else {
 		kassert_panic("lock class %s is not sleep or spin",
 		    lock_class->lc_name);
+		return (NULL);
+	}
 
 	mtx_lock_spin(&w_mtx);
 	w = witness_hash_get(description);
@@ -1921,19 +1929,26 @@ adopt(struct witness *parent, struct witness *child)
 static void
 itismychild(struct witness *parent, struct witness *child)
 {
+	int unlocked;
 
 	MPASS(child != NULL && parent != NULL);
 	if (witness_cold == 0)
 		mtx_assert(&w_mtx, MA_OWNED);
 
 	if (!witness_lock_type_equal(parent, child)) {
-		if (witness_cold == 0)
+		if (witness_cold == 0) {
+			unlocked = 1;
 			mtx_unlock_spin(&w_mtx);
+		} else {
+			unlocked = 0;
+		}
 		kassert_panic(
 		    "%s: parent \"%s\" (%s) and child \"%s\" (%s) are not "
 		    "the same lock type", __func__, parent->w_name,
 		    parent->w_class->lc_name, child->w_name,
 		    child->w_class->lc_name);
+		if (unlocked)
+			mtx_lock_spin(&w_mtx);
 	}
 	adopt(parent, child);
 }
@@ -2203,9 +2218,11 @@ witness_save(struct lock_object *lock, const char **filep, int *linep)
 		lock_list = PCPU_GET(spinlocks);
 	}
 	instance = find_instance(lock_list, lock);
-	if (instance == NULL)
+	if (instance == NULL) {
 		kassert_panic("%s: lock (%s) %s not locked", __func__,
 		    class->lc_name, lock->lo_name);
+		return;
+	}
 	*filep = instance->li_file;
 	*linep = instance->li_line;
 }
@@ -2241,6 +2258,8 @@ witness_restore(struct lock_object *lock, const char *file, int line)
 		    class->lc_name, lock->lo_name);
 	lock->lo_witness->w_file = file;
 	lock->lo_witness->w_line = line;
+	if (instance == NULL)
+		return;
 	instance->li_file = file;
 	instance->li_line = line;
 }
@@ -2336,9 +2355,11 @@ witness_setflag(struct lock_object *lock, int flag, int set)
 		lock_list = PCPU_GET(spinlocks);
 	}
 	instance = find_instance(lock_list, lock);
-	if (instance == NULL)
+	if (instance == NULL) {
 		kassert_panic("%s: lock (%s) %s not locked", __func__,
 		    class->lc_name, lock->lo_name);
+		return;
+	}
 
 	if (set)
 		instance->li_flags |= flag;
