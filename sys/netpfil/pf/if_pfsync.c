@@ -47,7 +47,7 @@
  * 1.118, 1.124, 1.148, 1.149, 1.151, 1.171 - fixes to bulk updates
  * 1.120, 1.175 - use monotonic time_uptime
  * 1.122 - reduce number of updates for non-TCP sessions
- * 1.125 - rewrite merge or stale processing
+ * 1.125, 1.127 - rewrite merge or stale processing
  * 1.128 - cleanups
  * 1.146 - bzero() mbuf before sparsely filling it with data
  * 1.170 - SIOCSIFMTU checks
@@ -787,12 +787,15 @@ pfsync_upd_tcp(struct pf_state *st, struct pfsync_state_peer *src,
 	if ((st->src.state > src->state &&
 	    (st->src.state < PF_TCPS_PROXY_SRC ||
 	    src->state >= PF_TCPS_PROXY_SRC)) ||
-	    SEQ_GT(st->src.seqlo, ntohl(src->seqlo)))
+
+	    (st->src.state == src->state &&
+	    SEQ_GT(st->src.seqlo, ntohl(src->seqlo))))
 		sync++;
 	else
 		pf_state_peer_ntoh(src, &st->src);
 
-	if (st->dst.state > dst->state ||
+	if ((st->dst.state > dst->state) ||
+
 	    (st->dst.state >= TCPS_SYN_SENT &&
 	    SEQ_GT(st->dst.seqlo, ntohl(dst->seqlo))))
 		sync++;
