@@ -241,8 +241,7 @@ struct ath_buf {
 		uint8_t bfs_tid;	/* packet TID (or TID_MAX for no QoS) */
 		uint8_t bfs_nframes;	/* number of frames in aggregate */
 		uint8_t bfs_pri;	/* packet AC priority */
-
-		struct ath_txq *bfs_txq;	/* eventual dest hardware TXQ */
+		uint8_t bfs_tx_queue;	/* destination hardware TX queue */
 
 		u_int32_t bfs_aggr:1,		/* part of aggregate? */
 		    bfs_aggrburst:1,	/* part of aggregate burst? */
