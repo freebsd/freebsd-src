@@ -137,6 +137,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_param.h>
+#include <vm/vm_map.h>
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 #include <vm/uma.h>
@@ -224,7 +225,7 @@ pmap_xen_setpages_ro(uintptr_t va, vm_size_t npages)
 	vm_size_t i;
 	for (i = 0; i < npages; i++) {
 		PT_SET_MA(va + PAGE_SIZE * i, 
-			  phystomach(VTOP(va + PAGE_SIZE * i)) | PG_U | PG_V);
+			  phystomach(ptmb_vtop(va + PAGE_SIZE * i)) | PG_U | PG_V);
 	}
 }
 
@@ -235,7 +236,7 @@ pmap_xen_setpages_rw(uintptr_t va, vm_size_t npages)
 	vm_size_t i;
 	for (i = 0; i < npages; i++) {
 		PT_SET_MA(va + PAGE_SIZE * i, 
-			  phystomach(VTOP(va + PAGE_SIZE * i)) | PG_U | PG_V | PG_RW);
+			  phystomach(ptmb_vtop(va + PAGE_SIZE * i)) | PG_U | PG_V | PG_RW);
 	}
 }
 
@@ -715,8 +716,9 @@ vtopte(uintptr_t va)
 			 * effectively const.
 			 */
 
-	const u_int64_t mask = ((1ul << (NPTEPGSHIFT + NPDEPGSHIFT
-		+ NPDPEPGSHIFT + NPML4EPGSHIFT)) - 1);
+	const uint64_t SIGNMASK = (1UL << 48) - 1;
+
+	va &= SIGNMASK; /* Remove sign extension */
 
 	pd_entry_t *pte; /* PTE address to return */
 
@@ -732,18 +734,18 @@ vtopte(uintptr_t va)
 	mmu_map_t_init(tptr, &mb);
 
 	if (!mmu_map_inspect_va(kernel_pmap, tptr, va)) {
-		panic("pte queried for unmapped kernel va");
+		return NULL; /* XXX: fix api, return some kind of #define */
 	}
 
 	pte = mmu_map_pt(tptr); /* Read out PT from mmu state */
+
 	/* add VA offset */
-	pte += ((va >> PAGE_SHIFT) & mask);
+	pte += (va & PDRMASK) >> PAGE_SHIFT;
 
 	mmu_map_release_va(kernel_pmap, tptr, va);
 	mmu_map_t_fini(tptr);
 
-
-	return (PTmap + ((va >> PAGE_SHIFT) & mask));
+	return pte;
 }
 
 #ifdef SMP
@@ -807,6 +809,7 @@ pmap_qremove(vm_offset_t sva, int count)
 		pmap_kremove(va);
 		va += PAGE_SIZE;
 	}
+	xen_flush_queue();
 	// XXX: TODO: pmap_invalidate_range(kernel_pmap, sva, va);
 }
 
@@ -939,7 +942,8 @@ pmap_kextract_ma(vm_offset_t va)
 	mmu_map_t_fini(tptr);
 
 nomapping:
-	return ma;
+	/* XXX: why do we need to  enforce alignment ? */
+	return ma & ~0x7UL;
 }
 
 /***************************************************
@@ -992,7 +996,7 @@ pmap_kenter_ma(vm_offset_t va, vm_paddr_t ma)
 
 	if (!mmu_map_inspect_va(kernel_pmap, tptr, va)) {
 		mmu_map_hold_va(kernel_pmap, tptr, va); /* PT hierarchy */
-		xen_flush_queue();
+		xen_flush_queue(); /* XXX: cleanup */
 	}
 
 	/* Backing page tables are in place, let xen do the maths */
@@ -1016,7 +1020,13 @@ pmap_kremove(vm_offset_t va)
 	pt_entry_t *pte;
 
 	pte = vtopte(va);
+	if (pte == NULL) { /* Mapping doesn't exist */
+		return;
+	}
+
 	PT_CLEAR_VA(pte, FALSE);
+
+	PT_UPDATES_FLUSH();
 }
 
 /*
@@ -1276,6 +1286,7 @@ xen_vm_ptov(vm_paddr_t pa)
 	KASSERT(gdtset == 1 && m != NULL || pa < physfree, ("Stray PA 0x%lx passed\n", pa));
 
 	if (m == NULL) { /* Early boottime page - obeys early mapping rules */
+		/* XXX: KASSERT() for this */
 		return PTOV(pa);
 	}
 
@@ -1288,12 +1299,40 @@ xen_vm_ptov(vm_paddr_t pa)
 static vm_paddr_t
 xen_vm_vtop(uintptr_t va)
 {
+	int result;
+
+	/* The kernel expects to have full access to its address space */
+	const vm_prot_t accesstype = VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE;
+
 	vm_page_t m;
+	vm_object_t object; /* Backing object for this va */
+	vm_pindex_t pindex; /* Index into backing object */
+	vm_map_entry_t entry;
+	vm_prot_t tmp_prot; /* Our Access rights */
+        boolean_t wired;   /* Is the va wired */
+
 	KASSERT((va >= VM_MIN_KERNEL_ADDRESS &&
 		 va <= VM_MAX_KERNEL_ADDRESS),
 		("Invalid kernel virtual address"));
 
-	m = vm_page_lookup(kernel_object, va - VM_MIN_KERNEL_ADDRESS);
+	/* Get the specific object and pindex where the va may be mapped */
+	result = vm_map_lookup(&kernel_map, va, accesstype, &entry,
+			       &object, &pindex, &tmp_prot, &wired);
+
+	KASSERT(result == KERN_SUCCESS, ("Couldn't find va in the  kernel map. \n"));
+	KASSERT(accesstype == tmp_prot, ("Kernel access permissions disparity\n"));
+
+	VM_OBJECT_LOCK(object);
+
+	m = vm_page_lookup(object, pindex);
+
+	vm_map_lookup_done(kernel_map, entry);
+
+	KASSERT(m != NULL, 
+		("%s: %d:: va = 0x%lx is unbacked in kernel_map()\n",
+		 __func__, __LINE__, va));
+
+	VM_OBJECT_UNLOCK(object);
 
 	return VM_PAGE_TO_PHYS(m);
 }
