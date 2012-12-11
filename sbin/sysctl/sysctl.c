@@ -59,7 +59,7 @@ static const char rcsid[] =
 #include <unistd.h>
 
 static int	aflag, bflag, dflag, eflag, hflag, iflag;
-static int	Nflag, nflag, oflag, qflag, xflag, warncount;
+static int	Nflag, nflag, oflag, qflag, Tflag, Wflag, xflag, warncount;
 
 static int	oidfmt(int *, int, char *, u_int *);
 static void	parse(const char *);
@@ -74,8 +74,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: sysctl [-bdehiNnoqx] name[=value] ...",
-	    "       sysctl [-bdehNnoqx] -a");
+	    "usage: sysctl [-bdehiNnoqTWx] name[=value] ...",
+	    "       sysctl [-bdehNnoqTWx] -a");
 	exit(1);
 }
 
@@ -88,7 +88,7 @@ main(int argc, char **argv)
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AabdehiNnoqwxX")) != -1) {
+	while ((ch = getopt(argc, argv, "AabdehiNnoqTwWxX")) != -1) {
 		switch (ch) {
 		case 'A':
 			/* compatibility */
@@ -124,9 +124,15 @@ main(int argc, char **argv)
 		case 'q':
 			qflag = 1;
 			break;
+		case 'T':
+			Tflag = 1;
+			break;
 		case 'w':
 			/* compatibility */
 			/* ignored */
+			break;
+		case 'W':
+			Wflag = 1;
 			break;
 		case 'X':
 			/* compatibility */
@@ -181,6 +187,11 @@ parse(const char *string)
 		errx(1, "oid too long: '%s'", string);
 	bufp = strsep(&cp, "=");
 	if (cp != NULL) {
+		/* Tflag just lists tunables, do not allow assignment */
+		if (Tflag || Wflag) {
+			warnx("Can't set variables when using -T or -W");
+			usage();
+		}
 		while (isspace(*cp))
 			cp++;
 		newval = cp;
@@ -601,6 +612,14 @@ show_var(int *oid, int nlen)
 	ctltype = (kind & CTLTYPE);
 	sign = ctl_sign[ctltype];
 	intlen = ctl_size[ctltype];
+
+	/* if Wflag then only list sysctls that are writeable and not stats. */
+	if (Wflag && ((kind & CTLFLAG_WR) == 0 || (kind & CTLFLAG_STATS) != 0))
+		return 1;
+
+	/* if Tflag then only list sysctls that are tuneables. */
+	if (Tflag && (kind & CTLFLAG_TUN) == 0)
+		return 1;
 
 	switch (ctltype) {
 	case CTLTYPE_STRING:
