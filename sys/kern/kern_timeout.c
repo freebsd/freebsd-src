@@ -933,8 +933,7 @@ _callout_reset_on(struct callout *c, struct bintime *bt,
 
 	cancelled = 0;
 	if (bt == NULL) {
-		FREQ2BT(hz, &to_bt);
-		pr = to_bt;
+		pr = to_bt = tick_bt;
 		getbinuptime(&now);
 		if (to_ticks > 0)
 			bintime_mul(&to_bt, to_ticks);
