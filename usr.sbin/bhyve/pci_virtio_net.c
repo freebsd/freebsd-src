@@ -178,10 +178,29 @@ pci_vtnet_qsize(int qnum)
 }
 
 static void
+pci_vtnet_ring_reset(struct pci_vtnet_softc *sc, int ring)
+{
+	struct vring_hqueue *hq;
+
+	assert(ring < VTNET_MAXQ);
+
+	hq = &sc->vsc_hq[ring];
+
+	/*
+	 * Reset all soft state
+	 */
+	hq->hq_cur_aidx = 0;
+}
+
+static void
 pci_vtnet_update_status(struct pci_vtnet_softc *sc, uint32_t value)
 {
+
 	if (value == 0) {
 		DPRINTF(("vtnet: device reset requested !\n"));
+		pci_vtnet_ring_reset(sc, VTNET_RXQ);
+		pci_vtnet_ring_reset(sc, VTNET_TXQ);
+		sc->vsc_rx_ready = 0;
 	}
 
 	sc->vsc_status = value;
