@@ -119,9 +119,12 @@ static int timestepwarnings;
 SYSCTL_INT(_kern_timecounter, OID_AUTO, stepwarnings, CTLFLAG_RW,
     &timestepwarnings, 0, "Log time steps");
 
-int tc_timethreshold;
-int tc_timepercentage = TC_DEFAULTPERC;
+struct bintime bt_timethreshold;
+struct bintime halftick_bt;
 struct bintime tick_bt;
+int tc_timeexp;
+int tc_timepercentage = TC_DEFAULTPERC;
+int tc_timethreshold;
 SYSCTL_INT(_kern, OID_AUTO, tc_timepercentage, CTLFLAG_RW, 
     &tc_timepercentage, 0, "Precision percentage tolerance"); 
 
@@ -281,7 +284,7 @@ fbclock_getmicrouptime(struct timeval *tvp)
 	do {
 		th = timehands;
 		gen = th->th_generation;
-		bintime2timeval(&th->th_offset, tvp);
+		Bintime2timeval(&th->th_offset, tvp);
 	} while (gen == 0 || gen != th->th_generation);
 }
 
@@ -1715,6 +1718,7 @@ static void
 inittimecounter(void *dummy)
 {
 	u_int p;
+	struct timespec ts;
 	int tick_rate;
 
 	/*
@@ -1730,8 +1734,14 @@ inittimecounter(void *dummy)
 	else
 		tc_tick = 1;
 	tick_rate = hz / tc_tick;
-	tc_timethreshold = (100 / tc_timepercentage) * (1000000000 / tick_rate);
+	tc_timethreshold = (1000000000 / (tick_rate * tc_timepercentage)) * 100;
+	tc_timeexp = fls(roundup2(100 / tc_timepercentage, 2));
+	ts.tv_sec = tc_timethreshold / 1000000000;
+	ts.tv_nsec = tc_timethreshold % 1000000000;
+	timespec2bintime(&ts, &bt_timethreshold);
 	FREQ2BT(tick_rate, &tick_bt);
+	halftick_bt = tick_bt;
+	bintime_divpow2(&halftick_bt, 1);
 	p = (tc_tick * 1000000) / hz;
 	printf("Timecounters tick every %d.%03u msec\n", p / 1000, p % 1000);
 

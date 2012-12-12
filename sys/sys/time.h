@@ -102,6 +102,15 @@ bintime_mul(struct bintime *bt, u_int x)
 	bt->frac = (p2 << 32) | (p1 & 0xffffffffull);
 }
 
+static __inline void
+bintime_divpow2(struct bintime *bt, u_int exp)
+{
+
+	bt->frac >>= exp;
+	bt->frac |= (uint64_t)bt->sec << (64 - exp);
+	bt->sec >>= exp;
+}
+
 #define	bintime_clear(a)	((a)->sec = (a)->frac = 0)
 #define	bintime_isset(a)	((a)->sec || (a)->frac)
 #define	bintime_cmp(a, b, cmp)						\
@@ -290,9 +299,13 @@ void	resettodr(void);
 extern time_t	time_second;
 extern time_t	time_uptime;
 extern struct bintime boottimebin;
+extern struct bintime halftick_bt;
 extern struct bintime tick_bt;
 extern struct timeval boottime;
+extern int tc_timeexp;
+extern int tc_timepercentage;
 extern int tc_timethreshold;
+extern struct bintime bt_timethreshold; 
 
 /*
  * Functions for looking at our clock: [get]{bin,nano,micro}[up]time()
@@ -342,18 +355,19 @@ int	tvtohz(struct timeval *tv);
 
 #define	TC_DEFAULTPERC		5
 
-#define	FREQ2BT(freq, bt)                                               \
-{                                                                       \
-        (bt)->sec = 0;                                                  \
-        (bt)->frac = ((uint64_t)0x8000000000000000  / (freq)) << 1;     \
-}
 #define	BT2FREQ(bt)                                                     \
-        (((uint64_t)0x8000000000000000 + ((bt)->frac >> 2)) /           \
-            ((bt)->frac >> 1))
+	(((uint64_t)0x8000000000000000 + ((bt)->frac >> 2)) /           \
+	    ((bt)->frac >> 1))
 
-#define	TIMESEL(x, bt)          					\
-	((x) < tc_timethreshold ? (binuptime : getbinuptime(&(bt)))
+#define	FREQ2BT(freq, bt)                                               \
+{									\
+	(bt)->sec = 0;                                                  \
+	(bt)->frac = ((uint64_t)0x8000000000000000  / (freq)) << 1;     \
+}
 
+#define	TIMESEL(bt, bt2)						\
+	((bintime_cmp((bt2), (&bt_timethreshold), >=)) ?		\
+	    binuptime((bt)) : getbinuptime((bt)))
 
 #else /* !_KERNEL */
 #include <time.h>

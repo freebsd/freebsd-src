@@ -483,35 +483,42 @@ int
 kern_nanosleep(struct thread *td, struct timespec *rqt, struct timespec *rmt)
 {
 	struct timespec ts;
-	struct bintime bt, bt2, tmp;
+	struct bintime bt, btt, bt_prec, tmp;
 	int error;
 
 	if (rqt->tv_nsec < 0 || rqt->tv_nsec >= 1000000000)
 		return (EINVAL);
 	if (rqt->tv_sec < 0 || (rqt->tv_sec == 0 && rqt->tv_nsec == 0))
 		return (0);
-	binuptime(&bt);
 	timespec2bintime(rqt, &tmp);
-	bintime_add(&bt,&tmp);
-	for (;;) {
-		error = tsleep_bt(&nanowait, PWAIT | PCATCH, "nanslp", &bt, 0);
-		binuptime(&bt2);
-		if (error != EWOULDBLOCK) {
-			if (error == ERESTART)
-				error = EINTR;
-			if (rmt != NULL) {
-				tmp = bt;
-				bintime_sub(&tmp, &bt2);	
-				bintime2timespec(&tmp, &ts);
-				if (ts.tv_sec < 0)
-					timespecclear(&ts);
-				*rmt = ts;
-			}
-			return (error);
-		}
-		if (bintime_cmp(&bt2, &bt, >=))
-			return (0);
+	TIMESEL(&bt, &tmp);
+	bintime_add(&bt, &tmp);
+	bt_prec = tmp;
+	bintime_divpow2(&bt_prec, tc_timeexp);
+	if (rqt->tv_nsec > tc_timethreshold) {
+		bintime_add(&bt, &tick_bt);
+		if (bintime_cmp(&bt_prec, &halftick_bt, <))
+			bt_prec = halftick_bt;
 	}
+	bintime_add(&bt, &bt_prec);
+	error = tsleep_bt(&nanowait, PWAIT | PCATCH, "nanslp", &bt, &bt_prec);
+	TIMESEL(&btt, &tmp);
+	if (error != EWOULDBLOCK) {
+		if (error == ERESTART)
+			error = EINTR;
+		if (rmt != NULL) {
+			tmp = bt;
+			bintime_sub(&tmp, &btt);
+			bintime2timespec(&tmp, &ts);
+			if (ts.tv_sec < 0)
+				timespecclear(&ts);
+			*rmt = ts;
+		}
+		if (bintime_cmp(&btt, &bt, >=))
+			return (0);
+		return (error);
+	}
+	return (0);
 }
 
 #ifndef _SYS_SYSPROTO_H_

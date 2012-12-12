@@ -567,11 +567,10 @@ callout_lock(struct callout *c)
 
 static void
 callout_cc_add(struct callout *c, struct callout_cpu *cc,
-    struct bintime to_bintime, void (*func)(void *), void *arg, int cpu,
-    int flags)
+    struct bintime to_bintime, struct bintime precision, void (*func)(void *),
+    void *arg, int cpu, int flags)
 {
 	struct bintime bt;
-	uint64_t r_val;
 	int bucket;
 
 	CC_LOCK_ASSERT(cc);
@@ -584,11 +583,10 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	c->c_flags &= ~CALLOUT_PROCESSED;
 	c->c_func = func;
 	c->c_time = to_bintime;
-	bintime_clear(&c->c_precision);
-	r_val = C_PABS2BT(flags);
-	c->c_precision.frac = r_val;
-	CTR3(KTR_CALLOUT, "precision set for %p: 0.%08x%08",
-	    c, (u_int) (r_val >> 32), (u_int) (r_val & 0xffffffff));
+	c->c_precision = precision;
+	CTR4(KTR_CALLOUT, "precision set for %p: %d.%08x%08x",
+	    c, c->precision.sec, (u_int) (c->c_precision.frac >> 32), 
+	    (u_int) (c->c_precision.frac & 0xffffffff));
 	bucket = get_bucket(&c->c_time);
 	TAILQ_INSERT_TAIL(&cc->cc_callwheel[bucket], c, c_links.tqe);
 	/*
@@ -769,8 +767,8 @@ skip:
 
 		new_cc = callout_cpu_switch(c, cc, new_cpu);
 		flags = (direct) ? C_DIRECT_EXEC : 0;
-		callout_cc_add(c, new_cc, new_time, new_func, new_arg,
-		    new_cpu, flags);
+		callout_cc_add(c, new_cc, new_time, c->c_precision, new_func,
+		    new_arg, new_cpu, flags);
 		CC_UNLOCK(new_cc);
 		CC_LOCK(cc);
 #else
@@ -924,23 +922,32 @@ callout_handle_init(struct callout_handle *handle)
  * callout_pending() - returns truth if callout is still waiting for timeout
  * callout_deactivate() - marks the callout as having been serviced
  */
-int 
-_callout_reset_on(struct callout *c, struct bintime *bt, int to_ticks,
-    void (*ftn)(void *), void *arg, int cpu, int flags)
+int
+_callout_reset_on(struct callout *c, struct bintime *bt,
+    struct bintime *precision, int to_ticks, void (*ftn)(void *),
+    void *arg, int cpu, int flags)
 {
-	struct bintime now, to_bt;
+	struct bintime now, to_bt, pr;
 	struct callout_cpu *cc;
 	int bucket, cancelled, direct;
 
 	cancelled = 0;
 	if (bt == NULL) {
 		FREQ2BT(hz, &to_bt);
+		pr = to_bt;
 		getbinuptime(&now);
 		if (to_ticks > 0)
 			bintime_mul(&to_bt, to_ticks);
 		bintime_add(&to_bt, &now);
-	} else 
+		to_ticks >>= C_PRELGET(flags);
+		bintime_mul(&pr, to_ticks);
+	} else { 
 		to_bt = *bt;
+		if (precision != NULL)
+			pr = *precision;
+		else
+			bintime_clear(&pr);
+	}
 	/*
 	 * Don't allow migration of pre-allocated callouts lest they
 	 * become unbalanced.
@@ -1013,7 +1020,7 @@ _callout_reset_on(struct callout *c, struct bintime *bt, int to_ticks,
 	}
 #endif
 
-	callout_cc_add(c, cc, to_bt, ftn, arg, cpu, flags);
+	callout_cc_add(c, cc, to_bt, pr, ftn, arg, cpu, flags);
 	CTR6(KTR_CALLOUT, "%sscheduled %p func %p arg %p in %d.%08x",
 	    cancelled ? "re" : "", c, c->c_func, c->c_arg, (int)(to_bt.sec),
 	    (u_int)(to_bt.frac >> 32));

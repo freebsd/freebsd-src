@@ -102,7 +102,8 @@ static int	dofilewrite(struct thread *, int, struct file *, struct uio *,
 		    off_t, int);
 static void	doselwakeup(struct selinfo *, int);
 static void	seltdinit(struct thread *);
-static int	seltdwait(struct thread *, struct bintime *, int);
+static int	seltdwait(struct thread *, struct bintime *, struct bintime *,
+		    int);
 static void	seltdclear(struct thread *);
 
 /*
@@ -902,11 +903,12 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	 */
 	fd_mask s_selbits[howmany(2048, NFDBITS)];
 	fd_mask *ibits[3], *obits[3], *selbits, *sbp;
-	struct bintime abt, rbt;
+	struct bintime abt, precision, rbt;
 	struct timeval atv;
-	int error, lf, ndu, timo;
+	int error, lf, ndu;
 	u_int nbufbytes, ncpbytes, ncpubytes, nfdbits;
 
+	timevalclear(&atv);
 	if (nd < 0)
 		return (EINVAL);
 	fdp = td->td_proc->p_fd;
@@ -1002,9 +1004,17 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 			error = EINVAL;
 			goto done;
 		}
-		binuptime(&rbt);
 		timeval2bintime(&atv, &abt);
+		TIMESEL(&rbt, &abt);
 		bintime_add(&abt, &rbt);
+		precision = abt;
+		bintime_divpow2(&precision, tc_timeexp);
+		if (bintime_cmp(&tick_bt, &precision, >)) {
+			bintime_add(&abt, &tick_bt);
+			if (bintime_cmp(&precision, &halftick_bt, <))
+				precision = halftick_bt;
+		}
+		bintime_add(&abt, &precision);
 	} else {
 		abt.sec = 0;
 		abt.frac = 0;
@@ -1016,14 +1026,13 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 		if (error || td->td_retval[0] != 0)
 			break;
 		if (abt.sec || abt.frac) {
-			binuptime(&rbt);
+			TIMESEL(&rbt, &abt);
 			if (bintime_cmp(&rbt, &abt, >=))
 				break;
-			error = seltdwait(td, &abt, 0);
+			error = seltdwait(td, &abt, &precision, 0);
 		}
 		else {
-			timo = 0;
-			error = seltdwait(td, NULL, timo);
+			error = seltdwait(td, NULL, NULL, 0);
 		}
 		if (error)
 			break;
@@ -1256,12 +1265,13 @@ sys_poll(td, uap)
 {
 	struct pollfd *bits;
 	struct pollfd smallbits[32];
-	struct bintime abt, rbt;
+	struct bintime abt, precision, rbt;
 	struct timeval atv;
-	int error, timo;
+	int error;
 	u_int nfds;
 	size_t ni;
 
+	timevalclear(&atv);
 	nfds = uap->nfds;
 	if (nfds > maxfilesperproc && nfds > FD_SETSIZE) 
 		return (EINVAL);
@@ -1281,9 +1291,17 @@ sys_poll(td, uap)
 			error = EINVAL;
 			goto done;
 		}
-		binuptime(&rbt);
 		timeval2bintime(&atv, &abt);
+		TIMESEL(&rbt, &abt);
+		precision = abt;
 		bintime_add(&abt, &rbt);
+		bintime_divpow2(&precision, tc_timeexp);
+		if (atv.tv_usec * 1000 > tc_timethreshold) {
+			bintime_add(&abt, &tick_bt);
+			if (bintime_cmp(&precision, &halftick_bt, <))
+				precision = halftick_bt;
+		}
+		bintime_add(&abt, &precision);
 	} else {
 		abt.sec = 0;
 		abt.frac = 0;
@@ -1295,13 +1313,12 @@ sys_poll(td, uap)
 		if (error || td->td_retval[0] != 0)
 			break;
 		if (abt.sec || abt.frac) {
-			binuptime(&rbt);
+			TIMESEL(&rbt, &abt);
 			if (bintime_cmp(&rbt, &abt, >=))
 				break;
-			error = seltdwait(td, &abt, 0);
+			error = seltdwait(td, &abt, &precision, 0);
 		} else { 
-			timo = 0;
-			error = seltdwait(td, NULL, timo);
+			error = seltdwait(td, NULL, NULL, 0);
 		}
 		if (error)
 			break;
@@ -1644,7 +1661,8 @@ out:
 }
 
 static int
-seltdwait(struct thread *td, struct bintime *bt, int timo)
+seltdwait(struct thread *td, struct bintime *bt, struct bintime *precision,
+    int timo)
 {
 	struct seltd *stp;
 	int error;
@@ -1667,7 +1685,7 @@ seltdwait(struct thread *td, struct bintime *bt, int timo)
 		error = cv_timedwait_sig(&stp->st_wait, &stp->st_mtx, timo);
 	else if (bt != NULL)
 		error = cv_timedwait_sig_bt(&stp->st_wait, &stp->st_mtx,
-		    bt, 0);
+		    bt, precision);
 	else	
 		error = cv_wait_sig(&stp->st_wait, &stp->st_mtx);
 	mtx_unlock(&stp->st_mtx);

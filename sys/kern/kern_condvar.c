@@ -275,7 +275,7 @@ _cv_wait_sig(struct cv *cvp, struct lock_object *lock)
  */
 int
 _cv_timedwait(struct cv *cvp, struct lock_object *lock, struct bintime *bt, 
-    int timo, int flags)
+    struct bintime *precision, int timo, int flags)
 {
 	WITNESS_SAVE_DECL(lock_witness);
 	struct lock_class *class;
@@ -314,7 +314,7 @@ _cv_timedwait(struct cv *cvp, struct lock_object *lock, struct bintime *bt,
 	if (bt == NULL) 
 		sleepq_set_timeout_flags(cvp, timo, flags);
 	else
-		sleepq_set_timeout_bt(cvp, bt, flags);	
+		sleepq_set_timeout_bt(cvp, bt, precision);	
 	if (lock != &Giant.lock_object) {
 		if (class->lc_flags & LC_SLEEPABLE)
 			sleepq_release(cvp);
@@ -346,7 +346,7 @@ _cv_timedwait(struct cv *cvp, struct lock_object *lock, struct bintime *bt,
  */
 int
 _cv_timedwait_sig(struct cv *cvp, struct lock_object *lock, 
-    struct bintime *bt, int timo, int flags) 
+    struct bintime *bt, struct bintime *precision, int timo, int flags)
 {
 	WITNESS_SAVE_DECL(lock_witness);
 	struct lock_class *class;
@@ -386,7 +386,7 @@ _cv_timedwait_sig(struct cv *cvp, struct lock_object *lock,
 	if (bt == NULL)	
 		sleepq_set_timeout_flags(cvp, timo, flags);
 	else
-		sleepq_set_timeout_bt(cvp, bt, flags);
+		sleepq_set_timeout_bt(cvp, bt, precision);
 	if (lock != &Giant.lock_object) {
 		if (class->lc_flags & LC_SLEEPABLE)
 			sleepq_release(cvp);

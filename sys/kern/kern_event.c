@@ -550,8 +550,8 @@ filt_timerexpire(void *knx)
 	if ((kn->kn_flags & EV_ONESHOT) != EV_ONESHOT) {
 		bt = timer2bintime(kn->kn_sdata);
 		calloutp = (struct callout *)kn->kn_hook;
-		callout_reset_bt_on(calloutp, &bt, filt_timerexpire, kn,
-		    PCPU_GET(cpuid), C_P1MS);
+		callout_reset_bt_on(calloutp, &bt, NULL, filt_timerexpire, kn,
+		    PCPU_GET(cpuid), 0);
 	}
 }
 
@@ -577,8 +577,8 @@ filt_timerattach(struct knote *kn)
 	callout_init(calloutp, CALLOUT_MPSAFE);
 	kn->kn_hook = calloutp;
 	bt = timer2bintime(kn->kn_sdata);
-	callout_reset_bt_on(calloutp, &bt, filt_timerexpire, kn,
-	    PCPU_GET(cpuid), C_P1MS);
+	callout_reset_bt_on(calloutp, &bt, NULL, filt_timerexpire, kn,
+	    PCPU_GET(cpuid), 0);
 
 	return (0);
 }

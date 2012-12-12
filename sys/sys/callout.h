@@ -51,24 +51,10 @@
 #define	CALLOUT_DIRECT 		0x0100 /* allow exec from hw int context */
 
 #define	C_DIRECT_EXEC		0x0001 /* direct execution of callout */
-#define	C_PABSBITS		24
-#define	C_PABSMASK		(~((1 << (32 - C_PABSBITS)) - 1))
-#define	C_PABSRANGE		((1 << C_PABSBITS) - 1)
-#define	C_BT2PABS(x)		((x) >> 40)
-#define	C_SETPABS(x)		(((x) & C_PABSRANGE) << 8)
-#define	C_US2PABS(x)		(((x) * 4294) & ~C_PABSMASK)
-#define	C_PABS2BT(x)		((uint64_t)(flags & C_PABSMASK) << 32)
-#define	C_PRELBITS		5
+#define	C_PRELBITS		7
 #define	C_PRELRANGE		((1 << C_PRELBITS) - 1)
-#define	C_PRELSET(x)		(((x) & C_PRELRANGE) << 1)
+#define	C_PRELSET(x)		((x) << 1)
 #define	C_PRELGET(x)		(((x) >> 1) & C_PRELRANGE)
-
-/*
- * Common values specified for precision.
- */
-#define	C_P1MS			C_US2PABS(1000)
-#define	C_P10MS			C_US2PABS(10000)
-#define	C_P100MS		C_US2PABS(100000)
 
 struct callout_handle {
 	struct callout *callout;
@@ -89,16 +75,16 @@ void	_callout_init_lock(struct callout *, struct lock_object *, int);
 	_callout_init_lock((c), ((rw) != NULL) ? &(rw)->lock_object :	\
 	   NULL, (flags))
 #define	callout_pending(c)	((c)->c_flags & CALLOUT_PENDING)
-int	_callout_reset_on(struct callout *, struct bintime *, int,
-	    void (*)(void *), void *, int, int);
+int	_callout_reset_on(struct callout *, struct bintime *,
+	    struct bintime *, int, void (*)(void *), void *, int, int);
 #define	callout_reset_on(c, to_ticks, fn, arg, cpu)			\
-    _callout_reset_on((c), (NULL), (to_ticks), (fn), (arg), (cpu),	\
-        (0))
+    _callout_reset_on((c), NULL, NULL, (to_ticks), (fn), (arg), 	\
+        (cpu), 0)
 #define callout_reset_flags_on(c, to_ticks, fn, arg, cpu, flags)	\
-    _callout_reset_on((c), (NULL), (to_ticks), (fn), (arg), (cpu),	\
-        (flags))			
-#define callout_reset_bt_on(c, bt, fn, arg, cpu, flags)			\
-    _callout_reset_on((c), (bt), (0), (fn), (arg), (cpu), (flags)) 
+    _callout_reset_on((c), NULL, NULL, (to_ticks), (fn), (arg), (cpu),	\
+        (flags))
+#define callout_reset_bt_on(c, bt, pr, fn, arg, cpu, flags)		\
+    _callout_reset_on((c), (bt), (pr), 0, (fn), (arg), (cpu), (flags)) 
 #define	callout_reset(c, on_tick, fn, arg)				\
     callout_reset_on((c), (on_tick), (fn), (arg), (c)->c_cpu)
 #define	callout_reset_curcpu(c, on_tick, fn, arg)			\

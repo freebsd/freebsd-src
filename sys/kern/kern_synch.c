@@ -146,7 +146,8 @@ sleepinit(void)
  */
 int
 _sleep(void *ident, struct lock_object *lock, int priority,
-    const char *wmesg, int timo, struct bintime *bt, int flags)
+    const char *wmesg, int timo, struct bintime *bt, 
+    struct bintime *precision, int flags)
 {
 	struct thread *td;
 	struct proc *p;
@@ -233,7 +234,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	 */
 	sleepq_add(ident, lock, wmesg, sleepq_flags, 0);
 	if (bt) 
-		sleepq_set_timeout_bt(ident, bt, flags);
+		sleepq_set_timeout_bt(ident, bt, precision);
 	else if (timo)
 		sleepq_set_timeout_flags(ident, timo, flags);
 	if (lock != NULL && class->lc_flags & LC_SLEEPABLE) {
