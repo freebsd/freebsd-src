@@ -548,14 +548,15 @@ pci_vtnet_init(struct vmctx *ctx, struct pci_devinst *pi, char *opts)
 
 	/*
 	 * The MAC address is the standard NetApp OUI of 00-a0-98,
-	 * followed by an MD5 of the vm name. The slot number is
-	 * prepended to this for slots other than 1, so that 
-	 * CFE can netboot from the equivalent of slot 1.
+	 * followed by an MD5 of the vm name. The slot/func number is
+	 * prepended to this for slots other than 1:0, so that 
+	 * a bootloader can netboot from the equivalent of slot 1.
 	 */
-	if (pi->pi_slot == 1) {
+	if (pi->pi_slot == 1 && pi->pi_func == 0) {
 		strncpy(nstr, vmname, sizeof(nstr));
 	} else {
-		snprintf(nstr, sizeof(nstr), "%d-%s", pi->pi_slot, vmname);
+		snprintf(nstr, sizeof(nstr), "%d-%d-%s", pi->pi_slot,
+		    pi->pi_func, vmname);
 	}
 
 	MD5Init(&mdctx);
