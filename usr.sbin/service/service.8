@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 26, 2009
+.Dd December 11, 2012
 .Dt SERVICE 8
 .Os
 .Sh NAME
@@ -33,6 +33,8 @@
 .Sh SYNOPSIS
 .Nm
 .Fl e
+.Nm
+.Fl R
 .Nm
 .Op Fl v
 .Fl l | r
@@ -62,6 +64,8 @@ then that list of scripts is checked for an
 .Qq rcvar
 assignment.
 If present the script is checked to see if it is enabled.
+.It Fl R
+Restart all enabled local services.
 .It Fl l
 List all files in
 .Pa /etc/rc.d
