@@ -129,7 +129,7 @@ static int 	vtscsi_execute_abort_task_cmd(struct vtscsi_softc *,
 static int 	vtscsi_execute_reset_dev_cmd(struct vtscsi_softc *,
 		    struct vtscsi_request *);
 
-static void 	vtscsi_get_request_lun(uint8_t lun[], target_id_t *, lun_id_t *);
+static void 	vtscsi_get_request_lun(uint8_t [], target_id_t *, lun_id_t *);
 static void	vtscsi_set_request_lun(struct ccb_hdr *, uint8_t []);
 static void	vtscsi_init_scsi_cmd_req(struct ccb_scsiio *,
 		    struct virtio_scsi_cmd_req *);
@@ -1672,9 +1672,6 @@ vtscsi_announce(struct vtscsi_softc *sc, uint32_t ac_code,
     target_id_t target_id, lun_id_t lun_id)
 {
 	struct cam_path *path;
-
-		xpt_async(ac_code, sc->vtscsi_path, NULL);
-		return;
 
 	/* Use the wildcard path from our softc for bus announcements. */
 	if (target_id == CAM_TARGET_WILDCARD && lun_id == CAM_LUN_WILDCARD) {

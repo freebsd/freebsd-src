@@ -59,10 +59,10 @@ static const char rcsid[] =
 #include <unistd.h>
 
 static int	aflag, bflag, dflag, eflag, hflag, iflag;
-static int	Nflag, nflag, oflag, qflag, xflag, warncount;
+static int	Nflag, nflag, oflag, qflag, Tflag, Wflag, xflag, warncount;
 
 static int	oidfmt(int *, int, char *, u_int *);
-static void	parse(char *);
+static void	parse(const char *);
 static int	show_var(int *, int);
 static int	sysctl_all(int *oid, int len);
 static int	name2oid(char *, int *);
@@ -74,8 +74,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: sysctl [-bdehiNnoqx] name[=value] ...",
-	    "       sysctl [-bdehNnoqx] -a");
+	    "usage: sysctl [-bdehiNnoqTWx] name[=value] ...",
+	    "       sysctl [-bdehNnoqTWx] -a");
 	exit(1);
 }
 
@@ -88,7 +88,7 @@ main(int argc, char **argv)
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AabdehiNnoqwxX")) != -1) {
+	while ((ch = getopt(argc, argv, "AabdehiNnoqTwWxX")) != -1) {
 		switch (ch) {
 		case 'A':
 			/* compatibility */
@@ -124,9 +124,15 @@ main(int argc, char **argv)
 		case 'q':
 			qflag = 1;
 			break;
+		case 'T':
+			Tflag = 1;
+			break;
 		case 'w':
 			/* compatibility */
 			/* ignored */
+			break;
+		case 'W':
+			Wflag = 1;
 			break;
 		case 'X':
 			/* compatibility */
@@ -161,7 +167,7 @@ main(int argc, char **argv)
  * Set a new value if requested.
  */
 static void
-parse(char *string)
+parse(const char *string)
 {
 	int len, i, j;
 	void *newval = 0;
@@ -176,12 +182,16 @@ parse(char *string)
 	char *cp, *bufp, buf[BUFSIZ], *endptr, fmt[BUFSIZ];
 	u_int kind;
 
-	bufp = buf;
+	cp = buf;
 	if (snprintf(buf, BUFSIZ, "%s", string) >= BUFSIZ)
 		errx(1, "oid too long: '%s'", string);
-	if ((cp = strchr(string, '=')) != NULL) {
-		*strchr(buf, '=') = '\0';
-		*cp++ = '\0';
+	bufp = strsep(&cp, "=");
+	if (cp != NULL) {
+		/* Tflag just lists tunables, do not allow assignment */
+		if (Tflag || Wflag) {
+			warnx("Can't set variables when using -T or -W");
+			usage();
+		}
 		while (isspace(*cp))
 			cp++;
 		newval = cp;
@@ -529,7 +539,7 @@ static int
 show_var(int *oid, int nlen)
 {
 	u_char buf[BUFSIZ], *val, *oval, *p;
-	char name[BUFSIZ], *fmt;
+	char name[BUFSIZ], fmt[BUFSIZ];
 	const char *sep, *sep1;
 	int qoid[CTL_MAXNAME+2];
 	uintmax_t umv;
@@ -544,6 +554,7 @@ show_var(int *oid, int nlen)
 	umv = mv = intlen = 0;
 
 	bzero(buf, BUFSIZ);
+	bzero(fmt, BUFSIZ);
 	bzero(name, BUFSIZ);
 	qoid[0] = 0;
 	memcpy(qoid + 2, oid, nlen * sizeof(int));
@@ -553,6 +564,15 @@ show_var(int *oid, int nlen)
 	i = sysctl(qoid, nlen + 2, name, &j, 0, 0);
 	if (i || !j)
 		err(1, "sysctl name %d %zu %d", i, j, errno);
+
+	oidfmt(oid, nlen, fmt, &kind);
+	/* if Wflag then only list sysctls that are writeable and not stats. */
+	if (Wflag && ((kind & CTLFLAG_WR) == 0 || (kind & CTLFLAG_STATS) != 0))
+		return 1;
+
+	/* if Tflag then only list sysctls that are tuneables. */
+	if (Tflag && (kind & CTLFLAG_TUN) == 0)
+		return 1;
 
 	if (Nflag) {
 		printf("%s", name);
@@ -596,8 +616,6 @@ show_var(int *oid, int nlen)
 		return (0);
 	}
 	val[len] = '\0';
-	fmt = buf;
-	oidfmt(oid, nlen, fmt, &kind);
 	p = val;
 	ctltype = (kind & CTLTYPE);
 	sign = ctl_sign[ctltype];

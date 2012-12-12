@@ -5446,3 +5446,46 @@ pmap_align_superpage(vm_object_t object, vm_ooffset_t offset,
 	else
 		*addr = ((*addr + PDRMASK) & ~PDRMASK) + superpage_offset;
 }
+
+#include "opt_ddb.h"
+#ifdef DDB
+#include <ddb/ddb.h>
+
+DB_SHOW_COMMAND(pte, pmap_print_pte)
+{
+	pmap_t pmap;
+	pml4_entry_t *pml4;
+	pdp_entry_t *pdp;
+	pd_entry_t *pde;
+	pt_entry_t *pte;
+	vm_offset_t va;
+
+	if (have_addr) {
+		va = (vm_offset_t)addr;
+		pmap = PCPU_GET(curpmap); /* XXX */
+	} else {
+		db_printf("show pte addr\n");
+		return;
+	}
+	pml4 = pmap_pml4e(pmap, va);
+	db_printf("VA %#016lx pml4e %#016lx", va, *pml4);
+	if ((*pml4 & PG_V) == 0) {
+		db_printf("\n");
+		return;
+	}
+	pdp = pmap_pml4e_to_pdpe(pml4, va);
+	db_printf(" pdpe %#016lx", *pdp);
+	if ((*pdp & PG_V) == 0 || (*pdp & PG_PS) != 0) {
+		db_printf("\n");
+		return;
+	}
+	pde = pmap_pdpe_to_pde(pdp, va);
+	db_printf(" pde %#016lx", *pde);
+	if ((*pde & PG_V) == 0 || (*pde & PG_PS) != 0) {
+		db_printf("\n");
+		return;
+	}
+	pte = pmap_pde_to_pte(pde, va);
+	db_printf(" pte %#016lx\n", *pte);
+}
+#endif

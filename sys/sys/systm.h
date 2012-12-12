@@ -72,15 +72,19 @@ extern int vm_guest;		/* Running as virtual machine guest? */
  */
 enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN };
 
+#if defined(WITNESS) || defined(INVARIANTS)
+void	kassert_panic(const char *fmt, ...);
+#endif
+
 #ifdef	INVARIANTS		/* The option is always available */
 #define	KASSERT(exp,msg) do {						\
 	if (__predict_false(!(exp)))					\
-		panic msg;						\
+		kassert_panic msg;						\
 } while (0)
 #define	VNASSERT(exp, vp, msg) do {					\
 	if (__predict_false(!(exp))) {					\
 		vn_printf(vp, "VNASSERT failed\n");			\
-		panic msg;						\
+		kassert_panic msg;						\
 	}								\
 } while (0)
 #else
