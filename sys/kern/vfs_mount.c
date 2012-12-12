@@ -709,7 +709,7 @@ sys_mount(td, uap)
 	int error;
 
 	/*
-	 * Mount flags are now 64-bits. On 32-bit archtectures only
+	 * Mount flags are now 64-bits. On 32-bit architectures only
 	 * 32-bits are passed in, but from here on everything handles
 	 * 64-bit flags correctly.
 	 */
