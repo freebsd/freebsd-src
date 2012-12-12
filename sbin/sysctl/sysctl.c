@@ -539,7 +539,7 @@ static int
 show_var(int *oid, int nlen)
 {
 	u_char buf[BUFSIZ], *val, *oval, *p;
-	char name[BUFSIZ], *fmt;
+	char name[BUFSIZ], fmt[BUFSIZ];
 	const char *sep, *sep1;
 	int qoid[CTL_MAXNAME+2];
 	uintmax_t umv;
@@ -554,6 +554,7 @@ show_var(int *oid, int nlen)
 	umv = mv = intlen = 0;
 
 	bzero(buf, BUFSIZ);
+	bzero(fmt, BUFSIZ);
 	bzero(name, BUFSIZ);
 	qoid[0] = 0;
 	memcpy(qoid + 2, oid, nlen * sizeof(int));
@@ -563,6 +564,15 @@ show_var(int *oid, int nlen)
 	i = sysctl(qoid, nlen + 2, name, &j, 0, 0);
 	if (i || !j)
 		err(1, "sysctl name %d %zu %d", i, j, errno);
+
+	oidfmt(oid, nlen, fmt, &kind);
+	/* if Wflag then only list sysctls that are writeable and not stats. */
+	if (Wflag && ((kind & CTLFLAG_WR) == 0 || (kind & CTLFLAG_STATS) != 0))
+		return 1;
+
+	/* if Tflag then only list sysctls that are tuneables. */
+	if (Tflag && (kind & CTLFLAG_TUN) == 0)
+		return 1;
 
 	if (Nflag) {
 		printf("%s", name);
@@ -606,20 +616,10 @@ show_var(int *oid, int nlen)
 		return (0);
 	}
 	val[len] = '\0';
-	fmt = buf;
-	oidfmt(oid, nlen, fmt, &kind);
 	p = val;
 	ctltype = (kind & CTLTYPE);
 	sign = ctl_sign[ctltype];
 	intlen = ctl_size[ctltype];
-
-	/* if Wflag then only list sysctls that are writeable and not stats. */
-	if (Wflag && ((kind & CTLFLAG_WR) == 0 || (kind & CTLFLAG_STATS) != 0))
-		return 1;
-
-	/* if Tflag then only list sysctls that are tuneables. */
-	if (Tflag && (kind & CTLFLAG_TUN) == 0)
-		return 1;
 
 	switch (ctltype) {
 	case CTLTYPE_STRING:
