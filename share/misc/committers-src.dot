@@ -241,6 +241,7 @@ rstone [label="Ryan Stone\nrstone@FreeBSD.org\n2010/04/19"]
 ru [label="Ruslan Ermilov\nru@FreeBSD.org\n1999/05/27"]
 rwatson [label="Robert N. M. Watson\nrwatson@FreeBSD.org\n1999/12/16"]
 sam [label="Sam Leffler\nsam@FreeBSD.org\n2002/07/02"]
+sbruno [label="Sean Bruno\nsbruno@FreeBSD.org\n????/??/??"]
 sanpei [label="MIHIRA Sanpei Yoshiro\nsanpei@FreeBSD.org\n2000/06/19"]
 scf [label="Sean C. Farley\nscf@FreeBSD.org\n2007/06/24"]
 schweikh [label="Jens Schweikhardt\nschweikh@FreeBSD.org\n2001/04/06"]
@@ -602,8 +603,11 @@ sam -> andre
 sam -> benjsc
 sam -> sephe
 
+sbruno -> jimharris
+
 schweikh -> dds
 
+scottl -> jimharris
 scottl -> pjd
 scottl -> sah
 scottl -> yongari
