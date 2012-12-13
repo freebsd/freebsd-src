@@ -612,6 +612,28 @@ fetch_progress() {
 	echo -n " "
 }
 
+pct_fmt()
+{
+	printf "                                     \r"
+	printf "($1/$2) %02.2f%% " `echo "scale=4;$LNC / $TOTAL * 100"|bc`
+}
+
+fetch_progress_percent() {
+	TOTAL=$1
+	LNC=0
+	pct_fmt $LNC $TOTAL
+	while read x; do
+		LNC=$(($LNC + 1))
+		if [ $(($LNC % 100)) = 0 ]; then
+                     pct_fmt $LNC $TOTAL
+		elif [ $(($LNC % 10)) = 0 ]; then
+			echo -n .
+		fi
+	done
+	pct_fmt $LNC $TOTAL
+	echo " done. "
+}
+
 # Sanity-check an index file
 fetch_index_sanity() {
 	if grep -qvE "^[-_+./@0-9A-Za-z]+\|[0-9a-f]{64}$" INDEX.new ||
@@ -781,11 +803,13 @@ fetch_update() {
 	echo " done." 1>${QUIETREDIR}
 
 # Attempt to fetch ports patches
-	echo -n "Fetching `wc -l < patchlist | tr -d ' '` "
+	patchcnt=`wc -l < patchlist | tr -d ' '`      
+	echo -n "Fetching $patchcnt "
 	echo ${NDEBUG} "patches.${DDSTATS}"
+	echo " "
 	tr '|' '-' < patchlist | lam -s "bp/" - |
 	    xargs ${XARGST} ${PHTTPGET} ${SERVERNAME}	\
-	    2>${STATSREDIR} | fetch_progress
+	    2>${STATSREDIR} | fetch_progress_percent $patchcnt
 	echo "done."
 
 # Attempt to apply ports patches
