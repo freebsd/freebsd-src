@@ -1080,9 +1080,6 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 
 	s->kif = kif;
 
-	if (pf_state_key_attach(skw, sks, s))
-		return (-1);
-
 	if (s->id == 0 && s->creatorid == 0) {
 		/* XXX: should be atomic, but probability of collision low */
 		if ((s->id = V_pf_stateid[curcpu]++) == PFID_MAXID)
@@ -1091,6 +1088,9 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 		s->id = htobe64(s->id);
 		s->creatorid = V_pf_status.hostid;
 	}
+
+	if (pf_state_key_attach(skw, sks, s))
+		return (-1);
 
 	ih = &V_pf_idhash[PF_IDHASH(s)];
 	PF_HASHROW_LOCK(ih);
