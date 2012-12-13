@@ -1108,8 +1108,14 @@ nd6_free(struct llentry *ln, int gc)
 	LLE_WUNLOCK(ln);
 	IF_AFDATA_LOCK(ifp);
 	LLE_WLOCK(ln);
-	LLE_REMREF(ln);
-	llentry_free(ln);
+
+	/* Guard against race with other llentry_free(). */
+	if (ln->la_flags & LLE_LINKED) {
+		LLE_REMREF(ln);
+		llentry_free(ln);
+	} else
+		LLE_FREE_LOCKED(ln);
+
 	IF_AFDATA_UNLOCK(ifp);
 
 	return (next);
