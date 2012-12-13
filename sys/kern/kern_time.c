@@ -491,15 +491,11 @@ kern_nanosleep(struct thread *td, struct timespec *rqt, struct timespec *rmt)
 	if (rqt->tv_sec < 0 || (rqt->tv_sec == 0 && rqt->tv_nsec == 0))
 		return (0);
 	timespec2bintime(rqt, &tmp);
-	TIMESEL(&bt, &tmp);
-	bintime_add(&bt, &tmp);
 	bt_prec = tmp;
 	bintime_divpow2(&bt_prec, tc_timeexp);
-	if (rqt->tv_nsec > tc_timethreshold) {
+	if (TIMESEL(&bt, &tmp))
 		bintime_add(&bt, &tick_bt);
-		if (bintime_cmp(&bt_prec, &halftick_bt, <))
-			bt_prec = halftick_bt;
-	}
+	bintime_add(&bt, &tmp);
 	bintime_add(&bt, &bt_prec);
 	error = tsleep_bt(&nanowait, PWAIT | PCATCH, "nanslp", &bt, &bt_prec);
 	TIMESEL(&btt, &tmp);

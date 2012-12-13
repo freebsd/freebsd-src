@@ -1005,15 +1005,11 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 			goto done;
 		}
 		timeval2bintime(&atv, &abt);
-		TIMESEL(&rbt, &abt);
-		bintime_add(&abt, &rbt);
 		precision = abt;
 		bintime_divpow2(&precision, tc_timeexp);
-		if (bintime_cmp(&tick_bt, &precision, >)) {
+		if (TIMESEL(&rbt, &abt))
 			bintime_add(&abt, &tick_bt);
-			if (bintime_cmp(&precision, &halftick_bt, <))
-				precision = halftick_bt;
-		}
+		bintime_add(&abt, &rbt);
 		bintime_add(&abt, &precision);
 	} else {
 		abt.sec = 0;
@@ -1292,15 +1288,11 @@ sys_poll(td, uap)
 			goto done;
 		}
 		timeval2bintime(&atv, &abt);
-		TIMESEL(&rbt, &abt);
 		precision = abt;
-		bintime_add(&abt, &rbt);
 		bintime_divpow2(&precision, tc_timeexp);
-		if (atv.tv_usec * 1000 > tc_timethreshold) {
+		if (TIMESEL(&rbt, &abt))
 			bintime_add(&abt, &tick_bt);
-			if (bintime_cmp(&precision, &halftick_bt, <))
-				precision = halftick_bt;
-		}
+		bintime_add(&abt, &rbt);
 		bintime_add(&abt, &precision);
 	} else {
 		abt.sec = 0;

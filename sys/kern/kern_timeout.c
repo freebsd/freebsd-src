@@ -935,7 +935,7 @@ _callout_reset_on(struct callout *c, struct bintime *bt,
 	if (bt == NULL) {
 		pr = to_bt = tick_bt;
 		getbinuptime(&now);
-		if (to_ticks > 0)
+		if (to_ticks > 1)
 			bintime_mul(&to_bt, to_ticks);
 		bintime_add(&to_bt, &now);
 		to_ticks >>= C_PRELGET(flags);

@@ -367,7 +367,7 @@ int	tvtohz(struct timeval *tv);
 
 #define	TIMESEL(bt, bt2)						\
 	((bintime_cmp((bt2), (&bt_timethreshold), >=)) ?		\
-	    binuptime((bt)) : getbinuptime((bt)))
+	    (getbinuptime(bt), 1) : (binuptime(bt), 0))
 
 #else /* !_KERNEL */
 #include <time.h>
