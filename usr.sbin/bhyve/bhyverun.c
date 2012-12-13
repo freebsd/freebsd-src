@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/vmm.h>
 #include <vmmapi.h>
 
-#include "fbsdrun.h"
+#include "bhyverun.h"
 #include "acpi.h"
 #include "inout.h"
 #include "dbgport.h"

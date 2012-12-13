@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <assert.h>
 
-#include "fbsdrun.h"
+#include "bhyverun.h"
 #include "spinup_ap.h"
 
 /*
