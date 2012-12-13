@@ -367,7 +367,7 @@ procdesc_close(struct file *fp, struct thread *td)
 		 * procdesc_reap().
 		 */
 		PROC_SLOCK(p);
-		proc_reap(curthread, p, NULL, 0, NULL);
+		proc_reap(curthread, p, NULL, 0);
 	} else {
 		/*
 		 * If the process is not yet dead, we need to kill it, but we
