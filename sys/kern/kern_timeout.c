@@ -585,7 +585,7 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	c->c_time = to_bintime;
 	c->c_precision = precision;
 	CTR4(KTR_CALLOUT, "precision set for %p: %d.%08x%08x",
-	    c, c->precision.sec, (u_int) (c->c_precision.frac >> 32), 
+	    c, c->c_precision.sec, (u_int) (c->c_precision.frac >> 32),
 	    (u_int) (c->c_precision.frac & 0xffffffff));
 	bucket = get_bucket(&c->c_time);
 	TAILQ_INSERT_TAIL(&cc->cc_callwheel[bucket], c, c_links.tqe);
