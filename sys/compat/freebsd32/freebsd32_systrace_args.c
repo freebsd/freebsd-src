@@ -3046,6 +3046,18 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 6;
 		break;
 	}
+	/* freebsd32_wait6 */
+	case 532: {
+		struct freebsd32_wait6_args *p = params;
+		iarg[0] = p->idtype; /* int */
+		iarg[1] = p->id; /* int */
+		uarg[2] = (intptr_t) p->status; /* int * */
+		iarg[3] = p->options; /* int */
+		uarg[4] = (intptr_t) p->wrusage; /* struct wrusage32 * */
+		uarg[5] = (intptr_t) p->info; /* siginfo_t * */
+		*n_args = 6;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -8125,6 +8137,31 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 5:
 			p = "int";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_wait6 */
+	case 532:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "int";
+			break;
+		case 2:
+			p = "int *";
+			break;
+		case 3:
+			p = "int";
+			break;
+		case 4:
+			p = "struct wrusage32 *";
+			break;
+		case 5:
+			p = "siginfo_t *";
 			break;
 		default:
 			break;
