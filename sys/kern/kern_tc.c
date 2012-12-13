@@ -124,9 +124,13 @@ struct bintime halftick_bt;
 struct bintime tick_bt;
 int tc_timeexp;
 int tc_timepercentage = TC_DEFAULTPERC;
+TUNABLE_INT("kern.timecounter.allowdeviation", &tc_timepercentage);
 int tc_timethreshold;
-SYSCTL_INT(_kern, OID_AUTO, tc_timepercentage, CTLFLAG_RW, 
-    &tc_timepercentage, 0, "Precision percentage tolerance"); 
+static int sysctl_kern_timecounter_adjprecision(SYSCTL_HANDLER_ARGS);
+SYSCTL_PROC(_kern_timecounter, OID_AUTO, tc_timepercentage, 
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
+    sysctl_kern_timecounter_adjprecision, "I", 
+    "Allowed deviation from absolute value");
 
 static void tc_windup(void);
 static void cpu_tick_calibrate(int);
@@ -1714,11 +1718,38 @@ tc_ticktock(int cnt)
 	tc_windup();
 }
 
+static void __inline 
+tc_adjprecision(void)
+{
+	struct timespec ts;
+	int tick_rate;
+
+	tick_rate = hz / tc_tick;
+	tc_timethreshold = (1000000000 / (tick_rate * tc_timepercentage)) * 100;
+	tc_timeexp = fls(roundup2(100 / tc_timepercentage, 2));
+	ts.tv_sec = tc_timethreshold / 1000000000;
+	ts.tv_nsec = tc_timethreshold % 1000000000;
+	timespec2bintime(&ts, &bt_timethreshold);
+}
+
+static int 
+sysctl_kern_timecounter_adjprecision(SYSCTL_HANDLER_ARGS)
+{
+	int error, val;
+
+	val = tc_timepercentage;
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	tc_timepercentage = val;
+	tc_adjprecision();
+	return (0);
+}
+
 static void
 inittimecounter(void *dummy)
 {
 	u_int p;
-	struct timespec ts;
 	int tick_rate;
 
 	/*
@@ -1733,12 +1764,8 @@ inittimecounter(void *dummy)
 		tc_tick = (hz + 500) / 1000;
 	else
 		tc_tick = 1;
+	tc_adjprecision();
 	tick_rate = hz / tc_tick;
-	tc_timethreshold = (1000000000 / (tick_rate * tc_timepercentage)) * 100;
-	tc_timeexp = fls(roundup2(100 / tc_timepercentage, 2));
-	ts.tv_sec = tc_timethreshold / 1000000000;
-	ts.tv_nsec = tc_timethreshold % 1000000000;
-	timespec2bintime(&ts, &bt_timethreshold);
 	FREQ2BT(tick_rate, &tick_bt);
 	halftick_bt = tick_bt;
 	bintime_divpow2(&halftick_bt, 1);
