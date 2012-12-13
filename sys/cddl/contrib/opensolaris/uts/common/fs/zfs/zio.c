@@ -2448,7 +2448,7 @@ zio_free_zil(spa_t *spa, uint64_t txg, blkptr_t *bp)
 
 /*
  * ==========================================================================
- * Read and write to physical devices
+ * Read, write and delete to physical devices
  * ==========================================================================
  */
 static int
