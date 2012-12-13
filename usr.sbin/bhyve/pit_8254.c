@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <assert.h>
 
-#include "fbsdrun.h"
+#include "bhyverun.h"
 #include "inout.h"
 #include "pit_8254.h"
 

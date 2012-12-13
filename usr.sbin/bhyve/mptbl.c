@@ -36,7 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 
-#include "fbsdrun.h"
+#include "bhyverun.h"
 #include "mptbl.h"
 
 #define MPTABLE_BASE		0xF0000

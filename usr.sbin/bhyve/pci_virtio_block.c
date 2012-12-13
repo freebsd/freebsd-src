@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <assert.h>
 #include <pthread.h>
 
-#include "fbsdrun.h"
+#include "bhyverun.h"
 #include "pci_emul.h"
 #include "virtio.h"
 

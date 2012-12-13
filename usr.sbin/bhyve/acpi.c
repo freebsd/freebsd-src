@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include "fbsdrun.h"
+#include "bhyverun.h"
 #include "acpi.h"
 
 /*
