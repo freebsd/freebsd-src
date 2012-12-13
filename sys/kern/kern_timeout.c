@@ -938,11 +938,15 @@ _callout_reset_on(struct callout *c, struct bintime *bt,
 		if (to_ticks > 1)
 			bintime_mul(&to_bt, to_ticks);
 		bintime_add(&to_bt, &now);
-		to_ticks >>= C_PRELGET(flags);
-		if (to_ticks == 0)
+		if (C_PRELGET(flags) == 0) {
 			pr = halftick_bt;
-		else
-			bintime_mul(&pr, to_ticks);
+		} else {
+			to_ticks >>= C_PRELGET(flags);
+			if (to_ticks == 0)
+				pr = halftick_bt;
+			else
+				bintime_mul(&pr, to_ticks);
+		}
 	} else { 
 		to_bt = *bt;
 		if (precision != NULL)
