@@ -943,7 +943,7 @@ indextooffset(char *s)
 	char *es;
 
 	if (s[0] == '+' || s[0] == '-') {
-		i = strtod (s, &es);
+		i = strtol (s, &es, 10);
 		if (*es != '\0')                      /* trailing junk */
 			errx (1, "Invalid specifier format: %s\n", s);
 		return (i);
