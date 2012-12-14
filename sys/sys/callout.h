@@ -53,8 +53,8 @@
 #define	C_DIRECT_EXEC		0x0001 /* direct execution of callout */
 #define	C_PRELBITS		7
 #define	C_PRELRANGE		((1 << C_PRELBITS) - 1)
-#define	C_PRELSET(x)		((x) << 1)
-#define	C_PRELGET(x)		(((x) >> 1) & C_PRELRANGE)
+#define	C_PRELSET(x)		(((x) + 1) << 1)
+#define	C_PRELGET(x)		(int)((((x) >> 1) & C_PRELRANGE) - 1)
 
 struct callout_handle {
 	struct callout *callout;
