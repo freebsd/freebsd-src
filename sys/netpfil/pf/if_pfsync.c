@@ -615,7 +615,7 @@ pfsync_input(struct mbuf *m, __unused int off)
 
 	len = ntohs(ph->len) + offset;
 	if (m->m_pkthdr.len < len) {
-		pfsyncstats.pfsyncs_badlen++;
+		V_pfsyncstats.pfsyncs_badlen++;
 		goto done;
 	}
 
