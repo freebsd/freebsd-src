@@ -79,7 +79,7 @@ int	_callout_reset_on(struct callout *, struct bintime *,
 	    struct bintime *, int, void (*)(void *), void *, int, int);
 #define	callout_reset_on(c, to_ticks, fn, arg, cpu)			\
     _callout_reset_on((c), NULL, NULL, (to_ticks), (fn), (arg), 	\
-        (cpu), 0)
+        (cpu), C_PRELSET(tc_timeexp))
 #define callout_reset_flags_on(c, to_ticks, fn, arg, cpu, flags)	\
     _callout_reset_on((c), NULL, NULL, (to_ticks), (fn), (arg), (cpu),	\
         (flags))
