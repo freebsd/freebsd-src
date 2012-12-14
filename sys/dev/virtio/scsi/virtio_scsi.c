@@ -347,18 +347,15 @@ vtscsi_attach(device_t dev)
 		device_printf(dev, "cannot allocate taskqueue\n");
 		goto fail;
 	}
-	error = taskqueue_start_threads(&sc->vtscsi_tq, 1, PI_DISK, "%s taskq",
-	    device_get_nameunit(dev));
-	if (error) {
-		device_printf(dev, "cannot start taskqueue threads\n");
-		goto fail;
-	}
 
 	error = virtio_setup_intr(dev, INTR_TYPE_CAM);
 	if (error) {
 		device_printf(dev, "cannot setup virtqueue interrupts\n");
 		goto fail;
 	}
+
+	taskqueue_start_threads(&sc->vtscsi_tq, 1, PI_DISK, "%s taskq",
+	    device_get_nameunit(dev));
 
 	vtscsi_enable_vqs_intr(sc);
 
