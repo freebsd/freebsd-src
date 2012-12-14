@@ -39,9 +39,7 @@ CFLAGS+= ${DEBUG_FLAGS}
 .if ${MK_CTF} != "no" && ${DEBUG_FLAGS:M-g} != ""
 CTFFLAGS+= -g
 .endif
-.endif
-
-.if !defined(DEBUG_FLAGS)
+.else
 STRIP?=	-s
 .endif
 
@@ -173,10 +171,9 @@ SOLINKOPTS+=	-Wl,--fatal-warnings -Wl,--warn-shared-textrel
 .endif
 
 .if target(beforelinking)
-${SHLIB_NAME}: ${SOBJS} beforelinking
-.else
-${SHLIB_NAME}: ${SOBJS}
+${SHLIB_NAME}: beforelinking
 .endif
+${SHLIB_NAME}: ${SOBJS}
 	@${ECHO} building shared library ${SHLIB_NAME}
 	@rm -f ${.TARGET} ${SHLIB_LINK}
 .if defined(SHLIB_LINK)
