@@ -288,7 +288,7 @@ fbclock_getmicrouptime(struct timeval *tvp)
 	do {
 		th = timehands;
 		gen = th->th_generation;
-		Bintime2timeval(&th->th_offset, tvp);
+		bintime2timeval(&th->th_offset, tvp);
 	} while (gen == 0 || gen != th->th_generation);
 }
 
