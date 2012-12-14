@@ -28,7 +28,7 @@
 .\"     From: @(#)savecore.8	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd December 24, 2008
+.Dd December 14, 2012
 .Dt SAVECORE 8
 .Os
 .Sh NAME
@@ -37,10 +37,12 @@
 .Sh SYNOPSIS
 .Nm
 .Fl c
+.Op Fl v
+.Op Ar device ...
 .Nm
 .Fl C
 .Op Fl v
-.Op Ar directory device
+.Op Ar device ...
 .Nm
 .Op Fl fkvz
 .Op Ar directory Op Ar device ...
