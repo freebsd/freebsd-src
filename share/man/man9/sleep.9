@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 6, 2012
+.Dd December 14, 2012
 .Dt SLEEP 9
 .Os
 .Sh NAME
@@ -45,7 +45,7 @@
 .Fn msleep "void *chan" "struct mtx *mtx" "int priority" "const char *wmesg" "int timo"
 .Ft int
 .Fn msleep_bt "void *chan" "struct mtx *mtx" "int priority" \
-"const char *wmesg" "struct bintime *bt" "int flags"
+"const char *wmesg" "struct bintime *bt" "struct bintime *pr"
 .Ft int
 .Fn msleep_spin "void *chan" "struct mtx *mtx" "const char *wmesg" "int timo"
 .Ft void
@@ -54,7 +54,7 @@
 .Fn tsleep "void *chan" "int priority" "const char *wmesg" "int timo"
 .Ft int
 .Fn tsleep_bt "void *chan" "int priority" "const char *wmesg" \
-"struct bintime *bt" "int flags"
+"struct bintime *bt" "struct bintime *pr"
 .Ft void
 .Fn wakeup "void *chan"
 .Ft void
@@ -169,12 +169,9 @@ since boot in form of
 as returned by
 .Fn binuptime
 function.
-.Pp
 The parameter
-.Fa flags
-allows to specify additional
-.Xr callout 9
-flags, such as precision.
+.Fa pr
+allows to specify wanted absolute event precision.
 .Pp
 Several of the sleep functions including
 .Fn msleep ,

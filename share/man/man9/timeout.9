@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 6, 2012
+.Dd December 14, 2012
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -88,7 +88,7 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
 "void *arg" "int cpu" "int flags"
 .Ft int
 .Fn callout_reset_bt_on "struct callout *c" "struct bintime *bt" \
-"timeout_t *func" "void *arg" "int cpu" "int flags"
+"struct bintime *pr" "timeout_t *func" "void *arg" "int cpu" "int flags"
 .Ft int
 .Fn callout_reset_curcpu "struct callout *c" "int ticks" "timeout_t *func" \
 "void *arg"
@@ -349,28 +349,21 @@ Run handler directly from hardware interrupt context instead of softclock swi.
 It is faster, but puts more constraints on handlers.
 Handlers may use only spin mutexes for locking, and they must be fast because
 they run with absolute priority.
-.It Fn C_US2PREC
-Specifies acceptable deviation between requested and factual run time in
-microseconds.
-Bigger value allows to aggregate more events in one timer interrupt to
+.It Fn C_PRELSET
+Specifies relative event time precision as binary logarithm of time interval
+divided by acceptable time deviation: 1 -- 1/2, 2 -- 1/4, etc.
+Smaller value allows to aggregate more events in one timer interrupt to
 reduce processing overhead and power consumption.
-.It Fn C_BT2PREC
-Alike to
-.Fn C_US2PREC ,
-but allows to specify deviation as 64bit fraction of second same as
-.Fa frac
-field in
-.Ft struct bintime .
 .El
 .Pp
 The function
 .Fn callout_reset_bt_on
-allows to get higher time resolution taking absolute time since boot
+allows to get higher time resolution, taking absolute time since boot
 in form of struct bintime *, as returned by
 .Fn binuptime
 or
 .Fn getbinuptime
-functions, instead of relative ticks count.
+functions, and precision, instead of relative ticks count.
 If specified time is in past, it will be silently converted to present
 to run handler as soon as possible.
 .Pp
