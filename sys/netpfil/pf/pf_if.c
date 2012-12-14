@@ -478,10 +478,10 @@ pfi_table_update(struct pfr_ktable *kt, struct pfi_kif *kif, int net, int flags)
 	if (kif->pfik_ifp != NULL)
 		pfi_instance_add(kif->pfik_ifp, net, flags);
 	else if (kif->pfik_group != NULL) {
-		IFNET_RLOCK();
+		IFNET_RLOCK_NOSLEEP();
 		TAILQ_FOREACH(ifgm, &kif->pfik_group->ifg_members, ifgm_next)
 			pfi_instance_add(ifgm->ifgm_ifp, net, flags);
-		IFNET_RUNLOCK();
+		IFNET_RUNLOCK_NOSLEEP();
 	}
 
 	if ((e = pfr_set_addrs(&kt->pfrkt_t, V_pfi_buffer, V_pfi_buffer_cnt, &size2,
