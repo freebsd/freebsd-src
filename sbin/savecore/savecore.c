@@ -681,6 +681,8 @@ main(int argc, char **argv)
 		}
 	if (checkfor && (clear || force || keep))
 		usage();
+	if (clear && (compress || keep))
+		usage();
 	argc -= optind;
 	argv += optind;
 	if (argc >= 1) {
