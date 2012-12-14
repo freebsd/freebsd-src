@@ -394,7 +394,7 @@ DoFile(const char *savedir, const char *device)
 	if (verbose)
 		printf("checking for kernel dump on device %s\n", device);
 
-	fd = open(device, O_RDWR);
+	fd = open(device, (checkfor || keep) ? O_RDONLY : O_RDWR);
 	if (fd < 0) {
 		syslog(LOG_ERR, "%s: %m", device);
 		return;
@@ -612,7 +612,7 @@ DoFile(const char *savedir, const char *device)
 		printf("dump saved\n");
 
 nuke:
-	if (clear || !keep) {
+	if (!keep) {
 		if (verbose)
 			printf("clearing dump header\n");
 		memcpy(kdhl.magic, KERNELDUMPMAGIC_CLEARED, sizeof kdhl.magic);
