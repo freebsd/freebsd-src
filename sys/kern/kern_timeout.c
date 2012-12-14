@@ -387,7 +387,8 @@ callout_process(struct bintime *now)
 	struct callout *tmp;
 	struct callout_cpu *cc;
 	struct callout_tailq *sc;
-	int cpu, depth_dir, firstb, mpcalls_dir, lastb, nowb, lockcalls_dir,
+	uint64_t lookahead;
+	int depth_dir, firstb, mpcalls_dir, lastb, nowb, lockcalls_dir,
 	    need_softclock, exit_allowed, exit_wanted;
 
 	need_softclock = 0;
@@ -396,16 +397,21 @@ callout_process(struct bintime *now)
 	lockcalls_dir = 0;
 	cc = CC_SELF();
 	mtx_lock_spin_flags(&cc->cc_lock, MTX_QUIET);
-	cpu = curcpu;
 
 	/* Compute the buckets of the last scan and present times. */
 	firstb = callout_hash(&cc->cc_lastscan);
 	nowb = callout_hash(now);
 
 	/* Compute the last bucket and minimum time of the bucket after it. */
+	if (nowb == firstb)
+		lookahead = 1LLU << 60;		/* 1/16s */
+	else if (nowb - firstb == 1)
+		lookahead = 1LLU << 61;		/* 1/8s */
+	else
+		lookahead = 1LLU << 63;		/* 1/2s */
 	first = last = *now;
-	bintime_addx(&first, (uint64_t)3 << (64 - 3));		/* 0.37s */
-	bintime_addx(&last, (uint64_t)3 << (64 - 2));		/* 0.75s */
+	bintime_addx(&first, lookahead / 2);
+	bintime_addx(&last, lookahead);
 	last.frac &= (0xffffffffffffffffLLU << (64 - CC_HASH_SHIFT));
 	lastb = callout_hash(&last) - 1;
 	max = last;
@@ -429,9 +435,6 @@ callout_process(struct bintime *now)
 		sc = &cc->cc_callwheel[firstb];
 		tmp = TAILQ_FIRST(sc);
 		while (tmp != NULL) {
-			/* Compute allowed time range for the event */
-			tmp_max = tmp->c_time;
-			bintime_add(&tmp_max, &tmp->c_precision);
 			/* Run the callout if present time within allowed. */
 			if (bintime_cmp(&tmp->c_time, now, <=)) {
 				/*
@@ -471,6 +474,8 @@ callout_process(struct bintime *now)
 			/* Update first and last time, respecting this event. */
 			if (bintime_cmp(&tmp->c_time, &first, <))
 				first = tmp->c_time;
+			tmp_max = tmp->c_time;
+			bintime_add(&tmp_max, &tmp->c_precision);
 			if (bintime_cmp(&tmp_max, &last, <))
 				last = tmp_max;
 next:
@@ -492,7 +497,7 @@ next:
 	}
 	cc->cc_exec_next_dir = NULL;
 	if (callout_new_inserted != NULL)
-		(*callout_new_inserted)(cpu, last, first);
+		(*callout_new_inserted)(curcpu, last, first);
 	cc->cc_firstevent = last;
 	cc->cc_lastscan = *now;
 #ifdef CALLOUT_PROFILING
