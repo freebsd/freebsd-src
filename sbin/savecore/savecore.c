@@ -194,7 +194,7 @@ check_space(const char *savedir, off_t dumpsize)
 		syslog(LOG_ERR, "%s: %m", savedir);
 		exit(1);
 	}
- 	spacefree = ((off_t) fsbuf.f_bavail * fsbuf.f_bsize) / 1024;
+	spacefree = ((off_t) fsbuf.f_bavail * fsbuf.f_bsize) / 1024;
 	totfree = ((off_t) fsbuf.f_bfree * fsbuf.f_bsize) / 1024;
 
 	(void)snprintf(path, sizeof(path), "%s/minfree", savedir);
@@ -209,7 +209,7 @@ check_space(const char *savedir, off_t dumpsize)
 	}
 
 	needed = dumpsize / 1024 + 2;	/* 2 for info file */
- 	if (((minfree > 0) ? spacefree : totfree) - needed < minfree) {
+	if (((minfree > 0) ? spacefree : totfree) - needed < minfree) {
 		syslog(LOG_WARNING,
 	"no dump, not enough free space on device (%lld available, need %lld)",
 		    (long long)(minfree > 0 ? spacefree : totfree),
@@ -262,7 +262,7 @@ DoRegularFile(int fd, off_t dumpsize, char *buf, const char *device,
 					if (he >= hs + BLOCKSIZE)
 						break;
 				}
-			
+
 				/* back down to a block boundary */
 				he &= BLOCKMASK;
 
@@ -433,7 +433,7 @@ DoFile(const char *savedir, const char *device)
 			syslog(LOG_ERR,
 			    "unknown version (%d) in last dump header on %s",
 			    dtoh32(kdhl.version), device);
-	
+
 			status = STATUS_BAD;
 			if (force == 0)
 				goto closefd;
@@ -444,7 +444,7 @@ DoFile(const char *savedir, const char *device)
 			syslog(LOG_ERR,
 			    "unknown version (%d) in last dump header on %s",
 			    dtoh32(kdhl.version), device);
-	
+
 			status = STATUS_BAD;
 			if (force == 0)
 				goto closefd;
@@ -472,7 +472,7 @@ DoFile(const char *savedir, const char *device)
 			syslog(LOG_ERR,
 			    "unknown version (%d) in last dump header on %s",
 			    dtoh32(kdhl.version), device);
-	
+
 			status = STATUS_BAD;
 			if (force == 0)
 				goto closefd;
