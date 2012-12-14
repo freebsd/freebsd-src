@@ -524,7 +524,7 @@ timer2bintime(intptr_t data)
 
 	getbinuptime(&pbt);
 	bt.sec = data / 1000;
-	bt.frac = (data % 1000) * (uint64_t)1844674407309000LL;
+	bt.frac = (data % 1000) * (uint64_t)1844674407309552ULL;
 	bintime_add(&bt, &pbt);
 	return bt;
 }
