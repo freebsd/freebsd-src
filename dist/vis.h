@@ -1,4 +1,4 @@
-/*	$NetBSD: vis.h,v 1.19 2011/03/12 19:52:45 christos Exp $	*/
+/*	$NetBSD: vis.h,v 1.20 2012/12/14 21:36:59 christos Exp $	*/
 
 /*-
  * Copyright (c) 1990, 1993
@@ -39,29 +39,30 @@
 /*
  * to select alternate encoding format
  */
-#define	VIS_OCTAL	0x001	/* use octal \ddd format */
-#define	VIS_CSTYLE	0x002	/* use \[nrft0..] where appropiate */
+#define	VIS_OCTAL	0x0001	/* use octal \ddd format */
+#define	VIS_CSTYLE	0x0002	/* use \[nrft0..] where appropiate */
 
 /*
  * to alter set of characters encoded (default is to encode all
  * non-graphic except space, tab, and newline).
  */
-#define	VIS_SP		0x004	/* also encode space */
-#define	VIS_TAB		0x008	/* also encode tab */
-#define	VIS_NL		0x010	/* also encode newline */
+#define	VIS_SP		0x0004	/* also encode space */
+#define	VIS_TAB		0x0008	/* also encode tab */
+#define	VIS_NL		0x0010	/* also encode newline */
 #define	VIS_WHITE	(VIS_SP | VIS_TAB | VIS_NL)
-#define	VIS_SAFE	0x020	/* only encode "unsafe" characters */
+#define	VIS_SAFE	0x0020	/* only encode "unsafe" characters */
 
 /*
  * other
  */
-#define	VIS_NOSLASH	0x040	/* inhibit printing '\' */
-#define	VIS_HTTP1808	0x080	/* http-style escape % hex hex */
-#define	VIS_HTTPSTYLE	0x080	/* http-style escape % hex hex */
-#define	VIS_MIMESTYLE	0x100	/* mime-style escape = HEX HEX */
-#define	VIS_HTTP1866	0x200	/* http-style &#num; or &string; */
-#define	VIS_NOESCAPE	0x400	/* don't decode `\' */
-#define	_VIS_END	0x800	/* for unvis */
+#define	VIS_NOSLASH	0x0040	/* inhibit printing '\' */
+#define	VIS_HTTP1808	0x0080	/* http-style escape % hex hex */
+#define	VIS_HTTPSTYLE	0x0080	/* http-style escape % hex hex */
+#define	VIS_MIMESTYLE	0x0100	/* mime-style escape = HEX HEX */
+#define	VIS_HTTP1866	0x0200	/* http-style &#num; or &string; */
+#define	VIS_NOESCAPE	0x0400	/* don't decode `\' */
+#define	_VIS_END	0x0800	/* for unvis */
+#define	VIS_GLOB	0x1000	/* encode glob(3) magic characters */
 
 /*
  * unvis return codes

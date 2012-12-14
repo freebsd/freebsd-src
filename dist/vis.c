@@ -1,4 +1,4 @@
-/*	$NetBSD: vis.c,v 1.44 2011/03/12 19:52:48 christos Exp $	*/
+/*	$NetBSD: vis.c,v 1.45 2012/12/14 21:38:18 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -57,7 +57,7 @@
 
 #include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: vis.c,v 1.44 2011/03/12 19:52:48 christos Exp $");
+__RCSID("$NetBSD: vis.c,v 1.45 2012/12/14 21:38:18 christos Exp $");
 #endif /* LIBC_SCCS and not lint */
 
 #include "namespace.h"
@@ -89,7 +89,7 @@ static char *do_svis(char *, size_t *, int, int, int, const char *);
 #define xtoa(c)		"0123456789abcdef"[c]
 #define XTOA(c)		"0123456789ABCDEF"[c]
 
-#define MAXEXTRAS	5
+#define MAXEXTRAS	9
 
 #define MAKEEXTRALIST(flag, extra, orig_str)				      \
 do {									      \
@@ -103,6 +103,12 @@ do {									      \
 	for (o = orig, e = extra; (*e++ = *o++) != '\0';)		      \
 		continue;						      \
 	e--;								      \
+	if (flag & VIS_GLOB) {						      \
+		*e++ = '*';						      \
+		*e++ = '?';						      \
+		*e++ = '[';						      \
+		*e++ = '#';						      \
+	}								      \
 	if (flag & VIS_SP) *e++ = ' ';					      \
 	if (flag & VIS_TAB) *e++ = '\t';				      \
 	if (flag & VIS_NL) *e++ = '\n';					      \
