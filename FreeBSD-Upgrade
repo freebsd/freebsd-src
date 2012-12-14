@@ -1,0 +1,27 @@
+Instructions for updating unvis(3) and vis(3).
+
+1) checkout the head of the vendor branch:
+
+	REPO=svn+ssh://svn.freebsd.org/
+	svn co $REPO/base/vendor/NetBSD/libc-vis/dist
+
+2) Update (un)vis.[3ch]:
+
+	rm dist/unvis.* dist/vis.*
+	export CVSROOT=anoncvs@anoncvs.NetBSD.org:/cvsroot
+	cvs export -r HEAD -d dist src/lib/libc/gen/unvis.3
+	cvs export -r HEAD -d dist src/lib/libc/gen/unvis.c
+	cvs export -r HEAD -d dist src/lib/libc/gen/vis.3
+	cvs export -r HEAD -d dist src/lib/libc/gen/vis.c
+	cvs export -r HEAD -d dist src/include/vis.h
+
+3) Commit the new versions:
+
+	svn commit -m "Vendor import of NetBSD's (un)vis(3) at `date +%F`" dist
+	svn cp -m "Tag `date +%F` import of NetBSD's (un)vis(3)" \
+	    $REPO/base/vendor/NetBSD/libc-vis/dist \
+	    $REPO/base/vendor/NetBSD/libc-vis/`date +%Y%d%m`
+
+4) Update the files in src/contrib/libc-pwcache:
+
+
