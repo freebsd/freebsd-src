@@ -636,8 +636,8 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: savecore -c",
-	    "       savecore -C [-v] [directory device]",
+	    "usage: savecore -c [-v] [device ...]",
+	    "       savecore -C [-v] [device ...]",
 	    "       savecore [-fkvz] [directory [device ...]]");
 	exit (1);
 }
@@ -685,7 +685,7 @@ main(int argc, char **argv)
 		usage();
 	argc -= optind;
 	argv += optind;
-	if (argc >= 1) {
+	if (argc >= 1 && !checkfor && !clear) {
 		error = chdir(argv[0]);
 		if (error) {
 			syslog(LOG_ERR, "chdir(%s): %m", argv[0]);
