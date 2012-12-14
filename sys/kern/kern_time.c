@@ -496,7 +496,6 @@ kern_nanosleep(struct thread *td, struct timespec *rqt, struct timespec *rmt)
 	if (TIMESEL(&bt, &tmp))
 		bintime_add(&bt, &tick_bt);
 	bintime_add(&bt, &tmp);
-	bintime_add(&bt, &bt_prec);
 	error = tsleep_bt(&nanowait, PWAIT | PCATCH, "nanslp", &bt, &bt_prec);
 	TIMESEL(&btt, &tmp);
 	if (error != EWOULDBLOCK) {

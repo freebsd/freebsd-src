@@ -1010,7 +1010,6 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 		if (TIMESEL(&rbt, &abt))
 			bintime_add(&abt, &tick_bt);
 		bintime_add(&abt, &rbt);
-		bintime_add(&abt, &precision);
 	} else {
 		abt.sec = 0;
 		abt.frac = 0;
@@ -1293,7 +1292,6 @@ sys_poll(td, uap)
 		if (TIMESEL(&rbt, &abt))
 			bintime_add(&abt, &tick_bt);
 		bintime_add(&abt, &rbt);
-		bintime_add(&abt, &precision);
 	} else {
 		abt.sec = 0;
 		abt.frac = 0;

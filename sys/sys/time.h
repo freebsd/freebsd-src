@@ -299,7 +299,6 @@ void	resettodr(void);
 extern time_t	time_second;
 extern time_t	time_uptime;
 extern struct bintime boottimebin;
-extern struct bintime halftick_bt;
 extern struct bintime tick_bt;
 extern struct timeval boottime;
 extern int tc_timeexp;

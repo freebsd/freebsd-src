@@ -867,9 +867,9 @@ cpu_new_callout(int cpu, struct bintime bt, struct bintime bt_opt)
 	struct bintime now;
 	struct pcpu_state *state;
 
-	CTR5(KTR_SPARE2, "new co at %d:    on %d at %d.%08x%08x",
-	    curcpu, cpu, (int)(bt.sec), (u_int)(bt.frac >> 32),
-			 (u_int)(bt.frac & 0xffffffff));
+	CTR6(KTR_SPARE2, "new co at %d:    on %d at %d.%08x - %d.%08x",
+	    curcpu, cpu, (int)(bt_opt.sec), (u_int)(bt_opt.frac >> 32),
+	    (int)(bt.sec), (u_int)(bt.frac >> 32));
 	state = DPCPU_ID_PTR(cpu, timerstate);
 	ET_HW_LOCK(state);
 

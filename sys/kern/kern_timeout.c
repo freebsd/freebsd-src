@@ -383,7 +383,7 @@ get_bucket(struct bintime *bt)
 void
 callout_process(struct bintime *now)
 {
-	struct bintime max, min, next, next_opt, tmp_max, tmp_min;
+	struct bintime first, last, max, tmp_max;
 	struct callout *tmp;
 	struct callout_cpu *cc;
 	struct callout_tailq *sc;
@@ -403,11 +403,12 @@ callout_process(struct bintime *now)
 	nowb = callout_hash(now);
 
 	/* Compute the last bucket and minimum time of the bucket after it. */
-	next = next_opt = *now;
-	bintime_addx(&next, (uint64_t)3 << (64 - 2));		/* 0.75s */
-	next.frac &= (0xffffffffffffffffLLU << (64 - CC_HASH_SHIFT));
-	bintime_addx(&next_opt, (uint64_t)3 << (64 - 3));	/* 0.37s */
-	lastb = callout_hash(&next) - 1;
+	first = last = *now;
+	bintime_addx(&first, (uint64_t)3 << (64 - 3));		/* 0.37s */
+	bintime_addx(&last, (uint64_t)3 << (64 - 2));		/* 0.75s */
+	last.frac &= (0xffffffffffffffffLLU << (64 - CC_HASH_SHIFT));
+	lastb = callout_hash(&last) - 1;
+	max = last;
 
 	/*
 	 * Check if we wrapped around the entire wheel from the last scan.
@@ -422,9 +423,6 @@ callout_process(struct bintime *now)
 	firstb &= callwheelmask;
 
 	/* Iterate callwheel from firstb to nowb and then up to lastb. */
-	min.sec = TIME_T_MAX;
-	min.frac = UINT64_MAX;
-	max = next;
 	exit_allowed = 0;
 	for (;;) {
 		exit_wanted = 0;
@@ -432,13 +430,10 @@ callout_process(struct bintime *now)
 		tmp = TAILQ_FIRST(sc);
 		while (tmp != NULL) {
 			/* Compute allowed time range for the event */
-			tmp_max = tmp_min = tmp->c_time;
-			if (bintime_isset(&tmp->c_precision)) {
-				bintime_add(&tmp_max, &tmp->c_precision);
-				bintime_sub(&tmp_min, &tmp->c_precision);
-			}
+			tmp_max = tmp->c_time;
+			bintime_add(&tmp_max, &tmp->c_precision);
 			/* Run the callout if present time within allowed. */
-			if (bintime_cmp(&tmp_min, now, <=)) {
+			if (bintime_cmp(&tmp->c_time, now, <=)) {
 				/*
 				 * Consumer told us the callout may be run
 				 * directly from hardware interrupt context.
@@ -463,32 +458,21 @@ callout_process(struct bintime *now)
 				continue;
 			}
 			/* Skip events from distant future. */
-			if (bintime_cmp(&tmp_min, &next, >=))
+			if (bintime_cmp(&tmp->c_time, &max, >=))
 				goto next;
-			/*
-			 * This is the fist event we're going to process or
-			 * event maximal time is less than present minimal.
-			 * In both cases, take it.
-			 */
-			if (bintime_cmp(&tmp_max, &min, <)) {
-				max = tmp_max;
-				min = tmp_min;
-				goto next;
-			}
 			/*
 			 * Event minimal time is bigger than present maximal
 			 * time, so it cannot be aggregated.
 			 */
-			if (bintime_cmp(&tmp_min, &max, >)) {
+			if (bintime_cmp(&tmp->c_time, &last, >)) {
 				exit_wanted = 1;
 				goto next;
 			}
-			/*
-			 * If neither of the two previous happened, just take
-			 * the intersection of events.
-			 */
-			min = (bintime_cmp(&tmp_min, &min, >)) ? tmp_min : min;
-			max = (bintime_cmp(&tmp_max, &max, <)) ? tmp_max : max;
+			/* Update first and last time, respecting this event. */
+			if (bintime_cmp(&tmp->c_time, &first, <))
+				first = tmp->c_time;
+			if (bintime_cmp(&tmp_max, &last, <))
+				last = tmp_max;
 next:
 			tmp = TAILQ_NEXT(tmp, c_links.tqe);
 		}
@@ -507,25 +491,9 @@ next:
 		firstb = (firstb + 1) & callwheelmask;
 	}
 	cc->cc_exec_next_dir = NULL;
-	if (min.sec != TIME_T_MAX) {
-		/*
-		 * Now that we found something to aggregate, schedule an
-		 * interrupt in the middle of the previously calculated range.
-		 */
-		if (bintime_cmp(&max, &min, !=)) {
-			bintime_add(&max, &min);
-			next = max;
-			next.frac >>= 1;
-			if (next.sec & 1)
-				next.frac |= ((uint64_t)1 << 63);
-			next.sec >>= 1;
-		} else
-			next = max;
-		next_opt = min;
-	}
 	if (callout_new_inserted != NULL)
-		(*callout_new_inserted)(cpu, next, next_opt);
-	cc->cc_firstevent = next;
+		(*callout_new_inserted)(cpu, last, first);
+	cc->cc_firstevent = last;
 	cc->cc_lastscan = *now;
 #ifdef CALLOUT_PROFILING
 	avg_depth_dir += (depth_dir * 1000 - avg_depth_dir) >> 8;
@@ -570,7 +538,7 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
     struct bintime to_bintime, struct bintime precision, void (*func)(void *),
     void *arg, int cpu, int flags)
 {
-	struct bintime bt;
+	struct bintime last;
 	int bucket;
 
 	CC_LOCK_ASSERT(cc);
@@ -593,15 +561,13 @@ callout_cc_add(struct callout *c, struct callout_cpu *cc,
 	 * Inform the eventtimers(4) subsystem there's a new callout
 	 * that has been inserted, but only if really required.
 	 */
-	bt = c->c_time;
-	bintime_add(&bt, &c->c_precision);
+	last = c->c_time;
+	bintime_add(&last, &c->c_precision);
 	if (callout_new_inserted != NULL &&
-	    (bintime_cmp(&bt, &cc->cc_firstevent, <) ||
+	    (bintime_cmp(&last, &cc->cc_firstevent, <) ||
 	    !bintime_isset(&cc->cc_firstevent))) {
-		cc->cc_firstevent = c->c_time;
-		bt = c->c_time;
-		bintime_sub(&bt, &c->c_precision);
-		(*callout_new_inserted)(cpu, c->c_time, bt);
+		cc->cc_firstevent = last;
+		(*callout_new_inserted)(cpu, last, c->c_time);
 	}
 }
 
@@ -939,11 +905,11 @@ _callout_reset_on(struct callout *c, struct bintime *bt,
 			bintime_mul(&to_bt, to_ticks);
 		bintime_add(&to_bt, &now);
 		if (C_PRELGET(flags) < 0) {
-			pr = halftick_bt;
+			pr = tick_bt;
 		} else {
 			to_ticks >>= C_PRELGET(flags);
 			if (to_ticks == 0)
-				pr = halftick_bt;
+				pr = tick_bt;
 			else
 				bintime_mul(&pr, to_ticks);
 		}
