@@ -504,6 +504,8 @@ sc_attach_unit(int unit, int flags)
 
     sc = sc_get_softc(unit, flags & SC_KERNEL_CONSOLE);
     sc->config = flags;
+    callout_init(&sc->ctimeout, FALSE);
+    callout_init(&sc->cblink, FALSE);
     scp = sc_get_stat(sc->dev[0]);
     if (sc_console == NULL)	/* sc_console_unit < 0 */
 	sc_console = scp;
@@ -1831,7 +1833,8 @@ scrn_timer(void *arg)
     /* don't do anything when we are performing some I/O operations */
     if (suspend_in_progress || sc->font_loading_in_progress) {
 	if (again)
-	    timeout(scrn_timer, sc, hz / 10);
+	    callout_reset_flags(&sc->ctimeout, hz / 15, scrn_timer, sc,
+		C_PRELSET(0));
 	return;
     }
     s = spltty();
@@ -1881,7 +1884,8 @@ scrn_timer(void *arg)
     if (sc->blink_in_progress || sc->switch_in_progress
 	|| sc->write_in_progress) {
 	if (again)
-	    timeout(scrn_timer, sc, hz / 10);
+	    callout_reset_flags(&sc->ctimeout, hz / 15, scrn_timer, sc,
+		C_PRELSET(0));
 	splx(s);
 	return;
     }
@@ -1899,7 +1903,8 @@ scrn_timer(void *arg)
 #endif
 
     if (again)
-	timeout(scrn_timer, sc, hz / 25);
+	callout_reset_flags(&sc->ctimeout, hz / 30, scrn_timer, sc,
+	    C_PRELSET(1));
     splx(s);
 }
 
@@ -3844,7 +3849,8 @@ blink_screen(void *arg)
 	(*scp->rndr->draw)(scp, 0, scp->xsize*scp->ysize, 
 			   scp->sc->blink_in_progress & 1);
 	scp->sc->blink_in_progress--;
-	timeout(blink_screen, scp, hz / 10);
+	callout_reset_flags(&scp->sc->cblink, hz / 15, blink_screen, scp,
+	    C_PRELSET(0));
     }
 }
 
