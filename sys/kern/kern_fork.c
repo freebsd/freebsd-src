@@ -150,11 +150,7 @@ sys_vfork(struct thread *td, struct vfork_args *uap)
 	int error, flags;
 	struct proc *p2;
 
-#ifdef XEN
-	flags = RFFDG | RFPROC; /* validate that this is still an issue */
-#else
 	flags = RFFDG | RFPROC | RFPPWAIT | RFMEM;
-#endif		
 	error = fork1(td, flags, 0, &p2, NULL, 0);
 	if (error == 0) {
 		td->td_retval[0] = p2->p_pid;
