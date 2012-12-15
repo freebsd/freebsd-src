@@ -429,9 +429,8 @@ callout_process(struct bintime *now)
 	firstb &= callwheelmask;
 
 	/* Iterate callwheel from firstb to nowb and then up to lastb. */
-	exit_allowed = 0;
+	exit_allowed = exit_wanted = 0;
 	for (;;) {
-		exit_wanted = 0;
 		sc = &cc->cc_callwheel[firstb];
 		tmp = TAILQ_FIRST(sc);
 		while (tmp != NULL) {
