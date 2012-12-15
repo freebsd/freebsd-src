@@ -194,7 +194,7 @@ check_space(const char *savedir, off_t dumpsize)
 		syslog(LOG_ERR, "%s: %m", savedir);
 		exit(1);
 	}
- 	spacefree = ((off_t) fsbuf.f_bavail * fsbuf.f_bsize) / 1024;
+	spacefree = ((off_t) fsbuf.f_bavail * fsbuf.f_bsize) / 1024;
 	totfree = ((off_t) fsbuf.f_bfree * fsbuf.f_bsize) / 1024;
 
 	(void)snprintf(path, sizeof(path), "%s/minfree", savedir);
@@ -209,7 +209,7 @@ check_space(const char *savedir, off_t dumpsize)
 	}
 
 	needed = dumpsize / 1024 + 2;	/* 2 for info file */
- 	if (((minfree > 0) ? spacefree : totfree) - needed < minfree) {
+	if (((minfree > 0) ? spacefree : totfree) - needed < minfree) {
 		syslog(LOG_WARNING,
 	"no dump, not enough free space on device (%lld available, need %lld)",
 		    (long long)(minfree > 0 ? spacefree : totfree),
@@ -262,7 +262,7 @@ DoRegularFile(int fd, off_t dumpsize, char *buf, const char *device,
 					if (he >= hs + BLOCKSIZE)
 						break;
 				}
-			
+
 				/* back down to a block boundary */
 				he &= BLOCKMASK;
 
@@ -394,7 +394,7 @@ DoFile(const char *savedir, const char *device)
 	if (verbose)
 		printf("checking for kernel dump on device %s\n", device);
 
-	fd = open(device, O_RDWR);
+	fd = open(device, (checkfor || keep) ? O_RDONLY : O_RDWR);
 	if (fd < 0) {
 		syslog(LOG_ERR, "%s: %m", device);
 		return;
@@ -433,7 +433,7 @@ DoFile(const char *savedir, const char *device)
 			syslog(LOG_ERR,
 			    "unknown version (%d) in last dump header on %s",
 			    dtoh32(kdhl.version), device);
-	
+
 			status = STATUS_BAD;
 			if (force == 0)
 				goto closefd;
@@ -444,7 +444,7 @@ DoFile(const char *savedir, const char *device)
 			syslog(LOG_ERR,
 			    "unknown version (%d) in last dump header on %s",
 			    dtoh32(kdhl.version), device);
-	
+
 			status = STATUS_BAD;
 			if (force == 0)
 				goto closefd;
@@ -472,7 +472,7 @@ DoFile(const char *savedir, const char *device)
 			syslog(LOG_ERR,
 			    "unknown version (%d) in last dump header on %s",
 			    dtoh32(kdhl.version), device);
-	
+
 			status = STATUS_BAD;
 			if (force == 0)
 				goto closefd;
@@ -612,7 +612,7 @@ DoFile(const char *savedir, const char *device)
 		printf("dump saved\n");
 
 nuke:
-	if (clear || !keep) {
+	if (!keep) {
 		if (verbose)
 			printf("clearing dump header\n");
 		memcpy(kdhl.magic, KERNELDUMPMAGIC_CLEARED, sizeof kdhl.magic);
@@ -636,8 +636,8 @@ static void
 usage(void)
 {
 	fprintf(stderr, "%s\n%s\n%s\n",
-	    "usage: savecore -c",
-	    "       savecore -C [-v] [directory device]",
+	    "usage: savecore -c [-v] [device ...]",
+	    "       savecore -C [-v] [device ...]",
 	    "       savecore [-fkvz] [directory [device ...]]");
 	exit (1);
 }
@@ -681,9 +681,11 @@ main(int argc, char **argv)
 		}
 	if (checkfor && (clear || force || keep))
 		usage();
+	if (clear && (compress || keep))
+		usage();
 	argc -= optind;
 	argv += optind;
-	if (argc >= 1) {
+	if (argc >= 1 && !checkfor && !clear) {
 		error = chdir(argv[0]);
 		if (error) {
 			syslog(LOG_ERR, "chdir(%s): %m", argv[0]);
