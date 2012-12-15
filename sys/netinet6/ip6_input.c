@@ -126,6 +126,8 @@ extern struct domain inet6domain;
 
 u_char ip6_protox[IPPROTO_MAX];
 VNET_DEFINE(struct in6_ifaddrhead, in6_ifaddrhead);
+VNET_DEFINE(struct in6_ifaddrlisthead *, in6_ifaddrhashtbl);
+VNET_DEFINE(u_long, in6_ifaddrhmask);
 
 static struct netisr_handler ip6_nh = {
 	.nh_name = "ip6",
@@ -170,6 +172,8 @@ ip6_init(void)
 	TUNABLE_INT_FETCH("net.inet6.ip6.no_radr", &V_ip6_no_radr);
 
 	TAILQ_INIT(&V_in6_ifaddrhead);
+	V_in6_ifaddrhashtbl = hashinit(IN6ADDR_NHASH, M_IFADDR,
+	    &V_in6_ifaddrhmask);
 
 	/* Initialize packet filter hooks. */
 	V_inet6_pfil_hook.ph_type = PFIL_TYPE_AF;
@@ -297,6 +301,7 @@ void
 ip6_destroy()
 {
 
+	hashdestroy(V_in6_ifaddrhashtbl, M_IFADDR, V_in6_ifaddrhmask);
 	nd6_destroy();
 	callout_drain(&V_in6_tmpaddrtimer_ch);
 }
