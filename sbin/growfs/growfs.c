@@ -1487,6 +1487,12 @@ main(int argc, char **argv)
 		}
 	}
 
+	/*
+	 * Make sure the new size is a multiple of fs_fsize; /dev/ufssuspend
+	 * only supports fragment-aligned IO requests.
+	 */
+	size -= size % osblock.fs_fsize;
+
 	if (size <= (uint64_t)(osblock.fs_size * osblock.fs_fsize)) {
 		humanize_number(oldsizebuf, sizeof(oldsizebuf),
 		    osblock.fs_size * osblock.fs_fsize,
