@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 typedef struct {
 	struct resource	*intr;
 	void		*ih;
+	keyboard_t	*kbd;
+	struct callout	callout;
 } atkbd_softc_t;
 
 static devclass_t	atkbd_devclass;
@@ -56,6 +58,7 @@ static int	atkbdprobe(device_t dev);
 static int	atkbdattach(device_t dev);
 static int	atkbdresume(device_t dev);
 static void	atkbdintr(void *arg);
+static timeout_t atkbdtimeout;
 
 static device_method_t atkbd_methods[] = {
 	DEVMETHOD(device_identify,	atkbdidentify),
@@ -113,18 +116,18 @@ static int
 atkbdattach(device_t dev)
 {
 	atkbd_softc_t *sc;
-	keyboard_t *kbd;
 	u_long irq;
 	int flags;
 	int rid;
 	int error;
 
 	sc = device_get_softc(dev);
+	callout_init(&sc->callout, TRUE);
 
 	rid = KBDC_RID_KBD;
 	irq = bus_get_resource_start(dev, SYS_RES_IRQ, rid);
 	flags = device_get_flags(dev);
-	error = atkbd_attach_unit(device_get_unit(dev), &kbd,
+	error = atkbd_attach_unit(device_get_unit(dev), &sc->kbd,
 				  device_get_unit(device_get_parent(dev)),
 				  irq, flags);
 	if (error)
@@ -135,11 +138,17 @@ atkbdattach(device_t dev)
 	if (sc->intr == NULL)
 		return ENXIO;
 	error = bus_setup_intr(dev, sc->intr, INTR_TYPE_TTY, NULL, atkbdintr,
-			       kbd, &sc->ih);
-	if (error)
+			       sc->kbd, &sc->ih);
+	if (error) {
 		bus_release_resource(dev, SYS_RES_IRQ, rid, sc->intr);
+		return (error);
+	}
 
-	return error;
+	/*
+	 * This is a kludge to compensate for lost keyboard interrupts.
+	 */
+	atkbdtimeout(dev);
+	return (0);
 }
 
 static int
@@ -150,16 +159,14 @@ atkbdresume(device_t dev)
 	int args[2];
 
 	sc = device_get_softc(dev);
-	kbd = kbd_get_keyboard(kbd_find_keyboard(ATKBD_DRIVER_NAME,
-						 device_get_unit(dev)));
-	if (kbd) {
-		kbd->kb_flags &= ~KB_INITIALIZED;
-		args[0] = device_get_unit(device_get_parent(dev));
-		args[1] = rman_get_start(sc->intr);
-		kbdd_init(kbd, device_get_unit(dev), &kbd, args,
-		    device_get_flags(dev));
-		kbdd_clear_state(kbd);
-	}
+	kbd = sc->kbd;
+	kbd->kb_flags &= ~KB_INITIALIZED;
+	args[0] = device_get_unit(device_get_parent(dev));
+	args[1] = rman_get_start(sc->intr);
+	kbdd_init(kbd, device_get_unit(dev), &kbd, args,
+	    device_get_flags(dev));
+	kbdd_clear_state(kbd);
+
 	return 0;
 }
 
@@ -170,6 +177,28 @@ atkbdintr(void *arg)
 
 	kbd = (keyboard_t *)arg;
 	kbdd_intr(kbd, NULL);
+}
+
+static void
+atkbdtimeout(void *arg)
+{
+	device_t dev = (device_t)arg;
+	atkbd_softc_t *sc;
+	keyboard_t *kbd;
+
+	sc = device_get_softc(dev);
+	kbd = sc->kbd;
+	if (kbdd_lock(kbd, TRUE)) {
+		/*
+		 * We have seen the lock flag is not set. Let's reset
+		 * the flag early, otherwise the LED update routine fails
+		 * which may want the lock during the interrupt routine.
+		 */
+		kbdd_lock(kbd, FALSE);
+		if (kbdd_check_char(kbd))
+			kbdd_intr(kbd, NULL);
+	}
+	callout_reset_flags(&sc->callout, hz, atkbdtimeout, dev, C_PRELSET(0));
 }
 
 DRIVER_MODULE(atkbd, atkbdc, atkbd_driver, atkbd_devclass, 0, 0);

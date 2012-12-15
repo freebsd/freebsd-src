@@ -62,7 +62,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/atkbdc/atkbdreg.h>
 #include <dev/atkbdc/atkbdcreg.h>
 
-static timeout_t	atkbd_timeout;
 static void		atkbd_shutdown_final(void *v);
 
 int
@@ -114,12 +113,6 @@ atkbd_attach_unit(int unit, keyboard_t **kbd, int ctlr, int irq, int flags)
 		return error;
 #endif
 
-	/*
-	 * This is a kludge to compensate for lost keyboard interrupts.
-	 * A similar code used to be in syscons. See below. XXX
-	 */
-	atkbd_timeout(*kbd);
-
 	if (bootverbose)
 		(*sw->diag)(*kbd, bootverbose);
 
@@ -127,53 +120,6 @@ atkbd_attach_unit(int unit, keyboard_t **kbd, int ctlr, int irq, int flags)
 	    SHUTDOWN_PRI_DEFAULT);
 
 	return 0;
-}
-
-static void
-atkbd_timeout(void *arg)
-{
-	keyboard_t *kbd;
-	int s;
-
-	/*
-	 * The original text of the following comments are extracted 
-	 * from syscons.c (1.287)
-	 * 
-	 * With release 2.1 of the Xaccel server, the keyboard is left
-	 * hanging pretty often. Apparently an interrupt from the
-	 * keyboard is lost, and I don't know why (yet).
-	 * This ugly hack calls the low-level interrupt routine if input
-	 * is ready for the keyboard and conveniently hides the problem. XXX
-	 *
-	 * Try removing anything stuck in the keyboard controller; whether
-	 * it's a keyboard scan code or mouse data. The low-level
-	 * interrupt routine doesn't read the mouse data directly, 
-	 * but the keyboard controller driver will, as a side effect.
-	 */
-	/*
-	 * And here is bde's original comment about this:
-	 *
-	 * This is necessary to handle edge triggered interrupts - if we
-	 * returned when our IRQ is high due to unserviced input, then there
-	 * would be no more keyboard IRQs until the keyboard is reset by
-	 * external powers.
-	 *
-	 * The keyboard apparently unwedges the irq in most cases.
-	 */
-	s = spltty();
-	kbd = (keyboard_t *)arg;
-	if (kbdd_lock(kbd, TRUE)) {
-		/*
-		 * We have seen the lock flag is not set. Let's reset
-		 * the flag early, otherwise the LED update routine fails
-		 * which may want the lock during the interrupt routine.
-		 */
-		kbdd_lock(kbd, FALSE);
-		if (kbdd_check_char(kbd))
-			kbdd_intr(kbd, NULL);
-	}
-	splx(s);
-	timeout(atkbd_timeout, arg, hz/10);
 }
 
 /* LOW-LEVEL */
