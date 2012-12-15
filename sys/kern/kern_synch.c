@@ -266,7 +266,8 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 }
 
 int
-msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
+msleep_spin_flags(void *ident, struct mtx *mtx, const char *wmesg, int timo,
+    int flags)
 {
 	struct thread *td;
 	struct proc *p;
@@ -305,7 +306,7 @@ msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
 	 */
 	sleepq_add(ident, &mtx->lock_object, wmesg, SLEEPQ_SLEEP, 0);
 	if (timo)
-		sleepq_set_timeout(ident, timo);
+		sleepq_set_timeout_flags(ident, timo, flags);
 
 	/*
 	 * Can't call ktrace with any spin locks held so it can lock the

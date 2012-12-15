@@ -356,8 +356,10 @@ int	_sleep(void *chan, struct lock_object *lock, int pri, const char *wmesg,
 #define	msleep_bt(chan, mtx, pri, wmesg, bt, pr)			\
 	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg) 0, (bt),	\
 	    (pr), 0)
-int	msleep_spin(void *chan, struct mtx *mtx, const char *wmesg, int timo)
-	    __nonnull(1);
+int	msleep_spin_flags(void *chan, struct mtx *mtx, const char *wmesg,
+	    int timo, int flags) __nonnull(1);
+#define	msleep_spin(chan, mtx, wmesg, timo)				\
+	msleep_spin_flags((chan), (mtx), (wmesg), (timo), 0)
 int	pause(const char *wmesg, int timo);
 #define	tsleep(chan, pri, wmesg, timo)					\
 	_sleep((chan), NULL, (pri), (wmesg), (timo), NULL, NULL, 0)
