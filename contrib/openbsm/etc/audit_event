@@ -1,5 +1,5 @@
 #
-# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#42 $
+# $P4: //depot/projects/trustedbsd/openbsm/etc/audit_event#43 $
 # $FreeBSD$
 #
 # The mapping between event identifiers and values is also hard-coded in
@@ -562,6 +562,7 @@
 43198:AUE_PDKILL:pdkill(2):pc
 43199:AUE_PDGETPID:pdgetpid(2):pc
 43200:AUE_PDWAIT:pdwait(2):pc
+43201:AUE_WAIT6:wait6(2):pc
 #
 # Solaris userspace events.
 #
