@@ -352,8 +352,11 @@ msleep_spin_flags(void *ident, struct mtx *mtx, const char *wmesg, int timo,
  * to a "timo" value of one.
  */
 int
-pause(const char *wmesg, int timo)
+_pause(const char *wmesg, int timo, struct bintime *bt, struct bintime *pr,
+    int flags)
 {
+	struct bintime now, bt2;
+
 	KASSERT(timo >= 0, ("pause: timo must be >= 0"));
 
 	/* silently convert invalid timeouts */
@@ -361,6 +364,12 @@ pause(const char *wmesg, int timo)
 		timo = 1;
 
 	if (cold) {
+		if (bt != NULL) {
+			binuptime(&now);
+			bt2 = *bt;
+			bintime_sub(&bt2, &now);
+			timo = bt2.sec * hz + ((bt2.frac >> 32) * hz >> 32);
+		}
 		/*
 		 * We delay one HZ at a time to avoid overflowing the
 		 * system specific DELAY() function(s):
@@ -373,7 +382,7 @@ pause(const char *wmesg, int timo)
 			DELAY(timo * tick);
 		return (0);
 	}
-	return (tsleep(&pause_wchan, 0, wmesg, timo));
+	return (_sleep(&pause_wchan, NULL, 0, wmesg, timo, bt, pr, flags));
 }
 
 /*

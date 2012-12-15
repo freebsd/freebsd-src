@@ -360,9 +360,18 @@ int	msleep_spin_flags(void *chan, struct mtx *mtx, const char *wmesg,
 	    int timo, int flags) __nonnull(1);
 #define	msleep_spin(chan, mtx, wmesg, timo)				\
 	msleep_spin_flags((chan), (mtx), (wmesg), (timo), 0)
-int	pause(const char *wmesg, int timo);
+int	_pause(const char *wmesg, int timo, struct bintime *bt,
+	    struct bintime *pr, int flags);
+#define	pause(wmesg, timo)						\
+	_pause((wmesg), (timo), NULL, NULL, 0)
+#define	pause_flags(wmesg, timo, flags)					\
+	_pause((wmesg), (timo), NULL, NULL, (flags))
+#define	pause_bt(wmesg, bt, pr)						\
+	_pause((wmesg), 0, (bt), (pr), 0)
 #define	tsleep(chan, pri, wmesg, timo)					\
 	_sleep((chan), NULL, (pri), (wmesg), (timo), NULL, NULL, 0)
+#define	tsleep_flags(chan, pri, wmesg, timo, flags)			\
+	_sleep((chan), NULL, (pri), (wmesg), (timo), NULL, NULL, (flags))
 #define	tsleep_bt(chan, pri, wmesg, bt, pr)				\
 	_sleep((chan), NULL, (pri), (wmesg), 0, (bt), (pr), 0)
 void	wakeup(void *chan) __nonnull(1);
