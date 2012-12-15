@@ -173,11 +173,15 @@ SOLINKOPTS+=	-Wl,--fatal-warnings -Wl,--warn-shared-textrel
 .if target(beforelinking)
 ${SHLIB_NAME}: beforelinking
 .endif
+.if defined(DEBUG_FLAGS)
+${SHLIB_NAME}.debug: ${SOBJS}
+.else
 ${SHLIB_NAME}: ${SOBJS}
+.endif
 	@${ECHO} building shared library ${SHLIB_NAME}
-	@rm -f ${.TARGET} ${SHLIB_LINK}
+	@rm -f ${SHLIB_NAME} ${SHLIB_LINK}
 .if defined(SHLIB_LINK)
-	@ln -fs ${.TARGET} ${SHLIB_LINK}
+	@ln -fs ${SHLIB_NAME} ${SHLIB_LINK}
 .endif
 .if !defined(NM)
 	@${CC} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
@@ -190,6 +194,15 @@ ${SHLIB_NAME}: ${SOBJS}
 .endif
 .if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS}
+.endif
+
+.if defined(DEBUG_FLAGS)
+${SHLIB_NAME}: ${SHLIB_NAME}.debug ${SHLIB_NAME}.symbols
+	${OBJCOPY} --strip-debug --add-gnu-debuglink=${SHLIB_NAME}.symbols \
+	    ${SHLIB_NAME}.debug ${.TARGET}
+
+${SHLIB_NAME}.symbols: ${SHLIB_NAME}.debug
+	${OBJCOPY} --only-keep-debug ${SHLIB_NAME}.debug ${.TARGET}
 .endif
 .endif
 
@@ -267,6 +280,11 @@ _libinstall:
 	${INSTALL} ${STRIP} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
 	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
 	    ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}
+.if defined(DEBUG_FLAGS)
+	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
+	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
+	    ${SHLIB_NAME}.symbols ${DESTDIR}${SHLIBDIR}
+.endif
 .if defined(SHLIB_LINK)
 # ${_SHLIBDIRPREFIX} and ${_LDSCRIPTROOT} are both needed when cross-building
 # and when building 32 bits library shims.  ${_SHLIBDIRPREFIX} is the directory
