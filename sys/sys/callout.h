@@ -87,6 +87,8 @@ int	_callout_reset_on(struct callout *, struct bintime *,
     _callout_reset_on((c), (bt), (pr), 0, (fn), (arg), (cpu), (flags)) 
 #define	callout_reset(c, on_tick, fn, arg)				\
     callout_reset_on((c), (on_tick), (fn), (arg), (c)->c_cpu)
+#define	callout_reset_flags(c, on_tick, fn, arg, flags)			\
+    callout_reset_flags_on((c), (on_tick), (fn), (arg), (c)->c_cpu, (flags))
 #define	callout_reset_curcpu(c, on_tick, fn, arg)			\
     callout_reset_on((c), (on_tick), (fn), (arg), PCPU_GET(cpuid))
 int	callout_schedule(struct callout *, int);
