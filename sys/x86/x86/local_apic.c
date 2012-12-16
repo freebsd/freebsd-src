@@ -50,12 +50,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sched.h>
 #include <sys/smp.h>
+#include <sys/sysctl.h>
 #include <sys/timeet.h>
 
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
 #include <x86/apicreg.h>
+#include <machine/atomic.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/frame.h>
@@ -158,7 +160,15 @@ volatile lapic_t *lapic;
 vm_paddr_t lapic_paddr;
 static u_long lapic_timer_divisor;
 static struct eventtimer lapic_et;
+
 static int x2apic;
+SYSCTL_INT(_machdep, OID_AUTO, x2apic, CTLFLAG_RD, &x2apic, 0, "x2apic mode");
+
+static int x2apic_desired = -1;		/* enable only if running in a VM */
+TUNABLE_INT("machdep.x2apic_desired", &x2apic_desired);
+SYSCTL_INT(_machdep, OID_AUTO, x2apic_desired, CTLFLAG_RDTUN,
+	   &x2apic_desired, 0,
+	   "0 (disable), 1 (enable), -1 (leave it up to the kernel)");
 
 static void	lapic_enable(void);
 static void	lapic_resume(struct pic *pic);
@@ -247,6 +257,17 @@ lvt_mode(struct lapic *la, u_int pin, uint32_t value)
 	return (value);
 }
 
+static void
+x2apic_init(void)
+{
+	uint64_t apic_base;
+
+	apic_base = rdmsr(MSR_APICBASE);
+
+	if ((apic_base & APICBASE_X2APIC) == 0)
+		wrmsr(MSR_APICBASE, apic_base | APICBASE_X2APIC);
+}
+
 /*
  * Map the local APIC and setup necessary interrupt vectors.
  */
@@ -256,9 +277,21 @@ lapic_init(vm_paddr_t addr)
 	u_int regs[4];
 	int i, arat;
 
-	if ((cpu_feature2 & CPUID2_X2APIC) != 0 &&
-	    (rdmsr(MSR_APICBASE) & APICBASE_X2APIC) != 0) {
-		x2apic = 1;
+	if ((cpu_feature2 & CPUID2_X2APIC) != 0) {
+		if (rdmsr(MSR_APICBASE) & APICBASE_X2APIC)
+			x2apic = 1;
+		else if (x2apic_desired != 0) {
+			/*
+			 * The default behavior is to enable x2apic only if
+			 * the kernel is executing inside a virtual machine.
+			 */
+			if (vm_guest != VM_GUEST_NO || x2apic_desired == 1)
+				x2apic = 1;
+		}
+	}
+
+	if (x2apic) {
+		x2apic_init();
 		if (bootverbose)
 			printf("Local APIC access using x2APIC MSRs\n");
 	} else {
@@ -315,6 +348,14 @@ lapic_init(vm_paddr_t addr)
 		lapic_et.et_priv = NULL;
 		et_register(&lapic_et);
 	}
+}
+
+void
+lapic_init_ap(void)
+{
+
+	if (x2apic)
+		x2apic_init();
 }
 
 /*
@@ -934,9 +975,26 @@ static void
 lapic_set_icr(uint64_t value)
 {
 
-	if (x2apic)
+	/*
+	 * Access to x2apic MSR registers is not a serializing condition.
+	 *
+	 * A number of IPI handlers (e.g. rendezvous, tlb shootdown)
+	 * depend on shared state in memory between the cpu that
+	 * originated the IPI and the cpus that are the target.
+	 *
+	 * Insert a memory barrier to ensure that changes to memory
+	 * are globally visible to the other cpus.
+	 */
+	if (x2apic) {
+		/*
+		 * XXX
+		 * Intel's architecture spec seems to suggest that an
+		 * "sfence" should be sufficient here but empirically
+		 * an "mfence" is required to do the job.
+		 */
+		mb();
 		wrmsr(MSR_APIC_ICR, value);
-	else {
+	} else {
 		lapic->icr_hi = value >> 32;
 		lapic->icr_lo = value;
 	}
