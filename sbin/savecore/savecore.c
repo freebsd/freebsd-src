@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 
 static int checkfor, compress, clear, force, keep, verbose;	/* flags */
 static int nfound, nsaved, nerr;			/* statistics */
+static int maxdumps;
 
 extern FILE *zopen(const char *, const char *);
 
@@ -178,12 +179,62 @@ writebounds(int bounds) {
 	fclose(fp);
 }
 
+static off_t
+file_size(const char *path)
+{
+	struct stat sb;
+
+	/* Ignore all errors, those file may not exists. */
+	if (stat(path, &sb) == -1)
+		return (0);
+	return (sb.st_size);
+}
+
+static off_t
+saved_dump_size(int bounds)
+{
+	static char path[PATH_MAX];
+	off_t dumpsize;
+
+	dumpsize = 0;
+
+	(void)snprintf(path, sizeof(path), "info.%d", bounds);
+	dumpsize += file_size(path);
+	(void)snprintf(path, sizeof(path), "vmcore.%d", bounds);
+	dumpsize += file_size(path);
+	(void)snprintf(path, sizeof(path), "vmcore.%d.gz", bounds);
+	dumpsize += file_size(path);
+	(void)snprintf(path, sizeof(path), "textdump.tar.%d", bounds);
+	dumpsize += file_size(path);
+	(void)snprintf(path, sizeof(path), "textdump.tar.%d.gz", bounds);
+	dumpsize += file_size(path);
+
+	return (dumpsize);
+}
+
+static void
+saved_dump_remove(int bounds)
+{
+	static char path[PATH_MAX];
+
+	(void)snprintf(path, sizeof(path), "info.%d", bounds);
+	(void)unlink(path);
+	(void)snprintf(path, sizeof(path), "vmcore.%d", bounds);
+	(void)unlink(path);
+	(void)snprintf(path, sizeof(path), "vmcore.%d.gz", bounds);
+	(void)unlink(path);
+	(void)snprintf(path, sizeof(path), "textdump.tar.%d", bounds);
+	(void)unlink(path);
+	(void)snprintf(path, sizeof(path), "textdump.tar.%d.gz", bounds);
+	(void)unlink(path);
+}
+
 /*
  * Check that sufficient space is available on the disk that holds the
  * save directory.
  */
 static int
-check_space(const char *savedir, off_t dumpsize)
+check_space(const char *savedir, off_t dumpsize, int bounds)
 {
 	FILE *fp;
 	off_t minfree, spacefree, totfree, needed;
@@ -208,7 +259,8 @@ check_space(const char *savedir, off_t dumpsize)
 	}
 
 	needed = dumpsize / 1024 + 2;	/* 2 for info file */
-	if (((minfree > 0) ? spacefree : totfree) - needed < minfree) {
+	needed -= saved_dump_size(bounds);
+	if ((minfree > 0 ? spacefree : totfree) - needed < minfree) {
 		syslog(LOG_WARNING,
 	"no dump, not enough free space on device (%lld available, need %lld)",
 		    (long long)(minfree > 0 ? spacefree : totfree),
@@ -367,7 +419,7 @@ DoTextdumpFile(int fd, off_t dumpsize, off_t lasthd, char *buf,
 static void
 DoFile(const char *savedir, const char *device)
 {
-	static char filename[PATH_MAX];
+	static char infoname[PATH_MAX], corename[PATH_MAX];
 	static char *buf = NULL;
 	struct kerneldumpheader kdhf, kdhl;
 	off_t mediasize, dumpsize, firsthd, lasthd;
@@ -381,6 +433,9 @@ DoFile(const char *savedir, const char *device)
 	bounds = getbounds();
 	mediasize = 0;
 	status = STATUS_UNKNOWN;
+
+	if (maxdumps > 0 && bounds == maxdumps)
+		bounds = 0;
 
 	if (buf == NULL) {
 		buf = malloc(BUFFERSIZE);
@@ -535,19 +590,22 @@ DoFile(const char *savedir, const char *device)
 
 	if (verbose)
 		printf("Checking for available free space\n");
-	if (!check_space(savedir, dumpsize)) {
+
+	if (!check_space(savedir, dumpsize, bounds)) {
 		nerr++;
 		goto closefd;
 	}
 
 	writebounds(bounds + 1);
 
-	snprintf(buf, sizeof(buf), "info.%d", bounds);
+	saved_dump_remove(bounds);
+
+	snprintf(infoname, sizeof(infoname), "info.%d", bounds);
 
 	/*
 	 * Create or overwrite any existing dump header files.
 	 */
-	fdinfo = open(buf, O_WRONLY | O_CREAT | O_TRUNC, 0600);
+	fdinfo = open(infoname, O_WRONLY | O_CREAT | O_TRUNC, 0600);
 	if (fdinfo < 0) {
 		syslog(LOG_ERR, "%s: %m", buf);
 		nerr++;
@@ -555,16 +613,16 @@ DoFile(const char *savedir, const char *device)
 	}
 	oumask = umask(S_IRWXG|S_IRWXO); /* Restrict access to the core file.*/
 	if (compress) {
-		snprintf(filename, sizeof(filename), "%s.%d.gz",
+		snprintf(corename, sizeof(corename), "%s.%d.gz",
 		    istextdump ? "textdump.tar" : "vmcore", bounds);
-		fp = zopen(filename, "w");
+		fp = zopen(corename, "w");
 	} else {
-		snprintf(filename, sizeof(filename), "%s.%d",
+		snprintf(corename, sizeof(corename), "%s.%d",
 		    istextdump ? "textdump.tar" : "vmcore", bounds);
-		fp = fopen(filename, "w");
+		fp = fopen(corename, "w");
 	}
 	if (fp == NULL) {
-		syslog(LOG_ERR, "%s: %m", filename);
+		syslog(LOG_ERR, "%s: %m", corename);
 		close(fdinfo);
 		nerr++;
 		goto closefd;
@@ -585,15 +643,15 @@ DoFile(const char *savedir, const char *device)
 	printheader(info, &kdhl, device, bounds, status);
 	fclose(info);
 
-	syslog(LOG_NOTICE, "writing %score to %s",
-	    compress ? "compressed " : "", filename);
+	syslog(LOG_NOTICE, "writing %score to %s/%s",
+	    compress ? "compressed " : "", savedir, corename);
 
 	if (istextdump) {
 		if (DoTextdumpFile(fd, dumpsize, lasthd, buf, device,
-		    filename, fp) < 0)
+		    corename, fp) < 0)
 			goto closeall;
 	} else {
-		if (DoRegularFile(fd, dumpsize, buf, device, filename, fp)
+		if (DoRegularFile(fd, dumpsize, buf, device, corename, fp)
 		    < 0)
 			goto closeall;
 	}
@@ -601,10 +659,11 @@ DoFile(const char *savedir, const char *device)
 		printf("\n");
 
 	if (fclose(fp) < 0) {
-		syslog(LOG_ERR, "error on %s: %m", filename);
+		syslog(LOG_ERR, "error on %s: %m", corename);
 		nerr++;
 		goto closeall;
 	}
+
 	nsaved++;
 
 	if (verbose)
@@ -637,8 +696,8 @@ usage(void)
 	fprintf(stderr, "%s\n%s\n%s\n",
 	    "usage: savecore -c [-v] [device ...]",
 	    "       savecore -C [-v] [device ...]",
-	    "       savecore [-fkvz] [directory [device ...]]");
-	exit (1);
+	    "       savecore [-fkvz] [-m maxdumps] [directory [device ...]]");
+	exit(1);
 }
 
 int
@@ -654,7 +713,7 @@ main(int argc, char **argv)
 	openlog("savecore", LOG_PERROR, LOG_DAEMON);
 	signal(SIGINFO, infohandler);
 
-	while ((ch = getopt(argc, argv, "Ccfkvz")) != -1)
+	while ((ch = getopt(argc, argv, "Ccfkm:vz")) != -1)
 		switch(ch) {
 		case 'C':
 			checkfor = 1;
@@ -667,6 +726,13 @@ main(int argc, char **argv)
 			break;
 		case 'k':
 			keep = 1;
+			break;
+		case 'm':
+			maxdumps = atoi(optarg);
+			if (maxdumps <= 0) {
+				syslog(LOG_ERR, "Invalid maxdump value");
+				exit(1);
+			}
 			break;
 		case 'v':
 			verbose++;
@@ -681,6 +747,8 @@ main(int argc, char **argv)
 	if (checkfor && (clear || force || keep))
 		usage();
 	if (clear && (compress || keep))
+		usage();
+	if (maxdumps > 0 && (checkfor || clear))
 		usage();
 	argc -= optind;
 	argv += optind;
