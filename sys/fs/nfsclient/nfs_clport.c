@@ -1207,6 +1207,9 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 	struct nfscbd_args nfscbdarg;
 	struct nfsd_nfscbd_args nfscbdarg2;
 	int error;
+	struct nameidata nd;
+	struct nfscl_dumpmntopts dumpmntopts;
+	char *buf;
 
 	if (uap->flag & NFSSVC_CBADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg, sizeof(nfscbdarg));
@@ -1239,6 +1242,28 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 		if (error)
 			return (error);
 		error = nfscbd_nfsd(td, &nfscbdarg2);
+	} else if (uap->flag & NFSSVC_DUMPMNTOPTS) {
+		error = copyin(uap->argp, &dumpmntopts, sizeof(dumpmntopts));
+		if (error == 0 && (dumpmntopts.ndmnt_blen < 256 ||
+		    dumpmntopts.ndmnt_blen > 1024))
+			error = EINVAL;
+		if (error == 0)
+			error = nfsrv_lookupfilename(&nd,
+			    dumpmntopts.ndmnt_fname, td);
+		if (error == 0 && strcmp(nd.ni_vp->v_mount->mnt_vfc->vfc_name,
+		    "nfs") != 0) {
+			vput(nd.ni_vp);
+			error = EINVAL;
+		}
+		if (error == 0) {
+			buf = malloc(dumpmntopts.ndmnt_blen, M_TEMP, M_WAITOK);
+			nfscl_retopts(VFSTONFS(nd.ni_vp->v_mount), buf,
+			    dumpmntopts.ndmnt_blen);
+			vput(nd.ni_vp);
+			error = copyout(buf, dumpmntopts.ndmnt_buf,
+			    dumpmntopts.ndmnt_blen);
+			free(buf, M_TEMP);
+		}
 	} else {
 		error = EINVAL;
 	}

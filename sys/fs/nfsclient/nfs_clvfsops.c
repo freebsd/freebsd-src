@@ -1630,3 +1630,105 @@ nfs_getnlminfo(struct vnode *vp, uint8_t *fhp, size_t *fhlenp,
 	}
 }
 
+/*
+ * This function prints out an option name, based on the conditional
+ * argument.
+ */
+static __inline void nfscl_printopt(struct nfsmount *nmp, int testval,
+    char *opt, char **buf, size_t *blen)
+{
+	int len;
+
+	if (testval != 0 && *blen > strlen(opt)) {
+		len = snprintf(*buf, *blen, "%s", opt);
+		if (len != strlen(opt))
+			printf("EEK!!\n");
+		*buf += len;
+		*blen -= len;
+	}
+}
+
+/*
+ * This function printf out an options integer value.
+ */
+static __inline void nfscl_printoptval(struct nfsmount *nmp, int optval,
+    char *opt, char **buf, size_t *blen)
+{
+	int len;
+
+	if (*blen > strlen(opt) + 1) {
+		/* Could result in truncated output string. */
+		len = snprintf(*buf, *blen, "%s=%d", opt, optval);
+		if (len < *blen) {
+			*buf += len;
+			*blen -= len;
+		}
+	}
+}
+
+/*
+ * Load the option flags and values into the buffer.
+ */
+void nfscl_retopts(struct nfsmount *nmp, char *buffer, size_t buflen)
+{
+	char *buf;
+	size_t blen;
+
+	buf = buffer;
+	blen = buflen;
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_NFSV4) != 0, "nfsv4", &buf,
+	    &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_NFSV3) != 0, "nfsv3", &buf,
+	    &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & (NFSMNT_NFSV3 | NFSMNT_NFSV4)) == 0,
+	    "nfsv2", &buf, &blen);
+	nfscl_printopt(nmp, nmp->nm_sotype == SOCK_STREAM, ",tcp", &buf, &blen);
+	nfscl_printopt(nmp, nmp->nm_sotype != SOCK_STREAM, ",udp", &buf, &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_RESVPORT) != 0, ",resvport",
+	    &buf, &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_NOCONN) != 0, ",noconn",
+	    &buf, &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_SOFT) == 0, ",hard", &buf,
+	    &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_SOFT) != 0, ",soft", &buf,
+	    &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_INT) != 0, ",intr", &buf,
+	    &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_NOCTO) == 0, ",cto", &buf,
+	    &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_NOCTO) != 0, ",nocto", &buf,
+	    &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & (NFSMNT_NOLOCKD | NFSMNT_NFSV4)) ==
+	    0, ",lockd", &buf, &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & (NFSMNT_NOLOCKD | NFSMNT_NFSV4)) ==
+	    NFSMNT_NOLOCKD, ",nolockd", &buf, &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_RDIRPLUS) != 0, ",rdirplus",
+	    &buf, &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & NFSMNT_KERB) == 0, ",sec=sys",
+	    &buf, &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & (NFSMNT_KERB | NFSMNT_INTEGRITY |
+	    NFSMNT_PRIVACY)) == NFSMNT_KERB, ",sec=krb5", &buf, &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & (NFSMNT_KERB | NFSMNT_INTEGRITY |
+	    NFSMNT_PRIVACY)) == (NFSMNT_KERB | NFSMNT_INTEGRITY), ",sec=krb5i",
+	    &buf, &blen);
+	nfscl_printopt(nmp, (nmp->nm_flag & (NFSMNT_KERB | NFSMNT_INTEGRITY |
+	    NFSMNT_PRIVACY)) == (NFSMNT_KERB | NFSMNT_PRIVACY), ",sec=krb5p",
+	    &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_acdirmin, ",acdirmin", &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_acdirmax, ",acdirmax", &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_acregmin, ",acregmin", &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_acregmax, ",acregmax", &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_nametimeo, ",nametimeo", &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_negnametimeo, ",negnametimeo", &buf,
+	    &blen);
+	nfscl_printoptval(nmp, nmp->nm_rsize, ",rsize", &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_wsize, ",wsize", &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_readdirsize, ",readdirsize", &buf,
+	    &blen);
+	nfscl_printoptval(nmp, nmp->nm_readahead, ",readahead", &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_wcommitsize, ",wcommitsize", &buf,
+	    &blen);
+	nfscl_printoptval(nmp, nmp->nm_timeo, ",timeout", &buf, &blen);
+	nfscl_printoptval(nmp, nmp->nm_retry, ",retrans", &buf, &blen);
+}
+
