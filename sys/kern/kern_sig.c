@@ -3213,16 +3213,10 @@ coredump(struct thread *td)
 	name = expand_name(p->p_comm, cred->cr_uid, p->p_pid, td, compress);
 	if (name == NULL) {
 		PROC_UNLOCK(p);
-#ifdef AUDIT
-		audit_proc_coredump(td, NULL, EINVAL);
-#endif
 		return (EINVAL);
 	}
 	if (!do_coredump || (!sugid_coredump && (p->p_flag & P_SUGID) != 0)) {
 		PROC_UNLOCK(p);
-#ifdef AUDIT
-		audit_proc_coredump(td, name, EFAULT);
-#endif
 		free(name, M_TEMP);
 		return (EFAULT);
 	}
@@ -3238,9 +3232,6 @@ coredump(struct thread *td)
 	limit = (off_t)lim_cur(p, RLIMIT_CORE);
 	if (limit == 0 || racct_get_available(p, RACCT_CORE) == 0) {
 		PROC_UNLOCK(p);
-#ifdef AUDIT
-		audit_proc_coredump(td, name, EFBIG);
-#endif
 		free(name, M_TEMP);
 		return (EFBIG);
 	}
