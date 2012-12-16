@@ -663,14 +663,14 @@ main(int argc, char **argv)
 		case 'c':
 			clear = 1;
 			break;
+		case 'f':
+			force = 1;
+			break;
 		case 'k':
 			keep = 1;
 			break;
 		case 'v':
 			verbose++;
-			break;
-		case 'f':
-			force = 1;
 			break;
 		case 'z':
 			compress = 1;
