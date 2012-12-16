@@ -3531,16 +3531,16 @@ rpc/rpcsec_gss/svc_rpcsec_gss.c	optional krpc kgssapi | nfslockd kgssapi | nfscl
 security/audit/audit.c		optional audit
 security/audit/audit_arg.c	optional audit
 security/audit/audit_bsm.c	optional audit
-security/audit/audit_bsm_domain.c	optional audit
-security/audit/audit_bsm_errno.c	optional audit
-security/audit/audit_bsm_fcntl.c	optional audit
 security/audit/audit_bsm_klib.c	optional audit
-security/audit/audit_bsm_socket_type.c	optional audit
-security/audit/audit_bsm_token.c	optional audit
 security/audit/audit_pipe.c	optional audit
 security/audit/audit_syscalls.c	standard
 security/audit/audit_trigger.c	optional audit
 security/audit/audit_worker.c	optional audit
+security/audit/bsm_domain.c	optional audit
+security/audit/bsm_errno.c	optional audit
+security/audit/bsm_fcntl.c	optional audit
+security/audit/bsm_socket_type.c	optional audit
+security/audit/bsm_token.c	optional audit
 security/mac/mac_atalk.c	optional mac netatalk
 security/mac/mac_audit.c	optional mac audit
 security/mac/mac_cred.c		optional mac

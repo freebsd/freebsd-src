@@ -3210,22 +3210,8 @@ coredump(struct thread *td)
 	MPASS((p->p_flag & P_HADTHREADS) == 0 || p->p_singlethread == td);
 	_STOPEVENT(p, S_CORE, 0);
 
-	name = expand_name(p->p_comm, td->td_ucred->cr_uid, p->p_pid, td,
-	    compress);
-	if (name == NULL) {
+	if (!do_coredump || (!sugid_coredump && (p->p_flag & P_SUGID) != 0)) {
 		PROC_UNLOCK(p);
-#ifdef AUDIT
-		audit_proc_coredump(td, NULL, EINVAL);
-#endif
-		return (EINVAL);
-	}
-	if (((sugid_coredump == 0) && p->p_flag & P_SUGID) ||
-	    do_coredump == 0) {
-		PROC_UNLOCK(p);
-#ifdef AUDIT
-		audit_proc_coredump(td, name, EFAULT);
-#endif
-		free(name, M_TEMP);
 		return (EFAULT);
 	}
 
@@ -3240,13 +3226,13 @@ coredump(struct thread *td)
 	limit = (off_t)lim_cur(p, RLIMIT_CORE);
 	if (limit == 0 || racct_get_available(p, RACCT_CORE) == 0) {
 		PROC_UNLOCK(p);
-#ifdef AUDIT
-		audit_proc_coredump(td, name, EFBIG);
-#endif
-		free(name, M_TEMP);
 		return (EFBIG);
 	}
 	PROC_UNLOCK(p);
+
+	name = expand_name(p->p_comm, cred->cr_uid, p->p_pid, td, compress);
+	if (name == NULL)
+		return (EINVAL);
 
 restart:
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, td);

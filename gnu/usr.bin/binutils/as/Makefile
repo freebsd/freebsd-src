@@ -8,7 +8,7 @@
 
 .PATH: ${SRCDIR}/gas ${SRCDIR}/gas/config
 
-.if ${TARGET_ARCH} == "powerpc64"
+.if ${TARGET} == "arm" || ${TARGET_ARCH} == "powerpc64"
 NO_WERROR.clang=
 .endif
 

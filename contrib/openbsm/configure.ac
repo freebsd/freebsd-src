@@ -2,8 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.59)
-AC_INIT([OpenBSM], [1.2alpha2], [trustedbsd-audit@TrustesdBSD.org],[openbsm])
-AC_REVISION([$P4: //depot/projects/trustedbsd/openbsm/configure.ac#63 $])
+AC_INIT([OpenBSM], [1.2-alpha3], [trustedbsd-audit@TrustesdBSD.org],[openbsm])
+AC_REVISION([$P4: //depot/projects/trustedbsd/openbsm/configure.ac#66 $])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([bin/auditreduce/auditreduce.c])
 AC_CONFIG_AUX_DIR(config)
@@ -217,12 +217,14 @@ AC_TRY_LINK([
 	#endif
 	#include <stdlib.h>
 ], [
-	bswap16(0);
-	bswap32(0);
-	bswap64(0);
+	int i;
+
+	i = bswap16(0);
+	i = bswap32(0);
+	i = bswap64(0);
 	be32enc(NULL, 0);
-	htole64(0);
-	le64toh(0);
+	i = htole64(0);
+	i = le64toh(0);
 ], [], [
 	AC_DEFINE(USE_COMPAT_ENDIAN_ENC_H,, Define if compat/endian_enc.h is required)
 	AC_MSG_RESULT([using compat/endian_enc.h])
