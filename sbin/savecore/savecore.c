@@ -543,7 +543,7 @@ DoFile(const char *savedir, const char *device)
 
 	writebounds(bounds + 1);
 
-	sprintf(buf, "info.%d", bounds);
+	snprintf(buf, sizeof(buf), "info.%d", bounds);
 
 	/*
 	 * Create or overwrite any existing dump header files.
@@ -556,12 +556,12 @@ DoFile(const char *savedir, const char *device)
 	}
 	oumask = umask(S_IRWXG|S_IRWXO); /* Restrict access to the core file.*/
 	if (compress) {
-		sprintf(filename, "%s.%d.gz", istextdump ? "textdump.tar" :
-		    "vmcore", bounds);
+		snprintf(filename, sizeof(filename), "%s.%d.gz",
+		    istextdump ? "textdump.tar" : "vmcore", bounds);
 		fp = zopen(filename, "w");
 	} else {
-		sprintf(filename, "%s.%d", istextdump ? "textdump.tar" :
-		    "vmcore", bounds);
+		snprintf(filename, sizeof(filename), "%s.%d",
+		    istextdump ? "textdump.tar" : "vmcore", bounds);
 		fp = fopen(filename, "w");
 	}
 	if (fp == NULL) {
