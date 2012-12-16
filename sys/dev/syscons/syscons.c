@@ -1814,13 +1814,11 @@ static void
 scrn_timer(void *arg)
 {
 #ifndef PC98
-    static int kbd_interval = 0;
+    static time_t kbd_time_stamp = 0;
 #endif
-    struct timeval tv;
     sc_softc_t *sc;
     scr_stat *scp;
-    int again;
-    int s;
+    int again, rate;
 
     again = (arg != NULL);
     if (arg != NULL)
@@ -1831,18 +1829,14 @@ scrn_timer(void *arg)
 	return;
 
     /* don't do anything when we are performing some I/O operations */
-    if (suspend_in_progress || sc->font_loading_in_progress) {
-	if (again)
-	    callout_reset_flags(&sc->ctimeout, hz / 15, scrn_timer, sc,
-		C_PRELSET(0));
-	return;
-    }
-    s = spltty();
+    if (suspend_in_progress || sc->font_loading_in_progress)
+	goto done;
 
 #ifndef PC98
     if ((sc->kbd == NULL) && (sc->config & SC_AUTODETECT_KBD)) {
 	/* try to allocate a keyboard automatically */
-	if (++kbd_interval >= 25) {
+	if (kbd_time_stamp != time_uptime) {
+	    kbd_time_stamp = time_uptime;
 	    sc->keyboard = sc_allocate_keyboard(sc, -1);
 	    if (sc->keyboard >= 0) {
 		sc->kbd = kbd_get_keyboard(sc->keyboard);
@@ -1851,7 +1845,6 @@ scrn_timer(void *arg)
 		update_kbd_state(sc->cur_scp, sc->cur_scp->status,
 				 LOCK_MASK);
 	    }
-	    kbd_interval = 0;
 	}
     }
 #endif /* PC98 */
@@ -1860,16 +1853,15 @@ scrn_timer(void *arg)
     scp = sc->cur_scp;
 
     /* should we stop the screen saver? */
-    getmicrouptime(&tv);
     if (debugger > 0 || panicstr || shutdown_in_progress)
 	sc_touch_scrn_saver();
     if (run_scrn_saver) {
-	if (tv.tv_sec > sc->scrn_time_stamp + scrn_blank_time)
+	if (time_uptime > sc->scrn_time_stamp + scrn_blank_time)
 	    sc->flags |= SC_SCRN_IDLE;
 	else
 	    sc->flags &= ~SC_SCRN_IDLE;
     } else {
-	sc->scrn_time_stamp = tv.tv_sec;
+	sc->scrn_time_stamp = time_uptime;
 	sc->flags &= ~SC_SCRN_IDLE;
 	if (scrn_blank_time > 0)
 	    run_scrn_saver = TRUE;
@@ -1882,13 +1874,8 @@ scrn_timer(void *arg)
 
     /* should we just return ? */
     if (sc->blink_in_progress || sc->switch_in_progress
-	|| sc->write_in_progress) {
-	if (again)
-	    callout_reset_flags(&sc->ctimeout, hz / 15, scrn_timer, sc,
-		C_PRELSET(0));
-	splx(s);
-	return;
-    }
+	|| sc->write_in_progress)
+	goto done;
 
     /* Update the screen */
     scp = sc->cur_scp;		/* cur_scp may have changed... */
@@ -1902,10 +1889,19 @@ scrn_timer(void *arg)
 	    (*current_saver)(sc, TRUE);
 #endif
 
-    if (again)
-	callout_reset_flags(&sc->ctimeout, hz / 30, scrn_timer, sc,
+done:
+    if (again) {
+	/*
+	 * Use reduced "refresh" rate if we are in graphics and that is not a
+	 * graphical screen saver.  In such case we just have nothing to do.
+	 */
+	if (ISGRAPHSC(scp) && !(sc->flags & SC_SCRN_BLANKED))
+	    rate = 2;
+	else
+	    rate = 30;
+	callout_reset_flags(&sc->ctimeout, hz / rate, scrn_timer, sc,
 	    C_PRELSET(1));
-    splx(s);
+    }
 }
 
 static int
