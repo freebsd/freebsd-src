@@ -1169,7 +1169,6 @@ sys_unmount(td, uap)
 		}
 		mtx_unlock(&mountlist_mtx);
 	} else {
-		AUDIT_ARG_UPATH1(td, pathbuf);
 		/*
 		 * Try to find global path for path argument.
 		 */
