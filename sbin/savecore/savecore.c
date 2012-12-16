@@ -188,17 +188,16 @@ check_space(const char *savedir, off_t dumpsize)
 	FILE *fp;
 	off_t minfree, spacefree, totfree, needed;
 	struct statfs fsbuf;
-	char buf[100], path[MAXPATHLEN];
+	char buf[100];
 
-	if (statfs(savedir, &fsbuf) < 0) {
+	if (statfs(".", &fsbuf) < 0) {
 		syslog(LOG_ERR, "%s: %m", savedir);
 		exit(1);
 	}
 	spacefree = ((off_t) fsbuf.f_bavail * fsbuf.f_bsize) / 1024;
 	totfree = ((off_t) fsbuf.f_bfree * fsbuf.f_bsize) / 1024;
 
-	(void)snprintf(path, sizeof(path), "%s/minfree", savedir);
-	if ((fp = fopen(path, "r")) == NULL)
+	if ((fp = fopen("minfree", "r")) == NULL)
 		minfree = 0;
 	else {
 		if (fgets(buf, sizeof(buf), fp) == NULL)
