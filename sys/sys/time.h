@@ -304,7 +304,7 @@ extern struct timeval boottime;
 extern int tc_timeexp;
 extern int tc_timepercentage;
 extern int tc_timethreshold;
-extern struct bintime bt_timethreshold; 
+extern struct bintime bt_timethreshold;
 
 /*
  * Functions for looking at our clock: [get]{bin,nano,micro}[up]time()

@@ -999,7 +999,7 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 
 	if (tvp != NULL) {
 		atv = *tvp;
-		if (atv.tv_sec < 0 || atv.tv_usec < 0 || 
+		if (atv.tv_sec < 0 || atv.tv_usec < 0 ||
 		    atv.tv_usec >= 1000000) {
 			error = EINVAL;
 			goto done;
@@ -1281,7 +1281,7 @@ sys_poll(td, uap)
 	if (uap->timeout != INFTIM) {
 		atv.tv_sec = uap->timeout / 1000;
 		atv.tv_usec = (uap->timeout % 1000) * 1000;
-		if (atv.tv_sec < 0 || atv.tv_usec < 0 || 
+		if (atv.tv_sec < 0 || atv.tv_usec < 0 ||
 		    atv.tv_usec >= 1000000) {
 			error = EINVAL;
 			goto done;
@@ -1307,7 +1307,7 @@ sys_poll(td, uap)
 			if (bintime_cmp(&rbt, &abt, >=))
 				break;
 			error = seltdwait(td, &abt, &precision, 0);
-		} else { 
+		} else {
 			error = seltdwait(td, NULL, NULL, 0);
 		}
 		if (error)
@@ -1671,7 +1671,7 @@ seltdwait(struct thread *td, struct bintime *bt, struct bintime *precision,
 		mtx_unlock(&stp->st_mtx);
 		return (0);
 	}
-	if (bt == NULL && timo > 0) 
+	if (bt == NULL && timo > 0)
 		error = cv_timedwait_sig(&stp->st_wait, &stp->st_mtx, timo);
 	else if (bt != NULL)
 		error = cv_timedwait_sig_bt(&stp->st_wait, &stp->st_mtx,

@@ -345,7 +345,7 @@ static __inline void		splx(intrmask_t ipl __unused)	{ return; }
  * less often.
  */
 int	_sleep(void *chan, struct lock_object *lock, int pri, const char *wmesg,
-	    int timo, struct bintime *bt, struct bintime *precision, 
+	    int timo, struct bintime *bt, struct bintime *precision,
 	    int flags) __nonnull(1);
 #define	msleep(chan, mtx, pri, wmesg, timo)				\
 	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg), (timo),	\

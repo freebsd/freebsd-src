@@ -56,10 +56,10 @@ void	_cv_wait(struct cv *cvp, struct lock_object *lock);
 void	_cv_wait_unlock(struct cv *cvp, struct lock_object *lock);
 int	_cv_wait_sig(struct cv *cvp, struct lock_object *lock);
 int	_cv_timedwait(struct cv *cvp, struct lock_object *lock,
-	    struct bintime *bt, struct bintime *precision, int timo, 
+	    struct bintime *bt, struct bintime *precision, int timo,
 	    int flags);
 int	_cv_timedwait_sig(struct cv *cvp, struct lock_object *lock,
-	    struct bintime *bt, struct bintime *precision, int timo, 
+	    struct bintime *bt, struct bintime *precision, int timo,
 	    int flags);
 
 void	cv_signal(struct cv *cvp);

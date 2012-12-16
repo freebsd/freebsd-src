@@ -80,11 +80,11 @@ int	_callout_reset_on(struct callout *, struct bintime *,
 #define	callout_reset_on(c, to_ticks, fn, arg, cpu)			\
     _callout_reset_on((c), NULL, NULL, (to_ticks), (fn), (arg), 	\
         (cpu), C_PRELSET(tc_timeexp))
-#define callout_reset_flags_on(c, to_ticks, fn, arg, cpu, flags)	\
+#define	callout_reset_flags_on(c, to_ticks, fn, arg, cpu, flags)	\
     _callout_reset_on((c), NULL, NULL, (to_ticks), (fn), (arg), (cpu),	\
         (flags))
-#define callout_reset_bt_on(c, bt, pr, fn, arg, cpu, flags)		\
-    _callout_reset_on((c), (bt), (pr), 0, (fn), (arg), (cpu), (flags)) 
+#define	callout_reset_bt_on(c, bt, pr, fn, arg, cpu, flags)		\
+    _callout_reset_on((c), (bt), (pr), 0, (fn), (arg), (cpu), (flags))
 #define	callout_reset(c, on_tick, fn, arg)				\
     callout_reset_on((c), (on_tick), (fn), (arg), (c)->c_cpu)
 #define	callout_reset_flags(c, on_tick, fn, arg, flags)			\

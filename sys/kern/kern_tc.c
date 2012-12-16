@@ -1718,7 +1718,7 @@ tc_ticktock(int cnt)
 	tc_windup();
 }
 
-static void __inline 
+static void __inline
 tc_adjprecision(void)
 {
 	struct timespec ts;
@@ -1739,7 +1739,7 @@ tc_adjprecision(void)
 	timespec2bintime(&ts, &bt_timethreshold);
 }
 
-static int 
+static int
 sysctl_kern_timecounter_adjprecision(SYSCTL_HANDLER_ARGS)
 {
 	int error, val;

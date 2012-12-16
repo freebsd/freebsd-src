@@ -207,7 +207,7 @@ static MALLOC_DEFINE(M_CALLOUT, "callout", "Callout datastructures");
 static void
 cc_cme_cleanup(struct callout_cpu *cc, int direct)
 {
-	
+
 	cc->cc_exec_entity[direct].cc_curr = NULL;
 	cc->cc_exec_entity[direct].cc_next = NULL;
 	cc->cc_exec_entity[direct].cc_cancel = 0;
@@ -228,7 +228,6 @@ cc_cme_migrating(struct callout_cpu *cc, int direct)
 {
 
 #ifdef SMP
-	
 	return (cc->cc_exec_entity[direct].ce_migration_cpu != CPUBLOCK);
 #else
 	return (0);
@@ -371,7 +370,7 @@ callout_hash(struct bintime *bt)
 
 	return (int) ((bt->sec << CC_HASH_SHIFT) +
 	    (bt->frac >> (64 - CC_HASH_SHIFT)));
-} 
+}
 
 static inline int
 get_bucket(struct bintime *bt)
@@ -914,7 +913,7 @@ _callout_reset_on(struct callout *c, struct bintime *bt,
 			else
 				bintime_mul(&pr, to_ticks);
 		}
-	} else { 
+	} else {
 		to_bt = *bt;
 		if (precision != NULL)
 			pr = *precision;
