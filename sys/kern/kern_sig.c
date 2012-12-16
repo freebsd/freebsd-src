@@ -3218,8 +3218,7 @@ coredump(struct thread *td)
 #endif
 		return (EINVAL);
 	}
-	if (((sugid_coredump == 0) && p->p_flag & P_SUGID) ||
-	    do_coredump == 0) {
+	if (!do_coredump || (!sugid_coredump && (p->p_flag & P_SUGID) != 0)) {
 		PROC_UNLOCK(p);
 #ifdef AUDIT
 		audit_proc_coredump(td, name, EFAULT);
