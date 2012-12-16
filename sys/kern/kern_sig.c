@@ -3210,8 +3210,7 @@ coredump(struct thread *td)
 	MPASS((p->p_flag & P_HADTHREADS) == 0 || p->p_singlethread == td);
 	_STOPEVENT(p, S_CORE, 0);
 
-	name = expand_name(p->p_comm, td->td_ucred->cr_uid, p->p_pid, td,
-	    compress);
+	name = expand_name(p->p_comm, cred->cr_uid, p->p_pid, td, compress);
 	if (name == NULL) {
 		PROC_UNLOCK(p);
 #ifdef AUDIT
