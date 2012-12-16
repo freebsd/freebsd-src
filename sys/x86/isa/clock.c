@@ -125,6 +125,7 @@ struct attimer_softc {
 static struct attimer_softc *attimer_sc = NULL;
 
 static int timer0_period = -2;
+static int timer0_last = 0xffff;
 
 /* Values for timerX_state: */
 #define	RELEASED	0
@@ -433,11 +434,17 @@ set_i8254_freq(int mode, uint32_t period)
 		outb(TIMER_CNTR0, new_count >> 8);
 		break;
 	case MODE_ONESHOT:
+		if (new_count < 256 && timer0_last < 256) {
+			outb(TIMER_MODE, TIMER_SEL0 | TIMER_INTTC | TIMER_LSB);
+			outb(TIMER_CNTR0, new_count & 0xff);
+			break;
+		}
 		outb(TIMER_MODE, TIMER_SEL0 | TIMER_INTTC | TIMER_16BIT);
 		outb(TIMER_CNTR0, new_count & 0xff);
 		outb(TIMER_CNTR0, new_count >> 8);
 		break;
 	}
+	timer0_last = new_count;
 out:
 	mtx_unlock_spin(&clock_lock);
 }
