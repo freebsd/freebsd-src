@@ -229,6 +229,17 @@ saved_dump_remove(int bounds)
 	(void)unlink(path);
 }
 
+static void
+symlinks_remove(void)
+{
+
+	(void)unlink("info.last");
+	(void)unlink("vmcore.last");
+	(void)unlink("vmcore.last.gz");
+	(void)unlink("textdump.tar.last");
+	(void)unlink("textdump.tar.last.gz");
+}
+
 /*
  * Check that sufficient space is available on the disk that holds the
  * save directory.
@@ -419,7 +430,7 @@ DoTextdumpFile(int fd, off_t dumpsize, off_t lasthd, char *buf,
 static void
 DoFile(const char *savedir, const char *device)
 {
-	static char infoname[PATH_MAX], corename[PATH_MAX];
+	static char infoname[PATH_MAX], corename[PATH_MAX], linkname[PATH_MAX];
 	static char *buf = NULL;
 	struct kerneldumpheader kdhf, kdhl;
 	off_t mediasize, dumpsize, firsthd, lasthd;
@@ -662,6 +673,23 @@ DoFile(const char *savedir, const char *device)
 		syslog(LOG_ERR, "error on %s: %m", corename);
 		nerr++;
 		goto closeall;
+	}
+
+	symlinks_remove();
+	if (symlink(infoname, "info.last") == -1) {
+		syslog(LOG_WARNING, "unable to create symlink %s/%s: %m",
+		    savedir, "info.last");
+	}
+	if (compress) {
+		snprintf(linkname, sizeof(linkname), "%s.last.gz",
+		    istextdump ? "textdump.tar" : "vmcore");
+	} else {
+		snprintf(linkname, sizeof(linkname), "%s.last",
+		    istextdump ? "textdump.tar" : "vmcore");
+	}
+	if (symlink(corename, linkname) == -1) {
+		syslog(LOG_WARNING, "unable to create symlink %s/%s: %m",
+		    savedir, linkname);
 	}
 
 	nsaved++;
