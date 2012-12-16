@@ -896,8 +896,6 @@ vlapic_set_x2apic_state(struct vm *vm, int vcpuid, enum x2apic_state state)
 
 	vlapic = vm_lapic(vm, vcpuid);
 
-	if (state == X2APIC_ENABLED)
-		vlapic->msr_apicbase |= APICBASE_X2APIC;
-	else
+	if (state == X2APIC_DISABLED)
 		vlapic->msr_apicbase &= ~APICBASE_X2APIC;
 }
