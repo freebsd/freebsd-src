@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2012
+.Dd December 16, 2012
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -42,6 +42,7 @@
 .Nm callout_stop ,
 .Nm callout_drain ,
 .Nm callout_reset ,
+.Nm callout_reset_flags ,
 .Nm callout_reset_on ,
 .Nm callout_reset_flags_on ,
 .Nm callout_reset_bt_on ,
@@ -80,6 +81,9 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
 .Fn callout_drain "struct callout *c"
 .Ft int
 .Fn callout_reset "struct callout *c" "int ticks" "timeout_t *func" "void *arg"
+.Ft int
+.Fn callout_reset_flags "struct callout *c" "int ticks" "timeout_t *func" \
+"void *arg" "int flags"
 .Ft int
 .Fn callout_reset_on "struct callout *c" "int ticks" "timeout_t *func" \
 "void *arg" "int cpu"
