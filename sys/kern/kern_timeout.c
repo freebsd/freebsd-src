@@ -384,7 +384,7 @@ void
 callout_process(struct bintime *now)
 {
 	struct bintime first, last, max, tmp_max;
-	struct callout *tmp;
+	struct callout *tmp, *tmpn;
 	struct callout_cpu *cc;
 	struct callout_tailq *sc;
 	uint64_t lookahead;
@@ -450,12 +450,13 @@ callout_process(struct bintime *now)
 					    NULL, 1);
 					tmp = cc->cc_exec_next_dir;
 				} else {
-					TAILQ_INSERT_TAIL(&cc->cc_expireq,
-					    tmp, c_staiter);
+					tmpn = TAILQ_NEXT(tmp, c_links.tqe);
 					TAILQ_REMOVE(sc, tmp, c_links.tqe);
+					TAILQ_INSERT_TAIL(&cc->cc_expireq,
+					    tmp, c_links.tqe);
 					tmp->c_flags |= CALLOUT_PROCESSED;
 					need_softclock = 1;
-					tmp = TAILQ_NEXT(tmp, c_links.tqe);
+					tmp = tmpn;
 				}
 				continue;
 			}
@@ -789,15 +790,11 @@ softclock(void *arg)
 	gcalls = 0;
 	cc = (struct callout_cpu *)arg;
 	CC_LOCK(cc);
-	c = TAILQ_FIRST(&cc->cc_expireq);
-	while (c != NULL) {
-		++depth;
-		cc->cc_exec_next = TAILQ_NEXT(c, c_staiter);
-		TAILQ_REMOVE(&cc->cc_expireq, c, c_staiter);
+	while ((c = TAILQ_FIRST(&cc->cc_expireq)) != NULL) {
+		TAILQ_REMOVE(&cc->cc_expireq, c, c_links.tqe);
 		softclock_call_cc(c, cc, &mpcalls, &lockcalls, &gcalls, 0);
-		c = cc->cc_exec_next;
+		++depth;
 	}
-	cc->cc_exec_next = NULL;
 #ifdef CALLOUT_PROFILING
 	avg_depth += (depth * 1000 - avg_depth) >> 8;
 	avg_mpcalls += (mpcalls * 1000 - avg_mpcalls) >> 8;
@@ -962,11 +959,8 @@ _callout_reset_on(struct callout *c, struct bintime *bt,
 			bucket = get_bucket(&c->c_time);
 			TAILQ_REMOVE(&cc->cc_callwheel[bucket], c,
 			    c_links.tqe);
-		} else {
-			if (cc->cc_exec_next == c)
-				cc->cc_exec_next = TAILQ_NEXT(c, c_staiter);
-			TAILQ_REMOVE(&cc->cc_expireq, c, c_staiter);
-		}
+		} else
+			TAILQ_REMOVE(&cc->cc_expireq, c, c_links.tqe);
 		cancelled = 1;
 		c->c_flags &= ~(CALLOUT_ACTIVE | CALLOUT_PENDING);
 	}
@@ -1187,11 +1181,8 @@ again:
 		bucket = get_bucket(&c->c_time);
 		TAILQ_REMOVE(&cc->cc_callwheel[bucket], c,
 		    c_links.tqe);
-	} else {
-		if (cc->cc_exec_next == c)
-			cc->cc_exec_next = TAILQ_NEXT(c, c_links.tqe);
-		TAILQ_REMOVE(&cc->cc_expireq, c, c_staiter);
-	}
+	} else
+		TAILQ_REMOVE(&cc->cc_expireq, c, c_links.tqe);
 	callout_cc_del(c, cc);
 
 	CC_UNLOCK(cc);

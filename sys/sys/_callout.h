@@ -51,7 +51,6 @@ struct callout {
 		SLIST_ENTRY(callout) sle;
 		TAILQ_ENTRY(callout) tqe;
 	} c_links;
-	TAILQ_ENTRY(callout) c_staiter;
 	struct bintime c_time;			/* ticks to the event */
 	struct bintime c_precision;		/* delta allowed wrt opt */
 	void	*c_arg;				/* function argument */
