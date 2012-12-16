@@ -1828,6 +1828,9 @@ scrn_timer(void *arg)
     else
 	return;
 
+    /* find the vty to update */
+    scp = sc->cur_scp;
+
     /* don't do anything when we are performing some I/O operations */
     if (suspend_in_progress || sc->font_loading_in_progress)
 	goto done;
@@ -1848,9 +1851,6 @@ scrn_timer(void *arg)
 	}
     }
 #endif /* PC98 */
-
-    /* find the vty to update */
-    scp = sc->cur_scp;
 
     /* should we stop the screen saver? */
     if (debugger > 0 || panicstr || shutdown_in_progress)
