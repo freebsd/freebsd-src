@@ -780,7 +780,8 @@ findpcb:
 	/*
 	 * Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain.
 	 */
-	if (m->m_flags & M_IP_NEXTHOP)
+	if ((isipv6 && (m->m_flags & M_IP6_NEXTHOP)) ||
+	    (!isipv6 && (m->m_flags & M_IP_NEXTHOP)))
 		fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
 
 #ifdef INET6
