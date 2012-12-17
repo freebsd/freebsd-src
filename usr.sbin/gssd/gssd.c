@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/linker.h>
 #include <sys/module.h>
 #include <sys/queue.h>
+#include <sys/syslog.h>
 #include <ctype.h>
 #include <err.h>
 #include <pwd.h>
@@ -106,21 +107,43 @@ main(int argc, char **argv)
 	sun.sun_len = SUN_LEN(&sun);
 	fd = socket(AF_LOCAL, SOCK_STREAM, 0);
 	if (!fd) {
+		if (debug_level == 0) {
+			syslog(LOG_ERR, "Can't create local gssd socket");
+			exit(1);
+		}
 		err(1, "Can't create local gssd socket");
 	}
 	oldmask = umask(S_IXUSR|S_IRWXG|S_IRWXO);
 	if (bind(fd, (struct sockaddr *) &sun, sun.sun_len) < 0) {
+		if (debug_level == 0) {
+			syslog(LOG_ERR, "Can't bind local gssd socket");
+			exit(1);
+		}
 		err(1, "Can't bind local gssd socket");
 	}
 	umask(oldmask);
 	if (listen(fd, SOMAXCONN) < 0) {
+		if (debug_level == 0) {
+			syslog(LOG_ERR, "Can't listen on local gssd socket");
+			exit(1);
+		}
 		err(1, "Can't listen on local gssd socket");
 	}
 	xprt = svc_vc_create(fd, RPC_MAXDATASIZE, RPC_MAXDATASIZE);
 	if (!xprt) {
+		if (debug_level == 0) {
+			syslog(LOG_ERR,
+			    "Can't create transport for local gssd socket");
+			exit(1);
+		}
 		err(1, "Can't create transport for local gssd socket");
 	}
 	if (!svc_reg(xprt, GSSD, GSSDVERS, gssd_1, NULL)) {
+		if (debug_level == 0) {
+			syslog(LOG_ERR,
+			    "Can't register service for local gssd socket");
+			exit(1);
+		}
 		err(1, "Can't register service for local gssd socket");
 	}
 
