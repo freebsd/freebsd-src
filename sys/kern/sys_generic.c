@@ -102,8 +102,7 @@ static int	dofilewrite(struct thread *, int, struct file *, struct uio *,
 		    off_t, int);
 static void	doselwakeup(struct selinfo *, int);
 static void	seltdinit(struct thread *);
-static int	seltdwait(struct thread *, struct bintime *, struct bintime *,
-		    int);
+static int	seltdwait(struct thread *, struct bintime *, struct bintime *);
 static void	seltdclear(struct thread *);
 
 /*
@@ -1024,10 +1023,10 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 			TIMESEL(&rbt, &abt);
 			if (bintime_cmp(&rbt, &abt, >=))
 				break;
-			error = seltdwait(td, &abt, &precision, 0);
+			error = seltdwait(td, &abt, &precision);
 		}
 		else {
-			error = seltdwait(td, NULL, NULL, 0);
+			error = seltdwait(td, NULL, NULL);
 		}
 		if (error)
 			break;
@@ -1306,9 +1305,9 @@ sys_poll(td, uap)
 			TIMESEL(&rbt, &abt);
 			if (bintime_cmp(&rbt, &abt, >=))
 				break;
-			error = seltdwait(td, &abt, &precision, 0);
+			error = seltdwait(td, &abt, &precision);
 		} else {
-			error = seltdwait(td, NULL, NULL, 0);
+			error = seltdwait(td, NULL, NULL);
 		}
 		if (error)
 			break;
@@ -1651,8 +1650,7 @@ out:
 }
 
 static int
-seltdwait(struct thread *td, struct bintime *bt, struct bintime *precision,
-    int timo)
+seltdwait(struct thread *td, struct bintime *bt, struct bintime *precision)
 {
 	struct seltd *stp;
 	int error;
@@ -1671,9 +1669,7 @@ seltdwait(struct thread *td, struct bintime *bt, struct bintime *precision,
 		mtx_unlock(&stp->st_mtx);
 		return (0);
 	}
-	if (bt == NULL && timo > 0)
-		error = cv_timedwait_sig(&stp->st_wait, &stp->st_mtx, timo);
-	else if (bt != NULL)
+	if (bt != NULL)
 		error = cv_timedwait_sig_bt(&stp->st_wait, &stp->st_mtx,
 		    bt, precision);
 	else	
