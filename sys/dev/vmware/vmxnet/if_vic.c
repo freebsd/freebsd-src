@@ -893,7 +893,7 @@ vic_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 				if ((ifp->if_flags ^ sc->vic_if_flags) &
 				    (IFF_PROMISC | IFF_ALLMULTI)) {
 					vic_set_rxfilter(sc);
-                                }
+				}
 			} else
 				vic_init_locked(sc);
 		} else {
