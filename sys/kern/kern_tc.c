@@ -121,7 +121,7 @@ SYSCTL_INT(_kern_timecounter, OID_AUTO, stepwarnings, CTLFLAG_RW,
     &timestepwarnings, 0, "Log time steps");
 
 struct bintime bt_timethreshold;
-struct bintime tick_bt;
+struct bintime tc_tick_bt;
 int tc_timeexp;
 int tc_timepercentage = TC_DEFAULTPERC;
 TUNABLE_INT("kern.timecounter.alloweddeviation", &tc_timepercentage);
@@ -1772,8 +1772,9 @@ inittimecounter(void *dummy)
 	else
 		tc_tick = 1;
 	tc_adjprecision();
+	FREQ2BT(hz, &tick_bt);
 	tick_rate = hz / tc_tick;
-	FREQ2BT(tick_rate, &tick_bt);
+	FREQ2BT(tick_rate, &tc_tick_bt);
 	p = (tc_tick * 1000000) / hz;
 	printf("Timecounters tick every %d.%03u msec\n", p / 1000, p % 1000);
 

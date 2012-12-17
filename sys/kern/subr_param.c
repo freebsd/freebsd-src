@@ -81,8 +81,9 @@ __FBSDID("$FreeBSD$");
 
 static int sysctl_kern_vm_guest(SYSCTL_HANDLER_ARGS);
 
-int	hz;
-int	tick;
+int	hz;				/* system clock's frequency */
+int	tick;				/* usec per tick (1000000 / hz) */
+struct bintime tick_bt;			/* bintime per tick (1s / hz) */
 int	maxusers;			/* base tunable */
 int	maxproc;			/* maximum # of processes */
 int	maxprocperuid;			/* max # of procs per user */
@@ -219,6 +220,7 @@ init_param1(void)
 	if (hz == -1)
 		hz = vm_guest > VM_GUEST_NO ? HZ_VM : HZ;
 	tick = 1000000 / hz;
+	FREQ2BT(hz, &tick_bt);
 
 #ifdef VM_SWZONE_SIZE_MAX
 	maxswzone = VM_SWZONE_SIZE_MAX;

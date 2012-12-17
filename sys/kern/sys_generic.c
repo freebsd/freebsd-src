@@ -1008,7 +1008,7 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 		precision = abt;
 		bintime_divpow2(&precision, tc_timeexp);
 		if (TIMESEL(&rbt, &abt))
-			bintime_add(&abt, &tick_bt);
+			bintime_add(&abt, &tc_tick_bt);
 		bintime_add(&abt, &rbt);
 	} else {
 		abt.sec = 0;
@@ -1290,7 +1290,7 @@ sys_poll(td, uap)
 		precision = abt;
 		bintime_divpow2(&precision, tc_timeexp);
 		if (TIMESEL(&rbt, &abt))
-			bintime_add(&abt, &tick_bt);
+			bintime_add(&abt, &tc_tick_bt);
 		bintime_add(&abt, &rbt);
 	} else {
 		abt.sec = 0;

@@ -494,7 +494,7 @@ kern_nanosleep(struct thread *td, struct timespec *rqt, struct timespec *rmt)
 	bt_prec = tmp;
 	bintime_divpow2(&bt_prec, tc_timeexp);
 	if (TIMESEL(&bt, &tmp))
-		bintime_add(&bt, &tick_bt);
+		bintime_add(&bt, &tc_tick_bt);
 	bintime_add(&bt, &tmp);
 	error = tsleep_bt(&nanowait, PWAIT | PCATCH, "nanslp", &bt, &bt_prec);
 	TIMESEL(&btt, &tmp);

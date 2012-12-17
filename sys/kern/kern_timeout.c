@@ -39,6 +39,9 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_callout_profiling.h"
 #include "opt_kdtrace.h"
+#if defined(__arm__)
+#include "opt_timer.h"
+#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -872,6 +875,10 @@ callout_handle_init(struct callout_handle *handle)
 	handle->callout = NULL;
 }
 
+#ifndef NO_EVENTTIMERS
+DPCPU_DECLARE(struct bintime, hardclocktime);
+#endif
+
 /*
  * New interface; clients allocate their own callout structures.
  *
@@ -893,26 +900,34 @@ _callout_reset_on(struct callout *c, struct bintime *bt,
     struct bintime *precision, int to_ticks, void (*ftn)(void *),
     void *arg, int cpu, int flags)
 {
-	struct bintime now, to_bt, pr;
+	struct bintime to_bt, pr;
 	struct callout_cpu *cc;
 	int bucket, cancelled, direct;
 
 	cancelled = 0;
 	if (bt == NULL) {
-		pr = to_bt = tick_bt;
-		getbinuptime(&now);
+#ifdef NO_EVENTTIMERS
+		getbinuptime(&to_bt);
+		/* Add safety belt for the case of hz > 1000. */
+		bintime_addx(&to_bt, tc_tick_bt.frac - tick_bt.frac);
+#else
+		/*
+		 * Obtain the time of the last hardclock() call on this CPU
+		 * directly from the kern_clocksource.c.  This value is
+		 * per-CPU, but it is equal for all active ones.
+		 */
+		spinlock_enter();
+		to_bt = DPCPU_GET(hardclocktime);
+		spinlock_exit();
+#endif
+		pr = tick_bt;
 		if (to_ticks > 1)
-			bintime_mul(&to_bt, to_ticks);
-		bintime_add(&to_bt, &now);
-		if (C_PRELGET(flags) < 0) {
-			pr = tick_bt;
-		} else {
-			to_ticks >>= C_PRELGET(flags);
-			if (to_ticks == 0)
-				pr = tick_bt;
-			else
-				bintime_mul(&pr, to_ticks);
-		}
+			bintime_mul(&pr, to_ticks);
+		bintime_add(&to_bt, &pr);
+		if (C_PRELGET(flags) < 0)
+			bintime_clear(&pr);
+		else
+			bintime_divpow2(&pr, C_PRELGET(flags));
 	} else {
 		to_bt = *bt;
 		if (precision != NULL)

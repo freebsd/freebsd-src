@@ -96,7 +96,6 @@ static struct mtx	et_hw_mtx;
 
 static struct eventtimer *timer = NULL;
 static struct bintime	timerperiod;	/* Timer period for periodic mode. */
-static struct bintime	hardperiod;	/* hardclock() events period. */
 static struct bintime	statperiod;	/* statclock() events period. */
 static struct bintime	profperiod;	/* profclock() events period. */
 static struct bintime	nexttick;	/* Next global timer tick time. */
@@ -146,6 +145,7 @@ struct pcpu_state {
 };
 
 static DPCPU_DEFINE(struct pcpu_state, timerstate);
+DPCPU_DEFINE(struct bintime, hardclocktime);
 
 /*
  * Timer broadcast IPI handler.
@@ -174,7 +174,7 @@ hardclockintr(void)
 static int
 handleevents(struct bintime *now, int fake)
 {
-	struct bintime t;
+	struct bintime t, *hct;
 	struct trapframe *frame;
 	struct pcpu_state *state;
 	uintfptr_t pc;
@@ -199,10 +199,13 @@ handleevents(struct bintime *now, int fake)
 
 	runs = 0;
 	while (bintime_cmp(now, &state->nexthard, >=)) {
-		bintime_addx(&state->nexthard, hardperiod.frac);
+		bintime_addx(&state->nexthard, tick_bt.frac);
 		runs++;
 	}
 	if (runs) {
+		hct = DPCPU_PTR(hardclocktime);
+		*hct = state->nexthard;
+		bintime_sub(hct, &tick_bt);
 		if ((timer->et_flags & ET_FLAGS_PERCPU) == 0 &&
 		    bintime_cmp(&state->nexthard, &nexthard, >))
 			nexthard = state->nexthard;
@@ -282,7 +285,7 @@ getnextcpuevent(struct bintime *event, int idle)
 		if (curcpu == CPU_FIRST() && tc_min_ticktock_freq > hardfreq)
 			hardfreq = tc_min_ticktock_freq;
 		if (hz > hardfreq) {
-			tmp = hardperiod;
+			tmp = tick_bt;
 			bintime_mul(&tmp, hz / hardfreq - 1);
 			bintime_add(event, &tmp);
 		}
@@ -698,7 +701,7 @@ cpu_initclocks_bsp(void)
 		profhz = round_freq(timer, stathz * 64);
 	}
 	tick = 1000000 / hz;
-	FREQ2BT(hz, &hardperiod);
+	FREQ2BT(hz, &tick_bt);
 	FREQ2BT(stathz, &statperiod);
 	FREQ2BT(profhz, &profperiod);
 	ET_LOCK();
