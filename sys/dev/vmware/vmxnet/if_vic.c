@@ -1003,17 +1003,16 @@ vic_encap_load_mbuf(struct vic_softc *sc, struct mbuf **m0, int tso,
 		return (error);
 
 	m = m_collapse(m, M_DONTWAIT, maxsegs);
-	if (m != NULL)
+	if (m != NULL) {
+		*m0 = m;
 		error = bus_dmamap_load_mbuf_sg(tag, dmap, m, segs, nsegs, 0);
-	else
+	} else
 		error = ENOBUFS;
 
 	if (error) {
 		m_freem(*m0);
-		m = NULL;
+		*m0 = NULL;
 	}
-
-	*m0 = m;
 
 	return (error);
 }
