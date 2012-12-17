@@ -504,8 +504,8 @@ sc_attach_unit(int unit, int flags)
 
     sc = sc_get_softc(unit, flags & SC_KERNEL_CONSOLE);
     sc->config = flags;
-    callout_init(&sc->ctimeout, FALSE);
-    callout_init(&sc->cblink, FALSE);
+    callout_init(&sc->ctimeout, 0);
+    callout_init(&sc->cblink, 0);
     scp = sc_get_stat(sc->dev[0]);
     if (sc_console == NULL)	/* sc_console_unit < 0 */
 	sc_console = scp;
