@@ -399,6 +399,7 @@ callout_process(struct bintime *now)
 
 	/* Compute the buckets of the last scan and present times. */
 	firstb = callout_hash(&cc->cc_lastscan);
+	cc->cc_lastscan = *now;
 	nowb = callout_hash(now);
 
 	/* Compute the last bucket and minimum time of the bucket after it. */
@@ -498,7 +499,6 @@ next:
 	if (callout_new_inserted != NULL)
 		(*callout_new_inserted)(curcpu, last, first);
 	cc->cc_firstevent = last;
-	cc->cc_lastscan = *now;
 #ifdef CALLOUT_PROFILING
 	avg_depth_dir += (depth_dir * 1000 - avg_depth_dir) >> 8;
 	avg_mpcalls_dir += (mpcalls_dir * 1000 - avg_mpcalls_dir) >> 8;
