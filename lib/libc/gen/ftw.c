@@ -28,7 +28,6 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <fts.h>
 #include <ftw.h>
-#include <limits.h>
 
 int
 ftw(const char *path, int (*fn)(const char *, const struct stat *, int),
@@ -40,7 +39,7 @@ ftw(const char *path, int (*fn)(const char *, const struct stat *, int),
 	int error = 0, fnflag, sverrno;
 
 	/* XXX - nfds is currently unused */
-	if (nfds < 1 || nfds > OPEN_MAX) {
+	if (nfds < 1) {
 		errno = EINVAL;
 		return (-1);
 	}
