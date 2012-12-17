@@ -3113,9 +3113,8 @@ expand_name(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 	}
 	free(hostname, M_TEMP);
 #ifdef COMPRESS_USER_CORES
-	if (compress) {
+	if (compress)
 		sbuf_printf(&sb, GZ_SUFFIX);
-	}
 #endif
 	if (sbuf_error(&sb) != 0) {
 		log(LOG_ERR, "pid %ld (%s), uid (%lu): corename is too "
@@ -3190,8 +3189,8 @@ static int
 coredump(struct thread *td)
 {
 	struct proc *p = td->td_proc;
-	register struct vnode *vp;
-	register struct ucred *cred = td->td_ucred;
+	struct ucred *cred = td->td_ucred;
+	struct vnode *vp;
 	struct flock lf;
 	struct nameidata nd;
 	struct vattr vattr;
@@ -3251,8 +3250,8 @@ restart:
 	vp = nd.ni_vp;
 
 	/* Don't dump to non-regular files or files with links. */
-	if (vp->v_type != VREG ||
-	    VOP_GETATTR(vp, &vattr, cred) || vattr.va_nlink != 1) {
+	if (vp->v_type != VREG || VOP_GETATTR(vp, &vattr, cred) != 0 ||
+	    vattr.va_nlink != 1) {
 		VOP_UNLOCK(vp, 0);
 		error = EFAULT;
 		goto close;
