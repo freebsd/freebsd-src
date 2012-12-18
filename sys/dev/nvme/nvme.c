@@ -313,6 +313,11 @@ nvme_detach (device_t dev)
 		    ctrlr->resource_id, ctrlr->resource);
 	}
 
+	if (ctrlr->bar4_resource != NULL) {
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    ctrlr->bar4_resource_id, ctrlr->bar4_resource);
+	}
+
 #ifdef CHATHAM2
 	if (ctrlr->chatham_resource != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY,
