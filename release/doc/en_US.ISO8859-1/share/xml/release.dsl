@@ -42,8 +42,8 @@
 		(literal (entity-text "release.branch"))
 		(literal " should subscribe to the ")
                 (literal "<")
-		(create-link (list (list "HREF" "mailto:current@FreeBSD.org"))
-                  (literal "current@FreeBSD.org"))
+		(create-link (list (list "HREF" "mailto:stable@FreeBSD.org"))
+                  (literal "stable@FreeBSD.org"))
                 (literal "> mailing list.")))
 
             (make element gi: "p"
