@@ -600,7 +600,7 @@ installcheck_DESTDIR:
 #
 # Check for missing UIDs/GIDs.
 #
-CHECK_UIDS=
+CHECK_UIDS=	auditdistd
 CHECK_GIDS=	audit
 .if ${MK_SENDMAIL} != "no"
 CHECK_UIDS+=	smmsp
