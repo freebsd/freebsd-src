@@ -275,7 +275,7 @@ getnextcpuevent(struct bintime *event, int idle)
 	struct pcpu_state *state;
 	struct bintime tmp;
 	int hardfreq;
-	
+
 	state = DPCPU_PTR(timerstate);
 	/* Handle hardclock() events, skipping some is CPU is idle. */
 	*event = state->nexthard;

@@ -126,7 +126,7 @@ struct cc_exec {
 	int			cc_cancel;
 	int			cc_waiting;
 };
-	
+
 /*
  * There is one struct callou_cpu per cpu, holding all relevant
  * state for the callout processing thread on the individual CPU.

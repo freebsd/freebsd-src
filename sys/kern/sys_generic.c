@@ -1672,7 +1672,7 @@ seltdwait(struct thread *td, struct bintime *bt, struct bintime *precision)
 	if (bt != NULL)
 		error = cv_timedwait_sig_bt(&stp->st_wait, &stp->st_mtx,
 		    bt, precision);
-	else	
+	else
 		error = cv_wait_sig(&stp->st_wait, &stp->st_mtx);
 	mtx_unlock(&stp->st_mtx);
 
