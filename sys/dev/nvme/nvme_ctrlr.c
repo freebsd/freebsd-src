@@ -78,6 +78,17 @@ nvme_ctrlr_allocate_bar(struct nvme_controller *ctrlr)
 	ctrlr->bus_handle = rman_get_bushandle(ctrlr->resource);
 	ctrlr->regs = (struct nvme_registers *)ctrlr->bus_handle;
 
+	/*
+	 * The NVMe spec allows for the MSI-X table to be placed behind
+	 *  BAR 4/5, separate from the control/doorbell registers.  Always
+	 *  try to map this bar, because it must be mapped prior to calling
+	 *  pci_alloc_msix().  If the table isn't behind BAR 4/5,
+	 *  bus_alloc_resource() will just return NULL which is OK.
+	 */
+	ctrlr->bar4_resource_id = PCIR_BAR(4);
+	ctrlr->bar4_resource = bus_alloc_resource(ctrlr->dev, SYS_RES_MEMORY,
+	    &ctrlr->bar4_resource_id, 0, ~0, 1, RF_ACTIVE);
+
 	return (0);
 }
 
