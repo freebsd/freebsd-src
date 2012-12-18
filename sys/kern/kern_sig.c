@@ -3045,23 +3045,23 @@ SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RW, corefilename,
  * This is controlled by the sysctl variable kern.corefile (see above).
  */
 static char *
-expand_name(const char *name, uid_t uid, pid_t pid, struct thread *td,
+expand_name(const char *comm, uid_t uid, pid_t pid, struct thread *td,
     int compress)
 {
 	struct sbuf sb;
 	const char *format;
-	char *temp;
+	char *name;
 	size_t i;
 	int indexpos;
 	char *hostname;
 
 	hostname = NULL;
 	format = corefilename;
-	temp = malloc(MAXPATHLEN, M_TEMP, M_NOWAIT | M_ZERO);
-	if (temp == NULL)
+	name = malloc(MAXPATHLEN, M_TEMP, M_NOWAIT | M_ZERO);
+	if (name == NULL)
 		return (NULL);
 	indexpos = -1;
-	(void)sbuf_new(&sb, temp, MAXPATHLEN, SBUF_FIXEDLEN);
+	(void)sbuf_new(&sb, name, MAXPATHLEN, SBUF_FIXEDLEN);
 	for (i = 0; format[i]; i++) {
 		switch (format[i]) {
 		case '%':	/* Format character */
@@ -3079,7 +3079,7 @@ expand_name(const char *name, uid_t uid, pid_t pid, struct thread *td,
 						    "pid %ld (%s), uid (%lu): "
 						    "unable to alloc memory "
 						    "for corefile hostname\n",
-						    (long)pid, name,
+						    (long)pid, comm,
 						    (u_long)uid);
                                                 goto nomem;
                                         }
@@ -3093,7 +3093,7 @@ expand_name(const char *name, uid_t uid, pid_t pid, struct thread *td,
 				indexpos = sbuf_len(&sb) - 1;
 				break;
 			case 'N':	/* process name */
-				sbuf_printf(&sb, "%s", name);
+				sbuf_printf(&sb, "%s", comm);
 				break;
 			case 'P':	/* process id */
 				sbuf_printf(&sb, "%u", pid);
@@ -3113,16 +3113,15 @@ expand_name(const char *name, uid_t uid, pid_t pid, struct thread *td,
 	}
 	free(hostname, M_TEMP);
 #ifdef COMPRESS_USER_CORES
-	if (compress) {
+	if (compress)
 		sbuf_printf(&sb, GZ_SUFFIX);
-	}
 #endif
 	if (sbuf_error(&sb) != 0) {
 		log(LOG_ERR, "pid %ld (%s), uid (%lu): corename is too "
-		    "long\n", (long)pid, name, (u_long)uid);
+		    "long\n", (long)pid, comm, (u_long)uid);
 nomem:
 		sbuf_delete(&sb);
-		free(temp, M_TEMP);
+		free(name, M_TEMP);
 		return (NULL);
 	}
 	sbuf_finish(&sb);
@@ -3145,9 +3144,9 @@ nomem:
 			oflags = VN_OPEN_NOCAPCHECK;
 
 		for (n = 0; n < num_cores; n++) {
-			temp[indexpos] = '0' + n;
+			name[indexpos] = '0' + n;
 			NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE,
-			    temp, td);
+			    name, td);
 			error = vn_open_cred(&nd, &flags, cmode, oflags,
 			    td->td_ucred, NULL);
 			if (error) {
@@ -3156,8 +3155,8 @@ nomem:
 				log(LOG_ERR,
 				    "pid %d (%s), uid (%u):  Path `%s' failed "
                                     "on initial open test, error = %d\n",
-				    pid, name, uid, temp, error);
-				free(temp, M_TEMP);
+				    pid, comm, uid, name, error);
+				free(name, M_TEMP);
 				return (NULL);
 			}
 			NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -3168,14 +3167,14 @@ nomem:
 				    "pid %d (%s), uid (%u):  Path `%s' failed "
                                     "on close after initial open test, "
                                     "error = %d\n",
-				    pid, name, uid, temp, error);
-				free(temp, M_TEMP);
+				    pid, comm, uid, name, error);
+				free(name, M_TEMP);
 				return (NULL);
 			}
 			break;
 		}
 	}
-	return (temp);
+	return (name);
 }
 
 /*
@@ -3190,8 +3189,8 @@ static int
 coredump(struct thread *td)
 {
 	struct proc *p = td->td_proc;
-	register struct vnode *vp;
-	register struct ucred *cred = td->td_ucred;
+	struct ucred *cred = td->td_ucred;
+	struct vnode *vp;
 	struct flock lf;
 	struct nameidata nd;
 	struct vattr vattr;
@@ -3210,22 +3209,8 @@ coredump(struct thread *td)
 	MPASS((p->p_flag & P_HADTHREADS) == 0 || p->p_singlethread == td);
 	_STOPEVENT(p, S_CORE, 0);
 
-	name = expand_name(p->p_comm, td->td_ucred->cr_uid, p->p_pid, td,
-	    compress);
-	if (name == NULL) {
+	if (!do_coredump || (!sugid_coredump && (p->p_flag & P_SUGID) != 0)) {
 		PROC_UNLOCK(p);
-#ifdef AUDIT
-		audit_proc_coredump(td, NULL, EINVAL);
-#endif
-		return (EINVAL);
-	}
-	if (((sugid_coredump == 0) && p->p_flag & P_SUGID) ||
-	    do_coredump == 0) {
-		PROC_UNLOCK(p);
-#ifdef AUDIT
-		audit_proc_coredump(td, name, EFAULT);
-#endif
-		free(name, M_TEMP);
 		return (EFAULT);
 	}
 
@@ -3240,13 +3225,13 @@ coredump(struct thread *td)
 	limit = (off_t)lim_cur(p, RLIMIT_CORE);
 	if (limit == 0 || racct_get_available(p, RACCT_CORE) == 0) {
 		PROC_UNLOCK(p);
-#ifdef AUDIT
-		audit_proc_coredump(td, name, EFBIG);
-#endif
-		free(name, M_TEMP);
 		return (EFBIG);
 	}
 	PROC_UNLOCK(p);
+
+	name = expand_name(p->p_comm, cred->cr_uid, p->p_pid, td, compress);
+	if (name == NULL)
+		return (EINVAL);
 
 restart:
 	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, td);
@@ -3265,8 +3250,8 @@ restart:
 	vp = nd.ni_vp;
 
 	/* Don't dump to non-regular files or files with links. */
-	if (vp->v_type != VREG ||
-	    VOP_GETATTR(vp, &vattr, cred) || vattr.va_nlink != 1) {
+	if (vp->v_type != VREG || VOP_GETATTR(vp, &vattr, cred) != 0 ||
+	    vattr.va_nlink != 1) {
 		VOP_UNLOCK(vp, 0);
 		error = EFAULT;
 		goto close;

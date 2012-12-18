@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/racct.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>
+#include <sys/sysctl.h>
 #include <sys/vnode.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
@@ -86,6 +87,11 @@ __FBSDID("$FreeBSD$");
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
 #endif
+
+int old_mlock = 0;
+SYSCTL_INT(_vm, OID_AUTO, old_mlock, CTLFLAG_RW | CTLFLAG_TUN, &old_mlock, 0,
+    "Do not apply RLIMIT_MEMLOCK on mlockall");
+TUNABLE_INT("vm.old_mlock", &old_mlock);
 
 #ifndef _SYS_SYSPROTO_H_
 struct sbrk_args {
@@ -1096,27 +1102,25 @@ sys_mlockall(td, uap)
 	int error;
 
 	map = &td->td_proc->p_vmspace->vm_map;
-	error = 0;
+	error = priv_check(td, PRIV_VM_MLOCK);
+	if (error)
+		return (error);
 
 	if ((uap->how == 0) || ((uap->how & ~(MCL_CURRENT|MCL_FUTURE)) != 0))
 		return (EINVAL);
 
-#if 0
 	/*
 	 * If wiring all pages in the process would cause it to exceed
 	 * a hard resource limit, return ENOMEM.
 	 */
-	PROC_LOCK(td->td_proc);
-	if (map->size > lim_cur(td->td_proc, RLIMIT_MEMLOCK)) {
+	if (!old_mlock && uap->how & MCL_CURRENT) {
+		PROC_LOCK(td->td_proc);
+		if (map->size > lim_cur(td->td_proc, RLIMIT_MEMLOCK)) {
+			PROC_UNLOCK(td->td_proc);
+			return (ENOMEM);
+		}
 		PROC_UNLOCK(td->td_proc);
-		return (ENOMEM);
 	}
-	PROC_UNLOCK(td->td_proc);
-#else
-	error = priv_check(td, PRIV_VM_MLOCK);
-	if (error)
-		return (error);
-#endif
 #ifdef RACCT
 	PROC_LOCK(td->td_proc);
 	error = racct_set(td->td_proc, RACCT_MEMLOCK, map->size);
@@ -1479,6 +1483,24 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		if (racct_set(td->td_proc, RACCT_VMEM, map->size + size)) {
 			PROC_UNLOCK(td->td_proc);
 			return (ENOMEM);
+		}
+		if (!old_mlock && map->flags & MAP_WIREFUTURE) {
+			if (ptoa(vmspace_wired_count(td->td_proc->p_vmspace)) +
+			    size > lim_cur(td->td_proc, RLIMIT_MEMLOCK)) {
+				racct_set_force(td->td_proc, RACCT_VMEM,
+				    map->size);
+				PROC_UNLOCK(td->td_proc);
+				return (ENOMEM);
+			}
+			error = racct_set(td->td_proc, RACCT_MEMLOCK,
+			    ptoa(vmspace_wired_count(td->td_proc->p_vmspace)) +
+			    size);
+			if (error != 0) {
+				racct_set_force(td->td_proc, RACCT_VMEM,
+				    map->size);
+				PROC_UNLOCK(td->td_proc);
+				return (error);
+			}
 		}
 		PROC_UNLOCK(td->td_proc);
 	}

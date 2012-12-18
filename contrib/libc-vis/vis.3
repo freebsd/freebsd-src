@@ -1,4 +1,5 @@
-.\"	$NetBSD: vis.3,v 1.27 2011/05/17 07:10:39 joerg Exp $
+.\"	$NetBSD: vis.3,v 1.29 2012/12/14 22:55:59 christos Exp $
+.\"	$FreeBSD$
 .\"
 .\" Copyright (c) 1989, 1991, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -29,7 +30,7 @@
 .\"
 .\"     @(#)vis.3	8.1 (Berkeley) 6/9/93
 .\"
-.Dd March 12, 2011
+.Dd December 14, 2012
 .Dt VIS 3
 .Os
 .Sh NAME
@@ -226,7 +227,8 @@ Also encode magic characters
 .Ql \&[
 and
 .Ql # )
-recognized by glob(3).
+recognized by
+.Xr glob 3 .
 .It Dv VIS_SP
 Also encode space.
 .It Dv VIS_TAB
@@ -437,7 +439,9 @@ The
 and
 .Fn strsvisx
 functions appeared in
-.Nx 1.5 .
+.Nx 1.5
+and
+.Fx 10.0 .
 The buffer size limited versions of the functions
 .Po Fn nvis ,
 .Fn strnvis ,
@@ -447,4 +451,6 @@ The buffer size limited versions of the functions
 and
 .Fn strsnvisx Pc
 appeared in
-.Nx 6.0 .
+.Nx 6.0
+and
+.Fx 10.0 .

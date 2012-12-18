@@ -56,13 +56,17 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sysexits.h>
 #include <unistd.h>
 
+static const char *conffile;
+
 static int	aflag, bflag, dflag, eflag, hflag, iflag;
-static int	Nflag, nflag, oflag, qflag, xflag, warncount;
+static int	Nflag, nflag, oflag, qflag, Tflag, Wflag, xflag;
 
 static int	oidfmt(int *, int, char *, u_int *);
-static void	parse(char *);
+static int	parsefile(const char *);
+static int	parse(const char *, int);
 static int	show_var(int *, int);
 static int	sysctl_all(int *oid, int len);
 static int	name2oid(char *, int *);
@@ -74,8 +78,8 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: sysctl [-bdehiNnoqx] name[=value] ...",
-	    "       sysctl [-bdehNnoqx] -a");
+	    "usage: sysctl [-bdehiNnoqTWx] [-f filename] name[=value] ...",
+	    "       sysctl [-bdehNnoqTWx] -a");
 	exit(1);
 }
 
@@ -83,12 +87,13 @@ int
 main(int argc, char **argv)
 {
 	int ch;
+	int warncount = 0;
 
 	setlocale(LC_NUMERIC, "");
 	setbuf(stdout,0);
 	setbuf(stderr,0);
 
-	while ((ch = getopt(argc, argv, "AabdehiNnoqwxX")) != -1) {
+	while ((ch = getopt(argc, argv, "Aabdef:hiNnoqTwWxX")) != -1) {
 		switch (ch) {
 		case 'A':
 			/* compatibility */
@@ -105,6 +110,9 @@ main(int argc, char **argv)
 			break;
 		case 'e':
 			eflag = 1;
+			break;
+		case 'f':
+			conffile = optarg;
 			break;
 		case 'h':
 			hflag = 1;
@@ -124,9 +132,15 @@ main(int argc, char **argv)
 		case 'q':
 			qflag = 1;
 			break;
+		case 'T':
+			Tflag = 1;
+			break;
 		case 'w':
 			/* compatibility */
 			/* ignored */
+			break;
+		case 'W':
+			Wflag = 1;
 			break;
 		case 'X':
 			/* compatibility */
@@ -146,13 +160,17 @@ main(int argc, char **argv)
 		usage();
 	if (aflag && argc == 0)
 		exit(sysctl_all(0, 0));
-	if (argc == 0)
+	if (argc == 0 && conffile == NULL)
 		usage();
 
 	warncount = 0;
+	if (conffile != NULL)
+		warncount += parsefile(conffile);
+
 	while (argc-- > 0)
-		parse(*argv++);
-	exit(warncount);
+		warncount += parse(*argv++, 0);
+
+	return (warncount);
 }
 
 /*
@@ -160,8 +178,8 @@ main(int argc, char **argv)
  * Lookup and print out the MIB entry if it exists.
  * Set a new value if requested.
  */
-static void
-parse(char *string)
+static int
+parse(const char *string, int lineno)
 {
 	int len, i, j;
 	void *newval = 0;
@@ -173,17 +191,36 @@ parse(char *string)
 	int64_t i64val;
 	uint64_t u64val;
 	int mib[CTL_MAXNAME];
-	char *cp, *bufp, buf[BUFSIZ], *endptr, fmt[BUFSIZ];
+	char *cp, *bufp, buf[BUFSIZ], *endptr, fmt[BUFSIZ], line[BUFSIZ];
 	u_int kind;
 
-	bufp = buf;
-	if (snprintf(buf, BUFSIZ, "%s", string) >= BUFSIZ)
-		errx(1, "oid too long: '%s'", string);
-	if ((cp = strchr(string, '=')) != NULL) {
-		*strchr(buf, '=') = '\0';
-		*cp++ = '\0';
+	if (lineno)
+		snprintf(line, sizeof(line), " at line %d", lineno);
+	else
+		line[0] = '\0';
+
+	cp = buf;
+	if (snprintf(buf, BUFSIZ, "%s", string) >= BUFSIZ) {
+		warn("oid too long: '%s'%s", string, line);
+		return (1);
+	}
+	bufp = strsep(&cp, "=:");
+	if (cp != NULL) {
+		/* Tflag just lists tunables, do not allow assignment */
+		if (Tflag || Wflag) {
+			warnx("Can't set variables when using -T or -W");
+			usage();
+		}
 		while (isspace(*cp))
 			cp++;
+		/* Strip a pair of " or ' if any. */
+		switch (*cp) {
+		case '\"':
+		case '\'':
+			if (cp[strlen(cp) - 1] == *cp)
+				cp[strlen(cp) - 1] = '\0';
+			cp++;
+		}
 		newval = cp;
 		newsize = strlen(cp);
 	}
@@ -191,15 +228,22 @@ parse(char *string)
 
 	if (len < 0) {
 		if (iflag)
-			return;
+			return (0);
 		if (qflag)
-			exit(1);
-		else
-			errx(1, "unknown oid '%s'", bufp);
+			return (1);
+		else {
+			warn("unknown oid '%s'%s", bufp, line);
+			return (1);
+		}
 	}
 
-	if (oidfmt(mib, len, fmt, &kind))
-		err(1, "couldn't find format of oid '%s'", bufp);
+	if (oidfmt(mib, len, fmt, &kind)) {
+		warn("couldn't find format of oid '%s'%s", bufp, line);
+		if (iflag)
+			return (1);
+		else
+			exit(1);
+	}
 
 	if (newval == NULL || dflag) {
 		if ((kind & CTLTYPE) == CTLTYPE_NODE) {
@@ -215,16 +259,18 @@ parse(char *string)
 				putchar('\n');
 		}
 	} else {
-		if ((kind & CTLTYPE) == CTLTYPE_NODE)
-			errx(1, "oid '%s' isn't a leaf node", bufp);
+		if ((kind & CTLTYPE) == CTLTYPE_NODE) {
+			warn("oid '%s' isn't a leaf node%s", bufp, line);
+			return (1);
+		}
 
 		if (!(kind & CTLFLAG_WR)) {
 			if (kind & CTLFLAG_TUN) {
-				warnx("oid '%s' is a read only tunable", bufp);
-				errx(1, "Tunable values are set in /boot/loader.conf");
-			} else {
-				errx(1, "oid '%s' is read only", bufp);
-			}
+				warnx("oid '%s' is a read only tunable%p", bufp, line);
+				warnx("Tunable values are set in /boot/loader.conf");
+			} else
+				warnx("oid '%s' is read only%s", bufp, line);
+			return (1);
 		}
 
 		if ((kind & CTLTYPE) == CTLTYPE_INT ||
@@ -233,47 +279,59 @@ parse(char *string)
 		    (kind & CTLTYPE) == CTLTYPE_ULONG ||
 		    (kind & CTLTYPE) == CTLTYPE_S64 ||
 		    (kind & CTLTYPE) == CTLTYPE_U64) {
-			if (strlen(newval) == 0)
-				errx(1, "empty numeric value");
+			if (strlen(newval) == 0) {
+				warnx("empty numeric value");
+				return (1);
+			}
 		}
 
 		switch (kind & CTLTYPE) {
 			case CTLTYPE_INT:
 				if (strcmp(fmt, "IK") == 0) {
-					if (!set_IK(newval, &intval))
-						errx(1, "invalid value '%s'",
-						    (char *)newval);
+					if (!set_IK(newval, &intval)) {
+						warnx("invalid value '%s'%s",
+						    (char *)newval, line);
+						return (1);
+					}
  				} else {
 					intval = (int)strtol(newval, &endptr,
 					    0);
-					if (endptr == newval || *endptr != '\0')
-						errx(1, "invalid integer '%s'",
-						    (char *)newval);
+					if (endptr == newval || *endptr != '\0') {
+						warnx("invalid integer '%s'%s",
+						    (char *)newval, line);
+						return (1);
+					}
 				}
 				newval = &intval;
 				newsize = sizeof(intval);
 				break;
 			case CTLTYPE_UINT:
 				uintval = (int) strtoul(newval, &endptr, 0);
-				if (endptr == newval || *endptr != '\0')
-					errx(1, "invalid unsigned integer '%s'",
-					    (char *)newval);
+				if (endptr == newval || *endptr != '\0') {
+					warnx("invalid unsigned integer '%s'%s",
+					    (char *)newval, line);
+					return (1);
+				}
 				newval = &uintval;
 				newsize = sizeof(uintval);
 				break;
 			case CTLTYPE_LONG:
 				longval = strtol(newval, &endptr, 0);
-				if (endptr == newval || *endptr != '\0')
-					errx(1, "invalid long integer '%s'",
-					    (char *)newval);
+				if (endptr == newval || *endptr != '\0') {
+					warnx("invalid long integer '%s'%s",
+					    (char *)newval, line);
+					return (1);
+				}
 				newval = &longval;
 				newsize = sizeof(longval);
 				break;
 			case CTLTYPE_ULONG:
 				ulongval = strtoul(newval, &endptr, 0);
-				if (endptr == newval || *endptr != '\0')
-					errx(1, "invalid unsigned long integer"
-					    " '%s'", (char *)newval);
+				if (endptr == newval || *endptr != '\0') {
+					warnx("invalid unsigned long integer"
+					    " '%s'%s", (char *)newval, line);
+					return (1);
+				}
 				newval = &ulongval;
 				newsize = sizeof(ulongval);
 				break;
@@ -281,26 +339,31 @@ parse(char *string)
 				break;
 			case CTLTYPE_S64:
 				i64val = strtoimax(newval, &endptr, 0);
-				if (endptr == newval || *endptr != '\0')
-					errx(1, "invalid int64_t '%s'",
-					    (char *)newval);
+				if (endptr == newval || *endptr != '\0') {
+					warnx("invalid int64_t '%s'%s",
+					    (char *)newval, line);
+					return (1);
+				}
 				newval = &i64val;
 				newsize = sizeof(i64val);
 				break;
 			case CTLTYPE_U64:
 				u64val = strtoumax(newval, &endptr, 0);
-				if (endptr == newval || *endptr != '\0')
-					errx(1, "invalid uint64_t '%s'",
-					    (char *)newval);
+				if (endptr == newval || *endptr != '\0') {
+					warnx("invalid uint64_t '%s'%s",
+					    (char *)newval, line);
+					return (1);
+				}
 				newval = &u64val;
 				newsize = sizeof(u64val);
 				break;
 			case CTLTYPE_OPAQUE:
 				/* FALLTHROUGH */
 			default:
-				errx(1, "oid '%s' is type %d,"
-					" cannot set that", bufp,
-					kind & CTLTYPE);
+				warnx("oid '%s' is type %d,"
+					" cannot set that%s", bufp,
+					kind & CTLTYPE, line);
+				return (1);
 		}
 
 		i = show_var(mib, len);
@@ -309,18 +372,20 @@ parse(char *string)
 				putchar('\n');
 			switch (errno) {
 			case EOPNOTSUPP:
-				errx(1, "%s: value is not available",
-					string);
+				warnx("%s: value is not available%s",
+					string, line);
+				return (1);
 			case ENOTDIR:
-				errx(1, "%s: specification is incomplete",
-					string);
+				warnx("%s: specification is incomplete%s",
+					string, line);
+				return (1);
 			case ENOMEM:
-				errx(1, "%s: type is unknown to this program",
-					string);
+				warnx("%s: type is unknown to this program%s",
+					string, line);
+				return (1);
 			default:
-				warn("%s", string);
-				warncount++;
-				return;
+				warn("%s%s", string, line);
+				return (1);
 			}
 		}
 		if (!bflag)
@@ -332,6 +397,58 @@ parse(char *string)
 			putchar('\n');
 		nflag = i;
 	}
+
+	return (0);
+}
+
+static int
+parsefile(const char *filename)
+{
+	FILE *file;
+	char line[BUFSIZ], *p, *pq, *pdq;
+	int warncount = 0, lineno = 0;
+
+	file = fopen(filename, "r");
+	if (file == NULL)
+		err(EX_NOINPUT, "%s", filename);
+	while (fgets(line, sizeof(line), file) != NULL) {
+		lineno++;
+		p = line;
+		pq = strchr(line, '\'');
+		pdq = strchr(line, '\"');
+		/* Replace the first # with \0. */
+		while((p = strchr(p, '#')) != NULL) {
+			if (pq != NULL && p > pq) {
+				if ((p = strchr(pq+1, '\'')) != NULL)
+					*(++p) = '\0';
+				break;
+			} else if (pdq != NULL && p > pdq) {
+				if ((p = strchr(pdq+1, '\"')) != NULL)
+					*(++p) = '\0';
+				break;
+			} else if (p == line || *(p-1) != '\\') {
+				*p = '\0';
+				break;
+			}
+			p++;
+		}
+		/* Trim spaces */
+		p = line + strlen(line) - 1;
+		while (p >= line && isspace((int)*p)) {
+			*p = '\0';
+			p--;
+		}
+		p = line;
+		while (isspace((int)*p))
+			p++;
+		if (*p == '\0')
+			continue;
+		else
+			warncount += parse(p, lineno);
+	}
+	fclose(file);
+
+	return (warncount);
 }
 
 /* These functions will dump out various interesting structures. */
@@ -529,7 +646,7 @@ static int
 show_var(int *oid, int nlen)
 {
 	u_char buf[BUFSIZ], *val, *oval, *p;
-	char name[BUFSIZ], *fmt;
+	char name[BUFSIZ], fmt[BUFSIZ];
 	const char *sep, *sep1;
 	int qoid[CTL_MAXNAME+2];
 	uintmax_t umv;
@@ -544,6 +661,7 @@ show_var(int *oid, int nlen)
 	umv = mv = intlen = 0;
 
 	bzero(buf, BUFSIZ);
+	bzero(fmt, BUFSIZ);
 	bzero(name, BUFSIZ);
 	qoid[0] = 0;
 	memcpy(qoid + 2, oid, nlen * sizeof(int));
@@ -553,6 +671,15 @@ show_var(int *oid, int nlen)
 	i = sysctl(qoid, nlen + 2, name, &j, 0, 0);
 	if (i || !j)
 		err(1, "sysctl name %d %zu %d", i, j, errno);
+
+	oidfmt(oid, nlen, fmt, &kind);
+	/* if Wflag then only list sysctls that are writeable and not stats. */
+	if (Wflag && ((kind & CTLFLAG_WR) == 0 || (kind & CTLFLAG_STATS) != 0))
+		return 1;
+
+	/* if Tflag then only list sysctls that are tuneables. */
+	if (Tflag && (kind & CTLFLAG_TUN) == 0)
+		return 1;
 
 	if (Nflag) {
 		printf("%s", name);
@@ -596,8 +723,6 @@ show_var(int *oid, int nlen)
 		return (0);
 	}
 	val[len] = '\0';
-	fmt = buf;
-	oidfmt(oid, nlen, fmt, &kind);
 	p = val;
 	ctltype = (kind & CTLTYPE);
 	sign = ctl_sign[ctltype];

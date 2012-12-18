@@ -77,13 +77,14 @@ sys_obreak(td, uap)
 {
 	struct vmspace *vm = td->td_proc->p_vmspace;
 	vm_offset_t new, old, base;
-	rlim_t datalim, vmemlim;
+	rlim_t datalim, lmemlim, vmemlim;
 	int prot, rv;
 	int error = 0;
 	boolean_t do_map_wirefuture;
 
 	PROC_LOCK(td->td_proc);
 	datalim = lim_cur(td->td_proc, RLIMIT_DATA);
+	lmemlim = lim_cur(td->td_proc, RLIMIT_MEMLOCK);
 	vmemlim = lim_cur(td->td_proc, RLIMIT_VMEM);
 	PROC_UNLOCK(td->td_proc);
 
@@ -116,6 +117,13 @@ sys_obreak(td, uap)
 		goto done;
 	}
 	if (new > old) {
+		if (!old_mlock && vm->vm_map.flags & MAP_WIREFUTURE) {
+			if (ptoa(vmspace_wired_count(td->td_proc->p_vmspace)) +
+			    (new - old) > lmemlim) {
+				error = ENOMEM;
+				goto done;
+			}
+		}
 		if (vm->vm_map.size + (new - old) > vmemlim) {
 			error = ENOMEM;
 			goto done;
@@ -136,6 +144,20 @@ sys_obreak(td, uap)
 			error = ENOMEM;
 			goto done;
 		}
+		if (!old_mlock && vm->vm_map.flags & MAP_WIREFUTURE) {
+			error = racct_set(td->td_proc, RACCT_MEMLOCK,
+			    ptoa(vmspace_wired_count(td->td_proc->p_vmspace)) +
+			    (new - old));
+			if (error != 0) {
+				racct_set_force(td->td_proc, RACCT_DATA,
+				    old - base);
+				racct_set_force(td->td_proc, RACCT_VMEM,
+				    vm->vm_map.size);
+				PROC_UNLOCK(td->td_proc);
+				error = ENOMEM;
+				goto done;
+			}
+		}
 		PROC_UNLOCK(td->td_proc);
 #endif
 		prot = VM_PROT_RW;
@@ -152,6 +174,11 @@ sys_obreak(td, uap)
 			PROC_LOCK(td->td_proc);
 			racct_set_force(td->td_proc, RACCT_DATA, old - base);
 			racct_set_force(td->td_proc, RACCT_VMEM, vm->vm_map.size);
+			if (!old_mlock && vm->vm_map.flags & MAP_WIREFUTURE) {
+				racct_set_force(td->td_proc, RACCT_MEMLOCK,
+				    ptoa(vmspace_wired_count(
+				    td->td_proc->p_vmspace)));
+			}
 			PROC_UNLOCK(td->td_proc);
 #endif
 			error = ENOMEM;
@@ -183,6 +210,10 @@ sys_obreak(td, uap)
 		PROC_LOCK(td->td_proc);
 		racct_set_force(td->td_proc, RACCT_DATA, new - base);
 		racct_set_force(td->td_proc, RACCT_VMEM, vm->vm_map.size);
+		if (!old_mlock && vm->vm_map.flags & MAP_WIREFUTURE) {
+			racct_set_force(td->td_proc, RACCT_MEMLOCK,
+			    ptoa(vmspace_wired_count(td->td_proc->p_vmspace)));
+		}
 		PROC_UNLOCK(td->td_proc);
 #endif
 	}

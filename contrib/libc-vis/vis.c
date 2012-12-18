@@ -1,4 +1,4 @@
-/*	$NetBSD: vis.c,v 1.44 2011/03/12 19:52:48 christos Exp $	*/
+/*	$NetBSD: vis.c,v 1.45 2012/12/14 21:38:18 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -57,8 +57,9 @@
 
 #include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: vis.c,v 1.44 2011/03/12 19:52:48 christos Exp $");
+__RCSID("$NetBSD: vis.c,v 1.45 2012/12/14 21:38:18 christos Exp $");
 #endif /* LIBC_SCCS and not lint */
+__FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/types.h>
@@ -67,6 +68,8 @@ __RCSID("$NetBSD: vis.c,v 1.44 2011/03/12 19:52:48 christos Exp $");
 #include <vis.h>
 #include <errno.h>
 #include <stdlib.h>
+
+#define	_DIAGASSERT(x)	assert(x)
 
 #ifdef __weak_alias
 __weak_alias(strvisx,_strvisx)
@@ -77,8 +80,6 @@ __weak_alias(strvisx,_strvisx)
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
-
-#define _DIAGASSERT(x)  assert(x)
 
 static char *do_svis(char *, size_t *, int, int, int, const char *);
 
