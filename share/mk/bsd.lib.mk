@@ -282,7 +282,7 @@ _libinstall:
 	    ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}
 .if defined(DEBUG_FLAGS)
 	${INSTALL} -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
-	    ${_INSTALLFLAGS} ${_SHLINSTALLFLAGS} \
+	    ${_INSTALLFLAGS} \
 	    ${SHLIB_NAME}.symbols ${DESTDIR}${SHLIBDIR}
 .endif
 .if defined(SHLIB_LINK)
