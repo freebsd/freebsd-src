@@ -31,7 +31,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/kobj.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
 #include <sys/proc.h>
 
 #include <kgssapi/gssapi.h>
@@ -55,8 +57,11 @@ gss_acquire_cred(OM_uint32 *minor_status,
 	enum clnt_stat stat;
 	gss_cred_id_t cred;
 	int i;
+	CLIENT *cl;
 
-	if (!kgss_gssd_handle)
+	*minor_status = 0;
+	cl = kgss_gssd_client();
+	if (cl == NULL)
 		return (GSS_S_FAILURE);
 
 	args.uid = curthread->td_ucred->cr_uid;
@@ -69,7 +74,8 @@ gss_acquire_cred(OM_uint32 *minor_status,
 	args.cred_usage = cred_usage;
 
 	bzero(&res, sizeof(res));
-	stat = gssd_acquire_cred_1(&args, &res, kgss_gssd_handle);
+	stat = gssd_acquire_cred_1(&args, &res, cl);
+	CLNT_RELEASE(cl);
 	if (stat != RPC_SUCCESS) {
 		*minor_status = stat;
 		return (GSS_S_FAILURE);
@@ -80,7 +86,6 @@ gss_acquire_cred(OM_uint32 *minor_status,
 		return (res.major_status);
 	}
 
-	*minor_status = 0;
 	cred = malloc(sizeof(struct _gss_cred_id_t), M_GSSAPI, M_WAITOK);
 	cred->handle = res.output_cred;
 	*output_cred_handle = cred;
