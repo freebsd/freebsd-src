@@ -298,11 +298,6 @@ nvme_detach (device_t dev)
 	struct nvme_namespace	*ns;
 	int			i;
 
-	if (ctrlr->taskqueue) {
-		taskqueue_drain(ctrlr->taskqueue, &ctrlr->task);
-		taskqueue_free(ctrlr->taskqueue);
-	}
-
 	for (i = 0; i < NVME_MAX_NAMESPACES; i++) {
 		ns = &ctrlr->ns[i];
 		if (ns->cdev)

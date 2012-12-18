@@ -36,7 +36,6 @@
 #include <sys/mutex.h>
 #include <sys/rman.h>
 #include <sys/systm.h>
-#include <sys/taskqueue.h>
 
 #include <vm/uma.h>
 
@@ -222,8 +221,6 @@ struct nvme_controller {
 	int			rid;
 	struct resource		*res;
 	void			*tag;
-	struct task		task;
-	struct taskqueue	*taskqueue;
 
 	bus_dma_tag_t		hw_desc_tag;
 	bus_dmamap_t		hw_desc_map;
