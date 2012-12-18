@@ -619,9 +619,11 @@ err:
 }
 
 static void
-nvme_ctrlr_intx_task(void *arg, int pending)
+nvme_ctrlr_intx_handler(void *arg)
 {
 	struct nvme_controller *ctrlr = arg;
+
+	nvme_mmio_write_4(ctrlr, intms, 1);
 
 	nvme_qpair_process_completions(&ctrlr->adminq);
 
@@ -629,15 +631,6 @@ nvme_ctrlr_intx_task(void *arg, int pending)
 		nvme_qpair_process_completions(&ctrlr->ioq[0]);
 
 	nvme_mmio_write_4(ctrlr, intmc, 1);
-}
-
-static void
-nvme_ctrlr_intx_handler(void *arg)
-{
-	struct nvme_controller *ctrlr = arg;
-
-	nvme_mmio_write_4(ctrlr, intms, 1);
-	taskqueue_enqueue_fast(ctrlr->taskqueue, &ctrlr->task);
 }
 
 static int
@@ -664,12 +657,6 @@ nvme_ctrlr_configure_intx(struct nvme_controller *ctrlr)
 		    "unable to setup legacy interrupt handler\n");
 		return (ENOMEM);
 	}
-
-	TASK_INIT(&ctrlr->task, 0, nvme_ctrlr_intx_task, ctrlr);
-	ctrlr->taskqueue = taskqueue_create_fast("nvme_taskq", M_NOWAIT,
-	    taskqueue_thread_enqueue, &ctrlr->taskqueue);
-	taskqueue_start_threads(&ctrlr->taskqueue, 1, PI_NET,
-	    "%s intx taskq", device_get_nameunit(ctrlr->dev));
 
 	return (0);
 }
