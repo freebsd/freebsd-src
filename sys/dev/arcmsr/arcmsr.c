@@ -2432,14 +2432,13 @@ static void arcmsr_bus_reset(struct AdapterControlBlock *acb)
 static void arcmsr_handle_virtual_command(struct AdapterControlBlock *acb,
 		union ccb * pccb)
 {
-	pccb->ccb_h.status |= CAM_REQ_CMP;
 	switch (pccb->csio.cdb_io.cdb_bytes[0]) {
 	case INQUIRY: {
 		unsigned char inqdata[36];
 		char *buffer=pccb->csio.data_ptr;
 	
 		if (pccb->ccb_h.target_lun) {
-			pccb->ccb_h.status |= CAM_SEL_TIMEOUT;
+			pccb->ccb_h.status |= CAM_DEV_NOT_THERE;
 			xpt_done(pccb);
 			return;
 		}
@@ -2455,6 +2454,7 @@ static void arcmsr_handle_virtual_command(struct AdapterControlBlock *acb,
 		strncpy(&inqdata[16], "RAID controller ", 16);	/* Product Identification */
 		strncpy(&inqdata[32], "R001", 4); /* Product Revision */
 		memcpy(buffer, inqdata, sizeof(inqdata));
+		pccb->ccb_h.status |= CAM_REQ_CMP;
 		xpt_done(pccb);
 	}
 	break;
@@ -2464,10 +2464,12 @@ static void arcmsr_handle_virtual_command(struct AdapterControlBlock *acb,
 			pccb->ccb_h.status |= CAM_SCSI_STATUS_ERROR;
 			pccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
 		}
+		pccb->ccb_h.status |= CAM_REQ_CMP;
 		xpt_done(pccb);
 	}
 	break;
 	default:
+		pccb->ccb_h.status |= CAM_REQ_CMP;
 		xpt_done(pccb);
 	}
 }
