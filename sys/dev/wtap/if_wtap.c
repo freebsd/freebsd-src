@@ -348,7 +348,7 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	/* complete setup */
 	ieee80211_vap_attach(vap, wtap_media_change, ieee80211_media_status);
 	avp->av_dev = make_dev(&wtap_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
-	    (const char *)ic->ic_ifp->if_xname);
+	    "%s", (const char *)ic->ic_ifp->if_xname);
 
 	/* TODO this is a hack to force it to choose the rate we want */
 	ni = ieee80211_ref_node(vap->iv_bss);
