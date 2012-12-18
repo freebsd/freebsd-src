@@ -4,10 +4,17 @@ This file is maintained and copyrighted by M. Warner Losh <imp@freebsd.org>.
 See end of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.  These instructions assume that you
 basically know what you are doing.  If not, then please consult the FreeBSD
-handbook.
+handbook:
+
+    http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html
 
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
+
+20121218:
+	With the addition of auditdistd(8), a new auditdistd user is now
+	depended on during installworld.  "mergemaster -p" can be used to add
+	the user prior to installworld, as documented in the handbook.
 
 20121205:
 	9.1-RELEASE.
