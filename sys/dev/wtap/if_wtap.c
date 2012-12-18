@@ -808,11 +808,7 @@ wtap_attach(struct wtap_softc *sc, const uint8_t *macaddr)
 	ic->ic_regdomain.location = 1; /* Indoors */
 	ic->ic_regdomain.isocc[0] = 'S';
 	ic->ic_regdomain.isocc[1] = 'E';
-	/*
-	 * Indicate we need the 802.11 header padded to a
-	 * 32-bit boundary for 4-address and QoS frames.
-	 */
-	ic->ic_flags |= IEEE80211_F_DATAPAD;
+
 	ic->ic_nchans = 1;
 	ic->ic_channels[0].ic_flags = IEEE80211_CHAN_B;
 	ic->ic_channels[0].ic_freq = 2412;
