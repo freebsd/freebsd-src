@@ -1002,7 +1002,7 @@ vic_encap_load_mbuf(struct vic_softc *sc, struct mbuf **m0, int tso,
 	} else if (error != EFBIG)
 		return (error);
 
-	m = m_collapse(m, M_DONTWAIT, maxsegs);
+	m = m_collapse(m, M_NOWAIT, maxsegs);
 	if (m != NULL) {
 		*m0 = m;
 		error = bus_dmamap_load_mbuf_sg(tag, dmap, m, segs, nsegs, 0);
@@ -1355,7 +1355,7 @@ vic_newbuf(struct vic_softc *sc, struct vic_rxqueue *rxq, int idx)
 	frag = &sc->vic_rxq[0] != rxq;
 #endif
 
-	m = m_getjcl(M_DONTWAIT, MT_DATA, M_PKTHDR, rxq->pktlen);
+	m = m_getjcl(M_NOWAIT, MT_DATA, M_PKTHDR, rxq->pktlen);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_len = m->m_pkthdr.len = rxq->pktlen;
