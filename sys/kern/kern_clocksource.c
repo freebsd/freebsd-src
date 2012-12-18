@@ -281,7 +281,7 @@ getnextcpuevent(struct bintime *event, int idle)
 	*event = state->nexthard;
 	if (idle || (!activetick && !profiling &&
 	    (timer->et_flags & ET_FLAGS_PERCPU) == 0)) {
-		hardfreq = idle ? 2 : (stathz / 2);
+		hardfreq = 2;
 		if (curcpu == CPU_FIRST() && tc_min_ticktock_freq > hardfreq)
 			hardfreq = tc_min_ticktock_freq;
 		if (hz > hardfreq) {
