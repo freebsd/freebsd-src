@@ -4,7 +4,7 @@
 
 FILES=	DAEMON FILESYSTEMS LOGIN NETWORKING SERVERS \
 	abi accounting addswap adjkerntz amd \
-	apm apmd archdep atm1 atm2 atm3 auditd \
+	apm apmd archdep atm1 atm2 atm3 auditd auditdistd \
 	bgfsck bluetooth bootparams bridge bsnmpd bthidd \
 	ccd cleanvar cleartmp cron \
 	ddb defaultroute devd devfs dhclient \
