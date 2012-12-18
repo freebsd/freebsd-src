@@ -334,6 +334,10 @@ wtap_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ],
 	vap = (struct ieee80211vap *) avp;
 	error = ieee80211_vap_setup(ic, vap, name, unit, IEEE80211_M_MBSS,
 	    flags | IEEE80211_CLONE_NOBEACONS, bssid, mac);
+	if (error) {
+		free((struct wtap_vap*) vap, M_80211_VAP);
+		return NULL;
+	}
 
 	/* override various methods */
 	avp->av_recv_mgmt = vap->iv_recv_mgmt;
