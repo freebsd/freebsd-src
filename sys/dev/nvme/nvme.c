@@ -53,6 +53,7 @@ MALLOC_DEFINE(M_NVME, "nvme", "nvme(4) memory allocations");
 static int    nvme_probe(device_t);
 static int    nvme_attach(device_t);
 static int    nvme_detach(device_t);
+static int    nvme_modevent(module_t mod, int type, void *arg);
 
 static devclass_t nvme_devclass;
 
@@ -70,7 +71,7 @@ static driver_t nvme_pci_driver = {
 	sizeof(struct nvme_controller),
 };
 
-DRIVER_MODULE(nvme, pci, nvme_pci_driver, nvme_devclass, 0, 0);
+DRIVER_MODULE(nvme, pci, nvme_pci_driver, nvme_devclass, nvme_modevent, 0);
 MODULE_VERSION(nvme, 1);
 
 static struct _pcsid
@@ -195,14 +196,6 @@ nvme_modevent(module_t mod, int type, void *arg)
 
 	return (0);
 }
-
-moduledata_t nvme_mod = {
-	"nvme",
-	(modeventhand_t)nvme_modevent,
-	0
-};
-
-DECLARE_MODULE(nvme, nvme_mod, SI_SUB_DRIVERS, SI_ORDER_FIRST);
 
 void
 nvme_dump_command(struct nvme_command *cmd)
