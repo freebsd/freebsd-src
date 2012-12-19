@@ -194,6 +194,7 @@ le [label="Lukas Ertl\nle@FreeBSD.org\n2004/02/02"]
 lstewart [label="Lawrence Stewart\nlstewart@FreeBSD.org\n2008/10/06"]
 marcel [label="Marcel Moolenaar\nmarcel@FreeBSD.org\n1999/07/03"]
 marius [label="Marius Strobl\nmarius@FreeBSD.org\n2004/04/17"]
+markj [label="Mark Johnston\nmarkj@FreeBSD.org\n2012/12/18"]
 markm [label="Mark Murray\nmarkm@FreeBSD.org\n199?/??/??"]
 markus [label="Markus Brueffer\nmarkus@FreeBSD.org\n2006/06/01"]
 matteo [label="Matteo Riondato\nmatteo@FreeBSD.org\n2006/01/18"]
@@ -378,6 +379,7 @@ eivind -> rwatson
 
 emaste -> rstone
 emaste -> dteske
+emaste -> markj
 
 emax -> markus
 
@@ -572,6 +574,8 @@ rpaulo -> dim
 rrs -> brucec
 rrs -> jchandra
 rrs -> tuexen
+
+rstone -> markj
 
 ru -> ceri
 ru -> cjc
