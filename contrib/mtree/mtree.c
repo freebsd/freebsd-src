@@ -236,6 +236,12 @@ main(int argc, char **argv)
 	if ((cflag && Cflag) || (cflag && Dflag) || (Cflag && Dflag))
 		mtree_err("-c, -C and -D flags are mutually exclusive");
 
+	if (cflag && iflag) {
+		warnx("-c and -i specified, setting -j and unsetting -i");
+		iflag = 0;
+		jflag = 1;
+	}
+
 	if (iflag && mflag)
 		mtree_err("-i and -m flags are mutually exclusive");
 

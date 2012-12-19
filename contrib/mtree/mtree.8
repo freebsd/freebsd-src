@@ -166,6 +166,16 @@ and
 If no inclusion list is provided, the default is to display all files.
 .It Fl i
 If specified, set the schg and/or sappnd flags.
+For compatiblity with
+.Fx
+if the
+.Fl c
+and
+.Fl i
+option are both passed,
+then the
+.Fl j
+option is implied and a warning is emitted.
 .It Fl j
 Indent the output 4 spaces each time a directory level is descended when
 creating a specification with the
@@ -690,6 +700,37 @@ option can be used in combination with
 or
 .Fl u
 to create directory hierarchies for, for example, distributions.
+.Sh COMPATIBILITY
+This version of the
+.Nm utility differs from the version in
+.Fx 9
+and earlier in several ways:
+.Bl -bullet -compact
+.It
+When the
+.Fl c
+option is specified a final ``..'' is not emitted to match the top
+directory.
+Files made to match by appending ``..\\n\\n''.
+.It
+The
+.Fl U
+and
+.Fl u
+options do not set the modification time or the schg and/or sappnd
+file flags unless the
+.Fl t
+and
+.Fl i
+options are also passed.
+.It
+The
+.Fl j
+option is equivalent to the
+.Fx
+.Fl i
+option and should be used in its place.
+.El
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr chgrp 1 ,
