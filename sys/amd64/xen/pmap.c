@@ -429,7 +429,7 @@ pmap_xen_bootpages(vm_paddr_t *firstaddr)
 	uintptr_t va;
 	vm_paddr_t ma;
 
-	/* Share info */
+	/* i) Share info */
 	ma = xen_start_info->shared_info;
 
 	/* This is a bit of a hack right now - we waste a physical
@@ -452,6 +452,27 @@ pmap_xen_bootpages(vm_paddr_t *firstaddr)
 	PT_SET_MA(va, ma | PG_RW | PG_V | PG_U);
 
 	HYPERVISOR_shared_info = (void *) va;
+
+
+	/* ii) Userland page table base */
+	va = vallocpages(firstaddr, 1);
+	bzero((void *)va, PAGE_SIZE);
+
+	/* 
+	 * x86_64 has 2 privilege rings and Xen keeps separate pml4
+	 * pointers for each, which are sanity checked on every
+	 * exit via hypervisor_iret. We therefore set up a zeroed out
+	 * user page table pml4 to satisfy/fool xen.
+	 */
+	
+	/* Mark the page r/o before pinning */
+	pmap_xen_setpages_ro(va, 1);
+
+	/* Pin the table */
+	xen_pgdir_pin(phystomach(VTOP(va)));
+
+	/* Register user page table with Xen */
+	xen_pt_user_switch(VTOP(va));
 }
 
 /* Boot time ptov - xen guarantees bootpages to be offset */
@@ -906,7 +927,12 @@ pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 vm_paddr_t
 pmap_kextract(vm_offset_t va)
 {
-	return xpmap_mtop(pmap_kextract_ma(va));
+	vm_paddr_t ma;
+	ma = pmap_kextract_ma(va);
+
+	KASSERT(ma != 0, ("%s: Unmapped va: 0x%lx \n", __func__, va));
+
+	return xpmap_mtop(ma);
 }
 
 vm_paddr_t
@@ -1301,8 +1327,12 @@ xen_vm_vtop(uintptr_t va)
 {
 	int result;
 
-	/* The kernel expects to have full access to its address space */
-	const vm_prot_t accesstype = VM_PROT_READ | VM_PROT_WRITE | VM_PROT_EXECUTE;
+	/* 
+	 * The kernel expects to have at least read access to its
+	 * address space. On Xen we don't have full access, since
+	 * page-table pages, for eg: are read-only.
+	 */
+	const vm_prot_t accesstype = VM_PROT_READ;
 
 	vm_page_t m;
 	vm_object_t object; /* Backing object for this va */
@@ -1315,12 +1345,20 @@ xen_vm_vtop(uintptr_t va)
 		 va <= VM_MAX_KERNEL_ADDRESS),
 		("Invalid kernel virtual address"));
 
+	if (va >= KERNBASE && va <= virtual_avail) { /* 
+						      * Boot time page
+						      */
+		return VTOP(va);
+	}
+
 	/* Get the specific object and pindex where the va may be mapped */
 	result = vm_map_lookup(&kernel_map, va, accesstype, &entry,
 			       &object, &pindex, &tmp_prot, &wired);
 
-	KASSERT(result == KERN_SUCCESS, ("Couldn't find va in the  kernel map. \n"));
-	KASSERT(accesstype == tmp_prot, ("Kernel access permissions disparity\n"));
+	KASSERT(result == KERN_SUCCESS, ("Couldn't find va = 0x%lx in the  kernel map. \n", va));
+
+	KASSERT(accesstype | tmp_prot, ("Kernel access permissions disparity for va = 0x%lx: %s\n", va, ((tmp_prot & VM_PROT_READ) ? "VM_PROT_READ" : (
+																     (tmp_prot & VM_PROT_WRITE) ? "| VM_PROT_WRITE" : ((tmp_prot & VM_PROT_EXECUTE) ? "| VM_PROT_EXECUTE" : "")))));
 
 	VM_OBJECT_LOCK(object);
 
