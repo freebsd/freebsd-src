@@ -1272,13 +1272,10 @@ ses_process_pages(enc_softc_t *enc, struct enc_fsm_state *state,
 
 	err = 0;
 	for (i = 0; i < length; i++) {
-		if (page->params[i] == SesElementDescriptor) {
+		if (page->params[i] == SesElementDescriptor)
 			ses->ses_flags |= SES_FLAG_DESC;
-			break;
-		} else if (page->params[i] == SesAddlElementStatus) {
+		else if (page->params[i] == SesAddlElementStatus)
 			ses->ses_flags |= SES_FLAG_ADDLSTATUS;
-			break;
-		}
 	}
 
 out:
