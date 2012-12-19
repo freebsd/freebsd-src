@@ -1,4 +1,4 @@
-/*	$NetBSD: create.c,v 1.66 2012/12/12 15:50:35 christos Exp $	*/
+/*	$NetBSD: create.c,v 1.67 2012/12/15 01:24:40 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
