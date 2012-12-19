@@ -147,13 +147,8 @@ cwalk(void)
 				if (!nflag)
 					printf("%*s# %s\n", indent, "",
 					    p->fts_path);
-#ifdef __FreeBSD__
-			}
-			if (1) {
-#endif
 				printf("%*s..\n\n", indent, "");
 			}
-
 			break;
 		case FTS_DNR:
 		case FTS_ERR:
@@ -217,11 +212,7 @@ statf(int indent, FTSENT *p)
 		    (long long)p->fts_statp->st_rdev);
 	if (keys & F_NLINK && p->fts_statp->st_nlink != 1)
 		output(indent, &offset, "nlink=%u", p->fts_statp->st_nlink);
-#ifndef __FreeBSD__
 	if (keys & F_SIZE && S_ISREG(p->fts_statp->st_mode))
-#else
-	if (keys & F_SIZE)
-#endif
 		output(indent, &offset, "size=%lld",
 		    (long long)p->fts_statp->st_size);
 	if (keys & F_TIME)
