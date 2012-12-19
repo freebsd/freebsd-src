@@ -131,10 +131,10 @@
 	subq 	$TF_ERR, %rsp
 
 #define TRAP_FRAME_EXIT_NOERR \
-	addq	$TF_RIP, %rsp
+	addq	$TF_RIP + 8, %rsp
 
 #define TRAP_FRAME_EXIT_ERR \
-	addq 	$TF_ERR, %rsp
+	addq 	$TF_ERR + 8, %rsp
 
 #define TRAP_PROLOGUE(a) \
 	movl	$(a), TF_TRAPNO(%rsp) 	; \
