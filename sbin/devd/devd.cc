@@ -352,7 +352,7 @@ public:
 void
 config::sort_vector(vector<event_proc *> &v)
 {
-	sort(v.begin(), v.end(), epv_greater());
+	stable_sort(v.begin(), v.end(), epv_greater());
 }
 
 void
