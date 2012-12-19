@@ -79,12 +79,8 @@ main(int argc, char **argv)
 	spec1 = stdin;
 	spec2 = NULL;
 
-#ifdef __FreeBSD__
-	tflag = 1;
-#endif
-
 	while ((ch = getopt(argc, argv,
-	    "cCdDeE:f:I:ijk:K:lLmMnN:p:PqrR:s:StTuUWxX:"))
+	    "cCdDeE:f:I:ijk:K:lLmMnN:p:PqrR:s:StuUWxX:"))
 	    != -1) {
 		switch((char)ch) {
 		case 'c':
@@ -191,9 +187,6 @@ main(int argc, char **argv)
 		case 't':
 			tflag = 1;
 			break;
-		case 'T':
-			tflag = 0;
-			break;
 		case 'u':
 			uflag = 1;
 			break;
@@ -270,7 +263,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-	    "usage: %s [-CcDdejLlMnPqrSTtUuWx] [-i|-m] [-E tags]\n"
+	    "usage: %s [-CcDdejLlMnPqrStUuWx] [-i|-m] [-E tags]\n"
 	    "\t\t[-f spec] [-f spec]\n"
 	    "\t\t[-I tags] [-K keywords] [-k keywords] [-N dbdir] [-p path]\n"
 	    "\t\t[-R keywords] [-s seed] [-X exclude-file]\n",

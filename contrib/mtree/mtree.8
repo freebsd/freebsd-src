@@ -64,7 +64,7 @@
 .Nd map a directory hierarchy
 .Sh SYNOPSIS
 .Nm
-.Op Fl CcDdejLlMnPqrSTtUuWx
+.Op Fl CcDdejLlMnPqrStUuWx
 .Op Fl i | Fl m
 .Op Fl E Ar tags
 .Op Fl f Ar spec
@@ -307,18 +307,9 @@ of the files for which the keyword
 .Sy cksum
 was specified.
 The checksum is seeded with the specified value.
-.It Fl T
-.Em Do not
-modify the modified time of existing files, the device type of devices, and
-symbolic link targets, to match the specification.
-This is the default on systems other than
-.Fx .
 .It Fl t
 Modify the modified time of existing files, the device type of devices, and
 symbolic link targets, to match the specification.
-This is the default on
-.Fx
-systems.
 .It Fl U
 Same as
 .Fl u
