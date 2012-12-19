@@ -3127,7 +3127,8 @@ expand_name(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 
 		flags = O_CREAT | O_EXCL | FWRITE | O_NOFOLLOW;
 		cmode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
-		oflags = capmode_coredump ? VN_OPEN_NOCAPCHECK : 0;
+		oflags = VN_OPEN_NOAUDIT |
+		    (capmode_coredump ? VN_OPEN_NOCAPCHECK : 0);
 
 		for (i = 0; i < num_cores; i++) {
 			name[indexpos] = '0' + i;
