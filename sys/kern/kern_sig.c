@@ -202,37 +202,37 @@ SYSCTL_INT(_kern, OID_AUTO, nodump_coredump, CTLFLAG_RW, &set_core_nodump_flag,
 #define	SA_CANTMASK	0x40		/* non-maskable, catchable */
 
 static int sigproptbl[NSIG] = {
-        SA_KILL,			/* SIGHUP */
-        SA_KILL,			/* SIGINT */
-        SA_KILL|SA_CORE,		/* SIGQUIT */
-        SA_KILL|SA_CORE,		/* SIGILL */
-        SA_KILL|SA_CORE,		/* SIGTRAP */
-        SA_KILL|SA_CORE,		/* SIGABRT */
-        SA_KILL|SA_CORE,		/* SIGEMT */
-        SA_KILL|SA_CORE,		/* SIGFPE */
-        SA_KILL,			/* SIGKILL */
-        SA_KILL|SA_CORE,		/* SIGBUS */
-        SA_KILL|SA_CORE,		/* SIGSEGV */
-        SA_KILL|SA_CORE,		/* SIGSYS */
-        SA_KILL,			/* SIGPIPE */
-        SA_KILL,			/* SIGALRM */
-        SA_KILL,			/* SIGTERM */
-        SA_IGNORE,			/* SIGURG */
-        SA_STOP,			/* SIGSTOP */
-        SA_STOP|SA_TTYSTOP,		/* SIGTSTP */
-        SA_IGNORE|SA_CONT,		/* SIGCONT */
-        SA_IGNORE,			/* SIGCHLD */
-        SA_STOP|SA_TTYSTOP,		/* SIGTTIN */
-        SA_STOP|SA_TTYSTOP,		/* SIGTTOU */
-        SA_IGNORE,			/* SIGIO */
-        SA_KILL,			/* SIGXCPU */
-        SA_KILL,			/* SIGXFSZ */
-        SA_KILL,			/* SIGVTALRM */
-        SA_KILL,			/* SIGPROF */
-        SA_IGNORE,			/* SIGWINCH  */
-        SA_IGNORE,			/* SIGINFO */
-        SA_KILL,			/* SIGUSR1 */
-        SA_KILL,			/* SIGUSR2 */
+	SA_KILL,			/* SIGHUP */
+	SA_KILL,			/* SIGINT */
+	SA_KILL|SA_CORE,		/* SIGQUIT */
+	SA_KILL|SA_CORE,		/* SIGILL */
+	SA_KILL|SA_CORE,		/* SIGTRAP */
+	SA_KILL|SA_CORE,		/* SIGABRT */
+	SA_KILL|SA_CORE,		/* SIGEMT */
+	SA_KILL|SA_CORE,		/* SIGFPE */
+	SA_KILL,			/* SIGKILL */
+	SA_KILL|SA_CORE,		/* SIGBUS */
+	SA_KILL|SA_CORE,		/* SIGSEGV */
+	SA_KILL|SA_CORE,		/* SIGSYS */
+	SA_KILL,			/* SIGPIPE */
+	SA_KILL,			/* SIGALRM */
+	SA_KILL,			/* SIGTERM */
+	SA_IGNORE,			/* SIGURG */
+	SA_STOP,			/* SIGSTOP */
+	SA_STOP|SA_TTYSTOP,		/* SIGTSTP */
+	SA_IGNORE|SA_CONT,		/* SIGCONT */
+	SA_IGNORE,			/* SIGCHLD */
+	SA_STOP|SA_TTYSTOP,		/* SIGTTIN */
+	SA_STOP|SA_TTYSTOP,		/* SIGTTOU */
+	SA_IGNORE,			/* SIGIO */
+	SA_KILL,			/* SIGXCPU */
+	SA_KILL,			/* SIGXFSZ */
+	SA_KILL,			/* SIGVTALRM */
+	SA_KILL,			/* SIGPROF */
+	SA_IGNORE,			/* SIGWINCH  */
+	SA_IGNORE,			/* SIGINFO */
+	SA_KILL,			/* SIGUSR1 */
+	SA_KILL,			/* SIGUSR2 */
 };
 
 static void reschedule_signals(struct proc *p, sigset_t block, int flags);
@@ -3018,11 +3018,11 @@ SYSCTL_PROC(_debug, OID_AUTO, ncores, CTLTYPE_INT|CTLFLAG_RW,
 #if defined(COMPRESS_USER_CORES)
 int compress_user_cores = 1;
 SYSCTL_INT(_kern, OID_AUTO, compress_user_cores, CTLFLAG_RW,
-        &compress_user_cores, 0, "");
+    &compress_user_cores, 0, "Compression of user corefiles");
 
 int compress_user_cores_gzlevel = -1; /* default level */
 SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_gzlevel, CTLFLAG_RW,
-    &compress_user_cores_gzlevel, -1, "user core gz compression level");
+    &compress_user_cores_gzlevel, -1, "Corefile gzip compression level");
 
 #define GZ_SUFFIX	".gz"
 #define GZ_SUFFIX_LEN	3
@@ -3031,7 +3031,7 @@ SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_gzlevel, CTLFLAG_RW,
 static char corefilename[MAXPATHLEN] = {"%N.core"};
 TUNABLE_STR("kern.corefile", corefilename, sizeof(corefilename));
 SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RW, corefilename,
-	      sizeof(corefilename), "process corefile name format string");
+    sizeof(corefilename), "Process corefile name format string");
 
 /*
  * expand_name(name, uid, pid, td, compress)
@@ -3051,8 +3051,7 @@ expand_name(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 	struct sbuf sb;
 	const char *format;
 	char *name;
-	size_t i;
-	int indexpos;
+	int i, indexpos;
 	char *hostname;
 
 	hostname = NULL;
@@ -3060,7 +3059,7 @@ expand_name(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 	name = malloc(MAXPATHLEN, M_TEMP, M_WAITOK | M_ZERO);
 	indexpos = -1;
 	(void)sbuf_new(&sb, name, MAXPATHLEN, SBUF_FIXEDLEN);
-	for (i = 0; format[i]; i++) {
+	for (i = 0; format[i] != '\0'; i++) {
 		switch (format[i]) {
 		case '%':	/* Format character */
 			i++;
@@ -3072,12 +3071,12 @@ expand_name(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 				if (hostname == NULL) {
 					hostname = malloc(MAXHOSTNAMELEN,
 					    M_TEMP, M_WAITOK);
-                                }
+				}
 				getcredhostname(td->td_ucred, hostname,
 				    MAXHOSTNAMELEN);
 				sbuf_printf(&sb, "%s", hostname);
 				break;
-			case 'I':       /* autoincrementing index */
+			case 'I':	/* autoincrementing index */
 				sbuf_printf(&sb, "0");
 				indexpos = sbuf_len(&sb) - 1;
 				break;
@@ -3094,6 +3093,7 @@ expand_name(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 				log(LOG_ERR,
 				    "Unknown format character %c in "
 				    "corename `%s'\n", format[i], format);
+				break;
 			}
 			break;
 		default:
@@ -3123,16 +3123,14 @@ expand_name(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 	 */
 	if (indexpos != -1) {
 		struct nameidata nd;
-		int error, n;
-		int flags = O_CREAT | O_EXCL | FWRITE | O_NOFOLLOW;
-		int cmode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
-		int oflags = 0;
+		int cmode, flags, oflags, error;
 
-		if (capmode_coredump)
-			oflags = VN_OPEN_NOCAPCHECK;
+		flags = O_CREAT | O_EXCL | FWRITE | O_NOFOLLOW;
+		cmode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
+		oflags = capmode_coredump ? VN_OPEN_NOCAPCHECK : 0;
 
-		for (n = 0; n < num_cores; n++) {
-			name[indexpos] = '0' + n;
+		for (i = 0; i < num_cores; i++) {
+			name[indexpos] = '0' + i;
 			NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE,
 			    name, td);
 			error = vn_open_cred(&nd, &flags, cmode, oflags,
@@ -3142,7 +3140,7 @@ expand_name(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 					continue;
 				log(LOG_ERR,
 				    "pid %d (%s), uid (%u):  Path `%s' failed "
-                                    "on initial open test, error = %d\n",
+				    "on initial open test, error = %d\n",
 				    pid, comm, uid, name, error);
 				free(name, M_TEMP);
 				return (NULL);
@@ -3153,8 +3151,8 @@ expand_name(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 			if (error) {
 				log(LOG_ERR,
 				    "pid %d (%s), uid (%u):  Path `%s' failed "
-                                    "on close after initial open test, "
-                                    "error = %d\n",
+				    "on close after initial open test, "
+				    "error = %d\n",
 				    pid, comm, uid, name, error);
 				free(name, M_TEMP);
 				return (NULL);
