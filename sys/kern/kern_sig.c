@@ -3125,7 +3125,7 @@ expand_name(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 		struct nameidata nd;
 		int cmode, flags, oflags, error;
 
-		cmode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
+		cmode = S_IRUSR | S_IWUSR;
 		oflags = VN_OPEN_NOAUDIT |
 		    (capmode_coredump ? VN_OPEN_NOCAPCHECK : 0);
 
