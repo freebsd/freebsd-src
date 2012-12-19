@@ -3125,12 +3125,12 @@ expand_name(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 		struct nameidata nd;
 		int cmode, flags, oflags, error;
 
-		flags = O_CREAT | O_EXCL | FWRITE | O_NOFOLLOW;
 		cmode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
 		oflags = VN_OPEN_NOAUDIT |
 		    (capmode_coredump ? VN_OPEN_NOCAPCHECK : 0);
 
 		for (i = 0; i < num_cores; i++) {
+			flags = O_CREAT | O_EXCL | FWRITE | O_NOFOLLOW;
 			name[indexpos] = '0' + i;
 			NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE,
 			    name, td);
