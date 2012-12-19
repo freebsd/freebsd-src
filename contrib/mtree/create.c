@@ -38,7 +38,7 @@
 #if 0
 static char sccsid[] = "@(#)create.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: create.c,v 1.66 2012/12/12 15:50:35 christos Exp $");
+__RCSID("$NetBSD: create.c,v 1.67 2012/12/15 01:24:40 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -136,8 +136,9 @@ cwalk(void)
 		}
 		switch(p->fts_info) {
 		case FTS_D:
+			printf("\n");
 			if (!nflag)
-				printf("\n# %s\n", p->fts_path);
+				printf("# %s\n", p->fts_path);
 			statd(t, p, &uid, &gid, &mode, &flags);
 			statf(indent, p);
 			break;
