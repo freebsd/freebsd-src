@@ -636,18 +636,21 @@ again:
 	/* adjust pointer */
 	ip6 = mtod(m, struct ip6_hdr *);
 
-	bzero(&dst_sa, sizeof(dst_sa));
-	dst_sa.sin6_family = AF_INET6;
-	dst_sa.sin6_len = sizeof(dst_sa);
-	dst_sa.sin6_addr = ip6->ip6_dst;
 	if (ro->ro_rt) {
 		rt = ro->ro_rt;
 		ifp = ro->ro_rt->rt_ifp;
-	} else if ((error = in6_selectroute_fib(&dst_sa, opt, im6o, ro,
-	    &ifp, &rt, inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m))) != 0) {
-		if (ifp != NULL)
-			in6_ifstat_inc(ifp, ifs6_out_discard);
-		goto bad;
+	} else {
+		bzero(&dst_sa, sizeof(dst_sa));
+		dst_sa.sin6_family = AF_INET6;
+		dst_sa.sin6_len = sizeof(dst_sa);
+		dst_sa.sin6_addr = ip6->ip6_dst;
+		error = in6_selectroute_fib(&dst_sa, opt, im6o, ro, &ifp,
+		    &rt, inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m));
+		if (error != 0) {
+			if (ifp != NULL)
+				in6_ifstat_inc(ifp, ifs6_out_discard);
+			goto bad;
+		}
 	}
 	if (rt == NULL) {
 		/*
