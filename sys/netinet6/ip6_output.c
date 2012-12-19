@@ -645,14 +645,6 @@ again:
 		ifp = ro->ro_rt->rt_ifp;
 	} else if ((error = in6_selectroute_fib(&dst_sa, opt, im6o, ro,
 	    &ifp, &rt, inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m))) != 0) {
-		switch (error) {
-		case EHOSTUNREACH:
-			V_ip6stat.ip6s_noroute++;
-			break;
-		case EADDRNOTAVAIL:
-		default:
-			break; /* XXX statistics? */
-		}
 		if (ifp != NULL)
 			in6_ifstat_inc(ifp, ifs6_out_discard);
 		goto bad;
