@@ -257,7 +257,7 @@ ip6_output(struct mbuf *m0, struct ip6_pktopts *opt,
 	int segleft_org = 0;
 	struct secpolicy *sp = NULL;
 #endif /* IPSEC */
-	struct m_tag *fwd_tag;
+	struct m_tag *fwd_tag = NULL;
 
 	ip6 = mtod(m, struct ip6_hdr *);
 	if (ip6 == NULL) {
@@ -636,14 +636,16 @@ again:
 	/* adjust pointer */
 	ip6 = mtod(m, struct ip6_hdr *);
 
-	if (ro->ro_rt) {
+	if (ro->ro_rt && fwd_tag == NULL) {
 		rt = ro->ro_rt;
 		ifp = ro->ro_rt->rt_ifp;
 	} else {
-		bzero(&dst_sa, sizeof(dst_sa));
-		dst_sa.sin6_family = AF_INET6;
-		dst_sa.sin6_len = sizeof(dst_sa);
-		dst_sa.sin6_addr = ip6->ip6_dst;
+		if (fwd_tag == NULL) {
+			bzero(&dst_sa, sizeof(dst_sa));
+			dst_sa.sin6_family = AF_INET6;
+			dst_sa.sin6_len = sizeof(dst_sa);
+			dst_sa.sin6_addr = ip6->ip6_dst;
+		}
 		error = in6_selectroute_fib(&dst_sa, opt, im6o, ro, &ifp,
 		    &rt, inp ? inp->inp_inc.inc_fibnum : M_GETFIB(m));
 		if (error != 0) {
@@ -928,7 +930,7 @@ again:
 	if ((m->m_flags & M_IP6_NEXTHOP) &&
 	    (fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL)) != NULL) {
 		dst = (struct sockaddr_in6 *)&ro->ro_dst;
-		bcopy((fwd_tag+1), dst, sizeof(struct sockaddr_in6));
+		bcopy((fwd_tag+1), &dst_sa, sizeof(struct sockaddr_in6));
 		m->m_flags |= M_SKIP_FIREWALL;
 		m->m_flags &= ~M_IP6_NEXTHOP;
 		m_tag_delete(m, fwd_tag);
