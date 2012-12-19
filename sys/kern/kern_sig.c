@@ -3057,9 +3057,7 @@ expand_name(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 
 	hostname = NULL;
 	format = corefilename;
-	name = malloc(MAXPATHLEN, M_TEMP, M_NOWAIT | M_ZERO);
-	if (name == NULL)
-		return (NULL);
+	name = malloc(MAXPATHLEN, M_TEMP, M_WAITOK | M_ZERO);
 	indexpos = -1;
 	(void)sbuf_new(&sb, name, MAXPATHLEN, SBUF_FIXEDLEN);
 	for (i = 0; format[i]; i++) {
@@ -3073,16 +3071,7 @@ expand_name(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 			case 'H':	/* hostname */
 				if (hostname == NULL) {
 					hostname = malloc(MAXHOSTNAMELEN,
-					    M_TEMP, M_NOWAIT);
-					if (hostname == NULL) {
-						log(LOG_ERR,
-						    "pid %ld (%s), uid (%lu): "
-						    "unable to alloc memory "
-						    "for corefile hostname\n",
-						    (long)pid, comm,
-						    (u_long)uid);
-                                                goto nomem;
-                                        }
+					    M_TEMP, M_WAITOK);
                                 }
 				getcredhostname(td->td_ucred, hostname,
 				    MAXHOSTNAMELEN);
@@ -3119,7 +3108,6 @@ expand_name(const char *comm, uid_t uid, pid_t pid, struct thread *td,
 	if (sbuf_error(&sb) != 0) {
 		log(LOG_ERR, "pid %ld (%s), uid (%lu): corename is too "
 		    "long\n", (long)pid, comm, (u_long)uid);
-nomem:
 		sbuf_delete(&sb);
 		free(name, M_TEMP);
 		return (NULL);
