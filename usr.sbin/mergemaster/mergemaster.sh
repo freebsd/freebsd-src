@@ -424,6 +424,8 @@ check_pager () {
     echo "  Use 'l' to set PAGER to 'less' for this run"
     echo "  Use 'm' to use plain old 'more' as your PAGER for this run"
     echo ''
+    echo "  or you may type an absolute path to PAGER for this run"
+    echo ''
     echo "  Default is to use plain old 'more' "
     echo ''
     echo -n "What should I do? [Use 'more'] "
@@ -438,6 +440,9 @@ check_pager () {
        ;;
     [mM]|'')
        PAGER=more
+       ;;
+    /*)
+       PAGER="$FIXPAGER"
        ;;
     *)
        echo ''
