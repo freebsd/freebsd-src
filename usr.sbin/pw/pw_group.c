@@ -272,8 +272,7 @@ pw_group(struct userconf * cnf, int mode, struct cargs * args)
 
 	pw_log(cnf, mode, W_GROUP, "%s(%ld)", grp->gr_name, (long) grp->gr_gid);
 
-	if (members)
-		free(members);
+	free(members);
 
 	return EXIT_SUCCESS;
 }
