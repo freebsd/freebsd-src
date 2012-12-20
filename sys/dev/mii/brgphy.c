@@ -204,6 +204,13 @@ brgphy_attach(device_t dev)
 	    &brgphy_funcs, 0);
 
 	bsc->serdes_flags = 0;
+	ifp = sc->mii_pdata->mii_ifp;
+
+	/* Find the MAC driver associated with this PHY. */
+	if (strcmp(ifp->if_dname, "bge") == 0)
+		bge_sc = ifp->if_softc;
+	else if (strcmp(ifp->if_dname, "bce") == 0)
+		bce_sc = ifp->if_softc;
 
 	/* Handle any special cases based on the PHY ID */
 	switch (sc->mii_mpd_oui) {
@@ -235,20 +242,19 @@ brgphy_attach(device_t dev)
 			sc->mii_flags |= MIIF_HAVEFIBER;
 			break;
 		case MII_MODEL_BROADCOM2_BCM5709S:
-			bsc->serdes_flags |= BRGPHY_5709S;
+			/*
+			 * XXX
+			 * 5720S and 5709S shares the same PHY id.
+			 * Assume 5720S PHY if parent device is bge(4).
+			 */
+			if (bge_sc != NULL)
+				bsc->serdes_flags |= BRGPHY_5708S;
+			else
+				bsc->serdes_flags |= BRGPHY_5709S;
 			sc->mii_flags |= MIIF_HAVEFIBER;
 			break;
 		}
 		break;
-	}
-
-	ifp = sc->mii_pdata->mii_ifp;
-
-	/* Find the MAC driver associated with this PHY. */
-	if (strcmp(ifp->if_dname, "bge") == 0)	{
-		bge_sc = ifp->if_softc;
-	} else if (strcmp(ifp->if_dname, "bce") == 0) {
-		bce_sc = ifp->if_softc;
 	}
 
 	PHY_RESET(sc);
