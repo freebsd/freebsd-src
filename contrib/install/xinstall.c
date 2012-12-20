@@ -371,33 +371,16 @@ main(int argc, char *argv[])
 		/* NOTREACHED */
 	}
 
-	if (!no_target) {
+	if (!no_target && !dolink) {
 		/* makelink() handles checks for links */
-		if (!dolink) {
-			if (stat(*argv, &from_sb))
-				err(1, "%s: stat", *argv);
-			if (!S_ISREG(to_sb.st_mode))
-				errx(1, "%s: not a regular file", to_name);
-			if (to_sb.st_dev == from_sb.st_dev &&
-			    to_sb.st_ino == from_sb.st_ino)
-				errx(1, "%s and %s are the same file", *argv,
-				    to_name);
-		}
-		/*
-		 * Unlink now... avoid ETXTBSY errors later.  Try and turn
-		 * off the append/immutable bits -- if we fail, go ahead,
-		 * it might work.
-		 */
-#if ! HAVE_NBTOOL_CONFIG_H
-#define	NOCHANGEBITS	(UF_IMMUTABLE | UF_APPEND | SF_IMMUTABLE | SF_APPEND)
-		if (to_sb.st_flags & NOCHANGEBITS)
-			(void)chflags(to_name,
-			    to_sb.st_flags & ~(NOCHANGEBITS));
-#endif
-		if (dobackup)
-			backup(to_name);
-		else if (!dorename)
-			(void)unlink(to_name);
+		if (stat(*argv, &from_sb))
+			err(1, "%s: stat", *argv);
+		if (!S_ISREG(to_sb.st_mode))
+			errx(1, "%s: not a regular file", to_name);
+		if (to_sb.st_dev == from_sb.st_dev &&
+		    to_sb.st_ino == from_sb.st_ino)
+			errx(1, "%s and %s are the same file", *argv,
+			    to_name);
 	}
 	install(*argv, to_name, iflags);
 	exit(0);
@@ -676,6 +659,7 @@ install(char *from_name, char *to_name, u_int flags)
 	 * it might work.
 	 */
 #if ! HAVE_NBTOOL_CONFIG_H
+#define	NOCHANGEBITS	(UF_IMMUTABLE | UF_APPEND | SF_IMMUTABLE | SF_APPEND)
 	if (stat(to_name, &to_sb) == 0 &&
 	    to_sb.st_flags & (NOCHANGEBITS))
 		(void)chflags(to_name, to_sb.st_flags & ~(NOCHANGEBITS));
