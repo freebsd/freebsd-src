@@ -136,18 +136,22 @@ cwalk(void)
 		}
 		switch(p->fts_info) {
 		case FTS_D:
-			printf("\n");
+			if (!bflag)
+				printf("\n");
 			if (!nflag)
 				printf("# %s\n", p->fts_path);
 			statd(t, p, &uid, &gid, &mode, &flags);
 			statf(indent, p);
 			break;
 		case FTS_DP:
-			if (p->fts_level > 0) {
+			if (p->fts_level > 0)
 				if (!nflag)
 					printf("%*s# %s\n", indent, "",
 					    p->fts_path);
-				printf("%*s..\n\n", indent, "");
+			if (p->fts_level > 0 || flavor == F_FREEBSD9) {
+				printf("%*s..\n", indent, "");
+				if (!bflag)
+					printf("\n");
 			}
 			break;
 		case FTS_DNR:
@@ -186,7 +190,7 @@ statf(int indent, FTSENT *p)
 	else
 		offset += printf("%*s", (INDENTNAMELEN + indent) - offset, "");
 
-	if (!S_ISREG(p->fts_statp->st_mode))
+	if (!S_ISREG(p->fts_statp->st_mode) && (flavor == F_NETBSD6 || !dflag))
 		output(indent, &offset, "type=%s",
 		    inotype(p->fts_statp->st_mode));
 	if (keys & (F_UID | F_UNAME) && p->fts_statp->st_uid != uid) {
@@ -212,7 +216,8 @@ statf(int indent, FTSENT *p)
 		    (long long)p->fts_statp->st_rdev);
 	if (keys & F_NLINK && p->fts_statp->st_nlink != 1)
 		output(indent, &offset, "nlink=%u", p->fts_statp->st_nlink);
-	if (keys & F_SIZE && S_ISREG(p->fts_statp->st_mode))
+	if (keys & F_SIZE &&
+	    (flavor != F_NETBSD6 || S_ISREG(p->fts_statp->st_mode)))
 		output(indent, &offset, "size=%lld",
 		    (long long)p->fts_statp->st_size);
 	if (keys & F_TIME)
@@ -349,29 +354,32 @@ statd(FTS *t, FTSENT *parent, uid_t *puid, gid_t *pgid, mode_t *pmode,
 
 	maxuid = maxgid = maxmode = maxflags = 0;
 	for (; p; p = p->fts_link) {
-		smode = p->fts_statp->st_mode & MBITS;
-		if (smode < MTREE_MAXMODE && ++m[smode] > maxmode) {
-			savemode = smode;
-			maxmode = m[smode];
-		}
-		sgid = p->fts_statp->st_gid;
-		if (sgid < MTREE_MAXGID && ++g[sgid] > maxgid) {
-			savegid = sgid;
-			maxgid = g[sgid];
-		}
-		suid = p->fts_statp->st_uid;
-		if (suid < MTREE_MAXUID && ++u[suid] > maxuid) {
-			saveuid = suid;
-			maxuid = u[suid];
-		}
+		if (flavor == F_NETBSD6 || !dflag ||
+		    (dflag && S_ISDIR(p->fts_statp->st_mode))) {
+			smode = p->fts_statp->st_mode & MBITS;
+			if (smode < MTREE_MAXMODE && ++m[smode] > maxmode) {
+				savemode = smode;
+				maxmode = m[smode];
+			}
+			sgid = p->fts_statp->st_gid;
+			if (sgid < MTREE_MAXGID && ++g[sgid] > maxgid) {
+				savegid = sgid;
+				maxgid = g[sgid];
+			}
+			suid = p->fts_statp->st_uid;
+			if (suid < MTREE_MAXUID && ++u[suid] > maxuid) {
+				saveuid = suid;
+				maxuid = u[suid];
+			}
 
 #if HAVE_STRUCT_STAT_ST_FLAGS
-		sflags = FLAGS2INDEX(p->fts_statp->st_flags);
-		if (sflags < MTREE_MAXFLAGS && ++f[sflags] > maxflags) {
-			saveflags = p->fts_statp->st_flags;
-			maxflags = f[sflags];
-		}
+			sflags = FLAGS2INDEX(p->fts_statp->st_flags);
+			if (sflags < MTREE_MAXFLAGS && ++f[sflags] > maxflags) {
+				saveflags = p->fts_statp->st_flags;
+				maxflags = f[sflags];
+			}
 #endif
+		}
 	}
 	/*
 	 * If the /set record is the same as the last one we do not need to
@@ -384,7 +392,10 @@ statd(FTS *t, FTSENT *parent, uid_t *puid, gid_t *pgid, mode_t *pmode,
 	    ((keys & F_FLAGS) && (*pflags != saveflags)) ||
 	    first) {
 		first = 0;
-		printf("/set type=file");
+		if (flavor != F_NETBSD6 && dflag)
+			printf("/set type=dir");
+		else
+			printf("/set type=file");
 		if (keys & (F_UID | F_UNAME)) {
 			if (keys & F_UNAME &&
 			    (name = user_from_uid(saveuid, 1)) != NULL)

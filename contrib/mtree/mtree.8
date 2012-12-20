@@ -64,9 +64,10 @@
 .Nd map a directory hierarchy
 .Sh SYNOPSIS
 .Nm
-.Op Fl CcDdejLlMnPqrStUuWx
+.Op Fl bCcDdejLlMnPqrStUuWx
 .Op Fl i | Fl m
 .Op Fl E Ar tags
+.Op Fl F Ar flavor
 .Op Fl f Ar spec
 .Op Fl I Ar tags
 .Op Fl K Ar keywords
@@ -92,6 +93,8 @@ missing from either the file hierarchy or the specification.
 .Pp
 The options are as follows:
 .Bl -tag -width Xxxexcludexfilexx
+.It Fl b
+Suppress blank lines before entering and after exiting directories.
 .It Fl C
 Convert a specification into
 a format that's easier to parse with various tools.
@@ -140,6 +143,29 @@ and
 .It Fl e
 Don't complain about files that are in the file hierarchy, but not in the
 specification.
+.It Fl F Ar flavor
+Set the compatibilty flavor of the
+.Nm
+utility.
+The
+.Ar flavor
+can be one of
+.Sy mtree ,
+.Sy freebsd9 ,
+or
+.Sy netbsd6 .
+The default is
+.Sy mtree .
+The
+.Sy freebsd9
+and
+.Sy netbsd6
+flavors attempt to preserve output compatiblity and command line optio
+backward compatibility with
+.Fx 9
+and
+.Nx 6
+respectively.
 .It Fl f Ar spec
 Read the specification from
 .Ar file  ,
@@ -691,6 +717,35 @@ option can be used in combination with
 or
 .Fl u
 to create directory hierarchies for, for example, distributions.
+.Sh COMPATIBILITY
+The compatibility shims provided by the
+.Fl F
+option are incomplete by design.
+Known limititations are described below.
+.Pp
+The
+.Sy freebsd9
+flavor retains the default handling of lookup failures for the
+.Sy uname
+and
+.Sy group
+keywords by replacing them with appropriate
+.Sy uid
+and
+.Sy gid
+keywords rather than failing and reporting an error.
+The related
+.Fl w
+flag is a no-op rather than causing a warning to be printed and no
+keyword to be emitted.
+The latter behavior is not emulated as it is potentially dangerous in
+the face of /set statements.
+.Pp
+The
+.Sy netbsd6
+flavor does not replicate the historical bug that reported time as
+seconds.nanoseconds without zero padding nanosecond values less than
+100000000.
 .Sh SEE ALSO
 .Xr chflags 1 ,
 .Xr chgrp 1 ,
