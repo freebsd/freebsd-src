@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 
 #include <pthread.h>
+#include <pthread_np.h>
 
 #include "mevent.h"
 
@@ -54,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #define MEV_ENABLE	1
 #define MEV_DISABLE	2
 #define MEV_DEL_PENDING	3
+
+extern char *vmname;
 
 static pthread_t mevent_tid;
 static int mevent_pipefd[2];
@@ -356,6 +359,15 @@ mevent_delete_close(struct mevent *evp)
 	return (mevent_delete_event(evp, 1));
 }
 
+static void
+mevent_set_name(void)
+{
+	char tname[MAXCOMLEN + 1];
+
+	snprintf(tname, sizeof(tname), "%s mevent", vmname);
+	pthread_set_name_np(mevent_tid, tname);
+}
+
 void
 mevent_dispatch(void)
 {
@@ -367,6 +379,7 @@ mevent_dispatch(void)
 	int ret;
 
 	mevent_tid = pthread_self();
+	mevent_set_name();
 
 	mfd = kqueue();
 	assert(mfd > 0);
