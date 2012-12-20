@@ -451,6 +451,10 @@ ar5416GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 			HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_DIVERSITY:		/* disable classic fast diversity */
 		return HAL_ENXIO;
+	case HAL_CAP_ENFORCE_TXOP:
+		(*result) =
+		    !! (AH5212(ah)->ah_miscMode & AR_PCU_TXOP_TBTT_LIMIT_ENA);
+		return (HAL_OK);
 	default:
 		break;
 	}
@@ -479,6 +483,19 @@ ar5416SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 			pCap->halTxStreams = 2;
 		else
 			pCap->halTxStreams = 1;
+		return AH_TRUE;
+	case HAL_CAP_ENFORCE_TXOP:
+		if (setting) {
+			AH5212(ah)->ah_miscMode
+			    |= AR_PCU_TXOP_TBTT_LIMIT_ENA;
+			OS_REG_SET_BIT(ah, AR_MISC_MODE,
+			    AR_PCU_TXOP_TBTT_LIMIT_ENA);
+		} else {
+			AH5212(ah)->ah_miscMode
+			    &= ~AR_PCU_TXOP_TBTT_LIMIT_ENA;
+			OS_REG_CLR_BIT(ah, AR_MISC_MODE,
+			    AR_PCU_TXOP_TBTT_LIMIT_ENA);
+		}
 		return AH_TRUE;
 	default:
 		break;

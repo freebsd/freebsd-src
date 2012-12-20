@@ -109,9 +109,9 @@ private:
       BuildLazyArguments();
   }
   void BuildLazyArguments() const;
-  
-  Function(const Function&); // DO NOT IMPLEMENT
-  void operator=(const Function&); // DO NOT IMPLEMENT
+
+  Function(const Function&) LLVM_DELETED_FUNCTION;
+  void operator=(const Function&) LLVM_DELETED_FUNCTION;
 
   /// Function ctor - If the (optional) Module argument is specified, the
   /// function is automatically inserted into the end of the function list for
@@ -168,17 +168,17 @@ public:
   ///
   void setAttributes(const AttrListPtr &attrs) { AttributeList = attrs; }
 
-  /// hasFnAttr - Return true if this function has the given attribute.
-  bool hasFnAttr(Attributes N) const {
-    // Function Attributes are stored at ~0 index 
-    return AttributeList.paramHasAttr(~0U, N);
+  /// getFnAttributes - Return the function attributes for querying.
+  ///
+  Attributes getFnAttributes() const {
+    return AttributeList.getFnAttributes();
   }
 
   /// addFnAttr - Add function attributes to this function.
   ///
-  void addFnAttr(Attributes N) { 
+  void addFnAttr(Attributes::AttrVal N) { 
     // Function Attributes are stored at ~0 index 
-    addAttribute(~0U, N);
+    addAttribute(AttrListPtr::FunctionIndex, Attributes::get(getContext(), N));
   }
 
   /// removeFnAttr - Remove function attributes from this function.
@@ -195,9 +195,15 @@ public:
   void setGC(const char *Str);
   void clearGC();
 
-  /// @brief Determine whether the function has the given attribute.
-  bool paramHasAttr(unsigned i, Attributes attr) const {
-    return AttributeList.paramHasAttr(i, attr);
+
+  /// getRetAttributes - Return the return attributes for querying.
+  Attributes getRetAttributes() const {
+    return AttributeList.getRetAttributes();
+  }
+
+  /// getParamAttributes - Return the parameter attributes for querying.
+  Attributes getParamAttributes(unsigned Idx) const {
+    return AttributeList.getParamAttributes(Idx);
   }
 
   /// addAttribute - adds the attribute to the list of attributes.
@@ -213,50 +219,44 @@ public:
 
   /// @brief Determine if the function does not access memory.
   bool doesNotAccessMemory() const {
-    return hasFnAttr(Attribute::ReadNone);
+    return getFnAttributes().hasAttribute(Attributes::ReadNone);
   }
-  void setDoesNotAccessMemory(bool DoesNotAccessMemory = true) {
-    if (DoesNotAccessMemory) addFnAttr(Attribute::ReadNone);
-    else removeFnAttr(Attribute::ReadNone);
+  void setDoesNotAccessMemory() {
+    addFnAttr(Attributes::ReadNone);
   }
 
   /// @brief Determine if the function does not access or only reads memory.
   bool onlyReadsMemory() const {
-    return doesNotAccessMemory() || hasFnAttr(Attribute::ReadOnly);
+    return doesNotAccessMemory() ||
+      getFnAttributes().hasAttribute(Attributes::ReadOnly);
   }
-  void setOnlyReadsMemory(bool OnlyReadsMemory = true) {
-    if (OnlyReadsMemory) addFnAttr(Attribute::ReadOnly);
-    else removeFnAttr(Attribute::ReadOnly | Attribute::ReadNone);
+  void setOnlyReadsMemory() {
+    addFnAttr(Attributes::ReadOnly);
   }
 
   /// @brief Determine if the function cannot return.
   bool doesNotReturn() const {
-    return hasFnAttr(Attribute::NoReturn);
+    return getFnAttributes().hasAttribute(Attributes::NoReturn);
   }
-  void setDoesNotReturn(bool DoesNotReturn = true) {
-    if (DoesNotReturn) addFnAttr(Attribute::NoReturn);
-    else removeFnAttr(Attribute::NoReturn);
+  void setDoesNotReturn() {
+    addFnAttr(Attributes::NoReturn);
   }
 
   /// @brief Determine if the function cannot unwind.
   bool doesNotThrow() const {
-    return hasFnAttr(Attribute::NoUnwind);
+    return getFnAttributes().hasAttribute(Attributes::NoUnwind);
   }
-  void setDoesNotThrow(bool DoesNotThrow = true) {
-    if (DoesNotThrow) addFnAttr(Attribute::NoUnwind);
-    else removeFnAttr(Attribute::NoUnwind);
+  void setDoesNotThrow() {
+    addFnAttr(Attributes::NoUnwind);
   }
 
   /// @brief True if the ABI mandates (or the user requested) that this
   /// function be in a unwind table.
   bool hasUWTable() const {
-    return hasFnAttr(Attribute::UWTable);
+    return getFnAttributes().hasAttribute(Attributes::UWTable);
   }
-  void setHasUWTable(bool HasUWTable = true) {
-    if (HasUWTable)
-      addFnAttr(Attribute::UWTable);
-    else
-      removeFnAttr(Attribute::UWTable);
+  void setHasUWTable() {
+    addFnAttr(Attributes::UWTable);
   }
 
   /// @brief True if this function needs an unwind table.
@@ -267,27 +267,25 @@ public:
   /// @brief Determine if the function returns a structure through first 
   /// pointer argument.
   bool hasStructRetAttr() const {
-    return paramHasAttr(1, Attribute::StructRet);
+    return getParamAttributes(1).hasAttribute(Attributes::StructRet);
   }
 
   /// @brief Determine if the parameter does not alias other parameters.
   /// @param n The parameter to check. 1 is the first parameter, 0 is the return
   bool doesNotAlias(unsigned n) const {
-    return paramHasAttr(n, Attribute::NoAlias);
+    return getParamAttributes(n).hasAttribute(Attributes::NoAlias);
   }
-  void setDoesNotAlias(unsigned n, bool DoesNotAlias = true) {
-    if (DoesNotAlias) addAttribute(n, Attribute::NoAlias);
-    else removeAttribute(n, Attribute::NoAlias);
+  void setDoesNotAlias(unsigned n) {
+    addAttribute(n, Attributes::get(getContext(), Attributes::NoAlias));
   }
 
   /// @brief Determine if the parameter can be captured.
   /// @param n The parameter to check. 1 is the first parameter, 0 is the return
   bool doesNotCapture(unsigned n) const {
-    return paramHasAttr(n, Attribute::NoCapture);
+    return getParamAttributes(n).hasAttribute(Attributes::NoCapture);
   }
-  void setDoesNotCapture(unsigned n, bool DoesNotCapture = true) {
-    if (DoesNotCapture) addAttribute(n, Attribute::NoCapture);
-    else removeAttribute(n, Attribute::NoCapture);
+  void setDoesNotCapture(unsigned n) {
+    addAttribute(n, Attributes::get(getContext(), Attributes::NoCapture));
   }
 
   /// copyAttributesFrom - copy all additional attributes (those not needed to
@@ -400,7 +398,6 @@ public:
   void viewCFGOnly() const;
 
   /// Methods for support type inquiry through isa, cast, and dyn_cast:
-  static inline bool classof(const Function *) { return true; }
   static inline bool classof(const Value *V) {
     return V->getValueID() == Value::FunctionVal;
   }

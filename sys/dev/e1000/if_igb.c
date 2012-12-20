@@ -1830,7 +1830,7 @@ retry:
 		if (do_tso || (m_head->m_next != NULL && 
 		    m_head->m_pkthdr.csum_flags & CSUM_OFFLOAD)) {
 			if (M_WRITABLE(*m_headp) == 0) {
-				m_head = m_dup(*m_headp, M_DONTWAIT);
+				m_head = m_dup(*m_headp, M_NOWAIT);
 				m_freem(*m_headp);
 				if (m_head == NULL) {
 					*m_headp = NULL;
@@ -1935,7 +1935,7 @@ retry:
 	if (error == EFBIG && remap) {
 		struct mbuf *m;
 
-		m = m_defrag(*m_headp, M_DONTWAIT);
+		m = m_defrag(*m_headp, M_NOWAIT);
 		if (m == NULL) {
 			adapter->mbuf_defrag_failed++;
 			m_freem(*m_headp);
@@ -3983,7 +3983,7 @@ igb_refresh_mbufs(struct rx_ring *rxr, int limit)
 		if (rxr->hdr_split == FALSE)
 			goto no_split;
 		if (rxbuf->m_head == NULL) {
-			mh = m_gethdr(M_DONTWAIT, MT_DATA);
+			mh = m_gethdr(M_NOWAIT, MT_DATA);
 			if (mh == NULL)
 				goto update;
 		} else
@@ -4009,7 +4009,7 @@ igb_refresh_mbufs(struct rx_ring *rxr, int limit)
 		    htole64(hseg[0].ds_addr);
 no_split:
 		if (rxbuf->m_pack == NULL) {
-			mp = m_getjcl(M_DONTWAIT, MT_DATA,
+			mp = m_getjcl(M_NOWAIT, MT_DATA,
 			    M_PKTHDR, adapter->rx_mbuf_sz);
 			if (mp == NULL)
 				goto update;
@@ -4225,7 +4225,7 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 			goto skip_head;
 
 		/* First the header */
-		rxbuf->m_head = m_gethdr(M_DONTWAIT, MT_DATA);
+		rxbuf->m_head = m_gethdr(M_NOWAIT, MT_DATA);
 		if (rxbuf->m_head == NULL) {
 			error = ENOBUFS;
                         goto fail;
@@ -4247,7 +4247,7 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 
 skip_head:
 		/* Now the payload cluster */
-		rxbuf->m_pack = m_getjcl(M_DONTWAIT, MT_DATA,
+		rxbuf->m_pack = m_getjcl(M_NOWAIT, MT_DATA,
 		    M_PKTHDR, adapter->rx_mbuf_sz);
 		if (rxbuf->m_pack == NULL) {
 			error = ENOBUFS;

@@ -564,8 +564,7 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 		struct ath_hal *ah = sc->sc_ah;
 
 		/* NB: only at DTIM */
-		ATH_TXQ_LOCK(cabq);
-		ATH_TXQ_LOCK(&avp->av_mcastq);
+		ATH_TX_LOCK(sc);
 		if (nmcastq) {
 			struct ath_buf *bfm;
 
@@ -586,8 +585,7 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 		/* NB: gated by beacon so safe to start here */
 		if (! TAILQ_EMPTY(&(cabq->axq_q)))
 			ath_hal_txstart(ah, cabq->axq_qnum);
-		ATH_TXQ_UNLOCK(&avp->av_mcastq);
-		ATH_TXQ_UNLOCK(cabq);
+		ATH_TX_UNLOCK(sc);
 	}
 	return bf;
 }

@@ -625,7 +625,7 @@ cpsw_pad(struct mbuf *m)
 			;
 		if (!(M_WRITABLE(last) && M_TRAILINGSPACE(last) >= padlen)) {
 			/* Allocate new empty mbuf, pad it. Compact later. */
-			MGET(n, M_DONTWAIT, MT_DATA);
+			MGET(n, M_NOWAIT, MT_DATA);
 			if (n == NULL)
 				return (ENOBUFS);
 			n->m_len = 0;

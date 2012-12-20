@@ -853,7 +853,7 @@ nfscl_request(struct nfsrv_descript *nd, struct vnode *vp, NFSPROC_T *p,
 	else
 		vers = NFS_VER2;
 	ret = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, vp, p, cred,
-		NFS_PROG, vers, NULL, 1, NULL);
+		NFS_PROG, vers, NULL, 1, NULL, NULL);
 	return (ret);
 }
 
@@ -1112,10 +1112,15 @@ nfscl_maperr(struct thread *td, int error, uid_t uid, gid_t gid)
 		    "No name and/or group mapping for uid,gid:(%d,%d)\n",
 		    uid, gid);
 		return (EPERM);
+	case NFSERR_BADNAME:
+	case NFSERR_BADCHAR:
+		printf("nfsv4 char/name not handled by server\n");
+		return (ENOENT);
 	case NFSERR_STALECLIENTID:
 	case NFSERR_STALESTATEID:
 	case NFSERR_EXPIRED:
 	case NFSERR_BADSTATEID:
+	case NFSERR_BADSESSION:
 		printf("nfsv4 recover err returned %d\n", error);
 		return (EIO);
 	case NFSERR_BADHANDLE:
@@ -1131,8 +1136,6 @@ nfscl_maperr(struct thread *td, int error, uid_t uid, gid_t gid)
 	case NFSERR_LEASEMOVED:
 	case NFSERR_RECLAIMBAD:
 	case NFSERR_BADXDR:
-	case NFSERR_BADCHAR:
-	case NFSERR_BADNAME:
 	case NFSERR_OPILLEGAL:
 		printf("nfsv4 client/server protocol prob err=%d\n",
 		    error);
@@ -1201,6 +1204,9 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 	struct nfscbd_args nfscbdarg;
 	struct nfsd_nfscbd_args nfscbdarg2;
 	int error;
+	struct nameidata nd;
+	struct nfscl_dumpmntopts dumpmntopts;
+	char *buf;
 
 	if (uap->flag & NFSSVC_CBADDSOCK) {
 		error = copyin(uap->argp, (caddr_t)&nfscbdarg, sizeof(nfscbdarg));
@@ -1233,6 +1239,28 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 		if (error)
 			return (error);
 		error = nfscbd_nfsd(td, &nfscbdarg2);
+	} else if (uap->flag & NFSSVC_DUMPMNTOPTS) {
+		error = copyin(uap->argp, &dumpmntopts, sizeof(dumpmntopts));
+		if (error == 0 && (dumpmntopts.ndmnt_blen < 256 ||
+		    dumpmntopts.ndmnt_blen > 1024))
+			error = EINVAL;
+		if (error == 0)
+			error = nfsrv_lookupfilename(&nd,
+			    dumpmntopts.ndmnt_fname, td);
+		if (error == 0 && strcmp(nd.ni_vp->v_mount->mnt_vfc->vfc_name,
+		    "nfs") != 0) {
+			vput(nd.ni_vp);
+			error = EINVAL;
+		}
+		if (error == 0) {
+			buf = malloc(dumpmntopts.ndmnt_blen, M_TEMP, M_WAITOK);
+			nfscl_retopts(VFSTONFS(nd.ni_vp->v_mount), buf,
+			    dumpmntopts.ndmnt_blen);
+			vput(nd.ni_vp);
+			error = copyout(buf, dumpmntopts.ndmnt_buf,
+			    dumpmntopts.ndmnt_blen);
+			free(buf, M_TEMP);
+		}
 	} else {
 		error = EINVAL;
 	}

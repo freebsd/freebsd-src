@@ -963,8 +963,6 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 {
 	int			 error = 0;
 
-	CURVNET_SET(TD_TO_VNET(td));
-
 	/* XXX keep in sync with switch() below */
 	if (securelevel_gt(td->td_ucred, 2))
 		switch (cmd) {
@@ -1067,6 +1065,8 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		default:
 			return (EACCES);
 		}
+
+	CURVNET_SET(TD_TO_VNET(td));
 
 	switch (cmd) {
 	case DIOCSTART:

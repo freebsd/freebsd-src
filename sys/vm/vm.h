@@ -141,6 +141,8 @@ struct kva_md_info {
 extern struct kva_md_info	kmi;
 extern void vm_ksubmap_init(struct kva_md_info *);
 
+extern int old_mlock;
+
 struct ucred;
 int swap_reserve(vm_ooffset_t incr);
 int swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred);

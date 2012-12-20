@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/systm.h>
 #include <sys/queue.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 
 #include <net/if.h>
@@ -55,6 +56,11 @@ VNET_DEFINE(int, ip6_use_defzone) = 1;
 #else
 VNET_DEFINE(int, ip6_use_defzone) = 0;
 #endif
+VNET_DEFINE(int, deembed_scopeid) = 1;
+SYSCTL_DECL(_net_inet6_ip6);
+SYSCTL_VNET_INT(_net_inet6_ip6, OID_AUTO, deembed_scopeid, CTLFLAG_RW,
+    &VNET_NAME(deembed_scopeid), 0,
+    "Extract embedded zone ID and set it to sin6_scope_id in sockaddr_in6.");
 
 /*
  * The scope6_lock protects the global sid default stored in
@@ -379,8 +385,11 @@ sa6_recoverscope(struct sockaddr_in6 *sin6)
 			/* sanity check */
 			if (V_if_index < zoneid)
 				return (ENXIO);
+#if 0
+			/* XXX: Disabled due to possible deadlock. */
 			if (!ifnet_byindex(zoneid))
 				return (ENXIO);
+#endif
 			if (sin6->sin6_scope_id != 0 &&
 			    zoneid != sin6->sin6_scope_id) {
 				log(LOG_NOTICE,

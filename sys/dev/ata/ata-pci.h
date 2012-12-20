@@ -101,6 +101,12 @@ struct ata_pci_controller {
 #define ATA_AMD768              0x74411022
 #define ATA_AMD8111             0x74691022
 #define ATA_AMD5536             0x209a1022
+#define ATA_AMD_HUDSON2_S1	0x78001022
+#define ATA_AMD_HUDSON2_S2	0x78011022
+#define ATA_AMD_HUDSON2_S3	0x78021022
+#define ATA_AMD_HUDSON2_S4	0x78031022
+#define ATA_AMD_HUDSON2_S5	0x78041022
+#define ATA_AMD_HUDSON2		0x780c1022
 
 #define ATA_ADAPTEC_ID          0x9005
 #define ATA_ADAPTEC_1420        0x02419005

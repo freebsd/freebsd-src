@@ -705,14 +705,14 @@ vm_pageout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 	int actcount, remove_mode;
 
 	VM_OBJECT_LOCK_ASSERT(first_object, MA_OWNED);
-	if (first_object->type == OBJT_DEVICE ||
-	    first_object->type == OBJT_SG)
+	if ((first_object->flags & OBJ_FICTITIOUS) != 0)
 		return;
 	for (object = first_object;; object = backing_object) {
 		if (pmap_resident_count(pmap) <= desired)
 			goto unlock_return;
 		VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-		if (object->type == OBJT_PHYS || object->paging_in_progress)
+		if ((object->flags & OBJ_UNMANAGED) != 0 ||
+		    object->paging_in_progress != 0)
 			goto unlock_return;
 
 		remove_mode = 0;

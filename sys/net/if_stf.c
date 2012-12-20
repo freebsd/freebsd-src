@@ -506,7 +506,7 @@ stf_output(ifp, m, dst, ro)
 		bpf_mtap2(ifp->if_bpf, &af, sizeof(af), m);
 	}
 
-	M_PREPEND(m, sizeof(struct ip), M_DONTWAIT);
+	M_PREPEND(m, sizeof(struct ip), M_NOWAIT);
 	if (m && m->m_len < sizeof(struct ip))
 		m = m_pullup(m, sizeof(struct ip));
 	if (m == NULL) {

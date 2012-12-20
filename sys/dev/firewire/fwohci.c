@@ -977,7 +977,7 @@ again:
 
 				if (firewire_debug)
 					device_printf(sc->fc.dev, "EFBIG.\n");
-				m0 = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+				m0 = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 				if (m0 != NULL) {
 					m_copydata(xfer->mbuf, 0,
 						xfer->mbuf->m_pkthdr.len,

@@ -103,7 +103,7 @@ bool debug_sort;
 bool need_hint;
 
 #if defined(SORT_THREADS)
-size_t ncpu = 1;
+unsigned int ncpu = 1;
 size_t nthreads = 1;
 #endif
 
@@ -268,14 +268,16 @@ set_hw_params(void)
 #if defined(SORT_THREADS)
 	size_t ncpusz;
 #endif
-	size_t pages, psize, psz, pszsz;
+	unsigned int pages, psize;
+	size_t psz, pszsz;
 
 	pages = psize = 0;
 #if defined(SORT_THREADS)
 	ncpu = 1;
 	ncpusz = sizeof(size_t);
 #endif
-	psz = pszsz = sizeof(size_t);
+	psz = sizeof(pages);
+	pszsz = sizeof(psize);
 
 	if (sysctlbyname("vm.stats.vm.v_free_count", &pages, &psz,
 	    NULL, 0) < 0) {
@@ -299,6 +301,9 @@ set_hw_params(void)
 
 	free_memory = (unsigned long long) pages * (unsigned long long) psize;
 	available_free_memory = (free_memory * 9) / 10;
+
+	if (available_free_memory < 1024)
+		available_free_memory = 1024;
 }
 
 /*

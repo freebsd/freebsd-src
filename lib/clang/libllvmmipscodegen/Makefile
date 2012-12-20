@@ -33,6 +33,7 @@ TGHDRS=	Intrinsics \
 	MipsGenCodeEmitter \
 	MipsGenDAGISel \
 	MipsGenInstrInfo \
+	MipsGenMCPseudoLowering \
 	MipsGenRegisterInfo \
 	MipsGenSubtargetInfo
 
