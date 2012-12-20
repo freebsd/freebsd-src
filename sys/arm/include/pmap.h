@@ -551,7 +551,7 @@ void	pmap_pte_init_arm10(void);
 #endif /* CPU_ARM10 */
 #if (ARM_MMU_V6 + ARM_MMU_V7) != 0
 void	pmap_pte_init_mmu_v6(void);
-#endif /* CPU_ARM11 */
+#endif /* (ARM_MMU_V6 + ARM_MMU_V7) != 0 */
 #endif /* (ARM_MMU_GENERIC + ARM_MMU_SA1) != 0 */
 
 #if /* ARM_MMU_SA1 == */1
