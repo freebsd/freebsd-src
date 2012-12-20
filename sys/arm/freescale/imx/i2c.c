@@ -130,7 +130,6 @@ static __inline void
 i2c_write_reg(struct i2c_softc *sc, bus_size_t off, uint8_t val)
 {
 
-//	printf("0x%08x = %02x\n", (uint32_t)(sc->bsh + off), val);
 	bus_space_write_1(sc->bst, sc->bsh, off, val);
 }
 
@@ -159,7 +158,7 @@ i2c_do_wait(device_t dev, struct i2c_softc *sc, int write, int start)
 
 	status = i2c_read_reg(sc, I2C_STATUS_REG);
 	if (status & I2CSR_MIF) {
-		if (write && start && ((status & 0xa2) != (0xa2) )) {
+		if (write && start && (status & I2CSR_RXAK)) {
 			debugf("no ack %s", start ?
 			    "after sending slave address" : "");
 			err = IIC_ENOACK;
@@ -170,19 +169,16 @@ i2c_do_wait(device_t dev, struct i2c_softc *sc, int write, int start)
 			err = IIC_EBUSERR;
 			goto error;
 		}
-		if (!write && ( (status & 0x82) != 0x82 )) {
+		if (!write && !(status & I2CSR_MCF)) {
 			debugf("transfer unfinished");
 			err = IIC_EBUSERR;
 			goto error;
 		}
 	}
 
-//	i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
-
 	return (IIC_NOERR);
 
 error:
-	printf("wait: st=%02x\n", status);
 	i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
 	i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN | I2CCR_TXAK);
 	return (err);
@@ -255,21 +251,6 @@ i2c_attach(device_t dev)
 	bus_generic_attach(dev);
 	return (IIC_NOERR);
 }
-
-static int
-wait_for_iif(struct i2c_softc *sc)
-{
-	int retry = 10000;
-
-	while (retry --) {
-		if (i2c_read_reg(sc, I2C_STATUS_REG) & I2CSR_MIF)
-			return (IIC_NOERR);
-		DELAY(10);
-	}
-
-	return (IIC_ETIMEOUT);
-}
-
 static int
 i2c_repeated_start(device_t dev, u_char slave, int timeout)
 {
@@ -280,19 +261,12 @@ i2c_repeated_start(device_t dev, u_char slave, int timeout)
 
 	mtx_lock(&sc->mutex);
 	/* Set repeated start condition */
-	i2c_flag_set(sc, I2C_CONTROL_REG ,I2CCR_RSTA|I2CCR_TXAK);
-	/* Clear status */
-	i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
+	i2c_flag_set(sc, I2C_CONTROL_REG ,I2CCR_RSTA);
 	/* Write target address - LSB is R/W bit */
 	i2c_write_reg(sc, I2C_DATA_REG, slave);
-//2	DELAY(1250);
+	DELAY(1250);
 
-	if (0) error = i2c_do_wait(dev, sc, 1, 1);
-	error = wait_for_iif(sc);
-
-	/* Clear status */
-	i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
-
+	error = i2c_do_wait(dev, sc, 1, 1);
 	mtx_unlock(&sc->mutex);
 
 	if (error)
@@ -309,17 +283,12 @@ i2c_start(device_t dev, u_char slave, int timeout)
 	int error;
 
 	sc = device_get_softc(dev);
-//2	DELAY(1000);
+	DELAY(1000);
 
 	mtx_lock(&sc->mutex);
 	status = i2c_read_reg(sc, I2C_STATUS_REG);
 	/* Check if bus is idle or busy */
 	if (status & I2CSR_MBB) {
-//		i2c_write_reg(sc, I2C_CONTROL_REG, 0);
-//		DELAY(1000);
-//		i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN | I2CCR_TXAK);
-
-
 		debugf("bus busy");
 		mtx_unlock(&sc->mutex);
 		i2c_stop(dev);
@@ -327,21 +296,12 @@ i2c_start(device_t dev, u_char slave, int timeout)
 	}
 
 	/* Set start condition */
-	i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN | I2CCR_MSTA | I2CCR_TXAK);
-//3	DELAY(1250);
-	DELAY(100);//3
-	i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN | I2CCR_MSTA | I2CCR_MTX | I2CCR_TXAK);
-	/* Clear status */
-	i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
+	i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN | I2CCR_MSTA | I2CCR_MTX);
 	/* Write target address - LSB is R/W bit */
 	i2c_write_reg(sc, I2C_DATA_REG, slave);
-//1	DELAY(1250);
+	DELAY(1250);
 
-	if (0) error = i2c_do_wait(dev, sc, 1, 1);
-	error = wait_for_iif(sc);
-
-	/* Clear status */
-	i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
+	error = i2c_do_wait(dev, sc, 1, 1);
 
 	mtx_unlock(&sc->mutex);
 	if (error)
@@ -351,21 +311,6 @@ i2c_start(device_t dev, u_char slave, int timeout)
 }
 
 static int
-wait_for_nibb(struct i2c_softc *sc)
-{
-	int retry = 1000;
-
-	while (retry --) {
-		if ((i2c_read_reg(sc, I2C_STATUS_REG) & I2CSR_MBB) == 0)
-			return (IIC_NOERR);
-		DELAY(10);
-	}
-
-	return (IIC_ETIMEOUT);
-}
-
-
-static int
 i2c_stop(device_t dev)
 {
 	struct i2c_softc *sc;
@@ -373,16 +318,7 @@ i2c_stop(device_t dev)
 	sc = device_get_softc(dev);
 	mtx_lock(&sc->mutex);
 	i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN | I2CCR_TXAK);
-//4	DELAY(1000);
-	DELAY(100);//4
-	/* Reset controller if bus still busy after STOP */
-	if (wait_for_nibb(sc) == IIC_ETIMEOUT) {
-		i2c_write_reg(sc, I2C_CONTROL_REG, 0);
-		DELAY(1000);
-		i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN | I2CCR_TXAK);
-//1		DELAY(1000);
-		i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
-	}
+	DELAY(1000);
 	mtx_unlock(&sc->mutex);
 
 	return (IIC_NOERR);
@@ -412,44 +348,26 @@ i2c_reset(device_t dev, u_char speed, u_char addr, u_char *oldadr)
 	i2c_write_reg(sc, I2C_CONTROL_REG, 0x0);
 	i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
 	DELAY(1000);
-//	i2c_write_reg(sc, I2C_FDR_REG, baud_rate);
-	i2c_write_reg(sc, I2C_FDR_REG, 20);
+	i2c_write_reg(sc, I2C_FDR_REG, baud_rate);
 	if (!(sc->flags & FSL_IMX_I2C))
 		i2c_write_reg(sc, I2C_DFSRR_REG, I2C_DFSSR_DIV);
 	i2c_write_reg(sc, I2C_CONTROL_REG, I2C_ENABLE);
 	DELAY(1000);
-	i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
 	mtx_unlock(&sc->mutex);
 
 	return (IIC_NOERR);
 }
 
 static int
-wait_for_icf(struct i2c_softc *sc)
-{
-	int retry = 1000;
-
-	while (retry --) {
-//		if (i2c_read_reg(sc, I2C_STATUS_REG) & I2CSR_MCF)
-		if ((i2c_read_reg(sc, I2C_STATUS_REG) & (I2CSR_MCF|I2CSR_MIF)) == (I2CSR_MCF|I2CSR_MIF))
-			return (IIC_NOERR);
-		DELAY(10);
-	}
-
-	return (IIC_ETIMEOUT);
-}
-
-static int
 i2c_read(device_t dev, char *buf, int len, int *read, int last, int delay)
 {
 	struct i2c_softc *sc;
-	int error, reg;
+	int error;
 
 	sc = device_get_softc(dev);
 	*read = 0;
 
 	mtx_lock(&sc->mutex);
-	i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
 	if (len) {
 		if (len == 1)
 			i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN |
@@ -459,23 +377,18 @@ i2c_read(device_t dev, char *buf, int len, int *read, int last, int delay)
 			i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN |
 			    I2CCR_MSTA);
 
-		i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
 		/* dummy read */
-		//printf("RD %02x\n", i2c_read_reg(sc, I2C_DATA_REG));
 		i2c_read_reg(sc, I2C_DATA_REG);
 		DELAY(1000);
 	}
 
 	while (*read < len) {
-//1		DELAY(1000);
-		if (0) error = i2c_do_wait(dev, sc, 0, 0);
-		error = wait_for_icf(sc);
+		DELAY(1000);
+		error = i2c_do_wait(dev, sc, 0, 0);
 		if (error) {
 			mtx_unlock(&sc->mutex);
-			//printf("RE %02x\n", i2c_read_reg(sc, I2C_DATA_REG));
 			return (error);
 		}
-		i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
 		if ((*read == len - 2) && last) {
 			i2c_write_reg(sc, I2C_CONTROL_REG, I2CCR_MEN |
 			    I2CCR_MSTA | I2CCR_TXAK);
@@ -486,14 +399,10 @@ i2c_read(device_t dev, char *buf, int len, int *read, int last, int delay)
 			    I2CCR_TXAK);
 		}
 
-		reg = i2c_read_reg(sc, I2C_DATA_REG);
-		i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
-		//printf("R %02x\n", reg);
-		*buf++ = reg;
+		*buf++ = i2c_read_reg(sc, I2C_DATA_REG);
 		(*read)++;
-//1		DELAY(1250);
+		DELAY(1250);
 	}
-//	printf("RA %02x\n", i2c_read_reg(sc, I2C_DATA_REG));
 	mtx_unlock(&sc->mutex);
 
 	return (IIC_NOERR);
@@ -510,13 +419,10 @@ i2c_write(device_t dev, const char *buf, int len, int *sent, int timeout)
 
 	mtx_lock(&sc->mutex);
 	while (*sent < len) {
-		i2c_write_reg(sc, I2C_STATUS_REG, 0x0);
 		i2c_write_reg(sc, I2C_DATA_REG, *buf++);
-//1		DELAY(1250);
+		DELAY(1250);
 
-
-		if (0) error = i2c_do_wait(dev, sc, 1, 0);
-		error = wait_for_iif(sc);
+		error = i2c_do_wait(dev, sc, 1, 0);
 		if (error) {
 			mtx_unlock(&sc->mutex);
 			return (error);
