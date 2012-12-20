@@ -60,15 +60,16 @@
 #define EXT2_APPEND		0x00000020 /* writes to file may only append */
 #define EXT2_NODUMP		0x00000040	/* do not dump file */
 #define EXT2_NOATIME		0x00000080	/* do not update atime */
-#define EXT2_INDEX		0x00001000 	/* hash-indexed directory */
-#define EXT2_IMAGIC		0x00002000 	/* AFS directory */
-#define EXT2_JOURNAL_DATA		0x00004000 /* file data should be journaled */
-#define EXT2_NOTAIL		0x00008000 /* file tail should not be merged */
-#define EXT2_DIRSYNC		0x00010000	/* dirsync behaviour */
-#define EXT2_TOPDIR		0x00020000 /* Top of directory hierarchies*/
-#define EXT2_HUGE_FILE		0x00040000	/* Set to each huge file */
-#define EXT2_EXTENTS		0x00080000	/* Inode uses extents */
-#define EXT2_EOFBLOCKS		0x00400000 /* Blocks allocated beyond EOF */
+
+#define EXT4_INDEX		0x00001000 	/* hash-indexed directory */
+#define EXT4_IMAGIC		0x00002000 	/* AFS directory */
+#define EXT4_JOURNAL_DATA	0x00004000 /* file data should be journaled */
+#define EXT4_NOTAIL		0x00008000 /* file tail should not be merged */
+#define EXT4_DIRSYNC		0x00010000	/* dirsync behaviour */
+#define EXT4_TOPDIR		0x00020000 /* Top of directory hierarchies*/
+#define EXT4_HUGE_FILE		0x00040000	/* Set to each huge file */
+#define EXT4_EXTENTS		0x00080000	/* Inode uses extents */
+#define EXT4_EOFBLOCKS		0x00400000 /* Blocks allocated beyond EOF */
 
 /*
  * Definitions for nanosecond timestamps.
@@ -78,8 +79,7 @@
 #define EXT3_EPOCH_MASK	((1 << EXT3_EPOCH_BITS) - 1)
 #define EXT3_NSEC_MASK	(~0UL << EXT3_EPOCH_BITS)
 
-#define E2DI_HAS_XTIME(ip)	(EXT2_INODE_SIZE((ip)->i_e2fs) > \
-				    E2FS_REV0_INODE_SIZE)
+#define E2DI_HAS_XTIME(ip)	(EXT2_HAS_RO_COMPAT_FEATURE(ip->i_e2fs, EXT2F_ROCOMPAT_EXTRA_ISIZE))
 
 /*
  * Structure of an inode on the disk
