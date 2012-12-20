@@ -248,9 +248,8 @@ action::do_action(config &c)
 }
 
 match::match(config &c, const char *var, const char *re)
-	: _var(var)
+	: _var(var), _re("^")
 {
-	_re = "^";
 	_re.append(c.expand_string(string(re)));
 	_re.append("$");
 	regcomp(&_regex, _re.c_str(), REG_EXTENDED | REG_NOSUB | REG_ICASE);
