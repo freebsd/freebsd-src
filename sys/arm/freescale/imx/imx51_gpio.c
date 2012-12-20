@@ -94,7 +94,7 @@ struct imx51_gpio_softc {
 	device_t		dev;
 	struct mtx		sc_mtx;
 	struct resource		*sc_res[11]; /* 1 x mem, 2 x IRQ, 8 x IRQ */
-	void			*gpio_ih[11]; /* 1 pointer is not a big waste */
+	void			*gpio_ih[11]; /* 1 ptr is not a big waste */
 	int			sc_l_irq; /* Last irq resource */
 	bus_space_tag_t		sc_iot;
 	bus_space_handle_t	sc_ioh;
