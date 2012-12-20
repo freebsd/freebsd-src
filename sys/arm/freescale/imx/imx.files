@@ -37,4 +37,4 @@ dev/usb/controller/ehci_imx.c		optional ehci
 arm/freescale/imx/imx_wdog.c		optional imxwdt
 
 # i2c
-powerpc/mpc85xx/i2c.c			optional fsliic
+arm/freescale/imx/i2c.c			optional fsliic
