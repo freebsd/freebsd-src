@@ -1,4 +1,4 @@
-/*	$NetBSD: spec.c,v 1.84 2012/10/07 18:40:49 christos Exp $	*/
+/*	$NetBSD: spec.c,v 1.85 2012/12/20 16:43:16 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1993
@@ -67,7 +67,7 @@
 #if 0
 static char sccsid[] = "@(#)spec.c	8.2 (Berkeley) 4/28/95";
 #else
-__RCSID("$NetBSD: spec.c,v 1.84 2012/10/07 18:40:49 christos Exp $");
+__RCSID("$NetBSD: spec.c,v 1.85 2012/12/20 16:43:16 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -415,16 +415,16 @@ dump_nodes(const char *dir, NODE *root, int pathlast)
 char *
 vispath(const char *path)
 {
-	const char extra[] = { ' ', '\t', '\n', '\\', '\0' };
-	const char extra_glob[] = { ' ', '\t', '\n', '\\', '#', '*', '?',
-	     '[', '\0' };
+	static const char extra[] = { ' ', '\t', '\n', '\\', '#', '\0' };
+	static const char extra_glob[] = { ' ', '\t', '\n', '\\', '#', '*',
+	    '?', '[', '\0' };
 	static char pathbuf[4*MAXPATHLEN + 1];
 
 	if (flavor == F_NETBSD6)
 		strsvis(pathbuf, path, VIS_CSTYLE, extra);
 	else
 		strsvis(pathbuf, path, VIS_OCTAL, extra_glob);
-	return(pathbuf);
+	return pathbuf;
 }
 
 

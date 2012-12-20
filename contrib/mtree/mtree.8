@@ -1,4 +1,4 @@
-.\"	$NetBSD: mtree.8,v 1.64 2012/12/12 15:52:10 christos Exp $
+.\"	$NetBSD: mtree.8,v 1.65 2012/12/20 16:43:16 christos Exp $
 .\"
 .\" Copyright (c) 1989, 1990, 1993
 .\"	The Regents of the University of California.  All rights reserved.
@@ -56,7 +56,7 @@
 .\"
 .\"     @(#)mtree.8	8.2 (Berkeley) 12/11/93
 .\"
-.Dd October 4, 2012
+.Dd December 20, 2012
 .Dt MTREE 8
 .Os
 .Sh NAME
@@ -192,16 +192,6 @@ and
 If no inclusion list is provided, the default is to display all files.
 .It Fl i
 If specified, set the schg and/or sappnd flags.
-For compatiblity with
-.Fx
-if the
-.Fl c
-and
-.Fl i
-option are both passed,
-then the
-.Fl j
-option is implied and a warning is emitted.
 .It Fl j
 Indent the output 4 spaces each time a directory level is descended when
 creating a specification with the
@@ -721,7 +711,7 @@ to create directory hierarchies for, for example, distributions.
 The compatibility shims provided by the
 .Fl F
 option are incomplete by design.
-Known limititations are described below.
+Known limitations are described below.
 .Pp
 The
 .Sy freebsd9

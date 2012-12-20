@@ -1,4 +1,4 @@
-/*	$NetBSD: mtree.c,v 1.43 2012/12/12 15:51:41 christos Exp $	*/
+/*	$NetBSD: mtree.c,v 1.44 2012/12/20 16:43:16 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1990, 1993
@@ -43,7 +43,7 @@ __COPYRIGHT("@(#) Copyright (c) 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)mtree.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: mtree.c,v 1.43 2012/12/12 15:51:41 christos Exp $");
+__RCSID("$NetBSD: mtree.c,v 1.44 2012/12/20 16:43:16 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -284,12 +284,6 @@ main(int argc, char **argv)
 
 	if ((cflag && Cflag) || (cflag && Dflag) || (Cflag && Dflag))
 		mtree_err("-c, -C and -D flags are mutually exclusive");
-
-	if (cflag && iflag) {
-		warnx("-c and -i specified, setting -j and unsetting -i");
-		iflag = 0;
-		jflag = 1;
-	}
 
 	if (iflag && mflag)
 		mtree_err("-i and -m flags are mutually exclusive");
