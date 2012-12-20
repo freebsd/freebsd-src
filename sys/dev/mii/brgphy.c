@@ -608,6 +608,11 @@ brgphy_mii_phy_auto(struct mii_softc *sc, int media)
 		    (sc->mii_flags & MIIF_FORCEPAUSE) != 0)
 			anar |= BRGPHY_ANAR_PC | BRGPHY_ANAR_ASP;
 		PHY_WRITE(sc, BRGPHY_MII_ANAR, anar);
+		ktcr = BRGPHY_1000CTL_AFD | BRGPHY_1000CTL_AHD;
+		if (sc->mii_mpd_model == MII_MODEL_BROADCOM_BCM5701)
+			ktcr |= BRGPHY_1000CTL_MSE | BRGPHY_1000CTL_MSC;
+		PHY_WRITE(sc, BRGPHY_MII_1000CTL, ktcr);
+		PHY_READ(sc, BRGPHY_MII_1000CTL);
 	} else {
 		anar = BRGPHY_SERDES_ANAR_FDX | BRGPHY_SERDES_ANAR_HDX;
 		if ((media & IFM_FLOW) != 0 ||
@@ -615,12 +620,6 @@ brgphy_mii_phy_auto(struct mii_softc *sc, int media)
 			anar |= BRGPHY_SERDES_ANAR_BOTH_PAUSE;
 		PHY_WRITE(sc, BRGPHY_SERDES_ANAR, anar);
 	}
-
-	ktcr = BRGPHY_1000CTL_AFD | BRGPHY_1000CTL_AHD;
-	if (sc->mii_mpd_model == MII_MODEL_BROADCOM_BCM5701)
-		ktcr |= BRGPHY_1000CTL_MSE | BRGPHY_1000CTL_MSC;
-	PHY_WRITE(sc, BRGPHY_MII_1000CTL, ktcr);
-	ktcr = PHY_READ(sc, BRGPHY_MII_1000CTL);
 
 	PHY_WRITE(sc, BRGPHY_MII_BMCR, BRGPHY_BMCR_AUTOEN |
 	    BRGPHY_BMCR_STARTNEG);
