@@ -197,8 +197,10 @@ static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
 /* Default tag, as most drivers provide no parent tag. */
 bus_dma_tag_t arm_root_dma_tag;
 
-//----------------------------------------------------------------------------
-// Begin block of code useful to transplant to other implementations.
+/*
+ * ----------------------------------------------------------------------------
+ * Begin block of code useful to transplant to other implementations.
+ */
 
 static uma_zone_t dmamap_zone;	/* Cache of struct bus_dmamap items */
 
@@ -275,8 +277,10 @@ busdma_init(void *dummy)
  */
 SYSINIT(busdma, SI_SUB_KMEM, SI_ORDER_THIRD, busdma_init, NULL);
 
-// End block of code useful to transplant to other implementations.
-//----------------------------------------------------------------------------
+/*
+ * End block of code useful to transplant to other implementations.
+ * ----------------------------------------------------------------------------
+ */
 
 /*
  * Return true if a match is made.
