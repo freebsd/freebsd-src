@@ -792,7 +792,17 @@ findpcb:
 	/*
 	 * Grab info from PACKET_TAG_IPFORWARD tag prepended to the chain.
 	 */
-	if (m->m_flags & M_IP_NEXTHOP)
+        if (
+#ifdef INET6
+	    (isipv6 && (m->m_flags & M_IP6_NEXTHOP))
+#ifdef INET
+	    || (!isipv6 && (m->m_flags & M_IP_NEXTHOP))
+#endif
+#endif
+#if defined(INET) && !defined(INET6)
+	    (m->m_flags & M_IP_NEXTHOP)
+#endif
+	    )
 		fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
 
 #ifdef INET6
@@ -821,7 +831,7 @@ findpcb:
 		}
 		/* Remove the tag from the packet.  We don't need it anymore. */
 		m_tag_delete(m, fwd_tag);
-		m->m_flags &= ~M_IP_NEXTHOP;
+		m->m_flags &= ~M_IP6_NEXTHOP;
 		fwd_tag = NULL;
 	} else if (isipv6) {
 		inp = in6_pcblookup_mbuf(&V_tcbinfo, &ip6->ip6_src,
