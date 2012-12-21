@@ -130,21 +130,21 @@ struct ip6_exthdrs {
 	struct mbuf *ip6e_dest2;
 };
 
-static int ip6_pcbopt __P((int, u_char *, int, struct ip6_pktopts **,
-			   struct ucred *, int));
-static int ip6_pcbopts __P((struct ip6_pktopts **, struct mbuf *,
-	struct socket *, struct sockopt *));
+static int ip6_pcbopt(int, u_char *, int, struct ip6_pktopts **,
+			   struct ucred *, int);
+static int ip6_pcbopts(struct ip6_pktopts **, struct mbuf *,
+	struct socket *, struct sockopt *);
 static int ip6_getpcbopt(struct ip6_pktopts *, int, struct sockopt *);
-static int ip6_setpktopt __P((int, u_char *, int, struct ip6_pktopts *,
-	struct ucred *, int, int, int));
+static int ip6_setpktopt(int, u_char *, int, struct ip6_pktopts *,
+	struct ucred *, int, int, int);
 
 static int ip6_copyexthdr(struct mbuf **, caddr_t, int);
-static int ip6_insertfraghdr __P((struct mbuf *, struct mbuf *, int,
-	struct ip6_frag **));
+static int ip6_insertfraghdr(struct mbuf *, struct mbuf *, int,
+	struct ip6_frag **);
 static int ip6_insert_jumboopt(struct ip6_exthdrs *, u_int32_t);
 static int ip6_splithdr(struct mbuf *, struct ip6_exthdrs *);
-static int ip6_getpmtu __P((struct route_in6 *, struct route_in6 *,
-	struct ifnet *, struct in6_addr *, u_long *, int *, u_int));
+static int ip6_getpmtu(struct route_in6 *, struct route_in6 *,
+	struct ifnet *, struct in6_addr *, u_long *, int *, u_int);
 static int copypktopts(struct ip6_pktopts *, struct ip6_pktopts *, int);
 
 

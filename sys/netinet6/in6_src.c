@@ -127,20 +127,20 @@ static VNET_DEFINE(struct in6_addrpolicy, defaultaddrpolicy);
 
 VNET_DEFINE(int, ip6_prefer_tempaddr) = 0;
 
-static int selectroute __P((struct sockaddr_in6 *, struct ip6_pktopts *,
+static int selectroute(struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
-	struct rtentry **, int, u_int));
-static int in6_selectif __P((struct sockaddr_in6 *, struct ip6_pktopts *,
+	struct rtentry **, int, u_int);
+static int in6_selectif(struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *ro, struct ifnet **,
-	struct ifnet *, u_int));
+	struct ifnet *, u_int);
 
 static struct in6_addrpolicy *lookup_addrsel_policy(struct sockaddr_in6 *);
 
 static void init_policy_queue(void);
 static int add_addrsel_policyent(struct in6_addrpolicy *);
 static int delete_addrsel_policyent(struct in6_addrpolicy *);
-static int walk_addrsel_policy __P((int (*)(struct in6_addrpolicy *, void *),
-				    void *));
+static int walk_addrsel_policy(int (*)(struct in6_addrpolicy *, void *),
+				    void *);
 static int dump_addrsel_policyent(struct in6_addrpolicy *, void *);
 static struct in6_addrpolicy *match_addrsel_policy(struct sockaddr_in6 *);
 
