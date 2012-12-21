@@ -378,11 +378,7 @@ f_dialog_menu_netdev_edit()
 		      if f_nfs_mounted && ! f_jailed; then
 		      	local setting="$( printf "$msg_current_dhcp_status" \
 		      	                         "$interface" "$dhcp_status" )"
-		      	local message="$(
-		      		printf "$msg_nfs_mounts_may_cause_hang" \
-		      		       "$setting"
-		      	)"
-		      	f_dialog_msgbox "$message"
+			f_show_msg "$msg_nfs_mounts_may_cause_hang" "$setting"
 		      	continue
 		      fi
 
