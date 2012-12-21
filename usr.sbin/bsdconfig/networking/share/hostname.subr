@@ -132,41 +132,15 @@ f_dialog_input_hostname()
 		msg="$msg_please_enter_fqhn"
 	fi
 
-	local hline="$hline_alnum_punc_tab_enter"
-
 	#
 	# Loop until the user provides taint-free input.
 	#
-	local size height width
 	while :; do
-
-		size=$( f_dialog_inputbox_size \
-		         	"$DIALOG_TITLE"     \
-		         	"$DIALOG_BACKTITLE" \
-		         	"$msg"              \
-		         	"$hostname"         \
-		         	"$hline"            )
-		local dialog_inputbox
-		dialog_inputbox=$( eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--hline \"\$hline\"                \
-			--ok-label \"\$msg_ok\"            \
-			--cancel-label \"\$msg_cancel\"    \
-			--inputbox \"\$msg\" $size         \
-			\"\$hostname\"                     \
-			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-		)
-
-		local retval=$?
-		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-		hostname=$( f_dialog_inputstr )
-
-		[ $retval -eq $SUCCESS ] || return $retval
-
+		hostname=$( f_dialog_input "$msg" "$hostname" \
+		                           "$hline_alnum_punc_tab_enter"
+		          ) || return
 		# Taint-check the user's input
 		f_dialog_validate_hostname "$hostname" && break
-
 	done
 
 	#
