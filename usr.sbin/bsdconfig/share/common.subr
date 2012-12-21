@@ -27,6 +27,15 @@ if [ ! "$_COMMON_SUBR" ]; then _COMMON_SUBR=1
 #
 # $FreeBSD$
 #
+############################################################ CONFIGURATION
+
+#
+# Default file descriptors to link to stdout/stderr for passthru allowing
+# redirection within a sub-shell to bypass directly to the terminal.
+#
+: ${TERMINAL_STDOUT_PASSTHRU:=3}}
+: ${TERMINAL_STDERR_PASSTHRU:=4}}
+
 ############################################################ GLOBALS
 
 #
@@ -56,6 +65,14 @@ f_dprintf()
 {
 	: this page intentionally left blank
 }
+[ "$DEBUGGING" ] && f_dprintf()
+{
+	local fmt="$1"
+	shift
+	printf "$fmt${fmt:+\n}" "$@" \
+		>&${TERMINAL_STDOUT_PASSTHRU:-1}
+} &&
+	export DEBUGGING
 
 # f_err $fmt [ $opts ... ]
 #
@@ -63,7 +80,7 @@ f_dprintf()
 #
 f_err()
 {
-	printf "$@" >&2
+	printf "$@" >&${TERMINAL_STDERR_PASSTHRU:-2}
 }
 
 # f_quietly $command [ $arguments ... ]
@@ -181,6 +198,7 @@ f_show_help()
 f_include()
 {
 	local file="$1"
+	f_dprintf "f_include: file=[%s]" "$file"
 	. "$file" || exit $?
 }
 
@@ -202,7 +220,7 @@ f_include_lang()
 	local file="$1"
 	local lang="${LANG:-$LC_ALL}"
 
-	f_dprintf "lang=[$lang]"
+	f_dprintf "f_include_lang: file=[%s] lang=[%s]" "$file" "$lang"
 	if [ -f "$file.$lang" ]; then
 		. "$file.$lang" || exit $?
 	else
@@ -247,7 +265,7 @@ f_usage()
 	local file="$1"
 	local lang="${LANG:-$LC_ALL}"
 
-	f_dprintf "lang=[$lang]"
+	f_dprintf "f_usage: file=[%s] lang=[%s]" "$file" "$lang"
 
 	shift 1 # file
 
@@ -300,7 +318,7 @@ f_index_file()
 	local keyword="$1"
 	local lang="${LANG:-$LC_ALL}"
 
-	f_dprintf "lang=[$lang]"
+	f_dprintf "f_index_file: keyword=[%s] lang=[%s]" "$keyword" "$lang"
 
 	if [ "$lang" ]; then
 		awk -v keyword="$keyword" "$f_index_file_awk" \
@@ -362,7 +380,8 @@ f_index_menusel_keyword()
 	local indexfile="$1" pgm="$2"
 	local lang="${LANG:-$LC_ALL}"
 
-	f_dprintf "lang=[$lang]"
+	f_dprintf "f_index_menusel_keyword: index=[%s] pgm=[%s] lang=[%s]" \
+	          "$indexfile" "$pgm" "$lang"
 
 	if [ -f "$indexfile.$lang" ]; then
 		awk -v pgm="$pgm" \
@@ -424,7 +443,8 @@ f_index_menusel_command()
 	local indexfile="$1" keyword="$2" command
 	local lang="${LANG:-$LC_ALL}"
 
-	f_dprintf "lang=[$lang]"
+	f_dprintf "f_index_menusel_command: index=[%s] key=[%s] lang=[%s]" \
+	          "$indexfile" "$keyword" "$lang"
 
 	if [ -f "$indexfile.$lang" ]; then
 		command=$( awk -v key="$keyword" \
@@ -462,5 +482,11 @@ trap 'f_interrupt' SIGINT
 trap 'f_die' SIGTERM SIGPIPE SIGXCPU SIGXFSZ \
              SIGFPE SIGTRAP SIGABRT SIGSEGV
 trap '' SIGALRM SIGPROF SIGUSR1 SIGUSR2 SIGHUP SIGVTALRM
+
+#
+# Clone terminal stdout/stderr so we can redirect to it from within sub-shells
+#
+eval exec $TERMINAL_STDOUT_PASSTHRU\>\&1
+eval exec $TERMINAL_STDERR_PASSTHRU\>\&2
 
 fi # ! $_COMMON_SUBR

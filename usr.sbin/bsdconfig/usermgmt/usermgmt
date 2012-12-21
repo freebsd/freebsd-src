@@ -126,7 +126,7 @@ while :; do
 	dialog_menu_main
 	retval=$?
 	mtag=$( f_dialog_menutag )
-	f_dprintf "retval=$retval mtag=[$mtag]"
+	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	if [ $retval -eq 2 ]; then
 		# The Help button was pressed

@@ -198,8 +198,8 @@ f_dialog_input_member_groups()
 	done
 	save_flag=1
 
-	local debug="pw_member_groups:"
-	f_dprintf "$debug [$cur_pw_member_groups]->[$pw_member_groups]"
+	f_dprintf "pw_member_groups: [%s]->[%s]" \
+	          "$cur_pw_member_groups" "$pw_member_groups"
 
 	return $SUCCESS
 }
@@ -259,7 +259,7 @@ f_dialog_input_name()
 	done
 	save_flag=1
 
-	f_dprintf "pw_name: [$cur_pw_name]->[$pw_name]"
+	f_dprintf "pw_name: [%s]->[%s]" "$cur_pw_name" "$pw_name"
 
 	return $SUCCESS
 }
@@ -352,7 +352,7 @@ f_dialog_input_password()
 	done
 	save_flag=1
 
-	f_dprintf "pw_password: [$cur_pw_password]->[$pw_password]"
+	f_dprintf "pw_password: [%s]->[%s]" "$cur_pw_password" "$pw_password"
 
 	return $SUCCESS
 }
@@ -376,7 +376,7 @@ f_dialog_input_gecos()
 	pw_gecos="$_input"
 	save_flag=1
 
-	f_dprintf "pw_gecos: [$cur_pw_gecos]->[$pw_gecos]"
+	f_dprintf "pw_gecos: [%s]->[%s]" "$cur_pw_gecos" "$pw_gecos"
 
 	return $SUCCESS
 }
@@ -399,7 +399,7 @@ f_dialog_input_uid()
 	pw_uid="$_input"
 	save_flag=1
 
-	f_dprintf "pw_uid: [$cur_pw_uid]->[$pw_uid]"
+	f_dprintf "pw_uid: [%s]->[%s]" "$cur_pw_uid" "$pw_uid"
 
 	return $SUCCESS
 }
@@ -422,7 +422,7 @@ f_dialog_input_gid()
 	pw_gid="$_input"
 	save_flag=1
 
-	f_dprintf "pw_gid: [$cur_pw_gid]->[$pw_gid]"
+	f_dprintf "pw_gid: [%s]->[%s]" "$cur_pw_gid" "$pw_gid"
 
 	return $SUCCESS
 }
@@ -445,7 +445,7 @@ f_dialog_input_class()
 	pw_class="$_input"
 	save_flag=1
 
-	f_dprintf "pw_class: [$cur_pw_class]->[$pw_class]"
+	f_dprintf "pw_class: [%s]->[%s]" "$cur_pw_class" "$pw_class"
 
 	return $SUCCESS
 }
@@ -496,7 +496,7 @@ f_dialog_input_change()
 	        retval=$?
 		setvar DIALOG_MENU_$$ "$dialog_menu"
 	        date_type=$( f_dialog_menutag )
-	        f_dprintf "retval=$retval date_type=[$date_type]"
+	        f_dprintf "retval=%u date_type=[%s]" $retval "$date_type"
 
 		# Return if user has either pressed ESC or chosen Cancel/No
 		[ $retval -eq $SUCCESS ] || return $retval
@@ -532,7 +532,7 @@ f_dialog_input_change()
 			retval=$?
 			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 			ret_date=$( f_dialog_inputstr )
-			f_dprintf "retval=$retval ret_date=[$ret_date]"
+			f_dprintf "retval=%u ret_date=[%s]" $retval "$ret_date"
 
 			# Return to menu if either ESC or Cancel/No
 			[ $retval -eq $SUCCESS ] || continue
@@ -559,7 +559,7 @@ f_dialog_input_change()
 			retval=$?
 			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 			ret_time=$( f_dialog_inputstr )
-			f_dprintf "retval=$retval ret_time=[$ret_time]"
+			f_dprintf "retval=%u ret_time=[%s]" $retval "$ret_time"
 
 			# Return to menu if either ESC or Cancel/No
 			[ $retval -eq $SUCCESS ] || continue
@@ -568,7 +568,7 @@ f_dialog_input_change()
 			          	-j -f "%d/%m/%Y %T" \
 			          	-- "$ret_date $ret_time" \
 			          	+%s 2> /dev/null )
-			f_dprintf "_input=[$_input]"
+			f_dprintf "_input=[%s]" "$_input"
 			break ;;
 
 		3) # Enter number of days into the future
@@ -592,13 +592,13 @@ f_dialog_input_change()
 				continue
 			fi
 
-			f_dprintf "ret_days=[$ret_days]"
+			f_dprintf "ret_days=[%s]" "$ret_days"
 			case "$ret_days" in
 			[-+]*) _input=$( date -v${ret_days}d +%s );;
 			    0) _input=$( date +%s );;
 			    *) _input=$( date -v+${ret_days}d +%s );;
 			esac
-			f_dprintf "_input=[$_input]"
+			f_dprintf "_input=[%s]" "$_input"
 			break ;;
 
 		4) # Enter value manually
@@ -619,7 +619,7 @@ f_dialog_input_change()
 				continue
 			fi
 
-			f_dprintf "_input=[$_input]"
+			f_dprintf "_input=[%s]" "$_input"
 			break ;;
 
 		esac
@@ -629,8 +629,8 @@ f_dialog_input_change()
 	pw_password_expire="$_input"
 	save_flag=1
 
-	local debug=pw_password_expire
-	f_dprintf "$debug: [$cur_pw_password_expire]->[$pw_password_expire]"
+	f_dprintf "pw_password_expire: [%s]->[%s]" \
+	          "$cur_pw_password_expire" "$pw_password_expire"
 
 	return $SUCCESS
 }
@@ -681,7 +681,7 @@ f_dialog_input_expire()
 	        retval=$?
 		setvar DIALOG_MENU_$$ "$dialog_menu"
 	        date_type=$( f_dialog_menutag )
-	        f_dprintf "retval=$retval date_type=[$date_type]"
+	        f_dprintf "retval=%u date_type=[%s]" $retval "$date_type"
 
 		# Return if user has either pressed ESC or chosen Cancel/No
 		[ $retval -eq $SUCCESS ] || return $retval
@@ -717,7 +717,7 @@ f_dialog_input_expire()
 			retval=$?
 			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 			ret_date=$( f_dialog_inputstr )
-			f_dprintf "retval=$retval ret_date=[$ret_date]"
+			f_dprintf "retval=%u ret_date=[%s]" $retval "$ret_date"
 
 			# Return to menu if either ESC or Cancel/No
 			[ $retval -eq $SUCCESS ] || continue
@@ -743,7 +743,7 @@ f_dialog_input_expire()
 			retval=$?
 			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
 			ret_time=$( f_dialog_inputstr )
-			f_dprintf "retval=$retval ret_time=[$ret_time]"
+			f_dprintf "retval=%u ret_time=[%s]" $retval "$ret_time"
 
 			# Return to menu if either ESC or Cancel/No
 			[ $retval -eq $SUCCESS ] || continue
@@ -752,7 +752,7 @@ f_dialog_input_expire()
 			          	-j -f "%d/%m/%Y %T" \
 			          	-- "$ret_date $ret_time" \
 			          	+%s 2> /dev/null )
-			f_dprintf "_input=[$_input]"
+			f_dprintf "_input=[%s]" "$_input"
 			break ;;
 
 		3) # Enter number of days into the future
@@ -776,13 +776,13 @@ f_dialog_input_expire()
 				continue
 			fi
 
-			f_dprintf "ret_days=[$ret_days]"
+			f_dprintf "ret_days=[%s]" "$ret_days"
 			case "$ret_days" in
 			[-+]*) _input=$( date -v${ret_days}d +%s );;
 			    0) _input=$( date +%s );;
 			    *) _input=$( date -v+${ret_days}d +%s );;
 			esac
-			f_dprintf "_input=[$_input]"
+			f_dprintf "_input=[%s]" "$_input"
 			break ;;
 
 		4) # Enter value manually
@@ -803,7 +803,7 @@ f_dialog_input_expire()
 				continue
 			fi
 
-			f_dprintf "_input=[$_input]"
+			f_dprintf "_input=[%s]" "$_input"
 			break ;;
 
 		esac
@@ -813,8 +813,8 @@ f_dialog_input_expire()
 	pw_account_expire="$_input"
 	save_flag=1
 
-	local debug=pw_account_expire
-	f_dprintf "$debug: [$cur_pw_account_expire]->[$pw_account_expire]"
+	f_dprintf "pw_account_expire: [%s]->[%s]" \
+	          "$cur_pw_account_expire" "$pw_account_expire"
 
 	return $SUCCESS
 }
@@ -837,7 +837,7 @@ f_dialog_input_home_dir()
 	pw_home_dir="$_input"
 	save_flag=1
 
-	f_dprintf "pw_home_dir: [$cur_pw_home_dir]->[$pw_home_dir]"
+	f_dprintf "pw_home_dir: [%s]->[%s]" "$cur_pw_home_dir" "$pw_home_dir"
 
 	return $SUCCESS
 }
@@ -863,7 +863,8 @@ f_dialog_input_home_create()
 	fi
 	save_flag=1
 
-	f_dprintf "pw_home_create: [$cur_pw_home_create]->[$pw_home_create]"
+	f_dprintf "pw_home_create: [%s]->[%s]" \
+	          "$cur_pw_home_create" "$pw_home_create"
 
 	[ $retval -ne 255 ] # return failure if user pressed ESC
 }
@@ -905,7 +906,8 @@ f_dialog_input_group_delete()
 	fi
 	save_flag=1
 
-	f_dprintf "pw_group_delete: [$cur_pw_group_delete]->[$pw_group_delete]"
+	f_dprintf "pw_group_delete: [%s]->[%s]" \
+	          "$cur_pw_group_delete" "$pw_group_delete"
 
 	[ $retval -ne 255 ] # return failure if user pressed ESC
 }
@@ -931,7 +933,8 @@ f_dialog_input_home_delete()
 	fi
 	save_flag=1
 
-	f_dprintf "pw_home_delete: [$cur_pw_home_delete]->[$pw_home_delete]"
+	f_dprintf "pw_home_delete: [%s]->[%s]" \
+	          "$cur_pw_home_delete" "$pw_home_delete"
 
 	[ $retval -ne 255 ] # return failure if user pressed ESC
 }
@@ -958,8 +961,8 @@ f_dialog_input_dotfiles_create()
 	fi
 	save_flag=1
 
-	local debug="pw_dotfiles_create:"
-	f_dprintf "$debug: [$cur_pw_dotfiles_create]->[$pw_dotfiles_create]"
+	f_dprintf "pw_dotfiles_create: [%s]->[%s]" \
+	          "$cur_pw_dotfiles_create" "$pw_dotfiles_create"
 
 	[ $retval -ne 255 ] # return failure if user pressed ESC
 }
@@ -1017,7 +1020,7 @@ f_dialog_input_shell()
 	pw_shell="$_input"
 	save_flag=1
 
-	f_dprintf "pw_shell: [$cur_pw_shell]->[$pw_shell]"
+	f_dprintf "pw_shell: [%s]->[%s]" "$cur_pw_shell" "$pw_shell"
 
 	return $SUCCESS
 }

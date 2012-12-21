@@ -446,7 +446,7 @@ f_dialog_input_rcvar()
 		break
 	done
 
-	f_dprintf "f_dialog_input_rcvar: rcvar->[$rcvar]"
+	f_dprintf "f_dialog_input_rcvar: rcvar->[%s]" "$rcvar"
 
 	return $SUCCESS
 }

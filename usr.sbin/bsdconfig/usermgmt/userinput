@@ -114,7 +114,7 @@ save_changes()
 		elif [ "$pw_password" ]; then
 			cmd="echo \"\$pw_password\" | $cmd -h 0"
 		fi
-		f_dprintf "cmd=$cmd"
+		f_dprintf "cmd=%s" "$cmd"
 		err=$( eval $cmd 2>&1 )
 		retval=$?
 		if [ $retval -ne $SUCCESS ]; then
@@ -160,7 +160,7 @@ save_changes()
 		elif [ "$pw_password" ]; then
 			cmd="echo \"\$pw_password\" | $cmd -h 0"
 		fi
-		f_dprintf "cmd=$cmd"
+		f_dprintf "cmd=%s" "$cmd"
 		err=$( eval $cmd 2>&1 )
 		retval=$?
 		if [ $retval -ne $SUCCESS ]; then
@@ -217,14 +217,14 @@ dialog_title_update()
 while [ $# -gt 0 ]; do
 	key="${1%%=*}"
 	value="${1#*=}"
-	f_dprintf "key=[$key] value=[$value]"
+	f_dprintf "key=[%s] value=[%s]" "$key" "$value"
 	case "$key" in
 	mode) mode="$value";;
 	user) user="$value";;
 	esac
 	shift
 done
-f_dprintf "mode=[$mode] user=[$user]"
+f_dprintf "mode=[%s] user=[%s]" "$mode" "$user"
 
 #
 # Initialize
@@ -406,7 +406,7 @@ while :; do
 	retval=$?
 	setvar DIALOG_MENU_$$ "$dialog_menu"
 	mtag=$( f_dialog_menutag )
-	f_dprintf "retval=$retval mtag=[$mtag]"
+	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	# Exit if user has either pressed ESC or chosen Cancel/No
 	[ $retval -eq $SUCCESS ] || f_die
@@ -425,7 +425,7 @@ while :; do
 	   	f_dialog_menu_user_list
 	   	retval=$?
 	   	mtag=$( f_dialog_menutag )
-	   	f_dprintf "retval=$retval mtag=[$mtag]"
+	   	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	   	# Loop if user has either pressed ESC or chosen Cancel/No
 	   	[ $retval -eq $SUCCESS ] || continue
