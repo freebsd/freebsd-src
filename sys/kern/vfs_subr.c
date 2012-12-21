@@ -741,7 +741,7 @@ next_iter:
 			continue;
 		MNT_IUNLOCK(mp);
 yield:
-		kern_yield(PRI_UNCHANGED);
+		kern_yield(PRI_USER);
 relock_mnt:
 		MNT_ILOCK(mp);
 	}
@@ -853,7 +853,7 @@ vnlru_proc(void)
 			vnlru_nowhere++;
 			tsleep(vnlruproc, PPAUSE, "vlrup", hz * 3);
 		} else
-			kern_yield(PRI_UNCHANGED);
+			kern_yield(PRI_USER);
 	}
 }
 
@@ -4635,7 +4635,7 @@ __mnt_vnode_next_all(struct vnode **mvp, struct mount *mp)
 	struct vnode *vp;
 
 	if (should_yield())
-		kern_yield(PRI_UNCHANGED);
+		kern_yield(PRI_USER);
 	MNT_ILOCK(mp);
 	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
 	vp = TAILQ_NEXT(*mvp, v_nmntvnodes);
@@ -4784,7 +4784,7 @@ __mnt_vnode_next_active(struct vnode **mvp, struct mount *mp)
 {
 
 	if (should_yield())
-		kern_yield(PRI_UNCHANGED);
+		kern_yield(PRI_USER);
 	mtx_lock(&vnode_free_list_mtx);
 	return (mnt_vnode_next_active(mvp, mp));
 }
