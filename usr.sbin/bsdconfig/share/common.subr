@@ -136,6 +136,27 @@ f_interrupt()
 	f_die
 }
 
+# f_show_info $fmt [ $opts ... ]
+#
+# Display a message in a dialog infobox using printf(1) syntax.
+#
+f_show_info()
+{
+	local msg
+	msg=$( printf "$@" )
+
+	#
+	# Use f_dialog_infobox from dialog.subr if possible, otherwise fall
+	# back to dialog(1) (without options, making it obvious when using
+	# un-aided system dialog).
+	#
+	if f_have f_dialog_info; then
+		f_dialog_info "$msg"
+	else
+		dialog --infobox "$msg" 0 0
+	fi
+}
+
 # f_show_msg $fmt [ $opts ... ]
 #
 # Display a message in a dialog box using printf(1) syntax.
