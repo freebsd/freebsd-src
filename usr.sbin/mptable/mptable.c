@@ -270,8 +270,8 @@ static void pnstr( char* s, int c );
 /* global data */
 static int	pfd;		/* physical /dev/mem fd */
 
-static int	busses[16];
-static int	apics[16];
+static int	busses[256];
+static int	apics[256];
 
 static int	ncpu;
 static int	nbus;
@@ -711,7 +711,7 @@ MPConfigTableHeader( u_int32_t pap )
     printf( "MP Config Base Table Entries:\n\n" );
 
     /* initialze tables */
-    for ( x = 0; x < 16; ++x ) {
+    for ( x = 0; x < 256; ++x ) {
 	busses[ x ] = apics[ x ] = 0xff;
     }
 
