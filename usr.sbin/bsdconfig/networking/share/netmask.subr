@@ -127,16 +127,11 @@ f_dialog_validate_netmask()
 	#
 	local retval=$?
 	case $retval in
-	1) f_dialog_msgbox "$( printf \
-		"$msg_ipv4_mask_field_contains_invalid_chars" "$mask" )";;
-	2) f_dialog_msgbox "$( printf \
-		"$msg_ipv4_mask_field_is_null" "$mask" )";;
-	3) f_dialog_msgbox "$( printf \
-		"$msg_ipv4_mask_field_exceeds_max_value" "$mask" )";;
-	4) f_dialog_msgbox "$( printf \
-		"$msg_ipv4_mask_field_missing_or_extra" "$mask" )";;
-	5) f_dialog_msgbox "$( printf \
-		"$msg_ipv4_mask_field_invalid_value" "$mask" )";;
+	1) f_show_msg "$msg_ipv4_mask_field_contains_invalid_chars" "$mask";;
+	2) f_show_msg "$msg_ipv4_mask_field_is_null" "$mask";;
+	3) f_show_msg "$msg_ipv4_mask_field_exceeds_max_value" "$mask";;
+	4) f_show_msg "$msg_ipv4_mask_field_missing_or_extra" "$mask";;
+	5) f_show_msg "$msg_ipv4_mask_field_invalid_value" "$mask";;
 	esac
 
 	return $retval
@@ -158,9 +153,7 @@ f_dialog_input_netmask()
 	if f_nfs_mounted && ! f_jailed; then
 		local setting="$( printf "$msg_current_subnet" \
 		                         "$interface" "$_netmask" )"
-		local message="$( printf "$msg_nfs_mounts_may_cause_hang" \
-		                         "$setting" )"
-		f_dialog_msgbox "$message"
+		f_show_msg "$msg_nfs_mounts_may_cause_hang" "$setting"
 		return $FAILURE
 	fi
 
