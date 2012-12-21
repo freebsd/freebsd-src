@@ -164,7 +164,7 @@ g_dev_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 	LIST_FOREACH(cp, &pp->consumers, consumers)
 		if (cp->geom->class == mp)
 			return (NULL);
-	gp = g_new_geomf(mp, pp->name);
+	gp = g_new_geomf(mp, "%s", pp->name);
 	cp = g_new_consumer(gp);
 	error = g_attach(cp, pp);
 	KASSERT(error == 0,
