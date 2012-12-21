@@ -181,6 +181,10 @@ usbd_get_dma_delay(struct usb_device *udev)
  * according to "size", "align" and "count" arguments. "ppc" is
  * pointed to a linear array of USB page caches afterwards.
  *
+ * If the "align" argument is equal to "1" a non-contiguous allocation
+ * can happen. Else if the "align" argument is greater than "1", the
+ * allocation will always be contiguous in memory.
+ *
  * Returns:
  *    0: Success
  * Else: Failure
@@ -195,13 +199,14 @@ usbd_transfer_setup_sub_malloc(struct usb_setup_params *parm,
 	struct usb_page *pg;
 	void *buf;
 	usb_size_t n_dma_pc;
+	usb_size_t n_dma_pg;
 	usb_size_t n_obj;
 	usb_size_t x;
 	usb_size_t y;
 	usb_size_t r;
 	usb_size_t z;
 
-	USB_ASSERT(align > 1, ("Invalid alignment, 0x%08x\n",
+	USB_ASSERT(align > 0, ("Invalid alignment, 0x%08x\n",
 	    align));
 	USB_ASSERT(size > 0, ("Invalid size = 0\n"));
 
@@ -217,8 +222,14 @@ usbd_transfer_setup_sub_malloc(struct usb_setup_params *parm,
 	 * Try multi-allocation chunks to reduce the number of DMA
 	 * allocations, hence DMA allocations are slow.
 	 */
-	if (size >= USB_PAGE_SIZE) {
+	if (align == 1) {
+		/* special case - non-cached multi page DMA memory */
 		n_dma_pc = count;
+		n_dma_pg = (2 + (size / USB_PAGE_SIZE));
+		n_obj = 1;
+	} else if (size >= USB_PAGE_SIZE) {
+		n_dma_pc = count;
+		n_dma_pg = 1;
 		n_obj = 1;
 	} else {
 		/* compute number of objects per page */
@@ -228,13 +239,22 @@ usbd_transfer_setup_sub_malloc(struct usb_setup_params *parm,
 		 * to nearest one:
 		 */
 		n_dma_pc = ((count + n_obj - 1) / n_obj);
+		n_dma_pg = 1;
 	}
 
+	/*
+	 * DMA memory is allocated once, but mapped twice. That's why
+	 * there is one list for auto-free and another list for
+	 * non-auto-free which only holds the mapping and not the
+	 * allocation.
+	 */
 	if (parm->buf == NULL) {
-		/* for the future */
-		parm->dma_page_ptr += n_dma_pc;
+		/* reserve memory (auto-free) */
+		parm->dma_page_ptr += n_dma_pc * n_dma_pg;
 		parm->dma_page_cache_ptr += n_dma_pc;
-		parm->dma_page_ptr += count;
+
+		/* reserve memory (no-auto-free) */
+		parm->dma_page_ptr += count * n_dma_pg;
 		parm->xfer_page_cache_ptr += count;
 		return (0);
 	}
@@ -272,9 +292,9 @@ usbd_transfer_setup_sub_malloc(struct usb_setup_params *parm,
 		buf = parm->dma_page_cache_ptr->buffer;
 		/* Make room for one DMA page cache and one page */
 		parm->dma_page_cache_ptr++;
-		pg++;
+		pg += n_dma_pg;
 
-		for (y = 0; (y != n_obj); y++, r--, pc++, pg++) {
+		for (y = 0; (y != n_obj); y++, r--, pc++, pg += n_dma_pg) {
 
 			/* Load sub-chunk into DMA */
 			if (usb_pc_dmamap_create(pc, size)) {
@@ -688,12 +708,30 @@ usbd_transfer_setup_sub(struct usb_setup_params *parm)
 	 */
 
 	if (!xfer->flags.ext_buffer) {
+#if USB_HAVE_BUSDMA
+		struct usb_page_search page_info;
+		struct usb_page_cache *pc;
 
+		if (usbd_transfer_setup_sub_malloc(parm,
+		    &pc, parm->bufsize, 1, 1)) {
+			parm->err = USB_ERR_NOMEM;
+		} else if (parm->buf != NULL) {
+
+			usbd_get_page(pc, 0, &page_info);
+
+			xfer->local_buffer = page_info.buffer;
+
+			usbd_xfer_set_frame_offset(xfer, 0, 0);
+
+			if ((type == UE_CONTROL) && (n_frbuffers > 1)) {
+				usbd_xfer_set_frame_offset(xfer, REQ_SIZE, 1);
+			}
+		}
+#else
 		/* align data */
 		parm->size[0] += ((-parm->size[0]) & (USB_HOST_ALIGN - 1));
 
-		if (parm->buf) {
-
+		if (parm->buf != NULL) {
 			xfer->local_buffer =
 			    USB_ADD_BYTES(parm->buf, parm->size[0]);
 
@@ -707,6 +745,7 @@ usbd_transfer_setup_sub(struct usb_setup_params *parm)
 
 		/* align data again */
 		parm->size[0] += ((-parm->size[0]) & (USB_HOST_ALIGN - 1));
+#endif
 	}
 	/*
 	 * Compute maximum buffer size
@@ -1078,9 +1117,12 @@ usbd_transfer_setup(struct usb_device *udev,
 		 * The number of DMA tags required depends on
 		 * the number of endpoints. The current estimate
 		 * for maximum number of DMA tags per endpoint
-		 * is two.
+		 * is three:
+		 * 1) for loading memory
+		 * 2) for allocating memory
+		 * 3) for fixing memory [UHCI]
 		 */
-		parm.dma_tag_max += 2 * MIN(n_setup, USB_EP_MAX);
+		parm.dma_tag_max += 3 * MIN(n_setup, USB_EP_MAX);
 
 		/*
 		 * DMA tags for QH, TD, Data and more.
@@ -1941,6 +1983,17 @@ usbd_xfer_get_frame(struct usb_xfer *xfer, usb_frcount_t frindex)
 	KASSERT(frindex < xfer->max_frame_count, ("frame index overflow"));
 
 	return (&xfer->frbuffers[frindex]);
+}
+
+void *
+usbd_xfer_get_frame_buffer(struct usb_xfer *xfer, usb_frcount_t frindex)
+{
+	struct usb_page_search page_info;
+
+	KASSERT(frindex < xfer->max_frame_count, ("frame index overflow"));
+
+	usbd_get_page(&xfer->frbuffers[frindex], 0, &page_info);
+	return (page_info.buffer);
 }
 
 /*------------------------------------------------------------------------*

@@ -101,16 +101,11 @@ f_dialog_validate_hostname()
 	#
 	local retval=$?
 	case $retval in
-	1) f_dialog_msgbox "$( printf \
-		"$msg_hostname_label_contains_invalid_chars" "$fqhn" )";;
-	2) f_dialog_msgbox "$( printf \
-		"$msg_hostname_label_starts_or_ends_with_hyphen" "$fqhn" )";;
-	3) f_dialog_msgbox "$( printf \
-		"$msg_hostname_label_is_null" "$fqhn" )";;
-	63) f_dialog_msgbox "$( printf \
-		"$msg_hostname_label_exceeds_max_length" "$fqhn" )";;
-	255) f_dialog_msgbox "$( printf \
-		"$msg_hostname_exceeds_max_length" "$fqhn" )";;
+	1) f_show_msg "$msg_hostname_label_contains_invalid_chars" "$fqhn";;
+	2) f_show_msg "$msg_hostname_label_starts_or_ends_with_hyphen" "$fqhn";;
+	3) f_show_msg "$msg_hostname_label_is_null" "$fqhn";;
+	63) f_show_msg "$msg_hostname_label_exceeds_max_length" "$fqhn";;
+	255) f_show_msg "$msg_hostname_exceeds_max_length" "$fqhn";;
 	esac
 
 	return $retval
@@ -132,41 +127,15 @@ f_dialog_input_hostname()
 		msg="$msg_please_enter_fqhn"
 	fi
 
-	local hline="$hline_alnum_punc_tab_enter"
-
 	#
 	# Loop until the user provides taint-free input.
 	#
-	local size height width
 	while :; do
-
-		size=$( f_dialog_inputbox_size \
-		         	"$DIALOG_TITLE"     \
-		         	"$DIALOG_BACKTITLE" \
-		         	"$msg"              \
-		         	"$hostname"         \
-		         	"$hline"            )
-		local dialog_inputbox
-		dialog_inputbox=$( eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--hline \"\$hline\"                \
-			--ok-label \"\$msg_ok\"            \
-			--cancel-label \"\$msg_cancel\"    \
-			--inputbox \"\$msg\" $size         \
-			\"\$hostname\"                     \
-			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-		)
-
-		local retval=$?
-		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-		hostname=$( f_dialog_inputstr )
-
-		[ $retval -eq $SUCCESS ] || return $retval
-
+		hostname=$( f_dialog_input "$msg" "$hostname" \
+		                           "$hline_alnum_punc_tab_enter"
+		          ) || return
 		# Taint-check the user's input
 		f_dialog_validate_hostname "$hostname" && break
-
 	done
 
 	#
@@ -195,10 +164,8 @@ f_dialog_input_hostname()
 		# "X11 connection rejected because of wrong authentication."
 		#
 		if [ "$USE_XDIALOG" -a "$SSH_CONNECTION" ]; then
-			f_dialog_msgbox "$(
-				printf "$msg_activate_hostname_x11warning" \
-				       "$( hostname )" "$hostname"
-			)"
+			f_show_msg "$msg_activate_hostname_x11warning" \
+			           "$( hostname )" "$hostname"
 		else
 			f_dialog_yesno "$(
 				printf "$msg_activate_hostname" \

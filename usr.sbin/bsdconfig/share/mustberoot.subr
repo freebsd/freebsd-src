@@ -338,16 +338,14 @@ f_authenticate_some_user()
 			case "$user" in
 			root|toor)
 				nfailures=$(( $nfailures + 1 ))
-				f_dialog_msgbox "$( printf \
-					"$msg_user_disallowed" "$user" )"
+				f_show_msg "$msg_user_disallowed" "$user"
 				continue
 			esac
 		fi
 		if ! f_quietly id "$user"; then
 			nfailures=$(( $nfailures + 1 ))
 			if [ "$SECURE_DIVULGE_UNKNOWN_USER" ]; then
-				f_dialog_msgbox "$( printf \
-					"$msg_unknown_user" "$user" )"
+				f_show_msg "$msg_unknown_user" "$user"
 			elif [ $nfailures -lt $PASSWD_TRIES ]; then
 				f_dialog_info "$msg_sorry_try_again"
 				sleep 1

@@ -532,9 +532,8 @@ static const struct usb_config urtw_8187b_usbconfig[URTW_8187B_N_XFERS] = {
 		.type = UE_BULK,
 		.endpoint = 0x89,
 		.direction = UE_DIR_IN,
-		.bufsize = MCLBYTES,
+		.bufsize = sizeof(uint64_t),
 		.flags = {
-			.ext_buffer = 1,
 			.pipe_bof = 1,
 			.short_xfer_ok = 1
 		},
@@ -544,9 +543,8 @@ static const struct usb_config urtw_8187b_usbconfig[URTW_8187B_N_XFERS] = {
 		.type = UE_BULK,
 		.endpoint = URTW_8187B_TXPIPE_BE,
 		.direction = UE_DIR_OUT,
-		.bufsize = URTW_TX_MAXSIZE,
+		.bufsize = URTW_TX_MAXSIZE * URTW_TX_DATA_LIST_COUNT,
 		.flags = {
-			.ext_buffer = 1,
 			.force_short_xfer = 1,
 			.pipe_bof = 1,
 		},
@@ -624,9 +622,8 @@ static const struct usb_config urtw_8187l_usbconfig[URTW_8187L_N_XFERS] = {
 		.type = UE_BULK,
 		.endpoint = 0x2,
 		.direction = UE_DIR_OUT,
-		.bufsize = URTW_TX_MAXSIZE,
+		.bufsize = URTW_TX_MAXSIZE * URTW_TX_DATA_LIST_COUNT,
 		.flags = {
-			.ext_buffer = 1,
 			.force_short_xfer = 1,
 			.pipe_bof = 1,
 		},
@@ -827,6 +824,16 @@ urtw_attach(device_t dev)
 		goto fail0;
 	}
 
+	if (sc->sc_flags & URTW_RTL8187B) {
+		sc->sc_tx_dma_buf = 
+		    usbd_xfer_get_frame_buffer(sc->sc_xfer[
+		    URTW_8187B_BULK_TX_BE], 0);
+	} else {
+		sc->sc_tx_dma_buf =
+		    usbd_xfer_get_frame_buffer(sc->sc_xfer[
+		    URTW_8187L_BULK_TX_LOW], 0);
+	}
+
 	URTW_LOCK(sc);
 
 	urtw_read32_m(sc, URTW_RX, &data);
@@ -937,9 +944,10 @@ urtw_detach(device_t dev)
 	usb_callout_drain(&sc->sc_led_ch);
 	callout_drain(&sc->sc_watchdog_ch);
 
+	ieee80211_ifdetach(ic);
+
 	usbd_transfer_unsetup(sc->sc_xfer, (sc->sc_flags & URTW_RTL8187B) ?
 	    URTW_8187B_N_XFERS : URTW_8187L_N_XFERS);
-	ieee80211_ifdetach(ic);
 
 	urtw_free_tx_data_list(sc);
 	urtw_free_rx_data_list(sc);
@@ -980,10 +988,7 @@ urtw_free_data_list(struct urtw_softc *sc, struct urtw_data data[], int ndata,
 				dp->buf = NULL;
 			}
 		} else {
-			if (dp->buf != NULL) {
-				free(dp->buf, M_USBDEV);
-				dp->buf = NULL;
-			}
+			dp->buf = NULL;
 		}
 		if (dp->ni != NULL) {
 			ieee80211_free_node(dp->ni);
@@ -1449,7 +1454,7 @@ urtw_start(struct ifnet *ifp)
 
 static int
 urtw_alloc_data_list(struct urtw_softc *sc, struct urtw_data data[],
-	int ndata, int maxsz, int fillmbuf)
+    int ndata, int maxsz, void *dma_buf)
 {
 	int i, error;
 
@@ -1457,7 +1462,7 @@ urtw_alloc_data_list(struct urtw_softc *sc, struct urtw_data data[],
 		struct urtw_data *dp = &data[i];
 
 		dp->sc = sc;
-		if (fillmbuf) {
+		if (dma_buf == NULL) {
 			dp->m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 			if (dp->m == NULL) {
 				device_printf(sc->sc_dev,
@@ -1468,24 +1473,15 @@ urtw_alloc_data_list(struct urtw_softc *sc, struct urtw_data data[],
 			dp->buf = mtod(dp->m, uint8_t *);
 		} else {
 			dp->m = NULL;
-			dp->buf = malloc(maxsz, M_USBDEV, M_NOWAIT);
-			if (dp->buf == NULL) {
-				device_printf(sc->sc_dev,
-				    "could not allocate buffer\n");
-				error = ENOMEM;
-				goto fail;
-			}
-			if (((unsigned long)dp->buf) % 4)
-				device_printf(sc->sc_dev,
-				    "warn: unaligned buffer %p\n", dp->buf);
+			dp->buf = ((uint8_t *)dma_buf) +
+			    (i * maxsz);
 		}
 		dp->ni = NULL;
 	}
+	return (0);
 
-	return 0;
-
-fail:	urtw_free_data_list(sc, data, ndata, fillmbuf);
-	return error;
+fail:	urtw_free_data_list(sc, data, ndata, 1);
+	return (error);
 }
 
 static int
@@ -1494,7 +1490,8 @@ urtw_alloc_rx_data_list(struct urtw_softc *sc)
 	int error, i;
 
 	error = urtw_alloc_data_list(sc,
-	    sc->sc_rx, URTW_RX_DATA_LIST_COUNT, MCLBYTES, 1 /* mbufs */);
+	    sc->sc_rx, URTW_RX_DATA_LIST_COUNT,
+	    MCLBYTES, NULL /* mbufs */);
 	if (error != 0)
 		return (error);
 
@@ -1514,7 +1511,7 @@ urtw_alloc_tx_data_list(struct urtw_softc *sc)
 
 	error = urtw_alloc_data_list(sc,
 	    sc->sc_tx, URTW_TX_DATA_LIST_COUNT, URTW_TX_MAXSIZE,
-	    0 /* no mbufs */);
+	    sc->sc_tx_dma_buf /* no mbufs */);
 	if (error != 0)
 		return (error);
 
@@ -2709,42 +2706,28 @@ fail:
 	return (error);
 }
 
-/* XXX why we should allocalte memory buffer instead of using memory stack?  */
 static usb_error_t
 urtw_8225_write_s16(struct urtw_softc *sc, uint8_t addr, int index,
     uint16_t *data)
 {
-	uint8_t *buf;
+	uint8_t buf[2];
 	uint16_t data16;
-	struct usb_device_request *req;
+	struct usb_device_request req;
 	usb_error_t error = 0;
 
 	data16 = *data;
-	req = (usb_device_request_t *)malloc(sizeof(usb_device_request_t),
-	    M_80211_VAP, M_NOWAIT | M_ZERO);
-	if (req == NULL) {
-		device_printf(sc->sc_dev, "could not allocate a memory\n");
-		goto fail0;
-	}
-	buf = (uint8_t *)malloc(2, M_80211_VAP, M_NOWAIT | M_ZERO);
-	if (req == NULL) {
-		device_printf(sc->sc_dev, "could not allocate a memory\n");
-		goto fail1;
-	}
 
-	req->bmRequestType = UT_WRITE_VENDOR_DEVICE;
-	req->bRequest = URTW_8187_SETREGS_REQ;
-	USETW(req->wValue, addr);
-	USETW(req->wIndex, index);
-	USETW(req->wLength, sizeof(uint16_t));
+	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
+	req.bRequest = URTW_8187_SETREGS_REQ;
+	USETW(req.wValue, addr);
+	USETW(req.wIndex, index);
+	USETW(req.wLength, sizeof(uint16_t));
 	buf[0] = (data16 & 0x00ff);
 	buf[1] = (data16 & 0xff00) >> 8;
 
-	error = urtw_do_request(sc, req, buf);
+	error = urtw_do_request(sc, &req, buf);
 
-	free(buf, M_80211_VAP);
-fail1:	free(req, M_80211_VAP);
-fail0:	return (error);
+	return (error);
 }
 
 static usb_error_t
@@ -4133,6 +4116,7 @@ urtw_bulk_tx_status_callback(struct usb_xfer *xfer, usb_error_t error)
 {
 	struct urtw_softc *sc = usbd_xfer_softc(xfer);
 	struct ifnet *ifp = sc->sc_ifp;
+	void *dma_buf = usbd_xfer_get_frame_buffer(xfer, 0);
 
 	URTW_ASSERT_LOCKED(sc);
 
@@ -4142,8 +4126,7 @@ urtw_bulk_tx_status_callback(struct usb_xfer *xfer, usb_error_t error)
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 setup:
-		usbd_xfer_set_frame_data(xfer, 0, &sc->sc_txstatus,
-		    sizeof(int64_t));
+		memcpy(dma_buf, &sc->sc_txstatus, sizeof(uint64_t));
 		usbd_transfer_submit(xfer);
 		break;
 	default:
@@ -4431,7 +4414,7 @@ static device_method_t urtw_methods[] = {
 	DEVMETHOD(device_probe, urtw_match),
 	DEVMETHOD(device_attach, urtw_attach),
 	DEVMETHOD(device_detach, urtw_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t urtw_driver = {
 	.name = "urtw",

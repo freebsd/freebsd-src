@@ -167,33 +167,10 @@ while :; do
 		break ;;
 	"$msg_timeout") # Set the screen saver timeout interval
 		f_dialog_title "$msg_value_required"
-		title="$DIALOG_TITLE"
-		btitle="$DIALOG_BACKTITLE"
+		blanktime=$( f_dialog_input "$msg_enter_timeout_period" \
+		                            "$( f_sysrc_get blanktime )"
+		           ) && f_sysrc_set blanktime "$blanktime"
 		f_dialog_title_restore
-		prompt="$msg_enter_timeout_period"
-		blanktime=$( f_sysrc_get blanktime )
-		hline=""
-		size=$( f_dialog_inputbox_size \
-		        	"$title"     \
-		        	"$btitle"    \
-		        	"$prompt"    \
-		        	"$blanktime" \
-		        	"$hline"     )
-		dialog_inputbox=$( $DIALOG \
-			--title "$title"             \
-			--backtitle "$btitle"        \
-			--hline "$hline"             \
-			--ok-label "$msg_ok"         \
-			--cancel-label "$msg_cancel" \
-			--inputbox "$prompt" $size   \
-			"$blanktime"                 \
-			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-		)
-		retval=$?
-		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-		blanktime=$( f_dialog_inputstr )
-		[ $retval -eq $SUCCESS ] &&
-			f_sysrc_set blanktime "$blanktime"
 		;;
 	esac
 done

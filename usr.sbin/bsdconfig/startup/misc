@@ -253,34 +253,11 @@ dialog_menu_main()
 #
 dialog_input_value()
 {
-	local hline="$hline_alnum_tab_enter"
-	local size prompt="$1" _input="$2"
+	local prompt="$1" _input="$2"
 
 	f_dialog_title "$msg_value_required"
-
-	size=$( f_dialog_inputbox_size \
-	        	"$DIALOG_TITLE"     \
-	        	"$DIALOG_BACKTITLE" \
-	        	"$prompt"           \
-	        	"$_input"           \
-	        	"$hline"            )
-
-	local dialog_inputbox
-	dialog_inputbox=$( eval $DIALOG \
-		--title \"\$DIALOG_TITLE\"         \
-		--backtitle \"\$DIALOG_BACKTITLE\" \
-		--hline \"\$hline\"                \
-		--ok-label \"\$msg_ok\"            \
-		--cancel-label \"\$msg_cancel\"    \
-		--inputbox \"\$prompt\" $size      \
-		\"\$_input\"                       \
-		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	)
-
-	retval=$?
-	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-	_input=$( f_dialog_inputstr )
-
+	_input=$( f_dialog_input "$prompt" "$_input" "$hline_alnum_tab_enter" )
+	local retval=$?
 	f_dialog_title_restore
 
 	# Return if user has either pressed ESC or chosen Cancel/No

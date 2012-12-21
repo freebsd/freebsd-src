@@ -79,32 +79,10 @@ flags=$( f_sysrc_get moused_flags )
 # Prompt the user with the current value
 #
 f_dialog_title "$msg_value_required"
-title="$DIALOG_TITLE"
-btitle="$DIALOG_BACKTITLE"
+flags=$( f_dialog_input "$msg_please_specify_the_mouse_daemon_flags" \
+                        "$flags"
+       ) || f_die
 f_dialog_title_restore
-hline=
-prompt="$msg_please_specify_the_mouse_daemon_flags"
-size=$( f_dialog_inputbox_size \
-        	"$title"  \
-        	"$btitle" \
-        	"$prompt" \
-        	"$flags"  \
-        	"$hline"  )
-dialog_inputbox=$( eval $DIALOG \
-	--title \"\$title\"             \
-	--backtitle \"\$btitle\"        \
-	--hline \"\$hline\"             \
-	--ok-label \"\$msg_ok\"         \
-	--cancel-label \"\$msg_cancel\" \
-	--inputbox \"\$prompt\" $size   \
-	\"\$flags\"                     \
-	2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-)
-retval=$?
-setvar MENU_INPUTBOX_$$ "$dialog_inputbox"
-flags=$( f_dialog_inputstr )
-
-[ $retval -eq $SUCCESS ] || f_die
 
 #
 # Save the new value

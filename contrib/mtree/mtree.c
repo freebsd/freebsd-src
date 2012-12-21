@@ -1,4 +1,4 @@
-/*	$NetBSD: mtree.c,v 1.44 2012/12/20 16:43:16 christos Exp $	*/
+/*	$NetBSD: mtree.c,v 1.46 2012/12/20 19:09:25 christos Exp $	*/
 
 /*-
  * Copyright (c) 1989, 1990, 1993
@@ -43,7 +43,7 @@ __COPYRIGHT("@(#) Copyright (c) 1989, 1990, 1993\
 #if 0
 static char sccsid[] = "@(#)mtree.c	8.1 (Berkeley) 6/6/93";
 #else
-__RCSID("$NetBSD: mtree.c,v 1.44 2012/12/20 16:43:16 christos Exp $");
+__RCSID("$NetBSD: mtree.c,v 1.46 2012/12/20 19:09:25 christos Exp $");
 #endif
 #endif /* not lint */
 
@@ -78,7 +78,7 @@ int
 main(int argc, char **argv)
 {
 	int	ch, status;
-	uint	i;
+	unsigned int	i;
 	char	*dir, *p;
 	FILE	*spec1, *spec2;
 
@@ -310,7 +310,7 @@ main(int argc, char **argv)
 static void
 usage(void)
 {
-	uint i;
+	unsigned int i;
 
 	fprintf(stderr,
 	    "usage: %s [-bCcDdejLlMnPqrStUuWx] [-i|-m] [-E tags]\n"

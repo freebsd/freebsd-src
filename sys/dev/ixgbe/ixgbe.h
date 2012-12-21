@@ -247,7 +247,7 @@ struct ixgbe_tx_buf {
 struct ixgbe_rx_buf {
 	struct mbuf	*buf;
 	struct mbuf	*fmp;
-	bus_dmamap_t	map;
+	bus_dmamap_t	pmap;
 	u_int		flags;
 #define IXGBE_RX_COPY	0x01
 	uint64_t	addr;
@@ -348,7 +348,7 @@ struct rx_ring {
 	u16			process_limit;
 	char			mtx_name[16];
 	struct ixgbe_rx_buf	*rx_buffers;
-	bus_dma_tag_t		tag;
+	bus_dma_tag_t		ptag;
 
 	u32			bytes; /* Used for AIM calc */
 	u32			packets;
