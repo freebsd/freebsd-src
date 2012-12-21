@@ -71,7 +71,7 @@ while :; do
 	f_dialog_menu_user_list
 	retval=$?
 	mtag=$( f_dialog_menutag )
-	f_dprintf "retval=$retval mtag=[$mtag]"
+	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	[ $retval -eq 0 ] || f_die
 
