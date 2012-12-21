@@ -75,7 +75,7 @@ f_dialog_rcedit()
 	local cur_val="$( f_sysrc_get "$var" )"
 	[ "$_input" = "$cur_val" ] && return $SUCCESS
 
-	f_dprintf "$var: [$cur_val]->[$_input]"
+	f_dprintf "%s: [%s]->[%s]" "$var" "$cur_val" "$_input"
 
 	err=$( f_sysrc_set "$var" "$_input" 2>&1 ) ||
 		f_show_msg "$err"

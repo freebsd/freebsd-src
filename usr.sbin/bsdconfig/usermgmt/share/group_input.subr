@@ -154,7 +154,7 @@ f_dialog_input_group_name()
 	done
 	save_flag=1
 
-	f_dprintf "group_name: [$cur_group_name]->[$group_name]"
+	f_dprintf "group_name: [%s]->[%s]" "$cur_group_name" "$group_name"
 
 	return $SUCCESS
 }
@@ -247,7 +247,8 @@ f_dialog_input_group_password()
 	done
 	save_flag=1
 
-	f_dprintf "group_password: [$cur_group_password]->[$group_password]"
+	f_dprintf "group_password: [%s]->[%s]" \
+	          "$cur_group_password" "$group_password"
 
 	return $SUCCESS
 }
@@ -270,7 +271,7 @@ f_dialog_input_group_gid()
 	group_gid="$_input"
 	save_flag=1
 
-	f_dprintf "group_gid: [$cur_group_gid]->[$group_gid]"
+	f_dprintf "group_gid: [%s]->[%s]" "$cur_group_gid" "$group_gid"
 
 	return $SUCCESS
 }
@@ -319,7 +320,7 @@ f_dialog_input_group_members()
 		retval=$?
 		setvar DIALOG_MENU_$$ "$dialog_menu"
 		menu_choice=$( f_dialog_menutag )
-		f_dprintf "retval=$retval menu_choice=[$menu_choice]"
+		f_dprintf "retval=%u menu_choice=[%s]" $retval "$menu_choice"
 
 		# Return if user has either pressed ESC or chosen Cancel/No
 		[ $retval -eq $SUCCESS ] || return $retval
@@ -385,7 +386,8 @@ f_dialog_input_group_members()
 
 	group_members="$_input"
 	save_flag=1
-	f_dprintf "group_members: [$cur_group_members]->[$group_members]"
+	f_dprintf "group_members: [%s]->[%s]" \
+	          "$cur_group_members" "$group_members"
 
 	return $SUCCESS
 }

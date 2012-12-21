@@ -42,7 +42,7 @@ f_include_lang $BSDCFG_LIBE/include/messages.subr
 # execution of dialog from within a sub-shell (so-long as its standard output
 # is explicitly redirected to this file descriptor).
 #
-: ${DIALOG_TERMINAL_PASSTHRU_FD:=3}
+: ${DIALOG_TERMINAL_PASSTHRU_FD:=${TERMINAL_STDOUT_PASSTHRU:-3}}
 
 ############################################################ GLOBALS
 
