@@ -384,7 +384,7 @@ del_entry(struct ip_fw_chain *chain, uint32_t arg)
 				continue;
 			l = RULESIZE(rule);
 			chain->static_len -= l;
-			ipfw_remove_dyn_children(rule);
+			ipfw_expire_dyn_rules(chain, rule, RESVD_SET);
 			rule->x_next = chain->reap;
 			chain->reap = rule;
 		}
@@ -927,7 +927,7 @@ ipfw_getrules(struct ip_fw_chain *chain, void *buf, size_t space)
 			dst->timestamp += boot_seconds;
 		bp += l;
 	}
-	ipfw_get_dynamic(&bp, ep); /* protected by the dynamic lock */
+	ipfw_get_dynamic(chain, &bp, ep); /* protected by the dynamic lock */
 	return (bp - (char *)buf);
 }
 
