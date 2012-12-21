@@ -188,7 +188,7 @@ g_bde_create_geom(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 		/* XXX: error check */
 		kproc_create(g_bde_worker, gp, &sc->thread, 0, 0,
 			"g_bde %s", gp->name);
-		pp = g_new_providerf(gp, gp->name);
+		pp = g_new_providerf(gp, "%s", gp->name);
 #if 0
 		/*
 		 * XXX: Disable this for now.  Appearantly UFS no longer
