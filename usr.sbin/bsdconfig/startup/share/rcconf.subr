@@ -418,39 +418,16 @@ f_dialog_input_rclist()
 #
 f_dialog_input_rcvar()
 {
-	local msg="$msg_please_enter_rcvar_name"
-	local hline="$hline_alnum_tab_enter"
-
 	#
 	# Loop until the user provides taint-free/valid input
 	#
-	local size _input="$1"
+	local _input="$1"
 	while :; do
-		size=$( f_dialog_inputbox_size \
-		        	"$DIALOG_TITLE"     \
-		        	"$DIALOG_BACKTITLE" \
-		        	"$msg"              \
-		        	"$_input"           \
-		        	"$hline"            )
-
-		local dialog_inputbox
-		dialog_inputbox=$( eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--hline \"\$hline\"                \
-			--ok-label \"\$msg_ok\"            \
-			--cancel-label \"\$msg_cancel\"    \
-			--inputbox \"\$msg\" $size         \
-			\"\$_input\"                       \
-			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-		)
-
-		retval=$?
-		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-		_input=$( f_dialog_inputstr )
 
 		# Return if user either pressed ESC or chosen Cancel/No
-		[ $retval -eq $SUCCESS ] || return $retval
+		_input=$( f_dialog_input "$msg_please_enter_rcvar_name" \
+		                         "$_input" "$hline_alnum_tab_enter"
+		        ) || return
 
 		# Check for invalid entry (1of2)
 		if ! echo "$_input" | grep -q "^[[:alpha:]_]"; then

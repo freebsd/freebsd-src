@@ -216,39 +216,16 @@ f_dialog_input_member_groups()
 #
 f_dialog_input_name()
 {
-	local msg="$( printf "$msg_login" )"
-	local hline="$hline_alnum_tab_enter"
-
 	#
 	# Loop until the user provides taint-free/valid input
 	#
-	local size retval _name="$1" _input="$1"
+	local _name="$1" _input="$1"
 	while :; do
-		size=$( f_dialog_inputbox_size \
-		        	"$DIALOG_TITLE"     \
-		        	"$DIALOG_BACKTITLE" \
-		        	"$msg"              \
-		        	"$_input"           \
-		        	"$hline"            )
-
-		local dialog_inputbox
-		dialog_inputbox=$( eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--hline \"\$hline\"                \
-			--ok-label \"\$msg_ok\"            \
-			--cancel-label \"\$msg_cancel\"    \
-			--inputbox \"\$msg\" $size         \
-			\"\$_input\"                       \
-			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-		)
-
-		retval=$?
-		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-		_input=$( f_dialog_inputstr )
 
 		# Return if user has either pressed ESC or chosen Cancel/No
-		[ $retval -eq $SUCCESS ] || return $retval
+		_input=$( f_dialog_input "$msg_login" "$_input" \
+		                         "$hline_alnum_tab_enter"
+		        ) || return
 
 		# Check for no-change
 		[ "$_input" = "$_name" ] && return $SUCCESS
@@ -389,35 +366,12 @@ f_dialog_input_password()
 #
 f_dialog_input_gecos()
 {
-	local msg size retval _input="$1"
-	local hline="$hline_alnum_punc_tab_enter"
-
-	msg=$( printf "$msg_full_name" )
-	size=$( f_dialog_inputbox_size \
-	        	"$DIALOG_TITLE"     \
-	        	"$DIALOG_BACKTITLE" \
-	        	"$msg"              \
-	        	"$_input"           \
-	        	"$hline"            )
-
-	local dialog_inputbox
-	dialog_inputbox=$( eval $DIALOG \
-		--title \"\$DIALOG_TITLE\"         \
-		--backtitle \"\$DIALOG_BACKTITLE\" \
-		--hline \"\$hline\"                \
-		--ok-label \"\$msg_ok\"            \
-		--cancel-label \"\$msg_cancel\"    \
-		--inputbox \"\$msg\" $size         \
-		\"\$_input\"                       \
-		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	)
-
-	retval=$?
-	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-	_input=$( f_dialog_inputstr )
+	local _input="$1"
 
 	# Return if user has either pressed ESC or chosen Cancel/No
-	[ $retval -eq $SUCCESS ] || return $retval
+	_input=$( f_dialog_input "$msg_full_name" "$_input" \
+	                         "$hline_alnum_punc_tab_enter"
+	        ) || return
 
 	pw_gecos="$_input"
 	save_flag=1
@@ -435,35 +389,12 @@ f_dialog_input_gecos()
 #
 f_dialog_input_uid()
 {
-	local msg size retval _input="$1"
-	local hline="$hline_num_tab_enter"
-
-	msg=$( printf "$msg_user_id_leave_empty_for_default" )
-	size=$( f_dialog_inputbox_size \
-	        	"$DIALOG_TITLE"     \
-	        	"$DIALOG_BACKTITLE" \
-	        	"$msg"              \
-	        	"$_input"           \
-	        	"$hline"            )
-
-	local dialog_inputbox
-	dialog_inputbox=$( eval $DIALOG \
-		--title \"\$DIALOG_TITLE\"         \
-		--backtitle \"\$DIALOG_BACKTITLE\" \
-		--hline \"\$hline\"                \
-		--ok-label \"\$msg_ok\"            \
-		--cancel-label \"\$msg_cancel\"    \
-		--inputbox \"\$msg\" $size         \
-		\"\$_input\"                       \
-		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	)
-
-	retval=$?
-	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-	_input=$( f_dialog_inputstr )
+	local _input="$1"
 
 	# Return if user has either pressed ESC or chosen Cancel/No
-	[ $retval -eq $SUCCESS ] || return $retval
+	_input=$( f_dialog_input "$msg_user_id_leave_empty_for_default" \
+	                         "$_input" "$hline_num_tab_enter"
+	        ) || return
 
 	pw_uid="$_input"
 	save_flag=1
@@ -481,35 +412,12 @@ f_dialog_input_uid()
 #
 f_dialog_input_gid()
 {
-	local msg size retval _input="$1"
-	local hline="$hline_num_tab_enter"
-
-	msg=$( printf "$msg_group_id_leave_empty_for_default" )
-	size=$( f_dialog_inputbox_size \
-	        	"$DIALOG_TITLE"     \
-	        	"$DIALOG_BACKTITLE" \
-	        	"$msg"              \
-	        	"$_input"           \
-	        	"$hline"            )
-
-	local dialog_inputbox
-	dialog_inputbox=$( eval $DIALOG \
-		--title \"\$DIALOG_TITLE\"         \
-		--backtitle \"\$DIALOG_BACKTITLE\" \
-		--hline \"\$hline\"                \
-		--ok-label \"\$msg_ok\"            \
-		--cancel-label \"\$msg_cancel\"    \
-		--inputbox \"\$msg\" $size         \
-		\"\$_input\"                       \
-		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	)
-
-	retval=$?
-	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-	_input=$( f_dialog_inputstr )
+	local _input="$1"
 
 	# Return if user has either pressed ESC or chosen Cancel/No
-	[ $retval -eq $SUCCESS ] || return $retval
+	_input=$( f_dialog_input "$msg_group_id_leave_empty_for_default" \
+	                         "$_input" "$hline_num_tab_enter"
+	        ) || return
 
 	pw_gid="$_input"
 	save_flag=1
@@ -527,35 +435,12 @@ f_dialog_input_gid()
 #
 f_dialog_input_class()
 {
-	local msg size retval _input="$1"
-	local hline="$hline_alnum_tab_enter"
-
-	msg=$( printf "$msg_login_class" )
-	size=$( f_dialog_inputbox_size \
-	        	"$DIALOG_TITLE"     \
-	        	"$DIALOG_BACKTITLE" \
-	        	"$msg"              \
-	        	"$_input"           \
-	        	"$hline"            )
-
-	local dialog_inputbox
-	dialog_inputbox=$( eval $DIALOG \
-		--title \"\$DIALOG_TITLE\"         \
-		--backtitle \"\$DIALOG_BACKTITLE\" \
-		--hline \"\$hline\"                \
-		--ok-label \"\$msg_ok\"            \
-		--cancel-label \"\$msg_cancel\"    \
-		--inputbox \"\$msg\" $size         \
-		\"\$_input\"                       \
-		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	)
-
-	retval=$?
-	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-	_input=$( f_dialog_inputstr )
+	local _input="$1"
 
 	# Return if user has either pressed ESC or chosen Cancel/No
-	[ $retval -eq $SUCCESS ] || return $retval
+	_input=$( f_dialog_input "$msg_login_class" "$_input" \
+	                         "$hline_alnum_tab_enter"
+	        ) || return
 
 	pw_class="$_input"
 	save_flag=1
@@ -695,31 +580,11 @@ f_dialog_input_change()
 			f_isinteger "$ret_days" &&
 				ret_days=$(( $ret_days + 1 ))
 
-			msg="$msg_password_expires_in_how_many_days"
-			size=$( f_dialog_inputbox_size \
-			        	"$DIALOG_TITLE"     \
-			        	"$DIALOG_BACKTITLE" \
-			        	"$msg"              \
-			        	"$ret_days"         \
-			        	"$hline"            )
-
-			local dialog_inputbox
-			dialog_inputbox=$( eval $DIALOG \
-				--title \"\$DIALOG_TITLE\"         \
-				--backtitle \"\$DIALOG_BACKTITLE\" \
-				--hline \"\$hline\"                \
-				--ok-label \"\$msg_ok\"            \
-				--cancel-label \"\$msg_cancel\"    \
-				--inputbox \"\$msg\" $size         \
-				\"\$ret_days\"                     \
-				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-			)
-			retval=$?
-			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-			ret_days=$( f_dialog_inputstr )
-
 			# Return to menu if either ESC or Cancel/No
-			[ $retval -eq $SUCCESS ] || continue
+			ret_days=$( f_dialog_input \
+				"$msg_password_expires_in_how_many_days" \
+				"$ret_days" "$hline"
+			) || continue
 
 			# Taint-check the user's input
 			if ! f_isinteger "$ret_days"; then
@@ -741,30 +606,10 @@ f_dialog_input_change()
 
 			msg=$( printf "$msg_number_of_seconds_since_epoch" \
 			              "$( date -r 1 "+%c %Z" )" )
-			size=$( f_dialog_inputbox_size \
-			        	"$DIALOG_TITLE"     \
-			        	"$DIALOG_BACKTITLE" \
-			        	"$msg"              \
-			        	"$_input"           \
-			        	"$hline"            )
-			local dialog_inputbox
-			dialog_inputbox=$( eval $DIALOG \
-				--title \"\$DIALOG_TITLE\"         \
-				--backtitle \"\$DIALOG_BACKTITLE\" \
-				--hline \"\$hline\"                \
-				--ok-label \"\$msg_ok\"            \
-				--cancel-label \"\$msg_cancel\"    \
-				--inputbox \"\$msg\" $size         \
-				\"\$_input\"                       \
-				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-			)
-
-			retval=$?
-			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-			ret_secs=$( f_dialog_inputstr )
 
 			# Return to menu if either ESC or Cancel/No
-			[ $retval -eq $SUCCESS ] || continue
+			ret_secs=$( f_dialog_input \
+			            	"$msg" "$_input" "$hline" ) || continue
 
 			_input="$ret_secs"
 
@@ -919,31 +764,11 @@ f_dialog_input_expire()
 			f_isinteger "$ret_days" &&
 				ret_days=$(( $ret_days + 1 ))
 
-			msg="$msg_account_expires_in_how_many_days"
-			size=$( f_dialog_inputbox_size \
-			        	"$DIALOG_TITLE"     \
-			        	"$DIALOG_BACKTITLE" \
-			        	"$msg"              \
-			        	"$ret_days"         \
-			        	"$hline"            )
-
-			local dialog_inputbox
-			dialog_inputbox=$( eval $DIALOG \
-				--title \"\$DIALOG_TITLE\"         \
-				--backtitle \"\$DIALOG_BACKTITLE\" \
-				--hline \"\$hline\"                \
-				--ok-label \"\$msg_ok\"            \
-				--cancel-label \"\$msg_cancel\"    \
-				--inputbox \"\$msg\" $size         \
-				\"\$ret_days\"                     \
-				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-			)
-			retval=$?
-			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-			ret_days=$( f_dialog_inputstr )
-
 			# Return to menu if either ESC or Cancel/No
-			[ $retval -eq $SUCCESS ] || continue
+			ret_days=$( f_dialog_input \
+				"$msg_account_expires_in_how_many_days" \
+				"$ret_days" "$hline"
+			) || continue
 
 			# Taint-check the user's input
 			if ! f_isinteger "$ret_days"; then
@@ -965,30 +790,10 @@ f_dialog_input_expire()
 
 			msg=$( printf "$msg_number_of_seconds_since_epoch" \
 			              "$( date -r 1 "+%c %Z" )" )
-			size=$( f_dialog_inputbox_size \
-			        	"$DIALOG_TITLE"     \
-			        	"$DIALOG_BACKTITLE" \
-			        	"$msg"              \
-			        	"$_input"           \
-			        	"$hline"            )
-			local dialog_inputbox
-			dialog_inputbox=$( eval $DIALOG \
-				--title \"\$DIALOG_TITLE\"         \
-				--backtitle \"\$DIALOG_BACKTITLE\" \
-				--hline \"\$hline\"                \
-				--ok-label \"\$msg_ok\"            \
-				--cancel-label \"\$msg_cancel\"    \
-				--inputbox \"\$msg\" $size         \
-				\"\$_input\"                       \
-				2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-			)
-
-			retval=$?
-			setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-			ret_secs=$( f_dialog_inputstr )
 
 			# Return to menu if either ESC or Cancel/No
-			[ $retval -eq $SUCCESS ] || continue
+			ret_secs=$( f_dialog_input \
+			            	"$msg" "$_input" "$hline" ) || continue
 
 			_input="$ret_secs"
 
@@ -1022,35 +827,12 @@ f_dialog_input_expire()
 #
 f_dialog_input_home_dir()
 {
-	local msg size retval _input="$1"
-	local hline="$hline_alnum_punc_tab_enter"
-
-	msg=$( printf "$msg_home_directory" )
-	size=$( f_dialog_inputbox_size \
-	        	"$DIALOG_TITLE"     \
-	        	"$DIALOG_BACKTITLE" \
-	        	"$msg"              \
-	        	"$_input"           \
-	        	"$hline"            )
-
-	local dialog_inputbox
-	dialog_inputbox=$( eval $DIALOG \
-		--title \"\$DIALOG_TITLE\"         \
-		--backtitle \"\$DIALOG_BACKTITLE\" \
-		--hline \"\$hline\"                \
-		--ok-label \"\$msg_ok\"            \
-		--cancel-label \"\$msg_cancel\"    \
-		--inputbox \"\$msg\" $size         \
-		\"\$_input\"                       \
-		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	)
-
-	retval=$?
-	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-	_input=$( f_dialog_inputstr )
+	local _input="$1"
 
 	# Return if user has either pressed ESC or chosen Cancel/No
-	[ $retval -eq $SUCCESS ] || return $retval
+	_input=$( f_dialog_input "$msg_home_directory" "$_input" \
+	                         "$hline_alnum_punc_tab_enter"
+	        ) || return
 
 	pw_home_dir="$_input"
 	save_flag=1
