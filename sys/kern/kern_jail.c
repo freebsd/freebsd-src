@@ -4533,6 +4533,8 @@ prison_racct_detach(struct prison *pr)
 
 	sx_assert(&allprison_lock, SA_UNLOCKED);
 
+	if (pr->pr_prison_racct == NULL)
+		return;
 	prison_racct_free(pr->pr_prison_racct);
 	pr->pr_prison_racct = NULL;
 }
