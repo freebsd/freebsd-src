@@ -124,8 +124,8 @@ static struct sockaddr_in6 all1_sa;
 
 int	(*send_sendso_input_hook)(struct mbuf *, struct ifnet *, int, int);
 
-static int nd6_is_new_addr_neighbor __P((struct sockaddr_in6 *,
-	struct ifnet *));
+static int nd6_is_new_addr_neighbor(struct sockaddr_in6 *,
+	struct ifnet *);
 static void nd6_setmtu0(struct ifnet *, struct nd_ifinfo *);
 static void nd6_slowtimo(void *);
 static int regen_tmpaddr(struct in6_ifaddr *);

@@ -42,11 +42,11 @@ SYSCTL_DECL(_net_inet6_sctp6);
 extern struct pr_usrreqs sctp6_usrreqs;
 
 
-int sctp6_input __P((struct mbuf **, int *, int));
+int sctp6_input(struct mbuf **, int *, int);
 int sctp6_output
-__P((struct sctp_inpcb *, struct mbuf *, struct sockaddr *,
-    struct mbuf *, struct proc *));
-	void sctp6_ctlinput __P((int, struct sockaddr *, void *));
+(struct sctp_inpcb *, struct mbuf *, struct sockaddr *,
+    struct mbuf *, struct proc *);
+	void sctp6_ctlinput(int, struct sockaddr *, void *);
 
 
 	extern void sctp6_notify(struct sctp_inpcb *inp,
