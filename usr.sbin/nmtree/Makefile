@@ -9,8 +9,7 @@ PROG=   nmtree
 CFLAGS+=	-DMTREE
 CFLAGS+=	-DNO_SHA384 -I${.CURDIR}
 LDADD+=		-lmd -lutil
-#MAN=    mtree.8
-MAN=
+MAN=    nmtree.8
 SRCS=   compare.c crc.c create.c excludes.c misc.c mtree.c spec.c specspec.c \
 	verify.c \
         getid.c pack_dev.c
@@ -25,5 +24,7 @@ LIBNETBSD=      ${LIBNETBSDDIR}/libnetbsd.a
 DPADD+=         ${LIBNETBSD}
 LDADD+=         ${LIBNETBSD}
 
+nmtree.8: mtree.8
+	cp ${.ALLSRC} ${.TARGET}
 
 .include <bsd.prog.mk>
