@@ -50,6 +50,8 @@ __RCSID("$NetBSD: misc.c,v 1.33 2012/12/12 15:51:04 christos Exp $");
 
 #include "extern.h"
 
+enum flavor     flavor = F_MTREE;
+
 typedef struct _key {
 	const char	*name;		/* key name */
 	u_int		val;		/* value */

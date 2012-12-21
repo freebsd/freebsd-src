@@ -62,7 +62,6 @@ int	ftsoptions = FTS_PHYSICAL;
 int	bflag, cflag, Cflag, dflag, Dflag, eflag, iflag, jflag, lflag, mflag,
     	nflag, qflag, rflag, sflag, tflag, uflag, Uflag, wflag;
 char	fullpath[MAXPATHLEN];
-enum flavor	flavor = F_MTREE;
 
 static struct {
 	enum flavor flavor;
