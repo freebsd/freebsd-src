@@ -1477,6 +1477,9 @@ f_dialog_init()
 
 ############################################################ MAIN
 
-[ "$DIALOG_SELF_INITIALIZE" ] && f_dialog_init
+case "$DIALOG_SELF_INITIALIZE" in
+""|0|[Nn][Oo]|[Oo][Ff][Ff]|[Ff][Aa][Ll][Ss][Ee]) : do nothing ;;
+*) f_dialog_init
+esac
 
 fi # ! $_DIALOG_SUBR
