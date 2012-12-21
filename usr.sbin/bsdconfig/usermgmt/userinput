@@ -391,7 +391,6 @@ while :; do
 	        	\"\$hline\"            \
 	        	$menu_items            )
 
-	local dialog_menu
 	dialog_menu=$( eval $DIALOG \
 		--title \"\$DIALOG_TITLE\"         \
 		--backtitle \"\$DIALOG_BACKTITLE\" \
