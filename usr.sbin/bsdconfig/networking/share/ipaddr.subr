@@ -116,14 +116,10 @@ f_dialog_iperror()
 	[ ${error:-0} -ne 0 ] || return $SUCCESS
 
 	case "$error" in
-	1) f_dialog_msgbox "$( printf \
-		"$msg_ipv4_addr_octet_contains_invalid_chars" "$ip" )";;
-	2) f_dialog_msgbox "$( printf \
-		"$msg_ipv4_addr_octet_is_null" "$ip" )";;
-	3) f_dialog_msgbox "$( printf \
-		"$msg_ipv4_addr_octet_exceeds_max_value" "$ip" )";;
-	4) f_dialog_msgbox "$( printf \
-		"$msg_ipv4_addr_octet_missing_or_extra" "$ip" )";;
+	1) f_show_msg "$msg_ipv4_addr_octet_contains_invalid_chars" "$ip";;
+	2) f_show_msg "$msg_ipv4_addr_octet_is_null" "$ip";;
+	3) f_show_msg "$msg_ipv4_addr_octet_exceeds_max_value" "$ip";;
+	4) f_show_msg "$msg_ipv4_addr_octet_missing_or_extra" "$ip";;
 	esac
 }
 
@@ -294,14 +290,10 @@ f_dialog_ip6error()
 	[ ${error:-0} -ne 0 ] || return $SUCCESS
 
 	case "$error" in
-	1) f_dialog_msgbox "$( printf \
-		"$msg_ipv6_addr_segment_contains_invalid_chars" "$ip" )";;
-	2) f_dialog_msgbox "$( printf \
-		"$msg_ipv6_addr_too_many_null_segments" "$ip" )";;
-	3) f_dialog_msgbox "$( printf \
-		"$msg_ipv6_addr_segment_contains_too_many_chars" "$ip" )";;
-	4) f_dialog_msgbox "$( printf \
-		"$msg_ipv6_addr_too_few_or_extra_segments" "$ip" )";;
+	1) f_show_msg "$msg_ipv6_addr_segment_contains_invalid_chars" "$ip";;
+	2) f_show_msg "$msg_ipv6_addr_too_many_null_segments" "$ip";;
+	3) f_show_msg "$msg_ipv6_addr_segment_contains_too_many_chars" "$ip";;
+	4) f_show_msg "$msg_ipv6_addr_too_few_or_extra_segments" "$ip";;
 	*)
 		if [ $(( $error & 0xF )) -eq 5 ]; then
 			# IPv4 at the end of IPv6 address is invalid
@@ -353,9 +345,7 @@ f_dialog_input_ipaddr()
 	if f_nfs_mounted && ! f_jailed; then
 		local setting="$( printf "$msg_current_ipaddr" \
 		                         "$interface" "$_ipaddr" )"
-		local message="$( printf "$msg_nfs_mounts_may_cause_hang" \
-		                         "$setting" )"
-		f_dialog_msgbox "$message"
+		f_show_msg "$msg_nfs_mounts_may_cause_hang" "$setting"
 		return $FAILURE
 	fi
 

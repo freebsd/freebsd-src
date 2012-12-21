@@ -101,16 +101,11 @@ f_dialog_validate_hostname()
 	#
 	local retval=$?
 	case $retval in
-	1) f_dialog_msgbox "$( printf \
-		"$msg_hostname_label_contains_invalid_chars" "$fqhn" )";;
-	2) f_dialog_msgbox "$( printf \
-		"$msg_hostname_label_starts_or_ends_with_hyphen" "$fqhn" )";;
-	3) f_dialog_msgbox "$( printf \
-		"$msg_hostname_label_is_null" "$fqhn" )";;
-	63) f_dialog_msgbox "$( printf \
-		"$msg_hostname_label_exceeds_max_length" "$fqhn" )";;
-	255) f_dialog_msgbox "$( printf \
-		"$msg_hostname_exceeds_max_length" "$fqhn" )";;
+	1) f_show_msg "$msg_hostname_label_contains_invalid_chars" "$fqhn";;
+	2) f_show_msg "$msg_hostname_label_starts_or_ends_with_hyphen" "$fqhn";;
+	3) f_show_msg "$msg_hostname_label_is_null" "$fqhn";;
+	63) f_show_msg "$msg_hostname_label_exceeds_max_length" "$fqhn";;
+	255) f_show_msg "$msg_hostname_exceeds_max_length" "$fqhn";;
 	esac
 
 	return $retval
@@ -169,10 +164,8 @@ f_dialog_input_hostname()
 		# "X11 connection rejected because of wrong authentication."
 		#
 		if [ "$USE_XDIALOG" -a "$SSH_CONNECTION" ]; then
-			f_dialog_msgbox "$(
-				printf "$msg_activate_hostname_x11warning" \
-				       "$( hostname )" "$hostname"
-			)"
+			f_show_msg "$msg_activate_hostname_x11warning" \
+			           "$( hostname )" "$hostname"
 		else
 			f_dialog_yesno "$(
 				printf "$msg_activate_hostname" \
