@@ -55,12 +55,10 @@ void	cv_destroy(struct cv *cvp);
 void	_cv_wait(struct cv *cvp, struct lock_object *lock);
 void	_cv_wait_unlock(struct cv *cvp, struct lock_object *lock);
 int	_cv_wait_sig(struct cv *cvp, struct lock_object *lock);
-int	_cv_timedwait(struct cv *cvp, struct lock_object *lock,
-	    struct bintime *bt, struct bintime *precision, int timo,
-	    int flags);
-int	_cv_timedwait_sig(struct cv *cvp, struct lock_object *lock,
-	    struct bintime *bt, struct bintime *precision, int timo,
-	    int flags);
+int	_cv_timedwait_bt(struct cv *cvp, struct lock_object *lock,
+	    struct bintime bt, struct bintime pr, int flags);
+int	_cv_timedwait_sig_bt(struct cv *cvp, struct lock_object *lock,
+	    struct bintime bt, struct bintime pr, int flags);
 
 void	cv_signal(struct cv *cvp);
 void	cv_broadcastpri(struct cv *cvp, int pri);
@@ -72,23 +70,15 @@ void	cv_broadcastpri(struct cv *cvp, int pri);
 #define	cv_wait_sig(cvp, lock)						\
 	_cv_wait_sig((cvp), &(lock)->lock_object)
 #define	cv_timedwait(cvp, lock, timo)					\
-	_cv_timedwait((cvp), &(lock)->lock_object, NULL, NULL,		\
-	    (timo), 0)
-#define	cv_timedwait_bt(cvp, lock, bt, pr)				\
-	_cv_timedwait_sig((cvp), &(lock)->lock_object, (bt),		\
-	    (pr), 0, 0)
-#define	cv_timedwait_sig_bt(cvp, lock, bt, pr)				\
-	_cv_timedwait_sig((cvp), &(lock)->lock_object, (bt), (pr), 0, 	\
-	    0)
-#define	cv_timedwait_flags(cvp, lock, timo, flags)			\
-	_cv_timedwait((cvp), &(lock)->lock_object, NULL, NULL, (timo), 	\
-	    (flags))
+	_cv_timedwait_bt((cvp), &(lock)->lock_object,			\
+	    ticks2bintime(timo), zero_bt, C_HARDCLOCK)
+#define	cv_timedwait_bt(cvp, lock, bt, pr, flags)			\
+	_cv_timedwait_bt((cvp), &(lock)->lock_object, (bt), (pr), (flags))
 #define	cv_timedwait_sig(cvp, lock, timo)				\
-	_cv_timedwait_sig((cvp), &(lock)->lock_object, NULL, NULL,	\
-	    (timo), 0)
-#define	cv_timedwait_sig_flags(cvp, lock, timo, flags)			\
-	_cv_timedwait_sig((cvp), &(lock)->lock_object, NULL, NULL,	\
-	    (timo), (flags))
+	_cv_timedwait_sig_bt((cvp), &(lock)->lock_object,		\
+	    ticks2bintime(timo), zero_bt, C_HARDCLOCK)
+#define	cv_timedwait_sig_bt(cvp, lock, bt, pr, flags)			\
+	_cv_timedwait_sig_bt((cvp), &(lock)->lock_object, (bt), (pr), (flags))
 
 #define cv_broadcast(cvp)	cv_broadcastpri(cvp, 0)
 

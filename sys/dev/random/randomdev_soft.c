@@ -282,8 +282,9 @@ random_kthread(void *arg __unused)
 			random_kthread_control = 0;
 
 		/* Work done, so don't belabour the issue */
-		msleep_spin_flags(&random_kthread_control, &harvest_mtx,
-		    "-", hz / 10, C_PRELSET(1));
+		msleep_spin_bt(&random_kthread_control, &harvest_mtx,
+		    "-", ticks2bintime(hz / 10), zero_bt,
+		    C_PREL(1) | C_HARDCLOCK);
 
 	}
 	mtx_unlock_spin(&harvest_mtx);

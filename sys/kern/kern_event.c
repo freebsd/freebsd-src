@@ -520,19 +520,16 @@ knote_fork(struct knlist *list, int pid)
 static struct bintime
 timer2bintime(intptr_t data)
 {
-	struct bintime bt, pbt;
+	struct bintime bt;
 
-	getbinuptime(&pbt);
 	bt.sec = data / 1000;
-	bt.frac = (data % 1000) * (uint64_t)1844674407309552ULL;
-	bintime_add(&bt, &pbt);
+	bt.frac = (data % 1000) * (((uint64_t)1 << 63) / 500);
 	return bt;
 }
 
 static void
 filt_timerexpire(void *knx)
 {
-	struct bintime bt;
 	struct callout *calloutp;
 	struct knote *kn;
 
@@ -548,10 +545,10 @@ filt_timerexpire(void *knx)
 	 * when we're delayed.
 	 */
 	if ((kn->kn_flags & EV_ONESHOT) != EV_ONESHOT) {
-		bt = timer2bintime(kn->kn_sdata);
 		calloutp = (struct callout *)kn->kn_hook;
-		callout_reset_bt_on(calloutp, &bt, NULL, filt_timerexpire, kn,
-		    PCPU_GET(cpuid), 0);
+		callout_reset_bt_on(calloutp,
+		    timer2bintime(kn->kn_sdata), zero_bt /* 1ms? */,
+		    filt_timerexpire, kn, PCPU_GET(cpuid), 0);
 	}
 }
 
@@ -561,7 +558,6 @@ filt_timerexpire(void *knx)
 static int
 filt_timerattach(struct knote *kn)
 {
-	struct bintime bt;
 	struct callout *calloutp;
 
 	atomic_add_int(&kq_ncallouts, 1);
@@ -576,9 +572,9 @@ filt_timerattach(struct knote *kn)
 	calloutp = malloc(sizeof(*calloutp), M_KQUEUE, M_WAITOK);
 	callout_init(calloutp, CALLOUT_MPSAFE);
 	kn->kn_hook = calloutp;
-	bt = timer2bintime(kn->kn_sdata);
-	callout_reset_bt_on(calloutp, &bt, NULL, filt_timerexpire, kn,
-	    PCPU_GET(cpuid), 0);
+	callout_reset_bt_on(calloutp,
+	    timer2bintime(kn->kn_sdata), zero_bt /* 1ms? */,
+	    filt_timerexpire, kn, PCPU_GET(cpuid), 0);
 
 	return (0);
 }
@@ -1323,9 +1319,9 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
     const struct timespec *tsp, struct kevent *keva, struct thread *td)
 {
 	struct kevent *kevp;
-	struct timeval atv, rtv, ttv;
+	struct bintime abt, rbt;
 	struct knote *kn, *marker;
-	int count, timeout, nkev, error, influx;
+	int count, nkev, error, influx;
 	int haskqglobal, touch;
 
 	count = maxevents;
@@ -1337,22 +1333,24 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 		goto done_nl;
 
 	if (tsp != NULL) {
-		TIMESPEC_TO_TIMEVAL(&atv, tsp);
-		if (itimerfix(&atv)) {
+		if (tsp->tv_sec < 0 || tsp->tv_nsec < 0 ||
+		    tsp->tv_nsec > 1000000000) {
 			error = EINVAL;
 			goto done_nl;
 		}
-		if (tsp->tv_sec == 0 && tsp->tv_nsec == 0)
-			timeout = -1;
-		else
-			timeout = atv.tv_sec > 24 * 60 * 60 ?
-			    24 * 60 * 60 * hz : tvtohz(&atv);
-		getmicrouptime(&rtv);
-		timevaladd(&atv, &rtv);
+		if (timespecisset(tsp)) {
+			timespec2bintime(tsp, &rbt);
+			if (TIMESEL(&abt, &rbt))
+				bintime_add(&abt, &tc_tick_bt);
+			bintime_add(&abt, &rbt);
+			bintime_shift(&rbt, -tc_timeexp);
+		} else {
+			abt.sec = -1;
+			abt.frac = 0;
+		}
 	} else {
-		atv.tv_sec = 0;
-		atv.tv_usec = 0;
-		timeout = 0;
+		abt.sec = 0;
+		abt.frac = 0;
 	}
 	marker = knote_alloc(1);
 	if (marker == NULL) {
@@ -1361,28 +1359,16 @@ kqueue_scan(struct kqueue *kq, int maxevents, struct kevent_copyops *k_ops,
 	}
 	marker->kn_status = KN_MARKER;
 	KQ_LOCK(kq);
-	goto start;
 
 retry:
-	if (atv.tv_sec || atv.tv_usec) {
-		getmicrouptime(&rtv);
-		if (timevalcmp(&rtv, &atv, >=))
-			goto done;
-		ttv = atv;
-		timevalsub(&ttv, &rtv);
-		timeout = ttv.tv_sec > 24 * 60 * 60 ?
-			24 * 60 * 60 * hz : tvtohz(&ttv);
-	}
-
-start:
 	kevp = keva;
 	if (kq->kq_count == 0) {
-		if (timeout < 0) {
+		if (abt.sec < 0) {
 			error = EWOULDBLOCK;
 		} else {
 			kq->kq_state |= KQ_SLEEP;
-			error = msleep(kq, &kq->kq_lock, PSOCK | PCATCH,
-			    "kqread", timeout);
+			error = msleep_bt(kq, &kq->kq_lock, PSOCK | PCATCH,
+			    "kqread", abt, rbt, C_ABSOLUTE);
 		}
 		if (error == 0)
 			goto retry;

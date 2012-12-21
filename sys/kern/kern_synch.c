@@ -146,8 +146,7 @@ sleepinit(void)
  */
 int
 _sleep(void *ident, struct lock_object *lock, int priority,
-    const char *wmesg, int timo, struct bintime *bt,
-    struct bintime *precision, int flags)
+    const char *wmesg, struct bintime bt, struct bintime pr, int flags)
 {
 	struct thread *td;
 	struct proc *p;
@@ -163,7 +162,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 #endif
 	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, lock,
 	    "Sleeping on \"%s\"", wmesg);
-	KASSERT(timo != 0 || bt != NULL || mtx_owned(&Giant) || lock != NULL,
+	KASSERT(bintime_isset(&bt) || mtx_owned(&Giant) || lock != NULL,
 	    ("sleeping without a lock"));
 	KASSERT(p != NULL, ("msleep1"));
 	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
@@ -233,19 +232,17 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	 * return from cursig().
 	 */
 	sleepq_add(ident, lock, wmesg, sleepq_flags, 0);
-	if (bt)
-		sleepq_set_timeout_bt(ident, bt, precision);
-	else if (timo)
-		sleepq_set_timeout_flags(ident, timo, flags);
+	if (bintime_isset(&bt))
+		sleepq_set_timeout_bt(ident, bt, pr, flags);
 	if (lock != NULL && class->lc_flags & LC_SLEEPABLE) {
 		sleepq_release(ident);
 		WITNESS_SAVE(lock, lock_witness);
 		lock_state = class->lc_unlock(lock);
 		sleepq_lock(ident);
 	}
-	if ((timo != 0 || bt != NULL) && catch)
+	if (bintime_isset(&bt) && catch)
 		rval = sleepq_timedwait_sig(ident, pri);
-	else if (timo != 0 || bt != NULL)
+	else if (bintime_isset(&bt))
 		rval = sleepq_timedwait(ident, pri);
 	else if (catch)
 		rval = sleepq_wait_sig(ident, pri);
@@ -266,8 +263,8 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 }
 
 int
-msleep_spin_flags(void *ident, struct mtx *mtx, const char *wmesg, int timo,
-    int flags)
+msleep_spin_bt(void *ident, struct mtx *mtx, const char *wmesg,
+    struct bintime bt, struct bintime pr, int flags)
 {
 	struct thread *td;
 	struct proc *p;
@@ -305,8 +302,8 @@ msleep_spin_flags(void *ident, struct mtx *mtx, const char *wmesg, int timo,
 	 * We put ourselves on the sleep queue and start our timeout.
 	 */
 	sleepq_add(ident, &mtx->lock_object, wmesg, SLEEPQ_SLEEP, 0);
-	if (timo)
-		sleepq_set_timeout_flags(ident, timo, flags);
+	if (bintime_isset(&bt))
+		sleepq_set_timeout_bt(ident, bt, pr, flags);
 
 	/*
 	 * Can't call ktrace with any spin locks held so it can lock the
@@ -328,7 +325,7 @@ msleep_spin_flags(void *ident, struct mtx *mtx, const char *wmesg, int timo,
 	    wmesg);
 	sleepq_lock(ident);
 #endif
-	if (timo)
+	if (bintime_isset(&bt))
 		rval = sleepq_timedwait(ident, 0);
 	else {
 		sleepq_wait(ident, 0);
@@ -352,37 +349,28 @@ msleep_spin_flags(void *ident, struct mtx *mtx, const char *wmesg, int timo,
  * to a "timo" value of one.
  */
 int
-_pause(const char *wmesg, int timo, struct bintime *bt, struct bintime *pr,
-    int flags)
+pause_bt(const char *wmesg, struct bintime bt, struct bintime pr, int flags)
 {
-	struct bintime now, bt2;
 
-	KASSERT(timo >= 0, ("pause: timo must be >= 0"));
+	KASSERT(bt.sec >= 0, ("pause: timo must be >= 0"));
 
 	/* silently convert invalid timeouts */
-	if (timo < 1)
-		timo = 1;
+	if (!bintime_isset(&bt))
+		bt = tick_bt;
 
 	if (cold) {
-		if (bt != NULL) {
-			binuptime(&now);
-			bt2 = *bt;
-			bintime_sub(&bt2, &now);
-			timo = bt2.sec * hz + ((bt2.frac >> 32) * hz >> 32);
-		}
 		/*
-		 * We delay one HZ at a time to avoid overflowing the
+		 * We delay one second at a time to avoid overflowing the
 		 * system specific DELAY() function(s):
 		 */
-		while (timo >= hz) {
+		while (bt.sec > 0) {
 			DELAY(1000000);
-			timo -= hz;
+			bt.sec--;
 		}
-		if (timo > 0)
-			DELAY(timo * tick);
+		DELAY(bt.frac >> 44);
 		return (0);
 	}
-	return (_sleep(&pause_wchan, NULL, 0, wmesg, timo, bt, pr, flags));
+	return (_sleep(&pause_wchan, NULL, 0, wmesg, bt, pr, flags));
 }
 
 /*
@@ -573,9 +561,9 @@ loadav(void *arg)
 	 * random variation to avoid synchronisation with processes that
 	 * run at regular intervals.
 	 */
-	callout_reset_flags(&loadav_callout,
-	    hz * 4 + (int)(random() % (hz * 2 + 1)),
-	    loadav, NULL, C_DIRECT_EXEC);
+	callout_reset_bt(&loadav_callout,
+	    ticks2bintime(hz * 4 + (int)(random() % (hz * 2 + 1))), zero_bt,
+	    loadav, NULL, C_DIRECT_EXEC | C_HARDCLOCK);
 }
 
 /* ARGSUSED */

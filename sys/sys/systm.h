@@ -345,35 +345,27 @@ static __inline void		splx(intrmask_t ipl __unused)	{ return; }
  * less often.
  */
 int	_sleep(void *chan, struct lock_object *lock, int pri, const char *wmesg,
-	    int timo, struct bintime *bt, struct bintime *precision,
-	    int flags) __nonnull(1);
+	    struct bintime bt, struct bintime pr, int flags) __nonnull(1);
 #define	msleep(chan, mtx, pri, wmesg, timo)				\
-	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg), (timo),	\
-	    NULL, NULL, 0)
-#define	msleep_flags(chan, mtx, pri, wmesg, timo, flags)		\
-	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg), (timo), 	\
-	    NULL, NULL, (flags))
-#define	msleep_bt(chan, mtx, pri, wmesg, bt, pr)			\
-	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg) 0, (bt),	\
-	    (pr), 0)
-int	msleep_spin_flags(void *chan, struct mtx *mtx, const char *wmesg,
-	    int timo, int flags) __nonnull(1);
+	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg),		\
+	    ticks2bintime(timo), zero_bt, C_HARDCLOCK)
+#define	msleep_bt(chan, mtx, pri, wmesg, bt, pr, flags)			\
+	_sleep((chan), &(mtx)->lock_object, (pri), (wmesg), (bt), (pr),	\
+	    (flags))
+int	msleep_spin_bt(void *chan, struct mtx *mtx, const char *wmesg,
+	    struct bintime bt, struct bintime pr, int flags) __nonnull(1);
 #define	msleep_spin(chan, mtx, wmesg, timo)				\
-	msleep_spin_flags((chan), (mtx), (wmesg), (timo), 0)
-int	_pause(const char *wmesg, int timo, struct bintime *bt,
-	    struct bintime *pr, int flags);
+	msleep_spin_bt((chan), (mtx), (wmesg), ticks2bintime(timo),	\
+	    zero_bt, C_HARDCLOCK)
+int	pause_bt(const char *wmesg, struct bintime bt, struct bintime pr,
+	    int flags);
 #define	pause(wmesg, timo)						\
-	_pause((wmesg), (timo), NULL, NULL, 0)
-#define	pause_flags(wmesg, timo, flags)					\
-	_pause((wmesg), (timo), NULL, NULL, (flags))
-#define	pause_bt(wmesg, bt, pr)						\
-	_pause((wmesg), 0, (bt), (pr), 0)
+	pause_bt((wmesg), ticks2bintime(timo), zero_bt, C_HARDCLOCK)
 #define	tsleep(chan, pri, wmesg, timo)					\
-	_sleep((chan), NULL, (pri), (wmesg), (timo), NULL, NULL, 0)
-#define	tsleep_flags(chan, pri, wmesg, timo, flags)			\
-	_sleep((chan), NULL, (pri), (wmesg), (timo), NULL, NULL, (flags))
-#define	tsleep_bt(chan, pri, wmesg, bt, pr)				\
-	_sleep((chan), NULL, (pri), (wmesg), 0, (bt), (pr), 0)
+	_sleep((chan), NULL, (pri), (wmesg), ticks2bintime(timo),	\
+	    zero_bt, C_HARDCLOCK)
+#define	tsleep_bt(chan, pri, wmesg, bt, pr, flags)			\
+	_sleep((chan), NULL, (pri), (wmesg), (bt), (pr), (flags))
 void	wakeup(void *chan) __nonnull(1);
 void	wakeup_one(void *chan) __nonnull(1);
 

@@ -25,20 +25,17 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 16, 2012
+.Dd December 21, 2012
 .Dt SLEEP 9
 .Os
 .Sh NAME
 .Nm msleep ,
-.Nm msleep_flags ,
 .Nm msleep_bt ,
 .Nm msleep_spin ,
-.Nm msleep_spin_flags ,
+.Nm msleep_spin_bt ,
 .Nm pause ,
-.Nm pause_flags ,
 .Nm pause_bt ,
 .Nm tsleep ,
-.Nm tsleep_flags ,
 .Nm tsleep_bt ,
 .Nm wakeup
 .Nd wait for events
@@ -49,30 +46,23 @@
 .Ft int
 .Fn msleep "void *chan" "struct mtx *mtx" "int priority" "const char *wmesg" "int timo"
 .Ft int
-.Fn msleep_flags "void *chan" "struct mtx *mtx" "int priority" \
-"const char *wmesg" "int timo" "int flags"
-.Ft int
 .Fn msleep_bt "void *chan" "struct mtx *mtx" "int priority" \
-"const char *wmesg" "struct bintime *bt" "struct bintime *pr"
+"const char *wmesg" "struct bintime bt" "struct bintime pr" "int flags"
 .Ft int
 .Fn msleep_spin "void *chan" "struct mtx *mtx" "const char *wmesg" "int timo"
 .Ft int
-.Fn msleep_spin_flags "void *chan" "struct mtx *mtx" "const char *wmesg" \
-"int timo" "int flags"
+.Fn msleep_spin_bt "void *chan" "struct mtx *mtx" "const char *wmesg" \
+"struct bintime bt" "struct bintime pr" "int flags"
 .Ft void
 .Fn pause "const char *wmesg" "int timo"
 .Ft void
-.Fn pause_flags "const char *wmesg" "int timo" "int flags"
-.Ft void
-.Fn pause_bt "const char *wmesg" "struct bintime *bt" "struct bintime *pr"
+.Fn pause_bt "const char *wmesg" "struct bintime bt" "struct bintime pr" \
+ "int flags"
 .Ft int
 .Fn tsleep "void *chan" "int priority" "const char *wmesg" "int timo"
 .Ft int
-.Fn tsleep_flags "void *chan" "int priority" "const char *wmesg" "int timo" \
-"int flags"
-.Ft int
 .Fn tsleep_bt "void *chan" "int priority" "const char *wmesg" \
-"struct bintime *bt" "struct bintime *pr"
+"struct bintime bt" "struct bintime pr" "int flags"
 .Ft void
 .Fn wakeup "void *chan"
 .Ft void
@@ -177,8 +167,8 @@ then the sleep function will return
 The parameter
 .Fa flags
 allows to pass additional
-.Fn callout_reset_flags
-flags to specify relative event precision.
+.Fn callout_reset_bt
+flags.
 .Pp
 .Fn msleep_bt ,
 .Fn pause_bt

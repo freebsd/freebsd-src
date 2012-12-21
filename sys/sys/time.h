@@ -103,12 +103,18 @@ bintime_mul(struct bintime *bt, u_int x)
 }
 
 static __inline void
-bintime_divpow2(struct bintime *bt, u_int exp)
+bintime_shift(struct bintime *bt, int exp)
 {
 
-	bt->frac >>= exp;
-	bt->frac |= (uint64_t)bt->sec << (64 - exp);
-	bt->sec >>= exp;
+	if (exp > 0) {
+		bt->sec <<= exp;
+		bt->sec |= bt->frac >> (64 - exp);
+		bt->frac <<= exp;
+	} else if (exp < 0) {
+		bt->frac >>= -exp;
+		bt->frac |= (uint64_t)bt->sec << (64 + exp);
+		bt->sec >>= -exp;
+	}
 }
 
 #define	bintime_clear(a)	((a)->sec = (a)->frac = 0)
@@ -117,6 +123,24 @@ bintime_divpow2(struct bintime *bt, u_int exp)
 	(((a)->sec == (b)->sec) ?					\
 	    ((a)->frac cmp (b)->frac) :					\
 	    ((a)->sec cmp (b)->sec))
+
+#ifdef _KERNEL
+extern struct bintime tick_bt;
+extern struct bintime zero_bt;
+
+static __inline struct bintime
+ticks2bintime(u_int ticks)
+{
+	struct bintime bt;
+	uint64_t p1, p2;
+
+	p1 = (tick_bt.frac & 0xffffffff) * ticks;
+	p2 = (tick_bt.frac >> 32) * ticks + (p1 >> 32);
+	bt.sec = (p2 >> 32);
+	bt.frac = (p2 << 32) | (p1 & 0xffffffff);
+	return (bt);
+}
+#endif
 
 /*-
  * Background information:
@@ -299,13 +323,12 @@ void	resettodr(void);
 extern time_t	time_second;
 extern time_t	time_uptime;
 extern struct bintime boottimebin;
-extern struct bintime tick_bt;
 extern struct bintime tc_tick_bt;
 extern struct timeval boottime;
 extern int tc_timeexp;
 extern int tc_timepercentage;
-extern int tc_timethreshold;
 extern struct bintime bt_timethreshold;
+extern struct bintime bt_tickthreshold;
 
 /*
  * Functions for looking at our clock: [get]{bin,nano,micro}[up]time()

@@ -1899,8 +1899,8 @@ done:
 	    rate = 2;
 	else
 	    rate = 30;
-	callout_reset_flags(&sc->ctimeout, hz / rate, scrn_timer, sc,
-	    C_PRELSET(1));
+	callout_reset_bt(&sc->ctimeout, ticks2bintime(hz / rate), zero_bt,
+	    scrn_timer, sc, C_PREL(1) | C_HARDCLOCK);
     }
 }
 
@@ -3845,8 +3845,8 @@ blink_screen(void *arg)
 	(*scp->rndr->draw)(scp, 0, scp->xsize*scp->ysize, 
 			   scp->sc->blink_in_progress & 1);
 	scp->sc->blink_in_progress--;
-	callout_reset_flags(&scp->sc->cblink, hz / 15, blink_screen, scp,
-	    C_PRELSET(0));
+	callout_reset_bt(&scp->sc->cblink, ticks2bintime(hz / 15), zero_bt,
+	    blink_screen, scp, C_PREL(0) | C_HARDCLOCK);
     }
 }
 

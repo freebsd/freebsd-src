@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 16, 2012
+.Dd December 21, 2012
 .Dt TIMEOUT 9
 .Os
 .Sh NAME
@@ -42,11 +42,11 @@
 .Nm callout_stop ,
 .Nm callout_drain ,
 .Nm callout_reset ,
-.Nm callout_reset_flags ,
 .Nm callout_reset_on ,
-.Nm callout_reset_flags_on ,
-.Nm callout_reset_bt_on ,
 .Nm callout_reset_curcpu ,
+.Nm callout_reset_bt ,
+.Nm callout_reset_bt_on ,
+.Nm callout_reset_bt_curcpu ,
 .Nm callout_schedule ,
 .Nm callout_schedule_on ,
 .Nm callout_schedule_curcpu ,
@@ -82,17 +82,11 @@ struct callout_handle handle = CALLOUT_HANDLE_INITIALIZER(&handle)
 .Ft int
 .Fn callout_reset "struct callout *c" "int ticks" "timeout_t *func" "void *arg"
 .Ft int
-.Fn callout_reset_flags "struct callout *c" "int ticks" "timeout_t *func" \
-"void *arg" "int flags"
-.Ft int
 .Fn callout_reset_on "struct callout *c" "int ticks" "timeout_t *func" \
 "void *arg" "int cpu"
 .Ft int
-.Fn callout_reset_flags_on "struct callout *c" "int ticks" "timeout_t *func" \
-"void *arg" "int cpu" "int flags"
-.Ft int
-.Fn callout_reset_bt_on "struct callout *c" "struct bintime *bt" \
-"struct bintime *pr" "timeout_t *func" "void *arg" "int cpu" "int flags"
+.Fn callout_reset_bt_on "struct callout *c" "struct bintime bt" \
+"struct bintime pr" "timeout_t *func" "void *arg" "int cpu" "int flags"
 .Ft int
 .Fn callout_reset_curcpu "struct callout *c" "int ticks" "timeout_t *func" \
 "void *arg"
@@ -339,28 +333,6 @@ and
 but take an extra parameter specifying the target CPU for the callout.
 .Pp
 The function
-.Fn callout_reset_flags_on
-is equivalent to
-.Fn callout_reset_on
-but takes an extra parameter
-.Fa flags .
-The following
-.Fa flags
-may be specified:
-.Bl -tag -width ".Dv C_DIRECT_EXEC"
-.It Dv C_DIRECT_EXEC
-Run handler directly from hardware interrupt context instead of softclock swi.
-It is faster, but puts more constraints on handlers.
-Handlers may use only spin mutexes for locking, and they must be fast because
-they run with absolute priority.
-.It Fn C_PRELSET
-Specifies relative event time precision as binary logarithm of time interval
-divided by acceptable time deviation: 1 -- 1/2, 2 -- 1/4, etc.
-Smaller value allows to aggregate more events in one timer interrupt to
-reduce processing overhead and power consumption.
-.El
-.Pp
-The function
 .Fn callout_reset_bt_on
 allows to get higher time resolution, taking absolute time since boot
 in form of struct bintime *, as returned by
@@ -370,6 +342,28 @@ or
 functions, and precision, instead of relative ticks count.
 If specified time is in past, it will be silently converted to present
 to run handler as soon as possible.
+.Pp
+The following
+.Fa flags
+may be specified:
+.Bl -tag -width ".Dv C_DIRECT_EXEC"
+.It Dv C_ALSOLUTE
+Handle the
+.Fa bt
+argument as absolute time of the event since boot, as returned by
+.Fn binuptime
+function.
+.It Dv C_DIRECT_EXEC
+Run handler directly from hardware interrupt context instead of softclock swi.
+It is faster, but puts more constraints on handlers.
+Handlers may use only spin mutexes for locking, and they must be fast because
+they run with absolute priority.
+.It Fn C_PREL
+Specifies relative event time precision as binary logarithm of time interval
+divided by acceptable time deviation: 1 -- 1/2, 2 -- 1/4, etc.
+Smaller value allows to aggregate more events in one timer interrupt to
+reduce processing overhead and power consumption.
+.El
 .Pp
 The functions
 .Fn callout_reset_curcpu

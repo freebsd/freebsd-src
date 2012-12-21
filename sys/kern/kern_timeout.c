@@ -896,44 +896,47 @@ DPCPU_DECLARE(struct bintime, hardclocktime);
  * callout_deactivate() - marks the callout as having been serviced
  */
 int
-_callout_reset_on(struct callout *c, struct bintime *bt,
-    struct bintime *precision, int to_ticks, void (*ftn)(void *),
-    void *arg, int cpu, int flags)
+callout_reset_bt_on(struct callout *c, struct bintime bt, struct bintime pr,
+    void (*ftn)(void *), void *arg, int cpu, int flags)
 {
-	struct bintime to_bt, pr;
+	struct bintime to_bt, pr1;
 	struct callout_cpu *cc;
 	int bucket, cancelled, direct;
 
 	cancelled = 0;
-	if (bt == NULL) {
-#ifdef NO_EVENTTIMERS
-		getbinuptime(&to_bt);
-		/* Add safety belt for the case of hz > 1000. */
-		bintime_addx(&to_bt, tc_tick_bt.frac - tick_bt.frac);
-#else
-		/*
-		 * Obtain the time of the last hardclock() call on this CPU
-		 * directly from the kern_clocksource.c.  This value is
-		 * per-CPU, but it is equal for all active ones.
-		 */
-		spinlock_enter();
-		to_bt = DPCPU_GET(hardclocktime);
-		spinlock_exit();
-#endif
-		pr = tick_bt;
-		if (to_ticks > 1)
-			bintime_mul(&pr, to_ticks);
-		bintime_add(&to_bt, &pr);
-		if (C_PRELGET(flags) < 0)
-			bintime_clear(&pr);
-		else
-			bintime_divpow2(&pr, C_PRELGET(flags));
+	if (flags & C_ABSOLUTE) {
+		to_bt = bt;
 	} else {
-		to_bt = *bt;
-		if (precision != NULL)
-			pr = *precision;
+		if ((flags & C_HARDCLOCK) ||
+#ifdef NO_EVENTTIMERS
+		    bintime_cmp(&bt, &bt_timethreshold, >=)) {
+			getbinuptime(&to_bt);
+			/* Add safety belt for the case of hz > 1000. */
+			bintime_addx(&to_bt, tc_tick_bt.frac - tick_bt.frac);
+#else
+		    bintime_cmp(&bt, &bt_tickthreshold, >=)) {
+			/*
+			 * Obtain the time of the last hardclock() call on
+			 * this CPU directly from the kern_clocksource.c.
+			 * This value is per-CPU, but it is equal for all
+			 * active ones.
+			 */
+			spinlock_enter();
+			to_bt = DPCPU_GET(hardclocktime);
+			spinlock_exit();
+#endif
+			if ((flags & C_HARDCLOCK) == 0)
+				bintime_addx(&to_bt, tick_bt.frac);
+		} else
+			binuptime(&to_bt);
+		bintime_add(&to_bt, &bt);
+		pr1 = bt;
+		if (C_PRELGET(flags) < 0)
+			bintime_shift(&pr1, -tc_timeexp);
 		else
-			bintime_clear(&pr);
+			bintime_shift(&pr1, -C_PRELGET(flags));
+		if (bintime_cmp(&pr1, &pr, >))
+			pr = pr1;
 	}
 	/*
 	 * Don't allow migration of pre-allocated callouts lest they

@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2012
+.Dd December 21, 2012
 .Dt CONDVAR 9
 .Os
 .Sh NAME
@@ -38,10 +38,8 @@
 .Nm cv_wait_unlock ,
 .Nm cv_timedwait ,
 .Nm cv_timedwait_bt ,
-.Nm cv_timedwait_flags ,
 .Nm cv_timedwait_sig ,
 .Nm cv_timedwait_sig_bt ,
-.Nm cv_timedwait_sig_flags ,
 .Nm cv_signal ,
 .Nm cv_broadcast ,
 .Nm cv_broadcastpri ,
@@ -64,16 +62,13 @@
 .Ft int
 .Fn cv_timedwait "struct cv *cvp" "lock" "int timo"
 .Ft int
-.Fn cv_timedwait_bt "struct cv *cvp" "lock" "struct bintime *bt" "int flags"
-.Ft int
-.Fn cv_timedwait_flags "struct cv *cvp" "lock" "int timo" "int flags"
+.Fn cv_timedwait_bt "struct cv *cvp" "lock" "struct bintime bt" \
+"struct bintime pr" "int flags"
 .Ft int
 .Fn cv_timedwait_sig "struct cv *cvp" "lock" "int timo"
 .Ft int
-.Fn cv_timedwait_sig_bt "struct cv *cvp" "lock" "struct bintime *bt" \
-"struct bintime *pr"
-.Ft int
-.Fn cv_timedwait_sig_flags "struct cv *cvp" "lock" "int timo" "int flags"
+.Fn cv_timedwait_sig_bt "struct cv *cvp" "lock" "struct bintime bt" \
+"struct bintime pr" "int flags"
 .Ft void
 .Fn cv_signal "struct cv *cvp"
 .Ft void

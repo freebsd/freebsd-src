@@ -108,14 +108,10 @@ struct sleepqueue *sleepq_lookup(void *wchan);
 void	sleepq_release(void *wchan);
 void	sleepq_remove(struct thread *td, void *wchan);
 int	sleepq_signal(void *wchan, int flags, int pri, int queue);
-void	_sleepq_set_timeout(void *wchan, struct bintime *bt,
-	    struct bintime *precision, int timo, int flags);
+void	sleepq_set_timeout_bt(void *wchan, struct bintime bt,
+	    struct bintime pr, int flags);
 #define	sleepq_set_timeout(wchan, timo)					\
-    _sleepq_set_timeout((wchan), NULL, NULL, (timo), 0)
-#define	sleepq_set_timeout_flags(wchan, timo, flags)			\
-    _sleepq_set_timeout((wchan), NULL, NULL, (timo), (flags))
-#define	sleepq_set_timeout_bt(wchan, bt, precision)			\
-    _sleepq_set_timeout((wchan), (bt), (precision), 0, 0)
+    sleepq_set_timeout_bt((wchan), ticks2bintime(timo), zero_bt, C_HARDCLOCK)
 u_int	sleepq_sleepcnt(void *wchan, int queue);
 int	sleepq_timedwait(void *wchan, int pri);
 int	sleepq_timedwait_sig(void *wchan, int pri);

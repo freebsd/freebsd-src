@@ -121,11 +121,11 @@ SYSCTL_INT(_kern_timecounter, OID_AUTO, stepwarnings, CTLFLAG_RW,
     &timestepwarnings, 0, "Log time steps");
 
 struct bintime bt_timethreshold;
+struct bintime bt_tickthreshold;
 struct bintime tc_tick_bt;
 int tc_timeexp;
 int tc_timepercentage = TC_DEFAULTPERC;
 TUNABLE_INT("kern.timecounter.alloweddeviation", &tc_timepercentage);
-int tc_timethreshold;
 static int sysctl_kern_timecounter_adjprecision(SYSCTL_HANDLER_ARGS);
 SYSCTL_PROC(_kern_timecounter, OID_AUTO, alloweddeviation,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE, 0, 0,
@@ -1721,22 +1721,20 @@ tc_ticktock(int cnt)
 static void __inline
 tc_adjprecision(void)
 {
-	struct timespec ts;
-	int tick_rate, t;
+	int t;
 
-	tick_rate = hz / tc_tick;
 	if (tc_timepercentage > 0) {
-		tc_timethreshold =
-		    (1000000000 / (tick_rate * tc_timepercentage)) * 100;
 		t = (99 + tc_timepercentage) / tc_timepercentage;
 		tc_timeexp = fls(t + (t >> 1)) - 1;
+		FREQ2BT(hz / tc_tick, &bt_timethreshold);
+		FREQ2BT(hz, &bt_tickthreshold);
+		bintime_shift(&bt_timethreshold, tc_timeexp);
+		bintime_shift(&bt_tickthreshold, tc_timeexp);
 	} else {
-		tc_timethreshold = INT_MAX;
 		tc_timeexp = 31;
+		bintime_clear(&bt_timethreshold);
+		bintime_clear(&bt_tickthreshold);
 	}
-	ts.tv_sec = tc_timethreshold / 1000000000;
-	ts.tv_nsec = tc_timethreshold % 1000000000;
-	timespec2bintime(&ts, &bt_timethreshold);
 }
 
 static int

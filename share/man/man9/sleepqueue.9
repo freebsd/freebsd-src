@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 14, 2012
+.Dd December 21, 2012
 .Dt SLEEPQUEUE 9
 .Os
 .Sh NAME
@@ -41,7 +41,6 @@
 .Nm sleepq_remove ,
 .Nm sleepq_signal ,
 .Nm sleepq_set_timeout ,
-.Nm sleepq_set_timeout_flags ,
 .Nm sleepq_set_timeout_bt ,
 .Nm sleepq_sleepcnt ,
 .Nm sleepq_timedwait ,
@@ -82,10 +81,8 @@
 .Ft void
 .Fn sleepq_set_timeout "void *wchan" "int timo"
 .Ft void
-.Fn sleepq_set_timeout_flags "void *wchan" "int timo" "int flags"
-.Ft void
-.Fn sleepq_set_timeout_bt "void *wchan" "struct bintime *bt" \
-"struct bintime *pr"
+.Fn sleepq_set_timeout_bt "void *wchan" "struct bintime bt" \
+"struct bintime pr" "int flags"
 .Ft u_int
 .Fn sleepq_sleepcnt "void *wchan" "int queue"
 .Ft int

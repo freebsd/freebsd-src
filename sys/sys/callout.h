@@ -53,8 +53,10 @@
 #define	C_DIRECT_EXEC		0x0001 /* direct execution of callout */
 #define	C_PRELBITS		7
 #define	C_PRELRANGE		((1 << C_PRELBITS) - 1)
-#define	C_PRELSET(x)		(((x) + 1) << 1)
+#define	C_PREL(x)		(((x) + 1) << 1)
 #define	C_PRELGET(x)		(int)((((x) >> 1) & C_PRELRANGE) - 1)
+#define	C_HARDCLOCK		0x0100 /* align to hardclock() calls */
+#define	C_ABSOLUTE		0x0200 /* event time is absolute. */
 
 struct callout_handle {
 	struct callout *callout;
@@ -75,20 +77,17 @@ void	_callout_init_lock(struct callout *, struct lock_object *, int);
 	_callout_init_lock((c), ((rw) != NULL) ? &(rw)->lock_object :	\
 	   NULL, (flags))
 #define	callout_pending(c)	((c)->c_flags & CALLOUT_PENDING)
-int	_callout_reset_on(struct callout *, struct bintime *,
-	    struct bintime *, int, void (*)(void *), void *, int, int);
+int	callout_reset_bt_on(struct callout *, struct bintime, struct bintime,
+	    void (*)(void *), void *, int, int);
+#define	callout_reset_bt(c, bt, pr, fn, arg, flags)			\
+    callout_reset_bt_on((c), (bt), (pr), (fn), (arg), (c)->c_cpu, flags)
+#define	callout_reset_bt_curcpu(c, bt, pr, fn, arg, flags)		\
+    callout_reset_bt_on((c), (bt), (pr), (fn), (arg), PCPU_GET(cpuid), flags)
 #define	callout_reset_on(c, to_ticks, fn, arg, cpu)			\
-    _callout_reset_on((c), NULL, NULL, (to_ticks), (fn), (arg), 	\
-        (cpu), C_PRELSET(tc_timeexp))
-#define	callout_reset_flags_on(c, to_ticks, fn, arg, cpu, flags)	\
-    _callout_reset_on((c), NULL, NULL, (to_ticks), (fn), (arg), (cpu),	\
-        (flags))
-#define	callout_reset_bt_on(c, bt, pr, fn, arg, cpu, flags)		\
-    _callout_reset_on((c), (bt), (pr), 0, (fn), (arg), (cpu), (flags))
+    callout_reset_bt_on((c), ticks2bintime(to_ticks), zero_bt, (fn), (arg), \
+        (cpu), C_HARDCLOCK)
 #define	callout_reset(c, on_tick, fn, arg)				\
     callout_reset_on((c), (on_tick), (fn), (arg), (c)->c_cpu)
-#define	callout_reset_flags(c, on_tick, fn, arg, flags)			\
-    callout_reset_flags_on((c), (on_tick), (fn), (arg), (c)->c_cpu, (flags))
 #define	callout_reset_curcpu(c, on_tick, fn, arg)			\
     callout_reset_on((c), (on_tick), (fn), (arg), PCPU_GET(cpuid))
 int	callout_schedule(struct callout *, int);

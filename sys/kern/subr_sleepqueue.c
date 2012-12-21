@@ -363,8 +363,8 @@ sleepq_add(void *wchan, struct lock_object *lock, const char *wmesg, int flags,
  * sleep queue after timo ticks if the thread has not already been awakened.
  */
 void
-_sleepq_set_timeout(void *wchan, struct bintime *bt, struct bintime *precision,
-    int timo, int flags)
+sleepq_set_timeout_bt(void *wchan, struct bintime bt, struct bintime pr,
+    int flags)
 {
 
 	struct sleepqueue_chain *sc;
@@ -376,12 +376,8 @@ _sleepq_set_timeout(void *wchan, struct bintime *bt, struct bintime *precision,
 	MPASS(TD_ON_SLEEPQ(td));
 	MPASS(td->td_sleepqueue == NULL);
 	MPASS(wchan != NULL);
-	if (bt == NULL)
-		callout_reset_flags_on(&td->td_slpcallout, timo,
-		    sleepq_timeout, td, PCPU_GET(cpuid), flags | C_DIRECT_EXEC);
-	else
-		callout_reset_bt_on(&td->td_slpcallout, bt, precision,
-		    sleepq_timeout, td, PCPU_GET(cpuid), flags | C_DIRECT_EXEC);
+	callout_reset_bt_on(&td->td_slpcallout, bt, pr,
+	    sleepq_timeout, td, PCPU_GET(cpuid), flags | C_DIRECT_EXEC);
 }
 
 /*

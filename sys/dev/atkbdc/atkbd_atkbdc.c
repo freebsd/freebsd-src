@@ -198,7 +198,8 @@ atkbdtimeout(void *arg)
 		if (kbdd_check_char(kbd))
 			kbdd_intr(kbd, NULL);
 	}
-	callout_reset_flags(&sc->callout, hz, atkbdtimeout, dev, C_PRELSET(0));
+	callout_reset_bt(&sc->callout, ticks2bintime(hz), zero_bt,
+	    atkbdtimeout, dev, C_PREL(0) | C_HARDCLOCK);
 }
 
 DRIVER_MODULE(atkbd, atkbdc, atkbd_driver, atkbd_devclass, 0, 0);
