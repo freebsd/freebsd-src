@@ -97,35 +97,16 @@ f_dialog_input_defaultrouter()
 		return $FAILURE
 	fi
 
-	local msg="$msg_please_enter_default_router"
-	local hline="$hline_num_punc_tab_enter"
-	local size="$( f_dialog_inputbox_size \
-	               		"$DIALOG_TITLE"     \
-	               		"$DIALOG_BACKTITLE" \
-	               		"$msg"              \
-	               		"$defaultrouter"    \
-	               		"$hline"            )"
-
 	#
 	# Loop until the user provides taint-free input.
 	#
+	local retval
 	while :; do
-		local dialog_inputbox
-		dialog_inputbox=$( eval $DIALOG \
-			--title \"\$DIALOG_TITLE\"         \
-			--backtitle \"\$DIALOG_BACKTITLE\" \
-			--hline \"\$hline\"                \
-			--ok-label \"\$msg_ok\"            \
-			--cancel-label \"\$msg_cancel\"    \
-			--inputbox \"\$msg\" $size         \
-			\"\$defaultrouter\"                \
-			2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
+		defaultrouter=$( f_dialog_input \
+			"$msg_please_enter_default_router" \
+			"$defaultrouter" "$hline_num_punc_tab_enter"
 		)
-
-		local retval=$?
-		setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-		defaultrouter=$( f_dialog_inputstr )
-
+		retval=$?
 		[ "$defaultrouter" ] || return $SUCCESS
 		[ $retval -eq $SUCCESS ] || return $retval
 
