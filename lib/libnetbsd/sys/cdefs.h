@@ -1,5 +1,8 @@
 /* $FreeBSD$ */
 
+#ifndef _LIBNETBSD_SYS_CDEFS_H_
+#define _LIBNETBSD_SYS_CDEFS_H_
+
 #include_next <sys/cdefs.h>
 
 #ifdef __dead2
@@ -14,3 +17,4 @@
  */
 #define	__arraycount(__x)	(sizeof(__x) / sizeof(__x[0]))
 
+#endif /* _LIBNETBSD_SYS_CDEFS_H_ */
