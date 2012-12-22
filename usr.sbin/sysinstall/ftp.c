@@ -107,7 +107,7 @@ try:
     hostname = variable_get(VAR_FTP_HOST);
     dir = variable_get(VAR_FTP_DIR);
     if (!hostname || !dir) {
-	msgConfirm("Missing FTP host or directory specification.  FTP media not initialized,");
+	msgConfirm("Missing FTP host or directory specification.  FTP media not initialized.");
 	netDown(dev);
 	return FALSE;
     }
