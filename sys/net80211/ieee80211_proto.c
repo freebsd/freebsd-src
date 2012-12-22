@@ -1787,6 +1787,11 @@ ieee80211_newstate_cb(void *xvap, int npending)
 		IF_LOCK(&vap->iv_ifp->if_snd);
 		vap->iv_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 		IF_UNLOCK(&vap->iv_ifp->if_snd);
+
+		/*
+		 * XXX Kick-start a VAP queue - this should be a method,
+		 * not if_start()!
+		 */
 		if_start(vap->iv_ifp);
 
 		/* bring up any vaps waiting on us */
