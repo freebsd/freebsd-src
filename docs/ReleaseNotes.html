@@ -29,12 +29,6 @@
   <p>Written by the <a href="http://llvm.org/">LLVM Team</a></p>
 </div>
 
-<h1 style="color:red">These are in-progress notes for the upcoming LLVM 3.2
-release.<br>
-You may prefer the
-<a href="http://llvm.org/releases/3.1/docs/ReleaseNotes.html">LLVM 3.1
-Release Notes</a>.</h1>
-
 <!-- *********************************************************************** -->
 <h2>
   <a name="intro">Introduction</a>
@@ -46,7 +40,7 @@ Release Notes</a>.</h1>
 <p>This document contains the release notes for the LLVM Compiler
    Infrastructure, release 3.2.  Here we describe the status of LLVM, including
    major improvements from the previous release, improvements in various
-   subprojects of LLVM, and some of the current users of the code.  All LLVM
+   sub-projects of LLVM, and some of the current users of the code.  All LLVM
    releases may be downloaded from the <a href="http://llvm.org/releases/">LLVM
    releases web site</a>.</p>
 
@@ -72,11 +66,12 @@ Release Notes</a>.</h1>
 
 <div>
 
-<p>The LLVM 3.2 distribution currently consists of code from the core LLVM
-   repository, which roughly includes the LLVM optimizers, code generators and
-   supporting tools, and the Clang repository. In addition to this code, the
-   LLVM Project includes other sub-projects that are in development. Here we
-   include updates on these subprojects.</p>
+<p>The LLVM 3.2 distribution currently consists of production-quality code
+   from the core LLVM repository, which roughly includes the LLVM optimizers,
+   code generators and supporting tools, as well as Clang, DragonEgg and 
+   compiler-rt sub-project repositories. In addition to this code, the LLVM 
+   Project includes other sub-projects that are in development. Here we 
+   include updates on these sub-projects.</p>
 
 <!--=========================================================================-->
 <h3>
@@ -90,18 +85,18 @@ Release Notes</a>.</h1>
    experience through expressive diagnostics, a high level of conformance to
    language standards, fast compilation, and low memory use. Like LLVM, Clang
    provides a modular, library-based architecture that makes it suitable for
-   creating or integrating with other development tools. Clang is considered a
-   production-quality compiler for C, Objective-C, C++ and Objective-C++ on x86
-   (32- and 64-bit), and for Darwin/ARM targets.</p>
+   creating or integrating with other development tools.</p>
 
 <p>In the LLVM 3.2 time-frame, the Clang team has made many improvements.
    Highlights include:</p>
 <ul>
-  <li>...</li>
+  <li>Improvements to Clang's diagnostics</li>
+  <li>Support for tls_model attribute</li>
+  <li>Type safety attributes</li>
 </ul>
 
 <p>For more details about the changes to Clang since the 3.1 release, see the
-   <a href="http://clang.llvm.org/docs/ReleaseNotes.html">Clang release
+   <a href="http://llvm.org/releases/3.2/tools/clang/docs/ReleaseNotes.html">Clang 3.2 release
    notes.</a></p>
 
 <p>If Clang rejects your code but another compiler accepts it, please take a
@@ -129,7 +124,10 @@ Release Notes</a>.</h1>
 <p>The 3.2 release has the following notable changes:</p>
 
 <ul>
-  <li>...</li>
+ <li>Able to load LLVM plugins such as Polly.</li>
+ <li>Supports thread-local storage models.</li>
+ <li>Passes knowledge of variable lifetimes to the LLVM optimizers.</li>
+ <li>No longer requires GCC to be built with LTO support.</li>
 </ul>
 
 </div>
@@ -141,7 +139,8 @@ Release Notes</a>.</h1>
 
 <div>
 
-<p>The new LLVM <a href="http://compiler-rt.llvm.org/">compiler-rt project</a>
+
+<p>The LLVM <a href="http://compiler-rt.llvm.org/">compiler-rt project</a>
    is a simple library that provides an implementation of the low-level
    target-specific hooks required by code generation and other runtime
    components.  For example, when compiling for a 32-bit target, converting a
@@ -153,7 +152,11 @@ Release Notes</a>.</h1>
 <p>The 3.2 release has the following notable changes:</p>
 
 <ul>
-  <li>...</li>
+  <li><a href="http://llvm.org/releases/3.2/tools/clang/docs/ThreadSanitizer.html">ThreadSanitizer (TSan)</a> - data race detector run-time library for C/C++ has been added.</li>
+  <li>Improvements to <a href="http://llvm.org/releases/3.2/tools/clang/docs/AddressSanitizer.html">AddressSanitizer</a> including: better portability 
+  (OSX, Android NDK), support for cmake based builds, enhanced error reporting and lots of bug fixes.</li>
+  <li>Added support for A6 'Swift' CPU.</li>
+  <li><code>divsi3</code> function has been enhanced to take advantage of a hardware unsigned divide when it is available.</li>
 </ul>
 
 </div>
@@ -174,7 +177,9 @@ Release Notes</a>.</h1>
 <p>The 3.2 release has the following notable changes:</p>
 
 <ul>
-  <li>...</li>
+  <li>Linux build fixes for clang (see <a href="http://lldb.llvm.org/build.html">Building LLDB</a>)</li>
+  <li>Some Linux stability and usability improvements</li>
+  <li>Switch expression evaluation to use MCJIT (from legacy JIT) on Linux</li>
 </ul>
 
 </div>
@@ -193,7 +198,15 @@ Release Notes</a>.</h1>
 <p>Within the LLVM 3.2 time-frame there were the following highlights:</p>
 
 <ul>
-  <li>...</li>
+  <li> C++11 shared_ptr atomic access API (20.7.2.5) has been implemented.</li>
+  <li>Applied noexcept and constexpr throughout library.</li>
+  <li>Improved C++11 conformance in associative container emplace.</li>
+  <li>Performance improvements in: std::rotate algorithm and I/O.</li>
+  <li>Operator new/delete and type_infos for exception types moved from libc++ to libc++abi.</li>
+  <li>Bug fixes in: <code>&lt;atomic&gt;</code>; vector<code>&lt;bool&gt;</code> algorithms,
+    <code>&lt;future&gt;</code>,<code>&lt;tuple&gt;</code>,
+    <code>&lt;type_traits&gt;</code>,<code>&lt;fstream&gt;</code>,<code>&lt;istream&gt;</code>,
+    <code>&lt;iterator&gt;</code>, <code>&lt;condition_variable&gt;</code>,<code>&lt;complex&gt;</code> as well as visibility fixes.
 </ul>
 
 </div>
@@ -212,7 +225,7 @@ Release Notes</a>.</h1>
 <p>The 3.2 release has the following notable changes:</p>
 
 <ul>
-  <li>...</li>
+  <li>Bug fixes only, no functional changes.</li>
 </ul>
 
 </div>
@@ -227,16 +240,61 @@ Release Notes</a>.</h1>
 
 <p><a href="http://polly.llvm.org/">Polly</a> is an <em>experimental</em>
   optimizer for data locality and parallelism. It currently provides high-level
-  loop optimizations and automatic parallelisation (using the OpenMP run time).
+  loop optimizations and automatic parallelization (using the OpenMP run time).
   Work in the area of automatic SIMD and accelerator code generation was
   started.</p>
 
 <p>Within the LLVM 3.2 time-frame there were the following highlights:</p>
 
 <ul>
-  <li>...</li>
+  <li>isl, the integer set library used by Polly, was relicensed under the MIT license.</li>
+  <li>isl based code generation.</li>
+  <li>MIT licensed replacement for CLooG (LGPLv2).</li>
+  <li>Fine grained option handling (separation of core and border computations, control overhead vs. code size).</li>
+  <li>Support for FORTRAN and Dragonegg.</li>
+  <li>OpenMP code generation fixes.</li>
 </ul>
 
+</div>
+
+<!--=========================================================================-->
+<h3>
+<a name="StaticAnalyzer">Clang Static Analyzer</a>
+</h3>
+
+<div>
+
+<p>The <a href="http://clang-analyzer.llvm.org/">Clang Static Analyzer</a> 
+    is an advanced source code analysis tool integrated into Clang that performs
+    a deep analysis of code to find potential bugs.</p>
+    
+<p>In the LLVM 3.2 release, the static analyzer has made significant improvements
+    in many areas, with notable highlights such as:</p>
+    
+<ul>
+    <li>Improved interprocedural analysis within a translation unit (see details below), which greatly amplified the analyzer's ability to find bugs.</li>
+    <li>New infrastructure to model &quot;well-known&quot; APIs, allowing the analyzer to do a much better job when modeling calls to such functions.</li>
+    <li>Significant improvements to the APIs to write static analyzer checkers, with a more unified way of representing function/method calls in the checker API.  Details can be found in the <a href="http://llvm.org/devmtg/2012-11#talk13">Building a Checker in 24 hours</a> talk.
+</ul>
+
+<p>The release specifically includes notable improvements for Objective-C analysis, including:</p>
+
+<ul>
+    <li>Interprocedural analysis for Objective-C methods.</li>
+    <li>Interprocedural analysis of calls to &quot;blocks&quot;.</li>
+    <li>Precise modeling of GCD APIs such as <tt>dispatch_once</tt> and friends.</li>
+    <li>Improved support for recently added Objective-C constructs such as array and dictionary literals.</li>
+</ul>
+
+<p>The release specifically includes notable improvements for C++ analysis, including:</p>
+
+<ul>
+    <li>Interprocedural analysis for C++ methods (within a translation unit).</li>
+    <li>More precise modeling of C++ initializers and destructors.</li>
+</ul>
+
+<p>Finally, this release includes many small improvements to <tt>scan-build</tt>, which can be used to drive the analyzer from the command line or a continuous integration system.  This includes a directory-traversal issue, which could cause potential security problems in some cases.  We would like to acknowledge Tim Brown of Portcullis Computer Security Ltd for reporting this issue.</p>
+    
 </div>
 
 </div>
@@ -265,6 +323,19 @@ Release Notes</a>.</h1>
 
 </div>
 
+<h3>EmbToolkit</h3>
+
+<div>
+
+<p><a href="http://www.embtoolkit.org/">EmbToolkit</a> provides Linux cross-compiler 
+    toolchain/SDK (GCC/binutils/C library (uclibc,eglibc,musl)), a build system for 
+    package cross-compilation and optionally various root file systems. 
+    It supports ARM and MIPS. There is an ongoing effort to provide a clang+llvm 
+    environment for the 3.2 releases, 
+</p>
+
+</div>
+
 <h3>FAUST</h3>
 
 <div>
@@ -274,7 +345,7 @@ Release Notes</a>.</h1>
    AUdio STream. Its programming model combines two approaches: functional
    programming and block diagram composition. In addition with the C, C++, Java,
    JavaScript output formats, the Faust compiler can generate LLVM bitcode, and
-   works with LLVM 2.7-3.1.</p>
+   works with LLVM 2.7-3.2.</p>
 
 </div>
 
@@ -331,7 +402,11 @@ Release Notes</a>.</h1>
 
 <p>OSL was developed by Sony Pictures Imageworks for use in its in-house
    renderer used for feature film animation and visual effects, and is
-   distributed as open source software with the "New BSD" license.</p>
+   distributed as open source software with the "New BSD" license.
+   It has been used for all the shading on such films as The Amazing Spider-Man,
+   Men in Black III, Hotel Transylvania, and may other films in-progress, 
+   and also has been incorporated into several commercial and open source 
+   rendering products such as Blender, VRay, and Autodesk Beast.</p>
 
 </div>
 
@@ -367,7 +442,7 @@ Release Notes</a>.</h1>
    C++, Fortran and Faust code in Pure programs if the corresponding
    LLVM-enabled compilers are installed).</p>
 
-<p>Pure version 0.54 has been tested and is known to work with LLVM 3.1 (and
+<p>Pure version 0.56 has been tested and is known to work with LLVM 3.2 (and
    continues to work with older LLVM releases >= 2.5).</p>
 
 </div>
@@ -432,7 +507,9 @@ Release Notes</a>.</h1>
 <p>LLVM 3.2 includes several major changes and big features:</p>
 
 <ul>
-  <li>...</li>
+  <li>Loop Vectorizer.</li>
+  <li>New implementation of SROA.</li>
+  <li>New NVPTX back-end (replacing existing PTX back-end) based on NVIDIA sources.</li>
 </ul>
 
 </div>
@@ -451,7 +528,10 @@ Release Notes</a>.</h1>
 <ul>
   <li>Thread local variables may have a specified TLS model. See the
   <a href="LangRef.html#globalvars">Language Reference Manual</a>.</li>
-  <li>...</li>
+  <li>'TYPE_CODE_FUNCTION_OLD' type code and autoupgrade code for old function attributes format has been removed.</li>
+  <li>Internal representation of the Attributes class has been converted into a pointer to an
+         opaque object that's uniqued by and stored in the LLVMContext object. 
+         The Attributes class then becomes a thin wrapper around this opaque object.</li>
 </ul>
 
 </div>
@@ -489,23 +569,33 @@ Release Notes</a>.</h1>
     <ul>
     <li>The inner most loops must have a single basic block.</li>
     <li>The number of iterations are known before the loop starts to execute.</li>
-    <li>The loop counter needs to be incrimented by one.</li>
+    <li>The loop counter needs to be incremented by one.</li>
     <li>The loop trip count <b>can</b> be a variable.</li>
     <li>Loops do <b>not</b> need to start at zero.</li>
     <li>The induction variable can be used inside the loop.</li>
     <li>Loop reductions are supported.</li>
     <li>Arrays with affine access pattern do <b>not</b> need to be marked as 'noalias' and are checked at runtime.</li>
-    <li>...</li>
     </ul>
 
 </p>
 
-<p>SROA - We've re-written SROA to be significantly more powerful.
-<!-- FIXME: Add more text here... --></p>
+<p>SROA - We&#8217;ve re-written SROA to be significantly more powerful and generate
+code which is much more friendly to the rest of the optimization pipeline.
+Previously this pass had scaling problems that required it to only operate on
+relatively small aggregates, and at times it would mistakenly replace a large
+aggregate with a single very large integer in order to make it a scalar SSA
+value. The result was a large number of i1024 and i2048 values representing any
+small stack buffer. These in turn slowed down many subsequent optimization
+paths.</p>
+<p>The new SROA pass uses a different algorithm that allows it to only promote to
+scalars the pieces of the aggregate actively in use. Because of this it doesn&#8217;t
+require any thresholds. It also always deduces the scalar values from the uses
+of the aggregate rather than the specific LLVM type of the aggregate. These
+features combine to both optimize more code with the pass but to improve the
+compile time of many functions dramatically.</p>
 
 <ul>
-  <li>Branch weight metadata is preseved through more of the optimizer.</li>
-  <li>...</li>
+  <li>Branch weight metadata is preserved through more of the optimizer.</li>
 </ul>
 
 </div>
@@ -524,8 +614,19 @@ Release Notes</a>.</h1>
    <a href="http://blog.llvm.org/2010/04/intro-to-llvm-mc-project.html">Intro
    to the LLVM MC Project Blog Post</a>.</p>
 
-<ul>
-  <li>...</li>
+<ul>    
+  <li> Added support for following assembler directives: <code>.ifb</code>, <code>.ifnb</code>, <code>.ifc</code>, 
+          <code>.ifnc</code>, <code>.purgem</code>, <code>.rept</code> and <code>.version</code> (ELF) as well as Darwin specific
+	<code>.pushsection</code>, <code>.popsection</code> and  <code>.previous</code> .</li>
+  <li>Enhanced handling of <code>.lcomm directive</code>.</li>
+  <li>MS style inline assembler: added implementation of the offset and TYPE operators.</li>
+  <li>Targets can specify minimum supported NOP size for NOP padding.</li>
+  <li>ELF improvements: added support for generating ELF objects on Windows.</li>
+  <li>MachO improvements:  symbol-difference variables are marked as N_ABS, added direct-to-object attribute for data-in-code markers.</li>
+  <li>Added support for annotated disassembly output for x86 and arm targets.</li>
+  <li>Arm support has been improved by adding support for ARM TARGET2 relocation
+          and fixing hadling of ARM-style "$d.*" labels.</li>
+   <li>Implemented local-exec TLS on PowerPC.</li>
 </ul>
 
 </div>
@@ -550,10 +651,6 @@ Release Notes</a>.</h1>
    infrastructure, which allows us to implement more aggressive algorithms and
    make it run faster:</p>
 
-<ul>
-  <li>...</li>
-</ul>
-
 <p> We added new TableGen infrastructure to support bundling for
     Very Long Instruction Word (VLIW) architectures. TableGen can now
     automatically generate a deterministic finite automaton from a VLIW
@@ -562,6 +659,13 @@ Release Notes</a>.</h1>
 
 <p> We have added a new target independent VLIW packetizer based on the
     DFA infrastructure to group machine instructions into bundles.</p>
+
+<p> We have added new TableGen infrastructure to support relationship maps
+    between instructions. This feature enables TableGen to automatically
+    construct a set of relation tables and query functions that can be used
+    to switch between various forms of instructions. For more information,
+    please refer to <a href="http://llvm.org/docs/HowToUseInstrMappings.html">
+    How To Use Instruction Mappings</a>.</p> 
 
 </div>
 
@@ -588,7 +692,7 @@ Release Notes</a>.</h1>
 <p>New features and major changes in the X86 target include:</p>
 
 <ul>
-  <li>...</li>
+  <li>Small codegen optimizations, especially for AVX2.</li>
 </ul>
 
 </div>
@@ -603,7 +707,7 @@ Release Notes</a>.</h1>
 <p>New features of the ARM target include:</p>
 
 <ul>
-  <li>...</li>
+  <li>Support and performance tuning for the A6 'Swift' CPU.</li>
 </ul>
 
 <!--_________________________________________________________________________-->
@@ -620,7 +724,7 @@ Release Notes</a>.</h1>
    platform specific support for Linux.</p>
 
 <p>Full support is included for Thumb1, Thumb2 and ARM modes, along with
-   subtarget and CPU specific extensions for VFP2, VFP3 and NEON.</p>
+   sub-target and CPU specific extensions for VFP2, VFP3 and NEON.</p>
 
 <p>The assembler is Unified Syntax only (see ARM Architecural Reference Manual
    for details). While there is some, and growing, support for pre-unfied
@@ -640,7 +744,29 @@ Release Notes</a>.</h1>
 <p>New features and major changes in the MIPS target include:</p>
 
 <ul>
-  <li>...</li>
+  <li>Integrated assembler support: 
+         MIPS32 works for both PIC and static, known limitation is the PR14456 where 
+         R_MIPS_GPREL16 relocation is generated with the wrong addend.
+         MIPS64 support is incomplete, for example exception handling is not working.</li>
+   <li>Support for fast calling convention has been added.</li>
+   <li>Support for Android MIPS toolchain has been added to clang driver.</li>
+   <li>Added clang driver support for MIPS N32 ABI through "-mabi=n32" option.</li>
+   <li>MIPS32 and MIPS64 disassembler has been implemented.</li>
+   <li>Support for compiling programs with large GOTs (exceeding 64kB in size) has been added 
+	through llc option "-mxgot".</li>
+  <li>Added experimental support for MIPS32 DSP intrinsics.</li>
+  <li>Experimental support for MIPS16 with following limitations: only soft float is supported,
+         C++ exceptions are not supported, large stack frames (> 32000 bytes) are not supported,
+         direct object code emission is not supported only .s .</li>
+  <li>Standalone assembler (llvm-mc):  implementation is in progress and considered experimental.</li>
+  <li>All classic JIT and MCJIT tests pass on Little and Big Endian MIPS32 platforms.</li>
+  <li>Inline asm support: all common constraints and operand modifiers have been implemented.</li>
+  <li>Added tail call optimization support, use llc option "-enable-mips-tail-calls"
+      or clang options "-mllvm -enable-mips-tail-calls"to enable it.</li>
+  <li>Improved register allocation by removing registers $fp, $gp, $ra and $at from the list of reserved registers.</li>
+  <li>Long branch expansion pass has been implemented, which expands branch
+      instructions with offsets that do not fit in the 16-bit field.</li>
+  <li>Cavium Octeon II board is used for testing builds (llvm-mips-linux builder).</li>
 </ul>
 
 </div>
@@ -652,7 +778,6 @@ Release Notes</a>.</h1>
 
 <div>
 
-<ul>
 <p>Many fixes and changes across LLVM (and Clang) for better compliance with
    the 64-bit PowerPC ELF Application Binary Interface, interoperability with
    GCC, and overall 64-bit PowerPC support.   Some highlights include:</p>
@@ -681,7 +806,27 @@ Release Notes</a>.</h1>
 <p>There have also been code generation improvements for both 32- and 64-bit
    code. Instruction scheduling support for the Freescale e500mc and e5500
    cores has been added.</p>
+
+</div>
+
+<!--=========================================================================-->
+<h3>
+<a name="NVPTX">PTX/NVPTX Target Improvements</a>
+</h3>
+
+<div>
+
+<p>The PTX back-end has been replaced by the NVPTX back-end, which is based on
+   the LLVM back-end used by NVIDIA in their CUDA (nvcc) and OpenCL compiler.
+   Some highlights include:</p>
+<ul>
+  <li>Compatibility with PTX 3.1 and SM 3.5</li>
+  <li>Support for NVVM intrinsics as defined in the NVIDIA Compiler SDK</li>
+  <li>Full compatibility with old PTX back-end, with much greater coverage of
+      LLVM IR</li>
 </ul>
+
+<p>Please submit any back-end bugs to the LLVM Bugzilla site.</p>
 
 </div>
 
@@ -693,7 +838,7 @@ Release Notes</a>.</h1>
 <div>
 
 <ul>
-  <li>...</li>
+  <li>Added support for custom names for library functions in TargetLibraryInfo.</li>
 </ul>
 
 </div>
@@ -710,9 +855,11 @@ Release Notes</a>.</h1>
    from the previous release.</p>
 
 <ul>
-  <li>...</li>
-</ul>
-
+<li>llvm-ld and llvm-stub have been removed, llvm-ld functionality can be partially replaced by 
+        llvm-link | opt | {llc | as, llc -filetype=obj} | ld, or fully replaced by Clang. </li>
+<li>MCJIT: added support for inline assembly (requires asm parser), added faux remote target execution to lli option '-remote-mcjit'.</li>
+</ul> 
+ 
 </div>
 
 <!--=========================================================================-->
@@ -733,10 +880,6 @@ Release Notes</a>.</h1>
 <p> The TargetData structure has been renamed to DataLayout and moved to VMCore
 to remove a dependency on Target. </p>
 
-<ul>
-  <li>...</li>
-</ul>
-
 </div>
 
 <!--=========================================================================-->
@@ -746,33 +889,22 @@ to remove a dependency on Target. </p>
 
 <div>
 
-<p>In addition, some tools have changed in this release. Some of the changes
-   are:</p>
+<p>In addition, some tools have changed in this release. Some of the changes are:</p>
 
 <ul>
-  <li>...</li>
+<li>opt: added support for '-mtriple' option.</li>
+<li>llvm-mc : - added '-disassemble' support for '-show-inst' and '-show-encoding' options, added '-edis' option to produce annotated 
+        disassembly output for X86 and ARM targets.</li>
+<li>libprofile: allows the profile data file name to be specified by the LLVMPROF_OUTPUT environment variable.</li>
+<li>llvm-objdump: has been changed to display available targets, '-arch' option accepts x86 and x86-64 as valid arch names.</li>
+<li>llc and opt: added FMA formation from pairs of FADD + FMUL or FSUB + FMUL enabled by option '-enable-excess-fp-precision' or option '-enable-unsafe-fp-math',
+       option '-fp-contract' controls the creation by optimizations of fused FP by selecting Fast, Standard, or Strict mode.</li>
+<li>llc: object file output from llc is no longer considered experimental.</li>
+<li>gold plugin: handles Position Independent Executables.</li>
 </ul>
 
 </div>
 
-
-<!--=========================================================================-->
-<h3>
-<a name="python">Python Bindings</a>
-</h3>
-
-<div>
-
-<p>Officially supported Python bindings have been added! Feature support is far
-   from complete. The current bindings support interfaces to:</p>
-
-<ul>
-  <li>...</li>
-</ul>
-
-</div>
-
-</div>
 
 <!-- *********************************************************************** -->
 <h2>
@@ -794,7 +926,7 @@ to remove a dependency on Target. </p>
   <p>Known problem areas include:</p>
 
 <ul>
-  <li>The CellSPU, MSP430, PTX and XCore backends are experimental.</li>
+  <li>The CellSPU, MSP430, and XCore backends are experimental, and the CellSPU backend will be removed in LLVM 3.3.</li>
 
   <li>The integrated assembler, disassembler, and JIT is not supported by
       several targets. If an integrated assembler is not supported, then a
@@ -836,7 +968,7 @@ to remove a dependency on Target. </p>
   src="http://www.w3.org/Icons/valid-html401-blue" alt="Valid HTML 4.01"></a>
 
   <a href="http://llvm.org/">LLVM Compiler Infrastructure</a><br>
-  Last modified: $Date: 2012-11-20 05:22:44 +0100 (Tue, 20 Nov 2012) $
+  Last modified: $Date: 2012-12-19 11:50:28 +0100 (Wed, 19 Dec 2012) $
 </address>
 
 </body>
