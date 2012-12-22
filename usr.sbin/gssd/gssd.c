@@ -35,7 +35,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/syslog.h>
 #include <ctype.h>
+#include <dirent.h>
 #include <err.h>
+#include <krb5.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,8 +66,12 @@ int gss_resource_count;
 uint32_t gss_next_id;
 uint32_t gss_start_time;
 int debug_level;
+static char ccfile_dirlist[PATH_MAX + 1], ccfile_substring[NAME_MAX + 1];
+static char pref_realm[1024];
 
 static void gssd_load_mech(void);
+static int find_ccache_file(const char *, uid_t, char *);
+static int is_a_valid_tgt_cache(const char *, uid_t, int *, time_t *);
 
 extern void gssd_1(struct svc_req *rqstp, SVCXPRT *transp);
 extern int gssd_syscall(char *path);
@@ -82,14 +88,45 @@ main(int argc, char **argv)
 	int fd, oldmask, ch, debug;
 	SVCXPRT *xprt;
 
+	/*
+	 * Initialize the credential cache file name substring and the
+	 * search directory list.
+	 */
+	strlcpy(ccfile_substring, "krb5cc_", sizeof(ccfile_substring));
+	ccfile_dirlist[0] = '\0';
+	pref_realm[0] = '\0';
 	debug = 0;
-	while ((ch = getopt(argc, argv, "d")) != -1) {
+	while ((ch = getopt(argc, argv, "ds:c:r:")) != -1) {
 		switch (ch) {
 		case 'd':
 			debug_level++;
 			break;
+		case 's':
+			/*
+			 * Set the directory search list. This enables use of
+			 * find_ccache_file() to search the directories for a
+			 * suitable credentials cache file.
+			 */
+			strlcpy(ccfile_dirlist, optarg, sizeof(ccfile_dirlist));
+			break;
+		case 'c':
+			/*
+			 * Specify a non-default credential cache file
+			 * substring.
+			 */
+			strlcpy(ccfile_substring, optarg,
+			    sizeof(ccfile_substring));
+			break;
+		case 'r':
+			/*
+			 * Set the preferred realm for the credential cache tgt.
+			 */
+			strlcpy(pref_realm, optarg, sizeof(pref_realm));
+			break;
 		default:
-			fprintf(stderr, "usage: %s [-d]\n", argv[0]);
+			fprintf(stderr,
+			    "usage: %s [-d] [-s dir-list] [-c file-substring]"
+			    " [-r preferred-realm]\n", argv[0]);
 			exit(1);
 			break;
 		}
@@ -267,13 +304,52 @@ gssd_init_sec_context_1_svc(init_sec_context_args *argp, init_sec_context_res *r
 	gss_cred_id_t cred = GSS_C_NO_CREDENTIAL;
 	gss_ctx_id_t ctx = GSS_C_NO_CONTEXT;
 	gss_name_t name = GSS_C_NO_NAME;
-	char ccname[strlen("FILE:/tmp/krb5cc_") + 6 + 1];
-
-	snprintf(ccname, sizeof(ccname), "FILE:/tmp/krb5cc_%d",
-	    (int) argp->uid);
-	setenv("KRB5CCNAME", ccname, TRUE);
+	char ccname[PATH_MAX + 5 + 1], *cp, *cp2;
+	int gotone;
 
 	memset(result, 0, sizeof(*result));
+	if (ccfile_dirlist[0] != '\0' && argp->cred == 0) {
+		/*
+		 * For the "-s" case and no credentials provided as an
+		 * argument, search the directory list for an appropriate
+		 * credential cache file. If the search fails, return failure.
+		 */
+		gotone = 0;
+		cp = ccfile_dirlist;
+		do {
+			cp2 = strchr(cp, ':');
+			if (cp2 != NULL)
+				*cp2 = '\0';
+			gotone = find_ccache_file(cp, argp->uid, ccname);
+			if (gotone != 0)
+				break;
+			if (cp2 != NULL)
+				*cp2++ = ':';
+			cp = cp2;
+		} while (cp != NULL && *cp != '\0');
+		if (gotone == 0) {
+			result->major_status = GSS_S_CREDENTIALS_EXPIRED;
+			return (TRUE);
+		}
+	} else {
+		/*
+		 * If there wasn't a "-s" option or the credentials have
+		 * been provided as an argument, do it the old way.
+		 * When credentials are provided, the uid should be root.
+		 */
+		if (argp->cred != 0 && argp->uid != 0) {
+			if (debug_level == 0)
+				syslog(LOG_ERR, "gss_init_sec_context:"
+				    " cred for non-root");
+			else
+				fprintf(stderr, "gss_init_sec_context:"
+				    " cred for non-root\n");
+		}
+		snprintf(ccname, sizeof(ccname), "FILE:/tmp/krb5cc_%d",
+		    (int) argp->uid);
+	}
+	setenv("KRB5CCNAME", ccname, TRUE);
+
 	if (argp->cred) {
 		cred = gssd_find_resource(argp->cred);
 		if (!cred) {
@@ -296,7 +372,6 @@ gssd_init_sec_context_1_svc(init_sec_context_args *argp, init_sec_context_res *r
 		}
 	}
 
-	memset(result, 0, sizeof(*result));
 	result->major_status = gss_init_sec_context(&result->minor_status,
 	    cred, &ctx, name, argp->mech_type,
 	    argp->req_flags, argp->time_req, argp->input_chan_bindings,
@@ -516,13 +591,53 @@ gssd_acquire_cred_1_svc(acquire_cred_args *argp, acquire_cred_res *result, struc
 {
 	gss_name_t desired_name = GSS_C_NO_NAME;
 	gss_cred_id_t cred;
-	char ccname[strlen("FILE:/tmp/krb5cc_") + 6 + 1];
-
-	snprintf(ccname, sizeof(ccname), "FILE:/tmp/krb5cc_%d",
-	    (int) argp->uid);
-	setenv("KRB5CCNAME", ccname, TRUE);
+	char ccname[PATH_MAX + 5 + 1], *cp, *cp2;
+	int gotone;
 
 	memset(result, 0, sizeof(*result));
+	if (ccfile_dirlist[0] != '\0' && argp->desired_name == 0) {
+		/*
+		 * For the "-s" case and no name provided as an
+		 * argument, search the directory list for an appropriate
+		 * credential cache file. If the search fails, return failure.
+		 */
+		gotone = 0;
+		cp = ccfile_dirlist;
+		do {
+			cp2 = strchr(cp, ':');
+			if (cp2 != NULL)
+				*cp2 = '\0';
+			gotone = find_ccache_file(cp, argp->uid, ccname);
+			if (gotone != 0)
+				break;
+			if (cp2 != NULL)
+				*cp2++ = ':';
+			cp = cp2;
+		} while (cp != NULL && *cp != '\0');
+		if (gotone == 0) {
+			result->major_status = GSS_S_CREDENTIALS_EXPIRED;
+			return (TRUE);
+		}
+	} else {
+		/*
+		 * If there wasn't a "-s" option or the name has
+		 * been provided as an argument, do it the old way.
+		 * When a name is provided, it will normally exist in the
+		 * default keytab file and the uid will be root.
+		 */
+		if (argp->desired_name != 0 && argp->uid != 0) {
+			if (debug_level == 0)
+				syslog(LOG_ERR, "gss_acquire_cred:"
+				    " principal_name for non-root");
+			else
+				fprintf(stderr, "gss_acquire_cred:"
+				    " principal_name for non-root\n");
+		}
+		snprintf(ccname, sizeof(ccname), "FILE:/tmp/krb5cc_%d",
+		    (int) argp->uid);
+	}
+	setenv("KRB5CCNAME", ccname, TRUE);
+
 	if (argp->desired_name) {
 		desired_name = gssd_find_resource(argp->desired_name);
 		if (!desired_name) {
@@ -631,3 +746,172 @@ gssd_1_freeresult(SVCXPRT *transp, xdrproc_t xdr_result, caddr_t result)
 
 	return (TRUE);
 }
+
+/*
+ * Search a directory for the most likely candidate to be used as the
+ * credential cache for a uid. If successful, return 1 and fill the
+ * file's path id into "rpath". Otherwise, return 0.
+ */
+static int
+find_ccache_file(const char *dirpath, uid_t uid, char *rpath)
+{
+	DIR *dirp;
+	struct dirent *dp;
+	struct stat sb;
+	time_t exptime, oexptime;
+	int gotone, len, rating, orating;
+	char namepath[PATH_MAX + 5 + 1];
+	char retpath[PATH_MAX + 5 + 1];
+
+	dirp = opendir(dirpath);
+	if (dirp == NULL)
+		return (0);
+	gotone = 0;
+	orating = 0;
+	oexptime = 0;
+	while ((dp = readdir(dirp)) != NULL) {
+		len = snprintf(namepath, sizeof(namepath), "%s/%s", dirpath,
+		    dp->d_name);
+		if (len < sizeof(namepath) &&
+		    strstr(dp->d_name, ccfile_substring) != NULL &&
+		    lstat(namepath, &sb) >= 0 &&
+		    sb.st_uid == uid &&
+		    S_ISREG(sb.st_mode)) {
+			len = snprintf(namepath, sizeof(namepath), "FILE:%s/%s",
+			    dirpath, dp->d_name);
+			if (len < sizeof(namepath) &&
+			    is_a_valid_tgt_cache(namepath, uid, &rating,
+			    &exptime) != 0) {
+				if (gotone == 0 || rating > orating ||
+				    (rating == orating && exptime > oexptime)) {
+					orating = rating;
+					oexptime = exptime;
+					strcpy(retpath, namepath);
+					gotone = 1;
+				}
+			}
+		}
+	}
+	closedir(dirp);
+	if (gotone != 0) {
+		strcpy(rpath, retpath);
+		return (1);
+	}
+	return (0);
+}
+
+/*
+ * Try to determine if the file is a valid tgt cache file.
+ * Check that the file has a valid tgt for a principal.
+ * If it does, return 1, otherwise return 0.
+ * It also returns a "rating" and the expiry time for the TGT, when found.
+ * This "rating" is higher based on heuristics that make it more
+ * likely to be the correct credential cache file to use. It can
+ * be used by the caller, along with expiry time, to select from
+ * multiple credential cache files.
+ */
+static int
+is_a_valid_tgt_cache(const char *filepath, uid_t uid, int *retrating,
+    time_t *retexptime)
+{
+	krb5_context context;
+	krb5_principal princ;
+	krb5_ccache ccache;
+	krb5_error_code retval;
+	krb5_cc_cursor curse;
+	krb5_creds krbcred;
+	int gotone, orating, rating, ret;
+	struct passwd *pw;
+	char *cp, *cp2, *pname;
+	time_t exptime;
+
+	/* Find a likely name for the uid principal. */
+	pw = getpwuid(uid);
+
+	/*
+	 * Do a bunch of krb5 library stuff to try and determine if
+	 * this file is a credentials cache with an appropriate TGT
+	 * in it.
+	 */
+	retval = krb5_init_context(&context);
+	if (retval != 0)
+		return (0);
+	retval = krb5_cc_resolve(context, filepath, &ccache);
+	if (retval != 0) {
+		krb5_free_context(context);
+		return (0);
+	}
+	ret = 0;
+	orating = 0;
+	exptime = 0;
+	retval = krb5_cc_start_seq_get(context, ccache, &curse);
+	if (retval == 0) {
+		while ((retval = krb5_cc_next_cred(context, ccache, &curse,
+		    &krbcred)) == 0) {
+			gotone = 0;
+			rating = 0;
+			retval = krb5_unparse_name(context, krbcred.server,
+			    &pname);
+			if (retval == 0) {
+				cp = strchr(pname, '/');
+				if (cp != NULL) {
+					*cp++ = '\0';
+					if (strcmp(pname, "krbtgt") == 0 &&
+					    krbcred.times.endtime > time(NULL)
+					    ) {
+						gotone = 1;
+						/*
+						 * Test to see if this is a
+						 * tgt for cross-realm auth.
+						 * Rate it higher, if it is not.
+						 */
+						cp2 = strchr(cp, '@');
+						if (cp2 != NULL) {
+							*cp2++ = '\0';
+							if (strcmp(cp, cp2) ==
+							    0)
+								rating++;
+						}
+					}
+				}
+				free(pname);
+			}
+			if (gotone != 0) {
+				retval = krb5_unparse_name(context,
+				    krbcred.client, &pname);
+				if (retval == 0) {
+					cp = strchr(pname, '@');
+					if (cp != NULL) {
+						*cp++ = '\0';
+						if (pw != NULL && strcmp(pname,
+						    pw->pw_name) == 0)
+							rating++;
+						if (strchr(pname, '/') == NULL)
+							rating++;
+						if (pref_realm[0] != '\0' &&
+						    strcmp(cp, pref_realm) == 0)
+							rating++;
+					}
+				}
+				free(pname);
+				if (rating > orating) {
+					orating = rating;
+					exptime = krbcred.times.endtime;
+				} else if (rating == orating &&
+				    krbcred.times.endtime > exptime)
+					exptime = krbcred.times.endtime;
+				ret = 1;
+			}
+			krb5_free_cred_contents(context, &krbcred);
+		}
+		krb5_cc_end_seq_get(context, ccache, &curse);
+	}
+	krb5_cc_close(context, ccache);
+	krb5_free_context(context);
+	if (ret != 0) {
+		*retrating = orating;
+		*retexptime = exptime;
+	}
+	return (ret);
+}
+
