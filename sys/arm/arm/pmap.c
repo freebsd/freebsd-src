@@ -1366,7 +1366,7 @@ pmap_fix_cache(struct vm_page *pg, pmap_t pm, vm_offset_t va)
 		    (pv->pv_flags & PVF_NC)) {
 
 			pv->pv_flags &= ~PVF_NC;
-			if (!(pg->md.pv_memattr & VM_MEMATTR_UNCACHEABLE))
+			if (pg->md.pv_memattr != VM_MEMATTR_UNCACHEABLE)
 				pmap_set_cache_entry(pv, pm, va, 1);
 			continue;
 		}
@@ -1376,7 +1376,7 @@ pmap_fix_cache(struct vm_page *pg, pmap_t pm, vm_offset_t va)
 		    !pmwc && (pv->pv_flags & PVF_NC)) {
 
 			pv->pv_flags &= ~(PVF_NC | PVF_MWC);
-			if (!(pg->md.pv_memattr & VM_MEMATTR_UNCACHEABLE))
+			if (pg->md.pv_memattr != VM_MEMATTR_UNCACHEABLE)
 				pmap_set_cache_entry(pv, pm, va, 1);
 		}
 	}
@@ -1428,8 +1428,8 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 
 		if (!(oflags & maskbits)) {
 			if ((maskbits & PVF_WRITE) && (pv->pv_flags & PVF_NC)) {
-				if (!(pg->md.pv_memattr & 
-				    VM_MEMATTR_UNCACHEABLE)) {
+				if (pg->md.pv_memattr != 
+				    VM_MEMATTR_UNCACHEABLE) {
 					PMAP_LOCK(pm);
 					l2b = pmap_get_l2_bucket(pm, va);
 					ptep = &l2b->l2b_kva[l2pte_index(va)];
@@ -1466,8 +1466,8 @@ pmap_clearbit(struct vm_page *pg, u_int maskbits)
 				 * permission.
 				 */
 				if (maskbits & PVF_WRITE) {
-					if (!(pg->md.pv_memattr & 
-					    VM_MEMATTR_UNCACHEABLE))
+					if (pg->md.pv_memattr !=
+					    VM_MEMATTR_UNCACHEABLE)
 						npte |= pte_l2_s_cache_mode;
 					pv->pv_flags &= ~(PVF_NC | PVF_MWC);
 				}
@@ -3399,7 +3399,7 @@ do_l2b_alloc:
 		    (m->oflags & VPO_UNMANAGED) == 0)
 			vm_page_aflag_set(m, PGA_WRITEABLE);
 	}
-	if (!(m->md.pv_memattr & VM_MEMATTR_UNCACHEABLE))
+	if (m->md.pv_memattr != VM_MEMATTR_UNCACHEABLE)
 		npte |= pte_l2_s_cache_mode;
 	if (m && m == opg) {
 		/*
