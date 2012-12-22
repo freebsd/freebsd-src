@@ -907,6 +907,8 @@ callout_reset_bt_on(struct callout *c, struct bintime bt, struct bintime pr,
 	if (flags & C_ABSOLUTE) {
 		to_bt = bt;
 	} else {
+		if ((flags & C_HARDCLOCK) && bintime_cmp(&bt, &tick_bt, <))
+			bt = tick_bt;
 		if ((flags & C_HARDCLOCK) ||
 #ifdef NO_EVENTTIMERS
 		    bintime_cmp(&bt, &bt_timethreshold, >=)) {
