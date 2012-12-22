@@ -1,0 +1,23 @@
+# $FreeBSD$
+
+arm/arm/bus_space_asm_generic.S			standard
+arm/arm/bus_space_generic.c                     standard
+arm/arm/cpufunc_asm_arm11.S                     standard
+arm/arm/cpufunc_asm_arm11x6.S			standard
+arm/arm/cpufunc_asm_armv5.S                     standard
+arm/arm/cpufunc_asm_armv6.S                     standard
+arm/arm/irq_dispatch.S                          standard
+
+arm/versatile/bus_space.c			standard
+arm/versatile/common.c				standard
+arm/versatile/pl050.c				optional sc
+arm/versatile/sp804.c				standard
+arm/versatile/versatile_machdep.c		standard
+arm/versatile/versatile_clcd.c			optional sc
+arm/versatile/versatile_pci.c			optional pci
+arm/versatile/versatile_pci_bus_space.c		optional pci
+arm/versatile/versatile_sic.c			standard
+arm/versatile/versatile_timer.c			standard
+arm/versatile/if_smc_fdt.c			optional smc
+
+kern/kern_clocksource.c                         standard

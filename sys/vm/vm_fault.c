@@ -968,8 +968,8 @@ vm_fault_cache_behind(const struct faultstate *fs, int distance)
 			VM_OBJECT_LOCK(object);
 		}
 	}
-	if (first_object->type != OBJT_DEVICE &&
-	    first_object->type != OBJT_PHYS && first_object->type != OBJT_SG) {
+	/* Neither fictitious nor unmanaged pages can be cached. */
+	if ((first_object->flags & (OBJ_FICTITIOUS | OBJ_UNMANAGED)) == 0) {
 		if (fs->first_pindex < distance)
 			pindex = 0;
 		else

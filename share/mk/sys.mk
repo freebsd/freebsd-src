@@ -129,16 +129,18 @@ MAKE		?=	make
 
 .if !defined(%POSIX)
 NM		?=	nm
-.endif
 
 OBJC		?=	cc
 OBJCFLAGS	?=	${OBJCINCLUDES} ${CFLAGS} -Wno-import
+
+OBJCOPY		?=	objcopy
 
 PC		?=	pc
 PFLAGS		?=
 
 RC		?=	f77
 RFLAGS		?=
+.endif
 
 SHELL		?=	sh
 

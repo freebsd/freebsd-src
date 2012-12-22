@@ -3780,7 +3780,8 @@ nfsrv_docallback(struct nfsclient *clp, int procnum,
 	newnfs_sndunlock(&clp->lc_req.nr_lock);
 	if (!error) {
 		error = newnfs_request(nd, NULL, clp, &clp->lc_req, NULL,
-		    NULL, cred, clp->lc_program, NFSV4_CBVERS, NULL, 1, NULL);
+		    NULL, cred, clp->lc_program, NFSV4_CBVERS, NULL, 1, NULL,
+		    NULL);
 	}
 	NFSFREECRED(cred);
 

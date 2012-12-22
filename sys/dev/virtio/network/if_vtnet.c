@@ -439,17 +439,16 @@ vtnet_attach(device_t dev)
 		ether_ifdetach(ifp);
 		goto fail;
 	}
-	taskqueue_start_threads(&sc->vtnet_tq, 1, PI_NET, "%s taskq",
-	    device_get_nameunit(dev));
 
 	error = virtio_setup_intr(dev, INTR_TYPE_NET);
 	if (error) {
 		device_printf(dev, "cannot setup virtqueue interrupts\n");
-		taskqueue_free(sc->vtnet_tq);
-		sc->vtnet_tq = NULL;
 		ether_ifdetach(ifp);
 		goto fail;
 	}
+
+	taskqueue_start_threads(&sc->vtnet_tq, 1, PI_NET, "%s taskq",
+	    device_get_nameunit(dev));
 
 	/*
 	 * Device defaults to promiscuous mode for backwards

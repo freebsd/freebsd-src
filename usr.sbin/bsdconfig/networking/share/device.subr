@@ -378,11 +378,7 @@ f_dialog_menu_netdev_edit()
 		      if f_nfs_mounted && ! f_jailed; then
 		      	local setting="$( printf "$msg_current_dhcp_status" \
 		      	                         "$interface" "$dhcp_status" )"
-		      	local message="$(
-		      		printf "$msg_nfs_mounts_may_cause_hang" \
-		      		       "$setting"
-		      	)"
-		      	f_dialog_msgbox "$message"
+			f_show_msg "$msg_nfs_mounts_may_cause_hang" "$setting"
 		      	continue
 		      fi
 
@@ -440,8 +436,7 @@ f_dialog_menu_netdev_edit()
 	     "$options" != "$options_orig" -o \
 	     "$dhcp"    != "$dhcp_orig" ]
 	then
-		f_dialog_info "$( printf "$msg_saving_network_interface" \
-		                         "$interface" )"
+		f_show_info "$msg_saving_network_interface" "$interface"
 
 		local value=
 		if [ "$dhcp" ]; then
@@ -462,8 +457,7 @@ f_dialog_menu_netdev_edit()
 		f_dialog_yesno "Would you like to bring the $interface" \
 		               "interface up right now?"
 		if [ $? -eq $SUCCESS ]; then
-			f_dialog_info "$( printf "$msg_bring_interface_up" \
-			                         "$interface" )"
+			f_show_info "$msg_bring_interface_up" "$interface"
 
 			local dr="$( f_sysrc_get defaultrouter )" err
 			if [ "$dr" = "NO" -o ! "$dr" ]; then

@@ -103,7 +103,7 @@ bool debug_sort;
 bool need_hint;
 
 #if defined(SORT_THREADS)
-size_t ncpu = 1;
+unsigned int ncpu = 1;
 size_t nthreads = 1;
 #endif
 
@@ -265,31 +265,27 @@ read_fns_from_file0(const char *fn)
 static void
 set_hw_params(void)
 {
-#if defined(SORT_THREADS)
-	size_t ncpusz;
-#endif
-	size_t pages, psize, psz, pszsz;
+	long pages, psize;
 
 	pages = psize = 0;
+
 #if defined(SORT_THREADS)
 	ncpu = 1;
-	ncpusz = sizeof(size_t);
 #endif
-	psz = pszsz = sizeof(size_t);
 
-	if (sysctlbyname("vm.stats.vm.v_free_count", &pages, &psz,
-	    NULL, 0) < 0) {
-		perror("vm.stats.vm.v_free_count");
-		return;
+	pages = sysconf(_SC_PHYS_PAGES);
+	if (pages < 1) {
+		perror("sysconf pages");
+		psize = 1;
 	}
-	if (sysctlbyname("vm.stats.vm.v_page_size", &psize, &pszsz,
-	    NULL, 0) < 0) {
-		perror("vm.stats.vm.v_page_size");
-		return;
+	psize = sysconf(_SC_PAGESIZE);
+	if (psize < 1) {
+		perror("sysconf psize");
+		psize = 4096;
 	}
 #if defined(SORT_THREADS)
-	if (sysctlbyname("hw.ncpu", &ncpu, &ncpusz,
-	    NULL, 0) < 0)
+	ncpu = (unsigned int)sysconf(_SC_NPROCESSORS_ONLN);
+	if (ncpu < 1)
 		ncpu = 1;
 	else if(ncpu > 32)
 		ncpu = 32;
@@ -298,7 +294,10 @@ set_hw_params(void)
 #endif
 
 	free_memory = (unsigned long long) pages * (unsigned long long) psize;
-	available_free_memory = (free_memory * 9) / 10;
+	available_free_memory = free_memory / 2;
+
+	if (available_free_memory < 1024)
+		available_free_memory = 1024;
 }
 
 /*
@@ -1227,7 +1226,9 @@ main(int argc, char **argv)
 	}
 
 	if (debug_sort) {
+		printf("Memory to be used for sorting: %llu\n",available_free_memory);
 #if defined(SORT_THREADS)
+		printf("Number of CPUs: %d\n",(int)ncpu);
 		nthreads = 1;
 #endif
 		printf("Using collate rules of %s locale\n",

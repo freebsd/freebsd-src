@@ -135,7 +135,7 @@ __collate_load_tables_l(const char *encoding, struct xlocale_collate *table)
 	(void)strcat(buf, "/");
 	(void)strcat(buf, encoding);
 	(void)strcat(buf, "/LC_COLLATE");
-	if ((fp = fopen(buf, "r")) == NULL)
+	if ((fp = fopen(buf, "re")) == NULL)
 		return (_LDP_ERROR);
 
 	if (fread(strbuf, sizeof(strbuf), 1, fp) != 1) {

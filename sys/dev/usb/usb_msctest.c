@@ -139,8 +139,8 @@ struct bbb_csw {
 struct bbb_transfer {
 	struct mtx mtx;
 	struct cv cv;
-	struct bbb_cbw cbw;
-	struct bbb_csw csw;
+	struct bbb_cbw *cbw;
+	struct bbb_csw *csw;
 
 	struct usb_xfer *xfer[ST_MAX];
 
@@ -158,7 +158,7 @@ struct bbb_transfer {
 	uint8_t	status_try;
 	int	error;
 
-	uint8_t	buffer[SCSI_MAX_LEN] __aligned(4);
+	uint8_t	*buffer;
 };
 
 static usb_callback_t bbb_command_callback;
@@ -184,7 +184,6 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.bufsize = sizeof(struct bbb_cbw),
-		.flags = {.ext_buffer = 1,},
 		.callback = &bbb_command_callback,
 		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
@@ -193,8 +192,8 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.bufsize = BULK_SIZE,
-		.flags = {.ext_buffer = 1,.proxy_buffer = 1,.short_xfer_ok = 1,},
+		.bufsize = MAX(SCSI_MAX_LEN, BULK_SIZE),
+		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,},
 		.callback = &bbb_data_read_callback,
 		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
@@ -232,7 +231,7 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.bufsize = sizeof(struct bbb_csw),
-		.flags = {.ext_buffer = 1,.short_xfer_ok = 1,},
+		.flags = {.short_xfer_ok = 1,},
 		.callback = &bbb_status_callback,
 		.timeout = 1 * USB_MS_HZ,	/* 1 second  */
 	},
@@ -241,7 +240,6 @@ static const struct usb_config bbb_config[ST_MAX] = {
 static void
 bbb_done(struct bbb_transfer *sc, int error)
 {
-
 	sc->error = error;
 	sc->state = ST_COMMAND;
 	sc->status_try = 1;
@@ -290,18 +288,17 @@ bbb_command_callback(struct usb_xfer *xfer, usb_error_t error)
 
 	case USB_ST_SETUP:
 		sc->status_try = 0;
-		tag = UGETDW(sc->cbw.dCBWTag) + 1;
-		USETDW(sc->cbw.dCBWSignature, CBWSIGNATURE);
-		USETDW(sc->cbw.dCBWTag, tag);
-		USETDW(sc->cbw.dCBWDataTransferLength, (uint32_t)sc->data_len);
-		sc->cbw.bCBWFlags = ((sc->dir == DIR_IN) ? CBWFLAGS_IN : CBWFLAGS_OUT);
-		sc->cbw.bCBWLUN = sc->lun;
-		sc->cbw.bCDBLength = sc->cmd_len;
-		if (sc->cbw.bCDBLength > sizeof(sc->cbw.CBWCDB)) {
-			sc->cbw.bCDBLength = sizeof(sc->cbw.CBWCDB);
+		tag = UGETDW(sc->cbw->dCBWTag) + 1;
+		USETDW(sc->cbw->dCBWSignature, CBWSIGNATURE);
+		USETDW(sc->cbw->dCBWTag, tag);
+		USETDW(sc->cbw->dCBWDataTransferLength, (uint32_t)sc->data_len);
+		sc->cbw->bCBWFlags = ((sc->dir == DIR_IN) ? CBWFLAGS_IN : CBWFLAGS_OUT);
+		sc->cbw->bCBWLUN = sc->lun;
+		sc->cbw->bCDBLength = sc->cmd_len;
+		if (sc->cbw->bCDBLength > sizeof(sc->cbw->CBWCDB)) {
+			sc->cbw->bCDBLength = sizeof(sc->cbw->CBWCDB);
 			DPRINTFN(0, "Truncating long command\n");
 		}
-		usbd_xfer_set_frame_data(xfer, 0, &sc->cbw, sizeof(sc->cbw));
 		usbd_transfer_submit(xfer);
 		break;
 
@@ -430,9 +427,9 @@ bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		/* very simple status check */
 
-		if (actlen < (int)sizeof(sc->csw)) {
+		if (actlen < (int)sizeof(struct bbb_csw)) {
 			bbb_done(sc, USB_ERR_SHORT_XFER);
-		} else if (sc->csw.bCSWStatus == CSWSTATUS_GOOD) {
+		} else if (sc->csw->bCSWStatus == CSWSTATUS_GOOD) {
 			bbb_done(sc, 0);	/* success */
 		} else {
 			bbb_done(sc, ERR_CSW_FAILED);	/* error */
@@ -440,7 +437,6 @@ bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
 		break;
 
 	case USB_ST_SETUP:
-		usbd_xfer_set_frame_data(xfer, 0, &sc->csw, sizeof(sc->csw));
 		usbd_transfer_submit(xfer);
 		break;
 
@@ -478,9 +474,9 @@ bbb_command_start(struct bbb_transfer *sc, uint8_t dir, uint8_t lun,
 	sc->data_timeout = (data_timeout + USB_MS_HZ);
 	sc->actlen = 0;
 	sc->cmd_len = cmd_len;
-	memset(&sc->cbw.CBWCDB, 0, sizeof(sc->cbw.CBWCDB));
-	memcpy(&sc->cbw.CBWCDB, cmd_ptr, cmd_len);
-	DPRINTFN(1, "SCSI cmd = %*D\n", (int)cmd_len, (char *)sc->cbw.CBWCDB, ":");
+	memset(&sc->cbw->CBWCDB, 0, sizeof(sc->cbw->CBWCDB));
+	memcpy(&sc->cbw->CBWCDB, cmd_ptr, cmd_len);
+	DPRINTFN(1, "SCSI cmd = %*D\n", (int)cmd_len, (char *)sc->cbw->CBWCDB, ":");
 
 	mtx_lock(&sc->mtx);
 	usbd_transfer_start(sc->xfer[sc->state]);
@@ -554,6 +550,14 @@ bbb_attach(struct usb_device *udev, uint8_t iface_index)
 		bbb_detach(sc);
 		return (NULL);
 	}
+	/* store pointer to DMA buffers */
+	sc->buffer = usbd_xfer_get_frame_buffer(
+	    sc->xfer[ST_DATA_RD], 0);
+	sc->cbw = usbd_xfer_get_frame_buffer(
+	    sc->xfer[ST_COMMAND], 0);
+	sc->csw = usbd_xfer_get_frame_buffer(
+	    sc->xfer[ST_STATUS], 0);
+
 	return (sc);
 }
 

@@ -163,12 +163,16 @@ __FBSDID("$FreeBSD$");
 #define	UDMASS_CBI	0x00400000	/* CBI transfers */
 #define	UDMASS_WIRE	(UDMASS_BBB|UDMASS_CBI)
 #define	UDMASS_ALL	0xffff0000	/* all of the above */
-static int umass_debug = 0;
+static int umass_debug;
+static int umass_throttle;
 
 static SYSCTL_NODE(_hw_usb, OID_AUTO, umass, CTLFLAG_RW, 0, "USB umass");
 SYSCTL_INT(_hw_usb_umass, OID_AUTO, debug, CTLFLAG_RW | CTLFLAG_TUN,
     &umass_debug, 0, "umass debug level");
 TUNABLE_INT("hw.usb.umass.debug", &umass_debug);
+SYSCTL_INT(_hw_usb_umass, OID_AUTO, throttle, CTLFLAG_RW | CTLFLAG_TUN,
+    &umass_throttle, 0, "Forced delay between commands in milliseconds");
+TUNABLE_INT("hw.usb.umass.throttle", &umass_throttle);
 #else
 #define	DIF(...) do { } while (0)
 #define	DPRINTF(...) do { } while (0)
@@ -881,7 +885,7 @@ umass_attach(device_t dev)
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	struct umass_probe_proto temp = umass_probe_proto(dev, uaa);
 	struct usb_interface_descriptor *id;
-	int32_t err;
+	int err;
 
 	/*
 	 * NOTE: the softc struct is cleared in device_set_driver.
@@ -994,6 +998,24 @@ umass_attach(device_t dev)
 		    "transfers, %s\n", usbd_errstr(err));
 		goto detach;
 	}
+#ifdef USB_DEBUG
+	if (umass_throttle > 0) {
+		uint8_t x;
+		int iv;
+
+		iv = umass_throttle;
+
+		if (iv < 1)
+			iv = 1;
+		else if (iv > 8000)
+			iv = 8000;
+
+		for (x = 0; x != UMASS_T_MAX; x++) {
+			if (sc->sc_xfer[x] != NULL)
+				usbd_xfer_set_interval(sc->sc_xfer[x], iv);
+		}
+	}
+#endif
 	sc->sc_transform =
 	    (sc->sc_proto & UMASS_PROTO_SCSI) ? &umass_scsi_transform :
 	    (sc->sc_proto & UMASS_PROTO_UFI) ? &umass_ufi_transform :

@@ -452,6 +452,16 @@ main(__unused int argc, char *argv[])
 	    getenv("LOCALBASE") ? getenv("LOCALBASE") : _LOCALBASE);
 
 	if (access(pkgpath, X_OK) == -1) {
+		/* 
+		 * To allow 'pkg -n' to be used as a reliable test for whether
+		 * a system is configured to use pkg, don't bootstrap pkg
+		 * when that argument is given as argv[1].
+		 */
+		if ( argv[1] != NULL && strcmp(argv[1], "-n") == 0) {
+			printf("%s", "pkg is not installed\n");
+			exit(EXIT_FAILURE);
+		}
+
 		/*
 		 * Do not ask for confirmation if either of stdin or stdout is
 		 * not tty. Check the environment to see if user has answer

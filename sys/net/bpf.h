@@ -1235,7 +1235,8 @@ SYSCTL_DECL(_net_bpf);
 /*
  * Rotate the packet buffers in descriptor d.  Move the store buffer into the
  * hold slot, and the free buffer ino the store slot.  Zero the length of the
- * new store buffer.  Descriptor lock should be held.
+ * new store buffer.  Descriptor lock should be held. Hold buffer must
+ * not be marked "in use".
  */
 #define	ROTATE_BUFFERS(d)	do {					\
 	(d)->bd_hbuf = (d)->bd_sbuf;					\

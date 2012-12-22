@@ -115,7 +115,7 @@ _local_initshells(rv, cb_data, ap)
 		sl_free(sl, 1);
 	sl = sl_init();
 
-	if ((fp = fopen(_PATH_SHELLS, "r")) == NULL)
+	if ((fp = fopen(_PATH_SHELLS, "re")) == NULL)
 		return NS_UNAVAIL;
 
 	cp = line;

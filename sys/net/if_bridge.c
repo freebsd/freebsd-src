@@ -532,7 +532,7 @@ DECLARE_MODULE(if_bridge, bridge_mod, SI_SUB_PSEUDO, SI_ORDER_ANY);
 MODULE_DEPEND(if_bridge, bridgestp, 1, 1, 1);
 
 /*
- * handler for net.link.bridge.pfil_ipfw
+ * handler for net.link.bridge.ipfw
  */
 static int
 sysctl_pfil_ipfw(SYSCTL_HANDLER_ARGS)

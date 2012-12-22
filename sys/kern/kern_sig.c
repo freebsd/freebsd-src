@@ -106,7 +106,6 @@ SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 1, "struct proc *");
 SDT_PROBE_ARGTYPE(proc, kernel, , signal_discard, 2, "int");
 
 static int	coredump(struct thread *);
-static char	*expand_name(const char *, uid_t, pid_t, struct thread *, int);
 static int	killpg1(struct thread *td, int sig, int pgid, int all,
 		    ksiginfo_t *ksi);
 static int	issignal(struct thread *td, int stop_allowed);
@@ -202,37 +201,37 @@ SYSCTL_INT(_kern, OID_AUTO, nodump_coredump, CTLFLAG_RW, &set_core_nodump_flag,
 #define	SA_CANTMASK	0x40		/* non-maskable, catchable */
 
 static int sigproptbl[NSIG] = {
-        SA_KILL,			/* SIGHUP */
-        SA_KILL,			/* SIGINT */
-        SA_KILL|SA_CORE,		/* SIGQUIT */
-        SA_KILL|SA_CORE,		/* SIGILL */
-        SA_KILL|SA_CORE,		/* SIGTRAP */
-        SA_KILL|SA_CORE,		/* SIGABRT */
-        SA_KILL|SA_CORE,		/* SIGEMT */
-        SA_KILL|SA_CORE,		/* SIGFPE */
-        SA_KILL,			/* SIGKILL */
-        SA_KILL|SA_CORE,		/* SIGBUS */
-        SA_KILL|SA_CORE,		/* SIGSEGV */
-        SA_KILL|SA_CORE,		/* SIGSYS */
-        SA_KILL,			/* SIGPIPE */
-        SA_KILL,			/* SIGALRM */
-        SA_KILL,			/* SIGTERM */
-        SA_IGNORE,			/* SIGURG */
-        SA_STOP,			/* SIGSTOP */
-        SA_STOP|SA_TTYSTOP,		/* SIGTSTP */
-        SA_IGNORE|SA_CONT,		/* SIGCONT */
-        SA_IGNORE,			/* SIGCHLD */
-        SA_STOP|SA_TTYSTOP,		/* SIGTTIN */
-        SA_STOP|SA_TTYSTOP,		/* SIGTTOU */
-        SA_IGNORE,			/* SIGIO */
-        SA_KILL,			/* SIGXCPU */
-        SA_KILL,			/* SIGXFSZ */
-        SA_KILL,			/* SIGVTALRM */
-        SA_KILL,			/* SIGPROF */
-        SA_IGNORE,			/* SIGWINCH  */
-        SA_IGNORE,			/* SIGINFO */
-        SA_KILL,			/* SIGUSR1 */
-        SA_KILL,			/* SIGUSR2 */
+	SA_KILL,			/* SIGHUP */
+	SA_KILL,			/* SIGINT */
+	SA_KILL|SA_CORE,		/* SIGQUIT */
+	SA_KILL|SA_CORE,		/* SIGILL */
+	SA_KILL|SA_CORE,		/* SIGTRAP */
+	SA_KILL|SA_CORE,		/* SIGABRT */
+	SA_KILL|SA_CORE,		/* SIGEMT */
+	SA_KILL|SA_CORE,		/* SIGFPE */
+	SA_KILL,			/* SIGKILL */
+	SA_KILL|SA_CORE,		/* SIGBUS */
+	SA_KILL|SA_CORE,		/* SIGSEGV */
+	SA_KILL|SA_CORE,		/* SIGSYS */
+	SA_KILL,			/* SIGPIPE */
+	SA_KILL,			/* SIGALRM */
+	SA_KILL,			/* SIGTERM */
+	SA_IGNORE,			/* SIGURG */
+	SA_STOP,			/* SIGSTOP */
+	SA_STOP|SA_TTYSTOP,		/* SIGTSTP */
+	SA_IGNORE|SA_CONT,		/* SIGCONT */
+	SA_IGNORE,			/* SIGCHLD */
+	SA_STOP|SA_TTYSTOP,		/* SIGTTIN */
+	SA_STOP|SA_TTYSTOP,		/* SIGTTOU */
+	SA_IGNORE,			/* SIGIO */
+	SA_KILL,			/* SIGXCPU */
+	SA_KILL,			/* SIGXFSZ */
+	SA_KILL,			/* SIGVTALRM */
+	SA_KILL,			/* SIGPROF */
+	SA_IGNORE,			/* SIGWINCH  */
+	SA_IGNORE,			/* SIGINFO */
+	SA_KILL,			/* SIGUSR1 */
+	SA_KILL,			/* SIGUSR2 */
 };
 
 static void reschedule_signals(struct proc *p, sigset_t block, int flags);
@@ -3018,11 +3017,11 @@ SYSCTL_PROC(_debug, OID_AUTO, ncores, CTLTYPE_INT|CTLFLAG_RW,
 #if defined(COMPRESS_USER_CORES)
 int compress_user_cores = 1;
 SYSCTL_INT(_kern, OID_AUTO, compress_user_cores, CTLFLAG_RW,
-        &compress_user_cores, 0, "");
+    &compress_user_cores, 0, "Compression of user corefiles");
 
 int compress_user_cores_gzlevel = -1; /* default level */
 SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_gzlevel, CTLFLAG_RW,
-    &compress_user_cores_gzlevel, -1, "user core gz compression level");
+    &compress_user_cores_gzlevel, -1, "Corefile gzip compression level");
 
 #define GZ_SUFFIX	".gz"
 #define GZ_SUFFIX_LEN	3
@@ -3031,11 +3030,12 @@ SYSCTL_INT(_kern, OID_AUTO, compress_user_cores_gzlevel, CTLFLAG_RW,
 static char corefilename[MAXPATHLEN] = {"%N.core"};
 TUNABLE_STR("kern.corefile", corefilename, sizeof(corefilename));
 SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RW, corefilename,
-	      sizeof(corefilename), "process corefile name format string");
+    sizeof(corefilename), "Process corefile name format string");
 
 /*
- * expand_name(name, uid, pid, td, compress)
- * Expand the name described in corefilename, using name, uid, and pid.
+ * corefile_open(comm, uid, pid, td, compress, vpp, namep)
+ * Expand the name described in corefilename, using name, uid, and pid
+ * and open/create core file.
  * corefilename is a printf-like string, with three format specifiers:
  *	%N	name of process ("name")
  *	%P	process id (pid)
@@ -3044,25 +3044,22 @@ SYSCTL_STRING(_kern, OID_AUTO, corefile, CTLFLAG_RW, corefilename,
  * by using "/dev/null", or all core files can be stored in "/cores/%U/%N-%P".
  * This is controlled by the sysctl variable kern.corefile (see above).
  */
-static char *
-expand_name(const char *name, uid_t uid, pid_t pid, struct thread *td,
-    int compress)
+static int
+corefile_open(const char *comm, uid_t uid, pid_t pid, struct thread *td,
+    int compress, struct vnode **vpp, char **namep)
 {
+	struct nameidata nd;
 	struct sbuf sb;
 	const char *format;
-	char *temp;
-	size_t i;
-	int indexpos;
-	char *hostname;
+	char *hostname, *name;
+	int indexpos, i, error, cmode, flags, oflags;
 
 	hostname = NULL;
 	format = corefilename;
-	temp = malloc(MAXPATHLEN, M_TEMP, M_NOWAIT | M_ZERO);
-	if (temp == NULL)
-		return (NULL);
+	name = malloc(MAXPATHLEN, M_TEMP, M_WAITOK | M_ZERO);
 	indexpos = -1;
-	(void)sbuf_new(&sb, temp, MAXPATHLEN, SBUF_FIXEDLEN);
-	for (i = 0; format[i]; i++) {
+	(void)sbuf_new(&sb, name, MAXPATHLEN, SBUF_FIXEDLEN);
+	for (i = 0; format[i] != '\0'; i++) {
 		switch (format[i]) {
 		case '%':	/* Format character */
 			i++;
@@ -3073,27 +3070,18 @@ expand_name(const char *name, uid_t uid, pid_t pid, struct thread *td,
 			case 'H':	/* hostname */
 				if (hostname == NULL) {
 					hostname = malloc(MAXHOSTNAMELEN,
-					    M_TEMP, M_NOWAIT);
-					if (hostname == NULL) {
-						log(LOG_ERR,
-						    "pid %ld (%s), uid (%lu): "
-						    "unable to alloc memory "
-						    "for corefile hostname\n",
-						    (long)pid, name,
-						    (u_long)uid);
-                                                goto nomem;
-                                        }
-                                }
+					    M_TEMP, M_WAITOK);
+				}
 				getcredhostname(td->td_ucred, hostname,
 				    MAXHOSTNAMELEN);
 				sbuf_printf(&sb, "%s", hostname);
 				break;
-			case 'I':       /* autoincrementing index */
+			case 'I':	/* autoincrementing index */
 				sbuf_printf(&sb, "0");
 				indexpos = sbuf_len(&sb) - 1;
 				break;
 			case 'N':	/* process name */
-				sbuf_printf(&sb, "%s", name);
+				sbuf_printf(&sb, "%s", comm);
 				break;
 			case 'P':	/* process id */
 				sbuf_printf(&sb, "%u", pid);
@@ -3105,6 +3093,7 @@ expand_name(const char *name, uid_t uid, pid_t pid, struct thread *td,
 				log(LOG_ERR,
 				    "Unknown format character %c in "
 				    "corename `%s'\n", format[i], format);
+				break;
 			}
 			break;
 		default:
@@ -3113,20 +3102,21 @@ expand_name(const char *name, uid_t uid, pid_t pid, struct thread *td,
 	}
 	free(hostname, M_TEMP);
 #ifdef COMPRESS_USER_CORES
-	if (compress) {
+	if (compress)
 		sbuf_printf(&sb, GZ_SUFFIX);
-	}
 #endif
 	if (sbuf_error(&sb) != 0) {
 		log(LOG_ERR, "pid %ld (%s), uid (%lu): corename is too "
-		    "long\n", (long)pid, name, (u_long)uid);
-nomem:
+		    "long\n", (long)pid, comm, (u_long)uid);
 		sbuf_delete(&sb);
-		free(temp, M_TEMP);
-		return (NULL);
+		free(name, M_TEMP);
+		return (ENOMEM);
 	}
 	sbuf_finish(&sb);
 	sbuf_delete(&sb);
+
+	cmode = S_IRUSR | S_IWUSR;
+	oflags = VN_OPEN_NOAUDIT | (capmode_coredump ? VN_OPEN_NOCAPCHECK : 0);
 
 	/*
 	 * If the core format has a %I in it, then we need to check
@@ -3135,19 +3125,10 @@ nomem:
 	 * non-existing core file name to use.
 	 */
 	if (indexpos != -1) {
-		struct nameidata nd;
-		int error, n;
-		int flags = O_CREAT | O_EXCL | FWRITE | O_NOFOLLOW;
-		int cmode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP;
-		int oflags = 0;
-
-		if (capmode_coredump)
-			oflags = VN_OPEN_NOCAPCHECK;
-
-		for (n = 0; n < num_cores; n++) {
-			temp[indexpos] = '0' + n;
-			NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE,
-			    temp, td);
+		for (i = 0; i < num_cores; i++) {
+			flags = O_CREAT | O_EXCL | FWRITE | O_NOFOLLOW;
+			name[indexpos] = '0' + i;
+			NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, td);
 			error = vn_open_cred(&nd, &flags, cmode, oflags,
 			    td->td_ucred, NULL);
 			if (error) {
@@ -3155,27 +3136,28 @@ nomem:
 					continue;
 				log(LOG_ERR,
 				    "pid %d (%s), uid (%u):  Path `%s' failed "
-                                    "on initial open test, error = %d\n",
-				    pid, name, uid, temp, error);
-				free(temp, M_TEMP);
-				return (NULL);
+				    "on initial open test, error = %d\n",
+				    pid, comm, uid, name, error);
 			}
-			NDFREE(&nd, NDF_ONLY_PNBUF);
-			VOP_UNLOCK(nd.ni_vp, 0);
-			error = vn_close(nd.ni_vp, FWRITE, td->td_ucred, td);
-			if (error) {
-				log(LOG_ERR,
-				    "pid %d (%s), uid (%u):  Path `%s' failed "
-                                    "on close after initial open test, "
-                                    "error = %d\n",
-				    pid, name, uid, temp, error);
-				free(temp, M_TEMP);
-				return (NULL);
-			}
-			break;
+			goto out;
 		}
 	}
-	return (temp);
+
+	flags = O_CREAT | FWRITE | O_NOFOLLOW;
+	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, td);
+	error = vn_open_cred(&nd, &flags, cmode, oflags, td->td_ucred, NULL);
+out:
+	if (error) {
+#ifdef AUDIT
+		audit_proc_coredump(td, name, error);
+#endif
+		free(name, M_TEMP);
+		return (error);
+	}
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+	*vpp = nd.ni_vp;
+	*namep = name;
+	return (0);
 }
 
 /*
@@ -3190,12 +3172,11 @@ static int
 coredump(struct thread *td)
 {
 	struct proc *p = td->td_proc;
-	register struct vnode *vp;
-	register struct ucred *cred = td->td_ucred;
+	struct ucred *cred = td->td_ucred;
+	struct vnode *vp;
 	struct flock lf;
-	struct nameidata nd;
 	struct vattr vattr;
-	int error, error1, flags, locked;
+	int error, error1, locked;
 	struct mount *mp;
 	char *name;			/* name of corefile */
 	off_t limit;
@@ -3210,22 +3191,8 @@ coredump(struct thread *td)
 	MPASS((p->p_flag & P_HADTHREADS) == 0 || p->p_singlethread == td);
 	_STOPEVENT(p, S_CORE, 0);
 
-	name = expand_name(p->p_comm, td->td_ucred->cr_uid, p->p_pid, td,
-	    compress);
-	if (name == NULL) {
+	if (!do_coredump || (!sugid_coredump && (p->p_flag & P_SUGID) != 0)) {
 		PROC_UNLOCK(p);
-#ifdef AUDIT
-		audit_proc_coredump(td, NULL, EINVAL);
-#endif
-		return (EINVAL);
-	}
-	if (((sugid_coredump == 0) && p->p_flag & P_SUGID) ||
-	    do_coredump == 0) {
-		PROC_UNLOCK(p);
-#ifdef AUDIT
-		audit_proc_coredump(td, name, EFAULT);
-#endif
-		free(name, M_TEMP);
 		return (EFAULT);
 	}
 
@@ -3240,33 +3207,19 @@ coredump(struct thread *td)
 	limit = (off_t)lim_cur(p, RLIMIT_CORE);
 	if (limit == 0 || racct_get_available(p, RACCT_CORE) == 0) {
 		PROC_UNLOCK(p);
-#ifdef AUDIT
-		audit_proc_coredump(td, name, EFBIG);
-#endif
-		free(name, M_TEMP);
 		return (EFBIG);
 	}
 	PROC_UNLOCK(p);
 
 restart:
-	NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_SYSSPACE, name, td);
-	flags = O_CREAT | FWRITE | O_NOFOLLOW;
-	error = vn_open_cred(&nd, &flags, S_IRUSR | S_IWUSR,
-	    VN_OPEN_NOAUDIT | (capmode_coredump ? VN_OPEN_NOCAPCHECK : 0),
-	    cred, NULL);
-	if (error) {
-#ifdef AUDIT
-		audit_proc_coredump(td, name, error);
-#endif
-		free(name, M_TEMP);
+	error = corefile_open(p->p_comm, cred->cr_uid, p->p_pid, td, compress,
+	    &vp, &name);
+	if (error != 0)
 		return (error);
-	}
-	NDFREE(&nd, NDF_ONLY_PNBUF);
-	vp = nd.ni_vp;
 
 	/* Don't dump to non-regular files or files with links. */
-	if (vp->v_type != VREG ||
-	    VOP_GETATTR(vp, &vattr, cred) || vattr.va_nlink != 1) {
+	if (vp->v_type != VREG || VOP_GETATTR(vp, &vattr, cred) != 0 ||
+	    vattr.va_nlink != 1) {
 		VOP_UNLOCK(vp, 0);
 		error = EFAULT;
 		goto close;

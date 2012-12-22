@@ -711,7 +711,7 @@ sys_mount(td, uap)
 	int error;
 
 	/*
-	 * Mount flags are now 64-bits. On 32-bit archtectures only
+	 * Mount flags are now 64-bits. On 32-bit architectures only
 	 * 32-bits are passed in, but from here on everything handles
 	 * 64-bit flags correctly.
 	 */
@@ -1724,7 +1724,7 @@ __mnt_vnode_next(struct vnode **mvp, struct mount *mp)
 	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
 	if (should_yield()) {
 		MNT_IUNLOCK(mp);
-		kern_yield(PRI_UNCHANGED);
+		kern_yield(PRI_USER);
 		MNT_ILOCK(mp);
 	}
 	vp = TAILQ_NEXT(*mvp, v_nmntvnodes);

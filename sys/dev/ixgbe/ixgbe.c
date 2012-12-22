@@ -3721,8 +3721,8 @@ ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 		 */
 		if ((rxbuf->flags & IXGBE_RX_COPY) == 0) {
 			/* Get the memory mapping */
-			error = bus_dmamap_load_mbuf_sg(rxr->tag,
-			    rxbuf->map, mp, seg, &nsegs, BUS_DMA_NOWAIT);
+			error = bus_dmamap_load_mbuf_sg(rxr->ptag,
+			    rxbuf->pmap, mp, seg, &nsegs, BUS_DMA_NOWAIT);
 			if (error != 0) {
 				printf("Refresh mbufs: payload dmamap load"
 				    " failure - %d\n", error);
@@ -3731,7 +3731,7 @@ ixgbe_refresh_mbufs(struct rx_ring *rxr, int limit)
 				goto update;
 			}
 			rxbuf->buf = mp;
-			bus_dmamap_sync(rxr->tag, rxbuf->map,
+			bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
 			    BUS_DMASYNC_PREREAD);
 			rxbuf->addr = rxr->rx_base[i].read.pkt_addr =
 			    htole64(seg[0].ds_addr);
@@ -3790,15 +3790,15 @@ ixgbe_allocate_receive_buffers(struct rx_ring *rxr)
 				   0,			/* flags */
 				   NULL,		/* lockfunc */
 				   NULL,		/* lockfuncarg */
-				   &rxr->tag))) {
+				   &rxr->ptag))) {
 		device_printf(dev, "Unable to create RX DMA tag\n");
 		goto fail;
 	}
 
 	for (i = 0; i < rxr->num_desc; i++, rxbuf++) {
 		rxbuf = &rxr->rx_buffers[i];
-		error = bus_dmamap_create(rxr->tag,
-		    BUS_DMA_NOWAIT, &rxbuf->map);
+		error = bus_dmamap_create(rxr->ptag,
+		    BUS_DMA_NOWAIT, &rxbuf->pmap);
 		if (error) {
 			device_printf(dev, "Unable to create RX dma map\n");
 			goto fail;
@@ -3897,9 +3897,9 @@ ixgbe_free_receive_ring(struct rx_ring *rxr)
 	for (i = 0; i < rxr->num_desc; i++) {
 		rxbuf = &rxr->rx_buffers[i];
 		if (rxbuf->buf != NULL) {
-			bus_dmamap_sync(rxr->tag, rxbuf->map,
+			bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
 			    BUS_DMASYNC_POSTREAD);
-			bus_dmamap_unload(rxr->tag, rxbuf->map);
+			bus_dmamap_unload(rxr->ptag, rxbuf->pmap);
 			rxbuf->buf->m_flags |= M_PKTHDR;
 			m_freem(rxbuf->buf);
 			rxbuf->buf = NULL;
@@ -3966,7 +3966,7 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 			void *addr;
 
 			addr = PNMB(slot + sj, &paddr);
-			netmap_load_map(rxr->tag, rxbuf->map, addr);
+			netmap_load_map(rxr->ptag, rxbuf->pmap, addr);
 			/* Update descriptor */
 			rxr->rx_base[j].read.pkt_addr = htole64(paddr);
 			continue;
@@ -3981,13 +3981,13 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 		mp = rxbuf->buf;
 		mp->m_pkthdr.len = mp->m_len = rxr->mbuf_sz;
 		/* Get the memory mapping */
-		error = bus_dmamap_load_mbuf_sg(rxr->tag,
-		    rxbuf->map, mp, seg,
+		error = bus_dmamap_load_mbuf_sg(rxr->ptag,
+		    rxbuf->pmap, mp, seg,
 		    &nsegs, BUS_DMA_NOWAIT);
 		if (error != 0)
                         goto fail;
-		bus_dmamap_sync(rxr->tag,
-		    rxbuf->map, BUS_DMASYNC_PREREAD);
+		bus_dmamap_sync(rxr->ptag,
+		    rxbuf->pmap, BUS_DMASYNC_PREREAD);
 		/* Update descriptor */
 		rxr->rx_base[j].read.pkt_addr = htole64(seg[0].ds_addr);
 	}
@@ -4237,16 +4237,16 @@ ixgbe_free_receive_buffers(struct rx_ring *rxr)
 		for (int i = 0; i < adapter->num_rx_desc; i++) {
 			rxbuf = &rxr->rx_buffers[i];
 			if (rxbuf->buf != NULL) {
-				bus_dmamap_sync(rxr->tag, rxbuf->map,
+				bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
 				    BUS_DMASYNC_POSTREAD);
-				bus_dmamap_unload(rxr->tag, rxbuf->map);
+				bus_dmamap_unload(rxr->ptag, rxbuf->pmap);
 				rxbuf->buf->m_flags |= M_PKTHDR;
 				m_freem(rxbuf->buf);
 			}
 			rxbuf->buf = NULL;
-			if (rxbuf->map != NULL) {
-				bus_dmamap_destroy(rxr->tag, rxbuf->map);
-				rxbuf->map = NULL;
+			if (rxbuf->pmap != NULL) {
+				bus_dmamap_destroy(rxr->ptag, rxbuf->pmap);
+				rxbuf->pmap = NULL;
 			}
 		}
 		if (rxr->rx_buffers != NULL) {
@@ -4255,9 +4255,9 @@ ixgbe_free_receive_buffers(struct rx_ring *rxr)
 		}
 	}
 
-	if (rxr->tag != NULL) {
-		bus_dma_tag_destroy(rxr->tag);
-		rxr->tag = NULL;
+	if (rxr->ptag != NULL) {
+		bus_dma_tag_destroy(rxr->ptag);
+		rxr->ptag = NULL;
 	}
 
 	return;
