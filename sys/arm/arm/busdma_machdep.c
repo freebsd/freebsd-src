@@ -567,16 +567,24 @@ bus_dmamap_create(bus_dma_tag_t dmat, int flags, bus_dmamap_t *mapp)
 	bus_dmamap_t map;
 	int error = 0;
 
-	map = uma_zalloc_arg(dmamap_zone, dmat, M_WAITOK);
+	map = uma_zalloc_arg(dmamap_zone, dmat, M_NOWAIT);
 	*mapp = map;
+	if (map == NULL)
+		return (ENOMEM);
 
 	/*
 	 * If the tag's segments haven't been allocated yet we need to do it
 	 * now, because we can't sleep for resources at map load time.
 	 */
-	if (dmat->segments == NULL)
+	if (dmat->segments == NULL) {
 		dmat->segments = malloc(dmat->nsegments * 
-		    sizeof(*dmat->segments), M_DEVBUF, M_WAITOK);
+		    sizeof(*dmat->segments), M_DEVBUF, M_NOWAIT);
+		if (dmat->segments == NULL) {
+			uma_zfree(dmamap_zone, map);
+			*mapp = NULL;
+			return (ENOMEM);
+		}
+	}
 
 	/*
 	 * Bouncing might be required if the driver asks for an active
