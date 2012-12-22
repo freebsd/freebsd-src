@@ -17,7 +17,7 @@ SRCS+=		pack_dev.c
 CFLAGS+=	-I${.CURDIR}/../../lib/libnetbsd
 LIBNETBSDDIR=	${.OBJDIR}/../../lib/libnetbsd
 LIBNETBSD=	${LIBNETBSDDIR}/libnetbsd.a
-DPADD+=		{LIBNETBSD}
+DPADD+=		${LIBNETBSD}
 LDADD+=		${LIBNETBSD}
 
 nmtree.8: mtree.8
