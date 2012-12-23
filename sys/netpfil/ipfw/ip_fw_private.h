@@ -259,7 +259,7 @@ struct sockopt;	/* used by tcp_var.h */
 	(_cntr)->bcnt = 0;				\
 	} while (0)
 
-#define	IP_FW_ARG_TABLEARG(a)	((a) == IP_FW_TABLEARG) ? tablearg : (a)
+#define	IP_FW_ARG_TABLEARG(a)	(((a) == IP_FW_TABLEARG) ? tablearg : (a))
 /*
  * The lock is heavily used by ip_fw2.c (the main file) and ip_fw_nat.c
  * so the variable and the macros must be here.
