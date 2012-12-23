@@ -457,10 +457,8 @@ main(__unused int argc, char *argv[])
 		 * a system is configured to use pkg, don't bootstrap pkg
 		 * when that argument is given as argv[1].
 		 */
-		if ( argv[1] != NULL && strcmp(argv[1], "-N") == 0) {
-			printf("%s", "pkg is not installed\n");
-			exit(EXIT_FAILURE);
-		}
+		if ( argv[1] != NULL && strcmp(argv[1], "-N") == 0)
+			errx(EXIT_FAILURE, "pkg is not installed\n");
 
 		/*
 		 * Do not ask for confirmation if either of stdin or stdout is
