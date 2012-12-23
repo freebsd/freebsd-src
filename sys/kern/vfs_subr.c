@@ -3970,9 +3970,13 @@ assert_vi_unlocked(struct vnode *vp, const char *str)
 void
 assert_vop_locked(struct vnode *vp, const char *str)
 {
+	int locked;
 
-	if (!IGNORE_LOCK(vp) && VOP_ISLOCKED(vp) == 0)
-		vfs_badlock("is not locked but should be", str, vp);
+	if (!IGNORE_LOCK(vp)) {
+		locked = VOP_ISLOCKED(vp);
+		if (locked == 0 || locked == LK_EXCLOTHER)
+			vfs_badlock("is not locked but should be", str, vp);
+	}
 }
 
 void
