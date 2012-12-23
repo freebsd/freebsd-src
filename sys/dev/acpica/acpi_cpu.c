@@ -964,9 +964,9 @@ acpi_cpu_idle()
 	return;
     }
 
-    /* If disabled, return immediately. */
+    /* If disabled, take the safe path. */
     if (is_idle_disabled(sc)) {
-	ACPI_ENABLE_IRQS();
+	acpi_cpu_c1();
 	return;
     }
 
@@ -1067,23 +1067,31 @@ acpi_cpu_idle()
 
 /*
  * Re-evaluate the _CST object when we are notified that it changed.
- *
- * XXX Re-evaluation disabled until locking is done.
  */
 static void
 acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 {
     struct acpi_cpu_softc *sc = (struct acpi_cpu_softc *)context;
-    
+
     if (notify != ACPI_NOTIFY_CX_STATES)
 	return;
+
+    /*
+     * C-state data for target CPU is going to be in flux while we execute
+     * acpi_cpu_cx_cst, so disable entering acpi_cpu_idle.
+     * Also, it may happen that multiple ACPI taskqueues may concurrently
+     * execute notifications for the same CPU.  ACPI_SERIAL is used to
+     * protect against that.
+     */
+    ACPI_SERIAL_BEGIN(cpu);
+    disable_idle(sc);
 
     /* Update the list of Cx states. */
     acpi_cpu_cx_cst(sc);
     acpi_cpu_cx_list(sc);
-
-    ACPI_SERIAL_BEGIN(cpu);
     acpi_cpu_set_cx_lowest(sc);
+
+    enable_idle(sc);
     ACPI_SERIAL_END(cpu);
 
     acpi_UserNotify("PROCESSOR", sc->cpu_handle, notify);
