@@ -417,9 +417,9 @@ SYSINIT(acpi_cpu, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE,
 static void
 disable_idle(struct acpi_cpu_softc *sc)
 {
-    cpuset_t cpuset;
+    cpumask_t cpuset;
 
-    CPU_SETOF(sc->cpu_pcpu->pc_cpuid, &cpuset);
+    cpuset = sc->cpu_pcpu->pc_cpumask;
     sc->cpu_disable_idle = TRUE;
 
     /*
