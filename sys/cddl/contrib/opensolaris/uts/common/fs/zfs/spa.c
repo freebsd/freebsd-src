@@ -3799,7 +3799,7 @@ spa_generate_rootconf(const char *name)
 	nvlist_lookup_uint64_array(best_cfg, ZPOOL_CONFIG_HOLE_ARRAY,
 	    &holes, &nholes);
 
-	tops = kmem_alloc(nchildren * sizeof(void *), KM_SLEEP | KM_ZERO);
+	tops = kmem_zalloc(nchildren * sizeof(void *), KM_SLEEP);
 	for (i = 0; i < nchildren; i++) {
 		if (i >= count)
 			break;
