@@ -2160,6 +2160,9 @@ static bool isIntegerWideningViable(const DataLayout &TD,
                                     AllocaPartitioning::const_use_iterator I,
                                     AllocaPartitioning::const_use_iterator E) {
   uint64_t SizeInBits = TD.getTypeSizeInBits(AllocaTy);
+  // Don't create integer types larger than the maximum bitwidth.
+  if (SizeInBits > IntegerType::MAX_INT_BITS)
+    return false;
 
   // Don't try to handle allocas with bit-padding.
   if (SizeInBits != TD.getTypeStoreSizeInBits(AllocaTy))
@@ -2198,7 +2201,7 @@ static bool isIntegerWideningViable(const DataLayout &TD,
       if (RelBegin == 0 && RelEnd == Size)
         WholeAllocaOp = true;
       if (IntegerType *ITy = dyn_cast<IntegerType>(LI->getType())) {
-        if (ITy->getBitWidth() < TD.getTypeStoreSize(ITy))
+        if (ITy->getBitWidth() < TD.getTypeStoreSizeInBits(ITy))
           return false;
         continue;
       }
@@ -2214,7 +2217,7 @@ static bool isIntegerWideningViable(const DataLayout &TD,
       if (RelBegin == 0 && RelEnd == Size)
         WholeAllocaOp = true;
       if (IntegerType *ITy = dyn_cast<IntegerType>(ValueTy)) {
-        if (ITy->getBitWidth() < TD.getTypeStoreSize(ITy))
+        if (ITy->getBitWidth() < TD.getTypeStoreSizeInBits(ITy))
           return false;
         continue;
       }
