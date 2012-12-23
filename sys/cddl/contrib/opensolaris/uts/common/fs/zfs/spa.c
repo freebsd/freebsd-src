@@ -3739,54 +3739,120 @@ out:
 
 #else
 
-extern int
-vdev_geom_read_pool_label(const char *name, nvlist_t **config);
+extern int vdev_geom_read_pool_label(const char *name, nvlist_t ***configs,
+    uint64_t *count);
 
 static nvlist_t *
 spa_generate_rootconf(const char *name)
 {
+	nvlist_t **configs, **tops;
 	nvlist_t *config;
-	nvlist_t *nvtop, *nvroot;
+	nvlist_t *best_cfg, *nvtop, *nvroot;
+	uint64_t *holes;
+	uint64_t best_txg;
 	uint64_t nchildren;
 	uint64_t pgid;
+	uint64_t count;
+	uint64_t i;
+	uint_t   nholes;
 
-	if (vdev_geom_read_pool_label(name, &config) != 0)
+	if (vdev_geom_read_pool_label(name, &configs, &count) != 0)
 		return (NULL);
+
+	ASSERT3U(count, !=, 0);
+	best_txg = 0;
+	for (i = 0; i < count; i++) {
+		uint64_t txg;
+
+		VERIFY(nvlist_lookup_uint64(configs[i], ZPOOL_CONFIG_POOL_TXG,
+		    &txg) == 0);
+		if (txg > best_txg) {
+			best_txg = txg;
+			best_cfg = configs[i];
+		}
+	}
 
 	/*
 	 * Multi-vdev root pool configuration discovery is not supported yet.
 	 */
 	nchildren = 0;
-	nvlist_lookup_uint64(config, ZPOOL_CONFIG_VDEV_CHILDREN, &nchildren);
-	if (nchildren != 1) {
-		nvlist_free(config);
-		return (NULL);
+	VERIFY(nvlist_lookup_uint64(best_cfg, ZPOOL_CONFIG_VDEV_CHILDREN,
+	    &nchildren) == 0);
+	holes = NULL;
+	nvlist_lookup_uint64_array(best_cfg, ZPOOL_CONFIG_HOLE_ARRAY,
+	    &holes, &nholes);
+
+	tops = kmem_alloc(nchildren * sizeof(void *), KM_SLEEP | KM_ZERO);
+	for (i = 0; i < nchildren; i++) {
+		if (i >= count)
+			break;
+		if (configs[i] == NULL)
+			continue;
+		VERIFY(nvlist_lookup_nvlist(configs[i], ZPOOL_CONFIG_VDEV_TREE,
+		    &nvtop) == 0);
+		nvlist_dup(nvtop, &tops[i], KM_SLEEP);
+	}
+	for (i = 0; holes != NULL && i < nholes; i++) {
+		if (i >= nchildren)
+			continue;
+		if (tops[holes[i]] != NULL)
+			continue;
+		nvlist_alloc(&tops[holes[i]], NV_UNIQUE_NAME, KM_SLEEP);
+		VERIFY(nvlist_add_string(tops[holes[i]], ZPOOL_CONFIG_TYPE,
+		    VDEV_TYPE_HOLE) == 0);
+		VERIFY(nvlist_add_uint64(tops[holes[i]], ZPOOL_CONFIG_ID,
+		    holes[i]) == 0);
+		VERIFY(nvlist_add_uint64(tops[holes[i]], ZPOOL_CONFIG_GUID,
+		    0) == 0);
+	}
+	for (i = 0; i < nchildren; i++) {
+		if (tops[i] != NULL)
+			continue;
+		nvlist_alloc(&tops[i], NV_UNIQUE_NAME, KM_SLEEP);
+		VERIFY(nvlist_add_string(tops[i], ZPOOL_CONFIG_TYPE,
+		    VDEV_TYPE_MISSING) == 0);
+		VERIFY(nvlist_add_uint64(tops[i], ZPOOL_CONFIG_ID,
+		    i) == 0);
+		VERIFY(nvlist_add_uint64(tops[i], ZPOOL_CONFIG_GUID,
+		    0) == 0);
 	}
 
 	/*
-	 * Add this top-level vdev to the child array.
+	 * Create pool config based on the best vdev config.
 	 */
-	VERIFY(nvlist_lookup_nvlist(config, ZPOOL_CONFIG_VDEV_TREE,
-	    &nvtop) == 0);
-	VERIFY(nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_GUID,
-	    &pgid) == 0);
+	nvlist_dup(best_cfg, &config, KM_SLEEP);
 
 	/*
 	 * Put this pool's top-level vdevs into a root vdev.
 	 */
+	VERIFY(nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_GUID,
+	    &pgid) == 0);
 	VERIFY(nvlist_alloc(&nvroot, NV_UNIQUE_NAME, KM_SLEEP) == 0);
 	VERIFY(nvlist_add_string(nvroot, ZPOOL_CONFIG_TYPE,
 	    VDEV_TYPE_ROOT) == 0);
 	VERIFY(nvlist_add_uint64(nvroot, ZPOOL_CONFIG_ID, 0ULL) == 0);
 	VERIFY(nvlist_add_uint64(nvroot, ZPOOL_CONFIG_GUID, pgid) == 0);
 	VERIFY(nvlist_add_nvlist_array(nvroot, ZPOOL_CONFIG_CHILDREN,
-	    &nvtop, 1) == 0);
+	    tops, nchildren) == 0);
 
 	/*
 	 * Replace the existing vdev_tree with the new root vdev in
 	 * this pool's configuration (remove the old, add the new).
 	 */
 	VERIFY(nvlist_add_nvlist(config, ZPOOL_CONFIG_VDEV_TREE, nvroot) == 0);
+
+	/*
+	 * Drop vdev config elements that should not be present at pool level.
+	 */
+	nvlist_remove(config, ZPOOL_CONFIG_GUID, DATA_TYPE_UINT64);
+	nvlist_remove(config, ZPOOL_CONFIG_TOP_GUID, DATA_TYPE_UINT64);
+
+	for (i = 0; i < count; i++)
+		nvlist_free(configs[i]);
+	kmem_free(configs, count * sizeof(void *));
+	for (i = 0; i < nchildren; i++)
+		nvlist_free(tops[i]);
+	kmem_free(tops, nchildren * sizeof(void *));
 	nvlist_free(nvroot);
 	return (config);
 }
