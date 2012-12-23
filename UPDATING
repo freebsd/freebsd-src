@@ -26,6 +26,11 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	disable the most expensive debugging functionality run
 	"ln -s 'abort:false,junk:false' /etc/malloc.conf".)
 
+20121223:
+	After switching to Clang as the default compiler some users of ZFS
+	on i386 systems started to experience stack overflow kernel panics.
+	Please consider using 'options KSTACK_PAGES=4' in such configurations.
+
 20121222:
 	GEOM_LABEL now mangles label names read from file system metadata.
 	Mangling affect labels containing spaces, non-printable characters,
