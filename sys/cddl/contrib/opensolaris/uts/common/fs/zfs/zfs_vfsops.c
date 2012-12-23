@@ -2136,7 +2136,7 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 			VN_HOLD(*vpp);
 		}
 		ZFS_EXIT(zfsvfs);
-		err = zfs_vnode_lock(*vpp, flags | LK_RETRY);
+		err = zfs_vnode_lock(*vpp, flags);
 		if (err != 0)
 			*vpp = NULL;
 		return (err);
