@@ -83,7 +83,7 @@ enum {
 	DIR_NONE,
 };
 
-#define	SCSI_MAX_LEN	0x100
+#define	SCSI_MAX_LEN	MAX(0x100, BULK_SIZE)
 #define	SCSI_INQ_LEN	0x24
 #define	SCSI_SENSE_LEN	0xFF
 
@@ -150,6 +150,7 @@ struct bbb_transfer {
 	usb_size_t data_rem;		/* bytes */
 	usb_timeout_t data_timeout;	/* ms */
 	usb_frlength_t actlen;		/* bytes */
+	usb_frlength_t buffer_size;    	/* bytes */
 
 	uint8_t	cmd_len;		/* bytes */
 	uint8_t	dir;
@@ -192,7 +193,7 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.bufsize = MAX(SCSI_MAX_LEN, BULK_SIZE),
+		.bufsize = SCSI_MAX_LEN,
 		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,},
 		.callback = &bbb_data_read_callback,
 		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
@@ -211,7 +212,7 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.bufsize = BULK_SIZE,
+		.bufsize = SCSI_MAX_LEN,
 		.flags = {.ext_buffer = 1,.proxy_buffer = 1,},
 		.callback = &bbb_data_write_callback,
 		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
@@ -553,6 +554,8 @@ bbb_attach(struct usb_device *udev, uint8_t iface_index)
 	/* store pointer to DMA buffers */
 	sc->buffer = usbd_xfer_get_frame_buffer(
 	    sc->xfer[ST_DATA_RD], 0);
+	sc->buffer_size =
+	    usbd_xfer_max_len(sc->xfer[ST_DATA_RD]);
 	sc->cbw = usbd_xfer_get_frame_buffer(
 	    sc->xfer[ST_COMMAND], 0);
 	sc->csw = usbd_xfer_get_frame_buffer(
@@ -833,8 +836,8 @@ usb_msc_eject(struct usb_device *udev, uint8_t iface_index, int method)
 		 * TCTMobile needs DIR_IN flag. To get it, we
 		 * supply a dummy data with the command.
 		 */
-		err = bbb_command_start(sc, DIR_IN, 0, &sc->buffer,
-		    sizeof(sc->buffer), &scsi_tct_eject,
+		err = bbb_command_start(sc, DIR_IN, 0, sc->buffer,
+		    sc->buffer_size, &scsi_tct_eject,
 		    sizeof(scsi_tct_eject), USB_MS_HZ);
 		break;
 	default:
