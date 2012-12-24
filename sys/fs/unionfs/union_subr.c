@@ -954,7 +954,7 @@ unionfs_vn_create_on_upper(struct vnode **vpp, struct vnode *udvp,
 		vput(vp);
 		goto unionfs_vn_create_on_upper_free_out1;
 	}
-	vp->v_writecount++;
+	VOP_ADD_WRITECOUNT(vp, 1);
 	*vpp = vp;
 
 unionfs_vn_create_on_upper_free_out1:
@@ -1089,7 +1089,7 @@ unionfs_copyfile(struct unionfs_node *unp, int docopy, struct ucred *cred,
 		}
 	}
 	VOP_CLOSE(uvp, FWRITE, cred, td);
-	uvp->v_writecount--;
+	VOP_ADD_WRITECOUNT(uvp, -1);
 
 	vn_finished_write(mp);
 
