@@ -60,10 +60,12 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
     bus_size_t buflen, bus_dmamap_callback_t *callback,
     void *callback_arg, int flags)
 {
+	bus_dma_segment_t *segs;
 	int error;
 	int nsegs;
 
-	_bus_dmamap_mayblock(dmat, map, callback, callback_arg, &flags);
+	if ((flags & BUS_DMA_NOWAIT) == 0)
+		_bus_dmamap_mayblock(dmat, map, callback, callback_arg);
 
 	nsegs = -1;
 	error = _bus_dmamap_load_buffer(dmat, map, buf, buflen, kernel_pmap,
@@ -76,7 +78,11 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	if (error == EINPROGRESS)
 		return (error);
 
-	_bus_dmamap_complete(dmat, map, callback, callback_arg, nsegs, error);
+	segs = _bus_dmamap_complete(dmat, map, NULL, nsegs, error);
+	if (error)
+		(*callback)(callback_arg, segs, 0, error);
+	else
+		(*callback)(callback_arg, segs, nsegs, 0);
 
 	/*
 	 * Return ENOMEM to the caller so that it can pass it up the stack.
@@ -121,12 +127,16 @@ int
 bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
     bus_dmamap_callback2_t *callback, void *callback_arg, int flags)
 {
+	bus_dma_segment_t *segs;
 	int nsegs, error;
 
 	error = _bus_dmamap_load_mbuf_sg(dmat, map, m0, NULL, &nsegs, flags);
 
-	_bus_dmamap_complete2(dmat, map, callback, callback_arg, nsegs,
-	    m0->m_pkthdr.len, error);
+	segs = _bus_dmamap_complete(dmat, map, NULL, nsegs, error);
+	if (error)
+		(*callback)(callback_arg, segs, 0, 0, error);
+	else
+		(*callback)(callback_arg, segs, nsegs, m0->m_pkthdr.len, error);
 
 	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
 	    __func__, dmat, flags, error, nsegs);
@@ -140,7 +150,7 @@ bus_dmamap_load_mbuf_sg(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 	int error;
 
 	error = _bus_dmamap_load_mbuf_sg(dmat, map, m0, segs, nsegs, flags);
-	_bus_dmamap_directseg(dmat, map, segs, *nsegs, error);
+	_bus_dmamap_complete(dmat, map, segs, *nsegs, error);
 	return (error);
 }
 
@@ -151,6 +161,7 @@ int
 bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
     bus_dmamap_callback2_t *callback, void *callback_arg, int flags)
 {
+	bus_dma_segment_t *segs;
 	int nsegs, error, i;
 	bus_size_t resid;
 	bus_size_t minlen;
@@ -186,8 +197,11 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 		}
 	}
 
-	_bus_dmamap_complete2(dmat, map, callback, callback_arg, nsegs,
-	    uio->uio_resid, error);
+	segs = _bus_dmamap_complete(dmat, map, NULL, nsegs, error);
+	if (error)
+		(*callback)(callback_arg, segs, 0, 0, error);
+	else
+		(*callback)(callback_arg, segs, nsegs, uio->uio_resid, error);
 
 	CTR5(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d nsegs %d",
 	    __func__, dmat, dmat, error, nsegs + 1);
@@ -240,7 +254,7 @@ bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 				       callback_arg,
 				       /*flags*/0);
 	case CAM_DATA_PADDR: {
-		struct bus_dma_segment seg;
+		bus_dma_segment_t seg;
 
 		seg.ds_addr = (bus_addr_t)(vm_offset_t)data_ptr;
 		seg.ds_len = dxfer_len;
@@ -248,13 +262,13 @@ bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 		break;
 	}
 	case CAM_DATA_SG: {
-		struct bus_dma_segment *segs;
+		bus_dma_segment_t *segs;
 		int nsegs;
 		int error;
 		int i;
 
 		flags |= BUS_DMA_NOWAIT;
-		segs = (struct bus_dma_segment *)data_ptr;
+		segs = (bus_dma_segment_t *)data_ptr;
 		nsegs = -1;
 		error = 0;
 		for (i = 0; i < sglist_cnt && error == 0; i++) {
@@ -263,16 +277,20 @@ bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 			    kernel_pmap, flags, NULL, &nsegs);
 		}
 		nsegs++;
-		_bus_dmamap_complete(dmat, map, callback, callback_arg, nsegs,
-		    error);
+		segs = _bus_dmamap_complete(dmat, map, NULL, nsegs, error);
+		if (error)
+			(*callback)(callback_arg, segs, 0, error);
+		else
+			(*callback)(callback_arg, segs, nsegs, error);
+
 		if (error == ENOMEM)
 			return (error);
 		break;
 	}
 	case CAM_DATA_SG_PADDR: {
-		struct bus_dma_segment *segs;
+		bus_dma_segment_t *segs;
 		/* Just use the segments provided */
-		segs = (struct bus_dma_segment *)data_ptr;
+		segs = (bus_dma_segment_t *)data_ptr;
 		callback(callback_arg, segs, sglist_cnt, 0);
 		break;
 	}

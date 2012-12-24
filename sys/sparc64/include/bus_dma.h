@@ -82,15 +82,9 @@ struct bus_dma_methods {
 	    void *buf, bus_size_t buflen, struct pmap *pmap, int flags,
 	    bus_dma_segment_t *segs, int *segp);
 	void	(*dm_dmamap_mayblock)(bus_dma_tag_t dmat, bus_dmamap_t map,
-	    bus_dmamap_callback_t *callback, void *callback_arg, int *flags);
-	void	(*dm_dmamap_complete)(bus_dma_tag_t dmat, bus_dmamap_t map,
-	    bus_dmamap_callback_t *callback, void *callback_arg, int nsegs,
-	    int error);
-	void	(*dm_dmamap_complete2)(bus_dma_tag_t dmat, bus_dmamap_t map,
-	    bus_dmamap_callback2_t *callback2, void *callback_arg, int nsegs,
-	    bus_size_t len, int error);
-	void	(*dm_dmamap_directseg)(bus_dma_tag_t dmat, bus_dmamap_t map,
-	    bus_dma_segment_t *segs, int nsegs, int error);
+	    bus_dmamap_callback_t *callback, void *callback_arg);
+	bus_dma_segment_t *(*dm_dmamap_complete)(bus_dma_tag_t dmat,
+	    bus_dmamap_t map, bus_dma_segment_t *segs, int nsegs, int error);
 	void	(*dm_dmamap_unload)(bus_dma_tag_t, bus_dmamap_t);
 	void	(*dm_dmamap_sync)(bus_dma_tag_t, bus_dmamap_t,
 	    bus_dmasync_op_t);
@@ -133,14 +127,10 @@ struct bus_dma_tag {
 #define	_bus_dmamap_load_buffer(t, m, b, l, p, f, s, sp)		\
 	((t)->dt_mt->dm_dmamap_load_buffer((t), (m), (b), (l), (p),	\
 	    (f), (s), (sp)))
-#define	_bus_dmamap_mayblock(t, m, c, ca, f)				\
-	((t)->dt_mt->dm_dmamap_mayblock((t), (m), (c), (ca), (f)))
-#define	_bus_dmamap_complete(t, m, c, ca, n, e)				\
-	((t)->dt_mt->dm_dmamap_complete((t), (m), (c), (ca), (n), (e)))
-#define	_bus_dmamap_complete2(t, m, c, ca, n, l, e)			\
-	((t)->dt_mt->dm_dmamap_complete2((t), (m), (c), (ca), (n), (l), (e)))
-#define	_bus_dmamap_directseg(t, m, s, n, e)				\
-	((t)->dt_mt->dm_dmamap_directseg((t), (m), (s), (n), (e)))
+#define	_bus_dmamap_mayblock(t, m, c, ca)				\
+	((t)->dt_mt->dm_dmamap_mayblock((t), (m), (c), (ca)))
+#define	_bus_dmamap_complete(t, m, s, n, e)				\
+	((t)->dt_mt->dm_dmamap_complete((t), (m), (s), (n), (e)))
 #define	bus_dmamap_unload(t, p)						\
 	((t)->dt_mt->dm_dmamap_unload((t), (p)))
 #define	bus_dmamap_sync(t, m, op)					\

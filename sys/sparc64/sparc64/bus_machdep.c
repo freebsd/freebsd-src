@@ -405,42 +405,19 @@ nexus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 
 static void
 nexus_dmamap_mayblock(bus_dma_tag_t dmat, bus_dmamap_t map,
-    bus_dmamap_callback_t *callback, void *callback_arg, int *flags)
+    bus_dmamap_callback_t *callback, void *callback_arg)
 {
 
 }
 
-static void
+static bus_dma_segment_t *
 nexus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
-    bus_dmamap_callback_t *callback, void *callback_arg, int nsegs, int error)
-{
-
-	if (error) {
-		(*callback)(callback_arg, dmat->dt_segments, 0, error);
-	} else {
-		map->dm_flags |= DMF_LOADED;
-		(*callback)(callback_arg, dmat->dt_segments, nsegs, 0);
-	}
-}
-
-static void
-nexus_dmamap_complete2(bus_dma_tag_t dmat, bus_dmamap_t map,
-    bus_dmamap_callback2_t *callback, void *callback_arg, int nsegs,
-    bus_size_t len, int error)
-{
-
-	if (error) {
-		(*callback)(callback_arg, dmat->dt_segments, 0, 0, error);
-	} else {
-		map->dm_flags |= DMF_LOADED;
-		(*callback)(callback_arg, dmat->dt_segments, nsegs, len, error);
-	}
-}
-
-static void
-nexus_dmamap_directseg(bus_dma_tag_t dmat, bus_dmamap_t map,
     bus_dma_segment_t *segs, int nsegs, int error)
 {
+
+	if (segs == NULL)
+		segs = dmat->dt_segments;
+	return (segs);
 }
 
 /*
@@ -546,8 +523,6 @@ static struct bus_dma_methods nexus_dma_methods = {
 	nexus_dmamap_load_buffer,
 	nexus_dmamap_mayblock,
 	nexus_dmamap_complete,
-	nexus_dmamap_complete2,
-	nexus_dmamap_directseg,
 	nexus_dmamap_unload,
 	nexus_dmamap_sync,
 	nexus_dmamem_alloc,

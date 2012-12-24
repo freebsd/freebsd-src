@@ -310,9 +310,10 @@ _busdma_alloc_dmamap(bus_dma_tag_t dmat)
 			map->flags = DMAMAP_ALLOCATED;
 	} else
 		map->flags = 0;
-	if (map != NULL)
+	if (map != NULL) {
 		STAILQ_INIT(&map->bpages);
-	else
+		map->slist = slist;
+	} else
 		free(slist, M_DEVBUF);
 	return (map);
 }
@@ -916,45 +917,23 @@ cleanup:
 
 void
 __bus_dmamap_mayblock(bus_dma_tag_t dmat, bus_dmamap_t map,
-		      bus_dmamap_callback_t *callback, void *callback_arg,
-		      int *flags)
+		      bus_dmamap_callback_t *callback, void *callback_arg)
 {
 
 	KASSERT(dmat != NULL, ("dmatag is NULL"));
 	KASSERT(map != NULL, ("dmamap is NULL"));
-	(*flags) |= BUS_DMA_WAITOK;
 	map->callback = callback;
 	map->callback_arg = callback_arg;
 }
 
-void
+bus_dma_segment_t *
 _bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
-		     bus_dmamap_callback_t *callback, void *callback_arg,
-		     int nsegs, int error)
+		     bus_dma_segment_t *segs, int nsegs, int error)
 {
 
-	if (error)
-		(*callback)(callback_arg, dmat->segments, 0, error);
-	else
-		(*callback)(callback_arg, dmat->segments, nsegs, 0);
-}
-
-void
-_bus_dmamap_complete2(bus_dma_tag_t dmat, bus_dmamap_t map,
-		      bus_dmamap_callback2_t *callback,
-		      void *callback_arg, int nsegs, bus_size_t len, int error)
-{
-
-	if (error)
-		(*callback)(callback_arg, dmat->segments, 0, 0, error);
-	else
-		(*callback)(callback_arg, dmat->segments, nsegs, len, error);
-}
-
-void
-_bus_dmamap_directseg(bus_dma_tag_t dmat, bus_dmamap_t map,
-		      bus_dma_segment_t *segs, int nsegs, int error)
-{
+	if (segs == NULL)
+		segs = dmat->segments;
+	return (segs);
 }
 
 /*

@@ -287,31 +287,23 @@ void _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map);
  * software.
  */
 void __bus_dmamap_mayblock(bus_dma_tag_t dmat, bus_dmamap_t map,
-    			   bus_dmamap_callback_t *callback, void *callback_arg,
-			   int *flags);
+    			   bus_dmamap_callback_t *callback, void *callback_arg);
 
-#define	_bus_dmamap_mayblock(dmat, map, callback, callback_arg, flags)	\
+#define	_bus_dmamap_mayblock(dmat, map, callback, callback_arg)		\
 	do {								\
 		if ((map) != NULL)					\
 			__bus_dmamap_mayblock(dmat, map, callback,	\
-			    callback_arg, flags);			\
+			    callback_arg);				\
 	} while (0);
 
 int _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map,
 			    void *buf, bus_size_t buflen, struct pmap *pmap,
 			    int flags, bus_dma_segment_t *segs, int *segp);
 
-void _bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
-			  bus_dmamap_callback_t *callback, void *callback_arg,
-			  int nsegs, int error);
-
-void _bus_dmamap_complete2(bus_dma_tag_t dmat, bus_dmamap_t map,
-			   bus_dmamap_callback2_t *callback2,
-			   void *callback_arg, int nsegs, bus_size_t len,
-			   int error);
-
-void _bus_dmamap_directseg(bus_dma_tag_t dmat, bus_dmamap_t map,
-			   bus_dma_segment_t *segs, int nsegs, int error);
+bus_dma_segment_t *_bus_dmamap_complete(bus_dma_tag_t dmat,
+			   		bus_dmamap_t map,
+					bus_dma_segment_t *segs,
+					int nsegs, int error);
 
 #endif /* __sparc64__ */
 

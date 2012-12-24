@@ -711,65 +711,31 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 
 void
 __bus_dmamap_mayblock(bus_dma_tag_t dmat, bus_dmamap_t map,
-		      bus_dmamap_callback_t *callback, void *callback_arg,
-		      int *flags)
+		      bus_dmamap_callback_t *callback, void *callback_arg)
 {
 
 	if (dmat->flags & BUS_DMA_COULD_BOUNCE) {
-		(*flags) |= BUS_DMA_WAITOK;
 		map->callback = callback;
 		map->callback_arg = callback_arg;
 	}
 }
 
-void
+bus_dma_segment_t *
 _bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
-		     bus_dmamap_callback_t *callback, void *callback_arg,
-		     int nsegs, int error)
+		     bus_dma_segment_t *segs, int nsegs, int error)
 {
 
+	if (segs != NULL)
+		memcpy(map->segments, segs, map->nsegs*sizeof(segs[0]));
+	else
+		segs = map->segments;
 	map->nsegs = nsegs;
 	if (dmat->iommu != NULL)
 		IOMMU_MAP(dmat->iommu, map->segments, &map->nsegs,
 		    dmat->lowaddr, dmat->highaddr, dmat->alignment,
 		    dmat->boundary, dmat->iommu_cookie);
 
-	if (error)
-		(*callback)(callback_arg, map->segments, 0, error);
-	else
-		(*callback)(callback_arg, map->segments, nsegs, 0);
-}
-
-void
-_bus_dmamap_complete2(bus_dma_tag_t dmat, bus_dmamap_t map,
-		      bus_dmamap_callback2_t *callback,
-		      void *callback_arg, int nsegs, bus_size_t len, int error)
-{
-
-	map->nsegs = nsegs;
-	if (dmat->iommu != NULL)
-		IOMMU_MAP(dmat->iommu, map->segments, &map->nsegs,
-		    dmat->lowaddr, dmat->highaddr, dmat->alignment,
-		    dmat->boundary, dmat->iommu_cookie);
-
-	if (error)
-		(*callback)(callback_arg, map->segments, 0, 0, error);
-	else
-		(*callback)(callback_arg, map->segments, nsegs, len, error);
-}
-
-void
-_bus_dmamap_directseg(bus_dma_tag_t dmat, bus_dmamap_t map,
-		      bus_dma_segment_t *segs, int nsegs, int error)
-{
-
-	map->nsegs = nsegs;
-	if (dmat->iommu != NULL)
-		IOMMU_MAP(dmat->iommu, segs, &map->nsegs, dmat->lowaddr,
-		    dmat->highaddr, dmat->alignment, dmat->boundary,
-		    dmat->iommu_cookie);
-
-	memcpy(map->segments, segs, map->nsegs*sizeof(segs[0]));
+	return (segs);
 }
 
 /*
