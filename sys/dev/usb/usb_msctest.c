@@ -300,6 +300,8 @@ bbb_command_callback(struct usb_xfer *xfer, usb_error_t error)
 			sc->cbw->bCDBLength = sizeof(sc->cbw->CBWCDB);
 			DPRINTFN(0, "Truncating long command\n");
 		}
+		usbd_xfer_set_frame_len(xfer, 0,
+		    sizeof(struct bbb_cbw));
 		usbd_transfer_submit(xfer);
 		break;
 
@@ -386,7 +388,7 @@ bbb_data_write_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		if (sc->data_rem == 0) {
 			bbb_transfer_start(sc, ST_STATUS);
-			return;
+			break;
 		}
 		if (max_bulk > sc->data_rem) {
 			max_bulk = sc->data_rem;
@@ -394,7 +396,7 @@ bbb_data_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		usbd_xfer_set_timeout(xfer, sc->data_timeout);
 		usbd_xfer_set_frame_data(xfer, 0, sc->data_ptr, max_bulk);
 		usbd_transfer_submit(xfer);
-		return;
+		break;
 
 	default:			/* Error */
 		if (error == USB_ERR_CANCELLED) {
@@ -402,8 +404,7 @@ bbb_data_write_callback(struct usb_xfer *xfer, usb_error_t error)
 		} else {
 			bbb_transfer_start(sc, ST_DATA_WR_CS);
 		}
-		return;
-
+		break;
 	}
 }
 
@@ -438,6 +439,8 @@ bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
 		break;
 
 	case USB_ST_SETUP:
+		usbd_xfer_set_frame_len(xfer, 0,
+		    sizeof(struct bbb_csw));
 		usbd_transfer_submit(xfer);
 		break;
 
