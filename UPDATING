@@ -11,6 +11,11 @@ handbook:
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20121224:
+	The VFS KBI was changed with the merge of several nullfs
+	optimizations and fixes.  All filesystem modules must be
+	recompiled.
+
 20121218:
 	With the addition of auditdistd(8), a new auditdistd user is now
 	depended on during installworld.  "mergemaster -p" can be used to add
