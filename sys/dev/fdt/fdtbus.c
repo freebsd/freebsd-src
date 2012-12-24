@@ -140,7 +140,8 @@ static driver_t fdtbus_driver = {
 
 devclass_t fdtbus_devclass;
 
-DRIVER_MODULE(fdtbus, nexus, fdtbus_driver, fdtbus_devclass, 0, 0);
+EARLY_DRIVER_MODULE(fdtbus, nexus, fdtbus_driver, fdtbus_devclass, 0, 0,
+    BUS_PASS_BUS);
 
 static void
 fdtbus_identify(driver_t *driver, device_t parent)

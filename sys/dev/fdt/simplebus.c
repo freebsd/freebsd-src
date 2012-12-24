@@ -131,8 +131,10 @@ static driver_t simplebus_driver = {
 
 devclass_t simplebus_devclass;
 
-DRIVER_MODULE(simplebus, fdtbus, simplebus_driver, simplebus_devclass, 0, 0);
-DRIVER_MODULE(simplebus, simplebus, simplebus_driver, simplebus_devclass, 0, 0);
+EARLY_DRIVER_MODULE(simplebus, fdtbus, simplebus_driver, simplebus_devclass,
+    0, 0, BUS_PASS_BUS);
+EARLY_DRIVER_MODULE(simplebus, simplebus, simplebus_driver, simplebus_devclass,
+    0, 0, BUS_PASS_BUS);
 
 static int
 simplebus_probe(device_t dev)
