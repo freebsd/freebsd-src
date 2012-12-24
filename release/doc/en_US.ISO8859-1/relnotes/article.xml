@@ -200,7 +200,7 @@
       <para revision="231907" arch="powerpc">&os;/powerpc64 now
 	supports kernel profiling by using &man.kgmon.8;.</para>
 
-      <para revision="231145">The &os; Linux ABI compatiblity layer
+      <para revision="231145">The &os; Linux ABI compatibility layer
 	now supports <function>linux_fadvice64()</function> and
 	<function>linux_fadvice64_64()</function> system call.</para>
 
@@ -386,13 +386,13 @@
 	  <para revision="236926,236927,239965">The drm2(4) Intel GPU driver,
 	    which supports GEM, KMS, and works with new generations of
 	    GPUs such as IronLake, SandyBridge, and IvyBridge, has been
-	    added.  The &man.agp.4; dirver now supports SandyBridge
+	    added.  The &man.agp.4; driver now supports SandyBridge
 	    and IvyBridge CPU northbridges.</para>
 
 	  <para revision="232798">The &man.snd.hda.4; driver has been
 	    updated.  It now supports HDMI, new volume control,
 	    automatic recording source selection, runtime
-	    reconfigureation, more then 4 PCM devices on a controller,
+	    reconfiguration, more then 4 PCM devices on a controller,
 	    multichannel recording, additional playback/record
 	    streams, higher bandwidth, and more informative device
 	    names.</para>
@@ -477,7 +477,7 @@
 	  <para revision="231093,237925">The &man.cxgbe.4; and
 	    &man.cxgb.4; driver has been updated to firmware version
 	    1.5.2.0.  This now supports device configuration via a
-	    plain text configration file, IPv6 hardware checksumming,
+	    plain text configuration file, IPv6 hardware checksumming,
 	    IPv6 TSO and LRO, <literal>loadfw</literal> command in the
 	    cxgbetool(8) utility which allows to install a firmware to
 	    the card, &man.sysctl.8; variables under
@@ -489,7 +489,7 @@
 	    are found on ULi M1563 South Bridge and M1689 Bridge.</para>
 
 	  <para revision="229711,229717,229720">The &man.et.4; driver
-	    now works on all platfomrs.  A bug which could prevent
+	    now works on all platforms.  A bug which could prevent
 	    &man.altq.4; support from working has been fixed.  A new
 	    &man.sysctl.8; variables under
 	    <varname>dev.et.<replaceable>N</replaceable>.stats</varname>
@@ -543,7 +543,7 @@
 
 	  <para revision="233485">The smcphy(4); driver now supports
 	    Seeq Technology 80220 PHY.  This is found on Adaptec
-	    AIC-6915 Starfire ethernet controller supported by the
+	    AIC-6915 Starfire Ethernet controller supported by the
 	    &man.sf.4; driver.</para>
 
 	  <para revision="229417,229438">The &man.ti.4; driver now
@@ -678,7 +678,7 @@
 	  &man.cam.4; Target Layer and &man.ctladm.8;, a userland
 	  control utility, have been added.  ctl(4) is a disk and
 	  processor device emulation subsystem supporting tagged
-	  queueing, SCSI task attribute, SCSI implicit command
+	  queuing, SCSI task attribute, SCSI implicit command
 	  ordering, full task management, multiple ports, multiple
 	  simultaneous initiators, multiple simultaneous backing
 	  stores, mode sense/select, and error injection
@@ -797,7 +797,7 @@
 	  &man.mkuzip.8; utility.</para>
 
 	<para revision="229975" arch="amd64,i386">The &man.hpt27xx.4;
-	  dirver has been added.  This supports HighPoint RocketRAID
+	  driver has been added.  This supports HighPoint RocketRAID
 	  27xx-based SAS 6Gb/s HBA.</para>
 
 	<para revision="231689" arch="amd64,i386">The &man.isci.4;
@@ -819,7 +819,7 @@
 
 	<para revision="229611,234429">The &man.mfi.4; driver now
 	  supports single-message MSI, and Drake Skinny and
-	  ThunderBolt cards.  The &man.loader.8; tunable
+	  Thunderbolt cards.  The &man.loader.8; tunable
 	  <varname>hw.mfi.msi</varname> has been added and it is
 	  enabled by default.</para>
 
@@ -905,7 +905,7 @@
 	      now reports estimated size of the stream.</para></listitem>
 
 	  <listitem><para>&man.zfs.8; <command>destroy</command> command
-	      now reports estimatated space which would be reclaimed when
+	      now reports estimated space which would be reclaimed when
 	      <option>-n</option> flag is specified.</para></listitem>
 
 	  <listitem><para>&man.zfs.8; <command>get</command> command now
@@ -929,7 +929,7 @@
 &prompt.root; make
 &prompt.root; make install</screen>
 
-	<para>After that, the following cmmand can be used to check the
+	<para>After that, the following command can be used to check the
 	  system.  <replaceable>poolname</replaceable> is the ZFS
 	  storage pool name to boot:</para>
 
@@ -1239,7 +1239,7 @@
     <sect2>
       <title id="upgrade-pitfalls">User-visible incompatibilities</title>
 
-      <para>FreeBSD 9.0 and later have several incompatiblities in
+      <para>FreeBSD 9.0 and later have several incompatibilities in
 	system configuration which you might want to know before
 	upgrading your system.  <emphasis>Please read this section and
 	the <ulink
