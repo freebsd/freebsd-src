@@ -275,7 +275,7 @@ vnode_pager_dealloc(object)
 		vp->v_writecount--;
 	}
 	vp->v_object = NULL;
-	vp->v_vflag &= ~VV_TEXT;
+	VOP_UNSET_TEXT(vp);
 	VM_OBJECT_UNLOCK(object);
 	while (refs-- > 0)
 		vunref(vp);
