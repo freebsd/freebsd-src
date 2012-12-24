@@ -166,7 +166,7 @@ iomux_set_pad(unsigned int pin, unsigned int config)
 	iomux_set_pad_sub(iomuxsc, pin, config);
 }
 
-#if notyet
+#ifdef notyet
 void
 iomux_set_input(unsigned int input, unsigned int config)
 {
