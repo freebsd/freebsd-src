@@ -56,6 +56,7 @@ struct null_node {
 int nullfs_init(struct vfsconf *vfsp);
 int nullfs_uninit(struct vfsconf *vfsp);
 int null_nodeget(struct mount *mp, struct vnode *target, struct vnode **vpp);
+struct vnode *null_hashget(struct mount *mp, struct vnode *lowervp);
 void null_hashrem(struct null_node *xp);
 int null_bypass(struct vop_generic_args *ap);
 
