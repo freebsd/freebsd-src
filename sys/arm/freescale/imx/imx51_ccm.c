@@ -123,7 +123,8 @@ static driver_t imxccm_driver = {
 
 static devclass_t imxccm_devclass;
 
-DRIVER_MODULE(imxccm, simplebus, imxccm_driver, imxccm_devclass, 0, 0);
+EARLY_DRIVER_MODULE(imxccm, simplebus, imxccm_driver, imxccm_devclass, 0, 0,
+    BUS_PASS_CPU);
 
 static struct resource_spec imxccm_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Global registers */

@@ -144,8 +144,10 @@ static devclass_t tzic_devclass;
  * Memory space of controller located outside of device range, so let him to
  * attach not only to simplebus, but fdtbus also.
  */
-DRIVER_MODULE(tzic, fdtbus, tzic_driver, tzic_devclass, 0, 0);
-DRIVER_MODULE(tzic, simplebus, tzic_driver, tzic_devclass, 0, 0);
+EARLY_DRIVER_MODULE(tzic, fdtbus, tzic_driver, tzic_devclass, 0, 0,
+    BUS_PASS_INTERRUPT);
+EARLY_DRIVER_MODULE(tzic, simplebus, tzic_driver, tzic_devclass, 0, 0,
+    BUS_PASS_INTERRUPT);
 
 static void
 tzic_post_filter(void *arg)

@@ -344,7 +344,8 @@ static driver_t imx_gpt_driver = {
 
 static devclass_t imx_gpt_devclass;
 
-DRIVER_MODULE(imx_gpt, simplebus, imx_gpt_driver, imx_gpt_devclass, 0, 0);
+EARLY_DRIVER_MODULE(imx_gpt, simplebus, imx_gpt_driver, imx_gpt_devclass, 0,
+    0, BUS_PASS_TIMER);
 
 void
 DELAY(int usec)
