@@ -1393,7 +1393,7 @@ exec_check_permissions(imgp)
 	struct vnode *vp = imgp->vp;
 	struct vattr *attr = imgp->attr;
 	struct thread *td;
-	int error;
+	int error, writecount;
 
 	td = curthread;
 
@@ -1438,7 +1438,10 @@ exec_check_permissions(imgp)
 	 * Check number of open-for-writes on the file and deny execution
 	 * if there are any.
 	 */
-	if (vp->v_writecount)
+	error = VOP_GET_WRITECOUNT(vp, &writecount);
+	if (error != 0)
+		return (error);
+	if (writecount != 0)
 		return (ETXTBSY);
 
 	/*

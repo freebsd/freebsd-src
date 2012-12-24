@@ -334,7 +334,7 @@ ufs_extattr_enable_with_open(struct ufsmount *ump, struct vnode *vp,
 		return (error);
 	}
 
-	vp->v_writecount++;
+	VOP_ADD_WRITECOUNT(vp, 1);
 
 	vref(vp);
 
