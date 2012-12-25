@@ -30,6 +30,7 @@ if [ ! "$_STARTUP_RCEDIT_SUBR" ]; then _STARTUP_RCEDIT_SUBR=1
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." startup/rcedit.subr
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/sysrc.subr
 
@@ -80,5 +81,9 @@ f_dialog_rcedit()
 	err=$( f_sysrc_set "$var" "$_input" 2>&1 ) ||
 		f_show_msg "$err"
 }
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." startup/rcedit.subr
 
 fi # ! $_STARTUP_RCEDIT_SUBR

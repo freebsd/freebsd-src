@@ -31,6 +31,7 @@ if [ ! "$_USERMGMT_GROUP_INPUT_SUBR" ]; then _USERMGMT_GROUP_INPUT_SUBR=1
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." usermgmt/group_input.subr
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/strings.subr
 
@@ -391,5 +392,9 @@ f_dialog_input_group_members()
 
 	return $SUCCESS
 }
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." usermgmt/group_input.subr
 
 fi # ! $_USERMGMT_GROUP_INPUT_SUBR

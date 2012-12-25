@@ -31,6 +31,7 @@
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/mustberoot.subr
 f_include $BSDCFG_SHARE/strings.subr
@@ -231,15 +232,6 @@ f_dialog_title "$msg_main_menu"
 
 # Incorporate rc-file if it exists
 [ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
-
-#
-# Log our operating environment for debugging purposes
-#
-export UNAME_S="$(uname -s)" # Operating System (i.e. FreeBSD)
-export UNAME_P="$(uname -p)" # Processor Architecture (i.e. i386)
-export UNAME_R="$(uname -r)" # Release Level (i.e. X.Y-RELEASE)
-f_dprintf "UNAME_S=[%s] UNAME_P=[%s] UNAME_R=[%s]" \
-          "$UNAME_S" "$UNAME_P" "$UNAME_R"
 
 cd $BSDCFG_LIBE || f_die 1 "$msg_directory_not_found" "$BSDCFG_LIBE"
 
