@@ -65,7 +65,6 @@ shift $(( $OPTIND - 1 ))
 #
 # Initialize
 #
-f_dialog_init
 f_mustberoot_init
 
 #

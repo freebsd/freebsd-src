@@ -56,7 +56,6 @@ shift $(( $OPTIND - 1 ))
 #
 # Chain-load to userinput to centralize code and minimize duplication
 #
-f_dialog_init
 $BSDCFG_LIBE/$APP_DIR/userinput ${USE_XDIALOG:+-X} mode="Add"
 
 ################################################################################
