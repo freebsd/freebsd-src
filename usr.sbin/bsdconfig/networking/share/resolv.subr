@@ -30,6 +30,7 @@ if [ ! "$_NETWORKING_RESOLV_SUBR" ]; then _NETWORKING_RESOLV_SUBR=1
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." networking/resolv.subr
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/strings.subr
 f_include $BSDCFG_SHARE/networking/common.subr
@@ -487,5 +488,9 @@ f_dialog_menu_nameservers()
 		esac
 	done
 }
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." networking/resolv.subr
 
 fi # ! $_NETWORKING_RESOLV_SUBR
