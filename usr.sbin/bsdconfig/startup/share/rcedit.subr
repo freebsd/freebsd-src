@@ -30,6 +30,7 @@ if [ ! "$_STARTUP_RCEDIT_SUBR" ]; then _STARTUP_RCEDIT_SUBR=1
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." startup/rcedit.subr
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/sysrc.subr
 
@@ -53,8 +54,7 @@ f_include_lang $BSDCFG_LIBE/$APP_DIR/include/messages.subr
 #
 f_dialog_rcedit()
 {
-	local msg size retval var="$1" _input
-	local hline="$hline_alnum_punc_tab_enter"
+	local msg var="$1" _input
 
 	msg=$( printf "$msg_please_enter_a_new_value" \
 	              "$var" "$( f_sysrc_get_default "$var" )" )
@@ -67,43 +67,23 @@ f_dialog_rcedit()
 		_input=$( f_sysrc_get "$var" )
 	fi
 
-	size=$( f_dialog_inputbox_size \
-	        	"$DIALOG_TITLE"     \
-	        	"$DIALOG_BACKTITLE" \
-	        	"$msg"              \
-	        	"$_input"           \
-	        	"$hline"            )
-
-	local opterm="--"
-	[ "$USE_XDIALOG" ] && opterm=
-
-	local dialog_inputbox
-	dialog_inputbox=$( eval $DIALOG \
-		--title \"\$DIALOG_TITLE\"         \
-		--backtitle \"\$DIALOG_BACKTITLE\" \
-		--hline \"\$hline\"                \
-		--ok-label \"\$msg_ok\"            \
-		--cancel-label \"\$msg_cancel\"    \
-		--inputbox \"\$msg\" $size         \
-		$opterm \"\$_input\"               \
-		2>&1 >&$DIALOG_TERMINAL_PASSTHRU_FD
-	)
-
-	retval=$?
-	setvar DIALOG_INPUTBOX_$$ "$dialog_inputbox"
-	_input=$( f_dialog_inputstr )
-
 	# Return if user has either pressed ESC or chosen Cancel/No
-	[ $retval -eq $SUCCESS ] || return $retval
+	_input=$( f_dialog_input "$msg" "$_input" \
+	                         "$hline_alnum_punc_tab_enter"
+	        ) || return
 
 	# Return if the value has not changed from current
 	local cur_val="$( f_sysrc_get "$var" )"
 	[ "$_input" = "$cur_val" ] && return $SUCCESS
 
-	f_dprintf "$var: [$cur_val]->[$_input]"
+	f_dprintf "%s: [%s]->[%s]" "$var" "$cur_val" "$_input"
 
 	err=$( f_sysrc_set "$var" "$_input" 2>&1 ) ||
 		f_show_msg "$err"
 }
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." startup/rcedit.subr
 
 fi # ! $_STARTUP_RCEDIT_SUBR

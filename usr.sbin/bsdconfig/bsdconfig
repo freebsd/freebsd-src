@@ -31,6 +31,7 @@
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/mustberoot.subr
 f_include $BSDCFG_SHARE/strings.subr
@@ -70,7 +71,7 @@ usage()
 	#
 	local longest_cmd
 	longest_cmd=$( echo "$cmd_list" | f_longest_line_length )
-	f_dprintf "longest_cmd=[$longest_cmd]"
+	f_dprintf "longest_cmd=[%s]" "$longest_cmd"
 
 	#
 	# Determine the maximum width of terminal/console
@@ -79,7 +80,7 @@ usage()
 	max_size=$( stty size 2> /dev/null )
 	: ${max_size:="24 80"}
 	max_width="${max_size#*[$IFS]}"
-	f_dprintf "max_width=[$max_width]"
+	f_dprintf "max_width=[%s]" "$max_width"
 
 	#
 	# Using the longest command-length as the width of a single column,
@@ -92,7 +93,7 @@ usage()
 		ncols=$(( $ncols + 1 ))
 		x=$(( $x + 3 + $longest_cmd ))
 	done
-	f_dprintf "ncols=[$ncols] x=[$x]"
+	f_dprintf "ncols=[%u] x=[%u]" $ncols $x
 
 	#
 	# Re-format the command-list into multiple columns
@@ -117,7 +118,8 @@ usage()
 		{
 			n++
 			cur_col = (( n - 1 ) % ncols ) + 1
-			printf "f_dprintf \"row_item[%u]=[%s]\"\n", cur_col, $0
+			printf "f_dprintf \"row_item[%u]=[%%s]\" \"%s\"\n",
+			       cur_col, $0
 			row_item[cur_col] = $0
 			if ( cur_col == ncols ) print_row()
 		}
@@ -224,21 +226,12 @@ shift $(( $OPTIND -1 ))
 #
 # Initialize
 #
-f_dialog_init
 f_dialog_title "$msg_main_menu"
 
 [ "$SECURE" ] && f_mustberoot_init
 
 # Incorporate rc-file if it exists
 [ -f "$HOME/.bsdconfigrc" ] && f_include "$HOME/.bsdconfigrc"
-
-#
-# Log our operating environment for debugging purposes
-#
-export UNAME_S="$(uname -s)" # Operating System (i.e. FreeBSD)
-export UNAME_P="$(uname -p)" # Processor Architecture (i.e. i386)
-export UNAME_R="$(uname -r)" # Release Level (i.e. X.Y-RELEASE)
-f_dprintf "UNAME_S=[$UNAME_S] UNAME_P=[$UNAME_P] UNAME_R=[$UNAME_R]"
 
 cd $BSDCFG_LIBE || f_die 1 "$msg_directory_not_found" "$BSDCFG_LIBE"
 
@@ -276,7 +269,7 @@ while :; do
 	dialog_menu_main
 	retval=$?
 	mtag=$( f_dialog_menutag )
-	f_dprintf "retval=$retval mtag=[$mtag]"
+	f_dprintf "retval=%u mtag=[%s]" $retval "$mtag"
 
 	if [ $retval -eq 2 ]; then
 		# The Help button was pressed
@@ -298,7 +291,7 @@ while :; do
 
 	*) # Dynamically loaded menuitem
 	   cmd=$( eval echo \"\$menu_program$mtag\" )
-	   f_dprintf "cmd=[$cmd]"
+	   f_dprintf "cmd=[%s]" "$cmd"
 	   $cmd ${USE_XDIALOG:+-X}
 	   ;;
 

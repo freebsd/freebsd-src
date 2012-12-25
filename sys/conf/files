@@ -3511,15 +3511,15 @@ rpc/clnt_dg.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
 rpc/clnt_rc.c			optional krpc | nfslockd | nfsclient | nfscl | nfsd
 rpc/clnt_vc.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/getnetconfig.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-rpc/replay.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
+rpc/replay.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/rpc_callmsg.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/rpc_generic.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/rpc_prot.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/rpcb_clnt.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/rpcb_prot.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
-rpc/svc.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
-rpc/svc_auth.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
-rpc/svc_auth_unix.c		optional krpc | nfslockd | nfsserver | nfscl | nfsd
+rpc/svc.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/svc_auth.c			optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
+rpc/svc_auth_unix.c		optional krpc | nfslockd | nfsclient | nfsserver | nfscl | nfsd
 rpc/svc_dg.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd
 rpc/svc_generic.c		optional krpc | nfslockd | nfsserver | nfscl | nfsd
 rpc/svc_vc.c			optional krpc | nfslockd | nfsserver | nfscl | nfsd

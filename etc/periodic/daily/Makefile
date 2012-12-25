@@ -6,7 +6,6 @@ FILES=	100.clean-disks \
 	110.clean-tmps \
 	120.clean-preserve \
 	200.backup-passwd \
-	220.backup-pkgdb \
 	330.news \
 	400.status-disks \
 	405.status-ata-raid \
@@ -41,7 +40,8 @@ FILES+=	480.status-ntpd
 .endif
 
 .if ${MK_PKGTOOLS} != "no"
-FILES+=	490.status-pkg-changes
+FILES+=	220.backup-pkgdb \
+	490.status-pkg-changes
 .endif
 
 .if ${MK_RCMDS} != "no"

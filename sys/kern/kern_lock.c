@@ -35,6 +35,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/kdb.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/lock_profile.h>
@@ -477,7 +478,7 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 	KASSERT((flags & LK_INTERLOCK) == 0 || ilk != NULL,
 	    ("%s: LK_INTERLOCK passed without valid interlock @ %s:%d",
 	    __func__, file, line));
-	KASSERT(!TD_IS_IDLETHREAD(curthread),
+	KASSERT(kdb_active != 0 || !TD_IS_IDLETHREAD(curthread),
 	    ("%s: idle thread %p on lockmgr %s @ %s:%d", __func__, curthread,
 	    lk->lock_object.lo_name, file, line));
 

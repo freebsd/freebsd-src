@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2012 Ian Lepore
  * Copyright (c) 2010 Mark Tinguely
  * Copyright (c) 2004 Olivier Houchard
  * Copyright (c) 2002 Peter Grehan
@@ -40,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/bus.h>
+#include <sys/busdma_bufalloc.h>
 #include <sys/interrupt.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>
@@ -53,6 +55,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+#include <vm/vm_extern.h>
+#include <vm/vm_kern.h>
 
 #include <machine/atomic.h>
 #include <machine/bus.h>
@@ -83,7 +87,6 @@ struct bus_dma_tag {
 	int		  map_count;
 	bus_dma_lock_t	 *lockfunc;
 	void		 *lockfuncarg;
-	bus_dma_segment_t *segments;
 	struct bounce_zone *bounce_zone;
 	/*
 	 * DMA range for this tag.  If the page doesn't fall within
@@ -93,6 +96,14 @@ struct bus_dma_tag {
 	 */
 	struct arm32_dma_range	*ranges;
 	int			_nranges;
+	/*
+	 * Most tags need one or two segments, and can use the local tagsegs
+	 * array.  For tags with a larger limit, we'll allocate a bigger array
+	 * on first use.
+	 */
+	bus_dma_segment_t	*segments;
+	bus_dma_segment_t	tagsegs[2];
+
 
 };
 
@@ -150,6 +161,8 @@ struct bus_dmamap {
 	pmap_t		       pmap;
 	bus_dmamap_callback_t *callback;
 	void		      *callback_arg;
+	int		      flags;
+#define DMAMAP_COHERENT		(1 << 0)
 	STAILQ_ENTRY(bus_dmamap) links;
 	STAILQ_HEAD(,sync_list)	slist;
 };
@@ -168,6 +181,38 @@ static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
 int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
 static int _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
     void *buf, bus_size_t buflen, int flags);
+
+static busdma_bufalloc_t coherent_allocator;	/* Cache of coherent buffers */
+static busdma_bufalloc_t standard_allocator;	/* Cache of standard buffers */
+static void
+busdma_init(void *dummy)
+{
+
+	/* Create a cache of buffers in standard (cacheable) memory. */
+	standard_allocator = busdma_bufalloc_create("buffer", 
+	    arm_dcache_align,	/* minimum_alignment */
+	    NULL,		/* uma_alloc func */ 
+	    NULL,		/* uma_free func */
+	    0);			/* uma_zcreate_flags */
+
+	/*
+	 * Create a cache of buffers in uncacheable memory, to implement the
+	 * BUS_DMA_COHERENT (and potentially BUS_DMA_NOCACHE) flag.
+	 */
+	coherent_allocator = busdma_bufalloc_create("coherent",
+	    arm_dcache_align,	/* minimum_alignment */
+	    busdma_bufalloc_alloc_uncacheable, 
+	    busdma_bufalloc_free_uncacheable, 
+	    0);			/* uma_zcreate_flags */
+}
+
+/*
+ * This init historically used SI_SUB_VM, but now the init code requires
+ * malloc(9) using M_DEVBUF memory, which is set up later than SI_SUB_VM, by
+ * SI_SUB_KMEM and SI_ORDER_SECOND, so we'll go right after that by using
+ * SI_SUB_KMEM and SI_ORDER_THIRD.
+ */
+SYSINIT(busdma, SI_SUB_KMEM, SI_ORDER_THIRD, busdma_init, NULL);
 
 static __inline int
 _bus_dma_can_bounce(vm_offset_t lowaddr, vm_offset_t highaddr)
@@ -322,7 +367,18 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 		newtag->lockfunc = dflt_lock;
 		newtag->lockfuncarg = NULL;
 	}
-	newtag->segments = NULL;
+	/*
+	 * If all the segments we need fit into the local tagsegs array, set the
+	 * pointer now.  Otherwise NULL the pointer and an array of segments
+	 * will be allocated later, on first use.  We don't pre-allocate now
+	 * because some tags exist just to pass contraints to children in the
+	 * device hierarchy, and they tend to use BUS_SPACE_UNRESTRICTED and we
+	 * sure don't want to try to allocate an array for that.
+	 */
+	if (newtag->nsegments <= nitems(newtag->tagsegs))
+		newtag->segments = newtag->tagsegs;
+	else
+		newtag->segments = NULL;
 
 	/* Take into account any restrictions imposed by our parent tag */
 	if (parent != NULL) {
@@ -411,7 +467,8 @@ bus_dma_tag_destroy(bus_dma_tag_t dmat)
 			parent = dmat->parent;
 			atomic_subtract_int(&dmat->ref_count, 1);
 			if (dmat->ref_count == 0) {
-				if (dmat->segments != NULL)
+				if (dmat->segments != NULL &&
+				    dmat->segments != dmat->tagsegs)
 					free(dmat->segments, M_DEVBUF);
 				free(dmat, M_DEVBUF);
 				/*
@@ -545,7 +602,10 @@ int
 bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 		 bus_dmamap_t *mapp)
 {
-	int mflags, len;
+	busdma_bufalloc_t ba;
+	struct busdma_bufzone *bufzone;
+	vm_memattr_t memattr;
+	int mflags;
 
 	if (flags & BUS_DMA_NOWAIT)
 		mflags = M_NOWAIT;
@@ -579,34 +639,54 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 
 	if (flags & BUS_DMA_ZERO)
 		mflags |= M_ZERO;
-
-	/* 
-	 * XXX:
-	 * (dmat->alignment < dmat->maxsize) is just a quick hack; the exact
-	 * alignment guarantees of malloc need to be nailed down, and the
-	 * code below should be rewritten to take that into account.
-	 *
-	 * In the meantime, we'll warn the user if malloc gets it wrong.
-	 *
-	 * allocate at least a cache line. This should help avoid cache
-	 * corruption.
-	 */
-	len = max(dmat->maxsize, arm_dcache_align);
-        if (len <= PAGE_SIZE &&
-	   (dmat->alignment < len) &&
-	   !_bus_dma_can_bounce(dmat->lowaddr, dmat->highaddr)) {
-		*vaddr = malloc(len, M_DEVBUF, mflags);
+	if (flags & BUS_DMA_COHERENT) {
+		memattr = VM_MEMATTR_UNCACHEABLE;
+		ba = coherent_allocator;
+		(*mapp)->flags |= DMAMAP_COHERENT;
 	} else {
-		/*
-		 * XXX Use Contigmalloc until it is merged into this facility
-		 *     and handles multi-seg allocations.  Nobody is doing
-		 *     multi-seg allocations yet though.
-		 * XXX Certain AGP hardware does.
-		 */
-		*vaddr = contigmalloc(len, M_DEVBUF, mflags,
-		    0ul, dmat->lowaddr, dmat->alignment? dmat->alignment : 1ul,
-		    dmat->boundary);
+		memattr = VM_MEMATTR_DEFAULT;
+		ba = standard_allocator;
+		(*mapp)->flags = 0;
 	}
+#ifdef notyet
+	/* All buffers we allocate are cache-aligned. */
+	map->flags |= DMAMAP_CACHE_ALIGNED;
+#endif
+
+	/*
+	 * Try to find a bufzone in the allocator that holds a cache of buffers
+	 * of the right size for this request.  If the buffer is too big to be
+	 * held in the allocator cache, this returns NULL.
+	 */
+	bufzone = busdma_bufalloc_findzone(ba, dmat->maxsize);
+
+	/*
+	 * Allocate the buffer from the uma(9) allocator if...
+	 *  - It's small enough to be in the allocator (bufzone not NULL).
+	 *  - The alignment constraint isn't larger than the allocation size
+	 *    (the allocator aligns buffers to their size boundaries).
+	 *  - There's no need to handle lowaddr/highaddr exclusion zones.
+	 * else allocate non-contiguous pages if...
+	 *  - The page count that could get allocated doesn't exceed nsegments.
+	 *  - The alignment constraint isn't larger than a page boundary.
+	 *  - There are no boundary-crossing constraints.
+	 * else allocate a block of contiguous pages because one or more of the
+	 * constraints is something that only the contig allocator can fulfill.
+	 */
+	if (bufzone != NULL && dmat->alignment <= bufzone->size &&
+	    !_bus_dma_can_bounce(dmat->lowaddr, dmat->highaddr)) {
+		*vaddr = uma_zalloc(bufzone->umazone, mflags);
+	} else if (dmat->nsegments >= btoc(dmat->maxsize) &&
+	    dmat->alignment <= PAGE_SIZE && dmat->boundary == 0) {
+		*vaddr = (void *)kmem_alloc_attr(kernel_map, dmat->maxsize,
+		    mflags, 0, dmat->lowaddr, memattr);
+	} else {
+		*vaddr = (void *)kmem_alloc_contig(kernel_map, dmat->maxsize,
+		    mflags, 0, dmat->lowaddr, dmat->alignment, dmat->boundary,
+		    memattr);
+	}
+
+
 	if (*vaddr == NULL) {
 		CTR4(KTR_BUSDMA, "%s: tag %p tag flags 0x%x error %d",
 		    __func__, dmat, dmat->flags, ENOMEM);
@@ -630,19 +710,24 @@ bus_dmamem_alloc(bus_dma_tag_t dmat, void** vaddr, int flags,
 void
 bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 {
-	int len;
+	struct busdma_bufzone *bufzone;
+	busdma_bufalloc_t ba;
 
-#ifdef mftnotyet
-	pmap_change_attr((vm_offset_t)vaddr, dmat->maxsize, ARM_WRITE_BACK);
-#endif
-	len = max(dmat->maxsize, arm_dcache_align);
-        if (len <= PAGE_SIZE &&
-	   (dmat->alignment < len) &&
-	   !_bus_dma_can_bounce(dmat->lowaddr, dmat->highaddr))
-		free(vaddr, M_DEVBUF);
-	else {
-		contigfree(vaddr, len, M_DEVBUF);
-	}
+	if (map->flags & DMAMAP_COHERENT)
+		ba = coherent_allocator;
+	else
+		ba = standard_allocator;
+
+	/* Be careful not to access map from here on. */
+
+	bufzone = busdma_bufalloc_findzone(ba, dmat->maxsize);
+
+	if (bufzone != NULL && dmat->alignment <= bufzone->size &&
+	    !_bus_dma_can_bounce(dmat->lowaddr, dmat->highaddr))
+		uma_zfree(bufzone->umazone, vaddr);
+	else
+		kmem_free(kernel_map, (vm_offset_t)vaddr, dmat->maxsize);
+
 	dmat->map_count--;
 	free(map, M_DEVBUF);
 	CTR3(KTR_BUSDMA, "%s: tag %p flags 0x%x", __func__, dmat, dmat->flags);
@@ -1177,6 +1262,8 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 			dmat->bounce_zone->total_bounced++;
 		}
 	}
+	if (map->flags & DMAMAP_COHERENT)
+		return;
 
 	sl = STAILQ_FIRST(&map->slist);
 	while (sl) {
