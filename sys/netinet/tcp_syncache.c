@@ -312,7 +312,7 @@ syncache_sysctl_count(SYSCTL_HANDLER_ARGS)
 	int count;
 
 	count = uma_zone_get_cur(V_tcp_syncache.zone);
-	return (sysctl_handle_int(oidp, &count, sizeof(count), req));
+	return (sysctl_handle_int(oidp, &count, 0, req));
 }
 
 /*
