@@ -205,6 +205,33 @@
   <sect1 id="late-news">
     <title>Late-Breaking News</title>
 
-    <para>No news.</para>
+    <para>[November 2, 2012] The current &man.mfi.4; driver has an
+      overflow bug when handling disks larger than 2^32 sectors in
+      SYSPD volumes, also known as JBODs, which will cause data
+      corruption.  This bug has been fixed on this &os;-CURRENT but
+      was too late for inclusion in this release.  An Errata Notice
+      for &release.current; is planned.</para>
+
+    <para>[December 25, 2012] The Installtion Instructions had the
+      following wrong information about upgrading procedure.  All of
+      them have been fixed in the online version.</para>
+
+    <itemizedlist>
+      <listitem>
+	<para>The link URL of <quote>upgrading section in the Release
+	    Notes</quote>, branch names where upcoming Security
+	  Advisories or Errata Notices will be applied, and a
+	  command line argument of &man.freebsd-update.8; were ones
+	  for 9.0-RELEASE, not for &release.current;.</para>
+      </listitem>
+
+      <listitem>
+	<para>The list of releases supported by &man.freebsd-update.8;
+	  utility were incorrect.  For 9.X, The following versions are
+	  supported: <literal>9.0-RELEASE</literal>,
+	  <literal>9.1-BETA1</literal>, and
+	  <literal>9.1-RC[123]</literal>.</para>
+      </listitem>
+    </itemizedlist>
   </sect1>
 </article>
