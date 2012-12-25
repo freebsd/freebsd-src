@@ -59,6 +59,7 @@ static int round_to(int n, int l)
 struct td_desc {
 	pthread_t td_id;
 	uint64_t count;	/* rx counter */
+	uint64_t byte_count;	/* rx byte counter */
 	int fd;
 	char *buf;
 	int buflen;
@@ -116,18 +117,20 @@ rx_body(void *data)
 			if (y < 0)
 				break;
 			t->count++;
+			t->byte_count += y;
 		}
 	}
 	return NULL;
 }
 
-int
-make_threads(struct td_desc **tp, int *s, int nsock, int nthreads)
+static struct td_desc **
+make_threads(int *s, int nsock, int nthreads)
 {
 	int i, si, nt = nsock * nthreads;
 	int lb = round_to(nt * sizeof (struct td_desc *), 64);
 	int td_len = round_to(sizeof(struct td_desc), 64); // cache align
 	char *m = calloc(1, lb + td_len * nt);
+	struct td_desc **tp;
 
 	printf("td len %d -> %d\n", (int)sizeof(struct td_desc) , td_len);
 	/* pointers plus the structs */
@@ -140,6 +143,8 @@ make_threads(struct td_desc **tp, int *s, int nsock, int nthreads)
 	for (si = i = 0; i < nt; i++, m += td_len) {
 		tp[i] = (struct td_desc *)m;
 		tp[i]->fd = s[si];
+		tp[i]->buflen = 65536;
+		tp[i]->buf = calloc(1, tp[i]->buflen);
 		if (++si == nsock)
 			si = 0;
 		if (pthread_create(&tp[i]->td_id, NULL, rx_body, tp[i])) {
@@ -147,27 +152,29 @@ make_threads(struct td_desc **tp, int *s, int nsock, int nthreads)
 			exit(1);
 		}
 	}
+	return tp;
 }
 
-int
+static void
 main_thread(struct td_desc **tp, int nsock, int nthreads)
 {
-	uint64_t c0, c1;
+	uint64_t c0, c1, bc0, bc1;
 	struct timespec now, then, delta;
 	/* now the parent collects and prints results */
-	c0 = c1 = 0;
+	c0 = c1 = bc0 = bc1 = 0;
 	clock_gettime(CLOCK_REALTIME, &then);
 	fprintf(stderr, "start at %ld.%09ld\n", then.tv_sec, then.tv_nsec);
 	while (1) {
 		int i, nt = nsock * nthreads;
 		int64_t dn;
-		uint64_t pps;
+		uint64_t pps, bps;
 
 		if (poll(NULL, 0, 500) < 0) 
 			perror("poll");
-		c0 = 0;
+		c0 = bc0 = 0;
 		for (i = 0; i < nt; i++) {
 			c0 += tp[i]->count;
+			bc0 += tp[i]->byte_count;
 		}
 		dn = c0 - c1;
 		clock_gettime(CLOCK_REALTIME, &now);
@@ -176,9 +183,12 @@ main_thread(struct td_desc **tp, int nsock, int nthreads)
 		then = now;
 		pps = dn;
 		pps = (pps * 1000000000) / (delta.tv_sec*1000000000 + delta.tv_nsec + 1);
-		fprintf(stderr, "%d pkts in %ld.%09ld ns %ld pps\n",
-			(int)dn, delta.tv_sec, delta.tv_nsec, (long)pps);
+		bps = ((bc0 - bc1) * 8000000000) / (delta.tv_sec*1000000000 + delta.tv_nsec + 1);
+		fprintf(stderr, " %9ld pps %8.3f Mbps", (long)pps, .000001*bps);
+		fprintf(stderr, " - %d pkts in %ld.%09ld ns\n",
+			(int)dn, delta.tv_sec, delta.tv_nsec);
 		c1 = c0;
+		bc1 = bc0;
 	}
 }
 
@@ -256,7 +266,7 @@ main(int argc, char *argv[])
 	printf("netreceive %d sockets x %d threads listening on UDP port %d\n",
 		nsock, nthreads, (u_short)port);
 
-	make_threads(tp, s, nsock, nthreads);
+	tp = make_threads(s, nsock, nthreads);
 	main_thread(tp, nsock, nthreads);
 
 	/*NOTREACHED*/
