@@ -349,7 +349,7 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 		}
 	}
 	/* Check for extra isize in big inodes. */
-	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT4F_ROCOMPAT_EXTRA_ISIZE) &&
+	if (EXT2_HAS_RO_COMPAT_FEATURE(fs, EXT2F_ROCOMPAT_EXTRA_ISIZE) &&
 	    EXT2_INODE_SIZE(fs) < sizeof(struct ext2fs_dinode)) {
 		printf("ext2fs: no space for extra inode timestamps\n");
 		return (EINVAL);
