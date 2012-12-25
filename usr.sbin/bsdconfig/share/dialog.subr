@@ -30,6 +30,7 @@ if [ ! "$_DIALOG_SUBR" ]; then _DIALOG_SUBR=1
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." dialog.subr
 f_include $BSDCFG_SHARE/strings.subr
 
 BSDCFG_LIBE="/usr/libexec/bsdconfig"
@@ -1473,13 +1474,19 @@ f_dialog_init()
 		DIALOG_BACKTITLE="$_DIALOG_TITLE"
 		unset _DIALOG_TITLE
 	fi
+
+	f_dprintf "f_dialog_init: dialog(1) API initialized."
 }
 
 ############################################################ MAIN
 
+f_dprintf "%s: DIALOG_SELF_INITIALIZE=[%s]" \
+          dialog.subr "$DIALOG_SELF_INITIALIZE"
 case "$DIALOG_SELF_INITIALIZE" in
 ""|0|[Nn][Oo]|[Oo][Ff][Ff]|[Ff][Aa][Ll][Ss][Ee]) : do nothing ;;
 *) f_dialog_init
 esac
+
+f_dprintf "%s: Successfully loaded." dialog.subr
 
 fi # ! $_DIALOG_SUBR
