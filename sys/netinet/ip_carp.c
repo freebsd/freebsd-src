@@ -290,12 +290,6 @@ static struct mtx carp_mtx;
 static struct task carp_sendall_task =
     TASK_INITIALIZER(0, carp_send_ad_all, NULL);
 
-static __inline uint16_t
-carp_cksum(struct mbuf *m, int len)
-{
-	return (in_cksum(m, len));
-}
-
 static void
 carp_hmac_prepare(struct carp_softc *sc)
 {
@@ -478,7 +472,7 @@ carp_input(struct mbuf *m, int hlen)
 
 	/* verify the CARP checksum */
 	m->m_data += iplen;
-	if (carp_cksum(m, len - iplen)) {
+	if (in_cksum(m, len - iplen)) {
 		CARPSTATS_INC(carps_badsum);
 		CARP_DEBUG("%s: checksum failed on %s\n", __func__,
 		    m->m_pkthdr.rcvif->if_xname);
@@ -537,7 +531,7 @@ carp6_input(struct mbuf **mp, int *offp, int proto)
 
 	/* verify the CARP checksum */
 	m->m_data += *offp;
-	if (carp_cksum(m, sizeof(*ch))) {
+	if (in_cksum(m, sizeof(*ch))) {
 		CARPSTATS_INC(carps_badsum);
 		CARP_DEBUG("%s: checksum failed, on %s\n", __func__,
 		    m->m_pkthdr.rcvif->if_xname);
@@ -809,7 +803,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 			goto resched;
 
 		m->m_data += sizeof(*ip);
-		ch_ptr->carp_cksum = carp_cksum(m, len - sizeof(*ip));
+		ch_ptr->carp_cksum = in_cksum(m, len - sizeof(*ip));
 		m->m_data -= sizeof(*ip);
 
 		CARPSTATS_INC(carps_opackets);
@@ -882,7 +876,7 @@ carp_send_ad_locked(struct carp_softc *sc)
 			goto resched;
 
 		m->m_data += sizeof(*ip6);
-		ch_ptr->carp_cksum = carp_cksum(m, len - sizeof(*ip6));
+		ch_ptr->carp_cksum = in_cksum(m, len - sizeof(*ip6));
 		m->m_data -= sizeof(*ip6);
 
 		CARPSTATS_INC(carps_opackets6);
