@@ -247,8 +247,8 @@ dump_variables(dialogMenuItem *unused)
 
     fp = fopen("/etc/sysinstall.vars", "w");
     if (!fp) {
-	msgConfirm("Unable to write to /etc/%s.vars: %s",
-		   ProgName, strerror(errno));
+	msgConfirm("Unable to write to /etc/sysinstall.vars: %s",
+		   strerror(errno));
 	return DITEM_FAILURE;
     }
 
