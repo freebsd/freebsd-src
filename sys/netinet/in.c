@@ -819,14 +819,19 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 		return (error);
 
 	/*
-	 * Give the interface a chance to initialize
-	 * if this is its first address,
-	 * and to validate the address if necessary.
+	 * Give the interface a chance to initialize if this is its first
+	 * address, and to validate the address if necessary.
+	 *
+	 * Historically, drivers managed IFF_UP flag theirselves, so we
+	 * need to check whether driver did that.
 	 */
+	flags = ifp->if_flags;
 	if (ifp->if_ioctl != NULL &&
 	    (error = (*ifp->if_ioctl)(ifp, SIOCSIFADDR, (caddr_t)ia)) != 0)
 			/* LIST_REMOVE(ia, ia_hash) is done in in_control */
 			return (error);
+	if ((ifp->if_flags & IFF_UP) && (flags & IFF_UP) == 0)
+		if_up(ifp);
 
 	/*
 	 * Be compatible with network classes, if netmask isn't supplied,
