@@ -160,7 +160,7 @@ void
 aac_panic(struct aac_softc *sc, char *reason)
 {
 	aac_print_queues(sc);
-	panic(reason);
+	panic("%s", reason);
 }
 
 /*

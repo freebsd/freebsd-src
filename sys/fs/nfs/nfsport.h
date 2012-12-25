@@ -228,6 +228,34 @@
  */
 #define	NFSV4OP_NOPS		40
 
+/*
+ * Additional Ops for NFSv4.1.
+ */
+#define	NFSV4OP_BACKCHANNELCTL	40
+#define	NFSV4OP_BINDCONNTOSESS	41
+#define	NFSV4OP_EXCHANGEID	42
+#define	NFSV4OP_CREATESESSION	43
+#define	NFSV4OP_DESTROYSESSION	44
+#define	NFSV4OP_FREESTATEID	45
+#define	NFSV4OP_GETDIRDELEG	46
+#define	NFSV4OP_GETDEVINFO	47
+#define	NFSV4OP_GETDEVLIST	48
+#define	NFSV4OP_LAYOUTCOMMIT	49
+#define	NFSV4OP_LAYOUTGET	50
+#define	NFSV4OP_LAYOUTRETURN	51
+#define	NFSV4OP_SECINFONONAME	52
+#define	NFSV4OP_SEQUENCE	53
+#define	NFSV4OP_SETSSV		54
+#define	NFSV4OP_TESTSTATEID	55
+#define	NFSV4OP_WANTDELEG	56
+#define	NFSV4OP_DESTROYCLIENTID	57
+#define	NFSV4OP_RECLAIMCOMPL	58
+
+/*
+ * Must be one more than last op#.
+ */
+#define	NFSV41_NOPS		59
+
 /* Quirky case if the illegal op code */
 #define	NFSV4OP_OPILLEGAL	10044
 
@@ -259,6 +287,20 @@
  * Must be one greater than the last Callback Operation#.
  */
 #define	NFSV4OP_CBNOPS		5
+
+/*
+ * Additional Callback Ops for NFSv4.1 only. Not yet in nfsstats.
+ */
+#define	NFSV4OP_CBLAYOUTRECALL	5
+#define	NFSV4OP_CBNOTIFY	6
+#define	NFSV4OP_CBPUSHDELEG	7
+#define	NFSV4OP_CBRECALLANY	8
+#define	NFSV4OP_CBRECALLOBJAVAIL 9
+#define	NFSV4OP_CBRECALLSLOT	10
+#define	NFSV4OP_CBSEQUENCE	11
+#define	NFSV4OP_CBWANTCANCELLED	12
+#define	NFSV4OP_CBNOTIFYLOCK	13
+#define	NFSV4OP_CBNOTIFYDEVID	14
 
 /*
  * The lower numbers -> 21 are used by NFSv2 and v3. These define higher
@@ -293,6 +335,27 @@
  * Must be defined as one higher than the last Proc# above.
  */
 #define	NFSV4_NPROCS		41
+
+/* Additional procedures for NFSv4.1. */
+#define	NFSPROC_EXCHANGEID	41
+#define	NFSPROC_CREATESESSION	42
+#define	NFSPROC_DESTROYSESSION	43
+#define	NFSPROC_DESTROYCLIENT	44
+#define	NFSPROC_FREESTATEID	45
+#define	NFSPROC_LAYOUTGET	46
+#define	NFSPROC_GETDEVICEINFO	47
+#define	NFSPROC_LAYOUTCOMMIT	48
+#define	NFSPROC_LAYOUTRETURN	49
+#define	NFSPROC_RECLAIMCOMPL	50
+#define	NFSPROC_WRITEDS		51
+#define	NFSPROC_READDS		52
+#define	NFSPROC_COMMITDS	53
+
+/*
+ * Must be defined as one higher than the last NFSv4.1 Proc# above.
+ */
+#define	NFSV41_NPROCS		54
+
 #endif	/* NFS_V3NPROCS */
 
 /*
@@ -368,13 +431,13 @@ struct ext_nfsstats {
 #include <fs/nfs/rpcv2.h>
 #include <fs/nfs/nfsproto.h>
 #include <fs/nfs/nfs.h>
+#include <fs/nfs/nfsclstate.h>
 #include <fs/nfs/nfs_var.h>
 #include <fs/nfs/nfsm_subs.h>
 #include <fs/nfs/nfsrvcache.h>
 #include <fs/nfs/nfsrvstate.h>
 #include <fs/nfs/xdr_subs.h>
 #include <fs/nfs/nfscl.h>
-#include <fs/nfs/nfsclstate.h>
 #include <nfsclient/nfsargs.h>
 #include <fs/nfsclient/nfsmount.h>
 
@@ -583,6 +646,8 @@ void nfsrvd_rcv(struct socket *, void *, int);
 #define	NFSPROCLISTUNLOCK()	sx_sunlock(&allproc_lock)
 #define	NFSLOCKSOCKREQ(r)	mtx_lock(&((r)->nr_mtx))
 #define	NFSUNLOCKSOCKREQ(r)	mtx_unlock(&((r)->nr_mtx))
+#define	NFSLOCKDS(d)		mtx_lock(&((d)->nfsclds_mtx))
+#define	NFSUNLOCKDS(d)		mtx_unlock(&((d)->nfsclds_mtx))
 
 /*
  * Use these macros to initialize/free a mutex.
@@ -672,6 +737,12 @@ MALLOC_DECLARE(M_NEWNFSV4NODE);
 MALLOC_DECLARE(M_NEWNFSDIRECTIO);
 MALLOC_DECLARE(M_NEWNFSMNT);
 MALLOC_DECLARE(M_NEWNFSDROLLBACK);
+MALLOC_DECLARE(M_NEWNFSLAYOUT);
+MALLOC_DECLARE(M_NEWNFSFLAYOUT);
+MALLOC_DECLARE(M_NEWNFSDEVINFO);
+MALLOC_DECLARE(M_NEWNFSSOCKREQ);
+MALLOC_DECLARE(M_NEWNFSCLDS);
+MALLOC_DECLARE(M_NEWNFSLAYRECALL);
 #define	M_NFSRVCACHE	M_NEWNFSRVCACHE
 #define	M_NFSDCLIENT	M_NEWNFSDCLIENT
 #define	M_NFSDSTATE	M_NEWNFSDSTATE
@@ -691,6 +762,12 @@ MALLOC_DECLARE(M_NEWNFSDROLLBACK);
 #define	M_NFSV4NODE	M_NEWNFSV4NODE
 #define	M_NFSDIRECTIO	M_NEWNFSDIRECTIO
 #define	M_NFSDROLLBACK	M_NEWNFSDROLLBACK
+#define	M_NFSLAYOUT	M_NEWNFSLAYOUT
+#define	M_NFSFLAYOUT	M_NEWNFSFLAYOUT
+#define	M_NFSDEVINFO	M_NEWNFSDEVINFO
+#define	M_NFSSOCKREQ	M_NEWNFSSOCKREQ
+#define	M_NFSCLDS	M_NEWNFSCLDS
+#define	M_NFSLAYRECALL	M_NEWNFSLAYRECALL
 
 #define	NFSINT_SIGMASK(set) 						\
 	(SIGISMEMBER(set, SIGINT) || SIGISMEMBER(set, SIGTERM) ||	\
@@ -759,12 +836,16 @@ void newnfs_realign(struct mbuf **);
  */
 #define	NFSSTA_HASWRITEVERF	0x00040000  /* Has write verifier */
 #define	NFSSTA_GOTFSINFO	0x00100000  /* Got the fsinfo */
+#define	NFSSTA_NOLAYOUTCOMMIT	0x04000000  /* Don't do LayoutCommit */
+#define	NFSSTA_SESSPERSIST	0x08000000  /* Has a persistent session */
 #define	NFSSTA_TIMEO		0x10000000  /* Experiencing a timeout */
 #define	NFSSTA_LOCKTIMEO	0x20000000  /* Experiencing a lockd timeout */
 #define	NFSSTA_HASSETFSID	0x40000000  /* Has set the fsid */
+#define	NFSSTA_PNFS		0x80000000  /* pNFS is enabled */
 
 #define	NFSHASNFSV3(n)		((n)->nm_flag & NFSMNT_NFSV3)
 #define	NFSHASNFSV4(n)		((n)->nm_flag & NFSMNT_NFSV4)
+#define	NFSHASNFSV4N(n)		((n)->nm_minorvers > 0)
 #define	NFSHASNFSV3OR4(n)	((n)->nm_flag & (NFSMNT_NFSV3 | NFSMNT_NFSV4))
 #define	NFSHASGOTFSINFO(n)	((n)->nm_state & NFSSTA_GOTFSINFO)
 #define	NFSHASHASSETFSID(n)	((n)->nm_state & NFSSTA_HASSETFSID)
@@ -781,6 +862,10 @@ void newnfs_realign(struct mbuf **);
 #define	NFSHASPRIVACY(n)	((n)->nm_flag & NFSMNT_PRIVACY)
 #define	NFSSETWRITEVERF(n)	((n)->nm_state |= NFSSTA_HASWRITEVERF)
 #define	NFSSETHASSETFSID(n)	((n)->nm_state |= NFSSTA_HASSETFSID)
+#define	NFSHASPNFSOPT(n)	((n)->nm_flag & NFSMNT_PNFS)
+#define	NFSHASNOLAYOUTCOMMIT(n)	((n)->nm_state & NFSSTA_NOLAYOUTCOMMIT)
+#define	NFSHASSESSPERSIST(n)	((n)->nm_state & NFSSTA_SESSPERSIST)
+#define	NFSHASPNFS(n)		((n)->nm_state & NFSSTA_PNFS)
 
 /*
  * Gets the stats field out of the mount structure.

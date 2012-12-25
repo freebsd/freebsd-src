@@ -606,6 +606,10 @@ printsize(size_t width, off_t bytes)
 		humanize_number(buf, sizeof(buf), (int64_t)bytes, "",
 		    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 		(void)printf("%*s ", (u_int)width, buf);
+	} else if (f_thousands) {		/* with commas */
+		/* This format assignment needed to work round gcc bug. */
+		const char *format = "%*j'd ";
+		(void)printf(format, (u_int)width, bytes);
 	} else
 		(void)printf("%*jd ", (u_int)width, bytes);
 }

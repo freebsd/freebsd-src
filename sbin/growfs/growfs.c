@@ -69,6 +69,7 @@ __FBSDID("$FreeBSD$");
 #include <inttypes.h>
 #include <limits.h>
 #include <mntopts.h>
+#include <paths.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
@@ -1486,6 +1487,12 @@ main(int argc, char **argv)
 		}
 	}
 
+	/*
+	 * Make sure the new size is a multiple of fs_fsize; /dev/ufssuspend
+	 * only supports fragment-aligned IO requests.
+	 */
+	size -= size % osblock.fs_fsize;
+
 	if (size <= (uint64_t)(osblock.fs_size * osblock.fs_fsize)) {
 		humanize_number(oldsizebuf, sizeof(oldsizebuf),
 		    osblock.fs_size * osblock.fs_fsize,
@@ -1525,8 +1532,9 @@ main(int argc, char **argv)
 
 	if (yflag == 0 && Nflag == 0) {
 		if (statfsp != NULL && (statfsp->f_flags & MNT_RDONLY) == 0)
-			errx(1, "%s is mounted read-write on %s",
-			    statfsp->f_mntfromname, statfsp->f_mntonname);
+			printf("Device is mounted read-write; resizing will "
+			    "result in temporary write suspension for %s.\n",
+			    statfsp->f_mntonname);
 		printf("It's strongly recommended to make a backup "
 		    "before growing the file system.\n"
 		    "OK to grow filesystem on %s", device);
@@ -1555,9 +1563,18 @@ main(int argc, char **argv)
 	if (Nflag) {
 		fso = -1;
 	} else {
-		fso = open(device, O_WRONLY);
-		if (fso < 0)
-			err(1, "%s", device);
+		if (statfsp != NULL && (statfsp->f_flags & MNT_RDONLY) == 0) {
+			fso = open(_PATH_UFSSUSPEND, O_RDWR);
+			if (fso == -1)
+				err(1, "unable to open %s", _PATH_UFSSUSPEND);
+			error = ioctl(fso, UFSSUSPEND, &statfsp->f_fsid);
+			if (error != 0)
+				err(1, "UFSSUSPEND");
+		} else {
+			fso = open(device, O_WRONLY);
+			if (fso < 0)
+				err(1, "%s", device);
+		}
 	}
 
 	/*
@@ -1594,17 +1611,20 @@ main(int argc, char **argv)
 	}
 	sblock.fs_ncg = howmany(sblock.fs_size, sblock.fs_fpg);
 
+	/*
+	 * Allocate last cylinder group only if there is enough room
+	 * for at least one data block.
+	 */
 	if (sblock.fs_size % sblock.fs_fpg != 0 &&
-	    sblock.fs_size % sblock.fs_fpg < cgdmin(&sblock, sblock.fs_ncg)) {
-		/*
-		 * The space in the new last cylinder group is too small,
-		 * so revert back.
-		 */
+	    sblock.fs_size <= cgdmin(&sblock, sblock.fs_ncg - 1)) {
+		humanize_number(oldsizebuf, sizeof(oldsizebuf),
+		    (sblock.fs_size % sblock.fs_fpg) * sblock.fs_fsize,
+		    "B", HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
+		warnx("no room to allocate last cylinder group; "
+		    "leaving %s unused", oldsizebuf);
 		sblock.fs_ncg--;
 		if (sblock.fs_magic == FS_UFS1_MAGIC)
 			sblock.fs_old_ncyl = sblock.fs_ncg * sblock.fs_old_cpg;
-		printf("Warning: %jd sector(s) cannot be allocated.\n",
-		    (intmax_t)fsbtodb(&sblock, sblock.fs_size % sblock.fs_fpg));
 		sblock.fs_size = sblock.fs_ncg * sblock.fs_fpg;
 	}
 
@@ -1627,12 +1647,17 @@ main(int argc, char **argv)
 
 	close(fsi);
 	if (fso > -1) {
+		if (statfsp != NULL && (statfsp->f_flags & MNT_RDONLY) == 0) {
+			error = ioctl(fso, UFSRESUME);
+			if (error != 0)
+				err(1, "UFSRESUME");
+		}
 		error = close(fso);
 		if (error != 0)
 			err(1, "close");
+		if (statfsp != NULL && (statfsp->f_flags & MNT_RDONLY) != 0)
+			mount_reload(statfsp);
 	}
-	if (statfsp != NULL)
-		mount_reload(statfsp);
 
 	DBG_CLOSE;
 

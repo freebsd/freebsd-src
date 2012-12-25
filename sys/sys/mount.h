@@ -199,8 +199,8 @@ struct vnode *__mnt_vnode_next_all(struct vnode **mvp, struct mount *mp);
 struct vnode *__mnt_vnode_first_all(struct vnode **mvp, struct mount *mp);
 void          __mnt_vnode_markerfree_all(struct vnode **mvp, struct mount *mp);
 
-#define MNT_VNODE_FOREACH_ALL(vp, mp, mvp) \
-	for (vp = __mnt_vnode_first_all(&(mvp), (mp)); \
+#define MNT_VNODE_FOREACH_ALL(vp, mp, mvp)				\
+	for (vp = __mnt_vnode_first_all(&(mvp), (mp));			\
 		(vp) != NULL; vp = __mnt_vnode_next_all(&(mvp), (mp)))
 
 #define MNT_VNODE_FOREACH_ALL_ABORT(mp, mvp)				\
@@ -218,17 +218,12 @@ struct vnode *__mnt_vnode_next_active(struct vnode **mvp, struct mount *mp);
 struct vnode *__mnt_vnode_first_active(struct vnode **mvp, struct mount *mp);
 void          __mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *);
 
-#define MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) \
-	for (vp = __mnt_vnode_first_active(&(mvp), (mp)); \
+#define MNT_VNODE_FOREACH_ACTIVE(vp, mp, mvp) 				\
+	for (vp = __mnt_vnode_first_active(&(mvp), (mp)); 		\
 		(vp) != NULL; vp = __mnt_vnode_next_active(&(mvp), (mp)))
 
 #define MNT_VNODE_FOREACH_ACTIVE_ABORT(mp, mvp)				\
-	do {								\
-		MNT_ILOCK(mp);						\
-		__mnt_vnode_markerfree_active(&(mvp), (mp));		\
-		/* MNT_IUNLOCK(mp); -- done in above function */	\
-		mtx_assert(MNT_MTX(mp), MA_NOTOWNED);			\
-	} while (0)
+	__mnt_vnode_markerfree_active(&(mvp), (mp))
 
 /*
  * Definitions for MNT_VNODE_FOREACH.
@@ -385,7 +380,7 @@ void          __mnt_vnode_markerfree(struct vnode **mvp, struct mount *mp);
 #define	MNTK_SUSPEND	0x08000000	/* request write suspension */
 #define	MNTK_SUSPEND2	0x04000000	/* block secondary writes */
 #define	MNTK_SUSPENDED	0x10000000	/* write operations are suspended */
-#define	MNTK_MPSAFE	0x20000000	/* Filesystem is MPSAFE. */
+#define	MNTK_UNUSED25	0x20000000	/*  --available-- */
 #define MNTK_LOOKUP_SHARED	0x40000000 /* FS supports shared lock lookups */
 #define	MNTK_NOKNOTE	0x80000000	/* Don't send KNOTEs from VOP hooks */
 

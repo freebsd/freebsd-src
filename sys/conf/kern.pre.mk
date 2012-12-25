@@ -102,12 +102,18 @@ CLANG_NO_IAS= -no-integrated-as
 .endif
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
-CFLAGS+=	-DGPROF -falign-functions=16
+CFLAGS+=	-DGPROF
+.if ${COMPILER_TYPE} != "clang"
+CFLAGS+=	-falign-functions=16
+.endif
 .if ${PROFLEVEL} >= 2
 CFLAGS+=	-DGPROF4 -DGUPROF
-PROF=	-pg -mprofiler-epilogue
+PROF=		-pg
+.if ${COMPILER_TYPE} != "clang"
+PROF+=		-mprofiler-epilogue
+.endif
 .else
-PROF=	-pg
+PROF=		-pg
 .endif
 .endif
 DEFINED_PROF=	${PROF}
@@ -161,7 +167,7 @@ SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o ${MDOBJS} ${OBJS}
 SYSTEM_OBJS+= ${SYSTEM_CFILES:.c=.o}
 SYSTEM_OBJS+= hack.So
-SYSTEM_LD= @${LD} -Bdynamic -T ${LDSCRIPT} --no-warn-mismatch \
+SYSTEM_LD= @${LD} -Bdynamic -T ${LDSCRIPT} ${LDFLAGS} --no-warn-mismatch \
 	-warn-common -export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL= @${OBJCOPY} --strip-symbol gcc2_compiled. ${.TARGET} ; \

@@ -811,7 +811,7 @@ vx_get(struct vx_softc *sc, u_int totlen)
 	m = sc->vx_mb[sc->vx_next_mb];
 	sc->vx_mb[sc->vx_next_mb] = NULL;
 	if (m == NULL) {
-		MGETHDR(m, M_DONTWAIT, MT_DATA);
+		MGETHDR(m, M_NOWAIT, MT_DATA);
 		if (m == NULL)
 			return NULL;
 	} else {
@@ -853,7 +853,7 @@ vx_get(struct vx_softc *sc, u_int totlen)
 			m = sc->vx_mb[sc->vx_next_mb];
 			sc->vx_mb[sc->vx_next_mb] = NULL;
 			if (m == NULL) {
-				MGET(m, M_DONTWAIT, MT_DATA);
+				MGET(m, M_NOWAIT, MT_DATA);
 				if (m == NULL) {
 					m_freem(top);
 					return NULL;
@@ -864,7 +864,7 @@ vx_get(struct vx_softc *sc, u_int totlen)
 			len = MLEN;
 		}
 		if (totlen >= MINCLSIZE) {
-			MCLGET(m, M_DONTWAIT);
+			MCLGET(m, M_NOWAIT);
 			if (m->m_flags & M_EXT)
 				len = MCLBYTES;
 		}
@@ -1044,7 +1044,7 @@ vx_mbuf_fill(void *sp)
 	i = sc->vx_last_mb;
 	do {
 		if (sc->vx_mb[i] == NULL)
-			MGET(sc->vx_mb[i], M_DONTWAIT, MT_DATA);
+			MGET(sc->vx_mb[i], M_NOWAIT, MT_DATA);
 		if (sc->vx_mb[i] == NULL)
 			break;
 		i = (i + 1) % MAX_MBS;

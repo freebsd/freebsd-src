@@ -63,3 +63,9 @@ options 	UFS_DIRHASH
 options 	WITNESS
 options 	WITNESS_SKIPSPIN
 options 	_KPOSIX_PRIORITY_SCHEDULING
+
+options 	ALQ
+options 	KTR
+options 	KTR_ALQ
+options 	KTR_COMPILE=KTR_BUSDMA
+options 	KTR_MASK=KTR_BUSDMA

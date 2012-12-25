@@ -131,7 +131,7 @@ MODULE_DEPEND(rl, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct rl_type const rl_devs[] = {
+static const struct rl_type rl_devs[] = {
 	{ RT_VENDORID, RT_DEVICEID_8129, RL_8129,
 		"RealTek 8129 10/100BaseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8139, RL_8139,
@@ -1565,7 +1565,7 @@ rl_encap(struct rl_softc *sc, struct mbuf **m_head)
 	 */
 	if (m->m_next != NULL || (mtod(m, uintptr_t) & 3) != 0 ||
 	    (padlen > 0 && M_TRAILINGSPACE(m) < padlen)) {
-		m = m_defrag(*m_head, M_DONTWAIT);
+		m = m_defrag(*m_head, M_NOWAIT);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;

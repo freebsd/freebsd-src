@@ -83,7 +83,6 @@ struct fuse_vnode_data {
     uint32_t   flag;
 
     /** meta **/
-    struct timespec   cached_attrs_valid;
     struct vattr      cached_attrs;
     off_t             filesize;
     uint64_t          nlookup;
@@ -100,15 +99,6 @@ struct fuse_vnode_data {
 
 extern struct vop_vector fuse_vnops;
 
-static __inline__
-void
-fuse_invalidate_attr(struct vnode *vp)
-{
-    if (VTOFUD(vp)) {
-        bzero(&VTOFUD(vp)->cached_attrs_valid, sizeof(struct timespec));
-    }
-}
-
 static __inline void
 fuse_vnode_setparent(struct vnode *vp, struct vnode *dvp)
 {
@@ -117,8 +107,6 @@ fuse_vnode_setparent(struct vnode *vp, struct vnode *dvp)
         VTOFUD(vp)->parent_nid = VTOI(dvp);
     }
 }
-
-int fuse_isvalid_attr(struct vnode *vp);
 
 void fuse_vnode_destroy(struct vnode *vp);
 

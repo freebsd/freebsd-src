@@ -60,7 +60,7 @@ static void load(const char *);
 static void bcopy(const void *src, void *dst, size_t len);
 static void bzero(void *b, size_t len);
 
-static int mount(const char *device);
+static int domount(const char *device);
 static int dskread(void *buf, u_int64_t lba, int nblk);
 
 static void panic(const char *fmt, ...) __dead2;
@@ -340,15 +340,15 @@ main(int ac, char **av)
 	}
 
 #ifdef ZFSBOOT
-	printf(" \n>> FreeBSD/sparc64 ZFS boot block\n    Boot path:   %s\n",
+	printf(" \n>> FreeBSD/sparc64 ZFS boot block\n   Boot path:   %s\n",
 	    bootpath);
 #else
-	printf(" \n>> FreeBSD/sparc64 boot block\n    Boot path:   %s\n"
-	    "   Boot loader: %s\n", "", bootpath, path);
+	printf(" \n>> FreeBSD/sparc64 boot block\n   Boot path:   %s\n"
+	    "   Boot loader: %s\n", bootpath, path);
 #endif
 
-	if (mount(bootpath) == -1)
-		panic("mount");
+	if (domount(bootpath) == -1)
+		panic("domount");
 
 #ifdef ZFSBOOT
 	loadzfs();
@@ -497,17 +497,17 @@ load(const char *fname)
 #endif /* ZFSBOOT */
 
 static int
-mount(const char *device)
+domount(const char *device)
 {
 
 	if ((bootdev = ofw_open(device)) == -1) {
-		printf("mount: can't open device\n");
+		printf("domount: can't open device\n");
 		return (-1);
 	}
 #ifndef ZFSBOOT
 	dmadat = &__dmadat;
 	if (fsread(0, NULL, 0)) {
-		printf("mount: can't read superblock\n");
+		printf("domount: can't read superblock\n");
 		return (-1);
 	}
 #endif

@@ -118,7 +118,7 @@ kstat_install(kstat_t *ksp)
 		SYSCTL_ADD_PROC(&ksp->ks_sysctl_ctx,
 		    SYSCTL_CHILDREN(ksp->ks_sysctl_root), OID_AUTO, ksent->name,
 		    CTLTYPE_U64 | CTLFLAG_RD, ksent, sizeof(*ksent),
-		    kstat_sysctl, "QU", "");
+		    kstat_sysctl, "QU", ksent->desc);
 	}
 }
 

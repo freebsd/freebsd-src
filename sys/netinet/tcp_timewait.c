@@ -519,10 +519,11 @@ tcp_twrespond(struct tcptw *tw, int flags)
 	struct ip6_hdr *ip6 = NULL;
 	int isipv6 = inp->inp_inc.inc_flags & INC_ISIPV6;
 #endif
+	hdrlen = 0;                     /* Keep compiler happy */
 
 	INP_WLOCK_ASSERT(inp);
 
-	m = m_gethdr(M_DONTWAIT, MT_DATA);
+	m = m_gethdr(M_NOWAIT, MT_DATA);
 	if (m == NULL)
 		return (ENOBUFS);
 	m->m_data += max_linkhdr;

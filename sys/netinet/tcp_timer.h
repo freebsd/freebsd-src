@@ -122,7 +122,7 @@
 
 #ifdef	TCPTIMERS
 static const char *tcptimers[] =
-    { "REXMT", "PERSIST", "KEEP", "2MSL" };
+    { "REXMT", "PERSIST", "KEEP", "2MSL", "DELACK" };
 #endif
 
 /*

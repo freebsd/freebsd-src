@@ -235,7 +235,7 @@ static char *	tcp_log_addr(struct in_conninfo *inc, struct tcphdr *th,
  * variable net.inet.tcp.tcbhashsize
  */
 #ifndef TCBHASHSIZE
-#define TCBHASHSIZE	512
+#define TCBHASHSIZE	0
 #endif
 
 /*
@@ -282,10 +282,34 @@ tcp_inpcb_init(void *mem, int size, int flags)
 	return (0);
 }
 
+/*
+ * Take a value and get the next power of 2 that doesn't overflow.
+ * Used to size the tcp_inpcb hash buckets.
+ */
+static int
+maketcp_hashsize(int size)
+{
+	int hashsize;
+
+	/*
+	 * auto tune.
+	 * get the next power of 2 higher than maxsockets.
+	 */
+	hashsize = 1 << fls(size);
+	/* catch overflow, and just go one power of 2 smaller */
+	if (hashsize < size) {
+		hashsize = 1 << (fls(size) - 1);
+	}
+	return (hashsize);
+}
+
 void
 tcp_init(void)
 {
+	const char *tcbhash_tuneable;
 	int hashsize;
+
+	tcbhash_tuneable = "net.inet.tcp.tcbhashsize";
 
 	if (hhook_head_register(HHOOK_TYPE_TCP, HHOOK_TCP_EST_IN,
 	    &V_tcp_hhh[HHOOK_TCP_EST_IN], HHOOK_NOWAIT|HHOOK_HEADISINVNET) != 0)
@@ -295,10 +319,43 @@ tcp_init(void)
 		printf("%s: WARNING: unable to register helper hook\n", __func__);
 
 	hashsize = TCBHASHSIZE;
-	TUNABLE_INT_FETCH("net.inet.tcp.tcbhashsize", &hashsize);
+	TUNABLE_INT_FETCH(tcbhash_tuneable, &hashsize);
+	if (hashsize == 0) {
+		/*
+		 * Auto tune the hash size based on maxsockets.
+		 * A perfect hash would have a 1:1 mapping
+		 * (hashsize = maxsockets) however it's been
+		 * suggested that O(2) average is better.
+		 */
+		hashsize = maketcp_hashsize(maxsockets / 4);
+		/*
+		 * Our historical default is 512,
+		 * do not autotune lower than this.
+		 */
+		if (hashsize < 512)
+			hashsize = 512;
+		if (bootverbose)
+			printf("%s: %s auto tuned to %d\n", __func__,
+			    tcbhash_tuneable, hashsize);
+	}
+	/*
+	 * We require a hashsize to be a power of two.
+	 * Previously if it was not a power of two we would just reset it
+	 * back to 512, which could be a nasty surprise if you did not notice
+	 * the error message.
+	 * Instead what we do is clip it to the closest power of two lower
+	 * than the specified hash value.
+	 */
 	if (!powerof2(hashsize)) {
-		printf("WARNING: TCB hash size not a power of 2\n");
-		hashsize = 512; /* safe default */
+		int oldhashsize = hashsize;
+
+		hashsize = maketcp_hashsize(hashsize);
+		/* prevent absurdly low value */
+		if (hashsize < 16)
+			hashsize = 16;
+		printf("%s: WARNING: TCB hash size not a power of 2, "
+		    "clipped from %d to %d.\n", __func__, oldhashsize,
+		    hashsize);
 	}
 	in_pcbinfo_init(&V_tcbinfo, "tcp", &V_tcb, hashsize, hashsize,
 	    "tcp_inpcb", tcp_inpcb_init, NULL, UMA_ZONE_NOFREE,
@@ -310,6 +367,7 @@ tcp_init(void)
 	V_tcpcb_zone = uma_zcreate("tcpcb", sizeof(struct tcpcb_mem),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(V_tcpcb_zone, maxsockets);
+	uma_zone_set_warning(V_tcpcb_zone, "kern.ipc.maxsockets limit reached");
 
 	tcp_tw_init();
 	syncache_init();
@@ -516,7 +574,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		}
 	}
 	if (m == NULL) {
-		m = m_gethdr(M_DONTWAIT, MT_DATA);
+		m = m_gethdr(M_NOWAIT, MT_DATA);
 		if (m == NULL)
 			return;
 		tlen = 0;
@@ -529,11 +587,11 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			nth = (struct tcphdr *)(ip6 + 1);
 		} else
 #endif /* INET6 */
-	      {
-		bcopy((caddr_t)ip, mtod(m, caddr_t), sizeof(struct ip));
-		ip = mtod(m, struct ip *);
-		nth = (struct tcphdr *)(ip + 1);
-	      }
+		{
+			bcopy((caddr_t)ip, mtod(m, caddr_t), sizeof(struct ip));
+			ip = mtod(m, struct ip *);
+			nth = (struct tcphdr *)(ip + 1);
+		}
 		bcopy((caddr_t)th, (caddr_t)nth, sizeof(struct tcphdr));
 		flags = TH_ACK;
 	} else {
@@ -553,10 +611,10 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 			nth = (struct tcphdr *)(ip6 + 1);
 		} else
 #endif /* INET6 */
-	      {
-		xchg(ip->ip_dst.s_addr, ip->ip_src.s_addr, uint32_t);
-		nth = (struct tcphdr *)(ip + 1);
-	      }
+		{
+			xchg(ip->ip_dst.s_addr, ip->ip_src.s_addr, uint32_t);
+			nth = (struct tcphdr *)(ip + 1);
+		}
 		if (th != nth) {
 			/*
 			 * this is usually a case when an extension header
@@ -902,14 +960,14 @@ tcp_discardcb(struct tcpcb *tp)
 				ssthresh = 2;
 			ssthresh *= (u_long)(tp->t_maxseg +
 #ifdef INET6
-				      (isipv6 ? sizeof (struct ip6_hdr) +
-					       sizeof (struct tcphdr) :
+			    (isipv6 ? sizeof (struct ip6_hdr) +
+				sizeof (struct tcphdr) :
 #endif
-				       sizeof (struct tcpiphdr)
+				sizeof (struct tcpiphdr)
 #ifdef INET6
-				       )
+			    )
 #endif
-				      );
+			    );
 		} else
 			ssthresh = 0;
 		metrics.rmx_ssthresh = ssthresh;
@@ -1802,7 +1860,7 @@ ipsec_hdrsiz_tcp(struct tcpcb *tp)
 
 	if ((tp == NULL) || ((inp = tp->t_inpcb) == NULL))
 		return (0);
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (!m)
 		return (0);
 

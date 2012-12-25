@@ -31,7 +31,7 @@
 .\"	@(#)find.1	8.7 (Berkeley) 5/9/95
 .\" $FreeBSD$
 .\"
-.Dd September 9, 2012
+.Dd November 18, 2012
 .Dt FIND 1
 .Os
 .Sh NAME
@@ -203,12 +203,19 @@ files with extended ACLs.
 See
 .Xr acl 3
 for more information.
-.It Ic -amin Ar n
+.It Ic -amin Oo Cm - Ns | Ns Cm + Oc Ns Ar n
 True if the difference between the file last access time and the time
 .Nm
 was started, rounded up to the next full minute, is
+more than
 .Ar n
-minutes.
+.Pq + Ns Ar n ,
+less than
+.Ar n
+.Pq - Ns Ar n ,
+or exactly
+.Ar n
+minutes ago.
 .It Ic -anewer Ar file
 Same as
 .Ic -neweram .
@@ -250,13 +257,20 @@ Units are probably only useful when used in conjunction with the
 or
 .Cm -
 modifier.
-.It Ic -cmin Ar n
+.It Ic -cmin Oo Cm - Ns | Ns Cm + Oc Ns Ar n
 True if the difference between the time of last change of file status
 information and the time
 .Nm
 was started, rounded up to the next full minute, is
+more than
 .Ar n
-minutes.
+.Pq + Ns Ar n ,
+less than
+.Ar n
+.Pq - Ns Ar n ,
+or exactly
+.Ar n
+minutes ago.
 .It Ic -cnewer Ar file
 Same as
 .Ic -newercm .
@@ -284,7 +298,7 @@ Non-portable, BSD-specific version of
 .Ic depth .
 GNU find implements this as a primary in mistaken emulation of
 .Fx
-.Xr find 1 .
+.Nm .
 .It Ic -delete
 Delete found files and/or directories.
 Always returns true.
@@ -459,7 +473,7 @@ for compatibility with GNU find.
 GNU find imposes a restriction that
 .Ar gname
 is numeric, while
-.Xr find 1
+.Nm
 does not.
 .It Ic -group Ar gname
 True if the file belongs to the group
@@ -540,12 +554,18 @@ primary is specified, it applies to the entire expression even if it would
 not normally be evaluated.
 .Dq Ic -mindepth Li 1
 processes all but the command line arguments.
-.It Ic -mmin Ar n
+.It Ic -mmin Oo Cm - Ns | Ns Cm + Oc Ns Ar n
 True if the difference between the file last modification time and the time
 .Nm
 was started, rounded up to the next full minute, is
 .Ar n
-minutes.
+.Pq + Ns Ar n ,
+less than
+.Ar n
+.Pq - Ns Ar n ,
+or exactly
+.Ar n
+minutes ago.
 .It Ic -mnewer Ar file
 Same as
 .Ic -newer .
@@ -626,7 +646,7 @@ This is default behaviour.
 .It Ic -noleaf
 This option is for GNU find compatibility.
 In GNU find it disables an optimization not relevant to
-.Xr find 1 ,
+.Nm ,
 so it is ignored.
 .It Ic -nouser
 True if the file belongs to an unknown user.
@@ -823,7 +843,7 @@ for compatibility with GNU find.
 GNU find imposes a restriction that
 .Ar uname
 is numeric, while
-.Xr find 1
+.Nm
 does not.
 .It Ic -user Ar uname
 True if the file belongs to the user

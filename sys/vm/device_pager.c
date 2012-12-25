@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
+#include <vm/vm_phys.h>
 #include <vm/uma.h>
 
 static void dev_pager_init(void);

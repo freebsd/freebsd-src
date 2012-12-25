@@ -192,7 +192,6 @@ out:
 	atomic_subtract_acq_int(&fuse_fh_count, 1);
 	fufh->fh_id = (uint64_t)-1;
 	fufh->fh_type = FUFH_INVALID;
-	fuse_invalidate_attr(vp);
 
 	return err;
 }

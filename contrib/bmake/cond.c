@@ -1,4 +1,4 @@
-/*	$NetBSD: cond.c,v 1.64 2012/06/12 19:21:50 joerg Exp $	*/
+/*	$NetBSD: cond.c,v 1.67 2012/11/03 13:59:27 christos Exp $	*/
 
 /*
  * Copyright (c) 1988, 1989, 1990 The Regents of the University of California.
@@ -70,14 +70,14 @@
  */
 
 #ifndef MAKE_NATIVE
-static char rcsid[] = "$NetBSD: cond.c,v 1.64 2012/06/12 19:21:50 joerg Exp $";
+static char rcsid[] = "$NetBSD: cond.c,v 1.67 2012/11/03 13:59:27 christos Exp $";
 #else
 #include <sys/cdefs.h>
 #ifndef lint
 #if 0
 static char sccsid[] = "@(#)cond.c	8.2 (Berkeley) 1/2/94";
 #else
-__RCSID("$NetBSD: cond.c,v 1.64 2012/06/12 19:21:50 joerg Exp $");
+__RCSID("$NetBSD: cond.c,v 1.67 2012/11/03 13:59:27 christos Exp $");
 #endif
 #endif /* not lint */
 #endif
@@ -1227,7 +1227,8 @@ do_Cond_EvalExpression(Boolean *value)
 int
 Cond_Eval(char *line)
 {
-    #define	    MAXIF      128	/* maximum depth of .if'ing */
+#define	    MAXIF      128	/* maximum depth of .if'ing */
+#define	    MAXIF_BUMP  32	/* how much to grow by */
     enum if_states {
 	IF_ACTIVE,		/* .if or .elif part active */
 	ELSE_ACTIVE,		/* .else part active */
@@ -1235,7 +1236,8 @@ Cond_Eval(char *line)
 	SKIP_TO_ELSE,           /* has been true, but not seen '.else' */
 	SKIP_TO_ENDIF		/* nothing else to execute */
     };
-    static enum if_states cond_state[MAXIF + 1] = { IF_ACTIVE };
+    static enum if_states *cond_state = NULL;
+    static unsigned int max_if_depth = MAXIF;
 
     const struct If *ifp;
     Boolean 	    isElif;
@@ -1244,7 +1246,10 @@ Cond_Eval(char *line)
     enum if_states  state;
 
     level = PARSE_FATAL;
-
+    if (!cond_state) {
+	cond_state = bmake_malloc(max_if_depth * sizeof(*cond_state));
+	cond_state[0] = IF_ACTIVE;
+    }
     /* skip leading character (the '.') and any whitespace */
     for (line++; *line == ' ' || *line == '\t'; line++)
 	continue;
@@ -1261,8 +1266,6 @@ Cond_Eval(char *line)
 	    }
 	    /* Return state for previous conditional */
 	    cond_depth--;
-	    if (cond_depth > MAXIF)
-		return COND_SKIP;
 	    return cond_state[cond_depth] <= ELSE_ACTIVE ? COND_PARSE : COND_SKIP;
 	}
 
@@ -1275,8 +1278,6 @@ Cond_Eval(char *line)
 		return COND_PARSE;
 	    }
 
-	    if (cond_depth > MAXIF)
-		return COND_SKIP;
 	    state = cond_state[cond_depth];
 	    switch (state) {
 	    case SEARCH_FOR_ELIF:
@@ -1325,9 +1326,6 @@ Cond_Eval(char *line)
 	    Parse_Error(level, "if-less elif");
 	    return COND_PARSE;
 	}
-	if (cond_depth > MAXIF)
-	    /* Error reported when we saw the .if ... */
-	    return COND_SKIP;
 	state = cond_state[cond_depth];
 	if (state == SKIP_TO_ENDIF || state == ELSE_ACTIVE) {
 	    Parse_Error(PARSE_WARNING, "extra elif");
@@ -1341,10 +1339,15 @@ Cond_Eval(char *line)
 	}
     } else {
 	/* Normal .if */
-	if (cond_depth >= MAXIF) {
-	    cond_depth++;
-	    Parse_Error(PARSE_FATAL, "Too many nested if's. %d max.", MAXIF);
-	    return COND_SKIP;
+	if (cond_depth + 1 >= max_if_depth) {
+	    /*
+	     * This is rare, but not impossible.
+	     * In meta mode, dirdeps.mk (only runs at level 0)
+	     * can need more than the default.
+	     */
+	    max_if_depth += MAXIF_BUMP;
+	    cond_state = bmake_realloc(cond_state, max_if_depth *
+		sizeof(*cond_state));
 	}
 	state = cond_state[cond_depth];
 	cond_depth++;

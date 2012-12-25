@@ -87,7 +87,7 @@ static int
 ata_sii_probe(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    static const struct ata_chip_id const ids[] =
+    static const struct ata_chip_id ids[] =
     {{ ATA_SII3114,   0x00, SII_MEMIO, SII_4CH,    ATA_SA150, "3114" },
      { ATA_SII3512,   0x02, SII_MEMIO, 0,          ATA_SA150, "3512" },
      { ATA_SII3112,   0x02, SII_MEMIO, 0,          ATA_SA150, "3112" },

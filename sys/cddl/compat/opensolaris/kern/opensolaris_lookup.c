@@ -88,6 +88,7 @@ traverse(vnode_t **cvpp, int lktype)
 		vfsp = vn_mountedvfs(cvp);
 		if (vfsp == NULL)
 			break;
+		error = vfs_busy(vfsp, 0);
 		/*
 		 * tvp is NULL for *cvpp vnode, which we can't unlock.
 		 */
@@ -95,12 +96,15 @@ traverse(vnode_t **cvpp, int lktype)
 			vput(cvp);
 		else
 			vrele(cvp);
+		if (error)
+			return (error);
 
 		/*
 		 * The read lock must be held across the call to VFS_ROOT() to
 		 * prevent a concurrent unmount from destroying the vfs.
 		 */
 		error = VFS_ROOT(vfsp, lktype, &tvp);
+		vfs_unbusy(vfsp);
 		if (error != 0)
 			return (error);
 		cvp = tvp;

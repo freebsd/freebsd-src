@@ -128,9 +128,36 @@ ar5416GetTsf64(struct ath_hal *ah)
 	return (((uint64_t) u32) << 32) | ((uint64_t) low2);
 }
 
+/*
+ * Update the TSF.
+ *
+ * The full TSF is only updated once the upper 32 bits have
+ * been written.  Writing only the lower 32 bits of the TSF
+ * will not actually correctly update the TSF.
+ *
+ * The #if 0'ed code is to check whether the previous TSF
+ * reset or write has completed before writing to the
+ * TSF.  Strictly speaking, it should be also checked before
+ * reading the TSF as the write/reset may not have completed.
+ */
 void
 ar5416SetTsf64(struct ath_hal *ah, uint64_t tsf64)
 {
+	/* XXX check if this is correct! */
+#if 0
+	int i;
+	uint32_t v;
+
+	for (i = 0; i < 10; i++) {
+		v = OS_REG_READ(ah, AR_SLP32_MODE);
+		if ((v & AR_SLP32_TSF_WRITE_STATUS) == 0)
+			break;
+		OS_DELAY(10);
+	}
+	if (i == 10)
+		ath_hal_printf(ah, "%s: couldn't slew things right!\n", __func__);
+#endif
+
 	OS_REG_WRITE(ah, AR_TSF_L32, tsf64 & 0xffffffff);
 	OS_REG_WRITE(ah, AR_TSF_U32, (tsf64 >> 32) & 0xffffffff);
 }
@@ -424,6 +451,10 @@ ar5416GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 			HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_DIVERSITY:		/* disable classic fast diversity */
 		return HAL_ENXIO;
+	case HAL_CAP_ENFORCE_TXOP:
+		(*result) =
+		    !! (AH5212(ah)->ah_miscMode & AR_PCU_TXOP_TBTT_LIMIT_ENA);
+		return (HAL_OK);
 	default:
 		break;
 	}
@@ -452,6 +483,19 @@ ar5416SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 			pCap->halTxStreams = 2;
 		else
 			pCap->halTxStreams = 1;
+		return AH_TRUE;
+	case HAL_CAP_ENFORCE_TXOP:
+		if (setting) {
+			AH5212(ah)->ah_miscMode
+			    |= AR_PCU_TXOP_TBTT_LIMIT_ENA;
+			OS_REG_SET_BIT(ah, AR_MISC_MODE,
+			    AR_PCU_TXOP_TBTT_LIMIT_ENA);
+		} else {
+			AH5212(ah)->ah_miscMode
+			    &= ~AR_PCU_TXOP_TBTT_LIMIT_ENA;
+			OS_REG_CLR_BIT(ah, AR_MISC_MODE,
+			    AR_PCU_TXOP_TBTT_LIMIT_ENA);
+		}
 		return AH_TRUE;
 	default:
 		break;

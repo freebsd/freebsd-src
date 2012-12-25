@@ -2264,7 +2264,7 @@ soft_allocate_pmc(enum pmc_event pe, char *ctrspec,
 	(void)ctrspec;
 	(void)pmc_config;
 
-	if (pe < PMC_EV_SOFT_FIRST || pe > PMC_EV_SOFT_LAST)
+	if ((int)pe < PMC_EV_SOFT_FIRST || (int)pe > PMC_EV_SOFT_LAST)
 		return (-1);
 
 	pmc_config->pm_caps |= (PMC_CAP_READ | PMC_CAP_WRITE);
@@ -3190,7 +3190,7 @@ _pmc_name_of_event(enum pmc_event pe, enum pmc_cputype cpu)
 	} else if (pe == PMC_EV_TSC_TSC) {
 		ev = tsc_event_table;
 		evfence = tsc_event_table + PMC_EVENT_TABLE_SIZE(tsc);
-	} else if (pe >= PMC_EV_SOFT_FIRST && pe <= PMC_EV_SOFT_LAST) {
+	} else if ((int)pe >= PMC_EV_SOFT_FIRST && (int)pe <= PMC_EV_SOFT_LAST) {
 		ev = soft_event_table;
 		evfence = soft_event_table + soft_event_info.pm_nevent;
 	}

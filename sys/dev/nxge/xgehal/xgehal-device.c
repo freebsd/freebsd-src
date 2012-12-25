@@ -6793,7 +6793,7 @@ _again:
 	} else {
 	    /*
 	     * Logging Error messages in the excess temperature,
-	     * Bias current, laser ouput for three cycle
+	     * Bias current, laser output for three cycle
 	     */
 	    __hal_updt_stats_xpak(hldev);
 	    hldev->stats.sw_dev_err_stats.xpak_counter.tick_period = 0;

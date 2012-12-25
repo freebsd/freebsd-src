@@ -42,6 +42,9 @@
 #include <net80211/ieee80211_radiotap.h>
 #include <dev/ath/if_athioctl.h>
 #include <dev/ath/if_athrate.h>
+#ifdef	ATH_DEBUG_ALQ
+#include <dev/ath/if_ath_alq.h>
+#endif
 
 #define	ATH_TIMEOUT		1000
 
@@ -102,17 +105,15 @@ struct ath_buf;
  */
 struct ath_tid {
 	TAILQ_HEAD(,ath_buf)	tid_q;		/* pending buffers */
-	u_int			axq_depth;	/* SW queue depth */
-	char			axq_name[48];	/* lock name */
 	struct ath_node		*an;		/* pointer to parent */
 	int			tid;		/* tid */
 	int			ac;		/* which AC gets this trafic */
 	int			hwq_depth;	/* how many buffers are on HW */
+	u_int			axq_depth;	/* SW queue depth */
 
 	struct {
 		TAILQ_HEAD(,ath_buf)	tid_q;		/* filtered queue */
 		u_int			axq_depth;	/* SW queue depth */
-		char			axq_name[48];	/* lock name */
 	} filtq;
 
 	/*
@@ -240,8 +241,7 @@ struct ath_buf {
 		uint8_t bfs_tid;	/* packet TID (or TID_MAX for no QoS) */
 		uint8_t bfs_nframes;	/* number of frames in aggregate */
 		uint8_t bfs_pri;	/* packet AC priority */
-
-		struct ath_txq *bfs_txq;	/* eventual dest hardware TXQ */
+		uint8_t bfs_tx_queue;	/* destination hardware TX queue */
 
 		u_int32_t bfs_aggr:1,		/* part of aggregate? */
 		    bfs_aggrburst:1,	/* part of aggregate burst? */
@@ -329,7 +329,6 @@ struct ath_txq {
 	u_int			axq_intrcnt;	/* interrupt count */
 	u_int32_t		*axq_link;	/* link ptr in last TX desc */
 	TAILQ_HEAD(axq_q_s, ath_buf)	axq_q;		/* transmit queue */
-	struct mtx		axq_lock;	/* lock on q and link */
 	char			axq_name[12];	/* e.g. "ath0_txq4" */
 
 	/* Per-TID traffic queue for software -> hardware TX */
@@ -341,25 +340,6 @@ struct ath_txq {
 #define	ATH_NODE_LOCK_ASSERT(_an)	mtx_assert(&(_an)->an_mtx, MA_OWNED)
 #define	ATH_NODE_UNLOCK_ASSERT(_an)	mtx_assert(&(_an)->an_mtx,	\
 					    MA_NOTOWNED)
-
-#define	ATH_TXQ_LOCK_INIT(_sc, _tq) do { \
-	snprintf((_tq)->axq_name, sizeof((_tq)->axq_name), "%s_txq%u", \
-		device_get_nameunit((_sc)->sc_dev), (_tq)->axq_qnum); \
-	mtx_init(&(_tq)->axq_lock, (_tq)->axq_name, NULL, MTX_DEF); \
-} while (0)
-#define	ATH_TXQ_LOCK_DESTROY(_tq)	mtx_destroy(&(_tq)->axq_lock)
-#define	ATH_TXQ_LOCK(_tq)		mtx_lock(&(_tq)->axq_lock)
-#define	ATH_TXQ_UNLOCK(_tq)		mtx_unlock(&(_tq)->axq_lock)
-#define	ATH_TXQ_LOCK_ASSERT(_tq)	\
-	    mtx_assert(&(_tq)->axq_lock, MA_OWNED)
-#define	ATH_TXQ_UNLOCK_ASSERT(_tq)	\
-	    mtx_assert(&(_tq)->axq_lock, MA_NOTOWNED)
-#define	ATH_TXQ_IS_LOCKED(_tq)		mtx_owned(&(_tq)->axq_lock)
-
-#define	ATH_TID_LOCK_ASSERT(_sc, _tid)	\
-	    ATH_TXQ_LOCK_ASSERT((_sc)->sc_ac2q[(_tid)->ac])
-#define	ATH_TID_UNLOCK_ASSERT(_sc, _tid)	\
-	    ATH_TXQ_UNLOCK_ASSERT((_sc)->sc_ac2q[(_tid)->ac])
 
 /*
  * These are for the hardware queue.
@@ -770,6 +750,11 @@ struct ath_softc {
 	int			sc_dodfs;	/* Whether to enable DFS rx filter bits */
 	struct task		sc_dfstask;	/* DFS processing task */
 
+	/* ALQ */
+#ifdef	ATH_DEBUG_ALQ
+	struct if_ath_alq sc_alq;
+#endif
+
 	/* TX AMPDU handling */
 	int			(*sc_addba_request)(struct ieee80211_node *,
 				    struct ieee80211_tx_ampdu *, int, int, int);
@@ -961,6 +946,8 @@ void	ath_intr(void *);
 	OS_REG_READ(_ah, AR_TSF_L32)
 #define	ath_hal_gettsf64(_ah) \
 	((*(_ah)->ah_getTsf64)((_ah)))
+#define	ath_hal_settsf64(_ah, _val) \
+	((*(_ah)->ah_setTsf64)((_ah), (_val)))
 #define	ath_hal_resettsf(_ah) \
 	((*(_ah)->ah_resetTsf)((_ah)))
 #define	ath_hal_rxena(_ah) \

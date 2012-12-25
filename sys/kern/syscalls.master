@@ -71,8 +71,7 @@
 ; XXX man page says `mode_t mode'.
 6	AUE_CLOSE	STD	{ int close(int fd); }
 7	AUE_WAIT4	STD	{ int wait4(int pid, int *status, \
-				    int options, struct rusage *rusage); } \
-				    wait4 wait_args int
+				    int options, struct rusage *rusage); }
 8	AUE_CREAT	COMPAT	{ int creat(char *path, int mode); }
 9	AUE_LINK	STD	{ int link(char *path, char *link); }
 10	AUE_UNLINK	STD	{ int unlink(char *path); }
@@ -952,5 +951,9 @@
 				    off_t offset, off_t len); }
 531	AUE_NULL	STD	{ int posix_fadvise(int fd, off_t offset, \
 				    off_t len, int advice); }
+532	AUE_WAIT6	STD	{ int wait6(int idtype, int id, \
+				    int *status, int options, \
+				    struct __wrusage *wrusage, \
+				    siginfo_t *info); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master

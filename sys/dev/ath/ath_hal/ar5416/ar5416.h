@@ -107,6 +107,9 @@ struct ath_hal_5416 {
 	void		(*ah_initPLL) (struct ath_hal *ah,
 			    const struct ieee80211_channel *chan);
 
+	/* bluetooth coexistence operations */
+	void		(*ah_btCoexSetDiversity)(struct ath_hal *ah);
+
 	u_int       	ah_globaltxtimeout;	/* global tx timeout */
 	u_int		ah_gpioMask;
 	int		ah_hangs;		/* h/w hangs state */
@@ -200,6 +203,7 @@ extern	void ar5416SetBTCoexInfo(struct ath_hal *ah,
 		HAL_BT_COEX_INFO *btinfo);
 extern	void ar5416BTCoexConfig(struct ath_hal *ah,
 		HAL_BT_COEX_CONFIG *btconf);
+extern	void ar5416BTCoexAntennaDiversity(struct ath_hal *ah);
 extern	void ar5416BTCoexSetQcuThresh(struct ath_hal *ah, int qnum);
 extern	void ar5416BTCoexSetWeights(struct ath_hal *ah, uint32_t stompType);
 extern	void ar5416BTCoexSetupBmissThresh(struct ath_hal *ah,

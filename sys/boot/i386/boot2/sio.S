@@ -40,13 +40,11 @@ sio_init:	pushl %eax
 		movb $0x3,%al			# Set RTS,
 		outb %al,(%dx)			#  DTR
 		incl %edx			# Line status reg
-		call sio_flush
-		ret
+		# Fallthrough
 
 /* int sio_flush(void) */
 
-sio_flush:	xorl %eax,%eax			# Return value
-		xorl %ecx,%ecx			# Timeout
+sio_flush:	xorl %ecx,%ecx			# Timeout
 		movb $0x80,%ch			#  counter
 sio_flush.1:	call sio_ischar 		# Check for character
 		jz sio_flush.2			# Till none

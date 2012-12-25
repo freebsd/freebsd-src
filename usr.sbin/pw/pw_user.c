@@ -394,7 +394,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				/*
 				 * Remove crontabs
 				 */
-				sprintf(file, "/var/cron/tabs/%s", pwd->pw_name);
+				snprintf(file, sizeof(file), "/var/cron/tabs/%s", pwd->pw_name);
 				if (access(file, F_OK) == 0) {
 					sprintf(file, "crontab -u %s -r", pwd->pw_name);
 					system(file);

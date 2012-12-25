@@ -287,10 +287,10 @@ nvme_ns_test(struct nvme_namespace *ns, u_long cmd, caddr_t arg)
 	for (i = 0; i < io_test->num_threads; i++)
 #if __FreeBSD_version >= 800004
 		kthread_add(fn, io_test_internal,
-		    NULL, NULL, 0, 0, "nvme_io_test[%d]", i);
+		    curproc, NULL, 0, 0, "nvme_io_test[%d]", i);
 #else
 		kthread_create(fn, io_test_internal,
-		    NULL, 0, 0, "nvme_io_test[%d]", i);
+		    curproc, 0, 0, "nvme_io_test[%d]", i);
 #endif
 
 	tsleep(io_test_internal, 0, "nvme_test", io_test->time * 2 * hz);

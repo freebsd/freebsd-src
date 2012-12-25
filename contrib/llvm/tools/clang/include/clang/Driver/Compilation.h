@@ -98,8 +98,7 @@ public:
   StringRef getSysRoot() const;
 
   /// getArgsForToolChain - Return the derived argument list for the
-  /// tool chain \arg TC (or the default tool chain, if TC is not
-  /// specified).
+  /// tool chain \p TC (or the default tool chain, if TC is not specified).
   ///
   /// \param BoundArch - The bound architecture name, or 0.
   const DerivedArgList &getArgsForToolChain(const ToolChain *TC,
@@ -141,6 +140,14 @@ public:
   /// \param Quote - Should separate arguments be quoted.
   void PrintJob(raw_ostream &OS, const Job &J,
                 const char *Terminator, bool Quote) const;
+
+  /// PrintDiagnosticJob - Print one job in -### format, but with the 
+  /// superfluous options removed, which are not necessary for 
+  /// reproducing the crash.
+  ///
+  /// \param OS - The stream to print on.
+  /// \param J - The job to print.
+  void PrintDiagnosticJob(raw_ostream &OS, const Job &J) const;
 
   /// ExecuteCommand - Execute an actual command.
   ///

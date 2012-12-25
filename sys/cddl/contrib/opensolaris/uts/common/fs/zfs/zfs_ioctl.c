@@ -3245,6 +3245,7 @@ zfs_ioc_destroy_snaps_nvl(zfs_cmd_t *zc)
 		}
 
 		(void) zfs_unmount_snap(name, NULL);
+		(void) zvol_remove_minor(name);
 	}
 
 	err = dmu_snapshots_destroy_nvl(nvl, zc->zc_defer_destroy,
@@ -3835,6 +3836,12 @@ zfs_ioc_recv(zfs_cmd_t *zc)
 		error = 1;
 	}
 #endif
+
+#ifdef __FreeBSD__
+	if (error == 0)
+		zvol_create_minors(tofs);
+#endif
+
 	/*
 	 * On error, restore the original props.
 	 */

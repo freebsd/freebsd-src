@@ -34,6 +34,8 @@
 #define _NETINET6_SCOPE6_VAR_H_
 
 #ifdef _KERNEL
+#include <net/vnet.h>
+
 struct scope6_id {
 	/*
 	 * 16 is correspondent to 4bit multicast scope field.
@@ -41,6 +43,9 @@ struct scope6_id {
 	 */
 	u_int32_t s6id_list[16];
 };
+
+VNET_DECLARE(int, deembed_scopeid);
+#define V_deembed_scopeid       VNET(deembed_scopeid)
 
 void	scope6_init(void);
 struct scope6_id *scope6_ifattach(struct ifnet *);

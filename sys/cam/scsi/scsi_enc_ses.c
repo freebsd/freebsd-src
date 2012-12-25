@@ -363,6 +363,7 @@ typedef struct ses_softc {
 	uint32_t		ses_flags;
 #define	SES_FLAG_TIMEDCOMP	0x01
 #define	SES_FLAG_ADDLSTATUS	0x02
+#define	SES_FLAG_DESC		0x04
 
 	ses_control_reqlist_t	ses_requests;
 	ses_control_reqlist_t	ses_pending_requests;
@@ -1271,10 +1272,10 @@ ses_process_pages(enc_softc_t *enc, struct enc_fsm_state *state,
 
 	err = 0;
 	for (i = 0; i < length; i++) {
-		if (page->params[i] == SesAddlElementStatus) {
+		if (page->params[i] == SesElementDescriptor)
+			ses->ses_flags |= SES_FLAG_DESC;
+		else if (page->params[i] == SesAddlElementStatus)
 			ses->ses_flags |= SES_FLAG_ADDLSTATUS;
-			break;
-		}
 	}
 
 out:
@@ -1486,7 +1487,8 @@ out:
 		ses_cache_free(enc, enc_cache);
 	else {
 		enc_update_request(enc, SES_UPDATE_GETSTATUS);
-		enc_update_request(enc, SES_UPDATE_GETELMDESCS);
+		if (ses->ses_flags & SES_FLAG_DESC)
+			enc_update_request(enc, SES_UPDATE_GETELMDESCS);
 		if (ses->ses_flags & SES_FLAG_ADDLSTATUS)
 			enc_update_request(enc, SES_UPDATE_GETELMADDLSTATUS);
 		enc_update_request(enc, SES_PUBLISH_CACHE);
@@ -1799,8 +1801,7 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 			ENC_VLOG(enc, "Element %d Beyond End "
 			    "of Additional Element Status Descriptors\n",
 			    iter.global_element_index);
-			err = EIO;
-			goto out;
+			break;
 		}
 
 		/* Advance to the protocol data, skipping eip bytes if needed */
@@ -1829,7 +1830,7 @@ ses_process_elm_addlstatus(enc_softc_t *enc, struct enc_fsm_state *state,
 			ENC_VLOG(enc, "Element %d: Unknown Additional Element "
 			    "Protocol 0x%x\n", iter.global_element_index,
 			    ses_elm_addlstatus_proto(elmpriv->addl.hdr));
-			goto out;
+			break;
 		}
 
 		offset += proto_info_len;

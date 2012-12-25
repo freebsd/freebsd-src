@@ -1,3 +1,28 @@
+2012-11-11  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): 20121111
+	  fix generation of bmake.cat1
+
+2012-11-09  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): 20121109
+	  Merge with NetBSD make, pick up
+	  o make.c: MakeBuildChild: return 0 so search continues if a
+	    .ORDER dependency is detected.
+	  o unit-tests/order: test the above
+	
+2012-11-02  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in (MAKE_VERSION): 20121102
+	  Merge with NetBSD make, pick up
+	  o cond.c: allow cond_state[] to grow.
+	    In meta mode with a very large tree, we can hit the limit
+	    while processing dirdeps.
+	
+2012-10-25  Simon J. Gerraty  <sjg@bad.crufty.net>
+
+	* Makefile.in: we need to use ${srcdir} not ${.CURDIR}
+
 2012-10-10  Simon J. Gerraty  <sjg@bad.crufty.net>
 
 	* Makefile.in (MAKE_VERSION): 20121010

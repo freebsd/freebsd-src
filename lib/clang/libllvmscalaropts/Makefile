@@ -20,6 +20,7 @@ SRCS=	ADCE.cpp \
 	LICM.cpp \
 	LoopDeletion.cpp \
 	LoopIdiomRecognize.cpp \
+	LoopInstSimplify.cpp \
 	LoopRotation.cpp \
 	LoopStrengthReduce.cpp \
 	LoopUnrollPass.cpp \
@@ -30,6 +31,8 @@ SRCS=	ADCE.cpp \
 	Reassociate.cpp \
 	Reg2Mem.cpp \
 	SCCP.cpp \
+	SROA.cpp \
+	Scalar.cpp \
 	ScalarReplAggregates.cpp \
 	SimplifyCFGPass.cpp \
 	SimplifyLibCalls.cpp \

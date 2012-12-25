@@ -115,6 +115,10 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_tx99/ath_tx99.h>
 #endif
 
+#ifdef	ATH_DEBUG_ALQ
+#include <dev/ath/if_ath_alq.h>
+#endif
+
 /*
  * Calculate the receive filter according to the
  * operating mode and state:
@@ -228,7 +232,7 @@ ath_legacy_rxbuf_init(struct ath_softc *sc, struct ath_buf *bf)
 		 * multiple of the cache line size.  Not doing this
 		 * causes weird stuff to happen (for the 5210 at least).
 		 */
-		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL) {
 			DPRINTF(sc, ATH_DEBUG_ANY,
 				"%s: no mbuf/cluster\n", __func__);
@@ -891,6 +895,13 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		if (sc->sc_debug & ATH_DEBUG_RECV_DESC)
 			ath_printrxbuf(sc, bf, 0, status == HAL_OK);
 #endif
+
+#ifdef	ATH_DEBUG_ALQ
+		if (if_ath_alq_checkdebug(&sc->sc_alq, ATH_ALQ_EDMA_RXSTATUS))
+		    if_ath_alq_post(&sc->sc_alq, ATH_ALQ_EDMA_RXSTATUS,
+		    sc->sc_rx_statuslen, (char *) ds);
+#endif	/* ATH_DEBUG_ALQ */
+
 		if (status == HAL_EINPROGRESS)
 			break;
 
@@ -1116,7 +1127,11 @@ ath_recv_setup_legacy(struct ath_softc *sc)
 {
 
 	/* Sensible legacy defaults */
-	sc->sc_rx_statuslen = 0;
+	/*
+	 * XXX this should be changed to properly support the
+	 * exact RX descriptor size for each HAL.
+	 */
+	sc->sc_rx_statuslen = sizeof(struct ath_desc);
 
 	sc->sc_rx.recv_start = ath_legacy_startrecv;
 	sc->sc_rx.recv_stop = ath_legacy_stoprecv;

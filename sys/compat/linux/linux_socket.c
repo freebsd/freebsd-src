@@ -1173,7 +1173,7 @@ linux_sendmsg(struct thread *td, struct linux_sendmsg_args *args)
 
 		error = ENOBUFS;
 		cmsg = malloc(CMSG_HDRSZ, M_TEMP, M_WAITOK | M_ZERO);
-		control = m_get(M_WAIT, MT_CONTROL);
+		control = m_get(M_WAITOK, MT_CONTROL);
 		if (control == NULL)
 			goto bad;
 

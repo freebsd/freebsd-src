@@ -20,6 +20,9 @@ class MCAsmLexer;
 class MCAsmParserExtension;
 class MCContext;
 class MCExpr;
+class MCInstPrinter;
+class MCInstrInfo;
+class MCParsedAsmOperand;
 class MCStreamer;
 class MCTargetAsmParser;
 class SMLoc;
@@ -28,6 +31,16 @@ class SourceMgr;
 class StringRef;
 class Twine;
 
+/// MCAsmParserSemaCallback - Generic Sema callback for assembly parser.
+class MCAsmParserSemaCallback {
+public:
+  virtual ~MCAsmParserSemaCallback(); 
+  virtual void *LookupInlineAsmIdentifier(StringRef Name, void *Loc,
+                                          unsigned &Size) = 0;
+  virtual bool LookupInlineAsmField(StringRef Base, StringRef Member,
+                                    unsigned &Offset) = 0;
+};
+
 /// MCAsmParser - Generic assembler parser interface, for use by target specific
 /// assembly parsers.
 class MCAsmParser {
@@ -35,8 +48,8 @@ public:
   typedef bool (*DirectiveHandler)(MCAsmParserExtension*, StringRef, SMLoc);
 
 private:
-  MCAsmParser(const MCAsmParser &);   // DO NOT IMPLEMENT
-  void operator=(const MCAsmParser &);  // DO NOT IMPLEMENT
+  MCAsmParser(const MCAsmParser &) LLVM_DELETED_FUNCTION;
+  void operator=(const MCAsmParser &) LLVM_DELETED_FUNCTION;
 
   MCTargetAsmParser *TargetParser;
 
@@ -73,15 +86,26 @@ public:
   /// Run - Run the parser on the input source buffer.
   virtual bool Run(bool NoInitialTextSection, bool NoFinalize = false) = 0;
 
-  /// Warning - Emit a warning at the location \arg L, with the message \arg
-  /// Msg.
+  virtual void setParsingInlineAsm(bool V) = 0;
+  virtual bool isParsingInlineAsm() = 0;
+
+  /// ParseMSInlineAsm - Parse ms-style inline assembly.
+  virtual bool ParseMSInlineAsm(void *AsmLoc, std::string &AsmString,
+                                unsigned &NumOutputs, unsigned &NumInputs,
+                                SmallVectorImpl<std::pair<void *, bool> > &OpDecls,
+                                SmallVectorImpl<std::string> &Constraints,
+                                SmallVectorImpl<std::string> &Clobbers,
+                                const MCInstrInfo *MII,
+                                const MCInstPrinter *IP,
+                                MCAsmParserSemaCallback &SI) = 0;
+
+  /// Warning - Emit a warning at the location \p L, with the message \p Msg.
   ///
   /// \return The return value is true, if warnings are fatal.
   virtual bool Warning(SMLoc L, const Twine &Msg,
                        ArrayRef<SMRange> Ranges = ArrayRef<SMRange>()) = 0;
 
-  /// Error - Emit an error at the location \arg L, with the message \arg
-  /// Msg.
+  /// Error - Emit an error at the location \p L, with the message \p Msg.
   ///
   /// \return The return value is always true, as an idiomatic convenience to
   /// clients.
@@ -100,7 +124,7 @@ public:
                 ArrayRef<SMRange> Ranges = ArrayRef<SMRange>());
 
   /// ParseIdentifier - Parse an identifier or string (as a quoted identifier)
-  /// and set \arg Res to the identifier contents.
+  /// and set \p Res to the identifier contents.
   virtual bool ParseIdentifier(StringRef &Res) = 0;
 
   /// \brief Parse up to the end of statement and return the contents from the

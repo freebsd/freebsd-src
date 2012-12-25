@@ -28,6 +28,17 @@
 #include <sys/vdev_impl.h>
 #include <sys/trim_map.h>
 
+/*
+ * Calculate the zio end, upgrading based on ashift which would be
+ * done by zio_vdev_io_start.
+ *
+ * This makes free range consolidation much more effective
+ * than it would otherwise be as well as ensuring that entire
+ * blocks are invalidated by writes.
+ */
+#define	TRIM_ZIO_END(zio)	((zio)->io_offset +		\
+ 	P2ROUNDUP((zio)->io_size, 1ULL << (zio)->io_vd->vdev_top->vdev_ashift))
+
 typedef struct trim_map {
 	list_t		tm_head;		/* List of segments sorted by txg. */
 	avl_tree_t	tm_queued_frees;	/* AVL tree of segments waiting for TRIM. */
@@ -270,7 +281,7 @@ trim_map_free(zio_t *zio)
 		return;
 
 	mutex_enter(&tm->tm_lock);
-	trim_map_free_locked(tm, zio->io_offset, zio->io_offset + zio->io_size,
+	trim_map_free_locked(tm, zio->io_offset, TRIM_ZIO_END(zio),
 	    vd->vdev_spa->spa_syncing_txg);
 	mutex_exit(&tm->tm_lock);
 }
@@ -288,7 +299,7 @@ trim_map_write_start(zio_t *zio)
 		return (B_TRUE);
 
 	start = zio->io_offset;
-	end = start + zio->io_size;
+	end = TRIM_ZIO_END(zio);
 	tsearch.ts_start = start;
 	tsearch.ts_end = end;
 

@@ -30,6 +30,7 @@ if [ ! "$_NETWORKING_MEDIA_SUBR" ]; then _NETWORKING_MEDIA_SUBR=1
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." networking/media.subr
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/strings.subr
 f_include $BSDCFG_SHARE/sysrc.subr
@@ -114,9 +115,7 @@ f_dialog_input_options()
 	if f_nfs_mounted && ! f_jailed; then
 		local setting="$( printf "$msg_current_options" \
 		                         "$interface" "$options" )"
-		local message="$( printf "$msg_nfs_mounts_may_cause_hang" \
-		                         "$setting" )"
-		f_dialog_msgbox "$message"
+		f_show_msg "$msg_nfs_mounts_may_cause_hang" "$setting"
 		return $FAILURE
 	fi
 
@@ -165,9 +164,7 @@ f_dialog_menu_media_options()
 	if f_nfs_mounted && ! f_jailed; then
 		local setting="$( printf "$msg_current_options" \
 		                         "$interface" "$_options" )"
-		local message="$( printf "$msg_nfs_mounts_may_cause_hang" \
-		                         "$setting" )"
-		f_dialog_msgbox "$message"
+		f_show_msg "$msg_nfs_mounts_may_cause_hang" "$setting"
 		return $FAILURE
 	fi
 
@@ -237,5 +234,9 @@ f_dialog_menu_media_options()
 
 	return $retval
 }
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." networking/media.subr
 
 fi # ! $_NETWORKING_MEDIA_SUBR

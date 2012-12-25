@@ -55,4 +55,3 @@ arm/at91/board_tsc4370.c	optional	at91_board_tsc4370
 dev/usb/controller/at91dci.c		optional	at91_dci
 dev/usb/controller/at91dci_atmelarm.c	optional	at91_dci
 dev/usb/controller/ohci_atmelarm.c	optional	ohci
-dev/usb/controller/ehci_atmelarm.c	optional	ehci

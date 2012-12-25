@@ -351,6 +351,8 @@ public:
   /// parameter is stored in Weights list and it may be used by
   /// MachineBranchProbabilityInfo analysis to calculate branch probability.
   ///
+  /// Note that duplicate Machine CFG edges are not allowed.
+  ///
   void addSuccessor(MachineBasicBlock *succ, uint32_t weight = 0);
 
   /// removeSuccessor - Remove successor from the successors list of this
@@ -545,6 +547,28 @@ public:
     return findDebugLoc(MBBI.getInstrIterator());
   }
 
+  /// Possible outcome of a register liveness query to computeRegisterLiveness()
+  enum LivenessQueryResult {
+    LQR_Live,            ///< Register is known to be live.
+    LQR_OverlappingLive, ///< Register itself is not live, but some overlapping
+                         ///< register is.
+    LQR_Dead,            ///< Register is known to be dead.
+    LQR_Unknown          ///< Register liveness not decidable from local
+                         ///< neighborhood.
+  };
+
+  /// computeRegisterLiveness - Return whether (physical) register \c Reg
+  /// has been <def>ined and not <kill>ed as of just before \c MI.
+  /// 
+  /// Search is localised to a neighborhood of
+  /// \c Neighborhood instructions before (searching for defs or kills) and
+  /// Neighborhood instructions after (searching just for defs) MI.
+  ///
+  /// \c Reg must be a physical register.
+  LivenessQueryResult computeRegisterLiveness(const TargetRegisterInfo *TRI,
+                                              unsigned Reg, MachineInstr *MI,
+                                              unsigned Neighborhood=10);
+
   // Debugging methods.
   void dump() const;
   void print(raw_ostream &OS, SlotIndexes* = 0) const;
@@ -572,7 +596,7 @@ private:
   /// getSuccWeight - Return weight of the edge from this block to MBB. This
   /// method should NOT be called directly, but by using getEdgeWeight method
   /// from MachineBranchProbabilityInfo class.
-  uint32_t getSuccWeight(const MachineBasicBlock *succ) const;
+  uint32_t getSuccWeight(const_succ_iterator Succ) const;
 
 
   // Methods used to maintain doubly linked list of blocks...

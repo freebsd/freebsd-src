@@ -191,6 +191,7 @@ udp_init(void)
 	V_udpcb_zone = uma_zcreate("udpcb", sizeof(struct udpcb),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(V_udpcb_zone, maxsockets);
+	uma_zone_set_warning(V_udpcb_zone, "kern.ipc.maxsockets limit reached");
 	EVENTHANDLER_REGISTER(maxsockets_change, udp_zone_change, NULL,
 	    EVENTHANDLER_PRI_ANY);
 }
@@ -1174,7 +1175,7 @@ udp_output(struct inpcb *inp, struct mbuf *m, struct sockaddr *addr,
 	 * link-layer headers.  Immediate slide the data pointer back forward
 	 * since we won't use that space at this layer.
 	 */
-	M_PREPEND(m, sizeof(struct udpiphdr) + max_linkhdr, M_DONTWAIT);
+	M_PREPEND(m, sizeof(struct udpiphdr) + max_linkhdr, M_NOWAIT);
 	if (m == NULL) {
 		error = ENOBUFS;
 		goto release;

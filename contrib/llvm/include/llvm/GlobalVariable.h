@@ -34,9 +34,9 @@ template<typename ValueSubClass, typename ItemParentClass>
 
 class GlobalVariable : public GlobalValue, public ilist_node<GlobalVariable> {
   friend class SymbolTableListTraits<GlobalVariable, Module>;
-  void *operator new(size_t, unsigned);       // Do not implement
-  void operator=(const GlobalVariable &);     // Do not implement
-  GlobalVariable(const GlobalVariable &);     // Do not implement
+  void *operator new(size_t, unsigned) LLVM_DELETED_FUNCTION;
+  void operator=(const GlobalVariable &) LLVM_DELETED_FUNCTION;
+  GlobalVariable(const GlobalVariable &) LLVM_DELETED_FUNCTION;
 
   void setParent(Module *parent);
 
@@ -174,7 +174,6 @@ public:
   virtual void replaceUsesOfWithOnConstant(Value *From, Value *To, Use *U);
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
-  static inline bool classof(const GlobalVariable *) { return true; }
   static inline bool classof(const Value *V) {
     return V->getValueID() == Value::GlobalVariableVal;
   }

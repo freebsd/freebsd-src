@@ -90,6 +90,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libmilter} \
 	${_libmp} \
 	${_libnandfs} \
+	libnetbsd \
 	${_libngatm} \
 	libopie \
 	libpam \
@@ -203,6 +204,11 @@ _libefi=	libefi
 .endif
 
 .if ${MACHINE_CPUARCH} == "mips"
+_libproc=	libproc
+_librtld_db=	librtld_db
+.endif
+
+.if ${MACHINE_CPUARCH} == "powerpc"
 _libproc=	libproc
 _librtld_db=	librtld_db
 .endif

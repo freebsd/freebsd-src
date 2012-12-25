@@ -940,15 +940,13 @@ indextooffset(char *s)
 {
 	int i;
 	struct fixs *n;
+	char *es;
 
 	if (s[0] == '+' || s[0] == '-') {
-		char ss[9];
-		for (i = -100; i < 100; i++) {
-			sprintf(ss, "%s%d", (i > 0) ? "+" : "", i);
-			if (strcmp(ss, s) == 0)
-				return (i);
-		}
-		return (0);
+		i = strtol (s, &es, 10);
+		if (*es != '\0')                      /* trailing junk */
+			errx (1, "Invalid specifier format: %s\n", s);
+		return (i);
 	}
 
 	for (i = 0; i < 6; i++) {

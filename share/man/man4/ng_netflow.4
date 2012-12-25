@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Nov 2, 2012
+.Dd December 10, 2012
 .Dt NG_NETFLOW 4
 .Os
 .Sh NAME
@@ -99,7 +99,7 @@ hook of the
 node.
 .Sh CONTROL MESSAGES
 This node type supports the generic control messages, plus the following:
-.Bl -tag -width indent
+.Bl -tag -width foo
 .It Dv NGM_NETFLOW_INFO Pq Ic info
 Returns some node statistics and the current timeout values in a
 .Vt "struct ng_netflow_info" .
@@ -254,9 +254,6 @@ It is called from
 .Xr flowctl 8 ,
 not directly from
 .Xr ngctl 8 .
-See also
-.Sx BUGS
-section.
 .It Dv NGM_NETFLOW_V9INFO Pq Ic v9info
 Returns some NetFlow v9 related values in a
 .Bd -literal -offset 4n
@@ -349,7 +346,6 @@ written by
 Cache snapshot obtained via
 .Dv NGM_NETFLOW_SHOW
 command may lack some percentage of entries under severe load.
-IPv6 flows are not shown.
 .Pp
 The
 .Nm

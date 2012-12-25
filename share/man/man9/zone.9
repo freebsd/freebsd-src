@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 28, 2012
+.Dd December 7, 2012
 .Dt ZONE 9
 .Os
 .Sh NAME
@@ -37,7 +37,8 @@
 .Nm uma_zdestroy ,
 .Nm uma_zone_set_max,
 .Nm uma_zone_get_max,
-.Nm uma_zone_get_cur
+.Nm uma_zone_get_cur,
+.Nm uma_zone_set_warning
 .Nd zone allocator
 .Sh SYNOPSIS
 .In sys/param.h
@@ -65,6 +66,8 @@
 .Fn uma_zone_get_max "uma_zone_t zone"
 .Ft int
 .Fn uma_zone_get_cur "uma_zone_t zone"
+.Ft void
+.Fn uma_zone_set_warning "uma_zone_t zone" "const char *warning"
 .Sh DESCRIPTION
 The zone allocator provides an efficient interface for managing
 dynamically-sized collections of items of similar size.
@@ -213,6 +216,16 @@ The returned value is approximate because appropriate synchronisation to
 determine an exact value is not performed by the implementation.
 This ensures low overhead at the expense of potentially stale data being used
 in the calculation.
+.Pp
+The
+.Fn uma_zone_set_warning
+function sets a warning that will be printed on the system console when the
+given zone becomes full and fails to allocate an item.
+The warning will be printed not often than every five minutes.
+Warnings can be turned off globally by setting the
+.Va vm.zone_warnings
+sysctl tunable to
+.Va 0 .
 .Sh RETURN VALUES
 The
 .Fn uma_zalloc

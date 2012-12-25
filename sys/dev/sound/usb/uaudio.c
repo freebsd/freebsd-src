@@ -122,6 +122,7 @@ SYSCTL_INT(_hw_usb_uaudio, OID_AUTO, default_channels, CTLFLAG_RW,
 #define	MAKE_WORD(h,l) (((h) << 8) | (l))
 #define	BIT_TEST(bm,bno) (((bm)[(bno) / 8] >> (7 - ((bno) % 8))) & 1)
 #define	UAUDIO_MAX_CHAN(x) (x)
+#define	MIX(sc) ((sc)->sc_mixer_node)
 
 union uaudio_asid {
 	const struct usb_audio_streaming_interface_descriptor *v1;
@@ -283,6 +284,7 @@ struct uaudio_softc {
 	struct uaudio_chan sc_play_chan;
 	struct umidi_chan sc_midi_chan;
 	struct uaudio_search_result sc_mixer_clocks;
+	struct uaudio_mixer_node sc_mixer_node;
 
 	struct mtx *sc_mixer_lock;
 	struct usb_device *sc_udev;
@@ -641,6 +643,115 @@ static driver_t uaudio_driver = {
 	.size = sizeof(struct uaudio_softc),
 };
 
+/* The following table is derived from Linux's quirks-table.h */ 
+static const STRUCT_USB_HOST_ID uaudio_vendor_midi[] = {
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1000, 0) }, /* UX256 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1001, 0) }, /* MU1000 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1002, 0) }, /* MU2000 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1003, 0) }, /* MU500 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1004, 3) }, /* UW500 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1005, 0) }, /* MOTIF6 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1006, 0) }, /* MOTIF7 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1007, 0) }, /* MOTIF8 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1008, 0) }, /* UX96 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1009, 0) }, /* UX16 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x100a, 3) }, /* EOS BX */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x100c, 0) }, /* UC-MX */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x100d, 0) }, /* UC-KX */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x100e, 0) }, /* S08 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x100f, 0) }, /* CLP-150 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1010, 0) }, /* CLP-170 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1011, 0) }, /* P-250 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1012, 0) }, /* TYROS */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1013, 0) }, /* PF-500 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1014, 0) }, /* S90 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1015, 0) }, /* MOTIF-R */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1016, 0) }, /* MDP-5 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1017, 0) }, /* CVP-204 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1018, 0) }, /* CVP-206 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1019, 0) }, /* CVP-208 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x101a, 0) }, /* CVP-210 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x101b, 0) }, /* PSR-1100 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x101c, 0) }, /* PSR-2100 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x101d, 0) }, /* CLP-175 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x101e, 0) }, /* PSR-K1 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x101f, 0) }, /* EZ-J24 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1020, 0) }, /* EZ-250i */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1021, 0) }, /* MOTIF ES 6 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1022, 0) }, /* MOTIF ES 7 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1023, 0) }, /* MOTIF ES 8 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1024, 0) }, /* CVP-301 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1025, 0) }, /* CVP-303 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1026, 0) }, /* CVP-305 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1027, 0) }, /* CVP-307 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1028, 0) }, /* CVP-309 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1029, 0) }, /* CVP-309GP */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x102a, 0) }, /* PSR-1500 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x102b, 0) }, /* PSR-3000 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x102e, 0) }, /* ELS-01/01C */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1030, 0) }, /* PSR-295/293 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1031, 0) }, /* DGX-205/203 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1032, 0) }, /* DGX-305 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1033, 0) }, /* DGX-505 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1034, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1035, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1036, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1037, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1038, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1039, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x103a, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x103b, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x103c, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x103d, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x103e, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x103f, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1040, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1041, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1042, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1043, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1044, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1045, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x104e, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x104f, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1050, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1051, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1052, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1053, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1054, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1055, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1056, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1057, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1058, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1059, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x105a, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x105b, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x105c, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x105d, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x1503, 3) }, /* MOX6/MOX8 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x2000, 0) }, /* DGP-7 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x2001, 0) }, /* DGP-5 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x2002, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x2003, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5000, 0) }, /* CS1D */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5001, 0) }, /* DSP1D */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5002, 0) }, /* DME32 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5003, 0) }, /* DM2000 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5004, 0) }, /* 02R96 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5005, 0) }, /* ACU16-C */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5006, 0) }, /* NHB32-C */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5007, 0) }, /* DM1000 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5008, 0) }, /* 01V96 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x5009, 0) }, /* SPX2000 */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x500a, 0) }, /* PM5D */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x500b, 0) }, /* DME64N */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x500c, 0) }, /* DME24N */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x500d, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x500e, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x500f, 0) }, /* NULL */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x7000, 0) }, /* DTX */
+	{ USB_VPI(USB_VENDOR_YAMAHA, 0x7010, 0) }, /* UB99 */
+};
+
 static const STRUCT_USB_HOST_ID __used uaudio_devs[] = {
 	/* Generic USB audio class match */
 	{USB_IFACE_CLASS(UICLASS_AUDIO),
@@ -658,7 +769,12 @@ uaudio_probe(device_t dev)
 	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
 
-	/* lookup non-standard device */
+	/* lookup non-standard device(s) */
+
+	if (usbd_lookup_id_by_uaa(uaudio_vendor_midi,
+	    sizeof(uaudio_vendor_midi), uaa) == 0) {
+		return (BUS_PROBE_SPECIFIC);
+	}
 
 	if (uaa->info.bInterfaceClass != UICLASS_AUDIO) {
 		if (uaa->info.bInterfaceClass != UICLASS_VENDOR ||
@@ -761,6 +877,16 @@ uaudio_attach(device_t dev)
 		    sc->sc_rec_chan.p_fmt->description);
 	} else {
 		device_printf(dev, "No recording.\n");
+	}
+
+	if (sc->sc_midi_chan.valid == 0) {
+		if (usbd_lookup_id_by_uaa(uaudio_vendor_midi,
+		    sizeof(uaudio_vendor_midi), uaa) == 0) {
+			sc->sc_midi_chan.iface_index =
+			    (uint8_t)uaa->driver_info;
+			sc->sc_midi_chan.iface_alt_index = 0;
+			sc->sc_midi_chan.valid = 1;
+		}
 	}
 
 	if (sc->sc_midi_chan.valid) {
@@ -2201,149 +2327,148 @@ uaudio_mixer_register_sysctl(struct uaudio_softc *sc, device_t dev)
 static void
 uaudio_mixer_controls_create_ftu(struct uaudio_softc *sc)
 {
-	struct uaudio_mixer_node mix;
 	int chx;
 	int chy;
 
-	memset(&mix, 0, sizeof(mix));
-	mix.wIndex = MAKE_WORD(6, sc->sc_mixer_iface_no);
-	mix.wValue[0] = MAKE_WORD(8, 0);
-	mix.class = UAC_OUTPUT;
-	mix.type = MIX_UNSIGNED_16;
-	mix.ctl = SOUND_MIXER_NRDEVICES;
-	mix.name = "effect";
-	mix.minval = 0;
-	mix.maxval = 7;
-	mix.mul = 7;
-	mix.nchan = 1;
-	mix.update[0] = 1;
-	strlcpy(mix.desc, "Room1,2,3,Hall1,2,Plate,Delay,Echo", sizeof(mix.desc));
-	uaudio_mixer_add_ctl_sub(sc, &mix);
+	memset(&MIX(sc), 0, sizeof(MIX(sc)));
+	MIX(sc).wIndex = MAKE_WORD(6, sc->sc_mixer_iface_no);
+	MIX(sc).wValue[0] = MAKE_WORD(8, 0);
+	MIX(sc).class = UAC_OUTPUT;
+	MIX(sc).type = MIX_UNSIGNED_16;
+	MIX(sc).ctl = SOUND_MIXER_NRDEVICES;
+	MIX(sc).name = "effect";
+	MIX(sc).minval = 0;
+	MIX(sc).maxval = 7;
+	MIX(sc).mul = 7;
+	MIX(sc).nchan = 1;
+	MIX(sc).update[0] = 1;
+	strlcpy(MIX(sc).desc, "Room1,2,3,Hall1,2,Plate,Delay,Echo", sizeof(MIX(sc).desc));
+	uaudio_mixer_add_ctl_sub(sc, &MIX(sc));
 
-	memset(&mix, 0, sizeof(mix));
-	mix.wIndex = MAKE_WORD(5, sc->sc_mixer_iface_no);
+	memset(&MIX(sc), 0, sizeof(MIX(sc)));
+	MIX(sc).wIndex = MAKE_WORD(5, sc->sc_mixer_iface_no);
 
 	for (chx = 0; chx != 8; chx++) {
 		for (chy = 0; chy != 8; chy++) {
 
-			mix.wValue[0] = MAKE_WORD(chx + 1, chy + 1);
-			mix.type = MIX_SIGNED_16;
-			mix.ctl = SOUND_MIXER_NRDEVICES;
-			mix.name = "mix_rec";
-			mix.nchan = 1;
-			mix.update[0] = 1;
-			mix.val_default = 0;
-			snprintf(mix.desc, sizeof(mix.desc),
+			MIX(sc).wValue[0] = MAKE_WORD(chx + 1, chy + 1);
+			MIX(sc).type = MIX_SIGNED_16;
+			MIX(sc).ctl = SOUND_MIXER_NRDEVICES;
+			MIX(sc).name = "mix_rec";
+			MIX(sc).nchan = 1;
+			MIX(sc).update[0] = 1;
+			MIX(sc).val_default = 0;
+			snprintf(MIX(sc).desc, sizeof(MIX(sc).desc),
 			    "AIn%d - Out%d Record Volume", chy + 1, chx + 1);
 
-			uaudio_mixer_add_ctl(sc, &mix);
+			uaudio_mixer_add_ctl(sc, &MIX(sc));
 
-			mix.wValue[0] = MAKE_WORD(chx + 1, chy + 1 + 8);
-			mix.type = MIX_SIGNED_16;
-			mix.ctl = SOUND_MIXER_NRDEVICES;
-			mix.name = "mix_play";
-			mix.nchan = 1;
-			mix.update[0] = 1;
-			mix.val_default = (chx == chy) ? 2 : 0;
-			snprintf(mix.desc, sizeof(mix.desc),
+			MIX(sc).wValue[0] = MAKE_WORD(chx + 1, chy + 1 + 8);
+			MIX(sc).type = MIX_SIGNED_16;
+			MIX(sc).ctl = SOUND_MIXER_NRDEVICES;
+			MIX(sc).name = "mix_play";
+			MIX(sc).nchan = 1;
+			MIX(sc).update[0] = 1;
+			MIX(sc).val_default = (chx == chy) ? 2 : 0;
+			snprintf(MIX(sc).desc, sizeof(MIX(sc).desc),
 			    "DIn%d - Out%d Playback Volume", chy + 1, chx + 1);
 
-			uaudio_mixer_add_ctl(sc, &mix);
+			uaudio_mixer_add_ctl(sc, &MIX(sc));
 		}
 	}
 
-	memset(&mix, 0, sizeof(mix));
-	mix.wIndex = MAKE_WORD(6, sc->sc_mixer_iface_no);
-	mix.wValue[0] = MAKE_WORD(2, 0);
-	mix.class = UAC_OUTPUT;
-	mix.type = MIX_SIGNED_8;
-	mix.ctl = SOUND_MIXER_NRDEVICES;
-	mix.name = "effect_vol";
-	mix.nchan = 1;
-	mix.update[0] = 1;
-	mix.minval = 0;
-	mix.maxval = 0x7f;
-	mix.mul = 0x7f;
-	mix.nchan = 1;
-	mix.update[0] = 1;
-	strlcpy(mix.desc, "Effect Volume", sizeof(mix.desc));
-	uaudio_mixer_add_ctl_sub(sc, &mix);
+	memset(&MIX(sc), 0, sizeof(MIX(sc)));
+	MIX(sc).wIndex = MAKE_WORD(6, sc->sc_mixer_iface_no);
+	MIX(sc).wValue[0] = MAKE_WORD(2, 0);
+	MIX(sc).class = UAC_OUTPUT;
+	MIX(sc).type = MIX_SIGNED_8;
+	MIX(sc).ctl = SOUND_MIXER_NRDEVICES;
+	MIX(sc).name = "effect_vol";
+	MIX(sc).nchan = 1;
+	MIX(sc).update[0] = 1;
+	MIX(sc).minval = 0;
+	MIX(sc).maxval = 0x7f;
+	MIX(sc).mul = 0x7f;
+	MIX(sc).nchan = 1;
+	MIX(sc).update[0] = 1;
+	strlcpy(MIX(sc).desc, "Effect Volume", sizeof(MIX(sc).desc));
+	uaudio_mixer_add_ctl_sub(sc, &MIX(sc));
 
-	memset(&mix, 0, sizeof(mix));
-	mix.wIndex = MAKE_WORD(6, sc->sc_mixer_iface_no);
-	mix.wValue[0] = MAKE_WORD(3, 0);
-	mix.class = UAC_OUTPUT;
-	mix.type = MIX_SIGNED_16;
-	mix.ctl = SOUND_MIXER_NRDEVICES;
-	mix.name = "effect_dur";
-	mix.nchan = 1;
-	mix.update[0] = 1;
-	mix.minval = 0;
-	mix.maxval = 0x7f00;
-	mix.mul = 0x7f00;
-	mix.nchan = 1;
-	mix.update[0] = 1;
-	strlcpy(mix.desc, "Effect Duration", sizeof(mix.desc));
-	uaudio_mixer_add_ctl_sub(sc, &mix);
+	memset(&MIX(sc), 0, sizeof(MIX(sc)));
+	MIX(sc).wIndex = MAKE_WORD(6, sc->sc_mixer_iface_no);
+	MIX(sc).wValue[0] = MAKE_WORD(3, 0);
+	MIX(sc).class = UAC_OUTPUT;
+	MIX(sc).type = MIX_SIGNED_16;
+	MIX(sc).ctl = SOUND_MIXER_NRDEVICES;
+	MIX(sc).name = "effect_dur";
+	MIX(sc).nchan = 1;
+	MIX(sc).update[0] = 1;
+	MIX(sc).minval = 0;
+	MIX(sc).maxval = 0x7f00;
+	MIX(sc).mul = 0x7f00;
+	MIX(sc).nchan = 1;
+	MIX(sc).update[0] = 1;
+	strlcpy(MIX(sc).desc, "Effect Duration", sizeof(MIX(sc).desc));
+	uaudio_mixer_add_ctl_sub(sc, &MIX(sc));
 
-	memset(&mix, 0, sizeof(mix));
-	mix.wIndex = MAKE_WORD(6, sc->sc_mixer_iface_no);
-	mix.wValue[0] = MAKE_WORD(4, 0);
-	mix.class = UAC_OUTPUT;
-	mix.type = MIX_SIGNED_8;
-	mix.ctl = SOUND_MIXER_NRDEVICES;
-	mix.name = "effect_fb";
-	mix.nchan = 1;
-	mix.update[0] = 1;
-	mix.minval = 0;
-	mix.maxval = 0x7f;
-	mix.mul = 0x7f;
-	mix.nchan = 1;
-	mix.update[0] = 1;
-	strlcpy(mix.desc, "Effect Feedback Volume", sizeof(mix.desc));
-	uaudio_mixer_add_ctl_sub(sc, &mix);
+	memset(&MIX(sc), 0, sizeof(MIX(sc)));
+	MIX(sc).wIndex = MAKE_WORD(6, sc->sc_mixer_iface_no);
+	MIX(sc).wValue[0] = MAKE_WORD(4, 0);
+	MIX(sc).class = UAC_OUTPUT;
+	MIX(sc).type = MIX_SIGNED_8;
+	MIX(sc).ctl = SOUND_MIXER_NRDEVICES;
+	MIX(sc).name = "effect_fb";
+	MIX(sc).nchan = 1;
+	MIX(sc).update[0] = 1;
+	MIX(sc).minval = 0;
+	MIX(sc).maxval = 0x7f;
+	MIX(sc).mul = 0x7f;
+	MIX(sc).nchan = 1;
+	MIX(sc).update[0] = 1;
+	strlcpy(MIX(sc).desc, "Effect Feedback Volume", sizeof(MIX(sc).desc));
+	uaudio_mixer_add_ctl_sub(sc, &MIX(sc));
 
-	memset(&mix, 0, sizeof(mix));
-	mix.wIndex = MAKE_WORD(7, sc->sc_mixer_iface_no);
+	memset(&MIX(sc), 0, sizeof(MIX(sc)));
+	MIX(sc).wIndex = MAKE_WORD(7, sc->sc_mixer_iface_no);
 	for (chy = 0; chy != 4; chy++) {
 
-		mix.wValue[0] = MAKE_WORD(7, chy + 1);
-		mix.type = MIX_SIGNED_16;
-		mix.ctl = SOUND_MIXER_NRDEVICES;
-		mix.name = "effect_ret";
-		mix.nchan = 1;
-		mix.update[0] = 1;
-		snprintf(mix.desc, sizeof(mix.desc),
+		MIX(sc).wValue[0] = MAKE_WORD(7, chy + 1);
+		MIX(sc).type = MIX_SIGNED_16;
+		MIX(sc).ctl = SOUND_MIXER_NRDEVICES;
+		MIX(sc).name = "effect_ret";
+		MIX(sc).nchan = 1;
+		MIX(sc).update[0] = 1;
+		snprintf(MIX(sc).desc, sizeof(MIX(sc).desc),
 		    "Effect Return %d Volume", chy + 1);
 
-		uaudio_mixer_add_ctl(sc, &mix);
+		uaudio_mixer_add_ctl(sc, &MIX(sc));
 	}
 
-	memset(&mix, 0, sizeof(mix));
-	mix.wIndex = MAKE_WORD(5, sc->sc_mixer_iface_no);
+	memset(&MIX(sc), 0, sizeof(MIX(sc)));
+	MIX(sc).wIndex = MAKE_WORD(5, sc->sc_mixer_iface_no);
 
 	for (chy = 0; chy != 8; chy++) {
-		mix.wValue[0] = MAKE_WORD(9, chy + 1);
-		mix.type = MIX_SIGNED_16;
-		mix.ctl = SOUND_MIXER_NRDEVICES;
-		mix.name = "effect_send";
-		mix.nchan = 1;
-		mix.update[0] = 1;
-		snprintf(mix.desc, sizeof(mix.desc),
+		MIX(sc).wValue[0] = MAKE_WORD(9, chy + 1);
+		MIX(sc).type = MIX_SIGNED_16;
+		MIX(sc).ctl = SOUND_MIXER_NRDEVICES;
+		MIX(sc).name = "effect_send";
+		MIX(sc).nchan = 1;
+		MIX(sc).update[0] = 1;
+		snprintf(MIX(sc).desc, sizeof(MIX(sc).desc),
 		    "Effect Send AIn%d Volume", chy + 1);
 
-		uaudio_mixer_add_ctl(sc, &mix);
+		uaudio_mixer_add_ctl(sc, &MIX(sc));
 
-		mix.wValue[0] = MAKE_WORD(9, chy + 1);
-		mix.type = MIX_SIGNED_16;
-		mix.ctl = SOUND_MIXER_NRDEVICES;
-		mix.name = "effect_send";
-		mix.nchan = 1;
-		mix.update[0] = 1;
-		snprintf(mix.desc, sizeof(mix.desc),
+		MIX(sc).wValue[0] = MAKE_WORD(9, chy + 1);
+		MIX(sc).type = MIX_SIGNED_16;
+		MIX(sc).ctl = SOUND_MIXER_NRDEVICES;
+		MIX(sc).name = "effect_send";
+		MIX(sc).nchan = 1;
+		MIX(sc).update[0] = 1;
+		snprintf(MIX(sc).desc, sizeof(MIX(sc).desc),
 		    "Effect Send DIn%d Volume", chy + 1 + 8);
 
-		uaudio_mixer_add_ctl(sc, &mix);
+		uaudio_mixer_add_ctl(sc, &MIX(sc));
 	}
 }
 
@@ -2469,8 +2594,6 @@ static void
 uaudio_mixer_add_mixer(struct uaudio_softc *sc,
     const struct uaudio_terminal_node *iot, int id)
 {
-	struct uaudio_mixer_node mix;
-
 	const struct usb_audio_mixer_unit_0 *d0 = iot[id].u.mu_v1;
 	const struct usb_audio_mixer_unit_1 *d1;
 
@@ -2504,11 +2627,11 @@ uaudio_mixer_add_mixer(struct uaudio_softc *sc,
 
 	DPRINTFN(3, "ichs=%d ochs=%d\n", ichs, ochs);
 
-	memset(&mix, 0, sizeof(mix));
+	memset(&MIX(sc), 0, sizeof(MIX(sc)));
 
-	mix.wIndex = MAKE_WORD(d0->bUnitId, sc->sc_mixer_iface_no);
-	uaudio_mixer_determine_class(&iot[id], &mix);
-	mix.type = MIX_SIGNED_16;
+	MIX(sc).wIndex = MAKE_WORD(d0->bUnitId, sc->sc_mixer_iface_no);
+	uaudio_mixer_determine_class(&iot[id], &MIX(sc));
+	MIX(sc).type = MIX_SIGNED_16;
 
 	if (uaudio_mixer_verify_desc(d0, ((ichs * ochs) + 7) / 8) == NULL)
 		return;
@@ -2536,11 +2659,11 @@ uaudio_mixer_add_mixer(struct uaudio_softc *sc,
 				for (o = 0; o < ochs; o++) {
 					bno = ((p + c) * ochs) + o;
 					if (BIT_TEST(d1->bmControls, bno))
-						mix.wValue[mc++] = MAKE_WORD(p + c + 1, o + 1);
+						MIX(sc).wValue[mc++] = MAKE_WORD(p + c + 1, o + 1);
 				}
 			}
-			mix.nchan = chs;
-			uaudio_mixer_add_ctl(sc, &mix);
+			MIX(sc).nchan = chs;
+			uaudio_mixer_add_ctl(sc, &MIX(sc));
 		}
 		p += chs;
 	}
@@ -2550,8 +2673,6 @@ static void
 uaudio20_mixer_add_mixer(struct uaudio_softc *sc,
     const struct uaudio_terminal_node *iot, int id)
 {
-	struct uaudio_mixer_node mix;
-
 	const struct usb_audio20_mixer_unit_0 *d0 = iot[id].u.mu_v2;
 	const struct usb_audio20_mixer_unit_1 *d1;
 
@@ -2585,11 +2706,11 @@ uaudio20_mixer_add_mixer(struct uaudio_softc *sc,
 
 	DPRINTFN(3, "ichs=%d ochs=%d\n", ichs, ochs);
 
-	memset(&mix, 0, sizeof(mix));
+	memset(&MIX(sc), 0, sizeof(MIX(sc)));
 
-	mix.wIndex = MAKE_WORD(d0->bUnitId, sc->sc_mixer_iface_no);
-	uaudio20_mixer_determine_class(&iot[id], &mix);
-	mix.type = MIX_SIGNED_16;
+	MIX(sc).wIndex = MAKE_WORD(d0->bUnitId, sc->sc_mixer_iface_no);
+	uaudio20_mixer_determine_class(&iot[id], &MIX(sc));
+	MIX(sc).type = MIX_SIGNED_16;
 
 	if (uaudio20_mixer_verify_desc(d0, ((ichs * ochs) + 7) / 8) == NULL)
 		return;
@@ -2617,11 +2738,11 @@ uaudio20_mixer_add_mixer(struct uaudio_softc *sc,
 				for (o = 0; o < ochs; o++) {
 					bno = ((p + c) * ochs) + o;
 					if (BIT_TEST(d1->bmControls, bno))
-						mix.wValue[mc++] = MAKE_WORD(p + c + 1, o + 1);
+						MIX(sc).wValue[mc++] = MAKE_WORD(p + c + 1, o + 1);
 				}
 			}
-			mix.nchan = chs;
-			uaudio_mixer_add_ctl(sc, &mix);
+			MIX(sc).nchan = chs;
+			uaudio_mixer_add_ctl(sc, &MIX(sc));
 		}
 		p += chs;
 	}
@@ -2632,7 +2753,6 @@ uaudio_mixer_add_selector(struct uaudio_softc *sc,
     const struct uaudio_terminal_node *iot, int id)
 {
 	const struct usb_audio_selector_unit *d = iot[id].u.su_v1;
-	struct uaudio_mixer_node mix;
 	uint16_t i;
 
 	DPRINTFN(3, "bUnitId=%d bNrInPins=%d\n",
@@ -2641,41 +2761,41 @@ uaudio_mixer_add_selector(struct uaudio_softc *sc,
 	if (d->bNrInPins == 0)
 		return;
 
-	memset(&mix, 0, sizeof(mix));
+	memset(&MIX(sc), 0, sizeof(MIX(sc)));
 
-	mix.wIndex = MAKE_WORD(d->bUnitId, sc->sc_mixer_iface_no);
-	mix.wValue[0] = MAKE_WORD(0, 0);
-	uaudio_mixer_determine_class(&iot[id], &mix);
-	mix.nchan = 1;
-	mix.type = MIX_SELECTOR;
-	mix.ctl = SOUND_MIXER_NRDEVICES;
-	mix.minval = 1;
-	mix.maxval = d->bNrInPins;
-	mix.name = "selector";
+	MIX(sc).wIndex = MAKE_WORD(d->bUnitId, sc->sc_mixer_iface_no);
+	MIX(sc).wValue[0] = MAKE_WORD(0, 0);
+	uaudio_mixer_determine_class(&iot[id], &MIX(sc));
+	MIX(sc).nchan = 1;
+	MIX(sc).type = MIX_SELECTOR;
+	MIX(sc).ctl = SOUND_MIXER_NRDEVICES;
+	MIX(sc).minval = 1;
+	MIX(sc).maxval = d->bNrInPins;
+	MIX(sc).name = "selector";
 
 	i = d->baSourceId[d->bNrInPins];
 	if (i == 0 ||
 	    usbd_req_get_string_any(sc->sc_udev, NULL,
-	    mix.desc, sizeof(mix.desc), i) != 0) {
-		mix.desc[0] = 0;
+	    MIX(sc).desc, sizeof(MIX(sc).desc), i) != 0) {
+		MIX(sc).desc[0] = 0;
 	}
 
-	if (mix.maxval > MAX_SELECTOR_INPUT_PIN) {
-		mix.maxval = MAX_SELECTOR_INPUT_PIN;
+	if (MIX(sc).maxval > MAX_SELECTOR_INPUT_PIN) {
+		MIX(sc).maxval = MAX_SELECTOR_INPUT_PIN;
 	}
-	mix.mul = (mix.maxval - mix.minval);
+	MIX(sc).mul = (MIX(sc).maxval - MIX(sc).minval);
 	for (i = 0; i < MAX_SELECTOR_INPUT_PIN; i++) {
-		mix.slctrtype[i] = SOUND_MIXER_NRDEVICES;
+		MIX(sc).slctrtype[i] = SOUND_MIXER_NRDEVICES;
 	}
 
-	for (i = 0; i < mix.maxval; i++) {
-		mix.slctrtype[i] = uaudio_mixer_feature_name(
-		    &iot[d->baSourceId[i]], &mix);
+	for (i = 0; i < MIX(sc).maxval; i++) {
+		MIX(sc).slctrtype[i] = uaudio_mixer_feature_name(
+		    &iot[d->baSourceId[i]], &MIX(sc));
 	}
 
-	mix.class = 0;			/* not used */
+	MIX(sc).class = 0;			/* not used */
 
-	uaudio_mixer_add_ctl(sc, &mix);
+	uaudio_mixer_add_ctl(sc, &MIX(sc));
 }
 
 static void
@@ -2683,7 +2803,6 @@ uaudio20_mixer_add_selector(struct uaudio_softc *sc,
     const struct uaudio_terminal_node *iot, int id)
 {
 	const struct usb_audio20_selector_unit *d = iot[id].u.su_v2;
-	struct uaudio_mixer_node mix;
 	uint16_t i;
 
 	DPRINTFN(3, "bUnitId=%d bNrInPins=%d\n",
@@ -2692,40 +2811,40 @@ uaudio20_mixer_add_selector(struct uaudio_softc *sc,
 	if (d->bNrInPins == 0)
 		return;
 
-	memset(&mix, 0, sizeof(mix));
+	memset(&MIX(sc), 0, sizeof(MIX(sc)));
 
-	mix.wIndex = MAKE_WORD(d->bUnitId, sc->sc_mixer_iface_no);
-	mix.wValue[0] = MAKE_WORD(0, 0);
-	uaudio20_mixer_determine_class(&iot[id], &mix);
-	mix.nchan = 1;
-	mix.type = MIX_SELECTOR;
-	mix.ctl = SOUND_MIXER_NRDEVICES;
-	mix.minval = 1;
-	mix.maxval = d->bNrInPins;
-	mix.name = "selector";
+	MIX(sc).wIndex = MAKE_WORD(d->bUnitId, sc->sc_mixer_iface_no);
+	MIX(sc).wValue[0] = MAKE_WORD(0, 0);
+	uaudio20_mixer_determine_class(&iot[id], &MIX(sc));
+	MIX(sc).nchan = 1;
+	MIX(sc).type = MIX_SELECTOR;
+	MIX(sc).ctl = SOUND_MIXER_NRDEVICES;
+	MIX(sc).minval = 1;
+	MIX(sc).maxval = d->bNrInPins;
+	MIX(sc).name = "selector";
 
 	i = d->baSourceId[d->bNrInPins];
 	if (i == 0 ||
 	    usbd_req_get_string_any(sc->sc_udev, NULL,
-	    mix.desc, sizeof(mix.desc), i) != 0) {
-		mix.desc[0] = 0;
+	    MIX(sc).desc, sizeof(MIX(sc).desc), i) != 0) {
+		MIX(sc).desc[0] = 0;
 	}
 
-	if (mix.maxval > MAX_SELECTOR_INPUT_PIN)
-		mix.maxval = MAX_SELECTOR_INPUT_PIN;
+	if (MIX(sc).maxval > MAX_SELECTOR_INPUT_PIN)
+		MIX(sc).maxval = MAX_SELECTOR_INPUT_PIN;
 
-	mix.mul = (mix.maxval - mix.minval);
+	MIX(sc).mul = (MIX(sc).maxval - MIX(sc).minval);
 	for (i = 0; i < MAX_SELECTOR_INPUT_PIN; i++)
-		mix.slctrtype[i] = SOUND_MIXER_NRDEVICES;
+		MIX(sc).slctrtype[i] = SOUND_MIXER_NRDEVICES;
 
-	for (i = 0; i < mix.maxval; i++) {
-		mix.slctrtype[i] = uaudio20_mixer_feature_name(
-		    &iot[d->baSourceId[i]], &mix);
+	for (i = 0; i < MIX(sc).maxval; i++) {
+		MIX(sc).slctrtype[i] = uaudio20_mixer_feature_name(
+		    &iot[d->baSourceId[i]], &MIX(sc));
 	}
 
-	mix.class = 0;			/* not used */
+	MIX(sc).class = 0;			/* not used */
 
-	uaudio_mixer_add_ctl(sc, &mix);
+	uaudio_mixer_add_ctl(sc, &MIX(sc));
 }
 
 static uint32_t
@@ -2755,7 +2874,6 @@ uaudio_mixer_add_feature(struct uaudio_softc *sc,
     const struct uaudio_terminal_node *iot, int id)
 {
 	const struct usb_audio_feature_unit *d = iot[id].u.fu_v1;
-	struct uaudio_mixer_node mix;
 	uint32_t fumask;
 	uint32_t mmask;
 	uint32_t cmask;
@@ -2768,7 +2886,7 @@ uaudio_mixer_add_feature(struct uaudio_softc *sc,
 	if (d->bControlSize == 0)
 		return;
 
-	memset(&mix, 0, sizeof(mix));
+	memset(&MIX(sc), 0, sizeof(MIX(sc)));
 
 	nchan = (d->bLength - 7) / d->bControlSize;
 	mmask = uaudio_mixer_feature_get_bmaControls(d, 0);
@@ -2789,13 +2907,13 @@ uaudio_mixer_add_feature(struct uaudio_softc *sc,
 	if (nchan > MIX_MAX_CHAN) {
 		nchan = MIX_MAX_CHAN;
 	}
-	mix.wIndex = MAKE_WORD(d->bUnitId, sc->sc_mixer_iface_no);
+	MIX(sc).wIndex = MAKE_WORD(d->bUnitId, sc->sc_mixer_iface_no);
 
 	i = d->bmaControls[d->bControlSize];
 	if (i == 0 ||
 	    usbd_req_get_string_any(sc->sc_udev, NULL,
-	    mix.desc, sizeof(mix.desc), i) != 0) {
-		mix.desc[0] = 0;
+	    MIX(sc).desc, sizeof(MIX(sc).desc), i) != 0) {
+		MIX(sc).desc[0] = 0;
 	}
 
 	for (ctl = 1; ctl <= LOUDNESS_CONTROL; ctl++) {
@@ -2806,87 +2924,87 @@ uaudio_mixer_add_feature(struct uaudio_softc *sc,
 		    ctl, fumask);
 
 		if (mmask & fumask) {
-			mix.nchan = 1;
-			mix.wValue[0] = MAKE_WORD(ctl, 0);
+			MIX(sc).nchan = 1;
+			MIX(sc).wValue[0] = MAKE_WORD(ctl, 0);
 		} else if (cmask & fumask) {
-			mix.nchan = nchan - 1;
+			MIX(sc).nchan = nchan - 1;
 			for (i = 1; i < nchan; i++) {
 				if (uaudio_mixer_feature_get_bmaControls(d, i) & fumask)
-					mix.wValue[i - 1] = MAKE_WORD(ctl, i);
+					MIX(sc).wValue[i - 1] = MAKE_WORD(ctl, i);
 				else
-					mix.wValue[i - 1] = -1;
+					MIX(sc).wValue[i - 1] = -1;
 			}
 		} else {
 			continue;
 		}
 
-		mixernumber = uaudio_mixer_feature_name(&iot[id], &mix);
+		mixernumber = uaudio_mixer_feature_name(&iot[id], &MIX(sc));
 
 		switch (ctl) {
 		case MUTE_CONTROL:
-			mix.type = MIX_ON_OFF;
-			mix.ctl = SOUND_MIXER_NRDEVICES;
-			mix.name = "mute";
+			MIX(sc).type = MIX_ON_OFF;
+			MIX(sc).ctl = SOUND_MIXER_NRDEVICES;
+			MIX(sc).name = "mute";
 			break;
 
 		case VOLUME_CONTROL:
-			mix.type = MIX_SIGNED_16;
-			mix.ctl = mixernumber;
-			mix.name = "vol";
+			MIX(sc).type = MIX_SIGNED_16;
+			MIX(sc).ctl = mixernumber;
+			MIX(sc).name = "vol";
 			break;
 
 		case BASS_CONTROL:
-			mix.type = MIX_SIGNED_8;
-			mix.ctl = SOUND_MIXER_BASS;
-			mix.name = "bass";
+			MIX(sc).type = MIX_SIGNED_8;
+			MIX(sc).ctl = SOUND_MIXER_BASS;
+			MIX(sc).name = "bass";
 			break;
 
 		case MID_CONTROL:
-			mix.type = MIX_SIGNED_8;
-			mix.ctl = SOUND_MIXER_NRDEVICES;	/* XXXXX */
-			mix.name = "mid";
+			MIX(sc).type = MIX_SIGNED_8;
+			MIX(sc).ctl = SOUND_MIXER_NRDEVICES;	/* XXXXX */
+			MIX(sc).name = "mid";
 			break;
 
 		case TREBLE_CONTROL:
-			mix.type = MIX_SIGNED_8;
-			mix.ctl = SOUND_MIXER_TREBLE;
-			mix.name = "treble";
+			MIX(sc).type = MIX_SIGNED_8;
+			MIX(sc).ctl = SOUND_MIXER_TREBLE;
+			MIX(sc).name = "treble";
 			break;
 
 		case GRAPHIC_EQUALIZER_CONTROL:
 			continue;	/* XXX don't add anything */
 
 		case AGC_CONTROL:
-			mix.type = MIX_ON_OFF;
-			mix.ctl = SOUND_MIXER_NRDEVICES;	/* XXXXX */
-			mix.name = "agc";
+			MIX(sc).type = MIX_ON_OFF;
+			MIX(sc).ctl = SOUND_MIXER_NRDEVICES;	/* XXXXX */
+			MIX(sc).name = "agc";
 			break;
 
 		case DELAY_CONTROL:
-			mix.type = MIX_UNSIGNED_16;
-			mix.ctl = SOUND_MIXER_NRDEVICES;	/* XXXXX */
-			mix.name = "delay";
+			MIX(sc).type = MIX_UNSIGNED_16;
+			MIX(sc).ctl = SOUND_MIXER_NRDEVICES;	/* XXXXX */
+			MIX(sc).name = "delay";
 			break;
 
 		case BASS_BOOST_CONTROL:
-			mix.type = MIX_ON_OFF;
-			mix.ctl = SOUND_MIXER_NRDEVICES;	/* XXXXX */
-			mix.name = "boost";
+			MIX(sc).type = MIX_ON_OFF;
+			MIX(sc).ctl = SOUND_MIXER_NRDEVICES;	/* XXXXX */
+			MIX(sc).name = "boost";
 			break;
 
 		case LOUDNESS_CONTROL:
-			mix.type = MIX_ON_OFF;
-			mix.ctl = SOUND_MIXER_LOUD;	/* Is this correct ? */
-			mix.name = "loudness";
+			MIX(sc).type = MIX_ON_OFF;
+			MIX(sc).ctl = SOUND_MIXER_LOUD;	/* Is this correct ? */
+			MIX(sc).name = "loudness";
 			break;
 
 		default:
-			mix.type = MIX_UNKNOWN;
+			MIX(sc).type = MIX_UNKNOWN;
 			break;
 		}
 
-		if (mix.type != MIX_UNKNOWN)
-			uaudio_mixer_add_ctl(sc, &mix);
+		if (MIX(sc).type != MIX_UNKNOWN)
+			uaudio_mixer_add_ctl(sc, &MIX(sc));
 	}
 }
 
@@ -2895,7 +3013,6 @@ uaudio20_mixer_add_feature(struct uaudio_softc *sc,
     const struct uaudio_terminal_node *iot, int id)
 {
 	const struct usb_audio20_feature_unit *d = iot[id].u.fu_v2;
-	struct uaudio_mixer_node mix;
 	uint32_t ctl;
 	uint32_t mmask;
 	uint32_t cmask;
@@ -2908,7 +3025,7 @@ uaudio20_mixer_add_feature(struct uaudio_softc *sc,
 	if (UGETDW(d->bmaControls[0]) == 0)
 		return;
 
-	memset(&mix, 0, sizeof(mix));
+	memset(&MIX(sc), 0, sizeof(MIX(sc)));
 
 	nchan = (d->bLength - 6) / 4;
 	mmask = UGETDW(d->bmaControls[0]);
@@ -2925,84 +3042,84 @@ uaudio20_mixer_add_feature(struct uaudio_softc *sc,
 	if (nchan > MIX_MAX_CHAN)
 		nchan = MIX_MAX_CHAN;
 
-	mix.wIndex = MAKE_WORD(d->bUnitId, sc->sc_mixer_iface_no);
+	MIX(sc).wIndex = MAKE_WORD(d->bUnitId, sc->sc_mixer_iface_no);
 
 	i = d->bmaControls[nchan][0];
 	if (i == 0 ||
 	    usbd_req_get_string_any(sc->sc_udev, NULL,
-	    mix.desc, sizeof(mix.desc), i) != 0) {
-		mix.desc[0] = 0;
+	    MIX(sc).desc, sizeof(MIX(sc).desc), i) != 0) {
+		MIX(sc).desc[0] = 0;
 	}
 
 	for (ctl = 3; ctl != 0; ctl <<= 2) {
 
-		mixernumber = uaudio20_mixer_feature_name(&iot[id], &mix);
+		mixernumber = uaudio20_mixer_feature_name(&iot[id], &MIX(sc));
 
 		switch (ctl) {
 		case (3 << 0):
-			mix.type = MIX_ON_OFF;
-			mix.ctl = SOUND_MIXER_NRDEVICES;
-			mix.name = "mute";
+			MIX(sc).type = MIX_ON_OFF;
+			MIX(sc).ctl = SOUND_MIXER_NRDEVICES;
+			MIX(sc).name = "mute";
 			what = MUTE_CONTROL;
 			break;
 		case (3 << 2): 
-			mix.type = MIX_SIGNED_16;
-			mix.ctl = mixernumber;
-			mix.name = "vol";
+			MIX(sc).type = MIX_SIGNED_16;
+			MIX(sc).ctl = mixernumber;
+			MIX(sc).name = "vol";
 			what = VOLUME_CONTROL;
 			break;
 		case (3 << 4):
-			mix.type = MIX_SIGNED_8;
-			mix.ctl = SOUND_MIXER_BASS;
-			mix.name = "bass";
+			MIX(sc).type = MIX_SIGNED_8;
+			MIX(sc).ctl = SOUND_MIXER_BASS;
+			MIX(sc).name = "bass";
 			what = BASS_CONTROL;
 			break;
 		case (3 << 6):
-			mix.type = MIX_SIGNED_8;
-			mix.ctl = SOUND_MIXER_NRDEVICES;	/* XXXXX */
-			mix.name = "mid";
+			MIX(sc).type = MIX_SIGNED_8;
+			MIX(sc).ctl = SOUND_MIXER_NRDEVICES;	/* XXXXX */
+			MIX(sc).name = "mid";
 			what = MID_CONTROL;
 			break;
 		case (3 << 8):
-			mix.type = MIX_SIGNED_8;
-			mix.ctl = SOUND_MIXER_TREBLE;
-			mix.name = "treble";
+			MIX(sc).type = MIX_SIGNED_8;
+			MIX(sc).ctl = SOUND_MIXER_TREBLE;
+			MIX(sc).name = "treble";
 			what = TREBLE_CONTROL;
 			break;
 		case (3 << 12):
-			mix.type = MIX_ON_OFF;
-			mix.ctl = SOUND_MIXER_NRDEVICES;	/* XXXXX */
-			mix.name = "agc";
+			MIX(sc).type = MIX_ON_OFF;
+			MIX(sc).ctl = SOUND_MIXER_NRDEVICES;	/* XXXXX */
+			MIX(sc).name = "agc";
 			what = AGC_CONTROL;
 			break;
 		case (3 << 14):
-			mix.type = MIX_UNSIGNED_16;
-			mix.ctl = SOUND_MIXER_NRDEVICES;	/* XXXXX */
-			mix.name = "delay";
+			MIX(sc).type = MIX_UNSIGNED_16;
+			MIX(sc).ctl = SOUND_MIXER_NRDEVICES;	/* XXXXX */
+			MIX(sc).name = "delay";
 			what = DELAY_CONTROL;
 			break;
 		case (3 << 16):
-			mix.type = MIX_ON_OFF;
-			mix.ctl = SOUND_MIXER_NRDEVICES;	/* XXXXX */
-			mix.name = "boost";
+			MIX(sc).type = MIX_ON_OFF;
+			MIX(sc).ctl = SOUND_MIXER_NRDEVICES;	/* XXXXX */
+			MIX(sc).name = "boost";
 			what = BASS_BOOST_CONTROL;
 			break;
 		case (3 << 18):
-			mix.type = MIX_ON_OFF;
-			mix.ctl = SOUND_MIXER_LOUD;	/* Is this correct ? */
-			mix.name = "loudness";
+			MIX(sc).type = MIX_ON_OFF;
+			MIX(sc).ctl = SOUND_MIXER_LOUD;	/* Is this correct ? */
+			MIX(sc).name = "loudness";
 			what = LOUDNESS_CONTROL;
 			break;
 		case (3 << 20):
-			mix.type = MIX_SIGNED_16;
-			mix.ctl = mixernumber;
-			mix.name = "igain";
+			MIX(sc).type = MIX_SIGNED_16;
+			MIX(sc).ctl = mixernumber;
+			MIX(sc).name = "igain";
 			what = INPUT_GAIN_CONTROL;
 			break;
 		case (3 << 22):
-			mix.type = MIX_SIGNED_16;
-			mix.ctl = mixernumber;
-			mix.name = "igainpad";
+			MIX(sc).type = MIX_SIGNED_16;
+			MIX(sc).ctl = mixernumber;
+			MIX(sc).name = "igainpad";
 			what = INPUT_GAIN_PAD_CONTROL;
 			break;
 		default:
@@ -3010,22 +3127,22 @@ uaudio20_mixer_add_feature(struct uaudio_softc *sc,
 		}
 
 		if ((mmask & ctl) == ctl) {
-			mix.nchan = 1;
-			mix.wValue[0] = MAKE_WORD(what, 0);
+			MIX(sc).nchan = 1;
+			MIX(sc).wValue[0] = MAKE_WORD(what, 0);
 		} else if ((cmask & ctl) == ctl) {
-			mix.nchan = nchan - 1;
+			MIX(sc).nchan = nchan - 1;
 			for (i = 1; i < nchan; i++) {
 				if ((UGETDW(d->bmaControls[i]) & ctl) == ctl)
-					mix.wValue[i - 1] = MAKE_WORD(what, i);
+					MIX(sc).wValue[i - 1] = MAKE_WORD(what, i);
 				else
-					mix.wValue[i - 1] = -1;
+					MIX(sc).wValue[i - 1] = -1;
 			}
 		} else {
 			continue;
 		}
 
-		if (mix.type != MIX_UNKNOWN)
-			uaudio_mixer_add_ctl(sc, &mix);
+		if (MIX(sc).type != MIX_UNKNOWN)
+			uaudio_mixer_add_ctl(sc, &MIX(sc));
 	}
 }
 
@@ -3035,10 +3152,9 @@ uaudio_mixer_add_processing_updown(struct uaudio_softc *sc,
 {
 	const struct usb_audio_processing_unit_0 *d0 = iot[id].u.pu_v1;
 	const struct usb_audio_processing_unit_1 *d1 =
-	(const void *)(d0->baSourceId + d0->bNrInPins);
+	    (const void *)(d0->baSourceId + d0->bNrInPins);
 	const struct usb_audio_processing_unit_updown *ud =
-	(const void *)(d1->bmControls + d1->bControlSize);
-	struct uaudio_mixer_node mix;
+	    (const void *)(d1->bmControls + d1->bControlSize);
 	uint8_t i;
 
 	if (uaudio_mixer_verify_desc(d0, sizeof(*ud)) == NULL) {
@@ -3055,20 +3171,20 @@ uaudio_mixer_add_processing_updown(struct uaudio_softc *sc,
 		DPRINTF("no mode select\n");
 		return;
 	}
-	memset(&mix, 0, sizeof(mix));
+	memset(&MIX(sc), 0, sizeof(MIX(sc)));
 
-	mix.wIndex = MAKE_WORD(d0->bUnitId, sc->sc_mixer_iface_no);
-	mix.nchan = 1;
-	mix.wValue[0] = MAKE_WORD(UD_MODE_SELECT_CONTROL, 0);
-	uaudio_mixer_determine_class(&iot[id], &mix);
-	mix.type = MIX_ON_OFF;		/* XXX */
+	MIX(sc).wIndex = MAKE_WORD(d0->bUnitId, sc->sc_mixer_iface_no);
+	MIX(sc).nchan = 1;
+	MIX(sc).wValue[0] = MAKE_WORD(UD_MODE_SELECT_CONTROL, 0);
+	uaudio_mixer_determine_class(&iot[id], &MIX(sc));
+	MIX(sc).type = MIX_ON_OFF;		/* XXX */
 
 	for (i = 0; i < ud->bNrModes; i++) {
 		DPRINTFN(3, "i=%d bm=0x%x\n", i, UGETW(ud->waModes[i]));
 		/* XXX */
 	}
 
-	uaudio_mixer_add_ctl(sc, &mix);
+	uaudio_mixer_add_ctl(sc, &MIX(sc));
 }
 
 static void
@@ -3077,11 +3193,10 @@ uaudio_mixer_add_processing(struct uaudio_softc *sc,
 {
 	const struct usb_audio_processing_unit_0 *d0 = iot[id].u.pu_v1;
 	const struct usb_audio_processing_unit_1 *d1 =
-	(const void *)(d0->baSourceId + d0->bNrInPins);
-	struct uaudio_mixer_node mix;
+	    (const void *)(d0->baSourceId + d0->bNrInPins);
 	uint16_t ptype;
 
-	memset(&mix, 0, sizeof(mix));
+	memset(&MIX(sc), 0, sizeof(MIX(sc)));
 
 	ptype = UGETW(d0->wProcessType);
 
@@ -3092,12 +3207,12 @@ uaudio_mixer_add_processing(struct uaudio_softc *sc,
 		return;
 	}
 	if (d1->bmControls[0] & UA_PROC_ENABLE_MASK) {
-		mix.wIndex = MAKE_WORD(d0->bUnitId, sc->sc_mixer_iface_no);
-		mix.nchan = 1;
-		mix.wValue[0] = MAKE_WORD(XX_ENABLE_CONTROL, 0);
-		uaudio_mixer_determine_class(&iot[id], &mix);
-		mix.type = MIX_ON_OFF;
-		uaudio_mixer_add_ctl(sc, &mix);
+		MIX(sc).wIndex = MAKE_WORD(d0->bUnitId, sc->sc_mixer_iface_no);
+		MIX(sc).nchan = 1;
+		MIX(sc).wValue[0] = MAKE_WORD(XX_ENABLE_CONTROL, 0);
+		uaudio_mixer_determine_class(&iot[id], &MIX(sc));
+		MIX(sc).type = MIX_ON_OFF;
+		uaudio_mixer_add_ctl(sc, &MIX(sc));
 	}
 	switch (ptype) {
 	case UPDOWNMIX_PROCESS:
@@ -3122,8 +3237,7 @@ uaudio_mixer_add_extension(struct uaudio_softc *sc,
 {
 	const struct usb_audio_extension_unit_0 *d0 = iot[id].u.eu_v1;
 	const struct usb_audio_extension_unit_1 *d1 =
-	(const void *)(d0->baSourceId + d0->bNrInPins);
-	struct uaudio_mixer_node mix;
+	    (const void *)(d0->baSourceId + d0->bNrInPins);
 
 	DPRINTFN(3, "bUnitId=%d bNrInPins=%d\n",
 	    d0->bUnitId, d0->bNrInPins);
@@ -3136,15 +3250,15 @@ uaudio_mixer_add_extension(struct uaudio_softc *sc,
 	}
 	if (d1->bmControls[0] & UA_EXT_ENABLE_MASK) {
 
-		memset(&mix, 0, sizeof(mix));
+		memset(&MIX(sc), 0, sizeof(MIX(sc)));
 
-		mix.wIndex = MAKE_WORD(d0->bUnitId, sc->sc_mixer_iface_no);
-		mix.nchan = 1;
-		mix.wValue[0] = MAKE_WORD(UA_EXT_ENABLE, 0);
-		uaudio_mixer_determine_class(&iot[id], &mix);
-		mix.type = MIX_ON_OFF;
+		MIX(sc).wIndex = MAKE_WORD(d0->bUnitId, sc->sc_mixer_iface_no);
+		MIX(sc).nchan = 1;
+		MIX(sc).wValue[0] = MAKE_WORD(UA_EXT_ENABLE, 0);
+		uaudio_mixer_determine_class(&iot[id], &MIX(sc));
+		MIX(sc).type = MIX_ON_OFF;
 
-		uaudio_mixer_add_ctl(sc, &mix);
+		uaudio_mixer_add_ctl(sc, &MIX(sc));
 	}
 }
 

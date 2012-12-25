@@ -261,6 +261,7 @@ extern	HAL_BOOL ar5210GetMibCycleCounts(struct ath_hal *,
 		HAL_SURVEY_SAMPLE *);
 extern	void ar5210EnableDfs(struct ath_hal *, HAL_PHYERR_PARAM *);
 extern	void ar5210GetDfsThresh(struct ath_hal *, HAL_PHYERR_PARAM *);
+extern	void ar5210UpdateDiagReg(struct ath_hal *ah, uint32_t val);
 
 extern	u_int ar5210GetKeyCacheSize(struct ath_hal *);
 extern	HAL_BOOL ar5210IsKeyCacheEntryValid(struct ath_hal *, uint16_t);

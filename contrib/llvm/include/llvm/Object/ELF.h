@@ -387,11 +387,65 @@ struct Elf_Rel_Impl<target_endianness, false, isRela>
   }
 };
 
+template<support::endianness target_endianness, bool is64Bits>
+struct Elf_Ehdr_Impl {
+  LLVM_ELF_IMPORT_TYPES(target_endianness, is64Bits)
+  unsigned char e_ident[ELF::EI_NIDENT]; // ELF Identification bytes
+  Elf_Half e_type;     // Type of file (see ET_*)
+  Elf_Half e_machine;  // Required architecture for this file (see EM_*)
+  Elf_Word e_version;  // Must be equal to 1
+  Elf_Addr e_entry;    // Address to jump to in order to start program
+  Elf_Off  e_phoff;    // Program header table's file offset, in bytes
+  Elf_Off  e_shoff;    // Section header table's file offset, in bytes
+  Elf_Word e_flags;    // Processor-specific flags
+  Elf_Half e_ehsize;   // Size of ELF header, in bytes
+  Elf_Half e_phentsize;// Size of an entry in the program header table
+  Elf_Half e_phnum;    // Number of entries in the program header table
+  Elf_Half e_shentsize;// Size of an entry in the section header table
+  Elf_Half e_shnum;    // Number of entries in the section header table
+  Elf_Half e_shstrndx; // Section header table index of section name
+                                 // string table
+  bool checkMagic() const {
+    return (memcmp(e_ident, ELF::ElfMagic, strlen(ELF::ElfMagic))) == 0;
+  }
+   unsigned char getFileClass() const { return e_ident[ELF::EI_CLASS]; }
+   unsigned char getDataEncoding() const { return e_ident[ELF::EI_DATA]; }
+};
+
+template<support::endianness target_endianness, bool is64Bits>
+struct Elf_Phdr;
+
+template<support::endianness target_endianness>
+struct Elf_Phdr<target_endianness, false> {
+  LLVM_ELF_IMPORT_TYPES(target_endianness, false)
+  Elf_Word p_type;   // Type of segment
+  Elf_Off  p_offset; // FileOffset where segment is located, in bytes
+  Elf_Addr p_vaddr;  // Virtual Address of beginning of segment 
+  Elf_Addr p_paddr;  // Physical address of beginning of segment (OS-specific)
+  Elf_Word p_filesz; // Num. of bytes in file image of segment (may be zero)
+  Elf_Word p_memsz;  // Num. of bytes in mem image of segment (may be zero)
+  Elf_Word p_flags;  // Segment flags
+  Elf_Word p_align;  // Segment alignment constraint
+};
+
+template<support::endianness target_endianness>
+struct Elf_Phdr<target_endianness, true> {
+  LLVM_ELF_IMPORT_TYPES(target_endianness, true)
+  Elf_Word p_type;   // Type of segment
+  Elf_Word p_flags;  // Segment flags
+  Elf_Off  p_offset; // FileOffset where segment is located, in bytes
+  Elf_Addr p_vaddr;  // Virtual Address of beginning of segment 
+  Elf_Addr p_paddr;  // Physical address of beginning of segment (OS-specific)
+  Elf_Word p_filesz; // Num. of bytes in file image of segment (may be zero)
+  Elf_Word p_memsz;  // Num. of bytes in mem image of segment (may be zero)
+  Elf_Word p_align;  // Segment alignment constraint
+};
 
 template<support::endianness target_endianness, bool is64Bits>
 class ELFObjectFile : public ObjectFile {
   LLVM_ELF_IMPORT_TYPES(target_endianness, is64Bits)
 
+  typedef Elf_Ehdr_Impl<target_endianness, is64Bits> Elf_Ehdr;
   typedef Elf_Shdr_Impl<target_endianness, is64Bits> Elf_Shdr;
   typedef Elf_Sym_Impl<target_endianness, is64Bits> Elf_Sym;
   typedef Elf_Dyn_Impl<target_endianness, is64Bits> Elf_Dyn;
@@ -406,28 +460,6 @@ class ELFObjectFile : public ObjectFile {
   typedef content_iterator<DynRef> dyn_iterator;
 
 protected:
-  struct Elf_Ehdr {
-    unsigned char e_ident[ELF::EI_NIDENT]; // ELF Identification bytes
-    Elf_Half e_type;     // Type of file (see ET_*)
-    Elf_Half e_machine;  // Required architecture for this file (see EM_*)
-    Elf_Word e_version;  // Must be equal to 1
-    Elf_Addr e_entry;    // Address to jump to in order to start program
-    Elf_Off  e_phoff;    // Program header table's file offset, in bytes
-    Elf_Off  e_shoff;    // Section header table's file offset, in bytes
-    Elf_Word e_flags;    // Processor-specific flags
-    Elf_Half e_ehsize;   // Size of ELF header, in bytes
-    Elf_Half e_phentsize;// Size of an entry in the program header table
-    Elf_Half e_phnum;    // Number of entries in the program header table
-    Elf_Half e_shentsize;// Size of an entry in the section header table
-    Elf_Half e_shnum;    // Number of entries in the section header table
-    Elf_Half e_shstrndx; // Section header table index of section name
-                                  // string table
-    bool checkMagic() const {
-      return (memcmp(e_ident, ELF::ElfMagic, strlen(ELF::ElfMagic))) == 0;
-    }
-    unsigned char getFileClass() const { return e_ident[ELF::EI_CLASS]; }
-    unsigned char getDataEncoding() const { return e_ident[ELF::EI_DATA]; }
-  };
   // This flag is used for classof, to distinguish ELFObjectFile from
   // its subclass. If more subclasses will be created, this flag will
   // have to become an enum.
@@ -459,6 +491,59 @@ private:
   // This is set the first time getLoadName is called.
   mutable const char *dt_soname;
 
+public:
+  /// \brief Iterate over relocations in a .rel or .rela section.
+  template<class RelocT>
+  class ELFRelocationIterator {
+  public:
+    typedef void difference_type;
+    typedef const RelocT value_type;
+    typedef std::forward_iterator_tag iterator_category;
+    typedef value_type &reference;
+    typedef value_type *pointer;
+
+    /// \brief Default construct iterator.
+    ELFRelocationIterator() : Section(0), Current(0) {}
+    ELFRelocationIterator(const Elf_Shdr *Sec, const char *Start)
+      : Section(Sec)
+      , Current(Start) {}
+
+    reference operator *() {
+      assert(Current && "Attempted to dereference an invalid iterator!");
+      return *reinterpret_cast<const RelocT*>(Current);
+    }
+
+    pointer operator ->() {
+      assert(Current && "Attempted to dereference an invalid iterator!");
+      return reinterpret_cast<const RelocT*>(Current);
+    }
+
+    bool operator ==(const ELFRelocationIterator &Other) {
+      return Section == Other.Section && Current == Other.Current;
+    }
+
+    bool operator !=(const ELFRelocationIterator &Other) {
+      return !(*this == Other);
+    }
+
+    ELFRelocationIterator &operator ++(int) {
+      assert(Current && "Attempted to increment an invalid iterator!");
+      Current += Section->sh_entsize;
+      return *this;
+    }
+
+    ELFRelocationIterator operator ++() {
+      ELFRelocationIterator Tmp = *this;
+      ++*this;
+      return Tmp;
+    }
+
+  private:
+    const Elf_Shdr *Section;
+    const char *Current;
+  };
+
+private:
   // Records for each version index the corresponding Verdef or Vernaux entry.
   // This is filled the first time LoadVersionMap() is called.
   class VersionMapEntry : public PointerIntPair<const void*, 1> {
@@ -535,6 +620,7 @@ protected:
   virtual error_code getSymbolType(DataRefImpl Symb, SymbolRef::Type &Res) const;
   virtual error_code getSymbolSection(DataRefImpl Symb,
                                       section_iterator &Res) const;
+  virtual error_code getSymbolValue(DataRefImpl Symb, uint64_t &Val) const;
 
   friend class DynRefImpl<target_endianness, is64Bits>;
   virtual error_code getDynNext(DataRefImpl DynData, DynRef &Result) const;
@@ -555,6 +641,7 @@ protected:
                                                    bool &Res) const;
   virtual error_code isSectionVirtual(DataRefImpl Sec, bool &Res) const;
   virtual error_code isSectionZeroInit(DataRefImpl Sec, bool &Res) const;
+  virtual error_code isSectionReadOnlyData(DataRefImpl Sec, bool &Res) const;
   virtual error_code sectionContainsSymbol(DataRefImpl Sec, DataRefImpl Symb,
                                            bool &Result) const;
   virtual relocation_iterator getSectionRelBegin(DataRefImpl Sec) const;
@@ -594,6 +681,27 @@ public:
   virtual dyn_iterator begin_dynamic_table() const;
   virtual dyn_iterator end_dynamic_table() const;
 
+  typedef ELFRelocationIterator<Elf_Rela> Elf_Rela_Iter;
+  typedef ELFRelocationIterator<Elf_Rel> Elf_Rel_Iter;
+
+  virtual Elf_Rela_Iter beginELFRela(const Elf_Shdr *sec) const {
+    return Elf_Rela_Iter(sec, (const char *)(base() + sec->sh_offset));
+  }
+
+  virtual Elf_Rela_Iter endELFRela(const Elf_Shdr *sec) const {
+    return Elf_Rela_Iter(sec, (const char *)
+                         (base() + sec->sh_offset + sec->sh_size));
+  }
+
+  virtual Elf_Rel_Iter beginELFRel(const Elf_Shdr *sec) const {
+    return Elf_Rel_Iter(sec, (const char *)(base() + sec->sh_offset));
+  }
+
+  virtual Elf_Rel_Iter endELFRel(const Elf_Shdr *sec) const {
+    return Elf_Rel_Iter(sec, (const char *)
+                        (base() + sec->sh_offset + sec->sh_size));
+  }
+
   virtual uint8_t getBytesInAddress() const;
   virtual StringRef getFileFormatName() const;
   virtual StringRef getObjectType() const { return "ELF"; }
@@ -608,6 +716,7 @@ public:
   const Elf_Shdr *getSection(const Elf_Sym *symb) const;
   const Elf_Shdr *getElfSection(section_iterator &It) const;
   const Elf_Sym *getElfSymbol(symbol_iterator &It) const;
+  const Elf_Sym *getElfSymbol(uint32_t index) const;
 
   // Methods for type inquiry through isa, cast, and dyn_cast
   bool isDyldType() const { return isDyldELFObject; }
@@ -615,7 +724,6 @@ public:
     return v->getType() == getELFType(target_endianness == support::little,
                                       is64Bits);
   }
-  static inline bool classof(const ELFObjectFile *v) { return true; }
 };
 
 // Iterate through the version definitions, and place each Elf_Verdef
@@ -804,6 +912,16 @@ ELFObjectFile<target_endianness, is64Bits>
 }
 
 template<support::endianness target_endianness, bool is64Bits>
+const typename ELFObjectFile<target_endianness, is64Bits>::Elf_Sym *
+ELFObjectFile<target_endianness, is64Bits>
+                             ::getElfSymbol(uint32_t index) const {
+  DataRefImpl SymbolData;
+  SymbolData.d.a = index;
+  SymbolData.d.b = 1;
+  return getSymbol(SymbolData);
+}
+
+template<support::endianness target_endianness, bool is64Bits>
 error_code ELFObjectFile<target_endianness, is64Bits>
                         ::getSymbolFileOffset(DataRefImpl Symb,
                                           uint64_t &Result) const {
@@ -863,7 +981,18 @@ error_code ELFObjectFile<target_endianness, is64Bits>
   case ELF::STT_FUNC:
   case ELF::STT_OBJECT:
   case ELF::STT_NOTYPE:
-    Result = symb->st_value + (Section ? Section->sh_addr : 0);
+    bool IsRelocatable;
+    switch(Header->e_type) {
+    case ELF::ET_EXEC:
+    case ELF::ET_DYN:
+      IsRelocatable = false;
+      break;
+    default:
+      IsRelocatable = true;
+    }
+    Result = symb->st_value;
+    if (IsRelocatable && Section != 0)
+      Result += Section->sh_addr;
     return object_error::success;
   default:
     Result = UnknownAddressOrSize;
@@ -1034,6 +1163,16 @@ error_code ELFObjectFile<target_endianness, is64Bits>
 
 template<support::endianness target_endianness, bool is64Bits>
 error_code ELFObjectFile<target_endianness, is64Bits>
+                        ::getSymbolValue(DataRefImpl Symb,
+                                         uint64_t &Val) const {
+  validateSymbol(Symb);
+  const Elf_Sym *symb = getSymbol(Symb);
+  Val = symb->st_value;
+  return object_error::success;
+}
+
+template<support::endianness target_endianness, bool is64Bits>
+error_code ELFObjectFile<target_endianness, is64Bits>
                         ::getSectionNext(DataRefImpl Sec, SectionRef &Result) const {
   const uint8_t *sec = reinterpret_cast<const uint8_t *>(Sec.p);
   sec += Header->e_shentsize;
@@ -1160,7 +1299,8 @@ error_code ELFObjectFile<target_endianness, is64Bits>
 }
 
 template<support::endianness target_endianness, bool is64Bits>
-error_code ELFObjectFile<target_endianness, is64Bits>::isSectionZeroInit(DataRefImpl Sec,
+error_code ELFObjectFile<target_endianness, is64Bits>
+                        ::isSectionZeroInit(DataRefImpl Sec,
                                             bool &Result) const {
   const Elf_Shdr *sec = reinterpret_cast<const Elf_Shdr *>(Sec.p);
   // For ELF, all zero-init sections are virtual (that is, they occupy no space
@@ -1169,6 +1309,18 @@ error_code ELFObjectFile<target_endianness, is64Bits>::isSectionZeroInit(DataRef
     Result = true;
   else
     Result = false;
+  return object_error::success;
+}
+
+template<support::endianness target_endianness, bool is64Bits>
+error_code ELFObjectFile<target_endianness, is64Bits>
+                       ::isSectionReadOnlyData(DataRefImpl Sec,
+                                               bool &Result) const {
+  const Elf_Shdr *sec = reinterpret_cast<const Elf_Shdr *>(Sec.p);
+  if (sec->sh_flags & ELF::SHF_WRITE || sec->sh_flags & ELF::SHF_EXECINSTR)
+    Result = false;
+  else
+    Result = true;
   return object_error::success;
 }
 
@@ -1444,6 +1596,143 @@ error_code ELFObjectFile<target_endianness, is64Bits>
       res = "Unknown";
     }
     break;
+  case ELF::EM_ARM:
+    switch (type) {
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_NONE);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PC24);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ABS32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_REL32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_LDR_PC_G0);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ABS16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ABS12);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_ABS5);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ABS8);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_SBREL32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_CALL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_PC8);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_BREL_ADJ);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_TLS_DESC);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_SWI8);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_XPC25);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_XPC22);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_TLS_DTPMOD32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_TLS_DTPOFF32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_TLS_TPOFF32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_COPY);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_GLOB_DAT);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_JUMP_SLOT);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_RELATIVE);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_GOTOFF32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_BASE_PREL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_GOT_BREL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PLT32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_CALL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_JUMP24);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_JUMP24);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_BASE_ABS);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ALU_PCREL_7_0);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ALU_PCREL_15_8);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ALU_PCREL_23_15);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_LDR_SBREL_11_0_NC);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ALU_SBREL_19_12_NC);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ALU_SBREL_27_20_CK);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_TARGET1);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_SBREL31);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_V4BX);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_TARGET2);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PREL31);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_MOVW_ABS_NC);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_MOVT_ABS);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_MOVW_PREL_NC);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_MOVT_PREL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_MOVW_ABS_NC);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_MOVT_ABS);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_MOVW_PREL_NC);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_MOVT_PREL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_JUMP19);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_JUMP6);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_ALU_PREL_11_0);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_PC12);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ABS32_NOI);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_REL32_NOI);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ALU_PC_G0_NC);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ALU_PC_G0);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ALU_PC_G1_NC);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ALU_PC_G1);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ALU_PC_G2);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_LDR_PC_G1);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_LDR_PC_G2);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_LDRS_PC_G0);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_LDRS_PC_G1);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_LDRS_PC_G2);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_LDC_PC_G0);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_LDC_PC_G1);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_LDC_PC_G2);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ALU_SB_G0_NC);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ALU_SB_G0);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ALU_SB_G1_NC);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ALU_SB_G1);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ALU_SB_G2);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_LDR_SB_G0);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_LDR_SB_G1);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_LDR_SB_G2);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_LDRS_SB_G0);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_LDRS_SB_G1);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_LDRS_SB_G2);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_LDC_SB_G0);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_LDC_SB_G1);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_LDC_SB_G2);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_MOVW_BREL_NC);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_MOVT_BREL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_MOVW_BREL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_MOVW_BREL_NC);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_MOVT_BREL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_MOVW_BREL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_TLS_GOTDESC);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_TLS_CALL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_TLS_DESCSEQ);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_TLS_CALL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PLT32_ABS);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_GOT_ABS);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_GOT_PREL);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_GOT_BREL12);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_GOTOFF12);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_GOTRELAX);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_GNU_VTENTRY);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_GNU_VTINHERIT);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_JUMP11);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_JUMP8);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_TLS_GD32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_TLS_LDM32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_TLS_LDO32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_TLS_IE32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_TLS_LE32);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_TLS_LDO12);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_TLS_LE12);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_TLS_IE12GP);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PRIVATE_0);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PRIVATE_1);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PRIVATE_2);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PRIVATE_3);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PRIVATE_4);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PRIVATE_5);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PRIVATE_6);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PRIVATE_7);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PRIVATE_8);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PRIVATE_9);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PRIVATE_10);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PRIVATE_11);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PRIVATE_12);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PRIVATE_13);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PRIVATE_14);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_PRIVATE_15);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_ME_TOO);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_TLS_DESCSEQ16);
+      LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_ARM_THM_TLS_DESCSEQ32);
+    default:
+      res = "Unknown";
+    }
+    break;
   case ELF::EM_HEXAGON:
     switch (type) {
       LLVM_ELF_SWITCH_RELOC_TYPE_NAME(R_HEX_NONE);
@@ -1574,15 +1863,15 @@ error_code ELFObjectFile<target_endianness, is64Bits>
   int64_t addend = 0;
   uint16_t symbol_index = 0;
   switch (sec->sh_type) {
-    default :
+    default:
       return object_error::parse_failed;
-    case ELF::SHT_REL : {
+    case ELF::SHT_REL: {
       type = getRel(Rel)->getType();
       symbol_index = getRel(Rel)->getSymbol();
       // TODO: Read implicit addend from section data.
       break;
     }
-    case ELF::SHT_RELA : {
+    case ELF::SHT_RELA: {
       type = getRela(Rel)->getType();
       symbol_index = getRela(Rel)->getSymbol();
       addend = getRela(Rel)->r_addend;
@@ -1596,9 +1885,8 @@ error_code ELFObjectFile<target_endianness, is64Bits>
   switch (Header->e_machine) {
   case ELF::EM_X86_64:
     switch (type) {
-    case ELF::R_X86_64_32S:
-      res = symname;
-      break;
+    case ELF::R_X86_64_PC8:
+    case ELF::R_X86_64_PC16:
     case ELF::R_X86_64_PC32: {
         std::string fmtbuf;
         raw_string_ostream fmt(fmtbuf);
@@ -1607,10 +1895,23 @@ error_code ELFObjectFile<target_endianness, is64Bits>
         Result.append(fmtbuf.begin(), fmtbuf.end());
       }
       break;
+    case ELF::R_X86_64_8:
+    case ELF::R_X86_64_16:
+    case ELF::R_X86_64_32:
+    case ELF::R_X86_64_32S:
+    case ELF::R_X86_64_64: {
+        std::string fmtbuf;
+        raw_string_ostream fmt(fmtbuf);
+        fmt << symname << (addend < 0 ? "" : "+") << addend;
+        fmt.flush();
+        Result.append(fmtbuf.begin(), fmtbuf.end());
+      }
+      break;
     default:
       res = "Unknown";
     }
     break;
+  case ELF::EM_ARM:
   case ELF::EM_HEXAGON:
     res = symname;
     break;
@@ -2024,6 +2325,8 @@ StringRef ELFObjectFile<target_endianness, is64Bits>
       return "ELF64-i386";
     case ELF::EM_X86_64:
       return "ELF64-x86-64";
+    case ELF::EM_PPC64:
+      return "ELF64-ppc64";
     default:
       return "ELF64-unknown";
     }
@@ -2044,6 +2347,11 @@ unsigned ELFObjectFile<target_endianness, is64Bits>::getArch() const {
     return Triple::arm;
   case ELF::EM_HEXAGON:
     return Triple::hexagon;
+  case ELF::EM_MIPS:
+    return (target_endianness == support::little) ?
+           Triple::mipsel : Triple::mips;
+  case ELF::EM_PPC64:
+    return Triple::ppc64;
   default:
     return Triple::UnknownArch;
   }

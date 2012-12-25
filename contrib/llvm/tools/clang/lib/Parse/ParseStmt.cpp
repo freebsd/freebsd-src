@@ -17,6 +17,7 @@
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/PrettyDeclStackTrace.h"
 #include "clang/Sema/Scope.h"
+#include "clang/Sema/TypoCorrection.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/PrettyStackTrace.h"
 #include "clang/Basic/SourceManager.h"
@@ -130,96 +131,38 @@ Retry:
       return ParseLabeledStatement(Attrs);
     }
 
+    // Look up the identifier, and typo-correct it to a keyword if it's not
+    // found.
     if (Next.isNot(tok::coloncolon)) {
-      CXXScopeSpec SS;
-      IdentifierInfo *Name = Tok.getIdentifierInfo();
-      SourceLocation NameLoc = Tok.getLocation();
-
-      if (getLangOpts().CPlusPlus)
-        CheckForTemplateAndDigraph(Next, ParsedType(),
-                                   /*EnteringContext=*/false, *Name, SS);
-
-      Sema::NameClassification Classification
-        = Actions.ClassifyName(getCurScope(), SS, Name, NameLoc, Next);
-      switch (Classification.getKind()) {
-      case Sema::NC_Keyword:
-        // The identifier was corrected to a keyword. Update the token
-        // to this keyword, and try again.
-        if (Name->getTokenID() != tok::identifier) {
-          Tok.setIdentifierInfo(Name);
-          Tok.setKind(Name->getTokenID());
-          goto Retry;
-        }
-
-        // Fall through via the normal error path.
-        // FIXME: This seems like it could only happen for context-sensitive
-        // keywords.
-
-      case Sema::NC_Error:
+      // Try to limit which sets of keywords should be included in typo
+      // correction based on what the next token is.
+      // FIXME: Pass the next token into the CorrectionCandidateCallback and
+      //        do this filtering in a more fine-grained manner.
+      CorrectionCandidateCallback DefaultValidator;
+      DefaultValidator.WantTypeSpecifiers =
+          Next.is(tok::l_paren) || Next.is(tok::less) ||
+          Next.is(tok::identifier) || Next.is(tok::star) ||
+          Next.is(tok::amp) || Next.is(tok::l_square);
+      DefaultValidator.WantExpressionKeywords =
+          Next.is(tok::l_paren) || Next.is(tok::identifier) ||
+          Next.is(tok::arrow) || Next.is(tok::period);
+      DefaultValidator.WantRemainingKeywords =
+          Next.is(tok::l_paren) || Next.is(tok::semi) ||
+          Next.is(tok::identifier) || Next.is(tok::l_brace);
+      DefaultValidator.WantCXXNamedCasts = false;
+      if (TryAnnotateName(/*IsAddressOfOperand*/false, &DefaultValidator)
+            == ANK_Error) {
         // Handle errors here by skipping up to the next semicolon or '}', and
         // eat the semicolon if that's what stopped us.
         SkipUntil(tok::r_brace, /*StopAtSemi=*/true, /*DontConsume=*/true);
         if (Tok.is(tok::semi))
           ConsumeToken();
         return StmtError();
+      }
 
-      case Sema::NC_Unknown:
-        // Either we don't know anything about this identifier, or we know that
-        // we're in a syntactic context we haven't handled yet.
-        break;
-
-      case Sema::NC_Type:
-        Tok.setKind(tok::annot_typename);
-        setTypeAnnotation(Tok, Classification.getType());
-        Tok.setAnnotationEndLoc(NameLoc);
-        PP.AnnotateCachedTokens(Tok);
-        break;
-
-      case Sema::NC_Expression:
-        Tok.setKind(tok::annot_primary_expr);
-        setExprAnnotation(Tok, Classification.getExpression());
-        Tok.setAnnotationEndLoc(NameLoc);
-        PP.AnnotateCachedTokens(Tok);
-        break;
-
-      case Sema::NC_TypeTemplate:
-      case Sema::NC_FunctionTemplate: {
-        ConsumeToken(); // the identifier
-        UnqualifiedId Id;
-        Id.setIdentifier(Name, NameLoc);
-        if (AnnotateTemplateIdToken(
-                            TemplateTy::make(Classification.getTemplateName()),
-                                    Classification.getTemplateNameKind(),
-                                    SS, SourceLocation(), Id,
-                                    /*AllowTypeAnnotation=*/false)) {
-          // Handle errors here by skipping up to the next semicolon or '}', and
-          // eat the semicolon if that's what stopped us.
-          SkipUntil(tok::r_brace, /*StopAtSemi=*/true, /*DontConsume=*/true);
-          if (Tok.is(tok::semi))
-            ConsumeToken();
-          return StmtError();
-        }
-
-        // If the next token is '::', jump right into parsing a
-        // nested-name-specifier. We don't want to leave the template-id
-        // hanging.
-        if (NextToken().is(tok::coloncolon) && TryAnnotateCXXScopeToken(false)){
-          // Handle errors here by skipping up to the next semicolon or '}', and
-          // eat the semicolon if that's what stopped us.
-          SkipUntil(tok::r_brace, /*StopAtSemi=*/true, /*DontConsume=*/true);
-          if (Tok.is(tok::semi))
-            ConsumeToken();
-          return StmtError();
-        }
-
-        // We've annotated a template-id, so try again now.
+      // If the identifier was typo-corrected, try again.
+      if (Tok.isNot(tok::identifier))
         goto Retry;
-      }
-
-      case Sema::NC_NestedNameSpecifier:
-        // FIXME: Implement this!
-        break;
-      }
     }
 
     // Fall through
@@ -289,7 +232,7 @@ Retry:
     bool msAsm = false;
     Res = ParseAsmStatement(msAsm);
     Res = Actions.ActOnFinishFullStmt(Res.get());
-    if (msAsm) return move(Res);
+    if (msAsm) return Res;
     SemiError = "asm";
     break;
   }
@@ -310,6 +253,41 @@ Retry:
     ProhibitAttributes(Attrs);
     HandlePragmaPack();
     return StmtEmpty();
+
+  case tok::annot_pragma_msstruct:
+    ProhibitAttributes(Attrs);
+    HandlePragmaMSStruct();
+    return StmtEmpty();
+
+  case tok::annot_pragma_align:
+    ProhibitAttributes(Attrs);
+    HandlePragmaAlign();
+    return StmtEmpty();
+
+  case tok::annot_pragma_weak:
+    ProhibitAttributes(Attrs);
+    HandlePragmaWeak();
+    return StmtEmpty();
+
+  case tok::annot_pragma_weakalias:
+    ProhibitAttributes(Attrs);
+    HandlePragmaWeakAlias();
+    return StmtEmpty();
+
+  case tok::annot_pragma_redefine_extname:
+    ProhibitAttributes(Attrs);
+    HandlePragmaRedefineExtname();
+    return StmtEmpty();
+
+  case tok::annot_pragma_fp_contract:
+    Diag(Tok, diag::err_pragma_fp_contract_scope);
+    ConsumeToken();
+    return StmtError();
+
+  case tok::annot_pragma_opencl_extension:
+    ProhibitAttributes(Attrs);
+    HandlePragmaOpenCLExtension();
+    return StmtEmpty();
   }
 
   // If we reached this code, the statement must end in a semicolon.
@@ -324,7 +302,7 @@ Retry:
     SkipUntil(tok::r_brace, true, true);
   }
 
-  return move(Res);
+  return Res;
 }
 
 /// \brief Parse an expression statement.
@@ -381,7 +359,7 @@ StmtResult Parser::ParseSEHTryBlockCommon(SourceLocation TryLoc) {
 
   StmtResult TryBlock(ParseCompoundStatement());
   if(TryBlock.isInvalid())
-    return move(TryBlock);
+    return TryBlock;
 
   StmtResult Handler;
   if (Tok.is(tok::identifier) &&
@@ -396,7 +374,7 @@ StmtResult Parser::ParseSEHTryBlockCommon(SourceLocation TryLoc) {
   }
 
   if(Handler.isInvalid())
-    return move(Handler);
+    return Handler;
 
   return Actions.ActOnSEHTryBlock(false /* IsCXXTry */,
                                   TryLoc,
@@ -441,7 +419,7 @@ StmtResult Parser::ParseSEHExceptBlock(SourceLocation ExceptLoc) {
   StmtResult Block(ParseCompoundStatement());
 
   if(Block.isInvalid())
-    return move(Block);
+    return Block;
 
   return Actions.ActOnSEHExceptBlock(ExceptLoc, FilterExpr.take(), Block.take());
 }
@@ -458,7 +436,7 @@ StmtResult Parser::ParseSEHFinallyBlock(SourceLocation FinallyBlock) {
 
   StmtResult Block(ParseCompoundStatement());
   if(Block.isInvalid())
-    return move(Block);
+    return Block;
 
   return Actions.ActOnSEHFinallyBlock(FinallyBlock,Block.take());
 }
@@ -603,7 +581,7 @@ StmtResult Parser::ParseCaseStatement(bool MissingCase, ExprResult Expr) {
       // Otherwise we link it into the current chain.
       Stmt *NextDeepest = Case.get();
       if (TopLevelCase.isInvalid())
-        TopLevelCase = move(Case);
+        TopLevelCase = Case;
       else
         Actions.ActOnCaseStmtBody(DeepestParsedCaseStmt, Case.get());
       DeepestParsedCaseStmt = NextDeepest;
@@ -636,7 +614,7 @@ StmtResult Parser::ParseCaseStatement(bool MissingCase, ExprResult Expr) {
   Actions.ActOnCaseStmtBody(DeepestParsedCaseStmt, SubStmt.get());
 
   // Return the top level parsed statement tree.
-  return move(TopLevelCase);
+  return TopLevelCase;
 }
 
 /// ParseDefaultStatement
@@ -728,6 +706,48 @@ StmtResult Parser::ParseCompoundStatement(bool isStmtExpr,
   return ParseCompoundStatementBody(isStmtExpr);
 }
 
+/// Parse any pragmas at the start of the compound expression. We handle these
+/// separately since some pragmas (FP_CONTRACT) must appear before any C
+/// statement in the compound, but may be intermingled with other pragmas.
+void Parser::ParseCompoundStatementLeadingPragmas() {
+  bool checkForPragmas = true;
+  while (checkForPragmas) {
+    switch (Tok.getKind()) {
+    case tok::annot_pragma_vis:
+      HandlePragmaVisibility();
+      break;
+    case tok::annot_pragma_pack:
+      HandlePragmaPack();
+      break;
+    case tok::annot_pragma_msstruct:
+      HandlePragmaMSStruct();
+      break;
+    case tok::annot_pragma_align:
+      HandlePragmaAlign();
+      break;
+    case tok::annot_pragma_weak:
+      HandlePragmaWeak();
+      break;
+    case tok::annot_pragma_weakalias:
+      HandlePragmaWeakAlias();
+      break;
+    case tok::annot_pragma_redefine_extname:
+      HandlePragmaRedefineExtname();
+      break;
+    case tok::annot_pragma_opencl_extension:
+      HandlePragmaOpenCLExtension();
+      break;
+    case tok::annot_pragma_fp_contract:
+      HandlePragmaFPContract();
+      break;
+    default:
+      checkForPragmas = false;
+      break;
+    }
+  }
+
+}
+
 /// ParseCompoundStatementBody - Parse a sequence of statements and invoke the
 /// ActOnCompoundStmt action.  This expects the '{' to be the current token, and
 /// consume the '}' at the end of the block.  It does not manipulate the scope
@@ -736,6 +756,11 @@ StmtResult Parser::ParseCompoundStatementBody(bool isStmtExpr) {
   PrettyStackTraceLoc CrashInfo(PP.getSourceManager(),
                                 Tok.getLocation(),
                                 "in compound statement ('{}')");
+
+  // Record the state of the FP_CONTRACT pragma, restore on leaving the
+  // compound statement.
+  Sema::FPContractStateRAII SaveFPContractState(Actions);
+
   InMessageExpressionRAIIObject InMessage(*this, false);
   BalancedDelimiterTracker T(*this, tok::l_brace);
   if (T.consumeOpen())
@@ -743,7 +768,10 @@ StmtResult Parser::ParseCompoundStatementBody(bool isStmtExpr) {
 
   Sema::CompoundScopeRAII CompoundScope(Actions);
 
-  StmtVector Stmts(Actions);
+  // Parse any pragmas at the beginning of the compound statement.
+  ParseCompoundStatementLeadingPragmas();
+
+  StmtVector Stmts;
 
   // "__label__ X, Y, Z;" is the GNU "Local Label" extension.  These are
   // only allowed at the start of a compound stmt regardless of the language.
@@ -850,7 +878,7 @@ StmtResult Parser::ParseCompoundStatementBody(bool isStmtExpr) {
   }
 
   return Actions.ActOnCompoundStmt(T.getOpenLocation(), CloseLoc,
-                                   move_arg(Stmts), isStmtExpr);
+                                   Stmts, isStmtExpr);
 }
 
 /// ParseParenExprOrCondition:
@@ -1096,7 +1124,7 @@ StmtResult Parser::ParseSwitchStatement(SourceLocation *TrailingElseLoc) {
       SkipUntil(tok::r_brace, false, false);
     } else
       SkipUntil(tok::semi);
-    return move(Switch);
+    return Switch;
   }
 
   // C99 6.8.4p3 - In C99, the body of the switch statement is a scope, even if
@@ -1375,7 +1403,7 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
     ColonProtectionRAIIObject ColonProtection(*this, MightBeForRangeStmt);
 
     SourceLocation DeclStart = Tok.getLocation(), DeclEnd;
-    StmtVector Stmts(Actions);
+    StmtVector Stmts;
     DeclGroupPtrTy DG = ParseSimpleDeclaration(Stmts, Declarator::ForContext,
                                                DeclEnd, attrs, false,
                                                MightBeForRangeStmt ?
@@ -1498,7 +1526,8 @@ StmtResult Parser::ParseForStatement(SourceLocation *TrailingElseLoc) {
     ForRangeStmt = Actions.ActOnCXXForRangeStmt(ForLoc, FirstPart.take(),
                                                 ForRangeInit.ColonLoc,
                                                 ForRangeInit.RangeExpr.get(),
-                                                T.getCloseLocation());
+                                                T.getCloseLocation(),
+                                                Sema::BFRK_Build);
 
 
   // Similarly, we need to do the semantic analysis for a for-range
@@ -1580,7 +1609,7 @@ StmtResult Parser::ParseGotoStatement() {
     return StmtError();
   }
 
-  return move(Res);
+  return Res;
 }
 
 /// ParseContinueStatement
@@ -1653,6 +1682,9 @@ StmtResult Parser::ParseReturnStatement() {
 ///         ms-asm-line '\n' ms-asm-instruction-block
 ///
 StmtResult Parser::ParseMicrosoftAsmStatement(SourceLocation AsmLoc) {
+  // MS-style inline assembly is not fully supported, so emit a warning.
+  Diag(AsmLoc, diag::warn_unsupported_msasm);
+
   SourceManager &SrcMgr = PP.getSourceManager();
   SourceLocation EndLoc = AsmLoc;
   SmallVector<Token, 4> AsmToks;
@@ -1745,6 +1777,21 @@ StmtResult Parser::ParseMicrosoftAsmStatement(SourceLocation AsmLoc) {
     return StmtError();
   }
 
+  // If MS-style inline assembly is disabled, then build an empty asm.
+  if (!getLangOpts().EmitMicrosoftInlineAsm) {
+    Token t;
+    t.setKind(tok::string_literal);
+    t.setLiteralData("\"/*FIXME: not done*/\"");
+    t.clearFlag(Token::NeedsCleaning);
+    t.setLength(21);
+    ExprResult AsmString(Actions.ActOnStringLiteral(&t, 1));
+    ExprVector Constraints;
+    ExprVector Exprs;
+    ExprVector Clobbers;
+    return Actions.ActOnGCCAsmStmt(AsmLoc, true, true, 0, 0, 0, Constraints,
+                                   Exprs, AsmString.take(), Clobbers, EndLoc);
+  }
+
   // FIXME: We should be passing source locations for better diagnostics.
   return Actions.ActOnMSAsmStmt(AsmLoc, LBraceLoc,
                                 llvm::makeArrayRef(AsmToks), EndLoc);
@@ -1806,18 +1853,17 @@ StmtResult Parser::ParseAsmStatement(bool &msAsm) {
   }
 
   SmallVector<IdentifierInfo *, 4> Names;
-  ExprVector Constraints(Actions);
-  ExprVector Exprs(Actions);
-  ExprVector Clobbers(Actions);
+  ExprVector Constraints;
+  ExprVector Exprs;
+  ExprVector Clobbers;
 
   if (Tok.is(tok::r_paren)) {
     // We have a simple asm expression like 'asm("foo")'.
     T.consumeClose();
-    return Actions.ActOnAsmStmt(AsmLoc, /*isSimple*/ true, isVolatile,
-                                /*NumOutputs*/ 0, /*NumInputs*/ 0, 0,
-                                move_arg(Constraints), move_arg(Exprs),
-                                AsmString.take(), move_arg(Clobbers),
-                                T.getCloseLocation());
+    return Actions.ActOnGCCAsmStmt(AsmLoc, /*isSimple*/ true, isVolatile,
+                                   /*NumOutputs*/ 0, /*NumInputs*/ 0, 0,
+                                   Constraints, Exprs, AsmString.take(),
+                                   Clobbers, T.getCloseLocation());
   }
 
   // Parse Outputs, if present.
@@ -1878,11 +1924,10 @@ StmtResult Parser::ParseAsmStatement(bool &msAsm) {
   }
 
   T.consumeClose();
-  return Actions.ActOnAsmStmt(AsmLoc, false, isVolatile,
-                              NumOutputs, NumInputs, Names.data(),
-                              move_arg(Constraints), move_arg(Exprs),
-                              AsmString.take(), move_arg(Clobbers),
-                              T.getCloseLocation());
+  return Actions.ActOnGCCAsmStmt(AsmLoc, false, isVolatile, NumOutputs,
+                                 NumInputs, Names.data(), Constraints, Exprs,
+                                 AsmString.take(), Clobbers,
+                                 T.getCloseLocation());
 }
 
 /// ParseAsmOperands - Parse the asm-operands production as used by
@@ -1975,7 +2020,7 @@ Decl *Parser::ParseFunctionStatementBody(Decl *Decl, ParseScope &BodyScope) {
   if (FnBody.isInvalid()) {
     Sema::CompoundScopeRAII CompoundScope(Actions);
     FnBody = Actions.ActOnCompoundStmt(LBraceLoc, LBraceLoc,
-                                       MultiStmtArg(Actions), false);
+                                       MultiStmtArg(), false);
   }
 
   BodyScope.Exit();
@@ -2006,13 +2051,13 @@ Decl *Parser::ParseFunctionTryBlock(Decl *Decl, ParseScope &BodyScope) {
   }
 
   SourceLocation LBraceLoc = Tok.getLocation();
-  StmtResult FnBody(ParseCXXTryBlockCommon(TryLoc));
+  StmtResult FnBody(ParseCXXTryBlockCommon(TryLoc, /*FnTry*/true));
   // If we failed to parse the try-catch, we just give the function an empty
   // compound statement as the body.
   if (FnBody.isInvalid()) {
     Sema::CompoundScopeRAII CompoundScope(Actions);
     FnBody = Actions.ActOnCompoundStmt(LBraceLoc, LBraceLoc,
-                                       MultiStmtArg(Actions), false);
+                                       MultiStmtArg(), false);
   }
 
   BodyScope.Exit();
@@ -2024,12 +2069,18 @@ bool Parser::trySkippingFunctionBody() {
   assert(SkipFunctionBodies &&
          "Should only be called when SkipFunctionBodies is enabled");
 
+  if (!PP.isCodeCompletionEnabled()) {
+    ConsumeBrace();
+    SkipUntil(tok::r_brace, /*StopAtSemi=*/false, /*DontConsume=*/false);
+    return true;
+  }
+
   // We're in code-completion mode. Skip parsing for all function bodies unless
   // the body contains the code-completion point.
   TentativeParsingAction PA(*this);
   ConsumeBrace();
   if (SkipUntil(tok::r_brace, /*StopAtSemi=*/false, /*DontConsume=*/false,
-                /*StopAtCodeCompletion=*/PP.isCodeCompletionEnabled())) {
+                /*StopAtCodeCompletion=*/true)) {
     PA.Commit();
     return true;
   }
@@ -2066,15 +2117,16 @@ StmtResult Parser::ParseCXXTryBlock() {
 ///         'try' compound-statement seh-except-block
 ///         'try' compound-statment  seh-finally-block
 ///
-StmtResult Parser::ParseCXXTryBlockCommon(SourceLocation TryLoc) {
+StmtResult Parser::ParseCXXTryBlockCommon(SourceLocation TryLoc, bool FnTry) {
   if (Tok.isNot(tok::l_brace))
     return StmtError(Diag(Tok, diag::err_expected_lbrace));
   // FIXME: Possible draft standard bug: attribute-specifier should be allowed?
 
   StmtResult TryBlock(ParseCompoundStatement(/*isStmtExpr=*/false,
-                                             Scope::DeclScope|Scope::TryScope));
+                      Scope::DeclScope |
+                        (FnTry ? Scope::FnTryScope : Scope::TryScope)));
   if (TryBlock.isInvalid())
-    return move(TryBlock);
+    return TryBlock;
 
   // Borland allows SEH-handlers with 'try'
 
@@ -2092,7 +2144,7 @@ StmtResult Parser::ParseCXXTryBlockCommon(SourceLocation TryLoc) {
       Handler = ParseSEHFinallyBlock(Loc);
     }
     if(Handler.isInvalid())
-      return move(Handler);
+      return Handler;
 
     return Actions.ActOnSEHTryBlock(true /* IsCXXTry */,
                                     TryLoc,
@@ -2100,7 +2152,7 @@ StmtResult Parser::ParseCXXTryBlockCommon(SourceLocation TryLoc) {
                                     Handler.take());
   }
   else {
-    StmtVector Handlers(Actions);
+    StmtVector Handlers;
     ParsedAttributesWithRange attrs(AttrFactory);
     MaybeParseCXX0XAttributes(attrs);
     ProhibitAttributes(attrs);
@@ -2108,7 +2160,7 @@ StmtResult Parser::ParseCXXTryBlockCommon(SourceLocation TryLoc) {
     if (Tok.isNot(tok::kw_catch))
       return StmtError(Diag(Tok, diag::err_expected_catch));
     while (Tok.is(tok::kw_catch)) {
-      StmtResult Handler(ParseCXXCatchBlock());
+      StmtResult Handler(ParseCXXCatchBlock(FnTry));
       if (!Handler.isInvalid())
         Handlers.push_back(Handler.release());
     }
@@ -2117,7 +2169,7 @@ StmtResult Parser::ParseCXXTryBlockCommon(SourceLocation TryLoc) {
     if (Handlers.empty())
       return StmtError();
 
-    return Actions.ActOnCXXTryBlock(TryLoc, TryBlock.take(),move_arg(Handlers));
+    return Actions.ActOnCXXTryBlock(TryLoc, TryBlock.take(),Handlers);
   }
 }
 
@@ -2132,7 +2184,7 @@ StmtResult Parser::ParseCXXTryBlockCommon(SourceLocation TryLoc) {
 ///         type-specifier-seq
 ///         '...'
 ///
-StmtResult Parser::ParseCXXCatchBlock() {
+StmtResult Parser::ParseCXXCatchBlock(bool FnCatch) {
   assert(Tok.is(tok::kw_catch) && "Expected 'catch'");
 
   SourceLocation CatchLoc = ConsumeToken();
@@ -2144,7 +2196,8 @@ StmtResult Parser::ParseCXXCatchBlock() {
   // C++ 3.3.2p3:
   // The name in a catch exception-declaration is local to the handler and
   // shall not be redeclared in the outermost block of the handler.
-  ParseScope CatchScope(this, Scope::DeclScope | Scope::ControlScope);
+  ParseScope CatchScope(this, Scope::DeclScope | Scope::ControlScope |
+                          (FnCatch ? Scope::FnCatchScope : Scope::CatchScope));
 
   // exception-declaration is equivalent to '...' or a parameter-declaration
   // without default arguments.
@@ -2169,7 +2222,7 @@ StmtResult Parser::ParseCXXCatchBlock() {
   // FIXME: Possible draft standard bug: attribute-specifier should be allowed?
   StmtResult Block(ParseCompoundStatement());
   if (Block.isInvalid())
-    return move(Block);
+    return Block;
 
   return Actions.ActOnCXXCatchBlock(CatchLoc, ExceptionDecl, Block.take());
 }

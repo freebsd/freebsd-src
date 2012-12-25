@@ -4,7 +4,7 @@
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
-# tz@elsie.nci.nih.gov for general use in the future).
+# tz@iana.org for general use in the future).
 
 # From Paul Eggert (2006-03-22):
 #
@@ -1199,18 +1199,21 @@ Rule	Zion	2012	only	-	Mar	Fri>=26	2:00	1:00	D
 Rule	Zion	2012	only	-	Sep	23	2:00	0	S
 
 # From Ephraim Silverberg (2012-10-18):
-
 # Yesterday, the Interior Ministry Committee, after more than a year
 # past, approved sending the proposed June 2011 changes to the Time
 # Decree Law back to the Knesset for second and third (final) votes
 # before the upcoming elections on Jan. 22, 2013.  Hence, although the
-# changes are not yet law, they are expected to be so before Februray 2013.
+# changes are not yet law, they are expected to be so before February 2013.
 #
 # As of 2013, DST starts at 02:00 on the Friday before the last Sunday in March.
 # DST ends at 02:00 on the first Sunday after October 1, unless it occurs on the
 # second day of the Jewish Rosh Hashana holiday, in which case DST ends a day
 # later (i.e. at 02:00 the first Monday after October 2).
 # [Rosh Hashana holidays are factored in until 2100.]
+
+# From Ephraim Silverberg (2012-11-05):
+# The Knesset passed today (in second and final readings) the amendment to the
+# Time Decree Law making the changes ... law.
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	Zion	2013	max	-	Mar	Fri>=23	2:00	1:00	D
@@ -2049,8 +2052,7 @@ Zone	Asia/Karachi	4:28:12 -	LMT	1907
 # occurred before our cutoff date of 1970.
 # However, as we get more information, we may need to add entries
 # for parts of the West Bank as they transitioned from Israel's rules
-# to Palestine's rules.  If you have more info about this, please
-# send it to tz@elsie.nci.nih.gov for incorporation into future editions.
+# to Palestine's rules.
 
 # From IINS News Service - Israel - 1998-03-23 10:38:07 Israel time,
 # forwarded by Ephraim Silverberg:

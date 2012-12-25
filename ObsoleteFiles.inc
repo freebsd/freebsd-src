@@ -38,6 +38,12 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20121114: zpool-features manual page moved from section 5 to 7
+OLD_FILES+=usr/share/man/man5/zpool-features.5.gz
+# 20121022: remove harp, hfa and idt man page
+OLD_FILES+=share/man/man4/harp.4
+OLD_FILES+=share/man/man4/hfa.4
+OLD_FILES+=share/man/man4/idt.4
 # 20121022: VFS_LOCK_GIANT elimination
 OLD_FILES+=usr/share/man/man9/VFS_LOCK_GIANT.9.gz
 OLD_FILES+=usr/share/man/man9/VFS_UNLOCK_GIANT.9.gz
@@ -46,6 +52,9 @@ OLD_FILES+=usr/include/clang/3.2/unwind.h
 # 20120910: NetBSD compat shims removed
 OLD_FILES+=usr/include/cam/scsi/scsi_low_pisa.h
 OLD_FILES+=usr/include/sys/device_port.h
+# 20120909: doc and www supfiles removed
+OLD_FILES+=usr/share/examples/cvsup/doc-supfile
+OLD_FILES+=usr/share/examples/cvsup/www-supfile
 # 20120908: pf cleanup
 OLD_FILES+=usr/include/net/if_pflow.h
 # 20120816: new clang import which bumps version from 3.1 to 3.2

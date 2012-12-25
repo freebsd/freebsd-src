@@ -139,7 +139,7 @@ epix:
 
 freebsd:
 	@make REAL_DAEMON_DIR=$(REAL_DAEMON_DIR) STYLE=$(STYLE) \
-	RANLIB=ranlib ARFLAGS=rv AUX_OBJ= NETGROUP=-DNETGROUP TLI= \
+	RANLIB=ranlib ARFLAGS=$(ARFLAGS) AUX_OBJ= NETGROUP=-DNETGROUP TLI= \
 	EXTRA_CFLAGS="-DSYS_ERRLIST_DEFINED -DINET6 -DUSE_GETIPNODEBY" \
 	VSYSLOG= all
 
@@ -401,7 +401,7 @@ machten:
 RANLIB	= ranlib	# have ranlib (BSD-ish UNIX)
 #RANLIB	= echo		# no ranlib (SYSV-ish UNIX)
 
-ARFLAGS	= rv		# most systems
+ARFLAGS	?= rv		# most systems
 #ARFLAGS= rvs		# IRIX 4.0.x
 
 AR	= ar

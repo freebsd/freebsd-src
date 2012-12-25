@@ -225,7 +225,7 @@ long percentages();
 char *ordernames[] = {
 	"cpu", "size", "res", "time", "pri", "threads",
 	"total", "read", "write", "fault", "vcsw", "ivcsw",
-	"jid", NULL
+	"jid", "pid", NULL
 };
 #endif
 
@@ -786,7 +786,7 @@ get_process_info(struct system_info *si, struct process_select *sel,
 	return ((caddr_t)&handle);
 }
 
-static char fmt[128];	/* static area where result is built */
+static char fmt[512];	/* static area where result is built */
 
 char *
 format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
@@ -803,6 +803,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 	char *proc_fmt, thr_buf[6], jid_buf[6];
 	char *cmdbuf = NULL;
 	char **args;
+	const int cmdlen = 128;
 
 	/* find and remember the next proc structure */
 	hp = (struct handle *)handle;
@@ -865,31 +866,31 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 		break;
 	}
 
-	cmdbuf = (char *)malloc(cmdlengthdelta + 1);
+	cmdbuf = (char *)malloc(cmdlen + 1);
 	if (cmdbuf == NULL) {
-		warn("malloc(%d)", cmdlengthdelta + 1);
+		warn("malloc(%d)", cmdlen + 1);
 		return NULL;
 	}
 
 	if (!(flags & FMT_SHOWARGS)) {
 		if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 		    pp->ki_tdname[0]) {
-			snprintf(cmdbuf, cmdlengthdelta, "%s{%s}", pp->ki_comm,
+			snprintf(cmdbuf, cmdlen, "%s{%s}", pp->ki_comm,
 			    pp->ki_tdname);
 		} else {
-			snprintf(cmdbuf, cmdlengthdelta, "%s", pp->ki_comm);
+			snprintf(cmdbuf, cmdlen, "%s", pp->ki_comm);
 		}
 	} else {
 		if (pp->ki_flag & P_SYSTEM ||
 		    pp->ki_args == NULL ||
-		    (args = kvm_getargv(kd, pp, cmdlengthdelta)) == NULL ||
+		    (args = kvm_getargv(kd, pp, cmdlen)) == NULL ||
 		    !(*args)) {
 			if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 		    	    pp->ki_tdname[0]) {
-				snprintf(cmdbuf, cmdlengthdelta,
+				snprintf(cmdbuf, cmdlen,
 				    "[%s{%s}]", pp->ki_comm, pp->ki_tdname);
 			} else {
-				snprintf(cmdbuf, cmdlengthdelta,
+				snprintf(cmdbuf, cmdlen,
 				    "[%s]", pp->ki_comm);
 			}
 		} else {
@@ -898,7 +899,7 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 			size_t argbuflen;
 			size_t len;
 
-			argbuflen = cmdlengthdelta * 4;
+			argbuflen = cmdlen * 4;
 			argbuf = (char *)malloc(argbuflen + 1);
 			if (argbuf == NULL) {
 				warn("malloc(%d)", argbuflen + 1);
@@ -931,22 +932,22 @@ format_next_process(caddr_t handle, char *(*get_userid)(int), int flags)
 				dst--;
 			*dst = '\0';
 
-			if (strcmp(cmd, pp->ki_comm) != 0 ) {
+			if (strcmp(cmd, pp->ki_comm) != 0) {
 				if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 				    pp->ki_tdname[0])
-					snprintf(cmdbuf, cmdlengthdelta,
+					snprintf(cmdbuf, cmdlen,
 					    "%s (%s){%s}", argbuf, pp->ki_comm,
 					    pp->ki_tdname);
 				else
-					snprintf(cmdbuf, cmdlengthdelta,
+					snprintf(cmdbuf, cmdlen,
 					    "%s (%s)", argbuf, pp->ki_comm);
 			} else {
 				if (ps.thread && pp->ki_flag & P_HADTHREADS &&
 				    pp->ki_tdname[0])
-					snprintf(cmdbuf, cmdlengthdelta,
+					snprintf(cmdbuf, cmdlen,
 					    "%s{%s}", argbuf, pp->ki_tdname);
 				else
-					strlcpy(cmdbuf, argbuf, cmdlengthdelta);
+					strlcpy(cmdbuf, argbuf, cmdlen);
 			}
 			free(argbuf);
 		}

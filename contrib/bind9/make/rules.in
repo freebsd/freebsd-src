@@ -88,7 +88,7 @@ testdirs:
 install:: all
 
 install clean distclean maintainer-clean doc docclean man manclean::
-	@for i in ${ALL_SUBDIRS}; do \
+	@for i in ${ALL_SUBDIRS} ${ALL_TESTDIRS}; do \
 		if [ "$$i" != "nulldir" -a -d $$i ]; then \
 			echo "making $@ in `pwd`/$$i"; \
 			(cd $$i; ${MAKE} ${MAKEDEFS} DESTDIR="${DESTDIR}" $@) || exit 1; \

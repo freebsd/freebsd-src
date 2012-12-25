@@ -409,7 +409,8 @@ AcpiDsCallControlMethod (
     Info = ACPI_ALLOCATE_ZEROED (sizeof (ACPI_EVALUATE_INFO));
     if (!Info)
     {
-        return_ACPI_STATUS (AE_NO_MEMORY);
+        Status = AE_NO_MEMORY;
+        goto Cleanup;
     }
 
     Info->Parameters = &ThisWalkState->Operands[0];
