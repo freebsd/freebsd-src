@@ -51,6 +51,16 @@
 
 	soc@70000000 {
 		aips@70000000 {
+			spba@70000000 {
+				esdhc@70004000 {
+					clock-frequency = <216000000>;
+					status = "okay";
+				};
+				esdhc@70008000 {
+					clock-frequency = <216000000>;
+					status = "okay";
+				};
+			};
 			timer@73fa0000 {
 				status = "okay";
 			};
