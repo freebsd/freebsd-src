@@ -756,7 +756,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			if (grp->gr_mem[j] != NULL) /* user already member of group */
 				continue;
 
-			members = malloc(sizeof(char *) * (j + 1));
+			members = malloc(sizeof(char *) * (j + 2));
 			for (j = 0; grp->gr_mem[j] != NULL; j++)
 				members[j] = grp->gr_mem[j];
 
