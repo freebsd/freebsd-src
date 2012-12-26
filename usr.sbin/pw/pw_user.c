@@ -757,8 +757,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				continue;
 
 			members = malloc(sizeof(char *) * (j + 2));
-			for (j = 0; grp->gr_mem[j] != NULL; j++)
-				members[j] = grp->gr_mem[j];
+			memcpy(members, grp->gr_mem, j * sizeof(*members));
 
 			members[j] = pwd->pw_name;
 			members[j+1] = NULL;
