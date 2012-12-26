@@ -510,14 +510,51 @@
 			/* 20 SAHARA SAHARA host 1 (non-TrustZone) Intr Lite */
 		};
 	};
+
+	localbus@5e000000 {
+		compatible = "simple-bus";
+		#address-cells = <1>;
+		#size-cells = <1>;
+
+		ranges;
+
+		vga: ipu3@5e000000 {
+			compatible = "fsl,ipu3";
+			reg = <
+				0x5e000000 0x08000	/* CM */
+				0x5e008000 0x08000	/* IDMAC */
+				0x5e018000 0x08000	/* DP */
+				0x5e020000 0x08000	/* IC */
+				0x5e028000 0x08000	/* IRT */
+				0x5e030000 0x08000	/* CSI0 */
+				0x5e038000 0x08000	/* CSI1 */
+				0x5e040000 0x08000	/* DI0 */
+				0x5e048000 0x08000	/* DI1 */
+				0x5e050000 0x08000	/* SMFC */
+				0x5e058000 0x08000	/* DC */
+				0x5e060000 0x08000	/* DMFC */
+				0x5e068000 0x08000	/* VDI */
+				0x5f000000 0x20000	/* CPMEM */
+				0x5f020000 0x20000	/* LUT */
+				0x5f040000 0x20000	/* SRM */
+				0x5f060000 0x20000	/* TPM */
+				0x5f080000 0x20000	/* DCTMPL */
+			>;
+			interrupt-parent = <&tzic>;
+			interrupts = <
+				10	/* IPUEX Error */
+				11	/* IPUEX Sync */
+			>;
+			status = "disabled";
+		};
+	};
 };
 
 /*
+
 TODO: Not mapped interrupts
 
 5	DAP
-10	IPUEX Error
-11	IPUEX Sync
 84	GPU2D (OpenVG) general interrupt
 85	GPU2D (OpenVG) busy signal (for S/W power gating feasibility)
 12	GPU3D
