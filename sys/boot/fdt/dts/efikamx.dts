@@ -58,6 +58,18 @@
 			clock@73fd4000 {
 				status = "okay";
 			};
+			gpio@73f84000 {
+				status = "okay";
+			};
+			gpio@73f88000 {
+				status = "okay";
+			};
+			gpio@73f8c000 {
+				status = "okay";
+			};
+			gpio@73f90000 {
+				status = "okay";
+			};
 			wdog@73f98000 {
 				status = "okay";
 			};
