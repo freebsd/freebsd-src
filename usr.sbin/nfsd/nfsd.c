@@ -264,7 +264,7 @@ main(int argc, char **argv)
 	ip6flag = 1;
 	s = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 	if (s == -1) {
-		if (errno != EPROTONOSUPPORT)
+		if (errno != EPROTONOSUPPORT && errno != EAFNOSUPPORT)
 			err(1, "socket");
 		ip6flag = 0;
 	} else if (getnetconfigent("udp6") == NULL ||

@@ -72,9 +72,11 @@ extern int vm_guest;		/* Running as virtual machine guest? */
  */
 enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN };
 
-#ifdef	INVARIANTS		/* The option is always available */
+#if defined(WITNESS) || defined(INVARIANTS)
 void	kassert_panic(const char *fmt, ...);
+#endif
 
+#ifdef	INVARIANTS		/* The option is always available */
 #define	KASSERT(exp,msg) do {						\
 	if (__predict_false(!(exp)))					\
 		kassert_panic msg;						\

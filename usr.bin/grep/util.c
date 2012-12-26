@@ -176,8 +176,7 @@ procfile(const char *fn)
 	mode_t s;
 	int c, t;
 
-	if (mflag && (mcount <= 0))
-		return (0);
+	mcount = mlimit;
 
 	if (strcmp(fn, "-") == 0) {
 		fn = label != NULL ? label : getstr(1);

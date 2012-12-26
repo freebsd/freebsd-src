@@ -130,6 +130,7 @@
 #define BUS_SPACE_MAXADDR	0xFFFFFFFF
 #endif
 
+#define BUS_SPACE_INVALID_DATA	(~0)
 #define BUS_SPACE_UNRESTRICTED	(~0)
 
 /*
@@ -221,6 +222,12 @@ static __inline u_int32_t bus_space_read_4(bus_space_tag_t tag,
 					   bus_space_handle_t handle,
 					   bus_size_t offset);
 
+#ifdef __amd64__
+static __inline uint64_t bus_space_read_8(bus_space_tag_t tag,
+					  bus_space_handle_t handle,
+					  bus_size_t offset);
+#endif
+
 static __inline u_int8_t
 bus_space_read_1(bus_space_tag_t tag, bus_space_handle_t handle,
 		 bus_size_t offset)
@@ -250,6 +257,18 @@ bus_space_read_4(bus_space_tag_t tag, bus_space_handle_t handle,
 		return (inl(handle + offset));
 	return (*(volatile u_int32_t *)(handle + offset));
 }
+
+#ifdef __amd64__
+static __inline uint64_t
+bus_space_read_8(bus_space_tag_t tag, bus_space_handle_t handle,
+		 bus_size_t offset)
+{
+
+	if (tag == X86_BUS_SPACE_IO) /* No 8 byte IO space access on x86 */
+		return (BUS_SPACE_INVALID_DATA);
+	return (*(volatile uint64_t *)(handle + offset));
+}
+#endif
 
 /*
  * Read `count' 1, 2, 4, or 8 byte quantities from bus space
@@ -332,6 +351,10 @@ bus_space_read_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	}
 }
+
+#if 0	/* Cause a link error for bus_space_read_multi_8 */
+#define	bus_space_read_multi_8	!!! bus_space_read_multi_8 unimplemented !!!
+#endif
 
 /*
  * Read `count' 1, 2, 4, or 8 byte quantities from bus space
@@ -450,6 +473,10 @@ bus_space_read_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	}
 }
 
+#if 0	/* Cause a link error for bus_space_read_region_8 */
+#define	bus_space_read_region_8	!!! bus_space_read_region_8 unimplemented !!!
+#endif
+
 /*
  * Write the 1, 2, 4, or 8 byte value `value' to bus space
  * described by tag/handle/offset.
@@ -466,6 +493,12 @@ static __inline void bus_space_write_2(bus_space_tag_t tag,
 static __inline void bus_space_write_4(bus_space_tag_t tag,
 				       bus_space_handle_t bsh,
 				       bus_size_t offset, u_int32_t value);
+
+#ifdef __amd64__
+static __inline void bus_space_write_8(bus_space_tag_t tag,
+				       bus_space_handle_t bsh,
+				       bus_size_t offset, uint64_t value);
+#endif
 
 static __inline void
 bus_space_write_1(bus_space_tag_t tag, bus_space_handle_t bsh,
@@ -499,6 +532,19 @@ bus_space_write_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	else
 		*(volatile u_int32_t *)(bsh + offset) = value;
 }
+
+#ifdef __amd64__
+static __inline void
+bus_space_write_8(bus_space_tag_t tag, bus_space_handle_t bsh,
+		  bus_size_t offset, uint64_t value)
+{
+
+	if (tag == X86_BUS_SPACE_IO) /* No 8 byte IO space access on x86 */
+		return;
+	else
+		*(volatile uint64_t *)(bsh + offset) = value;
+}
+#endif
 
 /*
  * Write `count' 1, 2, 4, or 8 byte quantities from the buffer
@@ -584,6 +630,11 @@ bus_space_write_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 #endif
 	}
 }
+
+#if 0	/* Cause a link error for bus_space_write_multi_8 */
+#define	bus_space_write_multi_8(t, h, o, a, c)				\
+			!!! bus_space_write_multi_8 unimplemented !!!
+#endif
 
 /*
  * Write `count' 1, 2, 4, or 8 byte quantities from the buffer provided
@@ -702,6 +753,11 @@ bus_space_write_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 	}
 }
 
+#if 0	/* Cause a link error for bus_space_write_region_8 */
+#define	bus_space_write_region_8					\
+			!!! bus_space_write_region_8 unimplemented !!!
+#endif
+
 /*
  * Write the 1, 2, 4, or 8 byte value `val' to bus space described
  * by tag/handle/offset `count' times.
@@ -762,6 +818,10 @@ bus_space_set_multi_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 			*(volatile u_int32_t *)(addr) = value;
 }
 
+#if 0	/* Cause a link error for bus_space_set_multi_8 */
+#define	bus_space_set_multi_8 !!! bus_space_set_multi_8 unimplemented !!!
+#endif
+
 /*
  * Write `count' 1, 2, 4, or 8 byte value `val' to bus space described
  * by tag/handle starting at `offset'.
@@ -821,6 +881,10 @@ bus_space_set_region_4(bus_space_tag_t tag, bus_space_handle_t bsh,
 		for (; count != 0; count--, addr += 4)
 			*(volatile u_int32_t *)(addr) = value;
 }
+
+#if 0	/* Cause a link error for bus_space_set_region_8 */
+#define	bus_space_set_region_8	!!! bus_space_set_region_8 unimplemented !!!
+#endif
 
 /*
  * Copy `count' 1, 2, 4, or 8 byte values from bus space starting
@@ -949,6 +1013,10 @@ bus_space_copy_region_4(bus_space_tag_t tag, bus_space_handle_t bsh1,
 		}
 	}
 }
+
+#if 0	/* Cause a link error for bus_space_copy_8 */
+#define	bus_space_copy_region_8	!!! bus_space_copy_region_8 unimplemented !!!
+#endif
 
 /*
  * Bus read/write barrier methods.

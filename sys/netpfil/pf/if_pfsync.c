@@ -44,10 +44,11 @@
 
 /*
  * Revisions picked from OpenBSD after revision 1.110 import:
+ * 1.119 - don't m_copydata() beyond the len of mbuf in pfsync_input()
  * 1.118, 1.124, 1.148, 1.149, 1.151, 1.171 - fixes to bulk updates
  * 1.120, 1.175 - use monotonic time_uptime
  * 1.122 - reduce number of updates for non-TCP sessions
- * 1.125 - rewrite merge or stale processing
+ * 1.125, 1.127 - rewrite merge or stale processing
  * 1.128 - cleanups
  * 1.146 - bzero() mbuf before sparsely filling it with data
  * 1.170 - SIOCSIFMTU checks
@@ -566,7 +567,7 @@ pfsync_input(struct mbuf *m, __unused int off)
 	struct pfsync_header *ph;
 	struct pfsync_subheader subh;
 
-	int offset;
+	int offset, len;
 	int rv;
 	uint16_t count;
 
@@ -612,6 +613,12 @@ pfsync_input(struct mbuf *m, __unused int off)
 		goto done;
 	}
 
+	len = ntohs(ph->len) + offset;
+	if (m->m_pkthdr.len < len) {
+		V_pfsyncstats.pfsyncs_badlen++;
+		goto done;
+	}
+
 	/* Cheaper to grab this now than having to mess with mbufs later */
 	pkt.ip = ip;
 	pkt.src = ip->ip_src;
@@ -626,7 +633,7 @@ pfsync_input(struct mbuf *m, __unused int off)
 		pkt.flags |= PFSYNC_SI_CKSUM;
 
 	offset += sizeof(*ph);
-	for (;;) {
+	while (offset <= len - sizeof(subh)) {
 		m_copydata(m, offset, sizeof(subh), (caddr_t)&subh);
 		offset += sizeof(subh);
 
@@ -787,12 +794,15 @@ pfsync_upd_tcp(struct pf_state *st, struct pfsync_state_peer *src,
 	if ((st->src.state > src->state &&
 	    (st->src.state < PF_TCPS_PROXY_SRC ||
 	    src->state >= PF_TCPS_PROXY_SRC)) ||
-	    SEQ_GT(st->src.seqlo, ntohl(src->seqlo)))
+
+	    (st->src.state == src->state &&
+	    SEQ_GT(st->src.seqlo, ntohl(src->seqlo))))
 		sync++;
 	else
 		pf_state_peer_ntoh(src, &st->src);
 
-	if (st->dst.state > dst->state ||
+	if ((st->dst.state > dst->state) ||
+
 	    (st->dst.state >= TCPS_SYN_SENT &&
 	    SEQ_GT(st->dst.seqlo, ntohl(dst->seqlo))))
 		sync++;
@@ -1219,8 +1229,8 @@ static int
 pfsync_in_eof(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 {
 	/* check if we are at the right place in the packet */
-	if (offset != m->m_pkthdr.len - sizeof(struct pfsync_eof))
-		V_pfsyncstats.pfsyncs_badact++;
+	if (offset != m->m_pkthdr.len)
+		V_pfsyncstats.pfsyncs_badlen++;
 
 	/* we're done. free and let the caller return */
 	m_freem(m);
@@ -1588,8 +1598,6 @@ pfsync_sendout(int schedswi)
 	subh->action = PFSYNC_ACT_EOF;
 	subh->count = htons(1);
 	V_pfsyncstats.pfsyncs_oacts[PFSYNC_ACT_EOF]++;
-
-	/* XXX write checksum in EOF here */
 
 	/* we're done, let's put it on the wire */
 	if (ifp->if_bpf) {

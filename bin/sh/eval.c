@@ -1070,6 +1070,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		}
 		handler = &jmploc;
 		redirect(cmd->ncmd.redirect, mode);
+		outclearerror(out1);
 		/*
 		 * If there is no command word, redirection errors should
 		 * not be fatal but assignment errors should.
@@ -1085,6 +1086,11 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		builtin_flags = flags;
 		exitstatus = (*builtinfunc[cmdentry.u.index])(argc, argv);
 		flushall();
+		if (outiserror(out1)) {
+			warning("write error on stdout");
+			if (exitstatus == 0 || exitstatus == 1)
+				exitstatus = 2;
+		}
 cmddone:
 		if (argc > 0)
 			bltinunsetlocale();

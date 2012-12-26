@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 15, 2011
+.Dd December 23, 2012
 .Dt NFSV4 4
 .Os
 .Sh NAME
@@ -98,6 +98,8 @@ allows a limited subset of operations to be performed on non-exported subtrees
 of the local file system, so that traversal of the tree to the exported
 subtrees is possible.
 As such, the ``<rootdir>'' can be in a non-exported file system.
+The exception is ZFS, which checks exports and, as such, all ZFS file systems
+below the ``<rootdir>'' must be exported.
 However,
 the entire tree that is rooted at that point must be in local file systems
 that are of types that can be NFS exported.

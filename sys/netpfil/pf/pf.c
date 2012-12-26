@@ -713,6 +713,7 @@ pf_initialize()
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	V_pf_limits[PF_LIMIT_STATES].zone = V_pf_state_z;
 	uma_zone_set_max(V_pf_state_z, PFSTATE_HIWAT);
+	uma_zone_set_warning(V_pf_state_z, "PF states limit reached");
 
 	V_pf_state_key_z = uma_zcreate("pf state keys",
 	    sizeof(struct pf_state_key), pf_state_key_ctor, NULL, NULL, NULL,
@@ -734,6 +735,7 @@ pf_initialize()
 	    0);
 	V_pf_limits[PF_LIMIT_SRC_NODES].zone = V_pf_sources_z;
 	uma_zone_set_max(V_pf_sources_z, PFSNODE_HIWAT);
+	uma_zone_set_warning(V_pf_sources_z, "PF source nodes limit reached");
 	V_pf_srchash = malloc(V_pf_srchashsize * sizeof(struct pf_srchash),
 	  M_PFHASH, M_WAITOK|M_ZERO);
 	V_pf_srchashmask = V_pf_srchashsize - 1;
@@ -1080,9 +1082,6 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 
 	s->kif = kif;
 
-	if (pf_state_key_attach(skw, sks, s))
-		return (-1);
-
 	if (s->id == 0 && s->creatorid == 0) {
 		/* XXX: should be atomic, but probability of collision low */
 		if ((s->id = V_pf_stateid[curcpu]++) == PFID_MAXID)
@@ -1091,6 +1090,9 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 		s->id = htobe64(s->id);
 		s->creatorid = V_pf_status.hostid;
 	}
+
+	if (pf_state_key_attach(skw, sks, s))
+		return (-1);
 
 	ih = &V_pf_idhash[PF_IDHASH(s)];
 	PF_HASHROW_LOCK(ih);

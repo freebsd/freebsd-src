@@ -75,4 +75,6 @@ f_sort_countries()
 	export COUNTRIES
 }
 
+f_dprintf "%s: Successfully loaded." timezone/countries.subr
+
 fi # ! $_TIMEZONE_COUNTRIES_SUBR
