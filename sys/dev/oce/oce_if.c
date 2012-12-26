@@ -902,7 +902,7 @@ retry:
 
 	} else if (rc == EFBIG)	{
 		if (retry_cnt == 0) {
-			m_temp = m_defrag(m, M_DONTWAIT);
+			m_temp = m_defrag(m, M_NOWAIT);
 			if (m_temp == NULL)
 				goto free_ret;
 			m = m_temp;
@@ -995,7 +995,7 @@ oce_tso_setup(POCE_SOFTC sc, struct mbuf **mpp)
 	m = *mpp;
 
 	if (M_WRITABLE(m) == 0) {
-		m = m_dup(*mpp, M_DONTWAIT);
+		m = m_dup(*mpp, M_NOWAIT);
 		if (!m)
 			return NULL;
 		m_freem(*mpp);
@@ -1481,7 +1481,7 @@ oce_alloc_rx_bufs(struct oce_rq *rq, int count)
 			break;	/* no more room */
 
 		pd = &rq->pckts[rq->packets_in];
-		pd->mbuf = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		pd->mbuf = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (pd->mbuf == NULL)
 			break;
 

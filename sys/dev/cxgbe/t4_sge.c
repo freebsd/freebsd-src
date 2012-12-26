@@ -2761,7 +2761,7 @@ start:	sgl->nsegs = 0;
 	rc = bus_dmamap_load_mbuf_sg(txq->tx_tag, txm->map, m, sgl->seg,
 	    &sgl->nsegs, BUS_DMA_NOWAIT);
 	if (rc == EFBIG && defragged == 0) {
-		m = m_defrag(m, M_DONTWAIT);
+		m = m_defrag(m, M_NOWAIT);
 		if (m == NULL)
 			return (EFBIG);
 

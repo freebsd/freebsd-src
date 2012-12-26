@@ -98,7 +98,7 @@ retry:
 			printf("mbuf chain too long: %d max allowed %d\n",
 			    seg_count, TX_MAX_SEGS);
 		if (!defragged) {
-			n = m_defrag(*m, M_DONTWAIT);
+			n = m_defrag(*m, M_NOWAIT);
 			if (n == NULL) {
 				err = ENOBUFS;
 				goto err_out;

@@ -21,8 +21,9 @@
 #include "MipsSelectionDAGInfo.h"
 #include "MipsSubtarget.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Target/TargetFrameLowering.h"
+#include "llvm/Target/TargetTransformImpl.h"
 
 namespace llvm {
 class formatted_raw_ostream;
@@ -30,12 +31,14 @@ class MipsRegisterInfo;
 
 class MipsTargetMachine : public LLVMTargetMachine {
   MipsSubtarget       Subtarget;
-  const TargetData    DataLayout; // Calculates type size & alignment
+  const DataLayout    DL; // Calculates type size & alignment
   const MipsInstrInfo *InstrInfo;
   const MipsFrameLowering *FrameLowering;
   MipsTargetLowering  TLInfo;
   MipsSelectionDAGInfo TSInfo;
   MipsJITInfo JITInfo;
+  ScalarTargetTransformImpl STTI;
+  VectorTargetTransformImpl VTTI;
 
 public:
   MipsTargetMachine(const Target &T, StringRef TT,
@@ -52,8 +55,8 @@ public:
   { return FrameLowering; }
   virtual const MipsSubtarget *getSubtargetImpl() const
   { return &Subtarget; }
-  virtual const TargetData *getTargetData()    const
-  { return &DataLayout;}
+  virtual const DataLayout *getDataLayout()    const
+  { return &DL;}
   virtual MipsJITInfo *getJITInfo()
   { return &JITInfo; }
 
@@ -67,6 +70,13 @@ public:
 
   virtual const MipsSelectionDAGInfo* getSelectionDAGInfo() const {
     return &TSInfo;
+  }
+
+  virtual const ScalarTargetTransformInfo *getScalarTargetTransformInfo()const {
+    return &STTI;
+  }
+  virtual const VectorTargetTransformInfo *getVectorTargetTransformInfo()const {
+    return &VTTI;
   }
 
   // Pass Pipeline Configuration

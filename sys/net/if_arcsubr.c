@@ -214,7 +214,7 @@ arc_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	}
 
 	isphds = arc_isphds(atype);
-	M_PREPEND(m, isphds ? ARC_HDRNEWLEN : ARC_HDRLEN, M_DONTWAIT);
+	M_PREPEND(m, isphds ? ARC_HDRNEWLEN : ARC_HDRLEN, M_NOWAIT);
 	if (m == 0)
 		senderr(ENOBUFS);
 	ah = mtod(m, struct arc_header *);
@@ -294,13 +294,13 @@ arc_frag_next(struct ifnet *ifp)
 	/* split out next fragment and return it */
 	if (ac->sflag < ac->fsflag) {
 		/* we CAN'T have short packets here */
-		ac->curr_frag = m_split(m, ARC_MAX_DATA, M_DONTWAIT);
+		ac->curr_frag = m_split(m, ARC_MAX_DATA, M_NOWAIT);
 		if (ac->curr_frag == 0) {
 			m_freem(m);
 			return 0;
 		}
 
-		M_PREPEND(m, ARC_HDRNEWLEN, M_DONTWAIT);
+		M_PREPEND(m, ARC_HDRNEWLEN, M_NOWAIT);
 		if (m == 0) {
 			m_freem(ac->curr_frag);
 			ac->curr_frag = 0;
@@ -319,7 +319,7 @@ arc_frag_next(struct ifnet *ifp)
 	    ARC_MAX_FORBID_LEN - ARC_HDRNEWLEN + 2)) {
 		ac->curr_frag = 0;
 
-		M_PREPEND(m, ARC_HDRNEWLEN_EXC, M_DONTWAIT);
+		M_PREPEND(m, ARC_HDRNEWLEN_EXC, M_NOWAIT);
 		if (m == 0)
 			return 0;
 
@@ -332,7 +332,7 @@ arc_frag_next(struct ifnet *ifp)
 	} else {
 		ac->curr_frag = 0;
 
-		M_PREPEND(m, ARC_HDRNEWLEN, M_DONTWAIT);
+		M_PREPEND(m, ARC_HDRNEWLEN, M_NOWAIT);
 		if (m == 0)
 			return 0;
 

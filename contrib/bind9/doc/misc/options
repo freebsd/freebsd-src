@@ -196,10 +196,11 @@ options {
         request-nsid <boolean>;
         reserved-sockets <integer>;
         resolver-query-timeout <integer>;
-        response-policy {
-                zone <string> [ policy ( given | disabled | passthru |
-                    no-op | nxdomain | nodata | cname <domain> ) ];
-        };
+        response-policy { zone <quoted_string> [ policy ( given | disabled
+            | passthru | no-op | nxdomain | nodata | cname <quoted_string>
+            ) ] [ recursive-only <boolean> ] [ max-policy-ttl <integer> ];
+            ... } [ recursive-only <boolean> ] [ break-dnssec <boolean> ] [
+            max-policy-ttl <integer> ];
         rfc2308-type1 <boolean>; // not yet implemented
         root-delegation-only [ exclude { <quoted_string>; ... } ];
         rrset-order { [ class <string> ] [ type <string> ] [ name
@@ -400,10 +401,11 @@ view <string> <optional_class> {
         request-ixfr <boolean>;
         request-nsid <boolean>;
         resolver-query-timeout <integer>;
-        response-policy {
-                zone <string> [ policy ( given | disabled | passthru |
-                    no-op | nxdomain | nodata | cname <domain> ) ];
-        };
+        response-policy { zone <quoted_string> [ policy ( given | disabled
+            | passthru | no-op | nxdomain | nodata | cname <quoted_string>
+            ) ] [ recursive-only <boolean> ] [ max-policy-ttl <integer> ];
+            ... } [ recursive-only <boolean> ] [ break-dnssec <boolean> ] [
+            max-policy-ttl <integer> ];
         rfc2308-type1 <boolean>; // not yet implemented
         root-delegation-only [ exclude { <quoted_string>; ... } ];
         rrset-order { [ class <string> ] [ type <string> ] [ name

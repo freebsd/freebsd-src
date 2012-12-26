@@ -79,7 +79,6 @@ struct smbmount {
 	uint64_t		sm_flags;
 	long			sm_nextino;
 	struct smb_share * 	sm_share;
-/*	struct simplelock	sm_npslock;*/
 	struct smbnode *	sm_npstack[SMBFS_MAXPATHCOMP];
 	int			sm_caseopt;
 	int			sm_didrele;

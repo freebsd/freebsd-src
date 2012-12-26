@@ -445,6 +445,8 @@ do_kernel() {		# OK
 	${BINMAKE} ${o_par} KERNCONF=${l_kernconf}	\
 		-v -f ${PICO_TREE}/build/Makefile.conf ) || \
 	    fail $? missing_kernel
+#		-DWITHOUT_CLANG_IS_CC			\
+
 }
 
 # Populate the variable part of the floppy filesystem. Must be done before
@@ -973,6 +975,7 @@ set_build_parameters() {
     if [ ${OSVERSION} -ge 500035 ] ; then
 	export MAKEOBJDIRPREFIX=${l_objtree}
 	export TARGET_ARCH=${o_arch} TARGET=${o_arch}
+	export WITHOUT_CLANG_IS_CC=1
 	# XXX why change machine_arch ?
 	#-- export MACHINE_ARCH=`uname -m` MACHINE=`uname -m`
 	# export CWARNFLAGS="-Wextra -Wno-sign-compare -Wno-missing-field-initializers"

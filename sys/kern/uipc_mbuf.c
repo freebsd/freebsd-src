@@ -520,7 +520,7 @@ m_prepend(struct mbuf *m, int len, int how)
 /*
  * Make a copy of an mbuf chain starting "off0" bytes from the beginning,
  * continuing for "len" bytes.  If len is M_COPYALL, copy to end of mbuf.
- * The wait parameter is a choice of M_WAIT/M_DONTWAIT from caller.
+ * The wait parameter is a choice of M_WAITOK/M_NOWAIT from caller.
  * Note that the copy is read-only, because clusters are not copied,
  * only their reference counts are incremented.
  */
@@ -1028,7 +1028,7 @@ m_pullup(struct mbuf *n, int len)
 	} else {
 		if (len > MHLEN)
 			goto bad;
-		MGET(m, M_DONTWAIT, n->m_type);
+		MGET(m, M_NOWAIT, n->m_type);
 		if (m == NULL)
 			goto bad;
 		m->m_len = 0;
@@ -1076,7 +1076,7 @@ m_copyup(struct mbuf *n, int len, int dstoff)
 
 	if (len > (MHLEN - dstoff))
 		goto bad;
-	MGET(m, M_DONTWAIT, n->m_type);
+	MGET(m, M_NOWAIT, n->m_type);
 	if (m == NULL)
 		goto bad;
 	m->m_len = 0;
@@ -1195,10 +1195,10 @@ m_devget(char *buf, int totlen, int off, struct ifnet *ifp,
 	while (totlen > 0) {
 		if (top == NULL) {	/* First one, must be PKTHDR */
 			if (totlen + off >= MINCLSIZE) {
-				m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+				m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 				len = MCLBYTES;
 			} else {
-				m = m_gethdr(M_DONTWAIT, MT_DATA);
+				m = m_gethdr(M_NOWAIT, MT_DATA);
 				len = MHLEN;
 
 				/* Place initial small packet/header at end of mbuf */
@@ -1213,10 +1213,10 @@ m_devget(char *buf, int totlen, int off, struct ifnet *ifp,
 			m->m_pkthdr.len = totlen;
 		} else {
 			if (totlen + off >= MINCLSIZE) {
-				m = m_getcl(M_DONTWAIT, MT_DATA, 0);
+				m = m_getcl(M_NOWAIT, MT_DATA, 0);
 				len = MCLBYTES;
 			} else {
-				m = m_get(M_DONTWAIT, MT_DATA);
+				m = m_get(M_NOWAIT, MT_DATA);
 				len = MLEN;
 			}
 			if (m == NULL) {
@@ -1260,7 +1260,7 @@ m_copyback(struct mbuf *m0, int off, int len, c_caddr_t cp)
 		off -= mlen;
 		totlen += mlen;
 		if (m->m_next == NULL) {
-			n = m_get(M_DONTWAIT, m->m_type);
+			n = m_get(M_NOWAIT, m->m_type);
 			if (n == NULL)
 				goto out;
 			bzero(mtod(n, caddr_t), MLEN);
@@ -1284,7 +1284,7 @@ m_copyback(struct mbuf *m0, int off, int len, c_caddr_t cp)
 		if (len == 0)
 			break;
 		if (m->m_next == NULL) {
-			n = m_get(M_DONTWAIT, m->m_type);
+			n = m_get(M_NOWAIT, m->m_type);
 			if (n == NULL)
 				break;
 			n->m_len = min(MLEN, len);
@@ -1328,7 +1328,7 @@ m_append(struct mbuf *m0, int len, c_caddr_t cp)
 		 * Allocate a new mbuf; could check space
 		 * and allocate a cluster instead.
 		 */
-		n = m_get(M_DONTWAIT, m->m_type);
+		n = m_get(M_NOWAIT, m->m_type);
 		if (n == NULL)
 			break;
 		n->m_len = min(MLEN, remainder);

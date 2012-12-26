@@ -704,7 +704,10 @@ run_rc_command()
 
 		start)
 			if [ -z "$rc_fast" -a -n "$rc_pid" ]; then
-				echo 1>&2 "${name} already running? (pid=$rc_pid)."
+				if [ -z "$rc_quiet" ]; then
+					echo 1>&2 "${name} already running? " \
+					    "(pid=$rc_pid)."
+				fi
 				return 1
 			fi
 

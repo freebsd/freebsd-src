@@ -217,14 +217,14 @@ nfs_rephead(int siz, struct nfsrv_descript *nd, int err,
 	if (err && (nd->nd_flag & ND_NFSV3) == 0)	/* XXX recheck */
 		siz = 0;
 
-	MGET(mreq, M_WAIT, MT_DATA);
+	MGET(mreq, M_WAITOK, MT_DATA);
 
 	/*
 	 * If this is a big reply, use a cluster
 	 */
 	mreq->m_len = 0;
 	if (siz >= MINCLSIZE) {
-		MCLGET(mreq, M_WAIT);
+		MCLGET(mreq, M_WAITOK);
 	}
 	mb = mreq;
 	bpos = mtod(mb, caddr_t);
@@ -278,7 +278,7 @@ nfssvc_program(struct svc_req *rqst, SVCXPRT *xprt)
 	mreq = mrep = NULL;
 	mreq = rqst->rq_args;
 	rqst->rq_args = NULL;
-	(void)nfs_realign(&mreq, M_WAIT);
+	(void)nfs_realign(&mreq, M_WAITOK);
 
 	/*
 	 * Note: we want rq_addr, not svc_getrpccaller for nd_nam2 -

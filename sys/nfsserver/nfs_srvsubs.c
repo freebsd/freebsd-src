@@ -1301,8 +1301,8 @@ nfsm_clget_xx(u_int32_t **tl, struct mbuf *mb, struct mbuf **mp,
 	if (*bp >= *be) {
 		if (*mp == mb)
 			(*mp)->m_len += *bp - bpos;
-		MGET(nmp, M_WAIT, MT_DATA);
-		MCLGET(nmp, M_WAIT);
+		MGET(nmp, M_WAITOK, MT_DATA);
+		MCLGET(nmp, M_WAITOK);
 		nmp->m_len = NFSMSIZ(nmp);
 		(*mp)->m_next = nmp;
 		*mp = nmp;

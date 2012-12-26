@@ -54,7 +54,6 @@ enum {
 	UQ_MS_LEADING_BYTE,	/* mouse sends an unknown leading byte */
 	UQ_MS_REVZ,		/* mouse has Z-axis reversed */
 	UQ_NO_STRINGS,		/* string descriptors are broken */
-	UQ_OPEN_CLEARSTALL,	/* device needs clear endpoint stall */
 	UQ_POWER_CLAIM,		/* hub lies about power status */
 	UQ_SPUR_BUT_UP,		/* spurious mouse button up events */
 	UQ_SWAP_UNICODE,	/* has some Unicode strings swapped */

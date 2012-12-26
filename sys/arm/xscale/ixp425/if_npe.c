@@ -1064,7 +1064,7 @@ npe_rxbuf_init(struct npe_softc *sc, struct npebuf *npe, struct mbuf *m)
 	int error, nseg;
 
 	if (m == NULL) {
-		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m == NULL)
 			return ENOBUFS;
 	}
@@ -1120,7 +1120,7 @@ npe_rxdone(int qid, void *arg)
 		 * data up the stack and replace it with the newly
 		 * allocated one.
 		 */
-		m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+		m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 		if (m != NULL) {
 			struct mbuf *mrx = npe->ix_m;
 			struct npehwbuf *hw = npe->ix_hw;
@@ -1316,7 +1316,7 @@ npestart_locked(struct ifnet *ifp)
 		error = bus_dmamap_load_mbuf_sg(dma->mtag, npe->ix_map,
 		    m, segs, &nseg, 0);
 		if (error == EFBIG) {
-			n = m_collapse(m, M_DONTWAIT, NPE_MAXSEG);
+			n = m_collapse(m, M_NOWAIT, NPE_MAXSEG);
 			if (n == NULL) {
 				if_printf(ifp, "%s: too many fragments %u\n",
 				    __func__, nseg);

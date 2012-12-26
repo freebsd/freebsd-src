@@ -485,14 +485,15 @@ void ScheduleDAGSDNodes::AddSchedEdges() {
         if(isChain && OpN->getOpcode() == ISD::TokenFactor)
           OpLatency = 0;
 
-        const SDep &dep = SDep(OpSU, isChain ? SDep::Order : SDep::Data,
-                               OpLatency, PhysReg);
+        SDep Dep = isChain ? SDep(OpSU, SDep::Barrier)
+          : SDep(OpSU, SDep::Data, PhysReg);
+        Dep.setLatency(OpLatency);
         if (!isChain && !UnitLatencies) {
-          computeOperandLatency(OpN, N, i, const_cast<SDep &>(dep));
-          ST.adjustSchedDependency(OpSU, SU, const_cast<SDep &>(dep));
+          computeOperandLatency(OpN, N, i, Dep);
+          ST.adjustSchedDependency(OpSU, SU, Dep);
         }
 
-        if (!SU->addPred(dep) && !dep.isCtrl() && OpSU->NumRegDefsLeft > 1) {
+        if (!SU->addPred(Dep) && !Dep.isCtrl() && OpSU->NumRegDefsLeft > 1) {
           // Multiple register uses are combined in the same SUnit. For example,
           // we could have a set of glued nodes with all their defs consumed by
           // another set of glued nodes. Register pressure tracking sees this as
@@ -643,6 +644,7 @@ void ScheduleDAGSDNodes::computeOperandLatency(SDNode *Def, SDNode *Use,
 }
 
 void ScheduleDAGSDNodes::dumpNode(const SUnit *SU) const {
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
   if (!SU->getNode()) {
     dbgs() << "PHYS REG COPY\n";
     return;
@@ -659,8 +661,10 @@ void ScheduleDAGSDNodes::dumpNode(const SUnit *SU) const {
     dbgs() << "\n";
     GluedNodes.pop_back();
   }
+#endif
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void ScheduleDAGSDNodes::dumpSchedule() const {
   for (unsigned i = 0, e = Sequence.size(); i != e; i++) {
     if (SUnit *SU = Sequence[i])
@@ -669,6 +673,7 @@ void ScheduleDAGSDNodes::dumpSchedule() const {
       dbgs() << "**** NOOP ****\n";
   }
 }
+#endif
 
 #ifndef NDEBUG
 /// VerifyScheduledSequence - Verify that all SUnits were scheduled and that
@@ -827,8 +832,7 @@ EmitSchedule(MachineBasicBlock::iterator &InsertPos) {
     }
 
     SmallVector<SDNode *, 4> GluedNodes;
-    for (SDNode *N = SU->getNode()->getGluedNode(); N;
-         N = N->getGluedNode())
+    for (SDNode *N = SU->getNode()->getGluedNode(); N; N = N->getGluedNode())
       GluedNodes.push_back(N);
     while (!GluedNodes.empty()) {
       SDNode *N = GluedNodes.back();

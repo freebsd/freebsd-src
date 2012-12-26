@@ -1565,7 +1565,7 @@ rl_encap(struct rl_softc *sc, struct mbuf **m_head)
 	 */
 	if (m->m_next != NULL || (mtod(m, uintptr_t) & 3) != 0 ||
 	    (padlen > 0 && M_TRAILINGSPACE(m) < padlen)) {
-		m = m_defrag(*m_head, M_DONTWAIT);
+		m = m_defrag(*m_head, M_NOWAIT);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;

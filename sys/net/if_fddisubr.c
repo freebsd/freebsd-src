@@ -212,7 +212,7 @@ fddi_output(ifp, m, dst, ro)
 	    if (aa->aa_flags & AFA_PHASE2) {
 		struct llc llc;
 
-		M_PREPEND(m, LLC_SNAPFRAMELEN, M_WAIT);
+		M_PREPEND(m, LLC_SNAPFRAMELEN, M_WAITOK);
 		llc.llc_dsap = llc.llc_ssap = LLC_SNAP_LSAP;
 		llc.llc_control = LLC_UI;
 		bcopy(at_org_code, llc.llc_snap.org_code, sizeof(at_org_code));
@@ -291,7 +291,7 @@ fddi_output(ifp, m, dst, ro)
 	 */
 	if (type != 0) {
 		struct llc *l;
-		M_PREPEND(m, LLC_SNAPFRAMELEN, M_DONTWAIT);
+		M_PREPEND(m, LLC_SNAPFRAMELEN, M_NOWAIT);
 		if (m == 0)
 			senderr(ENOBUFS);
 		l = mtod(m, struct llc *);
@@ -307,7 +307,7 @@ fddi_output(ifp, m, dst, ro)
 	 * Add local net header.  If no space in first mbuf,
 	 * allocate another.
 	 */
-	M_PREPEND(m, FDDI_HDR_LEN, M_DONTWAIT);
+	M_PREPEND(m, FDDI_HDR_LEN, M_NOWAIT);
 	if (m == 0)
 		senderr(ENOBUFS);
 	fh = mtod(m, struct fddi_header *);

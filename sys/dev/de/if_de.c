@@ -257,7 +257,7 @@ tulip_txprobe(tulip_softc_t * const sc)
      * to verify the connectivity.
      */
     TULIP_LOCK_ASSERT(sc);
-    MGETHDR(m, M_DONTWAIT, MT_DATA);
+    MGETHDR(m, M_NOWAIT, MT_DATA);
     if (m == NULL)
 	return 0;
     /*
@@ -3517,7 +3517,7 @@ tulip_rx_intr(tulip_softc_t * const sc)
 	    ms->m_pkthdr.len = total_len;
 	    ms->m_pkthdr.rcvif = ifp;
 	    m0 = ms;
-	    ms = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	    ms = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 #endif
 	    TULIP_UNLOCK(sc);
 	    CTR1(KTR_TULIP, "tulip_rx_intr: passing %p to upper layer", m0);
@@ -3528,7 +3528,7 @@ tulip_rx_intr(tulip_softc_t * const sc)
 	     * If we are priming the TULIP with mbufs, then allocate
 	     * a new cluster for the next descriptor.
 	     */
-	    ms = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	    ms = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 
 #ifndef __NO_STRICT_ALIGNMENT
     skip_input:
@@ -3970,7 +3970,7 @@ tulip_txput(tulip_softc_t * const sc, struct mbuf *m)
 	     * to recopy it into one mbuf and then try again.  If
 	     * we can't recopy it, try again later.
 	     */
-	    m0 = m_defrag(m, M_DONTWAIT);
+	    m0 = m_defrag(m, M_NOWAIT);
 	    if (m0 == NULL) {
 		sc->tulip_flags |= TULIP_WANTTXSTART;
 #if defined(TULIP_DEBUG)

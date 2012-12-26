@@ -176,6 +176,9 @@ public:
   }
 public:
 
+  /// addFlag - Add a flag that is true to the DIE.
+  void addFlag(DIE *Die, unsigned Attribute);
+  
   /// addUInt - Add an unsigned integer attribute data and value.
   ///
   void addUInt(DIE *Die, unsigned Attribute, unsigned Form, uint64_t Integer);
@@ -280,8 +283,8 @@ public:
   /// for the given DITemplateTypeParameter.
   DIE *getOrCreateTemplateTypeParameterDIE(DITemplateTypeParameter TP);
 
-  /// getOrCreateTemplateValueParameterDIE - Find existing DIE or create new DIE 
-  /// for the given DITemplateValueParameter.
+  /// getOrCreateTemplateValueParameterDIE - Find existing DIE or create
+  /// new DIE for the given DITemplateValueParameter.
   DIE *getOrCreateTemplateValueParameterDIE(DITemplateValueParameter TVP);
 
   /// createDIEEntry - Creates a new DIEEntry to be a proxy for a debug

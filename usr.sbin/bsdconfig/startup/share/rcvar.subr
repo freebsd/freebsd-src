@@ -30,6 +30,7 @@ if [ ! "$_STARTUP_RCVAR_SUBR" ]; then _STARTUP_RCVAR_SUBR=1
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." startup/rcvar.subr
 f_include $BSDCFG_SHARE/sysrc.subr
 
 ############################################################ CONFIGURATION
@@ -202,5 +203,9 @@ f_startup_rcvar_map()
 	esac
 	mv "$tmpfile" "$STARTUP_RCVAR_MAP_CACHEFILE"
 }
+
+############################################################ MAIN
+
+f_dprintf "%s: Successfully loaded." startup/rcvar.subr
 
 fi # ! $_STARTUP_RCVAR_SUBR

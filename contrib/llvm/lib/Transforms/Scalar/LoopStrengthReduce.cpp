@@ -54,7 +54,7 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "loop-reduce"
-#include "llvm/Transforms/Scalar.h"
+#include "llvm/AddressingMode.h"
 #include "llvm/Constants.h"
 #include "llvm/Instructions.h"
 #include "llvm/IntrinsicInst.h"
@@ -64,6 +64,7 @@
 #include "llvm/Analysis/LoopPass.h"
 #include "llvm/Analysis/ScalarEvolutionExpander.h"
 #include "llvm/Assembly/Writer.h"
+#include "llvm/Transforms/Scalar.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
 #include "llvm/ADT/SmallBitVector.h"
@@ -121,9 +122,11 @@ void RegSortData::print(raw_ostream &OS) const {
   OS << "[NumUses=" << UsedByIndices.count() << ']';
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void RegSortData::dump() const {
   print(errs()); errs() << '\n';
 }
+#endif
 
 namespace {
 
@@ -223,7 +226,7 @@ namespace {
 struct Formula {
   /// AM - This is used to represent complex addressing, as well as other kinds
   /// of interesting uses.
-  TargetLowering::AddrMode AM;
+  AddrMode AM;
 
   /// BaseRegs - The list of "base" registers for this use. When this is
   /// non-empty, AM.HasBaseReg should be set to true.
@@ -414,9 +417,11 @@ void Formula::print(raw_ostream &OS) const {
   }
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void Formula::dump() const {
   print(errs()); errs() << '\n';
 }
+#endif
 
 /// isAddRecSExtable - Return true if the given addrec can be sign-extended
 /// without changing its value.
@@ -738,7 +743,8 @@ DeleteTriviallyDeadInstructions(SmallVectorImpl<WeakVH> &DeadInsts) {
   bool Changed = false;
 
   while (!DeadInsts.empty()) {
-    Instruction *I = dyn_cast_or_null<Instruction>(&*DeadInsts.pop_back_val());
+    Value *V = DeadInsts.pop_back_val();
+    Instruction *I = dyn_cast_or_null<Instruction>(V);
 
     if (I == 0 || !isInstructionTriviallyDead(I))
       continue;
@@ -973,9 +979,11 @@ void Cost::print(raw_ostream &OS) const {
     OS << ", plus " << SetupCost << " setup cost";
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void Cost::dump() const {
   print(errs()); errs() << '\n';
 }
+#endif
 
 namespace {
 
@@ -1059,9 +1067,11 @@ void LSRFixup::print(raw_ostream &OS) const {
     OS << ", Offset=" << Offset;
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void LSRFixup::dump() const {
   print(errs()); errs() << '\n';
 }
+#endif
 
 namespace {
 
@@ -1251,14 +1261,16 @@ void LSRUse::print(raw_ostream &OS) const {
     OS << ", widest fixup type: " << *WidestFixupType;
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void LSRUse::dump() const {
   print(errs()); errs() << '\n';
 }
+#endif
 
 /// isLegalUse - Test whether the use described by AM is "legal", meaning it can
 /// be completely folded into the user instruction at isel time. This includes
 /// address-mode folding and special icmp tricks.
-static bool isLegalUse(const TargetLowering::AddrMode &AM,
+static bool isLegalUse(const AddrMode &AM,
                        LSRUse::KindType Kind, Type *AccessTy,
                        const TargetLowering *TLI) {
   switch (Kind) {
@@ -1315,7 +1327,7 @@ static bool isLegalUse(const TargetLowering::AddrMode &AM,
   llvm_unreachable("Invalid LSRUse Kind!");
 }
 
-static bool isLegalUse(TargetLowering::AddrMode AM,
+static bool isLegalUse(AddrMode AM,
                        int64_t MinOffset, int64_t MaxOffset,
                        LSRUse::KindType Kind, Type *AccessTy,
                        const TargetLowering *TLI) {
@@ -1346,7 +1358,7 @@ static bool isAlwaysFoldable(int64_t BaseOffs,
 
   // Conservatively, create an address with an immediate and a
   // base and a scale.
-  TargetLowering::AddrMode AM;
+  AddrMode AM;
   AM.BaseOffs = BaseOffs;
   AM.BaseGV = BaseGV;
   AM.HasBaseReg = HasBaseReg;
@@ -1384,7 +1396,7 @@ static bool isAlwaysFoldable(const SCEV *S,
 
   // Conservatively, create an address with an immediate and a
   // base and a scale.
-  TargetLowering::AddrMode AM;
+  AddrMode AM;
   AM.BaseOffs = BaseOffs;
   AM.BaseGV = BaseGV;
   AM.HasBaseReg = HasBaseReg;
@@ -2009,7 +2021,7 @@ LSRInstance::OptimizeLoopTermCond() {
               goto decline_post_inc;
             // Check for possible scaled-address reuse.
             Type *AccessTy = getAccessType(UI->getUser());
-            TargetLowering::AddrMode AM;
+            AddrMode AM;
             AM.Scale = C->getSExtValue();
             if (TLI->isLegalAddressingMode(AM, AccessTy))
               goto decline_post_inc;
@@ -3435,9 +3447,11 @@ void WorkItem::print(raw_ostream &OS) const {
      << " , add offset " << Imm;
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void WorkItem::dump() const {
   print(errs()); errs() << '\n';
 }
+#endif
 
 /// GenerateCrossUseConstantOffsets - Look for registers which are a constant
 /// distance apart and try to form reuse opportunities between them.
@@ -4451,17 +4465,21 @@ void LSRInstance::RewriteForPHI(PHINode *PN,
             SplitLandingPadPredecessors(Parent, BB, "", "", P, NewBBs);
             NewBB = NewBBs[0];
           }
+          // If NewBB==NULL, then SplitCriticalEdge refused to split because all
+          // phi predecessors are identical. The simple thing to do is skip
+          // splitting in this case rather than complicate the API.
+          if (NewBB) {
+            // If PN is outside of the loop and BB is in the loop, we want to
+            // move the block to be immediately before the PHI block, not
+            // immediately after BB.
+            if (L->contains(BB) && !L->contains(PN))
+              NewBB->moveBefore(PN->getParent());
 
-          // If PN is outside of the loop and BB is in the loop, we want to
-          // move the block to be immediately before the PHI block, not
-          // immediately after BB.
-          if (L->contains(BB) && !L->contains(PN))
-            NewBB->moveBefore(PN->getParent());
-
-          // Splitting the edge can reduce the number of PHI entries we have.
-          e = PN->getNumIncomingValues();
-          BB = NewBB;
-          i = PN->getBasicBlockIndex(BB);
+            // Splitting the edge can reduce the number of PHI entries we have.
+            e = PN->getNumIncomingValues();
+            BB = NewBB;
+            i = PN->getBasicBlockIndex(BB);
+          }
         }
       }
 
@@ -4730,9 +4748,11 @@ void LSRInstance::print(raw_ostream &OS) const {
   print_uses(OS);
 }
 
+#if !defined(NDEBUG) || defined(LLVM_ENABLE_DUMP)
 void LSRInstance::dump() const {
   print(errs()); errs() << '\n';
 }
+#endif
 
 namespace {
 

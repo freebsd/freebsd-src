@@ -100,6 +100,7 @@ enum AcpiExDebuggerCommands
     CMD_CLOSE,
     CMD_DEBUG,
     CMD_DISASSEMBLE,
+    CMD_DISASM,
     CMD_DUMP,
     CMD_ENABLEACPI,
     CMD_EVALUATE,
@@ -170,6 +171,7 @@ static const ACPI_DB_COMMAND_INFO   AcpiGbl_DbCommands[] =
     {"CLOSE",        0},
     {"DEBUG",        1},
     {"DISASSEMBLE",  1},
+    {"DISASM",       1},
     {"DUMP",         1},
     {"ENABLEACPI",   0},
     {"EVALUATE",     1},
@@ -796,6 +798,7 @@ AcpiDbCommandDispatch (
         break;
 
     case CMD_DISASSEMBLE:
+    case CMD_DISASM:
         (void) AcpiDbDisassembleMethod (AcpiGbl_DbArgs[1]);
         break;
 

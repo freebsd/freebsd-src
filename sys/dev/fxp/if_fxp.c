@@ -1447,7 +1447,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 
 		if (M_WRITABLE(*m_head) == 0) {
 			/* Get a writable copy. */
-			m = m_dup(*m_head, M_DONTWAIT);
+			m = m_dup(*m_head, M_NOWAIT);
 			m_freem(*m_head);
 			if (m == NULL) {
 				*m_head = NULL;
@@ -1563,7 +1563,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 	error = bus_dmamap_load_mbuf_sg(sc->fxp_txmtag, txp->tx_map, *m_head,
 	    segs, &nseg, 0);
 	if (error == EFBIG) {
-		m = m_collapse(*m_head, M_DONTWAIT, sc->maxtxseg);
+		m = m_collapse(*m_head, M_NOWAIT, sc->maxtxseg);
 		if (m == NULL) {
 			m_freem(*m_head);
 			*m_head = NULL;
@@ -2628,7 +2628,7 @@ fxp_new_rfabuf(struct fxp_softc *sc, struct fxp_rx *rxp)
 	bus_dmamap_t tmp_map;
 	int error;
 
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL)
 		return (ENOBUFS);
 

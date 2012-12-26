@@ -511,6 +511,8 @@ build32:
 .endfor
 .for _dir in lib/ncurses/ncurses lib/ncurses/ncursesw lib/libmagic
 	cd ${.CURDIR}/${_dir}; \
+	    WORLDTMP=${WORLDTMP} \
+	    MAKEFLAGS="-m ${.CURDIR}/tools/build/mk ${.MAKEFLAGS}" \
 	    MAKEOBJDIRPREFIX=${OBJTREE}/lib32 ${MAKE} SSP_CFLAGS= DESTDIR= \
 	    DIRPRFX=${_dir}/ -DNO_LINT -DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF \
 	    -DEARLY_BUILD build-tools
@@ -609,7 +611,7 @@ installcheck_DESTDIR:
 #
 # Check for missing UIDs/GIDs.
 #
-CHECK_UIDS=
+CHECK_UIDS=	auditdistd
 CHECK_GIDS=	audit
 .if ${MK_SENDMAIL} != "no"
 CHECK_UIDS+=	smmsp
@@ -1138,7 +1140,7 @@ _aicasm= sys/modules/aic7xxx/aicasm
 _share=	share/syscons/scrnmaps
 .endif
 
-.if ${MK_GCC} != "no" && (${MK_CLANG_IS_CC} == "no" || ${TARGET} == "pc98")
+.if ${MK_GCC} != "no"
 _gcc_tools= gnu/usr.bin/cc/cc_tools
 .endif
 

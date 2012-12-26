@@ -298,7 +298,7 @@ Non-portable, BSD-specific version of
 .Ic depth .
 GNU find implements this as a primary in mistaken emulation of
 .Fx
-.Xr find 1 .
+.Nm .
 .It Ic -delete
 Delete found files and/or directories.
 Always returns true.
@@ -473,7 +473,7 @@ for compatibility with GNU find.
 GNU find imposes a restriction that
 .Ar gname
 is numeric, while
-.Xr find 1
+.Nm
 does not.
 .It Ic -group Ar gname
 True if the file belongs to the group
@@ -646,7 +646,7 @@ This is default behaviour.
 .It Ic -noleaf
 This option is for GNU find compatibility.
 In GNU find it disables an optimization not relevant to
-.Xr find 1 ,
+.Nm ,
 so it is ignored.
 .It Ic -nouser
 True if the file belongs to an unknown user.
@@ -843,7 +843,7 @@ for compatibility with GNU find.
 GNU find imposes a restriction that
 .Ar uname
 is numeric, while
-.Xr find 1
+.Nm
 does not.
 .It Ic -user Ar uname
 True if the file belongs to the user

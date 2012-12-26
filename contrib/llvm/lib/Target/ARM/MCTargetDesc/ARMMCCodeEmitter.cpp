@@ -35,8 +35,8 @@ STATISTIC(MCNumCPRelocations, "Number of constant pool relocations created.");
 
 namespace {
 class ARMMCCodeEmitter : public MCCodeEmitter {
-  ARMMCCodeEmitter(const ARMMCCodeEmitter &); // DO NOT IMPLEMENT
-  void operator=(const ARMMCCodeEmitter &); // DO NOT IMPLEMENT
+  ARMMCCodeEmitter(const ARMMCCodeEmitter &) LLVM_DELETED_FUNCTION;
+  void operator=(const ARMMCCodeEmitter &) LLVM_DELETED_FUNCTION;
   const MCInstrInfo &MCII;
   const MCSubtargetInfo &STI;
   const MCContext &CTX;
@@ -783,7 +783,7 @@ getT2Imm8s4OpValue(const MCInst &MI, unsigned OpIdx,
 
   // Immediate is always encoded as positive. The 'U' bit controls add vs sub.
   if (Imm8 < 0)
-    Imm8 = -Imm8;
+    Imm8 = -(uint32_t)Imm8;
 
   // Scaled by 4.
   Imm8 /= 4;
@@ -933,6 +933,10 @@ getLdStSORegOpValue(const MCInst &MI, unsigned OpIdx,
   bool isAdd = ARM_AM::getAM2Op(MO2.getImm()) == ARM_AM::add;
   ARM_AM::ShiftOpc ShOp = ARM_AM::getAM2ShiftOpc(MO2.getImm());
   unsigned SBits = getShiftOp(ShOp);
+
+  // While "lsr #32" and "asr #32" exist, they are encoded with a 0 in the shift
+  // amount. However, it would be an easy mistake to make so check here.
+  assert((ShImm & ~0x1f) == 0 && "Out of range shift amount");
 
   // {16-13} = Rn
   // {12}    = isAdd

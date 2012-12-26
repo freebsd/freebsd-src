@@ -52,7 +52,7 @@
 #define NIRQ		64
 #elif defined(CPU_CORTEXA)
 #define NIRQ		128
-#elif defined(CPU_ARM11)
+#elif defined(CPU_ARM1136) || defined(CPU_ARM1176)
 #define NIRQ		128
 #elif defined(SOC_MV_ARMADAXP)
 #define MAIN_IRQ_NUM		116

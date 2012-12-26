@@ -97,6 +97,7 @@ struct urtw_softc {
 	device_t			sc_dev;
 	struct usb_device		*sc_udev;
 	struct mtx			sc_mtx;
+	void				*sc_tx_dma_buf;
 
 	int				sc_debug;
 	int				sc_if_flags;

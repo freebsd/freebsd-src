@@ -292,27 +292,74 @@ vdev_geom_read_config(struct g_consumer *cp, nvlist_t **config)
 	return (*config == NULL ? ENOENT : 0);
 }
 
-static int
-vdev_geom_check_config(nvlist_t *config, const char *name, uint64_t *best_txg)
+static void
+resize_configs(nvlist_t ***configs, uint64_t *count, uint64_t id)
 {
-	uint64_t vdev_guid;
-	uint64_t txg;
+	nvlist_t **new_configs;
+	uint64_t i;
+
+	if (id < *count)
+		return;
+	new_configs = kmem_zalloc((id + 1) * sizeof(nvlist_t *),
+	    KM_SLEEP);
+	for (i = 0; i < *count; i++)
+		new_configs[i] = (*configs)[i];
+	if (*configs != NULL)
+		kmem_free(*configs, *count * sizeof(void *));
+	*configs = new_configs;
+	*count = id + 1;
+}
+
+static void
+process_vdev_config(nvlist_t ***configs, uint64_t *count, nvlist_t *cfg,
+    const char *name, uint64_t* known_pool_guid)
+{
+	nvlist_t *vdev_tree;
+	uint64_t pool_guid;
+	uint64_t vdev_guid, known_guid;
+	uint64_t id, txg, known_txg;
 	char *pname;
+	int i;
 
-	if (nvlist_lookup_string(config, ZPOOL_CONFIG_POOL_NAME, &pname) != 0 ||
+	if (nvlist_lookup_string(cfg, ZPOOL_CONFIG_POOL_NAME, &pname) != 0 ||
 	    strcmp(pname, name) != 0)
-		return (ENOENT);
+		goto ignore;
 
-	ZFS_LOG(1, "found pool: %s", pname);
+	if (nvlist_lookup_uint64(cfg, ZPOOL_CONFIG_POOL_GUID, &pool_guid) != 0)
+		goto ignore;
 
-	txg = 0;
-	nvlist_lookup_uint64(config, ZPOOL_CONFIG_POOL_TXG, &txg);
-	if (txg <= *best_txg)
-		return (ENOENT);
-	*best_txg = txg;
-	ZFS_LOG(1, "txg: %ju", (uintmax_t)*best_txg);
+	if (nvlist_lookup_uint64(cfg, ZPOOL_CONFIG_TOP_GUID, &vdev_guid) != 0)
+		goto ignore;
 
-	return (0);
+	if (nvlist_lookup_nvlist(cfg, ZPOOL_CONFIG_VDEV_TREE, &vdev_tree) != 0)
+		goto ignore;
+
+	if (nvlist_lookup_uint64(vdev_tree, ZPOOL_CONFIG_ID, &id) != 0)
+		goto ignore;
+
+	VERIFY(nvlist_lookup_uint64(cfg, ZPOOL_CONFIG_POOL_TXG, &txg) == 0);
+
+	if (*known_pool_guid != 0) {
+		if (pool_guid != *known_pool_guid)
+			goto ignore;
+	} else
+		*known_pool_guid = pool_guid;
+
+	resize_configs(configs, count, id);
+
+	if ((*configs)[id] != NULL) {
+		VERIFY(nvlist_lookup_uint64((*configs)[id],
+		    ZPOOL_CONFIG_POOL_TXG, &known_txg) == 0);
+		if (txg <= known_txg)
+			goto ignore;
+		nvlist_free((*configs)[id]);
+	}
+
+	(*configs)[id] = cfg;
+	return;
+
+ignore:
+	nvlist_free(cfg);
 }
 
 static int
@@ -339,14 +386,15 @@ vdev_geom_detach_taster(struct g_consumer *cp)
 }
 
 int
-vdev_geom_read_pool_label(const char *name, nvlist_t **config)
+vdev_geom_read_pool_label(const char *name,
+    nvlist_t ***configs, uint64_t *count)
 {
 	struct g_class *mp;
 	struct g_geom *gp, *zgp;
 	struct g_provider *pp;
 	struct g_consumer *zcp;
 	nvlist_t *vdev_cfg;
-	uint64_t best_txg;
+	uint64_t pool_guid;
 	int error;
 
 	DROP_GIANT();
@@ -357,8 +405,9 @@ vdev_geom_read_pool_label(const char *name, nvlist_t **config)
 	zgp->orphan = vdev_geom_taste_orphan;
 	zcp = g_new_consumer(zgp);
 
-	best_txg = 0;
-	*config = NULL;
+	*configs = NULL;
+	*count = 0;
+	pool_guid = 0;
 	LIST_FOREACH(mp, &g_classes, class) {
 		if (mp == &zfs_vdev_class)
 			continue;
@@ -378,14 +427,8 @@ vdev_geom_read_pool_label(const char *name, nvlist_t **config)
 					continue;
 				ZFS_LOG(1, "successfully read vdev config");
 
-				error = vdev_geom_check_config(vdev_cfg, name,
-				    &best_txg);
-				if (error != 0) {
-					nvlist_free(vdev_cfg);
-					continue;
-				}
-				nvlist_free(*config);
-				*config = vdev_cfg;
+				process_vdev_config(configs, count,
+				    vdev_cfg, name, &pool_guid);
 			}
 		}
 	}
@@ -394,7 +437,8 @@ vdev_geom_read_pool_label(const char *name, nvlist_t **config)
 	g_destroy_geom(zgp);
 	g_topology_unlock();
 	PICKUP_GIANT();
-	return (*config == NULL ? ENOENT : 0);
+
+	return (*count > 0 ? 0 : ENOENT);
 }
 
 static uint64_t

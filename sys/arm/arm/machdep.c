@@ -1038,18 +1038,6 @@ print_kenv(void)
 }
 
 static void
-print_kernel_section_addr(void)
-{
-
-	debugf("kernel image addresses:\n");
-	debugf(" kernbase       = 0x%08x\n", (uint32_t)kernbase);
-	debugf(" _etext (sdata) = 0x%08x\n", (uint32_t)_etext);
-	debugf(" _edata         = 0x%08x\n", (uint32_t)_edata);
-	debugf(" __bss_start    = 0x%08x\n", (uint32_t)__bss_start);
-	debugf(" _end           = 0x%08x\n", (uint32_t)_end);
-}
-
-static void
 physmap_init(struct mem_region *availmem_regions, int availmem_regions_sz)
 {
 	int i, j, cnt;
@@ -1156,7 +1144,9 @@ physmap_init(struct mem_region *availmem_regions, int availmem_regions_sz)
 void *
 initarm(struct arm_boot_params *abp)
 {
+	struct mem_region memory_regions[FDT_MEM_REGIONS];
 	struct mem_region availmem_regions[FDT_MEM_REGIONS];
+	struct mem_region reserved_regions[FDT_MEM_REGIONS];
 	struct pv_addr kernel_l1pt;
 	struct pv_addr dpcpu;
 	vm_offset_t dtbp, freemempos, l2_start, lastaddr;
@@ -1166,7 +1156,12 @@ initarm(struct arm_boot_params *abp)
 	void *kmdp;
 	u_int l1pagetable;
 	int i = 0, j = 0, err_devmap = 0;
+	int memory_regions_sz;
 	int availmem_regions_sz;
+	int reserved_regions_sz;
+	vm_offset_t start, end;
+	vm_offset_t rstart, rend;
+	int curr;
 
 	lastaddr = parse_boot_param(abp);
 	memsize = 0;
@@ -1197,9 +1192,72 @@ initarm(struct arm_boot_params *abp)
 		while (1);
 
 	/* Grab physical memory regions information from device tree. */
-	if (fdt_get_mem_regions(availmem_regions, &availmem_regions_sz,
+	if (fdt_get_mem_regions(memory_regions, &memory_regions_sz,
 	    &memsize) != 0)
 		while(1);
+
+	/* Grab physical memory regions information from device tree. */
+	if (fdt_get_reserved_regions(reserved_regions, &reserved_regions_sz) != 0)
+		reserved_regions_sz = 0;
+		
+	/*
+	 * Now exclude all the reserved regions
+	 */
+	curr = 0;
+	for (i = 0; i < memory_regions_sz; i++) {
+		start = memory_regions[i].mr_start;
+		end = start + memory_regions[i].mr_size;
+		for (j = 0; j < reserved_regions_sz; j++) {
+			rstart = reserved_regions[j].mr_start;
+			rend = rstart + reserved_regions[j].mr_size;
+			/* 
+			 * Restricted region is before available
+			 * Skip restricted region
+			 */
+			if (rend <= start)
+				continue;
+			/* 
+			 * Restricted region is behind available
+			 * No  further processing required
+			 */
+			if (rstart >= end)
+				break;
+			/*
+			 * Restricted region includes memory region
+			 * skip availble region
+			 */
+			if ((start >= rstart) && (rend >= end)) {
+				start = rend;
+				end = rend;
+				break;
+			}
+			/*
+			 * Memory region includes restricted region
+			 */
+			if ((rstart > start) && (end > rend)) {
+				availmem_regions[curr].mr_start = start;
+				availmem_regions[curr++].mr_size = rstart - start;
+				start = rend;
+				break;
+			}
+			/*
+			 * Memory region partially overlaps with restricted
+			 */
+			if ((rstart >= start) && (rstart <= end)) {
+				end = rstart;
+			}
+			else if ((rend >= start) && (rend <= end)) {
+				start = rend;
+			}
+		}
+
+		if (end > start) {
+			availmem_regions[curr].mr_start = start;
+			availmem_regions[curr++].mr_size = end - start;
+		}
+	}
+
+	availmem_regions_sz = curr;
 
 	/* Platform-specific initialisation */
 	pmap_bootstrap_lastaddr = initarm_lastaddr();
@@ -1344,7 +1402,6 @@ initarm(struct arm_boot_params *abp)
 	debugf(" arg1 kmdp = 0x%08x\n", (uint32_t)kmdp);
 	debugf(" boothowto = 0x%08x\n", boothowto);
 	debugf(" dtbp = 0x%08x\n", (uint32_t)dtbp);
-	print_kernel_section_addr();
 	print_kenv();
 
 	env = getenv("kernelname");

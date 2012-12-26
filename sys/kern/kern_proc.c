@@ -375,14 +375,15 @@ pget(pid_t pid, int flags, struct proc **pp)
 	int error;
 
 	sx_slock(&allproc_lock);
-	if (pid <= PID_MAX)
+	if (pid <= PID_MAX) {
 		p = pfind_locked(pid);
-	else if ((flags & PGET_NOTID) == 0)
+		if (p == NULL && (flags & PGET_NOTWEXIT) == 0)
+			p = zpfind_locked(pid);
+	} else if ((flags & PGET_NOTID) == 0) {
 		p = pfind_tid_locked(pid);
-	else
+	} else {
 		p = NULL;
-	if (p == NULL && (flags & PGET_NOTWEXIT) == 0)
-		p = zpfind_locked(pid);
+	}
 	sx_sunlock(&allproc_lock);
 	if (p == NULL)
 		return (ESRCH);

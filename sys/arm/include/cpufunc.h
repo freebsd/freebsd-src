@@ -462,7 +462,8 @@ void	sheeva_l2cache_wb_range		(vm_offset_t, vm_size_t);
 void	sheeva_l2cache_wbinv_all	(void);
 #endif
 
-#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176) || \
+	defined(CPU_MV_PJ4B) || defined(CPU_CORTEXA)
 void	arm11_setttb		(u_int);
 void	arm11_sleep		(int);
 
@@ -530,6 +531,21 @@ int	get_core_id			(void);
 void	armadaxp_idcache_wbinv_all	(void);
 
 void 	cortexa_setup			(char *);
+#endif
+
+#if defined(CPU_ARM1136) || defined(CPU_ARM1176)
+void    arm11x6_setttb                  (u_int);
+void    arm11x6_idcache_wbinv_all       (void);
+void    arm11x6_dcache_wbinv_all        (void);
+void    arm11x6_icache_sync_all         (void);
+void    arm11x6_flush_prefetchbuf       (void);
+void    arm11x6_icache_sync_range       (vm_offset_t, vm_size_t);
+void    arm11x6_idcache_wbinv_range     (vm_offset_t, vm_size_t);
+void    arm11x6_setup                   (char *string);
+void    arm11x6_sleep                   (int);  /* no ref. for errata */
+#endif
+#if defined(CPU_ARM1136)
+void    arm1136_sleep_rev0              (int);  /* for errata 336501 */
 #endif
 
 #if defined(CPU_ARM9E) || defined (CPU_ARM10)
@@ -681,20 +697,36 @@ __set_cpsr_c(u_int bic, u_int eor)
 	return ret;
 }
 
+#define	ARM_CPSR_F32	(1 << 6)	/* FIQ disable */
+#define	ARM_CPSR_I32	(1 << 7)	/* IRQ disable */
+
 #define disable_interrupts(mask)					\
-	(__set_cpsr_c((mask) & (I32_bit | F32_bit), \
-		      (mask) & (I32_bit | F32_bit)))
+	(__set_cpsr_c((mask) & (ARM_CPSR_I32 | ARM_CPSR_F32),		\
+		      (mask) & (ARM_CPSR_I32 | ARM_CPSR_F32)))
 
 #define enable_interrupts(mask)						\
-	(__set_cpsr_c((mask) & (I32_bit | F32_bit), 0))
+	(__set_cpsr_c((mask) & (ARM_CPSR_I32 | ARM_CPSR_F32), 0))
 
 #define restore_interrupts(old_cpsr)					\
-	(__set_cpsr_c((I32_bit | F32_bit), (old_cpsr) & (I32_bit | F32_bit)))
+	(__set_cpsr_c((ARM_CPSR_I32 | ARM_CPSR_F32),			\
+		      (old_cpsr) & (ARM_CPSR_I32 | ARM_CPSR_F32)))
 
-#define intr_disable()	\
-    disable_interrupts(I32_bit | F32_bit)
-#define intr_restore(s)	\
-    restore_interrupts(s)
+static __inline register_t
+intr_disable(void)
+{
+	register_t s;
+
+	s = disable_interrupts(ARM_CPSR_I32 | ARM_CPSR_F32);
+	return (s);
+}
+
+static __inline void
+intr_restore(register_t s)
+{
+
+	restore_interrupts(s);
+}
+
 /* Functions to manipulate the CPSR. */
 u_int	SetCPSR(u_int bic, u_int eor);
 u_int	GetCPSR(void);
