@@ -298,7 +298,6 @@
 				compatible = "fsl,imx51-iomux";
 				reg = <0x73fa8000 0x4000>;
 				interrupt-parent = <&tzic>; interrupts = <7>;
-				status = "disabled";
 			};
 
 			/* 73FAC000 0x4000 EPIT1 */
