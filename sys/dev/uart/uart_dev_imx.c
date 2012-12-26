@@ -404,7 +404,7 @@ imx_uart_bus_setsig(struct uart_softc *sc, int sig)
 
 	/* TODO: implement (?) */
 
-	/* XXX workaround to have working console on manut prompt */
+	/* XXX workaround to have working console on mount prompt */
 	/* Enable RX interrupt */
 	if (sc->sc_sysdev != NULL && sc->sc_sysdev->type == UART_DEV_CONSOLE)
 		if (!IS(&sc->sc_bas, UCR4, DREN))
