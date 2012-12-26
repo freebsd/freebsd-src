@@ -1766,7 +1766,7 @@ static device_method_t	ubt_methods[] =
 	DEVMETHOD(device_probe,	ubt_probe),
 	DEVMETHOD(device_attach, ubt_attach),
 	DEVMETHOD(device_detach, ubt_detach),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t		ubt_driver =
