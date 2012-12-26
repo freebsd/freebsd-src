@@ -185,7 +185,6 @@ simplebus_attach(device_t dev)
 			device_printf(dev,
 			    "%s: could not process 'reg' "
 			    "property\n", di->di_ofw.obd_name);
-			/* XXX should unmap */
 			ofw_bus_gen_destroy_devinfo(&di->di_ofw);
 			free(di, M_SIMPLEBUS);
 			continue;
@@ -195,7 +194,6 @@ simplebus_attach(device_t dev)
 			device_printf(dev, "%s: could not process "
 			    "'interrupts' property\n", di->di_ofw.obd_name);
 			resource_list_free(&di->di_res);
-			/* XXX should unmap */
 			ofw_bus_gen_destroy_devinfo(&di->di_ofw);
 			free(di, M_SIMPLEBUS);
 			continue;
@@ -207,7 +205,6 @@ simplebus_attach(device_t dev)
 			device_printf(dev, "could not add child: %s\n",
 			    di->di_ofw.obd_name);
 			resource_list_free(&di->di_res);
-			/* XXX should unmap */
 			ofw_bus_gen_destroy_devinfo(&di->di_ofw);
 			free(di, M_SIMPLEBUS);
 			continue;
