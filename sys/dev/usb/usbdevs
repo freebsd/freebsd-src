@@ -1050,6 +1050,7 @@ product AOX USB101		0x0008	Ethernet
 product APC UPS			0x0002	Uninterruptible Power Supply
 
 /* Apple Computer products */
+product APPLE DUMMY		0x0000	Dummy product
 product APPLE IMAC_KBD		0x0201	USB iMac Keyboard
 product APPLE KBD		0x0202	USB Keyboard M2452
 product APPLE EXT_KBD		0x020c	Apple Extended USB Keyboard
