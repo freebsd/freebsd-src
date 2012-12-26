@@ -398,6 +398,10 @@ static const STRUCT_USB_HOST_ID ubt_devs[] =
 
 	/* AVM USB Bluetooth-Adapter BlueFritz! v2.0 */
 	{ USB_VPI(USB_VENDOR_AVM, 0x3800, 0) },
+
+	/* Broadcom USB dongles, mostly BCM20702 and BCM20702A0 */
+	{ USB_VENDOR(USB_VENDOR_BROADCOM),
+	  USB_IF_CSI(UICLASS_VENDOR, 0x01, 0x01) },
 };
 
 /*
