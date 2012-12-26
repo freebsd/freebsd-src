@@ -1732,8 +1732,9 @@ tc_adjprecision(void)
 		bintime_shift(&bt_tickthreshold, tc_timeexp);
 	} else {
 		tc_timeexp = 31;
-		bintime_clear(&bt_timethreshold);
-		bintime_clear(&bt_tickthreshold);
+		bt_timethreshold.sec = INT_MAX;
+		bt_timethreshold.frac = ~(uint64_t)0;
+		bt_tickthreshold = bt_timethreshold;
 	}
 }
 
