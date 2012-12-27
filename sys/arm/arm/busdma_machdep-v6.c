@@ -773,12 +773,17 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		    map->pagesneeded != 0 && run_filter(dmat, curaddr)) {
 			curaddr = add_bounce_page(dmat, map, vaddr, sgsize);
 		} else {
-			sl = &map->slist[map->sync_count];
-			if (++map->sync_count > dmat->nsegments)
-				goto cleanup;
-			sl->vaddr = vaddr;
-			sl->datacount = sgsize;
-			sl->busaddr = curaddr;
+			sl = &map->slist[map->sync_count - 1];
+			if (map->sync_count == 0 ||
+			    vaddr != sl->vaddr + sl->datacount) {
+				if (++map->sync_count > dmat->nsegments)
+					goto cleanup;
+				sl++;
+				sl->vaddr = vaddr;
+				sl->datacount = sgsize;
+				sl->busaddr = curaddr;
+			} else
+				sl->datacount += sgsize;
 		}
 
 		if (dmat->ranges) {

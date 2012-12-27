@@ -814,12 +814,17 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		    map->pagesneeded != 0 && run_filter(dmat, curaddr)) {
 			curaddr = add_bounce_page(dmat, map, vaddr, sgsize);
 		} else {
-			sl = &map->slist[map->sync_count];
-			if (++map->sync_count > dmat->nsegments)
-				goto cleanup;
-			sl->vaddr = vaddr;
-			sl->datacount = sgsize;
-			sl->busaddr = curaddr;
+			sl = &map->slist[map->sync_count - 1];
+			if (map->sync_count == 0 ||
+			    vaddr != sl->vaddr + sl->datacount) {
+				if (++map->sync_count > dmat->nsegments)
+					goto cleanup;
+				sl++;
+				sl->vaddr = vaddr;
+				sl->datacount = sgsize;
+				sl->busaddr = curaddr;
+			} else
+				sl->datacount += sgsize;
 		}
 
 		/*
@@ -852,8 +857,10 @@ cleanup:
 	/*
 	 * Did we fit?
 	 */
-	if (buflen != 0)
+	if (buflen != 0) {
+		_bus_dmamap_unload(dmat, map);
 		error = EFBIG; /* XXX better return value here? */
+	}
 	return (error);
 }
 
@@ -869,7 +876,7 @@ __bus_dmamap_mayblock(bus_dma_tag_t dmat, bus_dmamap_t map,
 }
 
 bus_dma_segment_t *
-_bus_dmamap_directseg(bus_dma_tag_t dmat, bus_dmamap_t map,
+_bus_dmamap_complete(bus_dma_tag_t dmat, bus_dmamap_t map,
     bus_dma_segment_t *segs, int nsegs, int error)
 {
 
