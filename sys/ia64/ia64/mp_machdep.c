@@ -522,14 +522,15 @@ ipi_send(struct pcpu *cpu, int xiv)
 
 	sapic_id = IA64_LID_GET_SAPIC_ID(cpu->pc_md.lid);
 
-#if 0
-	ipip = &(ia64_pib->ib_ipi[sapic_id][0]);
-	ipi = xiv;
-#else
-	ipip = (void *)(IA64_PHYS_TO_RR6(0x800000000UL) |
-	    ((u_long)cpu->pc_md.sgisn_nasid << 38) | 0x110000380UL);
-	ipi = 0x80000001fdc00000UL | ((u_long)xiv << 52) | (sapic_id << 4);
-#endif
+	if (ia64_pib != NULL) {
+		ipip = &(ia64_pib->ib_ipi[sapic_id][0]);
+		ipi = xiv;
+	} else {
+		ipip = (void *)(IA64_PHYS_TO_RR6(0x800000000UL) |
+		    ((u_long)cpu->pc_md.sgisn_nasid << 38) | 0x110000380UL);
+		ipi = 0x80000001fdc00000UL | ((u_long)xiv << 52) |
+		    (sapic_id << 4);
+	}
 
 	ia64_mf();
 	ia64_st8(ipip, ipi);

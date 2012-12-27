@@ -134,7 +134,7 @@ vm_offset_t ia64_port_base;
 
 u_int64_t ia64_lapic_addr = PAL_PIB_DEFAULT_ADDR;
 
-struct ia64_pib *ia64_pib;
+struct ia64_pib *ia64_pib = NULL;
 
 static int ia64_sync_icache_needed;
 
@@ -285,7 +285,8 @@ cpu_startup(void *dummy)
 	 * information.
 	 */
 	ia64_probe_sapics();
-	ia64_pib = pmap_mapdev(ia64_lapic_addr, sizeof(*ia64_pib));
+	if (ia64_lapic_addr)
+		ia64_pib = pmap_mapdev(ia64_lapic_addr, sizeof(*ia64_pib));
 
 	ia64_mca_init();
 
