@@ -44,11 +44,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-struct group_storage {
-	struct group	 gr;
-	char		*members[];
-};
-
 static int lockfd = -1;
 static char group_dir[PATH_MAX];
 static char group_file[PATH_MAX];
@@ -434,14 +429,14 @@ gr_make(const struct group *gr)
 struct group *
 gr_dup(const struct group *gr)
 {
+	struct group *newgr;
 	char *dst;
 	size_t len;
-	struct group_storage *gs;
 	int ndx;
 	int num_mem;
 
 	/* Calculate size of the group. */
-	len = sizeof(*gs);
+	len = sizeof(*newgr);
 	if (gr->gr_name != NULL)
 		len += strlen(gr->gr_name) + 1;
 	if (gr->gr_passwd != NULL)
@@ -452,30 +447,34 @@ gr_dup(const struct group *gr)
 		len += (num_mem + 1) * sizeof(*gr->gr_mem);
 	} else
 		num_mem = -1;
-
 	/* Create new group and copy old group into it. */
-	if ((gs = calloc(1, len)) == NULL)
+	if ((newgr = malloc(len)) == NULL)
 		return (NULL);
-	dst = (char *)&gs->members[num_mem + 1];
+	/* point new gr_mem to end of struct + 1 */
+	if (gr->gr_mem != NULL)
+		newgr->gr_mem = (char **)newgr + sizeof(struct group);
+	else
+		newgr->gr_mem = NULL;
+	/* point dst after the end of all the gr_mem pointers in newgr */
+	dst = (char *)newgr + sizeof(struct group) +
+	    (num_mem + 1) * sizeof(*gr->gr_mem);
 	if (gr->gr_name != NULL) {
-		gs->gr.gr_name = dst;
-		dst = stpcpy(gs->gr.gr_name, gr->gr_name) + 1;
+		newgr->gr_name = dst;
+		dst = stpcpy(dst, gr->gr_name) + 1;
 	}
 	if (gr->gr_passwd != NULL) {
-		gs->gr.gr_passwd = dst;
-		dst = stpcpy(gs->gr.gr_passwd, gr->gr_passwd) + 1;
+		newgr->gr_passwd = dst;
+		dst = stpcpy(dst, gr->gr_passwd) + 1;
 	}
-	gs->gr.gr_gid = gr->gr_gid;
+	newgr->gr_gid = gr->gr_gid;
 	if (gr->gr_mem != NULL) {
-		gs->gr.gr_mem = gs->members;
 		for (ndx = 0; ndx < num_mem; ndx++) {
-			gs->gr.gr_mem[ndx] = dst;
-			dst = stpcpy(gs->gr.gr_mem[ndx], gr->gr_mem[ndx]) + 1;
+			newgr->gr_mem[ndx] = dst;
+			dst = stpcpy(dst, gr->gr_mem[ndx]) + 1;
 		}
-		gs->gr.gr_mem[ndx] = NULL;
+		newgr->gr_mem[ndx] = NULL;
 	}
-
-	return (&gs->gr);
+	return (newgr);
 }
 
 /*
