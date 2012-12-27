@@ -106,10 +106,8 @@ gr_lock(void)
 	for (;;) {
 		struct stat st;
 
-		lockfd = open(group_file, O_RDONLY, 0);
-		if (lockfd < 0 || fcntl(lockfd, F_SETFD, 1) == -1)
-			err(1, "%s", group_file);
-		if (flock(lockfd, LOCK_EX|LOCK_NB) == -1) {
+		lockfd = flopen(group_file, O_RDONLY|O_NONBLOCK, 0);
+		if (lockfd == -1) {
 			if (errno == EWOULDBLOCK) {
 				errx(1, "the group file is busy");
 			} else {
