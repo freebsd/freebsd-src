@@ -77,7 +77,6 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 {
 	uint32_t prod_head, prod_next;
 	uint32_t cons_tail;
-	int success;
 #ifdef DEBUG_BUFRING
 	int i;
 	for (i = br->br_cons_head; i != br->br_prod_head;
@@ -98,10 +97,7 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 			critical_exit();
 			return (ENOBUFS);
 		}
-		
-		success = atomic_cmpset_int(&br->br_prod_head, prod_head,
-		    prod_next);
-	} while (success == 0);
+	} while (!atomic_cmpset_int(&br->br_prod_head, prod_head, prod_next));
 #ifdef DEBUG_BUFRING
 	if (br->br_ring[prod_head] != NULL)
 		panic("dangling value in enqueue");
