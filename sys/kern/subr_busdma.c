@@ -197,6 +197,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
 		}
 	}
 
+	nsegs++;
 	segs = _bus_dmamap_complete(dmat, map, NULL, nsegs, error);
 	if (error)
 		(*callback)(callback_arg, segs, 0, 0, error);

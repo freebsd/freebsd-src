@@ -492,19 +492,22 @@ static void hpt_io_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nsegs
 		
 	HPT_ASSERT(nsegs<=os_max_sg_descriptors);
 
-	for (idx = 0; idx < nsegs; idx++, psg++) {
-		psg->addr.bus = segs[idx].ds_addr;
-		psg->size = segs[idx].ds_len;
-		psg->eot = 0;
-	}
-	if (nsegs)
+	if (nsegs != 0) {
+		for (idx = 0; idx < nsegs; idx++, psg++) {
+			psg->addr.bus = segs[idx].ds_addr;
+			psg->size = segs[idx].ds_len;
+			psg->eot = 0;
+		}
 		psg[-1].eot = 1;
 	
-	if (pCmd->flags.data_in) {
-		bus_dmamap_sync(ext->vbus_ext->io_dmat, ext->dma_map, BUS_DMASYNC_PREREAD);
-	}
-	else if (pCmd->flags.data_out) {
-		bus_dmamap_sync(ext->vbus_ext->io_dmat, ext->dma_map, BUS_DMASYNC_PREWRITE);
+		if (pCmd->flags.data_in) {
+			bus_dmamap_sync(ext->vbus_ext->io_dmat, ext->dma_map,
+			    BUS_DMASYNC_PREREAD);
+		}
+		else if (pCmd->flags.data_out) {
+			bus_dmamap_sync(ext->vbus_ext->io_dmat, ext->dma_map,
+			    BUS_DMASYNC_PREWRITE);
+		}
 	}
 
 	ext->ccb->ccb_h.timeout_ch = timeout(hpt_timeout, pCmd, HPT_OSM_TIMEOUT);

@@ -2737,21 +2737,23 @@ hpt_io_dmamap_callback(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 		
 	HPT_ASSERT(nsegs<= MAX_SG_DESCRIPTORS);
 
-	for (idx = 0; idx < nsegs; idx++, psg++) {
-		psg->dSgAddress = (ULONG_PTR)(UCHAR *)segs[idx].ds_addr;
-		psg->wSgSize = segs[idx].ds_len;
-		psg->wSgFlag = (idx == nsegs-1)? SG_FLAG_EOT: 0;
-/*		KdPrint(("psg[%d]:add=%p,size=%x,flag=%x\n", idx, psg->dSgAddress,psg->wSgSize,psg->wSgFlag)); */
-	}
-	if (nsegs) {
-	/*	psg[-1].wSgFlag = SG_FLAG_EOT; */
-	}
-	
-	if (pCmd->cf_data_in) {
-		bus_dmamap_sync(pAdapter->io_dma_parent, pmap->dma_map, BUS_DMASYNC_PREREAD);
-	}
-	else if (pCmd->cf_data_out) {
-		bus_dmamap_sync(pAdapter->io_dma_parent, pmap->dma_map, BUS_DMASYNC_PREWRITE);
+	if (nsegs != 0) {
+		for (idx = 0; idx < nsegs; idx++, psg++) {
+			psg->dSgAddress = (ULONG_PTR)(UCHAR *)segs[idx].ds_addr;
+			psg->wSgSize = segs[idx].ds_len;
+			psg->wSgFlag = (idx == nsegs-1)? SG_FLAG_EOT: 0;
+	/*		KdPrint(("psg[%d]:add=%p,size=%x,flag=%x\n", idx, psg->dSgAddress,psg->wSgSize,psg->wSgFlag)); */
+		}
+		/*	psg[-1].wSgFlag = SG_FLAG_EOT; */
+		
+		if (pCmd->cf_data_in) {
+			bus_dmamap_sync(pAdapter->io_dma_parent, pmap->dma_map,
+			    BUS_DMASYNC_PREREAD);
+		}
+		else if (pCmd->cf_data_out) {
+			bus_dmamap_sync(pAdapter->io_dma_parent, pmap->dma_map,
+			    BUS_DMASYNC_PREWRITE);
+		}
 	}
 
 	ccb->ccb_h.timeout_ch = timeout(hpt_timeout, (caddr_t)ccb, 20*hz);

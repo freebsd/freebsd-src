@@ -273,7 +273,7 @@ tw_osli_execute_scsi(struct tw_osli_req_context *req, union ccb *ccb)
 		xpt_done(ccb);
 		return(1);
 	}
-	req->data = csio->data_ptr;
+	req->data = ccb;
 	req->length = csio->dxfer_len;
 	req->flags |= TW_OSLI_REQ_FLAGS_CCB;
 	req->deadline = tw_osl_get_local_time() + (ccb_h->timeout / 1000);
