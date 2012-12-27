@@ -122,8 +122,7 @@ struct bus_dmamap {
 	int		       pagesneeded;
 	int		       pagesreserved;
 	bus_dma_tag_t	       dmat;
-	void		      *buf;		/* unmapped buffer pointer */
-	bus_size_t	       buflen;		/* unmapped buffer length */
+	bus_dma_memory_t       mem;
 	bus_dmamap_callback_t *callback;
 	void		      *callback_arg;
 	STAILQ_ENTRY(bus_dmamap) links;
@@ -627,9 +626,6 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 		} else {
 			if (reserve_bounce_pages(dmat, map, 1) != 0) {
 				/* Queue us for resources */
-				map->dmat = dmat;
-				map->buf = buf;
-				map->buflen = buflen;
 				STAILQ_INSERT_TAIL(&bounce_map_waitinglist,
 				    map, links);
 				mtx_unlock(&bounce_lock);
@@ -639,6 +635,21 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 		mtx_unlock(&bounce_lock);
 	}
 
+	return (0);
+}
+
+/*
+ * Utility function to load a physical buffer.  segp contains
+ * the starting segment on entrace, and the ending segment on exit.
+ */
+int
+_bus_dmamap_load_phys(bus_dma_tag_t dmat,
+		      bus_dmamap_t map,
+		      vm_paddr_t buf, bus_size_t buflen,
+		      int flags,
+		      bus_dma_segment_t *segs,
+		      int *segp)
+{
 	return (0);
 }
 
@@ -744,10 +755,13 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 }
 
 void
-__bus_dmamap_mayblock(bus_dma_tag_t dmat, bus_dmamap_t map,
-		      bus_dmamap_callback_t *callback, void *callback_arg)
+__bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
+		    bus_dma_memory_t mem, bus_dmamap_callback_t *callback,
+		    void *callback_arg)
 {
 	if (map != NULL) {
+		map->mem = mem;
+		map->dmat = dmat;
 		map->callback = callback;
 		map->callback_arg = callback_arg;
 	}
@@ -1064,8 +1078,9 @@ busdma_swi(void)
 		mtx_unlock(&bounce_lock);
 		dmat = map->dmat;
 		(dmat->lockfunc)(dmat->lockfuncarg, BUS_DMA_LOCK);
-		bus_dmamap_load(map->dmat, map, map->buf, map->buflen,
-				map->callback, map->callback_arg, /*flags*/0);
+		bus_dmamap_load_mem(map->dmat, map, &map->mem,
+				map->callback, map->callback_arg,
+				BUS_DMA_WAITOK);
 		(dmat->lockfunc)(dmat->lockfuncarg, BUS_DMA_UNLOCK);
 		mtx_lock(&bounce_lock);
 	}

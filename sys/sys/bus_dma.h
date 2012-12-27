@@ -113,6 +113,7 @@
 struct pmap;
 struct mbuf;
 struct uio;
+struct bio;
 union ccb;
 
 /*
@@ -133,6 +134,128 @@ typedef struct bus_dma_segment {
 	bus_addr_t	ds_addr;	/* DMA address */
 	bus_size_t	ds_len;		/* length of transfer */
 } bus_dma_segment_t;
+
+/*
+ *	bus_dma_memory_t 
+ *
+ *	Encapsulates various memory descriptors that devices may DMA
+ *	to or from.
+ */
+
+typedef struct bus_dma_memory {
+	union {
+		void			*dm_vaddr;
+		vm_paddr_t		dm_paddr;
+		bus_dma_segment_t	*dm_list;
+		struct bio		*dm_bio;
+		struct uio		*dm_uio;
+		struct mbuf		*dm_mbuf;
+		union ccb		*dm_ccb;
+	};
+	bus_size_t	dm_opaque;	/* type specific data. */
+	uint32_t	dm_type;	/* Type of memory. */
+} bus_dma_memory_t;
+
+#define	BUS_DMAMEM_VADDR	1	/* Contiguous virtual address. */
+#define	BUS_DMAMEM_PADDR	2	/* Contiguous physical address. */
+#define	BUS_DMAMEM_VLIST	3	/* sglist of kva. */
+#define	BUS_DMAMEM_PLIST	4	/* sglist of physical addresses. */
+#define	BUS_DMAMEM_BIO		5	/* Pointer to a bio (block io). */
+#define	BUS_DMAMEM_UIO		6	/* Pointer to a uio (any io). */
+#define	BUS_DMAMEM_MBUF		7	/* Pointer to a mbuf (network io). */
+#define	BUS_DMAMEM_CCB		8	/* Cam control block. (scsi/ata io). */
+
+static inline bus_dma_memory_t
+dma_mem_vaddr(void *vaddr, bus_size_t len)
+{
+	bus_dma_memory_t mem;
+
+	mem.dm_vaddr = vaddr;
+	mem.dm_opaque = len;
+	mem.dm_type = BUS_DMAMEM_VADDR;
+
+	return (mem);
+}
+
+static inline bus_dma_memory_t
+dma_mem_paddr(vm_paddr_t paddr, bus_size_t len)
+{
+	bus_dma_memory_t mem;
+
+	mem.dm_paddr = paddr;
+	mem.dm_opaque = len;
+	mem.dm_type = BUS_DMAMEM_PADDR;
+
+	return (mem);
+}
+
+static inline bus_dma_memory_t
+dma_mem_vlist(bus_dma_segment_t *vlist, int sglist_cnt)
+{
+	bus_dma_memory_t mem;
+
+	mem.dm_list = vlist;
+	mem.dm_opaque = sglist_cnt;
+	mem.dm_type = BUS_DMAMEM_VLIST;
+
+	return (mem);
+}
+
+static inline bus_dma_memory_t
+dma_mem_plist(bus_dma_segment_t *plist, int sglist_cnt)
+{
+	bus_dma_memory_t mem;
+
+	mem.dm_list = plist;
+	mem.dm_opaque = sglist_cnt;
+	mem.dm_type = BUS_DMAMEM_PLIST;
+
+	return (mem);
+}
+
+static inline bus_dma_memory_t
+dma_mem_bio(struct bio *bio)
+{
+	bus_dma_memory_t mem;
+
+	mem.dm_bio = bio;
+	mem.dm_type = BUS_DMAMEM_BIO;
+
+	return (mem);
+}
+
+static inline bus_dma_memory_t
+dma_mem_uio(struct uio *uio)
+{
+	bus_dma_memory_t mem;
+
+	mem.dm_uio = uio;
+	mem.dm_type = BUS_DMAMEM_UIO;
+
+	return (mem);
+}
+
+static inline bus_dma_memory_t
+dma_mem_mbuf(struct mbuf *mbuf)
+{
+	bus_dma_memory_t mem;
+
+	mem.dm_mbuf = mbuf;
+	mem.dm_type = BUS_DMAMEM_MBUF;
+
+	return (mem);
+}
+
+static inline bus_dma_memory_t
+dma_mem_ccb(union ccb *ccb)
+{
+	bus_dma_memory_t mem;
+
+	mem.dm_ccb = ccb;
+	mem.dm_type = BUS_DMAMEM_CCB;
+
+	return (mem);
+}
 
 /*
  * A function that returns 1 if the address cannot be accessed by
@@ -229,6 +352,13 @@ int bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 			int flags);
 
 /*
+ * Loads any memory descriptor.
+ */
+int bus_dmamap_load_mem(bus_dma_tag_t dmat, bus_dmamap_t map,
+			bus_dma_memory_t *mem, bus_dmamap_callback_t *callback,
+			void *callback_arg, int flags);
+
+/*
  * XXX sparc64 uses the same interface, but a much different implementation.
  *     <machine/bus_dma.h> for the sparc64 arch contains the equivalent
  *     declarations.
@@ -286,19 +416,25 @@ void _bus_dmamap_unload(bus_dma_tag_t dmat, bus_dmamap_t map);
  * busdma layers.  These are not intended for consumption by driver
  * software.
  */
-void __bus_dmamap_mayblock(bus_dma_tag_t dmat, bus_dmamap_t map,
-    			   bus_dmamap_callback_t *callback, void *callback_arg);
+void __bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
+			 bus_dma_memory_t mem,
+    			 bus_dmamap_callback_t *callback,
+			 void *callback_arg);
 
-#define	_bus_dmamap_mayblock(dmat, map, callback, callback_arg)		\
+#define	_bus_dmamap_waitok(dmat, map, mem, callback, callback_arg)	\
 	do {								\
 		if ((map) != NULL)					\
-			__bus_dmamap_mayblock(dmat, map, callback,	\
+			__bus_dmamap_waitok(dmat, map, mem, callback,	\
 			    callback_arg);				\
 	} while (0);
 
 int _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map,
 			    void *buf, bus_size_t buflen, struct pmap *pmap,
 			    int flags, bus_dma_segment_t *segs, int *segp);
+
+int _bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
+			  vm_paddr_t paddr, bus_size_t buflen,
+			  int flags, bus_dma_segment_t *segs, int *segp);
 
 bus_dma_segment_t *_bus_dmamap_complete(bus_dma_tag_t dmat,
 			   		bus_dmamap_t map,

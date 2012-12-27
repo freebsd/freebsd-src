@@ -626,9 +626,6 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		} else {
 			if (reserve_bounce_pages(dmat, map, 1) != 0) {
 				/* Queue us for resources */
-				map->dmat = dmat;
-				map->buf = buf;
-				map->buflen = buflen;
 				STAILQ_INSERT_TAIL(&bounce_map_waitinglist,
 				    map, links);
 				mtx_unlock(&bounce_lock);
@@ -709,11 +706,14 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 }
 
 void
-__bus_dmamap_mayblock(bus_dma_tag_t dmat, bus_dmamap_t map,
-		      bus_dmamap_callback_t *callback, void *callback_arg)
+__bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
+		    bus_dma_memory_t mem, bus_dmamap_callback_t *callback,
+		    void *callback_arg)
 {
 
 	if (dmat->flags & BUS_DMA_COULD_BOUNCE) {
+		map->dmat = dmat;
+		map->mem = mem;
 		map->callback = callback;
 		map->callback_arg = callback_arg;
 	}
@@ -1036,8 +1036,9 @@ busdma_swi(void)
 		mtx_unlock(&bounce_lock);
 		dmat = map->dmat;
 		(dmat->lockfunc)(dmat->lockfuncarg, BUS_DMA_LOCK);
-		bus_dmamap_load(map->dmat, map, map->buf, map->buflen,
-				map->callback, map->callback_arg, /*flags*/0);
+		bus_dmamap_load_mem(map->dmat, map, &map->mem,
+				    map->callback, map->callback_arg,
+				    BUS_DMA_WAITOK);
 		(dmat->lockfunc)(dmat->lockfuncarg, BUS_DMA_UNLOCK);
 		mtx_lock(&bounce_lock);
 	}

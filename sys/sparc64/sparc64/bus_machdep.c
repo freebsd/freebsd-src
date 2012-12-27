@@ -404,8 +404,8 @@ nexus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 }
 
 static void
-nexus_dmamap_mayblock(bus_dma_tag_t dmat, bus_dmamap_t map,
-    bus_dmamap_callback_t *callback, void *callback_arg)
+nexus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
+    bus_dma_memory_t mem, bus_dmamap_callback_t *callback, void *callback_arg)
 {
 
 }
@@ -521,7 +521,7 @@ static struct bus_dma_methods nexus_dma_methods = {
 	nexus_dmamap_create,
 	nexus_dmamap_destroy,
 	nexus_dmamap_load_buffer,
-	nexus_dmamap_mayblock,
+	nexus_dmamap_waitok,
 	nexus_dmamap_complete,
 	nexus_dmamap_unload,
 	nexus_dmamap_sync,

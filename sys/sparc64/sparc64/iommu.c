@@ -970,8 +970,8 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, bus_dmamap_t map, void *buf,
 }
 
 static void
-iommu_dvmamap_mayblock(bus_dma_tag_t dmat, bus_dmamap_t map,
-    bus_dmamap_callback_t *callback, void *callback_arg)
+iommu_dvmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
+    bus_dma_memory_t mem, bus_dmamap_callback_t *callback, void *callback_arg)
 {
 }
 
@@ -1089,7 +1089,7 @@ struct bus_dma_methods iommu_dma_methods = {
 	iommu_dvmamap_create,
 	iommu_dvmamap_destroy,
 	iommu_dvmamap_load_buffer,
-	iommu_dvmamap_mayblock,
+	iommu_dvmamap_waitok,
 	iommu_dvmamap_complete,
 	iommu_dvmamap_unload,
 	iommu_dvmamap_sync,

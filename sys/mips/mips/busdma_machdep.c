@@ -135,12 +135,11 @@ struct bus_dmamap {
 	int		pagesneeded;
 	int		pagesreserved;
 	bus_dma_tag_t	dmat;
+	bus_dma_memory_t mem;
 	int		flags;
-	void 		*buffer;
 	void		*origbuffer;
 	void		*allocbuffer;
 	TAILQ_ENTRY(bus_dmamap)	freelist;
-	int		len;
 	STAILQ_ENTRY(bus_dmamap) links;
 	bus_dmamap_callback_t *callback;
 	void		*callback_arg;
@@ -738,8 +737,6 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 		} else {
 			if (reserve_bounce_pages(dmat, map, 1) != 0) {
 				/* Queue us for resources */
-				map->buffer = buf;
-				map->len = buflen;
 				STAILQ_INSERT_TAIL(&bounce_map_waitinglist,
 				    map, links);
 				mtx_unlock(&bounce_lock);
@@ -865,12 +862,13 @@ cleanup:
 }
 
 void
-__bus_dmamap_mayblock(bus_dma_tag_t dmat, bus_dmamap_t map,
-    bus_dmamap_callback_t *callback, void *callback_arg)
+__bus_dmamap_waitok(bus_dma_tag_t dmat, bus_dmamap_t map,
+    bus_dma_memory_t mem, bus_dmamap_callback_t *callback, void *callback_arg)
 {
 
 	KASSERT(dmat != NULL, ("dmatag is NULL"));
 	KASSERT(map != NULL, ("dmamap is NULL"));
+	map->mem = mem;
 	map->callback = callback;
 	map->callback_arg = callback_arg;
 }
@@ -1292,8 +1290,8 @@ busdma_swi(void)
 		mtx_unlock(&bounce_lock);
 		dmat = map->dmat;
 		(dmat->lockfunc)(dmat->lockfuncarg, BUS_DMA_LOCK);
-		bus_dmamap_load(map->dmat, map, map->buffer, map->len,
-		    map->callback, map->callback_arg, /*flags*/0);
+		bus_dmamap_load_mem(map->dmat, map, &map->mem, map->callback,
+		    map->callback_arg, BUS_DMA_WAITOK);
 		(dmat->lockfunc)(dmat->lockfuncarg, BUS_DMA_UNLOCK);
 		mtx_lock(&bounce_lock);
 	}
