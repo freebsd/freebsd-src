@@ -200,7 +200,7 @@ mpt_alloc_buffer(struct mpt_softc *mpt, struct mpt_page_memory *page_mem,
 	if (len > 16 * 1024 * 1024)
 		return (ENOSPC);
 	error = busdma_tag_derive(mpt->parent_dmat, 1, 0,
-	    BUS_SPACE_MAXADDR_32BIT, len, 1, len, 0, &page_mem->tag);
+	    BUS_SPACE_MAXADDR_32BIT, len, 1, len, 0, 0, &page_mem->tag);
 	if (error)
 		return (error);
 	error = busdma_mem_alloc(page_mem->tag,

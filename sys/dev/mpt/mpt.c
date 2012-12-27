@@ -2510,7 +2510,7 @@ mpt_dma_buf_alloc(struct mpt_softc *mpt)
 	/* Create a child tag for data buffers */
 	error = busdma_tag_derive(mpt->parent_dmat, 1, 0, BUS_SPACE_MAXADDR,
 	    (mpt->max_cam_seg_cnt - 1) * PAGE_SIZE, mpt->max_cam_seg_cnt,
-	    BUS_SPACE_MAXSIZE_32BIT, 0, &mpt->buffer_dmat);
+	    BUS_SPACE_MAXSIZE_32BIT, 0, 0, &mpt->buffer_dmat);
 	if (error != 0) {
 		mpt_prt(mpt, "cannot create a dma tag for data buffers\n");
 		return (error);
@@ -2519,7 +2519,7 @@ mpt_dma_buf_alloc(struct mpt_softc *mpt)
 	/* Create a child tag for request buffers */
 	error = busdma_tag_derive(mpt->parent_dmat, PAGE_SIZE, 0,
 	    BUS_SPACE_MAXADDR_32BIT, MPT_REQ_MEM_SIZE(mpt), 1,
-	    BUS_SPACE_MAXSIZE_32BIT, 0, &mpt->request_dmat);
+	    BUS_SPACE_MAXSIZE_32BIT, 0, 0, &mpt->request_dmat);
 	if (error != 0) {
 		mpt_prt(mpt, "cannot create a dma tag for requests\n");
 		return (error);
@@ -2717,7 +2717,7 @@ mpt_configure_ioc(struct mpt_softc *mpt, int tn, int needreset)
 		mpt->fw_image_size = mpt->ioc_facts.FWImageSize;
 		error = busdma_tag_derive(mpt->parent_dmat, 1, 0,
 		    BUS_SPACE_MAXADDR_32BIT, mpt->fw_image_size, 1,
-		    mpt->fw_image_size, 0, &mpt->fw_dmat);
+		    mpt->fw_image_size, 0, 0, &mpt->fw_dmat);
 		if (error != 0) {
 			mpt_prt(mpt, "cannot create firmware dma tag\n");
 			return (ENOMEM);

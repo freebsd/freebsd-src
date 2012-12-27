@@ -697,7 +697,7 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	 */
 	error = busdma_tag_create(mpt->dev, 1, 0, BUS_SPACE_MAXADDR,
 	    BUS_SPACE_MAXSIZE_32BIT, BUS_SPACE_UNRESTRICTED,
-	    BUS_SPACE_MAXSIZE_32BIT, 0, &mpt->parent_dmat);
+	    BUS_SPACE_MAXSIZE_32BIT, 0, 0, &mpt->parent_dmat);
 	if (error != 0) {
 		mpt_prt(mpt, "cannot create parent dma tag\n");
 		return (error);
@@ -706,7 +706,7 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	/* Create a child tag for reply buffers */
 	error = busdma_tag_derive(mpt->parent_dmat, PAGE_SIZE, 0,
 	    BUS_SPACE_MAXADDR_32BIT, 2 * PAGE_SIZE, 1, BUS_SPACE_MAXSIZE_32BIT,
-	    0, &mpt->reply_dmat);
+	    0, 0, &mpt->reply_dmat);
 	if (error != 0) {
 		mpt_prt(mpt, "cannot create a dma tag for replies\n");
 		return (error);
