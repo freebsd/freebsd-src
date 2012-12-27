@@ -1505,7 +1505,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 #endif
 
 	error = busdma_tag_create(ISP_PCD(isp), 1, slim, llim,
-	    BUS_SPACE_MAXSIZE, nsegs, slim, 0, &isp->isp_osinfo.dmat);
+	    BUS_SPACE_MAXSIZE, nsegs, slim, 0, 0, &isp->isp_osinfo.dmat);
 	if (error) {
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
 		ISP_LOCK(isp);
@@ -1563,7 +1563,8 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 	 * to be 32 bits, but we do this for simplicity and speed's sake.
 	 */
 	error = busdma_tag_derive(isp->isp_osinfo.dmat, QENTRY_LEN, slim,
-	    BUS_SPACE_MAXADDR_32BIT, len, 1, slim, 0, &isp->isp_osinfo.cdmat);
+	    BUS_SPACE_MAXADDR_32BIT, len, 1, slim, 0, 0,
+	    &isp->isp_osinfo.cdmat);
 	if (error) {
 		isp_prt(isp, ISP_LOGERR, "cannot create a dma tag for control spaces");
 		free(isp->isp_osinfo.pcmd_pool, M_DEVBUF);
@@ -1606,7 +1607,7 @@ isp_pci_mbxdma(ispsoftc_t *isp)
 			struct isp_fc *fc = ISP_FC_PC(isp, cmap);
 			error = busdma_tag_derive(isp->isp_osinfo.dmat, 64,
 			    slim, BUS_SPACE_MAXADDR_32BIT, ISP_FC_SCRLEN, 1,
-			    slim, 0, &fc->tdmat);
+			    slim, 0, 0, &fc->tdmat);
 			if (error)
 				goto bad;
 			error = busdma_mem_alloc(fc->tdmat, 0, &fc->tdmd);
