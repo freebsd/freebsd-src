@@ -179,7 +179,7 @@ pw_lock(void)
 	for (;;) {
 		struct stat st;
 
-		lockfd = flopen(masterpasswd, O_RDONLY|O_NONBLOCK, 0);
+		lockfd = flopen(masterpasswd, O_RDONLY|O_NONBLOCK|O_CLOEXEC, 0);
 		if (lockfd == -1) {
 			if (errno == EWOULDBLOCK) {
 				errx(1, "the password db file is busy");
