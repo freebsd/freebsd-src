@@ -256,9 +256,10 @@ simplebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			type = SYS_RES_MEMORY;
 
 		rle = resource_list_find(&di->di_res, type, *rid);
-		if (rle == NULL && bootverbose) {
-			device_printf(bus, "no default resources for "
-			    "rid = %d, type = %d\n", *rid, type);
+		if (rle == NULL) {
+			if (bootverbose)
+				device_printf(bus, "no default resources for "
+				    "rid = %d, type = %d\n", *rid, type);
 			return (NULL);
 		}
 		start = rle->start;
