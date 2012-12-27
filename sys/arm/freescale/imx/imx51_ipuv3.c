@@ -116,9 +116,9 @@ struct video_adapter_softc {
 static struct ipu3sc_softc *ipu3sc_softc;
 static struct video_adapter_softc va_softc;
 
-#define	IPUV3_READ(ipuv3, module, reg)					      \
+#define	IPUV3_READ(ipuv3, module, reg)					\
 	bus_space_read_4((ipuv3)->iot, (ipuv3)->module##_ioh, (reg))
-#define	IPUV3_WRITE(ipuv3, module, reg, val)				      \
+#define	IPUV3_WRITE(ipuv3, module, reg, val)				\
 	bus_space_write_4((ipuv3)->iot, (ipuv3)->module##_ioh, (reg), (val))
 
 #define	IPUV3_DEBUG 100
@@ -152,7 +152,8 @@ static int
 ipu3_fb_malloc(struct ipu3sc_softc *sc, size_t size)
 {
 
-	sc->vbase = (uint32_t)contigmalloc(size, M_DEVBUF, M_ZERO, 0, ~0, PAGE_SIZE, 0);
+	sc->vbase = (uint32_t)contigmalloc(size, M_DEVBUF, M_ZERO, 0, ~0,
+	    PAGE_SIZE, 0);
 	sc->pbase = vtophys(sc->vbase);
 
 	return (0);
