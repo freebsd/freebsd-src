@@ -167,7 +167,7 @@ int 	gr_copy(int __ffd, int _tfd, const struct group *_gr,
 struct group *
 	gr_dup(const struct group *_gr);
 struct group *
-	gr_add(struct group *_gr, const char *_newmember);
+	gr_add(struct group *_gr, char *_newmember);
 int	gr_equal(const struct group *_gr1, const struct group *_gr2);
 void	gr_fini(void);
 int	gr_init(const char *_dir, const char *_master);
