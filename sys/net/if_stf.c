@@ -128,7 +128,8 @@ SYSCTL_INT(_net_link_stf, OID_AUTO, route_cache, CTLFLAG_RW,
     &stf_route_cache, 0, "Caching of IPv4 routes for 6to4 Output");
 
 static int stf_permit_rfc1918 = 0;
-SYSCTL_INT(_net_link_stf, OID_AUTO, permit_rfc1918, CTLFLAG_RW,
+TUNABLE_INT("net.link.stf.permit_rfc1918", &stf_permit_rfc1918);
+SYSCTL_INT(_net_link_stf, OID_AUTO, permit_rfc1918, CTLFLAG_RW | CTLFLAG_TUN,
     &stf_permit_rfc1918, 0, "Permit the use of private IPv4 addresses");
 
 #define STFUNIT		0
