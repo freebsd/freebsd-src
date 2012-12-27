@@ -452,7 +452,7 @@ gr_dup(const struct group *gr)
 		return (NULL);
 	/* point new gr_mem to end of struct + 1 */
 	if (gr->gr_mem != NULL)
-		newgr->gr_mem = (char **)((uintptr_t)newgr + sizeof(struct group));
+		newgr->gr_mem = (char **)(newgr + 1);
 	else
 		newgr->gr_mem = NULL;
 	/* point dst after the end of all the gr_mem pointers in newgr */
