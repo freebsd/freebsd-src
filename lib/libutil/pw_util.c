@@ -179,11 +179,8 @@ pw_lock(void)
 	for (;;) {
 		struct stat st;
 
-		lockfd = open(masterpasswd, O_RDONLY, 0);
-		if (lockfd < 0 || fcntl(lockfd, F_SETFD, 1) == -1)
-			err(1, "%s", masterpasswd);
-		/* XXX vulnerable to race conditions */
-		if (flock(lockfd, LOCK_EX|LOCK_NB) == -1) {
+		lockfd = flopen(masterpasswd, O_RDONLY|O_NONBLOCK, 0);
+		if (lockfd == -1) {
 			if (errno == EWOULDBLOCK) {
 				errx(1, "the password db file is busy");
 			} else {
