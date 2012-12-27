@@ -745,25 +745,19 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 */
 
 	if (mode == M_ADD || getarg(args, 'G') != NULL) {
-		int i, j;
+		int i;
 		for (i = 0; cnf->groups[i] != NULL; i++) {
-			char **members;
 			grp = GETGRNAM(cnf->groups[i]);
-			for (j = 0; grp->gr_mem[j] != NULL; j++) {
-				if (!strcmp(grp->gr_mem[j], pwd->pw_name))
-					break;
-			}
-			if (grp->gr_mem[j] != NULL) /* user already member of group */
+			grp = gr_add(grp, pwd->pw_name);
+			/*
+			 * grp can only be NULL in 2 cases:
+			 * - the new member is already a member
+			 * - a problem with memory occurs
+			 * in both cases we want to skip now.
+			 */
+			if (grp == NULL)
 				continue;
-
-			members = malloc(sizeof(char *) * (j + 2));
-			memcpy(members, grp->gr_mem, j * sizeof(*members));
-
-			members[j] = pwd->pw_name;
-			members[j+1] = NULL;
-			grp->gr_mem = members;
 			chggrent(cnf->groups[i], grp);
-			free(members);
 		}
 	}
 
