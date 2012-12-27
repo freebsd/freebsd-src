@@ -482,7 +482,7 @@ gr_dup(const struct group *gr)
  * Add a new member name to a struct group.
  */
 struct group *
-gr_add(struct group *gr, const char *newmember)
+gr_add(struct group *gr, char *newmember)
 {
 	size_t mlen;
 	int num_mem=0;
@@ -502,18 +502,17 @@ gr_add(struct group *gr, const char *newmember)
 	}
 	/* Allocate enough for current pointers + 1 more and NULL marker */
 	mlen = (num_mem + 2) * sizeof(*gr->gr_mem);
-	if ((members = calloc(1, mlen )) == NULL) {
+	if ((members = malloc(mlen)) == NULL) {
 		errno = ENOMEM;
 		return (NULL);
 	}
 	memcpy(members, gr->gr_mem, num_mem * sizeof(*gr->gr_mem));
-	members[num_mem++] = (char *)newmember;
+	members[num_mem++] = newmember;
 	members[num_mem] = NULL;
 	gr->gr_mem = members;
 	newgr = gr_dup(gr);
 	if (newgr == NULL)
 		errno = ENOMEM;
-
 	free(members);
 	return (newgr);
 }
