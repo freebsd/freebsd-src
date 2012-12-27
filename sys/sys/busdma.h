@@ -57,12 +57,13 @@ typedef struct busdma_mtag *busdma_mtag_t;
  *	maxsz		maximum total DMA size allowed.
  *	nsegs		maximum number of DMA segments allowed.
  *	maxsegsz	maximum size of a single DMA segment.
+ *	datarate	maximum data rate (in Mbps).
  *	flags		flags that control the behaviour of the operation.
  *	tag_p		address in which to return the newly created tag.
  */
 int busdma_tag_create(device_t dev, bus_addr_t align, bus_addr_t bndry,
     bus_addr_t maxaddr, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz,
-    u_int flags, busdma_tag_t *tag_p);
+    u_int datarate, u_int flags, busdma_tag_t *tag_p);
 
 /*
  * busdma_tag_derive
@@ -75,12 +76,13 @@ int busdma_tag_create(device_t dev, bus_addr_t align, bus_addr_t bndry,
  *	maxsz		maximum total DMA size allowed.
  *	nsegs		maximum number of DMA segments allowed.
  *	maxsegsz	maximum size of a single DMA segment.
+ *	datarate	maximum data rate (in Mbps).
  *	flags		flags that control the behaviour of the operation.
  *	tag_p		address in which to return the newly created tag.
  */
 int busdma_tag_derive(busdma_tag_t tag, bus_addr_t align, bus_addr_t bndry,
     bus_addr_t maxaddr, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz,
-    u_int flags, busdma_tag_t *tag_p);
+    u_int datarate, u_int flags, busdma_tag_t *tag_p);
 
 /*
  * busdma_tag_destroy

@@ -57,8 +57,9 @@ struct busdma_tag {
 	bus_addr_t	dt_align;
 	bus_addr_t	dt_bndry;
 	bus_size_t	dt_maxsz;
-	u_int		dt_nsegs;
 	bus_size_t	dt_maxsegsz;
+	u_int		dt_nsegs;
+	u_int		dt_datarate;
 };
 
 struct busdma_md_seg {
@@ -143,6 +144,9 @@ busdma_init(void *arg)
 	/* Make dt_maxsz the largest power of 2. */
 	busdma_root_tag->dt_maxsz = (~0UL >> 1) + 1;
 
+	/* Just like dt_maxsz, limit to the largest power of 2. */
+	busdma_root_tag->dt_maxsegsz = (~0UL >> 1) + 1;
+
 	/*
 	 * Arbitrarily limit the number of scatter/gather segments to 1K
 	 * so as to protect the kernel from bad drivers or bugs.  Why 1K?
@@ -150,32 +154,32 @@ busdma_init(void *arg)
 	 */
 	busdma_root_tag->dt_nsegs = 1024;
 
-	/* Just like dt_maxsz, limit to the largest power of 2. */
-	busdma_root_tag->dt_maxsegsz = (~0UL >> 1) + 1;
+	/* No limitations on the datarate. */
+	busdma_root_tag->dt_datarate = ~0U;
 }
 SYSINIT(busdma_kmem, SI_SUB_KMEM, SI_ORDER_ANY, busdma_init, NULL);
 
 /* Section 3.2: Debugging & tracing. */
 
-#if 0
 static void
 _busdma_mtag_dump(const char *func, device_t dev, struct busdma_mtag *mtag)
 {
 
+#ifdef BUSDMA_DEBUG
 	printf("[%s: %s: min=%#jx, max=%#jx, size=%#jx, align=%#jx, "
 	    "bndry=%#jx]\n", __func__,
 	    (dev != NULL) ? device_get_nameunit(dev) : "*",
 	    (uintmax_t)mtag->dmt_minaddr, (uintmax_t)mtag->dmt_maxaddr,
 	    (uintmax_t)mtag->dmt_maxsz, (uintmax_t)mtag->dmt_align,
 	    (uintmax_t)mtag->dmt_bndry);
-}
 #endif
+}
 
-#if 0
 static void
 _busdma_tag_dump(const char *func, device_t dev, struct busdma_tag *tag)
 {
 
+#ifdef BUSDMA_DEBUG
 	printf("[%s: %s: tag=%p (minaddr=%#jx, maxaddr=%#jx, align=%#jx, "
 	    "bndry=%#jx, maxsz=%#jx, nsegs=%u, maxsegsz=%#jx)]\n",
 	    func, (dev != NULL) ? device_get_nameunit(dev) : "*", tag,
@@ -183,13 +187,13 @@ _busdma_tag_dump(const char *func, device_t dev, struct busdma_tag *tag)
 	    (uintmax_t)tag->dt_align, (uintmax_t)tag->dt_bndry,
 	    (uintmax_t)tag->dt_maxsz,
 	    tag->dt_nsegs, (uintmax_t)tag->dt_maxsegsz);
-}
 #endif
+}
 
-#if 0
 static void
 _busdma_md_dump(const char *func, device_t dev, struct busdma_md *md) 
 {
+#ifdef BUSDMA_DEBUG
 	struct busdma_tag *tag;
 	struct busdma_md_seg *seg;
 
@@ -210,8 +214,8 @@ _busdma_md_dump(const char *func, device_t dev, struct busdma_md *md)
 		    (uintmax_t)seg->mds_vaddr);
 	}
 	printf("]\n");
-}
 #endif
+}
 
 /* Section 3.3: API support functions. */
 
@@ -258,14 +262,15 @@ _busdma_tag_get_base(device_t dev)
 		base = busdma_root_tag;
 		parent = NULL;
 	}
-	// _busdma_tag_dump(__func__, parent, base);
+	_busdma_tag_dump(__func__, parent, base);
 	return (base);
 }
 
 static int
 _busdma_tag_make(device_t dev, struct busdma_tag *base, bus_addr_t align,
     bus_addr_t bndry, bus_addr_t maxaddr, bus_size_t maxsz, u_int nsegs,
-    bus_size_t maxsegsz, u_int flags, struct busdma_tag **tag_p)
+    bus_size_t maxsegsz, u_int datarate, u_int flags,
+    struct busdma_tag **tag_p)
 {
 	struct busdma_tag *tag;
 
@@ -292,7 +297,8 @@ _busdma_tag_make(device_t dev, struct busdma_tag *base, bus_addr_t align,
 	tag->dt_maxsz = MIN(maxsz, base->dt_maxsz);
 	tag->dt_nsegs = MIN(nsegs, base->dt_nsegs);
 	tag->dt_maxsegsz = MIN(maxsegsz, base->dt_maxsegsz);
-	// _busdma_tag_dump(__func__, dev, tag);
+	tag->dt_datarate = MIN(datarate, base->dt_datarate);
+	_busdma_tag_dump(__func__, dev, tag);
 	*tag_p = tag;
 	return (0);
 }
@@ -324,12 +330,12 @@ _busdma_iommu_xlate(device_t leaf, struct busdma_mtag *mtag)
 	error = 0;
 	dev = device_get_parent(leaf);
 	while (!error && dev != root_bus) {
-		// _busdma_mtag_dump(__func__, dev, mtag);
+		_busdma_mtag_dump(__func__, dev, mtag);
 		error = BUSDMA_IOMMU_XLATE(dev, mtag);
 		if (!error)
 			dev = device_get_parent(dev);
 	}
-	// _busdma_mtag_dump(__func__, dev, mtag);
+	_busdma_mtag_dump(__func__, dev, mtag);
 	return (error);
 }
 
@@ -362,7 +368,7 @@ _busdma_iommu_map(device_t leaf, struct busdma_md *md)
 	device_t dev;
 	int error;
  
-	// _busdma_md_dump(__func__, root_bus, md);
+	_busdma_md_dump(__func__, root_bus, md);
 	dev = device_get_parent(leaf);
 	error = 0;
 	TAILQ_FOREACH(seg, &md->md_seg, mds_chain) {
@@ -371,7 +377,7 @@ _busdma_iommu_map(device_t leaf, struct busdma_md *md)
 			break;
 	}
 	if (!error) {
-		// _busdma_md_dump(__func__, leaf, md);
+		_busdma_md_dump(__func__, leaf, md);
 	}
 	return (error);
 }
@@ -399,6 +405,7 @@ _busdma_md_load(struct busdma_md *md, pmap_t pm, vm_offset_t va, vm_size_t len)
 			seg->mds_size += catsz;
 			pa += catsz;
 			sz -= catsz;
+			len -= catsz;
 			va += catsz;
 		}
 
@@ -422,7 +429,7 @@ _busdma_md_load(struct busdma_md *md, pmap_t pm, vm_offset_t va, vm_size_t len)
 		va += sz;
 	}
 
-	// _busdma_md_dump(__func__, NULL, md);
+	_busdma_md_dump(__func__, NULL, md);
 	return (0);
 }
 
@@ -433,7 +440,7 @@ _busdma_md_load(struct busdma_md *md, pmap_t pm, vm_offset_t va, vm_size_t len)
 int
 busdma_tag_create(device_t dev, bus_addr_t align, bus_addr_t bndry,
     bus_addr_t maxaddr, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz,
-    u_int flags, struct busdma_tag **tag_p)
+    u_int datarate, u_int flags, struct busdma_tag **tag_p)
 {
 	struct busdma_tag *base, *first, *tag;
 	int error;
@@ -449,7 +456,7 @@ busdma_tag_create(device_t dev, bus_addr_t align, bus_addr_t bndry,
 
 	base = _busdma_tag_get_base(dev);
 	error = _busdma_tag_make(dev, base, align, bndry, maxaddr, maxsz,
-	    nsegs, maxsegsz, flags, &tag);
+	    nsegs, maxsegsz, datarate, flags, &tag);
 	if (error != 0)
 		return (error);
 
@@ -465,7 +472,7 @@ busdma_tag_create(device_t dev, bus_addr_t align, bus_addr_t bndry,
 int
 busdma_tag_derive(struct busdma_tag *base, bus_addr_t align, bus_addr_t bndry,
     bus_addr_t maxaddr, bus_size_t maxsz, u_int nsegs, bus_size_t maxsegsz,
-    u_int flags, struct busdma_tag **tag_p)
+    u_int datarate, u_int flags, struct busdma_tag **tag_p)
 {
 	struct busdma_tag *tag;
 	int error;
@@ -480,7 +487,7 @@ busdma_tag_derive(struct busdma_tag *base, bus_addr_t align, bus_addr_t bndry,
 		return (EINVAL);
 
 	error = _busdma_tag_make(base->dt_device, base, align, bndry, maxaddr,
-	    maxsz, nsegs, maxsegsz, flags, &tag);
+	    maxsz, nsegs, maxsegsz, datarate, flags, &tag);
 	if (error != 0)
 		return (error);
 
@@ -521,7 +528,7 @@ busdma_md_create(struct busdma_tag *tag, u_int flags, struct busdma_md **md_p)
 	if (md == NULL)
 		return (ENOMEM);
 
-	// _busdma_md_dump(__func__, NULL, md);
+	_busdma_md_dump(__func__, NULL, md);
 	*md_p = md;
 	return (0);
 }
