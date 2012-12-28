@@ -456,8 +456,7 @@ gr_dup(const struct group *gr)
 	else
 		newgr->gr_mem = NULL;
 	/* point dst after the end of all the gr_mem pointers in newgr */
-	dst = (char *)newgr + sizeof(struct group) +
-	    (num_mem + 1) * sizeof(*gr->gr_mem);
+	dst = (char *)&newgr->gr_mem[num_mem + 1];
 	if (gr->gr_name != NULL) {
 		newgr->gr_name = dst;
 		dst = stpcpy(dst, gr->gr_name) + 1;
