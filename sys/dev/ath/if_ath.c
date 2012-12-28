@@ -5620,7 +5620,7 @@ ath_node_set_tim(struct ieee80211_node *ni, int enable)
 	struct ath_vap *avp = ATH_VAP(ni->ni_vap);
 
 	/*
-	 * Some operating omdes don't set av_set_tim(), so don't
+	 * Some operating modes don't set av_set_tim(), so don't
 	 * update it here.
 	 */
 	if (avp->av_set_tim == NULL)
