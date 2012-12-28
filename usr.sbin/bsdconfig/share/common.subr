@@ -72,7 +72,12 @@ f_dprintf()
 {
 	[ "$debug" ] || return $SUCCESS
 	local fmt="$1"; shift
+	case "$debugFile" in ""|+*)
 	printf "DEBUG: $fmt${fmt:+\n}" "$@" >&${TERMINAL_STDOUT_PASSTHRU:-1}
+	esac
+	[ "${debugFile#+}" ] &&
+		printf "DEBUG: $fmt${fmt:+\n}" "$@" >> "${debugFile#+}"
+	return $SUCCESS
 }
 
 # f_err $fmt [ $opts ... ]
@@ -515,6 +520,25 @@ eval exec $TERMINAL_STDERR_PASSTHRU\>\&2
 # Make debugging persistant if set
 #
 [ "$debug" ] && export debug
+
+#
+# Truncate the debug file upon initialization (now). Note that we will trim a
+# leading plus (`+') from the value of debugFile to support persistant meaning
+# that f_dprintf() should print both to standard output and $debugFile (minus
+# the leading plus, of course).
+#
+_debug_file="${debugFile#+}"
+if [ "$_debug_file" ]; then
+	if ( umask 022 && :> "$_debug_file" ); then
+		f_dprintf "Successfully initialized debugFile \`%s'" \
+		          "$_debug_file"
+	else
+		unset debugFile
+		f_dprintf "Unable to initialize debugFile \`%s'" \
+		          "$_debug_file"
+	fi
+fi
+unset _debug_file
 
 #
 # Log our operating environment for debugging purposes
