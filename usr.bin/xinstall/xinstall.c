@@ -105,6 +105,7 @@ main(int argc, char *argv[])
 	char *flags;
 	const char *group, *owner, *to_name;
 
+	flags = NULL;
 	iflags = 0;
 	group = owner = NULL;
 	while ((ch = getopt(argc, argv, "B:bCcdf:g:Mm:o:pSsUv")) != -1)
