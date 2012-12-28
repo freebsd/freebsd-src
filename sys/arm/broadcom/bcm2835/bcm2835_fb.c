@@ -94,6 +94,12 @@ static struct argb bcmfb_palette[16] = {
 	{0x00, 0xff, 0xff, 0xff}
 };
 
+/* mouse pointer from dev/syscons/scgfbrndr.c */
+static u_char mouse_pointer[16] = {
+        0x00, 0x40, 0x60, 0x70, 0x78, 0x7c, 0x7e, 0x68,
+        0x0c, 0x0c, 0x06, 0x06, 0x00, 0x00, 0x00, 0x00
+};
+
 #define FB_WIDTH		640
 #define FB_HEIGHT		480
 #define FB_DEPTH		24
@@ -420,9 +426,140 @@ static video_switch_t bcmfbvidsw = {
 
 VIDEO_DRIVER(bcmfb, bcmfbvidsw, bcmfb_configure);
 
-extern sc_rndr_sw_t txtrndrsw;
-RENDERER(bcmfb, 0, txtrndrsw, gfb_set);
+static vr_init_t bcmrend_init;
+static vr_clear_t bcmrend_clear;
+static vr_draw_border_t bcmrend_draw_border;
+static vr_draw_t bcmrend_draw;
+static vr_set_cursor_t bcmrend_set_cursor;
+static vr_draw_cursor_t bcmrend_draw_cursor;
+static vr_blink_cursor_t bcmrend_blink_cursor;
+static vr_set_mouse_t bcmrend_set_mouse;
+static vr_draw_mouse_t bcmrend_draw_mouse;
+
+/*
+ * We use our own renderer; this is because we must emulate a hardware
+ * cursor.
+ */
+static sc_rndr_sw_t bcmrend = {
+	bcmrend_init,
+	bcmrend_clear,
+	bcmrend_draw_border,
+	bcmrend_draw,
+	bcmrend_set_cursor,
+	bcmrend_draw_cursor,
+	bcmrend_blink_cursor,
+	bcmrend_set_mouse,
+	bcmrend_draw_mouse
+};
+
+RENDERER(bcmfb, 0, bcmrend, gfb_set);
 RENDERER_MODULE(bcmfb, gfb_set);
+
+static void
+bcmrend_init(scr_stat* scp)
+{
+}
+
+static void
+bcmrend_clear(scr_stat* scp, int c, int attr)
+{
+}
+
+static void
+bcmrend_draw_border(scr_stat* scp, int color)
+{
+}
+
+static void
+bcmrend_draw(scr_stat* scp, int from, int count, int flip)
+{
+	video_adapter_t* adp = scp->sc->adp;
+	int i, c, a;
+
+	if (!flip) {
+		/* Normal printing */
+		vidd_puts(adp, from, (uint16_t*)sc_vtb_pointer(&scp->vtb, from), count);
+	} else {	
+		/* This is for selections and such: invert the color attribute */
+		for (i = count; i-- > 0; ++from) {
+			c = sc_vtb_getc(&scp->vtb, from);
+			a = sc_vtb_geta(&scp->vtb, from) >> 8;
+			vidd_putc(adp, from, c, (a >> 4) | ((a & 0xf) << 4));
+		}
+	}
+}
+
+static void
+bcmrend_set_cursor(scr_stat* scp, int base, int height, int blink)
+{
+}
+
+static void
+bcmrend_draw_cursor(scr_stat* scp, int off, int blink, int on, int flip)
+{
+	video_adapter_t* adp = scp->sc->adp;
+	struct video_adapter_softc *sc;
+	int row, col;
+	uint8_t *addr;
+	int i, j, bytes;
+
+	sc = (struct video_adapter_softc *)adp;
+
+	if (scp->curs_attr.height <= 0)
+		return;
+
+	if (sc->fb_addr == 0)
+		return;
+
+	if (off >= adp->va_info.vi_width * adp->va_info.vi_height)
+		return;
+
+	/* calculate the coordinates in the video buffer */
+	row = (off / adp->va_info.vi_width) * adp->va_info.vi_cheight;
+	col = (off % adp->va_info.vi_width) * adp->va_info.vi_cwidth;
+
+	addr = (uint8_t *)sc->fb_addr
+	    + (row + sc->ymargin)*(sc->stride)
+	    + (sc->depth/8) * (col + sc->xmargin);
+
+	bytes = sc->depth/8;
+
+	/* our cursor consists of simply inverting the char under it */
+	for (i = 0; i < adp->va_info.vi_cheight; i++) {
+		for (j = 0; j < adp->va_info.vi_cwidth; j++) {
+			switch (sc->depth) {
+			case 32:
+			case 24:
+				addr[bytes*j + 2] ^= 0xff;
+				/* FALLTHROUGH */
+			case 16:
+				addr[bytes*j + 1] ^= 0xff;
+				addr[bytes*j] ^= 0xff;
+				break;
+			default:
+				break;
+			}
+		}
+
+		addr += sc->stride;
+	}
+}
+
+static void
+bcmrend_blink_cursor(scr_stat* scp, int at, int flip)
+{
+}
+
+static void
+bcmrend_set_mouse(scr_stat* scp)
+{
+}
+
+static void
+bcmrend_draw_mouse(scr_stat* scp, int x, int y, int on)
+{
+	vidd_putm(scp->sc->adp, x, y, mouse_pointer, 0xffffffff, 16, 8);
+}
 
 static uint16_t bcmfb_static_window[ROW*COL];
 extern u_char dflt_font_16[];
