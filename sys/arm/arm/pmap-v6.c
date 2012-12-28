@@ -2663,7 +2663,7 @@ do_l2b_alloc:
 	if (!(prot & VM_PROT_EXECUTE) && m)
 		npte |= L2_XN;
 
-	if (!(m->md.pv_memattr & VM_MEMATTR_UNCACHEABLE))
+	if (m->md.pv_memattr != VM_MEMATTR_UNCACHEABLE)
 		npte |= pte_l2_s_cache_mode;
 
 	if (m && m == opg) {

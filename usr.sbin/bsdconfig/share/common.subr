@@ -55,24 +55,25 @@ ARGV="$@"
 SUCCESS=0
 FAILURE=1
 
+#
+# Operating environment details
+#
+export UNAME_S="$(uname -s)" # Operating System (i.e. FreeBSD)
+export UNAME_P="$(uname -p)" # Processor Architecture (i.e. i386)
+export UNAME_R="$(uname -r)" # Release Level (i.e. X.Y-RELEASE)
+
 ############################################################ FUNCTIONS
 
 #
-# This is an empty function by default, to use it, copy
-# /usr/share/examples/bsdconfig/bsdconfigrc to $HOME/.bsdconfigrc
+# Sensible debug function. Override in ~/.bsdconfigrc if desired.
+# See /usr/share/examples/bsdconfig/bsdconfigrc for example.
 #
 f_dprintf()
 {
-	: this page intentionally left blank
+	[ "$debug" ] || return $SUCCESS
+	local fmt="$1"; shift
+	printf "DEBUG: $fmt${fmt:+\n}" "$@" >&${TERMINAL_STDOUT_PASSTHRU:-1}
 }
-[ "$DEBUGGING" ] && f_dprintf()
-{
-	local fmt="$1"
-	shift
-	printf "$fmt${fmt:+\n}" "$@" \
-		>&${TERMINAL_STDOUT_PASSTHRU:-1}
-} &&
-	export DEBUGGING
 
 # f_err $fmt [ $opts ... ]
 #
@@ -509,5 +510,18 @@ trap '' SIGALRM SIGPROF SIGUSR1 SIGUSR2 SIGHUP SIGVTALRM
 #
 eval exec $TERMINAL_STDOUT_PASSTHRU\>\&1
 eval exec $TERMINAL_STDERR_PASSTHRU\>\&2
+
+#
+# Make debugging persistant if set
+#
+[ "$debug" ] && export debug
+
+#
+# Log our operating environment for debugging purposes
+#
+f_dprintf "UNAME_S=[%s] UNAME_P=[%s] UNAME_R=[%s]" \
+          "$UNAME_S" "$UNAME_P" "$UNAME_R"
+
+f_dprintf "%s: Successfully loaded." common.subr
 
 fi # ! $_COMMON_SUBR

@@ -47,25 +47,14 @@ struct buf_ring {
 	int              	br_prod_size;
 	int              	br_prod_mask;
 	uint64_t		br_drops;
-	uint64_t		br_prod_bufs;
-	/*
-	 * Pad out to next L2 cache line
-	 */
-	uint64_t	  	_pad0[11];
-
-	volatile uint32_t	br_cons_head;
+	volatile uint32_t	br_cons_head __aligned(CACHE_LINE_SIZE);
 	volatile uint32_t	br_cons_tail;
 	int		 	br_cons_size;
 	int              	br_cons_mask;
-	
-	/*
-	 * Pad out to next L2 cache line
-	 */
-	uint64_t	  	_pad1[14];
 #ifdef DEBUG_BUFRING
 	struct mtx		*br_lock;
 #endif	
-	void			*br_ring[0];
+	void			*br_ring[0] __aligned(CACHE_LINE_SIZE);
 };
 
 /*
@@ -77,7 +66,6 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 {
 	uint32_t prod_head, prod_next;
 	uint32_t cons_tail;
-	int success;
 #ifdef DEBUG_BUFRING
 	int i;
 	for (i = br->br_cons_head; i != br->br_prod_head;
@@ -98,16 +86,18 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 			critical_exit();
 			return (ENOBUFS);
 		}
-		
-		success = atomic_cmpset_int(&br->br_prod_head, prod_head,
-		    prod_next);
-	} while (success == 0);
+	} while (!atomic_cmpset_int(&br->br_prod_head, prod_head, prod_next));
 #ifdef DEBUG_BUFRING
 	if (br->br_ring[prod_head] != NULL)
 		panic("dangling value in enqueue");
 #endif	
 	br->br_ring[prod_head] = buf;
-	wmb();
+
+	/*
+	 * The full memory barrier also avoids that br_prod_tail store
+	 * is reordered before the br_ring[prod_head] is full setup.
+	 */
+	mb();
 
 	/*
 	 * If there are other enqueues in progress
@@ -116,7 +106,6 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 	 */   
 	while (br->br_prod_tail != prod_head)
 		cpu_spinwait();
-	br->br_prod_bufs++;
 	br->br_prod_tail = prod_next;
 	critical_exit();
 	return (0);
@@ -154,7 +143,12 @@ buf_ring_dequeue_mc(struct buf_ring *br)
 #ifdef DEBUG_BUFRING
 	br->br_ring[cons_head] = NULL;
 #endif
-	rmb();
+
+	/*
+	 * The full memory barrier also avoids that br_ring[cons_read]
+	 * load is reordered after br_cons_tail is set.
+	 */
+	mb();
 	
 	/*
 	 * If there are other dequeues in progress

@@ -1,6 +1,4 @@
-/*	$OpenBSD: pf_norm.c,v 1.114 2009/01/29 14:11:45 henning Exp $ */
-
-/*
+/*-
  * Copyright 2001 Niels Provos <provos@citi.umich.edu>
  * All rights reserved.
  *
@@ -23,6 +21,8 @@
  * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *
+ *	$OpenBSD: pf_norm.c,v 1.114 2009/01/29 14:11:45 henning Exp $
  */
 
 #include <sys/cdefs.h>

@@ -559,7 +559,7 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 	if (error || fstype[fstypelen - 1] != '\0') {
 		error = EINVAL;
 		if (errmsg != NULL)
-			strncpy(errmsg, "Invalid fstype", errmsg_len);
+			strlcpy(errmsg, "Invalid fstype", errmsg_len);
 		goto bail;
 	}
 	fspathlen = 0;
@@ -567,7 +567,7 @@ vfs_donmount(struct thread *td, uint64_t fsflags, struct uio *fsoptions)
 	if (error || fspath[fspathlen - 1] != '\0') {
 		error = EINVAL;
 		if (errmsg != NULL)
-			strncpy(errmsg, "Invalid fspath", errmsg_len);
+			strlcpy(errmsg, "Invalid fspath", errmsg_len);
 		goto bail;
 	}
 
@@ -1447,7 +1447,7 @@ vfs_filteropt(struct vfsoptlist *opts, const char **legal)
 	if (ret != 0) {
 		TAILQ_FOREACH(opt, opts, link) {
 			if (strcmp(opt->name, "errmsg") == 0) {
-				strncpy((char *)opt->value, errmsg, opt->len);
+				strlcpy((char *)opt->value, errmsg, opt->len);
 				break;
 			}
 		}

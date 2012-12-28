@@ -31,6 +31,7 @@
 
 BSDCFG_SHARE="/usr/share/bsdconfig"
 . $BSDCFG_SHARE/common.subr || exit 1
+f_dprintf "%s: loading includes..." "$0"
 f_include $BSDCFG_SHARE/dialog.subr
 f_include $BSDCFG_SHARE/mustberoot.subr
 f_include $BSDCFG_SHARE/usermgmt/group_input.subr
@@ -148,7 +149,6 @@ f_dprintf "mode=[%s] group=[%s]" "$mode" "$group"
 #
 # Initialize
 #
-f_dialog_init
 dialog_title_update "$mode"
 f_dialog_backtitle "${ipgm:+bsdconfig }$pgm"
 f_mustberoot_init

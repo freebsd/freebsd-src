@@ -28,7 +28,7 @@
 .\"     @(#)exports.5	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd July 12, 2011
+.Dd December 23, 2012
 .Dt EXPORTS 5
 .Os
 .Sh NAME
@@ -311,12 +311,15 @@ For the third form which specifies the NFSv4 tree root, the directory path
 specifies the location within the server's file system tree which is the
 root of the NFSv4 tree.
 All entries of this form must specify the same directory path.
-This location can be any directory and does not
+For file systems other than ZFS,
+this location can be any directory and does not
 need to be within an exported file system. If it is not in an exported
 file system, a very limited set of operations are permitted, so that an
 NFSv4 client can traverse the tree to an exported file system.
 Although parts of the NFSv4 tree can be non-exported, the entire NFSv4 tree
 must consist of local file systems capable of being exported via NFS.
+All ZFS file systems in the subtree below the NFSv4 tree root must be
+exported.
 NFSv4 does not use the mount protocol and does permit clients to cross server
 mount point boundaries, although not all clients are capable of crossing the
 mount points.

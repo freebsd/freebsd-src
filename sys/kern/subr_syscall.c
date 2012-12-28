@@ -78,7 +78,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 		ktrsyscall(sa->code, sa->narg, sa->args);
 #endif
 	KTR_START4(KTR_SYSC, "syscall", syscallname(p, sa->code),
-	    td, "pid:%d", td->td_proc->p_pid, "arg0:%p", sa->args[0],
+	    (uintptr_t)td, "pid:%d", td->td_proc->p_pid, "arg0:%p", sa->args[0],
 	    "arg1:%p", sa->args[1], "arg2:%p", sa->args[2]);
 
 	if (error == 0) {
@@ -152,7 +152,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 	}
  retval:
 	KTR_STOP4(KTR_SYSC, "syscall", syscallname(p, sa->code),
-	    td, "pid:%d", td->td_proc->p_pid, "error:%d", error,
+	    (uintptr_t)td, "pid:%d", td->td_proc->p_pid, "error:%d", error,
 	    "retval0:%#lx", td->td_retval[0], "retval1:%#lx",
 	    td->td_retval[1]);
 	if (traced) {

@@ -4724,12 +4724,6 @@ mnt_vnode_markerfree_active(struct vnode **mvp, struct mount *mp)
 	*mvp = NULL;
 }
 
-#ifdef SMP
-#define	ALWAYS_YIELD	(mp_ncpus == 1)
-#else
-#define	ALWAYS_YIELD	1
-#endif
-
 static struct vnode *
 mnt_vnode_next_active(struct vnode **mvp, struct mount *mp)
 {
@@ -4746,7 +4740,7 @@ restart:
 			continue;
 		}
 		if (!VI_TRYLOCK(vp)) {
-			if (ALWAYS_YIELD || should_yield()) {
+			if (mp_ncpus == 1 || should_yield()) {
 				TAILQ_INSERT_BEFORE(vp, *mvp, v_actfreelist);
 				mtx_unlock(&vnode_free_list_mtx);
 				kern_yield(PRI_USER);
@@ -4777,7 +4771,6 @@ restart:
 	KASSERT((vp->v_iflag & VI_ACTIVE) != 0, ("Non-active vp %p", vp));
 	return (vp);
 }
-#undef ALWAYS_YIELD
 
 struct vnode *
 __mnt_vnode_next_active(struct vnode **mvp, struct mount *mp)
