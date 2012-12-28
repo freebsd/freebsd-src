@@ -21,6 +21,11 @@ config.h: ${.CURDIR}/../../lib/libmagic/config.h
 	grep -v HAVE_GETLINE ${.ALLSRC} > ${.TARGET}
 .endif
 
+_WITH_PWCACHEDB!= grep -c pwcache_groupdb /usr/include/pwd.h || true
+.if ${_WITH_PWCACHEDB} == 0
+SRCS+=		pwcache-stub.c
+.endif
+
 .if empty(SRCS)
 SRCS=		dummy.c
 .endif
