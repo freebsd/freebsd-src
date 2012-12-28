@@ -113,9 +113,18 @@ namespace ISD {
     MVT VT;
     bool Used;
 
+    /// Index original Function's argument.
+    unsigned OrigArgIndex;
+
+    /// Offset in bytes of current input value relative to the beginning of
+    /// original argument. E.g. if argument was splitted into four 32 bit
+    /// registers, we got 4 InputArgs with PartOffsets 0, 4, 8 and 12.
+    unsigned PartOffset;
+
     InputArg() : VT(MVT::Other), Used(false) {}
-    InputArg(ArgFlagsTy flags, EVT vt, bool used)
-      : Flags(flags), Used(used) {
+    InputArg(ArgFlagsTy flags, EVT vt, bool used,
+             unsigned origIdx, unsigned partOffs)
+      : Flags(flags), Used(used), OrigArgIndex(origIdx), PartOffset(partOffs) {
       VT = vt.getSimpleVT();
     }
   };
@@ -131,9 +140,19 @@ namespace ISD {
     /// IsFixed - Is this a "fixed" value, ie not passed through a vararg "...".
     bool IsFixed;
 
+    /// Index original Function's argument.
+    unsigned OrigArgIndex;
+
+    /// Offset in bytes of current output value relative to the beginning of
+    /// original argument. E.g. if argument was splitted into four 32 bit
+    /// registers, we got 4 OutputArgs with PartOffsets 0, 4, 8 and 12.
+    unsigned PartOffset;
+
     OutputArg() : IsFixed(false) {}
-    OutputArg(ArgFlagsTy flags, EVT vt, bool isfixed)
-      : Flags(flags), IsFixed(isfixed) {
+    OutputArg(ArgFlagsTy flags, EVT vt, bool isfixed,
+              unsigned origIdx, unsigned partOffs)
+      : Flags(flags), IsFixed(isfixed), OrigArgIndex(origIdx),
+        PartOffset(partOffs) {
       VT = vt.getSimpleVT();
     }
   };

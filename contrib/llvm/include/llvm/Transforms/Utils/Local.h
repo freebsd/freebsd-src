@@ -18,7 +18,7 @@
 #include "llvm/IRBuilder.h"
 #include "llvm/Operator.h"
 #include "llvm/Support/GetElementPtrTypeIterator.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 
 namespace llvm {
 
@@ -35,7 +35,9 @@ class Pass;
 class PHINode;
 class AllocaInst;
 class ConstantExpr;
-class TargetData;
+class DataLayout;
+class TargetLibraryInfo;
+class TargetTransformInfo;
 class DIBuilder;
 
 template<typename T> class SmallVectorImpl;
@@ -51,7 +53,8 @@ template<typename T> class SmallVectorImpl;
 /// Also calls RecursivelyDeleteTriviallyDeadInstructions() on any branch/switch
 /// conditions and indirectbr addresses this might make dead if
 /// DeleteDeadConditions is true.
-bool ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions = false);
+bool ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions = false,
+                            const TargetLibraryInfo *TLI = 0);
 
 //===----------------------------------------------------------------------===//
 //  Local dead code elimination.
@@ -60,20 +63,21 @@ bool ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions = false);
 /// isInstructionTriviallyDead - Return true if the result produced by the
 /// instruction is not used, and the instruction has no side effects.
 ///
-bool isInstructionTriviallyDead(Instruction *I);
+bool isInstructionTriviallyDead(Instruction *I, const TargetLibraryInfo *TLI=0);
 
 /// RecursivelyDeleteTriviallyDeadInstructions - If the specified value is a
 /// trivially dead instruction, delete it.  If that makes any of its operands
 /// trivially dead, delete them too, recursively.  Return true if any
 /// instructions were deleted.
-bool RecursivelyDeleteTriviallyDeadInstructions(Value *V);
+bool RecursivelyDeleteTriviallyDeadInstructions(Value *V,
+                                                const TargetLibraryInfo *TLI=0);
 
 /// RecursivelyDeleteDeadPHINode - If the specified value is an effectively
 /// dead PHI node, due to being a def-use chain of single-use nodes that
 /// either forms a cycle or is terminated by a trivially dead instruction,
 /// delete it.  If that makes any of its operands trivially dead, delete them
 /// too, recursively.  Return true if a change was made.
-bool RecursivelyDeleteDeadPHINode(PHINode *PN);
+bool RecursivelyDeleteDeadPHINode(PHINode *PN, const TargetLibraryInfo *TLI=0);
 
   
 /// SimplifyInstructionsInBlock - Scan the specified basic block and try to
@@ -81,7 +85,8 @@ bool RecursivelyDeleteDeadPHINode(PHINode *PN);
 ///
 /// This returns true if it changed the code, note that it can delete
 /// instructions in other blocks as well in this block.
-bool SimplifyInstructionsInBlock(BasicBlock *BB, const TargetData *TD = 0);
+bool SimplifyInstructionsInBlock(BasicBlock *BB, const DataLayout *TD = 0,
+                                 const TargetLibraryInfo *TLI = 0);
     
 //===----------------------------------------------------------------------===//
 //  Control Flow Graph Restructuring.
@@ -99,7 +104,7 @@ bool SimplifyInstructionsInBlock(BasicBlock *BB, const TargetData *TD = 0);
 /// .. and delete the predecessor corresponding to the '1', this will attempt to
 /// recursively fold the 'and' to 0.
 void RemovePredecessorAndSimplify(BasicBlock *BB, BasicBlock *Pred,
-                                  TargetData *TD = 0);
+                                  DataLayout *TD = 0);
     
   
 /// MergeBasicBlockIntoOnlyPred - BB is a block with one predecessor and its
@@ -130,7 +135,8 @@ bool EliminateDuplicatePHINodes(BasicBlock *BB);
 /// of the CFG.  It returns true if a modification was made, possibly deleting
 /// the basic block that was pointed to.
 ///
-bool SimplifyCFG(BasicBlock *BB, const TargetData *TD = 0);
+bool SimplifyCFG(BasicBlock *BB, const DataLayout *TD = 0,
+                 const TargetTransformInfo *TTI = 0);
 
 /// FoldBranchToCommonDest - If this basic block is ONLY a setcc and a branch,
 /// and if a predecessor branches to us and one of our successors, fold the
@@ -158,10 +164,10 @@ AllocaInst *DemotePHIToStack(PHINode *P, Instruction *AllocaPoint = 0);
 /// and it is more than the alignment of the ultimate object, see if we can
 /// increase the alignment of the ultimate object, making this check succeed.
 unsigned getOrEnforceKnownAlignment(Value *V, unsigned PrefAlign,
-                                    const TargetData *TD = 0);
+                                    const DataLayout *TD = 0);
 
 /// getKnownAlignment - Try to infer an alignment for the specified pointer.
-static inline unsigned getKnownAlignment(Value *V, const TargetData *TD = 0) {
+static inline unsigned getKnownAlignment(Value *V, const DataLayout *TD = 0) {
   return getOrEnforceKnownAlignment(V, 0, TD);
 }
 
@@ -171,7 +177,7 @@ static inline unsigned getKnownAlignment(Value *V, const TargetData *TD = 0) {
 /// When NoAssumptions is true, no assumptions about index computation not
 /// overflowing is made.
 template<typename IRBuilderTy>
-Value *EmitGEPOffset(IRBuilderTy *Builder, const TargetData &TD, User *GEP,
+Value *EmitGEPOffset(IRBuilderTy *Builder, const DataLayout &TD, User *GEP,
                      bool NoAssumptions = false) {
   gep_type_iterator GTI = gep_type_begin(GEP);
   Type *IntPtrTy = TD.getIntPtrType(GEP->getContext());

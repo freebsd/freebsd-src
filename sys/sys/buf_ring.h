@@ -77,7 +77,6 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 {
 	uint32_t prod_head, prod_next;
 	uint32_t cons_tail;
-	int success;
 #ifdef DEBUG_BUFRING
 	int i;
 	for (i = br->br_cons_head; i != br->br_prod_head;
@@ -98,10 +97,7 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 			critical_exit();
 			return (ENOBUFS);
 		}
-		
-		success = atomic_cmpset_int(&br->br_prod_head, prod_head,
-		    prod_next);
-	} while (success == 0);
+	} while (!atomic_cmpset_int(&br->br_prod_head, prod_head, prod_next));
 #ifdef DEBUG_BUFRING
 	if (br->br_ring[prod_head] != NULL)
 		panic("dangling value in enqueue");
@@ -114,10 +110,10 @@ buf_ring_enqueue(struct buf_ring *br, void *buf)
 	 * that preceeded us, we need to wait for them
 	 * to complete 
 	 */   
-	while (br->br_prod_tail != prod_head)
+	while (atomic_load_acq_32(&br->br_prod_tail) != prod_head)
 		cpu_spinwait();
 	br->br_prod_bufs++;
-	br->br_prod_tail = prod_next;
+	atomic_store_rel_32(&br->br_prod_tail, prod_next);
 	critical_exit();
 	return (0);
 }
@@ -161,10 +157,10 @@ buf_ring_dequeue_mc(struct buf_ring *br)
 	 * that preceeded us, we need to wait for them
 	 * to complete 
 	 */   
-	while (br->br_cons_tail != cons_head)
+	while (atomic_load_acq_32(&br->br_cons_tail) != cons_head)
 		cpu_spinwait();
 
-	br->br_cons_tail = cons_next;
+	atomic_store_rel_32(&br->br_cons_tail, cons_next);
 	critical_exit();
 
 	return (buf);
@@ -209,7 +205,7 @@ buf_ring_dequeue_sc(struct buf_ring *br)
 		panic("inconsistent list cons_tail=%d cons_head=%d",
 		    br->br_cons_tail, cons_head);
 #endif
-	br->br_cons_tail = cons_next;
+	atomic_store_rel_32(&br->br_cons_tail, cons_next);
 	return (buf);
 }
 

@@ -47,9 +47,7 @@ options 	UFS_DIRHASH		#Improve performance on big directories
 device		snp
 options 	BREAK_TO_DEBUGGER
 
-#options 	NFSCL
-options 	NFSCLIENT		#Network Filesystem Client
-#options 	NFSSERVER		#Network Filesystem Server
+options 	NFSCL
 options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
 #options 	BOOTP_NFSROOT
 #options 	BOOTP_COMPAT

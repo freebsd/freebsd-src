@@ -1569,7 +1569,7 @@ softdep_process_worklist(mp, full)
 		 */
 		if (should_yield()) {
 			FREE_LOCK(&lk);
-			kern_yield(PRI_UNCHANGED);
+			kern_yield(PRI_USER);
 			bwillwrite();
 			ACQUIRE_LOCK(&lk);
 		}

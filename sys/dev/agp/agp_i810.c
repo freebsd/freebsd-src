@@ -729,6 +729,11 @@ static const struct agp_i810_match {
 		.driver = &agp_i810_sb_driver
 	},
 	{
+		.devid = 0x016a8086,
+		.name = "IvyBridge server GT2 IG",
+		.driver = &agp_i810_sb_driver
+	},
+	{
 		.devid = 0,
 	}
 };

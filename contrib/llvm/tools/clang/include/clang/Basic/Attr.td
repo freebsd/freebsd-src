@@ -190,7 +190,7 @@ def Availability : InheritableAttr {
 [{static llvm::StringRef getPrettyPlatformName(llvm::StringRef Platform) {
     return llvm::StringSwitch<llvm::StringRef>(Platform)
              .Case("ios", "iOS")
-             .Case("macosx", "Mac OS X")
+             .Case("macosx", "OS X")
              .Default(llvm::StringRef());
 } }];
 }
@@ -339,6 +339,11 @@ def FastCall : InheritableAttr {
 def Final : InheritableAttr {
   let Spellings = [];
   let SemaHandler = 0;
+}
+
+def MinSize : InheritableAttr {
+  let Spellings = [GNU<"minsize">];
+  let Subjects = [Function];
 }
 
 def Format : InheritableAttr {
@@ -528,6 +533,11 @@ def ObjCReturnsInnerPointer : Attr {
   let Subjects = [ObjCMethod];
 }
 
+def ObjCRequiresSuper : InheritableAttr {
+  let Spellings = [GNU<"objc_requires_super">];
+  let Subjects = [ObjCMethod];
+}
+
 def ObjCRootClass : Attr {
   let Spellings = [GNU<"objc_root_class">];
   let Subjects = [ObjCInterface];
@@ -554,6 +564,10 @@ def Ownership : InheritableAttr {
 
 def Packed : InheritableAttr {
   let Spellings = [GNU<"packed">];
+}
+
+def PnaclCall : InheritableAttr {
+  let Spellings = [GNU<"pnaclcall">];
 }
 
 def Pcs : InheritableAttr {

@@ -2679,7 +2679,7 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_MTIME(zfsvfs), NULL, &mtime, 16);
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_CTIME(zfsvfs), NULL, &ctime, 16);
-	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_CTIME(zfsvfs), NULL, &crtime, 16);
+	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_CRTIME(zfsvfs), NULL, &crtime, 16);
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_RDEV(zfsvfs), NULL,
 		    &rdev, 8);
@@ -5675,27 +5675,11 @@ zfs_getpages(struct vnode *vp, vm_page_t *m, int count, int reqpage)
 	VM_OBJECT_LOCK(object);
 
 	for (i = reqstart; i < reqstart + reqsize; i++) {
-		m[i]->valid = VM_PAGE_BITS_ALL;
+		if (!error)
+			m[i]->valid = VM_PAGE_BITS_ALL;
 		KASSERT(m[i]->dirty == 0, ("zfs_getpages: page %p is dirty", m[i]));
-		if (i != reqpage) {
-			if (!error) {
-				if (m[i]->oflags & VPO_WANTED) {
-					vm_page_lock(m[i]);
-					vm_page_activate(m[i]);
-					vm_page_unlock(m[i]);
-				} else {
-					vm_page_lock(m[i]);
-					vm_page_deactivate(m[i]);
-					vm_page_unlock(m[i]);
-				}
-				vm_page_wakeup(m[i]);
-			} else {
-				vm_page_lock(m[i]);
-				vm_page_free(m[i]);
-				vm_page_unlock(m[i]);
-			}
-		}
-
+		if (i != reqpage)
+			vm_page_readahead_finish(m[i]);
 	}
 
 	VM_OBJECT_UNLOCK(object);

@@ -425,12 +425,12 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 #ifdef COMPAT_FREEBSD32
 	struct pci_conf_io32 *cio32 = NULL;
 	struct pci_conf_old32 conf_old32;
-	struct pci_match_conf_old32 *pattern_buf_old32;
+	struct pci_match_conf_old32 *pattern_buf_old32 = NULL;
 #endif
 	struct pci_conf_old conf_old;
 	struct pci_io iodata;
 	struct pci_io_old *io_old;
-	struct pci_match_conf_old *pattern_buf_old;
+	struct pci_match_conf_old *pattern_buf_old = NULL;
 
 	io_old = NULL;
 
@@ -470,10 +470,8 @@ pci_ioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *t
 #ifdef PRE7_COMPAT
 #ifdef COMPAT_FREEBSD32
 	case PCIOCGETCONF_OLD32:
-		pattern_buf_old32 = NULL;
 #endif
 	case PCIOCGETCONF_OLD:
-		pattern_buf_old = NULL;
 #endif
 	case PCIOCGETCONF:
 

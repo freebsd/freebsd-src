@@ -20,7 +20,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "LegalizeTypes.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 using namespace llvm;
 
 //===----------------------------------------------------------------------===//
@@ -94,14 +94,48 @@ void DAGTypeLegalizer::ExpandRes_BITCAST(SDNode *N, SDValue &Lo, SDValue &Hi) {
   if (InVT.isVector() && OutVT.isInteger()) {
     // Handle cases like i64 = BITCAST v1i64 on x86, where the operand
     // is legal but the result is not.
-    EVT NVT = EVT::getVectorVT(*DAG.getContext(), NOutVT, 2);
+    unsigned NumElems = 2;
+    EVT ElemVT = NOutVT;
+    EVT NVT = EVT::getVectorVT(*DAG.getContext(), ElemVT, NumElems);
+
+    // If <ElemVT * N> is not a legal type, try <ElemVT/2 * (N*2)>.
+    while (!isTypeLegal(NVT)) {
+      unsigned NewSizeInBits = ElemVT.getSizeInBits() / 2;
+      // If the element size is smaller than byte, bail.
+      if (NewSizeInBits < 8)
+        break;
+      NumElems *= 2;
+      ElemVT = EVT::getIntegerVT(*DAG.getContext(), NewSizeInBits);
+      NVT = EVT::getVectorVT(*DAG.getContext(), ElemVT, NumElems);
+    }
 
     if (isTypeLegal(NVT)) {
       SDValue CastInOp = DAG.getNode(ISD::BITCAST, dl, NVT, InOp);
-      Lo = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl, NOutVT, CastInOp,
-                       DAG.getIntPtrConstant(0));
-      Hi = DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl, NOutVT, CastInOp,
-                       DAG.getIntPtrConstant(1));
+
+      SmallVector<SDValue, 8> Vals;
+      for (unsigned i = 0; i < NumElems; ++i)
+        Vals.push_back(DAG.getNode(ISD::EXTRACT_VECTOR_ELT, dl, ElemVT,
+                                   CastInOp, DAG.getIntPtrConstant(i)));
+
+      // Build Lo, Hi pair by pairing extracted elements if needed.
+      unsigned Slot = 0;
+      for (unsigned e = Vals.size(); e - Slot > 2; Slot += 2, e += 1) {
+        // Each iteration will BUILD_PAIR two nodes and append the result until
+        // there are only two nodes left, i.e. Lo and Hi.
+        SDValue LHS = Vals[Slot];
+        SDValue RHS = Vals[Slot + 1];
+
+        if (TLI.isBigEndian())
+          std::swap(LHS, RHS);
+
+        Vals.push_back(DAG.getNode(ISD::BUILD_PAIR, dl,
+                                   EVT::getIntegerVT(
+                                     *DAG.getContext(),
+                                     LHS.getValueType().getSizeInBits() << 1),
+                                   LHS, RHS));
+      }
+      Lo = Vals[Slot++];
+      Hi = Vals[Slot++];
 
       if (TLI.isBigEndian())
         std::swap(Lo, Hi);
@@ -116,7 +150,7 @@ void DAGTypeLegalizer::ExpandRes_BITCAST(SDNode *N, SDValue &Lo, SDValue &Hi) {
   // Create the stack frame object.  Make sure it is aligned for both
   // the source and expanded destination types.
   unsigned Alignment =
-    TLI.getTargetData()->getPrefTypeAlignment(NOutVT.
+    TLI.getDataLayout()->getPrefTypeAlignment(NOutVT.
                                               getTypeForEVT(*DAG.getContext()));
   SDValue StackPtr = DAG.CreateStackTemporary(InVT, Alignment);
   int SPFI = cast<FrameIndexSDNode>(StackPtr.getNode())->getIndex();

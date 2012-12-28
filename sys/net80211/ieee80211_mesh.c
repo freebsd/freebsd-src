@@ -947,7 +947,7 @@ mesh_forward(struct ieee80211vap *vap, struct mbuf *m,
 		vap->iv_stats.is_mesh_fwd_disabled++;
 		return;
 	}
-	mcopy = m_dup(m, M_DONTWAIT);
+	mcopy = m_dup(m, M_NOWAIT);
 	if (mcopy == NULL) {
 		IEEE80211_NOTE_FRAME(vap, IEEE80211_MSG_MESH, wh,
 		    "%s", "frame not fwd'd, cannot dup");

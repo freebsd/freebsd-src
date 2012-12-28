@@ -99,11 +99,11 @@ public:
     // Untyped regions.
     SymbolicRegionKind,
     AllocaRegionKind,
-    BlockDataRegionKind,
     // Typed regions.
     BEG_TYPED_REGIONS,
     FunctionTextRegionKind = BEG_TYPED_REGIONS,
     BlockTextRegionKind,
+    BlockDataRegionKind,
     BEG_TYPED_VALUE_REGIONS,
     CompoundLiteralRegionKind = BEG_TYPED_VALUE_REGIONS,
     CXXThisRegionKind,
@@ -140,6 +140,9 @@ public:
 
   const MemRegion *getBaseRegion() const;
 
+  /// Check if the region is a subregion of the given region.
+  virtual bool isSubRegionOf(const MemRegion *R) const;
+
   const MemRegion *StripCasts(bool StripBaseCasts = true) const;
 
   bool hasGlobalsOrParametersStorage() const;
@@ -171,8 +174,6 @@ public:
   template<typename RegionTy> const RegionTy* getAs() const;
 
   virtual bool isBoundable() const { return false; }
-
-  static bool classof(const MemRegion*) { return true; }
 };
 
 /// MemSpaceRegion - A memory region that represents a "memory space";
@@ -416,7 +417,7 @@ public:
 
   MemRegionManager* getMemRegionManager() const;
 
-  bool isSubRegionOf(const MemRegion* R) const;
+  virtual bool isSubRegionOf(const MemRegion* R) const;
 
   static bool classof(const MemRegion* R) {
     return R->getKind() > END_MEMSPACES;
@@ -530,16 +531,28 @@ public:
 
 /// FunctionTextRegion - A region that represents code texts of function.
 class FunctionTextRegion : public CodeTextRegion {
-  const FunctionDecl *FD;
+  const NamedDecl *FD;
 public:
-  FunctionTextRegion(const FunctionDecl *fd, const MemRegion* sreg)
-    : CodeTextRegion(sreg, FunctionTextRegionKind), FD(fd) {}
-  
-  QualType getLocationType() const {
-    return getContext().getPointerType(FD->getType());
+  FunctionTextRegion(const NamedDecl *fd, const MemRegion* sreg)
+    : CodeTextRegion(sreg, FunctionTextRegionKind), FD(fd) {
+    assert(isa<ObjCMethodDecl>(fd) || isa<FunctionDecl>(fd));
   }
   
-  const FunctionDecl *getDecl() const {
+  QualType getLocationType() const {
+    const ASTContext &Ctx = getContext();
+    if (const FunctionDecl *D = dyn_cast<FunctionDecl>(FD)) {
+      return Ctx.getPointerType(D->getType());
+    }
+
+    assert(isa<ObjCMethodDecl>(FD));
+    assert(false && "Getting the type of ObjCMethod is not supported yet");
+
+    // TODO: We might want to return a different type here (ex: id (*ty)(...))
+    //       depending on how it is used.
+    return QualType();
+  }
+
+  const NamedDecl *getDecl() const {
     return FD;
   }
     
@@ -547,7 +560,7 @@ public:
   
   void Profile(llvm::FoldingSetNodeID& ID) const;
   
-  static void ProfileRegion(llvm::FoldingSetNodeID& ID, const FunctionDecl *FD,
+  static void ProfileRegion(llvm::FoldingSetNodeID& ID, const NamedDecl *FD,
                             const MemRegion*);
   
   static bool classof(const MemRegion* R) {
@@ -603,7 +616,7 @@ public:
 ///  which correspond to "code+data".  The distinction is important, because
 ///  like a closure a block captures the values of externally referenced
 ///  variables.
-class BlockDataRegion : public SubRegion {
+class BlockDataRegion : public TypedRegion {
   friend class MemRegionManager;
   const BlockTextRegion *BC;
   const LocationContext *LC; // Can be null */
@@ -612,13 +625,15 @@ class BlockDataRegion : public SubRegion {
 
   BlockDataRegion(const BlockTextRegion *bc, const LocationContext *lc,
                   const MemRegion *sreg)
-  : SubRegion(sreg, BlockDataRegionKind), BC(bc), LC(lc),
+  : TypedRegion(sreg, BlockDataRegionKind), BC(bc), LC(lc),
     ReferencedVars(0), OriginalVars(0) {}
 
 public:
   const BlockTextRegion *getCodeRegion() const { return BC; }
   
   const BlockDecl *getDecl() const { return BC->getDecl(); }
+
+  QualType getLocationType() const { return BC->getLocationType(); }
   
   class referenced_vars_iterator {
     const MemRegion * const *R;
@@ -1212,7 +1227,7 @@ public:
     return getCXXBaseObjectRegion(baseReg->getDecl(), superRegion);
   }
 
-  const FunctionTextRegion *getFunctionTextRegion(const FunctionDecl *FD);
+  const FunctionTextRegion *getFunctionTextRegion(const NamedDecl *FD);
   const BlockTextRegion *getBlockTextRegion(const BlockDecl *BD,
                                             CanQualType locTy,
                                             AnalysisDeclContext *AC);

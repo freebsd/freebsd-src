@@ -54,7 +54,7 @@ ddp_output(struct mbuf *m, struct socket *so)
 	mac_socket_create_mbuf(so, m);
 #endif
 
-	M_PREPEND(m, sizeof(struct ddpehdr), M_DONTWAIT);
+	M_PREPEND(m, sizeof(struct ddpehdr), M_NOWAIT);
 	if (m == NULL)
 	return (ENOBUFS);
 
@@ -201,7 +201,7 @@ ddp_route(struct mbuf *m, struct route *ro)
 	 * removing mac_mbuf_copy().
 	 */
 	if (!(aa->aa_flags & AFA_PHASE2)) {
-		MGET(m0, M_DONTWAIT, MT_DATA);
+		MGET(m0, M_NOWAIT, MT_DATA);
 		if (m0 == NULL) {
 			ifa_free(&aa->aa_ifa);
 			m_freem(m);

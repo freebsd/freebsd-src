@@ -797,9 +797,13 @@ ucom_inwakeup(struct tty *tp)
 	DPRINTF("tp=%p\n", tp);
 
 	if (ttydisc_can_bypass(tp) != 0 || 
-	    (sc->sc_flag & UCOM_FLAG_HL_READY) == 0) {
+	    (sc->sc_flag & UCOM_FLAG_HL_READY) == 0 ||
+	    (sc->sc_flag & UCOM_FLAG_INWAKEUP) != 0) {
 		return;
 	}
+
+	/* prevent recursion */
+	sc->sc_flag |= UCOM_FLAG_INWAKEUP;
 
 	pos = sc->sc_jitterbuf_out;
 
@@ -821,6 +825,8 @@ ucom_inwakeup(struct tty *tp)
 	if ((sc->sc_jitterbuf_in == pos) && 
 	    (sc->sc_flag & UCOM_FLAG_RTS_IFLOW))
 		ucom_rts(sc, 0);
+
+	sc->sc_flag &= ~UCOM_FLAG_INWAKEUP;
 }
 
 static int

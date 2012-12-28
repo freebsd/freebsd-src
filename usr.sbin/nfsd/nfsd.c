@@ -224,6 +224,10 @@ main(int argc, char **argv)
 		udpflag = 1;
 	argv += optind;
 	argc -= optind;
+	if (minthreads_set && maxthreads_set && minthreads > maxthreads)
+		errx(EX_USAGE,
+		    "error: minthreads(%d) can't be greater than "
+		    "maxthreads(%d)", minthreads, maxthreads);
 
 	/*
 	 * XXX
@@ -260,7 +264,7 @@ main(int argc, char **argv)
 	ip6flag = 1;
 	s = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
 	if (s == -1) {
-		if (errno != EPROTONOSUPPORT)
+		if (errno != EPROTONOSUPPORT && errno != EAFNOSUPPORT)
 			err(1, "socket");
 		ip6flag = 0;
 	} else if (getnetconfigent("udp6") == NULL ||
@@ -431,7 +435,7 @@ main(int argc, char **argv)
 			nfsdcnt = DEFNFSDCNT;
 		}
 		if (nfsdcnt > MAXNFSDCNT) {
-			warnx("nfsd counta too high %d; reset to %d", nfsdcnt,
+			warnx("nfsd count too high %d; reset to %d", nfsdcnt,
 			    DEFNFSDCNT);
 			nfsdcnt = MAXNFSDCNT;
 		}

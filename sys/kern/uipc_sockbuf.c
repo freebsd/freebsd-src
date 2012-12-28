@@ -188,7 +188,7 @@ sowakeup(struct socket *so, struct sockbuf *sb)
 	}
 	KNOTE_LOCKED(&sb->sb_sel.si_note, 0);
 	if (sb->sb_upcall != NULL) {
-		ret = sb->sb_upcall(so, sb->sb_upcallarg, M_DONTWAIT);
+		ret = sb->sb_upcall(so, sb->sb_upcallarg, M_NOWAIT);
 		if (ret == SU_ISCONNECTED) {
 			KASSERT(sb == &so->so_rcv,
 			    ("SO_SND upcall returned SU_ISCONNECTED"));
@@ -644,7 +644,7 @@ sbappendaddr_locked(struct sockbuf *sb, const struct sockaddr *asa,
 	if (asa->sa_len > MLEN)
 		return (0);
 #endif
-	MGET(m, M_DONTWAIT, MT_SONAME);
+	MGET(m, M_NOWAIT, MT_SONAME);
 	if (m == 0)
 		return (0);
 	m->m_len = asa->sa_len;
@@ -1002,9 +1002,9 @@ sbcreatecontrol(caddr_t p, int size, int type, int level)
 	if (CMSG_SPACE((u_int)size) > MCLBYTES)
 		return ((struct mbuf *) NULL);
 	if (CMSG_SPACE((u_int)size) > MLEN)
-		m = m_getcl(M_DONTWAIT, MT_CONTROL, 0);
+		m = m_getcl(M_NOWAIT, MT_CONTROL, 0);
 	else
-		m = m_get(M_DONTWAIT, MT_CONTROL);
+		m = m_get(M_NOWAIT, MT_CONTROL);
 	if (m == NULL)
 		return ((struct mbuf *) NULL);
 	cp = mtod(m, struct cmsghdr *);

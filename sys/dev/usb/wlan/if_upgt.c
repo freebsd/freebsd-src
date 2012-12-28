@@ -201,9 +201,8 @@ static const struct usb_config upgt_config[UPGT_N_XFERS] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
-		.bufsize = MCLBYTES,
+		.bufsize = MCLBYTES * UPGT_TX_MAXCOUNT,
 		.flags = {
-			.ext_buffer = 1,
 			.force_short_xfer = 1,
 			.pipe_bof = 1
 		},
@@ -214,9 +213,8 @@ static const struct usb_config upgt_config[UPGT_N_XFERS] = {
 		.type = UE_BULK,
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
-		.bufsize = MCLBYTES,
+		.bufsize = MCLBYTES * UPGT_RX_MAXCOUNT,
 		.flags = {
-			.ext_buffer = 1,
 			.pipe_bof = 1,
 			.short_xfer_ok = 1
 		},
@@ -276,6 +274,11 @@ upgt_attach(device_t dev)
 		    "err=%s\n", usbd_errstr(error));
 		goto fail3;
 	}
+
+	sc->sc_rx_dma_buf = usbd_xfer_get_frame_buffer(
+	    sc->sc_xfer[UPGT_BULK_RX], 0);
+	sc->sc_tx_dma_buf = usbd_xfer_get_frame_buffer(
+	    sc->sc_xfer[UPGT_BULK_TX], 0);
 
 	ifp = sc->sc_ifp = if_alloc(IFT_IEEE80211);
 	if (ifp == NULL) {
@@ -1493,7 +1496,7 @@ upgt_rx(struct upgt_softc *sc, uint8_t *data, int pkglen, int *rssi)
 	/* create mbuf which is suitable for strict alignment archs */
 	KASSERT((pkglen + ETHER_ALIGN) < MCLBYTES,
 	    ("A current mbuf storage is small (%d)", pkglen + ETHER_ALIGN));
-	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	m = m_getcl(M_NOWAIT, MT_DATA, M_PKTHDR);
 	if (m == NULL) {
 		device_printf(sc->sc_dev, "could not create RX mbuf\n");
 		return (NULL);
@@ -1952,13 +1955,7 @@ upgt_alloc_tx(struct upgt_softc *sc)
 
 	for (i = 0; i < UPGT_TX_MAXCOUNT; i++) {
 		struct upgt_data *data = &sc->sc_tx_data[i];
-
-		data->buf = malloc(MCLBYTES, M_USBDEV, M_NOWAIT | M_ZERO);
-		if (data->buf == NULL) {
-			device_printf(sc->sc_dev,
-			    "could not allocate TX buffer\n");
-			return (ENOMEM);
-		}
+		data->buf = ((uint8_t *)sc->sc_tx_dma_buf) + (i * MCLBYTES);
 		STAILQ_INSERT_TAIL(&sc->sc_tx_inactive, data, next);
 		UPGT_STAT_INC(sc, st_tx_inactive);
 	}
@@ -1976,13 +1973,7 @@ upgt_alloc_rx(struct upgt_softc *sc)
 
 	for (i = 0; i < UPGT_RX_MAXCOUNT; i++) {
 		struct upgt_data *data = &sc->sc_rx_data[i];
-
-		data->buf = malloc(MCLBYTES, M_USBDEV, M_NOWAIT | M_ZERO);
-		if (data->buf == NULL) {
-			device_printf(sc->sc_dev,
-			    "could not allocate RX buffer\n");
-			return (ENOMEM);
-		}
+		data->buf = ((uint8_t *)sc->sc_rx_dma_buf) + (i * MCLBYTES);
 		STAILQ_INSERT_TAIL(&sc->sc_rx_inactive, data, next);
 	}
 
@@ -2004,8 +1995,10 @@ upgt_detach(device_t dev)
 	callout_drain(&sc->sc_led_ch);
 	callout_drain(&sc->sc_watchdog_ch);
 
-	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
 	ieee80211_ifdetach(ic);
+
+	usbd_transfer_unsetup(sc->sc_xfer, UPGT_N_XFERS);
+
 	upgt_free_rx(sc);
 	upgt_free_tx(sc);
 
@@ -2023,7 +2016,7 @@ upgt_free_rx(struct upgt_softc *sc)
 	for (i = 0; i < UPGT_RX_MAXCOUNT; i++) {
 		struct upgt_data *data = &sc->sc_rx_data[i];
 
-		free(data->buf, M_USBDEV);
+		data->buf = NULL;
 		data->ni = NULL;
 	}
 }
@@ -2036,7 +2029,7 @@ upgt_free_tx(struct upgt_softc *sc)
 	for (i = 0; i < UPGT_TX_MAXCOUNT; i++) {
 		struct upgt_data *data = &sc->sc_tx_data[i];
 
-		free(data->buf, M_USBDEV);
+		data->buf = NULL;
 		data->ni = NULL;
 	}
 }
@@ -2278,8 +2271,7 @@ setup:
 			return;
 		STAILQ_REMOVE_HEAD(&sc->sc_rx_inactive, next);
 		STAILQ_INSERT_TAIL(&sc->sc_rx_active, data, next);
-		usbd_xfer_set_frame_data(xfer, 0, data->buf,
-		    usbd_xfer_max_len(xfer));
+		usbd_xfer_set_frame_data(xfer, 0, data->buf, MCLBYTES);
 		usbd_transfer_submit(xfer);
 
 		/*
@@ -2382,8 +2374,7 @@ static device_method_t upgt_methods[] = {
         DEVMETHOD(device_probe, upgt_match),
         DEVMETHOD(device_attach, upgt_attach),
         DEVMETHOD(device_detach, upgt_detach),
-	
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t upgt_driver = {

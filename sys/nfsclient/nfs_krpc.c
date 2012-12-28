@@ -568,7 +568,7 @@ tryagain:
 	 * These could cause pointer alignment problems, so copy them to
 	 * well aligned mbufs.
 	 */
-	error = nfs_realign(&mrep, M_DONTWAIT);
+	error = nfs_realign(&mrep, M_NOWAIT);
 	if (error == ENOMEM) {
 		m_freem(mrep);
 		AUTH_DESTROY(auth);

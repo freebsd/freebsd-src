@@ -367,6 +367,7 @@ tcp_init(void)
 	V_tcpcb_zone = uma_zcreate("tcpcb", sizeof(struct tcpcb_mem),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uma_zone_set_max(V_tcpcb_zone, maxsockets);
+	uma_zone_set_warning(V_tcpcb_zone, "kern.ipc.maxsockets limit reached");
 
 	tcp_tw_init();
 	syncache_init();
@@ -573,7 +574,7 @@ tcp_respond(struct tcpcb *tp, void *ipgen, struct tcphdr *th, struct mbuf *m,
 		}
 	}
 	if (m == NULL) {
-		m = m_gethdr(M_DONTWAIT, MT_DATA);
+		m = m_gethdr(M_NOWAIT, MT_DATA);
 		if (m == NULL)
 			return;
 		tlen = 0;
@@ -1859,7 +1860,7 @@ ipsec_hdrsiz_tcp(struct tcpcb *tp)
 
 	if ((tp == NULL) || ((inp = tp->t_inpcb) == NULL))
 		return (0);
-	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	MGETHDR(m, M_NOWAIT, MT_DATA);
 	if (!m)
 		return (0);
 

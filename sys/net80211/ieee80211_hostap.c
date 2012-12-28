@@ -376,7 +376,7 @@ hostap_deliver_data(struct ieee80211vap *vap,
 		struct mbuf *mcopy = NULL;
 
 		if (m->m_flags & M_MCAST) {
-			mcopy = m_dup(m, M_DONTWAIT);
+			mcopy = m_dup(m, M_NOWAIT);
 			if (mcopy == NULL)
 				ifp->if_oerrors++;
 			else
@@ -2324,6 +2324,5 @@ ieee80211_recv_pspoll(struct ieee80211_node *ni, struct mbuf *m0)
 		ifp = vap->iv_ic->ic_ifp;
 	else
 		ifp = vap->iv_ifp;
-	IF_ENQUEUE(&ifp->if_snd, m);
-	if_start(ifp);
+	(void) ifp->if_transmit(ifp, m);
 }

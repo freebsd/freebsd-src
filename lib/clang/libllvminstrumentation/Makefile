@@ -4,9 +4,9 @@ LIB=	llvminstrumentation
 
 SRCDIR=	lib/Transforms/Instrumentation
 SRCS=	AddressSanitizer.cpp \
+	BlackList.cpp \
 	BoundsChecking.cpp \
 	EdgeProfiling.cpp \
-	FunctionBlackList.cpp \
 	GCOVProfiling.cpp \
 	Instrumentation.cpp \
 	OptimalEdgeProfiling.cpp \

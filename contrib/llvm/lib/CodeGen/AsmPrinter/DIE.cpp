@@ -17,7 +17,7 @@
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
-#include "llvm/Target/TargetData.h"
+#include "llvm/DataLayout.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -182,6 +182,12 @@ void DIEValue::dump() {
 void DIEInteger::EmitValue(AsmPrinter *Asm, unsigned Form) const {
   unsigned Size = ~0U;
   switch (Form) {
+  case dwarf::DW_FORM_flag_present:
+    // Emit something to keep the lines and comments in sync.
+    // FIXME: Is there a better way to do this?
+    if (Asm->OutStreamer.hasRawTextSupport())
+      Asm->OutStreamer.EmitRawText(StringRef(""));
+    return;
   case dwarf::DW_FORM_flag:  // Fall thru
   case dwarf::DW_FORM_ref1:  // Fall thru
   case dwarf::DW_FORM_data1: Size = 1; break;
@@ -193,7 +199,8 @@ void DIEInteger::EmitValue(AsmPrinter *Asm, unsigned Form) const {
   case dwarf::DW_FORM_data8: Size = 8; break;
   case dwarf::DW_FORM_udata: Asm->EmitULEB128(Integer); return;
   case dwarf::DW_FORM_sdata: Asm->EmitSLEB128(Integer); return;
-  case dwarf::DW_FORM_addr:  Size = Asm->getTargetData().getPointerSize(); break;
+  case dwarf::DW_FORM_addr:
+    Size = Asm->getDataLayout().getPointerSize(); break;
   default: llvm_unreachable("DIE Value form not supported yet");
   }
   Asm->OutStreamer.EmitIntValue(Integer, Size, 0/*addrspace*/);
@@ -203,6 +210,7 @@ void DIEInteger::EmitValue(AsmPrinter *Asm, unsigned Form) const {
 ///
 unsigned DIEInteger::SizeOf(AsmPrinter *AP, unsigned Form) const {
   switch (Form) {
+  case dwarf::DW_FORM_flag_present: return 0;
   case dwarf::DW_FORM_flag:  // Fall thru
   case dwarf::DW_FORM_ref1:  // Fall thru
   case dwarf::DW_FORM_data1: return sizeof(int8_t);
@@ -214,7 +222,7 @@ unsigned DIEInteger::SizeOf(AsmPrinter *AP, unsigned Form) const {
   case dwarf::DW_FORM_data8: return sizeof(int64_t);
   case dwarf::DW_FORM_udata: return MCAsmInfo::getULEB128Size(Integer);
   case dwarf::DW_FORM_sdata: return MCAsmInfo::getSLEB128Size(Integer);
-  case dwarf::DW_FORM_addr:  return AP->getTargetData().getPointerSize();
+  case dwarf::DW_FORM_addr:  return AP->getDataLayout().getPointerSize();
   default: llvm_unreachable("DIE Value form not supported yet");
   }
 }
@@ -241,7 +249,7 @@ void DIELabel::EmitValue(AsmPrinter *AP, unsigned Form) const {
 unsigned DIELabel::SizeOf(AsmPrinter *AP, unsigned Form) const {
   if (Form == dwarf::DW_FORM_data4) return 4;
   if (Form == dwarf::DW_FORM_strp) return 4;
-  return AP->getTargetData().getPointerSize();
+  return AP->getDataLayout().getPointerSize();
 }
 
 #ifndef NDEBUG
@@ -265,7 +273,7 @@ void DIEDelta::EmitValue(AsmPrinter *AP, unsigned Form) const {
 unsigned DIEDelta::SizeOf(AsmPrinter *AP, unsigned Form) const {
   if (Form == dwarf::DW_FORM_data4) return 4;
   if (Form == dwarf::DW_FORM_strp) return 4;
-  return AP->getTargetData().getPointerSize();
+  return AP->getDataLayout().getPointerSize();
 }
 
 #ifndef NDEBUG

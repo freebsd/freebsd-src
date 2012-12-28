@@ -530,8 +530,8 @@ usb_frlength_t
 	usbd_xfer_old_frame_length(struct usb_xfer *xfer, usb_frcount_t frindex);
 void	usbd_xfer_status(struct usb_xfer *xfer, int *actlen, int *sumlen,
 	    int *aframes, int *nframes);
-struct usb_page_cache *usbd_xfer_get_frame(struct usb_xfer *xfer,
-	    usb_frcount_t frindex);
+struct usb_page_cache *usbd_xfer_get_frame(struct usb_xfer *, usb_frcount_t);
+void	*usbd_xfer_get_frame_buffer(struct usb_xfer *, usb_frcount_t);
 void	*usbd_xfer_softc(struct usb_xfer *xfer);
 void	*usbd_xfer_get_priv(struct usb_xfer *xfer);
 void	usbd_xfer_set_priv(struct usb_xfer *xfer, void *);

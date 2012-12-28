@@ -126,6 +126,8 @@ extern struct domain inet6domain;
 
 u_char ip6_protox[IPPROTO_MAX];
 VNET_DEFINE(struct in6_ifaddrhead, in6_ifaddrhead);
+VNET_DEFINE(struct in6_ifaddrlisthead *, in6_ifaddrhashtbl);
+VNET_DEFINE(u_long, in6_ifaddrhmask);
 
 static struct netisr_handler ip6_nh = {
 	.nh_name = "ip6",
@@ -170,6 +172,8 @@ ip6_init(void)
 	TUNABLE_INT_FETCH("net.inet6.ip6.no_radr", &V_ip6_no_radr);
 
 	TAILQ_INIT(&V_in6_ifaddrhead);
+	V_in6_ifaddrhashtbl = hashinit(IN6ADDR_NHASH, M_IFADDR,
+	    &V_in6_ifaddrhmask);
 
 	/* Initialize packet filter hooks. */
 	V_inet6_pfil_hook.ph_type = PFIL_TYPE_AF;
@@ -297,6 +301,7 @@ void
 ip6_destroy()
 {
 
+	hashdestroy(V_in6_ifaddrhashtbl, M_IFADDR, V_in6_ifaddrhmask);
 	nd6_destroy();
 	callout_drain(&V_in6_tmpaddrtimer_ch);
 }
@@ -492,11 +497,11 @@ ip6_input(struct mbuf *m)
 	if (m && m->m_next != NULL && m->m_pkthdr.len < MCLBYTES) {
 		struct mbuf *n;
 
-		MGETHDR(n, M_DONTWAIT, MT_HEADER);
+		MGETHDR(n, M_NOWAIT, MT_HEADER);
 		if (n)
 			M_MOVE_PKTHDR(n, m);
 		if (n && n->m_pkthdr.len > MHLEN) {
-			MCLGET(n, M_DONTWAIT);
+			MCLGET(n, M_NOWAIT);
 			if ((n->m_flags & M_EXT) == 0) {
 				m_freem(n);
 				n = NULL;
@@ -1662,9 +1667,9 @@ ip6_pullexthdr(struct mbuf *m, size_t off, int nxt)
 	else
 		elen = (ip6e.ip6e_len + 1) << 3;
 
-	MGET(n, M_DONTWAIT, MT_DATA);
+	MGET(n, M_NOWAIT, MT_DATA);
 	if (n && elen >= MLEN) {
-		MCLGET(n, M_DONTWAIT);
+		MCLGET(n, M_NOWAIT);
 		if ((n->m_flags & M_EXT) == 0) {
 			m_free(n);
 			n = NULL;

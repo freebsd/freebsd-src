@@ -1014,66 +1014,60 @@ static cfg_type_t cfg_type_masterformat = {
 
 
 
-/*
+/*%
  *  response-policy {
  *	zone <string> [ policy (given|disabled|passthru|
- *					nxdomain|nodata|cname <domain> ) ];
- *  };
- *
- * this is a chimera of doc_optional_keyvalue() and cfg_doc_enum()
+ *					nxdomain|nodata|cname <domain> ) ]
+ *		      [ recursive-only yes|no ]
+ *		      [ max-policy-ttl number ] ;
+ *  } [ recursive-only yes|no ] [ break-dnssec yes|no ]
+ *	[ max-policy-ttl number ] ;
  */
+
 static void
-doc_rpz_policies(cfg_printer_t *pctx, const cfg_type_t *type) {
-	const keyword_type_t *kw;
+doc_rpz_policy(cfg_printer_t *pctx, const cfg_type_t *type) {
 	const char * const *p;
-
-	kw = type->of;
-	cfg_print_chars(pctx, "[ ", 2);
-	cfg_print_cstr(pctx, kw->name);
-	cfg_print_chars(pctx, " ", 1);
-
+	/*
+	 * This is cfg_doc_enum() without the trailing " )".
+	 */
 	cfg_print_chars(pctx, "( ", 2);
-	for (p = kw->type->of; *p != NULL; p++) {
+	for (p = type->of; *p != NULL; p++) {
 		cfg_print_cstr(pctx, *p);
 		if (p[1] != NULL)
 			cfg_print_chars(pctx, " | ", 3);
 	}
 }
 
-/*
- * print_qstring() from parser.c
- */
-static void
-print_rpz_cname(cfg_printer_t *pctx, const cfg_obj_t *obj)
-{
-	cfg_print_chars(pctx, "\"", 1);
-	cfg_print_ustring(pctx, obj);
-	cfg_print_chars(pctx, "\"", 1);
-}
-
 static void
 doc_rpz_cname(cfg_printer_t *pctx, const cfg_type_t *type) {
 	cfg_doc_terminal(pctx, type);
-	cfg_print_chars(pctx, " ) ]", 4);
+	cfg_print_chars(pctx, " )", 2);
 }
 
+/*
+ * Parse
+ *	given|disabled|passthru|nxdomain|nodata|cname <domain>
+ */
 static isc_result_t
-parse_rpz(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
+cfg_parse_rpz_policy(cfg_parser_t *pctx, const cfg_type_t *type,
+		     cfg_obj_t **ret)
+{
 	isc_result_t result;
-	cfg_obj_t *obj = NULL;
-	const cfg_tuplefielddef_t *fields = type->of;
+	cfg_obj_t *obj;
+	const cfg_tuplefielddef_t *fields;
 
 	CHECK(cfg_create_tuple(pctx, type, &obj));
+
+	fields = type->of;
 	CHECK(cfg_parse_obj(pctx, fields[0].type, &obj->value.tuple[0]));
-	CHECK(cfg_parse_obj(pctx, fields[1].type, &obj->value.tuple[1]));
 	/*
 	 * parse cname domain only after "policy cname"
 	 */
-	if (cfg_obj_isvoid(obj->value.tuple[1]) ||
-	    strcasecmp("cname", cfg_obj_asstring(obj->value.tuple[1]))) {
-		CHECK(cfg_parse_void(pctx, NULL, &obj->value.tuple[2]));
+	if (strcasecmp("cname", cfg_obj_asstring(obj->value.tuple[0])) != 0) {
+		CHECK(cfg_parse_void(pctx, NULL, &obj->value.tuple[1]));
 	} else {
-		CHECK(cfg_parse_obj(pctx, fields[2].type, &obj->value.tuple[2]));
+		CHECK(cfg_parse_obj(pctx, fields[1].type,
+				    &obj->value.tuple[1]));
 	}
 
 	*ret = obj;
@@ -1084,48 +1078,158 @@ cleanup:
 	return (result);
 }
 
+/*
+ * Parse a tuple consisting of any kind of  required field followed
+ * by 2 or more optional keyvalues that can be in any order.
+ */
+static isc_result_t
+cfg_parse_kv_tuple(cfg_parser_t *pctx, const cfg_type_t *type, cfg_obj_t **ret) {
+	const cfg_tuplefielddef_t *fields, *f;
+	cfg_obj_t *obj;
+	int fn;
+	isc_result_t result;
+
+	obj = NULL;
+	CHECK(cfg_create_tuple(pctx, type, &obj));
+
+	/*
+	 * The zone first field is required and always first.
+	 */
+	fields = type->of;
+	CHECK(cfg_parse_obj(pctx, fields[0].type, &obj->value.tuple[0]));
+
+	for (;;) {
+		CHECK(cfg_peektoken(pctx, CFG_LEXOPT_QSTRING));
+		if (pctx->token.type != isc_tokentype_string)
+			break;
+
+		for (fn = 1, f = &fields[1]; ; ++fn, ++f) {
+			if (f->name == NULL) {
+				cfg_parser_error(pctx, 0, "unexpected '%s'",
+						 TOKEN_STRING(pctx));
+				result = ISC_R_UNEXPECTEDTOKEN;
+				goto cleanup;
+			}
+			if (obj->value.tuple[fn] == NULL &&
+			    strcasecmp(f->name, TOKEN_STRING(pctx)) == 0)
+				break;
+		}
+
+		CHECK(cfg_gettoken(pctx, 0));
+		CHECK(cfg_parse_obj(pctx, f->type, &obj->value.tuple[fn]));
+	}
+
+	for (fn = 1, f = &fields[1]; f->name != NULL; ++fn, ++f) {
+		if (obj->value.tuple[fn] == NULL)
+			CHECK(cfg_parse_void(pctx, NULL,
+					     &obj->value.tuple[fn]));
+	}
+
+	*ret = obj;
+	return (ISC_R_SUCCESS);
+
+cleanup:
+	CLEANUP_OBJ(obj);
+	return (result);
+}
+
+static void
+cfg_print_kv_tuple(cfg_printer_t *pctx, const cfg_obj_t *obj) {
+	unsigned int i;
+	const cfg_tuplefielddef_t *fields, *f;
+	const cfg_obj_t *fieldobj;
+
+	fields = obj->type->of;
+	for (f = fields, i = 0; f->name != NULL; f++, i++) {
+		fieldobj = obj->value.tuple[i];
+		if (fieldobj->type->print == cfg_print_void)
+			continue;
+		if (i != 0) {
+			cfg_print_chars(pctx, " ", 1);
+			cfg_print_cstr(pctx, f->name);
+			cfg_print_chars(pctx, " ", 1);
+		}
+		cfg_print_obj(pctx, fieldobj);
+	}
+}
+
+static void
+cfg_doc_kv_tuple(cfg_printer_t *pctx, const cfg_type_t *type) {
+	const cfg_tuplefielddef_t *fields, *f;
+
+	fields = type->of;
+	for (f = fields; f->name != NULL; f++) {
+		if (f != fields) {
+			cfg_print_chars(pctx, " [ ", 3);
+			cfg_print_cstr(pctx, f->name);
+			if (f->type->doc != cfg_doc_void)
+				cfg_print_chars(pctx, " ", 1);
+		}
+		cfg_doc_obj(pctx, f->type);
+		if (f != fields)
+			cfg_print_chars(pctx, " ]", 2);
+	}
+}
+
+static keyword_type_t zone_kw = {"zone", &cfg_type_qstring};
+static cfg_type_t cfg_type_rpz_zone = {
+	"zone", parse_keyvalue, print_keyvalue,
+	doc_keyvalue, &cfg_rep_string,
+	&zone_kw
+};
 static const char *rpz_policies[] = {
 	"given", "disabled", "passthru", "no-op", "nxdomain", "nodata",
 	"cname", NULL
 };
-static cfg_type_t cfg_type_rpz_policylist = {
-	"policies", cfg_parse_enum, cfg_print_ustring, cfg_doc_enum,
-	&cfg_rep_string, &rpz_policies
+static cfg_type_t cfg_type_rpz_policy_name = {
+	"policy name", cfg_parse_enum, cfg_print_ustring,
+	doc_rpz_policy, &cfg_rep_string,
+	&rpz_policies
 };
-static keyword_type_t rpz_policies_kw = {
-	"policy", &cfg_type_rpz_policylist
-};
-static cfg_type_t cfg_type_rpz_policy = {
-	"optional_policy", parse_optional_keyvalue, print_keyvalue,
-	doc_rpz_policies, &cfg_rep_string, &rpz_policies_kw
-};
-static cfg_type_t cfg_type_cname = {
-	"domain", cfg_parse_astring, print_rpz_cname, doc_rpz_cname,
-	&cfg_rep_string, NULL
-};
-static cfg_tuplefielddef_t rpzone_fields[] = {
-	{ "name", &cfg_type_astring, 0 },
-	{ "policy", &cfg_type_rpz_policy, 0 },
-	{ "cname", &cfg_type_cname, 0 },
-	{ NULL, NULL, 0 }
-};
-static cfg_type_t cfg_type_rpzone = {
-	"rpzone", parse_rpz, cfg_print_tuple, cfg_doc_tuple,
-	&cfg_rep_tuple, rpzone_fields
-};
-static cfg_clausedef_t rpz_clauses[] = {
-	{ "zone", &cfg_type_rpzone, CFG_CLAUSEFLAG_MULTI },
-	{ NULL, NULL, 0 }
-};
-static cfg_clausedef_t *rpz_clausesets[] = {
-	rpz_clauses,
+static cfg_type_t cfg_type_rpz_cname = {
+	"quoted_string", cfg_parse_astring, NULL,
+	doc_rpz_cname, &cfg_rep_string,
 	NULL
 };
-static cfg_type_t cfg_type_rpz = {
-	"rpz", cfg_parse_map, cfg_print_map, cfg_doc_map,
-	&cfg_rep_map, rpz_clausesets
+static cfg_tuplefielddef_t rpz_policy_fields[] = {
+	{ "policy name", &cfg_type_rpz_policy_name, 0 },
+	{ "cname", &cfg_type_rpz_cname, 0 },
+	{ NULL, NULL, 0 }
 };
-
+static cfg_type_t cfg_type_rpz_policy = {
+	"policy tuple", cfg_parse_rpz_policy,
+	cfg_print_tuple, cfg_doc_tuple, &cfg_rep_tuple,
+	rpz_policy_fields
+};
+static cfg_tuplefielddef_t rpz_zone_fields[] = {
+	{ "zone name", &cfg_type_rpz_zone, 0 },
+	{ "policy", &cfg_type_rpz_policy, 0 },
+	{ "recursive-only", &cfg_type_boolean, 0 },
+	{ "max-policy-ttl", &cfg_type_uint32, 0 },
+	{ NULL, NULL, 0 }
+};
+static cfg_type_t cfg_type_rpz_tuple = {
+	"rpz tuple", cfg_parse_kv_tuple,
+	cfg_print_kv_tuple, cfg_doc_kv_tuple, &cfg_rep_tuple,
+	rpz_zone_fields
+};
+static cfg_type_t cfg_type_rpz_list = {
+	"zone list", cfg_parse_bracketed_list, cfg_print_bracketed_list,
+	cfg_doc_bracketed_list, &cfg_rep_list,
+	&cfg_type_rpz_tuple
+};
+static cfg_tuplefielddef_t rpz_fields[] = {
+	{ "zone list", &cfg_type_rpz_list, 0 },
+	{ "recursive-only", &cfg_type_boolean, 0 },
+	{ "break-dnssec", &cfg_type_boolean, 0 },
+	{ "max-policy-ttl", &cfg_type_uint32, 0 },
+	{ NULL, NULL, 0 }
+};
+static cfg_type_t cfg_type_rpz = {
+	"rpz", cfg_parse_kv_tuple,
+	cfg_print_kv_tuple, cfg_doc_kv_tuple, &cfg_rep_tuple,
+	rpz_fields
+};
 
 
 /*%

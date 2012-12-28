@@ -68,7 +68,54 @@ static cl::opt<bool, true>InterleaveSrc("nvptx-emit-src",
                                         cl::location(llvm::InterleaveSrcInPtx));
 
 
+namespace {
+/// DiscoverDependentGlobals - Return a set of GlobalVariables on which \p V
+/// depends.
+void DiscoverDependentGlobals(Value *V,
+                              DenseSet<GlobalVariable*> &Globals) {
+  if (GlobalVariable *GV = dyn_cast<GlobalVariable>(V))
+    Globals.insert(GV);
+  else {
+    if (User *U = dyn_cast<User>(V)) {
+      for (unsigned i = 0, e = U->getNumOperands(); i != e; ++i) {
+        DiscoverDependentGlobals(U->getOperand(i), Globals);
+      }
+    }
+  }
+}
 
+/// VisitGlobalVariableForEmission - Add \p GV to the list of GlobalVariable
+/// instances to be emitted, but only after any dependents have been added
+/// first.
+void VisitGlobalVariableForEmission(GlobalVariable *GV,
+                                    SmallVectorImpl<GlobalVariable*> &Order,
+                                    DenseSet<GlobalVariable*> &Visited,
+                                    DenseSet<GlobalVariable*> &Visiting) {
+  // Have we already visited this one?
+  if (Visited.count(GV)) return;
+
+  // Do we have a circular dependency?
+  if (Visiting.count(GV))
+    report_fatal_error("Circular dependency found in global variable set");
+
+  // Start visiting this global
+  Visiting.insert(GV);
+
+  // Make sure we visit all dependents first
+  DenseSet<GlobalVariable*> Others;
+  for (unsigned i = 0, e = GV->getNumOperands(); i != e; ++i)
+    DiscoverDependentGlobals(GV->getOperand(i), Others);
+  
+  for (DenseSet<GlobalVariable*>::iterator I = Others.begin(),
+       E = Others.end(); I != E; ++I)
+    VisitGlobalVariableForEmission(*I, Order, Visited, Visiting);
+
+  // Now we can visit ourself
+  Order.push_back(GV);
+  Visited.insert(GV);
+  Visiting.erase(GV);
+}
+}
 
 // @TODO: This is a copy from AsmPrinter.cpp.  The function is static, so we
 // cannot just link to the existing version.
@@ -98,10 +145,10 @@ const MCExpr *nvptx::LowerConstant(const Constant *CV, AsmPrinter &AP) {
   switch (CE->getOpcode()) {
   default:
     // If the code isn't optimized, there may be outstanding folding
-    // opportunities. Attempt to fold the expression using TargetData as a
+    // opportunities. Attempt to fold the expression using DataLayout as a
     // last resort before giving up.
     if (Constant *C =
-        ConstantFoldConstantExpression(CE, AP.TM.getTargetData()))
+        ConstantFoldConstantExpression(CE, AP.TM.getDataLayout()))
       if (C != CE)
         return LowerConstant(C, AP);
 
@@ -115,7 +162,7 @@ const MCExpr *nvptx::LowerConstant(const Constant *CV, AsmPrinter &AP) {
         report_fatal_error(OS.str());
     }
   case Instruction::GetElementPtr: {
-    const TargetData &TD = *AP.TM.getTargetData();
+    const DataLayout &TD = *AP.TM.getDataLayout();
     // Generate a symbolic expression for the byte address
     const Constant *PtrVal = CE->getOperand(0);
     SmallVector<Value*, 8> IdxVec(CE->op_begin()+1, CE->op_end());
@@ -145,7 +192,7 @@ const MCExpr *nvptx::LowerConstant(const Constant *CV, AsmPrinter &AP) {
     return LowerConstant(CE->getOperand(0), AP);
 
   case Instruction::IntToPtr: {
-    const TargetData &TD = *AP.TM.getTargetData();
+    const DataLayout &TD = *AP.TM.getDataLayout();
     // Handle casts to pointers by changing them into casts to the appropriate
     // integer type.  This promotes constant folding and simplifies this code.
     Constant *Op = CE->getOperand(0);
@@ -155,7 +202,7 @@ const MCExpr *nvptx::LowerConstant(const Constant *CV, AsmPrinter &AP) {
   }
 
   case Instruction::PtrToInt: {
-    const TargetData &TD = *AP.TM.getTargetData();
+    const DataLayout &TD = *AP.TM.getDataLayout();
     // Support only foldable casts to/from pointers that can be eliminated by
     // changing the pointer to the appropriately sized integer type.
     Constant *Op = CE->getOperand(0);
@@ -270,7 +317,7 @@ void NVPTXAsmPrinter::EmitInstruction(const MachineInstr *MI) {
 void NVPTXAsmPrinter::printReturnValStr(const Function *F,
                                         raw_ostream &O)
 {
-  const TargetData *TD = TM.getTargetData();
+  const DataLayout *TD = TM.getDataLayout();
   const TargetLowering *TLI = TM.getTargetLowering();
 
   Type *Ty = F->getReturnType();
@@ -874,7 +921,7 @@ bool NVPTXAsmPrinter::doInitialization (Module &M) {
   const_cast<TargetLoweringObjectFile&>(getObjFileLowering())
           .Initialize(OutContext, TM);
 
-  Mang = new Mangler(OutContext, *TM.getTargetData());
+  Mang = new Mangler(OutContext, *TM.getDataLayout());
 
   // Emit header before any dwarf directives are emitted below.
   emitHeader(M, OS1);
@@ -893,10 +940,27 @@ bool NVPTXAsmPrinter::doInitialization (Module &M) {
 
   emitDeclarations(M, OS2);
 
-  // Print out module-level global variables here.
+  // As ptxas does not support forward references of globals, we need to first
+  // sort the list of module-level globals in def-use order. We visit each
+  // global variable in order, and ensure that we emit it *after* its dependent
+  // globals. We use a little extra memory maintaining both a set and a list to
+  // have fast searches while maintaining a strict ordering.
+  SmallVector<GlobalVariable*,8> Globals;
+  DenseSet<GlobalVariable*> GVVisited;
+  DenseSet<GlobalVariable*> GVVisiting;
+
+  // Visit each global variable, in order
   for (Module::global_iterator I = M.global_begin(), E = M.global_end();
-      I != E; ++I)
-    printModuleLevelGV(I, OS2);
+       I != E; ++I)
+    VisitGlobalVariableForEmission(I, Globals, GVVisited, GVVisiting);
+
+  assert(GVVisited.size() == M.getGlobalList().size() && 
+         "Missed a global variable");
+  assert(GVVisiting.size() == 0 && "Did not fully process a global variable");
+
+  // Print out module-level global variables in proper order
+  for (unsigned i = 0, e = Globals.size(); i != e; ++i)
+    printModuleLevelGV(Globals[i], OS2);
 
   OS2 << '\n';
 
@@ -910,7 +974,8 @@ void NVPTXAsmPrinter::emitHeader (Module &M, raw_ostream &O) {
   O << "//\n";
   O << "\n";
 
-  O << ".version 3.0\n";
+  unsigned PTXVersion = nvptxSubtarget.getPTXVersion();
+  O << ".version " << (PTXVersion / 10) << "." << (PTXVersion % 10) << "\n";
 
   O << ".target ";
   O << nvptxSubtarget.getTargetName();
@@ -1023,7 +1088,7 @@ void NVPTXAsmPrinter::printModuleLevelGV(GlobalVariable* GVar, raw_ostream &O,
       return;
   }
 
-  const TargetData *TD = TM.getTargetData();
+  const DataLayout *TD = TM.getDataLayout();
 
   // GlobalVariables are always constant pointers themselves.
   const PointerType *PTy = GVar->getType();
@@ -1296,7 +1361,7 @@ std::string NVPTXAsmPrinter::getPTXFundamentalTypeStr(const Type *Ty,
 void NVPTXAsmPrinter::emitPTXGlobalVariable(const GlobalVariable* GVar,
                                             raw_ostream &O) {
 
-  const TargetData *TD = TM.getTargetData();
+  const DataLayout *TD = TM.getDataLayout();
 
   // GlobalVariables are always constant pointers themselves.
   const PointerType *PTy = GVar->getType();
@@ -1342,7 +1407,7 @@ void NVPTXAsmPrinter::emitPTXGlobalVariable(const GlobalVariable* GVar,
 
 
 static unsigned int
-getOpenCLAlignment(const TargetData *TD,
+getOpenCLAlignment(const DataLayout *TD,
                    Type *Ty) {
   if (Ty->isPrimitiveType() || Ty->isIntegerTy() || isa<PointerType>(Ty))
     return TD->getPrefTypeAlignment(Ty);
@@ -1421,7 +1486,7 @@ void NVPTXAsmPrinter::printParamName(int paramIndex, raw_ostream &O) {
 
 void NVPTXAsmPrinter::emitFunctionParamList(const Function *F,
                                             raw_ostream &O) {
-  const TargetData *TD = TM.getTargetData();
+  const DataLayout *TD = TM.getDataLayout();
   const AttrListPtr &PAL = F->getAttributes();
   const TargetLowering *TLI = TM.getTargetLowering();
   Function::const_arg_iterator I, E;
@@ -1456,7 +1521,8 @@ void NVPTXAsmPrinter::emitFunctionParamList(const Function *F,
       continue;
     }
 
-    if (PAL.paramHasAttr(paramIndex+1, Attribute::ByVal) == false) {
+    if (PAL.getParamAttributes(paramIndex+1).
+          hasAttribute(Attributes::ByVal) == false) {
       // Just a scalar
       const PointerType *PTy = dyn_cast<PointerType>(Ty);
       if (isKernelFunc) {
@@ -1524,6 +1590,9 @@ void NVPTXAsmPrinter::emitFunctionParamList(const Function *F,
       // <a> = PAL.getparamalignment
       // size = typeallocsize of element type
       unsigned align = PAL.getParamAlignment(paramIndex+1);
+      if (align == 0)
+        align = TD->getABITypeAlignment(ETy);
+
       unsigned sz = TD->getTypeAllocSize(ETy);
       O << "\t.param .align " << align
           << " .b8 ";
@@ -1714,7 +1783,7 @@ void NVPTXAsmPrinter::printScalarConstant(Constant *CPV, raw_ostream &O) {
 void NVPTXAsmPrinter::bufferLEByte(Constant *CPV, int Bytes,
                                    AggBuffer *aggBuffer) {
 
-  const TargetData *TD = TM.getTargetData();
+  const DataLayout *TD = TM.getDataLayout();
 
   if (isa<UndefValue>(CPV) || CPV->isNullValue()) {
     int s = TD->getTypeAllocSize(CPV->getType());
@@ -1843,7 +1912,7 @@ void NVPTXAsmPrinter::bufferLEByte(Constant *CPV, int Bytes,
 
 void NVPTXAsmPrinter::bufferAggregateConstant(Constant *CPV,
                                               AggBuffer *aggBuffer) {
-  const TargetData *TD = TM.getTargetData();
+  const DataLayout *TD = TM.getDataLayout();
   int Bytes;
 
   // Old constants
