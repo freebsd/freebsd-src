@@ -3,6 +3,14 @@
 
 PROG=		xinstall
 PROGNAME=	install
+SRCS=		xinstall.c getid.c
 MAN=		install.1
+
+.PATH:		${.CURDIR}/../../contrib/mtree
+CFLAGS+=	-I${.CURDIR}/../../contrib/mtree
+CFLAGS+=	-I${.CURDIR}/../../lib/libnetbsd
+
+DPADD+=		${LIBUTIL}
+LDADD+=		-lutil
 
 .include <bsd.prog.mk>
