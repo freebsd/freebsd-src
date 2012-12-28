@@ -714,7 +714,7 @@ static device_method_t wb_methods[] = {
 	DEVMETHOD(device_attach,	wb_attach),
 	DEVMETHOD(device_detach,	wb_detach),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t wb_isa_driver = {
