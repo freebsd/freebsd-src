@@ -1,6 +1,0 @@
-TODOs live in the TODO section of doc/file.man (i.e. file(1)). They
-are more visible there, so please add any further TODOs to that file,
-not here.
-
-(This change was made when Reuben Thomas noticed that all the bugs
-listed in the BUGS section of the man page had been fixed!)

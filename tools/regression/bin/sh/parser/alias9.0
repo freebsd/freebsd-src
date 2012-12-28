@@ -1,6 +1,0 @@
-# $FreeBSD$
-
-alias alias0=:
-alias alias0=exit
-eval 'alias0 0'
-exit 1

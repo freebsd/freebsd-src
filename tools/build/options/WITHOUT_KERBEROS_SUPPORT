@@ -1,8 +1,0 @@
-.\" $FreeBSD$
-Set to build some programs without Kerberos support, like
-.Xr cvs 1 ,
-.Xr ssh 1 ,
-.Xr telnet 1 ,
-.Xr sshd 8 ,
-and
-.Xr telnetd 8 .

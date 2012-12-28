@@ -1,1 +1,0 @@
-../Proc/writedist.d

@@ -1,6 +1,0 @@
-
-1 ip:::send    (args[2]: 4 64, args[4]: 4 84 0 0 255)
-1 ip:::send    (args[2]: 4 64, args[4]: 4 84 0 0 255)
-2 ip:::receive (args[2]: 4 64, args[4]: 4 84 0 0 255)
-2 ip:::receive (args[2]: 4 64, args[4]: 4 84 0 0 255)
-127.0.0.1 is alive
