@@ -506,7 +506,7 @@ gr_add(struct group *gr, char *newmember)
 	/* Allocate enough for current pointers + 1 more and NULL marker */
 	mlen = (num_mem + 2) * sizeof(*gr->gr_mem);
 	if ((members = malloc(mlen)) == NULL)
-		errno = ENOMEM;
+		return (NULL);
 	memcpy(members, gr->gr_mem, num_mem * sizeof(*gr->gr_mem));
 	members[num_mem++] = newmember;
 	members[num_mem] = NULL;
