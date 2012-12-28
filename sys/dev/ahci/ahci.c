@@ -1668,6 +1668,7 @@ ahci_begin_transaction(device_t dev, union ccb *ccb)
 		ch->aslots |= (1 << slot->slot);
 	slot->dma.nsegs = 0;
 	if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
+		slot->state = AHCI_SLOT_LOADING;
 		bus_dmamap_load_ccb(ch->dma.data_tag, slot->dma.data_map, ccb,
 		    ahci_dmasetprd, slot, 0);
 	} else
