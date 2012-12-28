@@ -687,8 +687,7 @@ out1:
 	/*
 	 * Resume operation on filesystem.
 	 */
-	vfs_write_resume(vp->v_mount);
-	vn_start_write(NULL, &wrtmp, V_WAIT);
+	vfs_write_resume_flags(vp->v_mount, VR_START_WRITE);
 	if (collectsnapstats && starttime.tv_sec > 0) {
 		nanotime(&endtime);
 		timespecsub(&endtime, &starttime);
