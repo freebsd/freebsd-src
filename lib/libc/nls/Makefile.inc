@@ -36,3 +36,4 @@ NLS+=	ru_RU.KOI8-R
 NLS+=	sk_SK.ISO8859-2
 NLS+=	sv_SE.ISO8859-1
 NLS+=	uk_UA.UTF-8
+NLS+=	zh_CN.UTF-8
