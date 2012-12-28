@@ -10812,9 +10812,9 @@ add_byte_size_attribute (dw_die_ref die, tree tree_node)
 
   /* Note that `size' might be -1 when we get to this point.  If it is, that
      indicates that the byte size of the entity in question is variable.  We
-     have no good way of expressing this fact in Dwarf at the present time,
-     so just let the -1 pass on through.  */
-  add_AT_unsigned (die, DW_AT_byte_size, size);
+     have no good way of expressing this fact in Dwarf at the present time.
+     GCC/35998: Avoid passing negative sizes to Dtrace and gdb.  */
+  add_AT_unsigned (die, DW_AT_byte_size, (size > 0 ? size : 0));
 }
 
 /* For a FIELD_DECL node which represents a bit-field, output an attribute
