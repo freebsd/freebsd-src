@@ -461,10 +461,14 @@ gr_dup(const struct group *gr)
 	if (gr->gr_name != NULL) {
 		newgr->gr_name = dst;
 		dst = stpcpy(dst, gr->gr_name) + 1;
+	} else {
+		newgr->gr_name = NULL;
 	}
 	if (gr->gr_passwd != NULL) {
 		newgr->gr_passwd = dst;
 		dst = stpcpy(dst, gr->gr_passwd) + 1;
+	} else {
+		newgr->gr_passwd = NULL;
 	}
 	newgr->gr_gid = gr->gr_gid;
 	if (gr->gr_mem != NULL) {
