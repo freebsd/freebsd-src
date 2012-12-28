@@ -873,7 +873,6 @@ mvs_legacy_intr(device_t dev, int poll)
 	}
 	if (ccb->ccb_h.func_code == XPT_ATA_IO) { /* ATA PIO */
 		ccb->ataio.res.status = status;
-		/* XXX PIO does not support alternate data_ptr formats. */
 		/* Are we moving data? */
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
 		    /* If data read command - get them. */

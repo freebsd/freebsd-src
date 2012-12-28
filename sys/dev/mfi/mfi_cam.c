@@ -264,13 +264,6 @@ mfip_cam_action(struct cam_sim *sim, union ccb *ccb)
 			ccbh->status = CAM_REQ_INVALID;
 			break;
 		}
-		if ((ccbh->flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
-			if ((ccbh->flags & CAM_DATA_MASK) != CAM_DATA_VADDR) {
-				ccbh->status = CAM_REQ_INVALID;
-				break;
-			}
-		}
-
 		ccbh->ccb_mfip_ptr = sc;
 		TAILQ_INSERT_TAIL(&mfisc->mfi_cam_ccbq, ccbh, sim_links.tqe);
 		mfi_startio(mfisc);
