@@ -480,6 +480,7 @@ f_xdialog_2inputsbox_size()
 
 	# Add height for a second inputbox
 	height=$(( $height + 2 ))
+	[ $height -le $max_height ] || height=$max_height
 
 	#
 	# Bump width for second initial text (if not already at maximum width).
