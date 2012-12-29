@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 25, 2009
+.Dd December 28, 2012
 .Dt NFSCBD 8
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 client side callback daemon
 .Sh SYNOPSIS
 .Nm nfscbd
+.Op Fl C Ar packrat_dirpath
 .Op Fl p Ar port_number
 .Op Fl P Ar client_principal
 .Sh DESCRIPTION
@@ -51,6 +52,16 @@ are always started.
 .Pp
 The following options are available:
 .Bl -tag -width Ds
+.It Fl C Ar packrat_dirpath
+If this option is specified, it enables the packrat kernel threads that
+create local cache copies of files for which the client has delegations
+in the directory specified by the absolute pathname
+.Cm packrat_dirpath .
+This directory must be on local non-volatile storage.
+The packrat kernel
+threads will make local cache copies of delegated files up to the size
+specified by nfscl_packratmaxsize when the NFSv4 server issues a delegation
+to the client for the file.
 .It Fl p Ar port_number
 Specifies what port# the callback server should use.
 .It Fl P Ar client_principal

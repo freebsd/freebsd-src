@@ -105,6 +105,7 @@ main(int argc, char *argv[])
 	int nfssvc_flag, on, sock, tcpsock, ret, mustfreeai = 0;
 	char *cp, princname[128];
 	char myname[MAXHOSTNAMELEN], *myfqdnname = NULL;
+	char packrat_path[MAXPATHLEN];
 	struct addrinfo *aip, hints;
 	pid_t pid;
 	short myport = NFSV4_CBPORT;
@@ -147,10 +148,24 @@ main(int argc, char *argv[])
 	}
 
 	princname[0] = '\0';
-#define	GETOPT	"p:P:"
-#define	USAGE	"[ -p port_num ] [ -P client_principal ]"
+#define	GETOPT	"C:p:P:"
+#define	USAGE	"[ -C packrat_path ] [ -p port_num ] [ -P client_principal ]"
 	while ((ch = getopt(argc, argv, GETOPT)) != -1)
 		switch (ch) {
+		case 'C':
+			if (optarg[0] != '/')
+				errx(1, "bad packrat path %s", optarg);
+			strlcpy(packrat_path, optarg, MAXPATHLEN);
+			len = strlen(packrat_path);
+			if (packrat_path[len - 1] != '/') {
+				/* Append trailing '/', as required. */
+				if (len >= MAXPATHLEN - 1)
+					errx(1, "packrat path too long");
+				packrat_path[len] = '/';
+				packrat_path[len + 1] = '\0';
+			}
+			(void) nfssvc(NFSSVC_PACKRAT, packrat_path);
+			break;
 		case 'p':
 			myport = atoi(optarg);
 			if (myport < 1) {
