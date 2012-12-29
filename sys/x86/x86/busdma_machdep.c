@@ -144,8 +144,14 @@ static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
 				  bus_size_t size);
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
 int run_filter(bus_dma_tag_t dmat, bus_addr_t paddr);
-int _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
-    void *buf, bus_size_t buflen, int flags);
+static void _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
+				    pmap_t pmap, void *buf, bus_size_t buflen,
+				    int flags);
+static void _bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
+				   vm_paddr_t buf, bus_size_t buflen,
+				   int flags);
+static int _bus_dmamap_reserve_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
+				     int flags);
 
 #ifdef XEN
 #undef pmap_kextract
@@ -579,7 +585,33 @@ bus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 	CTR3(KTR_BUSDMA, "%s: tag %p flags 0x%x", __func__, dmat, dmat->flags);
 }
 
-int
+static void
+_bus_dmamap_count_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
+    bus_size_t buflen, int flags)
+{
+	bus_addr_t curaddr;
+	bus_size_t sgsize;
+
+	if ((map != &nobounce_dmamap && map->pagesneeded == 0)) {
+		/*
+		 * Count the number of bounce pages
+		 * needed in order to complete this transfer
+		 */
+		curaddr = buf;
+		while (buflen != 0) {
+			sgsize = MIN(buflen, dmat->maxsegsz);
+			if (run_filter(dmat, curaddr)) {
+				sgsize = MIN(sgsize, PAGE_SIZE);
+				map->pagesneeded++;
+			}
+			curaddr += sgsize;
+			buflen -= sgsize;
+		}
+		CTR1(KTR_BUSDMA, "pagesneeded= %d\n", map->pagesneeded);
+	}
+}
+
+static void
 _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
     void *buf, bus_size_t buflen, int flags)
 {
@@ -608,8 +640,7 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 				paddr = pmap_kextract(vaddr);
 			else
 				paddr = pmap_extract(pmap, vaddr);
-			if (((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) &&
-			    run_filter(dmat, paddr) != 0) {
+			if (run_filter(dmat, paddr) != 0) {
 				sg_len = roundup2(sg_len, dmat->alignment);
 				map->pagesneeded++;
 			}
@@ -617,26 +648,28 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 		}
 		CTR1(KTR_BUSDMA, "pagesneeded= %d\n", map->pagesneeded);
 	}
+}
+
+static int
+_bus_dmamap_reserve_pages(bus_dma_tag_t dmat, bus_dmamap_t map, int flags)
+{
 
 	/* Reserve Necessary Bounce Pages */
-	if (map->pagesneeded != 0) {
-		mtx_lock(&bounce_lock);
-		if (flags & BUS_DMA_NOWAIT) {
-			if (reserve_bounce_pages(dmat, map, 0) != 0) {
-				mtx_unlock(&bounce_lock);
-				return (ENOMEM);
-			}
-		} else {
-			if (reserve_bounce_pages(dmat, map, 1) != 0) {
-				/* Queue us for resources */
-				STAILQ_INSERT_TAIL(&bounce_map_waitinglist,
-				    map, links);
-				mtx_unlock(&bounce_lock);
-				return (EINPROGRESS);
-			}
+	mtx_lock(&bounce_lock);
+	if (flags & BUS_DMA_NOWAIT) {
+		if (reserve_bounce_pages(dmat, map, 0) != 0) {
+			mtx_unlock(&bounce_lock);
+			return (ENOMEM);
 		}
-		mtx_unlock(&bounce_lock);
+	} else {
+		if (reserve_bounce_pages(dmat, map, 1) != 0) {
+			/* Queue us for resources */
+			STAILQ_INSERT_TAIL(&bounce_map_waitinglist, map, links);
+			mtx_unlock(&bounce_lock);
+			return (EINPROGRESS);
+		}
 	}
+	mtx_unlock(&bounce_lock);
 
 	return (0);
 }
@@ -701,6 +734,7 @@ _bus_dmamap_load_phys(bus_dma_tag_t dmat,
 {
 	bus_size_t sgsize;
 	bus_addr_t curaddr;
+	int error;
 
 	if (map == NULL || map == &contig_dmamap)
 		map = &nobounce_dmamap;
@@ -708,14 +742,29 @@ _bus_dmamap_load_phys(bus_dma_tag_t dmat,
 	if (segs == NULL)
 		segs = dmat->segments;
 
-	curaddr = buf;
+	if ((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) {
+		_bus_dmamap_count_phys(dmat, map, buf, buflen, flags);
+		if (map->pagesneeded != 0) {
+			error = _bus_dmamap_reserve_pages(dmat, map, flags);
+			if (error)
+				return (error);
+		}
+	}
+
 	while (buflen > 0) {
+		curaddr = buf;
 		sgsize = MIN(buflen, dmat->maxsegsz);
+		if (((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) &&
+		    map->pagesneeded != 0 && run_filter(dmat, curaddr)) {
+			sgsize = MIN(sgsize, PAGE_SIZE);
+			curaddr = add_bounce_page(dmat, map, 0, curaddr,
+			    			  sgsize);
+		}
 		sgsize = _bus_dmamap_addseg(dmat, map, curaddr, sgsize, segs,
 		    segp);
 		if (sgsize == 0)
 			break;
-		curaddr += sgsize;
+		buf += sgsize;
 		buflen -= sgsize;
 	}
 
@@ -750,9 +799,12 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat,
 		segs = dmat->segments;
 
 	if ((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) {
-		error = _bus_dmamap_count_pages(dmat, map, pmap, buf, buflen, flags);
-		if (error)
-			return (error);
+		_bus_dmamap_count_pages(dmat, map, pmap, buf, buflen, flags);
+		if (map->pagesneeded != 0) {
+			error = _bus_dmamap_reserve_pages(dmat, map, flags);
+			if (error)
+				return (error);
+		}
 	}
 
 	vaddr = (vm_offset_t)buf;
