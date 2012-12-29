@@ -750,6 +750,82 @@ _bus_dmamap_count_pages(bus_dma_tag_t dmat, bus_dmamap_t map, pmap_t pmap,
 }
 
 /*
+ * Add a single contiguous physical range to the segment list.
+ */
+static int
+_bus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
+    bus_size_t sgsize, bus_dma_segment_t *segs, int *segp)
+{
+	bus_addr_t baddr, bmask;
+	int seg;
+
+	/*
+	 * Make sure we don't cross any boundaries.
+	 */
+	bmask = ~(dmat->boundary - 1);
+	if (dmat->boundary > 0) {
+		baddr = (curaddr + dmat->boundary) & bmask;
+		if (sgsize > (baddr - curaddr))
+			sgsize = (baddr - curaddr);
+	}
+	/*
+	 * Insert chunk into a segment, coalescing with
+	 * the previous segment if possible.
+	 */
+	seg = *segp;
+	if (seg >= 0 &&
+	    curaddr == segs[seg].ds_addr + segs[seg].ds_len &&
+	    (segs[seg].ds_len + sgsize) <= dmat->maxsegsz &&
+	    (dmat->boundary == 0 ||
+	     (segs[seg].ds_addr & bmask) == (curaddr & bmask))) {
+		segs[seg].ds_len += sgsize;
+	} else {
+		if (++seg >= dmat->nsegments)
+			return (0);
+		segs[seg].ds_addr = curaddr;
+		segs[seg].ds_len = sgsize;
+	}
+	*segp = seg;
+	return (sgsize);
+}
+
+/*
+ * Utility function to load a physical buffer.  segp contains
+ * the starting segment on entrace, and the ending segment on exit.
+ */
+int
+_bus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map,
+    vm_paddr_t buf, bus_size_t buflen, int flags, bus_dma_segment_t *segs,
+    int *segp)
+{
+	bus_addr_t curaddr;
+	bus_size_t sgsize;
+
+	if (segs == NULL)
+		segs = dmat->segments;
+
+	curaddr = buf;
+	while (buflen > 0) {
+		sgsize = MIN(buflen, dmat->maxsegsz);
+		sgsize = _bus_dmamap_addseg(dmat, map, curaddr, sgsize, segs,
+		    segp);
+		if (sgsize == 0)
+			break;
+		curaddr += sgsize;
+		buflen -= sgsize;
+	}
+
+	/*
+	 * Did we fit?
+	 */
+	if (buflen != 0) {
+		_bus_dmamap_unload(dmat, map);
+		return (EFBIG); /* XXX better return value here? */
+	}
+	return (0);
+}
+
+/*
  * Utility function to load a linear buffer.  segp contains
  * the starting segment on entrance, and the ending segment on exit.
  * first indicates if this is the first invocation of this function.
@@ -760,13 +836,11 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
     int *segp)
 {
 	bus_size_t sgsize;
-	bus_addr_t curaddr, baddr, bmask;
+	bus_addr_t curaddr;
 	struct sync_list *sl;
 	vm_offset_t vaddr = (vm_offset_t)buf;
-	int seg;
 	int error = 0;
 
-	bmask = ~(dmat->boundary - 1);
 
 	if (segs == NULL)
 		segs = dmat->segments;
@@ -780,7 +854,7 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 	CTR3(KTR_BUSDMA, "lowaddr= %d boundary= %d, "
 	    "alignment= %d", dmat->lowaddr, dmat->boundary, dmat->alignment);
 
-	for (seg = *segp; buflen > 0 ; ) {
+	while (buflen > 0) {
 		/*
 		 * Get the physical address for this segment.
 		 *
@@ -799,14 +873,6 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		if (buflen < sgsize)
 			sgsize = buflen;
 
-		/*
-		 * Make sure we don't cross any boundaries.
-		 */
-		if (dmat->boundary > 0) {
-			baddr = (curaddr + dmat->boundary) & bmask;
-			if (sgsize > (baddr - curaddr))
-				sgsize = (baddr - curaddr);
-		}
 		if (((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) &&
 		    map->pagesneeded != 0 && run_filter(dmat, curaddr)) {
 			curaddr = add_bounce_page(dmat, map, vaddr, sgsize);
@@ -823,33 +889,14 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 			} else
 				sl->datacount += sgsize;
 		}
-
-		/*
-		 * Insert chunk into a segment, coalescing with
-		 * the previous segment if possible.
-		 */
-		if (seg >= 0 &&
-		    curaddr == segs[seg].ds_addr + segs[seg].ds_len &&
-		    (segs[seg].ds_len + sgsize) <= dmat->maxsegsz &&
-		    (dmat->boundary == 0 ||
-		     (segs[seg].ds_addr & bmask) == 
-		     (curaddr & bmask))) {
-			segs[seg].ds_len += sgsize;
-			goto segdone;
-		} else {
-			if (++seg >= dmat->nsegments)
-				break;
-			segs[seg].ds_addr = curaddr;
-			segs[seg].ds_len = sgsize;
-		}
-		if (error)
+		sgsize = _bus_dmamap_addseg(dmat, map, curaddr, sgsize, segs,
+		    segp);
+		if (sgsize == 0)
 			break;
-segdone:
 		vaddr += sgsize;
 		buflen -= sgsize;
 	}
 
-	*segp = seg;
 cleanup:
 	/*
 	 * Did we fit?

@@ -78,6 +78,9 @@
 struct bus_dma_methods {
 	int	(*dm_dmamap_create)(bus_dma_tag_t, int, bus_dmamap_t *);
 	int	(*dm_dmamap_destroy)(bus_dma_tag_t, bus_dmamap_t);
+	int	(*dm_dmamap_load_phys)(bus_dma_tag_t dmat, bus_dmamap_t map,
+	    vm_paddr_t buf, bus_size_t buflen, int flags,
+	    bus_dma_segment_t *segs, int *segp);
 	int	(*dm_dmamap_load_buffer)(bus_dma_tag_t dmat, bus_dmamap_t map,
 	    void *buf, bus_size_t buflen, struct pmap *pmap, int flags,
 	    bus_dma_segment_t *segs, int *segp);
@@ -124,6 +127,9 @@ struct bus_dma_tag {
 	((t)->dt_mt->dm_dmamap_create((t), (f), (p)))
 #define	bus_dmamap_destroy(t, p)					\
 	((t)->dt_mt->dm_dmamap_destroy((t), (p)))
+#define	_bus_dmamap_load_phys(t, m, b, l, f, s, sp)			\
+	((t)->dt_mt->dm_dmamap_load_buffer((t), (m), (b), (l),		\
+	    (f), (s), (sp)))
 #define	_bus_dmamap_load_buffer(t, m, b, l, p, f, s, sp)		\
 	((t)->dt_mt->dm_dmamap_load_buffer((t), (m), (b), (l), (p),	\
 	    (f), (s), (sp)))

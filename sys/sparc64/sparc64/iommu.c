@@ -847,6 +847,21 @@ iommu_dvmamap_destroy(bus_dma_tag_t dt, bus_dmamap_t map)
 }
 
 /*
+ * Utility function to load a physical buffer.  segp contains
+ * the starting segment on entrace, and the ending segment on exit.
+ */
+static int
+iommu_dvmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
+    bus_size_t buflen, int flags, bus_dma_segment_t *segs, int *segp)
+{
+
+	/*
+	 * Did we fit?
+	 */
+	return (buflen != 0 ? EFBIG : 0);
+}
+
+/*
  * IOMMU DVMA operations, common to PCI and SBus
  */
 static int
@@ -1088,6 +1103,7 @@ iommu_diag(struct iommu_state *is, vm_offset_t va)
 struct bus_dma_methods iommu_dma_methods = {
 	iommu_dvmamap_create,
 	iommu_dvmamap_destroy,
+	iommu_dvmamap_load_phys,
 	iommu_dvmamap_load_buffer,
 	iommu_dvmamap_waitok,
 	iommu_dvmamap_complete,

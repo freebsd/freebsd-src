@@ -151,7 +151,7 @@ typedef struct bus_dma_memory {
 		struct uio		*dm_uio;
 		struct mbuf		*dm_mbuf;
 		union ccb		*dm_ccb;
-	};
+	} u;
 	bus_size_t	dm_opaque;	/* type specific data. */
 	uint32_t	dm_type;	/* Type of memory. */
 } bus_dma_memory_t;
@@ -170,7 +170,7 @@ dma_mem_vaddr(void *vaddr, bus_size_t len)
 {
 	bus_dma_memory_t mem;
 
-	mem.dm_vaddr = vaddr;
+	mem.u.dm_vaddr = vaddr;
 	mem.dm_opaque = len;
 	mem.dm_type = BUS_DMAMEM_VADDR;
 
@@ -182,7 +182,7 @@ dma_mem_paddr(vm_paddr_t paddr, bus_size_t len)
 {
 	bus_dma_memory_t mem;
 
-	mem.dm_paddr = paddr;
+	mem.u.dm_paddr = paddr;
 	mem.dm_opaque = len;
 	mem.dm_type = BUS_DMAMEM_PADDR;
 
@@ -194,7 +194,7 @@ dma_mem_vlist(bus_dma_segment_t *vlist, int sglist_cnt)
 {
 	bus_dma_memory_t mem;
 
-	mem.dm_list = vlist;
+	mem.u.dm_list = vlist;
 	mem.dm_opaque = sglist_cnt;
 	mem.dm_type = BUS_DMAMEM_VLIST;
 
@@ -206,7 +206,7 @@ dma_mem_plist(bus_dma_segment_t *plist, int sglist_cnt)
 {
 	bus_dma_memory_t mem;
 
-	mem.dm_list = plist;
+	mem.u.dm_list = plist;
 	mem.dm_opaque = sglist_cnt;
 	mem.dm_type = BUS_DMAMEM_PLIST;
 
@@ -218,7 +218,7 @@ dma_mem_bio(struct bio *bio)
 {
 	bus_dma_memory_t mem;
 
-	mem.dm_bio = bio;
+	mem.u.dm_bio = bio;
 	mem.dm_type = BUS_DMAMEM_BIO;
 
 	return (mem);
@@ -229,7 +229,7 @@ dma_mem_uio(struct uio *uio)
 {
 	bus_dma_memory_t mem;
 
-	mem.dm_uio = uio;
+	mem.u.dm_uio = uio;
 	mem.dm_type = BUS_DMAMEM_UIO;
 
 	return (mem);
@@ -240,7 +240,7 @@ dma_mem_mbuf(struct mbuf *mbuf)
 {
 	bus_dma_memory_t mem;
 
-	mem.dm_mbuf = mbuf;
+	mem.u.dm_mbuf = mbuf;
 	mem.dm_type = BUS_DMAMEM_MBUF;
 
 	return (mem);
@@ -251,7 +251,7 @@ dma_mem_ccb(union ccb *ccb)
 {
 	bus_dma_memory_t mem;
 
-	mem.dm_ccb = ccb;
+	mem.u.dm_ccb = ccb;
 	mem.dm_type = BUS_DMAMEM_CCB;
 
 	return (mem);

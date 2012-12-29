@@ -324,6 +324,83 @@ nexus_dmamap_destroy(bus_dma_tag_t dmat, bus_dmamap_t map)
 }
 
 /*
+ * Add a single contiguous physical range to the segment list.
+ */
+static int
+nexus_dmamap_addseg(bus_dma_tag_t dmat, bus_dmamap_t map, bus_addr_t curaddr,
+    bus_size_t sgsize, bus_dma_segment_t *segs, int *segp)
+{
+	bus_addr_t baddr, bmask;
+	int seg;
+
+	/*
+	 * Make sure we don't cross any boundaries.
+	 */
+	bmask  = ~(dmat->dt_boundary - 1);
+	if (dmat->dt_boundary > 0) {
+		baddr = (curaddr + dmat->dt_boundary) & bmask;
+		if (sgsize > (baddr - curaddr))
+			sgsize = (baddr - curaddr);
+	}
+
+	/*
+	 * Insert chunk into a segment, coalescing with
+	 * previous segment if possible.
+	 */
+	seg = *segp;
+	if (seg == -1) {
+		seg = 0;
+		segs[seg].ds_addr = curaddr;
+		segs[seg].ds_len = sgsize;
+	} else {
+		if (curaddr == segs[seg].ds_addr + segs[seg].ds_len &&
+		    (segs[seg].ds_len + sgsize) <= dmat->dt_maxsegsz &&
+		    (dmat->dt_boundary == 0 ||
+		    (segs[seg].ds_addr & bmask) == (curaddr & bmask)))
+			segs[seg].ds_len += sgsize;
+		else {
+			if (++seg >= dmat->dt_nsegments)
+				return (0);
+			segs[seg].ds_addr = curaddr;
+			segs[seg].ds_len = sgsize;
+		}
+	}
+	*segp = seg;
+	return (sgsize);
+}
+
+/*
+ * Utility function to load a physical buffer.  segp contains
+ * the starting segment on entrace, and the ending segment on exit.
+ */
+static int
+nexus_dmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
+    bus_size_t buflen, int flags, bus_dma_segment_t *segs, int *segp)
+{
+	bus_addr_t curaddr;
+	bus_size_t sgsize;
+
+	if (segs == NULL)
+		segs = dmat->dt_segments;
+
+	curaddr = buf;
+	while (buflen > 0) {
+		sgsize = MIN(buflen, dmat->maxsegsz);
+		sgsize = nexus_dmamap_addseg(dmat, map, curaddr, sgsize, segs,
+		    segp);
+		if (sgsize == 0)
+			break;
+		curaddr += sgsize;
+		buflen -= sgsize;
+	}
+
+	/*
+	 * Did we fit?
+	 */
+	return (buflen != 0 ? EFBIG : 0); /* XXX better return value here? */
+}
+
+/*
  * Utility function to load a linear buffer.  segp contains
  * the starting segment on entrace, and the ending segment on exit.
  */
@@ -333,16 +410,13 @@ nexus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
     int *segp)
 {
 	bus_size_t sgsize;
-	bus_addr_t curaddr, baddr, bmask;
+	bus_addr_t curaddr;
 	vm_offset_t vaddr = (vm_offset_t)buf;
-	int seg;
 
 	if (segs == NULL)
 		segs = dmat->dt_segments;
 
-	bmask  = ~(dmat->dt_boundary - 1);
-
-	for (seg = *segp; buflen > 0 ; ) {
+	while (buflen > 0) {
 		/*
 		 * Get the physical address for this segment.
 		 */
@@ -360,42 +434,14 @@ nexus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 		if (buflen < sgsize)
 			sgsize = buflen;
 
-		/*
-		 * Make sure we don't cross any boundaries.
-		 */
-		if (dmat->dt_boundary > 0) {
-			baddr = (curaddr + dmat->dt_boundary) & bmask;
-			if (sgsize > (baddr - curaddr))
-				sgsize = (baddr - curaddr);
-		}
-
-		/*
-		 * Insert chunk into a segment, coalescing with
-		 * previous segment if possible.
-		 */
-		if (seg == -1) {
-			seg = 0;
-			segs[seg].ds_addr = curaddr;
-			segs[seg].ds_len = sgsize;
-		} else {
-			if (curaddr == segs[seg].ds_addr + segs[seg].ds_len &&
-			    (segs[seg].ds_len + sgsize) <= dmat->dt_maxsegsz &&
-			    (dmat->dt_boundary == 0 ||
-			    (segs[seg].ds_addr & bmask) == (curaddr & bmask)))
-				segs[seg].ds_len += sgsize;
-			else {
-				if (++seg >= dmat->dt_nsegments)
-					break;
-				segs[seg].ds_addr = curaddr;
-				segs[seg].ds_len = sgsize;
-			}
-		}
+		sgsize = nexus_dmamap_addseg(dmat, map, curaddr, sgsize, segs,
+		    segp);
+		if (sgsize == 0)
+			break;
 
 		vaddr += sgsize;
 		buflen -= sgsize;
 	}
-
-	*segp = seg;
 
 	/*
 	 * Did we fit?
@@ -520,6 +566,7 @@ nexus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 static struct bus_dma_methods nexus_dma_methods = {
 	nexus_dmamap_create,
 	nexus_dmamap_destroy,
+	nexus_dmamap_load_phys,
 	nexus_dmamap_load_buffer,
 	nexus_dmamap_waitok,
 	nexus_dmamap_complete,

@@ -394,37 +394,38 @@ bus_dmamap_load_mem(bus_dma_tag_t dmat, bus_dmamap_t map,
 		_bus_dmamap_waitok(dmat, map, *mem, callback, callback_arg);
 
 	nsegs = -1;
+	error = 0;
 	switch (mem->dm_type) {
 	case BUS_DMAMEM_VADDR:
-		error = _bus_dmamap_load_buffer(dmat, map, mem->dm_vaddr,
+		error = _bus_dmamap_load_buffer(dmat, map, mem->u.dm_vaddr,
 		    mem->dm_opaque, kernel_pmap, flags, NULL, &nsegs);
 		break;
 	case BUS_DMAMEM_PADDR:
-		error = _bus_dmamap_load_phys(dmat, map, mem->dm_paddr,
+		error = _bus_dmamap_load_phys(dmat, map, mem->u.dm_paddr,
 		    mem->dm_opaque, flags, NULL, &nsegs);
 		break;
 	case BUS_DMAMEM_VLIST:
-		error = _bus_dmamap_load_vlist(dmat, map, mem->dm_list,
+		error = _bus_dmamap_load_vlist(dmat, map, mem->u.dm_list,
 		    mem->dm_opaque, kernel_pmap, &nsegs, flags);
 		break;
 	case BUS_DMAMEM_PLIST:
-		error = _bus_dmamap_load_plist(dmat, map, mem->dm_list,
+		error = _bus_dmamap_load_plist(dmat, map, mem->u.dm_list,
 		    mem->dm_opaque, &nsegs, flags);
 		break;
 	case BUS_DMAMEM_BIO:
-		error = _bus_dmamap_load_bio(dmat, map, mem->dm_bio,
+		error = _bus_dmamap_load_bio(dmat, map, mem->u.dm_bio,
 		    &nsegs, flags);
 		break;
 	case BUS_DMAMEM_UIO:
-		error = _bus_dmamap_load_uio(dmat, map, mem->dm_uio,
+		error = _bus_dmamap_load_uio(dmat, map, mem->u.dm_uio,
 		    /*XXX*/kernel_pmap, &nsegs, flags);
 		break;
 	case BUS_DMAMEM_MBUF:
-		error = _bus_dmamap_load_mbuf_sg(dmat, map, mem->dm_mbuf, NULL,
-		    &nsegs, flags);
+		error = _bus_dmamap_load_mbuf_sg(dmat, map, mem->u.dm_mbuf,
+		    NULL, &nsegs, flags);
 		break;
 	case BUS_DMAMEM_CCB:
-		error = _bus_dmamap_load_ccb(dmat, map, mem->dm_ccb, &nsegs,
+		error = _bus_dmamap_load_ccb(dmat, map, mem->u.dm_ccb, &nsegs,
 		    flags);
 		break;
 	}
