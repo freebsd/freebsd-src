@@ -1352,9 +1352,7 @@ bad:
 		memset(&mpt_off[tidx], 0xff, MPT_REQUEST_AREA - tidx);
 	}
 
-	nseg = busdma_md_get_nsegs(md);
-
-	if (nseg == 0) {
+	if (md == NULL) {
 		SGE_SIMPLE32 *se1 = (SGE_SIMPLE32 *) sglp;
 		MPI_pSGE_SET_FLAGS(se1,
 		    (MPI_SGE_FLAGS_LAST_ELEMENT | MPI_SGE_FLAGS_END_OF_BUFFER |
@@ -1363,6 +1361,7 @@ bad:
 		goto out;
 	}
 
+	nseg = busdma_md_get_nsegs(md);
 
 	flags = MPI_SGE_FLAGS_SIMPLE_ELEMENT | MPI_SGE_FLAGS_64_BIT_ADDRESSING;
 	if (istgt == 0) {
@@ -1618,7 +1617,7 @@ out:
 		mpt_prt(mpt,
 		    "mpt_execute_req_a64: I/O cancelled (status 0x%x)\n",
 		    ccb->ccb_h.status & CAM_STATUS_MASK);
-		if (nseg && (ccb->ccb_h.flags & CAM_SG_LIST_PHYS) == 0) {
+		if (md != NULL && (ccb->ccb_h.flags & CAM_SG_LIST_PHYS) == 0) {
 			busdma_md_unload(req->md);
 		}
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
@@ -1749,9 +1748,7 @@ bad:
 		memset(&mpt_off[tidx], 0xff, MPT_REQUEST_AREA - tidx);
 	}
 
-	nseg = busdma_md_get_nsegs(md);
-
-	if (nseg == 0) {
+	if (md == NULL) {
 		SGE_SIMPLE32 *se1 = (SGE_SIMPLE32 *) sglp;
 		MPI_pSGE_SET_FLAGS(se1,
 		    (MPI_SGE_FLAGS_LAST_ELEMENT | MPI_SGE_FLAGS_END_OF_BUFFER |
@@ -1760,6 +1757,7 @@ bad:
 		goto out;
 	}
 
+	nseg = busdma_md_get_nsegs(md);
 
 	flags = MPI_SGE_FLAGS_SIMPLE_ELEMENT;
 	if (istgt == 0) {
@@ -1996,7 +1994,7 @@ out:
 		mpt_prt(mpt,
 		    "mpt_execute_req: I/O cancelled (status 0x%x)\n",
 		    ccb->ccb_h.status & CAM_STATUS_MASK);
-		if (nseg && (ccb->ccb_h.flags & CAM_SG_LIST_PHYS) == 0) {
+		if (md != NULL && (ccb->ccb_h.flags & CAM_SG_LIST_PHYS) == 0) {
 			busdma_md_unload(req->md);
 		}
 		ccb->ccb_h.status &= ~CAM_SIM_QUEUED;
@@ -2253,9 +2251,7 @@ mpt_start(struct cam_sim *sim, union ccb *ccb)
 #endif
 		}
 	} else {
-#if 0
-		(*cb)(req, NULL, 0, 0);
-#endif
+		(*cb)(req, NULL, 0);
 	}
 }
 
