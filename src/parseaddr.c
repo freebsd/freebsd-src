@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: parseaddr.c,v 8.404 2010/07/27 03:35:42 ca Exp $")
+SM_RCSID("@(#)$Id: parseaddr.c,v 8.405 2012/02/27 22:49:08 ca Exp $")
 
 #include <sm/sendmail.h>
 #include "map.h"
@@ -242,6 +242,7 @@ parseaddr(addr, a, flags, delim, delimptr, e, isrcpt)
 **
 **	Parameters:
 **		addr -- the address to check.
+**		  note: this is the complete address (including display part)
 **		delimptr -- if non-NULL: end of address to check, i.e.,
 **			a pointer in the address string.
 **		isrcpt -- true iff the address is for a recipient.

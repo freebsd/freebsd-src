@@ -100,8 +100,8 @@ confMKDIR	    [empty]		A program that creates directories
 confDEPEND_TYPE	    generic		How to build dependencies.  This should
 					be the name of a file in
 					devtools/M4/depend
-confDEPLIBS	    [empty]		Dependent libraries when building 
-					shared objects.	
+confDEPLIBS	    [empty]		Dependent libraries when building
+					shared objects.
 confDONT_INSTALL_CATMAN  [undefined]	Don't install the formatted manual
 		    			pages.
 confEBINDIR	    /usr/libexec	The location for binaries executed
@@ -214,8 +214,8 @@ confSETUSERID_INSTALL	[undefined]	Needs to be defined to enable the
 					install-set-user-id target for
 					sendmail.  See sendmail/SECURITY.
 confSHAREDLIB_EXT   .so              	Shared library file extenion name.
-confSHAREDLIB_SUFFIX [empty]		Shared object version suffix.	
-confSHAREDLIBDIR    /usr/lib/		Directory for installing shared 
+confSHAREDLIB_SUFFIX [empty]		Shared object version suffix.
+confSHAREDLIBDIR    /usr/lib/		Directory for installing shared
 					library.  Note: if the value is
 					not empty, it must end with a
 					slash ('/') otherwise it will not
@@ -395,4 +395,4 @@ files that make up the library.
 bldINSTALLABLE - This should be set if the library should be installed in
 confLIBDIR.
 
-$Revision: 8.103 $, Last updated $Date: 2009/01/22 02:15:07 $
+$Revision: 8.104 $, Last updated $Date: 2012/01/21 00:07:06 $
