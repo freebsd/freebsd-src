@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/uio.h>
 
 #include <vm/vm.h>
 #include <vm/vm_page.h>
@@ -87,6 +88,7 @@ struct bounce_page {
 	vm_offset_t	vaddr_nocache;	/* kva of bounce buffer uncached */
 	bus_addr_t	busaddr;	/* Physical address */
 	vm_offset_t	datavaddr;	/* kva of client data */
+	bus_addr_t	dataaddr;	/* client physical address */
 	bus_size_t	datacount;	/* client data count */
 	STAILQ_ENTRY(bounce_page) links;
 };
@@ -166,7 +168,8 @@ static int alloc_bounce_pages(bus_dma_tag_t dmat, u_int numpages);
 static int reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map,
 				int commit);
 static bus_addr_t add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map,
-				   vm_offset_t vaddr, bus_size_t size);
+				  vm_offset_t vaddr, bus_addr_t addr,
+				  bus_size_t size);
 static void free_bounce_page(bus_dma_tag_t dmat, struct bounce_page *bpage);
 
 /* Default tag, as most drivers provide no parent tag. */
@@ -875,7 +878,8 @@ _bus_dmamap_load_buffer(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 
 		if (((dmat->flags & BUS_DMA_COULD_BOUNCE) != 0) &&
 		    map->pagesneeded != 0 && run_filter(dmat, curaddr)) {
-			curaddr = add_bounce_page(dmat, map, vaddr, sgsize);
+			curaddr = add_bounce_page(dmat, map, vaddr, curaddr,
+			    sgsize);
 		} else {
 			sl = &map->slist[map->sync_count - 1];
 			if (map->sync_count == 0 ||
@@ -1045,10 +1049,18 @@ _bus_dmamap_sync_bp(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 
 	STAILQ_FOREACH(bpage, &map->bpages, links) {
 		if (op & BUS_DMASYNC_PREWRITE) {
-			bcopy((void *)bpage->datavaddr,
-			    (void *)(bpage->vaddr_nocache != 0 ? 
-				     bpage->vaddr_nocache : bpage->vaddr),
-			    bpage->datacount);
+			if (bpage->datavaddr != 0)
+				bcopy((void *)bpage->datavaddr,
+				    (void *)(bpage->vaddr_nocache != 0 ? 
+					     bpage->vaddr_nocache :
+					     bpage->vaddr),
+				    bpage->datacount);
+			else
+				physcopyout(bpage->dataaddr,
+				    (void *)(bpage->vaddr_nocache != 0 ? 
+					     bpage->vaddr_nocache :
+					     bpage->vaddr),
+				    bpage->datacount);
 			if (bpage->vaddr_nocache == 0) {
 				mips_dcache_wb_range(bpage->vaddr,
 				    bpage->datacount);
@@ -1060,9 +1072,14 @@ _bus_dmamap_sync_bp(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 				mips_dcache_inv_range(bpage->vaddr,
 				    bpage->datacount);
 			}
-			bcopy((void *)(bpage->vaddr_nocache != 0 ? 
-	       		    bpage->vaddr_nocache : bpage->vaddr),
-			    (void *)bpage->datavaddr, bpage->datacount);
+			if (bpage->datavaddr != 0)
+				bcopy((void *)(bpage->vaddr_nocache != 0 ? 
+				    bpage->vaddr_nocache : bpage->vaddr),
+				    (void *)bpage->datavaddr, bpage->datacount);
+			else
+				physcopyin((void *)(bpage->vaddr_nocache != 0 ? 
+				    bpage->vaddr_nocache : bpage->vaddr),
+				    bpage->dataaddr, bpage->datacount);
 			dmat->bounce_zone->total_bounced++;
 		}
 	}
@@ -1251,7 +1268,7 @@ reserve_bounce_pages(bus_dma_tag_t dmat, bus_dmamap_t map, int commit)
 
 static bus_addr_t
 add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
-		bus_size_t size)
+		bus_addr_t addr, bus_size_t size)
 {
 	struct bounce_zone *bz;
 	struct bounce_page *bpage;
@@ -1284,6 +1301,7 @@ add_bounce_page(bus_dma_tag_t dmat, bus_dmamap_t map, vm_offset_t vaddr,
 		bpage->busaddr |= vaddr & PAGE_MASK;
 	}
 	bpage->datavaddr = vaddr;
+	bpage->dataaddr = addr;
 	bpage->datacount = size;
 	STAILQ_INSERT_TAIL(&(map->bpages), bpage, links);
 	return (bpage->busaddr);

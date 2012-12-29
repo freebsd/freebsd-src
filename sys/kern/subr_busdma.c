@@ -173,8 +173,9 @@ _bus_dmamap_load_ccb(bus_dma_tag_t dmat, bus_dmamap_t map, union ccb *ccb,
 		    kernel_pmap, flags, NULL, nsegs);
 		break;
 	case CAM_DATA_PADDR:
-		error = _bus_dmamap_load_phys(dmat, map, (vm_paddr_t)data_ptr,
-		    dxfer_len, flags, NULL, nsegs);
+		error = _bus_dmamap_load_phys(dmat, map,
+		    (vm_paddr_t)(uintptr_t)data_ptr, dxfer_len, flags, NULL,
+		    nsegs);
 		break;
 	case CAM_DATA_SG:
 		error = _bus_dmamap_load_vlist(dmat, map,
