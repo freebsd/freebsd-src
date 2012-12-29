@@ -415,6 +415,7 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 	NFSZERO_ATTRBIT(&attrbits);
 	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_CHANGE);
 	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_TIMEMODIFY);
+	NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_SIZE);
 	(void) nfsrv_putattrbit(nd, &attrbits);
 	if (syscred)
 		nd->nd_flag |= ND_USEGSSNAME;
@@ -444,9 +445,10 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 				  (NFSCLFLAGS_FIRSTDELEG | NFSCLFLAGS_GOTDELEG);
 			MALLOC(ndp, struct nfscldeleg *,
 			    sizeof (struct nfscldeleg) + newfhlen,
-			    M_NFSCLDELEG, M_WAITOK);
+			    M_NFSCLDELEG, M_WAITOK | M_ZERO);
 			LIST_INIT(&ndp->nfsdl_owner);
 			LIST_INIT(&ndp->nfsdl_lock);
+			LIST_INIT(&ndp->nfsdl_ldirty);
 			ndp->nfsdl_clp = op->nfso_own->nfsow_clp;
 			ndp->nfsdl_fhlen = newfhlen;
 			NFSBCOPY(newfhp, ndp->nfsdl_fh, newfhlen);
@@ -504,6 +506,7 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 			ndp->nfsdl_change = nfsva.na_filerev;
 			ndp->nfsdl_modtime = nfsva.na_mtime;
 			ndp->nfsdl_flags |= NFSCLDL_MODTIMESET;
+			ndp->nfsdl_opensize = nfsva.na_size;
 		}
 		if (!reclaim && (rflags & NFSV4OPEN_RESULTCONFIRM)) {
 		    do {
@@ -2027,9 +2030,10 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 				  (NFSCLFLAGS_FIRSTDELEG | NFSCLFLAGS_GOTDELEG);
 			MALLOC(dp, struct nfscldeleg *,
 			    sizeof (struct nfscldeleg) + NFSX_V4FHMAX,
-			    M_NFSCLDELEG, M_WAITOK);
+			    M_NFSCLDELEG, M_WAITOK | M_ZERO);
 			LIST_INIT(&dp->nfsdl_owner);
 			LIST_INIT(&dp->nfsdl_lock);
+			LIST_INIT(&dp->nfsdl_ldirty);
 			dp->nfsdl_clp = owp->nfsow_clp;
 			newnfs_copyincred(cred, &dp->nfsdl_cred);
 			nfscl_lockinit(&dp->nfsdl_rwlock);
@@ -2082,6 +2086,7 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 			dp->nfsdl_change = nnap->na_filerev;
 			dp->nfsdl_modtime = nnap->na_mtime;
 			dp->nfsdl_flags |= NFSCLDL_MODTIMESET;
+			dp->nfsdl_opensize = nnap->na_size;
 		}
 		/*
 		 * We can now complete the Open state.

@@ -136,6 +136,15 @@ struct nfsclowner {
 };
 
 /*
+ * List entry for dirty byte ranges for nfscldeleg.
+ */
+struct nfsldirty {
+	LIST_ENTRY(nfsldirty)	nfsw_list;
+	uint64_t		nfsw_first;
+	uint64_t		nfsw_end;
+};
+
+/*
  * MALLOC'd to the correct length to accommodate the file handle.
  */
 struct nfscldeleg {
@@ -153,21 +162,41 @@ struct nfscldeleg {
 	u_int64_t		nfsdl_size;	/* saved copy of file size */
 	u_int64_t		nfsdl_change;	/* and change attribute */
 	struct timespec		nfsdl_modtime;	/* local modify time */
+	u_int64_t		nfsdl_opensize;	/* size at open */
+	u_int64_t		nfsdl_localsize;/* locally stored file size */
+	LIST_HEAD(, nfsldirty)	nfsdl_ldirty;	/* locally mod. ranges */
+	u_int32_t		nfsdl_localiocnt; /* Local I/Os in prog */
+	vnode_t			nfsdl_filevp;	/* Local copy of file */
+	vnode_t			nfsdl_delegvp;	/* Delegation record file */
+	struct proc		*nfsdl_packratthread; /* Packrat copy thread */
 	u_int16_t		nfsdl_fhlen;
-	u_int8_t		nfsdl_flags;
+	u_int16_t		nfsdl_flags;
 	u_int8_t		nfsdl_fh[1];	/* must be last */
 };
 
 /*
  * nfsdl_flags bits.
  */
-#define	NFSCLDL_READ		0x01
-#define	NFSCLDL_WRITE		0x02
-#define	NFSCLDL_RECALL		0x04
-#define	NFSCLDL_NEEDRECLAIM	0x08
-#define	NFSCLDL_ZAPPED		0x10
-#define	NFSCLDL_MODTIMESET	0x20
-#define	NFSCLDL_DELEGRET	0x40
+#define	NFSCLDL_READ		0x0001
+#define	NFSCLDL_WRITE		0x0002
+#define	NFSCLDL_RECALL		0x0004
+#define	NFSCLDL_NEEDRECLAIM	0x0008
+#define	NFSCLDL_ZAPPED		0x0010
+#define	NFSCLDL_MODTIMESET	0x0020
+#define	NFSCLDL_DELEGRET	0x0040
+#define	NFSCLDL_COPYINPROG	0x0080
+#define	NFSCLDL_LOCALSIZESET	0x0100
+#define	NFSCLDL_HASCOPY		0x0200
+#define	NFSCLDL_WAITRECALL	0x0400
+
+/*
+ * Maximum length of a local filename used by the packrat daemons.
+ * 1 - indicates the type of file.
+ * 1 - indicates IPv4 vs IPv6 host address.
+ * 32 - maximum IP host address length.
+ * 174 - the maximum length of the file handle in ascii.
+ */
+#define	NFSPCKRAT_MAXFILELEN	(1 + 1 + 32 + 174)
 
 /*
  * MALLOC'd to the correct length to accommodate the file handle.

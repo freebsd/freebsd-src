@@ -1203,6 +1203,7 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 	struct file *fp;
 	struct nfscbd_args nfscbdarg;
 	struct nfsd_nfscbd_args nfscbdarg2;
+	char pathbuf[MAXPATHLEN - NFSPCKRAT_MAXFILELEN + 1];
 	int error;
 	struct nameidata nd;
 	struct nfscl_dumpmntopts dumpmntopts;
@@ -1261,6 +1262,14 @@ nfssvc_nfscl(struct thread *td, struct nfssvc_args *uap)
 			    dumpmntopts.ndmnt_blen);
 			free(buf, M_TEMP);
 		}
+	} else if (uap->flag & NFSSVC_PACKRAT) {
+		if (uap->argp == NULL)
+			return (EINVAL);
+		error = copyinstr(uap->argp, pathbuf,
+		    MAXPATHLEN - NFSPCKRAT_MAXFILELEN, NULL);
+		if (error == 0)
+			error = nfscbd_packrat(pathbuf);
+printf("pckerr=%d\n",error);
 	} else {
 		error = EINVAL;
 	}

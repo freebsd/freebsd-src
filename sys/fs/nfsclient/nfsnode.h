@@ -157,6 +157,7 @@ struct nfsnode {
 #define	NLOCKWANT	0x00010000  /* Want the sleep lock */
 #define	NNOLAYOUT	0x00020000  /* Can't get a layout for this file */
 #define	NWRITEOPENED	0x00040000  /* Has been opened for writing */
+#define	NLOCALCACHE	0x00080000  /* Copy cached locally */
 
 /*
  * Convert between nfsnode pointers and vnode pointers

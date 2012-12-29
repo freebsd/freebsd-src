@@ -82,7 +82,7 @@ static int nfs_directio_write(struct vnode *vp, struct uio *uiop,
 int
 ncl_getpages(struct vop_getpages_args *ap)
 {
-	int i, error, nextoff, size, toff, count, npages;
+	int i, error, nextoff, size, toff, count, npages, didread;
 	struct uio uio;
 	struct iovec iov;
 	vm_offset_t kva;
@@ -169,7 +169,9 @@ ncl_getpages(struct vop_getpages_args *ap)
 	uio.uio_rw = UIO_READ;
 	uio.uio_td = td;
 
-	error = ncl_readrpc(vp, &uio, cred);
+	error = nfscl_packratread(vp, &uio, 0, cred, &didread);
+	if (didread == 0)
+		error = ncl_readrpc(vp, &uio, cred);
 	pmap_qremove(kva, npages);
 
 	relpbuf(bp, &ncl_pbuf_freecnt);
@@ -245,7 +247,7 @@ ncl_putpages(struct vop_putpages_args *ap)
 	struct iovec iov;
 	vm_offset_t kva;
 	struct buf *bp;
-	int iomode, must_commit, i, error, npages, count;
+	int iomode, must_commit, i, error, npages, count, didwrite;
 	off_t offset;
 	int *rtvals;
 	struct vnode *vp;
@@ -325,7 +327,9 @@ ncl_putpages(struct vop_putpages_args *ap)
 	else
 	    iomode = NFSWRITE_FILESYNC;
 
-	error = ncl_writerpc(vp, &uio, cred, &iomode, &must_commit, 0);
+	error = nfscl_packratwrite(vp, &uio, 0, cred, NULL, &didwrite);
+	if (didwrite == 0)
+		error = ncl_writerpc(vp, &uio, cred, &iomode, &must_commit, 0);
 	crfree(cred);
 
 	pmap_qremove(kva, npages);
@@ -873,7 +877,7 @@ ncl_write(struct vop_write_args *ap)
 	struct vattr vattr;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	daddr_t lbn;
-	int bcount;
+	int bcount, didwrite;
 	int bp_cached, n, on, error = 0, error1;
 	size_t orig_resid, local_resid;
 	off_t orig_size, tmp_off;
@@ -900,6 +904,14 @@ ncl_write(struct vop_write_args *ap)
 	if (nmp->nm_wsize == 0)
 		(void) newnfs_iosize(nmp);
 	mtx_unlock(&nmp->nm_mtx);
+
+	/*
+	 * Do the write locally if there is a write delegation and packrats
+	 * have created a locally cached copy.
+	 */
+	error = nfscl_packratwrite(vp, uio, ioflag, cred, td, &didwrite);
+	if (didwrite != 0)
+		return (error);
 
 	/*
 	 * Synchronously flush pending buffers if we are in synchronous
@@ -1374,7 +1386,7 @@ ncl_vinvalbuf(struct vnode *vp, int flags, struct thread *td, int intrflg)
 	if (NFSHASPNFS(nmp))
 		nfscl_layoutcommit(vp, td);
 	mtx_lock(&np->n_mtx);
-	if (np->n_directio_asyncwr == 0)
+	if (np->n_directio_asyncwr == 0 && (np->n_flag & NLOCALCACHE) == 0)
 		np->n_flag &= ~NMODIFIED;
 	mtx_unlock(&np->n_mtx);
 out:
@@ -1548,7 +1560,8 @@ ncl_doio_directwrite(struct buf *bp)
 		mtx_lock(&np->n_mtx);
 		np->n_directio_asyncwr--;
 		if (np->n_directio_asyncwr == 0) {
-			np->n_flag &= ~NMODIFIED;
+			if ((np->n_flag & NLOCALCACHE) == 0)
+				np->n_flag &= ~NMODIFIED;
 			if ((np->n_flag & NFSYNCWAIT)) {
 				np->n_flag &= ~NFSYNCWAIT;
 				wakeup((caddr_t)&np->n_directio_asyncwr);

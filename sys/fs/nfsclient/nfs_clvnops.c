@@ -524,6 +524,9 @@ nfs_open(struct vop_open_args *ap)
 	 * so that we conform to RFC3530 Sec. 9.3.1.
 	 */
 	if (NFS_ISV4(vp)) {
+		/* Open any associated locally cached copy. */
+		nfscl_packratopen(vp, ap->a_td);
+
 		error = nfsrpc_open(vp, fmode, ap->a_cred, ap->a_td);
 		if (error) {
 			error = nfscl_maperr(ap->a_td, error, (uid_t)0,
@@ -778,6 +781,9 @@ nfs_close(struct vop_close_args *ap)
 			}
 		}
 
+		/* Close any associated locally cached copy. */
+		nfscl_packratclose(vp, ap->a_td);
+
 		/*
 		 * and do the close.
 		 */
@@ -849,10 +855,10 @@ nfs_getattr(struct vop_getattr_args *ap)
 		vap->va_bytes = vattr.va_bytes;
 		vap->va_filerev = vattr.va_filerev;
 		/*
-		 * Get the local modify time for the case of a write
+		 * Get the local modify time and size for the case of a write
 		 * delegation.
 		 */
-		nfscl_deleggetmodtime(vp, &vap->va_mtime);
+		nfscl_deleggetmod(vp, &vap->va_mtime, &vap->va_size);
 		return (0);
 	}
 
@@ -861,7 +867,8 @@ nfs_getattr(struct vop_getattr_args *ap)
 		NFSINCRGLOBAL(newnfsstats.accesscache_misses);
 		nfs34_access_otw(vp, NFSACCESS_ALL, td, ap->a_cred, NULL);
 		if (ncl_getattrcache(vp, ap->a_vap) == 0) {
-			nfscl_deleggetmodtime(vp, &ap->a_vap->va_mtime);
+			nfscl_deleggetmod(vp, &ap->a_vap->va_mtime,
+			    &vap->va_size);
 			return (0);
 		}
 	}
@@ -870,10 +877,10 @@ nfs_getattr(struct vop_getattr_args *ap)
 		error = nfscl_loadattrcache(&vp, &nfsva, vap, NULL, 0, 0);
 	if (!error) {
 		/*
-		 * Get the local modify time for the case of a write
+		 * Get the local modify time and size for the case of a write
 		 * delegation.
 		 */
-		nfscl_deleggetmodtime(vp, &vap->va_mtime);
+		nfscl_deleggetmod(vp, &vap->va_mtime, &vap->va_size);
 	} else if (NFS_ISV4(vp)) {
 		error = nfscl_maperr(td, error, (uid_t)0, (gid_t)0);
 	}
@@ -992,6 +999,9 @@ nfs_setattr(struct vop_setattr_args *ap)
 		vnode_pager_setsize(vp, tsize);
 		mtx_unlock(&np->n_mtx);
 	}
+	if (NFS_ISV4(vp) && error == 0 && vap->va_size != VNOVAL &&
+	    vp->v_type == VREG)
+		nfscl_packratsetsize(vp, vap->va_size);
 	return (error);
 }
 
@@ -1307,15 +1317,21 @@ nfs_lookup(struct vop_lookup_args *ap)
 
 /*
  * nfs read call.
- * Just call ncl_bioread() to do the work.
+ * Just call ncl_bioread() to do the work unless a packrat has made a
+ * local copy.
  */
 static int
 nfs_read(struct vop_read_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
+	int didread, error;
 
 	switch (vp->v_type) {
 	case VREG:
+		error = nfscl_packratread(vp, ap->a_uio, ap->a_ioflag,
+		    ap->a_cred, &didread);
+		if (didread != 0)
+			return (error);
 		return (ncl_bioread(vp, ap->a_uio, ap->a_ioflag, ap->a_cred));
 	case VDIR:
 		return (EISDIR);
@@ -2952,7 +2968,8 @@ loop:
 		np->n_flag &= ~NWRITEERR;
 	}
   	if (commit && bo->bo_dirty.bv_cnt == 0 &&
-	    bo->bo_numoutput == 0 && np->n_directio_asyncwr == 0)
+	    bo->bo_numoutput == 0 && np->n_directio_asyncwr == 0 &&
+	    (np->n_flag & NLOCALCACHE) == 0)
   		np->n_flag &= ~NMODIFIED;
 	mtx_unlock(&np->n_mtx);
 done:

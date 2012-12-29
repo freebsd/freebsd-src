@@ -522,7 +522,7 @@ int nfscl_renamedeleg(vnode_t, nfsv4stateid_t *, int *, vnode_t,
 void nfscl_reclaimnode(vnode_t);
 void nfscl_newnode(vnode_t);
 void nfscl_delegmodtime(vnode_t);
-void nfscl_deleggetmodtime(vnode_t, struct timespec *);
+void nfscl_deleggetmod(vnode_t, struct timespec *, uint64_t *);
 int nfscl_tryclose(struct nfsclopen *, struct ucred *,
     struct nfsmount *, NFSPROC_T *);
 void nfscl_cleanup(NFSPROC_T *);
@@ -541,6 +541,7 @@ void nfscl_freelayout(struct nfscllayout *);
 void nfscl_freeflayout(struct nfsclflayout *);
 void nfscl_freedevinfo(struct nfscldevinfo *);
 int nfscl_layoutcommit(vnode_t, NFSPROC_T *);
+struct nfscldeleg *nfscl_finddeleg(struct nfsclclient *, u_int8_t *, int);
 
 /* nfs_clport.c */
 int nfscl_nget(mount_t, vnode_t, struct nfsfh *,
@@ -654,4 +655,17 @@ void nfsrvd_init(int);
 /* nfs_clkrpc.c */
 int nfscbd_addsock(struct file *);
 int nfscbd_nfsd(NFSPROC_T *, struct nfsd_nfscbd_args *);
+
+/* nfs_clpackrat.c */
+void nfscl_packratsetup(struct nfscldeleg *, struct nfsmount *, struct ucred *,
+    NFSPROC_T *);
+void nfscl_packratopen(vnode_t, NFSPROC_T *);
+void nfscl_packratclose(vnode_t, NFSPROC_T *);
+int nfscbd_packrat(char *);
+int nfscl_packratread(vnode_t, struct uio *, int, struct ucred *, int *);
+int nfscl_packratwrite(vnode_t, struct uio *, int, struct ucred *,
+    NFSPROC_T *, int *);
+int nfscl_deleglocalflush(struct nfscldeleg *, struct nfsmount *, NFSPROC_T *,
+    int, int);
+void nfscl_packratsetsize(vnode_t, uint64_t);
 

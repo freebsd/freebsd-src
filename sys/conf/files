@@ -2388,6 +2388,7 @@ fs/nfsclient/nfs_clcomsubs.c	optional nfscl
 fs/nfsclient/nfs_clsubs.c	optional nfscl
 fs/nfsclient/nfs_clstate.c	optional nfscl
 fs/nfsclient/nfs_clkrpc.c	optional nfscl
+fs/nfsclient/nfs_clpackrat.c	optional nfscl
 fs/nfsclient/nfs_clrpcops.c	optional nfscl
 fs/nfsclient/nfs_clvnops.c	optional nfscl
 fs/nfsclient/nfs_clnode.c	optional nfscl
