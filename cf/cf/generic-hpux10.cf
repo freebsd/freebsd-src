@@ -16,8 +16,8 @@
 #####
 #####		SENDMAIL CONFIGURATION FILE
 #####
-##### built by ca@wiz.smi.sendmail.com on Sat May 14 21:31:13 PDT 2011
-##### in /extra/home/ca/sm-8.14.5/OpenSource/sendmail-8.14.5/cf/cf
+##### built by ca@wiz.smi.sendmail.com on Fri Dec 21 10:45:15 PST 2012
+##### in /extra/home/ca/sm-8.14.6/OpenSource/sendmail-8.14.6/cf/cf
 ##### using ../ as configuration include directory
 #####
 ######################################################################
@@ -42,7 +42,7 @@
 
 
 
-#####  $Id: proto.m4,v 8.744 2010/11/23 20:29:47 guenther Exp $  #####
+#####  $Id: proto.m4,v 8.760 2012/09/07 16:30:15 ca Exp $  #####
 
 # level 10 config file format
 V10/Berkeley
@@ -123,7 +123,7 @@ DnMAILER-DAEMON
 CPREDIRECT
 
 # Configuration version number
-DZ8.14.5
+DZ8.14.6
 
 
 ###############
@@ -930,6 +930,8 @@ SParseLocal=98
 R$* < @ $+ .REDIRECT. >		$: $1 < @ $2 . REDIRECT . > < ${opMode} >
 R$* < @ $+ .REDIRECT. > <i>	$: $1 < @ $2 . REDIRECT. >
 R$* < @ $+ .REDIRECT. > < $- >	$#error $@ 5.1.1 $: "551 User has moved; please try " <$1@$2>
+
+
 
 
 

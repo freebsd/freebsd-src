@@ -10,7 +10,7 @@ divert(-1)
 #
 #  Definitions for Makefile construction for sendmail
 #
-#	$Id: defines.m4,v 8.47 2006/10/06 05:44:44 ca Exp $
+#	$Id: defines.m4,v 8.48 2012/01/21 00:07:08 ashish Exp $
 #
 # temporary hack: if confREQUIRE_LIBSM is set then also set confREQUIRE_SM_OS_H
 ifdef(`confREQUIRE_LIBSM',`
@@ -68,10 +68,10 @@ INCDIRS= confINCDIRS
 LIBDIRS=confLIBDIRS
 
 # Additional libs needed
-LIBADD= ifdef(`conf_'bldCURRENT_PRD`_LIBS', `conf_'bldCURRENT_PRD`_LIBS') 
+LIBADD= ifdef(`conf_'bldCURRENT_PRD`_LIBS', `conf_'bldCURRENT_PRD`_LIBS')
 
 # libraries required on your system
-LIBS= ${LIBADD} ifdef(`confLIBS', `confLIBS') ifdef(`conf_'bldCURRENT_PRD`_LIB_POST', `conf_'bldCURRENT_PRD`_LIB_POST') 
+LIBS= ${LIBADD} ifdef(`confLIBS', `confLIBS') ifdef(`conf_'bldCURRENT_PRD`_LIB_POST', `conf_'bldCURRENT_PRD`_LIB_POST')
 
 # location of sendmail binary (usually /usr/sbin or /usr/lib)
 BINDIR=	ifdef(`confMBINDIR', `confMBINDIR', `/usr/sbin')
@@ -101,7 +101,7 @@ ifdef(`conf_'bldCURRENT_PRD`_SRCADD', `bldLIST_PUSH_ITEM(`bldSOURCES', `conf_'bl
 
 # additional .o files needed
 OBJADD=	ifdef(`confOBJADD', `confOBJADD')
-bldCURRENT_PRODUCT`OBJADD'= ifdef(`conf_'bldCURRENT_PRD`_OBJADD', `conf_'bldCURRENT_PRD`_OBJADD') ifdef(`confLIBADD', `bldADD_EXTENSIONS(`a', confLIBADD)', `') 
+bldCURRENT_PRODUCT`OBJADD'= ifdef(`conf_'bldCURRENT_PRD`_OBJADD', `conf_'bldCURRENT_PRD`_OBJADD') ifdef(`confLIBADD', `bldADD_EXTENSIONS(`a', confLIBADD)', `')
 
 # copy files
 CP= ifdef(`confCOPY', `confCOPY', `cp')

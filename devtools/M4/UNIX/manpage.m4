@@ -10,7 +10,7 @@ divert(-1)
 #
 #  Definitions for Makefile construction for sendmail
 #
-#	$Id: manpage.m4,v 8.15 2006/09/07 22:13:07 ca Exp $
+#	$Id: manpage.m4,v 8.16 2012/01/21 00:07:08 ashish Exp $
 #
 divert(0)dnl
 
@@ -51,7 +51,7 @@ MAN8MAN=${MANROOTMAN}ifdef(`confMAN8', `confMAN8', `8')
 MAN8EXT=ifdef(`confMAN8EXT', `confMAN8EXT', `8')
 MAN8SRC=ifdef(`confMAN8SRC', `confMAN8SRC', `0')
 
-define(`bldMAN_TARGET_NAME', 
+define(`bldMAN_TARGET_NAME',
 `bldGET_MAN_BASE_NAME($1).${MAN`'bldGET_MAN_SOURCE_NUM($1)`SRC}' 'dnl
 )dnl
 MANPAGES= bldFOREACH(`bldMAN_TARGET_NAME(', `bldMAN_PAGES')
@@ -66,11 +66,11 @@ bldFOREACH(`bldMAN_BUILD_CMD(', `bldMAN_PAGES')
 
 install-docs: ${MANPAGES}
 ifdef(`confNO_MAN_INSTALL', `divert(-1)', `dnl')
-define(`bldMAN_INSTALL_CMD', 
-`ifdef(`confDONT_INSTALL_CATMAN', `dnl', 
+define(`bldMAN_INSTALL_CMD',
+`ifdef(`confDONT_INSTALL_CATMAN', `dnl',
 `	ifdef(`confMKDIR', `if [ ! -d ${DESTDIR}${MAN'bldGET_MAN_SOURCE_NUM($1)`SRC} ]; then confMKDIR -p ${DESTDIR}${MAN'bldGET_MAN_SOURCE_NUM($1)`SRC}; else :; fi ')
 	${INSTALL} -c -o ${MANOWN} -g ${MANGRP} -m ${MANMODE} bldGET_MAN_BASE_NAME($1).`${MAN'bldGET_MAN_SOURCE_NUM($1)`SRC}' `${DESTDIR}${MAN'bldGET_MAN_SOURCE_NUM($1)}/bldGET_MAN_BASE_NAME($1)`.${MAN'bldGET_MAN_SOURCE_NUM($1)`EXT}'')
-ifdef(`confINSTALL_RAWMAN', 
+ifdef(`confINSTALL_RAWMAN',
 `	ifdef(`confMKDIR', `if [ ! -d ${DESTDIR}${MAN'bldGET_MAN_SOURCE_NUM($1)`MAN} ]; then confMKDIR -p ${DESTDIR}${MAN'bldGET_MAN_SOURCE_NUM($1)`MAN}; else :; fi ')
 	${INSTALL} -c -o ${MANOWN} -g ${MANGRP} -m ${MANMODE} bldGET_MAN_BASE_NAME($1).bldGET_MAN_SOURCE_NUM($1) `${DESTDIR}${MAN'bldGET_MAN_SOURCE_NUM($1)`MAN}'/bldGET_MAN_BASE_NAME($1)`.${MAN'bldGET_MAN_SOURCE_NUM($1)`EXT}'', `dnl')'
 )dnl

@@ -10,7 +10,7 @@ divert(-1)
 #
 #  Definitions for Makefile construction for sendmail
 #
-#	$Id: switch.m4,v 8.17 2008/08/06 22:41:33 guenther Exp $
+#	$Id: switch.m4,v 8.18 2012/01/21 00:07:07 ashish Exp $
 #
 divert(0)dnl
 include(confBUILDTOOLSDIR`/M4/string.m4')dnl
@@ -57,7 +57,7 @@ define(`bldPRODUCT_END',
 
 include(confBUILDTOOLSDIR`/M4/'bldM4_TYPE_DIR`/smlib.m4')dnl
 
-define(`bldFINISH', 
+define(`bldFINISH',
 ifdef(`bldDONT_INCLUDE_ALL', ,``include(confBUILDTOOLSDIR`/M4/'bldM4_TYPE_DIR`/all.m4')'')dnl
 undivert(bldTARGETS_SECTION)dnl
 )dnl
