@@ -77,6 +77,11 @@ unset XDIALOG_INFOBOX_TIMEOUT
 #
 : ${DIALOG_SELF_INITIALIZE=1}
 
+#
+# Default terminal size (used if/when running without a controlling terminal)
+#
+: ${DEFAULT_TERMINAL_SIZE:=24 80}
+
 ############################################################ GENERIC FUNCTIONS
 
 # f_dialog_title [$new_title]
@@ -193,7 +198,8 @@ f_dialog_infobox_size()
 		max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
 	else
 		min_width=24
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 
 	local max_height="${max_size%%[$IFS]*}"
@@ -325,7 +331,8 @@ f_dialog_buttonbox_size()
 	if [ "$USE_XDIALOG" ]; then
 		max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
 	else
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 	local max_height="${max_size%%[$IFS]*}"
 	[ $height -le $max_height ] || height=$max_height
@@ -363,7 +370,8 @@ f_dialog_inputbox_size()
 		max_size="$XDIALOG_MAXSIZE" # see CONFIGURATION
 	else
 		min_width=24
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 	local max_height="${max_size%%[$IFS]*}"
 	local max_width="${max_size##*[$IFS]}"
@@ -521,7 +529,8 @@ f_dialog_menu_size()
 	else
 		min_width=24
 		min_rows=0
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 
 	local max_width="${max_size##*[$IFS]}"
@@ -603,7 +612,8 @@ f_dialog_menu_with_help_size()
 	else
 		min_width=24
 		min_rows=0
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 
 	local max_width="${max_size##*[$IFS]}"
@@ -702,7 +712,8 @@ f_dialog_radiolist_size()
 	else
 		min_width=24
 		min_rows=0
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 
 	local max_width="${max_size##*[$IFS]}"
@@ -788,7 +799,8 @@ f_dialog_calendar_size()
 	else
 		min_height=0
 		min_width=40
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 	local max_height="${max_size%%[$IFS]*}"
 	local max_width="${max_size##*[$IFS]}"
@@ -866,7 +878,8 @@ f_dialog_timebox_size()
 	else
 		min_height=0
 		min_width=20
-		max_size=$( stty size ) # usually "24 80"
+		max_size=$( stty size 2> /dev/null ) # usually "24 80"
+		: ${max_size:=$DEFAULT_TERMINAL_SIZE}
 	fi
 	local max_height="${max_size%%[$IFS]*}"
 	local max_width="${max_size##*[$IFS]}"
