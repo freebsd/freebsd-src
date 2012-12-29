@@ -938,7 +938,7 @@ f_dialog_clear()
 # f_dialog_info $info_text ...
 #
 # Throw up a dialog(1) infobox. The infobox remains until another dialog is
-# displayed or `dialog --clear' (or dialog_clear) is called.
+# displayed or `dialog --clear' (or f_dialog_clear) is called.
 #
 f_dialog_info()
 {
@@ -1494,6 +1494,9 @@ f_dialog_init()
 
 ############################################################ MAIN
 
+#
+# Self-initialize unless requested otherwise
+#
 f_dprintf "%s: DIALOG_SELF_INITIALIZE=[%s]" \
           dialog.subr "$DIALOG_SELF_INITIALIZE"
 case "$DIALOG_SELF_INITIALIZE" in
