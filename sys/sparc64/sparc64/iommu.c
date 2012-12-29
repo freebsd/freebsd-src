@@ -854,11 +854,112 @@ static int
 iommu_dvmamap_load_phys(bus_dma_tag_t dmat, bus_dmamap_t map, vm_paddr_t buf,
     bus_size_t buflen, int flags, bus_dma_segment_t *segs, int *segp)
 {
+	bus_addr_t amask, dvmaddr, dvmoffs;
+	bus_size_t sgsize, esize;
+	struct iommu_state *is;
+	vm_offset_t voffs;
+	vm_paddr_t curaddr;
+	int error, firstpg, sgcnt;
+	u_int slot;
 
-	/*
-	 * Did we fit?
-	 */
-	return (buflen != 0 ? EFBIG : 0);
+	is = dt->dt_cookie;
+	if (*segp == -1) {
+		if ((map->dm_flags & DMF_LOADED) != 0) {
+#ifdef DIAGNOSTIC
+			printf("%s: map still in use\n", __func__);
+#endif
+			bus_dmamap_unload(dt, map);
+		}
+
+		/*
+		 * Make sure that the map is not on a queue so that the
+		 * resource list may be safely accessed and modified without
+		 * needing the lock to cover the whole operation.
+		 */
+		IS_LOCK(is);
+		iommu_map_remq(is, map);
+		IS_UNLOCK(is);
+
+		amask = dt->dt_alignment - 1;
+	} else
+		amask = 0;
+	KASSERT(buflen != 0, ("%s: buflen == 0!", __func__));
+	if (buflen > dt->dt_maxsize)
+		return (EINVAL);
+
+	if (segs == NULL)
+		segs = dt->dt_segments;
+
+	voffs = buf & IO_PAGE_MASK;
+
+	/* Try to find a slab that is large enough. */
+	error = iommu_dvma_vallocseg(dt, is, map, voffs, buflen, amask,
+	    &dvmaddr);
+	if (error != 0)
+		return (error);
+
+	sgcnt = *segp;
+	firstpg = 1;
+	map->dm_flags &= ~DMF_STREAMED;
+	map->dm_flags |= iommu_use_streaming(is, map, buflen) != 0 ?
+	    DMF_STREAMED : 0;
+	for (; buflen > 0; ) {
+		curaddr = buf;
+
+		/*
+		 * Compute the segment size, and adjust counts.
+		 */
+		sgsize = IO_PAGE_SIZE - ((u_long)buf & IO_PAGE_MASK);
+		if (buflen < sgsize)
+			sgsize = buflen;
+
+		buflen -= sgsize;
+		buf += sgsize;
+
+		dvmoffs = trunc_io_page(dvmaddr);
+		iommu_enter(is, dvmoffs, trunc_io_page(curaddr),
+		    (map->dm_flags & DMF_STREAMED) != 0, flags);
+		if ((is->is_flags & IOMMU_FLUSH_CACHE) != 0) {
+			slot = IOTSBSLOT(dvmoffs);
+			if (buflen <= 0 || slot % 8 == 7)
+				IOMMU_WRITE8(is, is_iommu, IMR_CACHE_FLUSH,
+				    is->is_ptsb + slot * 8);
+		}
+
+		/*
+		 * Chop the chunk up into segments of at most maxsegsz, but try
+		 * to fill each segment as well as possible.
+		 */
+		if (!firstpg) {
+			esize = ulmin(sgsize,
+			    dt->dt_maxsegsz - segs[sgcnt].ds_len);
+			segs[sgcnt].ds_len += esize;
+			sgsize -= esize;
+			dvmaddr += esize;
+		}
+		while (sgsize > 0) {
+			sgcnt++;
+			if (sgcnt >= dt->dt_nsegments)
+				return (EFBIG);
+			/*
+			 * No extra alignment here - the common practice in
+			 * the busdma code seems to be that only the first
+			 * segment needs to satisfy the alignment constraints
+			 * (and that only for bus_dmamem_alloc()ed maps).
+			 * It is assumed that such tags have maxsegsize >=
+			 * maxsize.
+			 */
+			esize = ulmin(sgsize, dt->dt_maxsegsz);
+			segs[sgcnt].ds_addr = dvmaddr;
+			segs[sgcnt].ds_len = esize;
+			sgsize -= esize;
+			dvmaddr += esize;
+		}
+
+		firstpg = 0;
+	}
+	*segp = sgcnt;
+	return (0);
 }
 
 /*
