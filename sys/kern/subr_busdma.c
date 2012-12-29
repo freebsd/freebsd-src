@@ -217,6 +217,31 @@ _busdma_md_dump(const char *func, device_t dev, struct busdma_md *md)
 #endif
 }
 
+static void
+_busdma_data_dump(const char *func, struct busdma_md *md, bus_addr_t addr,
+    bus_size_t len)
+{
+#ifdef BUSDMA_DEBUG
+	struct busdma_md_seg *seg;
+	void *va;
+	bus_addr_t pa;
+	int sz;
+
+	printf("[%s: %s: md=%p {\n", func,
+	    device_get_nameunit(md->md_tag->dt_device), md);
+	TAILQ_FOREACH(seg, &md->md_seg, mds_chain) {
+		if (seg->mds_busaddr + seg->mds_size <= addr ||
+		    addr + len <= seg->mds_busaddr)
+			continue;
+		pa = MAX(seg->mds_busaddr, addr);
+		sz = MIN(seg->mds_busaddr + seg->mds_size, addr + len) - pa;
+		va = (void *)(seg->mds_vaddr + (pa - seg->mds_busaddr));
+		printf("%#jx: %*D\n", (uintmax_t)pa, sz, va, " ");
+	}
+	printf("}]\n");
+#endif
+}
+
 /* Section 3.3: API support functions. */
 
 static struct busdma_md_seg *
@@ -231,7 +256,7 @@ _busdma_md_get_seg(struct busdma_md *md, u_int idx)
 		if (seg->mds_idx == idx)
 			return (seg);
 	}
-	/* XXX getting here means we probably have a bug... */
+
 	return (NULL);
 }
 
@@ -398,8 +423,10 @@ _busdma_md_load(struct busdma_md *md, pmap_t pm, vm_offset_t va, vm_size_t len)
 		pgsz = PAGE_SIZE - (va & PAGE_MASK);
 		sz = MIN(len, maxsegsz);
 		sz = MIN(pgsz, sz);
+		/* Extend last segment if possible. */
 		if (seg != NULL && seg->mds_size < maxsegsz &&
-		    seg->mds_paddr + seg->mds_size == pa) {
+		    seg->mds_paddr + seg->mds_size == pa &&
+		    seg->mds_vaddr + seg->mds_size == va) {
 			catsz = maxsegsz - seg->mds_size;
 			catsz = MIN(sz, catsz);
 			seg->mds_size += catsz;
@@ -421,9 +448,9 @@ _busdma_md_load(struct busdma_md *md, pmap_t pm, vm_offset_t va, vm_size_t len)
 		seg->mds_idx = idx++;
 		TAILQ_INSERT_TAIL(&md->md_seg, seg, mds_chain);
 		md->md_nsegs++;
-		seg->mds_busaddr = ~0U;
+		seg->mds_busaddr = ~0UL;
 		seg->mds_paddr = pa;
-		seg->mds_vaddr = 0;
+		seg->mds_vaddr = va;
 		seg->mds_size = sz;
 		len -= sz;
 		va += sz;
@@ -555,11 +582,14 @@ bus_addr_t
 busdma_md_get_busaddr(struct busdma_md *md, u_int idx)
 {
 	struct busdma_md_seg *seg;
+	bus_addr_t busaddr;
 
 	CTR3(KTR_BUSDMA, "%s: md=%p, idx=%u", __func__, md, idx);
 
 	seg = _busdma_md_get_seg(md, idx);
-	return ((seg != NULL) ? seg->mds_busaddr : ~0UL);
+	busaddr = (seg != NULL) ? seg->mds_busaddr : ~0UL;
+	KASSERT(busaddr != ~0UL, ("%s: invalid busaddr", __func__));
+	return (busaddr);
 }
 
 u_int
@@ -575,33 +605,42 @@ vm_paddr_t
 busdma_md_get_paddr(struct busdma_md *md, u_int idx)
 {
 	struct busdma_md_seg *seg;
+	vm_paddr_t paddr;
 
 	CTR3(KTR_BUSDMA, "%s: md=%p, idx=%u", __func__, md, idx);
 
 	seg = _busdma_md_get_seg(md, idx);
-	return ((seg != NULL) ? seg->mds_paddr : ~0UL);
+	paddr = (seg != NULL) ? seg->mds_paddr : ~0UL;
+	KASSERT(paddr != ~0UL, ("%s: invalid paddr", __func__));
+	return (paddr);
 }
 
 vm_size_t
 busdma_md_get_size(struct busdma_md *md, u_int idx)
 {
 	struct busdma_md_seg *seg;
+	vm_size_t size;
 
 	CTR3(KTR_BUSDMA, "%s: md=%p, idx=%u", __func__, md, idx);
 
 	seg = _busdma_md_get_seg(md, idx);
-	return ((seg != NULL) ? seg->mds_size : 0UL);
+	size = (seg != NULL) ? seg->mds_size : 0UL;
+	KASSERT(size != 0UL, ("%s: invalid size", __func__));
+	return (size);
 }
 
 vm_offset_t
 busdma_md_get_vaddr(struct busdma_md *md, u_int idx)
 {
 	struct busdma_md_seg *seg;
+	vm_offset_t vaddr;
 
 	CTR3(KTR_BUSDMA, "%s: md=%p, idx=%u", __func__, md, idx);
 
 	seg = _busdma_md_get_seg(md, idx);
-	return ((seg != NULL) ? seg->mds_vaddr : 0);
+	vaddr = (seg != NULL) ? seg->mds_vaddr : 0UL;
+	KASSERT(vaddr != 0UL, ("%s: invalid vaddr", __func__));
+	return (vaddr);
 }
 
 int
@@ -635,6 +674,7 @@ busdma_md_load_phys(struct busdma_md *md, vm_paddr_t buf, size_t len,
 	    "cb=%p, arg=%p, flags=%#x", md, (uintmax_t)buf, len, cb, arg,
 	    flags);
 
+	panic(__func__);
 	(*cb)(arg, md, ENOSYS);
 	return (0);
 }
@@ -647,6 +687,7 @@ busdma_md_load_uio(struct busdma_md *md, struct uio *uio,
 	CTR6(KTR_BUSDMA, "%s: md=%p, uio=%p, cb=%p, arg=%p, flags=%#x",
 	    __func__, md, uio, cb, arg, flags);
 
+	panic(__func__);
 	(*cb)(arg, md, ENOSYS);
 	return (0);
 }
@@ -788,6 +829,9 @@ busdma_sync(struct busdma_md *md, u_int op)
 {
 
 	CTR3(KTR_BUSDMA, "%s: md=%p, op=%#x", __func__, md, op);
+
+	if ((op & BUSDMA_SYNC_PREWRITE) || (op & BUSDMA_SYNC_POSTREAD))
+		_busdma_data_dump(__func__, md, 0UL, ~0UL);
 }
 
 void
@@ -796,5 +840,8 @@ busdma_sync_range(struct busdma_md *md, u_int op, bus_addr_t addr,
 {
 
 	CTR5(KTR_BUSDMA, "%s: md=%p, op=%#x, addr=%#jx, len=%#jx", __func__,
-	    md, op, addr, len);
+	    md, op, (uintmax_t)addr, (uintmax_t)len);
+
+	if ((op & BUSDMA_SYNC_PREWRITE) || (op & BUSDMA_SYNC_POSTREAD))
+		_busdma_data_dump(__func__, md, addr, len);
 }
