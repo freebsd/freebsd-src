@@ -806,8 +806,9 @@ mpt_intr(void *arg)
 			    " 0x%x)\n", req_index, reply_desc);
 		}
 
-		busdma_sync(mpt->request_md,
-		    BUSDMA_SYNC_POSTREAD | BUSDMA_SYNC_POSTWRITE);
+		busdma_sync_range(mpt->request_md,
+		    BUSDMA_SYNC_POSTREAD | BUSDMA_SYNC_POSTWRITE,
+		    req->req_pbuf, MPT_REQUEST_AREA);
 		free_rf = mpt_reply_handlers[cb_index](mpt, req,
 		    reply_desc, reply_frame);
 
@@ -846,8 +847,9 @@ mpt_complete_request_chain(struct mpt_softc *mpt, struct req_queue *chain,
 		MSG_REQUEST_HEADER *msg_hdr;
 		u_int		    cb_index;
 
-		busdma_sync(mpt->request_md,
-		    BUSDMA_SYNC_POSTREAD | BUSDMA_SYNC_POSTWRITE);
+		busdma_sync_range(mpt->request_md,
+		    BUSDMA_SYNC_POSTREAD | BUSDMA_SYNC_POSTWRITE,
+		    req->req_pbuf, MPT_REQUEST_AREA);
 		msg_hdr = (MSG_REQUEST_HEADER *)req->req_vbuf;
 		ioc_status_frame.Function = msg_hdr->Function;
 		ioc_status_frame.MsgContext = msg_hdr->MsgContext;
@@ -1235,7 +1237,7 @@ mpt_free_request(struct mpt_softc *mpt, request_t *req)
 	mpt_send_event_ack(mpt, req, &record->reply, record->context);
 	offset = (uint32_t)((uint8_t *)record - mpt->reply);
 	reply_baddr = offset + (mpt->reply_phys & 0xFFFFFFFF);
-	busdma_sync_range(mpt->reply_md, BUSDMA_SYNC_PREREAD, offset,
+	busdma_sync_range(mpt->reply_md, BUSDMA_SYNC_PREREAD, reply_baddr,
 	    MPT_REPLY_SIZE);
 	mpt_free_reply(mpt, reply_baddr);
 }
@@ -1276,8 +1278,9 @@ mpt_send_cmd(struct mpt_softc *mpt, request_t *req)
 	if (mpt->verbose > MPT_PRT_DEBUG2) {
 		mpt_dump_request(mpt, req);
 	}
-	busdma_sync(mpt->request_md,
-	    BUSDMA_SYNC_PREREAD | BUSDMA_SYNC_PREWRITE);
+	busdma_sync_range(mpt->request_md,
+	    BUSDMA_SYNC_PREREAD | BUSDMA_SYNC_PREWRITE,
+	    req->req_pbuf, MPT_REQUEST_AREA);
 	req->state |= REQ_STATE_QUEUED;
 	KASSERT(mpt_req_on_free_list(mpt, req) == 0,
 	    ("req %p:%u func %x on freelist list in mpt_send_cmd",
