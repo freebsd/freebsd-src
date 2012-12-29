@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2003-2004, 2007, 2009-2011 Sendmail, Inc. and its suppliers.
+ *  Copyright (c) 2003-2004, 2007, 2009-2012 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -11,7 +11,7 @@
  */
 
 #include <sm/gen.h>
-SM_RCSID("@(#)$Id: worker.c,v 8.19 2011/02/14 23:33:48 ca Exp $")
+SM_RCSID("@(#)$Id: worker.c,v 8.24 2012/03/13 15:37:46 ca Exp $")
 
 #include "libmilter.h"
 
@@ -141,7 +141,8 @@ static int mi_list_del_ctx __P((SMFICTX_PTR));
 
 #if POOL_DEBUG
 # define POOL_LEV_DPRINTF(lev, x)					\
-	do {								\
+	do								\
+	{								\
 		if ((lev) < ctx->ctx_dbg)				\
 			sm_dprintf x;					\
 	} while (0)
@@ -377,7 +378,7 @@ mi_pool_controller(arg)
 	for (;;)
 	{
 		SMFICTX_PTR ctx;
-		int nfd, rfd, i;
+		int nfd, r, i;
 		time_t now;
 
 		POOL_LEV_DPRINTF(4, ("Let's %s again...", WAITFN));
@@ -498,19 +499,19 @@ mi_pool_controller(arg)
 		TASKMGR_UNLOCK();
 
 		/* Everything is ready, let's wait for an event */
-		rfd = poll(pfd, nfd, POLL_TIMEOUT);
+		r = poll(pfd, nfd, POLL_TIMEOUT);
 
 		POOL_LEV_DPRINTF(4, ("%s returned: at epoch %d value %d",
 			WAITFN, now, nfd));
 
 		/* timeout */
-		if (rfd == 0)
+		if (r == 0)
 			continue;
 
 		rebuild_set = true;
 
 		/* error */
-		if (rfd < 0)
+		if (r < 0)
 		{
 			if (errno == EINTR)
 				continue;
@@ -522,6 +523,7 @@ mi_pool_controller(arg)
 
 			if (pcnt >= MAX_FAILS_S)
 				goto err;
+			continue;
 		}
 		pcnt = 0;
 
@@ -535,7 +537,7 @@ mi_pool_controller(arg)
 				WAITFN, i, nfd,
 			WAIT_FD(i)));
 
-			/* has a worker signaled an end of task ? */
+			/* has a worker signaled an end of task? */
 			if (WAIT_FD(i) == RD_PIPE)
 			{
 				char evts[256];
@@ -563,7 +565,12 @@ mi_pool_controller(arg)
 				continue;
 			}
 
-			/* no ! sendmail wants to send a command */
+			/*
+			**  Not the pipe for workers waking us,
+			**  so must be something on an MTA connection.
+			*/
+
+			TASKMGR_LOCK();
 			SM_TAILQ_FOREACH(ctx, &WRK_CTX_HEAD, ctx_link)
 			{
 				if (ctx->ctx_wstate != WKST_WAITING)
@@ -575,7 +582,6 @@ mi_pool_controller(arg)
 
 				if (ctx->ctx_sd == pfd[i].fd)
 				{
-					TASKMGR_LOCK();
 
 					POOL_LEV_DPRINTF(4,
 						("TASK: found %d for fd[%d]=%d",
@@ -591,10 +597,10 @@ mi_pool_controller(arg)
 						ctx->ctx_wstate = WKST_RUNNING;
 						LAUNCH_WORKER(ctx);
 					}
-					TASKMGR_UNLOCK();
 					break;
 				}
 			}
+			TASKMGR_UNLOCK();
 
 			POOL_LEV_DPRINTF(4,
 				("TASK %s FOUND - Checking PIPE for fd[%d]",
@@ -607,6 +613,14 @@ mi_pool_controller(arg)
 		free(pfd);
 
 	Tskmgr.tm_signature = 0;
+#if 0
+	/*
+	**  Do not clean up ctx -- it can cause double-free()s.
+	**  The program is shutting down anyway, so it's not worth the trouble.
+	**  There is a more complex solution that prevents race conditions
+	**  while accessing ctx, but that's maybe for a later version.
+	*/
+
 	for (;;)
 	{
 		SMFICTX_PTR ctx;
@@ -616,6 +630,7 @@ mi_pool_controller(arg)
 			break;
 		mi_close_session(ctx);
 	}
+#endif
 
 	(void) smutex_destroy(&Tskmgr.tm_w_mutex);
 	(void) scond_destroy(&Tskmgr.tm_w_cond);
