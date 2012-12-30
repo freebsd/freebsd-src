@@ -995,8 +995,8 @@
 	support has been fixed.</para>
 
       <para revision="232486">The &man.ifconfig.8; utility now
-	supports a <literal>carp
-	<replaceable>state</replaceable></literal> parameter to set
+	supports a <literal>carp state <replaceable>state</replaceable></literal>
+	parameter to set
 	the state to <literal>backup</literal> or
 	<literal>master</literal> forcibly.</para>
 
